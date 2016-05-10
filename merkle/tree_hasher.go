@@ -17,9 +17,10 @@ type TreeHasher struct {
 	nodeHasher func([]byte) trillian.Hash
 }
 
-// NewTreeHasher returns a new TreeHasher based on the passed in hasher.
+// NewTreeHasher creates a new TreeHasher based on the passed in hash function.
 func NewTreeHasher(hasher trillian.Hasher) TreeHasher {
 	return TreeHasher{
+		Hasher:     hasher,
 		leafHasher: leafHasher(hasher),
 		nodeHasher: nodeHasher(hasher),
 	}

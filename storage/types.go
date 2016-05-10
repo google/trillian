@@ -26,6 +26,7 @@ type NodeID struct {
 	// e.g. if Path contains two bytes, and PrefixLenBits is 9, then the 8 bits
 	// in Path[1] are included, along with the highest bit of Path[0]
 	PrefixLenBits int
+	PathLenBits   int
 }
 
 // bytesForBits returns the number of bytes required to store numBits bits.
@@ -39,10 +40,19 @@ func bytesForBits(numBits int) int {
 
 // NewEmptyNodeID creates a new zero-length NodeID with sufficient underlying
 // capacity to store a maximum of maxLenBits.
+func NewNodeIDFromHash(h trillian.Hash) NodeID {
+	return NodeID{
+		Path:          h,
+		PathLenBits:   len(h) * 8,
+		PrefixLenBits: len(h) * 8,
+	}
+}
+
 func NewEmptyNodeID(maxLenBits int) NodeID {
 	return NodeID{
 		Path:          make([]byte, bytesForBits(maxLenBits)),
 		PrefixLenBits: 0,
+		PathLenBits:   maxLenBits,
 	}
 }
 
@@ -52,6 +62,7 @@ func NewNodeIDWithPrefix(prefix uint64, prefixLenBits, nodeIDLenBits, maxLenBits
 	p := NodeID{
 		Path:          make([]byte, maxLenBytes),
 		PrefixLenBits: nodeIDLenBits,
+		PathLenBits:   maxLenBits,
 	}
 
 	bit := maxLenBits - prefixLenBits
@@ -95,10 +106,28 @@ func (n *NodeID) Bit(i int) uint {
 // The left-most bit is the MSB (i.e. nearer the root of the tree).
 func (n *NodeID) String() string {
 	var r bytes.Buffer
-	for i := n.PrefixLenBits - 1; i >= 0; i-- {
+	limit := n.PathLenBits - n.PrefixLenBits
+	for i := n.PathLenBits - 1; i >= limit; i-- {
+		//fmt.Printf("%d (pathlen=%d, prefix=%x, limit=%d)\n", i, n.PathLenBits, n.PrefixLenBits, limit)
 		r.WriteRune(rune('0' + n.Bit(i)))
 	}
 	return r.String()
+}
+
+func (n *NodeID) Siblings() []NodeID {
+	r := make([]NodeID, n.PrefixLenBits, n.PrefixLenBits)
+	l := n.PrefixLenBits
+	// Index of the bit to twiddle:
+	bi := n.PathLenBits - n.PrefixLenBits
+	for i := 0; i < len(r); i++ {
+		r[i].PrefixLenBits = l - i
+		r[i].Path = make([]byte, len(n.Path))
+		r[i].PathLenBits = n.PathLenBits
+		copy(r[i].Path, n.Path)
+		r[i].SetBit(bi, n.Bit(bi)^1)
+		bi++
+	}
+	return r
 }
 
 func (n *NodeID) AsProto() *NodeIDProto {
@@ -107,4 +136,9 @@ func (n *NodeID) AsProto() *NodeIDProto {
 
 func NewNodeIDFromProto(p NodeIDProto) *NodeID {
 	return &NodeID{p.Path, int(*p.PrefixLenBits)}
+}
+
+// Equivalent return true iff the other represents the same path prefix as this NodeID.
+func (n *NodeID) Equivalent(other NodeID) bool {
+	return n.String() == other.String()
 }

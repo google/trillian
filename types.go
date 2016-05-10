@@ -60,3 +60,9 @@ type MapLeaf struct {
 	// Leaf holds the leaf data itself.
 	Leaf
 }
+
+// Key is a map key.
+type Key []byte
+
+// HashFunc is a general hasher function prototype.
+type HashFunc func([]byte) Hash
