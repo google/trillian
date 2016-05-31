@@ -1,0 +1,112 @@
+package merkle
+
+import (
+	"bytes"
+	"encoding/hex"
+	"testing"
+
+	"github.com/google/trillian"
+)
+
+func mustHexDecode(b string) trillian.Hash {
+	r, err := hex.DecodeString(b)
+	if err != nil {
+		panic(err)
+	}
+	return r
+}
+
+func getInputs() []trillian.Hash {
+	return []trillian.Hash{
+		trillian.Hash(""), trillian.Hash("\x00"), trillian.Hash("\x10"), trillian.Hash("\x20\x21"), trillian.Hash("\x30\x31"),
+		trillian.Hash("\x40\x41\x42\x43"), trillian.Hash("\x50\x51\x52\x53\x54\x55\x56\x57"),
+		trillian.Hash("\x60\x61\x62\x63\x64\x65\x66\x67\x68\x69\x6a\x6b\x6c\x6d\x6e\x6f")}
+}
+
+func getTestRoots() []trillian.Hash {
+	return []trillian.Hash{
+		// constants from C++ test: https://github.com/google/certificate-transparency/blob/master/cpp/merkletree/merkle_tree_test.cc#L277
+		mustHexDecode("6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d"),
+		mustHexDecode("fac54203e7cc696cf0dfcb42c92a1d9dbaf70ad9e621f4bd8d98662f00e3c125"),
+		mustHexDecode("aeb6bcfe274b70a14fb067a5e5578264db0fa9b51af5e0ba159158f329e06e77"),
+		mustHexDecode("d37ee418976dd95753c1c73862b9398fa2a2cf9b4ff0fdfe8b30cd95209614b7"),
+		mustHexDecode("4e3bbb1f7b478dcfe71fb631631519a3bca12c9aefca1612bfce4c13a86264d4"),
+		mustHexDecode("76e67dadbcdf1e10e1b74ddc608abd2f98dfb16fbce75277b5232a127f2087ef"),
+		mustHexDecode("ddb89be403809e325750d3d263cd78929c2942b7942a34b77e122c9594a74c8c"),
+		mustHexDecode("5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328")}
+}
+
+func emptyTreeHash() trillian.Hash {
+	const sha256EmptyTreeHash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+	return mustHexDecode(sha256EmptyTreeHash)
+}
+
+func getTree() *CompactMerkleTree {
+	return NewCompactMerkleTree(trillian.NewSHA256())
+}
+
+func TestAddingLeaves(t *testing.T) {
+	inputs := getInputs()
+	roots := getTestRoots()
+	// We test the "same" thing 3 different ways this is to ensure than any lazy
+	// update strategy being employed by the implementation doesn't affect the
+	// api-visible calculation of root & size.
+	{
+		// First tree, add nodes one-by-one
+		tree := getTree()
+		if got, want := tree.Size(), int64(0); got != want {
+			t.Fatalf("Got size of %d, expected %d", got, want)
+		}
+		if got, want := tree.CurrentRoot(), emptyTreeHash(); !bytes.Equal(got, want) {
+			t.Fatalf("Got root of %v, expected %v", got, want)
+		}
+
+		for i := 0; i < 8; i++ {
+			tree.AddLeaf(inputs[i], func(int, int64, trillian.Hash) {})
+			if got, want := tree.Size(), int64(i+1); got != want {
+				t.Fatalf("Got size of %d, expected %d", got, want)
+			}
+			if got, want := tree.CurrentRoot(), roots[i]; !bytes.Equal(got, want) {
+				t.Fatalf("Expected root of %v, got %v", got, want)
+			}
+		}
+	}
+
+	{
+		// Second tree, add nodes all at once
+		tree := getTree()
+		for i := 0; i < 8; i++ {
+			tree.AddLeaf(inputs[i], func(int, int64, trillian.Hash) {})
+		}
+		if got, want := tree.Size(), int64(8); got != want {
+			t.Fatalf("Got size of %d, expected %d", got, want)
+		}
+		if got, want := tree.CurrentRoot(), roots[7]; !bytes.Equal(got, want) {
+			t.Fatalf("Expected root of %v, got %v", got, want)
+		}
+	}
+
+	{
+		// Third tree, add nodes in two chunks
+		tree := getTree()
+		for i := 0; i < 3; i++ {
+			tree.AddLeaf(inputs[i], func(int, int64, trillian.Hash) {})
+		}
+		if got, want := tree.Size(), int64(3); got != want {
+			t.Fatalf("Got size of %d, expected %d", got, want)
+		}
+		if got, want := tree.CurrentRoot(), roots[2]; !bytes.Equal(got, want) {
+			t.Fatalf("Expected root of %v, got %v", got, want)
+		}
+
+		for i := 3; i < 8; i++ {
+			tree.AddLeaf(inputs[i], func(int, int64, trillian.Hash) {})
+		}
+		if got, want := tree.Size(), int64(8); got != want {
+			t.Fatalf("Got size of %d, expected %d", got, want)
+		}
+		if got, want := tree.CurrentRoot(), roots[7]; !bytes.Equal(got, want) {
+			t.Fatalf("Expected root of %v, got %v", got, want)
+		}
+	}
+}

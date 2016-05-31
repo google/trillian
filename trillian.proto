@@ -1,0 +1,54 @@
+syntax = "proto2";
+
+package trillian;
+
+// What goes in here?
+// Things which are exposed through the public trillian APIs.
+
+enum SignatureAlgorithm {
+  ECDSA = 0;
+  RSA = 1;
+}
+
+enum HashAlgorithm {
+  SHA256 = 0;
+}
+
+message DigitallySigned {
+  optional SignatureAlgorithm signature_algorithm = 1;
+  optional HashAlgorithm hash_algorithm = 2;
+  optional bytes signature = 3;
+}
+
+message SignedEntryTimestamp {
+  optional int64 timestamp_nanos = 1;
+  optional bytes log_id = 2;
+  optional DigitallySigned signature = 3;
+}
+
+// SignedLogRoot represents a commitment by a Log to a particular tree.
+message SignedLogRoot {
+  // epoch nanoseconds, good until 2500ish
+  optional int64 timestamp_nanos = 1;
+  optional bytes root_hash = 2;
+	// TreeSize is the number of entries in the tree.
+  optional int64 tree_size = 3;
+	// TODO(al): define serialised format for the signature scheme.
+  optional DigitallySigned signature = 4;
+
+  optional bytes log_id = 5;
+  optional int64 tree_revision = 6;
+}
+
+// SignedMapRoot represents a commitment by a Map to a particular tree.
+message SignedMapRoot {
+  optional int64 timestamp_nanos = 1;
+  optional bytes root_hash = 2;
+	// TODO(al) add Metadata e.g. list of Log STHs included under a Map's Signed Root etc.?
+	// TODO(al): define serialised format for the signature scheme.
+  optional DigitallySigned signature = 3;
+
+  optional bytes map_id = 4;
+  optional int64 tree_revision = 5;
+}
+
