@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
-	"github.com/google/trillian/storage/memory"
 	"github.com/google/trillian/storage/mysql"
 )
 
