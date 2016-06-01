@@ -45,11 +45,11 @@ const deleteUnsequencedSql string = "DELETE FROM Unsequenced WHERE LeafHash IN (
 const selectLeavesByIndexSql string = `SELECT l.LeafHash,l.TheData,s.SequenceNumber,s.SignedEntryTimestamp
 		     FROM LeafData l,SequencedLeafData s
 		     WHERE l.LeafHash = s.LeafHash
-		     AND s.SequenceNumber IN (` + placeholderSql + `) AND l.TreeId = ?`
+		     AND s.SequenceNumber IN (` + placeholderSql + `) AND l.TreeId = ? AND s.TreeId = l.TreeId`
 const selectLeavesByHashSql string = `SELECT l.LeafHash,l.TheData,s.SequenceNumber,s.SignedEntryTimestamp
 		     FROM LeafData l,SequencedLeafData s
 		     WHERE l.LeafHash = s.LeafHash
-		     AND l.LeafHash IN (` + placeholderSql + `) AND l.TreeId = ?`
+		     AND l.LeafHash IN (` + placeholderSql + `) AND l.TreeId = ? AND s.TreeId = l.TreeId`
 const selectNodesSql string = `SELECT x.NodeId, x.MaxRevision, Node.NodeHash
 				 FROM (SELECT n.NodeId, max(n.NodeRevision) AS MaxRevision
 							 FROM Node n
@@ -151,7 +151,7 @@ func decodeSignedTimestamp(signedEntryTimestampBytes []byte) (trillian.SignedEnt
 	return signedEntryTimestamp, nil
 }
 
-func encodeSignedTimestamp(signedEntryTimestamp trillian.SignedEntryTimestamp) ([]byte, error) {
+func EncodeSignedTimestamp(signedEntryTimestamp trillian.SignedEntryTimestamp) ([]byte, error) {
 	// TODO: This will probably switch to proto serialization later but we're avoiding those
 	// dependencies for the moment
 	var signedTimestampBuffer bytes.Buffer
@@ -486,7 +486,7 @@ func (t *tx) QueueLeaves(leaves []trillian.LogLeaf) error {
 		hasher.Write(leaf.LeafHash)
 		messageId := hasher.Sum(nil)
 
-		signedTimestampBytes, err := encodeSignedTimestamp(leaf.SignedEntryTimestamp)
+		signedTimestampBytes, err := EncodeSignedTimestamp(leaf.SignedEntryTimestamp)
 
 		if err != nil {
 			return err
@@ -667,7 +667,7 @@ func (t *tx) UpdateSequencedLeaves(leaves []trillian.LogLeaf) error {
 			return errors.New("Sequenced leaf has incorrect hash size")
 		}
 
-		signedTimestampBytes, err := encodeSignedTimestamp(leaf.SignedEntryTimestamp)
+		signedTimestampBytes, err := EncodeSignedTimestamp(leaf.SignedEntryTimestamp)
 
 		if err != nil {
 			return err

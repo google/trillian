@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/google/trillian/log"
 	"github.com/google/trillian/util"
@@ -15,8 +16,8 @@ var batchLimitFlag = flag.Int("batch_limit", 50, "Max number of leaves to proces
 func main() {
 	flag.Parse()
 
-	treeId := getLogIdFromFlagsOrDie()
-	storage := getStorageFromFlagsOrDie(treeId)
+	logID := getLogIdFromFlagsOrDie()
+	storage := getStorageFromFlagsOrDie(logID)
 
 	sequencer := log.NewSequencer(trillian.NewSHA256(), new(util.SystemTimeSource), storage)
 
