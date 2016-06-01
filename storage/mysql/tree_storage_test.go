@@ -18,6 +18,8 @@ import (
 )
 
 var allTables = []string{"Unsequenced", "TreeHead", "SequencedLeafData", "LeafData", "Node", "Trees"}
+// Must be 32 bytes to match sha256 length if it was a real hash
+var dummyHash = []byte("hashxxxxhashxxxxhashxxxxhashxxxx")
 
 // logIDAndTest bundles up the test name and log ID to reduce cut and pasting
 type logIDAndTest struct {
@@ -237,8 +239,6 @@ func TestGetLeavesByHash(t *testing.T) {
 	s := prepareTestStorage(logID, t)
 	tx := beginTx(s, t)
 
-	// Must be 32 bytes to match sha256 length if it was a real hash
-	hash := []byte("hashxxxxhashxxxxhashxxxxhashxxxx")
 	data := []byte("some data")
 	sequenceNumber := 237
 
@@ -248,10 +248,10 @@ func TestGetLeavesByHash(t *testing.T) {
 		t.Fatalf("Failed to encode timestamp")
 	}
 
-	createFakeLeaf(db, logID.logID, hash, data, signedTimestampBytes, int64(sequenceNumber), t)
+	createFakeLeaf(db, logID.logID, dummyHash, data, signedTimestampBytes, int64(sequenceNumber), t)
 
 	hashes := make([]trillian.Hash, 0)
-	hashes = append(hashes, hash)
+	hashes = append(hashes, dummyHash)
 	leaves, err := tx.GetLeavesByHash(hashes)
 
 	if err != nil {
@@ -262,7 +262,7 @@ func TestGetLeavesByHash(t *testing.T) {
 		t.Fatalf("Got %d leaves but expected one", len(leaves))
 	}
 
-	checkLeafContents(leaves[0], int64(sequenceNumber), hash, data, t)
+	checkLeafContents(leaves[0], int64(sequenceNumber), dummyHash, data, t)
 }
 
 func TestGetLeavesByIndex(t *testing.T) {
@@ -273,8 +273,6 @@ func TestGetLeavesByIndex(t *testing.T) {
 	s := prepareTestStorage(logID, t)
 	tx := beginTx(s, t)
 
-	// Must be 32 bytes to match sha256 length if it was a real hash
-	hash := []byte("hashxxxxhashxxxxhashxxxxhashxxxx")
 	data := []byte("some data")
 	sequenceNumber := 237
 
@@ -284,7 +282,7 @@ func TestGetLeavesByIndex(t *testing.T) {
 		t.Fatalf("Failed to encode timestamp")
 	}
 
-	createFakeLeaf(db, logID.logID, hash, data, signedTimestampBytes, int64(sequenceNumber), t)
+	createFakeLeaf(db, logID.logID, dummyHash, data, signedTimestampBytes, int64(sequenceNumber), t)
 
 	leaves, err := tx.GetLeavesByIndex([]int64{int64(sequenceNumber)})
 
@@ -296,7 +294,7 @@ func TestGetLeavesByIndex(t *testing.T) {
 		t.Fatalf("Got %d leaves but expected one", len(leaves))
 	}
 
-	checkLeafContents(leaves[0], int64(sequenceNumber), hash, data, t)
+	checkLeafContents(leaves[0], int64(sequenceNumber), dummyHash, data, t)
 }
 
 func openTestDBOrDie() *sql.DB {
@@ -306,6 +304,129 @@ func openTestDBOrDie() *sql.DB {
 	}
 
 	return db
+}
+
+func TestLatestSignedRootNoneWritten(t *testing.T) {
+	logID := createLogID("TestLatestSignedLogRootNoneWritten")
+	db := prepareTestDB(logID, t)
+	defer db.Close()
+	s := prepareTestStorage(logID, t)
+	tx := beginTx(s, t)
+	defer tx.Rollback()
+
+	root, err := tx.LatestSignedLogRoot()
+
+	if err != nil {
+		t.Errorf("Failed to read an empty log root: %v", err)
+	}
+
+	if len(root.LogId) != 0 || len(root.RootHash) != 0 || root.Signature != nil {
+		t.Errorf("Read a root with contents when it should be empty: %v", root)
+	}
+}
+
+func TestLatestSignedLogRoot(t *testing.T) {
+	logID := createLogID("TestLatestSignedLogRoot")
+	db := prepareTestDB(logID, t)
+	defer db.Close()
+	s := prepareTestStorage(logID, t)
+	tx := beginTx(s, t)
+
+	// TODO: Tidy up the log id as it looks silly chained 3 times like this
+	root := trillian.SignedLogRoot{LogId: logID.logID.LogID, TimestampNanos: proto.Int64(98765), TreeSize: proto.Int64(16), TreeRevision: proto.Int64(5), RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
+
+	err := tx.StoreSignedLogRoot(root)
+
+	if err != nil {
+		t.Fatalf("Failed to store signed root: %v", err)
+	}
+
+	err = tx.Commit()
+
+	if err != nil {
+		t.Fatalf("Failed to commit new log root: %v", err)
+	}
+
+	tx = beginTx(s, t)
+	root2, err := tx.LatestSignedLogRoot()
+
+	if err != nil {
+		t.Fatalf("Failed to read back new log root: %v", err)
+	}
+
+	if !proto.Equal(&root, &root2) {
+		t.Fatalf("Root round trip failed: <%v> and: <%v>", root, root2)
+	}
+}
+
+func TestDuplicateSignedLogRoot(t *testing.T) {
+	logID := createLogID("TestDuplicateSignedLogRoot")
+	db := prepareTestDB(logID, t)
+	defer db.Close()
+	s := prepareTestStorage(logID, t)
+	tx := beginTx(s, t)
+
+	// TODO: Tidy up the log id as it looks silly chained 3 times like this
+	root := trillian.SignedLogRoot{LogId: logID.logID.LogID, TimestampNanos: proto.Int64(98765), TreeSize: proto.Int64(16), TreeRevision: proto.Int64(5), RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
+
+	err := tx.StoreSignedLogRoot(root)
+
+	if err != nil {
+		t.Fatalf("Failed to store signed root: %v", err)
+	}
+
+	// Shouldn't be able to do it again
+	err = tx.StoreSignedLogRoot(root)
+
+	if err == nil {
+		t.Errorf("Allowed duplicate signed root")
+	}
+
+	tx.Commit()
+}
+
+func TestLogRootUpdate(t *testing.T) {
+	// Write two roots for a log and make sure the one with the newest timestamp supersedes
+	logID := createLogID("TestLatestSignedLogRoot")
+	db := prepareTestDB(logID, t)
+	defer db.Close()
+	s := prepareTestStorage(logID, t)
+	tx := beginTx(s, t)
+
+	// TODO: Tidy up the log id as it looks silly chained 3 times like this
+	root := trillian.SignedLogRoot{LogId: logID.logID.LogID, TimestampNanos: proto.Int64(98765), TreeSize: proto.Int64(16), TreeRevision: proto.Int64(5), RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
+
+	err := tx.StoreSignedLogRoot(root)
+
+	if err != nil {
+		t.Fatalf("Failed to store signed root: %v", err)
+	}
+
+	// TODO: Tidy up the log id as it looks silly chained 3 times like this
+	root2 := trillian.SignedLogRoot{LogId: logID.logID.LogID, TimestampNanos: proto.Int64(98766), TreeSize: proto.Int64(16), TreeRevision: proto.Int64(6), RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
+
+	err = tx.StoreSignedLogRoot(root2)
+
+	if err != nil {
+		t.Fatalf("Failed to store signed root: %v", err)
+	}
+
+	err = tx.Commit()
+
+	if err != nil {
+		t.Fatalf("Failed to commit new log roots: %v", err)
+	}
+
+	tx = beginTx(s, t)
+	root3, err := tx.LatestSignedLogRoot()
+
+	if err != nil {
+		t.Fatalf("Failed to read back new log root: %v", err)
+	}
+
+	if !proto.Equal(&root2, &root3) {
+		t.Fatalf("Root round trip failed: <%v> and: <%v>", root, root2)
+	}
 }
 
 func createTestDB() {

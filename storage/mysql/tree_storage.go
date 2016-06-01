@@ -619,15 +619,23 @@ func (t *tx) GetLeavesByHash(leafHashes []trillian.Hash) ([]trillian.LogLeaf, er
 
 func (t *tx) LatestSignedLogRoot() (trillian.SignedLogRoot, error) {
 	var timestamp, treeSize, treeRevision int64
-	var rootHash, rootSignature []byte
+	var rootHash, rootSignatureBytes []byte
+	var rootSignature trillian.DigitallySigned
 
 	err := t.tx.QueryRow(
 		selectLatestSignedRootSql, t.m.id.TreeID).Scan(
-		&timestamp, &treeSize, &rootHash, &treeRevision, &rootSignature)
+		&timestamp, &treeSize, &rootHash, &treeRevision, &rootSignatureBytes)
 
 	// It's possible there are no roots for this tree yet
 	if err == sql.ErrNoRows {
 		return trillian.SignedLogRoot{}, nil
+	}
+
+	err = proto.Unmarshal(rootSignatureBytes, &rootSignature)
+
+	if err != nil {
+		glog.Warningf("Failed to unmarshall root signature: %v", err)
+		return trillian.SignedLogRoot{}, err
 	}
 
 	if err != nil {
@@ -638,18 +646,22 @@ func (t *tx) LatestSignedLogRoot() (trillian.SignedLogRoot, error) {
 		RootHash:       rootHash,
 		TimestampNanos: proto.Int64(timestamp),
 		TreeRevision:   proto.Int64(treeRevision),
-		Signature: &trillian.DigitallySigned{
-			Signature: rootSignature,
-		},
-		LogId:    t.m.id.LogID,
-		TreeSize: proto.Int64(treeSize),
+		Signature:      &rootSignature,
+		LogId:          t.m.id.LogID,
+		TreeSize:       proto.Int64(treeSize),
 	}, nil
 }
 
 func (t *tx) StoreSignedLogRoot(root trillian.SignedLogRoot) error {
-	res, err := t.tx.Exec(insertTreeHeadSql,
-		t.m.id.TreeID, root.TimestampNanos, root.TreeSize,
-		root.RootHash, root.TreeRevision, root.Signature)
+	signatureBytes, err := proto.Marshal(root.Signature)
+
+	if err != nil {
+		glog.Warningf("Failed to marshal root signature: %v %v", root.Signature, err)
+		return err
+	}
+
+	res, err := t.tx.Exec(insertTreeHeadSql, t.m.id.TreeID, root.TimestampNanos, root.TreeSize,
+		root.RootHash, root.TreeRevision, signatureBytes)
 
 	if err != nil {
 		glog.Warningf("Failed to store signed root: %s", err)
