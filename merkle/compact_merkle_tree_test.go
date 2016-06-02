@@ -3,6 +3,7 @@ package merkle
 import (
 	"bytes"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -12,7 +13,8 @@ import (
 
 // This data came from the C++ CT tests
 // referenceMerkleInputs are the leaf data inputs to the tree for the first 7 leaves
-var referenceMerkleInputs = [][]byte{{}, { 0x00 }, { 0x10} , { 0x20, 0x21 }, { 0x30, 0x31 }, { 0x40, 0x41, 0x42, 0x43 }, { 0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57}}
+var referenceMerkleInputs = [][]byte{{}, {0x00}, {0x10}, {0x20, 0x21}, {0x30, 0x31}, {0x40, 0x41, 0x42, 0x43}, {0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57}}
+
 // referenceRootHash7 is the expected root hash if the 7 elements above are added to the tree in order
 var referenceRootHash7 = []byte{0xdd, 0xb8, 0x9b, 0xe4, 0x03, 0x80, 0x9e, 0x32, 0x57, 0x50, 0xd3, 0xd2, 0x63, 0xcd, 0x78, 0x92, 0x9c, 0x29, 0x42, 0xb7, 0x94, 0x2a, 0x34, 0xb7, 0x7e, 0x12, 0x2c, 0x95, 0x94, 0xa7, 0x4c, 0x8c}
 
@@ -143,10 +145,10 @@ func cannedHashGetNodeFunc(depth int, index int64) (trillian.Hash, error) {
 	if depth == 1 && index == 2 {
 		// We want leaves 4&5 hashed as children of that node
 		return hasher.HashChildren(hasher.HashLeaf(referenceMerkleInputs[4]),
-				hasher.HashLeaf(referenceMerkleInputs[5])), nil
+			hasher.HashLeaf(referenceMerkleInputs[5])), nil
 	}
 
-	if (depth == 2 && index == 0) {
+	if depth == 2 && index == 0 {
 		// We want the level two hash of the left side of the tree
 		nodeHash1 := hasher.HashChildren(hasher.HashLeaf(referenceMerkleInputs[0]),
 			hasher.HashLeaf(referenceMerkleInputs[1]))
