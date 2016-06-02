@@ -4,10 +4,20 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/hex"
+	"fmt"
 
 	log "github.com/golang/glog"
 	"github.com/google/trillian"
 )
+
+type RootHashMismatchError struct {
+	ExpectedHash []byte
+	ActualHash []byte
+}
+
+func (r RootHashMismatchError) Error() string {
+	return fmt.Sprintf("Root hash mismatch got: %v expected: %v", r.ExpectedHash, r.ActualHash)
+}
 
 // CompactMerkleTree is a compact merkle tree representation.
 // Uses log(n) nodes to represent the current on-disk tree.
@@ -37,10 +47,12 @@ func bitLen(x int64) int {
 type GetNodeFunc func(depth int, index int64) (trillian.Hash, error)
 
 // NewCompactMerkleTreeWithState creates a new CompactMerkleTree for the passed in |size|.
+// This can fail if the nodes required to recreate the tree state cannot be fetched or the calculated
+// root hash after population does not match the value we expect.
 // |f| will be called a number of times with the co-ordinates of internal MerkleTree nodes whose hash values are
 // required to initialise the internal state of the CompactMerkleTree.  |expectedRoot| is the known-good tree root
 // of the tree at |size|, and is used to verify the correct initial state of the CompactMerkleTree after initialisation.
-func NewCompactMerkleTreeWithState(hasher trillian.Hasher, size int64, f GetNodeFunc, expectedRoot trillian.Hash) *CompactMerkleTree {
+func NewCompactMerkleTreeWithState(hasher trillian.Hasher, size int64, f GetNodeFunc, expectedRoot trillian.Hash) (*CompactMerkleTree, error) {
 
 	r := CompactMerkleTree{
 		hasher: NewTreeHasher(hasher),
@@ -61,8 +73,8 @@ func NewCompactMerkleTreeWithState(hasher trillian.Hasher, size int64, f GetNode
 				log.V(1).Infof("fetching d: %d i: %d, leaving size %d", depth, index, size)
 				h, err := f(depth, index)
 				if err != nil {
-					// TODO(al): return an error, don't Fatal
-					log.Fatalf("Failed to fetch node depth %d index %d: %s", depth, index, err)
+					log.Warningf("Failed to fetch node depth %d index %d: %s", depth, index, err)
+					return nil, err
 				}
 				r.nodes[depth] = h
 			}
@@ -71,14 +83,14 @@ func NewCompactMerkleTreeWithState(hasher trillian.Hasher, size int64, f GetNode
 		r.recalculateRoot(func(depth int, index int64, hash trillian.Hash) {})
 	}
 	if !bytes.Equal(r.root, expectedRoot) {
-		// TODO(al): return an error, don't Fatal
-		log.Fatalf("Corrupt state, expected root %s, got %s", hex.EncodeToString(expectedRoot[:]), hex.EncodeToString(r.root[:]))
+		log.Warningf("Corrupt state, expected root %s, got %s", hex.EncodeToString(expectedRoot[:]), hex.EncodeToString(r.root[:]))
+		return nil, RootHashMismatchError{ActualHash: r.root, ExpectedHash: expectedRoot}
 	}
 	log.V(1).Infof("Resuming at size %d, with root: %s", r.size, base64.StdEncoding.EncodeToString(r.root[:]))
-	return &r
+	return &r, nil
 }
 
-// NewCompactMerkleTree creates a new CompactMerkleTree with size zero.
+// NewCompactMerkleTree creates a new CompactMerkleTree with size zero. This always succeeds.
 func NewCompactMerkleTree(hasher trillian.Hasher) *CompactMerkleTree {
 	emptyHash := hasher.Digest([]byte{})
 	r := CompactMerkleTree{
