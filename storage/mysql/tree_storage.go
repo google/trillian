@@ -137,14 +137,10 @@ func expandPlaceholderSql(sql string, num int) string {
 }
 
 func decodeSignedTimestamp(signedEntryTimestampBytes []byte) (trillian.SignedEntryTimestamp, error) {
-	// TODO: This will probably switch to proto serialization later
 	var signedEntryTimestamp trillian.SignedEntryTimestamp
-	buffer := bytes.NewBuffer(signedEntryTimestampBytes)
-	dec := gob.NewDecoder(buffer)
-	err := dec.Decode(&signedEntryTimestamp)
 
-	if err != nil {
-		glog.Warningf("Failed to encode payload: %s", err)
+	if err := proto.Unmarshal(signedEntryTimestampBytes, &signedEntryTimestamp); err != nil {
+		glog.Warningf("Failed to decode SignedTimestamp: %s", err)
 		return trillian.SignedEntryTimestamp{}, err
 	}
 
@@ -154,18 +150,14 @@ func decodeSignedTimestamp(signedEntryTimestampBytes []byte) (trillian.SignedEnt
 // TODO: Pull the encoding / decoding out of this file, move up to Storage. Review after
 // all current PRs submitted.
 func EncodeSignedTimestamp(signedEntryTimestamp trillian.SignedEntryTimestamp) ([]byte, error) {
-	// TODO: This will probably switch to proto serialization later but we're avoiding those
-	// dependencies for the moment
-	var signedTimestampBuffer bytes.Buffer
-	enc := gob.NewEncoder(&signedTimestampBuffer)
-	err := enc.Encode(signedEntryTimestamp)
+	marshalled, err := proto.Marshal(&signedEntryTimestamp)
 
 	if err != nil {
-		glog.Warningf("Failed to encode payload: %s", err)
+		glog.Warningf("Failed to encode SignedTimestamp: %s", err)
 		return nil, err
 	}
 
-	return signedTimestampBuffer.Bytes(), nil
+	return marshalled, err
 }
 
 func decodeNodeID(nodeIDBytes []byte, nodeID *storage.NodeID) error {
