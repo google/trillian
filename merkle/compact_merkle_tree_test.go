@@ -3,12 +3,18 @@ package merkle
 import (
 	"bytes"
 	"encoding/hex"
+	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/google/trillian"
-	"github.com/vektra/errors"
 )
+
+// This data came from the C++ CT tests
+// referenceMerkleInputs are the leaf data inputs to the tree for the first 7 leaves
+var referenceMerkleInputs = [][]byte{{}, { 0x00 }, { 0x10} , { 0x20, 0x21 }, { 0x30, 0x31 }, { 0x40, 0x41, 0x42, 0x43 }, { 0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57}}
+// referenceRootHash7 is the expected root hash if the 7 elements above are added to the tree in order
+var referenceRootHash7 = []byte{0xdd, 0xb8, 0x9b, 0xe4, 0x03, 0x80, 0x9e, 0x32, 0x57, 0x50, 0xd3, 0xd2, 0x63, 0xcd, 0x78, 0x92, 0x9c, 0x29, 0x42, 0xb7, 0x94, 0x2a, 0x34, 0xb7, 0x7e, 0x12, 0x2c, 0x95, 0x94, 0xa7, 0x4c, 0x8c}
 
 func mustHexDecode(b string) trillian.Hash {
 	r, err := hex.DecodeString(b)
@@ -123,6 +129,36 @@ func fixedHashGetNodeFunc(depth int, index int64) (trillian.Hash, error) {
 	return []byte("12345678901234567890123456789012"), nil
 }
 
+// This returns canned data for some nodes so we test that the right ones are accessed
+// We expect to see nodes fetched at coords 0,6 1,2 and 2,0 for a 7 element tree
+func cannedHashGetNodeFunc(depth int, index int64) (trillian.Hash, error) {
+	fmt.Printf("%d %d\n", depth, index)
+	hasher := NewTreeHasher(trillian.NewSHA256())
+
+	if depth == 0 && index == 6 {
+		// We want the last leaf hash
+		return hasher.HashLeaf(referenceMerkleInputs[6]), nil
+	}
+
+	if depth == 1 && index == 2 {
+		// We want leaves 4&5 hashed as children of that node
+		return hasher.HashChildren(hasher.HashLeaf(referenceMerkleInputs[4]),
+				hasher.HashLeaf(referenceMerkleInputs[5])), nil
+	}
+
+	if (depth == 2 && index == 0) {
+		// We want the level two hash of the left side of the tree
+		nodeHash1 := hasher.HashChildren(hasher.HashLeaf(referenceMerkleInputs[0]),
+			hasher.HashLeaf(referenceMerkleInputs[1]))
+		nodeHash2 := hasher.HashChildren(hasher.HashLeaf(referenceMerkleInputs[2]),
+			hasher.HashLeaf(referenceMerkleInputs[3]))
+
+		return hasher.HashChildren(nodeHash1, nodeHash2), nil
+	}
+
+	return nil, fmt.Errorf("Didn't expect to see a fetch for node %d,%d", depth, index)
+}
+
 func TestLoadingTreeFailsNodeFetch(t *testing.T) {
 	_, err := NewCompactMerkleTreeWithState(trillian.NewSHA256(), 237, failingGetNodeFunc, []byte("notimportant"))
 
@@ -133,11 +169,19 @@ func TestLoadingTreeFailsNodeFetch(t *testing.T) {
 
 func TestLoadingTreeFailsBadRootHash(t *testing.T) {
 	// Supply a root hash that can't possibly match the result of the SHA 256 hashing on our dummy
-	// data
+	// data. Using data from C++ CT code for reference Merkle Tree
 	_, err := NewCompactMerkleTreeWithState(trillian.NewSHA256(), 237, fixedHashGetNodeFunc, []byte("nomatch!nomatch!nomatch!nomatch!"))
 	_, ok := err.(RootHashMismatchError)
 
 	if err == nil || !ok {
-		t.Fatalf("Did not return correct error type on root mismatch")
+		t.Fatalf("Did not return correct error type on root mismatch: %v", err)
+	}
+}
+
+func TestLoadingTreeState(t *testing.T) {
+	_, err := NewCompactMerkleTreeWithState(trillian.NewSHA256(), 7, cannedHashGetNodeFunc, referenceRootHash7)
+
+	if err != nil {
+		t.Fatalf("Failed to load tree state: %v", err)
 	}
 }
