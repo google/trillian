@@ -36,7 +36,7 @@ func (s Sequencer) buildMerkleTreeFromStorageAtRoot(root trillian.SignedLogRoot,
 	if root.TreeRevision == nil {
 		return nil, errors.New("invalid root; TreeRevision unset")
 	}
-	mt := merkle.NewCompactMerkleTreeWithState(s.hasher, *root.TreeSize, func(depth int, index int64) (trillian.Hash, error) {
+	mt, err := merkle.NewCompactMerkleTreeWithState(s.hasher, *root.TreeSize, func(depth int, index int64) (trillian.Hash, error) {
 		nodeId := storage.NewNodeIDForTreeCoords(int64(depth), index, int(s.hasher.Size()))
 		nodes, err := tx.GetMerkleNodes([]storage.NodeID{nodeId}, *root.TreeRevision)
 
@@ -53,7 +53,7 @@ func (s Sequencer) buildMerkleTreeFromStorageAtRoot(root trillian.SignedLogRoot,
 		return nodes[0].Hash, nil
 	}, root.RootHash)
 
-	return mt, nil
+	return mt, err
 }
 
 func (s Sequencer) buildNodesFromNodeMap(nodeMap map[string]storage.Node, newVersion int64) ([]storage.Node, error) {
