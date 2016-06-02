@@ -144,7 +144,7 @@ func createTestContext(params testParameters) testContext {
 			})).Return(params.storeSignedRootError)
 	}
 
-	sequencer := NewSequencer(util.FakeTimeSource{fakeTimeForTest}, mockStorage)
+	sequencer := NewSequencer(trillian.NewSHA256(), util.FakeTimeSource{fakeTimeForTest}, mockStorage)
 
 	return testContext{mockTx, mockStorage, sequencer}
 }
