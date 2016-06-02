@@ -126,7 +126,7 @@ func fixedHashGetNodeFunc(depth int, index int64) (trillian.Hash, error) {
 func TestLoadingTreeFailsNodeFetch(t *testing.T) {
 	_, err := NewCompactMerkleTreeWithState(trillian.NewSHA256(), 237, failingGetNodeFunc, []byte("notimportant"))
 
-	if err == nil || !strings.Contains(err.Error(), "Bang!"){
+	if err == nil || !strings.Contains(err.Error(), "Bang!") {
 		t.Fatalf("Did not return correctly on failed node fetch")
 	}
 }
@@ -135,7 +135,7 @@ func TestLoadingTreeFailsBadRootHash(t *testing.T) {
 	// Supply a root hash that can't possibly match the result of the SHA 256 hashing on our dummy
 	// data
 	_, err := NewCompactMerkleTreeWithState(trillian.NewSHA256(), 237, fixedHashGetNodeFunc, []byte("nomatch!nomatch!nomatch!nomatch!"))
-	_, ok := err.(RootHashMismatchError);
+	_, ok := err.(RootHashMismatchError)
 
 	if err == nil || !ok {
 		t.Fatalf("Did not return correct error type on root mismatch")

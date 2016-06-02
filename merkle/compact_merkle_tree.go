@@ -12,7 +12,7 @@ import (
 
 type RootHashMismatchError struct {
 	ExpectedHash []byte
-	ActualHash []byte
+	ActualHash   []byte
 }
 
 func (r RootHashMismatchError) Error() string {
