@@ -3,6 +3,7 @@ package storage
 import (
 	"bytes"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 )
 
@@ -98,4 +99,12 @@ func (n *NodeID) String() string {
 		r.WriteRune(rune('0' + n.Bit(i)))
 	}
 	return r.String()
+}
+
+func (n *NodeID) AsProto() *NodeIDProto {
+	return &NodeIDProto{Path: n.Path, PrefixLenBits: proto.Int32(int32(n.PrefixLenBits))}
+}
+
+func NewNodeIDFromProto(p NodeIDProto) *NodeID {
+	return &NodeID{p.Path, int(*p.PrefixLenBits)}
 }

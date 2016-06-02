@@ -15,6 +15,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
+	"github.com/golang/glog"
 )
 
 var allTables = []string{"Unsequenced", "TreeHead", "SequencedLeafData", "LeafData", "Node", "TreeControl", "Trees"}
@@ -46,7 +47,7 @@ func createSomeNodes(testName string, treeID int64) []storage.Node {
 		r[i].NodeID = storage.NewNodeIDWithPrefix(uint64(i), 8, 8, 8)
 		h := sha256.Sum256([]byte{byte(i)})
 		r[i].Hash = h[:]
-		fmt.Printf("Node to store: %v\n", r[i].NodeID)
+		glog.Infof("Node to store: %v\n", r[i].NodeID)
 	}
 	return r
 }
@@ -141,6 +142,26 @@ func TestNodeRoundTrip(t *testing.T) {
 		if err := tx.Commit(); err != nil {
 			t.Fatalf("Failed to commit read: %s", err)
 		}
+	}
+}
+
+// Explicit test for node id conversion to / from protos.
+func TestNodeIDSerialization(t *testing.T) {
+	nodeID := storage.NodeID{[]byte("hello"), 297}
+	serializedBytes, err := encodeNodeID(nodeID)
+
+	if err != nil {
+		t.Fatalf("Failed to serialize NodeID: %v, %v", nodeID, err)
+	}
+
+	nodeID2, err := decodeNodeID(serializedBytes)
+
+	if err != nil {
+		t.Fatalf("Failed to deserialize NodeID: %v, %v", nodeID, err)
+	}
+
+	if nodeID != nodeID2 {
+		t.Errorf("Round trip of nodeID failed: %v %v", nodeID, nodeID2)
 	}
 }
 

@@ -160,31 +160,28 @@ func EncodeSignedTimestamp(signedEntryTimestamp trillian.SignedEntryTimestamp) (
 	return marshalled, err
 }
 
-func decodeNodeID(nodeIDBytes []byte, nodeID *storage.NodeID) error {
-	// TODO: This will probably switch to proto serialization later
-	buffer := bytes.NewBuffer(nodeIDBytes)
-	dec := gob.NewDecoder(buffer)
+// Node IDs are stored using proto serialization
+func decodeNodeID(nodeIDBytes []byte) (*storage.NodeID, error) {
+	var nodeIdProto storage.NodeIDProto
 
-	if err := dec.Decode(nodeID); err != nil {
+	if err := proto.Unmarshal(nodeIDBytes, &nodeIdProto); err != nil {
 		glog.Warningf("Failed to decode nodeid: %s", err)
-		return err
+		return nil, err
 	}
 
-	return nil
+	return storage.NewNodeIDFromProto(nodeIdProto), nil
 }
 
 func encodeNodeID(n storage.NodeID) ([]byte, error) {
-	// TODO: This will probably switch to proto serialization later but we're avoiding those
-	// dependencies for the moment
-	var nodeIDBuffer bytes.Buffer
-	enc := gob.NewEncoder(&nodeIDBuffer)
-	err := enc.Encode(n)
+	nodeIdProto := n.AsProto()
+	marshalledBytes, err := proto.Marshal(nodeIdProto)
+
 	if err != nil {
 		glog.Warningf("Failed to encode nodeid: %s", err)
 		return nil, err
 	}
 
-	return nodeIDBuffer.Bytes(), nil
+	return marshalledBytes, nil
 }
 
 func (m *mySQLLogStorage) getDeleteUnsequencedStmt(num int) (*sql.Stmt, error) {
@@ -756,10 +753,14 @@ func (t *tx) GetMerkleNodes(nodeIDs []storage.NodeID, treeRevision int64) ([]sto
 			return nil, fmt.Errorf("Scanned node does not have hash length %d, got %d", want, got)
 		}
 
-		if err := decodeNodeID(nodeIDBytes, &ret[num].NodeID); err != nil {
+		nodeID, err := decodeNodeID(nodeIDBytes)
+
+		if err != nil {
 			glog.Warningf("Failed to decode nodeid: %s", err)
 			return nil, err
 		}
+
+		ret[num].NodeID = *nodeID
 
 		num++
 	}
