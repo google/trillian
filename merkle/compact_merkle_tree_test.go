@@ -3,11 +3,11 @@ package merkle
 import (
 	"bytes"
 	"encoding/hex"
+	"strings"
 	"testing"
 
 	"github.com/google/trillian"
 	"github.com/vektra/errors"
-	"strings"
 )
 
 func mustHexDecode(b string) trillian.Hash {
