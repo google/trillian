@@ -128,7 +128,7 @@ func NewLogStorage(id trillian.LogID, url string) (storage.LogStorage, error) {
 // placeholder slots. At most one placeholder will be expanded.
 func expandPlaceholderSql(sql string, num int) string {
 	if num <= 0 {
-		panic("Trying to expand SQL placeholder with <= 0 parameters")
+		panic(fmt.Errorf("Trying to expand SQL placeholder with <= 0 parameters: %s", sql))
 	}
 
 	parameters := "?" + strings.Repeat(",?", num-1)
@@ -151,6 +151,8 @@ func decodeSignedTimestamp(signedEntryTimestampBytes []byte) (trillian.SignedEnt
 	return signedEntryTimestamp, nil
 }
 
+// TODO: Pull the encoding / decoding out of this file, move up to Storage. Review after
+// all current PRs submitted.
 func EncodeSignedTimestamp(signedEntryTimestamp trillian.SignedEntryTimestamp) ([]byte, error) {
 	// TODO: This will probably switch to proto serialization later but we're avoiding those
 	// dependencies for the moment
@@ -379,11 +381,6 @@ func (t *tx) DequeueLeaves(limit int) ([]trillian.LogLeaf, error) {
 	leaves := make([]trillian.LogLeaf, 0, limit)
 	rows, err := stx.Query(t.m.id.TreeID, limit)
 
-	if err == sql.ErrNoRows {
-		// There could be nothing in the queue
-		return []trillian.LogLeaf{}, nil
-	}
-
 	if err != nil {
 		glog.Warningf("Failed to select rows for work: %s", err)
 		return nil, err
@@ -425,9 +422,15 @@ func (t *tx) DequeueLeaves(limit int) ([]trillian.LogLeaf, error) {
 		leaves = append(leaves, leaf)
 	}
 
+	if rows.Err() != nil {
+		return nil, rows.Err()
+	}
+
 	// The convention is that if leaf processing succeeds (by committing this tx)
 	// then the unsequenced entries for them are removed
-	err = t.removeSequencedLeaves(leaves)
+	if len(leaves) > 0 {
+		err = t.removeSequencedLeaves(leaves)
+	}
 
 	if err != nil {
 		return nil, err
@@ -635,10 +638,6 @@ func (t *tx) LatestSignedLogRoot() (trillian.SignedLogRoot, error) {
 
 	if err != nil {
 		glog.Warningf("Failed to unmarshall root signature: %v", err)
-		return trillian.SignedLogRoot{}, err
-	}
-
-	if err != nil {
 		return trillian.SignedLogRoot{}, err
 	}
 
