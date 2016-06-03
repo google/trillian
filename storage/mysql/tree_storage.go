@@ -825,3 +825,7 @@ func (t *tx) Rollback() error {
 
 	return err
 }
+
+func (t *tx) GetTreeParameters() (storage.TreeControlParams, error) {
+	return storage.TreeControlParams{ReadOnly: t.m.readOnly}, nil
+}

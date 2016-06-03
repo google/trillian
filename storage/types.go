@@ -10,6 +10,12 @@ import (
 // ErrReadOnly is returned when operations are not allowed because a resource is read only
 var ErrReadOnly = errors.New("storage: Operation not allowed because resource is read only")
 
+// TreeControlParams describes options that can be set on a tree and are made available externally
+type TreeControlParams struct {
+	// readOnly - when true the tree will reject any requests that modify data
+	ReadOnly bool
+}
+
 // Node represents a single node in a Merkle tree.
 type Node struct {
 	NodeID       NodeID

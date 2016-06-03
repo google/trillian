@@ -6,11 +6,12 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
+	"os"
+	"testing"
+
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
-	"os"
-	"testing"
 )
 
 func createSomeNodes() []storage.Node {
@@ -85,7 +86,6 @@ func TestReadOnlyAllowsSnapshot(t *testing.T) {
 
 // TODO: End of section that needs cleanup
 
-
 func TestNodeRoundTrip(t *testing.T) {
 	s, err := NewLogStorage(createLogID(), "test:zaphod@tcp(127.0.0.1:3306)/test")
 	if err != nil {
@@ -132,6 +132,48 @@ func TestNodeRoundTrip(t *testing.T) {
 		}
 	}
 
+}
+
+func TestGetTreeParameters(t *testing.T) {
+	s, err := NewLogStorage(createLogID(), "test:zaphod@tcp(127.0.0.1:3306)/test")
+	if err != nil {
+		t.Fatalf("Failed to open tree storage: %s", err)
+	}
+
+	tx, err := s.Snapshot()
+	if err != nil {
+		t.Fatalf("Couldn't create tx")
+	}
+
+	treeParams, err := tx.GetTreeParameters()
+
+	if err != nil {
+		t.Fatalf("Couldn't get params 1")
+	}
+
+	s2, err := NewLogStorage(createLogID2(), "test:zaphod@tcp(127.0.0.1:3306)/test")
+	if err != nil {
+		t.Fatalf("Failed to open tree storage: %s", err)
+	}
+
+	tx2, err := s2.Snapshot()
+
+	if err != nil {
+		t.Fatalf("Couldn't create tx2")
+	}
+
+	treeParams2, err := tx2.GetTreeParameters()
+
+	if err != nil {
+		t.Fatalf("Couldn't get params 2")
+	}
+
+	if treeParams.ReadOnly || !treeParams2.ReadOnly {
+		t.Fatalf("Expected tree1 R/W, got: %v tree2 R/O and got: %v", treeParams.ReadOnly, treeParams2.ReadOnly)
+	}
+
+	tx.Commit()
+	tx2.Commit()
 }
 
 func createTestDB() {

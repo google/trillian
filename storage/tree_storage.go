@@ -1,9 +1,17 @@
 package storage
 
+type ReadOnlyTreeController interface {
+	// GetTreeParameters returns a copy of the parameters currently set on the tree
+	GetTreeParameters() (TreeControlParams, error)
+}
+
 // ReadOnlyTreeTX represents a read-only transaction on a TreeStorage.
 type ReadOnlyTreeTX interface {
+	ReadOnlyTreeController
 	NodeReader
 	LeafReader
+
+	// Commit releases any resources held by the transaction, errors are not expected but possible.
 	Commit() error
 }
 
