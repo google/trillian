@@ -11,24 +11,31 @@ import (
 
 // Domain separation prefixes
 const (
-	LeafHashPrefix = 0
-	NodeHashPrefix = 1
+	Rfc6962LeafHashPrefix = 0
+	Rfc6962NodeHashPrefix = 1
 )
 
 // TreeHasher is a set of domain separated hashers for creating merkle tree hashes.
 type TreeHasher struct {
 	trillian.Hasher
-	leafHasher func([]byte) trillian.Hash
-	nodeHasher func([]byte) trillian.Hash
+	leafHasher  func([]byte) trillian.Hash
+	nodeHasher  func([]byte) trillian.Hash
+	emptyHasher func() trillian.Hash
 }
 
 // NewTreeHasher creates a new TreeHasher based on the passed in hash function.
-func NewTreeHasher(hasher trillian.Hasher) TreeHasher {
+func NewRfc6962TreeHasher(hasher trillian.Hasher) TreeHasher {
 	return TreeHasher{
 		Hasher:     hasher,
-		leafHasher: leafHasher(hasher),
-		nodeHasher: nodeHasher(hasher),
+		leafHasher:  rfc6962LeafHasher(hasher),
+		nodeHasher:  rfc6962NodeHasher(hasher),
+		emptyHasher: rfc6962EmptyHasher(hasher),
 	}
+}
+
+// HashEmpty returns the hash of an empty element for the tree
+func (t TreeHasher) HashEmpty() trillian.Hash {
+	return t.emptyHasher()
 }
 
 // HashLeaf returns the merkle tree leaf hash of the data passed in through leaf.
@@ -43,18 +50,26 @@ func (t TreeHasher) HashChildren(l, r []byte) trillian.Hash {
 	return t.nodeHasher(append(append([]byte{}, l...), r...))
 }
 
+type emptyHashFunc func() trillian.Hash
 type hashFunc func([]byte) trillian.Hash
 
-// leafHasher builds a function to calculate leaf hashes based on the Hasher h.
-func leafHasher(h trillian.Hasher) hashFunc {
-	return func(b []byte) trillian.Hash {
-		return h.Digest(append([]byte{LeafHashPrefix}, b...))
+// rfc6962EmptyHasher builds a function to calculate the hash of an empty element for CT
+func rfc6962EmptyHasher(h trillian.Hasher) emptyHashFunc {
+	return func() trillian.Hash {
+		return h.Digest([]byte{})
 	}
 }
 
-// leafHasher builds a function to calculate internal node hashes based on the Hasher h.
-func nodeHasher(h trillian.Hasher) hashFunc {
+// rfc6962LeafHasher builds a function to calculate leaf hashes based on the Hasher h for CT.
+func rfc6962LeafHasher(h trillian.Hasher) hashFunc {
 	return func(b []byte) trillian.Hash {
-		return h.Digest(append([]byte{NodeHashPrefix}, b...))
+		return h.Digest(append([]byte{Rfc6962LeafHashPrefix}, b...))
+	}
+}
+
+// rfc6962NodeHasher builds a function to calculate internal node hashes based on the Hasher h for CT.
+func rfc6962NodeHasher(h trillian.Hasher) hashFunc {
+	return func(b []byte) trillian.Hash {
+		return h.Digest(append([]byte{Rfc6962NodeHashPrefix}, b...))
 	}
 }
