@@ -2,9 +2,13 @@ package storage
 
 import (
 	"bytes"
+	"errors"
 
 	"github.com/google/trillian"
 )
+
+// ErrReadOnly is returned when operations are not allowed because a resource is read only
+var ErrReadOnly = errors.New("storage: Operation not allowed because resource is read only")
 
 // Node represents a single node in a Merkle tree.
 type Node struct {
