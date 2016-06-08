@@ -11,7 +11,7 @@ import (
 	"github.com/google/trillian"
 )
 
-// This data came from the C++ CT tests
+// This data came from the C++ CT tests.
 // referenceMerkleInputs are the leaf data inputs to the tree for the first 7 leaves
 var referenceMerkleInputs = [][]byte{{}, {0x00}, {0x10}, {0x20, 0x21}, {0x30, 0x31}, {0x40, 0x41, 0x42, 0x43}, {0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57}}
 
