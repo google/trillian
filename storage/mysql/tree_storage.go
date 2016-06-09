@@ -18,7 +18,8 @@ import (
 )
 
 // These statements are fixed
-const getLogPropertiesSql string = "SELECT AllowsDuplicateLeaves FROM Trees WHERE TreeId=?"
+const getTreePropertiesSql string = "SELECT AllowsDuplicateLeaves FROM Trees WHERE TreeId=?"
+const getTreeParametersSql string = "SELECT ReadOnlyRequests From TreeControl WHERE TreeID=?"
 const insertNodeSql string = `INSERT INTO Node(TreeId, NodeId, NodeHash, NodeRevision) VALUES (?, ?, ?, ?)`
 const selectQueuedLeavesSql string = `SELECT LeafHash,Payload,SignedEntryTimestamp
 		 FROM Unsequenced
@@ -65,6 +66,7 @@ type mySQLLogStorage struct {
 	id              trillian.LogID
 	db              *sql.DB
 	allowDuplicates bool
+	readOnly        bool
 	hashSizeBytes   int
 
 	// Must hold the mutex before manipulating the statement map. Sharing a lock because
@@ -92,8 +94,8 @@ func NewLogStorage(id trillian.LogID, url string) (storage.LogStorage, error) {
 		return nil, err
 	}
 
-	var allowDuplicateLeaves bool
-	err = db.QueryRow(getLogPropertiesSql, id.TreeID).Scan(&allowDuplicateLeaves)
+	var allowDuplicateLeaves, readOnlyRequests bool
+	err = db.QueryRow(getTreePropertiesSql, id.TreeID).Scan(&allowDuplicateLeaves)
 
 	// TODO: This should not default but it would currently complicate testing and can be
 	// implemented later when the create tree API has been defined.
@@ -104,8 +106,17 @@ func NewLogStorage(id trillian.LogID, url string) (storage.LogStorage, error) {
 		return nil, err
 	}
 
+	err = db.QueryRow(getTreeParametersSql, id.TreeID).Scan(&readOnlyRequests)
+
+	// TODO: It's probably not ok for the log to have no prameters set but we haven't got an
+	// admin API yet
+	if err == sql.ErrNoRows {
+		readOnlyRequests = false
+	}
+
 	s := mySQLLogStorage{
 		allowDuplicates: allowDuplicateLeaves,
+		readOnly:        readOnlyRequests,
 		// TODO: Needs updating when we support different hash algorithms
 		hashSizeBytes:        sha256.Size,
 		id:                   id,
@@ -322,7 +333,7 @@ func (m *mySQLLogStorage) GetLeavesByHash(leafHashes []trillian.Hash) ([]trillia
 	return t.GetLeavesByHash(leafHashes)
 }
 
-func (m *mySQLLogStorage) Begin() (storage.LogTX, error) {
+func (m *mySQLLogStorage) beginInternal() (storage.LogTX, error) {
 	t, err := m.db.Begin()
 	if err != nil {
 		glog.Warningf("Could not start TX: %s", err)
@@ -334,8 +345,18 @@ func (m *mySQLLogStorage) Begin() (storage.LogTX, error) {
 	}, nil
 }
 
+func (m *mySQLLogStorage) Begin() (storage.LogTX, error) {
+	// Reject attempts to start a writable transaction in read only mode. Anything that
+	// doesn't write is a part of Snapshot so is still available via that API.
+	if m.readOnly {
+		return nil, storage.ErrReadOnly
+	}
+
+	return m.beginInternal()
+}
+
 func (m *mySQLLogStorage) Snapshot() (storage.ReadOnlyLogTX, error) {
-	tx, err := m.Begin()
+	tx, err := m.beginInternal()
 	if err != nil {
 		return nil, err
 	}
@@ -803,4 +824,8 @@ func (t *tx) Rollback() error {
 	}
 
 	return err
+}
+
+func (t *tx) GetTreeParameters() (storage.TreeControlParams, error) {
+	return storage.TreeControlParams{ReadOnly: t.m.readOnly}, nil
 }

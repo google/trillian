@@ -6,11 +6,12 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
+	"os"
+	"testing"
+
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
-	"os"
-	"testing"
 )
 
 func createSomeNodes() []storage.Node {
@@ -45,6 +46,45 @@ func nodesAreEqual(lhs []storage.Node, rhs []storage.Node) error {
 	}
 	return nil
 }
+
+// TODO: These can be cleaned up a bit when other database test PRs have been submitted
+// and they can use the storage setup methods
+func createLogID2() trillian.LogID {
+	return trillian.LogID{
+		LogID:  []byte("hi2"),
+		TreeID: 24,
+	}
+}
+
+func TestReadOnlyIsEnforced(t *testing.T) {
+	s, err := NewLogStorage(createLogID2(), "test:zaphod@tcp(127.0.0.1:3306)/test")
+
+	if err != nil {
+		t.Fatalf("Failed to open tree storage: %s", err)
+	}
+
+	// This should fail as it's readonly
+	_, err = s.Begin()
+	if err != storage.ErrReadOnly {
+		t.Fatalf("Did not get expected read only error: %v", err)
+	}
+}
+
+func TestReadOnlyAllowsSnapshot(t *testing.T) {
+	s, err := NewLogStorage(createLogID2(), "test:zaphod@tcp(127.0.0.1:3306)/test")
+
+	if err != nil {
+		t.Fatalf("Failed to open tree storage: %s", err)
+	}
+
+	// This should be ok for a readonly tree
+	_, err = s.Snapshot()
+	if err != nil {
+		t.Fatalf("Did not allow snapshot: %v", err)
+	}
+}
+
+// TODO: End of section that needs cleanup
 
 func TestNodeRoundTrip(t *testing.T) {
 	s, err := NewLogStorage(createLogID(), "test:zaphod@tcp(127.0.0.1:3306)/test")
@@ -94,6 +134,48 @@ func TestNodeRoundTrip(t *testing.T) {
 
 }
 
+func TestGetTreeParameters(t *testing.T) {
+	s, err := NewLogStorage(createLogID(), "test:zaphod@tcp(127.0.0.1:3306)/test")
+	if err != nil {
+		t.Fatalf("Failed to open tree storage: %s", err)
+	}
+
+	tx, err := s.Snapshot()
+	if err != nil {
+		t.Fatalf("Couldn't create tx")
+	}
+
+	treeParams, err := tx.GetTreeParameters()
+
+	if err != nil {
+		t.Fatalf("Couldn't get params 1")
+	}
+
+	s2, err := NewLogStorage(createLogID2(), "test:zaphod@tcp(127.0.0.1:3306)/test")
+	if err != nil {
+		t.Fatalf("Failed to open tree storage: %s", err)
+	}
+
+	tx2, err := s2.Snapshot()
+
+	if err != nil {
+		t.Fatalf("Couldn't create tx2")
+	}
+
+	treeParams2, err := tx2.GetTreeParameters()
+
+	if err != nil {
+		t.Fatalf("Couldn't get params 2")
+	}
+
+	if treeParams.ReadOnly || !treeParams2.ReadOnly {
+		t.Fatalf("Expected tree1 R/W, got: %v tree2 R/O and got: %v", treeParams.ReadOnly, treeParams2.ReadOnly)
+	}
+
+	tx.Commit()
+	tx2.Commit()
+}
+
 func createTestDB() {
 	db, err := sql.Open("mysql", "test:zaphod@tcp(127.0.0.1:3306)/test")
 	if err != nil {
@@ -101,6 +183,22 @@ func createTestDB() {
 	}
 	_, err = db.Exec(`REPLACE INTO Trees(TreeId, KeyId, TreeType, LeafHasherType, TreeHasherType)
 					 VALUES(23, "hi", "LOG", "SHA256", "SHA256")`)
+	if err != nil {
+		panic(err)
+	}
+	// Create a second tree set up to be read only. Have to remove tree control row manually
+	// to avoid a constraint issue
+	_, err = db.Exec("DELETE FROM TreeControl WHERE TreeId=24")
+	if err != nil {
+		panic(err)
+	}
+	_, err = db.Exec(`REPLACE INTO Trees(TreeId, KeyId, TreeType, LeafHasherType, TreeHasherType)
+					 VALUES(24, "hi2", "LOG", "SHA256", "SHA256")`)
+	if err != nil {
+		panic(err)
+	}
+	_, err = db.Exec(`INSERT INTO TreeControl(TreeId, ReadOnlyRequests, SigningEnabled, SequencingEnabled, SequenceIntervalSeconds, SignIntervalSeconds)
+					 VALUES(24, true, true, true, 9000, 9000)`)
 	if err != nil {
 		panic(err)
 	}
