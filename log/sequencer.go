@@ -18,27 +18,26 @@ import (
 // There is no strong ordering guarantee but in general entries will be processed
 // in order of submission to the log.
 type Sequencer struct {
+	hasher     trillian.Hasher
 	timeSource util.TimeSource
 	logStorage storage.LogStorage
 }
 
-func NewSequencer(timeSource util.TimeSource, logStorage storage.LogStorage) *Sequencer {
-	return &Sequencer{timeSource, logStorage}
+func NewSequencer(hasher trillian.Hasher, timeSource util.TimeSource, logStorage storage.LogStorage) *Sequencer {
+	return &Sequencer{hasher, timeSource, logStorage}
 }
 
 // TODO: This currently doesn't use the batch api for fetching the required nodes. This
 // would be more efficient but requires refactoring.
-// TODO: Hasher should not be created directly like this
 func (s Sequencer) buildMerkleTreeFromStorageAtRoot(root trillian.SignedLogRoot, tx storage.TreeTX) (*merkle.CompactMerkleTree, error) {
-	hasher := trillian.NewSHA256()
 	if root.TreeSize == nil {
 		return nil, errors.New("invalid root; TreeSize unset")
 	}
 	if root.TreeRevision == nil {
 		return nil, errors.New("invalid root; TreeRevision unset")
 	}
-	mt := merkle.NewCompactMerkleTreeWithState(hasher, *root.TreeSize, func(depth int, index int64) (trillian.Hash, error) {
-		nodeId := storage.NewNodeIDForTreeCoords(int64(depth), index, int(hasher.Size()))
+	mt := merkle.NewCompactMerkleTreeWithState(s.hasher, *root.TreeSize, func(depth int, index int64) (trillian.Hash, error) {
+		nodeId := storage.NewNodeIDForTreeCoords(int64(depth), index, int(s.hasher.Size()))
 		nodes, err := tx.GetMerkleNodes([]storage.NodeID{nodeId}, *root.TreeRevision)
 
 		if err != nil {
