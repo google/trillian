@@ -14,14 +14,18 @@ type MockLogStorage struct {
 	mock.Mock
 }
 
+type MockTreeTX struct {
+	mock.Mock
+}
+
 // MockLogTX is a mock version of LogTX
 type MockLogTX struct {
-	mock.Mock
+	MockTreeTX
 }
 
 // MockReadOnlyLogTX is a mock version of ReadOnlyLogTX
 type MockReadOnlyLogTX struct {
-	mock.Mock
+	MockTreeTX
 }
 
 // Begin is a mock
@@ -52,8 +56,8 @@ func (t *MockLogTX) Rollback() error {
 }
 
 // GetMerkleNodes is a mock
-func (t *MockLogTX) GetMerkleNodes(ids []NodeID, treeRevision int64) ([]Node, error) {
-	args := t.Called(ids, treeRevision)
+func (t *MockTreeTX) GetMerkleNodes(treeRevision int64, ids []NodeID) ([]Node, error) {
+	args := t.Called(treeRevision, ids)
 
 	return args.Get(0).([]Node), args.Error(1)
 }
@@ -83,7 +87,7 @@ func (n *nodeSorter) Less(i, j int) bool {
 }
 
 // SetMerkleNodes is a mock
-func (t *MockLogTX) SetMerkleNodes(nodes []Node, treeRevision int64) error {
+func (t *MockTreeTX) SetMerkleNodes(treeRevision int64, nodes []Node) error {
 	// We need a stable order to match the mock expectations so we sort them by
 	// prefix len before passing them to the mock library. Might need extending
 	// if we have more complex tests.
@@ -134,7 +138,7 @@ func (t *MockLogTX) GetLeavesByIndex(leaves []int64) ([]trillian.LogLeaf, error)
 }
 
 // GetLeavesByHash is a mock
-func (t *MockLogTX) GetLeavesByHash(leafHashes []trillian.Hash) ([]trillian.LogLeaf, error) {
+func (t *MockTreeTX) GetLeavesByHash(leafHashes []trillian.Hash) ([]trillian.LogLeaf, error) {
 	args := t.Called(leafHashes)
 
 	return args.Get(0).([]trillian.LogLeaf), args.Error(1)

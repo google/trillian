@@ -22,7 +22,7 @@ type TreeTX interface {
 // NodeReader provides a read-only interface into the stored tree nodes.
 type NodeReader interface {
 	// GetMerkleNodes looks up the set of nodes identified by ids, at treeRevision, and returns them.
-	GetMerkleNodes(ids []NodeID, treeRevision int64) ([]Node, error)
+	GetMerkleNodes(treeRevision int64, ids []NodeID) ([]Node, error)
 }
 
 // NodeReaderWriter provides a read-write interface into the stored tree nodes.
@@ -30,5 +30,5 @@ type NodeReaderWriter interface {
 	NodeReader
 
 	// SetMerkleNodes stores the provided nodes, at treeRevision.
-	SetMerkleNodes(nodes []Node, treeRevision int64) error
+	SetMerkleNodes(treeRevision int64, nodes []Node) error
 }

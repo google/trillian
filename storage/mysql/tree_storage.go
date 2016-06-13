@@ -258,7 +258,7 @@ func (m *mySQLLogStorage) getNodesStmt(num int) (*sql.Stmt, error) {
 	return m.getNodes[num], nil
 }
 
-func (m *mySQLLogStorage) GetMerkleNodes(nodeIDs []storage.NodeID, treeRevision int64) ([]storage.Node, error) {
+func (m *mySQLLogStorage) GetMerkleNodes(treeRevision int64, nodeIDs []storage.NodeID) ([]storage.Node, error) {
 	t, err := m.Begin()
 
 	if err != nil {
@@ -266,7 +266,7 @@ func (m *mySQLLogStorage) GetMerkleNodes(nodeIDs []storage.NodeID, treeRevision 
 	}
 
 	defer t.Commit()
-	return t.GetMerkleNodes(nodeIDs, treeRevision)
+	return t.GetMerkleNodes(treeRevision, nodeIDs)
 }
 
 func (m *mySQLLogStorage) LatestSignedLogRoot() (trillian.SignedLogRoot, error) {
@@ -711,7 +711,7 @@ func (t *tx) removeSequencedLeaves(leaves []trillian.LogLeaf) error {
 	return nil
 }
 
-func (t *tx) GetMerkleNodes(nodeIDs []storage.NodeID, treeRevision int64) ([]storage.Node, error) {
+func (t *tx) GetMerkleNodes(treeRevision int64, nodeIDs []storage.NodeID) ([]storage.Node, error) {
 	tmpl, err := t.m.getNodesStmt(len(nodeIDs))
 	if err != nil {
 		return nil, err
@@ -769,7 +769,7 @@ func (t *tx) GetMerkleNodes(nodeIDs []storage.NodeID, treeRevision int64) ([]sto
 	return ret, nil
 }
 
-func (t *tx) SetMerkleNodes(nodes []storage.Node, treeRevision int64) error {
+func (t *tx) SetMerkleNodes(treeRevision int64, nodes []storage.Node) error {
 	stx := t.tx.Stmt(t.m.setNode)
 	for _, n := range nodes {
 		nodeIdBytes, err := encodeNodeID(n.NodeID)
