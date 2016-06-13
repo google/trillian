@@ -9,8 +9,23 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
+// MockTreeStorage is a mock version of TreeStorage.
+type MockTreeStorage struct {
+	mock.Mock
+}
+
 // MockLogStorage is a mock version of LogStorage
 type MockLogStorage struct {
+	MockTreeStorage
+}
+
+// MockMapStorage is a mock version of MapStorage
+type MockMapStorage struct {
+	MockTreeStorage
+}
+
+// MockTreeTX is a mock version of TreeTX
+type MockTreeTX struct {
 	mock.Mock
 }
 
@@ -20,6 +35,11 @@ type MockTreeTX struct {
 
 // MockLogTX is a mock version of LogTX
 type MockLogTX struct {
+	MockTreeTX
+}
+
+// MockMapTX is a mock version of MapTX
+type MockMapTX struct {
 	MockTreeTX
 }
 
@@ -42,14 +62,14 @@ func (s MockLogStorage) Snapshot() (ReadOnlyLogTX, error) {
 }
 
 // Commit is a mock
-func (t *MockLogTX) Commit() error {
+func (t *MockTreeTX) Commit() error {
 	args := t.Called()
 
 	return args.Error(0)
 }
 
 // Rollback is a mock
-func (t *MockLogTX) Rollback() error {
+func (t *MockTreeTX) Rollback() error {
 	args := t.Called()
 
 	return args.Error(0)
@@ -60,30 +80,6 @@ func (t *MockTreeTX) GetMerkleNodes(treeRevision int64, ids []NodeID) ([]Node, e
 	args := t.Called(treeRevision, ids)
 
 	return args.Get(0).([]Node), args.Error(1)
-}
-
-type by func(n1, n2 *Node) bool
-
-func (by by) sort(nodes []Node) {
-	ns := &nodeSorter{nodes: nodes, by: by}
-	sort.Sort(ns)
-}
-
-type nodeSorter struct {
-	nodes []Node
-	by    func(n1, n2 *Node) bool
-}
-
-func (n *nodeSorter) Len() int {
-	return len(n.nodes)
-}
-
-func (n *nodeSorter) Swap(i, j int) {
-	n.nodes[i], n.nodes[j] = n.nodes[j], n.nodes[i]
-}
-
-func (n *nodeSorter) Less(i, j int) bool {
-	return n.by(&n.nodes[i], &n.nodes[j])
 }
 
 // SetMerkleNodes is a mock
@@ -97,7 +93,7 @@ func (t *MockTreeTX) SetMerkleNodes(treeRevision int64, nodes []Node) error {
 
 	by(prefixLen).sort(nodes)
 
-	args := t.Called(nodes, treeRevision)
+	args := t.Called(treeRevision, nodes)
 
 	return args.Error(0)
 }
@@ -157,3 +153,72 @@ func (t *MockLogTX) StoreSignedLogRoot(root trillian.SignedLogRoot) error {
 
 	return args.Error(0)
 }
+
+// Begin is a mock
+func (s MockMapStorage) Begin() (MapTX, error) {
+	args := s.Called()
+	return args.Get(0).(MapTX), args.Error(1)
+}
+
+// Snapshot is a mock
+func (s MockMapStorage) Snapshot() (ReadOnlyMapTX, error) {
+	args := s.Called()
+
+	return args.Get(0).(ReadOnlyMapTX), args.Error(1)
+}
+
+// Set is a mock
+func (t *MockMapTX) Set(key []byte, value trillian.MapLeaf) error {
+	args := t.Called(key, value)
+
+	return args.Error(0)
+}
+
+// Get is a mock
+func (t *MockMapTX) Get(revision int64, key []byte) (trillian.MapLeaf, error) {
+	args := t.Called(revision, key)
+
+	return args.Get(0).(trillian.MapLeaf), args.Error(1)
+}
+
+// LatestSignedMapRoot is a mock
+func (t *MockMapTX) LatestSignedMapRoot() (trillian.SignedMapRoot, error) {
+	args := t.Called()
+
+	return args.Get(0).(trillian.SignedMapRoot), args.Error(1)
+}
+
+// StoreSignedMapRoot is a mock
+func (t *MockMapTX) StoreSignedMapRoot(root trillian.SignedMapRoot) error {
+	args := t.Called(root)
+
+	return args.Error(0)
+}
+
+// Node sorting boilerplate below.
+
+type by func(n1, n2 *Node) bool
+
+func (by by) sort(nodes []Node) {
+	ns := &nodeSorter{nodes: nodes, by: by}
+	sort.Sort(ns)
+}
+
+type nodeSorter struct {
+	nodes []Node
+	by    func(n1, n2 *Node) bool
+}
+
+func (n *nodeSorter) Len() int {
+	return len(n.nodes)
+}
+
+func (n *nodeSorter) Swap(i, j int) {
+	n.nodes[i], n.nodes[j] = n.nodes[j], n.nodes[i]
+}
+
+func (n *nodeSorter) Less(i, j int) bool {
+	return n.by(&n.nodes[i], &n.nodes[j])
+}
+
+// End sorting boilerplate.
