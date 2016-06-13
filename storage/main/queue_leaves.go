@@ -4,11 +4,12 @@ import (
 	"crypto/sha256"
 	"flag"
 	"fmt"
+	"time"
+
 	_ "github.com/go-sql-driver/mysql"
 	log "github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
-	"time"
 )
 
 var numInsertionsFlag = flag.Int("num_insertions", 10, "Number of entries to insert in the tree")

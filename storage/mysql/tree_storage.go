@@ -45,11 +45,11 @@ const deleteUnsequencedSql string = "DELETE FROM Unsequenced WHERE LeafHash IN (
 const selectLeavesByIndexSql string = `SELECT l.LeafHash,l.TheData,s.SequenceNumber,s.SignedEntryTimestamp
 		     FROM LeafData l,SequencedLeafData s
 		     WHERE l.LeafHash = s.LeafHash
-		     AND s.SequenceNumber IN (` + placeholderSql + `) AND l.TreeId = ?`
+		     AND s.SequenceNumber IN (` + placeholderSql + `) AND l.TreeId = ? AND s.TreeId = l.TreeId`
 const selectLeavesByHashSql string = `SELECT l.LeafHash,l.TheData,s.SequenceNumber,s.SignedEntryTimestamp
 		     FROM LeafData l,SequencedLeafData s
 		     WHERE l.LeafHash = s.LeafHash
-		     AND l.LeafHash IN (` + placeholderSql + `) AND l.TreeId = ?`
+		     AND l.LeafHash IN (` + placeholderSql + `) AND l.TreeId = ? AND s.TreeId = l.TreeId`
 const selectNodesSql string = `SELECT x.NodeId, x.MaxRevision, Node.NodeHash
 				 FROM (SELECT n.NodeId, max(n.NodeRevision) AS MaxRevision
 							 FROM Node n
@@ -128,7 +128,7 @@ func NewLogStorage(id trillian.LogID, url string) (storage.LogStorage, error) {
 // placeholder slots. At most one placeholder will be expanded.
 func expandPlaceholderSql(sql string, num int) string {
 	if num <= 0 {
-		panic("Trying to expand SQL placeholder with <= 0 parameters")
+		panic(fmt.Errorf("Trying to expand SQL placeholder with <= 0 parameters: %s", sql))
 	}
 
 	parameters := "?" + strings.Repeat(",?", num-1)
@@ -151,7 +151,9 @@ func decodeSignedTimestamp(signedEntryTimestampBytes []byte) (trillian.SignedEnt
 	return signedEntryTimestamp, nil
 }
 
-func encodeSignedTimestamp(signedEntryTimestamp trillian.SignedEntryTimestamp) ([]byte, error) {
+// TODO: Pull the encoding / decoding out of this file, move up to Storage. Review after
+// all current PRs submitted.
+func EncodeSignedTimestamp(signedEntryTimestamp trillian.SignedEntryTimestamp) ([]byte, error) {
 	// TODO: This will probably switch to proto serialization later but we're avoiding those
 	// dependencies for the moment
 	var signedTimestampBuffer bytes.Buffer
@@ -379,11 +381,6 @@ func (t *tx) DequeueLeaves(limit int) ([]trillian.LogLeaf, error) {
 	leaves := make([]trillian.LogLeaf, 0, limit)
 	rows, err := stx.Query(t.m.id.TreeID, limit)
 
-	if err == sql.ErrNoRows {
-		// There could be nothing in the queue
-		return []trillian.LogLeaf{}, nil
-	}
-
 	if err != nil {
 		glog.Warningf("Failed to select rows for work: %s", err)
 		return nil, err
@@ -425,9 +422,15 @@ func (t *tx) DequeueLeaves(limit int) ([]trillian.LogLeaf, error) {
 		leaves = append(leaves, leaf)
 	}
 
+	if rows.Err() != nil {
+		return nil, rows.Err()
+	}
+
 	// The convention is that if leaf processing succeeds (by committing this tx)
 	// then the unsequenced entries for them are removed
-	err = t.removeSequencedLeaves(leaves)
+	if len(leaves) > 0 {
+		err = t.removeSequencedLeaves(leaves)
+	}
 
 	if err != nil {
 		return nil, err
@@ -486,7 +489,7 @@ func (t *tx) QueueLeaves(leaves []trillian.LogLeaf) error {
 		hasher.Write(leaf.LeafHash)
 		messageId := hasher.Sum(nil)
 
-		signedTimestampBytes, err := encodeSignedTimestamp(leaf.SignedEntryTimestamp)
+		signedTimestampBytes, err := EncodeSignedTimestamp(leaf.SignedEntryTimestamp)
 
 		if err != nil {
 			return err
@@ -619,18 +622,22 @@ func (t *tx) GetLeavesByHash(leafHashes []trillian.Hash) ([]trillian.LogLeaf, er
 
 func (t *tx) LatestSignedLogRoot() (trillian.SignedLogRoot, error) {
 	var timestamp, treeSize, treeRevision int64
-	var rootHash, rootSignature []byte
+	var rootHash, rootSignatureBytes []byte
+	var rootSignature trillian.DigitallySigned
 
 	err := t.tx.QueryRow(
 		selectLatestSignedRootSql, t.m.id.TreeID).Scan(
-		&timestamp, &treeSize, &rootHash, &treeRevision, &rootSignature)
+		&timestamp, &treeSize, &rootHash, &treeRevision, &rootSignatureBytes)
 
 	// It's possible there are no roots for this tree yet
 	if err == sql.ErrNoRows {
 		return trillian.SignedLogRoot{}, nil
 	}
 
+	err = proto.Unmarshal(rootSignatureBytes, &rootSignature)
+
 	if err != nil {
+		glog.Warningf("Failed to unmarshall root signature: %v", err)
 		return trillian.SignedLogRoot{}, err
 	}
 
@@ -638,18 +645,22 @@ func (t *tx) LatestSignedLogRoot() (trillian.SignedLogRoot, error) {
 		RootHash:       rootHash,
 		TimestampNanos: proto.Int64(timestamp),
 		TreeRevision:   proto.Int64(treeRevision),
-		Signature: &trillian.DigitallySigned{
-			Signature: rootSignature,
-		},
-		LogId:    t.m.id.LogID,
-		TreeSize: proto.Int64(treeSize),
+		Signature:      &rootSignature,
+		LogId:          t.m.id.LogID,
+		TreeSize:       proto.Int64(treeSize),
 	}, nil
 }
 
 func (t *tx) StoreSignedLogRoot(root trillian.SignedLogRoot) error {
-	res, err := t.tx.Exec(insertTreeHeadSql,
-		t.m.id.TreeID, root.TimestampNanos, root.TreeSize,
-		root.RootHash, root.TreeRevision, root.Signature)
+	signatureBytes, err := proto.Marshal(root.Signature)
+
+	if err != nil {
+		glog.Warningf("Failed to marshal root signature: %v %v", root.Signature, err)
+		return err
+	}
+
+	res, err := t.tx.Exec(insertTreeHeadSql, t.m.id.TreeID, root.TimestampNanos, root.TreeSize,
+		root.RootHash, root.TreeRevision, signatureBytes)
 
 	if err != nil {
 		glog.Warningf("Failed to store signed root: %s", err)
@@ -667,7 +678,7 @@ func (t *tx) UpdateSequencedLeaves(leaves []trillian.LogLeaf) error {
 			return errors.New("Sequenced leaf has incorrect hash size")
 		}
 
-		signedTimestampBytes, err := encodeSignedTimestamp(leaf.SignedEntryTimestamp)
+		signedTimestampBytes, err := EncodeSignedTimestamp(leaf.SignedEntryTimestamp)
 
 		if err != nil {
 			return err

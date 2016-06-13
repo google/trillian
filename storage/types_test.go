@@ -46,7 +46,6 @@ func TestNewNodeIDForTreeCoords(t *testing.T) {
 
 func TestSetBit(t *testing.T) {
 	n := NewNodeIDWithPrefix(0, 0, 0, 64)
-
 	n.SetBit(27, 1)
 	if got, want := n.Path, []byte{0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x00}; !bytes.Equal(got, want) {
 		t.Fatalf("Expected Path of %v, but got %v", want, got)
