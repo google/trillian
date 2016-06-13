@@ -7,6 +7,7 @@ import (
 // ReadOnlyLogTX provides a read-only view into the Log data.
 type ReadOnlyLogTX interface {
 	ReadOnlyTreeTX
+	LeafReader
 	LogRootReader
 }
 
@@ -16,6 +17,7 @@ type LogTX interface {
 	TreeTX
 	LogRootReader
 	LogRootWriter
+	LeafReader
 	LeafQueuer
 	LeafDequeuer
 }
