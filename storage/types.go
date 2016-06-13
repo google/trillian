@@ -108,7 +108,6 @@ func (n *NodeID) String() string {
 	var r bytes.Buffer
 	limit := n.PathLenBits - n.PrefixLenBits
 	for i := n.PathLenBits - 1; i >= limit; i-- {
-		//fmt.Printf("%d (pathlen=%d, prefix=%x, limit=%d)\n", i, n.PathLenBits, n.PrefixLenBits, limit)
 		r.WriteRune(rune('0' + n.Bit(i)))
 	}
 	return r.String()
@@ -135,7 +134,11 @@ func (n *NodeID) AsProto() *NodeIDProto {
 }
 
 func NewNodeIDFromProto(p NodeIDProto) *NodeID {
-	return &NodeID{p.Path, int(*p.PrefixLenBits)}
+	return &NodeID{
+		Path:          p.Path,
+		PrefixLenBits: int(*p.PrefixLenBits),
+		PathLenBits:   len(p.Path) * 8,
+	}
 }
 
 // Equivalent return true iff the other represents the same path prefix as this NodeID.

@@ -13,11 +13,10 @@ type MapHasher struct {
 }
 
 // NewMapHasher creates a new MapHasher based on the passed in hash function.
-func NewMapHasher(hasher trillian.Hasher) MapHasher {
-	th := NewTreeHasher(hasher)
+func NewMapHasher(th TreeHasher) MapHasher {
 	return MapHasher{
 		TreeHasher: th,
-		keyHasher:  keyHasher(hasher),
+		keyHasher:  keyHasher(th.Hasher),
 		nullHashes: createNullHashes(th),
 	}
 }
