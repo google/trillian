@@ -53,7 +53,8 @@ func NewSparseMerkleTreeWriter(rev int64, h MapHasher, tx storage.TreeTX) *Spars
 // RootAtRevision returns the sparse merkle tree root hash at the specified
 // revision, or ErrNoSuchRevision if the requested revision doesn't exist.
 func (s SparseMerkleTreeReader) RootAtRevision(rev int64) (trillian.Hash, error) {
-	nodes, err := s.tx.GetMerkleNodes(rev, []storage.NodeID{storage.NewEmptyNodeID(256)})
+	rootNodeID := storage.NewEmptyNodeID(256)
+	nodes, err := s.tx.GetMerkleNodes(rev, []storage.NodeID{rootNodeID})
 	if err != nil {
 		return nil, err
 	}
@@ -62,6 +63,14 @@ func (s SparseMerkleTreeReader) RootAtRevision(rev int64) (trillian.Hash, error)
 		return nil, ErrNoSuchRevision
 	case len(nodes) > 1:
 		return nil, fmt.Errorf("expected 1 node, but got %d", len(nodes))
+	}
+	// Sanity check the nodeID
+	if !nodes[0].NodeID.Equivalent(rootNodeID) {
+		return nil, fmt.Errorf("unexpected node returned with ID: %v", nodes[0].NodeID)
+	}
+	// Sanity check the revision
+	if nodes[0].NodeRevision > rev {
+		return nil, fmt.Errorf("unexpected node revision returned: %d > %d", nodes[0].NodeRevision, rev)
 	}
 	return nodes[0].Hash, nil
 }
