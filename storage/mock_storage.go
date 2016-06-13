@@ -29,10 +29,6 @@ type MockTreeTX struct {
 	mock.Mock
 }
 
-type MockTreeTX struct {
-	mock.Mock
-}
-
 // MockLogTX is a mock version of LogTX
 type MockLogTX struct {
 	MockTreeTX
