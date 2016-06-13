@@ -10,6 +10,7 @@ import (
 	log "github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
+	"github.com/google/trillian/storage/tools"
 )
 
 var numInsertionsFlag = flag.Int("num_insertions", 10, "Number of entries to insert in the tree")
@@ -36,8 +37,8 @@ func main() {
 	flag.Parse()
 	validateFlagsOrDie()
 
-	treeId := getLogIdFromFlagsOrDie()
-	storage := getStorageFromFlagsOrDie(treeId)
+	treeId := tools.GetLogIdFromFlagsOrDie()
+	storage := tools.GetStorageFromFlagsOrDie(treeId)
 
 	tx, err := storage.Begin()
 
