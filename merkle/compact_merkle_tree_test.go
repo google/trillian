@@ -3,6 +3,8 @@ package merkle
 import (
 	"bytes"
 	"encoding/hex"
+	"errors"
+	"strings"
 	"testing"
 
 	"github.com/google/trillian"
@@ -108,5 +110,34 @@ func TestAddingLeaves(t *testing.T) {
 		if got, want := tree.CurrentRoot(), roots[7]; !bytes.Equal(got, want) {
 			t.Fatalf("Expected root of %v, got %v", got, want)
 		}
+	}
+}
+
+func failingGetNodeFunc(depth int, index int64) (trillian.Hash, error) {
+	return trillian.Hash{}, errors.New("Bang!")
+}
+
+// This returns something that won't result in a valid root hash match, doesn't really
+// matter what it is but it must be correct length for an SHA256 hash as if it was real
+func fixedHashGetNodeFunc(depth int, index int64) (trillian.Hash, error) {
+	return []byte("12345678901234567890123456789012"), nil
+}
+
+func TestLoadingTreeFailsNodeFetch(t *testing.T) {
+	_, err := NewCompactMerkleTreeWithState(trillian.NewSHA256(), 237, failingGetNodeFunc, []byte("notimportant"))
+
+	if err == nil || !strings.Contains(err.Error(), "Bang!") {
+		t.Fatalf("Did not return correctly on failed node fetch: %v", err)
+	}
+}
+
+func TestLoadingTreeFailsBadRootHash(t *testing.T) {
+	// Supply a root hash that can't possibly match the result of the SHA 256 hashing on our dummy
+	// data
+	_, err := NewCompactMerkleTreeWithState(trillian.NewSHA256(), 237, fixedHashGetNodeFunc, []byte("nomatch!nomatch!nomatch!nomatch!"))
+	_, ok := err.(RootHashMismatchError)
+
+	if err == nil || !ok {
+		t.Fatalf("Did not return correct error type on root mismatch: %v", err)
 	}
 }
