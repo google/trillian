@@ -6,6 +6,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	log "github.com/golang/glog"
 	"github.com/google/trillian"
+	"github.com/google/trillian/storage/tools"
 )
 
 var fetchLeavesFlag = flag.Int("fetch_leaves", 1, "Number of entries to fetch")
@@ -27,8 +28,8 @@ func main() {
 	flag.Parse()
 	validateFetchFlagsOrDie()
 
-	treeId := getLogIdFromFlagsOrDie()
-	storage := getStorageFromFlagsOrDie(treeId)
+	treeId := tools.GetLogIdFromFlagsOrDie()
+	storage := tools.GetStorageFromFlagsOrDie(treeId)
 
 	tx, err := storage.Begin()
 

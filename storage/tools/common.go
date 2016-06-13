@@ -1,4 +1,4 @@
-package main
+package tools
 
 import (
 	"flag"
@@ -14,11 +14,11 @@ var storageTypeFlag = flag.String("storage_type", "mysql", "Which type of storag
 var mysqlUriFlag = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test",
 	"uri to use with mysql storage")
 
-func getLogIdFromFlagsOrDie() trillian.LogID {
+func GetLogIdFromFlagsOrDie() trillian.LogID {
 	return trillian.LogID{[]byte(*logIdFlag), *treeIdFlag}
 }
 
-func getStorageFromFlagsOrDie(treeId trillian.LogID) storage.LogStorage {
+func GetStorageFromFlagsOrDie(treeId trillian.LogID) storage.LogStorage {
 	switch {
 	case *storageTypeFlag == "mysql":
 		store, err := mysql.NewLogStorage(treeId, *mysqlUriFlag)
