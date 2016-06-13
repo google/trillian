@@ -38,7 +38,7 @@ func (s Sequencer) buildMerkleTreeFromStorageAtRoot(root trillian.SignedLogRoot,
 	}
 	mt, err := merkle.NewCompactMerkleTreeWithState(s.hasher, *root.TreeSize, func(depth int, index int64) (trillian.Hash, error) {
 		nodeId := storage.NewNodeIDForTreeCoords(int64(depth), index, int(s.hasher.Size()))
-		nodes, err := tx.GetMerkleNodes([]storage.NodeID{nodeId}, *root.TreeRevision)
+		nodes, err := tx.GetMerkleNodes(*root.TreeRevision, []storage.NodeID{nodeId})
 
 		if err != nil {
 			glog.Warningf("Failed to get merkle nodes: %s", err)
@@ -170,7 +170,7 @@ func (s Sequencer) SequenceBatch(limit int) error {
 	}
 
 	// Now insert or update the nodes affected by the above, at the new tree version
-	err = tx.SetMerkleNodes(targetNodes, newVersion)
+	err = tx.SetMerkleNodes(newVersion, targetNodes)
 
 	if err != nil {
 		glog.Warningf("Sequencer failed to set merkle nodes: %s", err)

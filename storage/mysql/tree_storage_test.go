@@ -112,7 +112,7 @@ func TestNodeRoundTrip(t *testing.T) {
 			t.Fatalf("Failed to Begin: %s", err)
 		}
 
-		if err := tx.SetMerkleNodes(nodesToStore, 100); err != nil {
+		if err := tx.SetMerkleNodes(100, nodesToStore); err != nil {
 			t.Fatalf("Failed to store nodes: %s", err)
 		}
 
@@ -131,7 +131,7 @@ func TestNodeRoundTrip(t *testing.T) {
 		for i := range nodesToStore {
 			nodeIDs[i] = nodesToStore[i].NodeID
 		}
-		readNodes, err := tx.GetMerkleNodes(nodeIDs, 100)
+		readNodes, err := tx.GetMerkleNodes(100, nodeIDs)
 		if err != nil {
 			t.Fatalf("Failed to retrieve nodes: %s", err)
 		}
