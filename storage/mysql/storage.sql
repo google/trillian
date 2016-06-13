@@ -64,8 +64,8 @@ CREATE TABLE IF NOT EXISTS Node(
   FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE
 );
 
-// The TreeRevisionIdx is used to enforce that there is only one STH at any
-// tree revision
+-- The TreeRevisionIdx is used to enforce that there is only one STH at any
+-- tree revision
 CREATE TABLE IF NOT EXISTS TreeHead(
   TreeId               INTEGER NOT NULL,
   TreeHeadTimestamp    BIGINT,
@@ -86,7 +86,7 @@ CREATE TABLE IF NOT EXISTS Unsequenced(
   -- we can try to stomp dupe submissions.
   MessageId            BINARY(32) NOT NULL,
   Payload              BLOB NOT NULL,
-  QueueTimestamp       TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  QueueTimestamp       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   SignedEntryTimestamp BLOB,
   PRIMARY KEY (TreeId, LeafHash, MessageId)
-)
+);
