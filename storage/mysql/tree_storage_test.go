@@ -12,10 +12,10 @@ import (
 	"testing"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
-	"github.com/golang/glog"
 )
 
 var allTables = []string{"Unsequenced", "TreeHead", "SequencedLeafData", "LeafData", "Node", "TreeControl", "Trees"}
@@ -160,8 +160,8 @@ func TestNodeIDSerialization(t *testing.T) {
 		t.Fatalf("Failed to deserialize NodeID: %v, %v", nodeID, err)
 	}
 
-	if nodeID != nodeID2 {
-		t.Errorf("Round trip of nodeID failed: %v %v", nodeID, nodeID2)
+	if expected, got := nodeID.String(), nodeID2.String(); expected != got {
+		t.Errorf("Round trip of nodeID failed: %v %v", expected, got)
 	}
 }
 

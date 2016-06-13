@@ -1,11 +1,9 @@
 package mysql
 
 import (
-	"bytes"
 	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
-	"encoding/gob"
 	"errors"
 	"fmt"
 	"strings"
