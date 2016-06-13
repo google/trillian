@@ -147,7 +147,7 @@ func TestNodeRoundTrip(t *testing.T) {
 
 // Explicit test for node id conversion to / from protos.
 func TestNodeIDSerialization(t *testing.T) {
-	nodeID := storage.NodeID{[]byte("hello"), 297}
+	nodeID := storage.NodeID{[]byte("hello"), 3}
 	serializedBytes, err := encodeNodeID(nodeID)
 
 	if err != nil {
