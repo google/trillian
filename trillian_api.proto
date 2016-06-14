@@ -20,7 +20,7 @@ message TrillianApiStatus {
     optional string description = 2;
 }
 
-message Leaf {
+message LeafProto {
     optional bytes leaf_hash = 1;
     optional bytes leaf_data = 2;
     optional bytes extra_data = 3;
@@ -28,7 +28,7 @@ message Leaf {
 
 message QueueLeavesRequest {
     optional int64 log_id = 1;
-    repeated Leaf leaves = 2;
+    repeated LeafProto leaves = 2;
 }
 
 message QueueLeavesResponse {

@@ -13,6 +13,7 @@ var treeIdFlag = flag.Int64("treeid", 3, "The tree id to use")
 var storageTypeFlag = flag.String("storage_type", "mysql", "Which type of storage to use")
 var mysqlUriFlag = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test",
 	"uri to use with mysql storage")
+var logPortFlag = flag.Int("port", 8090, "Port to serve log requests on")
 
 func GetLogIdFromFlagsOrDie() trillian.LogID {
 	return trillian.LogID{[]byte(*logIdFlag), *treeIdFlag}
@@ -31,4 +32,8 @@ func GetStorageFromFlagsOrDie(treeId trillian.LogID) storage.LogStorage {
 	}
 
 	panic(fmt.Sprintf("Unknown storage type: %s", *storageTypeFlag))
+}
+
+func GetLogServingPort() int {
+	return *logPortFlag
 }
