@@ -107,9 +107,10 @@ func NewLogStorage(id trillian.LogID, url string) (storage.LogStorage, error) {
 
 	err = db.QueryRow(getTreeParametersSql, id.TreeID).Scan(&readOnlyRequests)
 
-	// TODO: It's probably not ok for the log to have no prameters set but we haven't got an
-	// admin API yet
+	// TODO: It's probably not ok for the log to have no parameters set. Enforce this when
+	// we have an admin API and / or we're further along.
 	if err == sql.ErrNoRows {
+		log.Warnf("*** Opening storage for log: %v but it has no params configured ***", id)
 		readOnlyRequests = false
 	}
 
