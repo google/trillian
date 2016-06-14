@@ -54,10 +54,9 @@ type GetNodeFunc func(depth int, index int64) (trillian.Hash, error)
 // of the tree at |size|, and is used to verify the correct initial state of the CompactMerkleTree after initialisation.
 // TODO: Should get a TreeHasher injected, not just a Hasher. Do this after current changes submitted
 // to avoid extra conflicts.
-func NewCompactMerkleTreeWithState(hasher trillian.Hasher, size int64, f GetNodeFunc, expectedRoot trillian.Hash) *CompactMerkleTree {
-
+func NewCompactMerkleTreeWithState(hasher trillian.Hasher, size int64, f GetNodeFunc, expectedRoot trillian.Hash) (*CompactMerkleTree, error) {
 	r := CompactMerkleTree{
-		hasher: NewRfc6962TreeHasher(hasher),
+		hasher: hasher,
 		nodes:  make([]trillian.Hash, bitLen(size)),
 		size:   size,
 	}
@@ -96,7 +95,7 @@ func NewCompactMerkleTreeWithState(hasher trillian.Hasher, size int64, f GetNode
 func NewCompactMerkleTree(hasher trillian.Hasher) *CompactMerkleTree {
 	emptyHash := hasher.Digest([]byte{})
 	r := CompactMerkleTree{
-		hasher: NewRfc6962TreeHasher(hasher),
+		hasher: hasher,
 		root:   trillian.Hash(emptyHash[:]),
 		nodes:  make([]trillian.Hash, 0),
 		size:   0,
