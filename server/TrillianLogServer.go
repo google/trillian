@@ -2,6 +2,7 @@ package server
 
 import (
 	"errors"
+	"sync"
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
@@ -14,14 +15,39 @@ var (
 	ErrNotImplemented = errors.New("Not yet implemented")
 )
 
+// LogStorageProviderFunc decouples the server from storage implementations
+type LogStorageProviderFunc func(int64) (*storage.LogStorage, error)
+
 // TrillianLogServer implements the RPC API defined in the proto
 type TrillianLogServer struct {
-	storage *storage.LogStorage
+	storageProvider LogStorageProviderFunc
+	// Must hold this lock before accessing the storage map
+	storageMapGuard sync.Mutex
+	// Map from tree ID to storage impl for that log
+	storageMap map[int64]*storage.LogStorage
 }
 
-// NewTrillianLogServer creates a new RPC server backed by LogStorage
-func NewTrillianLogServer(s *storage.LogStorage) *TrillianLogServer {
-	return &TrillianLogServer{storage: s}
+// NewTrillianLogServer creates a new RPC server backed by a LogStorageProvider.
+func NewTrillianLogServer(p LogStorageProviderFunc) *TrillianLogServer {
+	return &TrillianLogServer{storageProvider: p}
+}
+
+func (t *TrillianLogServer) getStorageForLog(logId int64) (*storage.LogStorage, error) {
+	t.storageMapGuard.Lock()
+	defer t.storageMapGuard.Unlock()
+
+	s, ok := t.storageMap[logId]
+
+	if ok {
+		return s, nil
+	}
+
+	s, err := t.storageProvider(logId)
+
+	if err != nil {
+		t.storageMap[logId] = s
+	}
+	return s, err
 }
 
 func (t *TrillianLogServer) QueueLeaves(ctx context.Context, req *trillian.QueueLeavesRequest) (*trillian.QueueLeavesResponse, error) {

@@ -55,6 +55,7 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
+// TrillianApiStatusCode is an application level status code
 type TrillianApiStatusCode int32
 
 const (
@@ -90,6 +91,7 @@ func (x *TrillianApiStatusCode) UnmarshalJSON(data []byte) error {
 func (TrillianApiStatusCode) EnumDescriptor() ([]byte, []int) { return fileDescriptor0, []int{0} }
 
 // All operations return a TrillianApiStatus.
+// TODO: Most of the operations are not fully defined yet. They will be implemented soon
 type TrillianApiStatus struct {
 	// The status code indicates the overall result of the operation.
 	StatusCode *TrillianApiStatusCode `protobuf:"varint,1,opt,name=status_code,enum=trillian.TrillianApiStatusCode" json:"status_code,omitempty"`
@@ -475,7 +477,7 @@ var _ grpc.ClientConn
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion2
+const _ = grpc.SupportPackageIsVersion3
 
 // Client API for TrillianLog service
 
@@ -743,8 +745,11 @@ var _TrillianLog_serviceDesc = grpc.ServiceDesc{
 			Handler:    _TrillianLog_GetLeavesByHash_Handler,
 		},
 	},
-	Streams: []grpc.StreamDesc{},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: fileDescriptor0,
 }
+
+func init() { proto.RegisterFile("trillian_api.proto", fileDescriptor0) }
 
 var fileDescriptor0 = []byte{
 	// 581 bytes of a gzipped FileDescriptorProto

@@ -6,12 +6,14 @@ option java_outer_classname = "TrillianApiProto";
 
 package trillian;
 
+// TrillianApiStatusCode is an application level status code
 enum TrillianApiStatusCode {
     OK = 0;
     ERROR = 1;
 }
 
 // All operations return a TrillianApiStatus.
+// TODO: Most of the operations are not fully defined yet. They will be implemented soon
 message TrillianApiStatus {
     // The status code indicates the overall result of the operation.
     optional TrillianApiStatusCode status_code = 1;

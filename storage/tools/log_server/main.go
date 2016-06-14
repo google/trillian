@@ -6,10 +6,11 @@ import (
 	"net"
 
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/google/trillian/server"
-	"google.golang.org/grpc"
+	"github.com/golang/glog"
 	"github.com/google/trillian"
+	"github.com/google/trillian/server"
 	"github.com/google/trillian/storage/tools"
+	"google.golang.org/grpc"
 )
 
 // TODO: Move this code out to a better place when we tidy up the initial test main stuff
@@ -17,10 +18,9 @@ import (
 func main() {
 	flag.Parse()
 
-	treeId := tools.GetLogIdFromFlagsOrDie()
-	port := tools.GetLogServingPort()
-	storage := tools.GetStorageFromFlagsOrDie(treeId)
-	logServer := server.NewTrillianLogServer(&storage)
+	port := tools.GetLogServerPort()
+	provider := tools.GetLogStorageProviderFromFlags()
+	logServer := server.NewTrillianLogServer(provider)
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 
@@ -30,5 +30,6 @@ func main() {
 
 	grpcServer := grpc.NewServer()
 	trillian.RegisterTrillianLogServer(grpcServer, logServer)
+	glog.Infof("Server starting on port %d", port)
 	grpcServer.Serve(lis)
 }
