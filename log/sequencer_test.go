@@ -128,7 +128,7 @@ func createTestContext(params testParameters) testContext {
 	}
 
 	if params.merkleNodesSet != nil {
-		mockTx.On("SetMerkleNodes", *params.merkleNodesSet, params.merkleNodesSetTreeRevision).Return(params.merkleNodesSetError)
+		mockTx.On("SetMerkleNodes", params.merkleNodesSetTreeRevision, *params.merkleNodesSet).Return(params.merkleNodesSetError)
 	}
 
 	if params.storeSignedRoot != nil {
