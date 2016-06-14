@@ -1,0 +1,115 @@
+syntax = "proto2";
+
+option java_multiple_files = true;
+option java_package = "com.google.trillian.proto";
+option java_outer_classname = "TrillianApiProto";
+
+package trillian;
+
+enum TrillianApiStatusCode {
+    OK = 0;
+    ERROR = 1;
+}
+
+// All operations return a TrillianApiStatus.
+message TrillianApiStatus {
+    // The status code indicates the overall result of the operation.
+    optional TrillianApiStatusCode status_code = 1;
+    // Applications should not make assumptions about the contents of description. They
+    // should use status_code only when making error handling decisions.
+    optional string description = 2;
+}
+
+message Leaf {
+    optional bytes leaf_hash = 1;
+    optional bytes leaf_data = 2;
+    optional bytes extra_data = 3;
+}
+
+message QueueLeavesRequest {
+    optional int64 log_id = 1;
+    repeated Leaf leaves = 2;
+}
+
+message QueueLeavesResponse {
+    optional TrillianApiStatus status = 1;
+}
+
+message GetInclusionProofRequest {
+    optional int64 log_id = 1;
+}
+
+message GetInclusionProofResponse {
+    optional TrillianApiStatus status = 1;
+}
+
+message GetConsistencyProofRequest {
+    optional int64 log_id = 1;
+}
+
+message GetConsistencyProofResponse {
+    optional TrillianApiStatus status = 1;
+}
+
+message GetLatestSignedRootRequest {
+    optional int64 log_id = 1;
+}
+
+message GetLatestSignedRootResponse {
+    optional TrillianApiStatus status = 1;
+}
+
+message GetLeavesByHashRequest {
+    optional int64 log_id = 1;
+    repeated bytes leaf_hash = 2;
+}
+
+message GetLeavesByHashResponse {
+    optional TrillianApiStatus status = 1;
+}
+
+message GetLeavesByIndexRequest {
+    optional int64 log_id = 1;
+    repeated int64 leaf_index = 2;
+}
+
+message GetLeavesByIndexResponse {
+    optional TrillianApiStatus status = 1;
+}
+
+message GetSequencedLeafCountRequest {
+    optional int64 log_id = 1;
+}
+
+message GetSequencedLeafCountResponse {
+    optional TrillianApiStatus status = 1;
+}
+
+message GetLatestSignedLogRootRequest {
+    optional int64 log_id = 1;
+}
+
+message GetLatestSignedLogRootResponse {
+    optional TrillianApiStatus status = 1;
+}
+
+// TrillianLog defines a service that can provide access to a Verifiable Log as defined in the
+// Verifiable Data Structures paper. It provides direct access to a subset of storage APIs
+// (for handling reads) and provides Log level ones such as being able to obtain proofs.
+// Clients cannot directly modify the log data via this API.
+service TrillianLog {
+    // Corresponds to the LeafQueuer API
+    rpc QueueLeaves(QueueLeavesRequest) returns(QueueLeavesResponse) {}
+
+    // No direct equivalent at the storage level
+    rpc GetInclusionProof(GetInclusionProofRequest) returns(GetInclusionProofResponse) {}
+    rpc GetConsistencyProof(GetConsistencyProofRequest) returns(GetConsistencyProofResponse) {}
+
+    // Corresponds to the LogRootReader API
+    rpc GetLatestSignedLogRoot(GetLatestSignedLogRootRequest) returns(GetLatestSignedLogRootResponse) {}
+
+    // Corresponds to the LeafReader API
+    rpc GetSequencedLeafCount(GetSequencedLeafCountRequest) returns(GetSequencedLeafCountResponse) {}
+    rpc GetLeavesByIndex(GetLeavesByIndexRequest) returns(GetLeavesByIndexResponse) {}
+    rpc GetLeavesByHash(GetLeavesByHashRequest) returns(GetLeavesByHashResponse) {}
+}
