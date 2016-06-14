@@ -56,7 +56,7 @@ type GetNodeFunc func(depth int, index int64) (trillian.Hash, error)
 // to avoid extra conflicts.
 func NewCompactMerkleTreeWithState(hasher trillian.Hasher, size int64, f GetNodeFunc, expectedRoot trillian.Hash) (*CompactMerkleTree, error) {
 	r := CompactMerkleTree{
-		hasher: hasher,
+		hasher: NewRfc6962TreeHasher(hasher),
 		nodes:  make([]trillian.Hash, bitLen(size)),
 		size:   size,
 	}
@@ -95,7 +95,7 @@ func NewCompactMerkleTreeWithState(hasher trillian.Hasher, size int64, f GetNode
 func NewCompactMerkleTree(hasher trillian.Hasher) *CompactMerkleTree {
 	emptyHash := hasher.Digest([]byte{})
 	r := CompactMerkleTree{
-		hasher: hasher,
+		hasher: NewRfc6962TreeHasher(hasher),
 		root:   trillian.Hash(emptyHash[:]),
 		nodes:  make([]trillian.Hash, 0),
 		size:   0,
