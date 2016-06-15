@@ -4,6 +4,11 @@ import (
 	"github.com/google/trillian"
 )
 
+// TODO(al): investigate whether we need configurable TreeHashers for
+// different users. Apparently E2E hashes in tree-level to the internal nodes
+// for example, and some users may want different domain separation prefixes
+// etc.
+
 // Domain separation prefixes
 const (
 	LeafHashPrefix = 0
@@ -17,9 +22,10 @@ type TreeHasher struct {
 	nodeHasher func([]byte) trillian.Hash
 }
 
-// NewTreeHasher returns a new TreeHasher based on the passed in hasher.
+// NewTreeHasher creates a new TreeHasher based on the passed in hash function.
 func NewTreeHasher(hasher trillian.Hasher) TreeHasher {
 	return TreeHasher{
+		Hasher:     hasher,
 		leafHasher: leafHasher(hasher),
 		nodeHasher: nodeHasher(hasher),
 	}
