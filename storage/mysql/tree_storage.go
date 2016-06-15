@@ -34,6 +34,7 @@ const selectLatestSignedRootSql string = `SELECT TreeHeadTimestamp,TreeSize,Root
 		 ORDER BY TreeHeadTimestamp DESC LIMIT 1`
 const insertTreeHeadSql string = `INSERT INTO TreeHead(TreeId,TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature)
 		 VALUES(?,?,?,?,?,?)`
+const selectTreeRevisionAtSizeSql string = "SELECT TreeRevision FROM TreeHead WHERE TreeId=? AND TreeSize=? ORDER BY TreeRevision DESC LIMIT 1"
 
 const placeholderSql string = "<placeholder>"
 
@@ -709,6 +710,22 @@ func (t *tx) removeSequencedLeaves(leaves []trillian.LogLeaf) error {
 	}
 
 	return nil
+}
+
+// GetTreeRevisionAtSize returns the max node version for a tree at a particular size.
+// It is an error to request tree sizes larger than the currently published tree size.
+// TODO: This only works for sizes where there is a stored tree head. This is deliberate atm
+// as serving proofs at intermediate tree sizes is complicated and will be implemented later.
+func (t *tx) GetTreeRevisionAtSize(treeSize int64) (int64, error) {
+	// Negative size is not sensible and a zero sized tree has no nodes so no revisions
+	if treeSize <= 0 {
+		return 0, fmt.Errorf("Invalid tree size: %d", treeSize)
+	}
+
+	var treeRevision int64
+	err := t.tx.QueryRow(selectTreeRevisionAtSizeSql, t.m.id.TreeID, treeSize).Scan(&treeRevision)
+
+	return treeRevision, err
 }
 
 func (t *tx) GetMerkleNodes(treeRevision int64, nodeIDs []storage.NodeID) ([]storage.Node, error) {

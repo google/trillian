@@ -495,6 +495,121 @@ func TestLatestSignedLogRoot(t *testing.T) {
 	}
 }
 
+func TestGetTreeRevisionAtNonExistentSizeError(t *testing.T) {
+	// Have to set all this up though we won't actually write anything
+	logID := createLogID("TestGetTreeRevisionAtSize")
+	db := prepareTestDB(logID, t)
+	defer db.Close()
+	s := prepareTestStorage(logID, t)
+	tx := beginTx(s, t)
+	defer tx.Commit()
+
+	if _, err := tx.GetTreeRevisionAtSize(0); err == nil {
+		t.Fatalf("Returned a tree revision for 0 sized tree")
+	}
+
+	if _, err := tx.GetTreeRevisionAtSize(-427); err == nil {
+		t.Fatalf("Returned a tree revision for -ve sized tree")
+	}
+}
+
+func TestGetTreeRevisionAtSize(t *testing.T) {
+	logID := createLogID("TestGetTreeRevisionAtSize")
+	db := prepareTestDB(logID, t)
+	defer db.Close()
+	s := prepareTestStorage(logID, t)
+
+	{
+		tx := beginTx(s, t)
+
+		// TODO: Tidy up the log id as it looks silly chained 3 times like this
+		root := trillian.SignedLogRoot{LogId: logID.logID.LogID, TimestampNanos: proto.Int64(98765), TreeSize: proto.Int64(16), TreeRevision: proto.Int64(5), RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
+		root2 := trillian.SignedLogRoot{LogId: logID.logID.LogID, TimestampNanos: proto.Int64(198765), TreeSize: proto.Int64(27), TreeRevision: proto.Int64(11), RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
+
+		if err := tx.StoreSignedLogRoot(root); err != nil {
+			t.Fatalf("Failed to store signed root: %v", err)
+		}
+
+		if err := tx.StoreSignedLogRoot(root2); err != nil {
+			t.Fatalf("Failed to store signed root2: %v", err)
+		}
+
+		tx.Commit()
+	}
+
+	{
+		tx := beginTx(s, t)
+		defer tx.Commit()
+
+		// First two are legit tree head sizes and should work
+		treeRevision1, err := tx.GetTreeRevisionAtSize(16)
+
+		if err != nil {
+			t.Fatalf("Failed to get tree revision1: %v", err)
+		}
+
+		treeRevision2, err := tx.GetTreeRevisionAtSize(27)
+
+		if err != nil {
+			t.Fatalf("Failed to get tree revision2: %v", err)
+		}
+
+		if treeRevision1 != 5 || treeRevision2 != 11 {
+			t.Fatalf("Expected tree revisions 5,11 but got %d,%d", treeRevision1, treeRevision2)
+		}
+
+		// But an intermediate value shouldn't work
+		treeRevision3, err := tx.GetTreeRevisionAtSize(21)
+
+		if err == nil {
+			t.Fatalf("Unexpectedly returned revision for nonexistent tree size: %d", treeRevision3)
+		}
+	}
+}
+
+func TestGetTreeRevisionMultipleSameSize(t *testing.T) {
+	logID := createLogID("TestGetTreeRevisionAtSize")
+	db := prepareTestDB(logID, t)
+	defer db.Close()
+	s := prepareTestStorage(logID, t)
+
+	{
+		tx := beginTx(s, t)
+
+		// Normally tree heads at the same tree size must have the same revision because nothing was
+		// added between them by definition, this is an artificial situation just for testing.
+		// TODO: Tidy up the log id as it looks silly chained 3 times like this
+		root := trillian.SignedLogRoot{LogId: logID.logID.LogID, TimestampNanos: proto.Int64(98765), TreeSize: proto.Int64(16), TreeRevision: proto.Int64(11), RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
+		root2 := trillian.SignedLogRoot{LogId: logID.logID.LogID, TimestampNanos: proto.Int64(198765), TreeSize: proto.Int64(16), TreeRevision: proto.Int64(13), RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
+
+		if err := tx.StoreSignedLogRoot(root); err != nil {
+			t.Fatalf("Failed to store signed root: %v", err)
+		}
+
+		if err := tx.StoreSignedLogRoot(root2); err != nil {
+			t.Fatalf("Failed to store signed root2: %v", err)
+		}
+
+		tx.Commit()
+	}
+
+	{
+		tx := beginTx(s, t)
+		defer tx.Commit()
+
+		// We should get back the highest revision at size 16
+		treeRevision, err := tx.GetTreeRevisionAtSize(16)
+
+		if err != nil {
+			t.Fatalf("Failed to get tree revision: %v", err)
+		}
+
+		if treeRevision != 13 {
+			t.Fatalf("Expected tree revisions 13 but got %d", treeRevision)
+		}
+	}
+}
+
 func TestDuplicateSignedLogRoot(t *testing.T) {
 	logID := createLogID("TestDuplicateSignedLogRoot")
 	db := prepareTestDB(logID, t)
