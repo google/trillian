@@ -22,7 +22,7 @@ func emptyMapRoot() []byte {
 }
 
 func TestNullHashes(t *testing.T) {
-	mh := NewMapHasher(NewTreeHasher(trillian.NewSHA256()))
+	mh := NewMapHasher(NewRfc6962TreeHasher(trillian.NewSHA256()))
 	emptyRoot := mh.HashChildren(mh.nullHashes[0], mh.nullHashes[0])
 	if got, want := emptyRoot, emptyMapRoot(); !bytes.Equal(got, want) {
 		t.Fatalf("Expected empty root of %v, got %v", want, got)
