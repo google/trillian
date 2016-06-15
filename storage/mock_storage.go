@@ -71,6 +71,13 @@ func (t *MockTreeTX) Rollback() error {
 	return args.Error(0)
 }
 
+// GetTreeRevisionAtSize is a mock
+func (t *MockTreeTX) GetTreeRevisionAtSize(treeSize int64) (int64, error) {
+	args := t.Called(treeSize)
+
+	return args.Get(0).(int64), args.Error(1)
+}
+
 // GetMerkleNodes is a mock
 func (t *MockTreeTX) GetMerkleNodes(treeRevision int64, ids []NodeID) ([]Node, error) {
 	args := t.Called(treeRevision, ids)
