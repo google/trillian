@@ -34,7 +34,7 @@ const selectLatestSignedRootSql string = `SELECT TreeHeadTimestamp,TreeSize,Root
 		 ORDER BY TreeHeadTimestamp DESC LIMIT 1`
 const insertTreeHeadSql string = `INSERT INTO TreeHead(TreeId,TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature)
 		 VALUES(?,?,?,?,?,?)`
-const selectTreeRevisionAtSizeSql string = "SELECT TreeRevision FROM TreeHead WHERE TreeId=? AND TreeSize=?"
+const selectTreeRevisionAtSizeSql string = "SELECT TreeRevision FROM TreeHead WHERE TreeId=? AND TreeSize=? ORDER BY TreeRevision DESC LIMIT 1"
 
 const placeholderSql string = "<placeholder>"
 
@@ -712,6 +712,8 @@ func (t *tx) removeSequencedLeaves(leaves []trillian.LogLeaf) error {
 	return nil
 }
 
+// GetTreeRevisionAtSize returns the max node version for a tree at a particular size.
+// It is an error to request tree sizes larger than the currently published tree size.
 // TODO: This only works for sizes where there is a stored tree head. This is deliberate atm
 // as serving proofs at intermediate tree sizes is complicated and will be implemented later.
 func (t *tx) GetTreeRevisionAtSize(treeSize int64) (int64, error) {
