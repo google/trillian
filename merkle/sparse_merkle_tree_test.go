@@ -5,9 +5,11 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"math/big"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/google/trillian"
@@ -217,8 +219,10 @@ func getRandomRootNode(t *testing.T, rev int64) storage.Node {
 }
 
 func getRandomNode(t *testing.T, rev int64) storage.Node {
+	nodeID := storage.NewNodeIDFromHash(randomBytes(t, 32))
+	nodeID.PrefixLenBits = int(randomBytes(t, 1)[0] % 255)
 	return storage.Node{
-		NodeID:       storage.NewNodeIDFromHash(randomBytes(t, 32)),
+		NodeID:       nodeID,
 		Hash:         randomBytes(t, 32),
 		NodeRevision: rev,
 	}
@@ -279,5 +283,84 @@ func TestRootAtRevisionCatchesNonRootNode(t *testing.T) {
 	_, err := r.RootAtRevision(rev)
 	if err == nil || err == ErrNoSuchRevision {
 		t.Fatalf("Attempt to retrieve root with corrupt node did not result in error: %v", err)
+	}
+}
+
+func TestInclusionProofForNullEntryInEmptyTree(t *testing.T) {
+	const rev = 100
+	r, tx := getSparseMerkleTreeReaderWithMockTX(rev)
+	tx.On("GetMerkleNodes", int64(rev), mock.AnythingOfType("[]storage.NodeID")).Return([]storage.Node{}, nil)
+	const key = "SomeArbitraryKey"
+	proof, err := r.InclusionProof(rev, []byte(key))
+	if err != nil {
+		t.Fatalf("Got error while retrieving inclusion proof: %v", err)
+	}
+
+	if expected, got := 256, len(proof); expected != got {
+		t.Fatalf("Expected proof of len %d, but got len %d", expected, got)
+	}
+
+	treeHasher := NewTreeHasher(trillian.NewSHA256())
+	// Verify these are null hashes
+	for i := len(proof) - 1; i > 0; i-- {
+		expectedParent := treeHasher.HashChildren(proof[i], proof[i])
+		if got := proof[i-1]; !bytes.Equal(expectedParent, got) {
+			t.Fatalf("Expected proof[%d] to be %v, but got %v", i, expectedParent, got)
+		}
+	}
+	// And hashing the zeroth proof element with itself should give us the empty root hash
+	if expected, got := mustDecode(sparseEmptyRootHashB64), treeHasher.HashChildren(proof[0], proof[0]); !bytes.Equal(expected, got) {
+		t.Fatalf("Expected to generate sparseEmptyRootHash using proof[0], but got %v", got)
+	}
+}
+
+func TestInclusionProofGetsIncorrectNode(t *testing.T) {
+	const rev = 100
+	r, tx := getSparseMerkleTreeReaderWithMockTX(rev)
+	tx.On("GetMerkleNodes", int64(rev), mock.AnythingOfType("[]storage.NodeID")).Return([]storage.Node{getRandomNode(t, 34)}, nil)
+	const key = "SomeArbitraryKey"
+	_, err := r.InclusionProof(rev, []byte(key))
+	if err == nil {
+		t.Fatal("InclusionProof() should've returned an error due to incorrect node from storage layer")
+	}
+	if !strings.Contains(err.Error(), "expected node ID") {
+		t.Fatalf("Saw unexpected error: %v", err)
+	}
+}
+
+func TestInclusionProofPassesThroughStorageError(t *testing.T) {
+	const rev = 100
+	r, tx := getSparseMerkleTreeReaderWithMockTX(rev)
+	e := errors.New("Boo!")
+	tx.On("GetMerkleNodes", int64(rev), mock.AnythingOfType("[]storage.NodeID")).Return([]storage.Node{}, e)
+	_, err := r.InclusionProof(rev, []byte("Whatever"))
+	if err != e {
+		t.Fatal("InclusionProof() should've returned an error '%v', but got '%v'", e, err)
+	}
+}
+
+func TestInclusionProofGetsTooManyNodes(t *testing.T) {
+	const rev = 100
+	r, tx := getSparseMerkleTreeReaderWithMockTX(rev)
+	const key = "SomeArbitraryKey"
+	keyHash := r.hasher.keyHasher([]byte(key))
+	// going to return one too many nodes
+	nodes := make([]storage.Node, 257, 257)
+	// First build a plausible looking set of proof nodes.
+	for i := 1; i < 256; i++ {
+		nodes[255-i].NodeID = storage.NewNodeIDFromHash(keyHash)
+		nodes[255-i].NodeID.PrefixLenBits = i + 1
+		nodes[255-i].NodeID.SetBit(i, nodes[255-i].NodeID.Bit(i)^1)
+	}
+	// and then tack on some rubbish:
+	nodes[256] = getRandomNode(t, 42)
+
+	tx.On("GetMerkleNodes", int64(rev), mock.AnythingOfType("[]storage.NodeID")).Return(nodes, nil)
+	_, err := r.InclusionProof(rev, []byte(key))
+	if err == nil {
+		t.Fatal("InclusionProof() should've returned an error due to extra unused node")
+	}
+	if !strings.Contains(err.Error(), "failed to consume") {
+		t.Fatalf("Saw unexpected error: %v", err)
 	}
 }

@@ -1,11 +1,16 @@
 package trillian
 
 import (
+	"encoding/base64"
 	"time"
 )
 
 // Hash repesents the cryptographic hash value of some data
 type Hash []byte
+
+func (h Hash) String() string {
+	return base64.StdEncoding.EncodeToString(h)
+}
 
 // MapID represents a single Map instance, and ties it to a particular stored tree instance.
 type MapID struct {
