@@ -86,7 +86,7 @@ func (s SparseMerkleTreeReader) InclusionProof(rev int64, key trillian.Key) ([]t
 	if err != nil {
 		return nil, err
 	}
-	// We're builing a full proof from a combination of whichever nodes we got
+	// We're building a full proof from a combination of whichever nodes we got
 	// back from the storage layer, and the set of "null" hashes.
 	r := make([]trillian.Hash, len(sibs), len(sibs))
 	ndx := 0
