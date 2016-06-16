@@ -77,35 +77,39 @@ func indexLess(a, b *sparseRefValue) bool {
 	return a.index.Cmp(b.index) < 0
 }
 
-func (s *sparseReference) HStar2(n int, values []sparseRefValue) trillian.Hash {
+func (s *sparseReference) HStar2(n int, values []sparseRefValue) (trillian.Hash, error) {
 	by(indexLess).Sort(values)
 	offset := big.NewInt(0)
 	return s.HStar2b(n, values, 0, len(values), offset)
 }
 
-func (s *sparseReference) HStarEmpty(n int) trillian.Hash {
+func (s *sparseReference) HStarEmpty(n int) (trillian.Hash, error) {
 	if len(s.hStarEmptyCache) <= n {
-		h := s.hasher.HashChildren(s.HStarEmpty(n-1), s.HStarEmpty(n-1))
+		emptyRoot, err := s.HStarEmpty(n - 1)
+		if err != nil {
+			return nil, err
+		}
+		h := s.hasher.HashChildren(emptyRoot, emptyRoot)
 		if len(s.hStarEmptyCache) != n {
-			panic(fmt.Errorf("cache wrong size - expected %d, but cache contains %d entries", n, len(s.hStarEmptyCache)))
+			return nil, fmt.Errorf("cache wrong size - expected %d, but cache contains %d entries", n, len(s.hStarEmptyCache))
 		}
 		s.hStarEmptyCache = append(s.hStarEmptyCache, h)
 	}
 	if n >= len(s.hStarEmptyCache) {
-		panic(fmt.Errorf("cache wrong size - expected %d or more, but cache contains %d entries", n, len(s.hStarEmptyCache)))
+		return nil, fmt.Errorf("cache wrong size - expected %d or more, but cache contains %d entries", n, len(s.hStarEmptyCache))
 	}
-	return s.hStarEmptyCache[n]
+	return s.hStarEmptyCache[n], nil
 }
 
-func (s *sparseReference) HStar2b(n int, values []sparseRefValue, lo, hi int, offset *big.Int) trillian.Hash {
+func (s *sparseReference) HStar2b(n int, values []sparseRefValue, lo, hi int, offset *big.Int) (trillian.Hash, error) {
 	if n == 0 {
 		if lo == hi {
-			return s.hStarEmptyCache[0]
+			return s.hStarEmptyCache[0], nil
 		}
 		if hiLoDelta := hi - lo; hiLoDelta != 1 {
-			panic(fmt.Errorf("hi-lo is not 1, but %d", hiLoDelta))
+			return nil, fmt.Errorf("hi-lo is not 1, but %d", hiLoDelta)
 		}
-		return s.hasher.HashLeaf(values[lo].value)
+		return s.hasher.HashLeaf(values[lo].value), nil
 	}
 	if lo == hi {
 		return s.HStarEmpty(n)
@@ -114,12 +118,22 @@ func (s *sparseReference) HStar2b(n int, values []sparseRefValue, lo, hi int, of
 	split := new(big.Int).Lsh(big.NewInt(1), uint(n-1))
 	split.Add(split, offset)
 	i := lo + sort.Search(hi-lo, func(i int) bool { return values[lo+i].index.Cmp(split) >= 0 })
-	return s.hasher.HashChildren(
-		s.HStar2b(n-1, values, lo, i, offset),
-		s.HStar2b(n-1, values, i, hi, split))
+	lhs, err := s.HStar2b(n-1, values, lo, i, offset)
+	if err != nil {
+		return nil, err
+	}
+	rhs, err := s.HStar2b(n-1, values, i, hi, split)
+	if err != nil {
+		return nil, err
+	}
+	return s.hasher.HashChildren(lhs, rhs), nil
 }
 
-func values(vs map[string]string) []sparseRefValue {
+// createSparseRefValues builds a list of sparseRefValue structs suitable for
+// passing into a the HStar2 sparse reference implementation.
+// The map keys will be SHA256 hashed before being added to the returned
+// structs.
+func createSparseRefValues(vs map[string]string) []sparseRefValue {
 	r := []sparseRefValue{}
 	for k := range vs {
 		h := sha256.Sum256([]byte(k))
@@ -133,7 +147,11 @@ func values(vs map[string]string) []sparseRefValue {
 
 func TestReferenceEmptyRootKAT(t *testing.T) {
 	s := newSparseReference()
-	if expected, got := mustDecode(sparseEmptyRootHashB64), s.HStar2(s.hasher.Size()*8, []sparseRefValue{}); !bytes.Equal(expected, got) {
+	root, err := s.HStar2(s.hasher.Size()*8, []sparseRefValue{})
+	if err != nil {
+		t.Fatalf("Failed to calculate root: %v", err)
+	}
+	if expected, got := mustDecode(sparseEmptyRootHashB64), root; !bytes.Equal(expected, got) {
 		t.Fatalf("Expected empty root:\n%v\nGot:\n%v", expected, got)
 	}
 }
@@ -147,10 +165,14 @@ func TestReferenceSimpleDataSetKAT(t *testing.T) {
 	}
 
 	m := make(map[string]string)
-	for _, x := range vector {
+	for i, x := range vector {
 		m[x.k] = x.v
-		values := values(m)
-		if expected, got := mustDecode(x.rootB64), s.HStar2(s.hasher.Size()*8, values); !bytes.Equal(expected, got) {
+		values := createSparseRefValues(m)
+		root, err := s.HStar2(s.hasher.Size()*8, values)
+		if err != nil {
+			t.Fatalf("Failed to calculate root at iteration %d: %v", err, i)
+		}
+		if expected, got := mustDecode(x.rootB64), root; !bytes.Equal(expected, got) {
 			t.Fatalf("Expected root:\n%v\nGot:\n%v", base64.StdEncoding.EncodeToString(expected), base64.StdEncoding.EncodeToString(got))
 		}
 	}
