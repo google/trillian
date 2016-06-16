@@ -77,6 +77,7 @@ message GetLeavesByIndexRequest {
 
 message GetLeavesByIndexResponse {
     optional TrillianApiStatus status = 1;
+    repeated LeafProto leaves = 2;
 }
 
 message GetSequencedLeafCountRequest {

@@ -25,11 +25,11 @@ func GetLogIdFromFlagsOrDie() trillian.LogID {
 // flag settings.
 // TODO: This needs to be tidied up
 func GetLogStorageProviderFromFlags() server.LogStorageProviderFunc {
-	return func(x int64) (*storage.LogStorage, error) {
+	return func(x int64) (storage.LogStorage, error) {
 		// TODO: We need to sort out exactly what a log id is. We really only need a tree id
 		// but having the log id as well could be a handy cross check as they can be guessed
 		storage, err := GetStorageFromFlags(trillian.LogID{[]byte("This needs fixing"), x})
-		return &storage, err
+		return storage, err
 	}
 }
 
