@@ -2,6 +2,7 @@ package merkle
 
 import (
 	"bytes"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
@@ -10,6 +11,8 @@ import (
 	"testing"
 
 	"github.com/google/trillian"
+	"github.com/google/trillian/storage"
+	"github.com/stretchr/testify/mock"
 )
 
 // This root was calculated with the C++/Python sparse merkle tree code in the
@@ -175,5 +178,106 @@ func TestReferenceSimpleDataSetKAT(t *testing.T) {
 		if expected, got := mustDecode(x.rootB64), root; !bytes.Equal(expected, got) {
 			t.Fatalf("Expected root:\n%v\nGot:\n%v", base64.StdEncoding.EncodeToString(expected), base64.StdEncoding.EncodeToString(got))
 		}
+	}
+}
+
+func getSparseMerkleTreeReaderWithMockTX(rev int64) (*SparseMerkleTreeReader, *storage.MockMapTX) {
+	tx := &storage.MockMapTX{}
+	return NewSparseMerkleTreeReader(rev, NewMapHasher(NewTreeHasher(trillian.NewSHA256())), tx), tx
+}
+
+func isRootNodeOnly(nodes []storage.NodeID) bool {
+	return len(nodes) == 1 &&
+		nodes[0].PrefixLenBits == 0
+}
+
+func getEmptyRootNode() storage.Node {
+	return storage.Node{
+		NodeID:       storage.NewEmptyNodeID(0),
+		Hash:         mustDecode(sparseEmptyRootHashB64),
+		NodeRevision: 0,
+	}
+}
+
+func randomBytes(t *testing.T, n int) []byte {
+	r := make([]byte, n)
+	g, err := rand.Read(r)
+	if g != n || err != nil {
+		t.Fatalf("Failed to read %d bytes of entropy for path, read %d and got error: %v", n, g, err)
+	}
+	return r
+}
+
+func getRandomRootNode(t *testing.T, rev int64) storage.Node {
+	return storage.Node{
+		NodeID:       storage.NewEmptyNodeID(0),
+		Hash:         randomBytes(t, 32),
+		NodeRevision: rev,
+	}
+}
+
+func getRandomNode(t *testing.T, rev int64) storage.Node {
+	return storage.Node{
+		NodeID:       storage.NewNodeIDFromHash(randomBytes(t, 32)),
+		Hash:         randomBytes(t, 32),
+		NodeRevision: rev,
+	}
+}
+
+func TestRootAtRevision(t *testing.T) {
+	r, tx := getSparseMerkleTreeReaderWithMockTX(100)
+	node := getRandomRootNode(t, 14)
+	tx.On("GetMerkleNodes", int64(23), mock.MatchedBy(isRootNodeOnly)).Return([]storage.Node{node}, nil)
+	root, err := r.RootAtRevision(23)
+	if err != nil {
+		t.Fatalf("Failed when calling RootAtRevision(23): %v", err)
+	}
+	if expected, got := root, node.Hash; !bytes.Equal(expected, got) {
+		t.Fatalf("Expected root %v, got %v", expected, got)
+	}
+}
+
+func TestRootAtUnknownRevision(t *testing.T) {
+	r, tx := getSparseMerkleTreeReaderWithMockTX(100)
+	tx.On("GetMerkleNodes", int64(23), mock.MatchedBy(isRootNodeOnly)).Return([]storage.Node{}, nil)
+	_, err := r.RootAtRevision(23)
+	if err != ErrNoSuchRevision {
+		t.Fatalf("Attempt to retrieve root an non-existent revision did not result in ErrNoSuchRevision: %v", err)
+	}
+}
+
+func TestRootAtRevisionHasMultipleRoots(t *testing.T) {
+	r, tx := getSparseMerkleTreeReaderWithMockTX(100)
+	n1, n2 := getRandomRootNode(t, 14), getRandomRootNode(t, 15)
+	tx.On("GetMerkleNodes", int64(23), mock.MatchedBy(isRootNodeOnly)).Return([]storage.Node{n1, n2}, nil)
+	_, err := r.RootAtRevision(23)
+	if err == nil || err == ErrNoSuchRevision {
+		t.Fatalf("Attempt to retrieve root an non-existent revision did not result in error: %v", err)
+	}
+}
+
+func TestRootAtRevisionCatchesFutureRevision(t *testing.T) {
+	const rev = 100
+	r, tx := getSparseMerkleTreeReaderWithMockTX(rev)
+	// Sanity checking in RootAtRevision should catch this node being incorrectly
+	// returned by the storage layer.
+	n1 := getRandomRootNode(t, rev+1)
+	tx.On("GetMerkleNodes", int64(rev), mock.MatchedBy(isRootNodeOnly)).Return([]storage.Node{n1}, nil)
+	_, err := r.RootAtRevision(rev)
+	if err == nil || err == ErrNoSuchRevision {
+		t.Fatalf("Attempt to retrieve root with corrupt node did not result in error: %v", err)
+	}
+}
+
+func TestRootAtRevisionCatchesNonRootNode(t *testing.T) {
+	const rev = 100
+	r, tx := getSparseMerkleTreeReaderWithMockTX(rev)
+	// Sanity checking in RootAtRevision should catch this node being incorrectly
+	// returned by the storage layer.
+	n1 := getRandomNode(t, rev)
+	tx.On("GetMerkleNodes", int64(rev), mock.MatchedBy(isRootNodeOnly)).Return([]storage.Node{n1}, nil)
+	_, err := r.RootAtRevision(rev)
+	if err == nil || err == ErrNoSuchRevision {
+		t.Fatalf("Attempt to retrieve root with corrupt node did not result in error: %v", err)
 	}
 }
