@@ -36,9 +36,6 @@ func mockStorageProviderfunc(mockStorage storage.LogStorage) LogStorageProviderF
 
 func TestGetLeavesByIndexInvalidIndexRejected(t *testing.T) {
 	mockStorage := new(storage.MockLogStorage)
-	mockTx := new(storage.MockLogTX)
-
-	mockStorage.On("Begin").Return(mockTx, nil)
 
 	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
 
@@ -74,7 +71,7 @@ func TestGetLeavesByIndexStorageError(t *testing.T) {
 
 	mockStorage.On("Begin").Return(mockTx, nil)
 	mockTx.On("GetLeavesByIndex", []int64{0}).Return([]trillian.LogLeaf{}, errors.New("STORAGE"))
-	mockTx.On("Commit").Return(nil)
+	mockTx.On("Rollback").Return(nil)
 
 	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
 
@@ -96,6 +93,26 @@ func TestGetLeavesByIndexInvalidLogId(t *testing.T) {
 
 	if err == nil || !strings.Contains(err.Error(), "BADLOGID") {
 		t.Fatalf("Got wrong error response for unknown log id: %v", err)
+	}
+
+	mockStorage.AssertExpectations(t)
+}
+
+func TestGetLeavesByIndexCommitFails(t *testing.T) {
+	mockStorage := new(storage.MockLogStorage)
+	mockTx := new(storage.MockLogTX)
+
+	mockStorage.On("Begin").Return(mockTx, nil)
+	mockTx.On("GetLeavesByIndex", []int64{0}).Return([]trillian.LogLeaf{leaf1}, nil)
+	mockTx.On("Commit").Return(errors.New("Bang!"))
+	mockTx.On("Rollback").Return(nil)
+
+	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
+
+	_, err := server.GetLeavesByIndex(context.Background(), &leaf0Request)
+
+	if err == nil {
+		t.Fatalf("Returned OK when commit failed: %v", err)
 	}
 
 	mockStorage.AssertExpectations(t)

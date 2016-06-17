@@ -75,26 +75,30 @@ func (t *TrillianLogServer) GetSequencedLeafCount(ctx context.Context, req *tril
 }
 
 func (t *TrillianLogServer) GetLeavesByIndex(ctx context.Context, req *trillian.GetLeavesByIndexRequest) (*trillian.GetLeavesByIndexResponse, error) {
+	if !validateLeafIndices(req.LeafIndex) {
+		return &trillian.GetLeavesByIndexResponse{Status: buildStatusWithDesc(trillian.TrillianApiStatusCode_ERROR, "Invalid -ve leaf index in request")}, nil
+	}
+
 	tx, err := t.prepareStorageTx(*req.LogId)
 
 	if err != nil {
 		return nil, err
 	}
 
-	if !validateLeafIndices(req.LeafIndex) {
-		return &trillian.GetLeavesByIndexResponse{Status: buildStatusWithDesc(trillian.TrillianApiStatusCode_ERROR, "Invalid -ve leaf index in request")}, nil
-	}
-
-	// Read only transaction, failure to commit not propagated to client
-	defer t.commitAndLog(tx, "GetLeavesByIndex")
-
 	leaves, err := tx.GetLeavesByIndex(req.LeafIndex)
 
 	if err != nil {
+		tx.Rollback()
 		return nil, err
 	}
 
 	leafProtos := leavesToProtos(leaves)
+
+	if err := t.commitAndLog(tx, "GetLeavesByIndex"); err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
 	return &trillian.GetLeavesByIndexResponse{Status: buildStatus(trillian.TrillianApiStatusCode_OK), Leaves: leafProtos}, nil
 }
 
@@ -130,12 +134,14 @@ func buildStatusWithDesc(code trillian.TrillianApiStatusCode, desc string) *tril
 	return status
 }
 
-func (t *TrillianLogServer) commitAndLog(tx storage.LogTX, op string) {
+func (t *TrillianLogServer) commitAndLog(tx storage.LogTX, op string) error {
 	err := tx.Commit()
 
 	if err != nil {
 		glog.Warningf("Commit failed for %s: %v", op, err)
 	}
+
+	return err
 }
 
 // TODO: Fill in the log leaf specific fields when we've implemented signed timestamps
