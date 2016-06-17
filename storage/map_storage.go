@@ -13,6 +13,8 @@ type ReadOnlyMapTX interface {
 
 // MapTX is the transactional interface for reading/modifying a Map.
 // It extends the basic TreeTX interface with Map specific methods.
+// After a call to Commit or Rollback implementations must be in a clean state and have
+// released any resources owned by the MapTX.
 type MapTX interface {
 	TreeTX
 	MapRootReader

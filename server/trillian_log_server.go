@@ -107,7 +107,6 @@ func (t *TrillianLogServer) GetLeavesByIndex(ctx context.Context, req *trillian.
 	leafProtos := leavesToProtos(leaves)
 
 	if err := t.commitAndLog(tx, "GetLeavesByIndex"); err != nil {
-		tx.Rollback()
 		return nil, err
 	}
 
@@ -153,8 +152,6 @@ func (t *TrillianLogServer) commitAndLog(tx storage.LogTX, op string) error {
 
 	if err != nil {
 		glog.Warningf("Commit failed for %s: %v", op, err)
-		// Unlikely that rollback will help but try it anyway
-		tx.Rollback()
 	}
 
 	return err

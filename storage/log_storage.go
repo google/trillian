@@ -13,6 +13,8 @@ type ReadOnlyLogTX interface {
 
 // LogTX is the transactional interface for reading/updating a Log.
 // It extends the basic TreeTX interface with Log specific methods.
+// After a call to Commit or Rollback implementations must be in a clean state and have
+// released any resources owned by the LogTX.
 type LogTX interface {
 	TreeTX
 	LogRootReader

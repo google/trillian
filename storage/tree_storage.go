@@ -9,6 +9,8 @@ type ReadOnlyTreeTX interface {
 // TreeTX represents an in-process tree-modifying transaction.
 // The transaction must end with a call to Commit or Rollback.
 // After a call to Commit or Rollback, all operations on the transaction will fail.
+// After a call to Commit or Rollback implementations must be in a clean state and have
+// released any resources owned by the TreeTX.
 type TreeTX interface {
 	NodeReaderWriter
 

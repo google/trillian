@@ -105,7 +105,6 @@ func TestGetLeavesByIndexCommitFails(t *testing.T) {
 	mockStorage.On("Begin").Return(mockTx, nil)
 	mockTx.On("GetLeavesByIndex", []int64{0}).Return([]trillian.LogLeaf{leaf1}, nil)
 	mockTx.On("Commit").Return(errors.New("Bang!"))
-	mockTx.On("Rollback").Return(nil)
 
 	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
 
