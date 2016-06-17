@@ -54,26 +54,39 @@ func (t *TrillianLogServer) getStorageForLog(logId int64) (storage.LogStorage, e
 	return s, err
 }
 
+// QueueLeaves submits a batch of leaves to the log for later integration into the underlying tree.
 func (t *TrillianLogServer) QueueLeaves(ctx context.Context, req *trillian.QueueLeavesRequest) (*trillian.QueueLeavesResponse, error) {
 	return nil, ErrNotImplemented
 }
 
+// GetInclusionProof obtains the proof of inclusion in the tree for a leaf that has been sequenced.
 func (t *TrillianLogServer) GetInclusionProof(ctx context.Context, req *trillian.GetInclusionProofRequest) (*trillian.GetInclusionProofResponse, error) {
 	return nil, ErrNotImplemented
 }
 
+// GetConsistencyProof obtains a proof that two versions of the tree are consistent with each
+// other and that the later tree includes all the entries of the prior one. For more details
+// see the example trees in RFC 6962.
 func (t *TrillianLogServer) GetConsistencyProof(ctx context.Context, req *trillian.GetConsistencyProofRequest) (*trillian.GetConsistencyProofResponse, error) {
 	return nil, ErrNotImplemented
 }
 
+// GetLatestSignedLogRoot obtains the latest published tree root for the Merkle Tree that
+// underlies the log.
 func (t *TrillianLogServer) GetLatestSignedLogRoot(ctx context.Context, req *trillian.GetLatestSignedLogRootRequest) (*trillian.GetLatestSignedLogRootResponse, error) {
 	return nil, ErrNotImplemented
 }
 
+// GetSequencedLeafCount returns the number of leaves that have been integrated into the Merkle
+// Tree. This can be zero for a log containing no entries.
 func (t *TrillianLogServer) GetSequencedLeafCount(ctx context.Context, req *trillian.GetSequencedLeafCountRequest) (*trillian.GetSequencedLeafCountResponse, error) {
 	return nil, ErrNotImplemented
 }
 
+// GetLeavesByIndex obtains one or more leaves based on their sequence number within the
+// tree. It is not possible to fetch leaves that have been queued but not yet integrated.
+// TODO: Validate indices against published tree size in case we implement write sharding that
+// can get ahead of this point. Not currently clear what component should own this state.
 func (t *TrillianLogServer) GetLeavesByIndex(ctx context.Context, req *trillian.GetLeavesByIndexRequest) (*trillian.GetLeavesByIndexResponse, error) {
 	if !validateLeafIndices(req.LeafIndex) {
 		return &trillian.GetLeavesByIndexResponse{Status: buildStatusWithDesc(trillian.TrillianApiStatusCode_ERROR, "Invalid -ve leaf index in request")}, nil
@@ -102,6 +115,8 @@ func (t *TrillianLogServer) GetLeavesByIndex(ctx context.Context, req *trillian.
 	return &trillian.GetLeavesByIndexResponse{Status: buildStatus(trillian.TrillianApiStatusCode_OK), Leaves: leafProtos}, nil
 }
 
+// GetLeavesByIndex obtains one or more leaves based on their tree hash. It is not possible
+// to fetch leaves that have been queued but not yet integrated.
 func (t *TrillianLogServer) GetLeavesByHash(ctx context.Context, req *trillian.GetLeavesByHashRequest) (*trillian.GetLeavesByHashResponse, error) {
 	return nil, ErrNotImplemented
 }
