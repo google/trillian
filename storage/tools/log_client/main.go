@@ -12,6 +12,23 @@ import (
 	"google.golang.org/grpc"
 )
 
+var startLeafFlag = flag.Int64("start_leaf", 0, "The first leaf index to fetch")
+var numLeavesFlag = flag.Int64("num_leaves", 1, "The number of leaves to fetch")
+
+func buildGetLeavesByIndexRequest(logID trillian.LogID, startLeaf, numLeaves int64) *trillian.GetLeavesByIndexRequest {
+	if startLeaf < 0 || numLeaves <= 0 {
+		panic("Start leaf index and num_leaves must be >= 0")
+	}
+
+	leafIndices := make([]int64, 0)
+
+	for l := int64(0); l < numLeaves; l++ {
+		leafIndices = append(leafIndices, l + startLeaf)
+	}
+
+	return &trillian.GetLeavesByIndexRequest{LogId: proto.Int64(logID.TreeID), LeafIndex: leafIndices}
+}
+
 // TODO: Move this code out to a better place when we tidy up the initial test main stuff
 // It's just a basic skeleton at the moment.
 func main() {
@@ -30,8 +47,8 @@ func main() {
 
 	client := trillian.NewTrillianLogClient(conn)
 
-	// Just request leaf 1 from tree 1 and print the result
-	getLeafByIndexResponse, err := client.GetLeavesByIndex(context.Background(), &trillian.GetLeavesByIndexRequest{LogId: proto.Int64(1), LeafIndex: []int64{1}})
+	req := buildGetLeavesByIndexRequest(tools.GetLogIdFromFlagsOrDie(), *startLeafFlag, *numLeavesFlag)
+	getLeafByIndexResponse, err := client.GetLeavesByIndex(context.Background(), req)
 
 	if err != nil {
 		fmt.Printf("Got error in call: %v", err)
