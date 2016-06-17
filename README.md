@@ -17,6 +17,19 @@ tree, then:
     % ln -s `pwd`/trillian $GOPATH/src/github.com/google  # you may have to make this directory first
     % cd trillian
     % go get -d -v ./...
-    % go test -v ./...
 
 If you are with the Go program, then you know what to do.
+
+## Test
+
+To run the tests, you need to have an instance of MySQL running, and
+configured like so:
+
+    % mysql -u root -e 'DROP DATABASE IF EXISTS test;'
+    % mysql -u root -e 'CREATE DATABASE test;'
+    % mysql -u root -e "GRANT ALL ON test.* TO 'test'@'localhost' IDENTIFIED BY 'zaphod';"
+    % mysql -u root -D test < storage/mysql/storage.sql
+
+Then:
+
+    % go test -v ./...
