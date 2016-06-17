@@ -33,6 +33,8 @@ message QueueLeavesRequest {
     repeated LeafProto leaves = 2;
 }
 
+// TODO: This will eventually contain the signed timestamps and stuff that we return for
+// the queued leaves
 message QueueLeavesResponse {
     optional TrillianApiStatus status = 1;
 }
