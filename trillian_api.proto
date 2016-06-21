@@ -13,7 +13,7 @@ enum TrillianApiStatusCode {
 }
 
 // All operations return a TrillianApiStatus.
-// TODO: Most of the operations are not fully defined yet. They will be implemented soon
+// TODO(Martin2112): Most of the operations are not fully defined yet. They will be implemented soon
 message TrillianApiStatus {
     // The status code indicates the overall result of the operation.
     optional TrillianApiStatusCode status_code = 1;
@@ -33,7 +33,7 @@ message QueueLeavesRequest {
     repeated LeafProto leaves = 2;
 }
 
-// TODO: This will eventually contain the signed timestamps and stuff that we return for
+// TODO(Martin2112): This will eventually contain the signed timestamps and stuff that we return for
 // the queued leaves
 message QueueLeavesResponse {
     optional TrillianApiStatus status = 1;

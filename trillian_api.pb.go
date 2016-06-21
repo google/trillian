@@ -91,7 +91,7 @@ func (x *TrillianApiStatusCode) UnmarshalJSON(data []byte) error {
 func (TrillianApiStatusCode) EnumDescriptor() ([]byte, []int) { return fileDescriptor0, []int{0} }
 
 // All operations return a TrillianApiStatus.
-// TODO: Most of the operations are not fully defined yet. They will be implemented soon
+// TODO(Martin2112): Most of the operations are not fully defined yet. They will be implemented soon
 type TrillianApiStatus struct {
 	// The status code indicates the overall result of the operation.
 	StatusCode *TrillianApiStatusCode `protobuf:"varint,1,opt,name=status_code,enum=trillian.TrillianApiStatusCode" json:"status_code,omitempty"`
@@ -178,6 +178,8 @@ func (m *QueueLeavesRequest) GetLeaves() []*LeafProto {
 	return nil
 }
 
+// TODO(Martin2112): This will eventually contain the signed timestamps and stuff that we return for
+// the queued leaves
 type QueueLeavesResponse struct {
 	Status           *TrillianApiStatus `protobuf:"bytes,1,opt,name=status" json:"status,omitempty"`
 	XXX_unrecognized []byte             `json:"-"`
