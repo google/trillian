@@ -33,7 +33,8 @@ type logIDAndTest struct {
 }
 
 // Tests that access the db should each use a distinct log ID to prevent lock contention when
-// run in parallel or race conditions / unexpected interactions.
+// run in parallel or race conditions / unexpected interactions. Tests that pass should hold
+// no locks afterwards.
 
 var signedTimestamp = trillian.SignedEntryTimestamp{
 	TimestampNanos: proto.Int64(1234567890), LogId: createLogID("sign").logID.LogID, Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
@@ -128,7 +129,7 @@ func TestOpenStateRollback(t *testing.T) {
 	}
 
 	assert.True(t, tx.Open(), "Transaction should be open on creation")
-	err = tx.Commit()
+	err = tx.Rollback()
 	assert.Nil(t, err, "Failed to commit: %v", err)
 	assert.False(t, tx.Open(), "Transaction should be closed after rollback")
 }
@@ -158,6 +159,8 @@ func TestNodeRoundTrip(t *testing.T) {
 
 	{
 		tx, err := s.Begin()
+		defer tx.Commit()
+		
 		if err != nil {
 			t.Fatalf("Failed to Begin: %s", err)
 		}
@@ -208,6 +211,7 @@ func TestQueueDuplicateLeafFails(t *testing.T) {
 	defer db.Close()
 	s := prepareTestStorage(logID, t)
 	tx := beginTx(s, t)
+	defer tx.Commit()
 
 	leaves := createTestLeaves(5, 10)
 
@@ -232,6 +236,7 @@ func TestQueueLeaves(t *testing.T) {
 	defer db.Close()
 	s := prepareTestStorage(logID, t)
 	tx := beginTx(s, t)
+	defer failIfTXStillOpen(t, "TestQueueLeaves", tx)
 
 	leaves := createTestLeaves(leavesToInsert, 20)
 
@@ -260,6 +265,7 @@ func TestDequeueLeavesNoneQueued(t *testing.T) {
 	defer db.Close()
 	s := prepareTestStorage(logID, t)
 	tx := beginTx(s, t)
+	defer tx.Commit()
 
 	leaves, err := tx.DequeueLeaves(999)
 
@@ -277,108 +283,134 @@ func TestDequeueLeaves(t *testing.T) {
 	db := prepareTestDB(logID, t)
 	defer db.Close()
 	s := prepareTestStorage(logID, t)
-	tx := beginTx(s, t)
 
-	leaves := createTestLeaves(leavesToInsert, 20)
+	{
+		tx := beginTx(s, t)
+		defer failIfTXStillOpen(t, "TestDequeLeaves", tx)
 
-	if err := tx.QueueLeaves(leaves); err != nil {
-		t.Fatalf("Failed to queue leaves: %v", err)
+		leaves := createTestLeaves(leavesToInsert, 20)
+
+		if err := tx.QueueLeaves(leaves); err != nil {
+			t.Fatalf("Failed to queue leaves: %v", err)
+		}
+
+		commit(tx, t)
 	}
 
-	commit(tx, t)
+	{
+		// Now try to dequeue them
+		tx2 := beginTx(s, t)
+		defer failIfTXStillOpen(t, "TestDequeLeaves", tx2)
+		leaves2, err := tx2.DequeueLeaves(99)
 
-	// Now try to dequeue them
-	tx = beginTx(s, t)
-	leaves2, err := tx.DequeueLeaves(99)
+		if err != nil {
+			t.Fatalf("Failed to dequeue leaves: %v", err)
+		}
 
-	if err != nil {
-		t.Fatalf("Failed to dequeue leaves: %v", err)
+		if len(leaves2) != leavesToInsert {
+			t.Fatalf("Dequeued %d leaves but expected to get %d", len(leaves2), leavesToInsert)
+		}
+
+		ensureAllLeafHashesDistinct(leaves2, t)
+
+		tx2.Commit()
 	}
 
-	if len(leaves2) != leavesToInsert {
-		t.Fatalf("Dequeued %d leaves but expected to get %d", len(leaves), leavesToInsert)
-	}
+	{
+		// If we dequeue again then we should now get nothing
+		tx3 := beginTx(s, t)
+		defer tx3.Rollback()
 
-	ensureAllLeafHashesDistinct(leaves2, t)
+		leaves3, err := tx3.DequeueLeaves(99)
 
-	tx.Commit()
+		if err != nil {
+			t.Fatalf("Failed to dequeue leaves (second time): %v", err)
+		}
 
-	// If we dequeue again then we should now get nothing
-	tx = beginTx(s, t)
-	leaves2, err = tx.DequeueLeaves(99)
-
-	if err != nil {
-		t.Fatalf("Failed to dequeue leaves (second time): %v", err)
-	}
-
-	if len(leaves2) != 0 {
-		t.Fatalf("Dequeued %d leaves but expected to get none", len(leaves))
+		if len(leaves3) != 0 {
+			t.Fatalf("Dequeued %d leaves but expected to get none", len(leaves3))
+		}
 	}
 }
 
 func TestDequeueLeavesTwoBatches(t *testing.T) {
-	logID := createLogID("TestDequeueLeaves")
+	logID := createLogID("TestDequeueLeavesTwoBatches")
 	db := prepareTestDB(logID, t)
 	defer db.Close()
 	s := prepareTestStorage(logID, t)
-	tx := beginTx(s, t)
 
 	leavesToDequeue1 := 3
 	leavesToDequeue2 := 2
-	leaves := createTestLeaves(leavesToInsert, 20)
 
-	if err := tx.QueueLeaves(leaves); err != nil {
-		t.Fatalf("Failed to queue leaves: %v", err)
+	{
+		tx := beginTx(s, t)
+		defer failIfTXStillOpen(t, "TestDequeueLeavesTwoBatches", tx)
+
+		leaves := createTestLeaves(leavesToInsert, 20)
+
+		if err := tx.QueueLeaves(leaves); err != nil {
+			t.Fatalf("Failed to queue leaves: %v", err)
+		}
+
+		commit(tx, t)
 	}
 
-	commit(tx, t)
+	{
+		// Now try to dequeue some of them
+		tx2 := beginTx(s, t)
+		defer failIfTXStillOpen(t, "TestDequeueLeavesTwoBatches-tx2", tx2)
+		leaves2, err := tx2.DequeueLeaves(leavesToDequeue1)
 
-	// Now try to dequeue some of them
-	tx = beginTx(s, t)
-	leaves2, err := tx.DequeueLeaves(leavesToDequeue1)
+		if err != nil {
+			t.Fatalf("Failed to dequeue leaves: %v", err)
+		}
 
-	if err != nil {
-		t.Fatalf("Failed to dequeue leaves: %v", err)
+		if len(leaves2) != leavesToDequeue1 {
+			t.Fatalf("Dequeued %d leaves but expected to get %d", len(leaves2), leavesToInsert)
+		}
+
+		ensureAllLeafHashesDistinct(leaves2, t)
+
+		tx2.Commit()
+
+		// Now try to dequeue the rest of them
+		tx3 := beginTx(s, t)
+		defer failIfTXStillOpen(t, "TestDequeueLeavesTwoBatches-tx3", tx3)
+		leaves3, err := tx3.DequeueLeaves(leavesToDequeue2)
+
+		if err != nil {
+			t.Fatalf("Failed to dequeue leaves: %v", err)
+		}
+
+		if len(leaves3) != leavesToDequeue2 {
+			t.Fatalf("Dequeued %d leaves but expected to get %d", len(leaves3), leavesToDequeue2)
+		}
+
+		ensureAllLeafHashesDistinct(leaves3, t)
+
+		// Plus the union of the leaf batches should all have distinct hashes
+		leaves4 := append(leaves2, leaves3...)
+		ensureAllLeafHashesDistinct(leaves4, t)
+
+		tx3.Commit()
 	}
 
-	if len(leaves2) != leavesToDequeue1 {
-		t.Fatalf("Dequeued %d leaves but expected to get %d", len(leaves), leavesToInsert)
-	}
+	{
+		// If we dequeue again then we should now get nothing
+		tx4 := beginTx(s, t)
+		defer failIfTXStillOpen(t, "TestDequeueLeavesTwoBatches-tx4", tx4)
 
-	ensureAllLeafHashesDistinct(leaves2, t)
+		leaves5, err := tx4.DequeueLeaves(99)
 
-	tx.Commit()
+		if err != nil {
+			t.Fatalf("Failed to dequeue leaves (second time): %v", err)
+		}
 
-	// Now try to dequeue the rest of them
-	tx = beginTx(s, t)
-	leaves3, err := tx.DequeueLeaves(leavesToDequeue2)
+		if len(leaves5) != 0 {
+			t.Fatalf("Dequeued %d leaves but expected to get none", len(leaves5))
+		}
 
-	if err != nil {
-		t.Fatalf("Failed to dequeue leaves: %v", err)
-	}
-
-	if len(leaves3) != leavesToDequeue2 {
-		t.Fatalf("Dequeued %d leaves but expected to get %d", len(leaves3), leavesToDequeue2)
-	}
-
-	ensureAllLeafHashesDistinct(leaves3, t)
-
-	// Plus the union of the leaf batches should all have distinct hashes
-	leaves2 = append(leaves2, leaves3...)
-	ensureAllLeafHashesDistinct(leaves2, t)
-
-	tx.Commit()
-
-	// If we dequeue again then we should now get nothing
-	tx = beginTx(s, t)
-	leaves2, err = tx.DequeueLeaves(99)
-
-	if err != nil {
-		t.Fatalf("Failed to dequeue leaves (second time): %v", err)
-	}
-
-	if len(leaves2) != 0 {
-		t.Fatalf("Dequeued %d leaves but expected to get none", len(leaves))
+		tx4.Commit()
 	}
 }
 
@@ -386,6 +418,7 @@ func TestGetLeavesByHashNotPresent(t *testing.T) {
 	logID := createLogID("TestGetLeavesByHashNotPresent")
 	s := prepareTestStorage(logID, t)
 	tx := beginTx(s, t)
+	defer tx.Commit()
 
 	hashes := []trillian.Hash{trillian.Hash("thisdoesn'texist")}
 	leaves, err := tx.GetLeavesByHash(hashes)
@@ -403,6 +436,7 @@ func TestGetLeavesByIndexNotPresent(t *testing.T) {
 	logID := createLogID("TestGetLeavesByIndexNotPresent")
 	s := prepareTestStorage(logID, t)
 	tx := beginTx(s, t)
+	defer tx.Commit()
 
 	_, err := tx.GetLeavesByIndex([]int64{99999})
 
@@ -418,6 +452,7 @@ func TestGetLeavesByHash(t *testing.T) {
 	defer db.Close()
 	s := prepareTestStorage(logID, t)
 	tx := beginTx(s, t)
+	defer tx.Commit()
 
 	data := []byte("some data")
 
@@ -450,6 +485,7 @@ func TestGetLeavesByIndex(t *testing.T) {
 	defer db.Close()
 	s := prepareTestStorage(logID, t)
 	tx := beginTx(s, t)
+	defer tx.Commit()
 
 	data := []byte("some data")
 
@@ -508,6 +544,7 @@ func TestLatestSignedLogRoot(t *testing.T) {
 	defer db.Close()
 	s := prepareTestStorage(logID, t)
 	tx := beginTx(s, t)
+	defer tx.Rollback()
 
 	// TODO: Tidy up the log id as it looks silly chained 3 times like this
 	root := trillian.SignedLogRoot{LogId: logID.logID.LogID, TimestampNanos: proto.Int64(98765), TreeSize: proto.Int64(16), TreeRevision: proto.Int64(5), RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
@@ -520,15 +557,18 @@ func TestLatestSignedLogRoot(t *testing.T) {
 		t.Fatalf("Failed to commit new log root: %v", err)
 	}
 
-	tx = beginTx(s, t)
-	root2, err := tx.LatestSignedLogRoot()
+	{
+		tx2 := beginTx(s, t)
+		defer tx2.Rollback()
+		root2, err := tx2.LatestSignedLogRoot()
 
-	if err != nil {
-		t.Fatalf("Failed to read back new log root: %v", err)
-	}
+		if err != nil {
+			t.Fatalf("Failed to read back new log root: %v", err)
+		}
 
-	if !proto.Equal(&root, &root2) {
-		t.Fatalf("Root round trip failed: <%v> and: <%v>", root, root2)
+		if !proto.Equal(&root, &root2) {
+			t.Fatalf("Root round trip failed: <%v> and: <%v>", root, root2)
+		}
 	}
 }
 
@@ -653,6 +693,7 @@ func TestDuplicateSignedLogRoot(t *testing.T) {
 	defer db.Close()
 	s := prepareTestStorage(logID, t)
 	tx := beginTx(s, t)
+	defer tx.Commit()
 
 	// TODO: Tidy up the log id as it looks silly chained 3 times like this
 	root := trillian.SignedLogRoot{LogId: logID.logID.LogID, TimestampNanos: proto.Int64(98765), TreeSize: proto.Int64(16), TreeRevision: proto.Int64(5), RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
@@ -665,8 +706,6 @@ func TestDuplicateSignedLogRoot(t *testing.T) {
 	if err := tx.StoreSignedLogRoot(root); err == nil {
 		t.Fatalf("Allowed duplicate signed root")
 	}
-
-	tx.Commit()
 }
 
 func TestLogRootUpdate(t *testing.T) {
@@ -676,6 +715,7 @@ func TestLogRootUpdate(t *testing.T) {
 	defer db.Close()
 	s := prepareTestStorage(logID, t)
 	tx := beginTx(s, t)
+	defer tx.Commit()
 
 	// TODO: Tidy up the log id as it looks silly chained 3 times like this
 	root := trillian.SignedLogRoot{LogId: logID.logID.LogID, TimestampNanos: proto.Int64(98765), TreeSize: proto.Int64(16), TreeRevision: proto.Int64(5), RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
@@ -810,6 +850,12 @@ func beginTx(s storage.LogStorage, t *testing.T) storage.LogTX {
 	}
 
 	return tx
+}
+
+func failIfTXStillOpen(t *testing.T, op string, tx storage.LogTX) {
+	if tx != nil && tx.Open() {
+		t.Fatalf("Unclosed transaction in : %s", op)
+	}
 }
 
 func TestMain(m *testing.M) {
