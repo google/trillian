@@ -160,7 +160,7 @@ func TestNodeRoundTrip(t *testing.T) {
 	{
 		tx, err := s.Begin()
 		defer tx.Commit()
-		
+
 		if err != nil {
 			t.Fatalf("Failed to Begin: %s", err)
 		}

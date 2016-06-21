@@ -71,6 +71,7 @@ func (t *TrillianLogServer) QueueLeaves(ctx context.Context, req *trillian.Queue
 	err = tx.QueueLeaves(leaves)
 
 	if err != nil {
+		tx.Rollback()
 		return nil, err
 	}
 
@@ -123,6 +124,7 @@ func (t *TrillianLogServer) GetLeavesByIndex(ctx context.Context, req *trillian.
 	leaves, err := tx.GetLeavesByIndex(req.LeafIndex)
 
 	if err != nil {
+		tx.Rollback()
 		return nil, err
 	}
 
