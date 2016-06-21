@@ -60,11 +60,12 @@ const selectNodesSql string = `SELECT x.NodeId, x.MaxRevision, Node.NodeHash
 														Node.NodeRevision = x.MaxRevision AND
 														Node.TreeId = ?`
 
-type mySQLLogStorage struct {
-	id              trillian.LogID
-	db              *sql.DB
-	allowDuplicates bool
-	hashSizeBytes   int
+// mySQLTreeStorage is shared between the mySQLLog- and (forthcoming) mySQLMap-
+// Storage implementations, and contains functionality which is common to both,
+type mySQLTreeStorage struct {
+	treeID        int64
+	db            *sql.DB
+	hashSizeBytes int
 
 	// Must hold the mutex before manipulating the statement map. Sharing a lock because
 	// it only needs to be held while the statements are built, not while they execute and
@@ -73,6 +74,13 @@ type mySQLLogStorage struct {
 	statementMutex sync.Mutex
 	statements     map[string]map[int]*sql.Stmt
 	setNode        *sql.Stmt
+}
+
+type mySQLLogStorage struct {
+	mySQLTreeStorage
+
+	logID           trillian.LogID
+	allowDuplicates bool
 }
 
 func NewLogStorage(id trillian.LogID, url string) (storage.LogStorage, error) {
@@ -101,12 +109,15 @@ func NewLogStorage(id trillian.LogID, url string) (storage.LogStorage, error) {
 	}
 
 	s := mySQLLogStorage{
+		mySQLTreeStorage: mySQLTreeStorage{
+			treeID: id.TreeID,
+			db:     db,
+			// TODO: Needs updating when we support different hash algorithms
+			hashSizeBytes: sha256.Size,
+			statements:    make(map[string]map[int]*sql.Stmt),
+		},
+		logID:           id,
 		allowDuplicates: allowDuplicateLeaves,
-		// TODO: Needs updating when we support different hash algorithms
-		hashSizeBytes: sha256.Size,
-		id:            id,
-		db:            db,
-		statements:    make(map[string]map[int]*sql.Stmt),
 	}
 	s.setNode, err = db.Prepare(insertNodeSql)
 	if err != nil {
@@ -177,7 +188,7 @@ func encodeNodeID(n storage.NodeID) ([]byte, error) {
 	return marshalledBytes, nil
 }
 
-func (m *mySQLLogStorage) getStmt(statement string, num int) (*sql.Stmt, error) {
+func (m *mySQLTreeStorage) getStmt(statement string, num int) (*sql.Stmt, error) {
 	m.statementMutex.Lock()
 	defer m.statementMutex.Unlock()
 
@@ -201,6 +212,10 @@ func (m *mySQLLogStorage) getStmt(statement string, num int) (*sql.Stmt, error) 
 	return s, nil
 }
 
+func (m *mySQLTreeStorage) getNodesStmt(num int) (*sql.Stmt, error) {
+	return m.getStmt(selectNodesSql, num)
+}
+
 func (m *mySQLLogStorage) getLeavesByIndexStmt(num int) (*sql.Stmt, error) {
 	return m.getStmt(selectLeavesByIndexSql, num)
 }
@@ -209,23 +224,20 @@ func (m *mySQLLogStorage) getLeavesByHashStmt(num int) (*sql.Stmt, error) {
 	return m.getStmt(selectLeavesByHashSql, num)
 }
 
-func (m *mySQLLogStorage) getNodesStmt(num int) (*sql.Stmt, error) {
-	return m.getStmt(selectNodesSql, num)
-}
-
 func (m *mySQLLogStorage) getDeleteUnsequencedStmt(num int) (*sql.Stmt, error) {
 	return m.getStmt(deleteUnsequencedSql, num)
 }
 
-func (m *mySQLLogStorage) GetMerkleNodes(treeRevision int64, nodeIDs []storage.NodeID) ([]storage.Node, error) {
-	t, err := m.Begin()
-
+func (m *mySQLTreeStorage) beginTreeTx() (treeTX, error) {
+	t, err := m.db.Begin()
 	if err != nil {
-		return nil, err
+		glog.Warningf("Could not start TX: %s", err)
+		return treeTX{}, err
 	}
-
-	defer t.Commit()
-	return t.GetMerkleNodes(treeRevision, nodeIDs)
+	return treeTX{
+		tx: t,
+		ts: m,
+	}, nil
 }
 
 func (m *mySQLLogStorage) LatestSignedLogRoot() (trillian.SignedLogRoot, error) {
@@ -271,14 +283,13 @@ func (m *mySQLLogStorage) GetLeavesByHash(leafHashes []trillian.Hash) ([]trillia
 }
 
 func (m *mySQLLogStorage) Begin() (storage.LogTX, error) {
-	t, err := m.db.Begin()
+	ttx, err := m.beginTreeTx()
 	if err != nil {
-		glog.Warningf("Could not start TX: %s", err)
 		return nil, err
 	}
-	return &tx{
-		m:  m,
-		tx: t,
+	return &logTX{
+		treeTX: ttx,
+		ls:     m,
 	}, nil
 }
 
@@ -290,9 +301,14 @@ func (m *mySQLLogStorage) Snapshot() (storage.ReadOnlyLogTX, error) {
 	return tx.(storage.ReadOnlyLogTX), err
 }
 
-type tx struct {
-	m  *mySQLLogStorage
+type treeTX struct {
 	tx *sql.Tx
+	ts *mySQLTreeStorage
+}
+
+type logTX struct {
+	treeTX
+	ls *mySQLLogStorage
 }
 
 func checkResultOkAndRowCountIs(res sql.Result, err error, count int64) error {
@@ -316,7 +332,7 @@ func checkResultOkAndRowCountIs(res sql.Result, err error, count int64) error {
 	return nil
 }
 
-func (t *tx) DequeueLeaves(limit int) ([]trillian.LogLeaf, error) {
+func (t *logTX) DequeueLeaves(limit int) ([]trillian.LogLeaf, error) {
 	stx, err := t.tx.Prepare(selectQueuedLeavesSql)
 
 	if err != nil {
@@ -325,7 +341,7 @@ func (t *tx) DequeueLeaves(limit int) ([]trillian.LogLeaf, error) {
 	}
 
 	leaves := make([]trillian.LogLeaf, 0, limit)
-	rows, err := stx.Query(t.m.id.TreeID, limit)
+	rows, err := stx.Query(t.ls.logID.TreeID, limit)
 
 	if err != nil {
 		glog.Warningf("Failed to select rows for work: %s", err)
@@ -346,7 +362,7 @@ func (t *tx) DequeueLeaves(limit int) ([]trillian.LogLeaf, error) {
 			return nil, err
 		}
 
-		if len(leafHash) != t.m.hashSizeBytes {
+		if len(leafHash) != t.ts.hashSizeBytes {
 			return nil, errors.New("Dequeued a leaf with incorrect hash size")
 		}
 
@@ -385,11 +401,11 @@ func (t *tx) DequeueLeaves(limit int) ([]trillian.LogLeaf, error) {
 	return leaves, nil
 }
 
-func (t *tx) QueueLeaves(leaves []trillian.LogLeaf) error {
+func (t *logTX) QueueLeaves(leaves []trillian.LogLeaf) error {
 	// Don't accept batches if any of the leaves are invalid.
 	for _, leaf := range leaves {
-		if len(leaf.LeafHash) != t.m.hashSizeBytes {
-			return fmt.Errorf("Queued leaf must have a hash of length %d", t.m.hashSizeBytes)
+		if len(leaf.LeafHash) != t.ts.hashSizeBytes {
+			return fmt.Errorf("Queued leaf must have a hash of length %d", t.ts.hashSizeBytes)
 		}
 
 		if len(leaf.SignedEntryTimestamp.Signature.Signature) == 0 {
@@ -402,7 +418,7 @@ func (t *tx) QueueLeaves(leaves []trillian.LogLeaf) error {
 		// can suppress errors unrelated to key collisions. We don't use REPLACE because
 		// if there's ever a hash collision it will do the wrong thing and it also
 		// causes a DELETE / INSERT, which is undesirable.
-		_, err := t.tx.Exec(insertUnsequencedLeafSql, t.m.id.TreeID,
+		_, err := t.tx.Exec(insertUnsequencedLeafSql, t.ls.logID.TreeID,
 			[]byte(leaf.LeafHash), leaf.LeafValue)
 
 		if err != nil {
@@ -421,7 +437,7 @@ func (t *tx) QueueLeaves(leaves []trillian.LogLeaf) error {
 		// and everything will get rolled back
 		messageIdBytes := make([]byte, 8)
 
-		if t.m.allowDuplicates {
+		if t.ls.allowDuplicates {
 			_, err := rand.Read(messageIdBytes)
 
 			if err != nil {
@@ -431,7 +447,7 @@ func (t *tx) QueueLeaves(leaves []trillian.LogLeaf) error {
 		}
 
 		hasher.Write(messageIdBytes)
-		hasher.Write(t.m.id.LogID)
+		hasher.Write(t.ls.logID.LogID)
 		hasher.Write(leaf.LeafHash)
 		messageId := hasher.Sum(nil)
 
@@ -444,7 +460,7 @@ func (t *tx) QueueLeaves(leaves []trillian.LogLeaf) error {
 		// TODO: We shouldn't really need both payload and signed timestamp fields in unsequenced
 		// I think payload is currently unused
 		_, err = t.tx.Exec(insertUnsequencedEntrySql,
-			t.m.id.TreeID, []byte(leaf.LeafHash), messageId, signedTimestampBytes, signedTimestampBytes)
+			t.ls.logID.TreeID, []byte(leaf.LeafHash), messageId, signedTimestampBytes, signedTimestampBytes)
 
 		if err != nil {
 			glog.Warningf("Error inserting into Unsequenced: %s", err)
@@ -455,7 +471,7 @@ func (t *tx) QueueLeaves(leaves []trillian.LogLeaf) error {
 	return nil
 }
 
-func (t *tx) GetSequencedLeafCount() (int64, error) {
+func (t *logTX) GetSequencedLeafCount() (int64, error) {
 	var sequencedLeafCount int64
 	err := t.tx.QueryRow(selectSequencedLeafCountSql).Scan(&sequencedLeafCount)
 
@@ -466,8 +482,8 @@ func (t *tx) GetSequencedLeafCount() (int64, error) {
 	return sequencedLeafCount, err
 }
 
-func (t *tx) GetLeavesByIndex(leaves []int64) ([]trillian.LogLeaf, error) {
-	tmpl, err := t.m.getLeavesByIndexStmt(len(leaves))
+func (t *logTX) GetLeavesByIndex(leaves []int64) ([]trillian.LogLeaf, error) {
+	tmpl, err := t.ls.getLeavesByIndexStmt(len(leaves))
 	if err != nil {
 		return nil, err
 	}
@@ -476,7 +492,7 @@ func (t *tx) GetLeavesByIndex(leaves []int64) ([]trillian.LogLeaf, error) {
 	for _, nodeID := range leaves {
 		args = append(args, interface{}(int64(nodeID)))
 	}
-	args = append(args, interface{}(t.m.id.TreeID))
+	args = append(args, interface{}(t.ls.logID.TreeID))
 	rows, err := stx.Query(args...)
 	if err != nil {
 		glog.Warningf("Failed to get leaves by idx: %s", err)
@@ -504,7 +520,7 @@ func (t *tx) GetLeavesByIndex(leaves []int64) ([]trillian.LogLeaf, error) {
 
 		ret[num].SignedEntryTimestamp = signedEntryTimestamp
 
-		if got, want := len(ret[num].LeafHash), t.m.hashSizeBytes; got != want {
+		if got, want := len(ret[num].LeafHash), t.ts.hashSizeBytes; got != want {
 			return nil, fmt.Errorf("Scanned leaf does not have hash length %d, got %d", want, got)
 		}
 
@@ -517,8 +533,8 @@ func (t *tx) GetLeavesByIndex(leaves []int64) ([]trillian.LogLeaf, error) {
 	return ret, nil
 }
 
-func (t *tx) GetLeavesByHash(leafHashes []trillian.Hash) ([]trillian.LogLeaf, error) {
-	tmpl, err := t.m.getLeavesByHashStmt(len(leafHashes))
+func (t *logTX) GetLeavesByHash(leafHashes []trillian.Hash) ([]trillian.LogLeaf, error) {
+	tmpl, err := t.ls.getLeavesByHashStmt(len(leafHashes))
 	if err != nil {
 		return nil, err
 	}
@@ -527,7 +543,7 @@ func (t *tx) GetLeavesByHash(leafHashes []trillian.Hash) ([]trillian.LogLeaf, er
 	for _, hash := range leafHashes {
 		args = append(args, interface{}([]byte(hash)))
 	}
-	args = append(args, interface{}(t.m.id.TreeID))
+	args = append(args, interface{}(t.ls.logID.TreeID))
 	rows, err := stx.Query(args...)
 	if err != nil {
 		glog.Warningf("Failed to get leaves by hash: %s", err)
@@ -556,7 +572,7 @@ func (t *tx) GetLeavesByHash(leafHashes []trillian.Hash) ([]trillian.LogLeaf, er
 
 		leaf.SignedEntryTimestamp = signedEntryTimestamp
 
-		if got, want := len(leaf.LeafHash), t.m.hashSizeBytes; got != want {
+		if got, want := len(leaf.LeafHash), t.ls.hashSizeBytes; got != want {
 			return nil, fmt.Errorf("Scanned leaf does not have hash length %d, got %d", want, got)
 		}
 
@@ -566,13 +582,13 @@ func (t *tx) GetLeavesByHash(leafHashes []trillian.Hash) ([]trillian.LogLeaf, er
 	return ret, nil
 }
 
-func (t *tx) LatestSignedLogRoot() (trillian.SignedLogRoot, error) {
+func (t *logTX) LatestSignedLogRoot() (trillian.SignedLogRoot, error) {
 	var timestamp, treeSize, treeRevision int64
 	var rootHash, rootSignatureBytes []byte
 	var rootSignature trillian.DigitallySigned
 
 	err := t.tx.QueryRow(
-		selectLatestSignedRootSql, t.m.id.TreeID).Scan(
+		selectLatestSignedRootSql, t.ls.logID.TreeID).Scan(
 		&timestamp, &treeSize, &rootHash, &treeRevision, &rootSignatureBytes)
 
 	// It's possible there are no roots for this tree yet
@@ -592,12 +608,12 @@ func (t *tx) LatestSignedLogRoot() (trillian.SignedLogRoot, error) {
 		TimestampNanos: proto.Int64(timestamp),
 		TreeRevision:   proto.Int64(treeRevision),
 		Signature:      &rootSignature,
-		LogId:          t.m.id.LogID,
+		LogId:          t.ls.logID.LogID,
 		TreeSize:       proto.Int64(treeSize),
 	}, nil
 }
 
-func (t *tx) StoreSignedLogRoot(root trillian.SignedLogRoot) error {
+func (t *logTX) StoreSignedLogRoot(root trillian.SignedLogRoot) error {
 	signatureBytes, err := proto.Marshal(root.Signature)
 
 	if err != nil {
@@ -605,7 +621,7 @@ func (t *tx) StoreSignedLogRoot(root trillian.SignedLogRoot) error {
 		return err
 	}
 
-	res, err := t.tx.Exec(insertTreeHeadSql, t.m.id.TreeID, root.TimestampNanos, root.TreeSize,
+	res, err := t.tx.Exec(insertTreeHeadSql, t.ls.logID.TreeID, root.TimestampNanos, root.TreeSize,
 		root.RootHash, root.TreeRevision, signatureBytes)
 
 	if err != nil {
@@ -615,12 +631,12 @@ func (t *tx) StoreSignedLogRoot(root trillian.SignedLogRoot) error {
 	return checkResultOkAndRowCountIs(res, err, 1)
 }
 
-func (t *tx) UpdateSequencedLeaves(leaves []trillian.LogLeaf) error {
+func (t *logTX) UpdateSequencedLeaves(leaves []trillian.LogLeaf) error {
 	// TODO: In theory we can do this with CASE / WHEN in one SQL statement but it's more fiddly
 	// and can be implemented later if necessary
 	for _, leaf := range leaves {
 		// This should fail on insert but catch it early
-		if len(leaf.LeafHash) != t.m.hashSizeBytes {
+		if len(leaf.LeafHash) != t.ts.hashSizeBytes {
 			return errors.New("Sequenced leaf has incorrect hash size")
 		}
 
@@ -630,7 +646,7 @@ func (t *tx) UpdateSequencedLeaves(leaves []trillian.LogLeaf) error {
 			return err
 		}
 
-		_, err = t.tx.Exec(insertSequencedLeafSql, t.m.id.TreeID, []byte(leaf.LeafHash),
+		_, err = t.tx.Exec(insertSequencedLeafSql, t.ls.logID.TreeID, []byte(leaf.LeafHash),
 			leaf.SequenceNumber, signedTimestampBytes)
 
 		if err != nil {
@@ -642,8 +658,8 @@ func (t *tx) UpdateSequencedLeaves(leaves []trillian.LogLeaf) error {
 	return nil
 }
 
-func (t *tx) removeSequencedLeaves(leaves []trillian.LogLeaf) error {
-	tmpl, err := t.m.getDeleteUnsequencedStmt(len(leaves))
+func (t *logTX) removeSequencedLeaves(leaves []trillian.LogLeaf) error {
+	tmpl, err := t.ls.getDeleteUnsequencedStmt(len(leaves))
 	if err != nil {
 		glog.Warningf("Failed to get delete statement for sequenced work: %s", err)
 		return err
@@ -653,7 +669,7 @@ func (t *tx) removeSequencedLeaves(leaves []trillian.LogLeaf) error {
 	for _, leaf := range leaves {
 		args = append(args, interface{}([]byte(leaf.LeafHash)))
 	}
-	args = append(args, interface{}(t.m.id.TreeID))
+	args = append(args, interface{}(t.ls.logID.TreeID))
 	result, err := stx.Exec(args...)
 
 	if err != nil {
@@ -674,20 +690,20 @@ func (t *tx) removeSequencedLeaves(leaves []trillian.LogLeaf) error {
 // It is an error to request tree sizes larger than the currently published tree size.
 // TODO: This only works for sizes where there is a stored tree head. This is deliberate atm
 // as serving proofs at intermediate tree sizes is complicated and will be implemented later.
-func (t *tx) GetTreeRevisionAtSize(treeSize int64) (int64, error) {
+func (t *treeTX) GetTreeRevisionAtSize(treeSize int64) (int64, error) {
 	// Negative size is not sensible and a zero sized tree has no nodes so no revisions
 	if treeSize <= 0 {
 		return 0, fmt.Errorf("Invalid tree size: %d", treeSize)
 	}
 
 	var treeRevision int64
-	err := t.tx.QueryRow(selectTreeRevisionAtSizeSql, t.m.id.TreeID, treeSize).Scan(&treeRevision)
+	err := t.tx.QueryRow(selectTreeRevisionAtSizeSql, t.ts.treeID, treeSize).Scan(&treeRevision)
 
 	return treeRevision, err
 }
 
-func (t *tx) GetMerkleNodes(treeRevision int64, nodeIDs []storage.NodeID) ([]storage.Node, error) {
-	tmpl, err := t.m.getNodesStmt(len(nodeIDs))
+func (t *treeTX) GetMerkleNodes(treeRevision int64, nodeIDs []storage.NodeID) ([]storage.Node, error) {
+	tmpl, err := t.ts.getNodesStmt(len(nodeIDs))
 	if err != nil {
 		return nil, err
 	}
@@ -702,9 +718,9 @@ func (t *tx) GetMerkleNodes(treeRevision int64, nodeIDs []storage.NodeID) ([]sto
 
 		args = append(args, interface{}(nodeIdBytes))
 	}
-	args = append(args, interface{}(t.m.id.TreeID))
+	args = append(args, interface{}(t.ts.treeID))
 	args = append(args, interface{}(treeRevision))
-	args = append(args, interface{}(t.m.id.TreeID))
+	args = append(args, interface{}(t.ts.treeID))
 	rows, err := stx.Query(args...)
 	if err != nil {
 		glog.Warningf("Failed to get merkle nodes: %s", err)
@@ -722,7 +738,7 @@ func (t *tx) GetMerkleNodes(treeRevision int64, nodeIDs []storage.NodeID) ([]sto
 			return nil, err
 		}
 
-		if got, want := len(ret[num].Hash), t.m.hashSizeBytes; got != want {
+		if got, want := len(ret[num].Hash), t.ts.hashSizeBytes; got != want {
 			return nil, fmt.Errorf("Scanned node does not have hash length %d, got %d", want, got)
 		}
 
@@ -744,8 +760,8 @@ func (t *tx) GetMerkleNodes(treeRevision int64, nodeIDs []storage.NodeID) ([]sto
 	return ret, nil
 }
 
-func (t *tx) SetMerkleNodes(treeRevision int64, nodes []storage.Node) error {
-	stx := t.tx.Stmt(t.m.setNode)
+func (t *treeTX) SetMerkleNodes(treeRevision int64, nodes []storage.Node) error {
+	stx := t.tx.Stmt(t.ts.setNode)
 	for _, n := range nodes {
 		nodeIdBytes, err := encodeNodeID(n.NodeID)
 
@@ -753,7 +769,7 @@ func (t *tx) SetMerkleNodes(treeRevision int64, nodes []storage.Node) error {
 			return err
 		}
 
-		_, err = stx.Exec(t.m.id.TreeID, nodeIdBytes, []byte(n.Hash), treeRevision)
+		_, err = stx.Exec(t.ts.treeID, nodeIdBytes, []byte(n.Hash), treeRevision)
 		if err != nil {
 			glog.Warningf("Failed to set merkle nodes: %s", err)
 			return err
@@ -762,7 +778,7 @@ func (t *tx) SetMerkleNodes(treeRevision int64, nodes []storage.Node) error {
 	return nil
 }
 
-func (t *tx) Commit() error {
+func (t *treeTX) Commit() error {
 	err := t.tx.Commit()
 
 	if err != nil {
@@ -772,7 +788,7 @@ func (t *tx) Commit() error {
 	return err
 }
 
-func (t *tx) Rollback() error {
+func (t *treeTX) Rollback() error {
 	err := t.tx.Rollback()
 
 	if err != nil {
