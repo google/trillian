@@ -56,7 +56,30 @@ func (t *TrillianLogServer) getStorageForLog(logId int64) (storage.LogStorage, e
 
 // QueueLeaves submits a batch of leaves to the log for later integration into the underlying tree.
 func (t *TrillianLogServer) QueueLeaves(ctx context.Context, req *trillian.QueueLeavesRequest) (*trillian.QueueLeavesResponse, error) {
-	return nil, ErrNotImplemented
+	leaves := protosToLeaves(req.Leaves)
+
+	if len(leaves) == 0 {
+		return &trillian.QueueLeavesResponse{Status: buildStatusWithDesc(trillian.TrillianApiStatusCode_ERROR, "Must queue at least one leaf")}, nil
+	}
+
+	tx, err := t.prepareStorageTx(*req.LogId)
+
+	if err != nil {
+		return nil, err
+	}
+
+	err = tx.QueueLeaves(leaves)
+
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	if err := t.commitAndLog(tx, "QueueLeaves"); err != nil {
+		return nil, err
+	}
+
+	return &trillian.QueueLeavesResponse{Status: buildStatus(trillian.TrillianApiStatusCode_OK)}, nil
 }
 
 // GetInclusionProof obtains the proof of inclusion in the tree for a leaf that has been sequenced.
@@ -101,6 +124,7 @@ func (t *TrillianLogServer) GetLeavesByIndex(ctx context.Context, req *trillian.
 	leaves, err := tx.GetLeavesByIndex(req.LeafIndex)
 
 	if err != nil {
+		tx.Rollback()
 		return nil, err
 	}
 
@@ -155,6 +179,20 @@ func (t *TrillianLogServer) commitAndLog(tx storage.LogTX, op string) error {
 	}
 
 	return err
+}
+
+func protoToLeaf(proto *trillian.LeafProto) trillian.LogLeaf {
+	return trillian.LogLeaf{Leaf: trillian.Leaf{LeafHash: proto.LeafHash, LeafValue: proto.LeafData, ExtraData: proto.ExtraData}}
+}
+
+func protosToLeaves(protos []*trillian.LeafProto) []trillian.LogLeaf {
+	leaves := make([]trillian.LogLeaf, 0, len(protos))
+
+	for _, proto := range protos {
+		leaves = append(leaves, protoToLeaf(proto))
+	}
+
+	return leaves
 }
 
 // TODO: Fill in the log leaf specific fields when we've implemented signed timestamps

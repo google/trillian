@@ -19,10 +19,15 @@ var leaf0Minus2Request = trillian.GetLeavesByIndexRequest{LogId: &logId1, LeafIn
 var leaf03Request = trillian.GetLeavesByIndexRequest{LogId: &logId1, LeafIndex: []int64{0, 3}}
 var leaf0Log2Request = trillian.GetLeavesByIndexRequest{LogId: &logId2, LeafIndex: []int64{0}}
 
+var leaf0 = trillian.LogLeaf{Leaf: trillian.Leaf{LeafHash: []byte("hash"), LeafValue: []byte("value"), ExtraData: []byte("extra")}}
 var leaf1 = trillian.LogLeaf{SequenceNumber: 1, Leaf: trillian.Leaf{LeafHash: []byte("hash"), LeafValue: []byte("value"), ExtraData: []byte("extra")}}
 var leaf3 = trillian.LogLeaf{SequenceNumber: 3, Leaf: trillian.Leaf{LeafHash: []byte("hash3"), LeafValue: []byte("value3"), ExtraData: []byte("extra3")}}
 var expectedLeaf1 = trillian.LeafProto{LeafHash: []byte("hash"), LeafData: []byte("value"), ExtraData: []byte("extra")}
 var expectedLeaf3 = trillian.LeafProto{LeafHash: []byte("hash3"), LeafData: []byte("value3"), ExtraData: []byte("extra3")}
+
+var queueRequest0 = trillian.QueueLeavesRequest{LogId: &logId1, Leaves: []*trillian.LeafProto{&expectedLeaf1}}
+var queueRequest0Log2 = trillian.QueueLeavesRequest{LogId: &logId2, Leaves: []*trillian.LeafProto{&expectedLeaf1}}
+var queueRequestEmpty = trillian.QueueLeavesRequest{LogId: &logId1, Leaves: []*trillian.LeafProto{}}
 
 func mockStorageProviderfunc(mockStorage storage.LogStorage) LogStorageProviderFunc {
 	return func(id int64) (storage.LogStorage, error) {
@@ -174,6 +179,112 @@ func TestGetLeavesByIndexMultiple(t *testing.T) {
 
 	if !proto.Equal(resp.Leaves[1], &expectedLeaf3) {
 		t.Fatalf("Expected leaf3: %v but got: %v", expectedLeaf3, resp.Leaves[0])
+	}
+
+	mockStorage.AssertExpectations(t)
+}
+
+func TestQueueLeavesStorageError(t *testing.T) {
+	mockStorage := new(storage.MockLogStorage)
+	mockTx := new(storage.MockLogTX)
+
+	mockStorage.On("Begin").Return(mockTx, nil)
+	mockTx.On("QueueLeaves", []trillian.LogLeaf{leaf0}).Return(errors.New("STORAGE"))
+	mockTx.On("Rollback").Return(nil)
+
+	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
+
+	_, err := server.QueueLeaves(context.Background(), &queueRequest0)
+
+	if err == nil || !strings.Contains(err.Error(), "STORAGE") {
+		t.Fatalf("Returned wrong response when storage get leaves failed")
+	}
+
+	mockStorage.AssertExpectations(t)
+}
+
+func TestQueueLeavesInvalidLogId(t *testing.T) {
+	mockStorage := new(storage.MockLogStorage)
+
+	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
+
+	_, err := server.QueueLeaves(context.Background(), &queueRequest0Log2)
+
+	if err == nil || !strings.Contains(err.Error(), "BADLOGID") {
+		t.Fatalf("Got wrong error response for unknown log id: %v", err)
+	}
+
+	mockStorage.AssertExpectations(t)
+}
+
+func TestQueueLeavesCommitFails(t *testing.T) {
+	mockStorage := new(storage.MockLogStorage)
+	mockTx := new(storage.MockLogTX)
+
+	mockStorage.On("Begin").Return(mockTx, nil)
+	mockTx.On("QueueLeaves", []trillian.LogLeaf{leaf0}).Return(nil)
+	mockTx.On("Commit").Return(errors.New("Bang!"))
+
+	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
+
+	_, err := server.QueueLeaves(context.Background(), &queueRequest0)
+
+	if err == nil {
+		t.Fatalf("Returned OK when commit failed: %v", err)
+	}
+
+	mockStorage.AssertExpectations(t)
+}
+
+func TestQueueLeaves(t *testing.T) {
+	mockStorage := new(storage.MockLogStorage)
+	mockTx := new(storage.MockLogTX)
+
+	mockStorage.On("Begin").Return(mockTx, nil)
+	mockTx.On("QueueLeaves", []trillian.LogLeaf{leaf0}).Return(nil)
+	mockTx.On("Commit").Return(nil)
+
+	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
+
+	resp, err := server.QueueLeaves(context.Background(), &queueRequest0)
+
+	if err != nil {
+		t.Fatalf("Failed to get leaf by index: %v", err)
+	}
+
+	if expected, got := trillian.TrillianApiStatusCode_OK, *resp.Status.StatusCode; expected != got {
+		t.Fatalf("Expected app level ok status but got: %v")
+	}
+
+	mockStorage.AssertExpectations(t)
+}
+
+func TestQueueLeavesNoLeavesRejected(t *testing.T) {
+	mockStorage := new(storage.MockLogStorage)
+
+	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
+
+	resp, err := server.QueueLeaves(context.Background(), &queueRequestEmpty)
+
+	if err != nil || *resp.Status.StatusCode != trillian.TrillianApiStatusCode_ERROR {
+		t.Fatalf("Allowed zero leaves to be queued")
+	}
+
+	mockStorage.AssertExpectations(t)
+}
+
+func TestQueueLeavesBeginFailsCausesError(t *testing.T) {
+	mockStorage := new(storage.MockLogStorage)
+	mockTx := new(storage.MockLogTX)
+
+	mockStorage.On("Begin").Return(mockTx, errors.New("TX"))
+
+	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
+
+	_, err := server.QueueLeaves(context.Background(), &queueRequest0)
+
+	if err == nil || !strings.Contains(err.Error(), "TX") {
+		t.Fatalf("Returned wrong error response when begin failed")
 	}
 
 	mockStorage.AssertExpectations(t)
