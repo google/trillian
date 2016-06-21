@@ -18,6 +18,7 @@ const insertNodeSql string = `INSERT INTO Node(TreeId, NodeId, NodeHash, NodeRev
 const insertTreeHeadSql string = `INSERT INTO TreeHead(TreeId,TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature)
 		 VALUES(?,?,?,?,?,?)`
 const selectTreeRevisionAtSizeSql string = "SELECT TreeRevision FROM TreeHead WHERE TreeId=? AND TreeSize=? ORDER BY TreeRevision DESC LIMIT 1"
+const selectActiveLogsSql string = "select TreeId, KeyId from Trees where TreeType='LOG'"
 
 const selectNodesSql string = `SELECT x.NodeId, x.MaxRevision, Node.NodeHash
 				 FROM (SELECT n.NodeId, max(n.NodeRevision) AS MaxRevision
@@ -308,6 +309,36 @@ func (t *treeTX) SetMerkleNodes(treeRevision int64, nodes []storage.Node) error 
 		}
 	}
 	return nil
+}
+
+// GetActiveLogIDs returns the IDs of all configured logs
+func (t *treeTX) GetActiveLogIDs() ([]trillian.LogID, error) {
+	rows, err := t.tx.Query(selectActiveLogsSql)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	logIDs := make([]trillian.LogID, 0, 0)
+
+	for rows.Next() {
+		var logID []byte
+		var treeID int64
+
+		if err := rows.Scan(&treeID, &logID); err != nil {
+			return []trillian.LogID{}, err
+		}
+
+		logIDs = append(logIDs, trillian.LogID{logID, treeID})
+	}
+
+	if rows.Err() != nil {
+		return []trillian.LogID{}, rows.Err()
+	}
+
+	return logIDs, nil
 }
 
 func (t *treeTX) Commit() error {

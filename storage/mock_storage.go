@@ -164,6 +164,13 @@ func (t *MockLogTX) StoreSignedLogRoot(root trillian.SignedLogRoot) error {
 	return args.Error(0)
 }
 
+// GetActiveLogIDs is a mock
+func (t *MockLogTX) GetActiveLogIDs() ([]trillian.LogID, error) {
+	args := t.Called()
+
+	return args.Get(0).([]trillian.LogID), args.Error(1)
+}
+
 // Begin is a mock
 func (s MockMapStorage) Begin() (MapTX, error) {
 	args := s.Called()
