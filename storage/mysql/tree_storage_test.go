@@ -16,6 +16,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
+	"github.com/stretchr/testify/assert"
 )
 
 var allTables = []string{"Unsequenced", "TreeHead", "SequencedLeafData", "LeafData", "Node", "TreeControl", "Trees"}
@@ -96,6 +97,40 @@ func checkLeafContents(leaf trillian.LogLeaf, seq int64, hash, data []byte, t *t
 	if expected, got := data, leaf.LeafValue; !bytes.Equal(data, leaf.LeafValue) {
 		t.Fatalf("Unxpected data in returned leaf. Expected:\n%v\nGot:\n%v", expected, got)
 	}
+}
+
+func TestOpenStateCommit(t *testing.T) {
+	logID := createLogID("TestOpenStateCommit")
+	db := prepareTestDB(logID, t)
+	defer db.Close()
+	s := prepareTestStorage(logID, t)
+	tx, err := s.Begin()
+
+	if err != nil {
+		t.Fatalf("Failed to set up db transaction")
+	}
+
+	assert.True(t, tx.Open(), "Transaction should be open on creation")
+	err = tx.Commit()
+	assert.Nil(t, err, "Failed to commit: %v", err)
+	assert.False(t, tx.Open(), "Transaction should be closed after commit")
+}
+
+func TestOpenStateRollback(t *testing.T) {
+	logID := createLogID("TestOpenStateRollback")
+	db := prepareTestDB(logID, t)
+	defer db.Close()
+	s := prepareTestStorage(logID, t)
+	tx, err := s.Begin()
+
+	if err != nil {
+		t.Fatalf("Failed to set up db transaction")
+	}
+
+	assert.True(t, tx.Open(), "Transaction should be open on creation")
+	err = tx.Commit()
+	assert.Nil(t, err, "Failed to commit: %v", err)
+	assert.False(t, tx.Open(), "Transaction should be closed after rollback")
 }
 
 func TestNodeRoundTrip(t *testing.T) {

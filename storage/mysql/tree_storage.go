@@ -374,8 +374,9 @@ func (m *mySQLMapStorage) Snapshot() (storage.ReadOnlyMapTX, error) {
 }
 
 type treeTX struct {
-	tx *sql.Tx
-	ts *mySQLTreeStorage
+	closed bool
+	tx     *sql.Tx
+	ts     *mySQLTreeStorage
 }
 
 type logTX struct {
@@ -856,6 +857,7 @@ func (t *treeTX) SetMerkleNodes(treeRevision int64, nodes []storage.Node) error 
 }
 
 func (t *treeTX) Commit() error {
+	t.closed = true
 	err := t.tx.Commit()
 
 	if err != nil {
@@ -866,6 +868,7 @@ func (t *treeTX) Commit() error {
 }
 
 func (t *treeTX) Rollback() error {
+	t.closed = true
 	err := t.tx.Rollback()
 
 	if err != nil {
@@ -889,4 +892,8 @@ func (m *mapTX) LatestSignedMapRoot() (trillian.SignedMapRoot, error) {
 
 func (m *mapTX) StoreSignedMapRoot(root trillian.SignedMapRoot) error {
 	return errors.New("unimplemented")
+}
+
+func (t *treeTX) Open() bool {
+	return !t.closed
 }
