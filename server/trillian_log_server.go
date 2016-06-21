@@ -68,8 +68,6 @@ func (t *TrillianLogServer) QueueLeaves(ctx context.Context, req *trillian.Queue
 		return nil, err
 	}
 
-	defer rollbackTxIfOpen(tx)
-
 	err = tx.QueueLeaves(leaves)
 
 	if err != nil {
@@ -122,8 +120,6 @@ func (t *TrillianLogServer) GetLeavesByIndex(ctx context.Context, req *trillian.
 		return nil, err
 	}
 
-	defer rollbackTxIfOpen(tx)
-
 	leaves, err := tx.GetLeavesByIndex(req.LeafIndex)
 
 	if err != nil {
@@ -159,13 +155,6 @@ func (t *TrillianLogServer) prepareStorageTx(treeID int64) (storage.LogTX, error
 	}
 
 	return tx, err
-}
-
-// Rolls back if an error has occurred.
-func rollbackTxIfOpen(tx storage.LogTX) {
-	if tx != nil && tx.Open() {
-		tx.Rollback()
-	}
 }
 
 func buildStatus(code trillian.TrillianApiStatusCode) *trillian.TrillianApiStatus {
