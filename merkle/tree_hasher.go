@@ -8,8 +8,17 @@ import (
 // different users. Apparently E2E hashes in tree-level to the internal nodes
 // for example, and some users may want different domain separation prefixes
 // etc.
+//
+// BIG SCARY COMMENT:
+//
+// We don't want this code to have to depend on or constrain implementations for
+// specific applications but we haven't decided how we're going to split domain
+// specific stuff from the generic yet and we don't want to lose track of the fact
+// that this hashing needs to be domain aware to some extent.
+// END OF BIG SCARY COMMENT
 
 // Domain separation prefixes
+// TODO(Martin2112): Move anything CT specific out of here to <handwave> look over there
 const (
 	RFC6962LeafHashPrefix = 0
 	RFC6962NodeHashPrefix = 1
@@ -24,6 +33,7 @@ type TreeHasher struct {
 }
 
 // NewTreeHasher creates a new TreeHasher based on the passed in hash function.
+// TODO(Martin2112): Move anything CT specific out of here to <handwave> look over there
 func NewRFC6962TreeHasher(hasher trillian.Hasher) TreeHasher {
 	return TreeHasher{
 		Hasher:     hasher,
