@@ -218,9 +218,10 @@ func getRandomRootNode(t *testing.T, rev int64) storage.Node {
 	}
 }
 
-func getRandomNode(t *testing.T, rev int64) storage.Node {
+func getRandomNonRootNode(t *testing.T, rev int64) storage.Node {
 	nodeID := storage.NewNodeIDFromHash(randomBytes(t, 32))
-	nodeID.PrefixLenBits = int(randomBytes(t, 1)[0] % 255)
+	// Make sure it's not a root node.
+	nodeID.PrefixLenBits = int(1 + randomBytes(t, 1)[0]%254)
 	return storage.Node{
 		NodeID:       nodeID,
 		Hash:         randomBytes(t, 32),
@@ -278,7 +279,7 @@ func TestRootAtRevisionCatchesNonRootNode(t *testing.T) {
 	r, tx := getSparseMerkleTreeReaderWithMockTX(rev)
 	// Sanity checking in RootAtRevision should catch this node being incorrectly
 	// returned by the storage layer.
-	n1 := getRandomNode(t, rev)
+	n1 := getRandomNonRootNode(t, rev)
 	tx.On("GetMerkleNodes", int64(rev), mock.MatchedBy(isRootNodeOnly)).Return([]storage.Node{n1}, nil)
 	_, err := r.RootAtRevision(rev)
 	if err == nil || err == ErrNoSuchRevision {
@@ -317,7 +318,7 @@ func TestInclusionProofForNullEntryInEmptyTree(t *testing.T) {
 func TestInclusionProofGetsIncorrectNode(t *testing.T) {
 	const rev = 100
 	r, tx := getSparseMerkleTreeReaderWithMockTX(rev)
-	tx.On("GetMerkleNodes", int64(rev), mock.AnythingOfType("[]storage.NodeID")).Return([]storage.Node{getRandomNode(t, 34)}, nil)
+	tx.On("GetMerkleNodes", int64(rev), mock.AnythingOfType("[]storage.NodeID")).Return([]storage.Node{getRandomNonRootNode(t, 34)}, nil)
 	const key = "SomeArbitraryKey"
 	_, err := r.InclusionProof(rev, []byte(key))
 	if err == nil {
@@ -353,7 +354,7 @@ func TestInclusionProofGetsTooManyNodes(t *testing.T) {
 		nodes[255-i].NodeID.SetBit(i, nodes[255-i].NodeID.Bit(i)^1)
 	}
 	// and then tack on some rubbish:
-	nodes[256] = getRandomNode(t, 42)
+	nodes[256] = getRandomNonRootNode(t, 42)
 
 	tx.On("GetMerkleNodes", int64(rev), mock.AnythingOfType("[]storage.NodeID")).Return(nodes, nil)
 	_, err := r.InclusionProof(rev, []byte(key))
