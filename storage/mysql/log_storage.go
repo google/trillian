@@ -13,7 +13,8 @@ import (
 	"github.com/google/trillian/storage"
 )
 
-const getLogPropertiesSql string = "SELECT AllowsDuplicateLeaves FROM Trees WHERE TreeId=?"
+const getTreePropertiesSql string = "SELECT AllowsDuplicateLeaves FROM Trees WHERE TreeId=?"
+const getTreeParametersSql string = "SELECT ReadOnlyRequests From TreeControl WHERE TreeID=?"
 const selectQueuedLeavesSql string = `SELECT LeafHash,Payload,SignedEntryTimestamp
 		 FROM Unsequenced
 		 WHERE TreeID=?
@@ -46,6 +47,7 @@ type mySQLLogStorage struct {
 
 	logID           trillian.LogID
 	allowDuplicates bool
+	readOnly        bool
 }
 
 func NewLogStorage(id trillian.LogID, dbURL string) (storage.LogStorage, error) {
@@ -62,11 +64,19 @@ func NewLogStorage(id trillian.LogID, dbURL string) (storage.LogStorage, error) 
 
 	// TODO: This should not default but it would currently complicate testing and can be
 	// implemented later when the create tree API has been defined.
-	if err := s.db.QueryRow(getLogPropertiesSql, id.TreeID).Scan(&s.allowDuplicates); err == sql.ErrNoRows {
+	if err := s.db.QueryRow(getTreePropertiesSql, id.TreeID).Scan(&s.allowDuplicates); err == sql.ErrNoRows {
 		s.allowDuplicates = false
 	} else if err != nil {
 		glog.Warningf("Failed to get trees row for id %v: %s", id, err)
 		return nil, err
+	}
+
+	err = s.db.QueryRow(getTreeParametersSql, id.TreeID).Scan(&s.readOnly)
+
+	// TODO(Martin2112): It's probably not ok for the log to have no parameters set. Enforce this when
+	// we have an admin API and / or we're further along.
+	if err == sql.ErrNoRows {
+		glog.Warningf("*** Opening storage for log: %v but it has no params configured ***", id)
 	}
 
 	if s.setNode, err = s.db.Prepare(insertNodeSql); err != nil {
@@ -131,7 +141,7 @@ func (m *mySQLLogStorage) GetLeavesByHash(leafHashes []trillian.Hash) ([]trillia
 	return t.GetLeavesByHash(leafHashes)
 }
 
-func (m *mySQLLogStorage) Begin() (storage.LogTX, error) {
+func (m *mySQLLogStorage) beginInternal() (storage.LogTX, error) {
 	ttx, err := m.beginTreeTx()
 	if err != nil {
 		return nil, err
@@ -142,8 +152,18 @@ func (m *mySQLLogStorage) Begin() (storage.LogTX, error) {
 	}, nil
 }
 
+func (m *mySQLLogStorage) Begin() (storage.LogTX, error) {
+	// Reject attempts to start a writable transaction in read only mode. Anything that
+	// doesn't write is a part of Snapshot so is still available via that API.
+	if m.readOnly {
+		return nil, storage.ErrReadOnly
+	}
+
+	return m.beginInternal()
+}
+
 func (m *mySQLLogStorage) Snapshot() (storage.ReadOnlyLogTX, error) {
-	tx, err := m.Begin()
+	tx, err := m.beginInternal()
 	if err != nil {
 		return nil, err
 	}
