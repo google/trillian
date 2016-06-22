@@ -15,6 +15,7 @@ import (
 // specific applications but we haven't decided how we're going to split domain
 // specific stuff from the generic yet and we don't want to lose track of the fact
 // that this hashing needs to be domain aware to some extent.
+//
 // END OF BIG SCARY COMMENT
 
 // Domain separation prefixes
