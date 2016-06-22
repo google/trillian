@@ -747,6 +747,47 @@ func TestLogRootUpdate(t *testing.T) {
 	}
 }
 
+func TestReadWriteAllowsWrites(t *testing.T) {
+	logID := createLogID("TestReadWriteAllowsWrites")
+	db := prepareTestDB(logID, t)
+	defer db.Close()
+	s := prepareTestStorage(logID, t)
+
+	tx, err := s.Begin()
+
+	if err != nil {
+		t.Fatalf("Read / write log tx did not allow Begin()")
+	}
+
+	tx.Rollback()
+}
+
+func TestReadOnlyIsEnforced(t *testing.T) {
+	logID := logIDAndTest{logID: trillian.LogID{LogID: []byte("hi2"), TreeID: 24 }, testName: "TestReadOnlyIsEnforced" }
+	db := prepareTestDB(logID, t)
+	defer db.Close()
+	s := prepareTestStorage(logID, t)
+
+	// This should fail as it's readonly
+	_, err := s.Begin()
+	if err != storage.ErrReadOnly {
+		t.Fatalf("Did not get expected read only error: %v", err)
+	}
+}
+
+func TestReadOnlyAllowsSnapshot(t *testing.T) {
+	logID := logIDAndTest{logID: trillian.LogID{LogID: []byte("hi2"), TreeID: 24 }, testName: "TestReadOnlyAllowsSnapshot" }
+	db := prepareTestDB(logID, t)
+	defer db.Close()
+	s := prepareTestStorage(logID, t)
+
+	// This should be ok for a readonly tree
+	_, err := s.Snapshot()
+	if err != nil {
+		t.Fatalf("Did not allow snapshot: %v", err)
+	}
+}
+
 func ensureAllLeafHashesDistinct(leaves []trillian.LogLeaf, t *testing.T) {
 	// All the hashes should be distinct. If only we had maps with slices as keys or sets
 	// or pretty much any kind of usable data structures we could do this properly.
@@ -800,6 +841,24 @@ func prepareTestDB(logID logIDAndTest, t *testing.T) *sql.DB {
 
 	if err != nil {
 		t.Fatalf("Failed to create tree entry for test: %v", err)
+	}
+
+	// Create a second tree set up to be read only. Have to remove tree control row manually
+	// to avoid a constraint issue
+	_, err = db.Exec("DELETE FROM TreeControl WHERE TreeId=24")
+	if err != nil {
+		panic(err)
+	}
+
+	_, err = db.Exec(`REPLACE INTO Trees(TreeId, KeyId, TreeType, LeafHasherType, TreeHasherType)
+ 					 VALUES(24, "hi2", "LOG", "SHA256", "SHA256")`)
+	if err != nil {
+		panic(err)
+	}
+	_, err = db.Exec(`INSERT INTO TreeControl(TreeId, ReadOnlyRequests, SigningEnabled, SequencingEnabled, SequenceIntervalSeconds, SignIntervalSeconds)
+ 				 VALUES(24, true, true, true, 9000, 9000)`)
+	if err != nil {
+		panic(err)
 	}
 
 	return db
