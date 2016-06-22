@@ -76,6 +76,7 @@ func TestGetLeavesByIndexStorageError(t *testing.T) {
 
 	mockStorage.On("Begin").Return(mockTx, nil)
 	mockTx.On("GetLeavesByIndex", []int64{0}).Return([]trillian.LogLeaf{}, errors.New("STORAGE"))
+	mockTx.On("Open").Return(true)
 	mockTx.On("Rollback").Return(nil)
 
 	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
@@ -110,6 +111,7 @@ func TestGetLeavesByIndexCommitFails(t *testing.T) {
 	mockStorage.On("Begin").Return(mockTx, nil)
 	mockTx.On("GetLeavesByIndex", []int64{0}).Return([]trillian.LogLeaf{leaf1}, nil)
 	mockTx.On("Commit").Return(errors.New("Bang!"))
+	mockTx.On("Open").Return(false)
 
 	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
 
@@ -129,6 +131,7 @@ func TestGetLeavesByIndex(t *testing.T) {
 	mockStorage.On("Begin").Return(mockTx, nil)
 	mockTx.On("GetLeavesByIndex", []int64{0}).Return([]trillian.LogLeaf{leaf1}, nil)
 	mockTx.On("Commit").Return(nil)
+	mockTx.On("Open").Return(false)
 
 	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
 
@@ -156,6 +159,7 @@ func TestGetLeavesByIndexMultiple(t *testing.T) {
 	mockStorage.On("Begin").Return(mockTx, nil)
 	mockTx.On("GetLeavesByIndex", []int64{0, 3}).Return([]trillian.LogLeaf{leaf1, leaf3}, nil)
 	mockTx.On("Commit").Return(nil)
+	mockTx.On("Open").Return(false)
 
 	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
 
@@ -190,6 +194,7 @@ func TestQueueLeavesStorageError(t *testing.T) {
 
 	mockStorage.On("Begin").Return(mockTx, nil)
 	mockTx.On("QueueLeaves", []trillian.LogLeaf{leaf0}).Return(errors.New("STORAGE"))
+	mockTx.On("Open").Return(true)
 	mockTx.On("Rollback").Return(nil)
 
 	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
@@ -224,6 +229,7 @@ func TestQueueLeavesCommitFails(t *testing.T) {
 	mockStorage.On("Begin").Return(mockTx, nil)
 	mockTx.On("QueueLeaves", []trillian.LogLeaf{leaf0}).Return(nil)
 	mockTx.On("Commit").Return(errors.New("Bang!"))
+	mockTx.On("Open").Return(false)
 
 	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
 
@@ -243,6 +249,7 @@ func TestQueueLeaves(t *testing.T) {
 	mockStorage.On("Begin").Return(mockTx, nil)
 	mockTx.On("QueueLeaves", []trillian.LogLeaf{leaf0}).Return(nil)
 	mockTx.On("Commit").Return(nil)
+	mockTx.On("Open").Return(false)
 
 	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
 

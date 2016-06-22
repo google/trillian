@@ -71,6 +71,13 @@ func (t *MockTreeTX) Rollback() error {
 	return args.Error(0)
 }
 
+// Open is a mock
+func (t *MockTreeTX) IsOpen() bool {
+	args := t.Called()
+
+	return args.Get(0).(bool)
+}
+
 // GetTreeRevisionAtSize is a mock
 func (t *MockTreeTX) GetTreeRevisionAtSize(treeSize int64) (int64, error) {
 	args := t.Called(treeSize)
