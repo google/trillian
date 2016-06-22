@@ -894,6 +894,6 @@ func (m *mapTX) StoreSignedMapRoot(root trillian.SignedMapRoot) error {
 	return errors.New("unimplemented")
 }
 
-func (t *treeTX) Open() bool {
+func (t *treeTX) IsOpen() bool {
 	return !t.closed
 }

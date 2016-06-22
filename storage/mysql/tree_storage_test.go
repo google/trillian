@@ -111,10 +111,10 @@ func TestOpenStateCommit(t *testing.T) {
 		t.Fatalf("Failed to set up db transaction")
 	}
 
-	assert.True(t, tx.Open(), "Transaction should be open on creation")
+	assert.True(t, tx.IsOpen(), "Transaction should be open on creation")
 	err = tx.Commit()
 	assert.Nil(t, err, "Failed to commit: %v", err)
-	assert.False(t, tx.Open(), "Transaction should be closed after commit")
+	assert.False(t, tx.IsOpen(), "Transaction should be closed after commit")
 }
 
 func TestOpenStateRollback(t *testing.T) {
@@ -128,10 +128,10 @@ func TestOpenStateRollback(t *testing.T) {
 		t.Fatalf("Failed to set up db transaction")
 	}
 
-	assert.True(t, tx.Open(), "Transaction should be open on creation")
+	assert.True(t, tx.IsOpen(), "Transaction should be open on creation")
 	err = tx.Rollback()
 	assert.Nil(t, err, "Failed to commit: %v", err)
-	assert.False(t, tx.Open(), "Transaction should be closed after rollback")
+	assert.False(t, tx.IsOpen(), "Transaction should be closed after rollback")
 }
 
 func TestNodeRoundTrip(t *testing.T) {
@@ -853,7 +853,7 @@ func beginTx(s storage.LogStorage, t *testing.T) storage.LogTX {
 }
 
 func failIfTXStillOpen(t *testing.T, op string, tx storage.LogTX) {
-	if tx != nil && tx.Open() {
+	if tx != nil && tx.IsOpen() {
 		t.Fatalf("Unclosed transaction in : %s", op)
 	}
 }

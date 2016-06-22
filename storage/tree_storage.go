@@ -23,7 +23,7 @@ type TreeTX interface {
 	// Open indicates if this transaction is open. An open transaction is one for which
 	// Commit() or Rollback() has never been called. Implementations must do all clean up
 	// in these methods so transactions are assumed closed regardless of the reported success.
-	Open() bool
+	IsOpen() bool
 }
 
 // NodeReader provides a read-only interface into the stored tree nodes.

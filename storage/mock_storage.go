@@ -72,7 +72,7 @@ func (t *MockTreeTX) Rollback() error {
 }
 
 // Open is a mock
-func (t *MockTreeTX) Open() bool {
+func (t *MockTreeTX) IsOpen() bool {
 	args := t.Called()
 
 	return args.Get(0).(bool)
