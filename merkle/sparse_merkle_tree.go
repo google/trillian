@@ -7,6 +7,10 @@ import (
 	"github.com/google/trillian/storage"
 )
 
+// For more information about how Sparse Merkle Trees work see the Revocation Transparency
+// paper in the docs directory. Note that applications are not limited to X.509 certificates
+// and this implementation handles arbitrary data.
+
 // SparseMerkleTreeReader knows how to read data from a TreeStorage transaction
 // to provide proofs etc.
 type SparseMerkleTreeReader struct {
