@@ -11,8 +11,8 @@ import (
 
 // Domain separation prefixes
 const (
-	Rfc6962LeafHashPrefix = 0
-	Rfc6962NodeHashPrefix = 1
+	RFC6962LeafHashPrefix = 0
+	RFC6962NodeHashPrefix = 1
 )
 
 // TreeHasher is a set of domain separated hashers for creating merkle tree hashes.
@@ -24,7 +24,7 @@ type TreeHasher struct {
 }
 
 // NewTreeHasher creates a new TreeHasher based on the passed in hash function.
-func NewRfc6962TreeHasher(hasher trillian.Hasher) TreeHasher {
+func NewRFC6962TreeHasher(hasher trillian.Hasher) TreeHasher {
 	return TreeHasher{
 		Hasher:     hasher,
 		leafHasher:  rfc6962LeafHasher(hasher),
@@ -63,13 +63,13 @@ func rfc6962EmptyHasher(h trillian.Hasher) emptyHashFunc {
 // rfc6962LeafHasher builds a function to calculate leaf hashes based on the Hasher h for CT.
 func rfc6962LeafHasher(h trillian.Hasher) hashFunc {
 	return func(b []byte) trillian.Hash {
-		return h.Digest(append([]byte{Rfc6962LeafHashPrefix}, b...))
+		return h.Digest(append([]byte{RFC6962LeafHashPrefix}, b...))
 	}
 }
 
 // rfc6962NodeHasher builds a function to calculate internal node hashes based on the Hasher h for CT.
 func rfc6962NodeHasher(h trillian.Hasher) hashFunc {
 	return func(b []byte) trillian.Hash {
-		return h.Digest(append([]byte{Rfc6962NodeHashPrefix}, b...))
+		return h.Digest(append([]byte{RFC6962NodeHashPrefix}, b...))
 	}
 }

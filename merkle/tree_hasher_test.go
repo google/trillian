@@ -23,7 +23,7 @@ func ensureHashMatches(expected, actual []byte, testCase string, t *testing.T) {
 }
 
 func TestRfc6962Hasher(t *testing.T) {
-	hasher := NewRfc6962TreeHasher(trillian.NewSHA256())
+	hasher := NewRFC6962TreeHasher(trillian.NewSHA256())
 
 	ensureHashMatches(mustHexDecode(rfc6962EmptyHashHex), hasher.HashEmpty(), "RFC962 Empty", t)
   ensureHashMatches(mustHexDecode(rfc6962LeafL123456HashHex), hasher.HashLeaf([]byte("L123456")), "RFC6962 Leaf", t)
