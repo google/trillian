@@ -83,8 +83,14 @@ type mySQLLogStorage struct {
 	allowDuplicates bool
 }
 
-func NewLogStorage(id trillian.LogID, url string) (storage.LogStorage, error) {
-	db, err := sql.Open("mysql", url)
+type mySQLMapStorage struct {
+	mySQLTreeStorage
+
+	mapID trillian.MapID
+}
+
+func openDB(dbURL string) (*sql.DB, error) {
+	db, err := sql.Open("mysql", dbURL)
 	if err != nil {
 		// Don't log uri as it could contain credentials
 		glog.Warningf("Could not open MySQL database, check config: %s", err)
@@ -96,32 +102,73 @@ func NewLogStorage(id trillian.LogID, url string) (storage.LogStorage, error) {
 		return nil, err
 	}
 
-	var allowDuplicateLeaves bool
-	err = db.QueryRow(getLogPropertiesSql, id.TreeID).Scan(&allowDuplicateLeaves)
+	return db, nil
+}
+
+func newTreeStorage(treeID int64, dbURL string, hasher trillian.Hasher) (mySQLTreeStorage, error) {
+	db, err := openDB(dbURL)
+	if err != nil {
+		return mySQLTreeStorage{}, err
+	}
+
+	s := mySQLTreeStorage{
+		treeID:        treeID,
+		db:            db,
+		hashSizeBytes: hasher.Size(),
+		statements:    make(map[string]map[int]*sql.Stmt),
+	}
+
+	if s.setNode, err = s.db.Prepare(insertNodeSql); err != nil {
+		glog.Warningf("Failed to prepare node insert statement: %s", err)
+		return mySQLTreeStorage{}, err
+	}
+
+	return s, nil
+}
+
+func NewLogStorage(id trillian.LogID, dbURL string) (storage.LogStorage, error) {
+	ts, err := newTreeStorage(id.TreeID, dbURL, trillian.NewSHA256())
+	if err != nil {
+		glog.Warningf("Couldn't create a new treeStorage: %s", err)
+		return nil, err
+	}
+
+	s := mySQLLogStorage{
+		mySQLTreeStorage: ts,
+		logID:            id,
+	}
 
 	// TODO: This should not default but it would currently complicate testing and can be
 	// implemented later when the create tree API has been defined.
-	if err == sql.ErrNoRows {
-		allowDuplicateLeaves = false
+	if err := s.db.QueryRow(getLogPropertiesSql, id.TreeID).Scan(&s.allowDuplicates); err == sql.ErrNoRows {
+		s.allowDuplicates = false
 	} else if err != nil {
 		glog.Warningf("Failed to get trees row for id %v: %s", id, err)
 		return nil, err
 	}
 
-	s := mySQLLogStorage{
-		mySQLTreeStorage: mySQLTreeStorage{
-			treeID: id.TreeID,
-			db:     db,
-			// TODO: Needs updating when we support different hash algorithms
-			hashSizeBytes: sha256.Size,
-			statements:    make(map[string]map[int]*sql.Stmt),
-		},
-		logID:           id,
-		allowDuplicates: allowDuplicateLeaves,
-	}
-	s.setNode, err = db.Prepare(insertNodeSql)
-	if err != nil {
+	if s.setNode, err = s.db.Prepare(insertNodeSql); err != nil {
 		glog.Warningf("Failed to prepare node insert statement: %s", err)
+		return nil, err
+	}
+
+	return &s, nil
+}
+
+func NewMapStorage(id trillian.MapID, dbURL string) (storage.MapStorage, error) {
+	ts, err := newTreeStorage(id.TreeID, dbURL, trillian.NewSHA256())
+	if err != nil {
+		glog.Warningf("Couldn't create a new treeStorage: %s", err)
+		return nil, err
+	}
+
+	s := mySQLMapStorage{
+		mySQLTreeStorage: ts,
+		mapID:            id,
+	}
+
+	if err != nil {
+		glog.Warningf("Couldn't create a new treeStorage: %s", err)
 		return nil, err
 	}
 
@@ -307,6 +354,25 @@ func (m *mySQLLogStorage) Snapshot() (storage.ReadOnlyLogTX, error) {
 	return tx.(storage.ReadOnlyLogTX), err
 }
 
+func (m *mySQLMapStorage) Begin() (storage.MapTX, error) {
+	ttx, err := m.beginTreeTx()
+	if err != nil {
+		return nil, err
+	}
+	return &mapTX{
+		treeTX: ttx,
+		ms:     m,
+	}, nil
+}
+
+func (m *mySQLMapStorage) Snapshot() (storage.ReadOnlyMapTX, error) {
+	tx, err := m.Begin()
+	if err != nil {
+		return nil, err
+	}
+	return tx.(storage.ReadOnlyMapTX), err
+}
+
 type treeTX struct {
 	tx *sql.Tx
 	ts *mySQLTreeStorage
@@ -315,6 +381,11 @@ type treeTX struct {
 type logTX struct {
 	treeTX
 	ls *mySQLLogStorage
+}
+
+type mapTX struct {
+	treeTX
+	ms *mySQLMapStorage
 }
 
 func checkResultOkAndRowCountIs(res sql.Result, err error, count int64) error {
@@ -802,4 +873,20 @@ func (t *treeTX) Rollback() error {
 	}
 
 	return err
+}
+
+func (m *mapTX) Set(key []byte, value trillian.MapLeaf) error {
+	return errors.New("unimplemented")
+}
+
+func (m *mapTX) Get(revision int64, key []byte) (trillian.MapLeaf, error) {
+	return trillian.MapLeaf{}, errors.New("unimplemented")
+}
+
+func (m *mapTX) LatestSignedMapRoot() (trillian.SignedMapRoot, error) {
+	return trillian.SignedMapRoot{}, errors.New("unimplemented")
+}
+
+func (m *mapTX) StoreSignedMapRoot(root trillian.SignedMapRoot) error {
+	return errors.New("unimplemented")
 }
