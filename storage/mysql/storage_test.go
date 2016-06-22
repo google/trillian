@@ -19,7 +19,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var allTables = []string{"Unsequenced", "TreeHead", "SequencedLeafData", "LeafData", "Node", "TreeControl", "Trees"}
+var allTables = []string{"Unsequenced", "TreeHead", "SequencedLeafData", "LeafData", "Node", "TreeControl", "Trees", "MapLeaf", "MapHead"}
 
 // Must be 32 bytes to match sha256 length if it was a real hash
 var dummyHash = []byte("hashxxxxhashxxxxhashxxxxhashxxxx")

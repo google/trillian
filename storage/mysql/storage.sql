@@ -1,5 +1,10 @@
 # MySQL / MariaDB version of the tree schema
 
+-----------------------------------------------
+-- Tree stuff here
+-----------------------------------------------
+
+
 -- Tree parameters should not be changed after creation. Doing so can
 -- render the data in the tree unusable or inconsistent.
 CREATE TABLE IF NOT EXISTS Trees(
@@ -24,6 +29,34 @@ CREATE TABLE IF NOT EXISTS TreeControl(
   PRIMARY KEY(TreeId),
   FOREIGN KEY(TreeId) REFERENCES Trees(TreeId)
 );
+
+CREATE TABLE IF NOT EXISTS Node(
+  TreeId               INTEGER NOT NULL,
+  NodeId               VARBINARY(255) NOT NULL,
+  NodeHash             VARBINARY(255) NOT NULL,
+  NodeRevision         INTEGER NOT NULL,  -- negated because DESC indexes aren't supported :/
+  PRIMARY KEY(TreeId, NodeId, NodeRevision),
+  FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE
+);
+
+-- The TreeRevisionIdx is used to enforce that there is only one STH at any
+-- tree revision
+CREATE TABLE IF NOT EXISTS TreeHead(
+  TreeId               INTEGER NOT NULL,
+  TreeHeadTimestamp    BIGINT,
+  TreeSize             BIGINT,
+  RootHash             VARBINARY(255) NOT NULL,
+  RootSignature        VARBINARY(255) NOT NULL,
+  TreeRevision         BIGINT,
+  PRIMARY KEY(TreeId, TreeHeadTimestamp),
+  UNIQUE INDEX TreeRevisionIdx(TreeId, TreeRevision),
+  FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE
+);
+
+
+-----------------------------------------------
+-- Log specific stuff here
+-----------------------------------------------
 
 -- Creating index at same time as table allows some storage engines to better
 -- optimize physical storage layout. Most engines allow multiple nulls in a
@@ -55,29 +88,6 @@ CREATE TABLE IF NOT EXISTS SequencedLeafData(
   FOREIGN KEY(LeafHash) REFERENCES LeafData(LeafHash)
 );
 
-CREATE TABLE IF NOT EXISTS Node(
-  TreeId               INTEGER NOT NULL,
-  NodeId               VARBINARY(255) NOT NULL,
-  NodeHash             VARBINARY(255) NOT NULL,
-  NodeRevision         INTEGER NOT NULL,  -- negated because DESC indexes aren't supported :/
-  PRIMARY KEY(TreeId, NodeId, NodeRevision),
-  FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE
-);
-
--- The TreeRevisionIdx is used to enforce that there is only one STH at any
--- tree revision
-CREATE TABLE IF NOT EXISTS TreeHead(
-  TreeId               INTEGER NOT NULL,
-  TreeHeadTimestamp    BIGINT,
-  TreeSize             BIGINT,
-  RootHash             VARBINARY(255) NOT NULL,
-  RootSignature        VARBINARY(255) NOT NULL,
-  TreeRevision         BIGINT,
-  PRIMARY KEY(TreeId, TreeHeadTimestamp),
-  UNIQUE INDEX TreeRevisionIdx(TreeId, TreeRevision),
-  FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE
-);
-
 CREATE TABLE IF NOT EXISTS Unsequenced(
   TreeId               INTEGER NOT NULL,
   LeafHash             VARBINARY(255) NOT NULL,
@@ -90,3 +100,31 @@ CREATE TABLE IF NOT EXISTS Unsequenced(
   SignedEntryTimestamp BLOB,
   PRIMARY KEY (TreeId, LeafHash, MessageId)
 );
+
+
+-----------------------------------------------
+-- Map specific stuff here
+-----------------------------------------------
+
+CREATE TABLE IF NOT EXISTS MapLeaf(
+  TreeId                INTEGER NOT NULL,
+  KeyHash               VARBINARY(255) NOT NULL,
+  MapRevision           BIGINT NOT NULL,
+  TheData               BLOB NOT NULL,
+  PRIMARY KEY(TreeId, KeyHash, MapRevision),
+  FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE
+);
+
+
+CREATE TABLE IF NOT EXISTS MapHead(
+  TreeId               INTEGER NOT NULL,
+  MapHeadTimestamp     BIGINT,
+  RootHash             VARBINARY(255) NOT NULL,
+  RootSignature        VARBINARY(255) NOT NULL,
+  MapRevision          BIGINT,
+  TransactionLogRoot   BLOB NOT NULL,
+  PRIMARY KEY(TreeId, MapHeadTimestamp),
+  UNIQUE INDEX TreeRevisionIdx(TreeId, MapRevision),
+  FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE
+);
+
