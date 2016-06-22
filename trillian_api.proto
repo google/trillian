@@ -113,3 +113,50 @@ service TrillianLog {
     rpc GetLeavesByIndex(GetLeavesByIndexRequest) returns(GetLeavesByIndexResponse) {}
     rpc GetLeavesByHash(GetLeavesByHashRequest) returns(GetLeavesByHashResponse) {}
 }
+
+message KeyValue {
+  optional bytes key = 1;
+  optional bytes value = 2;
+}
+
+message KeyValueInclusion {
+  optional KeyValue key_value = 1;
+  repeated bytes inclusion = 2;
+}
+
+message GetMapLeavesRequest {
+  optional int64 map_id = 1;
+  repeated bytes key = 2;
+}
+
+message GetMapLeavesResponse {
+  optional TrillianApiStatus status = 1;
+  repeated KeyValue key_value = 2;
+  optional SignedMapRoot map_root = 3;
+}
+
+message SetMapLeavesRequest {
+  optional int64 map_id = 1;
+  repeated KeyValue key_value = 2;
+}
+
+message SetMapLeavesResponse {
+  optional TrillianApiStatus status = 1;
+}
+
+message GetSignedMapRootRequest {
+  optional int64 map_id = 1;
+}
+
+message GetSignedMapRootResponse {
+  optional TrillianApiStatus status = 1;
+  optional SignedMapRoot map_root = 2;
+}
+
+// TrillianMap defines a service which provides access to a Verifiable Map as
+// defined in the Verifiable Data Structures paper.
+service TrillianMap {
+  rpc GetLeaves(GetMapLeavesRequest) returns(GetMapLeavesResponse) {}
+  rpc SetLeaves(SetMapLeavesRequest) returns(SetMapLeavesResponse) {}
+  rpc GetSignedMapRoot(GetSignedMapRootRequest) returns(GetSignedMapRootResponse) {}
+}
