@@ -32,6 +32,11 @@ type logIDAndTest struct {
 	testName string
 }
 
+type mapIDAndTest struct {
+	mapID    trillian.MapID
+	testName string
+}
+
 // Tests that access the db should each use a distinct log ID to prevent lock contention when
 // run in parallel or race conditions / unexpected interactions. Tests that pass should hold
 // no locks afterwards.
@@ -39,9 +44,10 @@ type logIDAndTest struct {
 var signedTimestamp = trillian.SignedEntryTimestamp{
 	TimestampNanos: proto.Int64(1234567890), LogId: createLogID("sign").logID.LogID, Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
 
-// Parallel tests must get different log ids
+// Parallel tests must get different log or map ids
 var idMutex sync.Mutex
 var testLogId int64
+var testMapId int64
 
 func createSomeNodes(testName string, treeID int64) []storage.Node {
 	r := make([]storage.Node, 4)
@@ -60,6 +66,14 @@ func createLogID(testName string) logIDAndTest {
 	testLogId++
 
 	return logIDAndTest{logID: trillian.LogID{LogID: []byte(testName), TreeID: testLogId}, testName: testName}
+}
+
+func createMapID(testName string) mapIDAndTest {
+	idMutex.Lock()
+	defer idMutex.Unlock()
+	testLogId++
+
+	return mapIDAndTest{mapID: trillian.MapID{MapID: []byte(testName), TreeID: testMapId}, testName: testName}
 }
 
 func nodesAreEqual(lhs []storage.Node, rhs []storage.Node) error {
@@ -102,9 +116,9 @@ func checkLeafContents(leaf trillian.LogLeaf, seq int64, hash, data []byte, t *t
 
 func TestOpenStateCommit(t *testing.T) {
 	logID := createLogID("TestOpenStateCommit")
-	db := prepareTestDB(logID, t)
+	db := prepareTestLogDB(logID, t)
 	defer db.Close()
-	s := prepareTestStorage(logID, t)
+	s := prepareTestLogStorage(logID, t)
 	tx, err := s.Begin()
 
 	if err != nil {
@@ -119,9 +133,9 @@ func TestOpenStateCommit(t *testing.T) {
 
 func TestOpenStateRollback(t *testing.T) {
 	logID := createLogID("TestOpenStateRollback")
-	db := prepareTestDB(logID, t)
+	db := prepareTestLogDB(logID, t)
 	defer db.Close()
-	s := prepareTestStorage(logID, t)
+	s := prepareTestLogStorage(logID, t)
 	tx, err := s.Begin()
 
 	if err != nil {
@@ -136,9 +150,9 @@ func TestOpenStateRollback(t *testing.T) {
 
 func TestNodeRoundTrip(t *testing.T) {
 	logID := createLogID("TestNodeRoundTrip")
-	db := prepareTestDB(logID, t)
+	db := prepareTestLogDB(logID, t)
 	defer db.Close()
-	s := prepareTestStorage(logID, t)
+	s := prepareTestLogStorage(logID, t)
 
 	nodesToStore := createSomeNodes("TestNodeRoundTrip", logID.logID.TreeID)
 
@@ -207,10 +221,10 @@ func TestNodeIDSerialization(t *testing.T) {
 
 func TestQueueDuplicateLeafFails(t *testing.T) {
 	logID := createLogID("TestQueueDuplicateLeafFails")
-	db := prepareTestDB(logID, t)
+	db := prepareTestLogDB(logID, t)
 	defer db.Close()
-	s := prepareTestStorage(logID, t)
-	tx := beginTx(s, t)
+	s := prepareTestLogStorage(logID, t)
+	tx := beginLogTx(s, t)
 	defer tx.Commit()
 
 	leaves := createTestLeaves(5, 10)
@@ -232,10 +246,10 @@ func TestQueueDuplicateLeafFails(t *testing.T) {
 
 func TestQueueLeaves(t *testing.T) {
 	logID := createLogID("TestQueueLeaves")
-	db := prepareTestDB(logID, t)
+	db := prepareTestLogDB(logID, t)
 	defer db.Close()
-	s := prepareTestStorage(logID, t)
-	tx := beginTx(s, t)
+	s := prepareTestLogStorage(logID, t)
+	tx := beginLogTx(s, t)
 	defer failIfTXStillOpen(t, "TestQueueLeaves", tx)
 
 	leaves := createTestLeaves(leavesToInsert, 20)
@@ -261,10 +275,10 @@ func TestQueueLeaves(t *testing.T) {
 
 func TestDequeueLeavesNoneQueued(t *testing.T) {
 	logID := createLogID("TestDequeueLeavesNoneQueued")
-	db := prepareTestDB(logID, t)
+	db := prepareTestLogDB(logID, t)
 	defer db.Close()
-	s := prepareTestStorage(logID, t)
-	tx := beginTx(s, t)
+	s := prepareTestLogStorage(logID, t)
+	tx := beginLogTx(s, t)
 	defer tx.Commit()
 
 	leaves, err := tx.DequeueLeaves(999)
@@ -280,12 +294,12 @@ func TestDequeueLeavesNoneQueued(t *testing.T) {
 
 func TestDequeueLeaves(t *testing.T) {
 	logID := createLogID("TestDequeueLeaves")
-	db := prepareTestDB(logID, t)
+	db := prepareTestLogDB(logID, t)
 	defer db.Close()
-	s := prepareTestStorage(logID, t)
+	s := prepareTestLogStorage(logID, t)
 
 	{
-		tx := beginTx(s, t)
+		tx := beginLogTx(s, t)
 		defer failIfTXStillOpen(t, "TestDequeLeaves", tx)
 
 		leaves := createTestLeaves(leavesToInsert, 20)
@@ -299,7 +313,7 @@ func TestDequeueLeaves(t *testing.T) {
 
 	{
 		// Now try to dequeue them
-		tx2 := beginTx(s, t)
+		tx2 := beginLogTx(s, t)
 		defer failIfTXStillOpen(t, "TestDequeLeaves", tx2)
 		leaves2, err := tx2.DequeueLeaves(99)
 
@@ -318,7 +332,7 @@ func TestDequeueLeaves(t *testing.T) {
 
 	{
 		// If we dequeue again then we should now get nothing
-		tx3 := beginTx(s, t)
+		tx3 := beginLogTx(s, t)
 		defer tx3.Rollback()
 
 		leaves3, err := tx3.DequeueLeaves(99)
@@ -335,15 +349,15 @@ func TestDequeueLeaves(t *testing.T) {
 
 func TestDequeueLeavesTwoBatches(t *testing.T) {
 	logID := createLogID("TestDequeueLeavesTwoBatches")
-	db := prepareTestDB(logID, t)
+	db := prepareTestLogDB(logID, t)
 	defer db.Close()
-	s := prepareTestStorage(logID, t)
+	s := prepareTestLogStorage(logID, t)
 
 	leavesToDequeue1 := 3
 	leavesToDequeue2 := 2
 
 	{
-		tx := beginTx(s, t)
+		tx := beginLogTx(s, t)
 		defer failIfTXStillOpen(t, "TestDequeueLeavesTwoBatches", tx)
 
 		leaves := createTestLeaves(leavesToInsert, 20)
@@ -357,7 +371,7 @@ func TestDequeueLeavesTwoBatches(t *testing.T) {
 
 	{
 		// Now try to dequeue some of them
-		tx2 := beginTx(s, t)
+		tx2 := beginLogTx(s, t)
 		defer failIfTXStillOpen(t, "TestDequeueLeavesTwoBatches-tx2", tx2)
 		leaves2, err := tx2.DequeueLeaves(leavesToDequeue1)
 
@@ -374,7 +388,7 @@ func TestDequeueLeavesTwoBatches(t *testing.T) {
 		tx2.Commit()
 
 		// Now try to dequeue the rest of them
-		tx3 := beginTx(s, t)
+		tx3 := beginLogTx(s, t)
 		defer failIfTXStillOpen(t, "TestDequeueLeavesTwoBatches-tx3", tx3)
 		leaves3, err := tx3.DequeueLeaves(leavesToDequeue2)
 
@@ -397,7 +411,7 @@ func TestDequeueLeavesTwoBatches(t *testing.T) {
 
 	{
 		// If we dequeue again then we should now get nothing
-		tx4 := beginTx(s, t)
+		tx4 := beginLogTx(s, t)
 		defer failIfTXStillOpen(t, "TestDequeueLeavesTwoBatches-tx4", tx4)
 
 		leaves5, err := tx4.DequeueLeaves(99)
@@ -416,8 +430,8 @@ func TestDequeueLeavesTwoBatches(t *testing.T) {
 
 func TestGetLeavesByHashNotPresent(t *testing.T) {
 	logID := createLogID("TestGetLeavesByHashNotPresent")
-	s := prepareTestStorage(logID, t)
-	tx := beginTx(s, t)
+	s := prepareTestLogStorage(logID, t)
+	tx := beginLogTx(s, t)
 	defer tx.Commit()
 
 	hashes := []trillian.Hash{trillian.Hash("thisdoesn'texist")}
@@ -434,8 +448,8 @@ func TestGetLeavesByHashNotPresent(t *testing.T) {
 
 func TestGetLeavesByIndexNotPresent(t *testing.T) {
 	logID := createLogID("TestGetLeavesByIndexNotPresent")
-	s := prepareTestStorage(logID, t)
-	tx := beginTx(s, t)
+	s := prepareTestLogStorage(logID, t)
+	tx := beginLogTx(s, t)
 	defer tx.Commit()
 
 	_, err := tx.GetLeavesByIndex([]int64{99999})
@@ -448,10 +462,10 @@ func TestGetLeavesByIndexNotPresent(t *testing.T) {
 func TestGetLeavesByHash(t *testing.T) {
 	// Create fake leaf as if it had been sequenced
 	logID := createLogID("TestGetLeavesByHash")
-	db := prepareTestDB(logID, t)
+	db := prepareTestLogDB(logID, t)
 	defer db.Close()
-	s := prepareTestStorage(logID, t)
-	tx := beginTx(s, t)
+	s := prepareTestLogStorage(logID, t)
+	tx := beginLogTx(s, t)
 	defer tx.Commit()
 
 	data := []byte("some data")
@@ -481,10 +495,10 @@ func TestGetLeavesByHash(t *testing.T) {
 func TestGetLeavesByIndex(t *testing.T) {
 	// Create fake leaf as if it had been sequenced
 	logID := createLogID("TestGetLeavesByIndex")
-	db := prepareTestDB(logID, t)
+	db := prepareTestLogDB(logID, t)
 	defer db.Close()
-	s := prepareTestStorage(logID, t)
-	tx := beginTx(s, t)
+	s := prepareTestLogStorage(logID, t)
+	tx := beginLogTx(s, t)
 	defer tx.Commit()
 
 	data := []byte("some data")
@@ -521,10 +535,10 @@ func openTestDBOrDie() *sql.DB {
 
 func TestLatestSignedRootNoneWritten(t *testing.T) {
 	logID := createLogID("TestLatestSignedLogRootNoneWritten")
-	db := prepareTestDB(logID, t)
+	db := prepareTestLogDB(logID, t)
 	defer db.Close()
-	s := prepareTestStorage(logID, t)
-	tx := beginTx(s, t)
+	s := prepareTestLogStorage(logID, t)
+	tx := beginLogTx(s, t)
 	defer tx.Rollback()
 
 	root, err := tx.LatestSignedLogRoot()
@@ -540,10 +554,10 @@ func TestLatestSignedRootNoneWritten(t *testing.T) {
 
 func TestLatestSignedLogRoot(t *testing.T) {
 	logID := createLogID("TestLatestSignedLogRoot")
-	db := prepareTestDB(logID, t)
+	db := prepareTestLogDB(logID, t)
 	defer db.Close()
-	s := prepareTestStorage(logID, t)
-	tx := beginTx(s, t)
+	s := prepareTestLogStorage(logID, t)
+	tx := beginLogTx(s, t)
 	defer tx.Rollback()
 
 	// TODO: Tidy up the log id as it looks silly chained 3 times like this
@@ -558,7 +572,7 @@ func TestLatestSignedLogRoot(t *testing.T) {
 	}
 
 	{
-		tx2 := beginTx(s, t)
+		tx2 := beginLogTx(s, t)
 		defer tx2.Rollback()
 		root2, err := tx2.LatestSignedLogRoot()
 
@@ -575,10 +589,10 @@ func TestLatestSignedLogRoot(t *testing.T) {
 func TestGetTreeRevisionAtNonExistentSizeError(t *testing.T) {
 	// Have to set all this up though we won't actually write anything
 	logID := createLogID("TestGetTreeRevisionAtSize")
-	db := prepareTestDB(logID, t)
+	db := prepareTestLogDB(logID, t)
 	defer db.Close()
-	s := prepareTestStorage(logID, t)
-	tx := beginTx(s, t)
+	s := prepareTestLogStorage(logID, t)
+	tx := beginLogTx(s, t)
 	defer tx.Commit()
 
 	if _, err := tx.GetTreeRevisionAtSize(0); err == nil {
@@ -592,12 +606,12 @@ func TestGetTreeRevisionAtNonExistentSizeError(t *testing.T) {
 
 func TestGetTreeRevisionAtSize(t *testing.T) {
 	logID := createLogID("TestGetTreeRevisionAtSize")
-	db := prepareTestDB(logID, t)
+	db := prepareTestLogDB(logID, t)
 	defer db.Close()
-	s := prepareTestStorage(logID, t)
+	s := prepareTestLogStorage(logID, t)
 
 	{
-		tx := beginTx(s, t)
+		tx := beginLogTx(s, t)
 
 		// TODO: Tidy up the log id as it looks silly chained 3 times like this
 		root := trillian.SignedLogRoot{LogId: logID.logID.LogID, TimestampNanos: proto.Int64(98765), TreeSize: proto.Int64(16), TreeRevision: proto.Int64(5), RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
@@ -615,7 +629,7 @@ func TestGetTreeRevisionAtSize(t *testing.T) {
 	}
 
 	{
-		tx := beginTx(s, t)
+		tx := beginLogTx(s, t)
 		defer tx.Commit()
 
 		// First two are legit tree head sizes and should work
@@ -646,12 +660,12 @@ func TestGetTreeRevisionAtSize(t *testing.T) {
 
 func TestGetTreeRevisionMultipleSameSize(t *testing.T) {
 	logID := createLogID("TestGetTreeRevisionAtSize")
-	db := prepareTestDB(logID, t)
+	db := prepareTestLogDB(logID, t)
 	defer db.Close()
-	s := prepareTestStorage(logID, t)
+	s := prepareTestLogStorage(logID, t)
 
 	{
-		tx := beginTx(s, t)
+		tx := beginLogTx(s, t)
 
 		// Normally tree heads at the same tree size must have the same revision because nothing was
 		// added between them by definition, this is an artificial situation just for testing.
@@ -671,7 +685,7 @@ func TestGetTreeRevisionMultipleSameSize(t *testing.T) {
 	}
 
 	{
-		tx := beginTx(s, t)
+		tx := beginLogTx(s, t)
 		defer tx.Commit()
 
 		// We should get back the highest revision at size 16
@@ -689,10 +703,10 @@ func TestGetTreeRevisionMultipleSameSize(t *testing.T) {
 
 func TestDuplicateSignedLogRoot(t *testing.T) {
 	logID := createLogID("TestDuplicateSignedLogRoot")
-	db := prepareTestDB(logID, t)
+	db := prepareTestLogDB(logID, t)
 	defer db.Close()
-	s := prepareTestStorage(logID, t)
-	tx := beginTx(s, t)
+	s := prepareTestLogStorage(logID, t)
+	tx := beginLogTx(s, t)
 	defer tx.Commit()
 
 	// TODO: Tidy up the log id as it looks silly chained 3 times like this
@@ -711,10 +725,10 @@ func TestDuplicateSignedLogRoot(t *testing.T) {
 func TestLogRootUpdate(t *testing.T) {
 	// Write two roots for a log and make sure the one with the newest timestamp supersedes
 	logID := createLogID("TestLatestSignedLogRoot")
-	db := prepareTestDB(logID, t)
+	db := prepareTestLogDB(logID, t)
 	defer db.Close()
-	s := prepareTestStorage(logID, t)
-	tx := beginTx(s, t)
+	s := prepareTestLogStorage(logID, t)
+	tx := beginLogTx(s, t)
 	defer tx.Commit()
 
 	// TODO: Tidy up the log id as it looks silly chained 3 times like this
@@ -735,7 +749,7 @@ func TestLogRootUpdate(t *testing.T) {
 		t.Fatalf("Failed to commit new log roots: %v", err)
 	}
 
-	tx = beginTx(s, t)
+	tx = beginLogTx(s, t)
 	root3, err := tx.LatestSignedLogRoot()
 
 	if err != nil {
@@ -747,44 +761,118 @@ func TestLogRootUpdate(t *testing.T) {
 	}
 }
 
-func TestReadWriteAllowsWrites(t *testing.T) {
-	logID := createLogID("TestReadWriteAllowsWrites")
-	db := prepareTestDB(logID, t)
-	defer db.Close()
-	s := prepareTestStorage(logID, t)
+// ---- MapStorage tests below:
 
-	tx, err := s.Begin()
+func TestLatestSignedMapRootNoneWritten(t *testing.T) {
+	mapID := createMapID("TestLatestSignedMapRootNoneWritten")
+	db := prepareTestMapDB(mapID, t)
+	defer db.Close()
+	s := prepareTestMapStorage(mapID, t)
+	tx := beginMapTx(s, t)
+	defer tx.Rollback()
+
+	root, err := tx.LatestSignedMapRoot()
 
 	if err != nil {
-		t.Fatalf("Read / write log tx did not allow Begin()")
+		t.Fatalf("Failed to read an empty map root: %v", err)
 	}
 
-	tx.Rollback()
-}
-
-func TestReadOnlyIsEnforced(t *testing.T) {
-	logID := logIDAndTest{logID: trillian.LogID{LogID: []byte("hi2"), TreeID: 24 }, testName: "TestReadOnlyIsEnforced" }
-	db := prepareTestDB(logID, t)
-	defer db.Close()
-	s := prepareTestStorage(logID, t)
-
-	// This should fail as it's readonly
-	_, err := s.Begin()
-	if err != storage.ErrReadOnly {
-		t.Fatalf("Did not get expected read only error: %v", err)
+	if len(root.MapId) != 0 || len(root.RootHash) != 0 || root.Signature != nil {
+		t.Fatalf("Read a root with contents when it should be empty: %v", root)
 	}
 }
 
-func TestReadOnlyAllowsSnapshot(t *testing.T) {
-	logID := logIDAndTest{logID: trillian.LogID{LogID: []byte("hi2"), TreeID: 24 }, testName: "TestReadOnlyAllowsSnapshot" }
-	db := prepareTestDB(logID, t)
+func TestLatestSignedMapRoot(t *testing.T) {
+	mapID := createMapID("TestLatestSignedMapRoot")
+	db := prepareTestMapDB(mapID, t)
 	defer db.Close()
-	s := prepareTestStorage(logID, t)
+	s := prepareTestMapStorage(mapID, t)
+	tx := beginMapTx(s, t)
+	defer tx.Rollback()
 
-	// This should be ok for a readonly tree
-	_, err := s.Snapshot()
+	// TODO: Tidy up the map id as it looks silly chained 3 times like this
+	root := trillian.SignedMapRoot{MapId: mapID.mapID.MapID, TimestampNanos: proto.Int64(98765), MapRevision: proto.Int64(5), RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
+
+	if err := tx.StoreSignedMapRoot(root); err != nil {
+		t.Fatalf("Failed to store signed root: %v", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("Failed to commit new map root: %v", err)
+	}
+
+	{
+		tx2 := beginMapTx(s, t)
+		defer tx2.Rollback()
+		root2, err := tx2.LatestSignedMapRoot()
+
+		if err != nil {
+			t.Fatalf("Failed to read back new map root: %v", err)
+		}
+
+		if !proto.Equal(&root, &root2) {
+			t.Fatalf("Root round trip failed: <%v> and: <%v>", root, root2)
+		}
+	}
+}
+
+func TestDuplicateSignedMapRoot(t *testing.T) {
+	mapID := createMapID("TestDuplicateSignedMapRoot")
+	db := prepareTestMapDB(mapID, t)
+	defer db.Close()
+	s := prepareTestMapStorage(mapID, t)
+	tx := beginMapTx(s, t)
+	defer tx.Commit()
+
+	// TODO: Tidy up the map id as it looks silly chained 3 times like this
+	root := trillian.SignedMapRoot{MapId: mapID.mapID.MapID, TimestampNanos: proto.Int64(98765), MapRevision: proto.Int64(5), RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
+
+	if err := tx.StoreSignedMapRoot(root); err != nil {
+		t.Fatalf("Failed to store signed map root: %v", err)
+	}
+
+	// Shouldn't be able to do it again
+	if err := tx.StoreSignedMapRoot(root); err == nil {
+		t.Fatalf("Allowed duplicate signed map root")
+	}
+}
+
+func TestMapRootUpdate(t *testing.T) {
+	// Write two roots for a map and make sure the one with the newest timestamp supersedes
+	mapID := createMapID("TestLatestSignedMapRoot")
+	db := prepareTestMapDB(mapID, t)
+	defer db.Close()
+	s := prepareTestMapStorage(mapID, t)
+	tx := beginMapTx(s, t)
+	defer tx.Commit()
+
+	// TODO: Tidy up the map id as it looks silly chained 3 times like this
+	root := trillian.SignedMapRoot{MapId: mapID.mapID.MapID, TimestampNanos: proto.Int64(98765), MapRevision: proto.Int64(5), RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
+
+	if err := tx.StoreSignedMapRoot(root); err != nil {
+		t.Fatalf("Failed to store signed map root: %v", err)
+	}
+
+	// TODO: Tidy up the map id as it looks silly chained 3 times like this
+	root2 := trillian.SignedMapRoot{MapId: mapID.mapID.MapID, TimestampNanos: proto.Int64(98766), MapRevision: proto.Int64(6), RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
+
+	if err := tx.StoreSignedMapRoot(root2); err != nil {
+		t.Fatalf("Failed to store signed map root: %v", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("Failed to commit new map roots: %v", err)
+	}
+
+	tx = beginMapTx(s, t)
+	root3, err := tx.LatestSignedMapRoot()
+
 	if err != nil {
-		t.Fatalf("Did not allow snapshot: %v", err)
+		t.Fatalf("Failed to read back new map root: %v", err)
+	}
+
+	if !proto.Equal(&root2, &root3) {
+		t.Fatalf("Root round trip failed: <%v> and: <%v>", root, root2)
 	}
 }
 
@@ -810,10 +898,19 @@ func createTestDB() {
 	}
 }
 
-func prepareTestStorage(logID logIDAndTest, t *testing.T) storage.LogStorage {
+func prepareTestLogStorage(logID logIDAndTest, t *testing.T) storage.LogStorage {
 	s, err := NewLogStorage(logID.logID, "test:zaphod@tcp(127.0.0.1:3306)/test")
 	if err != nil {
-		t.Fatalf("Failed to open tree storage: %s", err)
+		t.Fatalf("Failed to open log storage: %s", err)
+	}
+
+	return s
+}
+
+func prepareTestMapStorage(mapID mapIDAndTest, t *testing.T) storage.MapStorage {
+	s, err := NewMapStorage(mapID.mapID, "test:zaphod@tcp(127.0.0.1:3306)/test")
+	if err != nil {
+		t.Fatalf("Failed to open map storage: %s", err)
 	}
 
 	return s
@@ -823,17 +920,26 @@ func prepareTestStorage(logID logIDAndTest, t *testing.T) storage.LogStorage {
 // predictable environment. For obvious reasons this should only be allowed to run
 // against test databases. This method panics if any of the deletions fails to make
 // sure tests can't inadvertently succeed.
-func prepareTestDB(logID logIDAndTest, t *testing.T) *sql.DB {
+func prepareTestTreeDB(treeID int64, t *testing.T) *sql.DB {
 	db := openTestDBOrDie()
 
-	// Wipe out anything that was there for this log id
+	// Wipe out anything that was there for this tree id
 	for _, table := range allTables {
-		_, err := db.Exec(fmt.Sprintf("DELETE FROM %s WHERE TreeId=?", table), logID.logID.TreeID)
+		_, err := db.Exec(fmt.Sprintf("DELETE FROM %s WHERE TreeId=?", table), treeID)
 
 		if err != nil {
-			t.Fatalf("Failed to delete rows in %s for %d", table, logID.logID.TreeID)
+			t.Fatalf("Failed to delete rows in %s for %d: %s", table, treeID, err)
 		}
 	}
+	return db
+}
+
+// This removes all database contents for the specified log id so tests run in a
+// predictable environment. For obvious reasons this should only be allowed to run
+// against test databases. This method panics if any of the deletions fails to make
+// sure tests can't inadvertently succeed.
+func prepareTestLogDB(logID logIDAndTest, t *testing.T) *sql.DB {
+	db := prepareTestTreeDB(logID.logID.TreeID, t)
 
 	// Now put back the tree row for this log id
 	_, err := db.Exec(`REPLACE INTO Trees(TreeId, KeyId, TreeType, LeafHasherType, TreeHasherType)
@@ -843,22 +949,22 @@ func prepareTestDB(logID logIDAndTest, t *testing.T) *sql.DB {
 		t.Fatalf("Failed to create tree entry for test: %v", err)
 	}
 
-	// Create a second tree set up to be read only. Have to remove tree control row manually
-	// to avoid a constraint issue
-	_, err = db.Exec("DELETE FROM TreeControl WHERE TreeId=24")
-	if err != nil {
-		panic(err)
-	}
+	return db
+}
 
-	_, err = db.Exec(`REPLACE INTO Trees(TreeId, KeyId, TreeType, LeafHasherType, TreeHasherType)
- 					 VALUES(24, "hi2", "LOG", "SHA256", "SHA256")`)
+// This removes all database contents for the specified map id so tests run in a
+// predictable environment. For obvious reasons this should only be allowed to run
+// against test databases. This method panics if any of the deletions fails to make
+// sure tests can't inadvertently succeed.
+func prepareTestMapDB(mapID mapIDAndTest, t *testing.T) *sql.DB {
+	db := prepareTestTreeDB(mapID.mapID.TreeID, t)
+
+	// Now put back the tree row for this log id
+	_, err := db.Exec(`REPLACE INTO Trees(TreeId, KeyId, TreeType, LeafHasherType, TreeHasherType)
+					 VALUES(?, ?, "LOG", "SHA256", "SHA256")`, mapID.mapID.TreeID, mapID.mapID.MapID)
+
 	if err != nil {
-		panic(err)
-	}
-	_, err = db.Exec(`INSERT INTO TreeControl(TreeId, ReadOnlyRequests, SigningEnabled, SequencingEnabled, SequenceIntervalSeconds, SignIntervalSeconds)
- 				 VALUES(24, true, true, true, 9000, 9000)`)
-	if err != nil {
-		panic(err)
+		t.Fatalf("Failed to create tree entry for test: %v", err)
 	}
 
 	return db
@@ -874,7 +980,7 @@ func cleanTestDB() {
 		_, err := db.Exec(fmt.Sprintf("DELETE FROM %s", table))
 
 		if err != nil {
-			panic(fmt.Errorf("Failed to delete rows in %s", table))
+			panic(fmt.Errorf("Failed to delete rows in %s: %s", table, err))
 		}
 	}
 }
@@ -901,11 +1007,21 @@ func commit(tx storage.LogTX, t *testing.T) {
 	}
 }
 
-func beginTx(s storage.LogStorage, t *testing.T) storage.LogTX {
+func beginLogTx(s storage.LogStorage, t *testing.T) storage.LogTX {
 	tx, err := s.Begin()
 
 	if err != nil {
-		t.Fatalf("Failed to begin tx: %v", err)
+		t.Fatalf("Failed to begin log tx: %v", err)
+	}
+
+	return tx
+}
+
+func beginMapTx(s storage.MapStorage, t *testing.T) storage.MapTX {
+	tx, err := s.Begin()
+
+	if err != nil {
+		t.Fatalf("Failed to begin map tx: %v", err)
 	}
 
 	return tx

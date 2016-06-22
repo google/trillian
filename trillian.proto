@@ -49,6 +49,6 @@ message SignedMapRoot {
   optional DigitallySigned signature = 3;
 
   optional bytes map_id = 4;
-  optional int64 tree_revision = 5;
+  optional int64 map_revision = 5;
 }
 

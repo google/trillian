@@ -26,7 +26,7 @@ const insertUnsequencedEntrySql string = `INSERT INTO Unsequenced(TreeId,LeafHas
 const insertSequencedLeafSql string = `INSERT INTO SequencedLeafData(TreeId,LeafHash,SequenceNumber,SignedEntryTimestamp)
 		 VALUES(?,?,?,?)`
 const selectSequencedLeafCountSql string = "SELECT COUNT(*) FROM SequencedLeafData"
-const selectLatestSignedRootSql string = `SELECT TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature
+const selectLatestSignedLogRootSql string = `SELECT TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature
 		 FROM TreeHead WHERE TreeId=?
 		 ORDER BY TreeHeadTimestamp DESC LIMIT 1`
 
@@ -431,7 +431,7 @@ func (t *logTX) LatestSignedLogRoot() (trillian.SignedLogRoot, error) {
 	var rootSignature trillian.DigitallySigned
 
 	err := t.tx.QueryRow(
-		selectLatestSignedRootSql, t.ls.logID.TreeID).Scan(
+		selectLatestSignedLogRootSql, t.ls.logID.TreeID).Scan(
 		&timestamp, &treeSize, &rootHash, &treeRevision, &rootSignatureBytes)
 
 	// It's possible there are no roots for this tree yet

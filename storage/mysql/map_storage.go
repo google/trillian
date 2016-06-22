@@ -1,12 +1,21 @@
 package mysql
 
 import (
+	"database/sql"
 	"errors"
 
 	"github.com/golang/glog"
+	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
 )
+
+const insertMapHeadSQL string = `INSERT INTO MapHead(TreeId, MapHeadTimestamp, RootHash, MapRevision, RootSignature, TransactionLogRoot)
+	VALUES(?, ?, ?, ?, ?, ?)`
+
+const selectLatestSignedMapRootSql string = `SELECT MapHeadTimestamp, RootHash, MapRevision, RootSignature, TransactionLogRoot
+		 FROM MapHead WHERE TreeId=?
+		 ORDER BY MapHeadTimestamp DESC LIMIT 1`
 
 type mySQLMapStorage struct {
 	mySQLTreeStorage
@@ -67,9 +76,50 @@ func (m *mapTX) Get(revision int64, key []byte) (trillian.MapLeaf, error) {
 }
 
 func (m *mapTX) LatestSignedMapRoot() (trillian.SignedMapRoot, error) {
-	return trillian.SignedMapRoot{}, errors.New("unimplemented")
+	var timestamp, mapRevision int64
+	var rootHash, rootSignatureBytes []byte
+	var transactionLogRoot []byte
+	var rootSignature trillian.DigitallySigned
+
+	err := m.tx.QueryRow(
+		selectLatestSignedMapRootSql, m.ms.mapID.TreeID).Scan(
+		&timestamp, &rootHash, &mapRevision, &rootSignatureBytes, &transactionLogRoot)
+
+	// It's possible there are no roots for this tree yet
+	if err == sql.ErrNoRows {
+		return trillian.SignedMapRoot{}, nil
+	}
+
+	err = proto.Unmarshal(rootSignatureBytes, &rootSignature)
+
+	if err != nil {
+		glog.Warningf("Failed to unmarshall root signature: %v", err)
+		return trillian.SignedMapRoot{}, err
+	}
+
+	return trillian.SignedMapRoot{
+		RootHash:       rootHash,
+		TimestampNanos: proto.Int64(timestamp),
+		MapRevision:    proto.Int64(mapRevision),
+		Signature:      &rootSignature,
+		MapId:          m.ms.mapID.MapID,
+	}, nil
 }
 
 func (m *mapTX) StoreSignedMapRoot(root trillian.SignedMapRoot) error {
-	return errors.New("unimplemented")
+	signatureBytes, err := proto.Marshal(root.Signature)
+
+	if err != nil {
+		glog.Warningf("Failed to marshal root signature: %v %v", root.Signature, err)
+		return err
+	}
+
+	// TODO(al): store transactionLogHead too
+	res, err := m.tx.Exec(insertMapHeadSQL, m.ms.mapID.TreeID, root.TimestampNanos, root.RootHash, root.MapRevision, signatureBytes, []byte{})
+
+	if err != nil {
+		glog.Warningf("Failed to store signed map root: %s", err)
+	}
+
+	return checkResultOkAndRowCountIs(res, err, 1)
 }
