@@ -6,6 +6,8 @@ option java_outer_classname = "TrillianApiProto";
 
 package trillian;
 
+import "trillian.proto";
+
 // TrillianApiStatusCode is an application level status code
 enum TrillianApiStatusCode {
     OK = 0;
@@ -55,14 +57,6 @@ message GetConsistencyProofResponse {
     optional TrillianApiStatus status = 1;
 }
 
-message GetLatestSignedRootRequest {
-    optional int64 log_id = 1;
-}
-
-message GetLatestSignedRootResponse {
-    optional TrillianApiStatus status = 1;
-}
-
 message GetLeavesByHashRequest {
     optional int64 log_id = 1;
     repeated bytes leaf_hash = 2;
@@ -96,6 +90,7 @@ message GetLatestSignedLogRootRequest {
 
 message GetLatestSignedLogRootResponse {
     optional TrillianApiStatus status = 1;
+    optional SignedLogRoot signed_log_root = 2;
 }
 
 // TrillianLog defines a service that can provide access to a Verifiable Log as defined in the

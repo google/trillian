@@ -97,7 +97,24 @@ func (t *TrillianLogServer) GetConsistencyProof(ctx context.Context, req *trilli
 // GetLatestSignedLogRoot obtains the latest published tree root for the Merkle Tree that
 // underlies the log.
 func (t *TrillianLogServer) GetLatestSignedLogRoot(ctx context.Context, req *trillian.GetLatestSignedLogRootRequest) (*trillian.GetLatestSignedLogRootResponse, error) {
-	return nil, ErrNotImplemented
+	tx, err := t.prepareStorageTx(*req.LogId)
+
+	if err != nil {
+		return nil, err
+	}
+
+	signedRoot, err := tx.LatestSignedLogRoot()
+
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	if err := t.commitAndLog(tx, "GetLatestSignedLogRoot"); err != nil {
+		return nil, err
+	}
+
+	return &trillian.GetLatestSignedLogRootResponse{Status: buildStatus(trillian.TrillianApiStatusCode_OK), SignedLogRoot: &signedRoot}, nil
 }
 
 // GetSequencedLeafCount returns the number of leaves that have been integrated into the Merkle

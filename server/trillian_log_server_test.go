@@ -29,6 +29,10 @@ var queueRequest0 = trillian.QueueLeavesRequest{LogId: &logId1, Leaves: []*trill
 var queueRequest0Log2 = trillian.QueueLeavesRequest{LogId: &logId2, Leaves: []*trillian.LeafProto{&expectedLeaf1}}
 var queueRequestEmpty = trillian.QueueLeavesRequest{LogId: &logId1, Leaves: []*trillian.LeafProto{}}
 
+var getLogRootRequest1 = trillian.GetLatestSignedLogRootRequest{LogId: &logId1}
+var getLogRootRequest2 = trillian.GetLatestSignedLogRootRequest{LogId: &logId2}
+var signedRoot1 = trillian.SignedLogRoot{TimestampNanos: proto.Int64(987654321), RootHash: []byte("A NICE HASH"), TreeSize: proto.Int64(7)}
+
 func mockStorageProviderfunc(mockStorage storage.LogStorage) LogStorageProviderFunc {
 	return func(id int64) (storage.LogStorage, error) {
 		if id == 1 {
@@ -292,6 +296,103 @@ func TestQueueLeavesBeginFailsCausesError(t *testing.T) {
 
 	if err == nil || !strings.Contains(err.Error(), "TX") {
 		t.Fatalf("Returned wrong error response when begin failed")
+	}
+
+	mockStorage.AssertExpectations(t)
+}
+
+func TestGetLatestSignedLogRootBeginFails(t *testing.T) {
+	mockStorage := new(storage.MockLogStorage)
+	mockTx := new(storage.MockLogTX)
+
+	mockStorage.On("Begin").Return(mockTx, errors.New("TX"))
+
+	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
+
+	_, err := server.GetLatestSignedLogRoot(context.Background(), &getLogRootRequest1)
+
+	if err == nil || !strings.Contains(err.Error(), "TX") {
+		t.Fatalf("Returned wrong error response when begin failed")
+	}
+
+	mockStorage.AssertExpectations(t)
+}
+
+func TestGetLatestSignedLogRootStorageFails(t *testing.T) {
+	mockStorage := new(storage.MockLogStorage)
+	mockTx := new(storage.MockLogTX)
+
+	mockStorage.On("Begin").Return(mockTx, nil)
+	mockTx.On("LatestSignedLogRoot").Return(trillian.SignedLogRoot{}, errors.New("STORAGE"))
+	mockTx.On("Rollback").Return(nil)
+
+	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
+
+	_, err := server.GetLatestSignedLogRoot(context.Background(), &getLogRootRequest1)
+
+	if err == nil || !strings.Contains(err.Error(), "STORAGE") {
+		t.Fatalf("Returned wrong error response when storage failed: %v", err)
+	}
+
+	mockStorage.AssertExpectations(t)
+}
+
+func TestGetLatestSignedLogRootCommitFails(t *testing.T) {
+	mockStorage := new(storage.MockLogStorage)
+	mockTx := new(storage.MockLogTX)
+
+	mockStorage.On("Begin").Return(mockTx, nil)
+	mockTx.On("LatestSignedLogRoot").Return(trillian.SignedLogRoot{}, nil)
+	mockTx.On("Commit").Return(errors.New("COMMIT"))
+
+	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
+
+	_, err := server.GetLatestSignedLogRoot(context.Background(), &getLogRootRequest1)
+
+	if err == nil || !strings.Contains(err.Error(), "COMMIT") {
+		t.Fatalf("Returned wrong error response when commit failed: %v", err)
+	}
+
+	mockStorage.AssertExpectations(t)
+}
+
+func TestGetLatestSignedLogRootInvalidLogId(t *testing.T) {
+	mockStorage := new(storage.MockLogStorage)
+
+	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
+
+	// Make a request for a nonexistent log id
+	_, err := server.GetLatestSignedLogRoot(context.Background(), &getLogRootRequest2)
+
+	if err == nil || !strings.Contains(err.Error(), "BADLOGID") {
+		t.Fatalf("Returned wrong error response for nonexistent log: %v", err)
+	}
+
+	mockStorage.AssertExpectations(t)
+}
+
+func TestGetLatestSignedLogRoot(t *testing.T) {
+	mockStorage := new(storage.MockLogStorage)
+	mockTx := new(storage.MockLogTX)
+
+	mockStorage.On("Begin").Return(mockTx, nil)
+	mockTx.On("LatestSignedLogRoot").Return(signedRoot1, nil)
+	mockTx.On("Commit").Return(nil)
+
+	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
+
+	resp, err := server.GetLatestSignedLogRoot(context.Background(), &getLogRootRequest1)
+
+	if err != nil {
+		t.Fatalf("Failed to get log root: %v", err)
+	}
+
+	if expected, got := trillian.TrillianApiStatusCode_OK, *resp.Status.StatusCode; expected != got {
+		t.Fatalf("Expected app level ok status but got: %v")
+	}
+
+	if !proto.Equal(&signedRoot1, resp.SignedLogRoot) {
+		t.Fatalf("Log root proto mismatch:\n%v\n%v", signedRoot1, resp.SignedLogRoot)
 	}
 
 	mockStorage.AssertExpectations(t)
