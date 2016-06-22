@@ -103,7 +103,7 @@ func (t *TrillianLogServer) GetLatestSignedLogRoot(ctx context.Context, req *tri
 		return nil, err
 	}
 
-	signed_root, err := tx.LatestSignedLogRoot()
+	signedRoot, err := tx.LatestSignedLogRoot()
 
 	if err != nil {
 		tx.Rollback()
@@ -114,7 +114,7 @@ func (t *TrillianLogServer) GetLatestSignedLogRoot(ctx context.Context, req *tri
 		return nil, err
 	}
 
-	return &trillian.GetLatestSignedLogRootResponse{Status: buildStatus(trillian.TrillianApiStatusCode_OK), SignedLogRoot: &signed_root}, nil
+	return &trillian.GetLatestSignedLogRootResponse{Status: buildStatus(trillian.TrillianApiStatusCode_OK), SignedLogRoot: &signedRoot}, nil
 }
 
 // GetSequencedLeafCount returns the number of leaves that have been integrated into the Merkle
