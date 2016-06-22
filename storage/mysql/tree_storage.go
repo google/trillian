@@ -70,12 +70,9 @@ type mySQLLogStorage struct {
 	// it only needs to be held while the statements are built, not while they execute and
 	// this will be a short time. These maps are from the number of placeholder '?'
 	// in the query to the statement that should be used.
-	statementMutex       sync.Mutex
-	getNodes             map[int]*sql.Stmt
-	getLeavesByIndex     map[int]*sql.Stmt
-	getLeavesByHash      map[int]*sql.Stmt
-	getDeleteUnsequenced map[int]*sql.Stmt
-	setNode              *sql.Stmt
+	statementMutex sync.Mutex
+	statements     map[string]map[int]*sql.Stmt
+	setNode        *sql.Stmt
 }
 
 func NewLogStorage(id trillian.LogID, url string) (storage.LogStorage, error) {
@@ -106,13 +103,10 @@ func NewLogStorage(id trillian.LogID, url string) (storage.LogStorage, error) {
 	s := mySQLLogStorage{
 		allowDuplicates: allowDuplicateLeaves,
 		// TODO: Needs updating when we support different hash algorithms
-		hashSizeBytes:        sha256.Size,
-		id:                   id,
-		db:                   db,
-		getNodes:             make(map[int]*sql.Stmt),
-		getLeavesByIndex:     make(map[int]*sql.Stmt),
-		getLeavesByHash:      make(map[int]*sql.Stmt),
-		getDeleteUnsequenced: make(map[int]*sql.Stmt),
+		hashSizeBytes: sha256.Size,
+		id:            id,
+		db:            db,
+		statements:    make(map[string]map[int]*sql.Stmt),
 	}
 	s.setNode, err = db.Prepare(insertNodeSql)
 	if err != nil {
@@ -183,80 +177,44 @@ func encodeNodeID(n storage.NodeID) ([]byte, error) {
 	return marshalledBytes, nil
 }
 
-func (m *mySQLLogStorage) getDeleteUnsequencedStmt(num int) (*sql.Stmt, error) {
+func (m *mySQLLogStorage) getStmt(statement string, num int) (*sql.Stmt, error) {
 	m.statementMutex.Lock()
 	defer m.statementMutex.Unlock()
 
-	if m.getDeleteUnsequenced[num] != nil {
-		return m.getDeleteUnsequenced[num], nil
+	if m.statements[statement] != nil {
+		if m.statements[statement][num] != nil {
+			return m.statements[statement][num], nil
+		}
+	} else {
+		m.statements[statement] = make(map[int]*sql.Stmt)
 	}
 
-	s, err := m.db.Prepare(expandPlaceholderSql(deleteUnsequencedSql, num))
+	s, err := m.db.Prepare(expandPlaceholderSql(statement, num))
 
 	if err != nil {
-		glog.Warningf("Failed to prepare delete %d: %s", num, err)
+		glog.Warningf("Failed to prepare statement %d: %s", num, err)
 		return nil, err
 	}
 
-	m.getDeleteUnsequenced[num] = s
+	m.statements[statement][num] = s
 
 	return s, nil
 }
 
 func (m *mySQLLogStorage) getLeavesByIndexStmt(num int) (*sql.Stmt, error) {
-	m.statementMutex.Lock()
-	defer m.statementMutex.Unlock()
-
-	if m.getLeavesByIndex[num] != nil {
-		return m.getLeavesByIndex[num], nil
-	}
-
-	s, err := m.db.Prepare(expandPlaceholderSql(selectLeavesByIndexSql, num))
-
-	if err != nil {
-		glog.Warningf("Failed to prepare getleaves by idx %d: %s", num, err)
-		return nil, err
-	}
-
-	m.getLeavesByIndex[num] = s
-
-	return s, nil
+	return m.getStmt(selectLeavesByIndexSql, num)
 }
 
 func (m *mySQLLogStorage) getLeavesByHashStmt(num int) (*sql.Stmt, error) {
-	m.statementMutex.Lock()
-	defer m.statementMutex.Unlock()
-
-	if m.getLeavesByHash[num] != nil {
-		return m.getLeavesByHash[num], nil
-	}
-
-	s, err := m.db.Prepare(expandPlaceholderSql(selectLeavesByHashSql, num))
-
-	if err != nil {
-		glog.Warningf("Failed to prepare getleaves by idx %d: %s", num, err)
-		return nil, err
-	}
-
-	m.getLeavesByHash[num] = s
-
-	return s, nil
+	return m.getStmt(selectLeavesByHashSql, num)
 }
 
 func (m *mySQLLogStorage) getNodesStmt(num int) (*sql.Stmt, error) {
-	m.statementMutex.Lock()
-	defer m.statementMutex.Unlock()
+	return m.getStmt(selectNodesSql, num)
+}
 
-	if m.getNodes[num] == nil {
-		s, err := m.db.Prepare(expandPlaceholderSql(selectNodesSql, num))
-
-		if err != nil {
-			glog.Warningf("Failed to prepate getNodes %d: %s", num, err)
-			return nil, err
-		}
-		m.getNodes[num] = s
-	}
-	return m.getNodes[num], nil
+func (m *mySQLLogStorage) getDeleteUnsequencedStmt(num int) (*sql.Stmt, error) {
+	return m.getStmt(deleteUnsequencedSql, num)
 }
 
 func (m *mySQLLogStorage) GetMerkleNodes(treeRevision int64, nodeIDs []storage.NodeID) ([]storage.Node, error) {
