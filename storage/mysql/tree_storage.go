@@ -188,12 +188,18 @@ func encodeNodeID(n storage.NodeID) ([]byte, error) {
 	return marshalledBytes, nil
 }
 
+// getStmt creates and caches sql.Stmt structs based on the passed in statement
+// and number of bound arguments.
+// TODO(al,martin): consider pulling this all out as a separate unit for reuse
+// elsewhere.
 func (m *mySQLTreeStorage) getStmt(statement string, num int) (*sql.Stmt, error) {
 	m.statementMutex.Lock()
 	defer m.statementMutex.Unlock()
 
 	if m.statements[statement] != nil {
 		if m.statements[statement][num] != nil {
+			// TODO(al,martin): we'll possibly need to expire Stmts from the cache,
+			// e.g. when DB connections break etc.
 			return m.statements[statement][num], nil
 		}
 	} else {
@@ -231,7 +237,7 @@ func (m *mySQLLogStorage) getDeleteUnsequencedStmt(num int) (*sql.Stmt, error) {
 func (m *mySQLTreeStorage) beginTreeTx() (treeTX, error) {
 	t, err := m.db.Begin()
 	if err != nil {
-		glog.Warningf("Could not start TX: %s", err)
+		glog.Warningf("Could not start tree TX: %s", err)
 		return treeTX{}, err
 	}
 	return treeTX{
