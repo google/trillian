@@ -516,4 +516,6 @@ func TestGetLeavesByHash(t *testing.T) {
 	if len(resp.Leaves) != 2 || !proto.Equal(resp.Leaves[0], &expectedLeaf1) || !proto.Equal(resp.Leaves[1], &expectedLeaf3) {
 		t.Fatalf("Expected leaves %v and %v but got: %v", expectedLeaf1, expectedLeaf3, resp.Leaves)
 	}
+
+	mockStorage.AssertExpectations(t)
 }
