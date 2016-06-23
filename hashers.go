@@ -2,6 +2,7 @@ package trillian
 
 import (
 	"crypto"
+	_ "crypto/sha256"
 	"fmt"
 )
 

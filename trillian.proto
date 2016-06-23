@@ -5,6 +5,14 @@ package trillian;
 // What goes in here?
 // Things which are exposed through the public trillian APIs.
 
+// This defines the way empty / node / leaf hashes are constructed incorporating
+// preimage protection, which can be application specific.
+enum TreeHasherPreimageType {
+  // For Certificate transparency leaf hash prefix = 0x00, node prefix = 0x01, empty hash
+  // is digest([]byte{}) as defined in the specification
+  RFC_6962_PREIMAGE = 0;
+}
+
 enum SignatureAlgorithm {
   ECDSA = 0;
   RSA = 1;

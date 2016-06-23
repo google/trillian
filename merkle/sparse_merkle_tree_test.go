@@ -71,7 +71,7 @@ type sparseReference struct {
 }
 
 func newSparseReference() sparseReference {
-	h := NewTreeHasher(trillian.NewSHA256())
+	h := NewRFC6962TreeHasher(trillian.NewSHA256())
 	return sparseReference{
 		hasher:          h,
 		hStarEmptyCache: []trillian.Hash{h.HashLeaf([]byte(""))},
@@ -185,7 +185,7 @@ func TestReferenceSimpleDataSetKAT(t *testing.T) {
 
 func getSparseMerkleTreeReaderWithMockTX(rev int64) (*SparseMerkleTreeReader, *storage.MockMapTX) {
 	tx := &storage.MockMapTX{}
-	return NewSparseMerkleTreeReader(rev, NewMapHasher(NewTreeHasher(trillian.NewSHA256())), tx), tx
+	return NewSparseMerkleTreeReader(rev, NewMapHasher(NewRFC6962TreeHasher(trillian.NewSHA256())), tx), tx
 }
 
 func isRootNodeOnly(nodes []storage.NodeID) bool {
@@ -301,7 +301,7 @@ func TestInclusionProofForNullEntryInEmptyTree(t *testing.T) {
 		t.Fatalf("Expected proof of len %d, but got len %d", expected, got)
 	}
 
-	treeHasher := NewTreeHasher(trillian.NewSHA256())
+	treeHasher := NewRFC6962TreeHasher(trillian.NewSHA256())
 	// Verify these are null hashes
 	for i := len(proof) - 1; i > 0; i-- {
 		expectedParent := treeHasher.HashChildren(proof[i], proof[i])
