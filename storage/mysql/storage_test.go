@@ -934,7 +934,7 @@ func TestGetActiveLogIDsFiltered(t *testing.T) {
 	tx.Commit()
 
 	if err != nil || len(logIDs) != 1 {
-		t.Fatalf("Should have had no logs with unsequenced work but got: $v", logIDs)
+		t.Fatalf("Should have had no logs with unsequenced work but got: %v", logIDs)
 	}
 
 	expected, got := logID.logID.TreeID, logIDs[0].TreeID; if expected != got {
