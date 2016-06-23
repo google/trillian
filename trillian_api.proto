@@ -64,6 +64,7 @@ message GetLeavesByHashRequest {
 
 message GetLeavesByHashResponse {
     optional TrillianApiStatus status = 1;
+    repeated LeafProto leaves = 2;
 }
 
 message GetLeavesByIndexRequest {

@@ -155,9 +155,33 @@ func (t *TrillianLogServer) GetLeavesByIndex(ctx context.Context, req *trillian.
 }
 
 // GetLeavesByIndex obtains one or more leaves based on their tree hash. It is not possible
-// to fetch leaves that have been queued but not yet integrated.
+// to fetch leaves that have been queued but not yet integrated. Logs may accept duplicate
+// entries so this may return more results than the number of hashes in the request.
 func (t *TrillianLogServer) GetLeavesByHash(ctx context.Context, req *trillian.GetLeavesByHashRequest) (*trillian.GetLeavesByHashResponse, error) {
-	return nil, ErrNotImplemented
+	if len(req.LeafHash) == 0 || !validateLeafHashes(req.LeafHash) {
+		return &trillian.GetLeavesByHashResponse{Status: buildStatusWithDesc(trillian.TrillianApiStatusCode_ERROR, "Must supply at least one hash and none must be empty")}, nil
+	}
+
+	tx, err := t.prepareStorageTx(*req.LogId)
+
+	if err != nil {
+		return nil, err
+	}
+
+	leaves, err := tx.GetLeavesByHash(bytesToHash(req.LeafHash))
+
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	leafProtos := leavesToProtos(leaves)
+
+	if err := t.commitAndLog(tx, "GetLeavesByHash"); err != nil {
+		return nil, err
+	}
+
+	return &trillian.GetLeavesByHashResponse{Status: buildStatus(trillian.TrillianApiStatusCode_OK), Leaves: leafProtos}, nil
 }
 
 func (t *TrillianLogServer) prepareStorageTx(treeID int64) (storage.LogTX, error) {
@@ -227,9 +251,31 @@ func leavesToProtos(leaves []trillian.LogLeaf) []*trillian.LeafProto {
 	return protos
 }
 
+// Don't think we can do this with type assertions, maybe we can
+func bytesToHash(inputs [][]byte) []trillian.Hash {
+	hashes := make([]trillian.Hash, len(inputs), len(inputs))
+
+	for i, hash := range inputs {
+		hashes[i] = trillian.Hash(hash)
+	}
+
+	return hashes
+}
+
 func validateLeafIndices(leafIndices []int64) bool {
 	for _, index := range leafIndices {
 		if index < 0 {
+			return false
+		}
+	}
+
+	return true
+}
+
+// We only validate they're not empty at this point, we let the log do any further checks
+func validateLeafHashes(leafHashes [][]byte) bool {
+	for _, hash := range leafHashes {
+		if len(hash) == 0 {
 			return false
 		}
 	}
