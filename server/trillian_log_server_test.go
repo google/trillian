@@ -99,7 +99,7 @@ func TestGetLeavesByIndexStorageError(t *testing.T) {
 }
 
 func TestGetLeavesByIndexInvalidLogId(t *testing.T) {
-	test := newCommitFailsTest("GetLeavesByIndex",
+	test := newParameterizedTest("GetLeavesByIndex",
 		func(t *storage.MockLogTX) {},
 		func(s *TrillianLogServer) error { _, err := s.GetLeavesByIndex(context.Background(), &leaf0Log2Request); return err })
 
@@ -107,7 +107,7 @@ func TestGetLeavesByIndexInvalidLogId(t *testing.T) {
 }
 
 func TestGetLeavesByIndexCommitFails(t *testing.T) {
-	test := newCommitFailsTest("GetLeavesByIndex",
+	test := newParameterizedTest("GetLeavesByIndex",
 		func(t *storage.MockLogTX) { t.On("GetLeavesByIndex", []int64{0}).Return([]trillian.LogLeaf{leaf1}, nil) },
 		func(s *TrillianLogServer) error { _, err := s.GetLeavesByIndex(context.Background(), &leaf0Request) ; return err })
 
@@ -199,7 +199,7 @@ func TestQueueLeavesStorageError(t *testing.T) {
 }
 
 func TestQueueLeavesInvalidLogId(t *testing.T) {
-	test := newCommitFailsTest("QueueLeaves",
+	test := newParameterizedTest("QueueLeaves",
 		func(t *storage.MockLogTX) {},
 		func(s *TrillianLogServer) error { _, err := s.QueueLeaves(context.Background(), &queueRequest0Log2); return err })
 
@@ -207,7 +207,7 @@ func TestQueueLeavesInvalidLogId(t *testing.T) {
 }
 
 func TestQueueLeavesCommitFails(t *testing.T) {
-	test := newCommitFailsTest("QueueLeaves",
+	test := newParameterizedTest("QueueLeaves",
 		func(t *storage.MockLogTX) { t.On("QueueLeaves", []trillian.LogLeaf{leaf0}).Return(nil) },
 		func(s *TrillianLogServer) error { _, err := s.QueueLeaves(context.Background(), &queueRequest0) ; return err })
 
@@ -306,7 +306,7 @@ func TestGetLatestSignedLogRootStorageFails(t *testing.T) {
 }
 
 func TestGetLatestSignedLogRootCommitFails(t *testing.T) {
-	test := newCommitFailsTest("LatestSignedLogRoot",
+	test := newParameterizedTest("LatestSignedLogRoot",
 		func(t *storage.MockLogTX) { t.On("LatestSignedLogRoot").Return(trillian.SignedLogRoot{}, nil) },
 		func(s *TrillianLogServer) error { _, err := s.GetLatestSignedLogRoot(context.Background(), &getLogRootRequest1); return err })
 
@@ -314,7 +314,7 @@ func TestGetLatestSignedLogRootCommitFails(t *testing.T) {
 }
 
 func TestGetLatestSignedLogRootInvalidLogId(t *testing.T) {
-	test := newCommitFailsTest("LatestSignedLogRoot",
+	test := newParameterizedTest("LatestSignedLogRoot",
 		func(t *storage.MockLogTX) {},
 		func(s *TrillianLogServer) error { _, err := s.GetLatestSignedLogRoot(context.Background(), &getLogRootRequest2); return err })
 
@@ -406,7 +406,7 @@ func TestGetLeavesByHashStorageFails(t *testing.T) {
 }
 
 func TestLeavesByHashCommitFails(t *testing.T) {
-	test := newCommitFailsTest("GetLeavesByHash",
+	test := newParameterizedTest("GetLeavesByHash",
 		func(t *storage.MockLogTX) { t.On("GetLeavesByHash", []trillian.Hash{[]byte("test"), []byte("data")}).Return([]trillian.LogLeaf{}, nil) },
 		func(s *TrillianLogServer) error { _, err := s.GetLeavesByHash(context.Background(), &getByHashRequest1) ; return err })
 
@@ -414,7 +414,7 @@ func TestLeavesByHashCommitFails(t *testing.T) {
 }
 
 func TestGetLeavesByHashInvalidLogId(t *testing.T) {
-	test := newCommitFailsTest("GetLeavesByHash",
+	test := newParameterizedTest("GetLeavesByHash",
 		func(t *storage.MockLogTX) {},
 		func(s *TrillianLogServer) error { _, err := s.GetLeavesByHash(context.Background(), &getByHashRequest2); return err })
 
@@ -451,17 +451,17 @@ func TestGetLeavesByHash(t *testing.T) {
 type prepareMockTXFunc func(*storage.MockLogTX)
 type makeRpcFunc func(*TrillianLogServer) error
 
-type commitFailsTest struct {
+type parameterizedTest struct {
 	operation string
 	prepareTx prepareMockTXFunc
 	makeRpc   makeRpcFunc
 }
 
-func newCommitFailsTest(operation string, prepareTx prepareMockTXFunc, makeRpc makeRpcFunc) *commitFailsTest {
-	return &commitFailsTest{operation, prepareTx, makeRpc}
+func newParameterizedTest(operation string, prepareTx prepareMockTXFunc, makeRpc makeRpcFunc) *parameterizedTest {
+	return &parameterizedTest{operation, prepareTx, makeRpc}
 }
 
-func (c *commitFailsTest) executeCommitFailsTest(t *testing.T) {
+func (c *parameterizedTest) executeCommitFailsTest(t *testing.T) {
 	mockStorage := new(storage.MockLogStorage)
 	mockTx := new(storage.MockLogTX)
 
@@ -481,7 +481,7 @@ func (c *commitFailsTest) executeCommitFailsTest(t *testing.T) {
 	mockStorage.AssertExpectations(t)
 }
 
-func (c *commitFailsTest) executeInvalidLogIDTest(t *testing.T) {
+func (c *parameterizedTest) executeInvalidLogIDTest(t *testing.T) {
 	mockStorage := new(storage.MockLogStorage)
 
 	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
@@ -490,7 +490,7 @@ func (c *commitFailsTest) executeInvalidLogIDTest(t *testing.T) {
 	err := c.makeRpc(server)
 
 	if err == nil || !strings.Contains(err.Error(), "BADLOGID") {
-		t.Fatalf("Returned wrong error response for nonexistent log: %v", err)
+		t.Fatalf("Returned wrong error response for nonexistent log: %s: %v", c.operation, err)
 	}
 
 	mockStorage.AssertExpectations(t)
