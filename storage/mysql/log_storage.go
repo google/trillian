@@ -564,6 +564,7 @@ func (t *logTX) GetActiveLogIDs() ([]trillian.LogID, error) {
 }
 
 // GetActiveLogIDsWithPendingWork returns a list of the IDs of all configured logs
+// that have queued unsequenced leaves that need to be integrated
 func (t *logTX) GetActiveLogIDsWithPendingWork() ([]trillian.LogID, error) {
 	return t.getActiveLogIDsInternal(selectActiveLogsWithUnsequencedSql)
 }

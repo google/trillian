@@ -881,7 +881,7 @@ func TestGetActiveLogIDs(t *testing.T) {
 	cleanTestDB()
 
 	// This creates two trees
-	logID := createLogID("TestLatestSignedLogRoot")
+	logID := createLogID("TestGetActiveLogIDs")
 	db := prepareTestDB(logID, t)
 	defer db.Close()
 
@@ -897,10 +897,10 @@ func TestGetActiveLogIDs(t *testing.T) {
 	assert.Equal(t, 2, len(logIDs))
 }
 
-func TestGetActiveLogIDsFiltered(t *testing.T) {
+func TestGetActiveLogIDsWithPendingWork(t *testing.T) {
 	// Have to wipe everything to ensure we start with zero log trees configured
 	cleanTestDB()
-	logID := createLogID("TestLatestSignedLogRoot")
+	logID := createLogID("TestGetActiveLogIDsWithPendingWork")
 	db := prepareTestDB(logID, t)
 	defer db.Close()
 
