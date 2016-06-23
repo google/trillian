@@ -891,10 +891,55 @@ func TestGetActiveLogIDs(t *testing.T) {
 	logIDs, err := tx.GetActiveLogIDs(false)
 
 	if err != nil {
-		t.Fatalf("Failed to get log ids (first time)")
+		t.Fatalf("Failed to get log ids: %v", err)
 	}
 
 	assert.Equal(t, 2, len(logIDs))
+}
+
+func TestGetActiveLogIDsFiltered(t *testing.T) {
+	// Have to wipe everything to ensure we start with zero log trees configured
+	cleanTestDB()
+	logID := createLogID("TestLatestSignedLogRoot")
+	db := prepareTestDB(logID, t)
+	defer db.Close()
+
+	s := prepareTestStorage(logID, t)
+	tx := beginTx(s, t)
+
+	logIDs, err := tx.GetActiveLogIDs(true)
+	tx.Commit()
+
+	if err != nil || len(logIDs) != 0 {
+		t.Fatalf("Should have had no logs with unsequenced work but got: %v %v", logIDs, err)
+	}
+
+	{
+		tx := beginTx(s, t)
+		defer failIfTXStillOpen(t, "TestGetActiveLogIDsFiltered", tx)
+
+		leaves := createTestLeaves(leavesToInsert, 2)
+
+		if err := tx.QueueLeaves(leaves); err != nil {
+			t.Fatalf("Failed to queue leaves: %v", err)
+		}
+
+		commit(tx, t)
+	}
+
+	// We should now see the logID that we just created work for
+	tx = beginTx(s, t)
+
+	logIDs, err = tx.GetActiveLogIDs(true)
+	tx.Commit()
+
+	if err != nil || len(logIDs) != 1 {
+		t.Fatalf("Should have had no logs with unsequenced work but got: $v", logIDs)
+	}
+
+	expected, got := logID.logID.TreeID, logIDs[0].TreeID; if expected != got {
+		t.Fatalf("Expected to see tree ID: %d but got: %d", expected, got)
+	}
 }
 
 func ensureAllLeafHashesDistinct(leaves []trillian.LogLeaf, t *testing.T) {
