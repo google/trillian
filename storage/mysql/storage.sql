@@ -1,8 +1,8 @@
 # MySQL / MariaDB version of the tree schema
 
------------------------------------------------
+-- ---------------------------------------------
 -- Tree stuff here
------------------------------------------------
+-- ---------------------------------------------
 
 
 -- Tree parameters should not be changed after creation. Doing so can
@@ -54,9 +54,9 @@ CREATE TABLE IF NOT EXISTS TreeHead(
 );
 
 
------------------------------------------------
+-- ---------------------------------------------
 -- Log specific stuff here
------------------------------------------------
+-- ---------------------------------------------
 
 -- Creating index at same time as table allows some storage engines to better
 -- optimize physical storage layout. Most engines allow multiple nulls in a
@@ -102,9 +102,9 @@ CREATE TABLE IF NOT EXISTS Unsequenced(
 );
 
 
------------------------------------------------
+-- ---------------------------------------------
 -- Map specific stuff here
------------------------------------------------
+-- ---------------------------------------------
 
 CREATE TABLE IF NOT EXISTS MapLeaf(
   TreeId                INTEGER NOT NULL,
