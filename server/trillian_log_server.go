@@ -251,9 +251,9 @@ func leavesToProtos(leaves []trillian.LogLeaf) []*trillian.LeafProto {
 	return protos
 }
 
-// Don't think we can do this with type assertions
+// Don't think we can do this with type assertions, maybe we can
 func bytesToHash(inputs [][]byte) []trillian.Hash {
-	hashes := make([]trillian.Hash, 0, len(inputs))
+	hashes := make([]trillian.Hash, len(inputs), len(inputs))
 
 	for i, hash := range inputs {
 		hashes[i] = trillian.Hash(hash)
