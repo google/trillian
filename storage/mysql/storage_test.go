@@ -880,13 +880,13 @@ func TestGetActiveLogIDs(t *testing.T) {
 	// Have to wipe everything to ensure we start with zero log trees configured
 	cleanTestDB()
 
-	// This creates two trees
+	// This creates one tree
 	logID := createLogID("TestGetActiveLogIDs")
-	db := prepareTestDB(logID, t)
+	db := prepareTestLogDB(logID, t)
 	defer db.Close()
 
-	s := prepareTestStorage(logID, t)
-	tx := beginTx(s, t)
+	s := prepareTestLogStorage(logID, t)
+	tx := beginLogTx(s, t)
 
 	logIDs, err := tx.GetActiveLogIDs()
 
@@ -894,18 +894,18 @@ func TestGetActiveLogIDs(t *testing.T) {
 		t.Fatalf("Failed to get log ids: %v", err)
 	}
 
-	assert.Equal(t, 2, len(logIDs))
+	assert.Equal(t, 1, len(logIDs))
 }
 
 func TestGetActiveLogIDsWithPendingWork(t *testing.T) {
 	// Have to wipe everything to ensure we start with zero log trees configured
 	cleanTestDB()
 	logID := createLogID("TestGetActiveLogIDsWithPendingWork")
-	db := prepareTestDB(logID, t)
+	db := prepareTestLogDB(logID, t)
 	defer db.Close()
 
-	s := prepareTestStorage(logID, t)
-	tx := beginTx(s, t)
+	s := prepareTestLogStorage(logID, t)
+	tx := beginLogTx(s, t)
 
 	logIDs, err := tx.GetActiveLogIDsWithPendingWork()
 	tx.Commit()
@@ -915,7 +915,7 @@ func TestGetActiveLogIDsWithPendingWork(t *testing.T) {
 	}
 
 	{
-		tx := beginTx(s, t)
+		tx := beginLogTx(s, t)
 		defer failIfTXStillOpen(t, "TestGetActiveLogIDsFiltered", tx)
 
 		leaves := createTestLeaves(leavesToInsert, 2)
@@ -928,13 +928,13 @@ func TestGetActiveLogIDsWithPendingWork(t *testing.T) {
 	}
 
 	// We should now see the logID that we just created work for
-	tx = beginTx(s, t)
+	tx = beginLogTx(s, t)
 
 	logIDs, err = tx.GetActiveLogIDsWithPendingWork()
 	tx.Commit()
 
 	if err != nil || len(logIDs) != 1 {
-		t.Fatalf("Should have had no logs with unsequenced work but got: %v", logIDs)
+		t.Fatalf("Should have had one log with unsequenced work but got: %v", logIDs)
 	}
 
 	expected, got := logID.logID.TreeID, logIDs[0].TreeID; if expected != got {
