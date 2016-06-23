@@ -165,8 +165,15 @@ func (t *MockLogTX) StoreSignedLogRoot(root trillian.SignedLogRoot) error {
 }
 
 // GetActiveLogIDs is a mock
-func (t *MockLogTX) GetActiveLogIDs(filterPendingWorkOnly bool) ([]trillian.LogID, error) {
-	args := t.Called(filterPendingWorkOnly)
+func (t *MockLogTX) GetActiveLogIDs() ([]trillian.LogID, error) {
+	args := t.Called()
+
+	return args.Get(0).([]trillian.LogID), args.Error(1)
+}
+
+// GetActiveLogIDsWithPendingWork is a mock
+func (t *MockLogTX) GetActiveLogIDsWithPendingWork() ([]trillian.LogID, error) {
+	args := t.Called()
 
 	return args.Get(0).([]trillian.LogID), args.Error(1)
 }

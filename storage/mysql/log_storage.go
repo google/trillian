@@ -558,11 +558,12 @@ func (t* logTX) getActiveLogIDsInternal(sql string) ([]trillian.LogID, error) {
 	return logIDs, nil
 }
 
-// GetActiveLogIDs returns the IDs of all configured logs, possibly with filtering
-func (t *logTX) GetActiveLogIDs(filterPendingWorkOnly bool) ([]trillian.LogID, error) {
-	if (filterPendingWorkOnly) {
-		return t.getActiveLogIDsInternal(selectActiveLogsWithUnsequencedSql)
-	}
-
+// GetActiveLogIDs returns a list of the IDs of all configured logs
+func (t *logTX) GetActiveLogIDs() ([]trillian.LogID, error) {
 	return t.getActiveLogIDsInternal(selectActiveLogsSql)
+}
+
+// GetActiveLogIDsWithPendingWork returns a list of the IDs of all configured logs
+func (t *logTX) GetActiveLogIDsWithPendingWork() ([]trillian.LogID, error) {
+	return t.getActiveLogIDsInternal(selectActiveLogsWithUnsequencedSql)
 }

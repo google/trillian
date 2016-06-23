@@ -888,7 +888,7 @@ func TestGetActiveLogIDs(t *testing.T) {
 	s := prepareTestStorage(logID, t)
 	tx := beginTx(s, t)
 
-	logIDs, err := tx.GetActiveLogIDs(false)
+	logIDs, err := tx.GetActiveLogIDs()
 
 	if err != nil {
 		t.Fatalf("Failed to get log ids: %v", err)
@@ -907,7 +907,7 @@ func TestGetActiveLogIDsFiltered(t *testing.T) {
 	s := prepareTestStorage(logID, t)
 	tx := beginTx(s, t)
 
-	logIDs, err := tx.GetActiveLogIDs(true)
+	logIDs, err := tx.GetActiveLogIDsWithPendingWork()
 	tx.Commit()
 
 	if err != nil || len(logIDs) != 0 {
@@ -930,7 +930,7 @@ func TestGetActiveLogIDsFiltered(t *testing.T) {
 	// We should now see the logID that we just created work for
 	tx = beginTx(s, t)
 
-	logIDs, err = tx.GetActiveLogIDs(true)
+	logIDs, err = tx.GetActiveLogIDsWithPendingWork()
 	tx.Commit()
 
 	if err != nil || len(logIDs) != 1 {
