@@ -272,7 +272,7 @@ func validateLeafIndices(leafIndices []int64) bool {
 	return true
 }
 
-// We only validate they're not empty at this point, we let the log do any checks
+// We only validate they're not empty at this point, we let the log do any further checks
 func validateLeafHashes(leafHashes [][]byte) bool {
 	for _, hash := range leafHashes {
 		if len(hash) == 0 {
