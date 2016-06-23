@@ -528,3 +528,41 @@ func (t *logTX) removeSequencedLeaves(leaves []trillian.LogLeaf) error {
 
 	return nil
 }
+
+func (t* logTX) getActiveLogIDsInternal(sql string) ([]trillian.LogID, error) {
+	rows, err := t.tx.Query(sql)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	logIDs := make([]trillian.LogID, 0, 0)
+
+	for rows.Next() {
+		var logID []byte
+		var treeID int64
+
+		if err := rows.Scan(&treeID, &logID); err != nil {
+			return []trillian.LogID{}, err
+		}
+
+		logIDs = append(logIDs, trillian.LogID{logID, treeID})
+	}
+
+	if rows.Err() != nil {
+		return []trillian.LogID{}, rows.Err()
+	}
+
+	return logIDs, nil
+}
+
+// GetActiveLogIDs returns the IDs of all configured logs, possibly with filtering
+func (t *logTX) GetActiveLogIDs(filterPendingWorkOnly bool) ([]trillian.LogID, error) {
+	if (filterPendingWorkOnly) {
+		return t.getActiveLogIDsInternal(selectActiveLogsWithUnsequencedSql)
+	}
+
+	return t.getActiveLogIDsInternal(selectActiveLogsSql)
+}
