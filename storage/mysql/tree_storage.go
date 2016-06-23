@@ -19,6 +19,7 @@ const insertTreeHeadSql string = `INSERT INTO TreeHead(TreeId,TreeHeadTimestamp,
 		 VALUES(?,?,?,?,?,?)`
 const selectTreeRevisionAtSizeSql string = "SELECT TreeRevision FROM TreeHead WHERE TreeId=? AND TreeSize=? ORDER BY TreeRevision DESC LIMIT 1"
 const selectActiveLogsSql string = "select TreeId, KeyId from Trees where TreeType='LOG'"
+const selectActiveLogsWithUnsequencedSql string = "SELECT DISTINCT t.TreeId, t.KeyId from Trees t INNER JOIN Unsequenced u WHERE TreeType='LOG' AND t.TreeId=u.TreeId"
 
 const selectNodesSql string = `SELECT x.NodeId, x.MaxRevision, Node.NodeHash
 				 FROM (SELECT n.NodeId, max(n.NodeRevision) AS MaxRevision
@@ -311,9 +312,34 @@ func (t *treeTX) SetMerkleNodes(treeRevision int64, nodes []storage.Node) error 
 	return nil
 }
 
-// GetActiveLogIDs returns the IDs of all configured logs
-func (t *treeTX) GetActiveLogIDs() ([]trillian.LogID, error) {
-	rows, err := t.tx.Query(selectActiveLogsSql)
+func (t *treeTX) Commit() error {
+	t.closed = true
+	err := t.tx.Commit()
+
+	if err != nil {
+		glog.Warningf("TX commit error: %$s", err)
+	}
+
+	return err
+}
+
+func (t *treeTX) Rollback() error {
+	t.closed = true
+	err := t.tx.Rollback()
+
+	if err != nil {
+		glog.Warningf("TX rollback error: %s", err)
+	}
+
+	return err
+}
+
+func (t *treeTX) IsOpen() bool {
+	return !t.closed
+}
+
+func (t* treeTX) getActiveLogIDsInternal(sql string) ([]trillian.LogID, error) {
+	rows, err := t.tx.Query(sql)
 
 	if err != nil {
 		return nil, err
@@ -341,28 +367,12 @@ func (t *treeTX) GetActiveLogIDs() ([]trillian.LogID, error) {
 	return logIDs, nil
 }
 
-func (t *treeTX) Commit() error {
-	t.closed = true
-	err := t.tx.Commit()
-
-	if err != nil {
-		glog.Warningf("TX commit error: %$s", err)
+// GetActiveLogIDs returns the IDs of all configured logs, possibly with filtering
+func (t *treeTX) GetActiveLogIDs(filterPendingWorkOnly bool) ([]trillian.LogID, error) {
+	if (filterPendingWorkOnly) {
+		return t.getActiveLogIDsInternal(selectActiveLogsWithUnsequencedSql)
 	}
 
-	return err
+	return t.getActiveLogIDsInternal(selectActiveLogsSql)
 }
 
-func (t *treeTX) Rollback() error {
-	t.closed = true
-	err := t.tx.Rollback()
-
-	if err != nil {
-		glog.Warningf("TX rollback error: %s", err)
-	}
-
-	return err
-}
-
-func (t *treeTX) IsOpen() bool {
-	return !t.closed
-}

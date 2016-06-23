@@ -876,6 +876,27 @@ func TestMapRootUpdate(t *testing.T) {
 	}
 }
 
+func TestGetActiveLogIDs(t *testing.T) {
+	// Have to wipe everything to ensure we start with zero log trees configured
+	cleanTestDB()
+
+	// This creates two trees
+	logID := createLogID("TestLatestSignedLogRoot")
+	db := prepareTestDB(logID, t)
+	defer db.Close()
+
+	s := prepareTestStorage(logID, t)
+	tx := beginTx(s, t)
+
+	logIDs, err := tx.GetActiveLogIDs(false)
+
+	if err != nil {
+		t.Fatalf("Failed to get log ids (first time)")
+	}
+
+	assert.Equal(t, 2, len(logIDs))
+}
+
 func ensureAllLeafHashesDistinct(leaves []trillian.LogLeaf, t *testing.T) {
 	// All the hashes should be distinct. If only we had maps with slices as keys or sets
 	// or pretty much any kind of usable data structures we could do this properly.

@@ -87,5 +87,7 @@ type LogRootWriter interface {
 // LogMetadata provides access to information about the logs in storage
 type LogMetadata interface {
 	// GetActiveLogs returns the IDs of all the logs that are configured in storage
-	GetActiveLogIDs() ([]trillian.LogID, error)
+	// if filterPendingWorkOnly is true then the list of logs returned includes only those
+	// with pending leaves that need to be integrated into the log.
+	GetActiveLogIDs(filterPendingWorkOnly bool) ([]trillian.LogID, error)
 }
