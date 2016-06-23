@@ -99,17 +99,11 @@ func TestGetLeavesByIndexStorageError(t *testing.T) {
 }
 
 func TestGetLeavesByIndexInvalidLogId(t *testing.T) {
-	mockStorage := new(storage.MockLogStorage)
+	test := newCommitFailsTest("GetLeavesByIndex",
+		func(t *storage.MockLogTX) {},
+		func(s *TrillianLogServer) error { _, err := s.GetLeavesByIndex(context.Background(), &leaf0Log2Request); return err })
 
-	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
-
-	_, err := server.GetLeavesByIndex(context.Background(), &leaf0Log2Request)
-
-	if err == nil || !strings.Contains(err.Error(), "BADLOGID") {
-		t.Fatalf("Got wrong error response for unknown log id: %v", err)
-	}
-
-	mockStorage.AssertExpectations(t)
+	test.executeInvalidLogIDTest(t)
 }
 
 func TestGetLeavesByIndexCommitFails(t *testing.T) {
@@ -205,17 +199,11 @@ func TestQueueLeavesStorageError(t *testing.T) {
 }
 
 func TestQueueLeavesInvalidLogId(t *testing.T) {
-	mockStorage := new(storage.MockLogStorage)
+	test := newCommitFailsTest("QueueLeaves",
+		func(t *storage.MockLogTX) {},
+		func(s *TrillianLogServer) error { _, err := s.QueueLeaves(context.Background(), &queueRequest0Log2); return err })
 
-	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
-
-	_, err := server.QueueLeaves(context.Background(), &queueRequest0Log2)
-
-	if err == nil || !strings.Contains(err.Error(), "BADLOGID") {
-		t.Fatalf("Got wrong error response for unknown log id: %v", err)
-	}
-
-	mockStorage.AssertExpectations(t)
+	test.executeInvalidLogIDTest(t)
 }
 
 func TestQueueLeavesCommitFails(t *testing.T) {
@@ -326,18 +314,11 @@ func TestGetLatestSignedLogRootCommitFails(t *testing.T) {
 }
 
 func TestGetLatestSignedLogRootInvalidLogId(t *testing.T) {
-	mockStorage := new(storage.MockLogStorage)
+	test := newCommitFailsTest("LatestSignedLogRoot",
+		func(t *storage.MockLogTX) {},
+		func(s *TrillianLogServer) error { _, err := s.GetLatestSignedLogRoot(context.Background(), &getLogRootRequest2); return err })
 
-	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
-
-	// Make a request for a nonexistent log id
-	_, err := server.GetLatestSignedLogRoot(context.Background(), &getLogRootRequest2)
-
-	if err == nil || !strings.Contains(err.Error(), "BADLOGID") {
-		t.Fatalf("Returned wrong error response for nonexistent log: %v", err)
-	}
-
-	mockStorage.AssertExpectations(t)
+	test.executeInvalidLogIDTest(t)
 }
 
 func TestGetLatestSignedLogRoot(t *testing.T) {
@@ -433,18 +414,11 @@ func TestLeavesByHashCommitFails(t *testing.T) {
 }
 
 func TestGetLeavesByHashInvalidLogId(t *testing.T) {
-	mockStorage := new(storage.MockLogStorage)
+	test := newCommitFailsTest("GetLeavesByHash",
+		func(t *storage.MockLogTX) {},
+		func(s *TrillianLogServer) error { _, err := s.GetLeavesByHash(context.Background(), &getByHashRequest2); return err })
 
-	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
-
-	// Make a request for a nonexistent log id
-	_, err := server.GetLeavesByHash(context.Background(), &getByHashRequest2)
-
-	if err == nil || !strings.Contains(err.Error(), "BADLOGID") {
-		t.Fatalf("Returned wrong error response for nonexistent log: %v", err)
-	}
-
-	mockStorage.AssertExpectations(t)
+	test.executeInvalidLogIDTest(t)
 }
 
 func TestGetLeavesByHash(t *testing.T) {
@@ -502,6 +476,21 @@ func (c *commitFailsTest) executeCommitFailsTest(t *testing.T) {
 
 	if err == nil {
 		t.Fatalf("Returned OK when commit failed: %s: %v", c.operation, err)
+	}
+
+	mockStorage.AssertExpectations(t)
+}
+
+func (c *commitFailsTest) executeInvalidLogIDTest(t *testing.T) {
+	mockStorage := new(storage.MockLogStorage)
+
+	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
+
+	// Make a request for a nonexistent log id
+	err := c.makeRpc(server)
+
+	if err == nil || !strings.Contains(err.Error(), "BADLOGID") {
+		t.Fatalf("Returned wrong error response for nonexistent log: %v", err)
 	}
 
 	mockStorage.AssertExpectations(t)
