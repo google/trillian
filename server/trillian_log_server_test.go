@@ -113,23 +113,11 @@ func TestGetLeavesByIndexInvalidLogId(t *testing.T) {
 }
 
 func TestGetLeavesByIndexCommitFails(t *testing.T) {
-	mockStorage := new(storage.MockLogStorage)
-	mockTx := new(storage.MockLogTX)
+	test := newCommitFailsTest("GetLeavesByIndex",
+		func(t *storage.MockLogTX) { t.On("GetLeavesByIndex", []int64{0}).Return([]trillian.LogLeaf{leaf1}, nil) },
+		func(s *TrillianLogServer) error { _, err := s.GetLeavesByIndex(context.Background(), &leaf0Request) ; return err })
 
-	mockStorage.On("Begin").Return(mockTx, nil)
-	mockTx.On("GetLeavesByIndex", []int64{0}).Return([]trillian.LogLeaf{leaf1}, nil)
-	mockTx.On("Commit").Return(errors.New("Bang!"))
-	mockTx.On("Open").Return(false)
-
-	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
-
-	_, err := server.GetLeavesByIndex(context.Background(), &leaf0Request)
-
-	if err == nil {
-		t.Fatalf("Returned OK when commit failed: %v", err)
-	}
-
-	mockStorage.AssertExpectations(t)
+	test.executeCommitFailsTest(t)
 }
 
 func TestGetLeavesByIndex(t *testing.T) {
@@ -231,23 +219,11 @@ func TestQueueLeavesInvalidLogId(t *testing.T) {
 }
 
 func TestQueueLeavesCommitFails(t *testing.T) {
-	mockStorage := new(storage.MockLogStorage)
-	mockTx := new(storage.MockLogTX)
+	test := newCommitFailsTest("QueueLeaves",
+		func(t *storage.MockLogTX) { t.On("QueueLeaves", []trillian.LogLeaf{leaf0}).Return(nil) },
+		func(s *TrillianLogServer) error { _, err := s.QueueLeaves(context.Background(), &queueRequest0) ; return err })
 
-	mockStorage.On("Begin").Return(mockTx, nil)
-	mockTx.On("QueueLeaves", []trillian.LogLeaf{leaf0}).Return(nil)
-	mockTx.On("Commit").Return(errors.New("Bang!"))
-	mockTx.On("Open").Return(false)
-
-	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
-
-	_, err := server.QueueLeaves(context.Background(), &queueRequest0)
-
-	if err == nil {
-		t.Fatalf("Returned OK when commit failed: %v", err)
-	}
-
-	mockStorage.AssertExpectations(t)
+	test.executeCommitFailsTest(t)
 }
 
 func TestQueueLeaves(t *testing.T) {
@@ -342,22 +318,11 @@ func TestGetLatestSignedLogRootStorageFails(t *testing.T) {
 }
 
 func TestGetLatestSignedLogRootCommitFails(t *testing.T) {
-	mockStorage := new(storage.MockLogStorage)
-	mockTx := new(storage.MockLogTX)
+	test := newCommitFailsTest("LatestSignedLogRoot",
+		func(t *storage.MockLogTX) { t.On("LatestSignedLogRoot").Return(trillian.SignedLogRoot{}, nil) },
+		func(s *TrillianLogServer) error { _, err := s.GetLatestSignedLogRoot(context.Background(), &getLogRootRequest1); return err })
 
-	mockStorage.On("Begin").Return(mockTx, nil)
-	mockTx.On("LatestSignedLogRoot").Return(trillian.SignedLogRoot{}, nil)
-	mockTx.On("Commit").Return(errors.New("COMMIT"))
-
-	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
-
-	_, err := server.GetLatestSignedLogRoot(context.Background(), &getLogRootRequest1)
-
-	if err == nil || !strings.Contains(err.Error(), "COMMIT") {
-		t.Fatalf("Returned wrong error response when commit failed: %v", err)
-	}
-
-	mockStorage.AssertExpectations(t)
+	test.executeCommitFailsTest(t)
 }
 
 func TestGetLatestSignedLogRootInvalidLogId(t *testing.T) {
@@ -460,22 +425,11 @@ func TestGetLeavesByHashStorageFails(t *testing.T) {
 }
 
 func TestLeavesByHashCommitFails(t *testing.T) {
-	mockStorage := new(storage.MockLogStorage)
-	mockTx := new(storage.MockLogTX)
+	test := newCommitFailsTest("GetLeavesByHash",
+		func(t *storage.MockLogTX) { t.On("GetLeavesByHash", []trillian.Hash{[]byte("test"), []byte("data")}).Return([]trillian.LogLeaf{}, nil) },
+		func(s *TrillianLogServer) error { _, err := s.GetLeavesByHash(context.Background(), &getByHashRequest1) ; return err })
 
-	mockStorage.On("Begin").Return(mockTx, nil)
-	mockTx.On("GetLeavesByHash", []trillian.Hash{[]byte("test"), []byte("data")}).Return([]trillian.LogLeaf{}, nil)
-	mockTx.On("Commit").Return(errors.New("COMMIT"))
-
-	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
-
-	_, err := server.GetLeavesByHash(context.Background(), &getByHashRequest1)
-
-	if err == nil || !strings.Contains(err.Error(), "COMMIT") {
-		t.Fatalf("Returned wrong error response when commit failed: %v", err)
-	}
-
-	mockStorage.AssertExpectations(t)
+	test.executeCommitFailsTest(t)
 }
 
 func TestGetLeavesByHashInvalidLogId(t *testing.T) {
@@ -515,6 +469,39 @@ func TestGetLeavesByHash(t *testing.T) {
 
 	if len(resp.Leaves) != 2 || !proto.Equal(resp.Leaves[0], &expectedLeaf1) || !proto.Equal(resp.Leaves[1], &expectedLeaf3) {
 		t.Fatalf("Expected leaves %v and %v but got: %v", expectedLeaf1, expectedLeaf3, resp.Leaves)
+	}
+
+	mockStorage.AssertExpectations(t)
+}
+
+type prepareMockTXFunc func(*storage.MockLogTX)
+type makeRpcFunc func(*TrillianLogServer) error
+
+type commitFailsTest struct {
+	operation string
+	prepareTx prepareMockTXFunc
+	makeRpc   makeRpcFunc
+}
+
+func newCommitFailsTest(operation string, prepareTx prepareMockTXFunc, makeRpc makeRpcFunc) *commitFailsTest {
+	return &commitFailsTest{operation, prepareTx, makeRpc}
+}
+
+func (c *commitFailsTest) executeCommitFailsTest(t *testing.T) {
+	mockStorage := new(storage.MockLogStorage)
+	mockTx := new(storage.MockLogTX)
+
+	mockStorage.On("Begin").Return(mockTx, nil)
+	c.prepareTx(mockTx)
+	mockTx.On("Commit").Return(errors.New("Bang!"))
+	mockTx.On("Open").Return(false)
+
+	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
+
+	err := c.makeRpc(server)
+
+	if err == nil {
+		t.Fatalf("Returned OK when commit failed: %s: %v", c.operation, err)
 	}
 
 	mockStorage.AssertExpectations(t)
