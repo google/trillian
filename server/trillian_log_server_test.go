@@ -406,36 +406,36 @@ func newParameterizedTest(operation string, prepareTx prepareMockTXFunc, makeRpc
 	return &parameterizedTest{operation, prepareTx, makeRpc}
 }
 
-func (c *parameterizedTest) executeCommitFailsTest(t *testing.T) {
+func (p *parameterizedTest) executeCommitFailsTest(t *testing.T) {
 	mockStorage := new(storage.MockLogStorage)
 	mockTx := new(storage.MockLogTX)
 
 	mockStorage.On("Begin").Return(mockTx, nil)
-	c.prepareTx(mockTx)
+	p.prepareTx(mockTx)
 	mockTx.On("Commit").Return(errors.New("Bang!"))
 	mockTx.On("Open").Return(false)
 
 	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
 
-	err := c.makeRpc(server)
+	err := p.makeRpc(server)
 
 	if err == nil {
-		t.Fatalf("Returned OK when commit failed: %s: %v", c.operation, err)
+		t.Fatalf("Returned OK when commit failed: %s: %v", p.operation, err)
 	}
 
 	mockStorage.AssertExpectations(t)
 }
 
-func (c *parameterizedTest) executeInvalidLogIDTest(t *testing.T) {
+func (p *parameterizedTest) executeInvalidLogIDTest(t *testing.T) {
 	mockStorage := new(storage.MockLogStorage)
 
 	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
 
 	// Make a request for a nonexistent log id
-	err := c.makeRpc(server)
+	err := p.makeRpc(server)
 
 	if err == nil || !strings.Contains(err.Error(), "BADLOGID") {
-		t.Fatalf("Returned wrong error response for nonexistent log: %s: %v", c.operation, err)
+		t.Fatalf("Returned wrong error response for nonexistent log: %s: %v", p.operation, err)
 	}
 
 	mockStorage.AssertExpectations(t)
