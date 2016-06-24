@@ -54,7 +54,7 @@ The following table summarizes properties of data structures laid in the
 and is something that in practices we expect a small number of dedicated auditors to perform,
 rather than being done by each client.
 
-Verifiable Log-Backed Maps use a sparse Merkle Tree implementation. There is more
+Verifiable Log-Backed Maps use a sparse Merkle Tree implementation. There are more
 details on how these work in the [Revocation Transparency](docs/RevocationTransparency.pdf)
 paper. Note that they are not specific to handling X.509 certificates and, as implemented
 in this project, can store any type of data.
