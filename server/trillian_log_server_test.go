@@ -79,23 +79,11 @@ func TestGetLeavesByIndexBeginFailsCausesError(t *testing.T) {
 }
 
 func TestGetLeavesByIndexStorageError(t *testing.T) {
-	mockStorage := new(storage.MockLogStorage)
-	mockTx := new(storage.MockLogTX)
+	test := newParameterizedTest("GetLeavesByIndex",
+		func(t *storage.MockLogTX) { t.On("GetLeavesByIndex", []int64{0}).Return([]trillian.LogLeaf{}, errors.New("STORAGE"))},
+		func(s *TrillianLogServer) error { _, err := s.GetLeavesByIndex(context.Background(), &leaf0Request); return err })
 
-	mockStorage.On("Begin").Return(mockTx, nil)
-	mockTx.On("GetLeavesByIndex", []int64{0}).Return([]trillian.LogLeaf{}, errors.New("STORAGE"))
-	mockTx.On("Open").Return(true)
-	mockTx.On("Rollback").Return(nil)
-
-	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
-
-	_, err := server.GetLeavesByIndex(context.Background(), &leaf0Request)
-
-	if err == nil || !strings.Contains(err.Error(), "STORAGE") {
-		t.Fatalf("Returned wrong response when storage get leaves failed")
-	}
-
-	mockStorage.AssertExpectations(t)
+	test.executeStorageFailureTest(t)
 }
 
 func TestGetLeavesByIndexInvalidLogId(t *testing.T) {
@@ -179,23 +167,11 @@ func TestGetLeavesByIndexMultiple(t *testing.T) {
 }
 
 func TestQueueLeavesStorageError(t *testing.T) {
-	mockStorage := new(storage.MockLogStorage)
-	mockTx := new(storage.MockLogTX)
+	test := newParameterizedTest("QueueLeaves",
+		func(t *storage.MockLogTX) { t.On("QueueLeaves", []trillian.LogLeaf{leaf0}).Return(errors.New("STORAGE"))},
+		func(s *TrillianLogServer) error { _, err := s.QueueLeaves(context.Background(), &queueRequest0); return err })
 
-	mockStorage.On("Begin").Return(mockTx, nil)
-	mockTx.On("QueueLeaves", []trillian.LogLeaf{leaf0}).Return(errors.New("STORAGE"))
-	mockTx.On("Open").Return(true)
-	mockTx.On("Rollback").Return(nil)
-
-	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
-
-	_, err := server.QueueLeaves(context.Background(), &queueRequest0)
-
-	if err == nil || !strings.Contains(err.Error(), "STORAGE") {
-		t.Fatalf("Returned wrong response when storage get leaves failed")
-	}
-
-	mockStorage.AssertExpectations(t)
+	test.executeStorageFailureTest(t)
 }
 
 func TestQueueLeavesInvalidLogId(t *testing.T) {
@@ -253,20 +229,11 @@ func TestQueueLeavesNoLeavesRejected(t *testing.T) {
 }
 
 func TestQueueLeavesBeginFailsCausesError(t *testing.T) {
-	mockStorage := new(storage.MockLogStorage)
-	mockTx := new(storage.MockLogTX)
+	test := newParameterizedTest("QueueLeaves",
+		func(t *storage.MockLogTX) { },
+		func(s *TrillianLogServer) error { _, err := s.QueueLeaves(context.Background(), &queueRequest0) ; return err })
 
-	mockStorage.On("Begin").Return(mockTx, errors.New("TX"))
-
-	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
-
-	_, err := server.QueueLeaves(context.Background(), &queueRequest0)
-
-	if err == nil || !strings.Contains(err.Error(), "TX") {
-		t.Fatalf("Returned wrong error response when begin failed")
-	}
-
-	mockStorage.AssertExpectations(t)
+	test.executeBeginFailsTest(t);
 }
 
 func TestGetLatestSignedLogRootBeginFails(t *testing.T) {
@@ -287,22 +254,11 @@ func TestGetLatestSignedLogRootBeginFails(t *testing.T) {
 }
 
 func TestGetLatestSignedLogRootStorageFails(t *testing.T) {
-	mockStorage := new(storage.MockLogStorage)
-	mockTx := new(storage.MockLogTX)
+	test := newParameterizedTest("LatestSignedLogRoot",
+		func(t *storage.MockLogTX) { t.On("LatestSignedLogRoot").Return(trillian.SignedLogRoot{}, errors.New("STORAGE"))},
+		func(s *TrillianLogServer) error { _, err := s.GetLatestSignedLogRoot(context.Background(), &getLogRootRequest1); return err })
 
-	mockStorage.On("Begin").Return(mockTx, nil)
-	mockTx.On("LatestSignedLogRoot").Return(trillian.SignedLogRoot{}, errors.New("STORAGE"))
-	mockTx.On("Rollback").Return(nil)
-
-	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
-
-	_, err := server.GetLatestSignedLogRoot(context.Background(), &getLogRootRequest1)
-
-	if err == nil || !strings.Contains(err.Error(), "STORAGE") {
-		t.Fatalf("Returned wrong error response when storage failed: %v", err)
-	}
-
-	mockStorage.AssertExpectations(t)
+	test.executeStorageFailureTest(t)
 }
 
 func TestGetLatestSignedLogRootCommitFails(t *testing.T) {
@@ -387,22 +343,11 @@ func TestGetLeavesByHashBeginFails(t *testing.T) {
 }
 
 func TestGetLeavesByHashStorageFails(t *testing.T) {
-	mockStorage := new(storage.MockLogStorage)
-	mockTx := new(storage.MockLogTX)
+	test := newParameterizedTest("GetLeavesByHash",
+		func(t *storage.MockLogTX) { t.On("GetLeavesByHash", []trillian.Hash{[]byte("test"), []byte("data")}).Return([]trillian.LogLeaf{}, errors.New("STORAGE"))},
+		func(s *TrillianLogServer) error { _, err := s.GetLeavesByHash(context.Background(), &getByHashRequest1); return err })
 
-	mockStorage.On("Begin").Return(mockTx, nil)
-	mockTx.On("GetLeavesByHash", []trillian.Hash{[]byte("test"), []byte("data")}).Return([]trillian.LogLeaf{}, errors.New("STORAGE"))
-	mockTx.On("Rollback").Return(nil)
-
-	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
-
-	_, err := server.GetLeavesByHash(context.Background(), &getByHashRequest1)
-
-	if err == nil || !strings.Contains(err.Error(), "STORAGE") {
-		t.Fatalf("Returned wrong error response when storage failed: %v", err)
-	}
-
-	mockStorage.AssertExpectations(t)
+	test.executeStorageFailureTest(t)
 }
 
 func TestLeavesByHashCommitFails(t *testing.T) {
@@ -491,6 +436,42 @@ func (c *parameterizedTest) executeInvalidLogIDTest(t *testing.T) {
 
 	if err == nil || !strings.Contains(err.Error(), "BADLOGID") {
 		t.Fatalf("Returned wrong error response for nonexistent log: %s: %v", c.operation, err)
+	}
+
+	mockStorage.AssertExpectations(t)
+}
+
+func (p *parameterizedTest) executeStorageFailureTest(t *testing.T) {
+	mockStorage := new(storage.MockLogStorage)
+	mockTx := new(storage.MockLogTX)
+
+	mockStorage.On("Begin").Return(mockTx, nil)
+	p.prepareTx(mockTx)
+	mockTx.On("Rollback").Return(nil)
+
+	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
+
+	err := p.makeRpc(server)
+
+	if err == nil || !strings.Contains(err.Error(), "STORAGE") {
+		t.Fatalf("Returned wrong error response when storage failed: %s: %v", p.operation, err)
+	}
+
+	mockStorage.AssertExpectations(t)
+}
+
+func (p *parameterizedTest) executeBeginFailsTest(t *testing.T) {
+	mockStorage := new(storage.MockLogStorage)
+	mockTx := new(storage.MockLogTX)
+
+	mockStorage.On("Begin").Return(mockTx, errors.New("TX"))
+
+	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
+
+	err := p.makeRpc(server)
+
+	if err == nil || !strings.Contains(err.Error(), "TX") {
+		t.Fatalf("Returned wrong error response when begin failed")
 	}
 
 	mockStorage.AssertExpectations(t)
