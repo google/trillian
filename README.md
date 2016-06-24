@@ -51,7 +51,7 @@ The following table summarizes properties of data structures laid in the
 [Verifiable Data Structures](docs/VerifiableDataStructures.pdf) white paper.
 “Efficiently” means that a client can and should perform this validation themselves.
 “Full audit” means that to validate correctly, a client would need to download the entire dataset,
-and is something that in practices we expect a small number of dedicated auditors to perform,
+and is something that in practice we expect a small number of dedicated auditors to perform,
 rather than being done by each client.
 
 Verifiable Log-Backed Maps use a sparse Merkle Tree implementation. There are more
