@@ -876,6 +876,72 @@ func TestMapRootUpdate(t *testing.T) {
 	}
 }
 
+func TestGetActiveLogIDs(t *testing.T) {
+	// Have to wipe everything to ensure we start with zero log trees configured
+	cleanTestDB()
+
+	// This creates one tree
+	logID := createLogID("TestGetActiveLogIDs")
+	db := prepareTestLogDB(logID, t)
+	defer db.Close()
+
+	s := prepareTestLogStorage(logID, t)
+	tx := beginLogTx(s, t)
+
+	logIDs, err := tx.GetActiveLogIDs()
+
+	if err != nil {
+		t.Fatalf("Failed to get log ids: %v", err)
+	}
+
+	assert.Equal(t, 1, len(logIDs))
+}
+
+func TestGetActiveLogIDsWithPendingWork(t *testing.T) {
+	// Have to wipe everything to ensure we start with zero log trees configured
+	cleanTestDB()
+	logID := createLogID("TestGetActiveLogIDsWithPendingWork")
+	db := prepareTestLogDB(logID, t)
+	defer db.Close()
+
+	s := prepareTestLogStorage(logID, t)
+	tx := beginLogTx(s, t)
+
+	logIDs, err := tx.GetActiveLogIDsWithPendingWork()
+	tx.Commit()
+
+	if err != nil || len(logIDs) != 0 {
+		t.Fatalf("Should have had no logs with unsequenced work but got: %v %v", logIDs, err)
+	}
+
+	{
+		tx := beginLogTx(s, t)
+		defer failIfTXStillOpen(t, "TestGetActiveLogIDsFiltered", tx)
+
+		leaves := createTestLeaves(leavesToInsert, 2)
+
+		if err := tx.QueueLeaves(leaves); err != nil {
+			t.Fatalf("Failed to queue leaves: %v", err)
+		}
+
+		commit(tx, t)
+	}
+
+	// We should now see the logID that we just created work for
+	tx = beginLogTx(s, t)
+
+	logIDs, err = tx.GetActiveLogIDsWithPendingWork()
+	tx.Commit()
+
+	if err != nil || len(logIDs) != 1 {
+		t.Fatalf("Should have had one log with unsequenced work but got: %v", logIDs)
+	}
+
+	expected, got := logID.logID.TreeID, logIDs[0].TreeID; if expected != got {
+		t.Fatalf("Expected to see tree ID: %d but got: %d", expected, got)
+	}
+}
+
 func ensureAllLeafHashesDistinct(leaves []trillian.LogLeaf, t *testing.T) {
 	// All the hashes should be distinct. If only we had maps with slices as keys or sets
 	// or pretty much any kind of usable data structures we could do this properly.

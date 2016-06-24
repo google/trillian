@@ -22,6 +22,7 @@ type LogTX interface {
 	LeafReader
 	LeafQueuer
 	LeafDequeuer
+	LogMetadata
 }
 
 // ReadOnlyLogStorage represents a narrowed read-only view into a LogStorage.
@@ -81,4 +82,13 @@ type LogRootReader interface {
 type LogRootWriter interface {
 	// StoreSignedLogRoot stores a freshly created SignedLogRoot.
 	StoreSignedLogRoot(root trillian.SignedLogRoot) error
+}
+
+// LogMetadata provides access to information about the logs in storage
+type LogMetadata interface {
+	// GetActiveLogs returns a list of the IDs of all the logs that are configured in storage
+	GetActiveLogIDs() ([]trillian.LogID, error)
+	// GetActiveLogIDsWithPendingWork returns a list of IDs of logs that have
+	// pending queued leaves that need to be integrated into the log.
+	GetActiveLogIDsWithPendingWork() ([]trillian.LogID, error)
 }

@@ -528,3 +528,43 @@ func (t *logTX) removeSequencedLeaves(leaves []trillian.LogLeaf) error {
 
 	return nil
 }
+
+func (t* logTX) getActiveLogIDsInternal(sql string) ([]trillian.LogID, error) {
+	rows, err := t.tx.Query(sql)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	logIDs := make([]trillian.LogID, 0, 0)
+
+	for rows.Next() {
+		var logID []byte
+		var treeID int64
+
+		if err := rows.Scan(&treeID, &logID); err != nil {
+			return []trillian.LogID{}, err
+		}
+
+		logIDs = append(logIDs, trillian.LogID{logID, treeID})
+	}
+
+	if rows.Err() != nil {
+		return []trillian.LogID{}, rows.Err()
+	}
+
+	return logIDs, nil
+}
+
+// GetActiveLogIDs returns a list of the IDs of all configured logs
+func (t *logTX) GetActiveLogIDs() ([]trillian.LogID, error) {
+	return t.getActiveLogIDsInternal(selectActiveLogsSql)
+}
+
+// GetActiveLogIDsWithPendingWork returns a list of the IDs of all configured logs
+// that have queued unsequenced leaves that need to be integrated
+func (t *logTX) GetActiveLogIDsWithPendingWork() ([]trillian.LogID, error) {
+	return t.getActiveLogIDsInternal(selectActiveLogsWithUnsequencedSql)
+}

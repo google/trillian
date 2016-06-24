@@ -18,6 +18,8 @@ const insertNodeSql string = `INSERT INTO Node(TreeId, NodeId, NodeHash, NodeRev
 const insertTreeHeadSql string = `INSERT INTO TreeHead(TreeId,TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature)
 		 VALUES(?,?,?,?,?,?)`
 const selectTreeRevisionAtSizeSql string = "SELECT TreeRevision FROM TreeHead WHERE TreeId=? AND TreeSize=? ORDER BY TreeRevision DESC LIMIT 1"
+const selectActiveLogsSql string = "select TreeId, KeyId from Trees where TreeType='LOG'"
+const selectActiveLogsWithUnsequencedSql string = "SELECT DISTINCT t.TreeId, t.KeyId from Trees t INNER JOIN Unsequenced u WHERE TreeType='LOG' AND t.TreeId=u.TreeId"
 
 const selectNodesSql string = `SELECT x.NodeId, x.MaxRevision, Node.NodeHash
 				 FROM (SELECT n.NodeId, max(n.NodeRevision) AS MaxRevision
@@ -335,3 +337,4 @@ func (t *treeTX) Rollback() error {
 func (t *treeTX) IsOpen() bool {
 	return !t.closed
 }
+
