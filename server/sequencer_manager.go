@@ -24,9 +24,9 @@ type SequencerManager struct {
 	// sleepBetweenRuns is the time to pause after all active logs have processed a batch
 	sleepBetweenRuns time.Duration
 	// runLimit is a limit on the number of sequencing passes. It can only be set for tests
-	runLimit         int
+	runLimit int
 	// timeSource allows us to mock this in tests
-	timeSource       util.TimeSource
+	timeSource util.TimeSource
 }
 
 func NewSequencerManager(done chan struct{}, storageProvider LogStorageProviderFunc, batchSize int, sleepBetweenLogs, sleepBetweenRuns time.Duration) *SequencerManager {
