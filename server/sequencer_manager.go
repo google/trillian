@@ -57,6 +57,8 @@ func (s SequencerManager) sequenceActiveLogs(logIDs []trillian.LogID) bool {
 		// avoid the cost of initializing their state each time but this works for now
 		storage, err := s.storageProvider(logID.TreeID)
 
+		// TODO(Martin2112): Honour the sequencing enabled in log parameters, needs an API change
+		// so deferring it
 		if err == nil {
 			sequencer := log.NewSequencer(trillian.NewSHA256(), s.timeSource, storage)
 
