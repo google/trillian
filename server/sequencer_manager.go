@@ -23,10 +23,19 @@ type SequencerManager struct {
 	sleepBetweenLogs time.Duration
 	// sleepBetweenRuns is the time to pause after all active logs have processed a batch
 	sleepBetweenRuns time.Duration
+	// runLimit is a limit on the number of sequencing passes. It can only be set for tests
+	runLimit         int
+	// timeSource allows us to mock this in tests
+	timeSource       util.TimeSource
 }
 
 func NewSequencerManager(done chan struct{}, storageProvider LogStorageProviderFunc, batchSize int, sleepBetweenLogs, sleepBetweenRuns time.Duration) *SequencerManager {
-	return &SequencerManager{done: done, storageProvider: storageProvider, batchSize: batchSize, sleepBetweenLogs: sleepBetweenLogs, sleepBetweenRuns: sleepBetweenRuns}
+	return &SequencerManager{done: done, storageProvider: storageProvider, batchSize: batchSize, sleepBetweenLogs: sleepBetweenLogs, sleepBetweenRuns: sleepBetweenRuns, timeSource: new(util.SystemTimeSource)}
+}
+
+// For use by tests, arranges for the sequencer to exit after a number of passes
+func newSequencerManagerForTest(done chan struct{}, storageProvider LogStorageProviderFunc, batchSize int, sleepBetweenLogs, sleepBetweenRuns time.Duration, runLimit int, timeSource util.TimeSource) *SequencerManager {
+	return &SequencerManager{done: done, storageProvider: storageProvider, batchSize: batchSize, sleepBetweenLogs: sleepBetweenLogs, sleepBetweenRuns: sleepBetweenRuns, runLimit: runLimit, timeSource: timeSource}
 }
 
 func (s SequencerManager) sequenceActiveLogs(logIDs []trillian.LogID) bool {
@@ -49,7 +58,7 @@ func (s SequencerManager) sequenceActiveLogs(logIDs []trillian.LogID) bool {
 		storage, err := s.storageProvider(logID.TreeID)
 
 		if err == nil {
-			sequencer := log.NewSequencer(trillian.NewSHA256(), new(util.SystemTimeSource), storage)
+			sequencer := log.NewSequencer(trillian.NewSHA256(), s.timeSource, storage)
 
 			leaves, err := sequencer.SequenceBatch(s.batchSize)
 
@@ -113,6 +122,15 @@ func (s SequencerManager) SequencerLoop() {
 		}
 
 		glog.Infof("Log sequencing pass complete")
+
+		// We might want to bail out early when testing
+		if s.runLimit > 0 {
+			s.runLimit--
+			if s.runLimit == 0 {
+				return
+			}
+		}
+
 		// Now wait for the configured time before going for another set of sequencing runs
 		time.Sleep(s.sleepBetweenRuns)
 	}

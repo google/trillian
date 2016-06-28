@@ -53,6 +53,7 @@ func (s Sequencer) buildNodesFromNodeMap(nodeMap map[string]storage.Node, newVer
 	targetNodes := make([]storage.Node, len(nodeMap), len(nodeMap))
 	i := 0
 	for _, node := range nodeMap {
+		node.NodeRevision = newVersion
 		targetNodes[i] = node
 		i++
 	}
@@ -102,7 +103,7 @@ func (s Sequencer) SequenceBatch(limit int) (int, error) {
 
 	// There might be no work to be done
 	if len(leaves) == 0 {
-		tx.Rollback()
+		tx.Commit()
 		return 0, nil
 	}
 
@@ -137,15 +138,11 @@ func (s Sequencer) SequenceBatch(limit int) (int, error) {
 	// TODO: This relies on us being the only process updating the map, which isn't enforced yet
 	// though the schema should now prevent multiple STHs being inserted with the same revision
 	// number so it should not be possible for colliding updates to commit.
-<<<<<<< 34e2a077387d5a3cd2fbb48b45e11e3d74962fbc
-	newVersion := currentRoot.TreeRevision + 1
-=======
 	newVersion := int64(0)
 
 	if currentRoot.TreeRevision != nil {
 		newVersion = *currentRoot.TreeRevision + int64(1)
 	}
->>>>>>> Add log server outline inc. sequencing and rpc server
 
 	// Assign leaf sequence numbers and collate node updates
 	nodeMap, sequenceNumbers := s.sequenceLeaves(mt, leaves)
@@ -194,7 +191,7 @@ func (s Sequencer) SequenceBatch(limit int) (int, error) {
 	newLogRoot := trillian.SignedLogRoot{
 		RootHash:       mt.CurrentRoot(),
 		TimestampNanos: s.timeSource.Now().UnixNano(),
-		TreeSize:       0,
+		TreeSize:       mt.Size(),
 		Signature:      &trillian.DigitallySigned{},
 		LogId:          currentRoot.LogId,
 		TreeRevision:   newVersion,
@@ -209,5 +206,9 @@ func (s Sequencer) SequenceBatch(limit int) (int, error) {
 	}
 
 	// The batch is now fully sequenced and we're done
-	return len(leaves), tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+
+	return len(leaves), nil
 }

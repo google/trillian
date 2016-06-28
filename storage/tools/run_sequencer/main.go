@@ -22,7 +22,7 @@ func main() {
 
 	sequencer := log.NewSequencer(trillian.NewSHA256(), new(util.SystemTimeSource), storage)
 
-	err := sequencer.SequenceBatch(*batchLimitFlag)
+	_, err := sequencer.SequenceBatch(*batchLimitFlag)
 
 	if err != nil {
 		panic(err)
