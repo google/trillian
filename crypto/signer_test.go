@@ -1,4 +1,4 @@
-package log
+package crypto
 
 import (
 	"bytes"
@@ -10,6 +10,7 @@ import (
 	"github.com/google/trillian"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"strings"
 )
 
 const message string = "testing"
@@ -91,4 +92,15 @@ func TestSignerFails(t *testing.T) {
 	ensureErrorContains(t, err, "sign")
 
 	mockSigner.AssertExpectations(t)
+}
+
+// TODO(Martin2112): Tidy up so we only have one copy of this
+func ensureErrorContains(t *testing.T, err error, s string) {
+	if err == nil {
+		t.Fatalf("%s operation unexpectedly succeeded", s)
+	}
+
+	if !strings.Contains(err.Error(), s) {
+		t.Errorf("Got the wrong type of error: %v", err)
+	}
 }
