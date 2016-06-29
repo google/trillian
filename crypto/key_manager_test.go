@@ -6,11 +6,12 @@ import (
 	"encoding/asn1"
 	"encoding/pem"
 	"fmt"
-	"github.com/google/trillian"
-	"github.com/stretchr/testify/assert"
 	"math/big"
 	"math/rand"
 	"testing"
+
+	"github.com/google/trillian"
+	"github.com/stretchr/testify/assert"
 )
 
 type ecdsaSig struct {
