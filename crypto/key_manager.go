@@ -43,11 +43,10 @@ func (k *KeyManager) LoadPrivateKey(pemEncodedKey, password string) error {
 	return nil
 }
 
-// Sign signs a block of bytes and returns the results. We don't allow callers access
-// to the key
+// Signer returns a signer based on our private key.
 func (k KeyManager) Signer() (crypto.Signer, error) {
 	if k.serverPrivateKey == nil {
-		//return nil, fmt.Errorf("Private key is not loaded")
+		return nil, fmt.Errorf("Private key is not loaded")
 	}
 
 	// Good old interface{}, this wouldn't be necessary in a proper type system. If it's
