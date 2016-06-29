@@ -61,6 +61,8 @@ func (k KeyManager) Signer() (crypto.Signer, error) {
 }
 
 func parsePrivateKey(key []byte) (crypto.PrivateKey, error) {
+	// Our two ways of reading keys are ParsePKCS1PrivateKey and ParsePKCS8PrivateKey.
+	// And ParseECPrivateKey. Our three ways of parsing keys are ... I'll come in again.
 	if key, err := x509.ParsePKCS1PrivateKey(key); err == nil {
 		return key, nil
 	}
