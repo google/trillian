@@ -448,11 +448,11 @@ func (t *logTX) LatestSignedLogRoot() (trillian.SignedLogRoot, error) {
 
 	return trillian.SignedLogRoot{
 		RootHash:       rootHash,
-		TimestampNanos: proto.Int64(timestamp),
-		TreeRevision:   proto.Int64(treeRevision),
+		TimestampNanos: timestamp,
+		TreeRevision:   treeRevision,
 		Signature:      &rootSignature,
 		LogId:          t.ls.logID.LogID,
-		TreeSize:       proto.Int64(treeSize),
+		TreeSize:       treeSize,
 	}, nil
 }
 
@@ -529,7 +529,7 @@ func (t *logTX) removeSequencedLeaves(leaves []trillian.LogLeaf) error {
 	return nil
 }
 
-func (t* logTX) getActiveLogIDsInternal(sql string) ([]trillian.LogID, error) {
+func (t *logTX) getActiveLogIDsInternal(sql string) ([]trillian.LogID, error) {
 	rows, err := t.tx.Query(sql)
 
 	if err != nil {

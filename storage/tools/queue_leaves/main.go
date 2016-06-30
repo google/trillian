@@ -8,7 +8,6 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	log "github.com/golang/glog"
-	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage/tools"
 )
@@ -56,7 +55,7 @@ func main() {
 		hash := sha256.Sum256(data)
 
 		entryTimestamp := trillian.SignedEntryTimestamp{
-			TimestampNanos: proto.Int64(time.Now().UnixNano()),
+			TimestampNanos: time.Now().UnixNano(),
 			LogId:          treeId.LogID,
 			Signature: &trillian.DigitallySigned{
 				Signature: []byte("dummy"),

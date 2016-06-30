@@ -17,7 +17,7 @@ import (
 // These can be shared between tests as they're never modified
 var testLeaf16Hash = trillian.Hash{0, 1, 2, 3, 4, 5}
 var testLeaf16 = trillian.LogLeaf{Leaf: trillian.Leaf{LeafHash: testLeaf16Hash, LeafValue: nil, ExtraData: nil}, SequenceNumber: 16}
-var testRoot16 = trillian.SignedLogRoot{TreeSize: proto.Int64(16), TreeRevision: proto.Int64(5)}
+var testRoot16 = trillian.SignedLogRoot{TreeSize: 16, TreeRevision: 5}
 
 // These will be accepted in either order because of custom sorting in the mock
 var updatedNodes []storage.Node = []storage.Node{
@@ -32,9 +32,9 @@ var updatedNodes []storage.Node = []storage.Node{
 var fakeTimeForTest = fakeTime()
 var expectedSignedRoot = trillian.SignedLogRoot{
 	RootHash:       trillian.Hash{0xbb, 0x49, 0x71, 0xbc, 0x2a, 0x37, 0x93, 0x67, 0xfb, 0x75, 0xa9, 0xf4, 0x5b, 0x67, 0xf, 0xb0, 0x97, 0xb2, 0x1e, 0x81, 0x1d, 0x58, 0xd1, 0x3a, 0xbb, 0x71, 0x7e, 0x28, 0x51, 0x17, 0xc3, 0x7c},
-	TimestampNanos: proto.Int64(fakeTimeForTest.UnixNano()),
-	TreeRevision:   proto.Int64(6),
-	TreeSize:       proto.Int64(0),
+	TimestampNanos: fakeTimeForTest.UnixNano(),
+	TreeRevision:   6,
+	TreeSize:       0,
 	LogId:          []uint8(nil),
 	Signature:      &trillian.DigitallySigned{},
 }

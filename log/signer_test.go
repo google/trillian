@@ -61,8 +61,8 @@ func TestSigner(t *testing.T) {
 
 	mockSigner.AssertExpectations(t)
 
-	assert.True(t, *sig.HashAlgorithm == trillian.HashAlgorithm_SHA256, "Hash alg incorrect: %v", sig.HashAlgorithm)
-	assert.True(t, *sig.SignatureAlgorithm == trillian.SignatureAlgorithm_RSA, "Sig alg incorrect: %v", sig.SignatureAlgorithm)
+	assert.True(t, sig.HashAlgorithm == trillian.HashAlgorithm_SHA256, "Hash alg incorrect: %v", sig.HashAlgorithm)
+	assert.True(t, sig.SignatureAlgorithm == trillian.SignatureAlgorithm_RSA, "Sig alg incorrect: %v", sig.SignatureAlgorithm)
 	assert.Zero(t, bytes.Compare([]byte(result), sig.Signature), "Mismatched sig: [%v] [%v]",
 		[]byte(result), sig.Signature)
 }

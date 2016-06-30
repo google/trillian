@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 )
 
@@ -134,13 +133,13 @@ func (n *NodeID) Siblings() []NodeID {
 }
 
 func (n *NodeID) AsProto() *NodeIDProto {
-	return &NodeIDProto{Path: n.Path, PrefixLenBits: proto.Int32(int32(n.PrefixLenBits))}
+	return &NodeIDProto{Path: n.Path, PrefixLenBits: int32(n.PrefixLenBits)}
 }
 
 func NewNodeIDFromProto(p NodeIDProto) *NodeID {
 	return &NodeID{
 		Path:          p.Path,
-		PrefixLenBits: int(*p.PrefixLenBits),
+		PrefixLenBits: int(p.PrefixLenBits),
 		PathLenBits:   len(p.Path) * 8,
 	}
 }

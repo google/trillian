@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/golang/glog"
-	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
@@ -30,15 +29,9 @@ func NewSequencer(hasher trillian.Hasher, timeSource util.TimeSource, logStorage
 // TODO: This currently doesn't use the batch api for fetching the required nodes. This
 // would be more efficient but requires refactoring.
 func (s Sequencer) buildMerkleTreeFromStorageAtRoot(root trillian.SignedLogRoot, tx storage.TreeTX) (*merkle.CompactMerkleTree, error) {
-	if root.TreeSize == nil {
-		return nil, errors.New("invalid root; TreeSize unset")
-	}
-	if root.TreeRevision == nil {
-		return nil, errors.New("invalid root; TreeRevision unset")
-	}
-	mt, err := merkle.NewCompactMerkleTreeWithState(s.hasher, *root.TreeSize, func(depth int, index int64) (trillian.Hash, error) {
+	mt, err := merkle.NewCompactMerkleTreeWithState(s.hasher, root.TreeSize, func(depth int, index int64) (trillian.Hash, error) {
 		nodeId := storage.NewNodeIDForTreeCoords(int64(depth), index, int(s.hasher.Size()))
-		nodes, err := tx.GetMerkleNodes(*root.TreeRevision, []storage.NodeID{nodeId})
+		nodes, err := tx.GetMerkleNodes(root.TreeRevision, []storage.NodeID{nodeId})
 
 		if err != nil {
 			glog.Warningf("Failed to get merkle nodes: %s", err)
@@ -134,7 +127,7 @@ func (s Sequencer) SequenceBatch(limit int) error {
 	// TODO: This relies on us being the only process updating the map, which isn't enforced yet
 	// though the schema should now prevent multiple STHs being inserted with the same revision
 	// number so it should not be possible for colliding updates to commit.
-	newVersion := *currentRoot.TreeRevision + 1
+	newVersion := currentRoot.TreeRevision + 1
 
 	// Assign leaf sequence numbers and collate node updates
 	nodeMap, sequenceNumbers := s.sequenceLeaves(mt, leaves)
@@ -182,11 +175,11 @@ func (s Sequencer) SequenceBatch(limit int) error {
 	// sequencing, though that's not finalized yet.
 	newLogRoot := trillian.SignedLogRoot{
 		RootHash:       mt.CurrentRoot(),
-		TimestampNanos: proto.Int64(s.timeSource.Now().UnixNano()),
-		TreeSize:       proto.Int64(0),
+		TimestampNanos: s.timeSource.Now().UnixNano(),
+		TreeSize:       0,
 		Signature:      &trillian.DigitallySigned{},
 		LogId:          currentRoot.LogId,
-		TreeRevision:   proto.Int64(*currentRoot.TreeRevision + 1),
+		TreeRevision:   currentRoot.TreeRevision + 1,
 	}
 
 	err = tx.StoreSignedLogRoot(newLogRoot)

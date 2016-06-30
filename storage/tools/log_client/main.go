@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage/tools"
 	"golang.org/x/net/context"
@@ -23,10 +22,10 @@ func buildGetLeavesByIndexRequest(logID trillian.LogID, startLeaf, numLeaves int
 	leafIndices := make([]int64, 0)
 
 	for l := int64(0); l < numLeaves; l++ {
-		leafIndices = append(leafIndices, l + startLeaf)
+		leafIndices = append(leafIndices, l+startLeaf)
 	}
 
-	return &trillian.GetLeavesByIndexRequest{LogId: proto.Int64(logID.TreeID), LeafIndex: leafIndices}
+	return &trillian.GetLeavesByIndexRequest{LogId: logID.TreeID, LeafIndex: leafIndices}
 }
 
 // TODO: Move this code out to a better place when we tidy up the initial test main stuff
