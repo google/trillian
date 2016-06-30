@@ -1,9 +1,6 @@
 #!/bin/bash
+pushd ../../../
+protoc --go_out=plugins=grpc:. github.com/google/trillian/*.proto
+protoc --go_out=plugins=grpc:. github.com/google/trillian/storage/*.proto
+popd
 
-PROTODIRS=" $(find `pwd` -name \*.proto -printf '%h\n' | sort | uniq | xargs echo)"
-INCDIRS=${PROTODIRS// / -I }
-for DIR in ${PROTODIRS}; do
-  CMD="protoc --go_out=plugins=grpc:. ${INCDIRS} ${DIR}/*.proto"
-  echo $CMD
-  $CMD
-done
