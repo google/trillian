@@ -118,9 +118,9 @@ func (s Sequencer) SequenceBatch(limit int) (int, error) {
 
 	var mt *merkle.CompactMerkleTree
 
-	if currentRoot.TreeSize == nil {
+	if currentRoot.TreeSize == 0 {
 		// This should be an empty tree
-		if currentRoot.TreeRevision != nil && *currentRoot.TreeRevision > 0 {
+		if currentRoot.TreeRevision > 0 {
 			panic(fmt.Errorf("MT has zero size but non zero revision: %v", *mt))
 		}
 		mt, err = merkle.NewCompactMerkleTree(s.hasher), nil
@@ -138,11 +138,7 @@ func (s Sequencer) SequenceBatch(limit int) (int, error) {
 	// TODO: This relies on us being the only process updating the map, which isn't enforced yet
 	// though the schema should now prevent multiple STHs being inserted with the same revision
 	// number so it should not be possible for colliding updates to commit.
-	newVersion := int64(0)
-
-	if currentRoot.TreeRevision != nil {
-		newVersion = *currentRoot.TreeRevision + int64(1)
-	}
+	newVersion := currentRoot.TreeRevision + int64(1)
 
 	// Assign leaf sequence numbers and collate node updates
 	nodeMap, sequenceNumbers := s.sequenceLeaves(mt, leaves)

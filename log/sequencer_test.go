@@ -33,15 +33,9 @@ var updatedNodes []storage.Node = []storage.Node{
 var fakeTimeForTest = fakeTime()
 var expectedSignedRoot = trillian.SignedLogRoot{
 	RootHash:       trillian.Hash{0xbb, 0x49, 0x71, 0xbc, 0x2a, 0x37, 0x93, 0x67, 0xfb, 0x75, 0xa9, 0xf4, 0x5b, 0x67, 0xf, 0xb0, 0x97, 0xb2, 0x1e, 0x81, 0x1d, 0x58, 0xd1, 0x3a, 0xbb, 0x71, 0x7e, 0x28, 0x51, 0x17, 0xc3, 0x7c},
-<<<<<<< 99cb2f9294f5e07a31e157cb59ffa86874063cf9
 	TimestampNanos: fakeTimeForTest.UnixNano(),
 	TreeRevision:   6,
-	TreeSize:       0,
-=======
-	TimestampNanos: proto.Int64(fakeTimeForTest.UnixNano()),
-	TreeRevision:   proto.Int64(6),
-	TreeSize:       proto.Int64(17),
->>>>>>> Add some tests for log server / sequencer.
+	TreeSize:       17,
 	LogId:          []uint8(nil),
 	Signature:      &trillian.DigitallySigned{},
 }

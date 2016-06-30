@@ -7,8 +7,7 @@ import (
 
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian"
-	"github.com/golang/protobuf/proto"
-	"github.com/google/trillian/util"
+  "github.com/google/trillian/util"
 )
 
 // Arbitrary time for use in tests
@@ -19,9 +18,9 @@ var fakeTimeSource = util.FakeTimeSource{fakeTime}
 var logID1 = trillian.LogID{TreeID: 1, LogID: []byte("testroot")}
 var testLeaf0Hash = trillian.Hash{0, 1, 2, 3, 4, 5}
 var testLeaf0 = trillian.LogLeaf{Leaf: trillian.Leaf{LeafHash: testLeaf0Hash, LeafValue: nil, ExtraData: nil}, SequenceNumber: 0}
-var testRoot0 = trillian.SignedLogRoot{TreeSize: proto.Int64(0), TreeRevision: proto.Int64(0), LogId: logID1.LogID}
+var testRoot0 = trillian.SignedLogRoot{TreeSize: 0, TreeRevision: 0, LogId: logID1.LogID}
 var updatedNodes0 = []storage.Node{storage.Node{NodeID:storage.NodeID{Path:[]uint8{0x0}, PrefixLenBits:0, PathLenBits:6}, Hash:trillian.Hash{0x0, 0x1, 0x2, 0x3, 0x4, 0x5}, NodeRevision:1}}
-var updatedRoot = trillian.SignedLogRoot{LogId: logID1.LogID, TimestampNanos:proto.Int64(fakeTime.UnixNano()), RootHash:[]uint8{0x0, 0x1, 0x2, 0x3, 0x4, 0x5}, TreeSize:proto.Int64(1), Signature:&trillian.DigitallySigned{}, TreeRevision:proto.Int64(1)}
+var updatedRoot = trillian.SignedLogRoot{LogId: logID1.LogID, TimestampNanos:fakeTime.UnixNano(), RootHash:[]uint8{0x0, 0x1, 0x2, 0x3, 0x4, 0x5}, TreeSize:1, Signature:&trillian.DigitallySigned{}, TreeRevision:1}
 
 func TestSequencerManagerNothingToDo(t *testing.T) {
 	mockStorage := new(storage.MockLogStorage)
