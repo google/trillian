@@ -42,7 +42,7 @@ type mapIDAndTest struct {
 // no locks afterwards.
 
 var signedTimestamp = trillian.SignedEntryTimestamp{
-	TimestampNanos: proto.Int64(1234567890), LogId: createLogID("sign").logID.LogID, Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
+	TimestampNanos: 1234567890, LogId: createLogID("sign").logID.LogID, Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
 
 // Parallel tests must get different log or map ids
 var idMutex sync.Mutex
@@ -561,7 +561,7 @@ func TestLatestSignedLogRoot(t *testing.T) {
 	defer tx.Rollback()
 
 	// TODO: Tidy up the log id as it looks silly chained 3 times like this
-	root := trillian.SignedLogRoot{LogId: logID.logID.LogID, TimestampNanos: proto.Int64(98765), TreeSize: proto.Int64(16), TreeRevision: proto.Int64(5), RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
+	root := trillian.SignedLogRoot{LogId: logID.logID.LogID, TimestampNanos: 98765, TreeSize: 16, TreeRevision: 5, RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
 
 	if err := tx.StoreSignedLogRoot(root); err != nil {
 		t.Fatalf("Failed to store signed root: %v", err)
@@ -614,8 +614,8 @@ func TestGetTreeRevisionAtSize(t *testing.T) {
 		tx := beginLogTx(s, t)
 
 		// TODO: Tidy up the log id as it looks silly chained 3 times like this
-		root := trillian.SignedLogRoot{LogId: logID.logID.LogID, TimestampNanos: proto.Int64(98765), TreeSize: proto.Int64(16), TreeRevision: proto.Int64(5), RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
-		root2 := trillian.SignedLogRoot{LogId: logID.logID.LogID, TimestampNanos: proto.Int64(198765), TreeSize: proto.Int64(27), TreeRevision: proto.Int64(11), RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
+		root := trillian.SignedLogRoot{LogId: logID.logID.LogID, TimestampNanos: 98765, TreeSize: 16, TreeRevision: 5, RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
+		root2 := trillian.SignedLogRoot{LogId: logID.logID.LogID, TimestampNanos: 198765, TreeSize: 27, TreeRevision: 11, RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
 
 		if err := tx.StoreSignedLogRoot(root); err != nil {
 			t.Fatalf("Failed to store signed root: %v", err)
@@ -670,8 +670,8 @@ func TestGetTreeRevisionMultipleSameSize(t *testing.T) {
 		// Normally tree heads at the same tree size must have the same revision because nothing was
 		// added between them by definition, this is an artificial situation just for testing.
 		// TODO: Tidy up the log id as it looks silly chained 3 times like this
-		root := trillian.SignedLogRoot{LogId: logID.logID.LogID, TimestampNanos: proto.Int64(98765), TreeSize: proto.Int64(16), TreeRevision: proto.Int64(11), RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
-		root2 := trillian.SignedLogRoot{LogId: logID.logID.LogID, TimestampNanos: proto.Int64(198765), TreeSize: proto.Int64(16), TreeRevision: proto.Int64(13), RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
+		root := trillian.SignedLogRoot{LogId: logID.logID.LogID, TimestampNanos: 98765, TreeSize: 16, TreeRevision: 11, RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
+		root2 := trillian.SignedLogRoot{LogId: logID.logID.LogID, TimestampNanos: 198765, TreeSize: 16, TreeRevision: 13, RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
 
 		if err := tx.StoreSignedLogRoot(root); err != nil {
 			t.Fatalf("Failed to store signed root: %v", err)
@@ -710,7 +710,7 @@ func TestDuplicateSignedLogRoot(t *testing.T) {
 	defer tx.Commit()
 
 	// TODO: Tidy up the log id as it looks silly chained 3 times like this
-	root := trillian.SignedLogRoot{LogId: logID.logID.LogID, TimestampNanos: proto.Int64(98765), TreeSize: proto.Int64(16), TreeRevision: proto.Int64(5), RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
+	root := trillian.SignedLogRoot{LogId: logID.logID.LogID, TimestampNanos: 98765, TreeSize: 16, TreeRevision: 5, RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
 
 	if err := tx.StoreSignedLogRoot(root); err != nil {
 		t.Fatalf("Failed to store signed root: %v", err)
@@ -732,14 +732,14 @@ func TestLogRootUpdate(t *testing.T) {
 	defer tx.Commit()
 
 	// TODO: Tidy up the log id as it looks silly chained 3 times like this
-	root := trillian.SignedLogRoot{LogId: logID.logID.LogID, TimestampNanos: proto.Int64(98765), TreeSize: proto.Int64(16), TreeRevision: proto.Int64(5), RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
+	root := trillian.SignedLogRoot{LogId: logID.logID.LogID, TimestampNanos: 98765, TreeSize: 16, TreeRevision: 5, RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
 
 	if err := tx.StoreSignedLogRoot(root); err != nil {
 		t.Fatalf("Failed to store signed root: %v", err)
 	}
 
 	// TODO: Tidy up the log id as it looks silly chained 3 times like this
-	root2 := trillian.SignedLogRoot{LogId: logID.logID.LogID, TimestampNanos: proto.Int64(98766), TreeSize: proto.Int64(16), TreeRevision: proto.Int64(6), RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
+	root2 := trillian.SignedLogRoot{LogId: logID.logID.LogID, TimestampNanos: 98766, TreeSize: 16, TreeRevision: 6, RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
 
 	if err := tx.StoreSignedLogRoot(root2); err != nil {
 		t.Fatalf("Failed to store signed root: %v", err)
@@ -791,7 +791,7 @@ func TestLatestSignedMapRoot(t *testing.T) {
 	defer tx.Rollback()
 
 	// TODO: Tidy up the map id as it looks silly chained 3 times like this
-	root := trillian.SignedMapRoot{MapId: mapID.mapID.MapID, TimestampNanos: proto.Int64(98765), MapRevision: proto.Int64(5), RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
+	root := trillian.SignedMapRoot{MapId: mapID.mapID.MapID, TimestampNanos: 98765, MapRevision: 5, RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
 
 	if err := tx.StoreSignedMapRoot(root); err != nil {
 		t.Fatalf("Failed to store signed root: %v", err)
@@ -825,7 +825,7 @@ func TestDuplicateSignedMapRoot(t *testing.T) {
 	defer tx.Commit()
 
 	// TODO: Tidy up the map id as it looks silly chained 3 times like this
-	root := trillian.SignedMapRoot{MapId: mapID.mapID.MapID, TimestampNanos: proto.Int64(98765), MapRevision: proto.Int64(5), RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
+	root := trillian.SignedMapRoot{MapId: mapID.mapID.MapID, TimestampNanos: 98765, MapRevision: 5, RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
 
 	if err := tx.StoreSignedMapRoot(root); err != nil {
 		t.Fatalf("Failed to store signed map root: %v", err)
@@ -847,14 +847,14 @@ func TestMapRootUpdate(t *testing.T) {
 	defer tx.Commit()
 
 	// TODO: Tidy up the map id as it looks silly chained 3 times like this
-	root := trillian.SignedMapRoot{MapId: mapID.mapID.MapID, TimestampNanos: proto.Int64(98765), MapRevision: proto.Int64(5), RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
+	root := trillian.SignedMapRoot{MapId: mapID.mapID.MapID, TimestampNanos: 98765, MapRevision: 5, RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
 
 	if err := tx.StoreSignedMapRoot(root); err != nil {
 		t.Fatalf("Failed to store signed map root: %v", err)
 	}
 
 	// TODO: Tidy up the map id as it looks silly chained 3 times like this
-	root2 := trillian.SignedMapRoot{MapId: mapID.mapID.MapID, TimestampNanos: proto.Int64(98766), MapRevision: proto.Int64(6), RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
+	root2 := trillian.SignedMapRoot{MapId: mapID.mapID.MapID, TimestampNanos: 98766, MapRevision: 6, RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
 
 	if err := tx.StoreSignedMapRoot(root2); err != nil {
 		t.Fatalf("Failed to store signed map root: %v", err)
@@ -937,7 +937,8 @@ func TestGetActiveLogIDsWithPendingWork(t *testing.T) {
 		t.Fatalf("Should have had one log with unsequenced work but got: %v", logIDs)
 	}
 
-	expected, got := logID.logID.TreeID, logIDs[0].TreeID; if expected != got {
+	expected, got := logID.logID.TreeID, logIDs[0].TreeID
+	if expected != got {
 		t.Fatalf("Expected to see tree ID: %d but got: %d", expected, got)
 	}
 }

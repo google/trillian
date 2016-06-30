@@ -39,7 +39,7 @@ func (s Signer) Sign(data []byte) (trillian.DigitallySigned, error) {
 	}
 
 	return trillian.DigitallySigned{
-		SignatureAlgorithm: s.sigAlgorithm.Enum(),
-		HashAlgorithm:      s.hasher.HashAlgorithm().Enum(),
+		SignatureAlgorithm: s.sigAlgorithm,
+		HashAlgorithm:      s.hasher.HashAlgorithm(),
 		Signature:          sig}, nil
 }

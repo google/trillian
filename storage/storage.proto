@@ -1,4 +1,4 @@
-syntax = "proto2";
+syntax = "proto3";
 
 package storage;
 
@@ -8,7 +8,6 @@ package storage;
 // NodeIDProto is the serialized form of NodeID. It's used only for persistence in storage.
 // As this is long-term we prefer not to use a Go specific format.
 message NodeIDProto {
-    optional bytes path = 1;
-    optional int32 prefix_len_bits = 2;
+  bytes path = 1;
+  int32 prefix_len_bits = 2;
 }
-

@@ -62,7 +62,7 @@ func (t *TrillianLogServer) QueueLeaves(ctx context.Context, req *trillian.Queue
 		return &trillian.QueueLeavesResponse{Status: buildStatusWithDesc(trillian.TrillianApiStatusCode_ERROR, "Must queue at least one leaf")}, nil
 	}
 
-	tx, err := t.prepareStorageTx(*req.LogId)
+	tx, err := t.prepareStorageTx(req.LogId)
 
 	if err != nil {
 		return nil, err
@@ -97,7 +97,7 @@ func (t *TrillianLogServer) GetConsistencyProof(ctx context.Context, req *trilli
 // GetLatestSignedLogRoot obtains the latest published tree root for the Merkle Tree that
 // underlies the log.
 func (t *TrillianLogServer) GetLatestSignedLogRoot(ctx context.Context, req *trillian.GetLatestSignedLogRootRequest) (*trillian.GetLatestSignedLogRootResponse, error) {
-	tx, err := t.prepareStorageTx(*req.LogId)
+	tx, err := t.prepareStorageTx(req.LogId)
 
 	if err != nil {
 		return nil, err
@@ -132,7 +132,7 @@ func (t *TrillianLogServer) GetLeavesByIndex(ctx context.Context, req *trillian.
 		return &trillian.GetLeavesByIndexResponse{Status: buildStatusWithDesc(trillian.TrillianApiStatusCode_ERROR, "Invalid -ve leaf index in request")}, nil
 	}
 
-	tx, err := t.prepareStorageTx(*req.LogId)
+	tx, err := t.prepareStorageTx(req.LogId)
 
 	if err != nil {
 		return nil, err
@@ -162,7 +162,7 @@ func (t *TrillianLogServer) GetLeavesByHash(ctx context.Context, req *trillian.G
 		return &trillian.GetLeavesByHashResponse{Status: buildStatusWithDesc(trillian.TrillianApiStatusCode_ERROR, "Must supply at least one hash and none must be empty")}, nil
 	}
 
-	tx, err := t.prepareStorageTx(*req.LogId)
+	tx, err := t.prepareStorageTx(req.LogId)
 
 	if err != nil {
 		return nil, err
@@ -201,13 +201,12 @@ func (t *TrillianLogServer) prepareStorageTx(treeID int64) (storage.LogTX, error
 }
 
 func buildStatus(code trillian.TrillianApiStatusCode) *trillian.TrillianApiStatus {
-	status := code
-	return &trillian.TrillianApiStatus{StatusCode: &status}
+	return &trillian.TrillianApiStatus{StatusCode: code}
 }
 
 func buildStatusWithDesc(code trillian.TrillianApiStatusCode, desc string) *trillian.TrillianApiStatus {
 	status := buildStatus(code)
-	status.Description = &desc
+	status.Description = desc
 
 	return status
 }

@@ -99,8 +99,8 @@ func (m *mapTX) LatestSignedMapRoot() (trillian.SignedMapRoot, error) {
 
 	return trillian.SignedMapRoot{
 		RootHash:       rootHash,
-		TimestampNanos: proto.Int64(timestamp),
-		MapRevision:    proto.Int64(mapRevision),
+		TimestampNanos: timestamp,
+		MapRevision:    mapRevision,
 		Signature:      &rootSignature,
 		MapId:          m.ms.mapID.MapID,
 	}, nil
