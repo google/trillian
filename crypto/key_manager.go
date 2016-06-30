@@ -10,14 +10,18 @@ import (
 	"fmt"
 )
 
-// KeyManager loads and holds our private keys. Should support ECDSA and RSA keys.
+// KeyManager loads and holds our private and public keys. Should support ECDSA and RSA keys.
+// The crypto.Signer API allows for obtaining a public key from a private key but there are
+// cases where we have the public key only, such as mirroring another log, so we treat them
+// separately.
 type KeyManager struct {
 	serverPrivateKey crypto.PrivateKey
+	serverPublicKey crypto.PublicKey
 }
 
 // NewKeyManager creates a key manager using a private key that has already been loaded
 func (k KeyManager) NewKeyManager(key crypto.PrivateKey) *KeyManager {
-	return &KeyManager{key}
+	return &KeyManager{key, nil}
 }
 
 // LoadPrivateKey loads a private key from a PEM encoded string, decrypting it if necessary
@@ -43,7 +47,26 @@ func (k *KeyManager) LoadPrivateKey(pemEncodedKey, password string) error {
 	return nil
 }
 
-// Signer returns a signer based on our private key.
+// LoadPublicKey loads a public key from a PEM encoded string.
+func (k *KeyManager) LoadPublicKey(pemEncodedKey string) error {
+	publicBlock, _ := pem.Decode([]byte(pemEncodedKey))
+
+	if publicBlock == nil {
+		return errors.New("Could not decode PEM for public key")
+	}
+
+	parsedKey, err := x509.ParsePKIXPublicKey(publicBlock.Bytes)
+
+	if err != nil {
+		return errors.New("Unable to parse public key")
+	}
+
+	k.serverPublicKey = parsedKey
+	return nil
+}
+
+// Signer returns a signer based on our private key. Returns nil if no private key
+// has been loaded.
 func (k KeyManager) Signer() (crypto.Signer, error) {
 	if k.serverPrivateKey == nil {
 		return nil, fmt.Errorf("Private key is not loaded")
@@ -57,6 +80,12 @@ func (k KeyManager) Signer() (crypto.Signer, error) {
 	}
 
 	return nil, fmt.Errorf("Unsupported key type")
+}
+
+// GetPublicKey returns the public key previously loaded or nil if LoadPublicKey has
+// not been previously called successfully.
+func (k KeyManager) GetPublicKey() crypto.PublicKey {
+	return k.serverPublicKey
 }
 
 func parsePrivateKey(key []byte) (crypto.PrivateKey, error) {

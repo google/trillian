@@ -33,10 +33,9 @@ const demoPublicKey string = `
 -----BEGIN PUBLIC KEY-----
 MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEsAVg3YB0tOFf3DdC2YHPL2WiuCNR
 1iywqGjjtu2dAdWktWqgRO4NTqPJXUggSQL3nvOupHB4WZFZ4j3QhtmWRg==
------END PUBLIC KEY-----
-`
+-----END PUBLIC KEY-----`
 
-func TestLoadDemoECDSAKey(t *testing.T) {
+func TestLoadDemoECDSAKeyAndSign(t *testing.T) {
 	km := new(KeyManager)
 
 	// Obviously in real code we wouldn't use a fixed seed
@@ -81,4 +80,23 @@ func TestLoadDemoECDSAKey(t *testing.T) {
 
 	assert.True(t, ecdsa.Verify(publicKey, []byte("hello"), signature.R, signature.S),
 		"Signature did not verify on round trip test")
+}
+
+func TestLoadDemoECDSAPublicKey(t *testing.T) {
+	km := new(KeyManager)
+
+	if err := km.LoadPublicKey(demoPublicKey); err != nil {
+		t.Fatalf("Failed to load public key")
+	}
+
+	if km.GetPublicKey() == nil {
+		t.Fatalf("Key manager did not return public key after loading it")
+	}
+
+	// Additional sanity check on type as we know it must be an ECDSA key
+	keyType := fmt.Sprintf("%T", km.GetPublicKey())
+
+	if keyType != "*ecdsa.PublicKey" {
+		t.Fatalf("Expected to have loaded an ECDSA key but got: %v",  keyType)
+	}
 }
