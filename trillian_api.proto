@@ -1,4 +1,4 @@
-syntax = "proto2";
+syntax = "proto3";
 
 option java_multiple_files = true;
 option java_package = "com.google.trillian.proto";
@@ -18,80 +18,80 @@ enum TrillianApiStatusCode {
 // TODO(Martin2112): Most of the operations are not fully defined yet. They will be implemented soon
 message TrillianApiStatus {
     // The status code indicates the overall result of the operation.
-    optional TrillianApiStatusCode status_code = 1;
+    TrillianApiStatusCode status_code = 1;
     // Applications should not make assumptions about the contents of description. They
     // should use status_code only when making error handling decisions.
-    optional string description = 2;
+    string description = 2;
 }
 
 message LeafProto {
-    optional bytes leaf_hash = 1;
-    optional bytes leaf_data = 2;
-    optional bytes extra_data = 3;
+    bytes leaf_hash = 1;
+    bytes leaf_data = 2;
+    bytes extra_data = 3;
 }
 
 message QueueLeavesRequest {
-    optional int64 log_id = 1;
+    int64 log_id = 1;
     repeated LeafProto leaves = 2;
 }
 
 // TODO(Martin2112): This will eventually contain the signed timestamps and stuff that we return for
 // the queued leaves
 message QueueLeavesResponse {
-    optional TrillianApiStatus status = 1;
+    TrillianApiStatus status = 1;
 }
 
 message GetInclusionProofRequest {
-    optional int64 log_id = 1;
+    int64 log_id = 1;
 }
 
 message GetInclusionProofResponse {
-    optional TrillianApiStatus status = 1;
+    TrillianApiStatus status = 1;
 }
 
 message GetConsistencyProofRequest {
-    optional int64 log_id = 1;
+    int64 log_id = 1;
 }
 
 message GetConsistencyProofResponse {
-    optional TrillianApiStatus status = 1;
+    TrillianApiStatus status = 1;
 }
 
 message GetLeavesByHashRequest {
-    optional int64 log_id = 1;
+    int64 log_id = 1;
     repeated bytes leaf_hash = 2;
 }
 
 message GetLeavesByHashResponse {
-    optional TrillianApiStatus status = 1;
+    TrillianApiStatus status = 1;
     repeated LeafProto leaves = 2;
 }
 
 message GetLeavesByIndexRequest {
-    optional int64 log_id = 1;
+    int64 log_id = 1;
     repeated int64 leaf_index = 2;
 }
 
 message GetLeavesByIndexResponse {
-    optional TrillianApiStatus status = 1;
+    TrillianApiStatus status = 1;
     repeated LeafProto leaves = 2;
 }
 
 message GetSequencedLeafCountRequest {
-    optional int64 log_id = 1;
+    int64 log_id = 1;
 }
 
 message GetSequencedLeafCountResponse {
-    optional TrillianApiStatus status = 1;
+    TrillianApiStatus status = 1;
 }
 
 message GetLatestSignedLogRootRequest {
-    optional int64 log_id = 1;
+    int64 log_id = 1;
 }
 
 message GetLatestSignedLogRootResponse {
-    optional TrillianApiStatus status = 1;
-    optional SignedLogRoot signed_log_root = 2;
+    TrillianApiStatus status = 1;
+    SignedLogRoot signed_log_root = 2;
 }
 
 // TrillianLog defines a service that can provide access to a Verifiable Log as defined in the
@@ -116,43 +116,43 @@ service TrillianLog {
 }
 
 message KeyValue {
-  optional bytes key = 1;
-  optional bytes value = 2;
+  bytes key = 1;
+  bytes value = 2;
 }
 
 message KeyValueInclusion {
-  optional KeyValue key_value = 1;
+  KeyValue key_value = 1;
   repeated bytes inclusion = 2;
 }
 
 message GetMapLeavesRequest {
-  optional int64 map_id = 1;
+  int64 map_id = 1;
   repeated bytes key = 2;
 }
 
 message GetMapLeavesResponse {
-  optional TrillianApiStatus status = 1;
+  TrillianApiStatus status = 1;
   repeated KeyValue key_value = 2;
-  optional SignedMapRoot map_root = 3;
+  SignedMapRoot map_root = 3;
 }
 
 message SetMapLeavesRequest {
-  optional int64 map_id = 1;
+  int64 map_id = 1;
   repeated KeyValue key_value = 2;
-  optional SignedLogRoot includes_entries_to = 3;
+  SignedLogRoot includes_entries_to = 3;
 }
 
 message SetMapLeavesResponse {
-  optional TrillianApiStatus status = 1;
+  TrillianApiStatus status = 1;
 }
 
 message GetSignedMapRootRequest {
-  optional int64 map_id = 1;
+  int64 map_id = 1;
 }
 
 message GetSignedMapRootResponse {
-  optional TrillianApiStatus status = 1;
-  optional SignedMapRoot map_root = 2;
+  TrillianApiStatus status = 1;
+  SignedMapRoot map_root = 2;
 }
 
 // TrillianMap defines a service which provides access to a Verifiable Map as
