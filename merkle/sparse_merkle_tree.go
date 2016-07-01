@@ -3,6 +3,7 @@ package merkle
 import (
 	"errors"
 	"fmt"
+
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
 )
