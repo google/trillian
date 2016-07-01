@@ -7,8 +7,6 @@ import (
 
 	"github.com/google/trillian"
 	"github.com/stretchr/testify/mock"
-	"fmt"
-	"github.com/golang/protobuf/proto"
 )
 
 // MockTreeStorage is a mock version of TreeStorage.
