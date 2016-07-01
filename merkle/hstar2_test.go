@@ -14,6 +14,7 @@ import (
 // github.com/google/certificate-transparency repo.
 const sparseEmptyRootHashB64 = "xmifEIEqCYCXbZUz2Dh1KCFmFZVn7DUVVxbBQTr1PWo="
 
+// TODO(al): collect these test helpers together somewhere.
 func mustDecode(b64 string) trillian.Hash {
 	r, err := base64.StdEncoding.DecodeString(b64)
 	if err != nil {

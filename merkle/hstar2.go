@@ -55,7 +55,7 @@ func (s *HStar2) hStarEmpty(n int) (trillian.Hash, error) {
 		s.hStarEmptyCache = append(s.hStarEmptyCache, h)
 	}
 	if n >= len(s.hStarEmptyCache) {
-		return nil, fmt.Errorf("cache wrong size - expected %d or more, but cache contains %d entries", n, len(s.hStarEmptyCache))
+		return nil, fmt.Errorf("cache too small - want level %d, but cache only contains %d entries", n, len(s.hStarEmptyCache))
 	}
 	return s.hStarEmptyCache[n], nil
 }
