@@ -28,7 +28,7 @@ func (k KeyManager) NewKeyManager(key crypto.PrivateKey) *KeyManager {
 func (k *KeyManager) LoadPrivateKey(pemEncodedKey, password string) error {
 	block, rest := pem.Decode([]byte(pemEncodedKey))
 	if len(rest) > 0 {
-		return fmt.Errorf("Extra data found after PEM decoding")
+		return fmt.Errorf("extra data found after PEM decoding")
 	}
 
 	der, err := x509.DecryptPEMBlock(block, []byte(password))
@@ -49,10 +49,14 @@ func (k *KeyManager) LoadPrivateKey(pemEncodedKey, password string) error {
 
 // LoadPublicKey loads a public key from a PEM encoded string.
 func (k *KeyManager) LoadPublicKey(pemEncodedKey string) error {
-	publicBlock, _ := pem.Decode([]byte(pemEncodedKey))
+	publicBlock, rest := pem.Decode([]byte(pemEncodedKey))
 
 	if publicBlock == nil {
-		return errors.New("Could not decode PEM for public key")
+		return errors.New("could not decode PEM for public key")
+	}
+
+	if len(rest) > 0 {
+		return errors.New("Extra data found after PEM key decoded")
 	}
 
 	parsedKey, err := x509.ParsePKIXPublicKey(publicBlock.Bytes)
@@ -69,7 +73,7 @@ func (k *KeyManager) LoadPublicKey(pemEncodedKey string) error {
 // has been loaded.
 func (k KeyManager) Signer() (crypto.Signer, error) {
 	if k.serverPrivateKey == nil {
-		return nil, fmt.Errorf("Private key is not loaded")
+		return nil, errors.New("private key is not loaded")
 	}
 
 	// Good old interface{}, this wouldn't be necessary in a proper type system. If it's
@@ -79,7 +83,7 @@ func (k KeyManager) Signer() (crypto.Signer, error) {
 		return k.serverPrivateKey.(crypto.Signer), nil
 	}
 
-	return nil, fmt.Errorf("Unsupported key type")
+	return nil, errors.New("unsupported key type")
 }
 
 // GetPublicKey returns the public key previously loaded or nil if LoadPublicKey has
@@ -99,12 +103,12 @@ func parsePrivateKey(key []byte) (crypto.PrivateKey, error) {
 		case *ecdsa.PrivateKey, *rsa.PrivateKey:
 			return key, nil
 		default:
-			return nil, errors.New("Unknown private key type")
+			return nil, fmt.Errorf("unknown private key type: %T", key)
 		}
 	}
 	if key, err := x509.ParseECPrivateKey(key); err == nil {
 		return key, nil
 	}
 
-	return nil, errors.New("Could not parse private key")
+	return nil, errors.New("could not parse private key")
 }

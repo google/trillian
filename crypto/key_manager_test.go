@@ -69,8 +69,12 @@ func TestLoadDemoECDSAKeyAndSign(t *testing.T) {
 		t.Fatalf("Failed to unmarshal signature as asn.1")
 	}
 
-	publicBlock, _ := pem.Decode([]byte(demoPublicKey))
+	publicBlock, rest := pem.Decode([]byte(demoPublicKey))
 	parsedKey, err := x509.ParsePKIXPublicKey(publicBlock.Bytes)
+
+	if len(rest) > 0 {
+		t.Fatal("Extra data after key in PEM string")
+	}
 
 	if err != nil {
 		panic(fmt.Errorf("Public test key failed to parse: %v", err))
@@ -86,17 +90,15 @@ func TestLoadDemoECDSAPublicKey(t *testing.T) {
 	km := new(KeyManager)
 
 	if err := km.LoadPublicKey(demoPublicKey); err != nil {
-		t.Fatalf("Failed to load public key")
+		t.Fatal("Failed to load public key")
 	}
 
 	if km.GetPublicKey() == nil {
-		t.Fatalf("Key manager did not return public key after loading it")
+		t.Fatal("Key manager did not return public key after loading it")
 	}
 
 	// Additional sanity check on type as we know it must be an ECDSA key
-	keyType := fmt.Sprintf("%T", km.GetPublicKey())
-
-	if keyType != "*ecdsa.PublicKey" {
-		t.Fatalf("Expected to have loaded an ECDSA key but got: %v",  keyType)
+	if _, ok := km.GetPublicKey().(*ecdsa.PublicKey); !ok {
+		t.Fatalf("Expected to have loaded an ECDSA key but got: %v",  km.GetPublicKey())
 	}
 }
