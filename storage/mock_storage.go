@@ -161,7 +161,6 @@ func (t *MockLogTX) LatestSignedLogRoot() (trillian.SignedLogRoot, error) {
 
 // StoreSignedLogRoot is a mock
 func (t *MockLogTX) StoreSignedLogRoot(root trillian.SignedLogRoot) error {
-	fmt.Printf("**** %s\n", proto.CompactTextString(&root))
 	args := t.Called(root)
 
 	return args.Error(0)

@@ -53,29 +53,31 @@ func (s SequencerManager) sequenceActiveLogs(logIDs []trillian.LogID) bool {
 		default:
 		}
 
+		// Now wait for the configured time before going on to the next one
+		time.Sleep(s.sleepBetweenLogs)
+
 		// TODO(Martin2112): Probably want to make the sequencer objects longer lived to
 		// avoid the cost of initializing their state each time but this works for now
 		storage, err := s.storageProvider(logID.TreeID)
 
 		// TODO(Martin2112): Honour the sequencing enabled in log parameters, needs an API change
 		// so deferring it
-		if err == nil {
-			sequencer := log.NewSequencer(trillian.NewSHA256(), s.timeSource, storage)
-
-			leaves, err := sequencer.SequenceBatch(s.batchSize)
-
-			if err != nil {
-				glog.Warningf("Error trying to sequence batch for %v: %v", logID, err)
-			} else {
-				successCount++
-				leavesAdded += leaves
-			}
-		} else {
+		if err != nil {
 			glog.Warningf("Storage provider failed for id %v because: %v", logID, err)
+			continue
 		}
 
-		// Now wait for the configured time before going on to the next one
-		time.Sleep(s.sleepBetweenLogs)
+		sequencer := log.NewSequencer(trillian.NewSHA256(), s.timeSource, storage)
+
+		leaves, err := sequencer.SequenceBatch(s.batchSize)
+
+		if err != nil {
+			glog.Warningf("Error trying to sequence batch for %v: %v", logID, err)
+			continue
+		}
+
+		successCount++
+		leavesAdded += leaves
 	}
 
 	glog.Infof("Sequencing run completed %d succeeded %d failed %d leaves integrated", successCount, len(logIDs)-successCount, leavesAdded)
@@ -90,50 +92,55 @@ func (s SequencerManager) SequencerLoop() {
 
 	// Outer sequencing loop, runs until terminated
 	for {
+		// We might want to bail out early when testing
+		if s.runLimit >= 0 {
+			s.runLimit--
+			if s.runLimit < 0 {
+				return
+			}
+		}
+
+		// Wait for the configured time before going for another set of sequencing runs
+		time.Sleep(s.sleepBetweenRuns)
+
 		// TODO(Martin2112) using log ID zero because we don't have an id for metadata ops
 		// this API could improved
 		provider, err := s.storageProvider(0)
 
 		// If we get an error, we can't do anything but wait until the next run through
-		if err == nil {
-			tx, err := provider.Begin()
-
-			if err == nil {
-				// Inner sequencing loop is across all active logs, currently one at a time
-				logIDs, err := tx.GetActiveLogIDs()
-
-				if commitErr := tx.Commit(); commitErr != nil {
-					glog.Warningf("Failed to commit getting logs to sequence, continuing anyway: %v", commitErr)
-				}
-
-				if err == nil {
-					// Sequence each active log once, exit if we've seen a quit signal
-					quit := s.sequenceActiveLogs(logIDs)
-					if quit {
-						glog.Infof("Log sequencer shutting down")
-						return
-					}
-				} else {
-					glog.Warningf("Failed to get log list for sequencing run: %v", err)
-				}
-			} else {
-				glog.Warningf("Failed to get tx for sequencing run: %v", err)
-			}
-		} else {
+		if err != nil {
 			glog.Warningf("Failed to get storage provider for sequencing run: %v", err)
+			continue
+		}
+
+		tx, err := provider.Begin()
+
+		if err != nil {
+			glog.Warningf("Failed to get tx for sequencing run: %v", err)
+			continue
+		}
+
+		// Inner sequencing loop is across all active logs, currently one at a time
+		logIDs, err := tx.GetActiveLogIDs()
+
+		if err != nil {
+			glog.Warningf("Failed to get log list for sequencing run: %v", err)
+			tx.Rollback()
+			continue
+		}
+
+		if err := tx.Commit(); err != nil {
+			glog.Warningf("Failed to commit getting logs to sequence, continuing anyway: %v", err)
+			continue
+		}
+
+		// Sequence each active log once, exit if we've seen a quit signal
+		quit := s.sequenceActiveLogs(logIDs)
+		if quit {
+			glog.Infof("Log sequencer shutting down")
+			return
 		}
 
 		glog.Infof("Log sequencing pass complete")
-
-		// We might want to bail out early when testing
-		if s.runLimit > 0 {
-			s.runLimit--
-			if s.runLimit == 0 {
-				return
-			}
-		}
-
-		// Now wait for the configured time before going for another set of sequencing runs
-		time.Sleep(s.sleepBetweenRuns)
 	}
 }

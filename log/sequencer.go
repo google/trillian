@@ -116,22 +116,24 @@ func (s Sequencer) SequenceBatch(limit int) (int, error) {
 		return 0, err
 	}
 
-	var mt *merkle.CompactMerkleTree
+	var merkleTree *merkle.CompactMerkleTree
 
 	if currentRoot.TreeSize == 0 {
 		// This should be an empty tree
 		if currentRoot.TreeRevision > 0 {
-			panic(fmt.Errorf("MT has zero size but non zero revision: %v", *mt))
+			// TODO(Martin2112): Remove panic and return error when we implement proper multi
+			// tenant scheduling.
+			panic(fmt.Errorf("MT has zero size but non zero revision: %v", *merkleTree))
 		}
-		mt, err = merkle.NewCompactMerkleTree(s.hasher), nil
+		merkleTree = merkle.NewCompactMerkleTree(s.hasher)
 	} else {
 		// Initialize the compact tree state to match the latest root in the database
-		mt, err = s.buildMerkleTreeFromStorageAtRoot(currentRoot, tx)
-	}
+		merkleTree, err = s.buildMerkleTreeFromStorageAtRoot(currentRoot, tx)
 
-	if err != nil {
-		tx.Rollback()
-		return 0, err
+		if err != nil {
+			tx.Rollback()
+			return 0, err
+		}
 	}
 
 	// We've done all the reads, can now do the updates.
@@ -141,7 +143,7 @@ func (s Sequencer) SequenceBatch(limit int) (int, error) {
 	newVersion := currentRoot.TreeRevision + int64(1)
 
 	// Assign leaf sequence numbers and collate node updates
-	nodeMap, sequenceNumbers := s.sequenceLeaves(mt, leaves)
+	nodeMap, sequenceNumbers := s.sequenceLeaves(merkleTree, leaves)
 
 	if len(sequenceNumbers) != len(leaves) {
 		panic(fmt.Sprintf("Sequencer returned %d sequence numbers for %d leaves", len(sequenceNumbers),
@@ -185,9 +187,9 @@ func (s Sequencer) SequenceBatch(limit int) (int, error) {
 	// Write an updated root back to the tree. currently signing is done separately to
 	// sequencing, though that's not finalized yet.
 	newLogRoot := trillian.SignedLogRoot{
-		RootHash:       mt.CurrentRoot(),
+		RootHash:       merkleTree.CurrentRoot(),
 		TimestampNanos: s.timeSource.Now().UnixNano(),
-		TreeSize:       mt.Size(),
+		TreeSize:       merkleTree.Size(),
 		Signature:      &trillian.DigitallySigned{},
 		LogId:          currentRoot.LogId,
 		TreeRevision:   newVersion,

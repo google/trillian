@@ -99,7 +99,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Start the sequencing loop which, will run until we terminate the process
+	// Start the sequencing loop, which will run until we terminate the process
 	// TODO(Martin2112): Should respect read only mode and the flags in tree control etc
 	sequencerManager := server.NewSequencerManager(done, simpleMySqlStorageProvider, *batchSizeFlag, *sleepBetweenLogsFlag, *sleepBetweenRunsFlag)
 	go sequencerManager.SequencerLoop()
