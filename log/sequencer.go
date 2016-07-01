@@ -53,6 +53,7 @@ func (s Sequencer) buildNodesFromNodeMap(nodeMap map[string]storage.Node, newVer
 	targetNodes := make([]storage.Node, len(nodeMap), len(nodeMap))
 	i := 0
 	for _, node := range nodeMap {
+		node.NodeRevision = newVersion
 		targetNodes[i] = node
 		i++
 	}
@@ -84,12 +85,12 @@ func (s Sequencer) sequenceLeaves(mt *merkle.CompactMerkleTree, leaves []trillia
 // Can possibly improve by deferring a function that attempts to rollback, which will
 // fail if the tx was committed. Should only do this if we can hide the details of
 // the underlying storage transactions.
-func (s Sequencer) SequenceBatch(limit int) error {
+func (s Sequencer) SequenceBatch(limit int) (int, error) {
 	tx, err := s.logStorage.Begin()
 
 	if err != nil {
 		glog.Warningf("Sequencer failed to start tx: %s", err)
-		return err
+		return 0, err
 	}
 
 	leaves, err := tx.DequeueLeaves(limit)
@@ -97,13 +98,13 @@ func (s Sequencer) SequenceBatch(limit int) error {
 	if err != nil {
 		glog.Warningf("Sequencer failed to dequeue leaves: %s", err)
 		tx.Rollback()
-		return err
+		return 0, err
 	}
 
 	// There might be no work to be done
 	if len(leaves) == 0 {
-		tx.Rollback()
-		return nil
+		tx.Commit()
+		return 0, nil
 	}
 
 	// Get the latest known root from storage
@@ -112,25 +113,37 @@ func (s Sequencer) SequenceBatch(limit int) error {
 	if err != nil {
 		glog.Warningf("Sequencer failed to get latest root: %s", err)
 		tx.Rollback()
-		return err
+		return 0, err
 	}
 
-	// Initialize the compact tree state to match the latest root in the database
-	mt, err := s.buildMerkleTreeFromStorageAtRoot(currentRoot, tx)
+	var merkleTree *merkle.CompactMerkleTree
 
-	if err != nil {
-		tx.Rollback()
-		return err
+	if currentRoot.TreeSize == 0 {
+		// This should be an empty tree
+		if currentRoot.TreeRevision > 0 {
+			// TODO(Martin2112): Remove panic and return error when we implement proper multi
+			// tenant scheduling.
+			panic(fmt.Errorf("MT has zero size but non zero revision: %v", *merkleTree))
+		}
+		merkleTree = merkle.NewCompactMerkleTree(s.hasher)
+	} else {
+		// Initialize the compact tree state to match the latest root in the database
+		merkleTree, err = s.buildMerkleTreeFromStorageAtRoot(currentRoot, tx)
+
+		if err != nil {
+			tx.Rollback()
+			return 0, err
+		}
 	}
 
 	// We've done all the reads, can now do the updates.
 	// TODO: This relies on us being the only process updating the map, which isn't enforced yet
 	// though the schema should now prevent multiple STHs being inserted with the same revision
 	// number so it should not be possible for colliding updates to commit.
-	newVersion := currentRoot.TreeRevision + 1
+	newVersion := currentRoot.TreeRevision + int64(1)
 
 	// Assign leaf sequence numbers and collate node updates
-	nodeMap, sequenceNumbers := s.sequenceLeaves(mt, leaves)
+	nodeMap, sequenceNumbers := s.sequenceLeaves(merkleTree, leaves)
 
 	if len(sequenceNumbers) != len(leaves) {
 		panic(fmt.Sprintf("Sequencer returned %d sequence numbers for %d leaves", len(sequenceNumbers),
@@ -147,7 +160,7 @@ func (s Sequencer) SequenceBatch(limit int) error {
 	if err != nil {
 		glog.Warningf("Sequencer failed to update sequenced leaves: %s", err)
 		tx.Rollback()
-		return err
+		return 0, err
 	}
 
 	// Build objects for the nodes to be updated. Because we deduped via the map each
@@ -159,7 +172,7 @@ func (s Sequencer) SequenceBatch(limit int) error {
 		// probably an internal error with map building, unexpected
 		glog.Warningf("Failed to build target nodes in sequencer: %s", err)
 		tx.Rollback()
-		return err
+		return 0, err
 	}
 
 	// Now insert or update the nodes affected by the above, at the new tree version
@@ -168,18 +181,18 @@ func (s Sequencer) SequenceBatch(limit int) error {
 	if err != nil {
 		glog.Warningf("Sequencer failed to set merkle nodes: %s", err)
 		tx.Rollback()
-		return err
+		return 0, err
 	}
 
 	// Write an updated root back to the tree. currently signing is done separately to
 	// sequencing, though that's not finalized yet.
 	newLogRoot := trillian.SignedLogRoot{
-		RootHash:       mt.CurrentRoot(),
+		RootHash:       merkleTree.CurrentRoot(),
 		TimestampNanos: s.timeSource.Now().UnixNano(),
-		TreeSize:       0,
+		TreeSize:       merkleTree.Size(),
 		Signature:      &trillian.DigitallySigned{},
 		LogId:          currentRoot.LogId,
-		TreeRevision:   currentRoot.TreeRevision + 1,
+		TreeRevision:   newVersion,
 	}
 
 	err = tx.StoreSignedLogRoot(newLogRoot)
@@ -187,9 +200,13 @@ func (s Sequencer) SequenceBatch(limit int) error {
 	if err != nil {
 		glog.Warningf("Failed to updated tree root: %s", err)
 		tx.Rollback()
-		return err
+		return 0, err
 	}
 
 	// The batch is now fully sequenced and we're done
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+
+	return len(leaves), nil
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/assert"
 )
 
 // These can be shared between tests as they're never modified
@@ -22,11 +23,11 @@ var testRoot16 = trillian.SignedLogRoot{TreeSize: 16, TreeRevision: 5}
 // These will be accepted in either order because of custom sorting in the mock
 var updatedNodes []storage.Node = []storage.Node{
 	storage.Node{NodeID: storage.NodeID{Path: []uint8{0x10}, PrefixLenBits: 0, PathLenBits: 6},
-		Hash: trillian.Hash{0x0, 0x1, 0x2, 0x3, 0x4, 0x5}, NodeRevision: -1},
+		Hash: trillian.Hash{0x0, 0x1, 0x2, 0x3, 0x4, 0x5}, NodeRevision: 6},
 	storage.Node{
 		NodeID:       storage.NodeID{Path: []uint8{0x0}, PrefixLenBits: 5, PathLenBits: 6},
 		Hash:         trillian.Hash{0xbb, 0x49, 0x71, 0xbc, 0x2a, 0x37, 0x93, 0x67, 0xfb, 0x75, 0xa9, 0xf4, 0x5b, 0x67, 0xf, 0xb0, 0x97, 0xb2, 0x1e, 0x81, 0x1d, 0x58, 0xd1, 0x3a, 0xbb, 0x71, 0x7e, 0x28, 0x51, 0x17, 0xc3, 0x7c},
-		NodeRevision: -1},
+		NodeRevision: 6},
 }
 
 var fakeTimeForTest = fakeTime()
@@ -34,7 +35,7 @@ var expectedSignedRoot = trillian.SignedLogRoot{
 	RootHash:       trillian.Hash{0xbb, 0x49, 0x71, 0xbc, 0x2a, 0x37, 0x93, 0x67, 0xfb, 0x75, 0xa9, 0xf4, 0x5b, 0x67, 0xf, 0xb0, 0x97, 0xb2, 0x1e, 0x81, 0x1d, 0x58, 0xd1, 0x3a, 0xbb, 0x71, 0x7e, 0x28, 0x51, 0x17, 0xc3, 0x7c},
 	TimestampNanos: fakeTimeForTest.UnixNano(),
 	TreeRevision:   6,
-	TreeSize:       0,
+	TreeSize:       17,
 	LogId:          []uint8(nil),
 	Signature:      &trillian.DigitallySigned{},
 }
@@ -166,17 +167,19 @@ func TestBeginTXFails(t *testing.T) {
 	params := testParameters{beginFails: true}
 	c := createTestContext(params)
 
-	err := c.sequencer.SequenceBatch(1)
+	leaves, err := c.sequencer.SequenceBatch(1)
+	assert.Zero(t, leaves, "Unexpectedly sequenced leaves on error")
 	ensureErrorContains(t, err, "TX")
 
 	c.mockStorage.AssertExpectations(t)
 }
 
 func TestSequenceWithNothingQueued(t *testing.T) {
-	params := testParameters{dequeueLimit: 1, shouldRollback: true, dequeuedLeaves: []trillian.LogLeaf{}}
+	params := testParameters{dequeueLimit: 1, shouldCommit: true, dequeuedLeaves: []trillian.LogLeaf{}}
 	c := createTestContext(params)
 
-	err := c.sequencer.SequenceBatch(1)
+	leaves, err := c.sequencer.SequenceBatch(1)
+	assert.Zero(t, leaves, "Unexpectedly sequenced leaves on error")
 
 	if err != nil {
 		t.Errorf("Expected nil return with no work pending in queue")
@@ -189,8 +192,9 @@ func TestDequeueError(t *testing.T) {
 	params := testParameters{dequeueLimit: 1, shouldRollback: true, dequeuedError: errors.New("dequeue")}
 	c := createTestContext(params)
 
-	err := c.sequencer.SequenceBatch(1)
+	leaves, err := c.sequencer.SequenceBatch(1)
 	ensureErrorContains(t, err, "dequeue")
+	assert.Zero(t, leaves, "Unexpectedly sequenced leaves on error")
 
 	c.mockStorage.AssertExpectations(t)
 }
@@ -201,7 +205,8 @@ func TestLatestRootError(t *testing.T) {
 		latestSignedRoot: &testRoot16, latestSignedRootError: errors.New("root")}
 	c := createTestContext(params)
 
-	err := c.sequencer.SequenceBatch(1)
+	leafCount, err := c.sequencer.SequenceBatch(1)
+	assert.Zero(t, leafCount, "Unexpectedly sequenced leaves on error")
 	ensureErrorContains(t, err, "root")
 
 	c.mockStorage.AssertExpectations(t)
@@ -215,7 +220,8 @@ func TestUpdateSequencedLeavesError(t *testing.T) {
 		updatedLeavesError: errors.New("unsequenced")}
 	c := createTestContext(params)
 
-	err := c.sequencer.SequenceBatch(1)
+	leafCount, err := c.sequencer.SequenceBatch(1)
+	assert.Zero(t, leafCount, "Unexpectedly sequenced leaves on error")
 	ensureErrorContains(t, err, "unsequenced")
 
 	c.mockStorage.AssertExpectations(t)
@@ -229,7 +235,8 @@ func TestSetMerkleNodesError(t *testing.T) {
 		merkleNodesSetTreeRevision: 6, merkleNodesSetError: errors.New("setmerklenodes")}
 	c := createTestContext(params)
 
-	err := c.sequencer.SequenceBatch(1)
+	leafCount, err := c.sequencer.SequenceBatch(1)
+	assert.Zero(t, leafCount, "Unexpectedly sequenced leaves on error")
 	ensureErrorContains(t, err, "setmerklenodes")
 
 	c.mockStorage.AssertExpectations(t)
@@ -244,7 +251,8 @@ func TestStoreSignedRootError(t *testing.T) {
 		storeSignedRootError: errors.New("storesignedroot")}
 	c := createTestContext(params)
 
-	err := c.sequencer.SequenceBatch(1)
+	leafCount, err := c.sequencer.SequenceBatch(1)
+	assert.Zero(t, leafCount, "Unexpectedly sequenced leaves on error")
 	ensureErrorContains(t, err, "storesignedroot")
 
 	c.mockStorage.AssertExpectations(t)
@@ -260,7 +268,8 @@ func TestCommitFails(t *testing.T) {
 		merkleNodesSetTreeRevision: 6, storeSignedRoot: nil}
 	c := createTestContext(params)
 
-	err := c.sequencer.SequenceBatch(1)
+	leafCount, err := c.sequencer.SequenceBatch(1)
+	assert.Zero(t, leafCount, "Unexpectedly sequenced leaves on error")
 	ensureErrorContains(t, err, "commit")
 
 	c.mockStorage.AssertExpectations(t)
