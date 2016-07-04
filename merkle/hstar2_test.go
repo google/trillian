@@ -28,14 +28,14 @@ func mustDecode(b64 string) trillian.Hash {
 // passing into a the HStar2 sparse merkle tree implementation.
 // The map keys will be SHA256 hashed before being added to the returned
 // structs.
-func createHStar2Leaves(th TreeHasher, vs map[string]string) []HStar2LeafHash {
+func createHStar2Leaves(th TreeHasher, values map[string]string) []HStar2LeafHash {
 	r := []HStar2LeafHash{}
-	for k := range vs {
-		kh := sha256.Sum256([]byte(k))
-		vh := th.HashLeaf([]byte(vs[k]))
+	for k := range values {
+		khash := sha256.Sum256([]byte(k))
+		vhash := th.HashLeaf([]byte(values[k]))
 		r = append(r, HStar2LeafHash{
-			Index:    new(big.Int).SetBytes(kh[:]),
-			LeafHash: vh[:],
+			Index:    new(big.Int).SetBytes(khash[:]),
+			LeafHash: vhash[:],
 		})
 	}
 	return r

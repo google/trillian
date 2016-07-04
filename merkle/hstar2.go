@@ -39,7 +39,7 @@ func (s *HStar2) HStar2Root(n int, values []HStar2LeafHash) (trillian.Hash, erro
 	offset := big.NewInt(0)
 	return s.hStar2b(n, values, offset,
 		func(depth int, index *big.Int) (trillian.Hash, error) { return s.hStarEmpty(depth) },
-		nil)
+		func(int, *big.Int, trillian.Hash) error { return nil })
 }
 
 // SparseGetNodeFunc should return any pre-existing node hash for the node address.
@@ -48,24 +48,23 @@ type SparseGetNodeFunc func(depth int, index *big.Int) (trillian.Hash, error)
 // SparseSetNodeFunc should store the passed node hash, associating it with the address.
 type SparseSetNodeFunc func(depth int, index *big.Int, hash trillian.Hash) error
 
-// HStar2Nodes calculates the root hash of a pre-existing sparse merkle tree plus the extra values passed in.
-// It uses the get and set functions to fetch and store updated internal node values.
-// The set parameter may be nil if no storage of updated nodes is required.
+// HStar2Nodes calculates the root hash of a pre-existing sparse merkle tree
+// plus the extra values passed in.
+// It uses the get and set functions to fetch and store updated internal node
+// values.
 func (s *HStar2) HStar2Nodes(n int, values []HStar2LeafHash, get SparseGetNodeFunc, set SparseSetNodeFunc) (trillian.Hash, error) {
 	by(indexLess).Sort(values)
 	offset := big.NewInt(0)
 	return s.hStar2b(n, values, offset,
 		func(depth int, index *big.Int) (trillian.Hash, error) {
-			if get != nil {
-				// if we've got a function for getting existing node values, try it:
-				h, err := get(n-depth, index)
-				if err != nil {
-					return nil, err
-				}
-				// if we got a value then we'll use that
-				if h != nil {
-					return h, nil
-				}
+			// if we've got a function for getting existing node values, try it:
+			h, err := get(n-depth, index)
+			if err != nil {
+				return nil, err
+			}
+			// if we got a value then we'll use that
+			if h != nil {
+				return h, nil
 			}
 			// otherwise just return the null hash for this level
 			return s.hStarEmpty(depth)
