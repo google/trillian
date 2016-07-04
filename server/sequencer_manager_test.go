@@ -34,7 +34,7 @@ func TestSequencerManagerNothingToDo(t *testing.T) {
 	// Arrange for the sequencer to make one pass
 	sm := newSequencerManagerForTest(done, mockStorageProviderForSequencer(mockStorage), 50, time.Millisecond, time.Millisecond, 1, fakeTimeSource)
 
-	sm.SequencerLoop()
+	sm.OperationLoop()
 
 	mockStorage.AssertExpectations(t)
 }
@@ -53,7 +53,7 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 	// Arrange for the sequencer to make one pass
 	sm := newSequencerManagerForTest(done, mockStorageProviderForSequencer(mockStorage), 50, time.Millisecond, time.Millisecond, 1, fakeTimeSource)
 
-	sm.SequencerLoop()
+	sm.OperationLoop()
 
 	mockStorage.AssertExpectations(t)
 }
@@ -78,7 +78,7 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 	// Arrange for the sequencer to make one pass
 	sm := newSequencerManagerForTest(done, mockStorageProviderForSequencer(mockStorage), 50, time.Millisecond, time.Millisecond, 1, fakeTimeSource)
 
-	sm.SequencerLoop()
+	sm.OperationLoop()
 
 	mockStorage.AssertExpectations(t)
 }
