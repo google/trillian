@@ -8,12 +8,12 @@ import (
 	"github.com/google/trillian"
 )
 
-// HStar2Value represents a leaf for the HStar2 sparse merkle tree
+// HStar2LeafHash represents a leaf for the HStar2 sparse merkle tree
 // implementation.
-type HStar2Value struct {
+type HStar2LeafHash struct {
 	// TODO(al): remove big.Int
-	Index *big.Int
-	Value trillian.Hash
+	Index    *big.Int
+	LeafHash trillian.Hash
 }
 
 // HStar2 is a recursive implementation for calulating the root hash of a sparse
@@ -32,12 +32,44 @@ func NewHStar2(treeHasher TreeHasher) HStar2 {
 	}
 }
 
-// HStar2 calculates the root of a sparse merkle tree of depth n which contains
+// HStar2Root calculates the root of a sparse merkle tree of depth n which contains
 // the given set of non-null leaves.
-func (s *HStar2) HStar2(n int, values []HStar2Value) (trillian.Hash, error) {
+func (s *HStar2) HStar2Root(n int, values []HStar2LeafHash) (trillian.Hash, error) {
 	by(indexLess).Sort(values)
 	offset := big.NewInt(0)
-	return s.hStar2b(n, values, offset)
+	return s.hStar2b(n, values, offset,
+		func(depth int, index *big.Int) (trillian.Hash, error) { return s.hStarEmpty(depth) },
+		func(int, *big.Int, trillian.Hash) error { return nil })
+}
+
+// SparseGetNodeFunc should return any pre-existing node hash for the node address.
+type SparseGetNodeFunc func(depth int, index *big.Int) (trillian.Hash, error)
+
+// SparseSetNodeFunc should store the passed node hash, associating it with the address.
+type SparseSetNodeFunc func(depth int, index *big.Int, hash trillian.Hash) error
+
+// HStar2Nodes calculates the root hash of a pre-existing sparse merkle tree
+// plus the extra values passed in.
+// It uses the get and set functions to fetch and store updated internal node
+// values.
+func (s *HStar2) HStar2Nodes(n int, values []HStar2LeafHash, get SparseGetNodeFunc, set SparseSetNodeFunc) (trillian.Hash, error) {
+	by(indexLess).Sort(values)
+	offset := big.NewInt(0)
+	return s.hStar2b(n, values, offset,
+		func(depth int, index *big.Int) (trillian.Hash, error) {
+			// if we've got a function for getting existing node values, try it:
+			h, err := get(n-depth, index)
+			if err != nil {
+				return nil, err
+			}
+			// if we got a value then we'll use that
+			if h != nil {
+				return h, nil
+			}
+			// otherwise just return the null hash for this level
+			return s.hStarEmpty(depth)
+		},
+		func(depth int, index *big.Int, hash trillian.Hash) error { return set(n-depth, index, hash) })
 }
 
 // hStarEmpty calculates (and caches) the "null-hash" for the requested tree
@@ -62,39 +94,45 @@ func (s *HStar2) hStarEmpty(n int) (trillian.Hash, error) {
 
 // hStar2b is the recursive implementation for calculating a sparse merkle tree
 // root value.
-func (s *HStar2) hStar2b(n int, values []HStar2Value, offset *big.Int) (trillian.Hash, error) {
+func (s *HStar2) hStar2b(n int, values []HStar2LeafHash, offset *big.Int, get SparseGetNodeFunc, set SparseSetNodeFunc) (trillian.Hash, error) {
+
 	if n == 0 {
 		switch {
 		case len(values) == 0:
-			return s.hStarEmptyCache[0], nil
+			return get(n, big.NewInt(0))
 		case len(values) != 1:
 			return nil, fmt.Errorf("expected 1 value remaining, but found %d", len(values))
 		}
-		return s.hasher.HashLeaf(values[0].Value), nil
-	}
-	if len(values) == 0 {
-		return s.hStarEmpty(n)
+		return values[0].LeafHash, nil
 	}
 
 	split := new(big.Int).Lsh(big.NewInt(1), uint(n-1))
 	split.Add(split, offset)
+	if len(values) == 0 {
+		return get(n, split)
+	}
+
 	i := sort.Search(len(values), func(i int) bool { return values[i].Index.Cmp(split) >= 0 })
-	lhs, err := s.hStar2b(n-1, values[:i], offset)
+	lhs, err := s.hStar2b(n-1, values[:i], offset, get, set)
 	if err != nil {
 		return nil, err
 	}
-	rhs, err := s.hStar2b(n-1, values[i:], split)
+	rhs, err := s.hStar2b(n-1, values[i:], split, get, set)
 	if err != nil {
 		return nil, err
 	}
-	return s.hasher.HashChildren(lhs, rhs), nil
+	h := s.hasher.HashChildren(lhs, rhs)
+	if set != nil {
+		set(n, split, h)
+	}
+	return h, nil
 }
 
-// HStar2Value sorting boilerplate below.
+// HStar2LeafHash sorting boilerplate below.
 
-type by func(a, b *HStar2Value) bool
+type by func(a, b *HStar2LeafHash) bool
 
-func (by by) Sort(values []HStar2Value) {
+func (by by) Sort(values []HStar2LeafHash) {
 	s := &valueSorter{
 		values: values,
 		by:     by,
@@ -103,8 +141,8 @@ func (by by) Sort(values []HStar2Value) {
 }
 
 type valueSorter struct {
-	values []HStar2Value
-	by     func(a, b *HStar2Value) bool
+	values []HStar2LeafHash
+	by     func(a, b *HStar2LeafHash) bool
 }
 
 func (s *valueSorter) Len() int {
@@ -119,6 +157,6 @@ func (s *valueSorter) Less(i, j int) bool {
 	return s.by(&s.values[i], &s.values[j])
 }
 
-func indexLess(a, b *HStar2Value) bool {
+func indexLess(a, b *HStar2LeafHash) bool {
 	return a.Index.Cmp(b.Index) < 0
 }
