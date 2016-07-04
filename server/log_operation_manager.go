@@ -8,22 +8,22 @@ import (
 	"github.com/google/trillian/util"
 )
 
-// logOperationManager controls sequencing activities for logs. At the moment it's very simple
+// logOperationManager controls scheduling activities for logs. At the moment it's very simple
 // with a single task running over active logs one at a time. This will be expanded later.
 // This is meant for embedding into the actual operation implementations and should not
 // be created separately.
 type logOperationManager struct {
 	// done is a channel that provides an exit signal
 	done chan struct{}
-	// storageProvider is the log storage provider used to build sequencers
+	// storageProvider is the log storage provider used to get active logs
 	storageProvider LogStorageProviderFunc
-	// batchSize is the batch size to be passed to sequencers run by this manager
+	// batchSize is the batch size to be passed to tasks run by this manager
 	batchSize int
 	// sleepBetweenLogs is the time to pause after each batch
 	sleepBetweenLogs time.Duration
 	// sleepBetweenRuns is the time to pause after all active logs have processed a batch
 	sleepBetweenRuns time.Duration
-	// runLimit is a limit on the number of sequencing passes. It can only be set for tests
+	// runLimit is a limit on the number of passes. It can only be set for tests
 	runLimit int
 	// timeSource allows us to mock this in tests
 	timeSource util.TimeSource
@@ -33,12 +33,12 @@ func (l logOperationManager) runOperationPass([]trillian.LogID) bool {
 	return false
 }
 
-// SequencerLoop starts the manager working. It continues until told to exit.
+// OperationLoop starts the manager working. It continues until told to exit.
 // TODO(Martin2112): No mechanism for error reporting etc., this is OK for v1 but needs work
 func (l logOperationManager) OperationLoop() {
 	glog.Infof("Log operation manager starting")
 
-	// Outer sequencing loop, runs until terminated
+	// Outer loop, runs until terminated
 	for {
 		// We might want to bail out early when testing
 		if l.runLimit >= 0 {
@@ -68,7 +68,7 @@ func (l logOperationManager) OperationLoop() {
 			continue
 		}
 
-		// Inner sequencing loop is across all active logs, currently one at a time
+		// Inner loop is across all active logs, currently one at a time
 		logIDs, err := tx.GetActiveLogIDs()
 
 		if err != nil {
