@@ -7,6 +7,7 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/log"
 	"github.com/google/trillian/util"
+	"github.com/google/trillian/merkle"
 )
 
 // SequencerManager controls sequencing activities for logs. At the moment it's very simple
@@ -67,7 +68,8 @@ func (s SequencerManager) sequenceActiveLogs(logIDs []trillian.LogID) bool {
 			continue
 		}
 
-		sequencer := log.NewSequencer(trillian.NewSHA256(), s.timeSource, storage)
+		// TODO(Martin2112): Allow for different tree hashers to be used by different logs
+		sequencer := log.NewSequencer(merkle.NewRFC6962TreeHasher(trillian.NewSHA256()), s.timeSource, storage)
 
 		leaves, err := sequencer.SequenceBatch(s.batchSize)
 

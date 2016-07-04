@@ -13,6 +13,7 @@ import (
 	"github.com/google/trillian/util"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/assert"
+	"github.com/google/trillian/merkle"
 )
 
 // These can be shared between tests as they're never modified
@@ -145,7 +146,7 @@ func createTestContext(params testParameters) testContext {
 			})).Return(params.storeSignedRootError)
 	}
 
-	sequencer := NewSequencer(trillian.NewSHA256(), util.FakeTimeSource{fakeTimeForTest}, mockStorage)
+	sequencer := NewSequencer(merkle.NewRFC6962TreeHasher(trillian.NewSHA256()), util.FakeTimeSource{fakeTimeForTest}, mockStorage)
 
 	return testContext{mockTx, mockStorage, sequencer}
 }
