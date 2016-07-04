@@ -1,8 +1,10 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"os"
 	"os/signal"
@@ -15,6 +17,7 @@ import (
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/mysql"
+	"github.com/google/trillian/crypto"
 	"google.golang.org/grpc"
 	"github.com/google/trillian/crypto"
 )
@@ -25,6 +28,10 @@ var serverPortFlag = flag.Int("port", 8090, "Port to serve log requests on")
 var sleepBetweenLogsFlag = flag.Duration("sleep_between_logs", time.Millisecond*100, "Time to pause after each log sequenced")
 var sleepBetweenRunsFlag = flag.Duration("sleep_between_runs", time.Second*10, "Time to pause after each pass through all logs")
 var batchSizeFlag = flag.Int("batch_size", 50, "Max number of leaves to process per batch")
+// TODO(Martin2112): Single private key doesn't really work for multi tenant and we can't use
+// an HSM interface in this way. Deferring these issues for later.
+var privateKeyFile = flag.String("private_key_file", "", "File containing a PEM encoded private key")
+var privateKeyPassword = flag.String("private_key_password", "", "Password for server private key")
 
 // TODO(Martin2112): Needs a more realistic provider of log storage with some caching
 // and ability to swap out for different storage type
@@ -54,6 +61,27 @@ func checkDatabaseAccessible(dbUri string) error {
 	_, err = tx.GetActiveLogIDs()
 
 	return err
+}
+
+func loadPrivateKey(keyFile, keyPassword string) (*crypto.KeyManager, error) {
+	if len(keyFile) == 0|| len(keyPassword) == 0 {
+		return nil, errors.New("private key file and password must be specified")
+	}
+
+	pemData, err := ioutil.ReadFile(keyFile)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to read data from key file: %s", keyFile)
+	}
+
+	km := crypto.NewKeyManager()
+	err = km.LoadPrivateKey(string(pemData[:]), keyPassword)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return km, nil
 }
 
 func startRpcServer(listener net.Listener, port int, provider server.LogStorageProviderFunc) *grpc.Server {
@@ -87,6 +115,15 @@ func main() {
 	// First make sure we can access the database, quit if not
 	if err := checkDatabaseAccessible(*mysqlUriFlag); err != nil {
 		glog.Errorf("Could not access storage, check db configuration and flags")
+		os.Exit(1)
+	}
+
+	// Load up our private key, exit if this fails to work
+	// TODO(Martin2112): Key manager not used yet, coming soon
+	_, err := loadPrivateKey(*privateKeyFile, *privateKeyPassword)
+
+	if err != nil {
+		glog.Errorf("Failed to load server key: %v", err)
 		os.Exit(1)
 	}
 
