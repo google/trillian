@@ -56,13 +56,13 @@ func (k *KeyManager) LoadPublicKey(pemEncodedKey string) error {
 	}
 
 	if len(rest) > 0 {
-		return errors.New("Extra data found after PEM key decoded")
+		return errors.New("extra data found after PEM key decoded")
 	}
 
 	parsedKey, err := x509.ParsePKIXPublicKey(publicBlock.Bytes)
 
 	if err != nil {
-		return errors.New("Unable to parse public key")
+		return errors.New("unable to parse public key")
 	}
 
 	k.serverPublicKey = parsedKey
