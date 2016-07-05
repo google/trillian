@@ -13,7 +13,8 @@ import (
 // KeyManager loads and holds our private and public keys. Should support ECDSA and RSA keys.
 // The crypto.Signer API allows for obtaining a public key from a private key but there are
 // cases where we have the public key only, such as mirroring another log, so we treat them
-// separately.
+// separately. KeyManager is an interface as we expect multiple implementations supporting
+// different ways of accessing keys.
 type KeyManager interface {
 	// Signer returns a crypto.Signer that can sign data using the private key held by the
 	// manager.
