@@ -273,11 +273,38 @@ func TestStoreSignedRootError(t *testing.T) {
 }
 
 func TestStoreSignedRootKeyManagerFails(t *testing.T) {
+	leaves := []trillian.LogLeaf{getLeaf42()}
+	updatedLeaves := []trillian.LogLeaf{testLeaf16}
+	params := testParameters{dequeueLimit: 1, shouldRollback: true, dequeuedLeaves: leaves,
+		latestSignedRoot: &testRoot16, updatedLeaves: &updatedLeaves, merkleNodesSet: &updatedNodes,
+		merkleNodesSetTreeRevision: 6, storeSignedRoot: nil,
+		storeSignedRootError: errors.New("storesignedroot"), setupSigner: true,
+		keyManagerError: errors.New("keymanagerfailed")}
+	c := createTestContext(params)
 
+	leafCount, err := c.sequencer.SequenceBatch(1)
+	assert.Zero(t, leafCount, "Unexpectedly sequenced leaves on error")
+	ensureErrorContains(t, err, "keymanagerfailed")
+
+	c.mockStorage.AssertExpectations(t)
 }
 
 func TestStoreSignedRootSignerFails(t *testing.T) {
+	leaves := []trillian.LogLeaf{getLeaf42()}
+	updatedLeaves := []trillian.LogLeaf{testLeaf16}
+	params := testParameters{dequeueLimit: 1, shouldRollback: true, dequeuedLeaves: leaves,
+		latestSignedRoot: &testRoot16, updatedLeaves: &updatedLeaves, merkleNodesSet: &updatedNodes,
+		merkleNodesSetTreeRevision: 6, storeSignedRoot: nil,
+		storeSignedRootError: errors.New("storesignedroot"), setupSigner: true,
+		dataToSign: []byte{0xf2, 0xcc, 0xb0, 0x34, 0x2b, 0x0, 0x9d, 0x14, 0xa5, 0xa2, 0xb9, 0xa2, 0xd5, 0xb0, 0x15, 0xf5, 0x1c, 0xfc, 0x56, 0x5a, 0x0, 0xef, 0x3f, 0x8a, 0x3c, 0x45, 0xba, 0xd, 0x54, 0xd9, 0xba, 0x81},
+		signingError: errors.New("signerfailed")}
+	c := createTestContext(params)
 
+	leafCount, err := c.sequencer.SequenceBatch(1)
+	assert.Zero(t, leafCount, "Unexpectedly sequenced leaves on error")
+	ensureErrorContains(t, err, "signerfailed")
+
+	c.mockStorage.AssertExpectations(t)
 }
 
 func TestCommitFails(t *testing.T) {
