@@ -23,7 +23,6 @@ import (
 var testLeaf16Hash = trillian.Hash{0, 1, 2, 3, 4, 5}
 var testLeaf16 = trillian.LogLeaf{Leaf: trillian.Leaf{LeafHash: testLeaf16Hash, LeafValue: nil, ExtraData: nil}, SequenceNumber: 16}
 var testRoot16 = trillian.SignedLogRoot{TreeSize: 16, TreeRevision: 5}
-var testRoot16WithHash = trillian.SignedLogRoot{TreeSize: 16, TreeRevision: 5, RootHash:[]byte("a_hash")}
 
 // These will be accepted in either order because of custom sorting in the mock
 var updatedNodes []storage.Node = []storage.Node{
@@ -81,6 +80,7 @@ type testParameters struct {
 	commitError    error
 	shouldRollback bool
 
+	skipDequeue    bool
 	dequeuedLeaves []trillian.LogLeaf
 	dequeuedError  error
 
@@ -94,6 +94,7 @@ type testParameters struct {
 	merkleNodesSetTreeRevision int64
 	merkleNodesSetError        error
 
+	skipStoreSignedRoot  bool
 	storeSignedRoot      *trillian.SignedLogRoot
 	storeSignedRootError error
 
@@ -106,9 +107,16 @@ type testParameters struct {
 
 // Tests get their own mock context so they can be run in parallel safely
 type testContext struct {
-	mockTx      *storage.MockLogTX
-	mockStorage *storage.MockLogStorage
-	sequencer   *Sequencer
+	mockTx         *storage.MockLogTX
+	mockStorage    *storage.MockLogStorage
+	mockKeyManager *crypto.MockKeyManager
+	sequencer      *Sequencer
+}
+
+func (c testContext) assertExpectations(t *testing.T) {
+	c.mockStorage.AssertExpectations(t)
+	c.mockTx.AssertExpectations(t)
+	c.mockKeyManager.AssertExpectations(t)
 }
 
 // This gets modified so tests need their own copies
@@ -150,7 +158,9 @@ func createTestContext(params testParameters) testContext {
 		mockTx.On("Rollback").Return(nil)
 	}
 
-	mockTx.On("DequeueLeaves", params.dequeueLimit).Return(params.dequeuedLeaves, params.dequeuedError)
+	if !params.skipDequeue {
+		mockTx.On("DequeueLeaves", params.dequeueLimit).Return(params.dequeuedLeaves, params.dequeuedError)
+	}
 
 	if params.latestSignedRoot != nil {
 		mockTx.On("LatestSignedLogRoot").Return(*params.latestSignedRoot, params.latestSignedRootError)
@@ -164,17 +174,19 @@ func createTestContext(params testParameters) testContext {
 		mockTx.On("SetMerkleNodes", params.merkleNodesSetTreeRevision, *params.merkleNodesSet).Return(params.merkleNodesSetError)
 	}
 
-	if params.storeSignedRoot != nil {
-		mockTx.On("StoreSignedLogRoot", mock.MatchedBy(
-			func(other trillian.SignedLogRoot) bool {
-				return proto.Equal(params.storeSignedRoot, &other)
-			})).Return(params.storeSignedRootError)
-	} else {
-		// At the moment if we're going to fail the operation we accept any root
-		mockTx.On("StoreSignedLogRoot", mock.MatchedBy(
-			func(other trillian.SignedLogRoot) bool {
-				return true
-			})).Return(params.storeSignedRootError)
+	if !params.skipStoreSignedRoot {
+		if params.storeSignedRoot != nil {
+			mockTx.On("StoreSignedLogRoot", mock.MatchedBy(
+				func(other trillian.SignedLogRoot) bool {
+					return proto.Equal(params.storeSignedRoot, &other)
+				})).Return(params.storeSignedRootError)
+		} else {
+			// At the moment if we're going to fail the operation we accept any root
+			mockTx.On("StoreSignedLogRoot", mock.MatchedBy(
+				func(other trillian.SignedLogRoot) bool {
+					return true
+				})).Return(params.storeSignedRootError)
+		}
 	}
 
 	mockKeyManager := new(crypto.MockKeyManager)
@@ -191,25 +203,25 @@ func createTestContext(params testParameters) testContext {
 
 	sequencer := NewSequencer(hasher, util.FakeTimeSource{fakeTimeForTest}, mockStorage, mockKeyManager)
 
-	return testContext{mockTx, mockStorage, sequencer}
+	return testContext{mockTx: mockTx, mockStorage: mockStorage, mockKeyManager: mockKeyManager, sequencer: sequencer}
 }
 
 // Tests for sequencer. Currently relies on having a database set up. This might change in future
 // as it would be better if it was not tied to a specific storage mechanism.
 
 func TestBeginTXFails(t *testing.T) {
-	params := testParameters{beginFails: true}
+	params := testParameters{beginFails: true, skipDequeue: true, skipStoreSignedRoot: true}
 	c := createTestContext(params)
 
 	leaves, err := c.sequencer.SequenceBatch(1)
 	assert.Zero(t, leaves, "Unexpectedly sequenced leaves on error")
 	testonly.EnsureErrorContains(t, err, "TX")
 
-	c.mockStorage.AssertExpectations(t)
+	c.assertExpectations(t)
 }
 
 func TestSequenceWithNothingQueued(t *testing.T) {
-	params := testParameters{dequeueLimit: 1, shouldCommit: true, dequeuedLeaves: []trillian.LogLeaf{}}
+	params := testParameters{dequeueLimit: 1, shouldCommit: true, dequeuedLeaves: []trillian.LogLeaf{}, skipStoreSignedRoot: true}
 	c := createTestContext(params)
 
 	leaves, err := c.sequencer.SequenceBatch(1)
@@ -219,7 +231,7 @@ func TestSequenceWithNothingQueued(t *testing.T) {
 		t.Errorf("Expected nil return with no work pending in queue")
 	}
 
-	c.mockStorage.AssertExpectations(t)
+	c.assertExpectations(t)
 }
 
 func TestDequeueError(t *testing.T) {
