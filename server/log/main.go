@@ -102,7 +102,7 @@ func main() {
 	// Start the sequencing loop, which will run until we terminate the process
 	// TODO(Martin2112): Should respect read only mode and the flags in tree control etc
 	sequencerManager := server.NewSequencerManager(done, simpleMySqlStorageProvider, *batchSizeFlag, *sleepBetweenLogsFlag, *sleepBetweenRunsFlag)
-	go sequencerManager.SequencerLoop()
+	go sequencerManager.OperationLoop()
 
 	// Bring up the RPC server and then block until we get a signal to stop
 	rpcServer := startRpcServer(lis, *serverPortFlag, simpleMySqlStorageProvider)
