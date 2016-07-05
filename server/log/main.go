@@ -14,12 +14,11 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/golang/glog"
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/mysql"
-	"github.com/google/trillian/crypto"
 	"google.golang.org/grpc"
-	"github.com/google/trillian/crypto"
 )
 
 var mysqlUriFlag = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test",
@@ -28,6 +27,7 @@ var serverPortFlag = flag.Int("port", 8090, "Port to serve log requests on")
 var sleepBetweenLogsFlag = flag.Duration("sleep_between_logs", time.Millisecond*100, "Time to pause after each log sequenced")
 var sleepBetweenRunsFlag = flag.Duration("sleep_between_runs", time.Second*10, "Time to pause after each pass through all logs")
 var batchSizeFlag = flag.Int("batch_size", 50, "Max number of leaves to process per batch")
+
 // TODO(Martin2112): Single private key doesn't really work for multi tenant and we can't use
 // an HSM interface in this way. Deferring these issues for later.
 var privateKeyFile = flag.String("private_key_file", "", "File containing a PEM encoded private key")
@@ -63,8 +63,8 @@ func checkDatabaseAccessible(dbUri string) error {
 	return err
 }
 
-func loadPrivateKey(keyFile, keyPassword string) (*crypto.KeyManager, error) {
-	if len(keyFile) == 0|| len(keyPassword) == 0 {
+func loadPrivateKey(keyFile, keyPassword string) (crypto.KeyManager, error) {
+	if len(keyFile) == 0 || len(keyPassword) == 0 {
 		return nil, errors.New("private key file and password must be specified")
 	}
 
@@ -74,14 +74,14 @@ func loadPrivateKey(keyFile, keyPassword string) (*crypto.KeyManager, error) {
 		return nil, fmt.Errorf("failed to read data from key file: %s", keyFile)
 	}
 
-	km := crypto.NewKeyManager()
+	km := crypto.NewPEMKeyManager()
 	err = km.LoadPrivateKey(string(pemData[:]), keyPassword)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return km, nil
+	return *km, nil
 }
 
 func startRpcServer(listener net.Listener, port int, provider server.LogStorageProviderFunc) *grpc.Server {
@@ -119,8 +119,7 @@ func main() {
 	}
 
 	// Load up our private key, exit if this fails to work
-	// TODO(Martin2112): Key manager not used yet, coming soon
-	_, err := loadPrivateKey(*privateKeyFile, *privateKeyPassword)
+	keyManager, err := loadPrivateKey(*privateKeyFile, *privateKeyPassword)
 
 	if err != nil {
 		glog.Errorf("Failed to load server key: %v", err)
@@ -141,7 +140,7 @@ func main() {
 	// TODO(Martin2112): Should respect read only mode and the flags in tree control etc
 	// TODO(Martin2112): Plug in Key manager and load key, this is in another branch atm
 	// this is OK as we haven't added code to create a signer task yet
-	sequencerManager := server.NewSequencerManager(crypto.PEMKeyManager{}, done, simpleMySqlStorageProvider, *batchSizeFlag, *sleepBetweenLogsFlag, *sleepBetweenRunsFlag)
+	sequencerManager := server.NewSequencerManager(keyManager, done, simpleMySqlStorageProvider, *batchSizeFlag, *sleepBetweenLogsFlag, *sleepBetweenRunsFlag)
 	go sequencerManager.OperationLoop()
 
 	// Bring up the RPC server and then block until we get a signal to stop
