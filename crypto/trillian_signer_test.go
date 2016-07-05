@@ -16,17 +16,17 @@ import (
 const message string = "testing"
 const result string = "echo"
 
-type mockSigner struct {
+type mockTrillianSigner struct {
 	mock.Mock
 }
 
-func (m mockSigner) Sign(rand io.Reader, msg []byte, opts crypto.SignerOpts) ([]byte, error) {
+func (m mockTrillianSigner) Sign(rand io.Reader, msg []byte, opts crypto.SignerOpts) ([]byte, error) {
 	args := m.Called(rand, msg, opts)
 
 	return args.Get(0).([]byte), args.Error(1)
 }
 
-func (m mockSigner) Public() crypto.PublicKey {
+func (m mockTrillianSigner) Public() crypto.PublicKey {
 	args := m.Called("Public")
 
 	return args.Get(0)
@@ -38,7 +38,7 @@ func messageHash() []byte {
 }
 
 func TestSigner(t *testing.T) {
-	mockSigner := new(mockSigner)
+	mockSigner := new(mockTrillianSigner)
 	digest := messageHash()
 
 	mockSigner.On("Sign",
@@ -65,7 +65,7 @@ func TestSigner(t *testing.T) {
 }
 
 func TestSignerFails(t *testing.T) {
-	mockSigner := new(mockSigner)
+	mockSigner := new(mockTrillianSigner)
 	digest := messageHash()
 
 	mockSigner.On("Sign",
@@ -87,7 +87,7 @@ func TestSignerFails(t *testing.T) {
 }
 
 func TestSignLogRootSignerFails(t *testing.T) {
-	mockSigner := new(mockSigner)
+	mockSigner := new(mockTrillianSigner)
 
 	mockSigner.On("Sign",
 		mock.MatchedBy(func(io.Reader) bool {
@@ -107,7 +107,7 @@ func TestSignLogRootSignerFails(t *testing.T) {
 }
 
 func TestSignLogRoot(t *testing.T) {
-	mockSigner := new(mockSigner)
+	mockSigner := new(mockTrillianSigner)
 
 	mockSigner.On("Sign",
 		mock.MatchedBy(func(io.Reader) bool {
@@ -134,11 +134,11 @@ func TestSignLogRoot(t *testing.T) {
 	assert.Equal(t, expected, root, "Expected a correctly signed root")
 }
 
-func createTestSigner(t *testing.T, mock mockSigner) *Signer {
+func createTestSigner(t *testing.T, mock mockTrillianSigner) *TrillianSigner {
 	hasher, err := trillian.NewHasher(trillian.HashAlgorithm_SHA256)
 	if err != nil {
 		t.Fatalf("Failed to create new hasher: %s", err)
 	}
 
-	return NewSigner(hasher, trillian.SignatureAlgorithm_RSA, mock)
+	return NewTrillianSigner(hasher, trillian.SignatureAlgorithm_RSA, mock)
 }

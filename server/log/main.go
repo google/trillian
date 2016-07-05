@@ -16,6 +16,7 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/mysql"
 	"google.golang.org/grpc"
+	"github.com/google/trillian/crypto"
 )
 
 var mysqlUriFlag = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test",
@@ -101,7 +102,9 @@ func main() {
 
 	// Start the sequencing loop, which will run until we terminate the process
 	// TODO(Martin2112): Should respect read only mode and the flags in tree control etc
-	sequencerManager := server.NewSequencerManager(done, simpleMySqlStorageProvider, *batchSizeFlag, *sleepBetweenLogsFlag, *sleepBetweenRunsFlag)
+	// TODO(Martin2112): Plug in Key manager and load key, this is in another branch atm
+	// this is OK as we haven't added code to create a signer task yet
+	sequencerManager := server.NewSequencerManager(crypto.PEMKeyManager{}, done, simpleMySqlStorageProvider, *batchSizeFlag, *sleepBetweenLogsFlag, *sleepBetweenRunsFlag)
 	go sequencerManager.OperationLoop()
 
 	// Bring up the RPC server and then block until we get a signal to stop

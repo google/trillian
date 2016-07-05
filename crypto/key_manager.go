@@ -14,24 +14,35 @@ import (
 // The crypto.Signer API allows for obtaining a public key from a private key but there are
 // cases where we have the public key only, such as mirroring another log, so we treat them
 // separately.
-type KeyManager struct {
+type KeyManager interface {
+	// Signer returns a crypto.Signer that can sign data using the private key held by the
+	// manager.
+	Signer() (crypto.Signer, error)
+	// GetPublicKey returns the public key previously loaded. Potentially nil if the key
+	// manager requires initialization and this has not been done
+	GetPublicKey() crypto.PublicKey
+}
+
+// PEMKeyManager is an instance of KeyManager that loads its key data from an encrypted
+// PEM file.
+type PEMKeyManager struct {
 	serverPrivateKey crypto.PrivateKey
 	serverPublicKey  crypto.PublicKey
 }
 
-// NewKeyManager creates an uninitialized KeyManager. Keys must be loaded before it
+// NewPEMKeyManager creates an uninitialized KeyManager. Keys must be loaded before it
 // can be used
-func NewKeyManager() *KeyManager {
-	return &KeyManager{}
+func NewPEMKeyManager() *PEMKeyManager {
+	return &PEMKeyManager{}
 }
 
-// NewKeyManager creates a key manager using a private key that has already been loaded
-func NewKeyManagerWithKey(key crypto.PrivateKey) *KeyManager {
-	return &KeyManager{key, nil}
+// NewPEMKeyManager creates a key manager using a private key that has already been loaded
+func (k PEMKeyManager) NewPEMKeyManager(key crypto.PrivateKey) *PEMKeyManager {
+	return &PEMKeyManager{key, nil}
 }
 
 // LoadPrivateKey loads a private key from a PEM encoded string, decrypting it if necessary
-func (k *KeyManager) LoadPrivateKey(pemEncodedKey, password string) error {
+func (k *PEMKeyManager) LoadPrivateKey(pemEncodedKey, password string) error {
 	block, rest := pem.Decode([]byte(pemEncodedKey))
 	if len(rest) > 0 {
 		return fmt.Errorf("extra data found after PEM decoding")
@@ -54,7 +65,7 @@ func (k *KeyManager) LoadPrivateKey(pemEncodedKey, password string) error {
 }
 
 // LoadPublicKey loads a public key from a PEM encoded string.
-func (k *KeyManager) LoadPublicKey(pemEncodedKey string) error {
+func (k *PEMKeyManager) LoadPublicKey(pemEncodedKey string) error {
 	publicBlock, rest := pem.Decode([]byte(pemEncodedKey))
 
 	if publicBlock == nil {
@@ -77,7 +88,7 @@ func (k *KeyManager) LoadPublicKey(pemEncodedKey string) error {
 
 // Signer returns a signer based on our private key. Returns nil if no private key
 // has been loaded.
-func (k KeyManager) Signer() (crypto.Signer, error) {
+func (k PEMKeyManager) Signer() (crypto.Signer, error) {
 	if k.serverPrivateKey == nil {
 		return nil, errors.New("private key is not loaded")
 	}
@@ -94,7 +105,7 @@ func (k KeyManager) Signer() (crypto.Signer, error) {
 
 // GetPublicKey returns the public key previously loaded or nil if LoadPublicKey has
 // not been previously called successfully.
-func (k KeyManager) GetPublicKey() crypto.PublicKey {
+func (k PEMKeyManager) GetPublicKey() crypto.PublicKey {
 	return k.serverPublicKey
 }
 

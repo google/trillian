@@ -3,12 +3,15 @@ package log
 import (
 	"errors"
 	"fmt"
+	"io"
 	"testing"
 	"time"
+
 
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle"
+	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/util"
@@ -38,7 +41,7 @@ var expectedSignedRoot = trillian.SignedLogRoot{
 	TreeRevision:   6,
 	TreeSize:       17,
 	LogId:          []uint8(nil),
-	Signature:      &trillian.DigitallySigned{},
+	Signature:      &trillian.DigitallySigned{Signature: []byte("signed")},
 }
 
 // Any tests relying on time should use this fixed value
@@ -71,6 +74,12 @@ type testParameters struct {
 
 	storeSignedRoot      *trillian.SignedLogRoot
 	storeSignedRootError error
+
+	setupSigner bool
+	keyManagerError error
+	dataToSign []byte
+	signingResult []byte
+	signingError error
 }
 
 // Tests get their own mock context so they can be run in parallel safely
@@ -146,7 +155,19 @@ func createTestContext(params testParameters) testContext {
 			})).Return(params.storeSignedRootError)
 	}
 
-	sequencer := NewSequencer(merkle.NewRFC6962TreeHasher(trillian.NewSHA256()), util.FakeTimeSource{fakeTimeForTest}, mockStorage)
+	mockKeyManager := new(crypto.MockKeyManager)
+	hasher := merkle.NewRFC6962TreeHasher(trillian.NewSHA256())
+
+	if params.setupSigner {
+		mockSigner := new(crypto.MockSigner)
+		mockSigner.On("Sign", mock.MatchedBy(
+			func(other io.Reader) bool {
+				return true
+			}), params.dataToSign, hasher.Hasher).Return(params.signingResult, params.signingError)
+		mockKeyManager.On("Signer").Return(*mockSigner, params.keyManagerError)
+	}
+
+	sequencer := NewSequencer(hasher, util.FakeTimeSource{fakeTimeForTest}, mockStorage, mockKeyManager)
 
 	return testContext{mockTx, mockStorage, sequencer}
 }
@@ -239,7 +260,9 @@ func TestStoreSignedRootError(t *testing.T) {
 	params := testParameters{dequeueLimit: 1, shouldRollback: true, dequeuedLeaves: leaves,
 		latestSignedRoot: &testRoot16, updatedLeaves: &updatedLeaves, merkleNodesSet: &updatedNodes,
 		merkleNodesSetTreeRevision: 6, storeSignedRoot: nil,
-		storeSignedRootError: errors.New("storesignedroot")}
+		storeSignedRootError: errors.New("storesignedroot"), setupSigner: true,
+		dataToSign: []byte{0xf2, 0xcc, 0xb0, 0x34, 0x2b, 0x0, 0x9d, 0x14, 0xa5, 0xa2, 0xb9, 0xa2, 0xd5, 0xb0, 0x15, 0xf5, 0x1c, 0xfc, 0x56, 0x5a, 0x0, 0xef, 0x3f, 0x8a, 0x3c, 0x45, 0xba, 0xd, 0x54, 0xd9, 0xba, 0x81},
+		signingResult: []byte("signed")}
 	c := createTestContext(params)
 
 	leafCount, err := c.sequencer.SequenceBatch(1)
@@ -249,6 +272,14 @@ func TestStoreSignedRootError(t *testing.T) {
 	c.mockStorage.AssertExpectations(t)
 }
 
+func TestStoreSignedRootKeyManagerFails(t *testing.T) {
+
+}
+
+func TestStoreSignedRootSignerFails(t *testing.T) {
+
+}
+
 func TestCommitFails(t *testing.T) {
 	leaves := []trillian.LogLeaf{getLeaf42()}
 	updatedLeaves := []trillian.LogLeaf{testLeaf16}
@@ -256,7 +287,9 @@ func TestCommitFails(t *testing.T) {
 	params := testParameters{dequeueLimit: 1, shouldCommit: true, commitFails: true,
 		commitError: errors.New("commit"), dequeuedLeaves: leaves,
 		latestSignedRoot: &testRoot16, updatedLeaves: &updatedLeaves, merkleNodesSet: &updatedNodes,
-		merkleNodesSetTreeRevision: 6, storeSignedRoot: nil}
+		merkleNodesSetTreeRevision: 6, storeSignedRoot: nil, setupSigner: true,
+		dataToSign: []byte{0xf2, 0xcc, 0xb0, 0x34, 0x2b, 0x0, 0x9d, 0x14, 0xa5, 0xa2, 0xb9, 0xa2, 0xd5, 0xb0, 0x15, 0xf5, 0x1c, 0xfc, 0x56, 0x5a, 0x0, 0xef, 0x3f, 0x8a, 0x3c, 0x45, 0xba, 0xd, 0x54, 0xd9, 0xba, 0x81},
+		signingResult: []byte("signed")}
 	c := createTestContext(params)
 
 	leafCount, err := c.sequencer.SequenceBatch(1)
@@ -274,7 +307,9 @@ func TestSequenceBatch(t *testing.T) {
 	params := testParameters{dequeueLimit: 1, shouldCommit: true,
 		dequeuedLeaves: leaves, latestSignedRoot: &testRoot16,
 		updatedLeaves: &updatedLeaves, merkleNodesSet: &updatedNodes, merkleNodesSetTreeRevision: 6,
-		storeSignedRoot: &expectedSignedRoot}
+		storeSignedRoot: &expectedSignedRoot, setupSigner: true,
+		dataToSign: []byte{0xf2, 0xcc, 0xb0, 0x34, 0x2b, 0x0, 0x9d, 0x14, 0xa5, 0xa2, 0xb9, 0xa2, 0xd5, 0xb0, 0x15, 0xf5, 0x1c, 0xfc, 0x56, 0x5a, 0x0, 0xef, 0x3f, 0x8a, 0x3c, 0x45, 0xba, 0xd, 0x54, 0xd9, 0xba, 0x81},
+		signingResult: []byte("signed")}
 	c := createTestContext(params)
 
 	c.sequencer.SequenceBatch(1)
