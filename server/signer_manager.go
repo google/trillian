@@ -54,7 +54,7 @@ func (s SignerManager) runOperationPass(logIDs []trillian.LogID) bool {
 		}
 
 		sequencer := log.NewSequencer(merkle.NewRFC6962TreeHasher(trillian.NewSHA256()), s.timeSource, storage, s.keyManager)
-		err = sequencer.SignRoot(logID)
+		err = sequencer.SignRoot()
 
 		if err != nil {
 			glog.Warningf("Error trying to sign for: %v: %v", logID, err)

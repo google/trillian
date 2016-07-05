@@ -23,6 +23,7 @@ import (
 var testLeaf16Hash = trillian.Hash{0, 1, 2, 3, 4, 5}
 var testLeaf16 = trillian.LogLeaf{Leaf: trillian.Leaf{LeafHash: testLeaf16Hash, LeafValue: nil, ExtraData: nil}, SequenceNumber: 16}
 var testRoot16 = trillian.SignedLogRoot{TreeSize: 16, TreeRevision: 5}
+var testRoot16WithHash = trillian.SignedLogRoot{TreeSize: 16, TreeRevision: 5, RootHash:[]byte("a_hash")}
 
 // These will be accepted in either order because of custom sorting in the mock
 var updatedNodes []storage.Node = []storage.Node{
@@ -40,6 +41,27 @@ var expectedSignedRoot = trillian.SignedLogRoot{
 	TimestampNanos: fakeTimeForTest.UnixNano(),
 	TreeRevision:   6,
 	TreeSize:       17,
+	LogId:          []uint8(nil),
+	Signature:      &trillian.DigitallySigned{Signature: []byte("signed")},
+}
+
+var expectedSignedRoot16 = trillian.SignedLogRoot{
+	// The root hash would not normally be nil but we've got a perfect tree size of 16 and
+	// aren't testing merkle state loading so a nil hash gets copied in from our test data
+	// TODO(Martin2112): An extended test that checks the root hash
+	TimestampNanos: fakeTimeForTest.UnixNano(),
+	TreeRevision:   6,
+	TreeSize:       16,
+	LogId:          []uint8(nil),
+	Signature:      &trillian.DigitallySigned{Signature: []byte("signed")},
+}
+
+// expectedSignedRoot0 is a root for an empty tree
+var expectedSignedRoot0 = trillian.SignedLogRoot{
+	RootHash: []byte{0xe3, 0xb0, 0xc4, 0x42, 0x98, 0xfc, 0x1c, 0x14, 0x9a, 0xfb, 0xf4, 0xc8, 0x99, 0x6f, 0xb9, 0x24, 0x27, 0xae, 0x41, 0xe4, 0x64, 0x9b, 0x93, 0x4c, 0xa4, 0x95, 0x99, 0x1b, 0x78, 0x52, 0xb8, 0x55},
+	TimestampNanos: fakeTimeForTest.UnixNano(),
+	TreeRevision:   1,
+	TreeSize:       0,
 	LogId:          []uint8(nil),
 	Signature:      &trillian.DigitallySigned{Signature: []byte("signed")},
 }
@@ -278,7 +300,7 @@ func TestStoreSignedRootKeyManagerFails(t *testing.T) {
 	params := testParameters{dequeueLimit: 1, shouldRollback: true, dequeuedLeaves: leaves,
 		latestSignedRoot: &testRoot16, updatedLeaves: &updatedLeaves, merkleNodesSet: &updatedNodes,
 		merkleNodesSetTreeRevision: 6, storeSignedRoot: nil,
-		storeSignedRootError: errors.New("storesignedroot"), setupSigner: true,
+		setupSigner: true,
 		keyManagerError: errors.New("keymanagerfailed")}
 	c := createTestContext(params)
 
@@ -295,7 +317,7 @@ func TestStoreSignedRootSignerFails(t *testing.T) {
 	params := testParameters{dequeueLimit: 1, shouldRollback: true, dequeuedLeaves: leaves,
 		latestSignedRoot: &testRoot16, updatedLeaves: &updatedLeaves, merkleNodesSet: &updatedNodes,
 		merkleNodesSetTreeRevision: 6, storeSignedRoot: nil,
-		storeSignedRootError: errors.New("storesignedroot"), setupSigner: true,
+		setupSigner: true,
 		dataToSign: []byte{0xf2, 0xcc, 0xb0, 0x34, 0x2b, 0x0, 0x9d, 0x14, 0xa5, 0xa2, 0xb9, 0xa2, 0xd5, 0xb0, 0x15, 0xf5, 0x1c, 0xfc, 0x56, 0x5a, 0x0, 0xef, 0x3f, 0x8a, 0x3c, 0x45, 0xba, 0xd, 0x54, 0xd9, 0xba, 0x81},
 		signingError: errors.New("signerfailed")}
 	c := createTestContext(params)
@@ -339,7 +361,119 @@ func TestSequenceBatch(t *testing.T) {
 		signingResult: []byte("signed")}
 	c := createTestContext(params)
 
-	c.sequencer.SequenceBatch(1)
+	leafCount, err := c.sequencer.SequenceBatch(1)
+	assert.Nil(t, err, "Expected sequencing to succeed")
+	assert.Equal(t, 1, leafCount, "Expected one leaf to have been sequenced")
+
+	c.mockStorage.AssertExpectations(t)
+}
+
+func TestSignBeginTxFails(t *testing.T) {
+	params := testParameters{beginFails: true}
+	c := createTestContext(params)
+
+	err := c.sequencer.SignRoot()
+	ensureErrorContains(t, err, "TX")
+
+	c.mockStorage.AssertExpectations(t)
+}
+
+func TestSignLatestRootFails(t *testing.T) {
+	params := testParameters{dequeueLimit: 1, shouldRollback: true,
+		latestSignedRoot: &testRoot16, latestSignedRootError: errors.New("root")}
+	c := createTestContext(params)
+
+	err := c.sequencer.SignRoot()
+	ensureErrorContains(t, err, "root")
+
+	c.mockStorage.AssertExpectations(t)
+}
+
+func TestSignedRootKeyManagerFails(t *testing.T) {
+	params := testParameters{dequeueLimit: 1, shouldRollback: true,
+		latestSignedRoot: &testRoot16,
+		merkleNodesSetTreeRevision: 6, storeSignedRoot: nil,
+		setupSigner: true, keyManagerError: errors.New("keymanagerfailed")}
+	c := createTestContext(params)
+
+	err := c.sequencer.SignRoot()
+	ensureErrorContains(t, err, "keymanager")
+
+	c.mockStorage.AssertExpectations(t)
+}
+
+func TestSignRootSignerFails(t *testing.T) {
+	params := testParameters{dequeueLimit: 1, shouldRollback: true,
+		latestSignedRoot: &testRoot16,
+		merkleNodesSetTreeRevision: 6, storeSignedRoot: nil,
+		setupSigner: true,
+		dataToSign: []byte{0xe3, 0xb0, 0xc4, 0x42, 0x98, 0xfc, 0x1c, 0x14, 0x9a, 0xfb, 0xf4, 0xc8, 0x99, 0x6f, 0xb9, 0x24, 0x27, 0xae, 0x41, 0xe4, 0x64, 0x9b, 0x93, 0x4c, 0xa4, 0x95, 0x99, 0x1b, 0x78, 0x52, 0xb8, 0x55},
+		signingError: errors.New("signerfailed")}
+	c := createTestContext(params)
+
+	err := c.sequencer.SignRoot()
+	ensureErrorContains(t, err, "signer")
+
+	c.mockStorage.AssertExpectations(t)
+}
+
+func TestSignRootStoreSignedRootFails(t *testing.T) {
+	params := testParameters{shouldRollback: true,
+		latestSignedRoot: &testRoot16,
+		merkleNodesSetTreeRevision: 6, storeSignedRoot: nil,
+		storeSignedRootError: errors.New("storesignedroot"), setupSigner: true,
+		dataToSign: []byte{0xe3, 0xb0, 0xc4, 0x42, 0x98, 0xfc, 0x1c, 0x14, 0x9a, 0xfb, 0xf4, 0xc8, 0x99, 0x6f, 0xb9, 0x24, 0x27, 0xae, 0x41, 0xe4, 0x64, 0x9b, 0x93, 0x4c, 0xa4, 0x95, 0x99, 0x1b, 0x78, 0x52, 0xb8, 0x55},
+		signingResult: []byte("signed")}
+	c := createTestContext(params)
+
+	err := c.sequencer.SignRoot()
+	ensureErrorContains(t, err, "storesignedroot")
+
+	c.mockStorage.AssertExpectations(t)
+}
+
+func TestSignRootCommitFails(t *testing.T) {
+	params := testParameters{shouldCommit: true, commitFails: true,
+		commitError: errors.New("commit"),
+		latestSignedRoot: &testRoot16,
+		merkleNodesSetTreeRevision: 6, storeSignedRoot: nil, setupSigner: true,
+		dataToSign: []byte{0xe3, 0xb0, 0xc4, 0x42, 0x98, 0xfc, 0x1c, 0x14, 0x9a, 0xfb, 0xf4, 0xc8, 0x99, 0x6f, 0xb9, 0x24, 0x27, 0xae, 0x41, 0xe4, 0x64, 0x9b, 0x93, 0x4c, 0xa4, 0x95, 0x99, 0x1b, 0x78, 0x52, 0xb8, 0x55},
+		signingResult: []byte("signed")}
+	c := createTestContext(params)
+
+	err := c.sequencer.SignRoot()
+	ensureErrorContains(t, err, "commit")
+
+	c.mockStorage.AssertExpectations(t)
+}
+
+func TestSignRoot(t *testing.T) {
+	params := testParameters{shouldRollback: true,
+		latestSignedRoot: &testRoot16,
+		merkleNodesSetTreeRevision: 6, storeSignedRoot:&expectedSignedRoot16,
+		setupSigner: true,
+		dataToSign: []byte{0xe3, 0xb0, 0xc4, 0x42, 0x98, 0xfc, 0x1c, 0x14, 0x9a, 0xfb, 0xf4, 0xc8, 0x99, 0x6f, 0xb9, 0x24, 0x27, 0xae, 0x41, 0xe4, 0x64, 0x9b, 0x93, 0x4c, 0xa4, 0x95, 0x99, 0x1b, 0x78, 0x52, 0xb8, 0x55},
+		signingResult: []byte("signed"), shouldCommit: true}
+	c := createTestContext(params)
+
+	err := c.sequencer.SignRoot()
+	assert.Nil(t, err, "Expected signing to succeed")
+
+	c.mockStorage.AssertExpectations(t)
+
+}
+
+func TestSignRootNoExistingRoot(t *testing.T) {
+	params := testParameters{shouldRollback: true,
+		latestSignedRoot: &trillian.SignedLogRoot{},
+		merkleNodesSetTreeRevision: 6, storeSignedRoot:&expectedSignedRoot0,
+		setupSigner: true,
+		dataToSign: []byte{0x5d, 0xf6, 0xe0, 0xe2, 0x76, 0x13, 0x59, 0xd3, 0xa, 0x82, 0x75, 0x5, 0x8e, 0x29, 0x9f, 0xcc, 0x3, 0x81, 0x53, 0x45, 0x45, 0xf5, 0x5c, 0xf4, 0x3e, 0x41, 0x98, 0x3f, 0x5d, 0x4c, 0x94, 0x56},
+		signingResult: []byte("signed"), shouldCommit: true}
+	c := createTestContext(params)
+
+	err := c.sequencer.SignRoot()
+	assert.Nil(t, err, "Expected signing to succeed")
 
 	c.mockStorage.AssertExpectations(t)
 }

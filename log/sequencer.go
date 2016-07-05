@@ -119,9 +119,11 @@ func (s Sequencer) signRoot(merkleTree *merkle.CompactMerkleTree) (trillian.Digi
 	return signature, nil
 }
 
-// Can possibly improve by deferring a function that attempts to rollback, which will
-// fail if the tx was committed. Should only do this if we can hide the details of
-// the underlying storage transactions.
+// SequenceBatch wraps up all the operations needed to take a batch of queued leaves
+// and integrate them into the tree.
+// TODO(Martin2112): Can possibly improve by deferring a function that attempts to rollback,
+// which will fail if the tx was committed. Should only do this if we can hide the details of
+// the underlying storage transactions and it doesn't create other problems.
 func (s Sequencer) SequenceBatch(limit int) (int, error) {
 	tx, err := s.logStorage.Begin()
 
@@ -242,7 +244,8 @@ func (s Sequencer) SequenceBatch(limit int) (int, error) {
 	return len(leaves), nil
 }
 
-func (s Sequencer) SignRoot(logID trillian.LogID) error {
+// SignRoot wraps up all the operations for creating a new log signed root. T
+func (s Sequencer) SignRoot() error {
 	tx, err := s.logStorage.Begin()
 
 	if err != nil {
@@ -290,6 +293,8 @@ func (s Sequencer) SignRoot(logID trillian.LogID) error {
 	// Store the new root and we're done
 	if err := tx.StoreSignedLogRoot(newLogRoot); err != nil {
 		glog.Warningf("signer failed to write updated root: %v", err)
+		tx.Rollback()
+		return err
 	}
 
 	return tx.Commit()
