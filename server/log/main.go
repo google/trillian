@@ -19,6 +19,7 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/mysql"
 	"google.golang.org/grpc"
+	"github.com/google/trillian/util"
 )
 
 var mysqlUriFlag = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test",
@@ -140,13 +141,13 @@ func main() {
 	// TODO(Martin2112): Should respect read only mode and the flags in tree control etc
 	// TODO(Martin2112): Plug in Key manager and load key, this is in another branch atm
 	// this is OK as we haven't added code to create a signer task yet
-	sequencerManager := server.NewSequencerManager(keyManager, done, simpleMySqlStorageProvider, *batchSizeFlag, *sequencerSleepBetweenRunsFlag)
+	sequencerManager := server.NewLogOperationManager(done, simpleMySqlStorageProvider, *batchSizeFlag, *sequencerSleepBetweenRunsFlag, util.SystemTimeSource{}, server.NewSequencerManager(keyManager))
 	go sequencerManager.OperationLoop()
 
 	// Start the signer loop, which will run continuously
 	// TODO(Martin2112): This should all be replaced by a proper task scheduler for
 	// log signing / sequencing. See TODOs above.
-	signerManager := server.NewSignerManager(keyManager, done, simpleMySqlStorageProvider, *batchSizeFlag, *signerSleepBetweenRunsFlag)
+	signerManager := server.NewLogOperationManager(done, simpleMySqlStorageProvider, *batchSizeFlag, *signerSleepBetweenRunsFlag, util.SystemTimeSource{}, server.NewSignerManager(keyManager))
 	go signerManager.OperationLoop()
 
 	// Bring up the RPC server and then block until we get a signal to stop

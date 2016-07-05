@@ -1,31 +1,26 @@
 package server
 
 import (
-	"time"
-
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/log"
 	"github.com/google/trillian/merkle"
-	"github.com/google/trillian/util"
 )
 
 type SignerManager struct {
-	logOperationManager
 	keyManager crypto.KeyManager
 }
 
-func NewSignerManager(km crypto.KeyManager, done chan struct{}, storageProvider LogStorageProviderFunc, batchSize int, sleepBetweenRuns time.Duration) *SignerManager {
-	return &SignerManager{logOperationManager: logOperationManager{done: done, storageProvider: storageProvider, batchSize: batchSize, sleepBetweenRuns: sleepBetweenRuns, timeSource: new(util.SystemTimeSource)}}
+func NewSignerManager(km crypto.KeyManager) *SignerManager {
+	return &SignerManager{keyManager: km }
 }
 
-// For use by tests, arranges for the sequencer to exit after a number of passes
-func newSignerManagerForTest(done chan struct{}, storageProvider LogStorageProviderFunc, batchSize int, sleepBetweenRuns time.Duration, runLimit int, timeSource util.TimeSource) *SignerManager {
-	return &SignerManager{logOperationManager: logOperationManager{done: done, storageProvider: storageProvider, batchSize: batchSize, sleepBetweenRuns: sleepBetweenRuns, timeSource: new(util.SystemTimeSource), runLimit: runLimit}}
+func (s SignerManager) Name() string {
+	return "Signer"
 }
 
-func (s SignerManager) runOperationPass(logIDs []trillian.LogID) bool {
+func (s SignerManager) ExecutePass(logIDs []trillian.LogID, context LogOperationManagerContext) bool {
 	// TODO(Martin2112): Demote logging to verbose level
 	glog.Infof("Beginning signing run for %d active log(s)", len(logIDs))
 
@@ -34,17 +29,14 @@ func (s SignerManager) runOperationPass(logIDs []trillian.LogID) bool {
 	for _, logID := range logIDs {
 		// See if it's time to quit
 		select {
-		case <-s.done:
+		case <-context.done:
 			return true
 		default:
 		}
 
-		// Now wait for the configured time before going on to the next one
-		time.Sleep(s.sleepBetweenLogs)
-
 		// TODO(Martin2112): Probably want to make the sequencer objects longer lived to
 		// avoid the cost of initializing their state each time but this works for now
-		storage, err := s.storageProvider(logID.TreeID)
+		storage, err := context.storageProvider(logID.TreeID)
 
 		// TODO(Martin2112): Honour the sequencing enabled in log parameters, needs an API change
 		// so deferring it
@@ -53,7 +45,7 @@ func (s SignerManager) runOperationPass(logIDs []trillian.LogID) bool {
 			continue
 		}
 
-		sequencer := log.NewSequencer(merkle.NewRFC6962TreeHasher(trillian.NewSHA256()), s.timeSource, storage, s.keyManager)
+		sequencer := log.NewSequencer(merkle.NewRFC6962TreeHasher(trillian.NewSHA256()), context.timeSource, storage, s.keyManager)
 		err = sequencer.SignRoot()
 
 		if err != nil {

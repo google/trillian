@@ -9,6 +9,7 @@ import (
 	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util"
+	"errors"
 )
 
 // Arbitrary time for use in tests
@@ -32,13 +33,29 @@ func TestSequencerManagerNothingToDo(t *testing.T) {
 	mockTx.On("GetActiveLogIDs").Return([]trillian.LogID{}, nil)
 	mockTx.On("Commit").Return(nil)
 
-	done := make(chan struct{})
-	// Arrange for the sequencer to make one pass
-	sm := newSequencerManagerForTest(mockKeyManager, done, mockStorageProviderForSequencer(mockStorage), 50, time.Millisecond, 1, fakeTimeSource)
+	sm := NewSequencerManager(mockKeyManager)
 
-	sm.OperationLoop()
+	sm.ExecutePass([]trillian.LogID{}, createTestContext(mockStorageProviderForSequencer(mockStorage)))
 
 	mockStorage.AssertExpectations(t)
+	mockTx.AssertExpectations(t)
+}
+
+func TestSequencerManagerSingleLogErrorOnGetLogIDs(t *testing.T) {
+	mockStorage := new(storage.MockLogStorage)
+	mockTx := new(storage.MockLogTX)
+
+	mockStorage.On("Begin").Return(mockTx, nil)
+	mockTx.On("GetActiveLogIDs").Return([]trillian.LogID{}, errors.New("getactivelogidsfailed"))
+	mockTx.On("Rollback").Return(nil)
+	mockKeyManager := new(crypto.MockKeyManager)
+
+	sm := NewSequencerManager(mockKeyManager)
+
+	sm.ExecutePass([]trillian.LogID{}, createTestContext(mockStorageProviderForSequencer(mockStorage)))
+
+	mockStorage.AssertExpectations(t)
+	mockTx.AssertExpectations(t)
 }
 
 func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
@@ -52,13 +69,12 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 	mockTx.On("DequeueLeaves", 50).Return([]trillian.LogLeaf{}, nil)
 	mockKeyManager := new(crypto.MockKeyManager)
 
-	done := make(chan struct{})
-	// Arrange for the sequencer to make one pass
-	sm := newSequencerManagerForTest(mockKeyManager, done, mockStorageProviderForSequencer(mockStorage), 50, time.Millisecond, 1, fakeTimeSource)
+	sm := NewSequencerManager(mockKeyManager)
 
-	sm.OperationLoop()
+	sm.ExecutePass([]trillian.LogID{logID}, createTestContext(mockStorageProviderForSequencer(mockStorage)))
 
 	mockStorage.AssertExpectations(t)
+	mockTx.AssertExpectations(t)
 }
 
 func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
@@ -69,7 +85,6 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 
 	// Set up enough mockery to be able to sequence. We don't test all the error paths
 	// through sequencer as other tests cover this
-	mockStorage.On("Begin").Return(mockTx, nil)
 	mockTx.On("GetActiveLogIDs").Return([]trillian.LogID{logID}, nil)
 	mockTx.On("Commit").Return(nil)
 	mockTx.On("DequeueLeaves", 50).Return([]trillian.LogLeaf{testLeaf0}, nil)
@@ -77,14 +92,14 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 	mockTx.On("UpdateSequencedLeaves", []trillian.LogLeaf{testLeaf0}).Return(nil)
 	mockTx.On("SetMerkleNodes", int64(1), updatedNodes0).Return(nil)
 	mockTx.On("StoreSignedLogRoot", updatedRoot).Return(nil)
+	mockStorage.On("Begin").Return(mockTx, nil)
 
-	done := make(chan struct{})
-	// Arrange for the sequencer to make one pass
-	sm := newSequencerManagerForTest(mockKeyManager, done, mockStorageProviderForSequencer(mockStorage), 50, time.Millisecond, 1, fakeTimeSource)
+	sm := NewSequencerManager(mockKeyManager)
 
-	sm.OperationLoop()
+	sm.ExecutePass([]trillian.LogID{logID}, createTestContext(mockStorageProviderForSequencer(mockStorage)))
 
 	mockStorage.AssertExpectations(t)
+	mockTx.AssertExpectations(t)
 }
 
 func mockStorageProviderForSequencer(mockStorage storage.LogStorage) LogStorageProviderFunc {
@@ -95,4 +110,10 @@ func mockStorageProviderForSequencer(mockStorage storage.LogStorage) LogStorageP
 			return nil, fmt.Errorf("BADLOGID: ", id)
 		}
 	}
+}
+
+func createTestContext(sp LogStorageProviderFunc) LogOperationManagerContext {
+	done := make(chan struct{})
+
+	return LogOperationManagerContext{done: done, storageProvider: sp, batchSize: 50, sleepBetweenRuns: time.Second, oneShot: true, timeSource: fakeTimeSource}
 }
