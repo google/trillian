@@ -6,8 +6,8 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/log"
-	"github.com/google/trillian/util"
 	"github.com/google/trillian/merkle"
+	"github.com/google/trillian/util"
 )
 
 // SequencerManager controls sequencing activities for logs. At the moment it's very simple

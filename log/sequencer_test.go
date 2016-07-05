@@ -9,11 +9,11 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
+	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/assert"
-	"github.com/google/trillian/merkle"
+	"github.com/stretchr/testify/mock"
 )
 
 // These can be shared between tests as they're never modified
