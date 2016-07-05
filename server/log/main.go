@@ -24,8 +24,10 @@ import (
 var mysqlUriFlag = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test",
 	"uri to use with mysql storage")
 var serverPortFlag = flag.Int("port", 8090, "Port to serve log requests on")
-var sleepBetweenLogsFlag = flag.Duration("sleep_between_logs", time.Millisecond*100, "Time to pause after each log sequenced")
-var sleepBetweenRunsFlag = flag.Duration("sleep_between_runs", time.Second*10, "Time to pause after each pass through all logs")
+var sequencerSleepBetweenLogsFlag = flag.Duration("sleep_between_logs", time.Millisecond*100, "Time to pause after each log sequenced")
+var sequencerSleepBetweenRunsFlag = flag.Duration("sleep_between_runs", time.Second*10, "Time to pause after each sequencing pass through all logs")
+var signerSleepBetweenLogsFlag = flag.Duration("sleep_between_logs", time.Millisecond*100, "Time to pause after each log signed")
+var signerSleepBetweenRunsFlag = flag.Duration("sleep_between_runs", time.Second*120, "Time to pause after each signing pass through all logs")
 var batchSizeFlag = flag.Int("batch_size", 50, "Max number of leaves to process per batch")
 
 // TODO(Martin2112): Single private key doesn't really work for multi tenant and we can't use
@@ -140,8 +142,14 @@ func main() {
 	// TODO(Martin2112): Should respect read only mode and the flags in tree control etc
 	// TODO(Martin2112): Plug in Key manager and load key, this is in another branch atm
 	// this is OK as we haven't added code to create a signer task yet
-	sequencerManager := server.NewSequencerManager(keyManager, done, simpleMySqlStorageProvider, *batchSizeFlag, *sleepBetweenLogsFlag, *sleepBetweenRunsFlag)
+	sequencerManager := server.NewSequencerManager(keyManager, done, simpleMySqlStorageProvider, *batchSizeFlag, *sequencerSleepBetweenLogsFlag, *sequencerSleepBetweenRunsFlag)
 	go sequencerManager.OperationLoop()
+
+	// Start the signer loop, which will run continuously
+	// TODO(Martin2112): This should all be replaced by a proper task scheduler for
+	// log signing / sequencing. See TODOs above.
+	signerManager := server.NewSignerManager(keyManager, done, simpleMySqlStorageProvider, *batchSizeFlag, *signerleepBetweenLogsFlag, *signerleepBetweenRunsFlag)
+	go signerManager.OperationLoop()
 
 	// Bring up the RPC server and then block until we get a signal to stop
 	rpcServer := startRpcServer(lis, *serverPortFlag, simpleMySqlStorageProvider)
