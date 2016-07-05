@@ -5,10 +5,10 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
-	"github.com/google/trillian/log"
-	"github.com/google/trillian/util"
 	"github.com/google/trillian/crypto"
+	"github.com/google/trillian/log"
 	"github.com/google/trillian/merkle"
+	"github.com/google/trillian/util"
 )
 
 type SignerManager struct {
@@ -16,13 +16,13 @@ type SignerManager struct {
 	keyManager crypto.KeyManager
 }
 
-func NewSignerManager(km crypto.KeyManager, done chan struct{}, storageProvider LogStorageProviderFunc, batchSize int, sleepBetweenLogs, sleepBetweenRuns time.Duration) *SignerManager {
-	return &SignerManager{logOperationManager: logOperationManager{done: done, storageProvider: storageProvider, batchSize: batchSize, sleepBetweenLogs: sleepBetweenLogs, sleepBetweenRuns: sleepBetweenRuns, timeSource: new(util.SystemTimeSource)}}
+func NewSignerManager(km crypto.KeyManager, done chan struct{}, storageProvider LogStorageProviderFunc, batchSize int, sleepBetweenRuns time.Duration) *SignerManager {
+	return &SignerManager{logOperationManager: logOperationManager{done: done, storageProvider: storageProvider, batchSize: batchSize, sleepBetweenRuns: sleepBetweenRuns, timeSource: new(util.SystemTimeSource)}}
 }
 
 // For use by tests, arranges for the sequencer to exit after a number of passes
-func newSignerManagerForTest(done chan struct{}, storageProvider LogStorageProviderFunc, batchSize int, sleepBetweenLogs, sleepBetweenRuns time.Duration, runLimit int, timeSource util.TimeSource) *SignerManager {
-	return &SignerManager{logOperationManager: logOperationManager{done: done, storageProvider: storageProvider, batchSize: batchSize, sleepBetweenLogs: sleepBetweenLogs, sleepBetweenRuns: sleepBetweenRuns, timeSource: new(util.SystemTimeSource), runLimit: runLimit}}
+func newSignerManagerForTest(done chan struct{}, storageProvider LogStorageProviderFunc, batchSize int, sleepBetweenRuns time.Duration, runLimit int, timeSource util.TimeSource) *SignerManager {
+	return &SignerManager{logOperationManager: logOperationManager{done: done, storageProvider: storageProvider, batchSize: batchSize, sleepBetweenRuns: sleepBetweenRuns, timeSource: new(util.SystemTimeSource), runLimit: runLimit}}
 }
 
 func (s SignerManager) runOperationPass(logIDs []trillian.LogID) bool {

@@ -31,13 +31,13 @@ type PEMKeyManager struct {
 	serverPublicKey  crypto.PublicKey
 }
 
-// NewPEMKeyManager creates an uninitialized KeyManager. Keys must be loaded before it
+// NewPEMKeyManager creates an uninitialized PEMKeyManager. Keys must be loaded before it
 // can be used
 func NewPEMKeyManager() *PEMKeyManager {
 	return &PEMKeyManager{}
 }
 
-// NewPEMKeyManager creates a key manager using a private key that has already been loaded
+// NewPEMKeyManager creates a PEMKeyManager using a private key that has already been loaded
 func (k PEMKeyManager) NewPEMKeyManager(key crypto.PrivateKey) *PEMKeyManager {
 	return &PEMKeyManager{key, nil}
 }

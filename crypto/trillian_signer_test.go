@@ -20,12 +20,14 @@ type mockTrillianSigner struct {
 	mock.Mock
 }
 
+// Sign is a mock
 func (m mockTrillianSigner) Sign(rand io.Reader, msg []byte, opts crypto.SignerOpts) ([]byte, error) {
 	args := m.Called(rand, msg, opts)
 
 	return args.Get(0).([]byte), args.Error(1)
 }
 
+// Public is a mock
 func (m mockTrillianSigner) Public() crypto.PublicKey {
 	args := m.Called("Public")
 

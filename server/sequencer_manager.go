@@ -5,10 +5,10 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/log"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/util"
-	"github.com/google/trillian/crypto"
 )
 
 type SequencerManager struct {
@@ -16,13 +16,13 @@ type SequencerManager struct {
 	keyManager crypto.KeyManager
 }
 
-func NewSequencerManager(km crypto.KeyManager, done chan struct{}, storageProvider LogStorageProviderFunc, batchSize int, sleepBetweenLogs, sleepBetweenRuns time.Duration) *SequencerManager {
-	return &SequencerManager{keyManager: km, logOperationManager: logOperationManager{done: done, storageProvider: storageProvider, batchSize: batchSize, sleepBetweenLogs: sleepBetweenLogs, sleepBetweenRuns: sleepBetweenRuns, timeSource: new(util.SystemTimeSource)}}
+func NewSequencerManager(km crypto.KeyManager, done chan struct{}, storageProvider LogStorageProviderFunc, batchSize int, sleepBetweenRuns time.Duration) *SequencerManager {
+	return &SequencerManager{keyManager: km, logOperationManager: logOperationManager{done: done, storageProvider: storageProvider, batchSize: batchSize, sleepBetweenRuns: sleepBetweenRuns, timeSource: new(util.SystemTimeSource)}}
 }
 
 // For use by tests, arranges for the sequencer to exit after a number of passes
-func newSequencerManagerForTest(km crypto.KeyManager, done chan struct{}, storageProvider LogStorageProviderFunc, batchSize int, sleepBetweenLogs, sleepBetweenRuns time.Duration, runLimit int, timeSource util.TimeSource) *SequencerManager {
-	return &SequencerManager{keyManager: km, logOperationManager: logOperationManager{done: done, storageProvider: storageProvider, batchSize: batchSize, sleepBetweenLogs: sleepBetweenLogs, sleepBetweenRuns: sleepBetweenRuns, timeSource: new(util.SystemTimeSource), runLimit: runLimit}}
+func newSequencerManagerForTest(km crypto.KeyManager, done chan struct{}, storageProvider LogStorageProviderFunc, batchSize int, sleepBetweenRuns time.Duration, runLimit int, timeSource util.TimeSource) *SequencerManager {
+	return &SequencerManager{keyManager: km, logOperationManager: logOperationManager{done: done, storageProvider: storageProvider, batchSize: batchSize, sleepBetweenRuns: sleepBetweenRuns, timeSource: new(util.SystemTimeSource), runLimit: runLimit}}
 }
 
 func (s SequencerManager) runOperationPass(logIDs []trillian.LogID) bool {

@@ -34,7 +34,7 @@ func TestSequencerManagerNothingToDo(t *testing.T) {
 
 	done := make(chan struct{})
 	// Arrange for the sequencer to make one pass
-	sm := newSequencerManagerForTest(mockKeyManager, done, mockStorageProviderForSequencer(mockStorage), 50, time.Millisecond, time.Millisecond, 1, fakeTimeSource)
+	sm := newSequencerManagerForTest(mockKeyManager, done, mockStorageProviderForSequencer(mockStorage), 50, time.Millisecond, 1, fakeTimeSource)
 
 	sm.OperationLoop()
 
@@ -54,7 +54,7 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 
 	done := make(chan struct{})
 	// Arrange for the sequencer to make one pass
-	sm := newSequencerManagerForTest(mockKeyManager, done, mockStorageProviderForSequencer(mockStorage), 50, time.Millisecond, time.Millisecond, 1, fakeTimeSource)
+	sm := newSequencerManagerForTest(mockKeyManager, done, mockStorageProviderForSequencer(mockStorage), 50, time.Millisecond, 1, fakeTimeSource)
 
 	sm.OperationLoop()
 
@@ -65,7 +65,7 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 	mockStorage := new(storage.MockLogStorage)
 	mockTx := new(storage.MockLogTX)
 	mockKeyManager := new(crypto.MockKeyManager)
-	logID := trillian.LogID{TreeID:1, LogID: []byte("Test")}
+	logID := trillian.LogID{TreeID: 1, LogID: []byte("Test")}
 
 	// Set up enough mockery to be able to sequence. We don't test all the error paths
 	// through sequencer as other tests cover this
@@ -80,7 +80,7 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 
 	done := make(chan struct{})
 	// Arrange for the sequencer to make one pass
-	sm := newSequencerManagerForTest(mockKeyManager, done, mockStorageProviderForSequencer(mockStorage), 50, time.Millisecond, time.Millisecond, 1, fakeTimeSource)
+	sm := newSequencerManagerForTest(mockKeyManager, done, mockStorageProviderForSequencer(mockStorage), 50, time.Millisecond, 1, fakeTimeSource)
 
 	sm.OperationLoop()
 

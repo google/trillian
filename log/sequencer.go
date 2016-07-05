@@ -7,10 +7,10 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util"
-	"github.com/google/trillian/crypto"
 )
 
 // Sequencer instances are responsible for integrating new leaves into a log.

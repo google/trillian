@@ -20,7 +20,7 @@ const (
 	mapKeyTreeSize       string = "TreeSize"
 )
 
-// Signer is responsible for signing log-related data and producing the appropriate
+// TrillianSigner is responsible for signing log-related data and producing the appropriate
 // application specific signature objects.
 type TrillianSigner struct {
 	hasher       trillian.Hasher
