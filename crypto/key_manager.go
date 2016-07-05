@@ -19,8 +19,14 @@ type KeyManager struct {
 	serverPublicKey crypto.PublicKey
 }
 
+// NewKeyManager creates an uninitialized KeyManager. Keys must be loaded before it
+// can be used
+func NewKeyManager() *KeyManager {
+	return &KeyManager{}
+}
+
 // NewKeyManager creates a key manager using a private key that has already been loaded
-func (k KeyManager) NewKeyManager(key crypto.PrivateKey) *KeyManager {
+func NewKeyManagerWithKey(key crypto.PrivateKey) *KeyManager {
 	return &KeyManager{key, nil}
 }
 
