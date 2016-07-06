@@ -1,6 +1,10 @@
 package ct_fe
 
-import "net/http"
+import (
+	"encoding/json"
+	"net/http"
+	"io/ioutil"
+)
 
 const (
 	// All RFC6962 requests start with this base path
@@ -10,8 +14,29 @@ const (
 	httpMethodGet = "GET"
 )
 
-func pathFor(req string) {
+func pathFor(req string) string {
 	return ctV1BasePath + req
+}
+
+type addChainRequest struct {
+	chain []string
+}
+
+func parseBodyAsJSONChain(w http.ResponseWriter, r *http.Request) (addChainRequest, error) {
+	body, err := ioutil.ReadAll(r.Body)
+
+	if err != nil {
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return addChainRequest{}, err
+	}
+
+	var req addChainRequest
+	if err := json.Unmarshal(body, &req); err != nil {
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return addChainRequest{}, err
+	}
+
+	return req, nil
 }
 
 // enforceMethod checks that the request method is the one we expect. If it returns
@@ -22,6 +47,15 @@ func enforceMethod(w http.ResponseWriter, r *http.Request, method string) bool {
 		return false
 	}
 
+	// For GET requests all params come as form encoded so we might as well parse them now.
+	// POSTs will decode the raw request body as JSON later.
+	if r.Method == httpMethodGet {
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			return false
+		}
+	}
+
 	return true
 }
 
@@ -30,11 +64,23 @@ func addChainHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	_, err := parseBodyAsJSONChain(w, r)
+
+	if err != nil {
+		return
+	}
+
 	http.Error(w, http.StatusText(http.StatusNotImplemented), http.StatusNotImplemented)
 }
 
 func addPreChainHandler(w http.ResponseWriter, r *http.Request) {
 	if !enforceMethod(w, r, httpMethodPost) {
+		return
+	}
+
+	_, err := parseBodyAsJSONChain(w, r)
+
+	if err != nil {
 		return
 	}
 
@@ -90,12 +136,12 @@ func getEntryAndProofHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func RegisterCTHandlers() {
-	http.Handle(pathFor("add-chain"), addChainHandler)
-	http.Handle(pathFor("add-pre-chain"), addPreChainHandler)
-	http.Handle(pathFor("get-sth"), getSthHandler)
-	http.Handle(pathFor("get-sth-consistency"), getSthConsistencyHandler)
-	http.Handle(pathFor("get-proof-by-hash"), getProofByHashHandler)
-	http.Handle(pathFor("get-entries"), getEntriesHandler)
-	http.Handle(pathFor("get-roots"), getRootsHandler)
-	http.Handle(pathFor("get-entry-and-proof"), getEntryAndProofHandler)
+	http.HandleFunc(pathFor("add-chain"), addChainHandler)
+	http.HandleFunc(pathFor("add-pre-chain"), addPreChainHandler)
+	http.HandleFunc(pathFor("get-sth"), getSthHandler)
+	http.HandleFunc(pathFor("get-sth-consistency"), getSthConsistencyHandler)
+	http.HandleFunc(pathFor("get-proof-by-hash"), getProofByHashHandler)
+	http.HandleFunc(pathFor("get-entries"), getEntriesHandler)
+	http.HandleFunc(pathFor("get-roots"), getRootsHandler)
+	http.HandleFunc(pathFor("get-entry-and-proof"), getEntryAndProofHandler)
 }
