@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/trillian/storage"
 	"github.com/google/trillian"
-  "github.com/google/trillian/util"
+	"github.com/google/trillian/storage"
+	"github.com/google/trillian/util"
 )
 
 // Arbitrary time for use in tests
@@ -19,8 +19,8 @@ var logID1 = trillian.LogID{TreeID: 1, LogID: []byte("testroot")}
 var testLeaf0Hash = trillian.Hash{0, 1, 2, 3, 4, 5}
 var testLeaf0 = trillian.LogLeaf{Leaf: trillian.Leaf{LeafHash: testLeaf0Hash, LeafValue: nil, ExtraData: nil}, SequenceNumber: 0}
 var testRoot0 = trillian.SignedLogRoot{TreeSize: 0, TreeRevision: 0, LogId: logID1.LogID}
-var updatedNodes0 = []storage.Node{storage.Node{NodeID:storage.NodeID{Path:[]uint8{0x0}, PrefixLenBits:0, PathLenBits:6}, Hash:trillian.Hash{0x0, 0x1, 0x2, 0x3, 0x4, 0x5}, NodeRevision:1}}
-var updatedRoot = trillian.SignedLogRoot{LogId: logID1.LogID, TimestampNanos:fakeTime.UnixNano(), RootHash:[]uint8{0x0, 0x1, 0x2, 0x3, 0x4, 0x5}, TreeSize:1, Signature:&trillian.DigitallySigned{}, TreeRevision:1}
+var updatedNodes0 = []storage.Node{storage.Node{NodeID: storage.NodeID{Path: []uint8{0x0}, PrefixLenBits: 0, PathLenBits: 6}, Hash: trillian.Hash{0x0, 0x1, 0x2, 0x3, 0x4, 0x5}, NodeRevision: 1}}
+var updatedRoot = trillian.SignedLogRoot{LogId: logID1.LogID, TimestampNanos: fakeTime.UnixNano(), RootHash: []uint8{0x0, 0x1, 0x2, 0x3, 0x4, 0x5}, TreeSize: 1, Signature: &trillian.DigitallySigned{}, TreeRevision: 1}
 
 func TestSequencerManagerNothingToDo(t *testing.T) {
 	mockStorage := new(storage.MockLogStorage)
@@ -30,7 +30,7 @@ func TestSequencerManagerNothingToDo(t *testing.T) {
 	mockTx.On("GetActiveLogIDs").Return([]trillian.LogID{}, nil)
 	mockTx.On("Commit").Return(nil)
 
-	done := make(chan struct {})
+	done := make(chan struct{})
 	// Arrange for the sequencer to make one pass
 	sm := newSequencerManagerForTest(done, mockStorageProviderForSequencer(mockStorage), 50, time.Millisecond, time.Millisecond, 1, fakeTimeSource)
 
@@ -42,14 +42,14 @@ func TestSequencerManagerNothingToDo(t *testing.T) {
 func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 	mockStorage := new(storage.MockLogStorage)
 	mockTx := new(storage.MockLogTX)
-	logID := trillian.LogID{TreeID:1, LogID: []byte("Test")}
+	logID := trillian.LogID{TreeID: 1, LogID: []byte("Test")}
 
 	mockStorage.On("Begin").Return(mockTx, nil)
 	mockTx.On("GetActiveLogIDs").Return([]trillian.LogID{logID}, nil)
 	mockTx.On("Commit").Return(nil)
 	mockTx.On("DequeueLeaves", 50).Return([]trillian.LogLeaf{}, nil)
 
-	done := make(chan struct {})
+	done := make(chan struct{})
 	// Arrange for the sequencer to make one pass
 	sm := newSequencerManagerForTest(done, mockStorageProviderForSequencer(mockStorage), 50, time.Millisecond, time.Millisecond, 1, fakeTimeSource)
 
@@ -61,7 +61,7 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 	mockStorage := new(storage.MockLogStorage)
 	mockTx := new(storage.MockLogTX)
-	logID := trillian.LogID{TreeID:1, LogID: []byte("Test")}
+	logID := trillian.LogID{TreeID: 1, LogID: []byte("Test")}
 
 	// Set up enough mockery to be able to sequence. We don't test all the error paths
 	// through sequencer as other tests cover this
@@ -74,7 +74,7 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 	mockTx.On("SetMerkleNodes", int64(1), updatedNodes0).Return(nil)
 	mockTx.On("StoreSignedLogRoot", updatedRoot).Return(nil)
 
-	done := make(chan struct {})
+	done := make(chan struct{})
 	// Arrange for the sequencer to make one pass
 	sm := newSequencerManagerForTest(done, mockStorageProviderForSequencer(mockStorage), 50, time.Millisecond, time.Millisecond, 1, fakeTimeSource)
 

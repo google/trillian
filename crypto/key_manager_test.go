@@ -99,6 +99,6 @@ func TestLoadDemoECDSAPublicKey(t *testing.T) {
 
 	// Additional sanity check on type as we know it must be an ECDSA key
 	if _, ok := km.GetPublicKey().(*ecdsa.PublicKey); !ok {
-		t.Fatalf("Expected to have loaded an ECDSA key but got: %v",  km.GetPublicKey())
+		t.Fatalf("Expected to have loaded an ECDSA key but got: %v", km.GetPublicKey())
 	}
 }

@@ -337,4 +337,3 @@ func (t *treeTX) Rollback() error {
 func (t *treeTX) IsOpen() bool {
 	return !t.closed
 }
-

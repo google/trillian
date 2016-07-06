@@ -16,7 +16,7 @@ import (
 // separately.
 type KeyManager struct {
 	serverPrivateKey crypto.PrivateKey
-	serverPublicKey crypto.PublicKey
+	serverPublicKey  crypto.PublicKey
 }
 
 // NewKeyManager creates an uninitialized KeyManager. Keys must be loaded before it
