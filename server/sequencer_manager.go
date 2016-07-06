@@ -6,6 +6,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/log"
+	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/util"
 )
 
@@ -51,7 +52,8 @@ func (s SequencerManager) runOperationPass(logIDs []trillian.LogID) bool {
 			continue
 		}
 
-		sequencer := log.NewSequencer(trillian.NewSHA256(), s.timeSource, storage)
+		// TODO(Martin2112): Allow for different tree hashers to be used by different logs
+		sequencer := log.NewSequencer(merkle.NewRFC6962TreeHasher(trillian.NewSHA256()), s.timeSource, storage)
 
 		leaves, err := sequencer.SequenceBatch(s.batchSize)
 

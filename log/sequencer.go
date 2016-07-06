@@ -17,12 +17,12 @@ import (
 // There is no strong ordering guarantee but in general entries will be processed
 // in order of submission to the log.
 type Sequencer struct {
-	hasher     trillian.Hasher
+	hasher     merkle.TreeHasher
 	timeSource util.TimeSource
 	logStorage storage.LogStorage
 }
 
-func NewSequencer(hasher trillian.Hasher, timeSource util.TimeSource, logStorage storage.LogStorage) *Sequencer {
+func NewSequencer(hasher merkle.TreeHasher, timeSource util.TimeSource, logStorage storage.LogStorage) *Sequencer {
 	return &Sequencer{hasher, timeSource, logStorage}
 }
 

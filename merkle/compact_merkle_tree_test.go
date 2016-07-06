@@ -44,7 +44,7 @@ func emptyTreeHash() trillian.Hash {
 }
 
 func getTree() *CompactMerkleTree {
-	return NewCompactMerkleTree(trillian.NewSHA256())
+	return NewCompactMerkleTree(NewRFC6962TreeHasher(trillian.NewSHA256()))
 }
 
 func TestAddingLeaves(t *testing.T) {
@@ -124,7 +124,7 @@ func fixedHashGetNodeFunc(depth int, index int64) (trillian.Hash, error) {
 }
 
 func TestLoadingTreeFailsNodeFetch(t *testing.T) {
-	_, err := NewCompactMerkleTreeWithState(trillian.NewSHA256(), 237, failingGetNodeFunc, []byte("notimportant"))
+	_, err := NewCompactMerkleTreeWithState(NewRFC6962TreeHasher(trillian.NewSHA256()), 237, failingGetNodeFunc, []byte("notimportant"))
 
 	if err == nil || !strings.Contains(err.Error(), "Bang!") {
 		t.Fatalf("Did not return correctly on failed node fetch: %v", err)
@@ -134,7 +134,7 @@ func TestLoadingTreeFailsNodeFetch(t *testing.T) {
 func TestLoadingTreeFailsBadRootHash(t *testing.T) {
 	// Supply a root hash that can't possibly match the result of the SHA 256 hashing on our dummy
 	// data
-	_, err := NewCompactMerkleTreeWithState(trillian.NewSHA256(), 237, fixedHashGetNodeFunc, []byte("nomatch!nomatch!nomatch!nomatch!"))
+	_, err := NewCompactMerkleTreeWithState(NewRFC6962TreeHasher(trillian.NewSHA256()), 237, fixedHashGetNodeFunc, []byte("nomatch!nomatch!nomatch!nomatch!"))
 	_, ok := err.(RootHashMismatchError)
 
 	if err == nil || !ok {
