@@ -187,3 +187,15 @@ func TestHStar2OffsetRootKAT(t *testing.T) {
 		}
 	}
 }
+
+func TestHStar2NegativeTreeLevelOffset(t *testing.T) {
+	th := NewRFC6962TreeHasher(trillian.NewSHA256())
+	s := NewHStar2(th)
+
+	_, err := s.HStar2Nodes(32, -1, []HStar2LeafHash{},
+		func(int, *big.Int) (trillian.Hash, error) { return nil, nil },
+		func(int, *big.Int, trillian.Hash) error { return nil })
+	if expected, got := ErrNegativeTreeLevelOffset, err; expected != got {
+		t.Fatalf("expected %v, but got %v", expected, got)
+	}
+}
