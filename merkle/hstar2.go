@@ -1,11 +1,16 @@
 package merkle
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 	"sort"
 
 	"github.com/google/trillian"
+)
+
+var (
+	ErrNegativeTreeLevelOffset = errors.New("treeLevelOffset cannot be negative")
 )
 
 // HStar2LeafHash represents a leaf for the HStar2 sparse merkle tree
@@ -52,13 +57,25 @@ type SparseSetNodeFunc func(depth int, index *big.Int, hash trillian.Hash) error
 // plus the extra values passed in.
 // It uses the get and set functions to fetch and store updated internal node
 // values.
-func (s *HStar2) HStar2Nodes(n int, values []HStar2LeafHash, get SparseGetNodeFunc, set SparseSetNodeFunc) (trillian.Hash, error) {
+//
+// The treeLevelOffset argument is used when the tree to be calculated is part
+// of a larger tree. It identifes the level in the larger tree at which the
+// root of the subtree being calculated is found.
+// e.g. Imagine a tree 256 levels deep, and that you already (somehow) happen
+// to have the intermediate hash values for the non-null nodes 8 levels below
+// the root already calculated (i.e. you just need to calculate the top 8
+// levels of a 256-level tree).  To do this, you'd set treeDepth=8, and
+// treeLevelOffset=248 (256-8).
+func (s *HStar2) HStar2Nodes(treeDepth, treeLevelOffset int, values []HStar2LeafHash, get SparseGetNodeFunc, set SparseSetNodeFunc) (trillian.Hash, error) {
+	if treeLevelOffset < 0 {
+		return nil, ErrNegativeTreeLevelOffset
+	}
 	by(indexLess).Sort(values)
 	offset := big.NewInt(0)
-	return s.hStar2b(n, values, offset,
+	return s.hStar2b(treeDepth, values, offset,
 		func(depth int, index *big.Int) (trillian.Hash, error) {
 			// if we've got a function for getting existing node values, try it:
-			h, err := get(n-depth, index)
+			h, err := get(treeDepth-depth, index)
 			if err != nil {
 				return nil, err
 			}
@@ -67,9 +84,9 @@ func (s *HStar2) HStar2Nodes(n int, values []HStar2LeafHash, get SparseGetNodeFu
 				return h, nil
 			}
 			// otherwise just return the null hash for this level
-			return s.hStarEmpty(depth)
+			return s.hStarEmpty(depth + treeLevelOffset)
 		},
-		func(depth int, index *big.Int, hash trillian.Hash) error { return set(n-depth, index, hash) })
+		func(depth int, index *big.Int, hash trillian.Hash) error { return set(treeDepth-depth, index, hash) })
 }
 
 // hStarEmpty calculates (and caches) the "null-hash" for the requested tree
