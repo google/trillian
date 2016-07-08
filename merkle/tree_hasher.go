@@ -37,7 +37,7 @@ type TreeHasher struct {
 // TODO(Martin2112): Move anything CT specific out of here to <handwave> look over there
 func NewRFC6962TreeHasher(hasher trillian.Hasher) TreeHasher {
 	return TreeHasher{
-		Hasher:     hasher,
+		Hasher:      hasher,
 		leafHasher:  rfc6962LeafHasher(hasher),
 		nodeHasher:  rfc6962NodeHasher(hasher),
 		emptyHasher: rfc6962EmptyHasher(hasher),

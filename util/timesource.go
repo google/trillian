@@ -10,7 +10,7 @@ type TimeSource interface {
 }
 
 // SystemTimeSource provides the current system local time
-type SystemTimeSource struct {}
+type SystemTimeSource struct{}
 
 func (s SystemTimeSource) Now() time.Time {
 	// Now returns the current local time
