@@ -3,6 +3,8 @@ package merkle
 import (
 	"errors"
 	"fmt"
+	"math/big"
+	"sync"
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
@@ -25,7 +27,191 @@ type SparseMerkleTreeReader struct {
 type SparseMerkleTreeWriter struct {
 	tx           storage.TreeTX
 	hasher       MapHasher
-	treeRevision uint64
+	treeRevision int64
+	tree         Subtree
+}
+
+type indexAndHash struct {
+	index []byte
+	hash  trillian.Hash
+}
+
+// rootHashOrError represents a (sub-)tree root hash, or an error which
+// prevented the calculation from completing.
+type rootHashOrError struct {
+	hash trillian.Hash
+	err  error
+}
+
+// Subtree is an interface which must be implemented by subtree workers.
+// Currently there's only a locally sharded go-routine based implementation,
+// the the idea is that an RPC based sharding implementation could be created
+// and dropped in.
+type Subtree interface {
+	// SetLeaf sets a single leaf hash for integration into a sparse merkle tree.
+	SetLeaf(index []byte, hash trillian.Hash) error
+
+	// CalculateRoot instructs the subtree worker to start calculating the root
+	// hash of its tree.  It is an error to call SetLeaf() after calling this
+	// method.
+	CalculateRoot()
+
+	// RootHash returns the calculated root hash for this subtree, if the root
+	// hash has not yet been calculated, this method will block until it is.
+	RootHash() (trillian.Hash, error)
+}
+
+// getSubtreeFunc is essentially a factory method for getting child subtrees.
+type getSubtreeFunc func(prefix []byte) Subtree
+
+// subtreeWriter knows how to calculate and store nodes for a subtree.
+type subtreeWriter struct {
+	// prefix is the path to the root of this subtree in the full tree.
+	// i.e. all paths/indices under this tree share the same prefix.
+	prefix []byte
+
+	// subtreeDepth is the number of levels this subtree contains.
+	subtreeDepth int
+
+	// leafQueue is the work-queue containing leaves to be integrated into the
+	// subtree.
+	leafQueue chan func() (*indexAndHash, error)
+
+	// root is channel of size 1 from which the subtree root can be read once it
+	// has been calculated.
+	root chan rootHashOrError
+
+	// childMutex protexts access to children.
+	childMutex sync.RWMutex
+
+	// children is a map of child-subtrees by stringified prefix.
+	children map[string]Subtree
+
+	tx           storage.TreeTX
+	treeRevision int64
+
+	treeHasher TreeHasher
+
+	getSubtree getSubtreeFunc
+}
+
+// getOrCreateChildSubtree returns, or creates and returns, a subtree worker
+// for the specified childPrefix.
+func (s *subtreeWriter) getOrCreateChildSubtree(childPrefix []byte) Subtree {
+	childPrefixStr := string(childPrefix)
+	s.childMutex.Lock()
+	defer s.childMutex.Unlock()
+
+	subtree := s.children[childPrefixStr]
+	if subtree == nil {
+		subtree = s.getSubtree(childPrefix)
+		s.children[childPrefixStr] = subtree
+
+		// Since a new subtree worker is being created we'll add a future to
+		// to the leafQueue such that calculation of *this* subtree's root will
+		// incorportate the newly calculated child subtree root.
+		s.leafQueue <- func() (*indexAndHash, error) {
+			// RootHash blocks until the root is available (or it's errored out)
+			h, err := subtree.RootHash()
+			if err != nil {
+				return nil, err
+			}
+			return &indexAndHash{
+				index: childPrefix,
+				hash:  h,
+			}, nil
+		}
+	}
+	return subtree
+}
+
+// SetLeaf sets a single leaf hash for incorporation into the sparse merkle
+// tree.
+func (s *subtreeWriter) SetLeaf(index []byte, hash trillian.Hash) error {
+	indexLen := len(index) * 8
+
+	switch {
+	case indexLen < s.subtreeDepth:
+		return fmt.Errorf("index length %d is < our depth %d", indexLen, s.subtreeDepth)
+
+	case indexLen > s.subtreeDepth:
+		childPrefix := index[:s.subtreeDepth/8]
+		subtree := s.getOrCreateChildSubtree(childPrefix)
+
+		return subtree.SetLeaf(index[s.subtreeDepth/8:], hash)
+
+	case indexLen == s.subtreeDepth:
+		s.leafQueue <- func() (*indexAndHash, error) { return &indexAndHash{index: index, hash: hash}, nil }
+		return nil
+	}
+
+	return fmt.Errorf("internal logic error in SetLeaf. index length: %d, subtreeDepth: %d", indexLen, s.subtreeDepth)
+}
+
+// CalculateRoot initiates the process of calculating the subtree root.
+// The leafQueue is closed.
+func (s *subtreeWriter) CalculateRoot() {
+	close(s.leafQueue)
+
+	for _, v := range s.children {
+		v.CalculateRoot()
+	}
+}
+
+// RootHash returns the calculated subtree root hash, blocking if necessary.
+func (s *subtreeWriter) RootHash() (trillian.Hash, error) {
+	r := <-s.root
+	return r.hash, r.err
+}
+
+// buildSubtree is the worker function which calculates the root hash.
+// The root chan will have had exactly one entry placed in it, and have been
+// subsequently closed when this method exits.
+func (s *subtreeWriter) buildSubtree() {
+	defer close(s.root)
+
+	leaves := make([]HStar2LeafHash, 0, len(s.leafQueue))
+
+	for leaf := range s.leafQueue {
+		ih, err := leaf()
+		if err != nil {
+			s.root <- rootHashOrError{hash: nil, err: err}
+			return
+		}
+		leaves = append(leaves, HStar2LeafHash{Index: new(big.Int).SetBytes(ih.index), LeafHash: ih.hash})
+	}
+
+	// calculate new root, and intermediate nodes:
+	hs2 := NewHStar2(s.treeHasher)
+	nodesToStore := make([]storage.Node, 0)
+	treeDepthOffset := (s.treeHasher.Size()-len(s.prefix))*8 - s.subtreeDepth
+	root, err := hs2.HStar2Nodes(s.subtreeDepth, treeDepthOffset, leaves,
+		func(depth int, index *big.Int) (trillian.Hash, error) {
+			// TODO(al): need to pull in previously written nodes here
+			return nil, nil
+		},
+		func(depth int, index *big.Int, h trillian.Hash) error {
+			nodesToStore = append(nodesToStore,
+				storage.Node{
+					NodeID:       storage.NewNodeIDFromHash(append(s.prefix, index.Bytes()...)),
+					Hash:         h,
+					NodeRevision: s.treeRevision,
+				})
+			return nil
+		})
+	if err != nil {
+		s.root <- rootHashOrError{nil, err}
+		return
+	}
+
+	// write nodes back to storage
+	if err := s.tx.SetMerkleNodes(s.treeRevision, nodesToStore); err != nil {
+		s.root <- rootHashOrError{nil, err}
+		return
+	}
+
+	// send calculated root hash
+	s.root <- rootHashOrError{root, nil}
 }
 
 var (
@@ -45,13 +231,48 @@ func NewSparseMerkleTreeReader(rev int64, h MapHasher, tx storage.ReadOnlyTreeTX
 	}
 }
 
+func leafQueueSize(depths []int) int {
+	if len(depths) == 1 {
+		return 1024
+	}
+	// for higher levels make sure we've got enough space if all leaves turn out
+	// to be sub-tree futures...
+	return 1 << uint(depths[0])
+}
+
+// newLocalSubtreeWriter creates a new local go-routing based subtree worker.
+func newLocalSubtreeWriter(rev int64, prefix []byte, depths []int, tx storage.TreeTX, h TreeHasher) Subtree {
+	tree := subtreeWriter{
+		treeRevision: rev,
+		prefix:       prefix,
+		subtreeDepth: depths[0],
+		leafQueue:    make(chan func() (*indexAndHash, error), leafQueueSize(depths)),
+		root:         make(chan rootHashOrError, 1),
+		children:     make(map[string]Subtree),
+		tx:           tx,
+		treeHasher:   h,
+		getSubtree: func(p []byte) Subtree {
+			myPrefix := append(prefix, p...)
+			return newLocalSubtreeWriter(rev, myPrefix, depths[1:], tx, h)
+		},
+	}
+	// TODO(al): probably shouldn't be spawning go routines willy-nilly like
+	// this, but it'll do for now.
+	go tree.buildSubtree()
+	return &tree
+}
+
 // NewSparseMerkleTreeWriter returns a new SparseMerkleTreeWriter, which will
 // write data back into the tree at the specified revision, using the passed
 // in MapHasher to calulate/verify tree hashes, storing via tx.
 func NewSparseMerkleTreeWriter(rev int64, h MapHasher, tx storage.TreeTX) *SparseMerkleTreeWriter {
+	// TODO(al): allow the tree layering sizes to be customisable somehow.
+	const topSubtreeSize = 8 // must be a multiple of 8 for now.
 	return &SparseMerkleTreeWriter{
-		tx:     tx,
-		hasher: h,
+		tx:           tx,
+		hasher:       h,
+		tree:         newLocalSubtreeWriter(rev, []byte{}, []int{topSubtreeSize, 0, h.Size()*8 - topSubtreeSize}, tx, h.TreeHasher),
+		treeRevision: rev,
 	}
 }
 
@@ -122,11 +343,20 @@ func (s SparseMerkleTreeReader) InclusionProof(rev int64, key trillian.Key) ([]t
 	return r, nil
 }
 
-// SetLeaves commits the tree to setting a batch leaves to the specified value.
-// There may be a delay between the transaction this request is part of
-// successfully commiting, and the updated values being reflected in the served tree.
-func (s *SparseMerkleTreeWriter) SetLeaves(newRevision int64, leaves []HashKeyValue) (trillian.TreeRoot, error) {
-	return trillian.TreeRoot{}, errors.New("unimplemented")
+// SetLeaves adds a batch of leaves to the in-flight tree update.
+func (s *SparseMerkleTreeWriter) SetLeaves(leaves []HashKeyValue) error {
+	for _, l := range leaves {
+		if err := s.tree.SetLeaf(l.HashedKey, l.HashedValue); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// CalculateRoot calculates the new root hash including the newly added leaves.
+func (s *SparseMerkleTreeWriter) CalculateRoot() (trillian.Hash, error) {
+	s.tree.CalculateRoot()
+	return s.tree.RootHash()
 }
 
 // HashKeyValue represents a Hash(key)-Hash(value) pair.

@@ -3,7 +3,12 @@ package merkle
 import (
 	"bytes"
 	"crypto/rand"
+	"encoding/base64"
 	"errors"
+	"flag"
+	"fmt"
+	"os"
+	"runtime/pprof"
 	"strings"
 	"testing"
 
@@ -12,9 +17,51 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
+var (
+	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
+	memprofile = flag.String("memprofile", "", "write mem profile to file")
+)
+
+func maybeProfileCPU(t *testing.T) func() {
+	if *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		pprof.StartCPUProfile(f)
+		return pprof.StopCPUProfile
+	}
+	return func() {}
+}
+
+func maybeProfileMemory(t *testing.T) {
+	if *memprofile != "" {
+		f, err := os.Create(*memprofile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		pprof.WriteHeapProfile(f)
+		f.Close()
+	}
+}
+
+// TODO(al): collect these test helpers together somewhere.
+func mustDecodeB64(b64 string) trillian.Hash {
+	r, err := base64.StdEncoding.DecodeString(b64)
+	if err != nil {
+		panic(r)
+	}
+	return r
+}
+
 func getSparseMerkleTreeReaderWithMockTX(rev int64) (*SparseMerkleTreeReader, *storage.MockMapTX) {
 	tx := &storage.MockMapTX{}
 	return NewSparseMerkleTreeReader(rev, NewMapHasher(NewRFC6962TreeHasher(trillian.NewSHA256())), tx), tx
+}
+
+func getSparseMerkleTreeWriterWithMockTX(rev int64) (*SparseMerkleTreeWriter, *storage.MockMapTX) {
+	tx := &storage.MockMapTX{}
+	return NewSparseMerkleTreeWriter(rev, NewMapHasher(NewRFC6962TreeHasher(trillian.NewSHA256())), tx), tx
 }
 
 func isRootNodeOnly(nodes []storage.NodeID) bool {
@@ -193,4 +240,83 @@ func TestInclusionProofGetsTooManyNodes(t *testing.T) {
 	if !strings.Contains(err.Error(), "failed to consume") {
 		t.Fatalf("Saw unexpected error: %v", err)
 	}
+}
+
+type sparseKeyValue struct {
+	k, v string
+}
+
+type sparseTestVector struct {
+	kv           []sparseKeyValue
+	expectedRoot trillian.Hash
+}
+
+func testSparseTreeCalculatedRoot(t *testing.T, vec sparseTestVector) {
+	const rev = 100
+	w, tx := getSparseMerkleTreeWriterWithMockTX(rev)
+
+	tx.On("SetMerkleNodes", int64(rev), mock.AnythingOfType("[]storage.Node")).Return(nil)
+
+	leaves := make([]HashKeyValue, 0)
+	for _, kv := range vec.kv {
+		leaves = append(leaves, HashKeyValue{w.hasher.keyHasher([]byte(kv.k)), w.hasher.HashLeaf([]byte(kv.v))})
+	}
+
+	if err := w.SetLeaves(leaves); err != nil {
+		t.Fatalf("Got error adding leaves: %v", err)
+	}
+	root, err := w.CalculateRoot()
+	if err != nil {
+		t.Fatalf("Failed to commit map changes: %v", err)
+	}
+	if expected, got := vec.expectedRoot, root; !bytes.Equal(expected, got) {
+		t.Fatalf("Expected root:\n%s, but got root:\n%s", base64.StdEncoding.EncodeToString(expected), base64.StdEncoding.EncodeToString(got))
+	}
+}
+
+func TestSparseMerkleTreeWriterEmptyTree(t *testing.T) {
+	testSparseTreeCalculatedRoot(t, sparseTestVector{[]sparseKeyValue{}, mustDecodeB64("xmifEIEqCYCXbZUz2Dh1KCFmFZVn7DUVVxbBQTr1PWo=")})
+}
+
+func TestSparseMerkleTreeWriter(t *testing.T) {
+	vec := sparseTestVector{
+		[]sparseKeyValue{{"key1", "value1"}, {"key2", "value2"}, {"key3", "value3"}},
+		mustDecodeB64("Ms8A+VeDImofprfgq7Hoqh9cw+YrD/P/qibTmCm5JvQ="),
+	}
+	testSparseTreeCalculatedRoot(t, vec)
+}
+
+func TestSparseMerkleTreeWriterBigBatch(t *testing.T) {
+	defer maybeProfileCPU(t)()
+	const rev = 100
+	w, tx := getSparseMerkleTreeWriterWithMockTX(rev)
+
+	tx.On("SetMerkleNodes", int64(rev), mock.AnythingOfType("[]storage.Node")).Return(nil)
+
+	const batchSize = 1024
+	const numBatches = 4
+	for x := 0; x < numBatches; x++ {
+		h := make([]HashKeyValue, batchSize)
+		for y := 0; y < batchSize; y++ {
+			h[y].HashedKey = w.hasher.keyHasher([]byte(fmt.Sprintf("key-%d-%d", x, y)))
+			h[y].HashedValue = w.hasher.TreeHasher.HashLeaf([]byte(fmt.Sprintf("value-%d-%d", x, y)))
+		}
+		if err := w.SetLeaves(h); err != nil {
+			t.Fatalf("Failed to batch %d: %v", x, err)
+		}
+	}
+	root, err := w.CalculateRoot()
+	if err != nil {
+		t.Fatalf("Failed to calculate root hash: %v", err)
+	}
+
+	// calculated using python code.
+	const expectedRootB64 = "Av30xkERsepT6F/AgbZX3sp91TUmV1TKaXE6QPFfUZA="
+	if expected, got := mustDecodeB64(expectedRootB64), root; !bytes.Equal(expected, root) {
+		// Error, not Fatal so that we get our benchmark results regardless of the
+		// result - useful if you want to up the amount of data without having to
+		// figure out the expected root!
+		t.Errorf("Expected root %s, got root: %s", base64.StdEncoding.EncodeToString(expected), base64.StdEncoding.EncodeToString(got))
+	}
+	maybeProfileMemory(t)
 }
