@@ -4,10 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"sync"
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
-	"sync"
 )
 
 // For more information about how Sparse Merkle Trees work see the Revocation Transparency
@@ -52,7 +52,7 @@ type Subtree interface {
 	SetLeaf(index []byte, hash trillian.Hash) error
 
 	// CalculateRoot instructs the subtree worker to start calculating the root
-	// has of its tree.  It is an error to call SetLeaf() after calling this
+	// hash of its tree.  It is an error to call SetLeaf() after calling this
 	// method.
 	CalculateRoot()
 
@@ -107,7 +107,7 @@ func (s *subtreeWriter) getOrCreateChildSubtree(childPrefix []byte) Subtree {
 		subtree = s.getSubtree(childPrefix)
 		s.children[childPrefixStr] = subtree
 
-		// Since a new subtree worker is being created, then we'll add a future is
+		// Since a new subtree worker is being created we'll add a future to
 		// to the leafQueue such that calculation of *this* subtree's root will
 		// incorportate the newly calculated child subtree root.
 		s.leafQueue <- func() (*indexAndHash, error) {
@@ -266,11 +266,12 @@ func newLocalSubtreeWriter(rev int64, prefix []byte, depths []int, tx storage.Tr
 // write data back into the tree at the specified revision, using the passed
 // in MapHasher to calulate/verify tree hashes, storing via tx.
 func NewSparseMerkleTreeWriter(rev int64, h MapHasher, tx storage.TreeTX) *SparseMerkleTreeWriter {
-	topSubtreeSize := 8 // must be a multiple of 8 for now.
+	// TODO(al): allow the tree layering sizes to be customisable somehow.
+	const topSubtreeSize = 8 // must be a multiple of 8 for now.
 	return &SparseMerkleTreeWriter{
 		tx:           tx,
 		hasher:       h,
-		tree:         newLocalSubtreeWriter(rev, []byte{}, []int{topSubtreeSize, h.Size()*8 - topSubtreeSize}, tx, h.TreeHasher),
+		tree:         newLocalSubtreeWriter(rev, []byte{}, []int{topSubtreeSize, 0, h.Size()*8 - topSubtreeSize}, tx, h.TreeHasher),
 		treeRevision: rev,
 	}
 }
