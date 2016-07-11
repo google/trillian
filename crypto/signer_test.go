@@ -86,22 +86,6 @@ func TestSignerFails(t *testing.T) {
 	mockSigner.AssertExpectations(t)
 }
 
-func TestLogRootToJson(t *testing.T) {
-	mockSigner := new(mockSigner)
-	logSigner := createTestSigner(t, *mockSigner)
-	root := trillian.SignedLogRoot{TimestampNanos: 2267709, RootHash: []byte("Islington"), TreeSize: 2}
-	jsonRoot, err := logSigner.LogRootToJson(root)
-
-	if err != nil {
-		t.Fatalf("Error in serializing root: %v", err)
-	}
-
-	// Binary data like the root hash gets base64 encoded
-	expected := `{"TimestampNanos":"2267709","TreeSize":"2","RootHash":"SXNsaW5ndG9u"}`
-	assert.Equal(t, expected, jsonRoot, "Incorrect log root serialization format")
-	mockSigner.AssertExpectations(t)
-}
-
 func TestSignLogRootSignerFails(t *testing.T) {
 	mockSigner := new(mockSigner)
 
