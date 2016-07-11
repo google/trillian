@@ -1,9 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"flag"
 	"net/http"
-	"strconv"
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
@@ -33,5 +33,5 @@ func main() {
 	handlers := ct_fe.NewCTRequestHandlers(client)
 	handlers.RegisterCTHandlers()
 
-	glog.Warningf("Server exited: %v", http.ListenAndServe("localhost:"+strconv.Itoa(*serverPortFlag), nil))
+	glog.Warningf("Server exited: %v", http.ListenAndServe(fmt.Sprintf("localhost:%d", *serverPortFlag), nil))
 }
