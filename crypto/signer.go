@@ -9,6 +9,8 @@ import (
 	"github.com/benlaurie/objecthash/go/objecthash"
 	"github.com/google/trillian"
 	"github.com/golang/glog"
+	"strconv"
+	"encoding/base64"
 )
 
 // rootForSerialization is used when creating the JSON to be fed to the hasher for signed roots
@@ -16,8 +18,8 @@ import (
 // expected fields are included in the hash as this cannot change without impacting clients and
 // the SignedLogRoot proto could evolve.
 type rootForSerialization struct {
-	TimestampNanos int64
-	TreeSize       int64
+	TimestampNanos string
+	TreeSize       string
 	RootHash       []byte
 }
 
@@ -57,12 +59,34 @@ func (s Signer) Sign(data []byte) (trillian.DigitallySigned, error) {
 		Signature:          sig}, nil
 }
 
+func (s Signer) hashRoot(root trillian.SignedLogRoot) []byte {
+	rootMap := make(map[string]interface{})
+
+	rootMap["RootHash"] = base64.StdEncoding.EncodeToString(root.RootHash)
+	rootMap["TimestampNanos"] = strconv.FormatInt(root.TimestampNanos, 10)
+	rootMap["TreeSize"] = strconv.FormatInt(root.TreeSize, 10)
+
+	hash := objecthash.ObjectHash(rootMap)
+
+	rootToSerialize := rootForSerialization{TimestampNanos: strconv.FormatInt(root.TimestampNanos, 10), TreeSize: strconv.FormatInt(root.TreeSize, 10), RootHash: root.RootHash}
+
+	serializedJson, _ := json.Marshal(&rootToSerialize)
+	var f interface{}
+	if err := json.Unmarshal([]byte(serializedJson), &f); err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("json: %v", f)
+
+	return hash[:]
+}
+
 // LogRootToJson returns the JSON representation of a signed log root that should be fed to
 // objecthash when verifying a signed root.
 // TODO(Martin2112): Decouple code to verify roots from Signer as you need a private
 // key to create these objects.
 func (s Signer) LogRootToJson(root trillian.SignedLogRoot) (string, error) {
-	rootToSerialize := rootForSerialization{TimestampNanos: root.TimestampNanos, TreeSize: root.TreeSize, RootHash: root.RootHash}
+	rootToSerialize := rootForSerialization{TimestampNanos: strconv.FormatInt(root.TimestampNanos, 10), TreeSize: strconv.FormatInt(root.TreeSize, 10), RootHash: root.RootHash}
 
 	serializedJson, err := json.Marshal(&rootToSerialize)
 
@@ -78,13 +102,15 @@ func (s Signer) LogRootToJson(root trillian.SignedLogRoot) (string, error) {
 // was created with. Signatures use objecthash on a fixed JSON format of the root.
 func (s Signer) SignLogRoot(root *trillian.SignedLogRoot) error {
 	serializedJson, err := s.LogRootToJson(*root)
+	fmt.Printf("smeg: %v", serializedJson)
+	//
+	//if err != nil {
+	//	// already logged, just return
+	//	return err
+	//}
 
-	if err != nil {
-		// already logged, just return
-		return err
-	}
-
-	objectHash := objecthash.CommonJSONHash(serializedJson)
+	//objectHash := objecthash.CommonJSONHash(serializedJson)
+	objectHash := s.hashRoot(*root)
 	signature, err := s.Sign(objectHash[:])
 
 	if err != nil {
