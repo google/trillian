@@ -3,8 +3,8 @@ package crypto
 import (
 	"crypto"
 	"crypto/rand"
-	"fmt"
 	"encoding/base64"
+	"fmt"
 	"strconv"
 
 	"github.com/benlaurie/objecthash/go/objecthash"
