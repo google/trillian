@@ -8,8 +8,16 @@ import (
 	"strconv"
 
 	"github.com/benlaurie/objecthash/go/objecthash"
-	"github.com/google/trillian"
 	"github.com/golang/glog"
+	"github.com/google/trillian"
+)
+
+// Constants used as map keys when building input for ObjectHash. They must not be changed
+// as this will change the output of hashRoot()
+const (
+	mapKeyRootHash string = "RootHash"
+	mapKeyTimestampNanos string = "TimestampNanos"
+	mapKeyTreeSize string = "TreeSize"
 )
 
 // Signer is responsible for signing log-related data and producing the appropriate
@@ -51,11 +59,12 @@ func (s Signer) Sign(data []byte) (trillian.DigitallySigned, error) {
 func (s Signer) hashRoot(root trillian.SignedLogRoot) []byte {
 	rootMap := make(map[string]interface{})
 
-	// Pull out the fields we want to hash. Caution: use string format for
-	// int64 values as they can overflow otherwise
-	rootMap["RootHash"] = base64.StdEncoding.EncodeToString(root.RootHash)
-	rootMap["TimestampNanos"] = strconv.FormatInt(root.TimestampNanos, 10)
-	rootMap["TreeSize"] = strconv.FormatInt(root.TreeSize, 10)
+	// Pull out the fields we want to hash. Caution: use string format for int64 values as they
+	// can overflow when JSON encoded otherwise (it uses floats). We want to be sure that people
+	// using JSON to verify hashes can build the exact same input to ObjectHash.
+	rootMap[mapKeyRootHash] = base64.StdEncoding.EncodeToString(root.RootHash)
+	rootMap[mapKeyTimestampNanos] = strconv.FormatInt(root.TimestampNanos, 10)
+	rootMap[mapKeyTreeSize] = strconv.FormatInt(root.TreeSize, 10)
 
 	hash := objecthash.ObjectHash(rootMap)
 
@@ -73,6 +82,6 @@ func (s Signer) SignLogRoot(root *trillian.SignedLogRoot) error {
 		return err
 	}
 
-	(*root).Signature = &signature
+	root.Signature = &signature
 	return nil
 }
