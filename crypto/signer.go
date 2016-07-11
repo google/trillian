@@ -4,12 +4,12 @@ import (
 	"crypto"
 	"crypto/rand"
 	"fmt"
+	"encoding/base64"
+	"strconv"
 
 	"github.com/benlaurie/objecthash/go/objecthash"
 	"github.com/google/trillian"
 	"github.com/golang/glog"
-	"strconv"
-	"encoding/base64"
 )
 
 // Signer is responsible for signing log-related data and producing the appropriate
