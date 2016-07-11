@@ -3,9 +3,21 @@ package crypto
 import (
 	"crypto"
 	"crypto/rand"
+	"encoding/base64"
 	"fmt"
+	"strconv"
 
+	"github.com/benlaurie/objecthash/go/objecthash"
+	"github.com/golang/glog"
 	"github.com/google/trillian"
+)
+
+// Constants used as map keys when building input for ObjectHash. They must not be changed
+// as this will change the output of hashRoot()
+const (
+	mapKeyRootHash string = "RootHash"
+	mapKeyTimestampNanos string = "TimestampNanos"
+	mapKeyTreeSize string = "TreeSize"
 )
 
 // Signer is responsible for signing log-related data and producing the appropriate
@@ -42,4 +54,34 @@ func (s Signer) Sign(data []byte) (trillian.DigitallySigned, error) {
 		SignatureAlgorithm: s.sigAlgorithm,
 		HashAlgorithm:      s.hasher.HashAlgorithm(),
 		Signature:          sig}, nil
+}
+
+func (s Signer) hashRoot(root trillian.SignedLogRoot) []byte {
+	rootMap := make(map[string]interface{})
+
+	// Pull out the fields we want to hash. Caution: use string format for int64 values as they
+	// can overflow when JSON encoded otherwise (it uses floats). We want to be sure that people
+	// using JSON to verify hashes can build the exact same input to ObjectHash.
+	rootMap[mapKeyRootHash] = base64.StdEncoding.EncodeToString(root.RootHash)
+	rootMap[mapKeyTimestampNanos] = strconv.FormatInt(root.TimestampNanos, 10)
+	rootMap[mapKeyTreeSize] = strconv.FormatInt(root.TreeSize, 10)
+
+	hash := objecthash.ObjectHash(rootMap)
+
+	return hash[:]
+}
+
+// SignLogRoot updates a log root to include a signature from the crypto signer this object
+// was created with. Signatures use objecthash on a fixed JSON format of the root.
+func (s Signer) SignLogRoot(root *trillian.SignedLogRoot) error {
+	objectHash := s.hashRoot(*root)
+	signature, err := s.Sign(objectHash[:])
+
+	if err != nil {
+		glog.Warningf("Signer failed to sign root: %v", err)
+		return err
+	}
+
+	root.Signature = &signature
+	return nil
 }
