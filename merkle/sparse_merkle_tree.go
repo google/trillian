@@ -164,6 +164,16 @@ func (s *subtreeWriter) RootHash() (trillian.Hash, error) {
 	return r.hash, r.err
 }
 
+func nodeIDFromAddress(size int, prefix []byte, index *big.Int, depth int) storage.NodeID {
+	ib := index.Bytes()
+	t := make(trillian.Hash, size)
+	copy(t, prefix)
+	copy(t[len(prefix):], ib)
+	n := storage.NewNodeIDFromHash(t)
+	n.PrefixLenBits = len(prefix)*8 + depth
+	return n
+}
+
 // buildSubtree is the worker function which calculates the root hash.
 // The root chan will have had exactly one entry placed in it, and have been
 // subsequently closed when this method exits.
@@ -187,13 +197,27 @@ func (s *subtreeWriter) buildSubtree() {
 	treeDepthOffset := (s.treeHasher.Size()-len(s.prefix))*8 - s.subtreeDepth
 	root, err := hs2.HStar2Nodes(s.subtreeDepth, treeDepthOffset, leaves,
 		func(depth int, index *big.Int) (trillian.Hash, error) {
-			// TODO(al): need to pull in previously written nodes here
-			return nil, nil
+			nodeID := nodeIDFromAddress(s.treeHasher.Size(), s.prefix, index, depth)
+			nodes, err := s.tx.GetMerkleNodes(s.treeRevision, []storage.NodeID{nodeID})
+			if err != nil {
+				return nil, err
+			}
+			if len(nodes) == 0 {
+				return nil, nil
+			}
+			if expected, got := nodeID, nodes[0].NodeID; !expected.Equivalent(got) {
+				return nil, fmt.Errorf("expected node ID %s from storage, but got %s", expected, got)
+			}
+			if expected, got := s.treeRevision, nodes[0].NodeRevision; got > expected {
+				return nil, fmt.Errorf("expected node revision <= %d, but got %d", expected, got)
+			}
+			return nodes[0].Hash, nil
 		},
 		func(depth int, index *big.Int, h trillian.Hash) error {
+			nID := nodeIDFromAddress(s.treeHasher.Size(), s.prefix, index, depth)
 			nodesToStore = append(nodesToStore,
 				storage.Node{
-					NodeID:       storage.NewNodeIDFromHash(append(s.prefix, index.Bytes()...)),
+					NodeID:       nID,
 					Hash:         h,
 					NodeRevision: s.treeRevision,
 				})
@@ -271,7 +295,7 @@ func NewSparseMerkleTreeWriter(rev int64, h MapHasher, tx storage.TreeTX) *Spars
 	return &SparseMerkleTreeWriter{
 		tx:           tx,
 		hasher:       h,
-		tree:         newLocalSubtreeWriter(rev, []byte{}, []int{topSubtreeSize, 0, h.Size()*8 - topSubtreeSize}, tx, h.TreeHasher),
+		tree:         newLocalSubtreeWriter(rev, []byte{}, []int{topSubtreeSize, h.Size()*8 - topSubtreeSize}, tx, h.TreeHasher),
 		treeRevision: rev,
 	}
 }
