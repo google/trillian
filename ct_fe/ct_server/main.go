@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/google/trillian/ct_fe"
 	"github.com/golang/glog"
-	"google.golang.org/grpc"
 	"github.com/google/trillian"
+	"github.com/google/trillian/ct_fe"
+	"google.golang.org/grpc"
 )
 
 var rpcBackendFlag = flag.String("log_rpc_backend", "localhost:8090", "Backend Log RPC server to use")
@@ -27,11 +27,11 @@ func main() {
 	}
 
 	defer conn.Close()
-  client := trillian.NewTrillianLogClient(conn)
+	client := trillian.NewTrillianLogClient(conn)
 
 	// Create and register the handlers using the RPC client we just set up
-	handlers := ct_fe.NewCtRequestHandlers(client)
+	handlers := ct_fe.NewCTRequestHandlers(client)
 	handlers.RegisterCTHandlers()
 
-	glog.Warningf("Server exited: %v", http.ListenAndServe("localhost:" + strconv.Itoa(*serverPortFlag), nil))
+	glog.Warningf("Server exited: %v", http.ListenAndServe("localhost:"+strconv.Itoa(*serverPortFlag), nil))
 }

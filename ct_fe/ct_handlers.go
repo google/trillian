@@ -17,12 +17,17 @@ const (
 	httpMethodGet  = "GET"
 )
 
-type CtRequestHandlers struct {
+// CTRequestHandlers provides HTTP handler functions for CT V1 as defined in RFC 6962
+// and functionality to translate CT client requests into forms that can be served by a
+// log backend RPC service.
+type CTRequestHandlers struct {
 	rpcClient trillian.TrillianLogClient
 }
 
-func NewCtRequestHandlers(rpcClient trillian.TrillianLogClient) *CtRequestHandlers {
-	return &CtRequestHandlers{rpcClient}
+// NewCTRequestHandlers creates a new instance of CTRequestHandlers. They must still
+// be registered by calling RegisterCTHandlers()
+func NewCTRequestHandlers(rpcClient trillian.TrillianLogClient) *CTRequestHandlers {
+	return &CTRequestHandlers{rpcClient}
 }
 
 func pathFor(req string) string {
@@ -110,7 +115,7 @@ func wrappedAddPreChainHandler(rpcClient trillian.TrillianLogClient) http.Handle
 	}
 }
 
-func wrappedGetSthHandler(rpcClient trillian.TrillianLogClient) http.HandlerFunc {
+func wrappedGetSTHHandler(rpcClient trillian.TrillianLogClient) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !enforceMethod(w, r, httpMethodGet) {
 			return
@@ -120,7 +125,7 @@ func wrappedGetSthHandler(rpcClient trillian.TrillianLogClient) http.HandlerFunc
 	}
 }
 
-func wrappedGetSthConsistencyHandler(rpcClient trillian.TrillianLogClient) http.HandlerFunc {
+func wrappedGetSTHConsistencyHandler(rpcClient trillian.TrillianLogClient) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !enforceMethod(w, r, httpMethodGet) {
 			return
@@ -172,11 +177,11 @@ func wrappedGetEntryAndProofHandler(rpcClient trillian.TrillianLogClient) http.H
 
 // RegisterCTHandlers registers a HandleFunc for all of the RFC6962 defined methods.
 // TODO(Martin2112): This registers on default ServeMux, might need more flexibility?
-func (c CtRequestHandlers) RegisterCTHandlers() {
+func (c CTRequestHandlers) RegisterCTHandlers() {
 	http.HandleFunc(pathFor("add-chain"), wrappedAddChainHandler(c.rpcClient))
 	http.HandleFunc(pathFor("add-pre-chain"), wrappedAddPreChainHandler(c.rpcClient))
-	http.HandleFunc(pathFor("get-sth"), wrappedGetSthHandler(c.rpcClient))
-	http.HandleFunc(pathFor("get-sth-consistency"), wrappedGetSthConsistencyHandler(c.rpcClient))
+	http.HandleFunc(pathFor("get-sth"), wrappedGetSTHHandler(c.rpcClient))
+	http.HandleFunc(pathFor("get-sth-consistency"), wrappedGetSTHConsistencyHandler(c.rpcClient))
 	http.HandleFunc(pathFor("get-proof-by-hash"), wrappedGetProofByHashHandler(c.rpcClient))
 	http.HandleFunc(pathFor("get-entries"), wrappedGetEntriesHandler(c.rpcClient))
 	http.HandleFunc(pathFor("get-roots"), wrappedGetRootsHandler(c.rpcClient))

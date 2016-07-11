@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/google/trillian"
+	"github.com/stretchr/testify/assert"
 )
 
 type handlerAndPath struct {
@@ -17,8 +17,8 @@ type handlerAndPath struct {
 
 func allGetHandlersForTest(client trillian.TrillianLogClient) []handlerAndPath {
 	return []handlerAndPath{
-		{ "get-sth", wrappedGetSthHandler(client) },
-		{ "get-sth-consistency", wrappedGetSthConsistencyHandler(client) },
+		{ "get-sth", wrappedGetSTHHandler(client) },
+		{ "get-sth-consistency", wrappedGetSTHConsistencyHandler(client) },
 		{ "get-proof-by-hash", wrappedGetProofByHashHandler(client) },
 		{ "get-entries", wrappedGetEntriesHandler(client) },
 		{ "get-roots", wrappedGetRootsHandler(client) },
