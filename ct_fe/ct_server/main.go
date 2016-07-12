@@ -2,8 +2,8 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 

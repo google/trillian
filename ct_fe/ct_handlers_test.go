@@ -8,12 +8,11 @@ import (
 	"testing"
 
 	"github.com/google/trillian"
-	"github.com/stretchr/testify/assert"
 	"github.com/google/trillian/crypto"
+	"github.com/stretchr/testify/assert"
 )
 
-const caCertB64 string =
-`MIIC0DCCAjmgAwIBAgIBADANBgkqhkiG9w0BAQUFADBVMQswCQYDVQQGEwJHQjEk
+const caCertB64 string = `MIIC0DCCAjmgAwIBAgIBADANBgkqhkiG9w0BAQUFADBVMQswCQYDVQQGEwJHQjEk
 MCIGA1UEChMbQ2VydGlmaWNhdGUgVHJhbnNwYXJlbmN5IENBMQ4wDAYDVQQIEwVX
 YWxlczEQMA4GA1UEBxMHRXJ3IFdlbjAeFw0xMjA2MDEwMDAwMDBaFw0yMjA2MDEw
 MDAwMDBaMFUxCzAJBgNVBAYTAkdCMSQwIgYDVQQKExtDZXJ0aWZpY2F0ZSBUcmFu
@@ -30,8 +29,7 @@ OZDQoeojPUApV2lGOwRmYef6HReZFSCa6i4Kd1F2QRIn18ADB8dHDmFYT9czQiRy
 f1HWkLxHqd81TbD26yWVXeGJPE3VICskovPkQNJ0tU4b03YmnKliibduyqQQkOFP
 OwqULg==`
 
-const intermediateCertB64 string =
-`MIIC3TCCAkagAwIBAgIBCTANBgkqhkiG9w0BAQUFADBVMQswCQYDVQQGEwJHQjEk
+const intermediateCertB64 string = `MIIC3TCCAkagAwIBAgIBCTANBgkqhkiG9w0BAQUFADBVMQswCQYDVQQGEwJHQjEk
 MCIGA1UEChMbQ2VydGlmaWNhdGUgVHJhbnNwYXJlbmN5IENBMQ4wDAYDVQQIEwVX
 YWxlczEQMA4GA1UEBxMHRXJ3IFdlbjAeFw0xMjA2MDEwMDAwMDBaFw0yMjA2MDEw
 MDAwMDBaMGIxCzAJBgNVBAYTAkdCMTEwLwYDVQQKEyhDZXJ0aWZpY2F0ZSBUcmFu
@@ -48,29 +46,28 @@ LPd2G+er1/w5wxpM/hvZbWc0yoLyLd5aDIu73YJde28+dhKtjbMAp+IRaYhgIyYi
 hMOqXSGR79oQv5I103s6KjQNWUGblKSFZvP6w82LU9Wk6YJw6tKXsHIQ+c5KITix
 iBEUO5P6TnqH3TfhOF8sKQg=`
 
-const caAndIntermediateCertsPEM string =
-"-----BEGIN CERTIFICATE-----\n" + caCertB64 + "\n-----END CERTIFICATE-----\n" +
-"\n-----BEGIN CERTIFICATE-----\n" + intermediateCertB64 + "\n-----END CERTIFICATE-----\n"
+const caAndIntermediateCertsPEM string = "-----BEGIN CERTIFICATE-----\n" + caCertB64 + "\n-----END CERTIFICATE-----\n" +
+	"\n-----BEGIN CERTIFICATE-----\n" + intermediateCertB64 + "\n-----END CERTIFICATE-----\n"
 
 type handlerAndPath struct {
-	path string
+	path    string
 	handler http.HandlerFunc
 }
 
 func allGetHandlersForTest(trustedRoots *crypto.PEMCertPool, client trillian.TrillianLogClient) []handlerAndPath {
 	return []handlerAndPath{
-		{ "get-sth", wrappedGetSTHHandler(client) },
-		{ "get-sth-consistency", wrappedGetSTHConsistencyHandler(client) },
-		{ "get-proof-by-hash", wrappedGetProofByHashHandler(client) },
-		{ "get-entries", wrappedGetEntriesHandler(client) },
-		{"get-roots", wrappedGetRootsHandler(trustedRoots, client) },
-		{ "get-entry-and-proof", wrappedGetEntryAndProofHandler(client) }}
+		{"get-sth", wrappedGetSTHHandler(client)},
+		{"get-sth-consistency", wrappedGetSTHConsistencyHandler(client)},
+		{"get-proof-by-hash", wrappedGetProofByHashHandler(client)},
+		{"get-entries", wrappedGetEntriesHandler(client)},
+		{"get-roots", wrappedGetRootsHandler(trustedRoots, client)},
+		{"get-entry-and-proof", wrappedGetEntryAndProofHandler(client)}}
 }
 
 func allPostHandlersForTest(client trillian.TrillianLogClient) []handlerAndPath {
 	return []handlerAndPath{
-		{ "add-chain", wrappedAddChainHandler(client) },
-		{ "add-pre-chain", wrappedAddPreChainHandler(client) }}
+		{"add-chain", wrappedAddChainHandler(client)},
+		{"add-pre-chain", wrappedAddPreChainHandler(client)}}
 }
 
 func TestPostHandlersOnlyAcceptPost(t *testing.T) {
@@ -88,7 +85,7 @@ func TestPostHandlersOnlyAcceptPost(t *testing.T) {
 
 		assert.Equal(t, http.StatusMethodNotAllowed, resp.StatusCode, "Wrong status code for GET to POST handler")
 
-		resp, err = http.Post(s.URL + "/ct/v1/" + hp.path, "application/json", nil)
+		resp, err = http.Post(s.URL+"/ct/v1/"+hp.path, "application/json", nil)
 
 		if err != nil {
 			t.Fatal(err)
@@ -115,7 +112,7 @@ func TestGetHandlersOnlyAcceptGet(t *testing.T) {
 		// TODO(Martin2112): Remove not implemented from test when all the handlers have been written
 		assert.True(t, resp.StatusCode == http.StatusNotImplemented || resp.StatusCode == http.StatusOK, "Wrong status code for GET to GET handler")
 
-		resp, err = http.Post(s.URL + "/ct/v1/" + hp.path, "application/json", nil)
+		resp, err = http.Post(s.URL+"/ct/v1/"+hp.path, "application/json", nil)
 
 		if err != nil {
 			t.Fatal(err)
@@ -132,7 +129,7 @@ func TestPostHandlersRejectEmptyJson(t *testing.T) {
 		s := httptest.NewServer(hp.handler)
 		defer s.Close()
 
-		resp, err := http.Post(s.URL + "/ct/v1/" + hp.path, "application/json", strings.NewReader(""))
+		resp, err := http.Post(s.URL+"/ct/v1/"+hp.path, "application/json", strings.NewReader(""))
 
 		if err != nil {
 			t.Fatal(err)
@@ -149,7 +146,7 @@ func TestPostHandlersRejectMalformedJson(t *testing.T) {
 		s := httptest.NewServer(hp.handler)
 		defer s.Close()
 
-		resp, err := http.Post(s.URL + "/ct/v1/" + hp.path, "application/json", strings.NewReader("{ !£$%^& not valid json "))
+		resp, err := http.Post(s.URL+"/ct/v1/"+hp.path, "application/json", strings.NewReader("{ !£$%^& not valid json "))
 
 		if err != nil {
 			t.Fatal(err)
@@ -166,7 +163,7 @@ func TestPostHandlersRejectEmptyCertChain(t *testing.T) {
 		s := httptest.NewServer(hp.handler)
 		defer s.Close()
 
-		resp, err := http.Post(s.URL + "/ct/v1/" + hp.path, "application/json", strings.NewReader(`{ "chain": [] }`))
+		resp, err := http.Post(s.URL+"/ct/v1/"+hp.path, "application/json", strings.NewReader(`{ "chain": [] }`))
 
 		if err != nil {
 			t.Fatal(err)
@@ -183,7 +180,7 @@ func TestPostHandlersAcceptNonEmptyCertChain(t *testing.T) {
 		s := httptest.NewServer(hp.handler)
 		defer s.Close()
 
-		resp, err := http.Post(s.URL + "/ct/v1/" + hp.path, "application/json", strings.NewReader(`{ "chain": [ "test" ] }`))
+		resp, err := http.Post(s.URL+"/ct/v1/"+hp.path, "application/json", strings.NewReader(`{ "chain": [ "test" ] }`))
 
 		if err != nil {
 			t.Fatal(err)
@@ -220,8 +217,8 @@ func TestGetRoots(t *testing.T) {
 	assert.Equal(t, 1, len(parsedJson), "Expected one entry in json map")
 	certs := parsedJson[jsonMapKeyCertificates]
 	assert.Equal(t, 2, len(certs), "Expected two root certs: %v", certs)
-	assert.Equal(t, strings.Replace(caCertB64, "\n", "", -1), certs[0], "First root cert mismatched");
-	assert.Equal(t, strings.Replace(intermediateCertB64, "\n", "", -1), certs[1], "Second root cert mismatched");
+	assert.Equal(t, strings.Replace(caCertB64, "\n", "", -1), certs[0], "First root cert mismatched")
+	assert.Equal(t, strings.Replace(intermediateCertB64, "\n", "", -1), certs[1], "Second root cert mismatched")
 
 	client.AssertExpectations(t)
 }

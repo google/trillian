@@ -6,9 +6,9 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
-	"github.com/golang/glog"
 )
 
 const (
