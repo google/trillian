@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto"
 )
 
 const (
@@ -21,13 +22,14 @@ const (
 // and functionality to translate CT client requests into forms that can be served by a
 // log backend RPC service.
 type CTRequestHandlers struct {
-	rpcClient trillian.TrillianLogClient
+	trustedRoots *crypto.PEMCertPool
+	rpcClient    trillian.TrillianLogClient
 }
 
 // NewCTRequestHandlers creates a new instance of CTRequestHandlers. They must still
 // be registered by calling RegisterCTHandlers()
-func NewCTRequestHandlers(rpcClient trillian.TrillianLogClient) *CTRequestHandlers {
-	return &CTRequestHandlers{rpcClient}
+func NewCTRequestHandlers(trustedRoots *crypto.PEMCertPool, rpcClient trillian.TrillianLogClient) *CTRequestHandlers {
+	return &CTRequestHandlers{trustedRoots, rpcClient}
 }
 
 func pathFor(req string) string {
@@ -155,7 +157,7 @@ func wrappedGetEntriesHandler(rpcClient trillian.TrillianLogClient) http.Handler
 	}
 }
 
-func wrappedGetRootsHandler(rpcClient trillian.TrillianLogClient) http.HandlerFunc {
+func wrappedGetRootsHandler(trustedRoots *crypto.PEMCertPool, rpcClient trillian.TrillianLogClient) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !enforceMethod(w, r, httpMethodGet) {
 			return
@@ -184,6 +186,6 @@ func (c CTRequestHandlers) RegisterCTHandlers() {
 	http.HandleFunc(pathFor("get-sth-consistency"), wrappedGetSTHConsistencyHandler(c.rpcClient))
 	http.HandleFunc(pathFor("get-proof-by-hash"), wrappedGetProofByHashHandler(c.rpcClient))
 	http.HandleFunc(pathFor("get-entries"), wrappedGetEntriesHandler(c.rpcClient))
-	http.HandleFunc(pathFor("get-roots"), wrappedGetRootsHandler(c.rpcClient))
+	http.HandleFunc(pathFor("get-roots"), wrappedGetRootsHandler(c.trustedRoots, c.rpcClient))
 	http.HandleFunc(pathFor("get-entry-and-proof"), wrappedGetEntryAndProofHandler(c.rpcClient))
 }

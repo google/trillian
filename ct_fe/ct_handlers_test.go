@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/trillian"
 	"github.com/stretchr/testify/assert"
+	"github.com/google/trillian/crypto"
 )
 
 type handlerAndPath struct {
@@ -15,13 +16,13 @@ type handlerAndPath struct {
 	handler http.HandlerFunc
 }
 
-func allGetHandlersForTest(client trillian.TrillianLogClient) []handlerAndPath {
+func allGetHandlersForTest(trustedRoots *crypto.PEMCertPool, client trillian.TrillianLogClient) []handlerAndPath {
 	return []handlerAndPath{
 		{ "get-sth", wrappedGetSTHHandler(client) },
 		{ "get-sth-consistency", wrappedGetSTHConsistencyHandler(client) },
 		{ "get-proof-by-hash", wrappedGetProofByHashHandler(client) },
 		{ "get-entries", wrappedGetEntriesHandler(client) },
-		{ "get-roots", wrappedGetRootsHandler(client) },
+		{"get-roots", wrappedGetRootsHandler(trustedRoots, client) },
 		{ "get-entry-and-proof", wrappedGetEntryAndProofHandler(client) }}
 }
 
@@ -58,9 +59,10 @@ func TestPostHandlersOnlyAcceptPost(t *testing.T) {
 
 func TestGetHandlersOnlyAcceptGet(t *testing.T) {
 	client := new(trillian.MockTrillianLogClient)
+	pool := crypto.NewPEMCertPool()
 
 	// Anything in the get handler list should only accept GET
-	for _, hp := range allGetHandlersForTest(client) {
+	for _, hp := range allGetHandlersForTest(pool, client) {
 		s := httptest.NewServer(hp.handler)
 		defer s.Close()
 		resp, err := http.Get(s.URL + "/ct/v1/" + hp.path)
