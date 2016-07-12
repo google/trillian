@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
+	"github.com/golang/glog"
 )
 
 const (
@@ -16,6 +17,10 @@ const (
 	// You'd think these would be defined in some library but if so I haven't found it yet
 	httpMethodPost = "POST"
 	httpMethodGet  = "GET"
+)
+
+const (
+	jsonMapKeyCertificates string = "certificates"
 )
 
 // CTRequestHandlers provides HTTP handler functions for CT V1 as defined in RFC 6962
@@ -163,7 +168,16 @@ func wrappedGetRootsHandler(trustedRoots *crypto.PEMCertPool, rpcClient trillian
 			return
 		}
 
-		http.Error(w, http.StatusText(http.StatusNotImplemented), http.StatusNotImplemented)
+		jsonMap := make(map[string]interface{})
+		jsonMap[jsonMapKeyCertificates] = trustedRoots.RawCertificates()
+		enc := json.NewEncoder(w)
+		err := enc.Encode(jsonMap)
+
+		if err != nil {
+			glog.Warningf("get_roots failed: %v", err)
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
+		}
 	}
 }
 
