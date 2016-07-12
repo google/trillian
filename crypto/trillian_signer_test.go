@@ -103,7 +103,7 @@ func TestSignLogRootSignerFails(t *testing.T) {
 	logSigner := createTestSigner(t, *mockSigner)
 
 	root := trillian.SignedLogRoot{TimestampNanos: 2267709, RootHash: []byte("Islington"), TreeSize: 2}
-	err := logSigner.SignLogRoot(&root)
+	_, err := logSigner.SignLogRoot(root)
 
 	testonly.EnsureErrorContains(t, err, "signfail")
 }
@@ -123,17 +123,20 @@ func TestSignLogRoot(t *testing.T) {
 	logSigner := createTestSigner(t, *mockSigner)
 
 	root := trillian.SignedLogRoot{TimestampNanos: 2267709, RootHash: []byte("Islington"), TreeSize: 2}
-	err := logSigner.SignLogRoot(&root)
+	signature, err := logSigner.SignLogRoot(root)
 
 	if err != nil {
 		t.Fatalf("Failed to sign log root: %v", err)
 	}
 
-	expected := trillian.SignedLogRoot{TimestampNanos: 2267709, RootHash: []byte("Islington"), TreeSize: 2,
-		Signature: &trillian.DigitallySigned{SignatureAlgorithm: trillian.SignatureAlgorithm_RSA,
-			HashAlgorithm: trillian.HashAlgorithm_SHA256,
-			Signature:     []byte("echo")}}
-	assert.Equal(t, expected, root, "Expected a correctly signed root")
+	// Check root is not modified
+	expected := trillian.SignedLogRoot{TimestampNanos: 2267709, RootHash: []byte("Islington"), TreeSize: 2}
+	assert.Equal(t, expected, root, "Expected unmodified signed root")
+	// And signature is correct
+	expectedSignature := trillian.DigitallySigned{SignatureAlgorithm: trillian.SignatureAlgorithm_RSA,
+		HashAlgorithm: trillian.HashAlgorithm_SHA256,
+		Signature:     []byte("echo")}
+	assert.Equal(t, expectedSignature, signature, "Expected correct signature")
 }
 
 func createTestSigner(t *testing.T, mock mockTrillianSigner) *TrillianSigner {

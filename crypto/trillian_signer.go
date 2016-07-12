@@ -73,15 +73,14 @@ func (s TrillianSigner) hashRoot(root trillian.SignedLogRoot) []byte {
 
 // SignLogRoot updates a log root to include a signature from the crypto signer this object
 // was created with. Signatures use objecthash on a fixed JSON format of the root.
-func (s TrillianSigner) SignLogRoot(root *trillian.SignedLogRoot) error {
-	objectHash := s.hashRoot(*root)
+func (s TrillianSigner) SignLogRoot(root trillian.SignedLogRoot) (trillian.DigitallySigned, error) {
+	objectHash := s.hashRoot(root)
 	signature, err := s.Sign(objectHash[:])
 
 	if err != nil {
 		glog.Warningf("Signer failed to sign root: %v", err)
-		return err
+		return trillian.DigitallySigned{}, err
 	}
 
-	root.Signature = &signature
-	return nil
+	return signature, nil
 }
