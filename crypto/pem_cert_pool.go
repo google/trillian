@@ -14,14 +14,14 @@ import (
 // PEMCertPool requires all certs to load.
 type PEMCertPool struct {
 	// maps from sha-1 to certificate, used for dup detection
-	fingerprintToCertMap map[[32]byte]x509.Certificate
+	fingerprintToCertMap map[[sha1.Size]byte]x509.Certificate
 	rawCerts             [][]byte
-	certPool             x509.CertPool
+	certPool             *x509.CertPool
 }
 
 // Creates a new instance of PEMCertPool containing no certificates.
 func NewPEMCertPool() *PEMCertPool {
-	return &PEMCertPool{certPool: x509.NewCertPool()}
+	return &PEMCertPool{fingerprintToCertMap: make(map[[sha1.Size]byte]x509.Certificate), certPool: x509.NewCertPool()}
 }
 
 // AddCert adds a certificate to a pool. Uses fingerprint to weed out duplicates.
@@ -66,5 +66,5 @@ func (p *PEMCertPool) AppendCertsFromPEM(pemCerts []byte) (ok bool) {
 
 // Subjects returns a list of the DER-encoded subjects of all of the certificates in the pool.
 func (p *PEMCertPool) Subjects() (res [][]byte) {
-	return p.Subjects()
+	return p.certPool.Subjects()
 }
