@@ -18,8 +18,8 @@ import (
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/mysql"
-	"google.golang.org/grpc"
 	"github.com/google/trillian/util"
+	"google.golang.org/grpc"
 )
 
 var mysqlUriFlag = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test",

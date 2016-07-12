@@ -13,7 +13,7 @@ type SignerManager struct {
 }
 
 func NewSignerManager(km crypto.KeyManager) *SignerManager {
-	return &SignerManager{keyManager: km }
+	return &SignerManager{keyManager: km}
 }
 
 func (s SignerManager) Name() string {
@@ -56,7 +56,7 @@ func (s SignerManager) ExecutePass(logIDs []trillian.LogID, context LogOperation
 		successCount++
 	}
 
-	glog.Infof("Sigining run completed %d succeeded %d failed", successCount, len(logIDs) - successCount)
+	glog.Infof("Sigining run completed %d succeeded %d failed", successCount, len(logIDs)-successCount)
 
 	return false
 }

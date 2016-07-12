@@ -31,7 +31,7 @@ func TestLogOperationManagerBeginFails(t *testing.T) {
 
 	mockLogOp := new(mockLogOperation)
 
-	done := make(chan struct {})
+	done := make(chan struct{})
 	lom := NewLogOperationManagerForTest(done, mockStorageProviderForSequencer(mockStorage), 50, time.Second, fakeTimeSource, *mockLogOp)
 
 	lom.OperationLoop()
@@ -50,7 +50,7 @@ func TestLogOperationManagerGetLogsFails(t *testing.T) {
 
 	mockLogOp := new(mockLogOperation)
 
-	done := make(chan struct {})
+	done := make(chan struct{})
 	lom := NewLogOperationManagerForTest(done, mockStorageProviderForSequencer(mockStorage), 50, time.Second, fakeTimeSource, *mockLogOp)
 
 	lom.OperationLoop()
@@ -67,9 +67,9 @@ func TestLogOperationManagerCommitFails(t *testing.T) {
 	mockStorage := new(storage.MockLogStorage)
 	mockStorage.On("Begin").Return(mockTx, nil)
 
-	mockLogOp := new (mockLogOperation)
+	mockLogOp := new(mockLogOperation)
 
-	done := make(chan struct {})
+	done := make(chan struct{})
 	lom := NewLogOperationManagerForTest(done, mockStorageProviderForSequencer(mockStorage), 50, time.Second, fakeTimeSource, *mockLogOp)
 
 	lom.OperationLoop()
@@ -80,8 +80,8 @@ func TestLogOperationManagerCommitFails(t *testing.T) {
 }
 
 func TestLogOperationManagerPassesIDs(t *testing.T) {
-	logID1 := trillian.LogID{TreeID:451, LogID: []byte("id")}
-	logID2 := trillian.LogID{TreeID:145, LogID: []byte("id2")}
+	logID1 := trillian.LogID{TreeID: 451, LogID: []byte("id")}
+	logID2 := trillian.LogID{TreeID: 145, LogID: []byte("id2")}
 
 	mockTx := new(storage.MockLogTX)
 	mockTx.On("GetActiveLogIDs").Return([]trillian.LogID{logID1, logID2}, nil)
@@ -91,11 +91,11 @@ func TestLogOperationManagerPassesIDs(t *testing.T) {
 
 	mockLogOp := new(mockLogOperation)
 	mockLogOp.On("ExecutePass", []trillian.LogID{logID1, logID2},
-		mock.MatchedBy(func (other LogOperationManagerContext) bool{
+		mock.MatchedBy(func(other LogOperationManagerContext) bool {
 			return other.batchSize == 50
-	})).Return(false)
+		})).Return(false)
 
-	done := make(chan struct {})
+	done := make(chan struct{})
 	lom := NewLogOperationManagerForTest(done, mockStorageProviderForSequencer(mockStorage), 50, time.Second, fakeTimeSource, *mockLogOp)
 
 	lom.OperationLoop()

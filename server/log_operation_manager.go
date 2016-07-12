@@ -111,4 +111,3 @@ func (l LogOperationManager) OperationLoop() {
 		}
 	}
 }
-
