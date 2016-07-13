@@ -1,8 +1,8 @@
 package ct_fe
 
 import (
-	"testing"
 	"encoding/pem"
+	"testing"
 
 	"github.com/google/certificate-transparency/go/x509"
 	"github.com/google/certificate-transparency/go/x509/pkix"
