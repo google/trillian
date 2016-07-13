@@ -32,7 +32,7 @@ func TestIsPrecertificateNormalCert(t *testing.T) {
 	isPrecert, err := IsPrecertificate(cert)
 
 	assert.Nil(t, err, "Expected no error from precert check")
-	assert.False(t, isPrecert, "Valid precert not recognized")
+	assert.False(t, isPrecert, "Non precert misclassified")
 }
 
 func TestIsPrecertificateInvalidNonCriticalExtension(t *testing.T) {
