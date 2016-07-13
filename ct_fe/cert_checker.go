@@ -1,17 +1,43 @@
 package ct_fe
 
 import (
+	"bytes"
 	"encoding/base64"
 	"errors"
+	"fmt"
 
-	"github.com/google/trillian/crypto"
+	"github.com/google/certificate-transparency/go/asn1"
 	"github.com/google/certificate-transparency/go/x509"
+	"github.com/google/trillian/crypto"
 )
+
+// OID of the non-critical extension used to mark pre-certificates, defined in RFC 6962
+var ctPoisonExtensionOid = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 11129, 2, 4, 3}
+// Byte representation of ASN.1 NULL.
+var asn1NullBytes = []byte{0x05, 0x00}
+
+// IsPrecertificate tests if a certificate is a pre-certificate as defined in CT.
+// An error is returned if the CT extension is present but is not ASN.1 NULL as defined
+// by the spec.
+func IsPrecertificate(cert *x509.Certificate) (bool, error) {
+	for _, ext := range cert.Extensions {
+		if ctPoisonExtensionOid.Equal(ext.Id) {
+			if ext.Critical || bytes.Equal(asn1NullBytes, ext.Value) {
+				return false, fmt.Errorf("CT poison ext is critical or invalid: %v", ext)
+			}
+
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
 
 // ValidateChain takes the certificate chain as it was parsed from a JSON request. Ensures all
 // elements in the chain decode as X.509 certificates. Ensures that there is a valid path from the
 // end entity certificate in the chain to a trusted root cert, possibly using the intermediates
-// supplied in the chain.
+// supplied in the chain. Then applies the RFC requirement that the path must involve all
+// the submitted chain in the order of submission.
 func ValidateChain(jsonChain []string, trustedRoots crypto.PEMCertPool) ([]*x509.Certificate, error) {
 	// First decode the base 64 certs and make sure they parse as X.509
 	chain := make([]*x509.Certificate, 0, len(jsonChain))
@@ -73,8 +99,8 @@ func ValidateChain(jsonChain []string, trustedRoots crypto.PEMCertPool) ([]*x509
 			}
 		}
 
-		return chain, nil
+		return chainMinusRoot, nil
 	}
 
-	return nil, errors.New("Invalid path to root found when trying to validate chain")
+	return nil, errors.New("No RFC compliant path to root found when trying to validate chain")
 }
