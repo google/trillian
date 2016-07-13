@@ -26,6 +26,15 @@ func TestIsPrecertificate(t *testing.T) {
 	assert.False(t, isPrecert, "Non precert misclassified")
 }
 
+func TestIsPrecertificateNormalCert(t *testing.T) {
+	cert := pemToCert(t, testonly.CACertPEM)
+
+	isPrecert, err := IsPrecertificate(cert)
+
+	assert.Nil(t, err, "Expected no error from precert check")
+	assert.False(t, isPrecert, "Valid precert not recognized")
+}
+
 func TestIsPrecertificateInvalidNonCriticalExtension(t *testing.T) {
 	cert := pemToCert(t, testonly.PrecertPEMValid)
 	// Invalid because it's not marked as critical
