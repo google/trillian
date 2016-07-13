@@ -2,6 +2,7 @@ package storage
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 )
 
@@ -14,13 +15,20 @@ func TestZerosNewNodeIDWithPrefix(t *testing.T) {
 
 func TestNewNodeIDWithPrefix(t *testing.T) {
 	n := NewNodeIDWithPrefix(0x12345678, 32, 32, 64)
-	if got, want := n.Path, []byte{0x00, 0x00, 0x00, 0x00, 0x78, 0x56, 0x34, 0x12}; !bytes.Equal(got, want) {
+	if got, want := n.Path, []byte{0x12, 0x34, 0x56, 0x78, 0x00, 0x00, 0x00, 0x00}; !bytes.Equal(got, want) {
 		t.Fatalf("Expected Path of %v, but got %v", want, got)
 	}
+	if expected, got := "00010010001101000101011001111000", n.String(); got != expected {
+		t.Fatalf("Expected Path String of %s, but got %s", expected, got)
+	}
 
-	n = NewNodeIDWithPrefix(0x345678, 24, 24, 24)
-	if got, want := n.Path, []byte{0x78, 0x56, 0x34}; !bytes.Equal(got, want) {
+	n = NewNodeIDWithPrefix(0x345678, 15, 15, 24)
+	// bottom 15 bits of 0x345678 are: 1010 1100 1111 000x
+	if got, want := n.Path, []byte{0xac, 0xf0, 0x00}; !bytes.Equal(got, want) {
 		t.Fatalf("Expected Path of %v, but got %v", want, got)
+	}
+	if expected, got := fmt.Sprintf("%015b", 0x345678&0x7fff), n.String(); got != expected {
+		t.Fatalf("Expected Path String of %s, but got %s", expected, got)
 	}
 }
 
@@ -36,7 +44,7 @@ func TestNewNodeIDForTreeCoordsForZeros(t *testing.T) {
 
 func TestNewNodeIDForTreeCoords(t *testing.T) {
 	n := NewNodeIDForTreeCoords(11, 0x1234, 16)
-	if got, want := n.Path, []byte{0x34, 0x12}; !bytes.Equal(got, want) {
+	if got, want := n.Path, []byte{0x12, 0x34}; !bytes.Equal(got, want) {
 		t.Fatalf("Expected Path of %v, but got %v", want, got)
 	}
 	if got, want := n.String(), "00010010001"; got != want {
@@ -47,7 +55,7 @@ func TestNewNodeIDForTreeCoords(t *testing.T) {
 func TestSetBit(t *testing.T) {
 	n := NewNodeIDWithPrefix(0, 0, 0, 64)
 	n.SetBit(27, 1)
-	if got, want := n.Path, []byte{0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x00}; !bytes.Equal(got, want) {
+	if got, want := n.Path, []byte{0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00}; !bytes.Equal(got, want) {
 		t.Fatalf("Expected Path of %v, but got %v", want, got)
 	}
 
@@ -145,7 +153,7 @@ func TestNodeNotEquivalentPrefixLen(t *testing.T) {
 func TestNodeNotEquivalentIDLen(t *testing.T) {
 	l := 16
 	n1 := NewNodeIDWithPrefix(0x1234, l, l, l)
-	n2 := NewNodeIDWithPrefix(0x1234, l, l+1, l)
+	n2 := NewNodeIDWithPrefix(0x1234, l, l+1, l+1)
 	if n1.Equivalent(n2) {
 		t.Fatalf("%v incorrecly Equivalent with %v", n1, n2)
 	}
@@ -157,7 +165,7 @@ func TestNodeNotEquivalentMaxLen(t *testing.T) {
 	// Different max len, but that's ok because the prefixes are identical
 	n2 := NewNodeIDWithPrefix(0x1234, l, l, l*2)
 	if !n1.Equivalent(n2) {
-		t.Fatalf("%v not Equivalent with %v", n1, n2)
+		t.Fatalf("%v not Equivalent with %v (%s vs %s)", n1, n2, n1.String(), n2.String())
 	}
 }
 
