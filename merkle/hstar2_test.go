@@ -9,20 +9,12 @@ import (
 	"testing"
 
 	"github.com/google/trillian"
+	"github.com/google/trillian/testonly"
 )
 
 // This root was calculated with the C++/Python sparse merkle tree code in the
 // github.com/google/certificate-transparency repo.
 const sparseEmptyRootHashB64 = "xmifEIEqCYCXbZUz2Dh1KCFmFZVn7DUVVxbBQTr1PWo="
-
-// TODO(al): collect these test helpers together somewhere.
-func mustDecode(b64 string) trillian.Hash {
-	r, err := base64.StdEncoding.DecodeString(b64)
-	if err != nil {
-		panic(r)
-	}
-	return r
-}
 
 // createHStar2Leaves builds a list of HStar2LeafHash structs suitable for
 // passing into a the HStar2 sparse merkle tree implementation.
@@ -48,7 +40,7 @@ func TestHStar2EmptyRootKAT(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to calculate root: %v", err)
 	}
-	if expected, got := mustDecode(sparseEmptyRootHashB64), root; !bytes.Equal(expected, got) {
+	if expected, got := testonly.MustDecodeBase64(sparseEmptyRootHashB64), root; !bytes.Equal(expected, got) {
 		t.Fatalf("Expected empty root:\n%v\nGot:\n%v", expected, got)
 	}
 }
@@ -74,7 +66,7 @@ func TestHStar2SimpleDataSetKAT(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to calculate root at iteration %d: %v", i, err)
 		}
-		if expected, got := mustDecode(x.rootB64), root; !bytes.Equal(expected, got) {
+		if expected, got := testonly.MustDecodeBase64(x.rootB64), root; !bytes.Equal(expected, got) {
 			t.Fatalf("Expected root:\n%v\nGot:\n%v", base64.StdEncoding.EncodeToString(expected), base64.StdEncoding.EncodeToString(got))
 		}
 	}
@@ -109,7 +101,7 @@ func TestHStar2GetSet(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to calculate root at iteration %d: %v", i, err)
 		}
-		if expected, got := mustDecode(x.rootB64), root; !bytes.Equal(expected, got) {
+		if expected, got := testonly.MustDecodeBase64(x.rootB64), root; !bytes.Equal(expected, got) {
 			t.Fatalf("Expected root:\n%v\nGot:\n%v", base64.StdEncoding.EncodeToString(expected), base64.StdEncoding.EncodeToString(got))
 		}
 	}
@@ -128,7 +120,7 @@ func TestHStar2OffsetEmptyRootKAT(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to calculate root %v", err)
 		}
-		if expected, got := mustDecode(sparseEmptyRootHashB64), root; !bytes.Equal(expected, got) {
+		if expected, got := testonly.MustDecodeBase64(sparseEmptyRootHashB64), root; !bytes.Equal(expected, got) {
 			t.Fatalf("Expected root:\n%v\nGot:\n%v", base64.StdEncoding.EncodeToString(expected), base64.StdEncoding.EncodeToString(got))
 		}
 	}
@@ -181,7 +173,7 @@ func TestHStar2OffsetRootKAT(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to calculate root at iteration %d: %v", i, err)
 			}
-			if expected, got := mustDecode(x.rootB64), root; !bytes.Equal(expected, got) {
+			if expected, got := testonly.MustDecodeBase64(x.rootB64), root; !bytes.Equal(expected, got) {
 				t.Fatalf("Expected root:\n%v\nGot:\n%v", base64.StdEncoding.EncodeToString(expected), base64.StdEncoding.EncodeToString(got))
 			}
 		}

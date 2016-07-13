@@ -14,6 +14,7 @@ import (
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/testonly"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -45,15 +46,6 @@ func maybeProfileMemory(t *testing.T) {
 	}
 }
 
-// TODO(al): collect these test helpers together somewhere.
-func mustDecodeB64(b64 string) trillian.Hash {
-	r, err := base64.StdEncoding.DecodeString(b64)
-	if err != nil {
-		panic(r)
-	}
-	return r
-}
-
 func getSparseMerkleTreeReaderWithMockTX(rev int64) (*SparseMerkleTreeReader, *storage.MockMapTX) {
 	tx := &storage.MockMapTX{}
 	return NewSparseMerkleTreeReader(rev, NewMapHasher(NewRFC6962TreeHasher(trillian.NewSHA256())), tx), tx
@@ -72,7 +64,7 @@ func isRootNodeOnly(nodes []storage.NodeID) bool {
 func getEmptyRootNode() storage.Node {
 	return storage.Node{
 		NodeID:       storage.NewEmptyNodeID(0),
-		Hash:         mustDecode(sparseEmptyRootHashB64),
+		Hash:         testonly.MustDecodeBase64(sparseEmptyRootHashB64),
 		NodeRevision: 0,
 	}
 }
@@ -186,7 +178,7 @@ func TestInclusionProofForNullEntryInEmptyTree(t *testing.T) {
 		}
 	}
 	// And hashing the zeroth proof element with itself should give us the empty root hash
-	if expected, got := mustDecode(sparseEmptyRootHashB64), treeHasher.HashChildren(proof[0], proof[0]); !bytes.Equal(expected, got) {
+	if expected, got := testonly.MustDecodeBase64(sparseEmptyRootHashB64), treeHasher.HashChildren(proof[0], proof[0]); !bytes.Equal(expected, got) {
 		t.Fatalf("Expected to generate sparseEmptyRootHash using proof[0], but got %v", got)
 	}
 }
@@ -280,13 +272,13 @@ func testSparseTreeCalculatedRootWithWriter(t *testing.T, rev int64, vec sparseT
 }
 
 func TestSparseMerkleTreeWriterEmptyTree(t *testing.T) {
-	testSparseTreeCalculatedRoot(t, sparseTestVector{[]sparseKeyValue{}, mustDecodeB64("xmifEIEqCYCXbZUz2Dh1KCFmFZVn7DUVVxbBQTr1PWo=")})
+	testSparseTreeCalculatedRoot(t, sparseTestVector{[]sparseKeyValue{}, testonly.MustDecodeBase64("xmifEIEqCYCXbZUz2Dh1KCFmFZVn7DUVVxbBQTr1PWo=")})
 }
 
 func TestSparseMerkleTreeWriter(t *testing.T) {
 	vec := sparseTestVector{
 		[]sparseKeyValue{{"key1", "value1"}, {"key2", "value2"}, {"key3", "value3"}},
-		mustDecodeB64("Ms8A+VeDImofprfgq7Hoqh9cw+YrD/P/qibTmCm5JvQ="),
+		testonly.MustDecodeBase64("Ms8A+VeDImofprfgq7Hoqh9cw+YrD/P/qibTmCm5JvQ="),
 	}
 	testSparseTreeCalculatedRoot(t, vec)
 }
@@ -416,7 +408,7 @@ func DISABLEDTestSparseMerkleTreeWriterBigBatch(t *testing.T) {
 
 	// calculated using python code.
 	const expectedRootB64 = "Av30xkERsepT6F/AgbZX3sp91TUmV1TKaXE6QPFfUZA="
-	if expected, got := mustDecodeB64(expectedRootB64), root; !bytes.Equal(expected, root) {
+	if expected, got := testonly.MustDecodeBase64(expectedRootB64), root; !bytes.Equal(expected, root) {
 		// Error, not Fatal so that we get our benchmark results regardless of the
 		// result - useful if you want to up the amount of data without having to
 		// figure out the expected root!
