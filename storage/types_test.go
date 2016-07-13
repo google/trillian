@@ -2,6 +2,7 @@ package storage
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 )
 
@@ -17,10 +18,17 @@ func TestNewNodeIDWithPrefix(t *testing.T) {
 	if got, want := n.Path, []byte{0x12, 0x34, 0x56, 0x78, 0x00, 0x00, 0x00, 0x00}; !bytes.Equal(got, want) {
 		t.Fatalf("Expected Path of %v, but got %v", want, got)
 	}
+	if expected, got := "00010010001101000101011001111000", n.String(); got != expected {
+		t.Fatalf("Expected Path String of %s, but got %s", expected, got)
+	}
 
-	n = NewNodeIDWithPrefix(0x345678, 24, 24, 24)
-	if got, want := n.Path, []byte{0x34, 0x56, 0x78}; !bytes.Equal(got, want) {
+	n = NewNodeIDWithPrefix(0x345678, 15, 15, 24)
+	// bottom 15 bits of 0x345678 are: 1010 1100 1111 000x
+	if got, want := n.Path, []byte{0xac, 0xf0, 0x00}; !bytes.Equal(got, want) {
 		t.Fatalf("Expected Path of %v, but got %v", want, got)
+	}
+	if expected, got := fmt.Sprintf("%015b", 0x345678&0x7fff), n.String(); got != expected {
+		t.Fatalf("Expected Path String of %s, but got %s", expected, got)
 	}
 }
 
