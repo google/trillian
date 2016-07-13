@@ -75,6 +75,10 @@ func (p *PEMCertPool) Subjects() (res [][]byte) {
 	return p.certPool.Subjects()
 }
 
+// CertPool returns the underlying CertPool.
+func (p *PEMCertPool) CertPool() *x509.CertPool {
+	return p.certPool
+}
 // RawCertificates returns a list of the raw bytes of certificates that are in this pool
 func (p *PEMCertPool) RawCertificates() [][]byte {
 	return p.rawCerts
