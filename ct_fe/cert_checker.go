@@ -22,8 +22,8 @@ var asn1NullBytes = []byte{0x05, 0x00}
 func IsPrecertificate(cert *x509.Certificate) (bool, error) {
 	for _, ext := range cert.Extensions {
 		if ctPoisonExtensionOid.Equal(ext.Id) {
-			if ext.Critical || bytes.Equal(asn1NullBytes, ext.Value) {
-				return false, fmt.Errorf("CT poison ext is critical or invalid: %v", ext)
+			if !ext.Critical || !bytes.Equal(asn1NullBytes, ext.Value) {
+				return false, fmt.Errorf("CT poison ext is not critical or invalid: %v", ext)
 			}
 
 			return true, nil
@@ -53,7 +53,11 @@ func ValidateChain(jsonChain []string, trustedRoots crypto.PEMCertPool) ([]*x509
 		cert, err := x509.ParseCertificate(certBytes)
 
 		if err != nil {
-			return nil, err
+			_, ok := err.(x509.NonFatalErrors)
+
+			if !ok {
+				return nil, err
+			}
 		}
 
 		chain = append(chain, cert)
