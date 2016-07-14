@@ -275,6 +275,8 @@ func (s Sequencer) SignRoot() error {
 	}
 
 	// Build the updated root, ready for signing
+	// TODO(Martin2112): *** Consolidate sequencer and signer so only one entity produces new
+	// tree revisions. ***
 	newLogRoot := trillian.SignedLogRoot{
 		RootHash:       merkleTree.CurrentRoot(),
 		TimestampNanos: s.timeSource.Now().UnixNano(),
