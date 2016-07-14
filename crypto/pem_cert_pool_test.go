@@ -156,7 +156,7 @@ iBEUO5P6TnqH3TfhOF8sKQg=
 -----END CERTIFICATE-----`
 
 func TestLoadSingleCertFromPEMs(t *testing.T) {
-	for _, pem := range ([]string{caCertPEM, caCertPEMWithOtherStuff, caCertPEMDuplicated}) {
+	for _, pem := range []string{caCertPEM, caCertPEMWithOtherStuff, caCertPEMDuplicated} {
 		pool := NewPEMCertPool()
 
 		ok := pool.AppendCertsFromPEM([]byte(pem))
@@ -166,7 +166,7 @@ func TestLoadSingleCertFromPEMs(t *testing.T) {
 }
 
 func TestBadOrEmptyCertificateRejected(t *testing.T) {
-	for _, pem := range ([]string{emptyPEM, caCertPEMBad}) {
+	for _, pem := range []string{emptyPEM, caCertPEMBad} {
 		pool := NewPEMCertPool()
 
 		ok := pool.AppendCertsFromPEM([]byte(pem))

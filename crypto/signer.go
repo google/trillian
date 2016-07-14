@@ -15,9 +15,9 @@ import (
 // Constants used as map keys when building input for ObjectHash. They must not be changed
 // as this will change the output of hashRoot()
 const (
-	mapKeyRootHash string = "RootHash"
+	mapKeyRootHash       string = "RootHash"
 	mapKeyTimestampNanos string = "TimestampNanos"
-	mapKeyTreeSize string = "TreeSize"
+	mapKeyTreeSize       string = "TreeSize"
 )
 
 // Signer is responsible for signing log-related data and producing the appropriate

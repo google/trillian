@@ -6,7 +6,9 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"github.com/golang/glog"
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto"
 )
 
 const (
@@ -17,17 +19,22 @@ const (
 	httpMethodGet  = "GET"
 )
 
+const (
+	jsonMapKeyCertificates string = "certificates"
+)
+
 // CTRequestHandlers provides HTTP handler functions for CT V1 as defined in RFC 6962
 // and functionality to translate CT client requests into forms that can be served by a
 // log backend RPC service.
 type CTRequestHandlers struct {
-	rpcClient trillian.TrillianLogClient
+	trustedRoots *crypto.PEMCertPool
+	rpcClient    trillian.TrillianLogClient
 }
 
 // NewCTRequestHandlers creates a new instance of CTRequestHandlers. They must still
 // be registered by calling RegisterCTHandlers()
-func NewCTRequestHandlers(rpcClient trillian.TrillianLogClient) *CTRequestHandlers {
-	return &CTRequestHandlers{rpcClient}
+func NewCTRequestHandlers(trustedRoots *crypto.PEMCertPool, rpcClient trillian.TrillianLogClient) *CTRequestHandlers {
+	return &CTRequestHandlers{trustedRoots, rpcClient}
 }
 
 func pathFor(req string) string {
@@ -155,13 +162,22 @@ func wrappedGetEntriesHandler(rpcClient trillian.TrillianLogClient) http.Handler
 	}
 }
 
-func wrappedGetRootsHandler(rpcClient trillian.TrillianLogClient) http.HandlerFunc {
+func wrappedGetRootsHandler(trustedRoots *crypto.PEMCertPool, rpcClient trillian.TrillianLogClient) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !enforceMethod(w, r, httpMethodGet) {
 			return
 		}
 
-		http.Error(w, http.StatusText(http.StatusNotImplemented), http.StatusNotImplemented)
+		jsonMap := make(map[string]interface{})
+		jsonMap[jsonMapKeyCertificates] = trustedRoots.RawCertificates()
+		enc := json.NewEncoder(w)
+		err := enc.Encode(jsonMap)
+
+		if err != nil {
+			glog.Warningf("get_roots failed: %v", err)
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
+		}
 	}
 }
 
@@ -184,6 +200,6 @@ func (c CTRequestHandlers) RegisterCTHandlers() {
 	http.HandleFunc(pathFor("get-sth-consistency"), wrappedGetSTHConsistencyHandler(c.rpcClient))
 	http.HandleFunc(pathFor("get-proof-by-hash"), wrappedGetProofByHashHandler(c.rpcClient))
 	http.HandleFunc(pathFor("get-entries"), wrappedGetEntriesHandler(c.rpcClient))
-	http.HandleFunc(pathFor("get-roots"), wrappedGetRootsHandler(c.rpcClient))
+	http.HandleFunc(pathFor("get-roots"), wrappedGetRootsHandler(c.trustedRoots, c.rpcClient))
 	http.HandleFunc(pathFor("get-entry-and-proof"), wrappedGetEntryAndProofHandler(c.rpcClient))
 }

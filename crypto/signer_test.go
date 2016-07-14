@@ -128,9 +128,9 @@ func TestSignLogRoot(t *testing.T) {
 	}
 
 	expected := trillian.SignedLogRoot{TimestampNanos: 2267709, RootHash: []byte("Islington"), TreeSize: 2,
-		Signature: &trillian.DigitallySigned{SignatureAlgorithm:trillian.SignatureAlgorithm_RSA,
+		Signature: &trillian.DigitallySigned{SignatureAlgorithm: trillian.SignatureAlgorithm_RSA,
 			HashAlgorithm: trillian.HashAlgorithm_SHA256,
-			Signature: []byte("echo")}}
+			Signature:     []byte("echo")}}
 	assert.Equal(t, expected, root, "Expected a correctly signed root")
 }
 
