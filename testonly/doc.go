@@ -7,3 +7,6 @@ As an example PEM encoded test certificates and helper functions to decode them 
 suitable candidates for being placed in testonly.
 */
 package testonly
+
+// TODO(Martin2112): When all current work has landed split this up so that all the CT
+// specific test data is moved to an appropriate testonly directory under the CT frontend.
