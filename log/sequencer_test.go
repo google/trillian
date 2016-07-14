@@ -317,7 +317,7 @@ func TestStoreSignedRootKeyManagerFails(t *testing.T) {
 
 	leafCount, err := c.sequencer.SequenceBatch(1)
 	assert.Zero(t, leafCount, "Unexpectedly sequenced leaves on error")
-	ensureErrorContains(t, err, "keymanagerfailed")
+	testonly.EnsureErrorContains(t, err, "keymanagerfailed")
 
 	c.mockStorage.AssertExpectations(t)
 }
@@ -335,7 +335,7 @@ func TestStoreSignedRootSignerFails(t *testing.T) {
 
 	leafCount, err := c.sequencer.SequenceBatch(1)
 	assert.Zero(t, leafCount, "Unexpectedly sequenced leaves on error")
-	ensureErrorContains(t, err, "signerfailed")
+	testonly.EnsureErrorContains(t, err, "signerfailed")
 
 	c.mockStorage.AssertExpectations(t)
 }
@@ -384,7 +384,7 @@ func TestSignBeginTxFails(t *testing.T) {
 	c := createTestContext(params)
 
 	err := c.sequencer.SignRoot()
-	ensureErrorContains(t, err, "TX")
+	testonly.EnsureErrorContains(t, err, "TX")
 
 	c.mockStorage.AssertExpectations(t)
 }
@@ -395,7 +395,7 @@ func TestSignLatestRootFails(t *testing.T) {
 	c := createTestContext(params)
 
 	err := c.sequencer.SignRoot()
-	ensureErrorContains(t, err, "root")
+	testonly.EnsureErrorContains(t, err, "root")
 
 	c.mockStorage.AssertExpectations(t)
 }
@@ -408,7 +408,7 @@ func TestSignedRootKeyManagerFails(t *testing.T) {
 	c := createTestContext(params)
 
 	err := c.sequencer.SignRoot()
-	ensureErrorContains(t, err, "keymanager")
+	testonly.EnsureErrorContains(t, err, "keymanager")
 
 	c.mockStorage.AssertExpectations(t)
 }
@@ -423,7 +423,7 @@ func TestSignRootSignerFails(t *testing.T) {
 	c := createTestContext(params)
 
 	err := c.sequencer.SignRoot()
-	ensureErrorContains(t, err, "signer")
+	testonly.EnsureErrorContains(t, err, "signer")
 
 	c.mockStorage.AssertExpectations(t)
 }
@@ -438,7 +438,7 @@ func TestSignRootStoreSignedRootFails(t *testing.T) {
 	c := createTestContext(params)
 
 	err := c.sequencer.SignRoot()
-	ensureErrorContains(t, err, "storesignedroot")
+	testonly.EnsureErrorContains(t, err, "storesignedroot")
 
 	c.mockStorage.AssertExpectations(t)
 }
@@ -453,7 +453,7 @@ func TestSignRootCommitFails(t *testing.T) {
 	c := createTestContext(params)
 
 	err := c.sequencer.SignRoot()
-	ensureErrorContains(t, err, "commit")
+	testonly.EnsureErrorContains(t, err, "commit")
 
 	c.mockStorage.AssertExpectations(t)
 }
