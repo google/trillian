@@ -366,7 +366,7 @@ func testSparseTreeFetches(t *testing.T, vec sparseTestVector) {
 func TestSparseMerkleTreeWriterFetchesSingleLeaf(t *testing.T) {
 	vec := sparseTestVector{
 		[]sparseKeyValue{{"key1", "value1"}},
-		mustDecodeB64("PPI818D5CiUQQMZulH58LikjxeOFWw2FbnGM0AdVHWA="),
+		testonly.MustDecodeBase64("PPI818D5CiUQQMZulH58LikjxeOFWw2FbnGM0AdVHWA="),
 	}
 
 	testSparseTreeFetches(t, vec)
@@ -375,7 +375,7 @@ func TestSparseMerkleTreeWriterFetchesSingleLeaf(t *testing.T) {
 func TestSparseMerkleTreeWriterFetchesMultipleLeaves(t *testing.T) {
 	vec := sparseTestVector{
 		[]sparseKeyValue{{"key1", "value1"}, {"key2", "value2"}, {"key3", "value3"}},
-		mustDecodeB64("Ms8A+VeDImofprfgq7Hoqh9cw+YrD/P/qibTmCm5JvQ="),
+		testonly.MustDecodeBase64("Ms8A+VeDImofprfgq7Hoqh9cw+YrD/P/qibTmCm5JvQ="),
 	}
 
 	testSparseTreeFetches(t, vec)
