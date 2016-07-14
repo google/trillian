@@ -18,16 +18,16 @@ var rpcBackendFlag = flag.String("log_rpc_backend", "localhost:8090", "Backend L
 var serverPortFlag = flag.Int("port", 8091, "Port to serve CT log requests on")
 var trustedRootPEMFlag = flag.String("trusted_roots", "", "File containing one or more concatenated trusted root certs in PEM format")
 
-func loadTrustedRoots(filename string) (*crypto.PEMCertPool, error) {
-	if len(filename) == 0 {
-		return nil, errors.New("The --trusted_roots flag must be set to reference a valid PEM file")
+func loadTrustedRoots() (*crypto.PEMCertPool, error) {
+	if len(*trustedRootPEMFlag) == 0 {
+		return nil, errors.New("the --trusted_roots flag must be set to reference a valid PEM file")
 	}
 
 	trustedRoots := crypto.NewPEMCertPool()
 
 	// The set of root data should never be particularly large and we have to keep it in memory
 	// anyway to validate submissions
-	rootData, err := ioutil.ReadFile(filename)
+	rootData, err := ioutil.ReadFile(*trustedRootPEMFlag)
 
 	if err != nil {
 		return nil, err
@@ -38,7 +38,7 @@ func loadTrustedRoots(filename string) (*crypto.PEMCertPool, error) {
 	}
 
 	if len(trustedRoots.Subjects()) == 0 {
-		return nil, errors.New("Hmmmm. Trusted root certificate pool is empty?")
+		return nil, errors.New("trusted root certificate pool is empty?")
 	}
 
 	return trustedRoots, nil
