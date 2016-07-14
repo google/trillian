@@ -5,10 +5,10 @@ import (
 	"crypto"
 	"errors"
 	"io"
-	"strings"
 	"testing"
 
 	"github.com/google/trillian"
+	"github.com/google/trillian/testonly"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -81,7 +81,7 @@ func TestSignerFails(t *testing.T) {
 		t.Fatalf("Ignored a signing error: %v", err)
 	}
 
-	ensureErrorContains(t, err, "sign")
+	testonly.EnsureErrorContains(t, err, "sign")
 
 	mockSigner.AssertExpectations(t)
 }
@@ -103,7 +103,7 @@ func TestSignLogRootSignerFails(t *testing.T) {
 	root := trillian.SignedLogRoot{TimestampNanos: 2267709, RootHash: []byte("Islington"), TreeSize: 2}
 	err := logSigner.SignLogRoot(&root)
 
-	ensureErrorContains(t, err, "signfail")
+	testonly.EnsureErrorContains(t, err, "signfail")
 }
 
 func TestSignLogRoot(t *testing.T) {
@@ -132,17 +132,6 @@ func TestSignLogRoot(t *testing.T) {
 			HashAlgorithm: trillian.HashAlgorithm_SHA256,
 			Signature: []byte("echo")}}
 	assert.Equal(t, expected, root, "Expected a correctly signed root")
-}
-
-// TODO(Martin2112): Tidy up so we only have one copy of this
-func ensureErrorContains(t *testing.T, err error, s string) {
-	if err == nil {
-		t.Fatalf("%s operation unexpectedly succeeded", s)
-	}
-
-	if !strings.Contains(err.Error(), s) {
-		t.Errorf("Got the wrong type of error: %v", err)
-	}
 }
 
 func createTestSigner(t *testing.T, mock mockSigner) *Signer {
