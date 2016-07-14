@@ -20,9 +20,9 @@ const (
 	mapKeyTreeSize       string = "TreeSize"
 )
 
-// Signer is responsible for signing log-related data and producing the appropriate
+// TrillianSigner is responsible for signing log-related data and producing the appropriate
 // application specific signature objects.
-type Signer struct {
+type TrillianSigner struct {
 	hasher       trillian.Hasher
 	signer       crypto.Signer
 	sigAlgorithm trillian.SignatureAlgorithm
@@ -31,12 +31,12 @@ type Signer struct {
 // NewSigner creates a new LogSigner wrapping up a hasher and a signer. For the moment
 // we only support SHA256 hashing and either ECDSA or RSA signing but this is not enforced
 // here.
-func NewSigner(hasher trillian.Hasher, signatureAlgorithm trillian.SignatureAlgorithm, signer crypto.Signer) *Signer {
-	return &Signer{hasher, signer, signatureAlgorithm}
+func NewTrillianSigner(hasher trillian.Hasher, signatureAlgorithm trillian.SignatureAlgorithm, signer crypto.Signer) *TrillianSigner {
+	return &TrillianSigner{hasher, signer, signatureAlgorithm}
 }
 
 // Sign obtains a signature after first hashing the input data.
-func (s Signer) Sign(data []byte) (trillian.DigitallySigned, error) {
+func (s TrillianSigner) Sign(data []byte) (trillian.DigitallySigned, error) {
 	digest := s.hasher.Digest(data)
 
 	if len(digest) != s.hasher.Size() {
@@ -56,7 +56,7 @@ func (s Signer) Sign(data []byte) (trillian.DigitallySigned, error) {
 		Signature:          sig}, nil
 }
 
-func (s Signer) hashRoot(root trillian.SignedLogRoot) []byte {
+func (s TrillianSigner) hashRoot(root trillian.SignedLogRoot) []byte {
 	rootMap := make(map[string]interface{})
 
 	// Pull out the fields we want to hash. Caution: use string format for int64 values as they
@@ -73,15 +73,14 @@ func (s Signer) hashRoot(root trillian.SignedLogRoot) []byte {
 
 // SignLogRoot updates a log root to include a signature from the crypto signer this object
 // was created with. Signatures use objecthash on a fixed JSON format of the root.
-func (s Signer) SignLogRoot(root *trillian.SignedLogRoot) error {
-	objectHash := s.hashRoot(*root)
+func (s TrillianSigner) SignLogRoot(root trillian.SignedLogRoot) (trillian.DigitallySigned, error) {
+	objectHash := s.hashRoot(root)
 	signature, err := s.Sign(objectHash[:])
 
 	if err != nil {
 		glog.Warningf("Signer failed to sign root: %v", err)
-		return err
+		return trillian.DigitallySigned{}, err
 	}
 
-	root.Signature = &signature
-	return nil
+	return signature, nil
 }

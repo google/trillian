@@ -36,7 +36,7 @@ MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEsAVg3YB0tOFf3DdC2YHPL2WiuCNR
 -----END PUBLIC KEY-----`
 
 func TestLoadDemoECDSAKeyAndSign(t *testing.T) {
-	km := new(KeyManager)
+	km := new(PEMKeyManager)
 
 	// Obviously in real code we wouldn't use a fixed seed
 	rand := rand.New(rand.NewSource(42))
@@ -87,7 +87,7 @@ func TestLoadDemoECDSAKeyAndSign(t *testing.T) {
 }
 
 func TestLoadDemoECDSAPublicKey(t *testing.T) {
-	km := new(KeyManager)
+	km := new(PEMKeyManager)
 
 	if err := km.LoadPublicKey(demoPublicKey); err != nil {
 		t.Fatal("Failed to load public key")

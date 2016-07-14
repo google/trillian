@@ -12,18 +12,25 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/golang/glog"
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/mysql"
+	"github.com/google/trillian/util"
 	"google.golang.org/grpc"
 )
 
 var mysqlUriFlag = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test",
 	"uri to use with mysql storage")
 var serverPortFlag = flag.Int("port", 8090, "Port to serve log requests on")
-var sleepBetweenLogsFlag = flag.Duration("sleep_between_logs", time.Millisecond*100, "Time to pause after each log sequenced")
-var sleepBetweenRunsFlag = flag.Duration("sleep_between_runs", time.Second*10, "Time to pause after each pass through all logs")
+var sequencerSleepBetweenRunsFlag = flag.Duration("sleep_between_runs", time.Second*10, "Time to pause after each sequencing pass through all logs")
+var signerSleepBetweenRunsFlag = flag.Duration("sleep_between_runs", time.Second*120, "Time to pause after each signing pass through all logs")
 var batchSizeFlag = flag.Int("batch_size", 50, "Max number of leaves to process per batch")
+
+// TODO(Martin2112): Single private key doesn't really work for multi tenant and we can't use
+// an HSM interface in this way. Deferring these issues for later.
+var privateKeyFile = flag.String("private_key_file", "", "File containing a PEM encoded private key")
+var privateKeyPassword = flag.String("private_key_password", "", "Password for server private key")
 
 // TODO(Martin2112): Needs a more realistic provider of log storage with some caching
 // and ability to swap out for different storage type
@@ -89,6 +96,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Load up our private key, exit if this fails to work
+	// TODO(Martin2112): This will need to be changed for multi tenant as we'll need at
+	// least one key per tenant, possibly more.
+	keyManager, err := crypto.LoadPasswordProtectedPrivateKey(*privateKeyFile, *privateKeyPassword)
+
+	if err != nil {
+		glog.Fatalf("Failed to load server key: %v", err)
+	}
+
 	// Set up the listener for the server
 	glog.Infof("Creating RPC server starting on port: %d", *serverPortFlag)
 	// TODO(Martin2112): More flexible listen address configuration
@@ -101,8 +117,16 @@ func main() {
 
 	// Start the sequencing loop, which will run until we terminate the process
 	// TODO(Martin2112): Should respect read only mode and the flags in tree control etc
-	sequencerManager := server.NewSequencerManager(done, simpleMySqlStorageProvider, *batchSizeFlag, *sleepBetweenLogsFlag, *sleepBetweenRunsFlag)
+	// TODO(Martin2112): Plug in Key manager and load key, this is in another branch atm
+	// this is OK as we haven't added code to create a signer task yet
+	sequencerManager := server.NewLogOperationManager(done, simpleMySqlStorageProvider, *batchSizeFlag, *sequencerSleepBetweenRunsFlag, util.SystemTimeSource{}, server.NewSequencerManager(keyManager))
 	go sequencerManager.OperationLoop()
+
+	// Start the signer loop, which will run continuously
+	// TODO(Martin2112): This should all be replaced by a proper task scheduler for
+	// log signing / sequencing. See TODOs above.
+	signerManager := server.NewLogOperationManager(done, simpleMySqlStorageProvider, *batchSizeFlag, *signerSleepBetweenRunsFlag, util.SystemTimeSource{}, server.NewSignerManager(keyManager))
+	go signerManager.OperationLoop()
 
 	// Bring up the RPC server and then block until we get a signal to stop
 	rpcServer := startRpcServer(lis, *serverPortFlag, simpleMySqlStorageProvider)
