@@ -2,10 +2,10 @@ package crypto
 
 import (
 	"encoding/pem"
+	"crypto/sha256"
 
 	"github.com/golang/glog"
 	"github.com/google/certificate-transparency/go/x509"
-	"crypto/sha1"
 )
 
 // PEMCertPool is a wrapper / extension to x509.CertPool. It allows us to access the
@@ -14,20 +14,20 @@ import (
 // PEMCertPool requires all certs to load.
 type PEMCertPool struct {
 	// maps from sha-1 to certificate, used for dup detection
-	fingerprintToCertMap map[[sha1.Size]byte]x509.Certificate
+	fingerprintToCertMap map[[sha256.Size]byte]x509.Certificate
 	rawCerts             [][]byte
 	certPool             *x509.CertPool
 }
 
 // Creates a new instance of PEMCertPool containing no certificates.
 func NewPEMCertPool() *PEMCertPool {
-	return &PEMCertPool{fingerprintToCertMap: make(map[[sha1.Size]byte]x509.Certificate), certPool: x509.NewCertPool()}
+	return &PEMCertPool{fingerprintToCertMap: make(map[[sha256.Size]byte]x509.Certificate), certPool: x509.NewCertPool()}
 }
 
 // AddCert adds a certificate to a pool. Uses fingerprint to weed out duplicates.
 // cert must not be nil.
 func (p *PEMCertPool) AddCert(cert *x509.Certificate) {
-	fingerprint := sha1.Sum(cert.Raw)
+	fingerprint := sha256.Sum256(cert.Raw)
 	_, ok := p.fingerprintToCertMap[fingerprint]
 
 	if !ok {
