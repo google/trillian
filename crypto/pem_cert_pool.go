@@ -8,6 +8,12 @@ import (
 	"github.com/google/certificate-transparency/go/x509"
 )
 
+// TODO(Martin2112): This code imports CT specific versions of X509 objects and should
+// probably be moved out of here.
+
+// String for certificate blocks in BEGIN / END PEM headers
+const pemCertificateBlockType string = "CERTIFICATE"
+
 // PEMCertPool is a wrapper / extension to x509.CertPool. It allows us to access the
 // raw certs, which we need to serve get-roots request and has stricter handling on loading
 // certs into the pool. CertPool ignores errors if at least one cert loads correctly but
@@ -47,7 +53,7 @@ func (p *PEMCertPool) AppendCertsFromPEM(pemCerts []byte) (ok bool) {
 		if block == nil {
 			break
 		}
-		if block.Type != "CERTIFICATE" || len(block.Headers) != 0 {
+		if block.Type != pemCertificateBlockType || len(block.Headers) != 0 {
 			continue
 		}
 
