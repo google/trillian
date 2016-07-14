@@ -109,24 +109,28 @@ func (s *HStar2) hStarEmpty(n int) (trillian.Hash, error) {
 	return s.hStarEmptyCache[n], nil
 }
 
+var (
+	smtZero = big.NewInt(0)
+	smtOne  = big.NewInt(1)
+)
+
 // hStar2b is the recursive implementation for calculating a sparse merkle tree
 // root value.
 func (s *HStar2) hStar2b(n int, values []HStar2LeafHash, offset *big.Int, get SparseGetNodeFunc, set SparseSetNodeFunc) (trillian.Hash, error) {
-
 	if n == 0 {
 		switch {
 		case len(values) == 0:
-			return get(n, big.NewInt(0))
+			return get(n, offset)
 		case len(values) != 1:
 			return nil, fmt.Errorf("expected 1 value remaining, but found %d", len(values))
 		}
 		return values[0].LeafHash, nil
 	}
 
-	split := new(big.Int).Lsh(big.NewInt(1), uint(n-1))
+	split := new(big.Int).Lsh(smtOne, uint(n-1))
 	split.Add(split, offset)
 	if len(values) == 0 {
-		return get(n, split)
+		return get(n, offset)
 	}
 
 	i := sort.Search(len(values), func(i int) bool { return values[i].Index.Cmp(split) >= 0 })
@@ -140,7 +144,7 @@ func (s *HStar2) hStar2b(n int, values []HStar2LeafHash, offset *big.Int, get Sp
 	}
 	h := s.hasher.HashChildren(lhs, rhs)
 	if set != nil {
-		set(n, split, h)
+		set(n, offset, h)
 	}
 	return h, nil
 }
