@@ -10,6 +10,7 @@ import (
 	"os"
 	"runtime/pprof"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/google/trillian"
@@ -287,46 +288,58 @@ func testSparseTreeFetches(t *testing.T, vec sparseTestVector) {
 	const rev = 100
 	w, tx := getSparseMerkleTreeWriterWithMockTX(rev)
 
-	e := make(map[string]string)
+	reads := make(map[string]string)
+	readMutex := sync.Mutex{}
 	leafNodeIDs := make([]storage.NodeID, 0)
-	// calculate the set of expected node reads.
-	for i, kv := range vec.kv {
-		keyHash := w.hasher.keyHasher([]byte(kv.k))
-		nodeID := storage.NewNodeIDFromHash(keyHash)
-		leafNodeIDs = append(leafNodeIDs, nodeID)
-		sibs := nodeID.Siblings()
-		t.Logf("hash %d: %s", i, nodeID.String())
 
-		// start with the set of siblings of all leaves:
-		for j := range sibs {
-			j := j
-			id := sibs[j].String()
-			pathNode := nodeID.String()[:len(id)]
-			if _, ok := e[pathNode]; ok {
-				// we're modifying both children of a node because two keys are
-				// intersecting, since both will be recalculated neither will be read
-				// from storage so we remove the previously set expectation for this
-				// node's sibling, and skip adding one for this node:
-				delete(e, pathNode)
-				continue
+	{
+		readMutex.Lock()
+
+		// calculate the set of expected node reads.
+		for i, kv := range vec.kv {
+			keyHash := w.hasher.keyHasher([]byte(kv.k))
+			nodeID := storage.NewNodeIDFromHash(keyHash)
+			leafNodeIDs = append(leafNodeIDs, nodeID)
+			sibs := nodeID.Siblings()
+			t.Logf("hash %d: %s", i, nodeID.String())
+
+			// start with the set of siblings of all leaves:
+			for j := range sibs {
+				j := j
+				id := sibs[j].String()
+				pathNode := nodeID.String()[:len(id)]
+				if _, ok := reads[pathNode]; ok {
+					// we're modifying both children of a node because two keys are
+					// intersecting, since both will be recalculated neither will be read
+					// from storage so we remove the previously set expectation for this
+					// node's sibling, and skip adding one for this node:
+					delete(reads, pathNode)
+					continue
+				}
+				reads[sibs[j].String()] = "unmet"
 			}
-			e[sibs[j].String()] = "unmet"
 		}
+
+		// Next, remove any expectations for leaf-siblings which also happen to be
+		// one of the keys being set by the test vector (unlikely to happen tbh):
+		for i := range leafNodeIDs {
+			delete(reads, leafNodeIDs[i].String())
+		}
+
+		readMutex.Unlock()
 	}
 
-	// Next, remove any expectations for leaf-siblings which also happen to be
-	// one of the keys being set by the test vector (unlikely to happen tbh):
-	for i := range leafNodeIDs {
-		delete(e, leafNodeIDs[i].String())
-	}
 	// Now, set up a mock call for GetMerkleNodes for the nodeIDs in the map
 	// we've just created:
 	tx.On("GetMerkleNodes", int64(rev), mock.MatchedBy(func(ids []storage.NodeID) bool {
 		if len(ids) == 0 {
 			return false
 		}
-		state, ok := e[ids[0].String()]
-		e[ids[0].String()] = "met"
+		readMutex.Lock()
+		defer readMutex.Unlock()
+
+		state, ok := reads[ids[0].String()]
+		reads[ids[0].String()] = "met"
 		return ok && state == "unmet"
 	})).Return([]storage.Node{}, nil)
 
@@ -340,27 +353,85 @@ func testSparseTreeFetches(t *testing.T, vec sparseTestVector) {
 			if a == nil {
 				return
 			}
+
+			readMutex.Lock()
+			defer readMutex.Unlock()
+
 			for i := range a {
-				e[a[i].String()] = "unexpected"
+				reads[a[i].String()] = "unexpected"
 			}
 		}).Return([]storage.Node{}, nil)
 
-	tx.On("SetMerkleNodes", int64(rev), mock.AnythingOfType("[]storage.Node")).Return(nil)
+	// Figure out which nodes should be written:
+	writes := make(map[string]string)
+	writeMutex := sync.Mutex{}
+
+	{
+		writeMutex.Lock()
+		for i := range leafNodeIDs {
+			s := leafNodeIDs[i].String()
+			for x := 0; x < len(s); x++ {
+				writes[s[:x]] = "unmet"
+			}
+		}
+		writeMutex.Unlock()
+	}
+
+	tx.On("SetMerkleNodes", int64(rev), mock.AnythingOfType("[]storage.Node")).Run(
+		func(args mock.Arguments) {
+			writeMutex.Lock()
+			defer writeMutex.Unlock()
+			a := args.Get(1).([]storage.Node)
+			if a == nil {
+				return
+			}
+			for i := range a {
+				id := a[i].NodeID.String()
+				state, ok := writes[id]
+				switch {
+				case !ok:
+					writes[id] = "unexpected"
+				case state == "unmet":
+					writes[id] = "met"
+				default:
+					writes[id] = "duplicate"
+				}
+			}
+		}).Return(nil)
 
 	testSparseTreeCalculatedRootWithWriter(t, rev, vec, w)
 
+	{
+		readMutex.Lock()
+		n, s := nonMatching(reads, "met")
+		// Fail if there are any nodes which we expected to be read but weren't, or vice-versa:
+		if n != 0 {
+			t.Fatalf("saw unexpected/unmet calls to GetMerkleNodes for the following nodeIDs:\n%s", s)
+		}
+		readMutex.Unlock()
+	}
+
+	{
+		writeMutex.Lock()
+		n, s := nonMatching(writes, "met")
+		// Fail if there are any nodes which we expected to be written but weren't, or vice-versa:
+		if n != 0 {
+			t.Fatalf("saw unexpected/unmet calls to SetMerkleNodes for the following nodeIDs:\n%s", s)
+		}
+		writeMutex.Unlock()
+	}
+}
+
+func nonMatching(m map[string]string, needle string) (int, string) {
 	s := ""
 	n := 0
-	for k, v := range e {
-		if v != "met" {
+	for k, v := range m {
+		if v != needle {
 			s += fmt.Sprintf("%s: %s\n", k, v)
 			n++
 		}
 	}
-	// Fail if there are any nodes which we expected to be read but weren't, or vice-versa:
-	if n != 0 {
-		t.Fatalf("saw unexpected/unmet calls to GetMerkleNodes for the following nodeIDs:\n%s", s)
-	}
+	return n, s
 }
 
 func TestSparseMerkleTreeWriterFetchesSingleLeaf(t *testing.T) {
