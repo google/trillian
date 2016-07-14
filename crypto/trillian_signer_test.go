@@ -29,7 +29,7 @@ func (m mockTrillianSigner) Sign(rand io.Reader, msg []byte, opts crypto.SignerO
 
 // Public is a mock
 func (m mockTrillianSigner) Public() crypto.PublicKey {
-	args := m.Called("Public")
+	args := m.Called()
 
 	return args.Get(0)
 }

@@ -93,10 +93,10 @@ func (s Sequencer) initMerkleTreeFromStorage(currentRoot trillian.SignedLogRoot,
 			return nil, fmt.Errorf("MT has zero size but non zero revision: %v", *merkleTree)
 		}
 		return merkle.NewCompactMerkleTree(s.hasher), nil
-	} else {
-		// Initialize the compact tree state to match the latest root in the database
-		return s.buildMerkleTreeFromStorageAtRoot(currentRoot, tx)
 	}
+
+	// Initialize the compact tree state to match the latest root in the database
+	return s.buildMerkleTreeFromStorageAtRoot(currentRoot, tx)
 }
 
 func (s Sequencer) signRoot(root trillian.SignedLogRoot) (trillian.DigitallySigned, error) {

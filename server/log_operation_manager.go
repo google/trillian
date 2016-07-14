@@ -31,7 +31,7 @@ type LogOperationManagerContext struct {
 	timeSource util.TimeSource
 }
 
-// logOperationManager controls scheduling activities for logs. At the moment it's very simple
+// LogOperationManager controls scheduling activities for logs. At the moment it's very simple
 // with a single task running over active logs one at a time. This will be expanded later.
 // This is meant for embedding into the actual operation implementations and should not
 // be created separately.
@@ -78,7 +78,7 @@ func (l LogOperationManager) getLogsAndExecutePass() bool {
 	}
 
 	if err := tx.Commit(); err != nil {
-		glog.Warningf("Failed to commit getting logs, continuing anyway: %v", err)
+		glog.Warningf("Failed to commit getting logs: %v", err)
 		return false
 	}
 

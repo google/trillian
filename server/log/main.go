@@ -1,10 +1,8 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/signal"
@@ -64,27 +62,6 @@ func checkDatabaseAccessible(dbUri string) error {
 	return err
 }
 
-func loadPrivateKey(keyFile, keyPassword string) (crypto.KeyManager, error) {
-	if len(keyFile) == 0 || len(keyPassword) == 0 {
-		return nil, errors.New("private key file and password must be specified")
-	}
-
-	pemData, err := ioutil.ReadFile(keyFile)
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to read data from key file: %s", keyFile)
-	}
-
-	km := crypto.NewPEMKeyManager()
-	err = km.LoadPrivateKey(string(pemData[:]), keyPassword)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return *km, nil
-}
-
 func startRpcServer(listener net.Listener, port int, provider server.LogStorageProviderFunc) *grpc.Server {
 	grpcServer := grpc.NewServer()
 	logServer := server.NewTrillianLogServer(provider)
@@ -120,11 +97,12 @@ func main() {
 	}
 
 	// Load up our private key, exit if this fails to work
-	keyManager, err := loadPrivateKey(*privateKeyFile, *privateKeyPassword)
+	// TODO(Martin2112): This will need to be changed for multi tenant as we'll need at
+	// least one key per tenant, possibly more.
+	keyManager, err := crypto.LoadPasswordProtectedPrivateKey(*privateKeyFile, *privateKeyPassword)
 
 	if err != nil {
-		glog.Errorf("Failed to load server key: %v", err)
-		os.Exit(1)
+		glog.Fatalf("Failed to load server key: %v", err)
 	}
 
 	// Set up the listener for the server

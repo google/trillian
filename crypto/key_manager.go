@@ -8,6 +8,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"io/ioutil"
 )
 
 // KeyManager loads and holds our private and public keys. Should support ECDSA and RSA keys.
@@ -129,4 +130,27 @@ func parsePrivateKey(key []byte) (crypto.PrivateKey, error) {
 	}
 
 	return nil, errors.New("could not parse private key")
+}
+
+// LoadPasswordProtectedPrivateKey initializes and returns a new KeyManager using a PEM encoded
+// private key read from a file. The key may be protected by a password.
+func LoadPasswordProtectedPrivateKey(keyFile, keyPassword string) (KeyManager, error) {
+	if len(keyFile) == 0 || len(keyPassword) == 0 {
+		return nil, errors.New("private key file and password must be specified")
+	}
+
+	pemData, err := ioutil.ReadFile(keyFile)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to read data from key file: %s because: %v", keyFile, err)
+	}
+
+	km := NewPEMKeyManager()
+	err = km.LoadPrivateKey(string(pemData[:]), keyPassword)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return *km, nil
 }
