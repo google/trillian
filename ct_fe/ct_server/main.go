@@ -48,7 +48,7 @@ func main() {
 	flag.Parse()
 
 	// Load the set of trusted root certs before bringing up any servers
-	trustedRoots, err := loadTrustedRoots(*trustedRootPEMFlag)
+	trustedRoots, err := loadTrustedRoots()
 
 	if err != nil {
 		glog.Fatalf("Failed to read trusted roots: %v", err)
