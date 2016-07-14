@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/google/trillian"
+	"github.com/google/trillian/testonly"
 )
 
 const (
@@ -25,7 +26,7 @@ func ensureHashMatches(expected, actual []byte, testCase string, t *testing.T) {
 func TestRfc6962Hasher(t *testing.T) {
 	hasher := NewRFC6962TreeHasher(trillian.NewSHA256())
 
-	ensureHashMatches(mustHexDecode(rfc6962EmptyHashHex), hasher.HashEmpty(), "RFC962 Empty", t)
-	ensureHashMatches(mustHexDecode(rfc6962LeafL123456HashHex), hasher.HashLeaf([]byte("L123456")), "RFC6962 Leaf", t)
-	ensureHashMatches(mustHexDecode(rfc6962NodeN123N456HashHex), hasher.HashChildren([]byte("N123"), []byte("N456")), "RFC6962 Node", t)
+	ensureHashMatches(testonly.MustHexDecode(rfc6962EmptyHashHex), hasher.HashEmpty(), "RFC962 Empty", t)
+	ensureHashMatches(testonly.MustHexDecode(rfc6962LeafL123456HashHex), hasher.HashLeaf([]byte("L123456")), "RFC6962 Leaf", t)
+	ensureHashMatches(testonly.MustHexDecode(rfc6962NodeN123N456HashHex), hasher.HashChildren([]byte("N123"), []byte("N456")), "RFC6962 Node", t)
 }

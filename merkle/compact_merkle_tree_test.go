@@ -2,21 +2,13 @@ package merkle
 
 import (
 	"bytes"
-	"encoding/hex"
 	"errors"
 	"strings"
 	"testing"
 
 	"github.com/google/trillian"
+	"github.com/google/trillian/testonly"
 )
-
-func mustHexDecode(b string) trillian.Hash {
-	r, err := hex.DecodeString(b)
-	if err != nil {
-		panic(err)
-	}
-	return r
-}
 
 func getInputs() []trillian.Hash {
 	return []trillian.Hash{
@@ -28,19 +20,19 @@ func getInputs() []trillian.Hash {
 func getTestRoots() []trillian.Hash {
 	return []trillian.Hash{
 		// constants from C++ test: https://github.com/google/certificate-transparency/blob/master/cpp/merkletree/merkle_tree_test.cc#L277
-		mustHexDecode("6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d"),
-		mustHexDecode("fac54203e7cc696cf0dfcb42c92a1d9dbaf70ad9e621f4bd8d98662f00e3c125"),
-		mustHexDecode("aeb6bcfe274b70a14fb067a5e5578264db0fa9b51af5e0ba159158f329e06e77"),
-		mustHexDecode("d37ee418976dd95753c1c73862b9398fa2a2cf9b4ff0fdfe8b30cd95209614b7"),
-		mustHexDecode("4e3bbb1f7b478dcfe71fb631631519a3bca12c9aefca1612bfce4c13a86264d4"),
-		mustHexDecode("76e67dadbcdf1e10e1b74ddc608abd2f98dfb16fbce75277b5232a127f2087ef"),
-		mustHexDecode("ddb89be403809e325750d3d263cd78929c2942b7942a34b77e122c9594a74c8c"),
-		mustHexDecode("5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328")}
+		testonly.MustHexDecode("6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d"),
+		testonly.MustHexDecode("fac54203e7cc696cf0dfcb42c92a1d9dbaf70ad9e621f4bd8d98662f00e3c125"),
+		testonly.MustHexDecode("aeb6bcfe274b70a14fb067a5e5578264db0fa9b51af5e0ba159158f329e06e77"),
+		testonly.MustHexDecode("d37ee418976dd95753c1c73862b9398fa2a2cf9b4ff0fdfe8b30cd95209614b7"),
+		testonly.MustHexDecode("4e3bbb1f7b478dcfe71fb631631519a3bca12c9aefca1612bfce4c13a86264d4"),
+		testonly.MustHexDecode("76e67dadbcdf1e10e1b74ddc608abd2f98dfb16fbce75277b5232a127f2087ef"),
+		testonly.MustHexDecode("ddb89be403809e325750d3d263cd78929c2942b7942a34b77e122c9594a74c8c"),
+		testonly.MustHexDecode("5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328")}
 }
 
 func emptyTreeHash() trillian.Hash {
 	const sha256EmptyTreeHash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-	return mustHexDecode(sha256EmptyTreeHash)
+	return testonly.MustHexDecode(sha256EmptyTreeHash)
 }
 
 func getTree() *CompactMerkleTree {
