@@ -22,6 +22,8 @@ type SparseMerkleTreeReader struct {
 	treeRevision int64
 }
 
+type newTXFunc func() (storage.TreeTX, error)
+
 // SparseMerkleTreeWriter knows how to store/update a stored sparse merkle tree
 // via a TreeStorage transaction.
 type SparseMerkleTreeWriter struct {
@@ -62,7 +64,7 @@ type Subtree interface {
 }
 
 // getSubtreeFunc is essentially a factory method for getting child subtrees.
-type getSubtreeFunc func(prefix []byte) Subtree
+type getSubtreeFunc func(prefix []byte) (Subtree, error)
 
 // subtreeWriter knows how to calculate and store nodes for a subtree.
 type subtreeWriter struct {
@@ -97,14 +99,18 @@ type subtreeWriter struct {
 
 // getOrCreateChildSubtree returns, or creates and returns, a subtree worker
 // for the specified childPrefix.
-func (s *subtreeWriter) getOrCreateChildSubtree(childPrefix []byte) Subtree {
+func (s *subtreeWriter) getOrCreateChildSubtree(childPrefix []byte) (Subtree, error) {
 	childPrefixStr := string(childPrefix)
 	s.childMutex.Lock()
 	defer s.childMutex.Unlock()
 
 	subtree := s.children[childPrefixStr]
+	var err error
 	if subtree == nil {
-		subtree = s.getSubtree(childPrefix)
+		subtree, err = s.getSubtree(childPrefix)
+		if err != nil {
+			return nil, err
+		}
 		s.children[childPrefixStr] = subtree
 
 		// Since a new subtree worker is being created we'll add a future to
@@ -122,7 +128,7 @@ func (s *subtreeWriter) getOrCreateChildSubtree(childPrefix []byte) Subtree {
 			}, nil
 		}
 	}
-	return subtree
+	return subtree, nil
 }
 
 // SetLeaf sets a single leaf hash for incorporation into the sparse merkle
@@ -136,7 +142,10 @@ func (s *subtreeWriter) SetLeaf(index []byte, hash trillian.Hash) error {
 
 	case indexLen > s.subtreeDepth:
 		childPrefix := index[:s.subtreeDepth/8]
-		subtree := s.getOrCreateChildSubtree(childPrefix)
+		subtree, err := s.getOrCreateChildSubtree(childPrefix)
+		if err != nil {
+			return err
+		}
 
 		return subtree.SetLeaf(index[s.subtreeDepth/8:], hash)
 
@@ -233,6 +242,10 @@ func (s *subtreeWriter) buildSubtree() {
 		s.root <- rootHashOrError{nil, err}
 		return
 	}
+	if err := s.tx.Commit(); err != nil {
+		s.root <- rootHashOrError{nil, err}
+		return
+	}
 
 	// send calculated root hash
 	s.root <- rootHashOrError{root, nil}
@@ -265,7 +278,11 @@ func leafQueueSize(depths []int) int {
 }
 
 // newLocalSubtreeWriter creates a new local go-routing based subtree worker.
-func newLocalSubtreeWriter(rev int64, prefix []byte, depths []int, tx storage.TreeTX, h TreeHasher) Subtree {
+func newLocalSubtreeWriter(rev int64, prefix []byte, depths []int, newTX newTXFunc, h TreeHasher) (Subtree, error) {
+	tx, err := newTX()
+	if err != nil {
+		return nil, err
+	}
 	tree := subtreeWriter{
 		treeRevision: rev,
 		prefix:       prefix,
@@ -275,29 +292,37 @@ func newLocalSubtreeWriter(rev int64, prefix []byte, depths []int, tx storage.Tr
 		children:     make(map[string]Subtree),
 		tx:           tx,
 		treeHasher:   h,
-		getSubtree: func(p []byte) Subtree {
+		getSubtree: func(p []byte) (Subtree, error) {
 			myPrefix := append(prefix, p...)
-			return newLocalSubtreeWriter(rev, myPrefix, depths[1:], tx, h)
+			return newLocalSubtreeWriter(rev, myPrefix, depths[1:], newTX, h)
 		},
 	}
 	// TODO(al): probably shouldn't be spawning go routines willy-nilly like
 	// this, but it'll do for now.
 	go tree.buildSubtree()
-	return &tree
+	return &tree, nil
 }
 
 // NewSparseMerkleTreeWriter returns a new SparseMerkleTreeWriter, which will
 // write data back into the tree at the specified revision, using the passed
 // in MapHasher to calulate/verify tree hashes, storing via tx.
-func NewSparseMerkleTreeWriter(rev int64, h MapHasher, tx storage.TreeTX) *SparseMerkleTreeWriter {
+func NewSparseMerkleTreeWriter(rev int64, h MapHasher, newTX newTXFunc) (*SparseMerkleTreeWriter, error) {
+	tx, err := newTX()
+	if err != nil {
+		return nil, err
+	}
 	// TODO(al): allow the tree layering sizes to be customisable somehow.
 	const topSubtreeSize = 8 // must be a multiple of 8 for now.
+	tree, err := newLocalSubtreeWriter(rev, []byte{}, []int{topSubtreeSize, h.Size()*8 - topSubtreeSize}, newTX, h.TreeHasher)
+	if err != nil {
+		return nil, err
+	}
 	return &SparseMerkleTreeWriter{
 		tx:           tx,
 		hasher:       h,
-		tree:         newLocalSubtreeWriter(rev, []byte{}, []int{topSubtreeSize, h.Size()*8 - topSubtreeSize}, tx, h.TreeHasher),
+		tree:         tree,
 		treeRevision: rev,
-	}
+	}, nil
 }
 
 // RootAtRevision returns the sparse merkle tree root hash at the specified
