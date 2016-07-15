@@ -232,7 +232,7 @@ func TestInclusionProofGetsTooManyNodes(t *testing.T) {
 	const rev = 100
 	r, tx := getSparseMerkleTreeReaderWithMockTX(rev)
 	const key = "SomeArbitraryKey"
-	keyHash := r.hasher.keyHasher([]byte(key))
+	keyHash := r.hasher.HashKey([]byte(key))
 	// going to return one too many nodes
 	nodes := make([]storage.Node, 257, 257)
 	// First build a plausible looking set of proof nodes.
@@ -278,7 +278,7 @@ func testSparseTreeCalculatedRoot(t *testing.T, vec sparseTestVector) {
 func testSparseTreeCalculatedRootWithWriter(t *testing.T, rev int64, vec sparseTestVector, w *SparseMerkleTreeWriter) {
 	leaves := make([]HashKeyValue, 0)
 	for _, kv := range vec.kv {
-		leaves = append(leaves, HashKeyValue{w.hasher.keyHasher([]byte(kv.k)), w.hasher.HashLeaf([]byte(kv.v))})
+		leaves = append(leaves, HashKeyValue{w.hasher.HashKey([]byte(kv.k)), w.hasher.HashLeaf([]byte(kv.v))})
 	}
 
 	if err := w.SetLeaves(leaves); err != nil {
@@ -319,7 +319,7 @@ func testSparseTreeFetches(t *testing.T, vec sparseTestVector) {
 
 		// calculate the set of expected node reads.
 		for i, kv := range vec.kv {
-			keyHash := w.hasher.keyHasher([]byte(kv.k))
+			keyHash := w.hasher.HashKey([]byte(kv.k))
 			nodeID := storage.NewNodeIDFromHash(keyHash)
 			leafNodeIDs = append(leafNodeIDs, nodeID)
 			sibs := nodeID.Siblings()
@@ -488,7 +488,7 @@ func DISABLEDTestSparseMerkleTreeWriterBigBatch(t *testing.T) {
 	for x := 0; x < numBatches; x++ {
 		h := make([]HashKeyValue, batchSize)
 		for y := 0; y < batchSize; y++ {
-			h[y].HashedKey = w.hasher.keyHasher([]byte(fmt.Sprintf("key-%d-%d", x, y)))
+			h[y].HashedKey = w.hasher.HashKey([]byte(fmt.Sprintf("key-%d-%d", x, y)))
 			h[y].HashedValue = w.hasher.TreeHasher.HashLeaf([]byte(fmt.Sprintf("value-%d-%d", x, y)))
 		}
 		if err := w.SetLeaves(h); err != nil {

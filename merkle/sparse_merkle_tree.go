@@ -384,7 +384,7 @@ func (s SparseMerkleTreeReader) RootAtRevision(rev int64) (trillian.Hash, error)
 // specified key at the specified revision.
 // If the revision does not exist it will return ErrNoSuchRevision error.
 func (s SparseMerkleTreeReader) InclusionProof(rev int64, key trillian.Key) ([]trillian.Hash, error) {
-	kh := s.hasher.keyHasher(key)
+	kh := s.hasher.HashKey(key)
 	nid := storage.NewNodeIDFromHash(kh)
 	sibs := nid.Siblings()
 	nodes, err := s.tx.GetMerkleNodes(rev, sibs)
