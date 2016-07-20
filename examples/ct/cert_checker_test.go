@@ -1,4 +1,4 @@
-package ct_fe
+package ct
 
 import (
 	"encoding/pem"

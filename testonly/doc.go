@@ -4,9 +4,8 @@ Production code MUST NOT depend on anything in this package. This will be enforc
 by tools where possible.
 
 As an example PEM encoded test certificates and helper functions to decode them are
-suitable candidates for being placed in testonly.
+suitable candidates for being placed in testonly. However, nothing specific to a
+particular application should be added at this level. Do not add CT specific test
+data for example.
 */
 package testonly
-
-// TODO(Martin2112): When all current work has landed split this up so that all the CT
-// specific test data is moved to an appropriate testonly directory under the CT frontend.
