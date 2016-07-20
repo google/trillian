@@ -11,3 +11,18 @@ message NodeIDProto {
   bytes path = 1;
   int32 prefix_len_bits = 2;
 }
+
+message HashAndRevision {
+  bytes hash = 1;
+  int64 revision = 2;
+}
+
+// SubtreeProto contains nodes of a subtree.
+message SubtreeProto {
+  // subtree's prefix (must be a multiple of 8 bits)
+  bytes prefix = 1;
+  // subtree's depth
+  int32 depth = 2;
+  // map of suffix (within subtree) to node hash
+  map<string, HashAndRevision> nodes = 3;
+}
