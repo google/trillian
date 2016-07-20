@@ -10,7 +10,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
-	"github.com/google/trillian/ct_fe"
+	"github.com/google/trillian/examples/ct"
 	"google.golang.org/grpc"
 )
 
@@ -67,7 +67,7 @@ func main() {
 	client := trillian.NewTrillianLogClient(conn)
 
 	// Create and register the handlers using the RPC client we just set up
-	handlers := ct_fe.NewCTRequestHandlers(trustedRoots, client)
+	handlers := ct.NewCTRequestHandlers(trustedRoots, client)
 	handlers.RegisterCTHandlers()
 
 	glog.Warningf("Server exited: %v", http.ListenAndServe(fmt.Sprintf("localhost:%d", *serverPortFlag), nil))
