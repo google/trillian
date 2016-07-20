@@ -1,8 +1,8 @@
 package crypto
 
 import (
-	"encoding/pem"
 	"crypto/sha256"
+	"encoding/pem"
 
 	"github.com/golang/glog"
 	"github.com/google/certificate-transparency/go/x509"

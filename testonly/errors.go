@@ -16,4 +16,3 @@ func EnsureErrorContains(t *testing.T, err error, s string) {
 		t.Fatalf("Got the wrong type of error: %v", err)
 	}
 }
-
