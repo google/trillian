@@ -1,4 +1,4 @@
-package crypto
+package ct
 
 import (
 	"crypto/sha256"
@@ -7,9 +7,6 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/certificate-transparency/go/x509"
 )
-
-// TODO(Martin2112): This code imports CT specific versions of X509 objects and should
-// probably be moved out of here.
 
 // String for certificate blocks in BEGIN / END PEM headers
 const pemCertificateBlockType string = "CERTIFICATE"

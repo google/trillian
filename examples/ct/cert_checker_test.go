@@ -6,7 +6,7 @@ import (
 
 	"github.com/google/certificate-transparency/go/x509"
 	"github.com/google/certificate-transparency/go/x509/pkix"
-	"github.com/google/trillian/testonly"
+	"github.com/google/trillian/examples/ct/testonly"
 	"github.com/stretchr/testify/assert"
 )
 

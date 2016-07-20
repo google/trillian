@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -54,7 +53,7 @@ type handlerAndPath struct {
 	handler http.HandlerFunc
 }
 
-func allGetHandlersForTest(trustedRoots *crypto.PEMCertPool, client trillian.TrillianLogClient) []handlerAndPath {
+func allGetHandlersForTest(trustedRoots *PEMCertPool, client trillian.TrillianLogClient) []handlerAndPath {
 	return []handlerAndPath{
 		{"get-sth", wrappedGetSTHHandler(client)},
 		{"get-sth-consistency", wrappedGetSTHConsistencyHandler(client)},
@@ -97,7 +96,7 @@ func TestPostHandlersOnlyAcceptPost(t *testing.T) {
 
 func TestGetHandlersOnlyAcceptGet(t *testing.T) {
 	client := new(trillian.MockTrillianLogClient)
-	pool := crypto.NewPEMCertPool()
+	pool := NewPEMCertPool()
 
 	// Anything in the get handler list should only accept GET
 	for _, hp := range allGetHandlersForTest(pool, client) {
@@ -223,8 +222,8 @@ func TestGetRoots(t *testing.T) {
 	client.AssertExpectations(t)
 }
 
-func loadCertsIntoPoolOrDie(t *testing.T) *crypto.PEMCertPool {
-	pool := crypto.NewPEMCertPool()
+func loadCertsIntoPoolOrDie(t *testing.T) *PEMCertPool {
+	pool := NewPEMCertPool()
 	ok := pool.AppendCertsFromPEM([]byte(caAndIntermediateCertsPEM))
 
 	if !ok {

@@ -1,10 +1,10 @@
-package crypto
+package ct
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/google/trillian/testonly"
+	"github.com/google/trillian/examples/ct/testonly"
 )
 
 func TestLoadSingleCertFromPEMs(t *testing.T) {

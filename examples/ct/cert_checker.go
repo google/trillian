@@ -8,7 +8,6 @@ import (
 
 	"github.com/google/certificate-transparency/go/asn1"
 	"github.com/google/certificate-transparency/go/x509"
-	"github.com/google/trillian/crypto"
 )
 
 // OID of the non-critical extension used to mark pre-certificates, defined in RFC 6962
@@ -38,10 +37,10 @@ func IsPrecertificate(cert *x509.Certificate) (bool, error) {
 // end entity certificate in the chain to a trusted root cert, possibly using the intermediates
 // supplied in the chain. Then applies the RFC requirement that the path must involve all
 // the submitted chain in the order of submission.
-func ValidateChain(jsonChain []string, trustedRoots crypto.PEMCertPool) ([]*x509.Certificate, error) {
+func ValidateChain(jsonChain []string, trustedRoots PEMCertPool) ([]*x509.Certificate, error) {
 	// First decode the base 64 certs and make sure they parse as X.509
 	chain := make([]*x509.Certificate, 0, len(jsonChain))
-	intermediatePool := crypto.NewPEMCertPool()
+	intermediatePool := NewPEMCertPool()
 
 	for i, certB64 := range jsonChain {
 		certBytes, err := base64.StdEncoding.DecodeString(certB64)

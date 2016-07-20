@@ -9,7 +9,6 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/examples/ct"
 	"google.golang.org/grpc"
 )
@@ -18,12 +17,12 @@ var rpcBackendFlag = flag.String("log_rpc_backend", "localhost:8090", "Backend L
 var serverPortFlag = flag.Int("port", 8091, "Port to serve CT log requests on")
 var trustedRootPEMFlag = flag.String("trusted_roots", "", "File containing one or more concatenated trusted root certs in PEM format")
 
-func loadTrustedRoots() (*crypto.PEMCertPool, error) {
+func loadTrustedRoots() (*ct.PEMCertPool, error) {
 	if len(*trustedRootPEMFlag) == 0 {
 		return nil, errors.New("the --trusted_roots flag must be set to reference a valid PEM file")
 	}
 
-	trustedRoots := crypto.NewPEMCertPool()
+	trustedRoots := ct.NewPEMCertPool()
 
 	// The set of root data should never be particularly large and we have to keep it in memory
 	// anyway to validate submissions
