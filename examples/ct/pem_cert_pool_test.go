@@ -3,12 +3,12 @@ package ct
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/google/trillian/examples/ct/testonly"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestLoadSingleCertFromPEMs(t *testing.T) {
-	for _, pem := range ([]string{testonly.CACertPEM, testonly.CACertPEMWithOtherStuff, testonly.CACertPEMDuplicated}) {
+	for _, pem := range []string{testonly.CACertPEM, testonly.CACertPEMWithOtherStuff, testonly.CACertPEMDuplicated} {
 		pool := NewPEMCertPool()
 
 		ok := pool.AppendCertsFromPEM([]byte(pem))
@@ -18,7 +18,7 @@ func TestLoadSingleCertFromPEMs(t *testing.T) {
 }
 
 func TestBadOrEmptyCertificateRejected(t *testing.T) {
-	for _, pem := range ([]string{testonly.UnknownBlockTypePEM, testonly.CACertPEMBad}) {
+	for _, pem := range []string{testonly.UnknownBlockTypePEM, testonly.CACertPEMBad} {
 		pool := NewPEMCertPool()
 
 		ok := pool.AppendCertsFromPEM([]byte(pem))

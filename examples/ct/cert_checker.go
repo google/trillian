@@ -12,6 +12,7 @@ import (
 
 // OID of the non-critical extension used to mark pre-certificates, defined in RFC 6962
 var ctPoisonExtensionOid = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 11129, 2, 4, 3}
+
 // Byte representation of ASN.1 NULL.
 var asn1NullBytes = []byte{0x05, 0x00}
 
@@ -70,10 +71,10 @@ func ValidateChain(jsonChain []string, trustedRoots PEMCertPool) ([]*x509.Certif
 	// We can now do the verify
 	// TODO(Martin2112): Check this is the correct key usage value to use
 	verifyOpts := x509.VerifyOptions{
-		Roots: trustedRoots.CertPool(),
-		Intermediates: intermediatePool.CertPool(),
+		Roots:             trustedRoots.CertPool(),
+		Intermediates:     intermediatePool.CertPool(),
 		DisableTimeChecks: true,
-		KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageAny}}
+		KeyUsages:         []x509.ExtKeyUsage{x509.ExtKeyUsageAny}}
 
 	chains, err := chain[0].Verify(verifyOpts)
 
@@ -90,7 +91,7 @@ func ValidateChain(jsonChain []string, trustedRoots PEMCertPool) ([]*x509.Certif
 	// requirements detailed in Section 3.1.
 	for _, verifiedChain := range chains {
 		// The verified chain includes a root, which we don't need to include in the comparison
-		chainMinusRoot := verifiedChain[:len(verifiedChain) - 1]
+		chainMinusRoot := verifiedChain[:len(verifiedChain)-1]
 
 		if len(chainMinusRoot) != len(chain) {
 			continue
