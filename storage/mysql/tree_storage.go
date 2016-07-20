@@ -188,15 +188,88 @@ func (m *mySQLTreeStorage) beginTreeTx() (treeTX, error) {
 		return treeTX{}, err
 	}
 	return treeTX{
-		tx: t,
-		ts: m,
+		tx:            t,
+		ts:            m,
+		subtreeCache:  storage.NewSubtreeCache(),
+		writeRevision: -1,
 	}, nil
 }
 
 type treeTX struct {
-	closed bool
-	tx     *sql.Tx
-	ts     *mySQLTreeStorage
+	closed        bool
+	tx            *sql.Tx
+	ts            *mySQLTreeStorage
+	subtreeCache  storage.SubtreeCache
+	writeRevision int64
+}
+
+func (t *treeTX) getSubtree(treeRevision int64, nodeID storage.NodeID) (*storage.SubtreeProto, error) {
+	if nodeID.PrefixLenBits%8 != 0 {
+		return nil, fmt.Errorf("invalid subtree ID - not multiple of 8: %d", nodeID.PrefixLenBits)
+	}
+
+	tmpl, err := t.ts.getSubtreeStmt(1)
+	if err != nil {
+		return nil, err
+	}
+	stx := t.tx.Stmt(tmpl)
+	defer stx.Close()
+
+	args := make([]interface{}, 0)
+	nodeIdBytes := nodeID.Path[:nodeID.PrefixLenBits/8]
+
+	if err != nil {
+		return nil, err
+	}
+
+	args = append(args, interface{}(nodeIdBytes))
+	args = append(args, interface{}(t.ts.treeID))
+	args = append(args, interface{}(treeRevision))
+	args = append(args, interface{}(t.ts.treeID))
+
+	rows, err := stx.Query(args...)
+	if err != nil {
+		glog.Warningf("Failed to get merkle subtree: %s", err)
+		return nil, err
+	}
+
+	defer rows.Close()
+	if !rows.Next() {
+		// Nothing from the DB
+		return nil, rows.Err()
+	}
+
+	var subtreeIDBytes []byte
+	var subtreeRev int64
+	var nodesRaw []byte
+	if err := rows.Scan(&subtreeIDBytes, &subtreeRev, &nodesRaw); err != nil {
+		glog.Warningf("Failed to scan merkle subtree: %s", err)
+		return nil, err
+	}
+	var subtree storage.SubtreeProto
+	if err := proto.Unmarshal(nodesRaw, &subtree); err != nil {
+		return nil, err
+	}
+
+	return &subtree, nil
+}
+
+func (t *treeTX) storeSubtree(subtree *storage.SubtreeProto) error {
+	stx := t.tx.Stmt(t.ts.setSubtree)
+	defer stx.Close()
+
+	subtreeBytes, err := proto.Marshal(subtree)
+	if err != nil {
+		return err
+	}
+
+	r, err := stx.Exec(t.ts.treeID, subtree.Prefix, subtreeBytes, t.writeRevision)
+	if err != nil {
+		glog.Warningf("Failed to set merkle subtree: %s", err)
+		return err
+	}
+	_, err = r.RowsAffected()
+	return nil
 }
 
 func checkResultOkAndRowCountIs(res sql.Result, err error, count int64) error {
@@ -237,31 +310,6 @@ func (t *treeTX) GetTreeRevisionAtSize(treeSize int64) (int64, error) {
 }
 
 func (t *treeTX) GetMerkleNodes(treeRevision int64, nodeIDs []storage.NodeID) ([]storage.Node, error) {
-	tmpl, err := t.ts.getSubtreeStmt(len(nodeIDs))
-	if err != nil {
-		return nil, err
-	}
-	stx := t.tx.Stmt(tmpl)
-	defer stx.Close()
-	args := make([]interface{}, 0)
-	for _, nodeID := range nodeIDs {
-		nodeIdBytes, err := encodeNodeID(nodeID)
-
-		if err != nil {
-			return nil, err
-		}
-
-		args = append(args, interface{}(nodeIdBytes))
-	}
-	args = append(args, interface{}(t.ts.treeID))
-	args = append(args, interface{}(treeRevision))
-	args = append(args, interface{}(t.ts.treeID))
-	rows, err := stx.Query(args...)
-	if err != nil {
-		glog.Warningf("Failed to get merkle nodes: %s", err)
-		return nil, err
-	}
-
 	ret := make([]storage.Node, 0, len(nodeIDs))
 	num := 0
 
@@ -277,8 +325,13 @@ func (t *treeTX) GetMerkleNodes(treeRevision int64, nodeIDs []storage.NodeID) ([
 
 		nodeID, err := decodeNodeID(nodeIDBytes)
 
+	for _, nodeID := range nodeIDs {
+		h, rev, err := t.subtreeCache.GetNodeHash(
+			nodeID,
+			func(n storage.NodeID) (*storage.SubtreeProto, error) {
+				return t.getSubtree(treeRevision, n)
+			})
 		if err != nil {
-			glog.Warningf("Failed to decode nodeid: %s", err)
 			return nil, err
 		}
 
@@ -302,18 +355,14 @@ func (t *treeTX) GetMerkleNodes(treeRevision int64, nodeIDs []storage.NodeID) ([
 }
 
 func (t *treeTX) SetMerkleNodes(treeRevision int64, nodes []storage.Node) error {
-	stx := t.tx.Stmt(t.ts.setSubtree)
-	defer stx.Close()
+	if t.writeRevision == -1 {
+		t.writeRevision = treeRevision
+	} else if t.writeRevision != treeRevision {
+		return fmt.Errorf("tree revision inconsistency, previously wrote in this transaciton for revision %d, but attempting to write revision %d", t.writeRevision, treeRevision)
+	}
 	for _, n := range nodes {
-		nodeIdBytes, err := encodeNodeID(n.NodeID)
-
+		err := t.subtreeCache.SetNodeHash(n.NodeID, treeRevision, n.Hash)
 		if err != nil {
-			return err
-		}
-
-		_, err = stx.Exec(t.ts.treeID, nodeIdBytes, []byte(n.Hash), treeRevision)
-		if err != nil {
-			glog.Warningf("Failed to set merkle nodes: %s", err)
 			return err
 		}
 	}
@@ -321,6 +370,9 @@ func (t *treeTX) SetMerkleNodes(treeRevision int64, nodes []storage.Node) error 
 }
 
 func (t *treeTX) Commit() error {
+	if t.writeRevision > -1 {
+		t.subtreeCache.Flush(t.storeSubtree)
+	}
 	t.closed = true
 	err := t.tx.Commit()
 

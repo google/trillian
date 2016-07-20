@@ -155,11 +155,20 @@ func TestNodeRoundTrip(t *testing.T) {
 	s := prepareTestLogStorage(logID, t)
 
 	nodesToStore := createSomeNodes("TestNodeRoundTrip", logID.logID.TreeID)
+	nodeIDsToRead := make([]storage.NodeID, len(nodesToStore))
+	for i := range nodesToStore {
+		nodeIDsToRead[i] = nodesToStore[i].NodeID
+	}
 
 	{
 		tx, err := s.Begin()
 		if err != nil {
 			t.Fatalf("Failed to Begin: %s", err)
+		}
+
+		// Need to read nodes before attempting to write
+		if _, err := tx.GetMerkleNodes(99, nodeIDsToRead); err != nil {
+			t.Fatalf("Failed to read nodes: %s", err)
 		}
 
 		if err := tx.SetMerkleNodes(100, nodesToStore); err != nil {
@@ -173,17 +182,12 @@ func TestNodeRoundTrip(t *testing.T) {
 
 	{
 		tx, err := s.Begin()
-		defer tx.Commit()
 
 		if err != nil {
 			t.Fatalf("Failed to Begin: %s", err)
 		}
 
-		nodeIDs := make([]storage.NodeID, len(nodesToStore))
-		for i := range nodesToStore {
-			nodeIDs[i] = nodesToStore[i].NodeID
-		}
-		readNodes, err := tx.GetMerkleNodes(100, nodeIDs)
+		readNodes, err := tx.GetMerkleNodes(100, nodeIDsToRead)
 		if err != nil {
 			t.Fatalf("Failed to retrieve nodes: %s", err)
 		}
