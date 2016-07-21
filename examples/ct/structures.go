@@ -18,7 +18,7 @@ const millisPerNano int64 = 1000
 // GetCTKeyID takes the key manager for a log returns the LogID for it. (see RFC 6962 S3.2)
 // In CT V1 the log id is a hash of the public key.
 func GetCTLogID(km crypto.KeyManager) ([sha256.Size]byte, error) {
-	if km.GetPublicKey() == nil {
+	if km.GetRawPublicKey() == nil {
 		return [sha256.Size]byte{}, errors.New("no public key is loaded")
 	}
 
