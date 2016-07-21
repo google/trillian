@@ -23,6 +23,10 @@ type KeyManager interface {
 	// GetPublicKey returns the public key previously loaded. Potentially nil if the key
 	// manager requires initialization and this has not been done
 	GetPublicKey() crypto.PublicKey
+	// GetRawPublicKey returns the DER encoded public key bytes.
+	// This is needed for some applications that exchange or embed key hashes in structures.
+	// The result will be nil if a public key has not been loaded
+	GetRawPublicKey() []byte
 }
 
 // PEMKeyManager is an instance of KeyManager that loads its key data from an encrypted
@@ -30,6 +34,7 @@ type KeyManager interface {
 type PEMKeyManager struct {
 	serverPrivateKey crypto.PrivateKey
 	serverPublicKey  crypto.PublicKey
+	rawPublicKey     []byte
 }
 
 // NewPEMKeyManager creates an uninitialized PEMKeyManager. Keys must be loaded before it
@@ -40,7 +45,7 @@ func NewPEMKeyManager() *PEMKeyManager {
 
 // NewPEMKeyManager creates a PEMKeyManager using a private key that has already been loaded
 func (k PEMKeyManager) NewPEMKeyManager(key crypto.PrivateKey) *PEMKeyManager {
-	return &PEMKeyManager{key, nil}
+	return &PEMKeyManager{key, nil, nil}
 }
 
 // LoadPrivateKey loads a private key from a PEM encoded string, decrypting it if necessary
@@ -78,6 +83,8 @@ func (k *PEMKeyManager) LoadPublicKey(pemEncodedKey string) error {
 		return errors.New("extra data found after PEM key decoded")
 	}
 
+	k.rawPublicKey = publicBlock.Bytes
+
 	parsedKey, err := x509.ParsePKIXPublicKey(publicBlock.Bytes)
 
 	if err != nil {
@@ -109,6 +116,13 @@ func (k PEMKeyManager) Signer() (crypto.Signer, error) {
 // not been previously called successfully.
 func (k PEMKeyManager) GetPublicKey() crypto.PublicKey {
 	return k.serverPublicKey
+}
+
+// GetRawPublicKey returns the DER encoded public key bytes as loaded from the file.
+// This is needed for some applications that exchange or embed key hashes in structures.
+// The result will be nil if a public key has not been loaded
+func (k PEMKeyManager) GetRawPublicKey() []byte {
+	return k.rawPublicKey
 }
 
 func parsePrivateKey(key []byte) (crypto.PrivateKey, error) {
