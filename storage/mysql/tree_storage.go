@@ -136,15 +136,18 @@ func decodeNodeID(nodeIDBytes []byte) (*storage.NodeID, error) {
 }
 
 func encodeNodeID(n storage.NodeID) ([]byte, error) {
-	nodeIdProto := n.AsProto()
-	marshalledBytes, err := proto.Marshal(nodeIdProto)
+	return []byte(n.String()), nil
+	/*
+		nodeIdProto := n.AsProto()
+		marshalledBytes, err := proto.Marshal(nodeIdProto)
 
-	if err != nil {
-		glog.Warningf("Failed to encode nodeid: %s", err)
-		return nil, err
-	}
+		if err != nil {
+			glog.Warningf("Failed to encode nodeid: %s", err)
+			return nil, err
+		}
 
-	return marshalledBytes, nil
+		return marshalledBytes, nil
+	*/
 }
 
 // getStmt creates and caches sql.Stmt structs based on the passed in statement
@@ -250,11 +253,18 @@ func (t *treeTX) getSubtree(treeRevision int64, nodeID storage.NodeID) (*storage
 	if err := proto.Unmarshal(nodesRaw, &subtree); err != nil {
 		return nil, err
 	}
+	if subtree.Prefix == nil && nodeID.PrefixLenBits == 0 {
+		subtree.Prefix = []byte{}
+		glog.Warning("Fixed nil (but expected empty) Prefix in subtree")
+	}
 
 	return &subtree, nil
 }
 
 func (t *treeTX) storeSubtree(subtree *storage.SubtreeProto) error {
+	if subtree.Prefix == nil {
+		panic(fmt.Errorf("nil prefix on %v", subtree))
+	}
 	stx := t.tx.Stmt(t.ts.setSubtree)
 	defer stx.Close()
 
@@ -265,7 +275,7 @@ func (t *treeTX) storeSubtree(subtree *storage.SubtreeProto) error {
 
 	r, err := stx.Exec(t.ts.treeID, subtree.Prefix, subtreeBytes, t.writeRevision)
 	if err != nil {
-		glog.Warningf("Failed to set merkle subtree: %s", err)
+		glog.Warningf("Failed to set merkle subtree for prefix %v: %s", subtree.Prefix, err)
 		return err
 	}
 	_, err = r.RowsAffected()
@@ -311,19 +321,6 @@ func (t *treeTX) GetTreeRevisionAtSize(treeSize int64) (int64, error) {
 
 func (t *treeTX) GetMerkleNodes(treeRevision int64, nodeIDs []storage.NodeID) ([]storage.Node, error) {
 	ret := make([]storage.Node, 0, len(nodeIDs))
-	num := 0
-
-	defer rows.Close()
-	for rows.Next() {
-		var nodeIDBytes []byte
-		var nodeRev int64
-		var hash trillian.Hash
-		if err := rows.Scan(&nodeIDBytes, &nodeRev, &hash); err != nil {
-			glog.Warningf("Failed to scan merkle nodes: %s", err)
-			return nil, err
-		}
-
-		nodeID, err := decodeNodeID(nodeIDBytes)
 
 	for _, nodeID := range nodeIDs {
 		h, rev, err := t.subtreeCache.GetNodeHash(
@@ -334,23 +331,15 @@ func (t *treeTX) GetMerkleNodes(treeRevision int64, nodeIDs []storage.NodeID) ([
 		if err != nil {
 			return nil, err
 		}
-
-		ret = append(ret, storage.Node{
-			NodeID:       *nodeID,
-			Hash:         hash,
-			NodeRevision: nodeRev,
-		})
-
-		if got, want := len(ret[num].Hash), t.ts.hashSizeBytes; got != want {
-			return nil, fmt.Errorf("Scanned node does not have hash length %d, got %d", want, got)
+		if h != nil {
+			ret = append(ret, storage.Node{
+				NodeID:       nodeID,
+				Hash:         h,
+				NodeRevision: rev,
+			})
 		}
-
-		num++
 	}
 
-	if num > len(nodeIDs) {
-		return nil, fmt.Errorf("expected <= %d nodes, but saw %d", len(nodeIDs), num)
-	}
 	return ret, nil
 }
 
