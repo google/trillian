@@ -7,10 +7,10 @@ import (
 	"errors"
 	"time"
 
-	"github.com/google/trillian/crypto"
-	"github.com/google/certificate-transparency/go/x509"
 	"github.com/google/certificate-transparency/go"
+	"github.com/google/certificate-transparency/go/x509"
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto"
 )
 
 const millisPerNano int64 = 1000
@@ -41,9 +41,9 @@ func signSCT(km crypto.KeyManager, t time.Time, sctData []byte) (ct.SignedCertif
 	}
 
 	digitallySigned := ct.DigitallySigned{
-		HashAlgorithm: ct.SHA256,
+		HashAlgorithm:      ct.SHA256,
 		SignatureAlgorithm: ct.RSA,
-		Signature: signature.Signature}
+		Signature:          signature.Signature}
 
 	logID, err := GetCTLogID(km)
 
@@ -53,10 +53,10 @@ func signSCT(km crypto.KeyManager, t time.Time, sctData []byte) (ct.SignedCertif
 
 	return ct.SignedCertificateTimestamp{
 		SCTVersion: ct.V1,
-		LogID: logID,
-		Timestamp: uint64(t.UnixNano() / millisPerNano), // spec uses millisecond timestamps
+		LogID:      logID,
+		Timestamp:  uint64(t.UnixNano() / millisPerNano), // spec uses millisecond timestamps
 		Extensions: ct.CTExtensions{},
-		Signature: digitallySigned}, nil
+		Signature:  digitallySigned}, nil
 }
 
 // CreateV1SCTForCertificate builds and signs a V1 CT SCT for a certificate using the key held
@@ -71,7 +71,7 @@ func SignV1SCTForPrecertificate(km crypto.KeyManager, cert *x509.Certificate, t 
 	// For precerts we need to extract the relevant data from the Certificate container.
 	// This is only possible using our modified version of X.509.
 	keyHash := sha256.Sum256(cert.RawSubjectPublicKeyInfo)
-	tbsBytes := make([]byte, 0, len(cert.RawTBSCertificate) + sha256.Size)
+	tbsBytes := make([]byte, 0, len(cert.RawTBSCertificate)+sha256.Size)
 	tbsBytes = append(tbsBytes, keyHash[:]...)
 	tbsBytes = append(tbsBytes, cert.RawTBSCertificate...)
 
