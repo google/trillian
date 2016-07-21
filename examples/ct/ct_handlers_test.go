@@ -65,7 +65,7 @@ func allGetHandlersForTest(trustedRoots *PEMCertPool, client trillian.TrillianLo
 
 func allPostHandlersForTest(client trillian.TrillianLogClient) []handlerAndPath {
 	return []handlerAndPath{
-		{"add-chain", wrappedAddChainHandler(client)},
+		{"add-chain", wrappedAddChainHandler(CTRequestHandlers{rpcClient: client})},
 		{"add-pre-chain", wrappedAddPreChainHandler(client)}}
 }
 
