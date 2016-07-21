@@ -7,7 +7,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/golang/glog"
 	"github.com/google/trillian"
+	"github.com/google/trillian/examples/ct/testonly"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -64,8 +66,15 @@ func allGetHandlersForTest(trustedRoots *PEMCertPool, client trillian.TrillianLo
 }
 
 func allPostHandlersForTest(client trillian.TrillianLogClient) []handlerAndPath {
+	pool := NewPEMCertPool()
+	ok := pool.AppendCertsFromPEM([]byte(testonly.FakeCACertPem))
+
+	if !ok {
+		glog.Fatal("Failed to load cert pool")
+	}
+
 	return []handlerAndPath{
-		{"add-chain", wrappedAddChainHandler(CTRequestHandlers{rpcClient: client})},
+		{"add-chain", wrappedAddChainHandler(CTRequestHandlers{rpcClient: client, trustedRoots: pool})},
 		{"add-pre-chain", wrappedAddPreChainHandler(client)}}
 }
 
@@ -185,8 +194,8 @@ func TestPostHandlersAcceptNonEmptyCertChain(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		// For now they return not implemented as the handler is a stub
-		assert.Equal(t, http.StatusNotImplemented, resp.StatusCode, "Wrong status code for non empty chain in body")
+		// TODO(Martin2112): Remove not implemented from test when all the handlers have been written
+		assert.True(t, resp.StatusCode == http.StatusNotImplemented || resp.StatusCode == http.StatusBadRequest, "Wrong status code for GET to GET handler")
 	}
 }
 

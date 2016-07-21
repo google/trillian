@@ -32,6 +32,7 @@ const (
 // and functionality to translate CT client requests into forms that can be served by a
 // log backend RPC service.
 type CTRequestHandlers struct {
+	logID         int64
 	trustedRoots  *PEMCertPool
 	rpcClient     trillian.TrillianLogClient
 	logKeyManager crypto.KeyManager
@@ -40,8 +41,8 @@ type CTRequestHandlers struct {
 
 // NewCTRequestHandlers creates a new instance of CTRequestHandlers. They must still
 // be registered by calling RegisterCTHandlers()
-func NewCTRequestHandlers(trustedRoots *PEMCertPool, rpcClient trillian.TrillianLogClient, km crypto.KeyManager, rpcDeadline time.Duration) *CTRequestHandlers {
-	return &CTRequestHandlers{trustedRoots, rpcClient, km, rpcDeadline}
+func NewCTRequestHandlers(logID int64, trustedRoots *PEMCertPool, rpcClient trillian.TrillianLogClient, km crypto.KeyManager, rpcDeadline time.Duration) *CTRequestHandlers {
+	return &CTRequestHandlers{logID, trustedRoots, rpcClient, km, rpcDeadline}
 }
 
 func pathFor(req string) string {
@@ -160,8 +161,7 @@ func wrappedAddChainHandler(c CTRequestHandlers) http.HandlerFunc {
 		// Inputs validated, pass the request on to the back end
 		leafProto := trillian.LeafProto{LeafHash: leafHash[:], LeafData: validPath[0].Raw, ExtraData: sctBytes}
 
-		// TODO(Martin2112): Pass log ID through, we don't have it yet
-		request := trillian.QueueLeavesRequest{LogId: 1, Leaves: []*trillian.LeafProto{&leafProto}}
+		request := trillian.QueueLeavesRequest{LogId: c.logID, Leaves: []*trillian.LeafProto{&leafProto}}
 
 		ctx, _ := context.WithDeadline(context.Background(), time.Now().Add(c.rpcDeadline))
 

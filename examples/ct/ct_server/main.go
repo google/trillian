@@ -15,6 +15,8 @@ import (
 	"time"
 )
 
+// TODO(Martin2112): We still have the treeid / log ID thing to think about + security etc.
+var logIDFlag = flag.Int64("log_id", 1, "The log id (tree id) to send to the backend")
 var rpcBackendFlag = flag.String("log_rpc_backend", "localhost:8090", "Backend Log RPC server to use")
 var rpcDeadlineFlag = flag.Duration("rpc_deadline", time.Second*10, "Deadline for backend RPC requests")
 var serverPortFlag = flag.Int("port", 8091, "Port to serve CT log requests on")
@@ -109,7 +111,7 @@ func main() {
 	client := trillian.NewTrillianLogClient(conn)
 
 	// Create and register the handlers using the RPC client we just set up
-	handlers := ct.NewCTRequestHandlers(trustedRoots, client, logKeyManager, *rpcDeadlineFlag)
+	handlers := ct.NewCTRequestHandlers(*logIDFlag, trustedRoots, client, logKeyManager, *rpcDeadlineFlag)
 	handlers.RegisterCTHandlers()
 
 	glog.Warningf("Server exited: %v", http.ListenAndServe(fmt.Sprintf("localhost:%d", *serverPortFlag), nil))
