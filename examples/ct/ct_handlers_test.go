@@ -257,36 +257,19 @@ func TestGetRoots(t *testing.T) {
 // This uses the fake CA as trusted root and submits a chain leaf -> fake intermediate, which
 // should be accepted
 func TestAddChain(t *testing.T) {
-	km := new(crypto.MockKeyManager)
+	toSign := []byte{0xd1, 0x66, 0x49, 0xc7, 0xbb, 0x48, 0xe7, 0x32, 0xa9, 0x71, 0xc3, 0x1b, 0x26, 0xf6, 0x5c, 0x26, 0x85, 0xd3, 0xc, 0xed, 0x22, 0x48, 0xc4, 0xd4, 0xdb, 0xaa, 0xee, 0x9d, 0x44, 0xf4, 0xc1, 0x6f}
+	km := setupMockKeyManager(toSign)
 	client := new(trillian.MockTrillianLogClient)
+
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.FakeCACertPem})
 	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
-	signer := new(crypto.MockSigner)
-	hasher := trillian.NewSHA256()
-
-	toSign := []byte{0xd1, 0x66, 0x49, 0xc7, 0xbb, 0x48, 0xe7, 0x32, 0xa9, 0x71, 0xc3, 0x1b, 0x26, 0xf6, 0x5c, 0x26, 0x85, 0xd3, 0xc, 0xed, 0x22, 0x48, 0xc4, 0xd4, 0xdb, 0xaa, 0xee, 0x9d, 0x44, 0xf4, 0xc1, 0x6f}
-
-	signer.On("Sign", mock.MatchedBy(
-		func(other io.Reader) bool {
-			return true
-		}), toSign, hasher).Return([]byte("signed"), nil)
-	km.On("Signer").Return(signer, nil)
-	km.On("GetRawPublicKey").Return([]byte("key"))
 
 	pool := loadCertsIntoPoolOrDie(t, []string{testonly.LeafSignedByFakeIntermediateCertPem, testonly.FakeIntermediateCertPem})
 	chain := createJsonChain(t, *pool)
 
 	leaves := leafProtosForCert(t, km, pool.RawCertificates()[0])
 
-	client.On("QueueLeaves", mock.MatchedBy(func(other context.Context) bool {
-		deadlineTime, ok := other.Deadline()
-
-		if !ok {
-			t.Fatalf("RPC deadline not set")
-		}
-
-		return deadlineTime == fakeDeadlineTime
-	}), &trillian.QueueLeavesRequest{LogId: 0x42, Leaves: leaves}, mock.Anything /* []grpc.CallOption */).Return(&trillian.QueueLeavesResponse{}, nil)
+	client.On("QueueLeaves", mock.MatchedBy(deadlineMatcher), &trillian.QueueLeavesRequest{LogId: 0x42, Leaves: leaves}, mock.Anything /* []grpc.CallOption */).Return(&trillian.QueueLeavesResponse{}, nil)
 
 	handler := wrappedAddChainHandler(reqHandlers)
 
@@ -303,6 +286,7 @@ func TestAddChain(t *testing.T) {
 	}
 
 	assert.Equal(t, http.StatusOK, w.Code, "Expected HTTP OK for valid add-chain: %v", w.Body)
+	km.AssertExpectations(t)
 }
 
 func loadCertsIntoPoolOrDie(t *testing.T, certs []string) *PEMCertPool {
@@ -355,4 +339,14 @@ func leafProtosForCert(t *testing.T, km crypto.KeyManager, cert *x509.Certificat
 	}
 
 	return []*trillian.LeafProto{&trillian.LeafProto{LeafHash: leafHash[:], LeafData: cert.Raw, ExtraData: extraData}}
+}
+
+func deadlineMatcher(other context.Context) bool {
+	deadlineTime, ok := other.Deadline()
+
+	if !ok {
+		return false  // we never make RPC calls without a deadline set
+	}
+
+	return deadlineTime == fakeDeadlineTime
 }
