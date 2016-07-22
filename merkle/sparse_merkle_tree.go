@@ -97,8 +97,8 @@ type subtreeWriter struct {
 	getSubtree getSubtreeFunc
 }
 
-// getOrCreateChildSubtree returns, or creates and returns, a subtree worker
-// for the specified childPrefix.
+// getOrCreateChildSubtree returns, or creates and returns, a subtree for the
+// specified childPrefix.
 func (s *subtreeWriter) getOrCreateChildSubtree(childPrefix []byte) (Subtree, error) {
 	childPrefixStr := string(childPrefix)
 	s.childMutex.Lock()
@@ -277,7 +277,7 @@ func leafQueueSize(depths []int) int {
 	return 1 << uint(depths[0])
 }
 
-// newLocalSubtreeWriter creates a new local go-routing based subtree worker.
+// newLocalSubtreeWriter creates a new local go-routine based subtree worker.
 func newLocalSubtreeWriter(rev int64, prefix []byte, depths []int, newTX newTXFunc, h TreeHasher) (Subtree, error) {
 	tx, err := newTX()
 	if err != nil {
