@@ -254,6 +254,25 @@ func TestGetRoots(t *testing.T) {
 	client.AssertExpectations(t)
 }
 
+// This uses the fake CA as trusted root and submits a chain of just a leaf which should be rejected
+// because there's no complete path
+func TestAddChainMissingIntermediate(t *testing.T) {
+	km := new(crypto.MockKeyManager)
+	client := new(trillian.MockTrillianLogClient)
+
+	roots := loadCertsIntoPoolOrDie(t, []string{testonly.FakeCACertPem})
+	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
+
+	pool := loadCertsIntoPoolOrDie(t, []string{testonly.LeafSignedByFakeIntermediateCertPem})
+	chain := createJsonChain(t, *pool)
+
+	recorder := makeAddChainRequest(t, reqHandlers, chain)
+
+	assert.Equal(t, http.StatusBadRequest, recorder.Code, "expected HTTP BadRequest for incomplete add-chain: %v", recorder.Body)
+	km.AssertExpectations(t)
+	client.AssertExpectations(t)
+}
+
 // This uses the fake CA as trusted root and submits a chain leaf -> fake intermediate, which
 // should be accepted
 func TestAddChain(t *testing.T) {
@@ -271,29 +290,17 @@ func TestAddChain(t *testing.T) {
 
 	client.On("QueueLeaves", mock.MatchedBy(deadlineMatcher), &trillian.QueueLeavesRequest{LogId: 0x42, Leaves: leaves}, mock.Anything /* []grpc.CallOption */).Return(&trillian.QueueLeavesResponse{}, nil)
 
-	handler := wrappedAddChainHandler(reqHandlers)
+	recorder := makeAddChainRequest(t, reqHandlers, chain)
 
-	req, err := http.NewRequest("POST", "http://example.com/ct/v1/add-chain", chain)
-	if err != nil {
-		t.Fatalf("test request setup failed: %v", err)
-	}
-
-	w := httptest.NewRecorder()
-	handler(w, req)
-
-	if err != nil {
-		t.Fatalf("error from handler: %v", err)
-	}
-
-	assert.Equal(t, http.StatusOK, w.Code, "expected HTTP OK for valid add-chain: %v", w.Body)
+	assert.Equal(t, http.StatusOK, recorder.Code, "expected HTTP OK for valid add-chain: %v", recorder.Body)
 	km.AssertExpectations(t)
 	client.AssertExpectations(t)
 
 	// Roundtrip the response and make sure it's sensible
 	var resp addChainResponse
-	err = json.NewDecoder(w.Body).Decode(&resp)
+	err := json.NewDecoder(recorder.Body).Decode(&resp)
 
-	assert.NoError(t, err, "failed to unmarshal json: %v", w.Body.Bytes())
+	assert.NoError(t, err, "failed to unmarshal json: %v", recorder.Body.Bytes())
 
 	assert.Equal(t, ct.V1, ct.Version(resp.SctVersion))
 	assert.Equal(t, ctMockLogID, resp.ID)
@@ -361,4 +368,22 @@ func deadlineMatcher(other context.Context) bool {
 	}
 
 	return deadlineTime == fakeDeadlineTime
+}
+
+func makeAddChainRequest(t *testing.T, reqHandlers CTRequestHandlers, body io.Reader) *httptest.ResponseRecorder {
+	handler := wrappedAddChainHandler(reqHandlers)
+
+	req, err := http.NewRequest("POST", "http://example.com/ct/v1/add-chain", body)
+	if err != nil {
+		t.Fatalf("test request setup failed: %v", err)
+	}
+
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	if err != nil {
+		t.Fatalf("error from handler: %v", err)
+	}
+
+	return w
 }
