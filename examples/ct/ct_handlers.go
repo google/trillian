@@ -2,7 +2,6 @@ package ct
 
 import (
 	"crypto/sha256"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,12 +9,14 @@ import (
 	"net/http"
 	"time"
 
+	"encoding/base64"
 	"github.com/golang/glog"
 	"github.com/google/certificate-transparency/go"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/util"
 	"golang.org/x/net/context"
+	"strconv"
 )
 
 const (
@@ -27,6 +28,8 @@ const (
 )
 
 const (
+	contentTypeHeader      string     = "Content-Type"
+	contentTypeJSON        string     = "application/json"
 	jsonMapKeyCertificates string     = "certificates"
 	logVerboseLevel        glog.Level = 2
 )
@@ -207,11 +210,13 @@ func wrappedAddChainHandler(c CTRequestHandlers) http.HandlerFunc {
 		// Success. We can now build and marshal the response
 		resp := addChainResponse{
 			SctVersion: int(sct.SCTVersion),
+			Timestamp:  strconv.FormatUint(sct.Timestamp, 10),
 			ID:         base64.StdEncoding.EncodeToString(logID[:]),
 			Extensions: "",
 			Signature:  signature}
 
-		err = json.NewEncoder(w).Encode(&resp)
+		w.Header().Set(contentTypeHeader, contentTypeJSON)
+		jsonData, err := json.Marshal(&resp)
 
 		if err != nil {
 			glog.Warningf("Failed to marshal add-chain resp: %v", resp)
@@ -219,7 +224,14 @@ func wrappedAddChainHandler(c CTRequestHandlers) http.HandlerFunc {
 			return
 		}
 
-		http.Error(w, http.StatusText(http.StatusOK), http.StatusOK)
+		_, err = w.Write(jsonData)
+
+		if err != nil {
+			glog.Warningf("Failed to write add-chain resp: %v", resp)
+			// Probably too late for this
+			sendHttpError(w, http.StatusInternalServerError, err)
+			return
+		}
 	}
 }
 

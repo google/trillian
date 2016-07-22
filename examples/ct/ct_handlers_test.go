@@ -285,8 +285,20 @@ func TestAddChain(t *testing.T) {
 		t.Fatalf("error from handler: %v", err)
 	}
 
-	assert.Equal(t, http.StatusOK, w.Code, "Expected HTTP OK for valid add-chain: %v", w.Body)
+	assert.Equal(t, http.StatusOK, w.Code, "expected HTTP OK for valid add-chain: %v", w.Body)
 	km.AssertExpectations(t)
+	client.AssertExpectations(t)
+
+	// Roundtrip the response and make sure it's sensible
+	var resp addChainResponse
+	err = json.NewDecoder(w.Body).Decode(&resp)
+
+	assert.NoError(t, err, "failed to unmarshal json: %v", w.Body.Bytes())
+
+	assert.Equal(t, ct.V1, ct.Version(resp.SctVersion))
+	assert.Equal(t, ctMockLogID, resp.ID)
+	assert.Equal(t, "1469185273000000", resp.Timestamp)
+	assert.Equal(t, "BAEABnNpZ25lZA==", resp.Signature)
 }
 
 func loadCertsIntoPoolOrDie(t *testing.T, certs []string) *PEMCertPool {
@@ -345,7 +357,7 @@ func deadlineMatcher(other context.Context) bool {
 	deadlineTime, ok := other.Deadline()
 
 	if !ok {
-		return false  // we never make RPC calls without a deadline set
+		return false // we never make RPC calls without a deadline set
 	}
 
 	return deadlineTime == fakeDeadlineTime
