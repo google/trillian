@@ -13,6 +13,7 @@ import (
 	"github.com/google/trillian/examples/ct"
 	"google.golang.org/grpc"
 	"time"
+	"github.com/google/trillian/util"
 )
 
 // TODO(Martin2112): We still have the treeid / log ID thing to think about + security etc.
@@ -111,7 +112,7 @@ func main() {
 	client := trillian.NewTrillianLogClient(conn)
 
 	// Create and register the handlers using the RPC client we just set up
-	handlers := ct.NewCTRequestHandlers(*logIDFlag, trustedRoots, client, logKeyManager, *rpcDeadlineFlag)
+	handlers := ct.NewCTRequestHandlers(*logIDFlag, trustedRoots, client, logKeyManager, *rpcDeadlineFlag, new(util.SystemTimeSource))
 	handlers.RegisterCTHandlers()
 
 	glog.Warningf("Server exited: %v", http.ListenAndServe(fmt.Sprintf("localhost:%d", *serverPortFlag), nil))

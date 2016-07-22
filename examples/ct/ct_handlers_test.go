@@ -1,17 +1,39 @@
 package ct
 
 import (
+	"bufio"
+	"bytes"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/examples/ct/testonly"
+	"github.com/google/trillian/util"
+	"github.com/google/certificate-transparency/go"
+	"github.com/google/certificate-transparency/go/x509"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"golang.org/x/net/context"
 )
+
+// Arbitrary time for use in tests
+var fakeTime = time.Date(2016, 7, 22, 11, 01, 13, 0, time.UTC)
+// The deadline should be the above bumped by 500ms
+var fakeDeadlineTime = time.Date(2016, 7, 22, 11, 01, 13, 500 * 1000 * 1000, time.UTC)
+var fakeTimeSource = util.FakeTimeSource{fakeTime}
+
+type jsonChain struct {
+	Chain []string `json:chain`
+}
 
 const caCertB64 string = `MIIC0DCCAjmgAwIBAgIBADANBgkqhkiG9w0BAQUFADBVMQswCQYDVQQGEwJHQjEk
 MCIGA1UEChMbQ2VydGlmaWNhdGUgVHJhbnNwYXJlbmN5IENBMQ4wDAYDVQQIEwVX
@@ -201,7 +223,7 @@ func TestPostHandlersAcceptNonEmptyCertChain(t *testing.T) {
 
 func TestGetRoots(t *testing.T) {
 	client := new(trillian.MockTrillianLogClient)
-	roots := loadCertsIntoPoolOrDie(t)
+	roots := loadCertsIntoPoolOrDie(t, []string{caAndIntermediateCertsPEM})
 	handler := wrappedGetRootsHandler(roots, client)
 
 	req, err := http.NewRequest("GET", "http://example.com/ct/v1/get-roots", nil)
@@ -231,13 +253,105 @@ func TestGetRoots(t *testing.T) {
 	client.AssertExpectations(t)
 }
 
-func loadCertsIntoPoolOrDie(t *testing.T) *PEMCertPool {
-	pool := NewPEMCertPool()
-	ok := pool.AppendCertsFromPEM([]byte(caAndIntermediateCertsPEM))
+// This uses the fake CA as trusted root and submits a chain leaf -> fake intermediate, which
+// should be accepted
+func TestAddChain(t *testing.T) {
+	km := new(crypto.MockKeyManager)
+	client := new(trillian.MockTrillianLogClient)
+	roots := loadCertsIntoPoolOrDie(t, []string{testonly.FakeCACertPem})
+	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
+	signer := new(crypto.MockSigner)
+	hasher := trillian.NewSHA256()
 
-	if !ok {
-		t.Fatalf("couldn't parse test certs")
+	toSign := []byte{0xd1, 0x66, 0x49, 0xc7, 0xbb, 0x48, 0xe7, 0x32, 0xa9, 0x71, 0xc3, 0x1b, 0x26, 0xf6, 0x5c, 0x26, 0x85, 0xd3, 0xc, 0xed, 0x22, 0x48, 0xc4, 0xd4, 0xdb, 0xaa, 0xee, 0x9d, 0x44, 0xf4, 0xc1, 0x6f}
+
+	signer.On("Sign", mock.MatchedBy(
+		func(other io.Reader) bool {
+			return true
+		}), toSign, hasher).Return([]byte("signed"), nil)
+	km.On("Signer").Return(signer, nil)
+	km.On("GetRawPublicKey").Return([]byte("key"))
+
+	pool := loadCertsIntoPoolOrDie(t, []string{testonly.LeafSignedByFakeIntermediateCertPem, testonly.FakeIntermediateCertPem})
+	chain := createJsonChain(t, *pool)
+
+	leaves := leafProtosForCert(t, km, pool.RawCertificates()[0])
+
+	client.On("QueueLeaves", mock.MatchedBy(func(other context.Context) bool {
+		deadlineTime, ok := other.Deadline()
+
+		if !ok {
+			t.Fatalf("RPC deadline not set")
+		}
+
+		return deadlineTime == fakeDeadlineTime
+	}), &trillian.QueueLeavesRequest{LogId: 0x42, Leaves: leaves}, mock.Anything /* []grpc.CallOption */).Return(&trillian.QueueLeavesResponse{}, nil)
+
+	handler := wrappedAddChainHandler(reqHandlers)
+
+	req, err := http.NewRequest("POST", "http://example.com/ct/v1/add-chain", chain)
+	if err != nil {
+		t.Fatalf("test request setup failed: %v", err)
+	}
+
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	if err != nil {
+		t.Fatalf("error from handler: %v", err)
+	}
+
+	assert.Equal(t, http.StatusOK, w.Code, "Expected HTTP OK for valid add-chain: %v", w.Body)
+}
+
+func loadCertsIntoPoolOrDie(t *testing.T, certs []string) *PEMCertPool {
+	pool := NewPEMCertPool()
+
+	for _, cert := range certs {
+		ok := pool.AppendCertsFromPEM([]byte(cert))
+
+		if !ok {
+			t.Fatalf("couldn't parse test certs: %v", certs)
+		}
 	}
 
 	return pool
+}
+
+func createJsonChain(t *testing.T, p PEMCertPool) io.Reader {
+	var chain jsonChain
+
+	for _, rawCert := range p.RawCertificates() {
+		b64 := base64.StdEncoding.EncodeToString(rawCert.Raw)
+		chain.Chain = append(chain.Chain, b64)
+	}
+
+	var buffer bytes.Buffer
+	// It's tempting to avoid creating and flushing the intermediate writer but it doesn't work
+	writer := bufio.NewWriter(&buffer)
+	err := json.NewEncoder(writer).Encode(&chain)
+	writer.Flush()
+
+	if err != nil {
+		t.Fatalf("failed to create test json: %v", chain)
+	}
+
+	return bufio.NewReader(&buffer)
+}
+
+func leafProtosForCert(t *testing.T, km crypto.KeyManager, cert *x509.Certificate) []*trillian.LeafProto {
+	leafHash := sha256.Sum256(cert.Raw)
+	sct, err := SignV1SCTForCertificate(km, cert, fakeTime)
+
+	if err != nil {
+		t.Fatalf("Failed to sign test SCT: %v", err)
+	}
+
+	extraData, err := ct.SerializeSCT(sct)
+
+	if err != nil {
+		t.Fatalf("Failed to serialize test SCT: %v", err)
+	}
+
+	return []*trillian.LeafProto{&trillian.LeafProto{LeafHash: leafHash[:], LeafData: cert.Raw, ExtraData: extraData}}
 }

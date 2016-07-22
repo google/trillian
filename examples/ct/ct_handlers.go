@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
 	"golang.org/x/net/context"
+	"github.com/google/trillian/util"
 )
 
 const (
@@ -26,6 +28,7 @@ const (
 
 const (
 	jsonMapKeyCertificates string = "certificates"
+	logVerboseLevel glog.Level = 2
 )
 
 // CTRequestHandlers provides HTTP handler functions for CT V1 as defined in RFC 6962
@@ -37,12 +40,13 @@ type CTRequestHandlers struct {
 	rpcClient     trillian.TrillianLogClient
 	logKeyManager crypto.KeyManager
 	rpcDeadline   time.Duration
+	timeSource    util.TimeSource
 }
 
 // NewCTRequestHandlers creates a new instance of CTRequestHandlers. They must still
 // be registered by calling RegisterCTHandlers()
-func NewCTRequestHandlers(logID int64, trustedRoots *PEMCertPool, rpcClient trillian.TrillianLogClient, km crypto.KeyManager, rpcDeadline time.Duration) *CTRequestHandlers {
-	return &CTRequestHandlers{logID, trustedRoots, rpcClient, km, rpcDeadline}
+func NewCTRequestHandlers(logID int64, trustedRoots *PEMCertPool, rpcClient trillian.TrillianLogClient, km crypto.KeyManager, rpcDeadline time.Duration, timeSource util.TimeSource) *CTRequestHandlers {
+	return &CTRequestHandlers{logID, trustedRoots, rpcClient, km, rpcDeadline, timeSource}
 }
 
 func pathFor(req string) string {
@@ -65,19 +69,28 @@ func parseBodyAsJSONChain(w http.ResponseWriter, r *http.Request) (addChainReque
 	body, err := ioutil.ReadAll(r.Body)
 
 	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		if glog.V(logVerboseLevel) {
+			glog.Info("Failed to read request body")
+		}
+		sendHttpError(w, http.StatusBadRequest, err)
 		return addChainRequest{}, err
 	}
 
 	var req addChainRequest
 	if err := json.Unmarshal(body, &req); err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest)+": "+err.Error(), http.StatusBadRequest)
+		if glog.V(logVerboseLevel) {
+			glog.Infof("Failed to unmarshal: %s", body)
+		}
+		sendHttpError(w, http.StatusBadRequest, fmt.Errorf("Unmarshal failed with %v on %s", err, body))
 		return addChainRequest{}, err
 	}
 
 	// The cert chain is not allowed to be empty. We'll defer other validation for later
 	if len(req.Chain) == 0 {
-		http.Error(w, http.StatusText(http.StatusBadRequest)+": cert chain cannot be empty", http.StatusBadRequest)
+		if glog.V(logVerboseLevel) {
+			glog.Infof("Request chain is empty: %s", body)
+		}
+		sendHttpError(w, http.StatusBadRequest, errors.New("request chain cannot be empty"))
 		return addChainRequest{}, errors.New("cert chain was empty")
 	}
 
@@ -97,7 +110,7 @@ func enforceMethod(w http.ResponseWriter, r *http.Request, method string) bool {
 	// POSTs will decode the raw request body as JSON later.
 	if r.Method == httpMethodGet {
 		if err := r.ParseForm(); err != nil {
-			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			sendHttpError(w, http.StatusBadRequest, err)
 			return false
 		}
 	}
@@ -111,12 +124,14 @@ func enforceMethod(w http.ResponseWriter, r *http.Request, method string) bool {
 func wrappedAddChainHandler(c CTRequestHandlers) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !enforceMethod(w, r, httpMethodPost) {
+			// HTTP status code was already set
 			return
 		}
 
 		addChainRequest, err := parseBodyAsJSONChain(w, r)
 
 		if err != nil {
+			// HTTP status code was already set
 			return
 		}
 
@@ -127,7 +142,7 @@ func wrappedAddChainHandler(c CTRequestHandlers) http.HandlerFunc {
 			// We rejected it because the cert failed checks or we could not find a path to a root etc.
 			// Lots of possible causes for errors
 			glog.Warningf("Chain failed to verify: %v", addChainRequest)
-			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			sendHttpError(w, http.StatusBadRequest, err)
 			return
 		}
 
@@ -136,16 +151,16 @@ func wrappedAddChainHandler(c CTRequestHandlers) http.HandlerFunc {
 		if isPrecert || err != nil {
 			// This handler doesn't expect to see precerts and reject if we can't tell
 			glog.Warningf("Precert (or cert with invalid CT ext) submitted to add chain: %v", addChainRequest)
-			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			sendHttpError(w, http.StatusBadRequest, err)
 			return
 		}
 
-		sct, err := SignV1SCTForCertificate(c.logKeyManager, validPath[0], time.Now())
+		sct, err := SignV1SCTForCertificate(c.logKeyManager, validPath[0], c.timeSource.Now())
 
 		if err != nil {
 			// Probably a server failure, though it could be bad data like an invalid cert
 			glog.Warningf("Failed to create SCT for cert: %v", addChainRequest)
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			sendHttpError(w, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -154,7 +169,7 @@ func wrappedAddChainHandler(c CTRequestHandlers) http.HandlerFunc {
 
 		if err != nil {
 			glog.Warningf("Failed to serialize SCT: %v", sct)
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			sendHttpError(w, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -163,13 +178,13 @@ func wrappedAddChainHandler(c CTRequestHandlers) http.HandlerFunc {
 
 		request := trillian.QueueLeavesRequest{LogId: c.logID, Leaves: []*trillian.LeafProto{&leafProto}}
 
-		ctx, _ := context.WithDeadline(context.Background(), time.Now().Add(c.rpcDeadline))
+		ctx, _ := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
 
 		response, err := c.rpcClient.QueueLeaves(ctx, &request)
 
-		if err != nil || response.Status.StatusCode != trillian.TrillianApiStatusCode_OK {
+		if err != nil || rpcStatusOK(response.GetStatus()) {
 			// Request failed on backend, doesn't account for bad request etc. yet
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			sendHttpError(w, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -177,7 +192,7 @@ func wrappedAddChainHandler(c CTRequestHandlers) http.HandlerFunc {
 
 		if err != nil {
 			glog.Warningf("Failed to marshal log id: %v", sct.LogID)
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			sendHttpError(w, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -185,7 +200,7 @@ func wrappedAddChainHandler(c CTRequestHandlers) http.HandlerFunc {
 
 		if err != nil {
 			glog.Warningf("Failed to marshal signature: %v", sct.Signature)
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			sendHttpError(w, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -200,7 +215,7 @@ func wrappedAddChainHandler(c CTRequestHandlers) http.HandlerFunc {
 
 		if err != nil {
 			glog.Warningf("Failed to marshal add-chain resp: %v", resp)
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			sendHttpError(w, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -271,7 +286,15 @@ func wrappedGetRootsHandler(trustedRoots *PEMCertPool, rpcClient trillian.Trilli
 		}
 
 		jsonMap := make(map[string]interface{})
-		jsonMap[jsonMapKeyCertificates] = trustedRoots.RawCertificates()
+
+		rawCerts := make([][]byte, 0, len(trustedRoots.RawCertificates()))
+
+		// Pull out the raw certificates from the parsed versions
+		for _, cert := range trustedRoots.RawCertificates() {
+			rawCerts = append(rawCerts, cert.Raw)
+		}
+
+		jsonMap[jsonMapKeyCertificates] = rawCerts
 		enc := json.NewEncoder(w)
 		err := enc.Encode(jsonMap)
 
@@ -304,4 +327,19 @@ func (c CTRequestHandlers) RegisterCTHandlers() {
 	http.HandleFunc(pathFor("get-entries"), wrappedGetEntriesHandler(c.rpcClient))
 	http.HandleFunc(pathFor("get-roots"), wrappedGetRootsHandler(c.trustedRoots, c.rpcClient))
 	http.HandleFunc(pathFor("get-entry-and-proof"), wrappedGetEntryAndProofHandler(c.rpcClient))
+}
+
+// Generates a custom error page to give more information on why something didn't work
+// TODO(Martin2112): Not sure if we want to expose any detail or not
+func sendHttpError(w http.ResponseWriter, statusCode int, err error) {
+	http.Error(w, fmt.Sprintf("%s\n%v", http.StatusText(statusCode), err), statusCode)
+}
+
+// getRPCDeadlineTime calculates the future time an RPC should expire based on our config
+func getRPCDeadlineTime(c CTRequestHandlers) time.Time {
+	return c.timeSource.Now().Add(c.rpcDeadline)
+}
+
+func rpcStatusOK(status *trillian.TrillianApiStatus) bool {
+	return status != nil && status.StatusCode == trillian.TrillianApiStatusCode_OK
 }

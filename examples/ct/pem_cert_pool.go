@@ -18,7 +18,7 @@ const pemCertificateBlockType string = "CERTIFICATE"
 type PEMCertPool struct {
 	// maps from sha-1 to certificate, used for dup detection
 	fingerprintToCertMap map[[sha256.Size]byte]x509.Certificate
-	rawCerts             [][]byte
+	rawCerts             []*x509.Certificate
 	certPool             *x509.CertPool
 }
 
@@ -36,7 +36,7 @@ func (p *PEMCertPool) AddCert(cert *x509.Certificate) {
 	if !ok {
 		p.fingerprintToCertMap[fingerprint] = *cert
 		p.certPool.AddCert(cert)
-		p.rawCerts = append(p.rawCerts, cert.Raw)
+		p.rawCerts = append(p.rawCerts, cert)
 	}
 }
 
@@ -78,6 +78,6 @@ func (p *PEMCertPool) CertPool() *x509.CertPool {
 }
 
 // RawCertificates returns a list of the raw bytes of certificates that are in this pool
-func (p *PEMCertPool) RawCertificates() [][]byte {
+func (p *PEMCertPool) RawCertificates() []*x509.Certificate {
 	return p.rawCerts
 }
