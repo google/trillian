@@ -11,9 +11,9 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/examples/ct"
+	"github.com/google/trillian/util"
 	"google.golang.org/grpc"
 	"time"
-	"github.com/google/trillian/util"
 )
 
 // TODO(Martin2112): We still have the treeid / log ID thing to think about + security etc.

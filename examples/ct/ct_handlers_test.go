@@ -14,12 +14,12 @@ import (
 	"time"
 
 	"github.com/golang/glog"
+	"github.com/google/certificate-transparency/go"
+	"github.com/google/certificate-transparency/go/x509"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/examples/ct/testonly"
 	"github.com/google/trillian/util"
-	"github.com/google/certificate-transparency/go"
-	"github.com/google/certificate-transparency/go/x509"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"golang.org/x/net/context"
@@ -27,8 +27,9 @@ import (
 
 // Arbitrary time for use in tests
 var fakeTime = time.Date(2016, 7, 22, 11, 01, 13, 0, time.UTC)
+
 // The deadline should be the above bumped by 500ms
-var fakeDeadlineTime = time.Date(2016, 7, 22, 11, 01, 13, 500 * 1000 * 1000, time.UTC)
+var fakeDeadlineTime = time.Date(2016, 7, 22, 11, 01, 13, 500*1000*1000, time.UTC)
 var fakeTimeSource = util.FakeTimeSource{fakeTime}
 
 type jsonChain struct {

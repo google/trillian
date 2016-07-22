@@ -14,8 +14,8 @@ import (
 	"github.com/google/certificate-transparency/go"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
-	"golang.org/x/net/context"
 	"github.com/google/trillian/util"
+	"golang.org/x/net/context"
 )
 
 const (
@@ -27,8 +27,8 @@ const (
 )
 
 const (
-	jsonMapKeyCertificates string = "certificates"
-	logVerboseLevel glog.Level = 2
+	jsonMapKeyCertificates string     = "certificates"
+	logVerboseLevel        glog.Level = 2
 )
 
 // CTRequestHandlers provides HTTP handler functions for CT V1 as defined in RFC 6962
