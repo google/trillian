@@ -79,8 +79,8 @@ func NewLogStorage(id trillian.LogID, dbURL string) (storage.LogStorage, error) 
 		glog.Warningf("*** Opening storage for log: %v but it has no params configured ***", id)
 	}
 
-	if s.setNode, err = s.db.Prepare(insertNodeSql); err != nil {
-		glog.Warningf("Failed to prepare node insert statement: %s", err)
+	if s.setSubtree, err = s.db.Prepare(insertSubtreeSql); err != nil {
+		glog.Warningf("Failed to prepare node insert subtree statement: %s", err)
 		return nil, err
 	}
 

@@ -14,23 +14,23 @@ import (
 )
 
 // These statements are fixed
-const insertNodeSql string = `INSERT INTO Node(TreeId, NodeId, NodeHash, NodeRevision) VALUES (?, ?, ?, ?)`
+const insertSubtreeSql string = `INSERT INTO Subtree(TreeId, SubtreeId, Nodes, SubtreeRevision) VALUES (?, ?, ?, ?)`
 const insertTreeHeadSql string = `INSERT INTO TreeHead(TreeId,TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature)
 		 VALUES(?,?,?,?,?,?)`
 const selectTreeRevisionAtSizeSql string = "SELECT TreeRevision FROM TreeHead WHERE TreeId=? AND TreeSize=? ORDER BY TreeRevision DESC LIMIT 1"
 const selectActiveLogsSql string = "select TreeId, KeyId from Trees where TreeType='LOG'"
 const selectActiveLogsWithUnsequencedSql string = "SELECT DISTINCT t.TreeId, t.KeyId from Trees t INNER JOIN Unsequenced u WHERE TreeType='LOG' AND t.TreeId=u.TreeId"
 
-const selectNodesSql string = `SELECT x.NodeId, x.MaxRevision, Node.NodeHash
-				 FROM (SELECT n.NodeId, max(n.NodeRevision) AS MaxRevision
-							 FROM Node n
-							 WHERE n.NodeId IN (` + placeholderSql + `) AND
+const selectSubtreeSql string = `SELECT x.SubtreeId, x.MaxRevision, Subtree.Nodes
+				 FROM (SELECT n.SubtreeId, max(n.SubtreeRevision) AS MaxRevision
+							 FROM Subtree n
+							 WHERE n.SubtreeId IN (` + placeholderSql + `) AND
 										 n.TreeId = ? AND
-										 n.NodeRevision >= -?
-							 GROUP BY n.NodeId) AS x
-				 INNER JOIN Node ON Node.NodeId = x.NodeId AND
-														Node.NodeRevision = x.MaxRevision AND
-														Node.TreeId = ?`
+										 n.SubtreeRevision >= -?
+							 GROUP BY n.SubtreeId) AS x
+				 INNER JOIN Subtree ON Subtree.SubtreeId = x.SubtreeId AND
+														Subtree.SubtreeRevision = x.MaxRevision AND
+														Subtree.TreeId = ?`
 
 const placeholderSql string = "<placeholder>"
 
@@ -47,7 +47,7 @@ type mySQLTreeStorage struct {
 	// in the query to the statement that should be used.
 	statementMutex sync.Mutex
 	statements     map[string]map[int]*sql.Stmt
-	setNode        *sql.Stmt
+	setSubtree     *sql.Stmt
 }
 
 func openDB(dbURL string) (*sql.DB, error) {
@@ -79,8 +79,8 @@ func newTreeStorage(treeID int64, dbURL string, hasher trillian.Hasher) (mySQLTr
 		statements:    make(map[string]map[int]*sql.Stmt),
 	}
 
-	if s.setNode, err = s.db.Prepare(insertNodeSql); err != nil {
-		glog.Warningf("Failed to prepare node insert statement: %s", err)
+	if s.setSubtree, err = s.db.Prepare(insertSubtreeSql); err != nil {
+		glog.Warningf("Failed to prepare subtree insert statement: %s", err)
 		return mySQLTreeStorage{}, err
 	}
 
@@ -177,8 +177,8 @@ func (m *mySQLTreeStorage) getStmt(statement string, num int) (*sql.Stmt, error)
 	return s, nil
 }
 
-func (m *mySQLTreeStorage) getNodesStmt(num int) (*sql.Stmt, error) {
-	return m.getStmt(selectNodesSql, num)
+func (m *mySQLTreeStorage) getSubtreeStmt(num int) (*sql.Stmt, error) {
+	return m.getStmt(selectSubtreeSql, num)
 }
 
 func (m *mySQLTreeStorage) beginTreeTx() (treeTX, error) {
@@ -237,11 +237,12 @@ func (t *treeTX) GetTreeRevisionAtSize(treeSize int64) (int64, error) {
 }
 
 func (t *treeTX) GetMerkleNodes(treeRevision int64, nodeIDs []storage.NodeID) ([]storage.Node, error) {
-	tmpl, err := t.ts.getNodesStmt(len(nodeIDs))
+	tmpl, err := t.ts.getSubtreeStmt(len(nodeIDs))
 	if err != nil {
 		return nil, err
 	}
 	stx := t.tx.Stmt(tmpl)
+	defer stx.Close()
 	args := make([]interface{}, 0)
 	for _, nodeID := range nodeIDs {
 		nodeIdBytes, err := encodeNodeID(nodeID)
@@ -261,19 +262,17 @@ func (t *treeTX) GetMerkleNodes(treeRevision int64, nodeIDs []storage.NodeID) ([
 		return nil, err
 	}
 
-	ret := make([]storage.Node, len(nodeIDs))
+	ret := make([]storage.Node, 0, len(nodeIDs))
 	num := 0
 
 	defer rows.Close()
 	for rows.Next() {
 		var nodeIDBytes []byte
-		if err := rows.Scan(&nodeIDBytes, &ret[num].NodeRevision, &ret[num].Hash); err != nil {
+		var nodeRev int64
+		var hash trillian.Hash
+		if err := rows.Scan(&nodeIDBytes, &nodeRev, &hash); err != nil {
 			glog.Warningf("Failed to scan merkle nodes: %s", err)
 			return nil, err
-		}
-
-		if got, want := len(ret[num].Hash), t.ts.hashSizeBytes; got != want {
-			return nil, fmt.Errorf("Scanned node does not have hash length %d, got %d", want, got)
 		}
 
 		nodeID, err := decodeNodeID(nodeIDBytes)
@@ -283,19 +282,28 @@ func (t *treeTX) GetMerkleNodes(treeRevision int64, nodeIDs []storage.NodeID) ([
 			return nil, err
 		}
 
-		ret[num].NodeID = *nodeID
+		ret = append(ret, storage.Node{
+			NodeID:       *nodeID,
+			Hash:         hash,
+			NodeRevision: nodeRev,
+		})
+
+		if got, want := len(ret[num].Hash), t.ts.hashSizeBytes; got != want {
+			return nil, fmt.Errorf("Scanned node does not have hash length %d, got %d", want, got)
+		}
 
 		num++
 	}
 
-	if num != len(nodeIDs) {
-		return nil, fmt.Errorf("expected %d nodes, but saw %d", len(nodeIDs), num)
+	if num > len(nodeIDs) {
+		return nil, fmt.Errorf("expected <= %d nodes, but saw %d", len(nodeIDs), num)
 	}
 	return ret, nil
 }
 
 func (t *treeTX) SetMerkleNodes(treeRevision int64, nodes []storage.Node) error {
-	stx := t.tx.Stmt(t.ts.setNode)
+	stx := t.tx.Stmt(t.ts.setSubtree)
+	defer stx.Close()
 	for _, n := range nodes {
 		nodeIdBytes, err := encodeNodeID(n.NodeID)
 

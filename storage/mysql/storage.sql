@@ -30,12 +30,12 @@ CREATE TABLE IF NOT EXISTS TreeControl(
   FOREIGN KEY(TreeId) REFERENCES Trees(TreeId)
 );
 
-CREATE TABLE IF NOT EXISTS Node(
+CREATE TABLE IF NOT EXISTS Subtree(
   TreeId               INTEGER NOT NULL,
-  NodeId               VARBINARY(255) NOT NULL,
-  NodeHash             VARBINARY(255) NOT NULL,
-  NodeRevision         INTEGER NOT NULL,  -- negated because DESC indexes aren't supported :/
-  PRIMARY KEY(TreeId, NodeId, NodeRevision),
+  SubtreeId            VARBINARY(255) NOT NULL,
+  Nodes                VARBINARY(32768) NOT NULL,
+  SubtreeRevision      INTEGER NOT NULL,  -- negated because DESC indexes aren't supported :/
+  PRIMARY KEY(TreeId, SubtreeId, SubtreeRevision),
   FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE
 );
 
