@@ -86,7 +86,9 @@ func (s *HStar2) HStar2Nodes(treeDepth, treeLevelOffset int, values []HStar2Leaf
 			// otherwise just return the null hash for this level
 			return s.hStarEmpty(depth + treeLevelOffset)
 		},
-		func(depth int, index *big.Int, hash trillian.Hash) error { return set(treeDepth-depth, index, hash) })
+		func(depth int, index *big.Int, hash trillian.Hash) error {
+			return set(treeDepth-depth, index, hash)
+		})
 }
 
 // hStarEmpty calculates (and caches) the "null-hash" for the requested tree

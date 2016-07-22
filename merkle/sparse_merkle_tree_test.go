@@ -7,6 +7,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"math/big"
 	"os"
 	"runtime/pprof"
 	"strings"
@@ -508,4 +509,26 @@ func DISABLEDTestSparseMerkleTreeWriterBigBatch(t *testing.T) {
 		t.Errorf("Expected root %s, got root: %s", base64.StdEncoding.EncodeToString(expected), base64.StdEncoding.EncodeToString(got))
 	}
 	maybeProfileMemory(t)
+}
+
+func TestNodeIDFromAddress(t *testing.T) {
+	testVec := []struct {
+		size           int
+		prefix         []byte
+		index          *big.Int
+		depth          int
+		expectedString string
+	}{
+		{32, []byte{}, big.NewInt(0xaa), 8, "10101010"},
+		{32, []byte{0x12}, big.NewInt(0xaaaa), 16, "000100101010101010101010"},
+		{32, []byte{0x12}, big.NewInt(0x05), 8, "0001001000000101"},
+		{32, []byte{0x12}, big.NewInt(0x3456), 4, "000100100011"},
+		{32, []byte{0x83}, big.NewInt(0x1234000000000000), 16, "100000110001001000110100"},
+	}
+	for i, vec := range testVec {
+		nID := nodeIDFromAddress(vec.size, vec.prefix, vec.index, vec.depth)
+		if expected, got := vec.expectedString, nID.String(); expected != got {
+			t.Fatalf("(test %d) expected %s, got %s (path: %x)", i, expected, got, nID.Path)
+		}
+	}
 }
