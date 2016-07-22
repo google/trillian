@@ -136,18 +136,15 @@ func decodeNodeID(nodeIDBytes []byte) (*storage.NodeID, error) {
 }
 
 func encodeNodeID(n storage.NodeID) ([]byte, error) {
-	return []byte(n.String()), nil
-	/*
-		nodeIdProto := n.AsProto()
-		marshalledBytes, err := proto.Marshal(nodeIdProto)
+	nodeIdProto := n.AsProto()
+	marshalledBytes, err := proto.Marshal(nodeIdProto)
 
-		if err != nil {
-			glog.Warningf("Failed to encode nodeid: %s", err)
-			return nil, err
-		}
+	if err != nil {
+		glog.Warningf("Failed to encode nodeid: %s", err)
+		return nil, err
+	}
 
-		return marshalledBytes, nil
-	*/
+	return marshalledBytes, nil
 }
 
 // getStmt creates and caches sql.Stmt structs based on the passed in statement
