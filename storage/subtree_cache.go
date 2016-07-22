@@ -22,7 +22,8 @@ type SubtreeCache struct {
 	// dirtyPrefixes keeps track of all Subtrees which need to be written back
 	// to storage.
 	dirtyPrefixes map[string]bool
-	mutex         *sync.RWMutex
+	// mutex guards access to the maps above.
+	mutex *sync.RWMutex
 }
 
 // Suffix represents the tail of of a NodeID, indexing into the Subtree which
@@ -91,6 +92,7 @@ func (s *SubtreeCache) GetNodeHash(id NodeID, getSubtree GetSubtreeFunc) (trilli
 	prefixKey := string(px)
 	c := s.subtrees[prefixKey]
 	if c == nil {
+		// Cache miss, so we'll try to fetch from storage.
 		subID := id
 		subID.PrefixLenBits = len(px) * 8
 		var err error
@@ -101,7 +103,7 @@ func (s *SubtreeCache) GetNodeHash(id NodeID, getSubtree GetSubtreeFunc) (trilli
 		if c == nil {
 			// storage didn't have one for us, so we'll store an empty proto here
 			// incase we try to update it later on (we won't flush it back to
-			// storage if it's empty.)
+			// storage unless it's been written to.)
 			c = &SubtreeProto{
 				Prefix: px,
 				Depth:  strataDepth,
@@ -115,6 +117,8 @@ func (s *SubtreeCache) GetNodeHash(id NodeID, getSubtree GetSubtreeFunc) (trilli
 		s.subtrees[prefixKey] = c
 	}
 
+	// finally look for the particular node within the subtree so we can return
+	// the hash & revision.
 	nh := c.Nodes[sx.serialize()]
 	if nh == nil {
 		return nil, -1, nil
