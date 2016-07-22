@@ -185,7 +185,7 @@ func wrappedAddChainHandler(c CTRequestHandlers) http.HandlerFunc {
 
 		response, err := c.rpcClient.QueueLeaves(ctx, &request)
 
-		if err != nil || rpcStatusOK(response.GetStatus()) {
+		if err != nil || !rpcStatusOK(response.GetStatus()) {
 			// Request failed on backend, doesn't account for bad request etc. yet
 			sendHttpError(w, http.StatusInternalServerError, err)
 			return

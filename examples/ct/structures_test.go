@@ -104,7 +104,7 @@ func TestSignV1SCTForCertificate(t *testing.T) {
 }
 
 func TestSignV1SCTForPrecertificate(t *testing.T) {
-	cert, err := fixchain.CertificateFromPEM(testonly.CTTestPreCert)
+	cert, err := fixchain.CertificateFromPEM(testonly.PrecertPEMValid)
 	_, ok := err.(x509.NonFatalErrors)
 
 	if err != nil && !ok {

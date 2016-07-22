@@ -15,6 +15,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/certificate-transparency/go"
+	"github.com/google/certificate-transparency/go/fixchain"
 	"github.com/google/certificate-transparency/go/x509"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
@@ -255,7 +256,7 @@ func TestGetRoots(t *testing.T) {
 }
 
 // This uses the fake CA as trusted root and submits a chain of just a leaf which should be rejected
-// because there's no complete path
+// because there's no complete path to the root
 func TestAddChainMissingIntermediate(t *testing.T) {
 	km := new(crypto.MockKeyManager)
 	client := new(trillian.MockTrillianLogClient)
@@ -269,6 +270,57 @@ func TestAddChainMissingIntermediate(t *testing.T) {
 	recorder := makeAddChainRequest(t, reqHandlers, chain)
 
 	assert.Equal(t, http.StatusBadRequest, recorder.Code, "expected HTTP BadRequest for incomplete add-chain: %v", recorder.Body)
+	km.AssertExpectations(t)
+	client.AssertExpectations(t)
+}
+
+// This uses a fake CA as trusted root and submits a chain of just a precert leaf which should be
+// rejected
+func TestAddChainPrecert(t *testing.T) {
+	km := new(crypto.MockKeyManager)
+	client := new(trillian.MockTrillianLogClient)
+
+	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
+	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
+
+	precert, err := fixchain.CertificateFromPEM(testonly.PrecertPEMValid)
+	_, ok := err.(x509.NonFatalErrors)
+
+	if err != nil && !ok {
+		t.Fatal(err)
+	}
+
+	pool := NewPEMCertPool()
+	pool.AddCert(precert)
+	chain := createJsonChain(t, *pool)
+
+	recorder := makeAddChainRequest(t, reqHandlers, chain)
+
+	assert.Equal(t, http.StatusBadRequest, recorder.Code, "expected HTTP BadRequest for precert add-chain: %v", recorder.Body)
+	km.AssertExpectations(t)
+	client.AssertExpectations(t)
+}
+
+// This uses the fake CA as trusted root and submits a chain leaf -> fake intermediate, the
+// backend RPC fails so we get a 500
+func TestAddChainRPCFails(t *testing.T) {
+	toSign := []byte{0xd1, 0x66, 0x49, 0xc7, 0xbb, 0x48, 0xe7, 0x32, 0xa9, 0x71, 0xc3, 0x1b, 0x26, 0xf6, 0x5c, 0x26, 0x85, 0xd3, 0xc, 0xed, 0x22, 0x48, 0xc4, 0xd4, 0xdb, 0xaa, 0xee, 0x9d, 0x44, 0xf4, 0xc1, 0x6f}
+	km := setupMockKeyManager(toSign)
+	client := new(trillian.MockTrillianLogClient)
+
+	roots := loadCertsIntoPoolOrDie(t, []string{testonly.FakeCACertPem})
+	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
+
+	pool := loadCertsIntoPoolOrDie(t, []string{testonly.LeafSignedByFakeIntermediateCertPem, testonly.FakeIntermediateCertPem})
+	chain := createJsonChain(t, *pool)
+
+	leaves := leafProtosForCert(t, km, pool.RawCertificates()[0])
+
+	client.On("QueueLeaves", mock.MatchedBy(deadlineMatcher), &trillian.QueueLeavesRequest{LogId: 0x42, Leaves: leaves}, mock.Anything /* []grpc.CallOption */).Return(&trillian.QueueLeavesResponse{Status: &trillian.TrillianApiStatus{StatusCode: trillian.TrillianApiStatusCode(trillian.TrillianApiStatusCode_ERROR)}}, nil)
+
+	recorder := makeAddChainRequest(t, reqHandlers, chain)
+
+	assert.Equal(t, http.StatusInternalServerError, recorder.Code, "expected HTTP server error for backend rpc fail on add-chain: %v", recorder.Body)
 	km.AssertExpectations(t)
 	client.AssertExpectations(t)
 }
@@ -288,7 +340,7 @@ func TestAddChain(t *testing.T) {
 
 	leaves := leafProtosForCert(t, km, pool.RawCertificates()[0])
 
-	client.On("QueueLeaves", mock.MatchedBy(deadlineMatcher), &trillian.QueueLeavesRequest{LogId: 0x42, Leaves: leaves}, mock.Anything /* []grpc.CallOption */).Return(&trillian.QueueLeavesResponse{}, nil)
+	client.On("QueueLeaves", mock.MatchedBy(deadlineMatcher), &trillian.QueueLeavesRequest{LogId: 0x42, Leaves: leaves}, mock.Anything /* []grpc.CallOption */).Return(&trillian.QueueLeavesResponse{Status: &trillian.TrillianApiStatus{StatusCode: trillian.TrillianApiStatusCode_OK}}, nil)
 
 	recorder := makeAddChainRequest(t, reqHandlers, chain)
 
