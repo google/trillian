@@ -392,7 +392,7 @@ func testSparseTreeFetches(t *testing.T, vec sparseTestVector) {
 		writeMutex.Lock()
 		for i := range leafNodeIDs {
 			s := leafNodeIDs[i].String()
-			for x := 0; x < len(s); x++ {
+			for x := 0; x <= len(s); x++ {
 				writes[s[:x]] = "unmet"
 			}
 		}

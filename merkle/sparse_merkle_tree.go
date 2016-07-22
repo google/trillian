@@ -1,6 +1,7 @@
 package merkle
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"math/big"
@@ -100,14 +101,17 @@ type subtreeWriter struct {
 // getOrCreateChildSubtree returns, or creates and returns, a subtree for the
 // specified childPrefix.
 func (s *subtreeWriter) getOrCreateChildSubtree(childPrefix []byte) (Subtree, error) {
-	childPrefixStr := string(childPrefix)
+	// TODO(al): figure out we actualy need these copies and remove them if not.
+	//           If we do then tidy up with a copyBytes helper.
+	cp := append(make([]byte, 0, len(childPrefix)), childPrefix...)
+	childPrefixStr := string(cp)
 	s.childMutex.Lock()
 	defer s.childMutex.Unlock()
 
 	subtree := s.children[childPrefixStr]
 	var err error
 	if subtree == nil {
-		subtree, err = s.getSubtree(childPrefix)
+		subtree, err = s.getSubtree(cp)
 		if err != nil {
 			return nil, err
 		}
@@ -123,7 +127,7 @@ func (s *subtreeWriter) getOrCreateChildSubtree(childPrefix []byte) (Subtree, er
 				return nil, err
 			}
 			return &indexAndHash{
-				index: childPrefix,
+				index: cp,
 				hash:  h,
 			}, nil
 		}
@@ -174,10 +178,23 @@ func (s *subtreeWriter) RootHash() (trillian.Hash, error) {
 }
 
 func nodeIDFromAddress(size int, prefix []byte, index *big.Int, depth int) storage.NodeID {
+	switch {
+	case depth < 0:
+		panic(fmt.Errorf("logic error: cannot have depth (%d) < 0", depth))
+	case depth == 0:
+		return storage.NewEmptyNodeID(size * 8)
+	}
+
 	ib := index.Bytes()
 	t := make(trillian.Hash, size)
+	depthBytes := (depth-1)/8 + 1
+
 	copy(t, prefix)
-	copy(t[len(prefix):], ib)
+	if depth > len(ib)*8 {
+		copy(t[len(prefix)+depthBytes-len(ib):], ib)
+	} else {
+		copy(t[len(prefix):], ib)
+	}
 	n := storage.NewNodeIDFromHash(t)
 	n.PrefixLenBits = len(prefix)*8 + depth
 	return n
@@ -190,6 +207,7 @@ func (s *subtreeWriter) buildSubtree() {
 	defer close(s.root)
 
 	leaves := make([]HStar2LeafHash, 0, len(s.leafQueue))
+	nodesToStore := make([]storage.Node, 0, len(s.leafQueue)*2)
 
 	for leaf := range s.leafQueue {
 		ih, err := leaf()
@@ -198,11 +216,17 @@ func (s *subtreeWriter) buildSubtree() {
 			return
 		}
 		leaves = append(leaves, HStar2LeafHash{Index: new(big.Int).SetBytes(ih.index), LeafHash: ih.hash})
+		nodesToStore = append(nodesToStore,
+			storage.Node{
+				NodeID:       storage.NewNodeIDFromHash(bytes.Join([][]byte{s.prefix, ih.index}, []byte{})),
+				Hash:         ih.hash,
+				NodeRevision: s.treeRevision,
+			})
+
 	}
 
 	// calculate new root, and intermediate nodes:
 	hs2 := NewHStar2(s.treeHasher)
-	nodesToStore := make([]storage.Node, 0)
 	treeDepthOffset := (s.treeHasher.Size()-len(s.prefix))*8 - s.subtreeDepth
 	root, err := hs2.HStar2Nodes(s.subtreeDepth, treeDepthOffset, leaves,
 		func(depth int, index *big.Int) (trillian.Hash, error) {
@@ -215,7 +239,7 @@ func (s *subtreeWriter) buildSubtree() {
 				return nil, nil
 			}
 			if expected, got := nodeID, nodes[0].NodeID; !expected.Equivalent(got) {
-				return nil, fmt.Errorf("expected node ID %s from storage, but got %s", expected, got)
+				return nil, fmt.Errorf("expected node ID %s from storage, but got %s", expected.String(), got.String())
 			}
 			if expected, got := s.treeRevision, nodes[0].NodeRevision; got > expected {
 				return nil, fmt.Errorf("expected node revision <= %d, but got %d", expected, got)
@@ -223,6 +247,11 @@ func (s *subtreeWriter) buildSubtree() {
 			return nodes[0].Hash, nil
 		},
 		func(depth int, index *big.Int, h trillian.Hash) error {
+			// Don't store the root node of the subtree - that's part of the parent
+			// tree.
+			if depth == 0 && len(s.prefix) > 0 {
+				return nil
+			}
 			nID := nodeIDFromAddress(s.treeHasher.Size(), s.prefix, index, depth)
 			nodesToStore = append(nodesToStore,
 				storage.Node{
@@ -285,7 +314,8 @@ func newLocalSubtreeWriter(rev int64, prefix []byte, depths []int, newTX newTXFu
 	}
 	tree := subtreeWriter{
 		treeRevision: rev,
-		prefix:       prefix,
+		// TODO(al): figure out if we actually need these copies and remove it not.
+		prefix:       append(make([]byte, 0, len(prefix)), prefix...),
 		subtreeDepth: depths[0],
 		leafQueue:    make(chan func() (*indexAndHash, error), leafQueueSize(depths)),
 		root:         make(chan rootHashOrError, 1),
@@ -293,7 +323,7 @@ func newLocalSubtreeWriter(rev int64, prefix []byte, depths []int, newTX newTXFu
 		tx:           tx,
 		treeHasher:   h,
 		getSubtree: func(p []byte) (Subtree, error) {
-			myPrefix := append(prefix, p...)
+			myPrefix := bytes.Join([][]byte{prefix, p}, []byte{})
 			return newLocalSubtreeWriter(rev, myPrefix, depths[1:], newTX, h)
 		},
 	}
