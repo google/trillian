@@ -1,6 +1,7 @@
 package merkle
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"math/big"
@@ -100,6 +101,8 @@ type subtreeWriter struct {
 // getOrCreateChildSubtree returns, or creates and returns, a subtree for the
 // specified childPrefix.
 func (s *subtreeWriter) getOrCreateChildSubtree(childPrefix []byte) (Subtree, error) {
+	// TODO(al): figure out we actualy need these copies and remove them if not.
+	//           If we do then tidy up with a copyBytes helper.
 	cp := append(make([]byte, 0, len(childPrefix)), childPrefix...)
 	childPrefixStr := string(cp)
 	s.childMutex.Lock()
@@ -175,6 +178,13 @@ func (s *subtreeWriter) RootHash() (trillian.Hash, error) {
 }
 
 func nodeIDFromAddress(size int, prefix []byte, index *big.Int, depth int) storage.NodeID {
+	switch {
+	case depth < 0:
+		panic(fmt.Errorf("logic error: cannot have depth (%d) < 0", depth))
+	case depth == 0:
+		return storage.NewEmptyNodeID(size * 8)
+	}
+
 	ib := index.Bytes()
 	t := make(trillian.Hash, size)
 	depthBytes := (depth-1)/8 + 1
@@ -208,7 +218,7 @@ func (s *subtreeWriter) buildSubtree() {
 		leaves = append(leaves, HStar2LeafHash{Index: new(big.Int).SetBytes(ih.index), LeafHash: ih.hash})
 		nodesToStore = append(nodesToStore,
 			storage.Node{
-				NodeID:       storage.NewNodeIDFromHash(append(append(make([]byte, 0, s.treeHasher.Size()), s.prefix...), ih.index...)),
+				NodeID:       storage.NewNodeIDFromHash(bytes.Join([][]byte{s.prefix, ih.index}, []byte{})),
 				Hash:         ih.hash,
 				NodeRevision: s.treeRevision,
 			})
@@ -304,6 +314,7 @@ func newLocalSubtreeWriter(rev int64, prefix []byte, depths []int, newTX newTXFu
 	}
 	tree := subtreeWriter{
 		treeRevision: rev,
+		// TODO(al): figure out if we actually need these copies and remove it not.
 		prefix:       append(make([]byte, 0, len(prefix)), prefix...),
 		subtreeDepth: depths[0],
 		leafQueue:    make(chan func() (*indexAndHash, error), leafQueueSize(depths)),
@@ -312,7 +323,7 @@ func newLocalSubtreeWriter(rev int64, prefix []byte, depths []int, newTX newTXFu
 		tx:           tx,
 		treeHasher:   h,
 		getSubtree: func(p []byte) (Subtree, error) {
-			myPrefix := append(append(make([]byte, 0, len(prefix)+len(p)), prefix...), p...)
+			myPrefix := bytes.Join([][]byte{prefix, p}, []byte{})
 			return newLocalSubtreeWriter(rev, myPrefix, depths[1:], newTX, h)
 		},
 	}
