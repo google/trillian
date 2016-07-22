@@ -39,7 +39,7 @@ func TestIsPrecertificateNormalCert(t *testing.T) {
 func TestIsPrecertificateInvalidNonCriticalExtension(t *testing.T) {
 	cert := pemToCert(t, testonly.PrecertPEMValid)
 	// Invalid because it's not marked as critical
-	ext := pkix.Extension{Id: ctPoisonExtensionOid, Critical: false, Value: asn1NullBytes}
+	ext := pkix.Extension{Id: ctPoisonExtensionOID, Critical: false, Value: asn1NullBytes}
 
 	cert.Extensions = []pkix.Extension{ext}
 	_, err := IsPrecertificate(cert)
@@ -50,7 +50,7 @@ func TestIsPrecertificateInvalidNonCriticalExtension(t *testing.T) {
 func TestIsPrecertificateInvalidBytesInExtension(t *testing.T) {
 	cert := pemToCert(t, testonly.PrecertPEMValid)
 	// Invalid because it's not asn.1 null
-	ext := pkix.Extension{Id: ctPoisonExtensionOid, Critical: false, Value: []byte{0x42, 0x42, 0x42}}
+	ext := pkix.Extension{Id: ctPoisonExtensionOID, Critical: false, Value: []byte{0x42, 0x42, 0x42}}
 
 	cert.Extensions = []pkix.Extension{ext}
 	_, err := IsPrecertificate(cert)
