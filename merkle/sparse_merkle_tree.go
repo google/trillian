@@ -208,7 +208,7 @@ func (s *subtreeWriter) buildSubtree() {
 		leaves = append(leaves, HStar2LeafHash{Index: new(big.Int).SetBytes(ih.index), LeafHash: ih.hash})
 		nodesToStore = append(nodesToStore,
 			storage.Node{
-				NodeID:       storage.NewNodeIDFromHash(ih.index),
+				NodeID:       storage.NewNodeIDFromHash(append(append(make([]byte, 0, s.treeHasher.Size()), s.prefix...), ih.index...)),
 				Hash:         ih.hash,
 				NodeRevision: s.treeRevision,
 			})
