@@ -11,7 +11,7 @@ import (
 )
 
 // OID of the non-critical extension used to mark pre-certificates, defined in RFC 6962
-var ctPoisonExtensionOid = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 11129, 2, 4, 3}
+var ctPoisonExtensionOID = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 11129, 2, 4, 3}
 
 // Byte representation of ASN.1 NULL.
 var asn1NullBytes = []byte{0x05, 0x00}
@@ -21,7 +21,7 @@ var asn1NullBytes = []byte{0x05, 0x00}
 // by the spec.
 func IsPrecertificate(cert *x509.Certificate) (bool, error) {
 	for _, ext := range cert.Extensions {
-		if ctPoisonExtensionOid.Equal(ext.Id) {
+		if ctPoisonExtensionOID.Equal(ext.Id) {
 			if !ext.Critical || !bytes.Equal(asn1NullBytes, ext.Value) {
 				return false, fmt.Errorf("CT poison ext is not critical or invalid: %v", ext)
 			}
@@ -83,7 +83,7 @@ func ValidateChain(jsonChain []string, trustedRoots PEMCertPool) ([]*x509.Certif
 	}
 
 	if len(chains) == 0 {
-		return nil, errors.New("No path to root found when trying to validate chains")
+		return nil, errors.New("no path to root found when trying to validate chains")
 	}
 
 	// Verify might have found multiple paths to roots. Now we check that we have a path that
@@ -106,5 +106,5 @@ func ValidateChain(jsonChain []string, trustedRoots PEMCertPool) ([]*x509.Certif
 		return chainMinusRoot, nil
 	}
 
-	return nil, errors.New("No RFC compliant path to root found when trying to validate chain")
+	return nil, errors.New("no RFC compliant path to root found when trying to validate chain")
 }
