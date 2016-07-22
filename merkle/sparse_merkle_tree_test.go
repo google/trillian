@@ -13,6 +13,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/testonly"
@@ -47,6 +48,13 @@ func maybeProfileMemory(t *testing.T) {
 	}
 }
 
+func newTX(tx storage.MapTX) func() (storage.TreeTX, error) {
+	return func() (storage.TreeTX, error) {
+		glog.Infof("new tx")
+		return tx, nil
+	}
+}
+
 func getSparseMerkleTreeReaderWithMockTX(rev int64) (*SparseMerkleTreeReader, *storage.MockMapTX) {
 	tx := &storage.MockMapTX{}
 	return NewSparseMerkleTreeReader(rev, NewMapHasher(NewRFC6962TreeHasher(trillian.NewSHA256())), tx), tx
@@ -54,7 +62,11 @@ func getSparseMerkleTreeReaderWithMockTX(rev int64) (*SparseMerkleTreeReader, *s
 
 func getSparseMerkleTreeWriterWithMockTX(rev int64) (*SparseMerkleTreeWriter, *storage.MockMapTX) {
 	tx := &storage.MockMapTX{}
-	return NewSparseMerkleTreeWriter(rev, NewMapHasher(NewRFC6962TreeHasher(trillian.NewSHA256())), tx), tx
+	tree, err := NewSparseMerkleTreeWriter(rev, NewMapHasher(NewRFC6962TreeHasher(trillian.NewSHA256())), newTX(tx))
+	if err != nil {
+		panic(err)
+	}
+	return tree, tx
 }
 
 func isRootNodeOnly(nodes []storage.NodeID) bool {
@@ -101,6 +113,7 @@ func getRandomNonRootNode(t *testing.T, rev int64) storage.Node {
 func TestRootAtRevision(t *testing.T) {
 	r, tx := getSparseMerkleTreeReaderWithMockTX(100)
 	node := getRandomRootNode(t, 14)
+	tx.On("Commit").Return(nil)
 	tx.On("GetMerkleNodes", int64(23), mock.MatchedBy(isRootNodeOnly)).Return([]storage.Node{node}, nil)
 	root, err := r.RootAtRevision(23)
 	if err != nil {
@@ -113,6 +126,7 @@ func TestRootAtRevision(t *testing.T) {
 
 func TestRootAtUnknownRevision(t *testing.T) {
 	r, tx := getSparseMerkleTreeReaderWithMockTX(100)
+	tx.On("Commit").Return(nil)
 	tx.On("GetMerkleNodes", int64(23), mock.MatchedBy(isRootNodeOnly)).Return([]storage.Node{}, nil)
 	_, err := r.RootAtRevision(23)
 	if err != ErrNoSuchRevision {
@@ -123,6 +137,7 @@ func TestRootAtUnknownRevision(t *testing.T) {
 func TestRootAtRevisionHasMultipleRoots(t *testing.T) {
 	r, tx := getSparseMerkleTreeReaderWithMockTX(100)
 	n1, n2 := getRandomRootNode(t, 14), getRandomRootNode(t, 15)
+	tx.On("Commit").Return(nil)
 	tx.On("GetMerkleNodes", int64(23), mock.MatchedBy(isRootNodeOnly)).Return([]storage.Node{n1, n2}, nil)
 	_, err := r.RootAtRevision(23)
 	if err == nil || err == ErrNoSuchRevision {
@@ -136,6 +151,7 @@ func TestRootAtRevisionCatchesFutureRevision(t *testing.T) {
 	// Sanity checking in RootAtRevision should catch this node being incorrectly
 	// returned by the storage layer.
 	n1 := getRandomRootNode(t, rev+1)
+	tx.On("Commit").Return(nil)
 	tx.On("GetMerkleNodes", int64(rev), mock.MatchedBy(isRootNodeOnly)).Return([]storage.Node{n1}, nil)
 	_, err := r.RootAtRevision(rev)
 	if err == nil || err == ErrNoSuchRevision {
@@ -159,6 +175,7 @@ func TestRootAtRevisionCatchesNonRootNode(t *testing.T) {
 func TestInclusionProofForNullEntryInEmptyTree(t *testing.T) {
 	const rev = 100
 	r, tx := getSparseMerkleTreeReaderWithMockTX(rev)
+	tx.On("Commit").Return(nil)
 	tx.On("GetMerkleNodes", int64(rev), mock.AnythingOfType("[]storage.NodeID")).Return([]storage.Node{}, nil)
 	const key = "SomeArbitraryKey"
 	proof, err := r.InclusionProof(rev, []byte(key))
@@ -187,6 +204,7 @@ func TestInclusionProofForNullEntryInEmptyTree(t *testing.T) {
 func TestInclusionProofGetsIncorrectNode(t *testing.T) {
 	const rev = 100
 	r, tx := getSparseMerkleTreeReaderWithMockTX(rev)
+	tx.On("Commit").Return(nil)
 	tx.On("GetMerkleNodes", int64(rev), mock.AnythingOfType("[]storage.NodeID")).Return([]storage.Node{getRandomNonRootNode(t, 34)}, nil)
 	const key = "SomeArbitraryKey"
 	_, err := r.InclusionProof(rev, []byte(key))
@@ -225,6 +243,7 @@ func TestInclusionProofGetsTooManyNodes(t *testing.T) {
 	// and then tack on some rubbish:
 	nodes[256] = getRandomNonRootNode(t, 42)
 
+	tx.On("Commit").Return(nil)
 	tx.On("GetMerkleNodes", int64(rev), mock.AnythingOfType("[]storage.NodeID")).Return(nodes, nil)
 	_, err := r.InclusionProof(rev, []byte(key))
 	if err == nil {
@@ -248,6 +267,7 @@ func testSparseTreeCalculatedRoot(t *testing.T, vec sparseTestVector) {
 	const rev = 100
 	w, tx := getSparseMerkleTreeWriterWithMockTX(rev)
 
+	tx.On("Commit").Return(nil)
 	tx.On("GetMerkleNodes", int64(rev), mock.AnythingOfType("[]storage.NodeID")).Return([]storage.Node{}, nil)
 	tx.On("SetMerkleNodes", int64(rev), mock.AnythingOfType("[]storage.Node")).Return(nil)
 
@@ -287,6 +307,7 @@ func TestSparseMerkleTreeWriter(t *testing.T) {
 func testSparseTreeFetches(t *testing.T, vec sparseTestVector) {
 	const rev = 100
 	w, tx := getSparseMerkleTreeWriterWithMockTX(rev)
+	tx.On("Commit").Return(nil)
 
 	reads := make(map[string]string)
 	readMutex := sync.Mutex{}
@@ -457,6 +478,7 @@ func DISABLEDTestSparseMerkleTreeWriterBigBatch(t *testing.T) {
 	const rev = 100
 	w, tx := getSparseMerkleTreeWriterWithMockTX(rev)
 
+	tx.On("Commit").Return(nil)
 	tx.On("GetMerkleNodes", int64(rev), mock.AnythingOfType("[]storage.NodeID")).Return([]storage.Node{}, nil)
 	tx.On("SetMerkleNodes", int64(rev), mock.AnythingOfType("[]storage.Node")).Return(nil)
 
