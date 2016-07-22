@@ -8,7 +8,6 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto"
 )
 
 const (
@@ -27,13 +26,13 @@ const (
 // and functionality to translate CT client requests into forms that can be served by a
 // log backend RPC service.
 type CTRequestHandlers struct {
-	trustedRoots *crypto.PEMCertPool
+	trustedRoots *PEMCertPool
 	rpcClient    trillian.TrillianLogClient
 }
 
 // NewCTRequestHandlers creates a new instance of CTRequestHandlers. They must still
 // be registered by calling RegisterCTHandlers()
-func NewCTRequestHandlers(trustedRoots *crypto.PEMCertPool, rpcClient trillian.TrillianLogClient) *CTRequestHandlers {
+func NewCTRequestHandlers(trustedRoots *PEMCertPool, rpcClient trillian.TrillianLogClient) *CTRequestHandlers {
 	return &CTRequestHandlers{trustedRoots, rpcClient}
 }
 
@@ -162,7 +161,7 @@ func wrappedGetEntriesHandler(rpcClient trillian.TrillianLogClient) http.Handler
 	}
 }
 
-func wrappedGetRootsHandler(trustedRoots *crypto.PEMCertPool, rpcClient trillian.TrillianLogClient) http.HandlerFunc {
+func wrappedGetRootsHandler(trustedRoots *PEMCertPool, rpcClient trillian.TrillianLogClient) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !enforceMethod(w, r, httpMethodGet) {
 			return

@@ -1,4 +1,4 @@
-package crypto
+package ct
 
 import (
 	"crypto/sha256"
@@ -7,9 +7,6 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/certificate-transparency/go/x509"
 )
-
-// TODO(Martin2112): This code imports CT specific versions of X509 objects and should
-// probably be moved out of here.
 
 // String for certificate blocks in BEGIN / END PEM headers
 const pemCertificateBlockType string = "CERTIFICATE"
@@ -73,6 +70,11 @@ func (p *PEMCertPool) AppendCertsFromPEM(pemCerts []byte) (ok bool) {
 // Subjects returns a list of the DER-encoded subjects of all of the certificates in the pool.
 func (p *PEMCertPool) Subjects() (res [][]byte) {
 	return p.certPool.Subjects()
+}
+
+// CertPool returns the underlying CertPool.
+func (p *PEMCertPool) CertPool() *x509.CertPool {
+	return p.certPool
 }
 
 // RawCertificates returns a list of the raw bytes of certificates that are in this pool
