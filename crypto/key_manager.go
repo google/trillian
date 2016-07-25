@@ -20,9 +20,13 @@ type KeyManager interface {
 	// Signer returns a crypto.Signer that can sign data using the private key held by the
 	// manager.
 	Signer() (crypto.Signer, error)
-	// GetPublicKey returns the public key previously loaded. Potentially nil if the key
-	// manager requires initialization and this has not been done
-	GetPublicKey() crypto.PublicKey
+	// GetPublicKey returns the public key previously loaded. It is an error to call this
+	// before a public key has been loaded
+	GetPublicKey() (crypto.PublicKey, error)
+	// GetRawPublicKey returns the DER encoded public key bytes.
+	// This is needed for some applications that exchange or embed key hashes in structures.
+	// It is an error to call this before a public key has been loaded
+	GetRawPublicKey() ([]byte, error)
 }
 
 // PEMKeyManager is an instance of KeyManager that loads its key data from an encrypted
@@ -30,6 +34,7 @@ type KeyManager interface {
 type PEMKeyManager struct {
 	serverPrivateKey crypto.PrivateKey
 	serverPublicKey  crypto.PublicKey
+	rawPublicKey     []byte
 }
 
 // NewPEMKeyManager creates an uninitialized PEMKeyManager. Keys must be loaded before it
@@ -40,7 +45,7 @@ func NewPEMKeyManager() *PEMKeyManager {
 
 // NewPEMKeyManager creates a PEMKeyManager using a private key that has already been loaded
 func (k PEMKeyManager) NewPEMKeyManager(key crypto.PrivateKey) *PEMKeyManager {
-	return &PEMKeyManager{key, nil}
+	return &PEMKeyManager{key, nil, nil}
 }
 
 // LoadPrivateKey loads a private key from a PEM encoded string, decrypting it if necessary
@@ -78,6 +83,8 @@ func (k *PEMKeyManager) LoadPublicKey(pemEncodedKey string) error {
 		return errors.New("extra data found after PEM key decoded")
 	}
 
+	k.rawPublicKey = publicBlock.Bytes
+
 	parsedKey, err := x509.ParsePKIXPublicKey(publicBlock.Bytes)
 
 	if err != nil {
@@ -88,7 +95,7 @@ func (k *PEMKeyManager) LoadPublicKey(pemEncodedKey string) error {
 	return nil
 }
 
-// Signer returns a signer based on our private key. Returns nil if no private key
+// Signer returns a signer based on our private key. Returns an error if no private key
 // has been loaded.
 func (k PEMKeyManager) Signer() (crypto.Signer, error) {
 	if k.serverPrivateKey == nil {
@@ -105,10 +112,25 @@ func (k PEMKeyManager) Signer() (crypto.Signer, error) {
 	return nil, errors.New("unsupported key type")
 }
 
-// GetPublicKey returns the public key previously loaded or nil if LoadPublicKey has
+// GetPublicKey returns the public key previously loaded or an error if LoadPublicKey has
 // not been previously called successfully.
-func (k PEMKeyManager) GetPublicKey() crypto.PublicKey {
-	return k.serverPublicKey
+func (k PEMKeyManager) GetPublicKey() (crypto.PublicKey, error) {
+	if k.serverPublicKey == nil {
+		return nil, errors.New("called GetPublicKey() but one is not loaded")
+	}
+
+	return k.serverPublicKey, nil
+}
+
+// GetRawPublicKey returns the DER encoded public key bytes as loaded from the file.
+// This is needed for some applications that exchange or embed key hashes in structures.
+// The result will be an error if a public key has not been loaded
+func (k PEMKeyManager) GetRawPublicKey() ([]byte, error) {
+	if k.rawPublicKey == nil {
+		return nil, errors.New("called GetRawPublicKey() but one is not loaded")
+	}
+
+	return k.rawPublicKey, nil
 }
 
 func parsePrivateKey(key []byte) (crypto.PrivateKey, error) {

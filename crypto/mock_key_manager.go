@@ -24,9 +24,15 @@ func (m MockKeyManager) Signer() (crypto.Signer, error) {
 }
 
 // GetPublicKey is a Mock
-func (m MockKeyManager) GetPublicKey() crypto.PublicKey {
+func (m MockKeyManager) GetPublicKey() (crypto.PublicKey, error) {
 	args := m.Called()
-	return args.Get(0).(crypto.PublicKey)
+	return args.Get(0).(crypto.PublicKey), args.Error(1)
+}
+
+// GetRawPublicKey is a Mock
+func (m MockKeyManager) GetRawPublicKey() ([]byte, error) {
+	args := m.Called()
+	return args.Get(0).([]byte), args.Error(1)
 }
 
 // Sign is a mock

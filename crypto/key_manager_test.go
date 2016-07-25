@@ -11,29 +11,13 @@ import (
 	"testing"
 
 	"github.com/google/trillian"
+	"github.com/google/trillian/testonly"
 	"github.com/stretchr/testify/assert"
 )
 
 type ecdsaSig struct {
 	R, S *big.Int
 }
-
-// demoPrivateKey must only be used for testing purposes
-const demoPrivateKeyPass string = "towel"
-const demoPrivateKey string = `
------BEGIN EC PRIVATE KEY-----
-Proc-Type: 4,ENCRYPTED
-DEK-Info: DES-CBC,B71ECAB011EB4E8F
-
-+6cz455aVRHFX5UsxplyGvFXMcmuMH0My/nOWNmYCL+bX2PnHdsv3dRgpgPRHTWt
-IPI6kVHv0g2uV5zW8nRqacmikBFA40CIKp0SjRmi1CtfchzuqXQ3q40rFwCjeuiz
-t48+aoeFsfU6NnL5sP8mbFlPze+o7lovgAWEqHEcebU=
------END EC PRIVATE KEY-----`
-const demoPublicKey string = `
------BEGIN PUBLIC KEY-----
-MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEsAVg3YB0tOFf3DdC2YHPL2WiuCNR
-1iywqGjjtu2dAdWktWqgRO4NTqPJXUggSQL3nvOupHB4WZFZ4j3QhtmWRg==
------END PUBLIC KEY-----`
 
 func TestLoadDemoECDSAKeyAndSign(t *testing.T) {
 	km := new(PEMKeyManager)
@@ -43,7 +27,7 @@ func TestLoadDemoECDSAKeyAndSign(t *testing.T) {
 
 	hasher := trillian.NewSHA256()
 
-	err := km.LoadPrivateKey(demoPrivateKey, demoPrivateKeyPass)
+	err := km.LoadPrivateKey(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
 
 	if err != nil {
 		t.Fatalf("Failed to load key: %v", err)
@@ -69,7 +53,7 @@ func TestLoadDemoECDSAKeyAndSign(t *testing.T) {
 		t.Fatalf("Failed to unmarshal signature as asn.1")
 	}
 
-	publicBlock, rest := pem.Decode([]byte(demoPublicKey))
+	publicBlock, rest := pem.Decode([]byte(testonly.DemoPublicKey))
 	parsedKey, err := x509.ParsePKIXPublicKey(publicBlock.Bytes)
 
 	if len(rest) > 0 {
@@ -89,16 +73,21 @@ func TestLoadDemoECDSAKeyAndSign(t *testing.T) {
 func TestLoadDemoECDSAPublicKey(t *testing.T) {
 	km := new(PEMKeyManager)
 
-	if err := km.LoadPublicKey(demoPublicKey); err != nil {
+	if err := km.LoadPublicKey(testonly.DemoPublicKey); err != nil {
 		t.Fatal("Failed to load public key")
 	}
 
-	if km.GetPublicKey() == nil {
+	key, err := km.GetPublicKey()
+
+	assert.NoError(t, err, "unexpected error getting public key")
+
+	if key == nil {
 		t.Fatal("Key manager did not return public key after loading it")
 	}
 
 	// Additional sanity check on type as we know it must be an ECDSA key
-	if _, ok := km.GetPublicKey().(*ecdsa.PublicKey); !ok {
-		t.Fatalf("Expected to have loaded an ECDSA key but got: %v", km.GetPublicKey())
+
+	if _, ok := key.(*ecdsa.PublicKey); !ok {
+		t.Fatalf("Expected to have loaded an ECDSA key but got: %v", key)
 	}
 }
