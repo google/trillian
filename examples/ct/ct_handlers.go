@@ -235,19 +235,103 @@ func wrappedAddChainHandler(c CTRequestHandlers) http.HandlerFunc {
 	}
 }
 
-func wrappedAddPreChainHandler(rpcClient trillian.TrillianLogClient) http.HandlerFunc {
+func wrappedAddPreChainHandler(c CTRequestHandlers) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !enforceMethod(w, r, httpMethodPost) {
+			// HTTP status code was already set
 			return
 		}
 
-		_, err := parseBodyAsJSONChain(w, r)
+		addChainRequest, err := parseBodyAsJSONChain(w, r)
 
 		if err != nil {
+			// HTTP status code was already set
 			return
 		}
 
-		http.Error(w, http.StatusText(http.StatusNotImplemented), http.StatusNotImplemented)
+		// We already checked that the chain is not empty so can move on to verification
+		validPath := verifyAddChain(addChainRequest, w, *c.trustedRoots, true)
+
+		if validPath == nil {
+			// Chain rejected by verify. HTTP status code was already set
+			return
+		}
+
+		// Build up the SCT and MerkleTreeLeaf. The SCT will be returned to the client and
+		// the leaf will become part of the data sent to the backend.
+		merkleTreeLeaf, sct, err := SignV1SCTForPrecertificate(c.logKeyManager, validPath[0], c.timeSource.Now())
+
+		if err != nil {
+			glog.Warningf("Failed to create / serialize SCT: %v %v", sct, err)
+			sendHttpError(w, http.StatusInternalServerError, err)
+			return
+		}
+
+		// Inputs validated, pass the request on to the back end after hashing and serializing
+		// the data for the request
+		var leafBuffer bytes.Buffer
+		if err := WriteMerkleTreeLeaf(&leafBuffer, merkleTreeLeaf); err != nil {
+			glog.Warningf("Failed to serialize merkle leaf: %v", err)
+			sendHttpError(w, http.StatusInternalServerError, err)
+			return
+		}
+
+		var logEntryBuffer bytes.Buffer
+		logEntry := NewCTLogEntry(merkleTreeLeaf, validPath)
+		if err := logEntry.Serialize(&logEntryBuffer); err != nil {
+			glog.Warningf("Failed to serialize log entry: %v", err)
+			sendHttpError(w, http.StatusInternalServerError, err)
+			return
+		}
+
+		leafHash := sha256.Sum256(leafBuffer.Bytes())
+		leafProto := trillian.LeafProto{LeafHash: leafHash[:], LeafData: leafBuffer.Bytes(), ExtraData: logEntryBuffer.Bytes()}
+
+		request := trillian.QueueLeavesRequest{LogId: c.logID, Leaves: []*trillian.LeafProto{&leafProto}}
+		
+		ctx, _ := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
+
+		response, err := c.rpcClient.QueueLeaves(ctx, &request)
+
+		if err != nil || !rpcStatusOK(response.GetStatus()) {
+			// Request failed on backend, doesn't account for bad request etc. yet
+			sendHttpError(w, http.StatusInternalServerError, err)
+			return
+		}
+
+		logID, signature, err := marshalLogIDAndSignatureForResponse(sct, c.logKeyManager)
+
+		if err != nil {
+			glog.Warningf("failed to marshal for response: %v", err)
+			sendHttpError(w, http.StatusInternalServerError, err)
+			return
+		}
+
+		// Success. We can now build and marshal the JSON response and write it out
+		resp := addChainResponse{
+			SctVersion: int(sct.SCTVersion),
+			Timestamp:  sct.Timestamp,
+			ID:         base64.StdEncoding.EncodeToString(logID[:]),
+			Extensions: "",
+			Signature:  signature}
+
+		w.Header().Set(contentTypeHeader, contentTypeJSON)
+		jsonData, err := json.Marshal(&resp)
+
+		if err != nil {
+			glog.Warningf("Failed to marshal add-chain resp: %v", resp)
+			sendHttpError(w, http.StatusInternalServerError, err)
+			return
+		}
+
+		_, err = w.Write(jsonData)
+
+		if err != nil {
+			glog.Warningf("Failed to write add-chain resp: %v", resp)
+			// Probably too late for this as headers might have been written but we don't know for sure
+			sendHttpError(w, http.StatusInternalServerError, err)
+			return
+		}
 	}
 }
 
@@ -332,7 +416,7 @@ func wrappedGetEntryAndProofHandler(rpcClient trillian.TrillianLogClient) http.H
 // TODO(Martin2112): This registers on default ServeMux, might need more flexibility?
 func (c CTRequestHandlers) RegisterCTHandlers() {
 	http.HandleFunc(pathFor("add-chain"), wrappedAddChainHandler(c))
-	http.HandleFunc(pathFor("add-pre-chain"), wrappedAddPreChainHandler(c.rpcClient))
+	http.HandleFunc(pathFor("add-pre-chain"), wrappedAddPreChainHandler(c))
 	http.HandleFunc(pathFor("get-sth"), wrappedGetSTHHandler(c.rpcClient))
 	http.HandleFunc(pathFor("get-sth-consistency"), wrappedGetSTHConsistencyHandler(c.rpcClient))
 	http.HandleFunc(pathFor("get-proof-by-hash"), wrappedGetProofByHashHandler(c.rpcClient))

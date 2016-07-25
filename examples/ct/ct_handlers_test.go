@@ -99,7 +99,7 @@ func allPostHandlersForTest(client trillian.TrillianLogClient) []handlerAndPath 
 
 	return []handlerAndPath{
 		{"add-chain", wrappedAddChainHandler(CTRequestHandlers{rpcClient: client, trustedRoots: pool})},
-		{"add-pre-chain", wrappedAddPreChainHandler(client)}}
+		{"add-pre-chain", wrappedAddPreChainHandler(CTRequestHandlers{rpcClient: client, trustedRoots: pool})}}
 }
 
 func TestPostHandlersOnlyAcceptPost(t *testing.T) {
