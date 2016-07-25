@@ -86,7 +86,8 @@ func TestSignV1SCTForCertificate(t *testing.T) {
 		LogID:      ct.SHA256Hash(idArray),
 		Timestamp:  1504786523000000,
 		Extensions: ct.CTExtensions{},
-		Signature: ct.DigitallySigned{HashAlgorithm: ct.SHA256,
+		Signature: ct.DigitallySigned{
+			HashAlgorithm:      ct.SHA256,
 			SignatureAlgorithm: ct.RSA,
 			Signature:          []byte("signed")}}
 
@@ -138,7 +139,7 @@ func setupMockKeyManager(toSign []byte) crypto.KeyManager {
 			return true
 		}), toSign, hasher).Return([]byte("signed"), nil)
 	mockKeyManager.On("Signer").Return(mockSigner, nil)
-	mockKeyManager.On("GetRawPublicKey").Return([]byte("key"))
+	mockKeyManager.On("GetRawPublicKey").Return([]byte("key"), nil)
 
 	return mockKeyManager
 }

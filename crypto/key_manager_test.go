@@ -77,12 +77,17 @@ func TestLoadDemoECDSAPublicKey(t *testing.T) {
 		t.Fatal("Failed to load public key")
 	}
 
-	if km.GetPublicKey() == nil {
+	key, err := km.GetPublicKey()
+
+	assert.NoError(t, err, "unexpected error getting public key")
+
+	if key == nil {
 		t.Fatal("Key manager did not return public key after loading it")
 	}
 
 	// Additional sanity check on type as we know it must be an ECDSA key
-	if _, ok := km.GetPublicKey().(*ecdsa.PublicKey); !ok {
-		t.Fatalf("Expected to have loaded an ECDSA key but got: %v", km.GetPublicKey())
+
+	if _, ok := key.(*ecdsa.PublicKey); !ok {
+		t.Fatalf("Expected to have loaded an ECDSA key but got: %v", key)
 	}
 }

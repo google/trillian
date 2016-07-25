@@ -4,7 +4,6 @@ package ct
 
 import (
 	"crypto/sha256"
-	"errors"
 	"time"
 
 	"github.com/google/certificate-transparency/go"
@@ -15,24 +14,26 @@ import (
 
 const millisPerNano int64 = 1000
 
-// GetCTKeyID takes the key manager for a log returns the LogID for it. (see RFC 6962 S3.2)
+// GetCTKeyID takes the key manager for a log and returns the LogID. (see RFC 6962 S3.2)
 // In CT V1 the log id is a hash of the public key.
 func GetCTLogID(km crypto.KeyManager) ([sha256.Size]byte, error) {
-	if km.GetRawPublicKey() == nil {
-		return [sha256.Size]byte{}, errors.New("no public key is loaded")
+	key, err := km.GetRawPublicKey()
+
+	if err != nil {
+		return [sha256.Size]byte{}, err
 	}
 
-	return sha256.Sum256(km.GetRawPublicKey()), nil
+	return sha256.Sum256(key), nil
 }
 
 func signSCT(km crypto.KeyManager, t time.Time, sctData []byte) (ct.SignedCertificateTimestamp, error) {
 	signer, err := km.Signer()
-	// TODO(Martin2112): Algorithms shouldn't be hardcoded here, needs more work in key manager
-	trillianSigner := crypto.NewTrillianSigner(trillian.NewSHA256(), trillian.SignatureAlgorithm_RSA, signer)
-
 	if err != nil {
 		return ct.SignedCertificateTimestamp{}, err
 	}
+
+	// TODO(Martin2112): Algorithms shouldn't be hardcoded here, needs more work in key manager
+	trillianSigner := crypto.NewTrillianSigner(trillian.NewSHA256(), trillian.SignatureAlgorithm_RSA, signer)
 
 	signature, err := trillianSigner.Sign(sctData)
 
