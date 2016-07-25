@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -357,6 +358,48 @@ func TestAddChain(t *testing.T) {
 	assert.Equal(t, "BAEABnNpZ25lZA==", resp.Signature)
 }
 
+// Submit a chain with a valid precert but not complete path to root. Should be rejected.
+func TestAddPrecertChainMissingIntermediate(t *testing.T) {
+
+}
+
+// Submit a chain with a valid path but using a cert instead of a precert. Should be rejected.
+func TestAddPrecertChainCert(t *testing.T) {
+	km := new(crypto.MockKeyManager)
+	client := new(trillian.MockTrillianLogClient)
+
+	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
+	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
+
+	cert, err := fixchain.CertificateFromPEM(testonly.TestCertPEM)
+	_, ok := err.(x509.NonFatalErrors)
+
+	if err != nil && !ok {
+		t.Fatal(err)
+	}
+
+	pool := NewPEMCertPool()
+	pool.AddCert(cert)
+	chain := createJsonChain(t, *pool)
+
+	recorder := makeAddPrechainRequest(t, reqHandlers, chain)
+
+	assert.Equal(t, http.StatusBadRequest, recorder.Code, "expected HTTP BadRequest for cert add-precert-chain: %v", recorder.Body)
+	km.AssertExpectations(t)
+	client.AssertExpectations(t)
+}
+
+// Submit a chain that should be OK but arrange for the backend RPC to fail. Failure should
+// be propagated.
+func TestAddPrecertChainRPCFails(t *testing.T) {
+
+}
+
+// Submit a chain with a valid precert signed by a trusted root. Should be accepted.
+func TestAddPrecertChain(t *testing.T) {
+
+}
+
 func loadCertsIntoPoolOrDie(t *testing.T, certs []string) *PEMCertPool {
 	pool := NewPEMCertPool()
 
@@ -424,10 +467,18 @@ func deadlineMatcher(other context.Context) bool {
 	return deadlineTime == fakeDeadlineTime
 }
 
+func makeAddPrechainRequest(t *testing.T, reqHandlers CTRequestHandlers, body io.Reader) *httptest.ResponseRecorder {
+	handler := wrappedAddPreChainHandler(reqHandlers)
+	return makeAddChainRequestInternal(t, handler, "add-pre-chain", body)
+}
+
 func makeAddChainRequest(t *testing.T, reqHandlers CTRequestHandlers, body io.Reader) *httptest.ResponseRecorder {
 	handler := wrappedAddChainHandler(reqHandlers)
+	return makeAddChainRequestInternal(t, handler, "add-chain", body)
+}
 
-	req, err := http.NewRequest("POST", "http://example.com/ct/v1/add-chain", body)
+func makeAddChainRequestInternal(t *testing.T, handler http.HandlerFunc, path string, body io.Reader) *httptest.ResponseRecorder {
+	req, err := http.NewRequest("POST", fmt.Sprintf("http://example.com/ct/v1/%s", path), body)
 
 	assert.NoError(t, err, "test request setup failed: %v", err)
 
