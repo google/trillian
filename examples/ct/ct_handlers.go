@@ -403,4 +403,3 @@ func marshalLogIDAndSignatureForResponse(sct ct.SignedCertificateTimestamp, km c
 
 	return logID, signature, nil
 }
-
