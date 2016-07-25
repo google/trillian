@@ -7,16 +7,17 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 	"time"
 
 	"encoding/base64"
 	"github.com/golang/glog"
 	"github.com/google/certificate-transparency/go"
+	"github.com/google/certificate-transparency/go/x509"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/util"
 	"golang.org/x/net/context"
-	"strconv"
 )
 
 const (
@@ -139,44 +140,24 @@ func wrappedAddChainHandler(c CTRequestHandlers) http.HandlerFunc {
 		}
 
 		// We already checked that the chain is not empty so can move on to verification
-		validPath, err := ValidateChain(addChainRequest.Chain, *c.trustedRoots)
+		validPath := verifyAddChain(addChainRequest, w, *c.trustedRoots, false)
 
-		if err != nil {
-			// We rejected it because the cert failed checks or we could not find a path to a root etc.
-			// Lots of possible causes for errors
-			glog.Warningf("Chain failed to verify: %v", addChainRequest)
-			sendHttpError(w, http.StatusBadRequest, err)
+		if validPath == nil {
+			// Chain rejected by verify. HTTP status code was already set
 			return
 		}
 
-		isPrecert, err := IsPrecertificate(validPath[0])
-
-		if isPrecert || err != nil {
-			// This handler doesn't expect to see precerts and reject if we can't tell
-			glog.Warningf("Precert (or cert with invalid CT ext) submitted to add chain: %v", addChainRequest)
-			sendHttpError(w, http.StatusBadRequest, err)
-			return
-		}
-
-		sct, err := SignV1SCTForCertificate(c.logKeyManager, validPath[0], c.timeSource.Now())
+		// Build up the SCT
+		sct, sctBytes, err := buildAndSerializeSCT(addChainRequest, w, c.logKeyManager, validPath[0], c.timeSource)
 
 		if err != nil {
-			// Probably a server failure, though it could be bad data like an invalid cert
-			glog.Warningf("Failed to create SCT for cert: %v", addChainRequest)
-			sendHttpError(w, http.StatusInternalServerError, err)
-			return
-		}
-
-		sctBytes, err := ct.SerializeSCT(sct)
-		leafHash := sha256.Sum256(validPath[0].Raw)
-
-		if err != nil {
-			glog.Warningf("Failed to serialize SCT: %v", sct)
+			glog.Warningf("Failed to create / serialize SCT: %v %v", sct, err)
 			sendHttpError(w, http.StatusInternalServerError, err)
 			return
 		}
 
 		// Inputs validated, pass the request on to the back end
+		leafHash := sha256.Sum256(validPath[0].Raw)
 		leafProto := trillian.LeafProto{LeafHash: leafHash[:], LeafData: validPath[0].Raw, ExtraData: sctBytes}
 
 		request := trillian.QueueLeavesRequest{LogId: c.logID, Leaves: []*trillian.LeafProto{&leafProto}}
@@ -191,23 +172,15 @@ func wrappedAddChainHandler(c CTRequestHandlers) http.HandlerFunc {
 			return
 		}
 
-		logID, err := GetCTLogID(c.logKeyManager)
+		logID, signature, err := marshalLogIDAndSignatureForResponse(sct, c.logKeyManager)
 
 		if err != nil {
-			glog.Warningf("Failed to marshal log id: %v", sct.LogID)
+			glog.Warningf("failed to marshal for response: %v", err)
 			sendHttpError(w, http.StatusInternalServerError, err)
 			return
 		}
 
-		signature, err := sct.Signature.Base64String()
-
-		if err != nil {
-			glog.Warningf("Failed to marshal signature: %v", sct.Signature)
-			sendHttpError(w, http.StatusInternalServerError, err)
-			return
-		}
-
-		// Success. We can now build and marshal the response
+		// Success. We can now build and marshal the JSON response and write it out
 		resp := addChainResponse{
 			SctVersion: int(sct.SCTVersion),
 			Timestamp:  strconv.FormatUint(sct.Timestamp, 10),
@@ -228,7 +201,7 @@ func wrappedAddChainHandler(c CTRequestHandlers) http.HandlerFunc {
 
 		if err != nil {
 			glog.Warningf("Failed to write add-chain resp: %v", resp)
-			// Probably too late for this
+			// Probably too late for this as headers might have been written but we don't know for sure
 			sendHttpError(w, http.StatusInternalServerError, err)
 			return
 		}
@@ -355,3 +328,79 @@ func getRPCDeadlineTime(c CTRequestHandlers) time.Time {
 func rpcStatusOK(status *trillian.TrillianApiStatus) bool {
 	return status != nil && status.StatusCode == trillian.TrillianApiStatusCode_OK
 }
+
+// verifyAddChain is used by add-chain and add-pre-chain. It does the checks that the supplied
+// cert is of the correct type and chains to a trusted root.
+// TODO(Martin2112): This may not implement all the RFC requirements. Check what is provided
+// by fixchain (called by this code) plus the ones here to make sure that it is compliant.
+func verifyAddChain(req addChainRequest, w http.ResponseWriter, trustedRoots PEMCertPool, expectingPrecert bool) []*x509.Certificate {
+	// We already checked that the chain is not empty so can move on to verification
+	validPath, err := ValidateChain(req.Chain, trustedRoots)
+
+	if err != nil {
+		// We rejected it because the cert failed checks or we could not find a path to a root etc.
+		// Lots of possible causes for errors
+		glog.Warningf("Chain failed to verify: %v", req)
+		sendHttpError(w, http.StatusBadRequest, err)
+		return nil
+	}
+
+	isPrecert, err := IsPrecertificate(validPath[0])
+
+	// The type of the leaf must match the one the handler expects
+	if isPrecert != expectingPrecert || err != nil {
+		if expectingPrecert {
+			glog.Warningf("Cert (or precert with invalid CT ext) submitted as precert chain: %v", req)
+		} else {
+			glog.Warningf("Precert (or cert with invalid CT ext) submitted as cert chain: %v", req)
+		}
+		sendHttpError(w, http.StatusBadRequest, err)
+		return nil
+	}
+
+	return validPath
+}
+
+// buildAndSerializeSCT is used by add-chain and add-pre-chain. It constructs an SCT and
+// signs it with our key. It returns the SCT as an object and serialized as bytes to be passed
+// to the log backend.
+// TODO(Martin2112): Update to params when add-pre-chain implemented
+func buildAndSerializeSCT(req addChainRequest, w http.ResponseWriter, km crypto.KeyManager, cert *x509.Certificate, timeSource util.TimeSource) (ct.SignedCertificateTimestamp, []byte, error) {
+	sct, err := SignV1SCTForCertificate(km, cert, timeSource.Now())
+
+	if err != nil {
+		// Probably a server failure, though it could be bad data like an invalid cert
+		glog.Warningf("Failed to create SCT for cert: %v", req)
+		sendHttpError(w, http.StatusInternalServerError, err)
+		return ct.SignedCertificateTimestamp{}, nil, err
+	}
+
+	sctBytes, err := ct.SerializeSCT(sct)
+
+	if err != nil {
+		glog.Warningf("Failed to serialize SCT: %v", sct)
+		sendHttpError(w, http.StatusInternalServerError, err)
+		return ct.SignedCertificateTimestamp{}, nil, err
+	}
+
+	return sct, sctBytes, nil
+}
+
+// marshalLogIDAndSignatureForResponse is used by add-chain and add-pre-chain. It formats the
+// signature and log id ready to send to the client.
+func marshalLogIDAndSignatureForResponse(sct ct.SignedCertificateTimestamp, km crypto.KeyManager) ([sha256.Size]byte, string, error) {
+	logID, err := GetCTLogID(km)
+
+	if err != nil {
+		return [32]byte{}, "", fmt.Errorf("failed to marshal logID: %v %v", logID, err)
+	}
+
+	signature, err := sct.Signature.Base64String()
+
+	if err != nil {
+		return [32]byte{}, "", fmt.Errorf("failed to marshal signature: %v %v", sct.Signature, err)
+	}
+
+	return logID, signature, nil
+}
+
