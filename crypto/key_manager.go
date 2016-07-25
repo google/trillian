@@ -20,12 +20,12 @@ type KeyManager interface {
 	// Signer returns a crypto.Signer that can sign data using the private key held by the
 	// manager.
 	Signer() (crypto.Signer, error)
-	// GetPublicKey returns the public key previously loaded. Potentially nil if the key
-	// manager requires initialization and this has not been done
+	// GetPublicKey returns the public key previously loaded. It is an error to call this
+	// before a public key has been loaded
 	GetPublicKey() (crypto.PublicKey, error)
 	// GetRawPublicKey returns the DER encoded public key bytes.
 	// This is needed for some applications that exchange or embed key hashes in structures.
-	// The result will be nil if a public key has not been loaded
+	// It is an error to call this before a public key has been loaded
 	GetRawPublicKey() ([]byte, error)
 }
 
