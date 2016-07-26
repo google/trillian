@@ -32,29 +32,6 @@ const ctTesttubeLogID string = "sMyD5aX5fWuvfAnMKEkEhyrH6IsTLGNQt8b9JuFsbHc="
 // Log ID for a dummy log public key of "key" supplied by mock
 const ctMockLogID string = "LHDhK3oGRvkiefQnx7OOczTY5Tic/xZ6HcMOc/gmtoM="
 
-// Test data taken from CT repository cpp/log/test_signer.cc
-
-// Some time in September 2012.
-const defaultSCTTimestamp uint64 = 1348589665525
-
-const defaultCertSCTSignatureB64 string = "3046022100d3f7690e7ee80d9988a54a3821056393e9eb0c686ad67fbae3686c888fb1a3ce022100f9a51c6065bbba7ad7116a31bea1c31dbed6a921e1df02e4b403757fae3254ae"
-const defaultPrecertSCTSignatureB64 string = "304502206f247c7d1abe2b8f6c4530f99474f9ebe90629d21f76616389336f177ed7a7d00221009d3a60c2b407ab5a725a692fc79d0d301d6da61baec43175ed07514c535f1120"
-
-const ecP256PrivateKeyPEM string = `-----BEGIN EC PRIVATE KEY-----
-MHcCAQEEIG8QAquNnarN6Ik2cMIZtPBugh9wNRe0e309MCmDfBGuoAoGCCqGSM49
-AwEHoUQDQgAES0AfBkjr7b8b19p5Gk8plSAN16wWXZyhYsH6FMCEUK60t7pem/ck
-oPX8hupuaiJzJS0ZQ0SEoJGlFxkUFwft5g==
------END EC PRIVATE KEY-----`
-
-const ecP256PublicKeyPEM string = `-----BEGIN PUBLIC KEY-----
-MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAES0AfBkjr7b8b19p5Gk8plSAN16wW
-XZyhYsH6FMCEUK60t7pem/ckoPX8hupuaiJzJS0ZQ0SEoJGlFxkUFwft5g==
------END PUBLIC KEY-----`
-
-const keyIDB64 string = "b69d879e3f2c4402556dcda2f6b2e02ff6b6df4789c53000e14f4b125ae847aa"
-
-// end of CT test data
-
 // This test uses the testtube key rather than our test key so we can verify the
 // result easily
 func TestGetCTLogID(t *testing.T) {
