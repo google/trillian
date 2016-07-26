@@ -167,18 +167,3 @@ func setupMockKeyManager(toSign []byte) crypto.KeyManager {
 
 	return mockKeyManager
 }
-
-// This creates a real key manager with test keys loaded. Use for known answer tests
-func setupTestKeyManager(t *testing.T) crypto.KeyManager {
-	km := crypto.NewPEMKeyManager()
-
-	if err := km.LoadPrivateKey(ecP256PrivateKeyPEM, ""); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := km.LoadPublicKey(ecP256PublicKeyPEM); err != nil {
-		t.Fatal(err)
-	}
-
-	return km
-}
