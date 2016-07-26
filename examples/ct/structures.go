@@ -99,10 +99,7 @@ func SignV1SCTForPrecertificate(km crypto.KeyManager, cert *x509.Certificate, t 
 	// For precerts we need to extract the relevant data from the Certificate container.
 	// This is only possible using the CT specific modified version of X.509.
 	keyHash := sha256.Sum256(cert.RawSubjectPublicKeyInfo)
-	tbsBytes := make([]byte, 0, len(cert.RawTBSCertificate)+sha256.Size)
-	tbsBytes = append(tbsBytes, keyHash[:]...)
-	tbsBytes = append(tbsBytes, cert.RawTBSCertificate...)
-	precert := ct.PreCert{IssuerKeyHash: keyHash, TBSCertificate: tbsBytes}
+	precert := ct.PreCert{IssuerKeyHash: keyHash, TBSCertificate: cert.RawTBSCertificate}
 
 	timestampedEntry := ct.TimestampedEntry{Timestamp:sctInput.Timestamp, EntryType:ct.PrecertLogEntryType, PrecertEntry:precert}
 	leaf := ct.MerkleTreeLeaf{Version: ct.V1, LeafType:ct.TimestampedEntryLeafType, TimestampedEntry:timestampedEntry}
