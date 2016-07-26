@@ -182,7 +182,7 @@ func TestGetLeavesByIndexMultiple(t *testing.T) {
 func TestQueueLeavesStorageError(t *testing.T) {
 	test := newParameterizedTest("QueueLeaves",
 		func(t *storage.MockLogTX) {
-			t.On("QueueLeaves", []trillian.LogLeaf{leaf0}).Return(errors.New("STORAGE"))
+			t.On("QueueLeaves", []trillian.LogLeaf{leaf1}).Return(errors.New("STORAGE"))
 		},
 		func(s *TrillianLogServer) error {
 			_, err := s.QueueLeaves(context.Background(), &queueRequest0)
@@ -205,7 +205,9 @@ func TestQueueLeavesInvalidLogId(t *testing.T) {
 
 func TestQueueLeavesCommitFails(t *testing.T) {
 	test := newParameterizedTest("QueueLeaves",
-		func(t *storage.MockLogTX) { t.On("QueueLeaves", []trillian.LogLeaf{leaf0}).Return(nil) },
+		func(t *storage.MockLogTX) {
+			t.On("QueueLeaves", []trillian.LogLeaf{leaf1}).Return(nil)
+		},
 		func(s *TrillianLogServer) error {
 			_, err := s.QueueLeaves(context.Background(), &queueRequest0)
 			return err
@@ -219,7 +221,7 @@ func TestQueueLeaves(t *testing.T) {
 	mockTx := new(storage.MockLogTX)
 
 	mockStorage.On("Begin").Return(mockTx, nil)
-	mockTx.On("QueueLeaves", []trillian.LogLeaf{leaf0}).Return(nil)
+	mockTx.On("QueueLeaves", []trillian.LogLeaf{leaf1}).Return(nil)
 	mockTx.On("Commit").Return(nil)
 	mockTx.On("Open").Return(false)
 
