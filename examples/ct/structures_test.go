@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"bufio"
+	"bytes"
 	"github.com/google/certificate-transparency/go"
 	"github.com/google/certificate-transparency/go/fixchain"
 	"github.com/google/certificate-transparency/go/x509"
@@ -147,6 +149,101 @@ func TestSignV1SCTForPrecertificate(t *testing.T) {
 	assert.Equal(t, cert.RawTBSCertificate, leaf.TimestampedEntry.PrecertEntry.TBSCertificate, "tbs cert mismatch")
 }
 
+func TestSerializeMerkleTreeLeafBadVersion(t *testing.T) {
+	var leaf ct.MerkleTreeLeaf
+
+	leaf.Version = 199 // Out of any expected valid range
+
+	var w io.Writer
+	err := WriteMerkleTreeLeaf(w, leaf)
+	assert.Error(t, err, "incorrectly serialized leaf with bad version")
+}
+
+func TestSerializeMerkleTreeLeafBadType(t *testing.T) {
+	var leaf ct.MerkleTreeLeaf
+
+	leaf.Version = ct.V1
+	leaf.LeafType = 212
+
+	var w io.Writer
+	err := WriteMerkleTreeLeaf(w, leaf)
+	assert.Error(t, err, "incorrectly serialized leaf with bad leaf type")
+}
+
+func TestSerializeMerkleTreeLeafCert(t *testing.T) {
+	ts := ct.TimestampedEntry{Timestamp: 12345, EntryType: ct.X509LogEntryType, X509Entry: ct.ASN1Cert([]byte{0x10, 0x11, 0x12, 0x13, 0x20, 0x21, 0x22, 0x23}), Extensions: ct.CTExtensions{}}
+	leaf := ct.MerkleTreeLeaf{LeafType: ct.TimestampedEntryLeafType, Version: ct.V1, TimestampedEntry: ts}
+
+	var buff bytes.Buffer
+	w := bufio.NewWriter(&buff)
+
+	if err := WriteMerkleTreeLeaf(w, leaf); err != nil {
+		t.Fatalf("failed to write leaf: %v", err)
+	}
+
+	w.Flush()
+	r := bufio.NewReader(&buff)
+
+	leaf2, err := ct.ReadMerkleTreeLeaf(r)
+
+	if err != nil {
+		t.Fatalf("failed to read leaf: %v", err)
+	}
+
+	assert.Equal(t, leaf, *leaf2, "leaf mismatch after serialization roundtrip (cert)")
+}
+
+func TestSerializeMerkleTreePrecert(t *testing.T) {
+	ts := ct.TimestampedEntry{Timestamp: 12345, EntryType: ct.PrecertLogEntryType, PrecertEntry: ct.PreCert{IssuerKeyHash: [sha256.Size]byte{0x55, 0x56, 0x57, 0x58, 0x59}, TBSCertificate: ct.ASN1Cert([]byte{0x10, 0x11, 0x12, 0x13, 0x20, 0x21, 0x22, 0x23})}, Extensions: ct.CTExtensions{}}
+	leaf := ct.MerkleTreeLeaf{LeafType: ct.TimestampedEntryLeafType, Version: ct.V1, TimestampedEntry: ts}
+
+	var buff bytes.Buffer
+	w := bufio.NewWriter(&buff)
+
+	if err := WriteMerkleTreeLeaf(w, leaf); err != nil {
+		t.Fatalf("failed to write leaf: %v", err)
+	}
+
+	w.Flush()
+	r := bufio.NewReader(&buff)
+
+	leaf2, err := ct.ReadMerkleTreeLeaf(r)
+
+	if err != nil {
+		t.Fatalf("failed to read leaf: %v", err)
+	}
+
+	assert.Equal(t, leaf, *leaf2, "leaf mismatch after serialization roundtrip (precert)")
+}
+
+func TestSerializeCTLogEntry(t *testing.T) {
+	ts := ct.TimestampedEntry{Timestamp: 12345, EntryType: ct.X509LogEntryType, X509Entry: ct.ASN1Cert([]byte{0x10, 0x11, 0x12, 0x13, 0x20, 0x21, 0x22, 0x23}), Extensions: ct.CTExtensions{}}
+	leaf := ct.MerkleTreeLeaf{LeafType: ct.TimestampedEntryLeafType, Version: ct.V1, TimestampedEntry: ts}
+	chain := createCertChain(6)
+
+	var buff bytes.Buffer
+	w := bufio.NewWriter(&buff)
+
+	logEntry := CTLogEntry{leaf: leaf, chain: chain}
+	err := logEntry.Serialize(w)
+
+	if err != nil {
+		t.Fatalf("failed to serialize log entry: %v", err)
+	}
+
+	w.Flush()
+	r := bufio.NewReader(&buff)
+
+	var logEntry2 CTLogEntry
+	err = logEntry2.Deserialize(r)
+
+	if err != nil {
+		t.Fatalf("failed to deserialize log entry: %v", err)
+	}
+
+	assert.Equal(t, logEntry, logEntry2, "log entry mismatch after serialization roundtrip")
+}
+
 // Creates a mock key manager for use in interaction tests
 func setupMockKeyManager(toSign []byte) crypto.KeyManager {
 	hasher := trillian.NewSHA256()
@@ -160,4 +257,11 @@ func setupMockKeyManager(toSign []byte) crypto.KeyManager {
 	mockKeyManager.On("GetRawPublicKey").Return([]byte("key"), nil)
 
 	return mockKeyManager
+}
+
+// Creates a dummy cert chain
+func createCertChain(numCerts int) []ct.ASN1Cert {
+	chain := make([]ct.ASN1Cert, 0, numCerts)
+
+	return chain
 }
