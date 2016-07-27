@@ -28,6 +28,7 @@ message LeafProto {
     bytes leaf_hash = 1;
     bytes leaf_data = 2;
     bytes extra_data = 3;
+    int64 leaf_index = 4;
 }
 
 message QueueLeavesRequest {
