@@ -147,8 +147,10 @@ func wrappedAddChainHandler(c CTRequestHandlers) http.HandlerFunc {
 			return
 		}
 
-		// Build up the SCT
-		sct, sctBytes, err := buildAndSerializeSCT(addChainRequest, w, c.logKeyManager, validPath[0], c.timeSource)
+		// Build up the SCT and MerkleTreeLeaf. The SCT will be returned to the client and
+		// the leaf will become part of the data sent to the backend.
+		// TODO(Martin2112): Fixup the leaf -> backend when we have implemented missing serializers
+		_, sct, sctBytes, err := buildAndSerializeSCT(addChainRequest, w, c.logKeyManager, validPath[0], c.timeSource)
 
 		if err != nil {
 			glog.Warningf("Failed to create / serialize SCT: %v %v", sct, err)
@@ -365,14 +367,14 @@ func verifyAddChain(req addChainRequest, w http.ResponseWriter, trustedRoots PEM
 // signs it with our key. It returns the SCT as an object and serialized as bytes to be passed
 // to the log backend.
 // TODO(Martin2112): Update to params when add-pre-chain implemented
-func buildAndSerializeSCT(req addChainRequest, w http.ResponseWriter, km crypto.KeyManager, cert *x509.Certificate, timeSource util.TimeSource) (ct.SignedCertificateTimestamp, []byte, error) {
-	sct, err := SignV1SCTForCertificate(km, cert, timeSource.Now())
+func buildAndSerializeSCT(req addChainRequest, w http.ResponseWriter, km crypto.KeyManager, cert *x509.Certificate, timeSource util.TimeSource) (ct.MerkleTreeLeaf, ct.SignedCertificateTimestamp, []byte, error) {
+	merkleTreeLeaf, sct, err := SignV1SCTForCertificate(km, cert, timeSource.Now())
 
 	if err != nil {
 		// Probably a server failure, though it could be bad data like an invalid cert
 		glog.Warningf("Failed to create SCT for cert: %v", req)
 		sendHttpError(w, http.StatusInternalServerError, err)
-		return ct.SignedCertificateTimestamp{}, nil, err
+		return ct.MerkleTreeLeaf{}, ct.SignedCertificateTimestamp{}, nil, err
 	}
 
 	sctBytes, err := ct.SerializeSCT(sct)
@@ -380,10 +382,10 @@ func buildAndSerializeSCT(req addChainRequest, w http.ResponseWriter, km crypto.
 	if err != nil {
 		glog.Warningf("Failed to serialize SCT: %v", sct)
 		sendHttpError(w, http.StatusInternalServerError, err)
-		return ct.SignedCertificateTimestamp{}, nil, err
+		return ct.MerkleTreeLeaf{}, ct.SignedCertificateTimestamp{}, nil, err
 	}
 
-	return sct, sctBytes, nil
+	return merkleTreeLeaf, sct, sctBytes, nil
 }
 
 // marshalLogIDAndSignatureForResponse is used by add-chain and add-pre-chain. It formats the

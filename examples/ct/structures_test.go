@@ -263,7 +263,7 @@ func TestSerializeCTLogEntry(t *testing.T) {
 }
 
 // Creates a mock key manager for use in interaction tests
-func setupMockKeyManager(toSign []byte) crypto.MockKeyManager {
+func setupMockKeyManager(toSign []byte) *crypto.MockKeyManager {
 	hasher := trillian.NewSHA256()
 	mockKeyManager := new(crypto.MockKeyManager)
 	mockSigner := new(crypto.MockSigner)
