@@ -226,7 +226,7 @@ func TestSerializeCTLogEntry(t *testing.T) {
 		var buff bytes.Buffer
 		w := bufio.NewWriter(&buff)
 
-		logEntry := CTLogEntry{leaf: leaf, chain: chain}
+		logEntry := CTLogEntry{Leaf: leaf, Chain: chain}
 		err := logEntry.Serialize(w)
 
 		if err != nil {

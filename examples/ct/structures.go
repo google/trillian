@@ -22,9 +22,9 @@ const millisPerNano int64 = 1000
 // the CT code but it is a superset of what we need.
 type CTLogEntry struct {
 	// The leaf structure that was built from the client submission
-	leaf ct.MerkleTreeLeaf
+	Leaf  ct.MerkleTreeLeaf
 	// The complete chain for the certificate or precertificate as raw bytes
-	chain []ct.ASN1Cert
+	Chain []ct.ASN1Cert
 }
 
 // GetCTKeyID takes the key manager for a log and returns the LogID. (see RFC 6962 S3.2)
@@ -134,8 +134,8 @@ func NewLogEntry(leaf ct.MerkleTreeLeaf, certChain []*x509.Certificate) *CTLogEn
 
 	logEntry := new(CTLogEntry)
 
-	logEntry.leaf = leaf
-	logEntry.chain = chain
+	logEntry.Leaf = leaf
+	logEntry.Chain = chain
 
 	return logEntry
 }
@@ -197,15 +197,15 @@ func WriteMerkleTreeLeaf(w io.Writer, l ct.MerkleTreeLeaf) error {
 // Serialize writes out a CTLogEntry in binary form. This is not an RFC 6962 data structure
 // and is only used internally by the log.
 func (c CTLogEntry) Serialize(w io.Writer) error {
-	if err := WriteMerkleTreeLeaf(w, c.leaf); err != nil {
+	if err := WriteMerkleTreeLeaf(w, c.Leaf); err != nil {
 		return err
 	}
 
-	if err := writeUint(w, uint64(len(c.chain)), 2); err != nil {
+	if err := writeUint(w, uint64(len(c.Chain)), 2); err != nil {
 		return err
 	}
 
-	for _, certBytes := range c.chain {
+	for _, certBytes := range c.Chain {
 		if err := writeVarBytes(w, certBytes, 4); err != nil {
 			return err
 		}
@@ -224,7 +224,7 @@ func (c *CTLogEntry) Deserialize(r io.Reader) error {
 		return err
 	}
 
-	c.leaf = *leaf
+	c.Leaf = *leaf
 
 	numCerts, err := readUint(r, 2)
 
@@ -245,7 +245,7 @@ func (c *CTLogEntry) Deserialize(r io.Reader) error {
 		chain = append(chain, certBytes)
 	}
 
-	c.chain = chain
+	c.Chain = chain
 
 	return nil
 }
