@@ -219,29 +219,32 @@ func TestSerializeMerkleTreePrecert(t *testing.T) {
 func TestSerializeCTLogEntry(t *testing.T) {
 	ts := ct.TimestampedEntry{Timestamp: 12345, EntryType: ct.X509LogEntryType, X509Entry: ct.ASN1Cert([]byte{0x10, 0x11, 0x12, 0x13, 0x20, 0x21, 0x22, 0x23}), Extensions: ct.CTExtensions{}}
 	leaf := ct.MerkleTreeLeaf{LeafType: ct.TimestampedEntryLeafType, Version: ct.V1, TimestampedEntry: ts}
-	chain := createCertChain(6)
 
-	var buff bytes.Buffer
-	w := bufio.NewWriter(&buff)
+	for chainLength := 1; chainLength < 10; chainLength++ {
+		chain := createCertChain(chainLength)
 
-	logEntry := CTLogEntry{leaf: leaf, chain: chain}
-	err := logEntry.Serialize(w)
+		var buff bytes.Buffer
+		w := bufio.NewWriter(&buff)
 
-	if err != nil {
-		t.Fatalf("failed to serialize log entry: %v", err)
+		logEntry := CTLogEntry{leaf: leaf, chain: chain}
+		err := logEntry.Serialize(w)
+
+		if err != nil {
+			t.Fatalf("failed to serialize log entry: %v", err)
+		}
+
+		w.Flush()
+		r := bufio.NewReader(&buff)
+
+		var logEntry2 CTLogEntry
+		err = logEntry2.Deserialize(r)
+
+		if err != nil {
+			t.Fatalf("failed to deserialize log entry: %v", err)
+		}
+
+		assert.Equal(t, logEntry, logEntry2, "log entry mismatch after serialization roundtrip")
 	}
-
-	w.Flush()
-	r := bufio.NewReader(&buff)
-
-	var logEntry2 CTLogEntry
-	err = logEntry2.Deserialize(r)
-
-	if err != nil {
-		t.Fatalf("failed to deserialize log entry: %v", err)
-	}
-
-	assert.Equal(t, logEntry, logEntry2, "log entry mismatch after serialization roundtrip")
 }
 
 // Creates a mock key manager for use in interaction tests
@@ -262,6 +265,16 @@ func setupMockKeyManager(toSign []byte) crypto.KeyManager {
 // Creates a dummy cert chain
 func createCertChain(numCerts int) []ct.ASN1Cert {
 	chain := make([]ct.ASN1Cert, 0, numCerts)
+
+	for c := 0; c < numCerts; c++ {
+		certBytes := make([]byte, c + 2)
+
+		for i := 0; i < c + 2; i++ {
+			certBytes[i] = byte(c)
+		}
+
+		chain = append(chain, ct.ASN1Cert(certBytes))
+	}
 
 	return chain
 }
