@@ -1,14 +1,14 @@
 package ct
 
 import (
+	"bufio"
+	"bytes"
 	"crypto/sha256"
 	"encoding/base64"
 	"io"
 	"testing"
 	"time"
 
-	"bufio"
-	"bytes"
 	"github.com/google/certificate-transparency/go"
 	"github.com/google/certificate-transparency/go/fixchain"
 	"github.com/google/certificate-transparency/go/x509"
