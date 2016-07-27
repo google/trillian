@@ -65,9 +65,9 @@ func TestSignV1SCTForCertificate(t *testing.T) {
 		t.Fatalf("failed to set up test cert: %v", err)
 	}
 
-	km := setupMockKeyManager([]byte{0xd1, 0x66, 0x49, 0xc7, 0xbb, 0x48, 0xe7, 0x32, 0xa9, 0x71, 0xc3, 0x1b, 0x26, 0xf6, 0x5c, 0x26, 0x85, 0xd3, 0xc, 0xed, 0x22, 0x48, 0xc4, 0xd4, 0xdb, 0xaa, 0xee, 0x9d, 0x44, 0xf4, 0xc1, 0x6f})
+	km := setupMockKeyManager([]byte{0x5, 0x62, 0x4f, 0xb4, 0x9e, 0x32, 0x14, 0xb6, 0xc, 0xb8, 0x51, 0x28, 0x23, 0x93, 0x2c, 0x7a, 0x3d, 0x80, 0x93, 0x5f, 0xcd, 0x76, 0xef, 0x91, 0x6a, 0xaf, 0x1b, 0x8c, 0xe8, 0xb5, 0x2, 0xb5})
 
-	got, err := SignV1SCTForCertificate(km, cert, fixedTime)
+	leaf, got, err := SignV1SCTForCertificate(km, cert, fixedTime)
 
 	if err != nil {
 		t.Fatalf("create sct for cert failed", err)
@@ -92,6 +92,13 @@ func TestSignV1SCTForCertificate(t *testing.T) {
 			Signature:          []byte("signed")}}
 
 	assert.Equal(t, expected, got, "mismatched SCT (cert)")
+
+	// Additional checks that the MerkleTreeLeaf we built is correct
+	assert.Equal(t, ct.V1, leaf.Version, "expected a v1 leaf")
+	assert.Equal(t, ct.TimestampedEntryLeafType, leaf.LeafType, "expected a timestamped entry type")
+	assert.Equal(t, ct.X509LogEntryType, leaf.TimestampedEntry.EntryType, "expected x509 entry type")
+	assert.Equal(t, got.Timestamp, leaf.TimestampedEntry.Timestamp, "entry / sct timestamp mismatch")
+	assert.Equal(t, ct.ASN1Cert(cert.Raw), leaf.TimestampedEntry.X509Entry, "cert bytes mismatch")
 }
 
 func TestSignV1SCTForPrecertificate(t *testing.T) {
@@ -102,9 +109,9 @@ func TestSignV1SCTForPrecertificate(t *testing.T) {
 		t.Fatalf("failed to set up test precert: %v", err)
 	}
 
-	km := setupMockKeyManager([]byte{0xfd, 0x5c, 0x80, 0xd6, 0x5c, 0xdc, 0xee, 0xc, 0x6e, 0xc8, 0xc3, 0xfb, 0xb3, 0xe6, 0x4b, 0xc9, 0x1e, 0x1e, 0x9a, 0xf5, 0x18, 0x99, 0xeb, 0x86, 0x68, 0x0, 0xb5, 0xc, 0x36, 0x30, 0xc9, 0xf})
+	km := setupMockKeyManager([]byte{0x77, 0xf3, 0x5c, 0xc6, 0xad, 0x85, 0xfd, 0xe0, 0x38, 0xfd, 0x36, 0x34, 0x5c, 0x1e, 0x45, 0x58, 0x60, 0x95, 0xb1, 0x7c, 0x28, 0xaa, 0xa5, 0xa5, 0x84, 0x96, 0x37, 0x4b, 0xf8, 0xbb, 0xd9, 0x8})
 
-	got, err := SignV1SCTForPrecertificate(km, cert, fixedTime)
+	leaf, got, err := SignV1SCTForPrecertificate(km, cert, fixedTime)
 
 	if err != nil {
 		t.Fatalf("create sct for precert failed", err)
@@ -128,8 +135,19 @@ func TestSignV1SCTForPrecertificate(t *testing.T) {
 			Signature:          []byte("signed")}}
 
 	assert.Equal(t, expected, got, "mismatched SCT (precert")
+
+	// Additional checks that the MerkleTreeLeaf we built is correct
+	keyHash := sha256.Sum256(cert.RawSubjectPublicKeyInfo)
+
+	assert.Equal(t, ct.V1, leaf.Version, "expected a v1 leaf")
+	assert.Equal(t, ct.TimestampedEntryLeafType, leaf.LeafType, "expected a timestamped entry type")
+	assert.Equal(t, ct.PrecertLogEntryType, leaf.TimestampedEntry.EntryType, "expected precert entry type")
+	assert.Equal(t, got.Timestamp, leaf.TimestampedEntry.Timestamp, "entry / sct timestamp mismatch")
+	assert.Equal(t, keyHash, leaf.TimestampedEntry.PrecertEntry.IssuerKeyHash, "issuer key hash mismatch")
+	assert.Equal(t, cert.RawTBSCertificate, leaf.TimestampedEntry.PrecertEntry.TBSCertificate, "tbs cert mismatch")
 }
 
+// Creates a mock key manager for use in interaction tests
 func setupMockKeyManager(toSign []byte) crypto.KeyManager {
 	hasher := trillian.NewSHA256()
 	mockKeyManager := new(crypto.MockKeyManager)
