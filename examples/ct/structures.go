@@ -21,7 +21,8 @@ const millisPerNano int64 = 1000
 // CTLogEntry holds the data we send to the backend with the leaf. There is a LogEntry type in
 // the CT code but it is a superset of what we need. These structs are purely containers
 // for data passed between the frontend and backend. They are not responsible for request
-// validation or chain checking.
+// validation or chain checking. Validation of submitted chains is the responsibility of
+// the frontend. The backend handles generic blobs and does not know their format.
 type CTLogEntry struct {
 	// The leaf structure that was built from the client submission
 	Leaf ct.MerkleTreeLeaf
