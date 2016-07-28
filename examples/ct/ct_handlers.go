@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"time"
 
+	"bytes"
 	"encoding/base64"
 	"github.com/golang/glog"
 	"github.com/google/certificate-transparency/go"
@@ -149,18 +150,33 @@ func wrappedAddChainHandler(c CTRequestHandlers) http.HandlerFunc {
 
 		// Build up the SCT and MerkleTreeLeaf. The SCT will be returned to the client and
 		// the leaf will become part of the data sent to the backend.
-		// TODO(Martin2112): Fixup the leaf -> backend when we have implemented missing serializers
-		_, sct, sctBytes, err := buildAndSerializeSCT(addChainRequest, w, c.logKeyManager, validPath[0], c.timeSource)
+		merkleTreeLeaf, sct, err := SignV1SCTForCertificate(c.logKeyManager, validPath[0], c.timeSource.Now())
 
 		if err != nil {
-			glog.Warningf("Failed to create / serialize SCT: %v %v", sct, err)
+			glog.Warningf("Failed to create / serialize SCT or Merkle leaf: %v %v", sct, err)
 			sendHttpError(w, http.StatusInternalServerError, err)
 			return
 		}
 
-		// Inputs validated, pass the request on to the back end
-		leafHash := sha256.Sum256(validPath[0].Raw)
-		leafProto := trillian.LeafProto{LeafHash: leafHash[:], LeafData: validPath[0].Raw, ExtraData: sctBytes}
+		// Inputs validated, pass the request on to the back end after hashing and serializing
+		// the data for the request
+		var leafBuffer bytes.Buffer
+		if err := WriteMerkleTreeLeaf(&leafBuffer, merkleTreeLeaf); err != nil {
+			glog.Warningf("Failed to serialize merkle leaf: %v", err)
+			sendHttpError(w, http.StatusInternalServerError, err)
+			return
+		}
+
+		var logEntryBuffer bytes.Buffer
+		logEntry := NewCTLogEntry(merkleTreeLeaf, validPath)
+		if err := logEntry.Serialize(&logEntryBuffer); err != nil {
+			glog.Warningf("Failed to serialize log entry: %v", err)
+			sendHttpError(w, http.StatusInternalServerError, err)
+			return
+		}
+
+		leafHash := sha256.Sum256(leafBuffer.Bytes())
+		leafProto := trillian.LeafProto{LeafHash: leafHash[:], LeafData: leafBuffer.Bytes(), ExtraData: logEntryBuffer.Bytes()}
 
 		request := trillian.QueueLeavesRequest{LogId: c.logID, Leaves: []*trillian.LeafProto{&leafProto}}
 
@@ -361,31 +377,6 @@ func verifyAddChain(req addChainRequest, w http.ResponseWriter, trustedRoots PEM
 	}
 
 	return validPath
-}
-
-// buildAndSerializeSCT is used by add-chain and add-pre-chain. It constructs an SCT and
-// signs it with our key. It returns the SCT as an object and serialized as bytes to be passed
-// to the log backend.
-// TODO(Martin2112): Update to params when add-pre-chain implemented
-func buildAndSerializeSCT(req addChainRequest, w http.ResponseWriter, km crypto.KeyManager, cert *x509.Certificate, timeSource util.TimeSource) (ct.MerkleTreeLeaf, ct.SignedCertificateTimestamp, []byte, error) {
-	merkleTreeLeaf, sct, err := SignV1SCTForCertificate(km, cert, timeSource.Now())
-
-	if err != nil {
-		// Probably a server failure, though it could be bad data like an invalid cert
-		glog.Warningf("Failed to create SCT for cert: %v", req)
-		sendHttpError(w, http.StatusInternalServerError, err)
-		return ct.MerkleTreeLeaf{}, ct.SignedCertificateTimestamp{}, nil, err
-	}
-
-	sctBytes, err := ct.SerializeSCT(sct)
-
-	if err != nil {
-		glog.Warningf("Failed to serialize SCT: %v", sct)
-		sendHttpError(w, http.StatusInternalServerError, err)
-		return ct.MerkleTreeLeaf{}, ct.SignedCertificateTimestamp{}, nil, err
-	}
-
-	return merkleTreeLeaf, sct, sctBytes, nil
 }
 
 // marshalLogIDAndSignatureForResponse is used by add-chain and add-pre-chain. It formats the

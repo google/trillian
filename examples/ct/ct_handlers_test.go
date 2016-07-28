@@ -314,7 +314,7 @@ func TestAddChainRPCFails(t *testing.T) {
 	pool := loadCertsIntoPoolOrDie(t, []string{testonly.LeafSignedByFakeIntermediateCertPem, testonly.FakeIntermediateCertPem})
 	chain := createJsonChain(t, *pool)
 
-	leaves := leafProtosForCert(t, km, pool.RawCertificates()[0])
+	leaves := leafProtosForCert(t, km, pool.RawCertificates())
 
 	client.On("QueueLeaves", mock.MatchedBy(deadlineMatcher), &trillian.QueueLeavesRequest{LogId: 0x42, Leaves: leaves}, mock.Anything /* []grpc.CallOption */).Return(&trillian.QueueLeavesResponse{Status: &trillian.TrillianApiStatus{StatusCode: trillian.TrillianApiStatusCode(trillian.TrillianApiStatusCode_ERROR)}}, nil)
 
@@ -338,7 +338,7 @@ func TestAddChain(t *testing.T) {
 	pool := loadCertsIntoPoolOrDie(t, []string{testonly.LeafSignedByFakeIntermediateCertPem, testonly.FakeIntermediateCertPem})
 	chain := createJsonChain(t, *pool)
 
-	leaves := leafProtosForCert(t, km, pool.RawCertificates()[0])
+	leaves := leafProtosForCert(t, km, pool.RawCertificates())
 
 	client.On("QueueLeaves", mock.MatchedBy(deadlineMatcher), &trillian.QueueLeavesRequest{LogId: 0x42, Leaves: leaves}, mock.Anything /* []grpc.CallOption */).Return(&trillian.QueueLeavesResponse{Status: &trillian.TrillianApiStatus{StatusCode: trillian.TrillianApiStatusCode_OK}}, nil)
 
@@ -395,21 +395,29 @@ func createJsonChain(t *testing.T, p PEMCertPool) io.Reader {
 	return bufio.NewReader(&buffer)
 }
 
-func leafProtosForCert(t *testing.T, km crypto.KeyManager, cert *x509.Certificate) []*trillian.LeafProto {
-	leafHash := sha256.Sum256(cert.Raw)
-	_, sct, err := SignV1SCTForCertificate(km, cert, fakeTime)
+func leafProtosForCert(t *testing.T, km crypto.KeyManager, certs []*x509.Certificate) []*trillian.LeafProto {
+	// We don't care about the SCT as that's sent to the client and we're testing frontend ->
+	// backend interaction
+	merkleLeaf, _, err := SignV1SCTForCertificate(km, certs[0], fakeTime)
 
 	if err != nil {
-		t.Fatalf("Failed to sign test SCT: %v", err)
+		t.Fatalf("failed to sign test SCT or Merkle Leaf: %v", err)
 	}
 
-	extraData, err := ct.SerializeSCT(sct)
-
-	if err != nil {
-		t.Fatalf("Failed to serialize test SCT: %v", err)
+	var b bytes.Buffer
+	if err := WriteMerkleTreeLeaf(&b, merkleLeaf); err != nil {
+		t.Fatalf("failed to serialize leaf: %v", err)
 	}
 
-	return []*trillian.LeafProto{&trillian.LeafProto{LeafHash: leafHash[:], LeafData: cert.Raw, ExtraData: extraData}}
+	leafHash := sha256.Sum256(b.Bytes())
+	logEntry := NewCTLogEntry(merkleLeaf, certs)
+
+	var b2 bytes.Buffer
+	if err := logEntry.Serialize(&b2); err != nil {
+		t.Fatalf("failed to serialize log entry: %v", err)
+	}
+
+	return []*trillian.LeafProto{&trillian.LeafProto{LeafHash: leafHash[:], LeafData: b.Bytes(), ExtraData: b2.Bytes()}}
 }
 
 func deadlineMatcher(other context.Context) bool {
