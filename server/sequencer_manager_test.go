@@ -45,6 +45,7 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 
 	mockStorage.On("Begin").Return(mockTx, nil)
 	mockTx.On("Commit").Return(nil)
+	mockTx.On("LatestSignedLogRoot").Return(testRoot0, nil)
 	mockTx.On("DequeueLeaves", 50).Return([]trillian.LogLeaf{}, nil)
 	mockKeyManager := new(crypto.MockKeyManager)
 
@@ -103,5 +104,6 @@ func mockStorageProviderForSequencer(mockStorage storage.LogStorage) LogStorageP
 func createTestContext(sp LogStorageProviderFunc) LogOperationManagerContext {
 	done := make(chan struct{})
 
-	return LogOperationManagerContext{done: done, storageProvider: sp, batchSize: 50, sleepBetweenRuns: time.Second, oneShot: true, timeSource: fakeTimeSource}
+	// Set sign interval to 100 years so it won't trigger a root expiry signing unless overridden
+	return LogOperationManagerContext{done: done, storageProvider: sp, batchSize: 50, sleepBetweenRuns: time.Second, oneShot: true, timeSource: fakeTimeSource, signInterval:time.Hour * 24 * 365 * 100}
 }

@@ -25,6 +25,8 @@ type LogOperationManagerContext struct {
 	batchSize int
 	// sleepBetweenRuns is the time to pause after all active logs have processed a batch
 	sleepBetweenRuns time.Duration
+	// signInterval is the interval when we will create new STHs if no new leaves added
+	signInterval time.Duration
 	// oneShot is for use by tests only, it exits after one pass
 	oneShot bool
 	// timeSource allows us to mock this in tests
@@ -41,13 +43,13 @@ type LogOperationManager struct {
 	logOperation LogOperation
 }
 
-func NewLogOperationManager(done chan struct{}, sp LogStorageProviderFunc, batchSize int, sleepBetweenRuns time.Duration, timeSource util.TimeSource, logOperation LogOperation) *LogOperationManager {
-	return &LogOperationManager{context: LogOperationManagerContext{done: done, storageProvider: sp, batchSize: batchSize, sleepBetweenRuns: sleepBetweenRuns, timeSource: timeSource}, logOperation: logOperation}
+func NewLogOperationManager(done chan struct{}, sp LogStorageProviderFunc, batchSize int, sleepBetweenRuns time.Duration, signInterval time.Duration, timeSource util.TimeSource, logOperation LogOperation) *LogOperationManager {
+	return &LogOperationManager{context: LogOperationManagerContext{done: done, storageProvider: sp, batchSize: batchSize, sleepBetweenRuns: sleepBetweenRuns, signInterval: signInterval, timeSource: timeSource}, logOperation: logOperation}
 }
 
 // For use by tests only, configures one shot mode
-func NewLogOperationManagerForTest(done chan struct{}, sp LogStorageProviderFunc, batchSize int, sleepBetweenRuns time.Duration, timeSource util.TimeSource, logOperation LogOperation) *LogOperationManager {
-	return &LogOperationManager{context: LogOperationManagerContext{done: done, storageProvider: sp, batchSize: batchSize, sleepBetweenRuns: sleepBetweenRuns, timeSource: timeSource, oneShot: true}, logOperation: logOperation}
+func NewLogOperationManagerForTest(done chan struct{}, sp LogStorageProviderFunc, batchSize int, sleepBetweenRuns time.Duration, signInterval time.Duration, timeSource util.TimeSource, logOperation LogOperation) *LogOperationManager {
+	return &LogOperationManager{context: LogOperationManagerContext{done: done, storageProvider: sp, batchSize: batchSize, sleepBetweenRuns: sleepBetweenRuns, signInterval: signInterval, timeSource: timeSource, oneShot: true}, logOperation: logOperation}
 }
 
 func (l LogOperationManager) getLogsAndExecutePass() bool {
