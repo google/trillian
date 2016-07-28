@@ -103,21 +103,14 @@ type handlerAndPath struct {
 	handler http.HandlerFunc
 }
 
-func allGetHandlersForTest(trustedRoots *PEMCertPool, client trillian.TrillianLogClient) []handlerAndPath {
-	pool := NewPEMCertPool()
-	ok := pool.AppendCertsFromPEM([]byte(testonly.FakeCACertPem))
-
-	if !ok {
-		glog.Fatal("Failed to load cert pool")
-	}
-
+func allGetHandlersForTest(trustedRoots *PEMCertPool, c CTRequestHandlers) []handlerAndPath {
 	return []handlerAndPath{
-		{"get-sth", wrappedGetSTHHandler(client)},
-		{"get-sth-consistency", wrappedGetSTHConsistencyHandler(client)},
-		{"get-proof-by-hash", wrappedGetProofByHashHandler(client)},
-		{"get-entries", wrappedGetEntriesHandler(CTRequestHandlers{rpcClient: client, trustedRoots: pool})},
-		{"get-roots", wrappedGetRootsHandler(trustedRoots, client)},
-		{"get-entry-and-proof", wrappedGetEntryAndProofHandler(client)}}
+		{"get-sth", wrappedGetSTHHandler(c)},
+		{"get-sth-consistency", wrappedGetSTHConsistencyHandler(c.rpcClient)},
+		{"get-proof-by-hash", wrappedGetProofByHashHandler(c.rpcClient)},
+		{"get-entries", wrappedGetEntriesHandler(c)},
+		{"get-roots", wrappedGetRootsHandler(trustedRoots, c.rpcClient)},
+		{"get-entry-and-proof", wrappedGetEntryAndProofHandler(c.rpcClient)}}
 }
 
 func allPostHandlersForTest(client trillian.TrillianLogClient) []handlerAndPath {
@@ -164,8 +157,10 @@ func TestGetHandlersOnlyAcceptGet(t *testing.T) {
 	client := new(trillian.MockTrillianLogClient)
 	pool := NewPEMCertPool()
 
+	handlers := CTRequestHandlers{rpcClient: client}
+
 	// Anything in the get handler list should only accept GET
-	for _, hp := range allGetHandlersForTest(pool, client) {
+	for _, hp := range allGetHandlersForTest(pool, handlers) {
 		s := httptest.NewServer(hp.handler)
 		defer s.Close()
 		resp, err := http.Get(s.URL + "/ct/v1/" + hp.path)

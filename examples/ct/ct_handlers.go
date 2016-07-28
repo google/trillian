@@ -234,7 +234,7 @@ func wrappedAddPreChainHandler(c CTRequestHandlers) http.HandlerFunc {
 	}
 }
 
-func wrappedGetSTHHandler(rpcClient trillian.TrillianLogClient) http.HandlerFunc {
+func wrappedGetSTHHandler(c CTRequestHandlers) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !enforceMethod(w, r, httpMethodGet) {
 			return
@@ -383,7 +383,7 @@ func wrappedGetEntryAndProofHandler(rpcClient trillian.TrillianLogClient) http.H
 func (c CTRequestHandlers) RegisterCTHandlers() {
 	http.HandleFunc(pathFor("add-chain"), wrappedAddChainHandler(c))
 	http.HandleFunc(pathFor("add-pre-chain"), wrappedAddPreChainHandler(c))
-	http.HandleFunc(pathFor("get-sth"), wrappedGetSTHHandler(c.rpcClient))
+	http.HandleFunc(pathFor("get-sth"), wrappedGetSTHHandler(c))
 	http.HandleFunc(pathFor("get-sth-consistency"), wrappedGetSTHConsistencyHandler(c.rpcClient))
 	http.HandleFunc(pathFor("get-proof-by-hash"), wrappedGetProofByHashHandler(c.rpcClient))
 	http.HandleFunc(pathFor("get-entries"), wrappedGetEntriesHandler(c))
