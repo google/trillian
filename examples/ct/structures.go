@@ -19,10 +19,12 @@ import (
 const millisPerNano int64 = 1000
 
 // CTLogEntry holds the data we send to the backend with the leaf. There is a LogEntry type in
-// the CT code but it is a superset of what we need.
+// the CT code but it is a superset of what we need. These structs are purely containers
+// for data passed between the frontend and backend. They are not responsible for request
+// validation or chain checking.
 type CTLogEntry struct {
 	// The leaf structure that was built from the client submission
-	Leaf  ct.MerkleTreeLeaf
+	Leaf ct.MerkleTreeLeaf
 	// The complete chain for the certificate or precertificate as raw bytes
 	Chain []ct.ASN1Cert
 }
@@ -125,19 +127,14 @@ func getSCTForSignatureInput(t time.Time) ct.SignedCertificateTimestamp {
 		Extensions: ct.CTExtensions{}}
 }
 
-func NewLogEntry(leaf ct.MerkleTreeLeaf, certChain []*x509.Certificate) *CTLogEntry {
+func NewCTLogEntry(leaf ct.MerkleTreeLeaf, certChain []*x509.Certificate) *CTLogEntry {
 	chain := []ct.ASN1Cert{}
 
 	for _, cert := range certChain {
 		chain = append(chain, cert.Raw)
 	}
 
-	logEntry := new(CTLogEntry)
-
-	logEntry.Leaf = leaf
-	logEntry.Chain = chain
-
-	return logEntry
+	return &CTLogEntry{Leaf: leaf, Chain: chain}
 }
 
 // WriteTimestampedEntry writes out a TimestampedEntry structure in the binary format defined
@@ -317,3 +314,5 @@ func readVarBytes(r io.Reader, numLenBytes int) ([]byte, error) {
 	}
 	return data, nil
 }
+
+// End of code from CT repository

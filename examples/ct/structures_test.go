@@ -154,9 +154,10 @@ func TestSerializeMerkleTreeLeafBadVersion(t *testing.T) {
 
 	leaf.Version = 199 // Out of any expected valid range
 
-	var w io.Writer
-	err := WriteMerkleTreeLeaf(w, leaf)
+	var b bytes.Buffer
+	err := WriteMerkleTreeLeaf(&b, leaf)
 	assert.Error(t, err, "incorrectly serialized leaf with bad version")
+	assert.Zero(t, len(b.Bytes()), "wrote data when serializing invalid object")
 }
 
 func TestSerializeMerkleTreeLeafBadType(t *testing.T) {
@@ -165,13 +166,18 @@ func TestSerializeMerkleTreeLeafBadType(t *testing.T) {
 	leaf.Version = ct.V1
 	leaf.LeafType = 212
 
-	var w io.Writer
-	err := WriteMerkleTreeLeaf(w, leaf)
+	var b bytes.Buffer
+	err := WriteMerkleTreeLeaf(&b, leaf)
 	assert.Error(t, err, "incorrectly serialized leaf with bad leaf type")
+	assert.Zero(t, len(b.Bytes()), "wrote data when serializing invalid object")
 }
 
 func TestSerializeMerkleTreeLeafCert(t *testing.T) {
-	ts := ct.TimestampedEntry{Timestamp: 12345, EntryType: ct.X509LogEntryType, X509Entry: ct.ASN1Cert([]byte{0x10, 0x11, 0x12, 0x13, 0x20, 0x21, 0x22, 0x23}), Extensions: ct.CTExtensions{}}
+	ts := ct.TimestampedEntry{
+		Timestamp:  12345,
+		EntryType:  ct.X509LogEntryType,
+		X509Entry:  ct.ASN1Cert([]byte{0x10, 0x11, 0x12, 0x13, 0x20, 0x21, 0x22, 0x23}),
+		Extensions: ct.CTExtensions{}}
 	leaf := ct.MerkleTreeLeaf{LeafType: ct.TimestampedEntryLeafType, Version: ct.V1, TimestampedEntry: ts}
 
 	var buff bytes.Buffer
@@ -194,7 +200,12 @@ func TestSerializeMerkleTreeLeafCert(t *testing.T) {
 }
 
 func TestSerializeMerkleTreePrecert(t *testing.T) {
-	ts := ct.TimestampedEntry{Timestamp: 12345, EntryType: ct.PrecertLogEntryType, PrecertEntry: ct.PreCert{IssuerKeyHash: [sha256.Size]byte{0x55, 0x56, 0x57, 0x58, 0x59}, TBSCertificate: ct.ASN1Cert([]byte{0x10, 0x11, 0x12, 0x13, 0x20, 0x21, 0x22, 0x23})}, Extensions: ct.CTExtensions{}}
+	ts := ct.TimestampedEntry{Timestamp: 12345,
+		EntryType: ct.PrecertLogEntryType,
+		PrecertEntry: ct.PreCert{
+			IssuerKeyHash:  [sha256.Size]byte{0x55, 0x56, 0x57, 0x58, 0x59},
+			TBSCertificate: ct.ASN1Cert([]byte{0x10, 0x11, 0x12, 0x13, 0x20, 0x21, 0x22, 0x23})},
+		Extensions: ct.CTExtensions{}}
 	leaf := ct.MerkleTreeLeaf{LeafType: ct.TimestampedEntryLeafType, Version: ct.V1, TimestampedEntry: ts}
 
 	var buff bytes.Buffer
@@ -217,7 +228,11 @@ func TestSerializeMerkleTreePrecert(t *testing.T) {
 }
 
 func TestSerializeCTLogEntry(t *testing.T) {
-	ts := ct.TimestampedEntry{Timestamp: 12345, EntryType: ct.X509LogEntryType, X509Entry: ct.ASN1Cert([]byte{0x10, 0x11, 0x12, 0x13, 0x20, 0x21, 0x22, 0x23}), Extensions: ct.CTExtensions{}}
+	ts := ct.TimestampedEntry{
+		Timestamp:  12345,
+		EntryType:  ct.X509LogEntryType,
+		X509Entry:  ct.ASN1Cert([]byte{0x10, 0x11, 0x12, 0x13, 0x20, 0x21, 0x22, 0x23}),
+		Extensions: ct.CTExtensions{}}
 	leaf := ct.MerkleTreeLeaf{LeafType: ct.TimestampedEntryLeafType, Version: ct.V1, TimestampedEntry: ts}
 
 	for chainLength := 1; chainLength < 10; chainLength++ {
@@ -267,9 +282,9 @@ func createCertChain(numCerts int) []ct.ASN1Cert {
 	chain := make([]ct.ASN1Cert, 0, numCerts)
 
 	for c := 0; c < numCerts; c++ {
-		certBytes := make([]byte, c + 2)
+		certBytes := make([]byte, c+2)
 
-		for i := 0; i < c + 2; i++ {
+		for i := 0; i < c+2; i++ {
 			certBytes[i] = byte(c)
 		}
 
