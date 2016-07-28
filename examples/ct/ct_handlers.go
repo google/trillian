@@ -1,7 +1,9 @@
 package ct
 
 import (
+	"bytes"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,8 +12,6 @@ import (
 	"strconv"
 	"time"
 
-	"bytes"
-	"encoding/base64"
 	"github.com/golang/glog"
 	"github.com/google/certificate-transparency/go"
 	"github.com/google/certificate-transparency/go/x509"
