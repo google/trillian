@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"crypto/sha256"
 	"github.com/golang/glog"
 	"github.com/google/certificate-transparency/go"
 	"github.com/google/certificate-transparency/go/fixchain"
@@ -24,7 +25,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"golang.org/x/net/context"
-	"crypto/sha256"
 )
 
 // Arbitrary time for use in tests
