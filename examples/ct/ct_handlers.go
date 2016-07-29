@@ -85,25 +85,21 @@ func parseBodyAsJSONChain(w http.ResponseWriter, r *http.Request) (addChainReque
 	body, err := ioutil.ReadAll(r.Body)
 
 	if err != nil {
-		if glog.V(logVerboseLevel) {
-			glog.Info("Failed to read request body")
-		}
+		glog.V(logVerboseLevel).Infof("Failed to read request body: %v", err)
 		sendHttpError(w, http.StatusBadRequest, err)
 		return addChainRequest{}, err
 	}
 
 	var req addChainRequest
 	if err := json.Unmarshal(body, &req); err != nil {
-		glog.V(logVerboseLevel).Info("Failed to parse request body: %v", err)
+		glog.V(logVerboseLevel).Infof("Failed to parse request body: %v", err)
 		sendHttpError(w, http.StatusBadRequest, fmt.Errorf("Unmarshal failed with %v on %s", err, body))
 		return addChainRequest{}, err
 	}
 
 	// The cert chain is not allowed to be empty. We'll defer other validation for later
 	if len(req.Chain) == 0 {
-		if glog.V(logVerboseLevel) {
-			glog.Infof("Request chain is empty: %s", body)
-		}
+		glog.V(logVerboseLevel).Infof("Request chain is empty: %s", body)
 		sendHttpError(w, http.StatusBadRequest, errors.New("request chain cannot be empty"))
 		return addChainRequest{}, errors.New("cert chain was empty")
 	}
