@@ -43,11 +43,17 @@ const (
 // and functionality to translate CT client requests into forms that can be served by a
 // log backend RPC service.
 type CTRequestHandlers struct {
+	// logID is the tree ID that identifies this log in node storage
 	logID         int64
+	// trustedRoots is a pool of certificates that defines the roots the CT log will accept
 	trustedRoots  *PEMCertPool
+	// rpcClient is the client used to communicate with the trillian backend
 	rpcClient     trillian.TrillianLogClient
+	// logKeyManager holds the keys this log needs to sign objects
 	logKeyManager crypto.KeyManager
+	// rpcDeadline is the deadline that will be set on all backend RPC requests
 	rpcDeadline   time.Duration
+	// timeSource is a util.TimeSource that can be injected for testing
 	timeSource    util.TimeSource
 }
 
