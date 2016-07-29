@@ -356,7 +356,7 @@ func TestAddChain(t *testing.T) {
 
 	assert.Equal(t, ct.V1, ct.Version(resp.SctVersion))
 	assert.Equal(t, ctMockLogID, resp.ID)
-	assert.Equal(t, "1469185273000000", resp.Timestamp)
+	assert.Equal(t, uint64(1469185273000000), resp.Timestamp)
 	assert.Equal(t, "BAEABnNpZ25lZA==", resp.Signature)
 }
 

@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/golang/glog"
@@ -71,7 +70,7 @@ type addChainRequest struct {
 type addChainResponse struct {
 	SctVersion int    `json:sct_version`
 	ID         string `json:id`
-	Timestamp  string `json:timestamp`
+	Timestamp  uint64 `json:timestamp`
 	Extensions string `json:extensions`
 	Signature  string `json:signature`
 }
@@ -205,7 +204,7 @@ func wrappedAddChainHandler(c CTRequestHandlers) http.HandlerFunc {
 		// Success. We can now build and marshal the JSON response and write it out
 		resp := addChainResponse{
 			SctVersion: int(sct.SCTVersion),
-			Timestamp:  strconv.FormatUint(sct.Timestamp, 10),
+			Timestamp:  sct.Timestamp,
 			ID:         base64.StdEncoding.EncodeToString(logID[:]),
 			Extensions: "",
 			Signature:  signature}
