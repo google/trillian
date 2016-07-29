@@ -30,9 +30,13 @@ const (
 )
 
 const (
+	// HTTP content type header
 	contentTypeHeader      string     = "Content-Type"
+	// MIME content type for JSON
 	contentTypeJSON        string     = "application/json"
+	// The name of the JSON response map key in get-roots responses
 	jsonMapKeyCertificates string     = "certificates"
+	// Logging level for debug verbose logs
 	logVerboseLevel        glog.Level = 2
 )
 
@@ -58,10 +62,12 @@ func pathFor(req string) string {
 	return ctV1BasePath + req
 }
 
+// addChainRequest is a struct for parsing JSON add-chain requests. See RFC 6962 Sections 4.1 and 4.2
 type addChainRequest struct {
 	Chain []string
 }
 
+// addChainResponse is a struct for marshalling add-chain responses. See RFC 6962 Sections 4.1 and 4.2
 type addChainResponse struct {
 	SctVersion int    `json:sct_version`
 	ID         string `json:id`
@@ -83,9 +89,7 @@ func parseBodyAsJSONChain(w http.ResponseWriter, r *http.Request) (addChainReque
 
 	var req addChainRequest
 	if err := json.Unmarshal(body, &req); err != nil {
-		if glog.V(logVerboseLevel) {
-			glog.Infof("Failed to unmarshal: %s", body)
-		}
+		glog.V(logVerboseLevel).Info("Failed to read request body")
 		sendHttpError(w, http.StatusBadRequest, fmt.Errorf("Unmarshal failed with %v on %s", err, body))
 		return addChainRequest{}, err
 	}
