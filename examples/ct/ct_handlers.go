@@ -93,7 +93,7 @@ func parseBodyAsJSONChain(w http.ResponseWriter, r *http.Request) (addChainReque
 	var req addChainRequest
 	if err := json.Unmarshal(body, &req); err != nil {
 		glog.V(logVerboseLevel).Infof("Failed to parse request body: %v", err)
-		sendHttpError(w, http.StatusBadRequest, fmt.Errorf("Unmarshal failed with %v on %s", err, body))
+		sendHttpError(w, http.StatusBadRequest, fmt.Errorf("unmarshal failed with %v on %s", err, body))
 		return addChainRequest{}, err
 	}
 
