@@ -180,6 +180,8 @@ func wrappedAddChainHandler(c CTRequestHandlers) http.HandlerFunc {
 			return
 		}
 
+		// leafHash is a crosscheck on the data we're sending in the leaf buffer. The backend
+		// does the tree hashing.
 		leafHash := sha256.Sum256(leafBuffer.Bytes())
 		leafProto := trillian.LeafProto{LeafHash: leafHash[:], LeafData: leafBuffer.Bytes(), ExtraData: logEntryBuffer.Bytes()}
 
@@ -190,7 +192,9 @@ func wrappedAddChainHandler(c CTRequestHandlers) http.HandlerFunc {
 		response, err := c.rpcClient.QueueLeaves(ctx, &request)
 
 		if err != nil || !rpcStatusOK(response.GetStatus()) {
-			// Request failed on backend, doesn't account for bad request etc. yet
+			// TODO(Martin2112): Possibly cases where the request we sent to the backend is invalid
+			// which isn't really an internal server error.
+			// Request failed on backend
 			sendHttpError(w, http.StatusInternalServerError, err)
 			return
 		}
