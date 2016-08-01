@@ -284,12 +284,9 @@ func TestAddChainPrecert(t *testing.T) {
 	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
 
 	precert, err := fixchain.CertificateFromPEM(testonly.PrecertPEMValid)
-	_, ok := err.(x509.NonFatalErrors)
-
-	if err != nil && !ok {
-		t.Fatal(err)
+	if err != nil {
+		assert.IsType(t, x509.NonFatalErrors{}, err, "boom")
 	}
-
 	pool := NewPEMCertPool()
 	pool.AddCert(precert)
 	chain := createJsonChain(t, *pool)
