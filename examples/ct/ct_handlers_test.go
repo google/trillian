@@ -285,7 +285,7 @@ func TestAddChainPrecert(t *testing.T) {
 
 	precert, err := fixchain.CertificateFromPEM(testonly.PrecertPEMValid)
 	if err != nil {
-		assert.IsType(t, x509.NonFatalErrors{}, err, "boom")
+		assert.IsType(t, x509.NonFatalErrors{}, err, "Unexpected error loading certificate: %v", err)
 	}
 	pool := NewPEMCertPool()
 	pool.AddCert(precert)
