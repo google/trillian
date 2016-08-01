@@ -104,7 +104,7 @@ func TestSignV1SCTForCertificate(t *testing.T) {
 }
 
 func TestSignV1SCTForPrecertificate(t *testing.T) {
-	cert, err := fixchain.CertificateFromPEM(testonly.CTTestPreCert)
+	cert, err := fixchain.CertificateFromPEM(testonly.PrecertPEMValid)
 	_, ok := err.(x509.NonFatalErrors)
 
 	if err != nil && !ok {
@@ -263,7 +263,7 @@ func TestSerializeCTLogEntry(t *testing.T) {
 }
 
 // Creates a mock key manager for use in interaction tests
-func setupMockKeyManager(toSign []byte) crypto.KeyManager {
+func setupMockKeyManager(toSign []byte) *crypto.MockKeyManager {
 	hasher := trillian.NewSHA256()
 	mockKeyManager := new(crypto.MockKeyManager)
 	mockSigner := new(crypto.MockSigner)
