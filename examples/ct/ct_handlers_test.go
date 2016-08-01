@@ -219,7 +219,7 @@ func TestPostHandlersAcceptNonEmptyCertChain(t *testing.T) {
 		}
 
 		// TODO(Martin2112): Remove not implemented from test when all the handlers have been written
-		assert.True(t, resp.StatusCode == http.StatusNotImplemented || resp.StatusCode == http.StatusBadRequest, "Wrong status code for GET to GET handler")
+		assert.True(t, resp.StatusCode == http.StatusNotImplemented || resp.StatusCode == http.StatusBadRequest, "Wrong status code for GET to GET handler: %v", resp.StatusCode)
 	}
 }
 
@@ -388,9 +388,7 @@ func createJsonChain(t *testing.T, p PEMCertPool) io.Reader {
 	err := json.NewEncoder(writer).Encode(&chain)
 	writer.Flush()
 
-	if err != nil {
-		t.Fatalf("failed to create test json: %v", chain)
-	}
+	assert.NoError(t, err, "failed to create test json: %v", err)
 
 	return bufio.NewReader(&buffer)
 }
@@ -400,15 +398,14 @@ func leafProtosForCert(t *testing.T, km crypto.KeyManager, certs []*x509.Certifi
 	// backend interaction
 	merkleLeaf, _, err := SignV1SCTForCertificate(km, certs[0], fakeTime)
 
-	if err != nil {
-		t.Fatalf("failed to sign test SCT or Merkle Leaf: %v", err)
-	}
+	assert.NoError(t, err, "failed to sign test SCT or Merkle Leaf: %v", err)
 
 	var b bytes.Buffer
 	if err := WriteMerkleTreeLeaf(&b, merkleLeaf); err != nil {
 		t.Fatalf("failed to serialize leaf: %v", err)
 	}
 
+	// This is a hash of the leaf data, not the the Merkle hash as defined in the RFC.
 	leafHash := sha256.Sum256(b.Bytes())
 	logEntry := NewCTLogEntry(merkleLeaf, certs)
 
@@ -434,16 +431,13 @@ func makeAddChainRequest(t *testing.T, reqHandlers CTRequestHandlers, body io.Re
 	handler := wrappedAddChainHandler(reqHandlers)
 
 	req, err := http.NewRequest("POST", "http://example.com/ct/v1/add-chain", body)
-	if err != nil {
-		t.Fatalf("test request setup failed: %v", err)
-	}
+
+	assert.NoError(t, err, "test request setup failed: %v", err)
 
 	w := httptest.NewRecorder()
 	handler(w, req)
 
-	if err != nil {
-		t.Fatalf("error from handler: %v", err)
-	}
+	assert.NoError(t, err, "error from handler: %v", err)
 
 	return w
 }
