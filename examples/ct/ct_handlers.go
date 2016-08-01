@@ -374,8 +374,13 @@ func verifyAddChain(req addChainRequest, w http.ResponseWriter, trustedRoots PEM
 
 	isPrecert, err := IsPrecertificate(validPath[0])
 
+	if err != nil {
+		glog.Warningf("Precert test failed: %v", err)
+		return nil
+	}
+
 	// The type of the leaf must match the one the handler expects
-	if isPrecert != expectingPrecert || err != nil {
+	if isPrecert != expectingPrecert {
 		if expectingPrecert {
 			glog.Warningf("Cert (or precert with invalid CT ext) submitted as precert chain: %v", req)
 		} else {
@@ -394,7 +399,7 @@ func marshalLogIDAndSignatureForResponse(sct ct.SignedCertificateTimestamp, km c
 	logID, err := GetCTLogID(km)
 
 	if err != nil {
-		return [32]byte{}, "", fmt.Errorf("failed to marshal logID: %v %v", logID, err)
+		return [32]byte{}, "", fmt.Errorf("failed to marshal logID: %v", err)
 	}
 
 	signature, err := sct.Signature.Base64String()
