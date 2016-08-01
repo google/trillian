@@ -246,7 +246,9 @@ func wrappedAddPreChainHandler(c CTRequestHandlers) http.HandlerFunc {
 		response, err := c.rpcClient.QueueLeaves(ctx, &request)
 
 		if err != nil || !rpcStatusOK(response.GetStatus()) {
-			// Request failed on backend, doesn't account for bad request etc. yet
+			// TODO(Martin2112): Possibly cases where the request we sent to the backend is invalid
+			// which isn't really an internal server error.
+			// Request failed on backend
 			sendHttpError(w, http.StatusInternalServerError, err)
 			return
 		}
