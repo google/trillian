@@ -128,138 +128,91 @@ func enforceMethod(w http.ResponseWriter, r *http.Request, method string) bool {
 	return true
 }
 
-// All the handlers are wrapped so they have access to the RPC client
+// addChainInternal is called by add-chain and add-pre-chain as the logic involved in
+// processing these requests is almost identical
+func addChainInternal(w http.ResponseWriter, r *http.Request, c CTRequestHandlers, isPrecert bool) {
+	if !enforceMethod(w, r, httpMethodPost) {
+		// HTTP status code was already set
+		return
+	}
+
+	addChainRequest, err := parseBodyAsJSONChain(w, r)
+
+	if err != nil {
+		// HTTP status code was already set
+		return
+	}
+
+	// We already checked that the chain is not empty so can move on to verification
+	validPath := verifyAddChain(addChainRequest, w, *c.trustedRoots, isPrecert)
+
+	if validPath == nil {
+		// Chain rejected by verify. HTTP status code was already set
+		return
+	}
+
+	// Build up the SCT and MerkleTreeLeaf. The SCT will be returned to the client and
+	// the leaf will become part of the data sent to the backend.
+	var merkleTreeLeaf ct.MerkleTreeLeaf
+	var sct ct.SignedCertificateTimestamp
+
+	if isPrecert {
+		merkleTreeLeaf, sct, err = SignV1SCTForPrecertificate(c.logKeyManager, validPath[0], c.timeSource.Now())
+	} else {
+		merkleTreeLeaf, sct, err = SignV1SCTForCertificate(c.logKeyManager, validPath[0], c.timeSource.Now())
+	}
+
+	if err != nil {
+		glog.Warningf("Failed to create / serialize SCT or Merkle leaf: %v %v", sct, err)
+		sendHttpError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	// Inputs validated, pass the request on to the back end after hashing and serializing
+	// the data for the request
+	leafProto, err := buildLeafProtoForAddChain(merkleTreeLeaf, validPath)
+
+	if err != nil {
+		// Failure reason already logged
+		sendHttpError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	request := trillian.QueueLeavesRequest{LogId: c.logID, Leaves: []*trillian.LeafProto{&leafProto}}
+
+	ctx, _ := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
+
+	response, err := c.rpcClient.QueueLeaves(ctx, &request)
+
+	if err != nil || !rpcStatusOK(response.GetStatus()) {
+		// TODO(Martin2112): Possibly cases where the request we sent to the backend is invalid
+		// which isn't really an internal server error.
+		// Request failed on backend
+		sendHttpError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	// Success. We can now build and marshal the JSON response and write it out
+	err = marshalAndWriteAddChainResponse(sct, c.logKeyManager, w)
+
+	if err != nil {
+		// reason is logged and http status is already set
+		// TODO(Martin2112): Record failure for monitoring when it's implemented
+	}
+}
+
+// All the handlers are wrapped so they have access to the RPC client and other context
 // TODO(Martin2112): Doesn't properly handle duplicate submissions yet but the backend
 // needs this to be implemented before we can do it here
 func wrappedAddChainHandler(c CTRequestHandlers) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !enforceMethod(w, r, httpMethodPost) {
-			// HTTP status code was already set
-			return
-		}
-
-		addChainRequest, err := parseBodyAsJSONChain(w, r)
-
-		if err != nil {
-			// HTTP status code was already set
-			return
-		}
-
-		// We already checked that the chain is not empty so can move on to verification
-		validPath := verifyAddChain(addChainRequest, w, *c.trustedRoots, false)
-
-		if validPath == nil {
-			// Chain rejected by verify. HTTP status code was already set
-			return
-		}
-
-		// Build up the SCT and MerkleTreeLeaf. The SCT will be returned to the client and
-		// the leaf will become part of the data sent to the backend.
-		merkleTreeLeaf, sct, err := SignV1SCTForCertificate(c.logKeyManager, validPath[0], c.timeSource.Now())
-
-		if err != nil {
-			glog.Warningf("Failed to create / serialize SCT or Merkle leaf: %v %v", sct, err)
-			sendHttpError(w, http.StatusInternalServerError, err)
-			return
-		}
-
-		// Inputs validated, pass the request on to the back end after hashing and serializing
-		// the data for the request
-		leafProto, err := buildLeafProtoForAddChain(merkleTreeLeaf, validPath)
-
-		if err != nil {
-			// Failure reason already logged
-			sendHttpError(w, http.StatusInternalServerError, err)
-			return
-		}
-
-		request := trillian.QueueLeavesRequest{LogId: c.logID, Leaves: []*trillian.LeafProto{&leafProto}}
-
-		ctx, _ := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
-
-		response, err := c.rpcClient.QueueLeaves(ctx, &request)
-
-		if err != nil || !rpcStatusOK(response.GetStatus()) {
-			// TODO(Martin2112): Possibly cases where the request we sent to the backend is invalid
-			// which isn't really an internal server error.
-			// Request failed on backend
-			sendHttpError(w, http.StatusInternalServerError, err)
-			return
-		}
-
-		// Success. We can now build and marshal the JSON response and write it out
-		err = marshalAndWriteAddChainResponse(sct, c.logKeyManager, w)
-
-		if err != nil {
-			// reason is logged and http status is already set
-			// TODO(Martin2112): Record failure for monitoring when it's implemented
-		}
+		addChainInternal(w, r, c, false)
 	}
 }
 
 func wrappedAddPreChainHandler(c CTRequestHandlers) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !enforceMethod(w, r, httpMethodPost) {
-			// HTTP status code was already set
-			return
-		}
-
-		addChainRequest, err := parseBodyAsJSONChain(w, r)
-
-		if err != nil {
-			// HTTP status code was already set
-			return
-		}
-
-		// We already checked that the chain is not empty so can move on to verification
-		validPath := verifyAddChain(addChainRequest, w, *c.trustedRoots, true)
-
-		if validPath == nil {
-			// Chain rejected by verify. HTTP status code was already set
-			return
-		}
-
-		// Build up the SCT and MerkleTreeLeaf. The SCT will be returned to the client and
-		// the leaf will become part of the data sent to the backend.
-		merkleTreeLeaf, sct, err := SignV1SCTForPrecertificate(c.logKeyManager, validPath[0], c.timeSource.Now())
-
-		if err != nil {
-			glog.Warningf("Failed to create / serialize SCT: %v %v", sct, err)
-			sendHttpError(w, http.StatusInternalServerError, err)
-			return
-		}
-
-		// Inputs validated, pass the request on to the back end after hashing and serializing
-		// the data for the request
-		leafProto, err := buildLeafProtoForAddChain(merkleTreeLeaf, validPath)
-
-		if err != nil {
-			// Failure reason already logged
-			sendHttpError(w, http.StatusInternalServerError, err)
-			return
-		}
-
-		request := trillian.QueueLeavesRequest{LogId: c.logID, Leaves: []*trillian.LeafProto{&leafProto}}
-
-		ctx, _ := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
-
-		response, err := c.rpcClient.QueueLeaves(ctx, &request)
-
-		if err != nil || !rpcStatusOK(response.GetStatus()) {
-			// TODO(Martin2112): Possibly cases where the request we sent to the backend is invalid
-			// which isn't really an internal server error.
-			// Request failed on backend
-			sendHttpError(w, http.StatusInternalServerError, err)
-			return
-		}
-
-		// Success. We can now build and marshal the JSON response and write it out
-		err = marshalAndWriteAddChainResponse(sct, c.logKeyManager, w)
-
-		if err != nil {
-			// reason is logged and http status is already set
-			// TODO(Martin2112): Record failure for monitoring when it's implemented
-		}
+		addChainInternal(w, r, c, true)
 	}
 }
 
