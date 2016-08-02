@@ -71,6 +71,24 @@ func (k *PEMKeyManager) LoadPrivateKey(pemEncodedKey, password string) error {
 	return nil
 }
 
+// LoadPrivateKeyForTest loads an unencrypted PEM private key. It hopefully goes without saying that
+// this would be a bad idea in a production setting.
+func (k *PEMKeyManager) LoadPrivateKeyForTest(pemEncodedKey string) error {
+	block, rest := pem.Decode([]byte(pemEncodedKey))
+	if len(rest) > 0 {
+		return fmt.Errorf("extra data found after PEM decoding")
+	}
+
+	key, err := parsePrivateKey(block.Bytes)
+
+	if err != nil {
+		return err
+	}
+
+	k.serverPrivateKey = key
+	return nil
+}
+
 // LoadPublicKey loads a public key from a PEM encoded string.
 func (k *PEMKeyManager) LoadPublicKey(pemEncodedKey string) error {
 	publicBlock, rest := pem.Decode([]byte(pemEncodedKey))
