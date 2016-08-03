@@ -3,6 +3,7 @@ package ct
 import (
 	"bufio"
 	"bytes"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -13,7 +14,6 @@ import (
 	"testing"
 	"time"
 
-	"crypto/sha256"
 	"github.com/golang/glog"
 	"github.com/google/certificate-transparency/go"
 	"github.com/google/certificate-transparency/go/fixchain"
@@ -505,7 +505,7 @@ func TestAddPrecertChain(t *testing.T) {
 
 	recorder := makeAddPrechainRequest(t, reqHandlers, chain)
 
-	assert.Equal(t, http.StatusOK, recorder.Code, "expected HTTP OK for valid add-chain: %v", recorder.Body)
+	assert.Equal(t, http.StatusOK, recorder.Code, "expected HTTP OK for valid add-pre-chain: %v", recorder.Body)
 	km.AssertExpectations(t)
 	client.AssertExpectations(t)
 
