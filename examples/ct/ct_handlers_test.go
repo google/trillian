@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -37,6 +38,24 @@ var fakeTimeSource = util.FakeTimeSource{fakeTime}
 type jsonChain struct {
 	Chain []string `json:chain`
 }
+
+type getEntriesRangeTestCase struct {
+	start          int64
+	end            int64
+	expectedStatus int
+	explanation    string
+	rpcExpected    bool
+}
+
+var getEntriesRangeTestCases = []getEntriesRangeTestCase{
+	{-1, 0, http.StatusBadRequest, "-ve start value not allowed", false},
+	{0, -1, http.StatusBadRequest, "-ve end value not allowed", false },
+	{20, 10, http.StatusBadRequest, "invalid range end>start", false},
+	{3000, -50, http.StatusBadRequest, "invalid range, -ve end", false},
+	{10, 20, http.StatusInternalServerError, "valid range", true},
+	{10, 10, http.StatusInternalServerError, "valid range, one entry", true},
+	{10, 9, http.StatusBadRequest, "invalid range, edge case", false},
+	{1000, 50000, http.StatusBadRequest, "range too large to be accepted", false}}
 
 const caCertB64 string = `MIIC0DCCAjmgAwIBAgIBADANBgkqhkiG9w0BAQUFADBVMQswCQYDVQQGEwJHQjEk
 MCIGA1UEChMbQ2VydGlmaWNhdGUgVHJhbnNwYXJlbmN5IENBMQ4wDAYDVQQIEwVX
@@ -555,6 +574,48 @@ func loadCertsIntoPoolOrDie(t *testing.T, certs []string) *PEMCertPool {
 	}
 
 	return pool
+}
+
+func TestGetEntriesRanges(t *testing.T) {
+	// This tests that only valid ranges make it to the backend for get-entries.
+	// We're testing request handling up to the point where we make the RPC so arrange for
+	// it to fail with a specific error.
+	for _, testCase := range getEntriesRangeTestCases {
+		client := new(trillian.MockTrillianLogClient)
+
+		if testCase.rpcExpected {
+			client.On("GetLeavesByIndex", mock.MatchedBy(deadlineMatcher), &trillian.GetLeavesByIndexRequest{LeafIndex:buildIndicesForRange(testCase.start, testCase.end)}, mock.Anything /* []grpc.CallOption */).Return(nil, errors.New("RPCMADE"))
+		}
+
+		c := CTRequestHandlers{rpcClient:client, timeSource:fakeTimeSource, rpcDeadline:time.Millisecond * 500}
+		handler := wrappedGetEntriesHandler(c)
+
+		path := fmt.Sprintf("/ct/v1/get-entries?start=%d&end=%d", testCase.start, testCase.end)
+		req, err := http.NewRequest("GET", path, nil)
+
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		w := httptest.NewRecorder()
+		handler(w, req)
+
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if expected, got := testCase.expectedStatus, w.Code; expected != got {
+			t.Fatalf("expected status %d, got %d for test case %s", expected, got, testCase.explanation)
+		}
+
+		// Additionally check that we saw our expected backend error and didn't get the result by
+		// chance
+		if testCase.expectedStatus == http.StatusInternalServerError {
+			if !strings.Contains(w.Body.String(), "RPCMADE") {
+				t.Fatalf("Did not get expected backend error: %s\n%s", testCase.explanation, w.Body)
+			}
+		}
+	}
 }
 
 func createJsonChain(t *testing.T, p PEMCertPool) io.Reader {
