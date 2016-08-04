@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -99,7 +100,7 @@ func allPostHandlersForTest(client trillian.TrillianLogClient) []handlerAndPath 
 
 	return []handlerAndPath{
 		{"add-chain", wrappedAddChainHandler(CTRequestHandlers{rpcClient: client, trustedRoots: pool})},
-		{"add-pre-chain", wrappedAddPreChainHandler(client)}}
+		{"add-pre-chain", wrappedAddPreChainHandler(CTRequestHandlers{rpcClient: client, trustedRoots: pool})}}
 }
 
 func TestPostHandlersOnlyAcceptPost(t *testing.T) {
@@ -283,6 +284,9 @@ func TestAddChainPrecert(t *testing.T) {
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
 	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
 
+	// TODO(Martin2112): I don't think CT should return NonFatalError for something we expect
+	// to happen - seeing a precert extension. If this is fixed upstream remove all references from
+	// our tests.
 	precert, err := fixchain.CertificateFromPEM(testonly.PrecertPEMValid)
 	if err != nil {
 		assert.IsType(t, x509.NonFatalErrors{}, err, "Unexpected error loading certificate: %v", err)
@@ -311,7 +315,14 @@ func TestAddChainRPCFails(t *testing.T) {
 	pool := loadCertsIntoPoolOrDie(t, []string{testonly.LeafSignedByFakeIntermediateCertPem, testonly.FakeIntermediateCertPem})
 	chain := createJsonChain(t, *pool)
 
-	leaves := leafProtosForCert(t, km, pool.RawCertificates())
+	// Ignore returned SCT. That's sent to the client and we're testing frontend -> backend interaction
+	merkleLeaf, _, err := SignV1SCTForCertificate(km, pool.RawCertificates()[0], fakeTime)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	leaves := leafProtosForCert(t, km, pool.RawCertificates(), merkleLeaf)
 
 	client.On("QueueLeaves", mock.MatchedBy(deadlineMatcher), &trillian.QueueLeavesRequest{LogId: 0x42, Leaves: leaves}, mock.Anything /* []grpc.CallOption */).Return(&trillian.QueueLeavesResponse{Status: &trillian.TrillianApiStatus{StatusCode: trillian.TrillianApiStatusCode(trillian.TrillianApiStatusCode_ERROR)}}, nil)
 
@@ -335,7 +346,14 @@ func TestAddChain(t *testing.T) {
 	pool := loadCertsIntoPoolOrDie(t, []string{testonly.LeafSignedByFakeIntermediateCertPem, testonly.FakeIntermediateCertPem})
 	chain := createJsonChain(t, *pool)
 
-	leaves := leafProtosForCert(t, km, pool.RawCertificates())
+	// Ignore returned SCT. That's sent to the client and we're testing frontend -> backend interaction
+	merkleLeaf, _, err := SignV1SCTForCertificate(km, pool.RawCertificates()[0], fakeTime)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	leaves := leafProtosForCert(t, km, pool.RawCertificates(), merkleLeaf)
 
 	client.On("QueueLeaves", mock.MatchedBy(deadlineMatcher), &trillian.QueueLeavesRequest{LogId: 0x42, Leaves: leaves}, mock.Anything /* []grpc.CallOption */).Return(&trillian.QueueLeavesResponse{Status: &trillian.TrillianApiStatus{StatusCode: trillian.TrillianApiStatusCode_OK}}, nil)
 
@@ -347,7 +365,155 @@ func TestAddChain(t *testing.T) {
 
 	// Roundtrip the response and make sure it's sensible
 	var resp addChainResponse
-	err := json.NewDecoder(recorder.Body).Decode(&resp)
+	err = json.NewDecoder(recorder.Body).Decode(&resp)
+
+	assert.NoError(t, err, "failed to unmarshal json: %v", recorder.Body.Bytes())
+
+	assert.Equal(t, ct.V1, ct.Version(resp.SctVersion))
+	assert.Equal(t, ctMockLogID, resp.ID)
+	assert.Equal(t, uint64(1469185273000000), resp.Timestamp)
+	assert.Equal(t, "BAEABnNpZ25lZA==", resp.Signature)
+}
+
+// Submit a chain with a valid precert but not signed by next cert in chain. Should be rejected.
+func TestAddPrecertChainInvalidPath(t *testing.T) {
+	km := new(crypto.MockKeyManager)
+	client := new(trillian.MockTrillianLogClient)
+
+	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
+	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
+
+	cert, err := fixchain.CertificateFromPEM(testonly.PrecertPEMValid)
+	_, ok := err.(x509.NonFatalErrors)
+
+	if err != nil && !ok {
+		t.Fatal(err)
+	}
+
+	pool := NewPEMCertPool()
+	pool.AddCert(cert)
+	// This isn't a valid chain, the intermediate didn't sign the leaf
+	cert, err = fixchain.CertificateFromPEM(testonly.FakeIntermediateCertPem)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pool.AddCert(cert)
+
+	chain := createJsonChain(t, *pool)
+
+	recorder := makeAddPrechainRequest(t, reqHandlers, chain)
+
+	assert.Equal(t, http.StatusBadRequest, recorder.Code, "expected HTTP BadRequest for invaid add-precert-chain: %v", recorder.Body)
+	km.AssertExpectations(t)
+	client.AssertExpectations(t)
+}
+
+// Submit a chain as precert with a valid path but using a cert instead of a precert. Should be rejected.
+func TestAddPrecertChainCert(t *testing.T) {
+	km := new(crypto.MockKeyManager)
+	client := new(trillian.MockTrillianLogClient)
+
+	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
+	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
+
+	cert, err := fixchain.CertificateFromPEM(testonly.TestCertPEM)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pool := NewPEMCertPool()
+	pool.AddCert(cert)
+	chain := createJsonChain(t, *pool)
+
+	recorder := makeAddPrechainRequest(t, reqHandlers, chain)
+
+	assert.Equal(t, http.StatusBadRequest, recorder.Code, "expected HTTP BadRequest for cert add-precert-chain: %v", recorder.Body)
+	km.AssertExpectations(t)
+	client.AssertExpectations(t)
+}
+
+// Submit a chain that should be OK but arrange for the backend RPC to fail. Failure should
+// be propagated.
+func TestAddPrecertChainRPCFails(t *testing.T) {
+	toSign := []byte{0xe4, 0x58, 0xf3, 0x6f, 0xbd, 0xed, 0x2e, 0x62, 0x53, 0x30, 0xb3, 0x4, 0x73, 0x10, 0xb4, 0xe2, 0xe1, 0xa7, 0x44, 0x9e, 0x1f, 0x16, 0x6f, 0x78, 0x61, 0x98, 0x32, 0xe5, 0x43, 0x5a, 0x21, 0xff}
+	km := setupMockKeyManager(toSign)
+	client := new(trillian.MockTrillianLogClient)
+
+	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
+	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
+
+	cert, err := fixchain.CertificateFromPEM(testonly.PrecertPEMValid)
+	_, ok := err.(x509.NonFatalErrors)
+
+	if err != nil && !ok {
+		t.Fatal(err)
+	}
+
+	pool := NewPEMCertPool()
+	pool.AddCert(cert)
+	chain := createJsonChain(t, *pool)
+
+	// Ignore returned SCT. That's sent to the client and we're testing frontend -> backend interaction
+	merkleLeaf, _, err := SignV1SCTForPrecertificate(km, pool.RawCertificates()[0], fakeTime)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	leaves := leafProtosForCert(t, km, pool.RawCertificates(), merkleLeaf)
+
+	client.On("QueueLeaves", mock.MatchedBy(deadlineMatcher), &trillian.QueueLeavesRequest{LogId: 0x42, Leaves: leaves}, mock.Anything /* []grpc.CallOption */).Return(&trillian.QueueLeavesResponse{Status: &trillian.TrillianApiStatus{StatusCode: trillian.TrillianApiStatusCode(trillian.TrillianApiStatusCode_ERROR)}}, nil)
+
+	recorder := makeAddPrechainRequest(t, reqHandlers, chain)
+
+	assert.Equal(t, http.StatusInternalServerError, recorder.Code, "expected HTTP server error for backend rpc fail on add-chain: %v", recorder.Body)
+	km.AssertExpectations(t)
+	client.AssertExpectations(t)
+}
+
+// Submit a chain with a valid precert signed by a trusted root. Should be accepted.
+func TestAddPrecertChain(t *testing.T) {
+	toSign := []byte{0xe4, 0x58, 0xf3, 0x6f, 0xbd, 0xed, 0x2e, 0x62, 0x53, 0x30, 0xb3, 0x4, 0x73, 0x10, 0xb4, 0xe2, 0xe1, 0xa7, 0x44, 0x9e, 0x1f, 0x16, 0x6f, 0x78, 0x61, 0x98, 0x32, 0xe5, 0x43, 0x5a, 0x21, 0xff}
+	km := setupMockKeyManager(toSign)
+	client := new(trillian.MockTrillianLogClient)
+
+	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
+	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
+
+	cert, err := fixchain.CertificateFromPEM(testonly.PrecertPEMValid)
+	_, ok := err.(x509.NonFatalErrors)
+
+	if err != nil && !ok {
+		t.Fatal(err)
+	}
+
+	pool := NewPEMCertPool()
+	pool.AddCert(cert)
+	chain := createJsonChain(t, *pool)
+
+	// Ignore returned SCT. That's sent to the client and we're testing frontend -> backend interaction
+	merkleLeaf, _, err := SignV1SCTForPrecertificate(km, pool.RawCertificates()[0], fakeTime)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	leaves := leafProtosForCert(t, km, pool.RawCertificates(), merkleLeaf)
+
+	client.On("QueueLeaves", mock.MatchedBy(deadlineMatcher), &trillian.QueueLeavesRequest{LogId: 0x42, Leaves: leaves}, mock.Anything /* []grpc.CallOption */).Return(&trillian.QueueLeavesResponse{Status: &trillian.TrillianApiStatus{StatusCode: trillian.TrillianApiStatusCode_OK}}, nil)
+
+	recorder := makeAddPrechainRequest(t, reqHandlers, chain)
+
+	assert.Equal(t, http.StatusOK, recorder.Code, "expected HTTP OK for valid add-pre-chain: %v", recorder.Body)
+	km.AssertExpectations(t)
+	client.AssertExpectations(t)
+
+	// Roundtrip the response and make sure it's sensible
+	var resp addChainResponse
+	err = json.NewDecoder(recorder.Body).Decode(&resp)
 
 	assert.NoError(t, err, "failed to unmarshal json: %v", recorder.Body.Bytes())
 
@@ -390,13 +556,7 @@ func createJsonChain(t *testing.T, p PEMCertPool) io.Reader {
 	return bufio.NewReader(&buffer)
 }
 
-func leafProtosForCert(t *testing.T, km crypto.KeyManager, certs []*x509.Certificate) []*trillian.LeafProto {
-	// We don't care about the SCT as that's sent to the client and we're testing frontend ->
-	// backend interaction
-	merkleLeaf, _, err := SignV1SCTForCertificate(km, certs[0], fakeTime)
-
-	assert.NoError(t, err, "failed to sign test SCT or Merkle Leaf: %v", err)
-
+func leafProtosForCert(t *testing.T, km crypto.KeyManager, certs []*x509.Certificate, merkleLeaf ct.MerkleTreeLeaf) []*trillian.LeafProto {
 	var b bytes.Buffer
 	if err := WriteMerkleTreeLeaf(&b, merkleLeaf); err != nil {
 		t.Fatalf("failed to serialize leaf: %v", err)
@@ -424,10 +584,18 @@ func deadlineMatcher(other context.Context) bool {
 	return deadlineTime == fakeDeadlineTime
 }
 
+func makeAddPrechainRequest(t *testing.T, reqHandlers CTRequestHandlers, body io.Reader) *httptest.ResponseRecorder {
+	handler := wrappedAddPreChainHandler(reqHandlers)
+	return makeAddChainRequestInternal(t, handler, "add-pre-chain", body)
+}
+
 func makeAddChainRequest(t *testing.T, reqHandlers CTRequestHandlers, body io.Reader) *httptest.ResponseRecorder {
 	handler := wrappedAddChainHandler(reqHandlers)
+	return makeAddChainRequestInternal(t, handler, "add-chain", body)
+}
 
-	req, err := http.NewRequest("POST", "http://example.com/ct/v1/add-chain", body)
+func makeAddChainRequestInternal(t *testing.T, handler http.HandlerFunc, path string, body io.Reader) *httptest.ResponseRecorder {
+	req, err := http.NewRequest("POST", fmt.Sprintf("http://example.com/ct/v1/%s", path), body)
 
 	assert.NoError(t, err, "test request setup failed: %v", err)
 

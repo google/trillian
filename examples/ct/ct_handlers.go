@@ -30,13 +30,13 @@ const (
 
 const (
 	// HTTP content type header
-	contentTypeHeader      string     = "Content-Type"
+	contentTypeHeader string = "Content-Type"
 	// MIME content type for JSON
-	contentTypeJSON        string     = "application/json"
+	contentTypeJSON string = "application/json"
 	// The name of the JSON response map key in get-roots responses
-	jsonMapKeyCertificates string     = "certificates"
+	jsonMapKeyCertificates string = "certificates"
 	// Logging level for debug verbose logs
-	logVerboseLevel        glog.Level = 2
+	logVerboseLevel glog.Level = 2
 )
 
 // CTRequestHandlers provides HTTP handler functions for CT V1 as defined in RFC 6962
@@ -128,126 +128,91 @@ func enforceMethod(w http.ResponseWriter, r *http.Request, method string) bool {
 	return true
 }
 
-// All the handlers are wrapped so they have access to the RPC client
+// addChainInternal is called by add-chain and add-pre-chain as the logic involved in
+// processing these requests is almost identical
+func addChainInternal(w http.ResponseWriter, r *http.Request, c CTRequestHandlers, isPrecert bool) {
+	if !enforceMethod(w, r, httpMethodPost) {
+		// HTTP status code was already set
+		return
+	}
+
+	addChainRequest, err := parseBodyAsJSONChain(w, r)
+
+	if err != nil {
+		// HTTP status code was already set
+		return
+	}
+
+	// We already checked that the chain is not empty so can move on to verification
+	validPath := verifyAddChain(addChainRequest, w, *c.trustedRoots, isPrecert)
+
+	if validPath == nil {
+		// Chain rejected by verify. HTTP status code was already set
+		return
+	}
+
+	// Build up the SCT and MerkleTreeLeaf. The SCT will be returned to the client and
+	// the leaf will become part of the data sent to the backend.
+	var merkleTreeLeaf ct.MerkleTreeLeaf
+	var sct ct.SignedCertificateTimestamp
+
+	if isPrecert {
+		merkleTreeLeaf, sct, err = SignV1SCTForPrecertificate(c.logKeyManager, validPath[0], c.timeSource.Now())
+	} else {
+		merkleTreeLeaf, sct, err = SignV1SCTForCertificate(c.logKeyManager, validPath[0], c.timeSource.Now())
+	}
+
+	if err != nil {
+		glog.Warningf("Failed to create / serialize SCT or Merkle leaf: %v %v", sct, err)
+		sendHttpError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	// Inputs validated, pass the request on to the back end after hashing and serializing
+	// the data for the request
+	leafProto, err := buildLeafProtoForAddChain(merkleTreeLeaf, validPath)
+
+	if err != nil {
+		// Failure reason already logged
+		sendHttpError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	request := trillian.QueueLeavesRequest{LogId: c.logID, Leaves: []*trillian.LeafProto{&leafProto}}
+
+	ctx, _ := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
+
+	response, err := c.rpcClient.QueueLeaves(ctx, &request)
+
+	if err != nil || !rpcStatusOK(response.GetStatus()) {
+		// TODO(Martin2112): Possibly cases where the request we sent to the backend is invalid
+		// which isn't really an internal server error.
+		// Request failed on backend
+		sendHttpError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	// Success. We can now build and marshal the JSON response and write it out
+	err = marshalAndWriteAddChainResponse(sct, c.logKeyManager, w)
+
+	if err != nil {
+		// reason is logged and http status is already set
+		// TODO(Martin2112): Record failure for monitoring when it's implemented
+	}
+}
+
+// All the handlers are wrapped so they have access to the RPC client and other context
 // TODO(Martin2112): Doesn't properly handle duplicate submissions yet but the backend
 // needs this to be implemented before we can do it here
 func wrappedAddChainHandler(c CTRequestHandlers) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !enforceMethod(w, r, httpMethodPost) {
-			// HTTP status code was already set
-			return
-		}
-
-		addChainRequest, err := parseBodyAsJSONChain(w, r)
-
-		if err != nil {
-			// HTTP status code was already set
-			return
-		}
-
-		// We already checked that the chain is not empty so can move on to verification
-		validPath := verifyAddChain(addChainRequest, w, *c.trustedRoots, false)
-
-		if validPath == nil {
-			// Chain rejected by verify. HTTP status code was already set
-			return
-		}
-
-		// Build up the SCT and MerkleTreeLeaf. The SCT will be returned to the client and
-		// the leaf will become part of the data sent to the backend.
-		merkleTreeLeaf, sct, err := SignV1SCTForCertificate(c.logKeyManager, validPath[0], c.timeSource.Now())
-
-		if err != nil {
-			glog.Warningf("Failed to create / serialize SCT or Merkle leaf: %v %v", sct, err)
-			sendHttpError(w, http.StatusInternalServerError, err)
-			return
-		}
-
-		// Inputs validated, pass the request on to the back end after hashing and serializing
-		// the data for the request
-		var leafBuffer bytes.Buffer
-		if err := WriteMerkleTreeLeaf(&leafBuffer, merkleTreeLeaf); err != nil {
-			glog.Warningf("Failed to serialize merkle leaf: %v", err)
-			sendHttpError(w, http.StatusInternalServerError, err)
-			return
-		}
-
-		var logEntryBuffer bytes.Buffer
-		logEntry := NewCTLogEntry(merkleTreeLeaf, validPath)
-		if err := logEntry.Serialize(&logEntryBuffer); err != nil {
-			glog.Warningf("Failed to serialize log entry: %v", err)
-			sendHttpError(w, http.StatusInternalServerError, err)
-			return
-		}
-
-		// leafHash is a crosscheck on the data we're sending in the leaf buffer. The backend
-		// does the tree hashing.
-		leafHash := sha256.Sum256(leafBuffer.Bytes())
-		leafProto := trillian.LeafProto{LeafHash: leafHash[:], LeafData: leafBuffer.Bytes(), ExtraData: logEntryBuffer.Bytes()}
-
-		request := trillian.QueueLeavesRequest{LogId: c.logID, Leaves: []*trillian.LeafProto{&leafProto}}
-
-		ctx, _ := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
-
-		response, err := c.rpcClient.QueueLeaves(ctx, &request)
-
-		if err != nil || !rpcStatusOK(response.GetStatus()) {
-			// TODO(Martin2112): Possibly cases where the request we sent to the backend is invalid
-			// which isn't really an internal server error.
-			// Request failed on backend
-			sendHttpError(w, http.StatusInternalServerError, err)
-			return
-		}
-
-		logID, signature, err := marshalLogIDAndSignatureForResponse(sct, c.logKeyManager)
-
-		if err != nil {
-			glog.Warningf("failed to marshal for response: %v", err)
-			sendHttpError(w, http.StatusInternalServerError, err)
-			return
-		}
-
-		// Success. We can now build and marshal the JSON response and write it out
-		resp := addChainResponse{
-			SctVersion: int(sct.SCTVersion),
-			Timestamp:  sct.Timestamp,
-			ID:         base64.StdEncoding.EncodeToString(logID[:]),
-			Extensions: "",
-			Signature:  signature}
-
-		w.Header().Set(contentTypeHeader, contentTypeJSON)
-		jsonData, err := json.Marshal(&resp)
-
-		if err != nil {
-			glog.Warningf("Failed to marshal add-chain resp: %v", resp)
-			sendHttpError(w, http.StatusInternalServerError, err)
-			return
-		}
-
-		_, err = w.Write(jsonData)
-
-		if err != nil {
-			glog.Warningf("Failed to write add-chain resp: %v", resp)
-			// Probably too late for this as headers might have been written but we don't know for sure
-			sendHttpError(w, http.StatusInternalServerError, err)
-			return
-		}
+		addChainInternal(w, r, c, false)
 	}
 }
 
-func wrappedAddPreChainHandler(rpcClient trillian.TrillianLogClient) http.HandlerFunc {
+func wrappedAddPreChainHandler(c CTRequestHandlers) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !enforceMethod(w, r, httpMethodPost) {
-			return
-		}
-
-		_, err := parseBodyAsJSONChain(w, r)
-
-		if err != nil {
-			return
-		}
-
-		http.Error(w, http.StatusText(http.StatusNotImplemented), http.StatusNotImplemented)
+		addChainInternal(w, r, c, true)
 	}
 }
 
@@ -332,7 +297,7 @@ func wrappedGetEntryAndProofHandler(rpcClient trillian.TrillianLogClient) http.H
 // TODO(Martin2112): This registers on default ServeMux, might need more flexibility?
 func (c CTRequestHandlers) RegisterCTHandlers() {
 	http.HandleFunc(pathFor("add-chain"), wrappedAddChainHandler(c))
-	http.HandleFunc(pathFor("add-pre-chain"), wrappedAddPreChainHandler(c.rpcClient))
+	http.HandleFunc(pathFor("add-pre-chain"), wrappedAddPreChainHandler(c))
 	http.HandleFunc(pathFor("get-sth"), wrappedGetSTHHandler(c.rpcClient))
 	http.HandleFunc(pathFor("get-sth-consistency"), wrappedGetSTHConsistencyHandler(c.rpcClient))
 	http.HandleFunc(pathFor("get-proof-by-hash"), wrappedGetProofByHashHandler(c.rpcClient))
@@ -409,4 +374,65 @@ func marshalLogIDAndSignatureForResponse(sct ct.SignedCertificateTimestamp, km c
 	}
 
 	return logID, signature, nil
+}
+
+// buildLeafProtoForAddChain is also used by add-pre-chain and does the hashing to build a
+// LeafProto that will be sent to the backend
+func buildLeafProtoForAddChain(merkleLeaf ct.MerkleTreeLeaf, certChain []*x509.Certificate) (trillian.LeafProto, error) {
+	var leafBuffer bytes.Buffer
+	if err := WriteMerkleTreeLeaf(&leafBuffer, merkleLeaf); err != nil {
+		glog.Warningf("Failed to serialize merkle leaf: %v", err)
+		return trillian.LeafProto{}, err
+	}
+
+	var logEntryBuffer bytes.Buffer
+	logEntry := NewCTLogEntry(merkleLeaf, certChain)
+	if err := logEntry.Serialize(&logEntryBuffer); err != nil {
+		glog.Warningf("Failed to serialize log entry: %v", err)
+		return trillian.LeafProto{}, err
+	}
+
+	// leafHash is a crosscheck on the data we're sending in the leaf buffer. The backend
+	// does the tree hashing.
+	leafHash := sha256.Sum256(leafBuffer.Bytes())
+
+	return trillian.LeafProto{LeafHash: leafHash[:], LeafData: leafBuffer.Bytes(), ExtraData: logEntryBuffer.Bytes()}, nil
+}
+
+// marshalAndWriteAddChainResponse is used by add-chain and add-pre-chain to create and write
+// the JSON response to the client
+func marshalAndWriteAddChainResponse(sct ct.SignedCertificateTimestamp, km crypto.KeyManager, w http.ResponseWriter) error {
+	logID, signature, err := marshalLogIDAndSignatureForResponse(sct, km)
+
+	if err != nil {
+		glog.Warningf("failed to marshal for response: %v", err)
+		return err
+	}
+
+	resp := addChainResponse{
+		SctVersion: int(sct.SCTVersion),
+		Timestamp:  sct.Timestamp,
+		ID:         base64.StdEncoding.EncodeToString(logID[:]),
+		Extensions: "",
+		Signature:  signature}
+
+	w.Header().Set(contentTypeHeader, contentTypeJSON)
+	jsonData, err := json.Marshal(&resp)
+
+	if err != nil {
+		glog.Warningf("Failed to marshal add-chain resp: %v", resp)
+		sendHttpError(w, http.StatusInternalServerError, err)
+		return err
+	}
+
+	_, err = w.Write(jsonData)
+
+	if err != nil {
+		glog.Warningf("Failed to write add-chain resp: %v", resp)
+		// Probably too late for this as headers might have been written but we don't know for sure
+		sendHttpError(w, http.StatusInternalServerError, err)
+		return err
+	}
+
+	return nil
 }
