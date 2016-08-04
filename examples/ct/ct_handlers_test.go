@@ -34,7 +34,7 @@ var fakeTime = time.Date(2016, 7, 22, 11, 01, 13, 0, time.UTC)
 // The deadline should be the above bumped by 500ms
 var fakeDeadlineTime = time.Date(2016, 7, 22, 11, 01, 13, 500*1000*1000, time.UTC)
 var fakeTimeSource = util.FakeTimeSource{fakeTime}
-var okStatus = &trillian.TrillianApiStatus{StatusCode:trillian.TrillianApiStatusCode_OK}
+var okStatus = &trillian.TrillianApiStatus{StatusCode: trillian.TrillianApiStatusCode_OK}
 
 type jsonChain struct {
 	Chain []string `json:chain`
@@ -50,7 +50,7 @@ type getEntriesRangeTestCase struct {
 
 var getEntriesRangeTestCases = []getEntriesRangeTestCase{
 	{-1, 0, http.StatusBadRequest, "-ve start value not allowed", false},
-	{0, -1, http.StatusBadRequest, "-ve end value not allowed", false },
+	{0, -1, http.StatusBadRequest, "-ve end value not allowed", false},
 	{20, 10, http.StatusBadRequest, "invalid range end>start", false},
 	{3000, -50, http.StatusBadRequest, "invalid range, -ve end", false},
 	{10, 20, http.StatusInternalServerError, "valid range", true},
@@ -598,10 +598,10 @@ func TestGetEntriesRanges(t *testing.T) {
 		client := new(trillian.MockTrillianLogClient)
 
 		if testCase.rpcExpected {
-			client.On("GetLeavesByIndex", mock.MatchedBy(deadlineMatcher), &trillian.GetLeavesByIndexRequest{LeafIndex:buildIndicesForRange(testCase.start, testCase.end)}, mock.Anything /* []grpc.CallOption */).Return(nil, errors.New("RPCMADE"))
+			client.On("GetLeavesByIndex", mock.MatchedBy(deadlineMatcher), &trillian.GetLeavesByIndexRequest{LeafIndex: buildIndicesForRange(testCase.start, testCase.end)}, mock.Anything /* []grpc.CallOption */).Return(nil, errors.New("RPCMADE"))
 		}
 
-		c := CTRequestHandlers{rpcClient:client, timeSource:fakeTimeSource, rpcDeadline:time.Millisecond * 500}
+		c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
 		handler := wrappedGetEntriesHandler(c)
 
 		path := fmt.Sprintf("/ct/v1/get-entries?start=%d&end=%d", testCase.start, testCase.end)
@@ -635,9 +635,9 @@ func TestGetEntriesRanges(t *testing.T) {
 func TestGetEntriesErrorFromBackend(t *testing.T) {
 	client := new(trillian.MockTrillianLogClient)
 
-	client.On("GetLeavesByIndex", mock.MatchedBy(deadlineMatcher), &trillian.GetLeavesByIndexRequest{LeafIndex:[]int64{1, 2}}, mock.Anything /* []grpc.CallOption */).Return(nil, errors.New("Bang!"))
+	client.On("GetLeavesByIndex", mock.MatchedBy(deadlineMatcher), &trillian.GetLeavesByIndexRequest{LeafIndex: []int64{1, 2}}, mock.Anything /* []grpc.CallOption */).Return(nil, errors.New("Bang!"))
 
-	c := CTRequestHandlers{rpcClient:client, timeSource:fakeTimeSource, rpcDeadline:time.Millisecond * 500}
+	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
 	handler := wrappedGetEntriesHandler(c)
 
 	req, err := http.NewRequest("GET", "/ct/v1/get-entries?start=1&end=2", nil)
@@ -660,10 +660,10 @@ func TestGetEntriesErrorFromBackend(t *testing.T) {
 func TestGetEntriesBackendReturnedExtraLeaves(t *testing.T) {
 	client := new(trillian.MockTrillianLogClient)
 
-	rpcLeaves := []*trillian.LeafProto{{LeafIndex:1}, {LeafIndex:2}, {LeafIndex:3}}
-	client.On("GetLeavesByIndex", mock.MatchedBy(deadlineMatcher), &trillian.GetLeavesByIndexRequest{LeafIndex:[]int64{1, 2}}, mock.Anything /* []grpc.CallOption */).Return(&trillian.GetLeavesByIndexResponse{Status:okStatus, Leaves:rpcLeaves}, nil)
+	rpcLeaves := []*trillian.LeafProto{{LeafIndex: 1}, {LeafIndex: 2}, {LeafIndex: 3}}
+	client.On("GetLeavesByIndex", mock.MatchedBy(deadlineMatcher), &trillian.GetLeavesByIndexRequest{LeafIndex: []int64{1, 2}}, mock.Anything /* []grpc.CallOption */).Return(&trillian.GetLeavesByIndexResponse{Status: okStatus, Leaves: rpcLeaves}, nil)
 
-	c := CTRequestHandlers{rpcClient:client, timeSource:fakeTimeSource, rpcDeadline:time.Millisecond * 500}
+	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
 	handler := wrappedGetEntriesHandler(c)
 
 	req, err := http.NewRequest("GET", "/ct/v1/get-entries?start=1&end=2", nil)
@@ -686,10 +686,10 @@ func TestGetEntriesBackendReturnedExtraLeaves(t *testing.T) {
 func TestGetEntriesBackendReturnedNonContiguousRange(t *testing.T) {
 	client := new(trillian.MockTrillianLogClient)
 
-	rpcLeaves := []*trillian.LeafProto{{LeafIndex:1}, {LeafIndex:3}}
-	client.On("GetLeavesByIndex", mock.MatchedBy(deadlineMatcher), &trillian.GetLeavesByIndexRequest{LeafIndex:[]int64{1, 2}}, mock.Anything /* []grpc.CallOption */).Return(&trillian.GetLeavesByIndexResponse{Status:okStatus, Leaves:rpcLeaves}, nil)
+	rpcLeaves := []*trillian.LeafProto{{LeafIndex: 1}, {LeafIndex: 3}}
+	client.On("GetLeavesByIndex", mock.MatchedBy(deadlineMatcher), &trillian.GetLeavesByIndexRequest{LeafIndex: []int64{1, 2}}, mock.Anything /* []grpc.CallOption */).Return(&trillian.GetLeavesByIndexResponse{Status: okStatus, Leaves: rpcLeaves}, nil)
 
-	c := CTRequestHandlers{rpcClient:client, timeSource:fakeTimeSource, rpcDeadline:time.Millisecond * 500}
+	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
 	handler := wrappedGetEntriesHandler(c)
 
 	req, err := http.NewRequest("GET", "/ct/v1/get-entries?start=1&end=2", nil)
@@ -712,10 +712,10 @@ func TestGetEntriesBackendReturnedNonContiguousRange(t *testing.T) {
 func TestGetEntriesLeafCorrupt(t *testing.T) {
 	client := new(trillian.MockTrillianLogClient)
 
-	rpcLeaves := []*trillian.LeafProto{{LeafIndex:1, LeafHash:[]byte("hash"), LeafData:[]byte("NOT A MERKLE TREE LEAF")}, {LeafIndex:2, LeafHash:[]byte("hash"), LeafData:[]byte("NOT A MERKLE TREE LEAF")}}
-	client.On("GetLeavesByIndex", mock.MatchedBy(deadlineMatcher), &trillian.GetLeavesByIndexRequest{LeafIndex:[]int64{1, 2}}, mock.Anything /* []grpc.CallOption */).Return(&trillian.GetLeavesByIndexResponse{Status:okStatus, Leaves:rpcLeaves}, nil)
+	rpcLeaves := []*trillian.LeafProto{{LeafIndex: 1, LeafHash: []byte("hash"), LeafData: []byte("NOT A MERKLE TREE LEAF")}, {LeafIndex: 2, LeafHash: []byte("hash"), LeafData: []byte("NOT A MERKLE TREE LEAF")}}
+	client.On("GetLeavesByIndex", mock.MatchedBy(deadlineMatcher), &trillian.GetLeavesByIndexRequest{LeafIndex: []int64{1, 2}}, mock.Anything /* []grpc.CallOption */).Return(&trillian.GetLeavesByIndexResponse{Status: okStatus, Leaves: rpcLeaves}, nil)
 
-	c := CTRequestHandlers{rpcClient:client, timeSource:fakeTimeSource, rpcDeadline:time.Millisecond * 500}
+	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
 	handler := wrappedGetEntriesHandler(c)
 
 	req, err := http.NewRequest("GET", "/ct/v1/get-entries?start=1&end=2", nil)
@@ -741,14 +741,14 @@ func TestGetEntries(t *testing.T) {
 	// To pass validation the leaves we return from our dummy RPC must be valid serialized
 	// ct.MerkleTreeLeaf objects
 	merkleLeaf1 := ct.MerkleTreeLeaf{
-		Version:ct.V1,
-		LeafType:ct.TimestampedEntryLeafType,
-		TimestampedEntry:ct.TimestampedEntry{Timestamp:12345, EntryType:ct.X509LogEntryType, X509Entry:[]byte("certdatacertdata"), Extensions:ct.CTExtensions{}}}
+		Version:          ct.V1,
+		LeafType:         ct.TimestampedEntryLeafType,
+		TimestampedEntry: ct.TimestampedEntry{Timestamp: 12345, EntryType: ct.X509LogEntryType, X509Entry: []byte("certdatacertdata"), Extensions: ct.CTExtensions{}}}
 
 	merkleLeaf2 := ct.MerkleTreeLeaf{
-		Version:ct.V1,
-		LeafType:ct.TimestampedEntryLeafType,
-		TimestampedEntry:ct.TimestampedEntry{Timestamp:67890, EntryType:ct.X509LogEntryType, X509Entry:[]byte("certdat2certdat2"), Extensions:ct.CTExtensions{}}}
+		Version:          ct.V1,
+		LeafType:         ct.TimestampedEntryLeafType,
+		TimestampedEntry: ct.TimestampedEntry{Timestamp: 67890, EntryType: ct.X509LogEntryType, X509Entry: []byte("certdat2certdat2"), Extensions: ct.CTExtensions{}}}
 
 	merkleBytes1, err1 := leafToBytes(merkleLeaf1)
 	merkleBytes2, err2 := leafToBytes(merkleLeaf2)
@@ -757,10 +757,10 @@ func TestGetEntries(t *testing.T) {
 		t.Fatalf("error in test setup for get-entries: %v %v", err1, err2)
 	}
 
-	rpcLeaves := []*trillian.LeafProto{{LeafIndex:1, LeafHash:[]byte("hash"), LeafData:merkleBytes1, ExtraData: []byte("extra1")}, {LeafIndex:2, LeafHash:[]byte("hash"), LeafData:merkleBytes2, ExtraData:[]byte("extra2")}}
-	client.On("GetLeavesByIndex", mock.MatchedBy(deadlineMatcher), &trillian.GetLeavesByIndexRequest{LeafIndex:[]int64{1, 2}}, mock.Anything /* []grpc.CallOption */).Return(&trillian.GetLeavesByIndexResponse{Status:okStatus, Leaves:rpcLeaves}, nil)
+	rpcLeaves := []*trillian.LeafProto{{LeafIndex: 1, LeafHash: []byte("hash"), LeafData: merkleBytes1, ExtraData: []byte("extra1")}, {LeafIndex: 2, LeafHash: []byte("hash"), LeafData: merkleBytes2, ExtraData: []byte("extra2")}}
+	client.On("GetLeavesByIndex", mock.MatchedBy(deadlineMatcher), &trillian.GetLeavesByIndexRequest{LeafIndex: []int64{1, 2}}, mock.Anything /* []grpc.CallOption */).Return(&trillian.GetLeavesByIndexResponse{Status: okStatus, Leaves: rpcLeaves}, nil)
 
-	c := CTRequestHandlers{rpcClient:client, timeSource:fakeTimeSource, rpcDeadline:time.Millisecond * 500}
+	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
 	handler := wrappedGetEntriesHandler(c)
 
 	req, err := http.NewRequest("GET", "/ct/v1/get-entries?start=1&end=2", nil)
@@ -872,7 +872,7 @@ func makeAddChainRequestInternal(t *testing.T, handler http.HandlerFunc, path st
 func getEntriesTestHelper(t *testing.T, request string, expectedStatus int, explanation string) {
 	client := new(trillian.MockTrillianLogClient)
 
-	c := CTRequestHandlers{rpcClient:client, timeSource:fakeTimeSource, rpcDeadline:time.Millisecond * 500}
+	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
 	handler := wrappedGetEntriesHandler(c)
 
 	path := fmt.Sprintf("/ct/v1/get-entries?%s", request)

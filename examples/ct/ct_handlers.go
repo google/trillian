@@ -51,17 +51,17 @@ const (
 // log backend RPC service.
 type CTRequestHandlers struct {
 	// logID is the tree ID that identifies this log in node storage
-	logID         int64
+	logID int64
 	// trustedRoots is a pool of certificates that defines the roots the CT log will accept
-	trustedRoots  *PEMCertPool
+	trustedRoots *PEMCertPool
 	// rpcClient is the client used to communicate with the trillian backend
-	rpcClient     trillian.TrillianLogClient
+	rpcClient trillian.TrillianLogClient
 	// logKeyManager holds the keys this log needs to sign objects
 	logKeyManager crypto.KeyManager
 	// rpcDeadline is the deadline that will be set on all backend RPC requests
-	rpcDeadline   time.Duration
+	rpcDeadline time.Duration
 	// timeSource is a util.TimeSource that can be injected for testing
-	timeSource    util.TimeSource
+	timeSource util.TimeSource
 }
 
 // NewCTRequestHandlers creates a new instance of CTRequestHandlers. They must still
@@ -563,7 +563,7 @@ func validateStartAndEnd(start, end, maxRange int64) (int64, int64, error) {
 // but the CT spec doesn't. The input values should have been checked for consistency before calling
 // this.
 func buildIndicesForRange(start, end int64) []int64 {
-	indices := make([]int64, 0, end - start + 1)
+	indices := make([]int64, 0, end-start+1)
 	for i := start; i <= end; i++ {
 		indices = append(indices, i)
 	}
@@ -576,8 +576,8 @@ func buildIndicesForRange(start, end int64) []int64 {
 // backend bugs. Returns nil if the response looks valid.
 func isResponseContiguousRange(response *trillian.GetLeavesByIndexResponse, start, end int64) error {
 	for li, l := range response.Leaves {
-		if li > 0 && response.Leaves[li].LeafIndex - response.Leaves[li - 1].LeafIndex != 1 {
-			return fmt.Errorf("backend returned non contiguous leaves: %v %v", response.Leaves[li - 1], response.Leaves[li])
+		if li > 0 && response.Leaves[li].LeafIndex-response.Leaves[li-1].LeafIndex != 1 {
+			return fmt.Errorf("backend returned non contiguous leaves: %v %v", response.Leaves[li-1], response.Leaves[li])
 		}
 
 		if l.LeafIndex < start || l.LeafIndex > end {
