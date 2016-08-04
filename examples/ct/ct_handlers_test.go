@@ -576,6 +576,19 @@ func loadCertsIntoPoolOrDie(t *testing.T, certs []string) *PEMCertPool {
 	return pool
 }
 
+func TestGetEntriesRejectsNonNumericParams(t *testing.T) {
+	getEntriesTestHelper(t, "start=&&&&&&&&&end=wibble", http.StatusBadRequest, "invalid &&s")
+	getEntriesTestHelper(t, "start=fish&end=3", http.StatusBadRequest, "start non numeric")
+	getEntriesTestHelper(t, "start=10&end=wibble", http.StatusBadRequest, "end non numeric")
+	getEntriesTestHelper(t, "start=fish&end=wibble", http.StatusBadRequest, "both non numeric")
+}
+
+func TestGetEntriesRejectsMissingParams(t *testing.T) {
+	getEntriesTestHelper(t, "start=1", http.StatusBadRequest, "end missing")
+	getEntriesTestHelper(t, "end=1", http.StatusBadRequest, "start missing")
+	getEntriesTestHelper(t, "", http.StatusBadRequest, "both missing")
+}
+
 func TestGetEntriesRanges(t *testing.T) {
 	// This tests that only valid ranges make it to the backend for get-entries.
 	// We're testing request handling up to the point where we make the RPC so arrange for
@@ -684,4 +697,30 @@ func makeAddChainRequestInternal(t *testing.T, handler http.HandlerFunc, path st
 	handler(w, req)
 
 	return w
+}
+
+// getEntriesTestHelper is used for testing get-entries failure cases with arbitrary request params
+func getEntriesTestHelper(t *testing.T, request string, expectedStatus int, explanation string) {
+	client := new(trillian.MockTrillianLogClient)
+
+	c := CTRequestHandlers{rpcClient:client, timeSource:fakeTimeSource, rpcDeadline:time.Millisecond * 500}
+	handler := wrappedGetEntriesHandler(c)
+
+	path := fmt.Sprintf("/ct/v1/get-entries?%s", request)
+	req, err := http.NewRequest("GET", path, nil)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if expected, got := expectedStatus, w.Code; expected != got {
+		t.Fatalf("expected status %d, got %d for test case %s", expected, got, explanation)
+	}
 }
