@@ -284,6 +284,9 @@ func TestAddChainPrecert(t *testing.T) {
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
 	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
 
+	// TODO(Martin2112): I don't think CT should return NonFatalError for something we expect
+	// to happen - seeing a precert extension. If this is fixed upstream remove all references from
+	// our tests.
 	precert, err := fixchain.CertificateFromPEM(testonly.PrecertPEMValid)
 	if err != nil {
 		assert.IsType(t, x509.NonFatalErrors{}, err, "Unexpected error loading certificate: %v", err)
