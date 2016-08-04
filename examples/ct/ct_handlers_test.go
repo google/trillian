@@ -416,9 +416,8 @@ func TestAddPrecertChainCert(t *testing.T) {
 	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
 
 	cert, err := fixchain.CertificateFromPEM(testonly.TestCertPEM)
-	_, ok := err.(x509.NonFatalErrors)
 
-	if err != nil && !ok {
+	if err != nil {
 		t.Fatal(err)
 	}
 
