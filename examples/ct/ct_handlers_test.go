@@ -81,11 +81,18 @@ type handlerAndPath struct {
 }
 
 func allGetHandlersForTest(trustedRoots *PEMCertPool, client trillian.TrillianLogClient) []handlerAndPath {
+	pool := NewPEMCertPool()
+	ok := pool.AppendCertsFromPEM([]byte(testonly.FakeCACertPem))
+
+	if !ok {
+		glog.Fatal("Failed to load cert pool")
+	}
+
 	return []handlerAndPath{
 		{"get-sth", wrappedGetSTHHandler(client)},
 		{"get-sth-consistency", wrappedGetSTHConsistencyHandler(client)},
 		{"get-proof-by-hash", wrappedGetProofByHashHandler(client)},
-		{"get-entries", wrappedGetEntriesHandler(client)},
+		{"get-entries", wrappedGetEntriesHandler(CTRequestHandlers{rpcClient: client, trustedRoots: pool})},
 		{"get-roots", wrappedGetRootsHandler(trustedRoots, client)},
 		{"get-entry-and-proof", wrappedGetEntryAndProofHandler(client)}}
 }
@@ -116,6 +123,8 @@ func TestPostHandlersOnlyAcceptPost(t *testing.T) {
 			t.Fatal(err)
 		}
 
+		// TODO(Martin2112): Remove this test when there are no more handlers to be implemented and
+		// rely on the handlers own tests
 		assert.Equal(t, http.StatusMethodNotAllowed, resp.StatusCode, "Wrong status code for GET to POST handler")
 
 		resp, err = http.Post(s.URL+"/ct/v1/"+hp.path, "application/json", nil)
@@ -142,8 +151,9 @@ func TestGetHandlersOnlyAcceptGet(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		// TODO(Martin2112): Remove not implemented from test when all the handlers have been written
-		assert.True(t, resp.StatusCode == http.StatusNotImplemented || resp.StatusCode == http.StatusOK, "Wrong status code for GET to GET handler")
+		// TODO(Martin2112): Remove this test when there are no more handlers to be implemented and
+		// rely on the handlers own tests
+		assert.True(t, resp.StatusCode == http.StatusNotImplemented || resp.StatusCode == http.StatusBadRequest || resp.StatusCode == http.StatusOK, "Wrong status code for GET to GET handler")
 
 		resp, err = http.Post(s.URL+"/ct/v1/"+hp.path, "application/json", nil)
 
