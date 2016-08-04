@@ -81,22 +81,22 @@ type addChainRequest struct {
 
 // addChainResponse is a struct for marshalling add-chain responses. See RFC 6962 Sections 4.1 and 4.2
 type addChainResponse struct {
-	SctVersion int    `json:sct_version`
-	ID         string `json:id`
-	Timestamp  uint64 `json:timestamp`
-	Extensions string `json:extensions`
-	Signature  string `json:signature`
+	SctVersion int    `json:"sct_version"`
+	ID         string `json:"id"`
+	Timestamp  uint64 `json:"timestamp"`
+	Extensions string `json:"extensions"`
+	Signature  string `json:"signature"`
 }
 
 // getEntriesEntry is a struct that represents one element in a get-entries response
 type getEntriesEntry struct {
-	LeafInput []byte `json:leaf_input`
-	ExtraData []byte `json:extra_data`
+	LeafInput []byte `json:"leaf_input"`
+	ExtraData []byte `json:"extra_data"`
 }
 
 // getEntriesResponse is a struct for marshalling get-entries respsonses. See RFC6962 Section 4.6
 type getEntriesResponse struct {
-	Entries []getEntriesEntry `json:entries`
+	Entries []getEntriesEntry `json:"entries"`
 }
 
 func parseBodyAsJSONChain(w http.ResponseWriter, r *http.Request) (addChainRequest, error) {
@@ -290,14 +290,14 @@ func wrappedGetEntriesHandler(c CTRequestHandlers) http.HandlerFunc {
 		response, err := c.rpcClient.GetLeavesByIndex(ctx, &request)
 
 		if err != nil || !rpcStatusOK(response.GetStatus()) {
-			sendHttpError(w, http.StatusInternalServerError, err)
+			sendHttpError(w, http.StatusInternalServerError, fmt.Errorf("RPC failed, possible extra info: %v", err))
 			return
 		}
 
 		// Apply additional checks on the response to make sure we got a contiguous leaf range.
 		// It's allowed by the RFC for the backend to truncate the range in cases where the
 		// range exceeds the tree size etc. so we could get fewer leaves than we requested but
-		// never more.
+		// never more and never anything outside the requested range.
 		if expected, got := len(requestIndices), len(response.Leaves); got > expected {
 			glog.Warningf("Backend returned more leaves (%d) than requested: (%d)", got, expected)
 			sendHttpError(w, http.StatusInternalServerError, fmt.Errorf("Backend returned too many leaves: %d", got))
@@ -305,7 +305,7 @@ func wrappedGetEntriesHandler(c CTRequestHandlers) http.HandlerFunc {
 		}
 
 		if err := isResponseContiguousRange(response, startIndex, endIndex); err != nil {
-			glog.Warningf("Invalid get-entries range received from backend: %v", err)
+			glog.Warningf("Backend get-entries range received from backend non contiguous: %v", err)
 			sendHttpError(w, http.StatusInternalServerError, err)
 			return
 		}
@@ -426,6 +426,7 @@ func verifyAddChain(req addChainRequest, w http.ResponseWriter, trustedRoots PEM
 
 	if err != nil {
 		glog.Warningf("Precert test failed: %v", err)
+		sendHttpError(w, http.StatusBadRequest, err)
 		return nil
 	}
 
@@ -575,12 +576,12 @@ func buildIndicesForRange(start, end int64) []int64 {
 // backend bugs. Returns nil if the response looks valid.
 func isResponseContiguousRange(response *trillian.GetLeavesByIndexResponse, start, end int64) error {
 	for li, l := range response.Leaves {
-		if l.LeafIndex < start || l.LeafIndex > end {
-			return fmt.Errorf("backend returned leaf:%d outside requested range:%d, %d", l.LeafIndex, start, end)
-		}
-
 		if li > 0 && response.Leaves[li].LeafIndex - response.Leaves[li - 1].LeafIndex != 1 {
 			return fmt.Errorf("backend returned non contiguous leaves: %v %v", response.Leaves[li - 1], response.Leaves[li])
+		}
+
+		if l.LeafIndex < start || l.LeafIndex > end {
+			return fmt.Errorf("backend returned leaf:%d outside requested range:%d, %d", l.LeafIndex, start, end)
 		}
 	}
 

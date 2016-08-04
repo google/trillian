@@ -34,6 +34,7 @@ var fakeTime = time.Date(2016, 7, 22, 11, 01, 13, 0, time.UTC)
 // The deadline should be the above bumped by 500ms
 var fakeDeadlineTime = time.Date(2016, 7, 22, 11, 01, 13, 500*1000*1000, time.UTC)
 var fakeTimeSource = util.FakeTimeSource{fakeTime}
+var okStatus = &trillian.TrillianApiStatus{StatusCode:trillian.TrillianApiStatusCode_OK}
 
 type jsonChain struct {
 	Chain []string `json:chain`
@@ -631,6 +632,174 @@ func TestGetEntriesRanges(t *testing.T) {
 	}
 }
 
+func TestGetEntriesErrorFromBackend(t *testing.T) {
+	client := new(trillian.MockTrillianLogClient)
+
+	client.On("GetLeavesByIndex", mock.MatchedBy(deadlineMatcher), &trillian.GetLeavesByIndexRequest{LeafIndex:[]int64{1, 2}}, mock.Anything /* []grpc.CallOption */).Return(nil, errors.New("Bang!"))
+
+	c := CTRequestHandlers{rpcClient:client, timeSource:fakeTimeSource, rpcDeadline:time.Millisecond * 500}
+	handler := wrappedGetEntriesHandler(c)
+
+	req, err := http.NewRequest("GET", "/ct/v1/get-entries?start=1&end=2", nil)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code, "expected HTTP server error for backend error: %v", w.Body)
+	assert.True(t, strings.Contains(w.Body.String(), "Bang!"), "unexpected error: %v", w.Body)
+}
+
+func TestGetEntriesBackendReturnedExtraLeaves(t *testing.T) {
+	client := new(trillian.MockTrillianLogClient)
+
+	rpcLeaves := []*trillian.LeafProto{{LeafIndex:1}, {LeafIndex:2}, {LeafIndex:3}}
+	client.On("GetLeavesByIndex", mock.MatchedBy(deadlineMatcher), &trillian.GetLeavesByIndexRequest{LeafIndex:[]int64{1, 2}}, mock.Anything /* []grpc.CallOption */).Return(&trillian.GetLeavesByIndexResponse{Status:okStatus, Leaves:rpcLeaves}, nil)
+
+	c := CTRequestHandlers{rpcClient:client, timeSource:fakeTimeSource, rpcDeadline:time.Millisecond * 500}
+	handler := wrappedGetEntriesHandler(c)
+
+	req, err := http.NewRequest("GET", "/ct/v1/get-entries?start=1&end=2", nil)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code, "expected HTTP server error for backend too many leaves: %v", w.Body)
+	assert.Contains(t, w.Body.String(), "too many leaves", "unexpected error for too many leaves")
+}
+
+func TestGetEntriesBackendReturnedNonContiguousRange(t *testing.T) {
+	client := new(trillian.MockTrillianLogClient)
+
+	rpcLeaves := []*trillian.LeafProto{{LeafIndex:1}, {LeafIndex:3}}
+	client.On("GetLeavesByIndex", mock.MatchedBy(deadlineMatcher), &trillian.GetLeavesByIndexRequest{LeafIndex:[]int64{1, 2}}, mock.Anything /* []grpc.CallOption */).Return(&trillian.GetLeavesByIndexResponse{Status:okStatus, Leaves:rpcLeaves}, nil)
+
+	c := CTRequestHandlers{rpcClient:client, timeSource:fakeTimeSource, rpcDeadline:time.Millisecond * 500}
+	handler := wrappedGetEntriesHandler(c)
+
+	req, err := http.NewRequest("GET", "/ct/v1/get-entries?start=1&end=2", nil)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code, "expected HTTP server error for backend too many leaves: %v", w.Body)
+	assert.Contains(t, w.Body.String(), "non contiguous", "unexpected error for invalid sparse range")
+}
+
+func TestGetEntriesLeafCorrupt(t *testing.T) {
+	client := new(trillian.MockTrillianLogClient)
+
+	rpcLeaves := []*trillian.LeafProto{{LeafIndex:1, LeafHash:[]byte("hash"), LeafData:[]byte("NOT A MERKLE TREE LEAF")}, {LeafIndex:2, LeafHash:[]byte("hash"), LeafData:[]byte("NOT A MERKLE TREE LEAF")}}
+	client.On("GetLeavesByIndex", mock.MatchedBy(deadlineMatcher), &trillian.GetLeavesByIndexRequest{LeafIndex:[]int64{1, 2}}, mock.Anything /* []grpc.CallOption */).Return(&trillian.GetLeavesByIndexResponse{Status:okStatus, Leaves:rpcLeaves}, nil)
+
+	c := CTRequestHandlers{rpcClient:client, timeSource:fakeTimeSource, rpcDeadline:time.Millisecond * 500}
+	handler := wrappedGetEntriesHandler(c)
+
+	req, err := http.NewRequest("GET", "/ct/v1/get-entries?start=1&end=2", nil)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code, "expected HTTP server error for invalid merkle leaf result: %v", w.Body)
+	assert.Contains(t, w.Body.String(), "deserialize merkle leaf", "unexpected error for invalid leaf data")
+}
+
+func TestGetEntries(t *testing.T) {
+	client := new(trillian.MockTrillianLogClient)
+
+	// To pass validation the leaves we return from our dummy RPC must be valid serialized
+	// ct.MerkleTreeLeaf objects
+	merkleLeaf1 := ct.MerkleTreeLeaf{
+		Version:ct.V1,
+		LeafType:ct.TimestampedEntryLeafType,
+		TimestampedEntry:ct.TimestampedEntry{Timestamp:12345, EntryType:ct.X509LogEntryType, X509Entry:[]byte("certdatacertdata"), Extensions:ct.CTExtensions{}}}
+
+	merkleLeaf2 := ct.MerkleTreeLeaf{
+		Version:ct.V1,
+		LeafType:ct.TimestampedEntryLeafType,
+		TimestampedEntry:ct.TimestampedEntry{Timestamp:67890, EntryType:ct.X509LogEntryType, X509Entry:[]byte("certdat2certdat2"), Extensions:ct.CTExtensions{}}}
+
+	merkleBytes1, err1 := leafToBytes(merkleLeaf1)
+	merkleBytes2, err2 := leafToBytes(merkleLeaf2)
+
+	if err1 != nil || err2 != nil {
+		t.Fatalf("error in test setup for get-entries: %v %v", err1, err2)
+	}
+
+	rpcLeaves := []*trillian.LeafProto{{LeafIndex:1, LeafHash:[]byte("hash"), LeafData:merkleBytes1, ExtraData: []byte("extra1")}, {LeafIndex:2, LeafHash:[]byte("hash"), LeafData:merkleBytes2, ExtraData:[]byte("extra2")}}
+	client.On("GetLeavesByIndex", mock.MatchedBy(deadlineMatcher), &trillian.GetLeavesByIndexRequest{LeafIndex:[]int64{1, 2}}, mock.Anything /* []grpc.CallOption */).Return(&trillian.GetLeavesByIndexResponse{Status:okStatus, Leaves:rpcLeaves}, nil)
+
+	c := CTRequestHandlers{rpcClient:client, timeSource:fakeTimeSource, rpcDeadline:time.Millisecond * 500}
+	handler := wrappedGetEntriesHandler(c)
+
+	req, err := http.NewRequest("GET", "/ct/v1/get-entries?start=1&end=2", nil)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, http.StatusOK, w.Code, "expected HTTP OK for valid get-entries result: %v", w.Body)
+
+	var jsonMap map[string][]getEntriesEntry
+	if err := json.Unmarshal(w.Body.Bytes(), &jsonMap); err != nil {
+		t.Fatalf("Failed to unmarshal json response: %s", w.Body.Bytes())
+	}
+
+	assert.Equal(t, 1, len(jsonMap), "Expected one entry in outer json response")
+	entries := jsonMap["entries"]
+	assert.Equal(t, 2, len(entries), "Expected two entries in json response")
+
+	roundtripMerkleLeaf1, err1 := bytesToLeaf(entries[0].LeafInput)
+	roundtripMerkleLeaf2, err2 := bytesToLeaf(entries[1].LeafInput)
+
+	if err1 != nil || err2 != nil {
+		t.Fatalf("one or both leaves failed to decode / deserialize: %v %v %v %v", err1, entries[0].LeafInput, err2, entries[1].LeafInput)
+	}
+
+	assert.Equal(t, merkleLeaf1, *roundtripMerkleLeaf1, "leaf 1 mismatched on roundtrip")
+	assert.Equal(t, []byte("extra1"), entries[0].ExtraData, "extra data mismatched on leaf 1")
+	assert.Equal(t, merkleLeaf2, *roundtripMerkleLeaf2, "leaf 2 mismatched on roundtrip")
+	assert.Equal(t, []byte("extra2"), entries[1].ExtraData, "extra data mismatched on leaf 2")
+}
+
 func createJsonChain(t *testing.T, p PEMCertPool) io.Reader {
 	var chain jsonChain
 
@@ -723,4 +892,20 @@ func getEntriesTestHelper(t *testing.T, request string, expectedStatus int, expl
 	if expected, got := expectedStatus, w.Code; expected != got {
 		t.Fatalf("expected status %d, got %d for test case %s", expected, got, explanation)
 	}
+}
+
+func leafToBytes(leaf ct.MerkleTreeLeaf) ([]byte, error) {
+	var buf bytes.Buffer
+	err := WriteMerkleTreeLeaf(&buf, leaf)
+
+	if err != nil {
+		return []byte{}, err
+	}
+
+	return buf.Bytes(), nil
+}
+
+func bytesToLeaf(leafBytes []byte) (*ct.MerkleTreeLeaf, error) {
+	buf := bytes.NewBuffer(leafBytes)
+	return ct.ReadMerkleTreeLeaf(buf)
 }
