@@ -153,6 +153,8 @@ func TestGetHandlersOnlyAcceptGet(t *testing.T) {
 
 		assert.Equal(t, http.StatusMethodNotAllowed, resp.StatusCode, "Wrong status code for POST to GET handler")
 	}
+
+	client.AssertExpectations(t)
 }
 
 func TestPostHandlersRejectEmptyJson(t *testing.T) {
@@ -170,6 +172,8 @@ func TestPostHandlersRejectEmptyJson(t *testing.T) {
 
 		assert.Equal(t, http.StatusBadRequest, resp.StatusCode, "Wrong status code for empty JSON body")
 	}
+
+	client.AssertExpectations(t)
 }
 
 func TestPostHandlersRejectMalformedJson(t *testing.T) {
@@ -187,6 +191,8 @@ func TestPostHandlersRejectMalformedJson(t *testing.T) {
 
 		assert.Equal(t, http.StatusBadRequest, resp.StatusCode, "Wrong status code for invalid JSON body")
 	}
+
+	client.AssertExpectations(t)
 }
 
 func TestPostHandlersRejectEmptyCertChain(t *testing.T) {
@@ -204,6 +210,8 @@ func TestPostHandlersRejectEmptyCertChain(t *testing.T) {
 
 		assert.Equal(t, http.StatusBadRequest, resp.StatusCode, "Wrong status code for empty chain in JSON body")
 	}
+
+	client.AssertExpectations(t)
 }
 
 func TestPostHandlersAcceptNonEmptyCertChain(t *testing.T) {
@@ -222,6 +230,8 @@ func TestPostHandlersAcceptNonEmptyCertChain(t *testing.T) {
 		// TODO(Martin2112): Remove not implemented from test when all the handlers have been written
 		assert.True(t, resp.StatusCode == http.StatusNotImplemented || resp.StatusCode == http.StatusBadRequest, "Wrong status code for GET to GET handler: %v", resp.StatusCode)
 	}
+
+	client.AssertExpectations(t)
 }
 
 func TestGetRoots(t *testing.T) {
@@ -601,8 +611,6 @@ func makeAddChainRequestInternal(t *testing.T, handler http.HandlerFunc, path st
 
 	w := httptest.NewRecorder()
 	handler(w, req)
-
-	assert.NoError(t, err, "error from handler: %v", err)
 
 	return w
 }
