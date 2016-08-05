@@ -257,9 +257,15 @@ func wrappedGetSTHHandler(c CTRequestHandlers) http.HandlerFunc {
 			return
 		}
 
-		if len(response.GetSignedLogRoot().RootHash) != sha256.Size {
-			glog.Warningf("Bad root hash size when preparing sth: %d", len(response.GetSignedLogRoot().RootHash))
-			sendHttpError(w, http.StatusInternalServerError, err)
+		if treeSize := response.GetSignedLogRoot().TreeSize; treeSize < 0 {
+			glog.Warningf("Bad tree size when preparing sth: %d", treeSize)
+			sendHttpError(w, http.StatusInternalServerError, fmt.Errorf("bad tree size from backend: %d", treeSize))
+			return
+		}
+
+		if hashSize := len(response.GetSignedLogRoot().RootHash); hashSize != sha256.Size {
+			glog.Warningf("Bad root hash size when preparing sth: %d", hashSize)
+			sendHttpError(w, http.StatusInternalServerError, fmt.Errorf("bad hash size from backend expecting: %d got %d", sha256.Size, hashSize))
 			return
 		}
 
@@ -268,11 +274,12 @@ func wrappedGetSTHHandler(c CTRequestHandlers) http.HandlerFunc {
 		var hashArray [sha256.Size]byte
 		copy(hashArray[:], response.GetSignedLogRoot().RootHash)
 
-		// Build the CT STH object, which will be serialized and signed
+		// Build the CT STH object ready for signing
 		sth := ct.SignedTreeHead{TreeSize: uint64(response.GetSignedLogRoot().TreeSize),
 			Timestamp:      uint64(response.GetSignedLogRoot().TimestampNanos / 1000 / 1000),
 			SHA256RootHash: hashArray}
 
+		// Serialize and sign the STH and make sure this succeeds
 		err = SignV1TreeHead(c.logKeyManager, &sth)
 
 		if err != nil || len(sth.TreeHeadSignature.Signature) == 0 {

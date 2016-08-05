@@ -1,5 +1,8 @@
 package ct
 
+// TODO(Martin2112): Tests that verify the signature on SCTs and STHs. All the signing in here
+// uses dummy objects. Real tests might be better done as integration tests on the log operation.
+
 import (
 	"bufio"
 	"bytes"
@@ -553,6 +556,137 @@ func TestAddPrecertChain(t *testing.T) {
 	assert.Equal(t, "BAEABnNpZ25lZA==", resp.Signature)
 }
 
+func TestGetSTHBackendErrorFails(t *testing.T) {
+	km := new(crypto.MockKeyManager)
+	client := new(trillian.MockTrillianLogClient)
+
+	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
+	client.On("GetLatestSignedLogRoot", mock.MatchedBy(deadlineMatcher), &trillian.GetLatestSignedLogRootRequest{LogId: 0x42}, mock.Anything /* []grpc.CallOption */).Return(nil, errors.New("backendfailure"))
+	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
+	handler := wrappedGetSTHHandler(reqHandlers)
+
+	req, err := http.NewRequest("GET", "http://example.com/ct/v1/get-sth", nil)
+
+	assert.NoError(t, err, "get-sth test request setup failed: %v", err)
+
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code, "expected server error")
+	assert.Contains(t, w.Body.String(), "backendfailure")
+
+	client.AssertExpectations(t)
+}
+
+func TestGetSTHInvalidBackendTreeSizeFails(t *testing.T) {
+	// This tests that if the backend returns an impossible tree size it doesn't get sent
+	// to the client
+	km := new(crypto.MockKeyManager)
+	client := new(trillian.MockTrillianLogClient)
+
+	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
+	client.On("GetLatestSignedLogRoot", mock.MatchedBy(deadlineMatcher), &trillian.GetLatestSignedLogRootRequest{LogId: 0x42}, mock.Anything /* []grpc.CallOption */).Return(makeGetRootResponseForTest(12345, -50, []byte("abcdabcdabcdabcdabcdabcdabcdabcd")), nil)
+	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
+	handler := wrappedGetSTHHandler(reqHandlers)
+
+	req, err := http.NewRequest("GET", "http://example.com/ct/v1/get-sth", nil)
+
+	assert.NoError(t, err, "get-sth test request setup failed: %v", err)
+
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code, "expected server error")
+	assert.Contains(t, w.Body.String(), "bad tree size")
+
+	client.AssertExpectations(t)
+}
+
+func TestGetSTHMissingRootHashFails(t *testing.T) {
+	// This tests that if the backend returns a corrupt hash it doesn't get sent to the client
+	km := new(crypto.MockKeyManager)
+	client := new(trillian.MockTrillianLogClient)
+
+	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
+	client.On("GetLatestSignedLogRoot", mock.MatchedBy(deadlineMatcher), &trillian.GetLatestSignedLogRootRequest{LogId: 0x42}, mock.Anything /* []grpc.CallOption */).Return(makeGetRootResponseForTest(12345, 25, []byte("thisisnot32byteslong")), nil)
+	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
+	handler := wrappedGetSTHHandler(reqHandlers)
+
+	req, err := http.NewRequest("GET", "http://example.com/ct/v1/get-sth", nil)
+
+	assert.NoError(t, err, "get-sth test request setup failed: %v", err)
+
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code, "expected server error")
+	assert.Contains(t, w.Body.String(), "bad hash size")
+
+	client.AssertExpectations(t)
+}
+
+func TestGetSTHSigningFails(t *testing.T) {
+	// Arranges for the signing to fail, ensures we do the right thing
+	km := new(crypto.MockKeyManager)
+	client := new(trillian.MockTrillianLogClient)
+
+	signer := new(crypto.MockSigner)
+	signer.On("Sign", mock.Anything, mock.Anything, mock.Anything).Return([]byte{}, errors.New("signerfails"))
+	km.On("Signer").Return(signer, nil)
+
+	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
+	client.On("GetLatestSignedLogRoot", mock.MatchedBy(deadlineMatcher), &trillian.GetLatestSignedLogRootRequest{LogId: 0x42}, mock.Anything /* []grpc.CallOption */).Return(makeGetRootResponseForTest(12345, 25, []byte("abcdabcdabcdabcdabcdabcdabcdabcd")), nil)
+	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
+	handler := wrappedGetSTHHandler(reqHandlers)
+
+	req, err := http.NewRequest("GET", "http://example.com/ct/v1/get-sth", nil)
+
+	assert.NoError(t, err, "get-sth test request setup failed: %v", err)
+
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code, "expected server error")
+	assert.Contains(t, w.Body.String(), "signerfails")
+
+	client.AssertExpectations(t)
+	signer.AssertExpectations(t)
+}
+
+func TestGetSTH(t *testing.T) {
+	toSign := []byte{0x1e, 0x88, 0x54, 0x6f, 0x51, 0x57, 0xbf, 0xaf, 0x77, 0xca, 0x24, 0x54, 0x69, 0xb, 0x60, 0x26, 0x31, 0xfe, 0xda, 0xe9, 0x25, 0xbb, 0xe7, 0xcf, 0x70, 0x8e, 0xa2, 0x75, 0x97, 0x5b, 0xfe, 0x74}
+	km := setupMockKeyManagerForSth(toSign)
+	client := new(trillian.MockTrillianLogClient)
+
+	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
+	client.On("GetLatestSignedLogRoot", mock.MatchedBy(deadlineMatcher), &trillian.GetLatestSignedLogRootRequest{LogId: 0x42}, mock.Anything /* []grpc.CallOption */).Return(makeGetRootResponseForTest(12345000000, 25, []byte("abcdabcdabcdabcdabcdabcdabcdabcd")), nil)
+	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
+	handler := wrappedGetSTHHandler(reqHandlers)
+
+	req, err := http.NewRequest("GET", "http://example.com/ct/v1/get-sth", nil)
+
+	assert.NoError(t, err, "get-sth test request setup failed: %v", err)
+
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code, "expected http request to succeed: %v", w.Body)
+
+	// Now roundtrip the response and check we got the expected data
+	var parsedJson getSthResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &parsedJson); err != nil {
+		t.Fatalf("Failed to unmarshal json response: %s", w.Body.Bytes())
+	}
+
+	assert.Equal(t, int64(25), parsedJson.TreeSize, "Expected result tree size 25")
+	assert.Equal(t, int64(12345), parsedJson.TimestampMillis, "Expected timestamp millis 12345")
+	assert.Equal(t, "YWJjZGFiY2RhYmNkYWJjZGFiY2RhYmNkYWJjZGFiY2Q=", base64.StdEncoding.EncodeToString(parsedJson.RootHash))
+	assert.Equal(t, "c2lnbmVk", base64.StdEncoding.EncodeToString(parsedJson.Signature))
+
+	client.AssertExpectations(t)
+	km.AssertExpectations(t)
+}
+
 func loadCertsIntoPoolOrDie(t *testing.T, certs []string) *PEMCertPool {
 	pool := NewPEMCertPool()
 
@@ -912,4 +1046,12 @@ func leafToBytes(leaf ct.MerkleTreeLeaf) ([]byte, error) {
 func bytesToLeaf(leafBytes []byte) (*ct.MerkleTreeLeaf, error) {
 	buf := bytes.NewBuffer(leafBytes)
 	return ct.ReadMerkleTreeLeaf(buf)
+}
+
+func makeGetRootResponseForTest(stamp, treeSize int64, hash []byte) *trillian.GetLatestSignedLogRootResponse {
+	return &trillian.GetLatestSignedLogRootResponse{Status: &trillian.TrillianApiStatus{StatusCode: trillian.TrillianApiStatusCode_OK},
+		SignedLogRoot: &trillian.SignedLogRoot{
+			TimestampNanos: stamp,
+			TreeSize:       treeSize,
+			RootHash:       hash}}
 }

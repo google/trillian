@@ -264,6 +264,14 @@ func TestSerializeCTLogEntry(t *testing.T) {
 
 // Creates a mock key manager for use in interaction tests
 func setupMockKeyManager(toSign []byte) *crypto.MockKeyManager {
+	mockKeyManager := setupMockKeyManagerForSth(toSign)
+	mockKeyManager.On("GetRawPublicKey").Return([]byte("key"), nil)
+
+	return mockKeyManager
+}
+
+// As above but we don't expect the call for a public key as we don't need it for an STH
+func setupMockKeyManagerForSth(toSign []byte) *crypto.MockKeyManager {
 	hasher := trillian.NewSHA256()
 	mockKeyManager := new(crypto.MockKeyManager)
 	mockSigner := new(crypto.MockSigner)
@@ -272,7 +280,6 @@ func setupMockKeyManager(toSign []byte) *crypto.MockKeyManager {
 			return true
 		}), toSign, hasher).Return([]byte("signed"), nil)
 	mockKeyManager.On("Signer").Return(mockSigner, nil)
-	mockKeyManager.On("GetRawPublicKey").Return([]byte("key"), nil)
 
 	return mockKeyManager
 }
