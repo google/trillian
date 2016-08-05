@@ -121,6 +121,38 @@ func SignV1SCTForPrecertificate(km crypto.KeyManager, cert *x509.Certificate, t 
 	return serializeAndSignSCT(km, leaf, sctInput, t)
 }
 
+// SignV1TreeHead signs a tree head for CT. The input STH should have been built from a
+// backend response and already checked for validity.
+func SignV1TreeHead(km crypto.KeyManager, sth *ct.SignedTreeHead) error {
+	signer, err := km.Signer()
+
+	if err != nil {
+		return err
+	}
+
+	sthBytes, err := ct.SerializeSTHSignatureInput(*sth)
+
+	if err != nil {
+		return err
+	}
+
+	// TODO(Martin2112): Algorithms shouldn't be hardcoded here, needs more work in key manager
+	trillianSigner := crypto.NewTrillianSigner(trillian.NewSHA256(), trillian.SignatureAlgorithm_RSA, signer)
+
+	signature, err := trillianSigner.Sign(sthBytes)
+
+	if err != nil {
+		return err
+	}
+
+	sth.TreeHeadSignature = ct.DigitallySigned{
+		HashAlgorithm:      ct.SHA256,
+		SignatureAlgorithm: ct.RSA,
+		Signature:          signature.Signature}
+
+	return nil
+}
+
 func getSCTForSignatureInput(t time.Time) ct.SignedCertificateTimestamp {
 	return ct.SignedCertificateTimestamp{
 		SCTVersion: ct.V1,

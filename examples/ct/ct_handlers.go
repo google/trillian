@@ -99,6 +99,14 @@ type getEntriesResponse struct {
 	Entries []getEntriesEntry `json:"entries"`
 }
 
+// getSthResponse is a struct for marshalling get-sth responses. See RFC 6962 Section 4.3
+type getSthResponse struct {
+	TreeSize        int64  `json:"tree_size"`
+	TimestampMillis int64  `json:"timestamp"`
+	RootHash        []byte `json:"sha256_root_hash"`
+	Signature       []byte `json:"tree_head_signature"`
+}
+
 func parseBodyAsJSONChain(w http.ResponseWriter, r *http.Request) (addChainRequest, error) {
 	body, err := ioutil.ReadAll(r.Body)
 
@@ -240,7 +248,59 @@ func wrappedGetSTHHandler(c CTRequestHandlers) http.HandlerFunc {
 			return
 		}
 
-		http.Error(w, http.StatusText(http.StatusNotImplemented), http.StatusNotImplemented)
+		request := trillian.GetLatestSignedLogRootRequest{LogId: c.logID}
+		ctx, _ := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
+		response, err := c.rpcClient.GetLatestSignedLogRoot(ctx, &request)
+
+		if err != nil || !rpcStatusOK(response.GetStatus()) {
+			sendHttpError(w, http.StatusInternalServerError, err)
+			return
+		}
+
+		if len(response.GetSignedLogRoot().RootHash) != sha256.Size {
+			glog.Warningf("Bad root hash size when preparing sth: %d", len(response.GetSignedLogRoot().RootHash))
+			sendHttpError(w, http.StatusInternalServerError, err)
+			return
+		}
+
+		// Jump through Go hoops because we're mixing arrays and slices, we checked the size above
+		// so it should exactly fit what we copy into it
+		var hashArray [sha256.Size]byte
+		copy(hashArray[:], response.GetSignedLogRoot().RootHash)
+
+		// Build the CT STH object, which will be serialized and signed
+		sth := ct.SignedTreeHead{TreeSize: uint64(response.GetSignedLogRoot().TreeSize),
+			Timestamp:      uint64(response.GetSignedLogRoot().TimestampNanos / 1000 / 1000),
+			SHA256RootHash: hashArray}
+
+		err = SignV1TreeHead(c.logKeyManager, &sth)
+
+		if err != nil || len(sth.TreeHeadSignature.Signature) == 0 {
+			glog.Warningf("Failed to sign tree head: %v %v", sth, err)
+			sendHttpError(w, http.StatusInternalServerError, err)
+			return
+		}
+
+		// Now build the final result object that will be marshalled to JSON
+		jsonResponse := convertSTHForClientResponse(sth)
+
+		w.Header().Set(contentTypeHeader, contentTypeJSON)
+		jsonData, err := json.Marshal(&jsonResponse)
+
+		if err != nil {
+			glog.Warningf("Failed to marshal get-sth resp: %v", jsonResponse)
+			sendHttpError(w, http.StatusInternalServerError, err)
+			return
+		}
+
+		_, err = w.Write(jsonData)
+
+		if err != nil {
+			glog.Warningf("Failed to write get-sth resp: %v", jsonResponse)
+			// Probably too late for this as headers might have been written but we don't know for sure
+			sendHttpError(w, http.StatusInternalServerError, err)
+			return
+		}
 	}
 }
 
@@ -610,4 +670,15 @@ func marshalGetEntriesResponse(rpcResponse *trillian.GetLeavesByIndexResponse) (
 	}
 
 	return jsonResponse, nil
+}
+
+// convertSTHForClientResponse does some simple marshalling from a properly signed CT object
+// to the object we'll use to create the JSON response to a client with the correct RFC
+// field names.
+func convertSTHForClientResponse(sth ct.SignedTreeHead) getSthResponse {
+	return getSthResponse{
+		TreeSize:        int64(sth.TreeSize),
+		RootHash:        sth.SHA256RootHash[:],
+		TimestampMillis: int64(sth.Timestamp),
+		Signature:       sth.TreeHeadSignature.Signature}
 }

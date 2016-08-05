@@ -153,27 +153,19 @@ func TestPostHandlersOnlyAcceptPost(t *testing.T) {
 	}
 }
 
-func TestGetHandlersOnlyAcceptGet(t *testing.T) {
+func TestGetHandlersRejectPost(t *testing.T) {
 	client := new(trillian.MockTrillianLogClient)
 	pool := NewPEMCertPool()
 
-	handlers := CTRequestHandlers{rpcClient: client}
+	handlers := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource}
 
-	// Anything in the get handler list should only accept GET
+	// Anything in the get handler list should not accept POST. We don't test they accept
+	// GET because that needs different mock backend set up per handler.
 	for _, hp := range allGetHandlersForTest(pool, handlers) {
 		s := httptest.NewServer(hp.handler)
 		defer s.Close()
-		resp, err := http.Get(s.URL + "/ct/v1/" + hp.path)
 
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		// TODO(Martin2112): Remove this test when there are no more handlers to be implemented and
-		// rely on the handlers own tests
-		assert.True(t, resp.StatusCode == http.StatusNotImplemented || resp.StatusCode == http.StatusBadRequest || resp.StatusCode == http.StatusOK, "Wrong status code for GET to GET handler")
-
-		resp, err = http.Post(s.URL+"/ct/v1/"+hp.path, "application/json", nil)
+		resp, err := http.Post(s.URL + "/ct/v1/" + hp.path, "application/json", nil)
 
 		if err != nil {
 			t.Fatal(err)
