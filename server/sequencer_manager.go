@@ -14,7 +14,7 @@ type SequencerManager struct {
 	keyManager crypto.KeyManager
 }
 
-func testRootAge(ts util.TimeSource, maxAge time.Duration) log.CurrentRootExpiredFunc {
+func isRootTooOld(ts util.TimeSource, maxAge time.Duration) log.CurrentRootExpiredFunc {
 	return func(root trillian.SignedLogRoot) bool {
 		rootTime := time.Unix(0, root.TimestampNanos)
 		rootAge := ts.Now().Sub(rootTime)
@@ -60,7 +60,7 @@ func (s SequencerManager) ExecutePass(logIDs []trillian.LogID, context LogOperat
 		// TODO(Martin2112): Allow for different tree hashers to be used by different logs
 		sequencer := log.NewSequencer(merkle.NewRFC6962TreeHasher(trillian.NewSHA256()), context.timeSource, storage, s.keyManager)
 
-		leaves, err := sequencer.SequenceBatch(context.batchSize, testRootAge(context.timeSource, context.signInterval))
+		leaves, err := sequencer.SequenceBatch(context.batchSize, isRootTooOld(context.timeSource, context.signInterval))
 
 		if err != nil {
 			glog.Warningf("Error trying to sequence batch for: %v: %v", logID, err)
