@@ -95,6 +95,9 @@ iBEUO5P6TnqH3TfhOF8sKQg=`
 const caAndIntermediateCertsPEM string = "-----BEGIN CERTIFICATE-----\n" + caCertB64 + "\n-----END CERTIFICATE-----\n" +
 	"\n-----BEGIN CERTIFICATE-----\n" + intermediateCertB64 + "\n-----END CERTIFICATE-----\n"
 
+// Used in test of corrupt merkle leaves
+const invalidLeafString string = "NOT A MERKLE TREE LEAF"
+
 type handlerAndPath struct {
 	path    string
 	handler http.HandlerFunc
@@ -712,7 +715,7 @@ func TestGetEntriesBackendReturnedNonContiguousRange(t *testing.T) {
 func TestGetEntriesLeafCorrupt(t *testing.T) {
 	client := new(trillian.MockTrillianLogClient)
 
-	rpcLeaves := []*trillian.LeafProto{{LeafIndex: 1, LeafHash: []byte("hash"), LeafData: []byte("NOT A MERKLE TREE LEAF")}, {LeafIndex: 2, LeafHash: []byte("hash"), LeafData: []byte("NOT A MERKLE TREE LEAF")}}
+	rpcLeaves := []*trillian.LeafProto{{LeafIndex: 1, LeafHash: []byte("hash"), LeafData: []byte(invalidLeafString)}, {LeafIndex: 2, LeafHash: []byte("hash"), LeafData: []byte(invalidLeafString)}}
 	client.On("GetLeavesByIndex", mock.MatchedBy(deadlineMatcher), &trillian.GetLeavesByIndexRequest{LeafIndex: []int64{1, 2}}, mock.Anything /* []grpc.CallOption */).Return(&trillian.GetLeavesByIndexResponse{Status: okStatus, Leaves: rpcLeaves}, nil)
 
 	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
@@ -731,8 +734,22 @@ func TestGetEntriesLeafCorrupt(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, http.StatusInternalServerError, w.Code, "expected HTTP server error for invalid merkle leaf result: %v", w.Body)
-	assert.Contains(t, w.Body.String(), "deserialize merkle leaf", "unexpected error for invalid leaf data")
+	// We should still have received the data though it failed to deserialize.
+	assert.Equal(t, http.StatusOK, w.Code, "expected HTTP OK for invalid merkle leaf result: %v", w.Body)
+
+	var jsonMap map[string][]getEntriesEntry
+	if err := json.Unmarshal(w.Body.Bytes(), &jsonMap); err != nil {
+		t.Fatalf("Failed to unmarshal json response: %s", w.Body.Bytes())
+	}
+
+	assert.Equal(t, 1, len(jsonMap), "Expected one entry in outer json response")
+	entries := jsonMap["entries"]
+	assert.Equal(t, 2, len(entries), "Expected two entries in json response")
+
+	// Both leaves were invalid but their data should have been passed through as is
+	for l := 0; l < len(entries); l++ {
+		assert.Equal(t, invalidLeafString, string(entries[l].LeafInput), "Unexpected leaf data received")
+	}
 }
 
 func TestGetEntries(t *testing.T) {

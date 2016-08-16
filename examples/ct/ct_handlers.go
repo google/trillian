@@ -539,8 +539,9 @@ func parseAndValidateGetEntriesRange(r *http.Request, maxAllowedRange int64) (in
 	return validateStartAndEnd(startIndex, endIndex, maxAllowedRange)
 }
 
-// validateStartAndEnd applies validation to the range params for get-entries. Returns nil if
-// we accept them or an error giving the reason why not
+// validateStartAndEnd applies validation to the range params for get-entries. Either returns
+// the parameters to be used (which could be a subset of the request input though it
+// currently never is) or an error that describes why the parameters are not acceptable.
 func validateStartAndEnd(start, end, maxRange int64) (int64, int64, error) {
 	if start < 0 || end < 0 {
 		return 0, 0, fmt.Errorf("start (%d) and end (%d) parameters must be >= 0", start, end)
@@ -594,13 +595,18 @@ func marshalGetEntriesResponse(rpcResponse *trillian.GetLeavesByIndexResponse) (
 	jsonResponse := getEntriesResponse{}
 
 	for _, leaf := range rpcResponse.Leaves {
-		// We're only deserializing it to ensure it's valid, don't need the result
+		// We're only deserializing it to ensure it's valid, don't need the result. We still
+		// return the data if it fails to deserialize as otherwise the root hash could not
+		// be verified. However this indicates a potentially serious failure in log operation
+		// or data storage that should be investigated.
 		if _, err := ct.ReadMerkleTreeLeaf(bytes.NewBuffer(leaf.LeafData)); err != nil {
-			return getEntriesResponse{}, errors.New("Failed to deserialize merkle leaf from backend")
+			// TODO(Martin2112): Hook this up to monitoring when implemented
+			glog.Warningf("Failed to deserialize merkle leaf from backend: %d", leaf.LeafIndex)
 		}
 
-		entry := getEntriesEntry{LeafInput: leaf.LeafData, ExtraData: leaf.ExtraData}
-		jsonResponse.Entries = append(jsonResponse.Entries, entry)
+		jsonResponse.Entries = append(jsonResponse.Entries, getEntriesEntry{
+			LeafInput: leaf.LeafData,
+			ExtraData: leaf.ExtraData})
 	}
 
 	return jsonResponse, nil
