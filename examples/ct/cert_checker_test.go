@@ -2,17 +2,15 @@ package ct
 
 import (
 	"encoding/base64"
-	"encoding/pem"
 	"testing"
 
-	"github.com/google/certificate-transparency/go/x509"
 	"github.com/google/certificate-transparency/go/x509/pkix"
 	"github.com/google/trillian/examples/ct/testonly"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestIsPrecertificate(t *testing.T) {
-	cert := pemToCert(t, testonly.PrecertPEMValid)
+	cert := testonly.PemToCert(t, testonly.PrecertPEMValid)
 
 	isPrecert, err := IsPrecertificate(cert)
 
@@ -28,7 +26,7 @@ func TestIsPrecertificate(t *testing.T) {
 }
 
 func TestIsPrecertificateNormalCert(t *testing.T) {
-	cert := pemToCert(t, testonly.CACertPEM)
+	cert := testonly.PemToCert(t, testonly.CACertPEM)
 
 	isPrecert, err := IsPrecertificate(cert)
 
@@ -37,7 +35,7 @@ func TestIsPrecertificateNormalCert(t *testing.T) {
 }
 
 func TestIsPrecertificateInvalidNonCriticalExtension(t *testing.T) {
-	cert := pemToCert(t, testonly.PrecertPEMValid)
+	cert := testonly.PemToCert(t, testonly.PrecertPEMValid)
 	// Invalid because it's not marked as critical
 	ext := pkix.Extension{Id: ctPoisonExtensionOID, Critical: false, Value: asn1NullBytes}
 
@@ -48,7 +46,7 @@ func TestIsPrecertificateInvalidNonCriticalExtension(t *testing.T) {
 }
 
 func TestIsPrecertificateInvalidBytesInExtension(t *testing.T) {
-	cert := pemToCert(t, testonly.PrecertPEMValid)
+	cert := testonly.PemToCert(t, testonly.PrecertPEMValid)
 	// Invalid because it's not asn.1 null
 	ext := pkix.Extension{Id: ctPoisonExtensionOID, Critical: false, Value: []byte{0x42, 0x42, 0x42}}
 
@@ -131,31 +129,9 @@ func pemsToJsonChain(t *testing.T, pemCerts []string) []string {
 	chain := []string{}
 
 	for _, pem := range pemCerts {
-		cert := pemToCert(t, pem)
+		cert := testonly.PemToCert(t, pem)
 		chain = append(chain, base64.StdEncoding.EncodeToString(cert.Raw))
 	}
 
 	return chain
-}
-
-func pemToCert(t *testing.T, pemData string) *x509.Certificate {
-	bytes, rest := pem.Decode([]byte(pemData))
-
-	if len(rest) > 0 {
-		t.Fatalf("Extra data after PEM: %v", rest)
-		return nil
-	}
-
-	cert, err := x509.ParseCertificate(bytes.Bytes)
-
-	if err != nil {
-		_, ok := err.(x509.NonFatalErrors)
-
-		if !ok {
-			t.Fatal(err)
-			return nil
-		}
-	}
-
-	return cert
 }
