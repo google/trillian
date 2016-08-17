@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/golang/glog"
@@ -37,6 +38,12 @@ const (
 	jsonMapKeyCertificates string = "certificates"
 	// Logging level for debug verbose logs
 	logVerboseLevel glog.Level = 2
+	// Max number of entries we allow in a get-entries request
+	maxGetEntriesAllowed int64 = 50
+	// The name of the get-entries start parameter
+	getEntriesParamStart = "start"
+	// The name of the get-entries end parameter
+	getEntriesParamEnd = "end"
 )
 
 // CTRequestHandlers provides HTTP handler functions for CT V1 as defined in RFC 6962
@@ -44,17 +51,17 @@ const (
 // log backend RPC service.
 type CTRequestHandlers struct {
 	// logID is the tree ID that identifies this log in node storage
-	logID         int64
+	logID int64
 	// trustedRoots is a pool of certificates that defines the roots the CT log will accept
-	trustedRoots  *PEMCertPool
+	trustedRoots *PEMCertPool
 	// rpcClient is the client used to communicate with the trillian backend
-	rpcClient     trillian.TrillianLogClient
+	rpcClient trillian.TrillianLogClient
 	// logKeyManager holds the keys this log needs to sign objects
 	logKeyManager crypto.KeyManager
 	// rpcDeadline is the deadline that will be set on all backend RPC requests
-	rpcDeadline   time.Duration
+	rpcDeadline time.Duration
 	// timeSource is a util.TimeSource that can be injected for testing
-	timeSource    util.TimeSource
+	timeSource util.TimeSource
 }
 
 // NewCTRequestHandlers creates a new instance of CTRequestHandlers. They must still
@@ -74,11 +81,22 @@ type addChainRequest struct {
 
 // addChainResponse is a struct for marshalling add-chain responses. See RFC 6962 Sections 4.1 and 4.2
 type addChainResponse struct {
-	SctVersion int    `json:sct_version`
-	ID         string `json:id`
-	Timestamp  uint64 `json:timestamp`
-	Extensions string `json:extensions`
-	Signature  string `json:signature`
+	SctVersion int    `json:"sct_version"`
+	ID         string `json:"id"`
+	Timestamp  uint64 `json:"timestamp"`
+	Extensions string `json:"extensions"`
+	Signature  string `json:"signature"`
+}
+
+// getEntriesEntry is a struct that represents one element in a get-entries response
+type getEntriesEntry struct {
+	LeafInput []byte `json:"leaf_input"`
+	ExtraData []byte `json:"extra_data"`
+}
+
+// getEntriesResponse is a struct for marshalling get-entries respsonses. See RFC6962 Section 4.6
+type getEntriesResponse struct {
+	Entries []getEntriesEntry `json:"entries"`
 }
 
 func parseBodyAsJSONChain(w http.ResponseWriter, r *http.Request) (addChainRequest, error) {
@@ -246,13 +264,80 @@ func wrappedGetProofByHashHandler(rpcClient trillian.TrillianLogClient) http.Han
 	}
 }
 
-func wrappedGetEntriesHandler(rpcClient trillian.TrillianLogClient) http.HandlerFunc {
+func wrappedGetEntriesHandler(c CTRequestHandlers) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !enforceMethod(w, r, httpMethodGet) {
 			return
 		}
 
-		http.Error(w, http.StatusText(http.StatusNotImplemented), http.StatusNotImplemented)
+		// The first job is to parse the params and make sure they're sensible. We just make
+		// sure the range is valid. We don't do an extra roundtrip to get the current tree
+		// size and prefer to let the backend handle this case
+		startIndex, endIndex, err := parseAndValidateGetEntriesRange(r, maxGetEntriesAllowed)
+
+		if err != nil {
+			glog.Warningf("Bad range on get-entries request: %v", err)
+			sendHttpError(w, http.StatusBadRequest, err)
+			return
+		}
+
+		// Now make a request to the backend to get the relevant leaves
+		requestIndices := buildIndicesForRange(startIndex, endIndex)
+		request := trillian.GetLeavesByIndexRequest{LogId: c.logID, LeafIndex: requestIndices}
+
+		ctx, _ := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
+
+		response, err := c.rpcClient.GetLeavesByIndex(ctx, &request)
+
+		if err != nil || !rpcStatusOK(response.GetStatus()) {
+			sendHttpError(w, http.StatusInternalServerError, fmt.Errorf("RPC failed, possible extra info: %v", err))
+			return
+		}
+
+		// Apply additional checks on the response to make sure we got a contiguous leaf range.
+		// It's allowed by the RFC for the backend to truncate the range in cases where the
+		// range exceeds the tree size etc. so we could get fewer leaves than we requested but
+		// never more and never anything outside the requested range.
+		if expected, got := len(requestIndices), len(response.Leaves); got > expected {
+			glog.Warningf("Backend returned more leaves (%d) than requested: (%d)", got, expected)
+			sendHttpError(w, http.StatusInternalServerError, fmt.Errorf("Backend returned too many leaves: %d", got))
+			return
+		}
+
+		if err := isResponseContiguousRange(response, startIndex, endIndex); err != nil {
+			glog.Warningf("Backend get-entries range received from backend non contiguous: %v", err)
+			sendHttpError(w, http.StatusInternalServerError, err)
+			return
+		}
+
+		// Now we've checked the response and it seems to be valid we need to serialize the
+		// leaves in JSON format. Doing a round trip via the leaf deserializer gives us another
+		// chance to prevent bad / corrupt data from reaching the client.
+		jsonResponse, err := marshalGetEntriesResponse(response)
+
+		if err != nil {
+			glog.Warningf("Failed to process leaves returned from backend: %v", err)
+			sendHttpError(w, http.StatusInternalServerError, err)
+			return
+		}
+
+		w.Header().Set(contentTypeHeader, contentTypeJSON)
+		jsonData, err := json.Marshal(&jsonResponse)
+
+		if err != nil {
+			glog.Warningf("Failed to marshal get-entries resp: %v", jsonResponse)
+			sendHttpError(w, http.StatusInternalServerError, err)
+			return
+		}
+
+		_, err = w.Write(jsonData)
+
+		if err != nil {
+			glog.Warningf("Failed to write get-entries resp: %v", jsonResponse)
+			// Probably too late for this as headers might have been written but we don't know for sure
+			sendHttpError(w, http.StatusInternalServerError, err)
+			return
+		}
 	}
 }
 
@@ -301,7 +386,7 @@ func (c CTRequestHandlers) RegisterCTHandlers() {
 	http.HandleFunc(pathFor("get-sth"), wrappedGetSTHHandler(c.rpcClient))
 	http.HandleFunc(pathFor("get-sth-consistency"), wrappedGetSTHConsistencyHandler(c.rpcClient))
 	http.HandleFunc(pathFor("get-proof-by-hash"), wrappedGetProofByHashHandler(c.rpcClient))
-	http.HandleFunc(pathFor("get-entries"), wrappedGetEntriesHandler(c.rpcClient))
+	http.HandleFunc(pathFor("get-entries"), wrappedGetEntriesHandler(c))
 	http.HandleFunc(pathFor("get-roots"), wrappedGetRootsHandler(c.trustedRoots, c.rpcClient))
 	http.HandleFunc(pathFor("get-entry-and-proof"), wrappedGetEntryAndProofHandler(c.rpcClient))
 }
@@ -341,6 +426,7 @@ func verifyAddChain(req addChainRequest, w http.ResponseWriter, trustedRoots PEM
 
 	if err != nil {
 		glog.Warningf("Precert test failed: %v", err)
+		sendHttpError(w, http.StatusBadRequest, err)
 		return nil
 	}
 
@@ -435,4 +521,93 @@ func marshalAndWriteAddChainResponse(sct ct.SignedCertificateTimestamp, km crypt
 	}
 
 	return nil
+}
+
+func parseAndValidateGetEntriesRange(r *http.Request, maxAllowedRange int64) (int64, int64, error) {
+	startIndex, err := strconv.ParseInt(r.FormValue(getEntriesParamStart), 10, 64)
+
+	if err != nil {
+		return 0, 0, err
+	}
+
+	endIndex, err := strconv.ParseInt(r.FormValue(getEntriesParamEnd), 10, 64)
+
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return validateStartAndEnd(startIndex, endIndex, maxAllowedRange)
+}
+
+// validateStartAndEnd applies validation to the range params for get-entries. Either returns
+// the parameters to be used (which could be a subset of the request input though it
+// currently never is) or an error that describes why the parameters are not acceptable.
+func validateStartAndEnd(start, end, maxRange int64) (int64, int64, error) {
+	if start < 0 || end < 0 {
+		return 0, 0, fmt.Errorf("start (%d) and end (%d) parameters must be >= 0", start, end)
+	}
+
+	if start > end {
+		return 0, 0, fmt.Errorf("start (%d) and end (%d) is not a valid range", start, end)
+	}
+
+	numEntries := end - start + 1
+
+	if numEntries > maxRange {
+		return 0, 0, fmt.Errorf("requesting %d entries but we only allow up to %d", numEntries, maxRange)
+	}
+
+	return start, end, nil
+}
+
+// buildIndicesForRange expands the range out, the backend allows for non contiguous leaf fetches
+// but the CT spec doesn't. The input values should have been checked for consistency before calling
+// this.
+func buildIndicesForRange(start, end int64) []int64 {
+	indices := make([]int64, 0, end-start+1)
+	for i := start; i <= end; i++ {
+		indices = append(indices, i)
+	}
+
+	return indices
+}
+
+// isResponseContiguousRange checks that the response has a contiguous range of leaves and
+// that it is a subset or equal to the requested range. This is additional protection against
+// backend bugs. Returns nil if the response looks valid.
+func isResponseContiguousRange(response *trillian.GetLeavesByIndexResponse, start, end int64) error {
+	for li, l := range response.Leaves {
+		if li > 0 && response.Leaves[li].LeafIndex-response.Leaves[li-1].LeafIndex != 1 {
+			return fmt.Errorf("backend returned non contiguous leaves: %v %v", response.Leaves[li-1], response.Leaves[li])
+		}
+
+		if l.LeafIndex < start || l.LeafIndex > end {
+			return fmt.Errorf("backend returned leaf:%d outside requested range:%d, %d", l.LeafIndex, start, end)
+		}
+	}
+
+	return nil
+}
+
+// marshalGetEntriesResponse does the conversion from the backend response to the one we need for
+// an RFC compliant JSON response to the client.
+func marshalGetEntriesResponse(rpcResponse *trillian.GetLeavesByIndexResponse) (getEntriesResponse, error) {
+	jsonResponse := getEntriesResponse{}
+
+	for _, leaf := range rpcResponse.Leaves {
+		// We're only deserializing it to ensure it's valid, don't need the result. We still
+		// return the data if it fails to deserialize as otherwise the root hash could not
+		// be verified. However this indicates a potentially serious failure in log operation
+		// or data storage that should be investigated.
+		if _, err := ct.ReadMerkleTreeLeaf(bytes.NewBuffer(leaf.LeafData)); err != nil {
+			// TODO(Martin2112): Hook this up to monitoring when implemented
+			glog.Warningf("Failed to deserialize merkle leaf from backend: %d", leaf.LeafIndex)
+		}
+
+		jsonResponse.Entries = append(jsonResponse.Entries, getEntriesEntry{
+			LeafInput: leaf.LeafData,
+			ExtraData: leaf.ExtraData})
+	}
+
+	return jsonResponse, nil
 }

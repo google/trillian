@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -33,10 +34,29 @@ var fakeTime = time.Date(2016, 7, 22, 11, 01, 13, 0, time.UTC)
 // The deadline should be the above bumped by 500ms
 var fakeDeadlineTime = time.Date(2016, 7, 22, 11, 01, 13, 500*1000*1000, time.UTC)
 var fakeTimeSource = util.FakeTimeSource{fakeTime}
+var okStatus = &trillian.TrillianApiStatus{StatusCode: trillian.TrillianApiStatusCode_OK}
 
 type jsonChain struct {
 	Chain []string `json:chain`
 }
+
+type getEntriesRangeTestCase struct {
+	start          int64
+	end            int64
+	expectedStatus int
+	explanation    string
+	rpcExpected    bool
+}
+
+var getEntriesRangeTestCases = []getEntriesRangeTestCase{
+	{-1, 0, http.StatusBadRequest, "-ve start value not allowed", false},
+	{0, -1, http.StatusBadRequest, "-ve end value not allowed", false},
+	{20, 10, http.StatusBadRequest, "invalid range end>start", false},
+	{3000, -50, http.StatusBadRequest, "invalid range, -ve end", false},
+	{10, 20, http.StatusInternalServerError, "valid range", true},
+	{10, 10, http.StatusInternalServerError, "valid range, one entry", true},
+	{10, 9, http.StatusBadRequest, "invalid range, edge case", false},
+	{1000, 50000, http.StatusBadRequest, "range too large to be accepted", false}}
 
 const caCertB64 string = `MIIC0DCCAjmgAwIBAgIBADANBgkqhkiG9w0BAQUFADBVMQswCQYDVQQGEwJHQjEk
 MCIGA1UEChMbQ2VydGlmaWNhdGUgVHJhbnNwYXJlbmN5IENBMQ4wDAYDVQQIEwVX
@@ -75,17 +95,27 @@ iBEUO5P6TnqH3TfhOF8sKQg=`
 const caAndIntermediateCertsPEM string = "-----BEGIN CERTIFICATE-----\n" + caCertB64 + "\n-----END CERTIFICATE-----\n" +
 	"\n-----BEGIN CERTIFICATE-----\n" + intermediateCertB64 + "\n-----END CERTIFICATE-----\n"
 
+// Used in test of corrupt merkle leaves
+const invalidLeafString string = "NOT A MERKLE TREE LEAF"
+
 type handlerAndPath struct {
 	path    string
 	handler http.HandlerFunc
 }
 
 func allGetHandlersForTest(trustedRoots *PEMCertPool, client trillian.TrillianLogClient) []handlerAndPath {
+	pool := NewPEMCertPool()
+	ok := pool.AppendCertsFromPEM([]byte(testonly.FakeCACertPem))
+
+	if !ok {
+		glog.Fatal("Failed to load cert pool")
+	}
+
 	return []handlerAndPath{
 		{"get-sth", wrappedGetSTHHandler(client)},
 		{"get-sth-consistency", wrappedGetSTHConsistencyHandler(client)},
 		{"get-proof-by-hash", wrappedGetProofByHashHandler(client)},
-		{"get-entries", wrappedGetEntriesHandler(client)},
+		{"get-entries", wrappedGetEntriesHandler(CTRequestHandlers{rpcClient: client, trustedRoots: pool})},
 		{"get-roots", wrappedGetRootsHandler(trustedRoots, client)},
 		{"get-entry-and-proof", wrappedGetEntryAndProofHandler(client)}}
 }
@@ -116,6 +146,8 @@ func TestPostHandlersOnlyAcceptPost(t *testing.T) {
 			t.Fatal(err)
 		}
 
+		// TODO(Martin2112): Remove this test when there are no more handlers to be implemented and
+		// rely on the handlers own tests
 		assert.Equal(t, http.StatusMethodNotAllowed, resp.StatusCode, "Wrong status code for GET to POST handler")
 
 		resp, err = http.Post(s.URL+"/ct/v1/"+hp.path, "application/json", nil)
@@ -142,8 +174,9 @@ func TestGetHandlersOnlyAcceptGet(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		// TODO(Martin2112): Remove not implemented from test when all the handlers have been written
-		assert.True(t, resp.StatusCode == http.StatusNotImplemented || resp.StatusCode == http.StatusOK, "Wrong status code for GET to GET handler")
+		// TODO(Martin2112): Remove this test when there are no more handlers to be implemented and
+		// rely on the handlers own tests
+		assert.True(t, resp.StatusCode == http.StatusNotImplemented || resp.StatusCode == http.StatusBadRequest || resp.StatusCode == http.StatusOK, "Wrong status code for GET to GET handler")
 
 		resp, err = http.Post(s.URL+"/ct/v1/"+hp.path, "application/json", nil)
 
@@ -547,6 +580,243 @@ func loadCertsIntoPoolOrDie(t *testing.T, certs []string) *PEMCertPool {
 	return pool
 }
 
+func TestGetEntriesRejectsNonNumericParams(t *testing.T) {
+	getEntriesTestHelper(t, "start=&&&&&&&&&end=wibble", http.StatusBadRequest, "invalid &&s")
+	getEntriesTestHelper(t, "start=fish&end=3", http.StatusBadRequest, "start non numeric")
+	getEntriesTestHelper(t, "start=10&end=wibble", http.StatusBadRequest, "end non numeric")
+	getEntriesTestHelper(t, "start=fish&end=wibble", http.StatusBadRequest, "both non numeric")
+}
+
+func TestGetEntriesRejectsMissingParams(t *testing.T) {
+	getEntriesTestHelper(t, "start=1", http.StatusBadRequest, "end missing")
+	getEntriesTestHelper(t, "end=1", http.StatusBadRequest, "start missing")
+	getEntriesTestHelper(t, "", http.StatusBadRequest, "both missing")
+}
+
+func TestGetEntriesRanges(t *testing.T) {
+	// This tests that only valid ranges make it to the backend for get-entries.
+	// We're testing request handling up to the point where we make the RPC so arrange for
+	// it to fail with a specific error.
+	for _, testCase := range getEntriesRangeTestCases {
+		client := new(trillian.MockTrillianLogClient)
+
+		if testCase.rpcExpected {
+			client.On("GetLeavesByIndex", mock.MatchedBy(deadlineMatcher), &trillian.GetLeavesByIndexRequest{LeafIndex: buildIndicesForRange(testCase.start, testCase.end)}, mock.Anything /* []grpc.CallOption */).Return(nil, errors.New("RPCMADE"))
+		}
+
+		c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
+		handler := wrappedGetEntriesHandler(c)
+
+		path := fmt.Sprintf("/ct/v1/get-entries?start=%d&end=%d", testCase.start, testCase.end)
+		req, err := http.NewRequest("GET", path, nil)
+
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		w := httptest.NewRecorder()
+		handler(w, req)
+
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if expected, got := testCase.expectedStatus, w.Code; expected != got {
+			t.Fatalf("expected status %d, got %d for test case %s", expected, got, testCase.explanation)
+		}
+
+		// Additionally check that we saw our expected backend error and didn't get the result by
+		// chance
+		if testCase.expectedStatus == http.StatusInternalServerError {
+			if !strings.Contains(w.Body.String(), "RPCMADE") {
+				t.Fatalf("Did not get expected backend error: %s\n%s", testCase.explanation, w.Body)
+			}
+		}
+	}
+}
+
+func TestGetEntriesErrorFromBackend(t *testing.T) {
+	client := new(trillian.MockTrillianLogClient)
+
+	client.On("GetLeavesByIndex", mock.MatchedBy(deadlineMatcher), &trillian.GetLeavesByIndexRequest{LeafIndex: []int64{1, 2}}, mock.Anything /* []grpc.CallOption */).Return(nil, errors.New("Bang!"))
+
+	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
+	handler := wrappedGetEntriesHandler(c)
+
+	req, err := http.NewRequest("GET", "/ct/v1/get-entries?start=1&end=2", nil)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code, "expected HTTP server error for backend error: %v", w.Body)
+	assert.True(t, strings.Contains(w.Body.String(), "Bang!"), "unexpected error: %v", w.Body)
+}
+
+func TestGetEntriesBackendReturnedExtraLeaves(t *testing.T) {
+	client := new(trillian.MockTrillianLogClient)
+
+	rpcLeaves := []*trillian.LeafProto{{LeafIndex: 1}, {LeafIndex: 2}, {LeafIndex: 3}}
+	client.On("GetLeavesByIndex", mock.MatchedBy(deadlineMatcher), &trillian.GetLeavesByIndexRequest{LeafIndex: []int64{1, 2}}, mock.Anything /* []grpc.CallOption */).Return(&trillian.GetLeavesByIndexResponse{Status: okStatus, Leaves: rpcLeaves}, nil)
+
+	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
+	handler := wrappedGetEntriesHandler(c)
+
+	req, err := http.NewRequest("GET", "/ct/v1/get-entries?start=1&end=2", nil)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code, "expected HTTP server error for backend too many leaves: %v", w.Body)
+	assert.Contains(t, w.Body.String(), "too many leaves", "unexpected error for too many leaves")
+}
+
+func TestGetEntriesBackendReturnedNonContiguousRange(t *testing.T) {
+	client := new(trillian.MockTrillianLogClient)
+
+	rpcLeaves := []*trillian.LeafProto{{LeafIndex: 1}, {LeafIndex: 3}}
+	client.On("GetLeavesByIndex", mock.MatchedBy(deadlineMatcher), &trillian.GetLeavesByIndexRequest{LeafIndex: []int64{1, 2}}, mock.Anything /* []grpc.CallOption */).Return(&trillian.GetLeavesByIndexResponse{Status: okStatus, Leaves: rpcLeaves}, nil)
+
+	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
+	handler := wrappedGetEntriesHandler(c)
+
+	req, err := http.NewRequest("GET", "/ct/v1/get-entries?start=1&end=2", nil)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code, "expected HTTP server error for backend too many leaves: %v", w.Body)
+	assert.Contains(t, w.Body.String(), "non contiguous", "unexpected error for invalid sparse range")
+}
+
+func TestGetEntriesLeafCorrupt(t *testing.T) {
+	client := new(trillian.MockTrillianLogClient)
+
+	rpcLeaves := []*trillian.LeafProto{{LeafIndex: 1, LeafHash: []byte("hash"), LeafData: []byte(invalidLeafString)}, {LeafIndex: 2, LeafHash: []byte("hash"), LeafData: []byte(invalidLeafString)}}
+	client.On("GetLeavesByIndex", mock.MatchedBy(deadlineMatcher), &trillian.GetLeavesByIndexRequest{LeafIndex: []int64{1, 2}}, mock.Anything /* []grpc.CallOption */).Return(&trillian.GetLeavesByIndexResponse{Status: okStatus, Leaves: rpcLeaves}, nil)
+
+	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
+	handler := wrappedGetEntriesHandler(c)
+
+	req, err := http.NewRequest("GET", "/ct/v1/get-entries?start=1&end=2", nil)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// We should still have received the data though it failed to deserialize.
+	assert.Equal(t, http.StatusOK, w.Code, "expected HTTP OK for invalid merkle leaf result: %v", w.Body)
+
+	var jsonMap map[string][]getEntriesEntry
+	if err := json.Unmarshal(w.Body.Bytes(), &jsonMap); err != nil {
+		t.Fatalf("Failed to unmarshal json response: %s", w.Body.Bytes())
+	}
+
+	assert.Equal(t, 1, len(jsonMap), "Expected one entry in outer json response")
+	entries := jsonMap["entries"]
+	assert.Equal(t, 2, len(entries), "Expected two entries in json response")
+
+	// Both leaves were invalid but their data should have been passed through as is
+	for l := 0; l < len(entries); l++ {
+		assert.Equal(t, invalidLeafString, string(entries[l].LeafInput), "Unexpected leaf data received")
+	}
+}
+
+func TestGetEntries(t *testing.T) {
+	client := new(trillian.MockTrillianLogClient)
+
+	// To pass validation the leaves we return from our dummy RPC must be valid serialized
+	// ct.MerkleTreeLeaf objects
+	merkleLeaf1 := ct.MerkleTreeLeaf{
+		Version:          ct.V1,
+		LeafType:         ct.TimestampedEntryLeafType,
+		TimestampedEntry: ct.TimestampedEntry{Timestamp: 12345, EntryType: ct.X509LogEntryType, X509Entry: []byte("certdatacertdata"), Extensions: ct.CTExtensions{}}}
+
+	merkleLeaf2 := ct.MerkleTreeLeaf{
+		Version:          ct.V1,
+		LeafType:         ct.TimestampedEntryLeafType,
+		TimestampedEntry: ct.TimestampedEntry{Timestamp: 67890, EntryType: ct.X509LogEntryType, X509Entry: []byte("certdat2certdat2"), Extensions: ct.CTExtensions{}}}
+
+	merkleBytes1, err1 := leafToBytes(merkleLeaf1)
+	merkleBytes2, err2 := leafToBytes(merkleLeaf2)
+
+	if err1 != nil || err2 != nil {
+		t.Fatalf("error in test setup for get-entries: %v %v", err1, err2)
+	}
+
+	rpcLeaves := []*trillian.LeafProto{{LeafIndex: 1, LeafHash: []byte("hash"), LeafData: merkleBytes1, ExtraData: []byte("extra1")}, {LeafIndex: 2, LeafHash: []byte("hash"), LeafData: merkleBytes2, ExtraData: []byte("extra2")}}
+	client.On("GetLeavesByIndex", mock.MatchedBy(deadlineMatcher), &trillian.GetLeavesByIndexRequest{LeafIndex: []int64{1, 2}}, mock.Anything /* []grpc.CallOption */).Return(&trillian.GetLeavesByIndexResponse{Status: okStatus, Leaves: rpcLeaves}, nil)
+
+	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
+	handler := wrappedGetEntriesHandler(c)
+
+	req, err := http.NewRequest("GET", "/ct/v1/get-entries?start=1&end=2", nil)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, http.StatusOK, w.Code, "expected HTTP OK for valid get-entries result: %v", w.Body)
+
+	var jsonMap map[string][]getEntriesEntry
+	if err := json.Unmarshal(w.Body.Bytes(), &jsonMap); err != nil {
+		t.Fatalf("Failed to unmarshal json response: %s", w.Body.Bytes())
+	}
+
+	assert.Equal(t, 1, len(jsonMap), "Expected one entry in outer json response")
+	entries := jsonMap["entries"]
+	assert.Equal(t, 2, len(entries), "Expected two entries in json response")
+
+	roundtripMerkleLeaf1, err1 := bytesToLeaf(entries[0].LeafInput)
+	roundtripMerkleLeaf2, err2 := bytesToLeaf(entries[1].LeafInput)
+
+	if err1 != nil || err2 != nil {
+		t.Fatalf("one or both leaves failed to decode / deserialize: %v %v %v %v", err1, entries[0].LeafInput, err2, entries[1].LeafInput)
+	}
+
+	assert.Equal(t, merkleLeaf1, *roundtripMerkleLeaf1, "leaf 1 mismatched on roundtrip")
+	assert.Equal(t, []byte("extra1"), entries[0].ExtraData, "extra data mismatched on leaf 1")
+	assert.Equal(t, merkleLeaf2, *roundtripMerkleLeaf2, "leaf 2 mismatched on roundtrip")
+	assert.Equal(t, []byte("extra2"), entries[1].ExtraData, "extra data mismatched on leaf 2")
+}
+
 func createJsonChain(t *testing.T, p PEMCertPool) io.Reader {
 	var chain jsonChain
 
@@ -613,4 +883,46 @@ func makeAddChainRequestInternal(t *testing.T, handler http.HandlerFunc, path st
 	handler(w, req)
 
 	return w
+}
+
+// getEntriesTestHelper is used for testing get-entries failure cases with arbitrary request params
+func getEntriesTestHelper(t *testing.T, request string, expectedStatus int, explanation string) {
+	client := new(trillian.MockTrillianLogClient)
+
+	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
+	handler := wrappedGetEntriesHandler(c)
+
+	path := fmt.Sprintf("/ct/v1/get-entries?%s", request)
+	req, err := http.NewRequest("GET", path, nil)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if expected, got := expectedStatus, w.Code; expected != got {
+		t.Fatalf("expected status %d, got %d for test case %s", expected, got, explanation)
+	}
+}
+
+func leafToBytes(leaf ct.MerkleTreeLeaf) ([]byte, error) {
+	var buf bytes.Buffer
+	err := WriteMerkleTreeLeaf(&buf, leaf)
+
+	if err != nil {
+		return []byte{}, err
+	}
+
+	return buf.Bytes(), nil
+}
+
+func bytesToLeaf(leafBytes []byte) (*ct.MerkleTreeLeaf, error) {
+	buf := bytes.NewBuffer(leafBytes)
+	return ct.ReadMerkleTreeLeaf(buf)
 }
