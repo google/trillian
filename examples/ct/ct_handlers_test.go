@@ -14,11 +14,13 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/golang/glog"
+	"github.com/golang/mock/gomock"
 	"github.com/google/certificate-transparency/go"
 	"github.com/google/certificate-transparency/go/fixchain"
 	"github.com/google/certificate-transparency/go/x509"
@@ -26,8 +28,6 @@ import (
 	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/examples/ct/testonly"
 	"github.com/google/trillian/util"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"golang.org/x/net/context"
 )
 
@@ -130,7 +130,10 @@ func allPostHandlersForTest(client trillian.TrillianLogClient) []handlerAndPath 
 }
 
 func TestPostHandlersOnlyAcceptPost(t *testing.T) {
-	client := new(trillian.MockTrillianLogClient)
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	client := trillian.NewMockTrillianLogClient(mockCtrl)
 
 	// Anything in the post handler list should only accept POST
 	for _, hp := range allPostHandlersForTest(client) {
@@ -144,7 +147,9 @@ func TestPostHandlersOnlyAcceptPost(t *testing.T) {
 
 		// TODO(Martin2112): Remove this test when there are no more handlers to be implemented and
 		// rely on the handlers own tests
-		assert.Equal(t, http.StatusMethodNotAllowed, resp.StatusCode, "Wrong status code for GET to POST handler")
+		if expected, got := http.StatusMethodNotAllowed, resp.StatusCode; expected != got {
+			t.Fatalf("Wrong status code for GET to POST handler, expected %v got %v", expected, got)
+		}
 
 		resp, err = http.Post(s.URL+"/ct/v1/"+hp.path, "application/json", nil)
 
@@ -152,14 +157,18 @@ func TestPostHandlersOnlyAcceptPost(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		assert.Equal(t, http.StatusBadRequest, resp.StatusCode, "Wrong status code for POST to POST handler")
+		if expected, got := http.StatusBadRequest, resp.StatusCode; expected != got {
+			t.Fatalf("Wrong status code for POST to POST handler, expected %v got %v", expected, got)
+		}
 	}
 }
 
 func TestGetHandlersRejectPost(t *testing.T) {
-	client := new(trillian.MockTrillianLogClient)
-	pool := NewPEMCertPool()
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
 
+	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	pool := NewPEMCertPool()
 	handlers := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource}
 
 	// Anything in the get handler list should not accept POST. We don't test they accept
@@ -168,20 +177,23 @@ func TestGetHandlersRejectPost(t *testing.T) {
 		s := httptest.NewServer(hp.handler)
 		defer s.Close()
 
-		resp, err := http.Post(s.URL + "/ct/v1/" + hp.path, "application/json", nil)
+		resp, err := http.Post(s.URL+"/ct/v1/"+hp.path, "application/json", nil)
 
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		assert.Equal(t, http.StatusMethodNotAllowed, resp.StatusCode, "Wrong status code for POST to GET handler")
+		if expected, got := http.StatusMethodNotAllowed, resp.StatusCode; expected != got {
+			t.Fatalf("Wrong status code for POST to GET handler, expected %v, got %v", expected, got)
+		}
 	}
-
-	client.AssertExpectations(t)
 }
 
 func TestPostHandlersRejectEmptyJson(t *testing.T) {
-	client := new(trillian.MockTrillianLogClient)
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	client := trillian.NewMockTrillianLogClient(mockCtrl)
 
 	for _, hp := range allPostHandlersForTest(client) {
 		s := httptest.NewServer(hp.handler)
@@ -193,14 +205,17 @@ func TestPostHandlersRejectEmptyJson(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		assert.Equal(t, http.StatusBadRequest, resp.StatusCode, "Wrong status code for empty JSON body")
+		if expected, got := http.StatusBadRequest, resp.StatusCode; expected != got {
+			t.Fatalf("Wrong status code for empty JSON body, expected %v, got %v", expected, got)
+		}
 	}
-
-	client.AssertExpectations(t)
 }
 
 func TestPostHandlersRejectMalformedJson(t *testing.T) {
-	client := new(trillian.MockTrillianLogClient)
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	client := trillian.NewMockTrillianLogClient(mockCtrl)
 
 	for _, hp := range allPostHandlersForTest(client) {
 		s := httptest.NewServer(hp.handler)
@@ -212,14 +227,17 @@ func TestPostHandlersRejectMalformedJson(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		assert.Equal(t, http.StatusBadRequest, resp.StatusCode, "Wrong status code for invalid JSON body")
+		if expected, got := http.StatusBadRequest, resp.StatusCode; expected != got {
+			t.Fatalf("Wrong status code for invalid JSON body, expected %v, got %v", expected, got)
+		}
 	}
-
-	client.AssertExpectations(t)
 }
 
 func TestPostHandlersRejectEmptyCertChain(t *testing.T) {
-	client := new(trillian.MockTrillianLogClient)
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	client := trillian.NewMockTrillianLogClient(mockCtrl)
 
 	for _, hp := range allPostHandlersForTest(client) {
 		s := httptest.NewServer(hp.handler)
@@ -231,14 +249,17 @@ func TestPostHandlersRejectEmptyCertChain(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		assert.Equal(t, http.StatusBadRequest, resp.StatusCode, "Wrong status code for empty chain in JSON body")
+		if expected, got := http.StatusBadRequest, resp.StatusCode; expected != got {
+			t.Fatalf("Wrong status code for empty chain in JSON body, expected %v, got %v", expected, got)
+		}
 	}
-
-	client.AssertExpectations(t)
 }
 
 func TestPostHandlersAcceptNonEmptyCertChain(t *testing.T) {
-	client := new(trillian.MockTrillianLogClient)
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	client := trillian.NewMockTrillianLogClient(mockCtrl)
 
 	for _, hp := range allPostHandlersForTest(client) {
 		s := httptest.NewServer(hp.handler)
@@ -251,14 +272,19 @@ func TestPostHandlersAcceptNonEmptyCertChain(t *testing.T) {
 		}
 
 		// TODO(Martin2112): Remove not implemented from test when all the handlers have been written
-		assert.True(t, resp.StatusCode == http.StatusNotImplemented || resp.StatusCode == http.StatusBadRequest, "Wrong status code for GET to GET handler: %v", resp.StatusCode)
+		// For now they return not implemented as the handler is a stub
+		if expected1, expected2, got := http.StatusNotImplemented, http.StatusBadRequest, resp.StatusCode; expected1 != got && expected2 != got {
+			t.Fatalf("Wrong status code for non-empty chain in body, expected either %v or %v, got %v", expected1, expected2, got)
+		}
 	}
-
-	client.AssertExpectations(t)
 }
 
 func TestGetRoots(t *testing.T) {
-	client := new(trillian.MockTrillianLogClient)
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	client := trillian.NewMockTrillianLogClient(mockCtrl)
+
 	roots := loadCertsIntoPoolOrDie(t, []string{caAndIntermediateCertsPEM})
 	handler := wrappedGetRootsHandler(roots, client)
 
@@ -274,26 +300,37 @@ func TestGetRoots(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, http.StatusOK, w.Code, "Expected HTTP OK for get-roots")
+	if expected, got := http.StatusOK, w.Code; expected != got {
+		t.Fatalf("Wrong status code for get-roots, expected %v, got %v", expected, got)
+	}
 
 	var parsedJson map[string][]string
 	if err := json.Unmarshal(w.Body.Bytes(), &parsedJson); err != nil {
 		t.Fatalf("Failed to unmarshal json response: %s", w.Body.Bytes())
 	}
-	assert.Equal(t, 1, len(parsedJson), "Expected one entry in json map")
+	if expected, got := 1, len(parsedJson); expected != got {
+		t.Fatalf("Expected %v entry(s) in json map, got %v", expected, got)
+	}
 	certs := parsedJson[jsonMapKeyCertificates]
-	assert.Equal(t, 2, len(certs), "Expected two root certs: %v", certs)
-	assert.Equal(t, strings.Replace(caCertB64, "\n", "", -1), certs[0], "First root cert mismatched")
-	assert.Equal(t, strings.Replace(intermediateCertB64, "\n", "", -1), certs[1], "Second root cert mismatched")
-
-	client.AssertExpectations(t)
+	if expected, got := 2, len(certs); expected != got {
+		t.Fatalf("Expected %v root certs got %v: %v", expected, got, certs)
+	}
+	if expected, got := strings.Replace(caCertB64, "\n", "", -1), certs[0]; expected != got {
+		t.Fatalf("First root cert mismatched, expected %s got %s", expected, got)
+	}
+	if expected, got := strings.Replace(intermediateCertB64, "\n", "", -1), certs[1]; expected != got {
+		t.Fatalf("Second root cert mismatched, expected %s got %s", expected, got)
+	}
 }
 
 // This uses the fake CA as trusted root and submits a chain of just a leaf which should be rejected
 // because there's no complete path to the root
 func TestAddChainMissingIntermediate(t *testing.T) {
-	km := new(crypto.MockKeyManager)
-	client := new(trillian.MockTrillianLogClient)
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	km := crypto.NewMockKeyManager(mockCtrl)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.FakeCACertPem})
 	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
@@ -303,16 +340,19 @@ func TestAddChainMissingIntermediate(t *testing.T) {
 
 	recorder := makeAddChainRequest(t, reqHandlers, chain)
 
-	assert.Equal(t, http.StatusBadRequest, recorder.Code, "expected HTTP BadRequest for incomplete add-chain: %v", recorder.Body)
-	km.AssertExpectations(t)
-	client.AssertExpectations(t)
+	if got, want := recorder.Code, http.StatusBadRequest; got != want {
+		t.Fatalf("Expected %v for incomplete add-chain got %v. Body: %v", want, got, recorder.Body)
+	}
 }
 
 // This uses a fake CA as trusted root and submits a chain of just a precert leaf which should be
 // rejected
 func TestAddChainPrecert(t *testing.T) {
-	km := new(crypto.MockKeyManager)
-	client := new(trillian.MockTrillianLogClient)
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	km := crypto.NewMockKeyManager(mockCtrl)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
 	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
@@ -321,8 +361,9 @@ func TestAddChainPrecert(t *testing.T) {
 	// to happen - seeing a precert extension. If this is fixed upstream remove all references from
 	// our tests.
 	precert, err := fixchain.CertificateFromPEM(testonly.PrecertPEMValid)
-	if err != nil {
-		assert.IsType(t, x509.NonFatalErrors{}, err, "Unexpected error loading certificate: %v", err)
+
+	if _, ok := err.(x509.NonFatalErrors); err != nil && !ok {
+		t.Fatalf("Unexpected error loading certificate: %v", err)
 	}
 	pool := NewPEMCertPool()
 	pool.AddCert(precert)
@@ -330,17 +371,20 @@ func TestAddChainPrecert(t *testing.T) {
 
 	recorder := makeAddChainRequest(t, reqHandlers, chain)
 
-	assert.Equal(t, http.StatusBadRequest, recorder.Code, "expected HTTP BadRequest for precert add-chain: %v", recorder.Body)
-	km.AssertExpectations(t)
-	client.AssertExpectations(t)
+	if got, want := recorder.Code, http.StatusBadRequest; got != want {
+		t.Fatalf("expected %v for precert add-chain, got %v. Body: %v", want, got, recorder.Body)
+	}
 }
 
 // This uses the fake CA as trusted root and submits a chain leaf -> fake intermediate, the
 // backend RPC fails so we get a 500
 func TestAddChainRPCFails(t *testing.T) {
 	toSign := []byte{0x7a, 0xc4, 0xd9, 0xca, 0x5f, 0x2e, 0x23, 0x82, 0xfe, 0xef, 0x5e, 0x95, 0x64, 0x7b, 0x31, 0x11, 0xf, 0x2a, 0x9b, 0x78, 0xa8, 0x3, 0x30, 0x8d, 0xfc, 0x8b, 0x78, 0x6, 0x61, 0xe7, 0x58, 0x44}
-	km := setupMockKeyManager(toSign)
-	client := new(trillian.MockTrillianLogClient)
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	km := setupMockKeyManager(mockCtrl, toSign)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.FakeCACertPem})
 	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
@@ -357,21 +401,24 @@ func TestAddChainRPCFails(t *testing.T) {
 
 	leaves := leafProtosForCert(t, km, pool.RawCertificates(), merkleLeaf)
 
-	client.On("QueueLeaves", mock.MatchedBy(deadlineMatcher), &trillian.QueueLeavesRequest{LogId: 0x42, Leaves: leaves}, mock.Anything /* []grpc.CallOption */).Return(&trillian.QueueLeavesResponse{Status: &trillian.TrillianApiStatus{StatusCode: trillian.TrillianApiStatusCode(trillian.TrillianApiStatusCode_ERROR)}}, nil)
+	client.EXPECT().QueueLeaves(deadlineMatcher(), &trillian.QueueLeavesRequest{LogId: 0x42, Leaves: leaves}).Return(&trillian.QueueLeavesResponse{Status: &trillian.TrillianApiStatus{StatusCode: trillian.TrillianApiStatusCode(trillian.TrillianApiStatusCode_ERROR)}}, nil)
 
 	recorder := makeAddChainRequest(t, reqHandlers, chain)
 
-	assert.Equal(t, http.StatusInternalServerError, recorder.Code, "expected HTTP server error for backend rpc fail on add-chain: %v", recorder.Body)
-	km.AssertExpectations(t)
-	client.AssertExpectations(t)
+	if got, want := recorder.Code, http.StatusInternalServerError; got != want {
+		t.Fatalf("expected %v for backend rpc fail on add-chain, got %v. Body: %v", want, got, recorder.Body)
+	}
 }
 
 // This uses the fake CA as trusted root and submits a chain leaf -> fake intermediate, which
 // should be accepted
 func TestAddChain(t *testing.T) {
 	toSign := []byte{0x7a, 0xc4, 0xd9, 0xca, 0x5f, 0x2e, 0x23, 0x82, 0xfe, 0xef, 0x5e, 0x95, 0x64, 0x7b, 0x31, 0x11, 0xf, 0x2a, 0x9b, 0x78, 0xa8, 0x3, 0x30, 0x8d, 0xfc, 0x8b, 0x78, 0x6, 0x61, 0xe7, 0x58, 0x44}
-	km := setupMockKeyManager(toSign)
-	client := new(trillian.MockTrillianLogClient)
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	km := setupMockKeyManager(mockCtrl, toSign)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.FakeCACertPem})
 	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
@@ -388,30 +435,41 @@ func TestAddChain(t *testing.T) {
 
 	leaves := leafProtosForCert(t, km, pool.RawCertificates(), merkleLeaf)
 
-	client.On("QueueLeaves", mock.MatchedBy(deadlineMatcher), &trillian.QueueLeavesRequest{LogId: 0x42, Leaves: leaves}, mock.Anything /* []grpc.CallOption */).Return(&trillian.QueueLeavesResponse{Status: &trillian.TrillianApiStatus{StatusCode: trillian.TrillianApiStatusCode_OK}}, nil)
+	client.EXPECT().QueueLeaves(deadlineMatcher(), &trillian.QueueLeavesRequest{LogId: 0x42, Leaves: leaves}).Return(&trillian.QueueLeavesResponse{Status: &trillian.TrillianApiStatus{StatusCode: trillian.TrillianApiStatusCode_OK}}, nil)
 
 	recorder := makeAddChainRequest(t, reqHandlers, chain)
 
-	assert.Equal(t, http.StatusOK, recorder.Code, "expected HTTP OK for valid add-chain: %v", recorder.Body)
-	km.AssertExpectations(t)
-	client.AssertExpectations(t)
+	if got, want := recorder.Code, http.StatusOK; got != want {
+		t.Fatalf("expected %v for valid add-chain, got %v. Body: %v", want, got, recorder.Body)
+	}
 
 	// Roundtrip the response and make sure it's sensible
 	var resp addChainResponse
-	err = json.NewDecoder(recorder.Body).Decode(&resp)
+	if err = json.NewDecoder(recorder.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to unmarshal json: %v, body: %v", err, recorder.Body.Bytes())
+	}
 
-	assert.NoError(t, err, "failed to unmarshal json: %v", recorder.Body.Bytes())
-
-	assert.Equal(t, ct.V1, ct.Version(resp.SctVersion))
-	assert.Equal(t, ctMockLogID, resp.ID)
-	assert.Equal(t, uint64(1469185273000000), resp.Timestamp)
-	assert.Equal(t, "BAEABnNpZ25lZA==", resp.Signature)
+	if got, want := ct.Version(resp.SctVersion), ct.V1; got != want {
+		t.Fatalf("Got SctVersion %v, expected %v", got, want)
+	}
+	if got, want := resp.ID, ctMockLogID; got != want {
+		t.Fatalf("Got logID %s, expected %s", got, want)
+	}
+	if got, want := resp.Timestamp, uint64(1469185273000000); got != want {
+		t.Fatalf("Got timestamp %d, expected %d", got, want)
+	}
+	if got, want := resp.Signature, "BAEABnNpZ25lZA=="; got != want {
+		t.Fatalf("Got signature %s, expected %s", got, want)
+	}
 }
 
 // Submit a chain with a valid precert but not signed by next cert in chain. Should be rejected.
 func TestAddPrecertChainInvalidPath(t *testing.T) {
-	km := new(crypto.MockKeyManager)
-	client := new(trillian.MockTrillianLogClient)
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	km := crypto.NewMockKeyManager(mockCtrl)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
 	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
@@ -438,15 +496,18 @@ func TestAddPrecertChainInvalidPath(t *testing.T) {
 
 	recorder := makeAddPrechainRequest(t, reqHandlers, chain)
 
-	assert.Equal(t, http.StatusBadRequest, recorder.Code, "expected HTTP BadRequest for invaid add-precert-chain: %v", recorder.Body)
-	km.AssertExpectations(t)
-	client.AssertExpectations(t)
+	if got, want := recorder.Code, http.StatusBadRequest; got != want {
+		t.Fatalf("expected %v for invaid add-precert-chain, got %v. Body: %v", want, got, recorder.Body)
+	}
 }
 
 // Submit a chain as precert with a valid path but using a cert instead of a precert. Should be rejected.
 func TestAddPrecertChainCert(t *testing.T) {
-	km := new(crypto.MockKeyManager)
-	client := new(trillian.MockTrillianLogClient)
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	km := crypto.NewMockKeyManager(mockCtrl)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
 	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
@@ -463,17 +524,20 @@ func TestAddPrecertChainCert(t *testing.T) {
 
 	recorder := makeAddPrechainRequest(t, reqHandlers, chain)
 
-	assert.Equal(t, http.StatusBadRequest, recorder.Code, "expected HTTP BadRequest for cert add-precert-chain: %v", recorder.Body)
-	km.AssertExpectations(t)
-	client.AssertExpectations(t)
+	if got, want := recorder.Code, http.StatusBadRequest; got != want {
+		t.Fatalf("expected %v for cert add-precert-chain, got %v. Body: %v", want, got, recorder.Body)
+	}
 }
 
 // Submit a chain that should be OK but arrange for the backend RPC to fail. Failure should
 // be propagated.
 func TestAddPrecertChainRPCFails(t *testing.T) {
 	toSign := []byte{0xe4, 0x58, 0xf3, 0x6f, 0xbd, 0xed, 0x2e, 0x62, 0x53, 0x30, 0xb3, 0x4, 0x73, 0x10, 0xb4, 0xe2, 0xe1, 0xa7, 0x44, 0x9e, 0x1f, 0x16, 0x6f, 0x78, 0x61, 0x98, 0x32, 0xe5, 0x43, 0x5a, 0x21, 0xff}
-	km := setupMockKeyManager(toSign)
-	client := new(trillian.MockTrillianLogClient)
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	km := setupMockKeyManager(mockCtrl, toSign)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
 	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
@@ -498,20 +562,23 @@ func TestAddPrecertChainRPCFails(t *testing.T) {
 
 	leaves := leafProtosForCert(t, km, pool.RawCertificates(), merkleLeaf)
 
-	client.On("QueueLeaves", mock.MatchedBy(deadlineMatcher), &trillian.QueueLeavesRequest{LogId: 0x42, Leaves: leaves}, mock.Anything /* []grpc.CallOption */).Return(&trillian.QueueLeavesResponse{Status: &trillian.TrillianApiStatus{StatusCode: trillian.TrillianApiStatusCode(trillian.TrillianApiStatusCode_ERROR)}}, nil)
+	client.EXPECT().QueueLeaves(deadlineMatcher(), &trillian.QueueLeavesRequest{LogId: 0x42, Leaves: leaves}).Return(&trillian.QueueLeavesResponse{Status: &trillian.TrillianApiStatus{StatusCode: trillian.TrillianApiStatusCode(trillian.TrillianApiStatusCode_ERROR)}}, nil)
 
 	recorder := makeAddPrechainRequest(t, reqHandlers, chain)
 
-	assert.Equal(t, http.StatusInternalServerError, recorder.Code, "expected HTTP server error for backend rpc fail on add-chain: %v", recorder.Body)
-	km.AssertExpectations(t)
-	client.AssertExpectations(t)
+	if got, want := recorder.Code, http.StatusInternalServerError; got != want {
+		t.Fatalf("expected %v for backend rpc fail on add-chain, got %v. Body: %v", want, got, recorder.Body)
+	}
 }
 
 // Submit a chain with a valid precert signed by a trusted root. Should be accepted.
 func TestAddPrecertChain(t *testing.T) {
 	toSign := []byte{0xe4, 0x58, 0xf3, 0x6f, 0xbd, 0xed, 0x2e, 0x62, 0x53, 0x30, 0xb3, 0x4, 0x73, 0x10, 0xb4, 0xe2, 0xe1, 0xa7, 0x44, 0x9e, 0x1f, 0x16, 0x6f, 0x78, 0x61, 0x98, 0x32, 0xe5, 0x43, 0x5a, 0x21, 0xff}
-	km := setupMockKeyManager(toSign)
-	client := new(trillian.MockTrillianLogClient)
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	km := setupMockKeyManager(mockCtrl, toSign)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
 	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
@@ -536,141 +603,178 @@ func TestAddPrecertChain(t *testing.T) {
 
 	leaves := leafProtosForCert(t, km, pool.RawCertificates(), merkleLeaf)
 
-	client.On("QueueLeaves", mock.MatchedBy(deadlineMatcher), &trillian.QueueLeavesRequest{LogId: 0x42, Leaves: leaves}, mock.Anything /* []grpc.CallOption */).Return(&trillian.QueueLeavesResponse{Status: &trillian.TrillianApiStatus{StatusCode: trillian.TrillianApiStatusCode_OK}}, nil)
+	client.EXPECT().QueueLeaves(deadlineMatcher(), &trillian.QueueLeavesRequest{LogId: 0x42, Leaves: leaves}).Return(&trillian.QueueLeavesResponse{Status: &trillian.TrillianApiStatus{StatusCode: trillian.TrillianApiStatusCode_OK}}, nil)
 
 	recorder := makeAddPrechainRequest(t, reqHandlers, chain)
 
-	assert.Equal(t, http.StatusOK, recorder.Code, "expected HTTP OK for valid add-pre-chain: %v", recorder.Body)
-	km.AssertExpectations(t)
-	client.AssertExpectations(t)
+	if got, want := recorder.Code, http.StatusOK; got != want {
+		t.Fatalf("expected %v for valid add-pre-chain, got %v. Body: %v", want, got, recorder.Body)
+	}
 
 	// Roundtrip the response and make sure it's sensible
 	var resp addChainResponse
-	err = json.NewDecoder(recorder.Body).Decode(&resp)
+	if err = json.NewDecoder(recorder.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to unmarshal json: %v, body: %v", err, recorder.Body.Bytes())
+	}
 
-	assert.NoError(t, err, "failed to unmarshal json: %v", recorder.Body.Bytes())
-
-	assert.Equal(t, ct.V1, ct.Version(resp.SctVersion))
-	assert.Equal(t, ctMockLogID, resp.ID)
-	assert.Equal(t, uint64(1469185273000000), resp.Timestamp)
-	assert.Equal(t, "BAEABnNpZ25lZA==", resp.Signature)
+	if got, want := ct.Version(resp.SctVersion), ct.V1; got != want {
+		t.Fatalf("Got SctVersion %v, expected %v", got, want)
+	}
+	if got, want := resp.ID, ctMockLogID; got != want {
+		t.Fatalf("Got logID %s, expected %s", got, want)
+	}
+	if got, want := resp.Timestamp, uint64(1469185273000000); got != want {
+		t.Fatalf("Got timestamp %d, expected %d", got, want)
+	}
+	if got, want := resp.Signature, "BAEABnNpZ25lZA=="; got != want {
+		t.Fatalf("Got signature %s, expected %s", got, want)
+	}
 }
 
 func TestGetSTHBackendErrorFails(t *testing.T) {
-	km := new(crypto.MockKeyManager)
-	client := new(trillian.MockTrillianLogClient)
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	km := crypto.NewMockKeyManager(mockCtrl)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
-	client.On("GetLatestSignedLogRoot", mock.MatchedBy(deadlineMatcher), &trillian.GetLatestSignedLogRootRequest{LogId: 0x42}, mock.Anything /* []grpc.CallOption */).Return(nil, errors.New("backendfailure"))
+	client.EXPECT().GetLatestSignedLogRoot(deadlineMatcher(), &trillian.GetLatestSignedLogRootRequest{LogId: 0x42}).Return(nil, errors.New("backendfailure"))
 	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
 	handler := wrappedGetSTHHandler(reqHandlers)
 
 	req, err := http.NewRequest("GET", "http://example.com/ct/v1/get-sth", nil)
-
-	assert.NoError(t, err, "get-sth test request setup failed: %v", err)
+	if err != nil {
+		t.Fatalf("get-sth test request setup failed: %v", err)
+	}
 
 	w := httptest.NewRecorder()
 	handler(w, req)
 
-	assert.Equal(t, http.StatusInternalServerError, w.Code, "expected server error")
-	assert.Contains(t, w.Body.String(), "backendfailure")
-
-	client.AssertExpectations(t)
+	if got, want := w.Code, http.StatusInternalServerError; got != want {
+		t.Fatalf("Expected %v, got %v", want, got)
+	}
+	if want, in := "backendfailure", w.Body.String(); !strings.Contains(in, want) {
+		t.Fatalf("Expected to find %s within %s", want, in)
+	}
 }
 
 func TestGetSTHInvalidBackendTreeSizeFails(t *testing.T) {
 	// This tests that if the backend returns an impossible tree size it doesn't get sent
 	// to the client
-	km := new(crypto.MockKeyManager)
-	client := new(trillian.MockTrillianLogClient)
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	km := crypto.NewMockKeyManager(mockCtrl)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
-	client.On("GetLatestSignedLogRoot", mock.MatchedBy(deadlineMatcher), &trillian.GetLatestSignedLogRootRequest{LogId: 0x42}, mock.Anything /* []grpc.CallOption */).Return(makeGetRootResponseForTest(12345, -50, []byte("abcdabcdabcdabcdabcdabcdabcdabcd")), nil)
+	client.EXPECT().GetLatestSignedLogRoot(deadlineMatcher(), &trillian.GetLatestSignedLogRootRequest{LogId: 0x42}).Return(makeGetRootResponseForTest(12345, -50, []byte("abcdabcdabcdabcdabcdabcdabcdabcd")), nil)
 	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
 	handler := wrappedGetSTHHandler(reqHandlers)
 
 	req, err := http.NewRequest("GET", "http://example.com/ct/v1/get-sth", nil)
-
-	assert.NoError(t, err, "get-sth test request setup failed: %v", err)
+	if err != nil {
+		t.Fatalf("get-sth test request setup failed: %v", err)
+	}
 
 	w := httptest.NewRecorder()
 	handler(w, req)
 
-	assert.Equal(t, http.StatusInternalServerError, w.Code, "expected server error")
-	assert.Contains(t, w.Body.String(), "bad tree size")
-
-	client.AssertExpectations(t)
+	if got, want := w.Code, http.StatusInternalServerError; got != want {
+		t.Fatalf("Got %v expected %v", got, want)
+	}
+	if want, in := "bad tree size", w.Body.String(); !strings.Contains(in, want) {
+		t.Fatalf("Expected to find %s within %s", want, in)
+	}
 }
 
 func TestGetSTHMissingRootHashFails(t *testing.T) {
 	// This tests that if the backend returns a corrupt hash it doesn't get sent to the client
-	km := new(crypto.MockKeyManager)
-	client := new(trillian.MockTrillianLogClient)
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	km := crypto.NewMockKeyManager(mockCtrl)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
-	client.On("GetLatestSignedLogRoot", mock.MatchedBy(deadlineMatcher), &trillian.GetLatestSignedLogRootRequest{LogId: 0x42}, mock.Anything /* []grpc.CallOption */).Return(makeGetRootResponseForTest(12345, 25, []byte("thisisnot32byteslong")), nil)
+	client.EXPECT().GetLatestSignedLogRoot(deadlineMatcher(), &trillian.GetLatestSignedLogRootRequest{LogId: 0x42}).Return(makeGetRootResponseForTest(12345, 25, []byte("thisisnot32byteslong")), nil)
 	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
 	handler := wrappedGetSTHHandler(reqHandlers)
 
 	req, err := http.NewRequest("GET", "http://example.com/ct/v1/get-sth", nil)
-
-	assert.NoError(t, err, "get-sth test request setup failed: %v", err)
+	if err != nil {
+		t.Fatalf("get-sth test request setup failed: %v", err)
+	}
 
 	w := httptest.NewRecorder()
 	handler(w, req)
 
-	assert.Equal(t, http.StatusInternalServerError, w.Code, "expected server error")
-	assert.Contains(t, w.Body.String(), "bad hash size")
-
-	client.AssertExpectations(t)
+	if got, want := w.Code, http.StatusInternalServerError; got != want {
+		t.Fatalf("Got %v expected %v", got, want)
+	}
+	if want, in := "bad hash size", w.Body.String(); !strings.Contains(in, want) {
+		t.Fatalf("Expected to find %s within %s", want, in)
+	}
 }
 
 func TestGetSTHSigningFails(t *testing.T) {
 	// Arranges for the signing to fail, ensures we do the right thing
-	km := new(crypto.MockKeyManager)
-	client := new(trillian.MockTrillianLogClient)
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
 
-	signer := new(crypto.MockSigner)
-	signer.On("Sign", mock.Anything, mock.Anything, mock.Anything).Return([]byte{}, errors.New("signerfails"))
-	km.On("Signer").Return(signer, nil)
+	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	km := crypto.NewMockKeyManager(mockCtrl)
+
+	signer := crypto.NewMockSigner(mockCtrl)
+	signer.EXPECT().Sign(gomock.Any(), gomock.Any(), gomock.Any()).Return([]byte{}, errors.New("signerfails"))
+	km.EXPECT().Signer().Return(signer, nil)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
-	client.On("GetLatestSignedLogRoot", mock.MatchedBy(deadlineMatcher), &trillian.GetLatestSignedLogRootRequest{LogId: 0x42}, mock.Anything /* []grpc.CallOption */).Return(makeGetRootResponseForTest(12345, 25, []byte("abcdabcdabcdabcdabcdabcdabcdabcd")), nil)
+	client.EXPECT().GetLatestSignedLogRoot(deadlineMatcher(), &trillian.GetLatestSignedLogRootRequest{LogId: 0x42}).Return(makeGetRootResponseForTest(12345, 25, []byte("abcdabcdabcdabcdabcdabcdabcdabcd")), nil)
 	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
 	handler := wrappedGetSTHHandler(reqHandlers)
 
 	req, err := http.NewRequest("GET", "http://example.com/ct/v1/get-sth", nil)
-
-	assert.NoError(t, err, "get-sth test request setup failed: %v", err)
+	if err != nil {
+		t.Fatalf("get-sth test request setup failed: %v", err)
+	}
 
 	w := httptest.NewRecorder()
 	handler(w, req)
 
-	assert.Equal(t, http.StatusInternalServerError, w.Code, "expected server error")
-	assert.Contains(t, w.Body.String(), "signerfails")
-
-	client.AssertExpectations(t)
-	signer.AssertExpectations(t)
+	if got, want := w.Code, http.StatusInternalServerError; got != want {
+		t.Fatalf("Got %v expected %v", got, want)
+	}
+	if want, in := "signerfails", w.Body.String(); !strings.Contains(in, want) {
+		t.Fatalf("Expected to find %s within %s", want, in)
+	}
 }
 
 func TestGetSTH(t *testing.T) {
 	toSign := []byte{0x1e, 0x88, 0x54, 0x6f, 0x51, 0x57, 0xbf, 0xaf, 0x77, 0xca, 0x24, 0x54, 0x69, 0xb, 0x60, 0x26, 0x31, 0xfe, 0xda, 0xe9, 0x25, 0xbb, 0xe7, 0xcf, 0x70, 0x8e, 0xa2, 0x75, 0x97, 0x5b, 0xfe, 0x74}
-	km := setupMockKeyManagerForSth(toSign)
-	client := new(trillian.MockTrillianLogClient)
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	km := setupMockKeyManagerForSth(mockCtrl, toSign)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
-	client.On("GetLatestSignedLogRoot", mock.MatchedBy(deadlineMatcher), &trillian.GetLatestSignedLogRootRequest{LogId: 0x42}, mock.Anything /* []grpc.CallOption */).Return(makeGetRootResponseForTest(12345000000, 25, []byte("abcdabcdabcdabcdabcdabcdabcdabcd")), nil)
+	client.EXPECT().GetLatestSignedLogRoot(deadlineMatcher(), &trillian.GetLatestSignedLogRootRequest{LogId: 0x42}).Return(makeGetRootResponseForTest(12345000000, 25, []byte("abcdabcdabcdabcdabcdabcdabcdabcd")), nil)
 	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
 	handler := wrappedGetSTHHandler(reqHandlers)
 
 	req, err := http.NewRequest("GET", "http://example.com/ct/v1/get-sth", nil)
-
-	assert.NoError(t, err, "get-sth test request setup failed: %v", err)
+	if err != nil {
+		t.Fatalf("get-sth test request setup failed: %v", err)
+	}
 
 	w := httptest.NewRecorder()
 	handler(w, req)
 
-	assert.Equal(t, http.StatusOK, w.Code, "expected http request to succeed: %v", w.Body)
+	if got, want := w.Code, http.StatusOK; got != want {
+		t.Fatalf("Got %v expected %v", got, want)
+	}
 
 	// Now roundtrip the response and check we got the expected data
 	var parsedJson getSTHResponse
@@ -678,13 +782,18 @@ func TestGetSTH(t *testing.T) {
 		t.Fatalf("Failed to unmarshal json response: %s", w.Body.Bytes())
 	}
 
-	assert.Equal(t, int64(25), parsedJson.TreeSize, "Expected result tree size 25")
-	assert.Equal(t, int64(12345), parsedJson.TimestampMillis, "Expected timestamp millis 12345")
-	assert.Equal(t, "YWJjZGFiY2RhYmNkYWJjZGFiY2RhYmNkYWJjZGFiY2Q=", base64.StdEncoding.EncodeToString(parsedJson.RootHash))
-	assert.Equal(t, "c2lnbmVk", base64.StdEncoding.EncodeToString(parsedJson.Signature))
-
-	client.AssertExpectations(t)
-	km.AssertExpectations(t)
+	if got, want := parsedJson.TreeSize, int64(25); got != want {
+		t.Fatalf("Got treesize %d, expected %d", got, want)
+	}
+	if got, want := parsedJson.TimestampMillis, int64(12345); got != want {
+		t.Fatalf("Got timestamp %d, expected %d", got, want)
+	}
+	if got, want := base64.StdEncoding.EncodeToString(parsedJson.RootHash), "YWJjZGFiY2RhYmNkYWJjZGFiY2RhYmNkYWJjZGFiY2Q="; got != want {
+		t.Fatalf("Got roothash %s, expected %s", got, want)
+	}
+	if got, want := base64.StdEncoding.EncodeToString(parsedJson.Signature), "c2lnbmVk"; got != want {
+		t.Fatalf("Got signature %s, expected %s", got, want)
+	}
 }
 
 func loadCertsIntoPoolOrDie(t *testing.T, certs []string) *PEMCertPool {
@@ -719,10 +828,12 @@ func TestGetEntriesRanges(t *testing.T) {
 	// We're testing request handling up to the point where we make the RPC so arrange for
 	// it to fail with a specific error.
 	for _, testCase := range getEntriesRangeTestCases {
-		client := new(trillian.MockTrillianLogClient)
+		mockCtrl := gomock.NewController(t)
+
+		client := trillian.NewMockTrillianLogClient(mockCtrl)
 
 		if testCase.rpcExpected {
-			client.On("GetLeavesByIndex", mock.MatchedBy(deadlineMatcher), &trillian.GetLeavesByIndexRequest{LeafIndex: buildIndicesForRange(testCase.start, testCase.end)}, mock.Anything /* []grpc.CallOption */).Return(nil, errors.New("RPCMADE"))
+			client.EXPECT().GetLeavesByIndex(deadlineMatcher(), &trillian.GetLeavesByIndexRequest{LeafIndex: buildIndicesForRange(testCase.start, testCase.end)}).Return(nil, errors.New("RPCMADE"))
 		}
 
 		c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
@@ -753,13 +864,17 @@ func TestGetEntriesRanges(t *testing.T) {
 				t.Fatalf("Did not get expected backend error: %s\n%s", testCase.explanation, w.Body)
 			}
 		}
+		mockCtrl.Finish()
 	}
 }
 
 func TestGetEntriesErrorFromBackend(t *testing.T) {
-	client := new(trillian.MockTrillianLogClient)
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
 
-	client.On("GetLeavesByIndex", mock.MatchedBy(deadlineMatcher), &trillian.GetLeavesByIndexRequest{LeafIndex: []int64{1, 2}}, mock.Anything /* []grpc.CallOption */).Return(nil, errors.New("Bang!"))
+	client := trillian.NewMockTrillianLogClient(mockCtrl)
+
+	client.EXPECT().GetLeavesByIndex(deadlineMatcher(), &trillian.GetLeavesByIndexRequest{LeafIndex: []int64{1, 2}}).Return(nil, errors.New("Bang!"))
 
 	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
 	handler := wrappedGetEntriesHandler(c)
@@ -774,18 +889,25 @@ func TestGetEntriesErrorFromBackend(t *testing.T) {
 	handler(w, req)
 
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	assert.Equal(t, http.StatusInternalServerError, w.Code, "expected HTTP server error for backend error: %v", w.Body)
-	assert.True(t, strings.Contains(w.Body.String(), "Bang!"), "unexpected error: %v", w.Body)
+	if got, want := w.Code, http.StatusInternalServerError; got != want {
+		t.Fatalf("Expected %v for backend error, got %v. Body: %v", want, got, w.Body)
+	}
+	if want, in := "Bang!", w.Body.String(); !strings.Contains(in, want) {
+		t.Fatalf("Unexpected error: %v", in)
+	}
 }
 
 func TestGetEntriesBackendReturnedExtraLeaves(t *testing.T) {
-	client := new(trillian.MockTrillianLogClient)
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	client := trillian.NewMockTrillianLogClient(mockCtrl)
 
 	rpcLeaves := []*trillian.LeafProto{{LeafIndex: 1}, {LeafIndex: 2}, {LeafIndex: 3}}
-	client.On("GetLeavesByIndex", mock.MatchedBy(deadlineMatcher), &trillian.GetLeavesByIndexRequest{LeafIndex: []int64{1, 2}}, mock.Anything /* []grpc.CallOption */).Return(&trillian.GetLeavesByIndexResponse{Status: okStatus, Leaves: rpcLeaves}, nil)
+	client.EXPECT().GetLeavesByIndex(deadlineMatcher(), &trillian.GetLeavesByIndexRequest{LeafIndex: []int64{1, 2}}).Return(&trillian.GetLeavesByIndexResponse{Status: okStatus, Leaves: rpcLeaves}, nil)
 
 	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
 	handler := wrappedGetEntriesHandler(c)
@@ -803,15 +925,22 @@ func TestGetEntriesBackendReturnedExtraLeaves(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, http.StatusInternalServerError, w.Code, "expected HTTP server error for backend too many leaves: %v", w.Body)
-	assert.Contains(t, w.Body.String(), "too many leaves", "unexpected error for too many leaves")
+	if got, want := w.Code, http.StatusInternalServerError; got != want {
+		t.Fatalf("expected %v for backend too many leaves, got %v. Body: %v", want, got, w.Body)
+	}
+	if in, want := w.Body.String(), "too many leaves"; !strings.Contains(in, want) {
+		t.Fatalf("unexpected error for too many leaves %s", in)
+	}
 }
 
 func TestGetEntriesBackendReturnedNonContiguousRange(t *testing.T) {
-	client := new(trillian.MockTrillianLogClient)
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	client := trillian.NewMockTrillianLogClient(mockCtrl)
 
 	rpcLeaves := []*trillian.LeafProto{{LeafIndex: 1}, {LeafIndex: 3}}
-	client.On("GetLeavesByIndex", mock.MatchedBy(deadlineMatcher), &trillian.GetLeavesByIndexRequest{LeafIndex: []int64{1, 2}}, mock.Anything /* []grpc.CallOption */).Return(&trillian.GetLeavesByIndexResponse{Status: okStatus, Leaves: rpcLeaves}, nil)
+	client.EXPECT().GetLeavesByIndex(deadlineMatcher(), &trillian.GetLeavesByIndexRequest{LeafIndex: []int64{1, 2}}).Return(&trillian.GetLeavesByIndexResponse{Status: okStatus, Leaves: rpcLeaves}, nil)
 
 	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
 	handler := wrappedGetEntriesHandler(c)
@@ -829,15 +958,22 @@ func TestGetEntriesBackendReturnedNonContiguousRange(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, http.StatusInternalServerError, w.Code, "expected HTTP server error for backend too many leaves: %v", w.Body)
-	assert.Contains(t, w.Body.String(), "non contiguous", "unexpected error for invalid sparse range")
+	if got, want := w.Code, http.StatusInternalServerError; got != want {
+		t.Fatalf("expected %v for backend too many leaves, got %v. Body: %v", want, got, w.Body)
+	}
+	if in, want := w.Body.String(), "non contiguous"; !strings.Contains(in, want) {
+		t.Fatalf("unexpected error for invalid sparse range: %s", in)
+	}
 }
 
 func TestGetEntriesLeafCorrupt(t *testing.T) {
-	client := new(trillian.MockTrillianLogClient)
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	client := trillian.NewMockTrillianLogClient(mockCtrl)
 
 	rpcLeaves := []*trillian.LeafProto{{LeafIndex: 1, LeafHash: []byte("hash"), LeafData: []byte(invalidLeafString)}, {LeafIndex: 2, LeafHash: []byte("hash"), LeafData: []byte(invalidLeafString)}}
-	client.On("GetLeavesByIndex", mock.MatchedBy(deadlineMatcher), &trillian.GetLeavesByIndexRequest{LeafIndex: []int64{1, 2}}, mock.Anything /* []grpc.CallOption */).Return(&trillian.GetLeavesByIndexResponse{Status: okStatus, Leaves: rpcLeaves}, nil)
+	client.EXPECT().GetLeavesByIndex(deadlineMatcher(), &trillian.GetLeavesByIndexRequest{LeafIndex: []int64{1, 2}}).Return(&trillian.GetLeavesByIndexResponse{Status: okStatus, Leaves: rpcLeaves}, nil)
 
 	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
 	handler := wrappedGetEntriesHandler(c)
@@ -856,25 +992,36 @@ func TestGetEntriesLeafCorrupt(t *testing.T) {
 	}
 
 	// We should still have received the data though it failed to deserialize.
-	assert.Equal(t, http.StatusOK, w.Code, "expected HTTP OK for invalid merkle leaf result: %v", w.Body)
+	if got, want := w.Code, http.StatusOK; got != want {
+		t.Fatalf("expected %v for invalid merkle leaf result, got %v. Body: %v", want, got, w.Body)
+	}
 
 	var jsonMap map[string][]getEntriesEntry
 	if err := json.Unmarshal(w.Body.Bytes(), &jsonMap); err != nil {
 		t.Fatalf("Failed to unmarshal json response: %s", w.Body.Bytes())
 	}
 
-	assert.Equal(t, 1, len(jsonMap), "Expected one entry in outer json response")
+	if got, want := len(jsonMap), 1; got != want {
+		t.Fatalf("Expected %d entry in outer json response, got %d", want, got)
+	}
 	entries := jsonMap["entries"]
-	assert.Equal(t, 2, len(entries), "Expected two entries in json response")
+	if got, want := len(entries), 2; got != want {
+		t.Fatalf("Expected %d entries in json response, got %d", want, got)
+	}
 
 	// Both leaves were invalid but their data should have been passed through as is
 	for l := 0; l < len(entries); l++ {
-		assert.Equal(t, invalidLeafString, string(entries[l].LeafInput), "Unexpected leaf data received")
+		if got, want := string(entries[l].LeafInput), invalidLeafString; got != want {
+			t.Fatalf("Unexpected leaf data received, got %s, expected %s", got, want)
+		}
 	}
 }
 
 func TestGetEntries(t *testing.T) {
-	client := new(trillian.MockTrillianLogClient)
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	client := trillian.NewMockTrillianLogClient(mockCtrl)
 
 	// To pass validation the leaves we return from our dummy RPC must be valid serialized
 	// ct.MerkleTreeLeaf objects
@@ -896,7 +1043,7 @@ func TestGetEntries(t *testing.T) {
 	}
 
 	rpcLeaves := []*trillian.LeafProto{{LeafIndex: 1, LeafHash: []byte("hash"), LeafData: merkleBytes1, ExtraData: []byte("extra1")}, {LeafIndex: 2, LeafHash: []byte("hash"), LeafData: merkleBytes2, ExtraData: []byte("extra2")}}
-	client.On("GetLeavesByIndex", mock.MatchedBy(deadlineMatcher), &trillian.GetLeavesByIndexRequest{LeafIndex: []int64{1, 2}}, mock.Anything /* []grpc.CallOption */).Return(&trillian.GetLeavesByIndexResponse{Status: okStatus, Leaves: rpcLeaves}, nil)
+	client.EXPECT().GetLeavesByIndex(deadlineMatcher(), &trillian.GetLeavesByIndexRequest{LeafIndex: []int64{1, 2}}).Return(&trillian.GetLeavesByIndexResponse{Status: okStatus, Leaves: rpcLeaves}, nil)
 
 	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
 	handler := wrappedGetEntriesHandler(c)
@@ -914,16 +1061,22 @@ func TestGetEntries(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, http.StatusOK, w.Code, "expected HTTP OK for valid get-entries result: %v", w.Body)
+	if got, want := w.Code, http.StatusOK; got != want {
+		t.Fatalf("Expected  %v for valid get-entries result, got %v. Body: %v", want, got, w.Body)
+	}
 
 	var jsonMap map[string][]getEntriesEntry
 	if err := json.Unmarshal(w.Body.Bytes(), &jsonMap); err != nil {
 		t.Fatalf("Failed to unmarshal json response: %s", w.Body.Bytes())
 	}
 
-	assert.Equal(t, 1, len(jsonMap), "Expected one entry in outer json response")
+	if got, want := len(jsonMap), 1; got != want {
+		t.Fatalf("Expected %d entry in outer json response, got %d", want, got)
+	}
 	entries := jsonMap["entries"]
-	assert.Equal(t, 2, len(entries), "Expected two entries in json response")
+	if got, want := len(entries), 2; got != want {
+		t.Fatalf("Expected %d entries in json response, got %d", want, got)
+	}
 
 	roundtripMerkleLeaf1, err1 := bytesToLeaf(entries[0].LeafInput)
 	roundtripMerkleLeaf2, err2 := bytesToLeaf(entries[1].LeafInput)
@@ -932,10 +1085,18 @@ func TestGetEntries(t *testing.T) {
 		t.Fatalf("one or both leaves failed to decode / deserialize: %v %v %v %v", err1, entries[0].LeafInput, err2, entries[1].LeafInput)
 	}
 
-	assert.Equal(t, merkleLeaf1, *roundtripMerkleLeaf1, "leaf 1 mismatched on roundtrip")
-	assert.Equal(t, []byte("extra1"), entries[0].ExtraData, "extra data mismatched on leaf 1")
-	assert.Equal(t, merkleLeaf2, *roundtripMerkleLeaf2, "leaf 2 mismatched on roundtrip")
-	assert.Equal(t, []byte("extra2"), entries[1].ExtraData, "extra data mismatched on leaf 2")
+	if got, want := *roundtripMerkleLeaf1, merkleLeaf1; !reflect.DeepEqual(got, want) {
+		t.Fatalf("Leaf 1 mismatched on roundtrip, got %v, expected %v", got, want)
+	}
+	if got, want := entries[0].ExtraData, []byte("extra1"); !bytes.Equal(got, want) {
+		t.Fatalf("Extra data mismatched on leaf 1, got %v, expected %v", got, want)
+	}
+	if got, want := *roundtripMerkleLeaf2, merkleLeaf2; !reflect.DeepEqual(got, want) {
+		t.Fatalf("Leaf 2 mismatched on roundtrip, got %v, expected %v", got, want)
+	}
+	if got, want := entries[1].ExtraData, []byte("extra2"); !bytes.Equal(got, want) {
+		t.Fatalf("Extra data mismatched on leaf 2, got %v, expected %v", got, want)
+	}
 }
 
 func createJsonChain(t *testing.T, p PEMCertPool) io.Reader {
@@ -952,7 +1113,9 @@ func createJsonChain(t *testing.T, p PEMCertPool) io.Reader {
 	err := json.NewEncoder(writer).Encode(&chain)
 	writer.Flush()
 
-	assert.NoError(t, err, "failed to create test json: %v", err)
+	if err != nil {
+		t.Fatalf("Failed to create test json: %v", err)
+	}
 
 	return bufio.NewReader(&buffer)
 }
@@ -972,17 +1135,33 @@ func leafProtosForCert(t *testing.T, km crypto.KeyManager, certs []*x509.Certifi
 		t.Fatalf("failed to serialize log entry: %v", err)
 	}
 
-	return []*trillian.LeafProto{&trillian.LeafProto{LeafHash: leafHash[:], LeafData: b.Bytes(), ExtraData: b2.Bytes()}}
+	return []*trillian.LeafProto{{LeafHash: leafHash[:], LeafData: b.Bytes(), ExtraData: b2.Bytes()}}
 }
 
-func deadlineMatcher(other context.Context) bool {
-	deadlineTime, ok := other.Deadline()
+type dlMatcher struct {
+}
+
+func deadlineMatcher() gomock.Matcher {
+	return dlMatcher{}
+}
+
+func (d dlMatcher) Matches(x interface{}) bool {
+	ctx, ok := x.(context.Context)
+	if !ok {
+		return false
+	}
+
+	deadlineTime, ok := ctx.Deadline()
 
 	if !ok {
 		return false // we never make RPC calls without a deadline set
 	}
 
 	return deadlineTime == fakeDeadlineTime
+}
+
+func (d dlMatcher) String() string {
+	return fmt.Sprintf("deadline is %v", fakeDeadlineTime)
 }
 
 func makeAddPrechainRequest(t *testing.T, reqHandlers CTRequestHandlers, body io.Reader) *httptest.ResponseRecorder {
@@ -997,8 +1176,9 @@ func makeAddChainRequest(t *testing.T, reqHandlers CTRequestHandlers, body io.Re
 
 func makeAddChainRequestInternal(t *testing.T, handler http.HandlerFunc, path string, body io.Reader) *httptest.ResponseRecorder {
 	req, err := http.NewRequest("POST", fmt.Sprintf("http://example.com/ct/v1/%s", path), body)
-
-	assert.NoError(t, err, "test request setup failed: %v", err)
+	if err != nil {
+		t.Fatalf("Test request setup failed: %v", err)
+	}
 
 	w := httptest.NewRecorder()
 	handler(w, req)
@@ -1008,7 +1188,10 @@ func makeAddChainRequestInternal(t *testing.T, handler http.HandlerFunc, path st
 
 // getEntriesTestHelper is used for testing get-entries failure cases with arbitrary request params
 func getEntriesTestHelper(t *testing.T, request string, expectedStatus int, explanation string) {
-	client := new(trillian.MockTrillianLogClient)
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	client := trillian.NewMockTrillianLogClient(mockCtrl)
 
 	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
 	handler := wrappedGetEntriesHandler(c)
