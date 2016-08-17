@@ -100,7 +100,7 @@ type getEntriesResponse struct {
 }
 
 // getSthResponse is a struct for marshalling get-sth responses. See RFC 6962 Section 4.3
-type getSthResponse struct {
+type getSTHResponse struct {
 	TreeSize        int64  `json:"tree_size"`
 	TimestampMillis int64  `json:"timestamp"`
 	RootHash        []byte `json:"sha256_root_hash"`
@@ -682,8 +682,8 @@ func marshalGetEntriesResponse(rpcResponse *trillian.GetLeavesByIndexResponse) (
 // convertSTHForClientResponse does some simple marshalling from a properly signed CT object
 // to the object we'll use to create the JSON response to a client with the correct RFC
 // field names.
-func convertSTHForClientResponse(sth ct.SignedTreeHead) getSthResponse {
-	return getSthResponse{
+func convertSTHForClientResponse(sth ct.SignedTreeHead) getSTHResponse {
+	return getSTHResponse{
 		TreeSize:        int64(sth.TreeSize),
 		RootHash:        sth.SHA256RootHash[:],
 		TimestampMillis: int64(sth.Timestamp),

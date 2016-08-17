@@ -673,7 +673,7 @@ func TestGetSTH(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code, "expected http request to succeed: %v", w.Body)
 
 	// Now roundtrip the response and check we got the expected data
-	var parsedJson getSthResponse
+	var parsedJson getSTHResponse
 	if err := json.Unmarshal(w.Body.Bytes(), &parsedJson); err != nil {
 		t.Fatalf("Failed to unmarshal json response: %s", w.Body.Bytes())
 	}
