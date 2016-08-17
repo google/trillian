@@ -349,7 +349,7 @@ func TestAddChainRPCFails(t *testing.T) {
 	chain := createJsonChain(t, *pool)
 
 	// Ignore returned SCT. That's sent to the client and we're testing frontend -> backend interaction
-	merkleLeaf, _, err := SignV1SCTForCertificate(km, pool.RawCertificates()[0], fakeTime)
+	merkleLeaf, _, err := signV1SCTForCertificate(km, pool.RawCertificates()[0], fakeTime)
 
 	if err != nil {
 		t.Fatal(err)
@@ -380,7 +380,7 @@ func TestAddChain(t *testing.T) {
 	chain := createJsonChain(t, *pool)
 
 	// Ignore returned SCT. That's sent to the client and we're testing frontend -> backend interaction
-	merkleLeaf, _, err := SignV1SCTForCertificate(km, pool.RawCertificates()[0], fakeTime)
+	merkleLeaf, _, err := signV1SCTForCertificate(km, pool.RawCertificates()[0], fakeTime)
 
 	if err != nil {
 		t.Fatal(err)
@@ -490,7 +490,7 @@ func TestAddPrecertChainRPCFails(t *testing.T) {
 	chain := createJsonChain(t, *pool)
 
 	// Ignore returned SCT. That's sent to the client and we're testing frontend -> backend interaction
-	merkleLeaf, _, err := SignV1SCTForPrecertificate(km, pool.RawCertificates()[0], fakeTime)
+	merkleLeaf, _, err := signV1SCTForPrecertificate(km, pool.RawCertificates()[0], fakeTime)
 
 	if err != nil {
 		t.Fatal(err)
@@ -528,7 +528,7 @@ func TestAddPrecertChain(t *testing.T) {
 	chain := createJsonChain(t, *pool)
 
 	// Ignore returned SCT. That's sent to the client and we're testing frontend -> backend interaction
-	merkleLeaf, _, err := SignV1SCTForPrecertificate(km, pool.RawCertificates()[0], fakeTime)
+	merkleLeaf, _, err := signV1SCTForPrecertificate(km, pool.RawCertificates()[0], fakeTime)
 
 	if err != nil {
 		t.Fatal(err)
@@ -959,7 +959,7 @@ func createJsonChain(t *testing.T, p PEMCertPool) io.Reader {
 
 func leafProtosForCert(t *testing.T, km crypto.KeyManager, certs []*x509.Certificate, merkleLeaf ct.MerkleTreeLeaf) []*trillian.LeafProto {
 	var b bytes.Buffer
-	if err := WriteMerkleTreeLeaf(&b, merkleLeaf); err != nil {
+	if err := writeMerkleTreeLeaf(&b, merkleLeaf); err != nil {
 		t.Fatalf("failed to serialize leaf: %v", err)
 	}
 
@@ -1034,7 +1034,7 @@ func getEntriesTestHelper(t *testing.T, request string, expectedStatus int, expl
 
 func leafToBytes(leaf ct.MerkleTreeLeaf) ([]byte, error) {
 	var buf bytes.Buffer
-	err := WriteMerkleTreeLeaf(&buf, leaf)
+	err := writeMerkleTreeLeaf(&buf, leaf)
 
 	if err != nil {
 		return []byte{}, err

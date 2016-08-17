@@ -16,7 +16,7 @@ import (
 
 // SignV1TreeHead signs a tree head for CT. The input STH should have been built from a
 // backend response and already checked for validity.
-func SignV1TreeHead(km crypto.KeyManager, sth *ct.SignedTreeHead) error {
+func signV1TreeHead(km crypto.KeyManager, sth *ct.SignedTreeHead) error {
 	signer, err := km.Signer()
 
 	if err != nil {
@@ -48,7 +48,7 @@ func SignV1TreeHead(km crypto.KeyManager, sth *ct.SignedTreeHead) error {
 
 // SignV1SCTForCertificate creates a MerkleTreeLeaf and builds and signs a V1 CT SCT for a certificate
 // using the key held by a key manager.
-func SignV1SCTForCertificate(km crypto.KeyManager, cert *x509.Certificate, t time.Time) (ct.MerkleTreeLeaf, ct.SignedCertificateTimestamp, error) {
+func signV1SCTForCertificate(km crypto.KeyManager, cert *x509.Certificate, t time.Time) (ct.MerkleTreeLeaf, ct.SignedCertificateTimestamp, error) {
 	// Temp SCT for input to the serializer
 	sctInput := getSCTForSignatureInput(t)
 
@@ -61,7 +61,7 @@ func SignV1SCTForCertificate(km crypto.KeyManager, cert *x509.Certificate, t tim
 
 // SignV1SCTForPrecertificate builds and signs a V1 CT SCT for a pre-certificate using the key
 // held by a key manager.
-func SignV1SCTForPrecertificate(km crypto.KeyManager, cert *x509.Certificate, t time.Time) (ct.MerkleTreeLeaf, ct.SignedCertificateTimestamp, error) {
+func signV1SCTForPrecertificate(km crypto.KeyManager, cert *x509.Certificate, t time.Time) (ct.MerkleTreeLeaf, ct.SignedCertificateTimestamp, error) {
 	// Temp SCT for input to the serializer
 	sctInput := getSCTForSignatureInput(t)
 
@@ -135,7 +135,7 @@ func getSCTForSignatureInput(t time.Time) ct.SignedCertificateTimestamp {
 // WriteTimestampedEntry writes out a TimestampedEntry structure in the binary format defined
 // by RFC 6962. The CT go code includes a deserializer but not a serializer so we might as
 // well make this available.
-func WriteTimestampedEntry(w io.Writer, t ct.TimestampedEntry) error {
+func writeTimestampedEntry(w io.Writer, t ct.TimestampedEntry) error {
 	if err := binary.Write(w, binary.BigEndian, &t.Timestamp); err != nil {
 		return err
 	}
@@ -164,7 +164,7 @@ func WriteTimestampedEntry(w io.Writer, t ct.TimestampedEntry) error {
 // WriteMerkleTreeLeaf writes a MerkleTreeLeaf in the binary format specified by RFC 6962.
 // The CT go code includes a deserializer but not a serializer and we might as well make this
 // available to other users.
-func WriteMerkleTreeLeaf(w io.Writer, l ct.MerkleTreeLeaf) error {
+func writeMerkleTreeLeaf(w io.Writer, l ct.MerkleTreeLeaf) error {
 	if l.Version != ct.V1 {
 		return fmt.Errorf("unknown Version: %d", l.Version)
 	}
@@ -179,7 +179,7 @@ func WriteMerkleTreeLeaf(w io.Writer, l ct.MerkleTreeLeaf) error {
 	if err := binary.Write(w, binary.BigEndian, l.LeafType); err != nil {
 		return err
 	}
-	if err := WriteTimestampedEntry(w, l.TimestampedEntry); err != nil {
+	if err := writeTimestampedEntry(w, l.TimestampedEntry); err != nil {
 		return err
 	}
 

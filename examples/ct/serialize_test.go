@@ -23,7 +23,7 @@ func TestSignV1SCTForCertificate(t *testing.T) {
 
 	km := setupMockKeyManager([]byte{0x5, 0x62, 0x4f, 0xb4, 0x9e, 0x32, 0x14, 0xb6, 0xc, 0xb8, 0x51, 0x28, 0x23, 0x93, 0x2c, 0x7a, 0x3d, 0x80, 0x93, 0x5f, 0xcd, 0x76, 0xef, 0x91, 0x6a, 0xaf, 0x1b, 0x8c, 0xe8, 0xb5, 0x2, 0xb5})
 
-	leaf, got, err := SignV1SCTForCertificate(km, cert, fixedTime)
+	leaf, got, err := signV1SCTForCertificate(km, cert, fixedTime)
 
 	if err != nil {
 		t.Fatalf("create sct for cert failed", err)
@@ -67,7 +67,7 @@ func TestSignV1SCTForPrecertificate(t *testing.T) {
 
 	km := setupMockKeyManager([]byte{0x77, 0xf3, 0x5c, 0xc6, 0xad, 0x85, 0xfd, 0xe0, 0x38, 0xfd, 0x36, 0x34, 0x5c, 0x1e, 0x45, 0x58, 0x60, 0x95, 0xb1, 0x7c, 0x28, 0xaa, 0xa5, 0xa5, 0x84, 0x96, 0x37, 0x4b, 0xf8, 0xbb, 0xd9, 0x8})
 
-	leaf, got, err := SignV1SCTForPrecertificate(km, cert, fixedTime)
+	leaf, got, err := signV1SCTForPrecertificate(km, cert, fixedTime)
 
 	if err != nil {
 		t.Fatalf("create sct for precert failed", err)
@@ -109,7 +109,7 @@ func TestSerializeMerkleTreeLeafBadVersion(t *testing.T) {
 	leaf.Version = 199 // Out of any expected valid range
 
 	var b bytes.Buffer
-	err := WriteMerkleTreeLeaf(&b, leaf)
+	err := writeMerkleTreeLeaf(&b, leaf)
 	assert.Error(t, err, "incorrectly serialized leaf with bad version")
 	assert.Zero(t, len(b.Bytes()), "wrote data when serializing invalid object")
 }
@@ -121,7 +121,7 @@ func TestSerializeMerkleTreeLeafBadType(t *testing.T) {
 	leaf.LeafType = 212
 
 	var b bytes.Buffer
-	err := WriteMerkleTreeLeaf(&b, leaf)
+	err := writeMerkleTreeLeaf(&b, leaf)
 	assert.Error(t, err, "incorrectly serialized leaf with bad leaf type")
 	assert.Zero(t, len(b.Bytes()), "wrote data when serializing invalid object")
 }
@@ -137,7 +137,7 @@ func TestSerializeMerkleTreeLeafCert(t *testing.T) {
 	var buff bytes.Buffer
 	w := bufio.NewWriter(&buff)
 
-	if err := WriteMerkleTreeLeaf(w, leaf); err != nil {
+	if err := writeMerkleTreeLeaf(w, leaf); err != nil {
 		t.Fatalf("failed to write leaf: %v", err)
 	}
 
@@ -165,7 +165,7 @@ func TestSerializeMerkleTreePrecert(t *testing.T) {
 	var buff bytes.Buffer
 	w := bufio.NewWriter(&buff)
 
-	if err := WriteMerkleTreeLeaf(w, leaf); err != nil {
+	if err := writeMerkleTreeLeaf(w, leaf); err != nil {
 		t.Fatalf("failed to write leaf: %v", err)
 	}
 

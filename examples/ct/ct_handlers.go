@@ -183,9 +183,9 @@ func addChainInternal(w http.ResponseWriter, r *http.Request, c CTRequestHandler
 	var sct ct.SignedCertificateTimestamp
 
 	if isPrecert {
-		merkleTreeLeaf, sct, err = SignV1SCTForPrecertificate(c.logKeyManager, validPath[0], c.timeSource.Now())
+		merkleTreeLeaf, sct, err = signV1SCTForPrecertificate(c.logKeyManager, validPath[0], c.timeSource.Now())
 	} else {
-		merkleTreeLeaf, sct, err = SignV1SCTForCertificate(c.logKeyManager, validPath[0], c.timeSource.Now())
+		merkleTreeLeaf, sct, err = signV1SCTForCertificate(c.logKeyManager, validPath[0], c.timeSource.Now())
 	}
 
 	if err != nil {
@@ -280,7 +280,7 @@ func wrappedGetSTHHandler(c CTRequestHandlers) http.HandlerFunc {
 			SHA256RootHash: hashArray}
 
 		// Serialize and sign the STH and make sure this succeeds
-		err = SignV1TreeHead(c.logKeyManager, &sth)
+		err = signV1TreeHead(c.logKeyManager, &sth)
 
 		if err != nil || len(sth.TreeHeadSignature.Signature) == 0 {
 			glog.Warningf("Failed to sign tree head: %v %v", sth, err)
@@ -533,7 +533,7 @@ func marshalLogIDAndSignatureForResponse(sct ct.SignedCertificateTimestamp, km c
 // LeafProto that will be sent to the backend
 func buildLeafProtoForAddChain(merkleLeaf ct.MerkleTreeLeaf, certChain []*x509.Certificate) (trillian.LeafProto, error) {
 	var leafBuffer bytes.Buffer
-	if err := WriteMerkleTreeLeaf(&leafBuffer, merkleLeaf); err != nil {
+	if err := writeMerkleTreeLeaf(&leafBuffer, merkleLeaf); err != nil {
 		glog.Warningf("Failed to serialize merkle leaf: %v", err)
 		return trillian.LeafProto{}, err
 	}

@@ -51,7 +51,7 @@ func NewCTLogEntry(leaf ct.MerkleTreeLeaf, certChain []*x509.Certificate) *CTLog
 // Serialize writes out a CTLogEntry in binary form. This is not an RFC 6962 data structure
 // and is only used internally by the log.
 func (c CTLogEntry) Serialize(w io.Writer) error {
-	if err := WriteMerkleTreeLeaf(w, c.Leaf); err != nil {
+	if err := writeMerkleTreeLeaf(w, c.Leaf); err != nil {
 		return err
 	}
 
