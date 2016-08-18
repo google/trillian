@@ -14,7 +14,6 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/util"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -223,7 +222,9 @@ func TestBeginTXFails(t *testing.T) {
 	c := createTestContext(params)
 
 	leaves, err := c.sequencer.SequenceBatch(1, rootNeverExpiresFunc)
-	assert.Zero(t, leaves, "Unexpectedly sequenced leaves on error")
+	if leaves != 0 {
+		t.Fatalf("Unexpectedly sequenced %d leaves on error", leaves)
+	}
 	testonly.EnsureErrorContains(t, err, "TX")
 
 	c.assertExpectations(t)
@@ -234,7 +235,9 @@ func TestSequenceWithNothingQueued(t *testing.T) {
 	c := createTestContext(params)
 
 	leaves, err := c.sequencer.SequenceBatch(1, rootNeverExpiresFunc)
-	assert.Zero(t, leaves, "Unexpectedly sequenced leaves on error")
+	if leaves != 0 {
+		t.Fatalf("Unexpectedly sequenced %d leaves on error", leaves)
+	}
 
 	if err != nil {
 		t.Errorf("Expected nil return with no work pending in queue")
@@ -247,9 +250,11 @@ func TestDequeueError(t *testing.T) {
 	params := testParameters{dequeueLimit: 1, shouldRollback: true, dequeuedError: errors.New("dequeue")}
 	c := createTestContext(params)
 
-	leaves, err := c.sequencer.SequenceBatch(1, rootNeverExpiresFunc)
+	leafCount, err := c.sequencer.SequenceBatch(1, rootNeverExpiresFunc)
 	testonly.EnsureErrorContains(t, err, "dequeue")
-	assert.Zero(t, leaves, "Unexpectedly sequenced leaves on error")
+	if leafCount != 0 {
+		t.Fatalf("Unexpectedly sequenced %d leaves on error", leafCount)
+	}
 
 	c.mockStorage.AssertExpectations(t)
 }
@@ -261,7 +266,9 @@ func TestLatestRootError(t *testing.T) {
 	c := createTestContext(params)
 
 	leafCount, err := c.sequencer.SequenceBatch(1, rootNeverExpiresFunc)
-	assert.Zero(t, leafCount, "Unexpectedly sequenced leaves on error")
+	if leafCount != 0 {
+		t.Fatalf("Unexpectedly sequenced %d leaves on error", leafCount)
+	}
 	testonly.EnsureErrorContains(t, err, "root")
 
 	c.mockStorage.AssertExpectations(t)
@@ -276,7 +283,9 @@ func TestUpdateSequencedLeavesError(t *testing.T) {
 	c := createTestContext(params)
 
 	leafCount, err := c.sequencer.SequenceBatch(1, rootNeverExpiresFunc)
-	assert.Zero(t, leafCount, "Unexpectedly sequenced leaves on error")
+	if leafCount != 0 {
+		t.Fatalf("Unexpectedly sequenced %d leaves on error", leafCount)
+	}
 	testonly.EnsureErrorContains(t, err, "unsequenced")
 
 	c.mockStorage.AssertExpectations(t)
@@ -291,7 +300,9 @@ func TestSetMerkleNodesError(t *testing.T) {
 	c := createTestContext(params)
 
 	leafCount, err := c.sequencer.SequenceBatch(1, rootNeverExpiresFunc)
-	assert.Zero(t, leafCount, "Unexpectedly sequenced leaves on error")
+	if leafCount != 0 {
+		t.Fatalf("Unexpectedly sequenced %d leaves on error", leafCount)
+	}
 	testonly.EnsureErrorContains(t, err, "setmerklenodes")
 
 	c.mockStorage.AssertExpectations(t)
@@ -309,7 +320,9 @@ func TestStoreSignedRootError(t *testing.T) {
 	c := createTestContext(params)
 
 	leafCount, err := c.sequencer.SequenceBatch(1, rootNeverExpiresFunc)
-	assert.Zero(t, leafCount, "Unexpectedly sequenced leaves on error")
+	if leafCount != 0 {
+		t.Fatalf("Unexpectedly sequenced %d leaves on error", leafCount)
+	}
 	testonly.EnsureErrorContains(t, err, "storesignedroot")
 
 	c.mockStorage.AssertExpectations(t)
@@ -326,7 +339,9 @@ func TestStoreSignedRootKeyManagerFails(t *testing.T) {
 	c := createTestContext(params)
 
 	leafCount, err := c.sequencer.SequenceBatch(1, rootNeverExpiresFunc)
-	assert.Zero(t, leafCount, "Unexpectedly sequenced leaves on error")
+	if leafCount != 0 {
+		t.Fatalf("Unexpectedly sequenced %d leaves on error", leafCount)
+	}
 	testonly.EnsureErrorContains(t, err, "keymanagerfailed")
 
 	c.mockStorage.AssertExpectations(t)
@@ -344,7 +359,9 @@ func TestStoreSignedRootSignerFails(t *testing.T) {
 	c := createTestContext(params)
 
 	leafCount, err := c.sequencer.SequenceBatch(1, rootNeverExpiresFunc)
-	assert.Zero(t, leafCount, "Unexpectedly sequenced leaves on error")
+	if leafCount != 0 {
+		t.Fatalf("Unexpectedly sequenced %d leaves on error", leafCount)
+	}
 	testonly.EnsureErrorContains(t, err, "signerfailed")
 
 	c.mockStorage.AssertExpectations(t)
@@ -363,7 +380,9 @@ func TestCommitFails(t *testing.T) {
 	c := createTestContext(params)
 
 	leafCount, err := c.sequencer.SequenceBatch(1, rootNeverExpiresFunc)
-	assert.Zero(t, leafCount, "Unexpectedly sequenced leaves on error")
+	if leafCount != 0 {
+		t.Fatalf("Unexpectedly sequenced %d leaves on error", leafCount)
+	}
 	testonly.EnsureErrorContains(t, err, "commit")
 
 	c.mockStorage.AssertExpectations(t)
@@ -383,8 +402,12 @@ func TestSequenceBatch(t *testing.T) {
 	c := createTestContext(params)
 
 	leafCount, err := c.sequencer.SequenceBatch(1, rootNeverExpiresFunc)
-	assert.Nil(t, err, "Expected sequencing to succeed")
-	assert.Equal(t, 1, leafCount, "Expected one leaf to have been sequenced")
+	if err != nil {
+		t.Fatalf("Expected sequencing to succeed, but got err: %v", err)
+	}
+	if got, want := leafCount, 1; got != want {
+		t.Fatalf("Sequenced %d leaf, expected %d", got, want)
+	}
 
 	c.mockStorage.AssertExpectations(t)
 }
@@ -477,8 +500,9 @@ func TestSignRoot(t *testing.T) {
 		signingResult: []byte("signed"), shouldCommit: true}
 	c := createTestContext(params)
 
-	err := c.sequencer.SignRoot()
-	assert.Nil(t, err, "Expected signing to succeed")
+	if err := c.sequencer.SignRoot(); err != nil {
+		t.Fatalf("Expected signing to succeed, but got err: %v", err)
+	}
 
 	c.mockStorage.AssertExpectations(t)
 }
@@ -492,8 +516,9 @@ func TestSignRootNoExistingRoot(t *testing.T) {
 		signingResult: []byte("signed"), shouldCommit: true}
 	c := createTestContext(params)
 
-	err := c.sequencer.SignRoot()
-	assert.Nil(t, err, "Expected signing to succeed")
+	if err := c.sequencer.SignRoot(); err != nil {
+		t.Fatalf("Expected signing to succeed, but got err: %v", err)
+	}
 
 	c.mockStorage.AssertExpectations(t)
 }
