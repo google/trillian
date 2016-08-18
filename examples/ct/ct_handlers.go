@@ -99,6 +99,14 @@ type getEntriesResponse struct {
 	Entries []getEntriesEntry `json:"entries"`
 }
 
+// getSthResponse is a struct for marshalling get-sth responses. See RFC 6962 Section 4.3
+type getSTHResponse struct {
+	TreeSize        int64  `json:"tree_size"`
+	TimestampMillis int64  `json:"timestamp"`
+	RootHash        []byte `json:"sha256_root_hash"`
+	Signature       []byte `json:"tree_head_signature"`
+}
+
 func parseBodyAsJSONChain(w http.ResponseWriter, r *http.Request) (addChainRequest, error) {
 	body, err := ioutil.ReadAll(r.Body)
 
@@ -175,9 +183,9 @@ func addChainInternal(w http.ResponseWriter, r *http.Request, c CTRequestHandler
 	var sct ct.SignedCertificateTimestamp
 
 	if isPrecert {
-		merkleTreeLeaf, sct, err = SignV1SCTForPrecertificate(c.logKeyManager, validPath[0], c.timeSource.Now())
+		merkleTreeLeaf, sct, err = signV1SCTForPrecertificate(c.logKeyManager, validPath[0], c.timeSource.Now())
 	} else {
-		merkleTreeLeaf, sct, err = SignV1SCTForCertificate(c.logKeyManager, validPath[0], c.timeSource.Now())
+		merkleTreeLeaf, sct, err = signV1SCTForCertificate(c.logKeyManager, validPath[0], c.timeSource.Now())
 	}
 
 	if err != nil {
@@ -234,13 +242,72 @@ func wrappedAddPreChainHandler(c CTRequestHandlers) http.HandlerFunc {
 	}
 }
 
-func wrappedGetSTHHandler(rpcClient trillian.TrillianLogClient) http.HandlerFunc {
+func wrappedGetSTHHandler(c CTRequestHandlers) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !enforceMethod(w, r, httpMethodGet) {
 			return
 		}
 
-		http.Error(w, http.StatusText(http.StatusNotImplemented), http.StatusNotImplemented)
+		request := trillian.GetLatestSignedLogRootRequest{LogId: c.logID}
+		ctx, _ := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
+		response, err := c.rpcClient.GetLatestSignedLogRoot(ctx, &request)
+
+		if err != nil || !rpcStatusOK(response.GetStatus()) {
+			sendHttpError(w, http.StatusInternalServerError, err)
+			return
+		}
+
+		if treeSize := response.GetSignedLogRoot().TreeSize; treeSize < 0 {
+			glog.Warningf("Bad tree size when preparing sth: %d", treeSize)
+			sendHttpError(w, http.StatusInternalServerError, fmt.Errorf("bad tree size from backend: %d", treeSize))
+			return
+		}
+
+		if hashSize := len(response.GetSignedLogRoot().RootHash); hashSize != sha256.Size {
+			glog.Warningf("Bad root hash size when preparing sth: %d", hashSize)
+			sendHttpError(w, http.StatusInternalServerError, fmt.Errorf("bad hash size from backend expecting: %d got %d", sha256.Size, hashSize))
+			return
+		}
+
+		// Jump through Go hoops because we're mixing arrays and slices, we checked the size above
+		// so it should exactly fit what we copy into it
+		var hashArray [sha256.Size]byte
+		copy(hashArray[:], response.GetSignedLogRoot().RootHash)
+
+		// Build the CT STH object ready for signing
+		sth := ct.SignedTreeHead{TreeSize: uint64(response.GetSignedLogRoot().TreeSize),
+			Timestamp:      uint64(response.GetSignedLogRoot().TimestampNanos / 1000 / 1000),
+			SHA256RootHash: hashArray}
+
+		// Serialize and sign the STH and make sure this succeeds
+		err = signV1TreeHead(c.logKeyManager, &sth)
+
+		if err != nil || len(sth.TreeHeadSignature.Signature) == 0 {
+			glog.Warningf("Failed to sign tree head: %v %v", sth, err)
+			sendHttpError(w, http.StatusInternalServerError, err)
+			return
+		}
+
+		// Now build the final result object that will be marshalled to JSON
+		jsonResponse := convertSTHForClientResponse(sth)
+
+		w.Header().Set(contentTypeHeader, contentTypeJSON)
+		jsonData, err := json.Marshal(&jsonResponse)
+
+		if err != nil {
+			glog.Warningf("Failed to marshal get-sth resp: %v", jsonResponse)
+			sendHttpError(w, http.StatusInternalServerError, err)
+			return
+		}
+
+		_, err = w.Write(jsonData)
+
+		if err != nil {
+			glog.Warningf("Failed to write get-sth resp: %v", jsonResponse)
+			// Probably too late for this as headers might have been written but we don't know for sure
+			sendHttpError(w, http.StatusInternalServerError, err)
+			return
+		}
 	}
 }
 
@@ -383,7 +450,7 @@ func wrappedGetEntryAndProofHandler(rpcClient trillian.TrillianLogClient) http.H
 func (c CTRequestHandlers) RegisterCTHandlers() {
 	http.HandleFunc(pathFor("add-chain"), wrappedAddChainHandler(c))
 	http.HandleFunc(pathFor("add-pre-chain"), wrappedAddPreChainHandler(c))
-	http.HandleFunc(pathFor("get-sth"), wrappedGetSTHHandler(c.rpcClient))
+	http.HandleFunc(pathFor("get-sth"), wrappedGetSTHHandler(c))
 	http.HandleFunc(pathFor("get-sth-consistency"), wrappedGetSTHConsistencyHandler(c.rpcClient))
 	http.HandleFunc(pathFor("get-proof-by-hash"), wrappedGetProofByHashHandler(c.rpcClient))
 	http.HandleFunc(pathFor("get-entries"), wrappedGetEntriesHandler(c))
@@ -466,7 +533,7 @@ func marshalLogIDAndSignatureForResponse(sct ct.SignedCertificateTimestamp, km c
 // LeafProto that will be sent to the backend
 func buildLeafProtoForAddChain(merkleLeaf ct.MerkleTreeLeaf, certChain []*x509.Certificate) (trillian.LeafProto, error) {
 	var leafBuffer bytes.Buffer
-	if err := WriteMerkleTreeLeaf(&leafBuffer, merkleLeaf); err != nil {
+	if err := writeMerkleTreeLeaf(&leafBuffer, merkleLeaf); err != nil {
 		glog.Warningf("Failed to serialize merkle leaf: %v", err)
 		return trillian.LeafProto{}, err
 	}
@@ -610,4 +677,15 @@ func marshalGetEntriesResponse(rpcResponse *trillian.GetLeavesByIndexResponse) (
 	}
 
 	return jsonResponse, nil
+}
+
+// convertSTHForClientResponse does some simple marshalling from a properly signed CT object
+// to the object we'll use to create the JSON response to a client with the correct RFC
+// field names.
+func convertSTHForClientResponse(sth ct.SignedTreeHead) getSTHResponse {
+	return getSTHResponse{
+		TreeSize:        int64(sth.TreeSize),
+		RootHash:        sth.SHA256RootHash[:],
+		TimestampMillis: int64(sth.Timestamp),
+		Signature:       sth.TreeHeadSignature.Signature}
 }
