@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/google/trillian/examples/ct/testonly"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestLoadSingleCertFromPEMs(t *testing.T) {
@@ -12,8 +11,12 @@ func TestLoadSingleCertFromPEMs(t *testing.T) {
 		pool := NewPEMCertPool()
 
 		ok := pool.AppendCertsFromPEM([]byte(pem))
-		assert.True(t, ok, "Expected to append a certificate ok")
-		assert.Equal(t, 1, len(pool.Subjects()), "Expected one cert in pool")
+		if !ok {
+			t.Fatal("Expected to append a certificate ok")
+		}
+		if got, want := len(pool.Subjects()), 1; got != want {
+			t.Fatalf("Got %d cert(s) in the pool, expected %d", got, want)
+		}
 	}
 }
 
@@ -22,8 +25,12 @@ func TestBadOrEmptyCertificateRejected(t *testing.T) {
 		pool := NewPEMCertPool()
 
 		ok := pool.AppendCertsFromPEM([]byte(pem))
-		assert.False(t, ok, "Accepted appending no certs")
-		assert.Equal(t, 0, len(pool.Subjects()), "Expected no certs in pool")
+		if ok {
+			t.Fatal("Expected appending no certs")
+		}
+		if got, want := len(pool.Subjects()), 0; got != want {
+			t.Fatalf("Got %d cert(s) in pool, expected %d", got, want)
+		}
 	}
 }
 
@@ -31,6 +38,10 @@ func TestLoadMultipleCertsFromPEM(t *testing.T) {
 	pool := NewPEMCertPool()
 
 	ok := pool.AppendCertsFromPEM([]byte(testonly.CACertMultiplePEM))
-	assert.True(t, ok, "Rejected valid multiple certs")
-	assert.Equal(t, 2, len(pool.Subjects()), "Expected two certs in pool")
+	if !ok {
+		t.Fatal("Rejected valid multiple certs")
+	}
+	if got, want := len(pool.Subjects()), 2; got != want {
+		t.Fatalf("Got %d certs in pool, expected %d", got, want)
+	}
 }
