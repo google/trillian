@@ -1,15 +1,21 @@
 package storage
 
+import "fmt"
+
 // CalcInclusionProofNodeAddresses returns the tree node IDs needed to
 // build an inclusion proof for a specified leaf and tree size. The maxBitLen parameter
 // is copied into all the returned nodeIDs.
-func CalcInclusionProofNodeAddresses(treeSize, index int64, maxBitLen int) []NodeID {
+func CalcInclusionProofNodeAddresses(treeSize, index int64, maxBitLen int) ([]NodeID, error) {
+	if index >= treeSize || index < 0 || treeSize < 1 || maxBitLen < 0 {
+		return []NodeID{}, fmt.Errorf("invalid params ts: %d index: %d, bitlen:%d", treeSize, index, maxBitLen)
+	}
+
 	var proof []NodeID
 
 	sizeLessOne := treeSize - 1
 
 	if bitLen(treeSize) == 0 || index > sizeLessOne {
-		return proof
+		return proof, nil
 	}
 
 	node := index
@@ -34,7 +40,7 @@ func CalcInclusionProofNodeAddresses(treeSize, index int64, maxBitLen int) []Nod
 		depth++
 	}
 
-	return proof
+	return proof, nil
 }
 
 // bitLen returns the number of bits needed to represent the supplied integer

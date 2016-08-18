@@ -24,11 +24,20 @@ var expectedPathSize7Index6 = []NodeID{NewNodeIDForTreeCoords(1, 2, 64), NewNode
 
 var bitLenTests = []bitLenTestData{{0, 0}, {1, 1}, {2, 2}, {3, 2}, {12, 4}}
 
+// These should all successfully compute the expected path
 var pathTests = []calcPathTestData{
 	{7, 3, expectedPathSize7Index3},
 	{7, 6, expectedPathSize7Index6},
 	{7, 0, expectedPathSize7Index0},
 	{7, 4, expectedPathSize7Index4}}
+
+// These should all fail
+var pathTestBad = []calcPathTestData{
+	{0, 3, []NodeID{}},
+	{-1, 3, []NodeID{}},
+	{7, -1, []NodeID{}},
+	{7, 8, []NodeID{}},
+}
 
 func TestBitLen(t *testing.T) {
 	for _, testCase := range bitLenTests {
@@ -40,7 +49,31 @@ func TestBitLen(t *testing.T) {
 
 func TestCalcInclusionProofNodeAddresses(t *testing.T) {
 	for _, testCase := range pathTests {
-		comparePaths(t, testCase.expectedPath, CalcInclusionProofNodeAddresses(testCase.treeSize, testCase.leafIndex, 64))
+		path, err := CalcInclusionProofNodeAddresses(testCase.treeSize, testCase.leafIndex, 64)
+
+		if err != nil {
+			t.Fatalf("unexpected error calculating path %v: %v", testCase, err)
+		}
+
+		comparePaths(t, testCase.expectedPath, path)
+	}
+}
+
+func TestCalcInclusionProofNodeAddressesBadRanges(t *testing.T) {
+	for _, testCase := range pathTestBad {
+		_, err := CalcInclusionProofNodeAddresses(testCase.treeSize, testCase.leafIndex, 64)
+
+		if err == nil {
+			t.Fatalf("incorrectly accepted bad params: %v", testCase)
+		}
+	}
+}
+
+func TestCalcInclusionProofNodeAddressesRejectsBadBitLen(t *testing.T) {
+	_, err := CalcInclusionProofNodeAddresses(7, 3, -64)
+
+	if err == nil {
+		t.Fatal("incorrectly accepted -ve maxBitLen")
 	}
 }
 
