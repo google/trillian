@@ -25,6 +25,7 @@ type Sequencer struct {
 
 // CurrentRootExpiredFunc examines a signed log root and decides if it has expired with respect
 // to a max age duration and a given time source
+// TODO(Martin2112): This is all likely to go away when we switch to application STHs
 type CurrentRootExpiredFunc func(trillian.SignedLogRoot) bool
 
 func NewSequencer(hasher merkle.TreeHasher, timeSource util.TimeSource, logStorage storage.LogStorage, km crypto.KeyManager) *Sequencer {

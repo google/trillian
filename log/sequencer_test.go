@@ -22,7 +22,7 @@ import (
 // sequencing
 const tenYears time.Duration = time.Hour * 24 * 365 * 10
 
-// Func that says root never expires, so we can be sure tests will only sign / sequence when  we
+// Func that says root never expires, so we can be sure tests will only sign / sequence when we
 // expect them to
 func rootNeverExpiresFunc(trillian.SignedLogRoot) bool {
 	return false
