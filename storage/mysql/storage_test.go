@@ -16,7 +16,6 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
-	"github.com/stretchr/testify/assert"
 )
 
 var allTables = []string{"Unsequenced", "TreeHead", "SequencedLeafData", "LeafData", "Subtree", "TreeControl", "Trees", "MapLeaf", "MapHead"}
@@ -125,10 +124,15 @@ func TestOpenStateCommit(t *testing.T) {
 		t.Fatalf("Failed to set up db transaction")
 	}
 
-	assert.True(t, tx.IsOpen(), "Transaction should be open on creation")
-	err = tx.Commit()
-	assert.Nil(t, err, "Failed to commit: %v", err)
-	assert.False(t, tx.IsOpen(), "Transaction should be closed after commit")
+	if !tx.IsOpen() {
+		t.Fatalf("Transaction should be open on creation")
+	}
+	if err = tx.Commit(); err != nil {
+		t.Fatalf("Failed to commit: %v", err)
+	}
+	if tx.IsOpen() {
+		t.Fatalf("Transaction should be closed after commit")
+	}
 }
 
 func TestOpenStateRollback(t *testing.T) {
@@ -142,10 +146,15 @@ func TestOpenStateRollback(t *testing.T) {
 		t.Fatalf("Failed to set up db transaction")
 	}
 
-	assert.True(t, tx.IsOpen(), "Transaction should be open on creation")
-	err = tx.Rollback()
-	assert.Nil(t, err, "Failed to commit: %v", err)
-	assert.False(t, tx.IsOpen(), "Transaction should be closed after rollback")
+	if !tx.IsOpen() {
+		t.Fatalf("Transaction should be open on creation")
+	}
+	if err = tx.Rollback(); err != nil {
+		t.Fatalf("Failed to commit: %v", err)
+	}
+	if tx.IsOpen() {
+		t.Fatalf("Transaction should be closed after rollback")
+	}
 }
 
 func TestNodeRoundTrip(t *testing.T) {
@@ -898,7 +907,9 @@ func TestGetActiveLogIDs(t *testing.T) {
 		t.Fatalf("Failed to get log ids: %v", err)
 	}
 
-	assert.Equal(t, 1, len(logIDs))
+	if got, want := len(logIDs), 1; got != want {
+		t.Fatalf("Got %d logID(s), wanted %d", got, want)
+	}
 }
 
 func TestGetActiveLogIDsWithPendingWork(t *testing.T) {
