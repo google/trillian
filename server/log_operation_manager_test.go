@@ -32,7 +32,7 @@ func TestLogOperationManagerBeginFails(t *testing.T) {
 	mockLogOp := new(mockLogOperation)
 
 	done := make(chan struct{})
-	lom := NewLogOperationManagerForTest(done, mockStorageProviderForSequencer(mockStorage), 50, time.Second, fakeTimeSource, *mockLogOp)
+	lom := NewLogOperationManagerForTest(done, mockStorageProviderForSequencer(mockStorage), 50, time.Second, time.Second, fakeTimeSource, *mockLogOp)
 
 	lom.OperationLoop()
 
@@ -51,7 +51,7 @@ func TestLogOperationManagerGetLogsFails(t *testing.T) {
 	mockLogOp := new(mockLogOperation)
 
 	done := make(chan struct{})
-	lom := NewLogOperationManagerForTest(done, mockStorageProviderForSequencer(mockStorage), 50, time.Second, fakeTimeSource, *mockLogOp)
+	lom := NewLogOperationManagerForTest(done, mockStorageProviderForSequencer(mockStorage), 50, time.Second, time.Second, fakeTimeSource, *mockLogOp)
 
 	lom.OperationLoop()
 
@@ -70,7 +70,7 @@ func TestLogOperationManagerCommitFails(t *testing.T) {
 	mockLogOp := new(mockLogOperation)
 
 	done := make(chan struct{})
-	lom := NewLogOperationManagerForTest(done, mockStorageProviderForSequencer(mockStorage), 50, time.Second, fakeTimeSource, *mockLogOp)
+	lom := NewLogOperationManagerForTest(done, mockStorageProviderForSequencer(mockStorage), 50, time.Second, time.Second, fakeTimeSource, *mockLogOp)
 
 	lom.OperationLoop()
 
@@ -96,7 +96,7 @@ func TestLogOperationManagerPassesIDs(t *testing.T) {
 		})).Return(false)
 
 	done := make(chan struct{})
-	lom := NewLogOperationManagerForTest(done, mockStorageProviderForSequencer(mockStorage), 50, time.Second, fakeTimeSource, *mockLogOp)
+	lom := NewLogOperationManagerForTest(done, mockStorageProviderForSequencer(mockStorage), 50, time.Second, time.Second, fakeTimeSource, *mockLogOp)
 
 	lom.OperationLoop()
 

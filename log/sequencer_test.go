@@ -18,6 +18,16 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
+// Long duration to prevent root signing kicking in for tests where we're only testing
+// sequencing
+const tenYears time.Duration = time.Hour * 24 * 365 * 10
+
+// Func that says root never expires, so we can be sure tests will only sign / sequence when we
+// expect them to
+func rootNeverExpiresFunc(trillian.SignedLogRoot) bool {
+	return false
+}
+
 // These can be shared between tests as they're never modified
 var testLeaf16Hash = trillian.Hash{0, 1, 2, 3, 4, 5}
 var testLeaf16 = trillian.LogLeaf{Leaf: trillian.Leaf{LeafHash: testLeaf16Hash, LeafValue: nil, ExtraData: nil}, SequenceNumber: 16}
@@ -212,7 +222,7 @@ func TestBeginTXFails(t *testing.T) {
 	params := testParameters{beginFails: true, skipDequeue: true, skipStoreSignedRoot: true}
 	c := createTestContext(params)
 
-	leaves, err := c.sequencer.SequenceBatch(1)
+	leaves, err := c.sequencer.SequenceBatch(1, rootNeverExpiresFunc)
 	assert.Zero(t, leaves, "Unexpectedly sequenced leaves on error")
 	testonly.EnsureErrorContains(t, err, "TX")
 
@@ -220,10 +230,10 @@ func TestBeginTXFails(t *testing.T) {
 }
 
 func TestSequenceWithNothingQueued(t *testing.T) {
-	params := testParameters{dequeueLimit: 1, shouldCommit: true, dequeuedLeaves: []trillian.LogLeaf{}, skipStoreSignedRoot: true}
+	params := testParameters{dequeueLimit: 1, shouldCommit: true, latestSignedRoot: &testRoot16, dequeuedLeaves: []trillian.LogLeaf{}, skipStoreSignedRoot: true}
 	c := createTestContext(params)
 
-	leaves, err := c.sequencer.SequenceBatch(1)
+	leaves, err := c.sequencer.SequenceBatch(1, rootNeverExpiresFunc)
 	assert.Zero(t, leaves, "Unexpectedly sequenced leaves on error")
 
 	if err != nil {
@@ -237,7 +247,7 @@ func TestDequeueError(t *testing.T) {
 	params := testParameters{dequeueLimit: 1, shouldRollback: true, dequeuedError: errors.New("dequeue")}
 	c := createTestContext(params)
 
-	leaves, err := c.sequencer.SequenceBatch(1)
+	leaves, err := c.sequencer.SequenceBatch(1, rootNeverExpiresFunc)
 	testonly.EnsureErrorContains(t, err, "dequeue")
 	assert.Zero(t, leaves, "Unexpectedly sequenced leaves on error")
 
@@ -250,7 +260,7 @@ func TestLatestRootError(t *testing.T) {
 		latestSignedRoot: &testRoot16, latestSignedRootError: errors.New("root")}
 	c := createTestContext(params)
 
-	leafCount, err := c.sequencer.SequenceBatch(1)
+	leafCount, err := c.sequencer.SequenceBatch(1, rootNeverExpiresFunc)
 	assert.Zero(t, leafCount, "Unexpectedly sequenced leaves on error")
 	testonly.EnsureErrorContains(t, err, "root")
 
@@ -265,7 +275,7 @@ func TestUpdateSequencedLeavesError(t *testing.T) {
 		updatedLeavesError: errors.New("unsequenced")}
 	c := createTestContext(params)
 
-	leafCount, err := c.sequencer.SequenceBatch(1)
+	leafCount, err := c.sequencer.SequenceBatch(1, rootNeverExpiresFunc)
 	assert.Zero(t, leafCount, "Unexpectedly sequenced leaves on error")
 	testonly.EnsureErrorContains(t, err, "unsequenced")
 
@@ -280,7 +290,7 @@ func TestSetMerkleNodesError(t *testing.T) {
 		merkleNodesSetTreeRevision: 6, merkleNodesSetError: errors.New("setmerklenodes")}
 	c := createTestContext(params)
 
-	leafCount, err := c.sequencer.SequenceBatch(1)
+	leafCount, err := c.sequencer.SequenceBatch(1, rootNeverExpiresFunc)
 	assert.Zero(t, leafCount, "Unexpectedly sequenced leaves on error")
 	testonly.EnsureErrorContains(t, err, "setmerklenodes")
 
@@ -298,7 +308,7 @@ func TestStoreSignedRootError(t *testing.T) {
 		signingResult: []byte("signed")}
 	c := createTestContext(params)
 
-	leafCount, err := c.sequencer.SequenceBatch(1)
+	leafCount, err := c.sequencer.SequenceBatch(1, rootNeverExpiresFunc)
 	assert.Zero(t, leafCount, "Unexpectedly sequenced leaves on error")
 	testonly.EnsureErrorContains(t, err, "storesignedroot")
 
@@ -315,7 +325,7 @@ func TestStoreSignedRootKeyManagerFails(t *testing.T) {
 		keyManagerError: errors.New("keymanagerfailed")}
 	c := createTestContext(params)
 
-	leafCount, err := c.sequencer.SequenceBatch(1)
+	leafCount, err := c.sequencer.SequenceBatch(1, rootNeverExpiresFunc)
 	assert.Zero(t, leafCount, "Unexpectedly sequenced leaves on error")
 	testonly.EnsureErrorContains(t, err, "keymanagerfailed")
 
@@ -333,7 +343,7 @@ func TestStoreSignedRootSignerFails(t *testing.T) {
 		signingError: errors.New("signerfailed")}
 	c := createTestContext(params)
 
-	leafCount, err := c.sequencer.SequenceBatch(1)
+	leafCount, err := c.sequencer.SequenceBatch(1, rootNeverExpiresFunc)
 	assert.Zero(t, leafCount, "Unexpectedly sequenced leaves on error")
 	testonly.EnsureErrorContains(t, err, "signerfailed")
 
@@ -352,7 +362,7 @@ func TestCommitFails(t *testing.T) {
 		signingResult: []byte("signed")}
 	c := createTestContext(params)
 
-	leafCount, err := c.sequencer.SequenceBatch(1)
+	leafCount, err := c.sequencer.SequenceBatch(1, rootNeverExpiresFunc)
 	assert.Zero(t, leafCount, "Unexpectedly sequenced leaves on error")
 	testonly.EnsureErrorContains(t, err, "commit")
 
@@ -372,7 +382,7 @@ func TestSequenceBatch(t *testing.T) {
 		signingResult: []byte("signed")}
 	c := createTestContext(params)
 
-	leafCount, err := c.sequencer.SequenceBatch(1)
+	leafCount, err := c.sequencer.SequenceBatch(1, rootNeverExpiresFunc)
 	assert.Nil(t, err, "Expected sequencing to succeed")
 	assert.Equal(t, 1, leafCount, "Expected one leaf to have been sequenced")
 
@@ -471,7 +481,6 @@ func TestSignRoot(t *testing.T) {
 	assert.Nil(t, err, "Expected signing to succeed")
 
 	c.mockStorage.AssertExpectations(t)
-
 }
 
 func TestSignRootNoExistingRoot(t *testing.T) {

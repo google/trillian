@@ -4,7 +4,6 @@ package log
 import (
 	"errors"
 	"fmt"
-
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
@@ -23,6 +22,11 @@ type Sequencer struct {
 	logStorage storage.LogStorage
 	keyManager crypto.KeyManager
 }
+
+// CurrentRootExpiredFunc examines a signed log root and decides if it has expired with respect
+// to a max age duration and a given time source
+// TODO(Martin2112): This is all likely to go away when we switch to application STHs
+type CurrentRootExpiredFunc func(trillian.SignedLogRoot) bool
 
 func NewSequencer(hasher merkle.TreeHasher, timeSource util.TimeSource, logStorage storage.LogStorage, km crypto.KeyManager) *Sequencer {
 	return &Sequencer{hasher, timeSource, logStorage, km}
@@ -125,7 +129,7 @@ func (s Sequencer) signRoot(root trillian.SignedLogRoot) (trillian.DigitallySign
 // TODO(Martin2112): Can possibly improve by deferring a function that attempts to rollback,
 // which will fail if the tx was committed. Should only do this if we can hide the details of
 // the underlying storage transactions and it doesn't create other problems.
-func (s Sequencer) SequenceBatch(limit int) (int, error) {
+func (s Sequencer) SequenceBatch(limit int, expiryFunc CurrentRootExpiredFunc) (int, error) {
 	tx, err := s.logStorage.Begin()
 
 	if err != nil {
@@ -141,12 +145,6 @@ func (s Sequencer) SequenceBatch(limit int) (int, error) {
 		return 0, err
 	}
 
-	// There might be no work to be done
-	if len(leaves) == 0 {
-		tx.Commit()
-		return 0, nil
-	}
-
 	// Get the latest known root from storage
 	currentRoot, err := tx.LatestSignedLogRoot()
 
@@ -155,6 +153,20 @@ func (s Sequencer) SequenceBatch(limit int) (int, error) {
 		tx.Rollback()
 		return 0, err
 	}
+
+	// There might be no work to be done. But we possibly still need to create an STH if the
+	// current one is too old. If there's work to be done then we'll be creating a root anyway.
+	if len(leaves) == 0 {
+		// We have nothing to integrate into the tree
+		tx.Commit()
+		if expiryFunc(currentRoot) {
+			// Current root is too old, sign one. Will use a new TX, safe as we have no writes
+			// pending in this one.
+			return 0, s.SignRoot()
+		}
+		return 0, nil
+	}
+
 
 	merkleTree, err := s.initMerkleTreeFromStorage(currentRoot, tx)
 
@@ -275,8 +287,6 @@ func (s Sequencer) SignRoot() error {
 	}
 
 	// Build the updated root, ready for signing
-	// TODO(Martin2112): *** Consolidate sequencer and signer so only one entity produces new
-	// tree revisions. ***
 	newLogRoot := trillian.SignedLogRoot{
 		RootHash:       merkleTree.CurrentRoot(),
 		TimestampNanos: s.timeSource.Now().UnixNano(),

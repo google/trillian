@@ -6,10 +6,21 @@ import (
 	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/log"
 	"github.com/google/trillian/merkle"
+	"github.com/google/trillian/util"
+	"time"
 )
 
 type SequencerManager struct {
 	keyManager crypto.KeyManager
+}
+
+func isRootTooOld(ts util.TimeSource, maxAge time.Duration) log.CurrentRootExpiredFunc {
+	return func(root trillian.SignedLogRoot) bool {
+		rootTime := time.Unix(0, root.TimestampNanos)
+		rootAge := ts.Now().Sub(rootTime)
+
+		return rootAge > maxAge
+	}
 }
 
 func NewSequencerManager(km crypto.KeyManager) *SequencerManager {
@@ -49,7 +60,7 @@ func (s SequencerManager) ExecutePass(logIDs []trillian.LogID, context LogOperat
 		// TODO(Martin2112): Allow for different tree hashers to be used by different logs
 		sequencer := log.NewSequencer(merkle.NewRFC6962TreeHasher(trillian.NewSHA256()), context.timeSource, storage, s.keyManager)
 
-		leaves, err := sequencer.SequenceBatch(context.batchSize)
+		leaves, err := sequencer.SequenceBatch(context.batchSize, isRootTooOld(context.timeSource, context.signInterval))
 
 		if err != nil {
 			glog.Warningf("Error trying to sequence batch for: %v: %v", logID, err)

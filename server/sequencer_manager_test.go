@@ -24,6 +24,8 @@ var testLeaf0 = trillian.LogLeaf{Leaf: trillian.Leaf{LeafHash: testLeaf0Hash, Le
 var testRoot0 = trillian.SignedLogRoot{TreeSize: 0, TreeRevision: 0, LogId: logID1.LogID}
 var updatedNodes0 = []storage.Node{storage.Node{NodeID: storage.NodeID{Path: []uint8{0x0}, PrefixLenBits: 0, PathLenBits: 6}, Hash: trillian.Hash{0x0, 0x1, 0x2, 0x3, 0x4, 0x5}, NodeRevision: 1}}
 var updatedRoot = trillian.SignedLogRoot{LogId: logID1.LogID, TimestampNanos: fakeTime.UnixNano(), RootHash: []uint8{0x0, 0x1, 0x2, 0x3, 0x4, 0x5}, TreeSize: 1, Signature: &trillian.DigitallySigned{Signature: []byte("signed")}, TreeRevision: 1}
+// This is used in the signing test with no work where the treesize will be zero
+var updatedRootSignOnly = trillian.SignedLogRoot{LogId: logID1.LogID, TimestampNanos: fakeTime.UnixNano(), RootHash: []uint8{0xe3, 0xb0, 0xc4, 0x42, 0x98, 0xfc, 0x1c, 0x14, 0x9a, 0xfb, 0xf4, 0xc8, 0x99, 0x6f, 0xb9, 0x24, 0x27, 0xae, 0x41, 0xe4, 0x64, 0x9b, 0x93, 0x4c, 0xa4, 0x95, 0x99, 0x1b, 0x78, 0x52, 0xb8, 0x55}, TreeSize: 0, Signature: &trillian.DigitallySigned{Signature: []byte("signed")}, TreeRevision: 1}
 
 func TestSequencerManagerNothingToDo(t *testing.T) {
 	mockStorage := new(storage.MockLogStorage)
@@ -45,6 +47,7 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 
 	mockStorage.On("Begin").Return(mockTx, nil)
 	mockTx.On("Commit").Return(nil)
+	mockTx.On("LatestSignedLogRoot").Return(testRoot0, nil)
 	mockTx.On("DequeueLeaves", 50).Return([]trillian.LogLeaf{}, nil)
 	mockKeyManager := new(crypto.MockKeyManager)
 
@@ -90,6 +93,44 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 	mockKeyManager.AssertExpectations(t)
 }
 
+// Tests that a new root is signed if it's due even when there is no work to sequence.
+// The various failure cases of SignRoot() are tested in the sequencer tests. This is
+// an interaction test.
+func TestSignsIfNoWorkAndRootExpired(t *testing.T) {
+	mockStorage := new(storage.MockLogStorage)
+	mockTx := new(storage.MockLogTX)
+	mockKeyManager := new(crypto.MockKeyManager)
+	logID := trillian.LogID{TreeID: 1, LogID: []byte("Test")}
+	hasher := trillian.NewSHA256()
+
+	mockStorage.On("Begin").Return(mockTx, nil)
+	mockTx.On("Commit").Return(nil)
+	mockTx.On("LatestSignedLogRoot").Return(testRoot0, nil)
+	mockTx.On("DequeueLeaves", 50).Return([]trillian.LogLeaf{}, nil)
+	mockTx.On("StoreSignedLogRoot", updatedRootSignOnly).Return(nil)
+
+	mockSigner := new(crypto.MockSigner)
+	mockSigner.On("Sign", mock.MatchedBy(
+		func(other io.Reader) bool {
+			return true
+		}), []byte{0xeb, 0x7d, 0xa1, 0x4f, 0x1e, 0x60, 0x91, 0x24, 0xa, 0xf7, 0x1c, 0xcd, 0xdb, 0xd4, 0xca, 0x38, 0x4b, 0x12, 0xe4, 0xa3, 0xcf, 0x80, 0x5, 0x55, 0x17, 0x71, 0x35, 0xaf, 0x80, 0x11, 0xa, 0x87}, hasher).Return([]byte("signed"), nil)
+	mockKeyManager.On("Signer").Return(*mockSigner, nil)
+
+	sm := NewSequencerManager(mockKeyManager)
+
+	tc := createTestContext(mockStorageProviderForSequencer(mockStorage))
+	// Lower the expiry so we can trigger a signing for a root older than 5 seconds
+	tc.signInterval = time.Second * 5
+	sm.ExecutePass([]trillian.LogID{logID}, tc)
+
+	// Nothing was queued for sequencing so no leaves should be affected
+	mockTx.AssertNotCalled(t, "UpdateSequencedLeaves", mock.Anything)
+	mockTx.AssertNotCalled(t, "SetMerkleNodes", mock.Anything, mock.Anything)
+
+	mockStorage.AssertExpectations(t)
+	mockTx.AssertExpectations(t)
+}
+
 func mockStorageProviderForSequencer(mockStorage storage.LogStorage) LogStorageProviderFunc {
 	return func(id int64) (storage.LogStorage, error) {
 		if id >= 0 && id <= 1 {
@@ -103,5 +144,6 @@ func mockStorageProviderForSequencer(mockStorage storage.LogStorage) LogStorageP
 func createTestContext(sp LogStorageProviderFunc) LogOperationManagerContext {
 	done := make(chan struct{})
 
-	return LogOperationManagerContext{done: done, storageProvider: sp, batchSize: 50, sleepBetweenRuns: time.Second, oneShot: true, timeSource: fakeTimeSource}
+	// Set sign interval to 100 years so it won't trigger a root expiry signing unless overridden
+	return LogOperationManagerContext{done: done, storageProvider: sp, batchSize: 50, sleepBetweenRuns: time.Second, oneShot: true, timeSource: fakeTimeSource, signInterval:time.Hour * 24 * 365 * 100}
 }
