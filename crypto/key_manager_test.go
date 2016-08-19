@@ -12,7 +12,6 @@ import (
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/testonly"
-	"github.com/stretchr/testify/assert"
 )
 
 type ecdsaSig struct {
@@ -66,8 +65,9 @@ func TestLoadDemoECDSAKeyAndSign(t *testing.T) {
 
 	publicKey := parsedKey.(*ecdsa.PublicKey)
 
-	assert.True(t, ecdsa.Verify(publicKey, []byte("hello"), signature.R, signature.S),
-		"Signature did not verify on round trip test")
+	if !ecdsa.Verify(publicKey, []byte("hello"), signature.R, signature.S) {
+		t.Fatal("Signature did not verify on round trip test")
+	}
 }
 
 func TestLoadDemoECDSAPublicKey(t *testing.T) {
@@ -78,8 +78,9 @@ func TestLoadDemoECDSAPublicKey(t *testing.T) {
 	}
 
 	key, err := km.GetPublicKey()
-
-	assert.NoError(t, err, "unexpected error getting public key")
+	if err != nil {
+		t.Fatalf("Unexpected error getting public key: %v", err)
+	}
 
 	if key == nil {
 		t.Fatal("Key manager did not return public key after loading it")
