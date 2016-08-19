@@ -179,7 +179,6 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) testConte
 
 	if !params.skipStoreSignedRoot {
 		if params.storeSignedRoot != nil {
-			fmt.Printf("EXPECT %#v", params.storeSignedRoot)
 			mockTx.EXPECT().StoreSignedLogRoot(*params.storeSignedRoot).AnyTimes().Return(params.storeSignedRootError)
 		} else {
 			// At the moment if we're going to fail the operation we accept any root

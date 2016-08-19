@@ -29,6 +29,7 @@ func (i usesSHA256Hasher) Matches(x interface{}) bool {
 	}
 	return h.HashFunc() == crypto.SHA256
 }
+
 func (i usesSHA256Hasher) String() string {
 	return "uses SHA256 hasher"
 }
