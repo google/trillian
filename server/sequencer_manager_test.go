@@ -31,8 +31,7 @@ func TestSequencerManagerNothingToDo(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	mockStorage := new(storage.MockLogStorage)
-	mockTx := new(storage.MockLogTX)
+	mockStorage := storage.NewMockLogStorage(mockCtrl)
 	mockKeyManager := crypto.NewMockKeyManager(mockCtrl)
 
 	sm := NewSequencerManager(mockKeyManager)
@@ -101,11 +100,11 @@ func TestSignsIfNoWorkAndRootExpired(t *testing.T) {
 	logID := trillian.LogID{TreeID: 1, LogID: []byte("Test")}
 	hasher := trillian.NewSHA256()
 
-	mockStorage.EXPECT().Begin().Return(mockTx, nil)
-	mockTx.EXPECT().Commit().Return(nil)
-	mockTx.EXPECT().LatestSignedLogRoot().Return(testRoot0, nil)
+	mockStorage.EXPECT().Begin().AnyTimes().Return(mockTx, nil)
+	mockTx.EXPECT().Commit().AnyTimes().Return(nil)
+	mockTx.EXPECT().LatestSignedLogRoot().AnyTimes().Return(testRoot0, nil)
 	mockTx.EXPECT().DequeueLeaves(50).Return([]trillian.LogLeaf{}, nil)
-	mockTx.EXPECT().StoreSignedLogRoot(updatedRootSignOnly).Return(nil)
+	mockTx.EXPECT().StoreSignedLogRoot(updatedRootSignOnly).AnyTimes().Return(nil)
 
 	mockSigner := crypto.NewMockSigner(mockCtrl)
 	mockSigner.EXPECT().Sign(gomock.Any(), []byte{0xeb, 0x7d, 0xa1, 0x4f, 0x1e, 0x60, 0x91, 0x24, 0xa, 0xf7, 0x1c, 0xcd, 0xdb, 0xd4, 0xca, 0x38, 0x4b, 0x12, 0xe4, 0xa3, 0xcf, 0x80, 0x5, 0x55, 0x17, 0x71, 0x35, 0xaf, 0x80, 0x11, 0xa, 0x87}, hasher).Return([]byte("signed"), nil)
