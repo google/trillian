@@ -37,6 +37,11 @@ message NodeProto {
     int64 node_revision = 3;
 }
 
+message ProofProto {
+    int64 leaf_index = 1;
+    repeated NodeProto proof_node = 2;
+}
+
 message QueueLeavesRequest {
     int64 log_id = 1;
     repeated LeafProto leaves = 2;
@@ -55,7 +60,7 @@ message GetInclusionProofRequest {
 
 message GetInclusionProofResponse {
     TrillianApiStatus status = 1;
-    repeated NodeProto nodes = 2;
+    ProofProto proof = 2;
 }
 
 message GetInclusionProofByHashRequest {
@@ -65,7 +70,9 @@ message GetInclusionProofByHashRequest {
 
 message GetInclusionProofByHashResponse {
     TrillianApiStatus status = 1;
-    repeated NodeProto nodes = 2;
+    // Logs can potentially contain leaves with duplicate hashes so it's possible
+    // for this to return multiple proofs.
+    repeated ProofProto proof = 2;
 }
 
 message GetConsistencyProofRequest {
@@ -119,19 +126,28 @@ message GetLatestSignedLogRootResponse {
 // Clients cannot directly modify the log data via this API.
 service TrillianLog {
     // Corresponds to the LeafQueuer API
-    rpc QueueLeaves(QueueLeavesRequest) returns(QueueLeavesResponse) {}
+    rpc QueueLeaves (QueueLeavesRequest) returns (QueueLeavesResponse) {
+    }
 
     // No direct equivalent at the storage level
-    rpc GetInclusionProof(GetInclusionProofRequest) returns(GetInclusionProofResponse) {}
-    rpc GetConsistencyProof(GetConsistencyProofRequest) returns(GetConsistencyProofResponse) {}
+    rpc GetInclusionProof (GetInclusionProofRequest) returns (GetInclusionProofResponse) {
+    }
+    rpc GetInclusionProofByHash (GetInclusionProofByHashRequest) returns (GetInclusionProofByHashResponse) {
+    }
+    rpc GetConsistencyProof (GetConsistencyProofRequest) returns (GetConsistencyProofResponse) {
+    }
 
     // Corresponds to the LogRootReader API
-    rpc GetLatestSignedLogRoot(GetLatestSignedLogRootRequest) returns(GetLatestSignedLogRootResponse) {}
+    rpc GetLatestSignedLogRoot (GetLatestSignedLogRootRequest) returns (GetLatestSignedLogRootResponse) {
+    }
 
     // Corresponds to the LeafReader API
-    rpc GetSequencedLeafCount(GetSequencedLeafCountRequest) returns(GetSequencedLeafCountResponse) {}
-    rpc GetLeavesByIndex(GetLeavesByIndexRequest) returns(GetLeavesByIndexResponse) {}
-    rpc GetLeavesByHash(GetLeavesByHashRequest) returns(GetLeavesByHashResponse) {}
+    rpc GetSequencedLeafCount (GetSequencedLeafCountRequest) returns (GetSequencedLeafCountResponse) {
+    }
+    rpc GetLeavesByIndex (GetLeavesByIndexRequest) returns (GetLeavesByIndexResponse) {
+    }
+    rpc GetLeavesByHash (GetLeavesByHashRequest) returns (GetLeavesByHashResponse) {
+    }
 }
 
 message KeyValue {
