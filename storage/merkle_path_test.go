@@ -44,7 +44,7 @@ var pathTestBad = []calcPathTestData{
 
 func TestBitLen(t *testing.T) {
 	for _, testCase := range bitLenTests {
-		if expected, got := testCase.expected, bitLen(testCase.input); expected != got {
+		if got, expected := bitLen(testCase.input), testCase.expected; expected != got {
 			t.Fatalf("expected %d for input %d but got %d", testCase.expected, testCase.input, got)
 		}
 	}
@@ -58,7 +58,7 @@ func TestCalcInclusionProofNodeAddresses(t *testing.T) {
 			t.Fatalf("unexpected error calculating path %v: %v", testCase, err)
 		}
 
-		comparePaths(t, testCase.expectedPath, path)
+		comparePaths(t, path, testCase.expectedPath)
 	}
 }
 
@@ -80,7 +80,7 @@ func TestCalcInclusionProofNodeAddressesRejectsBadBitLen(t *testing.T) {
 	}
 }
 
-func comparePaths(t *testing.T, expected, got []NodeID) {
+func comparePaths(t *testing.T, got, expected []NodeID) {
 	if len(expected) != len(got) {
 		t.Fatalf("expected %d nodes in path but got %d: %v", len(expected), len(got), got)
 	}
