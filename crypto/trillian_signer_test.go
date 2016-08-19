@@ -5,11 +5,11 @@ import (
 	"crypto"
 	"errors"
 	"io"
+	"reflect"
 	"testing"
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/testonly"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -60,10 +60,15 @@ func TestSigner(t *testing.T) {
 
 	mockSigner.AssertExpectations(t)
 
-	assert.True(t, sig.HashAlgorithm == trillian.HashAlgorithm_SHA256, "Hash alg incorrect: %v", sig.HashAlgorithm)
-	assert.True(t, sig.SignatureAlgorithm == trillian.SignatureAlgorithm_RSA, "Sig alg incorrect: %v", sig.SignatureAlgorithm)
-	assert.Zero(t, bytes.Compare([]byte(result), sig.Signature), "Mismatched sig: [%v] [%v]",
-		[]byte(result), sig.Signature)
+	if got, want := sig.HashAlgorithm, trillian.HashAlgorithm_SHA256; got != want {
+		t.Fatalf("Hash alg incorrect, got %v expected %d", got, want)
+	}
+	if got, want := sig.SignatureAlgorithm, trillian.SignatureAlgorithm_RSA; got != want {
+		t.Fatalf("Sig alg incorrect, got %v expected %v", got, want)
+	}
+	if got, want := []byte(result), sig.Signature; !bytes.Equal(got, want) {
+		t.Fatalf("Mismatched sig got [%v] expected [%v]", got, want)
+	}
 }
 
 func TestSignerFails(t *testing.T) {
@@ -131,12 +136,16 @@ func TestSignLogRoot(t *testing.T) {
 
 	// Check root is not modified
 	expected := trillian.SignedLogRoot{TimestampNanos: 2267709, RootHash: []byte("Islington"), TreeSize: 2}
-	assert.Equal(t, expected, root, "Expected unmodified signed root")
+	if !reflect.DeepEqual(root, expected) {
+		t.Fatalf("Got %v, but expected unmodified signed root %v", root, expected)
+	}
 	// And signature is correct
 	expectedSignature := trillian.DigitallySigned{SignatureAlgorithm: trillian.SignatureAlgorithm_RSA,
 		HashAlgorithm: trillian.HashAlgorithm_SHA256,
 		Signature:     []byte("echo")}
-	assert.Equal(t, expectedSignature, signature, "Expected correct signature")
+	if !reflect.DeepEqual(signature, expectedSignature) {
+		t.Fatalf("Got %v, but expected %v", signature, expectedSignature)
+	}
 }
 
 func createTestSigner(t *testing.T, mock mockTrillianSigner) *TrillianSigner {

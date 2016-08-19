@@ -8,23 +8,29 @@ import (
 	"github.com/google/certificate-transparency/go/x509"
 	"github.com/google/certificate-transparency/go/x509/pkix"
 	"github.com/google/trillian/examples/ct/testonly"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestIsPrecertificate(t *testing.T) {
 	cert := pemToCert(t, testonly.PrecertPEMValid)
 
 	isPrecert, err := IsPrecertificate(cert)
-
-	assert.Nil(t, err, "Expected no error from precert check")
-	assert.True(t, isPrecert, "Valid precert not recognized")
+	if err != nil {
+		t.Fatalf("Unexpected error from precert check %v", err)
+	}
+	if !isPrecert {
+		t.Fatal("Valid precert not recognized")
+	}
 
 	// Wipe all the extensions and try again
 	cert.Extensions = cert.Extensions[:0]
 	isPrecert, err = IsPrecertificate(cert)
 
-	assert.Nil(t, err, "Expected no error from precert check")
-	assert.False(t, isPrecert, "Non precert misclassified")
+	if err != nil {
+		t.Fatalf("Unexpected error from precert check %v", err)
+	}
+	if isPrecert {
+		t.Fatal("Non precert misclassified")
+	}
 }
 
 func TestIsPrecertificateNormalCert(t *testing.T) {
@@ -32,8 +38,12 @@ func TestIsPrecertificateNormalCert(t *testing.T) {
 
 	isPrecert, err := IsPrecertificate(cert)
 
-	assert.Nil(t, err, "Expected no error from precert check")
-	assert.False(t, isPrecert, "Non precert misclassified")
+	if err != nil {
+		t.Fatalf("Unexpected error from precert check %v", err)
+	}
+	if isPrecert {
+		t.Fatal("Non precert misclassified")
+	}
 }
 
 func TestIsPrecertificateInvalidNonCriticalExtension(t *testing.T) {
@@ -43,8 +53,9 @@ func TestIsPrecertificateInvalidNonCriticalExtension(t *testing.T) {
 
 	cert.Extensions = []pkix.Extension{ext}
 	_, err := IsPrecertificate(cert)
-
-	assert.Error(t, err, "incorrectly accepted non critical CT extension")
+	if err == nil {
+		t.Fatal("incorrectly accepted non critical CT extension")
+	}
 }
 
 func TestIsPrecertificateInvalidBytesInExtension(t *testing.T) {
@@ -55,7 +66,9 @@ func TestIsPrecertificateInvalidBytesInExtension(t *testing.T) {
 	cert.Extensions = []pkix.Extension{ext}
 	_, err := IsPrecertificate(cert)
 
-	assert.Error(t, err, "incorrectly accepted invalid CT extension")
+	if err == nil {
+		t.Fatal("incorrectly accepted invalid CT extension")
+	}
 }
 
 func TestCertCheckerInvalidChainAccepted(t *testing.T) {
@@ -64,11 +77,15 @@ func TestCertCheckerInvalidChainAccepted(t *testing.T) {
 	jsonChain := pemsToJsonChain(t, chainPem)
 	trustedRoots := NewPEMCertPool()
 
-	assert.True(t, trustedRoots.AppendCertsFromPEM([]byte(testonly.FakeCACertPem)), "failed to load fake root")
+	if !trustedRoots.AppendCertsFromPEM([]byte(testonly.FakeCACertPem)) {
+		t.Fatal("failed to load fake root")
+	}
 
 	_, err := ValidateChain(jsonChain, *trustedRoots)
 
-	assert.Error(t, err, "verification accepted an invalid chain (missing intermediate)")
+	if err == nil {
+		t.Fatal("verification accepted an invalid chain (missing intermediate)")
+	}
 }
 
 func TestCertCheckerInvalidChainRejectedOrdering(t *testing.T) {
@@ -77,11 +94,15 @@ func TestCertCheckerInvalidChainRejectedOrdering(t *testing.T) {
 	jsonChain := pemsToJsonChain(t, chainPem)
 	trustedRoots := NewPEMCertPool()
 
-	assert.True(t, trustedRoots.AppendCertsFromPEM([]byte(testonly.FakeCACertPem)), "failed to load fake root")
+	if !trustedRoots.AppendCertsFromPEM([]byte(testonly.FakeCACertPem)) {
+		t.Fatal("failed to load fake root")
+	}
 
 	_, err := ValidateChain(jsonChain, *trustedRoots)
 
-	assert.Error(t, err, "verification accepted an invalid chain (ordering)")
+	if err == nil {
+		t.Fatal("verification accepted an invalid chain (ordering)")
+	}
 }
 
 func TestCertCheckerInvalidChainRejectedBadChain(t *testing.T) {
@@ -90,11 +111,15 @@ func TestCertCheckerInvalidChainRejectedBadChain(t *testing.T) {
 	jsonChain := pemsToJsonChain(t, chainPem)
 	trustedRoots := NewPEMCertPool()
 
-	assert.True(t, trustedRoots.AppendCertsFromPEM([]byte(testonly.FakeCACertPem)), "failed to load fake root")
+	if !trustedRoots.AppendCertsFromPEM([]byte(testonly.FakeCACertPem)) {
+		t.Fatal("failed to load fake root")
+	}
 
 	_, err := ValidateChain(jsonChain, *trustedRoots)
 
-	assert.Error(t, err, "verification accepted an invalid chain (unrelated)")
+	if err == nil {
+		t.Fatal("verification accepted an invalid chain (unrelated)")
+	}
 }
 
 func TestCertCheckerInvalidChainRejectedBadChainUnrelatedAppended(t *testing.T) {
@@ -104,11 +129,15 @@ func TestCertCheckerInvalidChainRejectedBadChainUnrelatedAppended(t *testing.T) 
 	jsonChain := pemsToJsonChain(t, chainPem)
 	trustedRoots := NewPEMCertPool()
 
-	assert.True(t, trustedRoots.AppendCertsFromPEM([]byte(testonly.FakeCACertPem)), "failed to load fake root")
+	if !trustedRoots.AppendCertsFromPEM([]byte(testonly.FakeCACertPem)) {
+		t.Fatal("failed to load fake root")
+	}
 
 	_, err := ValidateChain(jsonChain, *trustedRoots)
 
-	assert.Error(t, err, "verification accepted an invalid chain (unrelated at end)")
+	if err == nil {
+		t.Fatal("verification accepted an invalid chain (unrelated at end)")
+	}
 }
 
 func TestCertCheckerValidChainAccepted(t *testing.T) {
@@ -117,12 +146,18 @@ func TestCertCheckerValidChainAccepted(t *testing.T) {
 	jsonChain := pemsToJsonChain(t, chainPem)
 	trustedRoots := NewPEMCertPool()
 
-	assert.True(t, trustedRoots.AppendCertsFromPEM([]byte(testonly.FakeCACertPem)), "failed to load fake root")
+	if !trustedRoots.AppendCertsFromPEM([]byte(testonly.FakeCACertPem)) {
+		t.Fatal("failed to load fake root")
+	}
 
 	validPath, err := ValidateChain(jsonChain, *trustedRoots)
 
-	assert.NoError(t, err, "unexpected error verifying valid chain")
-	assert.Equal(t, 2, len(validPath), "expected valid path of length 2")
+	if err != nil {
+		t.Fatalf("unexpected error verifying valid chain %v", err)
+	}
+	if got, want := len(validPath), 2; got != want {
+		t.Fatalf(" got path of len %d, but expected length %d", got, want)
+	}
 }
 
 // Builds a chain of base64 encoded certs as if they'd been submitted to a handler.
