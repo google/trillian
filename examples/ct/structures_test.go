@@ -4,15 +4,13 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/base64"
-	"io"
+	"reflect"
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
 	"github.com/google/certificate-transparency/go"
-	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
 var fixedTime time.Time = time.Date(2016, 21, 7, 12, 15, 23, 0, time.UTC)
@@ -35,11 +33,15 @@ const ctMockLogID string = "LHDhK3oGRvkiefQnx7OOczTY5Tic/xZ6HcMOc/gmtoM="
 func TestGetCTLogID(t *testing.T) {
 	km := crypto.NewPEMKeyManager()
 	err := km.LoadPublicKey(ctTesttubePublicKey)
-	assert.NoError(t, err, "unexpected error loading public key")
+	if err != nil {
+		t.Fatalf("unexpected error loading public key: %v", err)
+	}
 
 	expected := ctTesttubeLogID
 	got, err := GetCTLogID(km)
-	assert.NoError(t, err, "error getting logid")
+	if err != nil {
+		t.Fatalf("error getting logid: %v", err)
+	}
 
 	got64 := base64.StdEncoding.EncodeToString(got[:])
 
@@ -52,8 +54,9 @@ func TestGetCTLogIDNotLoaded(t *testing.T) {
 	km := crypto.NewPEMKeyManager()
 
 	_, err := GetCTLogID(km)
-
-	assert.Error(t, err, "expected error when no key loaded")
+	if err == nil {
+		t.Fatalf("expected error when no key loaded: %v", err)
+	}
 }
 
 func TestSerializeCTLogEntry(t *testing.T) {
@@ -87,28 +90,26 @@ func TestSerializeCTLogEntry(t *testing.T) {
 			t.Fatalf("failed to deserialize log entry: %v", err)
 		}
 
-		assert.Equal(t, logEntry, logEntry2, "log entry mismatch after serialization roundtrip")
+		if !reflect.DeepEqual(logEntry, logEntry2) {
+			t.Fatalf("log entry mismatch after serialization roundtrip, %v != %v", logEntry, logEntry2)
+		}
 	}
 }
 
 // Creates a mock key manager for use in interaction tests
-func setupMockKeyManager(toSign []byte) *crypto.MockKeyManager {
-	mockKeyManager := setupMockKeyManagerForSth(toSign)
-	mockKeyManager.On("GetRawPublicKey").Return([]byte("key"), nil)
+func setupMockKeyManager(ctrl *gomock.Controller, toSign []byte) *crypto.MockKeyManager {
+	mockKeyManager := setupMockKeyManagerForSth(ctrl, toSign)
+	mockKeyManager.EXPECT().GetRawPublicKey().AnyTimes().Return([]byte("key"), nil)
 
 	return mockKeyManager
 }
 
 // As above but we don't expect the call for a public key as we don't need it for an STH
-func setupMockKeyManagerForSth(toSign []byte) *crypto.MockKeyManager {
-	hasher := trillian.NewSHA256()
-	mockKeyManager := new(crypto.MockKeyManager)
-	mockSigner := new(crypto.MockSigner)
-	mockSigner.On("Sign", mock.MatchedBy(
-		func(other io.Reader) bool {
-			return true
-		}), toSign, hasher).Return([]byte("signed"), nil)
-	mockKeyManager.On("Signer").Return(mockSigner, nil)
+func setupMockKeyManagerForSth(ctrl *gomock.Controller, toSign []byte) *crypto.MockKeyManager {
+	mockKeyManager := crypto.NewMockKeyManager(ctrl)
+	mockSigner := crypto.NewMockSigner(ctrl)
+	mockSigner.EXPECT().Sign(gomock.Any(), toSign, gomock.Any()).AnyTimes().Return([]byte("signed"), nil)
+	mockKeyManager.EXPECT().Signer().AnyTimes().Return(mockSigner, nil)
 
 	return mockKeyManager
 }

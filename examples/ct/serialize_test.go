@@ -5,23 +5,27 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/base64"
+	"reflect"
 	"testing"
 
+	"github.com/golang/mock/gomock"
+	"github.com/google/certificate-transparency/go"
 	"github.com/google/certificate-transparency/go/fixchain"
 	"github.com/google/certificate-transparency/go/x509"
 	"github.com/google/trillian/examples/ct/testonly"
-	"github.com/stretchr/testify/assert"
-	"github.com/google/certificate-transparency/go"
 )
 
 func TestSignV1SCTForCertificate(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
 	cert, err := fixchain.CertificateFromPEM(testonly.LeafSignedByFakeIntermediateCertPem)
 
 	if err != nil {
 		t.Fatalf("failed to set up test cert: %v", err)
 	}
 
-	km := setupMockKeyManager([]byte{0x5, 0x62, 0x4f, 0xb4, 0x9e, 0x32, 0x14, 0xb6, 0xc, 0xb8, 0x51, 0x28, 0x23, 0x93, 0x2c, 0x7a, 0x3d, 0x80, 0x93, 0x5f, 0xcd, 0x76, 0xef, 0x91, 0x6a, 0xaf, 0x1b, 0x8c, 0xe8, 0xb5, 0x2, 0xb5})
+	km := setupMockKeyManager(mockCtrl, []byte{0x5, 0x62, 0x4f, 0xb4, 0x9e, 0x32, 0x14, 0xb6, 0xc, 0xb8, 0x51, 0x28, 0x23, 0x93, 0x2c, 0x7a, 0x3d, 0x80, 0x93, 0x5f, 0xcd, 0x76, 0xef, 0x91, 0x6a, 0xaf, 0x1b, 0x8c, 0xe8, 0xb5, 0x2, 0xb5})
 
 	leaf, got, err := signV1SCTForCertificate(km, cert, fixedTime)
 
@@ -47,17 +51,32 @@ func TestSignV1SCTForCertificate(t *testing.T) {
 			SignatureAlgorithm: ct.RSA,
 			Signature:          []byte("signed")}}
 
-	assert.Equal(t, expected, got, "mismatched SCT (cert)")
+	if !reflect.DeepEqual(got, expected) {
+		t.Fatalf("Mismatched SCT (cert), got %v, expected %v", got, expected)
+	}
 
 	// Additional checks that the MerkleTreeLeaf we built is correct
-	assert.Equal(t, ct.V1, leaf.Version, "expected a v1 leaf")
-	assert.Equal(t, ct.TimestampedEntryLeafType, leaf.LeafType, "expected a timestamped entry type")
-	assert.Equal(t, ct.X509LogEntryType, leaf.TimestampedEntry.EntryType, "expected x509 entry type")
-	assert.Equal(t, got.Timestamp, leaf.TimestampedEntry.Timestamp, "entry / sct timestamp mismatch")
-	assert.Equal(t, ct.ASN1Cert(cert.Raw), leaf.TimestampedEntry.X509Entry, "cert bytes mismatch")
+	if got, want := leaf.Version, ct.V1; got != want {
+		t.Fatalf("Got a %v leaf, expected a %v leaf", got, want)
+	}
+	if got, want := leaf.LeafType, ct.TimestampedEntryLeafType; got != want {
+		t.Fatalf("Got leaf type %v, expected %v", got, want)
+	}
+	if got, want := leaf.TimestampedEntry.EntryType, ct.X509LogEntryType; got != want {
+		t.Fatalf("Got entry type %v, expected %v", got, want)
+	}
+	if got, want := leaf.TimestampedEntry.Timestamp, got.Timestamp; got != want {
+		t.Fatalf("Entry / sct timestamp mismatch; got %v, expected %v", got, want)
+	}
+	if got, want := leaf.TimestampedEntry.X509Entry, ct.ASN1Cert(cert.Raw); !reflect.DeepEqual(got, want) {
+		t.Fatalf("Cert bytes mismatch, got %v, expected %v", got, want)
+	}
 }
 
 func TestSignV1SCTForPrecertificate(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
 	cert, err := fixchain.CertificateFromPEM(testonly.PrecertPEMValid)
 	_, ok := err.(x509.NonFatalErrors)
 
@@ -65,7 +84,7 @@ func TestSignV1SCTForPrecertificate(t *testing.T) {
 		t.Fatalf("failed to set up test precert: %v", err)
 	}
 
-	km := setupMockKeyManager([]byte{0x77, 0xf3, 0x5c, 0xc6, 0xad, 0x85, 0xfd, 0xe0, 0x38, 0xfd, 0x36, 0x34, 0x5c, 0x1e, 0x45, 0x58, 0x60, 0x95, 0xb1, 0x7c, 0x28, 0xaa, 0xa5, 0xa5, 0x84, 0x96, 0x37, 0x4b, 0xf8, 0xbb, 0xd9, 0x8})
+	km := setupMockKeyManager(mockCtrl, []byte{0x77, 0xf3, 0x5c, 0xc6, 0xad, 0x85, 0xfd, 0xe0, 0x38, 0xfd, 0x36, 0x34, 0x5c, 0x1e, 0x45, 0x58, 0x60, 0x95, 0xb1, 0x7c, 0x28, 0xaa, 0xa5, 0xa5, 0x84, 0x96, 0x37, 0x4b, 0xf8, 0xbb, 0xd9, 0x8})
 
 	leaf, got, err := signV1SCTForPrecertificate(km, cert, fixedTime)
 
@@ -90,17 +109,32 @@ func TestSignV1SCTForPrecertificate(t *testing.T) {
 			SignatureAlgorithm: ct.RSA,
 			Signature:          []byte("signed")}}
 
-	assert.Equal(t, expected, got, "mismatched SCT (precert")
+	if !reflect.DeepEqual(got, expected) {
+		t.Fatalf("Mismatched SCT (precert), got %v, expected %v", got, expected)
+	}
 
 	// Additional checks that the MerkleTreeLeaf we built is correct
 	keyHash := sha256.Sum256(cert.RawSubjectPublicKeyInfo)
 
-	assert.Equal(t, ct.V1, leaf.Version, "expected a v1 leaf")
-	assert.Equal(t, ct.TimestampedEntryLeafType, leaf.LeafType, "expected a timestamped entry type")
-	assert.Equal(t, ct.PrecertLogEntryType, leaf.TimestampedEntry.EntryType, "expected precert entry type")
-	assert.Equal(t, got.Timestamp, leaf.TimestampedEntry.Timestamp, "entry / sct timestamp mismatch")
-	assert.Equal(t, keyHash, leaf.TimestampedEntry.PrecertEntry.IssuerKeyHash, "issuer key hash mismatch")
-	assert.Equal(t, cert.RawTBSCertificate, leaf.TimestampedEntry.PrecertEntry.TBSCertificate, "tbs cert mismatch")
+	// Additional checks that the MerkleTreeLeaf we built is correct
+	if got, want := leaf.Version, ct.V1; got != want {
+		t.Fatalf("Got a %v leaf, expected a %v leaf", got, want)
+	}
+	if got, want := leaf.LeafType, ct.TimestampedEntryLeafType; got != want {
+		t.Fatalf("Got leaf type %v, expected %v", got, want)
+	}
+	if got, want := leaf.TimestampedEntry.EntryType, ct.PrecertLogEntryType; got != want {
+		t.Fatalf("Got entry type %v, expected %v", got, want)
+	}
+	if got, want := got.Timestamp, leaf.TimestampedEntry.Timestamp; got != want {
+		t.Fatalf("Entry / sct timestamp mismatch; got %v, expected %v", got, want)
+	}
+	if got, want := keyHash[:], leaf.TimestampedEntry.PrecertEntry.IssuerKeyHash[:]; !bytes.Equal(got, want) {
+		t.Fatalf("Issuer key hash bytes mismatch, got %v, expected %v", got, want)
+	}
+	if got, want := leaf.TimestampedEntry.PrecertEntry.TBSCertificate, cert.RawTBSCertificate; !bytes.Equal(got, want) {
+		t.Fatalf("TBS cert mismatch, got %v, expected %v", got, want)
+	}
 }
 
 func TestSerializeMerkleTreeLeafBadVersion(t *testing.T) {
@@ -110,8 +144,12 @@ func TestSerializeMerkleTreeLeafBadVersion(t *testing.T) {
 
 	var b bytes.Buffer
 	err := writeMerkleTreeLeaf(&b, leaf)
-	assert.Error(t, err, "incorrectly serialized leaf with bad version")
-	assert.Zero(t, len(b.Bytes()), "wrote data when serializing invalid object")
+	if err == nil {
+		t.Fatal("Incorrectly serialized leaf with bad version")
+	}
+	if got := len(b.Bytes()); got != 0 {
+		t.Fatalf("Wrote %d bytes of data when serializing invalid object, expected 0", got)
+	}
 }
 
 func TestSerializeMerkleTreeLeafBadType(t *testing.T) {
@@ -122,8 +160,12 @@ func TestSerializeMerkleTreeLeafBadType(t *testing.T) {
 
 	var b bytes.Buffer
 	err := writeMerkleTreeLeaf(&b, leaf)
-	assert.Error(t, err, "incorrectly serialized leaf with bad leaf type")
-	assert.Zero(t, len(b.Bytes()), "wrote data when serializing invalid object")
+	if err == nil {
+		t.Fatal("Incorrectly serialized leaf with bad leaf type")
+	}
+	if got := len(b.Bytes()); got != 0 {
+		t.Fatalf("Wrote %d bytes of data when serializing invalid object, expected 0", got)
+	}
 }
 
 func TestSerializeMerkleTreeLeafCert(t *testing.T) {
@@ -150,7 +192,9 @@ func TestSerializeMerkleTreeLeafCert(t *testing.T) {
 		t.Fatalf("failed to read leaf: %v", err)
 	}
 
-	assert.Equal(t, leaf, *leaf2, "leaf mismatch after serialization roundtrip (cert)")
+	if a, b := leaf, *leaf2; !reflect.DeepEqual(a, b) {
+		t.Fatalf("Leaf mismatch after serialization roundtrip (cert), %v != %v", a, b)
+	}
 }
 
 func TestSerializeMerkleTreePrecert(t *testing.T) {
@@ -178,5 +222,7 @@ func TestSerializeMerkleTreePrecert(t *testing.T) {
 		t.Fatalf("failed to read leaf: %v", err)
 	}
 
-	assert.Equal(t, leaf, *leaf2, "leaf mismatch after serialization roundtrip (precert)")
+	if a, b := leaf, *leaf2; !reflect.DeepEqual(a, b) {
+		t.Fatalf("Leaf mismatch after serialization roundtrip (precert), %v != %v", a, b)
+	}
 }

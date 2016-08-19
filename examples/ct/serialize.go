@@ -8,10 +8,10 @@ import (
 	"io"
 	"time"
 
-	"github.com/google/trillian"
-	"github.com/google/trillian/crypto"
 	"github.com/google/certificate-transparency/go"
 	"github.com/google/certificate-transparency/go/x509"
+	"github.com/google/trillian"
+	"github.com/google/trillian/crypto"
 )
 
 // SignV1TreeHead signs a tree head for CT. The input STH should have been built from a
@@ -202,7 +202,7 @@ func writeVarBytes(w io.Writer, value []byte, numLenBytes int) error {
 func writeUint(w io.Writer, value uint64, numBytes int) error {
 	buf := make([]uint8, numBytes)
 	for i := 0; i < numBytes; i++ {
-		buf[numBytes - i - 1] = uint8(value & 0xff)
+		buf[numBytes-i-1] = uint8(value & 0xff)
 		value >>= 8
 	}
 	if value != 0 {
