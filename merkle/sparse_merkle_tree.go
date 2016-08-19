@@ -28,7 +28,6 @@ type newTXFunc func() (storage.TreeTX, error)
 // SparseMerkleTreeWriter knows how to store/update a stored sparse merkle tree
 // via a TreeStorage transaction.
 type SparseMerkleTreeWriter struct {
-	tx           storage.TreeTX
 	hasher       MapHasher
 	treeRevision int64
 	tree         Subtree
@@ -337,10 +336,6 @@ func newLocalSubtreeWriter(rev int64, prefix []byte, depths []int, newTX newTXFu
 // write data back into the tree at the specified revision, using the passed
 // in MapHasher to calulate/verify tree hashes, storing via tx.
 func NewSparseMerkleTreeWriter(rev int64, h MapHasher, newTX newTXFunc) (*SparseMerkleTreeWriter, error) {
-	tx, err := newTX()
-	if err != nil {
-		return nil, err
-	}
 	// TODO(al): allow the tree layering sizes to be customisable somehow.
 	const topSubtreeSize = 8 // must be a multiple of 8 for now.
 	tree, err := newLocalSubtreeWriter(rev, []byte{}, []int{topSubtreeSize, h.Size()*8 - topSubtreeSize}, newTX, h.TreeHasher)
@@ -348,7 +343,6 @@ func NewSparseMerkleTreeWriter(rev int64, h MapHasher, newTX newTXFunc) (*Sparse
 		return nil, err
 	}
 	return &SparseMerkleTreeWriter{
-		tx:           tx,
 		hasher:       h,
 		tree:         tree,
 		treeRevision: rev,
