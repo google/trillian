@@ -30,9 +30,9 @@ func CalcInclusionProofNodeAddresses(treeSize, index int64, maxBitLen int) ([]No
 		} else if sibling == lastNodeAtLevel {
 			// The tree may skip levels because it's not completely filled in. These nodes
 			// don't exist
-			drop := depth - subtreeDepth(treeSize, depth - 1)
+			drop := depth - subtreeDepth(treeSize, depth-1)
 			sibling = sibling << uint(drop)
-			proof = append(proof, NewNodeIDForTreeCoords(int64(depth - drop), sibling, maxBitLen))
+			proof = append(proof, NewNodeIDForTreeCoords(int64(depth-drop), sibling, maxBitLen))
 		}
 
 		node = node >> 1

@@ -26,6 +26,7 @@ var bitLenTests = []bitLenTestData{{0, 0}, {1, 1}, {2, 2}, {3, 2}, {12, 4}}
 
 // These should all successfully compute the expected path
 var pathTests = []calcPathTestData{
+	{1, 0, []NodeID{}},
 	{7, 3, expectedPathSize7Index3},
 	{7, 6, expectedPathSize7Index6},
 	{7, 0, expectedPathSize7Index0},
@@ -33,6 +34,8 @@ var pathTests = []calcPathTestData{
 
 // These should all fail
 var pathTestBad = []calcPathTestData{
+	{0, 1, []NodeID{}},
+	{1, 2, []NodeID{}},
 	{0, 3, []NodeID{}},
 	{-1, 3, []NodeID{}},
 	{7, -1, []NodeID{}},
