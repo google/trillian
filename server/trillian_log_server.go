@@ -87,6 +87,13 @@ func (t *TrillianLogServer) GetInclusionProof(ctx context.Context, req *trillian
 	return nil, ErrNotImplemented
 }
 
+// GetInclusionProofByHash obtains proofs of inclusion by leaf hash. Because some logs can
+// contain duplicate hashes it is possible for multiple proofs to be returned.
+// TODO(Martin2112): Need to define a limit on number of results or some form of paging etc.
+func (t *TrillianLogServer) GetInclusionProofByHash(ctx context.Context, req *trillian.GetInclusionProofByHashRequest) (*trillian.GetInclusionProofByHashResponse, error) {
+	return nil, ErrNotImplemented
+}
+
 // GetConsistencyProof obtains a proof that two versions of the tree are consistent with each
 // other and that the later tree includes all the entries of the prior one. For more details
 // see the example trees in RFC 6962.
