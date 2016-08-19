@@ -32,9 +32,9 @@ var testRoot16 = trillian.SignedLogRoot{TreeSize: 16, TreeRevision: 5}
 
 // These will be accepted in either order because of custom sorting in the mock
 var updatedNodes []storage.Node = []storage.Node{
-	storage.Node{NodeID: storage.NodeID{Path: []uint8{0x10}, PrefixLenBits: 0, PathLenBits: 6},
+	{NodeID: storage.NodeID{Path: []uint8{0x10}, PrefixLenBits: 0, PathLenBits: 6},
 		Hash: trillian.Hash{0x0, 0x1, 0x2, 0x3, 0x4, 0x5}, NodeRevision: 6},
-	storage.Node{
+	{
 		NodeID:       storage.NodeID{Path: []uint8{0x0}, PrefixLenBits: 5, PathLenBits: 6},
 		Hash:         trillian.Hash{0xbb, 0x49, 0x71, 0xbc, 0x2a, 0x37, 0x93, 0x67, 0xfb, 0x75, 0xa9, 0xf4, 0x5b, 0x67, 0xf, 0xb0, 0x97, 0xb2, 0x1e, 0x81, 0x1d, 0x58, 0xd1, 0x3a, 0xbb, 0x71, 0x7e, 0x28, 0x51, 0x17, 0xc3, 0x7c},
 		NodeRevision: 6},
@@ -136,6 +136,9 @@ func fakeTime() time.Time {
 	return fakeTimeForTest
 }
 
+type protoMatcher struct {
+}
+
 func createTestContext(ctrl *gomock.Controller, params testParameters) testContext {
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
@@ -148,41 +151,36 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) testConte
 
 	if params.shouldCommit {
 		if !params.commitFails {
-			mockTx.EXPECT().Commit().Return(nil)
+			mockTx.EXPECT().Commit().AnyTimes().Return(nil)
 		} else {
-			mockTx.EXPECT().Commit().Return(params.commitError)
+			mockTx.EXPECT().Commit().AnyTimes().Return(params.commitError)
 		}
 	}
 
 	if params.shouldRollback {
-		mockTx.EXPECT().Rollback().Return(nil)
+		mockTx.EXPECT().Rollback().AnyTimes().Return(nil)
 	}
 
 	if !params.skipDequeue {
-		mockTx.EXPECT().DequeueLeaves(params.dequeueLimit).Return(params.dequeuedLeaves, params.dequeuedError)
+		mockTx.EXPECT().DequeueLeaves(params.dequeueLimit).AnyTimes().Return(params.dequeuedLeaves, params.dequeuedError)
 	}
 
 	if params.latestSignedRoot != nil {
-		mockTx.EXPECT().LatestSignedLogRoot().Return(*params.latestSignedRoot, params.latestSignedRootError)
+		mockTx.EXPECT().LatestSignedLogRoot().AnyTimes().Return(*params.latestSignedRoot, params.latestSignedRootError)
 	}
 
 	if params.updatedLeaves != nil {
-		mockTx.EXPECT().UpdateSequencedLeaves(*params.updatedLeaves).Return(params.updatedLeavesError)
+		mockTx.EXPECT().UpdateSequencedLeaves(*params.updatedLeaves).AnyTimes().Return(params.updatedLeavesError)
 	}
 
 	if params.merkleNodesSet != nil {
-		mockTx.EXPECT().SetMerkleNodes(params.merkleNodesSetTreeRevision, *params.merkleNodesSet).Return(params.merkleNodesSetError)
+		mockTx.EXPECT().SetMerkleNodes(params.merkleNodesSetTreeRevision, testonly.NodeSet(*params.merkleNodesSet)).AnyTimes().Return(params.merkleNodesSetError)
 	}
 
 	if !params.skipStoreSignedRoot {
 		if params.storeSignedRoot != nil {
-			mockTx.EXPECT().StoreSignedLogRoot(params.storeSignedRoot).Return(params.storeSignedRootError)
-			/*	, mock.MatchedBy(
-				func(other trillian.SignedLogRoot) bool {
-					return proto.Equal(params.storeSignedRoot, &other)
-
-				})).Return(params.storeSignedRootError)
-			*/
+			fmt.Printf("EXPECT %#v", params.storeSignedRoot)
+			mockTx.EXPECT().StoreSignedLogRoot(*params.storeSignedRoot).AnyTimes().Return(params.storeSignedRootError)
 		} else {
 			// At the moment if we're going to fail the operation we accept any root
 			mockTx.EXPECT().StoreSignedLogRoot(gomock.Any()).AnyTimes().Return(params.storeSignedRootError)
