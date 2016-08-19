@@ -7,14 +7,12 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/util"
-	"github.com/stretchr/testify/mock"
 )
 
 // Long duration to prevent root signing kicking in for tests where we're only testing
@@ -121,11 +119,6 @@ type testContext struct {
 	sequencer      *Sequencer
 }
 
-func (c testContext) assertExpectations(t *testing.T) {
-	c.mockStorage.AssertExpectations(t)
-	c.mockTx.AssertExpectations(t)
-}
-
 // This gets modified so tests need their own copies
 func getLeaf42() trillian.LogLeaf {
 	testLeaf42Hash := trillian.Hash{0, 1, 2, 3, 4, 5}
@@ -144,55 +137,55 @@ func fakeTime() time.Time {
 }
 
 func createTestContext(ctrl *gomock.Controller, params testParameters) testContext {
-	mockStorage := new(storage.MockLogStorage)
-	mockTx := new(storage.MockLogTX)
+	mockStorage := storage.NewMockLogStorage(ctrl)
+	mockTx := storage.NewMockLogTX(ctrl)
 
 	if params.beginFails {
-		mockStorage.On("Begin").Return(mockTx, errors.New("TX"))
+		mockStorage.EXPECT().Begin().AnyTimes().Return(mockTx, errors.New("TX"))
 	} else {
-		mockStorage.On("Begin").Return(mockTx, nil)
+		mockStorage.EXPECT().Begin().AnyTimes().Return(mockTx, nil)
 	}
 
 	if params.shouldCommit {
 		if !params.commitFails {
-			mockTx.On("Commit").Return(nil)
+			mockTx.EXPECT().Commit().Return(nil)
 		} else {
-			mockTx.On("Commit").Return(params.commitError)
+			mockTx.EXPECT().Commit().Return(params.commitError)
 		}
 	}
 
 	if params.shouldRollback {
-		mockTx.On("Rollback").Return(nil)
+		mockTx.EXPECT().Rollback().Return(nil)
 	}
 
 	if !params.skipDequeue {
-		mockTx.On("DequeueLeaves", params.dequeueLimit).Return(params.dequeuedLeaves, params.dequeuedError)
+		mockTx.EXPECT().DequeueLeaves(params.dequeueLimit).Return(params.dequeuedLeaves, params.dequeuedError)
 	}
 
 	if params.latestSignedRoot != nil {
-		mockTx.On("LatestSignedLogRoot").Return(*params.latestSignedRoot, params.latestSignedRootError)
+		mockTx.EXPECT().LatestSignedLogRoot().Return(*params.latestSignedRoot, params.latestSignedRootError)
 	}
 
 	if params.updatedLeaves != nil {
-		mockTx.On("UpdateSequencedLeaves", *params.updatedLeaves).Return(params.updatedLeavesError)
+		mockTx.EXPECT().UpdateSequencedLeaves(*params.updatedLeaves).Return(params.updatedLeavesError)
 	}
 
 	if params.merkleNodesSet != nil {
-		mockTx.On("SetMerkleNodes", params.merkleNodesSetTreeRevision, *params.merkleNodesSet).Return(params.merkleNodesSetError)
+		mockTx.EXPECT().SetMerkleNodes(params.merkleNodesSetTreeRevision, *params.merkleNodesSet).Return(params.merkleNodesSetError)
 	}
 
 	if !params.skipStoreSignedRoot {
 		if params.storeSignedRoot != nil {
-			mockTx.On("StoreSignedLogRoot", mock.MatchedBy(
+			mockTx.EXPECT().StoreSignedLogRoot(params.storeSignedRoot).Return(params.storeSignedRootError)
+			/*	, mock.MatchedBy(
 				func(other trillian.SignedLogRoot) bool {
 					return proto.Equal(params.storeSignedRoot, &other)
+
 				})).Return(params.storeSignedRootError)
+			*/
 		} else {
 			// At the moment if we're going to fail the operation we accept any root
-			mockTx.On("StoreSignedLogRoot", mock.MatchedBy(
-				func(other trillian.SignedLogRoot) bool {
-					return true
-				})).Return(params.storeSignedRootError)
+			mockTx.EXPECT().StoreSignedLogRoot(gomock.Any()).AnyTimes().Return(params.storeSignedRootError)
 		}
 	}
 
@@ -225,8 +218,6 @@ func TestBeginTXFails(t *testing.T) {
 		t.Fatalf("Unexpectedly sequenced %d leaves on error", leaves)
 	}
 	testonly.EnsureErrorContains(t, err, "TX")
-
-	c.assertExpectations(t)
 }
 
 func TestSequenceWithNothingQueued(t *testing.T) {
@@ -245,8 +236,6 @@ func TestSequenceWithNothingQueued(t *testing.T) {
 	if err != nil {
 		t.Errorf("Expected nil return with no work pending in queue")
 	}
-
-	c.assertExpectations(t)
 }
 
 func TestDequeueError(t *testing.T) {
@@ -261,8 +250,6 @@ func TestDequeueError(t *testing.T) {
 	if leafCount != 0 {
 		t.Fatalf("Unexpectedly sequenced %d leaves on error", leafCount)
 	}
-
-	c.mockStorage.AssertExpectations(t)
 }
 
 func TestLatestRootError(t *testing.T) {
@@ -279,8 +266,6 @@ func TestLatestRootError(t *testing.T) {
 		t.Fatalf("Unexpectedly sequenced %d leaves on error", leafCount)
 	}
 	testonly.EnsureErrorContains(t, err, "root")
-
-	c.mockStorage.AssertExpectations(t)
 }
 
 func TestUpdateSequencedLeavesError(t *testing.T) {
@@ -299,8 +284,6 @@ func TestUpdateSequencedLeavesError(t *testing.T) {
 		t.Fatalf("Unexpectedly sequenced %d leaves on error", leafCount)
 	}
 	testonly.EnsureErrorContains(t, err, "unsequenced")
-
-	c.mockStorage.AssertExpectations(t)
 }
 
 func TestSetMerkleNodesError(t *testing.T) {
@@ -319,8 +302,6 @@ func TestSetMerkleNodesError(t *testing.T) {
 		t.Fatalf("Unexpectedly sequenced %d leaves on error", leafCount)
 	}
 	testonly.EnsureErrorContains(t, err, "setmerklenodes")
-
-	c.mockStorage.AssertExpectations(t)
 }
 
 func TestStoreSignedRootError(t *testing.T) {
@@ -342,8 +323,6 @@ func TestStoreSignedRootError(t *testing.T) {
 		t.Fatalf("Unexpectedly sequenced %d leaves on error", leafCount)
 	}
 	testonly.EnsureErrorContains(t, err, "storesignedroot")
-
-	c.mockStorage.AssertExpectations(t)
 }
 
 func TestStoreSignedRootKeyManagerFails(t *testing.T) {
@@ -364,8 +343,6 @@ func TestStoreSignedRootKeyManagerFails(t *testing.T) {
 		t.Fatalf("Unexpectedly sequenced %d leaves on error", leafCount)
 	}
 	testonly.EnsureErrorContains(t, err, "keymanagerfailed")
-
-	c.mockStorage.AssertExpectations(t)
 }
 
 func TestStoreSignedRootSignerFails(t *testing.T) {
@@ -387,8 +364,6 @@ func TestStoreSignedRootSignerFails(t *testing.T) {
 		t.Fatalf("Unexpectedly sequenced %d leaves on error", leafCount)
 	}
 	testonly.EnsureErrorContains(t, err, "signerfailed")
-
-	c.mockStorage.AssertExpectations(t)
 }
 
 func TestCommitFails(t *testing.T) {
@@ -411,8 +386,6 @@ func TestCommitFails(t *testing.T) {
 		t.Fatalf("Unexpectedly sequenced %d leaves on error", leafCount)
 	}
 	testonly.EnsureErrorContains(t, err, "commit")
-
-	c.mockStorage.AssertExpectations(t)
 }
 
 // TODO: We used a perfect tree size so this isn't testing code that loads the compact merkle
@@ -438,8 +411,6 @@ func TestSequenceBatch(t *testing.T) {
 	if got, want := leafCount, 1; got != want {
 		t.Fatalf("Sequenced %d leaf, expected %d", got, want)
 	}
-
-	c.mockStorage.AssertExpectations(t)
 }
 
 func TestSignBeginTxFails(t *testing.T) {
@@ -451,8 +422,6 @@ func TestSignBeginTxFails(t *testing.T) {
 
 	err := c.sequencer.SignRoot()
 	testonly.EnsureErrorContains(t, err, "TX")
-
-	c.mockStorage.AssertExpectations(t)
 }
 
 func TestSignLatestRootFails(t *testing.T) {
@@ -465,8 +434,6 @@ func TestSignLatestRootFails(t *testing.T) {
 
 	err := c.sequencer.SignRoot()
 	testonly.EnsureErrorContains(t, err, "root")
-
-	c.mockStorage.AssertExpectations(t)
 }
 
 func TestSignedRootKeyManagerFails(t *testing.T) {
@@ -481,8 +448,6 @@ func TestSignedRootKeyManagerFails(t *testing.T) {
 
 	err := c.sequencer.SignRoot()
 	testonly.EnsureErrorContains(t, err, "keymanager")
-
-	c.mockStorage.AssertExpectations(t)
 }
 
 func TestSignRootSignerFails(t *testing.T) {
@@ -499,8 +464,6 @@ func TestSignRootSignerFails(t *testing.T) {
 
 	err := c.sequencer.SignRoot()
 	testonly.EnsureErrorContains(t, err, "signer")
-
-	c.mockStorage.AssertExpectations(t)
 }
 
 func TestSignRootStoreSignedRootFails(t *testing.T) {
@@ -517,8 +480,6 @@ func TestSignRootStoreSignedRootFails(t *testing.T) {
 
 	err := c.sequencer.SignRoot()
 	testonly.EnsureErrorContains(t, err, "storesignedroot")
-
-	c.mockStorage.AssertExpectations(t)
 }
 
 func TestSignRootCommitFails(t *testing.T) {
@@ -535,8 +496,6 @@ func TestSignRootCommitFails(t *testing.T) {
 
 	err := c.sequencer.SignRoot()
 	testonly.EnsureErrorContains(t, err, "commit")
-
-	c.mockStorage.AssertExpectations(t)
 }
 
 func TestSignRoot(t *testing.T) {
@@ -554,8 +513,6 @@ func TestSignRoot(t *testing.T) {
 	if err := c.sequencer.SignRoot(); err != nil {
 		t.Fatalf("Expected signing to succeed, but got err: %v", err)
 	}
-
-	c.mockStorage.AssertExpectations(t)
 }
 
 func TestSignRootNoExistingRoot(t *testing.T) {
@@ -573,6 +530,4 @@ func TestSignRootNoExistingRoot(t *testing.T) {
 	if err := c.sequencer.SignRoot(); err != nil {
 		t.Fatalf("Expected signing to succeed, but got err: %v", err)
 	}
-
-	c.mockStorage.AssertExpectations(t)
 }
