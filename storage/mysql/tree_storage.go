@@ -26,7 +26,7 @@ const selectSubtreeSql string = `SELECT x.SubtreeId, x.MaxRevision, Subtree.Node
 							 FROM Subtree n
 							 WHERE n.SubtreeId IN (` + placeholderSql + `) AND
 										 n.TreeId = ? AND
-										 n.SubtreeRevision >= -?
+										 n.SubtreeRevision <= ?
 							 GROUP BY n.SubtreeId) AS x
 				 INNER JOIN Subtree ON Subtree.SubtreeId = x.SubtreeId AND
 														Subtree.SubtreeRevision = x.MaxRevision AND
