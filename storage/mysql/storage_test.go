@@ -889,6 +889,145 @@ func TestMapRootUpdate(t *testing.T) {
 	}
 }
 
+func TestMapSetGetRoundTrip(t *testing.T) {
+	cleanTestDB()
+
+	mapID := createMapID("TestMapSetGetRoundTrip")
+	db := prepareTestMapDB(mapID, t)
+	defer db.Close()
+	s := prepareTestMapStorage(mapID, t)
+
+	keyHash := []byte("A Key Hash")
+	value := trillian.MapLeaf{
+		LeafHash:  []byte("A Hash"),
+		LeafValue: []byte("A Value"),
+		ExtraData: []byte("Some Extra Data"),
+	}
+
+	readRev := int64(1)
+
+	{
+		tx := beginMapTx(s, t)
+
+		if err := tx.Set(keyHash, value); err != nil {
+			t.Fatalf("Failed to set %v to %v: %v", keyHash, value, err)
+		}
+		tx.Commit()
+	}
+
+	{
+		tx := beginMapTx(s, t)
+
+		readValue, err := tx.Get(readRev, keyHash)
+		if err != nil {
+			t.Fatalf("Failed to get %v:  %v", keyHash, err)
+		}
+
+		if got, want := &readValue, &value; !proto.Equal(got, want) {
+			t.Fatalf("Read back %v, but expected %v", got, want)
+		}
+		tx.Commit()
+	}
+}
+
+func TestMapSetSameKeyInSameRevisionFails(t *testing.T) {
+	cleanTestDB()
+
+	mapID := createMapID("TestMapSetSameKeyInSameRevisionFails")
+	db := prepareTestMapDB(mapID, t)
+	defer db.Close()
+	s := prepareTestMapStorage(mapID, t)
+
+	keyHash := []byte("A Key Hash")
+	value := trillian.MapLeaf{
+		LeafHash:  []byte("A Hash"),
+		LeafValue: []byte("A Value"),
+		ExtraData: []byte("Some Extra Data"),
+	}
+
+	{
+		tx := beginMapTx(s, t)
+
+		if err := tx.Set(keyHash, value); err != nil {
+			t.Fatalf("Failed to set %v to %v: %v", keyHash, value, err)
+		}
+		tx.Commit()
+	}
+
+	{
+		tx := beginMapTx(s, t)
+
+		if err := tx.Set(keyHash, value); err == nil {
+			t.Fatalf("Unexpectedly succeeded in setting %v to %v", keyHash, value)
+		}
+		tx.Commit()
+	}
+}
+
+func TestMapGetUnknownKey(t *testing.T) {
+	cleanTestDB()
+
+	mapID := createMapID("TestMapGetUnknownKey")
+	db := prepareTestMapDB(mapID, t)
+	defer db.Close()
+	s := prepareTestMapStorage(mapID, t)
+
+	{
+		tx := beginMapTx(s, t)
+
+		readValue, err := tx.Get(1, []byte("This doesn't exist."))
+		if got, want := err, storage.ErrNoSuchKey; got != want {
+			t.Fatalf("Read %v with error %v, but expected error %v", readValue, got, want)
+		}
+		tx.Commit()
+	}
+}
+
+func TestMapSetGetMultipleRevisions(t *testing.T) {
+	cleanTestDB()
+
+	// Write two roots for a map and make sure the one with the newest timestamp supersedes
+	mapID := createMapID("TestMapSetGetMultipleRevisions")
+	db := prepareTestMapDB(mapID, t)
+	defer db.Close()
+	s := prepareTestMapStorage(mapID, t)
+
+	keyHash := []byte("A Key Hash")
+	numRevs := 3
+	values := make([]trillian.MapLeaf, numRevs)
+	for i := 0; i < numRevs; i++ {
+		values[i] = trillian.MapLeaf{
+			LeafHash:  []byte(fmt.Sprintf("A Hash %d", i)),
+			LeafValue: []byte(fmt.Sprintf("A Value %d", i)),
+			ExtraData: []byte(fmt.Sprintf("Some Extra Data %d", i)),
+		}
+	}
+
+	for i := 0; i < numRevs; i++ {
+		tx := beginMapTx(s, t)
+		mysqlMapTX := tx.(*mapTX)
+		mysqlMapTX.treeTX.writeRevision = int64(i)
+		if err := tx.Set(keyHash, values[i]); err != nil {
+			t.Fatalf("Failed to set %v to %v: %v", keyHash, values[i], err)
+		}
+		tx.Commit()
+	}
+
+	for i := 0; i < numRevs; i++ {
+		tx := beginMapTx(s, t)
+
+		readValue, err := tx.Get(int64(i), keyHash)
+		if err != nil {
+			t.Fatalf("Failed to get %v:  %v", keyHash, err)
+		}
+
+		if got, want := &readValue, &values[i]; !proto.Equal(got, want) {
+			t.Fatalf("Read back %v, but expected %v", got, want)
+		}
+		tx.Commit()
+	}
+}
+
 func TestGetActiveLogIDs(t *testing.T) {
 	// Have to wipe everything to ensure we start with zero log trees configured
 	cleanTestDB()

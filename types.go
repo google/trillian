@@ -60,11 +60,5 @@ type LogLeaf struct {
 	SequenceNumber int64
 }
 
-// MapLeaf represents the data behind Map leaves.
-type MapLeaf struct {
-	// Leaf holds the leaf data itself.
-	Leaf
-}
-
 // Key is a map key.
 type Key []byte
