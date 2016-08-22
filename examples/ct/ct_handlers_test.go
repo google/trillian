@@ -110,7 +110,7 @@ func allGetHandlersForTest(trustedRoots *PEMCertPool, c CTRequestHandlers) []han
 	return []handlerAndPath{
 		{"get-sth", wrappedGetSTHHandler(c)},
 		{"get-sth-consistency", wrappedGetSTHConsistencyHandler(c.rpcClient)},
-		{"get-proof-by-hash", wrappedGetProofByHashHandler(c.rpcClient)},
+		{"get-proof-by-hash", wrappedGetProofByHashHandler(c)},
 		{"get-entries", wrappedGetEntriesHandler(c)},
 		{"get-roots", wrappedGetRootsHandler(trustedRoots, c.rpcClient)},
 		{"get-entry-and-proof", wrappedGetEntryAndProofHandler(c.rpcClient)}}
