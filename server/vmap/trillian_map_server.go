@@ -19,7 +19,7 @@ var (
 // TODO: There is no access control in the server yet and clients could easily modify
 // any tree.
 
-// LogStorageProviderFunc decouples the server from storage implementations
+// MapStorageProviderFunc decouples the server from storage implementations
 type MapStorageProviderFunc func(int64) (storage.MapStorage, error)
 
 // TrillianMapServer implements the RPC API defined in the proto

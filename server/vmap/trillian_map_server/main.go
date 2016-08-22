@@ -21,14 +21,14 @@ import (
 
 var mysqlUriFlag = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test",
 	"uri to use with mysql storage")
-var serverPortFlag = flag.Int("port", 8091, "Port to serve log requests on")
+var serverPortFlag = flag.Int("port", 8091, "Port to serve map requests on")
 
 // TODO(Martin2112): Single private key doesn't really work for multi tenant and we can't use
 // an HSM interface in this way. Deferring these issues for later.
 var privateKeyFile = flag.String("private_key_file", "", "File containing a PEM encoded private key")
 var privateKeyPassword = flag.String("private_key_password", "", "Password for server private key")
 
-// TODO(Martin2112): Needs a more realistic provider of log storage with some caching
+// TODO(Martin2112): Needs a more realistic provider of map storage with some caching
 // and ability to swap out for different storage type
 func simpleMySqlStorageProvider(treeID int64) (storage.MapStorage, error) {
 	return mysql.NewMapStorage(trillian.MapID{[]byte("TODO"), treeID}, *mysqlUriFlag)
