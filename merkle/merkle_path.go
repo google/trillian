@@ -66,7 +66,7 @@ func CalcConsistencyProofNodeAddresses(previousTreeSize, treeSize int64, maxBitL
 // In particular the code does not need to handle the case where overwritten node hashes
 // must be recursively computed because we have versioned nodes.
 func snapshotConsistency(snapshot1, snapshot2 int64, maxBitLen int) []storage.NodeID {
-	var proof []storage.NodeID
+	proof := make([]storage.NodeID, 0, bitLen(snapshot2) + 1)
 
 	level := 0
 	node := snapshot1 - 1
