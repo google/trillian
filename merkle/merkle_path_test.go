@@ -11,7 +11,7 @@ type bitLenTestData struct {
 	expected int
 }
 
-type calcPathTestData struct {
+type auditPathTestData struct {
 	treeSize     int64
 	leafIndex    int64
 	expectedPath []storage.NodeID
@@ -39,7 +39,7 @@ var expectedConsistencyProofFromSize4To7 = []storage.NodeID{storage.NewNodeIDFor
 var bitLenTests = []bitLenTestData{{0, 0}, {1, 1}, {2, 2}, {3, 2}, {12, 4}}
 
 // These should all successfully compute the expected path
-var pathTests = []calcPathTestData{
+var pathTests = []auditPathTestData{
 	{1, 0, []storage.NodeID{}},
 	{7, 3, expectedPathSize7Index3},
 	{7, 6, expectedPathSize7Index6},
@@ -47,7 +47,7 @@ var pathTests = []calcPathTestData{
 	{7, 4, expectedPathSize7Index4}}
 
 // These should all fail
-var pathTestBad = []calcPathTestData{
+var pathTestBad = []auditPathTestData{
 	{0, 1, []storage.NodeID{}},
 	{1, 2, []storage.NodeID{}},
 	{0, 3, []storage.NodeID{}},
