@@ -10,6 +10,7 @@ import (
 
 // LogOperation defines a task that operates on logs. Examples are scheduling, signing,
 // consistency checking or cleanup.
+//go:generate mockgen -self_package github.com/google/trillian/server -package server -destination mock_log_operation.go github.com/google/trillian/server LogOperation
 type LogOperation interface {
 	Name() string
 	ExecutePass([]trillian.LogID, LogOperationManagerContext) bool
