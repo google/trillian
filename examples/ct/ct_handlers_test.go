@@ -61,6 +61,12 @@ var getEntriesRangeTestCases = []getEntriesRangeTestCase{
 	{10, 9, http.StatusBadRequest, "invalid range, edge case", false},
 	{1000, 50000, http.StatusBadRequest, "range too large to be accepted", false}}
 
+// List of requests for get-entry-and-proof that should be rejected with bad request status
+var getEntryAndProofBadRequests = []string{
+	"", "leaf_index=b", "leaf_index=1&tree_size=-1", "leaf_index=-1&tree_size=1",
+	"leaf_index=1&tree_size=d", "leaf_index=&tree_size=", "leaf_index=", "leaf_index=1&tree_size=0",
+	"leaf_index=10&tree_size=5", "leaf_index=tree_size"}
+
 // A list of requests that should result in a bad request status
 var getProofByHashBadRequests = []string{"", "hash=&tree_size=1", "hash=''&tree_size=1", "hash=notbase64data&tree_size=1", "tree_size=-1&hash=aGkK"}
 
@@ -70,7 +76,9 @@ var getSTHConsistencyBadRequests = []string{"", "first=apple&second=orange", "fi
 	"first=998&second=997", "first=1000&second=200", "first=10", "second=20"}
 
 // The result we expect after a roundtrip in the successful get proof by hash test
-var expectedInclusionProofByHash = getProofByHashResponse{LeafIndex: 2, AuditPath: [][]byte{[]byte("abcdef"), []byte("ghijkl"), []byte("mnopqr")}}
+var expectedInclusionProofByHash = getProofByHashResponse{
+	LeafIndex: 2,
+	AuditPath: [][]byte{[]byte("abcdef"), []byte("ghijkl"), []byte("mnopqr")}}
 
 // The result we expect after a roundtrip in the successful get sth consistency test
 var expectedSTHConsistencyProofByHash = getSTHConsistencyResponse{Consistency: [][]byte{[]byte("abcdef"), []byte("ghijkl"), []byte("mnopqr")}}
@@ -127,7 +135,7 @@ func allGetHandlersForTest(trustedRoots *PEMCertPool, c CTRequestHandlers) []han
 		{"get-proof-by-hash", wrappedGetProofByHashHandler(c)},
 		{"get-entries", wrappedGetEntriesHandler(c)},
 		{"get-roots", wrappedGetRootsHandler(trustedRoots, c.rpcClient)},
-		{"get-entry-and-proof", wrappedGetEntryAndProofHandler(c.rpcClient)}}
+		{"get-entry-and-proof", wrappedGetEntryAndProofHandler(c)}}
 }
 
 func allPostHandlersForTest(client trillian.TrillianLogClient) []handlerAndPath {
@@ -1308,6 +1316,35 @@ func TestGetSTHConsistencyBadParams(t *testing.T) {
 	}
 }
 
+func TestGetEntryAndProofBadParams(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	// This is OK because the requests shouldn't get to the point where any RPCs are made on the mock
+	defer mockCtrl.Finish()
+
+	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
+	handler := wrappedGetEntryAndProofHandler(c)
+
+	for _, requestParamString := range getEntryAndProofBadRequests {
+		req, err := http.NewRequest("GET", fmt.Sprintf("/ct/v1/get-entry-and-proof%s", requestParamString), nil)
+
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		w := httptest.NewRecorder()
+		handler(w, req)
+
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if got, want := w.Code, http.StatusBadRequest; got != want {
+			t.Fatalf("expected %v for get-entry-and-proof with params [%s], got %v. Body: %v", want, requestParamString, got, w.Body)
+		}
+	}
+}
+
 func TestGetSTHConsistencyBackendRPCFails(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
@@ -1332,6 +1369,37 @@ func TestGetSTHConsistencyBackendRPCFails(t *testing.T) {
 
 	if got, want := w.Code, http.StatusInternalServerError; got != want {
 		t.Fatalf("Expected %v for get-sth-consistency when backend fails, got %v. Body: %v", want, got, w.Body)
+	}
+
+	if !strings.Contains(w.Body.String(), "RPCFAIL") {
+		t.Fatalf("Did not get expected backend error: %s\n%s", "RPCFAIL", w.Body)
+	}
+}
+
+func TestGetEntryAndProofBackendFails(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	client.EXPECT().GetEntryAndProof(deadlineMatcher(), &trillian.GetEntryAndProofRequest{LeafIndex: 1, TreeSize:3}).Return(nil, errors.New("RPCFAIL"))
+	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
+	handler := wrappedGetEntryAndProofHandler(c)
+
+	req, err := http.NewRequest("GET", "/ct/v1/get-entry-and-proof?leaf_index=1&tree_size=3", nil)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got, want := w.Code, http.StatusInternalServerError; got != want {
+		t.Fatalf("Expected %v for get-entry-and-proof when backend fails, got %v. Body: %v", want, got, w.Body)
 	}
 
 	if !strings.Contains(w.Body.String(), "RPCFAIL") {
@@ -1372,6 +1440,35 @@ func TestGetSTHConsistencyBackendReturnsInvalidProof(t *testing.T) {
 	}
 }
 
+func TestGetEntryAndProofBackendBadResponse(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	// Omit the result data from the backend response, should cause the request to fail
+	response := trillian.GetEntryAndProofResponse{Status: okStatus}
+	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	client.EXPECT().GetEntryAndProof(deadlineMatcher(), &trillian.GetEntryAndProofRequest{LeafIndex: 1, TreeSize:3}).Return(&response, nil)
+	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
+	handler := wrappedGetEntryAndProofHandler(c)
+
+	req, err := http.NewRequest("GET", "/ct/v1/get-entry-and-proof?leaf_index=1&tree_size=3", nil)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got, want := w.Code, http.StatusInternalServerError; got != want {
+		t.Fatalf("Expected %v for get-entry-and-proof when backend fails, got %v. Body: %v", want, got, w.Body)
+	}
+}
+
 func TestGetSTHConsistency(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
@@ -1406,11 +1503,69 @@ func TestGetSTHConsistency(t *testing.T) {
 
 	// Roundtrip the response and make sure it matches
 	var resp getSTHConsistencyResponse
+
 	if err = json.NewDecoder(w.Body).Decode(&resp); err != nil {
 		t.Fatalf("failed to unmarshal json: %v, body: %v", err, w.Body.Bytes())
 	}
 
 	if got, want := resp, expectedSTHConsistencyProofByHash; !reflect.DeepEqual(got, want) {
+		t.Fatalf("mismatched json response: expected %v got %v", want, got)
+	}
+}
+
+func TestGetEntryAndProof(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	proof := trillian.ProofProto{LeafIndex: 2, ProofNode: []*trillian.NodeProto{{NodeHash: []byte("abcdef")}, {NodeHash: []byte("ghijkl")}, {NodeHash: []byte("mnopqr")}}}
+	merkleLeaf := ct.MerkleTreeLeaf{
+		Version:          ct.V1,
+		LeafType:         ct.TimestampedEntryLeafType,
+		TimestampedEntry: ct.TimestampedEntry{Timestamp: 12345, EntryType: ct.X509LogEntryType, X509Entry: []byte("certdatacertdata"), Extensions: ct.CTExtensions{}}}
+
+	leafBytes, err := leafToBytes(merkleLeaf)
+
+	if err != nil {
+		t.Fatal("failed to build test merkle leaf data")
+	}
+
+	leafProto := trillian.LeafProto{LeafData: leafBytes, LeafHash:[]byte("ahash"), ExtraData:[]byte("extra")}
+	response := trillian.GetEntryAndProofResponse{Status: okStatus, Proof:&proof, Leaf:&leafProto}
+	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	client.EXPECT().GetEntryAndProof(deadlineMatcher(), &trillian.GetEntryAndProofRequest{LeafIndex: 1, TreeSize:3}).Return(&response, nil)
+	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
+	handler := wrappedGetEntryAndProofHandler(c)
+
+	req, err := http.NewRequest("GET", "/ct/v1/get-entry-and-proof?leaf_index=1&tree_size=3", nil)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got, want := w.Code, http.StatusOK; got != want {
+		t.Fatalf("Expected %v for get-entry-and-proof, got %v. Body: %v", want, got, w.Body)
+	}
+
+	// Roundtrip the response and make sure it matches what we expect
+	var resp getEntryAndProofResponse
+	if err = json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to unmarshal json: %v, body: %v", err, w.Body.Bytes())
+	}
+
+	// The result we expect after a roundtrip in the successful get entry and proof test
+	expectedGetEntryAndProofResponse := getEntryAndProofResponse{
+		LeafInput: leafBytes,
+		ExtraData: []byte("extra"),
+		AuditPath: [][]byte{[]byte("abcdef"), []byte("ghijkl"), []byte("mnopqr")}}
+
+	if got, want := resp, expectedGetEntryAndProofResponse; !reflect.DeepEqual(got, want) {
 		t.Fatalf("mismatched json response: expected %v got %v", want, got)
 	}
 }

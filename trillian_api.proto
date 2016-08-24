@@ -124,6 +124,18 @@ message GetLatestSignedLogRootResponse {
     SignedLogRoot signed_log_root = 2;
 }
 
+message GetEntryAndProofRequest {
+    int64 log_id = 1;
+    int64 leaf_index = 2;
+    int64 tree_size = 3;
+}
+
+message GetEntryAndProofResponse {
+    TrillianApiStatus status = 1;
+    ProofProto proof = 2;
+    LeafProto leaf = 3;
+}
+
 // TrillianLog defines a service that can provide access to a Verifiable Log as defined in the
 // Verifiable Data Structures paper. It provides direct access to a subset of storage APIs
 // (for handling reads) and provides Log level ones such as being able to obtain proofs.
@@ -151,6 +163,8 @@ service TrillianLog {
     rpc GetLeavesByIndex (GetLeavesByIndexRequest) returns (GetLeavesByIndexResponse) {
     }
     rpc GetLeavesByHash (GetLeavesByHashRequest) returns (GetLeavesByHashResponse) {
+    }
+    rpc GetEntryAndProof (GetEntryAndProofRequest) returns (GetEntryAndProofResponse) {
     }
 }
 
