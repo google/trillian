@@ -1,16 +1,19 @@
-package storage
+package merkle
 
-import "fmt"
+import (
+	"fmt"
+	"github.com/google/trillian/storage"
+)
 
 // CalcInclusionProofNodeAddresses returns the tree node IDs needed to
 // build an inclusion proof for a specified leaf and tree size. The maxBitLen parameter
 // is copied into all the returned nodeIDs.
-func CalcInclusionProofNodeAddresses(treeSize, index int64, maxBitLen int) ([]NodeID, error) {
+func CalcInclusionProofNodeAddresses(treeSize, index int64, maxBitLen int) ([]storage.NodeID, error) {
 	if index >= treeSize || index < 0 || treeSize < 1 || maxBitLen < 0 {
-		return []NodeID{}, fmt.Errorf("invalid params ts: %d index: %d, bitlen:%d", treeSize, index, maxBitLen)
+		return []storage.NodeID{}, fmt.Errorf("invalid params ts: %d index: %d, bitlen:%d", treeSize, index, maxBitLen)
 	}
 
-	proof := make([]NodeID, 0, bitLen(treeSize) + 1)
+	proof := make([]storage.NodeID, 0, bitLen(treeSize) + 1)
 
 	sizeLessOne := treeSize - 1
 
@@ -26,13 +29,13 @@ func CalcInclusionProofNodeAddresses(treeSize, index int64, maxBitLen int) ([]No
 		sibling := node ^ 1
 		if sibling < lastNodeAtLevel {
 			// Tree must be completely filled in up to this node index
-			proof = append(proof, NewNodeIDForTreeCoords(int64(depth), sibling, maxBitLen))
+			proof = append(proof, storage.NewNodeIDForTreeCoords(int64(depth), sibling, maxBitLen))
 		} else if sibling == lastNodeAtLevel {
 			// The tree may skip levels because it's not completely filled in. These nodes
 			// don't exist
 			drop := depth - subtreeDepth(treeSize, depth-1)
 			sibling = sibling << uint(drop)
-			proof = append(proof, NewNodeIDForTreeCoords(int64(depth-drop), sibling, maxBitLen))
+			proof = append(proof, storage.NewNodeIDForTreeCoords(int64(depth - drop), sibling, maxBitLen))
 		}
 
 		node = node >> 1
@@ -41,18 +44,6 @@ func CalcInclusionProofNodeAddresses(treeSize, index int64, maxBitLen int) ([]No
 	}
 
 	return proof, nil
-}
-
-// bitLen returns the number of bits needed to represent the supplied integer
-func bitLen(x int64) int {
-	l := 0
-
-	for x > 0 {
-		x = x >> 1
-		l++
-	}
-
-	return l
 }
 
 // subtreeDepth calculates the depth of a subtree, used at the right of the tree which

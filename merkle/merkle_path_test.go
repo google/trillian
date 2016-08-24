@@ -1,7 +1,8 @@
-package storage
+package merkle
 
 import (
 	"testing"
+	"github.com/google/trillian/storage"
 )
 
 type bitLenTestData struct {
@@ -12,21 +13,21 @@ type bitLenTestData struct {
 type calcPathTestData struct {
 	treeSize     int64
 	leafIndex    int64
-	expectedPath []NodeID
+	expectedPath []storage.NodeID
 }
 
 // Expected paths built by examination of the example 7 leaf tree in RFC 6962. When comparing
 // with the document remember that our storage node layers are always populated from the bottom up.
-var expectedPathSize7Index0 = []NodeID{NewNodeIDForTreeCoords(0, 1, 64), NewNodeIDForTreeCoords(1, 1, 64), NewNodeIDForTreeCoords(2, 1, 64)}
-var expectedPathSize7Index3 = []NodeID{NewNodeIDForTreeCoords(0, 2, 64), NewNodeIDForTreeCoords(1, 0, 64), NewNodeIDForTreeCoords(2, 1, 64)}
-var expectedPathSize7Index4 = []NodeID{NewNodeIDForTreeCoords(0, 5, 64), NewNodeIDForTreeCoords(0, 6, 64), NewNodeIDForTreeCoords(2, 0, 64)}
-var expectedPathSize7Index6 = []NodeID{NewNodeIDForTreeCoords(1, 2, 64), NewNodeIDForTreeCoords(2, 0, 64)}
+var expectedPathSize7Index0 = []storage.NodeID{storage.NewNodeIDForTreeCoords(0, 1, 64), storage.NewNodeIDForTreeCoords(1, 1, 64), storage.NewNodeIDForTreeCoords(2, 1, 64)}
+var expectedPathSize7Index3 = []storage.NodeID{storage.NewNodeIDForTreeCoords(0, 2, 64), storage.NewNodeIDForTreeCoords(1, 0, 64), storage.NewNodeIDForTreeCoords(2, 1, 64)}
+var expectedPathSize7Index4 = []storage.NodeID{storage.NewNodeIDForTreeCoords(0, 5, 64), storage.NewNodeIDForTreeCoords(0, 6, 64), storage.NewNodeIDForTreeCoords(2, 0, 64)}
+var expectedPathSize7Index6 = []storage.NodeID{storage.NewNodeIDForTreeCoords(1, 2, 64), storage.NewNodeIDForTreeCoords(2, 0, 64)}
 
 var bitLenTests = []bitLenTestData{{0, 0}, {1, 1}, {2, 2}, {3, 2}, {12, 4}}
 
 // These should all successfully compute the expected path
 var pathTests = []calcPathTestData{
-	{1, 0, []NodeID{}},
+	{1, 0, []storage.NodeID{}},
 	{7, 3, expectedPathSize7Index3},
 	{7, 6, expectedPathSize7Index6},
 	{7, 0, expectedPathSize7Index0},
@@ -34,12 +35,12 @@ var pathTests = []calcPathTestData{
 
 // These should all fail
 var pathTestBad = []calcPathTestData{
-	{0, 1, []NodeID{}},
-	{1, 2, []NodeID{}},
-	{0, 3, []NodeID{}},
-	{-1, 3, []NodeID{}},
-	{7, -1, []NodeID{}},
-	{7, 8, []NodeID{}},
+	{0, 1, []storage.NodeID{}},
+	{1, 2, []storage.NodeID{}},
+	{0, 3, []storage.NodeID{}},
+	{-1, 3, []storage.NodeID{}},
+	{7, -1, []storage.NodeID{}},
+	{7, 8, []storage.NodeID{}},
 }
 
 func TestBitLen(t *testing.T) {
@@ -80,7 +81,7 @@ func TestCalcInclusionProofNodeAddressesRejectsBadBitLen(t *testing.T) {
 	}
 }
 
-func comparePaths(t *testing.T, got, expected []NodeID) {
+func comparePaths(t *testing.T, got, expected []storage.NodeID) {
 	if len(expected) != len(got) {
 		t.Fatalf("expected %d nodes in path but got %d: %v", len(expected), len(got), got)
 	}
