@@ -10,7 +10,7 @@ func CalcInclusionProofNodeAddresses(treeSize, index int64, maxBitLen int) ([]No
 		return []NodeID{}, fmt.Errorf("invalid params ts: %d index: %d, bitlen:%d", treeSize, index, maxBitLen)
 	}
 
-	var proof []NodeID
+	proof := make([]NodeID, 0, bitLen(treeSize) + 1)
 
 	sizeLessOne := treeSize - 1
 
