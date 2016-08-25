@@ -62,6 +62,22 @@ func (_mr *_MockTrillianLogClientRecorder) GetInclusionProof(arg0, arg1 interfac
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetInclusionProof", _s...)
 }
 
+func (_m *MockTrillianLogClient) GetInclusionProofByHash(_param0 context.Context, _param1 *GetInclusionProofByHashRequest, _param2 ...grpc.CallOption) (*GetInclusionProofByHashResponse, error) {
+	_s := []interface{}{_param0, _param1}
+	for _, _x := range _param2 {
+		_s = append(_s, _x)
+	}
+	ret := _m.ctrl.Call(_m, "GetInclusionProofByHash", _s...)
+	ret0, _ := ret[0].(*GetInclusionProofByHashResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+func (_mr *_MockTrillianLogClientRecorder) GetInclusionProofByHash(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	_s := append([]interface{}{arg0, arg1}, arg2...)
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetInclusionProofByHash", _s...)
+}
+
 func (_m *MockTrillianLogClient) GetLatestSignedLogRoot(_param0 context.Context, _param1 *GetLatestSignedLogRootRequest, _param2 ...grpc.CallOption) (*GetLatestSignedLogRootResponse, error) {
 	_s := []interface{}{_param0, _param1}
 	for _, _x := range _param2 {
@@ -183,6 +199,17 @@ func (_m *MockTrillianLogServer) GetInclusionProof(_param0 context.Context, _par
 
 func (_mr *_MockTrillianLogServerRecorder) GetInclusionProof(arg0, arg1 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetInclusionProof", arg0, arg1)
+}
+
+func (_m *MockTrillianLogServer) GetInclusionProofByHash(_param0 context.Context, _param1 *GetInclusionProofByHashRequest) (*GetInclusionProofByHashResponse, error) {
+	ret := _m.ctrl.Call(_m, "GetInclusionProofByHash", _param0, _param1)
+	ret0, _ := ret[0].(*GetInclusionProofByHashResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+func (_mr *_MockTrillianLogServerRecorder) GetInclusionProofByHash(arg0, arg1 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetInclusionProofByHash", arg0, arg1)
 }
 
 func (_m *MockTrillianLogServer) GetLatestSignedLogRoot(_param0 context.Context, _param1 *GetLatestSignedLogRootRequest) (*GetLatestSignedLogRootResponse, error) {
