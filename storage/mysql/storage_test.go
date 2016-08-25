@@ -18,6 +18,8 @@ import (
 	"github.com/google/trillian/storage"
 )
 
+// TODO(al): add checking to all the Commit() calls in here.
+
 var allTables = []string{"Unsequenced", "TreeHead", "SequencedLeafData", "LeafData", "Subtree", "TreeControl", "Trees", "MapLeaf", "MapHead"}
 
 // Must be 32 bytes to match sha256 length if it was a real hash
@@ -889,6 +891,12 @@ func TestMapRootUpdate(t *testing.T) {
 	}
 }
 
+var mapLeaf = trillian.MapLeaf{
+	LeafHash:  []byte("A Hash"),
+	LeafValue: []byte("A Value"),
+	ExtraData: []byte("Some Extra Data"),
+}
+
 func TestMapSetGetRoundTrip(t *testing.T) {
 	cleanTestDB()
 
@@ -898,21 +906,18 @@ func TestMapSetGetRoundTrip(t *testing.T) {
 	s := prepareTestMapStorage(mapID, t)
 
 	keyHash := []byte("A Key Hash")
-	value := trillian.MapLeaf{
-		LeafHash:  []byte("A Hash"),
-		LeafValue: []byte("A Value"),
-		ExtraData: []byte("Some Extra Data"),
-	}
 
 	readRev := int64(1)
 
 	{
 		tx := beginMapTx(s, t)
 
-		if err := tx.Set(keyHash, value); err != nil {
-			t.Fatalf("Failed to set %v to %v: %v", keyHash, value, err)
+		if err := tx.Set(keyHash, mapLeaf); err != nil {
+			t.Fatalf("Failed to set %v to %v: %v", keyHash, mapLeaf, err)
 		}
-		tx.Commit()
+		if err := tx.Commit(); err != nil {
+			t.Fatalf("Failed to commit: %v", err)
+		}
 	}
 
 	{
@@ -923,10 +928,12 @@ func TestMapSetGetRoundTrip(t *testing.T) {
 			t.Fatalf("Failed to get %v:  %v", keyHash, err)
 		}
 
-		if got, want := &readValue, &value; !proto.Equal(got, want) {
+		if got, want := &readValue, &mapLeaf; !proto.Equal(got, want) {
 			t.Fatalf("Read back %v, but expected %v", got, want)
 		}
-		tx.Commit()
+		if err := tx.Commit(); err != nil {
+			t.Fatalf("Failed to commit: %v", err)
+		}
 	}
 }
 
@@ -939,28 +946,27 @@ func TestMapSetSameKeyInSameRevisionFails(t *testing.T) {
 	s := prepareTestMapStorage(mapID, t)
 
 	keyHash := []byte("A Key Hash")
-	value := trillian.MapLeaf{
-		LeafHash:  []byte("A Hash"),
-		LeafValue: []byte("A Value"),
-		ExtraData: []byte("Some Extra Data"),
+
+	{
+		tx := beginMapTx(s, t)
+
+		if err := tx.Set(keyHash, mapLeaf); err != nil {
+			t.Fatalf("Failed to set %v to %v: %v", keyHash, mapLeaf, err)
+		}
+		if err := tx.Commit(); err != nil {
+			t.Fatalf("Failed to commit: %v", err)
+		}
 	}
 
 	{
 		tx := beginMapTx(s, t)
 
-		if err := tx.Set(keyHash, value); err != nil {
-			t.Fatalf("Failed to set %v to %v: %v", keyHash, value, err)
+		if err := tx.Set(keyHash, mapLeaf); err == nil {
+			t.Fatalf("Unexpectedly succeeded in setting %v to %v", keyHash, mapLeaf)
 		}
-		tx.Commit()
-	}
-
-	{
-		tx := beginMapTx(s, t)
-
-		if err := tx.Set(keyHash, value); err == nil {
-			t.Fatalf("Unexpectedly succeeded in setting %v to %v", keyHash, value)
+		if err := tx.Commit(); err != nil {
+			t.Fatalf("Failed to commit: %v", err)
 		}
-		tx.Commit()
 	}
 }
 
@@ -979,7 +985,9 @@ func TestMapGetUnknownKey(t *testing.T) {
 		if got, want := err, storage.ErrNoSuchKey; got != want {
 			t.Fatalf("Read %v with error %v, but expected error %v", readValue, got, want)
 		}
-		tx.Commit()
+		if err := tx.Commit(); err != nil {
+			t.Fatalf("Failed to commit: %v", err)
+		}
 	}
 }
 
@@ -1010,7 +1018,9 @@ func TestMapSetGetMultipleRevisions(t *testing.T) {
 		if err := tx.Set(keyHash, values[i]); err != nil {
 			t.Fatalf("Failed to set %v to %v: %v", keyHash, values[i], err)
 		}
-		tx.Commit()
+		if err := tx.Commit(); err != nil {
+			t.Fatalf("Failed to commit: %v", err)
+		}
 	}
 
 	for i := 0; i < numRevs; i++ {
@@ -1024,7 +1034,9 @@ func TestMapSetGetMultipleRevisions(t *testing.T) {
 		if got, want := &readValue, &values[i]; !proto.Equal(got, want) {
 			t.Fatalf("Read back %v, but expected %v", got, want)
 		}
-		tx.Commit()
+		if err := tx.Commit(); err != nil {
+			t.Fatalf("Failed to commit: %v", err)
+		}
 	}
 }
 

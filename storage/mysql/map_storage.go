@@ -91,10 +91,7 @@ func (m *mapTX) Set(keyHash trillian.Hash, value trillian.MapLeaf) error {
 	defer stmt.Close()
 
 	_, err = stmt.Exec(m.ms.mapID.TreeID, []byte(keyHash), m.writeRevision, flatValue)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func (m *mapTX) Get(revision int64, keyHash trillian.Hash) (trillian.MapLeaf, error) {
