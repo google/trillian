@@ -1,0 +1,63 @@
+package main
+
+import (
+	"flag"
+	"log"
+
+	"github.com/google/trillian"
+	"golang.org/x/net/context"
+	"google.golang.org/grpc"
+)
+
+var server = flag.String("server", "localhost:8091", "Server address:port")
+
+func main() {
+	flag.Parse()
+
+	conn, err := grpc.Dial(*server, grpc.WithInsecure())
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer conn.Close()
+
+	c := trillian.NewTrillianMapClient(conn)
+
+	key := []byte("This Is A Key")
+
+	{
+		req := &trillian.SetMapLeavesRequest{
+			MapId: 1,
+			KeyValue: []*trillian.KeyValue{
+				&trillian.KeyValue{
+					Key: key,
+					Value: &trillian.MapLeaf{
+						LeafHash:  []byte("This is a leaf hash"),
+						LeafValue: []byte("This is a leaf value"),
+						ExtraData: []byte("This is some extra data"),
+					},
+				},
+			},
+		}
+		resp, err := c.SetLeaves(context.Background(), req)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		log.Printf("Got SetLeaves response: %+v", resp)
+	}
+
+	{
+		req := &trillian.GetMapLeavesRequest{
+			MapId:    1,
+			Revision: -1,
+			Key: [][]byte{
+				key,
+			},
+		}
+		resp, err := c.GetLeaves(context.Background(), req)
+		if err != nil {
+			log.Println(err)
+		}
+		log.Printf("Got GetLeaves response: %+v", resp)
+	}
+}

@@ -547,6 +547,16 @@ func (_mr *_MockMapStorageRecorder) Begin() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Begin")
 }
 
+func (_m *MockMapStorage) MapID() trillian.MapID {
+	ret := _m.ctrl.Call(_m, "MapID")
+	ret0, _ := ret[0].(trillian.MapID)
+	return ret0
+}
+
+func (_mr *_MockMapStorageRecorder) MapID() *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "MapID")
+}
+
 func (_m *MockMapStorage) Snapshot() (ReadOnlyMapTX, error) {
 	ret := _m.ctrl.Call(_m, "Snapshot")
 	ret0, _ := ret[0].(ReadOnlyMapTX)

@@ -36,6 +36,9 @@ type ReadOnlyMapStorage interface {
 	// and values read through it should only be propagated if Commit returns
 	// without error.
 	Snapshot() (ReadOnlyMapTX, error)
+
+	// Returns the MapID this storage relates to.
+	MapID() trillian.MapID
 }
 
 // MapStorage should be implemented by concrete storage mechanisms which want to support Maps

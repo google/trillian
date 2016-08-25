@@ -30,6 +30,10 @@ type mySQLMapStorage struct {
 	mapID trillian.MapID
 }
 
+func (m *mySQLMapStorage) MapID() trillian.MapID {
+	return m.mapID
+}
+
 func NewMapStorage(id trillian.MapID, dbURL string) (storage.MapStorage, error) {
 	ts, err := newTreeStorage(id.TreeID, dbURL, trillian.NewSHA256())
 	if err != nil {
@@ -65,7 +69,7 @@ func (m *mySQLMapStorage) Begin() (storage.MapTX, error) {
 		return nil, err
 	}
 
-	ret.treeTX.writeRevision = root.MapRevision
+	ret.treeTX.writeRevision = root.MapRevision + 1
 
 	return ret, nil
 }
