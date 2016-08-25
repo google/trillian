@@ -74,7 +74,7 @@ func snapshotConsistency(snapshot1, snapshot2 int64, maxBitLen int) []storage.No
 	// Compute the (compressed) path to the root of snapshot2.
 	// Everything left of 'node' is equal in both trees; no need to record.
 	for (node & 1) != 0 {
-		node /= 2
+		node >>= 1
 		level++
 	}
 
@@ -88,7 +88,7 @@ func snapshotConsistency(snapshot1, snapshot2 int64, maxBitLen int) []storage.No
 }
 
 func pathFromNodeToRootAtSnapshot(node int64, level int, snapshot int64, maxBitLen int) []storage.NodeID {
-	var proof []storage.NodeID
+	proof := make([]storage.NodeID, 0, bitLen(snapshot) + 1)
 
 	if snapshot == 0 {
 		return proof
@@ -116,8 +116,8 @@ func pathFromNodeToRootAtSnapshot(node int64, level int, snapshot int64, maxBitL
 		}
 
 		// Sibling > lastNode so does not exist, move up
-		node /= 2
-		lastNode /= 2
+		node >>= 1
+		lastNode >>= 1
 		level++
 	}
 
