@@ -115,7 +115,7 @@ type handlerAndPath struct {
 func allGetHandlersForTest(trustedRoots *PEMCertPool, c CTRequestHandlers) []handlerAndPath {
 	return []handlerAndPath{
 		{"get-sth", wrappedGetSTHHandler(c)},
-		{"get-sth-consistency", wrappedGetSTHConsistencyHandler(c.rpcClient)},
+		{"get-sth-consistency", wrappedGetSTHConsistencyHandler(c)},
 		{"get-proof-by-hash", wrappedGetProofByHashHandler(c)},
 		{"get-entries", wrappedGetEntriesHandler(c)},
 		{"get-roots", wrappedGetRootsHandler(trustedRoots, c.rpcClient)},
