@@ -192,7 +192,8 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		RootHash:       rootHash,
 		MapId:          s.MapID().MapID,
 		MapRevision:    tx.WriteRevision(),
-		Signature:      &trillian.DigitallySigned{},
+		// TODO(al): Actually sign stuff, etc!
+		Signature: &trillian.DigitallySigned{},
 	}
 
 	// TODO(al): need an smtWriter.Rollback() or similar I think.

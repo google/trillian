@@ -2,8 +2,8 @@ package main
 
 import (
 	"flag"
-	"log"
 
+	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -16,7 +16,7 @@ func main() {
 
 	conn, err := grpc.Dial(*server, grpc.WithInsecure())
 	if err != nil {
-		log.Fatal(err)
+		glog.Fatal(err)
 	}
 	defer conn.Close()
 
@@ -40,10 +40,10 @@ func main() {
 		}
 		resp, err := c.SetLeaves(context.Background(), req)
 		if err != nil {
-			log.Println(err)
+			glog.Error(err)
 			return
 		}
-		log.Printf("Got SetLeaves response: %+v", resp)
+		glog.Infof("Got SetLeaves response: %+v", resp)
 	}
 
 	{
@@ -56,8 +56,8 @@ func main() {
 		}
 		resp, err := c.GetLeaves(context.Background(), req)
 		if err != nil {
-			log.Println(err)
+			glog.Error(err)
 		}
-		log.Printf("Got GetLeaves response: %+v", resp)
+		glog.Infof("Got GetLeaves response: %+v", resp)
 	}
 }
