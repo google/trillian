@@ -27,6 +27,8 @@ var updatedRoot = trillian.SignedLogRoot{LogId: logID1.LogID, TimestampNanos: fa
 // This is used in the signing test with no work where the treesize will be zero
 var updatedRootSignOnly = trillian.SignedLogRoot{LogId: logID1.LogID, TimestampNanos: fakeTime.UnixNano(), RootHash: []uint8{0xe3, 0xb0, 0xc4, 0x42, 0x98, 0xfc, 0x1c, 0x14, 0x9a, 0xfb, 0xf4, 0xc8, 0x99, 0x6f, 0xb9, 0x24, 0x27, 0xae, 0x41, 0xe4, 0x64, 0x9b, 0x93, 0x4c, 0xa4, 0x95, 0x99, 0x1b, 0x78, 0x52, 0xb8, 0x55}, TreeSize: 0, Signature: &trillian.DigitallySigned{Signature: []byte("signed")}, TreeRevision: 1}
 
+const writeRev = int64(24)
+
 func TestSequencerManagerNothingToDo(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
@@ -49,6 +51,7 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 
 	mockStorage.EXPECT().Begin().Return(mockTx, nil)
 	mockTx.EXPECT().Commit().Return(nil)
+	mockTx.EXPECT().WriteRevision().AnyTimes().Return(writeRev)
 	mockTx.EXPECT().LatestSignedLogRoot().Return(testRoot0, nil)
 	mockTx.EXPECT().DequeueLeaves(50).Return([]trillian.LogLeaf{}, nil)
 	mockKeyManager := crypto.NewMockKeyManager(mockCtrl)
@@ -71,10 +74,12 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 	// Set up enough mockery to be able to sequence. We don't test all the error paths
 	// through sequencer as other tests cover this
 	mockTx.EXPECT().Commit().Return(nil)
+	mockTx.EXPECT().Rollback().AnyTimes().Do(func() { panic(nil) })
+	mockTx.EXPECT().WriteRevision().AnyTimes().Return(testRoot0.TreeRevision + 1)
 	mockTx.EXPECT().DequeueLeaves(50).Return([]trillian.LogLeaf{testLeaf0}, nil)
 	mockTx.EXPECT().LatestSignedLogRoot().Return(testRoot0, nil)
 	mockTx.EXPECT().UpdateSequencedLeaves([]trillian.LogLeaf{testLeaf0}).Return(nil)
-	mockTx.EXPECT().SetMerkleNodes(int64(1), updatedNodes0).Return(nil)
+	mockTx.EXPECT().SetMerkleNodes(updatedNodes0).Return(nil)
 	mockTx.EXPECT().StoreSignedLogRoot(updatedRoot).Return(nil)
 	mockStorage.EXPECT().Begin().Return(mockTx, nil)
 
@@ -101,6 +106,7 @@ func TestSignsIfNoWorkAndRootExpired(t *testing.T) {
 	hasher := trillian.NewSHA256()
 
 	mockStorage.EXPECT().Begin().AnyTimes().Return(mockTx, nil)
+	mockTx.EXPECT().WriteRevision().AnyTimes().Return(writeRev)
 	mockTx.EXPECT().Commit().AnyTimes().Return(nil)
 	mockTx.EXPECT().LatestSignedLogRoot().AnyTimes().Return(testRoot0, nil)
 	mockTx.EXPECT().DequeueLeaves(50).Return([]trillian.LogLeaf{}, nil)

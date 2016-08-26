@@ -340,14 +340,12 @@ func (t *treeTX) GetMerkleNodes(treeRevision int64, nodeIDs []storage.NodeID) ([
 	return ret, nil
 }
 
-func (t *treeTX) SetMerkleNodes(treeRevision int64, nodes []storage.Node) error {
-	if t.writeRevision == -1 {
-		t.writeRevision = treeRevision
-	} else if t.writeRevision != treeRevision {
-		return fmt.Errorf("tree revision inconsistency, previously wrote in this transaciton for revision %d, but attempting to write revision %d", t.writeRevision, treeRevision)
-	}
+func (t *treeTX) SetMerkleNodes(nodes []storage.Node) error {
 	for _, n := range nodes {
-		err := t.subtreeCache.SetNodeHash(n.NodeID, treeRevision, n.Hash)
+		if n.NodeRevision != t.writeRevision {
+			return fmt.Errorf("tried to write node with revision %d when treeTX writeRevision is %d", n.NodeRevision, t.writeRevision)
+		}
+		err := t.subtreeCache.SetNodeHash(n.NodeID, t.writeRevision, n.Hash)
 		if err != nil {
 			return err
 		}

@@ -63,6 +63,7 @@ func getSparseMerkleTreeReaderWithMockTX(ctrl *gomock.Controller, rev int64) (*S
 
 func getSparseMerkleTreeWriterWithMockTX(ctrl *gomock.Controller, rev int64) (*SparseMerkleTreeWriter, *storage.MockMapTX) {
 	tx := storage.NewMockMapTX(ctrl)
+	tx.EXPECT().WriteRevision().AnyTimes().Return(rev)
 	tree, err := NewSparseMerkleTreeWriter(rev, NewMapHasher(NewRFC6962TreeHasher(trillian.NewSHA256())), newTX(tx))
 	if err != nil {
 		panic(err)
@@ -310,7 +311,7 @@ func testSparseTreeCalculatedRoot(t *testing.T, vec sparseTestVector) {
 
 	tx.EXPECT().Commit().AnyTimes().Return(nil)
 	tx.EXPECT().GetMerkleNodes(int64(rev), gomock.Any()).AnyTimes().Return([]storage.Node{}, nil)
-	tx.EXPECT().SetMerkleNodes(int64(rev), gomock.Any()).AnyTimes().Return(nil)
+	tx.EXPECT().SetMerkleNodes(gomock.Any()).AnyTimes().Return(nil)
 
 	testSparseTreeCalculatedRootWithWriter(t, rev, vec, w)
 }
@@ -457,8 +458,8 @@ func testSparseTreeFetches(t *testing.T, vec sparseTestVector) {
 		writeMutex.Unlock()
 	}
 
-	tx.EXPECT().SetMerkleNodes(int64(rev), gomock.Any()).AnyTimes().Do(
-		func(rev int64, a []storage.Node) {
+	tx.EXPECT().SetMerkleNodes(gomock.Any()).AnyTimes().Do(
+		func(a []storage.Node) {
 			writeMutex.Lock()
 			defer writeMutex.Unlock()
 			if a == nil {
@@ -541,7 +542,7 @@ func DISABLEDTestSparseMerkleTreeWriterBigBatch(t *testing.T) {
 
 	tx.EXPECT().Commit().AnyTimes().Return(nil)
 	tx.EXPECT().GetMerkleNodes(int64(rev), gomock.Any()).Return([]storage.Node{}, nil)
-	tx.EXPECT().SetMerkleNodes(int64(rev), gomock.Any()).Return(nil)
+	tx.EXPECT().SetMerkleNodes(gomock.Any()).Return(nil)
 
 	const batchSize = 1024
 	const numBatches = 4

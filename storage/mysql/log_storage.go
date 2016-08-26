@@ -146,10 +146,20 @@ func (m *mySQLLogStorage) beginInternal() (storage.LogTX, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &logTX{
+	ret := &logTX{
 		treeTX: ttx,
 		ls:     m,
-	}, nil
+	}
+
+	root, err := ret.LatestSignedLogRoot()
+	if err != nil {
+		ttx.Rollback()
+		return nil, err
+	}
+
+	ret.treeTX.writeRevision = root.TreeRevision
+
+	return ret, nil
 }
 
 func (m *mySQLLogStorage) Begin() (storage.LogTX, error) {
@@ -173,6 +183,10 @@ func (m *mySQLLogStorage) Snapshot() (storage.ReadOnlyLogTX, error) {
 type logTX struct {
 	treeTX
 	ls *mySQLLogStorage
+}
+
+func (t *logTX) WriteRevision() int64 {
+	return t.treeTX.writeRevision
 }
 
 func (t *logTX) DequeueLeaves(limit int) ([]trillian.LogLeaf, error) {
