@@ -354,6 +354,12 @@ func wrappedGetSTHConsistencyHandler(c CTRequestHandlers) http.HandlerFunc {
 			return
 		}
 
+		// Additional sanity checks, none of the hashes in the returned path should be empty
+		if !checkAuditPath(response.Proof.ProofNode) {
+			sendHttpError(w, http.StatusInternalServerError, fmt.Errorf("backend returned invalid proof: %v", response.Proof))
+			return
+		}
+
 		// We got a valid response from the server. Marshall it as JSON and return it to the client
 		jsonResponse := getSTHConsistencyResponse{Consistency:auditPathFromProto(response.Proof.ProofNode)}
 
@@ -760,7 +766,11 @@ func parseAndValidateGetSTHConsistencyRange(r *http.Request) (int64, int64, erro
 		return 0, 0, err
 	}
 
-	if second >= first {
+	if first <= 0 || second <= 0 {
+		return 0, 0, fmt.Errorf("first and second params cannot be <=0: %d %d", first, second)
+	}
+
+	if second <= first {
 		return 0, 0, fmt.Errorf("invalid first, second params: %d %d", first, second)
 	}
 
