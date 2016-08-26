@@ -174,11 +174,12 @@ message KeyValueInclusion {
 message GetMapLeavesRequest {
   int64 map_id = 1;
   repeated bytes key = 2;
+  int64 revision = 3;
 }
 
 message GetMapLeavesResponse {
   TrillianApiStatus status = 1;
-  repeated KeyValue key_value = 2;
+  repeated KeyValueInclusion key_value = 2;
   SignedMapRoot map_root = 3;
 }
 
@@ -190,6 +191,7 @@ message SetMapLeavesRequest {
 
 message SetMapLeavesResponse {
   TrillianApiStatus status = 1;
+  SignedMapRoot map_root = 2;
 }
 
 message GetSignedMapRootRequest {
