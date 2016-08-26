@@ -62,7 +62,7 @@ var getEntriesRangeTestCases = []getEntriesRangeTestCase{
 	{1000, 50000, http.StatusBadRequest, "range too large to be accepted", false}}
 
 // A list of requests that should result in a bad request status
-var getProofByHashBadRequests = []string{"", "hash=", "hash=''", "hash=notbase64data"}
+var getProofByHashBadRequests = []string{"", "hash=&tree_size=1", "hash=''&tree_size=1", "hash=notbase64data&tree_size=1", "tree_size=-1&hash=aGkK"}
 
 // The result we expect after a roundtrip in the successful get proof by hash test
 var expectedInclusionProofByHash = getProofByHashResponse{LeafIndex: 2, AuditPath: [][]byte{[]byte("abcdef"), []byte("ghijkl"), []byte("mnopqr")}}
@@ -1139,11 +1139,11 @@ func TestGetProofByHashBackendFails(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	client := trillian.NewMockTrillianLogClient(mockCtrl)
-	client.EXPECT().GetInclusionProofByHash(deadlineMatcher(), &trillian.GetInclusionProofByHashRequest{LeafHash: []byte("ahash")}).Return(nil, errors.New("RPCFAIL"))
+	client.EXPECT().GetInclusionProofByHash(deadlineMatcher(), &trillian.GetInclusionProofByHashRequest{LeafHash: []byte("ahash"), TreeSize:6}).Return(nil, errors.New("RPCFAIL"))
 	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
 	handler := wrappedGetProofByHashHandler(c)
 
-	req, err := http.NewRequest("GET", "/ct/v1/proof-by-hash?hash=YWhhc2g=", nil)
+	req, err := http.NewRequest("GET", "/ct/v1/proof-by-hash?tree_size=6&hash=YWhhc2g=", nil)
 
 	if err != nil {
 		t.Fatal(err)
@@ -1173,11 +1173,11 @@ func TestGetProofByHashBackendMultipleProofs(t *testing.T) {
 	proof2 := trillian.ProofProto{LeafIndex: 2, ProofNode: []*trillian.NodeProto{{NodeHash: []byte("ghijkl")}}}
 	response := trillian.GetInclusionProofByHashResponse{Status: okStatus, Proof: []*trillian.ProofProto{&proof1, &proof2}}
 	client := trillian.NewMockTrillianLogClient(mockCtrl)
-	client.EXPECT().GetInclusionProofByHash(deadlineMatcher(), &trillian.GetInclusionProofByHashRequest{LeafHash: []byte("ahash")}).Return(&response, nil)
+	client.EXPECT().GetInclusionProofByHash(deadlineMatcher(), &trillian.GetInclusionProofByHashRequest{LeafHash: []byte("ahash"), TreeSize:7}).Return(&response, nil)
 	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
 	handler := wrappedGetProofByHashHandler(c)
 
-	req, err := http.NewRequest("GET", "/ct/v1/proof-by-hash?hash=YWhhc2g=", nil)
+	req, err := http.NewRequest("GET", "/ct/v1/proof-by-hash?tree_size=7&hash=YWhhc2g=", nil)
 
 	if err != nil {
 		t.Fatal(err)
@@ -1206,11 +1206,11 @@ func TestGetProofByHashBackendPathMissingHash(t *testing.T) {
 	proof := trillian.ProofProto{LeafIndex: 2, ProofNode: []*trillian.NodeProto{{NodeHash: []byte("abcdef")}, {NodeHash: []byte{}}, {NodeHash: []byte("ghijkl")}}}
 	response := trillian.GetInclusionProofByHashResponse{Status: okStatus, Proof: []*trillian.ProofProto{&proof}}
 	client := trillian.NewMockTrillianLogClient(mockCtrl)
-	client.EXPECT().GetInclusionProofByHash(deadlineMatcher(), &trillian.GetInclusionProofByHashRequest{LeafHash: []byte("ahash")}).Return(&response, nil)
+	client.EXPECT().GetInclusionProofByHash(deadlineMatcher(), &trillian.GetInclusionProofByHashRequest{LeafHash: []byte("ahash"), TreeSize:9}).Return(&response, nil)
 	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
 	handler := wrappedGetProofByHashHandler(c)
 
-	req, err := http.NewRequest("GET", "/ct/v1/proof-by-hash?hash=YWhhc2g=", nil)
+	req, err := http.NewRequest("GET", "/ct/v1/proof-by-hash?tree_size=9&hash=YWhhc2g=", nil)
 
 	if err != nil {
 		t.Fatal(err)
@@ -1239,11 +1239,11 @@ func TestGetProofByHash(t *testing.T) {
 	proof := trillian.ProofProto{LeafIndex: 2, ProofNode: []*trillian.NodeProto{{NodeHash: []byte("abcdef")}, {NodeHash: []byte("ghijkl")}, {NodeHash: []byte("mnopqr")}}}
 	response := trillian.GetInclusionProofByHashResponse{Status: okStatus, Proof: []*trillian.ProofProto{&proof}}
 	client := trillian.NewMockTrillianLogClient(mockCtrl)
-	client.EXPECT().GetInclusionProofByHash(deadlineMatcher(), &trillian.GetInclusionProofByHashRequest{LeafHash: []byte("ahash")}).Return(&response, nil)
+	client.EXPECT().GetInclusionProofByHash(deadlineMatcher(), &trillian.GetInclusionProofByHashRequest{LeafHash: []byte("ahash"), TreeSize:7}).Return(&response, nil)
 	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
 	handler := wrappedGetProofByHashHandler(c)
 
-	req, err := http.NewRequest("GET", "/ct/v1/proof-by-hash?hash=YWhhc2g=", nil)
+	req, err := http.NewRequest("GET", "/ct/v1/proof-by-hash?tree_size=7&hash=YWhhc2g=", nil)
 
 	if err != nil {
 		t.Fatal(err)

@@ -46,6 +46,8 @@ const (
 	getEntriesParamEnd = "end"
 	// The name of the get-proof-by-hash parameter
 	getProofParamHash = "hash"
+	// The name of the get-proof-by-hash tree size parameter
+	getProofParamTreeSize = "tree_size"
 )
 
 // CTRequestHandlers provides HTTP handler functions for CT V1 as defined in RFC 6962
@@ -348,9 +350,17 @@ func wrappedGetProofByHashHandler(c CTRequestHandlers) http.HandlerFunc {
 
 		if err != nil {
 			sendHttpError(w, http.StatusBadRequest, errors.New("invalid base64 hash for get-proof-by-hash"))
+			return
 		}
 
-		rpcRequest := trillian.GetInclusionProofByHashRequest{LogId: c.logID, LeafHash: leafHash}
+		treeSize, err := strconv.ParseInt(r.FormValue(getProofParamTreeSize), 10, 64)
+
+		if err != nil || treeSize < 1 {
+			sendHttpError(w, http.StatusBadRequest, fmt.Errorf("missing or invalid tree_size: %v", r.FormValue(getProofParamTreeSize)))
+			return
+		}
+
+		rpcRequest := trillian.GetInclusionProofByHashRequest{LogId: c.logID, LeafHash: leafHash, TreeSize:treeSize}
 		ctx, _ := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
 		response, err := c.rpcClient.GetInclusionProofByHash(ctx, &rpcRequest)
 
