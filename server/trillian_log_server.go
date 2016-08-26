@@ -111,7 +111,6 @@ func (t *TrillianLogServer) GetInclusionProofByHash(ctx context.Context, req *tr
 	tx, err := t.prepareStorageTx(req.LogId)
 
 	if err != nil {
-		tx.Rollback()
 		return nil, err
 	}
 
@@ -138,6 +137,11 @@ func (t *TrillianLogServer) GetInclusionProofByHash(ctx context.Context, req *tr
 	}
 
 	proof, err := getInclusionProofForLeafIndexAtRevision(tx, treeRevision, req.TreeSize, leaves[0].SequenceNumber)
+
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
 
 	// The work is complete, can return the response
 	err = tx.Commit()
