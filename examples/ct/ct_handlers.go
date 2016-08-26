@@ -369,9 +369,10 @@ func wrappedGetProofByHashHandler(c CTRequestHandlers) http.HandlerFunc {
 			return
 		}
 
-		// Per RFC 6962 section 4.5 we can't handle a case with duplicate leaves because the API is
-		// defined to return a single proof so it's an error if we don't get exactly one proof
+		// Per RFC 6962 section 4.5 the API returns a single proof. This should be the lowest leaf index
 		if len(response.Proof) != 1 {
+			// TODO(Martin2112): Ensure we can safely get the correct leaf from the backend and implement
+			// what the comment above says.
 			sendHttpError(w, http.StatusInternalServerError, fmt.Errorf("expected 1 proof from backend but got %d", len(response.Proof)))
 			return
 		}
