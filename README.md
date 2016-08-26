@@ -20,6 +20,15 @@ tree, then:
 
 If you are with the Go program, then you know what to do.
 
+### Rebuilding mocks/protobuffers
+
+If you need to re-generate the mock or protobuffer files (this isn't required
+unless you're changing the code), run the following command:
+
+    % go generate -x ./...
+
+You'll need to have the `mockgen` tool from github.com/golang/mock/gomock installed, as well as `protoc` and the Go protoc extension (see documentation linked from the [protobuf site](https://github.com/google/protobuf).)
+
 ## Test
 
 To run the tests, you need to have an instance of MySQL running, and
