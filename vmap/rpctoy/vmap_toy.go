@@ -1,0 +1,91 @@
+package main
+
+import (
+	"bytes"
+	"encoding/base64"
+	"flag"
+	"fmt"
+
+	"github.com/golang/glog"
+	"github.com/google/trillian"
+	"github.com/google/trillian/testonly"
+	"golang.org/x/net/context"
+	"google.golang.org/grpc"
+)
+
+var server = flag.String("server", "localhost:8091", "Server address:port")
+
+// TODO(al): refactor this and the regular vmap toy to not repeat all this boilerplate.
+func main() {
+	flag.Parse()
+
+	conn, err := grpc.Dial(*server, grpc.WithInsecure())
+	if err != nil {
+		glog.Fatal(err)
+	}
+	defer conn.Close()
+
+	c := trillian.NewTrillianMapClient(conn)
+
+	testVecs := []struct {
+		batchSize       int
+		numBatches      int
+		expectedRootB64 string
+	}{
+		// roots calculated using python code.
+		{1024, 4, "Av30xkERsepT6F/AgbZX3sp91TUmV1TKaXE6QPFfUZA="},
+		{10, 4, "6Pk5sprCr3ACfo0OLRZw7sAGdIBTc+7+MxfdW3n76Pc="},
+		{6, 4, "QZJ42Te4bw+uGdUaIqzhelxpERU5Ru6uLdy0ixJAuWQ="},
+		{4, 4, "9myL1k8Ik6m3Q3JXljHLzfNQHS2d5X6CCbpE/x3mixg="},
+		{5, 4, "4xyGOe2DQYi2Qb4aBto9R7jSmiRYqfJ+TcMxUZTXMkM="},
+		{6, 3, "FeB/9D+Gzo6oYB2Zi2JMHdrr9KvfvMk7o6DOzjPYG4w="},
+		{10, 3, "RfJ6JPERbkDiwlov8/alCqr4yeYYIWl3dWWS3trHsiY="},
+		{1, 4, "pQhTahkoXM3WTeAO1o8BYKhgMNzS1yG03vg/fQSVyIc="},
+		{2, 4, "RdcEkg5qEuW5eV3VJJLr6uSzvlc27D55AZChG76LHGA="},
+		{4, 1, "3dpnVw5Le3HDq/GAkGoSYT9VkzJRV8z18huOk5qMbco="},
+		{1024, 1, "7R5uvGy5MJ2Y8xrQr4/mnn3aPw39vYscghmg9KBJaKc="},
+		{1, 2, "cZIYiv7ZQ/3rBfpCrha1NKdUnQ8NsTm21WWdV3P4qcU="},
+		{1, 3, "KUaQinjLtPQ/ZAek4nHrR7tVXDxLt5QsvZK3vGopDkA="}}
+
+	const testIndex = 0
+
+	batchSize := testVecs[testIndex].batchSize
+	numBatches := testVecs[testIndex].numBatches
+	expectedRootB64 := testVecs[testIndex].expectedRootB64
+
+	rev := int64(0)
+	var root trillian.Hash
+	for x := 0; x < numBatches; x++ {
+		glog.Infof("Starting batch %d...", x)
+
+		req := &trillian.SetMapLeavesRequest{
+			MapId:    1,
+			KeyValue: make([]*trillian.KeyValue, batchSize),
+		}
+
+		for y := 0; y < batchSize; y++ {
+			req.KeyValue[y] = &trillian.KeyValue{
+				Key: []byte(fmt.Sprintf("key-%d-%d", x, y)),
+				Value: &trillian.MapLeaf{
+					LeafValue: []byte(fmt.Sprintf("value-%d-%d", x, y)),
+				},
+			}
+		}
+		glog.Infof("Created %d k/v pairs...", len(req.KeyValue))
+
+		glog.Info("SetLeaves...")
+		resp, err := c.SetLeaves(context.Background(), req)
+		if err != nil {
+			glog.Fatalf("Failed to write batch %d: %v", x, err)
+		}
+		glog.Infof("SetLeaves done: %v", resp)
+		root = resp.MapRoot.RootHash
+		rev++
+	}
+
+	if expected, got := testonly.MustDecodeBase64(expectedRootB64), root; !bytes.Equal(expected, root) {
+		glog.Fatalf("Expected root %s, got root: %s", base64.StdEncoding.EncodeToString(expected), base64.StdEncoding.EncodeToString(got))
+	}
+	glog.Infof("Finished, root: %s", base64.StdEncoding.EncodeToString(root))
+
+}
