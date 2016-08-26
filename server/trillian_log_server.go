@@ -89,8 +89,53 @@ func (t *TrillianLogServer) QueueLeaves(ctx context.Context, req *trillian.Queue
 }
 
 // GetInclusionProof obtains the proof of inclusion in the tree for a leaf that has been sequenced.
+// Similar to the get proof by hash handler but one less step as we don't need to look up the index
 func (t *TrillianLogServer) GetInclusionProof(ctx context.Context, req *trillian.GetInclusionProofRequest) (*trillian.GetInclusionProofResponse, error) {
-	return nil, ErrNotImplemented
+	// Reject obviously invalid tree sizes and leaf indices
+	if req.TreeSize <= 0 {
+		return nil, fmt.Errorf("invalid tree size for proof by hash: %d", req.TreeSize)
+	}
+
+	if req.LeafIndex <= 0 {
+		return nil, fmt.Errorf("invalid leaf index: %d", req.LeafIndex)
+	}
+
+	if req.LeafIndex >= req.TreeSize {
+		return nil, fmt.Errorf("leaf index %d does not exist in tree of size %d", req.LeafIndex, req.TreeSize)
+	}
+
+	// Next we need to make sure the requested tree size corresponds to an STH, so that we
+	// have a usable tree revision
+	tx, err := t.prepareStorageTx(req.LogId)
+
+	if err != nil {
+		return nil, err
+	}
+
+	treeRevision, err := tx.GetTreeRevisionAtSize(req.TreeSize)
+
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	proof, err := getInclusionProofForLeafIndexAtRevision(tx, treeRevision, req.TreeSize, req.LeafIndex)
+
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	// The work is complete, can return the response
+	err = tx.Commit()
+
+	if err != nil {
+		return nil, err
+	}
+
+	response := trillian.GetInclusionProofResponse{Status: buildStatus(trillian.TrillianApiStatusCode_OK), Proof:&proof}
+
+	return &response, nil
 }
 
 // GetInclusionProofByHash obtains proofs of inclusion by leaf hash. Because some logs can
