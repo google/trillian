@@ -355,7 +355,7 @@ func wrappedGetSTHConsistencyHandler(c CTRequestHandlers) http.HandlerFunc {
 		}
 
 		// We got a valid response from the server. Marshall it as JSON and return it to the client
-		jsonResponse := getSTHConsistencyResponse{}
+		jsonResponse := getSTHConsistencyResponse{Consistency:auditPathFromProto(response.Proof.ProofNode)}
 
 		w.Header().Set(contentTypeHeader, contentTypeJSON)
 		jsonData, err := json.Marshal(&jsonResponse)
