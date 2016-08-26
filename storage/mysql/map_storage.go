@@ -55,10 +55,19 @@ func (m *mySQLMapStorage) Begin() (storage.MapTX, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &mapTX{
+	ret := &mapTX{
 		treeTX: ttx,
 		ms:     m,
-	}, nil
+	}
+
+	root, err := ret.LatestSignedMapRoot()
+	if err != nil {
+		return nil, err
+	}
+
+	ret.treeTX.writeRevision = root.MapRevision
+
+	return ret, nil
 }
 
 func (m *mySQLMapStorage) Snapshot() (storage.ReadOnlyMapTX, error) {
