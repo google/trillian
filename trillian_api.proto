@@ -150,9 +150,19 @@ service TrillianLog {
     }
 }
 
+// MapLeaf represents the data behind Map leaves.
+message MapLeaf {
+  // leaf_hash is the tree hash of leaf_value.
+  bytes leaf_hash = 1;
+  // leaf_value is the data the tree commits to.
+  bytes leaf_value = 2;
+  // extra_data holds related contextual data, but is not covered by any hash.
+  bytes extra_data = 3;
+}
+
 message KeyValue {
   bytes key = 1;
-  bytes value = 2;
+  MapLeaf value = 2;
 }
 
 message KeyValueInclusion {

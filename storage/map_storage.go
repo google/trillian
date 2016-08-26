@@ -1,7 +1,13 @@
 package storage
 
 import (
+	"errors"
+
 	"github.com/google/trillian"
+)
+
+var (
+	ErrNoSuchKey = errors.New("no such key")
 )
 
 // ReadOnlyMapTX provides a read-only view into the Map data.
@@ -45,14 +51,14 @@ type MapStorage interface {
 // Setter allows the setting of key->value pairs on the map.
 type Setter interface {
 	// Set sets key to leaf
-	Set(key []byte, value trillian.MapLeaf) error
+	Set(keyHash trillian.Hash, value trillian.MapLeaf) error
 }
 
 // Getter allows access to the values stored in the map.
 type Getter interface {
 	// Get retrieves the value associates with key, if any, at the specified revision.
 	// Setting revision to -1 will fetch the latest revision.
-	Get(revision int64, key []byte) (trillian.MapLeaf, error)
+	Get(revision int64, keyHash trillian.Hash) (trillian.MapLeaf, error)
 }
 
 // MapRootReader provides access to the map roots.

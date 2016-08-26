@@ -2,7 +2,6 @@ package mysql
 
 import (
 	"database/sql"
-	"errors"
 
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
@@ -16,6 +15,14 @@ const insertMapHeadSQL string = `INSERT INTO MapHead(TreeId, MapHeadTimestamp, R
 const selectLatestSignedMapRootSql string = `SELECT MapHeadTimestamp, RootHash, MapRevision, RootSignature, TransactionLogRoot
 		 FROM MapHead WHERE TreeId=?
 		 ORDER BY MapHeadTimestamp DESC LIMIT 1`
+
+const insertMapLeafSQL string = `INSERT INTO MapLeaf(TreeId, KeyHash, MapRevision, TheData) VALUES (?, ?, ?, ?)`
+const selectMapLeafSQL string = `SELECT KeyHash, MapRevision, TheData
+	 FROM MapLeaf
+	 WHERE TreeId = ? AND
+	 			 KeyHash = ? AND
+				 MapRevision <= ?
+	 ORDER BY MapRevision DESC LIMIT 1`
 
 type mySQLMapStorage struct {
 	mySQLTreeStorage
@@ -67,12 +74,51 @@ type mapTX struct {
 	ms *mySQLMapStorage
 }
 
-func (m *mapTX) Set(key []byte, value trillian.MapLeaf) error {
-	return errors.New("unimplemented")
+func (m *mapTX) Set(keyHash trillian.Hash, value trillian.MapLeaf) error {
+	// TODO(al): consider storing some sort of value which represents the group of keys being set in this Tx.
+	//           That way, if this attempt partially fails (i.e. because some subset of the in-the-future merkle
+	//           nodes do get written), we can enforce that future map update attempts are a complete replay of
+	//           the failed set.
+	flatValue, err := proto.Marshal(&value)
+	if err != nil {
+		return nil
+	}
+
+	stmt, err := m.tx.Prepare(insertMapLeafSQL)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(m.ms.mapID.TreeID, []byte(keyHash), m.writeRevision, flatValue)
+	return err
 }
 
-func (m *mapTX) Get(revision int64, key []byte) (trillian.MapLeaf, error) {
-	return trillian.MapLeaf{}, errors.New("unimplemented")
+func (m *mapTX) Get(revision int64, keyHash trillian.Hash) (trillian.MapLeaf, error) {
+	stmt, err := m.tx.Prepare(selectMapLeafSQL)
+	if err != nil {
+		return trillian.MapLeaf{}, err
+	}
+	defer stmt.Close()
+
+	var mapKeyHash trillian.Hash
+	var mapRevision int64
+	var flatData []byte
+
+	err = stmt.QueryRow(
+		m.ms.mapID.TreeID, []byte(keyHash), revision).Scan(
+		&mapKeyHash, &mapRevision, &flatData)
+
+	// It's possible there is no value for this value yet
+	if err == sql.ErrNoRows {
+		return trillian.MapLeaf{}, storage.ErrNoSuchKey
+	} else if err != nil {
+		return trillian.MapLeaf{}, err
+	}
+
+	var mapLeaf trillian.MapLeaf
+	err = proto.Unmarshal(flatData, &mapLeaf)
+	return mapLeaf, err
 }
 
 func (m *mapTX) LatestSignedMapRoot() (trillian.SignedMapRoot, error) {

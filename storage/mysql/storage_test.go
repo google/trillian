@@ -18,6 +18,8 @@ import (
 	"github.com/google/trillian/storage"
 )
 
+// TODO(al): add checking to all the Commit() calls in here.
+
 var allTables = []string{"Unsequenced", "TreeHead", "SequencedLeafData", "LeafData", "Subtree", "TreeControl", "Trees", "MapLeaf", "MapHead"}
 
 // Must be 32 bytes to match sha256 length if it was a real hash
@@ -886,6 +888,155 @@ func TestMapRootUpdate(t *testing.T) {
 
 	if !proto.Equal(&root2, &root3) {
 		t.Fatalf("Root round trip failed: <%v> and: <%v>", root, root2)
+	}
+}
+
+var mapLeaf = trillian.MapLeaf{
+	LeafHash:  []byte("A Hash"),
+	LeafValue: []byte("A Value"),
+	ExtraData: []byte("Some Extra Data"),
+}
+
+func TestMapSetGetRoundTrip(t *testing.T) {
+	cleanTestDB()
+
+	mapID := createMapID("TestMapSetGetRoundTrip")
+	db := prepareTestMapDB(mapID, t)
+	defer db.Close()
+	s := prepareTestMapStorage(mapID, t)
+
+	keyHash := []byte("A Key Hash")
+
+	readRev := int64(1)
+
+	{
+		tx := beginMapTx(s, t)
+
+		if err := tx.Set(keyHash, mapLeaf); err != nil {
+			t.Fatalf("Failed to set %v to %v: %v", keyHash, mapLeaf, err)
+		}
+		if err := tx.Commit(); err != nil {
+			t.Fatalf("Failed to commit: %v", err)
+		}
+	}
+
+	{
+		tx := beginMapTx(s, t)
+
+		readValue, err := tx.Get(readRev, keyHash)
+		if err != nil {
+			t.Fatalf("Failed to get %v:  %v", keyHash, err)
+		}
+
+		if got, want := &readValue, &mapLeaf; !proto.Equal(got, want) {
+			t.Fatalf("Read back %v, but expected %v", got, want)
+		}
+		if err := tx.Commit(); err != nil {
+			t.Fatalf("Failed to commit: %v", err)
+		}
+	}
+}
+
+func TestMapSetSameKeyInSameRevisionFails(t *testing.T) {
+	cleanTestDB()
+
+	mapID := createMapID("TestMapSetSameKeyInSameRevisionFails")
+	db := prepareTestMapDB(mapID, t)
+	defer db.Close()
+	s := prepareTestMapStorage(mapID, t)
+
+	keyHash := []byte("A Key Hash")
+
+	{
+		tx := beginMapTx(s, t)
+
+		if err := tx.Set(keyHash, mapLeaf); err != nil {
+			t.Fatalf("Failed to set %v to %v: %v", keyHash, mapLeaf, err)
+		}
+		if err := tx.Commit(); err != nil {
+			t.Fatalf("Failed to commit: %v", err)
+		}
+	}
+
+	{
+		tx := beginMapTx(s, t)
+
+		if err := tx.Set(keyHash, mapLeaf); err == nil {
+			t.Fatalf("Unexpectedly succeeded in setting %v to %v", keyHash, mapLeaf)
+		}
+		if err := tx.Commit(); err != nil {
+			t.Fatalf("Failed to commit: %v", err)
+		}
+	}
+}
+
+func TestMapGetUnknownKey(t *testing.T) {
+	cleanTestDB()
+
+	mapID := createMapID("TestMapGetUnknownKey")
+	db := prepareTestMapDB(mapID, t)
+	defer db.Close()
+	s := prepareTestMapStorage(mapID, t)
+
+	{
+		tx := beginMapTx(s, t)
+
+		readValue, err := tx.Get(1, []byte("This doesn't exist."))
+		if got, want := err, storage.ErrNoSuchKey; got != want {
+			t.Fatalf("Read %v with error %v, but expected error %v", readValue, got, want)
+		}
+		if err := tx.Commit(); err != nil {
+			t.Fatalf("Failed to commit: %v", err)
+		}
+	}
+}
+
+func TestMapSetGetMultipleRevisions(t *testing.T) {
+	cleanTestDB()
+
+	// Write two roots for a map and make sure the one with the newest timestamp supersedes
+	mapID := createMapID("TestMapSetGetMultipleRevisions")
+	db := prepareTestMapDB(mapID, t)
+	defer db.Close()
+	s := prepareTestMapStorage(mapID, t)
+
+	keyHash := []byte("A Key Hash")
+	numRevs := 3
+	values := make([]trillian.MapLeaf, numRevs)
+	for i := 0; i < numRevs; i++ {
+		values[i] = trillian.MapLeaf{
+			LeafHash:  []byte(fmt.Sprintf("A Hash %d", i)),
+			LeafValue: []byte(fmt.Sprintf("A Value %d", i)),
+			ExtraData: []byte(fmt.Sprintf("Some Extra Data %d", i)),
+		}
+	}
+
+	for i := 0; i < numRevs; i++ {
+		tx := beginMapTx(s, t)
+		mysqlMapTX := tx.(*mapTX)
+		mysqlMapTX.treeTX.writeRevision = int64(i)
+		if err := tx.Set(keyHash, values[i]); err != nil {
+			t.Fatalf("Failed to set %v to %v: %v", keyHash, values[i], err)
+		}
+		if err := tx.Commit(); err != nil {
+			t.Fatalf("Failed to commit: %v", err)
+		}
+	}
+
+	for i := 0; i < numRevs; i++ {
+		tx := beginMapTx(s, t)
+
+		readValue, err := tx.Get(int64(i), keyHash)
+		if err != nil {
+			t.Fatalf("Failed to get %v:  %v", keyHash, err)
+		}
+
+		if got, want := &readValue, &values[i]; !proto.Equal(got, want) {
+			t.Fatalf("Read back %v, but expected %v", got, want)
+		}
+		if err := tx.Commit(); err != nil {
+			t.Fatalf("Failed to commit: %v", err)
+		}
 	}
 }
 
