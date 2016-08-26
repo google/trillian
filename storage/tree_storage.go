@@ -24,6 +24,9 @@ type TreeTX interface {
 	// Commit() or Rollback() has never been called. Implementations must do all clean up
 	// in these methods so transactions are assumed closed regardless of the reported success.
 	IsOpen() bool
+
+	// WriteRevision returns the tree revision that any writes through this TreeTX will be stored at.
+	WriteRevision() int64
 }
 
 // NodeReader provides a read-only interface into the stored tree nodes.
@@ -39,6 +42,6 @@ type NodeReader interface {
 type NodeReaderWriter interface {
 	NodeReader
 
-	// SetMerkleNodes stores the provided nodes, at treeRevision.
-	SetMerkleNodes(treeRevision int64, nodes []Node) error
+	// SetMerkleNodes stores the provided nodes, at the transaction's writeRevision.
+	SetMerkleNodes(nodes []Node) error
 }

@@ -168,14 +168,14 @@ func (_mr *_MockLogTXRecorder) Rollback() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Rollback")
 }
 
-func (_m *MockLogTX) SetMerkleNodes(_param0 int64, _param1 []Node) error {
-	ret := _m.ctrl.Call(_m, "SetMerkleNodes", _param0, _param1)
+func (_m *MockLogTX) SetMerkleNodes(_param0 []Node) error {
+	ret := _m.ctrl.Call(_m, "SetMerkleNodes", _param0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockLogTXRecorder) SetMerkleNodes(arg0, arg1 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "SetMerkleNodes", arg0, arg1)
+func (_mr *_MockLogTXRecorder) SetMerkleNodes(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "SetMerkleNodes", arg0)
 }
 
 func (_m *MockLogTX) StoreSignedLogRoot(_param0 trillian.SignedLogRoot) error {
@@ -196,6 +196,16 @@ func (_m *MockLogTX) UpdateSequencedLeaves(_param0 []trillian.LogLeaf) error {
 
 func (_mr *_MockLogTXRecorder) UpdateSequencedLeaves(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "UpdateSequencedLeaves", arg0)
+}
+
+func (_m *MockLogTX) WriteRevision() int64 {
+	ret := _m.ctrl.Call(_m, "WriteRevision")
+	ret0, _ := ret[0].(int64)
+	return ret0
+}
+
+func (_mr *_MockLogTXRecorder) WriteRevision() *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "WriteRevision")
 }
 
 // Mock of MapTX interface
@@ -303,14 +313,14 @@ func (_mr *_MockMapTXRecorder) Set(arg0, arg1 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Set", arg0, arg1)
 }
 
-func (_m *MockMapTX) SetMerkleNodes(_param0 int64, _param1 []Node) error {
-	ret := _m.ctrl.Call(_m, "SetMerkleNodes", _param0, _param1)
+func (_m *MockMapTX) SetMerkleNodes(_param0 []Node) error {
+	ret := _m.ctrl.Call(_m, "SetMerkleNodes", _param0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockMapTXRecorder) SetMerkleNodes(arg0, arg1 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "SetMerkleNodes", arg0, arg1)
+func (_mr *_MockMapTXRecorder) SetMerkleNodes(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "SetMerkleNodes", arg0)
 }
 
 func (_m *MockMapTX) StoreSignedMapRoot(_param0 trillian.SignedMapRoot) error {
@@ -321,6 +331,16 @@ func (_m *MockMapTX) StoreSignedMapRoot(_param0 trillian.SignedMapRoot) error {
 
 func (_mr *_MockMapTXRecorder) StoreSignedMapRoot(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "StoreSignedMapRoot", arg0)
+}
+
+func (_m *MockMapTX) WriteRevision() int64 {
+	ret := _m.ctrl.Call(_m, "WriteRevision")
+	ret0, _ := ret[0].(int64)
+	return ret0
+}
+
+func (_mr *_MockMapTXRecorder) WriteRevision() *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "WriteRevision")
 }
 
 // Mock of ReadOnlyLogTX interface

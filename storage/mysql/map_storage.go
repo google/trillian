@@ -74,6 +74,10 @@ type mapTX struct {
 	ms *mySQLMapStorage
 }
 
+func (t *mapTX) WriteRevision() int64 {
+	return t.treeTX.writeRevision
+}
+
 func (m *mapTX) Set(keyHash trillian.Hash, value trillian.MapLeaf) error {
 	// TODO(al): consider storing some sort of value which represents the group of keys being set in this Tx.
 	//           That way, if this attempt partially fails (i.e. because some subset of the in-the-future merkle

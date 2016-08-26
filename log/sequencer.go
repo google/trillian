@@ -167,7 +167,6 @@ func (s Sequencer) SequenceBatch(limit int, expiryFunc CurrentRootExpiredFunc) (
 		return 0, nil
 	}
 
-
 	merkleTree, err := s.initMerkleTreeFromStorage(currentRoot, tx)
 
 	if err != nil {
@@ -179,7 +178,11 @@ func (s Sequencer) SequenceBatch(limit int, expiryFunc CurrentRootExpiredFunc) (
 	// TODO: This relies on us being the only process updating the map, which isn't enforced yet
 	// though the schema should now prevent multiple STHs being inserted with the same revision
 	// number so it should not be possible for colliding updates to commit.
-	newVersion := currentRoot.TreeRevision + int64(1)
+	newVersion := tx.WriteRevision()
+	if got, want := newVersion, currentRoot.TreeRevision+int64(1); got != want {
+		tx.Rollback()
+		return 0, fmt.Errorf("got writeRevision of %d, but expected %d", got, want)
+	}
 
 	// Assign leaf sequence numbers and collate node updates
 	nodeMap, sequenceNumbers := s.sequenceLeaves(merkleTree, leaves)
@@ -215,7 +218,7 @@ func (s Sequencer) SequenceBatch(limit int, expiryFunc CurrentRootExpiredFunc) (
 	}
 
 	// Now insert or update the nodes affected by the above, at the new tree version
-	err = tx.SetMerkleNodes(newVersion, targetNodes)
+	err = tx.SetMerkleNodes(targetNodes)
 
 	if err != nil {
 		glog.Warningf("Sequencer failed to set merkle nodes: %s", err)
