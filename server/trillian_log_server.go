@@ -2,11 +2,14 @@ package server
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/merkle"
+	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/context"
 )
 
@@ -18,6 +21,9 @@ var (
 
 // TODO: There is no access control in the server yet and clients could easily modify
 // any tree.
+
+// Pass this as a fixed value to proof calculations. It's used as the max depth of the tree
+const proofMaxBitLen = 64
 
 // LogStorageProviderFunc decouples the server from storage implementations
 type LogStorageProviderFunc func(int64) (storage.LogStorage, error)
@@ -91,7 +97,58 @@ func (t *TrillianLogServer) GetInclusionProof(ctx context.Context, req *trillian
 // contain duplicate hashes it is possible for multiple proofs to be returned.
 // TODO(Martin2112): Need to define a limit on number of results or some form of paging etc.
 func (t *TrillianLogServer) GetInclusionProofByHash(ctx context.Context, req *trillian.GetInclusionProofByHashRequest) (*trillian.GetInclusionProofByHashResponse, error) {
-	return nil, ErrNotImplemented
+	// Reject obviously invalid tree sizes
+	if req.TreeSize <= 0 {
+		return nil, fmt.Errorf("invalid tree size for proof by hash: %d", req.TreeSize)
+	}
+
+	if len(req.LeafHash) == 0 {
+		return nil, fmt.Errorf("invalid leaf hash: %v", req.LeafHash)
+	}
+
+	// Next we need to make sure the requested tree size corresponds to an STH, so that we
+	// have a usable tree revision
+	tx, err := t.prepareStorageTx(req.LogId)
+
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	treeRevision, err := tx.GetTreeRevisionAtSize(req.TreeSize)
+
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	// Find the leaf index of the supplied hash
+	leafHashes := []trillian.Hash{req.LeafHash}
+	leaves, err := tx.GetLeavesByHash(leafHashes)
+
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	// TODO(Martin2112): We need to decide how we handle the multiple hash case.
+	if len(leaves) != 1 {
+		tx.Rollback()
+		return nil, fmt.Errorf("expecting one leaf to be returned but got: %d", len(leaves))
+	}
+
+	proof, err := getInclusionProofForLeafIndexAtRevision(tx, treeRevision, req.TreeSize, leaves[0].SequenceNumber)
+
+	// The work is complete, can return the response
+	err = tx.Commit()
+
+	if err != nil {
+		return nil, err
+	}
+
+	response := trillian.GetInclusionProofByHashResponse{Status: buildStatus(trillian.TrillianApiStatusCode_OK), Proof:[]*trillian.ProofProto{&proof}}
+
+	return &response, nil
 }
 
 // GetConsistencyProof obtains a proof that two versions of the tree are consistent with each
@@ -287,4 +344,46 @@ func validateLeafHashes(leafHashes [][]byte) bool {
 	}
 
 	return true
+}
+
+// getInclusionProofForLeafIndexAtRevision is used by multiple handlers. It does the storage fetching
+// and makes additional checks on the returned proof. Returns a ProofProto suitable for inclusion in
+// an RPC response
+func getInclusionProofForLeafIndexAtRevision(tx storage.LogTX, treeRevision, treeSize, leafIndex int64) (trillian.ProofProto, error) {
+	// We have the tree size and leaf index so we know the nodes that we need to serve the proof
+	// TODO(Martin2112): Not sure about hardcoding maxBitLen here
+	proofNodeIDs, err := merkle.CalcInclusionProofNodeAddresses(treeSize, leafIndex, proofMaxBitLen)
+
+	if err != nil {
+		return trillian.ProofProto{}, err
+	}
+
+	proofNodes, err := tx.GetMerkleNodes(treeRevision, proofNodeIDs)
+
+	if err != nil {
+		return trillian.ProofProto{}, err
+	}
+
+	if len(proofNodes) != len(proofNodeIDs) {
+		return trillian.ProofProto{}, fmt.Errorf("expected %d nodes in proof but got %d", len(proofNodeIDs), len(proofNodes))
+	}
+
+	proof := make([]*trillian.NodeProto, 0, len(proofNodeIDs))
+
+	for i, node := range proofNodes {
+		// additional check that the correct node was returned
+		if !node.NodeID.Equivalent(proofNodeIDs[i]) {
+			return trillian.ProofProto{}, fmt.Errorf("expected node %v at proof pos %d but got %v", proofNodeIDs[i], i, node.NodeID)
+		}
+
+		idBytes, err := proto.Marshal(node.NodeID.AsProto())
+
+		if err != nil {
+			return trillian.ProofProto{}, err
+		}
+
+		proof = append(proof, &trillian.NodeProto{NodeId:idBytes, NodeHash:node.Hash, NodeRevision:node.NodeRevision})
+	}
+
+	return trillian.ProofProto{LeafIndex:leafIndex, ProofNode:proof}, nil
 }

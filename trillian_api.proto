@@ -66,6 +66,7 @@ message GetInclusionProofResponse {
 message GetInclusionProofByHashRequest {
     int64 log_id = 1;
     bytes leaf_hash = 2;
+    int64 tree_size = 3;
 }
 
 message GetInclusionProofByHashResponse {

@@ -496,6 +496,46 @@ func TestGetLeavesByHash(t *testing.T) {
 	}
 }
 
+func TestGetProofByHashBadTreeSize(t *testing.T) {
+
+}
+
+func TestGetProofByHashBadHash(t *testing.T) {
+
+}
+
+func TestGetProofByHashBeginTXFails(t *testing.T) {
+
+}
+
+func TestGetProofByHashNoRevisionForTreeSize(t *testing.T) {
+
+}
+
+func TestGetProofByHashNoLeafForHash(t *testing.T) {
+
+}
+
+func TestGetProofByHashGetNodesFails(t *testing.T) {
+
+}
+
+func TestGetProofByHashWrongNodeCountFetched(t *testing.T) {
+
+}
+
+func TestGetProofByHashWrongNodeReturned(t *testing.T) {
+	
+}
+
+func TestGetProofByHashCommitFails(t *testing.T) {
+
+}
+
+func TestGetProofByHash(t *testing.T) {
+
+}
+
 type prepareMockTXFunc func(*storage.MockLogTX)
 type makeRpcFunc func(*TrillianLogServer) error
 
