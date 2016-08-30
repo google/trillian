@@ -367,7 +367,7 @@ func wrappedGetSTHConsistencyHandler(c CTRequestHandlers) http.HandlerFunc {
 		jsonData, err := json.Marshal(&jsonResponse)
 
 		if err != nil {
-			glog.Warningf("Failed to marshal get-sth-consistency resp: %v", jsonResponse)
+			glog.Warningf("Failed to marshal get-sth-consistency resp: %v because %v", jsonResponse, err)
 			sendHttpError(w, http.StatusInternalServerError, err)
 			return
 		}
