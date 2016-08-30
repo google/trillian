@@ -44,6 +44,10 @@ const (
 	getEntriesParamStart = "start"
 	// The name of the get-entries end parameter
 	getEntriesParamEnd = "end"
+	// The name of the get-proof-by-hash parameter
+	getProofParamHash = "hash"
+	// The name of the get-proof-by-hash tree size parameter
+	getProofParamTreeSize = "tree_size"
 )
 
 // CTRequestHandlers provides HTTP handler functions for CT V1 as defined in RFC 6962
@@ -105,6 +109,13 @@ type getSTHResponse struct {
 	TimestampMillis int64  `json:"timestamp"`
 	RootHash        []byte `json:"sha256_root_hash"`
 	Signature       []byte `json:"tree_head_signature"`
+}
+
+// getProofByHashResponse is a struct for marshalling get-proof-by-hash responses. See RFC 6962
+// section 4.5
+type getProofByHashResponse struct {
+	LeafIndex int64    `json:"leaf_index"`
+	AuditPath [][]byte `json:"audit_path"`
 }
 
 func parseBodyAsJSONChain(w http.ResponseWriter, r *http.Request) (addChainRequest, error) {
@@ -321,13 +332,77 @@ func wrappedGetSTHConsistencyHandler(rpcClient trillian.TrillianLogClient) http.
 	}
 }
 
-func wrappedGetProofByHashHandler(rpcClient trillian.TrillianLogClient) http.HandlerFunc {
+func wrappedGetProofByHashHandler(c CTRequestHandlers) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !enforceMethod(w, r, httpMethodGet) {
 			return
 		}
 
-		http.Error(w, http.StatusText(http.StatusNotImplemented), http.StatusNotImplemented)
+		hash := r.FormValue(getProofParamHash)
+
+		// Accept any non empty hash that decodes from base64 and let the backend validate it further
+		if len(hash) == 0 {
+			sendHttpError(w, http.StatusBadRequest, errors.New("missing / empty hash param for get-proof-by-hash"))
+			return
+		}
+
+		leafHash, err := base64.StdEncoding.DecodeString(hash)
+
+		if err != nil {
+			sendHttpError(w, http.StatusBadRequest, errors.New("invalid base64 hash for get-proof-by-hash"))
+			return
+		}
+
+		treeSize, err := strconv.ParseInt(r.FormValue(getProofParamTreeSize), 10, 64)
+
+		if err != nil || treeSize < 1 {
+			sendHttpError(w, http.StatusBadRequest, fmt.Errorf("missing or invalid tree_size: %v", r.FormValue(getProofParamTreeSize)))
+			return
+		}
+
+		rpcRequest := trillian.GetInclusionProofByHashRequest{LogId: c.logID, LeafHash: leafHash, TreeSize:treeSize}
+		ctx, _ := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
+		response, err := c.rpcClient.GetInclusionProofByHash(ctx, &rpcRequest)
+
+		if err != nil || !rpcStatusOK(response.GetStatus()) {
+			sendHttpError(w, http.StatusInternalServerError, fmt.Errorf("RPC failed, possible extra info: %v", err))
+			return
+		}
+
+		// Per RFC 6962 section 4.5 the API returns a single proof. This should be the lowest leaf index
+		if len(response.Proof) != 1 {
+			// TODO(Martin2112): Ensure we can safely get the correct leaf from the backend and implement
+			// what the comment above says.
+			sendHttpError(w, http.StatusInternalServerError, fmt.Errorf("expected 1 proof from backend but got %d", len(response.Proof)))
+			return
+		}
+
+		// Additional sanity checks, none of the hashes in the returned path should be empty
+		if !checkAuditPath(response.Proof[0].ProofNode) {
+			sendHttpError(w, http.StatusInternalServerError, fmt.Errorf("backend returned invalid proof: %v", response.Proof[0]))
+			return
+		}
+
+		// All checks complete, marshall and return the response
+		proofResponse := getProofByHashResponse{LeafIndex: response.Proof[0].LeafIndex, AuditPath: auditPathFromProto(response.Proof[0].ProofNode)}
+
+		w.Header().Set(contentTypeHeader, contentTypeJSON)
+		jsonData, err := json.Marshal(&proofResponse)
+
+		if err != nil {
+			glog.Warningf("Failed to marshal get-proof-by-hash resp: %v", proofResponse)
+			sendHttpError(w, http.StatusInternalServerError, err)
+			return
+		}
+
+		_, err = w.Write(jsonData)
+
+		if err != nil {
+			glog.Warningf("Failed to write get-proof-by-hash resp: %v", proofResponse)
+			// Probably too late for this as headers might have been written but we don't know for sure
+			sendHttpError(w, http.StatusInternalServerError, err)
+			return
+		}
 	}
 }
 
@@ -452,7 +527,7 @@ func (c CTRequestHandlers) RegisterCTHandlers() {
 	http.HandleFunc(pathFor("add-pre-chain"), wrappedAddPreChainHandler(c))
 	http.HandleFunc(pathFor("get-sth"), wrappedGetSTHHandler(c))
 	http.HandleFunc(pathFor("get-sth-consistency"), wrappedGetSTHConsistencyHandler(c.rpcClient))
-	http.HandleFunc(pathFor("get-proof-by-hash"), wrappedGetProofByHashHandler(c.rpcClient))
+	http.HandleFunc(pathFor("get-proof-by-hash"), wrappedGetProofByHashHandler(c))
 	http.HandleFunc(pathFor("get-entries"), wrappedGetEntriesHandler(c))
 	http.HandleFunc(pathFor("get-roots"), wrappedGetRootsHandler(c.trustedRoots, c.rpcClient))
 	http.HandleFunc(pathFor("get-entry-and-proof"), wrappedGetEntryAndProofHandler(c.rpcClient))
@@ -688,4 +763,30 @@ func convertSTHForClientResponse(sth ct.SignedTreeHead) getSTHResponse {
 		RootHash:        sth.SHA256RootHash[:],
 		TimestampMillis: int64(sth.Timestamp),
 		Signature:       sth.TreeHeadSignature.Signature}
+}
+
+// checkAuditPath does a quick scan of the proof we got from the backend for consistency.
+// All the hashes should be non zero length.
+// TODO(Martin2112): should maybe check they are all the same length and all the expected
+// length of the hashes used in the RFC.
+func checkAuditPath(path []*trillian.NodeProto) bool {
+	for _, pathEntry := range path {
+		if len(pathEntry.NodeHash) == 0 {
+			return false
+		}
+	}
+
+	return true
+}
+
+// auditPathFromProto converts the path from proof proto to a format we can return in the JSON
+// response
+func auditPathFromProto(path []*trillian.NodeProto) [][]byte {
+	resultPath := make([][]byte, 0, len(path))
+
+	for _, pathEntry := range path {
+		resultPath = append(resultPath, pathEntry.NodeHash)
+	}
+
+	return resultPath
 }

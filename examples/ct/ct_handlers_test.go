@@ -61,6 +61,12 @@ var getEntriesRangeTestCases = []getEntriesRangeTestCase{
 	{10, 9, http.StatusBadRequest, "invalid range, edge case", false},
 	{1000, 50000, http.StatusBadRequest, "range too large to be accepted", false}}
 
+// A list of requests that should result in a bad request status
+var getProofByHashBadRequests = []string{"", "hash=&tree_size=1", "hash=''&tree_size=1", "hash=notbase64data&tree_size=1", "tree_size=-1&hash=aGkK"}
+
+// The result we expect after a roundtrip in the successful get proof by hash test
+var expectedInclusionProofByHash = getProofByHashResponse{LeafIndex: 2, AuditPath: [][]byte{[]byte("abcdef"), []byte("ghijkl"), []byte("mnopqr")}}
+
 const caCertB64 string = `MIIC0DCCAjmgAwIBAgIBADANBgkqhkiG9w0BAQUFADBVMQswCQYDVQQGEwJHQjEk
 MCIGA1UEChMbQ2VydGlmaWNhdGUgVHJhbnNwYXJlbmN5IENBMQ4wDAYDVQQIEwVX
 YWxlczEQMA4GA1UEBxMHRXJ3IFdlbjAeFw0xMjA2MDEwMDAwMDBaFw0yMjA2MDEw
@@ -110,7 +116,7 @@ func allGetHandlersForTest(trustedRoots *PEMCertPool, c CTRequestHandlers) []han
 	return []handlerAndPath{
 		{"get-sth", wrappedGetSTHHandler(c)},
 		{"get-sth-consistency", wrappedGetSTHConsistencyHandler(c.rpcClient)},
-		{"get-proof-by-hash", wrappedGetProofByHashHandler(c.rpcClient)},
+		{"get-proof-by-hash", wrappedGetProofByHashHandler(c)},
 		{"get-entries", wrappedGetEntriesHandler(c)},
 		{"get-roots", wrappedGetRootsHandler(trustedRoots, c.rpcClient)},
 		{"get-entry-and-proof", wrappedGetEntryAndProofHandler(c.rpcClient)}}
@@ -1096,6 +1102,172 @@ func TestGetEntries(t *testing.T) {
 	}
 	if got, want := entries[1].ExtraData, []byte("extra2"); !bytes.Equal(got, want) {
 		t.Fatalf("Extra data mismatched on leaf 2, got %v, expected %v", got, want)
+	}
+}
+
+func TestGetProofByHashMissingHash(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	// This is OK because the requests shouldn't get to the point where any RPCs are made on the mock
+	defer mockCtrl.Finish()
+
+	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
+	handler := wrappedGetProofByHashHandler(c)
+
+	for _, requestParamString := range getProofByHashBadRequests {
+		req, err := http.NewRequest("GET", fmt.Sprintf("/ct/v1/proof-by-hash%s", requestParamString), nil)
+
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		w := httptest.NewRecorder()
+		handler(w, req)
+
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if got, want := w.Code, http.StatusBadRequest; got != want {
+			t.Fatalf("Expected %v for get-proof-by-hash with params [%s], got %v. Body: %v", want, requestParamString, got, w.Body)
+		}
+	}
+}
+
+func TestGetProofByHashBackendFails(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	client.EXPECT().GetInclusionProofByHash(deadlineMatcher(), &trillian.GetInclusionProofByHashRequest{LeafHash: []byte("ahash"), TreeSize:6}).Return(nil, errors.New("RPCFAIL"))
+	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
+	handler := wrappedGetProofByHashHandler(c)
+
+	req, err := http.NewRequest("GET", "/ct/v1/proof-by-hash?tree_size=6&hash=YWhhc2g=", nil)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got, want := w.Code, http.StatusInternalServerError; got != want {
+		t.Fatalf("Expected %v for get-proof-by-hash when backend fails, got %v. Body: %v", want, got, w.Body)
+	}
+
+	if !strings.Contains(w.Body.String(), "RPCFAIL") {
+		t.Fatalf("Did not get expected backend error: %s\n%s", "RPCFAIL", w.Body)
+	}
+}
+
+func TestGetProofByHashBackendMultipleProofs(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	proof1 := trillian.ProofProto{LeafIndex: 2, ProofNode: []*trillian.NodeProto{{NodeHash: []byte("abcdef")}}}
+	proof2 := trillian.ProofProto{LeafIndex: 2, ProofNode: []*trillian.NodeProto{{NodeHash: []byte("ghijkl")}}}
+	response := trillian.GetInclusionProofByHashResponse{Status: okStatus, Proof: []*trillian.ProofProto{&proof1, &proof2}}
+	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	client.EXPECT().GetInclusionProofByHash(deadlineMatcher(), &trillian.GetInclusionProofByHashRequest{LeafHash: []byte("ahash"), TreeSize:7}).Return(&response, nil)
+	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
+	handler := wrappedGetProofByHashHandler(c)
+
+	req, err := http.NewRequest("GET", "/ct/v1/proof-by-hash?tree_size=7&hash=YWhhc2g=", nil)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got, want := w.Code, http.StatusInternalServerError; got != want {
+		t.Fatalf("Expected %v for get-proof-by-hash when backend fails, got %v. Body: %v", want, got, w.Body)
+	}
+
+	if !strings.Contains(w.Body.String(), "expected 1 proof") {
+		t.Fatalf("Did not get expected backend error for multiple proofs:\n%s", w.Body)
+	}
+}
+
+func TestGetProofByHashBackendPathMissingHash(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	proof := trillian.ProofProto{LeafIndex: 2, ProofNode: []*trillian.NodeProto{{NodeHash: []byte("abcdef")}, {NodeHash: []byte{}}, {NodeHash: []byte("ghijkl")}}}
+	response := trillian.GetInclusionProofByHashResponse{Status: okStatus, Proof: []*trillian.ProofProto{&proof}}
+	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	client.EXPECT().GetInclusionProofByHash(deadlineMatcher(), &trillian.GetInclusionProofByHashRequest{LeafHash: []byte("ahash"), TreeSize:9}).Return(&response, nil)
+	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
+	handler := wrappedGetProofByHashHandler(c)
+
+	req, err := http.NewRequest("GET", "/ct/v1/proof-by-hash?tree_size=9&hash=YWhhc2g=", nil)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got, want := w.Code, http.StatusInternalServerError; got != want {
+		t.Fatalf("Expected %v for get-proof-by-hash when backend fails, got %v. Body: %v", want, got, w.Body)
+	}
+
+	if !strings.Contains(w.Body.String(), "invalid proof") {
+		t.Fatalf("Did not get expected backend error for invalid proof:\n%s", w.Body)
+	}
+}
+
+func TestGetProofByHash(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	proof := trillian.ProofProto{LeafIndex: 2, ProofNode: []*trillian.NodeProto{{NodeHash: []byte("abcdef")}, {NodeHash: []byte("ghijkl")}, {NodeHash: []byte("mnopqr")}}}
+	response := trillian.GetInclusionProofByHashResponse{Status: okStatus, Proof: []*trillian.ProofProto{&proof}}
+	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	client.EXPECT().GetInclusionProofByHash(deadlineMatcher(), &trillian.GetInclusionProofByHashRequest{LeafHash: []byte("ahash"), TreeSize:7}).Return(&response, nil)
+	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
+	handler := wrappedGetProofByHashHandler(c)
+
+	req, err := http.NewRequest("GET", "/ct/v1/proof-by-hash?tree_size=7&hash=YWhhc2g=", nil)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got, want := w.Code, http.StatusOK; got != want {
+		t.Fatalf("Expected %v for get-proof-by-hash, got %v. Body: %v", want, got, w.Body)
+	}
+
+	// Roundtrip the response and make sure it matches the expected one
+	var resp getProofByHashResponse
+	if err = json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to unmarshal json: %v, body: %v", err, w.Body.Bytes())
+	}
+
+	if got, want := resp, expectedInclusionProofByHash; !reflect.DeepEqual(got, want) {
+		t.Fatalf("mismatched json response: expected %v got %v", want, got)
 	}
 }
 
