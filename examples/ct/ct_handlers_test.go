@@ -1105,7 +1105,7 @@ func TestGetEntries(t *testing.T) {
 	}
 }
 
-func TestGetProofByHashMissingHash(t *testing.T) {
+func TestGetProofByHashBadRequests(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	// This is OK because the requests shouldn't get to the point where any RPCs are made on the mock
 	defer mockCtrl.Finish()
@@ -1199,7 +1199,7 @@ func TestGetProofByHashBackendMultipleProofs(t *testing.T) {
 	}
 }
 
-func TestGetProofByHashBackendPathMissingHash(t *testing.T) {
+func TestGetProofByHashBackendReturnsMissingHash(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
@@ -1224,7 +1224,7 @@ func TestGetProofByHashBackendPathMissingHash(t *testing.T) {
 	}
 
 	if got, want := w.Code, http.StatusInternalServerError; got != want {
-		t.Fatalf("Expected %v for get-proof-by-hash when backend fails, got %v. Body: %v", want, got, w.Body)
+		t.Fatalf("Expected %v for get-proof-by-hash when backend returns missing hash, got %v. Body: %v", want, got, w.Body)
 	}
 
 	if !strings.Contains(w.Body.String(), "invalid proof") {
