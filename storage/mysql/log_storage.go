@@ -41,6 +41,7 @@ const selectLeavesByHashSql string = `SELECT l.LeafHash,l.TheData,s.SequenceNumb
 		     FROM LeafData l,SequencedLeafData s
 		     WHERE l.LeafHash = s.LeafHash
 		     AND l.LeafHash IN (` + placeholderSql + `) AND l.TreeId = ? AND s.TreeId = l.TreeId`
+// Same as above except with leaves ordered by sequence so we only incur this cost when necessary
 const selectLeavesByHashOrderedBySequenceSql string = `SELECT l.LeafHash,l.TheData,s.SequenceNumber,s.SignedEntryTimestamp
 		     FROM LeafData l,SequencedLeafData s
 		     WHERE l.LeafHash = s.LeafHash
@@ -96,8 +97,8 @@ func (m *mySQLLogStorage) getLeavesByIndexStmt(num int) (*sql.Stmt, error) {
 	return m.getStmt(selectLeavesByIndexSql, num)
 }
 
-func (m *mySQLLogStorage) getLeavesByHashStmt(num int, orderMultipleBySequence bool) (*sql.Stmt, error) {
-	if orderMultipleBySequence {
+func (m *mySQLLogStorage) getLeavesByHashStmt(num int, orderBySequence bool) (*sql.Stmt, error) {
+	if orderBySequence {
 		return m.getStmt(selectLeavesByHashOrderedBySequenceSql, num)
 	}
 
