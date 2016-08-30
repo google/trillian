@@ -68,8 +68,9 @@ type LeafReader interface {
 	GetLeavesByIndex(leaves []int64) ([]trillian.LogLeaf, error)
 	// GetLeavesByHash looks up sequenced leaf metadata and data by their hash. If the tree permits
 	// duplicate leaves callers must be prepared to handle multiple results with the same hash
-	// but different sequence numbers.
-	GetLeavesByHash(leafHashes []trillian.Hash) ([]trillian.LogLeaf, error)
+	// but different sequence numbers. If orderBySequence is true then the returned data
+	// will be in sequence number order.
+	GetLeavesByHash(leafHashes []trillian.Hash, orderBySequence bool) ([]trillian.LogLeaf, error)
 }
 
 // LogRootReader provides an interface for reading SignedLogRoots.

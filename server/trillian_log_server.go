@@ -168,7 +168,7 @@ func (t *TrillianLogServer) GetInclusionProofByHash(ctx context.Context, req *tr
 
 	// Find the leaf index of the supplied hash
 	leafHashes := []trillian.Hash{req.LeafHash}
-	leaves, err := tx.GetLeavesByHash(leafHashes)
+	leaves, err := tx.GetLeavesByHash(leafHashes, req.OrderBySequence)
 
 	if err != nil {
 		tx.Rollback()
@@ -281,7 +281,7 @@ func (t *TrillianLogServer) GetLeavesByHash(ctx context.Context, req *trillian.G
 		return nil, err
 	}
 
-	leaves, err := tx.GetLeavesByHash(bytesToHash(req.LeafHash))
+	leaves, err := tx.GetLeavesByHash(bytesToHash(req.LeafHash), req.OrderBySequence)
 
 	if err != nil {
 		tx.Rollback()

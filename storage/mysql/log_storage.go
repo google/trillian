@@ -41,6 +41,11 @@ const selectLeavesByHashSql string = `SELECT l.LeafHash,l.TheData,s.SequenceNumb
 		     FROM LeafData l,SequencedLeafData s
 		     WHERE l.LeafHash = s.LeafHash
 		     AND l.LeafHash IN (` + placeholderSql + `) AND l.TreeId = ? AND s.TreeId = l.TreeId`
+const selectLeavesByHashOrderedBySequenceSql string = `SELECT l.LeafHash,l.TheData,s.SequenceNumber,s.SignedEntryTimestamp
+		     FROM LeafData l,SequencedLeafData s
+		     WHERE l.LeafHash = s.LeafHash
+		     AND l.LeafHash IN (` + placeholderSql + `) AND l.TreeId = ? AND s.TreeId = l.TreeId
+		     ORDER BY s.SequenceNumber`
 
 type mySQLLogStorage struct {
 	mySQLTreeStorage
@@ -91,7 +96,11 @@ func (m *mySQLLogStorage) getLeavesByIndexStmt(num int) (*sql.Stmt, error) {
 	return m.getStmt(selectLeavesByIndexSql, num)
 }
 
-func (m *mySQLLogStorage) getLeavesByHashStmt(num int) (*sql.Stmt, error) {
+func (m *mySQLLogStorage) getLeavesByHashStmt(num int, orderMultipleBySequence bool) (*sql.Stmt, error) {
+	if orderMultipleBySequence {
+		return m.getStmt(selectLeavesByHashOrderedBySequenceSql, num)
+	}
+
 	return m.getStmt(selectLeavesByHashSql, num)
 }
 
@@ -131,14 +140,14 @@ func (m *mySQLLogStorage) GetLeavesByIndex(leaves []int64) ([]trillian.LogLeaf, 
 	return t.GetLeavesByIndex(leaves)
 }
 
-func (m *mySQLLogStorage) GetLeavesByHash(leafHashes []trillian.Hash) ([]trillian.LogLeaf, error) {
+func (m *mySQLLogStorage) GetLeavesByHash(leafHashes []trillian.Hash, orderBySequence bool) ([]trillian.LogLeaf, error) {
 	t, err := m.Begin()
 
 	if err != nil {
 		return []trillian.LogLeaf{}, err
 	}
 	defer t.Commit()
-	return t.GetLeavesByHash(leafHashes)
+	return t.GetLeavesByHash(leafHashes, orderBySequence)
 }
 
 func (m *mySQLLogStorage) beginInternal() (storage.LogTX, error) {
@@ -390,8 +399,9 @@ func (t *logTX) GetLeavesByIndex(leaves []int64) ([]trillian.LogLeaf, error) {
 	return ret, nil
 }
 
-func (t *logTX) GetLeavesByHash(leafHashes []trillian.Hash) ([]trillian.LogLeaf, error) {
-	tmpl, err := t.ls.getLeavesByHashStmt(len(leafHashes))
+func (t *logTX) GetLeavesByHash(leafHashes []trillian.Hash, orderBySequence bool) ([]trillian.LogLeaf, error) {
+	tmpl, err := t.ls.getLeavesByHashStmt(len(leafHashes), orderBySequence)
+
 	if err != nil {
 		return nil, err
 	}
