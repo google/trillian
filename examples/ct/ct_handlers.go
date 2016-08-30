@@ -423,20 +423,18 @@ func wrappedGetProofByHashHandler(c CTRequestHandlers) http.HandlerFunc {
 			return
 		}
 
-		rpcRequest := trillian.GetInclusionProofByHashRequest{LogId: c.logID, LeafHash: leafHash, TreeSize:treeSize}
+		// Per RFC 6962 section 4.5 the API returns a single proof. This should be the lowest leaf index
+		// Because we request order by sequence and we only passed one hash then the first result is
+		// the correct proof to return
+		rpcRequest := trillian.GetInclusionProofByHashRequest{LogId: c.logID,
+			LeafHash: leafHash,
+			TreeSize:treeSize,
+			OrderBySequence:true}
 		ctx, _ := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
 		response, err := c.rpcClient.GetInclusionProofByHash(ctx, &rpcRequest)
 
 		if err != nil || !rpcStatusOK(response.GetStatus()) {
 			sendHttpError(w, http.StatusInternalServerError, fmt.Errorf("RPC failed, possible extra info: %v", err))
-			return
-		}
-
-		// Per RFC 6962 section 4.5 the API returns a single proof. This should be the lowest leaf index
-		if len(response.Proof) != 1 {
-			// TODO(Martin2112): Ensure we can safely get the correct leaf from the backend and implement
-			// what the comment above says.
-			sendHttpError(w, http.StatusInternalServerError, fmt.Errorf("expected 1 proof from backend but got %d", len(response.Proof)))
 			return
 		}
 
