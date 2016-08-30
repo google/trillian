@@ -252,6 +252,12 @@ func (t *TrillianLogServer) GetLeavesByHash(ctx context.Context, req *trillian.G
 	return &trillian.GetLeavesByHashResponse{Status: buildStatus(trillian.TrillianApiStatusCode_OK), Leaves: leafProtos}, nil
 }
 
+// GetEntryAndProof returns both a Merkle Leaf entry and an inclusion proof for a given index
+// and tree size.
+func (t *TrillianLogServer) GetEntryAndProof(ctx context.Context, req *trillian.GetEntryAndProofRequest) (*trillian.GetEntryAndProofResponse, error) {
+	return nil, ErrNotImplemented
+}
+
 func (t *TrillianLogServer) prepareStorageTx(treeID int64) (storage.LogTX, error) {
 	s, err := t.getStorageForLog(treeID)
 

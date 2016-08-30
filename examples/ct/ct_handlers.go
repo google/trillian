@@ -52,6 +52,10 @@ const (
 	getSTHConsistencyParamFirst = "first"
 	// The name of the get-sth-consistency second snapshot param
 	getSTHConsistencyParamSecond = "second"
+	// The name of the get-entry-and-proof index parameter
+	getEntryAndProofParamLeafIndex = "leaf_index"
+	// The name of the get-entry-and-proof tree size paramter
+	getEntryAndProofParamTreeSize = "tree_size"
 )
 
 // CTRequestHandlers provides HTTP handler functions for CT V1 as defined in RFC 6962
@@ -126,6 +130,14 @@ type getProofByHashResponse struct {
 // RFC 6962 section 4.4
 type getSTHConsistencyResponse struct {
 	Consistency [][]byte `json:"consistency"`
+}
+
+// getEntryAndProofResponse is a struct for marshalling get-entry-and-proof responses. See
+// RFC 6962 Section 4.8
+type getEntryAndProofResponse struct {
+	LeafInput []byte `json:"leaf_input"`
+	ExtraData []byte `json:"extra_data"`
+	AuditPath [][]byte `json:"audit_path"`
 }
 
 func parseBodyAsJSONChain(w http.ResponseWriter, r *http.Request) (addChainRequest, error) {
@@ -561,9 +573,58 @@ func wrappedGetRootsHandler(trustedRoots *PEMCertPool, rpcClient trillian.Trilli
 	}
 }
 
-func wrappedGetEntryAndProofHandler(rpcClient trillian.TrillianLogClient) http.HandlerFunc {
+// See RFC 6962 Section 4.8. This is mostly used for debug purposes rather than by normal
+// CT clients.
+func wrappedGetEntryAndProofHandler(c CTRequestHandlers) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !enforceMethod(w, r, httpMethodGet) {
+			return
+		}
+
+		// Ensure both numeric params are present and look reasonable.
+		leafIndex, treeSize, err := parseAndValidateGetEntryAndProofParams(r)
+
+		if err != nil {
+			sendHttpError(w, http.StatusBadRequest, err)
+			return
+		}
+
+		getEntryAndProofRequest := trillian.GetEntryAndProofRequest{LogId:c.logID, LeafIndex:leafIndex, TreeSize:treeSize}
+		ctx, _ := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
+		response, err := c.rpcClient.GetEntryAndProof(ctx, &getEntryAndProofRequest)
+
+		if err != nil || !rpcStatusOK(response.GetStatus()) {
+			sendHttpError(w, http.StatusInternalServerError, fmt.Errorf("RPC failed, possible extra info: %v", err))
+			return
+		}
+
+		// Apply some checks that we got reasonable data from the backend
+		if response.Proof == nil || response.Leaf == nil || len(response.Proof.ProofNode) == 0 || len(response.Leaf.LeafData) == 0 {
+			sendHttpError(w, http.StatusInternalServerError, fmt.Errorf("RPC bad response, possible extra info: %v", response))
+			return
+		}
+
+		// Build and marshall the response to the client
+		jsonResponse := getEntryAndProofResponse{
+			LeafInput:response.Leaf.LeafData,
+			ExtraData:response.Leaf.ExtraData,
+			AuditPath:auditPathFromProto(response.Proof.ProofNode)}
+
+		w.Header().Set(contentTypeHeader, contentTypeJSON)
+		jsonData, err := json.Marshal(&jsonResponse)
+
+		if err != nil {
+			glog.Warningf("Failed to marshal get-entry-and-proof resp: %v", jsonResponse)
+			sendHttpError(w, http.StatusInternalServerError, err)
+			return
+		}
+
+		_, err = w.Write(jsonData)
+
+		if err != nil {
+			glog.Warningf("Failed to write get-entry-and-proof resp: %v", jsonResponse)
+			// Probably too late for this as headers might have been written but we don't know for sure
+			sendHttpError(w, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -581,7 +642,7 @@ func (c CTRequestHandlers) RegisterCTHandlers() {
 	http.HandleFunc(pathFor("get-proof-by-hash"), wrappedGetProofByHashHandler(c))
 	http.HandleFunc(pathFor("get-entries"), wrappedGetEntriesHandler(c))
 	http.HandleFunc(pathFor("get-roots"), wrappedGetRootsHandler(c.trustedRoots, c.rpcClient))
-	http.HandleFunc(pathFor("get-entry-and-proof"), wrappedGetEntryAndProofHandler(c.rpcClient))
+	http.HandleFunc(pathFor("get-entry-and-proof"), wrappedGetEntryAndProofHandler(c))
 }
 
 // Generates a custom error page to give more information on why something didn't work
@@ -730,6 +791,34 @@ func parseAndValidateGetEntriesRange(r *http.Request, maxAllowedRange int64) (in
 	}
 
 	return validateStartAndEnd(startIndex, endIndex, maxAllowedRange)
+}
+
+func parseAndValidateGetEntryAndProofParams(r *http.Request) (int64, int64, error) {
+	leafIndex, err := strconv.ParseInt(r.FormValue(getEntryAndProofParamLeafIndex), 10, 64)
+
+	if err != nil {
+		return 0, 0, err
+	}
+
+	treeSize, err := strconv.ParseInt(r.FormValue(getEntryAndProofParamTreeSize), 10, 64)
+
+	if err != nil {
+		return 0, 0, err
+	}
+
+	if treeSize <= 0 {
+		return 0, 0, fmt.Errorf("tree_size must be > 0, got: %d", treeSize)
+	}
+
+	if leafIndex < 0 {
+		return 0, 0, fmt.Errorf("leaf_index must be >= 0, got: %d", treeSize)
+	}
+
+	if leafIndex >= treeSize {
+		return 0, 0, fmt.Errorf("leaf_index %d out of range for tree of size %d", leafIndex, treeSize)
+	}
+
+	return leafIndex, treeSize, nil
 }
 
 // validateStartAndEnd applies validation to the range params for get-entries. Either returns
