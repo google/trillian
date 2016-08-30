@@ -48,6 +48,10 @@ const (
 	getProofParamHash = "hash"
 	// The name of the get-proof-by-hash tree size parameter
 	getProofParamTreeSize = "tree_size"
+	// The name of the get-sth-consistency first snapshot param
+	getSTHConsistencyParamFirst = "first"
+	// The name of the get-sth-consistency second snapshot param
+	getSTHConsistencyParamSecond = "second"
 )
 
 // CTRequestHandlers provides HTTP handler functions for CT V1 as defined in RFC 6962
@@ -103,7 +107,7 @@ type getEntriesResponse struct {
 	Entries []getEntriesEntry `json:"entries"`
 }
 
-// getSthResponse is a struct for marshalling get-sth responses. See RFC 6962 Section 4.3
+// getSTHResponse is a struct for marshalling get-sth responses. See RFC 6962 Section 4.3
 type getSTHResponse struct {
 	TreeSize        int64  `json:"tree_size"`
 	TimestampMillis int64  `json:"timestamp"`
@@ -116,6 +120,12 @@ type getSTHResponse struct {
 type getProofByHashResponse struct {
 	LeafIndex int64    `json:"leaf_index"`
 	AuditPath [][]byte `json:"audit_path"`
+}
+
+// getSTHConsistencyResponse is a struct for mashalling get-sth-consistency responses. See
+// RFC 6962 section 4.4
+type getSTHConsistencyResponse struct {
+	Consistency [][]byte `json:"consistency"`
 }
 
 func parseBodyAsJSONChain(w http.ResponseWriter, r *http.Request) (addChainRequest, error) {
@@ -322,13 +332,54 @@ func wrappedGetSTHHandler(c CTRequestHandlers) http.HandlerFunc {
 	}
 }
 
-func wrappedGetSTHConsistencyHandler(rpcClient trillian.TrillianLogClient) http.HandlerFunc {
+func wrappedGetSTHConsistencyHandler(c CTRequestHandlers) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !enforceMethod(w, r, httpMethodGet) {
 			return
 		}
 
-		http.Error(w, http.StatusText(http.StatusNotImplemented), http.StatusNotImplemented)
+		first, second, err := parseAndValidateGetSTHConsistencyRange(r)
+
+		if err != nil {
+			sendHttpError(w, http.StatusBadRequest, err)
+			return
+		}
+
+		request := trillian.GetConsistencyProofRequest{LogId:c.logID, FirstTreeSize:first, SecondTreeSize:second}
+		ctx, _ := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
+		response, err := c.rpcClient.GetConsistencyProof(ctx, &request)
+
+		if err != nil || !rpcStatusOK(response.GetStatus()) {
+			sendHttpError(w, http.StatusInternalServerError, err)
+			return
+		}
+
+		// Additional sanity checks, none of the hashes in the returned path should be empty
+		if !checkAuditPath(response.Proof.ProofNode) {
+			sendHttpError(w, http.StatusInternalServerError, fmt.Errorf("backend returned invalid proof: %v", response.Proof))
+			return
+		}
+
+		// We got a valid response from the server. Marshall it as JSON and return it to the client
+		jsonResponse := getSTHConsistencyResponse{Consistency:auditPathFromProto(response.Proof.ProofNode)}
+
+		w.Header().Set(contentTypeHeader, contentTypeJSON)
+		jsonData, err := json.Marshal(&jsonResponse)
+
+		if err != nil {
+			glog.Warningf("Failed to marshal get-sth-consistency resp: %v because %v", jsonResponse, err)
+			sendHttpError(w, http.StatusInternalServerError, err)
+			return
+		}
+
+		_, err = w.Write(jsonData)
+
+		if err != nil {
+			glog.Warningf("Failed to write get-sth-consistency resp: %v", jsonResponse)
+			// Probably too late for this as headers might have been written but we don't know for sure
+			sendHttpError(w, http.StatusInternalServerError, err)
+			return
+		}
 	}
 }
 
@@ -526,7 +577,7 @@ func (c CTRequestHandlers) RegisterCTHandlers() {
 	http.HandleFunc(pathFor("add-chain"), wrappedAddChainHandler(c))
 	http.HandleFunc(pathFor("add-pre-chain"), wrappedAddPreChainHandler(c))
 	http.HandleFunc(pathFor("get-sth"), wrappedGetSTHHandler(c))
-	http.HandleFunc(pathFor("get-sth-consistency"), wrappedGetSTHConsistencyHandler(c.rpcClient))
+	http.HandleFunc(pathFor("get-sth-consistency"), wrappedGetSTHConsistencyHandler(c))
 	http.HandleFunc(pathFor("get-proof-by-hash"), wrappedGetProofByHashHandler(c))
 	http.HandleFunc(pathFor("get-entries"), wrappedGetEntriesHandler(c))
 	http.HandleFunc(pathFor("get-roots"), wrappedGetRootsHandler(c.trustedRoots, c.rpcClient))
@@ -700,6 +751,30 @@ func validateStartAndEnd(start, end, maxRange int64) (int64, int64, error) {
 	}
 
 	return start, end, nil
+}
+
+func parseAndValidateGetSTHConsistencyRange(r *http.Request) (int64, int64, error) {
+	first, err := strconv.ParseInt(r.FormValue(getSTHConsistencyParamFirst), 10, 64)
+
+	if err != nil {
+		return 0, 0, err
+	}
+
+	second, err := strconv.ParseInt(r.FormValue(getSTHConsistencyParamSecond), 10, 64)
+
+	if err != nil {
+		return 0, 0, err
+	}
+
+	if first <= 0 || second <= 0 {
+		return 0, 0, fmt.Errorf("first and second params cannot be <=0: %d %d", first, second)
+	}
+
+	if second <= first {
+		return 0, 0, fmt.Errorf("invalid first, second params: %d %d", first, second)
+	}
+
+	return first, second, nil
 }
 
 // buildIndicesForRange expands the range out, the backend allows for non contiguous leaf fetches

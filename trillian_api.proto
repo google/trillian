@@ -78,10 +78,13 @@ message GetInclusionProofByHashResponse {
 
 message GetConsistencyProofRequest {
     int64 log_id = 1;
+    int64 first_tree_size = 2;
+    int64 second_tree_size = 3;
 }
 
 message GetConsistencyProofResponse {
     TrillianApiStatus status = 1;
+    ProofProto proof = 2;
 }
 
 message GetLeavesByHashRequest {
