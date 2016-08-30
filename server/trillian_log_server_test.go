@@ -48,6 +48,11 @@ var getInclusionProofByIndexRequestBadLeafIndexRange = trillian.GetInclusionProo
 var getInclusionProofByIndexRequest7 = trillian.GetInclusionProofRequest{LogId: logId1, TreeSize: 7, LeafIndex: 2}
 var getInclusionProofByIndexRequest25 = trillian.GetInclusionProofRequest{LogId: logId1, TreeSize: 50, LeafIndex: 25}
 
+var getEntryAndProofRequestBadTreeSize = trillian.GetEntryAndProofRequest{LogId: logId1, TreeSize:-20, LeafIndex:20}
+var getEntryAndProofRequestBadLeafIndex = trillian.GetEntryAndProofRequest{LogId: logId1, TreeSize:25, LeafIndex:-5}
+var getEntryAndProofRequest17 = trillian.GetEntryAndProofRequest{LogId: logId1, TreeSize:17, LeafIndex:3}
+var getEntryAndProofRequest7 = trillian.GetEntryAndProofRequest{LogId: logId1, TreeSize:7, LeafIndex:2}
+
 var nodeIdsInclusionSize7Index2 = []storage.NodeID{
 	storage.NewNodeIDForTreeCoords(0, 3, 64),
 	storage.NewNodeIDForTreeCoords(1, 0, 64),
@@ -917,6 +922,219 @@ func TestGetProofByIndex(t *testing.T) {
 
 	if !proto.Equal(proofResponse.Proof, &expectedProof) {
 		t.Fatalf("expected proof: %v but got: %v", expectedProof, proofResponse.Proof)
+	}
+}
+
+func TestGetEntryAndProofBadTreeSize(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	// Request should fail validation before any storage operations
+	mockStorage := storage.NewMockLogStorage(ctrl)
+
+	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
+
+	_, err := server.GetEntryAndProof(context.Background(), &getEntryAndProofRequestBadTreeSize)
+
+	if err == nil {
+		t.Fatalf("get entry and proof accepted invalid tree size")
+	}
+}
+
+func TestGetEntryAndProofBadLeafIndex(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	// Request should fail validation before any storage operations
+	mockStorage := storage.NewMockLogStorage(ctrl)
+
+	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
+
+	_, err := server.GetEntryAndProof(context.Background(), &getEntryAndProofRequestBadLeafIndex)
+
+	if err == nil {
+		t.Fatalf("get entry and proof accepted invalid leaf index")
+	}
+}
+
+func TestGetEntryAndProofBeginTXFails(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockStorage := storage.NewMockLogStorage(ctrl)
+	mockStorage.EXPECT().Begin().Return(nil, errors.New("BeginTX"))
+
+	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
+
+	_, err := server.GetEntryAndProof(context.Background(), &getEntryAndProofRequest17)
+
+	if err == nil || !strings.Contains(err.Error(), "BeginTX") {
+		t.Fatalf("get entry and proof returned no or wrong error when begin tx failed: %v", err)
+	}
+}
+
+func TestGetEntryAndProofGetTreeSizeAtRevisionFails(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockStorage := storage.NewMockLogStorage(ctrl)
+	mockTx := storage.NewMockLogTX(ctrl)
+	mockStorage.EXPECT().Begin().Return(mockTx, nil)
+
+	mockTx.EXPECT().GetTreeRevisionAtSize(getEntryAndProofRequest17.TreeSize).Return(int64(0), errors.New("NOREVISION"))
+	mockTx.EXPECT().Rollback().Return(nil)
+
+	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
+
+	_, err := server.GetEntryAndProof(context.Background(), &getEntryAndProofRequest17)
+
+	if err == nil || !strings.Contains(err.Error(), "NOREVISION") {
+		t.Fatalf("get entry and proof returned no or wrong error when no revision: %v", err)
+	}
+}
+
+func TestGetEntryAndProofGetMerkleNodesFails(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockStorage := storage.NewMockLogStorage(ctrl)
+	mockTx := storage.NewMockLogTX(ctrl)
+	mockStorage.EXPECT().Begin().Return(mockTx, nil)
+
+	mockTx.EXPECT().GetTreeRevisionAtSize(getEntryAndProofRequest7.TreeSize).Return(int64(3), nil)
+	mockTx.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{}, errors.New("GetNodes"))
+	mockTx.EXPECT().Rollback().Return(nil)
+
+	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
+
+	_, err := server.GetEntryAndProof(context.Background(), &getEntryAndProofRequest7)
+
+	if err == nil || !strings.Contains(err.Error(), "GetNodes") {
+		t.Fatalf("get entry and proof returned no or wrong error when get nodes failed: %v", err)
+	}
+}
+
+func TestGetEntryAndProofGetLeavesFails(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockStorage := storage.NewMockLogStorage(ctrl)
+	mockTx := storage.NewMockLogTX(ctrl)
+	mockStorage.EXPECT().Begin().Return(mockTx, nil)
+
+	mockTx.EXPECT().GetTreeRevisionAtSize(getEntryAndProofRequest7.TreeSize).Return(int64(3), nil)
+	mockTx.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{
+		{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3, Hash:[]byte("nodehash0")},
+		{NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2, Hash:[]byte("nodehash1")},
+		{NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3, Hash:[]byte("nodehash2")}}, nil)
+	mockTx.EXPECT().GetLeavesByIndex([]int64{2}).Return(nil, errors.New("GetLeaves"))
+	mockTx.EXPECT().Rollback().Return(nil)
+
+	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
+
+	_, err := server.GetEntryAndProof(context.Background(), &getEntryAndProofRequest7)
+
+	if err == nil || !strings.Contains(err.Error(), "GetLeaves") {
+		t.Fatalf("get entry and proof returned no or wrong error when get leaves failed: %v", err)
+	}
+}
+
+func TestGetEntryAndProofGetLeavesReturnsMultiple(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockStorage := storage.NewMockLogStorage(ctrl)
+	mockTx := storage.NewMockLogTX(ctrl)
+	mockStorage.EXPECT().Begin().Return(mockTx, nil)
+
+	mockTx.EXPECT().GetTreeRevisionAtSize(getEntryAndProofRequest7.TreeSize).Return(int64(3), nil)
+	mockTx.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{
+		{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3, Hash:[]byte("nodehash0")},
+		{NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2, Hash:[]byte("nodehash1")},
+		{NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3, Hash:[]byte("nodehash2")}}, nil)
+	// Code passed one leaf index so expects one result, but we return more
+	mockTx.EXPECT().GetLeavesByIndex([]int64{2}).Return([]trillian.LogLeaf{leaf1, leaf3}, nil)
+	mockTx.EXPECT().Rollback().Return(nil)
+
+	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
+
+	_, err := server.GetEntryAndProof(context.Background(), &getEntryAndProofRequest7)
+
+	if err == nil || !strings.Contains(err.Error(), "expected one leaf") {
+		t.Fatalf("get entry and proof returned no or wrong error when storage returns multiple leaves: %v", err)
+	}
+}
+
+func TestGetEntryAndProofCommitFails(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockStorage := storage.NewMockLogStorage(ctrl)
+	mockTx := storage.NewMockLogTX(ctrl)
+	mockStorage.EXPECT().Begin().Return(mockTx, nil)
+
+	mockTx.EXPECT().GetTreeRevisionAtSize(getEntryAndProofRequest7.TreeSize).Return(int64(3), nil)
+	mockTx.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{
+		{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3, Hash:[]byte("nodehash0")},
+		{NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2, Hash:[]byte("nodehash1")},
+		{NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3, Hash:[]byte("nodehash2")}}, nil)
+	mockTx.EXPECT().GetLeavesByIndex([]int64{2}).Return([]trillian.LogLeaf{leaf1}, nil)
+	mockTx.EXPECT().Commit().Return(errors.New("COMMIT"))
+
+	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
+
+	_, err := server.GetEntryAndProof(context.Background(), &getEntryAndProofRequest7)
+
+	if err == nil || !strings.Contains(err.Error(), "COMMIT") {
+		t.Fatalf("get entry and proof returned no or wrong error when commit failed: %v", err)
+	}
+}
+
+func TestGetEntryAndProof(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockStorage := storage.NewMockLogStorage(ctrl)
+	mockTx := storage.NewMockLogTX(ctrl)
+	mockStorage.EXPECT().Begin().Return(mockTx, nil)
+
+	mockTx.EXPECT().GetTreeRevisionAtSize(getEntryAndProofRequest7.TreeSize).Return(int64(3), nil)
+	mockTx.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{
+		{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3, Hash:[]byte("nodehash0")},
+		{NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2, Hash:[]byte("nodehash1")},
+		{NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3, Hash:[]byte("nodehash2")}}, nil)
+	mockTx.EXPECT().GetLeavesByIndex([]int64{2}).Return([]trillian.LogLeaf{leaf1}, nil)
+	mockTx.EXPECT().Commit().Return(nil)
+
+	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
+
+	response, err := server.GetEntryAndProof(context.Background(), &getEntryAndProofRequest7)
+
+	if err != nil || response.Status.StatusCode != trillian.TrillianApiStatusCode_OK {
+		t.Fatalf("get entry and proof should have succeeded but we got: %v", err)
+	}
+
+	// Check the proof is the one we expected
+	nodeIDBytes1, err1 := proto.Marshal(nodeIdsInclusionSize7Index2[0].AsProto())
+	nodeIDBytes2, err2 := proto.Marshal(nodeIdsInclusionSize7Index2[1].AsProto())
+	nodeIDBytes3, err3 := proto.Marshal(nodeIdsInclusionSize7Index2[2].AsProto())
+
+	if err1 != nil || err2 != nil || err3 != nil {
+		t.Fatalf("failed to marshall test protos - should not happen: %v %v %v", err1, err2, err3)
+	}
+
+	expectedProof := trillian.ProofProto{LeafIndex:2, ProofNode:[]*trillian.NodeProto{
+		{NodeId:nodeIDBytes1, NodeHash:[]byte("nodehash0"), NodeRevision:3},
+		{NodeId:nodeIDBytes2, NodeHash:[]byte("nodehash1"), NodeRevision:2},
+		{NodeId:nodeIDBytes3, NodeHash:[]byte("nodehash2"), NodeRevision:3}}}
+
+	if !proto.Equal(response.Proof, &expectedProof) {
+		t.Fatalf("expected proof: %v but got: %v", expectedProof, response.Proof)
+	}
+
+	// Check we got the correct leaf data
+	if !proto.Equal(response.Leaf, &expectedLeaf1) {
+		t.Fatalf("Expected leaf %v but got: %v", expectedLeaf1, response.Leaf)
 	}
 }
 
