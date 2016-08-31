@@ -37,16 +37,16 @@ var getByHashRequest1 = trillian.GetLeavesByHashRequest{LogId: logId1, LeafHash:
 var getByHashRequestBadHash = trillian.GetLeavesByHashRequest{LogId: logId1, LeafHash: [][]byte{[]byte(""), []byte("data")}}
 var getByHashRequest2 = trillian.GetLeavesByHashRequest{LogId: logId2, LeafHash: [][]byte{[]byte("test"), []byte("data")}}
 
-var getInclusionProofByHashRequestBadTreeSize = trillian.GetInclusionProofByHashRequest{LogId: logId1, TreeSize:-50, LeafHash:[]byte("data")}
-var getInclusionProofByHashRequestBadHash = trillian.GetInclusionProofByHashRequest{LogId: logId1, TreeSize:50, LeafHash:[]byte{}}
-var getInclusionProofByHashRequest7 = trillian.GetInclusionProofByHashRequest{LogId: logId1, TreeSize:7, LeafHash:[]byte("ahash")}
-var getInclusionProofByHashRequest25 = trillian.GetInclusionProofByHashRequest{LogId: logId1, TreeSize:25, LeafHash:[]byte("ahash")}
+var getInclusionProofByHashRequestBadTreeSize = trillian.GetInclusionProofByHashRequest{LogId: logId1, TreeSize: -50, LeafHash: []byte("data")}
+var getInclusionProofByHashRequestBadHash = trillian.GetInclusionProofByHashRequest{LogId: logId1, TreeSize: 50, LeafHash: []byte{}}
+var getInclusionProofByHashRequest7 = trillian.GetInclusionProofByHashRequest{LogId: logId1, TreeSize: 7, LeafHash: []byte("ahash")}
+var getInclusionProofByHashRequest25 = trillian.GetInclusionProofByHashRequest{LogId: logId1, TreeSize: 25, LeafHash: []byte("ahash")}
 
-var getInclusionProofByIndexRequestBadTreeSize = trillian.GetInclusionProofRequest{LogId: logId1, TreeSize:-50, LeafIndex:10}
-var getInclusionProofByIndexRequestBadLeafIndex = trillian.GetInclusionProofRequest{LogId: logId1, TreeSize:50, LeafIndex:-10}
-var getInclusionProofByIndexRequestBadLeafIndexRange = trillian.GetInclusionProofRequest{LogId: logId1, TreeSize:50, LeafIndex:60}
-var getInclusionProofByIndexRequest7 = trillian.GetInclusionProofRequest{LogId: logId1, TreeSize:7, LeafIndex:2}
-var getInclusionProofByIndexRequest25 = trillian.GetInclusionProofRequest{LogId: logId1, TreeSize:50, LeafIndex:25}
+var getInclusionProofByIndexRequestBadTreeSize = trillian.GetInclusionProofRequest{LogId: logId1, TreeSize: -50, LeafIndex: 10}
+var getInclusionProofByIndexRequestBadLeafIndex = trillian.GetInclusionProofRequest{LogId: logId1, TreeSize: 50, LeafIndex: -10}
+var getInclusionProofByIndexRequestBadLeafIndexRange = trillian.GetInclusionProofRequest{LogId: logId1, TreeSize: 50, LeafIndex: 60}
+var getInclusionProofByIndexRequest7 = trillian.GetInclusionProofRequest{LogId: logId1, TreeSize: 7, LeafIndex: 2}
+var getInclusionProofByIndexRequest25 = trillian.GetInclusionProofRequest{LogId: logId1, TreeSize: 50, LeafIndex: 25}
 
 var nodeIdsInclusionSize7Index2 = []storage.NodeID{
 	storage.NewNodeIDForTreeCoords(0, 3, 64),
@@ -598,7 +598,7 @@ func TestGetProofByHashGetNodesFails(t *testing.T) {
 	test := newParameterizedTest(ctrl, "GetInclusionProofByHash",
 		func(t *storage.MockLogTX) {
 			t.EXPECT().GetTreeRevisionAtSize(getInclusionProofByHashRequest7.TreeSize).Return(int64(3), nil)
-			t.EXPECT().GetLeavesByHash([]trillian.Hash{[]byte("ahash")}).Return([]trillian.LogLeaf{{SequenceNumber:2}}, nil)
+			t.EXPECT().GetLeavesByHash([]trillian.Hash{[]byte("ahash")}).Return([]trillian.LogLeaf{{SequenceNumber: 2}}, nil)
 			t.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{}, errors.New("STORAGE"))
 		},
 		func(s *TrillianLogServer) error {
@@ -618,7 +618,7 @@ func TestGetProofByHashWrongNodeCountFetched(t *testing.T) {
 	mockStorage.EXPECT().Begin().Return(mockTx, nil)
 
 	mockTx.EXPECT().GetTreeRevisionAtSize(getInclusionProofByHashRequest7.TreeSize).Return(int64(3), nil)
-	mockTx.EXPECT().GetLeavesByHash([]trillian.Hash{[]byte("ahash")}).Return([]trillian.LogLeaf{{SequenceNumber:2}}, nil)
+	mockTx.EXPECT().GetLeavesByHash([]trillian.Hash{[]byte("ahash")}).Return([]trillian.LogLeaf{{SequenceNumber: 2}}, nil)
 	// The server expects three nodes from storage but we return only two
 	mockTx.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{{NodeRevision: 3}, {NodeRevision: 2}}, nil)
 	mockTx.EXPECT().Rollback().Return(nil)
@@ -641,9 +641,9 @@ func TestGetProofByHashWrongNodeReturned(t *testing.T) {
 	mockStorage.EXPECT().Begin().Return(mockTx, nil)
 
 	mockTx.EXPECT().GetTreeRevisionAtSize(getInclusionProofByHashRequest7.TreeSize).Return(int64(3), nil)
-	mockTx.EXPECT().GetLeavesByHash([]trillian.Hash{[]byte("ahash")}).Return([]trillian.LogLeaf{{SequenceNumber:2}}, nil)
+	mockTx.EXPECT().GetLeavesByHash([]trillian.Hash{[]byte("ahash")}).Return([]trillian.LogLeaf{{SequenceNumber: 2}}, nil)
 	// We set this up so one of the returned nodes has the wrong ID
-	mockTx.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3}, {NodeID:storage.NewNodeIDForTreeCoords(4, 5, 64), NodeRevision: 2}, {NodeID:nodeIdsInclusionSize7Index2[2], NodeRevision: 3}}, nil)
+	mockTx.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3}, {NodeID: storage.NewNodeIDForTreeCoords(4, 5, 64), NodeRevision: 2}, {NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3}}, nil)
 	mockTx.EXPECT().Rollback().Return(nil)
 
 	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
@@ -662,8 +662,8 @@ func TestGetProofByHashCommitFails(t *testing.T) {
 	test := newParameterizedTest(ctrl, "GetInclusionProofByHash",
 		func(t *storage.MockLogTX) {
 			t.EXPECT().GetTreeRevisionAtSize(getInclusionProofByIndexRequest7.TreeSize).Return(int64(3), nil)
-			t.EXPECT().GetLeavesByHash([]trillian.Hash{[]byte("ahash")}).Return([]trillian.LogLeaf{{SequenceNumber:2}}, nil)
-			t.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3}, {NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2}, {NodeID:nodeIdsInclusionSize7Index2[2], NodeRevision: 3}}, nil)
+			t.EXPECT().GetLeavesByHash([]trillian.Hash{[]byte("ahash")}).Return([]trillian.LogLeaf{{SequenceNumber: 2}}, nil)
+			t.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3}, {NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2}, {NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3}}, nil)
 		},
 		func(s *TrillianLogServer) error {
 			_, err := s.GetInclusionProofByHash(context.Background(), &getInclusionProofByHashRequest7)
@@ -682,11 +682,11 @@ func TestGetProofByHash(t *testing.T) {
 	mockStorage.EXPECT().Begin().Return(mockTx, nil)
 
 	mockTx.EXPECT().GetTreeRevisionAtSize(getInclusionProofByHashRequest7.TreeSize).Return(int64(3), nil)
-	mockTx.EXPECT().GetLeavesByHash([]trillian.Hash{[]byte("ahash")}).Return([]trillian.LogLeaf{{SequenceNumber:2}}, nil)
+	mockTx.EXPECT().GetLeavesByHash([]trillian.Hash{[]byte("ahash")}).Return([]trillian.LogLeaf{{SequenceNumber: 2}}, nil)
 	mockTx.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{
-		{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3, Hash:[]byte("nodehash0")},
-		{NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2, Hash:[]byte("nodehash1")},
-		{NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3, Hash:[]byte("nodehash2")}}, nil)
+		{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3, Hash: []byte("nodehash0")},
+		{NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2, Hash: []byte("nodehash1")},
+		{NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3, Hash: []byte("nodehash2")}}, nil)
 	mockTx.EXPECT().Commit().Return(nil)
 
 	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
@@ -709,10 +709,10 @@ func TestGetProofByHash(t *testing.T) {
 		t.Fatalf("failed to marshall test protos - should not happen: %v %v %v", err1, err2, err3)
 	}
 
-	expectedProof := trillian.ProofProto{LeafIndex:2, ProofNode:[]*trillian.NodeProto{
-		{NodeId:nodeIDBytes1, NodeHash:[]byte("nodehash0"), NodeRevision:3},
-		{NodeId:nodeIDBytes2, NodeHash:[]byte("nodehash1"), NodeRevision:2},
-		{NodeId:nodeIDBytes3, NodeHash:[]byte("nodehash2"), NodeRevision:3}}}
+	expectedProof := trillian.ProofProto{LeafIndex: 2, ProofNode: []*trillian.NodeProto{
+		{NodeId: nodeIDBytes1, NodeHash: []byte("nodehash0"), NodeRevision: 3},
+		{NodeId: nodeIDBytes2, NodeHash: []byte("nodehash1"), NodeRevision: 2},
+		{NodeId: nodeIDBytes3, NodeHash: []byte("nodehash2"), NodeRevision: 3}}}
 
 	if !proto.Equal(proofResponse.Proof[0], &expectedProof) {
 		t.Fatalf("expected proof: %v but got: %v", expectedProof, proofResponse.Proof[0])
@@ -846,7 +846,7 @@ func TestGetProofByIndexWrongNodeReturned(t *testing.T) {
 
 	mockTx.EXPECT().GetTreeRevisionAtSize(getInclusionProofByIndexRequest7.TreeSize).Return(int64(3), nil)
 	// We set this up so one of the returned nodes has the wrong ID
-	mockTx.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3}, {NodeID:storage.NewNodeIDForTreeCoords(4, 5, 64), NodeRevision: 2}, {NodeID:nodeIdsInclusionSize7Index2[2], NodeRevision: 3}}, nil)
+	mockTx.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3}, {NodeID: storage.NewNodeIDForTreeCoords(4, 5, 64), NodeRevision: 2}, {NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3}}, nil)
 	mockTx.EXPECT().Rollback().Return(nil)
 
 	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
@@ -865,7 +865,7 @@ func TestGetProofByIndexCommitFails(t *testing.T) {
 	test := newParameterizedTest(ctrl, "GetInclusionProof",
 		func(t *storage.MockLogTX) {
 			t.EXPECT().GetTreeRevisionAtSize(getInclusionProofByIndexRequest7.TreeSize).Return(int64(3), nil)
-			t.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3}, {NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2}, {NodeID:nodeIdsInclusionSize7Index2[2], NodeRevision: 3}}, nil)
+			t.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3}, {NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2}, {NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3}}, nil)
 		},
 		func(s *TrillianLogServer) error {
 			_, err := s.GetInclusionProof(context.Background(), &getInclusionProofByIndexRequest7)
@@ -885,9 +885,9 @@ func TestGetProofByIndex(t *testing.T) {
 
 	mockTx.EXPECT().GetTreeRevisionAtSize(getInclusionProofByIndexRequest7.TreeSize).Return(int64(3), nil)
 	mockTx.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{
-		{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3, Hash:[]byte("nodehash0")},
-		{NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2, Hash:[]byte("nodehash1")},
-		{NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3, Hash:[]byte("nodehash2")}}, nil)
+		{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3, Hash: []byte("nodehash0")},
+		{NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2, Hash: []byte("nodehash1")},
+		{NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3, Hash: []byte("nodehash2")}}, nil)
 	mockTx.EXPECT().Commit().Return(nil)
 
 	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
@@ -910,10 +910,10 @@ func TestGetProofByIndex(t *testing.T) {
 		t.Fatalf("failed to marshall test protos - should not happen: %v %v %v", err1, err2, err3)
 	}
 
-	expectedProof := trillian.ProofProto{LeafIndex:2, ProofNode:[]*trillian.NodeProto{
-		{NodeId:nodeIDBytes1, NodeHash:[]byte("nodehash0"), NodeRevision:3},
-		{NodeId:nodeIDBytes2, NodeHash:[]byte("nodehash1"), NodeRevision:2},
-		{NodeId:nodeIDBytes3, NodeHash:[]byte("nodehash2"), NodeRevision:3}}}
+	expectedProof := trillian.ProofProto{LeafIndex: 2, ProofNode: []*trillian.NodeProto{
+		{NodeId: nodeIDBytes1, NodeHash: []byte("nodehash0"), NodeRevision: 3},
+		{NodeId: nodeIDBytes2, NodeHash: []byte("nodehash1"), NodeRevision: 2},
+		{NodeId: nodeIDBytes3, NodeHash: []byte("nodehash2"), NodeRevision: 3}}}
 
 	if !proto.Equal(proofResponse.Proof, &expectedProof) {
 		t.Fatalf("expected proof: %v but got: %v", expectedProof, proofResponse.Proof)
