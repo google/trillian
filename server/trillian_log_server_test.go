@@ -548,79 +548,65 @@ func TestGetProofByHashBeginTXFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockStorage := storage.NewMockLogStorage(ctrl)
-	mockStorage.EXPECT().Begin().Return(nil, errors.New("BeginTX"))
+	test := newParameterizedTest(ctrl, "GetInclusionProofByHash",
+		func(t *storage.MockLogTX) {},
+		func(s *TrillianLogServer) error {
+			_, err := s.GetInclusionProofByHash(context.Background(), &getInclusionProofByHashRequest25)
+			return err
+		})
 
-	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
-
-	_, err := server.GetInclusionProofByHash(context.Background(), &getInclusionProofByHashRequest25)
-
-	if err == nil || !strings.Contains(err.Error(), "BeginTX") {
-		t.Fatalf("get inclusion proof by hash returned no or wrong error when begin tx failed: %v", err)
-	}
+	test.executeBeginFailsTest(t)
 }
 
 func TestGetProofByHashNoRevisionForTreeSize(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockStorage := storage.NewMockLogStorage(ctrl)
-	mockTx := storage.NewMockLogTX(ctrl)
-	mockStorage.EXPECT().Begin().Return(mockTx, nil)
+	test := newParameterizedTest(ctrl, "GetInclusionProofByHash",
+		func(t *storage.MockLogTX) {
+			t.EXPECT().GetTreeRevisionAtSize(getInclusionProofByHashRequest25.TreeSize).Return(int64(0), errors.New("STORAGE"))
+		},
+		func(s *TrillianLogServer) error {
+			_, err := s.GetInclusionProofByHash(context.Background(), &getInclusionProofByHashRequest25)
+			return err
+		})
 
-	mockTx.EXPECT().GetTreeRevisionAtSize(getInclusionProofByHashRequest25.TreeSize).Return(int64(0), errors.New("NOREVISION"))
-	mockTx.EXPECT().Rollback().Return(nil)
-
-	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
-
-	_, err := server.GetInclusionProofByHash(context.Background(), &getInclusionProofByHashRequest25)
-
-	if err == nil || !strings.Contains(err.Error(), "NOREVISION") {
-		t.Fatalf("get inclusion proof by hash returned no or wrong error when no revision: %v", err)
-	}
+	test.executeStorageFailureTest(t)
 }
 
 func TestGetProofByHashNoLeafForHash(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockStorage := storage.NewMockLogStorage(ctrl)
-	mockTx := storage.NewMockLogTX(ctrl)
-	mockStorage.EXPECT().Begin().Return(mockTx, nil)
+	test := newParameterizedTest(ctrl, "GetInclusionProofByHash",
+		func(t *storage.MockLogTX) {
+			t.EXPECT().GetTreeRevisionAtSize(getInclusionProofByHashRequest25.TreeSize).Return(int64(17), nil)
+			t.EXPECT().GetLeavesByHash([]trillian.Hash{[]byte("ahash")}).Return([]trillian.LogLeaf{}, errors.New("STORAGE"))
+		},
+		func(s *TrillianLogServer) error {
+			_, err := s.GetInclusionProofByHash(context.Background(), &getInclusionProofByHashRequest25)
+			return err
+		})
 
-	mockTx.EXPECT().GetTreeRevisionAtSize(getInclusionProofByHashRequest25.TreeSize).Return(int64(17), nil)
-	mockTx.EXPECT().GetLeavesByHash([]trillian.Hash{[]byte("ahash")}).Return([]trillian.LogLeaf{}, errors.New("GetLeaves"))
-	mockTx.EXPECT().Rollback().Return(nil)
-
-	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
-
-	_, err := server.GetInclusionProofByHash(context.Background(), &getInclusionProofByHashRequest25)
-
-	if err == nil || !strings.Contains(err.Error(), "GetLeaves") {
-		t.Fatalf("get inclusion proof by hash returned no or wrong error when get leaves failed: %v", err)
-	}
+	test.executeStorageFailureTest(t)
 }
 
 func TestGetProofByHashGetNodesFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockStorage := storage.NewMockLogStorage(ctrl)
-	mockTx := storage.NewMockLogTX(ctrl)
-	mockStorage.EXPECT().Begin().Return(mockTx, nil)
+	test := newParameterizedTest(ctrl, "GetInclusionProofByHash",
+		func(t *storage.MockLogTX) {
+			t.EXPECT().GetTreeRevisionAtSize(getInclusionProofByHashRequest7.TreeSize).Return(int64(3), nil)
+			t.EXPECT().GetLeavesByHash([]trillian.Hash{[]byte("ahash")}).Return([]trillian.LogLeaf{{SequenceNumber:2}}, nil)
+			t.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{}, errors.New("STORAGE"))
+		},
+		func(s *TrillianLogServer) error {
+			_, err := s.GetInclusionProofByHash(context.Background(), &getInclusionProofByHashRequest7)
+			return err
+		})
 
-	mockTx.EXPECT().GetTreeRevisionAtSize(getInclusionProofByHashRequest7.TreeSize).Return(int64(3), nil)
-	mockTx.EXPECT().GetLeavesByHash([]trillian.Hash{[]byte("ahash")}).Return([]trillian.LogLeaf{{SequenceNumber:2}}, nil)
-	mockTx.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{}, errors.New("GetNodes"))
-	mockTx.EXPECT().Rollback().Return(nil)
-
-	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
-
-	_, err := server.GetInclusionProofByHash(context.Background(), &getInclusionProofByHashRequest7)
-
-	if err == nil || !strings.Contains(err.Error(), "GetNodes") {
-		t.Fatalf("get inclusion proof by hash returned no or wrong error when get nodes failed: %v", err)
-	}
+	test.executeStorageFailureTest(t)
 }
 
 func TestGetProofByHashWrongNodeCountFetched(t *testing.T) {
@@ -673,22 +659,18 @@ func TestGetProofByHashCommitFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockStorage := storage.NewMockLogStorage(ctrl)
-	mockTx := storage.NewMockLogTX(ctrl)
-	mockStorage.EXPECT().Begin().Return(mockTx, nil)
+	test := newParameterizedTest(ctrl, "GetInclusionProofByHash",
+		func(t *storage.MockLogTX) {
+			t.EXPECT().GetTreeRevisionAtSize(getInclusionProofByIndexRequest7.TreeSize).Return(int64(3), nil)
+			t.EXPECT().GetLeavesByHash([]trillian.Hash{[]byte("ahash")}).Return([]trillian.LogLeaf{{SequenceNumber:2}}, nil)
+			t.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3}, {NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2}, {NodeID:nodeIdsInclusionSize7Index2[2], NodeRevision: 3}}, nil)
+		},
+		func(s *TrillianLogServer) error {
+			_, err := s.GetInclusionProofByHash(context.Background(), &getInclusionProofByHashRequest7)
+			return err
+		})
 
-	mockTx.EXPECT().GetTreeRevisionAtSize(getInclusionProofByHashRequest7.TreeSize).Return(int64(3), nil)
-	mockTx.EXPECT().GetLeavesByHash([]trillian.Hash{[]byte("ahash")}).Return([]trillian.LogLeaf{{SequenceNumber:2}}, nil)
-	mockTx.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3}, {NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2}, {NodeID:nodeIdsInclusionSize7Index2[2], NodeRevision: 3}}, nil)
-	mockTx.EXPECT().Commit().Return(errors.New("TXCOMMIT"))
-
-	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
-
-	_, err := server.GetInclusionProofByHash(context.Background(), &getInclusionProofByHashRequest7)
-
-	if err == nil || !strings.Contains(err.Error(), "TXCOMMIT") {
-		t.Fatalf("get inclusion proof by hash returned no or wrong error when tx did not commit: %v", err)
-	}
+	test.executeCommitFailsTest(t)
 }
 
 func TestGetProofByHash(t *testing.T) {
@@ -789,57 +771,47 @@ func TestGetProofByIndexBeginTXFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockStorage := storage.NewMockLogStorage(ctrl)
-	mockStorage.EXPECT().Begin().Return(nil, errors.New("BeginTX"))
+	test := newParameterizedTest(ctrl, "GetInclusionProof",
+		func(t *storage.MockLogTX) {},
+		func(s *TrillianLogServer) error {
+			_, err := s.GetInclusionProof(context.Background(), &getInclusionProofByIndexRequest25)
+			return err
+		})
 
-	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
-
-	_, err := server.GetInclusionProof(context.Background(), &getInclusionProofByIndexRequest25)
-
-	if err == nil || !strings.Contains(err.Error(), "BeginTX") {
-		t.Fatalf("get inclusion proof by index returned no or wrong error when begin tx failed: %v", err)
-	}
+	test.executeBeginFailsTest(t)
 }
 
 func TestGetProofByIndexNoRevisionForTreeSize(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockStorage := storage.NewMockLogStorage(ctrl)
-	mockTx := storage.NewMockLogTX(ctrl)
-	mockStorage.EXPECT().Begin().Return(mockTx, nil)
+	test := newParameterizedTest(ctrl, "GetInclusionProof",
+		func(t *storage.MockLogTX) {
+			t.EXPECT().GetTreeRevisionAtSize(getInclusionProofByIndexRequest25.TreeSize).Return(int64(0), errors.New("STORAGE"))
+		},
+		func(s *TrillianLogServer) error {
+			_, err := s.GetInclusionProof(context.Background(), &getInclusionProofByIndexRequest25)
+			return err
+		})
 
-	mockTx.EXPECT().GetTreeRevisionAtSize(getInclusionProofByIndexRequest25.TreeSize).Return(int64(0), errors.New("NOREVISION"))
-	mockTx.EXPECT().Rollback().Return(nil)
-
-	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
-
-	_, err := server.GetInclusionProof(context.Background(), &getInclusionProofByIndexRequest25)
-
-	if err == nil || !strings.Contains(err.Error(), "NOREVISION") {
-		t.Fatalf("get inclusion proof by index returned no or wrong error when no revision: %v", err)
-	}
+	test.executeStorageFailureTest(t)
 }
 
 func TestGetProofByIndexGetNodesFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockStorage := storage.NewMockLogStorage(ctrl)
-	mockTx := storage.NewMockLogTX(ctrl)
-	mockStorage.EXPECT().Begin().Return(mockTx, nil)
+	test := newParameterizedTest(ctrl, "GetInclusionProof",
+		func(t *storage.MockLogTX) {
+			t.EXPECT().GetTreeRevisionAtSize(getInclusionProofByIndexRequest7.TreeSize).Return(int64(3), nil)
+			t.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{}, errors.New("STORAGE"))
+		},
+		func(s *TrillianLogServer) error {
+			_, err := s.GetInclusionProof(context.Background(), &getInclusionProofByIndexRequest7)
+			return err
+		})
 
-	mockTx.EXPECT().GetTreeRevisionAtSize(getInclusionProofByIndexRequest7.TreeSize).Return(int64(3), nil)
-	mockTx.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{}, errors.New("GetNodes"))
-	mockTx.EXPECT().Rollback().Return(nil)
-
-	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
-
-	_, err := server.GetInclusionProof(context.Background(), &getInclusionProofByIndexRequest7)
-
-	if err == nil || !strings.Contains(err.Error(), "GetNodes") {
-		t.Fatalf("get inclusion proof by index returned no or wrong error when get nodes failed: %v", err)
-	}
+	test.executeStorageFailureTest(t)
 }
 
 func TestGetProofByIndexWrongNodeCountFetched(t *testing.T) {
@@ -890,21 +862,17 @@ func TestGetProofByIndexCommitFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockStorage := storage.NewMockLogStorage(ctrl)
-	mockTx := storage.NewMockLogTX(ctrl)
-	mockStorage.EXPECT().Begin().Return(mockTx, nil)
+	test := newParameterizedTest(ctrl, "GetInclusionProof",
+		func(t *storage.MockLogTX) {
+			t.EXPECT().GetTreeRevisionAtSize(getInclusionProofByIndexRequest7.TreeSize).Return(int64(3), nil)
+			t.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3}, {NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2}, {NodeID:nodeIdsInclusionSize7Index2[2], NodeRevision: 3}}, nil)
+		},
+		func(s *TrillianLogServer) error {
+			_, err := s.GetInclusionProof(context.Background(), &getInclusionProofByIndexRequest7)
+			return err
+		})
 
-	mockTx.EXPECT().GetTreeRevisionAtSize(getInclusionProofByIndexRequest7.TreeSize).Return(int64(3), nil)
-	mockTx.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3}, {NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2}, {NodeID:nodeIdsInclusionSize7Index2[2], NodeRevision: 3}}, nil)
-	mockTx.EXPECT().Commit().Return(errors.New("TXCOMMIT"))
-
-	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
-
-	_, err := server.GetInclusionProof(context.Background(), &getInclusionProofByIndexRequest7)
-
-	if err == nil || !strings.Contains(err.Error(), "TXCOMMIT") {
-		t.Fatalf("get inclusion proof by index returned no or wrong error when tx did not commit: %v", err)
-	}
+	test.executeCommitFailsTest(t)
 }
 
 func TestGetProofByIndex(t *testing.T) {
