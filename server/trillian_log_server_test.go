@@ -50,6 +50,7 @@ var getInclusionProofByIndexRequest25 = trillian.GetInclusionProofRequest{LogId:
 
 var getEntryAndProofRequestBadTreeSize = trillian.GetEntryAndProofRequest{LogId: logId1, TreeSize:-20, LeafIndex:20}
 var getEntryAndProofRequestBadLeafIndex = trillian.GetEntryAndProofRequest{LogId: logId1, TreeSize:25, LeafIndex:-5}
+var getEntryAndProofRequestBadLeafIndexRange = trillian.GetEntryAndProofRequest{LogId: logId1, TreeSize:25, LeafIndex:30}
 var getEntryAndProofRequest17 = trillian.GetEntryAndProofRequest{LogId: logId1, TreeSize:17, LeafIndex:3}
 var getEntryAndProofRequest7 = trillian.GetEntryAndProofRequest{LogId: logId1, TreeSize:7, LeafIndex:2}
 
@@ -954,6 +955,22 @@ func TestGetEntryAndProofBadLeafIndex(t *testing.T) {
 
 	if err == nil {
 		t.Fatalf("get entry and proof accepted invalid leaf index")
+	}
+}
+
+func TestGetEntryAndProofBadLeafIndexRange(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	// Request should fail validation before any storage operations
+	mockStorage := storage.NewMockLogStorage(ctrl)
+
+	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
+
+	_, err := server.GetEntryAndProof(context.Background(), &getEntryAndProofRequestBadLeafIndexRange)
+
+	if err == nil {
+		t.Fatalf("get entry and proof accepted invalid leaf index (out of range)")
 	}
 }
 

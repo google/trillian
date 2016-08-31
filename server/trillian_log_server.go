@@ -309,6 +309,10 @@ func (t *TrillianLogServer) GetEntryAndProof(ctx context.Context, req *trillian.
 		return nil, fmt.Errorf("invalid params for GetEntryAndProof index: %d", req.LeafIndex)
 	}
 
+	if req.LeafIndex >= req.TreeSize {
+		return nil, fmt.Errorf("invalid params for GetEntryAndProof index: %d exceeds tree size: %d", req.LeafIndex, req.TreeSize)
+	}
+
 	// Next we need to make sure the requested tree size corresponds to an STH, so that we
 	// have a usable tree revision
 	tx, err := t.prepareStorageTx(req.LogId)
