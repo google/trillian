@@ -42,11 +42,7 @@ const selectLeavesByHashSql string = `SELECT l.LeafHash,l.TheData,s.SequenceNumb
 		     WHERE l.LeafHash = s.LeafHash
 		     AND l.LeafHash IN (` + placeholderSql + `) AND l.TreeId = ? AND s.TreeId = l.TreeId`
 // Same as above except with leaves ordered by sequence so we only incur this cost when necessary
-const selectLeavesByHashOrderedBySequenceSql string = `SELECT l.LeafHash,l.TheData,s.SequenceNumber,s.SignedEntryTimestamp
-		     FROM LeafData l,SequencedLeafData s
-		     WHERE l.LeafHash = s.LeafHash
-		     AND l.LeafHash IN (` + placeholderSql + `) AND l.TreeId = ? AND s.TreeId = l.TreeId
-		     ORDER BY s.SequenceNumber`
+const selectLeavesByHashOrderedBySequenceSQL string = selectLeavesByHashSql + " ORDER BY s.SequenceNumber"
 
 type mySQLLogStorage struct {
 	mySQLTreeStorage
@@ -99,7 +95,7 @@ func (m *mySQLLogStorage) getLeavesByIndexStmt(num int) (*sql.Stmt, error) {
 
 func (m *mySQLLogStorage) getLeavesByHashStmt(num int, orderBySequence bool) (*sql.Stmt, error) {
 	if orderBySequence {
-		return m.getStmt(selectLeavesByHashOrderedBySequenceSql, num)
+		return m.getStmt(selectLeavesByHashOrderedBySequenceSQL, num)
 	}
 
 	return m.getStmt(selectLeavesByHashSql, num)
