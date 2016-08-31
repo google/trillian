@@ -440,9 +440,9 @@ func TestMerkleTreePathFuzz(t *testing.T) {
 				t.Errorf("Different path lengths %v, %v", p1, p2)
 			} else {
 				for i := 0; i < len(p1); i++ {
-					if bytes.Compare(p1[i].value.hash, p2[i]) != 0 {
+					if bytes.Compare(p1[i].Value.hash, p2[i]) != 0 {
 						t.Errorf("Mismatched hash %d %d %d: %v, %v", snapshot, leaf, i,
-							p1[i].value.hash, p2[i])
+							p1[i].Value.hash, p2[i])
 					}
 				}
 			}
@@ -479,9 +479,9 @@ func TestMerkleTreeConsistencyFuzz(t *testing.T) {
 			}
 
 			for i := 0; i < len(c1); i++ {
-				if bytes.Compare(c1[i].value.hash, c2[i]) != 0 {
+				if bytes.Compare(c1[i].Value.hash, c2[i]) != 0 {
 					t.Errorf("Different proof: %d %d %d %d, %s, %s", treeSize,
-						snapshot2, snapshot1, i, hex.EncodeToString(c1[i].value.hash),
+						snapshot2, snapshot1, i, hex.EncodeToString(c1[i].Value.hash),
 						hex.EncodeToString(c2[i]))
 				}
 			}
@@ -528,7 +528,7 @@ func TestMerkleTreePathBuildOnce(t *testing.T) {
 		}
 
 		for j := 0; j < len(p2); j++ {
-			if bytes.Compare(p1[j].value.hash, decodeHexStringOrPanic(testPaths[i].testVector[j])) != 0 {
+			if bytes.Compare(p1[j].Value.hash, decodeHexStringOrPanic(testPaths[i].testVector[j])) != 0 {
 				t.Errorf("Path mismatch: %s %s")
 			}
 		}
@@ -567,9 +567,9 @@ func TestMerkleTreePathBuildIncrementally(t *testing.T) {
 			}
 
 			for j := 0; j < len(p2); j++ {
-				if bytes.Compare(p1[j].value.hash, p2[j].value.hash) != 0 {
-					t.Errorf("Path mismatch: %s %s", hex.EncodeToString(p1[j].value.hash),
-						hex.EncodeToString(p2[j].value.hash))
+				if bytes.Compare(p1[j].Value.hash, p2[j].Value.hash) != 0 {
+					t.Errorf("Path mismatch: %s %s", hex.EncodeToString(p1[j].Value.hash),
+						hex.EncodeToString(p2[j].Value.hash))
 				}
 			}
 		}
@@ -615,7 +615,7 @@ func TestProofConsistencyTestVectors(t *testing.T) {
 		}
 
 		for j := 0; j < len(p2); j++ {
-			if bytes.Compare(p1[j].value.hash, decodeHexStringOrPanic(testProofs[i].proof[j])) != 0 {
+			if bytes.Compare(p1[j].Value.hash, decodeHexStringOrPanic(testProofs[i].proof[j])) != 0 {
 				t.Errorf("Path mismatch: %s %s")
 			}
 		}
