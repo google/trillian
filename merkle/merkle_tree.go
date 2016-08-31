@@ -132,7 +132,7 @@ func NewMerkleTree(hasher TreeHasher) *MerkleTree {
 	return &mt
 }
 
-func (mt MerkleTree) leafHash(leaf int) []byte {
+func (mt *MerkleTree) leafHash(leaf int) []byte {
 	if leaf == 0 || leaf > mt.LeafCount() {
 		return nil
 	}
@@ -143,7 +143,7 @@ func (mt MerkleTree) leafHash(leaf int) []byte {
 // NodeCount gets the current node count (of the lazily evaluated tree).
 // Caller is responsible for keeping track of the lazy evaluation status. This will not
 // update the tree.
-func (mt MerkleTree) NodeCount(level int) int {
+func (mt *MerkleTree) NodeCount(level int) int {
 	if mt.lazyLevelCount() <= level {
 		panic(fmt.Errorf("lazyLevelCount <= level in nodeCount"))
 	}
@@ -152,17 +152,17 @@ func (mt MerkleTree) NodeCount(level int) int {
 }
 
 // LevelCount returns the number of levels in the current merkle tree
-func (mt MerkleTree) LevelCount() int {
+func (mt *MerkleTree) LevelCount() int {
 	return mt.levelCount
 }
 
 // lazyLevelCount is the current level count of the lazily evaluated tree.
-func (mt MerkleTree) lazyLevelCount() int {
+func (mt *MerkleTree) lazyLevelCount() int {
 	return len(mt.tree)
 }
 
 // LeafCount returns the number of leaves in the tree.
-func (mt MerkleTree) LeafCount() int {
+func (mt *MerkleTree) LeafCount() int {
 	if len(mt.tree) == 0 {
 		return 0
 	} else {
@@ -172,7 +172,7 @@ func (mt MerkleTree) LeafCount() int {
 
 // root gets the current root (of the lazily evaluated tree).
 // Caller is responsible for keeping track of the lazy evaluation status.
-func (mt MerkleTree) root() TreeEntry {
+func (mt *MerkleTree) root() TreeEntry {
 	lastLevel := len(mt.tree) - 1
 
 	if len(mt.tree[lastLevel]) > 1 {
@@ -183,7 +183,7 @@ func (mt MerkleTree) root() TreeEntry {
 }
 
 // lastNode returns the last node of the given level in the tree.
-func (mt MerkleTree) lastNode(level int) TreeEntry {
+func (mt *MerkleTree) lastNode(level int) TreeEntry {
 	levelNodes := mt.NodeCount(level)
 
 	if levelNodes < 1 {
