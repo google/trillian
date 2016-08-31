@@ -318,10 +318,6 @@ func TestGetRoots(t *testing.T) {
 	w := httptest.NewRecorder()
 	handler(w, req)
 
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	if expected, got := http.StatusOK, w.Code; expected != got {
 		t.Fatalf("Wrong status code for get-roots, expected %v, got %v", expected, got)
 	}
@@ -871,10 +867,6 @@ func TestGetEntriesRanges(t *testing.T) {
 		w := httptest.NewRecorder()
 		handler(w, req)
 
-		if err != nil {
-			t.Fatal(err)
-		}
-
 		if expected, got := testCase.expectedStatus, w.Code; expected != got {
 			t.Fatalf("expected status %d, got %d for test case %s", expected, got, testCase.explanation)
 		}
@@ -910,10 +902,6 @@ func TestGetEntriesErrorFromBackend(t *testing.T) {
 	w := httptest.NewRecorder()
 	handler(w, req)
 
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-
 	if got, want := w.Code, http.StatusInternalServerError; got != want {
 		t.Fatalf("Expected %v for backend error, got %v. Body: %v", want, got, w.Body)
 	}
@@ -942,10 +930,6 @@ func TestGetEntriesBackendReturnedExtraLeaves(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	handler(w, req)
-
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	if got, want := w.Code, http.StatusInternalServerError; got != want {
 		t.Fatalf("expected %v for backend too many leaves, got %v. Body: %v", want, got, w.Body)
@@ -976,10 +960,6 @@ func TestGetEntriesBackendReturnedNonContiguousRange(t *testing.T) {
 	w := httptest.NewRecorder()
 	handler(w, req)
 
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	if got, want := w.Code, http.StatusInternalServerError; got != want {
 		t.Fatalf("expected %v for backend too many leaves, got %v. Body: %v", want, got, w.Body)
 	}
@@ -1008,10 +988,6 @@ func TestGetEntriesLeafCorrupt(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	handler(w, req)
-
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	// We should still have received the data though it failed to deserialize.
 	if got, want := w.Code, http.StatusOK; got != want {
@@ -1079,10 +1055,6 @@ func TestGetEntries(t *testing.T) {
 	w := httptest.NewRecorder()
 	handler(w, req)
 
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	if got, want := w.Code, http.StatusOK; got != want {
 		t.Fatalf("Expected  %v for valid get-entries result, got %v. Body: %v", want, got, w.Body)
 	}
@@ -1140,10 +1112,6 @@ func TestGetProofByHashBadRequests(t *testing.T) {
 		w := httptest.NewRecorder()
 		handler(w, req)
 
-		if err != nil {
-			t.Fatal(err)
-		}
-
 		if got, want := w.Code, http.StatusBadRequest; got != want {
 			t.Fatalf("Expected %v for get-proof-by-hash with params [%s], got %v. Body: %v", want, requestParamString, got, w.Body)
 		}
@@ -1167,10 +1135,6 @@ func TestGetProofByHashBackendFails(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	handler(w, req)
-
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	if got, want := w.Code, http.StatusInternalServerError; got != want {
 		t.Fatalf("Expected %v for get-proof-by-hash when backend fails, got %v. Body: %v", want, got, w.Body)
@@ -1202,10 +1166,6 @@ func TestGetProofByHashBackendMultipleProofs(t *testing.T) {
 	w := httptest.NewRecorder()
 	handler(w, req)
 
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	if got, want := w.Code, http.StatusInternalServerError; got != want {
 		t.Fatalf("Expected %v for get-proof-by-hash when backend fails, got %v. Body: %v", want, got, w.Body)
 	}
@@ -1235,10 +1195,6 @@ func TestGetProofByHashBackendReturnsMissingHash(t *testing.T) {
 	w := httptest.NewRecorder()
 	handler(w, req)
 
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	if got, want := w.Code, http.StatusInternalServerError; got != want {
 		t.Fatalf("Expected %v for get-proof-by-hash when backend returns missing hash, got %v. Body: %v", want, got, w.Body)
 	}
@@ -1267,10 +1223,6 @@ func TestGetProofByHash(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	handler(w, req)
-
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	if got, want := w.Code, http.StatusOK; got != want {
 		t.Fatalf("Expected %v for get-proof-by-hash, got %v. Body: %v", want, got, w.Body)
@@ -1306,10 +1258,6 @@ func TestGetSTHConsistencyBadParams(t *testing.T) {
 		w := httptest.NewRecorder()
 		handler(w, req)
 
-		if err != nil {
-			t.Fatal(err)
-		}
-
 		if got, want := w.Code, http.StatusBadRequest; got != want {
 			t.Fatalf("Expected %v for get-sth-consistency with params [%s], got %v. Body: %v", want, requestParamString, got, w.Body)
 		}
@@ -1335,10 +1283,6 @@ func TestGetEntryAndProofBadParams(t *testing.T) {
 		w := httptest.NewRecorder()
 		handler(w, req)
 
-		if err != nil {
-			t.Fatal(err)
-		}
-
 		if got, want := w.Code, http.StatusBadRequest; got != want {
 			t.Fatalf("expected %v for get-entry-and-proof with params [%s], got %v. Body: %v", want, requestParamString, got, w.Body)
 		}
@@ -1362,10 +1306,6 @@ func TestGetSTHConsistencyBackendRPCFails(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	handler(w, req)
-
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	if got, want := w.Code, http.StatusInternalServerError; got != want {
 		t.Fatalf("Expected %v for get-sth-consistency when backend fails, got %v. Body: %v", want, got, w.Body)
@@ -1393,10 +1333,6 @@ func TestGetEntryAndProofBackendFails(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	handler(w, req)
-
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	if got, want := w.Code, http.StatusInternalServerError; got != want {
 		t.Fatalf("Expected %v for get-entry-and-proof when backend fails, got %v. Body: %v", want, got, w.Body)
@@ -1427,10 +1363,6 @@ func TestGetSTHConsistencyBackendReturnsInvalidProof(t *testing.T) {
 	w := httptest.NewRecorder()
 	handler(w, req)
 
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	if got, want := w.Code, http.StatusInternalServerError; got != want {
 		t.Fatalf("Expected %v for get-sth-consistency when backend fails, got %v. Body: %v", want, got, w.Body)
 	}
@@ -1459,10 +1391,6 @@ func TestGetEntryAndProofBackendBadResponse(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	handler(w, req)
-
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	if got, want := w.Code, http.StatusInternalServerError; got != want {
 		t.Fatalf("Expected %v for get-entry-and-proof when backend fails, got %v. Body: %v", want, got, w.Body)
@@ -1495,10 +1423,6 @@ func TestGetSTHConsistency(t *testing.T) {
 
 	if got, want := w.Code, http.StatusOK; got != want {
 		t.Fatalf("Expected %v for get-sth-consistency when backend fails, got %v. Body: %v", want, got, w.Body)
-	}
-
-	if err != nil {
-		t.Fatalf("Got unexpected error from get-sth-consistency: %v", err)
 	}
 
 	// Roundtrip the response and make sure it matches
@@ -1544,10 +1468,6 @@ func TestGetEntryAndProof(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	handler(w, req)
-
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	if got, want := w.Code, http.StatusOK; got != want {
 		t.Fatalf("Expected %v for get-entry-and-proof, got %v. Body: %v", want, got, w.Body)
@@ -1676,11 +1596,7 @@ func getEntriesTestHelper(t *testing.T, request string, expectedStatus int, expl
 
 	w := httptest.NewRecorder()
 	handler(w, req)
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	
 	if expected, got := expectedStatus, w.Code; expected != got {
 		t.Fatalf("expected status %d, got %d for test case %s", expected, got, explanation)
 	}
