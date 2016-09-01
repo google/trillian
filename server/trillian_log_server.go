@@ -233,7 +233,24 @@ func (t *TrillianLogServer) GetLatestSignedLogRoot(ctx context.Context, req *tri
 // GetSequencedLeafCount returns the number of leaves that have been integrated into the Merkle
 // Tree. This can be zero for a log containing no entries.
 func (t *TrillianLogServer) GetSequencedLeafCount(ctx context.Context, req *trillian.GetSequencedLeafCountRequest) (*trillian.GetSequencedLeafCountResponse, error) {
-	return nil, ErrNotImplemented
+	tx, err := t.prepareStorageTx(req.LogId)
+
+	if err != nil {
+		return nil, err
+	}
+
+	leafCount, err := tx.GetSequencedLeafCount()
+
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	if err := t.commitAndLog(tx, "GetSequencedLeafCount"); err != nil {
+		return nil, err
+	}
+
+	return &trillian.GetSequencedLeafCountResponse{Status:buildStatus(trillian.TrillianApiStatusCode_OK), LeafCount:leafCount}, nil
 }
 
 // GetLeavesByIndex obtains one or more leaves based on their sequence number within the
