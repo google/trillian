@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"flag"
 	"fmt"
+	"time"
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
@@ -21,7 +22,8 @@ var mysqlUriFlag = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/tes
 func main() {
 	flag.Parse()
 	glog.Info("Starting...")
-	ms, err := mysql.NewMapStorage(trillian.MapID{[]byte("TODO"), 1}, *mysqlUriFlag)
+	mapID := trillian.MapID{[]byte("TODO"), 1}
+	ms, err := mysql.NewMapStorage(mapID, *mysqlUriFlag)
 	if err != nil {
 		glog.Fatalf("Failed to open mysql storage: %v", err)
 	}
@@ -54,19 +56,18 @@ func main() {
 	numBatches := testVecs[testIndex].numBatches
 	expectedRootB64 := testVecs[testIndex].expectedRootB64
 
-	rev := int64(0)
 	var root trillian.Hash
 	for x := 0; x < numBatches; x++ {
-		w, err := merkle.NewSparseMerkleTreeWriter(rev, hasher,
+		tx, err := ms.Begin()
+		if err != nil {
+			glog.Fatalf("Failed to Begin() a new tx: %v", err)
+		}
+		w, err := merkle.NewSparseMerkleTreeWriter(tx.WriteRevision(), hasher,
 			func() (storage.TreeTX, error) {
 				return ms.Begin()
 			})
 		if err != nil {
 			glog.Fatalf("Failed to create new SMTWriter: %v", err)
-		}
-		tx, err := ms.Begin()
-		if err != nil {
-			glog.Fatalf("Failed to Begin() a new tx: %v", err)
 		}
 
 		glog.Infof("Starting batch %d...", x)
@@ -90,11 +91,20 @@ func main() {
 		}
 		glog.Infof("CalculateRoot (%d), root: %s", x, base64.StdEncoding.EncodeToString(root))
 
+		if err := tx.StoreSignedMapRoot(trillian.SignedMapRoot{
+			TimestampNanos: time.Now().UnixNano(),
+			RootHash:       root,
+			MapId:          mapID.MapID,
+			MapRevision:    tx.WriteRevision(),
+			Signature:      &trillian.DigitallySigned{},
+		}); err != nil {
+			glog.Fatalf("Failed to store SMH: %v", err)
+		}
+
 		err = tx.Commit()
 		if err != nil {
 			glog.Fatalf("Failed to Commit() tx: %v", err)
 		}
-		rev++
 	}
 
 	if expected, got := testonly.MustDecodeBase64(expectedRootB64), root; !bytes.Equal(expected, root) {
