@@ -154,6 +154,10 @@ func (s Sequencer) SequenceBatch(limit int, expiryFunc CurrentRootExpiredFunc) (
 		return 0, err
 	}
 
+	if currentRoot.RootHash == nil {
+		glog.Warning("Fresh log - no previous TreeHeads exist.")
+	}
+
 	// There might be no work to be done. But we possibly still need to create an STH if the
 	// current one is too old. If there's work to be done then we'll be creating a root anyway.
 	if len(leaves) == 0 {
