@@ -70,7 +70,7 @@ func (m *mockNodeStorage) SetSubtree(s *storage.SubtreeProto) error {
 
 func TestCacheFillOnlyReadsSubtrees(t *testing.T) {
 	m := mockNodeStorage{}
-	c := NewSubtreeCache(merkle.NewRFC6962TreeHasher(trillian.NewSHA256()))
+	c := NewSubtreeCache(PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher(trillian.NewSHA256())))
 
 	nodeID := storage.NewNodeIDFromHash([]byte("1234"))
 	// When we loop around asking for all 0..32 bit prefix lengths of the above
@@ -104,7 +104,7 @@ func noFetch(id storage.NodeID) (*storage.SubtreeProto, error) {
 
 func TestCacheFlush(t *testing.T) {
 	m := mockNodeStorage{}
-	c := NewSubtreeCache(merkle.NewRFC6962TreeHasher(trillian.NewSHA256()))
+	c := NewSubtreeCache(PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher(trillian.NewSHA256())))
 
 	nodeID := storage.NewNodeIDFromHash([]byte("1234"))
 	// When we loop around asking for all 0..32 bit prefix lengths of the above

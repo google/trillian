@@ -10,7 +10,6 @@ import (
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
-	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
 )
@@ -39,10 +38,10 @@ const placeholderSql string = "<placeholder>"
 // mySQLTreeStorage is shared between the mySQLLog- and (forthcoming) mySQLMap-
 // Storage implementations, and contains functionality which is common to both,
 type mySQLTreeStorage struct {
-	treeID        int64
-	db            *sql.DB
-	hashSizeBytes int
-	treeHasher    merkle.TreeHasher
+	treeID          int64
+	db              *sql.DB
+	hashSizeBytes   int
+	populateSubtree storage.PopulateSubtreeFunc
 
 	// Must hold the mutex before manipulating the statement map. Sharing a lock because
 	// it only needs to be held while the statements are built, not while they execute and
@@ -69,18 +68,18 @@ func openDB(dbURL string) (*sql.DB, error) {
 	return db, nil
 }
 
-func newTreeStorage(treeID int64, dbURL string, hasher merkle.TreeHasher) (mySQLTreeStorage, error) {
+func newTreeStorage(treeID int64, dbURL string, hashSizeBytes int, populateSubtree storage.PopulateSubtreeFunc) (mySQLTreeStorage, error) {
 	db, err := openDB(dbURL)
 	if err != nil {
 		return mySQLTreeStorage{}, err
 	}
 
 	s := mySQLTreeStorage{
-		treeID:        treeID,
-		db:            db,
-		hashSizeBytes: hasher.Size(),
-		treeHasher:    hasher,
-		statements:    make(map[string]map[int]*sql.Stmt),
+		treeID:          treeID,
+		db:              db,
+		hashSizeBytes:   hashSizeBytes,
+		populateSubtree: populateSubtree,
+		statements:      make(map[string]map[int]*sql.Stmt),
 	}
 
 	if s.setSubtree, err = s.db.Prepare(insertSubtreeSql); err != nil {
@@ -194,7 +193,7 @@ func (m *mySQLTreeStorage) beginTreeTx() (treeTX, error) {
 	return treeTX{
 		tx:            t,
 		ts:            m,
-		subtreeCache:  cache.NewSubtreeCache(m.treeHasher),
+		subtreeCache:  cache.NewSubtreeCache(m.populateSubtree),
 		writeRevision: -1,
 	}, nil
 }
