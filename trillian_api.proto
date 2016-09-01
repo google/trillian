@@ -116,6 +116,7 @@ message GetSequencedLeafCountRequest {
 
 message GetSequencedLeafCountResponse {
     TrillianApiStatus status = 1;
+    int64 leaf_count = 2;
 }
 
 message GetLatestSignedLogRootRequest {

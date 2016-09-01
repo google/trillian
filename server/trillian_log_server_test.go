@@ -1154,6 +1154,80 @@ func TestGetEntryAndProof(t *testing.T) {
 	}
 }
 
+func TestGetSequencedLeafCountBeginTXFails(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	test := newParameterizedTest(ctrl, "GetSequencedLeafCount",
+		func(t *storage.MockLogTX) {},
+		func(s *TrillianLogServer) error {
+			_, err := s.GetSequencedLeafCount(context.Background(), &trillian.GetSequencedLeafCountRequest{LogId:logId1})
+			return err
+		})
+
+	test.executeBeginFailsTest(t)
+}
+
+func TestGetSequencedLeafCountStorageFails(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	test := newParameterizedTest(ctrl, "GetSequencedLeafCount",
+		func(t *storage.MockLogTX) {
+			t.EXPECT().GetSequencedLeafCount().Return(int64(0), errors.New("STORAGE"))
+		},
+		func(s *TrillianLogServer) error {
+			_, err := s.GetSequencedLeafCount(context.Background(), &trillian.GetSequencedLeafCountRequest{LogId:logId1})
+			return err
+		})
+
+	test.executeStorageFailureTest(t)
+}
+
+func TestGetSequencedLeafCountCommitFails(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	test := newParameterizedTest(ctrl, "GetSequencedLeafCount",
+		func(t *storage.MockLogTX) {
+			t.EXPECT().GetSequencedLeafCount().Return(int64(27), nil)
+		},
+		func(s *TrillianLogServer) error {
+			_, err := s.GetSequencedLeafCount(context.Background(), &trillian.GetSequencedLeafCountRequest{LogId:logId1})
+			return err
+		})
+
+	test.executeCommitFailsTest(t)
+}
+
+func TestGetSequencedLeafCount(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockStorage := storage.NewMockLogStorage(ctrl)
+	mockTx := storage.NewMockLogTX(ctrl)
+	mockStorage.EXPECT().Begin().Return(mockTx, nil)
+
+	mockTx.EXPECT().GetSequencedLeafCount().Return(int64(268), nil)
+	mockTx.EXPECT().Commit().Return(nil)
+
+	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
+
+	response, err := server.GetSequencedLeafCount(context.Background(), &trillian.GetSequencedLeafCountRequest{LogId:logId1})
+
+	if err != nil {
+		t.Fatalf("expected no error getting leaf count but got: %v", err)
+	}
+
+	if response.Status == nil || response.Status.StatusCode != trillian.TrillianApiStatusCode_OK {
+		t.Fatalf("server response was not successful: %v", response)
+	}
+
+	if got, want := response.LeafCount, int64(268); got != want {
+		t.Fatalf("expected leaf count: %d but got: %d", want, got)
+	}
+}
+
 type prepareMockTXFunc func(*storage.MockLogTX)
 type makeRpcFunc func(*TrillianLogServer) error
 
