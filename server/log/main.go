@@ -23,8 +23,8 @@ import (
 var mysqlUriFlag = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test",
 	"uri to use with mysql storage")
 var serverPortFlag = flag.Int("port", 8090, "Port to serve log requests on")
-var sequencerSleepBetweenRunsFlag = flag.Duration("sleep_between_runs", time.Second*10, "Time to pause after each sequencing pass through all logs")
-var signerSleepBetweenRunsFlag = flag.Duration("sleep_between_runs", time.Second*120, "Time to pause after each signing pass through all logs")
+var sequencerSleepBetweenRunsFlag = flag.Duration("sequencer_sleep_between_runs", time.Second * 10, "Time to pause after each sequencing pass through all logs")
+var signerSleepBetweenRunsFlag = flag.Duration("signer_sleep_between_runs", time.Second * 120, "Time to pause after each signing pass through all logs")
 var batchSizeFlag = flag.Int("batch_size", 50, "Max number of leaves to process per batch")
 
 // TODO(Martin2112): Single private key doesn't really work for multi tenant and we can't use
