@@ -53,8 +53,6 @@ var expectedSignedRoot = trillian.SignedLogRoot{
 }
 
 var expectedSignedRoot16 = trillian.SignedLogRoot{
-	// The root hash would not normally be empty but we've got a perfect tree size of 16 and
-	// aren't testing merkle state loading so a nil hash gets copied in from our test data
 	// TODO(Martin2112): An extended test that checks the root hash
 	TimestampNanos: fakeTimeForTest.UnixNano(),
 	TreeRevision:   6,

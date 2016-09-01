@@ -2,7 +2,6 @@
 package log
 
 import (
-	"errors"
 	"fmt"
 	"github.com/golang/glog"
 	"github.com/google/trillian"
@@ -46,7 +45,7 @@ func (s Sequencer) buildMerkleTreeFromStorageAtRoot(root trillian.SignedLogRoot,
 
 		// We expect to get exactly one node here
 		if nodes == nil || len(nodes) != 1 {
-			return nil, errors.New("Did not retrieve one node while loading CompactMerkleTree")
+			return nil, fmt.Errorf("Did not retrieve one node while loading CompactMerkleTree, got %#v for ID %s@%d", nodes, nodeId.String(), root.TreeRevision)
 		}
 
 		return nodes[0].Hash, nil
