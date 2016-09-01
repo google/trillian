@@ -140,7 +140,6 @@ func (t *TrillianLogServer) GetInclusionProof(ctx context.Context, req *trillian
 
 // GetInclusionProofByHash obtains proofs of inclusion by leaf hash. Because some logs can
 // contain duplicate hashes it is possible for multiple proofs to be returned.
-// TODO(Martin2112): Need to define a limit on number of results or some form of paging etc.
 func (t *TrillianLogServer) GetInclusionProofByHash(ctx context.Context, req *trillian.GetInclusionProofByHashRequest) (*trillian.GetInclusionProofByHashResponse, error) {
 	// Reject obviously invalid tree sizes
 	if req.TreeSize <= 0 {
@@ -168,24 +167,25 @@ func (t *TrillianLogServer) GetInclusionProofByHash(ctx context.Context, req *tr
 
 	// Find the leaf index of the supplied hash
 	leafHashes := []trillian.Hash{req.LeafHash}
-	leaves, err := tx.GetLeavesByHash(leafHashes)
+	leaves, err := tx.GetLeavesByHash(leafHashes, req.OrderBySequence)
 
 	if err != nil {
 		tx.Rollback()
 		return nil, err
 	}
 
-	// TODO(Martin2112): We need to decide how we handle the multiple hash case.
-	if len(leaves) != 1 {
-		tx.Rollback()
-		return nil, fmt.Errorf("expecting one leaf to be returned but got: %d", len(leaves))
-	}
+	// TODO(Martin2112): Need to define a limit on number of results or some form of paging etc.
+	proofs := make([]*trillian.ProofProto, 0, len(leaves))
 
-	proof, err := getInclusionProofForLeafIndexAtRevision(tx, treeRevision, req.TreeSize, leaves[0].SequenceNumber)
+	for _, leaf := range leaves {
+		proof, err := getInclusionProofForLeafIndexAtRevision(tx, treeRevision, req.TreeSize, leaf.SequenceNumber)
 
-	if err != nil {
-		tx.Rollback()
-		return nil, err
+		if err != nil {
+			tx.Rollback()
+			return nil, err
+		}
+
+		proofs = append(proofs, &proof)
 	}
 
 	// The work is complete, can return the response
@@ -195,7 +195,7 @@ func (t *TrillianLogServer) GetInclusionProofByHash(ctx context.Context, req *tr
 		return nil, err
 	}
 
-	response := trillian.GetInclusionProofByHashResponse{Status: buildStatus(trillian.TrillianApiStatusCode_OK), Proof:[]*trillian.ProofProto{&proof}}
+	response := trillian.GetInclusionProofByHashResponse{Status: buildStatus(trillian.TrillianApiStatusCode_OK), Proof:proofs}
 
 	return &response, nil
 }
@@ -281,7 +281,7 @@ func (t *TrillianLogServer) GetLeavesByHash(ctx context.Context, req *trillian.G
 		return nil, err
 	}
 
-	leaves, err := tx.GetLeavesByHash(bytesToHash(req.LeafHash))
+	leaves, err := tx.GetLeavesByHash(bytesToHash(req.LeafHash), req.OrderBySequence)
 
 	if err != nil {
 		tx.Rollback()

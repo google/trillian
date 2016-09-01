@@ -52,7 +52,7 @@ func main() {
 			panic(err)
 		}
 
-		fetchedLeaves, err := tx.GetLeavesByHash([]trillian.Hash{hash})
+		fetchedLeaves, err := tx.GetLeavesByHash([]trillian.Hash{hash}, false)
 
 		if err != nil {
 			panic(err)

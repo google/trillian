@@ -72,15 +72,15 @@ func (_mr *_MockLogTXRecorder) GetActiveLogIDsWithPendingWork() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetActiveLogIDsWithPendingWork")
 }
 
-func (_m *MockLogTX) GetLeavesByHash(_param0 []trillian.Hash) ([]trillian.LogLeaf, error) {
-	ret := _m.ctrl.Call(_m, "GetLeavesByHash", _param0)
+func (_m *MockLogTX) GetLeavesByHash(_param0 []trillian.Hash, _param1 bool) ([]trillian.LogLeaf, error) {
+	ret := _m.ctrl.Call(_m, "GetLeavesByHash", _param0, _param1)
 	ret0, _ := ret[0].([]trillian.LogLeaf)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-func (_mr *_MockLogTXRecorder) GetLeavesByHash(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetLeavesByHash", arg0)
+func (_mr *_MockLogTXRecorder) GetLeavesByHash(arg0, arg1 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetLeavesByHash", arg0, arg1)
 }
 
 func (_m *MockLogTX) GetLeavesByIndex(_param0 []int64) ([]trillian.LogLeaf, error) {
@@ -374,15 +374,15 @@ func (_mr *_MockReadOnlyLogTXRecorder) Commit() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Commit")
 }
 
-func (_m *MockReadOnlyLogTX) GetLeavesByHash(_param0 []trillian.Hash) ([]trillian.LogLeaf, error) {
-	ret := _m.ctrl.Call(_m, "GetLeavesByHash", _param0)
+func (_m *MockReadOnlyLogTX) GetLeavesByHash(_param0 []trillian.Hash, _param1 bool) ([]trillian.LogLeaf, error) {
+	ret := _m.ctrl.Call(_m, "GetLeavesByHash", _param0, _param1)
 	ret0, _ := ret[0].([]trillian.LogLeaf)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-func (_mr *_MockReadOnlyLogTXRecorder) GetLeavesByHash(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetLeavesByHash", arg0)
+func (_mr *_MockReadOnlyLogTXRecorder) GetLeavesByHash(arg0, arg1 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetLeavesByHash", arg0, arg1)
 }
 
 func (_m *MockReadOnlyLogTX) GetLeavesByIndex(_param0 []int64) ([]trillian.LogLeaf, error) {

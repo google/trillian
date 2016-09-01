@@ -495,7 +495,7 @@ func TestGetLeavesByHashNotPresent(t *testing.T) {
 	defer tx.Commit()
 
 	hashes := []trillian.Hash{trillian.Hash("thisdoesn'texist")}
-	leaves, err := tx.GetLeavesByHash(hashes)
+	leaves, err := tx.GetLeavesByHash(hashes, false)
 
 	if err != nil {
 		t.Fatalf("Error getting leaves by hash: %v", err)
@@ -540,7 +540,7 @@ func TestGetLeavesByHash(t *testing.T) {
 	defer tx.Commit()
 
 	hashes := []trillian.Hash{dummyHash}
-	leaves, err := tx.GetLeavesByHash(hashes)
+	leaves, err := tx.GetLeavesByHash(hashes, false)
 
 	if err != nil {
 		t.Fatalf("Unexpected error getting leaf by hash: %v", err)

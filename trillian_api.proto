@@ -68,6 +68,7 @@ message GetInclusionProofByHashRequest {
     int64 log_id = 1;
     bytes leaf_hash = 2;
     int64 tree_size = 3;
+    bool order_by_sequence = 4;
 }
 
 message GetInclusionProofByHashResponse {
@@ -91,6 +92,7 @@ message GetConsistencyProofResponse {
 message GetLeavesByHashRequest {
     int64 log_id = 1;
     repeated bytes leaf_hash = 2;
+    bool order_by_sequence = 3;
 }
 
 message GetLeavesByHashResponse {
