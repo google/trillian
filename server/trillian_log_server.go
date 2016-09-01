@@ -300,7 +300,67 @@ func (t *TrillianLogServer) GetLeavesByHash(ctx context.Context, req *trillian.G
 // GetEntryAndProof returns both a Merkle Leaf entry and an inclusion proof for a given index
 // and tree size.
 func (t *TrillianLogServer) GetEntryAndProof(ctx context.Context, req *trillian.GetEntryAndProofRequest) (*trillian.GetEntryAndProofResponse, error) {
-	return nil, ErrNotImplemented
+	// Reject parameters that are obviously not valid
+	if req.TreeSize <= 0 {
+		return nil, fmt.Errorf("invalid tree size for GetEntryAndProof: %d", req.TreeSize)
+	}
+
+	if req.LeafIndex < 0 {
+		return nil, fmt.Errorf("invalid params for GetEntryAndProof index: %d", req.LeafIndex)
+	}
+
+	if req.LeafIndex >= req.TreeSize {
+		return nil, fmt.Errorf("invalid params for GetEntryAndProof index: %d exceeds tree size: %d", req.LeafIndex, req.TreeSize)
+	}
+
+	// Next we need to make sure the requested tree size corresponds to an STH, so that we
+	// have a usable tree revision
+	tx, err := t.prepareStorageTx(req.LogId)
+
+	if err != nil {
+		return nil, err
+	}
+
+	treeRevision, err := tx.GetTreeRevisionAtSize(req.TreeSize)
+
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	proof, err := getInclusionProofForLeafIndexAtRevision(tx, treeRevision, req.TreeSize, req.LeafIndex)
+
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	// We also need the leaf entry
+	leaves, err := tx.GetLeavesByIndex([]int64{req.LeafIndex})
+
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	if len(leaves) != 1 {
+		tx.Rollback()
+		return nil, fmt.Errorf("expected one leaf from storage but got: %d", len(leaves))
+	}
+
+	leafProtos := leavesToProtos(leaves)
+
+	err = tx.Commit()
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Work is complete, we have everything we need for the response
+	return &trillian.GetEntryAndProofResponse{
+		Status: buildStatus(trillian.TrillianApiStatusCode_OK),
+		Proof: &proof,
+		Leaf: leafProtos[0]}, nil
 }
 
 func (t *TrillianLogServer) prepareStorageTx(treeID int64) (storage.LogTX, error) {
