@@ -90,10 +90,6 @@ func (s Sequencer) sequenceLeaves(mt *merkle.CompactMerkleTree, leaves []trillia
 
 func (s Sequencer) initMerkleTreeFromStorage(currentRoot trillian.SignedLogRoot, tx storage.LogTX) (*merkle.CompactMerkleTree, error) {
 	if currentRoot.TreeSize == 0 {
-		// This should be an empty tree
-		if currentRoot.TreeRevision > 0 {
-			return nil, fmt.Errorf("MT has zero size but non zero revision: %v", currentRoot)
-		}
 		return merkle.NewCompactMerkleTree(s.hasher), nil
 	}
 
