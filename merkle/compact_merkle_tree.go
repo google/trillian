@@ -62,7 +62,7 @@ func NewCompactMerkleTreeWithState(hasher TreeHasher, size int64, f GetNodeFunc,
 	if isPerfectTree(size) {
 		log.V(1).Info("Is perfect tree.")
 		// just have to trust it - the compact tree is empty for a perfect tree.
-		copy(r.root[:], expectedRoot[:])
+		r.root = append(make([]byte, 0, len(expectedRoot)), expectedRoot...)
 	} else {
 		// Pull in the nodes we need to repopulate our compact tree and verify the root
 		numBits := bitLen(size)
