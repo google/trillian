@@ -154,6 +154,7 @@ func (s Sequencer) SequenceBatch(limit int, expiryFunc CurrentRootExpiredFunc) (
 		return 0, err
 	}
 
+	// TODO(al): Have a better detection mechanism for there being no stored root.
 	if currentRoot.RootHash == nil {
 		glog.Warning("Fresh log - no previous TreeHeads exist.")
 	}

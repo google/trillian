@@ -28,7 +28,9 @@ func rootNeverExpiresFunc(trillian.SignedLogRoot) bool {
 // These can be shared between tests as they're never modified
 var testLeaf16Hash = trillian.Hash{0, 1, 2, 3, 4, 5}
 var testLeaf16 = trillian.LogLeaf{Leaf: trillian.Leaf{LeafHash: testLeaf16Hash, LeafValue: nil, ExtraData: nil}, SequenceNumber: 16}
-var testRoot16 = trillian.SignedLogRoot{TreeSize: 16, TreeRevision: 5}
+
+// RootHash can't be nil because that's how the sequencer currently detects that there was no stored tree head.
+var testRoot16 = trillian.SignedLogRoot{TreeSize: 16, TreeRevision: 5, RootHash: []byte{}}
 
 // These will be accepted in either order because of custom sorting in the mock
 var updatedNodes []storage.Node = []storage.Node{
@@ -51,12 +53,13 @@ var expectedSignedRoot = trillian.SignedLogRoot{
 }
 
 var expectedSignedRoot16 = trillian.SignedLogRoot{
-	// The root hash would not normally be nil but we've got a perfect tree size of 16 and
+	// The root hash would not normally be empty but we've got a perfect tree size of 16 and
 	// aren't testing merkle state loading so a nil hash gets copied in from our test data
 	// TODO(Martin2112): An extended test that checks the root hash
 	TimestampNanos: fakeTimeForTest.UnixNano(),
 	TreeRevision:   6,
 	TreeSize:       16,
+	RootHash:       testRoot16.RootHash,
 	LogId:          []uint8(nil),
 	Signature:      &trillian.DigitallySigned{Signature: []byte("signed")},
 }
