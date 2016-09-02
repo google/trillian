@@ -133,7 +133,7 @@ func allGetHandlersForTest(trustedRoots *PEMCertPool, c CTRequestHandlers) []han
 		{"get-sth", wrappedGetSTHHandler(c).AsHandleFunc()},
 		{"get-sth-consistency", wrappedGetSTHConsistencyHandler(c).AsHandleFunc()},
 		{"get-proof-by-hash", wrappedGetProofByHashHandler(c).AsHandleFunc()},
-		{"get-entries", wrappedGetEntriesHandler(c)},
+		{"get-entries", wrappedGetEntriesHandler(c).AsHandleFunc()},
 		{"get-roots", wrappedGetRootsHandler(trustedRoots).AsHandleFunc()},
 		{"get-entry-and-proof", wrappedGetEntryAndProofHandler(c)}}
 }
@@ -863,7 +863,7 @@ func TestGetEntriesRanges(t *testing.T) {
 		}
 
 		w := httptest.NewRecorder()
-		handler(w, req)
+		handler.ServeHTTP(w, req)
 
 		if expected, got := testCase.expectedStatus, w.Code; expected != got {
 			t.Fatalf("expected status %d, got %d for test case %s", expected, got, testCase.explanation)
@@ -898,7 +898,7 @@ func TestGetEntriesErrorFromBackend(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	handler(w, req)
+	handler.ServeHTTP(w, req)
 
 	if got, want := w.Code, http.StatusInternalServerError; got != want {
 		t.Fatalf("Expected %v for backend error, got %v. Body: %v", want, got, w.Body)
@@ -927,7 +927,7 @@ func TestGetEntriesBackendReturnedExtraLeaves(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	handler(w, req)
+	handler.ServeHTTP(w, req)
 
 	if got, want := w.Code, http.StatusInternalServerError; got != want {
 		t.Fatalf("expected %v for backend too many leaves, got %v. Body: %v", want, got, w.Body)
@@ -956,7 +956,7 @@ func TestGetEntriesBackendReturnedNonContiguousRange(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	handler(w, req)
+	handler.ServeHTTP(w, req)
 
 	if got, want := w.Code, http.StatusInternalServerError; got != want {
 		t.Fatalf("expected %v for backend too many leaves, got %v. Body: %v", want, got, w.Body)
@@ -985,7 +985,7 @@ func TestGetEntriesLeafCorrupt(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	handler(w, req)
+	handler.ServeHTTP(w, req)
 
 	// We should still have received the data though it failed to deserialize.
 	if got, want := w.Code, http.StatusOK; got != want {
@@ -1051,7 +1051,7 @@ func TestGetEntries(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	handler(w, req)
+	handler.ServeHTTP(w, req)
 
 	if got, want := w.Code, http.StatusOK; got != want {
 		t.Fatalf("Expected  %v for valid get-entries result, got %v. Body: %v", want, got, w.Body)
@@ -1596,7 +1596,7 @@ func getEntriesTestHelper(t *testing.T, request string, expectedStatus int, expl
 	}
 
 	w := httptest.NewRecorder()
-	handler(w, req)
+	handler.ServeHTTP(w, req)
 	
 	if expected, got := expectedStatus, w.Code; expected != got {
 		t.Fatalf("expected status %d, got %d for test case %s", expected, got, explanation)

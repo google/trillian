@@ -478,10 +478,10 @@ func wrappedGetProofByHashHandler(c CTRequestHandlers) appHandler {
 	}
 }
 
-func wrappedGetEntriesHandler(c CTRequestHandlers) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func wrappedGetEntriesHandler(c CTRequestHandlers) appHandler {
+	return func(w http.ResponseWriter, r *http.Request) (int, error) {
 		if !enforceMethod(w, r, httpMethodGet) {
-			return
+			return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 		}
 
 		// The first job is to parse the params and make sure they're sensible. We just make
@@ -490,9 +490,7 @@ func wrappedGetEntriesHandler(c CTRequestHandlers) http.HandlerFunc {
 		startIndex, endIndex, err := parseAndValidateGetEntriesRange(r, maxGetEntriesAllowed)
 
 		if err != nil {
-			glog.Warningf("Bad range on get-entries request: %v", err)
-			sendHttpError(w, http.StatusBadRequest, err)
-			return
+			return http.StatusBadRequest, fmt.Errorf("Bad range on get-entries request: %v", err)
 		}
 
 		// Now make a request to the backend to get the relevant leaves
@@ -504,8 +502,7 @@ func wrappedGetEntriesHandler(c CTRequestHandlers) http.HandlerFunc {
 		response, err := c.rpcClient.GetLeavesByIndex(ctx, &request)
 
 		if err != nil || !rpcStatusOK(response.GetStatus()) {
-			sendHttpError(w, http.StatusInternalServerError, fmt.Errorf("RPC failed, possible extra info: %v", err))
-			return
+			return http.StatusInternalServerError, fmt.Errorf("get-entries: RPC failed, possible extra info: %v", err)
 		}
 
 		// Apply additional checks on the response to make sure we got a contiguous leaf range.
@@ -513,15 +510,11 @@ func wrappedGetEntriesHandler(c CTRequestHandlers) http.HandlerFunc {
 		// range exceeds the tree size etc. so we could get fewer leaves than we requested but
 		// never more and never anything outside the requested range.
 		if expected, got := len(requestIndices), len(response.Leaves); got > expected {
-			glog.Warningf("Backend returned more leaves (%d) than requested: (%d)", got, expected)
-			sendHttpError(w, http.StatusInternalServerError, fmt.Errorf("Backend returned too many leaves: %d", got))
-			return
+			return http.StatusInternalServerError, fmt.Errorf("Backend returned too many leaves: %d v %d", got, expected)
 		}
 
 		if err := isResponseContiguousRange(response, startIndex, endIndex); err != nil {
-			glog.Warningf("Backend get-entries range received from backend non contiguous: %v", err)
-			sendHttpError(w, http.StatusInternalServerError, err)
-			return
+			return http.StatusInternalServerError, fmt.Errorf("Backend get-entries range received from backend non contiguous: %v", err)
 		}
 
 		// Now we've checked the response and it seems to be valid we need to serialize the
@@ -530,28 +523,25 @@ func wrappedGetEntriesHandler(c CTRequestHandlers) http.HandlerFunc {
 		jsonResponse, err := marshalGetEntriesResponse(response)
 
 		if err != nil {
-			glog.Warningf("Failed to process leaves returned from backend: %v", err)
-			sendHttpError(w, http.StatusInternalServerError, err)
-			return
+			return http.StatusInternalServerError, fmt.Errorf("Failed to process leaves returned from backend: %v", err)
 		}
 
 		w.Header().Set(contentTypeHeader, contentTypeJSON)
 		jsonData, err := json.Marshal(&jsonResponse)
 
 		if err != nil {
-			glog.Warningf("Failed to marshal get-entries resp: %v", jsonResponse)
-			sendHttpError(w, http.StatusInternalServerError, err)
-			return
+			return http.StatusInternalServerError, fmt.Errorf("Failed to marshal get-entries resp: %v because: %v", jsonResponse, err)
 		}
 
 		_, err = w.Write(jsonData)
 
 		if err != nil {
-			glog.Warningf("Failed to write get-entries resp: %v", jsonResponse)
+
 			// Probably too late for this as headers might have been written but we don't know for sure
-			sendHttpError(w, http.StatusInternalServerError, err)
-			return
+			return http.StatusInternalServerError, fmt.Errorf("Failed to write get-entries resp: %v because: %v", jsonResponse, err)
 		}
+
+		return http.StatusOK, nil
 	}
 }
 
@@ -648,7 +638,7 @@ func (c CTRequestHandlers) RegisterCTHandlers() {
 	http.Handle(pathFor("get-sth"), wrappedGetSTHHandler(c))
 	http.Handle(pathFor("get-sth-consistency"), wrappedGetSTHConsistencyHandler(c))
 	http.Handle(pathFor("get-proof-by-hash"), wrappedGetProofByHashHandler(c))
-	http.HandleFunc(pathFor("get-entries"), wrappedGetEntriesHandler(c))
+	http.Handle(pathFor("get-entries"), wrappedGetEntriesHandler(c))
 	http.Handle(pathFor("get-roots"), wrappedGetRootsHandler(c.trustedRoots))
 	http.HandleFunc(pathFor("get-entry-and-proof"), wrappedGetEntryAndProofHandler(c))
 }
