@@ -135,7 +135,7 @@ func allGetHandlersForTest(trustedRoots *PEMCertPool, c CTRequestHandlers) []han
 		{"get-proof-by-hash", wrappedGetProofByHashHandler(c).AsHandleFunc()},
 		{"get-entries", wrappedGetEntriesHandler(c).AsHandleFunc()},
 		{"get-roots", wrappedGetRootsHandler(trustedRoots).AsHandleFunc()},
-		{"get-entry-and-proof", wrappedGetEntryAndProofHandler(c)}}
+		{"get-entry-and-proof", wrappedGetEntryAndProofHandler(c).AsHandleFunc()}}
 }
 
 func allPostHandlersForTest(client trillian.TrillianLogClient) []handlerAndPath {
@@ -1286,7 +1286,7 @@ func TestGetEntryAndProofBadParams(t *testing.T) {
 		}
 
 		w := httptest.NewRecorder()
-		handler(w, req)
+		handler.ServeHTTP(w, req)
 
 		if got, want := w.Code, http.StatusBadRequest; got != want {
 			t.Fatalf("expected %v for get-entry-and-proof with params [%s], got %v. Body: %v", want, requestParamString, got, w.Body)
@@ -1337,7 +1337,7 @@ func TestGetEntryAndProofBackendFails(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	handler(w, req)
+	handler.ServeHTTP(w, req)
 
 	if got, want := w.Code, http.StatusInternalServerError; got != want {
 		t.Fatalf("Expected %v for get-entry-and-proof when backend fails, got %v. Body: %v", want, got, w.Body)
@@ -1395,7 +1395,7 @@ func TestGetEntryAndProofBackendBadResponse(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	handler(w, req)
+	handler.ServeHTTP(w, req)
 
 	if got, want := w.Code, http.StatusInternalServerError; got != want {
 		t.Fatalf("Expected %v for get-entry-and-proof when backend fails, got %v. Body: %v", want, got, w.Body)
@@ -1468,7 +1468,7 @@ func TestGetEntryAndProof(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	handler(w, req)
+	handler.ServeHTTP(w, req)
 
 	if got, want := w.Code, http.StatusOK; got != want {
 		t.Fatalf("Expected %v for get-entry-and-proof, got %v. Body: %v", want, got, w.Body)
