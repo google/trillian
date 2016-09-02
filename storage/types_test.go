@@ -37,7 +37,7 @@ func TestNewNodeIDForTreeCoordsForZeros(t *testing.T) {
 	if got, want := n.Path, []byte{0x00}; !bytes.Equal(got, want) {
 		t.Fatalf("Expected Path of %v, but got %v", want, got)
 	}
-	if got, want := n.String(), ""; got != want {
+	if got, want := n.String(), "00000000"; got != want {
 		t.Fatalf("Expected '%s', got '%s'", want, got)
 	}
 }
@@ -47,7 +47,7 @@ func TestNewNodeIDForTreeCoords(t *testing.T) {
 	if got, want := n.Path, []byte{0x12, 0x34}; !bytes.Equal(got, want) {
 		t.Fatalf("Expected Path of %v, but got %v", want, got)
 	}
-	if got, want := n.String(), "00010010001"; got != want {
+	if got, want := n.String(), "00010"; got != want {
 		t.Fatalf("Expected '%s', got '%s'", want, got)
 	}
 }

@@ -80,14 +80,16 @@ func NewNodeIDWithPrefix(prefix uint64, prefixLenBits, nodeIDLenBits, maxLenBits
 }
 
 // NewNodeIDForTreeCoords creates a new NodeID for a Tree node with a specified depth and
-// index
+// index.
+// This method is used exclusively by the Log, and since the Log model grows upwards from the
+// leaves we modify the provided coords accordingly.
 func NewNodeIDForTreeCoords(depth int64, index int64, maxLenBits int) NodeID {
 	r := NewEmptyNodeID(maxLenBits)
 	for i := len(r.Path) - 1; index > 0; i-- {
 		r.Path[i] = byte(index & 0xff)
 		index >>= 8
 	}
-	r.PrefixLenBits = int(depth)
+	r.PrefixLenBits = int(int64(maxLenBits) - depth)
 	return r
 }
 

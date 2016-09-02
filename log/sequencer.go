@@ -22,6 +22,8 @@ type Sequencer struct {
 	keyManager crypto.KeyManager
 }
 
+const maxTreeDepth = 64
+
 // CurrentRootExpiredFunc examines a signed log root and decides if it has expired with respect
 // to a max age duration and a given time source
 // TODO(Martin2112): This is all likely to go away when we switch to application STHs
@@ -35,7 +37,7 @@ func NewSequencer(hasher merkle.TreeHasher, timeSource util.TimeSource, logStora
 // would be more efficient but requires refactoring.
 func (s Sequencer) buildMerkleTreeFromStorageAtRoot(root trillian.SignedLogRoot, tx storage.TreeTX) (*merkle.CompactMerkleTree, error) {
 	mt, err := merkle.NewCompactMerkleTreeWithState(s.hasher, root.TreeSize, func(depth int, index int64) (trillian.Hash, error) {
-		nodeId := storage.NewNodeIDForTreeCoords(int64(depth), index, int(s.hasher.Size()))
+		nodeId := storage.NewNodeIDForTreeCoords(int64(depth), index, maxTreeDepth)
 		nodes, err := tx.GetMerkleNodes(root.TreeRevision, []storage.NodeID{nodeId})
 
 		if err != nil {
@@ -73,7 +75,7 @@ func (s Sequencer) sequenceLeaves(mt *merkle.CompactMerkleTree, leaves []trillia
 	// made and assign sequence numbers to the new leaves
 	for _, leaf := range leaves {
 		seq := mt.AddLeafHash(leaf.LeafHash, func(depth int, index int64, hash trillian.Hash) {
-			nodeId := storage.NewNodeIDForTreeCoords(int64(depth), index, len(leaf.LeafHash))
+			nodeId := storage.NewNodeIDForTreeCoords(int64(depth), index, maxTreeDepth)
 			nodeMap[nodeId.String()] = storage.Node{
 				NodeID:       nodeId,
 				Hash:         hash,
