@@ -147,8 +147,8 @@ func allPostHandlersForTest(client trillian.TrillianLogClient) []handlerAndPath 
 	}
 
 	return []handlerAndPath{
-		{"add-chain", wrappedAddChainHandler(CTRequestHandlers{rpcClient: client, trustedRoots: pool})},
-		{"add-pre-chain", wrappedAddPreChainHandler(CTRequestHandlers{rpcClient: client, trustedRoots: pool})}}
+		{"add-chain", wrappedAddChainHandler(CTRequestHandlers{rpcClient: client, trustedRoots: pool}).AsHandleFunc()},
+		{"add-pre-chain", wrappedAddPreChainHandler(CTRequestHandlers{rpcClient: client, trustedRoots: pool}).AsHandleFunc()}}
 }
 
 func TestPostHandlersOnlyAcceptPost(t *testing.T) {
@@ -1566,14 +1566,14 @@ func makeAddChainRequest(t *testing.T, reqHandlers CTRequestHandlers, body io.Re
 	return makeAddChainRequestInternal(t, handler, "add-chain", body)
 }
 
-func makeAddChainRequestInternal(t *testing.T, handler http.HandlerFunc, path string, body io.Reader) *httptest.ResponseRecorder {
+func makeAddChainRequestInternal(t *testing.T, handler appHandler, path string, body io.Reader) *httptest.ResponseRecorder {
 	req, err := http.NewRequest("POST", fmt.Sprintf("http://example.com/ct/v1/%s", path), body)
 	if err != nil {
 		t.Fatalf("Test request setup failed: %v", err)
 	}
 
 	w := httptest.NewRecorder()
-	handler(w, req)
+	handler.ServeHTTP(w, req)
 
 	return w
 }

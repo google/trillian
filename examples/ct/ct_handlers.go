@@ -176,21 +176,18 @@ func parseBodyAsJSONChain(w http.ResponseWriter, r *http.Request) (addChainReque
 
 	if err != nil {
 		glog.V(logVerboseLevel).Infof("Failed to read request body: %v", err)
-		sendHttpError(w, http.StatusBadRequest, err)
 		return addChainRequest{}, err
 	}
 
 	var req addChainRequest
 	if err := json.Unmarshal(body, &req); err != nil {
 		glog.V(logVerboseLevel).Infof("Failed to parse request body: %v", err)
-		sendHttpError(w, http.StatusBadRequest, fmt.Errorf("unmarshal failed with %v on %s", err, body))
 		return addChainRequest{}, err
 	}
 
 	// The cert chain is not allowed to be empty. We'll defer other validation for later
 	if len(req.Chain) == 0 {
 		glog.V(logVerboseLevel).Infof("Request chain is empty: %s", body)
-		sendHttpError(w, http.StatusBadRequest, errors.New("request chain cannot be empty"))
 		return addChainRequest{}, errors.New("cert chain was empty")
 	}
 
@@ -220,25 +217,24 @@ func enforceMethod(w http.ResponseWriter, r *http.Request, method string) bool {
 
 // addChainInternal is called by add-chain and add-pre-chain as the logic involved in
 // processing these requests is almost identical
-func addChainInternal(w http.ResponseWriter, r *http.Request, c CTRequestHandlers, isPrecert bool) {
+func addChainInternal(w http.ResponseWriter, r *http.Request, c CTRequestHandlers, isPrecert bool) (int, error) {
 	if !enforceMethod(w, r, httpMethodPost) {
 		// HTTP status code was already set
-		return
+		return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 	}
 
 	addChainRequest, err := parseBodyAsJSONChain(w, r)
 
 	if err != nil {
-		// HTTP status code was already set
-		return
+		return http.StatusBadRequest, err
 	}
 
 	// We already checked that the chain is not empty so can move on to verification
-	validPath := verifyAddChain(addChainRequest, w, *c.trustedRoots, isPrecert)
+	validPath, err := verifyAddChain(addChainRequest, w, *c.trustedRoots, isPrecert)
 
-	if validPath == nil {
-		// Chain rejected by verify. HTTP status code was already set
-		return
+	if err != nil {
+		// Chain rejected by verify.
+		return http.StatusBadRequest, err
 	}
 
 	// Build up the SCT and MerkleTreeLeaf. The SCT will be returned to the client and
@@ -253,9 +249,7 @@ func addChainInternal(w http.ResponseWriter, r *http.Request, c CTRequestHandler
 	}
 
 	if err != nil {
-		glog.Warningf("Failed to create / serialize SCT or Merkle leaf: %v %v", sct, err)
-		sendHttpError(w, http.StatusInternalServerError, err)
-		return
+		return http.StatusInternalServerError, fmt.Errorf("Failed to create / serialize SCT or Merkle leaf: %v %v", sct, err)
 	}
 
 	// Inputs validated, pass the request on to the back end after hashing and serializing
@@ -264,8 +258,7 @@ func addChainInternal(w http.ResponseWriter, r *http.Request, c CTRequestHandler
 
 	if err != nil {
 		// Failure reason already logged
-		sendHttpError(w, http.StatusInternalServerError, err)
-		return
+		return http.StatusInternalServerError, err
 	}
 
 	request := trillian.QueueLeavesRequest{LogId: c.logID, Leaves: []*trillian.LeafProto{&leafProto}}
@@ -278,8 +271,7 @@ func addChainInternal(w http.ResponseWriter, r *http.Request, c CTRequestHandler
 		// TODO(Martin2112): Possibly cases where the request we sent to the backend is invalid
 		// which isn't really an internal server error.
 		// Request failed on backend
-		sendHttpError(w, http.StatusInternalServerError, err)
-		return
+		return http.StatusInternalServerError, err
 	}
 
 	// Success. We can now build and marshal the JSON response and write it out
@@ -288,21 +280,24 @@ func addChainInternal(w http.ResponseWriter, r *http.Request, c CTRequestHandler
 	if err != nil {
 		// reason is logged and http status is already set
 		// TODO(Martin2112): Record failure for monitoring when it's implemented
+		return http.StatusInternalServerError, err
 	}
+
+	return http.StatusOK, nil
 }
 
 // All the handlers are wrapped so they have access to the RPC client and other context
 // TODO(Martin2112): Doesn't properly handle duplicate submissions yet but the backend
 // needs this to be implemented before we can do it here
-func wrappedAddChainHandler(c CTRequestHandlers) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		addChainInternal(w, r, c, false)
+func wrappedAddChainHandler(c CTRequestHandlers) appHandler {
+	return func(w http.ResponseWriter, r *http.Request) (int, error) {
+		return addChainInternal(w, r, c, false)
 	}
 }
 
-func wrappedAddPreChainHandler(c CTRequestHandlers) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		addChainInternal(w, r, c, true)
+func wrappedAddPreChainHandler(c CTRequestHandlers) appHandler {
+	return func(w http.ResponseWriter, r *http.Request) (int, error) {
+		return addChainInternal(w, r, c, true)
 	}
 }
 
@@ -629,8 +624,8 @@ func wrappedGetEntryAndProofHandler(c CTRequestHandlers) appHandler {
 // RegisterCTHandlers registers a HandleFunc for all of the RFC6962 defined methods.
 // TODO(Martin2112): This registers on default ServeMux, might need more flexibility?
 func (c CTRequestHandlers) RegisterCTHandlers() {
-	http.HandleFunc(pathFor("add-chain"), wrappedAddChainHandler(c))
-	http.HandleFunc(pathFor("add-pre-chain"), wrappedAddPreChainHandler(c))
+	http.Handle(pathFor("add-chain"), wrappedAddChainHandler(c))
+	http.Handle(pathFor("add-pre-chain"), wrappedAddPreChainHandler(c))
 	http.Handle(pathFor("get-sth"), wrappedGetSTHHandler(c))
 	http.Handle(pathFor("get-sth-consistency"), wrappedGetSTHConsistencyHandler(c))
 	http.Handle(pathFor("get-proof-by-hash"), wrappedGetProofByHashHandler(c))
@@ -658,24 +653,20 @@ func rpcStatusOK(status *trillian.TrillianApiStatus) bool {
 // cert is of the correct type and chains to a trusted root.
 // TODO(Martin2112): This may not implement all the RFC requirements. Check what is provided
 // by fixchain (called by this code) plus the ones here to make sure that it is compliant.
-func verifyAddChain(req addChainRequest, w http.ResponseWriter, trustedRoots PEMCertPool, expectingPrecert bool) []*x509.Certificate {
+func verifyAddChain(req addChainRequest, w http.ResponseWriter, trustedRoots PEMCertPool, expectingPrecert bool) ([]*x509.Certificate, error) {
 	// We already checked that the chain is not empty so can move on to verification
 	validPath, err := ValidateChain(req.Chain, trustedRoots)
 
 	if err != nil {
 		// We rejected it because the cert failed checks or we could not find a path to a root etc.
 		// Lots of possible causes for errors
-		glog.Warningf("Chain failed to verify: %v", req)
-		sendHttpError(w, http.StatusBadRequest, err)
-		return nil
+		return nil, fmt.Errorf("Chain failed to verify: %v because: %v", req, err)
 	}
 
 	isPrecert, err := IsPrecertificate(validPath[0])
 
 	if err != nil {
-		glog.Warningf("Precert test failed: %v", err)
-		sendHttpError(w, http.StatusBadRequest, err)
-		return nil
+		return nil, fmt.Errorf("Precert test failed: %v", err)
 	}
 
 	// The type of the leaf must match the one the handler expects
@@ -685,11 +676,10 @@ func verifyAddChain(req addChainRequest, w http.ResponseWriter, trustedRoots PEM
 		} else {
 			glog.Warningf("Precert (or cert with invalid CT ext) submitted as cert chain: %v", req)
 		}
-		sendHttpError(w, http.StatusBadRequest, err)
-		return nil
+		return nil, fmt.Errorf("cert / precert mismatch: %v", expectingPrecert)
 	}
 
-	return validPath
+	return validPath, nil
 }
 
 // marshalLogIDAndSignatureForResponse is used by add-chain and add-pre-chain. It formats the
@@ -739,8 +729,7 @@ func marshalAndWriteAddChainResponse(sct ct.SignedCertificateTimestamp, km crypt
 	logID, signature, err := marshalLogIDAndSignatureForResponse(sct, km)
 
 	if err != nil {
-		glog.Warningf("failed to marshal for response: %v", err)
-		return err
+		return fmt.Errorf("failed to marshal for response: %v", err)
 	}
 
 	resp := addChainResponse{
@@ -754,18 +743,13 @@ func marshalAndWriteAddChainResponse(sct ct.SignedCertificateTimestamp, km crypt
 	jsonData, err := json.Marshal(&resp)
 
 	if err != nil {
-		glog.Warningf("Failed to marshal add-chain resp: %v", resp)
-		sendHttpError(w, http.StatusInternalServerError, err)
-		return err
+		return fmt.Errorf("Failed to marshal add-chain resp: %v because: %v", resp, err)
 	}
 
 	_, err = w.Write(jsonData)
 
 	if err != nil {
-		glog.Warningf("Failed to write add-chain resp: %v", resp)
-		// Probably too late for this as headers might have been written but we don't know for sure
-		sendHttpError(w, http.StatusInternalServerError, err)
-		return err
+		return fmt.Errorf("Failed to write add-chain resp: %v", resp)
 	}
 
 	return nil
