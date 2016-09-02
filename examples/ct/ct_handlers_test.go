@@ -130,7 +130,7 @@ type handlerAndPath struct {
 
 func allGetHandlersForTest(trustedRoots *PEMCertPool, c CTRequestHandlers) []handlerAndPath {
 	return []handlerAndPath{
-		{"get-sth", wrappedGetSTHHandler(c)},
+		{"get-sth", wrappedGetSTHHandler(c).AsHandleFunc()},
 		{"get-sth-consistency", wrappedGetSTHConsistencyHandler(c)},
 		{"get-proof-by-hash", wrappedGetProofByHashHandler(c)},
 		{"get-entries", wrappedGetEntriesHandler(c)},
@@ -667,12 +667,12 @@ func TestGetSTHBackendErrorFails(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	handler(w, req)
+	handler.ServeHTTP(w, req)
 
 	if got, want := w.Code, http.StatusInternalServerError; got != want {
 		t.Fatalf("Expected %v, got %v", want, got)
 	}
-	if want, in := "backendfailure", w.Body.String(); !strings.Contains(in, want) {
+	if want, in := "rpc failed", w.Body.String(); !strings.Contains(in, want) {
 		t.Fatalf("Expected to find %s within %s", want, in)
 	}
 }
@@ -697,7 +697,7 @@ func TestGetSTHInvalidBackendTreeSizeFails(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	handler(w, req)
+	handler.ServeHTTP(w, req)
 
 	if got, want := w.Code, http.StatusInternalServerError; got != want {
 		t.Fatalf("Got %v expected %v", got, want)
@@ -726,7 +726,7 @@ func TestGetSTHMissingRootHashFails(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	handler(w, req)
+	handler.ServeHTTP(w, req)
 
 	if got, want := w.Code, http.StatusInternalServerError; got != want {
 		t.Fatalf("Got %v expected %v", got, want)
@@ -759,7 +759,7 @@ func TestGetSTHSigningFails(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	handler(w, req)
+	handler.ServeHTTP(w, req)
 
 	if got, want := w.Code, http.StatusInternalServerError; got != want {
 		t.Fatalf("Got %v expected %v", got, want)
@@ -788,7 +788,7 @@ func TestGetSTH(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	handler(w, req)
+	handler.ServeHTTP(w, req)
 
 	if got, want := w.Code, http.StatusOK; got != want {
 		t.Fatalf("Got %v expected %v", got, want)

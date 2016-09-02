@@ -58,6 +58,37 @@ const (
 	getEntryAndProofParamTreeSize = "tree_size"
 )
 
+// appHandler is a type for simplifying and centralizing error handling from http handlers
+type appHandler func(http.ResponseWriter, *http.Request) (int, error)
+
+// ServeHTTP is an adapter from appHandler to the http framework
+func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	status, err := fn(w, r)
+
+	if err != nil {
+		glog.Warningf("handler error: %v", err)
+		sendHttpError(w, status, err)
+	}
+
+	// Additional check, for consistency the handler must return an error for non 200 status
+	if status != http.StatusOK {
+		glog.Warningf("handler non 200 without error: %d %v", status, err)
+		sendHttpError(w, http.StatusInternalServerError, fmt.Errorf("http handler misbehaved, status: %d", status))
+	}
+}
+
+// This is only needed to convert the handler to a HandlerFunc for tests and can be removed
+// when all the handlers are updated.
+func (fn appHandler) AsHandleFunc() (http.HandlerFunc) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		status, err := fn(w, r)
+
+		if status != http.StatusOK {
+			sendHttpError(w, status, err)
+		}
+	}
+}
+
 // CTRequestHandlers provides HTTP handler functions for CT V1 as defined in RFC 6962
 // and functionality to translate CT client requests into forms that can be served by a
 // log backend RPC service.
@@ -275,10 +306,10 @@ func wrappedAddPreChainHandler(c CTRequestHandlers) http.HandlerFunc {
 	}
 }
 
-func wrappedGetSTHHandler(c CTRequestHandlers) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func wrappedGetSTHHandler(c CTRequestHandlers) appHandler {
+	return func(w http.ResponseWriter, r *http.Request) (int, error) {
 		if !enforceMethod(w, r, httpMethodGet) {
-			return
+			return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 		}
 
 		request := trillian.GetLatestSignedLogRootRequest{LogId: c.logID}
@@ -286,20 +317,15 @@ func wrappedGetSTHHandler(c CTRequestHandlers) http.HandlerFunc {
 		response, err := c.rpcClient.GetLatestSignedLogRoot(ctx, &request)
 
 		if err != nil || !rpcStatusOK(response.GetStatus()) {
-			sendHttpError(w, http.StatusInternalServerError, err)
-			return
+			return http.StatusInternalServerError, errors.New("backend rpc failed")
 		}
 
 		if treeSize := response.GetSignedLogRoot().TreeSize; treeSize < 0 {
-			glog.Warningf("Bad tree size when preparing sth: %d", treeSize)
-			sendHttpError(w, http.StatusInternalServerError, fmt.Errorf("bad tree size from backend: %d", treeSize))
-			return
+			return http.StatusInternalServerError, fmt.Errorf("bad tree size from backend: %d", treeSize)
 		}
 
 		if hashSize := len(response.GetSignedLogRoot().RootHash); hashSize != sha256.Size {
-			glog.Warningf("Bad root hash size when preparing sth: %d", hashSize)
-			sendHttpError(w, http.StatusInternalServerError, fmt.Errorf("bad hash size from backend expecting: %d got %d", sha256.Size, hashSize))
-			return
+			return http.StatusInternalServerError, fmt.Errorf("bad hash size from backend expecting: %d got %d", sha256.Size, hashSize)
 		}
 
 		// Jump through Go hoops because we're mixing arrays and slices, we checked the size above
@@ -316,9 +342,7 @@ func wrappedGetSTHHandler(c CTRequestHandlers) http.HandlerFunc {
 		err = signV1TreeHead(c.logKeyManager, &sth)
 
 		if err != nil || len(sth.TreeHeadSignature.Signature) == 0 {
-			glog.Warningf("Failed to sign tree head: %v %v", sth, err)
-			sendHttpError(w, http.StatusInternalServerError, err)
-			return
+			return http.StatusInternalServerError, fmt.Errorf("invalid tree size in get sth: %v", err)
 		}
 
 		// Now build the final result object that will be marshalled to JSON
@@ -328,19 +352,17 @@ func wrappedGetSTHHandler(c CTRequestHandlers) http.HandlerFunc {
 		jsonData, err := json.Marshal(&jsonResponse)
 
 		if err != nil {
-			glog.Warningf("Failed to marshal get-sth resp: %v", jsonResponse)
-			sendHttpError(w, http.StatusInternalServerError, err)
-			return
+			return http.StatusInternalServerError, fmt.Errorf("failed to marshall response: %v %v", jsonResponse, err)
 		}
 
 		_, err = w.Write(jsonData)
 
 		if err != nil {
-			glog.Warningf("Failed to write get-sth resp: %v", jsonResponse)
 			// Probably too late for this as headers might have been written but we don't know for sure
-			sendHttpError(w, http.StatusInternalServerError, err)
-			return
+			return http.StatusInternalServerError, err
 		}
+
+		return http.StatusOK, nil
 	}
 }
 
@@ -633,7 +655,7 @@ func wrappedGetEntryAndProofHandler(c CTRequestHandlers) http.HandlerFunc {
 func (c CTRequestHandlers) RegisterCTHandlers() {
 	http.HandleFunc(pathFor("add-chain"), wrappedAddChainHandler(c))
 	http.HandleFunc(pathFor("add-pre-chain"), wrappedAddPreChainHandler(c))
-	http.HandleFunc(pathFor("get-sth"), wrappedGetSTHHandler(c))
+	http.Handle(pathFor("get-sth"), wrappedGetSTHHandler(c))
 	http.HandleFunc(pathFor("get-sth-consistency"), wrappedGetSTHConsistencyHandler(c))
 	http.HandleFunc(pathFor("get-proof-by-hash"), wrappedGetProofByHashHandler(c))
 	http.HandleFunc(pathFor("get-entries"), wrappedGetEntriesHandler(c))
