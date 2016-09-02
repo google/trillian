@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/golang/glog"
 	"github.com/google/trillian"
 )
 
@@ -87,7 +88,11 @@ func splitNodeID(id NodeID) ([]byte, Suffix) {
 func (s *SubtreeCache) GetNodeHash(id NodeID, getSubtree GetSubtreeFunc) (trillian.Hash, int64, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
+	return s.getNodeHashUnderLock(id, getSubtree)
+}
 
+// getNodeHashUnderLock must be called with s.mutex locked.
+func (s *SubtreeCache) getNodeHashUnderLock(id NodeID, getSubtree GetSubtreeFunc) (trillian.Hash, int64, error) {
 	px, sx := splitNodeID(id)
 	prefixKey := string(px)
 	c := s.subtrees[prefixKey]
@@ -127,7 +132,7 @@ func (s *SubtreeCache) GetNodeHash(id NodeID, getSubtree GetSubtreeFunc) (trilli
 }
 
 // SetNodeHash sets a node hash in the cache.
-func (s *SubtreeCache) SetNodeHash(id NodeID, rev int64, h trillian.Hash) error {
+func (s *SubtreeCache) SetNodeHash(id NodeID, rev int64, h trillian.Hash, getSubtree GetSubtreeFunc) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	px, sx := splitNodeID(id)
@@ -136,11 +141,18 @@ func (s *SubtreeCache) SetNodeHash(id NodeID, rev int64, h trillian.Hash) error 
 	if c == nil {
 		// TODO(al): This is ok, IFF *all* leaves in the subtree are being set,
 		// verify that this is the case when it happens.
-		c = &SubtreeProto{
-			Prefix: px,
-			Nodes:  make(map[string]*HashAndRevision),
+		// For now, just read from storage if we don't already have it.
+		glog.Infof("attempting to write to unread subtree for %v, reading now", id.String())
+		// We hold the lock so can call this directly:
+		_, _, err := s.getNodeHashUnderLock(id, getSubtree)
+		if err != nil {
+			return err
 		}
-		s.subtrees[prefixKey] = c
+		// There must be a subtree present in the cache now, even if storage didn't have anything for us.
+		c = s.subtrees[prefixKey]
+		if c == nil {
+			return fmt.Errorf("internal error, subtree cache for %v is nil after a read attempt", id.String())
+		}
 	}
 	if c.Prefix == nil {
 		panic(fmt.Errorf("nil prefix for %v (key %v)", id.String(), prefixKey))
