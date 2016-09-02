@@ -54,17 +54,25 @@ var getEntryAndProofRequestBadLeafIndexRange = trillian.GetEntryAndProofRequest{
 var getEntryAndProofRequest17 = trillian.GetEntryAndProofRequest{LogId: logId1, TreeSize:17, LeafIndex:3}
 var getEntryAndProofRequest7 = trillian.GetEntryAndProofRequest{LogId: logId1, TreeSize:7, LeafIndex:2}
 
+var getConsistencyProofRequestBadFirstTreeSize = trillian.GetConsistencyProofRequest{LogId: logId1, FirstTreeSize:-10, SecondTreeSize:25}
+var getConsistencyProofRequestBadSecondTreeSize = trillian.GetConsistencyProofRequest{LogId: logId1, FirstTreeSize:10, SecondTreeSize:-25}
+var getConsistencyProofRequestBadRange = trillian.GetConsistencyProofRequest{LogId: logId1, FirstTreeSize:330, SecondTreeSize:329}
+var getConsistencyProofRequest25 = trillian.GetConsistencyProofRequest{LogId: logId1, FirstTreeSize:10, SecondTreeSize:25}
+var getConsistencyProofRequest7 = trillian.GetConsistencyProofRequest{LogId: logId1, FirstTreeSize:4, SecondTreeSize:7}
+
 var nodeIdsInclusionSize7Index2 = []storage.NodeID{
 	storage.NewNodeIDForTreeCoords(0, 3, 64),
 	storage.NewNodeIDForTreeCoords(1, 0, 64),
 	storage.NewNodeIDForTreeCoords(2, 1, 64)}
+
+var nodeIdsConsistencySize4ToSize7 = []storage.NodeID{storage.NewNodeIDForTreeCoords(2, 1, 64)}
 
 func mockStorageProviderfunc(mockStorage storage.LogStorage) LogStorageProviderFunc {
 	return func(id int64) (storage.LogStorage, error) {
 		if id == 1 {
 			return mockStorage, nil
 		} else {
-			return nil, fmt.Errorf("BADLOGID: ", id)
+			return nil, fmt.Errorf("BADLOGID: %d", id)
 		}
 	}
 }
@@ -80,7 +88,7 @@ func TestGetLeavesByIndexInvalidIndexRejected(t *testing.T) {
 	resp, err := server.GetLeavesByIndex(context.Background(), &leaf0Minus2Request)
 
 	if err != nil || resp.Status.StatusCode != trillian.TrillianApiStatusCode_ERROR {
-		t.Fatalf("Returned non app level error response for negative leaf index")
+		t.Fatalf("Returned non app level error response for negative leaf index: %d", resp.Status.StatusCode)
 	}
 }
 
@@ -98,7 +106,7 @@ func TestGetLeavesByIndexBeginFailsCausesError(t *testing.T) {
 	_, err := server.GetLeavesByIndex(context.Background(), &leaf0Request)
 
 	if err == nil || !strings.Contains(err.Error(), "TX") {
-		t.Fatalf("Returned wrong error response when begin failed")
+		t.Fatalf("Returned wrong error response when begin failed: %v", err)
 	}
 }
 
@@ -169,7 +177,7 @@ func TestGetLeavesByIndex(t *testing.T) {
 	}
 
 	if expected, got := trillian.TrillianApiStatusCode_OK, resp.Status.StatusCode; expected != got {
-		t.Fatalf("Expected app level ok status but got: %v")
+		t.Fatalf("Expected app level ok status but got: %v", resp.Status.StatusCode)
 	}
 
 	if len(resp.Leaves) != 1 || !proto.Equal(resp.Leaves[0], &expectedLeaf1) {
@@ -198,7 +206,7 @@ func TestGetLeavesByIndexMultiple(t *testing.T) {
 	}
 
 	if expected, got := trillian.TrillianApiStatusCode_OK, resp.Status.StatusCode; expected != got {
-		t.Fatalf("Expected app level ok status but got: %v")
+		t.Fatalf("Expected app level ok status but got: %v", resp.Status.StatusCode)
 	}
 
 	if len(resp.Leaves) != 2 {
@@ -281,7 +289,7 @@ func TestQueueLeaves(t *testing.T) {
 	}
 
 	if expected, got := trillian.TrillianApiStatusCode_OK, resp.Status.StatusCode; expected != got {
-		t.Fatalf("Expected app level ok status but got: %v")
+		t.Fatalf("Expected app level ok status but got: %v", resp.Status.StatusCode)
 	}
 }
 
@@ -328,7 +336,7 @@ func TestGetLatestSignedLogRootBeginFails(t *testing.T) {
 	_, err := server.GetLatestSignedLogRoot(context.Background(), &getLogRootRequest1)
 
 	if err == nil || !strings.Contains(err.Error(), "TX") {
-		t.Fatalf("Returned wrong error response when begin failed")
+		t.Fatalf("Returned wrong error response when begin failed: %v", err)
 	}
 }
 
@@ -440,7 +448,7 @@ func TestGetLeavesByHashBeginFails(t *testing.T) {
 	_, err := server.GetLeavesByHash(context.Background(), &getByHashRequest1)
 
 	if err == nil || !strings.Contains(err.Error(), "TX") {
-		t.Fatalf("Returned wrong error response when begin failed")
+		t.Fatalf("Returned wrong error response when begin failed: %v", err)
 	}
 }
 
@@ -530,7 +538,7 @@ func TestGetProofByHashBadTreeSize(t *testing.T) {
 	_, err := server.GetInclusionProofByHash(context.Background(), &getInclusionProofByHashRequestBadTreeSize)
 
 	if err == nil {
-		t.Fatalf("get inclusion proof by hash accepted invalid tree size")
+		t.Fatalf("get inclusion proof by hash accepted invalid tree size: %v", getInclusionProofByHashRequestBadTreeSize)
 	}
 }
 
@@ -546,7 +554,7 @@ func TestGetProofByHashBadHash(t *testing.T) {
 	_, err := server.GetInclusionProofByHash(context.Background(), &getInclusionProofByHashRequestBadHash)
 
 	if err == nil {
-		t.Fatalf("get inclusion proof by hash accepted invalid leaf hash")
+		t.Fatalf("get inclusion proof by hash accepted invalid leaf hash: %v", getInclusionProofByHashRequestBadHash)
 	}
 }
 
@@ -737,7 +745,7 @@ func TestGetProofByIndexBadTreeSize(t *testing.T) {
 	_, err := server.GetInclusionProof(context.Background(), &getInclusionProofByIndexRequestBadTreeSize)
 
 	if err == nil {
-		t.Fatalf("get inclusion proof by index accepted invalid tree size")
+		t.Fatalf("get inclusion proof by index accepted invalid tree size: %v", getInclusionProofByHashRequestBadTreeSize)
 	}
 }
 
@@ -752,7 +760,7 @@ func TestGetProofByIndexBadIndex(t *testing.T) {
 	_, err := server.GetInclusionProof(context.Background(), &getInclusionProofByIndexRequestBadLeafIndex)
 
 	if err == nil {
-		t.Fatalf("get inclusion proof by index accepted invalid leaf index")
+		t.Fatalf("get inclusion proof by index accepted invalid leaf index: %v", getInclusionProofByIndexRequestBadLeafIndex)
 	}
 }
 
@@ -768,7 +776,7 @@ func TestGetProofByIndexBadIndexRange(t *testing.T) {
 	_, err := server.GetInclusionProof(context.Background(), &getInclusionProofByIndexRequestBadLeafIndexRange)
 
 	if err == nil {
-		t.Fatalf("get inclusion proof by index accepted invalid leaf index (outside tree size)")
+		t.Fatalf("get inclusion proof by index accepted invalid leaf index (outside tree size): %v", getInclusionProofByIndexRequestBadLeafIndexRange)
 	}
 }
 
@@ -1225,6 +1233,191 @@ func TestGetSequencedLeafCount(t *testing.T) {
 
 	if got, want := response.LeafCount, int64(268); got != want {
 		t.Fatalf("expected leaf count: %d but got: %d", want, got)
+	}
+}
+
+func TestGetConsistencyProofRejectsBadRequests(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockStorage := storage.NewMockLogStorage(ctrl)
+	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
+
+	for _, request := range []trillian.GetConsistencyProofRequest{getConsistencyProofRequestBadFirstTreeSize, getConsistencyProofRequestBadSecondTreeSize, getConsistencyProofRequestBadRange} {
+		_, err := server.GetConsistencyProof(context.Background(), &request)
+
+		if err == nil {
+			t.Fatalf("get consistency proof accepted invalid request: %v", request)
+		}
+	}
+}
+
+func TestGetConsistencyProofBeginTXFails(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	test := newParameterizedTest(ctrl, "GetConsistencyProof",
+		func(t *storage.MockLogTX) {},
+		func(s *TrillianLogServer) error {
+			_, err := s.GetConsistencyProof(context.Background(), &getConsistencyProofRequest25)
+			return err
+		})
+
+	test.executeBeginFailsTest(t)
+}
+
+func TestGetConsistencyProofGetTreeRevision1Fails(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	test := newParameterizedTest(ctrl, "GetConsistencyProof",
+		func(t *storage.MockLogTX) {
+			t.EXPECT().GetTreeRevisionAtSize(getConsistencyProofRequest25.FirstTreeSize).Return(int64(0), errors.New("STORAGE"))
+		},
+		func(s *TrillianLogServer) error {
+			_, err := s.GetConsistencyProof(context.Background(), &getConsistencyProofRequest25)
+			return err
+		})
+
+	test.executeStorageFailureTest(t)
+}
+
+func TestGetConsistencyProofGetTreeRevision2Fails(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	test := newParameterizedTest(ctrl, "GetConsistencyProof",
+		func(t *storage.MockLogTX) {
+			t.EXPECT().GetTreeRevisionAtSize(getConsistencyProofRequest25.FirstTreeSize).Return(int64(11), nil)
+			t.EXPECT().GetTreeRevisionAtSize(getConsistencyProofRequest25.SecondTreeSize).Return(int64(0), errors.New("STORAGE"))
+		},
+		func(s *TrillianLogServer) error {
+			_, err := s.GetConsistencyProof(context.Background(), &getConsistencyProofRequest25)
+			return err
+		})
+
+	test.executeStorageFailureTest(t)
+}
+
+func TestGetConsistencyProofGetNodesFails(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	test := newParameterizedTest(ctrl, "GetConsistencyProof",
+		func(t *storage.MockLogTX) {
+			t.EXPECT().GetTreeRevisionAtSize(getConsistencyProofRequest7.FirstTreeSize).Return(int64(3), nil)
+			t.EXPECT().GetTreeRevisionAtSize(getConsistencyProofRequest7.SecondTreeSize).Return(int64(5), nil)
+			t.EXPECT().GetMerkleNodes(int64(5), nodeIdsConsistencySize4ToSize7).Return([]storage.Node{}, errors.New("STORAGE"))
+		},
+		func(s *TrillianLogServer) error {
+			_, err := s.GetConsistencyProof(context.Background(), &getConsistencyProofRequest7)
+			return err
+		})
+
+	test.executeStorageFailureTest(t)
+}
+
+func TestGetConsistencyProofGetNodesReturnsWrongCount(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockStorage := storage.NewMockLogStorage(ctrl)
+	mockTx := storage.NewMockLogTX(ctrl)
+	mockStorage.EXPECT().Begin().Return(mockTx, nil)
+
+	mockTx.EXPECT().GetTreeRevisionAtSize(getConsistencyProofRequest7.FirstTreeSize).Return(int64(3), nil)
+	mockTx.EXPECT().GetTreeRevisionAtSize(getConsistencyProofRequest7.SecondTreeSize).Return(int64(5), nil)
+	// The server expects one node from storage but we return two
+	mockTx.EXPECT().GetMerkleNodes(int64(5), nodeIdsConsistencySize4ToSize7).Return([]storage.Node{{NodeRevision: 3}, {NodeRevision: 2}}, nil)
+	mockTx.EXPECT().Rollback().Return(nil)
+
+	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
+
+	_, err := server.GetConsistencyProof(context.Background(), &getConsistencyProofRequest7)
+
+	if err == nil || !strings.Contains(err.Error(), "expected 1 nodes") {
+		t.Fatalf("get consistency proof returned no or wrong error when get nodes returns wrong count: %v", err)
+	}
+}
+
+func TestGetConsistencyProofGetNodesReturnsWrongNode(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockStorage := storage.NewMockLogStorage(ctrl)
+	mockTx := storage.NewMockLogTX(ctrl)
+	mockStorage.EXPECT().Begin().Return(mockTx, nil)
+
+	mockTx.EXPECT().GetTreeRevisionAtSize(getConsistencyProofRequest7.FirstTreeSize).Return(int64(3), nil)
+	mockTx.EXPECT().GetTreeRevisionAtSize(getConsistencyProofRequest7.SecondTreeSize).Return(int64(5), nil)
+	// Return an unexpected node that wasn't requested
+	mockTx.EXPECT().GetMerkleNodes(int64(5), nodeIdsConsistencySize4ToSize7).Return([]storage.Node{{NodeID:storage.NewNodeIDForTreeCoords(1, 2, 64), NodeRevision: 3}}, nil)
+	mockTx.EXPECT().Rollback().Return(nil)
+
+	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
+
+	_, err := server.GetConsistencyProof(context.Background(), &getConsistencyProofRequest7)
+
+	if err == nil || !strings.Contains(err.Error(), "at proof pos 0") {
+		t.Fatalf("get consistency proof returned no or wrong error when get nodes returns wrong node: %v", err)
+	}
+}
+
+func TestGetConsistencyProofCommitFails(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	test := newParameterizedTest(ctrl, "GetConsistencyProof",
+		func(t *storage.MockLogTX) {
+			t.EXPECT().GetTreeRevisionAtSize(getConsistencyProofRequest7.FirstTreeSize).Return(int64(3), nil)
+			t.EXPECT().GetTreeRevisionAtSize(getConsistencyProofRequest7.SecondTreeSize).Return(int64(5), nil)
+			t.EXPECT().GetMerkleNodes(int64(5), nodeIdsConsistencySize4ToSize7).Return([]storage.Node{{NodeID:storage.NewNodeIDForTreeCoords(2, 1, 64), NodeRevision: 3}}, nil)
+		},
+		func(s *TrillianLogServer) error {
+			_, err := s.GetConsistencyProof(context.Background(), &getConsistencyProofRequest7)
+			return err
+		})
+
+	test.executeCommitFailsTest(t)
+}
+
+func TestGetConsistencyProof(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockStorage := storage.NewMockLogStorage(ctrl)
+	mockTx := storage.NewMockLogTX(ctrl)
+	mockStorage.EXPECT().Begin().Return(mockTx, nil)
+
+	mockTx.EXPECT().GetTreeRevisionAtSize(getConsistencyProofRequest7.FirstTreeSize).Return(int64(3), nil)
+	mockTx.EXPECT().GetTreeRevisionAtSize(getConsistencyProofRequest7.SecondTreeSize).Return(int64(5), nil)
+	mockTx.EXPECT().GetMerkleNodes(int64(5), nodeIdsConsistencySize4ToSize7).Return([]storage.Node{{NodeID:storage.NewNodeIDForTreeCoords(2, 1, 64), NodeRevision: 3, Hash:[]byte("nodehash")}}, nil)
+	mockTx.EXPECT().Commit().Return(nil)
+
+	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
+
+	response, err := server.GetConsistencyProof(context.Background(), &getConsistencyProofRequest7)
+
+	if err != nil {
+		t.Fatalf("failed to get consistency proof: %v", err)
+	}
+
+	if expected, got := trillian.TrillianApiStatusCode_OK, response.Status.StatusCode; expected != got {
+		t.Fatalf("Expected app level ok status but got: %v", response.Status.StatusCode)
+	}
+
+	// Ensure we got the expected proof
+	nodeIDBytes, err := proto.Marshal(nodeIdsConsistencySize4ToSize7[0].AsProto())
+
+	if err != nil {
+		t.Fatalf("failed to marshall test proto - should not happen: %v ", err)
+	}
+
+	expectedProof := trillian.ProofProto{LeafIndex: 0, ProofNode: []*trillian.NodeProto{
+		{NodeId: nodeIDBytes, NodeHash: []byte("nodehash"), NodeRevision: 3}}}
+
+	if !proto.Equal(response.Proof, &expectedProof) {
+		t.Fatalf("expected proof: %v but got: %v", expectedProof, response.Proof)
 	}
 }
 

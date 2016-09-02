@@ -204,7 +204,64 @@ func (t *TrillianLogServer) GetInclusionProofByHash(ctx context.Context, req *tr
 // other and that the later tree includes all the entries of the prior one. For more details
 // see the example trees in RFC 6962.
 func (t *TrillianLogServer) GetConsistencyProof(ctx context.Context, req *trillian.GetConsistencyProofRequest) (*trillian.GetConsistencyProofResponse, error) {
-	return nil, ErrNotImplemented
+	// Reject requests where the parameters don't make sense
+	if req.FirstTreeSize <= 0 {
+		return nil, fmt.Errorf("first tree size must be > 0 but was %d", req.FirstTreeSize)
+	}
+
+	if req.SecondTreeSize <= 0 {
+		return nil, fmt.Errorf("second tree size must be > 0 but was %d", req.SecondTreeSize)
+	}
+
+	if req.SecondTreeSize <= req.FirstTreeSize {
+		return nil, fmt.Errorf("second tree size (%d) must be > first tree size (%d)", req.SecondTreeSize, req.FirstTreeSize)
+	}
+
+	nodeIDs, err := merkle.CalcConsistencyProofNodeAddresses(req.FirstTreeSize, req.SecondTreeSize, proofMaxBitLen)
+
+	if err != nil {
+		return nil, err
+	}
+
+	tx, err := t.prepareStorageTx(req.LogId)
+
+	if err != nil {
+		return nil, err
+	}
+
+	// We need to make sure that both the given sizes are actually STHs, though we don't use the
+	// first tree revision in fetches
+	_, err = tx.GetTreeRevisionAtSize(req.FirstTreeSize)
+
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	secondTreeRevision, err := tx.GetTreeRevisionAtSize(req.SecondTreeSize)
+
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	// Do all the node fetches at the second tree revision, which is what the node ids were calculated
+	// against.
+	proof, err := fetchNodesAndBuildProof(tx, secondTreeRevision, 0, nodeIDs)
+
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	err = tx.Commit()
+
+	if err != nil {
+		return nil, err
+	}
+
+	// We have everything we need. Return the proof
+	return &trillian.GetConsistencyProofResponse{Status:buildStatus(trillian.TrillianApiStatusCode_OK), Proof:&proof}, nil
 }
 
 // GetLatestSignedLogRoot obtains the latest published tree root for the Merkle Tree that
@@ -490,6 +547,12 @@ func getInclusionProofForLeafIndexAtRevision(tx storage.LogTX, treeRevision, tre
 		return trillian.ProofProto{}, err
 	}
 
+	return fetchNodesAndBuildProof(tx, treeRevision, leafIndex, proofNodeIDs)
+}
+
+// fetchNodesAndBuildProof is used by both inclusion and consistency proofs. It fetches the nodes
+// from storage and converts them into the proof proto that will be returned to the client.
+func fetchNodesAndBuildProof(tx storage.LogTX, treeRevision, leafIndex int64, proofNodeIDs []storage.NodeID) (trillian.ProofProto, error) {
 	proofNodes, err := tx.GetMerkleNodes(treeRevision, proofNodeIDs)
 
 	if err != nil {
