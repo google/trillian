@@ -561,10 +561,10 @@ func wrappedGetEntriesHandler(c CTRequestHandlers) http.HandlerFunc {
 	}
 }
 
-func wrappedGetRootsHandler(trustedRoots *PEMCertPool, rpcClient trillian.TrillianLogClient) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func wrappedGetRootsHandler(trustedRoots *PEMCertPool) appHandler {
+	return func(w http.ResponseWriter, r *http.Request) (int, error) {
 		if !enforceMethod(w, r, httpMethodGet) {
-			return
+			return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 		}
 
 		jsonMap := make(map[string]interface{})
@@ -582,9 +582,10 @@ func wrappedGetRootsHandler(trustedRoots *PEMCertPool, rpcClient trillian.Trilli
 
 		if err != nil {
 			glog.Warningf("get_roots failed: %v", err)
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
+			return http.StatusInternalServerError, fmt.Errorf("get-roots failed with: %v", err)
 		}
+
+		return http.StatusOK, nil
 	}
 }
 
@@ -654,7 +655,7 @@ func (c CTRequestHandlers) RegisterCTHandlers() {
 	http.Handle(pathFor("get-sth-consistency"), wrappedGetSTHConsistencyHandler(c))
 	http.HandleFunc(pathFor("get-proof-by-hash"), wrappedGetProofByHashHandler(c))
 	http.HandleFunc(pathFor("get-entries"), wrappedGetEntriesHandler(c))
-	http.HandleFunc(pathFor("get-roots"), wrappedGetRootsHandler(c.trustedRoots, c.rpcClient))
+	http.Handle(pathFor("get-roots"), wrappedGetRootsHandler(c.trustedRoots))
 	http.HandleFunc(pathFor("get-entry-and-proof"), wrappedGetEntryAndProofHandler(c))
 }
 

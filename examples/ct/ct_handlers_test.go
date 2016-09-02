@@ -134,7 +134,7 @@ func allGetHandlersForTest(trustedRoots *PEMCertPool, c CTRequestHandlers) []han
 		{"get-sth-consistency", wrappedGetSTHConsistencyHandler(c).AsHandleFunc()},
 		{"get-proof-by-hash", wrappedGetProofByHashHandler(c)},
 		{"get-entries", wrappedGetEntriesHandler(c)},
-		{"get-roots", wrappedGetRootsHandler(trustedRoots, c.rpcClient)},
+		{"get-roots", wrappedGetRootsHandler(trustedRoots).AsHandleFunc()},
 		{"get-entry-and-proof", wrappedGetEntryAndProofHandler(c)}}
 }
 
@@ -305,10 +305,8 @@ func TestGetRoots(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	client := trillian.NewMockTrillianLogClient(mockCtrl)
-
 	roots := loadCertsIntoPoolOrDie(t, []string{caAndIntermediateCertsPEM})
-	handler := wrappedGetRootsHandler(roots, client)
+	handler := wrappedGetRootsHandler(roots)
 
 	req, err := http.NewRequest("GET", "http://example.com/ct/v1/get-roots", nil)
 	if err != nil {
@@ -316,7 +314,7 @@ func TestGetRoots(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	handler(w, req)
+	handler.ServeHTTP(w, req)
 
 	if expected, got := http.StatusOK, w.Code; expected != got {
 		t.Fatalf("Wrong status code for get-roots, expected %v, got %v", expected, got)
@@ -1423,10 +1421,6 @@ func TestGetSTHConsistency(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
-
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	if got, want := w.Code, http.StatusOK; got != want {
 		t.Fatalf("Expected %v for get-sth-consistency when backend fails, got %v. Body: %v", want, got, w.Body)
