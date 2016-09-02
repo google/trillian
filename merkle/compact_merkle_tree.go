@@ -11,12 +11,12 @@ import (
 )
 
 type RootHashMismatchError struct {
-	ExpectedHash []byte
-	ActualHash   []byte
+	ExpectedHash trillian.Hash
+	ActualHash   trillian.Hash
 }
 
 func (r RootHashMismatchError) Error() string {
-	return fmt.Sprintf("root hash mismatch got: %v expected: %v", r.ExpectedHash, r.ActualHash)
+	return fmt.Sprintf("root hash mismatch got: %v expected: %v", r.ActualHash, r.ExpectedHash)
 }
 
 // CompactMerkleTree is a compact merkle tree representation.
@@ -53,20 +53,22 @@ type GetNodeFunc func(depth int, index int64) (trillian.Hash, error)
 // required to initialise the internal state of the CompactMerkleTree.  |expectedRoot| is the known-good tree root
 // of the tree at |size|, and is used to verify the correct initial state of the CompactMerkleTree after initialisation.
 func NewCompactMerkleTreeWithState(hasher TreeHasher, size int64, f GetNodeFunc, expectedRoot trillian.Hash) (*CompactMerkleTree, error) {
+	sizeBits := bitLen(size)
+
 	r := CompactMerkleTree{
 		hasher: hasher,
-		nodes:  make([]trillian.Hash, bitLen(size)),
+		nodes:  make([]trillian.Hash, sizeBits),
+		root:   hasher.HashEmpty(),
 		size:   size,
 	}
 
 	if isPerfectTree(size) {
 		log.V(1).Info("Is perfect tree.")
-		// just have to trust it - the compact tree is empty for a perfect tree.
 		r.root = append(make([]byte, 0, len(expectedRoot)), expectedRoot...)
+		r.nodes[sizeBits-1] = r.root
 	} else {
 		// Pull in the nodes we need to repopulate our compact tree and verify the root
-		numBits := bitLen(size)
-		for depth := 0; depth < numBits; depth++ {
+		for depth := 0; depth < sizeBits; depth++ {
 			if size&1 == 1 {
 				index := size - 1
 				log.V(1).Infof("fetching d: %d i: %d, leaving size %d", depth, index, size)
@@ -108,14 +110,14 @@ func (c CompactMerkleTree) CurrentRoot() trillian.Hash {
 
 // DumpNodes logs the internal state of the CompactMerkleTree, and is used for debugging.
 func (c CompactMerkleTree) DumpNodes() {
-	log.Infof("Tree Nodes @ %s", c.size)
+	log.Infof("Tree Nodes @ %d", c.size)
 	mask := int64(1)
 	numBits := bitLen(c.size)
 	for bit := 0; bit < numBits; bit++ {
 		if c.size&mask != 0 {
-			log.Infof("  %s", base64.StdEncoding.EncodeToString(c.nodes[bit][:]))
+			log.Infof("%d:  %s", bit, base64.StdEncoding.EncodeToString(c.nodes[bit][:]))
 		} else {
-			log.Infof("  -")
+			log.Infof("%d:  -", bit)
 		}
 		mask <<= 1
 	}
@@ -124,6 +126,10 @@ func (c CompactMerkleTree) DumpNodes() {
 type setNodeFunc func(depth int, index int64, hash trillian.Hash)
 
 func (c *CompactMerkleTree) recalculateRoot(f setNodeFunc) {
+	if c.size == 0 {
+		return
+	}
+
 	index := c.size
 
 	var newRoot trillian.Hash
@@ -178,6 +184,7 @@ func (c *CompactMerkleTree) AddLeafHash(leafHash trillian.Hash, f setNodeFunc) (
 	bit := 0
 	// Iterate over the bits in our tree size
 	for t := c.size; t > 0; t >>= 1 {
+		index >>= 1
 		if t&1 == 0 {
 			// Just store the running hash here; we're done.
 			c.nodes[bit] = hash
@@ -191,7 +198,7 @@ func (c *CompactMerkleTree) AddLeafHash(leafHash trillian.Hash, f setNodeFunc) (
 		// The bit is set so we have a node at that position in the nodes list so hash it with our running hash:
 		hash = c.hasher.HashChildren(c.nodes[bit], hash)
 		// Store the resulting parent hash.
-		f(bit+1, index>>1, hash)
+		f(bit+1, index, hash)
 		// Figure out if we're done:
 		if bit+1 >= len(c.nodes) {
 			// If we're extending the node list then add a new entry with our
