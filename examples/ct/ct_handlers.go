@@ -625,8 +625,6 @@ func wrappedGetEntryAndProofHandler(c CTRequestHandlers) http.HandlerFunc {
 			sendHttpError(w, http.StatusInternalServerError, err)
 			return
 		}
-
-		http.Error(w, http.StatusText(http.StatusNotImplemented), http.StatusNotImplemented)
 	}
 }
 
