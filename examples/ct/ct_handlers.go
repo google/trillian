@@ -77,18 +77,6 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// This is only needed to convert the handler to a HandlerFunc for tests and can be removed
-// when all the handlers are updated.
-func (fn appHandler) AsHandleFunc() (http.HandlerFunc) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		status, err := fn(w, r)
-
-		if status != http.StatusOK {
-			sendHttpError(w, status, err)
-		}
-	}
-}
-
 // CTRequestHandlers provides HTTP handler functions for CT V1 as defined in RFC 6962
 // and functionality to translate CT client requests into forms that can be served by a
 // log backend RPC service.

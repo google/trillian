@@ -125,17 +125,17 @@ const invalidLeafString string = "NOT A MERKLE TREE LEAF"
 
 type handlerAndPath struct {
 	path    string
-	handler http.HandlerFunc
+	handler appHandler
 }
 
 func allGetHandlersForTest(trustedRoots *PEMCertPool, c CTRequestHandlers) []handlerAndPath {
 	return []handlerAndPath{
-		{"get-sth", wrappedGetSTHHandler(c).AsHandleFunc()},
-		{"get-sth-consistency", wrappedGetSTHConsistencyHandler(c).AsHandleFunc()},
-		{"get-proof-by-hash", wrappedGetProofByHashHandler(c).AsHandleFunc()},
-		{"get-entries", wrappedGetEntriesHandler(c).AsHandleFunc()},
-		{"get-roots", wrappedGetRootsHandler(trustedRoots).AsHandleFunc()},
-		{"get-entry-and-proof", wrappedGetEntryAndProofHandler(c).AsHandleFunc()}}
+		{"get-sth", wrappedGetSTHHandler(c)},
+		{"get-sth-consistency", wrappedGetSTHConsistencyHandler(c)},
+		{"get-proof-by-hash", wrappedGetProofByHashHandler(c)},
+		{"get-entries", wrappedGetEntriesHandler(c)},
+		{"get-roots", wrappedGetRootsHandler(trustedRoots)},
+		{"get-entry-and-proof", wrappedGetEntryAndProofHandler(c)}}
 }
 
 func allPostHandlersForTest(client trillian.TrillianLogClient) []handlerAndPath {
@@ -147,8 +147,8 @@ func allPostHandlersForTest(client trillian.TrillianLogClient) []handlerAndPath 
 	}
 
 	return []handlerAndPath{
-		{"add-chain", wrappedAddChainHandler(CTRequestHandlers{rpcClient: client, trustedRoots: pool}).AsHandleFunc()},
-		{"add-pre-chain", wrappedAddPreChainHandler(CTRequestHandlers{rpcClient: client, trustedRoots: pool}).AsHandleFunc()}}
+		{"add-chain", wrappedAddChainHandler(CTRequestHandlers{rpcClient: client, trustedRoots: pool})},
+		{"add-pre-chain", wrappedAddPreChainHandler(CTRequestHandlers{rpcClient: client, trustedRoots: pool})}}
 }
 
 func TestPostHandlersOnlyAcceptPost(t *testing.T) {
