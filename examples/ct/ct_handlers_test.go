@@ -132,7 +132,7 @@ func allGetHandlersForTest(trustedRoots *PEMCertPool, c CTRequestHandlers) []han
 	return []handlerAndPath{
 		{"get-sth", wrappedGetSTHHandler(c).AsHandleFunc()},
 		{"get-sth-consistency", wrappedGetSTHConsistencyHandler(c).AsHandleFunc()},
-		{"get-proof-by-hash", wrappedGetProofByHashHandler(c)},
+		{"get-proof-by-hash", wrappedGetProofByHashHandler(c).AsHandleFunc()},
 		{"get-entries", wrappedGetEntriesHandler(c)},
 		{"get-roots", wrappedGetRootsHandler(trustedRoots).AsHandleFunc()},
 		{"get-entry-and-proof", wrappedGetEntryAndProofHandler(c)}}
@@ -1108,7 +1108,7 @@ func TestGetProofByHashBadRequests(t *testing.T) {
 		}
 
 		w := httptest.NewRecorder()
-		handler(w, req)
+		handler.ServeHTTP(w, req)
 
 		if got, want := w.Code, http.StatusBadRequest; got != want {
 			t.Fatalf("Expected %v for get-proof-by-hash with params [%s], got %v. Body: %v", want, requestParamString, got, w.Body)
@@ -1132,7 +1132,7 @@ func TestGetProofByHashBackendFails(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	handler(w, req)
+	handler.ServeHTTP(w, req)
 
 	if got, want := w.Code, http.StatusInternalServerError; got != want {
 		t.Fatalf("Expected %v for get-proof-by-hash when backend fails, got %v. Body: %v", want, got, w.Body)
@@ -1162,7 +1162,7 @@ func TestGetProofByHashBackendMultipleProofs(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	handler(w, req)
+	handler.ServeHTTP(w, req)
 
 	// Should be OK if backend returns multiple proofs and we should get the first one
 	if got, want := w.Code, http.StatusOK; got != want {
@@ -1198,7 +1198,7 @@ func TestGetProofByHashBackendReturnsMissingHash(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	handler(w, req)
+	handler.ServeHTTP(w, req)
 
 	if got, want := w.Code, http.StatusInternalServerError; got != want {
 		t.Fatalf("Expected %v for get-proof-by-hash when backend returns missing hash, got %v. Body: %v", want, got, w.Body)
@@ -1227,7 +1227,7 @@ func TestGetProofByHash(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	handler(w, req)
+	handler.ServeHTTP(w, req)
 
 	if got, want := w.Code, http.StatusOK; got != want {
 		t.Fatalf("Expected %v for get-proof-by-hash, got %v. Body: %v", want, got, w.Body)

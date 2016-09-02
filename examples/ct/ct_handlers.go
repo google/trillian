@@ -412,32 +412,29 @@ func wrappedGetSTHConsistencyHandler(c CTRequestHandlers) appHandler {
 	}
 }
 
-func wrappedGetProofByHashHandler(c CTRequestHandlers) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func wrappedGetProofByHashHandler(c CTRequestHandlers) appHandler {
+	return func(w http.ResponseWriter, r *http.Request) (int, error) {
 		if !enforceMethod(w, r, httpMethodGet) {
-			return
+			return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 		}
 
 		hash := r.FormValue(getProofParamHash)
 
 		// Accept any non empty hash that decodes from base64 and let the backend validate it further
 		if len(hash) == 0 {
-			sendHttpError(w, http.StatusBadRequest, errors.New("missing / empty hash param for get-proof-by-hash"))
-			return
+			return http.StatusBadRequest, errors.New("get-proof-by-hash: missing / empty hash param for get-proof-by-hash")
 		}
 
 		leafHash, err := base64.StdEncoding.DecodeString(hash)
 
 		if err != nil {
-			sendHttpError(w, http.StatusBadRequest, errors.New("invalid base64 hash for get-proof-by-hash"))
-			return
+			return http.StatusBadRequest, fmt.Errorf("get-proof-by-hash: invalid base64 hash: %v", err)
 		}
 
 		treeSize, err := strconv.ParseInt(r.FormValue(getProofParamTreeSize), 10, 64)
 
 		if err != nil || treeSize < 1 {
-			sendHttpError(w, http.StatusBadRequest, fmt.Errorf("missing or invalid tree_size: %v", r.FormValue(getProofParamTreeSize)))
-			return
+			return http.StatusBadRequest, fmt.Errorf("get-proof-by-hash: missing or invalid tree_size: %v", r.FormValue(getProofParamTreeSize))
 		}
 
 		// Per RFC 6962 section 4.5 the API returns a single proof. This should be the lowest leaf index
@@ -451,14 +448,12 @@ func wrappedGetProofByHashHandler(c CTRequestHandlers) http.HandlerFunc {
 		response, err := c.rpcClient.GetInclusionProofByHash(ctx, &rpcRequest)
 
 		if err != nil || !rpcStatusOK(response.GetStatus()) {
-			sendHttpError(w, http.StatusInternalServerError, fmt.Errorf("RPC failed, possible extra info: %v", err))
-			return
+			return http.StatusInternalServerError, fmt.Errorf("get-proof-by-hash: RPC failed, possible extra info: %v", err)
 		}
 
 		// Additional sanity checks, none of the hashes in the returned path should be empty
 		if !checkAuditPath(response.Proof[0].ProofNode) {
-			sendHttpError(w, http.StatusInternalServerError, fmt.Errorf("backend returned invalid proof: %v", response.Proof[0]))
-			return
+			return http.StatusInternalServerError, fmt.Errorf("get-proof-by-hash: backend returned invalid proof: %v", response.Proof[0])
 		}
 
 		// All checks complete, marshall and return the response
@@ -469,18 +464,17 @@ func wrappedGetProofByHashHandler(c CTRequestHandlers) http.HandlerFunc {
 
 		if err != nil {
 			glog.Warningf("Failed to marshal get-proof-by-hash resp: %v", proofResponse)
-			sendHttpError(w, http.StatusInternalServerError, err)
-			return
+			return http.StatusInternalServerError, fmt.Errorf("Failed to marshal get-proof-by-hash resp: %v, error: %v", proofResponse, err)
 		}
 
 		_, err = w.Write(jsonData)
 
 		if err != nil {
-			glog.Warningf("Failed to write get-proof-by-hash resp: %v", proofResponse)
 			// Probably too late for this as headers might have been written but we don't know for sure
-			sendHttpError(w, http.StatusInternalServerError, err)
-			return
+			return http.StatusInternalServerError, fmt.Errorf("Failed to write get-proof-by-hash resp: %v", proofResponse)
 		}
+
+		return http.StatusOK, nil
 	}
 }
 
@@ -653,7 +647,7 @@ func (c CTRequestHandlers) RegisterCTHandlers() {
 	http.HandleFunc(pathFor("add-pre-chain"), wrappedAddPreChainHandler(c))
 	http.Handle(pathFor("get-sth"), wrappedGetSTHHandler(c))
 	http.Handle(pathFor("get-sth-consistency"), wrappedGetSTHConsistencyHandler(c))
-	http.HandleFunc(pathFor("get-proof-by-hash"), wrappedGetProofByHashHandler(c))
+	http.Handle(pathFor("get-proof-by-hash"), wrappedGetProofByHashHandler(c))
 	http.HandleFunc(pathFor("get-entries"), wrappedGetEntriesHandler(c))
 	http.Handle(pathFor("get-roots"), wrappedGetRootsHandler(c.trustedRoots))
 	http.HandleFunc(pathFor("get-entry-and-proof"), wrappedGetEntryAndProofHandler(c))
