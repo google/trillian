@@ -41,6 +41,7 @@ const selectLeavesByHashSql string = `SELECT l.LeafHash,l.TheData,s.SequenceNumb
 		     FROM LeafData l,SequencedLeafData s
 		     WHERE l.LeafHash = s.LeafHash
 		     AND l.LeafHash IN (` + placeholderSql + `) AND l.TreeId = ? AND s.TreeId = l.TreeId`
+
 // Same as above except with leaves ordered by sequence so we only incur this cost when necessary
 const selectLeavesByHashOrderedBySequenceSQL string = selectLeavesByHashSql + " ORDER BY s.SequenceNumber"
 
@@ -163,7 +164,7 @@ func (m *mySQLLogStorage) beginInternal() (storage.LogTX, error) {
 		return nil, err
 	}
 
-	ret.treeTX.writeRevision = root.TreeRevision
+	ret.treeTX.writeRevision = root.TreeRevision + 1
 
 	return ret, nil
 }

@@ -2,7 +2,6 @@
 package log
 
 import (
-	"errors"
 	"fmt"
 	"github.com/golang/glog"
 	"github.com/google/trillian"
@@ -46,7 +45,7 @@ func (s Sequencer) buildMerkleTreeFromStorageAtRoot(root trillian.SignedLogRoot,
 
 		// We expect to get exactly one node here
 		if nodes == nil || len(nodes) != 1 {
-			return nil, errors.New("Did not retrieve one node while loading CompactMerkleTree")
+			return nil, fmt.Errorf("Did not retrieve one node while loading CompactMerkleTree, got %#v for ID %s@%d", nodes, nodeId.String(), root.TreeRevision)
 		}
 
 		return nodes[0].Hash, nil
@@ -89,13 +88,7 @@ func (s Sequencer) sequenceLeaves(mt *merkle.CompactMerkleTree, leaves []trillia
 }
 
 func (s Sequencer) initMerkleTreeFromStorage(currentRoot trillian.SignedLogRoot, tx storage.LogTX) (*merkle.CompactMerkleTree, error) {
-	var merkleTree *merkle.CompactMerkleTree
-
 	if currentRoot.TreeSize == 0 {
-		// This should be an empty tree
-		if currentRoot.TreeRevision > 0 {
-			return nil, fmt.Errorf("MT has zero size but non zero revision: %v", *merkleTree)
-		}
 		return merkle.NewCompactMerkleTree(s.hasher), nil
 	}
 
@@ -152,6 +145,11 @@ func (s Sequencer) SequenceBatch(limit int, expiryFunc CurrentRootExpiredFunc) (
 		glog.Warningf("Sequencer failed to get latest root: %s", err)
 		tx.Rollback()
 		return 0, err
+	}
+
+	// TODO(al): Have a better detection mechanism for there being no stored root.
+	if currentRoot.RootHash == nil {
+		glog.Warning("Fresh log - no previous TreeHeads exist.")
 	}
 
 	// There might be no work to be done. But we possibly still need to create an STH if the
