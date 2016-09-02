@@ -105,8 +105,8 @@ func decodeHexStringOrPanic(hs string) []byte {
 	return data
 }
 
-func makeEmptyTree() *MerkleTree {
-	return NewMerkleTree(NewRFC6962TreeHasher(trillian.NewSHA256()))
+func makeEmptyTree() *InMemoryMerkleTree {
+	return NewInMemoryMerkleTree(NewRFC6962TreeHasher(trillian.NewSHA256()))
 }
 
 func makeFuzzTestData() [][]byte {
@@ -120,7 +120,7 @@ func makeFuzzTestData() [][]byte {
 	return data
 }
 
-func getRootAsString(mt MerkleTree, leaf int) string {
+func getRootAsString(mt InMemoryMerkleTree, leaf int) string {
 	node := mt.RootAtSnapshot(leaf)
 
 	if node.hash == nil {
@@ -269,7 +269,7 @@ func TestEmptyTreeHash(t *testing.T) {
 	}
 }
 
-func validateTree(mt *MerkleTree, l int, t *testing.T) {
+func validateTree(mt *InMemoryMerkleTree, l int, t *testing.T) {
 	if mt.LeafCount() != l + 1 {
 		t.Errorf("Incorrect leaf count %d, expecting %d", mt.LeafCount(), l + 1)
 	}
