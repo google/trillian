@@ -131,7 +131,7 @@ type handlerAndPath struct {
 func allGetHandlersForTest(trustedRoots *PEMCertPool, c CTRequestHandlers) []handlerAndPath {
 	return []handlerAndPath{
 		{"get-sth", wrappedGetSTHHandler(c).AsHandleFunc()},
-		{"get-sth-consistency", wrappedGetSTHConsistencyHandler(c)},
+		{"get-sth-consistency", wrappedGetSTHConsistencyHandler(c).AsHandleFunc()},
 		{"get-proof-by-hash", wrappedGetProofByHashHandler(c)},
 		{"get-entries", wrappedGetEntriesHandler(c)},
 		{"get-roots", wrappedGetRootsHandler(trustedRoots, c.rpcClient)},
@@ -1263,7 +1263,7 @@ func TestGetSTHConsistencyBadParams(t *testing.T) {
 		}
 
 		w := httptest.NewRecorder()
-		handler(w, req)
+		handler.ServeHTTP(w, req)
 
 		if got, want := w.Code, http.StatusBadRequest; got != want {
 			t.Fatalf("Expected %v for get-sth-consistency with params [%s], got %v. Body: %v", want, requestParamString, got, w.Body)
@@ -1312,7 +1312,7 @@ func TestGetSTHConsistencyBackendRPCFails(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	handler(w, req)
+	handler.ServeHTTP(w, req)
 
 	if got, want := w.Code, http.StatusInternalServerError; got != want {
 		t.Fatalf("Expected %v for get-sth-consistency when backend fails, got %v. Body: %v", want, got, w.Body)
@@ -1368,7 +1368,7 @@ func TestGetSTHConsistencyBackendReturnsInvalidProof(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	handler(w, req)
+	handler.ServeHTTP(w, req)
 
 	if got, want := w.Code, http.StatusInternalServerError; got != want {
 		t.Fatalf("Expected %v for get-sth-consistency when backend fails, got %v. Body: %v", want, got, w.Body)
@@ -1422,7 +1422,7 @@ func TestGetSTHConsistency(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	handler(w, req)
+	handler.ServeHTTP(w, req)
 
 	if err != nil {
 		t.Fatal(err)

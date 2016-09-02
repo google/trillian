@@ -366,17 +366,16 @@ func wrappedGetSTHHandler(c CTRequestHandlers) appHandler {
 	}
 }
 
-func wrappedGetSTHConsistencyHandler(c CTRequestHandlers) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func wrappedGetSTHConsistencyHandler(c CTRequestHandlers) appHandler {
+	return func(w http.ResponseWriter, r *http.Request) (int, error) {
 		if !enforceMethod(w, r, httpMethodGet) {
-			return
+			return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 		}
 
 		first, second, err := parseAndValidateGetSTHConsistencyRange(r)
 
 		if err != nil {
-			sendHttpError(w, http.StatusBadRequest, err)
-			return
+			return http.StatusBadRequest, err
 		}
 
 		request := trillian.GetConsistencyProofRequest{LogId:c.logID, FirstTreeSize:first, SecondTreeSize:second}
@@ -384,14 +383,12 @@ func wrappedGetSTHConsistencyHandler(c CTRequestHandlers) http.HandlerFunc {
 		response, err := c.rpcClient.GetConsistencyProof(ctx, &request)
 
 		if err != nil || !rpcStatusOK(response.GetStatus()) {
-			sendHttpError(w, http.StatusInternalServerError, err)
-			return
+			return http.StatusInternalServerError, err
 		}
 
 		// Additional sanity checks, none of the hashes in the returned path should be empty
 		if !checkAuditPath(response.Proof.ProofNode) {
-			sendHttpError(w, http.StatusInternalServerError, fmt.Errorf("backend returned invalid proof: %v", response.Proof))
-			return
+			return http.StatusInternalServerError, fmt.Errorf("backend returned invalid proof: %v", response.Proof)
 		}
 
 		// We got a valid response from the server. Marshall it as JSON and return it to the client
@@ -401,19 +398,17 @@ func wrappedGetSTHConsistencyHandler(c CTRequestHandlers) http.HandlerFunc {
 		jsonData, err := json.Marshal(&jsonResponse)
 
 		if err != nil {
-			glog.Warningf("Failed to marshal get-sth-consistency resp: %v because %v", jsonResponse, err)
-			sendHttpError(w, http.StatusInternalServerError, err)
-			return
+			return http.StatusInternalServerError, fmt.Errorf("Failed to marshal get-sth-consistency resp: %v because %v", jsonResponse, err)
 		}
 
 		_, err = w.Write(jsonData)
 
 		if err != nil {
-			glog.Warningf("Failed to write get-sth-consistency resp: %v", jsonResponse)
 			// Probably too late for this as headers might have been written but we don't know for sure
-			sendHttpError(w, http.StatusInternalServerError, err)
-			return
+			return http.StatusInternalServerError, fmt.Errorf("Failed to write get-sth-consistency resp: %v because %v", jsonResponse, err)
 		}
+
+		return http.StatusOK, nil
 	}
 }
 
@@ -656,7 +651,7 @@ func (c CTRequestHandlers) RegisterCTHandlers() {
 	http.HandleFunc(pathFor("add-chain"), wrappedAddChainHandler(c))
 	http.HandleFunc(pathFor("add-pre-chain"), wrappedAddPreChainHandler(c))
 	http.Handle(pathFor("get-sth"), wrappedGetSTHHandler(c))
-	http.HandleFunc(pathFor("get-sth-consistency"), wrappedGetSTHConsistencyHandler(c))
+	http.Handle(pathFor("get-sth-consistency"), wrappedGetSTHConsistencyHandler(c))
 	http.HandleFunc(pathFor("get-proof-by-hash"), wrappedGetProofByHashHandler(c))
 	http.HandleFunc(pathFor("get-entries"), wrappedGetEntriesHandler(c))
 	http.HandleFunc(pathFor("get-roots"), wrappedGetRootsHandler(c.trustedRoots, c.rpcClient))
