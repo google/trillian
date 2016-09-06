@@ -203,12 +203,12 @@ func (s *SubtreeCache) Flush(setSubtree SetSubtreeFunc) error {
 	return nil
 }
 
-// makeSuffix creates a suffix key for indexing into the subtree's Leaves and
+// makeSuffixKey creates a suffix key for indexing into the subtree's Leaves and
 // InternalNodes maps.
 func makeSuffixKey(depth int, index int64) (string, error) {
 	// TODO(al): only supports 8 bit subtree sizes currently
 	if depth >= 8 || depth < 0 {
-		return "", fmt.Errorf("found depth of %d, but we only support positive depths of 8 currently", depth)
+		return "", fmt.Errorf("found depth of %d, but we only support positive depths of up to 8 currently", depth)
 	}
 	if index > 255 || index < 0 {
 		return "", fmt.Errorf("got unsupported index of %d, 0 <= index < 256", index)
