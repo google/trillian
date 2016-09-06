@@ -42,13 +42,28 @@ func TestNewNodeIDForTreeCoordsForZeros(t *testing.T) {
 	}
 }
 
+var nodeIDForTreeCoordsVec = []struct {
+	depth    int64
+	index    int64
+	maxBits  int
+	expected string
+}{
+	{0, 0x01, 8, "00000001"},
+	{0, 0x01, 15, "000000000000001"},
+	{1, 0x01, 8, "0000001"},
+	{2, 0x04, 8, "000100"},
+	{8, 0x01, 16, "00000001"},
+	{8, 0x01, 9, "1"},
+	{0, 0x80, 8, "10000000"},
+	{1, 0x80, 8, "0000000"},
+}
+
 func TestNewNodeIDForTreeCoords(t *testing.T) {
-	n := NewNodeIDForTreeCoords(11, 0x1234, 16)
-	if got, want := n.Path, []byte{0x12, 0x34}; !bytes.Equal(got, want) {
-		t.Fatalf("Expected Path of %v, but got %v", want, got)
-	}
-	if got, want := n.String(), "00010"; got != want {
-		t.Fatalf("Expected '%s', got '%s'", want, got)
+	for i, v := range nodeIDForTreeCoordsVec {
+		n := NewNodeIDForTreeCoords(v.depth, v.index, v.maxBits)
+		if got, want := n.String(), v.expected; got != want {
+			t.Fatalf("(test vector index %d) Expected '%s', got '%s'", i, want, got)
+		}
 	}
 }
 
