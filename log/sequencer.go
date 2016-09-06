@@ -22,6 +22,7 @@ type Sequencer struct {
 	keyManager crypto.KeyManager
 }
 
+// maxTreeDepth sets an upper limit on the size of Log trees.  2^64 leaves is plenty.
 const maxTreeDepth = 64
 
 // CurrentRootExpiredFunc examines a signed log root and decides if it has expired with respect
@@ -37,7 +38,11 @@ func NewSequencer(hasher merkle.TreeHasher, timeSource util.TimeSource, logStora
 // would be more efficient but requires refactoring.
 func (s Sequencer) buildMerkleTreeFromStorageAtRoot(root trillian.SignedLogRoot, tx storage.TreeTX) (*merkle.CompactMerkleTree, error) {
 	mt, err := merkle.NewCompactMerkleTreeWithState(s.hasher, root.TreeSize, func(depth int, index int64) (trillian.Hash, error) {
-		nodeId := storage.NewNodeIDForTreeCoords(int64(depth), index, maxTreeDepth)
+		nodeId, err := storage.NewNodeIDForTreeCoords(int64(depth), index, maxTreeDepth)
+		if err != nil {
+			glog.Warningf("Failed to create nodeID: %v", err)
+			return nil, err
+		}
 		nodes, err := tx.GetMerkleNodes(root.TreeRevision, []storage.NodeID{nodeId})
 
 		if err != nil {
@@ -75,7 +80,10 @@ func (s Sequencer) sequenceLeaves(mt *merkle.CompactMerkleTree, leaves []trillia
 	// made and assign sequence numbers to the new leaves
 	for _, leaf := range leaves {
 		seq := mt.AddLeafHash(leaf.LeafHash, func(depth int, index int64, hash trillian.Hash) {
-			nodeId := storage.NewNodeIDForTreeCoords(int64(depth), index, maxTreeDepth)
+			nodeId, err := storage.NewNodeIDForTreeCoords(int64(depth), index, maxTreeDepth)
+			if err != nil {
+				return
+			}
 			nodeMap[nodeId.String()] = storage.Node{
 				NodeID:       nodeId,
 				Hash:         hash,

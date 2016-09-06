@@ -96,23 +96,23 @@ func bitLen(x int64) int {
 //
 // index is the horizontal index into the tree at level depth, so the returned
 // NodeID will be zero padded on the right by depth places.
-func NewNodeIDForTreeCoords(depth int64, index int64, maxLenBits int) NodeID {
+func NewNodeIDForTreeCoords(depth int64, index int64, maxTreeDepth int) (NodeID, error) {
 	bl := bitLen(index)
-	if depth < 0 || bl > int(64-depth) {
-		panic(fmt.Errorf("depth/index combination out of range: depth=%d index=%d", depth, index))
+	if depth < 0 || bl > int(maxTreeDepth-int(depth)) {
+		return NodeID{}, fmt.Errorf("depth/index combination out of range: depth=%d index=%d", depth, index)
 	}
 	// this node is effectively a prefix of the subtree undernead (for non-leaf
 	// depths), so we shift the index accordingly.
 	index <<= uint(depth)
-	r := NewEmptyNodeID(maxLenBits)
+	r := NewEmptyNodeID(maxTreeDepth)
 	for i := len(r.Path) - 1; index > 0 && i >= 0; i-- {
 		r.Path[i] = byte(index & 0xff)
 		index >>= 8
 	}
 	// In the storage model nodes closer to the leaves have longer nodeIDs, so
 	// we "reverse" depth here:
-	r.PrefixLenBits = int(int64(maxLenBits) - depth)
-	return r
+	r.PrefixLenBits = int(maxTreeDepth - int(depth))
+	return r, nil
 }
 
 // SetBit sets the ith bit to true if b is non-zero, and false otherwise.

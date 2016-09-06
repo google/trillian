@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/testonly"
 )
 
 type bitLenTestData struct {
@@ -25,16 +26,16 @@ type consistencyProofTestData struct {
 
 // Expected paths built by examination of the example 7 leaf tree in RFC 6962. When comparing
 // with the document remember that our storage node layers are always populated from the bottom up.
-var expectedPathSize7Index0 = []storage.NodeID{storage.NewNodeIDForTreeCoords(0, 1, 64), storage.NewNodeIDForTreeCoords(1, 1, 64), storage.NewNodeIDForTreeCoords(2, 1, 64)}
-var expectedPathSize7Index3 = []storage.NodeID{storage.NewNodeIDForTreeCoords(0, 2, 64), storage.NewNodeIDForTreeCoords(1, 0, 64), storage.NewNodeIDForTreeCoords(2, 1, 64)}
-var expectedPathSize7Index4 = []storage.NodeID{storage.NewNodeIDForTreeCoords(0, 5, 64), storage.NewNodeIDForTreeCoords(0, 6, 64), storage.NewNodeIDForTreeCoords(2, 0, 64)}
-var expectedPathSize7Index6 = []storage.NodeID{storage.NewNodeIDForTreeCoords(1, 2, 64), storage.NewNodeIDForTreeCoords(2, 0, 64)}
+var expectedPathSize7Index0 = []storage.NodeID{testonly.MustCreateNodeIDForTreeCoords(0, 1, 64), testonly.MustCreateNodeIDForTreeCoords(1, 1, 64), testonly.MustCreateNodeIDForTreeCoords(2, 1, 64)}
+var expectedPathSize7Index3 = []storage.NodeID{testonly.MustCreateNodeIDForTreeCoords(0, 2, 64), testonly.MustCreateNodeIDForTreeCoords(1, 0, 64), testonly.MustCreateNodeIDForTreeCoords(2, 1, 64)}
+var expectedPathSize7Index4 = []storage.NodeID{testonly.MustCreateNodeIDForTreeCoords(0, 5, 64), testonly.MustCreateNodeIDForTreeCoords(0, 6, 64), testonly.MustCreateNodeIDForTreeCoords(2, 0, 64)}
+var expectedPathSize7Index6 = []storage.NodeID{testonly.MustCreateNodeIDForTreeCoords(1, 2, 64), testonly.MustCreateNodeIDForTreeCoords(2, 0, 64)}
 
 // Expected consistency proofs built from the examples in RFC 6962. Again, in our implementation
 // node layers are filled from the bottom upwards.
-var expectedConsistencyProofFromSize6To7 = []storage.NodeID{storage.NewNodeIDForTreeCoords(1, 2, 64), storage.NewNodeIDForTreeCoords(0, 6, 64), storage.NewNodeIDForTreeCoords(2, 0, 64)}
-var expectedConsistencyProofFromSize3To7 = []storage.NodeID{storage.NewNodeIDForTreeCoords(0, 2, 64), storage.NewNodeIDForTreeCoords(0, 3, 64), storage.NewNodeIDForTreeCoords(1, 0, 64), storage.NewNodeIDForTreeCoords(2, 1, 64)}
-var expectedConsistencyProofFromSize4To7 = []storage.NodeID{storage.NewNodeIDForTreeCoords(2, 1, 64)}
+var expectedConsistencyProofFromSize6To7 = []storage.NodeID{testonly.MustCreateNodeIDForTreeCoords(1, 2, 64), testonly.MustCreateNodeIDForTreeCoords(0, 6, 64), testonly.MustCreateNodeIDForTreeCoords(2, 0, 64)}
+var expectedConsistencyProofFromSize3To7 = []storage.NodeID{testonly.MustCreateNodeIDForTreeCoords(0, 2, 64), testonly.MustCreateNodeIDForTreeCoords(0, 3, 64), testonly.MustCreateNodeIDForTreeCoords(1, 0, 64), testonly.MustCreateNodeIDForTreeCoords(2, 1, 64)}
+var expectedConsistencyProofFromSize4To7 = []storage.NodeID{testonly.MustCreateNodeIDForTreeCoords(2, 1, 64)}
 
 var bitLenTests = []bitLenTestData{{0, 0}, {1, 1}, {2, 2}, {3, 2}, {12, 4}}
 
