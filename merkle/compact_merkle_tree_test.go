@@ -136,9 +136,12 @@ func TestLoadingTreeFailsBadRootHash(t *testing.T) {
 	}
 }
 
-func nodeKey(d int, i int64) string {
-	n := storage.NewNodeIDForTreeCoords(int64(d), i, 64)
-	return n.String()
+func nodeKey(d int, i int64) (string, error) {
+	n, err := storage.NewNodeIDForTreeCoords(int64(d), i, 64)
+	if err != nil {
+		return "", err
+	}
+	return n.String(), nil
 }
 
 func TestCompactVsFullTree(t *testing.T) {
@@ -150,7 +153,10 @@ func TestCompactVsFullTree(t *testing.T) {
 			NewRFC6962TreeHasher(trillian.NewSHA256()),
 			int64(imt.LeafCount()),
 			func(depth int, index int64) (trillian.Hash, error) {
-				k := nodeKey(depth, index)
+				k, err := nodeKey(depth, index)
+				if err != nil {
+					t.Errorf("failed to create nodeID: %v", err)
+				}
 				h := nodes[k]
 				return h, nil
 			}, imt.CurrentRoot().Hash())
@@ -168,7 +174,10 @@ func TestCompactVsFullTree(t *testing.T) {
 
 		cSeq, cHash := cmt.AddLeaf(newLeaf,
 			func(depth int, index int64, hash trillian.Hash) {
-				k := nodeKey(depth, index)
+				k, err := nodeKey(depth, index)
+				if err != nil {
+					t.Errorf("failed to create nodeID: %v", err)
+				}
 				nodes[k] = hash
 			})
 
