@@ -22,8 +22,8 @@ type Sequencer struct {
 	keyManager crypto.KeyManager
 }
 
-// maxTreeDepth sets an upper limit on the size of Log trees.  2^64 leaves is plenty.
-const maxTreeDepth = 64
+// maxTreeDepth sets an upper limit on the size of Log trees.  2^63-1 leaves is plenty.
+const maxTreeDepth = 63
 
 // CurrentRootExpiredFunc examines a signed log root and decides if it has expired with respect
 // to a max age duration and a given time source
