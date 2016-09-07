@@ -42,7 +42,7 @@ type Suffix struct {
 	path []byte
 }
 
-func (s *Suffix) serialize() string {
+func (s Suffix) serialize() string {
 	r := make([]byte, 1, len(s.path)+1)
 	r[0] = s.bits
 	r = append(r, s.path...)
@@ -55,6 +55,9 @@ const (
 )
 
 // NewSubtreeCache returns a newly intialised cache ready for use.
+// populateSubtree is a function which knows how to populate a subtree's
+// internal nodes given its leaves, and will be called for each subtree loaded
+// from storage.
 // TODO(al): consider supporting different sized subtrees - for now everything's subtrees of 8 levels.
 func NewSubtreeCache(populateSubtree storage.PopulateSubtreeFunc) SubtreeCache {
 	return SubtreeCache{
@@ -134,6 +137,7 @@ func (s *SubtreeCache) getNodeHashUnderLock(id storage.NodeID, getSubtree GetSub
 	// finally look for the particular node within the subtree so we can return
 	// the hash & revision.
 	var nh trillian.Hash
+	// Look up the has in the appropriate map
 	if sx.bits == 8 {
 		nh = c.Leaves[sx.serialize()]
 	} else {
@@ -172,6 +176,8 @@ func (s *SubtreeCache) SetNodeHash(id storage.NodeID, h trillian.Hash, getSubtre
 		panic(fmt.Errorf("nil prefix for %v (key %v)", id.String(), prefixKey))
 	}
 	s.dirtyPrefixes[prefixKey] = true
+	// Determine whether we're being asked to store a leave node, or an internal
+	// node, and store it accordingly.
 	if sx.bits == 8 {
 		c.Leaves[sx.serialize()] = h
 	} else {
@@ -213,18 +219,25 @@ func makeSuffixKey(depth int, index int64) (string, error) {
 	if index > 255 || index < 0 {
 		return "", fmt.Errorf("got unsupported index of %d, 0 <= index < 256", index)
 	}
-	return string([]byte{byte(depth), byte(index)}), nil
+	sfx := Suffix{byte(depth), []byte{byte(index)}}
+	return sfx.serialize(), nil
 }
 
-// populateSubtreeNodes re-creates Map  subtree's InternalNodes from the subtree
-// Leaves map.
+// PopulateMapSubtreeNodes re-creates Map subtree's InternalNodes from the
+// subtree Leaves map.
+//
+// This uses HStar2 to repopulate internal nodes.
 func PopulateMapSubtreeNodes(treeHasher merkle.TreeHasher) storage.PopulateSubtreeFunc {
 	return func(st *storage.SubtreeProto) error {
 		st.InternalNodes = make(map[string][]byte)
 		rootID := storage.NewNodeIDFromHash(st.Prefix)
 		fullTreeDepth := treeHasher.Size() * 8
 		leaves := make([]merkle.HStar2LeafHash, 0, len(st.Leaves))
-		for k, v := range st.Leaves {
+		for k64, v := range st.Leaves {
+			k, err := base64.StdEncoding.DecodeString(k64)
+			if err != nil {
+				return err
+			}
 			if k[0] != 8 {
 				return fmt.Errorf("unexpected non-leaf suffix found: %v", k)
 			}
@@ -254,6 +267,11 @@ func PopulateMapSubtreeNodes(treeHasher merkle.TreeHasher) storage.PopulateSubtr
 	}
 }
 
+// PopulateLogSubtreeNodes re-creates a Log subtree's InternalNodes from the
+// subtree Leaves map.
+//
+// This uses the CompactMerkleTree to repopulate internal nodes, and so will
+// handle imperfect (but left-hand dense) subtrees.
 func PopulateLogSubtreeNodes(treeHasher merkle.TreeHasher) storage.PopulateSubtreeFunc {
 	return func(st *storage.SubtreeProto) error {
 		st.InternalNodes = make(map[string][]byte)
@@ -267,7 +285,7 @@ func PopulateLogSubtreeNodes(treeHasher merkle.TreeHasher) storage.PopulateSubtr
 			seq := cmt.AddLeafHash(h, func(depth int, index int64, h trillian.Hash) {
 				key, err := makeSuffixKey(depth, index)
 				if err != nil {
-					// TODO(al): Don't panic Mr Mainwaring.
+					// TODO(al): Don't panic Mr. Mainwaring.
 					panic(err)
 				}
 				st.InternalNodes[key] = h
