@@ -4,8 +4,8 @@ import (
 	"github.com/google/trillian/storage"
 )
 
-func MustCreateNodeIDForTreeCoords(depth, index int64, maxBitLen int) storage.NodeID {
-	n, err := storage.NewNodeIDForTreeCoords(depth, index, maxBitLen)
+func MustCreateNodeIDForTreeCoords(depth, index int64, maxPathBits int) storage.NodeID {
+	n, err := storage.NewNodeIDForTreeCoords(depth, index, maxPathBits)
 	if err != nil {
 		panic(err)
 	}
