@@ -1,10 +1,11 @@
-package storage
+package cache
 
 import (
 	"bytes"
 	"errors"
 	"testing"
 
+	"github.com/google/trillian/storage"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -33,7 +34,7 @@ var splitTestVector = []struct {
 
 func TestSplitNodeID(t *testing.T) {
 	for i, v := range splitTestVector {
-		n := NewNodeIDFromHash(v.inPath)
+		n := storage.NewNodeIDFromHash(v.inPath)
 		n.PrefixLenBits = v.inPathLenBits
 
 		p, s := splitNodeID(n)
@@ -55,12 +56,12 @@ type mockNodeStorage struct {
 	mock.Mock
 }
 
-func (m *mockNodeStorage) GetSubtree(n NodeID) (*SubtreeProto, error) {
+func (m *mockNodeStorage) GetSubtree(n storage.NodeID) (*storage.SubtreeProto, error) {
 	ret := m.Called(n)
-	return ret.Get(0).(*SubtreeProto), ret.Error(1)
+	return ret.Get(0).(*storage.SubtreeProto), ret.Error(1)
 }
 
-func (m *mockNodeStorage) SetSubtree(s *SubtreeProto) error {
+func (m *mockNodeStorage) SetSubtree(s *storage.SubtreeProto) error {
 	ret := m.Called(s)
 	return ret.Error(0)
 }
@@ -69,19 +70,19 @@ func TestCacheFillOnlyReadsSubtrees(t *testing.T) {
 	m := mockNodeStorage{}
 	c := NewSubtreeCache()
 
-	nodeID := NewNodeIDFromHash([]byte("1234"))
+	nodeID := storage.NewNodeIDFromHash([]byte("1234"))
 	// When we loop around asking for all 0..32 bit prefix lengths of the above
 	// NodeID, we should see just one "Get" request for each subtree.
 	for b := 0; b < nodeID.PrefixLenBits; b += strataDepth {
 		e := nodeID
 		e.PrefixLenBits = b
-		m.On("GetSubtree", mock.MatchedBy(func(n NodeID) bool {
+		m.On("GetSubtree", mock.MatchedBy(func(n storage.NodeID) bool {
 			r := n.Equivalent(e)
 			if r {
 				t.Logf("saw %v", n)
 			}
 			return r
-		})).Return(&SubtreeProto{
+		})).Return(&storage.SubtreeProto{
 			Prefix: e.Path,
 		}, nil)
 	}
@@ -95,7 +96,7 @@ func TestCacheFillOnlyReadsSubtrees(t *testing.T) {
 	}
 }
 
-func noFetch(id NodeID) (*SubtreeProto, error) {
+func noFetch(id storage.NodeID) (*storage.SubtreeProto, error) {
 	return nil, errors.New("not supposed to read anything")
 }
 
@@ -103,23 +104,23 @@ func TestCacheFlush(t *testing.T) {
 	m := mockNodeStorage{}
 	c := NewSubtreeCache()
 
-	nodeID := NewNodeIDFromHash([]byte("1234"))
+	nodeID := storage.NewNodeIDFromHash([]byte("1234"))
 	// When we loop around asking for all 0..32 bit prefix lengths of the above
 	// NodeID, we should see just one "Get" request for each subtree.
 	for b := 0; b < nodeID.PrefixLenBits; b += strataDepth {
-		e := NewNodeIDFromHash([]byte("1234"))
+		e := storage.NewNodeIDFromHash([]byte("1234"))
 		//e := nodeID
 		e.PrefixLenBits = b
-		m.On("GetSubtree", mock.MatchedBy(func(n NodeID) bool {
+		m.On("GetSubtree", mock.MatchedBy(func(n storage.NodeID) bool {
 			r := n.Equivalent(e)
 			if r {
 				t.Logf("read %v", n)
 			}
 			return r
-		})).Return((*SubtreeProto)(nil), nil)
-		m.On("SetSubtree", mock.MatchedBy(func(s *SubtreeProto) bool {
+		})).Return((*storage.SubtreeProto)(nil), nil)
+		m.On("SetSubtree", mock.MatchedBy(func(s *storage.SubtreeProto) bool {
 			e := e
-			subID := NewNodeIDFromHash(s.Prefix)
+			subID := storage.NewNodeIDFromHash(s.Prefix)
 			r := subID.Equivalent(e)
 			if r {
 				t.Logf("write %v -> (%d hashes)", subID, len(s.Nodes))

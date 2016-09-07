@@ -1,4 +1,4 @@
-package storage
+package cache
 
 import (
 	"bytes"
@@ -7,19 +7,20 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
+	"github.com/google/trillian/storage"
 )
 
 // GetSubtreeFunc describes a function which can return a Subtree from storage.
-type GetSubtreeFunc func(id NodeID) (*SubtreeProto, error)
+type GetSubtreeFunc func(id storage.NodeID) (*storage.SubtreeProto, error)
 
 // SetSubtreeFunc describes a function which can store a Subtree into storage.
-type SetSubtreeFunc func(s *SubtreeProto) error
+type SetSubtreeFunc func(s *storage.SubtreeProto) error
 
 // SubtreeCache provides a caching access to Subtree storage.
 type SubtreeCache struct {
 	// subtrees contains the Subtree data read from storage, and is updated by
 	// calls to SetNodeHash.
-	subtrees map[string]*SubtreeProto
+	subtrees map[string]*storage.SubtreeProto
 	// dirtyPrefixes keeps track of all Subtrees which need to be written back
 	// to storage.
 	dirtyPrefixes map[string]bool
@@ -52,7 +53,7 @@ const (
 // TODO(al): consider supporting different sized subtrees - for now everything's subtrees of 8 levels.
 func NewSubtreeCache() SubtreeCache {
 	return SubtreeCache{
-		subtrees:      make(map[string]*SubtreeProto),
+		subtrees:      make(map[string]*storage.SubtreeProto),
 		dirtyPrefixes: make(map[string]bool),
 		mutex:         new(sync.RWMutex),
 	}
@@ -60,7 +61,7 @@ func NewSubtreeCache() SubtreeCache {
 
 // splitNodeID breaks a NodeID out into its prefix and suffix parts.
 // unless ID is 0 bits long, Suffix must always contain at least one bit.
-func splitNodeID(id NodeID) ([]byte, Suffix) {
+func splitNodeID(id storage.NodeID) ([]byte, Suffix) {
 	if id.PrefixLenBits == 0 {
 		return []byte{}, Suffix{bits: 0, path: []byte{}}
 	}
@@ -85,14 +86,14 @@ func splitNodeID(id NodeID) ([]byte, Suffix) {
 
 // GetNodeHash retrieves the previously written hash and corresponding tree
 // revision for the given node ID.
-func (s *SubtreeCache) GetNodeHash(id NodeID, getSubtree GetSubtreeFunc) (trillian.Hash, int64, error) {
+func (s *SubtreeCache) GetNodeHash(id storage.NodeID, getSubtree GetSubtreeFunc) (trillian.Hash, int64, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	return s.getNodeHashUnderLock(id, getSubtree)
 }
 
 // getNodeHashUnderLock must be called with s.mutex locked.
-func (s *SubtreeCache) getNodeHashUnderLock(id NodeID, getSubtree GetSubtreeFunc) (trillian.Hash, int64, error) {
+func (s *SubtreeCache) getNodeHashUnderLock(id storage.NodeID, getSubtree GetSubtreeFunc) (trillian.Hash, int64, error) {
 	px, sx := splitNodeID(id)
 	prefixKey := string(px)
 	c := s.subtrees[prefixKey]
@@ -109,10 +110,10 @@ func (s *SubtreeCache) getNodeHashUnderLock(id NodeID, getSubtree GetSubtreeFunc
 			// storage didn't have one for us, so we'll store an empty proto here
 			// incase we try to update it later on (we won't flush it back to
 			// storage unless it's been written to.)
-			c = &SubtreeProto{
+			c = &storage.SubtreeProto{
 				Prefix: px,
 				Depth:  strataDepth,
-				Nodes:  make(map[string]*HashAndRevision),
+				Nodes:  make(map[string]*storage.HashAndRevision),
 			}
 		}
 		if c.Prefix == nil {
@@ -132,7 +133,7 @@ func (s *SubtreeCache) getNodeHashUnderLock(id NodeID, getSubtree GetSubtreeFunc
 }
 
 // SetNodeHash sets a node hash in the cache.
-func (s *SubtreeCache) SetNodeHash(id NodeID, rev int64, h trillian.Hash, getSubtree GetSubtreeFunc) error {
+func (s *SubtreeCache) SetNodeHash(id storage.NodeID, rev int64, h trillian.Hash, getSubtree GetSubtreeFunc) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	px, sx := splitNodeID(id)
@@ -158,7 +159,7 @@ func (s *SubtreeCache) SetNodeHash(id NodeID, rev int64, h trillian.Hash, getSub
 		panic(fmt.Errorf("nil prefix for %v (key %v)", id.String(), prefixKey))
 	}
 	s.dirtyPrefixes[prefixKey] = true
-	c.Nodes[sx.serialize()] = &HashAndRevision{h, rev}
+	c.Nodes[sx.serialize()] = &storage.HashAndRevision{h, rev}
 	return nil
 }
 
