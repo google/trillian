@@ -32,23 +32,46 @@ func TestNewNodeIDWithPrefix(t *testing.T) {
 	}
 }
 
-func TestNewNodeIDForTreeCoordsForZeros(t *testing.T) {
-	n := NewNodeIDForTreeCoords(0, 0, 8)
-	if got, want := n.Path, []byte{0x00}; !bytes.Equal(got, want) {
-		t.Fatalf("Expected Path of %v, but got %v", want, got)
-	}
-	if got, want := n.String(), ""; got != want {
-		t.Fatalf("Expected '%s', got '%s'", want, got)
-	}
+var nodeIDForTreeCoordsVec = []struct {
+	depth      int64
+	index      int64
+	maxBits    int
+	shouldFail bool
+	expected   string
+}{
+	{0, 0x00, 8, false, "00000000"},
+	{0, 0x01, 8, false, "00000001"},
+	{0, 0x01, 15, false, "000000000000001"},
+	{1, 0x01, 8, false, "0000001"},
+	{2, 0x04, 8, false, "000100"},
+	{8, 0x01, 16, false, "00000001"},
+	{8, 0x01, 9, false, "1"},
+	{0, 0x80, 8, false, "10000000"},
+	{0, 0x01, 64, false, "0000000000000000000000000000000000000000000000000000000000000001"},
+	{63, 0x01, 64, false, "1"},
+	{63, 0x02, 64, true, "index of 0x02 is too large for given depth"},
 }
 
 func TestNewNodeIDForTreeCoords(t *testing.T) {
-	n := NewNodeIDForTreeCoords(11, 0x1234, 16)
-	if got, want := n.Path, []byte{0x12, 0x34}; !bytes.Equal(got, want) {
-		t.Fatalf("Expected Path of %v, but got %v", want, got)
-	}
-	if got, want := n.String(), "00010010001"; got != want {
-		t.Fatalf("Expected '%s', got '%s'", want, got)
+	for i, v := range nodeIDForTreeCoordsVec {
+		n, err := NewNodeIDForTreeCoords(v.depth, v.index, v.maxBits)
+
+		switch {
+		case err != nil && v.shouldFail:
+			// pass
+			continue
+		case err == nil && !v.shouldFail:
+			if got, want := n.String(), v.expected; got != want {
+				t.Errorf("(test vector index %d) Expected '%s', got '%s', %v", i, want, got, err)
+			}
+		case err != nil && v.shouldFail:
+			t.Errorf("unexpectedly created a node ID for test vector entry %d, should've failed because %s", i, v.expected)
+			continue
+		case err == nil && !v.shouldFail:
+			t.Errorf("failed to create nodeID for test vector entry %d: %v", i, err)
+			continue
+		}
+
 	}
 }
 

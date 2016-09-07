@@ -11,16 +11,23 @@ var splitTestVector = []struct {
 	inPath        []byte
 	inPathLenBits int
 	outPrefix     []byte
+	outSuffixBits int
 	outSuffix     []byte
 }{
-	{[]byte{0x12, 0x34, 0x56, 0x7f}, 32, []byte{0x12, 0x34, 0x56}, []byte{0x7f}},
-	{[]byte{0x12, 0x34, 0x56, 0xff}, 29, []byte{0x12, 0x34, 0x56}, []byte{0xf8}},
-	{[]byte{0x12, 0x34, 0x56, 0xff}, 25, []byte{0x12, 0x34, 0x56}, []byte{0x80}},
-	{[]byte{0x12, 0x34, 0x56, 0x78}, 16, []byte{0x12}, []byte{0x34}},
-	{[]byte{0x12, 0x34, 0x56, 0x78}, 9, []byte{0x12}, []byte{0x00}},
-	{[]byte{0x12, 0x34, 0x56, 0x78}, 8, []byte{}, []byte{0x12}},
-	{[]byte{0x12, 0x34, 0x56, 0x78}, 7, []byte{}, []byte{0x12}},
-	{[]byte{0x12, 0x34, 0x56, 0x78}, 0, []byte{}, []byte{}},
+	{[]byte{0x12, 0x34, 0x56, 0x7f}, 32, []byte{0x12, 0x34, 0x56}, 8, []byte{0x7f}},
+	{[]byte{0x12, 0x34, 0x56, 0xff}, 29, []byte{0x12, 0x34, 0x56}, 5, []byte{0xf8}},
+	{[]byte{0x12, 0x34, 0x56, 0xff}, 25, []byte{0x12, 0x34, 0x56}, 1, []byte{0x80}},
+	{[]byte{0x12, 0x34, 0x56, 0x78}, 16, []byte{0x12}, 8, []byte{0x34}},
+	{[]byte{0x12, 0x34, 0x56, 0x78}, 9, []byte{0x12}, 1, []byte{0x00}},
+	{[]byte{0x12, 0x34, 0x56, 0x78}, 8, []byte{}, 8, []byte{0x12}},
+	{[]byte{0x12, 0x34, 0x56, 0x78}, 7, []byte{}, 7, []byte{0x12}},
+	{[]byte{0x12, 0x34, 0x56, 0x78}, 0, []byte{}, 0, []byte{}},
+	{[]byte{0x70}, 2, []byte{}, 2, []byte{0x40}},
+	{[]byte{0x70}, 3, []byte{}, 3, []byte{0x60}},
+	{[]byte{0x70}, 4, []byte{}, 4, []byte{0x70}},
+	{[]byte{0x70}, 5, []byte{}, 5, []byte{0x70}},
+	{[]byte{0x00, 0x03}, 16, []byte{0x00}, 8, []byte{0x03}},
+	{[]byte{0x00, 0x03}, 15, []byte{0x00}, 7, []byte{0x02}},
 }
 
 func TestSplitNodeID(t *testing.T) {
@@ -30,15 +37,15 @@ func TestSplitNodeID(t *testing.T) {
 
 		p, s := splitNodeID(n)
 		if expected, got := v.outPrefix, p; !bytes.Equal(expected, got) {
-			t.Fatalf("(test %d) Expected prefix %v, got %v", i, expected, got)
+			t.Fatalf("(test %d) Expected prefix %x, got %x", i, expected, got)
 		}
 
-		if expected, got := v.inPathLenBits-len(v.outPrefix)*8, int(s.bits); expected != got {
+		if expected, got := v.outSuffixBits, int(s.bits); expected != got {
 			t.Fatalf("(test %d) Expected suffix num bits %d, got %d", i, expected, got)
 		}
 
 		if expected, got := v.outSuffix, s.path; !bytes.Equal(expected, got) {
-			t.Fatalf("(test %d) Expected suffix path of %v, got %v", i, expected, got)
+			t.Fatalf("(test %d) Expected suffix path of %x, got %x", i, expected, got)
 		}
 	}
 }

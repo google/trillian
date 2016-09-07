@@ -2,7 +2,7 @@ package merkle
 
 import (
 	"fmt"
-	
+
 	"github.com/google/trillian/storage"
 )
 
@@ -14,7 +14,7 @@ func CalcInclusionProofNodeAddresses(treeSize, index int64, maxBitLen int) ([]st
 		return []storage.NodeID{}, fmt.Errorf("invalid params ts: %d index: %d, bitlen:%d", treeSize, index, maxBitLen)
 	}
 
-	proof := make([]storage.NodeID, 0, bitLen(treeSize) + 1)
+	proof := make([]storage.NodeID, 0, bitLen(treeSize)+1)
 
 	sizeLessOne := treeSize - 1
 
@@ -30,13 +30,21 @@ func CalcInclusionProofNodeAddresses(treeSize, index int64, maxBitLen int) ([]st
 		sibling := node ^ 1
 		if sibling < lastNodeAtLevel {
 			// Tree must be completely filled in up to this node index
-			proof = append(proof, storage.NewNodeIDForTreeCoords(int64(depth), sibling, maxBitLen))
+			n, err := storage.NewNodeIDForTreeCoords(int64(depth), sibling, maxBitLen)
+			if err != nil {
+				return nil, err
+			}
+			proof = append(proof, n)
 		} else if sibling == lastNodeAtLevel {
 			// The tree may skip levels because it's not completely filled in. These nodes
 			// don't exist
 			drop := depth - subtreeDepth(treeSize, depth-1)
 			sibling = sibling << uint(drop)
-			proof = append(proof, storage.NewNodeIDForTreeCoords(int64(depth - drop), sibling, maxBitLen))
+			n, err := storage.NewNodeIDForTreeCoords(int64(depth-drop), sibling, maxBitLen)
+			if err != nil {
+				return nil, err
+			}
+			proof = append(proof, n)
 		}
 
 		node = node >> 1
@@ -58,15 +66,15 @@ func CalcConsistencyProofNodeAddresses(previousTreeSize, treeSize int64, maxBitL
 		return []storage.NodeID{}, fmt.Errorf("invalid params prior: %d treesize: %d, bitlen:%d", previousTreeSize, treeSize, maxBitLen)
 	}
 
-	return snapshotConsistency(previousTreeSize, treeSize, maxBitLen), nil
+	return snapshotConsistency(previousTreeSize, treeSize, maxBitLen)
 }
 
 // snapshotConsistency does the calculation of consistency proof node addresses between
 // two snapshots. Based on the C++ code used by CT but adjusted to fit our situation.
 // In particular the code does not need to handle the case where overwritten node hashes
 // must be recursively computed because we have versioned nodes.
-func snapshotConsistency(snapshot1, snapshot2 int64, maxBitLen int) []storage.NodeID {
-	proof := make([]storage.NodeID, 0, bitLen(snapshot2) + 1)
+func snapshotConsistency(snapshot1, snapshot2 int64, maxBitLen int) ([]storage.NodeID, error) {
+	proof := make([]storage.NodeID, 0, bitLen(snapshot2)+1)
 
 	level := 0
 	node := snapshot1 - 1
@@ -80,18 +88,26 @@ func snapshotConsistency(snapshot1, snapshot2 int64, maxBitLen int) []storage.No
 
 	if node != 0 {
 		// Not at the root of snapshot 1, record the node
-		proof = append(proof, storage.NewNodeIDForTreeCoords(int64(level), node, maxBitLen))
+		n, err := storage.NewNodeIDForTreeCoords(int64(level), node, maxBitLen)
+		if err != nil {
+			return nil, err
+		}
+		proof = append(proof, n)
 	}
 
 	// Now append the path from this node to the root of snapshot2.
-	return append(proof, pathFromNodeToRootAtSnapshot(node, level, snapshot2, maxBitLen)...)
+	p, err := pathFromNodeToRootAtSnapshot(node, level, snapshot2, maxBitLen)
+	if err != nil {
+		return nil, err
+	}
+	return append(proof, p...), nil
 }
 
-func pathFromNodeToRootAtSnapshot(node int64, level int, snapshot int64, maxBitLen int) []storage.NodeID {
-	proof := make([]storage.NodeID, 0, bitLen(snapshot) + 1)
+func pathFromNodeToRootAtSnapshot(node int64, level int, snapshot int64, maxBitLen int) ([]storage.NodeID, error) {
+	proof := make([]storage.NodeID, 0, bitLen(snapshot)+1)
 
 	if snapshot == 0 {
-		return proof
+		return proof, nil
 	}
 
 	// Index of the last node.
@@ -102,7 +118,11 @@ func pathFromNodeToRootAtSnapshot(node int64, level int, snapshot int64, maxBitL
 		sibling := node ^ 1
 		if sibling < lastNode {
 			// The sibling is not the last node of the level in the snapshot tree
-			proof = append(proof, storage.NewNodeIDForTreeCoords(int64(level), sibling, maxBitLen))
+			n, err := storage.NewNodeIDForTreeCoords(int64(level), sibling, maxBitLen)
+			if err != nil {
+				return nil, err
+			}
+			proof = append(proof, n)
 		} else if sibling == lastNode {
 			// The sibling is the last node of the level in the snapshot tree.
 			// In the C++ code we'd potentially recompute the node value here because we could be
@@ -110,9 +130,13 @@ func pathFromNodeToRootAtSnapshot(node int64, level int, snapshot int64, maxBitL
 			// some nodes to be overwritten. We have versioned tree nodes so this isn't necessary,
 			// we won't see any hashes written since the snapshot point. However we do have to account
 			// for missing levels in the tree.
-			drop := level - subtreeDepth(snapshot, level - 1)
+			drop := level - subtreeDepth(snapshot, level-1)
 			sibling = sibling << uint(drop)
-			proof = append(proof, storage.NewNodeIDForTreeCoords(int64(level - drop), sibling, maxBitLen))
+			n, err := storage.NewNodeIDForTreeCoords(int64(level-drop), sibling, maxBitLen)
+			if err != nil {
+				return nil, err
+			}
+			proof = append(proof, n)
 		}
 
 		// Sibling > lastNode so does not exist, move up
@@ -121,7 +145,7 @@ func pathFromNodeToRootAtSnapshot(node int64, level int, snapshot int64, maxBitL
 		level++
 	}
 
-	return proof
+	return proof, nil
 }
 
 // subtreeDepth calculates the depth of a subtree, used at the right of the tree which
