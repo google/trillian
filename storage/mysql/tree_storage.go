@@ -345,7 +345,10 @@ func (t *treeTX) SetMerkleNodes(nodes []storage.Node) error {
 		if n.NodeRevision != t.writeRevision {
 			return fmt.Errorf("tried to write node with revision %d when treeTX writeRevision is %d", n.NodeRevision, t.writeRevision)
 		}
-		err := t.subtreeCache.SetNodeHash(n.NodeID, t.writeRevision, n.Hash)
+		err := t.subtreeCache.SetNodeHash(n.NodeID, t.writeRevision, n.Hash,
+			func(nID storage.NodeID) (*storage.SubtreeProto, error) {
+				return t.getSubtree(t.writeRevision, nID)
+			})
 		if err != nil {
 			return err
 		}

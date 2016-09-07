@@ -2,6 +2,7 @@ package storage
 
 import (
 	"bytes"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/mock"
@@ -94,6 +95,10 @@ func TestCacheFillOnlyReadsSubtrees(t *testing.T) {
 	}
 }
 
+func noFetch(id NodeID) (*SubtreeProto, error) {
+	return nil, errors.New("not supposed to read anything")
+}
+
 func TestCacheFlush(t *testing.T) {
 	m := mockNodeStorage{}
 	c := NewSubtreeCache()
@@ -137,7 +142,7 @@ func TestCacheFlush(t *testing.T) {
 	// Write nodes
 	for nodeID.PrefixLenBits > 0 {
 		h := []byte(nodeID.String())
-		err := c.SetNodeHash(nodeID, 100, append([]byte("hash-"), h...))
+		err := c.SetNodeHash(nodeID, 100, append([]byte("hash-"), h...), noFetch)
 		if err != nil {
 			t.Fatalf("failed to set node hash: %v", err)
 		}
