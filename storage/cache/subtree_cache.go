@@ -2,6 +2,7 @@ package cache
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"sync"
 
@@ -41,7 +42,7 @@ func (s *Suffix) serialize() string {
 	r := make([]byte, 1, len(s.path)+1)
 	r[0] = s.bits
 	r = append(r, s.path...)
-	return string(r)
+	return base64.StdEncoding.EncodeToString(r)
 }
 
 const (
