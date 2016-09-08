@@ -50,13 +50,12 @@ var idMutex sync.Mutex
 var testLogId int64
 var testMapId int64
 
-func createSomeNodes(testName string, rev int64, treeID int64) []storage.Node {
+func createSomeNodes(testName string, treeID int64) []storage.Node {
 	r := make([]storage.Node, 4)
 	for i := range r {
 		r[i].NodeID = storage.NewNodeIDWithPrefix(uint64(i), 8, 8, 8)
 		h := sha256.Sum256([]byte{byte(i)})
 		r[i].Hash = h[:]
-		r[i].NodeRevision = rev
 		glog.Infof("Node to store: %v\n", r[i].NodeID)
 	}
 	return r
@@ -176,7 +175,7 @@ func TestNodeRoundTrip(t *testing.T) {
 
 	const writeRevision = int64(100)
 
-	nodesToStore := createSomeNodes("TestNodeRoundTrip", writeRevision, logID.logID.TreeID)
+	nodesToStore := createSomeNodes("TestNodeRoundTrip", logID.logID.TreeID)
 	nodeIDsToRead := make([]storage.NodeID, len(nodesToStore))
 	for i := range nodesToStore {
 		nodeIDsToRead[i] = nodesToStore[i].NodeID
@@ -221,39 +220,6 @@ func TestNodeRoundTrip(t *testing.T) {
 		if err := tx.Commit(); err != nil {
 			t.Fatalf("Failed to commit read: %s", err)
 		}
-	}
-}
-
-func TestCantWriteNodeWithUnexpectedRevision(t *testing.T) {
-	logID := createLogID("TestCantWriteNodeWithUnexpectedRevision")
-	db := prepareTestLogDB(logID, t)
-	defer db.Close()
-	s := prepareTestLogStorage(logID, t)
-
-	const nodeWriteRevision = int64(100)
-
-	nodesToStore := createSomeNodes("TestNodeRoundTrip", nodeWriteRevision, logID.logID.TreeID)
-
-	for delta := -1; delta < 2; delta += 1 {
-		tx, err := s.Begin()
-		if err != nil {
-			t.Fatalf("Failed to begin tx: %v", err)
-		}
-		txWriteRevision := nodeWriteRevision + int64(delta)
-		forceWriteRevision(txWriteRevision, tx)
-
-		err = tx.SetMerkleNodes(nodesToStore)
-		switch delta {
-		case -1, 1:
-			if err == nil {
-				t.Fatalf("Unexpectedly wrote a node with rev %d, when txWriteRevision was %d", nodeWriteRevision, txWriteRevision)
-			}
-		case 0:
-			if err != nil {
-				t.Fatalf("Failed to store node with rev %d, and txWriteRevision %d", nodeWriteRevision, txWriteRevision)
-			}
-		}
-		tx.Rollback()
 	}
 }
 
