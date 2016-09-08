@@ -86,14 +86,14 @@ func splitNodeID(id storage.NodeID) ([]byte, Suffix) {
 
 // GetNodeHash retrieves the previously written hash and corresponding tree
 // revision for the given node ID.
-func (s *SubtreeCache) GetNodeHash(id storage.NodeID, getSubtree GetSubtreeFunc) (trillian.Hash, int64, error) {
+func (s *SubtreeCache) GetNodeHash(id storage.NodeID, getSubtree GetSubtreeFunc) (trillian.Hash, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	return s.getNodeHashUnderLock(id, getSubtree)
 }
 
 // getNodeHashUnderLock must be called with s.mutex locked.
-func (s *SubtreeCache) getNodeHashUnderLock(id storage.NodeID, getSubtree GetSubtreeFunc) (trillian.Hash, int64, error) {
+func (s *SubtreeCache) getNodeHashUnderLock(id storage.NodeID, getSubtree GetSubtreeFunc) (trillian.Hash, error) {
 	px, sx := splitNodeID(id)
 	prefixKey := string(px)
 	c := s.subtrees[prefixKey]
@@ -104,7 +104,7 @@ func (s *SubtreeCache) getNodeHashUnderLock(id storage.NodeID, getSubtree GetSub
 		var err error
 		c, err = getSubtree(subID)
 		if err != nil {
-			return nil, -1, err
+			return nil, err
 		}
 		if c == nil {
 			// storage didn't have one for us, so we'll store an empty proto here
@@ -113,7 +113,7 @@ func (s *SubtreeCache) getNodeHashUnderLock(id storage.NodeID, getSubtree GetSub
 			c = &storage.SubtreeProto{
 				Prefix: px,
 				Depth:  strataDepth,
-				Nodes:  make(map[string]*storage.HashAndRevision),
+				Nodes:  make(map[string][]byte),
 			}
 		}
 		if c.Prefix == nil {
@@ -127,13 +127,13 @@ func (s *SubtreeCache) getNodeHashUnderLock(id storage.NodeID, getSubtree GetSub
 	// the hash & revision.
 	nh := c.Nodes[sx.serialize()]
 	if nh == nil {
-		return nil, -1, nil
+		return nil, nil
 	}
-	return nh.Hash, nh.Revision, nil
+	return nh, nil
 }
 
 // SetNodeHash sets a node hash in the cache.
-func (s *SubtreeCache) SetNodeHash(id storage.NodeID, rev int64, h trillian.Hash, getSubtree GetSubtreeFunc) error {
+func (s *SubtreeCache) SetNodeHash(id storage.NodeID, h trillian.Hash, getSubtree GetSubtreeFunc) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	px, sx := splitNodeID(id)
@@ -145,7 +145,7 @@ func (s *SubtreeCache) SetNodeHash(id storage.NodeID, rev int64, h trillian.Hash
 		// For now, just read from storage if we don't already have it.
 		glog.Infof("attempting to write to unread subtree for %v, reading now", id.String())
 		// We hold the lock so can call this directly:
-		_, _, err := s.getNodeHashUnderLock(id, getSubtree)
+		_, err := s.getNodeHashUnderLock(id, getSubtree)
 		if err != nil {
 			return err
 		}
@@ -159,7 +159,7 @@ func (s *SubtreeCache) SetNodeHash(id storage.NodeID, rev int64, h trillian.Hash
 		panic(fmt.Errorf("nil prefix for %v (key %v)", id.String(), prefixKey))
 	}
 	s.dirtyPrefixes[prefixKey] = true
-	c.Nodes[sx.serialize()] = &storage.HashAndRevision{h, rev}
+	c.Nodes[sx.serialize()] = h
 	return nil
 }
 

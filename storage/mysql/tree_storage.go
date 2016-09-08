@@ -321,7 +321,7 @@ func (t *treeTX) GetMerkleNodes(treeRevision int64, nodeIDs []storage.NodeID) ([
 	ret := make([]storage.Node, 0, len(nodeIDs))
 
 	for _, nodeID := range nodeIDs {
-		h, rev, err := t.subtreeCache.GetNodeHash(
+		h, err := t.subtreeCache.GetNodeHash(
 			nodeID,
 			func(n storage.NodeID) (*storage.SubtreeProto, error) {
 				return t.getSubtree(treeRevision, n)
@@ -331,9 +331,8 @@ func (t *treeTX) GetMerkleNodes(treeRevision int64, nodeIDs []storage.NodeID) ([
 		}
 		if h != nil {
 			ret = append(ret, storage.Node{
-				NodeID:       nodeID,
-				Hash:         h,
-				NodeRevision: rev,
+				NodeID: nodeID,
+				Hash:   h,
 			})
 		}
 	}
@@ -346,7 +345,7 @@ func (t *treeTX) SetMerkleNodes(nodes []storage.Node) error {
 		if n.NodeRevision != t.writeRevision {
 			return fmt.Errorf("tried to write node with revision %d when treeTX writeRevision is %d", n.NodeRevision, t.writeRevision)
 		}
-		err := t.subtreeCache.SetNodeHash(n.NodeID, t.writeRevision, n.Hash,
+		err := t.subtreeCache.SetNodeHash(n.NodeID, n.Hash,
 			func(nID storage.NodeID) (*storage.SubtreeProto, error) {
 				return t.getSubtree(t.writeRevision, nID)
 			})
