@@ -11,6 +11,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/storage/cache"
 )
 
 // These statements are fixed
@@ -190,7 +191,7 @@ func (m *mySQLTreeStorage) beginTreeTx() (treeTX, error) {
 	return treeTX{
 		tx:            t,
 		ts:            m,
-		subtreeCache:  storage.NewSubtreeCache(),
+		subtreeCache:  cache.NewSubtreeCache(),
 		writeRevision: -1,
 	}, nil
 }
@@ -199,7 +200,7 @@ type treeTX struct {
 	closed        bool
 	tx            *sql.Tx
 	ts            *mySQLTreeStorage
-	subtreeCache  storage.SubtreeCache
+	subtreeCache  cache.SubtreeCache
 	writeRevision int64
 }
 
