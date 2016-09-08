@@ -3,10 +3,12 @@ package merkle
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/google/trillian"
+	"github.com/google/trillian/storage"
 	"github.com/google/trillian/testonly"
 )
 
@@ -131,5 +133,67 @@ func TestLoadingTreeFailsBadRootHash(t *testing.T) {
 
 	if err == nil || !ok {
 		t.Fatalf("Did not return correct error type on root mismatch: %v", err)
+	}
+}
+
+func nodeKey(d int, i int64) (string, error) {
+	n, err := storage.NewNodeIDForTreeCoords(int64(d), i, 64)
+	if err != nil {
+		return "", err
+	}
+	return n.String(), nil
+}
+
+func TestCompactVsFullTree(t *testing.T) {
+	imt := NewInMemoryMerkleTree(NewRFC6962TreeHasher(trillian.NewSHA256()))
+	nodes := make(map[string]trillian.Hash)
+
+	for i := 0; i < 1024; i++ {
+		cmt, err := NewCompactMerkleTreeWithState(
+			NewRFC6962TreeHasher(trillian.NewSHA256()),
+			int64(imt.LeafCount()),
+			func(depth int, index int64) (trillian.Hash, error) {
+				k, err := nodeKey(depth, index)
+				if err != nil {
+					t.Errorf("failed to create nodeID: %v", err)
+				}
+				h := nodes[k]
+				return h, nil
+			}, imt.CurrentRoot().Hash())
+
+		if err != nil {
+			t.Fatalf("interation %d: failed to create CMT with state: %v", i, err)
+		}
+		if a, b := imt.CurrentRoot().Hash(), cmt.CurrentRoot(); !bytes.Equal(a, b) {
+			t.Fatalf("iteration %d: Got in-memory root of %v, but compact tree has root %v", i, a, b)
+		}
+
+		newLeaf := []byte(fmt.Sprintf("Leaf %d", i))
+
+		iSeq, iHash := imt.AddLeaf(newLeaf)
+
+		cSeq, cHash := cmt.AddLeaf(newLeaf,
+			func(depth int, index int64, hash trillian.Hash) {
+				k, err := nodeKey(depth, index)
+				if err != nil {
+					t.Errorf("failed to create nodeID: %v", err)
+				}
+				nodes[k] = hash
+			})
+
+		// In-Memory tree is 1-based for sequence numbers, since it's based on the original CT C++ impl.
+		if got, want := iSeq, i+1; got != want {
+			t.Fatalf("iteration %d: Got in-memory sequence number of %d, expected %d", i, got, want)
+		}
+		if int64(iSeq) != cSeq+1 {
+			t.Fatalf("iteration %d: Got in-memory sequence number of %d but %d (zero based) from compact tree", i, iSeq, cSeq)
+		}
+		if a, b := iHash.Hash(), cHash; !bytes.Equal(a, b) {
+			t.Fatalf("iteration %d: Got leaf hash %v from in-memory tree, but %v from compact tree", i, a, b)
+		}
+		if a, b := imt.CurrentRoot().Hash(), cmt.CurrentRoot(); !bytes.Equal(a, b) {
+			t.Fatalf("iteration %d: Got in-memory root of %v, but compact tree has root %v", i, a, b)
+		}
+
 	}
 }
