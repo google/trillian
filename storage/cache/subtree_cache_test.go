@@ -154,3 +154,10 @@ func TestCacheFlush(t *testing.T) {
 		t.Fatalf("failed to flush cache: %v", err)
 	}
 }
+
+func TestSuffixSerializeFormat(t *testing.T) {
+	s := Suffix{5, []byte("Boo!")}
+	if got, want := s.serialize(), "BUJvbyE="; got != want {
+		t.Fatalf("Got serialized suffix of %s, expected %s", got, want)
+	}
+}
