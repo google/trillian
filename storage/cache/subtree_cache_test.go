@@ -2,9 +2,13 @@ package cache
 
 import (
 	"bytes"
+	"encoding/base64"
 	"errors"
+	"fmt"
+	"io/ioutil"
 	"testing"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
@@ -25,7 +29,7 @@ var splitTestVector = []struct {
 	{[]byte{0x12, 0x34, 0x56, 0x78}, 9, []byte{0x12}, 1, []byte{0x00}},
 	{[]byte{0x12, 0x34, 0x56, 0x78}, 8, []byte{}, 8, []byte{0x12}},
 	{[]byte{0x12, 0x34, 0x56, 0x78}, 7, []byte{}, 7, []byte{0x12}},
-	{[]byte{0x12, 0x34, 0x56, 0x78}, 0, []byte{}, 0, []byte{}},
+	{[]byte{0x12, 0x34, 0x56, 0x78}, 0, []byte{}, 0, []byte{0}},
 	{[]byte{0x70}, 2, []byte{}, 2, []byte{0x40}},
 	{[]byte{0x70}, 3, []byte{}, 3, []byte{0x60}},
 	{[]byte{0x70}, 4, []byte{}, 4, []byte{0x70}},
@@ -161,5 +165,90 @@ func TestSuffixSerializeFormat(t *testing.T) {
 	s := Suffix{5, []byte("Boo!")}
 	if got, want := s.serialize(), "BUJvbyE="; got != want {
 		t.Fatalf("Got serialized suffix of %s, expected %s", got, want)
+	}
+}
+
+func TestRepopulateMapSubtreeKAT(t *testing.T) {
+	hasher := merkle.NewRFC6962TreeHasher(trillian.NewSHA256())
+	populateTheThing := PopulateMapSubtreeNodes(hasher)
+	pb, err := ioutil.ReadFile("../../testdata/map_good_subtree.pb")
+	if err != nil {
+		t.Fatalf("failed to read test data: %v", err)
+	}
+	goodSubtree := storage.SubtreeProto{}
+	if err := proto.UnmarshalText(string(pb), &goodSubtree); err != nil {
+		t.Fatalf("failed to unmarshal SubtreeProto: %v", err)
+	}
+
+	leavesOnly := storage.SubtreeProto{}
+	if err := proto.UnmarshalText(string(pb), &leavesOnly); err != nil {
+		t.Fatalf("failed to unmarshal SubtreeProto: %v", err)
+	}
+	// erase the internal nodes
+	leavesOnly.InternalNodes = make(map[string][]byte)
+
+	if err := populateTheThing(&leavesOnly); err != nil {
+		t.Fatalf("failed to repopulate subtree: %v", err)
+	}
+	if got, want := trillian.Hash(leavesOnly.RootHash), trillian.Hash(goodSubtree.RootHash); !bytes.Equal(got, want) {
+		t.Errorf("recalculated incorrect root: got %v, wanted %v", got, want)
+	}
+	if got, want := len(leavesOnly.InternalNodes), len(goodSubtree.InternalNodes); got != want {
+		t.Errorf("recalculated tree has %d internal nodes, expected %d", got, want)
+	}
+
+	for k, v := range goodSubtree.InternalNodes {
+		h, ok := leavesOnly.InternalNodes[k]
+		if !ok {
+			t.Errorf("Reconstructed tree missing internal node for %v", k)
+			continue
+		}
+		if got, want := trillian.Hash(h), trillian.Hash(v); !bytes.Equal(got, want) {
+			t.Errorf("Recalculated incorrect hash for node %v, got %v expected %v", k, got, want)
+		}
+		delete(leavesOnly.InternalNodes, k)
+	}
+	if numExtraNodes := len(leavesOnly.InternalNodes); numExtraNodes > 0 {
+		t.Errorf("Reconstructed tree has %d unexpected extra nodes:", numExtraNodes)
+		for k, _ := range leavesOnly.InternalNodes {
+			rk, err := base64.StdEncoding.DecodeString(k)
+			if err != nil {
+				t.Errorf("  invalid base64: %v", err)
+				continue
+			}
+			t.Errorf("  %v (%v)", k, rk)
+		}
+	}
+}
+
+// TODO(al): add KAT tests too
+func TestRepopulateLogSubtree(t *testing.T) {
+	hasher := merkle.NewRFC6962TreeHasher(trillian.NewSHA256())
+	populateTheThing := PopulateLogSubtreeNodes(hasher)
+	cmt := merkle.NewCompactMerkleTree(hasher)
+	s := storage.SubtreeProto{
+		Leaves: make(map[string][]byte),
+	}
+	for numLeaves := int64(1); numLeaves < 255; numLeaves++ {
+		// clear internal nodes
+		s.InternalNodes = make(map[string][]byte)
+
+		leaf := []byte(fmt.Sprintf("this is leaf %d", numLeaves))
+		leafHash := hasher.Digest(leaf)
+		cmt.AddLeafHash(leafHash, func(depth int, index int64, h trillian.Hash) {})
+
+		sfx, err := makeSuffixKey(8, numLeaves-1)
+		if err != nil {
+			t.Fatalf("failed to create suffix key: %v", err)
+		}
+		s.Leaves[sfx] = leafHash
+
+		if err := populateTheThing(&s); err != nil {
+			t.Fatalf("failed populate subtree: %v", err)
+		}
+
+		if got, expected := trillian.Hash(s.RootHash), cmt.CurrentRoot(); !bytes.Equal(got, expected) {
+			t.Fatalf("Got root %v for tree size %d, expected %v. subtree:\n%#v", got, numLeaves, expected, s.String())
+		}
 	}
 }

@@ -19,11 +19,13 @@ message SubtreeProto {
   // subtree's depth
   int32 depth = 2;
 
+  bytes root_hash = 3;
+
   // map of suffix (within subtree) to subtree-leaf node hash
-  map<string, bytes> leaves = 3;
+  map<string, bytes> leaves = 4;
 
   // Map of suffix (within subtree) to subtree-internal node hash.
   // This structure is only used in RAM as a cache, the internal nodes of
   // the subtree are not generally stored.
-  map<string, bytes> internal_nodes = 4;
+  map<string, bytes> internal_nodes = 5;
 }

@@ -72,7 +72,7 @@ func NewSubtreeCache(populateSubtree storage.PopulateSubtreeFunc) SubtreeCache {
 // unless ID is 0 bits long, Suffix must always contain at least one bit.
 func splitNodeID(id storage.NodeID) ([]byte, Suffix) {
 	if id.PrefixLenBits == 0 {
-		return []byte{}, Suffix{bits: 0, path: []byte{}}
+		return []byte{}, Suffix{bits: 0, path: []byte{0}}
 	}
 	prefixSplit := (id.PrefixLenBits - 1) / strataDepth
 	suffixEnd := (id.PrefixLenBits-1)/8 + 1
@@ -120,13 +120,16 @@ func (s *SubtreeCache) getNodeHashUnderLock(id storage.NodeID, getSubtree GetSub
 			// incase we try to update it later on (we won't flush it back to
 			// storage unless it's been written to.)
 			c = &storage.SubtreeProto{
-				Prefix: px,
-				Depth:  strataDepth,
-				Leaves: make(map[string][]byte),
+				Prefix:        px,
+				Depth:         strataDepth,
+				Leaves:        make(map[string][]byte),
+				InternalNodes: make(map[string][]byte),
+			}
+		} else {
+			if err := s.populateSubtree(c); err != nil {
+				return nil, err
 			}
 		}
-		// Whether from storage or freshly created, we'll need an internal nodes cache map:
-		c.InternalNodes = make(map[string][]byte)
 		if c.Prefix == nil {
 			panic(fmt.Errorf("GetNodeHash nil prefix on %v for id %v with px %#v", c, id.String(), px))
 		}
@@ -137,7 +140,7 @@ func (s *SubtreeCache) getNodeHashUnderLock(id storage.NodeID, getSubtree GetSub
 	// finally look for the particular node within the subtree so we can return
 	// the hash & revision.
 	var nh trillian.Hash
-	// Look up the has in the appropriate map
+	// Look up the hash in the appropriate map
 	if sx.bits == 8 {
 		nh = c.Leaves[sx.serialize()]
 	} else {
@@ -176,7 +179,7 @@ func (s *SubtreeCache) SetNodeHash(id storage.NodeID, h trillian.Hash, getSubtre
 		panic(fmt.Errorf("nil prefix for %v (key %v)", id.String(), prefixKey))
 	}
 	s.dirtyPrefixes[prefixKey] = true
-	// Determine whether we're being asked to store a leave node, or an internal
+	// Determine whether we're being asked to store a leaf node, or an internal
 	// node, and store it accordingly.
 	if sx.bits == 8 {
 		c.Leaves[sx.serialize()] = h
@@ -213,8 +216,8 @@ func (s *SubtreeCache) Flush(setSubtree SetSubtreeFunc) error {
 // InternalNodes maps.
 func makeSuffixKey(depth int, index int64) (string, error) {
 	// TODO(al): only supports 8 bit subtree sizes currently
-	if depth >= 8 || depth < 0 {
-		return "", fmt.Errorf("found depth of %d, but we only support positive depths of up to 8 currently", depth)
+	if depth > 8 || depth < 0 {
+		return "", fmt.Errorf("found depth of %d, but we only support positive depths of up to and including 8 currently", depth)
 	}
 	if index > 255 || index < 0 {
 		return "", fmt.Errorf("got unsupported index of %d, 0 <= index < 256", index)
@@ -239,7 +242,7 @@ func PopulateMapSubtreeNodes(treeHasher merkle.TreeHasher) storage.PopulateSubtr
 				return err
 			}
 			if k[0] != 8 {
-				return fmt.Errorf("unexpected non-leaf suffix found: %v", k)
+				return fmt.Errorf("unexpected non-leaf suffix found: %x", k)
 			}
 			leaves = append(leaves, merkle.HStar2LeafHash{
 				LeafHash: v,
@@ -248,7 +251,7 @@ func PopulateMapSubtreeNodes(treeHasher merkle.TreeHasher) storage.PopulateSubtr
 		}
 		hs2 := merkle.NewHStar2(treeHasher)
 		offset := fullTreeDepth - rootID.PrefixLenBits - int(st.Depth)
-		_, err := hs2.HStar2Nodes(int(st.Depth), offset, leaves,
+		root, err := hs2.HStar2Nodes(int(st.Depth), offset, leaves,
 			func(depth int, index *big.Int) (trillian.Hash, error) {
 				return nil, nil
 			},
@@ -261,8 +264,10 @@ func PopulateMapSubtreeNodes(treeHasher merkle.TreeHasher) storage.PopulateSubtr
 				st.InternalNodes[sfx] = h
 				return nil
 			})
-		// TODO(al): Store a Subtree's root hash too, so we can verify we've
-		// recalculated the same hash here.
+		if err != nil {
+			return err
+		}
+		st.RootHash = root
 		return err
 	}
 }
@@ -276,13 +281,20 @@ func PopulateLogSubtreeNodes(treeHasher merkle.TreeHasher) storage.PopulateSubtr
 	return func(st *storage.SubtreeProto) error {
 		st.InternalNodes = make(map[string][]byte)
 		cmt := merkle.NewCompactMerkleTree(treeHasher)
-		sfx := []byte{8, 0}
-		for ; int(sfx[1]) < len(st.Leaves); sfx[1]++ {
-			h := st.Leaves[string(sfx)]
+		for leafIndex := int64(0); leafIndex < int64(len(st.Leaves)); leafIndex++ {
+			sfx, err := makeSuffixKey(8, leafIndex)
+			if err != nil {
+				return err
+			}
+			h := st.Leaves[sfx]
 			if h == nil {
-				return fmt.Errorf("unexpectedly got nil for subtree leaf suffix %x", sfx)
+				return fmt.Errorf("unexpectedly got nil for subtree leaf suffix %s", sfx)
 			}
 			seq := cmt.AddLeafHash(h, func(depth int, index int64, h trillian.Hash) {
+				if depth == 8 && index == 0 {
+					// no space for the root in the node cache
+					return
+				}
 				key, err := makeSuffixKey(depth, index)
 				if err != nil {
 					// TODO(al): Don't panic Mr. Mainwaring.
@@ -290,10 +302,11 @@ func PopulateLogSubtreeNodes(treeHasher merkle.TreeHasher) storage.PopulateSubtr
 				}
 				st.InternalNodes[key] = h
 			})
-			if got, expected := seq, int64(sfx[1]); got != expected {
+			if got, expected := seq, leafIndex; got != expected {
 				return fmt.Errorf("got seq of %d, but expected %d", got, expected)
 			}
 		}
+		st.RootHash = cmt.CurrentRoot()
 		return nil
 	}
 }

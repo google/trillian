@@ -224,3 +224,10 @@ func (c *CompactMerkleTree) AddLeafHash(leafHash trillian.Hash, f setNodeFunc) (
 func (c CompactMerkleTree) Size() int64 {
 	return c.size
 }
+
+func (c CompactMerkleTree) Depth() int {
+	if c.size == 0 {
+		return 0
+	}
+	return bitLen(c.size - 1)
+}
