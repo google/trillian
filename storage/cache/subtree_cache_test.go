@@ -88,7 +88,7 @@ func TestCacheFillOnlyReadsSubtrees(t *testing.T) {
 	}
 
 	for nodeID.PrefixLenBits > 0 {
-		_, _, err := c.GetNodeHash(nodeID, m.GetSubtree)
+		_, err := c.GetNodeHash(nodeID, m.GetSubtree)
 		if err != nil {
 			t.Fatalf("failed to get node hash: %v", err)
 		}
@@ -132,7 +132,7 @@ func TestCacheFlush(t *testing.T) {
 	// Read nodes which touch the subtrees we'll write to:
 	sibs := nodeID.Siblings()
 	for s := range sibs {
-		_, _, err := c.GetNodeHash(sibs[s], m.GetSubtree)
+		_, err := c.GetNodeHash(sibs[s], m.GetSubtree)
 		if err != nil {
 			t.Fatalf("failed to get node hash: %v", err)
 		}
@@ -143,7 +143,7 @@ func TestCacheFlush(t *testing.T) {
 	// Write nodes
 	for nodeID.PrefixLenBits > 0 {
 		h := []byte(nodeID.String())
-		err := c.SetNodeHash(nodeID, 100, append([]byte("hash-"), h...), noFetch)
+		err := c.SetNodeHash(nodeID, append([]byte("hash-"), h...), noFetch)
 		if err != nil {
 			t.Fatalf("failed to set node hash: %v", err)
 		}
