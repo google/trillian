@@ -33,19 +33,19 @@ type SubtreeCache struct {
 	populateSubtree storage.PopulateSubtreeFunc
 }
 
-// Suffix represents the tail of of a NodeID, indexing into the Subtree which
+// Suffix represents the tail of a NodeID, indexing into the Subtree which
 // corresponds to the prefix of the NodeID.
 type Suffix struct {
 	// bits is the number of bits in the node ID suffix.
 	bits byte
 	// path is the suffix itself.
-	path []byte
+	path byte
 }
 
 func (s Suffix) serialize() string {
-	r := make([]byte, 1, len(s.path)+1)
+	r := make([]byte, 2)
 	r[0] = s.bits
-	r = append(r, s.path...)
+	r[1] = s.path
 	return base64.StdEncoding.EncodeToString(r)
 }
 
@@ -72,20 +72,14 @@ func NewSubtreeCache(populateSubtree storage.PopulateSubtreeFunc) SubtreeCache {
 // unless ID is 0 bits long, Suffix must always contain at least one bit.
 func splitNodeID(id storage.NodeID) ([]byte, Suffix) {
 	if id.PrefixLenBits == 0 {
-		return []byte{}, Suffix{bits: 0, path: []byte{0}}
+		return []byte{}, Suffix{bits: 0, path: 0}
 	}
 	prefixSplit := (id.PrefixLenBits - 1) / strataDepth
-	suffixEnd := (id.PrefixLenBits-1)/8 + 1
 	s := Suffix{
 		bits: byte((id.PrefixLenBits-1)%strataDepth) + 1,
-		path: make([]byte, suffixEnd-prefixSplit),
+		path: id.Path[prefixSplit],
 	}
-	// TODO(al): is all this copying actually necessary?
-	copy(s.path, id.Path[prefixSplit:suffixEnd])
-	if id.PrefixLenBits%8 != 0 {
-		suffixMask := (byte(0x1<<uint((id.PrefixLenBits%8))) - 1) << uint(8-id.PrefixLenBits%8)
-		s.path[len(s.path)-1] &= suffixMask
-	}
+	s.path &= ((0x01 << s.bits) - 1) << uint(8-s.bits)
 
 	// TODO(al): is all this copying actually necessary?
 	r := make([]byte, prefixSplit)
@@ -140,7 +134,12 @@ func (s *SubtreeCache) getNodeHashUnderLock(id storage.NodeID, getSubtree GetSub
 	// finally look for the particular node within the subtree so we can return
 	// the hash & revision.
 	var nh trillian.Hash
-	// Look up the hash in the appropriate map
+
+	// Look up the hash in the appropriate map.
+	// The leaf hashes are stored in a separate map to the internal nodes so that
+	// we can easily dump (and later reconstruct) the internal nodes.
+	// Since the subtrees are fixed to a depth of 8, any suffix with 8
+	// significant bits must be a leaf hash.
 	if sx.bits == 8 {
 		nh = c.Leaves[sx.serialize()]
 	} else {
@@ -222,7 +221,7 @@ func makeSuffixKey(depth int, index int64) (string, error) {
 	if index > 255 || index < 0 {
 		return "", fmt.Errorf("got unsupported index of %d, 0 <= index < 256", index)
 	}
-	sfx := Suffix{byte(depth), []byte{byte(index)}}
+	sfx := Suffix{byte(depth), byte(index)}
 	return sfx.serialize(), nil
 }
 
@@ -295,7 +294,7 @@ func PopulateLogSubtreeNodes(treeHasher merkle.TreeHasher) storage.PopulateSubtr
 					// no space for the root in the node cache
 					return
 				}
-				key, err := makeSuffixKey(depth, index)
+				key, err := makeSuffixKey(8-depth, index<<uint(depth))
 				if err != nil {
 					// TODO(al): Don't panic Mr. Mainwaring.
 					panic(err)
