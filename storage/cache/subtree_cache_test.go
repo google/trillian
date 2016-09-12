@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"reflect"
 	"testing"
 
 	"github.com/golang/protobuf/proto"
@@ -20,22 +21,22 @@ var splitTestVector = []struct {
 	inPathLenBits int
 	outPrefix     []byte
 	outSuffixBits int
-	outSuffix     []byte
+	outSuffix     byte
 }{
-	{[]byte{0x12, 0x34, 0x56, 0x7f}, 32, []byte{0x12, 0x34, 0x56}, 8, []byte{0x7f}},
-	{[]byte{0x12, 0x34, 0x56, 0xff}, 29, []byte{0x12, 0x34, 0x56}, 5, []byte{0xf8}},
-	{[]byte{0x12, 0x34, 0x56, 0xff}, 25, []byte{0x12, 0x34, 0x56}, 1, []byte{0x80}},
-	{[]byte{0x12, 0x34, 0x56, 0x78}, 16, []byte{0x12}, 8, []byte{0x34}},
-	{[]byte{0x12, 0x34, 0x56, 0x78}, 9, []byte{0x12}, 1, []byte{0x00}},
-	{[]byte{0x12, 0x34, 0x56, 0x78}, 8, []byte{}, 8, []byte{0x12}},
-	{[]byte{0x12, 0x34, 0x56, 0x78}, 7, []byte{}, 7, []byte{0x12}},
-	{[]byte{0x12, 0x34, 0x56, 0x78}, 0, []byte{}, 0, []byte{0}},
-	{[]byte{0x70}, 2, []byte{}, 2, []byte{0x40}},
-	{[]byte{0x70}, 3, []byte{}, 3, []byte{0x60}},
-	{[]byte{0x70}, 4, []byte{}, 4, []byte{0x70}},
-	{[]byte{0x70}, 5, []byte{}, 5, []byte{0x70}},
-	{[]byte{0x00, 0x03}, 16, []byte{0x00}, 8, []byte{0x03}},
-	{[]byte{0x00, 0x03}, 15, []byte{0x00}, 7, []byte{0x02}},
+	{[]byte{0x12, 0x34, 0x56, 0x7f}, 32, []byte{0x12, 0x34, 0x56}, 8, 0x7f},
+	{[]byte{0x12, 0x34, 0x56, 0xff}, 29, []byte{0x12, 0x34, 0x56}, 5, 0xf8},
+	{[]byte{0x12, 0x34, 0x56, 0xff}, 25, []byte{0x12, 0x34, 0x56}, 1, 0x80},
+	{[]byte{0x12, 0x34, 0x56, 0x78}, 16, []byte{0x12}, 8, 0x34},
+	{[]byte{0x12, 0x34, 0x56, 0x78}, 9, []byte{0x12}, 1, 0x00},
+	{[]byte{0x12, 0x34, 0x56, 0x78}, 8, []byte{}, 8, 0x12},
+	{[]byte{0x12, 0x34, 0x56, 0x78}, 7, []byte{}, 7, 0x12},
+	{[]byte{0x12, 0x34, 0x56, 0x78}, 0, []byte{}, 0, 0},
+	{[]byte{0x70}, 2, []byte{}, 2, 0x40},
+	{[]byte{0x70}, 3, []byte{}, 3, 0x60},
+	{[]byte{0x70}, 4, []byte{}, 4, 0x70},
+	{[]byte{0x70}, 5, []byte{}, 5, 0x70},
+	{[]byte{0x00, 0x03}, 16, []byte{0x00}, 8, 0x03},
+	{[]byte{0x00, 0x03}, 15, []byte{0x00}, 7, 0x02},
 }
 
 func TestSplitNodeID(t *testing.T) {
@@ -52,7 +53,7 @@ func TestSplitNodeID(t *testing.T) {
 			t.Fatalf("(test %d) Expected suffix num bits %d, got %d", i, expected, got)
 		}
 
-		if expected, got := v.outSuffix, s.path; !bytes.Equal(expected, got) {
+		if expected, got := v.outSuffix, s.path; expected != got {
 			t.Fatalf("(test %d) Expected suffix path of %x, got %x", i, expected, got)
 		}
 	}
@@ -162,8 +163,8 @@ func TestCacheFlush(t *testing.T) {
 }
 
 func TestSuffixSerializeFormat(t *testing.T) {
-	s := Suffix{5, []byte("Boo!")}
-	if got, want := s.serialize(), "BUJvbyE="; got != want {
+	s := Suffix{5, 0xae}
+	if got, want := s.serialize(), "Ba4="; got != want {
 		t.Fatalf("Got serialized suffix of %s, expected %s", got, want)
 	}
 }
@@ -226,6 +227,10 @@ func TestRepopulateLogSubtree(t *testing.T) {
 	hasher := merkle.NewRFC6962TreeHasher(trillian.NewSHA256())
 	populateTheThing := PopulateLogSubtreeNodes(hasher)
 	cmt := merkle.NewCompactMerkleTree(hasher)
+	cmtStorage := storage.SubtreeProto{
+		Leaves:        make(map[string][]byte),
+		InternalNodes: make(map[string][]byte),
+	}
 	s := storage.SubtreeProto{
 		Leaves: make(map[string][]byte),
 	}
@@ -235,13 +240,23 @@ func TestRepopulateLogSubtree(t *testing.T) {
 
 		leaf := []byte(fmt.Sprintf("this is leaf %d", numLeaves))
 		leafHash := hasher.Digest(leaf)
-		cmt.AddLeafHash(leafHash, func(depth int, index int64, h trillian.Hash) {})
+		cmt.AddLeafHash(leafHash, func(depth int, index int64, h trillian.Hash) {
+			n, err := storage.NewNodeIDForTreeCoords(int64(depth), index, 8)
+			if err != nil {
+				t.Fatalf("failed to create nodeID for cmt tree: %v", err)
+			}
+			if depth < 8 {
+				_, sfx := splitNodeID(n)
+				cmtStorage.InternalNodes[sfx.serialize()] = h
+			}
+		})
 
 		sfx, err := makeSuffixKey(8, numLeaves-1)
 		if err != nil {
 			t.Fatalf("failed to create suffix key: %v", err)
 		}
 		s.Leaves[sfx] = leafHash
+		cmtStorage.Leaves[sfx] = leafHash
 
 		if err := populateTheThing(&s); err != nil {
 			t.Fatalf("failed populate subtree: %v", err)
@@ -249,6 +264,10 @@ func TestRepopulateLogSubtree(t *testing.T) {
 
 		if got, expected := trillian.Hash(s.RootHash), cmt.CurrentRoot(); !bytes.Equal(got, expected) {
 			t.Fatalf("Got root %v for tree size %d, expected %v. subtree:\n%#v", got, numLeaves, expected, s.String())
+		}
+
+		if !reflect.DeepEqual(cmtStorage.InternalNodes, s.InternalNodes) {
+			t.Fatalf("(it %d) CMT internal nodes are\n%v, but sparse internal nodes are\n%v", numLeaves, cmtStorage.InternalNodes, s.InternalNodes)
 		}
 	}
 }
