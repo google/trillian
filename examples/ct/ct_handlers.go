@@ -237,7 +237,7 @@ func addChainInternal(w http.ResponseWriter, r *http.Request, c CTRequestHandler
 	}
 
 	if err != nil {
-		return http.StatusInternalServerError, fmt.Errorf("Failed to create / serialize SCT or Merkle leaf: %v %v", sct, err)
+		return http.StatusInternalServerError, fmt.Errorf("failed to create / serialize SCT or Merkle leaf: %v %v", sct, err)
 	}
 
 	// Inputs validated, pass the request on to the back end after hashing and serializing
@@ -381,14 +381,14 @@ func wrappedGetSTHConsistencyHandler(c CTRequestHandlers) appHandler {
 		jsonData, err := json.Marshal(&jsonResponse)
 
 		if err != nil {
-			return http.StatusInternalServerError, fmt.Errorf("Failed to marshal get-sth-consistency resp: %v because %v", jsonResponse, err)
+			return http.StatusInternalServerError, fmt.Errorf("failed to marshal get-sth-consistency resp: %v because %v", jsonResponse, err)
 		}
 
 		_, err = w.Write(jsonData)
 
 		if err != nil {
 			// Probably too late for this as headers might have been written but we don't know for sure
-			return http.StatusInternalServerError, fmt.Errorf("Failed to write get-sth-consistency resp: %v because %v", jsonResponse, err)
+			return http.StatusInternalServerError, fmt.Errorf("failed to write get-sth-consistency resp: %v because %v", jsonResponse, err)
 		}
 
 		return http.StatusOK, nil
@@ -447,14 +447,14 @@ func wrappedGetProofByHashHandler(c CTRequestHandlers) appHandler {
 
 		if err != nil {
 			glog.Warningf("Failed to marshal get-proof-by-hash resp: %v", proofResponse)
-			return http.StatusInternalServerError, fmt.Errorf("Failed to marshal get-proof-by-hash resp: %v, error: %v", proofResponse, err)
+			return http.StatusInternalServerError, fmt.Errorf("failed to marshal get-proof-by-hash resp: %v, error: %v", proofResponse, err)
 		}
 
 		_, err = w.Write(jsonData)
 
 		if err != nil {
 			// Probably too late for this as headers might have been written but we don't know for sure
-			return http.StatusInternalServerError, fmt.Errorf("Failed to write get-proof-by-hash resp: %v", proofResponse)
+			return http.StatusInternalServerError, fmt.Errorf("failed to write get-proof-by-hash resp: %v", proofResponse)
 		}
 
 		return http.StatusOK, nil
@@ -473,7 +473,7 @@ func wrappedGetEntriesHandler(c CTRequestHandlers) appHandler {
 		startIndex, endIndex, err := parseAndValidateGetEntriesRange(r, maxGetEntriesAllowed)
 
 		if err != nil {
-			return http.StatusBadRequest, fmt.Errorf("Bad range on get-entries request: %v", err)
+			return http.StatusBadRequest, fmt.Errorf("bad range on get-entries request: %v", err)
 		}
 
 		// Now make a request to the backend to get the relevant leaves
@@ -493,11 +493,11 @@ func wrappedGetEntriesHandler(c CTRequestHandlers) appHandler {
 		// range exceeds the tree size etc. so we could get fewer leaves than we requested but
 		// never more and never anything outside the requested range.
 		if expected, got := len(requestIndices), len(response.Leaves); got > expected {
-			return http.StatusInternalServerError, fmt.Errorf("Backend returned too many leaves: %d v %d", got, expected)
+			return http.StatusInternalServerError, fmt.Errorf("backend returned too many leaves: %d v %d", got, expected)
 		}
 
 		if err := isResponseContiguousRange(response, startIndex, endIndex); err != nil {
-			return http.StatusInternalServerError, fmt.Errorf("Backend get-entries range received from backend non contiguous: %v", err)
+			return http.StatusInternalServerError, fmt.Errorf("backend get-entries range received from backend non contiguous: %v", err)
 		}
 
 		// Now we've checked the response and it seems to be valid we need to serialize the
@@ -506,14 +506,14 @@ func wrappedGetEntriesHandler(c CTRequestHandlers) appHandler {
 		jsonResponse, err := marshalGetEntriesResponse(response)
 
 		if err != nil {
-			return http.StatusInternalServerError, fmt.Errorf("Failed to process leaves returned from backend: %v", err)
+			return http.StatusInternalServerError, fmt.Errorf("failed to process leaves returned from backend: %v", err)
 		}
 
 		w.Header().Set(contentTypeHeader, contentTypeJSON)
 		jsonData, err := json.Marshal(&jsonResponse)
 
 		if err != nil {
-			return http.StatusInternalServerError, fmt.Errorf("Failed to marshal get-entries resp: %v because: %v", jsonResponse, err)
+			return http.StatusInternalServerError, fmt.Errorf("failed to marshal get-entries resp: %v because: %v", jsonResponse, err)
 		}
 
 		_, err = w.Write(jsonData)
@@ -521,7 +521,7 @@ func wrappedGetEntriesHandler(c CTRequestHandlers) appHandler {
 		if err != nil {
 
 			// Probably too late for this as headers might have been written but we don't know for sure
-			return http.StatusInternalServerError, fmt.Errorf("Failed to write get-entries resp: %v because: %v", jsonResponse, err)
+			return http.StatusInternalServerError, fmt.Errorf("failed to write get-entries resp: %v because: %v", jsonResponse, err)
 		}
 
 		return http.StatusOK, nil
@@ -581,7 +581,7 @@ func wrappedGetEntryAndProofHandler(c CTRequestHandlers) appHandler {
 
 		// Apply some checks that we got reasonable data from the backend
 		if response.Proof == nil || response.Leaf == nil || len(response.Proof.ProofNode) == 0 || len(response.Leaf.LeafData) == 0 {
-			return http.StatusInternalServerError, fmt.Errorf("RPC bad response, possible extra info: %v", response)
+			return http.StatusInternalServerError, fmt.Errorf("got RPC bad response, possible extra info: %v", response)
 		}
 
 		// Build and marshall the response to the client
@@ -594,7 +594,7 @@ func wrappedGetEntryAndProofHandler(c CTRequestHandlers) appHandler {
 		jsonData, err := json.Marshal(&jsonResponse)
 
 		if err != nil {
-			return http.StatusInternalServerError, fmt.Errorf("Failed to marshal get-entry-and-proof resp: %v because: %v", jsonResponse, err)
+			return http.StatusInternalServerError, fmt.Errorf("failed to marshal get-entry-and-proof resp: %v because: %v", jsonResponse, err)
 		}
 
 		_, err = w.Write(jsonData)
@@ -602,7 +602,7 @@ func wrappedGetEntryAndProofHandler(c CTRequestHandlers) appHandler {
 		if err != nil {
 
 			// Probably too late for this as headers might have been written but we don't know for sure
-			return http.StatusInternalServerError, fmt.Errorf("Failed to write get-entry-and-proof resp: %v because: %v", jsonResponse, err)
+			return http.StatusInternalServerError, fmt.Errorf("failed to write get-entry-and-proof resp: %v because: %v", jsonResponse, err)
 		}
 
 		return http.StatusOK, nil
@@ -648,13 +648,13 @@ func verifyAddChain(req addChainRequest, w http.ResponseWriter, trustedRoots PEM
 	if err != nil {
 		// We rejected it because the cert failed checks or we could not find a path to a root etc.
 		// Lots of possible causes for errors
-		return nil, fmt.Errorf("Chain failed to verify: %v because: %v", req, err)
+		return nil, fmt.Errorf("chain failed to verify: %v because: %v", req, err)
 	}
 
 	isPrecert, err := IsPrecertificate(validPath[0])
 
 	if err != nil {
-		return nil, fmt.Errorf("Precert test failed: %v", err)
+		return nil, fmt.Errorf("precert test failed: %v", err)
 	}
 
 	// The type of the leaf must match the one the handler expects
@@ -731,13 +731,13 @@ func marshalAndWriteAddChainResponse(sct ct.SignedCertificateTimestamp, km crypt
 	jsonData, err := json.Marshal(&resp)
 
 	if err != nil {
-		return fmt.Errorf("Failed to marshal add-chain resp: %v because: %v", resp, err)
+		return fmt.Errorf("failed to marshal add-chain resp: %v because: %v", resp, err)
 	}
 
 	_, err = w.Write(jsonData)
 
 	if err != nil {
-		return fmt.Errorf("Failed to write add-chain resp: %v", resp)
+		return fmt.Errorf("failed to write add-chain resp: %v", resp)
 	}
 
 	return nil
