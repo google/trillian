@@ -75,7 +75,7 @@ func (s Sequencer) buildNodesFromNodeMap(nodeMap map[string]storage.Node, newVer
 	return targetNodes, nil
 }
 
-func (s Sequencer) sequenceLeaves(mt *merkle.CompactMerkleTree, leaves []trillian.LogLeaf) (map[string]storage.Node, []int64) {
+func (s Sequencer) sequenceLeaves(mt *merkle.CompactMerkleTree, leaves []trillian.LogLeaf) (map[string]storage.Node, []int64, error) {
 	nodeMap := make(map[string]storage.Node)
 	sequenceNumbers := make([]int64, 0, len(leaves))
 
@@ -88,16 +88,24 @@ func (s Sequencer) sequenceLeaves(mt *merkle.CompactMerkleTree, leaves []trillia
 				return
 			}
 			nodeMap[nodeId.String()] = storage.Node{
-				NodeID:       nodeId,
-				Hash:         hash,
-				NodeRevision: -1,
+				NodeID: nodeId,
+				Hash:   hash,
 			}
 		})
+		// store leaf hash in the merkle tree too:
+		leafNodeID, err := storage.NewNodeIDForTreeCoords(0, seq, maxTreeDepth)
+		if err != nil {
+			return nil, nil, err
+		}
+		nodeMap[leafNodeID.String()] = storage.Node{
+			NodeID: leafNodeID,
+			Hash:   leaf.LeafHash,
+		}
 
 		sequenceNumbers = append(sequenceNumbers, seq)
 	}
 
-	return nodeMap, sequenceNumbers
+	return nodeMap, sequenceNumbers, nil
 }
 
 func (s Sequencer) initMerkleTreeFromStorage(currentRoot trillian.SignedLogRoot, tx storage.LogTX) (*merkle.CompactMerkleTree, error) {
@@ -196,7 +204,11 @@ func (s Sequencer) SequenceBatch(limit int, expiryFunc CurrentRootExpiredFunc) (
 	}
 
 	// Assign leaf sequence numbers and collate node updates
-	nodeMap, sequenceNumbers := s.sequenceLeaves(merkleTree, leaves)
+	nodeMap, sequenceNumbers, err := s.sequenceLeaves(merkleTree, leaves)
+	if err != nil {
+		tx.Rollback()
+		return 0, err
+	}
 
 	if len(sequenceNumbers) != len(leaves) {
 		panic(fmt.Sprintf("Sequencer returned %d sequence numbers for %d leaves", len(sequenceNumbers),
