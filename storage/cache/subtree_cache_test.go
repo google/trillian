@@ -222,7 +222,6 @@ func TestRepopulateMapSubtreeKAT(t *testing.T) {
 	}
 }
 
-// TODO(al): add KAT tests too
 func TestRepopulateLogSubtree(t *testing.T) {
 	hasher := merkle.NewRFC6962TreeHasher(trillian.NewSHA256())
 	populateTheThing := PopulateLogSubtreeNodes(hasher)
@@ -245,7 +244,8 @@ func TestRepopulateLogSubtree(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to create nodeID for cmt tree: %v", err)
 			}
-			if depth < 8 {
+			// Don't store leaves or the subtree root in InternalNodes
+			if depth > 0 && depth < 8 {
 				_, sfx := splitNodeID(n)
 				cmtStorage.InternalNodes[sfx.serialize()] = h
 			}
@@ -268,6 +268,76 @@ func TestRepopulateLogSubtree(t *testing.T) {
 
 		if !reflect.DeepEqual(cmtStorage.InternalNodes, s.InternalNodes) {
 			t.Fatalf("(it %d) CMT internal nodes are\n%v, but sparse internal nodes are\n%v", numLeaves, cmtStorage.InternalNodes, s.InternalNodes)
+		}
+	}
+}
+
+type logKATData struct {
+	File      string
+	NumLeaves int
+}
+
+func TestRepopulateLogSubtreeKAT(t *testing.T) {
+	testVector := []logKATData{
+		{"log_good_subtree_5.pb", 5},
+		{"log_good_subtree_55.pb", 55},
+	}
+
+	for _, k := range testVector {
+		runLogSubtreeKAT(t, k)
+	}
+}
+
+func runLogSubtreeKAT(t *testing.T, data logKATData) {
+	hasher := merkle.NewRFC6962TreeHasher(trillian.NewSHA256())
+	populateTheThing := PopulateLogSubtreeNodes(hasher)
+	pb, err := ioutil.ReadFile("../../testdata/" + data.File)
+	if err != nil {
+		t.Fatalf("failed to read test data: %v", err)
+	}
+	goodSubtree := storage.SubtreeProto{}
+	if err := proto.UnmarshalText(string(pb), &goodSubtree); err != nil {
+		t.Fatalf("failed to unmarshal SubtreeProto: %v", err)
+	}
+	t.Logf("good root %v", trillian.Hash(goodSubtree.RootHash))
+
+	leavesOnly := storage.SubtreeProto{}
+	if err := proto.UnmarshalText(string(pb), &leavesOnly); err != nil {
+		t.Fatalf("failed to unmarshal SubtreeProto: %v", err)
+	}
+	// erase the internal nodes
+	leavesOnly.InternalNodes = make(map[string][]byte)
+
+	if err := populateTheThing(&leavesOnly); err != nil {
+		t.Fatalf("failed to repopulate subtree: %v", err)
+	}
+	if got, want := trillian.Hash(leavesOnly.RootHash), trillian.Hash(goodSubtree.RootHash); !bytes.Equal(got, want) {
+		t.Errorf("recalculated incorrect root: got %v, wanted %v", got, want)
+	}
+	if got, want := len(leavesOnly.InternalNodes), len(goodSubtree.InternalNodes); got != want {
+		t.Errorf("recalculated tree has %d internal nodes, expected %d", got, want)
+	}
+
+	for k, v := range goodSubtree.InternalNodes {
+		h, ok := leavesOnly.InternalNodes[k]
+		if !ok {
+			t.Errorf("Reconstructed tree missing internal node for %v", k)
+			continue
+		}
+		if got, want := trillian.Hash(h), trillian.Hash(v); !bytes.Equal(got, want) {
+			t.Errorf("Recalculated incorrect hash for node %v, got %v expected %v", k, got, want)
+		}
+		delete(leavesOnly.InternalNodes, k)
+	}
+	if numExtraNodes := len(leavesOnly.InternalNodes); numExtraNodes > 0 {
+		t.Errorf("Reconstructed tree has %d unexpected extra nodes:", numExtraNodes)
+		for k, _ := range leavesOnly.InternalNodes {
+			rk, err := base64.StdEncoding.DecodeString(k)
+			if err != nil {
+				t.Errorf("  invalid base64: %v", err)
+				continue
+			}
+			t.Errorf("  %v (%v)", k, rk)
 		}
 	}
 }

@@ -199,6 +199,10 @@ func (s *SubtreeCache) Flush(setSubtree SetSubtreeFunc) error {
 			if !bytes.Equal(bk, v.Prefix) {
 				return fmt.Errorf("inconsistent cache: prefix key is %v, but cached object claims %v", bk, v.Prefix)
 			}
+			// TODO(al): Do actually write this one once we're storing the updated
+			// subtree root value here during tree update calculations.
+			v.RootHash = nil
+
 			if len(v.Leaves) > 0 {
 				// clear the internal node cache; we don't want to write that.
 				v.InternalNodes = nil
@@ -299,7 +303,9 @@ func PopulateLogSubtreeNodes(treeHasher merkle.TreeHasher) storage.PopulateSubtr
 					// TODO(al): Don't panic Mr. Mainwaring.
 					panic(err)
 				}
-				st.InternalNodes[key] = h
+				if depth > 0 {
+					st.InternalNodes[key] = h
+				}
 			})
 			if got, expected := seq, leafIndex; got != expected {
 				return fmt.Errorf("got seq of %d, but expected %d", got, expected)
