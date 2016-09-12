@@ -58,6 +58,25 @@ const (
 	getEntryAndProofParamTreeSize = "tree_size"
 )
 
+// appHandler is a type for simplifying and centralizing error handling from http handlers
+type appHandler func(http.ResponseWriter, *http.Request) (int, error)
+
+// ServeHTTP is an adapter from appHandler to the http framework
+func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	status, err := fn(w, r)
+
+	if err != nil {
+		glog.Warningf("handler error: %v", err)
+		sendHttpError(w, status, err)
+	}
+
+	// Additional check, for consistency the handler must return an error for non 200 status
+	if status != http.StatusOK {
+		glog.Warningf("handler non 200 without error: %d %v", status, err)
+		sendHttpError(w, http.StatusInternalServerError, fmt.Errorf("http handler misbehaved, status: %d", status))
+	}
+}
+
 // CTRequestHandlers provides HTTP handler functions for CT V1 as defined in RFC 6962
 // and functionality to translate CT client requests into forms that can be served by a
 // log backend RPC service.
@@ -145,21 +164,18 @@ func parseBodyAsJSONChain(w http.ResponseWriter, r *http.Request) (addChainReque
 
 	if err != nil {
 		glog.V(logVerboseLevel).Infof("Failed to read request body: %v", err)
-		sendHttpError(w, http.StatusBadRequest, err)
 		return addChainRequest{}, err
 	}
 
 	var req addChainRequest
 	if err := json.Unmarshal(body, &req); err != nil {
 		glog.V(logVerboseLevel).Infof("Failed to parse request body: %v", err)
-		sendHttpError(w, http.StatusBadRequest, fmt.Errorf("unmarshal failed with %v on %s", err, body))
 		return addChainRequest{}, err
 	}
 
 	// The cert chain is not allowed to be empty. We'll defer other validation for later
 	if len(req.Chain) == 0 {
 		glog.V(logVerboseLevel).Infof("Request chain is empty: %s", body)
-		sendHttpError(w, http.StatusBadRequest, errors.New("request chain cannot be empty"))
 		return addChainRequest{}, errors.New("cert chain was empty")
 	}
 
@@ -189,25 +205,24 @@ func enforceMethod(w http.ResponseWriter, r *http.Request, method string) bool {
 
 // addChainInternal is called by add-chain and add-pre-chain as the logic involved in
 // processing these requests is almost identical
-func addChainInternal(w http.ResponseWriter, r *http.Request, c CTRequestHandlers, isPrecert bool) {
+func addChainInternal(w http.ResponseWriter, r *http.Request, c CTRequestHandlers, isPrecert bool) (int, error) {
 	if !enforceMethod(w, r, httpMethodPost) {
 		// HTTP status code was already set
-		return
+		return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 	}
 
 	addChainRequest, err := parseBodyAsJSONChain(w, r)
 
 	if err != nil {
-		// HTTP status code was already set
-		return
+		return http.StatusBadRequest, err
 	}
 
 	// We already checked that the chain is not empty so can move on to verification
-	validPath := verifyAddChain(addChainRequest, w, *c.trustedRoots, isPrecert)
+	validPath, err := verifyAddChain(addChainRequest, w, *c.trustedRoots, isPrecert)
 
-	if validPath == nil {
-		// Chain rejected by verify. HTTP status code was already set
-		return
+	if err != nil {
+		// Chain rejected by verify.
+		return http.StatusBadRequest, err
 	}
 
 	// Build up the SCT and MerkleTreeLeaf. The SCT will be returned to the client and
@@ -222,9 +237,7 @@ func addChainInternal(w http.ResponseWriter, r *http.Request, c CTRequestHandler
 	}
 
 	if err != nil {
-		glog.Warningf("Failed to create / serialize SCT or Merkle leaf: %v %v", sct, err)
-		sendHttpError(w, http.StatusInternalServerError, err)
-		return
+		return http.StatusInternalServerError, fmt.Errorf("failed to create / serialize SCT or Merkle leaf: %v %v", sct, err)
 	}
 
 	// Inputs validated, pass the request on to the back end after hashing and serializing
@@ -233,8 +246,7 @@ func addChainInternal(w http.ResponseWriter, r *http.Request, c CTRequestHandler
 
 	if err != nil {
 		// Failure reason already logged
-		sendHttpError(w, http.StatusInternalServerError, err)
-		return
+		return http.StatusInternalServerError, err
 	}
 
 	request := trillian.QueueLeavesRequest{LogId: c.logID, Leaves: []*trillian.LeafProto{&leafProto}}
@@ -247,8 +259,7 @@ func addChainInternal(w http.ResponseWriter, r *http.Request, c CTRequestHandler
 		// TODO(Martin2112): Possibly cases where the request we sent to the backend is invalid
 		// which isn't really an internal server error.
 		// Request failed on backend
-		sendHttpError(w, http.StatusInternalServerError, err)
-		return
+		return http.StatusInternalServerError, err
 	}
 
 	// Success. We can now build and marshal the JSON response and write it out
@@ -257,28 +268,31 @@ func addChainInternal(w http.ResponseWriter, r *http.Request, c CTRequestHandler
 	if err != nil {
 		// reason is logged and http status is already set
 		// TODO(Martin2112): Record failure for monitoring when it's implemented
+		return http.StatusInternalServerError, err
 	}
+
+	return http.StatusOK, nil
 }
 
 // All the handlers are wrapped so they have access to the RPC client and other context
 // TODO(Martin2112): Doesn't properly handle duplicate submissions yet but the backend
 // needs this to be implemented before we can do it here
-func wrappedAddChainHandler(c CTRequestHandlers) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		addChainInternal(w, r, c, false)
+func wrappedAddChainHandler(c CTRequestHandlers) appHandler {
+	return func(w http.ResponseWriter, r *http.Request) (int, error) {
+		return addChainInternal(w, r, c, false)
 	}
 }
 
-func wrappedAddPreChainHandler(c CTRequestHandlers) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		addChainInternal(w, r, c, true)
+func wrappedAddPreChainHandler(c CTRequestHandlers) appHandler {
+	return func(w http.ResponseWriter, r *http.Request) (int, error) {
+		return addChainInternal(w, r, c, true)
 	}
 }
 
-func wrappedGetSTHHandler(c CTRequestHandlers) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func wrappedGetSTHHandler(c CTRequestHandlers) appHandler {
+	return func(w http.ResponseWriter, r *http.Request) (int, error) {
 		if !enforceMethod(w, r, httpMethodGet) {
-			return
+			return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 		}
 
 		request := trillian.GetLatestSignedLogRootRequest{LogId: c.logID}
@@ -286,20 +300,15 @@ func wrappedGetSTHHandler(c CTRequestHandlers) http.HandlerFunc {
 		response, err := c.rpcClient.GetLatestSignedLogRoot(ctx, &request)
 
 		if err != nil || !rpcStatusOK(response.GetStatus()) {
-			sendHttpError(w, http.StatusInternalServerError, err)
-			return
+			return http.StatusInternalServerError, errors.New("backend rpc failed")
 		}
 
 		if treeSize := response.GetSignedLogRoot().TreeSize; treeSize < 0 {
-			glog.Warningf("Bad tree size when preparing sth: %d", treeSize)
-			sendHttpError(w, http.StatusInternalServerError, fmt.Errorf("bad tree size from backend: %d", treeSize))
-			return
+			return http.StatusInternalServerError, fmt.Errorf("bad tree size from backend: %d", treeSize)
 		}
 
 		if hashSize := len(response.GetSignedLogRoot().RootHash); hashSize != sha256.Size {
-			glog.Warningf("Bad root hash size when preparing sth: %d", hashSize)
-			sendHttpError(w, http.StatusInternalServerError, fmt.Errorf("bad hash size from backend expecting: %d got %d", sha256.Size, hashSize))
-			return
+			return http.StatusInternalServerError, fmt.Errorf("bad hash size from backend expecting: %d got %d", sha256.Size, hashSize)
 		}
 
 		// Jump through Go hoops because we're mixing arrays and slices, we checked the size above
@@ -316,9 +325,7 @@ func wrappedGetSTHHandler(c CTRequestHandlers) http.HandlerFunc {
 		err = signV1TreeHead(c.logKeyManager, &sth)
 
 		if err != nil || len(sth.TreeHeadSignature.Signature) == 0 {
-			glog.Warningf("Failed to sign tree head: %v %v", sth, err)
-			sendHttpError(w, http.StatusInternalServerError, err)
-			return
+			return http.StatusInternalServerError, fmt.Errorf("invalid tree size in get sth: %v", err)
 		}
 
 		// Now build the final result object that will be marshalled to JSON
@@ -328,33 +335,30 @@ func wrappedGetSTHHandler(c CTRequestHandlers) http.HandlerFunc {
 		jsonData, err := json.Marshal(&jsonResponse)
 
 		if err != nil {
-			glog.Warningf("Failed to marshal get-sth resp: %v", jsonResponse)
-			sendHttpError(w, http.StatusInternalServerError, err)
-			return
+			return http.StatusInternalServerError, fmt.Errorf("failed to marshall response: %v %v", jsonResponse, err)
 		}
 
 		_, err = w.Write(jsonData)
 
 		if err != nil {
-			glog.Warningf("Failed to write get-sth resp: %v", jsonResponse)
 			// Probably too late for this as headers might have been written but we don't know for sure
-			sendHttpError(w, http.StatusInternalServerError, err)
-			return
+			return http.StatusInternalServerError, err
 		}
+
+		return http.StatusOK, nil
 	}
 }
 
-func wrappedGetSTHConsistencyHandler(c CTRequestHandlers) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func wrappedGetSTHConsistencyHandler(c CTRequestHandlers) appHandler {
+	return func(w http.ResponseWriter, r *http.Request) (int, error) {
 		if !enforceMethod(w, r, httpMethodGet) {
-			return
+			return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 		}
 
 		first, second, err := parseAndValidateGetSTHConsistencyRange(r)
 
 		if err != nil {
-			sendHttpError(w, http.StatusBadRequest, err)
-			return
+			return http.StatusBadRequest, err
 		}
 
 		request := trillian.GetConsistencyProofRequest{LogId:c.logID, FirstTreeSize:first, SecondTreeSize:second}
@@ -362,14 +366,12 @@ func wrappedGetSTHConsistencyHandler(c CTRequestHandlers) http.HandlerFunc {
 		response, err := c.rpcClient.GetConsistencyProof(ctx, &request)
 
 		if err != nil || !rpcStatusOK(response.GetStatus()) {
-			sendHttpError(w, http.StatusInternalServerError, err)
-			return
+			return http.StatusInternalServerError, err
 		}
 
 		// Additional sanity checks, none of the hashes in the returned path should be empty
 		if !checkAuditPath(response.Proof.ProofNode) {
-			sendHttpError(w, http.StatusInternalServerError, fmt.Errorf("backend returned invalid proof: %v", response.Proof))
-			return
+			return http.StatusInternalServerError, fmt.Errorf("backend returned invalid proof: %v", response.Proof)
 		}
 
 		// We got a valid response from the server. Marshall it as JSON and return it to the client
@@ -379,48 +381,43 @@ func wrappedGetSTHConsistencyHandler(c CTRequestHandlers) http.HandlerFunc {
 		jsonData, err := json.Marshal(&jsonResponse)
 
 		if err != nil {
-			glog.Warningf("Failed to marshal get-sth-consistency resp: %v because %v", jsonResponse, err)
-			sendHttpError(w, http.StatusInternalServerError, err)
-			return
+			return http.StatusInternalServerError, fmt.Errorf("failed to marshal get-sth-consistency resp: %v because %v", jsonResponse, err)
 		}
 
 		_, err = w.Write(jsonData)
 
 		if err != nil {
-			glog.Warningf("Failed to write get-sth-consistency resp: %v", jsonResponse)
 			// Probably too late for this as headers might have been written but we don't know for sure
-			sendHttpError(w, http.StatusInternalServerError, err)
-			return
+			return http.StatusInternalServerError, fmt.Errorf("failed to write get-sth-consistency resp: %v because %v", jsonResponse, err)
 		}
+
+		return http.StatusOK, nil
 	}
 }
 
-func wrappedGetProofByHashHandler(c CTRequestHandlers) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func wrappedGetProofByHashHandler(c CTRequestHandlers) appHandler {
+	return func(w http.ResponseWriter, r *http.Request) (int, error) {
 		if !enforceMethod(w, r, httpMethodGet) {
-			return
+			return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 		}
 
 		hash := r.FormValue(getProofParamHash)
 
 		// Accept any non empty hash that decodes from base64 and let the backend validate it further
 		if len(hash) == 0 {
-			sendHttpError(w, http.StatusBadRequest, errors.New("missing / empty hash param for get-proof-by-hash"))
-			return
+			return http.StatusBadRequest, errors.New("get-proof-by-hash: missing / empty hash param for get-proof-by-hash")
 		}
 
 		leafHash, err := base64.StdEncoding.DecodeString(hash)
 
 		if err != nil {
-			sendHttpError(w, http.StatusBadRequest, errors.New("invalid base64 hash for get-proof-by-hash"))
-			return
+			return http.StatusBadRequest, fmt.Errorf("get-proof-by-hash: invalid base64 hash: %v", err)
 		}
 
 		treeSize, err := strconv.ParseInt(r.FormValue(getProofParamTreeSize), 10, 64)
 
 		if err != nil || treeSize < 1 {
-			sendHttpError(w, http.StatusBadRequest, fmt.Errorf("missing or invalid tree_size: %v", r.FormValue(getProofParamTreeSize)))
-			return
+			return http.StatusBadRequest, fmt.Errorf("get-proof-by-hash: missing or invalid tree_size: %v", r.FormValue(getProofParamTreeSize))
 		}
 
 		// Per RFC 6962 section 4.5 the API returns a single proof. This should be the lowest leaf index
@@ -434,14 +431,12 @@ func wrappedGetProofByHashHandler(c CTRequestHandlers) http.HandlerFunc {
 		response, err := c.rpcClient.GetInclusionProofByHash(ctx, &rpcRequest)
 
 		if err != nil || !rpcStatusOK(response.GetStatus()) {
-			sendHttpError(w, http.StatusInternalServerError, fmt.Errorf("RPC failed, possible extra info: %v", err))
-			return
+			return http.StatusInternalServerError, fmt.Errorf("get-proof-by-hash: RPC failed, possible extra info: %v", err)
 		}
 
 		// Additional sanity checks, none of the hashes in the returned path should be empty
 		if !checkAuditPath(response.Proof[0].ProofNode) {
-			sendHttpError(w, http.StatusInternalServerError, fmt.Errorf("backend returned invalid proof: %v", response.Proof[0]))
-			return
+			return http.StatusInternalServerError, fmt.Errorf("get-proof-by-hash: backend returned invalid proof: %v", response.Proof[0])
 		}
 
 		// All checks complete, marshall and return the response
@@ -452,25 +447,24 @@ func wrappedGetProofByHashHandler(c CTRequestHandlers) http.HandlerFunc {
 
 		if err != nil {
 			glog.Warningf("Failed to marshal get-proof-by-hash resp: %v", proofResponse)
-			sendHttpError(w, http.StatusInternalServerError, err)
-			return
+			return http.StatusInternalServerError, fmt.Errorf("failed to marshal get-proof-by-hash resp: %v, error: %v", proofResponse, err)
 		}
 
 		_, err = w.Write(jsonData)
 
 		if err != nil {
-			glog.Warningf("Failed to write get-proof-by-hash resp: %v", proofResponse)
 			// Probably too late for this as headers might have been written but we don't know for sure
-			sendHttpError(w, http.StatusInternalServerError, err)
-			return
+			return http.StatusInternalServerError, fmt.Errorf("failed to write get-proof-by-hash resp: %v", proofResponse)
 		}
+
+		return http.StatusOK, nil
 	}
 }
 
-func wrappedGetEntriesHandler(c CTRequestHandlers) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func wrappedGetEntriesHandler(c CTRequestHandlers) appHandler {
+	return func(w http.ResponseWriter, r *http.Request) (int, error) {
 		if !enforceMethod(w, r, httpMethodGet) {
-			return
+			return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 		}
 
 		// The first job is to parse the params and make sure they're sensible. We just make
@@ -479,9 +473,7 @@ func wrappedGetEntriesHandler(c CTRequestHandlers) http.HandlerFunc {
 		startIndex, endIndex, err := parseAndValidateGetEntriesRange(r, maxGetEntriesAllowed)
 
 		if err != nil {
-			glog.Warningf("Bad range on get-entries request: %v", err)
-			sendHttpError(w, http.StatusBadRequest, err)
-			return
+			return http.StatusBadRequest, fmt.Errorf("bad range on get-entries request: %v", err)
 		}
 
 		// Now make a request to the backend to get the relevant leaves
@@ -493,8 +485,7 @@ func wrappedGetEntriesHandler(c CTRequestHandlers) http.HandlerFunc {
 		response, err := c.rpcClient.GetLeavesByIndex(ctx, &request)
 
 		if err != nil || !rpcStatusOK(response.GetStatus()) {
-			sendHttpError(w, http.StatusInternalServerError, fmt.Errorf("RPC failed, possible extra info: %v", err))
-			return
+			return http.StatusInternalServerError, fmt.Errorf("get-entries: RPC failed, possible extra info: %v", err)
 		}
 
 		// Apply additional checks on the response to make sure we got a contiguous leaf range.
@@ -502,15 +493,11 @@ func wrappedGetEntriesHandler(c CTRequestHandlers) http.HandlerFunc {
 		// range exceeds the tree size etc. so we could get fewer leaves than we requested but
 		// never more and never anything outside the requested range.
 		if expected, got := len(requestIndices), len(response.Leaves); got > expected {
-			glog.Warningf("Backend returned more leaves (%d) than requested: (%d)", got, expected)
-			sendHttpError(w, http.StatusInternalServerError, fmt.Errorf("Backend returned too many leaves: %d", got))
-			return
+			return http.StatusInternalServerError, fmt.Errorf("backend returned too many leaves: %d v %d", got, expected)
 		}
 
 		if err := isResponseContiguousRange(response, startIndex, endIndex); err != nil {
-			glog.Warningf("Backend get-entries range received from backend non contiguous: %v", err)
-			sendHttpError(w, http.StatusInternalServerError, err)
-			return
+			return http.StatusInternalServerError, fmt.Errorf("backend get-entries range received from backend non contiguous: %v", err)
 		}
 
 		// Now we've checked the response and it seems to be valid we need to serialize the
@@ -519,35 +506,32 @@ func wrappedGetEntriesHandler(c CTRequestHandlers) http.HandlerFunc {
 		jsonResponse, err := marshalGetEntriesResponse(response)
 
 		if err != nil {
-			glog.Warningf("Failed to process leaves returned from backend: %v", err)
-			sendHttpError(w, http.StatusInternalServerError, err)
-			return
+			return http.StatusInternalServerError, fmt.Errorf("failed to process leaves returned from backend: %v", err)
 		}
 
 		w.Header().Set(contentTypeHeader, contentTypeJSON)
 		jsonData, err := json.Marshal(&jsonResponse)
 
 		if err != nil {
-			glog.Warningf("Failed to marshal get-entries resp: %v", jsonResponse)
-			sendHttpError(w, http.StatusInternalServerError, err)
-			return
+			return http.StatusInternalServerError, fmt.Errorf("failed to marshal get-entries resp: %v because: %v", jsonResponse, err)
 		}
 
 		_, err = w.Write(jsonData)
 
 		if err != nil {
-			glog.Warningf("Failed to write get-entries resp: %v", jsonResponse)
+
 			// Probably too late for this as headers might have been written but we don't know for sure
-			sendHttpError(w, http.StatusInternalServerError, err)
-			return
+			return http.StatusInternalServerError, fmt.Errorf("failed to write get-entries resp: %v because: %v", jsonResponse, err)
 		}
+
+		return http.StatusOK, nil
 	}
 }
 
-func wrappedGetRootsHandler(trustedRoots *PEMCertPool, rpcClient trillian.TrillianLogClient) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func wrappedGetRootsHandler(trustedRoots *PEMCertPool) appHandler {
+	return func(w http.ResponseWriter, r *http.Request) (int, error) {
 		if !enforceMethod(w, r, httpMethodGet) {
-			return
+			return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 		}
 
 		jsonMap := make(map[string]interface{})
@@ -565,26 +549,26 @@ func wrappedGetRootsHandler(trustedRoots *PEMCertPool, rpcClient trillian.Trilli
 
 		if err != nil {
 			glog.Warningf("get_roots failed: %v", err)
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
+			return http.StatusInternalServerError, fmt.Errorf("get-roots failed with: %v", err)
 		}
+
+		return http.StatusOK, nil
 	}
 }
 
 // See RFC 6962 Section 4.8. This is mostly used for debug purposes rather than by normal
 // CT clients.
-func wrappedGetEntryAndProofHandler(c CTRequestHandlers) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func wrappedGetEntryAndProofHandler(c CTRequestHandlers) appHandler {
+	return func(w http.ResponseWriter, r *http.Request) (int, error) {
 		if !enforceMethod(w, r, httpMethodGet) {
-			return
+			return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 		}
 
 		// Ensure both numeric params are present and look reasonable.
 		leafIndex, treeSize, err := parseAndValidateGetEntryAndProofParams(r)
 
 		if err != nil {
-			sendHttpError(w, http.StatusBadRequest, err)
-			return
+			return http.StatusBadRequest, err
 		}
 
 		getEntryAndProofRequest := trillian.GetEntryAndProofRequest{LogId:c.logID, LeafIndex:leafIndex, TreeSize:treeSize}
@@ -592,14 +576,12 @@ func wrappedGetEntryAndProofHandler(c CTRequestHandlers) http.HandlerFunc {
 		response, err := c.rpcClient.GetEntryAndProof(ctx, &getEntryAndProofRequest)
 
 		if err != nil || !rpcStatusOK(response.GetStatus()) {
-			sendHttpError(w, http.StatusInternalServerError, fmt.Errorf("RPC failed, possible extra info: %v", err))
-			return
+			return http.StatusInternalServerError, fmt.Errorf("get-entry-and-proof: RPC failed, possible extra info: %v", err)
 		}
 
 		// Apply some checks that we got reasonable data from the backend
 		if response.Proof == nil || response.Leaf == nil || len(response.Proof.ProofNode) == 0 || len(response.Leaf.LeafData) == 0 {
-			sendHttpError(w, http.StatusInternalServerError, fmt.Errorf("RPC bad response, possible extra info: %v", response))
-			return
+			return http.StatusInternalServerError, fmt.Errorf("got RPC bad response, possible extra info: %v", response)
 		}
 
 		// Build and marshall the response to the client
@@ -612,33 +594,32 @@ func wrappedGetEntryAndProofHandler(c CTRequestHandlers) http.HandlerFunc {
 		jsonData, err := json.Marshal(&jsonResponse)
 
 		if err != nil {
-			glog.Warningf("Failed to marshal get-entry-and-proof resp: %v", jsonResponse)
-			sendHttpError(w, http.StatusInternalServerError, err)
-			return
+			return http.StatusInternalServerError, fmt.Errorf("failed to marshal get-entry-and-proof resp: %v because: %v", jsonResponse, err)
 		}
 
 		_, err = w.Write(jsonData)
 
 		if err != nil {
-			glog.Warningf("Failed to write get-entry-and-proof resp: %v", jsonResponse)
+
 			// Probably too late for this as headers might have been written but we don't know for sure
-			sendHttpError(w, http.StatusInternalServerError, err)
-			return
+			return http.StatusInternalServerError, fmt.Errorf("failed to write get-entry-and-proof resp: %v because: %v", jsonResponse, err)
 		}
+
+		return http.StatusOK, nil
 	}
 }
 
 // RegisterCTHandlers registers a HandleFunc for all of the RFC6962 defined methods.
 // TODO(Martin2112): This registers on default ServeMux, might need more flexibility?
 func (c CTRequestHandlers) RegisterCTHandlers() {
-	http.HandleFunc(pathFor("add-chain"), wrappedAddChainHandler(c))
-	http.HandleFunc(pathFor("add-pre-chain"), wrappedAddPreChainHandler(c))
-	http.HandleFunc(pathFor("get-sth"), wrappedGetSTHHandler(c))
-	http.HandleFunc(pathFor("get-sth-consistency"), wrappedGetSTHConsistencyHandler(c))
-	http.HandleFunc(pathFor("get-proof-by-hash"), wrappedGetProofByHashHandler(c))
-	http.HandleFunc(pathFor("get-entries"), wrappedGetEntriesHandler(c))
-	http.HandleFunc(pathFor("get-roots"), wrappedGetRootsHandler(c.trustedRoots, c.rpcClient))
-	http.HandleFunc(pathFor("get-entry-and-proof"), wrappedGetEntryAndProofHandler(c))
+	http.Handle(pathFor("add-chain"), wrappedAddChainHandler(c))
+	http.Handle(pathFor("add-pre-chain"), wrappedAddPreChainHandler(c))
+	http.Handle(pathFor("get-sth"), wrappedGetSTHHandler(c))
+	http.Handle(pathFor("get-sth-consistency"), wrappedGetSTHConsistencyHandler(c))
+	http.Handle(pathFor("get-proof-by-hash"), wrappedGetProofByHashHandler(c))
+	http.Handle(pathFor("get-entries"), wrappedGetEntriesHandler(c))
+	http.Handle(pathFor("get-roots"), wrappedGetRootsHandler(c.trustedRoots))
+	http.Handle(pathFor("get-entry-and-proof"), wrappedGetEntryAndProofHandler(c))
 }
 
 // Generates a custom error page to give more information on why something didn't work
@@ -660,24 +641,20 @@ func rpcStatusOK(status *trillian.TrillianApiStatus) bool {
 // cert is of the correct type and chains to a trusted root.
 // TODO(Martin2112): This may not implement all the RFC requirements. Check what is provided
 // by fixchain (called by this code) plus the ones here to make sure that it is compliant.
-func verifyAddChain(req addChainRequest, w http.ResponseWriter, trustedRoots PEMCertPool, expectingPrecert bool) []*x509.Certificate {
+func verifyAddChain(req addChainRequest, w http.ResponseWriter, trustedRoots PEMCertPool, expectingPrecert bool) ([]*x509.Certificate, error) {
 	// We already checked that the chain is not empty so can move on to verification
 	validPath, err := ValidateChain(req.Chain, trustedRoots)
 
 	if err != nil {
 		// We rejected it because the cert failed checks or we could not find a path to a root etc.
 		// Lots of possible causes for errors
-		glog.Warningf("Chain failed to verify: %v", req)
-		sendHttpError(w, http.StatusBadRequest, err)
-		return nil
+		return nil, fmt.Errorf("chain failed to verify: %v because: %v", req, err)
 	}
 
 	isPrecert, err := IsPrecertificate(validPath[0])
 
 	if err != nil {
-		glog.Warningf("Precert test failed: %v", err)
-		sendHttpError(w, http.StatusBadRequest, err)
-		return nil
+		return nil, fmt.Errorf("precert test failed: %v", err)
 	}
 
 	// The type of the leaf must match the one the handler expects
@@ -687,11 +664,10 @@ func verifyAddChain(req addChainRequest, w http.ResponseWriter, trustedRoots PEM
 		} else {
 			glog.Warningf("Precert (or cert with invalid CT ext) submitted as cert chain: %v", req)
 		}
-		sendHttpError(w, http.StatusBadRequest, err)
-		return nil
+		return nil, fmt.Errorf("cert / precert mismatch: %v", expectingPrecert)
 	}
 
-	return validPath
+	return validPath, nil
 }
 
 // marshalLogIDAndSignatureForResponse is used by add-chain and add-pre-chain. It formats the
@@ -741,8 +717,7 @@ func marshalAndWriteAddChainResponse(sct ct.SignedCertificateTimestamp, km crypt
 	logID, signature, err := marshalLogIDAndSignatureForResponse(sct, km)
 
 	if err != nil {
-		glog.Warningf("failed to marshal for response: %v", err)
-		return err
+		return fmt.Errorf("failed to marshal for response: %v", err)
 	}
 
 	resp := addChainResponse{
@@ -756,18 +731,13 @@ func marshalAndWriteAddChainResponse(sct ct.SignedCertificateTimestamp, km crypt
 	jsonData, err := json.Marshal(&resp)
 
 	if err != nil {
-		glog.Warningf("Failed to marshal add-chain resp: %v", resp)
-		sendHttpError(w, http.StatusInternalServerError, err)
-		return err
+		return fmt.Errorf("failed to marshal add-chain resp: %v because: %v", resp, err)
 	}
 
 	_, err = w.Write(jsonData)
 
 	if err != nil {
-		glog.Warningf("Failed to write add-chain resp: %v", resp)
-		// Probably too late for this as headers might have been written but we don't know for sure
-		sendHttpError(w, http.StatusInternalServerError, err)
-		return err
+		return fmt.Errorf("failed to write add-chain resp: %v", resp)
 	}
 
 	return nil
