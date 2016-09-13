@@ -29,6 +29,7 @@ import (
 	"github.com/google/trillian/examples/ct/testonly"
 	"github.com/google/trillian/util"
 	"golang.org/x/net/context"
+	"github.com/google/trillian/monitoring"
 )
 
 // Arbitrary time for use in tests
@@ -38,6 +39,7 @@ var fakeTime = time.Date(2016, 7, 22, 11, 01, 13, 0, time.UTC)
 var fakeDeadlineTime = time.Date(2016, 7, 22, 11, 01, 13, 500*1000*1000, time.UTC)
 var fakeTimeSource = util.FakeTimeSource{fakeTime}
 var okStatus = &trillian.TrillianApiStatus{StatusCode: trillian.TrillianApiStatusCode_OK}
+var testMonitor = monitoring.NewHttpMonitor("trillian", "cthandlertest")
 
 type jsonChain struct {
 	Chain []string `json:chain`
@@ -134,7 +136,7 @@ func allGetHandlersForTest(trustedRoots *PEMCertPool, c CTRequestHandlers) []han
 		{"get-sth-consistency", wrappedGetSTHConsistencyHandler(c)},
 		{"get-proof-by-hash", wrappedGetProofByHashHandler(c)},
 		{"get-entries", wrappedGetEntriesHandler(c)},
-		{"get-roots", wrappedGetRootsHandler(trustedRoots)},
+		{"get-roots", wrappedGetRootsHandler(c)},
 		{"get-entry-and-proof", wrappedGetEntryAndProofHandler(c)}}
 }
 
@@ -147,8 +149,8 @@ func allPostHandlersForTest(client trillian.TrillianLogClient) []handlerAndPath 
 	}
 
 	return []handlerAndPath{
-		{"add-chain", wrappedAddChainHandler(CTRequestHandlers{rpcClient: client, trustedRoots: pool})},
-		{"add-pre-chain", wrappedAddPreChainHandler(CTRequestHandlers{rpcClient: client, trustedRoots: pool})}}
+		{"add-chain", wrappedAddChainHandler(CTRequestHandlers{rpcClient: client, trustedRoots: pool, httpMonitor: testMonitor})},
+		{"add-pre-chain", wrappedAddPreChainHandler(CTRequestHandlers{rpcClient: client, trustedRoots: pool, httpMonitor: testMonitor})}}
 }
 
 func TestPostHandlersOnlyAcceptPost(t *testing.T) {
@@ -191,7 +193,7 @@ func TestGetHandlersRejectPost(t *testing.T) {
 
 	client := trillian.NewMockTrillianLogClient(mockCtrl)
 	pool := NewPEMCertPool()
-	handlers := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource}
+	handlers := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, httpMonitor: testMonitor}
 
 	// Anything in the get handler list should not accept POST. We don't test they accept
 	// GET because that needs different mock backend set up per handler.
@@ -305,8 +307,11 @@ func TestGetRoots(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
+	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	km := crypto.NewMockKeyManager(mockCtrl)
 	roots := loadCertsIntoPoolOrDie(t, []string{caAndIntermediateCertsPEM})
-	handler := wrappedGetRootsHandler(roots)
+	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource, testMonitor}
+	handler := wrappedGetRootsHandler(reqHandlers)
 
 	req, err := http.NewRequest("GET", "http://example.com/ct/v1/get-roots", nil)
 	if err != nil {
@@ -349,7 +354,7 @@ func TestAddChainMissingIntermediate(t *testing.T) {
 	km := crypto.NewMockKeyManager(mockCtrl)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.FakeCACertPem})
-	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
+	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource, testMonitor}
 
 	pool := loadCertsIntoPoolOrDie(t, []string{testonly.LeafSignedByFakeIntermediateCertPem})
 	chain := createJsonChain(t, *pool)
@@ -371,7 +376,7 @@ func TestAddChainPrecert(t *testing.T) {
 	km := crypto.NewMockKeyManager(mockCtrl)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
-	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
+	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource, testMonitor}
 
 	// TODO(Martin2112): I don't think CT should return NonFatalError for something we expect
 	// to happen - seeing a precert extension. If this is fixed upstream remove all references from
@@ -403,7 +408,7 @@ func TestAddChainRPCFails(t *testing.T) {
 	km := setupMockKeyManager(mockCtrl, toSign)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.FakeCACertPem})
-	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
+	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource, testMonitor}
 
 	pool := loadCertsIntoPoolOrDie(t, []string{testonly.LeafSignedByFakeIntermediateCertPem, testonly.FakeIntermediateCertPem})
 	chain := createJsonChain(t, *pool)
@@ -437,7 +442,7 @@ func TestAddChain(t *testing.T) {
 	km := setupMockKeyManager(mockCtrl, toSign)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.FakeCACertPem})
-	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
+	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource, testMonitor}
 
 	pool := loadCertsIntoPoolOrDie(t, []string{testonly.LeafSignedByFakeIntermediateCertPem, testonly.FakeIntermediateCertPem})
 	chain := createJsonChain(t, *pool)
@@ -488,7 +493,7 @@ func TestAddPrecertChainInvalidPath(t *testing.T) {
 	km := crypto.NewMockKeyManager(mockCtrl)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
-	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
+	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource, testMonitor}
 
 	cert, err := fixchain.CertificateFromPEM(testonly.PrecertPEMValid)
 	_, ok := err.(x509.NonFatalErrors)
@@ -526,7 +531,7 @@ func TestAddPrecertChainCert(t *testing.T) {
 	km := crypto.NewMockKeyManager(mockCtrl)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
-	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
+	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource, testMonitor}
 
 	cert, err := fixchain.CertificateFromPEM(testonly.TestCertPEM)
 
@@ -556,7 +561,7 @@ func TestAddPrecertChainRPCFails(t *testing.T) {
 	km := setupMockKeyManager(mockCtrl, toSign)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
-	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
+	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource, testMonitor}
 
 	cert, err := fixchain.CertificateFromPEM(testonly.PrecertPEMValid)
 	_, ok := err.(x509.NonFatalErrors)
@@ -597,7 +602,7 @@ func TestAddPrecertChain(t *testing.T) {
 	km := setupMockKeyManager(mockCtrl, toSign)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
-	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
+	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource, testMonitor}
 
 	cert, err := fixchain.CertificateFromPEM(testonly.PrecertPEMValid)
 	_, ok := err.(x509.NonFatalErrors)
@@ -656,7 +661,7 @@ func TestGetSTHBackendErrorFails(t *testing.T) {
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
 	client.EXPECT().GetLatestSignedLogRoot(deadlineMatcher(), &trillian.GetLatestSignedLogRootRequest{LogId: 0x42}).Return(nil, errors.New("backendfailure"))
-	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
+	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource, testMonitor}
 	handler := wrappedGetSTHHandler(reqHandlers)
 
 	req, err := http.NewRequest("GET", "http://example.com/ct/v1/get-sth", nil)
@@ -686,7 +691,7 @@ func TestGetSTHInvalidBackendTreeSizeFails(t *testing.T) {
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
 	client.EXPECT().GetLatestSignedLogRoot(deadlineMatcher(), &trillian.GetLatestSignedLogRootRequest{LogId: 0x42}).Return(makeGetRootResponseForTest(12345, -50, []byte("abcdabcdabcdabcdabcdabcdabcdabcd")), nil)
-	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
+	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource, testMonitor}
 	handler := wrappedGetSTHHandler(reqHandlers)
 
 	req, err := http.NewRequest("GET", "http://example.com/ct/v1/get-sth", nil)
@@ -715,7 +720,7 @@ func TestGetSTHMissingRootHashFails(t *testing.T) {
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
 	client.EXPECT().GetLatestSignedLogRoot(deadlineMatcher(), &trillian.GetLatestSignedLogRootRequest{LogId: 0x42}).Return(makeGetRootResponseForTest(12345, 25, []byte("thisisnot32byteslong")), nil)
-	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
+	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource, testMonitor}
 	handler := wrappedGetSTHHandler(reqHandlers)
 
 	req, err := http.NewRequest("GET", "http://example.com/ct/v1/get-sth", nil)
@@ -748,7 +753,7 @@ func TestGetSTHSigningFails(t *testing.T) {
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
 	client.EXPECT().GetLatestSignedLogRoot(deadlineMatcher(), &trillian.GetLatestSignedLogRootRequest{LogId: 0x42}).Return(makeGetRootResponseForTest(12345, 25, []byte("abcdabcdabcdabcdabcdabcdabcdabcd")), nil)
-	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
+	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource, testMonitor}
 	handler := wrappedGetSTHHandler(reqHandlers)
 
 	req, err := http.NewRequest("GET", "http://example.com/ct/v1/get-sth", nil)
@@ -777,7 +782,7 @@ func TestGetSTH(t *testing.T) {
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
 	client.EXPECT().GetLatestSignedLogRoot(deadlineMatcher(), &trillian.GetLatestSignedLogRootRequest{LogId: 0x42}).Return(makeGetRootResponseForTest(12345000000, 25, []byte("abcdabcdabcdabcdabcdabcdabcdabcd")), nil)
-	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
+	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource, testMonitor}
 	handler := wrappedGetSTHHandler(reqHandlers)
 
 	req, err := http.NewRequest("GET", "http://example.com/ct/v1/get-sth", nil)
@@ -852,7 +857,7 @@ func TestGetEntriesRanges(t *testing.T) {
 			client.EXPECT().GetLeavesByIndex(deadlineMatcher(), &trillian.GetLeavesByIndexRequest{LeafIndex: buildIndicesForRange(testCase.start, testCase.end)}).Return(nil, errors.New("RPCMADE"))
 		}
 
-		c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
+		c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500, httpMonitor: testMonitor}
 		handler := wrappedGetEntriesHandler(c)
 
 		path := fmt.Sprintf("/ct/v1/get-entries?start=%d&end=%d", testCase.start, testCase.end)
@@ -888,7 +893,7 @@ func TestGetEntriesErrorFromBackend(t *testing.T) {
 
 	client.EXPECT().GetLeavesByIndex(deadlineMatcher(), &trillian.GetLeavesByIndexRequest{LeafIndex: []int64{1, 2}}).Return(nil, errors.New("Bang!"))
 
-	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
+	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500, httpMonitor: testMonitor}
 	handler := wrappedGetEntriesHandler(c)
 
 	req, err := http.NewRequest("GET", "/ct/v1/get-entries?start=1&end=2", nil)
@@ -917,7 +922,7 @@ func TestGetEntriesBackendReturnedExtraLeaves(t *testing.T) {
 	rpcLeaves := []*trillian.LeafProto{{LeafIndex: 1}, {LeafIndex: 2}, {LeafIndex: 3}}
 	client.EXPECT().GetLeavesByIndex(deadlineMatcher(), &trillian.GetLeavesByIndexRequest{LeafIndex: []int64{1, 2}}).Return(&trillian.GetLeavesByIndexResponse{Status: okStatus, Leaves: rpcLeaves}, nil)
 
-	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
+	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500, httpMonitor: testMonitor}
 	handler := wrappedGetEntriesHandler(c)
 
 	req, err := http.NewRequest("GET", "/ct/v1/get-entries?start=1&end=2", nil)
@@ -946,7 +951,7 @@ func TestGetEntriesBackendReturnedNonContiguousRange(t *testing.T) {
 	rpcLeaves := []*trillian.LeafProto{{LeafIndex: 1}, {LeafIndex: 3}}
 	client.EXPECT().GetLeavesByIndex(deadlineMatcher(), &trillian.GetLeavesByIndexRequest{LeafIndex: []int64{1, 2}}).Return(&trillian.GetLeavesByIndexResponse{Status: okStatus, Leaves: rpcLeaves}, nil)
 
-	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
+	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500, httpMonitor: testMonitor}
 	handler := wrappedGetEntriesHandler(c)
 
 	req, err := http.NewRequest("GET", "/ct/v1/get-entries?start=1&end=2", nil)
@@ -975,7 +980,7 @@ func TestGetEntriesLeafCorrupt(t *testing.T) {
 	rpcLeaves := []*trillian.LeafProto{{LeafIndex: 1, LeafHash: []byte("hash"), LeafData: []byte(invalidLeafString)}, {LeafIndex: 2, LeafHash: []byte("hash"), LeafData: []byte(invalidLeafString)}}
 	client.EXPECT().GetLeavesByIndex(deadlineMatcher(), &trillian.GetLeavesByIndexRequest{LeafIndex: []int64{1, 2}}).Return(&trillian.GetLeavesByIndexResponse{Status: okStatus, Leaves: rpcLeaves}, nil)
 
-	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
+	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500, httpMonitor: testMonitor}
 	handler := wrappedGetEntriesHandler(c)
 
 	req, err := http.NewRequest("GET", "/ct/v1/get-entries?start=1&end=2", nil)
@@ -1041,7 +1046,7 @@ func TestGetEntries(t *testing.T) {
 	rpcLeaves := []*trillian.LeafProto{{LeafIndex: 1, LeafHash: []byte("hash"), LeafData: merkleBytes1, ExtraData: []byte("extra1")}, {LeafIndex: 2, LeafHash: []byte("hash"), LeafData: merkleBytes2, ExtraData: []byte("extra2")}}
 	client.EXPECT().GetLeavesByIndex(deadlineMatcher(), &trillian.GetLeavesByIndexRequest{LeafIndex: []int64{1, 2}}).Return(&trillian.GetLeavesByIndexResponse{Status: okStatus, Leaves: rpcLeaves}, nil)
 
-	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
+	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500, httpMonitor: testMonitor}
 	handler := wrappedGetEntriesHandler(c)
 
 	req, err := http.NewRequest("GET", "/ct/v1/get-entries?start=1&end=2", nil)
@@ -1097,7 +1102,7 @@ func TestGetProofByHashBadRequests(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	client := trillian.NewMockTrillianLogClient(mockCtrl)
-	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
+	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500, httpMonitor: testMonitor}
 	handler := wrappedGetProofByHashHandler(c)
 
 	for _, requestParamString := range getProofByHashBadRequests {
@@ -1122,7 +1127,7 @@ func TestGetProofByHashBackendFails(t *testing.T) {
 
 	client := trillian.NewMockTrillianLogClient(mockCtrl)
 	client.EXPECT().GetInclusionProofByHash(deadlineMatcher(), &trillian.GetInclusionProofByHashRequest{LeafHash: []byte("ahash"), TreeSize:6, OrderBySequence:true}).Return(nil, errors.New("RPCFAIL"))
-	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
+	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500, httpMonitor: testMonitor}
 	handler := wrappedGetProofByHashHandler(c)
 
 	req, err := http.NewRequest("GET", "/ct/v1/proof-by-hash?tree_size=6&hash=YWhhc2g=", nil)
@@ -1152,7 +1157,7 @@ func TestGetProofByHashBackendMultipleProofs(t *testing.T) {
 	response := trillian.GetInclusionProofByHashResponse{Status: okStatus, Proof: []*trillian.ProofProto{&proof1, &proof2}}
 	client := trillian.NewMockTrillianLogClient(mockCtrl)
 	client.EXPECT().GetInclusionProofByHash(deadlineMatcher(), &trillian.GetInclusionProofByHashRequest{LeafHash: []byte("ahash"), TreeSize:7, OrderBySequence:true}).Return(&response, nil)
-	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
+	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500, httpMonitor: testMonitor}
 	handler := wrappedGetProofByHashHandler(c)
 
 	req, err := http.NewRequest("GET", "/ct/v1/proof-by-hash?tree_size=7&hash=YWhhc2g=", nil)
@@ -1188,7 +1193,7 @@ func TestGetProofByHashBackendReturnsMissingHash(t *testing.T) {
 	response := trillian.GetInclusionProofByHashResponse{Status: okStatus, Proof: []*trillian.ProofProto{&proof}}
 	client := trillian.NewMockTrillianLogClient(mockCtrl)
 	client.EXPECT().GetInclusionProofByHash(deadlineMatcher(), &trillian.GetInclusionProofByHashRequest{LeafHash: []byte("ahash"), TreeSize:9, OrderBySequence:true}).Return(&response, nil)
-	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
+	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500, httpMonitor:testMonitor}
 	handler := wrappedGetProofByHashHandler(c)
 
 	req, err := http.NewRequest("GET", "/ct/v1/proof-by-hash?tree_size=9&hash=YWhhc2g=", nil)
@@ -1217,7 +1222,7 @@ func TestGetProofByHash(t *testing.T) {
 	response := trillian.GetInclusionProofByHashResponse{Status: okStatus, Proof: []*trillian.ProofProto{&proof}}
 	client := trillian.NewMockTrillianLogClient(mockCtrl)
 	client.EXPECT().GetInclusionProofByHash(deadlineMatcher(), &trillian.GetInclusionProofByHashRequest{LeafHash: []byte("ahash"), TreeSize:7, OrderBySequence:true}).Return(&response, nil)
-	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
+	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500, httpMonitor: testMonitor}
 	handler := wrappedGetProofByHashHandler(c)
 
 	req, err := http.NewRequest("GET", "/ct/v1/proof-by-hash?tree_size=7&hash=YWhhc2g=", nil)
@@ -1250,7 +1255,7 @@ func TestGetSTHConsistencyBadParams(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	client := trillian.NewMockTrillianLogClient(mockCtrl)
-	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
+	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500, httpMonitor: testMonitor}
 	handler := wrappedGetSTHConsistencyHandler(c)
 
 	for _, requestParamString := range getSTHConsistencyBadRequests {
@@ -1275,7 +1280,7 @@ func TestGetEntryAndProofBadParams(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	client := trillian.NewMockTrillianLogClient(mockCtrl)
-	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
+	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500, httpMonitor: testMonitor}
 	handler := wrappedGetEntryAndProofHandler(c)
 
 	for _, requestParamString := range getEntryAndProofBadRequests {
@@ -1300,7 +1305,7 @@ func TestGetSTHConsistencyBackendRPCFails(t *testing.T) {
 
 	client := trillian.NewMockTrillianLogClient(mockCtrl)
 	client.EXPECT().GetConsistencyProof(deadlineMatcher(), &trillian.GetConsistencyProofRequest{FirstTreeSize:10, SecondTreeSize:20}).Return(nil, errors.New("RPCFAIL"))
-	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
+	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500, httpMonitor: testMonitor}
 	handler := wrappedGetSTHConsistencyHandler(c)
 
 	req, err := http.NewRequest("GET", "/ct/v1/get-sth-consistency?first=10&second=20", nil)
@@ -1327,7 +1332,7 @@ func TestGetEntryAndProofBackendFails(t *testing.T) {
 
 	client := trillian.NewMockTrillianLogClient(mockCtrl)
 	client.EXPECT().GetEntryAndProof(deadlineMatcher(), &trillian.GetEntryAndProofRequest{LeafIndex: 1, TreeSize:3}).Return(nil, errors.New("RPCFAIL"))
-	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
+	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500, httpMonitor: testMonitor}
 	handler := wrappedGetEntryAndProofHandler(c)
 
 	req, err := http.NewRequest("GET", "/ct/v1/get-entry-and-proof?leaf_index=1&tree_size=3", nil)
@@ -1356,7 +1361,7 @@ func TestGetSTHConsistencyBackendReturnsInvalidProof(t *testing.T) {
 	response := trillian.GetConsistencyProofResponse{Status: okStatus, Proof: &proof}
 	client := trillian.NewMockTrillianLogClient(mockCtrl)
 	client.EXPECT().GetConsistencyProof(deadlineMatcher(), &trillian.GetConsistencyProofRequest{FirstTreeSize:10, SecondTreeSize:20}).Return(&response, nil)
-	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
+	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500, httpMonitor: testMonitor}
 	handler := wrappedGetSTHConsistencyHandler(c)
 
 	req, err := http.NewRequest("GET", "/ct/v1/get-sth-consistency?first=10&second=20", nil)
@@ -1385,7 +1390,7 @@ func TestGetEntryAndProofBackendBadResponse(t *testing.T) {
 	response := trillian.GetEntryAndProofResponse{Status: okStatus}
 	client := trillian.NewMockTrillianLogClient(mockCtrl)
 	client.EXPECT().GetEntryAndProof(deadlineMatcher(), &trillian.GetEntryAndProofRequest{LeafIndex: 1, TreeSize:3}).Return(&response, nil)
-	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
+	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500, httpMonitor: testMonitor}
 	handler := wrappedGetEntryAndProofHandler(c)
 
 	req, err := http.NewRequest("GET", "/ct/v1/get-entry-and-proof?leaf_index=1&tree_size=3", nil)
@@ -1410,7 +1415,7 @@ func TestGetSTHConsistency(t *testing.T) {
 	response := trillian.GetConsistencyProofResponse{Status: okStatus, Proof: &proof}
 	client := trillian.NewMockTrillianLogClient(mockCtrl)
 	client.EXPECT().GetConsistencyProof(deadlineMatcher(), &trillian.GetConsistencyProofRequest{FirstTreeSize:10, SecondTreeSize:20}).Return(&response, nil)
-	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
+	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500, httpMonitor: testMonitor}
 	handler := wrappedGetSTHConsistencyHandler(c)
 
 	req, err := http.NewRequest("GET", "/ct/v1/get-sth-consistency?first=10&second=20", nil)
@@ -1458,7 +1463,7 @@ func TestGetEntryAndProof(t *testing.T) {
 	response := trillian.GetEntryAndProofResponse{Status: okStatus, Proof:&proof, Leaf:&leafProto}
 	client := trillian.NewMockTrillianLogClient(mockCtrl)
 	client.EXPECT().GetEntryAndProof(deadlineMatcher(), &trillian.GetEntryAndProofRequest{LeafIndex: 1, TreeSize:3}).Return(&response, nil)
-	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
+	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500, httpMonitor: testMonitor}
 	handler := wrappedGetEntryAndProofHandler(c)
 
 	req, err := http.NewRequest("GET", "/ct/v1/get-entry-and-proof?leaf_index=1&tree_size=3", nil)
@@ -1585,7 +1590,7 @@ func getEntriesTestHelper(t *testing.T, request string, expectedStatus int, expl
 
 	client := trillian.NewMockTrillianLogClient(mockCtrl)
 
-	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
+	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500, httpMonitor: testMonitor}
 	handler := wrappedGetEntriesHandler(c)
 
 	path := fmt.Sprintf("/ct/v1/get-entries?%s", request)
