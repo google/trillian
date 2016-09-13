@@ -178,3 +178,7 @@ func NewNodeIDFromProto(p NodeIDProto) *NodeID {
 func (n *NodeID) Equivalent(other NodeID) bool {
 	return n.String() == other.String()
 }
+
+// PopulateSubtreeFunc is a function which knows how to re-populate a subtree
+// from just its leaf nodes.
+type PopulateSubtreeFunc func(*SubtreeProto) error

@@ -10,7 +10,9 @@ import (
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
+	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/storage/cache"
 )
 
 const getTreePropertiesSql string = "SELECT AllowsDuplicateLeaves FROM Trees WHERE TreeId=?"
@@ -54,7 +56,9 @@ type mySQLLogStorage struct {
 }
 
 func NewLogStorage(id trillian.LogID, dbURL string) (storage.LogStorage, error) {
-	ts, err := newTreeStorage(id.TreeID, dbURL, trillian.NewSHA256())
+	// TODO(al): pass this through/configure from DB
+	th := merkle.NewRFC6962TreeHasher(trillian.NewSHA256())
+	ts, err := newTreeStorage(id.TreeID, dbURL, th.Size(), cache.PopulateLogSubtreeNodes(th))
 	if err != nil {
 		glog.Warningf("Couldn't create a new treeStorage: %s", err)
 		return nil, err

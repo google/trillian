@@ -38,9 +38,10 @@ const placeholderSql string = "<placeholder>"
 // mySQLTreeStorage is shared between the mySQLLog- and (forthcoming) mySQLMap-
 // Storage implementations, and contains functionality which is common to both,
 type mySQLTreeStorage struct {
-	treeID        int64
-	db            *sql.DB
-	hashSizeBytes int
+	treeID          int64
+	db              *sql.DB
+	hashSizeBytes   int
+	populateSubtree storage.PopulateSubtreeFunc
 
 	// Must hold the mutex before manipulating the statement map. Sharing a lock because
 	// it only needs to be held while the statements are built, not while they execute and
@@ -67,17 +68,18 @@ func openDB(dbURL string) (*sql.DB, error) {
 	return db, nil
 }
 
-func newTreeStorage(treeID int64, dbURL string, hasher trillian.Hasher) (mySQLTreeStorage, error) {
+func newTreeStorage(treeID int64, dbURL string, hashSizeBytes int, populateSubtree storage.PopulateSubtreeFunc) (mySQLTreeStorage, error) {
 	db, err := openDB(dbURL)
 	if err != nil {
 		return mySQLTreeStorage{}, err
 	}
 
 	s := mySQLTreeStorage{
-		treeID:        treeID,
-		db:            db,
-		hashSizeBytes: hasher.Size(),
-		statements:    make(map[string]map[int]*sql.Stmt),
+		treeID:          treeID,
+		db:              db,
+		hashSizeBytes:   hashSizeBytes,
+		populateSubtree: populateSubtree,
+		statements:      make(map[string]map[int]*sql.Stmt),
 	}
 
 	if s.setSubtree, err = s.db.Prepare(insertSubtreeSql); err != nil {
@@ -191,7 +193,7 @@ func (m *mySQLTreeStorage) beginTreeTx() (treeTX, error) {
 	return treeTX{
 		tx:            t,
 		ts:            m,
-		subtreeCache:  cache.NewSubtreeCache(),
+		subtreeCache:  cache.NewSubtreeCache(m.populateSubtree),
 		writeRevision: -1,
 	}, nil
 }
@@ -256,6 +258,8 @@ func (t *treeTX) getSubtree(treeRevision int64, nodeID storage.NodeID) (*storage
 		glog.Warning("Fixed nil (but expected empty) Prefix in subtree")
 	}
 
+	// The InternalNodes cache is nil here, but the SubtreeCache (which called
+	// this method) will re-populate it.
 	return &subtree, nil
 }
 
@@ -265,6 +269,10 @@ func (t *treeTX) storeSubtree(subtree *storage.SubtreeProto) error {
 	}
 	stx := t.tx.Stmt(t.ts.setSubtree)
 	defer stx.Close()
+
+	// Ensure we're not storing the internal nodes, since we'll just recalculate
+	// them when we read this subtree back.
+	subtree.InternalNodes = nil
 
 	subtreeBytes, err := proto.Marshal(subtree)
 	if err != nil {

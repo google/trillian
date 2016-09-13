@@ -6,7 +6,9 @@ import (
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
+	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/storage/cache"
 )
 
 const insertMapHeadSQL string = `INSERT INTO MapHead(TreeId, MapHeadTimestamp, RootHash, MapRevision, RootSignature, TransactionLogRoot)
@@ -35,7 +37,9 @@ func (m *mySQLMapStorage) MapID() trillian.MapID {
 }
 
 func NewMapStorage(id trillian.MapID, dbURL string) (storage.MapStorage, error) {
-	ts, err := newTreeStorage(id.TreeID, dbURL, trillian.NewSHA256())
+	// TODO(al): pass this through/configure from DB
+	th := merkle.NewRFC6962TreeHasher(trillian.NewSHA256())
+	ts, err := newTreeStorage(id.TreeID, dbURL, th.Size(), cache.PopulateMapSubtreeNodes(th))
 	if err != nil {
 		glog.Warningf("Couldn't create a new treeStorage: %s", err)
 		return nil, err
