@@ -296,7 +296,7 @@ func loggingWrapper(c CTRequestHandlers, handler string, fn appHandler) appHandl
 		defer func() {
 			if r := recover(); r != nil {
 				// If we reach here then the handler exited via panic, count it as a server failure
-				c.httpMonitor.LogRequestCompleted(handler, strconv.Itoa(http.StatusInternalServerError), fmt.Errorf("recovered handler panic: %v", r))
+				c.httpMonitor.LogRequestCompleted(handler, http.StatusInternalServerError, fmt.Errorf("recovered handler panic: %v", r))
 			}
 		}()
 
