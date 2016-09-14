@@ -207,7 +207,7 @@ message GetMapLeavesResponse {
 message SetMapLeavesRequest {
   int64 map_id = 1;
   repeated KeyValue key_value = 2;
-  SignedLogRoot includes_entries_to = 3;
+  MapperMetadata mapper_data = 3;
 }
 
 message SetMapLeavesResponse {
