@@ -18,9 +18,9 @@ import (
 var sourceLog = flag.String("source", "https://ct.googleapis.com/testtube", "Source CT Log")
 var mapServer = flag.String("map_server", "", "host:port for the map server")
 var mapID = flag.Int("map_id", -1, "Map ID to write to")
-var batchSize = flag.Int("batch_size", 256, "Max number of entries to process at a time from the CT Log")
+var logBatchSize = flag.Int("log_batch_size", 256, "Max number of entries to process at a time from the CT Log")
 
-//TODO(al): factor this out into a reuable thing.
+//TODO(al): factor this out into a reusable thing.
 
 type CTMapper struct {
 	mapID int64
@@ -54,7 +54,7 @@ func (m *CTMapper) oneMapperRun() (bool, error) {
 		meta = &trillian.MapperMetadata{}
 	}
 	startEntry = meta.HighestFullyCompletedSeq + 1
-	endEntry := startEntry + int64(*batchSize)
+	endEntry := startEntry + int64(*logBatchSize)
 
 	glog.Infof("Fetching entries [%d, %d] from log", startEntry, endEntry)
 
