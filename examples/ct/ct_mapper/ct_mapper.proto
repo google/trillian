@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package main;
+package ct_mapper;
 
 message EntryList {
   string domain = 1;

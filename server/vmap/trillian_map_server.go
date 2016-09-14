@@ -113,7 +113,7 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 			}
 		*/
 
-		leaf, err := tx.Get(req.Revision, kh.HashKey(key))
+		leaf, err := tx.Get(req.Revision, kHash)
 		// No key is ok, we'll just return a null value
 		if err != nil && err != storage.ErrNoSuchKey {
 			return nil, err
