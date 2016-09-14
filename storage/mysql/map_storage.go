@@ -63,7 +63,6 @@ func (m *mySQLMapStorage) Begin() (storage.MapTX, error) {
 	if err != nil {
 		return nil, err
 	}
-	glog.Infof("New transaction %#v", ttx.tx)
 	ret := &mapTX{
 		treeTX: ttx,
 		ms:     m,
