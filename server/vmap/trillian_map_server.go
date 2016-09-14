@@ -104,8 +104,8 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 	}
 
 	for _, key := range req.Key {
+		kHash := kh.HashKey(key)
 		/*
-			kHash := kh.HashKey(key)
 			TODO(al): this seems broken
 			proof, err := smtReader.InclusionProof(req.Revision, key)
 			if err != nil {
@@ -113,7 +113,7 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 			}
 		*/
 
-		leaf, err := tx.Get(req.Revision, kh.HashKey(key))
+		leaf, err := tx.Get(req.Revision, kHash)
 		// No key is ok, we'll just return a null value
 		if err != nil && err != storage.ErrNoSuchKey {
 			return nil, err

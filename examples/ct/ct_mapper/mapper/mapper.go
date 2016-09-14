@@ -1,7 +1,6 @@
 package main
 
 import (
-	"crypto/sha256"
 	"flag"
 	"time"
 
@@ -11,11 +10,12 @@ import (
 	"github.com/google/certificate-transparency/go/client"
 	"github.com/google/certificate-transparency/go/x509"
 	"github.com/google/trillian"
+	"github.com/google/trillian/examples/ct/ct_mapper"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
 
-var sourceLog = flag.String("source", "https://ct.googleapis.com/testtube", "Source CT Log")
+var sourceLog = flag.String("source", "https://ct.googleapis.com/submariner", "Source CT Log")
 var mapServer = flag.String("map_server", "", "host:port for the map server")
 var mapID = flag.Int("map_id", -1, "Map ID to write to")
 var logBatchSize = flag.Int("log_batch_size", 256, "Max number of entries to process at a time from the CT Log")
@@ -28,7 +28,7 @@ type CTMapper struct {
 	vmap  trillian.TrillianMapClient
 }
 
-func updateDomainMap(m map[string]EntryList, domain string, index int64, isPrecert bool) {
+func updateDomainMap(m map[string]ct_mapper.EntryList, domain string, index int64, isPrecert bool) {
 	el := m[domain]
 	el.Domain = domain
 	if isPrecert {
@@ -69,7 +69,7 @@ func (m *CTMapper) oneMapperRun() (bool, error) {
 	}
 
 	// figure out which domains we've found:
-	domains := make(map[string]EntryList)
+	domains := make(map[string]ct_mapper.EntryList)
 	for _, entry := range logEntries {
 		if entry.Leaf.LeafType != ct.TimestampedEntryLeafType {
 			glog.Info("Skipping unknown entry type %v at %d", entry.Leaf.LeafType, entry.Index)
@@ -82,7 +82,8 @@ func (m *CTMapper) oneMapperRun() (bool, error) {
 		case ct.X509LogEntryType:
 			cert, err := x509.ParseCertificate(entry.Leaf.TimestampedEntry.X509Entry)
 			if err != nil {
-				return false, err
+				glog.Warningf("Can't parse cert at index %d, continuing anyway because this is a toy", entry.Index)
+				continue
 			}
 			updateDomainMap(domains, cert.Subject.CommonName, entry.Index, false)
 			for _, n := range cert.DNSNames {
@@ -91,7 +92,8 @@ func (m *CTMapper) oneMapperRun() (bool, error) {
 		case ct.PrecertLogEntryType:
 			precert, err := x509.ParseTBSCertificate(entry.Leaf.TimestampedEntry.PrecertEntry.TBSCertificate)
 			if err != nil {
-				return false, err
+				glog.Warningf("Can't parse precert at index %d, continuing anyway because this is a toy", entry.Index)
+				continue
 			}
 			updateDomainMap(domains, precert.Subject.CommonName, entry.Index, true)
 			for _, n := range precert.DNSNames {
@@ -108,12 +110,12 @@ func (m *CTMapper) oneMapperRun() (bool, error) {
 
 	// Fetch the current map values for those domains:
 	getReq := &trillian.GetMapLeavesRequest{
-		MapId: m.mapID,
-		Key:   make([][]byte, 0, len(domains)),
+		MapId:    m.mapID,
+		Key:      make([][]byte, 0, len(domains)),
+		Revision: -1,
 	}
 	for k, _ := range domains {
-		keyHash := sha256.Sum256([]byte(k))
-		getReq.Key = append(getReq.Key, keyHash[:])
+		getReq.Key = append(getReq.Key, []byte(k))
 	}
 
 	getResp, err := m.vmap.GetLeaves(context.Background(), getReq)
@@ -123,7 +125,7 @@ func (m *CTMapper) oneMapperRun() (bool, error) {
 	//glog.Info("Get resp: %v", getResp)
 
 	for _, v := range getResp.KeyValue {
-		e := EntryList{}
+		e := ct_mapper.EntryList{}
 		if err := proto.Unmarshal(v.KeyValue.Value.LeafValue, &e); err != nil {
 			return false, err
 		}
@@ -139,12 +141,11 @@ func (m *CTMapper) oneMapperRun() (bool, error) {
 		KeyValue: make([]*trillian.KeyValue, 0, len(domains)),
 	}
 	for k, v := range domains {
-		keyHash := sha256.Sum256([]byte(k))
 		b, err := proto.Marshal(&v)
 		if err != nil {
 			return false, err
 		}
-		setReq.KeyValue = append(setReq.KeyValue, &trillian.KeyValue{keyHash[:], &trillian.MapLeaf{
+		setReq.KeyValue = append(setReq.KeyValue, &trillian.KeyValue{[]byte(k), &trillian.MapLeaf{
 			LeafValue: b,
 		}})
 	}
