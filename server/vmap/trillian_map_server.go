@@ -110,7 +110,8 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 		}
 
 		leaf, err := tx.Get(req.Revision, kh.HashKey(key))
-		if err != nil {
+		// No key is ok, we'll just return a null value
+		if err != nil && err != storage.ErrNoSuchKey {
 			return nil, err
 		}
 
@@ -207,8 +208,33 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 }
 
 // GetSignedMapRoot implements the GetSignedMapRoot RPC method.
-func (t *TrillianMapServer) GetSignedMapRoot(ctx context.Context, req *trillian.GetSignedMapRootRequest) (*trillian.GetSignedMapRootResponse, error) {
-	return nil, ErrNotImplemented
+func (t *TrillianMapServer) GetSignedMapRoot(ctx context.Context, req *trillian.GetSignedMapRootRequest) (resp *trillian.GetSignedMapRootResponse, err error) {
+	s, err := t.getStorageForMap(req.MapId)
+	if err != nil {
+		return nil, err
+	}
+
+	tx, err := s.Snapshot()
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		// try to commit the tx
+		e := tx.Commit()
+		if e != nil && err == nil {
+			resp, err = nil, e
+		}
+	}()
+
+	r, err := tx.LatestSignedMapRoot()
+	if err != nil {
+		return nil, err
+	}
+
+	resp = &trillian.GetSignedMapRootResponse{
+		MapRoot: &r,
+	}
+	return resp, err
 }
 
 func buildStatus(code trillian.TrillianApiStatusCode) *trillian.TrillianApiStatus {
