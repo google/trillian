@@ -104,8 +104,8 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 	}
 
 	for _, key := range req.Key {
+		kHash := kh.HashKey(key)
 		/*
-			kHash := kh.HashKey(key)
 			TODO(al): this seems broken
 			proof, err := smtReader.InclusionProof(req.Revision, key)
 			if err != nil {
