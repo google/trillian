@@ -11,10 +11,10 @@ import (
 	"github.com/google/trillian/storage/cache"
 )
 
-const insertMapHeadSQL string = `INSERT INTO MapHead(TreeId, MapHeadTimestamp, RootHash, MapRevision, RootSignature, TransactionLogRoot)
+const insertMapHeadSQL string = `INSERT INTO MapHead(TreeId, MapHeadTimestamp, RootHash, MapRevision, RootSignature, MapperData)
 	VALUES(?, ?, ?, ?, ?, ?)`
 
-const selectLatestSignedMapRootSql string = `SELECT MapHeadTimestamp, RootHash, MapRevision, RootSignature, TransactionLogRoot
+const selectLatestSignedMapRootSql string = `SELECT MapHeadTimestamp, RootHash, MapRevision, RootSignature, MapperData
 		 FROM MapHead WHERE TreeId=?
 		 ORDER BY MapHeadTimestamp DESC LIMIT 1`
 
@@ -145,12 +145,13 @@ func (m *mapTX) Get(revision int64, keyHash trillian.Hash) (trillian.MapLeaf, er
 func (m *mapTX) LatestSignedMapRoot() (trillian.SignedMapRoot, error) {
 	var timestamp, mapRevision int64
 	var rootHash, rootSignatureBytes []byte
-	var transactionLogRoot []byte
 	var rootSignature trillian.DigitallySigned
+	var mapperMetaBytes []byte
+	var mapperMeta *trillian.MapperMetadata
 
 	err := m.tx.QueryRow(
 		selectLatestSignedMapRootSql, m.ms.mapID.TreeID).Scan(
-		&timestamp, &rootHash, &mapRevision, &rootSignatureBytes, &transactionLogRoot)
+		&timestamp, &rootHash, &mapRevision, &rootSignatureBytes, &mapperMetaBytes)
 
 	// It's possible there are no roots for this tree yet
 	if err == sql.ErrNoRows {
@@ -158,31 +159,50 @@ func (m *mapTX) LatestSignedMapRoot() (trillian.SignedMapRoot, error) {
 	}
 
 	err = proto.Unmarshal(rootSignatureBytes, &rootSignature)
-
 	if err != nil {
-		glog.Warningf("Failed to unmarshall root signature: %v", err)
+		glog.Warningf("Failed to unmarshal root signature: %v", err)
 		return trillian.SignedMapRoot{}, err
 	}
 
-	return trillian.SignedMapRoot{
+	if mapperMetaBytes != nil && len(mapperMetaBytes) != 0 {
+		mapperMeta = &trillian.MapperMetadata{}
+		if err := proto.Unmarshal(mapperMetaBytes, mapperMeta); err != nil {
+			glog.Warningf("Failed to unmarshal Metadata; %v", err)
+			return trillian.SignedMapRoot{}, err
+		}
+	}
+
+	ret := trillian.SignedMapRoot{
 		RootHash:       rootHash,
 		TimestampNanos: timestamp,
 		MapRevision:    mapRevision,
 		Signature:      &rootSignature,
 		MapId:          m.ms.mapID.MapID,
-	}, nil
+		Metadata:       mapperMeta,
+	}
+
+	return ret, nil
 }
 
 func (m *mapTX) StoreSignedMapRoot(root trillian.SignedMapRoot) error {
 	signatureBytes, err := proto.Marshal(root.Signature)
-
 	if err != nil {
 		glog.Warningf("Failed to marshal root signature: %v %v", root.Signature, err)
 		return err
 	}
 
+	var mapperMetaBytes []byte
+
+	if root.Metadata != nil {
+		mapperMetaBytes, err = proto.Marshal(root.Metadata)
+		if err != nil {
+			glog.Warning("Failed to marshal MetaData: %v %v", root.Metadata, err)
+			return err
+		}
+	}
+
 	// TODO(al): store transactionLogHead too
-	res, err := m.tx.Exec(insertMapHeadSQL, m.ms.mapID.TreeID, root.TimestampNanos, root.RootHash, root.MapRevision, signatureBytes, []byte{})
+	res, err := m.tx.Exec(insertMapHeadSQL, m.ms.mapID.TreeID, root.TimestampNanos, root.RootHash, root.MapRevision, signatureBytes, mapperMetaBytes)
 
 	if err != nil {
 		glog.Warningf("Failed to store signed map root: %s", err)

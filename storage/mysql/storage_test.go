@@ -838,7 +838,7 @@ func TestLatestSignedMapRoot(t *testing.T) {
 		}
 
 		if !proto.Equal(&root, &root2) {
-			t.Fatalf("Root round trip failed: <%v> and: <%v>", root, root2)
+			t.Fatalf("Root round trip failed: <%#v> and: <%#v>", root, root2)
 		}
 	}
 }

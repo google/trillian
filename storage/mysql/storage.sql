@@ -122,7 +122,7 @@ CREATE TABLE IF NOT EXISTS MapHead(
   RootHash             VARBINARY(255) NOT NULL,
   MapRevision          BIGINT,
   RootSignature        VARBINARY(255) NOT NULL,
-  TransactionLogRoot   BLOB NOT NULL,
+  MapperData           BLOB,
   PRIMARY KEY(TreeId, MapHeadTimestamp),
   UNIQUE INDEX TreeRevisionIdx(TreeId, MapRevision),
   FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE

@@ -48,15 +48,20 @@ message SignedLogRoot {
   int64 tree_revision = 6;
 }
 
+message MapperMetadata {
+  bytes source_log_id = 1;
+  int64 highest_fully_completed_seq = 2;
+  int64 highest_partially_completed_seq = 3;
+ }
+
 // SignedMapRoot represents a commitment by a Map to a particular tree.
 message SignedMapRoot {
   int64 timestamp_nanos = 1;
   bytes root_hash = 2;
-	// TODO(al) add Metadata e.g. list of Log STHs included under a Map's Signed Root etc.?
+  MapperMetadata metadata = 3;
 	// TODO(al): define serialised format for the signature scheme.
-  DigitallySigned signature = 3;
+  DigitallySigned signature = 4;
 
-  bytes map_id = 4;
-  int64 map_revision = 5;
+  bytes map_id = 5;
+  int64 map_revision = 6;
 }
-
