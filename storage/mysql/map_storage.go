@@ -63,6 +63,7 @@ func (m *mySQLMapStorage) Begin() (storage.MapTX, error) {
 	if err != nil {
 		return nil, err
 	}
+	glog.Infof("New transaction %#v", ttx.tx)
 	ret := &mapTX{
 		treeTX: ttx,
 		ms:     m,
@@ -149,8 +150,13 @@ func (m *mapTX) LatestSignedMapRoot() (trillian.SignedMapRoot, error) {
 	var mapperMetaBytes []byte
 	var mapperMeta *trillian.MapperMetadata
 
-	err := m.tx.QueryRow(
-		selectLatestSignedMapRootSql, m.ms.mapID.TreeID).Scan(
+	stmt, err := m.tx.Prepare(selectLatestSignedMapRootSql)
+	if err != nil {
+		return trillian.SignedMapRoot{}, err
+	}
+	defer stmt.Close()
+
+	err = stmt.QueryRow(m.ms.mapID.TreeID).Scan(
 		&timestamp, &rootHash, &mapRevision, &rootSignatureBytes, &mapperMetaBytes)
 
 	// It's possible there are no roots for this tree yet
@@ -201,8 +207,14 @@ func (m *mapTX) StoreSignedMapRoot(root trillian.SignedMapRoot) error {
 		}
 	}
 
+	stmt, err := m.tx.Prepare(insertMapHeadSQL)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
 	// TODO(al): store transactionLogHead too
-	res, err := m.tx.Exec(insertMapHeadSQL, m.ms.mapID.TreeID, root.TimestampNanos, root.RootHash, root.MapRevision, signatureBytes, mapperMetaBytes)
+	res, err := stmt.Exec(m.ms.mapID.TreeID, root.TimestampNanos, root.RootHash, root.MapRevision, signatureBytes, mapperMetaBytes)
 
 	if err != nil {
 		glog.Warningf("Failed to store signed map root: %s", err)
