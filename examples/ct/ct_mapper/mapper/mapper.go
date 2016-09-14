@@ -112,7 +112,7 @@ func (m *CTMapper) oneMapperRun() (bool, error) {
 	getReq := &trillian.GetMapLeavesRequest{
 		MapId:    m.mapID,
 		Key:      make([][]byte, 0, len(domains)),
-		Revision: getRootResp.MapRoot.MapRevision,
+		Revision: -1,
 	}
 	for k, _ := range domains {
 		getReq.Key = append(getReq.Key, []byte(k))
