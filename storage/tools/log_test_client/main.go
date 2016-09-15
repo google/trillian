@@ -73,7 +73,8 @@ func main() {
 		glog.Fatalf("Could not read back log entries: %v", err)
 	}
 
-	// Step 4 - Cross validation between log and memory tree hashes
+	// Step 4 - Cross validation between log and memory tree root
+	// hashes
 	tree := buildMemoryMerkleTree(leafMap, params)
 	if err := checkLogSTHConsistency(treeId, tree, client, params); err != nil {
 		glog.Fatalf("Log consistency check failed: %v", err)
