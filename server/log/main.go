@@ -60,6 +60,7 @@ func getStorageForLog(logId int64) (storage.LogStorage, error) {
 		}
 
 		storageMap[logId] = s
+		return s, nil
 	}
 
 	return s, nil
