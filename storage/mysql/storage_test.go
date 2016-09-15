@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"testing"
@@ -268,6 +269,24 @@ func TestQueueDuplicateLeafFails(t *testing.T) {
 			t.Fatalf("Got the wrong type of error: %v", err)
 		}
 	}
+}
+
+func TestQueueLeavesMissingSignatureRejected(t *testing.T) {
+	logID := createLogID("TestQueueLeavesMissingSignatureRejected")
+	db := prepareTestLogDB(logID, t)
+	defer db.Close()
+	s := prepareTestLogStorage(logID, t)
+	tx := beginLogTx(s, t)
+	defer failIfTXStillOpen(t, "TestQueueLeavesMissingSignatureRejected", tx)
+
+	leaves := createTestLeaves(leavesToInsert, 1)
+	leaves[0].SignedEntryTimestamp.Signature = nil
+
+	if err := tx.QueueLeaves(leaves); err == nil {
+		t.Fatalf("Accepted a leaf with nil signature: %v", err)
+	}
+
+	commit(tx, t)
 }
 
 func TestQueueLeaves(t *testing.T) {
@@ -1273,6 +1292,12 @@ func beginMapTx(s storage.MapStorage, t *testing.T) storage.MapTX {
 }
 
 func failIfTXStillOpen(t *testing.T, op string, tx storage.LogTX) {
+	if r := recover(); r != nil {
+		// Check for the test bailing with panic before testing for unclosed tx.
+		// debug.Stack() does the right thing and includes the original failure point
+		t.Fatalf("Panic in %s: %v %v", op, r, string(debug.Stack()))
+	}
+
 	if tx != nil && tx.IsOpen() {
 		t.Fatalf("Unclosed transaction in : %s", op)
 	}
