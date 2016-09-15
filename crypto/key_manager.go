@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"github.com/golang/glog"
 )
 
 // KeyManager loads and holds our private and public keys. Should support ECDSA and RSA keys.
@@ -149,6 +150,8 @@ func parsePrivateKey(key []byte) (crypto.PrivateKey, error) {
 	}
 	if key, err := x509.ParseECPrivateKey(key); err == nil {
 		return key, nil
+	} else {
+		glog.Warningf("error parsing EC key: %s", err)
 	}
 
 	return nil, errors.New("could not parse private key")
