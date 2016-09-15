@@ -7,7 +7,7 @@ import (
 	"crypto/sha256"
 	"io"
 
-	"github.com/google/certificate-transparency/go"
+	ct "github.com/google/certificate-transparency/go"
 	"github.com/google/certificate-transparency/go/x509"
 	"github.com/google/trillian/crypto"
 )
@@ -103,4 +103,3 @@ func (c *CTLogEntry) Deserialize(r io.Reader) error {
 
 	return nil
 }
-
