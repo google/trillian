@@ -53,14 +53,14 @@ func getStorageForLog(logId int64) (storage.LogStorage, error) {
 	if !ok {
 		glog.Infof("Creating new storage for log: %d", logId)
 
-		s, err := simpleMySqlStorageProvider(logId)
+		var err error
+		s, err = simpleMySqlStorageProvider(logId)
 
 		if err != nil {
 			return s, err
 		}
 
 		storageMap[logId] = s
-		return s, nil
 	}
 
 	return s, nil
