@@ -19,6 +19,7 @@ import (
 	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/util"
 	"golang.org/x/net/context"
+	"github.com/google/trillian/monitoring"
 )
 
 const (
@@ -27,6 +28,18 @@ const (
 	// You'd think these would be defined in some library but if so I haven't found it yet
 	httpMethodPost = "POST"
 	httpMethodGet  = "GET"
+)
+
+// These constants are the paths used by request handlers
+const (
+	addChainPath string = "add-chain"
+	addPreChainPath string = "add-pre-chain"
+	getSTHPath string = "get-sth"
+	getSTHConsistencyPath string = "get-sth-consistency"
+	getProofByHashPath string = "get-proof-by-hash"
+	getEntriesPath string = "get-entries"
+	getRootsPath string = "get-roots"
+	getEntryAndProofPath string = "get-entry-and-proof"
 )
 
 const (
@@ -93,12 +106,14 @@ type CTRequestHandlers struct {
 	rpcDeadline time.Duration
 	// timeSource is a util.TimeSource that can be injected for testing
 	timeSource util.TimeSource
+	// httpMonitor is the object used for recording request counts and status
+	httpMonitor *monitoring.HttpRequestMonitor
 }
 
 // NewCTRequestHandlers creates a new instance of CTRequestHandlers. They must still
 // be registered by calling RegisterCTHandlers()
-func NewCTRequestHandlers(logID int64, trustedRoots *PEMCertPool, rpcClient trillian.TrillianLogClient, km crypto.KeyManager, rpcDeadline time.Duration, timeSource util.TimeSource) *CTRequestHandlers {
-	return &CTRequestHandlers{logID, trustedRoots, rpcClient, km, rpcDeadline, timeSource}
+func NewCTRequestHandlers(logID int64, trustedRoots *PEMCertPool, rpcClient trillian.TrillianLogClient, km crypto.KeyManager, rpcDeadline time.Duration, timeSource util.TimeSource, httpMonitor *monitoring.HttpRequestMonitor) *CTRequestHandlers {
+	return &CTRequestHandlers{logID, trustedRoots, rpcClient, km, rpcDeadline, timeSource, httpMonitor}
 }
 
 func pathFor(req string) string {
@@ -274,23 +289,41 @@ func addChainInternal(w http.ResponseWriter, r *http.Request, c CTRequestHandler
 	return http.StatusOK, nil
 }
 
-// All the handlers are wrapped so they have access to the RPC client and other context
+// loggingWrapper calls the appHandler but also records request counts and status
+func loggingWrapper(c CTRequestHandlers, handler string, fn appHandler) appHandler {
+	return func(w http.ResponseWriter, r *http.Request) (int, error) {
+		c.httpMonitor.LogRequestStarted(handler)
+		defer func() {
+			if r := recover(); r != nil {
+				// If we reach here then the handler exited via panic, count it as a server failure
+				c.httpMonitor.LogRequestCompleted(handler, http.StatusInternalServerError, fmt.Errorf("recovered handler panic: %v", r))
+			}
+		}()
+
+		status, err := fn(w, r)
+		c.httpMonitor.LogRequestCompleted(handler, status, err)
+		return status, err
+	}
+}
+
+// All the handlers are wrapped so they have access to the RPC client and other context. They're
+// wrapped again so that we count requests and result status for monitoring.
 // TODO(Martin2112): Doesn't properly handle duplicate submissions yet but the backend
 // needs this to be implemented before we can do it here
 func wrappedAddChainHandler(c CTRequestHandlers) appHandler {
-	return func(w http.ResponseWriter, r *http.Request) (int, error) {
+	return loggingWrapper(c, addChainPath, func(w http.ResponseWriter, r *http.Request) (int, error) {
 		return addChainInternal(w, r, c, false)
-	}
+	})
 }
 
 func wrappedAddPreChainHandler(c CTRequestHandlers) appHandler {
-	return func(w http.ResponseWriter, r *http.Request) (int, error) {
+	return loggingWrapper(c, addPreChainPath, func(w http.ResponseWriter, r *http.Request) (int, error) {
 		return addChainInternal(w, r, c, true)
-	}
+	})
 }
 
 func wrappedGetSTHHandler(c CTRequestHandlers) appHandler {
-	return func(w http.ResponseWriter, r *http.Request) (int, error) {
+	return loggingWrapper(c, getSTHPath, func(w http.ResponseWriter, r *http.Request) (int, error) {
 		if !enforceMethod(w, r, httpMethodGet) {
 			return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 		}
@@ -346,11 +379,11 @@ func wrappedGetSTHHandler(c CTRequestHandlers) appHandler {
 		}
 
 		return http.StatusOK, nil
-	}
+	})
 }
 
 func wrappedGetSTHConsistencyHandler(c CTRequestHandlers) appHandler {
-	return func(w http.ResponseWriter, r *http.Request) (int, error) {
+	return loggingWrapper(c, getSTHConsistencyPath, func(w http.ResponseWriter, r *http.Request) (int, error) {
 		if !enforceMethod(w, r, httpMethodGet) {
 			return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 		}
@@ -392,11 +425,11 @@ func wrappedGetSTHConsistencyHandler(c CTRequestHandlers) appHandler {
 		}
 
 		return http.StatusOK, nil
-	}
+	})
 }
 
 func wrappedGetProofByHashHandler(c CTRequestHandlers) appHandler {
-	return func(w http.ResponseWriter, r *http.Request) (int, error) {
+	return loggingWrapper(c, getProofByHashPath, func(w http.ResponseWriter, r *http.Request) (int, error) {
 		if !enforceMethod(w, r, httpMethodGet) {
 			return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 		}
@@ -458,11 +491,11 @@ func wrappedGetProofByHashHandler(c CTRequestHandlers) appHandler {
 		}
 
 		return http.StatusOK, nil
-	}
+	})
 }
 
 func wrappedGetEntriesHandler(c CTRequestHandlers) appHandler {
-	return func(w http.ResponseWriter, r *http.Request) (int, error) {
+	return loggingWrapper(c, getEntriesPath, func(w http.ResponseWriter, r *http.Request) (int, error) {
 		if !enforceMethod(w, r, httpMethodGet) {
 			return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 		}
@@ -525,21 +558,21 @@ func wrappedGetEntriesHandler(c CTRequestHandlers) appHandler {
 		}
 
 		return http.StatusOK, nil
-	}
+	})
 }
 
-func wrappedGetRootsHandler(trustedRoots *PEMCertPool) appHandler {
-	return func(w http.ResponseWriter, r *http.Request) (int, error) {
+func wrappedGetRootsHandler(c CTRequestHandlers) appHandler {
+	return loggingWrapper(c, getRootsPath, func(w http.ResponseWriter, r *http.Request) (int, error) {
 		if !enforceMethod(w, r, httpMethodGet) {
 			return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 		}
 
 		jsonMap := make(map[string]interface{})
 
-		rawCerts := make([][]byte, 0, len(trustedRoots.RawCertificates()))
+		rawCerts := make([][]byte, 0, len(c.trustedRoots.RawCertificates()))
 
 		// Pull out the raw certificates from the parsed versions
-		for _, cert := range trustedRoots.RawCertificates() {
+		for _, cert := range c.trustedRoots.RawCertificates() {
 			rawCerts = append(rawCerts, cert.Raw)
 		}
 
@@ -553,13 +586,13 @@ func wrappedGetRootsHandler(trustedRoots *PEMCertPool) appHandler {
 		}
 
 		return http.StatusOK, nil
-	}
+	})
 }
 
 // See RFC 6962 Section 4.8. This is mostly used for debug purposes rather than by normal
 // CT clients.
 func wrappedGetEntryAndProofHandler(c CTRequestHandlers) appHandler {
-	return func(w http.ResponseWriter, r *http.Request) (int, error) {
+	return loggingWrapper(c, getEntryAndProofPath, func(w http.ResponseWriter, r *http.Request) (int, error) {
 		if !enforceMethod(w, r, httpMethodGet) {
 			return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 		}
@@ -606,20 +639,20 @@ func wrappedGetEntryAndProofHandler(c CTRequestHandlers) appHandler {
 		}
 
 		return http.StatusOK, nil
-	}
+	})
 }
 
 // RegisterCTHandlers registers a HandleFunc for all of the RFC6962 defined methods.
 // TODO(Martin2112): This registers on default ServeMux, might need more flexibility?
 func (c CTRequestHandlers) RegisterCTHandlers() {
-	http.Handle(pathFor("add-chain"), wrappedAddChainHandler(c))
-	http.Handle(pathFor("add-pre-chain"), wrappedAddPreChainHandler(c))
-	http.Handle(pathFor("get-sth"), wrappedGetSTHHandler(c))
-	http.Handle(pathFor("get-sth-consistency"), wrappedGetSTHConsistencyHandler(c))
-	http.Handle(pathFor("get-proof-by-hash"), wrappedGetProofByHashHandler(c))
-	http.Handle(pathFor("get-entries"), wrappedGetEntriesHandler(c))
-	http.Handle(pathFor("get-roots"), wrappedGetRootsHandler(c.trustedRoots))
-	http.Handle(pathFor("get-entry-and-proof"), wrappedGetEntryAndProofHandler(c))
+	http.Handle(pathFor(addChainPath), wrappedAddChainHandler(c))
+	http.Handle(pathFor(addPreChainPath), wrappedAddPreChainHandler(c))
+	http.Handle(pathFor(getSTHPath), wrappedGetSTHHandler(c))
+	http.Handle(pathFor(getSTHConsistencyPath), wrappedGetSTHConsistencyHandler(c))
+	http.Handle(pathFor(getProofByHashPath), wrappedGetProofByHashHandler(c))
+	http.Handle(pathFor(getEntriesPath), wrappedGetEntriesHandler(c))
+	http.Handle(pathFor(getRootsPath), wrappedGetRootsHandler(c))
+	http.Handle(pathFor(getEntryAndProofPath), wrappedGetEntryAndProofHandler(c))
 }
 
 // Generates a custom error page to give more information on why something didn't work

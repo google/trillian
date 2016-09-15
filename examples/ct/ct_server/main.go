@@ -14,6 +14,7 @@ import (
 	"github.com/google/trillian/util"
 	"google.golang.org/grpc"
 	"time"
+	"github.com/google/trillian/monitoring"
 )
 
 // TODO(Martin2112): We still have the treeid / log ID thing to think about + security etc.
@@ -111,8 +112,12 @@ func main() {
 	defer conn.Close()
 	client := trillian.NewTrillianLogClient(conn)
 
+	// Initialize http request status monitoring
+	monitor := monitoring.NewHttpMonitor("trillian", "ct_log_example")
+	monitor.Publish()
+
 	// Create and register the handlers using the RPC client we just set up
-	handlers := ct.NewCTRequestHandlers(*logIDFlag, trustedRoots, client, logKeyManager, *rpcDeadlineFlag, new(util.SystemTimeSource))
+	handlers := ct.NewCTRequestHandlers(*logIDFlag, trustedRoots, client, logKeyManager, *rpcDeadlineFlag, new(util.SystemTimeSource), monitor)
 	handlers.RegisterCTHandlers()
 
 	glog.Warningf("Server exited: %v", http.ListenAndServe(fmt.Sprintf("localhost:%d", *serverPortFlag), nil))
