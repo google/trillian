@@ -9,11 +9,12 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
-	"github.com/stretchr/testify/mock"
+	"github.com/google/trillian/testonly"
 )
 
 var splitTestVector = []struct {
@@ -59,22 +60,11 @@ func TestSplitNodeID(t *testing.T) {
 	}
 }
 
-type mockNodeStorage struct {
-	mock.Mock
-}
-
-func (m *mockNodeStorage) GetSubtree(n storage.NodeID) (*storage.SubtreeProto, error) {
-	ret := m.Called(n)
-	return ret.Get(0).(*storage.SubtreeProto), ret.Error(1)
-}
-
-func (m *mockNodeStorage) SetSubtree(s *storage.SubtreeProto) error {
-	ret := m.Called(s)
-	return ret.Error(0)
-}
-
 func TestCacheFillOnlyReadsSubtrees(t *testing.T) {
-	m := mockNodeStorage{}
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	m := NewMockNodeStorage(mockCtrl)
 	c := NewSubtreeCache(PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher(trillian.NewSHA256())))
 
 	nodeID := storage.NewNodeIDFromHash([]byte("1234"))
@@ -83,13 +73,7 @@ func TestCacheFillOnlyReadsSubtrees(t *testing.T) {
 	for b := 0; b < nodeID.PrefixLenBits; b += strataDepth {
 		e := nodeID
 		e.PrefixLenBits = b
-		m.On("GetSubtree", mock.MatchedBy(func(n storage.NodeID) bool {
-			r := n.Equivalent(e)
-			if r {
-				t.Logf("saw %v", n)
-			}
-			return r
-		})).Return(&storage.SubtreeProto{
+		m.EXPECT().GetSubtree(testonly.NodeIDEq(e)).Return(&storage.SubtreeProto{
 			Prefix: e.Path,
 		}, nil)
 	}
@@ -108,7 +92,10 @@ func noFetch(id storage.NodeID) (*storage.SubtreeProto, error) {
 }
 
 func TestCacheFlush(t *testing.T) {
-	m := mockNodeStorage{}
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	m := NewMockNodeStorage(mockCtrl)
 	c := NewSubtreeCache(PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher(trillian.NewSHA256())))
 
 	nodeID := storage.NewNodeIDFromHash([]byte("1234"))
@@ -118,22 +105,13 @@ func TestCacheFlush(t *testing.T) {
 		e := storage.NewNodeIDFromHash([]byte("1234"))
 		//e := nodeID
 		e.PrefixLenBits = b
-		m.On("GetSubtree", mock.MatchedBy(func(n storage.NodeID) bool {
-			r := n.Equivalent(e)
-			if r {
-				t.Logf("read %v", n)
-			}
-			return r
-		})).Return((*storage.SubtreeProto)(nil), nil)
-		m.On("SetSubtree", mock.MatchedBy(func(s *storage.SubtreeProto) bool {
-			e := e
+		m.EXPECT().GetSubtree(testonly.NodeIDEq(e)).Do(func(n storage.NodeID) {
+			t.Logf("read %v", n)
+		}).Return((*storage.SubtreeProto)(nil), nil)
+		m.EXPECT().SetSubtree(testonly.SubtreeHasPrefix(e)).Do(func(s *storage.SubtreeProto) {
 			subID := storage.NewNodeIDFromHash(s.Prefix)
-			r := subID.Equivalent(e)
-			if r {
-				t.Logf("write %v -> (%d leaves)", subID, len(s.Leaves))
-			}
-			return r
-		})).Return(nil)
+			t.Logf("write %v -> (%d leaves)", subID, len(s.Leaves))
+		}).Return(nil)
 	}
 
 	// Read nodes which touch the subtrees we'll write to:
