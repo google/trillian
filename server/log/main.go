@@ -36,7 +36,7 @@ var privateKeyPassword = flag.String("private_key_password", "", "Password for s
 // Must hold this lock before accessing the storage map
 var storageMapGuard sync.Mutex
 // Map from tree ID to storage impl for that log
-var storageMap map[int64]storage.LogStorage
+var storageMap = make(map[int64]storage.LogStorage)
 
 // TODO(Martin2112): Needs to be able to swap out for different storage type
 func simpleMySqlStorageProvider(treeID int64) (storage.LogStorage, error) {
@@ -50,19 +50,19 @@ func getStorageForLog(logId int64) (storage.LogStorage, error) {
 
 	s, ok := storageMap[logId]
 
-	if ok {
-		return s, nil
-	}
+	if !ok {
+		glog.Infof("Creating new storage for log: %d", logId)
 
-	glog.Infof("Creating new storage for log: %d", logId)
+		s, err := simpleMySqlStorageProvider(logId)
 
-	s, err := simpleMySqlStorageProvider(logId)
+		if err != nil {
+			return s, err
+		}
 
-	if err == nil {
 		storageMap[logId] = s
 	}
 
-	return s, err
+	return s, nil
 }
 
 func checkDatabaseAccessible(dbUri string) error {
@@ -116,8 +116,6 @@ func main() {
 	done := make(chan struct{})
 
 	glog.Info("**** Log Server Starting ****")
-
-	storageMap = make(map[int64]storage.LogStorage)
 
 	// First make sure we can access the database, quit if not
 	if err := checkDatabaseAccessible(*mysqlUriFlag); err != nil {
