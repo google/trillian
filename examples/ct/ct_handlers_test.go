@@ -21,7 +21,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/golang/mock/gomock"
-	"github.com/google/certificate-transparency/go"
+	ct "github.com/google/certificate-transparency/go"
 	"github.com/google/certificate-transparency/go/fixchain"
 	"github.com/google/certificate-transparency/go/x509"
 	"github.com/google/trillian"
@@ -1121,7 +1121,7 @@ func TestGetProofByHashBackendFails(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	client := trillian.NewMockTrillianLogClient(mockCtrl)
-	client.EXPECT().GetInclusionProofByHash(deadlineMatcher(), &trillian.GetInclusionProofByHashRequest{LeafHash: []byte("ahash"), TreeSize:6, OrderBySequence:true}).Return(nil, errors.New("RPCFAIL"))
+	client.EXPECT().GetInclusionProofByHash(deadlineMatcher(), &trillian.GetInclusionProofByHashRequest{LeafHash: []byte("ahash"), TreeSize: 6, OrderBySequence: true}).Return(nil, errors.New("RPCFAIL"))
 	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
 	handler := wrappedGetProofByHashHandler(c)
 
@@ -1151,7 +1151,7 @@ func TestGetProofByHashBackendMultipleProofs(t *testing.T) {
 	proof2 := trillian.ProofProto{LeafIndex: 2, ProofNode: []*trillian.NodeProto{{NodeHash: []byte("ghijkl")}}}
 	response := trillian.GetInclusionProofByHashResponse{Status: okStatus, Proof: []*trillian.ProofProto{&proof1, &proof2}}
 	client := trillian.NewMockTrillianLogClient(mockCtrl)
-	client.EXPECT().GetInclusionProofByHash(deadlineMatcher(), &trillian.GetInclusionProofByHashRequest{LeafHash: []byte("ahash"), TreeSize:7, OrderBySequence:true}).Return(&response, nil)
+	client.EXPECT().GetInclusionProofByHash(deadlineMatcher(), &trillian.GetInclusionProofByHashRequest{LeafHash: []byte("ahash"), TreeSize: 7, OrderBySequence: true}).Return(&response, nil)
 	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
 	handler := wrappedGetProofByHashHandler(c)
 
@@ -1187,7 +1187,7 @@ func TestGetProofByHashBackendReturnsMissingHash(t *testing.T) {
 	proof := trillian.ProofProto{LeafIndex: 2, ProofNode: []*trillian.NodeProto{{NodeHash: []byte("abcdef")}, {NodeHash: []byte{}}, {NodeHash: []byte("ghijkl")}}}
 	response := trillian.GetInclusionProofByHashResponse{Status: okStatus, Proof: []*trillian.ProofProto{&proof}}
 	client := trillian.NewMockTrillianLogClient(mockCtrl)
-	client.EXPECT().GetInclusionProofByHash(deadlineMatcher(), &trillian.GetInclusionProofByHashRequest{LeafHash: []byte("ahash"), TreeSize:9, OrderBySequence:true}).Return(&response, nil)
+	client.EXPECT().GetInclusionProofByHash(deadlineMatcher(), &trillian.GetInclusionProofByHashRequest{LeafHash: []byte("ahash"), TreeSize: 9, OrderBySequence: true}).Return(&response, nil)
 	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
 	handler := wrappedGetProofByHashHandler(c)
 
@@ -1216,7 +1216,7 @@ func TestGetProofByHash(t *testing.T) {
 	proof := trillian.ProofProto{LeafIndex: 2, ProofNode: []*trillian.NodeProto{{NodeHash: []byte("abcdef")}, {NodeHash: []byte("ghijkl")}, {NodeHash: []byte("mnopqr")}}}
 	response := trillian.GetInclusionProofByHashResponse{Status: okStatus, Proof: []*trillian.ProofProto{&proof}}
 	client := trillian.NewMockTrillianLogClient(mockCtrl)
-	client.EXPECT().GetInclusionProofByHash(deadlineMatcher(), &trillian.GetInclusionProofByHashRequest{LeafHash: []byte("ahash"), TreeSize:7, OrderBySequence:true}).Return(&response, nil)
+	client.EXPECT().GetInclusionProofByHash(deadlineMatcher(), &trillian.GetInclusionProofByHashRequest{LeafHash: []byte("ahash"), TreeSize: 7, OrderBySequence: true}).Return(&response, nil)
 	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
 	handler := wrappedGetProofByHashHandler(c)
 
@@ -1299,7 +1299,7 @@ func TestGetSTHConsistencyBackendRPCFails(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	client := trillian.NewMockTrillianLogClient(mockCtrl)
-	client.EXPECT().GetConsistencyProof(deadlineMatcher(), &trillian.GetConsistencyProofRequest{FirstTreeSize:10, SecondTreeSize:20}).Return(nil, errors.New("RPCFAIL"))
+	client.EXPECT().GetConsistencyProof(deadlineMatcher(), &trillian.GetConsistencyProofRequest{FirstTreeSize: 10, SecondTreeSize: 20}).Return(nil, errors.New("RPCFAIL"))
 	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
 	handler := wrappedGetSTHConsistencyHandler(c)
 
@@ -1326,7 +1326,7 @@ func TestGetEntryAndProofBackendFails(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	client := trillian.NewMockTrillianLogClient(mockCtrl)
-	client.EXPECT().GetEntryAndProof(deadlineMatcher(), &trillian.GetEntryAndProofRequest{LeafIndex: 1, TreeSize:3}).Return(nil, errors.New("RPCFAIL"))
+	client.EXPECT().GetEntryAndProof(deadlineMatcher(), &trillian.GetEntryAndProofRequest{LeafIndex: 1, TreeSize: 3}).Return(nil, errors.New("RPCFAIL"))
 	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
 	handler := wrappedGetEntryAndProofHandler(c)
 
@@ -1355,7 +1355,7 @@ func TestGetSTHConsistencyBackendReturnsInvalidProof(t *testing.T) {
 	proof := trillian.ProofProto{LeafIndex: 2, ProofNode: []*trillian.NodeProto{{NodeHash: []byte("abcdef")}, {NodeHash: []byte{}}, {NodeHash: []byte("ghijkl")}}}
 	response := trillian.GetConsistencyProofResponse{Status: okStatus, Proof: &proof}
 	client := trillian.NewMockTrillianLogClient(mockCtrl)
-	client.EXPECT().GetConsistencyProof(deadlineMatcher(), &trillian.GetConsistencyProofRequest{FirstTreeSize:10, SecondTreeSize:20}).Return(&response, nil)
+	client.EXPECT().GetConsistencyProof(deadlineMatcher(), &trillian.GetConsistencyProofRequest{FirstTreeSize: 10, SecondTreeSize: 20}).Return(&response, nil)
 	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
 	handler := wrappedGetSTHConsistencyHandler(c)
 
@@ -1384,7 +1384,7 @@ func TestGetEntryAndProofBackendBadResponse(t *testing.T) {
 	// Omit the result data from the backend response, should cause the request to fail
 	response := trillian.GetEntryAndProofResponse{Status: okStatus}
 	client := trillian.NewMockTrillianLogClient(mockCtrl)
-	client.EXPECT().GetEntryAndProof(deadlineMatcher(), &trillian.GetEntryAndProofRequest{LeafIndex: 1, TreeSize:3}).Return(&response, nil)
+	client.EXPECT().GetEntryAndProof(deadlineMatcher(), &trillian.GetEntryAndProofRequest{LeafIndex: 1, TreeSize: 3}).Return(&response, nil)
 	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
 	handler := wrappedGetEntryAndProofHandler(c)
 
@@ -1409,7 +1409,7 @@ func TestGetSTHConsistency(t *testing.T) {
 	proof := trillian.ProofProto{LeafIndex: 2, ProofNode: []*trillian.NodeProto{{NodeHash: []byte("abcdef")}, {NodeHash: []byte("ghijkl")}, {NodeHash: []byte("mnopqr")}}}
 	response := trillian.GetConsistencyProofResponse{Status: okStatus, Proof: &proof}
 	client := trillian.NewMockTrillianLogClient(mockCtrl)
-	client.EXPECT().GetConsistencyProof(deadlineMatcher(), &trillian.GetConsistencyProofRequest{FirstTreeSize:10, SecondTreeSize:20}).Return(&response, nil)
+	client.EXPECT().GetConsistencyProof(deadlineMatcher(), &trillian.GetConsistencyProofRequest{FirstTreeSize: 10, SecondTreeSize: 20}).Return(&response, nil)
 	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
 	handler := wrappedGetSTHConsistencyHandler(c)
 
@@ -1454,10 +1454,10 @@ func TestGetEntryAndProof(t *testing.T) {
 		t.Fatal("failed to build test merkle leaf data")
 	}
 
-	leafProto := trillian.LeafProto{LeafData: leafBytes, LeafHash:[]byte("ahash"), ExtraData:[]byte("extra")}
-	response := trillian.GetEntryAndProofResponse{Status: okStatus, Proof:&proof, Leaf:&leafProto}
+	leafProto := trillian.LeafProto{LeafData: leafBytes, LeafHash: []byte("ahash"), ExtraData: []byte("extra")}
+	response := trillian.GetEntryAndProofResponse{Status: okStatus, Proof: &proof, Leaf: &leafProto}
 	client := trillian.NewMockTrillianLogClient(mockCtrl)
-	client.EXPECT().GetEntryAndProof(deadlineMatcher(), &trillian.GetEntryAndProofRequest{LeafIndex: 1, TreeSize:3}).Return(&response, nil)
+	client.EXPECT().GetEntryAndProof(deadlineMatcher(), &trillian.GetEntryAndProofRequest{LeafIndex: 1, TreeSize: 3}).Return(&response, nil)
 	c := CTRequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
 	handler := wrappedGetEntryAndProofHandler(c)
 
@@ -1597,7 +1597,7 @@ func getEntriesTestHelper(t *testing.T, request string, expectedStatus int, expl
 
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
-	
+
 	if expected, got := expectedStatus, w.Code; expected != got {
 		t.Fatalf("expected status %d, got %d for test case %s", expected, got, explanation)
 	}

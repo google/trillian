@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/google/certificate-transparency/go"
+	ct "github.com/google/certificate-transparency/go"
 	"github.com/google/trillian/crypto"
 )
 

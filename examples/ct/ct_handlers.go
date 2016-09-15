@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/google/certificate-transparency/go"
+	ct "github.com/google/certificate-transparency/go"
 	"github.com/google/certificate-transparency/go/x509"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
@@ -154,8 +154,8 @@ type getSTHConsistencyResponse struct {
 // getEntryAndProofResponse is a struct for marshalling get-entry-and-proof responses. See
 // RFC 6962 Section 4.8
 type getEntryAndProofResponse struct {
-	LeafInput []byte `json:"leaf_input"`
-	ExtraData []byte `json:"extra_data"`
+	LeafInput []byte   `json:"leaf_input"`
+	ExtraData []byte   `json:"extra_data"`
 	AuditPath [][]byte `json:"audit_path"`
 }
 
@@ -361,7 +361,7 @@ func wrappedGetSTHConsistencyHandler(c CTRequestHandlers) appHandler {
 			return http.StatusBadRequest, err
 		}
 
-		request := trillian.GetConsistencyProofRequest{LogId:c.logID, FirstTreeSize:first, SecondTreeSize:second}
+		request := trillian.GetConsistencyProofRequest{LogId: c.logID, FirstTreeSize: first, SecondTreeSize: second}
 		ctx, _ := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
 		response, err := c.rpcClient.GetConsistencyProof(ctx, &request)
 
@@ -375,7 +375,7 @@ func wrappedGetSTHConsistencyHandler(c CTRequestHandlers) appHandler {
 		}
 
 		// We got a valid response from the server. Marshall it as JSON and return it to the client
-		jsonResponse := getSTHConsistencyResponse{Consistency:auditPathFromProto(response.Proof.ProofNode)}
+		jsonResponse := getSTHConsistencyResponse{Consistency: auditPathFromProto(response.Proof.ProofNode)}
 
 		w.Header().Set(contentTypeHeader, contentTypeJSON)
 		jsonData, err := json.Marshal(&jsonResponse)
@@ -424,9 +424,9 @@ func wrappedGetProofByHashHandler(c CTRequestHandlers) appHandler {
 		// Because we request order by sequence and we only passed one hash then the first result is
 		// the correct proof to return
 		rpcRequest := trillian.GetInclusionProofByHashRequest{LogId: c.logID,
-			LeafHash: leafHash,
-			TreeSize:treeSize,
-			OrderBySequence:true}
+			LeafHash:        leafHash,
+			TreeSize:        treeSize,
+			OrderBySequence: true}
 		ctx, _ := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
 		response, err := c.rpcClient.GetInclusionProofByHash(ctx, &rpcRequest)
 
@@ -571,7 +571,7 @@ func wrappedGetEntryAndProofHandler(c CTRequestHandlers) appHandler {
 			return http.StatusBadRequest, err
 		}
 
-		getEntryAndProofRequest := trillian.GetEntryAndProofRequest{LogId:c.logID, LeafIndex:leafIndex, TreeSize:treeSize}
+		getEntryAndProofRequest := trillian.GetEntryAndProofRequest{LogId: c.logID, LeafIndex: leafIndex, TreeSize: treeSize}
 		ctx, _ := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
 		response, err := c.rpcClient.GetEntryAndProof(ctx, &getEntryAndProofRequest)
 
@@ -586,9 +586,9 @@ func wrappedGetEntryAndProofHandler(c CTRequestHandlers) appHandler {
 
 		// Build and marshall the response to the client
 		jsonResponse := getEntryAndProofResponse{
-			LeafInput:response.Leaf.LeafData,
-			ExtraData:response.Leaf.ExtraData,
-			AuditPath:auditPathFromProto(response.Proof.ProofNode)}
+			LeafInput: response.Leaf.LeafData,
+			ExtraData: response.Leaf.ExtraData,
+			AuditPath: auditPathFromProto(response.Proof.ProofNode)}
 
 		w.Header().Set(contentTypeHeader, contentTypeJSON)
 		jsonData, err := json.Marshal(&jsonResponse)
