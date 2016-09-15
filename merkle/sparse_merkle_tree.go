@@ -385,33 +385,32 @@ func (s SparseMerkleTreeReader) InclusionProof(rev int64, key trillian.Key) ([]t
 	if err != nil {
 		return nil, err
 	}
+
+	nodeMap := make(map[string]*storage.Node)
+	for _, n := range nodes {
+		n := n // need this or we'll end up with the same node hash repeated in the map
+		nodeMap[n.NodeID.String()] = &n
+	}
+
 	// We're building a full proof from a combination of whichever nodes we got
 	// back from the storage layer, and the set of "null" hashes.
 	r := make([]trillian.Hash, len(sibs), len(sibs))
-	ndx := 0
 	// For each proof element:
 	for i := 0; i < len(r); i++ {
-		switch {
-		case ndx >= len(nodes) || nodes[ndx].NodeID.PrefixLenBits > i:
+		proofID := sibs[i]
+		pNode := nodeMap[proofID.String()]
+		if pNode == nil {
 			// we have no node for this level from storage, so use the null hash:
 			r[i] = s.hasher.nullHashes[i]
-		case nodes[ndx].NodeID.PrefixLenBits == i:
-			// we've got a non-default node hash to use, but first just double-check it's the correct ID:
-			if !sibs[i].Equivalent(nodes[ndx].NodeID) {
-				return nil, fmt.Errorf("at level %d, expected node ID %v, but got %v", i, sibs[i].String(), nodes[ndx].NodeID.String())
-			}
-			// It is, copy it over
-			r[i] = nodes[ndx].Hash
-			// and move on to considering the next available returned node.
-			ndx++
-		default:
-			// this should never happen under normal circumstances
-			return nil, fmt.Errorf("internal error")
+			continue
 		}
+		r[i] = pNode.Hash
+		delete(nodeMap, proofID.String())
 	}
+
 	// Make sure we used up all the returned nodes, otherwise something's gone wrong.
-	if ndx != len(nodes) {
-		return nil, fmt.Errorf("failed to consume all returned nodes; got %d nodes, but only used %d", len(nodes), ndx)
+	if remaining := len(nodeMap); remaining != 0 {
+		return nil, fmt.Errorf("failed to consume all returned nodes; got %d nodes, but %d remain(s) unused", len(nodes), remaining)
 	}
 	return r, nil
 }

@@ -244,7 +244,7 @@ func TestInclusionProofGetsIncorrectNode(t *testing.T) {
 	if err == nil {
 		t.Fatal("InclusionProof() should've returned an error due to incorrect node from storage layer")
 	}
-	if !strings.Contains(err.Error(), "expected node ID") {
+	if !strings.Contains(err.Error(), "1 remain(s) unused") {
 		t.Fatalf("Saw unexpected error: %v", err)
 	}
 }

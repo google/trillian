@@ -96,8 +96,7 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 		req.Revision = root.MapRevision
 	}
 
-	// TODO(al): this seems broken
-	//smtReader := merkle.NewSparseMerkleTreeReader(req.Revision, kh, tx)
+	smtReader := merkle.NewSparseMerkleTreeReader(req.Revision, kh, tx)
 
 	resp = &trillian.GetMapLeavesResponse{
 		KeyValue: make([]*trillian.KeyValueInclusion, 0, len(req.Key)),
@@ -105,13 +104,10 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 
 	for _, key := range req.Key {
 		kHash := kh.HashKey(key)
-		/*
-			TODO(al): this seems broken
-			proof, err := smtReader.InclusionProof(req.Revision, key)
-			if err != nil {
-				return nil, err
-			}
-		*/
+		proof, err := smtReader.InclusionProof(req.Revision, key)
+		if err != nil {
+			return nil, err
+		}
 
 		leaf, err := tx.Get(req.Revision, kHash)
 		// No key is ok, we'll just return a null value
@@ -124,15 +120,11 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 				Key:   key,
 				Value: &leaf,
 			},
-			// TODO(al): this seems broken
-			//Inclusion: make([][]byte, 0, len(proof)),
+			Inclusion: make([][]byte, 0, len(proof)),
 		}
-		// TODO(al): this seems broken
-		/*
-			for j := 0; j < len(proof); j++ {
-				kvi.Inclusion = append(kvi.Inclusion, []byte(proof[j]))
-			}
-		*/
+		for j := 0; j < len(proof); j++ {
+			kvi.Inclusion = append(kvi.Inclusion, []byte(proof[j]))
+		}
 
 		resp.KeyValue = append(resp.KeyValue, &kvi)
 	}
