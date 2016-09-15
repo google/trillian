@@ -162,7 +162,7 @@ func (s *SubtreeCache) SetNodeHash(id storage.NodeID, h trillian.Hash, getSubtre
 		// TODO(al): This is ok, IFF *all* leaves in the subtree are being set,
 		// verify that this is the case when it happens.
 		// For now, just read from storage if we don't already have it.
-		glog.Infof("attempting to write to unread subtree for %v, reading now", id.String())
+		glog.V(1).Infof("attempting to write to unread subtree for %v, reading now", id.String())
 		// We hold the lock so can call this directly:
 		_, err := s.getNodeHashUnderLock(id, getSubtree)
 		if err != nil {
