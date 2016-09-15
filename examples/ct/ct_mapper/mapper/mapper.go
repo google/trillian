@@ -28,15 +28,22 @@ type CTMapper struct {
 	vmap  trillian.TrillianMapClient
 }
 
-func updateDomainMap(m map[string]ct_mapper.EntryList, domain string, index int64, isPrecert bool) {
-	el := m[domain]
-	el.Domain = domain
-	if isPrecert {
-		el.PrecertIndex = append(el.PrecertIndex, index)
-	} else {
-		el.CertIndex = append(el.CertIndex, index)
+func updateDomainMap(m map[string]ct_mapper.EntryList, cert x509.Certificate, index int64, isPrecert bool) {
+	domains := make(map[string]bool)
+	domains[cert.Subject.CommonName] = true
+	for _, n := range cert.DNSNames {
+		domains[n] = true
 	}
-	m[domain] = el
+
+	for k := range domains {
+		el := m[k]
+		if isPrecert {
+			el.PrecertIndex = append(el.PrecertIndex, index)
+		} else {
+			el.CertIndex = append(el.CertIndex, index)
+		}
+		m[k] = el
+	}
 }
 
 func (m *CTMapper) oneMapperRun() (bool, error) {
@@ -85,20 +92,14 @@ func (m *CTMapper) oneMapperRun() (bool, error) {
 				glog.Warningf("Can't parse cert at index %d, continuing anyway because this is a toy", entry.Index)
 				continue
 			}
-			updateDomainMap(domains, cert.Subject.CommonName, entry.Index, false)
-			for _, n := range cert.DNSNames {
-				updateDomainMap(domains, n, entry.Index, false)
-			}
+			updateDomainMap(domains, *cert, entry.Index, false)
 		case ct.PrecertLogEntryType:
 			precert, err := x509.ParseTBSCertificate(entry.Leaf.TimestampedEntry.PrecertEntry.TBSCertificate)
 			if err != nil {
 				glog.Warningf("Can't parse precert at index %d, continuing anyway because this is a toy", entry.Index)
 				continue
 			}
-			updateDomainMap(domains, precert.Subject.CommonName, entry.Index, true)
-			for _, n := range precert.DNSNames {
-				updateDomainMap(domains, n, entry.Index, true)
-			}
+			updateDomainMap(domains, *precert, entry.Index, true)
 		default:
 			glog.Infof("Unknown logentry type at index %d", entry.Index)
 			continue
