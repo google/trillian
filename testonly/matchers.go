@@ -9,6 +9,49 @@ import (
 	"github.com/google/trillian/storage"
 )
 
+type subtreeHasPrefix struct {
+	expectedID storage.NodeID
+}
+
+func (s subtreeHasPrefix) Matches(x interface{}) bool {
+	st, ok := x.(*storage.SubtreeProto)
+	if !ok {
+		return false
+	}
+	subID := storage.NewNodeIDFromHash(st.Prefix)
+	return subID.Equivalent(s.expectedID)
+}
+
+func (s subtreeHasPrefix) String() string {
+	return fmt.Sprintf("has prefix %s", s.expectedID)
+}
+
+// SubtreeHasPrefix returns a gomock matcher which returns true when it finds
+// a subtree whose prefix matches the one passed in.
+func SubtreeHasPrefix(n storage.NodeID) gomock.Matcher {
+	return subtreeHasPrefix{n}
+}
+
+type nodeIDEq struct {
+	expectedID storage.NodeID
+}
+
+func (m nodeIDEq) Matches(x interface{}) bool {
+	n, ok := x.(storage.NodeID)
+	if !ok {
+		return false
+	}
+	return n.Equivalent(m.expectedID)
+}
+
+func (m nodeIDEq) String() string {
+	return fmt.Sprintf("is %s", m.expectedID.String())
+}
+
+func NodeIDEq(n storage.NodeID) gomock.Matcher {
+	return nodeIDEq{n}
+}
+
 // We need a stable order to match the mock expectations so we sort them by
 // prefix len before passing them to the mock library. Might need extending
 // if we have more complex tests.
