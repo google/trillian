@@ -99,20 +99,36 @@ func TestCacheFlush(t *testing.T) {
 	c := NewSubtreeCache(PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher(trillian.NewSHA256())))
 
 	nodeID := storage.NewNodeIDFromHash([]byte("1234"))
+	expectedSetIDs := make(map[string]string)
 	// When we loop around asking for all 0..32 bit prefix lengths of the above
 	// NodeID, we should see just one "Get" request for each subtree.
 	for b := 0; b < nodeID.PrefixLenBits; b += strataDepth {
 		e := storage.NewNodeIDFromHash([]byte("1234"))
 		//e := nodeID
 		e.PrefixLenBits = b
+		expectedSetIDs[e.String()] = "expected"
 		m.EXPECT().GetSubtree(testonly.NodeIDEq(e)).Do(func(n storage.NodeID) {
 			t.Logf("read %v", n)
 		}).Return((*storage.SubtreeProto)(nil), nil)
-		m.EXPECT().SetSubtree(testonly.SubtreeHasPrefix(e)).Do(func(s *storage.SubtreeProto) {
-			subID := storage.NewNodeIDFromHash(s.Prefix)
-			t.Logf("write %v -> (%d leaves)", subID, len(s.Leaves))
-		}).Return(nil)
 	}
+	m.EXPECT().SetSubtrees(gomock.Any()).Do(func(trees []*storage.SubtreeProto) {
+		for _, s := range trees {
+			subID := storage.NewNodeIDFromHash(s.Prefix)
+			state, ok := expectedSetIDs[subID.String()]
+			if !ok {
+				t.Errorf("Unexpected write to subtree %s", subID.String())
+			}
+			switch state {
+			case "expected":
+				expectedSetIDs[subID.String()] = "met"
+			case "met":
+				t.Errorf("Second write to subtree %s", subID.String())
+			default:
+				t.Errorf("Unknown state for subtree %s: %s", subID.String(), state)
+			}
+			t.Logf("write %v -> (%d leaves)", subID, len(s.Leaves))
+		}
+	}).Return(nil)
 
 	// Read nodes which touch the subtrees we'll write to:
 	sibs := nodeID.Siblings()
@@ -135,8 +151,19 @@ func TestCacheFlush(t *testing.T) {
 		nodeID.PrefixLenBits--
 	}
 
-	if err := c.Flush(m.SetSubtree); err != nil {
+	if err := c.Flush(m.SetSubtrees); err != nil {
 		t.Fatalf("failed to flush cache: %v", err)
+	}
+
+	for k, v := range expectedSetIDs {
+		switch v {
+		case "expected":
+			t.Errorf("Subtree %s remains unset", k)
+		case "met":
+			//
+		default:
+			t.Errorf("Unknown state for subtree %s: %s", k, v)
+		}
 	}
 }
 

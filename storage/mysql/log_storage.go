@@ -95,19 +95,19 @@ func NewLogStorage(id trillian.LogID, dbURL string) (storage.LogStorage, error) 
 }
 
 func (m *mySQLLogStorage) getLeavesByIndexStmt(num int) (*sql.Stmt, error) {
-	return m.getStmt(selectLeavesByIndexSql, num)
+	return m.getStmt(selectLeavesByIndexSql, num, "?", "?")
 }
 
 func (m *mySQLLogStorage) getLeavesByHashStmt(num int, orderBySequence bool) (*sql.Stmt, error) {
 	if orderBySequence {
-		return m.getStmt(selectLeavesByHashOrderedBySequenceSQL, num)
+		return m.getStmt(selectLeavesByHashOrderedBySequenceSQL, num, "?", "?")
 	}
 
-	return m.getStmt(selectLeavesByHashSql, num)
+	return m.getStmt(selectLeavesByHashSql, num, "?", "?")
 }
 
 func (m *mySQLLogStorage) getDeleteUnsequencedStmt(num int) (*sql.Stmt, error) {
-	return m.getStmt(deleteUnsequencedSql, num)
+	return m.getStmt(deleteUnsequencedSql, num, "?", "?")
 }
 
 func (m *mySQLLogStorage) LatestSVignedLogRoot() (trillian.SignedLogRoot, error) {

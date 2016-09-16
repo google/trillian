@@ -16,6 +16,7 @@ import (
 
 // These statements are fixed
 const insertSubtreeSql string = `INSERT INTO Subtree(TreeId, SubtreeId, Nodes, SubtreeRevision) VALUES (?, ?, ?, ?)`
+const insertSubtreeMultiSql string = `INSERT INTO Subtree(TreeId, SubtreeId, Nodes, SubtreeRevision) ` + placeholderSql
 const insertTreeHeadSql string = `INSERT INTO TreeHead(TreeId,TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature)
 		 VALUES(?,?,?,?,?,?)`
 const selectTreeRevisionAtSizeSql string = "SELECT TreeRevision FROM TreeHead WHERE TreeId=? AND TreeSize=? ORDER BY TreeRevision DESC LIMIT 1"
@@ -92,12 +93,12 @@ func newTreeStorage(treeID int64, dbURL string, hashSizeBytes int, populateSubtr
 
 // expandPlaceholderSql expands an sql statement by adding a specified number of '?'
 // placeholder slots. At most one placeholder will be expanded.
-func expandPlaceholderSql(sql string, num int) string {
+func expandPlaceholderSql(sql string, num int, first, rest string) string {
 	if num <= 0 {
 		panic(fmt.Errorf("Trying to expand SQL placeholder with <= 0 parameters: %s", sql))
 	}
 
-	parameters := "?" + strings.Repeat(",?", num-1)
+	parameters := first + strings.Repeat(","+rest, num-1)
 
 	return strings.Replace(sql, placeholderSql, parameters, 1)
 }
@@ -154,7 +155,7 @@ func encodeNodeID(n storage.NodeID) ([]byte, error) {
 // and number of bound arguments.
 // TODO(al,martin): consider pulling this all out as a separate unit for reuse
 // elsewhere.
-func (m *mySQLTreeStorage) getStmt(statement string, num int) (*sql.Stmt, error) {
+func (m *mySQLTreeStorage) getStmt(statement string, num int, first, rest string) (*sql.Stmt, error) {
 	m.statementMutex.Lock()
 	defer m.statementMutex.Unlock()
 
@@ -168,7 +169,7 @@ func (m *mySQLTreeStorage) getStmt(statement string, num int) (*sql.Stmt, error)
 		m.statements[statement] = make(map[int]*sql.Stmt)
 	}
 
-	s, err := m.db.Prepare(expandPlaceholderSql(statement, num))
+	s, err := m.db.Prepare(expandPlaceholderSql(statement, num, first, rest))
 
 	if err != nil {
 		glog.Warningf("Failed to prepare statement %d: %s", num, err)
@@ -181,7 +182,11 @@ func (m *mySQLTreeStorage) getStmt(statement string, num int) (*sql.Stmt, error)
 }
 
 func (m *mySQLTreeStorage) getSubtreeStmt(num int) (*sql.Stmt, error) {
-	return m.getStmt(selectSubtreeSql, num)
+	return m.getStmt(selectSubtreeSql, num, "?", "?")
+}
+
+func (m *mySQLTreeStorage) setSubtreeStmt(num int) (*sql.Stmt, error) {
+	return m.getStmt(insertSubtreeMultiSql, num, "VALUES(?, ?, ?, ?)", "(?, ?, ?, ?)")
 }
 
 func (m *mySQLTreeStorage) beginTreeTx() (treeTX, error) {
@@ -263,25 +268,40 @@ func (t *treeTX) getSubtree(treeRevision int64, nodeID storage.NodeID) (*storage
 	return &subtree, nil
 }
 
-func (t *treeTX) storeSubtree(subtree *storage.SubtreeProto) error {
-	if subtree.Prefix == nil {
-		panic(fmt.Errorf("nil prefix on %v", subtree))
+func (t *treeTX) storeSubtrees(subtrees []*storage.SubtreeProto) error {
+	if len(subtrees) == 0 {
+		glog.Warning("attempted to store 0 subtrees...")
+		return nil
 	}
-	stx := t.tx.Stmt(t.ts.setSubtree)
-	defer stx.Close()
 
-	// Ensure we're not storing the internal nodes, since we'll just recalculate
-	// them when we read this subtree back.
-	subtree.InternalNodes = nil
+	args := make([]interface{}, 0, len(subtrees))
+	for _, s := range subtrees {
+		if s.Prefix == nil {
+			panic(fmt.Errorf("nil prefix on %v", s))
+		}
+		// Ensure we're not storing the internal nodes, since we'll just recalculate
+		// them when we read this subtree back.
+		s.InternalNodes = nil
+		subtreeBytes, err := proto.Marshal(s)
+		if err != nil {
+			return err
+		}
+		args = append(args, t.ts.treeID)
+		args = append(args, s.Prefix)
+		args = append(args, subtreeBytes)
+		args = append(args, t.writeRevision)
+	}
 
-	subtreeBytes, err := proto.Marshal(subtree)
+	tmpl, err := t.ts.setSubtreeStmt(len(subtrees))
 	if err != nil {
 		return err
 	}
+	stx := t.tx.Stmt(tmpl)
+	defer stx.Close()
 
-	r, err := stx.Exec(t.ts.treeID, subtree.Prefix, subtreeBytes, t.writeRevision)
+	r, err := stx.Exec(args...)
 	if err != nil {
-		glog.Warningf("Failed to set merkle subtree for prefix %v: %s", subtree.Prefix, err)
+		glog.Warningf("Failed to set merkle subtrees: %s", err)
 		return err
 	}
 	_, err = r.RowsAffected()
@@ -363,7 +383,7 @@ func (t *treeTX) SetMerkleNodes(nodes []storage.Node) error {
 
 func (t *treeTX) Commit() error {
 	if t.writeRevision > -1 {
-		t.subtreeCache.Flush(t.storeSubtree)
+		t.subtreeCache.Flush(t.storeSubtrees)
 	}
 	t.closed = true
 	err := t.tx.Commit()
