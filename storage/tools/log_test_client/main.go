@@ -17,6 +17,7 @@ import (
 	"google.golang.org/grpc"
 )
 
+var queueLeavesFlag = flag.Bool("queue_leaves", true, "If true queues leaves, false just reads from the log")
 var startLeafFlag = flag.Int64("start_leaf", 0, "The first leaf index to use")
 var numLeavesFlag = flag.Int64("num_leaves", 100, "The number of leaves to submit and read back")
 var queueBatchSizeFlag = flag.Int("queue_batch_size", 50, "Batch size when queueing leaves")
@@ -56,25 +57,30 @@ func main() {
 
 	client := trillian.NewTrillianLogClient(conn)
 
-	// Step 1 - Queue leaves on server
-	if err := queueLeaves(treeId, client, params); err != nil {
-		glog.Fatalf("Failed to queue leaves: %v", err)
-	}
+	// Step 1 - Queue leaves on server (optional)
+	if *queueLeavesFlag {
+		glog.Infof("Queueing %d leaves to log server ...", params.leafCount)
+		if err := queueLeaves(treeId, client, params); err != nil {
+			glog.Fatalf("Failed to queue leaves: %v", err)
+		}
 
-	// Step 2 - Wait for queue to drain when server sequences, give up if it doesn't happen
-	if err = waitForSequencing(treeId, client, params); err != nil {
-		glog.Fatalf("Leaves were not sequenced: %v", err)
+		// Step 2 - Wait for queue to drain when server sequences, give up if it doesn't happen
+		glog.Infof("Waiting for log to sequence ...")
+		if err = waitForSequencing(treeId, client, params); err != nil {
+			glog.Fatalf("Leaves were not sequenced: %v", err)
+		}
 	}
 
 	// Step 3 - Use get entries to read back what was written, check leaves are correct
+	glog.Infof("Reading back leaves from log ...")
 	leafMap, err := readbackLogEntries(treeId, client, params)
 
 	if err != nil {
 		glog.Fatalf("Could not read back log entries: %v", err)
 	}
 
-	// Step 4 - Cross validation between log and memory tree root
-	// hashes
+	// Step 4 - Cross validation between log and memory tree root hashes
+	glog.Infof("Checking log STH with our tree ...")
 	tree := buildMemoryMerkleTree(leafMap, params)
 	if err := checkLogSTHConsistency(treeId, tree, client, params); err != nil {
 		glog.Fatalf("Log consistency check failed: %v", err)
@@ -85,7 +91,7 @@ func queueLeaves(treeId trillian.LogID, client trillian.TrillianLogClient, param
 	leaves := []trillian.LogLeaf{}
 
 	for l := int64(0); l < params.leafCount; l++ {
-		// Leaf data based in the sequence number so we can check the hashes
+		// Leaf data based on the sequence number so we can check the hashes
 		leafNumber := params.startLeaf + l
 
 		data := []byte(fmt.Sprintf("Leaf %d", leafNumber))
