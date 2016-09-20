@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto"
 	"flag"
 	"fmt"
 	"net"
@@ -12,7 +13,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/golang/glog"
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto"
+	ourcrypto "github.com/google/trillian/crypto"
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/mysql"
@@ -90,9 +91,11 @@ func checkDatabaseAccessible(dbUri string) error {
 	return err
 }
 
-func startRpcServer(listener net.Listener, port int, provider server.LogStorageProviderFunc) *grpc.Server {
+func startRpcServer(listener net.Listener, port int, provider server.LogStorageProviderFunc, signer crypto.Signer) *grpc.Server {
 	grpcServer := grpc.NewServer()
-	logServer := server.NewTrillianLogServer(provider)
+
+	// TODO(Martin2112): Sort out creation of signer and possibly rename our package to avoid clash with crypto
+	logServer := server.NewTrillianLogServer(provider, *ourcrypto.NewTrillianSigner(trillian.NewSHA256(), trillian.SignatureAlgorithm_ECDSA, signer), util.SystemTimeSource{})
 	trillian.RegisterTrillianLogServer(grpcServer, logServer)
 
 	return grpcServer
@@ -127,10 +130,16 @@ func main() {
 	// Load up our private key, exit if this fails to work
 	// TODO(Martin2112): This will need to be changed for multi tenant as we'll need at
 	// least one key per tenant, possibly more.
-	keyManager, err := crypto.LoadPasswordProtectedPrivateKey(*privateKeyFile, *privateKeyPassword)
+	keyManager, err := ourcrypto.LoadPasswordProtectedPrivateKey(*privateKeyFile, *privateKeyPassword)
 
 	if err != nil {
 		glog.Fatalf("Failed to load server key: %v", err)
+	}
+
+	signer, err := keyManager.Signer()
+
+	if err != nil {
+		glog.Fatalf("Failed to create signer: %v", err)
 	}
 
 	// Set up the listener for the server
@@ -150,7 +159,7 @@ func main() {
 	go sequencerManager.OperationLoop()
 
 	// Bring up the RPC server and then block until we get a signal to stop
-	rpcServer := startRpcServer(lis, *serverPortFlag, getStorageForLog)
+	rpcServer := startRpcServer(lis, *serverPortFlag, simpleMySqlStorageProvider, signer)
 	go awaitSignal(rpcServer)
 	err = rpcServer.Serve(lis)
 
