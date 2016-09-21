@@ -30,9 +30,13 @@ type CTMapper struct {
 
 func updateDomainMap(m map[string]ct_mapper.EntryList, cert x509.Certificate, index int64, isPrecert bool) {
 	domains := make(map[string]bool)
-	domains[cert.Subject.CommonName] = true
+	if len(cert.Subject.CommonName) > 0 {
+		domains[cert.Subject.CommonName] = true
+	}
 	for _, n := range cert.DNSNames {
-		domains[n] = true
+		if len(n) > 0 {
+			domains[n] = true
+		}
 	}
 
 	for k := range domains {
@@ -42,11 +46,13 @@ func updateDomainMap(m map[string]ct_mapper.EntryList, cert x509.Certificate, in
 		} else {
 			el.CertIndex = append(el.CertIndex, index)
 		}
+		el.Domain = k
 		m[k] = el
 	}
 }
 
 func (m *CTMapper) oneMapperRun() (bool, error) {
+	start := time.Now()
 	glog.Info("starting mapping batch")
 	getRootReq := &trillian.GetSignedMapRootRequest{m.mapID}
 	getRootResp, err := m.vmap.GetSignedMapRoot(context.Background(), getRootReq)
@@ -125,15 +131,22 @@ func (m *CTMapper) oneMapperRun() (bool, error) {
 	}
 	//glog.Info("Get resp: %v", getResp)
 
+	proofs := 0
 	for _, v := range getResp.KeyValue {
 		e := ct_mapper.EntryList{}
+		if len(v.Inclusion) > 0 {
+			proofs++
+		}
 		if err := proto.Unmarshal(v.KeyValue.Value.LeafValue, &e); err != nil {
 			return false, err
 		}
+		glog.Infof("Got %#v", e)
 		el := domains[e.Domain]
 		proto.Merge(&el, &e)
 		domains[e.Domain] = el
+		glog.Infof("will update for %s", e.Domain)
 	}
+	glog.Infof("Got %d values, and %d proofs", len(getResp.KeyValue), proofs)
 
 	glog.Info("Storing updated map values for domains...")
 	// Store updated map values:
@@ -158,6 +171,8 @@ func (m *CTMapper) oneMapperRun() (bool, error) {
 		return false, err
 	}
 	glog.Infof("Set resp: %v", setResp)
+	d := time.Now().Sub(start)
+	glog.Infof("Map run complete, took %.1f secs to update %d values (%0.2f/s)", d.Seconds(), len(setReq.KeyValue), float64(len(setReq.KeyValue))/d.Seconds())
 	return true, nil
 }
 
