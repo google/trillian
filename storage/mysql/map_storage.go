@@ -21,8 +21,8 @@ const selectLatestSignedMapRootSql string = `SELECT MapHeadTimestamp, RootHash, 
 const insertMapLeafSQL string = `INSERT INTO MapLeaf(TreeId, KeyHash, MapRevision, TheData) VALUES (?, ?, ?, ?)`
 const selectMapLeafSQL string = `SELECT KeyHash, MapRevision, TheData
 	 FROM MapLeaf
-	 WHERE TreeId = ? AND
-	 			 KeyHash = ? AND
+	 WHERE KeyHash IN (` + placeholderSql + `) AND
+	       TreeId = ? AND
 				 MapRevision <= ?
 	 ORDER BY MapRevision DESC LIMIT 1`
 
@@ -115,31 +115,47 @@ func (m *mapTX) Set(keyHash trillian.Hash, value trillian.MapLeaf) error {
 	return err
 }
 
-func (m *mapTX) Get(revision int64, keyHash trillian.Hash) (trillian.MapLeaf, error) {
-	stmt, err := m.tx.Prepare(selectMapLeafSQL)
+func (m *mapTX) Get(revision int64, keyHashes []trillian.Hash) ([]trillian.MapLeaf, error) {
+	stmt, err := m.ms.getStmt(selectMapLeafSQL, len(keyHashes), "?", "?")
 	if err != nil {
-		return trillian.MapLeaf{}, err
+		return nil, err
 	}
-	defer stmt.Close()
+	stx := m.tx.Stmt(stmt)
+	defer stx.Close()
 
-	var mapKeyHash trillian.Hash
-	var mapRevision int64
-	var flatData []byte
+	args := make([]interface{}, 0, len(keyHashes)+2)
+	for _, k := range keyHashes {
+		args = append(args, []byte(k[:]))
+	}
+	args = append(args, m.ms.mapID.TreeID)
+	args = append(args, revision)
 
-	err = stmt.QueryRow(
-		m.ms.mapID.TreeID, []byte(keyHash), revision).Scan(
-		&mapKeyHash, &mapRevision, &flatData)
-
+	rows, err := stx.Query(args...)
 	// It's possible there is no value for this value yet
 	if err == sql.ErrNoRows {
-		return trillian.MapLeaf{}, storage.ErrNoSuchKey
+		return nil, nil
 	} else if err != nil {
-		return trillian.MapLeaf{}, err
+		return nil, err
 	}
 
-	var mapLeaf trillian.MapLeaf
-	err = proto.Unmarshal(flatData, &mapLeaf)
-	return mapLeaf, err
+	ret := make([]trillian.MapLeaf, 0, len(keyHashes))
+	for rows.Next() {
+		var mapKeyHash trillian.Hash
+		var mapRevision int64
+		var flatData []byte
+		err = rows.Scan(&mapKeyHash, &mapRevision, &flatData)
+		if err != nil {
+			return nil, err
+		}
+		var mapLeaf trillian.MapLeaf
+		err = proto.Unmarshal(flatData, &mapLeaf)
+		if err != nil {
+			return nil, err
+		}
+		mapLeaf.KeyHash = mapKeyHash
+		ret = append(ret, mapLeaf)
+	}
+	return ret, nil
 }
 
 func (m *mapTX) LatestSignedMapRoot() (trillian.SignedMapRoot, error) {

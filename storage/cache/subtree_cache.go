@@ -87,6 +87,38 @@ func splitNodeID(id storage.NodeID) ([]byte, Suffix) {
 	return r, s
 }
 
+func (s *SubtreeCache) Preload(ids []storage.NodeID, getSubtrees func(id []storage.NodeID) ([]*storage.SubtreeProto, error)) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	// Figure out the set of subtrees we need:
+	want := make(map[string]*storage.NodeID)
+	for _, id := range ids {
+		id := id
+		px, _ := splitNodeID(id)
+		pxKey := string(px)
+		_, ok := s.subtrees[pxKey]
+		id.PrefixLenBits = len(px) * 8
+		if !ok {
+			want[pxKey] = &id
+		}
+	}
+
+	list := make([]storage.NodeID, 0, len(want))
+	for _, v := range want {
+		list = append(list, *v)
+	}
+	subtrees, err := getSubtrees(list)
+	if err != nil {
+		return err
+	}
+	for _, t := range subtrees {
+		s.populateSubtree(t)
+		s.subtrees[string(t.Prefix)] = t
+	}
+	return nil
+}
+
 // GetNodeHash retrieves the previously written hash and corresponding tree
 // revision for the given node ID.
 func (s *SubtreeCache) GetNodeHash(id storage.NodeID, getSubtree GetSubtreeFunc) (trillian.Hash, error) {

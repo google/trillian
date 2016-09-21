@@ -239,9 +239,9 @@ func (_mr *_MockMapTXRecorder) Commit() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Commit")
 }
 
-func (_m *MockMapTX) Get(_param0 int64, _param1 trillian.Hash) (trillian.MapLeaf, error) {
+func (_m *MockMapTX) Get(_param0 int64, _param1 []trillian.Hash) ([]trillian.MapLeaf, error) {
 	ret := _m.ctrl.Call(_m, "Get", _param0, _param1)
-	ret0, _ := ret[0].(trillian.MapLeaf)
+	ret0, _ := ret[0].([]trillian.MapLeaf)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -471,9 +471,9 @@ func (_mr *_MockReadOnlyMapTXRecorder) Commit() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Commit")
 }
 
-func (_m *MockReadOnlyMapTX) Get(_param0 int64, _param1 trillian.Hash) (trillian.MapLeaf, error) {
+func (_m *MockReadOnlyMapTX) Get(_param0 int64, _param1 []trillian.Hash) ([]trillian.MapLeaf, error) {
 	ret := _m.ctrl.Call(_m, "Get", _param0, _param1)
-	ret0, _ := ret[0].(trillian.MapLeaf)
+	ret0, _ := ret[0].([]trillian.MapLeaf)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
