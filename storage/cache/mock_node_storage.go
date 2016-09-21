@@ -40,12 +40,12 @@ func (_mr *_MockNodeStorageRecorder) GetSubtree(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetSubtree", arg0)
 }
 
-func (_m *MockNodeStorage) SetSubtree(_param0 *storage.SubtreeProto) error {
-	ret := _m.ctrl.Call(_m, "SetSubtree", _param0)
+func (_m *MockNodeStorage) SetSubtrees(_param0 []*storage.SubtreeProto) error {
+	ret := _m.ctrl.Call(_m, "SetSubtrees", _param0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockNodeStorageRecorder) SetSubtree(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "SetSubtree", arg0)
+func (_mr *_MockNodeStorageRecorder) SetSubtrees(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "SetSubtrees", arg0)
 }

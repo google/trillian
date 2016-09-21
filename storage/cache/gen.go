@@ -8,5 +8,5 @@ import (
 
 type NodeStorage interface {
 	GetSubtree(n storage.NodeID) (*storage.SubtreeProto, error)
-	SetSubtree(s *storage.SubtreeProto) error
+	SetSubtrees(s []*storage.SubtreeProto) error
 }

@@ -86,28 +86,23 @@ func NewLogStorage(id trillian.LogID, dbURL string) (storage.LogStorage, error) 
 		glog.Warningf("*** Opening storage for log: %v but it has no params configured ***", id)
 	}
 
-	if s.setSubtree, err = s.db.Prepare(insertSubtreeSql); err != nil {
-		glog.Warningf("Failed to prepare node insert subtree statement: %s", err)
-		return nil, err
-	}
-
 	return &s, nil
 }
 
 func (m *mySQLLogStorage) getLeavesByIndexStmt(num int) (*sql.Stmt, error) {
-	return m.getStmt(selectLeavesByIndexSql, num)
+	return m.getStmt(selectLeavesByIndexSql, num, "?", "?")
 }
 
 func (m *mySQLLogStorage) getLeavesByHashStmt(num int, orderBySequence bool) (*sql.Stmt, error) {
 	if orderBySequence {
-		return m.getStmt(selectLeavesByHashOrderedBySequenceSQL, num)
+		return m.getStmt(selectLeavesByHashOrderedBySequenceSQL, num, "?", "?")
 	}
 
-	return m.getStmt(selectLeavesByHashSql, num)
+	return m.getStmt(selectLeavesByHashSql, num, "?", "?")
 }
 
 func (m *mySQLLogStorage) getDeleteUnsequencedStmt(num int) (*sql.Stmt, error) {
-	return m.getStmt(deleteUnsequencedSql, num)
+	return m.getStmt(deleteUnsequencedSql, num, "?", "?")
 }
 
 func (m *mySQLLogStorage) LatestSVignedLogRoot() (trillian.SignedLogRoot, error) {

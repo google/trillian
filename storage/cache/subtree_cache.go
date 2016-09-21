@@ -17,7 +17,7 @@ import (
 type GetSubtreeFunc func(id storage.NodeID) (*storage.SubtreeProto, error)
 
 // SetSubtreeFunc describes a function which can store a Subtree into storage.
-type SetSubtreeFunc func(s *storage.SubtreeProto) error
+type SetSubtreesFunc func(s []*storage.SubtreeProto) error
 
 // SubtreeCache provides a caching access to Subtree storage.
 type SubtreeCache struct {
@@ -189,10 +189,11 @@ func (s *SubtreeCache) SetNodeHash(id storage.NodeID, h trillian.Hash, getSubtre
 }
 
 // Flush causes the cache to write all dirty Subtrees back to storage.
-func (s *SubtreeCache) Flush(setSubtree SetSubtreeFunc) error {
+func (s *SubtreeCache) Flush(setSubtrees SetSubtreesFunc) error {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
+	treesToWrite := make([]*storage.SubtreeProto, 0, len(s.dirtyPrefixes))
 	for k, v := range s.subtrees {
 		if s.dirtyPrefixes[k] {
 			bk := []byte(k)
@@ -206,11 +207,12 @@ func (s *SubtreeCache) Flush(setSubtree SetSubtreeFunc) error {
 			if len(v.Leaves) > 0 {
 				// clear the internal node cache; we don't want to write that.
 				v.InternalNodes = nil
-				if err := setSubtree(v); err != nil {
-					return err
-				}
+				treesToWrite = append(treesToWrite, v)
 			}
 		}
+	}
+	if err := setSubtrees(treesToWrite); err != nil {
+		return err
 	}
 	return nil
 }
