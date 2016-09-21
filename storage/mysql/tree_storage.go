@@ -15,7 +15,6 @@ import (
 )
 
 // These statements are fixed
-const insertSubtreeSql string = `INSERT INTO Subtree(TreeId, SubtreeId, Nodes, SubtreeRevision) VALUES (?, ?, ?, ?)`
 const insertSubtreeMultiSql string = `INSERT INTO Subtree(TreeId, SubtreeId, Nodes, SubtreeRevision) ` + placeholderSql
 const insertTreeHeadSql string = `INSERT INTO TreeHead(TreeId,TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature)
 		 VALUES(?,?,?,?,?,?)`
@@ -50,7 +49,6 @@ type mySQLTreeStorage struct {
 	// in the query to the statement that should be used.
 	statementMutex sync.Mutex
 	statements     map[string]map[int]*sql.Stmt
-	setSubtree     *sql.Stmt
 }
 
 func openDB(dbURL string) (*sql.DB, error) {
@@ -81,11 +79,6 @@ func newTreeStorage(treeID int64, dbURL string, hashSizeBytes int, populateSubtr
 		hashSizeBytes:   hashSizeBytes,
 		populateSubtree: populateSubtree,
 		statements:      make(map[string]map[int]*sql.Stmt),
-	}
-
-	if s.setSubtree, err = s.db.Prepare(insertSubtreeSql); err != nil {
-		glog.Warningf("Failed to prepare subtree insert statement: %s", err)
-		return mySQLTreeStorage{}, err
 	}
 
 	return s, nil
@@ -274,6 +267,8 @@ func (t *treeTX) storeSubtrees(subtrees []*storage.SubtreeProto) error {
 		return nil
 	}
 
+	// TODO(al): probably need to be able to batch this in the case where we have
+	// a really large number of subtrees to store.
 	args := make([]interface{}, 0, len(subtrees))
 	for _, s := range subtrees {
 		if s.Prefix == nil {
