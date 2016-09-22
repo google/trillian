@@ -271,7 +271,7 @@ func (t *logTX) QueueLeaves(leaves []trillian.LogLeaf) error {
 			return fmt.Errorf("Queued leaf must have a hash of length %d", t.ts.hashSizeBytes)
 		}
 
-		if len(leaf.SignedEntryTimestamp.Signature.Signature) == 0 {
+		if leaf.SignedEntryTimestamp.Signature == nil || len(leaf.SignedEntryTimestamp.Signature.Signature) == 0 {
 			return errors.New("Queued leaf cannot have an empty signature")
 		}
 	}
