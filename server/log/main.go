@@ -18,6 +18,7 @@ import (
 	"github.com/google/trillian/storage/mysql"
 	"github.com/google/trillian/util"
 	"google.golang.org/grpc"
+	"sync"
 )
 
 var mysqlUriFlag = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test",
@@ -32,10 +33,37 @@ var batchSizeFlag = flag.Int("batch_size", 50, "Max number of leaves to process 
 var privateKeyFile = flag.String("private_key_file", "", "File containing a PEM encoded private key")
 var privateKeyPassword = flag.String("private_key_password", "", "Password for server private key")
 
-// TODO(Martin2112): Needs a more realistic provider of log storage with some caching
-// and ability to swap out for different storage type
+// Must hold this lock before accessing the storage map
+var storageMapGuard sync.Mutex
+// Map from tree ID to storage impl for that log
+var storageMap = make(map[int64]storage.LogStorage)
+
+// TODO(Martin2112): Needs to be able to swap out for different storage type
 func simpleMySqlStorageProvider(treeID int64) (storage.LogStorage, error) {
 	return mysql.NewLogStorage(trillian.LogID{[]byte("TODO"), treeID}, *mysqlUriFlag)
+}
+
+// TODO(Martin2112): Could pull this out as a wrapper so it can be used elsewhere
+func getStorageForLog(logId int64) (storage.LogStorage, error) {
+	storageMapGuard.Lock()
+	defer storageMapGuard.Unlock()
+
+	s, ok := storageMap[logId]
+
+	if !ok {
+		glog.Infof("Creating new storage for log: %d", logId)
+
+		var err error
+		s, err = simpleMySqlStorageProvider(logId)
+
+		if err != nil {
+			return s, err
+		}
+
+		storageMap[logId] = s
+	}
+
+	return s, nil
 }
 
 func checkDatabaseAccessible(dbUri string) error {
@@ -118,11 +146,11 @@ func main() {
 	// Start the sequencing loop, which will run until we terminate the process. This controls
 	// both sequencing and signing.
 	// TODO(Martin2112): Should respect read only mode and the flags in tree control etc
-	sequencerManager := server.NewLogOperationManager(done, simpleMySqlStorageProvider, *batchSizeFlag, *sequencerSleepBetweenRunsFlag, *signerSleepBetweenRunsFlag, util.SystemTimeSource{}, server.NewSequencerManager(keyManager))
+	sequencerManager := server.NewLogOperationManager(done, getStorageForLog, *batchSizeFlag, *sequencerSleepBetweenRunsFlag, *signerSleepBetweenRunsFlag, util.SystemTimeSource{}, server.NewSequencerManager(keyManager))
 	go sequencerManager.OperationLoop()
 
 	// Bring up the RPC server and then block until we get a signal to stop
-	rpcServer := startRpcServer(lis, *serverPortFlag, simpleMySqlStorageProvider)
+	rpcServer := startRpcServer(lis, *serverPortFlag, getStorageForLog)
 	go awaitSignal(rpcServer)
 	err = rpcServer.Serve(lis)
 

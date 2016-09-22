@@ -2,8 +2,6 @@ package server
 
 import (
 	"fmt"
-	"sync"
-
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
@@ -24,33 +22,11 @@ type LogStorageProviderFunc func(int64) (storage.LogStorage, error)
 // TrillianLogServer implements the RPC API defined in the proto
 type TrillianLogServer struct {
 	storageProvider LogStorageProviderFunc
-	// Must hold this lock before accessing the storage map
-	storageMapGuard sync.Mutex
-	// Map from tree ID to storage impl for that log
-	storageMap map[int64]storage.LogStorage
 }
 
 // NewTrillianLogServer creates a new RPC server backed by a LogStorageProvider.
 func NewTrillianLogServer(p LogStorageProviderFunc) *TrillianLogServer {
-	return &TrillianLogServer{storageProvider: p, storageMap: make(map[int64]storage.LogStorage)}
-}
-
-func (t *TrillianLogServer) getStorageForLog(logId int64) (storage.LogStorage, error) {
-	t.storageMapGuard.Lock()
-	defer t.storageMapGuard.Unlock()
-
-	s, ok := t.storageMap[logId]
-
-	if ok {
-		return s, nil
-	}
-
-	s, err := t.storageProvider(logId)
-
-	if err != nil {
-		t.storageMap[logId] = s
-	}
-	return s, err
+	return &TrillianLogServer{storageProvider: p}
 }
 
 // QueueLeaves submits a batch of leaves to the log for later integration into the underlying tree.
@@ -431,7 +407,7 @@ func (t *TrillianLogServer) GetEntryAndProof(ctx context.Context, req *trillian.
 }
 
 func (t *TrillianLogServer) prepareStorageTx(treeID int64) (storage.LogTX, error) {
-	s, err := t.getStorageForLog(treeID)
+	s, err := t.storageProvider(treeID)
 
 	if err != nil {
 		return nil, err
