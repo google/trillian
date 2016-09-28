@@ -19,12 +19,12 @@ const selectLatestSignedMapRootSql string = `SELECT MapHeadTimestamp, RootHash, 
 		 ORDER BY MapHeadTimestamp DESC LIMIT 1`
 
 const insertMapLeafSQL string = `INSERT INTO MapLeaf(TreeId, KeyHash, MapRevision, TheData) VALUES (?, ?, ?, ?)`
-const selectMapLeafSQL string = `SELECT KeyHash, MapRevision, TheData
+const selectMapLeafSQL string = `SELECT KeyHash, MAX(MapRevision), TheData
 	 FROM MapLeaf
 	 WHERE KeyHash IN (` + placeholderSql + `) AND
 	       TreeId = ? AND
 				 MapRevision <= ?
-	 ORDER BY MapRevision DESC LIMIT 1`
+	 GROUP BY KeyHash`
 
 type mySQLMapStorage struct {
 	mySQLTreeStorage
@@ -129,6 +129,9 @@ func (m *mapTX) Get(revision int64, keyHashes []trillian.Hash) ([]trillian.MapLe
 	}
 	args = append(args, m.ms.mapID.TreeID)
 	args = append(args, revision)
+	//args = append(args, len(keyHashes))
+
+	glog.Infof("args size %d", len(args))
 
 	rows, err := stx.Query(args...)
 	// It's possible there is no value for this value yet
@@ -139,6 +142,8 @@ func (m *mapTX) Get(revision int64, keyHashes []trillian.Hash) ([]trillian.MapLe
 	}
 
 	ret := make([]trillian.MapLeaf, 0, len(keyHashes))
+	nr := 0
+	er := 0
 	for rows.Next() {
 		var mapKeyHash trillian.Hash
 		var mapRevision int64
@@ -147,6 +152,10 @@ func (m *mapTX) Get(revision int64, keyHashes []trillian.Hash) ([]trillian.MapLe
 		if err != nil {
 			return nil, err
 		}
+		if len(flatData) == 0 {
+			er++
+			continue
+		}
 		var mapLeaf trillian.MapLeaf
 		err = proto.Unmarshal(flatData, &mapLeaf)
 		if err != nil {
@@ -154,7 +163,9 @@ func (m *mapTX) Get(revision int64, keyHashes []trillian.Hash) ([]trillian.MapLe
 		}
 		mapLeaf.KeyHash = mapKeyHash
 		ret = append(ret, mapLeaf)
+		nr++
 	}
+	glog.Infof("%d rows, %d empty", nr, er)
 	return ret, nil
 }
 

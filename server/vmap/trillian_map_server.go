@@ -115,6 +115,8 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 		return nil, err
 	}
 
+	glog.Infof("wanted %d leaves, found %d", len(req.Key), len(leaves))
+
 	for _, leaf := range leaves {
 		leaf := leaf
 		key, ok := hashToKey[string(leaf.KeyHash)]
