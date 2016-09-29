@@ -109,6 +109,8 @@ CREATE TABLE IF NOT EXISTS Unsequenced(
 CREATE TABLE IF NOT EXISTS MapLeaf(
   TreeId                INTEGER NOT NULL,
   KeyHash               VARBINARY(255) NOT NULL,
+  -- MapRevision is stored negated to invert ordering in the primary key index
+  -- st. more recent revisions come first.
   MapRevision           BIGINT NOT NULL,
   TheData               BLOB NOT NULL,
   PRIMARY KEY(TreeId, KeyHash, MapRevision),

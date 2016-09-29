@@ -53,8 +53,12 @@ type Setter interface {
 
 // Getter allows access to the values stored in the map.
 type Getter interface {
-	// Get retrieves the value associates with key, if any, at the specified revision.
+	// Get retrieves the values associates with the keyHashes, if any, at the
+	// specified revision.
 	// Setting revision to -1 will fetch the latest revision.
+	// The returned array of MapLeaves will only contain entries for which values
+	// exist.  i.e. requesting a set of unknown keys would result in a
+	// zero-length array being returned.
 	Get(revision int64, keyHash []trillian.Hash) ([]trillian.MapLeaf, error)
 }
 

@@ -19,11 +19,13 @@ const selectLatestSignedMapRootSql string = `SELECT MapHeadTimestamp, RootHash, 
 		 ORDER BY MapHeadTimestamp DESC LIMIT 1`
 
 const insertMapLeafSQL string = `INSERT INTO MapLeaf(TreeId, KeyHash, MapRevision, TheData) VALUES (?, ?, ?, ?)`
+
+// Note that MapRevision is stored negated, hence the odd equality check below:
 const selectMapLeafSQL string = `SELECT KeyHash, MAX(MapRevision), TheData
 	 FROM MapLeaf
 	 WHERE KeyHash IN (` + placeholderSql + `) AND
 	       TreeId = ? AND
-				 MapRevision <= ?
+				 MapRevision >= ?
 	 GROUP BY KeyHash`
 
 type mySQLMapStorage struct {
@@ -111,7 +113,8 @@ func (m *mapTX) Set(keyHash trillian.Hash, value trillian.MapLeaf) error {
 	}
 	defer stmt.Close()
 
-	_, err = stmt.Exec(m.ms.mapID.TreeID, []byte(keyHash), m.writeRevision, flatValue)
+	// Note: MapRevision is stored negated:
+	_, err = stmt.Exec(m.ms.mapID.TreeID, []byte(keyHash), -m.writeRevision, flatValue)
 	return err
 }
 
@@ -128,13 +131,14 @@ func (m *mapTX) Get(revision int64, keyHashes []trillian.Hash) ([]trillian.MapLe
 		args = append(args, []byte(k[:]))
 	}
 	args = append(args, m.ms.mapID.TreeID)
-	args = append(args, revision)
-	//args = append(args, len(keyHashes))
+	// Note: MapRevision is negated when stored to cause more recent revisions to
+	// appear earlier in query results.
+	args = append(args, -revision)
 
 	glog.Infof("args size %d", len(args))
 
 	rows, err := stx.Query(args...)
-	// It's possible there is no value for this value yet
+	// It's possible there are no values for any of these keys yet
 	if err == sql.ErrNoRows {
 		return nil, nil
 	} else if err != nil {

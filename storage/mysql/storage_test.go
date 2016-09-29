@@ -1014,7 +1014,7 @@ func TestMapGetUnknownKey(t *testing.T) {
 
 		readValues, err := tx.Get(1, []trillian.Hash{[]byte("This doesn't exist.")})
 		if err != nil {
-			t.Fatalf("Read returnd error %v", err)
+			t.Fatalf("Read returned error %v", err)
 		}
 		if got, want := len(readValues), 0; got != want {
 			t.Fatalf("Unexpectedly read %d values, expected %d", got, want)
@@ -1062,16 +1062,16 @@ func TestMapSetGetMultipleRevisions(t *testing.T) {
 
 		readValues, err := tx.Get(int64(i), []trillian.Hash{keyHash})
 		if err != nil {
-			t.Fatalf("Failed to get %v:  %v", keyHash, err)
+			t.Fatalf("At rev %d failed to get %v:  %v", i, keyHash, err)
 		}
 		if got, want := len(readValues), 1; got != want {
-			t.Fatalf("Got %d values, expected %d", got, want)
+			t.Fatalf("At rev %d got %d values, expected %d", i, got, want)
 		}
 		if got, want := &readValues[0], &values[i]; !proto.Equal(got, want) {
-			t.Fatalf("Read back %v, but expected %v", got, want)
+			t.Fatalf("At rev %d read back %v, but expected %v", i, got, want)
 		}
 		if err := tx.Commit(); err != nil {
-			t.Fatalf("Failed to commit: %v", err)
+			t.Fatalf("At rev %d failed to commit: %v", i, err)
 		}
 	}
 }
