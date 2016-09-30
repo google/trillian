@@ -4,8 +4,6 @@ import (
 	"crypto/sha256"
 	"flag"
 	"fmt"
-	"time"
-
 	_ "github.com/go-sql-driver/mysql"
 	log "github.com/golang/glog"
 	"github.com/google/trillian"
@@ -54,14 +52,6 @@ func main() {
 		data := []byte(fmt.Sprintf("Leaf %d", leafNumber))
 		hash := sha256.Sum256(data)
 
-		entryTimestamp := trillian.SignedEntryTimestamp{
-			TimestampNanos: time.Now().UnixNano(),
-			LogId:          treeId.LogID,
-			Signature: &trillian.DigitallySigned{
-				Signature: []byte("dummy"),
-			},
-		}
-
 		log.Infof("Preparing leaf %d\n", leafNumber)
 
 		leaf := trillian.LogLeaf{
@@ -70,7 +60,6 @@ func main() {
 				LeafValue: data,
 				ExtraData: nil,
 			},
-			SignedEntryTimestamp: entryTimestamp,
 			SequenceNumber:       0}
 		leaves = append(leaves, leaf)
 

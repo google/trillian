@@ -384,7 +384,7 @@ func (t *treeTX) Commit() error {
 	err := t.tx.Commit()
 
 	if err != nil {
-		glog.Warningf("TX commit error: %$s", err)
+		glog.Warningf("TX commit error: %s", err)
 	}
 
 	return err

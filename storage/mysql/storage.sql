@@ -82,7 +82,6 @@ CREATE TABLE IF NOT EXISTS SequencedLeafData(
   TreeId               INTEGER NOT NULL,
   SequenceNumber       BIGINT UNSIGNED NOT NULL,
   LeafHash             VARBINARY(255) NOT NULL,
-  SignedEntryTimestamp BLOB NOT NULL,
   PRIMARY KEY(TreeId, SequenceNumber),
   FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE,
   FOREIGN KEY(LeafHash) REFERENCES LeafData(LeafHash)
@@ -97,7 +96,6 @@ CREATE TABLE IF NOT EXISTS Unsequenced(
   MessageId            BINARY(32) NOT NULL,
   Payload              BLOB NOT NULL,
   QueueTimestamp       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  SignedEntryTimestamp BLOB,
   PRIMARY KEY (TreeId, LeafHash, MessageId)
 );
 

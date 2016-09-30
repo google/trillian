@@ -54,8 +54,6 @@ type Leaf struct {
 type LogLeaf struct {
 	// Leaf holds the the leaf data itself.
 	Leaf
-	// SignedEntryTimestamp is a commitment to the data.
-	SignedEntryTimestamp SignedEntryTimestamp
 	// Sequencenumber holds the position in the log this leaf has been assigned to.
 	SequenceNumber int64
 }

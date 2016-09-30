@@ -17,16 +17,16 @@ import (
 
 const getTreePropertiesSql string = "SELECT AllowsDuplicateLeaves FROM Trees WHERE TreeId=?"
 const getTreeParametersSql string = "SELECT ReadOnlyRequests From TreeControl WHERE TreeID=?"
-const selectQueuedLeavesSql string = `SELECT LeafHash,Payload,SignedEntryTimestamp
+const selectQueuedLeavesSql string = `SELECT LeafHash,Payload
 		 FROM Unsequenced
 		 WHERE TreeID=?
 		 ORDER BY QueueTimestamp DESC LIMIT ?`
 const insertUnsequencedLeafSql string = `INSERT INTO LeafData(TreeId,LeafHash,TheData)
 		 VALUES(?,?,?) ON DUPLICATE KEY UPDATE LeafHash=LeafHash`
-const insertUnsequencedEntrySql string = `INSERT INTO Unsequenced(TreeId,LeafHash,MessageId,SignedEntryTimestamp,Payload)
-     VALUES(?,?,?,?,?)`
-const insertSequencedLeafSql string = `INSERT INTO SequencedLeafData(TreeId,LeafHash,SequenceNumber,SignedEntryTimestamp)
-		 VALUES(?,?,?,?)`
+const insertUnsequencedEntrySql string = `INSERT INTO Unsequenced(TreeId,LeafHash,MessageId,Payload)
+     VALUES(?,?,?,?)`
+const insertSequencedLeafSql string = `INSERT INTO SequencedLeafData(TreeId,LeafHash,SequenceNumber)
+		 VALUES(?,?,?)`
 const selectSequencedLeafCountSql string = "SELECT COUNT(*) FROM SequencedLeafData"
 const selectLatestSignedLogRootSql string = `SELECT TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature
 		 FROM TreeHead WHERE TreeId=?
@@ -35,11 +35,11 @@ const selectLatestSignedLogRootSql string = `SELECT TreeHeadTimestamp,TreeSize,R
 // These statements need to be expanded to provide the correct number of parameter placeholders
 // for a particular case
 const deleteUnsequencedSql string = "DELETE FROM Unsequenced WHERE LeafHash IN (<placeholder>) AND TreeId = ?"
-const selectLeavesByIndexSql string = `SELECT l.LeafHash,l.TheData,s.SequenceNumber,s.SignedEntryTimestamp
+const selectLeavesByIndexSql string = `SELECT l.LeafHash,l.TheData,s.SequenceNumber
 		     FROM LeafData l,SequencedLeafData s
 		     WHERE l.LeafHash = s.LeafHash
 		     AND s.SequenceNumber IN (` + placeholderSql + `) AND l.TreeId = ? AND s.TreeId = l.TreeId`
-const selectLeavesByHashSql string = `SELECT l.LeafHash,l.TheData,s.SequenceNumber,s.SignedEntryTimestamp
+const selectLeavesByHashSql string = `SELECT l.LeafHash,l.TheData,s.SequenceNumber
 		     FROM LeafData l,SequencedLeafData s
 		     WHERE l.LeafHash = s.LeafHash
 		     AND l.LeafHash IN (` + placeholderSql + `) AND l.TreeId = ? AND s.TreeId = l.TreeId`
@@ -216,9 +216,8 @@ func (t *logTX) DequeueLeaves(limit int) ([]trillian.LogLeaf, error) {
 	for rows.Next() {
 		var leafHash []byte
 		var payload []byte
-		var signedEntryTimestampBytes []byte
 
-		err := rows.Scan(&leafHash, &payload, &signedEntryTimestampBytes)
+		err := rows.Scan(&leafHash, &payload)
 
 		if err != nil {
 			glog.Warningf("Error scanning work rows: %s", err)
@@ -229,19 +228,12 @@ func (t *logTX) DequeueLeaves(limit int) ([]trillian.LogLeaf, error) {
 			return nil, errors.New("Dequeued a leaf with incorrect hash size")
 		}
 
-		signedEntryTimestamp, err := decodeSignedTimestamp(signedEntryTimestampBytes)
-
-		if err != nil {
-			return nil, err
-		}
-
 		leaf := trillian.LogLeaf{
 			Leaf: trillian.Leaf{
 				LeafHash:  leafHash,
 				LeafValue: payload,
 				ExtraData: nil,
 			},
-			SignedEntryTimestamp: signedEntryTimestamp,
 			SequenceNumber:       0,
 		}
 		leaves = append(leaves, leaf)
@@ -269,10 +261,6 @@ func (t *logTX) QueueLeaves(leaves []trillian.LogLeaf) error {
 	for _, leaf := range leaves {
 		if len(leaf.LeafHash) != t.ts.hashSizeBytes {
 			return fmt.Errorf("Queued leaf must have a hash of length %d", t.ts.hashSizeBytes)
-		}
-
-		if leaf.SignedEntryTimestamp.Signature == nil || len(leaf.SignedEntryTimestamp.Signature.Signature) == 0 {
-			return errors.New("Queued leaf cannot have an empty signature")
 		}
 	}
 
@@ -314,16 +302,8 @@ func (t *logTX) QueueLeaves(leaves []trillian.LogLeaf) error {
 		hasher.Write(leaf.LeafHash)
 		messageId := hasher.Sum(nil)
 
-		signedTimestampBytes, err := EncodeSignedTimestamp(leaf.SignedEntryTimestamp)
-
-		if err != nil {
-			return err
-		}
-
-		// TODO: We shouldn't really need both payload and signed timestamp fields in unsequenced
-		// I think payload is currently unused
 		_, err = t.tx.Exec(insertUnsequencedEntrySql,
-			t.ls.logID.TreeID, []byte(leaf.LeafHash), messageId, signedTimestampBytes, signedTimestampBytes)
+			t.ls.logID.TreeID, []byte(leaf.LeafHash), messageId, leaf.LeafValue)
 
 		if err != nil {
 			glog.Warningf("Error inserting into Unsequenced: %s", err)
@@ -365,23 +345,12 @@ func (t *logTX) GetLeavesByIndex(leaves []int64) ([]trillian.LogLeaf, error) {
 	ret := make([]trillian.LogLeaf, len(leaves))
 	num := 0
 
-	var signedTimestampBytes []byte
-
 	defer rows.Close()
 	for rows.Next() {
-		if err := rows.Scan(&ret[num].LeafHash, &ret[num].LeafValue, &ret[num].SequenceNumber,
-			&signedTimestampBytes); err != nil {
+		if err := rows.Scan(&ret[num].LeafHash, &ret[num].LeafValue, &ret[num].SequenceNumber); err != nil {
 			glog.Warningf("Failed to scan merkle leaves: %s", err)
 			return nil, err
 		}
-
-		signedEntryTimestamp, err := decodeSignedTimestamp(signedTimestampBytes)
-
-		if err != nil {
-			return nil, err
-		}
-
-		ret[num].SignedEntryTimestamp = signedEntryTimestamp
 
 		if got, want := len(ret[num].LeafHash), t.ts.hashSizeBytes; got != want {
 			return nil, fmt.Errorf("Scanned leaf does not have hash length %d, got %d", want, got)
@@ -417,24 +386,14 @@ func (t *logTX) GetLeavesByHash(leafHashes []trillian.Hash, orderBySequence bool
 	// The tree could include duplicates so we don't know how many results will be returned
 	ret := make([]trillian.LogLeaf, 0)
 
-	var signedTimestampBytes []byte
-
 	defer rows.Close()
 	for rows.Next() {
 		leaf := trillian.LogLeaf{}
 
-		if err := rows.Scan(&leaf.LeafHash, &leaf.LeafValue, &leaf.SequenceNumber, &signedTimestampBytes); err != nil {
+		if err := rows.Scan(&leaf.LeafHash, &leaf.LeafValue, &leaf.SequenceNumber); err != nil {
 			glog.Warningf("Failed to scan merkle leaves: %s", err)
 			return nil, err
 		}
-
-		signedEntryTimestamp, err := decodeSignedTimestamp(signedTimestampBytes)
-
-		if err != nil {
-			return nil, err
-		}
-
-		leaf.SignedEntryTimestamp = signedEntryTimestamp
 
 		if got, want := len(leaf.LeafHash), t.ls.hashSizeBytes; got != want {
 			return nil, fmt.Errorf("Scanned leaf does not have hash length %d, got %d", want, got)
@@ -504,14 +463,8 @@ func (t *logTX) UpdateSequencedLeaves(leaves []trillian.LogLeaf) error {
 			return errors.New("Sequenced leaf has incorrect hash size")
 		}
 
-		signedTimestampBytes, err := EncodeSignedTimestamp(leaf.SignedEntryTimestamp)
-
-		if err != nil {
-			return err
-		}
-
-		_, err = t.tx.Exec(insertSequencedLeafSql, t.ls.logID.TreeID, []byte(leaf.LeafHash),
-			leaf.SequenceNumber, signedTimestampBytes)
+		_, err := t.tx.Exec(insertSequencedLeafSql, t.ls.logID.TreeID, []byte(leaf.LeafHash),
+			leaf.SequenceNumber)
 
 		if err != nil {
 			glog.Warningf("Failed to update sequenced leaves: %s", err)
