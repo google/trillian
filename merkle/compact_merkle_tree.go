@@ -225,6 +225,14 @@ func (c CompactMerkleTree) Size() int64 {
 	return c.size
 }
 
+// Hashes returns a copy of the set of node hashes that comprise the compact representation of the tree.
+func (c CompactMerkleTree) Hashes() []trillian.Hash {
+	n := make([]trillian.Hash, len(c.nodes))
+	copy(n, c.nodes)
+	return n
+}
+
+// Depth returns the number of levels in the tree.
 func (c CompactMerkleTree) Depth() int {
 	if c.size == 0 {
 		return 0

@@ -31,6 +31,22 @@ func MerkleTreeLeafTestRootHashes() []trillian.Hash {
 		MustHexDecode("5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328")}
 }
 
+// CompactMerkleTreeLeafTestNodeHashes returns the CompactMerkleTree.node state
+// that must result after each of the leaf additions returned by
+// MerkleTreeLeafTestInputs(), as described above.
+func CompactMerkleTreeLeafTestNodeHashes() [][]trillian.Hash {
+	return [][]trillian.Hash{
+		[]trillian.Hash{MustDecodeBase64("bjQLnP+zepicpUTmu3gKLHiQHT+zNzh2hRGjBhevoB0=")},
+		[]trillian.Hash{MustDecodeBase64("bjQLnP+zepicpUTmu3gKLHiQHT+zNzh2hRGjBhevoB0="), MustDecodeBase64("+sVCA+fMaWzw38tCySodnbr3CtnmIfS9jZhmLwDjwSU=")},
+		[]trillian.Hash{MustDecodeBase64("ApjRIpBtz8EIkstTpzmS/FufST6kybrbJ7eRtBJ6f+c="), MustDecodeBase64("+sVCA+fMaWzw38tCySodnbr3CtnmIfS9jZhmLwDjwSU=")},
+		[]trillian.Hash{MustDecodeBase64("ApjRIpBtz8EIkstTpzmS/FufST6kybrbJ7eRtBJ6f+c="), MustDecodeBase64("+sVCA+fMaWzw38tCySodnbr3CtnmIfS9jZhmLwDjwSU="), MustDecodeBase64("037kGJdt2VdTwcc4Yrk5j6Kiz5tP8P3+izDNlSCWFLc=")},
+		[]trillian.Hash{MustDecodeBase64("vBoGQ7EuTS18d5GPROD095qDi2z57FtcKD4fTYhZnms="), MustDecodeBase64("+sVCA+fMaWzw38tCySodnbr3CtnmIfS9jZhmLwDjwSU="), MustDecodeBase64("037kGJdt2VdTwcc4Yrk5j6Kiz5tP8P3+izDNlSCWFLc=")},
+		[]trillian.Hash{MustDecodeBase64("vBoGQ7EuTS18d5GPROD095qDi2z57FtcKD4fTYhZnms="), MustDecodeBase64("DrxdNDf74tsVi58Sah0RjjCBgQMdCpSfje3t68VY72o="), MustDecodeBase64("037kGJdt2VdTwcc4Yrk5j6Kiz5tP8P3+izDNlSCWFLc=")},
+		[]trillian.Hash{MustDecodeBase64("sIaT7C5yFZcTBkHoIR5+7cy0wmQTlj7ubB4u0W/7Gl8="), MustDecodeBase64("DrxdNDf74tsVi58Sah0RjjCBgQMdCpSfje3t68VY72o="), MustDecodeBase64("037kGJdt2VdTwcc4Yrk5j6Kiz5tP8P3+izDNlSCWFLc=")},
+		[]trillian.Hash{MustDecodeBase64("sIaT7C5yFZcTBkHoIR5+7cy0wmQTlj7ubB4u0W/7Gl8="), MustDecodeBase64("DrxdNDf74tsVi58Sah0RjjCBgQMdCpSfje3t68VY72o="), MustDecodeBase64("037kGJdt2VdTwcc4Yrk5j6Kiz5tP8P3+izDNlSCWFLc="), MustDecodeBase64("XcnaeacGWamtVZy3Ad7ZoqudgjqtL0lgz+Nw7/RgQyg=")},
+	}
+}
+
 // EmptyMerkleTreeRootHash returns the expected root hash for an empty Merkle Tree
 // that uses SHA-256 hashing.
 func EmptyMerkleTreeRootHash() trillian.Hash {

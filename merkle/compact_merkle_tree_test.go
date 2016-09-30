@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -19,6 +20,8 @@ func getTree() *CompactMerkleTree {
 func TestAddingLeaves(t *testing.T) {
 	inputs := testonly.MerkleTreeLeafTestInputs()
 	roots := testonly.MerkleTreeLeafTestRootHashes()
+	hasheses := testonly.CompactMerkleTreeLeafTestNodeHashes()
+
 	// We test the "same" thing 3 different ways this is to ensure than any lazy
 	// update strategy being employed by the implementation doesn't affect the
 	// api-visible calculation of root & size.
@@ -40,6 +43,9 @@ func TestAddingLeaves(t *testing.T) {
 			if got, want := tree.CurrentRoot(), roots[i]; !bytes.Equal(got, want) {
 				t.Fatalf("Expected root of %v, got %v", got, want)
 			}
+			if got, want := tree.Hashes(), hasheses[i]; !reflect.DeepEqual(got, want) {
+				t.Fatalf("Expected hashes %v, got %v", got, want)
+			}
 		}
 	}
 
@@ -55,6 +61,9 @@ func TestAddingLeaves(t *testing.T) {
 		if got, want := tree.CurrentRoot(), roots[7]; !bytes.Equal(got, want) {
 			t.Fatalf("Expected root of %v, got %v", got, want)
 		}
+		if got, want := tree.Hashes(), hasheses[7]; !reflect.DeepEqual(got, want) {
+			t.Fatalf("Expected hashes %v, got %v", got, want)
+		}
 	}
 
 	{
@@ -69,6 +78,9 @@ func TestAddingLeaves(t *testing.T) {
 		if got, want := tree.CurrentRoot(), roots[2]; !bytes.Equal(got, want) {
 			t.Fatalf("Expected root of %v, got %v", got, want)
 		}
+		if got, want := tree.Hashes(), hasheses[2]; !reflect.DeepEqual(got, want) {
+			t.Fatalf("Expected hashes %v, got %v", got, want)
+		}
 
 		for i := 3; i < 8; i++ {
 			tree.AddLeaf(inputs[i], func(int, int64, trillian.Hash) {})
@@ -78,6 +90,9 @@ func TestAddingLeaves(t *testing.T) {
 		}
 		if got, want := tree.CurrentRoot(), roots[7]; !bytes.Equal(got, want) {
 			t.Fatalf("Expected root of %v, got %v", got, want)
+		}
+		if got, want := tree.Hashes(), hasheses[7]; !reflect.DeepEqual(got, want) {
+			t.Fatalf("Expected hashes %v, got %v", got, want)
 		}
 	}
 }
