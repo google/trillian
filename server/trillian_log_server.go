@@ -2,11 +2,15 @@ package server
 
 import (
 	"fmt"
+	"sync"
+
 	"github.com/golang/glog"
-	"github.com/google/trillian"
-	"github.com/google/trillian/storage"
-	"github.com/google/trillian/merkle"
 	"github.com/golang/protobuf/proto"
+	"github.com/google/trillian"
+	"github.com/google/trillian/crypto"
+	"github.com/google/trillian/merkle"
+	"github.com/google/trillian/storage"
+	"github.com/google/trillian/util"
 	"golang.org/x/net/context"
 )
 
@@ -22,11 +26,37 @@ type LogStorageProviderFunc func(int64) (storage.LogStorage, error)
 // TrillianLogServer implements the RPC API defined in the proto
 type TrillianLogServer struct {
 	storageProvider LogStorageProviderFunc
+	// Must hold this lock before accessing the storage map
+	storageMapGuard sync.Mutex
+	// Map from tree ID to storage impl for that log
+	storageMap map[int64]storage.LogStorage
+	// Signer, so we can sign leaves that we add to logs
+	signer crypto.TrillianSigner
+	// A timesource so we can create timestamps when signing
+	timeSource util.TimeSource
 }
 
 // NewTrillianLogServer creates a new RPC server backed by a LogStorageProvider.
-func NewTrillianLogServer(p LogStorageProviderFunc) *TrillianLogServer {
-	return &TrillianLogServer{storageProvider: p}
+func NewTrillianLogServer(p LogStorageProviderFunc, ts crypto.TrillianSigner, timeSource util.TimeSource) *TrillianLogServer {
+	return &TrillianLogServer{storageProvider: p, storageMap: make(map[int64]storage.LogStorage), signer: ts, timeSource: timeSource}
+}
+
+func (t *TrillianLogServer) getStorageForLog(logId int64) (storage.LogStorage, error) {
+	t.storageMapGuard.Lock()
+	defer t.storageMapGuard.Unlock()
+
+	s, ok := t.storageMap[logId]
+
+	if ok {
+		return s, nil
+	}
+
+	s, err := t.storageProvider(logId)
+
+	if err != nil {
+		t.storageMap[logId] = s
+	}
+	return s, err
 }
 
 // QueueLeaves submits a batch of leaves to the log for later integration into the underlying tree.
@@ -41,6 +71,22 @@ func (t *TrillianLogServer) QueueLeaves(ctx context.Context, req *trillian.Queue
 
 	if err != nil {
 		return nil, err
+	}
+
+	// Add the log level signature to the leaves
+	for l := 0; l < len(leaves); l++ {
+		signature, err := t.signer.Sign(leaves[l].LeafValue)
+
+		if err != nil {
+			return nil, err
+		}
+
+		// TODO(Martin2112): Sort out log id, not sure it's necessary here and we don't currently
+		// have access to it
+		leaves[l].SignedEntryTimestamp = trillian.SignedEntryTimestamp{
+			Signature:      &signature,
+			TimestampNanos: t.timeSource.Now().UnixNano(),
+			LogId:          []byte("TODO")}
 	}
 
 	err = tx.QueueLeaves(leaves)
@@ -102,7 +148,7 @@ func (t *TrillianLogServer) GetInclusionProof(ctx context.Context, req *trillian
 		return nil, err
 	}
 
-	response := trillian.GetInclusionProofResponse{Status: buildStatus(trillian.TrillianApiStatusCode_OK), Proof:&proof}
+	response := trillian.GetInclusionProofResponse{Status: buildStatus(trillian.TrillianApiStatusCode_OK), Proof: &proof}
 
 	return &response, nil
 }
@@ -164,7 +210,7 @@ func (t *TrillianLogServer) GetInclusionProofByHash(ctx context.Context, req *tr
 		return nil, err
 	}
 
-	response := trillian.GetInclusionProofByHashResponse{Status: buildStatus(trillian.TrillianApiStatusCode_OK), Proof:proofs}
+	response := trillian.GetInclusionProofByHashResponse{Status: buildStatus(trillian.TrillianApiStatusCode_OK), Proof: proofs}
 
 	return &response, nil
 }
@@ -230,7 +276,7 @@ func (t *TrillianLogServer) GetConsistencyProof(ctx context.Context, req *trilli
 	}
 
 	// We have everything we need. Return the proof
-	return &trillian.GetConsistencyProofResponse{Status:buildStatus(trillian.TrillianApiStatusCode_OK), Proof:&proof}, nil
+	return &trillian.GetConsistencyProofResponse{Status: buildStatus(trillian.TrillianApiStatusCode_OK), Proof: &proof}, nil
 }
 
 // GetLatestSignedLogRoot obtains the latest published tree root for the Merkle Tree that
@@ -276,7 +322,7 @@ func (t *TrillianLogServer) GetSequencedLeafCount(ctx context.Context, req *tril
 		return nil, err
 	}
 
-	return &trillian.GetSequencedLeafCountResponse{Status:buildStatus(trillian.TrillianApiStatusCode_OK), LeafCount:leafCount}, nil
+	return &trillian.GetSequencedLeafCountResponse{Status: buildStatus(trillian.TrillianApiStatusCode_OK), LeafCount: leafCount}, nil
 }
 
 // GetLeavesByIndex obtains one or more leaves based on their sequence number within the
@@ -402,8 +448,8 @@ func (t *TrillianLogServer) GetEntryAndProof(ctx context.Context, req *trillian.
 	// Work is complete, we have everything we need for the response
 	return &trillian.GetEntryAndProofResponse{
 		Status: buildStatus(trillian.TrillianApiStatusCode_OK),
-		Proof: &proof,
-		Leaf: leafProtos[0]}, nil
+		Proof:  &proof,
+		Leaf:   leafProtos[0]}, nil
 }
 
 func (t *TrillianLogServer) prepareStorageTx(treeID int64) (storage.LogTX, error) {
@@ -546,8 +592,8 @@ func fetchNodesAndBuildProof(tx storage.LogTX, treeRevision, leafIndex int64, pr
 			return trillian.ProofProto{}, err
 		}
 
-		proof = append(proof, &trillian.NodeProto{NodeId:idBytes, NodeHash:node.Hash, NodeRevision:node.NodeRevision})
+		proof = append(proof, &trillian.NodeProto{NodeId: idBytes, NodeHash: node.Hash, NodeRevision: node.NodeRevision})
 	}
 
-	return trillian.ProofProto{LeafIndex:leafIndex, ProofNode:proof}, nil
+	return trillian.ProofProto{LeafIndex: leafIndex, ProofNode: proof}, nil
 }
