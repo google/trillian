@@ -4,14 +4,21 @@ import (
 	"github.com/google/trillian"
 )
 
-func GetInputs() []trillian.Hash {
+// MerkleTreeLeafTestInputs returns a slice of leaf inputs that may be used in
+// compact merkle tree test cases.  They are intended to be added successively,
+// so that after each addition the corresponding root from MerkleTreeLeafTestRoots
+// gives the expected Merkle tree root hash.
+func MerkleTreeLeafTestInputs() []trillian.Hash {
 	return []trillian.Hash{
 		trillian.Hash(""), trillian.Hash("\x00"), trillian.Hash("\x10"), trillian.Hash("\x20\x21"), trillian.Hash("\x30\x31"),
 		trillian.Hash("\x40\x41\x42\x43"), trillian.Hash("\x50\x51\x52\x53\x54\x55\x56\x57"),
 		trillian.Hash("\x60\x61\x62\x63\x64\x65\x66\x67\x68\x69\x6a\x6b\x6c\x6d\x6e\x6f")}
 }
 
-func GetTestRoots() []trillian.Hash {
+// MerkleTreeLeafTestRootHashes returns a slice of Merkle tree root hashes that
+// correspond to the expected tree state for the leaf additions returned by
+// MerkleTreeLeafTestInputs(), as described above.
+func MerkleTreeLeafTestRootHashes() []trillian.Hash {
 	return []trillian.Hash{
 		// constants from C++ test: https://github.com/google/certificate-transparency/blob/master/cpp/merkletree/merkle_tree_test.cc#L277
 		MustHexDecode("6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d"),
@@ -24,7 +31,9 @@ func GetTestRoots() []trillian.Hash {
 		MustHexDecode("5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328")}
 }
 
-func EmptyTreeHash() trillian.Hash {
+// EmptyMerkleTreeRootHash returns the expected root hash for an empty Merkle Tree
+// that uses SHA-256 hashing.
+func EmptyMerkleTreeRootHash() trillian.Hash {
 	const sha256EmptyTreeHash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 	return MustHexDecode(sha256EmptyTreeHash)
 }

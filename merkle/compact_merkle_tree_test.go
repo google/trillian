@@ -17,8 +17,8 @@ func getTree() *CompactMerkleTree {
 }
 
 func TestAddingLeaves(t *testing.T) {
-	inputs := testonly.GetInputs()
-	roots := testonly.GetTestRoots()
+	inputs := testonly.MerkleTreeLeafTestInputs()
+	roots := testonly.MerkleTreeLeafTestRootHashes()
 	// We test the "same" thing 3 different ways this is to ensure than any lazy
 	// update strategy being employed by the implementation doesn't affect the
 	// api-visible calculation of root & size.
@@ -28,7 +28,7 @@ func TestAddingLeaves(t *testing.T) {
 		if got, want := tree.Size(), int64(0); got != want {
 			t.Fatalf("Got size of %d, expected %d", got, want)
 		}
-		if got, want := tree.CurrentRoot(), testonly.EmptyTreeHash(); !bytes.Equal(got, want) {
+		if got, want := tree.CurrentRoot(), testonly.EmptyMerkleTreeRootHash(); !bytes.Equal(got, want) {
 			t.Fatalf("Got root of %v, expected %v", got, want)
 		}
 
