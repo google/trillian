@@ -102,19 +102,32 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 		KeyValue: make([]*trillian.KeyValueInclusion, 0, len(req.Key)),
 	}
 
+	keyHashes := make([]trillian.Hash, 0, len(req.Key))
+	hashToKey := make(map[string][]byte)
 	for _, key := range req.Key {
 		kHash := kh.HashKey(key)
+		keyHashes = append(keyHashes, kHash)
+		hashToKey[string(kHash)] = key
+	}
+
+	leaves, err := tx.Get(req.Revision, keyHashes)
+	if err != nil {
+		return nil, err
+	}
+
+	glog.Infof("wanted %d leaves, found %d", len(req.Key), len(leaves))
+
+	for _, leaf := range leaves {
+		leaf := leaf
+		key, ok := hashToKey[string(leaf.KeyHash)]
+		if !ok {
+			glog.Warningf("Retrieved unrequested leaf with keyhash: %v, skipping", leaf.KeyHash)
+			continue
+		}
 		proof, err := smtReader.InclusionProof(req.Revision, key)
 		if err != nil {
 			return nil, err
 		}
-
-		leaf, err := tx.Get(req.Revision, kHash)
-		// No key is ok, we'll just return a null value
-		if err != nil && err != storage.ErrNoSuchKey {
-			return nil, err
-		}
-
 		kvi := trillian.KeyValueInclusion{
 			KeyValue: &trillian.KeyValue{
 				Key:   key,

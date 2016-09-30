@@ -19,12 +19,14 @@ const selectLatestSignedMapRootSql string = `SELECT MapHeadTimestamp, RootHash, 
 		 ORDER BY MapHeadTimestamp DESC LIMIT 1`
 
 const insertMapLeafSQL string = `INSERT INTO MapLeaf(TreeId, KeyHash, MapRevision, TheData) VALUES (?, ?, ?, ?)`
-const selectMapLeafSQL string = `SELECT KeyHash, MapRevision, TheData
+
+// Note that MapRevision is stored negated, hence the odd equality check below:
+const selectMapLeafSQL string = `SELECT KeyHash, MAX(MapRevision), TheData
 	 FROM MapLeaf
-	 WHERE TreeId = ? AND
-	 			 KeyHash = ? AND
-				 MapRevision <= ?
-	 ORDER BY MapRevision DESC LIMIT 1`
+	 WHERE KeyHash IN (` + placeholderSql + `) AND
+	       TreeId = ? AND
+				 MapRevision >= ?
+	 GROUP BY KeyHash`
 
 type mySQLMapStorage struct {
 	mySQLTreeStorage
@@ -111,35 +113,64 @@ func (m *mapTX) Set(keyHash trillian.Hash, value trillian.MapLeaf) error {
 	}
 	defer stmt.Close()
 
-	_, err = stmt.Exec(m.ms.mapID.TreeID, []byte(keyHash), m.writeRevision, flatValue)
+	// Note: MapRevision is stored negated:
+	_, err = stmt.Exec(m.ms.mapID.TreeID, []byte(keyHash), -m.writeRevision, flatValue)
 	return err
 }
 
-func (m *mapTX) Get(revision int64, keyHash trillian.Hash) (trillian.MapLeaf, error) {
-	stmt, err := m.tx.Prepare(selectMapLeafSQL)
+func (m *mapTX) Get(revision int64, keyHashes []trillian.Hash) ([]trillian.MapLeaf, error) {
+	stmt, err := m.ms.getStmt(selectMapLeafSQL, len(keyHashes), "?", "?")
 	if err != nil {
-		return trillian.MapLeaf{}, err
+		return nil, err
 	}
-	defer stmt.Close()
+	stx := m.tx.Stmt(stmt)
+	defer stx.Close()
 
-	var mapKeyHash trillian.Hash
-	var mapRevision int64
-	var flatData []byte
+	args := make([]interface{}, 0, len(keyHashes)+2)
+	for _, k := range keyHashes {
+		args = append(args, []byte(k[:]))
+	}
+	args = append(args, m.ms.mapID.TreeID)
+	// Note: MapRevision is negated when stored to cause more recent revisions to
+	// appear earlier in query results.
+	args = append(args, -revision)
 
-	err = stmt.QueryRow(
-		m.ms.mapID.TreeID, []byte(keyHash), revision).Scan(
-		&mapKeyHash, &mapRevision, &flatData)
+	glog.Infof("args size %d", len(args))
 
-	// It's possible there is no value for this value yet
+	rows, err := stx.Query(args...)
+	// It's possible there are no values for any of these keys yet
 	if err == sql.ErrNoRows {
-		return trillian.MapLeaf{}, storage.ErrNoSuchKey
+		return nil, nil
 	} else if err != nil {
-		return trillian.MapLeaf{}, err
+		return nil, err
 	}
 
-	var mapLeaf trillian.MapLeaf
-	err = proto.Unmarshal(flatData, &mapLeaf)
-	return mapLeaf, err
+	ret := make([]trillian.MapLeaf, 0, len(keyHashes))
+	nr := 0
+	er := 0
+	for rows.Next() {
+		var mapKeyHash trillian.Hash
+		var mapRevision int64
+		var flatData []byte
+		err = rows.Scan(&mapKeyHash, &mapRevision, &flatData)
+		if err != nil {
+			return nil, err
+		}
+		if len(flatData) == 0 {
+			er++
+			continue
+		}
+		var mapLeaf trillian.MapLeaf
+		err = proto.Unmarshal(flatData, &mapLeaf)
+		if err != nil {
+			return nil, err
+		}
+		mapLeaf.KeyHash = mapKeyHash
+		ret = append(ret, mapLeaf)
+		nr++
+	}
+	glog.Infof("%d rows, %d empty", nr, er)
+	return ret, nil
 }
 
 func (m *mapTX) LatestSignedMapRoot() (trillian.SignedMapRoot, error) {

@@ -205,60 +205,87 @@ type treeTX struct {
 }
 
 func (t *treeTX) getSubtree(treeRevision int64, nodeID storage.NodeID) (*storage.SubtreeProto, error) {
-	if nodeID.PrefixLenBits%8 != 0 {
-		return nil, fmt.Errorf("invalid subtree ID - not multiple of 8: %d", nodeID.PrefixLenBits)
+	s, err := t.getSubtrees(treeRevision, []storage.NodeID{nodeID})
+	if err != nil {
+		return nil, err
+	}
+	switch len(s) {
+	case 0:
+		return nil, nil
+	case 1:
+		return s[0], nil
+	default:
+		return nil, fmt.Errorf("got %d subtrees, but expected 1", len(s))
+	}
+}
+
+func (t *treeTX) getSubtrees(treeRevision int64, nodeIDs []storage.NodeID) ([]*storage.SubtreeProto, error) {
+	if len(nodeIDs) == 0 {
+		return nil, nil
 	}
 
-	tmpl, err := t.ts.getSubtreeStmt(1)
+	tmpl, err := t.ts.getSubtreeStmt(len(nodeIDs))
 	if err != nil {
 		return nil, err
 	}
 	stx := t.tx.Stmt(tmpl)
 	defer stx.Close()
 
-	args := make([]interface{}, 0)
-	nodeIdBytes := nodeID.Path[:nodeID.PrefixLenBits/8]
+	args := make([]interface{}, 0, len(nodeIDs)+3)
 
-	if err != nil {
-		return nil, err
+	// populate args with nodeIDs
+	for _, nodeID := range nodeIDs {
+		if nodeID.PrefixLenBits%8 != 0 {
+			return nil, fmt.Errorf("invalid subtree ID - not multiple of 8: %d", nodeID.PrefixLenBits)
+		}
+
+		nodeIdBytes := nodeID.Path[:nodeID.PrefixLenBits/8]
+
+		args = append(args, interface{}(nodeIdBytes))
 	}
 
-	args = append(args, interface{}(nodeIdBytes))
 	args = append(args, interface{}(t.ts.treeID))
 	args = append(args, interface{}(treeRevision))
 	args = append(args, interface{}(t.ts.treeID))
 
 	rows, err := stx.Query(args...)
 	if err != nil {
-		glog.Warningf("Failed to get merkle subtree: %s", err)
+		glog.Warningf("Failed to get merkle subtrees: %s", err)
 		return nil, err
 	}
-
 	defer rows.Close()
-	if !rows.Next() {
+
+	if rows.Err() != nil {
 		// Nothing from the DB
+		glog.Warningf("Nothing from DB: %s", rows.Err())
 		return nil, rows.Err()
 	}
 
-	var subtreeIDBytes []byte
-	var subtreeRev int64
-	var nodesRaw []byte
-	if err := rows.Scan(&subtreeIDBytes, &subtreeRev, &nodesRaw); err != nil {
-		glog.Warningf("Failed to scan merkle subtree: %s", err)
-		return nil, err
-	}
-	var subtree storage.SubtreeProto
-	if err := proto.Unmarshal(nodesRaw, &subtree); err != nil {
-		return nil, err
-	}
-	if subtree.Prefix == nil && nodeID.PrefixLenBits == 0 {
-		subtree.Prefix = []byte{}
-		glog.Warning("Fixed nil (but expected empty) Prefix in subtree")
+	ret := make([]*storage.SubtreeProto, 0, len(nodeIDs))
+
+	for rows.Next() {
+
+		var subtreeIDBytes []byte
+		var subtreeRev int64
+		var nodesRaw []byte
+		if err := rows.Scan(&subtreeIDBytes, &subtreeRev, &nodesRaw); err != nil {
+			glog.Warningf("Failed to scan merkle subtree: %s", err)
+			return nil, err
+		}
+		var subtree storage.SubtreeProto
+		if err := proto.Unmarshal(nodesRaw, &subtree); err != nil {
+			glog.Warningf("Failed to unmarshal SubtreeProto: %s", err)
+			return nil, err
+		}
+		if subtree.Prefix == nil {
+			subtree.Prefix = []byte{}
+		}
+		ret = append(ret, &subtree)
 	}
 
 	// The InternalNodes cache is nil here, but the SubtreeCache (which called
 	// this method) will re-populate it.
-	return &subtree, nil
+	return ret, nil
 }
 
 func (t *treeTX) storeSubtrees(subtrees []*storage.SubtreeProto) error {
@@ -341,6 +368,13 @@ func (t *treeTX) GetTreeRevisionAtSize(treeSize int64) (int64, error) {
 }
 
 func (t *treeTX) GetMerkleNodes(treeRevision int64, nodeIDs []storage.NodeID) ([]storage.Node, error) {
+	err := t.subtreeCache.Preload(nodeIDs, func(ids []storage.NodeID) ([]*storage.SubtreeProto, error) {
+		return t.getSubtrees(treeRevision, ids)
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	ret := make([]storage.Node, 0, len(nodeIDs))
 
 	for _, nodeID := range nodeIDs {
