@@ -2,7 +2,7 @@ sudo: false
 language: go
 
 go:
-  - 1.6.2
+  - 1.7.1
 
 install:
   - go get -d -v -t ./...

@@ -7,6 +7,10 @@ white paper, which in turn could be thought of as an extension and
 generalisation of the ideas which underpin
 [Certificate Transparency](https://certificate-transparency.org).
 
+## Requirements
+
+You must have Go 1.7.1 installed.
+
 ## Build
 
 If you're not with the Go program of working within its own directory
