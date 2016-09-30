@@ -28,7 +28,7 @@ func getClient() (*grpc.ClientConn, trillian.TrillianMapClient, error) {
 	return conn, trillian.NewTrillianMapClient(conn), nil
 }
 
-func TestMapIntegration1(t *testing.T) {
+func TestMapIntegration(t *testing.T) {
 	conn, client, err := getClient()
 	if err != nil {
 		t.Fatalf("Failed to get map client: %v", err)
@@ -77,14 +77,12 @@ func TestMapIntegration1(t *testing.T) {
 					},
 				}
 			}
-			t.Logf("Created %d k/v pairs...", len(req.KeyValue))
 
-			t.Logf("SetLeaves...")
 			resp, err := client.SetLeaves(context.Background(), req)
 			if err != nil {
 				t.Fatalf("Failed to write batch %d: %v", x, err)
 			}
-			t.Logf("SetLeaves done: %v", resp)
+			t.Logf("Set %d k/v pairs", len(req.KeyValue))
 			root = resp.MapRoot.RootHash
 			rev++
 		}
@@ -93,11 +91,12 @@ func TestMapIntegration1(t *testing.T) {
 		}
 	}
 
+	latestRev := int64(-1)
 	{
 		// Check your head
 		r, err := client.GetSignedMapRoot(context.Background(), &trillian.GetSignedMapRootRequest{*mapID})
 		if err != nil {
-			t.Fatalf("Failed to get empty map head: %v", err)
+			t.Fatalf("Failed to get map head: %v", err)
 		}
 
 		if got, want := r.MapRoot.MapRevision, int64(numBatches); got != want {
@@ -106,13 +105,15 @@ func TestMapIntegration1(t *testing.T) {
 		if expected, got := testonly.MustDecodeBase64(expectedRootB64), r.MapRoot.RootHash; !bytes.Equal(expected, got) {
 			t.Fatalf("Expected root %s, got root: %s", base64.StdEncoding.EncodeToString(expected), base64.StdEncoding.EncodeToString(got))
 		}
+		t.Logf("Got expected roothash@%d: %s", r.MapRoot.MapRevision, base64.StdEncoding.EncodeToString(r.MapRoot.RootHash))
+		latestRev = r.MapRoot.MapRevision
 	}
 
 	{
 		// Check values
 		getReq := trillian.GetMapLeavesRequest{
 			MapId:    *mapID,
-			Revision: -1,
+			Revision: latestRev,
 		}
 		// Mix up the ordering of requests
 		keyOrder := rand.Perm(len(expectedKeys))
@@ -128,7 +129,7 @@ func TestMapIntegration1(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to get values: %v", err)
 			}
-			if got, want := len(r.KeyValue), batchSize; got != want {
+			if got, want := len(r.KeyValue), len(getReq.Key); got != want {
 				t.Errorf("Got %d values, expected %d", got, want)
 			}
 			for _, kv := range r.KeyValue {
