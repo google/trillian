@@ -1,8 +1,6 @@
 #!/bin/bash
-set -e
 INTEGRATION_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+. ${INTEGRATION_DIR}/common.sh
 
-echo "=== RUN   Integration Test Suite"
-${INTEGRATION_DIR}/map_integration_test.sh
-echo "--- PASS: Integration Test Suite"
+runTest map_integration_test.sh "Map integration test"
 
