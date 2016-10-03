@@ -2,6 +2,7 @@ package merkle
 
 import (
 	"bytes"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"reflect"
@@ -231,5 +232,37 @@ func TestCompactVsFullTree(t *testing.T) {
 			t.Errorf("iteration %d: Got in-memory root of %v, but compact tree has root %v", i, a, b)
 		}
 
+	}
+}
+
+func TestRootHashForVariousTreeSizes(t *testing.T) {
+	tests := []struct{
+		size int64
+		wantRoot trillian.Hash
+	}{
+		{10, testonly.MustDecodeBase64("VjWMPSYNtCuCNlF/RLnQy6HcwSk6CIipfxm+hettA+4=")},
+		{15, testonly.MustDecodeBase64("j4SulYmocFuxdeyp12xXCIgK6PekBcxzAIj4zbQzNEI=")},
+		{16, testonly.MustDecodeBase64("c+4Uc6BCMOZf/v3NZK1kqTUJe+bBoFtOhP+P3SayKRE=")},
+		{100, testonly.MustDecodeBase64("dUh9hYH88p0CMoHkdr1wC2szbhcLAXOejWpINIooKUY=")},
+		{255, testonly.MustDecodeBase64("SmdsuKUqiod3RX2jyF2M6JnbdE4QuTwwipfAowI4/i0=")},
+		{256, testonly.MustDecodeBase64("qFI0t/tZ1MdOYgyPpPzHFiZVw86koScXy9q3FU5casA=")},
+		{1000, testonly.MustDecodeBase64("RXrgb8xHd55Y48FbfotJwCbV82Kx22LZfEbmBGAvwlQ=")},
+		{4095, testonly.MustDecodeBase64("cWRFdQhPcjn9WyBXE/r1f04ejxIm5lvg40DEpRBVS0w=")},
+		{4096, testonly.MustDecodeBase64("6uU/phfHg1n/GksYT6TO9aN8EauMCCJRl3dIK0HDs2M=")},
+		{10000, testonly.MustDecodeBase64("VZcav65F9haHVRk3wre2axFoBXRNeUh/1d9d5FQfxIg=")},
+		{65535, testonly.MustDecodeBase64("iPuVYJhP6SEE4gUFp8qbafd2rYv9YTCDYqAxCj8HdLM=")},
+	}
+
+	b64e := func(b []byte) string { return base64.StdEncoding.EncodeToString(b) }
+
+	for _, test := range tests {
+		tree := NewCompactMerkleTree(NewRFC6962TreeHasher(trillian.NewSHA256()))
+		for i := int64(0); i < test.size; i++ {
+			l := []byte{ byte(i & 0xff), byte((i >> 8) & 0xff) }
+			tree.AddLeaf(l, func(int, int64, trillian.Hash) {})
+		}
+		if got, want := tree.CurrentRoot(), test.wantRoot; !bytes.Equal(got, want) {
+			t.Errorf("Test (treesize=%v) got root %v, want %v", test.size, b64e(got), b64e(want))
+		}
 	}
 }
