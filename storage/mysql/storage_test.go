@@ -93,9 +93,9 @@ func nodesAreEqual(lhs []storage.Node, rhs []storage.Node) error {
 	return nil
 }
 
-func createFakeLeaf(db *sql.DB, logID trillian.LogID, hash, data, tsBytes []byte, seq int64, t *testing.T) {
+func createFakeLeaf(db *sql.DB, logID trillian.LogID, hash []byte, data []byte, seq int64, t *testing.T) {
 	_, err := db.Exec("INSERT INTO LeafData(TreeId, LeafHash, TheData) VALUES(?,?,?)", logID.TreeID, hash, data)
-	_, err2 := db.Exec("INSERT INTO SequencedLeafData(TreeId, SequenceNumber, LeafHash, SignedEntryTimestamp) VALUES(?,?,?,?)", logID.TreeID, seq, hash, tsBytes)
+	_, err2 := db.Exec("INSERT INTO SequencedLeafData(TreeId, SequenceNumber, LeafHash) VALUES(?,?,?)", logID.TreeID, seq, hash)
 
 	if err != nil || err2 != nil {
 		t.Fatalf("Failed to create test leaves: %v %v", err, err2)
@@ -269,24 +269,6 @@ func TestQueueDuplicateLeafFails(t *testing.T) {
 			t.Fatalf("Got the wrong type of error: %v", err)
 		}
 	}
-}
-
-func TestQueueLeavesMissingSignatureRejected(t *testing.T) {
-	logID := createLogID("TestQueueLeavesMissingSignatureRejected")
-	db := prepareTestLogDB(logID, t)
-	defer db.Close()
-	s := prepareTestLogStorage(logID, t)
-	tx := beginLogTx(s, t)
-	defer failIfTXStillOpen(t, "TestQueueLeavesMissingSignatureRejected", tx)
-
-	leaves := createTestLeaves(leavesToInsert, 1)
-	leaves[0].SignedEntryTimestamp.Signature = nil
-
-	if err := tx.QueueLeaves(leaves); err == nil {
-		t.Fatalf("Accepted a leaf with nil signature: %v", err)
-	}
-
-	commit(tx, t)
 }
 
 func TestQueueLeaves(t *testing.T) {
@@ -512,13 +494,7 @@ func TestGetLeavesByHash(t *testing.T) {
 
 	data := []byte("some data")
 
-	signedTimestampBytes, err := EncodeSignedTimestamp(signedTimestamp)
-
-	if err != nil {
-		t.Fatalf("Failed to encode timestamp")
-	}
-
-	createFakeLeaf(db, logID.logID, dummyHash, data, signedTimestampBytes, sequenceNumber, t)
+	createFakeLeaf(db, logID.logID, dummyHash, data, sequenceNumber, t)
 
 	s := prepareTestLogStorage(logID, t)
 	tx := beginLogTx(s, t)
@@ -545,13 +521,7 @@ func TestGetLeavesByIndex(t *testing.T) {
 	defer db.Close()
 	data := []byte("some data")
 
-	signedTimestampBytes, err := EncodeSignedTimestamp(signedTimestamp)
-
-	if err != nil {
-		t.Fatalf("Failed to encode timestamp")
-	}
-
-	createFakeLeaf(db, logID.logID, dummyHash, data, signedTimestampBytes, sequenceNumber, t)
+	createFakeLeaf(db, logID.logID, dummyHash, data, sequenceNumber, t)
 
 	s := prepareTestLogStorage(logID, t)
 	tx := beginLogTx(s, t)
@@ -1262,7 +1232,7 @@ func createTestLeaves(n, startSeq int64) []trillian.LogLeaf {
 	for l := int64(0); l < n; l++ {
 		lv := fmt.Sprintf("Leaf %d", l)
 		leaf := trillian.LogLeaf{trillian.Leaf{
-			hasher.Digest([]byte(lv)), []byte(lv), []byte(fmt.Sprintf("Extra %d", l))}, signedTimestamp, int64(startSeq + l)}
+			hasher.Digest([]byte(lv)), []byte(lv), []byte(fmt.Sprintf("Extra %d", l))}, int64(startSeq + l)}
 		leaves = append(leaves, leaf)
 	}
 
