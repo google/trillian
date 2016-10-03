@@ -47,6 +47,8 @@ const selectLeavesByHashSql string = `SELECT l.LeafHash,l.TheData,s.SequenceNumb
 // Same as above except with leaves ordered by sequence so we only incur this cost when necessary
 const selectLeavesByHashOrderedBySequenceSQL string = selectLeavesByHashSql + " ORDER BY s.SequenceNumber"
 
+var defaultLogStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8}
+
 type mySQLLogStorage struct {
 	mySQLTreeStorage
 
@@ -58,7 +60,7 @@ type mySQLLogStorage struct {
 func NewLogStorage(id trillian.LogID, dbURL string) (storage.LogStorage, error) {
 	// TODO(al): pass this through/configure from DB
 	th := merkle.NewRFC6962TreeHasher(trillian.NewSHA256())
-	ts, err := newTreeStorage(id.TreeID, dbURL, th.Size(), cache.PopulateLogSubtreeNodes(th))
+	ts, err := newTreeStorage(id.TreeID, dbURL, th.Size(), defaultLogStrata, cache.PopulateLogSubtreeNodes(th))
 	if err != nil {
 		glog.Warningf("Couldn't create a new treeStorage: %s", err)
 		return nil, err

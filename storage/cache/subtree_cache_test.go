@@ -22,30 +22,33 @@ var splitTestVector = []struct {
 	inPathLenBits int
 	outPrefix     []byte
 	outSuffixBits int
-	outSuffix     byte
+	outSuffix     []byte
 }{
-	{[]byte{0x12, 0x34, 0x56, 0x7f}, 32, []byte{0x12, 0x34, 0x56}, 8, 0x7f},
-	{[]byte{0x12, 0x34, 0x56, 0xff}, 29, []byte{0x12, 0x34, 0x56}, 5, 0xf8},
-	{[]byte{0x12, 0x34, 0x56, 0xff}, 25, []byte{0x12, 0x34, 0x56}, 1, 0x80},
-	{[]byte{0x12, 0x34, 0x56, 0x78}, 16, []byte{0x12}, 8, 0x34},
-	{[]byte{0x12, 0x34, 0x56, 0x78}, 9, []byte{0x12}, 1, 0x00},
-	{[]byte{0x12, 0x34, 0x56, 0x78}, 8, []byte{}, 8, 0x12},
-	{[]byte{0x12, 0x34, 0x56, 0x78}, 7, []byte{}, 7, 0x12},
-	{[]byte{0x12, 0x34, 0x56, 0x78}, 0, []byte{}, 0, 0},
-	{[]byte{0x70}, 2, []byte{}, 2, 0x40},
-	{[]byte{0x70}, 3, []byte{}, 3, 0x60},
-	{[]byte{0x70}, 4, []byte{}, 4, 0x70},
-	{[]byte{0x70}, 5, []byte{}, 5, 0x70},
-	{[]byte{0x00, 0x03}, 16, []byte{0x00}, 8, 0x03},
-	{[]byte{0x00, 0x03}, 15, []byte{0x00}, 7, 0x02},
+	{[]byte{0x12, 0x34, 0x56, 0x7f}, 32, []byte{0x12, 0x34, 0x56}, 8, []byte{0x7f}},
+	{[]byte{0x12, 0x34, 0x56, 0xff}, 29, []byte{0x12, 0x34, 0x56}, 5, []byte{0xf8}},
+	{[]byte{0x12, 0x34, 0x56, 0xff}, 25, []byte{0x12, 0x34, 0x56}, 1, []byte{0x80}},
+	{[]byte{0x12, 0x34, 0x56, 0x78}, 16, []byte{0x12}, 8, []byte{0x34}},
+	{[]byte{0x12, 0x34, 0x56, 0x78}, 9, []byte{0x12}, 1, []byte{0x00}},
+	{[]byte{0x12, 0x34, 0x56, 0x78}, 8, []byte{}, 8, []byte{0x12}},
+	{[]byte{0x12, 0x34, 0x56, 0x78}, 7, []byte{}, 7, []byte{0x12}},
+	{[]byte{0x12, 0x34, 0x56, 0x78}, 0, []byte{}, 0, []byte{0}},
+	{[]byte{0x70}, 2, []byte{}, 2, []byte{0x40}},
+	{[]byte{0x70}, 3, []byte{}, 3, []byte{0x60}},
+	{[]byte{0x70}, 4, []byte{}, 4, []byte{0x70}},
+	{[]byte{0x70}, 5, []byte{}, 5, []byte{0x70}},
+	{[]byte{0x00, 0x03}, 16, []byte{0x00}, 8, []byte{0x03}},
+	{[]byte{0x00, 0x03}, 15, []byte{0x00}, 7, []byte{0x02}},
 }
 
+var defaultStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8}
+
 func TestSplitNodeID(t *testing.T) {
+	c := NewSubtreeCache(defaultStrata, PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher(trillian.NewSHA256())))
 	for i, v := range splitTestVector {
 		n := storage.NewNodeIDFromHash(v.inPath)
 		n.PrefixLenBits = v.inPathLenBits
 
-		p, s := splitNodeID(n)
+		p, s := c.splitNodeID(n)
 		if expected, got := v.outPrefix, p; !bytes.Equal(expected, got) {
 			t.Fatalf("(test %d) Expected prefix %x, got %x", i, expected, got)
 		}
@@ -54,7 +57,7 @@ func TestSplitNodeID(t *testing.T) {
 			t.Fatalf("(test %d) Expected suffix num bits %d, got %d", i, expected, got)
 		}
 
-		if expected, got := v.outSuffix, s.path; expected != got {
+		if expected, got := v.outSuffix, s.path; !bytes.Equal(expected, got) {
 			t.Fatalf("(test %d) Expected suffix path of %x, got %x", i, expected, got)
 		}
 	}
@@ -65,17 +68,19 @@ func TestCacheFillOnlyReadsSubtrees(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	m := NewMockNodeStorage(mockCtrl)
-	c := NewSubtreeCache(PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher(trillian.NewSHA256())))
+	c := NewSubtreeCache(defaultStrata, PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher(trillian.NewSHA256())))
 
 	nodeID := storage.NewNodeIDFromHash([]byte("1234"))
 	// When we loop around asking for all 0..32 bit prefix lengths of the above
 	// NodeID, we should see just one "Get" request for each subtree.
-	for b := 0; b < nodeID.PrefixLenBits; b += strataDepth {
+	si := 0
+	for b := 0; b < nodeID.PrefixLenBits; b += defaultStrata[si] {
 		e := nodeID
 		e.PrefixLenBits = b
 		m.EXPECT().GetSubtree(testonly.NodeIDEq(e)).Return(&storage.SubtreeProto{
 			Prefix: e.Path,
 		}, nil)
+		si++
 	}
 
 	for nodeID.PrefixLenBits > 0 {
@@ -96,13 +101,14 @@ func TestCacheFlush(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	m := NewMockNodeStorage(mockCtrl)
-	c := NewSubtreeCache(PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher(trillian.NewSHA256())))
+	c := NewSubtreeCache(defaultStrata, PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher(trillian.NewSHA256())))
 
 	nodeID := storage.NewNodeIDFromHash([]byte("1234"))
 	expectedSetIDs := make(map[string]string)
 	// When we loop around asking for all 0..32 bit prefix lengths of the above
 	// NodeID, we should see just one "Get" request for each subtree.
-	for b := 0; b < nodeID.PrefixLenBits; b += strataDepth {
+	si := 0
+	for b := 0; b < nodeID.PrefixLenBits; b += defaultStrata[si] {
 		e := storage.NewNodeIDFromHash([]byte("1234"))
 		//e := nodeID
 		e.PrefixLenBits = b
@@ -110,6 +116,7 @@ func TestCacheFlush(t *testing.T) {
 		m.EXPECT().GetSubtree(testonly.NodeIDEq(e)).Do(func(n storage.NodeID) {
 			t.Logf("read %v", n)
 		}).Return((*storage.SubtreeProto)(nil), nil)
+		si++
 	}
 	m.EXPECT().SetSubtrees(gomock.Any()).Do(func(trees []*storage.SubtreeProto) {
 		for _, s := range trees {
@@ -168,7 +175,7 @@ func TestCacheFlush(t *testing.T) {
 }
 
 func TestSuffixSerializeFormat(t *testing.T) {
-	s := Suffix{5, 0xae}
+	s := Suffix{5, []byte{0xae}}
 	if got, want := s.serialize(), "Ba4="; got != want {
 		t.Fatalf("Got serialized suffix of %s, expected %s", got, want)
 	}
@@ -238,6 +245,7 @@ func TestRepopulateLogSubtree(t *testing.T) {
 	s := storage.SubtreeProto{
 		Leaves: make(map[string][]byte),
 	}
+	c := NewSubtreeCache(defaultStrata, PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher(trillian.NewSHA256())))
 	for numLeaves := int64(1); numLeaves < 255; numLeaves++ {
 		// clear internal nodes
 		s.InternalNodes = make(map[string][]byte)
@@ -251,7 +259,7 @@ func TestRepopulateLogSubtree(t *testing.T) {
 			}
 			// Don't store leaves or the subtree root in InternalNodes
 			if depth > 0 && depth < 8 {
-				_, sfx := splitNodeID(n)
+				_, sfx := c.splitNodeID(n)
 				cmtStorage.InternalNodes[sfx.serialize()] = h
 			}
 		})
@@ -344,5 +352,16 @@ func runLogSubtreeKAT(t *testing.T, data logKATData) {
 			}
 			t.Errorf("  %v (%v)", k, rk)
 		}
+	}
+}
+
+func TestPrefixLengths(t *testing.T) {
+	strata := []int{8, 8, 16, 32, 64, 128}
+	strataInfo := []strataInfo{{0, 8}, {1, 8}, {2, 16}, {2, 16}, {4, 32}, {4, 32}, {4, 32}, {4, 32}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}}
+
+	c := NewSubtreeCache(strata, PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher(trillian.NewSHA256())))
+
+	if got, want := c.strataInfo, strataInfo; !reflect.DeepEqual(got, want) {
+		t.Fatalf("Got prefixLengths of %v, expected %v", got, want)
 	}
 }

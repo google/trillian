@@ -49,6 +49,7 @@ type mySQLTreeStorage struct {
 	// in the query to the statement that should be used.
 	statementMutex sync.Mutex
 	statements     map[string]map[int]*sql.Stmt
+	strataDepths   []int
 }
 
 func openDB(dbURL string) (*sql.DB, error) {
@@ -67,7 +68,7 @@ func openDB(dbURL string) (*sql.DB, error) {
 	return db, nil
 }
 
-func newTreeStorage(treeID int64, dbURL string, hashSizeBytes int, populateSubtree storage.PopulateSubtreeFunc) (mySQLTreeStorage, error) {
+func newTreeStorage(treeID int64, dbURL string, hashSizeBytes int, strataDepths []int, populateSubtree storage.PopulateSubtreeFunc) (mySQLTreeStorage, error) {
 	db, err := openDB(dbURL)
 	if err != nil {
 		return mySQLTreeStorage{}, err
@@ -79,6 +80,7 @@ func newTreeStorage(treeID int64, dbURL string, hashSizeBytes int, populateSubtr
 		hashSizeBytes:   hashSizeBytes,
 		populateSubtree: populateSubtree,
 		statements:      make(map[string]map[int]*sql.Stmt),
+		strataDepths:    strataDepths,
 	}
 
 	return s, nil
@@ -191,7 +193,7 @@ func (m *mySQLTreeStorage) beginTreeTx() (treeTX, error) {
 	return treeTX{
 		tx:            t,
 		ts:            m,
-		subtreeCache:  cache.NewSubtreeCache(m.populateSubtree),
+		subtreeCache:  cache.NewSubtreeCache(m.strataDepths, m.populateSubtree),
 		writeRevision: -1,
 	}, nil
 }
