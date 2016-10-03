@@ -197,6 +197,8 @@ func (c *CompactMerkleTree) AddLeafHash(leafHash trillian.Hash, f setNodeFunc) (
 		}
 		// The bit is set so we have a node at that position in the nodes list so hash it with our running hash:
 		hash = c.hasher.HashChildren(c.nodes[bit], hash)
+		// Now, clear this position in the nodes list as the hash it formerly contained will be propogated upwards.
+		c.nodes[bit] = nil
 		// Store the resulting parent hash.
 		f(bit+1, index, hash)
 		// Figure out if we're done:
