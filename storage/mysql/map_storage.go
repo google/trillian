@@ -28,7 +28,7 @@ const selectMapLeafSQL string = `SELECT KeyHash, MAX(MapRevision), TheData
 				 MapRevision >= ?
 	 GROUP BY KeyHash`
 
-var defaultMapStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8}
+var defaultMapStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 176}
 
 type mySQLMapStorage struct {
 	mySQLTreeStorage
