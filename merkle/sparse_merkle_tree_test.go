@@ -378,12 +378,11 @@ func testSparseTreeFetches(t *testing.T, vec sparseTestVector) {
 		readMutex.Lock()
 
 		// calculate the set of expected node reads.
-		for i, kv := range vec.kv {
+		for _, kv := range vec.kv {
 			keyHash := w.hasher.HashKey([]byte(kv.k))
 			nodeID := storage.NewNodeIDFromHash(keyHash)
 			leafNodeIDs = append(leafNodeIDs, nodeID)
 			sibs := nodeID.Siblings()
-			t.Logf("hash %d: %s", i, nodeID.String())
 
 			// start with the set of siblings of all leaves:
 			for j := range sibs {
