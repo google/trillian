@@ -19,6 +19,7 @@ import (
 	"github.com/google/trillian/util"
 	"google.golang.org/grpc"
 	"sync"
+	"github.com/google/trillian/monitoring"
 )
 
 var mysqlUriFlag = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test",
@@ -91,7 +92,13 @@ func checkDatabaseAccessible(dbUri string) error {
 }
 
 func startRpcServer(listener net.Listener, port int, provider server.LogStorageProviderFunc) *grpc.Server {
-	grpcServer := grpc.NewServer()
+	// Create and publish the RPC stats objects
+	statsInterceptor := monitoring.NewRpcStatsInterceptor(util.SystemTimeSource{}, "ct", "example")
+	statsInterceptor.Publish()
+
+	// Create the server, using the interceptor to record stats on the requests
+	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(statsInterceptor.Interceptor()))
+
 	logServer := server.NewTrillianLogServer(provider)
 	trillian.RegisterTrillianLogServer(grpcServer, logServer)
 
