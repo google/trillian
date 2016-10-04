@@ -28,6 +28,8 @@ const selectMapLeafSQL string = `SELECT KeyHash, MAX(MapRevision), TheData
 				 MapRevision >= ?
 	 GROUP BY KeyHash`
 
+var defaultMapStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 176}
+
 type mySQLMapStorage struct {
 	mySQLTreeStorage
 
@@ -41,7 +43,7 @@ func (m *mySQLMapStorage) MapID() trillian.MapID {
 func NewMapStorage(id trillian.MapID, dbURL string) (storage.MapStorage, error) {
 	// TODO(al): pass this through/configure from DB
 	th := merkle.NewRFC6962TreeHasher(trillian.NewSHA256())
-	ts, err := newTreeStorage(id.TreeID, dbURL, th.Size(), cache.PopulateMapSubtreeNodes(th))
+	ts, err := newTreeStorage(id.TreeID, dbURL, th.Size(), defaultMapStrata, cache.PopulateMapSubtreeNodes(th))
 	if err != nil {
 		glog.Warningf("Couldn't create a new treeStorage: %s", err)
 		return nil, err
