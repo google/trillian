@@ -18,7 +18,7 @@ func getTree() *CompactMerkleTree {
 	return NewCompactMerkleTree(NewRFC6962TreeHasher(trillian.NewSHA256()))
 }
 
-func (c *CompactMerkleTree) checkUnusedNodesInvariant() error {
+func checkUnusedNodesInvariant(c *CompactMerkleTree) error {
 	// The structure of this invariant check mirrors the structure in
 	// NewCompactMerkleTreeWithState in which only the nodes which
 	// should be present for a tree of given size are fetched from the
@@ -29,21 +29,21 @@ func (c *CompactMerkleTree) checkUnusedNodesInvariant() error {
 		for i, n := range c.nodes {
 			expectNil := i != sizeBits-1
 			if expectNil && n != nil {
-				return fmt.Errorf("Perfect Tree size %d has non-nil node at index %d, wanted nil", size, i)
+				return fmt.Errorf("perfect Tree size %d has non-nil node at index %d, wanted nil", size, i)
 			}
 			if !expectNil && n == nil {
-				return fmt.Errorf("Perfect Tree size %d has nil node at index %d, wanted non-nil", size, i)
+				return fmt.Errorf("perfect Tree size %d has nil node at index %d, wanted non-nil", size, i)
 			}
 		}
 	} else {
 		for depth := 0; depth < sizeBits; depth++ {
 			if size&1 == 1 {
 				if c.nodes[depth] == nil {
-					return fmt.Errorf("Imperfect Tree size %d has nil node at index %d, wanted non-nil", c.size, depth)
+					return fmt.Errorf("imperfect Tree size %d has nil node at index %d, wanted non-nil", c.size, depth)
 				}
 			} else {
 				if c.nodes[depth] != nil {
-					return fmt.Errorf("Imperfect Tree size %d has non-nil node at index %d, wanted nil", c.size, depth)
+					return fmt.Errorf("imperfect Tree size %d has non-nil node at index %d, wanted nil", c.size, depth)
 				}
 			}
 			size >>= 1
@@ -72,7 +72,7 @@ func TestAddingLeaves(t *testing.T) {
 
 		for i := 0; i < 8; i++ {
 			tree.AddLeaf(inputs[i], func(int, int64, trillian.Hash) {})
-			if err := tree.checkUnusedNodesInvariant(); err != nil {
+			if err := checkUnusedNodesInvariant(tree); err != nil {
 				t.Fatalf("UnusedNodesInvariant check failed: %v", err)
 			}
 			if got, want := tree.Size(), int64(i+1); got != want {
@@ -92,7 +92,7 @@ func TestAddingLeaves(t *testing.T) {
 		tree := getTree()
 		for i := 0; i < 8; i++ {
 			tree.AddLeaf(inputs[i], func(int, int64, trillian.Hash) {})
-			if err := tree.checkUnusedNodesInvariant(); err != nil {
+			if err := checkUnusedNodesInvariant(tree); err != nil {
 				t.Fatalf("UnusedNodesInvariant check failed: %v", err)
 			}
 		}
@@ -112,7 +112,7 @@ func TestAddingLeaves(t *testing.T) {
 		tree := getTree()
 		for i := 0; i < 3; i++ {
 			tree.AddLeaf(inputs[i], func(int, int64, trillian.Hash) {})
-			if err := tree.checkUnusedNodesInvariant(); err != nil {
+			if err := checkUnusedNodesInvariant(tree); err != nil {
 				t.Fatalf("UnusedNodesInvariant check failed: %v", err)
 			}
 		}
@@ -128,7 +128,7 @@ func TestAddingLeaves(t *testing.T) {
 
 		for i := 3; i < 8; i++ {
 			tree.AddLeaf(inputs[i], func(int, int64, trillian.Hash) {})
-			if err := tree.checkUnusedNodesInvariant(); err != nil {
+			if err := checkUnusedNodesInvariant(tree); err != nil {
 				t.Fatalf("UnusedNodesInvariant check failed: %v", err)
 			}
 		}
