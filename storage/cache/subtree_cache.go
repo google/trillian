@@ -19,13 +19,14 @@ type GetSubtreeFunc func(id storage.NodeID) (*storage.SubtreeProto, error)
 // SetSubtreeFunc describes a function which can store a Subtree into storage.
 type SetSubtreesFunc func(s []*storage.SubtreeProto) error
 
-// strataInfo represents a single statum across the tree.
+// stratumInfo represents a single stratum across the tree.
 // It it used inside the SubtreeCache to determine which Subtree prefix should
 // be used for a given NodeID.
-type strataInfo struct {
+// Currently, the strata must have depths which are multiples of 8.
+type stratumInfo struct {
 	// prefixBytes is the number of prefix bytes above this stratum.
 	prefixBytes int
-	// depth is the depth of this stratum.
+	// depth is the number of levels in this stratum.
 	depth int
 }
 
@@ -33,7 +34,7 @@ type strataInfo struct {
 type SubtreeCache struct {
 	// prefixLengths contains the strata prefix sizes for each multiple-of-8 tree
 	// size.
-	strataInfo []strataInfo
+	stratumInfo []stratumInfo
 	// subtrees contains the Subtree data read from storage, and is updated by
 	// calls to SetNodeHash.
 	subtrees map[string]*storage.SubtreeProto
@@ -67,19 +68,24 @@ func (s Suffix) serialize() string {
 // internal nodes given its leaves, and will be called for each subtree loaded
 // from storage.
 // TODO(al): consider supporting different sized subtrees - for now everything's subtrees of 8 levels.
-func NewSubtreeCache(strata []int, populateSubtree storage.PopulateSubtreeFunc) SubtreeCache {
+func NewSubtreeCache(strataDepths []int, populateSubtree storage.PopulateSubtreeFunc) SubtreeCache {
 	// TODO(al): pass this in
 	maxTreeDepth := 256
 	// Precalculate strata information based on the passed in strata depths:
-	sInfo := make([]strataInfo, 0, maxTreeDepth/8)
+	sInfo := make([]stratumInfo, 0, maxTreeDepth/8)
 	t := 0
-	for _, s := range strata {
-		if s%8 != 0 {
-			panic(fmt.Errorf("got strata depth of %d, must be a multiple of 8", s))
+	for _, sDepth := range strataDepths {
+		// Verify the stratum depth makes sense:
+		if sDepth <= 0 {
+			panic(fmt.Errorf("got invalid strata depth of %d: can't be <= 0", sDepth))
 		}
+		if sDepth%8 != 0 {
+			panic(fmt.Errorf("got strata depth of %d, must be a multiple of 8", sDepth))
+		}
+
 		pb := t / 8
-		for i := 0; i < s; i += 8 {
-			sInfo = append(sInfo, strataInfo{pb, s})
+		for i := 0; i < sDepth; i += 8 {
+			sInfo = append(sInfo, stratumInfo{pb, sDepth})
 			t += 8
 		}
 	}
@@ -90,7 +96,7 @@ func NewSubtreeCache(strata []int, populateSubtree storage.PopulateSubtreeFunc) 
 	}
 
 	return SubtreeCache{
-		strataInfo:      sInfo,
+		stratumInfo:     sInfo,
 		subtrees:        make(map[string]*storage.SubtreeProto),
 		dirtyPrefixes:   make(map[string]bool),
 		mutex:           new(sync.RWMutex),
@@ -98,8 +104,8 @@ func NewSubtreeCache(strata []int, populateSubtree storage.PopulateSubtreeFunc) 
 	}
 }
 
-func (s *SubtreeCache) strataInfoForPrefixLength(numBits int) strataInfo {
-	return s.strataInfo[(numBits-1)/8]
+func (s *SubtreeCache) stratumInfoForPrefixLength(numBits int) stratumInfo {
+	return s.stratumInfo[(numBits-1)/8]
 }
 
 // splitNodeID breaks a NodeID out into its prefix and suffix parts.
@@ -110,7 +116,7 @@ func (s *SubtreeCache) splitNodeID(id storage.NodeID) ([]byte, Suffix) {
 	}
 	a := make([]byte, len(id.Path))
 	copy(a, id.Path)
-	sInfo := s.strataInfoForPrefixLength(id.PrefixLenBits)
+	sInfo := s.stratumInfoForPrefixLength(id.PrefixLenBits)
 	prefixSplit := sInfo.prefixBytes
 	sfx := Suffix{
 		bits: byte((id.PrefixLenBits-1)%sInfo.depth) + 1,
@@ -177,7 +183,7 @@ func (s *SubtreeCache) getNodeHashUnderLock(id storage.NodeID, getSubtree GetSub
 		if err != nil {
 			return nil, err
 		}
-		sInfo := s.strataInfoForPrefixLength(subID.PrefixLenBits)
+		sInfo := s.stratumInfoForPrefixLength(subID.PrefixLenBits)
 		if c == nil {
 			// storage didn't have one for us, so we'll store an empty proto here
 			// incase we try to update it later on (we won't flush it back to

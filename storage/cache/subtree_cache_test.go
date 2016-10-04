@@ -357,11 +357,11 @@ func runLogSubtreeKAT(t *testing.T, data logKATData) {
 
 func TestPrefixLengths(t *testing.T) {
 	strata := []int{8, 8, 16, 32, 64, 128}
-	strataInfo := []strataInfo{{0, 8}, {1, 8}, {2, 16}, {2, 16}, {4, 32}, {4, 32}, {4, 32}, {4, 32}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}}
+	stratumInfo := []stratumInfo{{0, 8}, {1, 8}, {2, 16}, {2, 16}, {4, 32}, {4, 32}, {4, 32}, {4, 32}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}}
 
 	c := NewSubtreeCache(strata, PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher(trillian.NewSHA256())))
 
-	if got, want := c.strataInfo, strataInfo; !reflect.DeepEqual(got, want) {
+	if got, want := c.stratumInfo, stratumInfo; !reflect.DeepEqual(got, want) {
 		t.Fatalf("Got prefixLengths of %v, expected %v", got, want)
 	}
 }
