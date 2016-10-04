@@ -20,11 +20,14 @@ import (
 	"google.golang.org/grpc"
 	"sync"
 	"github.com/google/trillian/monitoring"
+	"net/http"
 )
 
 var mysqlUriFlag = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test",
 	"uri to use with mysql storage")
-var serverPortFlag = flag.Int("port", 8090, "Port to serve log requests on")
+var serverPortFlag = flag.Int("port", 8090, "Port to serve log RPC requests on")
+var exportRpcMetrics = flag.Bool("exportMetrics", true, "If true starts HTTP server and exports stats")
+var httpPortFlag = flag.Int("http_port", 8091, "Port to serve HTTP metrics on")
 var sequencerSleepBetweenRunsFlag = flag.Duration("sequencer_sleep_between_runs", time.Second * 10, "Time to pause after each sequencing pass through all logs")
 var signerSleepBetweenRunsFlag = flag.Duration("signer_sleep_between_runs", time.Second * 120, "Time to pause after each signing pass through all logs")
 var batchSizeFlag = flag.Int("batch_size", 50, "Max number of leaves to process per batch")
@@ -105,6 +108,19 @@ func startRpcServer(listener net.Listener, port int, provider server.LogStorageP
 	return grpcServer
 }
 
+func startHttpServer(port int) error {
+	sock, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
+	if err != nil {
+		return err
+	}
+	go func() {
+		glog.Info("HTTP server starting")
+		http.Serve(sock, nil)
+	}()
+
+	return nil
+}
+
 func awaitSignal(rpcServer *grpc.Server) {
 	// Arrange notification for the standard set of signals used to terminate a server
 	sigs := make(chan os.Signal, 1)
@@ -138,6 +154,16 @@ func main() {
 
 	if err != nil {
 		glog.Fatalf("Failed to load server key: %v", err)
+	}
+
+	// Start HTTP server (optional)
+	if *exportRpcMetrics {
+		err := startHttpServer(*httpPortFlag)
+
+		if err != nil {
+			glog.Fatalf("Failed to start http server on port %d: %v", *httpPortFlag, err)
+			os.Exit(1)
+		}
 	}
 
 	// Set up the listener for the server
