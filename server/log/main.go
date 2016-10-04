@@ -4,8 +4,10 @@ import (
 	"flag"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -13,14 +15,12 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
+	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/mysql"
 	"github.com/google/trillian/util"
 	"google.golang.org/grpc"
-	"sync"
-	"github.com/google/trillian/monitoring"
-	"net/http"
 )
 
 var mysqlUriFlag = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test",
@@ -39,6 +39,7 @@ var privateKeyPassword = flag.String("private_key_password", "", "Password for s
 
 // Must hold this lock before accessing the storage map
 var storageMapGuard sync.Mutex
+
 // Map from tree ID to storage impl for that log
 var storageMap = make(map[int64]storage.LogStorage)
 
