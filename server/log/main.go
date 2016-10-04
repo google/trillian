@@ -97,7 +97,7 @@ func checkDatabaseAccessible(dbUri string) error {
 
 func startRpcServer(listener net.Listener, port int, provider server.LogStorageProviderFunc) *grpc.Server {
 	// Create and publish the RPC stats objects
-	statsInterceptor := monitoring.NewRpcStatsInterceptor(util.SystemTimeSource{}, "ct", "example")
+	statsInterceptor := monitoring.NewRPCStatsInterceptor(util.SystemTimeSource{}, "ct", "example")
 	statsInterceptor.Publish()
 
 	// Create the server, using the interceptor to record stats on the requests

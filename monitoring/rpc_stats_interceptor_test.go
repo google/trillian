@@ -61,7 +61,7 @@ func TestMultipleOKRequestsTotalLatency(t *testing.T) {
 	// We're going to make 3 requests so set up the time source appropriately
 	ts := util.IncrementingFakeTimeSource{BaseTime: fakeTime, Increments: []time.Duration{0, time.Millisecond * 500, 0, time.Millisecond * 2000, 0, time.Millisecond * 1337}}
 	handler := recordingUnaryHandler{resp: "OK", err: nil}
-	stats := NewRpcStatsInterceptor(&ts, "test", "test")
+	stats := NewRPCStatsInterceptor(&ts, "test", "test")
 	i := stats.Interceptor()
 
 	for r := 0; r < 3; r++ {
@@ -71,7 +71,7 @@ func TestMultipleOKRequestsTotalLatency(t *testing.T) {
 		}
 	}
 
-	if want, got := "3837", stats.handlerRequestSuccessfulLatencyMap.Get("testmethod").String(); want != got {
+	if want, got := "3837", stats.handlerRequestSucceededLatencyMap.Get("testmethod").String(); want != got {
 		t.Fatalf("wanted total latency: %s but got: %s", want, got)
 
 	}
@@ -84,7 +84,7 @@ func TestMultipleErrorRequestsTotalLatency(t *testing.T) {
 	// We're going to make 3 requests so set up the time source appropriately
 	ts := util.IncrementingFakeTimeSource{BaseTime: fakeTime, Increments: []time.Duration{0, time.Millisecond * 427, 0, time.Millisecond * 1066, 0, time.Millisecond * 1123}}
 	handler := recordingUnaryHandler{resp: "", err: errors.New("Bang!")}
-	stats := NewRpcStatsInterceptor(&ts, "test", "test")
+	stats := NewRPCStatsInterceptor(&ts, "test", "test")
 	i := stats.Interceptor()
 
 	for r := 0; r < 3; r++ {
@@ -98,13 +98,13 @@ func TestMultipleErrorRequestsTotalLatency(t *testing.T) {
 		t.Fatalf("wanted total latency: %s but got: %s", want, got)
 	}
 
-	if !testMapSizeIs(stats.handlerRequestSuccessfulLatencyMap, 0) {
+	if !testMapSizeIs(stats.handlerRequestSucceededLatencyMap, 0) {
 		t.Fatalf("incorrectly recorded success latency on errors")
 	}
 }
 
 func (s singleRequestTestCase) execute(t *testing.T) {
-	stats := NewRpcStatsInterceptor(&s.timeSource, "test", "test")
+	stats := NewRPCStatsInterceptor(&s.timeSource, "test", "test")
 	i := stats.Interceptor()
 	resp, err := i(context.Background(), "wibble", &grpc.UnaryServerInfo{FullMethod: s.method}, s.handler.handler())
 
@@ -136,17 +136,17 @@ func (s singleRequestTestCase) execute(t *testing.T) {
 
 	if err == nil {
 		// Request should have been a success
-		expectOneMap = stats.handlerRequestSucceededMap
-		expectZeroMap = stats.handlerRequestErrorsMap
-		expectLatencyMap = stats.handlerRequestSuccessfulLatencyMap
+		expectOneMap = stats.handlerRequestSucceededCountMap
+		expectZeroMap = stats.handlerRequestErrorCountMap
+		expectLatencyMap = stats.handlerRequestSucceededLatencyMap
 		expectNoLatencyMap = stats.handlerRequestFailedLatencyMap
 		logComment = "ok"
 	} else {
 		// Request should be recorded as failed
-		expectOneMap = stats.handlerRequestErrorsMap
-		expectZeroMap = stats.handlerRequestSucceededMap
+		expectOneMap = stats.handlerRequestErrorCountMap
+		expectZeroMap = stats.handlerRequestSucceededCountMap
 		expectLatencyMap = stats.handlerRequestFailedLatencyMap
-		expectNoLatencyMap = stats.handlerRequestSuccessfulLatencyMap
+		expectNoLatencyMap = stats.handlerRequestSucceededLatencyMap
 		logComment = "error"
 	}
 
