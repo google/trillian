@@ -27,7 +27,7 @@ const insertUnsequencedEntrySql string = `INSERT INTO Unsequenced(TreeId,LeafHas
      VALUES(?,?,?,?)`
 const insertSequencedLeafSql string = `INSERT INTO SequencedLeafData(TreeId,LeafHash,SequenceNumber)
 		 VALUES(?,?,?)`
-const selectSequencedLeafCountSql string = "SELECT COUNT(*) FROM SequencedLeafData"
+const selectSequencedLeafCountSql string = "SELECT COUNT(*) FROM SequencedLeafData WHERE TreeId=?"
 const selectLatestSignedLogRootSql string = `SELECT TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature
 		 FROM TreeHead WHERE TreeId=?
 		 ORDER BY TreeHeadTimestamp DESC LIMIT 1`
@@ -318,7 +318,8 @@ func (t *logTX) QueueLeaves(leaves []trillian.LogLeaf) error {
 
 func (t *logTX) GetSequencedLeafCount() (int64, error) {
 	var sequencedLeafCount int64
-	err := t.tx.QueryRow(selectSequencedLeafCountSql).Scan(&sequencedLeafCount)
+
+	err := t.tx.QueryRow(selectSequencedLeafCountSql, t.ls.logID.TreeID).Scan(&sequencedLeafCount)
 
 	if err != nil {
 		glog.Warningf("Error getting sequenced leaf count: %s", err)

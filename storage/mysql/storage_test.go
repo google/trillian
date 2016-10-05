@@ -25,6 +25,8 @@ var allTables = []string{"Unsequenced", "TreeHead", "SequencedLeafData", "LeafDa
 
 // Must be 32 bytes to match sha256 length if it was a real hash
 var dummyHash = []byte("hashxxxxhashxxxxhashxxxxhashxxxx")
+var dummyHash2 = []byte("HASHxxxxhashxxxxhashxxxxhashxxxx")
+var dummyHash3 = []byte("hashxxxxhashxxxxhashxxxxHASHxxxx")
 
 const leavesToInsert = 5
 const sequenceNumber int64 = 237
@@ -1112,6 +1114,60 @@ func TestGetActiveLogIDsWithPendingWork(t *testing.T) {
 	expected, got := logID.logID.TreeID, logIDs[0].TreeID
 	if expected != got {
 		t.Fatalf("Expected to see tree ID: %d but got: %d", expected, got)
+	}
+}
+
+func TestGetSequencedLeafCount(t *testing.T) {
+	// We'll create leaves for two different trees
+	logID := createLogID("TestGetSequencedLeafCount")
+	logID2 := createLogID("TestGetSequencedLeafCount2")
+
+	{
+		db := prepareTestLogDB(logID, t)
+
+		// Create fake leaf as if it had been sequenced
+		defer db.Close()
+
+		data := []byte("some data")
+
+		createFakeLeaf(db, logID.logID, dummyHash, data, sequenceNumber, t)
+
+		// Create fake leaves for second tree as if they had been sequenced
+		db2 := prepareTestLogDB(logID2, t)
+		defer db2.Close()
+
+		data2 := []byte("some data 2")
+		data3 := []byte("some data 3")
+
+		createFakeLeaf(db2, logID2.logID, dummyHash2, data2, sequenceNumber, t)
+		createFakeLeaf(db2, logID2.logID, dummyHash3, data3, sequenceNumber + 1, t)
+	}
+
+	// Read back the leaf counts from both trees
+	s := prepareTestLogStorage(logID, t)
+	tx := beginLogTx(s, t)
+	count1, err := tx.GetSequencedLeafCount()
+	tx.Commit()
+
+	if err != nil {
+		t.Fatalf("unexpected error getting leaf count: %v", err)
+	}
+
+	if want, got := int64(1), count1; want != got {
+		t.Fatalf("expected %d sequenced for logId but got %d", want, got)
+	}
+
+	s = prepareTestLogStorage(logID2, t)
+	tx = beginLogTx(s, t)
+	count2, err := tx.GetSequencedLeafCount()
+	tx.Commit()
+
+	if err != nil {
+		t.Fatalf("unexpected error getting leaf count2: %v", err)
+	}
+
+	if want, got := int64(2), count2; want != got {
+		t.Fatalf("expected %d sequenced for logId2 but got %d", want, got)
 	}
 }
 
