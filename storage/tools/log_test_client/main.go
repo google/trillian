@@ -63,12 +63,12 @@ func main() {
 		if err := queueLeaves(treeId, client, params); err != nil {
 			glog.Fatalf("Failed to queue leaves: %v", err)
 		}
+	}
 
-		// Step 2 - Wait for queue to drain when server sequences, give up if it doesn't happen
-		glog.Infof("Waiting for log to sequence ...")
-		if err = waitForSequencing(treeId, client, params); err != nil {
-			glog.Fatalf("Leaves were not sequenced: %v", err)
-		}
+	// Step 2 - Wait for queue to drain when server sequences, give up if it doesn't happen
+	glog.Infof("Waiting for log to sequence ...")
+	if err = waitForSequencing(treeId, client, params); err != nil {
+		glog.Fatalf("Leaves were not sequenced: %v", err)
 	}
 
 	// Step 3 - Use get entries to read back what was written, check leaves are correct
@@ -150,6 +150,8 @@ func waitForSequencing(treeId trillian.LogID, client trillian.TrillianLogClient,
 		if err != nil {
 			return err
 		}
+
+		glog.Infof("Leaf count: %d", sequencedLeaves.LeafCount)
 
 		if sequencedLeaves.LeafCount == params.leafCount + params.startLeaf {
 			return nil
