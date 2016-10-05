@@ -20,7 +20,7 @@ const getTreeParametersSql string = "SELECT ReadOnlyRequests From TreeControl WH
 const selectQueuedLeavesSql string = `SELECT LeafHash,Payload
 		 FROM Unsequenced
 		 WHERE TreeID=?
-		 ORDER BY QueueTimestamp DESC LIMIT ?`
+		 ORDER BY QueueTimestamp DESC,LeafHash ASC LIMIT ?`
 const insertUnsequencedLeafSql string = `INSERT INTO LeafData(TreeId,LeafHash,TheData)
 		 VALUES(?,?,?) ON DUPLICATE KEY UPDATE LeafHash=LeafHash`
 const insertUnsequencedEntrySql string = `INSERT INTO Unsequenced(TreeId,LeafHash,MessageId,Payload)
