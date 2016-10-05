@@ -12,8 +12,7 @@ import (
 // reconstructed correctly given the other parameters.
 //
 // The process is essentially the same as the inclusion proof checking for
-// append-only logs, but with added support for "null" nodes as well as extra
-// assumptions can be made due to the fixed tree size.
+// append-only logs, but adds support for nil/"default" proof nodes.
 //
 // Returns nil on a successful verification, and an error otherwise.
 func VerifyMapInclusionProof(keyHash trillian.Hash, leafHash trillian.Hash, expectedRoot trillian.Hash, proof []trillian.Hash, h MapHasher) error {
