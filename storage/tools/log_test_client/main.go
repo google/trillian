@@ -99,22 +99,13 @@ func queueLeaves(treeId trillian.LogID, client trillian.TrillianLogClient, param
 
 		data := []byte(fmt.Sprintf("Leaf %d", leafNumber))
 		hash := sha256.Sum256(data)
-
-		entryTimestamp := trillian.SignedEntryTimestamp{
-			TimestampNanos: time.Now().UnixNano(),
-			LogId:          treeId.LogID,
-			Signature: &trillian.DigitallySigned{
-				Signature: []byte("dummy"),
-			},
-		}
-
+		
 		leaf := trillian.LogLeaf{
 			Leaf: trillian.Leaf{
 				LeafHash:  trillian.Hash(hash[:]),
 				LeafValue: data,
 				ExtraData: nil,
 			},
-			SignedEntryTimestamp: entryTimestamp,
 			SequenceNumber:       0}
 		leaves = append(leaves, leaf)
 
