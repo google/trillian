@@ -18,6 +18,7 @@ import (
 )
 
 var queueLeavesFlag = flag.Bool("queue_leaves", true, "If true queues leaves, false just reads from the log")
+var awaitSequencingFlag = flag.Bool("await_sequencing", true, "If true then waits until log size is at least num_leaves")
 var startLeafFlag = flag.Int64("start_leaf", 0, "The first leaf index to use")
 var numLeavesFlag = flag.Int64("num_leaves", 100, "The number of leaves to submit and read back")
 var queueBatchSizeFlag = flag.Int("queue_batch_size", 50, "Batch size when queueing leaves")
@@ -65,10 +66,12 @@ func main() {
 		}
 	}
 
-	// Step 2 - Wait for queue to drain when server sequences, give up if it doesn't happen
-	glog.Infof("Waiting for log to sequence ...")
-	if err = waitForSequencing(treeId, client, params); err != nil {
-		glog.Fatalf("Leaves were not sequenced: %v", err)
+	// Step 2 - Wait for queue to drain when server sequences, give up if it doesn't happen (optional)
+	if *awaitSequencingFlag {
+		glog.Infof("Waiting for log to sequence ...")
+		if err = waitForSequencing(treeId, client, params); err != nil {
+			glog.Fatalf("Leaves were not sequenced: %v", err)
+		}
 	}
 
 	// Step 3 - Use get entries to read back what was written, check leaves are correct
@@ -153,7 +156,7 @@ func waitForSequencing(treeId trillian.LogID, client trillian.TrillianLogClient,
 
 		glog.Infof("Leaf count: %d", sequencedLeaves.LeafCount)
 
-		if sequencedLeaves.LeafCount == params.leafCount + params.startLeaf {
+		if sequencedLeaves.LeafCount >= params.leafCount + params.startLeaf {
 			return nil
 		}
 
@@ -168,6 +171,14 @@ func waitForSequencing(treeId trillian.LogID, client trillian.TrillianLogClient,
 func readbackLogEntries(logId trillian.LogID, client trillian.TrillianLogClient, params testParameters) (map[int64]*trillian.LeafProto, error) {
 	currentLeaf := int64(0)
 	leafMap := make(map[int64]*trillian.LeafProto)
+
+	// Build a map of all the leaf data we expect to have seen when we've read all the leaves.
+	// Have to work with strings because slices can't be map keys. Sigh.
+	leafDataPresenceMap := make(map[string]bool)
+
+	for l := int64(0); l < params.leafCount; l++ {
+		leafDataPresenceMap[fmt.Sprintf("Leaf %d", l + params.startLeaf)] = true
+	}
 
 	// We have to allow for the last batch potentially being a short one
 	for currentLeaf < params.leafCount {
@@ -194,7 +205,8 @@ func readbackLogEntries(logId trillian.LogID, client trillian.TrillianLogClient,
 			return nil, fmt.Errorf("expected %d leaves but we only read %d", numLeaves, len(response.Leaves))
 		}
 
-		// Check the leaf contents make sense
+		// Check the leaf contents make sense. Can't rely on exact ordering as queue timestamps will be
+		// close between batches and identical within batches.
 		for l := 0; l < len(response.Leaves); l++ {
 			if _, ok := leafMap[response.Leaves[l].LeafIndex]; ok {
 				return nil, fmt.Errorf("got duplicate leaf sequence number: %d", response.Leaves[l].LeafIndex)
@@ -202,17 +214,28 @@ func readbackLogEntries(logId trillian.LogID, client trillian.TrillianLogClient,
 
 			leafMap[response.Leaves[l].LeafIndex] = response.Leaves[l]
 
-			data := []byte(fmt.Sprintf("Leaf %d", params.startLeaf + currentLeaf))
-			hash := sha256.Sum256(data)
+			// Test for having seen duplicate leaf data - it should all be distinct
+			_, ok := leafDataPresenceMap[string(response.Leaves[l].LeafData)]
 
-			if !bytes.Equal(data, response.Leaves[l].LeafData) {
-				return nil, fmt.Errorf("leaf data mismatch expected: %s, got: %s", base64.StdEncoding.EncodeToString(data), base64.StdEncoding.EncodeToString(response.Leaves[l].LeafData))
+			if !ok {
+				return nil, fmt.Errorf("leaf data duplicated for leaf: %v", response.Leaves[l])
 			}
+
+			delete(leafDataPresenceMap, string(response.Leaves[l].LeafData))
+
+			hash := sha256.Sum256(response.Leaves[l].LeafData)
 
 			if !bytes.Equal(hash[:], response.Leaves[l].LeafHash) {
 				return nil, fmt.Errorf("leaf hash mismatch expected: %s, got: %s", base64.StdEncoding.EncodeToString(hash[:]), base64.StdEncoding.EncodeToString(response.Leaves[l].LeafHash))
 			}
 		}
+
+		currentLeaf += int64(params.readBatchSize)
+	}
+
+	// By this point we expect to have seen all the leaves so there should be nothing in the map
+	if len(leafDataPresenceMap) != 0 {
+		return nil, fmt.Errorf("missing leaves from data read back: %v", leafDataPresenceMap)
 	}
 
 	return leafMap, nil
@@ -261,7 +284,7 @@ func buildMemoryMerkleTree(leafMap map[int64]*trillian.LeafProto, params testPar
 
 	// We use the leafMap so we're not relying on the order leaves got sequenced in. We need
 	// to use the same order for the memory tree to get the same hash.
-	for l := int64(0); l < params.leafCount; l++ {
+	for l := params.startLeaf; l < params.leafCount; l++ {
 		merkleTree.AddLeaf(leafMap[l].LeafData)
 	}
 
