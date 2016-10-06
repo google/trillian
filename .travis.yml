@@ -1,11 +1,16 @@
 sudo: false
 language: go
 
+os:
+  - linux
+  - osx
+
 go:
   - 1.7.1
 
 install:
   - go get -d -v -t ./...
+  - if [[ $TRAVIS_OS_NAME == "osx" ]]; then brew update > /dev/null && brew install mariadb && mysql.server start; fi
 
 script:
   - go install github.com/golang/mock/mockgen
