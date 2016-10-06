@@ -12,6 +12,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
+	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/testonly"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -91,7 +92,7 @@ func TestMapIntegration(t *testing.T) {
 		}
 	}
 
-	latestRev := int64(-1)
+	var latestRoot trillian.SignedMapRoot
 	{
 		// Check your head
 		r, err := client.GetSignedMapRoot(context.Background(), &trillian.GetSignedMapRootRequest{*mapID})
@@ -106,18 +107,20 @@ func TestMapIntegration(t *testing.T) {
 			t.Fatalf("Expected root %s, got root: %s", base64.StdEncoding.EncodeToString(expected), base64.StdEncoding.EncodeToString(got))
 		}
 		t.Logf("Got expected roothash@%d: %s", r.MapRoot.MapRevision, base64.StdEncoding.EncodeToString(r.MapRoot.RootHash))
-		latestRev = r.MapRoot.MapRevision
+		latestRoot = *r.MapRoot
 	}
 
 	{
 		// Check values
 		getReq := trillian.GetMapLeavesRequest{
 			MapId:    *mapID,
-			Revision: latestRev,
+			Revision: latestRoot.MapRevision,
 		}
 		// Mix up the ordering of requests
 		keyOrder := rand.Perm(len(expectedKeys))
 		i := 0
+
+		h := merkle.NewMapHasher(merkle.NewRFC6962TreeHasher(trillian.NewSHA256()))
 
 		for x := 0; x < numBatches; x++ {
 			getReq.Key = make([][]byte, 0, batchSize)
@@ -142,9 +145,17 @@ func TestMapIntegration(t *testing.T) {
 					t.Errorf("Got value %x, expected %x", got, want)
 					continue
 				}
+				keyHash := h.HashKey(kv.KeyValue.Key)
+				leafHash := h.HashLeaf(kv.KeyValue.Value.LeafValue)
+				proof := make([]trillian.Hash, len(kv.Inclusion))
+				for i, v := range kv.Inclusion {
+					proof[i] = v
+				}
+				if err := merkle.VerifyMapInclusionProof(keyHash, leafHash, latestRoot.RootHash, proof, h); err != nil {
+					t.Errorf("Inclusion proof failed to verify for key %s: %v", kv.KeyValue.Key, err)
+				}
 				delete(expectedValues, string(kv.KeyValue.Key))
 			}
-			//TODO(al): check inclusion proofs too
 		}
 		if got := len(expectedValues); got != 0 {
 			t.Fatalf("Still have %d unmatched expected values remaining", got)
