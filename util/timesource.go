@@ -1,6 +1,8 @@
 package util
 
-import "time"
+import (
+	"time"
+)
 
 // TimeSource can provide the current time, or be replaced by a mock in tests to return
 // specific values.
@@ -28,4 +30,21 @@ type FakeTimeSource struct {
 // Now returns the time value this instance contains
 func (f FakeTimeSource) Now() time.Time {
 	return f.FakeTime
+}
+
+// IncrementingFakeTimeSource takes a base time and several increments, which will be applied to
+// the base time each time Now() is called. The first call will return the base time + zeroth
+// increment. If called more times than provided for then it will panic. Does not require that
+// increments increase monotonically.
+type IncrementingFakeTimeSource struct {
+	BaseTime      time.Time
+	Increments    []time.Duration
+	NextIncrement int
+}
+
+func (a *IncrementingFakeTimeSource) Now() time.Time {
+	adjustedTime := a.BaseTime.Add(a.Increments[a.NextIncrement])
+	a.NextIncrement++
+
+	return adjustedTime
 }

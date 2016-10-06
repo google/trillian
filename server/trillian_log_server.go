@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
