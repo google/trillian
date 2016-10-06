@@ -105,7 +105,7 @@ func NewSubtreeCache(strataDepths []int, populateSubtree storage.PopulateSubtree
 }
 
 func (s *SubtreeCache) stratumInfoForPrefixLength(numBits int) stratumInfo {
-	return s.stratumInfo[(numBits-1)/8]
+	return s.stratumInfo[numBits/8]
 }
 
 // splitNodeID breaks a NodeID out into its prefix and suffix parts.
@@ -116,7 +116,7 @@ func (s *SubtreeCache) splitNodeID(id storage.NodeID) ([]byte, Suffix) {
 	}
 	a := make([]byte, len(id.Path))
 	copy(a, id.Path)
-	sInfo := s.stratumInfoForPrefixLength(id.PrefixLenBits)
+	sInfo := s.stratumInfoForPrefixLength(id.PrefixLenBits - 1)
 	prefixSplit := sInfo.prefixBytes
 	sfx := Suffix{
 		bits: byte((id.PrefixLenBits-1)%sInfo.depth) + 1,
@@ -140,6 +140,7 @@ func (s *SubtreeCache) Preload(ids []storage.NodeID, getSubtrees func(id []stora
 		px, _ := s.splitNodeID(id)
 		pxKey := string(px)
 		_, ok := s.subtrees[pxKey]
+		// TODO(al): fix for non-uniform strata
 		id.PrefixLenBits = len(px) * 8
 		if !ok {
 			want[pxKey] = &id
@@ -185,6 +186,7 @@ func (s *SubtreeCache) getNodeHashUnderLock(id storage.NodeID, getSubtree GetSub
 		}
 		sInfo := s.stratumInfoForPrefixLength(subID.PrefixLenBits)
 		if c == nil {
+			glog.V(1).Infof("Creating new empty subtree for %v, with depth %d", px, sInfo.depth)
 			// storage didn't have one for us, so we'll store an empty proto here
 			// incase we try to update it later on (we won't flush it back to
 			// storage unless it's been written to.)
@@ -215,7 +217,7 @@ func (s *SubtreeCache) getNodeHashUnderLock(id storage.NodeID, getSubtree GetSub
 	// we can easily dump (and later reconstruct) the internal nodes.
 	// Since the subtrees are fixed to a depth of 8, any suffix with 8
 	// significant bits must be a leaf hash.
-	if sx.bits == 8 {
+	if int32(sx.bits) == c.Depth {
 		nh = c.Leaves[sx.serialize()]
 	} else {
 		nh = c.InternalNodes[sx.serialize()]
@@ -255,7 +257,7 @@ func (s *SubtreeCache) SetNodeHash(id storage.NodeID, h trillian.Hash, getSubtre
 	s.dirtyPrefixes[prefixKey] = true
 	// Determine whether we're being asked to store a leaf node, or an internal
 	// node, and store it accordingly.
-	if sx.bits == 8 {
+	if int32(sx.bits) == c.Depth {
 		c.Leaves[sx.serialize()] = h
 	} else {
 		c.InternalNodes[sx.serialize()] = h
@@ -295,12 +297,11 @@ func (s *SubtreeCache) Flush(setSubtrees SetSubtreesFunc) error {
 // makeSuffixKey creates a suffix key for indexing into the subtree's Leaves and
 // InternalNodes maps.
 func makeSuffixKey(depth int, index int64) (string, error) {
-	// TODO(al): only supports 8 bit subtree sizes currently
-	if depth > 8 || depth < 0 {
-		return "", fmt.Errorf("found depth of %d, but we only support positive depths of up to and including 8 currently", depth)
+	if depth < 0 {
+		return "", fmt.Errorf("invalid negative depth of %d", depth)
 	}
-	if index > 255 || index < 0 {
-		return "", fmt.Errorf("got unsupported index of %d, 0 <= index < 256", index)
+	if index < 0 {
+		return "", fmt.Errorf("invalid negative index %d", index)
 	}
 	sfx := Suffix{byte(depth), []byte{byte(index)}}
 	return sfx.serialize(), nil
@@ -321,7 +322,7 @@ func PopulateMapSubtreeNodes(treeHasher merkle.TreeHasher) storage.PopulateSubtr
 			if err != nil {
 				return err
 			}
-			if k[0] != 8 {
+			if k[0]%8 != 0 {
 				return fmt.Errorf("unexpected non-leaf suffix found: %x", k)
 			}
 			leaves = append(leaves, merkle.HStar2LeafHash{
