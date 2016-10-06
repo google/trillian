@@ -40,7 +40,7 @@ func VerifyMapInclusionProof(keyHash trillian.Hash, leafHash trillian.Hash, expe
 	for bit := 0; bit < hBits; bit++ {
 		proofIsRightHandElement := nID.Bit(bit) == 0
 		pElement := proof[bit]
-		if pElement == nil {
+		if len(pElement) == 0 {
 			pElement = h.nullHashes[hBits-1-bit]
 		}
 		if got, want := len(pElement)*8, hBits; got != want {

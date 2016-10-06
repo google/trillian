@@ -395,8 +395,8 @@ func (s SparseMerkleTreeReader) InclusionProof(rev int64, key trillian.Key) ([]t
 		proofID := sibs[i]
 		pNode := nodeMap[proofID.String()]
 		if pNode == nil {
-			// we have no node for this level from storage, so use the null hash:
-			r[i] = s.hasher.nullHashes[i]
+			// we have no node for this level from storage, so client will use the
+			// null hash.
 			continue
 		}
 		r[i] = pNode.Hash
