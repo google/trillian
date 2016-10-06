@@ -9,9 +9,9 @@ PORT=34556
 echo "Provisioning test map (Tree ID: $TEST_TREE_ID) in database"
 
 mysql -u test --password=zaphod -D test -e "DELETE FROM Trees WHERE TreeId = ${TEST_TREE_ID}"
-mysql -u test --password=zaphod -D test -e "INSERT INTO Trees VALUES (${TEST_TREE_ID}, 1, 'TESTMAP', 'SHA256', 'SHA256', false)"
+mysql -u test --password=zaphod -D test -e "INSERT INTO Trees VALUES (${TEST_TREE_ID}, 1, 'MAP', 'SHA256', 'SHA256', false)"
 
-echo "Starting Map sever on port ${PORT}"
+echo "Starting Map server on port ${PORT}"
 
 # Start the map server, and set an exit trap to ensure we kill it
 # once we're done:
