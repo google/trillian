@@ -14,8 +14,8 @@ type TimeSource interface {
 // SystemTimeSource provides the current system local time
 type SystemTimeSource struct{}
 
+// Now returns the true current local time.
 func (s SystemTimeSource) Now() time.Time {
-	// Now returns the current local time
 	return time.Now()
 }
 
@@ -42,6 +42,8 @@ type IncrementingFakeTimeSource struct {
 	NextIncrement int
 }
 
+// Now returns the current time according to this time source, which depends on how many times
+// this method has already been invoked.
 func (a *IncrementingFakeTimeSource) Now() time.Time {
 	adjustedTime := a.BaseTime.Add(a.Increments[a.NextIncrement])
 	a.NextIncrement++

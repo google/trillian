@@ -10,6 +10,7 @@ import (
 )
 
 var (
+	// ErrNegativeTreeLevelOffset indicates a negative level was specified.
 	ErrNegativeTreeLevelOffset = errors.New("treeLevelOffset cannot be negative")
 )
 

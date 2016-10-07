@@ -46,7 +46,7 @@ func main() {
 
 	client := trillian.NewTrillianLogClient(conn)
 
-	req := buildGetLeavesByIndexRequest(tools.GetLogIdFromFlagsOrDie(), *startLeafFlag, *numLeavesFlag)
+	req := buildGetLeavesByIndexRequest(tools.GetLogIDFromFlagsOrDie(), *startLeafFlag, *numLeavesFlag)
 	getLeafByIndexResponse, err := client.GetLeavesByIndex(context.Background(), req)
 
 	if err != nil {

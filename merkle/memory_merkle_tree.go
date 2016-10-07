@@ -24,15 +24,14 @@ type TreeEntry struct {
 	hash []byte
 }
 
-// The Hash method returns the current hash in a newly created byte slice that
-// the caller owns and may modify.
+// Hash returns the current hash in a newly created byte slice that the caller owns and may modify.
 func (t TreeEntry) Hash() []byte {
 	var newSlice []byte
 
 	return t.HashInto(newSlice)
 }
 
-// The HashInto method returns the current hash in a provided byte slice that the caller
+// HashInto returns the current hash in a provided byte slice that the caller
 // may use to make multiple calls to obtain hashes without reallocating memory.
 func (t TreeEntry) HashInto(dest []byte) []byte {
 	dest = dest[:0] // reuse the existing space
@@ -49,7 +48,7 @@ type TreeEntryDescriptor struct {
 	YCoord int // The vertical node coordinate
 }
 
-// MerkleTree holds a Merkle Tree as a 2D node array
+// InMemoryMerkleTree holds a Merkle Tree in memory as a 2D node array
 type InMemoryMerkleTree struct {
 	// A container for nodes, organized according to levels and sorted
 	// left-to-right in each level. tree_[0] is the leaf level, etc.
@@ -116,12 +115,11 @@ func isRightChild(leaf int) bool {
 func sibling(leaf int) int {
 	if isRightChild(leaf) {
 		return leaf - 1
-	} else {
-		return leaf + 1
 	}
+	return leaf + 1
 }
 
-// NewMerkleTree creates a New empty Merkle Tree using the specified hasher
+// NewInMemoryMerkleTree creates a new empty Merkle Tree using the specified Hasher
 func NewInMemoryMerkleTree(hasher TreeHasher) *InMemoryMerkleTree {
 	mt := InMemoryMerkleTree{}
 
@@ -137,7 +135,7 @@ func (mt *InMemoryMerkleTree) leafHash(leaf int) []byte {
 		return nil
 	}
 
-	return mt.tree[0][leaf - 1].hash
+	return mt.tree[0][leaf-1].hash
 }
 
 // NodeCount gets the current node count (of the lazily evaluated tree).
@@ -165,9 +163,8 @@ func (mt *InMemoryMerkleTree) lazyLevelCount() int {
 func (mt *InMemoryMerkleTree) LeafCount() int {
 	if len(mt.tree) == 0 {
 		return 0
-	} else {
-		return mt.NodeCount(0)
 	}
+	return mt.NodeCount(0)
 }
 
 // root gets the current root (of the lazily evaluated tree).
@@ -190,7 +187,7 @@ func (mt *InMemoryMerkleTree) lastNode(level int) TreeEntry {
 		panic(fmt.Errorf("no nodes at level %d in lastNode", level))
 	}
 
-	return mt.tree[level][levelNodes - 1]
+	return mt.tree[level][levelNodes-1]
 }
 
 // addLevel start a new tree level.
@@ -213,7 +210,7 @@ func (mt *InMemoryMerkleTree) popBack(level int) {
 		panic(fmt.Errorf("no nodes to pop in popBack"))
 	}
 
-	mt.tree[level] = mt.tree[level][:len(mt.tree[level]) - 1]
+	mt.tree[level] = mt.tree[level][:len(mt.tree[level])-1]
 }
 
 // AddLeaf adds a new leaf to the hash tree. Stores the hash of the leaf data in the
@@ -315,9 +312,9 @@ func (mt *InMemoryMerkleTree) updateToSnapshot(snapshot int) TreeEntry {
 	// Process level-by-level until we converge to a single node.
 	// (first_node, last_node) = (0, 0) means we have reached the root level.
 	for lastNode != 0 {
-		if mt.lazyLevelCount() <= level + 1 {
+		if mt.lazyLevelCount() <= level+1 {
 			mt.addLevel()
-		} else if mt.NodeCount(level + 1) == parent(firstNode) + 1 {
+		} else if mt.NodeCount(level+1) == parent(firstNode)+1 {
 			// The leftmost parent at level 'level+1' may already exist,
 			// so we need to update it. Nuke the old parent.
 			mt.popBack(level + 1)
@@ -326,13 +323,13 @@ func (mt *InMemoryMerkleTree) updateToSnapshot(snapshot int) TreeEntry {
 		// Compute the parents of new nodes at the current level.
 		// Start with a left sibling and parse an even number of nodes.
 		for j := firstNode &^ 1; j < lastNode; j += 2 {
-			mt.pushBack(level + 1, TreeEntry{mt.hasher.HashChildren(mt.tree[level][j].hash, mt.tree[level][j + 1].hash)})
+			mt.pushBack(level+1, TreeEntry{mt.hasher.HashChildren(mt.tree[level][j].hash, mt.tree[level][j+1].hash)})
 		}
 
 		// If the last node at the current level is a left sibling,
 		// dummy-propagate it one level up.
 		if !isRightChild(lastNode) {
-			mt.pushBack(level + 1, mt.tree[level][lastNode])
+			mt.pushBack(level+1, mt.tree[level][lastNode])
 		}
 
 		firstNode = parent(firstNode)
@@ -393,7 +390,7 @@ func (mt *InMemoryMerkleTree) recomputePastSnapshot(snapshot int, nodeLevel int,
 	for lastNode != 0 {
 		if isRightChild(lastNode) {
 			// Recompute the parent of tree_[level][last_node].
-			subtreeRoot = TreeEntry{mt.hasher.HashChildren(mt.tree[level][lastNode - 1].hash, subtreeRoot.hash)}
+			subtreeRoot = TreeEntry{mt.hasher.HashChildren(mt.tree[level][lastNode-1].hash, subtreeRoot.hash)}
 		}
 		// Else the parent is a dummy copy of the current node; do nothing.
 
@@ -430,7 +427,7 @@ func (mt *InMemoryMerkleTree) PathToRootAtSnapshot(leaf int, snapshot int) []Tre
 		return []TreeEntryDescriptor{}
 	}
 
-	return mt.pathFromNodeToRootAtSnapshot(leaf - 1, 0, snapshot)
+	return mt.pathFromNodeToRootAtSnapshot(leaf-1, 0, snapshot)
 }
 
 // pathFromNodeToRootAtSnapshot returns the path from a node at a given level

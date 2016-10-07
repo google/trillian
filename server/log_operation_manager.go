@@ -43,11 +43,12 @@ type LogOperationManager struct {
 	logOperation LogOperation
 }
 
+// NewLogOperationManager creates a new LogOperationManager instance.
 func NewLogOperationManager(done chan struct{}, sp LogStorageProviderFunc, batchSize int, sleepBetweenRuns time.Duration, signInterval time.Duration, timeSource util.TimeSource, logOperation LogOperation) *LogOperationManager {
 	return &LogOperationManager{context: LogOperationManagerContext{done: done, storageProvider: sp, batchSize: batchSize, sleepBetweenRuns: sleepBetweenRuns, signInterval: signInterval, timeSource: timeSource}, logOperation: logOperation}
 }
 
-// For use by tests only, configures one shot mode
+// NewLogOperationManagerForTest creates a one-shot LogOperationManager instance, for use by tests only.
 func NewLogOperationManagerForTest(done chan struct{}, sp LogStorageProviderFunc, batchSize int, sleepBetweenRuns time.Duration, signInterval time.Duration, timeSource util.TimeSource, logOperation LogOperation) *LogOperationManager {
 	return &LogOperationManager{context: LogOperationManagerContext{done: done, storageProvider: sp, batchSize: batchSize, sleepBetweenRuns: sleepBetweenRuns, signInterval: signInterval, timeSource: timeSource, oneShot: true}, logOperation: logOperation}
 }

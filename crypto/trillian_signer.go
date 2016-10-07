@@ -28,7 +28,7 @@ type TrillianSigner struct {
 	sigAlgorithm trillian.SignatureAlgorithm
 }
 
-// NewSigner creates a new LogSigner wrapping up a hasher and a signer. For the moment
+// NewTrillianSigner creates a new TrillianSigner wrapping up a hasher and a signer. For the moment
 // we only support SHA256 hashing and either ECDSA or RSA signing but this is not enforced
 // here.
 func NewTrillianSigner(hasher trillian.Hasher, signatureAlgorithm trillian.SignatureAlgorithm, signer crypto.Signer) *TrillianSigner {

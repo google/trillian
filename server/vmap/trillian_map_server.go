@@ -14,6 +14,7 @@ import (
 
 var (
 	// TODO: Delete when implementation done
+
 	// ErrNotImplemented is returned when an operation is not supported yet
 	ErrNotImplemented = errors.New("Not yet implemented")
 )
@@ -33,30 +34,30 @@ type TrillianMapServer struct {
 	storageMap map[int64]storage.MapStorage
 }
 
-// NewTrillianMaperver creates a new RPC server backed by a MapStorageProvider.
+// NewTrillianMapServer creates a new RPC server backed by a MapStorageProvider.
 func NewTrillianMapServer(p MapStorageProviderFunc) *TrillianMapServer {
 	return &TrillianMapServer{storageProvider: p, storageMap: make(map[int64]storage.MapStorage)}
 }
 
-func (t *TrillianMapServer) getStorageForMap(mapId int64) (storage.MapStorage, error) {
+func (t *TrillianMapServer) getStorageForMap(mapID int64) (storage.MapStorage, error) {
 	t.storageMapGuard.Lock()
 	defer t.storageMapGuard.Unlock()
 
-	s, ok := t.storageMap[mapId]
+	s, ok := t.storageMap[mapID]
 
 	if ok {
 		return s, nil
 	}
 
-	s, err := t.storageProvider(mapId)
+	s, err := t.storageProvider(mapID)
 
 	if err != nil {
-		t.storageMap[mapId] = s
+		t.storageMap[mapID] = s
 	}
 	return s, err
 }
 
-func (t *TrillianMapServer) getHasherForMap(mapId int64) (merkle.MapHasher, error) {
+func (t *TrillianMapServer) getHasherForMap(mapID int64) (merkle.MapHasher, error) {
 	// TODO(al): actually return tailored hashers.
 	return merkle.NewMapHasher(merkle.NewRFC6962TreeHasher(trillian.NewSHA256())), nil
 }
@@ -105,9 +106,9 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 	keyHashes := make([]trillian.Hash, 0, len(req.Key))
 	hashToKey := make(map[string][]byte)
 	for _, key := range req.Key {
-		kHash := kh.HashKey(key)
-		keyHashes = append(keyHashes, kHash)
-		hashToKey[string(kHash)] = key
+		keyHash := kh.HashKey(key)
+		keyHashes = append(keyHashes, keyHash)
+		hashToKey[string(keyHash)] = key
 	}
 
 	leaves, err := tx.Get(req.Revision, keyHashes)
@@ -189,10 +190,10 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 	leaves := make([]merkle.HashKeyValue, 0, len(req.KeyValue))
 	for i := 0; i < len(req.KeyValue); i++ {
 		kv := req.KeyValue[i]
-		kHash := hasher.HashKey(kv.Key)
-		vHash := hasher.HashLeaf(kv.Value.LeafValue)
-		leaves = append(leaves, merkle.HashKeyValue{kHash, vHash})
-		if err = tx.Set(kHash, *kv.Value); err != nil {
+		keyHash := hasher.HashKey(kv.Key)
+		valHash := hasher.HashLeaf(kv.Value.LeafValue)
+		leaves = append(leaves, merkle.HashKeyValue{keyHash, valHash})
+		if err = tx.Set(keyHash, *kv.Value); err != nil {
 			return nil, err
 		}
 	}

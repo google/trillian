@@ -223,7 +223,7 @@ func TestRepopulateMapSubtreeKAT(t *testing.T) {
 	}
 	if numExtraNodes := len(leavesOnly.InternalNodes); numExtraNodes > 0 {
 		t.Errorf("Reconstructed tree has %d unexpected extra nodes:", numExtraNodes)
-		for k, _ := range leavesOnly.InternalNodes {
+		for k := range leavesOnly.InternalNodes {
 			rk, err := base64.StdEncoding.DecodeString(k)
 			if err != nil {
 				t.Errorf("  invalid base64: %v", err)
@@ -344,7 +344,7 @@ func runLogSubtreeKAT(t *testing.T, data logKATData) {
 	}
 	if numExtraNodes := len(leavesOnly.InternalNodes); numExtraNodes > 0 {
 		t.Errorf("Reconstructed tree has %d unexpected extra nodes:", numExtraNodes)
-		for k, _ := range leavesOnly.InternalNodes {
+		for k := range leavesOnly.InternalNodes {
 			rk, err := base64.StdEncoding.DecodeString(k)
 			if err != nil {
 				t.Errorf("  invalid base64: %v", err)

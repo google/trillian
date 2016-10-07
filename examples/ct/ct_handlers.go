@@ -67,20 +67,20 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		glog.Warningf("handler error: %v", err)
-		sendHttpError(w, status, err)
+		sendHTTPError(w, status, err)
 	}
 
 	// Additional check, for consistency the handler must return an error for non 200 status
 	if status != http.StatusOK {
 		glog.Warningf("handler non 200 without error: %d %v", status, err)
-		sendHttpError(w, http.StatusInternalServerError, fmt.Errorf("http handler misbehaved, status: %d", status))
+		sendHTTPError(w, http.StatusInternalServerError, fmt.Errorf("http handler misbehaved, status: %d", status))
 	}
 }
 
-// CTRequestHandlers provides HTTP handler functions for CT V1 as defined in RFC 6962
+// RequestHandlers provides HTTP handler functions for CT V1 as defined in RFC 6962
 // and functionality to translate CT client requests into forms that can be served by a
 // log backend RPC service.
-type CTRequestHandlers struct {
+type RequestHandlers struct {
 	// logID is the tree ID that identifies this log in node storage
 	logID int64
 	// trustedRoots is a pool of certificates that defines the roots the CT log will accept
@@ -95,10 +95,10 @@ type CTRequestHandlers struct {
 	timeSource util.TimeSource
 }
 
-// NewCTRequestHandlers creates a new instance of CTRequestHandlers. They must still
+// NewRequestHandlers creates a new instance of RequestHandlers. They must still
 // be registered by calling RegisterCTHandlers()
-func NewCTRequestHandlers(logID int64, trustedRoots *PEMCertPool, rpcClient trillian.TrillianLogClient, km crypto.KeyManager, rpcDeadline time.Duration, timeSource util.TimeSource) *CTRequestHandlers {
-	return &CTRequestHandlers{logID, trustedRoots, rpcClient, km, rpcDeadline, timeSource}
+func NewRequestHandlers(logID int64, trustedRoots *PEMCertPool, rpcClient trillian.TrillianLogClient, km crypto.KeyManager, rpcDeadline time.Duration, timeSource util.TimeSource) *RequestHandlers {
+	return &RequestHandlers{logID, trustedRoots, rpcClient, km, rpcDeadline, timeSource}
 }
 
 func pathFor(req string) string {
@@ -195,7 +195,7 @@ func enforceMethod(w http.ResponseWriter, r *http.Request, method string) bool {
 	// POSTs will decode the raw request body as JSON later.
 	if r.Method == httpMethodGet {
 		if err := r.ParseForm(); err != nil {
-			sendHttpError(w, http.StatusBadRequest, err)
+			sendHTTPError(w, http.StatusBadRequest, err)
 			return false
 		}
 	}
@@ -205,7 +205,7 @@ func enforceMethod(w http.ResponseWriter, r *http.Request, method string) bool {
 
 // addChainInternal is called by add-chain and add-pre-chain as the logic involved in
 // processing these requests is almost identical
-func addChainInternal(w http.ResponseWriter, r *http.Request, c CTRequestHandlers, isPrecert bool) (int, error) {
+func addChainInternal(w http.ResponseWriter, r *http.Request, c RequestHandlers, isPrecert bool) (int, error) {
 	if !enforceMethod(w, r, httpMethodPost) {
 		// HTTP status code was already set
 		return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
@@ -277,19 +277,19 @@ func addChainInternal(w http.ResponseWriter, r *http.Request, c CTRequestHandler
 // All the handlers are wrapped so they have access to the RPC client and other context
 // TODO(Martin2112): Doesn't properly handle duplicate submissions yet but the backend
 // needs this to be implemented before we can do it here
-func wrappedAddChainHandler(c CTRequestHandlers) appHandler {
+func wrappedAddChainHandler(c RequestHandlers) appHandler {
 	return func(w http.ResponseWriter, r *http.Request) (int, error) {
 		return addChainInternal(w, r, c, false)
 	}
 }
 
-func wrappedAddPreChainHandler(c CTRequestHandlers) appHandler {
+func wrappedAddPreChainHandler(c RequestHandlers) appHandler {
 	return func(w http.ResponseWriter, r *http.Request) (int, error) {
 		return addChainInternal(w, r, c, true)
 	}
 }
 
-func wrappedGetSTHHandler(c CTRequestHandlers) appHandler {
+func wrappedGetSTHHandler(c RequestHandlers) appHandler {
 	return func(w http.ResponseWriter, r *http.Request) (int, error) {
 		if !enforceMethod(w, r, httpMethodGet) {
 			return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
@@ -349,7 +349,7 @@ func wrappedGetSTHHandler(c CTRequestHandlers) appHandler {
 	}
 }
 
-func wrappedGetSTHConsistencyHandler(c CTRequestHandlers) appHandler {
+func wrappedGetSTHConsistencyHandler(c RequestHandlers) appHandler {
 	return func(w http.ResponseWriter, r *http.Request) (int, error) {
 		if !enforceMethod(w, r, httpMethodGet) {
 			return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
@@ -395,7 +395,7 @@ func wrappedGetSTHConsistencyHandler(c CTRequestHandlers) appHandler {
 	}
 }
 
-func wrappedGetProofByHashHandler(c CTRequestHandlers) appHandler {
+func wrappedGetProofByHashHandler(c RequestHandlers) appHandler {
 	return func(w http.ResponseWriter, r *http.Request) (int, error) {
 		if !enforceMethod(w, r, httpMethodGet) {
 			return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
@@ -461,7 +461,7 @@ func wrappedGetProofByHashHandler(c CTRequestHandlers) appHandler {
 	}
 }
 
-func wrappedGetEntriesHandler(c CTRequestHandlers) appHandler {
+func wrappedGetEntriesHandler(c RequestHandlers) appHandler {
 	return func(w http.ResponseWriter, r *http.Request) (int, error) {
 		if !enforceMethod(w, r, httpMethodGet) {
 			return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
@@ -558,7 +558,7 @@ func wrappedGetRootsHandler(trustedRoots *PEMCertPool) appHandler {
 
 // See RFC 6962 Section 4.8. This is mostly used for debug purposes rather than by normal
 // CT clients.
-func wrappedGetEntryAndProofHandler(c CTRequestHandlers) appHandler {
+func wrappedGetEntryAndProofHandler(c RequestHandlers) appHandler {
 	return func(w http.ResponseWriter, r *http.Request) (int, error) {
 		if !enforceMethod(w, r, httpMethodGet) {
 			return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
@@ -611,7 +611,7 @@ func wrappedGetEntryAndProofHandler(c CTRequestHandlers) appHandler {
 
 // RegisterCTHandlers registers a HandleFunc for all of the RFC6962 defined methods.
 // TODO(Martin2112): This registers on default ServeMux, might need more flexibility?
-func (c CTRequestHandlers) RegisterCTHandlers() {
+func (c RequestHandlers) RegisterCTHandlers() {
 	http.Handle(pathFor("add-chain"), wrappedAddChainHandler(c))
 	http.Handle(pathFor("add-pre-chain"), wrappedAddPreChainHandler(c))
 	http.Handle(pathFor("get-sth"), wrappedGetSTHHandler(c))
@@ -624,12 +624,12 @@ func (c CTRequestHandlers) RegisterCTHandlers() {
 
 // Generates a custom error page to give more information on why something didn't work
 // TODO(Martin2112): Not sure if we want to expose any detail or not
-func sendHttpError(w http.ResponseWriter, statusCode int, err error) {
+func sendHTTPError(w http.ResponseWriter, statusCode int, err error) {
 	http.Error(w, fmt.Sprintf("%s\n%v", http.StatusText(statusCode), err), statusCode)
 }
 
 // getRPCDeadlineTime calculates the future time an RPC should expire based on our config
-func getRPCDeadlineTime(c CTRequestHandlers) time.Time {
+func getRPCDeadlineTime(c RequestHandlers) time.Time {
 	return c.timeSource.Now().Add(c.rpcDeadline)
 }
 
@@ -698,7 +698,7 @@ func buildLeafProtoForAddChain(merkleLeaf ct.MerkleTreeLeaf, certChain []*x509.C
 	}
 
 	var logEntryBuffer bytes.Buffer
-	logEntry := NewCTLogEntry(merkleLeaf, certChain)
+	logEntry := NewLogEntry(merkleLeaf, certChain)
 	if err := logEntry.Serialize(&logEntryBuffer); err != nil {
 		glog.Warningf("Failed to serialize log entry: %v", err)
 		return trillian.LeafProto{}, err

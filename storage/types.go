@@ -42,8 +42,7 @@ func bytesForBits(numBits int) int {
 	return numBytes
 }
 
-// NewEmptyNodeID creates a new zero-length NodeID with sufficient underlying
-// capacity to store a maximum of maxLenBits.
+// NewNodeIDFromHash creates a new NodeID for the given Hash.
 func NewNodeIDFromHash(h trillian.Hash) NodeID {
 	return NodeID{
 		Path:          h,
@@ -52,6 +51,8 @@ func NewNodeIDFromHash(h trillian.Hash) NodeID {
 	}
 }
 
+// NewEmptyNodeID creates a new zero-length NodeID with sufficient underlying
+// capacity to store a maximum of maxLenBits.
 func NewEmptyNodeID(maxLenBits int) NodeID {
 	return NodeID{
 		Path:          make([]byte, bytesForBits(maxLenBits)),
@@ -146,6 +147,7 @@ func (n *NodeID) String() string {
 	return r.String()
 }
 
+// Siblings returns the siblings of the given node.
 func (n *NodeID) Siblings() []NodeID {
 	r := make([]NodeID, n.PrefixLenBits, n.PrefixLenBits)
 	l := n.PrefixLenBits
@@ -162,10 +164,12 @@ func (n *NodeID) Siblings() []NodeID {
 	return r
 }
 
+// AsProto returns the NodeIDProto equivalent of the given NodeID.
 func (n *NodeID) AsProto() *NodeIDProto {
 	return &NodeIDProto{Path: n.Path, PrefixLenBits: int32(n.PrefixLenBits)}
 }
 
+// NewNodeIDFromProto returns a new NodeID based on the given NodeIDProto instance.
 func NewNodeIDFromProto(p NodeIDProto) *NodeID {
 	return &NodeID{
 		Path:          p.Path,

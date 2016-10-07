@@ -22,7 +22,7 @@ type PEMCertPool struct {
 	certPool             *x509.CertPool
 }
 
-// Creates a new instance of PEMCertPool containing no certificates.
+// NewPEMCertPool creates a new, empty,  instance of PEMCertPool.
 func NewPEMCertPool() *PEMCertPool {
 	return &PEMCertPool{fingerprintToCertMap: make(map[[sha256.Size]byte]x509.Certificate), certPool: x509.NewCertPool()}
 }

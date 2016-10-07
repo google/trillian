@@ -1,3 +1,4 @@
+// Package trillian provides common data structures and interfaces used throughout Trillian.
 package trillian
 
 import (
@@ -54,7 +55,7 @@ type Leaf struct {
 type LogLeaf struct {
 	// Leaf holds the the leaf data itself.
 	Leaf
-	// Sequencenumber holds the position in the log this leaf has been assigned to.
+	// SequenceNumber holds the position in the log this leaf has been assigned to.
 	SequenceNumber int64
 }
 

@@ -17,15 +17,15 @@ var fakeTime = time.Date(2016, 6, 28, 13, 40, 12, 45, time.UTC)
 var fakeTimeSource = util.FakeTimeSource{fakeTime}
 
 // We use a size zero tree for testing, merkle tree state restore is tested elsewhere
-var logID1 = trillian.LogID{TreeID: 1, LogID: []byte("testroot")}
+var testLogID1 = trillian.LogID{TreeID: 1, LogID: []byte("testroot")}
 var testLeaf0Hash = trillian.Hash{0, 1, 2, 3, 4, 5}
 var testLeaf0 = trillian.LogLeaf{Leaf: trillian.Leaf{LeafHash: testLeaf0Hash, LeafValue: nil, ExtraData: nil}, SequenceNumber: 0}
-var testRoot0 = trillian.SignedLogRoot{TreeSize: 0, TreeRevision: 0, LogId: logID1.LogID, RootHash: []byte{}, Signature: &trillian.DigitallySigned{SignatureAlgorithm:trillian.SignatureAlgorithm_ECDSA}}
+var testRoot0 = trillian.SignedLogRoot{TreeSize: 0, TreeRevision: 0, LogId: testLogID1.LogID, RootHash: []byte{}, Signature: &trillian.DigitallySigned{SignatureAlgorithm: trillian.SignatureAlgorithm_ECDSA}}
 var updatedNodes0 = []storage.Node{{NodeID: storage.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, PrefixLenBits: 64, PathLenBits: 64}, Hash: trillian.Hash{0x0, 0x1, 0x2, 0x3, 0x4, 0x5}, NodeRevision: 1}}
-var updatedRoot = trillian.SignedLogRoot{LogId: logID1.LogID, TimestampNanos: fakeTime.UnixNano(), RootHash: []uint8{0x0, 0x1, 0x2, 0x3, 0x4, 0x5}, TreeSize: 1, Signature: &trillian.DigitallySigned{SignatureAlgorithm: trillian.SignatureAlgorithm_ECDSA, Signature: []byte("signed")}, TreeRevision: 1}
+var updatedRoot = trillian.SignedLogRoot{LogId: testLogID1.LogID, TimestampNanos: fakeTime.UnixNano(), RootHash: []uint8{0x0, 0x1, 0x2, 0x3, 0x4, 0x5}, TreeSize: 1, Signature: &trillian.DigitallySigned{SignatureAlgorithm: trillian.SignatureAlgorithm_ECDSA, Signature: []byte("signed")}, TreeRevision: 1}
 
 // This is used in the signing test with no work where the treesize will be zero
-var updatedRootSignOnly = trillian.SignedLogRoot{LogId: logID1.LogID, TimestampNanos: fakeTime.UnixNano(), RootHash: []uint8{0xe3, 0xb0, 0xc4, 0x42, 0x98, 0xfc, 0x1c, 0x14, 0x9a, 0xfb, 0xf4, 0xc8, 0x99, 0x6f, 0xb9, 0x24, 0x27, 0xae, 0x41, 0xe4, 0x64, 0x9b, 0x93, 0x4c, 0xa4, 0x95, 0x99, 0x1b, 0x78, 0x52, 0xb8, 0x55}, TreeSize: 0, Signature: &trillian.DigitallySigned{Signature: []byte("signed")}, TreeRevision: 1}
+var updatedRootSignOnly = trillian.SignedLogRoot{LogId: testLogID1.LogID, TimestampNanos: fakeTime.UnixNano(), RootHash: []uint8{0xe3, 0xb0, 0xc4, 0x42, 0x98, 0xfc, 0x1c, 0x14, 0x9a, 0xfb, 0xf4, 0xc8, 0x99, 0x6f, 0xb9, 0x24, 0x27, 0xae, 0x41, 0xe4, 0x64, 0x9b, 0x93, 0x4c, 0xa4, 0x95, 0x99, 0x1b, 0x78, 0x52, 0xb8, 0x55}, TreeSize: 0, Signature: &trillian.DigitallySigned{Signature: []byte("signed")}, TreeRevision: 1}
 
 const writeRev = int64(24)
 
@@ -128,9 +128,8 @@ func mockStorageProviderForSequencer(mockStorage storage.LogStorage) LogStorageP
 	return func(id int64) (storage.LogStorage, error) {
 		if id >= 0 && id <= 1 {
 			return mockStorage, nil
-		} else {
-			return nil, fmt.Errorf("BADLOGID: ", id)
 		}
+		return nil, fmt.Errorf("BADLOGID: ", id)
 	}
 }
 

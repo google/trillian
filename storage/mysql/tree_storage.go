@@ -2,7 +2,6 @@ package mysql
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -15,17 +14,17 @@ import (
 )
 
 // These statements are fixed
-const insertSubtreeMultiSql string = `INSERT INTO Subtree(TreeId, SubtreeId, Nodes, SubtreeRevision) ` + placeholderSql
-const insertTreeHeadSql string = `INSERT INTO TreeHead(TreeId,TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature)
+const insertSubtreeMultiSQL string = `INSERT INTO Subtree(TreeId, SubtreeId, Nodes, SubtreeRevision) ` + placeholderSQL
+const insertTreeHeadSQL string = `INSERT INTO TreeHead(TreeId,TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature)
 		 VALUES(?,?,?,?,?,?)`
-const selectTreeRevisionAtSizeSql string = "SELECT TreeRevision FROM TreeHead WHERE TreeId=? AND TreeSize=? ORDER BY TreeRevision DESC LIMIT 1"
-const selectActiveLogsSql string = "select TreeId, KeyId from Trees where TreeType='LOG'"
-const selectActiveLogsWithUnsequencedSql string = "SELECT DISTINCT t.TreeId, t.KeyId from Trees t INNER JOIN Unsequenced u WHERE TreeType='LOG' AND t.TreeId=u.TreeId"
+const selectTreeRevisionAtSizeSQL string = "SELECT TreeRevision FROM TreeHead WHERE TreeId=? AND TreeSize=? ORDER BY TreeRevision DESC LIMIT 1"
+const selectActiveLogsSQL string = "select TreeId, KeyId from Trees where TreeType='LOG'"
+const selectActiveLogsWithUnsequencedSQL string = "SELECT DISTINCT t.TreeId, t.KeyId from Trees t INNER JOIN Unsequenced u WHERE TreeType='LOG' AND t.TreeId=u.TreeId"
 
-const selectSubtreeSql string = `SELECT x.SubtreeId, x.MaxRevision, Subtree.Nodes
+const selectSubtreeSQL string = `SELECT x.SubtreeId, x.MaxRevision, Subtree.Nodes
 				 FROM (SELECT n.SubtreeId, max(n.SubtreeRevision) AS MaxRevision
 							 FROM Subtree n
-							 WHERE n.SubtreeId IN (` + placeholderSql + `) AND
+							 WHERE n.SubtreeId IN (` + placeholderSQL + `) AND
 										 n.TreeId = ? AND
 										 n.SubtreeRevision <= ?
 							 GROUP BY n.SubtreeId) AS x
@@ -33,7 +32,7 @@ const selectSubtreeSql string = `SELECT x.SubtreeId, x.MaxRevision, Subtree.Node
 														Subtree.SubtreeRevision = x.MaxRevision AND
 														Subtree.TreeId = ?`
 
-const placeholderSql string = "<placeholder>"
+const placeholderSQL string = "<placeholder>"
 
 // mySQLTreeStorage is shared between the mySQLLog- and (forthcoming) mySQLMap-
 // Storage implementations, and contains functionality which is common to both,
@@ -86,16 +85,16 @@ func newTreeStorage(treeID int64, dbURL string, hashSizeBytes int, strataDepths 
 	return s, nil
 }
 
-// expandPlaceholderSql expands an sql statement by adding a specified number of '?'
+// expandPlaceholderSQL expands an sql statement by adding a specified number of '?'
 // placeholder slots. At most one placeholder will be expanded.
-func expandPlaceholderSql(sql string, num int, first, rest string) string {
+func expandPlaceholderSQL(sql string, num int, first, rest string) string {
 	if num <= 0 {
 		panic(fmt.Errorf("Trying to expand SQL placeholder with <= 0 parameters: %s", sql))
 	}
 
 	parameters := first + strings.Repeat(","+rest, num-1)
 
-	return strings.Replace(sql, placeholderSql, parameters, 1)
+	return strings.Replace(sql, placeholderSQL, parameters, 1)
 }
 
 func decodeSignedTimestamp(signedEntryTimestampBytes []byte) (trillian.SignedEntryTimestamp, error) {
@@ -109,6 +108,7 @@ func decodeSignedTimestamp(signedEntryTimestampBytes []byte) (trillian.SignedEnt
 	return signedEntryTimestamp, nil
 }
 
+// EncodeSignedTimestamp returns serialized data for the given SignedEntryTimestamp.
 // TODO: Pull the encoding / decoding out of this file, move up to Storage. Review after
 // all current PRs submitted.
 func EncodeSignedTimestamp(signedEntryTimestamp trillian.SignedEntryTimestamp) ([]byte, error) {
@@ -124,19 +124,19 @@ func EncodeSignedTimestamp(signedEntryTimestamp trillian.SignedEntryTimestamp) (
 
 // Node IDs are stored using proto serialization
 func decodeNodeID(nodeIDBytes []byte) (*storage.NodeID, error) {
-	var nodeIdProto storage.NodeIDProto
+	var nodeIDProto storage.NodeIDProto
 
-	if err := proto.Unmarshal(nodeIDBytes, &nodeIdProto); err != nil {
+	if err := proto.Unmarshal(nodeIDBytes, &nodeIDProto); err != nil {
 		glog.Warningf("Failed to decode nodeid: %s", err)
 		return nil, err
 	}
 
-	return storage.NewNodeIDFromProto(nodeIdProto), nil
+	return storage.NewNodeIDFromProto(nodeIDProto), nil
 }
 
 func encodeNodeID(n storage.NodeID) ([]byte, error) {
-	nodeIdProto := n.AsProto()
-	marshalledBytes, err := proto.Marshal(nodeIdProto)
+	nodeIDProto := n.AsProto()
+	marshalledBytes, err := proto.Marshal(nodeIDProto)
 
 	if err != nil {
 		glog.Warningf("Failed to encode nodeid: %s", err)
@@ -164,7 +164,7 @@ func (m *mySQLTreeStorage) getStmt(statement string, num int, first, rest string
 		m.statements[statement] = make(map[int]*sql.Stmt)
 	}
 
-	s, err := m.db.Prepare(expandPlaceholderSql(statement, num, first, rest))
+	s, err := m.db.Prepare(expandPlaceholderSQL(statement, num, first, rest))
 
 	if err != nil {
 		glog.Warningf("Failed to prepare statement %d: %s", num, err)
@@ -177,11 +177,11 @@ func (m *mySQLTreeStorage) getStmt(statement string, num int, first, rest string
 }
 
 func (m *mySQLTreeStorage) getSubtreeStmt(num int) (*sql.Stmt, error) {
-	return m.getStmt(selectSubtreeSql, num, "?", "?")
+	return m.getStmt(selectSubtreeSQL, num, "?", "?")
 }
 
 func (m *mySQLTreeStorage) setSubtreeStmt(num int) (*sql.Stmt, error) {
-	return m.getStmt(insertSubtreeMultiSql, num, "VALUES(?, ?, ?, ?)", "(?, ?, ?, ?)")
+	return m.getStmt(insertSubtreeMultiSQL, num, "VALUES(?, ?, ?, ?)", "(?, ?, ?, ?)")
 }
 
 func (m *mySQLTreeStorage) beginTreeTx() (treeTX, error) {
@@ -241,9 +241,9 @@ func (t *treeTX) getSubtrees(treeRevision int64, nodeIDs []storage.NodeID) ([]*s
 			return nil, fmt.Errorf("invalid subtree ID - not multiple of 8: %d", nodeID.PrefixLenBits)
 		}
 
-		nodeIdBytes := nodeID.Path[:nodeID.PrefixLenBits/8]
+		nodeIDBytes := nodeID.Path[:nodeID.PrefixLenBits/8]
 
-		args = append(args, interface{}(nodeIdBytes))
+		args = append(args, interface{}(nodeIDBytes))
 	}
 
 	args = append(args, interface{}(t.ts.treeID))
@@ -346,8 +346,8 @@ func checkResultOkAndRowCountIs(res sql.Result, err error, count int64) error {
 	}
 
 	if rowsAffected != count {
-		return errors.New(fmt.Sprintf("Expected %d row(s) to be affected but saw: %d", count,
-			rowsAffected))
+		return fmt.Errorf("Expected %d row(s) to be affected but saw: %d", count,
+			rowsAffected)
 	}
 
 	return nil
@@ -364,7 +364,7 @@ func (t *treeTX) GetTreeRevisionAtSize(treeSize int64) (int64, error) {
 	}
 
 	var treeRevision int64
-	err := t.tx.QueryRow(selectTreeRevisionAtSizeSql, t.ts.treeID, treeSize).Scan(&treeRevision)
+	err := t.tx.QueryRow(selectTreeRevisionAtSizeSQL, t.ts.treeID, treeSize).Scan(&treeRevision)
 
 	return treeRevision, err
 }

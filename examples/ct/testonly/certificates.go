@@ -95,7 +95,7 @@ OwqULg==
 -----END CERTIFICATE-----
 `
 
-// CaCertPEMBad is a PEM block that contains invalid data that should not decode
+// CACertPEMBad is a PEM block that contains invalid data that should not decode
 const CACertPEMBad string = `
 -----BEGIN CERTIFICATE-----
 MIIC0DCCAjmgAwIBAgIBADANBgkqhkiG9w0BAQUFADBVMQswCQYDVQQGEwJHQjEk
@@ -117,7 +117,7 @@ OwqULg==
 -----END CERTIFICATE-----
 `
 
-// CaCertMultiplePEM is a PEM block containing a valid CA and intermediate certificate
+// CACertMultiplePEM is a PEM block containing a valid CA and intermediate certificate
 const CACertMultiplePEM string = `
 -----BEGIN CERTIFICATE-----
 MIIC0DCCAjmgAwIBAgIBADANBgkqhkiG9w0BAQUFADBVMQswCQYDVQQGEwJHQjEk
@@ -197,7 +197,7 @@ n678Lu4peNYzqqwU7TI1GX2ofg9xuIdfGsnniygXSd3t0Afj7PUGRfjL9mclbNah
 ZHteEyA7uFgt59Zpb2VtHGC5X0Vrf88zhXGQjxxpcn0kxPzNJJKVeVgU0drA5g==
 -----END CERTIFICATE-----`
 
-// This is a test CA cert for testing.
+// FakeCACertPem is a test CA cert for testing.
 const FakeCACertPem string = `
 -----BEGIN CERTIFICATE-----
 MIIDrDCCApSgAwIBAgIJALYx0qwhq2UgMA0GCSqGSIb3DQEBCwUAMHExCzAJBgNV
@@ -222,6 +222,7 @@ wfV5hfRBh8fKva+rK6SqqB0sUK0jj9sTHXGKhb2sWWzEU8VxDJCR8wtB79puJ7sJ
 V5yXudf8IJbFdZbOLmyotm6wTQ8+AZXqi82uR9DZAbc=
 -----END CERTIFICATE-----`
 
+// FakeIntermediateCertPem is a test intermediate CA cert.
 const FakeIntermediateCertPem string = `
 -----BEGIN CERTIFICATE-----
 MIIDnTCCAoWgAwIBAgIIQoIqW4Zvv+swDQYJKoZIhvcNAQELBQAwcTELMAkGA1UE
@@ -246,6 +247,7 @@ Oq8tbjK85/2g6ear1oxPhJ1w9hds+WTFXkmHkWvKJebY13t3OfSjAyhaRSt8hdzD
 zHTFwjPjHT8h6dU7/hMdkUg=
 -----END CERTIFICATE-----`
 
+// LeafSignedByFakeIntermediateCertPem is a test cert signed by the intermediate CA.
 const LeafSignedByFakeIntermediateCertPem string = `
 -----BEGIN CERTIFICATE-----
 MIIH6DCCBtCgAwIBAgIIQoIqW4Zvv+swDQYJKoZIhvcNAQELBQAwcjELMAkGA1UE

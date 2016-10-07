@@ -10,6 +10,7 @@ import (
 	"github.com/google/trillian"
 )
 
+// RootHashMismatchError indicates a unexpected root hash value.
 type RootHashMismatchError struct {
 	ExpectedHash trillian.Hash
 	ActualHash   trillian.Hash

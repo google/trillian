@@ -33,7 +33,7 @@ type TreeHasher struct {
 	emptyHasher func() trillian.Hash
 }
 
-// NewTreeHasher creates a new TreeHasher based on the passed in hash function.
+// NewRFC6962TreeHasher creates a new TreeHasher based on the passed in hash function.
 // TODO(Martin2112): Move anything CT specific out of here to <handwave> look over there
 func NewRFC6962TreeHasher(hasher trillian.Hasher) TreeHasher {
 	return TreeHasher{

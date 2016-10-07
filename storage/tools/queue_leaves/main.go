@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"flag"
 	"fmt"
+
 	_ "github.com/go-sql-driver/mysql"
 	log "github.com/golang/glog"
 	"github.com/google/trillian"
@@ -34,8 +35,8 @@ func main() {
 	flag.Parse()
 	validateFlagsOrDie()
 
-	treeId := tools.GetLogIdFromFlagsOrDie()
-	storage := tools.GetStorageFromFlagsOrDie(treeId)
+	treeID := tools.GetLogIDFromFlagsOrDie()
+	storage := tools.GetStorageFromFlagsOrDie(treeID)
 
 	tx, err := storage.Begin()
 
@@ -60,7 +61,7 @@ func main() {
 				LeafValue: data,
 				ExtraData: nil,
 			},
-			SequenceNumber:       0}
+			SequenceNumber: 0}
 		leaves = append(leaves, leaf)
 
 		if len(leaves) >= *queueBatchSizeFlag {

@@ -48,6 +48,7 @@ func (m nodeIDEq) String() string {
 	return fmt.Sprintf("is %s", m.expectedID.String())
 }
 
+// NodeIDEq returns a matcher that expects the specified NodeID.
 func NodeIDEq(n storage.NodeID) gomock.Matcher {
 	return nodeIDEq{n}
 }
@@ -59,6 +60,7 @@ func prefixLen(n1, n2 *storage.Node) bool {
 	return n1.NodeID.PrefixLenBits < n2.NodeID.PrefixLenBits
 }
 
+// NodeSet returns a matcher that expects the given set of Nodes.
 func NodeSet(nodes []storage.Node) gomock.Matcher {
 	by(prefixLen).sort(nodes)
 	return nodeSet{nodes}

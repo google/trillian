@@ -6,6 +6,7 @@ import (
 	"github.com/google/trillian/storage"
 )
 
+// NodeStorage provides an interface for storing and retrieving subtrees.
 type NodeStorage interface {
 	GetSubtree(n storage.NodeID) (*storage.SubtreeProto, error)
 	SetSubtrees(s []*storage.SubtreeProto) error

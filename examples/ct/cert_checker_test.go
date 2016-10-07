@@ -74,7 +74,7 @@ func TestIsPrecertificateInvalidBytesInExtension(t *testing.T) {
 func TestCertCheckerInvalidChainAccepted(t *testing.T) {
 	// This shouldn't validate as it's missing the intermediate cert
 	chainPem := []string{testonly.LeafSignedByFakeIntermediateCertPem}
-	jsonChain := pemsToJsonChain(t, chainPem)
+	jsonChain := pemsToJSONChain(t, chainPem)
 	trustedRoots := NewPEMCertPool()
 
 	if !trustedRoots.AppendCertsFromPEM([]byte(testonly.FakeCACertPem)) {
@@ -91,7 +91,7 @@ func TestCertCheckerInvalidChainAccepted(t *testing.T) {
 func TestCertCheckerInvalidChainRejectedOrdering(t *testing.T) {
 	// This chain shouldn't validate because the order of presentation is wrong
 	chainPem := []string{testonly.FakeIntermediateCertPem, testonly.LeafSignedByFakeIntermediateCertPem}
-	jsonChain := pemsToJsonChain(t, chainPem)
+	jsonChain := pemsToJSONChain(t, chainPem)
 	trustedRoots := NewPEMCertPool()
 
 	if !trustedRoots.AppendCertsFromPEM([]byte(testonly.FakeCACertPem)) {
@@ -108,7 +108,7 @@ func TestCertCheckerInvalidChainRejectedOrdering(t *testing.T) {
 func TestCertCheckerInvalidChainRejectedBadChain(t *testing.T) {
 	// This chain shouldn't validate because the chain contains unrelated certs
 	chainPem := []string{testonly.FakeIntermediateCertPem, testonly.TestCertPEM}
-	jsonChain := pemsToJsonChain(t, chainPem)
+	jsonChain := pemsToJSONChain(t, chainPem)
 	trustedRoots := NewPEMCertPool()
 
 	if !trustedRoots.AppendCertsFromPEM([]byte(testonly.FakeCACertPem)) {
@@ -126,7 +126,7 @@ func TestCertCheckerInvalidChainRejectedBadChainUnrelatedAppended(t *testing.T) 
 	// This chain shouldn't validate because the otherwise valid chain contains an unrelated cert
 	// at the end
 	chainPem := []string{testonly.LeafSignedByFakeIntermediateCertPem, testonly.FakeIntermediateCertPem, testonly.TestCertPEM}
-	jsonChain := pemsToJsonChain(t, chainPem)
+	jsonChain := pemsToJSONChain(t, chainPem)
 	trustedRoots := NewPEMCertPool()
 
 	if !trustedRoots.AppendCertsFromPEM([]byte(testonly.FakeCACertPem)) {
@@ -143,7 +143,7 @@ func TestCertCheckerInvalidChainRejectedBadChainUnrelatedAppended(t *testing.T) 
 func TestCertCheckerValidChainAccepted(t *testing.T) {
 	// This chain should validate up to the fake root CA
 	chainPem := []string{testonly.LeafSignedByFakeIntermediateCertPem, testonly.FakeIntermediateCertPem}
-	jsonChain := pemsToJsonChain(t, chainPem)
+	jsonChain := pemsToJSONChain(t, chainPem)
 	trustedRoots := NewPEMCertPool()
 
 	if !trustedRoots.AppendCertsFromPEM([]byte(testonly.FakeCACertPem)) {
@@ -162,7 +162,7 @@ func TestCertCheckerValidChainAccepted(t *testing.T) {
 
 // Builds a chain of base64 encoded certs as if they'd been submitted to a handler.
 // Note: ordering is important
-func pemsToJsonChain(t *testing.T, pemCerts []string) []string {
+func pemsToJSONChain(t *testing.T, pemCerts []string) []string {
 	chain := []string{}
 
 	for _, pem := range pemCerts {

@@ -23,13 +23,13 @@ import (
 	"google.golang.org/grpc"
 )
 
-var mysqlUriFlag = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test",
+var mysqlURIFlag = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test",
 	"uri to use with mysql storage")
 var serverPortFlag = flag.Int("port", 8090, "Port to serve log RPC requests on")
-var exportRpcMetrics = flag.Bool("exportMetrics", true, "If true starts HTTP server and exports stats")
+var exportRPCMetrics = flag.Bool("exportMetrics", true, "If true starts HTTP server and exports stats")
 var httpPortFlag = flag.Int("http_port", 8091, "Port to serve HTTP metrics on")
-var sequencerSleepBetweenRunsFlag = flag.Duration("sequencer_sleep_between_runs", time.Second * 10, "Time to pause after each sequencing pass through all logs")
-var signerSleepBetweenRunsFlag = flag.Duration("signer_sleep_between_runs", time.Second * 120, "Time to pause after each signing pass through all logs")
+var sequencerSleepBetweenRunsFlag = flag.Duration("sequencer_sleep_between_runs", time.Second*10, "Time to pause after each sequencing pass through all logs")
+var signerSleepBetweenRunsFlag = flag.Duration("signer_sleep_between_runs", time.Second*120, "Time to pause after each signing pass through all logs")
 var batchSizeFlag = flag.Int("batch_size", 50, "Max number of leaves to process per batch")
 
 // TODO(Martin2112): Single private key doesn't really work for multi tenant and we can't use
@@ -44,36 +44,36 @@ var storageMapGuard sync.Mutex
 var storageMap = make(map[int64]storage.LogStorage)
 
 // TODO(Martin2112): Needs to be able to swap out for different storage type
-func simpleMySqlStorageProvider(treeID int64) (storage.LogStorage, error) {
-	return mysql.NewLogStorage(trillian.LogID{[]byte("TODO"), treeID}, *mysqlUriFlag)
+func simpleMySQLStorageProvider(treeID int64) (storage.LogStorage, error) {
+	return mysql.NewLogStorage(trillian.LogID{[]byte("TODO"), treeID}, *mysqlURIFlag)
 }
 
 // TODO(Martin2112): Could pull this out as a wrapper so it can be used elsewhere
-func getStorageForLog(logId int64) (storage.LogStorage, error) {
+func getStorageForLog(logID int64) (storage.LogStorage, error) {
 	storageMapGuard.Lock()
 	defer storageMapGuard.Unlock()
 
-	s, ok := storageMap[logId]
+	s, ok := storageMap[logID]
 
 	if !ok {
-		glog.Infof("Creating new storage for log: %d", logId)
+		glog.Infof("Creating new storage for log: %d", logID)
 
 		var err error
-		s, err = simpleMySqlStorageProvider(logId)
+		s, err = simpleMySQLStorageProvider(logID)
 
 		if err != nil {
 			return s, err
 		}
 
-		storageMap[logId] = s
+		storageMap[logID] = s
 	}
 
 	return s, nil
 }
 
-func checkDatabaseAccessible(dbUri string) error {
+func checkDatabaseAccessible(dbURI string) error {
 	// TODO(Martin2112): Have to pass a tree ID when we just want metadata. API mismatch
-	storage, err := mysql.NewLogStorage(trillian.LogID{[]byte("TODO"), int64(0)}, dbUri)
+	storage, err := mysql.NewLogStorage(trillian.LogID{[]byte("TODO"), int64(0)}, dbURI)
 
 	if err != nil {
 		// This is probably something fundamentally wrong
@@ -95,7 +95,7 @@ func checkDatabaseAccessible(dbUri string) error {
 	return err
 }
 
-func startRpcServer(listener net.Listener, port int, provider server.LogStorageProviderFunc) *grpc.Server {
+func startRPCServer(listener net.Listener, port int, provider server.LogStorageProviderFunc) *grpc.Server {
 	// Create and publish the RPC stats objects
 	statsInterceptor := monitoring.NewRPCStatsInterceptor(util.SystemTimeSource{}, "ct", "example")
 	statsInterceptor.Publish()
@@ -109,7 +109,7 @@ func startRpcServer(listener net.Listener, port int, provider server.LogStorageP
 	return grpcServer
 }
 
-func startHttpServer(port int) error {
+func startHTTPServer(port int) error {
 	sock, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
 	if err != nil {
 		return err
@@ -143,7 +143,7 @@ func main() {
 	glog.Info("**** Log Server Starting ****")
 
 	// First make sure we can access the database, quit if not
-	if err := checkDatabaseAccessible(*mysqlUriFlag); err != nil {
+	if err := checkDatabaseAccessible(*mysqlURIFlag); err != nil {
 		glog.Errorf("Could not access storage, check db configuration and flags")
 		os.Exit(1)
 	}
@@ -158,8 +158,8 @@ func main() {
 	}
 
 	// Start HTTP server (optional)
-	if *exportRpcMetrics {
-		err := startHttpServer(*httpPortFlag)
+	if *exportRPCMetrics {
+		err := startHTTPServer(*httpPortFlag)
 
 		if err != nil {
 			glog.Fatalf("Failed to start http server on port %d: %v", *httpPortFlag, err)
@@ -184,7 +184,7 @@ func main() {
 	go sequencerManager.OperationLoop()
 
 	// Bring up the RPC server and then block until we get a signal to stop
-	rpcServer := startRpcServer(lis, *serverPortFlag, getStorageForLog)
+	rpcServer := startRPCServer(lis, *serverPortFlag, getStorageForLog)
 	go awaitSignal(rpcServer)
 	err = rpcServer.Serve(lis)
 

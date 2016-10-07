@@ -50,8 +50,8 @@ var signedTimestamp = trillian.SignedEntryTimestamp{
 
 // Parallel tests must get different log or map ids
 var idMutex sync.Mutex
-var testLogId int64
-var testMapId int64
+var testLogID int64
+var testMapID int64
 
 func createSomeNodes(testName string, treeID int64) []storage.Node {
 	r := make([]storage.Node, 4)
@@ -67,17 +67,17 @@ func createSomeNodes(testName string, treeID int64) []storage.Node {
 func createLogID(testName string) logIDAndTest {
 	idMutex.Lock()
 	defer idMutex.Unlock()
-	testLogId++
+	testLogID++
 
-	return logIDAndTest{logID: trillian.LogID{LogID: []byte(testName), TreeID: testLogId}, testName: testName}
+	return logIDAndTest{logID: trillian.LogID{LogID: []byte(testName), TreeID: testLogID}, testName: testName}
 }
 
 func createMapID(testName string) mapIDAndTest {
 	idMutex.Lock()
 	defer idMutex.Unlock()
-	testLogId++
+	testLogID++
 
-	return mapIDAndTest{mapID: trillian.MapID{MapID: []byte(testName), TreeID: testMapId}, testName: testName}
+	return mapIDAndTest{mapID: trillian.MapID{MapID: []byte(testName), TreeID: testMapID}, testName: testName}
 }
 
 func nodesAreEqual(lhs []storage.Node, rhs []storage.Node) error {
@@ -1140,7 +1140,7 @@ func TestGetSequencedLeafCount(t *testing.T) {
 		data3 := []byte("some data 3")
 
 		createFakeLeaf(db2, logID2.logID, dummyHash2, data2, sequenceNumber, t)
-		createFakeLeaf(db2, logID2.logID, dummyHash3, data3, sequenceNumber + 1, t)
+		createFakeLeaf(db2, logID2.logID, dummyHash3, data3, sequenceNumber+1, t)
 	}
 
 	// Read back the leaf counts from both trees
@@ -1174,8 +1174,8 @@ func TestGetSequencedLeafCount(t *testing.T) {
 func ensureAllLeafHashesDistinct(leaves []trillian.LogLeaf, t *testing.T) {
 	// All the hashes should be distinct. If only we had maps with slices as keys or sets
 	// or pretty much any kind of usable data structures we could do this properly.
-	for i, _ := range leaves {
-		for j, _ := range leaves {
+	for i := range leaves {
+		for j := range leaves {
 			if i != j && bytes.Equal(leaves[i].LeafHash, leaves[j].LeafHash) {
 				t.Fatalf("Unexpectedly got a duplicate leaf hash: %v %v",
 					leaves[i].LeafHash, leaves[j].LeafHash)

@@ -6,7 +6,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
-	"github.com/google/trillian/examples/ct/ct_mapper"
+	"github.com/google/trillian/examples/ct/ctmapper"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
@@ -44,7 +44,7 @@ func main() {
 			continue
 		}
 		for _, kv := range resp.KeyValue {
-			el := ct_mapper.EntryList{}
+			el := ctmapper.EntryList{}
 			v := kv.KeyValue.Value.LeafValue
 			if len(v) == 0 {
 				continue
