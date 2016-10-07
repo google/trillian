@@ -7,13 +7,14 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"time"
+
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/examples/ct"
 	"github.com/google/trillian/util"
 	"google.golang.org/grpc"
-	"time"
 )
 
 // TODO(Martin2112): We still have the treeid / log ID thing to think about + security etc.
@@ -112,7 +113,7 @@ func main() {
 	client := trillian.NewTrillianLogClient(conn)
 
 	// Create and register the handlers using the RPC client we just set up
-	handlers := ct.NewCTRequestHandlers(*logIDFlag, trustedRoots, client, logKeyManager, *rpcDeadlineFlag, new(util.SystemTimeSource))
+	handlers := ct.NewRequestHandlers(*logIDFlag, trustedRoots, client, logKeyManager, *rpcDeadlineFlag, new(util.SystemTimeSource))
 	handlers.RegisterCTHandlers()
 
 	glog.Warningf("Server exited: %v", http.ListenAndServe(fmt.Sprintf("localhost:%d", *serverPortFlag), nil))

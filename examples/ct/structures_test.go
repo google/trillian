@@ -59,7 +59,7 @@ func TestGetCTLogIDNotLoaded(t *testing.T) {
 	}
 }
 
-func TestSerializeCTLogEntry(t *testing.T) {
+func TestSerializeLogEntry(t *testing.T) {
 	ts := ct.TimestampedEntry{
 		Timestamp:  12345,
 		EntryType:  ct.X509LogEntryType,
@@ -73,7 +73,7 @@ func TestSerializeCTLogEntry(t *testing.T) {
 		var buff bytes.Buffer
 		w := bufio.NewWriter(&buff)
 
-		logEntry := CTLogEntry{Leaf: leaf, Chain: chain}
+		logEntry := LogEntry{Leaf: leaf, Chain: chain}
 		err := logEntry.Serialize(w)
 
 		if err != nil {
@@ -83,7 +83,7 @@ func TestSerializeCTLogEntry(t *testing.T) {
 		w.Flush()
 		r := bufio.NewReader(&buff)
 
-		var logEntry2 CTLogEntry
+		var logEntry2 LogEntry
 		err = logEntry2.Deserialize(r)
 
 		if err != nil {

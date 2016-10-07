@@ -15,8 +15,8 @@ which have that domain in their subject/SAN fields.
 mysql -u root -p test -e "source storage/mysql/drop_storage.sql;  source storage/mysql/storage.sql; insert into Trees values(1, 1, 'MAP', 'SHA256', 'SHA256', false);"
 
 go build ./server/vmap/trillian_map_server
-go build ./examples/ct/ct_mapper/mapper
-go build ./examples/ct/ct_mapper/lookup
+go build ./examples/ct/ctmapper/mapper
+go build ./examples/ct/ctmapper/lookup
 
 # in one terminal:
 ./trillian_map_server --logtostderr --private_key_password=towel --private_key_file=testdata/trillian-map-server-key.pem
