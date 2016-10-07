@@ -52,7 +52,7 @@ func (s Sequencer) buildMerkleTreeFromStorageAtRoot(root trillian.SignedLogRoot,
 		nodes, err := tx.GetMerkleNodes(root.TreeRevision, []storage.NodeID{nodeID})
 
 		if err != nil {
-			glog.Warningf("Failed to get merkle nodes: %s", err)
+			glog.Warningf("Failed to get Merkle nodes: %s", err)
 			return nil, err
 		}
 
@@ -243,7 +243,7 @@ func (s Sequencer) SequenceBatch(limit int, expiryFunc CurrentRootExpiredFunc) (
 	err = tx.SetMerkleNodes(targetNodes)
 
 	if err != nil {
-		glog.Warningf("Sequencer failed to set merkle nodes: %s", err)
+		glog.Warningf("Sequencer failed to set Merkle nodes: %s", err)
 		tx.Rollback()
 		return 0, err
 	}

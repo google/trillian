@@ -120,7 +120,7 @@ iBEUO5P6TnqH3TfhOF8sKQg=`
 const caAndIntermediateCertsPEM string = "-----BEGIN CERTIFICATE-----\n" + caCertB64 + "\n-----END CERTIFICATE-----\n" +
 	"\n-----BEGIN CERTIFICATE-----\n" + intermediateCertB64 + "\n-----END CERTIFICATE-----\n"
 
-// Used in test of corrupt merkle leaves
+// Used in test of corrupt Merkle leaves
 const invalidLeafString string = "NOT A MERKLE TREE LEAF"
 
 type handlerAndPath struct {
@@ -989,7 +989,7 @@ func TestGetEntriesLeafCorrupt(t *testing.T) {
 
 	// We should still have received the data though it failed to deserialize.
 	if got, want := w.Code, http.StatusOK; got != want {
-		t.Fatalf("expected %v for invalid merkle leaf result, got %v. Body: %v", want, got, w.Body)
+		t.Fatalf("expected %v for invalid Merkle leaf result, got %v. Body: %v", want, got, w.Body)
 	}
 
 	var jsonMap map[string][]getEntriesEntry
@@ -1451,7 +1451,7 @@ func TestGetEntryAndProof(t *testing.T) {
 	leafBytes, err := leafToBytes(merkleLeaf)
 
 	if err != nil {
-		t.Fatal("failed to build test merkle leaf data")
+		t.Fatal("failed to build test Merkle leaf data")
 	}
 
 	leafProto := trillian.LeafProto{LeafData: leafBytes, LeafHash: []byte("ahash"), ExtraData: []byte("extra")}

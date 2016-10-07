@@ -102,7 +102,7 @@ func (m *mapTX) WriteRevision() int64 {
 
 func (m *mapTX) Set(keyHash trillian.Hash, value trillian.MapLeaf) error {
 	// TODO(al): consider storing some sort of value which represents the group of keys being set in this Tx.
-	//           That way, if this attempt partially fails (i.e. because some subset of the in-the-future merkle
+	//           That way, if this attempt partially fails (i.e. because some subset of the in-the-future Merkle
 	//           nodes do get written), we can enforce that future map update attempts are a complete replay of
 	//           the failed set.
 	flatValue, err := proto.Marshal(&value)

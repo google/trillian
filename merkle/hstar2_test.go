@@ -12,12 +12,12 @@ import (
 	"github.com/google/trillian/testonly"
 )
 
-// This root was calculated with the C++/Python sparse merkle tree code in the
+// This root was calculated with the C++/Python sparse Merkle tree code in the
 // github.com/google/certificate-transparency repo.
 const sparseEmptyRootHashB64 = "xmifEIEqCYCXbZUz2Dh1KCFmFZVn7DUVVxbBQTr1PWo="
 
 // createHStar2Leaves builds a list of HStar2LeafHash structs suitable for
-// passing into a the HStar2 sparse merkle tree implementation.
+// passing into a the HStar2 sparse Merkle tree implementation.
 // The map keys will be SHA256 hashed before being added to the returned
 // structs.
 func createHStar2Leaves(th TreeHasher, values map[string]string) []HStar2LeafHash {

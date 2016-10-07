@@ -20,7 +20,7 @@ func (r RootHashMismatchError) Error() string {
 	return fmt.Sprintf("root hash mismatch got: %v expected: %v", r.ActualHash, r.ExpectedHash)
 }
 
-// CompactMerkleTree is a compact merkle tree representation.
+// CompactMerkleTree is a compact Merkle tree representation.
 // Uses log(n) nodes to represent the current on-disk tree.
 type CompactMerkleTree struct {
 	hasher TreeHasher
@@ -43,7 +43,7 @@ func bitLen(x int64) int {
 	return r
 }
 
-// GetNodeFunc is a function prototype which can look up particular nodes within a non-compact Merkle Tree.
+// GetNodeFunc is a function prototype which can look up particular nodes within a non-compact Merkle tree.
 // Used by the CompactMerkleTree to populate itself with correct state when starting up with a non-empty tree.
 type GetNodeFunc func(depth int, index int64) (trillian.Hash, error)
 

@@ -25,7 +25,7 @@ type SparseMerkleTreeReader struct {
 
 type newTXFunc func() (storage.TreeTX, error)
 
-// SparseMerkleTreeWriter knows how to store/update a stored sparse merkle tree
+// SparseMerkleTreeWriter knows how to store/update a stored sparse Merkle tree
 // via a TreeStorage transaction.
 type SparseMerkleTreeWriter struct {
 	hasher       MapHasher
@@ -50,7 +50,7 @@ type rootHashOrError struct {
 // the the idea is that an RPC based sharding implementation could be created
 // and dropped in.
 type Subtree interface {
-	// SetLeaf sets a single leaf hash for integration into a sparse merkle tree.
+	// SetLeaf sets a single leaf hash for integration into a sparse Merkle tree.
 	SetLeaf(index []byte, hash trillian.Hash) error
 
 	// CalculateRoot instructs the subtree worker to start calculating the root
@@ -134,7 +134,7 @@ func (s *subtreeWriter) getOrCreateChildSubtree(childPrefix []byte) (Subtree, er
 	return subtree, nil
 }
 
-// SetLeaf sets a single leaf hash for incorporation into the sparse merkle
+// SetLeaf sets a single leaf hash for incorporation into the sparse Merkle
 // tree.
 func (s *subtreeWriter) SetLeaf(index []byte, hash trillian.Hash) error {
 	indexLen := len(index) * 8
@@ -344,7 +344,7 @@ func NewSparseMerkleTreeWriter(rev int64, h MapHasher, newTX newTXFunc) (*Sparse
 	}, nil
 }
 
-// RootAtRevision returns the sparse merkle tree root hash at the specified
+// RootAtRevision returns the sparse Merkle tree root hash at the specified
 // revision, or ErrNoSuchRevision if the requested revision doesn't exist.
 func (s SparseMerkleTreeReader) RootAtRevision(rev int64) (trillian.Hash, error) {
 	rootNodeID := storage.NewEmptyNodeID(256)

@@ -5,7 +5,7 @@ import (
 )
 
 // MerkleTreeLeafTestInputs returns a slice of leaf inputs that may be used in
-// compact merkle tree test cases.  They are intended to be added successively,
+// compact Merkle tree test cases.  They are intended to be added successively,
 // so that after each addition the corresponding root from MerkleTreeLeafTestRoots
 // gives the expected Merkle tree root hash.
 func MerkleTreeLeafTestInputs() []trillian.Hash {
@@ -48,7 +48,7 @@ func CompactMerkleTreeLeafTestNodeHashes() [][]trillian.Hash {
 }
 
 // EmptyMerkleTreeRootHash returns the expected root hash for an empty Merkle Tree
-// that uses SHA-256 hashing.
+// that uses SHA256 hashing.
 func EmptyMerkleTreeRootHash() trillian.Hash {
 	const sha256EmptyTreeHash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 	return MustHexDecode(sha256EmptyTreeHash)

@@ -8,7 +8,7 @@ import (
 	"github.com/google/trillian"
 )
 
-// Expected root hash of an empty sparse merkle tree.
+// Expected root hash of an empty sparse Merkle tree.
 // This was taken from the C++ SparseMerkleTree tests in
 // github.com/google/certificate-transparency.
 const emptyMapRootB64 = "xmifEIEqCYCXbZUz2Dh1KCFmFZVn7DUVVxbBQTr1PWo="

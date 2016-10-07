@@ -95,7 +95,7 @@ func bitLen(x int64) int {
 // This method is used exclusively by the Log, and, since the Log model grows upwards from the
 // leaves, we modify the provided coords accordingly.
 //
-// depth is the merkle tree level: 0 = leaves, and increases upwards towards the root.
+// depth is the Merkle tree level: 0 = leaves, and increases upwards towards the root.
 //
 // index is the horizontal index into the tree at level depth, so the returned
 // NodeID will be zero padded on the right by depth places.

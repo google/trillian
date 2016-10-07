@@ -14,7 +14,7 @@ var (
 	ErrNegativeTreeLevelOffset = errors.New("treeLevelOffset cannot be negative")
 )
 
-// HStar2LeafHash represents a leaf for the HStar2 sparse merkle tree
+// HStar2LeafHash represents a leaf for the HStar2 sparse Merkle tree
 // implementation.
 type HStar2LeafHash struct {
 	// TODO(al): remove big.Int
@@ -23,7 +23,7 @@ type HStar2LeafHash struct {
 }
 
 // HStar2 is a recursive implementation for calulating the root hash of a sparse
-// merkle tree.
+// Merkle tree.
 type HStar2 struct {
 	hasher          TreeHasher
 	hStarEmptyCache []trillian.Hash
@@ -38,7 +38,7 @@ func NewHStar2(treeHasher TreeHasher) HStar2 {
 	}
 }
 
-// HStar2Root calculates the root of a sparse merkle tree of depth n which contains
+// HStar2Root calculates the root of a sparse Merkle tree of depth n which contains
 // the given set of non-null leaves.
 func (s *HStar2) HStar2Root(n int, values []HStar2LeafHash) (trillian.Hash, error) {
 	by(indexLess).Sort(values)
@@ -54,7 +54,7 @@ type SparseGetNodeFunc func(depth int, index *big.Int) (trillian.Hash, error)
 // SparseSetNodeFunc should store the passed node hash, associating it with the address.
 type SparseSetNodeFunc func(depth int, index *big.Int, hash trillian.Hash) error
 
-// HStar2Nodes calculates the root hash of a pre-existing sparse merkle tree
+// HStar2Nodes calculates the root hash of a pre-existing sparse Merkle tree
 // plus the extra values passed in.
 // It uses the get and set functions to fetch and store updated internal node
 // values.
@@ -117,7 +117,7 @@ var (
 	smtOne  = big.NewInt(1)
 )
 
-// hStar2b is the recursive implementation for calculating a sparse merkle tree
+// hStar2b is the recursive implementation for calculating a sparse Merkle tree
 // root value.
 func (s *HStar2) hStar2b(n int, values []HStar2LeafHash, offset *big.Int, get SparseGetNodeFunc, set SparseSetNodeFunc) (trillian.Hash, error) {
 	if n == 0 {
