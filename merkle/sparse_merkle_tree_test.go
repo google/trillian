@@ -572,7 +572,10 @@ func DISABLEDTestSparseMerkleTreeWriterBigBatch(t *testing.T) {
 }
 
 func bigIntFromString(dec string) *big.Int {
-	r, _ := new(big.Int).SetString(dec, 10)
+	r, ok := new(big.Int).SetString(dec, 10)
+	if !ok {
+		panic(fmt.Errorf("Couldn't parse %s as base10", dec))
+	}
 	return r
 }
 

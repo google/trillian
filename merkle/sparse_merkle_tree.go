@@ -185,14 +185,9 @@ func nodeIDFromAddress(size int, prefix []byte, index *big.Int, depth int) stora
 	}
 	ib := index.Bytes()
 	t := make(trillian.Hash, size)
-	depthBytes := (depth-1)/8 + 1
 
 	copy(t, prefix)
-	if depth > len(ib)*8 {
-		copy(t[len(prefix)+depthBytes-len(ib):], ib)
-	} else {
-		copy(t[size-len(ib):], ib)
-	}
+	copy(t[size-len(ib):], ib)
 	n := storage.NewNodeIDFromHash(t)
 	n.PrefixLenBits = len(prefix)*8 + depth
 	return n
