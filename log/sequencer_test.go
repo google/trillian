@@ -386,7 +386,7 @@ func TestCommitFails(t *testing.T) {
 	testonly.EnsureErrorContains(t, err, "commit")
 }
 
-// TODO: We used a perfect tree size so this isn't testing code that loads the compact merkle
+// TODO: We used a perfect tree size so this isn't testing code that loads the compact Merkle
 // tree. This will be done later as it's planned to refactor it anyway.
 func TestSequenceBatch(t *testing.T) {
 	ctrl := gomock.NewController(t)

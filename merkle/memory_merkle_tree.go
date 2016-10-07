@@ -149,7 +149,7 @@ func (mt *InMemoryMerkleTree) NodeCount(level int) int {
 	return len(mt.tree[level])
 }
 
-// LevelCount returns the number of levels in the current merkle tree
+// LevelCount returns the number of levels in the current Merkle tree
 func (mt *InMemoryMerkleTree) LevelCount() int {
 	return mt.levelCount
 }

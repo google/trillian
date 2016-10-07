@@ -41,7 +41,7 @@ type TreeRoot struct {
 	TreeRevision int64
 }
 
-// Leaf represents the data behind merkle leaves.
+// Leaf represents the data behind Merkle leaves.
 type Leaf struct {
 	// LeafHash is the tree hash of LeafValue
 	LeafHash Hash

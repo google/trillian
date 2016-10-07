@@ -25,7 +25,7 @@ const (
 	RFC6962NodeHashPrefix = 1
 )
 
-// TreeHasher is a set of domain separated hashers for creating merkle tree hashes.
+// TreeHasher is a set of domain separated hashers for creating Merkle tree hashes.
 type TreeHasher struct {
 	trillian.Hasher
 	leafHasher  func([]byte) trillian.Hash
@@ -49,13 +49,13 @@ func (t TreeHasher) HashEmpty() trillian.Hash {
 	return t.emptyHasher()
 }
 
-// HashLeaf returns the merkle tree leaf hash of the data passed in through leaf.
+// HashLeaf returns the Merkle tree leaf hash of the data passed in through leaf.
 // The data in leaf is prefixed by the LeafHashPrefix.
 func (t TreeHasher) HashLeaf(leaf []byte) trillian.Hash {
 	return t.leafHasher(leaf)
 }
 
-// HashChildren returns the inner merkle tree node hash of the the two child nodes l and r.
+// HashChildren returns the inner Merkle tree node hash of the the two child nodes l and r.
 // The hashed structure is NodeHashPrefix||l||r.
 func (t TreeHasher) HashChildren(l, r []byte) trillian.Hash {
 	return t.nodeHasher(append(append([]byte{}, l...), r...))

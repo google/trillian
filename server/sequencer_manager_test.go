@@ -17,7 +17,7 @@ import (
 var fakeTime = time.Date(2016, 6, 28, 13, 40, 12, 45, time.UTC)
 var fakeTimeSource = util.FakeTimeSource{fakeTime}
 
-// We use a size zero tree for testing, merkle tree state restore is tested elsewhere
+// We use a size zero tree for testing, Merkle tree state restore is tested elsewhere
 var testLogID1 = trillian.LogID{TreeID: 1, LogID: []byte("testroot")}
 var testLeaf0Hash = trillian.Hash{0, 1, 2, 3, 4, 5}
 var testLeaf0 = trillian.LogLeaf{Leaf: trillian.Leaf{LeafHash: testLeaf0Hash, LeafValue: nil, ExtraData: nil}, SequenceNumber: 0}
