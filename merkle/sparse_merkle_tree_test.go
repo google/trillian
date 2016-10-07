@@ -217,19 +217,15 @@ func TestInclusionProofForNullEntryInEmptyTree(t *testing.T) {
 		t.Fatalf("Expected proof of len %d, but got len %d", expected, got)
 	}
 
-	treeHasher := NewRFC6962TreeHasher(trillian.NewSHA256())
 	// Verify these are null hashes
 	for i := len(proof) - 1; i > 0; i-- {
-		expectedParent := treeHasher.HashChildren(proof[i], proof[i])
-		if got := proof[i-1]; !bytes.Equal(expectedParent, got) {
-			t.Fatalf("Expected proof[%d] to be %v, but got %v", i, expectedParent, got)
+		if got := proof[i]; got != nil {
+			t.Errorf("proof[%d] = %v, expected nil", i, got)
 		}
 	}
-	// And hashing the zeroth proof element with itself should give us the empty root hash
-	if expected, got := testonly.MustDecodeBase64(sparseEmptyRootHashB64), treeHasher.HashChildren(proof[0], proof[0]); !bytes.Equal(expected, got) {
-		t.Fatalf("Expected to generate sparseEmptyRootHash using proof[0], but got %v", got)
-	}
 }
+
+// TODO(al): Add some more inclusion proof tests here
 
 func TestInclusionProofGetsIncorrectNode(t *testing.T) {
 	mockCtrl := gomock.NewController(t)

@@ -40,10 +40,11 @@ var splitTestVector = []struct {
 	{[]byte{0x00, 0x03}, 15, []byte{0x00}, 7, []byte{0x02}},
 }
 
-var defaultStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8}
+var defaultLogStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8}
+var defaultMapStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 176}
 
 func TestSplitNodeID(t *testing.T) {
-	c := NewSubtreeCache(defaultStrata, PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher(trillian.NewSHA256())))
+	c := NewSubtreeCache(defaultMapStrata, PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher(trillian.NewSHA256())))
 	for i, v := range splitTestVector {
 		n := storage.NewNodeIDFromHash(v.inPath)
 		n.PrefixLenBits = v.inPathLenBits
@@ -68,13 +69,13 @@ func TestCacheFillOnlyReadsSubtrees(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	m := NewMockNodeStorage(mockCtrl)
-	c := NewSubtreeCache(defaultStrata, PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher(trillian.NewSHA256())))
+	c := NewSubtreeCache(defaultLogStrata, PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher(trillian.NewSHA256())))
 
 	nodeID := storage.NewNodeIDFromHash([]byte("1234"))
 	// When we loop around asking for all 0..32 bit prefix lengths of the above
 	// NodeID, we should see just one "Get" request for each subtree.
 	si := 0
-	for b := 0; b < nodeID.PrefixLenBits; b += defaultStrata[si] {
+	for b := 0; b < nodeID.PrefixLenBits; b += defaultLogStrata[si] {
 		e := nodeID
 		e.PrefixLenBits = b
 		m.EXPECT().GetSubtree(testonly.NodeIDEq(e)).Return(&storage.SubtreeProto{
@@ -101,26 +102,30 @@ func TestCacheFlush(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	m := NewMockNodeStorage(mockCtrl)
-	c := NewSubtreeCache(defaultStrata, PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher(trillian.NewSHA256())))
+	c := NewSubtreeCache(defaultMapStrata, PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher(trillian.NewSHA256())))
 
-	nodeID := storage.NewNodeIDFromHash([]byte("1234"))
+	h := "0123456789abcdef0123456789abcdef"
+	nodeID := storage.NewNodeIDFromHash([]byte(h))
 	expectedSetIDs := make(map[string]string)
 	// When we loop around asking for all 0..32 bit prefix lengths of the above
 	// NodeID, we should see just one "Get" request for each subtree.
-	si := 0
-	for b := 0; b < nodeID.PrefixLenBits; b += defaultStrata[si] {
-		e := storage.NewNodeIDFromHash([]byte("1234"))
+	si := -1
+	for b := 0; b < nodeID.PrefixLenBits; b += defaultMapStrata[si] {
+		si++
+		e := storage.NewNodeIDFromHash([]byte(h))
 		//e := nodeID
 		e.PrefixLenBits = b
 		expectedSetIDs[e.String()] = "expected"
 		m.EXPECT().GetSubtree(testonly.NodeIDEq(e)).Do(func(n storage.NodeID) {
 			t.Logf("read %v", n)
 		}).Return((*storage.SubtreeProto)(nil), nil)
-		si++
 	}
 	m.EXPECT().SetSubtrees(gomock.Any()).Do(func(trees []*storage.SubtreeProto) {
 		for _, s := range trees {
 			subID := storage.NewNodeIDFromHash(s.Prefix)
+			if got, want := s.Depth, c.stratumInfoForPrefixLength(subID.PrefixLenBits).depth; got != int32(want) {
+				t.Errorf("Got subtree with depth %d, expected %d for prefixLen %d", got, want, subID.PrefixLenBits)
+			}
 			state, ok := expectedSetIDs[subID.String()]
 			if !ok {
 				t.Errorf("Unexpected write to subtree %s", subID.String())
@@ -245,7 +250,7 @@ func TestRepopulateLogSubtree(t *testing.T) {
 	s := storage.SubtreeProto{
 		Leaves: make(map[string][]byte),
 	}
-	c := NewSubtreeCache(defaultStrata, PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher(trillian.NewSHA256())))
+	c := NewSubtreeCache(defaultLogStrata, PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher(trillian.NewSHA256())))
 	for numLeaves := int64(1); numLeaves < 255; numLeaves++ {
 		// clear internal nodes
 		s.InternalNodes = make(map[string][]byte)
@@ -363,5 +368,28 @@ func TestPrefixLengths(t *testing.T) {
 
 	if got, want := c.stratumInfo, stratumInfo; !reflect.DeepEqual(got, want) {
 		t.Fatalf("Got prefixLengths of %v, expected %v", got, want)
+	}
+}
+
+func TestGetStratumInfo(t *testing.T) {
+	c := NewSubtreeCache(defaultMapStrata, PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher(trillian.NewSHA256())))
+	testVec := []struct {
+		depth int
+		info  stratumInfo
+	}{
+		{0, stratumInfo{0, 8}},
+		{1, stratumInfo{0, 8}},
+		{7, stratumInfo{0, 8}},
+		{8, stratumInfo{1, 8}},
+		{15, stratumInfo{1, 8}},
+		{79, stratumInfo{9, 8}},
+		{80, stratumInfo{10, 176}},
+		{81, stratumInfo{10, 176}},
+		{156, stratumInfo{10, 176}},
+	}
+	for i, tv := range testVec {
+		if got, want := c.stratumInfoForPrefixLength(tv.depth), tv.info; !reflect.DeepEqual(got, want) {
+			t.Errorf("(test %d for depth %d) got %#v, expected %#v", i, tv.depth, got, want)
+		}
 	}
 }
