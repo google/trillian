@@ -39,7 +39,7 @@ func main() {
 	flag.Parse()
 
 	// Step 0 - Initialize and connect to log server
-	treeId := tools.GetLogIdFromFlagsOrDie()
+	treeId := tools.GetLogIDFromFlagsOrDie()
 	params := testParameters{startLeaf: *startLeafFlag, leafCount: *numLeavesFlag, queueBatchSize: *queueBatchSizeFlag, readBatchSize: *readBatchSizeFlag, sequencingWaitTotal: *waitForSequencingFlag, sequencingPollWait: *waitBetweenQueueChecksFlag}
 	port := tools.GetLogServerPort()
 
@@ -199,6 +199,7 @@ func readbackLogEntries(logId trillian.LogID, client trillian.TrillianLogClient,
 		// Check the leaf contents make sense. Can't rely on exact ordering as queue timestamps will be
 		// close between batches and identical within batches.
 		for l := 0; l < len(response.Leaves); l++ {
+			// Check for duplicate leaf index in response data - should not happen
 			if _, ok := leafMap[response.Leaves[l].LeafIndex]; ok {
 				return nil, fmt.Errorf("got duplicate leaf sequence number: %d", response.Leaves[l].LeafIndex)
 			}
@@ -271,12 +272,19 @@ func makeGetLeavesByIndexRequest(logID trillian.LogID, startLeaf, numLeaves int6
 }
 
 func buildMemoryMerkleTree(leafMap map[int64]*trillian.LeafProto, params testParameters) *merkle.InMemoryMerkleTree {
+	// Build the same tree with two different merkle implementations as an additional check
+	compactTree := merkle.NewCompactMerkleTree(merkle.NewRFC6962TreeHasher(trillian.NewSHA256()))
 	merkleTree := merkle.NewInMemoryMerkleTree(merkle.NewRFC6962TreeHasher(trillian.NewSHA256()))
 
-	// We use the leafMap so we're not relying on the order leaves got sequenced in. We need
-	// to use the same order for the memory tree to get the same hash.
+	// We use the leafMap as we need to use the same order for the memory tree to get the same hash.
 	for l := params.startLeaf; l < params.leafCount; l++ {
+		compactTree.AddLeaf(leafMap[l].LeafData, func(depth int, index int64, hash trillian.Hash) {})
 		merkleTree.AddLeaf(leafMap[l].LeafData)
+	}
+
+	// If the two reference results disagree there's no point in continuing the checks
+	if bytes.Compare(compactTree.CurrentRoot(), merkleTree.CurrentRoot().Hash()) != 0 {
+		glog.Fatalf("different root hash results from merkle tree building: %v and %v", compactTree.CurrentRoot(), merkleTree.CurrentRoot())
 	}
 
 	return merkleTree

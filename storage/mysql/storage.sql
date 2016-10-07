@@ -66,8 +66,8 @@ CREATE TABLE IF NOT EXISTS TreeHead(
 -- are allowed they will all reference this row.
 CREATE TABLE IF NOT EXISTS LeafData(
   TreeId               INTEGER NOT NULL,
-  -- This is a MerkleLeafHash as defined by the treehasher that the log uses. For
-  -- example for CT this hash will include the leaf prefix byte as well as the leaf data.
+  -- This is a MTH as defined by the treehasher that the log uses. For example for CT this
+  -- hash will include the leaf prefix byte as well as the leaf data.
   LeafHash             VARBINARY(255) NOT NULL,
   TheData              BLOB NOT NULL,
   PRIMARY KEY(TreeId, LeafHash),
@@ -83,8 +83,8 @@ CREATE TABLE IF NOT EXISTS LeafData(
 CREATE TABLE IF NOT EXISTS SequencedLeafData(
   TreeId               INTEGER NOT NULL,
   SequenceNumber       BIGINT UNSIGNED NOT NULL,
-  -- This is a MerkleLeafHash as defined by the treehasher that the log uses. For example for
-  -- CT this hash will include the leaf prefix byte as well as the leaf data.
+  -- This is a MTH as defined by the treehasher that the log uses. For example for CT this
+  -- hash will include the leaf prefix byte as well as the leaf data.
   LeafHash             VARBINARY(255) NOT NULL,
   PRIMARY KEY(TreeId, SequenceNumber),
   FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE,
