@@ -183,7 +183,6 @@ func nodeIDFromAddress(size int, prefix []byte, index *big.Int, depth int) stora
 	case depth == 0:
 		return storage.NewEmptyNodeID(size * 8)
 	}
-
 	ib := index.Bytes()
 	t := make(trillian.Hash, size)
 	depthBytes := (depth-1)/8 + 1
@@ -192,7 +191,7 @@ func nodeIDFromAddress(size int, prefix []byte, index *big.Int, depth int) stora
 	if depth > len(ib)*8 {
 		copy(t[len(prefix)+depthBytes-len(ib):], ib)
 	} else {
-		copy(t[len(prefix):], ib)
+		copy(t[size-len(ib):], ib)
 	}
 	n := storage.NewNodeIDFromHash(t)
 	n.PrefixLenBits = len(prefix)*8 + depth
@@ -227,9 +226,10 @@ func (s *subtreeWriter) buildSubtree() {
 	// calculate new root, and intermediate nodes:
 	hs2 := NewHStar2(s.treeHasher)
 	treeDepthOffset := (s.treeHasher.Size()-len(s.prefix))*8 - s.subtreeDepth
+	addressSize := len(s.prefix) + s.subtreeDepth/8
 	root, err := hs2.HStar2Nodes(s.subtreeDepth, treeDepthOffset, leaves,
 		func(depth int, index *big.Int) (trillian.Hash, error) {
-			nodeID := nodeIDFromAddress(s.treeHasher.Size(), s.prefix, index, depth)
+			nodeID := nodeIDFromAddress(addressSize, s.prefix, index, depth)
 			nodes, err := s.tx.GetMerkleNodes(s.treeRevision, []storage.NodeID{nodeID})
 			if err != nil {
 				return nil, err
@@ -251,7 +251,7 @@ func (s *subtreeWriter) buildSubtree() {
 			if depth == 0 && len(s.prefix) > 0 {
 				return nil
 			}
-			nID := nodeIDFromAddress(s.treeHasher.Size(), s.prefix, index, depth)
+			nID := nodeIDFromAddress(addressSize, s.prefix, index, depth)
 			nodesToStore = append(nodesToStore,
 				storage.Node{
 					NodeID:       nID,
