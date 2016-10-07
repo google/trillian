@@ -13,6 +13,7 @@ import (
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
+	"bytes"
 )
 
 const getTreePropertiesSQL string = "SELECT AllowsDuplicateLeaves FROM Trees WHERE TreeId=?"
@@ -264,6 +265,12 @@ func (t *logTX) QueueLeaves(leaves []trillian.LogLeaf) error {
 	for _, leaf := range leaves {
 		if len(leaf.LeafHash) != t.ts.hashSizeBytes {
 			return fmt.Errorf("Queued leaf must have a hash of length %d", t.ts.hashSizeBytes)
+		}
+
+		// Validate the hash as a consistency check that the data was received OK. Note: at
+		// this stage it is not a merkle tree hash for the leaf
+		if !bytes.Equal(trillian.NewSHA256().Digest(leaf.LeafValue), leaf.LeafHash) {
+			return fmt.Errorf("Leaf hash / data mismatch: %v", leaf.LeafHash)
 		}
 	}
 
