@@ -9,12 +9,30 @@ go:
   - 1.7.1
 
 install:
+  - mkdir $HOME/gopath/src/github.com/google
+  - ln -s $TRAVIS_BUILD_DIR $HOME/gopath/src/github.com/google/trillian
   - go get -d -v -t ./...
   - if [[ $TRAVIS_OS_NAME == "osx" ]]; then brew update > /dev/null && brew install mariadb && mysql.server start; fi
 
 script:
   - go install github.com/golang/mock/mockgen
-  - go generate -run="genmock" -x github.com/google/trillian/...
+  - go get -u github.com/golang/lint/golint
+  - go get -u github.com/golang/protobuf/...
+  - MOCKFILES=$(find . -name mock_\*.go)
+  - rm ${MOCKFILES}
+  - PBFILES=$(find . -name \*.pb.go)
+  - rm ${PBFILES}
+  - golint --set_exit_status ./...  # Run golint while generated files are missing
+  - git checkout ${PBFILES}
+  - go generate -run="mockgen" -x ./...
+  - |
+      # Check re-generation didn't change anything
+      status=$(git status --porcelain) || :
+      if [[ -n ${status} ]]; then
+        echo "Regenerated files differ from checked-in versions"
+        git status
+        exit 1
+      fi
   - go build -v ./...
   - go test -v ./...
   - ./integration/integration_test.sh
