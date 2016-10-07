@@ -4,11 +4,14 @@ import (
 	"flag"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
 	"time"
+
+	_ "net/http/pprof"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/golang/glog"
@@ -94,6 +97,10 @@ func awaitSignal(rpcServer *grpc.Server) {
 
 func main() {
 	flag.Parse()
+
+	go func() {
+		glog.Infof("HTTP server exited: %v", http.ListenAndServe(fmt.Sprintf("localhost:%d", *serverPortFlag+1), nil))
+	}()
 
 	done := make(chan struct{})
 
