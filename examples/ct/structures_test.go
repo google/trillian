@@ -13,7 +13,7 @@ import (
 	"github.com/google/trillian/crypto"
 )
 
-var fixedTime = time.Date(2016, 21, 7, 12, 15, 23, 0, time.UTC)
+var fixedTime = time.Date(2017, 9, 7, 12, 15, 23, 0, time.UTC)
 
 // Public key for Google Testtube log, taken from CT Github repository
 const ctTesttubePublicKey string = `
