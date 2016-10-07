@@ -25,7 +25,7 @@ import (
 
 var mysqlURIFlag = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test",
 	"uri to use with mysql storage")
-var serverPortFlag = flag.Int("port", 8091, "Port to serve map requests on")
+var serverPortFlag = flag.Int("port", 8091, "Port to serve map requests on, port+1 is used to serve pprof requests too")
 
 // TODO(Martin2112): Single private key doesn't really work for multi tenant and we can't use
 // an HSM interface in this way. Deferring these issues for later.
