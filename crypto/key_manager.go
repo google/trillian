@@ -149,12 +149,12 @@ func parsePrivateKey(key []byte) (crypto.PrivateKey, error) {
 			return nil, fmt.Errorf("unknown private key type: %T", key)
 		}
 	}
+	var err error
 	if key, err := x509.ParseECPrivateKey(key); err == nil {
 		return key, nil
-	} else {
-		glog.Warningf("error parsing EC key: %s", err)
 	}
 
+	glog.Warningf("error parsing EC key: %s", err)
 	return nil, errors.New("could not parse private key")
 }
 

@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/hex"
 	"flag"
+
 	_ "github.com/go-sql-driver/mysql"
 	log "github.com/golang/glog"
 	"github.com/google/trillian"
@@ -28,8 +29,8 @@ func main() {
 	flag.Parse()
 	validateFetchFlagsOrDie()
 
-	treeId := tools.GetLogIdFromFlagsOrDie()
-	storage := tools.GetStorageFromFlagsOrDie(treeId)
+	treeID := tools.GetLogIDFromFlagsOrDie()
+	storage := tools.GetStorageFromFlagsOrDie(treeID)
 
 	tx, err := storage.Begin()
 

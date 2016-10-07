@@ -16,7 +16,7 @@ import (
 // GetSubtreeFunc describes a function which can return a Subtree from storage.
 type GetSubtreeFunc func(id storage.NodeID) (*storage.SubtreeProto, error)
 
-// SetSubtreeFunc describes a function which can store a Subtree into storage.
+// SetSubtreesFunc describes a function which can store a collection of Subtrees into storage.
 type SetSubtreesFunc func(s []*storage.SubtreeProto) error
 
 // stratumInfo represents a single stratum across the tree.
@@ -129,6 +129,7 @@ func (s *SubtreeCache) splitNodeID(id storage.NodeID) ([]byte, Suffix) {
 	return a[:prefixSplit], sfx
 }
 
+// Preload populates the cache based on a specified set of NodeIDs.
 func (s *SubtreeCache) Preload(ids []storage.NodeID, getSubtrees func(id []storage.NodeID) ([]*storage.SubtreeProto, error)) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()

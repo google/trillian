@@ -14,7 +14,7 @@ import (
 const insertMapHeadSQL string = `INSERT INTO MapHead(TreeId, MapHeadTimestamp, RootHash, MapRevision, RootSignature, MapperData)
 	VALUES(?, ?, ?, ?, ?, ?)`
 
-const selectLatestSignedMapRootSql string = `SELECT MapHeadTimestamp, RootHash, MapRevision, RootSignature, MapperData
+const selectLatestSignedMapRootSQL string = `SELECT MapHeadTimestamp, RootHash, MapRevision, RootSignature, MapperData
 		 FROM MapHead WHERE TreeId=?
 		 ORDER BY MapHeadTimestamp DESC LIMIT 1`
 
@@ -23,7 +23,7 @@ const insertMapLeafSQL string = `INSERT INTO MapLeaf(TreeId, KeyHash, MapRevisio
 // Note that MapRevision is stored negated, hence the odd equality check below:
 const selectMapLeafSQL string = `SELECT KeyHash, MAX(MapRevision), TheData
 	 FROM MapLeaf
-	 WHERE KeyHash IN (` + placeholderSql + `) AND
+	 WHERE KeyHash IN (` + placeholderSQL + `) AND
 	       TreeId = ? AND
 				 MapRevision >= ?
 	 GROUP BY KeyHash`
@@ -40,6 +40,7 @@ func (m *mySQLMapStorage) MapID() trillian.MapID {
 	return m.mapID
 }
 
+// NewMapStorage creates a mySQLMapStorage instance for the specified MySQL URL.
 func NewMapStorage(id trillian.MapID, dbURL string) (storage.MapStorage, error) {
 	// TODO(al): pass this through/configure from DB
 	th := merkle.NewRFC6962TreeHasher(trillian.NewSHA256())
@@ -95,8 +96,8 @@ type mapTX struct {
 	ms *mySQLMapStorage
 }
 
-func (t *mapTX) WriteRevision() int64 {
-	return t.treeTX.writeRevision
+func (m *mapTX) WriteRevision() int64 {
+	return m.treeTX.writeRevision
 }
 
 func (m *mapTX) Set(keyHash trillian.Hash, value trillian.MapLeaf) error {
@@ -182,7 +183,7 @@ func (m *mapTX) LatestSignedMapRoot() (trillian.SignedMapRoot, error) {
 	var mapperMetaBytes []byte
 	var mapperMeta *trillian.MapperMetadata
 
-	stmt, err := m.tx.Prepare(selectLatestSignedMapRootSql)
+	stmt, err := m.tx.Prepare(selectLatestSignedMapRootSQL)
 	if err != nil {
 		return trillian.SignedMapRoot{}, err
 	}

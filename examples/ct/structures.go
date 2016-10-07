@@ -26,7 +26,7 @@ type CTLogEntry struct {
 	Chain []ct.ASN1Cert
 }
 
-// GetCTKeyID takes the key manager for a log and returns the LogID. (see RFC 6962 S3.2)
+// GetCTLogID takes the key manager for a log and returns the LogID. (see RFC 6962 S3.2)
 // In CT V1 the log id is a hash of the public key.
 func GetCTLogID(km crypto.KeyManager) ([sha256.Size]byte, error) {
 	key, err := km.GetRawPublicKey()
@@ -38,6 +38,8 @@ func GetCTLogID(km crypto.KeyManager) ([sha256.Size]byte, error) {
 	return sha256.Sum256(key), nil
 }
 
+// NewCTLogEntry creates a new CTLogEntry instance based on the given Merkle tree leaf
+// and certificate chain.
 func NewCTLogEntry(leaf ct.MerkleTreeLeaf, certChain []*x509.Certificate) *CTLogEntry {
 	chain := []ct.ASN1Cert{}
 

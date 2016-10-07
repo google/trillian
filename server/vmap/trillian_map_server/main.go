@@ -20,7 +20,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-var mysqlUriFlag = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test",
+var mysqlURIFlag = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test",
 	"uri to use with mysql storage")
 var serverPortFlag = flag.Int("port", 8091, "Port to serve map requests on")
 
@@ -34,14 +34,14 @@ var mapStorage = make(map[int64]storage.MapStorage)
 
 // TODO(Martin2112): Needs a more realistic provider of map storage with some caching
 // and ability to swap out for different storage type
-func simpleMySqlStorageProvider(treeID int64) (storage.MapStorage, error) {
+func simpleMySQLStorageProvider(treeID int64) (storage.MapStorage, error) {
 	mapMutex.Lock()
 	defer mapMutex.Unlock()
 
 	s := mapStorage[treeID]
 	if s == nil {
 		var err error
-		s, err = mysql.NewMapStorage(trillian.MapID{[]byte("TODO"), treeID}, *mysqlUriFlag)
+		s, err = mysql.NewMapStorage(trillian.MapID{[]byte("TODO"), treeID}, *mysqlURIFlag)
 		if err != nil {
 			return nil, err
 		}
@@ -50,9 +50,9 @@ func simpleMySqlStorageProvider(treeID int64) (storage.MapStorage, error) {
 	return s, nil
 }
 
-func checkDatabaseAccessible(dbUri string) error {
+func checkDatabaseAccessible(dbURI string) error {
 	// TODO(Martin2112): Have to pass a tree ID when we just want metadata. API mismatch
-	storage, err := mysql.NewMapStorage(trillian.MapID{[]byte("TODO"), int64(0)}, dbUri)
+	storage, err := mysql.NewMapStorage(trillian.MapID{[]byte("TODO"), int64(0)}, dbURI)
 
 	if err != nil {
 		// This is probably something fundamentally wrong
@@ -71,7 +71,7 @@ func checkDatabaseAccessible(dbUri string) error {
 	return nil
 }
 
-func startRpcServer(listener net.Listener, port int, provider vmap.MapStorageProviderFunc) *grpc.Server {
+func startRPCServer(listener net.Listener, port int, provider vmap.MapStorageProviderFunc) *grpc.Server {
 	grpcServer := grpc.NewServer()
 	mapServer := vmap.NewTrillianMapServer(provider)
 	trillian.RegisterTrillianMapServer(grpcServer, mapServer)
@@ -100,7 +100,7 @@ func main() {
 	glog.Info("**** Map Server Starting ****")
 
 	// First make sure we can access the database, quit if not
-	if err := checkDatabaseAccessible(*mysqlUriFlag); err != nil {
+	if err := checkDatabaseAccessible(*mysqlURIFlag); err != nil {
 		glog.Errorf("Could not access storage, check db configuration and flags")
 		os.Exit(1)
 	}
@@ -125,7 +125,7 @@ func main() {
 	}
 
 	// Bring up the RPC server and then block until we get a signal to stop
-	rpcServer := startRpcServer(lis, *serverPortFlag, simpleMySqlStorageProvider)
+	rpcServer := startRPCServer(lis, *serverPortFlag, simpleMySQLStorageProvider)
 	go awaitSignal(rpcServer)
 	err = rpcServer.Serve(lis)
 

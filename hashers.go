@@ -2,7 +2,7 @@ package trillian
 
 import (
 	"crypto"
-	_ "crypto/sha256"
+	_ "crypto/sha256" // Register the SHA256 algorithm
 	"fmt"
 )
 
@@ -12,6 +12,7 @@ type Hasher struct {
 	alg HashAlgorithm
 }
 
+// NewHasher creates a Hasher instance for the specified algorithm.
 func NewHasher(alg HashAlgorithm) (Hasher, error) {
 	switch alg {
 	case HashAlgorithm_SHA256:
@@ -20,14 +21,14 @@ func NewHasher(alg HashAlgorithm) (Hasher, error) {
 	return Hasher{}, fmt.Errorf("unsupported hash algorithm %v", alg)
 }
 
-// Calculates the digest of b according to the underlying algorithm.
+// Digest calculates the digest of b according to the underlying algorithm.
 func (h Hasher) Digest(b []byte) Hash {
 	hr := h.New()
 	hr.Write(b)
 	return hr.Sum([]byte{})
 }
 
-// SHA256 is a stateless SHA-256 hashing function which conforms to the Hasher prototype.
+// NewSHA256 creates a Hasher instance for a stateless SHA256 hashing function.
 func NewSHA256() Hasher {
 	h, err := NewHasher(HashAlgorithm_SHA256)
 	if err != nil {
@@ -37,6 +38,7 @@ func NewSHA256() Hasher {
 	return h
 }
 
+// HashAlgorithm returns an identifier for the underlying hash algorithm for a Hasher instance.
 func (h Hasher) HashAlgorithm() HashAlgorithm {
 	return h.alg
 }

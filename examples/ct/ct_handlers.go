@@ -67,13 +67,13 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		glog.Warningf("handler error: %v", err)
-		sendHttpError(w, status, err)
+		sendHTTPError(w, status, err)
 	}
 
 	// Additional check, for consistency the handler must return an error for non 200 status
 	if status != http.StatusOK {
 		glog.Warningf("handler non 200 without error: %d %v", status, err)
-		sendHttpError(w, http.StatusInternalServerError, fmt.Errorf("http handler misbehaved, status: %d", status))
+		sendHTTPError(w, http.StatusInternalServerError, fmt.Errorf("http handler misbehaved, status: %d", status))
 	}
 }
 
@@ -195,7 +195,7 @@ func enforceMethod(w http.ResponseWriter, r *http.Request, method string) bool {
 	// POSTs will decode the raw request body as JSON later.
 	if r.Method == httpMethodGet {
 		if err := r.ParseForm(); err != nil {
-			sendHttpError(w, http.StatusBadRequest, err)
+			sendHTTPError(w, http.StatusBadRequest, err)
 			return false
 		}
 	}
@@ -624,7 +624,7 @@ func (c CTRequestHandlers) RegisterCTHandlers() {
 
 // Generates a custom error page to give more information on why something didn't work
 // TODO(Martin2112): Not sure if we want to expose any detail or not
-func sendHttpError(w http.ResponseWriter, statusCode int, err error) {
+func sendHTTPError(w http.ResponseWriter, statusCode int, err error) {
 	http.Error(w, fmt.Sprintf("%s\n%v", http.StatusText(statusCode), err), statusCode)
 }
 

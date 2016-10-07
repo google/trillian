@@ -1,15 +1,17 @@
 package server
 
 import (
+	"time"
+
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/log"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/util"
-	"time"
 )
 
+// SequencerManager provides sequencing operations for a collection of Logs.
 type SequencerManager struct {
 	keyManager crypto.KeyManager
 }
@@ -23,14 +25,17 @@ func isRootTooOld(ts util.TimeSource, maxAge time.Duration) log.CurrentRootExpir
 	}
 }
 
+// NewSequencerManager creates a new SequencerManager instance based on the provided KeyManager instance.
 func NewSequencerManager(km crypto.KeyManager) *SequencerManager {
 	return &SequencerManager{keyManager: km}
 }
 
+// Name returns the name of the object.
 func (s SequencerManager) Name() string {
 	return "Sequencer"
 }
 
+// ExecutePass performs sequencing for the specified set of Logs.
 func (s SequencerManager) ExecutePass(logIDs []trillian.LogID, context LogOperationManagerContext) bool {
 	// TODO(Martin2112): Demote logging to verbose level
 	glog.Infof("Beginning sequencing run for %d active log(s)", len(logIDs))

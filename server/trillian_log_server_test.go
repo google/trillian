@@ -14,52 +14,52 @@ import (
 	"golang.org/x/net/context"
 )
 
-var logId1 = int64(1)
-var logId2 = int64(2)
-var leaf0Request = trillian.GetLeavesByIndexRequest{LogId: logId1, LeafIndex: []int64{0}}
-var leaf0Minus2Request = trillian.GetLeavesByIndexRequest{LogId: logId1, LeafIndex: []int64{0, -2}}
-var leaf03Request = trillian.GetLeavesByIndexRequest{LogId: logId1, LeafIndex: []int64{0, 3}}
-var leaf0Log2Request = trillian.GetLeavesByIndexRequest{LogId: logId2, LeafIndex: []int64{0}}
+var logID1 = int64(1)
+var logID2 = int64(2)
+var leaf0Request = trillian.GetLeavesByIndexRequest{LogId: logID1, LeafIndex: []int64{0}}
+var leaf0Minus2Request = trillian.GetLeavesByIndexRequest{LogId: logID1, LeafIndex: []int64{0, -2}}
+var leaf03Request = trillian.GetLeavesByIndexRequest{LogId: logID1, LeafIndex: []int64{0, 3}}
+var leaf0Log2Request = trillian.GetLeavesByIndexRequest{LogId: logID2, LeafIndex: []int64{0}}
 
 var leaf1 = trillian.LogLeaf{SequenceNumber: 1, Leaf: trillian.Leaf{LeafHash: []byte("hash"), LeafValue: []byte("value"), ExtraData: []byte("extra")}}
 var leaf3 = trillian.LogLeaf{SequenceNumber: 3, Leaf: trillian.Leaf{LeafHash: []byte("hash3"), LeafValue: []byte("value3"), ExtraData: []byte("extra3")}}
 var expectedLeaf1 = trillian.LeafProto{LeafIndex: 1, LeafHash: []byte("hash"), LeafData: []byte("value"), ExtraData: []byte("extra")}
 var expectedLeaf3 = trillian.LeafProto{LeafIndex: 3, LeafHash: []byte("hash3"), LeafData: []byte("value3"), ExtraData: []byte("extra3")}
 
-var queueRequest0 = trillian.QueueLeavesRequest{LogId: logId1, Leaves: []*trillian.LeafProto{&expectedLeaf1}}
-var queueRequest0Log2 = trillian.QueueLeavesRequest{LogId: logId2, Leaves: []*trillian.LeafProto{&expectedLeaf1}}
-var queueRequestEmpty = trillian.QueueLeavesRequest{LogId: logId1, Leaves: []*trillian.LeafProto{}}
+var queueRequest0 = trillian.QueueLeavesRequest{LogId: logID1, Leaves: []*trillian.LeafProto{&expectedLeaf1}}
+var queueRequest0Log2 = trillian.QueueLeavesRequest{LogId: logID2, Leaves: []*trillian.LeafProto{&expectedLeaf1}}
+var queueRequestEmpty = trillian.QueueLeavesRequest{LogId: logID1, Leaves: []*trillian.LeafProto{}}
 
-var getLogRootRequest1 = trillian.GetLatestSignedLogRootRequest{LogId: logId1}
-var getLogRootRequest2 = trillian.GetLatestSignedLogRootRequest{LogId: logId2}
+var getLogRootRequest1 = trillian.GetLatestSignedLogRootRequest{LogId: logID1}
+var getLogRootRequest2 = trillian.GetLatestSignedLogRootRequest{LogId: logID2}
 var signedRoot1 = trillian.SignedLogRoot{TimestampNanos: 987654321, RootHash: []byte("A NICE HASH"), TreeSize: 7}
 
-var getByHashRequest1 = trillian.GetLeavesByHashRequest{LogId: logId1, LeafHash: [][]byte{[]byte("test"), []byte("data")}}
-var getByHashRequestBadHash = trillian.GetLeavesByHashRequest{LogId: logId1, LeafHash: [][]byte{[]byte(""), []byte("data")}}
-var getByHashRequest2 = trillian.GetLeavesByHashRequest{LogId: logId2, LeafHash: [][]byte{[]byte("test"), []byte("data")}}
+var getByHashRequest1 = trillian.GetLeavesByHashRequest{LogId: logID1, LeafHash: [][]byte{[]byte("test"), []byte("data")}}
+var getByHashRequestBadHash = trillian.GetLeavesByHashRequest{LogId: logID1, LeafHash: [][]byte{[]byte(""), []byte("data")}}
+var getByHashRequest2 = trillian.GetLeavesByHashRequest{LogId: logID2, LeafHash: [][]byte{[]byte("test"), []byte("data")}}
 
-var getInclusionProofByHashRequestBadTreeSize = trillian.GetInclusionProofByHashRequest{LogId: logId1, TreeSize: -50, LeafHash: []byte("data")}
-var getInclusionProofByHashRequestBadHash = trillian.GetInclusionProofByHashRequest{LogId: logId1, TreeSize: 50, LeafHash: []byte{}}
-var getInclusionProofByHashRequest7 = trillian.GetInclusionProofByHashRequest{LogId: logId1, TreeSize: 7, LeafHash: []byte("ahash")}
-var getInclusionProofByHashRequest25 = trillian.GetInclusionProofByHashRequest{LogId: logId1, TreeSize: 25, LeafHash: []byte("ahash")}
+var getInclusionProofByHashRequestBadTreeSize = trillian.GetInclusionProofByHashRequest{LogId: logID1, TreeSize: -50, LeafHash: []byte("data")}
+var getInclusionProofByHashRequestBadHash = trillian.GetInclusionProofByHashRequest{LogId: logID1, TreeSize: 50, LeafHash: []byte{}}
+var getInclusionProofByHashRequest7 = trillian.GetInclusionProofByHashRequest{LogId: logID1, TreeSize: 7, LeafHash: []byte("ahash")}
+var getInclusionProofByHashRequest25 = trillian.GetInclusionProofByHashRequest{LogId: logID1, TreeSize: 25, LeafHash: []byte("ahash")}
 
-var getInclusionProofByIndexRequestBadTreeSize = trillian.GetInclusionProofRequest{LogId: logId1, TreeSize: -50, LeafIndex: 10}
-var getInclusionProofByIndexRequestBadLeafIndex = trillian.GetInclusionProofRequest{LogId: logId1, TreeSize: 50, LeafIndex: -10}
-var getInclusionProofByIndexRequestBadLeafIndexRange = trillian.GetInclusionProofRequest{LogId: logId1, TreeSize: 50, LeafIndex: 60}
-var getInclusionProofByIndexRequest7 = trillian.GetInclusionProofRequest{LogId: logId1, TreeSize: 7, LeafIndex: 2}
-var getInclusionProofByIndexRequest25 = trillian.GetInclusionProofRequest{LogId: logId1, TreeSize: 50, LeafIndex: 25}
+var getInclusionProofByIndexRequestBadTreeSize = trillian.GetInclusionProofRequest{LogId: logID1, TreeSize: -50, LeafIndex: 10}
+var getInclusionProofByIndexRequestBadLeafIndex = trillian.GetInclusionProofRequest{LogId: logID1, TreeSize: 50, LeafIndex: -10}
+var getInclusionProofByIndexRequestBadLeafIndexRange = trillian.GetInclusionProofRequest{LogId: logID1, TreeSize: 50, LeafIndex: 60}
+var getInclusionProofByIndexRequest7 = trillian.GetInclusionProofRequest{LogId: logID1, TreeSize: 7, LeafIndex: 2}
+var getInclusionProofByIndexRequest25 = trillian.GetInclusionProofRequest{LogId: logID1, TreeSize: 50, LeafIndex: 25}
 
-var getEntryAndProofRequestBadTreeSize = trillian.GetEntryAndProofRequest{LogId: logId1, TreeSize: -20, LeafIndex: 20}
-var getEntryAndProofRequestBadLeafIndex = trillian.GetEntryAndProofRequest{LogId: logId1, TreeSize: 25, LeafIndex: -5}
-var getEntryAndProofRequestBadLeafIndexRange = trillian.GetEntryAndProofRequest{LogId: logId1, TreeSize: 25, LeafIndex: 30}
-var getEntryAndProofRequest17 = trillian.GetEntryAndProofRequest{LogId: logId1, TreeSize: 17, LeafIndex: 3}
-var getEntryAndProofRequest7 = trillian.GetEntryAndProofRequest{LogId: logId1, TreeSize: 7, LeafIndex: 2}
+var getEntryAndProofRequestBadTreeSize = trillian.GetEntryAndProofRequest{LogId: logID1, TreeSize: -20, LeafIndex: 20}
+var getEntryAndProofRequestBadLeafIndex = trillian.GetEntryAndProofRequest{LogId: logID1, TreeSize: 25, LeafIndex: -5}
+var getEntryAndProofRequestBadLeafIndexRange = trillian.GetEntryAndProofRequest{LogId: logID1, TreeSize: 25, LeafIndex: 30}
+var getEntryAndProofRequest17 = trillian.GetEntryAndProofRequest{LogId: logID1, TreeSize: 17, LeafIndex: 3}
+var getEntryAndProofRequest7 = trillian.GetEntryAndProofRequest{LogId: logID1, TreeSize: 7, LeafIndex: 2}
 
-var getConsistencyProofRequestBadFirstTreeSize = trillian.GetConsistencyProofRequest{LogId: logId1, FirstTreeSize: -10, SecondTreeSize: 25}
-var getConsistencyProofRequestBadSecondTreeSize = trillian.GetConsistencyProofRequest{LogId: logId1, FirstTreeSize: 10, SecondTreeSize: -25}
-var getConsistencyProofRequestBadRange = trillian.GetConsistencyProofRequest{LogId: logId1, FirstTreeSize: 330, SecondTreeSize: 329}
-var getConsistencyProofRequest25 = trillian.GetConsistencyProofRequest{LogId: logId1, FirstTreeSize: 10, SecondTreeSize: 25}
-var getConsistencyProofRequest7 = trillian.GetConsistencyProofRequest{LogId: logId1, FirstTreeSize: 4, SecondTreeSize: 7}
+var getConsistencyProofRequestBadFirstTreeSize = trillian.GetConsistencyProofRequest{LogId: logID1, FirstTreeSize: -10, SecondTreeSize: 25}
+var getConsistencyProofRequestBadSecondTreeSize = trillian.GetConsistencyProofRequest{LogId: logID1, FirstTreeSize: 10, SecondTreeSize: -25}
+var getConsistencyProofRequestBadRange = trillian.GetConsistencyProofRequest{LogId: logID1, FirstTreeSize: 330, SecondTreeSize: 329}
+var getConsistencyProofRequest25 = trillian.GetConsistencyProofRequest{LogId: logID1, FirstTreeSize: 10, SecondTreeSize: 25}
+var getConsistencyProofRequest7 = trillian.GetConsistencyProofRequest{LogId: logID1, FirstTreeSize: 4, SecondTreeSize: 7}
 
 var nodeIdsInclusionSize7Index2 = []storage.NodeID{
 	testonly.MustCreateNodeIDForTreeCoords(0, 3, 64),
@@ -72,9 +72,8 @@ func mockStorageProviderfunc(mockStorage storage.LogStorage) LogStorageProviderF
 	return func(id int64) (storage.LogStorage, error) {
 		if id == 1 {
 			return mockStorage, nil
-		} else {
-			return nil, fmt.Errorf("BADLOGID: %d", id)
 		}
+		return nil, fmt.Errorf("BADLOGID: %d", id)
 	}
 }
 
@@ -1170,7 +1169,7 @@ func TestGetSequencedLeafCountBeginTXFails(t *testing.T) {
 	test := newParameterizedTest(ctrl, "GetSequencedLeafCount",
 		func(t *storage.MockLogTX) {},
 		func(s *TrillianLogServer) error {
-			_, err := s.GetSequencedLeafCount(context.Background(), &trillian.GetSequencedLeafCountRequest{LogId: logId1})
+			_, err := s.GetSequencedLeafCount(context.Background(), &trillian.GetSequencedLeafCountRequest{LogId: logID1})
 			return err
 		})
 
@@ -1186,7 +1185,7 @@ func TestGetSequencedLeafCountStorageFails(t *testing.T) {
 			t.EXPECT().GetSequencedLeafCount().Return(int64(0), errors.New("STORAGE"))
 		},
 		func(s *TrillianLogServer) error {
-			_, err := s.GetSequencedLeafCount(context.Background(), &trillian.GetSequencedLeafCountRequest{LogId: logId1})
+			_, err := s.GetSequencedLeafCount(context.Background(), &trillian.GetSequencedLeafCountRequest{LogId: logID1})
 			return err
 		})
 
@@ -1202,7 +1201,7 @@ func TestGetSequencedLeafCountCommitFails(t *testing.T) {
 			t.EXPECT().GetSequencedLeafCount().Return(int64(27), nil)
 		},
 		func(s *TrillianLogServer) error {
-			_, err := s.GetSequencedLeafCount(context.Background(), &trillian.GetSequencedLeafCountRequest{LogId: logId1})
+			_, err := s.GetSequencedLeafCount(context.Background(), &trillian.GetSequencedLeafCountRequest{LogId: logID1})
 			return err
 		})
 
@@ -1222,7 +1221,7 @@ func TestGetSequencedLeafCount(t *testing.T) {
 
 	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
 
-	response, err := server.GetSequencedLeafCount(context.Background(), &trillian.GetSequencedLeafCountRequest{LogId: logId1})
+	response, err := server.GetSequencedLeafCount(context.Background(), &trillian.GetSequencedLeafCountRequest{LogId: logID1})
 
 	if err != nil {
 		t.Fatalf("expected no error getting leaf count but got: %v", err)
@@ -1423,17 +1422,17 @@ func TestGetConsistencyProof(t *testing.T) {
 }
 
 type prepareMockTXFunc func(*storage.MockLogTX)
-type makeRpcFunc func(*TrillianLogServer) error
+type makeRPCFunc func(*TrillianLogServer) error
 
 type parameterizedTest struct {
 	ctrl      *gomock.Controller
 	operation string
 	prepareTx prepareMockTXFunc
-	makeRpc   makeRpcFunc
+	makeRPC   makeRPCFunc
 }
 
-func newParameterizedTest(ctrl *gomock.Controller, operation string, prepareTx prepareMockTXFunc, makeRpc makeRpcFunc) *parameterizedTest {
-	return &parameterizedTest{ctrl, operation, prepareTx, makeRpc}
+func newParameterizedTest(ctrl *gomock.Controller, operation string, prepareTx prepareMockTXFunc, makeRPC makeRPCFunc) *parameterizedTest {
+	return &parameterizedTest{ctrl, operation, prepareTx, makeRPC}
 }
 
 func (p *parameterizedTest) executeCommitFailsTest(t *testing.T) {
@@ -1447,7 +1446,7 @@ func (p *parameterizedTest) executeCommitFailsTest(t *testing.T) {
 
 	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
 
-	err := p.makeRpc(server)
+	err := p.makeRPC(server)
 
 	if err == nil {
 		t.Fatalf("Returned OK when commit failed: %s: %v", p.operation, err)
@@ -1460,7 +1459,7 @@ func (p *parameterizedTest) executeInvalidLogIDTest(t *testing.T) {
 	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
 
 	// Make a request for a nonexistent log id
-	err := p.makeRpc(server)
+	err := p.makeRPC(server)
 
 	if err == nil || !strings.Contains(err.Error(), "BADLOGID") {
 		t.Fatalf("Returned wrong error response for nonexistent log: %s: %v", p.operation, err)
@@ -1477,7 +1476,7 @@ func (p *parameterizedTest) executeStorageFailureTest(t *testing.T) {
 
 	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
 
-	err := p.makeRpc(server)
+	err := p.makeRPC(server)
 
 	if err == nil || !strings.Contains(err.Error(), "STORAGE") {
 		t.Fatalf("Returned wrong error response when storage failed: %s: %v", p.operation, err)
@@ -1492,7 +1491,7 @@ func (p *parameterizedTest) executeBeginFailsTest(t *testing.T) {
 
 	server := NewTrillianLogServer(mockStorageProviderfunc(mockStorage))
 
-	err := p.makeRpc(server)
+	err := p.makeRPC(server)
 
 	if err == nil || !strings.Contains(err.Error(), "TX") {
 		t.Fatalf("Returned wrong error response when begin failed")

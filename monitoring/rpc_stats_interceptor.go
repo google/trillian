@@ -5,21 +5,22 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/trillian/util"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-	"github.com/google/trillian/util"
 )
 
 const (
 	nanosToMillisDivisor int64 = 1000000
 
-	requestCountMapName string = "requests-by-handler"
-	requestSucceededCountMapName string = "success-by-handler"
-	requestErrorCountMapName string = "errors-by-handler"
+	requestCountMapName            string = "requests-by-handler"
+	requestSucceededCountMapName   string = "success-by-handler"
+	requestErrorCountMapName       string = "errors-by-handler"
 	requestSucceededLatencyMapName string = "succeeded-request-total-latency-by-handler-ms"
-	requestFailedLatencyMapName string = "failed-request-total-latency-by-handler-ms"
+	requestFailedLatencyMapName    string = "failed-request-total-latency-by-handler-ms"
 )
 
+// RPCStatsInterceptor provides a gRPC interceptor that records statistics about the RPCs passing through it.
 type RPCStatsInterceptor struct {
 	baseName                          string
 	timeSource                        util.TimeSource
@@ -30,13 +31,15 @@ type RPCStatsInterceptor struct {
 	handlerRequestFailedLatencyMap    *expvar.Map
 }
 
+// NewRPCStatsInterceptor creates a new RPCStatsInterceptor for the given application/component, with
+// a specified time source.
 func NewRPCStatsInterceptor(timeSource util.TimeSource, application, component string) *RPCStatsInterceptor {
 	return &RPCStatsInterceptor{baseName: fmt.Sprintf("%s/%s", application, component), timeSource: timeSource,
-		handlerRequestCountMap: new(expvar.Map).Init(),
-		handlerRequestSucceededCountMap: new(expvar.Map).Init(),
-		handlerRequestErrorCountMap: new(expvar.Map).Init(),
+		handlerRequestCountMap:            new(expvar.Map).Init(),
+		handlerRequestSucceededCountMap:   new(expvar.Map).Init(),
+		handlerRequestErrorCountMap:       new(expvar.Map).Init(),
 		handlerRequestSucceededLatencyMap: new(expvar.Map).Init(),
-		handlerRequestFailedLatencyMap: new(expvar.Map).Init()}
+		handlerRequestFailedLatencyMap:    new(expvar.Map).Init()}
 }
 
 func (r RPCStatsInterceptor) nameForMap(name string) string {
@@ -56,7 +59,7 @@ func (r RPCStatsInterceptor) Publish() {
 func (r RPCStatsInterceptor) recordFailureLatency(method string, startTime time.Time) {
 	latency := r.timeSource.Now().Sub(startTime)
 	r.handlerRequestErrorCountMap.Add(method, 1)
-	r.handlerRequestFailedLatencyMap.Add(method, latency.Nanoseconds() / nanosToMillisDivisor)
+	r.handlerRequestFailedLatencyMap.Add(method, latency.Nanoseconds()/nanosToMillisDivisor)
 }
 
 // Interceptor returns a UnaryServerInterceptor that can be registered with an RPC server and
@@ -87,7 +90,7 @@ func (r RPCStatsInterceptor) Interceptor() grpc.UnaryServerInterceptor {
 			latency := r.timeSource.Now().Sub(startTime)
 
 			r.handlerRequestSucceededCountMap.Add(method, 1)
-			r.handlerRequestSucceededLatencyMap.Add(method, latency.Nanoseconds() / nanosToMillisDivisor)
+			r.handlerRequestSucceededLatencyMap.Add(method, latency.Nanoseconds()/nanosToMillisDivisor)
 		}
 
 		// Pass the result of the handler invocation back

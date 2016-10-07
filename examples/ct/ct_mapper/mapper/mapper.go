@@ -22,6 +22,7 @@ var logBatchSize = flag.Int("log_batch_size", 256, "Max number of entries to pro
 
 //TODO(al): factor this out into a reusable thing.
 
+// CTMapper converts between a certificate transparency Log and a Trillian Map.
 type CTMapper struct {
 	mapID int64
 	ct    *client.LogClient
@@ -121,7 +122,7 @@ func (m *CTMapper) oneMapperRun() (bool, error) {
 		Key:      make([][]byte, 0, len(domains)),
 		Revision: -1,
 	}
-	for k, _ := range domains {
+	for k := range domains {
 		getReq.Key = append(getReq.Key, []byte(k))
 	}
 

@@ -4,10 +4,10 @@ import (
 	"fmt"
 
 	"github.com/golang/glog"
-	"github.com/google/trillian"
-	"github.com/google/trillian/storage"
-	"github.com/google/trillian/merkle"
 	"github.com/golang/protobuf/proto"
+	"github.com/google/trillian"
+	"github.com/google/trillian/merkle"
+	"github.com/google/trillian/storage"
 	"golang.org/x/net/context"
 )
 
@@ -103,7 +103,7 @@ func (t *TrillianLogServer) GetInclusionProof(ctx context.Context, req *trillian
 		return nil, err
 	}
 
-	response := trillian.GetInclusionProofResponse{Status: buildStatus(trillian.TrillianApiStatusCode_OK), Proof:&proof}
+	response := trillian.GetInclusionProofResponse{Status: buildStatus(trillian.TrillianApiStatusCode_OK), Proof: &proof}
 
 	return &response, nil
 }
@@ -165,7 +165,7 @@ func (t *TrillianLogServer) GetInclusionProofByHash(ctx context.Context, req *tr
 		return nil, err
 	}
 
-	response := trillian.GetInclusionProofByHashResponse{Status: buildStatus(trillian.TrillianApiStatusCode_OK), Proof:proofs}
+	response := trillian.GetInclusionProofByHashResponse{Status: buildStatus(trillian.TrillianApiStatusCode_OK), Proof: proofs}
 
 	return &response, nil
 }
@@ -231,7 +231,7 @@ func (t *TrillianLogServer) GetConsistencyProof(ctx context.Context, req *trilli
 	}
 
 	// We have everything we need. Return the proof
-	return &trillian.GetConsistencyProofResponse{Status:buildStatus(trillian.TrillianApiStatusCode_OK), Proof:&proof}, nil
+	return &trillian.GetConsistencyProofResponse{Status: buildStatus(trillian.TrillianApiStatusCode_OK), Proof: &proof}, nil
 }
 
 // GetLatestSignedLogRoot obtains the latest published tree root for the Merkle Tree that
@@ -277,7 +277,7 @@ func (t *TrillianLogServer) GetSequencedLeafCount(ctx context.Context, req *tril
 		return nil, err
 	}
 
-	return &trillian.GetSequencedLeafCountResponse{Status:buildStatus(trillian.TrillianApiStatusCode_OK), LeafCount:leafCount}, nil
+	return &trillian.GetSequencedLeafCountResponse{Status: buildStatus(trillian.TrillianApiStatusCode_OK), LeafCount: leafCount}, nil
 }
 
 // GetLeavesByIndex obtains one or more leaves based on their sequence number within the
@@ -311,7 +311,7 @@ func (t *TrillianLogServer) GetLeavesByIndex(ctx context.Context, req *trillian.
 	return &trillian.GetLeavesByIndexResponse{Status: buildStatus(trillian.TrillianApiStatusCode_OK), Leaves: leafProtos}, nil
 }
 
-// GetLeavesByIndex obtains one or more leaves based on their tree hash. It is not possible
+// GetLeavesByHash obtains one or more leaves based on their tree hash. It is not possible
 // to fetch leaves that have been queued but not yet integrated. Logs may accept duplicate
 // entries so this may return more results than the number of hashes in the request.
 func (t *TrillianLogServer) GetLeavesByHash(ctx context.Context, req *trillian.GetLeavesByHashRequest) (*trillian.GetLeavesByHashResponse, error) {
@@ -403,8 +403,8 @@ func (t *TrillianLogServer) GetEntryAndProof(ctx context.Context, req *trillian.
 	// Work is complete, we have everything we need for the response
 	return &trillian.GetEntryAndProofResponse{
 		Status: buildStatus(trillian.TrillianApiStatusCode_OK),
-		Proof: &proof,
-		Leaf: leafProtos[0]}, nil
+		Proof:  &proof,
+		Leaf:   leafProtos[0]}, nil
 }
 
 func (t *TrillianLogServer) prepareStorageTx(treeID int64) (storage.LogTX, error) {
@@ -547,8 +547,8 @@ func fetchNodesAndBuildProof(tx storage.LogTX, treeRevision, leafIndex int64, pr
 			return trillian.ProofProto{}, err
 		}
 
-		proof = append(proof, &trillian.NodeProto{NodeId:idBytes, NodeHash:node.Hash, NodeRevision:node.NodeRevision})
+		proof = append(proof, &trillian.NodeProto{NodeId: idBytes, NodeHash: node.Hash, NodeRevision: node.NodeRevision})
 	}
 
-	return trillian.ProofProto{LeafIndex:leafIndex, ProofNode:proof}, nil
+	return trillian.ProofProto{LeafIndex: leafIndex, ProofNode: proof}, nil
 }

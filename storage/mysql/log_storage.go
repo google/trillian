@@ -15,37 +15,37 @@ import (
 	"github.com/google/trillian/storage/cache"
 )
 
-const getTreePropertiesSql string = "SELECT AllowsDuplicateLeaves FROM Trees WHERE TreeId=?"
-const getTreeParametersSql string = "SELECT ReadOnlyRequests From TreeControl WHERE TreeID=?"
-const selectQueuedLeavesSql string = `SELECT LeafHash,Payload
+const getTreePropertiesSQL string = "SELECT AllowsDuplicateLeaves FROM Trees WHERE TreeId=?"
+const getTreeParametersSQL string = "SELECT ReadOnlyRequests From TreeControl WHERE TreeID=?"
+const selectQueuedLeavesSQL string = `SELECT LeafHash,Payload
 		 FROM Unsequenced
 		 WHERE TreeID=?
 		 ORDER BY QueueTimestamp DESC,LeafHash ASC LIMIT ?`
-const insertUnsequencedLeafSql string = `INSERT INTO LeafData(TreeId,LeafHash,TheData)
+const insertUnsequencedLeafSQL string = `INSERT INTO LeafData(TreeId,LeafHash,TheData)
 		 VALUES(?,?,?) ON DUPLICATE KEY UPDATE LeafHash=LeafHash`
-const insertUnsequencedEntrySql string = `INSERT INTO Unsequenced(TreeId,LeafHash,MessageId,Payload)
+const insertUnsequencedEntrySQL string = `INSERT INTO Unsequenced(TreeId,LeafHash,MessageId,Payload)
      VALUES(?,?,?,?)`
-const insertSequencedLeafSql string = `INSERT INTO SequencedLeafData(TreeId,LeafHash,SequenceNumber)
+const insertSequencedLeafSQL string = `INSERT INTO SequencedLeafData(TreeId,LeafHash,SequenceNumber)
 		 VALUES(?,?,?)`
-const selectSequencedLeafCountSql string = "SELECT COUNT(*) FROM SequencedLeafData WHERE TreeId=?"
-const selectLatestSignedLogRootSql string = `SELECT TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature
+const selectSequencedLeafCountSQL string = "SELECT COUNT(*) FROM SequencedLeafData WHERE TreeId=?"
+const selectLatestSignedLogRootSQL string = `SELECT TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature
 		 FROM TreeHead WHERE TreeId=?
 		 ORDER BY TreeHeadTimestamp DESC LIMIT 1`
 
 // These statements need to be expanded to provide the correct number of parameter placeholders
 // for a particular case
-const deleteUnsequencedSql string = "DELETE FROM Unsequenced WHERE LeafHash IN (<placeholder>) AND TreeId = ?"
-const selectLeavesByIndexSql string = `SELECT l.LeafHash,l.TheData,s.SequenceNumber
+const deleteUnsequencedSQL string = "DELETE FROM Unsequenced WHERE LeafHash IN (<placeholder>) AND TreeId = ?"
+const selectLeavesByIndexSQL string = `SELECT l.LeafHash,l.TheData,s.SequenceNumber
 		     FROM LeafData l,SequencedLeafData s
 		     WHERE l.LeafHash = s.LeafHash
-		     AND s.SequenceNumber IN (` + placeholderSql + `) AND l.TreeId = ? AND s.TreeId = l.TreeId`
-const selectLeavesByHashSql string = `SELECT l.LeafHash,l.TheData,s.SequenceNumber
+		     AND s.SequenceNumber IN (` + placeholderSQL + `) AND l.TreeId = ? AND s.TreeId = l.TreeId`
+const selectLeavesByHashSQL string = `SELECT l.LeafHash,l.TheData,s.SequenceNumber
 		     FROM LeafData l,SequencedLeafData s
 		     WHERE l.LeafHash = s.LeafHash
-		     AND l.LeafHash IN (` + placeholderSql + `) AND l.TreeId = ? AND s.TreeId = l.TreeId`
+		     AND l.LeafHash IN (` + placeholderSQL + `) AND l.TreeId = ? AND s.TreeId = l.TreeId`
 
 // Same as above except with leaves ordered by sequence so we only incur this cost when necessary
-const selectLeavesByHashOrderedBySequenceSQL string = selectLeavesByHashSql + " ORDER BY s.SequenceNumber"
+const selectLeavesByHashOrderedBySequenceSQL string = selectLeavesByHashSQL + " ORDER BY s.SequenceNumber"
 
 var defaultLogStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8}
 
@@ -57,6 +57,7 @@ type mySQLLogStorage struct {
 	readOnly        bool
 }
 
+// NewLogStorage creates a mySQLLogStorage instance for the specified MySQL URL.
 func NewLogStorage(id trillian.LogID, dbURL string) (storage.LogStorage, error) {
 	// TODO(al): pass this through/configure from DB
 	th := merkle.NewRFC6962TreeHasher(trillian.NewSHA256())
@@ -73,14 +74,14 @@ func NewLogStorage(id trillian.LogID, dbURL string) (storage.LogStorage, error) 
 
 	// TODO: This should not default but it would currently complicate testing and can be
 	// implemented later when the create tree API has been defined.
-	if err := s.db.QueryRow(getTreePropertiesSql, id.TreeID).Scan(&s.allowDuplicates); err == sql.ErrNoRows {
+	if err := s.db.QueryRow(getTreePropertiesSQL, id.TreeID).Scan(&s.allowDuplicates); err == sql.ErrNoRows {
 		s.allowDuplicates = false
 	} else if err != nil {
 		glog.Warningf("Failed to get trees row for id %v: %s", id, err)
 		return nil, err
 	}
 
-	err = s.db.QueryRow(getTreeParametersSql, id.TreeID).Scan(&s.readOnly)
+	err = s.db.QueryRow(getTreeParametersSQL, id.TreeID).Scan(&s.readOnly)
 
 	// TODO(Martin2112): It's probably not ok for the log to have no parameters set. Enforce this when
 	// we have an admin API and / or we're further along.
@@ -92,7 +93,7 @@ func NewLogStorage(id trillian.LogID, dbURL string) (storage.LogStorage, error) 
 }
 
 func (m *mySQLLogStorage) getLeavesByIndexStmt(num int) (*sql.Stmt, error) {
-	return m.getStmt(selectLeavesByIndexSql, num, "?", "?")
+	return m.getStmt(selectLeavesByIndexSQL, num, "?", "?")
 }
 
 func (m *mySQLLogStorage) getLeavesByHashStmt(num int, orderBySequence bool) (*sql.Stmt, error) {
@@ -100,11 +101,11 @@ func (m *mySQLLogStorage) getLeavesByHashStmt(num int, orderBySequence bool) (*s
 		return m.getStmt(selectLeavesByHashOrderedBySequenceSQL, num, "?", "?")
 	}
 
-	return m.getStmt(selectLeavesByHashSql, num, "?", "?")
+	return m.getStmt(selectLeavesByHashSQL, num, "?", "?")
 }
 
 func (m *mySQLLogStorage) getDeleteUnsequencedStmt(num int) (*sql.Stmt, error) {
-	return m.getStmt(deleteUnsequencedSql, num, "?", "?")
+	return m.getStmt(deleteUnsequencedSQL, num, "?", "?")
 }
 
 func (m *mySQLLogStorage) LatestSVignedLogRoot() (trillian.SignedLogRoot, error) {
@@ -198,7 +199,7 @@ func (t *logTX) WriteRevision() int64 {
 }
 
 func (t *logTX) DequeueLeaves(limit int) ([]trillian.LogLeaf, error) {
-	stx, err := t.tx.Prepare(selectQueuedLeavesSql)
+	stx, err := t.tx.Prepare(selectQueuedLeavesSQL)
 
 	if err != nil {
 		glog.Warningf("Failed to prepare dequeue select: %s", err)
@@ -236,7 +237,7 @@ func (t *logTX) DequeueLeaves(limit int) ([]trillian.LogLeaf, error) {
 				LeafValue: payload,
 				ExtraData: nil,
 			},
-			SequenceNumber:       0,
+			SequenceNumber: 0,
 		}
 		leaves = append(leaves, leaf)
 	}
@@ -271,7 +272,7 @@ func (t *logTX) QueueLeaves(leaves []trillian.LogLeaf) error {
 		// can suppress errors unrelated to key collisions. We don't use REPLACE because
 		// if there's ever a hash collision it will do the wrong thing and it also
 		// causes a DELETE / INSERT, which is undesirable.
-		_, err := t.tx.Exec(insertUnsequencedLeafSql, t.ls.logID.TreeID,
+		_, err := t.tx.Exec(insertUnsequencedLeafSQL, t.ls.logID.TreeID,
 			[]byte(leaf.LeafHash), leaf.LeafValue)
 
 		if err != nil {
@@ -288,10 +289,10 @@ func (t *logTX) QueueLeaves(leaves []trillian.LogLeaf) error {
 		// We use a fixed zero message id if the log disallows duplicates otherwise a random one.
 		// the fixed id will collide if dups submitted when not allowed so the insert won't succeed
 		// and everything will get rolled back
-		messageIdBytes := make([]byte, 8)
+		messageIDBytes := make([]byte, 8)
 
 		if t.ls.allowDuplicates {
-			_, err := rand.Read(messageIdBytes)
+			_, err := rand.Read(messageIDBytes)
 
 			if err != nil {
 				glog.Warningf("Failed to get a random message id: %s", err)
@@ -299,13 +300,13 @@ func (t *logTX) QueueLeaves(leaves []trillian.LogLeaf) error {
 			}
 		}
 
-		hasher.Write(messageIdBytes)
+		hasher.Write(messageIDBytes)
 		hasher.Write(t.ls.logID.LogID)
 		hasher.Write(leaf.LeafHash)
-		messageId := hasher.Sum(nil)
+		messageID := hasher.Sum(nil)
 
-		_, err = t.tx.Exec(insertUnsequencedEntrySql,
-			t.ls.logID.TreeID, []byte(leaf.LeafHash), messageId, leaf.LeafValue)
+		_, err = t.tx.Exec(insertUnsequencedEntrySQL,
+			t.ls.logID.TreeID, []byte(leaf.LeafHash), messageID, leaf.LeafValue)
 
 		if err != nil {
 			glog.Warningf("Error inserting into Unsequenced: %s", err)
@@ -319,7 +320,7 @@ func (t *logTX) QueueLeaves(leaves []trillian.LogLeaf) error {
 func (t *logTX) GetSequencedLeafCount() (int64, error) {
 	var sequencedLeafCount int64
 
-	err := t.tx.QueryRow(selectSequencedLeafCountSql, t.ls.logID.TreeID).Scan(&sequencedLeafCount)
+	err := t.tx.QueryRow(selectSequencedLeafCountSQL, t.ls.logID.TreeID).Scan(&sequencedLeafCount)
 
 	if err != nil {
 		glog.Warningf("Error getting sequenced leaf count: %s", err)
@@ -414,7 +415,7 @@ func (t *logTX) LatestSignedLogRoot() (trillian.SignedLogRoot, error) {
 	var rootSignature trillian.DigitallySigned
 
 	err := t.tx.QueryRow(
-		selectLatestSignedLogRootSql, t.ls.logID.TreeID).Scan(
+		selectLatestSignedLogRootSQL, t.ls.logID.TreeID).Scan(
 		&timestamp, &treeSize, &rootHash, &treeRevision, &rootSignatureBytes)
 
 	// It's possible there are no roots for this tree yet
@@ -447,7 +448,7 @@ func (t *logTX) StoreSignedLogRoot(root trillian.SignedLogRoot) error {
 		return err
 	}
 
-	res, err := t.tx.Exec(insertTreeHeadSql, t.ls.logID.TreeID, root.TimestampNanos, root.TreeSize,
+	res, err := t.tx.Exec(insertTreeHeadSQL, t.ls.logID.TreeID, root.TimestampNanos, root.TreeSize,
 		root.RootHash, root.TreeRevision, signatureBytes)
 
 	if err != nil {
@@ -466,7 +467,7 @@ func (t *logTX) UpdateSequencedLeaves(leaves []trillian.LogLeaf) error {
 			return errors.New("Sequenced leaf has incorrect hash size")
 		}
 
-		_, err := t.tx.Exec(insertSequencedLeafSql, t.ls.logID.TreeID, []byte(leaf.LeafHash),
+		_, err := t.tx.Exec(insertSequencedLeafSQL, t.ls.logID.TreeID, []byte(leaf.LeafHash),
 			leaf.SequenceNumber)
 
 		if err != nil {
@@ -537,11 +538,11 @@ func (t *logTX) getActiveLogIDsInternal(sql string) ([]trillian.LogID, error) {
 
 // GetActiveLogIDs returns a list of the IDs of all configured logs
 func (t *logTX) GetActiveLogIDs() ([]trillian.LogID, error) {
-	return t.getActiveLogIDsInternal(selectActiveLogsSql)
+	return t.getActiveLogIDsInternal(selectActiveLogsSQL)
 }
 
 // GetActiveLogIDsWithPendingWork returns a list of the IDs of all configured logs
 // that have queued unsequenced leaves that need to be integrated
 func (t *logTX) GetActiveLogIDsWithPendingWork() ([]trillian.LogID, error) {
-	return t.getActiveLogIDsInternal(selectActiveLogsWithUnsequencedSql)
+	return t.getActiveLogIDsInternal(selectActiveLogsWithUnsequencedSQL)
 }

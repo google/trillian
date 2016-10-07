@@ -1,8 +1,10 @@
-// Runs sequencing operations
+// Package log includes code that is specific to Trillian's log mode, particularly code
+// for running sequencing operations.
 package log
 
 import (
 	"fmt"
+
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
@@ -33,6 +35,7 @@ const maxTreeDepth = 64
 // TODO(Martin2112): This is all likely to go away when we switch to application STHs
 type CurrentRootExpiredFunc func(trillian.SignedLogRoot) bool
 
+// NewSequencer creates a new Sequencer instance for the specified inputs.
 func NewSequencer(hasher merkle.TreeHasher, timeSource util.TimeSource, logStorage storage.LogStorage, km crypto.KeyManager) *Sequencer {
 	return &Sequencer{hasher, timeSource, logStorage, km}
 }
@@ -41,12 +44,12 @@ func NewSequencer(hasher merkle.TreeHasher, timeSource util.TimeSource, logStora
 // would be more efficient but requires refactoring.
 func (s Sequencer) buildMerkleTreeFromStorageAtRoot(root trillian.SignedLogRoot, tx storage.TreeTX) (*merkle.CompactMerkleTree, error) {
 	mt, err := merkle.NewCompactMerkleTreeWithState(s.hasher, root.TreeSize, func(depth int, index int64) (trillian.Hash, error) {
-		nodeId, err := storage.NewNodeIDForTreeCoords(int64(depth), index, maxTreeDepth)
+		nodeID, err := storage.NewNodeIDForTreeCoords(int64(depth), index, maxTreeDepth)
 		if err != nil {
 			glog.Warningf("Failed to create nodeID: %v", err)
 			return nil, err
 		}
-		nodes, err := tx.GetMerkleNodes(root.TreeRevision, []storage.NodeID{nodeId})
+		nodes, err := tx.GetMerkleNodes(root.TreeRevision, []storage.NodeID{nodeID})
 
 		if err != nil {
 			glog.Warningf("Failed to get merkle nodes: %s", err)
@@ -55,7 +58,7 @@ func (s Sequencer) buildMerkleTreeFromStorageAtRoot(root trillian.SignedLogRoot,
 
 		// We expect to get exactly one node here
 		if nodes == nil || len(nodes) != 1 {
-			return nil, fmt.Errorf("Did not retrieve one node while loading CompactMerkleTree, got %#v for ID %s@%d", nodes, nodeId.String(), root.TreeRevision)
+			return nil, fmt.Errorf("Did not retrieve one node while loading CompactMerkleTree, got %#v for ID %s@%d", nodes, nodeID.String(), root.TreeRevision)
 		}
 
 		return nodes[0].Hash, nil
@@ -83,12 +86,12 @@ func (s Sequencer) sequenceLeaves(mt *merkle.CompactMerkleTree, leaves []trillia
 	// made and assign sequence numbers to the new leaves
 	for _, leaf := range leaves {
 		seq := mt.AddLeafHash(leaf.LeafHash, func(depth int, index int64, hash trillian.Hash) {
-			nodeId, err := storage.NewNodeIDForTreeCoords(int64(depth), index, maxTreeDepth)
+			nodeID, err := storage.NewNodeIDForTreeCoords(int64(depth), index, maxTreeDepth)
 			if err != nil {
 				return
 			}
-			nodeMap[nodeId.String()] = storage.Node{
-				NodeID: nodeId,
+			nodeMap[nodeID.String()] = storage.Node{
+				NodeID: nodeID,
 				Hash:   hash,
 			}
 		})
@@ -215,7 +218,7 @@ func (s Sequencer) SequenceBatch(limit int, expiryFunc CurrentRootExpiredFunc) (
 			len(leaves)))
 	}
 
-	for index, _ := range sequenceNumbers {
+	for index := range sequenceNumbers {
 		leaves[index].SequenceNumber = sequenceNumbers[index]
 	}
 

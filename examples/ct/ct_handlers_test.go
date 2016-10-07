@@ -320,14 +320,14 @@ func TestGetRoots(t *testing.T) {
 		t.Fatalf("Wrong status code for get-roots, expected %v, got %v", expected, got)
 	}
 
-	var parsedJson map[string][]string
-	if err := json.Unmarshal(w.Body.Bytes(), &parsedJson); err != nil {
+	var parsedJSON map[string][]string
+	if err := json.Unmarshal(w.Body.Bytes(), &parsedJSON); err != nil {
 		t.Fatalf("Failed to unmarshal json response: %s", w.Body.Bytes())
 	}
-	if expected, got := 1, len(parsedJson); expected != got {
+	if expected, got := 1, len(parsedJSON); expected != got {
 		t.Fatalf("Expected %v entry(s) in json map, got %v", expected, got)
 	}
-	certs := parsedJson[jsonMapKeyCertificates]
+	certs := parsedJSON[jsonMapKeyCertificates]
 	if expected, got := 2, len(certs); expected != got {
 		t.Fatalf("Expected %v root certs got %v: %v", expected, got, certs)
 	}
@@ -352,7 +352,7 @@ func TestAddChainMissingIntermediate(t *testing.T) {
 	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
 
 	pool := loadCertsIntoPoolOrDie(t, []string{testonly.LeafSignedByFakeIntermediateCertPem})
-	chain := createJsonChain(t, *pool)
+	chain := createJSONChain(t, *pool)
 
 	recorder := makeAddChainRequest(t, reqHandlers, chain)
 
@@ -383,7 +383,7 @@ func TestAddChainPrecert(t *testing.T) {
 	}
 	pool := NewPEMCertPool()
 	pool.AddCert(precert)
-	chain := createJsonChain(t, *pool)
+	chain := createJSONChain(t, *pool)
 
 	recorder := makeAddChainRequest(t, reqHandlers, chain)
 
@@ -406,7 +406,7 @@ func TestAddChainRPCFails(t *testing.T) {
 	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
 
 	pool := loadCertsIntoPoolOrDie(t, []string{testonly.LeafSignedByFakeIntermediateCertPem, testonly.FakeIntermediateCertPem})
-	chain := createJsonChain(t, *pool)
+	chain := createJSONChain(t, *pool)
 
 	// Ignore returned SCT. That's sent to the client and we're testing frontend -> backend interaction
 	merkleLeaf, _, err := signV1SCTForCertificate(km, pool.RawCertificates()[0], fakeTime)
@@ -440,7 +440,7 @@ func TestAddChain(t *testing.T) {
 	reqHandlers := CTRequestHandlers{0x42, roots, client, km, time.Millisecond * 500, fakeTimeSource}
 
 	pool := loadCertsIntoPoolOrDie(t, []string{testonly.LeafSignedByFakeIntermediateCertPem, testonly.FakeIntermediateCertPem})
-	chain := createJsonChain(t, *pool)
+	chain := createJSONChain(t, *pool)
 
 	// Ignore returned SCT. That's sent to the client and we're testing frontend -> backend interaction
 	merkleLeaf, _, err := signV1SCTForCertificate(km, pool.RawCertificates()[0], fakeTime)
@@ -508,7 +508,7 @@ func TestAddPrecertChainInvalidPath(t *testing.T) {
 
 	pool.AddCert(cert)
 
-	chain := createJsonChain(t, *pool)
+	chain := createJSONChain(t, *pool)
 
 	recorder := makeAddPrechainRequest(t, reqHandlers, chain)
 
@@ -536,7 +536,7 @@ func TestAddPrecertChainCert(t *testing.T) {
 
 	pool := NewPEMCertPool()
 	pool.AddCert(cert)
-	chain := createJsonChain(t, *pool)
+	chain := createJSONChain(t, *pool)
 
 	recorder := makeAddPrechainRequest(t, reqHandlers, chain)
 
@@ -567,7 +567,7 @@ func TestAddPrecertChainRPCFails(t *testing.T) {
 
 	pool := NewPEMCertPool()
 	pool.AddCert(cert)
-	chain := createJsonChain(t, *pool)
+	chain := createJSONChain(t, *pool)
 
 	// Ignore returned SCT. That's sent to the client and we're testing frontend -> backend interaction
 	merkleLeaf, _, err := signV1SCTForPrecertificate(km, pool.RawCertificates()[0], fakeTime)
@@ -608,7 +608,7 @@ func TestAddPrecertChain(t *testing.T) {
 
 	pool := NewPEMCertPool()
 	pool.AddCert(cert)
-	chain := createJsonChain(t, *pool)
+	chain := createJSONChain(t, *pool)
 
 	// Ignore returned SCT. That's sent to the client and we're testing frontend -> backend interaction
 	merkleLeaf, _, err := signV1SCTForPrecertificate(km, pool.RawCertificates()[0], fakeTime)
@@ -793,21 +793,21 @@ func TestGetSTH(t *testing.T) {
 	}
 
 	// Now roundtrip the response and check we got the expected data
-	var parsedJson getSTHResponse
-	if err := json.Unmarshal(w.Body.Bytes(), &parsedJson); err != nil {
+	var parsedJSON getSTHResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &parsedJSON); err != nil {
 		t.Fatalf("Failed to unmarshal json response: %s", w.Body.Bytes())
 	}
 
-	if got, want := parsedJson.TreeSize, int64(25); got != want {
+	if got, want := parsedJSON.TreeSize, int64(25); got != want {
 		t.Fatalf("Got treesize %d, expected %d", got, want)
 	}
-	if got, want := parsedJson.TimestampMillis, int64(12345); got != want {
+	if got, want := parsedJSON.TimestampMillis, int64(12345); got != want {
 		t.Fatalf("Got timestamp %d, expected %d", got, want)
 	}
-	if got, want := base64.StdEncoding.EncodeToString(parsedJson.RootHash), "YWJjZGFiY2RhYmNkYWJjZGFiY2RhYmNkYWJjZGFiY2Q="; got != want {
+	if got, want := base64.StdEncoding.EncodeToString(parsedJSON.RootHash), "YWJjZGFiY2RhYmNkYWJjZGFiY2RhYmNkYWJjZGFiY2Q="; got != want {
 		t.Fatalf("Got roothash %s, expected %s", got, want)
 	}
-	if got, want := base64.StdEncoding.EncodeToString(parsedJson.Signature), "c2lnbmVk"; got != want {
+	if got, want := base64.StdEncoding.EncodeToString(parsedJSON.Signature), "c2lnbmVk"; got != want {
 		t.Fatalf("Got signature %s, expected %s", got, want)
 	}
 }
@@ -1491,7 +1491,7 @@ func TestGetEntryAndProof(t *testing.T) {
 	}
 }
 
-func createJsonChain(t *testing.T, p PEMCertPool) io.Reader {
+func createJSONChain(t *testing.T, p PEMCertPool) io.Reader {
 	var chain jsonChain
 
 	for _, rawCert := range p.RawCertificates() {

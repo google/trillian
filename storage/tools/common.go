@@ -10,15 +10,16 @@ import (
 	"github.com/google/trillian/storage/mysql"
 )
 
-var logIdFlag = flag.String("logid", "logId", "The log id to use")
-var treeIdFlag = flag.Int64("treeid", 3, "The tree id to use")
+var logIDFlag = flag.String("logid", "logId", "The log id to use")
+var treeIDFlag = flag.Int64("treeid", 3, "The tree id to use")
 var storageTypeFlag = flag.String("storage_type", "mysql", "Which type of storage to use")
-var mysqlUriFlag = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test",
+var mysqlURIFlag = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test",
 	"uri to use with mysql storage")
 var serverPortFlag = flag.Int("port", 8090, "Port to serve log requests on")
 
-func GetLogIdFromFlagsOrDie() trillian.LogID {
-	return trillian.LogID{[]byte(*logIdFlag), *treeIdFlag}
+// GetLogIDFromFlagsOrDie returns the Trillian LogID from the current flags configuration.
+func GetLogIDFromFlagsOrDie() trillian.LogID {
+	return trillian.LogID{[]byte(*logIDFlag), *treeIDFlag}
 }
 
 // GetLogStorageProviderFromFlags returns a storage provider configured from our
@@ -34,10 +35,10 @@ func GetLogStorageProviderFromFlags() server.LogStorageProviderFunc {
 }
 
 // GetStorageFromFlags returns a configured storage instance, this can fail with an error
-func GetStorageFromFlags(treeId trillian.LogID) (storage.LogStorage, error) {
+func GetStorageFromFlags(treeID trillian.LogID) (storage.LogStorage, error) {
 	switch {
 	case *storageTypeFlag == "mysql":
-		store, err := mysql.NewLogStorage(treeId, *mysqlUriFlag)
+		store, err := mysql.NewLogStorage(treeID, *mysqlURIFlag)
 
 		if err != nil {
 			panic(err)
@@ -51,8 +52,8 @@ func GetStorageFromFlags(treeId trillian.LogID) (storage.LogStorage, error) {
 
 // GetStorageFromFlagsOrDie returns a configured storage instance, errors are fatal and if it
 // returns the storage can be used.
-func GetStorageFromFlagsOrDie(treeId trillian.LogID) storage.LogStorage {
-	storage, err := GetStorageFromFlags(treeId)
+func GetStorageFromFlagsOrDie(treeID trillian.LogID) storage.LogStorage {
+	storage, err := GetStorageFromFlags(treeID)
 
 	if err != nil {
 		panic(err)
