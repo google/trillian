@@ -4,11 +4,14 @@ import (
 	"flag"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
 	"time"
+
+	_ "net/http/pprof"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/golang/glog"
@@ -22,7 +25,7 @@ import (
 
 var mysqlURIFlag = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test",
 	"uri to use with mysql storage")
-var serverPortFlag = flag.Int("port", 8091, "Port to serve map requests on")
+var serverPortFlag = flag.Int("port", 8091, "Port to serve map requests on, port+1 is used to serve pprof requests too")
 
 // TODO(Martin2112): Single private key doesn't really work for multi tenant and we can't use
 // an HSM interface in this way. Deferring these issues for later.
@@ -94,6 +97,10 @@ func awaitSignal(rpcServer *grpc.Server) {
 
 func main() {
 	flag.Parse()
+
+	go func() {
+		glog.Infof("HTTP server exited: %v", http.ListenAndServe(fmt.Sprintf("localhost:%d", *serverPortFlag+1), nil))
+	}()
 
 	done := make(chan struct{})
 
