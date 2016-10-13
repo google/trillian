@@ -264,13 +264,13 @@ func (t *logTX) QueueLeaves(leaves []trillian.LogLeaf) error {
 	// Don't accept batches if any of the leaves are invalid.
 	for _, leaf := range leaves {
 		if len(leaf.LeafHash) != t.ts.hashSizeBytes {
-			return fmt.Errorf("Queued leaf must have a hash of length %d", t.ts.hashSizeBytes)
+			return fmt.Errorf("queued leaf must have a hash of length %d", t.ts.hashSizeBytes)
 		}
 
 		// Validate the hash as a consistency check that the data was received OK. Note: at
 		// this stage it is not a merkle tree hash for the leaf
-		if !bytes.Equal(trillian.NewSHA256().Digest(leaf.LeafValue), leaf.LeafHash) {
-			return fmt.Errorf("Leaf hash / data mismatch: %v", leaf.LeafHash)
+		if got, want := trillian.NewSHA256().Digest(leaf.LeafValue), leaf.LeafHash; !bytes.Equal(got, want) {
+			return fmt.Errorf("leaf hash / data mismatch got: %v, want: %v", got, want)
 		}
 	}
 
