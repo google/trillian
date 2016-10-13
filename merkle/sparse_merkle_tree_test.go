@@ -255,7 +255,7 @@ func TestInclusionProofPassesThroughStorageError(t *testing.T) {
 	tx.EXPECT().GetMerkleNodes(int64(rev), gomock.Any()).Return([]storage.Node{}, e)
 	_, err := r.InclusionProof(rev, []byte("Whatever"))
 	if err != e {
-		t.Fatal("InclusionProof() should've returned an error '%v', but got '%v'", e, err)
+		t.Fatalf("InclusionProof() should've returned an error '%v', but got '%v'", e, err)
 	}
 }
 
