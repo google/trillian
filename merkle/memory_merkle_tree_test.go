@@ -529,7 +529,7 @@ func TestMerkleTreePathBuildOnce(t *testing.T) {
 
 		for j := 0; j < len(p2); j++ {
 			if got, want := p1[j].Value.hash, decodeHexStringOrPanic(testPaths[i].testVector[j]); bytes.Compare(got, want) != 0 {
-				t.Errorf("Path mismatch: got: %v want: %v", p1[j].Value.hash, )
+				t.Errorf("Path mismatch: got: %v want: %v", got, want)
 			}
 		}
 	}
