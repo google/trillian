@@ -67,10 +67,10 @@ func openDB(dbURL string) (*sql.DB, error) {
 	return db, nil
 }
 
-func newTreeStorage(treeID int64, dbURL string, hashSizeBytes int, strataDepths []int, populateSubtree storage.PopulateSubtreeFunc) (mySQLTreeStorage, error) {
+func newTreeStorage(treeID int64, dbURL string, hashSizeBytes int, strataDepths []int, populateSubtree storage.PopulateSubtreeFunc) (*mySQLTreeStorage, error) {
 	db, err := openDB(dbURL)
 	if err != nil {
-		return mySQLTreeStorage{}, err
+		return &mySQLTreeStorage{}, err
 	}
 
 	s := mySQLTreeStorage{
@@ -82,7 +82,7 @@ func newTreeStorage(treeID int64, dbURL string, hashSizeBytes int, strataDepths 
 		strataDepths:    strataDepths,
 	}
 
-	return s, nil
+	return &s, nil
 }
 
 // expandPlaceholderSQL expands an sql statement by adding a specified number of '?'

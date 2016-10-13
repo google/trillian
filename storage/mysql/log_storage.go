@@ -50,7 +50,7 @@ const selectLeavesByHashOrderedBySequenceSQL string = selectLeavesByHashSQL + " 
 var defaultLogStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8}
 
 type mySQLLogStorage struct {
-	mySQLTreeStorage
+	*mySQLTreeStorage
 
 	logID           trillian.LogID
 	allowDuplicates bool
