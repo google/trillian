@@ -528,8 +528,8 @@ func TestMerkleTreePathBuildOnce(t *testing.T) {
 		}
 
 		for j := 0; j < len(p2); j++ {
-			if bytes.Compare(p1[j].Value.hash, decodeHexStringOrPanic(testPaths[i].testVector[j])) != 0 {
-				t.Errorf("Path mismatch: %s %s")
+			if got, want := p1[j].Value.hash, decodeHexStringOrPanic(testPaths[i].testVector[j]); bytes.Compare(got, want) != 0 {
+				t.Errorf("Path mismatch: got: %v want: %v", p1[j].Value.hash, )
 			}
 		}
 	}
@@ -615,8 +615,8 @@ func TestProofConsistencyTestVectors(t *testing.T) {
 		}
 
 		for j := 0; j < len(p2); j++ {
-			if bytes.Compare(p1[j].Value.hash, decodeHexStringOrPanic(testProofs[i].proof[j])) != 0 {
-				t.Errorf("Path mismatch: %s %s")
+			if got, want := p1[j].Value.hash, decodeHexStringOrPanic(testProofs[i].proof[j]); bytes.Compare(got, want) != 0 {
+				t.Errorf("Path mismatch: got: %v want: %v", got, want)
 			}
 		}
 	}
