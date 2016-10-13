@@ -251,9 +251,9 @@ func addChainInternal(w http.ResponseWriter, r *http.Request, c RequestHandlers,
 
 	request := trillian.QueueLeavesRequest{LogId: c.logID, Leaves: []*trillian.LeafProto{&leafProto}}
 
-	ctx, _ := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
-
+	ctx, cancelFunc := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
 	response, err := c.rpcClient.QueueLeaves(ctx, &request)
+	cancelFunc()
 
 	if err != nil || !rpcStatusOK(response.GetStatus()) {
 		// TODO(Martin2112): Possibly cases where the request we sent to the backend is invalid
@@ -296,8 +296,9 @@ func wrappedGetSTHHandler(c RequestHandlers) appHandler {
 		}
 
 		request := trillian.GetLatestSignedLogRootRequest{LogId: c.logID}
-		ctx, _ := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
+		ctx, cancelFunc := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
 		response, err := c.rpcClient.GetLatestSignedLogRoot(ctx, &request)
+		cancelFunc()
 
 		if err != nil || !rpcStatusOK(response.GetStatus()) {
 			return http.StatusInternalServerError, errors.New("backend rpc failed")
@@ -362,8 +363,9 @@ func wrappedGetSTHConsistencyHandler(c RequestHandlers) appHandler {
 		}
 
 		request := trillian.GetConsistencyProofRequest{LogId: c.logID, FirstTreeSize: first, SecondTreeSize: second}
-		ctx, _ := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
+		ctx, cancelFunc := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
 		response, err := c.rpcClient.GetConsistencyProof(ctx, &request)
+		cancelFunc()
 
 		if err != nil || !rpcStatusOK(response.GetStatus()) {
 			return http.StatusInternalServerError, err
@@ -427,8 +429,9 @@ func wrappedGetProofByHashHandler(c RequestHandlers) appHandler {
 			LeafHash:        leafHash,
 			TreeSize:        treeSize,
 			OrderBySequence: true}
-		ctx, _ := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
+		ctx, cancelFunc := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
 		response, err := c.rpcClient.GetInclusionProofByHash(ctx, &rpcRequest)
+		cancelFunc()
 
 		if err != nil || !rpcStatusOK(response.GetStatus()) {
 			return http.StatusInternalServerError, fmt.Errorf("get-proof-by-hash: RPC failed, possible extra info: %v", err)
@@ -480,9 +483,9 @@ func wrappedGetEntriesHandler(c RequestHandlers) appHandler {
 		requestIndices := buildIndicesForRange(startIndex, endIndex)
 		request := trillian.GetLeavesByIndexRequest{LogId: c.logID, LeafIndex: requestIndices}
 
-		ctx, _ := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
-
+		ctx, cancelFunc := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
 		response, err := c.rpcClient.GetLeavesByIndex(ctx, &request)
+		cancelFunc()
 
 		if err != nil || !rpcStatusOK(response.GetStatus()) {
 			return http.StatusInternalServerError, fmt.Errorf("get-entries: RPC failed, possible extra info: %v", err)
@@ -572,8 +575,9 @@ func wrappedGetEntryAndProofHandler(c RequestHandlers) appHandler {
 		}
 
 		getEntryAndProofRequest := trillian.GetEntryAndProofRequest{LogId: c.logID, LeafIndex: leafIndex, TreeSize: treeSize}
-		ctx, _ := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
+		ctx, cancelFunc := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
 		response, err := c.rpcClient.GetEntryAndProof(ctx, &getEntryAndProofRequest)
+		cancelFunc()
 
 		if err != nil || !rpcStatusOK(response.GetStatus()) {
 			return http.StatusInternalServerError, fmt.Errorf("get-entry-and-proof: RPC failed, possible extra info: %v", err)
