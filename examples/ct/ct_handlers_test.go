@@ -40,7 +40,7 @@ var fakeTimeSource = util.FakeTimeSource{fakeTime}
 var okStatus = &trillian.TrillianApiStatus{StatusCode: trillian.TrillianApiStatusCode_OK}
 
 type jsonChain struct {
-	Chain []string `json:chain`
+	Chain []string `json:"chain"`
 }
 
 type getEntriesRangeTestCase struct {
