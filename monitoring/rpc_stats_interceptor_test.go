@@ -123,7 +123,7 @@ func (s singleRequestTestCase) execute(t *testing.T) {
 	// Because we only made a single request there should only be one recorded (with either success or
 	// failure depending on the error status and the other maps should count zero for the method
 	if stats.handlerRequestCountMap.Get(s.method).String() != "1" {
-		t.Fatalf("%s: Expected one request for method but got: %v", stats.handlerRequestCountMap.Get(s.method))
+		t.Fatalf("%s: Expected one request for method but got: %v", s.name, stats.handlerRequestCountMap.Get(s.method))
 	}
 
 	expectedTotalLatency := s.timeSource.Increments[1].Nanoseconds() / nanosToMillisDivisor
