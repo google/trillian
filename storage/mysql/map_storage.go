@@ -31,7 +31,7 @@ const selectMapLeafSQL string = `SELECT KeyHash, MAX(MapRevision), TheData
 var defaultMapStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 176}
 
 type mySQLMapStorage struct {
-	mySQLTreeStorage
+	*mySQLTreeStorage
 
 	mapID trillian.MapID
 }
