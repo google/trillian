@@ -129,7 +129,7 @@ func mockStorageProviderForSequencer(mockStorage storage.LogStorage) LogStorageP
 		if id >= 0 && id <= 1 {
 			return mockStorage, nil
 		}
-		return nil, fmt.Errorf("BADLOGID: ", id)
+		return nil, fmt.Errorf("BADLOGID: %d", id)
 	}
 }
 
