@@ -11,6 +11,7 @@ import (
 	"github.com/golang/mock/gomock"
 	ct "github.com/google/certificate-transparency/go"
 	"github.com/google/certificate-transparency/go/fixchain"
+	"github.com/google/certificate-transparency/go/tls"
 	"github.com/google/certificate-transparency/go/x509"
 	"github.com/google/trillian/examples/ct/testonly"
 )
@@ -47,9 +48,10 @@ func TestSignV1SCTForCertificate(t *testing.T) {
 		Timestamp:  1504786523000000,
 		Extensions: ct.CTExtensions{},
 		Signature: ct.DigitallySigned{
-			HashAlgorithm:      ct.SHA256,
-			SignatureAlgorithm: ct.RSA,
-			Signature:          []byte("signed")}}
+			Algorithm: tls.SignatureAndHashAlgorithm{
+				Hash:      tls.SHA256,
+				Signature: tls.RSA},
+			Signature: []byte("signed")}}
 
 	if !reflect.DeepEqual(got, expected) {
 		t.Fatalf("Mismatched SCT (cert), got %v, expected %v", got, expected)
@@ -105,9 +107,11 @@ func TestSignV1SCTForPrecertificate(t *testing.T) {
 		LogID:      ct.SHA256Hash(idArray),
 		Timestamp:  1504786523000000,
 		Extensions: ct.CTExtensions{},
-		Signature: ct.DigitallySigned{HashAlgorithm: ct.SHA256,
-			SignatureAlgorithm: ct.RSA,
-			Signature:          []byte("signed")}}
+		Signature: ct.DigitallySigned{
+			Algorithm: tls.SignatureAndHashAlgorithm{
+				Hash:      tls.SHA256,
+				Signature: tls.RSA},
+			Signature: []byte("signed")}}
 
 	if !reflect.DeepEqual(got, expected) {
 		t.Fatalf("Mismatched SCT (precert), got %v, expected %v", got, expected)

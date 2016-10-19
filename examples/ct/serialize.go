@@ -9,6 +9,7 @@ import (
 	"time"
 
 	ct "github.com/google/certificate-transparency/go"
+	"github.com/google/certificate-transparency/go/tls"
 	"github.com/google/certificate-transparency/go/x509"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
@@ -39,9 +40,10 @@ func signV1TreeHead(km crypto.KeyManager, sth *ct.SignedTreeHead) error {
 	}
 
 	sth.TreeHeadSignature = ct.DigitallySigned{
-		HashAlgorithm:      ct.SHA256,
-		SignatureAlgorithm: ct.RSA,
-		Signature:          signature.Signature}
+		Algorithm: tls.SignatureAndHashAlgorithm{
+			Hash:      tls.SHA256,
+			Signature: tls.RSA},
+		Signature: signature.Signature}
 
 	return nil
 }
@@ -107,9 +109,10 @@ func signSCT(km crypto.KeyManager, t time.Time, sctData []byte) (ct.SignedCertif
 	}
 
 	digitallySigned := ct.DigitallySigned{
-		HashAlgorithm:      ct.SHA256,
-		SignatureAlgorithm: ct.RSA,
-		Signature:          signature.Signature}
+		Algorithm: tls.SignatureAndHashAlgorithm{
+			Hash:      tls.SHA256,
+			Signature: tls.RSA},
+		Signature: signature.Signature}
 
 	logID, err := GetCTLogID(km)
 
