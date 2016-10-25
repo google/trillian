@@ -17,6 +17,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/testonly"
 )
 
 // TODO(al): add checking to all the Commit() calls in here.
@@ -300,6 +301,29 @@ func TestQueueLeaves(t *testing.T) {
 	if leavesToInsert != count {
 		t.Fatalf("Expected %d unsequenced rows but got: %d", leavesToInsert, count)
 	}
+}
+
+func TestQueueLeavesBadHash(t *testing.T) {
+	logID := createLogID("TestQueueLeavesBadHash")
+	db := prepareTestLogDB(logID, t)
+	defer db.Close()
+	s := prepareTestLogStorage(logID, t)
+	tx := beginLogTx(s, t)
+	defer failIfTXStillOpen(t, "TestQueueLeavesBadHash", tx)
+
+	leaves := createTestLeaves(leavesToInsert, 20)
+
+	// Deliberately corrupt one of the hashes so it should be rejected
+	leaves[3].LeafHash = trillian.NewSHA256().Digest([]byte("this cannot be valid"))
+
+	err := tx.QueueLeaves(leaves);
+	tx.Rollback()
+
+	if err == nil {
+		t.Fatalf("Allowed a leaf to be queued with bad hash")
+	}
+
+	testonly.EnsureErrorContains(t, err, "mismatch")
 }
 
 func TestDequeueLeavesNoneQueued(t *testing.T) {

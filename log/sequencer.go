@@ -92,11 +92,11 @@ func (s Sequencer) sequenceLeaves(mt *merkle.CompactMerkleTree, leaves []trillia
 				Hash:   hash,
 			}
 		})
-		// update the hash to the merkle leaf hash, not the raw data hash
+		// Update the hash to the Merkle leaf hash, not the raw data hash.
 		leaves[i].LeafHash = leafHash
-		// the leaf has now been sequenced
+		// The leaf has now been sequenced.
 		leaves[i].SequenceNumber = seq
-		// store leaf hash in the merkle tree too:
+		// Store leaf hash in the Merkle tree too:
 		leafNodeID, err := storage.NewNodeIDForTreeCoords(0, seq, maxTreeDepth)
 		if err != nil {
 			return nil, nil, err
@@ -206,14 +206,20 @@ func (s Sequencer) SequenceBatch(limit int, expiryFunc CurrentRootExpiredFunc) (
 	}
 
 	// Assign leaf sequence numbers and collate node updates
-	nodeMap, leaves, err := s.sequenceLeaves(merkleTree, leaves)
+	nodeMap, sequencedLeaves, err := s.sequenceLeaves(merkleTree, leaves)
 	if err != nil {
 		tx.Rollback()
 		return 0, err
 	}
 
+	// We should still have the same number of leaves
+	if want, got := len(leaves), len(sequencedLeaves); want != got {
+		tx.Rollback()
+		return 0, fmt.Errorf("wanted: %d leaves after sequencing but we got: %d", want, got)
+	}
+
 	// Write the new sequence numbers to the leaves in the DB
-	err = tx.UpdateSequencedLeaves(leaves)
+	err = tx.UpdateSequencedLeaves(sequencedLeaves)
 
 	if err != nil {
 		glog.Warningf("Sequencer failed to update sequenced leaves: %s", err)

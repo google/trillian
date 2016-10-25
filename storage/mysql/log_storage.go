@@ -268,7 +268,7 @@ func (t *logTX) QueueLeaves(leaves []trillian.LogLeaf) error {
 		}
 
 		// Validate the hash as a consistency check that the data was received OK. Note: at
-		// this stage it is not a merkle tree hash for the leaf
+		// this stage it is not a Merkle tree hash for the leaf.
 		if got, want := trillian.NewSHA256().Digest(leaf.LeafValue), leaf.LeafHash; !bytes.Equal(got, want) {
 			return fmt.Errorf("leaf hash / data mismatch got: %v, want: %v", got, want)
 		}
