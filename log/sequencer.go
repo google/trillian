@@ -78,14 +78,11 @@ func (s Sequencer) buildNodesFromNodeMap(nodeMap map[string]storage.Node, newVer
 	return targetNodes, nil
 }
 
-func (s Sequencer) sequenceLeaves(mt *merkle.CompactMerkleTree, leaves []trillian.LogLeaf) (map[string]storage.Node, []int64, error) {
+func (s Sequencer) sequenceLeaves(mt *merkle.CompactMerkleTree, leaves []trillian.LogLeaf) (map[string]storage.Node, []trillian.LogLeaf, error) {
 	nodeMap := make(map[string]storage.Node)
-	sequenceNumbers := make([]int64, 0, len(leaves))
-
-	// Update the tree state and sequence the leaves, tracking the node updates that need to be
-	// made and assign sequence numbers to the new leaves
-	for _, leaf := range leaves {
-		seq := mt.AddLeafHash(leaf.LeafHash, func(depth int, index int64, hash trillian.Hash) {
+	// Update the tree state and sequence the leaves and assign sequence numbers to the new leaves
+	for i, leaf := range leaves {
+		seq, leafHash := mt.AddLeaf(leaf.LeafValue, func(depth int, index int64, hash trillian.Hash) {
 			nodeID, err := storage.NewNodeIDForTreeCoords(int64(depth), index, maxTreeDepth)
 			if err != nil {
 				return
@@ -95,20 +92,22 @@ func (s Sequencer) sequenceLeaves(mt *merkle.CompactMerkleTree, leaves []trillia
 				Hash:   hash,
 			}
 		})
-		// store leaf hash in the merkle tree too:
+		// Update the hash to the Merkle leaf hash, not the raw data hash.
+		leaves[i].LeafHash = leafHash
+		// The leaf has now been sequenced.
+		leaves[i].SequenceNumber = seq
+		// Store leaf hash in the Merkle tree too:
 		leafNodeID, err := storage.NewNodeIDForTreeCoords(0, seq, maxTreeDepth)
 		if err != nil {
 			return nil, nil, err
 		}
 		nodeMap[leafNodeID.String()] = storage.Node{
 			NodeID: leafNodeID,
-			Hash:   leaf.LeafHash,
+			Hash:   leafHash,
 		}
-
-		sequenceNumbers = append(sequenceNumbers, seq)
 	}
 
-	return nodeMap, sequenceNumbers, nil
+	return nodeMap, leaves, nil
 }
 
 func (s Sequencer) initMerkleTreeFromStorage(currentRoot trillian.SignedLogRoot, tx storage.LogTX) (*merkle.CompactMerkleTree, error) {
@@ -207,23 +206,20 @@ func (s Sequencer) SequenceBatch(limit int, expiryFunc CurrentRootExpiredFunc) (
 	}
 
 	// Assign leaf sequence numbers and collate node updates
-	nodeMap, sequenceNumbers, err := s.sequenceLeaves(merkleTree, leaves)
+	nodeMap, sequencedLeaves, err := s.sequenceLeaves(merkleTree, leaves)
 	if err != nil {
 		tx.Rollback()
 		return 0, err
 	}
 
-	if len(sequenceNumbers) != len(leaves) {
-		panic(fmt.Sprintf("Sequencer returned %d sequence numbers for %d leaves", len(sequenceNumbers),
-			len(leaves)))
-	}
-
-	for index := range sequenceNumbers {
-		leaves[index].SequenceNumber = sequenceNumbers[index]
+	// We should still have the same number of leaves
+	if want, got := len(leaves), len(sequencedLeaves); want != got {
+		tx.Rollback()
+		return 0, fmt.Errorf("wanted: %d leaves after sequencing but we got: %d", want, got)
 	}
 
 	// Write the new sequence numbers to the leaves in the DB
-	err = tx.UpdateSequencedLeaves(leaves)
+	err = tx.UpdateSequencedLeaves(sequencedLeaves)
 
 	if err != nil {
 		glog.Warningf("Sequencer failed to update sequenced leaves: %s", err)

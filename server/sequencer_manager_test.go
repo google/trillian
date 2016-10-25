@@ -9,6 +9,7 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/util"
 )
 
@@ -20,9 +21,10 @@ var fakeTimeSource = util.FakeTimeSource{fakeTime}
 var testLogID1 = trillian.LogID{TreeID: 1, LogID: []byte("testroot")}
 var testLeaf0Hash = trillian.Hash{0, 1, 2, 3, 4, 5}
 var testLeaf0 = trillian.LogLeaf{Leaf: trillian.Leaf{LeafHash: testLeaf0Hash, LeafValue: nil, ExtraData: nil}, SequenceNumber: 0}
-var testRoot0 = trillian.SignedLogRoot{TreeSize: 0, TreeRevision: 0, LogId: testLogID1.LogID, RootHash: []byte{}, Signature: &trillian.DigitallySigned{SignatureAlgorithm: trillian.SignatureAlgorithm_ECDSA}}
-var updatedNodes0 = []storage.Node{{NodeID: storage.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, PrefixLenBits: 64, PathLenBits: 64}, Hash: trillian.Hash{0x0, 0x1, 0x2, 0x3, 0x4, 0x5}, NodeRevision: 1}}
-var updatedRoot = trillian.SignedLogRoot{LogId: testLogID1.LogID, TimestampNanos: fakeTime.UnixNano(), RootHash: []uint8{0x0, 0x1, 0x2, 0x3, 0x4, 0x5}, TreeSize: 1, Signature: &trillian.DigitallySigned{SignatureAlgorithm: trillian.SignatureAlgorithm_ECDSA, Signature: []byte("signed")}, TreeRevision: 1}
+var testLeaf0Updated = trillian.LogLeaf{Leaf: trillian.Leaf{LeafHash: testonly.MustDecodeBase64("bjQLnP+zepicpUTmu3gKLHiQHT+zNzh2hRGjBhevoB0="), LeafValue: nil, ExtraData: nil}, SequenceNumber: 0}
+var testRoot0 = trillian.SignedLogRoot{TreeSize: 0, TreeRevision: 0, LogId: testLogID1.LogID, RootHash: []byte{}, Signature: &trillian.DigitallySigned{SignatureAlgorithm:trillian.SignatureAlgorithm_ECDSA}}
+var updatedNodes0 = []storage.Node{{NodeID: storage.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, PrefixLenBits: 64, PathLenBits: 64}, Hash: testonly.MustDecodeBase64("bjQLnP+zepicpUTmu3gKLHiQHT+zNzh2hRGjBhevoB0="), NodeRevision: 1}}
+var updatedRoot = trillian.SignedLogRoot{LogId: testLogID1.LogID, TimestampNanos: fakeTime.UnixNano(), RootHash: []byte{110, 52, 11, 156, 255, 179, 122, 152, 156, 165, 68, 230, 187, 120, 10, 44, 120, 144, 29, 63, 179, 55, 56, 118, 133, 17, 163, 6, 23, 175, 160, 29}, TreeSize: 1, Signature: &trillian.DigitallySigned{SignatureAlgorithm: trillian.SignatureAlgorithm_ECDSA, Signature: []byte("signed")}, TreeRevision: 1}
 
 // This is used in the signing test with no work where the treesize will be zero
 var updatedRootSignOnly = trillian.SignedLogRoot{LogId: testLogID1.LogID, TimestampNanos: fakeTime.UnixNano(), RootHash: []uint8{0xe3, 0xb0, 0xc4, 0x42, 0x98, 0xfc, 0x1c, 0x14, 0x9a, 0xfb, 0xf4, 0xc8, 0x99, 0x6f, 0xb9, 0x24, 0x27, 0xae, 0x41, 0xe4, 0x64, 0x9b, 0x93, 0x4c, 0xa4, 0x95, 0x99, 0x1b, 0x78, 0x52, 0xb8, 0x55}, TreeSize: 0, Signature: &trillian.DigitallySigned{Signature: []byte("signed")}, TreeRevision: 1}
@@ -78,13 +80,13 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 	mockTx.EXPECT().WriteRevision().AnyTimes().Return(testRoot0.TreeRevision + 1)
 	mockTx.EXPECT().DequeueLeaves(50).Return([]trillian.LogLeaf{testLeaf0}, nil)
 	mockTx.EXPECT().LatestSignedLogRoot().Return(testRoot0, nil)
-	mockTx.EXPECT().UpdateSequencedLeaves([]trillian.LogLeaf{testLeaf0}).Return(nil)
+	mockTx.EXPECT().UpdateSequencedLeaves([]trillian.LogLeaf{testLeaf0Updated}).Return(nil)
 	mockTx.EXPECT().SetMerkleNodes(updatedNodes0).Return(nil)
 	mockTx.EXPECT().StoreSignedLogRoot(updatedRoot).Return(nil)
 	mockStorage.EXPECT().Begin().Return(mockTx, nil)
 
 	mockSigner := crypto.NewMockSigner(mockCtrl)
-	mockSigner.EXPECT().Sign(gomock.Any(), []byte{0x13, 0xa6, 0xf3, 0xcb, 0xa2, 0x82, 0x52, 0xfc, 0x5a, 0x98, 0xfe, 0x81, 0x7c, 0xb7, 0xaf, 0x68, 0x1f, 0x83, 0x30, 0xcf, 0x80, 0x71, 0x1e, 0x9e, 0x16, 0xf6, 0x1e, 0x55, 0xcf, 0x78, 0xa, 0xb9}, hasher).Return([]byte("signed"), nil)
+	mockSigner.EXPECT().Sign(gomock.Any(), []byte{23, 147, 61, 51, 131, 170, 136, 10, 82, 12, 93, 42, 98, 88, 131, 100, 101, 187, 124, 189, 202, 207, 66, 137, 95, 117, 205, 34, 109, 242, 103, 248}, hasher).Return([]byte("signed"), nil)
 	mockKeyManager.EXPECT().Signer().Return(mockSigner, nil)
 
 	sm := NewSequencerManager(mockKeyManager)
