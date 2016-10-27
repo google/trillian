@@ -39,7 +39,7 @@ func main() {
 	flag.Parse()
 
 	// Step 0 - Initialize and connect to log server
-	treeId := tools.GetLogIDFromFlagsOrDie()
+	treeID := tools.GetLogIDFromFlagsOrDie()
 	params := testParameters{startLeaf: *startLeafFlag, leafCount: *numLeavesFlag, queueBatchSize: *queueBatchSizeFlag, readBatchSize: *readBatchSizeFlag, sequencingWaitTotal: *waitForSequencingFlag, sequencingPollWait: *waitBetweenQueueChecksFlag}
 	port := tools.GetLogServerPort()
 
@@ -61,7 +61,7 @@ func main() {
 	// Step 1 - Queue leaves on server (optional)
 	if *queueLeavesFlag {
 		glog.Infof("Queueing %d leaves to log server ...", params.leafCount)
-		if err := queueLeaves(treeId, client, params); err != nil {
+		if err := queueLeaves(treeID, client, params); err != nil {
 			glog.Fatalf("Failed to queue leaves: %v", err)
 		}
 	}
@@ -69,14 +69,14 @@ func main() {
 	// Step 2 - Wait for queue to drain when server sequences, give up if it doesn't happen (optional)
 	if *awaitSequencingFlag {
 		glog.Infof("Waiting for log to sequence ...")
-		if err = waitForSequencing(treeId, client, params); err != nil {
+		if err = waitForSequencing(treeID, client, params); err != nil {
 			glog.Fatalf("Leaves were not sequenced: %v", err)
 		}
 	}
 
 	// Step 3 - Use get entries to read back what was written, check leaves are correct
 	glog.Infof("Reading back leaves from log ...")
-	leafMap, err := readbackLogEntries(treeId, client, params)
+	leafMap, err := readbackLogEntries(treeID, client, params)
 
 	if err != nil {
 		glog.Fatalf("Could not read back log entries: %v", err)
@@ -85,12 +85,12 @@ func main() {
 	// Step 4 - Cross validation between log and memory tree root hashes
 	glog.Infof("Checking log STH with our tree ...")
 	tree := buildMemoryMerkleTree(leafMap, params)
-	if err := checkLogSTHConsistency(treeId, tree, client, params); err != nil {
+	if err := checkLogSTHConsistency(treeID, tree, client, params); err != nil {
 		glog.Fatalf("Log consistency check failed: %v", err)
 	}
 }
 
-func queueLeaves(treeId trillian.LogID, client trillian.TrillianLogClient, params testParameters) error {
+func queueLeaves(treeID trillian.LogID, client trillian.TrillianLogClient, params testParameters) error {
 	leaves := []trillian.LogLeaf{}
 
 	for l := int64(0); l < params.leafCount; l++ {
@@ -112,7 +112,7 @@ func queueLeaves(treeId trillian.LogID, client trillian.TrillianLogClient, param
 		if len(leaves) >= params.queueBatchSize || (l + 1) == params.leafCount {
 			glog.Infof("Queueing %d leaves ...", len(leaves))
 
-			req := makeQueueLeavesRequest(treeId, leaves)
+			req := makeQueueLeavesRequest(treeID, leaves)
 			ctx := context.Background()
 			response, err := client.QueueLeaves(ctx, &req)
 
@@ -131,13 +131,13 @@ func queueLeaves(treeId trillian.LogID, client trillian.TrillianLogClient, param
 	return nil
 }
 
-func waitForSequencing(treeId trillian.LogID, client trillian.TrillianLogClient, params testParameters) error {
+func waitForSequencing(treeID trillian.LogID, client trillian.TrillianLogClient, params testParameters) error {
 	endTime := time.Now().Add(params.sequencingWaitTotal)
 
 	glog.Infof("Waiting for sequencing until: %v", endTime)
 
 	for endTime.After(time.Now()) {
-		req := trillian.GetSequencedLeafCountRequest{LogId: treeId.TreeID}
+		req := trillian.GetSequencedLeafCountRequest{LogId: treeID.TreeID}
 		ctx := context.Background()
 		sequencedLeaves, err := client.GetSequencedLeafCount(ctx, &req)
 
