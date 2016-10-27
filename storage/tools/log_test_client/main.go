@@ -19,12 +19,14 @@ import (
 
 var queueLeavesFlag = flag.Bool("queue_leaves", true, "If true queues leaves, false just reads from the log")
 var awaitSequencingFlag = flag.Bool("await_sequencing", true, "If true then waits until log size is at least num_leaves")
+var checkLogEmptyFlag = flag.Bool("check_log_empty", true, "If true ensures log is empty before queuing anything")
 var startLeafFlag = flag.Int64("start_leaf", 0, "The first leaf index to use")
 var numLeavesFlag = flag.Int64("num_leaves", 100, "The number of leaves to submit and read back")
 var queueBatchSizeFlag = flag.Int("queue_batch_size", 50, "Batch size when queueing leaves")
 var readBatchSizeFlag = flag.Int("read_batch_size", 50, "Batch size when getting leaves by index")
 var waitForSequencingFlag = flag.Duration("wait_for_sequencing", time.Second * 60, "How long to wait for leaves to be sequenced")
 var waitBetweenQueueChecksFlag = flag.Duration("queue_poll_wait", time.Second * 5, "How frequently to check the queue while waiting")
+var rpcRequestDeadlineFlag = flag.Duration("rpc_deadline", time.Second * 10, "Deadline to use for all RPC requests")
 
 type testParameters struct {
 	startLeaf           int64
@@ -58,7 +60,20 @@ func main() {
 
 	client := trillian.NewTrillianLogClient(conn)
 
-	// Step 1 - Queue leaves on server (optional)
+	// Step 1 - Optionally check log starts empty then optionally queue leaves on server
+	if *checkLogEmptyFlag {
+		glog.Infof("Checking log is empty before starting test")
+		resp, err := getLatestSignedLogRoot(client, treeID)
+
+		if err != nil || resp.Status.StatusCode != trillian.TrillianApiStatusCode_OK {
+			glog.Fatalf("Failed to get latest log root: %v %v", resp, err)
+		}
+
+		if resp.SignedLogRoot.TreeSize > 0 || resp.SignedLogRoot.TreeRevision > 0 {
+			glog.Fatalf("Expected an empty log but got tree head response: %v", resp)
+		}
+	}
+
 	if *queueLeavesFlag {
 		glog.Infof("Queueing %d leaves to log server ...", params.leafCount)
 		if err := queueLeaves(treeID, client, params); err != nil {
@@ -113,8 +128,9 @@ func queueLeaves(treeID trillian.LogID, client trillian.TrillianLogClient, param
 			glog.Infof("Queueing %d leaves ...", len(leaves))
 
 			req := makeQueueLeavesRequest(treeID, leaves)
-			ctx := context.Background()
+			ctx, cancelFunc := context.WithDeadline(context.Background(), *rpcRequestDeadlineFlag)
 			response, err := client.QueueLeaves(ctx, &req)
+			cancelFunc()
 
 			if err != nil {
 				return err
@@ -138,8 +154,9 @@ func waitForSequencing(treeID trillian.LogID, client trillian.TrillianLogClient,
 
 	for endTime.After(time.Now()) {
 		req := trillian.GetSequencedLeafCountRequest{LogId: treeID.TreeID}
-		ctx := context.Background()
+		ctx, cancelFunc := context.WithDeadline(context.Background(), *rpcRequestDeadlineFlag)
 		sequencedLeaves, err := client.GetSequencedLeafCount(ctx, &req)
+		cancelFunc()
 
 		if err != nil {
 			return err
@@ -181,7 +198,9 @@ func readbackLogEntries(logID trillian.LogID, client trillian.TrillianLogClient,
 
 		glog.Infof("Reading %d leaves from %d ...", numLeaves, currentLeaf + params.startLeaf)
 		req := makeGetLeavesByIndexRequest(logID, currentLeaf + params.startLeaf, numLeaves)
-		response, err := client.GetLeavesByIndex(context.Background(), req)
+		ctx, cancelFunc := context.WithDeadline(context.Background(), *rpcRequestDeadlineFlag)
+		response, err := client.GetLeavesByIndex(ctx, req)
+		cancelFunc()
 
 		if err != nil {
 			return nil, err
@@ -235,9 +254,7 @@ func readbackLogEntries(logID trillian.LogID, client trillian.TrillianLogClient,
 
 func checkLogSTHConsistency(logID trillian.LogID, tree *merkle.InMemoryMerkleTree, client trillian.TrillianLogClient, params testParameters) error {
 	// Check the STH against the hash we got from our tree
-	req := trillian.GetLatestSignedLogRootRequest{LogId: logID.TreeID}
-	ctx := context.Background()
-	resp, err := client.GetLatestSignedLogRoot(ctx, &req)
+	resp, err := getLatestSignedLogRoot(client, logID)
 
 	if err != nil {
 		return err
@@ -288,4 +305,13 @@ func buildMemoryMerkleTree(leafMap map[int64]*trillian.LeafProto, params testPar
 	}
 
 	return merkleTree
+}
+
+func getLatestSignedLogRoot(client trillian.TrillianLogClient, logID trillian.LogID) (trillian.GetLatestSignedLogRootResponse, error) {
+	req := trillian.GetLatestSignedLogRootRequest{LogId: logID.TreeID}
+	ctx, cancelFunc := context.WithDeadline(context.Background(), *rpcRequestDeadlineFlag)
+	resp, err := client.GetLatestSignedLogRoot(ctx, &req)
+	cancelFunc()
+
+	return resp, err
 }
