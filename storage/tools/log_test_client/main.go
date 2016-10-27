@@ -159,7 +159,7 @@ func waitForSequencing(treeID trillian.LogID, client trillian.TrillianLogClient,
 	return errors.New("wait time expired")
 }
 
-func readbackLogEntries(logId trillian.LogID, client trillian.TrillianLogClient, params testParameters) (map[int64]*trillian.LeafProto, error) {
+func readbackLogEntries(logID trillian.LogID, client trillian.TrillianLogClient, params testParameters) (map[int64]*trillian.LeafProto, error) {
 	currentLeaf := int64(0)
 	leafMap := make(map[int64]*trillian.LeafProto)
 
@@ -180,7 +180,7 @@ func readbackLogEntries(logId trillian.LogID, client trillian.TrillianLogClient,
 		}
 
 		glog.Infof("Reading %d leaves from %d ...", numLeaves, currentLeaf + params.startLeaf)
-		req := makeGetLeavesByIndexRequest(logId, currentLeaf + params.startLeaf, numLeaves)
+		req := makeGetLeavesByIndexRequest(logID, currentLeaf + params.startLeaf, numLeaves)
 		response, err := client.GetLeavesByIndex(context.Background(), req)
 
 		if err != nil {
@@ -233,9 +233,9 @@ func readbackLogEntries(logId trillian.LogID, client trillian.TrillianLogClient,
 	return leafMap, nil
 }
 
-func checkLogSTHConsistency(logId trillian.LogID, tree *merkle.InMemoryMerkleTree, client trillian.TrillianLogClient, params testParameters) error {
+func checkLogSTHConsistency(logID trillian.LogID, tree *merkle.InMemoryMerkleTree, client trillian.TrillianLogClient, params testParameters) error {
 	// Check the STH against the hash we got from our tree
-	req := trillian.GetLatestSignedLogRootRequest{LogId: logId.TreeID}
+	req := trillian.GetLatestSignedLogRootRequest{LogId: logID.TreeID}
 	ctx := context.Background()
 	resp, err := client.GetLatestSignedLogRoot(ctx, &req)
 
@@ -250,7 +250,7 @@ func checkLogSTHConsistency(logId trillian.LogID, tree *merkle.InMemoryMerkleTre
 	return nil
 }
 
-func makeQueueLeavesRequest(logId trillian.LogID, leaves []trillian.LogLeaf) trillian.QueueLeavesRequest {
+func makeQueueLeavesRequest(logID trillian.LogID, leaves []trillian.LogLeaf) trillian.QueueLeavesRequest {
 	leafProtos := make([]*trillian.LeafProto, 0, len(leaves))
 
 	for l := 0; l < len(leaves); l++ {
@@ -258,7 +258,7 @@ func makeQueueLeavesRequest(logId trillian.LogID, leaves []trillian.LogLeaf) tri
 		leafProtos = append(leafProtos, &proto)
 	}
 
-	return trillian.QueueLeavesRequest{LogId: logId.TreeID, Leaves: leafProtos}
+	return trillian.QueueLeavesRequest{LogId: logID.TreeID, Leaves: leafProtos}
 }
 
 func makeGetLeavesByIndexRequest(logID trillian.LogID, startLeaf, numLeaves int64) *trillian.GetLeavesByIndexRequest {
