@@ -128,7 +128,7 @@ func queueLeaves(treeID trillian.LogID, client trillian.TrillianLogClient, param
 			glog.Infof("Queueing %d leaves ...", len(leaves))
 
 			req := makeQueueLeavesRequest(treeID, leaves)
-			ctx, cancelFunc := context.WithDeadline(context.Background(), *rpcRequestDeadlineFlag)
+			ctx, cancelFunc := getRPCDeadlineContext()
 			response, err := client.QueueLeaves(ctx, &req)
 			cancelFunc()
 
@@ -154,7 +154,7 @@ func waitForSequencing(treeID trillian.LogID, client trillian.TrillianLogClient,
 
 	for endTime.After(time.Now()) {
 		req := trillian.GetSequencedLeafCountRequest{LogId: treeID.TreeID}
-		ctx, cancelFunc := context.WithDeadline(context.Background(), *rpcRequestDeadlineFlag)
+		ctx, cancelFunc := getRPCDeadlineContext()
 		sequencedLeaves, err := client.GetSequencedLeafCount(ctx, &req)
 		cancelFunc()
 
@@ -198,7 +198,7 @@ func readbackLogEntries(logID trillian.LogID, client trillian.TrillianLogClient,
 
 		glog.Infof("Reading %d leaves from %d ...", numLeaves, currentLeaf + params.startLeaf)
 		req := makeGetLeavesByIndexRequest(logID, currentLeaf + params.startLeaf, numLeaves)
-		ctx, cancelFunc := context.WithDeadline(context.Background(), *rpcRequestDeadlineFlag)
+		ctx, cancelFunc := getRPCDeadlineContext()
 		response, err := client.GetLeavesByIndex(ctx, req)
 		cancelFunc()
 
@@ -307,11 +307,16 @@ func buildMemoryMerkleTree(leafMap map[int64]*trillian.LeafProto, params testPar
 	return merkleTree
 }
 
-func getLatestSignedLogRoot(client trillian.TrillianLogClient, logID trillian.LogID) (trillian.GetLatestSignedLogRootResponse, error) {
+func getLatestSignedLogRoot(client trillian.TrillianLogClient, logID trillian.LogID) (*trillian.GetLatestSignedLogRootResponse, error) {
 	req := trillian.GetLatestSignedLogRootRequest{LogId: logID.TreeID}
-	ctx, cancelFunc := context.WithDeadline(context.Background(), *rpcRequestDeadlineFlag)
+	ctx, cancelFunc := getRPCDeadlineContext()
 	resp, err := client.GetLatestSignedLogRoot(ctx, &req)
 	cancelFunc()
 
 	return resp, err
+}
+
+// getRPCDeadlineTime calculates the future time an RPC should expire based on our config
+func getRPCDeadlineContext() (context.Context, context.CancelFunc) {
+	return context.WithDeadline(context.Background(), time.Now().Add(*rpcRequestDeadlineFlag))
 }
