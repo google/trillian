@@ -49,9 +49,12 @@ functionality; example code for a certificate transparency log and for a
 [log-derived map](#verifiable-log-derived-map) are included to help with this.
 
 
-
 Working with the Code
 ---------------------
+
+**WARNING**: The Trillian codebase is still under development, and is not yet
+suitable for production use.  Everything here is subject to change without
+notice &ndash; including APIs, database schemas, and code layout.
 
 ### Requirements
 
