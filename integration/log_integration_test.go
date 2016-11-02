@@ -192,8 +192,10 @@ func readbackLogEntries(logID trillian.LogID, client trillian.TrillianLogClient,
 		leafDataPresenceMap[fmt.Sprintf("Leaf %d", l + params.startLeaf)] = true
 	}
 
-	// We have to allow for the last batch potentially being a short one
 	for currentLeaf < params.leafCount {
+		hasher := merkle.NewRFC6962TreeHasher(trillian.NewSHA256())
+
+		// We have to allow for the last batch potentially being a short one
 		numLeaves := params.leafCount - currentLeaf
 
 		if numLeaves > int64(params.readBatchSize) {
@@ -238,7 +240,7 @@ func readbackLogEntries(logID trillian.LogID, client trillian.TrillianLogClient,
 
 			delete(leafDataPresenceMap, string(response.Leaves[l].LeafData))
 
-			hash := sha256.Sum256(response.Leaves[l].LeafData)
+			hash := hasher.HashLeaf(response.Leaves[l].LeafData)
 
 			if !bytes.Equal(hash[:], response.Leaves[l].LeafHash) {
 				return nil, fmt.Errorf("leaf hash mismatch expected: %s, got: %s", base64.StdEncoding.EncodeToString(hash[:]), base64.StdEncoding.EncodeToString(response.Leaves[l].LeafHash))
