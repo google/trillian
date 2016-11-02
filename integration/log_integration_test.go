@@ -102,7 +102,7 @@ func TestLogIntegration(t *testing.T) {
 	}
 
 	// Step 4 - Cross validation between log and memory tree root hashes
-	glog.Infof("Checking log STH with our tree ...")
+	glog.Infof("Checking log STH with our constructed in-memory tree ...")
 	tree := buildMemoryMerkleTree(leafMap, params)
 	if err := checkLogSTHConsistency(treeID, tree, client, params); err != nil {
 		t.Fatalf("Log consistency check failed: %v", err)
@@ -266,7 +266,8 @@ func checkLogSTHConsistency(logID trillian.LogID, tree *merkle.InMemoryMerkleTre
 		return err
 	}
 
-	if !bytes.Equal(tree.CurrentRoot().Hash(), resp.SignedLogRoot.RootHash) {
+	// Hash must not be empty and must match the one we built ourselves
+	if len(resp.SignedLogRoot.RootHash) == 0 || !bytes.Equal(tree.CurrentRoot().Hash(), resp.SignedLogRoot.RootHash) {
 		return fmt.Errorf("root hash mismatch expected: %s, got: %s", base64.StdEncoding.EncodeToString(tree.CurrentRoot().Hash()), base64.StdEncoding.EncodeToString(resp.SignedLogRoot.RootHash))
 	}
 
@@ -295,7 +296,8 @@ func makeGetLeavesByIndexRequest(logID trillian.LogID, startLeaf, numLeaves int6
 }
 
 func buildMemoryMerkleTree(leafMap map[int64]*trillian.LeafProto, params testParameters) *merkle.InMemoryMerkleTree {
-	// Build the same tree with two different merkle implementations as an additional check
+	// Build the same tree with two different merkle implementations as an additional check. We don't
+	// just rely on the compact tree as the server uses the same code so bugs could be masked
 	compactTree := merkle.NewCompactMerkleTree(merkle.NewRFC6962TreeHasher(trillian.NewSHA256()))
 	merkleTree := merkle.NewInMemoryMerkleTree(merkle.NewRFC6962TreeHasher(trillian.NewSHA256()))
 
