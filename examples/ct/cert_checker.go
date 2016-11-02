@@ -76,6 +76,9 @@ func ValidateChain(jsonChain []string, trustedRoots PEMCertPool) ([]*x509.Certif
 		DisableTimeChecks: true,
 		KeyUsages:         []x509.ExtKeyUsage{x509.ExtKeyUsageAny}}
 
+	// We don't want failures from Verify due to unknown critical extensions,
+	// so clear them out.
+	chain[0].UnhandledCriticalExtensions = nil
 	chains, err := chain[0].Verify(verifyOpts)
 
 	if err != nil {
