@@ -66,12 +66,12 @@ CREATE TABLE IF NOT EXISTS TreeHead(
 -- are allowed they will all reference this row.
 CREATE TABLE IF NOT EXISTS LeafData(
   TreeId               INTEGER NOT NULL,
-  -- This is a MerkleLeafHash as defined by the treehasher that the log uses. For
-  -- example for CT this hash will include the leaf prefix byte as well as the leaf data.
-  LeafHash             VARBINARY(255) NOT NULL,
+  -- Note that this is a simple SHA256 hash of the raw data used to detect corruption in transit and
+  -- for deduping. It is not the leaf hash output of the treehasher used by the log.
+  LeafRawHash             VARBINARY(255) NOT NULL,
   TheData              BLOB NOT NULL,
-  PRIMARY KEY(TreeId, LeafHash),
-  INDEX LeafHashIdx(LeafHash),
+  PRIMARY KEY(TreeId, LeafRawHash),
+  INDEX LeafHashIdx(LeafRawHash),
   FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE
 );
 
@@ -79,30 +79,34 @@ CREATE TABLE IF NOT EXISTS LeafData(
 -- multiple rows will exist with different sequence numbers. The signed timestamp
 -- will be communicated via the unsequenced table as this might need to be unique, depending
 -- on the log parameters and we can't insert into this table until we have the sequence number
--- which is not available at the time we queue the entry.
+-- which is not available at the time we queue the entry. We need both hashes because the
+-- LeafData table is keyed by the raw data hash.
 CREATE TABLE IF NOT EXISTS SequencedLeafData(
   TreeId               INTEGER NOT NULL,
   SequenceNumber       BIGINT UNSIGNED NOT NULL,
+  -- Note that this is a simple SHA256 hash of the raw data used to detect corruption in transit.
+  -- It is not the leaf hash output of the treehasher used by the log.
+  LeafRawHash          VARBINARY(255) NOT NULL,
   -- This is a MerkleLeafHash as defined by the treehasher that the log uses. For example for
   -- CT this hash will include the leaf prefix byte as well as the leaf data.
   LeafHash             VARBINARY(255) NOT NULL,
   PRIMARY KEY(TreeId, SequenceNumber),
   FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE,
-  FOREIGN KEY(LeafHash) REFERENCES LeafData(LeafHash)
+  FOREIGN KEY(LeafRawHash) REFERENCES LeafData(LeafRawHash)
 );
 
 CREATE TABLE IF NOT EXISTS Unsequenced(
   TreeId               INTEGER NOT NULL,
   -- Note that this is a simple SHA256 hash of the raw data used to detect corruption in transit.
   -- It is not the leaf hash output of the treehasher used by the log.
-  LeafHash             VARBINARY(255) NOT NULL,
+  LeafRawHash             VARBINARY(255) NOT NULL,
   -- SHA256("queueId"|TreeId|leafHash)
   -- We want this to be unique per entry per log, but queryable by FEs so that
   -- we can try to stomp dupe submissions.
   MessageId            BINARY(32) NOT NULL,
   Payload              BLOB NOT NULL,
   QueueTimestamp       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (TreeId, LeafHash, MessageId)
+  PRIMARY KEY (TreeId, LeafRawHash, MessageId)
 );
 
 

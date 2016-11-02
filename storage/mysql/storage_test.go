@@ -26,6 +26,7 @@ var allTables = []string{"Unsequenced", "TreeHead", "SequencedLeafData", "LeafDa
 
 // Must be 32 bytes to match sha256 length if it was a real hash
 var dummyHash = []byte("hashxxxxhashxxxxhashxxxxhashxxxx")
+var dummyRawHash = []byte("xxxxhashxxxxhashxxxxhashxxxxhash")
 var dummyHash2 = []byte("HASHxxxxhashxxxxhashxxxxhashxxxx")
 var dummyHash3 = []byte("hashxxxxhashxxxxhashxxxxHASHxxxx")
 
@@ -96,9 +97,9 @@ func nodesAreEqual(lhs []storage.Node, rhs []storage.Node) error {
 	return nil
 }
 
-func createFakeLeaf(db *sql.DB, logID trillian.LogID, hash []byte, data []byte, seq int64, t *testing.T) {
-	_, err := db.Exec("INSERT INTO LeafData(TreeId, LeafHash, TheData) VALUES(?,?,?)", logID.TreeID, hash, data)
-	_, err2 := db.Exec("INSERT INTO SequencedLeafData(TreeId, SequenceNumber, LeafHash) VALUES(?,?,?)", logID.TreeID, seq, hash)
+func createFakeLeaf(db *sql.DB, logID trillian.LogID, rawHash, hash []byte, data []byte, seq int64, t *testing.T) {
+	_, err := db.Exec("INSERT INTO LeafData(TreeId, LeafRawHash, TheData) VALUES(?,?,?)", logID.TreeID, rawHash, data)
+	_, err2 := db.Exec("INSERT INTO SequencedLeafData(TreeId, SequenceNumber, LeafRawHash, LeafHash) VALUES(?,?,?,?)", logID.TreeID, seq, rawHash, hash)
 
 	if err != nil || err2 != nil {
 		t.Fatalf("Failed to create test leaves: %v %v", err, err2)
@@ -520,7 +521,7 @@ func TestGetLeavesByHash(t *testing.T) {
 
 	data := []byte("some data")
 
-	createFakeLeaf(db, logID.logID, dummyHash, data, sequenceNumber, t)
+	createFakeLeaf(db, logID.logID, dummyRawHash, dummyHash, data, sequenceNumber, t)
 
 	s := prepareTestLogStorage(logID, t)
 	tx := beginLogTx(s, t)
@@ -547,7 +548,7 @@ func TestGetLeavesByIndex(t *testing.T) {
 	defer db.Close()
 	data := []byte("some data")
 
-	createFakeLeaf(db, logID.logID, dummyHash, data, sequenceNumber, t)
+	createFakeLeaf(db, logID.logID, dummyRawHash, dummyHash, data, sequenceNumber, t)
 
 	s := prepareTestLogStorage(logID, t)
 	tx := beginLogTx(s, t)
@@ -1154,7 +1155,7 @@ func TestGetSequencedLeafCount(t *testing.T) {
 
 		data := []byte("some data")
 
-		createFakeLeaf(db, logID.logID, dummyHash, data, sequenceNumber, t)
+		createFakeLeaf(db, logID.logID, dummyHash, dummyRawHash, data, sequenceNumber, t)
 
 		// Create fake leaves for second tree as if they had been sequenced
 		db2 := prepareTestLogDB(logID2, t)
@@ -1163,8 +1164,8 @@ func TestGetSequencedLeafCount(t *testing.T) {
 		data2 := []byte("some data 2")
 		data3 := []byte("some data 3")
 
-		createFakeLeaf(db2, logID2.logID, dummyHash2, data2, sequenceNumber, t)
-		createFakeLeaf(db2, logID2.logID, dummyHash3, data3, sequenceNumber+1, t)
+		createFakeLeaf(db2, logID2.logID, dummyHash2, dummyRawHash, data2, sequenceNumber, t)
+		createFakeLeaf(db2, logID2.logID, dummyHash3, dummyRawHash, data3, sequenceNumber + 1, t)
 	}
 
 	// Read back the leaf counts from both trees

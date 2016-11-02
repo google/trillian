@@ -18,16 +18,18 @@ import (
 
 const getTreePropertiesSQL string = "SELECT AllowsDuplicateLeaves FROM Trees WHERE TreeId=?"
 const getTreeParametersSQL string = "SELECT ReadOnlyRequests From TreeControl WHERE TreeID=?"
-const selectQueuedLeavesSQL string = `SELECT LeafHash,Payload
+const selectQueuedLeavesSQL string = `SELECT LeafRawHash,Payload
 		 FROM Unsequenced
 		 WHERE TreeID=?
-		 ORDER BY QueueTimestamp DESC,LeafHash ASC LIMIT ?`
-const insertUnsequencedLeafSQL string = `INSERT INTO LeafData(TreeId,LeafHash,TheData)
-		 VALUES(?,?,?) ON DUPLICATE KEY UPDATE LeafHash=LeafHash`
-const insertUnsequencedEntrySQL string = `INSERT INTO Unsequenced(TreeId,LeafHash,MessageId,Payload)
-     VALUES(?,?,?,?)`
-const insertSequencedLeafSQL string = `INSERT INTO SequencedLeafData(TreeId,LeafHash,SequenceNumber)
+		 ORDER BY QueueTimestamp DESC,LeafRawHash ASC LIMIT ?`
+const insertUnsequencedLeafSQL string = `INSERT INTO LeafData(TreeId,LeafRawHash,TheData)
+		 VALUES(?,?,?) ON DUPLICATE KEY UPDATE LeafRawHash=LeafRawHash`
+const insertUnsequencedLeafSQLNoDuplicates string = `INSERT INTO LeafData(TreeId,LeafRawHash,TheData)
 		 VALUES(?,?,?)`
+const insertUnsequencedEntrySQL string = `INSERT INTO Unsequenced(TreeId,LeafRawHash,MessageId,Payload)
+     VALUES(?,?,?,?)`
+const insertSequencedLeafSQL string = `INSERT INTO SequencedLeafData(TreeId,LeafRawHash,LeafHash,SequenceNumber)
+		 VALUES(?,?,?,?)`
 const selectSequencedLeafCountSQL string = "SELECT COUNT(*) FROM SequencedLeafData WHERE TreeId=?"
 const selectLatestSignedLogRootSQL string = `SELECT TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature
 		 FROM TreeHead WHERE TreeId=?
@@ -35,15 +37,15 @@ const selectLatestSignedLogRootSQL string = `SELECT TreeHeadTimestamp,TreeSize,R
 
 // These statements need to be expanded to provide the correct number of parameter placeholders
 // for a particular case
-const deleteUnsequencedSQL string = "DELETE FROM Unsequenced WHERE LeafHash IN (<placeholder>) AND TreeId = ?"
-const selectLeavesByIndexSQL string = `SELECT l.LeafHash,l.TheData,s.SequenceNumber
+const deleteUnsequencedSQL string = "DELETE FROM Unsequenced WHERE LeafRawHash IN (<placeholder>) AND TreeId = ?"
+const selectLeavesByIndexSQL string = `SELECT s.LeafHash,l.TheData,s.SequenceNumber
 		     FROM LeafData l,SequencedLeafData s
-		     WHERE l.LeafHash = s.LeafHash
+		     WHERE l.LeafRawHash = s.LeafRawHash
 		     AND s.SequenceNumber IN (` + placeholderSQL + `) AND l.TreeId = ? AND s.TreeId = l.TreeId`
-const selectLeavesByHashSQL string = `SELECT l.LeafHash,l.TheData,s.SequenceNumber
+const selectLeavesByHashSQL string = `SELECT s.LeafHash,l.TheData,s.SequenceNumber
 		     FROM LeafData l,SequencedLeafData s
-		     WHERE l.LeafHash = s.LeafHash
-		     AND l.LeafHash IN (` + placeholderSQL + `) AND l.TreeId = ? AND s.TreeId = l.TreeId`
+		     WHERE l.LeafRawHash = s.LeafRawHash
+		     AND s.LeafHash IN (` + placeholderSQL + `) AND l.TreeId = ? AND s.TreeId = l.TreeId`
 
 // Same as above except with leaves ordered by sequence so we only incur this cost when necessary
 const selectLeavesByHashOrderedBySequenceSQL string = selectLeavesByHashSQL + " ORDER BY s.SequenceNumber"
@@ -274,12 +276,23 @@ func (t *logTX) QueueLeaves(leaves []trillian.LogLeaf) error {
 		}
 	}
 
+	// If the log does not allow duplicates we prevent the insert of such a leaf from
+	// succeeding. If duplicates are allowed multiple sequenced leaves will share the same
+	// leaf data in the database.
+	var insertSQL string
+
+	if t.ls.allowDuplicates {
+		insertSQL = insertUnsequencedLeafSQL
+	} else {
+		insertSQL = insertUnsequencedLeafSQLNoDuplicates
+	}
+
 	for _, leaf := range leaves {
 		// Create the unsequenced leaf data entry. We don't use INSERT IGNORE because this
 		// can suppress errors unrelated to key collisions. We don't use REPLACE because
 		// if there's ever a hash collision it will do the wrong thing and it also
 		// causes a DELETE / INSERT, which is undesirable.
-		_, err := t.tx.Exec(insertUnsequencedLeafSQL, t.ls.logID.TreeID,
+		_, err := t.tx.Exec(insertSQL, t.ls.logID.TreeID,
 			[]byte(leaf.LeafHash), leaf.LeafValue)
 
 		if err != nil {
@@ -474,7 +487,11 @@ func (t *logTX) UpdateSequencedLeaves(leaves []trillian.LogLeaf) error {
 			return errors.New("Sequenced leaf has incorrect hash size")
 		}
 
-		_, err := t.tx.Exec(insertSequencedLeafSQL, t.ls.logID.TreeID, []byte(leaf.LeafHash),
+		// Recompute the raw leaf hash, could be passed around in the leaf structure but
+		// there's no place for it atm.
+		rawLeafHash := trillian.NewSHA256().Digest(leaf.LeafValue)
+
+		_, err := t.tx.Exec(insertSequencedLeafSQL, t.ls.logID.TreeID, []byte(rawLeafHash), []byte(leaf.LeafHash),
 			leaf.SequenceNumber)
 
 		if err != nil {
