@@ -107,7 +107,7 @@ func createFakeLeaf(db *sql.DB, logID trillian.LogID, rawHash, hash []byte, data
 }
 
 func checkLeafContents(leaf trillian.LogLeaf, seq int64, hash, data []byte, t *testing.T) {
-	if expected, got := hash, leaf.LeafHash; !bytes.Equal(expected, got) {
+	if expected, got := hash, leaf.MerkleLeafHash; !bytes.Equal(expected, got) {
 		t.Fatalf("Unexpected leaf hash in returned leaf. Expected:\n%v\nGot:\n%v", expected, got)
 	}
 
@@ -315,7 +315,7 @@ func TestQueueLeavesBadHash(t *testing.T) {
 	leaves := createTestLeaves(leavesToInsert, 20)
 
 	// Deliberately corrupt one of the hashes so it should be rejected
-	leaves[3].LeafHash = trillian.NewSHA256().Digest([]byte("this cannot be valid"))
+	leaves[3].MerkleLeafHash = trillian.NewSHA256().Digest([]byte("this cannot be valid"))
 
 	err := tx.QueueLeaves(leaves);
 	tx.Rollback()
@@ -1201,9 +1201,9 @@ func ensureAllLeafHashesDistinct(leaves []trillian.LogLeaf, t *testing.T) {
 	// or pretty much any kind of usable data structures we could do this properly.
 	for i := range leaves {
 		for j := range leaves {
-			if i != j && bytes.Equal(leaves[i].LeafHash, leaves[j].LeafHash) {
+			if i != j && bytes.Equal(leaves[i].MerkleLeafHash, leaves[j].MerkleLeafHash) {
 				t.Fatalf("Unexpectedly got a duplicate leaf hash: %v %v",
-					leaves[i].LeafHash, leaves[j].LeafHash)
+					leaves[i].MerkleLeafHash, leaves[j].MerkleLeafHash)
 			}
 		}
 	}

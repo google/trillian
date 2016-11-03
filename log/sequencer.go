@@ -93,7 +93,7 @@ func (s Sequencer) sequenceLeaves(mt *merkle.CompactMerkleTree, leaves []trillia
 			}
 		})
 		// Update the hash to the Merkle leaf hash, not the raw data hash.
-		leaves[i].LeafHash = leafHash
+		leaves[i].MerkleLeafHash = leafHash
 		// The leaf has now been sequenced.
 		leaves[i].SequenceNumber = seq
 		// Store leaf hash in the Merkle tree too:

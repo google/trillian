@@ -445,7 +445,7 @@ func (t *TrillianLogServer) commitAndLog(tx storage.LogTX, op string) error {
 }
 
 func protoToLeaf(proto *trillian.LeafProto) trillian.LogLeaf {
-	return trillian.LogLeaf{SequenceNumber: proto.LeafIndex, Leaf: trillian.Leaf{LeafHash: proto.LeafHash, LeafValue: proto.LeafData, ExtraData: proto.ExtraData}}
+	return trillian.LogLeaf{SequenceNumber: proto.LeafIndex, Leaf: trillian.Leaf{MerkleLeafHash: proto.LeafHash, LeafValue: proto.LeafData, ExtraData: proto.ExtraData}}
 }
 
 func protosToLeaves(protos []*trillian.LeafProto) []trillian.LogLeaf {
@@ -460,7 +460,7 @@ func protosToLeaves(protos []*trillian.LeafProto) []trillian.LogLeaf {
 
 // TODO: Fill in the log leaf specific fields when we've implemented signed timestamps
 func leafToProto(leaf trillian.LogLeaf) *trillian.LeafProto {
-	return &trillian.LeafProto{LeafIndex: leaf.SequenceNumber, LeafHash: leaf.LeafHash, LeafData: leaf.LeafValue, ExtraData: leaf.ExtraData}
+	return &trillian.LeafProto{LeafIndex: leaf.SequenceNumber, LeafHash: leaf.MerkleLeafHash, LeafData: leaf.LeafValue, ExtraData: leaf.ExtraData}
 }
 
 func leavesToProtos(leaves []trillian.LogLeaf) []*trillian.LeafProto {
