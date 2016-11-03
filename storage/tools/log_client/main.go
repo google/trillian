@@ -14,7 +14,7 @@ import (
 var startLeafFlag = flag.Int64("start_leaf", 0, "The first leaf index to fetch")
 var numLeavesFlag = flag.Int64("num_leaves", 1, "The number of leaves to fetch")
 
-func buildGetLeavesByIndexRequest(logID trillian.LogID, startLeaf, numLeaves int64) *trillian.GetLeavesByIndexRequest {
+func buildGetLeavesByIndexRequest(logID int64, startLeaf, numLeaves int64) *trillian.GetLeavesByIndexRequest {
 	if startLeaf < 0 || numLeaves <= 0 {
 		panic("Start leaf index and num_leaves must be >= 0")
 	}
@@ -25,7 +25,7 @@ func buildGetLeavesByIndexRequest(logID trillian.LogID, startLeaf, numLeaves int
 		leafIndices = append(leafIndices, l+startLeaf)
 	}
 
-	return &trillian.GetLeavesByIndexRequest{LogId: logID.TreeID, LeafIndex: leafIndices}
+	return &trillian.GetLeavesByIndexRequest{LogId: logID, LeafIndex: leafIndices}
 }
 
 // TODO: Move this code out to a better place when we tidy up the initial test main stuff

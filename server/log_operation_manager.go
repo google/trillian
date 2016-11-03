@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/google/trillian"
 	"github.com/google/trillian/util"
 )
 
@@ -12,7 +11,7 @@ import (
 // consistency checking or cleanup.
 type LogOperation interface {
 	Name() string
-	ExecutePass([]trillian.LogID, LogOperationManagerContext) bool
+	ExecutePass([]int64, LogOperationManagerContext) bool
 }
 
 // LogOperationManagerContext bundles up the values so testing can be made easier

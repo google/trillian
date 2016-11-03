@@ -30,7 +30,7 @@ message DigitallySigned {
 
 message SignedEntryTimestamp {
   int64 timestamp_nanos = 1;
-  bytes log_id = 2;
+  int64 log_id = 2;
   DigitallySigned signature = 3;
 }
 
@@ -44,7 +44,7 @@ message SignedLogRoot {
 	// TODO(al): define serialised format for the signature scheme.
   DigitallySigned signature = 4;
 
-  bytes log_id = 5;
+  int64 log_id = 5;
   int64 tree_revision = 6;
 }
 

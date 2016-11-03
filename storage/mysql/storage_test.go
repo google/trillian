@@ -34,7 +34,7 @@ const leavesToInsert = 5
 const sequenceNumber int64 = 237
 
 type logIDAndTest struct {
-	logID    trillian.LogID
+	logID    int64
 	testName string
 }
 
@@ -48,7 +48,7 @@ type mapIDAndTest struct {
 // no locks afterwards.
 
 var signedTimestamp = trillian.SignedEntryTimestamp{
-	TimestampNanos: 1234567890, LogId: createLogID("sign").logID.LogID, Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
+	TimestampNanos: 1234567890, LogId: createLogID("sign").logID, Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
 
 // Parallel tests must get different log or map ids
 var idMutex sync.Mutex
@@ -71,7 +71,7 @@ func createLogID(testName string) logIDAndTest {
 	defer idMutex.Unlock()
 	testLogID++
 
-	return logIDAndTest{logID: trillian.LogID{LogID: []byte(testName), TreeID: testLogID}, testName: testName}
+	return logIDAndTest{logID: testLogID, testName: testName}
 }
 
 func createMapID(testName string) mapIDAndTest {
@@ -97,9 +97,9 @@ func nodesAreEqual(lhs []storage.Node, rhs []storage.Node) error {
 	return nil
 }
 
-func createFakeLeaf(db *sql.DB, logID trillian.LogID, rawHash, hash []byte, data []byte, seq int64, t *testing.T) {
-	_, err := db.Exec("INSERT INTO LeafData(TreeId, LeafValueHash, LeafValue) VALUES(?,?,?)", logID.TreeID, rawHash, data)
-	_, err2 := db.Exec("INSERT INTO SequencedLeafData(TreeId, SequenceNumber, LeafValueHash, MerkleLeafHash) VALUES(?,?,?,?)", logID.TreeID, seq, rawHash, hash)
+func createFakeLeaf(db *sql.DB, logID int64, rawHash, hash []byte, data []byte, seq int64, t *testing.T) {
+	_, err := db.Exec("INSERT INTO LeafData(TreeId, LeafValueHash, LeafValue) VALUES(?,?,?)", logID, rawHash, data)
+	_, err2 := db.Exec("INSERT INTO SequencedLeafData(TreeId, SequenceNumber, LeafValueHash, MerkleLeafHash) VALUES(?,?,?,?)", logID, seq, rawHash, hash)
 
 	if err != nil || err2 != nil {
 		t.Fatalf("Failed to create test leaves: %v %v", err, err2)
@@ -180,7 +180,7 @@ func TestNodeRoundTrip(t *testing.T) {
 
 	const writeRevision = int64(100)
 
-	nodesToStore := createSomeNodes("TestNodeRoundTrip", logID.logID.TreeID)
+	nodesToStore := createSomeNodes("TestNodeRoundTrip", logID.logID)
 	nodeIDsToRead := make([]storage.NodeID, len(nodesToStore))
 	for i := range nodesToStore {
 		nodeIDsToRead[i] = nodesToStore[i].NodeID
@@ -295,7 +295,7 @@ func TestQueueLeaves(t *testing.T) {
 	// unsequenced data.
 	var count int
 
-	if err := db.QueryRow("SELECT COUNT(*) FROM Unsequenced WHERE TreeID=?", logID.logID.TreeID).Scan(&count); err != nil {
+	if err := db.QueryRow("SELECT COUNT(*) FROM Unsequenced WHERE TreeID=?", logID.logID).Scan(&count); err != nil {
 		t.Fatalf("Could not query row count")
 	}
 
@@ -590,7 +590,7 @@ func TestLatestSignedRootNoneWritten(t *testing.T) {
 		t.Fatalf("Failed to read an empty log root: %v", err)
 	}
 
-	if len(root.LogId) != 0 || len(root.RootHash) != 0 || root.Signature != nil {
+	if root.LogId != 0 || len(root.RootHash) != 0 || root.Signature != nil {
 		t.Fatalf("Read a root with contents when it should be empty: %v", root)
 	}
 }
@@ -604,7 +604,7 @@ func TestLatestSignedLogRoot(t *testing.T) {
 	defer tx.Rollback()
 
 	// TODO: Tidy up the log id as it looks silly chained 3 times like this
-	root := trillian.SignedLogRoot{LogId: logID.logID.LogID, TimestampNanos: 98765, TreeSize: 16, TreeRevision: 5, RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
+	root := trillian.SignedLogRoot{LogId: logID.logID, TimestampNanos: 98765, TreeSize: 16, TreeRevision: 5, RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
 
 	if err := tx.StoreSignedLogRoot(root); err != nil {
 		t.Fatalf("Failed to store signed root: %v", err)
@@ -657,8 +657,8 @@ func TestGetTreeRevisionAtSize(t *testing.T) {
 		tx := beginLogTx(s, t)
 
 		// TODO: Tidy up the log id as it looks silly chained 3 times like this
-		root := trillian.SignedLogRoot{LogId: logID.logID.LogID, TimestampNanos: 98765, TreeSize: 16, TreeRevision: 5, RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
-		root2 := trillian.SignedLogRoot{LogId: logID.logID.LogID, TimestampNanos: 198765, TreeSize: 27, TreeRevision: 11, RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
+		root := trillian.SignedLogRoot{LogId: logID.logID, TimestampNanos: 98765, TreeSize: 16, TreeRevision: 5, RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
+		root2 := trillian.SignedLogRoot{LogId: logID.logID, TimestampNanos: 198765, TreeSize: 27, TreeRevision: 11, RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
 
 		if err := tx.StoreSignedLogRoot(root); err != nil {
 			t.Fatalf("Failed to store signed root: %v", err)
@@ -713,8 +713,8 @@ func TestGetTreeRevisionMultipleSameSize(t *testing.T) {
 		// Normally tree heads at the same tree size must have the same revision because nothing was
 		// added between them by definition, this is an artificial situation just for testing.
 		// TODO: Tidy up the log id as it looks silly chained 3 times like this
-		root := trillian.SignedLogRoot{LogId: logID.logID.LogID, TimestampNanos: 98765, TreeSize: 16, TreeRevision: 11, RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
-		root2 := trillian.SignedLogRoot{LogId: logID.logID.LogID, TimestampNanos: 198765, TreeSize: 16, TreeRevision: 13, RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
+		root := trillian.SignedLogRoot{LogId: logID.logID, TimestampNanos: 98765, TreeSize: 16, TreeRevision: 11, RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
+		root2 := trillian.SignedLogRoot{LogId: logID.logID, TimestampNanos: 198765, TreeSize: 16, TreeRevision: 13, RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
 
 		if err := tx.StoreSignedLogRoot(root); err != nil {
 			t.Fatalf("Failed to store signed root: %v", err)
@@ -753,7 +753,7 @@ func TestDuplicateSignedLogRoot(t *testing.T) {
 	defer tx.Commit()
 
 	// TODO: Tidy up the log id as it looks silly chained 3 times like this
-	root := trillian.SignedLogRoot{LogId: logID.logID.LogID, TimestampNanos: 98765, TreeSize: 16, TreeRevision: 5, RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
+	root := trillian.SignedLogRoot{LogId: logID.logID, TimestampNanos: 98765, TreeSize: 16, TreeRevision: 5, RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
 
 	if err := tx.StoreSignedLogRoot(root); err != nil {
 		t.Fatalf("Failed to store signed root: %v", err)
@@ -775,14 +775,14 @@ func TestLogRootUpdate(t *testing.T) {
 	defer tx.Commit()
 
 	// TODO: Tidy up the log id as it looks silly chained 3 times like this
-	root := trillian.SignedLogRoot{LogId: logID.logID.LogID, TimestampNanos: 98765, TreeSize: 16, TreeRevision: 5, RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
+	root := trillian.SignedLogRoot{LogId: logID.logID, TimestampNanos: 98765, TreeSize: 16, TreeRevision: 5, RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
 
 	if err := tx.StoreSignedLogRoot(root); err != nil {
 		t.Fatalf("Failed to store signed root: %v", err)
 	}
 
 	// TODO: Tidy up the log id as it looks silly chained 3 times like this
-	root2 := trillian.SignedLogRoot{LogId: logID.logID.LogID, TimestampNanos: 98766, TreeSize: 16, TreeRevision: 6, RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
+	root2 := trillian.SignedLogRoot{LogId: logID.logID, TimestampNanos: 98766, TreeSize: 16, TreeRevision: 6, RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
 
 	if err := tx.StoreSignedLogRoot(root2); err != nil {
 		t.Fatalf("Failed to store signed root: %v", err)
@@ -1136,7 +1136,7 @@ func TestGetActiveLogIDsWithPendingWork(t *testing.T) {
 		t.Fatalf("Should have had one log with unsequenced work but got: %v", logIDs)
 	}
 
-	expected, got := logID.logID.TreeID, logIDs[0].TreeID
+	expected, got := logID.logID, logIDs[0]
 	if expected != got {
 		t.Fatalf("Expected to see tree ID: %d but got: %d", expected, got)
 	}
@@ -1165,7 +1165,7 @@ func TestGetSequencedLeafCount(t *testing.T) {
 		data3 := []byte("some data 3")
 
 		createFakeLeaf(db2, logID2.logID, dummyHash2, dummyRawHash, data2, sequenceNumber, t)
-		createFakeLeaf(db2, logID2.logID, dummyHash3, dummyRawHash, data3, sequenceNumber + 1, t)
+		createFakeLeaf(db2, logID2.logID, dummyHash3, dummyRawHash, data3, sequenceNumber+1, t)
 	}
 
 	// Read back the leaf counts from both trees
@@ -1259,11 +1259,11 @@ func prepareTestTreeDB(treeID int64, t *testing.T) *sql.DB {
 // against test databases. This method panics if any of the deletions fails to make
 // sure tests can't inadvertently succeed.
 func prepareTestLogDB(logID logIDAndTest, t *testing.T) *sql.DB {
-	db := prepareTestTreeDB(logID.logID.TreeID, t)
+	db := prepareTestTreeDB(logID.logID, t)
 
 	// Now put back the tree row for this log id
 	_, err := db.Exec(`REPLACE INTO Trees(TreeId, KeyId, TreeType, LeafHasherType, TreeHasherType)
-					 VALUES(?, ?, "LOG", "SHA256", "SHA256")`, logID.logID.TreeID, logID.logID.LogID)
+					 VALUES(?, ?, "LOG", "SHA256", "SHA256")`, logID.logID, logID.logID)
 
 	if err != nil {
 		t.Fatalf("Failed to create tree entry for test: %v", err)

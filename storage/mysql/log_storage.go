@@ -4,16 +4,17 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
+	"encoding/binary"
 	"errors"
 	"fmt"
 
+	"bytes"
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
-	"bytes"
 )
 
 const getTreePropertiesSQL string = "SELECT AllowsDuplicateLeaves FROM Trees WHERE TreeId=?"
@@ -55,16 +56,16 @@ var defaultLogStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 
 type mySQLLogStorage struct {
 	*mySQLTreeStorage
 
-	logID           trillian.LogID
+	logID           int64
 	allowDuplicates bool
 	readOnly        bool
 }
 
 // NewLogStorage creates a mySQLLogStorage instance for the specified MySQL URL.
-func NewLogStorage(id trillian.LogID, dbURL string) (storage.LogStorage, error) {
+func NewLogStorage(id int64, dbURL string) (storage.LogStorage, error) {
 	// TODO(al): pass this through/configure from DB
 	th := merkle.NewRFC6962TreeHasher(trillian.NewSHA256())
-	ts, err := newTreeStorage(id.TreeID, dbURL, th.Size(), defaultLogStrata, cache.PopulateLogSubtreeNodes(th))
+	ts, err := newTreeStorage(id, dbURL, th.Size(), defaultLogStrata, cache.PopulateLogSubtreeNodes(th))
 	if err != nil {
 		glog.Warningf("Couldn't create a new treeStorage: %s", err)
 		return nil, err
@@ -77,14 +78,14 @@ func NewLogStorage(id trillian.LogID, dbURL string) (storage.LogStorage, error) 
 
 	// TODO: This should not default but it would currently complicate testing and can be
 	// implemented later when the create tree API has been defined.
-	if err := s.db.QueryRow(getTreePropertiesSQL, id.TreeID).Scan(&s.allowDuplicates); err == sql.ErrNoRows {
+	if err := s.db.QueryRow(getTreePropertiesSQL, id).Scan(&s.allowDuplicates); err == sql.ErrNoRows {
 		s.allowDuplicates = false
 	} else if err != nil {
 		glog.Warningf("Failed to get trees row for id %v: %s", id, err)
 		return nil, err
 	}
 
-	err = s.db.QueryRow(getTreeParametersSQL, id.TreeID).Scan(&s.readOnly)
+	err = s.db.QueryRow(getTreeParametersSQL, id).Scan(&s.readOnly)
 
 	// TODO(Martin2112): It's probably not ok for the log to have no parameters set. Enforce this when
 	// we have an admin API and / or we're further along.
@@ -210,7 +211,7 @@ func (t *logTX) DequeueLeaves(limit int) ([]trillian.LogLeaf, error) {
 	}
 
 	leaves := make([]trillian.LogLeaf, 0, limit)
-	rows, err := stx.Query(t.ls.logID.TreeID, limit)
+	rows, err := stx.Query(t.ls.logID, limit)
 
 	if err != nil {
 		glog.Warningf("Failed to select rows for work: %s", err)
@@ -236,9 +237,9 @@ func (t *logTX) DequeueLeaves(limit int) ([]trillian.LogLeaf, error) {
 
 		leaf := trillian.LogLeaf{
 			Leaf: trillian.Leaf{
-				MerkleLeafHash:  leafHash,
-				LeafValue: payload,
-				ExtraData: nil,
+				MerkleLeafHash: leafHash,
+				LeafValue:      payload,
+				ExtraData:      nil,
 			},
 			SequenceNumber: 0,
 		}
@@ -292,7 +293,7 @@ func (t *logTX) QueueLeaves(leaves []trillian.LogLeaf) error {
 		// can suppress errors unrelated to key collisions. We don't use REPLACE because
 		// if there's ever a hash collision it will do the wrong thing and it also
 		// causes a DELETE / INSERT, which is undesirable.
-		_, err := t.tx.Exec(insertSQL, t.ls.logID.TreeID,
+		_, err := t.tx.Exec(insertSQL, t.ls.logID,
 			[]byte(leaf.MerkleLeafHash), leaf.LeafValue)
 
 		if err != nil {
@@ -321,12 +322,12 @@ func (t *logTX) QueueLeaves(leaves []trillian.LogLeaf) error {
 		}
 
 		hasher.Write(messageIDBytes)
-		hasher.Write(t.ls.logID.LogID)
+		binary.Write(hasher, binary.LittleEndian, t.ls.logID)
 		hasher.Write(leaf.MerkleLeafHash)
 		messageID := hasher.Sum(nil)
 
 		_, err = t.tx.Exec(insertUnsequencedEntrySQL,
-			t.ls.logID.TreeID, []byte(leaf.MerkleLeafHash), messageID, leaf.LeafValue)
+			t.ls.logID, []byte(leaf.MerkleLeafHash), messageID, leaf.LeafValue)
 
 		if err != nil {
 			glog.Warningf("Error inserting into Unsequenced: %s", err)
@@ -340,7 +341,7 @@ func (t *logTX) QueueLeaves(leaves []trillian.LogLeaf) error {
 func (t *logTX) GetSequencedLeafCount() (int64, error) {
 	var sequencedLeafCount int64
 
-	err := t.tx.QueryRow(selectSequencedLeafCountSQL, t.ls.logID.TreeID).Scan(&sequencedLeafCount)
+	err := t.tx.QueryRow(selectSequencedLeafCountSQL, t.ls.logID).Scan(&sequencedLeafCount)
 
 	if err != nil {
 		glog.Warningf("Error getting sequenced leaf count: %s", err)
@@ -359,7 +360,7 @@ func (t *logTX) GetLeavesByIndex(leaves []int64) ([]trillian.LogLeaf, error) {
 	for _, nodeID := range leaves {
 		args = append(args, interface{}(int64(nodeID)))
 	}
-	args = append(args, interface{}(t.ls.logID.TreeID))
+	args = append(args, interface{}(t.ls.logID))
 	rows, err := stx.Query(args...)
 	if err != nil {
 		glog.Warningf("Failed to get leaves by idx: %s", err)
@@ -400,7 +401,7 @@ func (t *logTX) GetLeavesByHash(leafHashes []trillian.Hash, orderBySequence bool
 	for _, hash := range leafHashes {
 		args = append(args, interface{}([]byte(hash)))
 	}
-	args = append(args, interface{}(t.ls.logID.TreeID))
+	args = append(args, interface{}(t.ls.logID))
 	rows, err := stx.Query(args...)
 	if err != nil {
 		glog.Warningf("Failed to get leaves by hash: %s", err)
@@ -435,7 +436,7 @@ func (t *logTX) LatestSignedLogRoot() (trillian.SignedLogRoot, error) {
 	var rootSignature trillian.DigitallySigned
 
 	err := t.tx.QueryRow(
-		selectLatestSignedLogRootSQL, t.ls.logID.TreeID).Scan(
+		selectLatestSignedLogRootSQL, t.ls.logID).Scan(
 		&timestamp, &treeSize, &rootHash, &treeRevision, &rootSignatureBytes)
 
 	// It's possible there are no roots for this tree yet
@@ -455,7 +456,7 @@ func (t *logTX) LatestSignedLogRoot() (trillian.SignedLogRoot, error) {
 		TimestampNanos: timestamp,
 		TreeRevision:   treeRevision,
 		Signature:      &rootSignature,
-		LogId:          t.ls.logID.LogID,
+		LogId:          t.ls.logID,
 		TreeSize:       treeSize,
 	}, nil
 }
@@ -468,7 +469,7 @@ func (t *logTX) StoreSignedLogRoot(root trillian.SignedLogRoot) error {
 		return err
 	}
 
-	res, err := t.tx.Exec(insertTreeHeadSQL, t.ls.logID.TreeID, root.TimestampNanos, root.TreeSize,
+	res, err := t.tx.Exec(insertTreeHeadSQL, t.ls.logID, root.TimestampNanos, root.TreeSize,
 		root.RootHash, root.TreeRevision, signatureBytes)
 
 	if err != nil {
@@ -491,7 +492,7 @@ func (t *logTX) UpdateSequencedLeaves(leaves []trillian.LogLeaf) error {
 		// there's no place for it atm.
 		rawLeafHash := trillian.NewSHA256().Digest(leaf.LeafValue)
 
-		_, err := t.tx.Exec(insertSequencedLeafSQL, t.ls.logID.TreeID, []byte(rawLeafHash), []byte(leaf.MerkleLeafHash),
+		_, err := t.tx.Exec(insertSequencedLeafSQL, t.ls.logID, []byte(rawLeafHash), []byte(leaf.MerkleLeafHash),
 			leaf.SequenceNumber)
 
 		if err != nil {
@@ -514,7 +515,7 @@ func (t *logTX) removeSequencedLeaves(leaves []trillian.LogLeaf) error {
 	for _, leaf := range leaves {
 		args = append(args, interface{}([]byte(leaf.MerkleLeafHash)))
 	}
-	args = append(args, interface{}(t.ls.logID.TreeID))
+	args = append(args, interface{}(t.ls.logID))
 	result, err := stx.Exec(args...)
 
 	if err != nil {
@@ -531,7 +532,7 @@ func (t *logTX) removeSequencedLeaves(leaves []trillian.LogLeaf) error {
 	return nil
 }
 
-func (t *logTX) getActiveLogIDsInternal(sql string) ([]trillian.LogID, error) {
+func (t *logTX) getActiveLogIDsInternal(sql string) ([]int64, error) {
 	rows, err := t.tx.Query(sql)
 
 	if err != nil {
@@ -540,33 +541,33 @@ func (t *logTX) getActiveLogIDsInternal(sql string) ([]trillian.LogID, error) {
 
 	defer rows.Close()
 
-	logIDs := make([]trillian.LogID, 0, 0)
+	logIDs := make([]int64, 0, 0)
 
 	for rows.Next() {
-		var logID []byte
+		var keyID []byte
 		var treeID int64
 
-		if err := rows.Scan(&treeID, &logID); err != nil {
-			return []trillian.LogID{}, err
+		if err := rows.Scan(&treeID, &keyID); err != nil {
+			return []int64{}, err
 		}
 
-		logIDs = append(logIDs, trillian.LogID{logID, treeID})
+		logIDs = append(logIDs, treeID)
 	}
 
 	if rows.Err() != nil {
-		return []trillian.LogID{}, rows.Err()
+		return []int64{}, rows.Err()
 	}
 
 	return logIDs, nil
 }
 
 // GetActiveLogIDs returns a list of the IDs of all configured logs
-func (t *logTX) GetActiveLogIDs() ([]trillian.LogID, error) {
+func (t *logTX) GetActiveLogIDs() ([]int64, error) {
 	return t.getActiveLogIDsInternal(selectActiveLogsSQL)
 }
 
 // GetActiveLogIDsWithPendingWork returns a list of the IDs of all configured logs
 // that have queued unsequenced leaves that need to be integrated
-func (t *logTX) GetActiveLogIDsWithPendingWork() ([]trillian.LogID, error) {
+func (t *logTX) GetActiveLogIDsWithPendingWork() ([]int64, error) {
 	return t.getActiveLogIDsInternal(selectActiveLogsWithUnsequencedSQL)
 }

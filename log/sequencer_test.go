@@ -36,8 +36,8 @@ var updatedNodes []storage.Node = []storage.Node{
 	{NodeID: storage.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10}, PrefixLenBits: 64, PathLenBits: 64},
 		Hash: testonly.MustDecodeBase64("L5Iyd7aFOVewxiRm29xD+EU+jvEo4RfufBijKdflWMk="), NodeRevision: 6},
 	{
-		NodeID:       storage.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, PrefixLenBits: 59, PathLenBits: 64},
-		Hash: testonly.MustDecodeBase64("R57DrKTGuZdjCNXjv6InGrm4rABLOn9yWpdHmYOoLwU="), NodeRevision: 6},
+		NodeID: storage.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, PrefixLenBits: 59, PathLenBits: 64},
+		Hash:   testonly.MustDecodeBase64("R57DrKTGuZdjCNXjv6InGrm4rABLOn9yWpdHmYOoLwU="), NodeRevision: 6},
 }
 
 var fakeTimeForTest = fakeTime()
@@ -46,7 +46,7 @@ var expectedSignedRoot = trillian.SignedLogRoot{
 	TimestampNanos: fakeTimeForTest.UnixNano(),
 	TreeRevision:   6,
 	TreeSize:       17,
-	LogId:          []uint8(nil),
+	LogId:          0,
 	Signature:      &trillian.DigitallySigned{Signature: []byte("signed")},
 }
 
@@ -56,7 +56,7 @@ var expectedSignedRoot16 = trillian.SignedLogRoot{
 	TreeRevision:   6,
 	TreeSize:       16,
 	RootHash:       testRoot16.RootHash,
-	LogId:          []uint8(nil),
+	LogId:          0,
 	Signature:      &trillian.DigitallySigned{Signature: []byte("signed")},
 }
 
@@ -66,7 +66,7 @@ var expectedSignedRoot0 = trillian.SignedLogRoot{
 	TimestampNanos: fakeTimeForTest.UnixNano(),
 	TreeRevision:   1,
 	TreeSize:       0,
-	LogId:          []uint8(nil),
+	LogId:          0,
 	Signature:      &trillian.DigitallySigned{Signature: []byte("signed")},
 }
 

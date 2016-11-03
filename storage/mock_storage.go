@@ -50,9 +50,9 @@ func (_mr *_MockLogTXRecorder) DequeueLeaves(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "DequeueLeaves", arg0)
 }
 
-func (_m *MockLogTX) GetActiveLogIDs() ([]trillian.LogID, error) {
+func (_m *MockLogTX) GetActiveLogIDs() ([]int64, error) {
 	ret := _m.ctrl.Call(_m, "GetActiveLogIDs")
-	ret0, _ := ret[0].([]trillian.LogID)
+	ret0, _ := ret[0].([]int64)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -61,9 +61,9 @@ func (_mr *_MockLogTXRecorder) GetActiveLogIDs() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetActiveLogIDs")
 }
 
-func (_m *MockLogTX) GetActiveLogIDsWithPendingWork() ([]trillian.LogID, error) {
+func (_m *MockLogTX) GetActiveLogIDsWithPendingWork() ([]int64, error) {
 	ret := _m.ctrl.Call(_m, "GetActiveLogIDsWithPendingWork")
-	ret0, _ := ret[0].([]trillian.LogID)
+	ret0, _ := ret[0].([]int64)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
