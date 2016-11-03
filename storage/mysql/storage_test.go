@@ -39,7 +39,7 @@ type logIDAndTest struct {
 }
 
 type mapIDAndTest struct {
-	mapID    trillian.MapID
+	mapID    int64
 	testName string
 }
 
@@ -79,7 +79,7 @@ func createMapID(testName string) mapIDAndTest {
 	defer idMutex.Unlock()
 	testLogID++
 
-	return mapIDAndTest{mapID: trillian.MapID{MapID: []byte(testName), TreeID: testMapID}, testName: testName}
+	return mapIDAndTest{mapID: testMapID, testName: testName}
 }
 
 func nodesAreEqual(lhs []storage.Node, rhs []storage.Node) error {
@@ -317,7 +317,7 @@ func TestQueueLeavesBadHash(t *testing.T) {
 	// Deliberately corrupt one of the hashes so it should be rejected
 	leaves[3].MerkleLeafHash = trillian.NewSHA256().Digest([]byte("this cannot be valid"))
 
-	err := tx.QueueLeaves(leaves);
+	err := tx.QueueLeaves(leaves)
 	tx.Rollback()
 
 	if err == nil {
@@ -820,7 +820,7 @@ func TestLatestSignedMapRootNoneWritten(t *testing.T) {
 		t.Fatalf("Failed to read an empty map root: %v", err)
 	}
 
-	if len(root.MapId) != 0 || len(root.RootHash) != 0 || root.Signature != nil {
+	if root.MapId != 0 || len(root.RootHash) != 0 || root.Signature != nil {
 		t.Fatalf("Read a root with contents when it should be empty: %v", root)
 	}
 }
@@ -834,7 +834,7 @@ func TestLatestSignedMapRoot(t *testing.T) {
 	defer tx.Rollback()
 
 	// TODO: Tidy up the map id as it looks silly chained 3 times like this
-	root := trillian.SignedMapRoot{MapId: mapID.mapID.MapID, TimestampNanos: 98765, MapRevision: 5, RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
+	root := trillian.SignedMapRoot{MapId: mapID.mapID, TimestampNanos: 98765, MapRevision: 5, RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
 
 	if err := tx.StoreSignedMapRoot(root); err != nil {
 		t.Fatalf("Failed to store signed root: %v", err)
@@ -868,7 +868,7 @@ func TestDuplicateSignedMapRoot(t *testing.T) {
 	defer tx.Commit()
 
 	// TODO: Tidy up the map id as it looks silly chained 3 times like this
-	root := trillian.SignedMapRoot{MapId: mapID.mapID.MapID, TimestampNanos: 98765, MapRevision: 5, RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
+	root := trillian.SignedMapRoot{MapId: mapID.mapID, TimestampNanos: 98765, MapRevision: 5, RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
 
 	if err := tx.StoreSignedMapRoot(root); err != nil {
 		t.Fatalf("Failed to store signed map root: %v", err)
@@ -890,14 +890,14 @@ func TestMapRootUpdate(t *testing.T) {
 	defer tx.Commit()
 
 	// TODO: Tidy up the map id as it looks silly chained 3 times like this
-	root := trillian.SignedMapRoot{MapId: mapID.mapID.MapID, TimestampNanos: 98765, MapRevision: 5, RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
+	root := trillian.SignedMapRoot{MapId: mapID.mapID, TimestampNanos: 98765, MapRevision: 5, RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
 
 	if err := tx.StoreSignedMapRoot(root); err != nil {
 		t.Fatalf("Failed to store signed map root: %v", err)
 	}
 
 	// TODO: Tidy up the map id as it looks silly chained 3 times like this
-	root2 := trillian.SignedMapRoot{MapId: mapID.mapID.MapID, TimestampNanos: 98766, MapRevision: 6, RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
+	root2 := trillian.SignedMapRoot{MapId: mapID.mapID, TimestampNanos: 98766, MapRevision: 6, RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
 
 	if err := tx.StoreSignedMapRoot(root2); err != nil {
 		t.Fatalf("Failed to store signed map root: %v", err)
@@ -1277,11 +1277,11 @@ func prepareTestLogDB(logID logIDAndTest, t *testing.T) *sql.DB {
 // against test databases. This method panics if any of the deletions fails to make
 // sure tests can't inadvertently succeed.
 func prepareTestMapDB(mapID mapIDAndTest, t *testing.T) *sql.DB {
-	db := prepareTestTreeDB(mapID.mapID.TreeID, t)
+	db := prepareTestTreeDB(mapID.mapID, t)
 
 	// Now put back the tree row for this log id
 	_, err := db.Exec(`REPLACE INTO Trees(TreeId, KeyId, TreeType, LeafHasherType, TreeHasherType)
-					 VALUES(?, ?, "LOG", "SHA256", "SHA256")`, mapID.mapID.TreeID, mapID.mapID.MapID)
+					 VALUES(?, ?, "LOG", "SHA256", "SHA256")`, mapID.mapID, mapID.mapID)
 
 	if err != nil {
 		t.Fatalf("Failed to create tree entry for test: %v", err)

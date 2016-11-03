@@ -12,14 +12,6 @@ func (h Hash) String() string {
 	return base64.StdEncoding.EncodeToString(h)
 }
 
-// MapID represents a single Map instance, and ties it to a particular stored tree instance.
-type MapID struct {
-	// MapID is the unique (public) ID of the Map.
-	MapID []byte
-	// TreeID is the internal ID of the stored tree data.
-	TreeID int64
-}
-
 // LogID represents a single Log instance, and ties it to a particular stored tree instance.
 type LogID struct {
 	// LogID is the unique (public) ID of the Log.

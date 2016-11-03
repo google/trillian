@@ -33,18 +33,18 @@ var defaultMapStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 176}
 type mySQLMapStorage struct {
 	*mySQLTreeStorage
 
-	mapID trillian.MapID
+	mapID int64
 }
 
-func (m *mySQLMapStorage) MapID() trillian.MapID {
+func (m *mySQLMapStorage) MapID() int64 {
 	return m.mapID
 }
 
 // NewMapStorage creates a mySQLMapStorage instance for the specified MySQL URL.
-func NewMapStorage(id trillian.MapID, dbURL string) (storage.MapStorage, error) {
+func NewMapStorage(id int64, dbURL string) (storage.MapStorage, error) {
 	// TODO(al): pass this through/configure from DB
 	th := merkle.NewRFC6962TreeHasher(trillian.NewSHA256())
-	ts, err := newTreeStorage(id.TreeID, dbURL, th.Size(), defaultMapStrata, cache.PopulateMapSubtreeNodes(th))
+	ts, err := newTreeStorage(id, dbURL, th.Size(), defaultMapStrata, cache.PopulateMapSubtreeNodes(th))
 	if err != nil {
 		glog.Warningf("Couldn't create a new treeStorage: %s", err)
 		return nil, err
@@ -117,7 +117,7 @@ func (m *mapTX) Set(keyHash trillian.Hash, value trillian.MapLeaf) error {
 	defer stmt.Close()
 
 	// Note: MapRevision is stored negated:
-	_, err = stmt.Exec(m.ms.mapID.TreeID, []byte(keyHash), -m.writeRevision, flatValue)
+	_, err = stmt.Exec(m.ms.mapID, []byte(keyHash), -m.writeRevision, flatValue)
 	return err
 }
 
@@ -133,7 +133,7 @@ func (m *mapTX) Get(revision int64, keyHashes []trillian.Hash) ([]trillian.MapLe
 	for _, k := range keyHashes {
 		args = append(args, []byte(k[:]))
 	}
-	args = append(args, m.ms.mapID.TreeID)
+	args = append(args, m.ms.mapID)
 	// Note: MapRevision is negated when stored to cause more recent revisions to
 	// appear earlier in query results.
 	args = append(args, -revision)
@@ -189,7 +189,7 @@ func (m *mapTX) LatestSignedMapRoot() (trillian.SignedMapRoot, error) {
 	}
 	defer stmt.Close()
 
-	err = stmt.QueryRow(m.ms.mapID.TreeID).Scan(
+	err = stmt.QueryRow(m.ms.mapID).Scan(
 		&timestamp, &rootHash, &mapRevision, &rootSignatureBytes, &mapperMetaBytes)
 
 	// It's possible there are no roots for this tree yet
@@ -216,7 +216,7 @@ func (m *mapTX) LatestSignedMapRoot() (trillian.SignedMapRoot, error) {
 		TimestampNanos: timestamp,
 		MapRevision:    mapRevision,
 		Signature:      &rootSignature,
-		MapId:          m.ms.mapID.MapID,
+		MapId:          m.ms.mapID,
 		Metadata:       mapperMeta,
 	}
 
@@ -247,7 +247,7 @@ func (m *mapTX) StoreSignedMapRoot(root trillian.SignedMapRoot) error {
 	defer stmt.Close()
 
 	// TODO(al): store transactionLogHead too
-	res, err := stmt.Exec(m.ms.mapID.TreeID, root.TimestampNanos, root.RootHash, root.MapRevision, signatureBytes, mapperMetaBytes)
+	res, err := stmt.Exec(m.ms.mapID, root.TimestampNanos, root.RootHash, root.MapRevision, signatureBytes, mapperMetaBytes)
 
 	if err != nil {
 		glog.Warningf("Failed to store signed map root: %s", err)

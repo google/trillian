@@ -62,6 +62,6 @@ message SignedMapRoot {
 	// TODO(al): define serialised format for the signature scheme.
   DigitallySigned signature = 4;
 
-  bytes map_id = 5;
+  int64 map_id = 5;
   int64 map_revision = 6;
 }

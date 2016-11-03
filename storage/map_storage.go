@@ -32,7 +32,7 @@ type ReadOnlyMapStorage interface {
 	Snapshot() (ReadOnlyMapTX, error)
 
 	// Returns the MapID this storage relates to.
-	MapID() trillian.MapID
+	MapID() int64
 }
 
 // MapStorage should be implemented by concrete storage mechanisms which want to support Maps

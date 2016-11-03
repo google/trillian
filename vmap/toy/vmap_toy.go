@@ -22,7 +22,7 @@ var mysqlURIFlag = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/tes
 func main() {
 	flag.Parse()
 	glog.Info("Starting...")
-	mapID := trillian.MapID{[]byte("TODO"), 1}
+	mapID := int64(1)
 	ms, err := mysql.NewMapStorage(mapID, *mysqlURIFlag)
 	if err != nil {
 		glog.Fatalf("Failed to open mysql storage: %v", err)
@@ -94,7 +94,7 @@ func main() {
 		if err := tx.StoreSignedMapRoot(trillian.SignedMapRoot{
 			TimestampNanos: time.Now().UnixNano(),
 			RootHash:       root,
-			MapId:          mapID.MapID,
+			MapId:          mapID,
 			MapRevision:    tx.WriteRevision(),
 			Signature:      &trillian.DigitallySigned{},
 		}); err != nil {

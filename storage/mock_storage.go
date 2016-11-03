@@ -547,9 +547,9 @@ func (_mr *_MockMapStorageRecorder) Begin() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Begin")
 }
 
-func (_m *MockMapStorage) MapID() trillian.MapID {
+func (_m *MockMapStorage) MapID() int64 {
 	ret := _m.ctrl.Call(_m, "MapID")
-	ret0, _ := ret[0].(trillian.MapID)
+	ret0, _ := ret[0].(int64)
 	return ret0
 }
 

@@ -205,7 +205,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 	newRoot := trillian.SignedMapRoot{
 		TimestampNanos: time.Now().UnixNano(),
 		RootHash:       rootHash,
-		MapId:          s.MapID().MapID,
+		MapId:          s.MapID(),
 		MapRevision:    tx.WriteRevision(),
 		Metadata:       req.MapperData,
 		// TODO(al): Actually sign stuff, etc!
