@@ -3,7 +3,6 @@ package trillian
 
 import (
 	"encoding/base64"
-	"time"
 )
 
 // Hash repesents the cryptographic hash value of some data
@@ -29,18 +28,6 @@ type LogID struct {
 	TreeID int64
 }
 
-// TreeRoot represents the root of a Merkle tree.
-type TreeRoot struct {
-	// RootHash is the Merkle tree root hash.
-	RootHash Hash
-	// Timestamp is the instant at which the root was calculated.
-	Timestamp time.Time
-	// TreeID identifies the particular tree this root pertains to.
-	TreeID int64
-	// TreeRevision is effectively a "sequence" number for TreeRoots.
-	TreeRevision int64
-}
-
 // Leaf represents the data behind Merkle leaves.
 type Leaf struct {
 	// MerkleLeafHash is the tree hash of LeafValue
@@ -59,6 +46,3 @@ type LogLeaf struct {
 	// SequenceNumber holds the position in the log this leaf has been assigned to.
 	SequenceNumber int64
 }
-
-// Key is a map key.
-type Key []byte
