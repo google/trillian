@@ -14,6 +14,7 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
+	storagepb "github.com/google/trillian/storage/proto"
 	"github.com/google/trillian/testonly"
 )
 
@@ -78,7 +79,7 @@ func TestCacheFillOnlyReadsSubtrees(t *testing.T) {
 	for b := 0; b < nodeID.PrefixLenBits; b += defaultLogStrata[si] {
 		e := nodeID
 		e.PrefixLenBits = b
-		m.EXPECT().GetSubtree(testonly.NodeIDEq(e)).Return(&storage.SubtreeProto{
+		m.EXPECT().GetSubtree(testonly.NodeIDEq(e)).Return(&storagepb.SubtreeProto{
 			Prefix: e.Path,
 		}, nil)
 		si++
@@ -93,7 +94,7 @@ func TestCacheFillOnlyReadsSubtrees(t *testing.T) {
 	}
 }
 
-func noFetch(id storage.NodeID) (*storage.SubtreeProto, error) {
+func noFetch(id storage.NodeID) (*storagepb.SubtreeProto, error) {
 	return nil, errors.New("not supposed to read anything")
 }
 
@@ -118,9 +119,9 @@ func TestCacheFlush(t *testing.T) {
 		expectedSetIDs[e.String()] = "expected"
 		m.EXPECT().GetSubtree(testonly.NodeIDEq(e)).Do(func(n storage.NodeID) {
 			t.Logf("read %v", n)
-		}).Return((*storage.SubtreeProto)(nil), nil)
+		}).Return((*storagepb.SubtreeProto)(nil), nil)
 	}
-	m.EXPECT().SetSubtrees(gomock.Any()).Do(func(trees []*storage.SubtreeProto) {
+	m.EXPECT().SetSubtrees(gomock.Any()).Do(func(trees []*storagepb.SubtreeProto) {
 		for _, s := range trees {
 			subID := storage.NewNodeIDFromHash(s.Prefix)
 			if got, want := s.Depth, c.stratumInfoForPrefixLength(subID.PrefixLenBits).depth; got != int32(want) {
@@ -193,12 +194,12 @@ func TestRepopulateMapSubtreeKAT(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to read test data: %v", err)
 	}
-	goodSubtree := storage.SubtreeProto{}
+	goodSubtree := storagepb.SubtreeProto{}
 	if err := proto.UnmarshalText(string(pb), &goodSubtree); err != nil {
 		t.Fatalf("failed to unmarshal SubtreeProto: %v", err)
 	}
 
-	leavesOnly := storage.SubtreeProto{}
+	leavesOnly := storagepb.SubtreeProto{}
 	if err := proto.UnmarshalText(string(pb), &leavesOnly); err != nil {
 		t.Fatalf("failed to unmarshal SubtreeProto: %v", err)
 	}
@@ -243,11 +244,11 @@ func TestRepopulateLogSubtree(t *testing.T) {
 	hasher := merkle.NewRFC6962TreeHasher(trillian.NewSHA256())
 	populateTheThing := PopulateLogSubtreeNodes(hasher)
 	cmt := merkle.NewCompactMerkleTree(hasher)
-	cmtStorage := storage.SubtreeProto{
+	cmtStorage := storagepb.SubtreeProto{
 		Leaves:        make(map[string][]byte),
 		InternalNodes: make(map[string][]byte),
 	}
-	s := storage.SubtreeProto{
+	s := storagepb.SubtreeProto{
 		Leaves: make(map[string][]byte),
 	}
 	c := NewSubtreeCache(defaultLogStrata, PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher(trillian.NewSHA256())))
@@ -313,13 +314,13 @@ func runLogSubtreeKAT(t *testing.T, data logKATData) {
 	if err != nil {
 		t.Fatalf("failed to read test data: %v", err)
 	}
-	goodSubtree := storage.SubtreeProto{}
+	goodSubtree := storagepb.SubtreeProto{}
 	if err := proto.UnmarshalText(string(pb), &goodSubtree); err != nil {
 		t.Fatalf("failed to unmarshal SubtreeProto: %v", err)
 	}
 	t.Logf("good root %v", goodSubtree.RootHash)
 
-	leavesOnly := storage.SubtreeProto{}
+	leavesOnly := storagepb.SubtreeProto{}
 	if err := proto.UnmarshalText(string(pb), &leavesOnly); err != nil {
 		t.Fatalf("failed to unmarshal SubtreeProto: %v", err)
 	}

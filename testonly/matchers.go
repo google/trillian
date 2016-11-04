@@ -7,6 +7,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/storage/proto"
 )
 
 type subtreeHasPrefix struct {
@@ -14,7 +15,7 @@ type subtreeHasPrefix struct {
 }
 
 func (s subtreeHasPrefix) Matches(x interface{}) bool {
-	st, ok := x.(*storage.SubtreeProto)
+	st, ok := x.(*proto.SubtreeProto)
 	if !ok {
 		return false
 	}

@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+
+	"github.com/google/trillian/storage/proto"
 )
 
 // ErrReadOnly is returned when storage operations are not allowed because a resource is read only
@@ -163,12 +165,12 @@ func (n *NodeID) Siblings() []NodeID {
 }
 
 // AsProto returns the NodeIDProto equivalent of the given NodeID.
-func (n *NodeID) AsProto() *NodeIDProto {
-	return &NodeIDProto{Path: n.Path, PrefixLenBits: int32(n.PrefixLenBits)}
+func (n *NodeID) AsProto() *proto.NodeIDProto {
+	return &proto.NodeIDProto{Path: n.Path, PrefixLenBits: int32(n.PrefixLenBits)}
 }
 
 // NewNodeIDFromProto returns a new NodeID based on the given NodeIDProto instance.
-func NewNodeIDFromProto(p NodeIDProto) *NodeID {
+func NewNodeIDFromProto(p proto.NodeIDProto) *NodeID {
 	return &NodeID{
 		Path:          p.Path,
 		PrefixLenBits: int(p.PrefixLenBits),
@@ -183,4 +185,4 @@ func (n *NodeID) Equivalent(other NodeID) bool {
 
 // PopulateSubtreeFunc is a function which knows how to re-populate a subtree
 // from just its leaf nodes.
-type PopulateSubtreeFunc func(*SubtreeProto) error
+type PopulateSubtreeFunc func(*proto.SubtreeProto) error
