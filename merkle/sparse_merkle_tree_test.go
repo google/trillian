@@ -16,7 +16,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/golang/mock/gomock"
-	"github.com/google/trillian"
+	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/testonly"
 )
@@ -58,13 +58,13 @@ func newTX(tx storage.MapTX) func() (storage.TreeTX, error) {
 
 func getSparseMerkleTreeReaderWithMockTX(ctrl *gomock.Controller, rev int64) (*SparseMerkleTreeReader, *storage.MockMapTX) {
 	tx := storage.NewMockMapTX(ctrl)
-	return NewSparseMerkleTreeReader(rev, NewMapHasher(NewRFC6962TreeHasher(trillian.NewSHA256())), tx), tx
+	return NewSparseMerkleTreeReader(rev, NewMapHasher(NewRFC6962TreeHasher(crypto.NewSHA256())), tx), tx
 }
 
 func getSparseMerkleTreeWriterWithMockTX(ctrl *gomock.Controller, rev int64) (*SparseMerkleTreeWriter, *storage.MockMapTX) {
 	tx := storage.NewMockMapTX(ctrl)
 	tx.EXPECT().WriteRevision().AnyTimes().Return(rev)
-	tree, err := NewSparseMerkleTreeWriter(rev, NewMapHasher(NewRFC6962TreeHasher(trillian.NewSHA256())), newTX(tx))
+	tree, err := NewSparseMerkleTreeWriter(rev, NewMapHasher(NewRFC6962TreeHasher(crypto.NewSHA256())), newTX(tx))
 	if err != nil {
 		panic(err)
 	}

@@ -12,6 +12,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/testonly"
 	"golang.org/x/net/context"
@@ -120,7 +121,7 @@ func TestMapIntegration(t *testing.T) {
 		keyOrder := rand.Perm(len(expectedKeys))
 		i := 0
 
-		h := merkle.NewMapHasher(merkle.NewRFC6962TreeHasher(trillian.NewSHA256()))
+		h := merkle.NewMapHasher(merkle.NewRFC6962TreeHasher(crypto.NewSHA256()))
 
 		for x := 0; x < numBatches; x++ {
 			getReq.Key = make([][]byte, 0, batchSize)

@@ -31,7 +31,7 @@ func signV1TreeHead(km crypto.KeyManager, sth *ct.SignedTreeHead) error {
 	}
 
 	// TODO(Martin2112): Algorithms shouldn't be hardcoded here, needs more work in key manager
-	trillianSigner := crypto.NewTrillianSigner(trillian.NewSHA256(), trillian.SignatureAlgorithm_RSA, signer)
+	trillianSigner := crypto.NewTrillianSigner(crypto.NewSHA256(), trillian.SignatureAlgorithm_RSA, signer)
 
 	signature, err := trillianSigner.Sign(sthBytes)
 
@@ -100,7 +100,7 @@ func signSCT(km crypto.KeyManager, t time.Time, sctData []byte) (ct.SignedCertif
 	}
 
 	// TODO(Martin2112): Algorithms shouldn't be hardcoded here, needs more work in key manager
-	trillianSigner := crypto.NewTrillianSigner(trillian.NewSHA256(), trillian.SignatureAlgorithm_RSA, signer)
+	trillianSigner := crypto.NewTrillianSigner(crypto.NewSHA256(), trillian.SignatureAlgorithm_RSA, signer)
 
 	signature, err := trillianSigner.Sign(sctData)
 

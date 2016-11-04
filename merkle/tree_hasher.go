@@ -1,7 +1,7 @@
 package merkle
 
 import (
-	"github.com/google/trillian"
+	"github.com/google/trillian/crypto"
 )
 
 // TODO(al): investigate whether we need configurable TreeHashers for
@@ -27,7 +27,7 @@ const (
 
 // TreeHasher is a set of domain separated hashers for creating Merkle tree hashes.
 type TreeHasher struct {
-	trillian.Hasher
+	crypto.Hasher
 	leafHasher  func([]byte) []byte
 	nodeHasher  func([]byte) []byte
 	emptyHasher func() []byte
@@ -35,7 +35,7 @@ type TreeHasher struct {
 
 // NewRFC6962TreeHasher creates a new TreeHasher based on the passed in hash function.
 // TODO(Martin2112): Move anything CT specific out of here to <handwave> look over there
-func NewRFC6962TreeHasher(hasher trillian.Hasher) TreeHasher {
+func NewRFC6962TreeHasher(hasher crypto.Hasher) TreeHasher {
 	return TreeHasher{
 		Hasher:      hasher,
 		leafHasher:  rfc6962LeafHasher(hasher),
@@ -65,21 +65,21 @@ type emptyHashFunc func() []byte
 type hashFunc func([]byte) []byte
 
 // rfc6962EmptyHasher builds a function to calculate the hash of an empty element for CT
-func rfc6962EmptyHasher(h trillian.Hasher) emptyHashFunc {
+func rfc6962EmptyHasher(h crypto.Hasher) emptyHashFunc {
 	return func() []byte {
 		return h.Digest([]byte{})
 	}
 }
 
 // rfc6962LeafHasher builds a function to calculate leaf hashes based on the Hasher h for CT.
-func rfc6962LeafHasher(h trillian.Hasher) hashFunc {
+func rfc6962LeafHasher(h crypto.Hasher) hashFunc {
 	return func(b []byte) []byte {
 		return h.Digest(append([]byte{RFC6962LeafHashPrefix}, b...))
 	}
 }
 
 // rfc6962NodeHasher builds a function to calculate internal node hashes based on the Hasher h for CT.
-func rfc6962NodeHasher(h trillian.Hasher) hashFunc {
+func rfc6962NodeHasher(h crypto.Hasher) hashFunc {
 	return func(b []byte) []byte {
 		return h.Digest(append([]byte{RFC6962NodeHashPrefix}, b...))
 	}

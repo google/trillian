@@ -16,6 +16,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/testonly"
 )
@@ -315,7 +316,7 @@ func TestQueueLeavesBadHash(t *testing.T) {
 	leaves := createTestLeaves(leavesToInsert, 20)
 
 	// Deliberately corrupt one of the hashes so it should be rejected
-	leaves[3].MerkleLeafHash = trillian.NewSHA256().Digest([]byte("this cannot be valid"))
+	leaves[3].MerkleLeafHash = crypto.NewSHA256().Digest([]byte("this cannot be valid"))
 
 	err := tx.QueueLeaves(leaves)
 	tx.Rollback()
@@ -1308,7 +1309,7 @@ func cleanTestDB() {
 // Creates some test leaves with predictable data
 func createTestLeaves(n, startSeq int64) []trillian.LogLeaf {
 	leaves := make([]trillian.LogLeaf, 0)
-	hasher := trillian.NewSHA256()
+	hasher := crypto.NewSHA256()
 
 	for l := int64(0); l < n; l++ {
 		lv := fmt.Sprintf("Leaf %d", l)

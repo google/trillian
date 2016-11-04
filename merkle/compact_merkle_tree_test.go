@@ -9,13 +9,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/google/trillian"
+	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/testonly"
 )
 
 func getTree() *CompactMerkleTree {
-	return NewCompactMerkleTree(NewRFC6962TreeHasher(trillian.NewSHA256()))
+	return NewCompactMerkleTree(NewRFC6962TreeHasher(crypto.NewSHA256()))
 }
 
 func checkUnusedNodesInvariant(c *CompactMerkleTree) error {
@@ -155,7 +155,7 @@ func fixedHashGetNodeFunc(depth int, index int64) ([]byte, error) {
 }
 
 func TestLoadingTreeFailsNodeFetch(t *testing.T) {
-	_, err := NewCompactMerkleTreeWithState(NewRFC6962TreeHasher(trillian.NewSHA256()), 237, failingGetNodeFunc, []byte("notimportant"))
+	_, err := NewCompactMerkleTreeWithState(NewRFC6962TreeHasher(crypto.NewSHA256()), 237, failingGetNodeFunc, []byte("notimportant"))
 
 	if err == nil || !strings.Contains(err.Error(), "Bang!") {
 		t.Errorf("Did not return correctly on failed node fetch: %v", err)
@@ -165,7 +165,7 @@ func TestLoadingTreeFailsNodeFetch(t *testing.T) {
 func TestLoadingTreeFailsBadRootHash(t *testing.T) {
 	// Supply a root hash that can't possibly match the result of the SHA 256 hashing on our dummy
 	// data
-	_, err := NewCompactMerkleTreeWithState(NewRFC6962TreeHasher(trillian.NewSHA256()), 237, fixedHashGetNodeFunc, []byte("nomatch!nomatch!nomatch!nomatch!"))
+	_, err := NewCompactMerkleTreeWithState(NewRFC6962TreeHasher(crypto.NewSHA256()), 237, fixedHashGetNodeFunc, []byte("nomatch!nomatch!nomatch!nomatch!"))
 	_, ok := err.(RootHashMismatchError)
 
 	if err == nil || !ok {
@@ -182,12 +182,12 @@ func nodeKey(d int, i int64) (string, error) {
 }
 
 func TestCompactVsFullTree(t *testing.T) {
-	imt := NewInMemoryMerkleTree(NewRFC6962TreeHasher(trillian.NewSHA256()))
+	imt := NewInMemoryMerkleTree(NewRFC6962TreeHasher(crypto.NewSHA256()))
 	nodes := make(map[string][]byte)
 
 	for i := 0; i < 1024; i++ {
 		cmt, err := NewCompactMerkleTreeWithState(
-			NewRFC6962TreeHasher(trillian.NewSHA256()),
+			NewRFC6962TreeHasher(crypto.NewSHA256()),
 			int64(imt.LeafCount()),
 			func(depth int, index int64) ([]byte, error) {
 				k, err := nodeKey(depth, index)
@@ -256,7 +256,7 @@ func TestRootHashForVariousTreeSizes(t *testing.T) {
 	b64e := func(b []byte) string { return base64.StdEncoding.EncodeToString(b) }
 
 	for _, test := range tests {
-		tree := NewCompactMerkleTree(NewRFC6962TreeHasher(trillian.NewSHA256()))
+		tree := NewCompactMerkleTree(NewRFC6962TreeHasher(crypto.NewSHA256()))
 		for i := int64(0); i < test.size; i++ {
 			l := []byte{byte(i & 0xff), byte((i >> 8) & 0xff)}
 			tree.AddLeaf(l, func(int, int64, []byte) {})

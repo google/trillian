@@ -21,7 +21,7 @@ func rootNeverExpiresFunc(trillian.SignedLogRoot) bool {
 	return false
 }
 
-var treeHasher = merkle.NewRFC6962TreeHasher(trillian.NewSHA256())
+var treeHasher = merkle.NewRFC6962TreeHasher(crypto.NewSHA256())
 
 // These can be shared between tests as they're never modified
 var testLeaf16Hash = []byte{0, 1, 2, 3, 4, 5}

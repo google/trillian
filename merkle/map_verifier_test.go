@@ -3,12 +3,12 @@ package merkle
 import (
 	"testing"
 
-	"github.com/google/trillian"
+	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/testonly"
 )
 
 func TestVerifyMapInclusionProofWorks(t *testing.T) {
-	h := NewMapHasher(NewRFC6962TreeHasher(trillian.NewSHA256()))
+	h := NewMapHasher(NewRFC6962TreeHasher(crypto.NewSHA256()))
 	for i, tv := range inclusionProofTestVector {
 		if err := VerifyMapInclusionProof(h.HashKey(tv.Key), h.HashLeaf(tv.Value), tv.ExpectedRoot, tv.Proof, h); err != nil {
 			t.Errorf("(test %d) proof verification failed: %v", i, err)
@@ -17,7 +17,7 @@ func TestVerifyMapInclusionProofWorks(t *testing.T) {
 }
 
 func TestVerifyMapInclusionProofCatchesWrongKey(t *testing.T) {
-	h := NewMapHasher(NewRFC6962TreeHasher(trillian.NewSHA256()))
+	h := NewMapHasher(NewRFC6962TreeHasher(crypto.NewSHA256()))
 	tv := inclusionProofTestVector[0]
 	tv.Key = []byte("wibble")
 	if err := VerifyMapInclusionProof(h.HashKey(tv.Key), h.HashLeaf(tv.Value), tv.ExpectedRoot, tv.Proof, h); err == nil {
@@ -26,7 +26,7 @@ func TestVerifyMapInclusionProofCatchesWrongKey(t *testing.T) {
 }
 
 func TestVerifyMapInclusionProofCatchesWrongValue(t *testing.T) {
-	h := NewMapHasher(NewRFC6962TreeHasher(trillian.NewSHA256()))
+	h := NewMapHasher(NewRFC6962TreeHasher(crypto.NewSHA256()))
 	tv := inclusionProofTestVector[0]
 	tv.Value = []byte("wibble")
 	if err := VerifyMapInclusionProof(h.HashKey(tv.Key), h.HashLeaf(tv.Value), tv.ExpectedRoot, tv.Proof, h); err == nil {
@@ -35,7 +35,7 @@ func TestVerifyMapInclusionProofCatchesWrongValue(t *testing.T) {
 }
 
 func TestVerifyMapInclusionProofCatchesWrongRoot(t *testing.T) {
-	h := NewMapHasher(NewRFC6962TreeHasher(trillian.NewSHA256()))
+	h := NewMapHasher(NewRFC6962TreeHasher(crypto.NewSHA256()))
 	tv := inclusionProofTestVector[0]
 	tv.ExpectedRoot = h.Digest([]byte("wibble"))
 	if err := VerifyMapInclusionProof(h.HashKey(tv.Key), h.HashLeaf(tv.Value), tv.ExpectedRoot, tv.Proof, h); err == nil {
@@ -44,7 +44,7 @@ func TestVerifyMapInclusionProofCatchesWrongRoot(t *testing.T) {
 }
 
 func TestVerifyMapInclusionProofCatchesWrongProof(t *testing.T) {
-	h := NewMapHasher(NewRFC6962TreeHasher(trillian.NewSHA256()))
+	h := NewMapHasher(NewRFC6962TreeHasher(crypto.NewSHA256()))
 	tv := inclusionProofTestVector[0]
 	tv.Proof[250][15] ^= 0x10
 	if err := VerifyMapInclusionProof(h.HashKey(tv.Key), h.HashLeaf(tv.Value), tv.ExpectedRoot, tv.Proof, h); err == nil {
@@ -53,7 +53,7 @@ func TestVerifyMapInclusionProofCatchesWrongProof(t *testing.T) {
 }
 
 func TestVerifyMapInclusionProofRejectsShortProof(t *testing.T) {
-	h := NewMapHasher(NewRFC6962TreeHasher(trillian.NewSHA256()))
+	h := NewMapHasher(NewRFC6962TreeHasher(crypto.NewSHA256()))
 	err := VerifyMapInclusionProof(h.HashKey([]byte("hi")), h.HashLeaf([]byte("there")), h.Digest([]byte("root")), [][]byte{h.Digest([]byte("shorty"))}, h)
 	if err == nil {
 		t.Errorf("unexpectedly verified short proof")
@@ -61,7 +61,7 @@ func TestVerifyMapInclusionProofRejectsShortProof(t *testing.T) {
 }
 
 func TestVerifyMapInclusionProofRejectsExcess(t *testing.T) {
-	h := NewMapHasher(NewRFC6962TreeHasher(trillian.NewSHA256()))
+	h := NewMapHasher(NewRFC6962TreeHasher(crypto.NewSHA256()))
 	p := make([][]byte, h.Size()*8+1)
 	err := VerifyMapInclusionProof(h.HashKey([]byte("hi")), h.HashLeaf([]byte("there")), h.Digest([]byte("root")), p, h)
 	if err == nil {
@@ -70,7 +70,7 @@ func TestVerifyMapInclusionProofRejectsExcess(t *testing.T) {
 }
 
 func TestVerifyMapInclusionProofRejectsInvalidKeyHash(t *testing.T) {
-	h := NewMapHasher(NewRFC6962TreeHasher(trillian.NewSHA256()))
+	h := NewMapHasher(NewRFC6962TreeHasher(crypto.NewSHA256()))
 	p := make([][]byte, h.Size()*8)
 	err := VerifyMapInclusionProof([]byte("peppo"), h.HashLeaf([]byte("there")), h.Digest([]byte("root")), p, h)
 	if err == nil {
@@ -79,7 +79,7 @@ func TestVerifyMapInclusionProofRejectsInvalidKeyHash(t *testing.T) {
 }
 
 func TestVerifyMapInclusionProofRejectsInvalidLeafHash(t *testing.T) {
-	h := NewMapHasher(NewRFC6962TreeHasher(trillian.NewSHA256()))
+	h := NewMapHasher(NewRFC6962TreeHasher(crypto.NewSHA256()))
 	p := make([][]byte, h.Size()*8)
 	err := VerifyMapInclusionProof(h.HashKey([]byte("key")), []byte("peppo"), h.Digest([]byte("root")), p, h)
 	if err == nil {
@@ -88,7 +88,7 @@ func TestVerifyMapInclusionProofRejectsInvalidLeafHash(t *testing.T) {
 }
 
 func TestVerifyMapInclusionProofRejectsInvalidRoot(t *testing.T) {
-	h := NewMapHasher(NewRFC6962TreeHasher(trillian.NewSHA256()))
+	h := NewMapHasher(NewRFC6962TreeHasher(crypto.NewSHA256()))
 	p := make([][]byte, h.Size()*8)
 	err := VerifyMapInclusionProof(h.HashKey([]byte("hi")), h.HashLeaf([]byte("there")), []byte("peppo"), p, h)
 	if err == nil {

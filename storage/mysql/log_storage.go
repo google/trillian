@@ -12,6 +12,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
@@ -64,7 +65,7 @@ type mySQLLogStorage struct {
 // NewLogStorage creates a mySQLLogStorage instance for the specified MySQL URL.
 func NewLogStorage(id int64, dbURL string) (storage.LogStorage, error) {
 	// TODO(al): pass this through/configure from DB
-	th := merkle.NewRFC6962TreeHasher(trillian.NewSHA256())
+	th := merkle.NewRFC6962TreeHasher(crypto.NewSHA256())
 	ts, err := newTreeStorage(id, dbURL, th.Size(), defaultLogStrata, cache.PopulateLogSubtreeNodes(th))
 	if err != nil {
 		glog.Warningf("Couldn't create a new treeStorage: %s", err)
@@ -270,7 +271,7 @@ func (t *logTX) QueueLeaves(leaves []trillian.LogLeaf) error {
 
 		// Validate the hash as a consistency check that the data was received OK. Note: at
 		// this stage it is not a Merkle tree hash for the leaf.
-		if got, want := trillian.NewSHA256().Digest(leaf.LeafValue), leaf.MerkleLeafHash; !bytes.Equal(got, want) {
+		if got, want := crypto.NewSHA256().Digest(leaf.LeafValue), leaf.MerkleLeafHash; !bytes.Equal(got, want) {
 			return fmt.Errorf("leaf hash / data mismatch got: %v, want: %v", got, want)
 		}
 	}
@@ -488,7 +489,7 @@ func (t *logTX) UpdateSequencedLeaves(leaves []trillian.LogLeaf) error {
 
 		// Recompute the raw leaf hash, could be passed around in the leaf structure but
 		// there's no place for it atm.
-		rawLeafHash := trillian.NewSHA256().Digest(leaf.LeafValue)
+		rawLeafHash := crypto.NewSHA256().Digest(leaf.LeafValue)
 
 		_, err := t.tx.Exec(insertSequencedLeafSQL, t.ls.logID, rawLeafHash, leaf.MerkleLeafHash,
 			leaf.LeafIndex)
