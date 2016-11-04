@@ -32,7 +32,7 @@ type ReadOnlyMapStorage interface {
 	Snapshot() (ReadOnlyMapTX, error)
 
 	// Returns the MapID this storage relates to.
-	MapID() trillian.MapID
+	MapID() int64
 }
 
 // MapStorage should be implemented by concrete storage mechanisms which want to support Maps
@@ -48,7 +48,7 @@ type MapStorage interface {
 // Setter allows the setting of key->value pairs on the map.
 type Setter interface {
 	// Set sets key to leaf
-	Set(keyHash trillian.Hash, value trillian.MapLeaf) error
+	Set(keyHash []byte, value trillian.MapLeaf) error
 }
 
 // Getter allows access to the values stored in the map.
@@ -59,7 +59,7 @@ type Getter interface {
 	// The returned array of MapLeaves will only contain entries for which values
 	// exist.  i.e. requesting a set of unknown keys would result in a
 	// zero-length array being returned.
-	Get(revision int64, keyHash []trillian.Hash) ([]trillian.MapLeaf, error)
+	Get(revision int64, keyHashes [][]byte) ([]trillian.MapLeaf, error)
 }
 
 // MapRootReader provides access to the map roots.

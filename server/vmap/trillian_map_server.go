@@ -103,7 +103,7 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 		KeyValue: make([]*trillian.KeyValueInclusion, 0, len(req.Key)),
 	}
 
-	keyHashes := make([]trillian.Hash, 0, len(req.Key))
+	keyHashes := make([][]byte, 0, len(req.Key))
 	hashToKey := make(map[string][]byte)
 	for _, key := range req.Key {
 		keyHash := kh.HashKey(key)
@@ -205,7 +205,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 	newRoot := trillian.SignedMapRoot{
 		TimestampNanos: time.Now().UnixNano(),
 		RootHash:       rootHash,
-		MapId:          s.MapID().MapID,
+		MapId:          s.MapID(),
 		MapRevision:    tx.WriteRevision(),
 		Metadata:       req.MapperData,
 		// TODO(al): Actually sign stuff, etc!

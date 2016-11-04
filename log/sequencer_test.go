@@ -24,7 +24,7 @@ func rootNeverExpiresFunc(trillian.SignedLogRoot) bool {
 var treeHasher = merkle.NewRFC6962TreeHasher(trillian.NewSHA256())
 
 // These can be shared between tests as they're never modified
-var testLeaf16Hash = trillian.Hash{0, 1, 2, 3, 4, 5}
+var testLeaf16Hash = []byte{0, 1, 2, 3, 4, 5}
 var testLeaf16Data = []byte("testdataforleaf")
 var testLeaf16 = trillian.LogLeaf{Leaf: trillian.Leaf{MerkleLeafHash: treeHasher.HashLeaf(testLeaf16Data), LeafValue: testLeaf16Data, ExtraData: nil}, SequenceNumber: 16}
 
@@ -36,17 +36,17 @@ var updatedNodes []storage.Node = []storage.Node{
 	{NodeID: storage.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10}, PrefixLenBits: 64, PathLenBits: 64},
 		Hash: testonly.MustDecodeBase64("L5Iyd7aFOVewxiRm29xD+EU+jvEo4RfufBijKdflWMk="), NodeRevision: 6},
 	{
-		NodeID:       storage.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, PrefixLenBits: 59, PathLenBits: 64},
-		Hash: testonly.MustDecodeBase64("R57DrKTGuZdjCNXjv6InGrm4rABLOn9yWpdHmYOoLwU="), NodeRevision: 6},
+		NodeID: storage.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, PrefixLenBits: 59, PathLenBits: 64},
+		Hash:   testonly.MustDecodeBase64("R57DrKTGuZdjCNXjv6InGrm4rABLOn9yWpdHmYOoLwU="), NodeRevision: 6},
 }
 
 var fakeTimeForTest = fakeTime()
 var expectedSignedRoot = trillian.SignedLogRoot{
-	RootHash:       trillian.Hash{71, 158, 195, 172, 164, 198, 185, 151, 99, 8, 213, 227, 191, 162, 39, 26, 185, 184, 172, 0, 75, 58, 127, 114, 90, 151, 71, 153, 131, 168, 47, 5},
+	RootHash:       []byte{71, 158, 195, 172, 164, 198, 185, 151, 99, 8, 213, 227, 191, 162, 39, 26, 185, 184, 172, 0, 75, 58, 127, 114, 90, 151, 71, 153, 131, 168, 47, 5},
 	TimestampNanos: fakeTimeForTest.UnixNano(),
 	TreeRevision:   6,
 	TreeSize:       17,
-	LogId:          []uint8(nil),
+	LogId:          0,
 	Signature:      &trillian.DigitallySigned{Signature: []byte("signed")},
 }
 
@@ -56,7 +56,7 @@ var expectedSignedRoot16 = trillian.SignedLogRoot{
 	TreeRevision:   6,
 	TreeSize:       16,
 	RootHash:       testRoot16.RootHash,
-	LogId:          []uint8(nil),
+	LogId:          0,
 	Signature:      &trillian.DigitallySigned{Signature: []byte("signed")},
 }
 
@@ -66,7 +66,7 @@ var expectedSignedRoot0 = trillian.SignedLogRoot{
 	TimestampNanos: fakeTimeForTest.UnixNano(),
 	TreeRevision:   1,
 	TreeSize:       0,
-	LogId:          []uint8(nil),
+	LogId:          0,
 	Signature:      &trillian.DigitallySigned{Signature: []byte("signed")},
 }
 
@@ -121,7 +121,7 @@ type testContext struct {
 
 // This gets modified so tests need their own copies
 func getLeaf42() trillian.LogLeaf {
-	testLeaf42Hash := trillian.Hash{0, 1, 2, 3, 4, 5}
+	testLeaf42Hash := []byte{0, 1, 2, 3, 4, 5}
 	return trillian.LogLeaf{Leaf: trillian.Leaf{MerkleLeafHash: testLeaf42Hash, LeafValue: testLeaf16Data, ExtraData: nil},
 		SequenceNumber: 42}
 }

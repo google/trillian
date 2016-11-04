@@ -7,7 +7,6 @@ import (
 	"math/big"
 	"sync"
 
-	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
 )
 
@@ -35,13 +34,13 @@ type SparseMerkleTreeWriter struct {
 
 type indexAndHash struct {
 	index []byte
-	hash  trillian.Hash
+	hash  []byte
 }
 
 // rootHashOrError represents a (sub-)tree root hash, or an error which
 // prevented the calculation from completing.
 type rootHashOrError struct {
-	hash trillian.Hash
+	hash []byte
 	err  error
 }
 
@@ -51,7 +50,7 @@ type rootHashOrError struct {
 // and dropped in.
 type Subtree interface {
 	// SetLeaf sets a single leaf hash for integration into a sparse Merkle tree.
-	SetLeaf(index []byte, hash trillian.Hash) error
+	SetLeaf(index []byte, hash []byte) error
 
 	// CalculateRoot instructs the subtree worker to start calculating the root
 	// hash of its tree.  It is an error to call SetLeaf() after calling this
@@ -60,7 +59,7 @@ type Subtree interface {
 
 	// RootHash returns the calculated root hash for this subtree, if the root
 	// hash has not yet been calculated, this method will block until it is.
-	RootHash() (trillian.Hash, error)
+	RootHash() ([]byte, error)
 }
 
 // getSubtreeFunc is essentially a factory method for getting child subtrees.
@@ -136,7 +135,7 @@ func (s *subtreeWriter) getOrCreateChildSubtree(childPrefix []byte) (Subtree, er
 
 // SetLeaf sets a single leaf hash for incorporation into the sparse Merkle
 // tree.
-func (s *subtreeWriter) SetLeaf(index []byte, hash trillian.Hash) error {
+func (s *subtreeWriter) SetLeaf(index []byte, hash []byte) error {
 	indexLen := len(index) * 8
 
 	switch {
@@ -171,7 +170,7 @@ func (s *subtreeWriter) CalculateRoot() {
 }
 
 // RootHash returns the calculated subtree root hash, blocking if necessary.
-func (s *subtreeWriter) RootHash() (trillian.Hash, error) {
+func (s *subtreeWriter) RootHash() ([]byte, error) {
 	r := <-s.root
 	return r.hash, r.err
 }
@@ -184,7 +183,7 @@ func nodeIDFromAddress(size int, prefix []byte, index *big.Int, depth int) stora
 		return storage.NewEmptyNodeID(size * 8)
 	}
 	ib := index.Bytes()
-	t := make(trillian.Hash, size)
+	t := make([]byte, size)
 
 	copy(t, prefix)
 	copy(t[size-len(ib):], ib)
@@ -223,7 +222,7 @@ func (s *subtreeWriter) buildSubtree() {
 	treeDepthOffset := (s.treeHasher.Size()-len(s.prefix))*8 - s.subtreeDepth
 	addressSize := len(s.prefix) + s.subtreeDepth/8
 	root, err := hs2.HStar2Nodes(s.subtreeDepth, treeDepthOffset, leaves,
-		func(depth int, index *big.Int) (trillian.Hash, error) {
+		func(depth int, index *big.Int) ([]byte, error) {
 			nodeID := nodeIDFromAddress(addressSize, s.prefix, index, depth)
 			nodes, err := s.tx.GetMerkleNodes(s.treeRevision, []storage.NodeID{nodeID})
 			if err != nil {
@@ -240,7 +239,7 @@ func (s *subtreeWriter) buildSubtree() {
 			}
 			return nodes[0].Hash, nil
 		},
-		func(depth int, index *big.Int, h trillian.Hash) error {
+		func(depth int, index *big.Int, h []byte) error {
 			// Don't store the root node of the subtree - that's part of the parent
 			// tree.
 			if depth == 0 && len(s.prefix) > 0 {
@@ -346,7 +345,7 @@ func NewSparseMerkleTreeWriter(rev int64, h MapHasher, newTX newTXFunc) (*Sparse
 
 // RootAtRevision returns the sparse Merkle tree root hash at the specified
 // revision, or ErrNoSuchRevision if the requested revision doesn't exist.
-func (s SparseMerkleTreeReader) RootAtRevision(rev int64) (trillian.Hash, error) {
+func (s SparseMerkleTreeReader) RootAtRevision(rev int64) ([]byte, error) {
 	rootNodeID := storage.NewEmptyNodeID(256)
 	nodes, err := s.tx.GetMerkleNodes(rev, []storage.NodeID{rootNodeID})
 	if err != nil {
@@ -372,7 +371,7 @@ func (s SparseMerkleTreeReader) RootAtRevision(rev int64) (trillian.Hash, error)
 // InclusionProof returns an inclusion (or non-inclusion) proof for the
 // specified key at the specified revision.
 // If the revision does not exist it will return ErrNoSuchRevision error.
-func (s SparseMerkleTreeReader) InclusionProof(rev int64, key trillian.Key) ([]trillian.Hash, error) {
+func (s SparseMerkleTreeReader) InclusionProof(rev int64, key []byte) ([][]byte, error) {
 	kh := s.hasher.HashKey(key)
 	nid := storage.NewNodeIDFromHash(kh)
 	sibs := nid.Siblings()
@@ -389,7 +388,7 @@ func (s SparseMerkleTreeReader) InclusionProof(rev int64, key trillian.Key) ([]t
 
 	// We're building a full proof from a combination of whichever nodes we got
 	// back from the storage layer, and the set of "null" hashes.
-	r := make([]trillian.Hash, len(sibs), len(sibs))
+	r := make([][]byte, len(sibs), len(sibs))
 	// For each proof element:
 	for i := 0; i < len(r); i++ {
 		proofID := sibs[i]
@@ -421,7 +420,7 @@ func (s *SparseMerkleTreeWriter) SetLeaves(leaves []HashKeyValue) error {
 }
 
 // CalculateRoot calculates the new root hash including the newly added leaves.
-func (s *SparseMerkleTreeWriter) CalculateRoot() (trillian.Hash, error) {
+func (s *SparseMerkleTreeWriter) CalculateRoot() ([]byte, error) {
 	s.tree.CalculateRoot()
 	return s.tree.RootHash()
 }
@@ -429,8 +428,8 @@ func (s *SparseMerkleTreeWriter) CalculateRoot() (trillian.Hash, error) {
 // HashKeyValue represents a Hash(key)-Hash(value) pair.
 type HashKeyValue struct {
 	// HashedKey is the hash of the key data
-	HashedKey trillian.Hash
+	HashedKey []byte
 
 	// HashedValue is the hash of the value data.
-	HashedValue trillian.Hash
+	HashedValue []byte
 }

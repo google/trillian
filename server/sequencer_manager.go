@@ -36,7 +36,7 @@ func (s SequencerManager) Name() string {
 }
 
 // ExecutePass performs sequencing for the specified set of Logs.
-func (s SequencerManager) ExecutePass(logIDs []trillian.LogID, context LogOperationManagerContext) bool {
+func (s SequencerManager) ExecutePass(logIDs []int64, context LogOperationManagerContext) bool {
 	// TODO(Martin2112): Demote logging to verbose level
 	glog.Infof("Beginning sequencing run for %d active log(s)", len(logIDs))
 
@@ -53,7 +53,7 @@ func (s SequencerManager) ExecutePass(logIDs []trillian.LogID, context LogOperat
 
 		// TODO(Martin2112): Probably want to make the sequencer objects longer lived to
 		// avoid the cost of initializing their state each time but this works for now
-		storage, err := context.storageProvider(logID.TreeID)
+		storage, err := context.storageProvider(logID)
 
 		// TODO(Martin2112): Honour the sequencing enabled in log parameters, needs an API change
 		// so deferring it

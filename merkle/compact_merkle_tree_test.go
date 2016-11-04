@@ -71,7 +71,7 @@ func TestAddingLeaves(t *testing.T) {
 		}
 
 		for i := 0; i < 8; i++ {
-			tree.AddLeaf(inputs[i], func(int, int64, trillian.Hash) {})
+			tree.AddLeaf(inputs[i], func(int, int64, []byte) {})
 			if err := checkUnusedNodesInvariant(tree); err != nil {
 				t.Fatalf("UnusedNodesInvariant check failed: %v", err)
 			}
@@ -91,7 +91,7 @@ func TestAddingLeaves(t *testing.T) {
 		// Second tree, add nodes all at once
 		tree := getTree()
 		for i := 0; i < 8; i++ {
-			tree.AddLeaf(inputs[i], func(int, int64, trillian.Hash) {})
+			tree.AddLeaf(inputs[i], func(int, int64, []byte) {})
 			if err := checkUnusedNodesInvariant(tree); err != nil {
 				t.Fatalf("UnusedNodesInvariant check failed: %v", err)
 			}
@@ -111,7 +111,7 @@ func TestAddingLeaves(t *testing.T) {
 		// Third tree, add nodes in two chunks
 		tree := getTree()
 		for i := 0; i < 3; i++ {
-			tree.AddLeaf(inputs[i], func(int, int64, trillian.Hash) {})
+			tree.AddLeaf(inputs[i], func(int, int64, []byte) {})
 			if err := checkUnusedNodesInvariant(tree); err != nil {
 				t.Fatalf("UnusedNodesInvariant check failed: %v", err)
 			}
@@ -127,7 +127,7 @@ func TestAddingLeaves(t *testing.T) {
 		}
 
 		for i := 3; i < 8; i++ {
-			tree.AddLeaf(inputs[i], func(int, int64, trillian.Hash) {})
+			tree.AddLeaf(inputs[i], func(int, int64, []byte) {})
 			if err := checkUnusedNodesInvariant(tree); err != nil {
 				t.Fatalf("UnusedNodesInvariant check failed: %v", err)
 			}
@@ -144,13 +144,13 @@ func TestAddingLeaves(t *testing.T) {
 	}
 }
 
-func failingGetNodeFunc(depth int, index int64) (trillian.Hash, error) {
-	return trillian.Hash{}, errors.New("Bang!")
+func failingGetNodeFunc(depth int, index int64) ([]byte, error) {
+	return []byte{}, errors.New("Bang!")
 }
 
 // This returns something that won't result in a valid root hash match, doesn't really
 // matter what it is but it must be correct length for an SHA256 hash as if it was real
-func fixedHashGetNodeFunc(depth int, index int64) (trillian.Hash, error) {
+func fixedHashGetNodeFunc(depth int, index int64) ([]byte, error) {
 	return []byte("12345678901234567890123456789012"), nil
 }
 
@@ -183,13 +183,13 @@ func nodeKey(d int, i int64) (string, error) {
 
 func TestCompactVsFullTree(t *testing.T) {
 	imt := NewInMemoryMerkleTree(NewRFC6962TreeHasher(trillian.NewSHA256()))
-	nodes := make(map[string]trillian.Hash)
+	nodes := make(map[string][]byte)
 
 	for i := 0; i < 1024; i++ {
 		cmt, err := NewCompactMerkleTreeWithState(
 			NewRFC6962TreeHasher(trillian.NewSHA256()),
 			int64(imt.LeafCount()),
-			func(depth int, index int64) (trillian.Hash, error) {
+			func(depth int, index int64) ([]byte, error) {
 				k, err := nodeKey(depth, index)
 				if err != nil {
 					t.Errorf("failed to create nodeID: %v", err)
@@ -210,7 +210,7 @@ func TestCompactVsFullTree(t *testing.T) {
 		iSeq, iHash := imt.AddLeaf(newLeaf)
 
 		cSeq, cHash := cmt.AddLeaf(newLeaf,
-			func(depth int, index int64, hash trillian.Hash) {
+			func(depth int, index int64, hash []byte) {
 				k, err := nodeKey(depth, index)
 				if err != nil {
 					t.Errorf("failed to create nodeID: %v", err)
@@ -236,9 +236,9 @@ func TestCompactVsFullTree(t *testing.T) {
 }
 
 func TestRootHashForVariousTreeSizes(t *testing.T) {
-	tests := []struct{
-		size int64
-		wantRoot trillian.Hash
+	tests := []struct {
+		size     int64
+		wantRoot []byte
 	}{
 		{10, testonly.MustDecodeBase64("VjWMPSYNtCuCNlF/RLnQy6HcwSk6CIipfxm+hettA+4=")},
 		{15, testonly.MustDecodeBase64("j4SulYmocFuxdeyp12xXCIgK6PekBcxzAIj4zbQzNEI=")},
@@ -258,8 +258,8 @@ func TestRootHashForVariousTreeSizes(t *testing.T) {
 	for _, test := range tests {
 		tree := NewCompactMerkleTree(NewRFC6962TreeHasher(trillian.NewSHA256()))
 		for i := int64(0); i < test.size; i++ {
-			l := []byte{ byte(i & 0xff), byte((i >> 8) & 0xff) }
-			tree.AddLeaf(l, func(int, int64, trillian.Hash) {})
+			l := []byte{byte(i & 0xff), byte((i >> 8) & 0xff)}
+			tree.AddLeaf(l, func(int, int64, []byte) {})
 		}
 		if got, want := tree.CurrentRoot(), test.wantRoot; !bytes.Equal(got, want) {
 			t.Errorf("Test (treesize=%v) got root %v, want %v", test.size, b64e(got), b64e(want))

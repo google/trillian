@@ -54,7 +54,7 @@ func TestVerifyMapInclusionProofCatchesWrongProof(t *testing.T) {
 
 func TestVerifyMapInclusionProofRejectsShortProof(t *testing.T) {
 	h := NewMapHasher(NewRFC6962TreeHasher(trillian.NewSHA256()))
-	err := VerifyMapInclusionProof(h.HashKey([]byte("hi")), h.HashLeaf([]byte("there")), h.Digest([]byte("root")), []trillian.Hash{h.Digest([]byte("shorty"))}, h)
+	err := VerifyMapInclusionProof(h.HashKey([]byte("hi")), h.HashLeaf([]byte("there")), h.Digest([]byte("root")), [][]byte{h.Digest([]byte("shorty"))}, h)
 	if err == nil {
 		t.Errorf("unexpectedly verified short proof")
 	}
@@ -62,7 +62,7 @@ func TestVerifyMapInclusionProofRejectsShortProof(t *testing.T) {
 
 func TestVerifyMapInclusionProofRejectsExcess(t *testing.T) {
 	h := NewMapHasher(NewRFC6962TreeHasher(trillian.NewSHA256()))
-	p := make([]trillian.Hash, h.Size()*8+1)
+	p := make([][]byte, h.Size()*8+1)
 	err := VerifyMapInclusionProof(h.HashKey([]byte("hi")), h.HashLeaf([]byte("there")), h.Digest([]byte("root")), p, h)
 	if err == nil {
 		t.Errorf("unexpectedly verified proof with extra data")
@@ -71,7 +71,7 @@ func TestVerifyMapInclusionProofRejectsExcess(t *testing.T) {
 
 func TestVerifyMapInclusionProofRejectsInvalidKeyHash(t *testing.T) {
 	h := NewMapHasher(NewRFC6962TreeHasher(trillian.NewSHA256()))
-	p := make([]trillian.Hash, h.Size()*8)
+	p := make([][]byte, h.Size()*8)
 	err := VerifyMapInclusionProof([]byte("peppo"), h.HashLeaf([]byte("there")), h.Digest([]byte("root")), p, h)
 	if err == nil {
 		t.Errorf("unexpectedly verified with invalid key hash")
@@ -80,7 +80,7 @@ func TestVerifyMapInclusionProofRejectsInvalidKeyHash(t *testing.T) {
 
 func TestVerifyMapInclusionProofRejectsInvalidLeafHash(t *testing.T) {
 	h := NewMapHasher(NewRFC6962TreeHasher(trillian.NewSHA256()))
-	p := make([]trillian.Hash, h.Size()*8)
+	p := make([][]byte, h.Size()*8)
 	err := VerifyMapInclusionProof(h.HashKey([]byte("key")), []byte("peppo"), h.Digest([]byte("root")), p, h)
 	if err == nil {
 		t.Errorf("unexpectedly verified with invalid key hash")
@@ -89,7 +89,7 @@ func TestVerifyMapInclusionProofRejectsInvalidLeafHash(t *testing.T) {
 
 func TestVerifyMapInclusionProofRejectsInvalidRoot(t *testing.T) {
 	h := NewMapHasher(NewRFC6962TreeHasher(trillian.NewSHA256()))
-	p := make([]trillian.Hash, h.Size()*8)
+	p := make([][]byte, h.Size()*8)
 	err := VerifyMapInclusionProof(h.HashKey([]byte("hi")), h.HashLeaf([]byte("there")), []byte("peppo"), p, h)
 	if err == nil {
 		t.Errorf("unexpectedly verified proof with extra data")
@@ -100,12 +100,12 @@ func TestVerifyMapInclusionProofRejectsInvalidRoot(t *testing.T) {
 var inclusionProofTestVector = []struct {
 	Key          []byte
 	Value        []byte
-	Proof        []trillian.Hash
-	ExpectedRoot trillian.Hash
+	Proof        [][]byte
+	ExpectedRoot []byte
 }{
 	{[]byte("key-0-848"),
 		[]byte("value-0-848"),
-		[]trillian.Hash{
+		[][]byte{
 			// 246 x nil
 			nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 			nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
@@ -138,7 +138,7 @@ var inclusionProofTestVector = []struct {
 	}, {
 		[]byte("key-1-848"),
 		[]byte("value-1-848"),
-		[]trillian.Hash{
+		[][]byte{
 			// 246 x nil
 			nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 			nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
@@ -171,7 +171,7 @@ var inclusionProofTestVector = []struct {
 	}, {
 		[]byte("key-2-848"),
 		[]byte("value-2-848"),
-		[]trillian.Hash{
+		[][]byte{
 			// 244 x nil
 			nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 			nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
@@ -206,7 +206,7 @@ var inclusionProofTestVector = []struct {
 	}, {
 		[]byte("key-3-848"),
 		[]byte("value-3-848"),
-		[]trillian.Hash{
+		[][]byte{
 			// 236 x nil
 			nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 			nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
@@ -243,7 +243,7 @@ var inclusionProofTestVector = []struct {
 	}, {
 		[]byte("key-4-848"),
 		[]byte("value-4-848"),
-		[]trillian.Hash{
+		[][]byte{
 			// 243 x nil
 			nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 			nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
@@ -279,7 +279,7 @@ var inclusionProofTestVector = []struct {
 	}, {
 		[]byte("key-4-848"),
 		[]byte("value-4-848"),
-		[]trillian.Hash{
+		[][]byte{
 			// 243 x nil
 			nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 			nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,

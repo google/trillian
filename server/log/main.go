@@ -45,7 +45,7 @@ var storageMap = make(map[int64]storage.LogStorage)
 
 // TODO(Martin2112): Needs to be able to swap out for different storage type
 func simpleMySQLStorageProvider(treeID int64) (storage.LogStorage, error) {
-	return mysql.NewLogStorage(trillian.LogID{[]byte("TODO"), treeID}, *mysqlURIFlag)
+	return mysql.NewLogStorage(treeID, *mysqlURIFlag)
 }
 
 // TODO(Martin2112): Could pull this out as a wrapper so it can be used elsewhere
@@ -73,7 +73,7 @@ func getStorageForLog(logID int64) (storage.LogStorage, error) {
 
 func checkDatabaseAccessible(dbURI string) error {
 	// TODO(Martin2112): Have to pass a tree ID when we just want metadata. API mismatch
-	storage, err := mysql.NewLogStorage(trillian.LogID{[]byte("TODO"), int64(0)}, dbURI)
+	storage, err := mysql.NewLogStorage(int64(0), dbURI)
 
 	if err != nil {
 		// This is probably something fundamentally wrong

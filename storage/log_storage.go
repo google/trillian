@@ -70,7 +70,7 @@ type LeafReader interface {
 	// duplicate leaves callers must be prepared to handle multiple results with the same hash
 	// but different sequence numbers. If orderBySequence is true then the returned data
 	// will be in sequence number order.
-	GetLeavesByHash(leafHashes []trillian.Hash, orderBySequence bool) ([]trillian.LogLeaf, error)
+	GetLeavesByHash(leafHashes [][]byte, orderBySequence bool) ([]trillian.LogLeaf, error)
 }
 
 // LogRootReader provides an interface for reading SignedLogRoots.
@@ -88,8 +88,8 @@ type LogRootWriter interface {
 // LogMetadata provides access to information about the logs in storage
 type LogMetadata interface {
 	// GetActiveLogs returns a list of the IDs of all the logs that are configured in storage
-	GetActiveLogIDs() ([]trillian.LogID, error)
+	GetActiveLogIDs() ([]int64, error)
 	// GetActiveLogIDsWithPendingWork returns a list of IDs of logs that have
 	// pending queued leaves that need to be integrated into the log.
-	GetActiveLogIDsWithPendingWork() ([]trillian.LogID, error)
+	GetActiveLogIDsWithPendingWork() ([]int64, error)
 }

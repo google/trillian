@@ -295,7 +295,7 @@ type sparseKeyValue struct {
 
 type sparseTestVector struct {
 	kv           []sparseKeyValue
-	expectedRoot trillian.Hash
+	expectedRoot []byte
 }
 
 func testSparseTreeCalculatedRoot(t *testing.T, vec sparseTestVector) {

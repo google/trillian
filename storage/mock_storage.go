@@ -50,9 +50,9 @@ func (_mr *_MockLogTXRecorder) DequeueLeaves(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "DequeueLeaves", arg0)
 }
 
-func (_m *MockLogTX) GetActiveLogIDs() ([]trillian.LogID, error) {
+func (_m *MockLogTX) GetActiveLogIDs() ([]int64, error) {
 	ret := _m.ctrl.Call(_m, "GetActiveLogIDs")
-	ret0, _ := ret[0].([]trillian.LogID)
+	ret0, _ := ret[0].([]int64)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -61,9 +61,9 @@ func (_mr *_MockLogTXRecorder) GetActiveLogIDs() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetActiveLogIDs")
 }
 
-func (_m *MockLogTX) GetActiveLogIDsWithPendingWork() ([]trillian.LogID, error) {
+func (_m *MockLogTX) GetActiveLogIDsWithPendingWork() ([]int64, error) {
 	ret := _m.ctrl.Call(_m, "GetActiveLogIDsWithPendingWork")
-	ret0, _ := ret[0].([]trillian.LogID)
+	ret0, _ := ret[0].([]int64)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -72,7 +72,7 @@ func (_mr *_MockLogTXRecorder) GetActiveLogIDsWithPendingWork() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetActiveLogIDsWithPendingWork")
 }
 
-func (_m *MockLogTX) GetLeavesByHash(_param0 []trillian.Hash, _param1 bool) ([]trillian.LogLeaf, error) {
+func (_m *MockLogTX) GetLeavesByHash(_param0 [][]byte, _param1 bool) ([]trillian.LogLeaf, error) {
 	ret := _m.ctrl.Call(_m, "GetLeavesByHash", _param0, _param1)
 	ret0, _ := ret[0].([]trillian.LogLeaf)
 	ret1, _ := ret[1].(error)
@@ -239,7 +239,7 @@ func (_mr *_MockMapTXRecorder) Commit() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Commit")
 }
 
-func (_m *MockMapTX) Get(_param0 int64, _param1 []trillian.Hash) ([]trillian.MapLeaf, error) {
+func (_m *MockMapTX) Get(_param0 int64, _param1 [][]byte) ([]trillian.MapLeaf, error) {
 	ret := _m.ctrl.Call(_m, "Get", _param0, _param1)
 	ret0, _ := ret[0].([]trillian.MapLeaf)
 	ret1, _ := ret[1].(error)
@@ -303,7 +303,7 @@ func (_mr *_MockMapTXRecorder) Rollback() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Rollback")
 }
 
-func (_m *MockMapTX) Set(_param0 trillian.Hash, _param1 trillian.MapLeaf) error {
+func (_m *MockMapTX) Set(_param0 []byte, _param1 trillian.MapLeaf) error {
 	ret := _m.ctrl.Call(_m, "Set", _param0, _param1)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -374,7 +374,7 @@ func (_mr *_MockReadOnlyLogTXRecorder) Commit() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Commit")
 }
 
-func (_m *MockReadOnlyLogTX) GetLeavesByHash(_param0 []trillian.Hash, _param1 bool) ([]trillian.LogLeaf, error) {
+func (_m *MockReadOnlyLogTX) GetLeavesByHash(_param0 [][]byte, _param1 bool) ([]trillian.LogLeaf, error) {
 	ret := _m.ctrl.Call(_m, "GetLeavesByHash", _param0, _param1)
 	ret0, _ := ret[0].([]trillian.LogLeaf)
 	ret1, _ := ret[1].(error)
@@ -471,7 +471,7 @@ func (_mr *_MockReadOnlyMapTXRecorder) Commit() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Commit")
 }
 
-func (_m *MockReadOnlyMapTX) Get(_param0 int64, _param1 []trillian.Hash) ([]trillian.MapLeaf, error) {
+func (_m *MockReadOnlyMapTX) Get(_param0 int64, _param1 [][]byte) ([]trillian.MapLeaf, error) {
 	ret := _m.ctrl.Call(_m, "Get", _param0, _param1)
 	ret0, _ := ret[0].([]trillian.MapLeaf)
 	ret1, _ := ret[1].(error)
@@ -547,9 +547,9 @@ func (_mr *_MockMapStorageRecorder) Begin() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Begin")
 }
 
-func (_m *MockMapStorage) MapID() trillian.MapID {
+func (_m *MockMapStorage) MapID() int64 {
 	ret := _m.ctrl.Call(_m, "MapID")
-	ret0, _ := ret[0].(trillian.MapID)
+	ret0, _ := ret[0].(int64)
 	return ret0
 }
 

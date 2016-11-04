@@ -22,7 +22,7 @@ func NewHasher(alg HashAlgorithm) (Hasher, error) {
 }
 
 // Digest calculates the digest of b according to the underlying algorithm.
-func (h Hasher) Digest(b []byte) Hash {
+func (h Hasher) Digest(b []byte) []byte {
 	hr := h.New()
 	hr.Write(b)
 	return hr.Sum([]byte{})

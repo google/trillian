@@ -44,7 +44,7 @@ func simpleMySQLStorageProvider(treeID int64) (storage.MapStorage, error) {
 	s := mapStorage[treeID]
 	if s == nil {
 		var err error
-		s, err = mysql.NewMapStorage(trillian.MapID{[]byte("TODO"), treeID}, *mysqlURIFlag)
+		s, err = mysql.NewMapStorage(treeID, *mysqlURIFlag)
 		if err != nil {
 			return nil, err
 		}
@@ -55,7 +55,7 @@ func simpleMySQLStorageProvider(treeID int64) (storage.MapStorage, error) {
 
 func checkDatabaseAccessible(dbURI string) error {
 	// TODO(Martin2112): Have to pass a tree ID when we just want metadata. API mismatch
-	storage, err := mysql.NewMapStorage(trillian.MapID{[]byte("TODO"), int64(0)}, dbURI)
+	storage, err := mysql.NewMapStorage(int64(0), dbURI)
 
 	if err != nil {
 		// This is probably something fundamentally wrong

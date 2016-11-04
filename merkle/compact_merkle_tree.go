@@ -7,13 +7,12 @@ import (
 	"fmt"
 
 	log "github.com/golang/glog"
-	"github.com/google/trillian"
 )
 
 // RootHashMismatchError indicates a unexpected root hash value.
 type RootHashMismatchError struct {
-	ExpectedHash trillian.Hash
-	ActualHash   trillian.Hash
+	ExpectedHash []byte
+	ActualHash   []byte
 }
 
 func (r RootHashMismatchError) Error() string {
@@ -24,9 +23,9 @@ func (r RootHashMismatchError) Error() string {
 // Uses log(n) nodes to represent the current on-disk tree.
 type CompactMerkleTree struct {
 	hasher TreeHasher
-	root   trillian.Hash
+	root   []byte
 	// the list of "dangling" left-hand nodes, NOTE: index 0 is the leaf, not the root.
-	nodes []trillian.Hash
+	nodes [][]byte
 	size  int64
 }
 
@@ -45,7 +44,7 @@ func bitLen(x int64) int {
 
 // GetNodeFunc is a function prototype which can look up particular nodes within a non-compact Merkle tree.
 // Used by the CompactMerkleTree to populate itself with correct state when starting up with a non-empty tree.
-type GetNodeFunc func(depth int, index int64) (trillian.Hash, error)
+type GetNodeFunc func(depth int, index int64) ([]byte, error)
 
 // NewCompactMerkleTreeWithState creates a new CompactMerkleTree for the passed in |size|.
 // This can fail if the nodes required to recreate the tree state cannot be fetched or the calculated
@@ -53,12 +52,12 @@ type GetNodeFunc func(depth int, index int64) (trillian.Hash, error)
 // |f| will be called a number of times with the co-ordinates of internal MerkleTree nodes whose hash values are
 // required to initialise the internal state of the CompactMerkleTree.  |expectedRoot| is the known-good tree root
 // of the tree at |size|, and is used to verify the correct initial state of the CompactMerkleTree after initialisation.
-func NewCompactMerkleTreeWithState(hasher TreeHasher, size int64, f GetNodeFunc, expectedRoot trillian.Hash) (*CompactMerkleTree, error) {
+func NewCompactMerkleTreeWithState(hasher TreeHasher, size int64, f GetNodeFunc, expectedRoot []byte) (*CompactMerkleTree, error) {
 	sizeBits := bitLen(size)
 
 	r := CompactMerkleTree{
 		hasher: hasher,
-		nodes:  make([]trillian.Hash, sizeBits),
+		nodes:  make([][]byte, sizeBits),
 		root:   hasher.HashEmpty(),
 		size:   size,
 	}
@@ -82,7 +81,7 @@ func NewCompactMerkleTreeWithState(hasher TreeHasher, size int64, f GetNodeFunc,
 			}
 			size >>= 1
 		}
-		r.recalculateRoot(func(depth int, index int64, hash trillian.Hash) {})
+		r.recalculateRoot(func(depth int, index int64, hash []byte) {})
 	}
 	if !bytes.Equal(r.root, expectedRoot) {
 		log.Warningf("Corrupt state, expected root %s, got %s", hex.EncodeToString(expectedRoot[:]), hex.EncodeToString(r.root[:]))
@@ -97,15 +96,15 @@ func NewCompactMerkleTree(hasher TreeHasher) *CompactMerkleTree {
 	emptyHash := hasher.Digest([]byte{})
 	r := CompactMerkleTree{
 		hasher: hasher,
-		root:   trillian.Hash(emptyHash[:]),
-		nodes:  make([]trillian.Hash, 0),
+		root:   emptyHash[:],
+		nodes:  make([][]byte, 0),
 		size:   0,
 	}
 	return &r
 }
 
 // CurrentRoot returns the current root hash.
-func (c CompactMerkleTree) CurrentRoot() trillian.Hash {
+func (c CompactMerkleTree) CurrentRoot() []byte {
 	return c.root
 }
 
@@ -124,7 +123,7 @@ func (c CompactMerkleTree) DumpNodes() {
 	}
 }
 
-type setNodeFunc func(depth int, index int64, hash trillian.Hash)
+type setNodeFunc func(depth int, index int64, hash []byte)
 
 func (c *CompactMerkleTree) recalculateRoot(f setNodeFunc) {
 	if c.size == 0 {
@@ -133,7 +132,7 @@ func (c *CompactMerkleTree) recalculateRoot(f setNodeFunc) {
 
 	index := c.size
 
-	var newRoot trillian.Hash
+	var newRoot []byte
 	first := true
 	mask := int64(1)
 	numBits := bitLen(c.size)
@@ -155,14 +154,14 @@ func (c *CompactMerkleTree) recalculateRoot(f setNodeFunc) {
 
 // AddLeaf calculates the leafhash of |data| and appends it to the tree.
 // |f| is a callback which will be called multiple times with the full MerkleTree coordinates of nodes whose hash should be updated.
-func (c *CompactMerkleTree) AddLeaf(data []byte, f setNodeFunc) (int64, trillian.Hash) {
+func (c *CompactMerkleTree) AddLeaf(data []byte, f setNodeFunc) (int64, []byte) {
 	h := c.hasher.HashLeaf(data)
 	return c.AddLeafHash(h, f), h
 }
 
 // AddLeafHash adds the specified |leafHash| to the tree.
 // |f| is a callback which will be called multiple times with the full MerkleTree coordinates of nodes whose hash should be updated.
-func (c *CompactMerkleTree) AddLeafHash(leafHash trillian.Hash, f setNodeFunc) (assignedSeq int64) {
+func (c *CompactMerkleTree) AddLeafHash(leafHash []byte, f setNodeFunc) (assignedSeq int64) {
 	defer func() {
 		c.size++
 		// TODO(al): do this lazily
@@ -229,8 +228,8 @@ func (c CompactMerkleTree) Size() int64 {
 }
 
 // Hashes returns a copy of the set of node hashes that comprise the compact representation of the tree.
-func (c CompactMerkleTree) Hashes() []trillian.Hash {
-	n := make([]trillian.Hash, len(c.nodes))
+func (c CompactMerkleTree) Hashes() [][]byte {
+	n := make([][]byte, len(c.nodes))
 	copy(n, c.nodes)
 	return n
 }
