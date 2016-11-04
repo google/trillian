@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"math/big"
 	"sort"
-
-	"github.com/google/trillian"
 )
 
 var (
@@ -19,14 +17,14 @@ var (
 type HStar2LeafHash struct {
 	// TODO(al): remove big.Int
 	Index    *big.Int
-	LeafHash trillian.Hash
+	LeafHash []byte
 }
 
 // HStar2 is a recursive implementation for calulating the root hash of a sparse
 // Merkle tree.
 type HStar2 struct {
 	hasher          TreeHasher
-	hStarEmptyCache []trillian.Hash
+	hStarEmptyCache [][]byte
 }
 
 // NewHStar2 creates a new HStar2 tree calculator based on the passed in
@@ -34,25 +32,25 @@ type HStar2 struct {
 func NewHStar2(treeHasher TreeHasher) HStar2 {
 	return HStar2{
 		hasher:          treeHasher,
-		hStarEmptyCache: []trillian.Hash{treeHasher.HashLeaf([]byte(""))},
+		hStarEmptyCache: [][]byte{treeHasher.HashLeaf([]byte(""))},
 	}
 }
 
 // HStar2Root calculates the root of a sparse Merkle tree of depth n which contains
 // the given set of non-null leaves.
-func (s *HStar2) HStar2Root(n int, values []HStar2LeafHash) (trillian.Hash, error) {
+func (s *HStar2) HStar2Root(n int, values []HStar2LeafHash) ([]byte, error) {
 	by(indexLess).Sort(values)
 	offset := big.NewInt(0)
 	return s.hStar2b(n, values, offset,
-		func(depth int, index *big.Int) (trillian.Hash, error) { return s.hStarEmpty(depth) },
-		func(int, *big.Int, trillian.Hash) error { return nil })
+		func(depth int, index *big.Int) ([]byte, error) { return s.hStarEmpty(depth) },
+		func(int, *big.Int, []byte) error { return nil })
 }
 
 // SparseGetNodeFunc should return any pre-existing node hash for the node address.
-type SparseGetNodeFunc func(depth int, index *big.Int) (trillian.Hash, error)
+type SparseGetNodeFunc func(depth int, index *big.Int) ([]byte, error)
 
 // SparseSetNodeFunc should store the passed node hash, associating it with the address.
-type SparseSetNodeFunc func(depth int, index *big.Int, hash trillian.Hash) error
+type SparseSetNodeFunc func(depth int, index *big.Int, hash []byte) error
 
 // HStar2Nodes calculates the root hash of a pre-existing sparse Merkle tree
 // plus the extra values passed in.
@@ -67,14 +65,14 @@ type SparseSetNodeFunc func(depth int, index *big.Int, hash trillian.Hash) error
 // the root already calculated (i.e. you just need to calculate the top 8
 // levels of a 256-level tree).  To do this, you'd set treeDepth=8, and
 // treeLevelOffset=248 (256-8).
-func (s *HStar2) HStar2Nodes(treeDepth, treeLevelOffset int, values []HStar2LeafHash, get SparseGetNodeFunc, set SparseSetNodeFunc) (trillian.Hash, error) {
+func (s *HStar2) HStar2Nodes(treeDepth, treeLevelOffset int, values []HStar2LeafHash, get SparseGetNodeFunc, set SparseSetNodeFunc) ([]byte, error) {
 	if treeLevelOffset < 0 {
 		return nil, ErrNegativeTreeLevelOffset
 	}
 	by(indexLess).Sort(values)
 	offset := big.NewInt(0)
 	return s.hStar2b(treeDepth, values, offset,
-		func(depth int, index *big.Int) (trillian.Hash, error) {
+		func(depth int, index *big.Int) ([]byte, error) {
 			// if we've got a function for getting existing node values, try it:
 			h, err := get(treeDepth-depth, index)
 			if err != nil {
@@ -87,14 +85,14 @@ func (s *HStar2) HStar2Nodes(treeDepth, treeLevelOffset int, values []HStar2Leaf
 			// otherwise just return the null hash for this level
 			return s.hStarEmpty(depth + treeLevelOffset)
 		},
-		func(depth int, index *big.Int, hash trillian.Hash) error {
+		func(depth int, index *big.Int, hash []byte) error {
 			return set(treeDepth-depth, index, hash)
 		})
 }
 
 // hStarEmpty calculates (and caches) the "null-hash" for the requested tree
 // level.
-func (s *HStar2) hStarEmpty(n int) (trillian.Hash, error) {
+func (s *HStar2) hStarEmpty(n int) ([]byte, error) {
 	if len(s.hStarEmptyCache) <= n {
 		emptyRoot, err := s.hStarEmpty(n - 1)
 		if err != nil {
@@ -119,7 +117,7 @@ var (
 
 // hStar2b is the recursive implementation for calculating a sparse Merkle tree
 // root value.
-func (s *HStar2) hStar2b(n int, values []HStar2LeafHash, offset *big.Int, get SparseGetNodeFunc, set SparseSetNodeFunc) (trillian.Hash, error) {
+func (s *HStar2) hStar2b(n int, values []HStar2LeafHash, offset *big.Int, get SparseGetNodeFunc, set SparseSetNodeFunc) ([]byte, error) {
 	if n == 0 {
 		switch {
 		case len(values) == 0:

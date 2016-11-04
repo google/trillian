@@ -100,7 +100,7 @@ func (m *mapTX) WriteRevision() int64 {
 	return m.treeTX.writeRevision
 }
 
-func (m *mapTX) Set(keyHash trillian.Hash, value trillian.MapLeaf) error {
+func (m *mapTX) Set(keyHash []byte, value trillian.MapLeaf) error {
 	// TODO(al): consider storing some sort of value which represents the group of keys being set in this Tx.
 	//           That way, if this attempt partially fails (i.e. because some subset of the in-the-future Merkle
 	//           nodes do get written), we can enforce that future map update attempts are a complete replay of
@@ -121,7 +121,7 @@ func (m *mapTX) Set(keyHash trillian.Hash, value trillian.MapLeaf) error {
 	return err
 }
 
-func (m *mapTX) Get(revision int64, keyHashes []trillian.Hash) ([]trillian.MapLeaf, error) {
+func (m *mapTX) Get(revision int64, keyHashes [][]byte) ([]trillian.MapLeaf, error) {
 	stmt, err := m.ms.getStmt(selectMapLeafSQL, len(keyHashes), "?", "?")
 	if err != nil {
 		return nil, err
@@ -152,7 +152,7 @@ func (m *mapTX) Get(revision int64, keyHashes []trillian.Hash) ([]trillian.MapLe
 	nr := 0
 	er := 0
 	for rows.Next() {
-		var mapKeyHash trillian.Hash
+		var mapKeyHash []byte
 		var mapRevision int64
 		var flatData []byte
 		err = rows.Scan(&mapKeyHash, &mapRevision, &flatData)

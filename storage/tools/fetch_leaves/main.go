@@ -6,7 +6,6 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	log "github.com/golang/glog"
-	"github.com/google/trillian"
 	"github.com/google/trillian/storage/tools"
 )
 
@@ -53,7 +52,7 @@ func main() {
 			panic(err)
 		}
 
-		fetchedLeaves, err := tx.GetLeavesByHash([]trillian.Hash{hash}, false)
+		fetchedLeaves, err := tx.GetLeavesByHash([][]byte{hash}, false)
 
 		if err != nil {
 			panic(err)

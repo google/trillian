@@ -9,7 +9,7 @@ import (
 type MapHasher struct {
 	TreeHasher
 	HashKey    keyHashFunc
-	nullHashes []trillian.Hash
+	nullHashes [][]byte
 }
 
 // NewMapHasher creates a new MapHasher based on the passed in hash function.
@@ -21,17 +21,17 @@ func NewMapHasher(th TreeHasher) MapHasher {
 	}
 }
 
-type keyHashFunc func([]byte) trillian.Hash
+type keyHashFunc func([]byte) []byte
 
 func keyHasher(h trillian.Hasher) keyHashFunc {
-	return func(b []byte) trillian.Hash {
+	return func(b []byte) []byte {
 		return h.Digest(b)
 	}
 }
 
-func createNullHashes(th TreeHasher) []trillian.Hash {
+func createNullHashes(th TreeHasher) [][]byte {
 	numEntries := th.Size() * 8
-	r := make([]trillian.Hash, numEntries, numEntries)
+	r := make([][]byte, numEntries, numEntries)
 	r[numEntries-1] = th.HashLeaf([]byte{})
 	for i := numEntries - 2; i >= 0; i-- {
 		r[i] = th.HashChildren(r[i+1], r[i+1])

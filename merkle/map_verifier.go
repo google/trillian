@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
 )
 
@@ -15,7 +14,7 @@ import (
 // append-only logs, but adds support for nil/"default" proof nodes.
 //
 // Returns nil on a successful verification, and an error otherwise.
-func VerifyMapInclusionProof(keyHash trillian.Hash, leafHash trillian.Hash, expectedRoot trillian.Hash, proof []trillian.Hash, h MapHasher) error {
+func VerifyMapInclusionProof(keyHash []byte, leafHash []byte, expectedRoot []byte, proof [][]byte, h MapHasher) error {
 	hBits := h.Size() * 8
 
 	if got, want := len(proof), hBits; got != want {
@@ -34,7 +33,7 @@ func VerifyMapInclusionProof(keyHash trillian.Hash, leafHash trillian.Hash, expe
 	// TODO(al): Remove this dep on storage, since clients will want to use this code.
 	nID := storage.NewNodeIDFromHash(keyHash)
 
-	runningHash := make(trillian.Hash, len(leafHash))
+	runningHash := make([]byte, len(leafHash))
 	copy(runningHash, leafHash)
 
 	for bit := 0; bit < hBits; bit++ {

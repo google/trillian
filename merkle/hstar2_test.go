@@ -79,7 +79,7 @@ func TestHStar2GetSet(t *testing.T) {
 
 	// Node cache is shared between tree builds and in effect plays the role of
 	// the TreeStorage layer.
-	cache := make(map[string]trillian.Hash)
+	cache := make(map[string][]byte)
 
 	for i, x := range simpleTestVector {
 		s := NewHStar2(th)
@@ -91,10 +91,10 @@ func TestHStar2GetSet(t *testing.T) {
 			t.Fatalf("Should only have 1 leaf per run, got %d", len(values))
 		}
 		root, err := s.HStar2Nodes(s.hasher.Size()*8, 0, values,
-			func(depth int, index *big.Int) (trillian.Hash, error) {
+			func(depth int, index *big.Int) ([]byte, error) {
 				return cache[fmt.Sprintf("%x/%d", index, depth)], nil
 			},
-			func(depth int, index *big.Int, hash trillian.Hash) error {
+			func(depth int, index *big.Int, hash []byte) error {
 				cache[fmt.Sprintf("%x/%d", index, depth)] = hash
 				return nil
 			})
@@ -115,8 +115,8 @@ func TestHStar2OffsetEmptyRootKAT(t *testing.T) {
 
 	for size := 1; size < 255; size++ {
 		root, err := s.HStar2Nodes(size, s.hasher.Size()*8-size, []HStar2LeafHash{},
-			func(int, *big.Int) (trillian.Hash, error) { return nil, nil },
-			func(int, *big.Int, trillian.Hash) error { return nil })
+			func(int, *big.Int) ([]byte, error) { return nil, nil },
+			func(int, *big.Int, []byte) error { return nil })
 		if err != nil {
 			t.Fatalf("Failed to calculate root %v", err)
 		}
@@ -168,8 +168,8 @@ func TestHStar2OffsetRootKAT(t *testing.T) {
 			intermediates := rootsForTrimmedKeys(t, size, createHStar2Leaves(th, m))
 
 			root, err := s.HStar2Nodes(size, s.hasher.Size()*8-size, intermediates,
-				func(int, *big.Int) (trillian.Hash, error) { return nil, nil },
-				func(int, *big.Int, trillian.Hash) error { return nil })
+				func(int, *big.Int) ([]byte, error) { return nil, nil },
+				func(int, *big.Int, []byte) error { return nil })
 			if err != nil {
 				t.Fatalf("Failed to calculate root at iteration %d: %v", i, err)
 			}
@@ -185,8 +185,8 @@ func TestHStar2NegativeTreeLevelOffset(t *testing.T) {
 	s := NewHStar2(th)
 
 	_, err := s.HStar2Nodes(32, -1, []HStar2LeafHash{},
-		func(int, *big.Int) (trillian.Hash, error) { return nil, nil },
-		func(int, *big.Int, trillian.Hash) error { return nil })
+		func(int, *big.Int) ([]byte, error) { return nil, nil },
+		func(int, *big.Int, []byte) error { return nil })
 	if expected, got := ErrNegativeTreeLevelOffset, err; expected != got {
 		t.Fatalf("expected %v, but got %v", expected, got)
 	}

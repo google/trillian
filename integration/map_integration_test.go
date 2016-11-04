@@ -57,7 +57,7 @@ func TestMapIntegration(t *testing.T) {
 	{
 		// Write some data in batches
 		rev := int64(0)
-		var root trillian.Hash
+		var root []byte
 		for x := 0; x < numBatches; x++ {
 			t.Logf("Starting batch %d...", x)
 
@@ -147,7 +147,7 @@ func TestMapIntegration(t *testing.T) {
 				}
 				keyHash := h.HashKey(kv.KeyValue.Key)
 				leafHash := h.HashLeaf(kv.KeyValue.Value.LeafValue)
-				proof := make([]trillian.Hash, len(kv.Inclusion))
+				proof := make([]byte, len(kv.Inclusion))
 				for i, v := range kv.Inclusion {
 					proof[i] = v
 				}

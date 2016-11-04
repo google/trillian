@@ -8,7 +8,6 @@ import (
 	"sync"
 
 	"github.com/golang/glog"
-	"github.com/google/trillian"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
 )
@@ -165,14 +164,14 @@ func (s *SubtreeCache) Preload(ids []storage.NodeID, getSubtrees func(id []stora
 
 // GetNodeHash retrieves the previously written hash and corresponding tree
 // revision for the given node ID.
-func (s *SubtreeCache) GetNodeHash(id storage.NodeID, getSubtree GetSubtreeFunc) (trillian.Hash, error) {
+func (s *SubtreeCache) GetNodeHash(id storage.NodeID, getSubtree GetSubtreeFunc) ([]byte, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	return s.getNodeHashUnderLock(id, getSubtree)
 }
 
 // getNodeHashUnderLock must be called with s.mutex locked.
-func (s *SubtreeCache) getNodeHashUnderLock(id storage.NodeID, getSubtree GetSubtreeFunc) (trillian.Hash, error) {
+func (s *SubtreeCache) getNodeHashUnderLock(id storage.NodeID, getSubtree GetSubtreeFunc) ([]byte, error) {
 	px, sx := s.splitNodeID(id)
 	prefixKey := string(px)
 	c := s.subtrees[prefixKey]
@@ -211,7 +210,7 @@ func (s *SubtreeCache) getNodeHashUnderLock(id storage.NodeID, getSubtree GetSub
 
 	// finally look for the particular node within the subtree so we can return
 	// the hash & revision.
-	var nh trillian.Hash
+	var nh []byte
 
 	// Look up the hash in the appropriate map.
 	// The leaf hashes are stored in a separate map to the internal nodes so that
@@ -230,7 +229,7 @@ func (s *SubtreeCache) getNodeHashUnderLock(id storage.NodeID, getSubtree GetSub
 }
 
 // SetNodeHash sets a node hash in the cache.
-func (s *SubtreeCache) SetNodeHash(id storage.NodeID, h trillian.Hash, getSubtree GetSubtreeFunc) error {
+func (s *SubtreeCache) SetNodeHash(id storage.NodeID, h []byte, getSubtree GetSubtreeFunc) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	px, sx := s.splitNodeID(id)
@@ -334,10 +333,10 @@ func PopulateMapSubtreeNodes(treeHasher merkle.TreeHasher) storage.PopulateSubtr
 		hs2 := merkle.NewHStar2(treeHasher)
 		offset := fullTreeDepth - rootID.PrefixLenBits - int(st.Depth)
 		root, err := hs2.HStar2Nodes(int(st.Depth), offset, leaves,
-			func(depth int, index *big.Int) (trillian.Hash, error) {
+			func(depth int, index *big.Int) ([]byte, error) {
 				return nil, nil
 			},
-			func(depth int, index *big.Int, h trillian.Hash) error {
+			func(depth int, index *big.Int, h []byte) error {
 				i := index.Int64()
 				sfx, err := makeSuffixKey(depth, i)
 				if err != nil {
@@ -372,7 +371,7 @@ func PopulateLogSubtreeNodes(treeHasher merkle.TreeHasher) storage.PopulateSubtr
 			if h == nil {
 				return fmt.Errorf("unexpectedly got nil for subtree leaf suffix %s", sfx)
 			}
-			seq := cmt.AddLeafHash(h, func(depth int, index int64, h trillian.Hash) {
+			seq := cmt.AddLeafHash(h, func(depth int, index int64, h []byte) {
 				if depth == 8 && index == 0 {
 					// no space for the root in the node cache
 					return

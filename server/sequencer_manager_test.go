@@ -19,7 +19,7 @@ var fakeTimeSource = util.FakeTimeSource{fakeTime}
 
 // We use a size zero tree for testing, Merkle tree state restore is tested elsewhere
 var testLogID1 = int64(1)
-var testLeaf0Hash = trillian.Hash{0, 1, 2, 3, 4, 5}
+var testLeaf0Hash = []byte{0, 1, 2, 3, 4, 5}
 var testLeaf0 = trillian.LogLeaf{Leaf: trillian.Leaf{MerkleLeafHash: testLeaf0Hash, LeafValue: nil, ExtraData: nil}, SequenceNumber: 0}
 var testLeaf0Updated = trillian.LogLeaf{Leaf: trillian.Leaf{MerkleLeafHash: testonly.MustDecodeBase64("bjQLnP+zepicpUTmu3gKLHiQHT+zNzh2hRGjBhevoB0="), LeafValue: nil, ExtraData: nil}, SequenceNumber: 0}
 var testRoot0 = trillian.SignedLogRoot{TreeSize: 0, TreeRevision: 0, LogId: testLogID1, RootHash: []byte{}, Signature: &trillian.DigitallySigned{SignatureAlgorithm: trillian.SignatureAlgorithm_ECDSA}}

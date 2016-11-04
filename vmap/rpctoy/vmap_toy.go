@@ -54,7 +54,7 @@ func main() {
 	expectedRootB64 := testVecs[testIndex].expectedRootB64
 
 	rev := int64(0)
-	var root trillian.Hash
+	var root []byte
 	for x := 0; x < numBatches; x++ {
 		glog.Infof("Starting batch %d...", x)
 

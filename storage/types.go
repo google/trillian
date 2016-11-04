@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-
-	"github.com/google/trillian"
 )
 
 // ErrReadOnly is returned when storage operations are not allowed because a resource is read only
@@ -14,7 +12,7 @@ var ErrReadOnly = errors.New("storage: Operation not allowed because resource is
 // Node represents a single node in a Merkle tree.
 type Node struct {
 	NodeID       NodeID
-	Hash         trillian.Hash
+	Hash         []byte
 	NodeRevision int64
 }
 
@@ -43,7 +41,7 @@ func bytesForBits(numBits int) int {
 }
 
 // NewNodeIDFromHash creates a new NodeID for the given Hash.
-func NewNodeIDFromHash(h trillian.Hash) NodeID {
+func NewNodeIDFromHash(h []byte) NodeID {
 	return NodeID{
 		Path:          h,
 		PathLenBits:   len(h) * 8,

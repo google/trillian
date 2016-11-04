@@ -70,7 +70,7 @@ type LeafReader interface {
 	// duplicate leaves callers must be prepared to handle multiple results with the same hash
 	// but different sequence numbers. If orderBySequence is true then the returned data
 	// will be in sequence number order.
-	GetLeavesByHash(leafHashes []trillian.Hash, orderBySequence bool) ([]trillian.LogLeaf, error)
+	GetLeavesByHash(leafHashes [][]byte, orderBySequence bool) ([]trillian.LogLeaf, error)
 }
 
 // LogRootReader provides an interface for reading SignedLogRoots.

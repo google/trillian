@@ -56,7 +56,7 @@ func main() {
 	numBatches := testVecs[testIndex].numBatches
 	expectedRootB64 := testVecs[testIndex].expectedRootB64
 
-	var root trillian.Hash
+	var root []byte
 	for x := 0; x < numBatches; x++ {
 		tx, err := ms.Begin()
 		if err != nil {

@@ -28,9 +28,9 @@ const (
 // TreeHasher is a set of domain separated hashers for creating Merkle tree hashes.
 type TreeHasher struct {
 	trillian.Hasher
-	leafHasher  func([]byte) trillian.Hash
-	nodeHasher  func([]byte) trillian.Hash
-	emptyHasher func() trillian.Hash
+	leafHasher  func([]byte) []byte
+	nodeHasher  func([]byte) []byte
+	emptyHasher func() []byte
 }
 
 // NewRFC6962TreeHasher creates a new TreeHasher based on the passed in hash function.
@@ -45,42 +45,42 @@ func NewRFC6962TreeHasher(hasher trillian.Hasher) TreeHasher {
 }
 
 // HashEmpty returns the hash of an empty element for the tree
-func (t TreeHasher) HashEmpty() trillian.Hash {
+func (t TreeHasher) HashEmpty() []byte {
 	return t.emptyHasher()
 }
 
 // HashLeaf returns the Merkle tree leaf hash of the data passed in through leaf.
 // The data in leaf is prefixed by the LeafHashPrefix.
-func (t TreeHasher) HashLeaf(leaf []byte) trillian.Hash {
+func (t TreeHasher) HashLeaf(leaf []byte) []byte {
 	return t.leafHasher(leaf)
 }
 
 // HashChildren returns the inner Merkle tree node hash of the the two child nodes l and r.
 // The hashed structure is NodeHashPrefix||l||r.
-func (t TreeHasher) HashChildren(l, r []byte) trillian.Hash {
+func (t TreeHasher) HashChildren(l, r []byte) []byte {
 	return t.nodeHasher(append(append([]byte{}, l...), r...))
 }
 
-type emptyHashFunc func() trillian.Hash
-type hashFunc func([]byte) trillian.Hash
+type emptyHashFunc func() []byte
+type hashFunc func([]byte) []byte
 
 // rfc6962EmptyHasher builds a function to calculate the hash of an empty element for CT
 func rfc6962EmptyHasher(h trillian.Hasher) emptyHashFunc {
-	return func() trillian.Hash {
+	return func() []byte {
 		return h.Digest([]byte{})
 	}
 }
 
 // rfc6962LeafHasher builds a function to calculate leaf hashes based on the Hasher h for CT.
 func rfc6962LeafHasher(h trillian.Hasher) hashFunc {
-	return func(b []byte) trillian.Hash {
+	return func(b []byte) []byte {
 		return h.Digest(append([]byte{RFC6962LeafHashPrefix}, b...))
 	}
 }
 
 // rfc6962NodeHasher builds a function to calculate internal node hashes based on the Hasher h for CT.
 func rfc6962NodeHasher(h trillian.Hasher) hashFunc {
-	return func(b []byte) trillian.Hash {
+	return func(b []byte) []byte {
 		return h.Digest(append([]byte{RFC6962NodeHashPrefix}, b...))
 	}
 }

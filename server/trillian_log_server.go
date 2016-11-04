@@ -136,7 +136,7 @@ func (t *TrillianLogServer) GetInclusionProofByHash(ctx context.Context, req *tr
 	}
 
 	// Find the leaf index of the supplied hash
-	leafHashes := []trillian.Hash{req.LeafHash}
+	leafHashes := [][]byte{req.LeafHash}
 	leaves, err := tx.GetLeavesByHash(leafHashes, req.OrderBySequence)
 
 	if err != nil {
@@ -474,11 +474,11 @@ func leavesToProtos(leaves []trillian.LogLeaf) []*trillian.LeafProto {
 }
 
 // Don't think we can do this with type assertions, maybe we can
-func bytesToHash(inputs [][]byte) []trillian.Hash {
-	hashes := make([]trillian.Hash, len(inputs), len(inputs))
+func bytesToHash(inputs [][]byte) [][]byte {
+	hashes := make([][]byte, len(inputs), len(inputs))
 
 	for i, hash := range inputs {
-		hashes[i] = trillian.Hash(hash)
+		hashes[i] = hash
 	}
 
 	return hashes

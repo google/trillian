@@ -43,7 +43,7 @@ func NewSequencer(hasher merkle.TreeHasher, timeSource util.TimeSource, logStora
 // TODO: This currently doesn't use the batch api for fetching the required nodes. This
 // would be more efficient but requires refactoring.
 func (s Sequencer) buildMerkleTreeFromStorageAtRoot(root trillian.SignedLogRoot, tx storage.TreeTX) (*merkle.CompactMerkleTree, error) {
-	mt, err := merkle.NewCompactMerkleTreeWithState(s.hasher, root.TreeSize, func(depth int, index int64) (trillian.Hash, error) {
+	mt, err := merkle.NewCompactMerkleTreeWithState(s.hasher, root.TreeSize, func(depth int, index int64) ([]byte, error) {
 		nodeID, err := storage.NewNodeIDForTreeCoords(int64(depth), index, maxTreeDepth)
 		if err != nil {
 			glog.Warningf("Failed to create nodeID: %v", err)
@@ -82,7 +82,7 @@ func (s Sequencer) sequenceLeaves(mt *merkle.CompactMerkleTree, leaves []trillia
 	nodeMap := make(map[string]storage.Node)
 	// Update the tree state and sequence the leaves and assign sequence numbers to the new leaves
 	for i, leaf := range leaves {
-		seq, leafHash := mt.AddLeaf(leaf.LeafValue, func(depth int, index int64, hash trillian.Hash) {
+		seq, leafHash := mt.AddLeaf(leaf.LeafValue, func(depth int, index int64, hash []byte) {
 			nodeID, err := storage.NewNodeIDForTreeCoords(int64(depth), index, maxTreeDepth)
 			if err != nil {
 				return

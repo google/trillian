@@ -144,7 +144,7 @@ func (m *mySQLLogStorage) GetLeavesByIndex(leaves []int64) ([]trillian.LogLeaf, 
 	return t.GetLeavesByIndex(leaves)
 }
 
-func (m *mySQLLogStorage) GetLeavesByHash(leafHashes []trillian.Hash, orderBySequence bool) ([]trillian.LogLeaf, error) {
+func (m *mySQLLogStorage) GetLeavesByHash(leafHashes [][]byte, orderBySequence bool) ([]trillian.LogLeaf, error) {
 	t, err := m.Begin()
 
 	if err != nil {
@@ -390,7 +390,7 @@ func (t *logTX) GetLeavesByIndex(leaves []int64) ([]trillian.LogLeaf, error) {
 	return ret, nil
 }
 
-func (t *logTX) GetLeavesByHash(leafHashes []trillian.Hash, orderBySequence bool) ([]trillian.LogLeaf, error) {
+func (t *logTX) GetLeavesByHash(leafHashes [][]byte, orderBySequence bool) ([]trillian.LogLeaf, error) {
 	tmpl, err := t.ls.getLeavesByHashStmt(len(leafHashes), orderBySequence)
 
 	if err != nil {

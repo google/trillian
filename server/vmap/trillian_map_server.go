@@ -103,7 +103,7 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 		KeyValue: make([]*trillian.KeyValueInclusion, 0, len(req.Key)),
 	}
 
-	keyHashes := make([]trillian.Hash, 0, len(req.Key))
+	keyHashes := make([][]byte, 0, len(req.Key))
 	hashToKey := make(map[string][]byte)
 	for _, key := range req.Key {
 		keyHash := kh.HashKey(key)

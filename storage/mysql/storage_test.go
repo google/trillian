@@ -488,7 +488,7 @@ func TestGetLeavesByHashNotPresent(t *testing.T) {
 	tx := beginLogTx(s, t)
 	defer tx.Commit()
 
-	hashes := []trillian.Hash{trillian.Hash("thisdoesn'texist")}
+	hashes := [][]byte{[]byte("thisdoesn'texist")}
 	leaves, err := tx.GetLeavesByHash(hashes, false)
 
 	if err != nil {
@@ -527,7 +527,7 @@ func TestGetLeavesByHash(t *testing.T) {
 	tx := beginLogTx(s, t)
 	defer tx.Commit()
 
-	hashes := []trillian.Hash{dummyHash}
+	hashes := [][]byte{dummyHash}
 	leaves, err := tx.GetLeavesByHash(hashes, false)
 
 	if err != nil {
@@ -919,7 +919,7 @@ func TestMapRootUpdate(t *testing.T) {
 	}
 }
 
-var keyHash = trillian.Hash([]byte("A Key Hash"))
+var keyHash = []byte([]byte("A Key Hash"))
 var mapLeaf = trillian.MapLeaf{
 	KeyHash:   keyHash,
 	LeafHash:  []byte("A Hash"),
@@ -951,7 +951,7 @@ func TestMapSetGetRoundTrip(t *testing.T) {
 	{
 		tx := beginMapTx(s, t)
 
-		readValues, err := tx.Get(readRev, []trillian.Hash{keyHash})
+		readValues, err := tx.Get(readRev, [][]byte{keyHash})
 		if err != nil {
 			t.Fatalf("Failed to get %v:  %v", keyHash, err)
 		}
@@ -1009,7 +1009,7 @@ func TestMapGetUnknownKey(t *testing.T) {
 	{
 		tx := beginMapTx(s, t)
 
-		readValues, err := tx.Get(1, []trillian.Hash{[]byte("This doesn't exist.")})
+		readValues, err := tx.Get(1, [][]byte{[]byte("This doesn't exist.")})
 		if err != nil {
 			t.Fatalf("Read returned error %v", err)
 		}
@@ -1057,7 +1057,7 @@ func TestMapSetGetMultipleRevisions(t *testing.T) {
 	for i := 0; i < numRevs; i++ {
 		tx := beginMapTx(s, t)
 
-		readValues, err := tx.Get(int64(i), []trillian.Hash{keyHash})
+		readValues, err := tx.Get(int64(i), [][]byte{keyHash})
 		if err != nil {
 			t.Fatalf("At rev %d failed to get %v:  %v", i, keyHash, err)
 		}

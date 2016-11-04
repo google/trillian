@@ -208,7 +208,7 @@ func TestRepopulateMapSubtreeKAT(t *testing.T) {
 	if err := populateTheThing(&leavesOnly); err != nil {
 		t.Fatalf("failed to repopulate subtree: %v", err)
 	}
-	if got, want := trillian.Hash(leavesOnly.RootHash), trillian.Hash(goodSubtree.RootHash); !bytes.Equal(got, want) {
+	if got, want := []byte(leavesOnly.RootHash), []byte(goodSubtree.RootHash); !bytes.Equal(got, want) {
 		t.Errorf("recalculated incorrect root: got %v, wanted %v", got, want)
 	}
 	if got, want := len(leavesOnly.InternalNodes), len(goodSubtree.InternalNodes); got != want {
@@ -221,7 +221,7 @@ func TestRepopulateMapSubtreeKAT(t *testing.T) {
 			t.Errorf("Reconstructed tree missing internal node for %v", k)
 			continue
 		}
-		if got, want := trillian.Hash(h), trillian.Hash(v); !bytes.Equal(got, want) {
+		if got, want := h, v; !bytes.Equal(got, want) {
 			t.Errorf("Recalculated incorrect hash for node %v, got %v expected %v", k, got, want)
 		}
 		delete(leavesOnly.InternalNodes, k)
@@ -257,7 +257,7 @@ func TestRepopulateLogSubtree(t *testing.T) {
 
 		leaf := []byte(fmt.Sprintf("this is leaf %d", numLeaves))
 		leafHash := hasher.Digest(leaf)
-		cmt.AddLeafHash(leafHash, func(depth int, index int64, h trillian.Hash) {
+		cmt.AddLeafHash(leafHash, func(depth int, index int64, h []byte) {
 			n, err := storage.NewNodeIDForTreeCoords(int64(depth), index, 8)
 			if err != nil {
 				t.Fatalf("failed to create nodeID for cmt tree: %v", err)
@@ -280,7 +280,7 @@ func TestRepopulateLogSubtree(t *testing.T) {
 			t.Fatalf("failed populate subtree: %v", err)
 		}
 
-		if got, expected := trillian.Hash(s.RootHash), cmt.CurrentRoot(); !bytes.Equal(got, expected) {
+		if got, expected := s.RootHash, cmt.CurrentRoot(); !bytes.Equal(got, expected) {
 			t.Fatalf("Got root %v for tree size %d, expected %v. subtree:\n%#v", got, numLeaves, expected, s.String())
 		}
 
@@ -317,7 +317,7 @@ func runLogSubtreeKAT(t *testing.T, data logKATData) {
 	if err := proto.UnmarshalText(string(pb), &goodSubtree); err != nil {
 		t.Fatalf("failed to unmarshal SubtreeProto: %v", err)
 	}
-	t.Logf("good root %v", trillian.Hash(goodSubtree.RootHash))
+	t.Logf("good root %v", goodSubtree.RootHash)
 
 	leavesOnly := storage.SubtreeProto{}
 	if err := proto.UnmarshalText(string(pb), &leavesOnly); err != nil {
@@ -329,7 +329,7 @@ func runLogSubtreeKAT(t *testing.T, data logKATData) {
 	if err := populateTheThing(&leavesOnly); err != nil {
 		t.Fatalf("failed to repopulate subtree: %v", err)
 	}
-	if got, want := trillian.Hash(leavesOnly.RootHash), trillian.Hash(goodSubtree.RootHash); !bytes.Equal(got, want) {
+	if got, want := leavesOnly.RootHash, goodSubtree.RootHash; !bytes.Equal(got, want) {
 		t.Errorf("recalculated incorrect root: got %v, wanted %v", got, want)
 	}
 	if got, want := len(leavesOnly.InternalNodes), len(goodSubtree.InternalNodes); got != want {
@@ -342,7 +342,7 @@ func runLogSubtreeKAT(t *testing.T, data logKATData) {
 			t.Errorf("Reconstructed tree missing internal node for %v", k)
 			continue
 		}
-		if got, want := trillian.Hash(h), trillian.Hash(v); !bytes.Equal(got, want) {
+		if got, want := h, v; !bytes.Equal(got, want) {
 			t.Errorf("Recalculated incorrect hash for node %v, got %v expected %v", k, got, want)
 		}
 		delete(leavesOnly.InternalNodes, k)
