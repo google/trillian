@@ -38,7 +38,7 @@ const selectLatestSignedLogRootSQL string = `SELECT TreeHeadTimestamp,TreeSize,R
 // These statements need to be expanded to provide the correct number of parameter placeholders
 // for a particular case
 const deleteUnsequencedSQL string = "DELETE FROM Unsequenced WHERE LeafValueHash IN (<placeholder>) AND TreeId = ?"
-const selectLeavesByIndexSQL string = `SELECT s.LeafHash,l.LeafValue,s.SequenceNumber
+const selectLeavesByIndexSQL string = `SELECT s.MerkleLeafHash,l.LeafValue,s.SequenceNumber
 		     FROM LeafData l,SequencedLeafData s
 		     WHERE l.LeafValueHash = s.LeafValueHash
 		     AND s.SequenceNumber IN (` + placeholderSQL + `) AND l.TreeId = ? AND s.TreeId = l.TreeId`
