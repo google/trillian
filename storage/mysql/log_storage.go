@@ -236,12 +236,10 @@ func (t *logTX) DequeueLeaves(limit int) ([]trillian.LogLeaf, error) {
 		}
 
 		leaf := trillian.LogLeaf{
-			Leaf: trillian.Leaf{
-				MerkleLeafHash: leafHash,
-				LeafValue:      payload,
-				ExtraData:      nil,
-			},
-			SequenceNumber: 0,
+			MerkleLeafHash: leafHash,
+			LeafValue:      payload,
+			ExtraData:      nil,
+			LeafIndex:      0,
 		}
 		leaves = append(leaves, leaf)
 	}
@@ -327,7 +325,7 @@ func (t *logTX) QueueLeaves(leaves []trillian.LogLeaf) error {
 		messageID := hasher.Sum(nil)
 
 		_, err = t.tx.Exec(insertUnsequencedEntrySQL,
-			t.ls.logID, []byte(leaf.MerkleLeafHash), messageID, leaf.LeafValue)
+			t.ls.logID, leaf.MerkleLeafHash, messageID, leaf.LeafValue)
 
 		if err != nil {
 			glog.Warningf("Error inserting into Unsequenced: %s", err)
@@ -372,7 +370,7 @@ func (t *logTX) GetLeavesByIndex(leaves []int64) ([]trillian.LogLeaf, error) {
 
 	defer rows.Close()
 	for rows.Next() {
-		if err := rows.Scan(&ret[num].MerkleLeafHash, &ret[num].LeafValue, &ret[num].SequenceNumber); err != nil {
+		if err := rows.Scan(&ret[num].MerkleLeafHash, &ret[num].LeafValue, &ret[num].LeafIndex); err != nil {
 			glog.Warningf("Failed to scan merkle leaves: %s", err)
 			return nil, err
 		}
@@ -415,7 +413,7 @@ func (t *logTX) GetLeavesByHash(leafHashes [][]byte, orderBySequence bool) ([]tr
 	for rows.Next() {
 		leaf := trillian.LogLeaf{}
 
-		if err := rows.Scan(&leaf.MerkleLeafHash, &leaf.LeafValue, &leaf.SequenceNumber); err != nil {
+		if err := rows.Scan(&leaf.MerkleLeafHash, &leaf.LeafValue, &leaf.LeafIndex); err != nil {
 			glog.Warningf("Failed to scan merkle leaves: %s", err)
 			return nil, err
 		}
@@ -492,8 +490,8 @@ func (t *logTX) UpdateSequencedLeaves(leaves []trillian.LogLeaf) error {
 		// there's no place for it atm.
 		rawLeafHash := trillian.NewSHA256().Digest(leaf.LeafValue)
 
-		_, err := t.tx.Exec(insertSequencedLeafSQL, t.ls.logID, []byte(rawLeafHash), []byte(leaf.MerkleLeafHash),
-			leaf.SequenceNumber)
+		_, err := t.tx.Exec(insertSequencedLeafSQL, t.ls.logID, rawLeafHash, leaf.MerkleLeafHash,
+			leaf.LeafIndex)
 
 		if err != nil {
 			glog.Warningf("Failed to update sequenced leaves: %s", err)
@@ -513,7 +511,7 @@ func (t *logTX) removeSequencedLeaves(leaves []trillian.LogLeaf) error {
 	stx := t.tx.Stmt(tmpl)
 	args := make([]interface{}, 0)
 	for _, leaf := range leaves {
-		args = append(args, interface{}([]byte(leaf.MerkleLeafHash)))
+		args = append(args, interface{}(leaf.MerkleLeafHash))
 	}
 	args = append(args, interface{}(t.ls.logID))
 	result, err := stx.Exec(args...)

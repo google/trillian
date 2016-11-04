@@ -11,6 +11,7 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
+	storagepb "github.com/google/trillian/storage/proto"
 )
 
 // These statements are fixed
@@ -124,7 +125,7 @@ func EncodeSignedTimestamp(signedEntryTimestamp trillian.SignedEntryTimestamp) (
 
 // Node IDs are stored using proto serialization
 func decodeNodeID(nodeIDBytes []byte) (*storage.NodeID, error) {
-	var nodeIDProto storage.NodeIDProto
+	var nodeIDProto storagepb.NodeIDProto
 
 	if err := proto.Unmarshal(nodeIDBytes, &nodeIDProto); err != nil {
 		glog.Warningf("Failed to decode nodeid: %s", err)
@@ -206,7 +207,7 @@ type treeTX struct {
 	writeRevision int64
 }
 
-func (t *treeTX) getSubtree(treeRevision int64, nodeID storage.NodeID) (*storage.SubtreeProto, error) {
+func (t *treeTX) getSubtree(treeRevision int64, nodeID storage.NodeID) (*storagepb.SubtreeProto, error) {
 	s, err := t.getSubtrees(treeRevision, []storage.NodeID{nodeID})
 	if err != nil {
 		return nil, err
@@ -221,7 +222,7 @@ func (t *treeTX) getSubtree(treeRevision int64, nodeID storage.NodeID) (*storage
 	}
 }
 
-func (t *treeTX) getSubtrees(treeRevision int64, nodeIDs []storage.NodeID) ([]*storage.SubtreeProto, error) {
+func (t *treeTX) getSubtrees(treeRevision int64, nodeIDs []storage.NodeID) ([]*storagepb.SubtreeProto, error) {
 	if len(nodeIDs) == 0 {
 		return nil, nil
 	}
@@ -263,7 +264,7 @@ func (t *treeTX) getSubtrees(treeRevision int64, nodeIDs []storage.NodeID) ([]*s
 		return nil, rows.Err()
 	}
 
-	ret := make([]*storage.SubtreeProto, 0, len(nodeIDs))
+	ret := make([]*storagepb.SubtreeProto, 0, len(nodeIDs))
 
 	for rows.Next() {
 
@@ -274,7 +275,7 @@ func (t *treeTX) getSubtrees(treeRevision int64, nodeIDs []storage.NodeID) ([]*s
 			glog.Warningf("Failed to scan merkle subtree: %s", err)
 			return nil, err
 		}
-		var subtree storage.SubtreeProto
+		var subtree storagepb.SubtreeProto
 		if err := proto.Unmarshal(nodesRaw, &subtree); err != nil {
 			glog.Warningf("Failed to unmarshal SubtreeProto: %s", err)
 			return nil, err
@@ -290,7 +291,7 @@ func (t *treeTX) getSubtrees(treeRevision int64, nodeIDs []storage.NodeID) ([]*s
 	return ret, nil
 }
 
-func (t *treeTX) storeSubtrees(subtrees []*storage.SubtreeProto) error {
+func (t *treeTX) storeSubtrees(subtrees []*storagepb.SubtreeProto) error {
 	if len(subtrees) == 0 {
 		glog.Warning("attempted to store 0 subtrees...")
 		return nil
@@ -370,7 +371,7 @@ func (t *treeTX) GetTreeRevisionAtSize(treeSize int64) (int64, error) {
 }
 
 func (t *treeTX) GetMerkleNodes(treeRevision int64, nodeIDs []storage.NodeID) ([]storage.Node, error) {
-	err := t.subtreeCache.Preload(nodeIDs, func(ids []storage.NodeID) ([]*storage.SubtreeProto, error) {
+	err := t.subtreeCache.Preload(nodeIDs, func(ids []storage.NodeID) ([]*storagepb.SubtreeProto, error) {
 		return t.getSubtrees(treeRevision, ids)
 	})
 	if err != nil {
@@ -382,7 +383,7 @@ func (t *treeTX) GetMerkleNodes(treeRevision int64, nodeIDs []storage.NodeID) ([
 	for _, nodeID := range nodeIDs {
 		h, err := t.subtreeCache.GetNodeHash(
 			nodeID,
-			func(n storage.NodeID) (*storage.SubtreeProto, error) {
+			func(n storage.NodeID) (*storagepb.SubtreeProto, error) {
 				return t.getSubtree(treeRevision, n)
 			})
 		if err != nil {
@@ -402,7 +403,7 @@ func (t *treeTX) GetMerkleNodes(treeRevision int64, nodeIDs []storage.NodeID) ([
 func (t *treeTX) SetMerkleNodes(nodes []storage.Node) error {
 	for _, n := range nodes {
 		err := t.subtreeCache.SetNodeHash(n.NodeID, n.Hash,
-			func(nID storage.NodeID) (*storage.SubtreeProto, error) {
+			func(nID storage.NodeID) (*storagepb.SubtreeProto, error) {
 				return t.getSubtree(t.writeRevision, nID)
 			})
 		if err != nil {

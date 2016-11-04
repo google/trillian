@@ -32,7 +32,7 @@ func NewTrillianLogServer(p LogStorageProviderFunc) *TrillianLogServer {
 
 // QueueLeaves submits a batch of leaves to the log for later integration into the underlying tree.
 func (t *TrillianLogServer) QueueLeaves(ctx context.Context, req *trillian.QueueLeavesRequest) (*trillian.QueueLeavesResponse, error) {
-	leaves := protosToLeaves(req.Leaves)
+	leaves := depointerify(req.Leaves)
 
 	if len(leaves) == 0 {
 		return &trillian.QueueLeavesResponse{Status: buildStatusWithDesc(trillian.TrillianApiStatusCode_ERROR, "Must queue at least one leaf")}, nil
@@ -145,10 +145,10 @@ func (t *TrillianLogServer) GetInclusionProofByHash(ctx context.Context, req *tr
 	}
 
 	// TODO(Martin2112): Need to define a limit on number of results or some form of paging etc.
-	proofs := make([]*trillian.ProofProto, 0, len(leaves))
+	proofs := make([]*trillian.Proof, 0, len(leaves))
 
 	for _, leaf := range leaves {
-		proof, err := getInclusionProofForLeafIndexAtRevision(tx, treeRevision, req.TreeSize, leaf.SequenceNumber)
+		proof, err := getInclusionProofForLeafIndexAtRevision(tx, treeRevision, req.TreeSize, leaf.LeafIndex)
 
 		if err != nil {
 			tx.Rollback()
@@ -302,13 +302,11 @@ func (t *TrillianLogServer) GetLeavesByIndex(ctx context.Context, req *trillian.
 		return nil, err
 	}
 
-	leafProtos := leavesToProtos(leaves)
-
 	if err := t.commitAndLog(tx, "GetLeavesByIndex"); err != nil {
 		return nil, err
 	}
 
-	return &trillian.GetLeavesByIndexResponse{Status: buildStatus(trillian.TrillianApiStatusCode_OK), Leaves: leafProtos}, nil
+	return &trillian.GetLeavesByIndexResponse{Status: buildStatus(trillian.TrillianApiStatusCode_OK), Leaves: pointerify(leaves)}, nil
 }
 
 // GetLeavesByHash obtains one or more leaves based on their tree hash. It is not possible
@@ -332,13 +330,11 @@ func (t *TrillianLogServer) GetLeavesByHash(ctx context.Context, req *trillian.G
 		return nil, err
 	}
 
-	leafProtos := leavesToProtos(leaves)
-
 	if err := t.commitAndLog(tx, "GetLeavesByHash"); err != nil {
 		return nil, err
 	}
 
-	return &trillian.GetLeavesByHashResponse{Status: buildStatus(trillian.TrillianApiStatusCode_OK), Leaves: leafProtos}, nil
+	return &trillian.GetLeavesByHashResponse{Status: buildStatus(trillian.TrillianApiStatusCode_OK), Leaves: pointerify(leaves)}, nil
 }
 
 // GetEntryAndProof returns both a Merkle Leaf entry and an inclusion proof for a given index
@@ -392,8 +388,6 @@ func (t *TrillianLogServer) GetEntryAndProof(ctx context.Context, req *trillian.
 		return nil, fmt.Errorf("expected one leaf from storage but got: %d", len(leaves))
 	}
 
-	leafProtos := leavesToProtos(leaves)
-
 	err = tx.Commit()
 
 	if err != nil {
@@ -404,7 +398,7 @@ func (t *TrillianLogServer) GetEntryAndProof(ctx context.Context, req *trillian.
 	return &trillian.GetEntryAndProofResponse{
 		Status: buildStatus(trillian.TrillianApiStatusCode_OK),
 		Proof:  &proof,
-		Leaf:   leafProtos[0]}, nil
+		Leaf:   &leaves[0]}, nil
 }
 
 func (t *TrillianLogServer) prepareStorageTx(treeID int64) (storage.LogTX, error) {
@@ -444,30 +438,22 @@ func (t *TrillianLogServer) commitAndLog(tx storage.LogTX, op string) error {
 	return err
 }
 
-func protoToLeaf(proto *trillian.LeafProto) trillian.LogLeaf {
-	return trillian.LogLeaf{SequenceNumber: proto.LeafIndex, Leaf: trillian.Leaf{MerkleLeafHash: proto.MerkleLeafHash, LeafValue: proto.LeafValue, ExtraData: proto.ExtraData}}
-}
-
-func protosToLeaves(protos []*trillian.LeafProto) []trillian.LogLeaf {
+func depointerify(protos []*trillian.LogLeaf) []trillian.LogLeaf {
 	leaves := make([]trillian.LogLeaf, 0, len(protos))
 
 	for _, proto := range protos {
-		leaves = append(leaves, protoToLeaf(proto))
+		leaves = append(leaves, *proto)
 	}
 
 	return leaves
 }
 
-// TODO: Fill in the log leaf specific fields when we've implemented signed timestamps
-func leafToProto(leaf trillian.LogLeaf) *trillian.LeafProto {
-	return &trillian.LeafProto{LeafIndex: leaf.SequenceNumber, MerkleLeafHash: leaf.MerkleLeafHash, LeafValue: leaf.LeafValue, ExtraData: leaf.ExtraData}
-}
-
-func leavesToProtos(leaves []trillian.LogLeaf) []*trillian.LeafProto {
-	protos := make([]*trillian.LeafProto, 0, len(leaves))
+func pointerify(leaves []trillian.LogLeaf) []*trillian.LogLeaf {
+	protos := make([]*trillian.LogLeaf, 0, len(leaves))
 
 	for _, leaf := range leaves {
-		protos = append(protos, leafToProto(leaf))
+		leaf := leaf
+		protos = append(protos, &leaf)
 	}
 
 	return protos
@@ -506,15 +492,15 @@ func validateLeafHashes(leafHashes [][]byte) bool {
 }
 
 // getInclusionProofForLeafIndexAtRevision is used by multiple handlers. It does the storage fetching
-// and makes additional checks on the returned proof. Returns a ProofProto suitable for inclusion in
+// and makes additional checks on the returned proof. Returns a Proof suitable for inclusion in
 // an RPC response
-func getInclusionProofForLeafIndexAtRevision(tx storage.LogTX, treeRevision, treeSize, leafIndex int64) (trillian.ProofProto, error) {
+func getInclusionProofForLeafIndexAtRevision(tx storage.LogTX, treeRevision, treeSize, leafIndex int64) (trillian.Proof, error) {
 	// We have the tree size and leaf index so we know the nodes that we need to serve the proof
 	// TODO(Martin2112): Not sure about hardcoding maxBitLen here
 	proofNodeIDs, err := merkle.CalcInclusionProofNodeAddresses(treeSize, leafIndex, proofMaxBitLen)
 
 	if err != nil {
-		return trillian.ProofProto{}, err
+		return trillian.Proof{}, err
 	}
 
 	return fetchNodesAndBuildProof(tx, treeRevision, leafIndex, proofNodeIDs)
@@ -522,33 +508,33 @@ func getInclusionProofForLeafIndexAtRevision(tx storage.LogTX, treeRevision, tre
 
 // fetchNodesAndBuildProof is used by both inclusion and consistency proofs. It fetches the nodes
 // from storage and converts them into the proof proto that will be returned to the client.
-func fetchNodesAndBuildProof(tx storage.LogTX, treeRevision, leafIndex int64, proofNodeIDs []storage.NodeID) (trillian.ProofProto, error) {
+func fetchNodesAndBuildProof(tx storage.LogTX, treeRevision, leafIndex int64, proofNodeIDs []storage.NodeID) (trillian.Proof, error) {
 	proofNodes, err := tx.GetMerkleNodes(treeRevision, proofNodeIDs)
 
 	if err != nil {
-		return trillian.ProofProto{}, err
+		return trillian.Proof{}, err
 	}
 
 	if len(proofNodes) != len(proofNodeIDs) {
-		return trillian.ProofProto{}, fmt.Errorf("expected %d nodes in proof but got %d", len(proofNodeIDs), len(proofNodes))
+		return trillian.Proof{}, fmt.Errorf("expected %d nodes in proof but got %d", len(proofNodeIDs), len(proofNodes))
 	}
 
-	proof := make([]*trillian.NodeProto, 0, len(proofNodeIDs))
+	proof := make([]*trillian.Node, 0, len(proofNodeIDs))
 
 	for i, node := range proofNodes {
 		// additional check that the correct node was returned
 		if !node.NodeID.Equivalent(proofNodeIDs[i]) {
-			return trillian.ProofProto{}, fmt.Errorf("expected node %v at proof pos %d but got %v", proofNodeIDs[i], i, node.NodeID)
+			return trillian.Proof{}, fmt.Errorf("expected node %v at proof pos %d but got %v", proofNodeIDs[i], i, node.NodeID)
 		}
 
 		idBytes, err := proto.Marshal(node.NodeID.AsProto())
 
 		if err != nil {
-			return trillian.ProofProto{}, err
+			return trillian.Proof{}, err
 		}
 
-		proof = append(proof, &trillian.NodeProto{NodeId: idBytes, NodeHash: node.Hash, NodeRevision: node.NodeRevision})
+		proof = append(proof, &trillian.Node{NodeId: idBytes, NodeHash: node.Hash, NodeRevision: node.NodeRevision})
 	}
 
-	return trillian.ProofProto{LeafIndex: leafIndex, ProofNode: proof}, nil
+	return trillian.Proof{LeafIndex: leafIndex, ProofNode: proof}, nil
 }

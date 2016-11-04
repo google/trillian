@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package storage;
+package proto;
 
 // This file contains protos used only by storage. They are not exported via any of
 // our public APIs.
