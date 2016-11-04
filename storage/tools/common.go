@@ -25,8 +25,6 @@ func GetLogIDFromFlagsOrDie() int64 {
 // TODO: This needs to be tidied up
 func GetLogStorageProviderFromFlags() server.LogStorageProviderFunc {
 	return func(x int64) (storage.LogStorage, error) {
-		// TODO: We need to sort out exactly what a log id is. We really only need a tree id
-		// but having the log id as well could be a handy cross check as they can be guessed
 		storage, err := GetStorageFromFlags(x)
 		return storage, err
 	}

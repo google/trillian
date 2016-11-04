@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"bytes"
 	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
@@ -8,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 
-	"bytes"
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
