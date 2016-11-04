@@ -91,8 +91,8 @@ CREATE TABLE IF NOT EXISTS SequencedLeafData(
   -- CT this hash will include the leaf prefix byte as well as the leaf data.
   MerkleLeafHash       VARBINARY(255) NOT NULL,
   PRIMARY KEY(TreeId, SequenceNumber),
-  FOREIGN KEY(TreeId, LeafValueHash) REFERENCES LeafData(TreeId, LeafValueHash) ON DELETE CASCADE,
-  FOREIGN KEY(LeafValueHash) REFERENCES LeafData(LeafValueHash)
+  FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE,
+  FOREIGN KEY(TreeId, LeafValueHash) REFERENCES LeafData(TreeId, LeafValueHash)
 );
 
 CREATE TABLE IF NOT EXISTS Unsequenced(
