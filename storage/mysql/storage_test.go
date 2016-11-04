@@ -1312,8 +1312,8 @@ func createTestLeaves(n, startSeq int64) []trillian.LogLeaf {
 
 	for l := int64(0); l < n; l++ {
 		lv := fmt.Sprintf("Leaf %d", l)
-		leaf := trillian.LogLeaf{trillian.Leaf{
-			hasher.Digest([]byte(lv)), []byte(lv), []byte(fmt.Sprintf("Extra %d", l))}, int64(startSeq + l)}
+		leaf := trillian.LogLeaf{Leaf: trillian.Leaf{
+			MerkleLeafHash: hasher.Digest([]byte(lv)), LeafValue: []byte(lv), ExtraData: []byte(fmt.Sprintf("Extra %d", l))}, SequenceNumber: int64(startSeq + l)}
 		leaves = append(leaves, leaf)
 	}
 

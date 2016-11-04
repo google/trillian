@@ -972,7 +972,7 @@ func TestGetEntriesLeafCorrupt(t *testing.T) {
 
 	client := trillian.NewMockTrillianLogClient(mockCtrl)
 
-	rpcLeaves := []*trillian.LeafProto{{LeafIndex: 1, LeafHash: []byte("hash"), LeafData: []byte(invalidLeafString)}, {LeafIndex: 2, LeafHash: []byte("hash"), LeafData: []byte(invalidLeafString)}}
+	rpcLeaves := []*trillian.LeafProto{{LeafIndex: 1, MerkleLeafHash: []byte("hash"), LeafValue: []byte(invalidLeafString)}, {LeafIndex: 2, MerkleLeafHash: []byte("hash"), LeafValue: []byte(invalidLeafString)}}
 	client.EXPECT().GetLeavesByIndex(deadlineMatcher(), &trillian.GetLeavesByIndexRequest{LeafIndex: []int64{1, 2}}).Return(&trillian.GetLeavesByIndexResponse{Status: okStatus, Leaves: rpcLeaves}, nil)
 
 	c := RequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
@@ -1038,7 +1038,7 @@ func TestGetEntries(t *testing.T) {
 		t.Fatalf("error in test setup for get-entries: %v %v", err1, err2)
 	}
 
-	rpcLeaves := []*trillian.LeafProto{{LeafIndex: 1, LeafHash: []byte("hash"), LeafData: merkleBytes1, ExtraData: []byte("extra1")}, {LeafIndex: 2, LeafHash: []byte("hash"), LeafData: merkleBytes2, ExtraData: []byte("extra2")}}
+	rpcLeaves := []*trillian.LeafProto{{LeafIndex: 1, MerkleLeafHash: []byte("hash"), LeafValue: merkleBytes1, ExtraData: []byte("extra1")}, {LeafIndex: 2, MerkleLeafHash: []byte("hash"), LeafValue: merkleBytes2, ExtraData: []byte("extra2")}}
 	client.EXPECT().GetLeavesByIndex(deadlineMatcher(), &trillian.GetLeavesByIndexRequest{LeafIndex: []int64{1, 2}}).Return(&trillian.GetLeavesByIndexResponse{Status: okStatus, Leaves: rpcLeaves}, nil)
 
 	c := RequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
@@ -1454,7 +1454,7 @@ func TestGetEntryAndProof(t *testing.T) {
 		t.Fatal("failed to build test Merkle leaf data")
 	}
 
-	leafProto := trillian.LeafProto{LeafData: leafBytes, LeafHash: []byte("ahash"), ExtraData: []byte("extra")}
+	leafProto := trillian.LeafProto{LeafValue: leafBytes, MerkleLeafHash: []byte("ahash"), ExtraData: []byte("extra")}
 	response := trillian.GetEntryAndProofResponse{Status: okStatus, Proof: &proof, Leaf: &leafProto}
 	client := trillian.NewMockTrillianLogClient(mockCtrl)
 	client.EXPECT().GetEntryAndProof(deadlineMatcher(), &trillian.GetEntryAndProofRequest{LeafIndex: 1, TreeSize: 3}).Return(&response, nil)
@@ -1527,7 +1527,7 @@ func leafProtosForCert(t *testing.T, km crypto.KeyManager, certs []*x509.Certifi
 		t.Fatalf("failed to serialize log entry: %v", err)
 	}
 
-	return []*trillian.LeafProto{{LeafHash: leafHash[:], LeafData: b.Bytes(), ExtraData: b2.Bytes()}}
+	return []*trillian.LeafProto{{MerkleLeafHash: leafHash[:], LeafValue: b.Bytes(), ExtraData: b2.Bytes()}}
 }
 
 type dlMatcher struct {

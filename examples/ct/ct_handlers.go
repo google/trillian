@@ -584,13 +584,13 @@ func wrappedGetEntryAndProofHandler(c RequestHandlers) appHandler {
 		}
 
 		// Apply some checks that we got reasonable data from the backend
-		if response.Proof == nil || response.Leaf == nil || len(response.Proof.ProofNode) == 0 || len(response.Leaf.LeafData) == 0 {
+		if response.Proof == nil || response.Leaf == nil || len(response.Proof.ProofNode) == 0 || len(response.Leaf.LeafValue) == 0 {
 			return http.StatusInternalServerError, fmt.Errorf("got RPC bad response, possible extra info: %v", response)
 		}
 
 		// Build and marshall the response to the client
 		jsonResponse := getEntryAndProofResponse{
-			LeafInput: response.Leaf.LeafData,
+			LeafInput: response.Leaf.LeafValue,
 			ExtraData: response.Leaf.ExtraData,
 			AuditPath: auditPathFromProto(response.Proof.ProofNode)}
 
@@ -712,7 +712,7 @@ func buildLeafProtoForAddChain(merkleLeaf ct.MerkleTreeLeaf, certChain []*x509.C
 	// does the tree hashing.
 	leafHash := sha256.Sum256(leafBuffer.Bytes())
 
-	return trillian.LeafProto{LeafHash: leafHash[:], LeafData: leafBuffer.Bytes(), ExtraData: logEntryBuffer.Bytes()}, nil
+	return trillian.LeafProto{MerkleLeafHash: leafHash[:], LeafValue: leafBuffer.Bytes(), ExtraData: logEntryBuffer.Bytes()}, nil
 }
 
 // marshalAndWriteAddChainResponse is used by add-chain and add-pre-chain to create and write
@@ -875,13 +875,13 @@ func marshalGetEntriesResponse(rpcResponse *trillian.GetLeavesByIndexResponse) (
 		// return the data if it fails to deserialize as otherwise the root hash could not
 		// be verified. However this indicates a potentially serious failure in log operation
 		// or data storage that should be investigated.
-		if _, err := ct.ReadMerkleTreeLeaf(bytes.NewBuffer(leaf.LeafData)); err != nil {
+		if _, err := ct.ReadMerkleTreeLeaf(bytes.NewBuffer(leaf.LeafValue)); err != nil {
 			// TODO(Martin2112): Hook this up to monitoring when implemented
 			glog.Warningf("Failed to deserialize merkle leaf from backend: %d", leaf.LeafIndex)
 		}
 
 		jsonResponse.Entries = append(jsonResponse.Entries, getEntriesEntry{
-			LeafInput: leaf.LeafData,
+			LeafInput: leaf.LeafValue,
 			ExtraData: leaf.ExtraData})
 	}
 
