@@ -68,10 +68,10 @@ CREATE TABLE IF NOT EXISTS LeafData(
   TreeId               INTEGER NOT NULL,
   -- Note that this is a simple SHA256 hash of the raw data used to detect corruption in transit and
   -- for deduping. It is not the leaf hash output of the treehasher used by the log.
-  LeafRawHash             VARBINARY(255) NOT NULL,
-  TheData              BLOB NOT NULL,
-  PRIMARY KEY(TreeId, LeafRawHash),
-  INDEX LeafHashIdx(LeafRawHash),
+  LeafValueHash        VARBINARY(255) NOT NULL,
+  LeafValue            BLOB NOT NULL,
+  PRIMARY KEY(TreeId, LeafValueHash),
+  INDEX LeafHashIdx(LeafValueHash),
   FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE
 );
 
@@ -86,27 +86,27 @@ CREATE TABLE IF NOT EXISTS SequencedLeafData(
   SequenceNumber       BIGINT UNSIGNED NOT NULL,
   -- Note that this is a simple SHA256 hash of the raw data used to detect corruption in transit.
   -- It is not the leaf hash output of the treehasher used by the log.
-  LeafRawHash          VARBINARY(255) NOT NULL,
+  LeafValueHash        VARBINARY(255) NOT NULL,
   -- This is a MerkleLeafHash as defined by the treehasher that the log uses. For example for
   -- CT this hash will include the leaf prefix byte as well as the leaf data.
-  LeafHash             VARBINARY(255) NOT NULL,
+  MerkleLeafHash       VARBINARY(255) NOT NULL,
   PRIMARY KEY(TreeId, SequenceNumber),
   FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE,
-  FOREIGN KEY(LeafRawHash) REFERENCES LeafData(LeafRawHash)
+  FOREIGN KEY(LeafValueHash) REFERENCES LeafData(LeafValueHash)
 );
 
 CREATE TABLE IF NOT EXISTS Unsequenced(
   TreeId               INTEGER NOT NULL,
   -- Note that this is a simple SHA256 hash of the raw data used to detect corruption in transit.
   -- It is not the leaf hash output of the treehasher used by the log.
-  LeafRawHash             VARBINARY(255) NOT NULL,
-  -- SHA256("queueId"|TreeId|leafHash)
+  LeafValueHash             VARBINARY(255) NOT NULL,
+  -- SHA256("queueId"|TreeId|leafValueHash)
   -- We want this to be unique per entry per log, but queryable by FEs so that
   -- we can try to stomp dupe submissions.
   MessageId            BINARY(32) NOT NULL,
   Payload              BLOB NOT NULL,
   QueueTimestamp       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (TreeId, LeafRawHash, MessageId)
+  PRIMARY KEY (TreeId, LeafValueHash, MessageId)
 );
 
 
@@ -120,7 +120,7 @@ CREATE TABLE IF NOT EXISTS MapLeaf(
   -- MapRevision is stored negated to invert ordering in the primary key index
   -- st. more recent revisions come first.
   MapRevision           BIGINT NOT NULL,
-  TheData               BLOB NOT NULL,
+  LeafValue             BLOB NOT NULL,
   PRIMARY KEY(TreeId, KeyHash, MapRevision),
   FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE
 );

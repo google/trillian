@@ -18,10 +18,10 @@ const selectLatestSignedMapRootSQL string = `SELECT MapHeadTimestamp, RootHash, 
 		 FROM MapHead WHERE TreeId=?
 		 ORDER BY MapHeadTimestamp DESC LIMIT 1`
 
-const insertMapLeafSQL string = `INSERT INTO MapLeaf(TreeId, KeyHash, MapRevision, TheData) VALUES (?, ?, ?, ?)`
+const insertMapLeafSQL string = `INSERT INTO MapLeaf(TreeId, KeyHash, MapRevision, LeafValue) VALUES (?, ?, ?, ?)`
 
 // Note that MapRevision is stored negated, hence the odd equality check below:
-const selectMapLeafSQL string = `SELECT KeyHash, MAX(MapRevision), TheData
+const selectMapLeafSQL string = `SELECT KeyHash, MAX(MapRevision), LeafValue
 	 FROM MapLeaf
 	 WHERE KeyHash IN (` + placeholderSQL + `) AND
 	       TreeId = ? AND

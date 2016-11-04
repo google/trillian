@@ -98,8 +98,8 @@ func nodesAreEqual(lhs []storage.Node, rhs []storage.Node) error {
 }
 
 func createFakeLeaf(db *sql.DB, logID trillian.LogID, rawHash, hash []byte, data []byte, seq int64, t *testing.T) {
-	_, err := db.Exec("INSERT INTO LeafData(TreeId, LeafRawHash, TheData) VALUES(?,?,?)", logID.TreeID, rawHash, data)
-	_, err2 := db.Exec("INSERT INTO SequencedLeafData(TreeId, SequenceNumber, LeafRawHash, LeafHash) VALUES(?,?,?,?)", logID.TreeID, seq, rawHash, hash)
+	_, err := db.Exec("INSERT INTO LeafData(TreeId, LeafValueHash, LeafValue) VALUES(?,?,?)", logID.TreeID, rawHash, data)
+	_, err2 := db.Exec("INSERT INTO SequencedLeafData(TreeId, SequenceNumber, LeafValueHash, MerkleLeafHash) VALUES(?,?,?,?)", logID.TreeID, seq, rawHash, hash)
 
 	if err != nil || err2 != nil {
 		t.Fatalf("Failed to create test leaves: %v %v", err, err2)

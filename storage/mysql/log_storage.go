@@ -18,17 +18,17 @@ import (
 
 const getTreePropertiesSQL string = "SELECT AllowsDuplicateLeaves FROM Trees WHERE TreeId=?"
 const getTreeParametersSQL string = "SELECT ReadOnlyRequests From TreeControl WHERE TreeID=?"
-const selectQueuedLeavesSQL string = `SELECT LeafRawHash,Payload
+const selectQueuedLeavesSQL string = `SELECT LeafValueHash,Payload
 		 FROM Unsequenced
 		 WHERE TreeID=?
-		 ORDER BY QueueTimestamp DESC,LeafRawHash ASC LIMIT ?`
-const insertUnsequencedLeafSQL string = `INSERT INTO LeafData(TreeId,LeafRawHash,TheData)
-		 VALUES(?,?,?) ON DUPLICATE KEY UPDATE LeafRawHash=LeafRawHash`
-const insertUnsequencedLeafSQLNoDuplicates string = `INSERT INTO LeafData(TreeId,LeafRawHash,TheData)
+		 ORDER BY QueueTimestamp DESC,LeafValueHash ASC LIMIT ?`
+const insertUnsequencedLeafSQL string = `INSERT INTO LeafData(TreeId,LeafValueHash,LeafValue)
+		 VALUES(?,?,?) ON DUPLICATE KEY UPDATE LeafValueHash=LeafValueHash`
+const insertUnsequencedLeafSQLNoDuplicates string = `INSERT INTO LeafData(TreeId,LeafValueHash,LeafValue)
 		 VALUES(?,?,?)`
-const insertUnsequencedEntrySQL string = `INSERT INTO Unsequenced(TreeId,LeafRawHash,MessageId,Payload)
+const insertUnsequencedEntrySQL string = `INSERT INTO Unsequenced(TreeId,LeafValueHash,MessageId,Payload)
      VALUES(?,?,?,?)`
-const insertSequencedLeafSQL string = `INSERT INTO SequencedLeafData(TreeId,LeafRawHash,LeafHash,SequenceNumber)
+const insertSequencedLeafSQL string = `INSERT INTO SequencedLeafData(TreeId,LeafValueHash,MerkleLeafHash,SequenceNumber)
 		 VALUES(?,?,?,?)`
 const selectSequencedLeafCountSQL string = "SELECT COUNT(*) FROM SequencedLeafData WHERE TreeId=?"
 const selectLatestSignedLogRootSQL string = `SELECT TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature
@@ -37,15 +37,15 @@ const selectLatestSignedLogRootSQL string = `SELECT TreeHeadTimestamp,TreeSize,R
 
 // These statements need to be expanded to provide the correct number of parameter placeholders
 // for a particular case
-const deleteUnsequencedSQL string = "DELETE FROM Unsequenced WHERE LeafRawHash IN (<placeholder>) AND TreeId = ?"
-const selectLeavesByIndexSQL string = `SELECT s.LeafHash,l.TheData,s.SequenceNumber
+const deleteUnsequencedSQL string = "DELETE FROM Unsequenced WHERE LeafValueHash IN (<placeholder>) AND TreeId = ?"
+const selectLeavesByIndexSQL string = `SELECT s.LeafHash,l.LeafValue,s.SequenceNumber
 		     FROM LeafData l,SequencedLeafData s
-		     WHERE l.LeafRawHash = s.LeafRawHash
+		     WHERE l.LeafValueHash = s.LeafValueHash
 		     AND s.SequenceNumber IN (` + placeholderSQL + `) AND l.TreeId = ? AND s.TreeId = l.TreeId`
-const selectLeavesByHashSQL string = `SELECT s.LeafHash,l.TheData,s.SequenceNumber
+const selectLeavesByHashSQL string = `SELECT s.MerkleLeafHash,l.LeafValue,s.SequenceNumber
 		     FROM LeafData l,SequencedLeafData s
-		     WHERE l.LeafRawHash = s.LeafRawHash
-		     AND s.LeafHash IN (` + placeholderSQL + `) AND l.TreeId = ? AND s.TreeId = l.TreeId`
+		     WHERE l.LeafValueHash = s.LeafValueHash
+		     AND s.MerkleLeafHash IN (` + placeholderSQL + `) AND l.TreeId = ? AND s.TreeId = l.TreeId`
 
 // Same as above except with leaves ordered by sequence so we only incur this cost when necessary
 const selectLeavesByHashOrderedBySequenceSQL string = selectLeavesByHashSQL + " ORDER BY s.SequenceNumber"
