@@ -27,6 +27,7 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/examples/ct/testonly"
+	"github.com/google/trillian/mockclient"
 	"github.com/google/trillian/util"
 	"golang.org/x/net/context"
 )
@@ -155,7 +156,7 @@ func TestPostHandlersOnlyAcceptPost(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 
 	// Anything in the post handler list should only accept POST
 	for _, hp := range allPostHandlersForTest(client) {
@@ -189,7 +190,7 @@ func TestGetHandlersRejectPost(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	pool := NewPEMCertPool()
 	handlers := RequestHandlers{rpcClient: client, timeSource: fakeTimeSource}
 
@@ -215,7 +216,7 @@ func TestPostHandlersRejectEmptyJson(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 
 	for _, hp := range allPostHandlersForTest(client) {
 		s := httptest.NewServer(hp.handler)
@@ -237,7 +238,7 @@ func TestPostHandlersRejectMalformedJson(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 
 	for _, hp := range allPostHandlersForTest(client) {
 		s := httptest.NewServer(hp.handler)
@@ -259,7 +260,7 @@ func TestPostHandlersRejectEmptyCertChain(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 
 	for _, hp := range allPostHandlersForTest(client) {
 		s := httptest.NewServer(hp.handler)
@@ -281,7 +282,7 @@ func TestPostHandlersAcceptNonEmptyCertChain(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 
 	for _, hp := range allPostHandlersForTest(client) {
 		s := httptest.NewServer(hp.handler)
@@ -345,7 +346,7 @@ func TestAddChainMissingIntermediate(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	km := crypto.NewMockKeyManager(mockCtrl)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.FakeCACertPem})
@@ -367,7 +368,7 @@ func TestAddChainPrecert(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	km := crypto.NewMockKeyManager(mockCtrl)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
@@ -399,7 +400,7 @@ func TestAddChainRPCFails(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	km := setupMockKeyManager(mockCtrl, toSign)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.FakeCACertPem})
@@ -433,7 +434,7 @@ func TestAddChain(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	km := setupMockKeyManager(mockCtrl, toSign)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.FakeCACertPem})
@@ -484,7 +485,7 @@ func TestAddPrecertChainInvalidPath(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	km := crypto.NewMockKeyManager(mockCtrl)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
@@ -522,7 +523,7 @@ func TestAddPrecertChainCert(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	km := crypto.NewMockKeyManager(mockCtrl)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
@@ -552,7 +553,7 @@ func TestAddPrecertChainRPCFails(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	km := setupMockKeyManager(mockCtrl, toSign)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
@@ -593,7 +594,7 @@ func TestAddPrecertChain(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	km := setupMockKeyManager(mockCtrl, toSign)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
@@ -651,7 +652,7 @@ func TestGetSTHBackendErrorFails(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	km := crypto.NewMockKeyManager(mockCtrl)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
@@ -681,7 +682,7 @@ func TestGetSTHInvalidBackendTreeSizeFails(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	km := crypto.NewMockKeyManager(mockCtrl)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
@@ -710,7 +711,7 @@ func TestGetSTHMissingRootHashFails(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	km := crypto.NewMockKeyManager(mockCtrl)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
@@ -739,7 +740,7 @@ func TestGetSTHSigningFails(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	km := crypto.NewMockKeyManager(mockCtrl)
 
 	signer := crypto.NewMockSigner(mockCtrl)
@@ -772,7 +773,7 @@ func TestGetSTH(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	km := setupMockKeyManagerForSth(mockCtrl, toSign)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
@@ -846,7 +847,7 @@ func TestGetEntriesRanges(t *testing.T) {
 	for _, testCase := range getEntriesRangeTestCases {
 		mockCtrl := gomock.NewController(t)
 
-		client := trillian.NewMockTrillianLogClient(mockCtrl)
+		client := mockclient.NewMockTrillianLogClient(mockCtrl)
 
 		if testCase.rpcExpected {
 			client.EXPECT().GetLeavesByIndex(deadlineMatcher(), &trillian.GetLeavesByIndexRequest{LeafIndex: buildIndicesForRange(testCase.start, testCase.end)}).Return(nil, errors.New("RPCMADE"))
@@ -884,7 +885,7 @@ func TestGetEntriesErrorFromBackend(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 
 	client.EXPECT().GetLeavesByIndex(deadlineMatcher(), &trillian.GetLeavesByIndexRequest{LeafIndex: []int64{1, 2}}).Return(nil, errors.New("Bang!"))
 
@@ -912,7 +913,7 @@ func TestGetEntriesBackendReturnedExtraLeaves(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 
 	rpcLeaves := []*trillian.LogLeaf{{LeafIndex: 1}, {LeafIndex: 2}, {LeafIndex: 3}}
 	client.EXPECT().GetLeavesByIndex(deadlineMatcher(), &trillian.GetLeavesByIndexRequest{LeafIndex: []int64{1, 2}}).Return(&trillian.GetLeavesByIndexResponse{Status: okStatus, Leaves: rpcLeaves}, nil)
@@ -941,7 +942,7 @@ func TestGetEntriesBackendReturnedNonContiguousRange(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 
 	rpcLeaves := []*trillian.LogLeaf{{LeafIndex: 1}, {LeafIndex: 3}}
 	client.EXPECT().GetLeavesByIndex(deadlineMatcher(), &trillian.GetLeavesByIndexRequest{LeafIndex: []int64{1, 2}}).Return(&trillian.GetLeavesByIndexResponse{Status: okStatus, Leaves: rpcLeaves}, nil)
@@ -970,7 +971,7 @@ func TestGetEntriesLeafCorrupt(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 
 	rpcLeaves := []*trillian.LogLeaf{{LeafIndex: 1, MerkleLeafHash: []byte("hash"), LeafValue: []byte(invalidLeafString)}, {LeafIndex: 2, MerkleLeafHash: []byte("hash"), LeafValue: []byte(invalidLeafString)}}
 	client.EXPECT().GetLeavesByIndex(deadlineMatcher(), &trillian.GetLeavesByIndexRequest{LeafIndex: []int64{1, 2}}).Return(&trillian.GetLeavesByIndexResponse{Status: okStatus, Leaves: rpcLeaves}, nil)
@@ -1017,7 +1018,7 @@ func TestGetEntries(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 
 	// To pass validation the leaves we return from our dummy RPC must be valid serialized
 	// ct.MerkleTreeLeaf objects
@@ -1096,7 +1097,7 @@ func TestGetProofByHashBadRequests(t *testing.T) {
 	// This is OK because the requests shouldn't get to the point where any RPCs are made on the mock
 	defer mockCtrl.Finish()
 
-	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	c := RequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
 	handler := wrappedGetProofByHashHandler(c)
 
@@ -1120,7 +1121,7 @@ func TestGetProofByHashBackendFails(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	client.EXPECT().GetInclusionProofByHash(deadlineMatcher(), &trillian.GetInclusionProofByHashRequest{LeafHash: []byte("ahash"), TreeSize: 6, OrderBySequence: true}).Return(nil, errors.New("RPCFAIL"))
 	c := RequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
 	handler := wrappedGetProofByHashHandler(c)
@@ -1150,7 +1151,7 @@ func TestGetProofByHashBackendMultipleProofs(t *testing.T) {
 	proof1 := trillian.Proof{LeafIndex: 2, ProofNode: []*trillian.Node{{NodeHash: []byte("abcdef")}, {NodeHash: []byte("ghijkl")}, {NodeHash: []byte("mnopqr")}}}
 	proof2 := trillian.Proof{LeafIndex: 2, ProofNode: []*trillian.Node{{NodeHash: []byte("ghijkl")}}}
 	response := trillian.GetInclusionProofByHashResponse{Status: okStatus, Proof: []*trillian.Proof{&proof1, &proof2}}
-	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	client.EXPECT().GetInclusionProofByHash(deadlineMatcher(), &trillian.GetInclusionProofByHashRequest{LeafHash: []byte("ahash"), TreeSize: 7, OrderBySequence: true}).Return(&response, nil)
 	c := RequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
 	handler := wrappedGetProofByHashHandler(c)
@@ -1186,7 +1187,7 @@ func TestGetProofByHashBackendReturnsMissingHash(t *testing.T) {
 
 	proof := trillian.Proof{LeafIndex: 2, ProofNode: []*trillian.Node{{NodeHash: []byte("abcdef")}, {NodeHash: []byte{}}, {NodeHash: []byte("ghijkl")}}}
 	response := trillian.GetInclusionProofByHashResponse{Status: okStatus, Proof: []*trillian.Proof{&proof}}
-	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	client.EXPECT().GetInclusionProofByHash(deadlineMatcher(), &trillian.GetInclusionProofByHashRequest{LeafHash: []byte("ahash"), TreeSize: 9, OrderBySequence: true}).Return(&response, nil)
 	c := RequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
 	handler := wrappedGetProofByHashHandler(c)
@@ -1215,7 +1216,7 @@ func TestGetProofByHash(t *testing.T) {
 
 	proof := trillian.Proof{LeafIndex: 2, ProofNode: []*trillian.Node{{NodeHash: []byte("abcdef")}, {NodeHash: []byte("ghijkl")}, {NodeHash: []byte("mnopqr")}}}
 	response := trillian.GetInclusionProofByHashResponse{Status: okStatus, Proof: []*trillian.Proof{&proof}}
-	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	client.EXPECT().GetInclusionProofByHash(deadlineMatcher(), &trillian.GetInclusionProofByHashRequest{LeafHash: []byte("ahash"), TreeSize: 7, OrderBySequence: true}).Return(&response, nil)
 	c := RequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
 	handler := wrappedGetProofByHashHandler(c)
@@ -1249,7 +1250,7 @@ func TestGetSTHConsistencyBadParams(t *testing.T) {
 	// This is OK because the requests shouldn't get to the point where any RPCs are made on the mock
 	defer mockCtrl.Finish()
 
-	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	c := RequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
 	handler := wrappedGetSTHConsistencyHandler(c)
 
@@ -1274,7 +1275,7 @@ func TestGetEntryAndProofBadParams(t *testing.T) {
 	// This is OK because the requests shouldn't get to the point where any RPCs are made on the mock
 	defer mockCtrl.Finish()
 
-	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	c := RequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
 	handler := wrappedGetEntryAndProofHandler(c)
 
@@ -1298,7 +1299,7 @@ func TestGetSTHConsistencyBackendRPCFails(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	client.EXPECT().GetConsistencyProof(deadlineMatcher(), &trillian.GetConsistencyProofRequest{FirstTreeSize: 10, SecondTreeSize: 20}).Return(nil, errors.New("RPCFAIL"))
 	c := RequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
 	handler := wrappedGetSTHConsistencyHandler(c)
@@ -1325,7 +1326,7 @@ func TestGetEntryAndProofBackendFails(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	client.EXPECT().GetEntryAndProof(deadlineMatcher(), &trillian.GetEntryAndProofRequest{LeafIndex: 1, TreeSize: 3}).Return(nil, errors.New("RPCFAIL"))
 	c := RequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
 	handler := wrappedGetEntryAndProofHandler(c)
@@ -1354,7 +1355,7 @@ func TestGetSTHConsistencyBackendReturnsInvalidProof(t *testing.T) {
 
 	proof := trillian.Proof{LeafIndex: 2, ProofNode: []*trillian.Node{{NodeHash: []byte("abcdef")}, {NodeHash: []byte{}}, {NodeHash: []byte("ghijkl")}}}
 	response := trillian.GetConsistencyProofResponse{Status: okStatus, Proof: &proof}
-	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	client.EXPECT().GetConsistencyProof(deadlineMatcher(), &trillian.GetConsistencyProofRequest{FirstTreeSize: 10, SecondTreeSize: 20}).Return(&response, nil)
 	c := RequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
 	handler := wrappedGetSTHConsistencyHandler(c)
@@ -1383,7 +1384,7 @@ func TestGetEntryAndProofBackendBadResponse(t *testing.T) {
 
 	// Omit the result data from the backend response, should cause the request to fail
 	response := trillian.GetEntryAndProofResponse{Status: okStatus}
-	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	client.EXPECT().GetEntryAndProof(deadlineMatcher(), &trillian.GetEntryAndProofRequest{LeafIndex: 1, TreeSize: 3}).Return(&response, nil)
 	c := RequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
 	handler := wrappedGetEntryAndProofHandler(c)
@@ -1408,7 +1409,7 @@ func TestGetSTHConsistency(t *testing.T) {
 
 	proof := trillian.Proof{LeafIndex: 2, ProofNode: []*trillian.Node{{NodeHash: []byte("abcdef")}, {NodeHash: []byte("ghijkl")}, {NodeHash: []byte("mnopqr")}}}
 	response := trillian.GetConsistencyProofResponse{Status: okStatus, Proof: &proof}
-	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	client.EXPECT().GetConsistencyProof(deadlineMatcher(), &trillian.GetConsistencyProofRequest{FirstTreeSize: 10, SecondTreeSize: 20}).Return(&response, nil)
 	c := RequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
 	handler := wrappedGetSTHConsistencyHandler(c)
@@ -1456,7 +1457,7 @@ func TestGetEntryAndProof(t *testing.T) {
 
 	leaf := trillian.LogLeaf{LeafValue: leafBytes, MerkleLeafHash: []byte("ahash"), ExtraData: []byte("extra")}
 	response := trillian.GetEntryAndProofResponse{Status: okStatus, Proof: &proof, Leaf: &leaf}
-	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	client.EXPECT().GetEntryAndProof(deadlineMatcher(), &trillian.GetEntryAndProofRequest{LeafIndex: 1, TreeSize: 3}).Return(&response, nil)
 	c := RequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
 	handler := wrappedGetEntryAndProofHandler(c)
@@ -1583,7 +1584,7 @@ func getEntriesTestHelper(t *testing.T, request string, expectedStatus int, expl
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	client := trillian.NewMockTrillianLogClient(mockCtrl)
+	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 
 	c := RequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
 	handler := wrappedGetEntriesHandler(c)
