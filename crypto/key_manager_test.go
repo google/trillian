@@ -10,7 +10,6 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/google/trillian"
 	"github.com/google/trillian/testonly"
 )
 
@@ -24,7 +23,7 @@ func TestLoadDemoECDSAKeyAndSign(t *testing.T) {
 	// Obviously in real code we wouldn't use a fixed seed
 	rand := rand.New(rand.NewSource(42))
 
-	hasher := trillian.NewSHA256()
+	hasher := NewSHA256()
 
 	err := km.LoadPrivateKey(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
 

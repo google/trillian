@@ -5,7 +5,7 @@ import (
 	"encoding/base64"
 	"testing"
 
-	"github.com/google/trillian"
+	"github.com/google/trillian/crypto"
 )
 
 // Expected root hash of an empty sparse Merkle tree.
@@ -22,7 +22,7 @@ func emptyMapRoot() []byte {
 }
 
 func TestNullHashes(t *testing.T) {
-	mh := NewMapHasher(NewRFC6962TreeHasher(trillian.NewSHA256()))
+	mh := NewMapHasher(NewRFC6962TreeHasher(crypto.NewSHA256()))
 	emptyRoot := mh.HashChildren(mh.nullHashes[0], mh.nullHashes[0])
 	if got, want := emptyRoot, emptyMapRoot(); !bytes.Equal(got, want) {
 		t.Fatalf("Expected empty root of %v, got %v", want, got)

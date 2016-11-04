@@ -9,6 +9,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/mysql"
@@ -28,7 +29,7 @@ func main() {
 		glog.Fatalf("Failed to open mysql storage: %v", err)
 	}
 
-	hasher := merkle.NewMapHasher(merkle.NewRFC6962TreeHasher(trillian.NewSHA256()))
+	hasher := merkle.NewMapHasher(merkle.NewRFC6962TreeHasher(crypto.NewSHA256()))
 
 	testVecs := []struct {
 		batchSize       int

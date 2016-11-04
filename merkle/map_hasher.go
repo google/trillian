@@ -1,7 +1,7 @@
 package merkle
 
 import (
-	"github.com/google/trillian"
+	"github.com/google/trillian/crypto"
 )
 
 // MapHasher is a specialised TreeHasher which also knows about the set of
@@ -23,7 +23,7 @@ func NewMapHasher(th TreeHasher) MapHasher {
 
 type keyHashFunc func([]byte) []byte
 
-func keyHasher(h trillian.Hasher) keyHashFunc {
+func keyHasher(h crypto.Hasher) keyHashFunc {
 	return func(b []byte) []byte {
 		return h.Digest(b)
 	}

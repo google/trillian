@@ -16,7 +16,7 @@ const message string = "testing"
 const result string = "echo"
 
 func messageHash() []byte {
-	h := trillian.NewSHA256()
+	h := NewSHA256()
 	return h.Digest([]byte(message))
 }
 
@@ -134,7 +134,7 @@ func TestSignLogRoot(t *testing.T) {
 }
 
 func createTestSigner(t *testing.T, mock *MockSigner) *TrillianSigner {
-	hasher, err := trillian.NewHasher(trillian.HashAlgorithm_SHA256)
+	hasher, err := NewHasher(trillian.HashAlgorithm_SHA256)
 	if err != nil {
 		t.Fatalf("Failed to create new hasher: %s", err)
 	}

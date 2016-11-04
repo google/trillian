@@ -23,7 +23,7 @@ const (
 // TrillianSigner is responsible for signing log-related data and producing the appropriate
 // application specific signature objects.
 type TrillianSigner struct {
-	hasher       trillian.Hasher
+	hasher       Hasher
 	signer       crypto.Signer
 	sigAlgorithm trillian.SignatureAlgorithm
 }
@@ -31,7 +31,7 @@ type TrillianSigner struct {
 // NewTrillianSigner creates a new TrillianSigner wrapping up a hasher and a signer. For the moment
 // we only support SHA256 hashing and either ECDSA or RSA signing but this is not enforced
 // here.
-func NewTrillianSigner(hasher trillian.Hasher, signatureAlgorithm trillian.SignatureAlgorithm, signer crypto.Signer) *TrillianSigner {
+func NewTrillianSigner(hasher Hasher, signatureAlgorithm trillian.SignatureAlgorithm, signer crypto.Signer) *TrillianSigner {
 	return &TrillianSigner{hasher, signer, signatureAlgorithm}
 }
 

@@ -63,7 +63,7 @@ func (s SequencerManager) ExecutePass(logIDs []int64, context LogOperationManage
 		}
 
 		// TODO(Martin2112): Allow for different tree hashers to be used by different logs
-		sequencer := log.NewSequencer(merkle.NewRFC6962TreeHasher(trillian.NewSHA256()), context.timeSource, storage, s.keyManager)
+		sequencer := log.NewSequencer(merkle.NewRFC6962TreeHasher(crypto.NewSHA256()), context.timeSource, storage, s.keyManager)
 
 		leaves, err := sequencer.SequenceBatch(context.batchSize, isRootTooOld(context.timeSource, context.signInterval))
 

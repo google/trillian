@@ -71,7 +71,7 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 	mockTx := storage.NewMockLogTX(mockCtrl)
 	mockKeyManager := crypto.NewMockKeyManager(mockCtrl)
 	logID := int64(1)
-	hasher := trillian.NewSHA256()
+	hasher := crypto.NewSHA256()
 
 	// Set up enough mockery to be able to sequence. We don't test all the error paths
 	// through sequencer as other tests cover this
@@ -105,7 +105,7 @@ func TestSignsIfNoWorkAndRootExpired(t *testing.T) {
 	mockTx := storage.NewMockLogTX(mockCtrl)
 	mockKeyManager := crypto.NewMockKeyManager(mockCtrl)
 	logID := int64(1)
-	hasher := trillian.NewSHA256()
+	hasher := crypto.NewSHA256()
 
 	mockStorage.EXPECT().Begin().AnyTimes().Return(mockTx, nil)
 	mockTx.EXPECT().WriteRevision().AnyTimes().Return(writeRev)

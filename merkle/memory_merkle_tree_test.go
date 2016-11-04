@@ -8,7 +8,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/google/trillian"
+	"github.com/google/trillian/crypto"
 )
 
 // Note test inputs came from the values used by the C++ code. The original
@@ -106,7 +106,7 @@ func decodeHexStringOrPanic(hs string) []byte {
 }
 
 func makeEmptyTree() *InMemoryMerkleTree {
-	return NewInMemoryMerkleTree(NewRFC6962TreeHasher(trillian.NewSHA256()))
+	return NewInMemoryMerkleTree(NewRFC6962TreeHasher(crypto.NewSHA256()))
 }
 
 func makeFuzzTestData() [][]byte {
