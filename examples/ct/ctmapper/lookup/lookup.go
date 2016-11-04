@@ -4,9 +4,9 @@ import (
 	"flag"
 
 	"github.com/golang/glog"
-	"github.com/golang/protobuf/proto"
+	pb "github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
-	"github.com/google/trillian/examples/ct/ctmapper"
+	"github.com/google/trillian/examples/ct/ctmapper/proto"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
@@ -44,12 +44,12 @@ func main() {
 			continue
 		}
 		for _, kv := range resp.KeyValue {
-			el := ctmapper.EntryList{}
+			el := proto.EntryList{}
 			v := kv.KeyValue.Value.LeafValue
 			if len(v) == 0 {
 				continue
 			}
-			if err := proto.Unmarshal(v, &el); err != nil {
+			if err := pb.Unmarshal(v, &el); err != nil {
 				glog.Warning("Failed to unmarshal leaf %s: %v", kv.KeyValue.Value.LeafValue, err)
 				continue
 			}

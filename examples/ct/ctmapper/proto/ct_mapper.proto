@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package ctmapper;
+package proto;
 
 message EntryList {
   string domain = 1;
