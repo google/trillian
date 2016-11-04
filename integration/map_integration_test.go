@@ -147,7 +147,7 @@ func TestMapIntegration(t *testing.T) {
 				}
 				keyHash := h.HashKey(kv.KeyValue.Key)
 				leafHash := h.HashLeaf(kv.KeyValue.Value.LeafValue)
-				proof := make([]byte, len(kv.Inclusion))
+				proof := make([][]byte, len(kv.Inclusion))
 				for i, v := range kv.Inclusion {
 					proof[i] = v
 				}
