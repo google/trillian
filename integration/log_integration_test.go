@@ -88,7 +88,7 @@ func TestLogIntegration(t *testing.T) {
 	// Step 2 - Wait for queue to drain when server sequences, give up if it doesn't happen (optional)
 	if *awaitSequencingFlag {
 		glog.Infof("Waiting for log to sequence ...")
-		if err = waitForSequencing(treeID, client, params); err != nil {
+		if err := waitForSequencing(treeID, client, params); err != nil {
 			t.Fatalf("Leaves were not sequenced: %v", err)
 		}
 	}
@@ -104,7 +104,7 @@ func TestLogIntegration(t *testing.T) {
 	// Step 4 - Cross validation between log and memory tree root hashes
 	glog.Infof("Checking log STH with our constructed in-memory tree ...")
 	tree := buildMemoryMerkleTree(leafMap, params)
-	if err := checkLogSTHConsistency(treeID, tree, client, params); err != nil {
+	if err := checkLogRootHashMatches(treeID, tree, client, params); err != nil {
 		t.Fatalf("Log consistency check failed: %v", err)
 	}
 }
@@ -218,8 +218,8 @@ func readbackLogEntries(logID trillian.LogID, client trillian.TrillianLogClient,
 		}
 
 		// Check we got the right leaf count
-		if int64(len(response.Leaves)) != numLeaves {
-			return nil, fmt.Errorf("expected %d leaves but we only read %d", numLeaves, len(response.Leaves))
+		if int64(len(response.Leaves)) == 0 {
+			return nil, fmt.Errorf("expected %d leaves log returned none", numLeaves)
 		}
 
 		// Check the leaf contents make sense. Can't rely on exact ordering as queue timestamps will be
@@ -248,7 +248,7 @@ func readbackLogEntries(logID trillian.LogID, client trillian.TrillianLogClient,
 			}
 		}
 
-		currentLeaf += int64(params.readBatchSize)
+		currentLeaf += int64(len(response.Leaves))
 	}
 
 	// By this point we expect to have seen all the leaves so there should be nothing in the map
@@ -259,7 +259,7 @@ func readbackLogEntries(logID trillian.LogID, client trillian.TrillianLogClient,
 	return leafMap, nil
 }
 
-func checkLogSTHConsistency(logID trillian.LogID, tree *merkle.InMemoryMerkleTree, client trillian.TrillianLogClient, params testParameters) error {
+func checkLogRootHashMatches(logID trillian.LogID, tree *merkle.InMemoryMerkleTree, client trillian.TrillianLogClient, params testParameters) error {
 	// Check the STH against the hash we got from our tree
 	resp, err := getLatestSignedLogRoot(client, logID)
 
@@ -311,7 +311,7 @@ func buildMemoryMerkleTree(leafMap map[int64]*trillian.LeafProto, params testPar
 
 	// If the two reference results disagree there's no point in continuing the checks. This is a
 	// "can't happen" situation.
-	if bytes.Compare(compactTree.CurrentRoot(), merkleTree.CurrentRoot().Hash()) != 0 {
+	if !bytes.Equal(compactTree.CurrentRoot(), merkleTree.CurrentRoot().Hash()) {
 		glog.Fatalf("different root hash results from merkle tree building: %v and %v", compactTree.CurrentRoot(), merkleTree.CurrentRoot())
 	}
 
