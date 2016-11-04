@@ -121,7 +121,8 @@ func queueLeaves(treeID trillian.LogID, client trillian.TrillianLogClient, param
 
 		leaf := trillian.LogLeaf{
 			Leaf: trillian.Leaf{
-				LeafHash:  trillian.Hash(hash[:]),
+				// TODO(Martin2112): This should be LeafValueHash but it doesn't exist yet
+				MerkleLeafHash:  trillian.Hash(hash[:]),
 				LeafValue: data,
 				ExtraData: nil,
 			},
@@ -232,18 +233,18 @@ func readbackLogEntries(logID trillian.LogID, client trillian.TrillianLogClient,
 			leafMap[response.Leaves[l].LeafIndex] = response.Leaves[l]
 
 			// Test for having seen duplicate leaf data - it should all be distinct
-			_, ok := leafDataPresenceMap[string(response.Leaves[l].LeafData)]
+			_, ok := leafDataPresenceMap[string(response.Leaves[l].LeafValue)]
 
 			if !ok {
 				return nil, fmt.Errorf("leaf data duplicated for leaf: %v", response.Leaves[l])
 			}
 
-			delete(leafDataPresenceMap, string(response.Leaves[l].LeafData))
+			delete(leafDataPresenceMap, string(response.Leaves[l].LeafValue))
 
-			hash := hasher.HashLeaf(response.Leaves[l].LeafData)
+			hash := hasher.HashLeaf(response.Leaves[l].LeafValue)
 
-			if !bytes.Equal(hash[:], response.Leaves[l].LeafHash) {
-				return nil, fmt.Errorf("leaf hash mismatch expected: %s, got: %s", base64.StdEncoding.EncodeToString(hash[:]), base64.StdEncoding.EncodeToString(response.Leaves[l].LeafHash))
+			if !bytes.Equal(hash[:], response.Leaves[l].MerkleLeafHash) {
+				return nil, fmt.Errorf("leaf hash mismatch expected: %s, got: %s", base64.StdEncoding.EncodeToString(hash[:]), base64.StdEncoding.EncodeToString(response.Leaves[l].MerkleLeafHash))
 			}
 		}
 
@@ -278,7 +279,8 @@ func makeQueueLeavesRequest(logID trillian.LogID, leaves []trillian.LogLeaf) tri
 	leafProtos := make([]*trillian.LeafProto, 0, len(leaves))
 
 	for l := 0; l < len(leaves); l++ {
-		proto := trillian.LeafProto{LeafIndex: leaves[l].SequenceNumber, LeafHash: leaves[l].LeafHash, LeafData: leaves[l].LeafValue, ExtraData: leaves[l].ExtraData}
+		// TODO(Martin2112): This should be using the leaf value hash but it's not there yet
+		proto := trillian.LeafProto{LeafIndex: leaves[l].SequenceNumber, MerkleLeafHash: leaves[l].MerkleLeafHash, LeafValue: leaves[l].LeafValue, ExtraData: leaves[l].ExtraData}
 		leafProtos = append(leafProtos, &proto)
 	}
 
@@ -303,8 +305,8 @@ func buildMemoryMerkleTree(leafMap map[int64]*trillian.LeafProto, params testPar
 
 	// We use the leafMap as we need to use the same order for the memory tree to get the same hash.
 	for l := params.startLeaf; l < params.leafCount; l++ {
-		compactTree.AddLeaf(leafMap[l].LeafData, func(depth int, index int64, hash trillian.Hash) {})
-		merkleTree.AddLeaf(leafMap[l].LeafData)
+		compactTree.AddLeaf(leafMap[l].LeafValue, func(depth int, index int64, hash trillian.Hash) {})
+		merkleTree.AddLeaf(leafMap[l].LeafValue)
 	}
 
 	// If the two reference results disagree there's no point in continuing the checks. This is a
