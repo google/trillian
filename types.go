@@ -49,6 +49,7 @@ type Leaf struct {
 	LeafValue      []byte
 	// ExtraData holds related contextual data, but this data is not included in any hash.
 	ExtraData      []byte
+	// TODO(Martin2112): Add a separate field for LeafValueHash and wire it up to API
 }
 
 // LogLeaf represents data behind Log leaves.
