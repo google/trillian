@@ -415,7 +415,7 @@ func TestAddChainRPCFails(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	leaves := leafProtosForCert(t, km, pool.RawCertificates(), merkleLeaf)
+	leaves := logLeavesForCert(t, km, pool.RawCertificates(), merkleLeaf)
 
 	client.EXPECT().QueueLeaves(deadlineMatcher(), &trillian.QueueLeavesRequest{LogId: 0x42, Leaves: leaves}).Return(&trillian.QueueLeavesResponse{Status: &trillian.TrillianApiStatus{StatusCode: trillian.TrillianApiStatusCode(trillian.TrillianApiStatusCode_ERROR)}}, nil)
 
@@ -449,7 +449,7 @@ func TestAddChain(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	leaves := leafProtosForCert(t, km, pool.RawCertificates(), merkleLeaf)
+	leaves := logLeavesForCert(t, km, pool.RawCertificates(), merkleLeaf)
 
 	client.EXPECT().QueueLeaves(deadlineMatcher(), &trillian.QueueLeavesRequest{LogId: 0x42, Leaves: leaves}).Return(&trillian.QueueLeavesResponse{Status: &trillian.TrillianApiStatus{StatusCode: trillian.TrillianApiStatusCode_OK}}, nil)
 
@@ -576,7 +576,7 @@ func TestAddPrecertChainRPCFails(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	leaves := leafProtosForCert(t, km, pool.RawCertificates(), merkleLeaf)
+	leaves := logLeavesForCert(t, km, pool.RawCertificates(), merkleLeaf)
 
 	client.EXPECT().QueueLeaves(deadlineMatcher(), &trillian.QueueLeavesRequest{LogId: 0x42, Leaves: leaves}).Return(&trillian.QueueLeavesResponse{Status: &trillian.TrillianApiStatus{StatusCode: trillian.TrillianApiStatusCode(trillian.TrillianApiStatusCode_ERROR)}}, nil)
 
@@ -617,7 +617,7 @@ func TestAddPrecertChain(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	leaves := leafProtosForCert(t, km, pool.RawCertificates(), merkleLeaf)
+	leaves := logLeavesForCert(t, km, pool.RawCertificates(), merkleLeaf)
 
 	client.EXPECT().QueueLeaves(deadlineMatcher(), &trillian.QueueLeavesRequest{LogId: 0x42, Leaves: leaves}).Return(&trillian.QueueLeavesResponse{Status: &trillian.TrillianApiStatus{StatusCode: trillian.TrillianApiStatusCode_OK}}, nil)
 
@@ -914,7 +914,7 @@ func TestGetEntriesBackendReturnedExtraLeaves(t *testing.T) {
 
 	client := trillian.NewMockTrillianLogClient(mockCtrl)
 
-	rpcLeaves := []*trillian.LeafProto{{LeafIndex: 1}, {LeafIndex: 2}, {LeafIndex: 3}}
+	rpcLeaves := []*trillian.LogLeaf{{LeafIndex: 1}, {LeafIndex: 2}, {LeafIndex: 3}}
 	client.EXPECT().GetLeavesByIndex(deadlineMatcher(), &trillian.GetLeavesByIndexRequest{LeafIndex: []int64{1, 2}}).Return(&trillian.GetLeavesByIndexResponse{Status: okStatus, Leaves: rpcLeaves}, nil)
 
 	c := RequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
@@ -943,7 +943,7 @@ func TestGetEntriesBackendReturnedNonContiguousRange(t *testing.T) {
 
 	client := trillian.NewMockTrillianLogClient(mockCtrl)
 
-	rpcLeaves := []*trillian.LeafProto{{LeafIndex: 1}, {LeafIndex: 3}}
+	rpcLeaves := []*trillian.LogLeaf{{LeafIndex: 1}, {LeafIndex: 3}}
 	client.EXPECT().GetLeavesByIndex(deadlineMatcher(), &trillian.GetLeavesByIndexRequest{LeafIndex: []int64{1, 2}}).Return(&trillian.GetLeavesByIndexResponse{Status: okStatus, Leaves: rpcLeaves}, nil)
 
 	c := RequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
@@ -972,7 +972,7 @@ func TestGetEntriesLeafCorrupt(t *testing.T) {
 
 	client := trillian.NewMockTrillianLogClient(mockCtrl)
 
-	rpcLeaves := []*trillian.LeafProto{{LeafIndex: 1, MerkleLeafHash: []byte("hash"), LeafValue: []byte(invalidLeafString)}, {LeafIndex: 2, MerkleLeafHash: []byte("hash"), LeafValue: []byte(invalidLeafString)}}
+	rpcLeaves := []*trillian.LogLeaf{{LeafIndex: 1, MerkleLeafHash: []byte("hash"), LeafValue: []byte(invalidLeafString)}, {LeafIndex: 2, MerkleLeafHash: []byte("hash"), LeafValue: []byte(invalidLeafString)}}
 	client.EXPECT().GetLeavesByIndex(deadlineMatcher(), &trillian.GetLeavesByIndexRequest{LeafIndex: []int64{1, 2}}).Return(&trillian.GetLeavesByIndexResponse{Status: okStatus, Leaves: rpcLeaves}, nil)
 
 	c := RequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
@@ -1038,7 +1038,7 @@ func TestGetEntries(t *testing.T) {
 		t.Fatalf("error in test setup for get-entries: %v %v", err1, err2)
 	}
 
-	rpcLeaves := []*trillian.LeafProto{{LeafIndex: 1, MerkleLeafHash: []byte("hash"), LeafValue: merkleBytes1, ExtraData: []byte("extra1")}, {LeafIndex: 2, MerkleLeafHash: []byte("hash"), LeafValue: merkleBytes2, ExtraData: []byte("extra2")}}
+	rpcLeaves := []*trillian.LogLeaf{{LeafIndex: 1, MerkleLeafHash: []byte("hash"), LeafValue: merkleBytes1, ExtraData: []byte("extra1")}, {LeafIndex: 2, MerkleLeafHash: []byte("hash"), LeafValue: merkleBytes2, ExtraData: []byte("extra2")}}
 	client.EXPECT().GetLeavesByIndex(deadlineMatcher(), &trillian.GetLeavesByIndexRequest{LeafIndex: []int64{1, 2}}).Return(&trillian.GetLeavesByIndexResponse{Status: okStatus, Leaves: rpcLeaves}, nil)
 
 	c := RequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
@@ -1147,9 +1147,9 @@ func TestGetProofByHashBackendMultipleProofs(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	proof1 := trillian.ProofProto{LeafIndex: 2, ProofNode: []*trillian.NodeProto{{NodeHash: []byte("abcdef")}, {NodeHash: []byte("ghijkl")}, {NodeHash: []byte("mnopqr")}}}
-	proof2 := trillian.ProofProto{LeafIndex: 2, ProofNode: []*trillian.NodeProto{{NodeHash: []byte("ghijkl")}}}
-	response := trillian.GetInclusionProofByHashResponse{Status: okStatus, Proof: []*trillian.ProofProto{&proof1, &proof2}}
+	proof1 := trillian.Proof{LeafIndex: 2, ProofNode: []*trillian.Node{{NodeHash: []byte("abcdef")}, {NodeHash: []byte("ghijkl")}, {NodeHash: []byte("mnopqr")}}}
+	proof2 := trillian.Proof{LeafIndex: 2, ProofNode: []*trillian.Node{{NodeHash: []byte("ghijkl")}}}
+	response := trillian.GetInclusionProofByHashResponse{Status: okStatus, Proof: []*trillian.Proof{&proof1, &proof2}}
 	client := trillian.NewMockTrillianLogClient(mockCtrl)
 	client.EXPECT().GetInclusionProofByHash(deadlineMatcher(), &trillian.GetInclusionProofByHashRequest{LeafHash: []byte("ahash"), TreeSize: 7, OrderBySequence: true}).Return(&response, nil)
 	c := RequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
@@ -1184,8 +1184,8 @@ func TestGetProofByHashBackendReturnsMissingHash(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	proof := trillian.ProofProto{LeafIndex: 2, ProofNode: []*trillian.NodeProto{{NodeHash: []byte("abcdef")}, {NodeHash: []byte{}}, {NodeHash: []byte("ghijkl")}}}
-	response := trillian.GetInclusionProofByHashResponse{Status: okStatus, Proof: []*trillian.ProofProto{&proof}}
+	proof := trillian.Proof{LeafIndex: 2, ProofNode: []*trillian.Node{{NodeHash: []byte("abcdef")}, {NodeHash: []byte{}}, {NodeHash: []byte("ghijkl")}}}
+	response := trillian.GetInclusionProofByHashResponse{Status: okStatus, Proof: []*trillian.Proof{&proof}}
 	client := trillian.NewMockTrillianLogClient(mockCtrl)
 	client.EXPECT().GetInclusionProofByHash(deadlineMatcher(), &trillian.GetInclusionProofByHashRequest{LeafHash: []byte("ahash"), TreeSize: 9, OrderBySequence: true}).Return(&response, nil)
 	c := RequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
@@ -1213,8 +1213,8 @@ func TestGetProofByHash(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	proof := trillian.ProofProto{LeafIndex: 2, ProofNode: []*trillian.NodeProto{{NodeHash: []byte("abcdef")}, {NodeHash: []byte("ghijkl")}, {NodeHash: []byte("mnopqr")}}}
-	response := trillian.GetInclusionProofByHashResponse{Status: okStatus, Proof: []*trillian.ProofProto{&proof}}
+	proof := trillian.Proof{LeafIndex: 2, ProofNode: []*trillian.Node{{NodeHash: []byte("abcdef")}, {NodeHash: []byte("ghijkl")}, {NodeHash: []byte("mnopqr")}}}
+	response := trillian.GetInclusionProofByHashResponse{Status: okStatus, Proof: []*trillian.Proof{&proof}}
 	client := trillian.NewMockTrillianLogClient(mockCtrl)
 	client.EXPECT().GetInclusionProofByHash(deadlineMatcher(), &trillian.GetInclusionProofByHashRequest{LeafHash: []byte("ahash"), TreeSize: 7, OrderBySequence: true}).Return(&response, nil)
 	c := RequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
@@ -1352,7 +1352,7 @@ func TestGetSTHConsistencyBackendReturnsInvalidProof(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	proof := trillian.ProofProto{LeafIndex: 2, ProofNode: []*trillian.NodeProto{{NodeHash: []byte("abcdef")}, {NodeHash: []byte{}}, {NodeHash: []byte("ghijkl")}}}
+	proof := trillian.Proof{LeafIndex: 2, ProofNode: []*trillian.Node{{NodeHash: []byte("abcdef")}, {NodeHash: []byte{}}, {NodeHash: []byte("ghijkl")}}}
 	response := trillian.GetConsistencyProofResponse{Status: okStatus, Proof: &proof}
 	client := trillian.NewMockTrillianLogClient(mockCtrl)
 	client.EXPECT().GetConsistencyProof(deadlineMatcher(), &trillian.GetConsistencyProofRequest{FirstTreeSize: 10, SecondTreeSize: 20}).Return(&response, nil)
@@ -1406,7 +1406,7 @@ func TestGetSTHConsistency(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	proof := trillian.ProofProto{LeafIndex: 2, ProofNode: []*trillian.NodeProto{{NodeHash: []byte("abcdef")}, {NodeHash: []byte("ghijkl")}, {NodeHash: []byte("mnopqr")}}}
+	proof := trillian.Proof{LeafIndex: 2, ProofNode: []*trillian.Node{{NodeHash: []byte("abcdef")}, {NodeHash: []byte("ghijkl")}, {NodeHash: []byte("mnopqr")}}}
 	response := trillian.GetConsistencyProofResponse{Status: okStatus, Proof: &proof}
 	client := trillian.NewMockTrillianLogClient(mockCtrl)
 	client.EXPECT().GetConsistencyProof(deadlineMatcher(), &trillian.GetConsistencyProofRequest{FirstTreeSize: 10, SecondTreeSize: 20}).Return(&response, nil)
@@ -1442,7 +1442,7 @@ func TestGetEntryAndProof(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	proof := trillian.ProofProto{LeafIndex: 2, ProofNode: []*trillian.NodeProto{{NodeHash: []byte("abcdef")}, {NodeHash: []byte("ghijkl")}, {NodeHash: []byte("mnopqr")}}}
+	proof := trillian.Proof{LeafIndex: 2, ProofNode: []*trillian.Node{{NodeHash: []byte("abcdef")}, {NodeHash: []byte("ghijkl")}, {NodeHash: []byte("mnopqr")}}}
 	merkleLeaf := ct.MerkleTreeLeaf{
 		Version:          ct.V1,
 		LeafType:         ct.TimestampedEntryLeafType,
@@ -1454,8 +1454,8 @@ func TestGetEntryAndProof(t *testing.T) {
 		t.Fatal("failed to build test Merkle leaf data")
 	}
 
-	leafProto := trillian.LeafProto{LeafValue: leafBytes, MerkleLeafHash: []byte("ahash"), ExtraData: []byte("extra")}
-	response := trillian.GetEntryAndProofResponse{Status: okStatus, Proof: &proof, Leaf: &leafProto}
+	leaf := trillian.LogLeaf{LeafValue: leafBytes, MerkleLeafHash: []byte("ahash"), ExtraData: []byte("extra")}
+	response := trillian.GetEntryAndProofResponse{Status: okStatus, Proof: &proof, Leaf: &leaf}
 	client := trillian.NewMockTrillianLogClient(mockCtrl)
 	client.EXPECT().GetEntryAndProof(deadlineMatcher(), &trillian.GetEntryAndProofRequest{LeafIndex: 1, TreeSize: 3}).Return(&response, nil)
 	c := RequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
@@ -1512,7 +1512,7 @@ func createJSONChain(t *testing.T, p PEMCertPool) io.Reader {
 	return bufio.NewReader(&buffer)
 }
 
-func leafProtosForCert(t *testing.T, km crypto.KeyManager, certs []*x509.Certificate, merkleLeaf ct.MerkleTreeLeaf) []*trillian.LeafProto {
+func logLeavesForCert(t *testing.T, km crypto.KeyManager, certs []*x509.Certificate, merkleLeaf ct.MerkleTreeLeaf) []*trillian.LogLeaf {
 	var b bytes.Buffer
 	if err := writeMerkleTreeLeaf(&b, merkleLeaf); err != nil {
 		t.Fatalf("failed to serialize leaf: %v", err)
@@ -1527,7 +1527,7 @@ func leafProtosForCert(t *testing.T, km crypto.KeyManager, certs []*x509.Certifi
 		t.Fatalf("failed to serialize log entry: %v", err)
 	}
 
-	return []*trillian.LeafProto{{MerkleLeafHash: leafHash[:], LeafValue: b.Bytes(), ExtraData: b2.Bytes()}}
+	return []*trillian.LogLeaf{{MerkleLeafHash: leafHash[:], LeafValue: b.Bytes(), ExtraData: b2.Bytes()}}
 }
 
 type dlMatcher struct {

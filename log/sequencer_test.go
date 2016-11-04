@@ -26,7 +26,7 @@ var treeHasher = merkle.NewRFC6962TreeHasher(trillian.NewSHA256())
 // These can be shared between tests as they're never modified
 var testLeaf16Hash = []byte{0, 1, 2, 3, 4, 5}
 var testLeaf16Data = []byte("testdataforleaf")
-var testLeaf16 = trillian.LogLeaf{Leaf: trillian.Leaf{MerkleLeafHash: treeHasher.HashLeaf(testLeaf16Data), LeafValue: testLeaf16Data, ExtraData: nil}, SequenceNumber: 16}
+var testLeaf16 = trillian.LogLeaf{MerkleLeafHash: treeHasher.HashLeaf(testLeaf16Data), LeafValue: testLeaf16Data, ExtraData: nil, LeafIndex: 16}
 
 // RootHash can't be nil because that's how the sequencer currently detects that there was no stored tree head.
 var testRoot16 = trillian.SignedLogRoot{TreeSize: 16, TreeRevision: 5, RootHash: []byte{}}
@@ -122,8 +122,7 @@ type testContext struct {
 // This gets modified so tests need their own copies
 func getLeaf42() trillian.LogLeaf {
 	testLeaf42Hash := []byte{0, 1, 2, 3, 4, 5}
-	return trillian.LogLeaf{Leaf: trillian.Leaf{MerkleLeafHash: testLeaf42Hash, LeafValue: testLeaf16Data, ExtraData: nil},
-		SequenceNumber: 42}
+	return trillian.LogLeaf{MerkleLeafHash: testLeaf42Hash, LeafValue: testLeaf16Data, ExtraData: nil, LeafIndex: 42}
 }
 
 func fakeTime() time.Time {

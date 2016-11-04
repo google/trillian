@@ -56,12 +56,10 @@ func main() {
 		log.Infof("Preparing leaf %d\n", leafNumber)
 
 		leaf := trillian.LogLeaf{
-			Leaf: trillian.Leaf{
-				MerkleLeafHash: []byte(hash[:]),
-				LeafValue:      data,
-				ExtraData:      nil,
-			},
-			SequenceNumber: 0}
+			MerkleLeafHash: []byte(hash[:]),
+			LeafValue:      data,
+			ExtraData:      nil,
+			LeafIndex:      0}
 		leaves = append(leaves, leaf)
 
 		if len(leaves) >= *queueBatchSizeFlag {

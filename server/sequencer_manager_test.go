@@ -20,8 +20,8 @@ var fakeTimeSource = util.FakeTimeSource{fakeTime}
 // We use a size zero tree for testing, Merkle tree state restore is tested elsewhere
 var testLogID1 = int64(1)
 var testLeaf0Hash = []byte{0, 1, 2, 3, 4, 5}
-var testLeaf0 = trillian.LogLeaf{Leaf: trillian.Leaf{MerkleLeafHash: testLeaf0Hash, LeafValue: nil, ExtraData: nil}, SequenceNumber: 0}
-var testLeaf0Updated = trillian.LogLeaf{Leaf: trillian.Leaf{MerkleLeafHash: testonly.MustDecodeBase64("bjQLnP+zepicpUTmu3gKLHiQHT+zNzh2hRGjBhevoB0="), LeafValue: nil, ExtraData: nil}, SequenceNumber: 0}
+var testLeaf0 = trillian.LogLeaf{MerkleLeafHash: testLeaf0Hash, LeafValue: nil, ExtraData: nil, LeafIndex: 0}
+var testLeaf0Updated = trillian.LogLeaf{MerkleLeafHash: testonly.MustDecodeBase64("bjQLnP+zepicpUTmu3gKLHiQHT+zNzh2hRGjBhevoB0="), LeafValue: nil, ExtraData: nil, LeafIndex: 0}
 var testRoot0 = trillian.SignedLogRoot{TreeSize: 0, TreeRevision: 0, LogId: testLogID1, RootHash: []byte{}, Signature: &trillian.DigitallySigned{SignatureAlgorithm: trillian.SignatureAlgorithm_ECDSA}}
 var updatedNodes0 = []storage.Node{{NodeID: storage.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, PrefixLenBits: 64, PathLenBits: 64}, Hash: testonly.MustDecodeBase64("bjQLnP+zepicpUTmu3gKLHiQHT+zNzh2hRGjBhevoB0="), NodeRevision: 1}}
 var updatedRoot = trillian.SignedLogRoot{LogId: testLogID1, TimestampNanos: fakeTime.UnixNano(), RootHash: []byte{110, 52, 11, 156, 255, 179, 122, 152, 156, 165, 68, 230, 187, 120, 10, 44, 120, 144, 29, 63, 179, 55, 56, 118, 133, 17, 163, 6, 23, 175, 160, 29}, TreeSize: 1, Signature: &trillian.DigitallySigned{SignatureAlgorithm: trillian.SignatureAlgorithm_ECDSA, Signature: []byte("signed")}, TreeRevision: 1}

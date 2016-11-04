@@ -242,14 +242,14 @@ func addChainInternal(w http.ResponseWriter, r *http.Request, c RequestHandlers,
 
 	// Inputs validated, pass the request on to the back end after hashing and serializing
 	// the data for the request
-	leafProto, err := buildLeafProtoForAddChain(merkleTreeLeaf, validPath)
+	leaf, err := buildLogLeafForAddChain(merkleTreeLeaf, validPath)
 
 	if err != nil {
 		// Failure reason already logged
 		return http.StatusInternalServerError, err
 	}
 
-	request := trillian.QueueLeavesRequest{LogId: c.logID, Leaves: []*trillian.LeafProto{&leafProto}}
+	request := trillian.QueueLeavesRequest{LogId: c.logID, Leaves: []*trillian.LogLeaf{&leaf}}
 
 	ctx, cancelFunc := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
 	defer cancelFunc()
@@ -692,27 +692,27 @@ func marshalLogIDAndSignatureForResponse(sct ct.SignedCertificateTimestamp, km c
 	return logID, signature, nil
 }
 
-// buildLeafProtoForAddChain is also used by add-pre-chain and does the hashing to build a
-// LeafProto that will be sent to the backend
-func buildLeafProtoForAddChain(merkleLeaf ct.MerkleTreeLeaf, certChain []*x509.Certificate) (trillian.LeafProto, error) {
+// buildLogLeafForAddChain is also used by add-pre-chain and does the hashing to build a
+// LogLeaf that will be sent to the backend
+func buildLogLeafForAddChain(merkleLeaf ct.MerkleTreeLeaf, certChain []*x509.Certificate) (trillian.LogLeaf, error) {
 	var leafBuffer bytes.Buffer
 	if err := writeMerkleTreeLeaf(&leafBuffer, merkleLeaf); err != nil {
 		glog.Warningf("Failed to serialize merkle leaf: %v", err)
-		return trillian.LeafProto{}, err
+		return trillian.LogLeaf{}, err
 	}
 
 	var logEntryBuffer bytes.Buffer
 	logEntry := NewLogEntry(merkleLeaf, certChain)
 	if err := logEntry.Serialize(&logEntryBuffer); err != nil {
 		glog.Warningf("Failed to serialize log entry: %v", err)
-		return trillian.LeafProto{}, err
+		return trillian.LogLeaf{}, err
 	}
 
 	// leafHash is a crosscheck on the data we're sending in the leaf buffer. The backend
 	// does the tree hashing.
 	leafHash := sha256.Sum256(leafBuffer.Bytes())
 
-	return trillian.LeafProto{MerkleLeafHash: leafHash[:], LeafValue: leafBuffer.Bytes(), ExtraData: logEntryBuffer.Bytes()}, nil
+	return trillian.LogLeaf{MerkleLeafHash: leafHash[:], LeafValue: leafBuffer.Bytes(), ExtraData: logEntryBuffer.Bytes()}, nil
 }
 
 // marshalAndWriteAddChainResponse is used by add-chain and add-pre-chain to create and write
@@ -903,7 +903,7 @@ func convertSTHForClientResponse(sth ct.SignedTreeHead) getSTHResponse {
 // All the hashes should be non zero length.
 // TODO(Martin2112): should maybe check they are all the same length and all the expected
 // length of the hashes used in the RFC.
-func checkAuditPath(path []*trillian.NodeProto) bool {
+func checkAuditPath(path []*trillian.Node) bool {
 	for _, pathEntry := range path {
 		if len(pathEntry.NodeHash) == 0 {
 			return false
@@ -915,7 +915,7 @@ func checkAuditPath(path []*trillian.NodeProto) bool {
 
 // auditPathFromProto converts the path from proof proto to a format we can return in the JSON
 // response
-func auditPathFromProto(path []*trillian.NodeProto) [][]byte {
+func auditPathFromProto(path []*trillian.Node) [][]byte {
 	resultPath := make([][]byte, 0, len(path))
 
 	for _, pathEntry := range path {

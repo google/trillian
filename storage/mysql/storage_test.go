@@ -111,8 +111,8 @@ func checkLeafContents(leaf trillian.LogLeaf, seq int64, hash, data []byte, t *t
 		t.Fatalf("Unexpected leaf hash in returned leaf. Expected:\n%v\nGot:\n%v", expected, got)
 	}
 
-	if leaf.SequenceNumber != seq {
-		t.Fatalf("Bad sequence number in returned leaf: %d", leaf.SequenceNumber)
+	if leaf.LeafIndex != seq {
+		t.Fatalf("Bad sequence number in returned leaf: %d", leaf.LeafIndex)
 	}
 
 	if expected, got := data, leaf.LeafValue; !bytes.Equal(data, leaf.LeafValue) {
@@ -1312,8 +1312,8 @@ func createTestLeaves(n, startSeq int64) []trillian.LogLeaf {
 
 	for l := int64(0); l < n; l++ {
 		lv := fmt.Sprintf("Leaf %d", l)
-		leaf := trillian.LogLeaf{Leaf: trillian.Leaf{
-			MerkleLeafHash: hasher.Digest([]byte(lv)), LeafValue: []byte(lv), ExtraData: []byte(fmt.Sprintf("Extra %d", l))}, SequenceNumber: int64(startSeq + l)}
+		leaf := trillian.LogLeaf{
+			MerkleLeafHash: hasher.Digest([]byte(lv)), LeafValue: []byte(lv), ExtraData: []byte(fmt.Sprintf("Extra %d", l)), LeafIndex: int64(startSeq + l)}
 		leaves = append(leaves, leaf)
 	}
 
