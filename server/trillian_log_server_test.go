@@ -21,10 +21,10 @@ var leaf0Minus2Request = trillian.GetLeavesByIndexRequest{LogId: logID1, LeafInd
 var leaf03Request = trillian.GetLeavesByIndexRequest{LogId: logID1, LeafIndex: []int64{0, 3}}
 var leaf0Log2Request = trillian.GetLeavesByIndexRequest{LogId: logID2, LeafIndex: []int64{0}}
 
-var leaf1 = trillian.LogLeaf{SequenceNumber: 1, Leaf: trillian.Leaf{LeafHash: []byte("hash"), LeafValue: []byte("value"), ExtraData: []byte("extra")}}
-var leaf3 = trillian.LogLeaf{SequenceNumber: 3, Leaf: trillian.Leaf{LeafHash: []byte("hash3"), LeafValue: []byte("value3"), ExtraData: []byte("extra3")}}
-var expectedLeaf1 = trillian.LeafProto{LeafIndex: 1, LeafHash: []byte("hash"), LeafData: []byte("value"), ExtraData: []byte("extra")}
-var expectedLeaf3 = trillian.LeafProto{LeafIndex: 3, LeafHash: []byte("hash3"), LeafData: []byte("value3"), ExtraData: []byte("extra3")}
+var leaf1 = trillian.LogLeaf{SequenceNumber: 1, Leaf: trillian.Leaf{MerkleLeafHash: []byte("hash"), LeafValue: []byte("value"), ExtraData: []byte("extra")}}
+var leaf3 = trillian.LogLeaf{SequenceNumber: 3, Leaf: trillian.Leaf{MerkleLeafHash: []byte("hash3"), LeafValue: []byte("value3"), ExtraData: []byte("extra3")}}
+var expectedLeaf1 = trillian.LeafProto{LeafIndex: 1, MerkleLeafHash: []byte("hash"), LeafValue: []byte("value"), ExtraData: []byte("extra")}
+var expectedLeaf3 = trillian.LeafProto{LeafIndex: 3, MerkleLeafHash: []byte("hash3"), LeafValue: []byte("value3"), ExtraData: []byte("extra3")}
 
 var queueRequest0 = trillian.QueueLeavesRequest{LogId: logID1, Leaves: []*trillian.LeafProto{&expectedLeaf1}}
 var queueRequest0Log2 = trillian.QueueLeavesRequest{LogId: logID2, Leaves: []*trillian.LeafProto{&expectedLeaf1}}

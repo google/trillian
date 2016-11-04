@@ -18,16 +18,18 @@ import (
 
 const getTreePropertiesSQL string = "SELECT AllowsDuplicateLeaves FROM Trees WHERE TreeId=?"
 const getTreeParametersSQL string = "SELECT ReadOnlyRequests From TreeControl WHERE TreeID=?"
-const selectQueuedLeavesSQL string = `SELECT LeafHash,Payload
+const selectQueuedLeavesSQL string = `SELECT LeafValueHash,Payload
 		 FROM Unsequenced
 		 WHERE TreeID=?
-		 ORDER BY QueueTimestamp DESC,LeafHash ASC LIMIT ?`
-const insertUnsequencedLeafSQL string = `INSERT INTO LeafData(TreeId,LeafHash,TheData)
-		 VALUES(?,?,?) ON DUPLICATE KEY UPDATE LeafHash=LeafHash`
-const insertUnsequencedEntrySQL string = `INSERT INTO Unsequenced(TreeId,LeafHash,MessageId,Payload)
-     VALUES(?,?,?,?)`
-const insertSequencedLeafSQL string = `INSERT INTO SequencedLeafData(TreeId,LeafHash,SequenceNumber)
+		 ORDER BY QueueTimestamp DESC,LeafValueHash ASC LIMIT ?`
+const insertUnsequencedLeafSQL string = `INSERT INTO LeafData(TreeId,LeafValueHash,LeafValue)
+		 VALUES(?,?,?) ON DUPLICATE KEY UPDATE LeafValueHash=LeafValueHash`
+const insertUnsequencedLeafSQLNoDuplicates string = `INSERT INTO LeafData(TreeId,LeafValueHash,LeafValue)
 		 VALUES(?,?,?)`
+const insertUnsequencedEntrySQL string = `INSERT INTO Unsequenced(TreeId,LeafValueHash,MessageId,Payload)
+     VALUES(?,?,?,?)`
+const insertSequencedLeafSQL string = `INSERT INTO SequencedLeafData(TreeId,LeafValueHash,MerkleLeafHash,SequenceNumber)
+		 VALUES(?,?,?,?)`
 const selectSequencedLeafCountSQL string = "SELECT COUNT(*) FROM SequencedLeafData WHERE TreeId=?"
 const selectLatestSignedLogRootSQL string = `SELECT TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature
 		 FROM TreeHead WHERE TreeId=?
@@ -35,15 +37,15 @@ const selectLatestSignedLogRootSQL string = `SELECT TreeHeadTimestamp,TreeSize,R
 
 // These statements need to be expanded to provide the correct number of parameter placeholders
 // for a particular case
-const deleteUnsequencedSQL string = "DELETE FROM Unsequenced WHERE LeafHash IN (<placeholder>) AND TreeId = ?"
-const selectLeavesByIndexSQL string = `SELECT l.LeafHash,l.TheData,s.SequenceNumber
+const deleteUnsequencedSQL string = "DELETE FROM Unsequenced WHERE LeafValueHash IN (<placeholder>) AND TreeId = ?"
+const selectLeavesByIndexSQL string = `SELECT s.MerkleLeafHash,l.LeafValue,s.SequenceNumber
 		     FROM LeafData l,SequencedLeafData s
-		     WHERE l.LeafHash = s.LeafHash
+		     WHERE l.LeafValueHash = s.LeafValueHash
 		     AND s.SequenceNumber IN (` + placeholderSQL + `) AND l.TreeId = ? AND s.TreeId = l.TreeId`
-const selectLeavesByHashSQL string = `SELECT l.LeafHash,l.TheData,s.SequenceNumber
+const selectLeavesByHashSQL string = `SELECT s.MerkleLeafHash,l.LeafValue,s.SequenceNumber
 		     FROM LeafData l,SequencedLeafData s
-		     WHERE l.LeafHash = s.LeafHash
-		     AND l.LeafHash IN (` + placeholderSQL + `) AND l.TreeId = ? AND s.TreeId = l.TreeId`
+		     WHERE l.LeafValueHash = s.LeafValueHash
+		     AND s.MerkleLeafHash IN (` + placeholderSQL + `) AND l.TreeId = ? AND s.TreeId = l.TreeId`
 
 // Same as above except with leaves ordered by sequence so we only incur this cost when necessary
 const selectLeavesByHashOrderedBySequenceSQL string = selectLeavesByHashSQL + " ORDER BY s.SequenceNumber"
@@ -234,7 +236,7 @@ func (t *logTX) DequeueLeaves(limit int) ([]trillian.LogLeaf, error) {
 
 		leaf := trillian.LogLeaf{
 			Leaf: trillian.Leaf{
-				LeafHash:  leafHash,
+				MerkleLeafHash:  leafHash,
 				LeafValue: payload,
 				ExtraData: nil,
 			},
@@ -263,15 +265,26 @@ func (t *logTX) DequeueLeaves(limit int) ([]trillian.LogLeaf, error) {
 func (t *logTX) QueueLeaves(leaves []trillian.LogLeaf) error {
 	// Don't accept batches if any of the leaves are invalid.
 	for _, leaf := range leaves {
-		if len(leaf.LeafHash) != t.ts.hashSizeBytes {
+		if len(leaf.MerkleLeafHash) != t.ts.hashSizeBytes {
 			return fmt.Errorf("queued leaf must have a hash of length %d", t.ts.hashSizeBytes)
 		}
 
 		// Validate the hash as a consistency check that the data was received OK. Note: at
 		// this stage it is not a Merkle tree hash for the leaf.
-		if got, want := trillian.NewSHA256().Digest(leaf.LeafValue), leaf.LeafHash; !bytes.Equal(got, want) {
+		if got, want := trillian.NewSHA256().Digest(leaf.LeafValue), leaf.MerkleLeafHash; !bytes.Equal(got, want) {
 			return fmt.Errorf("leaf hash / data mismatch got: %v, want: %v", got, want)
 		}
+	}
+
+	// If the log does not allow duplicates we prevent the insert of such a leaf from
+	// succeeding. If duplicates are allowed multiple sequenced leaves will share the same
+	// leaf data in the database.
+	var insertSQL string
+
+	if t.ls.allowDuplicates {
+		insertSQL = insertUnsequencedLeafSQL
+	} else {
+		insertSQL = insertUnsequencedLeafSQLNoDuplicates
 	}
 
 	for _, leaf := range leaves {
@@ -279,8 +292,8 @@ func (t *logTX) QueueLeaves(leaves []trillian.LogLeaf) error {
 		// can suppress errors unrelated to key collisions. We don't use REPLACE because
 		// if there's ever a hash collision it will do the wrong thing and it also
 		// causes a DELETE / INSERT, which is undesirable.
-		_, err := t.tx.Exec(insertUnsequencedLeafSQL, t.ls.logID.TreeID,
-			[]byte(leaf.LeafHash), leaf.LeafValue)
+		_, err := t.tx.Exec(insertSQL, t.ls.logID.TreeID,
+			[]byte(leaf.MerkleLeafHash), leaf.LeafValue)
 
 		if err != nil {
 			glog.Warningf("Error inserting into LeafData: %s", err)
@@ -309,11 +322,11 @@ func (t *logTX) QueueLeaves(leaves []trillian.LogLeaf) error {
 
 		hasher.Write(messageIDBytes)
 		hasher.Write(t.ls.logID.LogID)
-		hasher.Write(leaf.LeafHash)
+		hasher.Write(leaf.MerkleLeafHash)
 		messageID := hasher.Sum(nil)
 
 		_, err = t.tx.Exec(insertUnsequencedEntrySQL,
-			t.ls.logID.TreeID, []byte(leaf.LeafHash), messageID, leaf.LeafValue)
+			t.ls.logID.TreeID, []byte(leaf.MerkleLeafHash), messageID, leaf.LeafValue)
 
 		if err != nil {
 			glog.Warningf("Error inserting into Unsequenced: %s", err)
@@ -358,12 +371,12 @@ func (t *logTX) GetLeavesByIndex(leaves []int64) ([]trillian.LogLeaf, error) {
 
 	defer rows.Close()
 	for rows.Next() {
-		if err := rows.Scan(&ret[num].LeafHash, &ret[num].LeafValue, &ret[num].SequenceNumber); err != nil {
+		if err := rows.Scan(&ret[num].MerkleLeafHash, &ret[num].LeafValue, &ret[num].SequenceNumber); err != nil {
 			glog.Warningf("Failed to scan merkle leaves: %s", err)
 			return nil, err
 		}
 
-		if got, want := len(ret[num].LeafHash), t.ts.hashSizeBytes; got != want {
+		if got, want := len(ret[num].MerkleLeafHash), t.ts.hashSizeBytes; got != want {
 			return nil, fmt.Errorf("Scanned leaf does not have hash length %d, got %d", want, got)
 		}
 
@@ -401,12 +414,12 @@ func (t *logTX) GetLeavesByHash(leafHashes []trillian.Hash, orderBySequence bool
 	for rows.Next() {
 		leaf := trillian.LogLeaf{}
 
-		if err := rows.Scan(&leaf.LeafHash, &leaf.LeafValue, &leaf.SequenceNumber); err != nil {
+		if err := rows.Scan(&leaf.MerkleLeafHash, &leaf.LeafValue, &leaf.SequenceNumber); err != nil {
 			glog.Warningf("Failed to scan merkle leaves: %s", err)
 			return nil, err
 		}
 
-		if got, want := len(leaf.LeafHash), t.ls.hashSizeBytes; got != want {
+		if got, want := len(leaf.MerkleLeafHash), t.ls.hashSizeBytes; got != want {
 			return nil, fmt.Errorf("Scanned leaf does not have hash length %d, got %d", want, got)
 		}
 
@@ -470,11 +483,15 @@ func (t *logTX) UpdateSequencedLeaves(leaves []trillian.LogLeaf) error {
 	// and can be implemented later if necessary
 	for _, leaf := range leaves {
 		// This should fail on insert but catch it early
-		if len(leaf.LeafHash) != t.ts.hashSizeBytes {
+		if len(leaf.MerkleLeafHash) != t.ts.hashSizeBytes {
 			return errors.New("Sequenced leaf has incorrect hash size")
 		}
 
-		_, err := t.tx.Exec(insertSequencedLeafSQL, t.ls.logID.TreeID, []byte(leaf.LeafHash),
+		// Recompute the raw leaf hash, could be passed around in the leaf structure but
+		// there's no place for it atm.
+		rawLeafHash := trillian.NewSHA256().Digest(leaf.LeafValue)
+
+		_, err := t.tx.Exec(insertSequencedLeafSQL, t.ls.logID.TreeID, []byte(rawLeafHash), []byte(leaf.MerkleLeafHash),
 			leaf.SequenceNumber)
 
 		if err != nil {
@@ -495,7 +512,7 @@ func (t *logTX) removeSequencedLeaves(leaves []trillian.LogLeaf) error {
 	stx := t.tx.Stmt(tmpl)
 	args := make([]interface{}, 0)
 	for _, leaf := range leaves {
-		args = append(args, interface{}([]byte(leaf.LeafHash)))
+		args = append(args, interface{}([]byte(leaf.MerkleLeafHash)))
 	}
 	args = append(args, interface{}(t.ls.logID.TreeID))
 	result, err := stx.Exec(args...)

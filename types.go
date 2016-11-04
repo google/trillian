@@ -43,12 +43,13 @@ type TreeRoot struct {
 
 // Leaf represents the data behind Merkle leaves.
 type Leaf struct {
-	// LeafHash is the tree hash of LeafValue
-	LeafHash Hash
+	// MerkleLeafHash is the tree hash of LeafValue
+	MerkleLeafHash Hash
 	// LeafValue is the data the tree commits to.
-	LeafValue []byte
+	LeafValue      []byte
 	// ExtraData holds related contextual data, but this data is not included in any hash.
-	ExtraData []byte
+	ExtraData      []byte
+	// TODO(Martin2112): Add a separate field for LeafValueHash and wire it up to API
 }
 
 // LogLeaf represents data behind Log leaves.

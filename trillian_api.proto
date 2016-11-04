@@ -25,10 +25,11 @@ message TrillianApiStatus {
 }
 
 message LeafProto {
-    bytes leaf_hash = 1;
-    bytes leaf_data = 2;
+    bytes merkle_leaf_hash = 1;
+    bytes leaf_value = 2;
     bytes extra_data = 3;
     int64 leaf_index = 4;
+    bytes leaf_value_hash = 5;
 }
 
 message NodeProto {

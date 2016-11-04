@@ -57,7 +57,7 @@ func main() {
 
 		leaf := trillian.LogLeaf{
 			Leaf: trillian.Leaf{
-				LeafHash:  trillian.Hash(hash[:]),
+				MerkleLeafHash:  trillian.Hash(hash[:]),
 				LeafValue: data,
 				ExtraData: nil,
 			},
