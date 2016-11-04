@@ -134,7 +134,7 @@ func (s Sequencer) initMerkleTreeFromStorage(currentRoot trillian.SignedLogRoot,
 	return s.buildMerkleTreeFromStorageAtRoot(currentRoot, tx)
 }
 
-func (s Sequencer) signRoot(root trillian.SignedLogRoot) (trillian.DigitallySigned, error) {
+func (s Sequencer) createRootSignature(root trillian.SignedLogRoot) (trillian.DigitallySigned, error) {
 	signer, err := s.keyManager.Signer()
 
 	if err != nil {
@@ -275,7 +275,7 @@ func (s Sequencer) SequenceBatch(limit int, expiryFunc CurrentRootExpiredFunc) (
 	}
 
 	// Hash and sign the root, update it with the signature
-	signature, err := s.signRoot(newLogRoot)
+	signature, err := s.createRootSignature(newLogRoot)
 
 	if err != nil {
 		glog.Warningf("signer failed to sign root: %v", err)
@@ -338,7 +338,7 @@ func (s Sequencer) SignRoot() error {
 	}
 
 	// Hash and sign the root
-	signature, err := s.signRoot(newLogRoot)
+	signature, err := s.createRootSignature(newLogRoot)
 
 	if err != nil {
 		glog.Warningf("signer failed to sign root: %v", err)
