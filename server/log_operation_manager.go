@@ -10,8 +10,11 @@ import (
 // LogOperation defines a task that operates on logs. Examples are scheduling, signing,
 // consistency checking or cleanup.
 type LogOperation interface {
+	// Name returns the name of the task.
 	Name() string
-	ExecutePass([]int64, LogOperationManagerContext) bool
+	// ExecutePass performs a single pass of processing on a set of logs; its
+	// return value indicates whether the LogOperation task should terminate.
+	ExecutePass(logIDs []int64, context LogOperationManagerContext) bool
 }
 
 // LogOperationManagerContext bundles up the values so testing can be made easier
