@@ -14,6 +14,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage/tools"
 	"golang.org/x/net/context"
@@ -109,7 +110,7 @@ func TestLogIntegration(t *testing.T) {
 	}
 }
 
-func queueLeaves(treeID trillian.LogID, client trillian.TrillianLogClient, params testParameters) error {
+func queueLeaves(treeID int64, client trillian.TrillianLogClient, params testParameters) error {
 	leaves := []trillian.LogLeaf{}
 
 	for l := int64(0); l < params.leafCount; l++ {
@@ -120,13 +121,11 @@ func queueLeaves(treeID trillian.LogID, client trillian.TrillianLogClient, param
 		hash := sha256.Sum256(data)
 
 		leaf := trillian.LogLeaf{
-			Leaf: trillian.Leaf{
-				// TODO(Martin2112): This should be LeafValueHash but it doesn't exist yet
-				MerkleLeafHash:  trillian.Hash(hash[:]),
-				LeafValue: data,
-				ExtraData: nil,
-			},
-			SequenceNumber:       0}
+			// TODO(Martin2112): This should be LeafValueHash but it doesn't exist yet
+			MerkleLeafHash: hash[:],
+			LeafValue:      data,
+			ExtraData:      nil,
+			LeafIndex:      0}
 		leaves = append(leaves, leaf)
 
 		if len(leaves) >= params.queueBatchSize || (l + 1) == params.leafCount {
@@ -152,13 +151,13 @@ func queueLeaves(treeID trillian.LogID, client trillian.TrillianLogClient, param
 	return nil
 }
 
-func waitForSequencing(treeID trillian.LogID, client trillian.TrillianLogClient, params testParameters) error {
+func waitForSequencing(treeID int64, client trillian.TrillianLogClient, params testParameters) error {
 	endTime := time.Now().Add(params.sequencingWaitTotal)
 
 	glog.Infof("Waiting for sequencing until: %v", endTime)
 
 	for endTime.After(time.Now()) {
-		req := trillian.GetSequencedLeafCountRequest{LogId: treeID.TreeID}
+		req := trillian.GetSequencedLeafCountRequest{LogId: treeID}
 		ctx, cancelFunc := getRPCDeadlineContext()
 		sequencedLeaves, err := client.GetSequencedLeafCount(ctx, &req)
 		cancelFunc()
@@ -181,9 +180,9 @@ func waitForSequencing(treeID trillian.LogID, client trillian.TrillianLogClient,
 	return errors.New("wait time expired")
 }
 
-func readbackLogEntries(logID trillian.LogID, client trillian.TrillianLogClient, params testParameters) (map[int64]*trillian.LeafProto, error) {
+func readbackLogEntries(logID int64, client trillian.TrillianLogClient, params testParameters) (map[int64]*trillian.LogLeaf, error) {
 	currentLeaf := int64(0)
-	leafMap := make(map[int64]*trillian.LeafProto)
+	leafMap := make(map[int64]*trillian.LogLeaf)
 
 	// Build a map of all the leaf data we expect to have seen when we've read all the leaves.
 	// Have to work with strings because slices can't be map keys. Sigh.
@@ -194,7 +193,7 @@ func readbackLogEntries(logID trillian.LogID, client trillian.TrillianLogClient,
 	}
 
 	for currentLeaf < params.leafCount {
-		hasher := merkle.NewRFC6962TreeHasher(trillian.NewSHA256())
+		hasher := merkle.NewRFC6962TreeHasher(crypto.NewSHA256())
 
 		// We have to allow for the last batch potentially being a short one
 		numLeaves := params.leafCount - currentLeaf
@@ -259,7 +258,7 @@ func readbackLogEntries(logID trillian.LogID, client trillian.TrillianLogClient,
 	return leafMap, nil
 }
 
-func checkLogRootHashMatches(logID trillian.LogID, tree *merkle.InMemoryMerkleTree, client trillian.TrillianLogClient, params testParameters) error {
+func checkLogRootHashMatches(logID int64, tree *merkle.InMemoryMerkleTree, client trillian.TrillianLogClient, params testParameters) error {
 	// Check the STH against the hash we got from our tree
 	resp, err := getLatestSignedLogRoot(client, logID)
 
@@ -275,37 +274,37 @@ func checkLogRootHashMatches(logID trillian.LogID, tree *merkle.InMemoryMerkleTr
 	return nil
 }
 
-func makeQueueLeavesRequest(logID trillian.LogID, leaves []trillian.LogLeaf) trillian.QueueLeavesRequest {
-	leafProtos := make([]*trillian.LeafProto, 0, len(leaves))
+func makeQueueLeavesRequest(logID int64, leaves []trillian.LogLeaf) trillian.QueueLeavesRequest {
+	leafProtos := make([]*trillian.LogLeaf, 0, len(leaves))
 
 	for l := 0; l < len(leaves); l++ {
 		// TODO(Martin2112): This should be using the leaf value hash but it's not there yet
-		proto := trillian.LeafProto{LeafIndex: leaves[l].SequenceNumber, MerkleLeafHash: leaves[l].MerkleLeafHash, LeafValue: leaves[l].LeafValue, ExtraData: leaves[l].ExtraData}
+		proto := trillian.LogLeaf{LeafIndex: leaves[l].LeafIndex, MerkleLeafHash: leaves[l].MerkleLeafHash, LeafValue: leaves[l].LeafValue, ExtraData: leaves[l].ExtraData}
 		leafProtos = append(leafProtos, &proto)
 	}
 
-	return trillian.QueueLeavesRequest{LogId: logID.TreeID, Leaves: leafProtos}
+	return trillian.QueueLeavesRequest{LogId: logID, Leaves: leafProtos}
 }
 
-func makeGetLeavesByIndexRequest(logID trillian.LogID, startLeaf, numLeaves int64) *trillian.GetLeavesByIndexRequest {
+func makeGetLeavesByIndexRequest(logID int64, startLeaf, numLeaves int64) *trillian.GetLeavesByIndexRequest {
 	leafIndices := make([]int64, 0, numLeaves)
 
 	for l := int64(0); l < numLeaves; l++ {
 		leafIndices = append(leafIndices, l + startLeaf)
 	}
 
-	return &trillian.GetLeavesByIndexRequest{LogId: logID.TreeID, LeafIndex: leafIndices}
+	return &trillian.GetLeavesByIndexRequest{LogId: logID, LeafIndex: leafIndices}
 }
 
-func buildMemoryMerkleTree(leafMap map[int64]*trillian.LeafProto, params testParameters) *merkle.InMemoryMerkleTree {
+func buildMemoryMerkleTree(leafMap map[int64]*trillian.LogLeaf, params testParameters) *merkle.InMemoryMerkleTree {
 	// Build the same tree with two different merkle implementations as an additional check. We don't
 	// just rely on the compact tree as the server uses the same code so bugs could be masked
-	compactTree := merkle.NewCompactMerkleTree(merkle.NewRFC6962TreeHasher(trillian.NewSHA256()))
-	merkleTree := merkle.NewInMemoryMerkleTree(merkle.NewRFC6962TreeHasher(trillian.NewSHA256()))
+	compactTree := merkle.NewCompactMerkleTree(merkle.NewRFC6962TreeHasher(crypto.NewSHA256()))
+	merkleTree := merkle.NewInMemoryMerkleTree(merkle.NewRFC6962TreeHasher(crypto.NewSHA256()))
 
 	// We use the leafMap as we need to use the same order for the memory tree to get the same hash.
 	for l := params.startLeaf; l < params.leafCount; l++ {
-		compactTree.AddLeaf(leafMap[l].LeafValue, func(depth int, index int64, hash trillian.Hash) {})
+		compactTree.AddLeaf(leafMap[l].LeafValue, func(depth int, index int64, hash []byte) {})
 		merkleTree.AddLeaf(leafMap[l].LeafValue)
 	}
 
@@ -318,8 +317,8 @@ func buildMemoryMerkleTree(leafMap map[int64]*trillian.LeafProto, params testPar
 	return merkleTree
 }
 
-func getLatestSignedLogRoot(client trillian.TrillianLogClient, logID trillian.LogID) (*trillian.GetLatestSignedLogRootResponse, error) {
-	req := trillian.GetLatestSignedLogRootRequest{LogId: logID.TreeID}
+func getLatestSignedLogRoot(client trillian.TrillianLogClient, logID int64) (*trillian.GetLatestSignedLogRootResponse, error) {
+	req := trillian.GetLatestSignedLogRootRequest{LogId: logID}
 	ctx, cancelFunc := getRPCDeadlineContext()
 	resp, err := client.GetLatestSignedLogRoot(ctx, &req)
 	cancelFunc()
