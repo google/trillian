@@ -53,7 +53,7 @@ func (t *TrillianMapServer) getStorageForMap(mapID int64) (storage.MapStorage, e
 
 	s, err := t.storageProvider(mapID)
 
-	if err != nil {
+	if err == nil {
 		t.storageMap[mapID] = s
 	}
 	return s, err

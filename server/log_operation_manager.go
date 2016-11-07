@@ -23,8 +23,8 @@ type LogOperation interface {
 type LogOperationManagerContext struct {
 	// ctx is general context for cancellation and diagnostic info
 	ctx context.Context
-	// storageProvider is the log storage provider used to get active logs
-	storageProvider LogStorageProviderFunc
+	// cachedProvider maps log IDs to log storage
+	cachedProvider cachedLogStorageProvider
 	// batchSize is the batch size to be passed to tasks run by this manager
 	batchSize int
 	// sleepBetweenRuns is the time to pause after all active logs have processed a batch
@@ -49,18 +49,39 @@ type LogOperationManager struct {
 
 // NewLogOperationManager creates a new LogOperationManager instance.
 func NewLogOperationManager(ctx context.Context, sp LogStorageProviderFunc, batchSize int, sleepBetweenRuns time.Duration, signInterval time.Duration, timeSource util.TimeSource, logOperation LogOperation) *LogOperationManager {
-	return &LogOperationManager{context: LogOperationManagerContext{ctx: ctx, storageProvider: sp, batchSize: batchSize, sleepBetweenRuns: sleepBetweenRuns, signInterval: signInterval, timeSource: timeSource}, logOperation: logOperation}
+	return &LogOperationManager{
+		context: LogOperationManagerContext{
+			ctx:              ctx,
+			cachedProvider:   newCachedLogStorageProvider(sp),
+			batchSize:        batchSize,
+			sleepBetweenRuns: sleepBetweenRuns,
+			signInterval:     signInterval,
+			timeSource:       timeSource,
+		},
+		logOperation: logOperation,
+	}
 }
 
 // NewLogOperationManagerForTest creates a one-shot LogOperationManager instance, for use by tests only.
 func NewLogOperationManagerForTest(ctx context.Context, sp LogStorageProviderFunc, batchSize int, sleepBetweenRuns time.Duration, signInterval time.Duration, timeSource util.TimeSource, logOperation LogOperation) *LogOperationManager {
-	return &LogOperationManager{context: LogOperationManagerContext{ctx: ctx, storageProvider: sp, batchSize: batchSize, sleepBetweenRuns: sleepBetweenRuns, signInterval: signInterval, timeSource: timeSource, oneShot: true}, logOperation: logOperation}
+	return &LogOperationManager{
+		context: LogOperationManagerContext{
+			ctx:              ctx,
+			cachedProvider:   newCachedLogStorageProvider(sp),
+			batchSize:        batchSize,
+			sleepBetweenRuns: sleepBetweenRuns,
+			signInterval:     signInterval,
+			timeSource:       timeSource,
+			oneShot:          true,
+		},
+		logOperation: logOperation,
+	}
 }
 
 func (l LogOperationManager) getLogsAndExecutePass() bool {
 	// TODO(Martin2112) using log ID zero because we don't have an id for metadata ops
 	// this API could improved
-	provider, err := l.context.storageProvider(0)
+	provider, err := l.context.cachedProvider.storageForLog(0)
 
 	// If we get an error, we can't do anything but wait until the next run through
 	if err != nil {

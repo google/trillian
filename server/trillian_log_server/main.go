@@ -182,7 +182,7 @@ func main() {
 	// both sequencing and signing.
 	// TODO(Martin2112): Should respect read only mode and the flags in tree control etc
 	ctx, cancel := context.WithCancel(context.Background())
-	sequencerManager := server.NewLogOperationManager(ctx, getStorageForLog, *batchSizeFlag, *sequencerSleepBetweenRunsFlag, *signerIntervalFlag, util.SystemTimeSource{}, server.NewSequencerManager(keyManager, *sequencerGuardWindowFlag))
+	sequencerManager := server.NewLogOperationManager(ctx, getStorageForLog, *batchSizeFlag, *sequencerSleepBetweenRunsFlag, *signerIntervalFlag, util.SystemTimeSource{}, server.NewSequencerManager(keyManager, getStorageForLog, *sequencerGuardWindowFlag))
 	go sequencerManager.OperationLoop()
 
 	// Bring up the RPC server and then block until we get a signal to stop

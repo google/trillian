@@ -42,9 +42,10 @@ func TestSequencerManagerNothingToDo(t *testing.T) {
 	mockStorage := storage.NewMockLogStorage(mockCtrl)
 	mockKeyManager := crypto.NewMockKeyManager(mockCtrl)
 
-	sm := NewSequencerManager(mockKeyManager, zeroDuration)
+	provider := mockStorageProviderForSequencer(mockStorage)
+	sm := NewSequencerManager(mockKeyManager, provider, zeroDuration)
 
-	sm.ExecutePass([]int64{}, createTestContext(mockStorageProviderForSequencer(mockStorage)))
+	sm.ExecutePass([]int64{}, createTestContext(provider))
 }
 
 func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
@@ -62,9 +63,10 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 	mockTx.EXPECT().DequeueLeaves(50, fakeTime).Return([]trillian.LogLeaf{}, nil)
 	mockKeyManager := crypto.NewMockKeyManager(mockCtrl)
 
-	sm := NewSequencerManager(mockKeyManager, zeroDuration)
+	provider := mockStorageProviderForSequencer(mockStorage)
+	sm := NewSequencerManager(mockKeyManager, provider, zeroDuration)
 
-	sm.ExecutePass([]int64{logID}, createTestContext(mockStorageProviderForSequencer(mockStorage)))
+	sm.ExecutePass([]int64{logID}, createTestContext(provider))
 }
 
 func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
@@ -93,9 +95,10 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 	mockSigner.EXPECT().Sign(gomock.Any(), []byte{23, 147, 61, 51, 131, 170, 136, 10, 82, 12, 93, 42, 98, 88, 131, 100, 101, 187, 124, 189, 202, 207, 66, 137, 95, 117, 205, 34, 109, 242, 103, 248}, hasher).Return([]byte("signed"), nil)
 	mockKeyManager.EXPECT().Signer().Return(mockSigner, nil)
 
-	sm := NewSequencerManager(mockKeyManager, zeroDuration)
+	provider := mockStorageProviderForSequencer(mockStorage)
+	sm := NewSequencerManager(mockKeyManager, provider, zeroDuration)
 
-	sm.ExecutePass([]int64{logID}, createTestContext(mockStorageProviderForSequencer(mockStorage)))
+	sm.ExecutePass([]int64{logID}, createTestContext(provider))
 }
 
 // Tests that a new root is signed if it's due even when there is no work to sequence.
@@ -122,9 +125,10 @@ func TestSignsIfNoWorkAndRootExpired(t *testing.T) {
 	mockSigner.EXPECT().Sign(gomock.Any(), []byte{0xeb, 0x7d, 0xa1, 0x4f, 0x1e, 0x60, 0x91, 0x24, 0xa, 0xf7, 0x1c, 0xcd, 0xdb, 0xd4, 0xca, 0x38, 0x4b, 0x12, 0xe4, 0xa3, 0xcf, 0x80, 0x5, 0x55, 0x17, 0x71, 0x35, 0xaf, 0x80, 0x11, 0xa, 0x87}, hasher).Return([]byte("signed"), nil)
 	mockKeyManager.EXPECT().Signer().Return(mockSigner, nil)
 
-	sm := NewSequencerManager(mockKeyManager, zeroDuration)
+	provider := mockStorageProviderForSequencer(mockStorage)
+	sm := NewSequencerManager(mockKeyManager, provider, zeroDuration)
 
-	tc := createTestContext(mockStorageProviderForSequencer(mockStorage))
+	tc := createTestContext(provider)
 	// Lower the expiry so we can trigger a signing for a root older than 5 seconds
 	tc.signInterval = time.Second * 5
 	sm.ExecutePass([]int64{logID}, tc)
@@ -146,7 +150,8 @@ func TestSequencerManagerGuardWindow(t *testing.T) {
 	mockTx.EXPECT().DequeueLeaves(50, fakeTime.Add(-time.Second*5)).Return([]trillian.LogLeaf{}, nil)
 	mockKeyManager := crypto.NewMockKeyManager(mockCtrl)
 
-	sm := NewSequencerManager(mockKeyManager, time.Second*5)
+	provider := mockStorageProviderForSequencer(mockStorage)
+	sm := NewSequencerManager(mockKeyManager, provider, time.Second*5)
 
 	sm.ExecutePass([]int64{logID}, createTestContext(mockStorageProviderForSequencer(mockStorage)))
 }
@@ -163,5 +168,13 @@ func mockStorageProviderForSequencer(mockStorage storage.LogStorage) LogStorageP
 func createTestContext(sp LogStorageProviderFunc) LogOperationManagerContext {
 	// Set sign interval to 100 years so it won't trigger a root expiry signing unless overridden
 	ctx := util.NewLogContext(context.Background(), -1)
-	return LogOperationManagerContext{ctx: ctx, storageProvider: sp, batchSize: 50, sleepBetweenRuns: time.Second, oneShot: true, timeSource: fakeTimeSource, signInterval: time.Hour * 24 * 365 * 100}
+	return LogOperationManagerContext{
+		ctx:              ctx,
+		cachedProvider:   newCachedLogStorageProvider(sp),
+		batchSize:        50,
+		sleepBetweenRuns: time.Second,
+		oneShot:          true,
+		timeSource:       fakeTimeSource,
+		signInterval:     time.Hour * 24 * 365 * 100,
+	}
 }
