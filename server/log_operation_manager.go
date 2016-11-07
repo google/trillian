@@ -3,6 +3,8 @@ package server
 import (
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/golang/glog"
 	"github.com/google/trillian/util"
 )
@@ -19,8 +21,8 @@ type LogOperation interface {
 
 // LogOperationManagerContext bundles up the values so testing can be made easier
 type LogOperationManagerContext struct {
-	// done is a channel that provides an exit signal
-	done chan struct{}
+	// ctx is general context for cancellation and diagnostic info
+	ctx context.Context
 	// storageProvider is the log storage provider used to get active logs
 	storageProvider LogStorageProviderFunc
 	// batchSize is the batch size to be passed to tasks run by this manager
@@ -46,13 +48,13 @@ type LogOperationManager struct {
 }
 
 // NewLogOperationManager creates a new LogOperationManager instance.
-func NewLogOperationManager(done chan struct{}, sp LogStorageProviderFunc, batchSize int, sleepBetweenRuns time.Duration, signInterval time.Duration, timeSource util.TimeSource, logOperation LogOperation) *LogOperationManager {
-	return &LogOperationManager{context: LogOperationManagerContext{done: done, storageProvider: sp, batchSize: batchSize, sleepBetweenRuns: sleepBetweenRuns, signInterval: signInterval, timeSource: timeSource}, logOperation: logOperation}
+func NewLogOperationManager(ctx context.Context, sp LogStorageProviderFunc, batchSize int, sleepBetweenRuns time.Duration, signInterval time.Duration, timeSource util.TimeSource, logOperation LogOperation) *LogOperationManager {
+	return &LogOperationManager{context: LogOperationManagerContext{ctx: ctx, storageProvider: sp, batchSize: batchSize, sleepBetweenRuns: sleepBetweenRuns, signInterval: signInterval, timeSource: timeSource}, logOperation: logOperation}
 }
 
 // NewLogOperationManagerForTest creates a one-shot LogOperationManager instance, for use by tests only.
-func NewLogOperationManagerForTest(done chan struct{}, sp LogStorageProviderFunc, batchSize int, sleepBetweenRuns time.Duration, signInterval time.Duration, timeSource util.TimeSource, logOperation LogOperation) *LogOperationManager {
-	return &LogOperationManager{context: LogOperationManagerContext{done: done, storageProvider: sp, batchSize: batchSize, sleepBetweenRuns: sleepBetweenRuns, signInterval: signInterval, timeSource: timeSource, oneShot: true}, logOperation: logOperation}
+func NewLogOperationManagerForTest(ctx context.Context, sp LogStorageProviderFunc, batchSize int, sleepBetweenRuns time.Duration, signInterval time.Duration, timeSource util.TimeSource, logOperation LogOperation) *LogOperationManager {
+	return &LogOperationManager{context: LogOperationManagerContext{ctx: ctx, storageProvider: sp, batchSize: batchSize, sleepBetweenRuns: sleepBetweenRuns, signInterval: signInterval, timeSource: timeSource, oneShot: true}, logOperation: logOperation}
 }
 
 func (l LogOperationManager) getLogsAndExecutePass() bool {

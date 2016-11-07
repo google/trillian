@@ -11,6 +11,8 @@ import (
 	"syscall"
 	"time"
 
+	"golang.org/x/net/context"
+
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/golang/glog"
 	"github.com/google/trillian"
@@ -139,8 +141,6 @@ func awaitSignal(rpcServer *grpc.Server) {
 func main() {
 	flag.Parse()
 
-	done := make(chan struct{})
-
 	glog.Info("**** Log Server Starting ****")
 
 	// First make sure we can access the database, quit if not
@@ -181,7 +181,8 @@ func main() {
 	// Start the sequencing loop, which will run until we terminate the process. This controls
 	// both sequencing and signing.
 	// TODO(Martin2112): Should respect read only mode and the flags in tree control etc
-	sequencerManager := server.NewLogOperationManager(done, getStorageForLog, *batchSizeFlag, *sequencerSleepBetweenRunsFlag, *signerIntervalFlag, util.SystemTimeSource{}, server.NewSequencerManager(keyManager, *sequencerGuardWindowFlag))
+	ctx, cancel := context.WithCancel(context.Background())
+	sequencerManager := server.NewLogOperationManager(ctx, getStorageForLog, *batchSizeFlag, *sequencerSleepBetweenRunsFlag, *signerIntervalFlag, util.SystemTimeSource{}, server.NewSequencerManager(keyManager, *sequencerGuardWindowFlag))
 	go sequencerManager.OperationLoop()
 
 	// Bring up the RPC server and then block until we get a signal to stop
@@ -195,7 +196,7 @@ func main() {
 	}
 
 	// Shut down everything we previously started, rpc server is already down
-	close(done)
+	cancel()
 
 	// Give things a few seconds to tidy up
 	glog.Infof("Stopping server, about to exit")

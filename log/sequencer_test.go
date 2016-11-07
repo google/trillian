@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/golang/mock/gomock"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
@@ -140,7 +142,7 @@ func fakeTime() time.Time {
 type protoMatcher struct {
 }
 
-func createTestContext(ctrl *gomock.Controller, params testParameters) testContext {
+func createTestContext(ctrl *gomock.Controller, params testParameters) (testContext, context.Context) {
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
 
@@ -203,7 +205,7 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) testConte
 
 	sequencer := NewSequencer(treeHasher, util.FakeTimeSource{FakeTime: fakeTimeForTest}, mockStorage, mockKeyManager)
 
-	return testContext{mockTx: mockTx, mockStorage: mockStorage, mockKeyManager: mockKeyManager, sequencer: sequencer}
+	return testContext{mockTx: mockTx, mockStorage: mockStorage, mockKeyManager: mockKeyManager, sequencer: sequencer}, util.NewLogContext(context.Background(), -1)
 }
 
 // Tests for sequencer. Currently relies on having a database set up. This might change in future
@@ -214,9 +216,9 @@ func TestBeginTXFails(t *testing.T) {
 	defer ctrl.Finish()
 
 	params := testParameters{beginFails: true, skipDequeue: true, skipStoreSignedRoot: true}
-	c := createTestContext(ctrl, params)
+	c, ctx := createTestContext(ctrl, params)
 
-	leaves, err := c.sequencer.SequenceBatch(1, rootNeverExpiresFunc)
+	leaves, err := c.sequencer.SequenceBatch(ctx, 1, rootNeverExpiresFunc)
 	if leaves != 0 {
 		t.Fatalf("Unexpectedly sequenced %d leaves on error", leaves)
 	}
@@ -229,9 +231,9 @@ func TestSequenceWithNothingQueued(t *testing.T) {
 
 	params := testParameters{dequeueLimit: 1, shouldCommit: true, latestSignedRoot: &testRoot16, dequeuedLeaves: []trillian.LogLeaf{}, skipStoreSignedRoot: true}
 
-	c := createTestContext(ctrl, params)
+	c, ctx := createTestContext(ctrl, params)
 
-	leaves, err := c.sequencer.SequenceBatch(1, rootNeverExpiresFunc)
+	leaves, err := c.sequencer.SequenceBatch(ctx, 1, rootNeverExpiresFunc)
 	if leaves != 0 {
 		t.Fatalf("Unexpectedly sequenced %d leaves on error", leaves)
 	}
@@ -251,10 +253,10 @@ func TestGuardWindowPassthrough(t *testing.T) {
 	expectedCutoffTime := fakeTimeForTest.Add(-guardInterval)
 	params := testParameters{dequeueLimit: 1, shouldCommit: true, latestSignedRoot: &testRoot16, dequeuedLeaves: []trillian.LogLeaf{}, skipStoreSignedRoot: true, overrideDequeueTime: &expectedCutoffTime}
 
-	c := createTestContext(ctrl, params)
+	c, ctx := createTestContext(ctrl, params)
 	c.sequencer.SetGuardWindow(guardInterval)
 
-	leaves, err := c.sequencer.SequenceBatch(1, rootNeverExpiresFunc)
+	leaves, err := c.sequencer.SequenceBatch(ctx, 1, rootNeverExpiresFunc)
 	if leaves != 0 {
 		t.Fatalf("Expected no leaves sequenced when in guard interval but got: %d", leaves)
 	}
@@ -269,9 +271,9 @@ func TestDequeueError(t *testing.T) {
 	defer ctrl.Finish()
 
 	params := testParameters{dequeueLimit: 1, shouldRollback: true, dequeuedError: errors.New("dequeue")}
-	c := createTestContext(ctrl, params)
+	c, ctx := createTestContext(ctrl, params)
 
-	leafCount, err := c.sequencer.SequenceBatch(1, rootNeverExpiresFunc)
+	leafCount, err := c.sequencer.SequenceBatch(ctx, 1, rootNeverExpiresFunc)
 	testonly.EnsureErrorContains(t, err, "dequeue")
 	if leafCount != 0 {
 		t.Fatalf("Unexpectedly sequenced %d leaves on error", leafCount)
@@ -285,9 +287,9 @@ func TestLatestRootError(t *testing.T) {
 	leaves := []trillian.LogLeaf{getLeaf42()}
 	params := testParameters{dequeueLimit: 1, shouldRollback: true, dequeuedLeaves: leaves,
 		latestSignedRoot: &testRoot16, latestSignedRootError: errors.New("root")}
-	c := createTestContext(ctrl, params)
+	c, ctx := createTestContext(ctrl, params)
 
-	leafCount, err := c.sequencer.SequenceBatch(1, rootNeverExpiresFunc)
+	leafCount, err := c.sequencer.SequenceBatch(ctx, 1, rootNeverExpiresFunc)
 	if leafCount != 0 {
 		t.Fatalf("Unexpectedly sequenced %d leaves on error", leafCount)
 	}
@@ -303,9 +305,9 @@ func TestUpdateSequencedLeavesError(t *testing.T) {
 	params := testParameters{writeRevision: testRoot16.TreeRevision + 1, dequeueLimit: 1, shouldRollback: true, dequeuedLeaves: leaves,
 		latestSignedRoot: &testRoot16, updatedLeaves: &updatedLeaves,
 		updatedLeavesError: errors.New("unsequenced")}
-	c := createTestContext(ctrl, params)
+	c, ctx := createTestContext(ctrl, params)
 
-	leafCount, err := c.sequencer.SequenceBatch(1, rootNeverExpiresFunc)
+	leafCount, err := c.sequencer.SequenceBatch(ctx, 1, rootNeverExpiresFunc)
 	if leafCount != 0 {
 		t.Fatalf("Unexpectedly sequenced %d leaves on error", leafCount)
 	}
@@ -321,9 +323,9 @@ func TestSetMerkleNodesError(t *testing.T) {
 	params := testParameters{writeRevision: testRoot16.TreeRevision + 1, dequeueLimit: 1, shouldRollback: true, dequeuedLeaves: leaves,
 		latestSignedRoot: &testRoot16, updatedLeaves: &updatedLeaves, merkleNodesSet: &updatedNodes,
 		merkleNodesSetError: errors.New("setmerklenodes")}
-	c := createTestContext(ctrl, params)
+	c, ctx := createTestContext(ctrl, params)
 
-	leafCount, err := c.sequencer.SequenceBatch(1, rootNeverExpiresFunc)
+	leafCount, err := c.sequencer.SequenceBatch(ctx, 1, rootNeverExpiresFunc)
 	if leafCount != 0 {
 		t.Fatalf("Unexpectedly sequenced %d leaves on error", leafCount)
 	}
@@ -342,9 +344,9 @@ func TestStoreSignedRootError(t *testing.T) {
 		storeSignedRootError: errors.New("storesignedroot"), setupSigner: true,
 		dataToSign:    []byte{118, 113, 60, 123, 201, 107, 151, 27, 190, 53, 148, 77, 139, 138, 128, 71, 231, 103, 131, 160, 23, 10, 65, 81, 64, 173, 1, 151, 36, 239, 22, 3},
 		signingResult: []byte("signed")}
-	c := createTestContext(ctrl, params)
+	c, ctx := createTestContext(ctrl, params)
 
-	leafCount, err := c.sequencer.SequenceBatch(1, rootNeverExpiresFunc)
+	leafCount, err := c.sequencer.SequenceBatch(ctx, 1, rootNeverExpiresFunc)
 	if leafCount != 0 {
 		t.Fatalf("Unexpectedly sequenced %d leaves on error", leafCount)
 	}
@@ -362,9 +364,9 @@ func TestStoreSignedRootKeyManagerFails(t *testing.T) {
 		storeSignedRoot: nil,
 		setupSigner:     true,
 		keyManagerError: errors.New("keymanagerfailed")}
-	c := createTestContext(ctrl, params)
+	c, ctx := createTestContext(ctrl, params)
 
-	leafCount, err := c.sequencer.SequenceBatch(1, rootNeverExpiresFunc)
+	leafCount, err := c.sequencer.SequenceBatch(ctx, 1, rootNeverExpiresFunc)
 	if leafCount != 0 {
 		t.Fatalf("Unexpectedly sequenced %d leaves on error", leafCount)
 	}
@@ -383,9 +385,9 @@ func TestStoreSignedRootSignerFails(t *testing.T) {
 		setupSigner:     true,
 		dataToSign:      []byte{118, 113, 60, 123, 201, 107, 151, 27, 190, 53, 148, 77, 139, 138, 128, 71, 231, 103, 131, 160, 23, 10, 65, 81, 64, 173, 1, 151, 36, 239, 22, 3},
 		signingError:    errors.New("signerfailed")}
-	c := createTestContext(ctrl, params)
+	c, ctx := createTestContext(ctrl, params)
 
-	leafCount, err := c.sequencer.SequenceBatch(1, rootNeverExpiresFunc)
+	leafCount, err := c.sequencer.SequenceBatch(ctx, 1, rootNeverExpiresFunc)
 	if leafCount != 0 {
 		t.Fatalf("Unexpectedly sequenced %d leaves on error", leafCount)
 	}
@@ -405,9 +407,9 @@ func TestCommitFails(t *testing.T) {
 		storeSignedRoot: nil, setupSigner: true,
 		dataToSign:    []byte{118, 113, 60, 123, 201, 107, 151, 27, 190, 53, 148, 77, 139, 138, 128, 71, 231, 103, 131, 160, 23, 10, 65, 81, 64, 173, 1, 151, 36, 239, 22, 3},
 		signingResult: []byte("signed")}
-	c := createTestContext(ctrl, params)
+	c, ctx := createTestContext(ctrl, params)
 
-	leafCount, err := c.sequencer.SequenceBatch(1, rootNeverExpiresFunc)
+	leafCount, err := c.sequencer.SequenceBatch(ctx, 1, rootNeverExpiresFunc)
 	if leafCount != 0 {
 		t.Fatalf("Unexpectedly sequenced %d leaves on error", leafCount)
 	}
@@ -428,9 +430,9 @@ func TestSequenceBatch(t *testing.T) {
 		storeSignedRoot: &expectedSignedRoot, setupSigner: true,
 		dataToSign:    []byte{118, 113, 60, 123, 201, 107, 151, 27, 190, 53, 148, 77, 139, 138, 128, 71, 231, 103, 131, 160, 23, 10, 65, 81, 64, 173, 1, 151, 36, 239, 22, 3},
 		signingResult: []byte("signed")}
-	c := createTestContext(ctrl, params)
+	c, ctx := createTestContext(ctrl, params)
 
-	leafCount, err := c.sequencer.SequenceBatch(1, rootNeverExpiresFunc)
+	leafCount, err := c.sequencer.SequenceBatch(ctx, 1, rootNeverExpiresFunc)
 	if err != nil {
 		t.Fatalf("Expected sequencing to succeed, but got err: %v", err)
 	}
@@ -444,9 +446,9 @@ func TestSignBeginTxFails(t *testing.T) {
 	defer ctrl.Finish()
 
 	params := testParameters{beginFails: true}
-	c := createTestContext(ctrl, params)
+	c, ctx := createTestContext(ctrl, params)
 
-	err := c.sequencer.SignRoot()
+	err := c.sequencer.SignRoot(ctx)
 	testonly.EnsureErrorContains(t, err, "TX")
 }
 
@@ -457,9 +459,9 @@ func TestSignLatestRootFails(t *testing.T) {
 	params := testParameters{writeRevision: testRoot16.TreeRevision + 1,
 		dequeueLimit: 1, shouldRollback: true,
 		latestSignedRoot: &testRoot16, latestSignedRootError: errors.New("root")}
-	c := createTestContext(ctrl, params)
+	c, ctx := createTestContext(ctrl, params)
 
-	err := c.sequencer.SignRoot()
+	err := c.sequencer.SignRoot(ctx)
 	testonly.EnsureErrorContains(t, err, "root")
 }
 
@@ -472,9 +474,9 @@ func TestSignedRootKeyManagerFails(t *testing.T) {
 		latestSignedRoot: &testRoot16,
 		storeSignedRoot:  nil,
 		setupSigner:      true, keyManagerError: errors.New("keymanagerfailed")}
-	c := createTestContext(ctrl, params)
+	c, ctx := createTestContext(ctrl, params)
 
-	err := c.sequencer.SignRoot()
+	err := c.sequencer.SignRoot(ctx)
 	testonly.EnsureErrorContains(t, err, "keymanager")
 }
 
@@ -488,9 +490,9 @@ func TestSignRootSignerFails(t *testing.T) {
 		storeSignedRoot:  nil, setupSigner: true,
 		dataToSign:   []byte{0x95, 0x46, 0xdc, 0x25, 0xfb, 0x74, 0x41, 0x4b, 0x50, 0x2e, 0xb0, 0x93, 0x99, 0xbb, 0x5e, 0xf6, 0x57, 0x58, 0xb9, 0x7a, 0x3a, 0x8f, 0xae, 0x35, 0xe1, 0xf6, 0xcd, 0x6c, 0x2a, 0xe6, 0x27, 0xbe},
 		signingError: errors.New("signerfailed")}
-	c := createTestContext(ctrl, params)
+	c, ctx := createTestContext(ctrl, params)
 
-	err := c.sequencer.SignRoot()
+	err := c.sequencer.SignRoot(ctx)
 	testonly.EnsureErrorContains(t, err, "signer")
 }
 
@@ -505,9 +507,9 @@ func TestSignRootStoreSignedRootFails(t *testing.T) {
 		storeSignedRootError: errors.New("storesignedroot"), setupSigner: true,
 		dataToSign:    []byte{0x95, 0x46, 0xdc, 0x25, 0xfb, 0x74, 0x41, 0x4b, 0x50, 0x2e, 0xb0, 0x93, 0x99, 0xbb, 0x5e, 0xf6, 0x57, 0x58, 0xb9, 0x7a, 0x3a, 0x8f, 0xae, 0x35, 0xe1, 0xf6, 0xcd, 0x6c, 0x2a, 0xe6, 0x27, 0xbe},
 		signingResult: []byte("signed")}
-	c := createTestContext(ctrl, params)
+	c, ctx := createTestContext(ctrl, params)
 
-	err := c.sequencer.SignRoot()
+	err := c.sequencer.SignRoot(ctx)
 	testonly.EnsureErrorContains(t, err, "storesignedroot")
 }
 
@@ -522,9 +524,9 @@ func TestSignRootCommitFails(t *testing.T) {
 		storeSignedRoot:  nil, setupSigner: true,
 		dataToSign:    []byte{0x95, 0x46, 0xdc, 0x25, 0xfb, 0x74, 0x41, 0x4b, 0x50, 0x2e, 0xb0, 0x93, 0x99, 0xbb, 0x5e, 0xf6, 0x57, 0x58, 0xb9, 0x7a, 0x3a, 0x8f, 0xae, 0x35, 0xe1, 0xf6, 0xcd, 0x6c, 0x2a, 0xe6, 0x27, 0xbe},
 		signingResult: []byte("signed")}
-	c := createTestContext(ctrl, params)
+	c, ctx := createTestContext(ctrl, params)
 
-	err := c.sequencer.SignRoot()
+	err := c.sequencer.SignRoot(ctx)
 	testonly.EnsureErrorContains(t, err, "commit")
 }
 
@@ -539,9 +541,9 @@ func TestSignRoot(t *testing.T) {
 		setupSigner:      true,
 		dataToSign:       []byte{0x95, 0x46, 0xdc, 0x25, 0xfb, 0x74, 0x41, 0x4b, 0x50, 0x2e, 0xb0, 0x93, 0x99, 0xbb, 0x5e, 0xf6, 0x57, 0x58, 0xb9, 0x7a, 0x3a, 0x8f, 0xae, 0x35, 0xe1, 0xf6, 0xcd, 0x6c, 0x2a, 0xe6, 0x27, 0xbe},
 		signingResult:    []byte("signed"), shouldCommit: true}
-	c := createTestContext(ctrl, params)
+	c, ctx := createTestContext(ctrl, params)
 
-	if err := c.sequencer.SignRoot(); err != nil {
+	if err := c.sequencer.SignRoot(ctx); err != nil {
 		t.Fatalf("Expected signing to succeed, but got err: %v", err)
 	}
 }
@@ -557,9 +559,9 @@ func TestSignRootNoExistingRoot(t *testing.T) {
 		setupSigner:      true,
 		dataToSign:       []byte{0xc2, 0xc, 0x1e, 0x33, 0x8, 0xcd, 0x2d, 0x50, 0xbb, 0xf9, 0xf9, 0x1, 0x29, 0xb2, 0xfb, 0xb9, 0x4d, 0x30, 0x27, 0x84, 0xf2, 0xc0, 0x48, 0x5f, 0x46, 0xd4, 0xbe, 0x8a, 0xb8, 0x27, 0x96, 0x22},
 		signingResult:    []byte("signed"), shouldCommit: true}
-	c := createTestContext(ctrl, params)
+	c, ctx := createTestContext(ctrl, params)
 
-	if err := c.sequencer.SignRoot(); err != nil {
+	if err := c.sequencer.SignRoot(ctx); err != nil {
 		t.Fatalf("Expected signing to succeed, but got err: %v", err)
 	}
 }

@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/golang/mock/gomock"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
@@ -159,8 +161,7 @@ func mockStorageProviderForSequencer(mockStorage storage.LogStorage) LogStorageP
 }
 
 func createTestContext(sp LogStorageProviderFunc) LogOperationManagerContext {
-	done := make(chan struct{})
-
 	// Set sign interval to 100 years so it won't trigger a root expiry signing unless overridden
-	return LogOperationManagerContext{done: done, storageProvider: sp, batchSize: 50, sleepBetweenRuns: time.Second, oneShot: true, timeSource: fakeTimeSource, signInterval: time.Hour * 24 * 365 * 100}
+	ctx := util.NewLogContext(context.Background(), -1)
+	return LogOperationManagerContext{ctx: ctx, storageProvider: sp, batchSize: 50, sleepBetweenRuns: time.Second, oneShot: true, timeSource: fakeTimeSource, signInterval: time.Hour * 24 * 365 * 100}
 }
