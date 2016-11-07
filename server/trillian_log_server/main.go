@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 	"time"
 
@@ -40,38 +39,9 @@ var sequencerGuardWindowFlag = flag.Duration("sequencer_guard_window", 0, "If se
 var privateKeyFile = flag.String("private_key_file", "", "File containing a PEM encoded private key")
 var privateKeyPassword = flag.String("private_key_password", "", "Password for server private key")
 
-// Must hold this lock before accessing the storage map
-var storageMapGuard sync.Mutex
-
-// Map from tree ID to storage impl for that log
-var storageMap = make(map[int64]storage.LogStorage)
-
 // TODO(Martin2112): Needs to be able to swap out for different storage type
 func simpleMySQLStorageProvider(treeID int64) (storage.LogStorage, error) {
 	return mysql.NewLogStorage(treeID, *mysqlURIFlag)
-}
-
-// TODO(Martin2112): Could pull this out as a wrapper so it can be used elsewhere
-func getStorageForLog(logID int64) (storage.LogStorage, error) {
-	storageMapGuard.Lock()
-	defer storageMapGuard.Unlock()
-
-	s, ok := storageMap[logID]
-
-	if !ok {
-		glog.Infof("Creating new storage for log: %d", logID)
-
-		var err error
-		s, err = simpleMySQLStorageProvider(logID)
-
-		if err != nil {
-			return s, err
-		}
-
-		storageMap[logID] = s
-	}
-
-	return s, nil
 }
 
 func checkDatabaseAccessible(dbURI string) error {
@@ -182,11 +152,14 @@ func main() {
 	// both sequencing and signing.
 	// TODO(Martin2112): Should respect read only mode and the flags in tree control etc
 	ctx, cancel := context.WithCancel(context.Background())
-	sequencerManager := server.NewLogOperationManager(ctx, getStorageForLog, *batchSizeFlag, *sequencerSleepBetweenRunsFlag, *signerIntervalFlag, util.SystemTimeSource{}, server.NewSequencerManager(keyManager, getStorageForLog, *sequencerGuardWindowFlag))
-	go sequencerManager.OperationLoop()
+
+	storageProvider := simpleMySQLStorageProvider
+	sequencerManager := server.NewSequencerManager(keyManager, storageProvider, *sequencerGuardWindowFlag)
+	sequencerTask := server.NewLogOperationManager(ctx, storageProvider, *batchSizeFlag, *sequencerSleepBetweenRunsFlag, *signerIntervalFlag, util.SystemTimeSource{}, sequencerManager)
+	go sequencerTask.OperationLoop()
 
 	// Bring up the RPC server and then block until we get a signal to stop
-	rpcServer := startRPCServer(lis, *serverPortFlag, getStorageForLog)
+	rpcServer := startRPCServer(lis, *serverPortFlag, storageProvider)
 	go awaitSignal(rpcServer)
 	err = rpcServer.Serve(lis)
 

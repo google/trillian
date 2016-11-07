@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 	"time"
 
@@ -32,25 +31,10 @@ var serverPortFlag = flag.Int("port", 8091, "Port to serve map requests on, port
 var privateKeyFile = flag.String("private_key_file", "", "File containing a PEM encoded private key")
 var privateKeyPassword = flag.String("private_key_password", "", "Password for server private key")
 
-var mapMutex sync.Mutex
-var mapStorage = make(map[int64]storage.MapStorage)
-
 // TODO(Martin2112): Needs a more realistic provider of map storage with some caching
 // and ability to swap out for different storage type
 func simpleMySQLStorageProvider(treeID int64) (storage.MapStorage, error) {
-	mapMutex.Lock()
-	defer mapMutex.Unlock()
-
-	s := mapStorage[treeID]
-	if s == nil {
-		var err error
-		s, err = mysql.NewMapStorage(treeID, *mysqlURIFlag)
-		if err != nil {
-			return nil, err
-		}
-		mapStorage[treeID] = s
-	}
-	return s, nil
+	return mysql.NewMapStorage(treeID, *mysqlURIFlag)
 }
 
 func checkDatabaseAccessible(dbURI string) error {
