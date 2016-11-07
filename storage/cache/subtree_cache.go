@@ -289,10 +289,10 @@ func (s *SubtreeCache) Flush(setSubtrees SetSubtreesFunc) error {
 			}
 		}
 	}
-	if err := setSubtrees(treesToWrite); err != nil {
-		return err
+	if len(treesToWrite) == 0 {
+		return nil
 	}
-	return nil
+	return setSubtrees(treesToWrite)
 }
 
 // makeSuffixKey creates a suffix key for indexing into the subtree's Leaves and
