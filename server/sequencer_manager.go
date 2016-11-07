@@ -38,7 +38,7 @@ func (s SequencerManager) Name() string {
 }
 
 // ExecutePass performs sequencing for the specified set of Logs.
-func (s SequencerManager) ExecutePass(logIDs []int64, context LogOperationManagerContext) bool {
+func (s SequencerManager) ExecutePass(logIDs []int64, logctx LogOperationManagerContext) bool {
 	// TODO(Martin2112): Demote logging to verbose level
 	glog.Infof("Beginning sequencing run for %d active log(s)", len(logIDs))
 
@@ -48,30 +48,31 @@ func (s SequencerManager) ExecutePass(logIDs []int64, context LogOperationManage
 	for _, logID := range logIDs {
 		// See if it's time to quit
 		select {
-		case <-context.done:
+		case <-logctx.ctx.Done():
 			return true
 		default:
 		}
 
 		// TODO(Martin2112): Probably want to make the sequencer objects longer lived to
 		// avoid the cost of initializing their state each time but this works for now
-		storage, err := context.storageProvider(logID)
+		storage, err := logctx.storageProvider(logID)
+		ctx := util.NewLogContext(logctx.ctx, logID)
 
 		// TODO(Martin2112): Honour the sequencing enabled in log parameters, needs an API change
 		// so deferring it
 		if err != nil {
-			glog.Warningf("Storage provider failed for id: %v because: %v", logID, err)
+			glog.Warningf("%s: Storage provider failed for id because: %v", util.LogIDPrefix(ctx), err)
 			continue
 		}
 
 		// TODO(Martin2112): Allow for different tree hashers to be used by different logs
-		sequencer := log.NewSequencer(merkle.NewRFC6962TreeHasher(crypto.NewSHA256()), context.timeSource, storage, s.keyManager)
+		sequencer := log.NewSequencer(merkle.NewRFC6962TreeHasher(crypto.NewSHA256()), logctx.timeSource, storage, s.keyManager)
 		sequencer.SetGuardWindow(s.guardWindow)
 
-		leaves, err := sequencer.SequenceBatch(context.batchSize, isRootTooOld(context.timeSource, context.signInterval))
+		leaves, err := sequencer.SequenceBatch(ctx, logctx.batchSize, isRootTooOld(logctx.timeSource, logctx.signInterval))
 
 		if err != nil {
-			glog.Warningf("Error trying to sequence batch for: %v: %v", logID, err)
+			glog.Warningf("%s: Error trying to sequence batch for: %v", util.LogIDPrefix(ctx), err)
 			continue
 		}
 

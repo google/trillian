@@ -8,6 +8,8 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/util"
+	"golang.org/x/net/context"
 )
 
 func TestLogOperationManagerBeginFails(t *testing.T) {
@@ -20,8 +22,8 @@ func TestLogOperationManagerBeginFails(t *testing.T) {
 
 	mockLogOp := NewMockLogOperation(ctrl)
 
-	done := make(chan struct{})
-	lom := NewLogOperationManagerForTest(done, mockStorageProviderForSequencer(mockStorage), 50, time.Second, time.Second, fakeTimeSource, mockLogOp)
+	ctx := util.NewLogContext(context.Background(), -1)
+	lom := NewLogOperationManagerForTest(ctx, mockStorageProviderForSequencer(mockStorage), 50, time.Second, time.Second, fakeTimeSource, mockLogOp)
 
 	lom.OperationLoop()
 }
@@ -38,8 +40,8 @@ func TestLogOperationManagerGetLogsFails(t *testing.T) {
 
 	mockLogOp := NewMockLogOperation(ctrl)
 
-	done := make(chan struct{})
-	lom := NewLogOperationManagerForTest(done, mockStorageProviderForSequencer(mockStorage), 50, time.Second, time.Second, fakeTimeSource, mockLogOp)
+	ctx := util.NewLogContext(context.Background(), -1)
+	lom := NewLogOperationManagerForTest(ctx, mockStorageProviderForSequencer(mockStorage), 50, time.Second, time.Second, fakeTimeSource, mockLogOp)
 
 	lom.OperationLoop()
 }
@@ -56,8 +58,8 @@ func TestLogOperationManagerCommitFails(t *testing.T) {
 
 	mockLogOp := NewMockLogOperation(ctrl)
 
-	done := make(chan struct{})
-	lom := NewLogOperationManagerForTest(done, mockStorageProviderForSequencer(mockStorage), 50, time.Second, time.Second, fakeTimeSource, mockLogOp)
+	ctx := util.NewLogContext(context.Background(), -1)
+	lom := NewLogOperationManagerForTest(ctx, mockStorageProviderForSequencer(mockStorage), 50, time.Second, time.Second, fakeTimeSource, mockLogOp)
 
 	lom.OperationLoop()
 }
@@ -94,8 +96,8 @@ func TestLogOperationManagerPassesIDs(t *testing.T) {
 	mockLogOp := NewMockLogOperation(ctrl)
 	mockLogOp.EXPECT().ExecutePass([]int64{logID1, logID2}, logOpMgrContextMatcher{50}).Return(false)
 
-	done := make(chan struct{})
-	lom := NewLogOperationManagerForTest(done, mockStorageProviderForSequencer(mockStorage), 50, time.Second, time.Second, fakeTimeSource, mockLogOp)
+	ctx := util.NewLogContext(context.Background(), -1)
+	lom := NewLogOperationManagerForTest(ctx, mockStorageProviderForSequencer(mockStorage), 50, time.Second, time.Second, fakeTimeSource, mockLogOp)
 
 	lom.OperationLoop()
 }

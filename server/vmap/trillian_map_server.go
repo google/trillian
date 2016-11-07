@@ -10,6 +10,7 @@ import (
 	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/util"
 	"golang.org/x/net/context"
 )
 
@@ -65,6 +66,7 @@ func (t *TrillianMapServer) getHasherForMap(mapID int64) (merkle.MapHasher, erro
 
 // GetLeaves implements the GetLeaves RPC method.
 func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapLeavesRequest) (resp *trillian.GetMapLeavesResponse, err error) {
+	ctx = util.NewMapContext(ctx, req.MapId)
 	s, err := t.getStorageForMap(req.MapId)
 	if err != nil {
 		return nil, err
@@ -117,13 +119,13 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 		return nil, err
 	}
 
-	glog.Infof("wanted %d leaves, found %d", len(req.Key), len(leaves))
+	glog.Infof("%s: wanted %d leaves, found %d", util.MapIDPrefix(ctx), len(req.Key), len(leaves))
 
 	for _, leaf := range leaves {
 		leaf := leaf
 		key, ok := hashToKey[string(leaf.KeyHash)]
 		if !ok {
-			glog.Warningf("Retrieved unrequested leaf with keyhash: %v, skipping", leaf.KeyHash)
+			glog.Warningf("%s: Retrieved unrequested leaf with keyhash: %v, skipping", util.MapIDPrefix(ctx), leaf.KeyHash)
 			continue
 		}
 		proof, err := smtReader.InclusionProof(req.Revision, key)
@@ -149,6 +151,7 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 
 // SetLeaves implements the SetLeaves RPC method.
 func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapLeavesRequest) (resp *trillian.SetMapLeavesResponse, err error) {
+	ctx = util.NewMapContext(ctx, req.MapId)
 	s, err := t.getStorageForMap(req.MapId)
 	if err != nil {
 		return nil, err
@@ -168,7 +171,8 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		// try to commit the tx
 		e := tx.Commit()
 		if e != nil {
-			// don't return partial/uncommited/wrong data:
+			// don't return partial/uncommitted/wrong data:
+			glog.Warningf("%s: Commit failed for SetLeaves: %v", util.MapIDPrefix(ctx), e)
 			resp = nil
 			err = e
 		}
@@ -179,7 +183,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		return nil, err
 	}
 
-	glog.Infof("Writing at revision %d", tx.WriteRevision())
+	glog.Infof("%s: Writing at revision %d", util.MapIDPrefix(ctx), tx.WriteRevision())
 
 	smtWriter, err := merkle.NewSparseMerkleTreeWriter(tx.WriteRevision(), hasher, func() (storage.TreeTX, error) {
 		return s.Begin()
@@ -225,6 +229,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 
 // GetSignedMapRoot implements the GetSignedMapRoot RPC method.
 func (t *TrillianMapServer) GetSignedMapRoot(ctx context.Context, req *trillian.GetSignedMapRootRequest) (resp *trillian.GetSignedMapRootResponse, err error) {
+	ctx = util.NewMapContext(ctx, req.MapId)
 	s, err := t.getStorageForMap(req.MapId)
 	if err != nil {
 		return nil, err
@@ -238,6 +243,7 @@ func (t *TrillianMapServer) GetSignedMapRoot(ctx context.Context, req *trillian.
 		// try to commit the tx
 		e := tx.Commit()
 		if e != nil && err == nil {
+			glog.Warningf("%s: Commit failed for GetSignedMapRoot: %v", util.MapIDPrefix(ctx), e)
 			resp, err = nil, e
 		}
 	}()
@@ -262,14 +268,4 @@ func buildStatusWithDesc(code trillian.TrillianApiStatusCode, desc string) *tril
 	status.Description = desc
 
 	return status
-}
-
-func (t *TrillianMapServer) commitAndLog(tx storage.MapTX, op string) error {
-	err := tx.Commit()
-
-	if err != nil {
-		glog.Warningf("Commit failed for %s: %v", op, err)
-	}
-
-	return err
 }

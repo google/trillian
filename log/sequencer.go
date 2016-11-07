@@ -12,12 +12,13 @@ import (
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util"
+	"golang.org/x/net/context"
 )
 
 // TODO(Martin2112): Add admin support for safely changing params like guard window during operation
 // TODO(Martin2112): Add support for enabling and controlling sequencing as part of admin API
 
-// Sequencer instances are responsible for integrating new leaves into a log.
+// Sequencer instances are responsible for integrating new leaves into a single log.
 // Leaves will be assigned unique sequence numbers when they are processed.
 // There is no strong ordering guarantee but in general entries will be processed
 // in order of submission to the log.
@@ -57,23 +58,23 @@ func (s *Sequencer) SetGuardWindow(sequencerGuardWindow time.Duration) {
 
 // TODO: This currently doesn't use the batch api for fetching the required nodes. This
 // would be more efficient but requires refactoring.
-func (s Sequencer) buildMerkleTreeFromStorageAtRoot(root trillian.SignedLogRoot, tx storage.TreeTX) (*merkle.CompactMerkleTree, error) {
+func (s Sequencer) buildMerkleTreeFromStorageAtRoot(ctx context.Context, root trillian.SignedLogRoot, tx storage.TreeTX) (*merkle.CompactMerkleTree, error) {
 	mt, err := merkle.NewCompactMerkleTreeWithState(s.hasher, root.TreeSize, func(depth int, index int64) ([]byte, error) {
 		nodeID, err := storage.NewNodeIDForTreeCoords(int64(depth), index, maxTreeDepth)
 		if err != nil {
-			glog.Warningf("Failed to create nodeID: %v", err)
+			glog.Warningf("%s: Failed to create nodeID: %v", util.LogIDPrefix(ctx), err)
 			return nil, err
 		}
 		nodes, err := tx.GetMerkleNodes(root.TreeRevision, []storage.NodeID{nodeID})
 
 		if err != nil {
-			glog.Warningf("Failed to get Merkle nodes: %s", err)
+			glog.Warningf("%s: Failed to get Merkle nodes: %s", util.LogIDPrefix(ctx), err)
 			return nil, err
 		}
 
 		// We expect to get exactly one node here
 		if nodes == nil || len(nodes) != 1 {
-			return nil, fmt.Errorf("Did not retrieve one node while loading CompactMerkleTree, got %#v for ID %s@%d", nodes, nodeID.String(), root.TreeRevision)
+			return nil, fmt.Errorf("%s: Did not retrieve one node while loading CompactMerkleTree, got %#v for ID %s@%d", util.LogIDPrefix(ctx), nodes, nodeID.String(), root.TreeRevision)
 		}
 
 		return nodes[0].Hash, nil
@@ -125,20 +126,20 @@ func (s Sequencer) sequenceLeaves(mt *merkle.CompactMerkleTree, leaves []trillia
 	return nodeMap, leaves, nil
 }
 
-func (s Sequencer) initMerkleTreeFromStorage(currentRoot trillian.SignedLogRoot, tx storage.LogTX) (*merkle.CompactMerkleTree, error) {
+func (s Sequencer) initMerkleTreeFromStorage(ctx context.Context, currentRoot trillian.SignedLogRoot, tx storage.LogTX) (*merkle.CompactMerkleTree, error) {
 	if currentRoot.TreeSize == 0 {
 		return merkle.NewCompactMerkleTree(s.hasher), nil
 	}
 
 	// Initialize the compact tree state to match the latest root in the database
-	return s.buildMerkleTreeFromStorageAtRoot(currentRoot, tx)
+	return s.buildMerkleTreeFromStorageAtRoot(ctx, currentRoot, tx)
 }
 
-func (s Sequencer) createRootSignature(root trillian.SignedLogRoot) (trillian.DigitallySigned, error) {
+func (s Sequencer) createRootSignature(ctx context.Context, root trillian.SignedLogRoot) (trillian.DigitallySigned, error) {
 	signer, err := s.keyManager.Signer()
 
 	if err != nil {
-		glog.Warningf("key manager failed to create crypto.Signer: %v", err)
+		glog.Warningf("%s: key manager failed to create crypto.Signer: %v", util.LogIDPrefix(ctx), err)
 		return trillian.DigitallySigned{}, err
 	}
 
@@ -148,7 +149,7 @@ func (s Sequencer) createRootSignature(root trillian.SignedLogRoot) (trillian.Di
 	signature, err := trillianSigner.SignLogRoot(root)
 
 	if err != nil {
-		glog.Warningf("signer failed to sign root: %v", err)
+		glog.Warningf("%s: signer failed to sign root: %v", util.LogIDPrefix(ctx), err)
 		return trillian.DigitallySigned{}, err
 	}
 
@@ -160,11 +161,11 @@ func (s Sequencer) createRootSignature(root trillian.SignedLogRoot) (trillian.Di
 // TODO(Martin2112): Can possibly improve by deferring a function that attempts to rollback,
 // which will fail if the tx was committed. Should only do this if we can hide the details of
 // the underlying storage transactions and it doesn't create other problems.
-func (s Sequencer) SequenceBatch(limit int, expiryFunc CurrentRootExpiredFunc) (int, error) {
+func (s Sequencer) SequenceBatch(ctx context.Context, limit int, expiryFunc CurrentRootExpiredFunc) (int, error) {
 	tx, err := s.logStorage.Begin()
 
 	if err != nil {
-		glog.Warningf("Sequencer failed to start tx: %s", err)
+		glog.Warningf("%s: Sequencer failed to start tx: %s", util.LogIDPrefix(ctx), err)
 		return 0, err
 	}
 
@@ -173,7 +174,7 @@ func (s Sequencer) SequenceBatch(limit int, expiryFunc CurrentRootExpiredFunc) (
 	leaves, err := tx.DequeueLeaves(limit, guardCutoffTime)
 
 	if err != nil {
-		glog.Warningf("Sequencer failed to dequeue leaves: %s", err)
+		glog.Warningf("%s: Sequencer failed to dequeue leaves: %s", util.LogIDPrefix(ctx), err)
 		tx.Rollback()
 		return 0, err
 	}
@@ -182,14 +183,14 @@ func (s Sequencer) SequenceBatch(limit int, expiryFunc CurrentRootExpiredFunc) (
 	currentRoot, err := tx.LatestSignedLogRoot()
 
 	if err != nil {
-		glog.Warningf("Sequencer failed to get latest root: %s", err)
+		glog.Warningf("%s: Sequencer failed to get latest root: %s", util.LogIDPrefix(ctx), err)
 		tx.Rollback()
 		return 0, err
 	}
 
 	// TODO(al): Have a better detection mechanism for there being no stored root.
 	if currentRoot.RootHash == nil {
-		glog.Warning("Fresh log - no previous TreeHeads exist.")
+		glog.Warningf("%s: Fresh log - no previous TreeHeads exist.", util.LogIDPrefix(ctx))
 	}
 
 	// There might be no work to be done. But we possibly still need to create an STH if the
@@ -200,12 +201,13 @@ func (s Sequencer) SequenceBatch(limit int, expiryFunc CurrentRootExpiredFunc) (
 		if expiryFunc(currentRoot) {
 			// Current root is too old, sign one. Will use a new TX, safe as we have no writes
 			// pending in this one.
-			return 0, s.SignRoot()
+			glog.Infof("%s: Current root is too old, create new STH", util.LogIDPrefix(ctx))
+			return 0, s.SignRoot(ctx)
 		}
 		return 0, nil
 	}
 
-	merkleTree, err := s.initMerkleTreeFromStorage(currentRoot, tx)
+	merkleTree, err := s.initMerkleTreeFromStorage(ctx, currentRoot, tx)
 
 	if err != nil {
 		tx.Rollback()
@@ -219,7 +221,7 @@ func (s Sequencer) SequenceBatch(limit int, expiryFunc CurrentRootExpiredFunc) (
 	newVersion := tx.WriteRevision()
 	if got, want := newVersion, currentRoot.TreeRevision+int64(1); got != want {
 		tx.Rollback()
-		return 0, fmt.Errorf("got writeRevision of %d, but expected %d", got, want)
+		return 0, fmt.Errorf("%s: got writeRevision of %d, but expected %d", util.LogIDPrefix(ctx), got, want)
 	}
 
 	// Assign leaf sequence numbers and collate node updates
@@ -232,14 +234,14 @@ func (s Sequencer) SequenceBatch(limit int, expiryFunc CurrentRootExpiredFunc) (
 	// We should still have the same number of leaves
 	if want, got := len(leaves), len(sequencedLeaves); want != got {
 		tx.Rollback()
-		return 0, fmt.Errorf("wanted: %d leaves after sequencing but we got: %d", want, got)
+		return 0, fmt.Errorf("%s: wanted: %d leaves after sequencing but we got: %d", util.LogIDPrefix(ctx), want, got)
 	}
 
 	// Write the new sequence numbers to the leaves in the DB
 	err = tx.UpdateSequencedLeaves(sequencedLeaves)
 
 	if err != nil {
-		glog.Warningf("Sequencer failed to update sequenced leaves: %s", err)
+		glog.Warningf("%s: Sequencer failed to update sequenced leaves: %s", util.LogIDPrefix(ctx), err)
 		tx.Rollback()
 		return 0, err
 	}
@@ -251,7 +253,7 @@ func (s Sequencer) SequenceBatch(limit int, expiryFunc CurrentRootExpiredFunc) (
 
 	if err != nil {
 		// probably an internal error with map building, unexpected
-		glog.Warningf("Failed to build target nodes in sequencer: %s", err)
+		glog.Warningf("%s: Failed to build target nodes in sequencer: %s", util.LogIDPrefix(ctx), err)
 		tx.Rollback()
 		return 0, err
 	}
@@ -260,7 +262,7 @@ func (s Sequencer) SequenceBatch(limit int, expiryFunc CurrentRootExpiredFunc) (
 	err = tx.SetMerkleNodes(targetNodes)
 
 	if err != nil {
-		glog.Warningf("Sequencer failed to set Merkle nodes: %s", err)
+		glog.Warningf("%s: Sequencer failed to set Merkle nodes: %s", util.LogIDPrefix(ctx), err)
 		tx.Rollback()
 		return 0, err
 	}
@@ -275,10 +277,10 @@ func (s Sequencer) SequenceBatch(limit int, expiryFunc CurrentRootExpiredFunc) (
 	}
 
 	// Hash and sign the root, update it with the signature
-	signature, err := s.createRootSignature(newLogRoot)
+	signature, err := s.createRootSignature(ctx, newLogRoot)
 
 	if err != nil {
-		glog.Warningf("signer failed to sign root: %v", err)
+		glog.Warningf("%s: signer failed to sign root: %v", util.LogIDPrefix(ctx), err)
 		tx.Rollback()
 		return 0, err
 	}
@@ -288,7 +290,7 @@ func (s Sequencer) SequenceBatch(limit int, expiryFunc CurrentRootExpiredFunc) (
 	err = tx.StoreSignedLogRoot(newLogRoot)
 
 	if err != nil {
-		glog.Warningf("failed to write updated tree root: %s", err)
+		glog.Warningf("%s: failed to write updated tree root: %s", util.LogIDPrefix(ctx), err)
 		tx.Rollback()
 		return 0, err
 	}
@@ -298,15 +300,16 @@ func (s Sequencer) SequenceBatch(limit int, expiryFunc CurrentRootExpiredFunc) (
 		return 0, err
 	}
 
+	glog.Infof("%s: sequenced %d leaves, size %d, tree-revision %d", util.LogIDPrefix(ctx), len(leaves), newLogRoot.TreeSize, newLogRoot.TreeRevision)
 	return len(leaves), nil
 }
 
 // SignRoot wraps up all the operations for creating a new log signed root.
-func (s Sequencer) SignRoot() error {
+func (s Sequencer) SignRoot(ctx context.Context) error {
 	tx, err := s.logStorage.Begin()
 
 	if err != nil {
-		glog.Warningf("signer failed to start tx: %s", err)
+		glog.Warningf("%s: signer failed to start tx: %s", util.LogIDPrefix(ctx), err)
 		return err
 	}
 
@@ -314,14 +317,14 @@ func (s Sequencer) SignRoot() error {
 	currentRoot, err := tx.LatestSignedLogRoot()
 
 	if err != nil {
-		glog.Warningf("signer failed to get latest root: %s", err)
+		glog.Warningf("%s: signer failed to get latest root: %s", util.LogIDPrefix(ctx), err)
 		tx.Rollback()
 		return err
 	}
 
 	// Initialize a Merkle Tree from the state in storage. This should fail if the tree is
 	// in a corrupt state.
-	merkleTree, err := s.initMerkleTreeFromStorage(currentRoot, tx)
+	merkleTree, err := s.initMerkleTreeFromStorage(ctx, currentRoot, tx)
 
 	if err != nil {
 		tx.Rollback()
@@ -338,10 +341,10 @@ func (s Sequencer) SignRoot() error {
 	}
 
 	// Hash and sign the root
-	signature, err := s.createRootSignature(newLogRoot)
+	signature, err := s.createRootSignature(ctx, newLogRoot)
 
 	if err != nil {
-		glog.Warningf("signer failed to sign root: %v", err)
+		glog.Warningf("%s: signer failed to sign root: %v", util.LogIDPrefix(ctx), err)
 		tx.Rollback()
 		return err
 	}
@@ -350,10 +353,11 @@ func (s Sequencer) SignRoot() error {
 
 	// Store the new root and we're done
 	if err := tx.StoreSignedLogRoot(newLogRoot); err != nil {
-		glog.Warningf("signer failed to write updated root: %v", err)
+		glog.Warningf("%s: signer failed to write updated root: %v", util.LogIDPrefix(ctx), err)
 		tx.Rollback()
 		return err
 	}
+	glog.Infof("%s: new signed root, size %d, tree-revision %d", util.LogIDPrefix(ctx), newLogRoot.TreeSize, newLogRoot.TreeRevision)
 
 	return tx.Commit()
 }
