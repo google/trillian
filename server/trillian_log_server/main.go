@@ -29,7 +29,7 @@ var serverPortFlag = flag.Int("port", 8090, "Port to serve log RPC requests on")
 var exportRPCMetrics = flag.Bool("exportMetrics", true, "If true starts HTTP server and exports stats")
 var httpPortFlag = flag.Int("http_port", 8091, "Port to serve HTTP metrics on")
 var sequencerSleepBetweenRunsFlag = flag.Duration("sequencer_sleep_between_runs", time.Second*10, "Time to pause after each sequencing pass through all logs")
-var signerSleepBetweenRunsFlag = flag.Duration("signer_sleep_between_runs", time.Second*120, "Time to pause after each signing pass through all logs")
+var signerIntervalFlag = flag.Duration("signer_interval", time.Second*120, "Time after which a new STH is created even if no leaves added")
 var batchSizeFlag = flag.Int("batch_size", 50, "Max number of leaves to process per batch")
 var sequencerGuardWindowFlag = flag.Duration("sequencer_guard_window", 0, "If set, the time elapsed before submitted leaves are eligible for sequencing")
 
@@ -181,7 +181,7 @@ func main() {
 	// Start the sequencing loop, which will run until we terminate the process. This controls
 	// both sequencing and signing.
 	// TODO(Martin2112): Should respect read only mode and the flags in tree control etc
-	sequencerManager := server.NewLogOperationManager(done, getStorageForLog, *batchSizeFlag, *sequencerSleepBetweenRunsFlag, *signerSleepBetweenRunsFlag, util.SystemTimeSource{}, server.NewSequencerManager(keyManager, *sequencerGuardWindowFlag))
+	sequencerManager := server.NewLogOperationManager(done, getStorageForLog, *batchSizeFlag, *sequencerSleepBetweenRunsFlag, *signerIntervalFlag, util.SystemTimeSource{}, server.NewSequencerManager(keyManager, *sequencerGuardWindowFlag))
 	go sequencerManager.OperationLoop()
 
 	// Bring up the RPC server and then block until we get a signal to stop
