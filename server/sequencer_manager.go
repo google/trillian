@@ -13,8 +13,9 @@ import (
 
 // SequencerManager provides sequencing operations for a collection of Logs.
 type SequencerManager struct {
-	keyManager  crypto.KeyManager
-	guardWindow time.Duration
+	keyManager     crypto.KeyManager
+	guardWindow    time.Duration
+	cachedProvider cachedLogStorageProvider
 }
 
 func isRootTooOld(ts util.TimeSource, maxAge time.Duration) log.CurrentRootExpiredFunc {
@@ -28,8 +29,12 @@ func isRootTooOld(ts util.TimeSource, maxAge time.Duration) log.CurrentRootExpir
 
 // NewSequencerManager creates a new SequencerManager instance based on the provided KeyManager instance
 // and guard window.
-func NewSequencerManager(km crypto.KeyManager, gw time.Duration) *SequencerManager {
-	return &SequencerManager{keyManager: km, guardWindow: gw}
+func NewSequencerManager(km crypto.KeyManager, p LogStorageProviderFunc, gw time.Duration) *SequencerManager {
+	return &SequencerManager{
+		keyManager:     km,
+		guardWindow:    gw,
+		cachedProvider: newCachedLogStorageProvider(p),
+	}
 }
 
 // Name returns the name of the object.
@@ -53,9 +58,7 @@ func (s SequencerManager) ExecutePass(logIDs []int64, logctx LogOperationManager
 		default:
 		}
 
-		// TODO(Martin2112): Probably want to make the sequencer objects longer lived to
-		// avoid the cost of initializing their state each time but this works for now
-		storage, err := logctx.storageProvider(logID)
+		storage, err := s.cachedProvider.storageForLog(logID)
 		ctx := util.NewLogContext(logctx.ctx, logID)
 
 		// TODO(Martin2112): Honour the sequencing enabled in log parameters, needs an API change

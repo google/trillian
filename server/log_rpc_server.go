@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
@@ -18,18 +19,56 @@ import (
 // Pass this as a fixed value to proof calculations. It's used as the max depth of the tree
 const proofMaxBitLen = 64
 
-// LogStorageProviderFunc decouples the server from storage implementations
+// LogStorageProviderFunc generates a LogStorage instance for a given log ID; it is a
+// separate type in order to decouple the server from storage implementations.
 type LogStorageProviderFunc func(int64) (storage.LogStorage, error)
+
+// cachedLogStorageProvider wraps a LogStorageProviderFunc and caches its results.
+type cachedLogStorageProvider struct {
+	provider LogStorageProviderFunc
+
+	mu          sync.Mutex
+	logStorages map[int64]storage.LogStorage // guarded by mu
+}
+
+// newCachedLogStorageProvider creates a new cached storage provider for the given
+// raw provider.
+func newCachedLogStorageProvider(p LogStorageProviderFunc) cachedLogStorageProvider {
+	return cachedLogStorageProvider{
+		provider:    p,
+		logStorages: make(map[int64]storage.LogStorage),
+	}
+}
+
+func (c *cachedLogStorageProvider) storageForLog(logID int64) (storage.LogStorage, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	s, ok := c.logStorages[logID]
+	if ok {
+		return s, nil
+	}
+
+	s, err := c.provider(logID)
+	if err != nil {
+		return nil, err
+	}
+	c.logStorages[logID] = s
+	return s, nil
+}
 
 // TrillianLogRPCServer implements the RPC API defined in the proto
 type TrillianLogRPCServer struct {
-	storageProvider LogStorageProviderFunc
-	timeSource      util.TimeSource
+	cachedLogStorageProvider
+	timeSource util.TimeSource
 }
 
 // NewTrillianLogRPCServer creates a new RPC server backed by a LogStorageProvider.
 func NewTrillianLogRPCServer(p LogStorageProviderFunc, timeSource util.TimeSource) *TrillianLogRPCServer {
-	return &TrillianLogRPCServer{storageProvider: p, timeSource: timeSource}
+	return &TrillianLogRPCServer{
+		cachedLogStorageProvider: newCachedLogStorageProvider(p),
+		timeSource:               timeSource,
+	}
 }
 
 // QueueLeaves submits a batch of leaves to the log for later integration into the underlying tree.
@@ -413,8 +452,7 @@ func (t *TrillianLogRPCServer) GetEntryAndProof(ctx context.Context, req *trilli
 }
 
 func (t *TrillianLogRPCServer) prepareStorageTx(treeID int64) (storage.LogTX, error) {
-	s, err := t.storageProvider(treeID)
-
+	s, err := t.storageForLog(treeID)
 	if err != nil {
 		return nil, err
 	}
