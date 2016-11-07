@@ -4,12 +4,12 @@ import (
 	"flag"
 	"fmt"
 	"net"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"net/http"
 	_ "net/http/pprof"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -24,7 +24,9 @@ import (
 
 var mysqlURIFlag = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test",
 	"uri to use with mysql storage")
-var serverPortFlag = flag.Int("port", 8091, "Port to serve map requests on, port+1 is used to serve pprof requests too")
+var serverPortFlag = flag.Int("port", 8090, "Port to serve log RPC requests on")
+var exportRPCMetrics = flag.Bool("exportMetrics", true, "If true starts HTTP server and exports stats")
+var httpPortFlag = flag.Int("http_port", 8091, "Port to serve HTTP metrics on")
 
 // TODO(Martin2112): Single private key doesn't really work for multi tenant and we can't use
 // an HSM interface in this way. Deferring these issues for later.
@@ -66,6 +68,19 @@ func startRPCServer(listener net.Listener, port int, provider vmap.MapStoragePro
 	return grpcServer
 }
 
+func startHTTPServer(port int) error {
+	sock, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
+	if err != nil {
+		return err
+	}
+	go func() {
+		glog.Info("HTTP server starting")
+		http.Serve(sock, nil)
+	}()
+
+	return nil
+}
+
 func awaitSignal(rpcServer *grpc.Server) {
 	// Arrange notification for the standard set of signals used to terminate a server
 	sigs := make(chan os.Signal, 1)
@@ -82,12 +97,6 @@ func awaitSignal(rpcServer *grpc.Server) {
 func main() {
 	flag.Parse()
 
-	go func() {
-		glog.Infof("HTTP server exited: %v", http.ListenAndServe(fmt.Sprintf("localhost:%d", *serverPortFlag+1), nil))
-	}()
-
-	done := make(chan struct{})
-
 	glog.Info("**** Map Server Starting ****")
 
 	// First make sure we can access the database, quit if not
@@ -103,6 +112,15 @@ func main() {
 
 	if err != nil {
 		glog.Fatalf("Failed to load map server key: %v", err)
+	}
+
+	// Start HTTP server (optional)
+	if *exportRPCMetrics {
+		err := startHTTPServer(*httpPortFlag)
+
+		if err != nil {
+			glog.Fatalf("Failed to start http server on port %d: %v", *httpPortFlag, err)
+		}
 	}
 
 	// Set up the listener for the server
@@ -124,9 +142,6 @@ func main() {
 		glog.Errorf("RPC server terminated on port %d: %v", *serverPortFlag, err)
 		os.Exit(1)
 	}
-
-	// Shut down everything we previously started, rpc server is already down
-	close(done)
 
 	// Give things a few seconds to tidy up
 	glog.Infof("Stopping map server, about to exit")
