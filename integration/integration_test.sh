@@ -4,4 +4,3 @@ INTEGRATION_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 runTest map_integration_test.sh "Map integration test"
 runTest log_integration_test.sh "Log integration test"
-

@@ -28,7 +28,7 @@ var checkLogEmptyFlag = flag.Bool("check_log_empty", true, "If true ensures log 
 var startLeafFlag = flag.Int64("start_leaf", 0, "The first leaf index to use")
 var numLeavesFlag = flag.Int64("num_leaves", 1000, "The number of leaves to submit and read back")
 var queueBatchSizeFlag = flag.Int("queue_batch_size", 50, "Batch size when queueing leaves")
-var readBatchSizeFlag = flag.Int("read_batch_size", 50, "Batch size when getting leaves by index")
+var readBatchSizeFlag = flag.Int64("read_batch_size", 50, "Batch size when getting leaves by index")
 var waitForSequencingFlag = flag.Duration("wait_for_sequencing", time.Second * 60, "How long to wait for leaves to be sequenced")
 var waitBetweenQueueChecksFlag = flag.Duration("queue_poll_wait", time.Second * 5, "How frequently to check the queue while waiting")
 var rpcRequestDeadlineFlag = flag.Duration("rpc_deadline", time.Second * 10, "Deadline to use for all RPC requests")
@@ -38,7 +38,7 @@ type testParameters struct {
 	startLeaf           int64
 	leafCount           int64
 	queueBatchSize      int
-	readBatchSize       int
+	readBatchSize       int64
 	sequencingWaitTotal time.Duration
 	sequencingPollWait  time.Duration
 }
@@ -140,7 +140,7 @@ func queueLeaves(treeID int64, client trillian.TrillianLogClient, params testPar
 				return err
 			}
 
-			if response.Status == nil || response.Status.StatusCode != trillian.TrillianApiStatusCode_OK {
+			if got := response.Status; got == nil || got.StatusCode != trillian.TrillianApiStatusCode_OK {
 				return fmt.Errorf("queue leaves failed: %s %d", response.Status.Description, response.Status.StatusCode)
 			}
 
@@ -198,8 +198,8 @@ func readbackLogEntries(logID int64, client trillian.TrillianLogClient, params t
 		// We have to allow for the last batch potentially being a short one
 		numLeaves := params.leafCount - currentLeaf
 
-		if numLeaves > int64(params.readBatchSize) {
-			numLeaves = int64(params.readBatchSize)
+		if numLeaves > params.readBatchSize {
+			numLeaves = params.readBatchSize
 		}
 
 		glog.Infof("Reading %d leaves from %d ...", numLeaves, currentLeaf + params.startLeaf)
@@ -212,12 +212,12 @@ func readbackLogEntries(logID int64, client trillian.TrillianLogClient, params t
 			return nil, err
 		}
 
-		if response.Status == nil || response.Status.StatusCode != trillian.TrillianApiStatusCode_OK {
+		if got := response.Status; got == nil || got.StatusCode != trillian.TrillianApiStatusCode_OK {
 			return nil, fmt.Errorf("read leaves failed: %s %d", response.Status.Description, response.Status.StatusCode)
 		}
 
 		// Check we got the right leaf count
-		if int64(len(response.Leaves)) == 0 {
+		if len(response.Leaves) == 0 {
 			return nil, fmt.Errorf("expected %d leaves log returned none", numLeaves)
 		}
 
@@ -225,25 +225,27 @@ func readbackLogEntries(logID int64, client trillian.TrillianLogClient, params t
 		// close between batches and identical within batches.
 		for l := 0; l < len(response.Leaves); l++ {
 			// Check for duplicate leaf index in response data - should not happen
-			if _, ok := leafMap[response.Leaves[l].LeafIndex]; ok {
-				return nil, fmt.Errorf("got duplicate leaf sequence number: %d", response.Leaves[l].LeafIndex)
+			leaf := response.Leaves[l]
+
+			if _, ok := leafMap[leaf.LeafIndex]; ok {
+				return nil, fmt.Errorf("got duplicate leaf sequence number: %d", leaf.LeafIndex)
 			}
 
-			leafMap[response.Leaves[l].LeafIndex] = response.Leaves[l]
+			leafMap[leaf.LeafIndex] = leaf
 
 			// Test for having seen duplicate leaf data - it should all be distinct
-			_, ok := leafDataPresenceMap[string(response.Leaves[l].LeafValue)]
+			_, ok := leafDataPresenceMap[string(leaf.LeafValue)]
 
 			if !ok {
-				return nil, fmt.Errorf("leaf data duplicated for leaf: %v", response.Leaves[l])
+				return nil, fmt.Errorf("leaf data duplicated for leaf: %v", leaf)
 			}
 
-			delete(leafDataPresenceMap, string(response.Leaves[l].LeafValue))
+			delete(leafDataPresenceMap, string(leaf.LeafValue))
 
 			hash := hasher.HashLeaf(response.Leaves[l].LeafValue)
 
-			if !bytes.Equal(hash[:], response.Leaves[l].MerkleLeafHash) {
-				return nil, fmt.Errorf("leaf hash mismatch expected: %s, got: %s", base64.StdEncoding.EncodeToString(hash[:]), base64.StdEncoding.EncodeToString(response.Leaves[l].MerkleLeafHash))
+			if got, want := base64.StdEncoding.EncodeToString(hash), base64.StdEncoding.EncodeToString(leaf.MerkleLeafHash); !bytes.Equal(hash[:], leaf.MerkleLeafHash) {
+				return nil, fmt.Errorf("leaf hash mismatch expected got: %s want: %s", got, want)
 			}
 		}
 
@@ -267,8 +269,8 @@ func checkLogRootHashMatches(logID int64, tree *merkle.InMemoryMerkleTree, clien
 	}
 
 	// Hash must not be empty and must match the one we built ourselves
-	if len(resp.SignedLogRoot.RootHash) == 0 || !bytes.Equal(tree.CurrentRoot().Hash(), resp.SignedLogRoot.RootHash) {
-		return fmt.Errorf("root hash mismatch expected: %s, got: %s", base64.StdEncoding.EncodeToString(tree.CurrentRoot().Hash()), base64.StdEncoding.EncodeToString(resp.SignedLogRoot.RootHash))
+	if got, want := base64.StdEncoding.EncodeToString(resp.SignedLogRoot.RootHash), base64.StdEncoding.EncodeToString(tree.CurrentRoot().Hash()); got != want {
+		return fmt.Errorf("root hash mismatch expected got: %s want: %s", got, want)
 	}
 
 	return nil
@@ -277,9 +279,9 @@ func checkLogRootHashMatches(logID int64, tree *merkle.InMemoryMerkleTree, clien
 func makeQueueLeavesRequest(logID int64, leaves []trillian.LogLeaf) trillian.QueueLeavesRequest {
 	leafProtos := make([]*trillian.LogLeaf, 0, len(leaves))
 
-	for l := 0; l < len(leaves); l++ {
+	for _, leaf := range leaves {
 		// TODO(Martin2112): This should be using the leaf value hash but it's not there yet
-		proto := trillian.LogLeaf{LeafIndex: leaves[l].LeafIndex, MerkleLeafHash: leaves[l].MerkleLeafHash, LeafValue: leaves[l].LeafValue, ExtraData: leaves[l].ExtraData}
+		proto := trillian.LogLeaf{LeafIndex: leaf.LeafIndex, MerkleLeafHash: leaf.MerkleLeafHash, LeafValue: leaf.LeafValue, ExtraData: leaf.ExtraData}
 		leafProtos = append(leafProtos, &proto)
 	}
 
