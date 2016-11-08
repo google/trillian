@@ -20,18 +20,18 @@ const proofMaxBitLen = 64
 // LogStorageProviderFunc decouples the server from storage implementations
 type LogStorageProviderFunc func(int64) (storage.LogStorage, error)
 
-// TrillianLogServer implements the RPC API defined in the proto
-type TrillianLogServer struct {
+// TrillianLogRPCServer implements the RPC API defined in the proto
+type TrillianLogRPCServer struct {
 	storageProvider LogStorageProviderFunc
 }
 
-// NewTrillianLogServer creates a new RPC server backed by a LogStorageProvider.
-func NewTrillianLogServer(p LogStorageProviderFunc) *TrillianLogServer {
-	return &TrillianLogServer{storageProvider: p}
+// NewTrillianLogRPCServer creates a new RPC server backed by a LogStorageProvider.
+func NewTrillianLogRPCServer(p LogStorageProviderFunc) *TrillianLogRPCServer {
+	return &TrillianLogRPCServer{storageProvider: p}
 }
 
 // QueueLeaves submits a batch of leaves to the log for later integration into the underlying tree.
-func (t *TrillianLogServer) QueueLeaves(ctx context.Context, req *trillian.QueueLeavesRequest) (*trillian.QueueLeavesResponse, error) {
+func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.QueueLeavesRequest) (*trillian.QueueLeavesResponse, error) {
 	leaves := depointerify(req.Leaves)
 
 	if len(leaves) == 0 {
@@ -60,7 +60,7 @@ func (t *TrillianLogServer) QueueLeaves(ctx context.Context, req *trillian.Queue
 
 // GetInclusionProof obtains the proof of inclusion in the tree for a leaf that has been sequenced.
 // Similar to the get proof by hash handler but one less step as we don't need to look up the index
-func (t *TrillianLogServer) GetInclusionProof(ctx context.Context, req *trillian.GetInclusionProofRequest) (*trillian.GetInclusionProofResponse, error) {
+func (t *TrillianLogRPCServer) GetInclusionProof(ctx context.Context, req *trillian.GetInclusionProofRequest) (*trillian.GetInclusionProofResponse, error) {
 	// Reject obviously invalid tree sizes and leaf indices
 	if req.TreeSize <= 0 {
 		return nil, fmt.Errorf("invalid tree size for proof by hash: %d", req.TreeSize)
@@ -110,7 +110,7 @@ func (t *TrillianLogServer) GetInclusionProof(ctx context.Context, req *trillian
 
 // GetInclusionProofByHash obtains proofs of inclusion by leaf hash. Because some logs can
 // contain duplicate hashes it is possible for multiple proofs to be returned.
-func (t *TrillianLogServer) GetInclusionProofByHash(ctx context.Context, req *trillian.GetInclusionProofByHashRequest) (*trillian.GetInclusionProofByHashResponse, error) {
+func (t *TrillianLogRPCServer) GetInclusionProofByHash(ctx context.Context, req *trillian.GetInclusionProofByHashRequest) (*trillian.GetInclusionProofByHashResponse, error) {
 	// Reject obviously invalid tree sizes
 	if req.TreeSize <= 0 {
 		return nil, fmt.Errorf("invalid tree size for proof by hash: %d", req.TreeSize)
@@ -173,7 +173,7 @@ func (t *TrillianLogServer) GetInclusionProofByHash(ctx context.Context, req *tr
 // GetConsistencyProof obtains a proof that two versions of the tree are consistent with each
 // other and that the later tree includes all the entries of the prior one. For more details
 // see the example trees in RFC 6962.
-func (t *TrillianLogServer) GetConsistencyProof(ctx context.Context, req *trillian.GetConsistencyProofRequest) (*trillian.GetConsistencyProofResponse, error) {
+func (t *TrillianLogRPCServer) GetConsistencyProof(ctx context.Context, req *trillian.GetConsistencyProofRequest) (*trillian.GetConsistencyProofResponse, error) {
 	// Reject requests where the parameters don't make sense
 	if req.FirstTreeSize <= 0 {
 		return nil, fmt.Errorf("first tree size must be > 0 but was %d", req.FirstTreeSize)
@@ -236,7 +236,7 @@ func (t *TrillianLogServer) GetConsistencyProof(ctx context.Context, req *trilli
 
 // GetLatestSignedLogRoot obtains the latest published tree root for the Merkle Tree that
 // underlies the log.
-func (t *TrillianLogServer) GetLatestSignedLogRoot(ctx context.Context, req *trillian.GetLatestSignedLogRootRequest) (*trillian.GetLatestSignedLogRootResponse, error) {
+func (t *TrillianLogRPCServer) GetLatestSignedLogRoot(ctx context.Context, req *trillian.GetLatestSignedLogRootRequest) (*trillian.GetLatestSignedLogRootResponse, error) {
 	tx, err := t.prepareStorageTx(req.LogId)
 
 	if err != nil {
@@ -259,7 +259,7 @@ func (t *TrillianLogServer) GetLatestSignedLogRoot(ctx context.Context, req *tri
 
 // GetSequencedLeafCount returns the number of leaves that have been integrated into the Merkle
 // Tree. This can be zero for a log containing no entries.
-func (t *TrillianLogServer) GetSequencedLeafCount(ctx context.Context, req *trillian.GetSequencedLeafCountRequest) (*trillian.GetSequencedLeafCountResponse, error) {
+func (t *TrillianLogRPCServer) GetSequencedLeafCount(ctx context.Context, req *trillian.GetSequencedLeafCountRequest) (*trillian.GetSequencedLeafCountResponse, error) {
 	tx, err := t.prepareStorageTx(req.LogId)
 
 	if err != nil {
@@ -284,7 +284,7 @@ func (t *TrillianLogServer) GetSequencedLeafCount(ctx context.Context, req *tril
 // tree. It is not possible to fetch leaves that have been queued but not yet integrated.
 // TODO: Validate indices against published tree size in case we implement write sharding that
 // can get ahead of this point. Not currently clear what component should own this state.
-func (t *TrillianLogServer) GetLeavesByIndex(ctx context.Context, req *trillian.GetLeavesByIndexRequest) (*trillian.GetLeavesByIndexResponse, error) {
+func (t *TrillianLogRPCServer) GetLeavesByIndex(ctx context.Context, req *trillian.GetLeavesByIndexRequest) (*trillian.GetLeavesByIndexResponse, error) {
 	if !validateLeafIndices(req.LeafIndex) {
 		return &trillian.GetLeavesByIndexResponse{Status: buildStatusWithDesc(trillian.TrillianApiStatusCode_ERROR, "Invalid -ve leaf index in request")}, nil
 	}
@@ -312,7 +312,7 @@ func (t *TrillianLogServer) GetLeavesByIndex(ctx context.Context, req *trillian.
 // GetLeavesByHash obtains one or more leaves based on their tree hash. It is not possible
 // to fetch leaves that have been queued but not yet integrated. Logs may accept duplicate
 // entries so this may return more results than the number of hashes in the request.
-func (t *TrillianLogServer) GetLeavesByHash(ctx context.Context, req *trillian.GetLeavesByHashRequest) (*trillian.GetLeavesByHashResponse, error) {
+func (t *TrillianLogRPCServer) GetLeavesByHash(ctx context.Context, req *trillian.GetLeavesByHashRequest) (*trillian.GetLeavesByHashResponse, error) {
 	if len(req.LeafHash) == 0 || !validateLeafHashes(req.LeafHash) {
 		return &trillian.GetLeavesByHashResponse{Status: buildStatusWithDesc(trillian.TrillianApiStatusCode_ERROR, "Must supply at least one hash and none must be empty")}, nil
 	}
@@ -339,7 +339,7 @@ func (t *TrillianLogServer) GetLeavesByHash(ctx context.Context, req *trillian.G
 
 // GetEntryAndProof returns both a Merkle Leaf entry and an inclusion proof for a given index
 // and tree size.
-func (t *TrillianLogServer) GetEntryAndProof(ctx context.Context, req *trillian.GetEntryAndProofRequest) (*trillian.GetEntryAndProofResponse, error) {
+func (t *TrillianLogRPCServer) GetEntryAndProof(ctx context.Context, req *trillian.GetEntryAndProofRequest) (*trillian.GetEntryAndProofResponse, error) {
 	// Reject parameters that are obviously not valid
 	if req.TreeSize <= 0 {
 		return nil, fmt.Errorf("invalid tree size for GetEntryAndProof: %d", req.TreeSize)
@@ -401,7 +401,7 @@ func (t *TrillianLogServer) GetEntryAndProof(ctx context.Context, req *trillian.
 		Leaf:   &leaves[0]}, nil
 }
 
-func (t *TrillianLogServer) prepareStorageTx(treeID int64) (storage.LogTX, error) {
+func (t *TrillianLogRPCServer) prepareStorageTx(treeID int64) (storage.LogTX, error) {
 	s, err := t.storageProvider(treeID)
 
 	if err != nil {
@@ -428,7 +428,7 @@ func buildStatusWithDesc(code trillian.TrillianApiStatusCode, desc string) *tril
 	return status
 }
 
-func (t *TrillianLogServer) commitAndLog(tx storage.LogTX, op string) error {
+func (t *TrillianLogRPCServer) commitAndLog(tx storage.LogTX, op string) error {
 	err := tx.Commit()
 
 	if err != nil {
