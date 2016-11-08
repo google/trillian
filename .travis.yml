@@ -7,6 +7,10 @@ os:
 go:
   - 1.7.1
 
+env:
+  - GOFLAGS=
+  - GOFLAGS=-race
+
 install:
   - |
     if [ ! -d $HOME/gopath/src/github.com/google ]; then
@@ -35,8 +39,8 @@ script:
         git status
         exit 1
       fi
-  - go build -v ./...
-  - go test -v ./...
+  - go build ${GOFLAGS} -v ./...
+  - go test ${GOFLAGS} -v ./...
   - ./integration/integration_test.sh
 
 services: mysql
