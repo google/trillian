@@ -19,7 +19,7 @@ echo "Starting Log server on port ${PORT}"
 
 # Start the log server, and set an exit trap to ensure we kill it once we're done:
 pushd ${TRILLIAN_ROOT} > /dev/null
-go build ./server/trillian_log_server/
+go build ${GOFLAGS} ./server/trillian_log_server/
 ./trillian_log_server --private_key_password=towel --private_key_file=${TESTDATA}/trillian-server-key.pem --port ${PORT} --signer_interval="1s" --sequencer_sleep_between_runs="1s" --batch_size=100 &
 trap "kill -INT %1" EXIT
 popd > /dev/null

@@ -16,7 +16,7 @@ echo "Starting Map server on port ${PORT}"
 # Start the map server, and set an exit trap to ensure we kill it
 # once we're done:
 pushd ${TRILLIAN_ROOT} > /dev/null
-go build ./server/vmap/trillian_map_server/
+go build ${GOFLAGS} ./server/vmap/trillian_map_server/
 ./trillian_map_server --private_key_password=towel --private_key_file=${TESTDATA}/trillian-map-server-key.pem --port ${PORT} &
 trap "kill -INT %1" EXIT
 popd > /dev/null
