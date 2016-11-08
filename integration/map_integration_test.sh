@@ -25,6 +25,6 @@ sleep 2
 
 # Run the test(s):
 cd ${INTEGRATION_DIR}
-go test -tags=integration --timeout=5m ./ --map_id ${TEST_TREE_ID} --server="localhost:${PORT}"
+go test -tags=integration -run ".*Map.*" --timeout=5m ./ --map_id ${TEST_TREE_ID} --server="localhost:${PORT}"
 
 echo "Stopping Map server on port ${PORT}"
