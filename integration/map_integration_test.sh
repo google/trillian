@@ -18,13 +18,26 @@ echo "Starting Map server on port ${PORT}"
 pushd ${TRILLIAN_ROOT} > /dev/null
 go build ${GOFLAGS} ./server/vmap/trillian_map_server/
 ./trillian_map_server --private_key_password=towel --private_key_file=${TESTDATA}/trillian-map-server-key.pem --port ${PORT} &
-trap "kill -INT %1" EXIT
+SERVER_PID=$!
+trap "kill -INT ${SERVER_PID}" EXIT
 popd > /dev/null
 sleep 2
 
 
 # Run the test(s):
 cd ${INTEGRATION_DIR}
+set +e
 go test -tags=integration -run ".*Map.*" --timeout=5m ./ --map_id ${TEST_TREE_ID} --server="localhost:${PORT}"
+RESULT=$?
+set -e
 
 echo "Stopping Map server on port ${PORT}"
+trap - EXIT
+kill -INT ${SERVER_PID}
+
+if [ $RESULT != 0 ]; then
+    sleep 1
+    echo "Server log:"
+    echo "--------------------"
+    cat /tmp/trillian_map_server.INFO
+fi

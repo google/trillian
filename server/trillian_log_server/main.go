@@ -103,7 +103,8 @@ func awaitSignal(rpcServer *grpc.Server) {
 
 	// Now block main and wait for a signal
 	sig := <-sigs
-	glog.Infof("Signal received: %v", sig)
+	glog.Warningf("Signal received: %v", sig)
+	glog.Flush()
 
 	// Bring down the RPC server, which will unblock main
 	rpcServer.Stop()
@@ -173,5 +174,6 @@ func main() {
 
 	// Give things a few seconds to tidy up
 	glog.Infof("Stopping server, about to exit")
+	glog.Flush()
 	time.Sleep(time.Second * 5)
 }
