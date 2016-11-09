@@ -24,8 +24,8 @@ var rpcDeadlineFlag = flag.Duration("rpc_deadline", time.Second*10, "Deadline fo
 var serverPortFlag = flag.Int("port", 6962, "Port to serve CT log requests on")
 var trustedRootPEMFlag = flag.String("trusted_roots", "", "File containing one or more concatenated trusted root certs in PEM format")
 var privateKeyPasswordFlag = flag.String("private_key_password", "", "Password for log private key")
-var privateKeyPEMFlag = flag.String("private_key", "", "PEM file containing log private key")
-var publicKeyPEMFlag = flag.String("public_key", "", "PEM file containing log public key")
+var privateKeyPEMFlag = flag.String("private_key_file", "", "PEM file containing log private key")
+var publicKeyPEMFlag = flag.String("public_key_file", "", "PEM file containing log public key")
 
 func loadTrustedRoots() (*ct.PEMCertPool, error) {
 	if len(*trustedRootPEMFlag) == 0 {
@@ -54,30 +54,34 @@ func loadTrustedRoots() (*ct.PEMCertPool, error) {
 }
 
 func loadLogKeys() (crypto.KeyManager, error) {
+	if len(*privateKeyPEMFlag) == 0 {
+		return nil, errors.New("the --private_key_file flag must be set to reference a valid PEM file")
+	}
+	if len(*publicKeyPEMFlag) == 0 {
+		return nil, errors.New("the --public_key_file flag must be set to reference a valid PEM file")
+	}
+
 	logKeyManager := crypto.NewPEMKeyManager()
 
 	privateKeyPEM, err := ioutil.ReadFile(*privateKeyPEMFlag)
-
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to load private key file: %v", err)
 	}
 
 	err = logKeyManager.LoadPrivateKey(string(privateKeyPEM), *privateKeyPasswordFlag)
-
 	if err != nil {
-		return nil, fmt.Errorf("failed to load private key: %v", err)
+		return nil, fmt.Errorf("failed to parse private key: %v", err)
 	}
 
 	publicKeyPEM, err := ioutil.ReadFile(*publicKeyPEMFlag)
-
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to load public key file: %v", err)
 	}
 
 	err = logKeyManager.LoadPublicKey(string(publicKeyPEM))
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to load public key: %v", err)
+		return nil, fmt.Errorf("failed to parse public key: %v", err)
 	}
 
 	return logKeyManager, nil
