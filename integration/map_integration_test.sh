@@ -13,7 +13,7 @@ createMap ${TEST_TREE_ID}
 echo "Starting Map RPC server on port ${RPC_PORT}"
 pushd ${TRILLIAN_ROOT} > /dev/null
 go build ${GOFLAGS} ./server/vmap/trillian_map_server/
-./trillian_map_server --private_key_password=towel --private_key_file=${TESTDATA}/trillian-map-server-key.pem --port ${RPC_PORT} &
+./trillian_map_server --private_key_password=towel --private_key_file=${TESTDATA}/map-rpc-server.privkey.pem --port ${RPC_PORT} &
 RPC_SERVER_PID=$!
 popd > /dev/null
 
