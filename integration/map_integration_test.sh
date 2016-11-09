@@ -34,7 +34,10 @@ kill -INT ${RPC_SERVER_PID}
 
 if [ $RESULT != 0 ]; then
     sleep 1
+    if [ "$TMPDIR" == "" ]; then
+        TMPDIR=/tmp
+    fi
     echo "Server log:"
     echo "--------------------"
-    cat /tmp/trillian_map_server.INFO
+    cat ${TMPDIR}/trillian_map_server.INFO
 fi
