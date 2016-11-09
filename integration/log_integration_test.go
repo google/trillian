@@ -21,7 +21,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-var serverFlag = flag.String("log_server", "localhost:8092", "Server address:port")
+var serverFlag = flag.String("log_rpc_server", "localhost:8092", "Server address:port")
 var queueLeavesFlag = flag.Bool("queue_leaves", true, "If true queues leaves, false just reads from the log")
 var awaitSequencingFlag = flag.Bool("await_sequencing", true, "If true then waits until log size is at least num_leaves")
 var checkLogEmptyFlag = flag.Bool("check_log_empty", true, "If true ensures log is empty before queuing anything")
@@ -29,9 +29,9 @@ var startLeafFlag = flag.Int64("start_leaf", 0, "The first leaf index to use")
 var numLeavesFlag = flag.Int64("num_leaves", 1000, "The number of leaves to submit and read back")
 var queueBatchSizeFlag = flag.Int("queue_batch_size", 50, "Batch size when queueing leaves")
 var readBatchSizeFlag = flag.Int64("read_batch_size", 50, "Batch size when getting leaves by index")
-var waitForSequencingFlag = flag.Duration("wait_for_sequencing", time.Second * 60, "How long to wait for leaves to be sequenced")
-var waitBetweenQueueChecksFlag = flag.Duration("queue_poll_wait", time.Second * 5, "How frequently to check the queue while waiting")
-var rpcRequestDeadlineFlag = flag.Duration("rpc_deadline", time.Second * 10, "Deadline to use for all RPC requests")
+var waitForSequencingFlag = flag.Duration("wait_for_sequencing", time.Second*60, "How long to wait for leaves to be sequenced")
+var waitBetweenQueueChecksFlag = flag.Duration("queue_poll_wait", time.Second*5, "How frequently to check the queue while waiting")
+var rpcRequestDeadlineFlag = flag.Duration("rpc_deadline", time.Second*10, "Deadline to use for all RPC requests")
 
 // testParameters bundles up all the settings for a test run
 type testParameters struct {
@@ -55,7 +55,7 @@ func TestLogIntegration(t *testing.T) {
 	}
 
 	// TODO: Other options apart from insecure connections
-	conn, err := grpc.Dial(*serverFlag, grpc.WithInsecure(), grpc.WithTimeout(time.Second * 5))
+	conn, err := grpc.Dial(*serverFlag, grpc.WithInsecure(), grpc.WithTimeout(time.Second*5))
 
 	if err != nil {
 		t.Fatalf("Failed to connect to log server: %v", err)
@@ -128,7 +128,7 @@ func queueLeaves(treeID int64, client trillian.TrillianLogClient, params testPar
 			LeafIndex:      0}
 		leaves = append(leaves, leaf)
 
-		if len(leaves) >= params.queueBatchSize || (l + 1) == params.leafCount {
+		if len(leaves) >= params.queueBatchSize || (l+1) == params.leafCount {
 			glog.Infof("Queueing %d leaves ...", len(leaves))
 
 			req := makeQueueLeavesRequest(treeID, leaves)
@@ -168,7 +168,7 @@ func waitForSequencing(treeID int64, client trillian.TrillianLogClient, params t
 
 		glog.Infof("Leaf count: %d", sequencedLeaves.LeafCount)
 
-		if sequencedLeaves.LeafCount >= params.leafCount + params.startLeaf {
+		if sequencedLeaves.LeafCount >= params.leafCount+params.startLeaf {
 			return nil
 		}
 
@@ -189,7 +189,7 @@ func readbackLogEntries(logID int64, client trillian.TrillianLogClient, params t
 	leafDataPresenceMap := make(map[string]bool)
 
 	for l := int64(0); l < params.leafCount; l++ {
-		leafDataPresenceMap[fmt.Sprintf("Leaf %d", l + params.startLeaf)] = true
+		leafDataPresenceMap[fmt.Sprintf("Leaf %d", l+params.startLeaf)] = true
 	}
 
 	for currentLeaf < params.leafCount {
@@ -202,8 +202,8 @@ func readbackLogEntries(logID int64, client trillian.TrillianLogClient, params t
 			numLeaves = params.readBatchSize
 		}
 
-		glog.Infof("Reading %d leaves from %d ...", numLeaves, currentLeaf + params.startLeaf)
-		req := makeGetLeavesByIndexRequest(logID, currentLeaf + params.startLeaf, numLeaves)
+		glog.Infof("Reading %d leaves from %d ...", numLeaves, currentLeaf+params.startLeaf)
+		req := makeGetLeavesByIndexRequest(logID, currentLeaf+params.startLeaf, numLeaves)
 		ctx, cancelFunc := getRPCDeadlineContext()
 		response, err := client.GetLeavesByIndex(ctx, req)
 		cancelFunc()
@@ -292,7 +292,7 @@ func makeGetLeavesByIndexRequest(logID int64, startLeaf, numLeaves int64) *trill
 	leafIndices := make([]int64, 0, numLeaves)
 
 	for l := int64(0); l < numLeaves; l++ {
-		leafIndices = append(leafIndices, l + startLeaf)
+		leafIndices = append(leafIndices, l+startLeaf)
 	}
 
 	return &trillian.GetLeavesByIndexRequest{LogId: logID, LeafIndex: leafIndices}
