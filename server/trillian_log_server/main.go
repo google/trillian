@@ -112,8 +112,8 @@ func awaitSignal(rpcServer *grpc.Server) {
 
 func main() {
 	flag.Parse()
-
-	glog.Info("**** Log Server Starting ****")
+	glog.CopyStandardLogTo("WARNING")
+	glog.Info("**** Log RPC Server Starting ****")
 
 	// First make sure we can access the database, quit if not
 	if err := checkDatabaseAccessible(*mysqlURIFlag); err != nil {
