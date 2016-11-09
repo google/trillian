@@ -195,7 +195,7 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) testConte
 		mockKeyManager.EXPECT().Signer().AnyTimes().Return(mockSigner, params.keyManagerError)
 	}
 
-	sequencer := NewSequencer(treeHasher, util.FakeTimeSource{fakeTimeForTest}, mockStorage, mockKeyManager)
+	sequencer := NewSequencer(treeHasher, util.FakeTimeSource{FakeTime: fakeTimeForTest}, mockStorage, mockKeyManager)
 
 	return testContext{mockTx: mockTx, mockStorage: mockStorage, mockKeyManager: mockKeyManager, sequencer: sequencer}
 }

@@ -31,7 +31,7 @@ func TestSignV1SCTForCertificate(t *testing.T) {
 	leaf, got, err := signV1SCTForCertificate(km, cert, fixedTime)
 
 	if err != nil {
-		t.Fatalf("create sct for cert failed", err)
+		t.Fatal("create sct for cert failed", err)
 	}
 
 	logID, err := base64.StdEncoding.DecodeString(ctMockLogID)
@@ -91,7 +91,7 @@ func TestSignV1SCTForPrecertificate(t *testing.T) {
 	leaf, got, err := signV1SCTForPrecertificate(km, cert, fixedTime)
 
 	if err != nil {
-		t.Fatalf("create sct for precert failed", err)
+		t.Fatal("create sct for precert failed", err)
 	}
 
 	logID, err := base64.StdEncoding.DecodeString(ctMockLogID)

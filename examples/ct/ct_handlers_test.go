@@ -37,7 +37,7 @@ var fakeTime = time.Date(2016, 7, 22, 11, 01, 13, 0, time.UTC)
 
 // The deadline should be the above bumped by 500ms
 var fakeDeadlineTime = time.Date(2016, 7, 22, 11, 01, 13, 500*1000*1000, time.UTC)
-var fakeTimeSource = util.FakeTimeSource{fakeTime}
+var fakeTimeSource = util.FakeTimeSource{FakeTime: fakeTime}
 var okStatus = &trillian.TrillianApiStatus{StatusCode: trillian.TrillianApiStatusCode_OK}
 
 type jsonChain struct {

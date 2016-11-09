@@ -24,7 +24,7 @@ func (s subtreeHasPrefix) Matches(x interface{}) bool {
 }
 
 func (s subtreeHasPrefix) String() string {
-	return fmt.Sprintf("has prefix %s", s.expectedID)
+	return fmt.Sprintf("has prefix %v", s.expectedID)
 }
 
 // SubtreeHasPrefix returns a gomock matcher which returns true when it finds
