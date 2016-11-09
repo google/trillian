@@ -121,10 +121,9 @@ You can then set up the [expected tables](storage/mysql/storage.sql) in a
 `test` database like so:
 
 ```console
-% mysql -u root -e 'DROP DATABASE IF EXISTS test;'
-% mysql -u root -e 'CREATE DATABASE test;'
-% mysql -u root -e "GRANT ALL ON test.* TO 'test'@'localhost' IDENTIFIED BY 'zaphod';"
-% mysql -u root -D test < storage/mysql/storage.sql
+% ./scripts/resetdb.sh
+Completely wipe and reset database 'test'.
+Are you sure? y
 ```
 
 ### Unit Tests
