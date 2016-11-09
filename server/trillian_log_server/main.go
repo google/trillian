@@ -103,7 +103,7 @@ func startRPCServer(listener net.Listener, port int, provider server.LogStorageP
 	// Create the server, using the interceptor to record stats on the requests
 	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(statsInterceptor.Interceptor()))
 
-	logServer := server.NewTrillianLogServer(provider)
+	logServer := server.NewTrillianLogRPCServer(provider)
 	trillian.RegisterTrillianLogServer(grpcServer, logServer)
 
 	return grpcServer
