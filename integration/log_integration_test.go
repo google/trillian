@@ -60,7 +60,8 @@ func TestLogIntegration(t *testing.T) {
 		sequencerBatchSize:  *sequencerBatchSizeFlag,
 		readBatchSize:       *readBatchSizeFlag,
 		sequencingWaitTotal: *waitForSequencingFlag,
-		sequencingPollWait:  *waitBetweenQueueChecksFlag}
+		sequencingPollWait:  *waitBetweenQueueChecksFlag,
+	}
 
 	if params.startLeaf < 0 || params.leafCount <= 0 {
 		t.Fatalf("Start leaf index must be >= 0 (%d) and number of leaves must be > 0 (%d)", params.startLeaf, params.leafCount)
