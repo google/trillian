@@ -19,9 +19,9 @@ import (
 
 // TODO(Martin2112): We still have the treeid / log ID thing to think about + security etc.
 var logIDFlag = flag.Int64("log_id", 1, "The log id (tree id) to send to the backend")
-var rpcBackendFlag = flag.String("log_rpc_backend", "localhost:8090", "Backend Log RPC server to use")
+var rpcBackendFlag = flag.String("log_rpc_server", "localhost:8090", "Backend Log RPC server to use")
 var rpcDeadlineFlag = flag.Duration("rpc_deadline", time.Second*10, "Deadline for backend RPC requests")
-var serverPortFlag = flag.Int("port", 8091, "Port to serve CT log requests on")
+var serverPortFlag = flag.Int("port", 6962, "Port to serve CT log requests on")
 var trustedRootPEMFlag = flag.String("trusted_roots", "", "File containing one or more concatenated trusted root certs in PEM format")
 var privateKeyPasswordFlag = flag.String("private_key_password", "", "Password for log private key")
 var privateKeyPEMFlag = flag.String("private_key", "", "PEM file containing log private key")
