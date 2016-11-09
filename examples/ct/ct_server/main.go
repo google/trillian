@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"time"
 
@@ -87,19 +90,33 @@ func loadLogKeys() (crypto.KeyManager, error) {
 	return logKeyManager, nil
 }
 
+func awaitSignal() {
+	// Arrange notification for the standard set of signals used to terminate a server
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+
+	// Now block main and wait for a signal
+	sig := <-sigs
+	glog.Warningf("Signal received: %v", sig)
+	glog.Flush()
+
+	// Terminate the process
+	os.Exit(1)
+}
+
 func main() {
 	flag.Parse()
+	glog.CopyStandardLogTo("WARNING")
+	glog.Info("**** CT HTTP Server Starting ****")
 
 	// Load the set of trusted root certs before bringing up any servers
 	trustedRoots, err := loadTrustedRoots()
-
 	if err != nil {
 		glog.Fatalf("Failed to read trusted roots: %v", err)
 	}
 
 	// And load our keys
 	logKeyManager, err := loadLogKeys()
-
 	if err != nil {
 		glog.Fatalf("Failed to load keys for log: %v", err)
 	}
@@ -108,7 +125,6 @@ func main() {
 	// get started. Uses a blocking connection so we don't start serving before we're connected
 	// to backend.
 	conn, err := grpc.Dial(*rpcBackendFlag, grpc.WithInsecure(), grpc.WithBlock())
-
 	if err != nil {
 		glog.Fatalf("Could not connect to rpc server: %v", err)
 	}
@@ -120,5 +136,10 @@ func main() {
 	handlers := ct.NewRequestHandlers(*logIDFlag, trustedRoots, client, logKeyManager, *rpcDeadlineFlag, new(util.SystemTimeSource))
 	handlers.RegisterCTHandlers()
 
-	glog.Warningf("Server exited: %v", http.ListenAndServe(fmt.Sprintf("localhost:%d", *serverPortFlag), nil))
+	// Bring up the HTTP server and serve until we get a signal not to.
+	go awaitSignal()
+	server := http.Server{Addr: fmt.Sprintf("localhost:%d", *serverPortFlag), Handler: nil}
+	err = server.ListenAndServe()
+	glog.Warningf("Server exited: %v", err)
+	glog.Flush()
 }
