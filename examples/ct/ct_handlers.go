@@ -24,9 +24,6 @@ import (
 const (
 	// All RFC6962 requests start with this base path
 	ctV1BasePath string = "/ct/v1/"
-	// You'd think these would be defined in some library but if so I haven't found it yet
-	httpMethodPost = "POST"
-	httpMethodGet  = "GET"
 )
 
 const (
@@ -193,7 +190,7 @@ func enforceMethod(w http.ResponseWriter, r *http.Request, method string) bool {
 
 	// For GET requests all params come as form encoded so we might as well parse them now.
 	// POSTs will decode the raw request body as JSON later.
-	if r.Method == httpMethodGet {
+	if r.Method == http.MethodGet {
 		if err := r.ParseForm(); err != nil {
 			sendHTTPError(w, http.StatusBadRequest, err)
 			return false
@@ -206,7 +203,7 @@ func enforceMethod(w http.ResponseWriter, r *http.Request, method string) bool {
 // addChainInternal is called by add-chain and add-pre-chain as the logic involved in
 // processing these requests is almost identical
 func addChainInternal(w http.ResponseWriter, r *http.Request, c RequestHandlers, isPrecert bool) (int, error) {
-	if !enforceMethod(w, r, httpMethodPost) {
+	if !enforceMethod(w, r, http.MethodPost) {
 		// HTTP status code was already set
 		return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 	}
@@ -291,7 +288,7 @@ func wrappedAddPreChainHandler(c RequestHandlers) appHandler {
 
 func wrappedGetSTHHandler(c RequestHandlers) appHandler {
 	return func(w http.ResponseWriter, r *http.Request) (int, error) {
-		if !enforceMethod(w, r, httpMethodGet) {
+		if !enforceMethod(w, r, http.MethodGet) {
 			return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 		}
 
@@ -352,7 +349,7 @@ func wrappedGetSTHHandler(c RequestHandlers) appHandler {
 
 func wrappedGetSTHConsistencyHandler(c RequestHandlers) appHandler {
 	return func(w http.ResponseWriter, r *http.Request) (int, error) {
-		if !enforceMethod(w, r, httpMethodGet) {
+		if !enforceMethod(w, r, http.MethodGet) {
 			return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 		}
 
@@ -399,7 +396,7 @@ func wrappedGetSTHConsistencyHandler(c RequestHandlers) appHandler {
 
 func wrappedGetProofByHashHandler(c RequestHandlers) appHandler {
 	return func(w http.ResponseWriter, r *http.Request) (int, error) {
-		if !enforceMethod(w, r, httpMethodGet) {
+		if !enforceMethod(w, r, http.MethodGet) {
 			return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 		}
 
@@ -466,7 +463,7 @@ func wrappedGetProofByHashHandler(c RequestHandlers) appHandler {
 
 func wrappedGetEntriesHandler(c RequestHandlers) appHandler {
 	return func(w http.ResponseWriter, r *http.Request) (int, error) {
-		if !enforceMethod(w, r, httpMethodGet) {
+		if !enforceMethod(w, r, http.MethodGet) {
 			return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 		}
 
@@ -533,7 +530,7 @@ func wrappedGetEntriesHandler(c RequestHandlers) appHandler {
 
 func wrappedGetRootsHandler(trustedRoots *PEMCertPool) appHandler {
 	return func(w http.ResponseWriter, r *http.Request) (int, error) {
-		if !enforceMethod(w, r, httpMethodGet) {
+		if !enforceMethod(w, r, http.MethodGet) {
 			return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 		}
 
@@ -563,7 +560,7 @@ func wrappedGetRootsHandler(trustedRoots *PEMCertPool) appHandler {
 // CT clients.
 func wrappedGetEntryAndProofHandler(c RequestHandlers) appHandler {
 	return func(w http.ResponseWriter, r *http.Request) (int, error) {
-		if !enforceMethod(w, r, httpMethodGet) {
+		if !enforceMethod(w, r, http.MethodGet) {
 			return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 		}
 
