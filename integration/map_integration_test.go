@@ -19,7 +19,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-var server = flag.String("server", "localhost:8091", "Server address:port")
+var server = flag.String("map_rpc_server", "localhost:8091", "Server address:port")
 var mapID = flag.Int64("map_id", 1, "Trillian MapID to use for test")
 
 func getClient() (*grpc.ClientConn, trillian.TrillianMapClient, error) {

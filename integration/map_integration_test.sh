@@ -4,36 +4,33 @@ INTEGRATION_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 . ${INTEGRATION_DIR}/common.sh
 
 TEST_TREE_ID=123
-PORT=34556
+RPC_PORT=34556
 
 echo "Provisioning test map (Tree ID: $TEST_TREE_ID) in database"
+wipeMap ${TEST_TREE_ID}
+createMap ${TEST_TREE_ID}
 
-mysql -u test --password=zaphod -D test -e "DELETE FROM Trees WHERE TreeId = ${TEST_TREE_ID}"
-mysql -u test --password=zaphod -D test -e "INSERT INTO Trees VALUES (${TEST_TREE_ID}, 1, 'MAP', 'SHA256', 'SHA256', false)"
-
-echo "Starting Map server on port ${PORT}"
-
-# Start the map server, and set an exit trap to ensure we kill it
-# once we're done:
+echo "Starting Map RPC server on port ${RPC_PORT}"
 pushd ${TRILLIAN_ROOT} > /dev/null
 go build ${GOFLAGS} ./server/vmap/trillian_map_server/
-./trillian_map_server --private_key_password=towel --private_key_file=${TESTDATA}/trillian-map-server-key.pem --port ${PORT} &
-SERVER_PID=$!
-trap "kill -INT ${SERVER_PID}" EXIT
+./trillian_map_server --private_key_password=towel --private_key_file=${TESTDATA}/trillian-map-server-key.pem --port ${RPC_PORT} &
+RPC_SERVER_PID=$!
 popd > /dev/null
-sleep 2
 
+# Set an exit trap to ensure we kill the RPC server once we're done.
+trap "kill -INT ${RPC_SERVER_PID}" EXIT
+sleep 2
 
 # Run the test(s):
 cd ${INTEGRATION_DIR}
 set +e
-go test -tags=integration -run ".*Map.*" --timeout=5m ./ --map_id ${TEST_TREE_ID} --server="localhost:${PORT}"
+go test -tags=integration -run ".*Map.*" --timeout=5m ./ --map_id ${TEST_TREE_ID} --map_rpc_server="localhost:${RPC_PORT}"
 RESULT=$?
 set -e
 
-echo "Stopping Map server on port ${PORT}"
+echo "Stopping Map RPC server on port ${RPC_PORT}"
 trap - EXIT
-kill -INT ${SERVER_PID}
+kill -INT ${RPC_SERVER_PID}
 
 if [ $RESULT != 0 ]; then
     sleep 1
