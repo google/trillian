@@ -22,11 +22,6 @@ import (
 )
 
 const (
-	// All RFC6962 requests start with this base path
-	ctV1BasePath string = "/ct/v1/"
-)
-
-const (
 	// HTTP content type header
 	contentTypeHeader string = "Content-Type"
 	// MIME content type for JSON
@@ -96,10 +91,6 @@ type RequestHandlers struct {
 // be registered by calling RegisterCTHandlers()
 func NewRequestHandlers(logID int64, trustedRoots *PEMCertPool, rpcClient trillian.TrillianLogClient, km crypto.KeyManager, rpcDeadline time.Duration, timeSource util.TimeSource) *RequestHandlers {
 	return &RequestHandlers{logID, trustedRoots, rpcClient, km, rpcDeadline, timeSource}
-}
-
-func pathFor(req string) string {
-	return ctV1BasePath + req
 }
 
 // addChainRequest is a struct for parsing JSON add-chain requests. See RFC 6962 Sections 4.1 and 4.2
@@ -613,14 +604,14 @@ func wrappedGetEntryAndProofHandler(c RequestHandlers) appHandler {
 // RegisterCTHandlers registers a HandleFunc for all of the RFC6962 defined methods.
 // TODO(Martin2112): This registers on default ServeMux, might need more flexibility?
 func (c RequestHandlers) RegisterCTHandlers() {
-	http.Handle(pathFor("add-chain"), wrappedAddChainHandler(c))
-	http.Handle(pathFor("add-pre-chain"), wrappedAddPreChainHandler(c))
-	http.Handle(pathFor("get-sth"), wrappedGetSTHHandler(c))
-	http.Handle(pathFor("get-sth-consistency"), wrappedGetSTHConsistencyHandler(c))
-	http.Handle(pathFor("get-proof-by-hash"), wrappedGetProofByHashHandler(c))
-	http.Handle(pathFor("get-entries"), wrappedGetEntriesHandler(c))
-	http.Handle(pathFor("get-roots"), wrappedGetRootsHandler(c.trustedRoots))
-	http.Handle(pathFor("get-entry-and-proof"), wrappedGetEntryAndProofHandler(c))
+	http.Handle("/ct/v1/add-chain", wrappedAddChainHandler(c))
+	http.Handle("/ct/v1/add-pre-chain", wrappedAddPreChainHandler(c))
+	http.Handle("/ct/v1/get-sth", wrappedGetSTHHandler(c))
+	http.Handle("/ct/v1/get-sth-consistency", wrappedGetSTHConsistencyHandler(c))
+	http.Handle("/ct/v1/get-proof-by-hash", wrappedGetProofByHashHandler(c))
+	http.Handle("/ct/v1/get-entries", wrappedGetEntriesHandler(c))
+	http.Handle("/ct/v1/get-roots", wrappedGetRootsHandler(c.trustedRoots))
+	http.Handle("/ct/v1/get-entry-and-proof", wrappedGetEntryAndProofHandler(c))
 }
 
 // Generates a custom error page to give more information on why something didn't work
