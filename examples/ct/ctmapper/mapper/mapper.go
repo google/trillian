@@ -55,7 +55,7 @@ func updateDomainMap(m map[string]proto.EntryList, cert x509.Certificate, index 
 func (m *CTMapper) oneMapperRun() (bool, error) {
 	start := time.Now()
 	glog.Info("starting mapping batch")
-	getRootReq := &trillian.GetSignedMapRootRequest{m.mapID}
+	getRootReq := &trillian.GetSignedMapRootRequest{MapId: m.mapID}
 	getRootResp, err := m.vmap.GetSignedMapRoot(context.Background(), getRootReq)
 	if err != nil {
 		return false, err
@@ -160,7 +160,7 @@ func (m *CTMapper) oneMapperRun() (bool, error) {
 		if err != nil {
 			return false, err
 		}
-		setReq.KeyValue = append(setReq.KeyValue, &trillian.KeyValue{[]byte(k), &trillian.MapLeaf{
+		setReq.KeyValue = append(setReq.KeyValue, &trillian.KeyValue{Key: []byte(k), Value: &trillian.MapLeaf{
 			LeafValue: b,
 		}})
 	}
