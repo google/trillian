@@ -69,10 +69,8 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// RequestHandlers provides HTTP handler functions for CT V1 as defined in RFC 6962
-// and functionality to translate CT client requests into forms that can be served by a
-// log backend RPC service.
-type RequestHandlers struct {
+// LogContext holds information for a specific log instance.
+type LogContext struct {
 	// logID is the tree ID that identifies this log in node storage
 	logID int64
 	// trustedRoots is a pool of certificates that defines the roots the CT log will accept
@@ -87,10 +85,9 @@ type RequestHandlers struct {
 	timeSource util.TimeSource
 }
 
-// NewRequestHandlers creates a new instance of RequestHandlers. They must still
-// be registered by calling RegisterCTHandlers()
-func NewRequestHandlers(logID int64, trustedRoots *PEMCertPool, rpcClient trillian.TrillianLogClient, km crypto.KeyManager, rpcDeadline time.Duration, timeSource util.TimeSource) *RequestHandlers {
-	return &RequestHandlers{logID, trustedRoots, rpcClient, km, rpcDeadline, timeSource}
+// NewLogContext creates a new instance of LogContext.
+func NewLogContext(logID int64, trustedRoots *PEMCertPool, rpcClient trillian.TrillianLogClient, km crypto.KeyManager, rpcDeadline time.Duration, timeSource util.TimeSource) *LogContext {
+	return &LogContext{logID, trustedRoots, rpcClient, km, rpcDeadline, timeSource}
 }
 
 // addChainRequest is a struct for parsing JSON add-chain requests. See RFC 6962 Sections 4.1 and 4.2
@@ -193,7 +190,7 @@ func enforceMethod(w http.ResponseWriter, r *http.Request, method string) bool {
 
 // addChainInternal is called by add-chain and add-pre-chain as the logic involved in
 // processing these requests is almost identical
-func addChainInternal(w http.ResponseWriter, r *http.Request, c RequestHandlers, isPrecert bool) (int, error) {
+func addChainInternal(w http.ResponseWriter, r *http.Request, c LogContext, isPrecert bool) (int, error) {
 	if !enforceMethod(w, r, http.MethodPost) {
 		// HTTP status code was already set
 		return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
@@ -265,19 +262,19 @@ func addChainInternal(w http.ResponseWriter, r *http.Request, c RequestHandlers,
 // All the handlers are wrapped so they have access to the RPC client and other context
 // TODO(Martin2112): Doesn't properly handle duplicate submissions yet but the backend
 // needs this to be implemented before we can do it here
-func wrappedAddChainHandler(c RequestHandlers) appHandler {
+func wrappedAddChainHandler(c LogContext) appHandler {
 	return func(w http.ResponseWriter, r *http.Request) (int, error) {
 		return addChainInternal(w, r, c, false)
 	}
 }
 
-func wrappedAddPreChainHandler(c RequestHandlers) appHandler {
+func wrappedAddPreChainHandler(c LogContext) appHandler {
 	return func(w http.ResponseWriter, r *http.Request) (int, error) {
 		return addChainInternal(w, r, c, true)
 	}
 }
 
-func wrappedGetSTHHandler(c RequestHandlers) appHandler {
+func wrappedGetSTHHandler(c LogContext) appHandler {
 	return func(w http.ResponseWriter, r *http.Request) (int, error) {
 		if !enforceMethod(w, r, http.MethodGet) {
 			return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
@@ -338,7 +335,7 @@ func wrappedGetSTHHandler(c RequestHandlers) appHandler {
 	}
 }
 
-func wrappedGetSTHConsistencyHandler(c RequestHandlers) appHandler {
+func wrappedGetSTHConsistencyHandler(c LogContext) appHandler {
 	return func(w http.ResponseWriter, r *http.Request) (int, error) {
 		if !enforceMethod(w, r, http.MethodGet) {
 			return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
@@ -385,7 +382,7 @@ func wrappedGetSTHConsistencyHandler(c RequestHandlers) appHandler {
 	}
 }
 
-func wrappedGetProofByHashHandler(c RequestHandlers) appHandler {
+func wrappedGetProofByHashHandler(c LogContext) appHandler {
 	return func(w http.ResponseWriter, r *http.Request) (int, error) {
 		if !enforceMethod(w, r, http.MethodGet) {
 			return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
@@ -452,7 +449,7 @@ func wrappedGetProofByHashHandler(c RequestHandlers) appHandler {
 	}
 }
 
-func wrappedGetEntriesHandler(c RequestHandlers) appHandler {
+func wrappedGetEntriesHandler(c LogContext) appHandler {
 	return func(w http.ResponseWriter, r *http.Request) (int, error) {
 		if !enforceMethod(w, r, http.MethodGet) {
 			return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
@@ -549,7 +546,7 @@ func wrappedGetRootsHandler(trustedRoots *PEMCertPool) appHandler {
 
 // See RFC 6962 Section 4.8. This is mostly used for debug purposes rather than by normal
 // CT clients.
-func wrappedGetEntryAndProofHandler(c RequestHandlers) appHandler {
+func wrappedGetEntryAndProofHandler(c LogContext) appHandler {
 	return func(w http.ResponseWriter, r *http.Request) (int, error) {
 		if !enforceMethod(w, r, http.MethodGet) {
 			return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
@@ -601,9 +598,9 @@ func wrappedGetEntryAndProofHandler(c RequestHandlers) appHandler {
 	}
 }
 
-// RegisterCTHandlers registers a HandleFunc for all of the RFC6962 defined methods.
+// RegisterHandlers registers a HandleFunc for all of the RFC6962 defined methods.
 // TODO(Martin2112): This registers on default ServeMux, might need more flexibility?
-func (c RequestHandlers) RegisterCTHandlers() {
+func (c LogContext) RegisterHandlers() {
 	http.Handle("/ct/v1/add-chain", wrappedAddChainHandler(c))
 	http.Handle("/ct/v1/add-pre-chain", wrappedAddPreChainHandler(c))
 	http.Handle("/ct/v1/get-sth", wrappedGetSTHHandler(c))
@@ -621,7 +618,7 @@ func sendHTTPError(w http.ResponseWriter, statusCode int, err error) {
 }
 
 // getRPCDeadlineTime calculates the future time an RPC should expire based on our config
-func getRPCDeadlineTime(c RequestHandlers) time.Time {
+func getRPCDeadlineTime(c LogContext) time.Time {
 	return c.timeSource.Now().Add(c.rpcDeadline)
 }
 
@@ -792,7 +789,6 @@ func validateStartAndEnd(start, end, maxRange int64) (int64, int64, error) {
 	}
 
 	numEntries := end - start + 1
-
 	if numEntries > maxRange {
 		return 0, 0, fmt.Errorf("requesting %d entries but we only allow up to %d", numEntries, maxRange)
 	}

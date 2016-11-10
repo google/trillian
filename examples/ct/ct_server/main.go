@@ -133,8 +133,8 @@ func main() {
 	client := trillian.NewTrillianLogClient(conn)
 
 	// Create and register the handlers using the RPC client we just set up
-	handlers := ct.NewRequestHandlers(*logIDFlag, trustedRoots, client, logKeyManager, *rpcDeadlineFlag, new(util.SystemTimeSource))
-	handlers.RegisterCTHandlers()
+	logContext := ct.NewLogContext(*logIDFlag, trustedRoots, client, logKeyManager, *rpcDeadlineFlag, new(util.SystemTimeSource))
+	logContext.RegisterHandlers()
 
 	// Bring up the HTTP server and serve until we get a signal not to.
 	go awaitSignal()
