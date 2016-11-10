@@ -127,6 +127,16 @@ func TestLogIntegration(t *testing.T) {
 	// Step 5 - Test some inclusion proofs
 	glog.Info("Testing inclusion proofs")
 
+	// Ensure log doesn't serve a proof for a leaf index outside the tree size
+	if err := checkInclusionProofLeafOutOfRange(treeID, client, params); err != nil {
+		t.Fatalf("Log served out of range proof (index): %v", err)
+	}
+
+	// Ensure that log doesn't serve a proof for a valid index at a size outside the tree
+	if err := checkInclusionProofTreeSizeOutOfRange(treeID, client, params); err != nil {
+		t.Fatalf("Log served out of range proof (tree size): %v", err)
+	}
+
 	// Probe the log at several leaf indices each with a range of tree sizes
 	for _, testIndex := range inclusionProofTestIndices {
 		if err := checkInclusionProofsAtIndex(testIndex, treeID, tree, client, params); err != nil {
@@ -296,6 +306,35 @@ func checkLogRootHashMatches(logID int64, tree *merkle.InMemoryMerkleTree, clien
 		return fmt.Errorf("root hash mismatch expected got: %s want: %s", got, want)
 	}
 
+	return nil
+}
+
+// checkInclusionProofLeafOutOfRange requests an inclusion proof beyond the current tree size. This
+// should fail
+func checkInclusionProofLeafOutOfRange(logID int64, client trillian.TrillianLogClient, params testParameters) error {
+	// Test is a leaf index bigger than the current tree size
+	ctx, cancelFunc := getRPCDeadlineContext()
+	_, err := client.GetInclusionProof(ctx, &trillian.GetInclusionProofRequest{LogId: logID, LeafIndex:params.leafCount + 1, TreeSize:int64(params.leafCount)})
+	cancelFunc()
+
+	if err == nil {
+		return fmt.Errorf("log returned proof for leaf index outside tree: %d v %d", params.leafCount + 1, params.leafCount)
+	}
+
+	return nil
+}
+
+// checkInclusionOutOfRange requests an inclusion proof for a leaf that exists at a size beyond the current tree size.
+// This should fail.
+func checkInclusionProofTreeSizeOutOfRange(logID int64, client trillian.TrillianLogClient, params testParameters) error {
+	// Test is an in range leaf index for a tree size that doesn't exist
+	ctx, cancelFunc := getRPCDeadlineContext()
+	_, err := client.GetInclusionProof(ctx, &trillian.GetInclusionProofRequest{LogId: logID, LeafIndex:int64(params.sequencerBatchSize), TreeSize: params.leafCount + int64(params.sequencerBatchSize)})
+	cancelFunc()
+
+	if err == nil {
+		return fmt.Errorf("log returned proof for tree size outside tree: %d v %d", params.sequencerBatchSize, params.leafCount + int64(params.sequencerBatchSize))
+	}
 	return nil
 }
 
