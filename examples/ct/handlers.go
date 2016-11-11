@@ -277,17 +277,17 @@ func addChainInternal(c LogContext, w http.ResponseWriter, r *http.Request, isPr
 	return http.StatusOK, nil
 }
 
-func addChainHandler(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
+func addChain(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
 	glog.V(logVerboseLevel).Infof("%sAddChain", c.logPrefix)
 	return addChainInternal(c, w, r, false)
 }
 
-func addPreChainHandler(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
+func addPreChain(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
 	glog.V(logVerboseLevel).Infof("%sAddPreChain", c.logPrefix)
 	return addChainInternal(c, w, r, true)
 }
 
-func getSTHHandler(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
+func getSTH(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
 	glog.V(logVerboseLevel).Infof("%sGetSTH", c.logPrefix)
 	if !enforceMethod(w, r, http.MethodGet) {
 		return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
@@ -347,7 +347,7 @@ func getSTHHandler(c LogContext, w http.ResponseWriter, r *http.Request) (int, e
 	return http.StatusOK, nil
 }
 
-func getSTHConsistencyHandler(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
+func getSTHConsistency(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
 	glog.V(logVerboseLevel).Infof("%sGetSTHConsistency", c.logPrefix)
 	if !enforceMethod(w, r, http.MethodGet) {
 		return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
@@ -393,7 +393,7 @@ func getSTHConsistencyHandler(c LogContext, w http.ResponseWriter, r *http.Reque
 	return http.StatusOK, nil
 }
 
-func getProofByHashHandler(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
+func getProofByHash(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
 	glog.V(logVerboseLevel).Infof("%sGetProofByHash", c.logPrefix)
 	if !enforceMethod(w, r, http.MethodGet) {
 		return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
@@ -459,7 +459,7 @@ func getProofByHashHandler(c LogContext, w http.ResponseWriter, r *http.Request)
 	return http.StatusOK, nil
 }
 
-func getEntriesHandler(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
+func getEntries(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
 	glog.V(logVerboseLevel).Infof("%sGetEntries", c.logPrefix)
 	if !enforceMethod(w, r, http.MethodGet) {
 		return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
@@ -525,7 +525,7 @@ func getEntriesHandler(c LogContext, w http.ResponseWriter, r *http.Request) (in
 	return http.StatusOK, nil
 }
 
-func getRootsHandler(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
+func getRoots(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
 	glog.V(logVerboseLevel).Infof("%sGetRoots", c.logPrefix)
 	if !enforceMethod(w, r, http.MethodGet) {
 		return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
@@ -554,7 +554,7 @@ func getRootsHandler(c LogContext, w http.ResponseWriter, r *http.Request) (int,
 
 // See RFC 6962 Section 4.8. This is mostly used for debug purposes rather than by normal
 // CT clients.
-func getEntryAndProofHandler(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
+func getEntryAndProof(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
 	glog.V(logVerboseLevel).Infof("%sGetEntryAndProof", c.logPrefix)
 	if !enforceMethod(w, r, http.MethodGet) {
 		return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
@@ -610,28 +610,28 @@ func getEntryAndProofHandler(c LogContext, w http.ResponseWriter, r *http.Reques
 func (c LogContext) RegisterHandlers() {
 	// Bind the LogContext instance to give an appHandler instance for each entrypoint.
 	http.Handle("/ct/v1/add-chain", appHandler(func(w http.ResponseWriter, r *http.Request) (int, error) {
-		return addChainHandler(c, w, r)
+		return addChain(c, w, r)
 	}))
 	http.Handle("/ct/v1/add-pre-chain", appHandler(func(w http.ResponseWriter, r *http.Request) (int, error) {
-		return addChainHandler(c, w, r)
+		return addChain(c, w, r)
 	}))
 	http.Handle("/ct/v1/get-sth", appHandler(func(w http.ResponseWriter, r *http.Request) (int, error) {
-		return getSTHHandler(c, w, r)
+		return getSTH(c, w, r)
 	}))
 	http.Handle("/ct/v1/get-sth-consistency", appHandler(func(w http.ResponseWriter, r *http.Request) (int, error) {
-		return getSTHConsistencyHandler(c, w, r)
+		return getSTHConsistency(c, w, r)
 	}))
 	http.Handle("/ct/v1/get-proof-by-hash", appHandler(func(w http.ResponseWriter, r *http.Request) (int, error) {
-		return getProofByHashHandler(c, w, r)
+		return getProofByHash(c, w, r)
 	}))
 	http.Handle("/ct/v1/get-entries", appHandler(func(w http.ResponseWriter, r *http.Request) (int, error) {
-		return getEntriesHandler(c, w, r)
+		return getEntries(c, w, r)
 	}))
 	http.Handle("/ct/v1/get-roots", appHandler(func(w http.ResponseWriter, r *http.Request) (int, error) {
-		return getRootsHandler(c, w, r)
+		return getRoots(c, w, r)
 	}))
 	http.Handle("/ct/v1/get-entry-and-proof", appHandler(func(w http.ResponseWriter, r *http.Request) (int, error) {
-		return getEntryAndProofHandler(c, w, r)
+		return getEntryAndProof(c, w, r)
 	}))
 }
 
