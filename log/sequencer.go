@@ -46,6 +46,8 @@ func NewSequencer(hasher merkle.TreeHasher, timeSource util.TimeSource, logStora
 	return &Sequencer{hasher: hasher, timeSource: timeSource, logStorage: logStorage, keyManager: km}
 }
 
+// SetGuardWindow changes the interval that must elapse between leaves being queued and them
+// being eligible for sequencing. The default is a zero interval.
 func (s *Sequencer) SetGuardWindow(sequencerGuardWindow time.Duration) {
 	s.sequencerGuardWindow = sequencerGuardWindow
 }
