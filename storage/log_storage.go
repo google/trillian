@@ -2,6 +2,7 @@ package storage
 
 import (
 	"github.com/google/trillian"
+	"time"
 )
 
 // ReadOnlyLogTX provides a read-only view into the Log data.
@@ -48,14 +49,16 @@ type LogStorage interface {
 // LeafQueuer provides a write-only interface for the queueing (but not necesarily integration) of leaves.
 type LeafQueuer interface {
 	// QueueLeaves enqueues leaves for later integration into the tree.
-	QueueLeaves(leaves []trillian.LogLeaf) error
+	QueueLeaves(leaves []trillian.LogLeaf, queueTimestamp time.Time) error
 }
 
 // LeafDequeuer provides an interface for reading previously queued leaves for integration into the tree.
 type LeafDequeuer interface {
 	// DequeueLeaves will return between [0, limit] leaves from the queue.
 	// Leaves which have been dequeued within a Rolled-back Tx will become available for dequeing again.
-	DequeueLeaves(limit int) ([]trillian.LogLeaf, error)
+	// Leaves queued more recently than the cutoff time will not be returned. This allows for
+	// guard intervals to be configured.
+	DequeueLeaves(limit int, cutoffTime time.Time) ([]trillian.LogLeaf, error)
 	UpdateSequencedLeaves([]trillian.LogLeaf) error
 }
 

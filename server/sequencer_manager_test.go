@@ -55,7 +55,7 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 	mockTx.EXPECT().Commit().Return(nil)
 	mockTx.EXPECT().WriteRevision().AnyTimes().Return(writeRev)
 	mockTx.EXPECT().LatestSignedLogRoot().Return(testRoot0, nil)
-	mockTx.EXPECT().DequeueLeaves(50).Return([]trillian.LogLeaf{}, nil)
+	mockTx.EXPECT().DequeueLeaves(50, fakeTime).Return([]trillian.LogLeaf{}, nil)
 	mockKeyManager := crypto.NewMockKeyManager(mockCtrl)
 
 	sm := NewSequencerManager(mockKeyManager)
@@ -78,7 +78,7 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 	mockTx.EXPECT().Commit().Return(nil)
 	mockTx.EXPECT().Rollback().AnyTimes().Do(func() { panic(nil) })
 	mockTx.EXPECT().WriteRevision().AnyTimes().Return(testRoot0.TreeRevision + 1)
-	mockTx.EXPECT().DequeueLeaves(50).Return([]trillian.LogLeaf{testLeaf0}, nil)
+	mockTx.EXPECT().DequeueLeaves(50, fakeTime).Return([]trillian.LogLeaf{testLeaf0}, nil)
 	mockTx.EXPECT().LatestSignedLogRoot().Return(testRoot0, nil)
 	mockTx.EXPECT().UpdateSequencedLeaves([]trillian.LogLeaf{testLeaf0Updated}).Return(nil)
 	mockTx.EXPECT().SetMerkleNodes(updatedNodes0).Return(nil)
@@ -111,7 +111,7 @@ func TestSignsIfNoWorkAndRootExpired(t *testing.T) {
 	mockTx.EXPECT().WriteRevision().AnyTimes().Return(writeRev)
 	mockTx.EXPECT().Commit().AnyTimes().Return(nil)
 	mockTx.EXPECT().LatestSignedLogRoot().AnyTimes().Return(testRoot0, nil)
-	mockTx.EXPECT().DequeueLeaves(50).Return([]trillian.LogLeaf{}, nil)
+	mockTx.EXPECT().DequeueLeaves(50, fakeTime).Return([]trillian.LogLeaf{}, nil)
 	mockTx.EXPECT().StoreSignedLogRoot(updatedRootSignOnly).AnyTimes().Return(nil)
 
 	mockSigner := crypto.NewMockSigner(mockCtrl)

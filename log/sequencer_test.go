@@ -109,6 +109,8 @@ type testParameters struct {
 	signingError    error
 
 	writeRevision int64
+
+	overrideDequeueTime *time.Time
 }
 
 // Tests get their own mock context so they can be run in parallel safely
@@ -163,7 +165,11 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) testConte
 	}
 
 	if !params.skipDequeue {
-		mockTx.EXPECT().DequeueLeaves(params.dequeueLimit).AnyTimes().Return(params.dequeuedLeaves, params.dequeuedError)
+		if params.overrideDequeueTime != nil {
+			mockTx.EXPECT().DequeueLeaves(params.dequeueLimit, *params.overrideDequeueTime).AnyTimes().Return(params.dequeuedLeaves, params.dequeuedError)
+		} else {
+			mockTx.EXPECT().DequeueLeaves(params.dequeueLimit, fakeTimeForTest).AnyTimes().Return(params.dequeuedLeaves, params.dequeuedError)
+		}
 	}
 
 	if params.latestSignedRoot != nil {
@@ -224,6 +230,29 @@ func TestSequenceWithNothingQueued(t *testing.T) {
 	params := testParameters{dequeueLimit: 1, shouldCommit: true, latestSignedRoot: &testRoot16, dequeuedLeaves: []trillian.LogLeaf{}, skipStoreSignedRoot: true}
 
 	c := createTestContext(ctrl, params)
+
+	leaves, err := c.sequencer.SequenceBatch(1, rootNeverExpiresFunc)
+	if leaves != 0 {
+		t.Fatalf("Unexpectedly sequenced %d leaves on error", leaves)
+	}
+
+	if err != nil {
+		t.Error("Expected nil return with no work pending in queue")
+	}
+}
+
+// Tests that the guard interval is being sent to storage correctly. Actual operation of the
+// window is tested by storage tests.
+func TestGuardWindowPassthrough(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	guardInterval := time.Second * 10
+	expectedCutoffTime := fakeTimeForTest.Add(-guardInterval)
+	params := testParameters{dequeueLimit: 1, shouldCommit: true, latestSignedRoot: &testRoot16, dequeuedLeaves: []trillian.LogLeaf{}, skipStoreSignedRoot: true, overrideDequeueTime:&expectedCutoffTime}
+
+	c := createTestContext(ctrl, params)
+	c.sequencer.SetGuardWindow(guardInterval)
 
 	leaves, err := c.sequencer.SequenceBatch(1, rootNeverExpiresFunc)
 	if leaves != 0 {

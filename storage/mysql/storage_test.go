@@ -19,6 +19,7 @@ import (
 	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/testonly"
+	"time"
 )
 
 // TODO(al): add checking to all the Commit() calls in here.
@@ -30,6 +31,11 @@ var dummyHash = []byte("hashxxxxhashxxxxhashxxxxhashxxxx")
 var dummyRawHash = []byte("xxxxhashxxxxhashxxxxhashxxxxhash")
 var dummyHash2 = []byte("HASHxxxxhashxxxxhashxxxxhashxxxx")
 var dummyHash3 = []byte("hashxxxxhashxxxxhashxxxxHASHxxxx")
+
+// Time we will queue all leaves at
+var fakeQueueTime = time.Date(2016, 11, 10, 15, 16, 27, 0, time.UTC)
+// Time we'll request for guard cutoff in tests that don't test this (should include all above)
+var fakeDequeueCutoffTime = time.Date(2016, 11, 10, 15, 16, 30, 0, time.UTC)
 
 const leavesToInsert = 5
 const sequenceNumber int64 = 237
@@ -261,13 +267,13 @@ func TestQueueDuplicateLeafFails(t *testing.T) {
 
 	leaves := createTestLeaves(5, 10)
 
-	if err := tx.QueueLeaves(leaves); err != nil {
+	if err := tx.QueueLeaves(leaves, fakeQueueTime); err != nil {
 		t.Fatalf("Failed to queue leaves: %v", err)
 	}
 
 	leaves2 := createTestLeaves(5, 12)
 
-	if err := tx.QueueLeaves(leaves2); err == nil {
+	if err := tx.QueueLeaves(leaves2, fakeQueueTime); err == nil {
 		t.Fatal("Allowed duplicate leaves to be inserted")
 
 		if !strings.Contains(err.Error(), "Duplicate") {
@@ -286,7 +292,7 @@ func TestQueueLeaves(t *testing.T) {
 
 	leaves := createTestLeaves(leavesToInsert, 20)
 
-	if err := tx.QueueLeaves(leaves); err != nil {
+	if err := tx.QueueLeaves(leaves, fakeQueueTime); err != nil {
 		t.Fatalf("Failed to queue leaves: %v", err)
 	}
 
@@ -298,6 +304,16 @@ func TestQueueLeaves(t *testing.T) {
 
 	if err := db.QueryRow("SELECT COUNT(*) FROM Unsequenced WHERE TreeID=?", logID.logID).Scan(&count); err != nil {
 		t.Fatalf("Could not query row count")
+	}
+
+	// Additional check on timestamp being set correctly
+	var queueTimestamp int64
+	if err := db.QueryRow("SELECT DISTINCT QueueTimestampNanos FROM Unsequenced WHERE TreeID=?", logID.logID).Scan(&queueTimestamp); err != nil {
+		t.Fatalf("Could not query timestamp")
+	}
+
+	if got, want := queueTimestamp, fakeQueueTime.UnixNano(); got != want {
+		t.Fatalf("Incorrect queue timestamp got: %d want: %d", got, want)
 	}
 
 	if leavesToInsert != count {
@@ -318,7 +334,7 @@ func TestQueueLeavesBadHash(t *testing.T) {
 	// Deliberately corrupt one of the hashes so it should be rejected
 	leaves[3].MerkleLeafHash = crypto.NewSHA256().Digest([]byte("this cannot be valid"))
 
-	err := tx.QueueLeaves(leaves)
+	err := tx.QueueLeaves(leaves, fakeQueueTime)
 	tx.Rollback()
 
 	if err == nil {
@@ -336,7 +352,7 @@ func TestDequeueLeavesNoneQueued(t *testing.T) {
 	tx := beginLogTx(s, t)
 	defer tx.Commit()
 
-	leaves, err := tx.DequeueLeaves(999)
+	leaves, err := tx.DequeueLeaves(999, fakeDequeueCutoffTime)
 
 	if err != nil {
 		t.Fatalf("Didn't expect an error on dequeue with no work to be done: %v", err)
@@ -359,7 +375,7 @@ func TestDequeueLeaves(t *testing.T) {
 
 		leaves := createTestLeaves(leavesToInsert, 20)
 
-		if err := tx.QueueLeaves(leaves); err != nil {
+		if err := tx.QueueLeaves(leaves, fakeDequeueCutoffTime); err != nil {
 			t.Fatalf("Failed to queue leaves: %v", err)
 		}
 
@@ -370,7 +386,7 @@ func TestDequeueLeaves(t *testing.T) {
 		// Now try to dequeue them
 		tx2 := beginLogTx(s, t)
 		defer failIfTXStillOpen(t, "TestDequeLeaves", tx2)
-		leaves2, err := tx2.DequeueLeaves(99)
+		leaves2, err := tx2.DequeueLeaves(99, fakeDequeueCutoffTime)
 
 		if err != nil {
 			t.Fatalf("Failed to dequeue leaves: %v", err)
@@ -390,7 +406,7 @@ func TestDequeueLeaves(t *testing.T) {
 		tx3 := beginLogTx(s, t)
 		defer tx3.Rollback()
 
-		leaves3, err := tx3.DequeueLeaves(99)
+		leaves3, err := tx3.DequeueLeaves(99, fakeDequeueCutoffTime)
 
 		if err != nil {
 			t.Fatalf("Failed to dequeue leaves (second time): %v", err)
@@ -417,7 +433,7 @@ func TestDequeueLeavesTwoBatches(t *testing.T) {
 
 		leaves := createTestLeaves(leavesToInsert, 20)
 
-		if err := tx.QueueLeaves(leaves); err != nil {
+		if err := tx.QueueLeaves(leaves, fakeDequeueCutoffTime); err != nil {
 			t.Fatalf("Failed to queue leaves: %v", err)
 		}
 
@@ -428,7 +444,7 @@ func TestDequeueLeavesTwoBatches(t *testing.T) {
 		// Now try to dequeue some of them
 		tx2 := beginLogTx(s, t)
 		defer failIfTXStillOpen(t, "TestDequeueLeavesTwoBatches-tx2", tx2)
-		leaves2, err := tx2.DequeueLeaves(leavesToDequeue1)
+		leaves2, err := tx2.DequeueLeaves(leavesToDequeue1, fakeDequeueCutoffTime)
 
 		if err != nil {
 			t.Fatalf("Failed to dequeue leaves: %v", err)
@@ -445,7 +461,7 @@ func TestDequeueLeavesTwoBatches(t *testing.T) {
 		// Now try to dequeue the rest of them
 		tx3 := beginLogTx(s, t)
 		defer failIfTXStillOpen(t, "TestDequeueLeavesTwoBatches-tx3", tx3)
-		leaves3, err := tx3.DequeueLeaves(leavesToDequeue2)
+		leaves3, err := tx3.DequeueLeaves(leavesToDequeue2, fakeDequeueCutoffTime)
 
 		if err != nil {
 			t.Fatalf("Failed to dequeue leaves: %v", err)
@@ -469,7 +485,7 @@ func TestDequeueLeavesTwoBatches(t *testing.T) {
 		tx4 := beginLogTx(s, t)
 		defer failIfTXStillOpen(t, "TestDequeueLeavesTwoBatches-tx4", tx4)
 
-		leaves5, err := tx4.DequeueLeaves(99)
+		leaves5, err := tx4.DequeueLeaves(99, fakeDequeueCutoffTime)
 
 		if err != nil {
 			t.Fatalf("Failed to dequeue leaves (second time): %v", err)
@@ -480,6 +496,59 @@ func TestDequeueLeavesTwoBatches(t *testing.T) {
 		}
 
 		tx4.Commit()
+	}
+}
+
+// Queues leaves and attempts to dequeue before the guard cutoff allows it. This should
+// return nothing. Then retries with an inclusive guard cutoff and ensures the leaves
+// are returned.
+func TestDequeueLeavesGuardInterval(t *testing.T) {
+	logID := createLogID("TestDequeueLeavesGuardInterval")
+	db := prepareTestLogDB(logID, t)
+	defer db.Close()
+	s := prepareTestLogStorage(logID, t)
+
+	{
+		tx := beginLogTx(s, t)
+		defer failIfTXStillOpen(t, "TestDequeueLeavesGuardInterval", tx)
+
+		leaves := createTestLeaves(leavesToInsert, 20)
+
+		if err := tx.QueueLeaves(leaves, fakeQueueTime); err != nil {
+			t.Fatalf("Failed to queue leaves: %v", err)
+		}
+
+		commit(tx, t)
+	}
+
+	{
+		// Now try to dequeue them using a cutoff that means we should get none
+		tx2 := beginLogTx(s, t)
+		defer failIfTXStillOpen(t, "TestDequeueLeavesGuardInterval", tx2)
+		leaves2, err := tx2.DequeueLeaves(99, fakeQueueTime.Add(-time.Second))
+
+		if err != nil {
+			t.Fatalf("Failed to dequeue leaves: %v", err)
+		}
+
+		if len(leaves2) != 0 {
+			t.Fatalf("Dequeued %d leaves when they all should be in guard interval", len(leaves2))
+		}
+
+		// Try to dequeue again using a cutoff that should include them
+		leaves2, err = tx2.DequeueLeaves(99, fakeQueueTime.Add(time.Second))
+
+		if err != nil {
+			t.Fatalf("Failed to dequeue leaves: %v", err)
+		}
+
+		if len(leaves2) != leavesToInsert {
+			t.Fatalf("Dequeued %d leaves but expected to get %d", len(leaves2), leavesToInsert)
+		}
+
+		ensureAllLeafHashesDistinct(leaves2, t)
+
+		tx2.Commit()
 	}
 }
 
@@ -1120,7 +1189,7 @@ func TestGetActiveLogIDsWithPendingWork(t *testing.T) {
 
 		leaves := createTestLeaves(leavesToInsert, 2)
 
-		if err := tx.QueueLeaves(leaves); err != nil {
+		if err := tx.QueueLeaves(leaves, fakeQueueTime); err != nil {
 			t.Fatalf("Failed to queue leaves: %v", err)
 		}
 

@@ -9,6 +9,7 @@ import (
 	log "github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage/tools"
+	"time"
 )
 
 var numInsertionsFlag = flag.Int("num_insertions", 10, "Number of entries to insert in the tree")
@@ -63,7 +64,7 @@ func main() {
 		leaves = append(leaves, leaf)
 
 		if len(leaves) >= *queueBatchSizeFlag {
-			err = tx.QueueLeaves(leaves)
+			err = tx.QueueLeaves(leaves, time.Now())
 			leaves = leaves[:0] // starting new batch
 
 			if err != nil {
@@ -74,7 +75,7 @@ func main() {
 
 	// There might be some leaves left over that didn't get queued yet
 	if len(leaves) > 0 {
-		err = tx.QueueLeaves(leaves)
+		err = tx.QueueLeaves(leaves, time.Now())
 
 		if err != nil {
 			panic(err)

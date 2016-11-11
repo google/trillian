@@ -99,13 +99,13 @@ CREATE TABLE IF NOT EXISTS Unsequenced(
   TreeId               INTEGER NOT NULL,
   -- Note that this is a simple SHA256 hash of the raw data used to detect corruption in transit.
   -- It is not the leaf hash output of the treehasher used by the log.
-  LeafValueHash             VARBINARY(255) NOT NULL,
+  LeafValueHash        VARBINARY(255) NOT NULL,
   -- SHA256("queueId"|TreeId|leafValueHash)
   -- We want this to be unique per entry per log, but queryable by FEs so that
   -- we can try to stomp dupe submissions.
   MessageId            BINARY(32) NOT NULL,
   Payload              BLOB NOT NULL,
-  QueueTimestamp       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  QueueTimestampNanos  BIGINT NOT NULL,
   PRIMARY KEY (TreeId, LeafValueHash, MessageId)
 );
 
