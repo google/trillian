@@ -80,6 +80,8 @@ func bindContext(cfn func(LogContext, http.ResponseWriter, *http.Request) (int, 
 type LogContext struct {
 	// logID is the tree ID that identifies this log in node storage
 	logID int64
+	// logPrefix is a pre-formatted string identifying the log for diagnostics.
+	logPrefix string
 	// trustedRoots is a pool of certificates that defines the roots the CT log will accept
 	trustedRoots *PEMCertPool
 	// rpcClient is the client used to communicate with the trillian backend
@@ -94,7 +96,14 @@ type LogContext struct {
 
 // NewLogContext creates a new instance of LogContext.
 func NewLogContext(logID int64, trustedRoots *PEMCertPool, rpcClient trillian.TrillianLogClient, km crypto.KeyManager, rpcDeadline time.Duration, timeSource util.TimeSource) *LogContext {
-	return &LogContext{logID, trustedRoots, rpcClient, km, rpcDeadline, timeSource}
+	return &LogContext{
+		logID:         logID,
+		logPrefix:     fmt.Sprintf("{%d} ", logID),
+		trustedRoots:  trustedRoots,
+		rpcClient:     rpcClient,
+		logKeyManager: km,
+		rpcDeadline:   rpcDeadline,
+		timeSource:    timeSource}
 }
 
 // addChainRequest is a struct for parsing JSON add-chain requests. See RFC 6962 Sections 4.1 and 4.2
@@ -151,23 +160,23 @@ type getEntryAndProofResponse struct {
 	AuditPath [][]byte `json:"audit_path"`
 }
 
-func parseBodyAsJSONChain(w http.ResponseWriter, r *http.Request) (addChainRequest, error) {
+func parseBodyAsJSONChain(c LogContext, w http.ResponseWriter, r *http.Request) (addChainRequest, error) {
 	body, err := ioutil.ReadAll(r.Body)
 
 	if err != nil {
-		glog.V(logVerboseLevel).Infof("Failed to read request body: %v", err)
+		glog.V(logVerboseLevel).Infof("%sFailed to read request body: %v", c.logPrefix, err)
 		return addChainRequest{}, err
 	}
 
 	var req addChainRequest
 	if err := json.Unmarshal(body, &req); err != nil {
-		glog.V(logVerboseLevel).Infof("Failed to parse request body: %v", err)
+		glog.V(logVerboseLevel).Infof("%sFailed to parse request body: %v", c.logPrefix, err)
 		return addChainRequest{}, err
 	}
 
 	// The cert chain is not allowed to be empty. We'll defer other validation for later
 	if len(req.Chain) == 0 {
-		glog.V(logVerboseLevel).Infof("Request chain is empty: %s", body)
+		glog.V(logVerboseLevel).Infof("%sRequest chain is empty: %s", c.logPrefix, body)
 		return addChainRequest{}, errors.New("cert chain was empty")
 	}
 
@@ -205,14 +214,14 @@ func addChainInternal(c LogContext, w http.ResponseWriter, r *http.Request, isPr
 		return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 	}
 
-	addChainRequest, err := parseBodyAsJSONChain(w, r)
+	addChainRequest, err := parseBodyAsJSONChain(c, w, r)
 
 	if err != nil {
 		return http.StatusBadRequest, err
 	}
 
 	// We already checked that the chain is not empty so can move on to verification
-	validPath, err := verifyAddChain(addChainRequest, w, *c.trustedRoots, isPrecert)
+	validPath, err := verifyAddChain(c, addChainRequest, w, isPrecert)
 
 	if err != nil {
 		// Chain rejected by verify.
@@ -236,7 +245,7 @@ func addChainInternal(c LogContext, w http.ResponseWriter, r *http.Request, isPr
 
 	// Inputs validated, pass the request on to the back end after hashing and serializing
 	// the data for the request
-	leaf, err := buildLogLeafForAddChain(merkleTreeLeaf, validPath)
+	leaf, err := buildLogLeafForAddChain(c, merkleTreeLeaf, validPath)
 
 	if err != nil {
 		// Failure reason already logged
@@ -269,14 +278,17 @@ func addChainInternal(c LogContext, w http.ResponseWriter, r *http.Request, isPr
 }
 
 func addChainHandler(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
+	glog.V(logVerboseLevel).Infof("%sAddChain", c.logPrefix)
 	return addChainInternal(c, w, r, false)
 }
 
 func addPreChainHandler(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
+	glog.V(logVerboseLevel).Infof("%sAddPreChain", c.logPrefix)
 	return addChainInternal(c, w, r, true)
 }
 
 func getSTHHandler(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
+	glog.V(logVerboseLevel).Infof("%sGetSTH", c.logPrefix)
 	if !enforceMethod(w, r, http.MethodGet) {
 		return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 	}
@@ -336,6 +348,7 @@ func getSTHHandler(c LogContext, w http.ResponseWriter, r *http.Request) (int, e
 }
 
 func getSTHConsistencyHandler(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
+	glog.V(logVerboseLevel).Infof("%sGetSTHConsistency", c.logPrefix)
 	if !enforceMethod(w, r, http.MethodGet) {
 		return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 	}
@@ -381,6 +394,7 @@ func getSTHConsistencyHandler(c LogContext, w http.ResponseWriter, r *http.Reque
 }
 
 func getProofByHashHandler(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
+	glog.V(logVerboseLevel).Infof("%sGetProofByHash", c.logPrefix)
 	if !enforceMethod(w, r, http.MethodGet) {
 		return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 	}
@@ -431,7 +445,7 @@ func getProofByHashHandler(c LogContext, w http.ResponseWriter, r *http.Request)
 	jsonData, err := json.Marshal(&proofResponse)
 
 	if err != nil {
-		glog.Warningf("Failed to marshal get-proof-by-hash resp: %v", proofResponse)
+		glog.Warningf("%sFailed to marshal get-proof-by-hash resp: %v", c.logPrefix, proofResponse)
 		return http.StatusInternalServerError, fmt.Errorf("failed to marshal get-proof-by-hash resp: %v, error: %v", proofResponse, err)
 	}
 
@@ -446,6 +460,7 @@ func getProofByHashHandler(c LogContext, w http.ResponseWriter, r *http.Request)
 }
 
 func getEntriesHandler(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
+	glog.V(logVerboseLevel).Infof("%sGetEntries", c.logPrefix)
 	if !enforceMethod(w, r, http.MethodGet) {
 		return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 	}
@@ -486,7 +501,7 @@ func getEntriesHandler(c LogContext, w http.ResponseWriter, r *http.Request) (in
 	// Now we've checked the response and it seems to be valid we need to serialize the
 	// leaves in JSON format. Doing a round trip via the leaf deserializer gives us another
 	// chance to prevent bad / corrupt data from reaching the client.
-	jsonResponse, err := marshalGetEntriesResponse(response)
+	jsonResponse, err := marshalGetEntriesResponse(c, response)
 
 	if err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("failed to process leaves returned from backend: %v", err)
@@ -511,6 +526,7 @@ func getEntriesHandler(c LogContext, w http.ResponseWriter, r *http.Request) (in
 }
 
 func getRootsHandler(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
+	glog.V(logVerboseLevel).Infof("%sGetRoots", c.logPrefix)
 	if !enforceMethod(w, r, http.MethodGet) {
 		return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 	}
@@ -529,7 +545,7 @@ func getRootsHandler(c LogContext, w http.ResponseWriter, r *http.Request) (int,
 	err := enc.Encode(jsonMap)
 
 	if err != nil {
-		glog.Warningf("get_roots failed: %v", err)
+		glog.Warningf("%sget_roots failed: %v", c.logPrefix, err)
 		return http.StatusInternalServerError, fmt.Errorf("get-roots failed with: %v", err)
 	}
 
@@ -539,6 +555,7 @@ func getRootsHandler(c LogContext, w http.ResponseWriter, r *http.Request) (int,
 // See RFC 6962 Section 4.8. This is mostly used for debug purposes rather than by normal
 // CT clients.
 func getEntryAndProofHandler(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
+	glog.V(logVerboseLevel).Infof("%sGetEntryAndProof", c.logPrefix)
 	if !enforceMethod(w, r, http.MethodGet) {
 		return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 	}
@@ -637,9 +654,9 @@ func rpcStatusOK(status *trillian.TrillianApiStatus) bool {
 // cert is of the correct type and chains to a trusted root.
 // TODO(Martin2112): This may not implement all the RFC requirements. Check what is provided
 // by fixchain (called by this code) plus the ones here to make sure that it is compliant.
-func verifyAddChain(req addChainRequest, w http.ResponseWriter, trustedRoots PEMCertPool, expectingPrecert bool) ([]*x509.Certificate, error) {
+func verifyAddChain(c LogContext, req addChainRequest, w http.ResponseWriter, expectingPrecert bool) ([]*x509.Certificate, error) {
 	// We already checked that the chain is not empty so can move on to verification
-	validPath, err := ValidateChain(req.Chain, trustedRoots)
+	validPath, err := ValidateChain(req.Chain, *c.trustedRoots)
 
 	if err != nil {
 		// We rejected it because the cert failed checks or we could not find a path to a root etc.
@@ -656,9 +673,9 @@ func verifyAddChain(req addChainRequest, w http.ResponseWriter, trustedRoots PEM
 	// The type of the leaf must match the one the handler expects
 	if isPrecert != expectingPrecert {
 		if expectingPrecert {
-			glog.Warningf("Cert (or precert with invalid CT ext) submitted as precert chain: %v", req)
+			glog.Warningf("%sCert (or precert with invalid CT ext) submitted as precert chain: %v", c.logPrefix, req)
 		} else {
-			glog.Warningf("Precert (or cert with invalid CT ext) submitted as cert chain: %v", req)
+			glog.Warningf("%sPrecert (or cert with invalid CT ext) submitted as cert chain: %v", c.logPrefix, req)
 		}
 		return nil, fmt.Errorf("cert / precert mismatch: %v", expectingPrecert)
 	}
@@ -686,17 +703,17 @@ func marshalLogIDAndSignatureForResponse(sct ct.SignedCertificateTimestamp, km c
 
 // buildLogLeafForAddChain is also used by add-pre-chain and does the hashing to build a
 // LogLeaf that will be sent to the backend
-func buildLogLeafForAddChain(merkleLeaf ct.MerkleTreeLeaf, certChain []*x509.Certificate) (trillian.LogLeaf, error) {
+func buildLogLeafForAddChain(c LogContext, merkleLeaf ct.MerkleTreeLeaf, certChain []*x509.Certificate) (trillian.LogLeaf, error) {
 	var leafBuffer bytes.Buffer
 	if err := writeMerkleTreeLeaf(&leafBuffer, merkleLeaf); err != nil {
-		glog.Warningf("Failed to serialize merkle leaf: %v", err)
+		glog.Warningf("%sFailed to serialize merkle leaf: %v", c.logPrefix, err)
 		return trillian.LogLeaf{}, err
 	}
 
 	var logEntryBuffer bytes.Buffer
 	logEntry := NewLogEntry(merkleLeaf, certChain)
 	if err := logEntry.Serialize(&logEntryBuffer); err != nil {
-		glog.Warningf("Failed to serialize log entry: %v", err)
+		glog.Warningf("%sFailed to serialize log entry: %v", c.logPrefix, err)
 		return trillian.LogLeaf{}, err
 	}
 
@@ -858,7 +875,7 @@ func isResponseContiguousRange(response *trillian.GetLeavesByIndexResponse, star
 
 // marshalGetEntriesResponse does the conversion from the backend response to the one we need for
 // an RFC compliant JSON response to the client.
-func marshalGetEntriesResponse(rpcResponse *trillian.GetLeavesByIndexResponse) (getEntriesResponse, error) {
+func marshalGetEntriesResponse(c LogContext, rpcResponse *trillian.GetLeavesByIndexResponse) (getEntriesResponse, error) {
 	jsonResponse := getEntriesResponse{}
 
 	for _, leaf := range rpcResponse.Leaves {
@@ -868,7 +885,7 @@ func marshalGetEntriesResponse(rpcResponse *trillian.GetLeavesByIndexResponse) (
 		// or data storage that should be investigated.
 		if _, err := ct.ReadMerkleTreeLeaf(bytes.NewBuffer(leaf.LeafValue)); err != nil {
 			// TODO(Martin2112): Hook this up to monitoring when implemented
-			glog.Warningf("Failed to deserialize merkle leaf from backend: %d", leaf.LeafIndex)
+			glog.Warningf("%sFailed to deserialize merkle leaf from backend: %d", c.logPrefix, leaf.LeafIndex)
 		}
 
 		jsonResponse.Entries = append(jsonResponse.Entries, getEntriesEntry{
