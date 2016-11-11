@@ -50,23 +50,30 @@ const (
 	getEntryAndProofParamTreeSize = "tree_size"
 )
 
-// appHandler is a type for simplifying and centralizing error handling from http handlers
+// appHandler is an instance of the http.Handler interface.
 type appHandler func(http.ResponseWriter, *http.Request) (int, error)
 
-// ServeHTTP is an adapter from appHandler to the http framework
+// ServeHTTP for an appHandler invokes the underlying handler function but
+// does additional common error processing.
 func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	status, err := fn(w, r)
-
 	if err != nil {
 		glog.Warningf("handler error: %v", err)
 		sendHTTPError(w, status, err)
 	}
 
-	// Additional check, for consistency the handler must return an error for non 200 status
+	// Additional check, for consistency the handler must return an error for non-200 status
 	if status != http.StatusOK {
 		glog.Warningf("handler non 200 without error: %d %v", status, err)
 		sendHTTPError(w, http.StatusInternalServerError, fmt.Errorf("http handler misbehaved, status: %d", status))
 	}
+}
+
+// bindContext binds the first LogContext parameter of a handler
+func bindContext(cfn func(LogContext, http.ResponseWriter, *http.Request) (int, error), c LogContext) appHandler {
+	return appHandler(func(w http.ResponseWriter, r *http.Request) (int, error) {
+		return cfn(c, w, r)
+	})
 }
 
 // LogContext holds information for a specific log instance.
@@ -190,7 +197,9 @@ func enforceMethod(w http.ResponseWriter, r *http.Request, method string) bool {
 
 // addChainInternal is called by add-chain and add-pre-chain as the logic involved in
 // processing these requests is almost identical
-func addChainInternal(w http.ResponseWriter, r *http.Request, c LogContext, isPrecert bool) (int, error) {
+// TODO(Martin2112): Doesn't properly handle duplicate submissions yet but the backend
+// needs this to be implemented before we can do it here
+func addChainInternal(c LogContext, w http.ResponseWriter, r *http.Request, isPrecert bool) (int, error) {
 	if !enforceMethod(w, r, http.MethodPost) {
 		// HTTP status code was already set
 		return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
@@ -259,356 +268,354 @@ func addChainInternal(w http.ResponseWriter, r *http.Request, c LogContext, isPr
 	return http.StatusOK, nil
 }
 
-// All the handlers are wrapped so they have access to the RPC client and other context
-// TODO(Martin2112): Doesn't properly handle duplicate submissions yet but the backend
-// needs this to be implemented before we can do it here
-func wrappedAddChainHandler(c LogContext) appHandler {
-	return func(w http.ResponseWriter, r *http.Request) (int, error) {
-		return addChainInternal(w, r, c, false)
-	}
+func addChainHandler(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
+	return addChainInternal(c, w, r, false)
 }
 
-func wrappedAddPreChainHandler(c LogContext) appHandler {
-	return func(w http.ResponseWriter, r *http.Request) (int, error) {
-		return addChainInternal(w, r, c, true)
-	}
+func addPreChainHandler(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
+	return addChainInternal(c, w, r, true)
 }
 
-func wrappedGetSTHHandler(c LogContext) appHandler {
-	return func(w http.ResponseWriter, r *http.Request) (int, error) {
-		if !enforceMethod(w, r, http.MethodGet) {
-			return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
-		}
-
-		request := trillian.GetLatestSignedLogRootRequest{LogId: c.logID}
-		ctx, cancelFunc := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
-		defer cancelFunc()
-		response, err := c.rpcClient.GetLatestSignedLogRoot(ctx, &request)
-
-		if err != nil || !rpcStatusOK(response.GetStatus()) {
-			return http.StatusInternalServerError, errors.New("backend rpc failed")
-		}
-
-		if treeSize := response.GetSignedLogRoot().TreeSize; treeSize < 0 {
-			return http.StatusInternalServerError, fmt.Errorf("bad tree size from backend: %d", treeSize)
-		}
-
-		if hashSize := len(response.GetSignedLogRoot().RootHash); hashSize != sha256.Size {
-			return http.StatusInternalServerError, fmt.Errorf("bad hash size from backend expecting: %d got %d", sha256.Size, hashSize)
-		}
-
-		// Jump through Go hoops because we're mixing arrays and slices, we checked the size above
-		// so it should exactly fit what we copy into it
-		var hashArray [sha256.Size]byte
-		copy(hashArray[:], response.GetSignedLogRoot().RootHash)
-
-		// Build the CT STH object ready for signing
-		sth := ct.SignedTreeHead{TreeSize: uint64(response.GetSignedLogRoot().TreeSize),
-			Timestamp:      uint64(response.GetSignedLogRoot().TimestampNanos / 1000 / 1000),
-			SHA256RootHash: hashArray}
-
-		// Serialize and sign the STH and make sure this succeeds
-		err = signV1TreeHead(c.logKeyManager, &sth)
-
-		if err != nil || len(sth.TreeHeadSignature.Signature) == 0 {
-			return http.StatusInternalServerError, fmt.Errorf("invalid tree size in get sth: %v", err)
-		}
-
-		// Now build the final result object that will be marshalled to JSON
-		jsonResponse := convertSTHForClientResponse(sth)
-
-		w.Header().Set(contentTypeHeader, contentTypeJSON)
-		jsonData, err := json.Marshal(&jsonResponse)
-
-		if err != nil {
-			return http.StatusInternalServerError, fmt.Errorf("failed to marshall response: %v %v", jsonResponse, err)
-		}
-
-		_, err = w.Write(jsonData)
-
-		if err != nil {
-			// Probably too late for this as headers might have been written but we don't know for sure
-			return http.StatusInternalServerError, err
-		}
-
-		return http.StatusOK, nil
+func getSTHHandler(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
+	if !enforceMethod(w, r, http.MethodGet) {
+		return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 	}
+
+	request := trillian.GetLatestSignedLogRootRequest{LogId: c.logID}
+	ctx, cancelFunc := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
+	defer cancelFunc()
+	response, err := c.rpcClient.GetLatestSignedLogRoot(ctx, &request)
+
+	if err != nil || !rpcStatusOK(response.GetStatus()) {
+		return http.StatusInternalServerError, errors.New("backend rpc failed")
+	}
+
+	if treeSize := response.GetSignedLogRoot().TreeSize; treeSize < 0 {
+		return http.StatusInternalServerError, fmt.Errorf("bad tree size from backend: %d", treeSize)
+	}
+
+	if hashSize := len(response.GetSignedLogRoot().RootHash); hashSize != sha256.Size {
+		return http.StatusInternalServerError, fmt.Errorf("bad hash size from backend expecting: %d got %d", sha256.Size, hashSize)
+	}
+
+	// Jump through Go hoops because we're mixing arrays and slices, we checked the size above
+	// so it should exactly fit what we copy into it
+	var hashArray [sha256.Size]byte
+	copy(hashArray[:], response.GetSignedLogRoot().RootHash)
+
+	// Build the CT STH object ready for signing
+	sth := ct.SignedTreeHead{TreeSize: uint64(response.GetSignedLogRoot().TreeSize),
+		Timestamp:      uint64(response.GetSignedLogRoot().TimestampNanos / 1000 / 1000),
+		SHA256RootHash: hashArray}
+
+	// Serialize and sign the STH and make sure this succeeds
+	err = signV1TreeHead(c.logKeyManager, &sth)
+
+	if err != nil || len(sth.TreeHeadSignature.Signature) == 0 {
+		return http.StatusInternalServerError, fmt.Errorf("invalid tree size in get sth: %v", err)
+	}
+
+	// Now build the final result object that will be marshalled to JSON
+	jsonResponse := convertSTHForClientResponse(sth)
+
+	w.Header().Set(contentTypeHeader, contentTypeJSON)
+	jsonData, err := json.Marshal(&jsonResponse)
+
+	if err != nil {
+		return http.StatusInternalServerError, fmt.Errorf("failed to marshall response: %v %v", jsonResponse, err)
+	}
+
+	_, err = w.Write(jsonData)
+
+	if err != nil {
+		// Probably too late for this as headers might have been written but we don't know for sure
+		return http.StatusInternalServerError, err
+	}
+
+	return http.StatusOK, nil
 }
 
-func wrappedGetSTHConsistencyHandler(c LogContext) appHandler {
-	return func(w http.ResponseWriter, r *http.Request) (int, error) {
-		if !enforceMethod(w, r, http.MethodGet) {
-			return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
-		}
-
-		first, second, err := parseAndValidateGetSTHConsistencyRange(r)
-
-		if err != nil {
-			return http.StatusBadRequest, err
-		}
-
-		request := trillian.GetConsistencyProofRequest{LogId: c.logID, FirstTreeSize: first, SecondTreeSize: second}
-		ctx, cancelFunc := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
-		defer cancelFunc()
-		response, err := c.rpcClient.GetConsistencyProof(ctx, &request)
-
-		if err != nil || !rpcStatusOK(response.GetStatus()) {
-			return http.StatusInternalServerError, err
-		}
-
-		// Additional sanity checks, none of the hashes in the returned path should be empty
-		if !checkAuditPath(response.Proof.ProofNode) {
-			return http.StatusInternalServerError, fmt.Errorf("backend returned invalid proof: %v", response.Proof)
-		}
-
-		// We got a valid response from the server. Marshall it as JSON and return it to the client
-		jsonResponse := getSTHConsistencyResponse{Consistency: auditPathFromProto(response.Proof.ProofNode)}
-
-		w.Header().Set(contentTypeHeader, contentTypeJSON)
-		jsonData, err := json.Marshal(&jsonResponse)
-
-		if err != nil {
-			return http.StatusInternalServerError, fmt.Errorf("failed to marshal get-sth-consistency resp: %v because %v", jsonResponse, err)
-		}
-
-		_, err = w.Write(jsonData)
-
-		if err != nil {
-			// Probably too late for this as headers might have been written but we don't know for sure
-			return http.StatusInternalServerError, fmt.Errorf("failed to write get-sth-consistency resp: %v because %v", jsonResponse, err)
-		}
-
-		return http.StatusOK, nil
+func getSTHConsistencyHandler(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
+	if !enforceMethod(w, r, http.MethodGet) {
+		return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 	}
+
+	first, second, err := parseAndValidateGetSTHConsistencyRange(r)
+
+	if err != nil {
+		return http.StatusBadRequest, err
+	}
+
+	request := trillian.GetConsistencyProofRequest{LogId: c.logID, FirstTreeSize: first, SecondTreeSize: second}
+	ctx, cancelFunc := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
+	defer cancelFunc()
+	response, err := c.rpcClient.GetConsistencyProof(ctx, &request)
+
+	if err != nil || !rpcStatusOK(response.GetStatus()) {
+		return http.StatusInternalServerError, err
+	}
+
+	// Additional sanity checks, none of the hashes in the returned path should be empty
+	if !checkAuditPath(response.Proof.ProofNode) {
+		return http.StatusInternalServerError, fmt.Errorf("backend returned invalid proof: %v", response.Proof)
+	}
+
+	// We got a valid response from the server. Marshall it as JSON and return it to the client
+	jsonResponse := getSTHConsistencyResponse{Consistency: auditPathFromProto(response.Proof.ProofNode)}
+
+	w.Header().Set(contentTypeHeader, contentTypeJSON)
+	jsonData, err := json.Marshal(&jsonResponse)
+
+	if err != nil {
+		return http.StatusInternalServerError, fmt.Errorf("failed to marshal get-sth-consistency resp: %v because %v", jsonResponse, err)
+	}
+
+	_, err = w.Write(jsonData)
+
+	if err != nil {
+		// Probably too late for this as headers might have been written but we don't know for sure
+		return http.StatusInternalServerError, fmt.Errorf("failed to write get-sth-consistency resp: %v because %v", jsonResponse, err)
+	}
+
+	return http.StatusOK, nil
 }
 
-func wrappedGetProofByHashHandler(c LogContext) appHandler {
-	return func(w http.ResponseWriter, r *http.Request) (int, error) {
-		if !enforceMethod(w, r, http.MethodGet) {
-			return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
-		}
-
-		hash := r.FormValue(getProofParamHash)
-
-		// Accept any non empty hash that decodes from base64 and let the backend validate it further
-		if len(hash) == 0 {
-			return http.StatusBadRequest, errors.New("get-proof-by-hash: missing / empty hash param for get-proof-by-hash")
-		}
-
-		leafHash, err := base64.StdEncoding.DecodeString(hash)
-
-		if err != nil {
-			return http.StatusBadRequest, fmt.Errorf("get-proof-by-hash: invalid base64 hash: %v", err)
-		}
-
-		treeSize, err := strconv.ParseInt(r.FormValue(getProofParamTreeSize), 10, 64)
-
-		if err != nil || treeSize < 1 {
-			return http.StatusBadRequest, fmt.Errorf("get-proof-by-hash: missing or invalid tree_size: %v", r.FormValue(getProofParamTreeSize))
-		}
-
-		// Per RFC 6962 section 4.5 the API returns a single proof. This should be the lowest leaf index
-		// Because we request order by sequence and we only passed one hash then the first result is
-		// the correct proof to return
-		rpcRequest := trillian.GetInclusionProofByHashRequest{LogId: c.logID,
-			LeafHash:        leafHash,
-			TreeSize:        treeSize,
-			OrderBySequence: true}
-		ctx, cancelFunc := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
-		defer cancelFunc()
-		response, err := c.rpcClient.GetInclusionProofByHash(ctx, &rpcRequest)
-
-		if err != nil || !rpcStatusOK(response.GetStatus()) {
-			return http.StatusInternalServerError, fmt.Errorf("get-proof-by-hash: RPC failed, possible extra info: %v", err)
-		}
-
-		// Additional sanity checks, none of the hashes in the returned path should be empty
-		if !checkAuditPath(response.Proof[0].ProofNode) {
-			return http.StatusInternalServerError, fmt.Errorf("get-proof-by-hash: backend returned invalid proof: %v", response.Proof[0])
-		}
-
-		// All checks complete, marshall and return the response
-		proofResponse := getProofByHashResponse{LeafIndex: response.Proof[0].LeafIndex, AuditPath: auditPathFromProto(response.Proof[0].ProofNode)}
-
-		w.Header().Set(contentTypeHeader, contentTypeJSON)
-		jsonData, err := json.Marshal(&proofResponse)
-
-		if err != nil {
-			glog.Warningf("Failed to marshal get-proof-by-hash resp: %v", proofResponse)
-			return http.StatusInternalServerError, fmt.Errorf("failed to marshal get-proof-by-hash resp: %v, error: %v", proofResponse, err)
-		}
-
-		_, err = w.Write(jsonData)
-
-		if err != nil {
-			// Probably too late for this as headers might have been written but we don't know for sure
-			return http.StatusInternalServerError, fmt.Errorf("failed to write get-proof-by-hash resp: %v", proofResponse)
-		}
-
-		return http.StatusOK, nil
+func getProofByHashHandler(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
+	if !enforceMethod(w, r, http.MethodGet) {
+		return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 	}
+
+	hash := r.FormValue(getProofParamHash)
+
+	// Accept any non empty hash that decodes from base64 and let the backend validate it further
+	if len(hash) == 0 {
+		return http.StatusBadRequest, errors.New("get-proof-by-hash: missing / empty hash param for get-proof-by-hash")
+	}
+
+	leafHash, err := base64.StdEncoding.DecodeString(hash)
+
+	if err != nil {
+		return http.StatusBadRequest, fmt.Errorf("get-proof-by-hash: invalid base64 hash: %v", err)
+	}
+
+	treeSize, err := strconv.ParseInt(r.FormValue(getProofParamTreeSize), 10, 64)
+
+	if err != nil || treeSize < 1 {
+		return http.StatusBadRequest, fmt.Errorf("get-proof-by-hash: missing or invalid tree_size: %v", r.FormValue(getProofParamTreeSize))
+	}
+
+	// Per RFC 6962 section 4.5 the API returns a single proof. This should be the lowest leaf index
+	// Because we request order by sequence and we only passed one hash then the first result is
+	// the correct proof to return
+	rpcRequest := trillian.GetInclusionProofByHashRequest{LogId: c.logID,
+		LeafHash:        leafHash,
+		TreeSize:        treeSize,
+		OrderBySequence: true}
+	ctx, cancelFunc := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
+	defer cancelFunc()
+	response, err := c.rpcClient.GetInclusionProofByHash(ctx, &rpcRequest)
+
+	if err != nil || !rpcStatusOK(response.GetStatus()) {
+		return http.StatusInternalServerError, fmt.Errorf("get-proof-by-hash: RPC failed, possible extra info: %v", err)
+	}
+
+	// Additional sanity checks, none of the hashes in the returned path should be empty
+	if !checkAuditPath(response.Proof[0].ProofNode) {
+		return http.StatusInternalServerError, fmt.Errorf("get-proof-by-hash: backend returned invalid proof: %v", response.Proof[0])
+	}
+
+	// All checks complete, marshall and return the response
+	proofResponse := getProofByHashResponse{LeafIndex: response.Proof[0].LeafIndex, AuditPath: auditPathFromProto(response.Proof[0].ProofNode)}
+
+	w.Header().Set(contentTypeHeader, contentTypeJSON)
+	jsonData, err := json.Marshal(&proofResponse)
+
+	if err != nil {
+		glog.Warningf("Failed to marshal get-proof-by-hash resp: %v", proofResponse)
+		return http.StatusInternalServerError, fmt.Errorf("failed to marshal get-proof-by-hash resp: %v, error: %v", proofResponse, err)
+	}
+
+	_, err = w.Write(jsonData)
+
+	if err != nil {
+		// Probably too late for this as headers might have been written but we don't know for sure
+		return http.StatusInternalServerError, fmt.Errorf("failed to write get-proof-by-hash resp: %v", proofResponse)
+	}
+
+	return http.StatusOK, nil
 }
 
-func wrappedGetEntriesHandler(c LogContext) appHandler {
-	return func(w http.ResponseWriter, r *http.Request) (int, error) {
-		if !enforceMethod(w, r, http.MethodGet) {
-			return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
-		}
-
-		// The first job is to parse the params and make sure they're sensible. We just make
-		// sure the range is valid. We don't do an extra roundtrip to get the current tree
-		// size and prefer to let the backend handle this case
-		startIndex, endIndex, err := parseAndValidateGetEntriesRange(r, maxGetEntriesAllowed)
-
-		if err != nil {
-			return http.StatusBadRequest, fmt.Errorf("bad range on get-entries request: %v", err)
-		}
-
-		// Now make a request to the backend to get the relevant leaves
-		requestIndices := buildIndicesForRange(startIndex, endIndex)
-		request := trillian.GetLeavesByIndexRequest{LogId: c.logID, LeafIndex: requestIndices}
-
-		ctx, cancelFunc := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
-		defer cancelFunc()
-		response, err := c.rpcClient.GetLeavesByIndex(ctx, &request)
-
-		if err != nil || !rpcStatusOK(response.GetStatus()) {
-			return http.StatusInternalServerError, fmt.Errorf("get-entries: RPC failed, possible extra info: %v", err)
-		}
-
-		// Apply additional checks on the response to make sure we got a contiguous leaf range.
-		// It's allowed by the RFC for the backend to truncate the range in cases where the
-		// range exceeds the tree size etc. so we could get fewer leaves than we requested but
-		// never more and never anything outside the requested range.
-		if expected, got := len(requestIndices), len(response.Leaves); got > expected {
-			return http.StatusInternalServerError, fmt.Errorf("backend returned too many leaves: %d v %d", got, expected)
-		}
-
-		if err := isResponseContiguousRange(response, startIndex, endIndex); err != nil {
-			return http.StatusInternalServerError, fmt.Errorf("backend get-entries range received from backend non contiguous: %v", err)
-		}
-
-		// Now we've checked the response and it seems to be valid we need to serialize the
-		// leaves in JSON format. Doing a round trip via the leaf deserializer gives us another
-		// chance to prevent bad / corrupt data from reaching the client.
-		jsonResponse, err := marshalGetEntriesResponse(response)
-
-		if err != nil {
-			return http.StatusInternalServerError, fmt.Errorf("failed to process leaves returned from backend: %v", err)
-		}
-
-		w.Header().Set(contentTypeHeader, contentTypeJSON)
-		jsonData, err := json.Marshal(&jsonResponse)
-
-		if err != nil {
-			return http.StatusInternalServerError, fmt.Errorf("failed to marshal get-entries resp: %v because: %v", jsonResponse, err)
-		}
-
-		_, err = w.Write(jsonData)
-
-		if err != nil {
-
-			// Probably too late for this as headers might have been written but we don't know for sure
-			return http.StatusInternalServerError, fmt.Errorf("failed to write get-entries resp: %v because: %v", jsonResponse, err)
-		}
-
-		return http.StatusOK, nil
+func getEntriesHandler(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
+	if !enforceMethod(w, r, http.MethodGet) {
+		return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 	}
+
+	// The first job is to parse the params and make sure they're sensible. We just make
+	// sure the range is valid. We don't do an extra roundtrip to get the current tree
+	// size and prefer to let the backend handle this case
+	startIndex, endIndex, err := parseAndValidateGetEntriesRange(r, maxGetEntriesAllowed)
+
+	if err != nil {
+		return http.StatusBadRequest, fmt.Errorf("bad range on get-entries request: %v", err)
+	}
+
+	// Now make a request to the backend to get the relevant leaves
+	requestIndices := buildIndicesForRange(startIndex, endIndex)
+	request := trillian.GetLeavesByIndexRequest{LogId: c.logID, LeafIndex: requestIndices}
+
+	ctx, cancelFunc := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
+	defer cancelFunc()
+	response, err := c.rpcClient.GetLeavesByIndex(ctx, &request)
+
+	if err != nil || !rpcStatusOK(response.GetStatus()) {
+		return http.StatusInternalServerError, fmt.Errorf("get-entries: RPC failed, possible extra info: %v", err)
+	}
+
+	// Apply additional checks on the response to make sure we got a contiguous leaf range.
+	// It's allowed by the RFC for the backend to truncate the range in cases where the
+	// range exceeds the tree size etc. so we could get fewer leaves than we requested but
+	// never more and never anything outside the requested range.
+	if expected, got := len(requestIndices), len(response.Leaves); got > expected {
+		return http.StatusInternalServerError, fmt.Errorf("backend returned too many leaves: %d v %d", got, expected)
+	}
+
+	if err := isResponseContiguousRange(response, startIndex, endIndex); err != nil {
+		return http.StatusInternalServerError, fmt.Errorf("backend get-entries range received from backend non contiguous: %v", err)
+	}
+
+	// Now we've checked the response and it seems to be valid we need to serialize the
+	// leaves in JSON format. Doing a round trip via the leaf deserializer gives us another
+	// chance to prevent bad / corrupt data from reaching the client.
+	jsonResponse, err := marshalGetEntriesResponse(response)
+
+	if err != nil {
+		return http.StatusInternalServerError, fmt.Errorf("failed to process leaves returned from backend: %v", err)
+	}
+
+	w.Header().Set(contentTypeHeader, contentTypeJSON)
+	jsonData, err := json.Marshal(&jsonResponse)
+
+	if err != nil {
+		return http.StatusInternalServerError, fmt.Errorf("failed to marshal get-entries resp: %v because: %v", jsonResponse, err)
+	}
+
+	_, err = w.Write(jsonData)
+
+	if err != nil {
+
+		// Probably too late for this as headers might have been written but we don't know for sure
+		return http.StatusInternalServerError, fmt.Errorf("failed to write get-entries resp: %v because: %v", jsonResponse, err)
+	}
+
+	return http.StatusOK, nil
 }
 
-func wrappedGetRootsHandler(trustedRoots *PEMCertPool) appHandler {
-	return func(w http.ResponseWriter, r *http.Request) (int, error) {
-		if !enforceMethod(w, r, http.MethodGet) {
-			return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
-		}
-
-		jsonMap := make(map[string]interface{})
-
-		rawCerts := make([][]byte, 0, len(trustedRoots.RawCertificates()))
-
-		// Pull out the raw certificates from the parsed versions
-		for _, cert := range trustedRoots.RawCertificates() {
-			rawCerts = append(rawCerts, cert.Raw)
-		}
-
-		jsonMap[jsonMapKeyCertificates] = rawCerts
-		enc := json.NewEncoder(w)
-		err := enc.Encode(jsonMap)
-
-		if err != nil {
-			glog.Warningf("get_roots failed: %v", err)
-			return http.StatusInternalServerError, fmt.Errorf("get-roots failed with: %v", err)
-		}
-
-		return http.StatusOK, nil
+func getRootsHandler(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
+	if !enforceMethod(w, r, http.MethodGet) {
+		return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 	}
+
+	jsonMap := make(map[string]interface{})
+
+	rawCerts := make([][]byte, 0, len(c.trustedRoots.RawCertificates()))
+
+	// Pull out the raw certificates from the parsed versions
+	for _, cert := range c.trustedRoots.RawCertificates() {
+		rawCerts = append(rawCerts, cert.Raw)
+	}
+
+	jsonMap[jsonMapKeyCertificates] = rawCerts
+	enc := json.NewEncoder(w)
+	err := enc.Encode(jsonMap)
+
+	if err != nil {
+		glog.Warningf("get_roots failed: %v", err)
+		return http.StatusInternalServerError, fmt.Errorf("get-roots failed with: %v", err)
+	}
+
+	return http.StatusOK, nil
 }
 
 // See RFC 6962 Section 4.8. This is mostly used for debug purposes rather than by normal
 // CT clients.
-func wrappedGetEntryAndProofHandler(c LogContext) appHandler {
-	return func(w http.ResponseWriter, r *http.Request) (int, error) {
-		if !enforceMethod(w, r, http.MethodGet) {
-			return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
-		}
-
-		// Ensure both numeric params are present and look reasonable.
-		leafIndex, treeSize, err := parseAndValidateGetEntryAndProofParams(r)
-
-		if err != nil {
-			return http.StatusBadRequest, err
-		}
-
-		getEntryAndProofRequest := trillian.GetEntryAndProofRequest{LogId: c.logID, LeafIndex: leafIndex, TreeSize: treeSize}
-		ctx, cancelFunc := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
-		defer cancelFunc()
-		response, err := c.rpcClient.GetEntryAndProof(ctx, &getEntryAndProofRequest)
-
-		if err != nil || !rpcStatusOK(response.GetStatus()) {
-			return http.StatusInternalServerError, fmt.Errorf("get-entry-and-proof: RPC failed, possible extra info: %v", err)
-		}
-
-		// Apply some checks that we got reasonable data from the backend
-		if response.Proof == nil || response.Leaf == nil || len(response.Proof.ProofNode) == 0 || len(response.Leaf.LeafValue) == 0 {
-			return http.StatusInternalServerError, fmt.Errorf("got RPC bad response, possible extra info: %v", response)
-		}
-
-		// Build and marshall the response to the client
-		jsonResponse := getEntryAndProofResponse{
-			LeafInput: response.Leaf.LeafValue,
-			ExtraData: response.Leaf.ExtraData,
-			AuditPath: auditPathFromProto(response.Proof.ProofNode)}
-
-		w.Header().Set(contentTypeHeader, contentTypeJSON)
-		jsonData, err := json.Marshal(&jsonResponse)
-
-		if err != nil {
-			return http.StatusInternalServerError, fmt.Errorf("failed to marshal get-entry-and-proof resp: %v because: %v", jsonResponse, err)
-		}
-
-		_, err = w.Write(jsonData)
-
-		if err != nil {
-
-			// Probably too late for this as headers might have been written but we don't know for sure
-			return http.StatusInternalServerError, fmt.Errorf("failed to write get-entry-and-proof resp: %v because: %v", jsonResponse, err)
-		}
-
-		return http.StatusOK, nil
+func getEntryAndProofHandler(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
+	if !enforceMethod(w, r, http.MethodGet) {
+		return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 	}
+
+	// Ensure both numeric params are present and look reasonable.
+	leafIndex, treeSize, err := parseAndValidateGetEntryAndProofParams(r)
+
+	if err != nil {
+		return http.StatusBadRequest, err
+	}
+
+	getEntryAndProofRequest := trillian.GetEntryAndProofRequest{LogId: c.logID, LeafIndex: leafIndex, TreeSize: treeSize}
+	ctx, cancelFunc := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
+	defer cancelFunc()
+	response, err := c.rpcClient.GetEntryAndProof(ctx, &getEntryAndProofRequest)
+
+	if err != nil || !rpcStatusOK(response.GetStatus()) {
+		return http.StatusInternalServerError, fmt.Errorf("get-entry-and-proof: RPC failed, possible extra info: %v", err)
+	}
+
+	// Apply some checks that we got reasonable data from the backend
+	if response.Proof == nil || response.Leaf == nil || len(response.Proof.ProofNode) == 0 || len(response.Leaf.LeafValue) == 0 {
+		return http.StatusInternalServerError, fmt.Errorf("got RPC bad response, possible extra info: %v", response)
+	}
+
+	// Build and marshall the response to the client
+	jsonResponse := getEntryAndProofResponse{
+		LeafInput: response.Leaf.LeafValue,
+		ExtraData: response.Leaf.ExtraData,
+		AuditPath: auditPathFromProto(response.Proof.ProofNode)}
+
+	w.Header().Set(contentTypeHeader, contentTypeJSON)
+	jsonData, err := json.Marshal(&jsonResponse)
+
+	if err != nil {
+		return http.StatusInternalServerError, fmt.Errorf("failed to marshal get-entry-and-proof resp: %v because: %v", jsonResponse, err)
+	}
+
+	_, err = w.Write(jsonData)
+
+	if err != nil {
+
+		// Probably too late for this as headers might have been written but we don't know for sure
+		return http.StatusInternalServerError, fmt.Errorf("failed to write get-entry-and-proof resp: %v because: %v", jsonResponse, err)
+	}
+
+	return http.StatusOK, nil
 }
 
 // RegisterHandlers registers a HandleFunc for all of the RFC6962 defined methods.
 // TODO(Martin2112): This registers on default ServeMux, might need more flexibility?
 func (c LogContext) RegisterHandlers() {
-	http.Handle("/ct/v1/add-chain", wrappedAddChainHandler(c))
-	http.Handle("/ct/v1/add-pre-chain", wrappedAddPreChainHandler(c))
-	http.Handle("/ct/v1/get-sth", wrappedGetSTHHandler(c))
-	http.Handle("/ct/v1/get-sth-consistency", wrappedGetSTHConsistencyHandler(c))
-	http.Handle("/ct/v1/get-proof-by-hash", wrappedGetProofByHashHandler(c))
-	http.Handle("/ct/v1/get-entries", wrappedGetEntriesHandler(c))
-	http.Handle("/ct/v1/get-roots", wrappedGetRootsHandler(c.trustedRoots))
-	http.Handle("/ct/v1/get-entry-and-proof", wrappedGetEntryAndProofHandler(c))
+	// Bind the LogContext instance to give an appHandler instance for each entrypoint.
+	http.Handle("/ct/v1/add-chain", appHandler(func(w http.ResponseWriter, r *http.Request) (int, error) {
+		return addChainHandler(c, w, r)
+	}))
+	http.Handle("/ct/v1/add-pre-chain", appHandler(func(w http.ResponseWriter, r *http.Request) (int, error) {
+		return addChainHandler(c, w, r)
+	}))
+	http.Handle("/ct/v1/get-sth", appHandler(func(w http.ResponseWriter, r *http.Request) (int, error) {
+		return getSTHHandler(c, w, r)
+	}))
+	http.Handle("/ct/v1/get-sth-consistency", appHandler(func(w http.ResponseWriter, r *http.Request) (int, error) {
+		return getSTHConsistencyHandler(c, w, r)
+	}))
+	http.Handle("/ct/v1/get-proof-by-hash", appHandler(func(w http.ResponseWriter, r *http.Request) (int, error) {
+		return getProofByHashHandler(c, w, r)
+	}))
+	http.Handle("/ct/v1/get-entries", appHandler(func(w http.ResponseWriter, r *http.Request) (int, error) {
+		return getEntriesHandler(c, w, r)
+	}))
+	http.Handle("/ct/v1/get-roots", appHandler(func(w http.ResponseWriter, r *http.Request) (int, error) {
+		return getRootsHandler(c, w, r)
+	}))
+	http.Handle("/ct/v1/get-entry-and-proof", appHandler(func(w http.ResponseWriter, r *http.Request) (int, error) {
+		return getEntryAndProofHandler(c, w, r)
+	}))
 }
 
 // Generates a custom error page to give more information on why something didn't work
