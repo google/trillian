@@ -50,30 +50,27 @@ const (
 	getEntryAndProofParamTreeSize = "tree_size"
 )
 
-// appHandler is an instance of the http.Handler interface.
-type appHandler func(http.ResponseWriter, *http.Request) (int, error)
+// appHandler holds a LogContext and a handler function that uses it, and is
+// an implementation of the http.Handler interface.
+type appHandler struct {
+	context LogContext
+	handler func(LogContext, http.ResponseWriter, *http.Request) (int, error)
+}
 
 // ServeHTTP for an appHandler invokes the underlying handler function but
 // does additional common error processing.
-func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	status, err := fn(w, r)
+func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	status, err := a.handler(a.context, w, r)
 	if err != nil {
-		glog.Warningf("handler error: %v", err)
+		glog.Warningf("%shandler error: %v", a.context.logPrefix, err)
 		sendHTTPError(w, status, err)
 	}
 
 	// Additional check, for consistency the handler must return an error for non-200 status
 	if status != http.StatusOK {
-		glog.Warningf("handler non 200 without error: %d %v", status, err)
+		glog.Warningf("%shandler non 200 without error: %d %v", a.context.logPrefix, status, err)
 		sendHTTPError(w, http.StatusInternalServerError, fmt.Errorf("http handler misbehaved, status: %d", status))
 	}
-}
-
-// bindContext binds the first LogContext parameter of a handler
-func bindContext(cfn func(LogContext, http.ResponseWriter, *http.Request) (int, error), c LogContext) appHandler {
-	return appHandler(func(w http.ResponseWriter, r *http.Request) (int, error) {
-		return cfn(c, w, r)
-	})
 }
 
 // LogContext holds information for a specific log instance.
@@ -609,30 +606,14 @@ func getEntryAndProof(c LogContext, w http.ResponseWriter, r *http.Request) (int
 // TODO(Martin2112): This registers on default ServeMux, might need more flexibility?
 func (c LogContext) RegisterHandlers() {
 	// Bind the LogContext instance to give an appHandler instance for each entrypoint.
-	http.Handle("/ct/v1/add-chain", appHandler(func(w http.ResponseWriter, r *http.Request) (int, error) {
-		return addChain(c, w, r)
-	}))
-	http.Handle("/ct/v1/add-pre-chain", appHandler(func(w http.ResponseWriter, r *http.Request) (int, error) {
-		return addChain(c, w, r)
-	}))
-	http.Handle("/ct/v1/get-sth", appHandler(func(w http.ResponseWriter, r *http.Request) (int, error) {
-		return getSTH(c, w, r)
-	}))
-	http.Handle("/ct/v1/get-sth-consistency", appHandler(func(w http.ResponseWriter, r *http.Request) (int, error) {
-		return getSTHConsistency(c, w, r)
-	}))
-	http.Handle("/ct/v1/get-proof-by-hash", appHandler(func(w http.ResponseWriter, r *http.Request) (int, error) {
-		return getProofByHash(c, w, r)
-	}))
-	http.Handle("/ct/v1/get-entries", appHandler(func(w http.ResponseWriter, r *http.Request) (int, error) {
-		return getEntries(c, w, r)
-	}))
-	http.Handle("/ct/v1/get-roots", appHandler(func(w http.ResponseWriter, r *http.Request) (int, error) {
-		return getRoots(c, w, r)
-	}))
-	http.Handle("/ct/v1/get-entry-and-proof", appHandler(func(w http.ResponseWriter, r *http.Request) (int, error) {
-		return getEntryAndProof(c, w, r)
-	}))
+	http.Handle("/ct/v1/add-chain", appHandler{context: c, handler: addChain})
+	http.Handle("/ct/v1/add-pre-chain", appHandler{context: c, handler: addPreChain})
+	http.Handle("/ct/v1/get-sth", appHandler{context: c, handler: getSTH})
+	http.Handle("/ct/v1/get-sth-consistency", appHandler{context: c, handler: getSTHConsistency})
+	http.Handle("/ct/v1/get-proof-by-hash", appHandler{context: c, handler: getProofByHash})
+	http.Handle("/ct/v1/get-entries", appHandler{context: c, handler: getEntries})
+	http.Handle("/ct/v1/get-roots", appHandler{context: c, handler: getRoots})
+	http.Handle("/ct/v1/get-entry-and-proof", appHandler{context: c, handler: getEntryAndProof})
 }
 
 // Generates a custom error page to give more information on why something didn't work
