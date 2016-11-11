@@ -67,12 +67,14 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		glog.Warningf("%s%shandler error: %v", a.context.logPrefix, a.name, err)
 		sendHTTPError(w, status, err)
+		return
 	}
 
 	// Additional check, for consistency the handler must return an error for non-200 status
 	if status != http.StatusOK {
 		glog.Warningf("%s%shandler non 200 without error: %d %v", a.context.logPrefix, a.name, status, err)
 		sendHTTPError(w, http.StatusInternalServerError, fmt.Errorf("http handler misbehaved, status: %d", status))
+		return
 	}
 }
 
