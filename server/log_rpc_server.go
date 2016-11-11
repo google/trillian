@@ -8,8 +8,8 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
-	"golang.org/x/net/context"
 	"github.com/google/trillian/util"
+	"golang.org/x/net/context"
 )
 
 // TODO: There is no access control in the server yet and clients could easily modify

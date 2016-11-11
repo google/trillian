@@ -4,6 +4,7 @@ package log
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
@@ -11,7 +12,6 @@ import (
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util"
-	"time"
 )
 
 // Sequencer instances are responsible for integrating new leaves into a log.

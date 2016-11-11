@@ -306,7 +306,11 @@ func TestQueueLeaves(t *testing.T) {
 		t.Fatalf("Could not query row count")
 	}
 
-	// Additional check on timestamp being set correctly
+	if leavesToInsert != count {
+		t.Fatalf("Expected %d unsequenced rows but got: %d", leavesToInsert, count)
+	}
+
+	// Additional check on timestamp being set correctly in the database
 	var queueTimestamp int64
 	if err := db.QueryRow("SELECT DISTINCT QueueTimestampNanos FROM Unsequenced WHERE TreeID=?", logID.logID).Scan(&queueTimestamp); err != nil {
 		t.Fatalf("Could not query timestamp")
@@ -314,10 +318,6 @@ func TestQueueLeaves(t *testing.T) {
 
 	if got, want := queueTimestamp, fakeQueueTime.UnixNano(); got != want {
 		t.Fatalf("Incorrect queue timestamp got: %d want: %d", got, want)
-	}
-
-	if leavesToInsert != count {
-		t.Fatalf("Expected %d unsequenced rows but got: %d", leavesToInsert, count)
 	}
 }
 
