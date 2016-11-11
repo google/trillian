@@ -28,8 +28,6 @@ const (
 	contentTypeJSON string = "application/json"
 	// The name of the JSON response map key in get-roots responses
 	jsonMapKeyCertificates string = "certificates"
-	// Logging level for debug verbose logs
-	logVerboseLevel glog.Level = 2
 	// Max number of entries we allow in a get-entries request
 	maxGetEntriesAllowed int64 = 50
 	// The name of the get-entries start parameter
@@ -55,20 +53,25 @@ const (
 type appHandler struct {
 	context LogContext
 	handler func(LogContext, http.ResponseWriter, *http.Request) (int, error)
+	name    string
 }
 
 // ServeHTTP for an appHandler invokes the underlying handler function but
 // does additional common error processing.
 func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if glog.V(2) {
+		glog.Infof("%srequest %v %q => %s", a.context.logPrefix, r.Method, r.URL, a.name)
+	}
 	status, err := a.handler(a.context, w, r)
+	glog.V(2).Infof("%s%s status=%d", a.context.logPrefix, a.name, status)
 	if err != nil {
-		glog.Warningf("%shandler error: %v", a.context.logPrefix, err)
+		glog.Warningf("%s%shandler error: %v", a.context.logPrefix, a.name, err)
 		sendHTTPError(w, status, err)
 	}
 
 	// Additional check, for consistency the handler must return an error for non-200 status
 	if status != http.StatusOK {
-		glog.Warningf("%shandler non 200 without error: %d %v", a.context.logPrefix, status, err)
+		glog.Warningf("%s%shandler non 200 without error: %d %v", a.context.logPrefix, a.name, status, err)
 		sendHTTPError(w, http.StatusInternalServerError, fmt.Errorf("http handler misbehaved, status: %d", status))
 	}
 }
@@ -161,19 +164,19 @@ func parseBodyAsJSONChain(c LogContext, w http.ResponseWriter, r *http.Request) 
 	body, err := ioutil.ReadAll(r.Body)
 
 	if err != nil {
-		glog.V(logVerboseLevel).Infof("%sFailed to read request body: %v", c.logPrefix, err)
+		glog.V(1).Infof("%sFailed to read request body: %v", c.logPrefix, err)
 		return addChainRequest{}, err
 	}
 
 	var req addChainRequest
 	if err := json.Unmarshal(body, &req); err != nil {
-		glog.V(logVerboseLevel).Infof("%sFailed to parse request body: %v", c.logPrefix, err)
+		glog.V(1).Infof("%sFailed to parse request body: %v", c.logPrefix, err)
 		return addChainRequest{}, err
 	}
 
 	// The cert chain is not allowed to be empty. We'll defer other validation for later
 	if len(req.Chain) == 0 {
-		glog.V(logVerboseLevel).Infof("%sRequest chain is empty: %s", c.logPrefix, body)
+		glog.V(1).Infof("%sRequest chain is empty: %s", c.logPrefix, body)
 		return addChainRequest{}, errors.New("cert chain was empty")
 	}
 
@@ -275,17 +278,14 @@ func addChainInternal(c LogContext, w http.ResponseWriter, r *http.Request, isPr
 }
 
 func addChain(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
-	glog.V(logVerboseLevel).Infof("%sAddChain", c.logPrefix)
 	return addChainInternal(c, w, r, false)
 }
 
 func addPreChain(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
-	glog.V(logVerboseLevel).Infof("%sAddPreChain", c.logPrefix)
 	return addChainInternal(c, w, r, true)
 }
 
 func getSTH(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
-	glog.V(logVerboseLevel).Infof("%sGetSTH", c.logPrefix)
 	if !enforceMethod(w, r, http.MethodGet) {
 		return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 	}
@@ -345,7 +345,6 @@ func getSTH(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
 }
 
 func getSTHConsistency(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
-	glog.V(logVerboseLevel).Infof("%sGetSTHConsistency", c.logPrefix)
 	if !enforceMethod(w, r, http.MethodGet) {
 		return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 	}
@@ -391,7 +390,6 @@ func getSTHConsistency(c LogContext, w http.ResponseWriter, r *http.Request) (in
 }
 
 func getProofByHash(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
-	glog.V(logVerboseLevel).Infof("%sGetProofByHash", c.logPrefix)
 	if !enforceMethod(w, r, http.MethodGet) {
 		return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 	}
@@ -457,7 +455,6 @@ func getProofByHash(c LogContext, w http.ResponseWriter, r *http.Request) (int, 
 }
 
 func getEntries(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
-	glog.V(logVerboseLevel).Infof("%sGetEntries", c.logPrefix)
 	if !enforceMethod(w, r, http.MethodGet) {
 		return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 	}
@@ -523,7 +520,6 @@ func getEntries(c LogContext, w http.ResponseWriter, r *http.Request) (int, erro
 }
 
 func getRoots(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
-	glog.V(logVerboseLevel).Infof("%sGetRoots", c.logPrefix)
 	if !enforceMethod(w, r, http.MethodGet) {
 		return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 	}
@@ -552,7 +548,6 @@ func getRoots(c LogContext, w http.ResponseWriter, r *http.Request) (int, error)
 // See RFC 6962 Section 4.8. This is mostly used for debug purposes rather than by normal
 // CT clients.
 func getEntryAndProof(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
-	glog.V(logVerboseLevel).Infof("%sGetEntryAndProof", c.logPrefix)
 	if !enforceMethod(w, r, http.MethodGet) {
 		return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 	}
@@ -606,14 +601,14 @@ func getEntryAndProof(c LogContext, w http.ResponseWriter, r *http.Request) (int
 // TODO(Martin2112): This registers on default ServeMux, might need more flexibility?
 func (c LogContext) RegisterHandlers() {
 	// Bind the LogContext instance to give an appHandler instance for each entrypoint.
-	http.Handle("/ct/v1/add-chain", appHandler{context: c, handler: addChain})
-	http.Handle("/ct/v1/add-pre-chain", appHandler{context: c, handler: addPreChain})
-	http.Handle("/ct/v1/get-sth", appHandler{context: c, handler: getSTH})
-	http.Handle("/ct/v1/get-sth-consistency", appHandler{context: c, handler: getSTHConsistency})
-	http.Handle("/ct/v1/get-proof-by-hash", appHandler{context: c, handler: getProofByHash})
-	http.Handle("/ct/v1/get-entries", appHandler{context: c, handler: getEntries})
-	http.Handle("/ct/v1/get-roots", appHandler{context: c, handler: getRoots})
-	http.Handle("/ct/v1/get-entry-and-proof", appHandler{context: c, handler: getEntryAndProof})
+	http.Handle("/ct/v1/add-chain", appHandler{context: c, handler: addChain, name: "AddChain"})
+	http.Handle("/ct/v1/add-pre-chain", appHandler{context: c, handler: addPreChain, name: "AddPreChain"})
+	http.Handle("/ct/v1/get-sth", appHandler{context: c, handler: getSTH, name: "GetSTH"})
+	http.Handle("/ct/v1/get-sth-consistency", appHandler{context: c, handler: getSTHConsistency, name: "GetSTHConsistency"})
+	http.Handle("/ct/v1/get-proof-by-hash", appHandler{context: c, handler: getProofByHash, name: "GetProofByHash"})
+	http.Handle("/ct/v1/get-entries", appHandler{context: c, handler: getEntries, name: "GetEntries"})
+	http.Handle("/ct/v1/get-roots", appHandler{context: c, handler: getRoots, name: "GetRoots"})
+	http.Handle("/ct/v1/get-entry-and-proof", appHandler{context: c, handler: getEntryAndProof, name: "GetEntryAndProof"})
 }
 
 // Generates a custom error page to give more information on why something didn't work
