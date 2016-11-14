@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 
 	"github.com/golang/glog"
+	"github.com/google/trillian"
 )
 
 // KeyManager loads and holds our private and public keys. Should support ECDSA and RSA keys.
@@ -22,6 +23,8 @@ type KeyManager interface {
 	// Signer returns a crypto.Signer that can sign data using the private key held by the
 	// manager.
 	Signer() (crypto.Signer, error)
+	// SignatureAlgorithm returns the value that identifies the signature algorithm.
+	SignatureAlgorithm() trillian.SignatureAlgorithm
 	// GetPublicKey returns the public key previously loaded. It is an error to call this
 	// before a public key has been loaded
 	GetPublicKey() (crypto.PublicKey, error)
@@ -34,9 +37,10 @@ type KeyManager interface {
 // PEMKeyManager is an instance of KeyManager that loads its key data from an encrypted
 // PEM file.
 type PEMKeyManager struct {
-	serverPrivateKey crypto.PrivateKey
-	serverPublicKey  crypto.PublicKey
-	rawPublicKey     []byte
+	serverPrivateKey   crypto.PrivateKey
+	signatureAlgorithm trillian.SignatureAlgorithm
+	serverPublicKey    crypto.PublicKey
+	rawPublicKey       []byte
 }
 
 // NewPEMKeyManager creates an uninitialized PEMKeyManager. Keys must be loaded before it
@@ -47,7 +51,12 @@ func NewPEMKeyManager() *PEMKeyManager {
 
 // NewPEMKeyManager creates a PEMKeyManager using a private key that has already been loaded
 func (k PEMKeyManager) NewPEMKeyManager(key crypto.PrivateKey) *PEMKeyManager {
-	return &PEMKeyManager{key, nil, nil}
+	return &PEMKeyManager{serverPrivateKey: key}
+}
+
+// SignatureAlgorithm identifies the signature algorithm used by this key manager.
+func (k PEMKeyManager) SignatureAlgorithm() trillian.SignatureAlgorithm {
+	return k.signatureAlgorithm
 }
 
 // LoadPrivateKey loads a private key from a PEM encoded string, decrypting it if necessary
@@ -58,29 +67,26 @@ func (k *PEMKeyManager) LoadPrivateKey(pemEncodedKey, password string) error {
 	}
 
 	der, err := x509.DecryptPEMBlock(block, []byte(password))
-
 	if err != nil {
 		return err
 	}
 
-	key, err := parsePrivateKey(der)
-
+	key, algo, err := parsePrivateKey(der)
 	if err != nil {
 		return err
 	}
 
 	k.serverPrivateKey = key
+	k.signatureAlgorithm = algo
 	return nil
 }
 
 // LoadPublicKey loads a public key from a PEM encoded string.
 func (k *PEMKeyManager) LoadPublicKey(pemEncodedKey string) error {
 	publicBlock, rest := pem.Decode([]byte(pemEncodedKey))
-
 	if publicBlock == nil {
 		return errors.New("could not decode PEM for public key")
 	}
-
 	if len(rest) > 0 {
 		return errors.New("extra data found after PEM key decoded")
 	}
@@ -88,7 +94,6 @@ func (k *PEMKeyManager) LoadPublicKey(pemEncodedKey string) error {
 	k.rawPublicKey = publicBlock.Bytes
 
 	parsedKey, err := x509.ParsePKIXPublicKey(publicBlock.Bytes)
-
 	if err != nil {
 		return errors.New("unable to parse public key")
 	}
@@ -135,27 +140,29 @@ func (k PEMKeyManager) GetRawPublicKey() ([]byte, error) {
 	return k.rawPublicKey, nil
 }
 
-func parsePrivateKey(key []byte) (crypto.PrivateKey, error) {
+func parsePrivateKey(key []byte) (crypto.PrivateKey, trillian.SignatureAlgorithm, error) {
 	// Our two ways of reading keys are ParsePKCS1PrivateKey and ParsePKCS8PrivateKey.
 	// And ParseECPrivateKey. Our three ways of parsing keys are ... I'll come in again.
 	if key, err := x509.ParsePKCS1PrivateKey(key); err == nil {
-		return key, nil
+		return key, trillian.SignatureAlgorithm_RSA, nil
 	}
 	if key, err := x509.ParsePKCS8PrivateKey(key); err == nil {
 		switch key := key.(type) {
-		case *ecdsa.PrivateKey, *rsa.PrivateKey:
-			return key, nil
+		case *ecdsa.PrivateKey:
+			return key, trillian.SignatureAlgorithm_ECDSA, nil
+		case *rsa.PrivateKey:
+			return key, trillian.SignatureAlgorithm_RSA, nil
 		default:
-			return nil, fmt.Errorf("unknown private key type: %T", key)
+			return nil, trillian.SignatureAlgorithm_ANONYMOUS, fmt.Errorf("unknown private key type: %T", key)
 		}
 	}
 	var err error
 	if key, err := x509.ParseECPrivateKey(key); err == nil {
-		return key, nil
+		return key, trillian.SignatureAlgorithm_ECDSA, nil
 	}
 
 	glog.Warningf("error parsing EC key: %s", err)
-	return nil, errors.New("could not parse private key")
+	return nil, trillian.SignatureAlgorithm_ANONYMOUS, errors.New("could not parse private key")
 }
 
 // LoadPasswordProtectedPrivateKey initializes and returns a new KeyManager using a PEM encoded
