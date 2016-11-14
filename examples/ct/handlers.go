@@ -14,6 +14,7 @@ import (
 
 	"github.com/golang/glog"
 	ct "github.com/google/certificate-transparency/go"
+	"github.com/google/certificate-transparency/go/tls"
 	"github.com/google/certificate-transparency/go/x509"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
@@ -327,8 +328,15 @@ func getSTH(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
 	}
 
 	// Now build the final result object that will be marshalled to JSON
-	jsonResponse := convertSTHForClientResponse(sth)
-
+	jsonResponse := getSTHResponse{
+		TreeSize:        int64(sth.TreeSize),
+		RootHash:        sth.SHA256RootHash[:],
+		TimestampMillis: int64(sth.Timestamp),
+	}
+	jsonResponse.Signature, err = tls.Marshal(sth.TreeHeadSignature)
+	if err != nil {
+		return http.StatusInternalServerError, fmt.Errorf("failed to tls.Marshal signature: %v", err)
+	}
 	w.Header().Set(contentTypeHeader, contentTypeJSON)
 	jsonData, err := json.Marshal(&jsonResponse)
 
@@ -872,17 +880,6 @@ func marshalGetEntriesResponse(c LogContext, rpcResponse *trillian.GetLeavesByIn
 	}
 
 	return jsonResponse, nil
-}
-
-// convertSTHForClientResponse does some simple marshalling from a properly signed CT object
-// to the object we'll use to create the JSON response to a client with the correct RFC
-// field names.
-func convertSTHForClientResponse(sth ct.SignedTreeHead) getSTHResponse {
-	return getSTHResponse{
-		TreeSize:        int64(sth.TreeSize),
-		RootHash:        sth.SHA256RootHash[:],
-		TimestampMillis: int64(sth.Timestamp),
-		Signature:       sth.TreeHeadSignature.Signature}
 }
 
 // checkAuditPath does a quick scan of the proof we got from the backend for consistency.
