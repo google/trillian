@@ -49,7 +49,11 @@ var expectedSignedRoot = trillian.SignedLogRoot{
 	TreeRevision:   6,
 	TreeSize:       17,
 	LogId:          0,
-	Signature:      &trillian.DigitallySigned{Signature: []byte("signed")},
+	Signature: &trillian.DigitallySigned{
+		SignatureAlgorithm: trillian.SignatureAlgorithm_ECDSA,
+		HashAlgorithm:      trillian.HashAlgorithm_SHA256,
+		Signature:          []byte("signed"),
+	},
 }
 
 var expectedSignedRoot16 = trillian.SignedLogRoot{
@@ -59,7 +63,11 @@ var expectedSignedRoot16 = trillian.SignedLogRoot{
 	TreeSize:       16,
 	RootHash:       testRoot16.RootHash,
 	LogId:          0,
-	Signature:      &trillian.DigitallySigned{Signature: []byte("signed")},
+	Signature: &trillian.DigitallySigned{
+		SignatureAlgorithm: trillian.SignatureAlgorithm_ECDSA,
+		HashAlgorithm:      trillian.HashAlgorithm_SHA256,
+		Signature:          []byte("signed"),
+	},
 }
 
 // expectedSignedRoot0 is a root for an empty tree
@@ -69,7 +77,11 @@ var expectedSignedRoot0 = trillian.SignedLogRoot{
 	TreeRevision:   1,
 	TreeSize:       0,
 	LogId:          0,
-	Signature:      &trillian.DigitallySigned{Signature: []byte("signed")},
+	Signature: &trillian.DigitallySigned{
+		SignatureAlgorithm: trillian.SignatureAlgorithm_ECDSA,
+		HashAlgorithm:      trillian.HashAlgorithm_SHA256,
+		Signature:          []byte("signed"),
+	},
 }
 
 // Any tests relying on time should use this fixed value
