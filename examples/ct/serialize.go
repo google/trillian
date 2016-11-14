@@ -11,7 +11,6 @@ import (
 	ct "github.com/google/certificate-transparency/go"
 	"github.com/google/certificate-transparency/go/tls"
 	"github.com/google/certificate-transparency/go/x509"
-	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
 )
 
@@ -19,31 +18,30 @@ import (
 // backend response and already checked for validity.
 func signV1TreeHead(km crypto.KeyManager, sth *ct.SignedTreeHead) error {
 	signer, err := km.Signer()
-
 	if err != nil {
 		return err
 	}
 
 	sthBytes, err := ct.SerializeSTHSignatureInput(*sth)
-
 	if err != nil {
 		return err
 	}
 
-	// TODO(Martin2112): Algorithms shouldn't be hardcoded here, needs more work in key manager
-	trillianSigner := crypto.NewSigner(crypto.NewSHA256(), trillian.SignatureAlgorithm_RSA, signer)
+	trillianSigner := crypto.NewSigner(crypto.NewSHA256(), km.SignatureAlgorithm(), signer)
 
 	signature, err := trillianSigner.Sign(sthBytes)
-
 	if err != nil {
 		return err
 	}
 
 	sth.TreeHeadSignature = ct.DigitallySigned{
 		Algorithm: tls.SignatureAndHashAlgorithm{
-			Hash:      tls.SHA256,
-			Signature: tls.RSA},
-		Signature: signature.Signature}
+			Hash: tls.SHA256,
+			// This relies on the protobuf enum values matching the TLS-defined values.
+			Signature: tls.SignatureAlgorithm(km.SignatureAlgorithm()),
+		},
+		Signature: signature.Signature,
+	}
 
 	return nil
 }
@@ -99,11 +97,9 @@ func signSCT(km crypto.KeyManager, t time.Time, sctData []byte) (ct.SignedCertif
 		return ct.SignedCertificateTimestamp{}, err
 	}
 
-	// TODO(Martin2112): Algorithms shouldn't be hardcoded here, needs more work in key manager
-	trillianSigner := crypto.NewSigner(crypto.NewSHA256(), trillian.SignatureAlgorithm_RSA, signer)
+	trillianSigner := crypto.NewSigner(crypto.NewSHA256(), km.SignatureAlgorithm(), signer)
 
 	signature, err := trillianSigner.Sign(sctData)
-
 	if err != nil {
 		return ct.SignedCertificateTimestamp{}, err
 	}
@@ -115,7 +111,6 @@ func signSCT(km crypto.KeyManager, t time.Time, sctData []byte) (ct.SignedCertif
 		Signature: signature.Signature}
 
 	logID, err := GetCTLogID(km)
-
 	if err != nil {
 		return ct.SignedCertificateTimestamp{}, err
 	}

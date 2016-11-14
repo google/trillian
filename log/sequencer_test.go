@@ -213,6 +213,7 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) (testCont
 		mockSigner := crypto.NewMockSigner(ctrl)
 		mockSigner.EXPECT().Sign(gomock.Any(), params.dataToSign, treeHasher.Hasher).AnyTimes().Return(params.signingResult, params.signingError)
 		mockKeyManager.EXPECT().Signer().AnyTimes().Return(mockSigner, params.keyManagerError)
+		mockKeyManager.EXPECT().SignatureAlgorithm().AnyTimes().Return(trillian.SignatureAlgorithm_ECDSA)
 	}
 
 	sequencer := NewSequencer(treeHasher, util.FakeTimeSource{FakeTime: fakeTimeForTest}, mockStorage, mockKeyManager)

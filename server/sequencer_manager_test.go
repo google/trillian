@@ -72,6 +72,7 @@ func TestSequencerManagerNothingToDo(t *testing.T) {
 
 	mockStorage := storage.NewMockLogStorage(mockCtrl)
 	mockKeyManager := crypto.NewMockKeyManager(mockCtrl)
+	mockKeyManager.EXPECT().SignatureAlgorithm().AnyTimes().Return(trillian.SignatureAlgorithm_ECDSA)
 
 	provider := mockStorageProviderForSequencer(mockStorage)
 	sm := NewSequencerManager(mockKeyManager, provider, zeroDuration)
@@ -93,6 +94,7 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 	mockTx.EXPECT().LatestSignedLogRoot().Return(testRoot0, nil)
 	mockTx.EXPECT().DequeueLeaves(50, fakeTime).Return([]trillian.LogLeaf{}, nil)
 	mockKeyManager := crypto.NewMockKeyManager(mockCtrl)
+	mockKeyManager.EXPECT().SignatureAlgorithm().AnyTimes().Return(trillian.SignatureAlgorithm_ECDSA)
 
 	provider := mockStorageProviderForSequencer(mockStorage)
 	sm := NewSequencerManager(mockKeyManager, provider, zeroDuration)
@@ -107,6 +109,7 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 	mockStorage := storage.NewMockLogStorage(mockCtrl)
 	mockTx := storage.NewMockLogTX(mockCtrl)
 	mockKeyManager := crypto.NewMockKeyManager(mockCtrl)
+	mockKeyManager.EXPECT().SignatureAlgorithm().AnyTimes().Return(trillian.SignatureAlgorithm_ECDSA)
 	logID := int64(1)
 	hasher := crypto.NewSHA256()
 
@@ -142,6 +145,7 @@ func TestSignsIfNoWorkAndRootExpired(t *testing.T) {
 	mockStorage := storage.NewMockLogStorage(mockCtrl)
 	mockTx := storage.NewMockLogTX(mockCtrl)
 	mockKeyManager := crypto.NewMockKeyManager(mockCtrl)
+	mockKeyManager.EXPECT().SignatureAlgorithm().AnyTimes().Return(trillian.SignatureAlgorithm_ECDSA)
 	logID := int64(1)
 	hasher := crypto.NewSHA256()
 

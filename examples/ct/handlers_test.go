@@ -351,6 +351,7 @@ func TestAddChainMissingIntermediate(t *testing.T) {
 
 	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	km := crypto.NewMockKeyManager(mockCtrl)
+	km.EXPECT().SignatureAlgorithm().AnyTimes().Return(trillian.SignatureAlgorithm_ECDSA)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.FakeCACertPem})
 	c := *NewLogContext(0x42, roots, client, km, time.Millisecond*500, fakeTimeSource)
@@ -373,6 +374,7 @@ func TestAddChainPrecert(t *testing.T) {
 
 	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	km := crypto.NewMockKeyManager(mockCtrl)
+	km.EXPECT().SignatureAlgorithm().AnyTimes().Return(trillian.SignatureAlgorithm_ECDSA)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
 	c := *NewLogContext(0x42, roots, client, km, time.Millisecond*500, fakeTimeSource)
@@ -405,6 +407,7 @@ func TestAddChainRPCFails(t *testing.T) {
 
 	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	km := setupMockKeyManager(mockCtrl, toSign)
+	km.EXPECT().SignatureAlgorithm().AnyTimes().Return(trillian.SignatureAlgorithm_ECDSA)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.FakeCACertPem})
 	c := *NewLogContext(0x42, roots, client, km, time.Millisecond*500, fakeTimeSource)
@@ -439,6 +442,7 @@ func TestAddChain(t *testing.T) {
 
 	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	km := setupMockKeyManager(mockCtrl, toSign)
+	km.EXPECT().SignatureAlgorithm().AnyTimes().Return(trillian.SignatureAlgorithm_ECDSA)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.FakeCACertPem})
 	c := *NewLogContext(0x42, roots, client, km, time.Millisecond*500, fakeTimeSource)
@@ -490,6 +494,7 @@ func TestAddPrecertChainInvalidPath(t *testing.T) {
 
 	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	km := crypto.NewMockKeyManager(mockCtrl)
+	km.EXPECT().SignatureAlgorithm().AnyTimes().Return(trillian.SignatureAlgorithm_ECDSA)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
 	c := *NewLogContext(0x42, roots, client, km, time.Millisecond*500, fakeTimeSource)
@@ -528,6 +533,7 @@ func TestAddPrecertChainCert(t *testing.T) {
 
 	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	km := crypto.NewMockKeyManager(mockCtrl)
+	km.EXPECT().SignatureAlgorithm().AnyTimes().Return(trillian.SignatureAlgorithm_ECDSA)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
 	c := *NewLogContext(0x42, roots, client, km, time.Millisecond*500, fakeTimeSource)
@@ -558,6 +564,7 @@ func TestAddPrecertChainRPCFails(t *testing.T) {
 
 	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	km := setupMockKeyManager(mockCtrl, toSign)
+	km.EXPECT().SignatureAlgorithm().AnyTimes().Return(trillian.SignatureAlgorithm_ECDSA)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
 	c := *NewLogContext(0x42, roots, client, km, time.Millisecond*500, fakeTimeSource)
@@ -599,6 +606,7 @@ func TestAddPrecertChain(t *testing.T) {
 
 	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	km := setupMockKeyManager(mockCtrl, toSign)
+	km.EXPECT().SignatureAlgorithm().AnyTimes().Return(trillian.SignatureAlgorithm_ECDSA)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
 	c := *NewLogContext(0x42, roots, client, km, time.Millisecond*500, fakeTimeSource)
@@ -657,6 +665,7 @@ func TestGetSTHBackendErrorFails(t *testing.T) {
 
 	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	km := crypto.NewMockKeyManager(mockCtrl)
+	km.EXPECT().SignatureAlgorithm().AnyTimes().Return(trillian.SignatureAlgorithm_ECDSA)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
 	client.EXPECT().GetLatestSignedLogRoot(deadlineMatcher(), &trillian.GetLatestSignedLogRootRequest{LogId: 0x42}).Return(nil, errors.New("backendfailure"))
@@ -687,6 +696,7 @@ func TestGetSTHInvalidBackendTreeSizeFails(t *testing.T) {
 
 	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	km := crypto.NewMockKeyManager(mockCtrl)
+	km.EXPECT().SignatureAlgorithm().AnyTimes().Return(trillian.SignatureAlgorithm_ECDSA)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
 	client.EXPECT().GetLatestSignedLogRoot(deadlineMatcher(), &trillian.GetLatestSignedLogRootRequest{LogId: 0x42}).Return(makeGetRootResponseForTest(12345, -50, []byte("abcdabcdabcdabcdabcdabcdabcdabcd")), nil)
@@ -716,6 +726,7 @@ func TestGetSTHMissingRootHashFails(t *testing.T) {
 
 	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	km := crypto.NewMockKeyManager(mockCtrl)
+	km.EXPECT().SignatureAlgorithm().AnyTimes().Return(trillian.SignatureAlgorithm_ECDSA)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
 	client.EXPECT().GetLatestSignedLogRoot(deadlineMatcher(), &trillian.GetLatestSignedLogRootRequest{LogId: 0x42}).Return(makeGetRootResponseForTest(12345, 25, []byte("thisisnot32byteslong")), nil)
@@ -745,10 +756,12 @@ func TestGetSTHSigningFails(t *testing.T) {
 
 	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	km := crypto.NewMockKeyManager(mockCtrl)
+	km.EXPECT().SignatureAlgorithm().AnyTimes().Return(trillian.SignatureAlgorithm_ECDSA)
 
 	signer := crypto.NewMockSigner(mockCtrl)
 	signer.EXPECT().Sign(gomock.Any(), gomock.Any(), gomock.Any()).Return([]byte{}, errors.New("signerfails"))
 	km.EXPECT().Signer().Return(signer, nil)
+	km.EXPECT().SignatureAlgorithm().AnyTimes().Return(trillian.SignatureAlgorithm_ECDSA)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
 	client.EXPECT().GetLatestSignedLogRoot(deadlineMatcher(), &trillian.GetLatestSignedLogRootRequest{LogId: 0x42}).Return(makeGetRootResponseForTest(12345, 25, []byte("abcdabcdabcdabcdabcdabcdabcdabcd")), nil)
@@ -778,6 +791,7 @@ func TestGetSTH(t *testing.T) {
 
 	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	km := setupMockKeyManagerForSth(mockCtrl, toSign)
+	km.EXPECT().SignatureAlgorithm().AnyTimes().Return(trillian.SignatureAlgorithm_ECDSA)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
 	client.EXPECT().GetLatestSignedLogRoot(deadlineMatcher(), &trillian.GetLatestSignedLogRootRequest{LogId: 0x42}).Return(makeGetRootResponseForTest(12345000000, 25, []byte("abcdabcdabcdabcdabcdabcdabcdabcd")), nil)
@@ -811,7 +825,7 @@ func TestGetSTH(t *testing.T) {
 	if got, want := base64.StdEncoding.EncodeToString(parsedJSON.RootHash), "YWJjZGFiY2RhYmNkYWJjZGFiY2RhYmNkYWJjZGFiY2Q="; got != want {
 		t.Fatalf("Got roothash %s, expected %s", got, want)
 	}
-	if got, want := base64.StdEncoding.EncodeToString(parsedJSON.Signature), "BAEABnNpZ25lZA=="; got != want {
+	if got, want := base64.StdEncoding.EncodeToString(parsedJSON.Signature), "BAMABnNpZ25lZA=="; got != want {
 		t.Fatalf("Got signature %s, expected %s", got, want)
 	}
 }

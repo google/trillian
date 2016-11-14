@@ -10,6 +10,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	ct "github.com/google/certificate-transparency/go"
+	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
 )
 
@@ -100,6 +101,7 @@ func TestSerializeLogEntry(t *testing.T) {
 func setupMockKeyManager(ctrl *gomock.Controller, toSign []byte) *crypto.MockKeyManager {
 	mockKeyManager := setupMockKeyManagerForSth(ctrl, toSign)
 	mockKeyManager.EXPECT().GetRawPublicKey().AnyTimes().Return([]byte("key"), nil)
+	mockKeyManager.EXPECT().SignatureAlgorithm().AnyTimes().Return(trillian.SignatureAlgorithm_ECDSA)
 
 	return mockKeyManager
 }
