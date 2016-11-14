@@ -2,51 +2,6 @@
 // source: github.com/google/trillian/trillian_api.proto
 // DO NOT EDIT!
 
-/*
-Package trillian is a generated protocol buffer package.
-
-It is generated from these files:
-	github.com/google/trillian/trillian_api.proto
-	github.com/google/trillian/trillian.proto
-
-It has these top-level messages:
-	TrillianApiStatus
-	LogLeaf
-	Node
-	Proof
-	QueueLeavesRequest
-	QueueLeavesResponse
-	GetInclusionProofRequest
-	GetInclusionProofResponse
-	GetInclusionProofByHashRequest
-	GetInclusionProofByHashResponse
-	GetConsistencyProofRequest
-	GetConsistencyProofResponse
-	GetLeavesByHashRequest
-	GetLeavesByHashResponse
-	GetLeavesByIndexRequest
-	GetLeavesByIndexResponse
-	GetSequencedLeafCountRequest
-	GetSequencedLeafCountResponse
-	GetLatestSignedLogRootRequest
-	GetLatestSignedLogRootResponse
-	GetEntryAndProofRequest
-	GetEntryAndProofResponse
-	MapLeaf
-	KeyValue
-	KeyValueInclusion
-	GetMapLeavesRequest
-	GetMapLeavesResponse
-	SetMapLeavesRequest
-	SetMapLeavesResponse
-	GetSignedMapRootRequest
-	GetSignedMapRootResponse
-	DigitallySigned
-	SignedEntryTimestamp
-	SignedLogRoot
-	MapperMetadata
-	SignedMapRoot
-*/
 package trillian
 
 import proto "github.com/golang/protobuf/proto"
@@ -62,12 +17,6 @@ import (
 var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
-
-// This is a compile-time assertion to ensure that this generated file
-// is compatible with the proto package it is being compiled against.
-// A compilation error at this line likely means your copy of the
-// proto package needs to be updated.
-const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
 // TrillianApiStatusCode is an application level status code
 type TrillianApiStatusCode int32
@@ -89,7 +38,7 @@ var TrillianApiStatusCode_value = map[string]int32{
 func (x TrillianApiStatusCode) String() string {
 	return proto.EnumName(TrillianApiStatusCode_name, int32(x))
 }
-func (TrillianApiStatusCode) EnumDescriptor() ([]byte, []int) { return fileDescriptor0, []int{0} }
+func (TrillianApiStatusCode) EnumDescriptor() ([]byte, []int) { return fileDescriptor1, []int{0} }
 
 // All operations return a TrillianApiStatus.
 // TODO(Martin2112): Most of the operations are not fully defined yet. They will be implemented soon
@@ -104,7 +53,7 @@ type TrillianApiStatus struct {
 func (m *TrillianApiStatus) Reset()                    { *m = TrillianApiStatus{} }
 func (m *TrillianApiStatus) String() string            { return proto.CompactTextString(m) }
 func (*TrillianApiStatus) ProtoMessage()               {}
-func (*TrillianApiStatus) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{0} }
+func (*TrillianApiStatus) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{0} }
 
 type LogLeaf struct {
 	MerkleLeafHash []byte `protobuf:"bytes,1,opt,name=merkle_leaf_hash,json=merkleLeafHash,proto3" json:"merkle_leaf_hash,omitempty"`
@@ -117,7 +66,7 @@ type LogLeaf struct {
 func (m *LogLeaf) Reset()                    { *m = LogLeaf{} }
 func (m *LogLeaf) String() string            { return proto.CompactTextString(m) }
 func (*LogLeaf) ProtoMessage()               {}
-func (*LogLeaf) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{1} }
+func (*LogLeaf) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{1} }
 
 type Node struct {
 	NodeId       []byte `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
@@ -128,7 +77,7 @@ type Node struct {
 func (m *Node) Reset()                    { *m = Node{} }
 func (m *Node) String() string            { return proto.CompactTextString(m) }
 func (*Node) ProtoMessage()               {}
-func (*Node) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{2} }
+func (*Node) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{2} }
 
 type Proof struct {
 	LeafIndex int64   `protobuf:"varint,1,opt,name=leaf_index,json=leafIndex" json:"leaf_index,omitempty"`
@@ -138,7 +87,7 @@ type Proof struct {
 func (m *Proof) Reset()                    { *m = Proof{} }
 func (m *Proof) String() string            { return proto.CompactTextString(m) }
 func (*Proof) ProtoMessage()               {}
-func (*Proof) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{3} }
+func (*Proof) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{3} }
 
 func (m *Proof) GetProofNode() []*Node {
 	if m != nil {
@@ -155,7 +104,7 @@ type QueueLeavesRequest struct {
 func (m *QueueLeavesRequest) Reset()                    { *m = QueueLeavesRequest{} }
 func (m *QueueLeavesRequest) String() string            { return proto.CompactTextString(m) }
 func (*QueueLeavesRequest) ProtoMessage()               {}
-func (*QueueLeavesRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{4} }
+func (*QueueLeavesRequest) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{4} }
 
 func (m *QueueLeavesRequest) GetLeaves() []*LogLeaf {
 	if m != nil {
@@ -173,7 +122,7 @@ type QueueLeavesResponse struct {
 func (m *QueueLeavesResponse) Reset()                    { *m = QueueLeavesResponse{} }
 func (m *QueueLeavesResponse) String() string            { return proto.CompactTextString(m) }
 func (*QueueLeavesResponse) ProtoMessage()               {}
-func (*QueueLeavesResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{5} }
+func (*QueueLeavesResponse) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{5} }
 
 func (m *QueueLeavesResponse) GetStatus() *TrillianApiStatus {
 	if m != nil {
@@ -191,7 +140,7 @@ type GetInclusionProofRequest struct {
 func (m *GetInclusionProofRequest) Reset()                    { *m = GetInclusionProofRequest{} }
 func (m *GetInclusionProofRequest) String() string            { return proto.CompactTextString(m) }
 func (*GetInclusionProofRequest) ProtoMessage()               {}
-func (*GetInclusionProofRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{6} }
+func (*GetInclusionProofRequest) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{6} }
 
 type GetInclusionProofResponse struct {
 	Status *TrillianApiStatus `protobuf:"bytes,1,opt,name=status" json:"status,omitempty"`
@@ -201,7 +150,7 @@ type GetInclusionProofResponse struct {
 func (m *GetInclusionProofResponse) Reset()                    { *m = GetInclusionProofResponse{} }
 func (m *GetInclusionProofResponse) String() string            { return proto.CompactTextString(m) }
 func (*GetInclusionProofResponse) ProtoMessage()               {}
-func (*GetInclusionProofResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{7} }
+func (*GetInclusionProofResponse) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{7} }
 
 func (m *GetInclusionProofResponse) GetStatus() *TrillianApiStatus {
 	if m != nil {
@@ -227,7 +176,7 @@ type GetInclusionProofByHashRequest struct {
 func (m *GetInclusionProofByHashRequest) Reset()                    { *m = GetInclusionProofByHashRequest{} }
 func (m *GetInclusionProofByHashRequest) String() string            { return proto.CompactTextString(m) }
 func (*GetInclusionProofByHashRequest) ProtoMessage()               {}
-func (*GetInclusionProofByHashRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{8} }
+func (*GetInclusionProofByHashRequest) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{8} }
 
 type GetInclusionProofByHashResponse struct {
 	Status *TrillianApiStatus `protobuf:"bytes,1,opt,name=status" json:"status,omitempty"`
@@ -239,7 +188,7 @@ type GetInclusionProofByHashResponse struct {
 func (m *GetInclusionProofByHashResponse) Reset()                    { *m = GetInclusionProofByHashResponse{} }
 func (m *GetInclusionProofByHashResponse) String() string            { return proto.CompactTextString(m) }
 func (*GetInclusionProofByHashResponse) ProtoMessage()               {}
-func (*GetInclusionProofByHashResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{9} }
+func (*GetInclusionProofByHashResponse) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{9} }
 
 func (m *GetInclusionProofByHashResponse) GetStatus() *TrillianApiStatus {
 	if m != nil {
@@ -264,7 +213,7 @@ type GetConsistencyProofRequest struct {
 func (m *GetConsistencyProofRequest) Reset()                    { *m = GetConsistencyProofRequest{} }
 func (m *GetConsistencyProofRequest) String() string            { return proto.CompactTextString(m) }
 func (*GetConsistencyProofRequest) ProtoMessage()               {}
-func (*GetConsistencyProofRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{10} }
+func (*GetConsistencyProofRequest) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{10} }
 
 type GetConsistencyProofResponse struct {
 	Status *TrillianApiStatus `protobuf:"bytes,1,opt,name=status" json:"status,omitempty"`
@@ -274,7 +223,7 @@ type GetConsistencyProofResponse struct {
 func (m *GetConsistencyProofResponse) Reset()                    { *m = GetConsistencyProofResponse{} }
 func (m *GetConsistencyProofResponse) String() string            { return proto.CompactTextString(m) }
 func (*GetConsistencyProofResponse) ProtoMessage()               {}
-func (*GetConsistencyProofResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{11} }
+func (*GetConsistencyProofResponse) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{11} }
 
 func (m *GetConsistencyProofResponse) GetStatus() *TrillianApiStatus {
 	if m != nil {
@@ -299,7 +248,7 @@ type GetLeavesByHashRequest struct {
 func (m *GetLeavesByHashRequest) Reset()                    { *m = GetLeavesByHashRequest{} }
 func (m *GetLeavesByHashRequest) String() string            { return proto.CompactTextString(m) }
 func (*GetLeavesByHashRequest) ProtoMessage()               {}
-func (*GetLeavesByHashRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{12} }
+func (*GetLeavesByHashRequest) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{12} }
 
 type GetLeavesByHashResponse struct {
 	Status *TrillianApiStatus `protobuf:"bytes,1,opt,name=status" json:"status,omitempty"`
@@ -309,7 +258,7 @@ type GetLeavesByHashResponse struct {
 func (m *GetLeavesByHashResponse) Reset()                    { *m = GetLeavesByHashResponse{} }
 func (m *GetLeavesByHashResponse) String() string            { return proto.CompactTextString(m) }
 func (*GetLeavesByHashResponse) ProtoMessage()               {}
-func (*GetLeavesByHashResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{13} }
+func (*GetLeavesByHashResponse) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{13} }
 
 func (m *GetLeavesByHashResponse) GetStatus() *TrillianApiStatus {
 	if m != nil {
@@ -333,7 +282,7 @@ type GetLeavesByIndexRequest struct {
 func (m *GetLeavesByIndexRequest) Reset()                    { *m = GetLeavesByIndexRequest{} }
 func (m *GetLeavesByIndexRequest) String() string            { return proto.CompactTextString(m) }
 func (*GetLeavesByIndexRequest) ProtoMessage()               {}
-func (*GetLeavesByIndexRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{14} }
+func (*GetLeavesByIndexRequest) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{14} }
 
 type GetLeavesByIndexResponse struct {
 	Status *TrillianApiStatus `protobuf:"bytes,1,opt,name=status" json:"status,omitempty"`
@@ -343,7 +292,7 @@ type GetLeavesByIndexResponse struct {
 func (m *GetLeavesByIndexResponse) Reset()                    { *m = GetLeavesByIndexResponse{} }
 func (m *GetLeavesByIndexResponse) String() string            { return proto.CompactTextString(m) }
 func (*GetLeavesByIndexResponse) ProtoMessage()               {}
-func (*GetLeavesByIndexResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{15} }
+func (*GetLeavesByIndexResponse) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{15} }
 
 func (m *GetLeavesByIndexResponse) GetStatus() *TrillianApiStatus {
 	if m != nil {
@@ -366,7 +315,7 @@ type GetSequencedLeafCountRequest struct {
 func (m *GetSequencedLeafCountRequest) Reset()                    { *m = GetSequencedLeafCountRequest{} }
 func (m *GetSequencedLeafCountRequest) String() string            { return proto.CompactTextString(m) }
 func (*GetSequencedLeafCountRequest) ProtoMessage()               {}
-func (*GetSequencedLeafCountRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{16} }
+func (*GetSequencedLeafCountRequest) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{16} }
 
 type GetSequencedLeafCountResponse struct {
 	Status    *TrillianApiStatus `protobuf:"bytes,1,opt,name=status" json:"status,omitempty"`
@@ -376,7 +325,7 @@ type GetSequencedLeafCountResponse struct {
 func (m *GetSequencedLeafCountResponse) Reset()                    { *m = GetSequencedLeafCountResponse{} }
 func (m *GetSequencedLeafCountResponse) String() string            { return proto.CompactTextString(m) }
 func (*GetSequencedLeafCountResponse) ProtoMessage()               {}
-func (*GetSequencedLeafCountResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{17} }
+func (*GetSequencedLeafCountResponse) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{17} }
 
 func (m *GetSequencedLeafCountResponse) GetStatus() *TrillianApiStatus {
 	if m != nil {
@@ -392,7 +341,7 @@ type GetLatestSignedLogRootRequest struct {
 func (m *GetLatestSignedLogRootRequest) Reset()                    { *m = GetLatestSignedLogRootRequest{} }
 func (m *GetLatestSignedLogRootRequest) String() string            { return proto.CompactTextString(m) }
 func (*GetLatestSignedLogRootRequest) ProtoMessage()               {}
-func (*GetLatestSignedLogRootRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{18} }
+func (*GetLatestSignedLogRootRequest) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{18} }
 
 type GetLatestSignedLogRootResponse struct {
 	Status        *TrillianApiStatus `protobuf:"bytes,1,opt,name=status" json:"status,omitempty"`
@@ -402,7 +351,7 @@ type GetLatestSignedLogRootResponse struct {
 func (m *GetLatestSignedLogRootResponse) Reset()                    { *m = GetLatestSignedLogRootResponse{} }
 func (m *GetLatestSignedLogRootResponse) String() string            { return proto.CompactTextString(m) }
 func (*GetLatestSignedLogRootResponse) ProtoMessage()               {}
-func (*GetLatestSignedLogRootResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{19} }
+func (*GetLatestSignedLogRootResponse) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{19} }
 
 func (m *GetLatestSignedLogRootResponse) GetStatus() *TrillianApiStatus {
 	if m != nil {
@@ -427,7 +376,7 @@ type GetEntryAndProofRequest struct {
 func (m *GetEntryAndProofRequest) Reset()                    { *m = GetEntryAndProofRequest{} }
 func (m *GetEntryAndProofRequest) String() string            { return proto.CompactTextString(m) }
 func (*GetEntryAndProofRequest) ProtoMessage()               {}
-func (*GetEntryAndProofRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{20} }
+func (*GetEntryAndProofRequest) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{20} }
 
 type GetEntryAndProofResponse struct {
 	Status *TrillianApiStatus `protobuf:"bytes,1,opt,name=status" json:"status,omitempty"`
@@ -438,7 +387,7 @@ type GetEntryAndProofResponse struct {
 func (m *GetEntryAndProofResponse) Reset()                    { *m = GetEntryAndProofResponse{} }
 func (m *GetEntryAndProofResponse) String() string            { return proto.CompactTextString(m) }
 func (*GetEntryAndProofResponse) ProtoMessage()               {}
-func (*GetEntryAndProofResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{21} }
+func (*GetEntryAndProofResponse) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{21} }
 
 func (m *GetEntryAndProofResponse) GetStatus() *TrillianApiStatus {
 	if m != nil {
@@ -476,7 +425,7 @@ type MapLeaf struct {
 func (m *MapLeaf) Reset()                    { *m = MapLeaf{} }
 func (m *MapLeaf) String() string            { return proto.CompactTextString(m) }
 func (*MapLeaf) ProtoMessage()               {}
-func (*MapLeaf) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{22} }
+func (*MapLeaf) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{22} }
 
 type KeyValue struct {
 	Key   []byte   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
@@ -486,7 +435,7 @@ type KeyValue struct {
 func (m *KeyValue) Reset()                    { *m = KeyValue{} }
 func (m *KeyValue) String() string            { return proto.CompactTextString(m) }
 func (*KeyValue) ProtoMessage()               {}
-func (*KeyValue) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{23} }
+func (*KeyValue) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{23} }
 
 func (m *KeyValue) GetValue() *MapLeaf {
 	if m != nil {
@@ -503,7 +452,7 @@ type KeyValueInclusion struct {
 func (m *KeyValueInclusion) Reset()                    { *m = KeyValueInclusion{} }
 func (m *KeyValueInclusion) String() string            { return proto.CompactTextString(m) }
 func (*KeyValueInclusion) ProtoMessage()               {}
-func (*KeyValueInclusion) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{24} }
+func (*KeyValueInclusion) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{24} }
 
 func (m *KeyValueInclusion) GetKeyValue() *KeyValue {
 	if m != nil {
@@ -521,7 +470,7 @@ type GetMapLeavesRequest struct {
 func (m *GetMapLeavesRequest) Reset()                    { *m = GetMapLeavesRequest{} }
 func (m *GetMapLeavesRequest) String() string            { return proto.CompactTextString(m) }
 func (*GetMapLeavesRequest) ProtoMessage()               {}
-func (*GetMapLeavesRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{25} }
+func (*GetMapLeavesRequest) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{25} }
 
 type GetMapLeavesResponse struct {
 	Status   *TrillianApiStatus   `protobuf:"bytes,1,opt,name=status" json:"status,omitempty"`
@@ -532,7 +481,7 @@ type GetMapLeavesResponse struct {
 func (m *GetMapLeavesResponse) Reset()                    { *m = GetMapLeavesResponse{} }
 func (m *GetMapLeavesResponse) String() string            { return proto.CompactTextString(m) }
 func (*GetMapLeavesResponse) ProtoMessage()               {}
-func (*GetMapLeavesResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{26} }
+func (*GetMapLeavesResponse) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{26} }
 
 func (m *GetMapLeavesResponse) GetStatus() *TrillianApiStatus {
 	if m != nil {
@@ -564,7 +513,7 @@ type SetMapLeavesRequest struct {
 func (m *SetMapLeavesRequest) Reset()                    { *m = SetMapLeavesRequest{} }
 func (m *SetMapLeavesRequest) String() string            { return proto.CompactTextString(m) }
 func (*SetMapLeavesRequest) ProtoMessage()               {}
-func (*SetMapLeavesRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{27} }
+func (*SetMapLeavesRequest) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{27} }
 
 func (m *SetMapLeavesRequest) GetKeyValue() []*KeyValue {
 	if m != nil {
@@ -588,7 +537,7 @@ type SetMapLeavesResponse struct {
 func (m *SetMapLeavesResponse) Reset()                    { *m = SetMapLeavesResponse{} }
 func (m *SetMapLeavesResponse) String() string            { return proto.CompactTextString(m) }
 func (*SetMapLeavesResponse) ProtoMessage()               {}
-func (*SetMapLeavesResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{28} }
+func (*SetMapLeavesResponse) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{28} }
 
 func (m *SetMapLeavesResponse) GetStatus() *TrillianApiStatus {
 	if m != nil {
@@ -611,7 +560,7 @@ type GetSignedMapRootRequest struct {
 func (m *GetSignedMapRootRequest) Reset()                    { *m = GetSignedMapRootRequest{} }
 func (m *GetSignedMapRootRequest) String() string            { return proto.CompactTextString(m) }
 func (*GetSignedMapRootRequest) ProtoMessage()               {}
-func (*GetSignedMapRootRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{29} }
+func (*GetSignedMapRootRequest) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{29} }
 
 type GetSignedMapRootResponse struct {
 	Status  *TrillianApiStatus `protobuf:"bytes,1,opt,name=status" json:"status,omitempty"`
@@ -621,7 +570,7 @@ type GetSignedMapRootResponse struct {
 func (m *GetSignedMapRootResponse) Reset()                    { *m = GetSignedMapRootResponse{} }
 func (m *GetSignedMapRootResponse) String() string            { return proto.CompactTextString(m) }
 func (*GetSignedMapRootResponse) ProtoMessage()               {}
-func (*GetSignedMapRootResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{30} }
+func (*GetSignedMapRootResponse) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{30} }
 
 func (m *GetSignedMapRootResponse) GetStatus() *TrillianApiStatus {
 	if m != nil {
@@ -1146,9 +1095,9 @@ var _TrillianMap_serviceDesc = grpc.ServiceDesc{
 	Metadata: "github.com/google/trillian/trillian_api.proto",
 }
 
-func init() { proto.RegisterFile("github.com/google/trillian/trillian_api.proto", fileDescriptor0) }
+func init() { proto.RegisterFile("github.com/google/trillian/trillian_api.proto", fileDescriptor1) }
 
-var fileDescriptor0 = []byte{
+var fileDescriptor1 = []byte{
 	// 1316 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0xbc, 0x58, 0x6d, 0x6f, 0xd3, 0x56,
 	0x14, 0xae, 0xeb, 0xe6, 0xed, 0x84, 0x36, 0xe9, 0x05, 0x46, 0x48, 0x28, 0x84, 0xcb, 0x80, 0x80,

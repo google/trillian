@@ -14,15 +14,25 @@ enum TreeHasherPreimageType {
   RFC_6962_PREIMAGE = 0;
 }
 
+// Supported signature algorithms.  The numbering space is the same as for TLS,
+// given in RFC 5246 s7.4.1.4.1 and at:
+// http://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-16
 enum SignatureAlgorithm {
-  ECDSA = 0;
+  ANONYMOUS = 0;
   RSA = 1;
+  ECDSA = 3;
 }
 
+// Supported hash algorithms.  The numbering space is the same as for TLS,
+// given in RFC 5246 s7.4.1.4.1 and at:
+// http://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-18
 enum HashAlgorithm {
-  SHA256 = 0;
+  NONE = 0;
+  SHA256 = 4;
 }
 
+// Protocol buffer encoding of the TLS DigitallySigned type, from
+// RFC 5246 s4.7.
 message DigitallySigned {
   SignatureAlgorithm signature_algorithm = 1;
   HashAlgorithm hash_algorithm = 2;
