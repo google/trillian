@@ -133,11 +133,11 @@ func TestSignLogRoot(t *testing.T) {
 	}
 }
 
-func createTestSigner(t *testing.T, mock *MockSigner) *TrillianSigner {
+func createTestSigner(t *testing.T, mock *MockSigner) *Signer {
 	hasher, err := NewHasher(trillian.HashAlgorithm_SHA256)
 	if err != nil {
 		t.Fatalf("Failed to create new hasher: %s", err)
 	}
 
-	return NewTrillianSigner(hasher, trillian.SignatureAlgorithm_RSA, mock)
+	return NewSigner(hasher, trillian.SignatureAlgorithm_RSA, mock)
 }

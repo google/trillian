@@ -144,7 +144,7 @@ func (s Sequencer) createRootSignature(ctx context.Context, root trillian.Signed
 	}
 
 	// TODO(Martin2112): Signature algorithm shouldn't be fixed here
-	trillianSigner := crypto.NewTrillianSigner(s.hasher.Hasher, trillian.SignatureAlgorithm_ECDSA, signer)
+	trillianSigner := crypto.NewSigner(s.hasher.Hasher, trillian.SignatureAlgorithm_ECDSA, signer)
 
 	signature, err := trillianSigner.SignLogRoot(root)
 
