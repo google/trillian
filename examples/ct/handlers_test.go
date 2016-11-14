@@ -811,7 +811,7 @@ func TestGetSTH(t *testing.T) {
 	if got, want := base64.StdEncoding.EncodeToString(parsedJSON.RootHash), "YWJjZGFiY2RhYmNkYWJjZGFiY2RhYmNkYWJjZGFiY2Q="; got != want {
 		t.Fatalf("Got roothash %s, expected %s", got, want)
 	}
-	if got, want := base64.StdEncoding.EncodeToString(parsedJSON.Signature), "c2lnbmVk"; got != want {
+	if got, want := base64.StdEncoding.EncodeToString(parsedJSON.Signature), "BAEABnNpZ25lZA=="; got != want {
 		t.Fatalf("Got signature %s, expected %s", got, want)
 	}
 }
