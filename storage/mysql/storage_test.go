@@ -332,7 +332,7 @@ func TestQueueLeavesBadHash(t *testing.T) {
 	leaves := createTestLeaves(leavesToInsert, 20)
 
 	// Deliberately corrupt one of the hashes so it should be rejected
-	leaves[3].MerkleLeafHash = crypto.NewSHA256().Digest([]byte("this cannot be valid"))
+	leaves[3].LeafValueHash = crypto.NewSHA256().Digest([]byte("this cannot be valid"))
 
 	err := tx.QueueLeaves(leaves, fakeQueueTime)
 	tx.Rollback()
@@ -1271,9 +1271,9 @@ func ensureAllLeafHashesDistinct(leaves []trillian.LogLeaf, t *testing.T) {
 	// or pretty much any kind of usable data structures we could do this properly.
 	for i := range leaves {
 		for j := range leaves {
-			if i != j && bytes.Equal(leaves[i].MerkleLeafHash, leaves[j].MerkleLeafHash) {
+			if i != j && bytes.Equal(leaves[i].LeafValueHash, leaves[j].LeafValueHash) {
 				t.Fatalf("Unexpectedly got a duplicate leaf hash: %v %v",
-					leaves[i].MerkleLeafHash, leaves[j].MerkleLeafHash)
+					leaves[i].LeafValueHash, leaves[j].LeafValueHash)
 			}
 		}
 	}
@@ -1383,7 +1383,11 @@ func createTestLeaves(n, startSeq int64) []trillian.LogLeaf {
 	for l := int64(0); l < n; l++ {
 		lv := fmt.Sprintf("Leaf %d", l)
 		leaf := trillian.LogLeaf{
-			MerkleLeafHash: hasher.Digest([]byte(lv)), LeafValue: []byte(lv), ExtraData: []byte(fmt.Sprintf("Extra %d", l)), LeafIndex: int64(startSeq + l)}
+			LeafValueHash: hasher.Digest([]byte(lv)),
+			MerkleLeafHash: hasher.Digest([]byte(lv)),
+			LeafValue: []byte(lv),
+			ExtraData: []byte(fmt.Sprintf("Extra %d", l)),
+			LeafIndex: int64(startSeq + l)}
 		leaves = append(leaves, leaf)
 	}
 

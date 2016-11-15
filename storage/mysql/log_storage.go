@@ -42,11 +42,11 @@ const selectLatestSignedLogRootSQL string = `SELECT TreeHeadTimestamp,TreeSize,R
 // These statements need to be expanded to provide the correct number of parameter placeholders
 // for a particular case
 const deleteUnsequencedSQL string = "DELETE FROM Unsequenced WHERE LeafValueHash IN (<placeholder>) AND TreeId = ?"
-const selectLeavesByIndexSQL string = `SELECT s.MerkleLeafHash,l.LeafValue,s.SequenceNumber
+const selectLeavesByIndexSQL string = `SELECT s.MerkleLeafHash,l.LeafValueHash,l.LeafValue,s.SequenceNumber
 		     FROM LeafData l,SequencedLeafData s
 		     WHERE l.LeafValueHash = s.LeafValueHash
 		     AND s.SequenceNumber IN (` + placeholderSQL + `) AND l.TreeId = ? AND s.TreeId = l.TreeId`
-const selectLeavesByHashSQL string = `SELECT s.MerkleLeafHash,l.LeafValue,s.SequenceNumber
+const selectLeavesByHashSQL string = `SELECT s.MerkleLeafHash,l.LeafValueHash,l.LeafValue,s.SequenceNumber
 		     FROM LeafData l,SequencedLeafData s
 		     WHERE l.LeafValueHash = s.LeafValueHash
 		     AND s.MerkleLeafHash IN (` + placeholderSQL + `) AND l.TreeId = ? AND s.TreeId = l.TreeId`
@@ -242,10 +242,10 @@ func (t *logTX) DequeueLeaves(limit int, cutoffTime time.Time) ([]trillian.LogLe
 		}
 
 		leaf := trillian.LogLeaf{
-			MerkleLeafHash: leafHash,
-			LeafValue:      payload,
-			ExtraData:      nil,
-			LeafIndex:      0,
+			LeafValueHash: leafHash,
+			LeafValue:     payload,
+			ExtraData:     nil,
+			LeafIndex:     0,
 		}
 		leaves = append(leaves, leaf)
 	}
@@ -276,8 +276,8 @@ func (t *logTX) QueueLeaves(leaves []trillian.LogLeaf, queueTimestamp time.Time)
 
 		// Validate the hash as a consistency check that the data was received OK. Note: at
 		// this stage it is not a Merkle tree hash for the leaf.
-		if got, want := crypto.NewSHA256().Digest(leaf.LeafValue), leaf.MerkleLeafHash; !bytes.Equal(got, want) {
-			return fmt.Errorf("leaf hash / data mismatch got: %v, want: %v", got, want)
+		if got, want := crypto.NewSHA256().Digest(leaf.LeafValue), leaf.LeafValueHash; !bytes.Equal(got, want) {
+			return fmt.Errorf("leaf value / data hash mismatch got: %v, want: %v", got, want)
 		}
 	}
 
@@ -297,8 +297,7 @@ func (t *logTX) QueueLeaves(leaves []trillian.LogLeaf, queueTimestamp time.Time)
 		// can suppress errors unrelated to key collisions. We don't use REPLACE because
 		// if there's ever a hash collision it will do the wrong thing and it also
 		// causes a DELETE / INSERT, which is undesirable.
-		_, err := t.tx.Exec(insertSQL, t.ls.logID,
-			[]byte(leaf.MerkleLeafHash), leaf.LeafValue)
+		_, err := t.tx.Exec(insertSQL, t.ls.logID, []byte(leaf.LeafValueHash), leaf.LeafValue)
 
 		if err != nil {
 			glog.Warningf("Error inserting into LeafData: %s", err)
@@ -327,11 +326,11 @@ func (t *logTX) QueueLeaves(leaves []trillian.LogLeaf, queueTimestamp time.Time)
 
 		hasher.Write(messageIDBytes)
 		binary.Write(hasher, binary.LittleEndian, t.ls.logID)
-		hasher.Write(leaf.MerkleLeafHash)
+		hasher.Write(leaf.LeafValueHash)
 		messageID := hasher.Sum(nil)
 
 		_, err = t.tx.Exec(insertUnsequencedEntrySQL,
-			t.ls.logID, leaf.MerkleLeafHash, messageID, leaf.LeafValue, queueTimestamp.UnixNano())
+			t.ls.logID, leaf.LeafValueHash, messageID, leaf.LeafValue, queueTimestamp.UnixNano())
 
 		if err != nil {
 			glog.Warningf("Error inserting into Unsequenced: %s", err)
@@ -376,7 +375,7 @@ func (t *logTX) GetLeavesByIndex(leaves []int64) ([]trillian.LogLeaf, error) {
 
 	defer rows.Close()
 	for rows.Next() {
-		if err := rows.Scan(&ret[num].MerkleLeafHash, &ret[num].LeafValue, &ret[num].LeafIndex); err != nil {
+		if err := rows.Scan(&ret[num].MerkleLeafHash, &ret[num].LeafValueHash, &ret[num].LeafValue, &ret[num].LeafIndex); err != nil {
 			glog.Warningf("Failed to scan merkle leaves: %s", err)
 			return nil, err
 		}
@@ -419,7 +418,7 @@ func (t *logTX) GetLeavesByHash(leafHashes [][]byte, orderBySequence bool) ([]tr
 	for rows.Next() {
 		leaf := trillian.LogLeaf{}
 
-		if err := rows.Scan(&leaf.MerkleLeafHash, &leaf.LeafValue, &leaf.LeafIndex); err != nil {
+		if err := rows.Scan(&leaf.MerkleLeafHash, &leaf.LeafValueHash, &leaf.LeafValue, &leaf.LeafIndex); err != nil {
 			glog.Warningf("Failed to scan merkle leaves: %s", err)
 			return nil, err
 		}
@@ -488,15 +487,11 @@ func (t *logTX) UpdateSequencedLeaves(leaves []trillian.LogLeaf) error {
 	// and can be implemented later if necessary
 	for _, leaf := range leaves {
 		// This should fail on insert but catch it early
-		if len(leaf.MerkleLeafHash) != t.ts.hashSizeBytes {
+		if len(leaf.LeafValueHash) != t.ts.hashSizeBytes {
 			return errors.New("Sequenced leaf has incorrect hash size")
 		}
 
-		// Recompute the raw leaf hash, could be passed around in the leaf structure but
-		// there's no place for it atm.
-		rawLeafHash := crypto.NewSHA256().Digest(leaf.LeafValue)
-
-		_, err := t.tx.Exec(insertSequencedLeafSQL, t.ls.logID, rawLeafHash, leaf.MerkleLeafHash,
+		_, err := t.tx.Exec(insertSequencedLeafSQL, t.ls.logID, leaf.LeafValueHash, leaf.MerkleLeafHash,
 			leaf.LeafIndex)
 
 		if err != nil {
@@ -517,7 +512,7 @@ func (t *logTX) removeSequencedLeaves(leaves []trillian.LogLeaf) error {
 	stx := t.tx.Stmt(tmpl)
 	args := make([]interface{}, 0)
 	for _, leaf := range leaves {
-		args = append(args, interface{}(leaf.MerkleLeafHash))
+		args = append(args, interface{}(leaf.LeafValueHash))
 	}
 	args = append(args, interface{}(t.ls.logID))
 	result, err := stx.Exec(args...)
