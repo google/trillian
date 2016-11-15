@@ -244,7 +244,7 @@ func readbackLogEntries(logID int64, client trillian.TrillianLogClient, params t
 
 			hash := hasher.HashLeaf(response.Leaves[l].LeafValue)
 
-			if got, want := base64.StdEncoding.EncodeToString(hash), base64.StdEncoding.EncodeToString(leaf.MerkleLeafHash); !bytes.Equal(got, want) {
+			if got, want := base64.StdEncoding.EncodeToString(hash), base64.StdEncoding.EncodeToString(leaf.MerkleLeafHash); got != want {
 				return nil, fmt.Errorf("leaf hash mismatch expected got: %s want: %s", got, want)
 			}
 		}
