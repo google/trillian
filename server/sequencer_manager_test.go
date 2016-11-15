@@ -29,7 +29,7 @@ var updatedRoot = trillian.SignedLogRoot{LogId: testLogID1, TimestampNanos: fake
 // This is used in the signing test with no work where the treesize will be zero
 var updatedRootSignOnly = trillian.SignedLogRoot{LogId: testLogID1, TimestampNanos: fakeTime.UnixNano(), RootHash: []uint8{0xe3, 0xb0, 0xc4, 0x42, 0x98, 0xfc, 0x1c, 0x14, 0x9a, 0xfb, 0xf4, 0xc8, 0x99, 0x6f, 0xb9, 0x24, 0x27, 0xae, 0x41, 0xe4, 0x64, 0x9b, 0x93, 0x4c, 0xa4, 0x95, 0x99, 0x1b, 0x78, 0x52, 0xb8, 0x55}, TreeSize: 0, Signature: &trillian.DigitallySigned{Signature: []byte("signed")}, TreeRevision: 1}
 
-var zeroDuration = new(time.Duration)
+var zeroDuration = 0 * time.Second;
 
 const writeRev = int64(24)
 
@@ -40,7 +40,7 @@ func TestSequencerManagerNothingToDo(t *testing.T) {
 	mockStorage := storage.NewMockLogStorage(mockCtrl)
 	mockKeyManager := crypto.NewMockKeyManager(mockCtrl)
 
-	sm := NewSequencerManager(mockKeyManager, *zeroDuration)
+	sm := NewSequencerManager(mockKeyManager, zeroDuration)
 
 	sm.ExecutePass([]int64{}, createTestContext(mockStorageProviderForSequencer(mockStorage)))
 }
@@ -60,7 +60,7 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 	mockTx.EXPECT().DequeueLeaves(50, fakeTime).Return([]trillian.LogLeaf{}, nil)
 	mockKeyManager := crypto.NewMockKeyManager(mockCtrl)
 
-	sm := NewSequencerManager(mockKeyManager, *zeroDuration)
+	sm := NewSequencerManager(mockKeyManager, zeroDuration)
 
 	sm.ExecutePass([]int64{logID}, createTestContext(mockStorageProviderForSequencer(mockStorage)))
 }
@@ -91,7 +91,7 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 	mockSigner.EXPECT().Sign(gomock.Any(), []byte{23, 147, 61, 51, 131, 170, 136, 10, 82, 12, 93, 42, 98, 88, 131, 100, 101, 187, 124, 189, 202, 207, 66, 137, 95, 117, 205, 34, 109, 242, 103, 248}, hasher).Return([]byte("signed"), nil)
 	mockKeyManager.EXPECT().Signer().Return(mockSigner, nil)
 
-	sm := NewSequencerManager(mockKeyManager, *zeroDuration)
+	sm := NewSequencerManager(mockKeyManager, zeroDuration)
 
 	sm.ExecutePass([]int64{logID}, createTestContext(mockStorageProviderForSequencer(mockStorage)))
 }
@@ -120,7 +120,7 @@ func TestSignsIfNoWorkAndRootExpired(t *testing.T) {
 	mockSigner.EXPECT().Sign(gomock.Any(), []byte{0xeb, 0x7d, 0xa1, 0x4f, 0x1e, 0x60, 0x91, 0x24, 0xa, 0xf7, 0x1c, 0xcd, 0xdb, 0xd4, 0xca, 0x38, 0x4b, 0x12, 0xe4, 0xa3, 0xcf, 0x80, 0x5, 0x55, 0x17, 0x71, 0x35, 0xaf, 0x80, 0x11, 0xa, 0x87}, hasher).Return([]byte("signed"), nil)
 	mockKeyManager.EXPECT().Signer().Return(mockSigner, nil)
 
-	sm := NewSequencerManager(mockKeyManager, *zeroDuration)
+	sm := NewSequencerManager(mockKeyManager, zeroDuration)
 
 	tc := createTestContext(mockStorageProviderForSequencer(mockStorage))
 	// Lower the expiry so we can trigger a signing for a root older than 5 seconds
