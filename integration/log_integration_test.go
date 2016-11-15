@@ -121,11 +121,10 @@ func queueLeaves(treeID int64, client trillian.TrillianLogClient, params testPar
 		hash := sha256.Sum256(data)
 
 		leaf := trillian.LogLeaf{
-			// TODO(Martin2112): This should be LeafValueHash but it doesn't exist yet
-			MerkleLeafHash: hash[:],
-			LeafValue:      data,
-			ExtraData:      nil,
-			LeafIndex:      0}
+			LeafValueHash: hash[:],
+			LeafValue:     data,
+			ExtraData:     nil,
+			LeafIndex:     0}
 		leaves = append(leaves, leaf)
 
 		if len(leaves) >= params.queueBatchSize || (l + 1) == params.leafCount {
