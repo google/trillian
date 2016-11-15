@@ -64,7 +64,7 @@ type mySQLLogStorage struct {
 	allowDuplicates bool
 
 	// These options can reasonably be changed during operation
-	readOnly        bool
+	readOnly bool
 }
 
 // NewLogStorage creates a mySQLLogStorage instance for the specified MySQL URL.

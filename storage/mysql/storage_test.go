@@ -34,6 +34,7 @@ var dummyHash3 = []byte("hashxxxxhashxxxxhashxxxxHASHxxxx")
 
 // Time we will queue all leaves at
 var fakeQueueTime = time.Date(2016, 11, 10, 15, 16, 27, 0, time.UTC)
+
 // Time we'll request for guard cutoff in tests that don't test this (should include all above)
 var fakeDequeueCutoffTime = time.Date(2016, 11, 10, 15, 16, 30, 0, time.UTC)
 
