@@ -4,6 +4,7 @@ package log
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
@@ -12,6 +13,9 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util"
 )
+
+// TODO(Martin2112): Add admin support for safely changing params like guard window during operation
+// TODO(Martin2112): Add support for enabling and controlling sequencing as part of admin API
 
 // Sequencer instances are responsible for integrating new leaves into a log.
 // Leaves will be assigned unique sequence numbers when they are processed.
@@ -22,6 +26,11 @@ type Sequencer struct {
 	timeSource util.TimeSource
 	logStorage storage.LogStorage
 	keyManager crypto.KeyManager
+
+	// These parameters could theoretically be adjusted during operation
+	// sequencerGuardWindow is used to ensure entries newer than the guard window will not be
+	// sequenced until they fall outside it. By default there is no guard window.
+	sequencerGuardWindow time.Duration
 }
 
 // maxTreeDepth sets an upper limit on the size of Log trees.
@@ -37,7 +46,13 @@ type CurrentRootExpiredFunc func(trillian.SignedLogRoot) bool
 
 // NewSequencer creates a new Sequencer instance for the specified inputs.
 func NewSequencer(hasher merkle.TreeHasher, timeSource util.TimeSource, logStorage storage.LogStorage, km crypto.KeyManager) *Sequencer {
-	return &Sequencer{hasher, timeSource, logStorage, km}
+	return &Sequencer{hasher: hasher, timeSource: timeSource, logStorage: logStorage, keyManager: km}
+}
+
+// SetGuardWindow changes the interval that must elapse between leaves being queued and them
+// being eligible for sequencing. The default is a zero interval.
+func (s *Sequencer) SetGuardWindow(sequencerGuardWindow time.Duration) {
+	s.sequencerGuardWindow = sequencerGuardWindow
 }
 
 // TODO: This currently doesn't use the batch api for fetching the required nodes. This
@@ -153,7 +168,9 @@ func (s Sequencer) SequenceBatch(limit int, expiryFunc CurrentRootExpiredFunc) (
 		return 0, err
 	}
 
-	leaves, err := tx.DequeueLeaves(limit)
+	// Very recent leaves inside the guard window will not be available for sequencing
+	guardCutoffTime := s.timeSource.Now().Add(-s.sequencerGuardWindow)
+	leaves, err := tx.DequeueLeaves(limit, guardCutoffTime)
 
 	if err != nil {
 		glog.Warningf("Sequencer failed to dequeue leaves: %s", err)

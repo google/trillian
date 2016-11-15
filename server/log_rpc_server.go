@@ -8,6 +8,7 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/util"
 	"golang.org/x/net/context"
 )
 
@@ -23,11 +24,12 @@ type LogStorageProviderFunc func(int64) (storage.LogStorage, error)
 // TrillianLogRPCServer implements the RPC API defined in the proto
 type TrillianLogRPCServer struct {
 	storageProvider LogStorageProviderFunc
+	timeSource      util.TimeSource
 }
 
 // NewTrillianLogRPCServer creates a new RPC server backed by a LogStorageProvider.
-func NewTrillianLogRPCServer(p LogStorageProviderFunc) *TrillianLogRPCServer {
-	return &TrillianLogRPCServer{storageProvider: p}
+func NewTrillianLogRPCServer(p LogStorageProviderFunc, timeSource util.TimeSource) *TrillianLogRPCServer {
+	return &TrillianLogRPCServer{storageProvider: p, timeSource: timeSource}
 }
 
 // QueueLeaves submits a batch of leaves to the log for later integration into the underlying tree.
@@ -44,7 +46,7 @@ func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.Qu
 		return nil, err
 	}
 
-	err = tx.QueueLeaves(leaves)
+	err = tx.QueueLeaves(leaves, t.timeSource.Now())
 
 	if err != nil {
 		tx.Rollback()

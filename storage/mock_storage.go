@@ -6,6 +6,7 @@ package storage
 import (
 	gomock "github.com/golang/mock/gomock"
 	trillian "github.com/google/trillian"
+	time "time"
 )
 
 // Mock of LogTX interface
@@ -39,15 +40,15 @@ func (_mr *_MockLogTXRecorder) Commit() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Commit")
 }
 
-func (_m *MockLogTX) DequeueLeaves(_param0 int) ([]trillian.LogLeaf, error) {
-	ret := _m.ctrl.Call(_m, "DequeueLeaves", _param0)
+func (_m *MockLogTX) DequeueLeaves(_param0 int, _param1 time.Time) ([]trillian.LogLeaf, error) {
+	ret := _m.ctrl.Call(_m, "DequeueLeaves", _param0, _param1)
 	ret0, _ := ret[0].([]trillian.LogLeaf)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-func (_mr *_MockLogTXRecorder) DequeueLeaves(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "DequeueLeaves", arg0)
+func (_mr *_MockLogTXRecorder) DequeueLeaves(arg0, arg1 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "DequeueLeaves", arg0, arg1)
 }
 
 func (_m *MockLogTX) GetActiveLogIDs() ([]int64, error) {
@@ -148,14 +149,14 @@ func (_mr *_MockLogTXRecorder) LatestSignedLogRoot() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "LatestSignedLogRoot")
 }
 
-func (_m *MockLogTX) QueueLeaves(_param0 []trillian.LogLeaf) error {
-	ret := _m.ctrl.Call(_m, "QueueLeaves", _param0)
+func (_m *MockLogTX) QueueLeaves(_param0 []trillian.LogLeaf, _param1 time.Time) error {
+	ret := _m.ctrl.Call(_m, "QueueLeaves", _param0, _param1)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockLogTXRecorder) QueueLeaves(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "QueueLeaves", arg0)
+func (_mr *_MockLogTXRecorder) QueueLeaves(arg0, arg1 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "QueueLeaves", arg0, arg1)
 }
 
 func (_m *MockLogTX) Rollback() error {

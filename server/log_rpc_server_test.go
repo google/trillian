@@ -83,7 +83,7 @@ func TestGetLeavesByIndexInvalidIndexRejected(t *testing.T) {
 
 	mockStorage := storage.NewMockLogStorage(ctrl)
 
-	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage))
+	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
 	resp, err := server.GetLeavesByIndex(context.Background(), &leaf0Minus2Request)
 
@@ -101,7 +101,7 @@ func TestGetLeavesByIndexBeginFailsCausesError(t *testing.T) {
 
 	mockStorage.EXPECT().Begin().Return(mockTx, errors.New("TX"))
 
-	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage))
+	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
 	_, err := server.GetLeavesByIndex(context.Background(), &leaf0Request)
 
@@ -168,7 +168,7 @@ func TestGetLeavesByIndex(t *testing.T) {
 	mockTx.EXPECT().Commit().Return(nil)
 	mockTx.EXPECT().IsOpen().AnyTimes().Return(false)
 
-	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage))
+	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
 	resp, err := server.GetLeavesByIndex(context.Background(), &leaf0Request)
 
@@ -197,7 +197,7 @@ func TestGetLeavesByIndexMultiple(t *testing.T) {
 	mockTx.EXPECT().Commit().Return(nil)
 	mockTx.EXPECT().IsOpen().AnyTimes().Return(false)
 
-	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage))
+	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
 	resp, err := server.GetLeavesByIndex(context.Background(), &leaf03Request)
 
@@ -228,7 +228,7 @@ func TestQueueLeavesStorageError(t *testing.T) {
 
 	test := newParameterizedTest(ctrl, "QueueLeaves",
 		func(t *storage.MockLogTX) {
-			t.EXPECT().QueueLeaves([]trillian.LogLeaf{leaf1}).Return(errors.New("STORAGE"))
+			t.EXPECT().QueueLeaves([]trillian.LogLeaf{leaf1}, fakeTime).Return(errors.New("STORAGE"))
 		},
 		func(s *TrillianLogRPCServer) error {
 			_, err := s.QueueLeaves(context.Background(), &queueRequest0)
@@ -258,7 +258,7 @@ func TestQueueLeavesCommitFails(t *testing.T) {
 
 	test := newParameterizedTest(ctrl, "QueueLeaves",
 		func(t *storage.MockLogTX) {
-			t.EXPECT().QueueLeaves([]trillian.LogLeaf{leaf1}).Return(nil)
+			t.EXPECT().QueueLeaves([]trillian.LogLeaf{leaf1}, fakeTime).Return(nil)
 		},
 		func(s *TrillianLogRPCServer) error {
 			_, err := s.QueueLeaves(context.Background(), &queueRequest0)
@@ -276,11 +276,11 @@ func TestQueueLeaves(t *testing.T) {
 	mockTx := storage.NewMockLogTX(ctrl)
 
 	mockStorage.EXPECT().Begin().Return(mockTx, nil)
-	mockTx.EXPECT().QueueLeaves([]trillian.LogLeaf{leaf1}).Return(nil)
+	mockTx.EXPECT().QueueLeaves([]trillian.LogLeaf{leaf1}, fakeTime).Return(nil)
 	mockTx.EXPECT().Commit().Return(nil)
 	mockTx.EXPECT().IsOpen().AnyTimes().Return(false)
 
-	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage))
+	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
 	resp, err := server.QueueLeaves(context.Background(), &queueRequest0)
 
@@ -299,7 +299,7 @@ func TestQueueLeavesNoLeavesRejected(t *testing.T) {
 
 	mockStorage := storage.NewMockLogStorage(ctrl)
 
-	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage))
+	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
 	resp, err := server.QueueLeaves(context.Background(), &queueRequestEmpty)
 
@@ -331,7 +331,7 @@ func TestGetLatestSignedLogRootBeginFails(t *testing.T) {
 
 	mockStorage.EXPECT().Begin().Return(mockTx, errors.New("TX"))
 
-	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage))
+	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
 	_, err := server.GetLatestSignedLogRoot(context.Background(), &getLogRootRequest1)
 
@@ -395,7 +395,7 @@ func TestGetLatestSignedLogRoot(t *testing.T) {
 	mockTx.EXPECT().LatestSignedLogRoot().Return(signedRoot1, nil)
 	mockTx.EXPECT().Commit().Return(nil)
 
-	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage))
+	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
 	resp, err := server.GetLatestSignedLogRoot(context.Background(), &getLogRootRequest1)
 
@@ -418,7 +418,7 @@ func TestGetLeavesByHashInvalidHash(t *testing.T) {
 
 	mockStorage := storage.NewMockLogStorage(ctrl)
 
-	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage))
+	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
 	// This request includes an empty hash, which isn't allowed
 	resp, err := server.GetLeavesByHash(context.Background(), &getByHashRequestBadHash)
@@ -443,7 +443,7 @@ func TestGetLeavesByHashBeginFails(t *testing.T) {
 
 	mockStorage.EXPECT().Begin().Return(mockTx, errors.New("TX"))
 
-	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage))
+	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
 	_, err := server.GetLeavesByHash(context.Background(), &getByHashRequest1)
 
@@ -509,7 +509,7 @@ func TestGetLeavesByHash(t *testing.T) {
 	mockTx.EXPECT().GetLeavesByHash([][]byte{[]byte("test"), []byte("data")}, false).Return([]trillian.LogLeaf{leaf1, leaf3}, nil)
 	mockTx.EXPECT().Commit().Return(nil)
 
-	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage))
+	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
 	resp, err := server.GetLeavesByHash(context.Background(), &getByHashRequest1)
 
@@ -533,7 +533,7 @@ func TestGetProofByHashBadTreeSize(t *testing.T) {
 	// Request should fail validation before any storage operations
 	mockStorage := storage.NewMockLogStorage(ctrl)
 
-	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage))
+	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
 	_, err := server.GetInclusionProofByHash(context.Background(), &getInclusionProofByHashRequestBadTreeSize)
 
@@ -549,7 +549,7 @@ func TestGetProofByHashBadHash(t *testing.T) {
 	// Request should fail validation before any storage operations
 	mockStorage := storage.NewMockLogStorage(ctrl)
 
-	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage))
+	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
 	_, err := server.GetInclusionProofByHash(context.Background(), &getInclusionProofByHashRequestBadHash)
 
@@ -637,7 +637,7 @@ func TestGetProofByHashWrongNodeCountFetched(t *testing.T) {
 	mockTx.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{{NodeRevision: 3}, {NodeRevision: 2}}, nil)
 	mockTx.EXPECT().Rollback().Return(nil)
 
-	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage))
+	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
 	_, err := server.GetInclusionProofByHash(context.Background(), &getInclusionProofByHashRequest7)
 
@@ -660,7 +660,7 @@ func TestGetProofByHashWrongNodeReturned(t *testing.T) {
 	mockTx.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3}, {NodeID: testonly.MustCreateNodeIDForTreeCoords(4, 5, 64), NodeRevision: 2}, {NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3}}, nil)
 	mockTx.EXPECT().Rollback().Return(nil)
 
-	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage))
+	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
 	_, err := server.GetInclusionProofByHash(context.Background(), &getInclusionProofByHashRequest7)
 
@@ -703,7 +703,7 @@ func TestGetProofByHash(t *testing.T) {
 		{NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3, Hash: []byte("nodehash2")}}, nil)
 	mockTx.EXPECT().Commit().Return(nil)
 
-	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage))
+	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
 	proofResponse, err := server.GetInclusionProofByHash(context.Background(), &getInclusionProofByHashRequest7)
 
@@ -740,7 +740,7 @@ func TestGetProofByIndexBadTreeSize(t *testing.T) {
 	// Request should fail validation before any storage operations
 	mockStorage := storage.NewMockLogStorage(ctrl)
 
-	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage))
+	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
 	_, err := server.GetInclusionProof(context.Background(), &getInclusionProofByIndexRequestBadTreeSize)
 
@@ -755,7 +755,7 @@ func TestGetProofByIndexBadIndex(t *testing.T) {
 
 	// Request should fail validation before any storage operations
 	mockStorage := storage.NewMockLogStorage(ctrl)
-	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage))
+	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
 	_, err := server.GetInclusionProof(context.Background(), &getInclusionProofByIndexRequestBadLeafIndex)
 
@@ -771,7 +771,7 @@ func TestGetProofByIndexBadIndexRange(t *testing.T) {
 	// Request should fail validation before any storage operations
 	mockStorage := storage.NewMockLogStorage(ctrl)
 
-	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage))
+	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
 	_, err := server.GetInclusionProof(context.Background(), &getInclusionProofByIndexRequestBadLeafIndexRange)
 
@@ -840,7 +840,7 @@ func TestGetProofByIndexWrongNodeCountFetched(t *testing.T) {
 	mockTx.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{{NodeRevision: 3}, {NodeRevision: 2}}, nil)
 	mockTx.EXPECT().Rollback().Return(nil)
 
-	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage))
+	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
 	_, err := server.GetInclusionProof(context.Background(), &getInclusionProofByIndexRequest7)
 
@@ -862,7 +862,7 @@ func TestGetProofByIndexWrongNodeReturned(t *testing.T) {
 	mockTx.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3}, {NodeID: testonly.MustCreateNodeIDForTreeCoords(4, 5, 64), NodeRevision: 2}, {NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3}}, nil)
 	mockTx.EXPECT().Rollback().Return(nil)
 
-	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage))
+	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
 	_, err := server.GetInclusionProof(context.Background(), &getInclusionProofByIndexRequest7)
 
@@ -903,7 +903,7 @@ func TestGetProofByIndex(t *testing.T) {
 		{NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3, Hash: []byte("nodehash2")}}, nil)
 	mockTx.EXPECT().Commit().Return(nil)
 
-	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage))
+	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
 	proofResponse, err := server.GetInclusionProof(context.Background(), &getInclusionProofByIndexRequest7)
 
@@ -940,7 +940,7 @@ func TestGetEntryAndProofBadTreeSize(t *testing.T) {
 	// Request should fail validation before any storage operations
 	mockStorage := storage.NewMockLogStorage(ctrl)
 
-	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage))
+	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
 	_, err := server.GetEntryAndProof(context.Background(), &getEntryAndProofRequestBadTreeSize)
 
@@ -956,7 +956,7 @@ func TestGetEntryAndProofBadLeafIndex(t *testing.T) {
 	// Request should fail validation before any storage operations
 	mockStorage := storage.NewMockLogStorage(ctrl)
 
-	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage))
+	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
 	_, err := server.GetEntryAndProof(context.Background(), &getEntryAndProofRequestBadLeafIndex)
 
@@ -972,7 +972,7 @@ func TestGetEntryAndProofBadLeafIndexRange(t *testing.T) {
 	// Request should fail validation before any storage operations
 	mockStorage := storage.NewMockLogStorage(ctrl)
 
-	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage))
+	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
 	_, err := server.GetEntryAndProof(context.Background(), &getEntryAndProofRequestBadLeafIndexRange)
 
@@ -988,7 +988,7 @@ func TestGetEntryAndProofBeginTXFails(t *testing.T) {
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockStorage.EXPECT().Begin().Return(nil, errors.New("BeginTX"))
 
-	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage))
+	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
 	_, err := server.GetEntryAndProof(context.Background(), &getEntryAndProofRequest17)
 
@@ -1008,7 +1008,7 @@ func TestGetEntryAndProofGetTreeSizeAtRevisionFails(t *testing.T) {
 	mockTx.EXPECT().GetTreeRevisionAtSize(getEntryAndProofRequest17.TreeSize).Return(int64(0), errors.New("NOREVISION"))
 	mockTx.EXPECT().Rollback().Return(nil)
 
-	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage))
+	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
 	_, err := server.GetEntryAndProof(context.Background(), &getEntryAndProofRequest17)
 
@@ -1029,7 +1029,7 @@ func TestGetEntryAndProofGetMerkleNodesFails(t *testing.T) {
 	mockTx.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{}, errors.New("GetNodes"))
 	mockTx.EXPECT().Rollback().Return(nil)
 
-	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage))
+	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
 	_, err := server.GetEntryAndProof(context.Background(), &getEntryAndProofRequest7)
 
@@ -1054,7 +1054,7 @@ func TestGetEntryAndProofGetLeavesFails(t *testing.T) {
 	mockTx.EXPECT().GetLeavesByIndex([]int64{2}).Return(nil, errors.New("GetLeaves"))
 	mockTx.EXPECT().Rollback().Return(nil)
 
-	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage))
+	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
 	_, err := server.GetEntryAndProof(context.Background(), &getEntryAndProofRequest7)
 
@@ -1080,7 +1080,7 @@ func TestGetEntryAndProofGetLeavesReturnsMultiple(t *testing.T) {
 	mockTx.EXPECT().GetLeavesByIndex([]int64{2}).Return([]trillian.LogLeaf{leaf1, leaf3}, nil)
 	mockTx.EXPECT().Rollback().Return(nil)
 
-	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage))
+	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
 	_, err := server.GetEntryAndProof(context.Background(), &getEntryAndProofRequest7)
 
@@ -1105,7 +1105,7 @@ func TestGetEntryAndProofCommitFails(t *testing.T) {
 	mockTx.EXPECT().GetLeavesByIndex([]int64{2}).Return([]trillian.LogLeaf{leaf1}, nil)
 	mockTx.EXPECT().Commit().Return(errors.New("COMMIT"))
 
-	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage))
+	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
 	_, err := server.GetEntryAndProof(context.Background(), &getEntryAndProofRequest7)
 
@@ -1130,7 +1130,7 @@ func TestGetEntryAndProof(t *testing.T) {
 	mockTx.EXPECT().GetLeavesByIndex([]int64{2}).Return([]trillian.LogLeaf{leaf1}, nil)
 	mockTx.EXPECT().Commit().Return(nil)
 
-	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage))
+	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
 	response, err := server.GetEntryAndProof(context.Background(), &getEntryAndProofRequest7)
 
@@ -1219,7 +1219,7 @@ func TestGetSequencedLeafCount(t *testing.T) {
 	mockTx.EXPECT().GetSequencedLeafCount().Return(int64(268), nil)
 	mockTx.EXPECT().Commit().Return(nil)
 
-	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage))
+	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
 	response, err := server.GetSequencedLeafCount(context.Background(), &trillian.GetSequencedLeafCountRequest{LogId: logID1})
 
@@ -1241,7 +1241,7 @@ func TestGetConsistencyProofRejectsBadRequests(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockStorage := storage.NewMockLogStorage(ctrl)
-	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage))
+	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
 	for _, request := range []trillian.GetConsistencyProofRequest{getConsistencyProofRequestBadFirstTreeSize, getConsistencyProofRequestBadSecondTreeSize, getConsistencyProofRequestBadRange} {
 		_, err := server.GetConsistencyProof(context.Background(), &request)
@@ -1331,7 +1331,7 @@ func TestGetConsistencyProofGetNodesReturnsWrongCount(t *testing.T) {
 	mockTx.EXPECT().GetMerkleNodes(int64(5), nodeIdsConsistencySize4ToSize7).Return([]storage.Node{{NodeRevision: 3}, {NodeRevision: 2}}, nil)
 	mockTx.EXPECT().Rollback().Return(nil)
 
-	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage))
+	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
 	_, err := server.GetConsistencyProof(context.Background(), &getConsistencyProofRequest7)
 
@@ -1354,7 +1354,7 @@ func TestGetConsistencyProofGetNodesReturnsWrongNode(t *testing.T) {
 	mockTx.EXPECT().GetMerkleNodes(int64(5), nodeIdsConsistencySize4ToSize7).Return([]storage.Node{{NodeID: testonly.MustCreateNodeIDForTreeCoords(1, 2, 64), NodeRevision: 3}}, nil)
 	mockTx.EXPECT().Rollback().Return(nil)
 
-	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage))
+	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
 	_, err := server.GetConsistencyProof(context.Background(), &getConsistencyProofRequest7)
 
@@ -1394,7 +1394,7 @@ func TestGetConsistencyProof(t *testing.T) {
 	mockTx.EXPECT().GetMerkleNodes(int64(5), nodeIdsConsistencySize4ToSize7).Return([]storage.Node{{NodeID: testonly.MustCreateNodeIDForTreeCoords(2, 1, 64), NodeRevision: 3, Hash: []byte("nodehash")}}, nil)
 	mockTx.EXPECT().Commit().Return(nil)
 
-	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage))
+	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
 	response, err := server.GetConsistencyProof(context.Background(), &getConsistencyProofRequest7)
 
@@ -1444,7 +1444,7 @@ func (p *parameterizedTest) executeCommitFailsTest(t *testing.T) {
 	mockTx.EXPECT().Commit().Return(errors.New("bang"))
 	mockTx.EXPECT().IsOpen().AnyTimes().Return(false)
 
-	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage))
+	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
 	err := p.makeRPC(server)
 
@@ -1456,7 +1456,7 @@ func (p *parameterizedTest) executeCommitFailsTest(t *testing.T) {
 func (p *parameterizedTest) executeInvalidLogIDTest(t *testing.T) {
 	mockStorage := storage.NewMockLogStorage(p.ctrl)
 
-	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage))
+	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
 	// Make a request for a nonexistent log id
 	err := p.makeRPC(server)
@@ -1474,7 +1474,7 @@ func (p *parameterizedTest) executeStorageFailureTest(t *testing.T) {
 	p.prepareTx(mockTx)
 	mockTx.EXPECT().Rollback().Return(nil)
 
-	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage))
+	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
 	err := p.makeRPC(server)
 
@@ -1489,7 +1489,7 @@ func (p *parameterizedTest) executeBeginFailsTest(t *testing.T) {
 
 	mockStorage.EXPECT().Begin().Return(mockTx, errors.New("TX"))
 
-	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage))
+	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
 	err := p.makeRPC(server)
 

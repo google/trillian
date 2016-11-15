@@ -8,6 +8,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
@@ -23,13 +24,14 @@ const getTreeParametersSQL string = "SELECT ReadOnlyRequests From TreeControl WH
 const selectQueuedLeavesSQL string = `SELECT LeafValueHash,Payload
 		 FROM Unsequenced
 		 WHERE TreeID=?
-		 ORDER BY QueueTimestamp DESC,LeafValueHash ASC LIMIT ?`
+		 AND QueueTimestampNanos<=?
+		 ORDER BY QueueTimestampNanos DESC,LeafValueHash ASC LIMIT ?`
 const insertUnsequencedLeafSQL string = `INSERT INTO LeafData(TreeId,LeafValueHash,LeafValue)
 		 VALUES(?,?,?) ON DUPLICATE KEY UPDATE LeafValueHash=LeafValueHash`
 const insertUnsequencedLeafSQLNoDuplicates string = `INSERT INTO LeafData(TreeId,LeafValueHash,LeafValue)
 		 VALUES(?,?,?)`
-const insertUnsequencedEntrySQL string = `INSERT INTO Unsequenced(TreeId,LeafValueHash,MessageId,Payload)
-     VALUES(?,?,?,?)`
+const insertUnsequencedEntrySQL string = `INSERT INTO Unsequenced(TreeId,LeafValueHash,MessageId,Payload,QueueTimestampNanos)
+     VALUES(?,?,?,?,?)`
 const insertSequencedLeafSQL string = `INSERT INTO SequencedLeafData(TreeId,LeafValueHash,MerkleLeafHash,SequenceNumber)
 		 VALUES(?,?,?,?)`
 const selectSequencedLeafCountSQL string = "SELECT COUNT(*) FROM SequencedLeafData WHERE TreeId=?"
@@ -57,8 +59,11 @@ var defaultLogStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 
 type mySQLLogStorage struct {
 	*mySQLTreeStorage
 
+	// These options can only sensibly be set when storage is initialized
 	logID           int64
 	allowDuplicates bool
+
+	// These options can reasonably be changed during operation
 	readOnly        bool
 }
 
@@ -203,7 +208,7 @@ func (t *logTX) WriteRevision() int64 {
 	return t.treeTX.writeRevision
 }
 
-func (t *logTX) DequeueLeaves(limit int) ([]trillian.LogLeaf, error) {
+func (t *logTX) DequeueLeaves(limit int, cutoffTime time.Time) ([]trillian.LogLeaf, error) {
 	stx, err := t.tx.Prepare(selectQueuedLeavesSQL)
 
 	if err != nil {
@@ -212,7 +217,7 @@ func (t *logTX) DequeueLeaves(limit int) ([]trillian.LogLeaf, error) {
 	}
 
 	leaves := make([]trillian.LogLeaf, 0, limit)
-	rows, err := stx.Query(t.ls.logID, limit)
+	rows, err := stx.Query(t.ls.logID, cutoffTime.UnixNano(), limit)
 
 	if err != nil {
 		glog.Warningf("Failed to select rows for work: %s", err)
@@ -262,7 +267,7 @@ func (t *logTX) DequeueLeaves(limit int) ([]trillian.LogLeaf, error) {
 	return leaves, nil
 }
 
-func (t *logTX) QueueLeaves(leaves []trillian.LogLeaf) error {
+func (t *logTX) QueueLeaves(leaves []trillian.LogLeaf, queueTimestamp time.Time) error {
 	// Don't accept batches if any of the leaves are invalid.
 	for _, leaf := range leaves {
 		if len(leaf.MerkleLeafHash) != t.ts.hashSizeBytes {
@@ -326,7 +331,7 @@ func (t *logTX) QueueLeaves(leaves []trillian.LogLeaf) error {
 		messageID := hasher.Sum(nil)
 
 		_, err = t.tx.Exec(insertUnsequencedEntrySQL,
-			t.ls.logID, leaf.MerkleLeafHash, messageID, leaf.LeafValue)
+			t.ls.logID, leaf.MerkleLeafHash, messageID, leaf.LeafValue, queueTimestamp.UnixNano())
 
 		if err != nil {
 			glog.Warningf("Error inserting into Unsequenced: %s", err)
