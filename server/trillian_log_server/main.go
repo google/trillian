@@ -31,6 +31,7 @@ var httpPortFlag = flag.Int("http_port", 8091, "Port to serve HTTP metrics on")
 var sequencerSleepBetweenRunsFlag = flag.Duration("sequencer_sleep_between_runs", time.Second*10, "Time to pause after each sequencing pass through all logs")
 var signerSleepBetweenRunsFlag = flag.Duration("signer_sleep_between_runs", time.Second*120, "Time to pause after each signing pass through all logs")
 var batchSizeFlag = flag.Int("batch_size", 50, "Max number of leaves to process per batch")
+var sequencerGuardWindowFlag = flag.Duration("sequencer_guard_window", 0, "If set, the time elapsed before submitted leaves are eligible for sequencing")
 
 // TODO(Martin2112): Single private key doesn't really work for multi tenant and we can't use
 // an HSM interface in this way. Deferring these issues for later.
@@ -180,7 +181,7 @@ func main() {
 	// Start the sequencing loop, which will run until we terminate the process. This controls
 	// both sequencing and signing.
 	// TODO(Martin2112): Should respect read only mode and the flags in tree control etc
-	sequencerManager := server.NewLogOperationManager(done, getStorageForLog, *batchSizeFlag, *sequencerSleepBetweenRunsFlag, *signerSleepBetweenRunsFlag, util.SystemTimeSource{}, server.NewSequencerManager(keyManager))
+	sequencerManager := server.NewLogOperationManager(done, getStorageForLog, *batchSizeFlag, *sequencerSleepBetweenRunsFlag, *signerSleepBetweenRunsFlag, util.SystemTimeSource{}, server.NewSequencerManager(keyManager, *sequencerGuardWindowFlag))
 	go sequencerManager.OperationLoop()
 
 	// Bring up the RPC server and then block until we get a signal to stop

@@ -13,7 +13,8 @@ import (
 
 // SequencerManager provides sequencing operations for a collection of Logs.
 type SequencerManager struct {
-	keyManager crypto.KeyManager
+	keyManager  crypto.KeyManager
+	guardWindow time.Duration
 }
 
 func isRootTooOld(ts util.TimeSource, maxAge time.Duration) log.CurrentRootExpiredFunc {
@@ -25,9 +26,10 @@ func isRootTooOld(ts util.TimeSource, maxAge time.Duration) log.CurrentRootExpir
 	}
 }
 
-// NewSequencerManager creates a new SequencerManager instance based on the provided KeyManager instance.
-func NewSequencerManager(km crypto.KeyManager) *SequencerManager {
-	return &SequencerManager{keyManager: km}
+// NewSequencerManager creates a new SequencerManager instance based on the provided KeyManager instance
+// and guard window.
+func NewSequencerManager(km crypto.KeyManager, gw time.Duration) *SequencerManager {
+	return &SequencerManager{keyManager: km, guardWindow: gw}
 }
 
 // Name returns the name of the object.
@@ -64,6 +66,7 @@ func (s SequencerManager) ExecutePass(logIDs []int64, context LogOperationManage
 
 		// TODO(Martin2112): Allow for different tree hashers to be used by different logs
 		sequencer := log.NewSequencer(merkle.NewRFC6962TreeHasher(crypto.NewSHA256()), context.timeSource, storage, s.keyManager)
+		sequencer.SetGuardWindow(s.guardWindow)
 
 		leaves, err := sequencer.SequenceBatch(context.batchSize, isRootTooOld(context.timeSource, context.signInterval))
 
