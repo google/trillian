@@ -887,7 +887,7 @@ func TestGetEntriesErrorFromBackend(t *testing.T) {
 
 	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 
-	client.EXPECT().GetLeavesByIndex(deadlineMatcher(), &trillian.GetLeavesByIndexRequest{LeafIndex: []int64{1, 2}}).Return(nil, errors.New("Bang!"))
+	client.EXPECT().GetLeavesByIndex(deadlineMatcher(), &trillian.GetLeavesByIndexRequest{LeafIndex: []int64{1, 2}}).Return(nil, errors.New("bang"))
 
 	c := RequestHandlers{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
 	handler := wrappedGetEntriesHandler(c)
@@ -904,7 +904,7 @@ func TestGetEntriesErrorFromBackend(t *testing.T) {
 	if got, want := w.Code, http.StatusInternalServerError; got != want {
 		t.Fatalf("Expected %v for backend error, got %v. Body: %v", want, got, w.Body)
 	}
-	if want, in := "Bang!", w.Body.String(); !strings.Contains(in, want) {
+	if want, in := "bang", w.Body.String(); !strings.Contains(in, want) {
 		t.Fatalf("Unexpected error: %v", in)
 	}
 }

@@ -1441,7 +1441,7 @@ func (p *parameterizedTest) executeCommitFailsTest(t *testing.T) {
 
 	mockStorage.EXPECT().Begin().Return(mockTx, nil)
 	p.prepareTx(mockTx)
-	mockTx.EXPECT().Commit().Return(errors.New("Bang!"))
+	mockTx.EXPECT().Commit().Return(errors.New("bang"))
 	mockTx.EXPECT().IsOpen().AnyTimes().Return(false)
 
 	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage))

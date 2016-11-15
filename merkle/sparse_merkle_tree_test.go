@@ -251,7 +251,7 @@ func TestInclusionProofPassesThroughStorageError(t *testing.T) {
 
 	const rev = 100
 	r, tx := getSparseMerkleTreeReaderWithMockTX(mockCtrl, rev)
-	e := errors.New("Boo!")
+	e := errors.New("boo")
 	tx.EXPECT().GetMerkleNodes(int64(rev), gomock.Any()).Return([]storage.Node{}, e)
 	_, err := r.InclusionProof(rev, []byte("Whatever"))
 	if err != e {
