@@ -4,11 +4,11 @@ package cache
 
 import (
 	"github.com/google/trillian/storage"
-	"github.com/google/trillian/storage/proto"
+	storagepb "github.com/google/trillian/storage/proto"
 )
 
 // NodeStorage provides an interface for storing and retrieving subtrees.
 type NodeStorage interface {
-	GetSubtree(n storage.NodeID) (*proto.SubtreeProto, error)
-	SetSubtrees(s []*proto.SubtreeProto) error
+	GetSubtree(n storage.NodeID) (*storagepb.SubtreeProto, error)
+	SetSubtrees(s []*storagepb.SubtreeProto) error
 }

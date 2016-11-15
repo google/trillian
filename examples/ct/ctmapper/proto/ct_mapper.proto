@@ -1,6 +1,7 @@
 syntax = "proto3";
 
-package proto;
+package trillian.examples.ct.ctmapper.mapperpb;
+option go_package = "github.com/google/trillian/examples/ct/ctmapper/proto;mapperpb";
 
 message EntryList {
   string domain = 1;

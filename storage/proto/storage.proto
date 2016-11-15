@@ -1,6 +1,7 @@
 syntax = "proto3";
 
-package proto;
+package trillian.storage.proto;
+option go_package = "github.com/google/trillian/storage/proto;storagepb";
 
 // This file contains protos used only by storage. They are not exported via any of
 // our public APIs.
