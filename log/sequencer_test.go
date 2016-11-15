@@ -249,7 +249,7 @@ func TestGuardWindowPassthrough(t *testing.T) {
 
 	guardInterval := time.Second * 10
 	expectedCutoffTime := fakeTimeForTest.Add(-guardInterval)
-	params := testParameters{dequeueLimit: 1, shouldCommit: true, latestSignedRoot: &testRoot16, dequeuedLeaves: []trillian.LogLeaf{}, skipStoreSignedRoot: true, overrideDequeueTime:&expectedCutoffTime}
+	params := testParameters{dequeueLimit: 1, shouldCommit: true, latestSignedRoot: &testRoot16, dequeuedLeaves: []trillian.LogLeaf{}, skipStoreSignedRoot: true, overrideDequeueTime: &expectedCutoffTime}
 
 	c := createTestContext(ctrl, params)
 	c.sequencer.SetGuardWindow(guardInterval)
@@ -260,7 +260,7 @@ func TestGuardWindowPassthrough(t *testing.T) {
 	}
 
 	if err != nil {
-		t.Error("Expected nil return with all queued work inside guard interval but got: %v", err)
+		t.Errorf("Expected nil return with all queued work inside guard interval but got: %v", err)
 	}
 }
 
