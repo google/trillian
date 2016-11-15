@@ -14,6 +14,9 @@ import (
 	"github.com/google/trillian/util"
 )
 
+// TODO(Martin2112): Add admin support for safely changing params like guard window during operation
+// TODO(Martin2112): Add support for enabling and controlling sequencing as part of admin API
+
 // Sequencer instances are responsible for integrating new leaves into a log.
 // Leaves will be assigned unique sequence numbers when they are processed.
 // There is no strong ordering guarantee but in general entries will be processed
@@ -24,9 +27,9 @@ type Sequencer struct {
 	logStorage storage.LogStorage
 	keyManager crypto.KeyManager
 
-	// These parameters can be safely adjusted during operation
-	// sequencerGuardWindow when set to a non zero duration this establishes a cutoff point for new
-	// entries. Entries newer than the guard window will not be sequenced until they fall outside it.
+	// These parameters could theoretically be adjusted during operation
+	// sequencerGuardWindow is used to ensure entries newer than the guard window will not be
+	// sequenced until they fall outside it. By default there is no guard window.
 	sequencerGuardWindow time.Duration
 }
 

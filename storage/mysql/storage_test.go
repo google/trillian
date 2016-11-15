@@ -500,7 +500,7 @@ func TestDequeueLeavesTwoBatches(t *testing.T) {
 }
 
 // Queues leaves and attempts to dequeue before the guard cutoff allows it. This should
-// return nothing. Then retries with an inclusive guard cutoff and ensures the leaves
+// return nothing. Then retry with an inclusive guard cutoff and ensure the leaves
 // are returned.
 func TestDequeueLeavesGuardInterval(t *testing.T) {
 	logID := createLogID("TestDequeueLeavesGuardInterval")

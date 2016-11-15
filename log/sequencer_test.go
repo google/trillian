@@ -241,7 +241,7 @@ func TestSequenceWithNothingQueued(t *testing.T) {
 	}
 }
 
-// Tests that the guard interval is being sent to storage correctly. Actual operation of the
+// Tests that the guard interval is being passed to storage correctly. Actual operation of the
 // window is tested by storage tests.
 func TestGuardWindowPassthrough(t *testing.T) {
 	ctrl := gomock.NewController(t)
@@ -256,11 +256,11 @@ func TestGuardWindowPassthrough(t *testing.T) {
 
 	leaves, err := c.sequencer.SequenceBatch(1, rootNeverExpiresFunc)
 	if leaves != 0 {
-		t.Fatalf("Unexpectedly sequenced %d leaves on error", leaves)
+		t.Fatalf("Expected no leaves sequenced when in guard interval but got: %d", leaves)
 	}
 
 	if err != nil {
-		t.Error("Expected nil return with no work pending in queue")
+		t.Error("Expected nil return with all queued work inside guard interval but got: %v", err)
 	}
 }
 

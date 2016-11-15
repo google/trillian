@@ -1,8 +1,9 @@
 package storage
 
 import (
-	"github.com/google/trillian"
 	"time"
+
+	"github.com/google/trillian"
 )
 
 // ReadOnlyLogTX provides a read-only view into the Log data.
