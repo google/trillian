@@ -270,7 +270,7 @@ func (t *logTX) DequeueLeaves(limit int, cutoffTime time.Time) ([]trillian.LogLe
 func (t *logTX) QueueLeaves(leaves []trillian.LogLeaf, queueTimestamp time.Time) error {
 	// Don't accept batches if any of the leaves are invalid.
 	for _, leaf := range leaves {
-		if len(leaf.MerkleLeafHash) != t.ts.hashSizeBytes {
+		if len(leaf.LeafValueHash) != t.ts.hashSizeBytes {
 			return fmt.Errorf("queued leaf must have a hash of length %d", t.ts.hashSizeBytes)
 		}
 
@@ -292,16 +292,16 @@ func (t *logTX) QueueLeaves(leaves []trillian.LogLeaf, queueTimestamp time.Time)
 		insertSQL = insertUnsequencedLeafSQLNoDuplicates
 	}
 
-	for _, leaf := range leaves {
+	for i, leaf := range leaves {
 		// Create the unsequenced leaf data entry. We don't use INSERT IGNORE because this
 		// can suppress errors unrelated to key collisions. We don't use REPLACE because
 		// if there's ever a hash collision it will do the wrong thing and it also
 		// causes a DELETE / INSERT, which is undesirable.
-		_, err := t.tx.Exec(insertSQL, t.ls.logID, []byte(leaf.LeafValueHash), leaf.LeafValue)
+		_, err := t.tx.Exec(insertSQL, t.ls.logID, leaf.LeafValueHash, leaf.LeafValue)
 
 		if err != nil {
-			glog.Warningf("Error inserting into LeafData: %s", err)
-			return err
+			glog.Warningf("Error inserting %d into LeafData: %s", i, err)
+			return fmt.Errorf("LeafData: %d, %v", i, err)
 		}
 
 		// Create the work queue entry
@@ -334,7 +334,7 @@ func (t *logTX) QueueLeaves(leaves []trillian.LogLeaf, queueTimestamp time.Time)
 
 		if err != nil {
 			glog.Warningf("Error inserting into Unsequenced: %s", err)
-			return err
+			return fmt.Errorf("Unsequenced: %v", err)
 		}
 	}
 

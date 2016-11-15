@@ -123,8 +123,7 @@ func queueLeaves(treeID int64, client trillian.TrillianLogClient, params testPar
 		leaf := trillian.LogLeaf{
 			LeafValueHash: hash[:],
 			LeafValue:     data,
-			ExtraData:     nil,
-			LeafIndex:     0}
+			ExtraData:     nil}
 		leaves = append(leaves, leaf)
 
 		if len(leaves) >= params.queueBatchSize || (l + 1) == params.leafCount {
@@ -279,6 +278,7 @@ func makeQueueLeavesRequest(logID int64, leaves []trillian.LogLeaf) trillian.Que
 	leafProtos := make([]*trillian.LogLeaf, 0, len(leaves))
 
 	for _, leaf := range leaves {
+		leaf := leaf
 		leafProtos = append(leafProtos, &leaf)
 	}
 
