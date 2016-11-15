@@ -145,7 +145,7 @@ func TestAddingLeaves(t *testing.T) {
 }
 
 func failingGetNodeFunc(depth int, index int64) ([]byte, error) {
-	return []byte{}, errors.New("Bang!")
+	return []byte{}, errors.New("bang")
 }
 
 // This returns something that won't result in a valid root hash match, doesn't really
@@ -157,7 +157,7 @@ func fixedHashGetNodeFunc(depth int, index int64) ([]byte, error) {
 func TestLoadingTreeFailsNodeFetch(t *testing.T) {
 	_, err := NewCompactMerkleTreeWithState(NewRFC6962TreeHasher(crypto.NewSHA256()), 237, failingGetNodeFunc, []byte("notimportant"))
 
-	if err == nil || !strings.Contains(err.Error(), "Bang!") {
+	if err == nil || !strings.Contains(err.Error(), "bang") {
 		t.Errorf("Did not return correctly on failed node fetch: %v", err)
 	}
 }

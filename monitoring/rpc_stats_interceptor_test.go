@@ -44,7 +44,7 @@ type singleRequestTestCase struct {
 var okRequest500 = singleRequestTestCase{name: "ok request", method: "getmethod", handler: recordingUnaryHandler{req: "OK", err: nil}, timeSource: util.IncrementingFakeTimeSource{BaseTime: fakeTime, Increments: []time.Duration{0, time.Millisecond * 500}}}
 
 // This is an errored request with 3000ms latency
-var errorRequest3000 = singleRequestTestCase{name: "error request", method: "setmethod", handler: recordingUnaryHandler{err: errors.New("Bang!")}, timeSource: util.IncrementingFakeTimeSource{BaseTime: fakeTime, Increments: []time.Duration{0, time.Millisecond * 3000}}}
+var errorRequest3000 = singleRequestTestCase{name: "error request", method: "setmethod", handler: recordingUnaryHandler{err: errors.New("bang")}, timeSource: util.IncrementingFakeTimeSource{BaseTime: fakeTime, Increments: []time.Duration{0, time.Millisecond * 3000}}}
 
 // This request panics with 1500ms latency
 var panicRequest1500 = singleRequestTestCase{name: "panic request", method: "getmethod", panics: true, handler: recordingUnaryHandler{req: "OK", err: nil}, timeSource: util.IncrementingFakeTimeSource{BaseTime: fakeTime, Increments: []time.Duration{0, time.Millisecond * 1500}}}
@@ -83,7 +83,7 @@ func TestMultipleOKRequestsTotalLatency(t *testing.T) {
 func TestMultipleErrorRequestsTotalLatency(t *testing.T) {
 	// We're going to make 3 requests so set up the time source appropriately
 	ts := util.IncrementingFakeTimeSource{BaseTime: fakeTime, Increments: []time.Duration{0, time.Millisecond * 427, 0, time.Millisecond * 1066, 0, time.Millisecond * 1123}}
-	handler := recordingUnaryHandler{resp: "", err: errors.New("Bang!")}
+	handler := recordingUnaryHandler{resp: "", err: errors.New("bang")}
 	stats := NewRPCStatsInterceptor(&ts, "test", "test")
 	i := stats.Interceptor()
 
