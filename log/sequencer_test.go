@@ -32,7 +32,7 @@ var testLeaf16 = trillian.LogLeaf{MerkleLeafHash: treeHasher.HashLeaf(testLeaf16
 var testRoot16 = trillian.SignedLogRoot{TreeSize: 16, TreeRevision: 5, RootHash: []byte{}}
 
 // These will be accepted in either order because of custom sorting in the mock
-var updatedNodes []storage.Node = []storage.Node{
+var updatedNodes = []storage.Node{
 	{NodeID: storage.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10}, PrefixLenBits: 64, PathLenBits: 64},
 		Hash: testonly.MustDecodeBase64("L5Iyd7aFOVewxiRm29xD+EU+jvEo4RfufBijKdflWMk="), NodeRevision: 6},
 	{

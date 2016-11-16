@@ -313,7 +313,7 @@ func testSparseTreeCalculatedRoot(t *testing.T, vec sparseTestVector) {
 }
 
 func testSparseTreeCalculatedRootWithWriter(t *testing.T, rev int64, vec sparseTestVector, w *SparseMerkleTreeWriter) {
-	leaves := make([]HashKeyValue, 0)
+	var leaves []HashKeyValue
 	for _, kv := range vec.kv {
 		leaves = append(leaves, HashKeyValue{w.hasher.HashKey([]byte(kv.k)), w.hasher.HashLeaf([]byte(kv.v))})
 	}
@@ -368,7 +368,7 @@ func testSparseTreeFetches(t *testing.T, vec sparseTestVector) {
 
 	reads := make(map[string]string)
 	readMutex := sync.Mutex{}
-	leafNodeIDs := make([]storage.NodeID, 0)
+	var leafNodeIDs []storage.NodeID
 
 	{
 		readMutex.Lock()

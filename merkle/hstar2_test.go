@@ -130,7 +130,7 @@ func TestHStar2OffsetEmptyRootKAT(t *testing.T) {
 // These "root" hashes are from (assumed distinct) subtrees of size
 // 256-prefixSize, and can be passed in as leaves to top-subtree calculation.
 func rootsForTrimmedKeys(t *testing.T, prefixSize int, lh []HStar2LeafHash) []HStar2LeafHash {
-	ret := make([]HStar2LeafHash, 0)
+	var ret []HStar2LeafHash
 	th := NewRFC6962TreeHasher(crypto.NewSHA256())
 	s := NewHStar2(th)
 	for i := range lh {
