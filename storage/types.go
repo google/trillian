@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	storagepb "github.com/google/trillian/storage/proto"
+	"github.com/google/trillian/storage/storagepb"
 )
 
 // ErrReadOnly is returned when storage operations are not allowed because a resource is read only

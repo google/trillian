@@ -6,7 +6,7 @@ import (
 
 	"github.com/google/certificate-transparency/go/x509"
 	"github.com/google/certificate-transparency/go/x509/pkix"
-	mapperpb "github.com/google/trillian/examples/ct/ctmapper/proto"
+	"github.com/google/trillian/examples/ct/ctmapper/ctmapperpb"
 )
 
 func TestUpdateDomainMap(t *testing.T) {
@@ -27,14 +27,14 @@ func TestUpdateDomainMap(t *testing.T) {
 		{"", []string{"", ""}, 30, false},
 	}
 
-	expected := map[string]mapperpb.EntryList{
-		"commonName":  mapperpb.EntryList{Domain: "commonName", CertIndex: []int64{0, 10, 11, 12, 13}},
-		"anotherName": mapperpb.EntryList{Domain: "anotherName", CertIndex: []int64{20}, PrecertIndex: []int64{21}},
-		"alt1":        mapperpb.EntryList{Domain: "alt1", CertIndex: []int64{20}, PrecertIndex: []int64{21}},
-		"alt2":        mapperpb.EntryList{Domain: "alt2", CertIndex: []int64{20}, PrecertIndex: []int64{21}},
+	expected := map[string]ctmapperpb.EntryList{
+		"commonName":  ctmapperpb.EntryList{Domain: "commonName", CertIndex: []int64{0, 10, 11, 12, 13}},
+		"anotherName": ctmapperpb.EntryList{Domain: "anotherName", CertIndex: []int64{20}, PrecertIndex: []int64{21}},
+		"alt1":        ctmapperpb.EntryList{Domain: "alt1", CertIndex: []int64{20}, PrecertIndex: []int64{21}},
+		"alt2":        ctmapperpb.EntryList{Domain: "alt2", CertIndex: []int64{20}, PrecertIndex: []int64{21}},
 	}
 
-	m := make(map[string]mapperpb.EntryList)
+	m := make(map[string]ctmapperpb.EntryList)
 
 	for _, v := range vector {
 		c := x509.Certificate{}

@@ -11,7 +11,7 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
-	storagepb "github.com/google/trillian/storage/proto"
+	"github.com/google/trillian/storage/storagepb"
 )
 
 // These statements are fixed
