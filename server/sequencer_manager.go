@@ -15,7 +15,7 @@ import (
 type SequencerManager struct {
 	keyManager     crypto.KeyManager
 	guardWindow    time.Duration
-	cachedProvider cachedLogStorageProvider
+	cachedProvider *cachedLogStorageProvider
 }
 
 func isRootTooOld(ts util.TimeSource, maxAge time.Duration) log.CurrentRootExpiredFunc {
