@@ -10,14 +10,14 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
-	"github.com/google/trillian/storage/proto"
+	storagepb "github.com/google/trillian/storage/proto"
 )
 
 // GetSubtreeFunc describes a function which can return a Subtree from storage.
-type GetSubtreeFunc func(id storage.NodeID) (*proto.SubtreeProto, error)
+type GetSubtreeFunc func(id storage.NodeID) (*storagepb.SubtreeProto, error)
 
 // SetSubtreesFunc describes a function which can store a collection of Subtrees into storage.
-type SetSubtreesFunc func(s []*proto.SubtreeProto) error
+type SetSubtreesFunc func(s []*storagepb.SubtreeProto) error
 
 // stratumInfo represents a single stratum across the tree.
 // It it used inside the SubtreeCache to determine which Subtree prefix should
@@ -37,7 +37,7 @@ type SubtreeCache struct {
 	stratumInfo []stratumInfo
 	// subtrees contains the Subtree data read from storage, and is updated by
 	// calls to SetNodeHash.
-	subtrees map[string]*proto.SubtreeProto
+	subtrees map[string]*storagepb.SubtreeProto
 	// dirtyPrefixes keeps track of all Subtrees which need to be written back
 	// to storage.
 	dirtyPrefixes map[string]bool
@@ -97,7 +97,7 @@ func NewSubtreeCache(strataDepths []int, populateSubtree storage.PopulateSubtree
 
 	return SubtreeCache{
 		stratumInfo:     sInfo,
-		subtrees:        make(map[string]*proto.SubtreeProto),
+		subtrees:        make(map[string]*storagepb.SubtreeProto),
 		dirtyPrefixes:   make(map[string]bool),
 		mutex:           new(sync.RWMutex),
 		populateSubtree: populateSubtree,
@@ -130,7 +130,7 @@ func (s *SubtreeCache) splitNodeID(id storage.NodeID) ([]byte, Suffix) {
 }
 
 // Preload populates the cache based on a specified set of NodeIDs.
-func (s *SubtreeCache) Preload(ids []storage.NodeID, getSubtrees func(id []storage.NodeID) ([]*proto.SubtreeProto, error)) error {
+func (s *SubtreeCache) Preload(ids []storage.NodeID, getSubtrees func(id []storage.NodeID) ([]*storagepb.SubtreeProto, error)) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -191,7 +191,7 @@ func (s *SubtreeCache) getNodeHashUnderLock(id storage.NodeID, getSubtree GetSub
 			// storage didn't have one for us, so we'll store an empty proto here
 			// incase we try to update it later on (we won't flush it back to
 			// storage unless it's been written to.)
-			c = &proto.SubtreeProto{
+			c = &storagepb.SubtreeProto{
 				Prefix:        px,
 				Depth:         int32(sInfo.depth),
 				Leaves:        make(map[string][]byte),
@@ -271,7 +271,7 @@ func (s *SubtreeCache) Flush(setSubtrees SetSubtreesFunc) error {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
-	treesToWrite := make([]*proto.SubtreeProto, 0, len(s.dirtyPrefixes))
+	treesToWrite := make([]*storagepb.SubtreeProto, 0, len(s.dirtyPrefixes))
 	for k, v := range s.subtrees {
 		if s.dirtyPrefixes[k] {
 			bk := []byte(k)
@@ -313,7 +313,7 @@ func makeSuffixKey(depth int, index int64) (string, error) {
 //
 // This uses HStar2 to repopulate internal nodes.
 func PopulateMapSubtreeNodes(treeHasher merkle.TreeHasher) storage.PopulateSubtreeFunc {
-	return func(st *proto.SubtreeProto) error {
+	return func(st *storagepb.SubtreeProto) error {
 		st.InternalNodes = make(map[string][]byte)
 		rootID := storage.NewNodeIDFromHash(st.Prefix)
 		fullTreeDepth := treeHasher.Size() * 8
@@ -360,7 +360,7 @@ func PopulateMapSubtreeNodes(treeHasher merkle.TreeHasher) storage.PopulateSubtr
 // This uses the CompactMerkleTree to repopulate internal nodes, and so will
 // handle imperfect (but left-hand dense) subtrees.
 func PopulateLogSubtreeNodes(treeHasher merkle.TreeHasher) storage.PopulateSubtreeFunc {
-	return func(st *proto.SubtreeProto) error {
+	return func(st *storagepb.SubtreeProto) error {
 		st.InternalNodes = make(map[string][]byte)
 		cmt := merkle.NewCompactMerkleTree(treeHasher)
 		for leafIndex := int64(0); leafIndex < int64(len(st.Leaves)); leafIndex++ {
