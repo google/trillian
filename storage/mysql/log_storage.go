@@ -360,7 +360,7 @@ func (t *logTX) GetLeavesByIndex(leaves []int64) ([]trillian.LogLeaf, error) {
 		return nil, err
 	}
 	stx := t.tx.Stmt(tmpl)
-	args := make([]interface{}, 0)
+	var args []interface{}
 	for _, nodeID := range leaves {
 		args = append(args, interface{}(int64(nodeID)))
 	}
@@ -401,7 +401,7 @@ func (t *logTX) GetLeavesByHash(leafHashes [][]byte, orderBySequence bool) ([]tr
 		return nil, err
 	}
 	stx := t.tx.Stmt(tmpl)
-	args := make([]interface{}, 0)
+	var args []interface{}
 	for _, hash := range leafHashes {
 		args = append(args, interface{}([]byte(hash)))
 	}
@@ -413,7 +413,7 @@ func (t *logTX) GetLeavesByHash(leafHashes [][]byte, orderBySequence bool) ([]tr
 	}
 
 	// The tree could include duplicates so we don't know how many results will be returned
-	ret := make([]trillian.LogLeaf, 0)
+	var ret []trillian.LogLeaf
 
 	defer rows.Close()
 	for rows.Next() {
@@ -515,7 +515,7 @@ func (t *logTX) removeSequencedLeaves(leaves []trillian.LogLeaf) error {
 		return err
 	}
 	stx := t.tx.Stmt(tmpl)
-	args := make([]interface{}, 0)
+	var args []interface{}
 	for _, leaf := range leaves {
 		args = append(args, interface{}(leaf.MerkleLeafHash))
 	}

@@ -1378,7 +1378,7 @@ func cleanTestDB() {
 
 // Creates some test leaves with predictable data
 func createTestLeaves(n, startSeq int64) []trillian.LogLeaf {
-	leaves := make([]trillian.LogLeaf, 0)
+	var leaves []trillian.LogLeaf
 	hasher := crypto.NewSHA256()
 
 	for l := int64(0); l < n; l++ {
