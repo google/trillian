@@ -14,7 +14,7 @@ import (
 	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
-	storagepb "github.com/google/trillian/storage/proto"
+	"github.com/google/trillian/storage/storagepb"
 	"github.com/google/trillian/testonly"
 )
 

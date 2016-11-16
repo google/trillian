@@ -6,7 +6,7 @@ package cache
 import (
 	gomock "github.com/golang/mock/gomock"
 	storage "github.com/google/trillian/storage"
-	proto "github.com/google/trillian/storage/proto"
+	storagepb "github.com/google/trillian/storage/storagepb"
 )
 
 // Mock of NodeStorage interface
@@ -30,9 +30,9 @@ func (_m *MockNodeStorage) EXPECT() *_MockNodeStorageRecorder {
 	return _m.recorder
 }
 
-func (_m *MockNodeStorage) GetSubtree(_param0 storage.NodeID) (*proto.SubtreeProto, error) {
+func (_m *MockNodeStorage) GetSubtree(_param0 storage.NodeID) (*storagepb.SubtreeProto, error) {
 	ret := _m.ctrl.Call(_m, "GetSubtree", _param0)
-	ret0, _ := ret[0].(*proto.SubtreeProto)
+	ret0, _ := ret[0].(*storagepb.SubtreeProto)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -41,7 +41,7 @@ func (_mr *_MockNodeStorageRecorder) GetSubtree(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetSubtree", arg0)
 }
 
-func (_m *MockNodeStorage) SetSubtrees(_param0 []*proto.SubtreeProto) error {
+func (_m *MockNodeStorage) SetSubtrees(_param0 []*storagepb.SubtreeProto) error {
 	ret := _m.ctrl.Call(_m, "SetSubtrees", _param0)
 	ret0, _ := ret[0].(error)
 	return ret0

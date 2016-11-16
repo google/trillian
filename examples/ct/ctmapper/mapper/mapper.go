@@ -10,7 +10,7 @@ import (
 	"github.com/google/certificate-transparency/go/client"
 	"github.com/google/certificate-transparency/go/x509"
 	"github.com/google/trillian"
-	mapperpb "github.com/google/trillian/examples/ct/ctmapper/proto"
+	"github.com/google/trillian/examples/ct/ctmapper/ctmapperpb"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
@@ -29,7 +29,7 @@ type CTMapper struct {
 	vmap  trillian.TrillianMapClient
 }
 
-func updateDomainMap(m map[string]mapperpb.EntryList, cert x509.Certificate, index int64, isPrecert bool) {
+func updateDomainMap(m map[string]ctmapperpb.EntryList, cert x509.Certificate, index int64, isPrecert bool) {
 	domains := make(map[string]bool)
 	if len(cert.Subject.CommonName) > 0 {
 		domains[cert.Subject.CommonName] = true
@@ -83,7 +83,7 @@ func (m *CTMapper) oneMapperRun() (bool, error) {
 	}
 
 	// figure out which domains we've found:
-	domains := make(map[string]mapperpb.EntryList)
+	domains := make(map[string]ctmapperpb.EntryList)
 	for _, entry := range logEntries {
 		if entry.Leaf.LeafType != ct.TimestampedEntryLeafType {
 			glog.Info("Skipping unknown entry type %v at %d", entry.Leaf.LeafType, entry.Index)
@@ -134,7 +134,7 @@ func (m *CTMapper) oneMapperRun() (bool, error) {
 
 	proofs := 0
 	for _, v := range getResp.KeyValue {
-		e := mapperpb.EntryList{}
+		e := ctmapperpb.EntryList{}
 		if len(v.Inclusion) > 0 {
 			proofs++
 		}

@@ -10,7 +10,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
-	storagepb "github.com/google/trillian/storage/proto"
+	"github.com/google/trillian/storage/storagepb"
 )
 
 // GetSubtreeFunc describes a function which can return a Subtree from storage.

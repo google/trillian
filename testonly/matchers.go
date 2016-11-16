@@ -7,7 +7,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/google/trillian/storage"
-	storagepb "github.com/google/trillian/storage/proto"
+	"github.com/google/trillian/storage/storagepb"
 )
 
 type subtreeHasPrefix struct {

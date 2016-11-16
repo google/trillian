@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package trillian.examples.ct.ctmapper.ctmapperpb;
+option go_package = "github.com/google/trillian/examples/ct/ctmapper/ctmapperpb;ctmapperpb";
+
+message EntryList {
+  string domain = 1;
+  repeated int64 cert_index = 2;
+  repeated int64 precert_index = 3;
+}
