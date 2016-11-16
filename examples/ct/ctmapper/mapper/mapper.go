@@ -8,6 +8,7 @@ import (
 	pb "github.com/golang/protobuf/proto"
 	ct "github.com/google/certificate-transparency/go"
 	"github.com/google/certificate-transparency/go/client"
+	"github.com/google/certificate-transparency/go/jsonclient"
 	"github.com/google/certificate-transparency/go/x509"
 	"github.com/google/trillian"
 	"github.com/google/trillian/examples/ct/ctmapper/ctmapperpb"
@@ -185,9 +186,13 @@ func main() {
 	}
 	defer conn.Close()
 
+	ct, err := client.New(*sourceLog, nil, jsonclient.Options{})
+	if err != nil {
+		glog.Exitf("Failed to create CT client: %v", err)
+	}
 	mapper := CTMapper{
 		mapID: int64(*mapID),
-		ct:    client.New(*sourceLog, nil),
+		ct:    ct,
 		vmap:  trillian.NewTrillianMapClient(conn),
 	}
 
