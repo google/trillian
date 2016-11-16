@@ -24,7 +24,7 @@ type LogOperationManagerContext struct {
 	// ctx is general context for cancellation and diagnostic info
 	ctx context.Context
 	// cachedProvider maps log IDs to log storage
-	cachedProvider cachedLogStorageProvider
+	cachedProvider *cachedLogStorageProvider
 	// batchSize is the batch size to be passed to tasks run by this manager
 	batchSize int
 	// sleepBetweenRuns is the time to pause after all active logs have processed a batch

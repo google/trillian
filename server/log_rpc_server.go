@@ -33,8 +33,8 @@ type cachedLogStorageProvider struct {
 
 // newCachedLogStorageProvider creates a new cached storage provider for the given
 // raw provider.
-func newCachedLogStorageProvider(p LogStorageProviderFunc) cachedLogStorageProvider {
-	return cachedLogStorageProvider{
+func newCachedLogStorageProvider(p LogStorageProviderFunc) *cachedLogStorageProvider {
+	return &cachedLogStorageProvider{
 		provider:    p,
 		logStorages: make(map[int64]storage.LogStorage),
 	}
@@ -59,7 +59,7 @@ func (c *cachedLogStorageProvider) storageForLog(logID int64) (storage.LogStorag
 
 // TrillianLogRPCServer implements the RPC API defined in the proto
 type TrillianLogRPCServer struct {
-	cachedLogStorageProvider
+	*cachedLogStorageProvider
 	timeSource util.TimeSource
 }
 
