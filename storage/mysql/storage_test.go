@@ -576,12 +576,12 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 		leaves2 := createTestLeaves(int64(batchSize), int64(batchSize))
 
 		if err := tx.QueueLeaves(leaves, fakeQueueTime); err != nil {
-			t.Fatalf("Failed to queue leaves: %v", err)
+			t.Fatalf("Queue leaves (1st batch) = %v", err)
 		}
 
 		// These are one second earlier so should be dequeued first
 		if err := tx.QueueLeaves(leaves2, fakeQueueTime.Add(-time.Second)); err != nil {
-			t.Fatalf("Failed to queue leaves2: %v", err)
+			t.Fatalf("Queue leaves (2nd batch) = %v", err)
 		}
 
 		commit(tx, t)
@@ -612,6 +612,7 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 
 		// Try to dequeue again and we should get the batch that was queued first, though at a later time
 		tx3 := beginLogTx(s, t)
+		defer failIfTXStillOpen(t, "TestDequeueLeavesTimeOrdering", tx3)
 		dequeue2, err := tx3.DequeueLeaves(batchSize, fakeQueueTime)
 
 		if err != nil {
