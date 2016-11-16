@@ -99,7 +99,7 @@ the original files; if you do, run the following command:
 
 You'll need to have the following tools installed to do this:
 
-  - `mockgen` tool from https://github.com/golang/mock/gomock
+  - `mockgen` tool from https://github.com/golang/mock
   - `protoc` and the Go protoc extension (see documentation linked from the [protobuf site](https://github.com/google/protobuf)).
 
 ### MySQL Setup
