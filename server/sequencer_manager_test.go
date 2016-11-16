@@ -29,7 +29,7 @@ var updatedRoot = trillian.SignedLogRoot{LogId: testLogID1, TimestampNanos: fake
 // This is used in the signing test with no work where the treesize will be zero
 var updatedRootSignOnly = trillian.SignedLogRoot{LogId: testLogID1, TimestampNanos: fakeTime.UnixNano(), RootHash: []uint8{0xe3, 0xb0, 0xc4, 0x42, 0x98, 0xfc, 0x1c, 0x14, 0x9a, 0xfb, 0xf4, 0xc8, 0x99, 0x6f, 0xb9, 0x24, 0x27, 0xae, 0x41, 0xe4, 0x64, 0x9b, 0x93, 0x4c, 0xa4, 0x95, 0x99, 0x1b, 0x78, 0x52, 0xb8, 0x55}, TreeSize: 0, Signature: &trillian.DigitallySigned{Signature: []byte("signed")}, TreeRevision: 1}
 
-var zeroDuration = 0 * time.Second;
+var zeroDuration = 0 * time.Second
 
 const writeRev = int64(24)
 
@@ -141,14 +141,13 @@ func TestSequencerManagerGuardWindow(t *testing.T) {
 	mockTx.EXPECT().WriteRevision().AnyTimes().Return(writeRev)
 	mockTx.EXPECT().LatestSignedLogRoot().Return(testRoot0, nil)
 	// Expect a 5 second guard window to be passed from manager -> sequencer -> storage
-	mockTx.EXPECT().DequeueLeaves(50, fakeTime.Add(-time.Second * 5)).Return([]trillian.LogLeaf{}, nil)
+	mockTx.EXPECT().DequeueLeaves(50, fakeTime.Add(-time.Second*5)).Return([]trillian.LogLeaf{}, nil)
 	mockKeyManager := crypto.NewMockKeyManager(mockCtrl)
 
-	sm := NewSequencerManager(mockKeyManager, time.Second * 5)
+	sm := NewSequencerManager(mockKeyManager, time.Second*5)
 
 	sm.ExecutePass([]int64{logID}, createTestContext(mockStorageProviderForSequencer(mockStorage)))
 }
-
 
 func mockStorageProviderForSequencer(mockStorage storage.LogStorage) LogStorageProviderFunc {
 	return func(id int64) (storage.LogStorage, error) {
