@@ -561,7 +561,6 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 	// Queue two small batches of leaves at different timestamps. Do two separate dequeue
 	// transactions and make sure the returned leaves are respecting the time ordering of the
 	// queue.
-
 	logID := createLogID("TestDequeueLeavesTimeOrdering")
 	db := prepareTestLogDB(logID, t)
 	defer db.Close()
@@ -576,12 +575,12 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 		leaves2 := createTestLeaves(int64(batchSize), int64(batchSize))
 
 		if err := tx.QueueLeaves(leaves, fakeQueueTime); err != nil {
-			t.Fatalf("Queue leaves (1st batch) = %v", err)
+			t.Fatalf("QueueLeaves(1st batch) = %v", err)
 		}
 
 		// These are one second earlier so should be dequeued first
 		if err := tx.QueueLeaves(leaves2, fakeQueueTime.Add(-time.Second)); err != nil {
-			t.Fatalf("Queue leaves (2nd batch) = %v", err)
+			t.Fatalf("QueueLeaves(2nd batch) = %v", err)
 		}
 
 		commit(tx, t)
@@ -594,7 +593,7 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 		dequeue1, err := tx2.DequeueLeaves(batchSize, fakeQueueTime)
 
 		if err != nil {
-			t.Fatalf("Failed to dequeue leaves (1st): %v", err)
+			t.Fatalf("DequeueLeaves(1st) = %v", err)
 		}
 
 		if got, want := len(dequeue1), batchSize; got != want {
@@ -605,7 +604,7 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 
 		// Ensure this is the second batch queued by comparing leaf data.
 		if !leafInRange(dequeue1[0], batchSize, batchSize + batchSize - 1) || !leafInRange(dequeue1[1], batchSize, batchSize + batchSize - 1) {
-			t.Fatalf("Got leaf from wrong batch (1st dequeue): (%s %s) %v", string(dequeue1[0].LeafValue), string(dequeue1[1].LeafValue), dequeue1)
+			t.Fatalf("Got leaf from wrong batch (1st dequeue): (%s %s)", string(dequeue1[0].LeafValue), string(dequeue1[1].LeafValue))
 		}
 
 		commit(tx2, t)
@@ -616,7 +615,7 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 		dequeue2, err := tx3.DequeueLeaves(batchSize, fakeQueueTime)
 
 		if err != nil {
-			t.Fatalf("Failed to dequeue leaves (2nd): %v", err)
+			t.Fatalf("DequeueLeaves(2nd) = %v", err)
 		}
 
 		if got, want := len(dequeue2), batchSize; got != want {
@@ -627,7 +626,7 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 
 		// Ensure this is the first batch by comparing leaf data.
 		if !leafInRange(dequeue2[0], 0, batchSize - 1) || !leafInRange(dequeue2[1], 0, batchSize - 1) {
-			t.Fatalf("Got leaf from wrong batch (2nd dequeue): (%s %s) %v", string(dequeue2[0].LeafValue), string(dequeue2[1].LeafValue), dequeue2)
+			t.Fatalf("Got leaf from wrong batch (2nd dequeue): (%s %s)", string(dequeue2[0].LeafValue), string(dequeue2[1].LeafValue))
 		}
 
 		commit(tx3, t)
