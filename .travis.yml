@@ -29,6 +29,7 @@ script:
   - PBFILES=$(find . -name \*.pb.go)
   - rm ${PBFILES}
   - golint --set_exit_status ./...  # Run golint while generated files are missing
+  - go vet ./...
   - git checkout -- ${PBFILES}
   - go generate -run="mockgen" -x ./...
   - |
