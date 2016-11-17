@@ -60,19 +60,19 @@ type appHandler struct {
 // does additional common error processing.
 func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if glog.V(2) {
-		glog.Infof("%srequest %v %q => %s", a.context.logPrefix, r.Method, r.URL, a.name)
+		glog.Infof("%s: request %v %q => %s", a.context.logPrefix, r.Method, r.URL, a.name)
 	}
 	status, err := a.handler(a.context, w, r)
-	glog.V(2).Infof("%s%s status=%d", a.context.logPrefix, a.name, status)
+	glog.V(2).Infof("%s: %s status=%d", a.context.logPrefix, a.name, status)
 	if err != nil {
-		glog.Warningf("%s%shandler error: %v", a.context.logPrefix, a.name, err)
+		glog.Warningf("%s: %s handler error: %v", a.context.logPrefix, a.name, err)
 		sendHTTPError(w, status, err)
 		return
 	}
 
 	// Additional check, for consistency the handler must return an error for non-200 status
 	if status != http.StatusOK {
-		glog.Warningf("%s%shandler non 200 without error: %d %v", a.context.logPrefix, a.name, status, err)
+		glog.Warningf("%s: %s handler non 200 without error: %d %v", a.context.logPrefix, a.name, status, err)
 		sendHTTPError(w, http.StatusInternalServerError, fmt.Errorf("http handler misbehaved, status: %d", status))
 		return
 	}
@@ -100,7 +100,7 @@ type LogContext struct {
 func NewLogContext(logID int64, trustedRoots *PEMCertPool, rpcClient trillian.TrillianLogClient, km crypto.KeyManager, rpcDeadline time.Duration, timeSource util.TimeSource) *LogContext {
 	return &LogContext{
 		logID:         logID,
-		logPrefix:     fmt.Sprintf("{%d} ", logID),
+		logPrefix:     fmt.Sprintf("{%d}", logID),
 		trustedRoots:  trustedRoots,
 		rpcClient:     rpcClient,
 		logKeyManager: km,
@@ -166,19 +166,19 @@ func parseBodyAsJSONChain(c LogContext, w http.ResponseWriter, r *http.Request) 
 	body, err := ioutil.ReadAll(r.Body)
 
 	if err != nil {
-		glog.V(1).Infof("%sFailed to read request body: %v", c.logPrefix, err)
+		glog.V(1).Infof("%s: Failed to read request body: %v", c.logPrefix, err)
 		return addChainRequest{}, err
 	}
 
 	var req addChainRequest
 	if err := json.Unmarshal(body, &req); err != nil {
-		glog.V(1).Infof("%sFailed to parse request body: %v", c.logPrefix, err)
+		glog.V(1).Infof("%s: Failed to parse request body: %v", c.logPrefix, err)
 		return addChainRequest{}, err
 	}
 
 	// The cert chain is not allowed to be empty. We'll defer other validation for later
 	if len(req.Chain) == 0 {
-		glog.V(1).Infof("%sRequest chain is empty: %s", c.logPrefix, body)
+		glog.V(1).Infof("%s: Request chain is empty: %s", c.logPrefix, body)
 		return addChainRequest{}, errors.New("cert chain was empty")
 	}
 
@@ -449,7 +449,7 @@ func getProofByHash(c LogContext, w http.ResponseWriter, r *http.Request) (int, 
 	jsonData, err := json.Marshal(&proofResponse)
 
 	if err != nil {
-		glog.Warningf("%sFailed to marshal get-proof-by-hash resp: %v", c.logPrefix, proofResponse)
+		glog.Warningf("%s: Failed to marshal get-proof-by-hash resp: %v", c.logPrefix, proofResponse)
 		return http.StatusInternalServerError, fmt.Errorf("failed to marshal get-proof-by-hash resp: %v, error: %v", proofResponse, err)
 	}
 
@@ -547,7 +547,7 @@ func getRoots(c LogContext, w http.ResponseWriter, r *http.Request) (int, error)
 	err := enc.Encode(jsonMap)
 
 	if err != nil {
-		glog.Warningf("%sget_roots failed: %v", c.logPrefix, err)
+		glog.Warningf("%s: get_roots failed: %v", c.logPrefix, err)
 		return http.StatusInternalServerError, fmt.Errorf("get-roots failed with: %v", err)
 	}
 
@@ -658,9 +658,9 @@ func verifyAddChain(c LogContext, req addChainRequest, w http.ResponseWriter, ex
 	// The type of the leaf must match the one the handler expects
 	if isPrecert != expectingPrecert {
 		if expectingPrecert {
-			glog.Warningf("%sCert (or precert with invalid CT ext) submitted as precert chain: %v", c.logPrefix, req)
+			glog.Warningf("%s: Cert (or precert with invalid CT ext) submitted as precert chain: %v", c.logPrefix, req)
 		} else {
-			glog.Warningf("%sPrecert (or cert with invalid CT ext) submitted as cert chain: %v", c.logPrefix, req)
+			glog.Warningf("%s: Precert (or cert with invalid CT ext) submitted as cert chain: %v", c.logPrefix, req)
 		}
 		return nil, fmt.Errorf("cert / precert mismatch: %v", expectingPrecert)
 	}
@@ -691,14 +691,14 @@ func marshalLogIDAndSignatureForResponse(sct ct.SignedCertificateTimestamp, km c
 func buildLogLeafForAddChain(c LogContext, merkleLeaf ct.MerkleTreeLeaf, certChain []*x509.Certificate) (trillian.LogLeaf, error) {
 	leafData, err := tls.Marshal(merkleLeaf)
 	if err != nil {
-		glog.Warningf("%sFailed to serialize merkle leaf: %v", c.logPrefix, err)
+		glog.Warningf("%s: Failed to serialize merkle leaf: %v", c.logPrefix, err)
 		return trillian.LogLeaf{}, err
 	}
 
 	entry := NewLogEntry(merkleLeaf, certChain)
 	entryData, err := tls.Marshal(*entry)
 	if err != nil {
-		glog.Warningf("%sFailed to serialize log entry: %v", c.logPrefix, err)
+		glog.Warningf("%s: Failed to serialize log entry: %v", c.logPrefix, err)
 		return trillian.LogLeaf{}, err
 	}
 
@@ -875,9 +875,9 @@ func marshalGetEntriesResponse(c LogContext, rpcResponse *trillian.GetLeavesByIn
 		var treeLeaf ct.MerkleTreeLeaf
 		if rest, err := tls.Unmarshal(leaf.LeafValue, &treeLeaf); err != nil {
 			// TODO(Martin2112): Hook this up to monitoring when implemented
-			glog.Warningf("%sFailed to deserialize Merkle leaf from backend: %d", c.logPrefix, leaf.LeafIndex)
+			glog.Warningf("%s: Failed to deserialize Merkle leaf from backend: %d", c.logPrefix, leaf.LeafIndex)
 		} else if len(rest) > 0 {
-			glog.Warningf("%sTrailing data after Merkle leaf from backend: %d", c.logPrefix, leaf.LeafIndex)
+			glog.Warningf("%s: Trailing data after Merkle leaf from backend: %d", c.logPrefix, leaf.LeafIndex)
 		}
 
 		jsonResponse.Entries = append(jsonResponse.Entries, getEntriesEntry{
