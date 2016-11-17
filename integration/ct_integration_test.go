@@ -47,7 +47,7 @@ func TestCTIntegration(t *testing.T) {
 	}
 
 	// Stage 1: get the STH, which should be empty.
-	sth, err := logClient.GetSTH()
+	sth, err := logClient.GetSTH(ctx)
 	if err != nil {
 		t.Fatalf("Failed to get STH: %v", err)
 	}
