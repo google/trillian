@@ -222,19 +222,16 @@ func addChainInternal(c LogContext, w http.ResponseWriter, r *http.Request, isPr
 	}
 
 	if !enforceMethod(w, r, http.MethodPost) {
-		// HTTP status code was already set
 		return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 	}
 
+	// Check the contents of the request.
 	addChainRequest, err := parseBodyAsJSONChain(c, r)
 	if err != nil {
 		return http.StatusBadRequest, err
 	}
-
-	// We already checked that the chain is not empty so can move on to verification
 	validPath, err := verifyAddChain(c, addChainRequest, w, isPrecert)
 	if err != nil {
-		// Chain rejected by verify.
 		return http.StatusBadRequest, err
 	}
 
@@ -245,14 +242,11 @@ func addChainInternal(c LogContext, w http.ResponseWriter, r *http.Request, isPr
 		return http.StatusInternalServerError, fmt.Errorf("failed to create / serialize SCT or Merkle leaf: %v %v", sct, err)
 	}
 
-	// Inputs validated, pass the request on to the back end after hashing and serializing
-	// the data for the request
+	// Send the Merkle tree leaf on to the Log server.
 	leaf, err := buildLogLeafForAddChain(c, merkleTreeLeaf, validPath)
 	if err != nil {
-		// Failure reason already logged
 		return http.StatusInternalServerError, err
 	}
-
 	request := trillian.QueueLeavesRequest{LogId: c.logID, Leaves: []*trillian.LogLeaf{&leaf}}
 
 	ctx, cancel := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
@@ -271,13 +265,16 @@ func addChainInternal(c LogContext, w http.ResponseWriter, r *http.Request, isPr
 		return http.StatusInternalServerError, err
 	}
 
-	// Success. We can now build and marshal the JSON response and write it out
+	// As the Log server has successfully queued up the Merkle tree leaf, we can
+	// respond with an SCT.
 	err = marshalAndWriteAddChainResponse(sct, c.logKeyManager, w)
-
 	if err != nil {
 		// reason is logged and http status is already set
 		// TODO(Martin2112): Record failure for monitoring when it's implemented
 		return http.StatusInternalServerError, err
+	}
+	if glog.V(3) {
+		glog.Infof("%s: %s <= SCT", c.logPrefix, method)
 	}
 
 	return http.StatusOK, nil
@@ -296,6 +293,7 @@ func getSTH(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
 		return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 	}
 
+	// Forward on to the Log server.
 	request := trillian.GetLatestSignedLogRootRequest{LogId: c.logID}
 	ctx, cancel := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
 	defer cancel()
@@ -306,11 +304,11 @@ func getSTH(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
 	if glog.V(2) {
 		glog.Infof("%s: GetSTH <= grpc.GetLatestSignedLogRoot status=%v", c.logPrefix, response.GetStatus())
 	}
-
 	if err != nil || !rpcStatusOK(response.GetStatus()) {
 		return http.StatusInternalServerError, errors.New("backend rpc failed")
 	}
 
+	// Check over the response.
 	slr := response.GetSignedLogRoot()
 	if slr == nil {
 		return http.StatusInternalServerError, fmt.Errorf("no log root returned")
@@ -326,21 +324,16 @@ func getSTH(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
 		return http.StatusInternalServerError, fmt.Errorf("bad hash size from backend expecting: %d got %d", sha256.Size, hashSize)
 	}
 
-	// Jump through Go hoops because we're mixing arrays and slices, we checked the size above
-	// so it should exactly fit what we copy into it
-	var hashArray [sha256.Size]byte
-	copy(hashArray[:], slr.RootHash)
-
-	// Build the CT STH object ready for signing
-	sth := ct.SignedTreeHead{TreeSize: uint64(slr.TreeSize),
-		Timestamp:      uint64(slr.TimestampNanos / 1000 / 1000),
-		SHA256RootHash: hashArray}
-
-	// Serialize and sign the STH and make sure this succeeds
+	// Build the CT STH object, including a signature over its contents.
+	sth := ct.SignedTreeHead{
+		Version:   ct.V1,
+		TreeSize:  uint64(slr.TreeSize),
+		Timestamp: uint64(slr.TimestampNanos / 1000 / 1000),
+	}
+	copy(sth.SHA256RootHash[:], slr.RootHash) // Checked size above.
 	err = signV1TreeHead(c.logKeyManager, &sth)
-
 	if err != nil || len(sth.TreeHeadSignature.Signature) == 0 {
-		return http.StatusInternalServerError, fmt.Errorf("invalid tree size in get sth: %v", err)
+		return http.StatusInternalServerError, fmt.Errorf("failed to sign tree head: %v", err)
 	}
 
 	// Now build the final result object that will be marshalled to JSON
@@ -353,15 +346,14 @@ func getSTH(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
 	if err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("failed to tls.Marshal signature: %v", err)
 	}
+
 	w.Header().Set(contentTypeHeader, contentTypeJSON)
 	jsonData, err := json.Marshal(&jsonResponse)
-
 	if err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("failed to marshall response: %v %v", jsonResponse, err)
 	}
 
 	_, err = w.Write(jsonData)
-
 	if err != nil {
 		// Probably too late for this as headers might have been written but we don't know for sure
 		return http.StatusInternalServerError, err
