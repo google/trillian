@@ -114,17 +114,21 @@ func createFakeLeaf(db *sql.DB, logID int64, rawHash, hash []byte, data []byte, 
 	}
 }
 
-func checkLeafContents(leaf trillian.LogLeaf, seq int64, hash, data []byte, t *testing.T) {
-	if expected, got := hash, leaf.MerkleLeafHash; !bytes.Equal(expected, got) {
-		t.Fatalf("Unexpected leaf hash in returned leaf. Expected:\n%v\nGot:\n%v", expected, got)
+func checkLeafContents(leaf trillian.LogLeaf, seq int64, rawHash, hash, data []byte, t *testing.T) {
+	if got, want := leaf.MerkleLeafHash, hash; !bytes.Equal(got, want) {
+		t.Fatalf("Wrong leaf hash in returned leaf got\n%v\nwant:\n%v", got, want)
 	}
 
-	if leaf.LeafIndex != seq {
-		t.Fatalf("Bad sequence number in returned leaf: %d", leaf.LeafIndex)
+	if got, want := leaf.LeafValueHash, rawHash; !bytes.Equal(got, want) {
+		t.Fatalf("Wrong raw leaf hash in returned leaf got\n%v\nwant:\n%v", got, want)
 	}
 
-	if expected, got := data, leaf.LeafValue; !bytes.Equal(data, leaf.LeafValue) {
-		t.Fatalf("Unxpected data in returned leaf. Expected:\n%v\nGot:\n%v", expected, got)
+	if got, want := seq, leaf.LeafIndex; got != want {
+		t.Fatalf("Bad sequence number in returned leaf got: %d, want:%d", got, want)
+	}
+
+	if got, want := leaf.LeafValue, data; !bytes.Equal(got, want) {
+		t.Fatalf("Unxpected data in returned leaf. got:\n%v\nwant:\n%v", got, want)
 	}
 }
 
@@ -609,7 +613,7 @@ func TestGetLeavesByHash(t *testing.T) {
 		t.Fatalf("Got %d leaves but expected one", len(leaves))
 	}
 
-	checkLeafContents(leaves[0], sequenceNumber, dummyHash, data, t)
+	checkLeafContents(leaves[0], sequenceNumber, dummyRawHash, dummyHash, data, t)
 }
 
 func TestGetLeavesByIndex(t *testing.T) {
@@ -635,7 +639,7 @@ func TestGetLeavesByIndex(t *testing.T) {
 		t.Fatalf("Got %d leaves but expected one", len(leaves))
 	}
 
-	checkLeafContents(leaves[0], sequenceNumber, dummyHash, data, t)
+	checkLeafContents(leaves[0], sequenceNumber, dummyRawHash, dummyHash, data, t)
 }
 
 func openTestDBOrDie() *sql.DB {
