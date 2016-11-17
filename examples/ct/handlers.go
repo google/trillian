@@ -258,8 +258,8 @@ func addChainInternal(c LogContext, w http.ResponseWriter, r *http.Request, isPr
 
 	request := trillian.QueueLeavesRequest{LogId: c.logID, Leaves: []*trillian.LogLeaf{&leaf}}
 
-	ctx, cancelFunc := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
-	defer cancelFunc()
+	ctx, cancel := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
+	defer cancel()
 	if glog.V(2) {
 		glog.Infof("%s: %s => grpc.QueueLeaves", c.logPrefix, method)
 	}
@@ -300,8 +300,8 @@ func getSTH(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
 	}
 
 	request := trillian.GetLatestSignedLogRootRequest{LogId: c.logID}
-	ctx, cancelFunc := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
-	defer cancelFunc()
+	ctx, cancel := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
+	defer cancel()
 	if glog.V(2) {
 		glog.Infof("%s: GetSTH => grpc.GetLatestSignedLogRoot %+v", c.logPrefix, request)
 	}
@@ -385,8 +385,8 @@ func getSTHConsistency(c LogContext, w http.ResponseWriter, r *http.Request) (in
 	}
 
 	request := trillian.GetConsistencyProofRequest{LogId: c.logID, FirstTreeSize: first, SecondTreeSize: second}
-	ctx, cancelFunc := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
-	defer cancelFunc()
+	ctx, cancel := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
+	defer cancel()
 	response, err := c.rpcClient.GetConsistencyProof(ctx, &request)
 
 	if err != nil || !rpcStatusOK(response.GetStatus()) {
@@ -449,8 +449,8 @@ func getProofByHash(c LogContext, w http.ResponseWriter, r *http.Request) (int, 
 		LeafHash:        leafHash,
 		TreeSize:        treeSize,
 		OrderBySequence: true}
-	ctx, cancelFunc := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
-	defer cancelFunc()
+	ctx, cancel := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
+	defer cancel()
 	response, err := c.rpcClient.GetInclusionProofByHash(ctx, &rpcRequest)
 
 	if err != nil || !rpcStatusOK(response.GetStatus()) {
@@ -501,8 +501,8 @@ func getEntries(c LogContext, w http.ResponseWriter, r *http.Request) (int, erro
 	requestIndices := buildIndicesForRange(startIndex, endIndex)
 	request := trillian.GetLeavesByIndexRequest{LogId: c.logID, LeafIndex: requestIndices}
 
-	ctx, cancelFunc := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
-	defer cancelFunc()
+	ctx, cancel := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
+	defer cancel()
 	response, err := c.rpcClient.GetLeavesByIndex(ctx, &request)
 
 	if err != nil || !rpcStatusOK(response.GetStatus()) {
@@ -589,8 +589,8 @@ func getEntryAndProof(c LogContext, w http.ResponseWriter, r *http.Request) (int
 	}
 
 	getEntryAndProofRequest := trillian.GetEntryAndProofRequest{LogId: c.logID, LeafIndex: leafIndex, TreeSize: treeSize}
-	ctx, cancelFunc := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
-	defer cancelFunc()
+	ctx, cancel := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
+	defer cancel()
 	response, err := c.rpcClient.GetEntryAndProof(ctx, &getEntryAndProofRequest)
 
 	if err != nil || !rpcStatusOK(response.GetStatus()) {
