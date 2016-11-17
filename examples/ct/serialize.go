@@ -10,7 +10,7 @@ import (
 	"github.com/google/trillian/crypto"
 )
 
-// SignV1TreeHead signs a tree head for CT. The input STH should have been built from a
+// signV1TreeHead signs a tree head for CT. The input STH should have been built from a
 // backend response and already checked for validity.
 func signV1TreeHead(km crypto.KeyManager, sth *ct.SignedTreeHead) error {
 	signer, err := km.Signer()
@@ -42,7 +42,7 @@ func signV1TreeHead(km crypto.KeyManager, sth *ct.SignedTreeHead) error {
 	return nil
 }
 
-// SignV1SCTForCertificate creates a MerkleTreeLeaf and builds and signs a V1 CT SCT for a certificate
+// signV1SCTForCertificate creates a MerkleTreeLeaf and builds and signs a V1 CT SCT for a certificate
 // using the key held by a key manager.
 func signV1SCTForCertificate(km crypto.KeyManager, cert *x509.Certificate, t time.Time) (ct.MerkleTreeLeaf, ct.SignedCertificateTimestamp, error) {
 	// Temp SCT for input to the serializer
