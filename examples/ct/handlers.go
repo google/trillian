@@ -162,7 +162,7 @@ type getEntryAndProofResponse struct {
 	AuditPath [][]byte `json:"audit_path"`
 }
 
-func parseBodyAsJSONChain(c LogContext, w http.ResponseWriter, r *http.Request) (addChainRequest, error) {
+func parseBodyAsJSONChain(c LogContext, r *http.Request) (addChainRequest, error) {
 	body, err := ioutil.ReadAll(r.Body)
 
 	if err != nil {
@@ -226,7 +226,7 @@ func addChainInternal(c LogContext, w http.ResponseWriter, r *http.Request, isPr
 		return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 	}
 
-	addChainRequest, err := parseBodyAsJSONChain(c, w, r)
+	addChainRequest, err := parseBodyAsJSONChain(c, r)
 	if err != nil {
 		return http.StatusBadRequest, err
 	}
