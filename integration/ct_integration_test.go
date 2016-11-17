@@ -3,9 +3,11 @@
 package integration
 
 import (
+	"encoding/pem"
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -17,6 +19,7 @@ import (
 
 var httpServerFlag = flag.String("ct_http_server", "localhost:8092", "Server address:port")
 var pubKey = flag.String("public_key_file", "", "Name of file containing log's public key")
+var testdata = flag.String("testdata", "testdata", "Name of directory with test data")
 
 func TestCTIntegration(t *testing.T) {
 	flag.Parse()
@@ -61,8 +64,19 @@ func TestCTIntegration(t *testing.T) {
 	fmt.Printf("%v: Got STH: %x %v %v\n", when, sth.Version, sth.TreeSize, sth.SHA256RootHash)
 	fmt.Printf("%v\n", signatureToString(&sth.TreeHeadSignature))
 
-	// Stage 2: add a cert, get an SCT
-	// TODO(drysdale)
+	// Stage 2: add a single cert (the intermediate CA), get an SCT.
+	certdata, err := ioutil.ReadFile(filepath.Join(*testdata, "int-ca.cert"))
+	if err != nil {
+		t.Fatalf("Failed to load certificate: %v", err.Error())
+	}
+	sct, err := logClient.AddChain(ctx, certsFromPEM(certdata))
+	if err != nil {
+		t.Fatalf("Failed to AddChain(0): %v", err)
+	}
+	// Display the SCT
+	when = ctTimestampToTime(sct.Timestamp)
+	fmt.Printf("%v: Uploaded certs to %v log, got SCT:\n", when, sct.SCTVersion)
+	fmt.Printf("%v\n", signatureToString(&sct.Signature))
 
 	// Stage 3: keep getting the STH until tree size becomes 1.
 	// TODO(drysdale)
@@ -94,4 +108,19 @@ func ctTimestampToTime(ts uint64) time.Time {
 
 func signatureToString(signed *ct.DigitallySigned) string {
 	return fmt.Sprintf("Signature: Hash=%v Sign=%v Value=%x", signed.Algorithm.Hash, signed.Algorithm.Signature, signed.Signature)
+}
+
+func certsFromPEM(data []byte) []ct.ASN1Cert {
+	var chain []ct.ASN1Cert
+	for {
+		var block *pem.Block
+		block, data = pem.Decode(data)
+		if block == nil {
+			break
+		}
+		if block.Type == "CERTIFICATE" {
+			chain = append(chain, ct.ASN1Cert{Data: block.Bytes})
+		}
+	}
+	return chain
 }
