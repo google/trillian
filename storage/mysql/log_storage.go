@@ -242,10 +242,9 @@ func (t *logTX) DequeueLeaves(limit int, cutoffTime time.Time) ([]trillian.LogLe
 		}
 
 		leaf := trillian.LogLeaf{
-			MerkleLeafHash: leafHash,
-			LeafValue:      payload,
-			ExtraData:      nil,
-			LeafIndex:      0,
+			LeafValueHash: leafHash,
+			LeafValue:     payload,
+			ExtraData:     nil,
 		}
 		leaves = append(leaves, leaf)
 	}
@@ -270,14 +269,14 @@ func (t *logTX) DequeueLeaves(limit int, cutoffTime time.Time) ([]trillian.LogLe
 func (t *logTX) QueueLeaves(leaves []trillian.LogLeaf, queueTimestamp time.Time) error {
 	// Don't accept batches if any of the leaves are invalid.
 	for _, leaf := range leaves {
-		if len(leaf.MerkleLeafHash) != t.ts.hashSizeBytes {
+		if len(leaf.LeafValueHash) != t.ts.hashSizeBytes {
 			return fmt.Errorf("queued leaf must have a hash of length %d", t.ts.hashSizeBytes)
 		}
 
 		// Validate the hash as a consistency check that the data was received OK. Note: at
 		// this stage it is not a Merkle tree hash for the leaf.
-		if got, want := crypto.NewSHA256().Digest(leaf.LeafValue), leaf.MerkleLeafHash; !bytes.Equal(got, want) {
-			return fmt.Errorf("leaf hash / data mismatch got: %v, want: %v", got, want)
+		if got, want := crypto.NewSHA256().Digest(leaf.LeafValue), leaf.LeafValueHash; !bytes.Equal(got, want) {
+			return fmt.Errorf("leaf value / data hash mismatch got: %v, want: %v", got, want)
 		}
 	}
 
@@ -292,17 +291,16 @@ func (t *logTX) QueueLeaves(leaves []trillian.LogLeaf, queueTimestamp time.Time)
 		insertSQL = insertUnsequencedLeafSQLNoDuplicates
 	}
 
-	for _, leaf := range leaves {
+	for i, leaf := range leaves {
 		// Create the unsequenced leaf data entry. We don't use INSERT IGNORE because this
 		// can suppress errors unrelated to key collisions. We don't use REPLACE because
 		// if there's ever a hash collision it will do the wrong thing and it also
 		// causes a DELETE / INSERT, which is undesirable.
-		_, err := t.tx.Exec(insertSQL, t.ls.logID,
-			[]byte(leaf.MerkleLeafHash), leaf.LeafValue)
+		_, err := t.tx.Exec(insertSQL, t.ls.logID, leaf.LeafValueHash, leaf.LeafValue)
 
 		if err != nil {
-			glog.Warningf("Error inserting into LeafData: %s", err)
-			return err
+			glog.Warningf("Error inserting %d into LeafData: %s", i, err)
+			return fmt.Errorf("LeafData: %d, %v", i, err)
 		}
 
 		// Create the work queue entry
@@ -327,15 +325,15 @@ func (t *logTX) QueueLeaves(leaves []trillian.LogLeaf, queueTimestamp time.Time)
 
 		hasher.Write(messageIDBytes)
 		binary.Write(hasher, binary.LittleEndian, t.ls.logID)
-		hasher.Write(leaf.MerkleLeafHash)
+		hasher.Write(leaf.LeafValueHash)
 		messageID := hasher.Sum(nil)
 
 		_, err = t.tx.Exec(insertUnsequencedEntrySQL,
-			t.ls.logID, leaf.MerkleLeafHash, messageID, leaf.LeafValue, queueTimestamp.UnixNano())
+			t.ls.logID, leaf.LeafValueHash, messageID, leaf.LeafValue, queueTimestamp.UnixNano())
 
 		if err != nil {
 			glog.Warningf("Error inserting into Unsequenced: %s", err)
-			return err
+			return fmt.Errorf("Unsequenced: %v", err)
 		}
 	}
 
@@ -488,15 +486,11 @@ func (t *logTX) UpdateSequencedLeaves(leaves []trillian.LogLeaf) error {
 	// and can be implemented later if necessary
 	for _, leaf := range leaves {
 		// This should fail on insert but catch it early
-		if len(leaf.MerkleLeafHash) != t.ts.hashSizeBytes {
+		if len(leaf.LeafValueHash) != t.ts.hashSizeBytes {
 			return errors.New("Sequenced leaf has incorrect hash size")
 		}
 
-		// Recompute the raw leaf hash, could be passed around in the leaf structure but
-		// there's no place for it atm.
-		rawLeafHash := crypto.NewSHA256().Digest(leaf.LeafValue)
-
-		_, err := t.tx.Exec(insertSequencedLeafSQL, t.ls.logID, rawLeafHash, leaf.MerkleLeafHash,
+		_, err := t.tx.Exec(insertSequencedLeafSQL, t.ls.logID, leaf.LeafValueHash, leaf.MerkleLeafHash,
 			leaf.LeafIndex)
 
 		if err != nil {
@@ -517,7 +511,7 @@ func (t *logTX) removeSequencedLeaves(leaves []trillian.LogLeaf) error {
 	stx := t.tx.Stmt(tmpl)
 	var args []interface{}
 	for _, leaf := range leaves {
-		args = append(args, interface{}(leaf.MerkleLeafHash))
+		args = append(args, interface{}(leaf.LeafValueHash))
 	}
 	args = append(args, interface{}(t.ls.logID))
 	result, err := stx.Exec(args...)

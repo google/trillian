@@ -121,11 +121,9 @@ func queueLeaves(treeID int64, client trillian.TrillianLogClient, params testPar
 		hash := sha256.Sum256(data)
 
 		leaf := trillian.LogLeaf{
-			// TODO(Martin2112): This should be LeafValueHash but it doesn't exist yet
-			MerkleLeafHash: hash[:],
-			LeafValue:      data,
-			ExtraData:      nil,
-			LeafIndex:      0}
+			LeafValueHash: hash[:],
+			LeafValue:     data,
+		}
 		leaves = append(leaves, leaf)
 
 		if len(leaves) >= params.queueBatchSize || (l+1) == params.leafCount {
@@ -244,7 +242,7 @@ func readbackLogEntries(logID int64, client trillian.TrillianLogClient, params t
 
 			hash := hasher.HashLeaf(response.Leaves[l].LeafValue)
 
-			if got, want := base64.StdEncoding.EncodeToString(hash), base64.StdEncoding.EncodeToString(leaf.MerkleLeafHash); !bytes.Equal(hash[:], leaf.MerkleLeafHash) {
+			if got, want := base64.StdEncoding.EncodeToString(hash), base64.StdEncoding.EncodeToString(leaf.MerkleLeafHash); got != want {
 				return nil, fmt.Errorf("leaf hash mismatch expected got: %s want: %s", got, want)
 			}
 		}
@@ -280,9 +278,8 @@ func makeQueueLeavesRequest(logID int64, leaves []trillian.LogLeaf) trillian.Que
 	leafProtos := make([]*trillian.LogLeaf, 0, len(leaves))
 
 	for _, leaf := range leaves {
-		// TODO(Martin2112): This should be using the leaf value hash but it's not there yet
-		proto := trillian.LogLeaf{LeafIndex: leaf.LeafIndex, MerkleLeafHash: leaf.MerkleLeafHash, LeafValue: leaf.LeafValue, ExtraData: leaf.ExtraData}
-		leafProtos = append(leafProtos, &proto)
+		leaf := leaf
+		leafProtos = append(leafProtos, &leaf)
 	}
 
 	return trillian.QueueLeavesRequest{LogId: logID, Leaves: leafProtos}

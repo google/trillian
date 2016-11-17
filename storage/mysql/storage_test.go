@@ -337,7 +337,7 @@ func TestQueueLeavesBadHash(t *testing.T) {
 	leaves := createTestLeaves(leavesToInsert, 20)
 
 	// Deliberately corrupt one of the hashes so it should be rejected
-	leaves[3].MerkleLeafHash = crypto.NewSHA256().Digest([]byte("this cannot be valid"))
+	leaves[3].LeafValueHash = crypto.NewSHA256().Digest([]byte("this cannot be valid"))
 
 	err := tx.QueueLeaves(leaves, fakeQueueTime)
 	tx.Rollback()
@@ -401,7 +401,7 @@ func TestDequeueLeaves(t *testing.T) {
 			t.Fatalf("Dequeued %d leaves but expected to get %d", len(leaves2), leavesToInsert)
 		}
 
-		ensureAllLeafHashesDistinct(leaves2, t)
+		ensureAllLeavesDistinct(leaves2, t)
 
 		tx2.Commit()
 	}
@@ -459,7 +459,7 @@ func TestDequeueLeavesTwoBatches(t *testing.T) {
 			t.Fatalf("Dequeued %d leaves but expected to get %d", len(leaves2), leavesToInsert)
 		}
 
-		ensureAllLeafHashesDistinct(leaves2, t)
+		ensureAllLeavesDistinct(leaves2, t)
 
 		tx2.Commit()
 
@@ -476,11 +476,11 @@ func TestDequeueLeavesTwoBatches(t *testing.T) {
 			t.Fatalf("Dequeued %d leaves but expected to get %d", len(leaves3), leavesToDequeue2)
 		}
 
-		ensureAllLeafHashesDistinct(leaves3, t)
+		ensureAllLeavesDistinct(leaves3, t)
 
 		// Plus the union of the leaf batches should all have distinct hashes
 		leaves4 := append(leaves2, leaves3...)
-		ensureAllLeafHashesDistinct(leaves4, t)
+		ensureAllLeavesDistinct(leaves4, t)
 
 		tx3.Commit()
 	}
@@ -551,7 +551,7 @@ func TestDequeueLeavesGuardInterval(t *testing.T) {
 			t.Fatalf("Dequeued %d leaves but expected to get %d", len(leaves2), leavesToInsert)
 		}
 
-		ensureAllLeafHashesDistinct(leaves2, t)
+		ensureAllLeavesDistinct(leaves2, t)
 
 		tx2.Commit()
 	}
@@ -1271,14 +1271,15 @@ func TestGetSequencedLeafCount(t *testing.T) {
 	}
 }
 
-func ensureAllLeafHashesDistinct(leaves []trillian.LogLeaf, t *testing.T) {
-	// All the hashes should be distinct. If only we had maps with slices as keys or sets
-	// or pretty much any kind of usable data structures we could do this properly.
+func ensureAllLeavesDistinct(leaves []trillian.LogLeaf, t *testing.T) {
+	// All the leaf value hashes should be distinct because the leaves were created with distinct
+	// leaf data. If only we had maps with slices as keys or sets or pretty much any kind of usable
+	// data structures we could do this properly.
 	for i := range leaves {
 		for j := range leaves {
-			if i != j && bytes.Equal(leaves[i].MerkleLeafHash, leaves[j].MerkleLeafHash) {
+			if i != j && bytes.Equal(leaves[i].LeafValueHash, leaves[j].LeafValueHash) {
 				t.Fatalf("Unexpectedly got a duplicate leaf hash: %v %v",
-					leaves[i].MerkleLeafHash, leaves[j].MerkleLeafHash)
+					leaves[i].LeafValueHash, leaves[j].LeafValueHash)
 			}
 		}
 	}
@@ -1388,7 +1389,12 @@ func createTestLeaves(n, startSeq int64) []trillian.LogLeaf {
 	for l := int64(0); l < n; l++ {
 		lv := fmt.Sprintf("Leaf %d", l)
 		leaf := trillian.LogLeaf{
-			MerkleLeafHash: hasher.Digest([]byte(lv)), LeafValue: []byte(lv), ExtraData: []byte(fmt.Sprintf("Extra %d", l)), LeafIndex: int64(startSeq + l)}
+			LeafValueHash: hasher.Digest([]byte(lv)),
+			MerkleLeafHash: hasher.Digest([]byte(lv)),
+			LeafValue: []byte(lv),
+			ExtraData: []byte(fmt.Sprintf("Extra %d", l)),
+			LeafIndex: int64(startSeq + l),
+		}
 		leaves = append(leaves, leaf)
 	}
 
