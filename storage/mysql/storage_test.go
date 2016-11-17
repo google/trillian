@@ -651,6 +651,24 @@ func TestGetLeavesByHashNotPresent(t *testing.T) {
 	}
 }
 
+func TestGetLeavesByLeafValueHashNotPresent(t *testing.T) {
+	logID := createLogID("TestGetLeavesByLeafValueHashNotPresent")
+	s := prepareTestLogStorage(logID, t)
+	tx := beginLogTx(s, t)
+	defer tx.Commit()
+
+	hashes := [][]byte{[]byte("thisdoesn'texist")}
+	leaves, err := tx.GetLeavesByLeafValueHash(hashes, false)
+
+	if err != nil {
+		t.Fatalf("Error getting leaves by hash: %v", err)
+	}
+
+	if len(leaves) != 0 {
+		t.Fatalf("Expected no leaves returned but got %d", len(leaves))
+	}
+}
+
 func TestGetLeavesByIndexNotPresent(t *testing.T) {
 	logID := createLogID("TestGetLeavesByIndexNotPresent")
 	s := prepareTestLogStorage(logID, t)
@@ -680,6 +698,34 @@ func TestGetLeavesByHash(t *testing.T) {
 
 	hashes := [][]byte{dummyHash}
 	leaves, err := tx.GetLeavesByHash(hashes, false)
+
+	if err != nil {
+		t.Fatalf("Unexpected error getting leaf by hash: %v", err)
+	}
+
+	if len(leaves) != 1 {
+		t.Fatalf("Got %d leaves but expected one", len(leaves))
+	}
+
+	checkLeafContents(leaves[0], sequenceNumber, dummyRawHash, dummyHash, data, t)
+}
+
+func TestGetLeavesByLeafValueHash(t *testing.T) {
+	// Create fake leaf as if it had been sequenced
+	logID := createLogID("TestGetLeavesByLeafValueHash")
+	db := prepareTestLogDB(logID, t)
+	defer db.Close()
+
+	data := []byte("some data")
+
+	createFakeLeaf(db, logID.logID, dummyRawHash, dummyHash, data, sequenceNumber, t)
+
+	s := prepareTestLogStorage(logID, t)
+	tx := beginLogTx(s, t)
+	defer tx.Commit()
+
+	hashes := [][]byte{dummyRawHash}
+	leaves, err := tx.GetLeavesByLeafValueHash(hashes, false)
 
 	if err != nil {
 		t.Fatalf("Unexpected error getting leaf by hash: %v", err)
