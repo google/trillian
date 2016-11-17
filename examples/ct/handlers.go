@@ -63,7 +63,7 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		glog.Infof("%s: request %v %q => %s", a.context.logPrefix, r.Method, r.URL, a.name)
 	}
 	status, err := a.handler(a.context, w, r)
-	glog.V(2).Infof("%s: %s status=%d", a.context.logPrefix, a.name, status)
+	glog.V(2).Infof("%s: %s <= status=%d", a.context.logPrefix, a.name, status)
 	if err != nil {
 		glog.Warningf("%s: %s handler error: %v", a.context.logPrefix, a.name, err)
 		sendHTTPError(w, status, err)
@@ -217,7 +217,6 @@ func addChainInternal(c LogContext, w http.ResponseWriter, r *http.Request, isPr
 	}
 
 	addChainRequest, err := parseBodyAsJSONChain(c, w, r)
-
 	if err != nil {
 		return http.StatusBadRequest, err
 	}
@@ -234,10 +233,14 @@ func addChainInternal(c LogContext, w http.ResponseWriter, r *http.Request, isPr
 	// the leaf will become part of the data sent to the backend.
 	var merkleTreeLeaf ct.MerkleTreeLeaf
 	var sct ct.SignedCertificateTimestamp
+	var method string
 
 	if isPrecert {
+		method = "AddPreChain"
 		merkleTreeLeaf, sct, err = signV1SCTForPrecertificate(c.logKeyManager, validPath[0], c.timeSource.Now())
+
 	} else {
+		method = "AddChain"
 		merkleTreeLeaf, sct, err = signV1SCTForCertificate(c.logKeyManager, validPath[0], c.timeSource.Now())
 	}
 
@@ -248,7 +251,6 @@ func addChainInternal(c LogContext, w http.ResponseWriter, r *http.Request, isPr
 	// Inputs validated, pass the request on to the back end after hashing and serializing
 	// the data for the request
 	leaf, err := buildLogLeafForAddChain(c, merkleTreeLeaf, validPath)
-
 	if err != nil {
 		// Failure reason already logged
 		return http.StatusInternalServerError, err
@@ -258,8 +260,13 @@ func addChainInternal(c LogContext, w http.ResponseWriter, r *http.Request, isPr
 
 	ctx, cancelFunc := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
 	defer cancelFunc()
+	if glog.V(2) {
+		glog.Infof("%s: %s => grpc.QueueLeaves", c.logPrefix, method)
+	}
 	response, err := c.rpcClient.QueueLeaves(ctx, &request)
-
+	if glog.V(2) {
+		glog.Infof("%s: %s <= grpc.QueueLeaves status=%v", c.logPrefix, method, response.GetStatus())
+	}
 	if err != nil || !rpcStatusOK(response.GetStatus()) {
 		// TODO(Martin2112): Possibly cases where the request we sent to the backend is invalid
 		// which isn't really an internal server error.
@@ -295,7 +302,13 @@ func getSTH(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
 	request := trillian.GetLatestSignedLogRootRequest{LogId: c.logID}
 	ctx, cancelFunc := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
 	defer cancelFunc()
+	if glog.V(2) {
+		glog.Infof("%s: GetSTH => grpc.GetLatestSignedLogRoot %+v", c.logPrefix, request)
+	}
 	response, err := c.rpcClient.GetLatestSignedLogRoot(ctx, &request)
+	if glog.V(2) {
+		glog.Infof("%s: GetSTH <= grpc.GetLatestSignedLogRoot status=%v", c.logPrefix, response.GetStatus())
+	}
 
 	if err != nil || !rpcStatusOK(response.GetStatus()) {
 		return http.StatusInternalServerError, errors.New("backend rpc failed")
@@ -304,6 +317,9 @@ func getSTH(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
 	slr := response.GetSignedLogRoot()
 	if slr == nil {
 		return http.StatusInternalServerError, fmt.Errorf("no log root returned")
+	}
+	if glog.V(3) {
+		glog.Infof("%s: GetSTH <= slr=%+v", c.logPrefix, slr)
 	}
 	if treeSize := slr.TreeSize; treeSize < 0 {
 		return http.StatusInternalServerError, fmt.Errorf("bad tree size from backend: %d", treeSize)
