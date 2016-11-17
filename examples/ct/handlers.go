@@ -301,22 +301,26 @@ func getSTH(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
 		return http.StatusInternalServerError, errors.New("backend rpc failed")
 	}
 
-	if treeSize := response.GetSignedLogRoot().TreeSize; treeSize < 0 {
+	slr := response.GetSignedLogRoot()
+	if slr == nil {
+		return http.StatusInternalServerError, fmt.Errorf("no log root returned")
+	}
+	if treeSize := slr.TreeSize; treeSize < 0 {
 		return http.StatusInternalServerError, fmt.Errorf("bad tree size from backend: %d", treeSize)
 	}
 
-	if hashSize := len(response.GetSignedLogRoot().RootHash); hashSize != sha256.Size {
+	if hashSize := len(slr.RootHash); hashSize != sha256.Size {
 		return http.StatusInternalServerError, fmt.Errorf("bad hash size from backend expecting: %d got %d", sha256.Size, hashSize)
 	}
 
 	// Jump through Go hoops because we're mixing arrays and slices, we checked the size above
 	// so it should exactly fit what we copy into it
 	var hashArray [sha256.Size]byte
-	copy(hashArray[:], response.GetSignedLogRoot().RootHash)
+	copy(hashArray[:], slr.RootHash)
 
 	// Build the CT STH object ready for signing
-	sth := ct.SignedTreeHead{TreeSize: uint64(response.GetSignedLogRoot().TreeSize),
-		Timestamp:      uint64(response.GetSignedLogRoot().TimestampNanos / 1000 / 1000),
+	sth := ct.SignedTreeHead{TreeSize: uint64(slr.TreeSize),
+		Timestamp:      uint64(slr.TimestampNanos / 1000 / 1000),
 		SHA256RootHash: hashArray}
 
 	// Serialize and sign the STH and make sure this succeeds
