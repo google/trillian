@@ -19,7 +19,7 @@ func TestSignV1SCTForCertificate(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	cert, err := fixchain.CertificateFromPEM(testonly.LeafSignedByFakeIntermediateCertPem)
+	cert, err := fixchain.CertificateFromPEM(testonly.LeafSignedByFakeIntermediateCertPEM)
 	if err != nil {
 		t.Fatalf("failed to set up test cert: %v", err)
 	}

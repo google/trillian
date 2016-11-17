@@ -143,7 +143,7 @@ func allGetHandlersForTest(trustedRoots *PEMCertPool, c LogContext) []handlerAnd
 
 func allPostHandlersForTest(client trillian.TrillianLogClient) []handlerAndPath {
 	pool := NewPEMCertPool()
-	ok := pool.AppendCertsFromPEM([]byte(testonly.FakeCACertPem))
+	ok := pool.AppendCertsFromPEM([]byte(testonly.FakeCACertPEM))
 	if !ok {
 		glog.Fatal("Failed to load cert pool")
 	}
@@ -354,10 +354,10 @@ func TestAddChainMissingIntermediate(t *testing.T) {
 	km := crypto.NewMockKeyManager(mockCtrl)
 	km.EXPECT().SignatureAlgorithm().AnyTimes().Return(trillian.SignatureAlgorithm_ECDSA)
 
-	roots := loadCertsIntoPoolOrDie(t, []string{testonly.FakeCACertPem})
+	roots := loadCertsIntoPoolOrDie(t, []string{testonly.FakeCACertPEM})
 	c := *NewLogContext(0x42, roots, client, km, time.Millisecond*500, fakeTimeSource)
 
-	pool := loadCertsIntoPoolOrDie(t, []string{testonly.LeafSignedByFakeIntermediateCertPem})
+	pool := loadCertsIntoPoolOrDie(t, []string{testonly.LeafSignedByFakeIntermediateCertPEM})
 	chain := createJSONChain(t, *pool)
 
 	recorder := makeAddChainRequest(t, c, chain)
@@ -410,10 +410,10 @@ func TestAddChainRPCFails(t *testing.T) {
 	km := setupMockKeyManager(mockCtrl, toSign)
 	km.EXPECT().SignatureAlgorithm().AnyTimes().Return(trillian.SignatureAlgorithm_ECDSA)
 
-	roots := loadCertsIntoPoolOrDie(t, []string{testonly.FakeCACertPem})
+	roots := loadCertsIntoPoolOrDie(t, []string{testonly.FakeCACertPEM})
 	c := *NewLogContext(0x42, roots, client, km, time.Millisecond*500, fakeTimeSource)
 
-	pool := loadCertsIntoPoolOrDie(t, []string{testonly.LeafSignedByFakeIntermediateCertPem, testonly.FakeIntermediateCertPem})
+	pool := loadCertsIntoPoolOrDie(t, []string{testonly.LeafSignedByFakeIntermediateCertPEM, testonly.FakeIntermediateCertPEM})
 	chain := createJSONChain(t, *pool)
 
 	// Ignore returned SCT. That's sent to the client and we're testing frontend -> backend interaction
@@ -445,10 +445,10 @@ func TestAddChain(t *testing.T) {
 	km := setupMockKeyManager(mockCtrl, toSign)
 	km.EXPECT().SignatureAlgorithm().AnyTimes().Return(trillian.SignatureAlgorithm_ECDSA)
 
-	roots := loadCertsIntoPoolOrDie(t, []string{testonly.FakeCACertPem})
+	roots := loadCertsIntoPoolOrDie(t, []string{testonly.FakeCACertPEM})
 	c := *NewLogContext(0x42, roots, client, km, time.Millisecond*500, fakeTimeSource)
 
-	pool := loadCertsIntoPoolOrDie(t, []string{testonly.LeafSignedByFakeIntermediateCertPem, testonly.FakeIntermediateCertPem})
+	pool := loadCertsIntoPoolOrDie(t, []string{testonly.LeafSignedByFakeIntermediateCertPEM, testonly.FakeIntermediateCertPEM})
 	chain := createJSONChain(t, *pool)
 
 	// Ignore returned SCT. That's sent to the client and we're testing frontend -> backend interaction
@@ -510,7 +510,7 @@ func TestAddPrecertChainInvalidPath(t *testing.T) {
 	pool := NewPEMCertPool()
 	pool.AddCert(cert)
 	// This isn't a valid chain, the intermediate didn't sign the leaf
-	cert, err = fixchain.CertificateFromPEM(testonly.FakeIntermediateCertPem)
+	cert, err = fixchain.CertificateFromPEM(testonly.FakeIntermediateCertPEM)
 
 	if err != nil {
 		t.Fatal(err)
