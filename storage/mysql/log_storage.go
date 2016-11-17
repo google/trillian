@@ -245,7 +245,6 @@ func (t *logTX) DequeueLeaves(limit int, cutoffTime time.Time) ([]trillian.LogLe
 			LeafValueHash: leafHash,
 			LeafValue:     payload,
 			ExtraData:     nil,
-			LeafIndex:     0,
 		}
 		leaves = append(leaves, leaf)
 	}
