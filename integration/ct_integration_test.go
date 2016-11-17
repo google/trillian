@@ -61,7 +61,7 @@ func TestCTIntegration(t *testing.T) {
 		t.Errorf("sth.TreeSize=%d; want 0", sth.TreeSize)
 	}
 	when := ctTimestampToTime(sth.Timestamp)
-	fmt.Printf("%v: Got STH: %x %v %v\n", when, sth.Version, sth.TreeSize, sth.SHA256RootHash)
+	fmt.Printf("%v: Got STH(size=%d): roothash=%x\n", when, sth.TreeSize, sth.SHA256RootHash)
 	fmt.Printf("%v\n", signatureToString(&sth.TreeHeadSignature))
 
 	// Stage 2: add a single cert (the intermediate CA), get an SCT.
