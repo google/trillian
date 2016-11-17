@@ -211,6 +211,16 @@ func enforceMethod(w http.ResponseWriter, r *http.Request, method string) bool {
 // TODO(Martin2112): Doesn't properly handle duplicate submissions yet but the backend
 // needs this to be implemented before we can do it here
 func addChainInternal(c LogContext, w http.ResponseWriter, r *http.Request, isPrecert bool) (int, error) {
+	var signerFn func(crypto.KeyManager, *x509.Certificate, time.Time) (ct.MerkleTreeLeaf, ct.SignedCertificateTimestamp, error)
+	var method string
+	if isPrecert {
+		method = "AddPreChain"
+		signerFn = signV1SCTForPrecertificate
+	} else {
+		method = "AddChain"
+		signerFn = signV1SCTForCertificate
+	}
+
 	if !enforceMethod(w, r, http.MethodPost) {
 		// HTTP status code was already set
 		return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
@@ -223,7 +233,6 @@ func addChainInternal(c LogContext, w http.ResponseWriter, r *http.Request, isPr
 
 	// We already checked that the chain is not empty so can move on to verification
 	validPath, err := verifyAddChain(c, addChainRequest, w, isPrecert)
-
 	if err != nil {
 		// Chain rejected by verify.
 		return http.StatusBadRequest, err
@@ -231,19 +240,7 @@ func addChainInternal(c LogContext, w http.ResponseWriter, r *http.Request, isPr
 
 	// Build up the SCT and MerkleTreeLeaf. The SCT will be returned to the client and
 	// the leaf will become part of the data sent to the backend.
-	var merkleTreeLeaf ct.MerkleTreeLeaf
-	var sct ct.SignedCertificateTimestamp
-	var method string
-
-	if isPrecert {
-		method = "AddPreChain"
-		merkleTreeLeaf, sct, err = signV1SCTForPrecertificate(c.logKeyManager, validPath[0], c.timeSource.Now())
-
-	} else {
-		method = "AddChain"
-		merkleTreeLeaf, sct, err = signV1SCTForCertificate(c.logKeyManager, validPath[0], c.timeSource.Now())
-	}
-
+	merkleTreeLeaf, sct, err := signerFn(c.logKeyManager, validPath[0], c.timeSource.Now())
 	if err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("failed to create / serialize SCT or Merkle leaf: %v %v", sct, err)
 	}
