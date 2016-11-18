@@ -526,6 +526,120 @@ func TestGetLeavesByHash(t *testing.T) {
 	}
 }
 
+func TestGetLeavesByLeafValueHashInvalidHash(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockStorage := storage.NewMockLogStorage(ctrl)
+
+	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
+
+	// This request includes an empty hash, which isn't allowed
+	resp, err := server.GetLeavesByLeafValueHash(context.Background(), &getByHashRequestBadHash)
+
+	// Should have succeeded at RPC level
+	if err != nil {
+		t.Fatalf("Request failed with unexpected error: %v", err)
+	}
+
+	// And failed at app level
+	if got, want := resp.Status.StatusCode, trillian.TrillianApiStatusCode_ERROR; got != want {
+		t.Fatalf("Bad status got: %v, want: %v", got, want)
+	}
+}
+
+func TestGetLeavesByLeafValueHashBeginFails(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockStorage := storage.NewMockLogStorage(ctrl)
+	mockTx := storage.NewMockLogTX(ctrl)
+
+	mockStorage.EXPECT().Begin().Return(mockTx, errors.New("TX"))
+
+	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
+
+	_, err := server.GetLeavesByLeafValueHash(context.Background(), &getByHashRequest1)
+
+	if err == nil || !strings.Contains(err.Error(), "TX") {
+		t.Fatalf("Returned wrong error response when begin failed: %v", err)
+	}
+}
+
+func TestGetLeavesByLeafValueHashStorageFails(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	test := newParameterizedTest(ctrl, "GetLeavesByLeafValueHash",
+		func(t *storage.MockLogTX) {
+			t.EXPECT().GetLeavesByLeafValueHash([][]byte{[]byte("test"), []byte("data")}, false).Return([]trillian.LogLeaf{}, errors.New("STORAGE"))
+		},
+		func(s *TrillianLogRPCServer) error {
+			_, err := s.GetLeavesByLeafValueHash(context.Background(), &getByHashRequest1)
+			return err
+		})
+
+	test.executeStorageFailureTest(t)
+}
+
+func TestLeavesByLeafValueHashCommitFails(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	test := newParameterizedTest(ctrl, "GetLeavesByLeafValueHash",
+		func(t *storage.MockLogTX) {
+			t.EXPECT().GetLeavesByLeafValueHash([][]byte{[]byte("test"), []byte("data")}, false).Return([]trillian.LogLeaf{}, nil)
+		},
+		func(s *TrillianLogRPCServer) error {
+			_, err := s.GetLeavesByLeafValueHash(context.Background(), &getByHashRequest1)
+			return err
+		})
+
+	test.executeCommitFailsTest(t)
+}
+
+func TestGetLeavesByLeafValueHashInvalidLogId(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	test := newParameterizedTest(ctrl, "GetLeavesByLeafValueHash",
+		func(t *storage.MockLogTX) {},
+		func(s *TrillianLogRPCServer) error {
+			_, err := s.GetLeavesByLeafValueHash(context.Background(), &getByHashRequest2)
+			return err
+		})
+
+	test.executeInvalidLogIDTest(t)
+}
+
+func TestGetLeavesByLeafValueHash(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockStorage := storage.NewMockLogStorage(ctrl)
+	mockTx := storage.NewMockLogTX(ctrl)
+
+	mockStorage.EXPECT().Begin().Return(mockTx, nil)
+	mockTx.EXPECT().GetLeavesByLeafValueHash([][]byte{[]byte("test"), []byte("data")}, false).Return([]trillian.LogLeaf{leaf1, leaf3}, nil)
+	mockTx.EXPECT().Commit().Return(nil)
+
+	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
+
+	resp, err := server.GetLeavesByLeafValueHash(context.Background(), &getByHashRequest1)
+
+	if err != nil {
+		t.Fatalf("GetLeavesByLeafValueHash = %v", err)
+	}
+
+	if got, want := resp.Status.StatusCode, trillian.TrillianApiStatusCode_OK; got != want {
+		t.Fatalf("Bad status got: %v, want: %v", got, want)
+	}
+
+	if len(resp.Leaves) != 2 || !proto.Equal(resp.Leaves[0], &expectedLeaf1) || !proto.Equal(resp.Leaves[1], &expectedLeaf3) {
+		t.Fatalf("Expected leaves %v and %v but got: %v", &expectedLeaf1, &expectedLeaf3, resp.Leaves)
+	}
+}
+
 func TestGetProofByHashBadTreeSize(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()

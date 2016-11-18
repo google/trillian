@@ -2,51 +2,6 @@
 // source: github.com/google/trillian/trillian.proto
 // DO NOT EDIT!
 
-/*
-Package trillian is a generated protocol buffer package.
-
-It is generated from these files:
-	github.com/google/trillian/trillian.proto
-	github.com/google/trillian/trillian_api.proto
-
-It has these top-level messages:
-	DigitallySigned
-	SignedEntryTimestamp
-	SignedLogRoot
-	MapperMetadata
-	SignedMapRoot
-	TrillianApiStatus
-	LogLeaf
-	Node
-	Proof
-	QueueLeavesRequest
-	QueueLeavesResponse
-	GetInclusionProofRequest
-	GetInclusionProofResponse
-	GetInclusionProofByHashRequest
-	GetInclusionProofByHashResponse
-	GetConsistencyProofRequest
-	GetConsistencyProofResponse
-	GetLeavesByHashRequest
-	GetLeavesByHashResponse
-	GetLeavesByIndexRequest
-	GetLeavesByIndexResponse
-	GetSequencedLeafCountRequest
-	GetSequencedLeafCountResponse
-	GetLatestSignedLogRootRequest
-	GetLatestSignedLogRootResponse
-	GetEntryAndProofRequest
-	GetEntryAndProofResponse
-	MapLeaf
-	KeyValue
-	KeyValueInclusion
-	GetMapLeavesRequest
-	GetMapLeavesResponse
-	SetMapLeavesRequest
-	SetMapLeavesResponse
-	GetSignedMapRootRequest
-	GetSignedMapRootResponse
-*/
 package trillian
 
 import proto "github.com/golang/protobuf/proto"
@@ -57,12 +12,6 @@ import math "math"
 var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
-
-// This is a compile-time assertion to ensure that this generated file
-// is compatible with the proto package it is being compiled against.
-// A compilation error at this line likely means your copy of the
-// proto package needs to be updated.
-const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
 // This defines the way empty / node / leaf hashes are constructed incorporating
 // preimage protection, which can be application specific.
@@ -84,7 +33,7 @@ var TreeHasherPreimageType_value = map[string]int32{
 func (x TreeHasherPreimageType) String() string {
 	return proto.EnumName(TreeHasherPreimageType_name, int32(x))
 }
-func (TreeHasherPreimageType) EnumDescriptor() ([]byte, []int) { return fileDescriptor0, []int{0} }
+func (TreeHasherPreimageType) EnumDescriptor() ([]byte, []int) { return fileDescriptor1, []int{0} }
 
 // Supported signature algorithms.  The numbering space is the same as for TLS,
 // given in RFC 5246 s7.4.1.4.1 and at:
@@ -111,7 +60,7 @@ var SignatureAlgorithm_value = map[string]int32{
 func (x SignatureAlgorithm) String() string {
 	return proto.EnumName(SignatureAlgorithm_name, int32(x))
 }
-func (SignatureAlgorithm) EnumDescriptor() ([]byte, []int) { return fileDescriptor0, []int{1} }
+func (SignatureAlgorithm) EnumDescriptor() ([]byte, []int) { return fileDescriptor1, []int{1} }
 
 // Supported hash algorithms.  The numbering space is the same as for TLS,
 // given in RFC 5246 s7.4.1.4.1 and at:
@@ -135,7 +84,7 @@ var HashAlgorithm_value = map[string]int32{
 func (x HashAlgorithm) String() string {
 	return proto.EnumName(HashAlgorithm_name, int32(x))
 }
-func (HashAlgorithm) EnumDescriptor() ([]byte, []int) { return fileDescriptor0, []int{2} }
+func (HashAlgorithm) EnumDescriptor() ([]byte, []int) { return fileDescriptor1, []int{2} }
 
 // Protocol buffer encoding of the TLS DigitallySigned type, from
 // RFC 5246 s4.7.
@@ -148,7 +97,7 @@ type DigitallySigned struct {
 func (m *DigitallySigned) Reset()                    { *m = DigitallySigned{} }
 func (m *DigitallySigned) String() string            { return proto.CompactTextString(m) }
 func (*DigitallySigned) ProtoMessage()               {}
-func (*DigitallySigned) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{0} }
+func (*DigitallySigned) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{0} }
 
 type SignedEntryTimestamp struct {
 	TimestampNanos int64            `protobuf:"varint,1,opt,name=timestamp_nanos,json=timestampNanos" json:"timestamp_nanos,omitempty"`
@@ -159,7 +108,7 @@ type SignedEntryTimestamp struct {
 func (m *SignedEntryTimestamp) Reset()                    { *m = SignedEntryTimestamp{} }
 func (m *SignedEntryTimestamp) String() string            { return proto.CompactTextString(m) }
 func (*SignedEntryTimestamp) ProtoMessage()               {}
-func (*SignedEntryTimestamp) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{1} }
+func (*SignedEntryTimestamp) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{1} }
 
 func (m *SignedEntryTimestamp) GetSignature() *DigitallySigned {
 	if m != nil {
@@ -184,7 +133,7 @@ type SignedLogRoot struct {
 func (m *SignedLogRoot) Reset()                    { *m = SignedLogRoot{} }
 func (m *SignedLogRoot) String() string            { return proto.CompactTextString(m) }
 func (*SignedLogRoot) ProtoMessage()               {}
-func (*SignedLogRoot) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{2} }
+func (*SignedLogRoot) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{2} }
 
 func (m *SignedLogRoot) GetSignature() *DigitallySigned {
 	if m != nil {
@@ -202,7 +151,7 @@ type MapperMetadata struct {
 func (m *MapperMetadata) Reset()                    { *m = MapperMetadata{} }
 func (m *MapperMetadata) String() string            { return proto.CompactTextString(m) }
 func (*MapperMetadata) ProtoMessage()               {}
-func (*MapperMetadata) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{3} }
+func (*MapperMetadata) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{3} }
 
 // SignedMapRoot represents a commitment by a Map to a particular tree.
 type SignedMapRoot struct {
@@ -218,7 +167,7 @@ type SignedMapRoot struct {
 func (m *SignedMapRoot) Reset()                    { *m = SignedMapRoot{} }
 func (m *SignedMapRoot) String() string            { return proto.CompactTextString(m) }
 func (*SignedMapRoot) ProtoMessage()               {}
-func (*SignedMapRoot) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{4} }
+func (*SignedMapRoot) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{4} }
 
 func (m *SignedMapRoot) GetMetadata() *MapperMetadata {
 	if m != nil {
@@ -245,9 +194,9 @@ func init() {
 	proto.RegisterEnum("trillian.HashAlgorithm", HashAlgorithm_name, HashAlgorithm_value)
 }
 
-func init() { proto.RegisterFile("github.com/google/trillian/trillian.proto", fileDescriptor0) }
+func init() { proto.RegisterFile("github.com/google/trillian/trillian.proto", fileDescriptor1) }
 
-var fileDescriptor0 = []byte{
+var fileDescriptor1 = []byte{
 	// 592 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0xac, 0x54, 0xdd, 0x4e, 0xd4, 0x40,
 	0x18, 0xa5, 0x16, 0xd6, 0xdd, 0x8f, 0xed, 0x52, 0xc7, 0xbf, 0x35, 0x90, 0x88, 0x4b, 0x88, 0xc8,
