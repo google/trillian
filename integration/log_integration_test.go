@@ -313,27 +313,27 @@ func checkLogRootHashMatches(logID int64, tree *merkle.InMemoryMerkleTree, clien
 // should fail
 func checkInclusionProofLeafOutOfRange(logID int64, client trillian.TrillianLogClient, params testParameters) error {
 	// Test is a leaf index bigger than the current tree size
-	ctx, cancelFunc := getRPCDeadlineContext()
-	_, err := client.GetInclusionProof(ctx, &trillian.GetInclusionProofRequest{LogId: logID, LeafIndex:params.leafCount + 1, TreeSize:int64(params.leafCount)})
-	cancelFunc()
+	ctx, cancel := getRPCDeadlineContext()
+	proof, err := client.GetInclusionProof(ctx, &trillian.GetInclusionProofRequest{LogId: logID, LeafIndex:params.leafCount + 1, TreeSize:int64(params.leafCount)})
+	cancel()
 
 	if err == nil {
-		return fmt.Errorf("log returned proof for leaf index outside tree: %d v %d", params.leafCount + 1, params.leafCount)
+		return fmt.Errorf("log returned proof for leaf index outside tree: %d v %d: %v", params.leafCount + 1, params.leafCount, proof)
 	}
 
 	return nil
 }
 
-// checkInclusionOutOfRange requests an inclusion proof for a leaf that exists at a size beyond the current tree size.
-// This should fail.
+// checkInclusionProofTreeSizeOutOfRange requests an inclusion proof for a leaf within the tree size at
+// a tree size larger than the current tree size. This should fail.
 func checkInclusionProofTreeSizeOutOfRange(logID int64, client trillian.TrillianLogClient, params testParameters) error {
 	// Test is an in range leaf index for a tree size that doesn't exist
-	ctx, cancelFunc := getRPCDeadlineContext()
-	_, err := client.GetInclusionProof(ctx, &trillian.GetInclusionProofRequest{LogId: logID, LeafIndex:int64(params.sequencerBatchSize), TreeSize: params.leafCount + int64(params.sequencerBatchSize)})
-	cancelFunc()
+	ctx, cancel := getRPCDeadlineContext()
+	proof, err := client.GetInclusionProof(ctx, &trillian.GetInclusionProofRequest{LogId: logID, LeafIndex:int64(params.sequencerBatchSize), TreeSize: params.leafCount + int64(params.sequencerBatchSize)})
+	cancel()
 
 	if err == nil {
-		return fmt.Errorf("log returned proof for tree size outside tree: %d v %d", params.sequencerBatchSize, params.leafCount + int64(params.sequencerBatchSize))
+		return fmt.Errorf("log returned proof for tree size outside tree: %d v %d: %v", params.sequencerBatchSize, params.leafCount + int64(params.sequencerBatchSize), proof)
 	}
 	return nil
 }
