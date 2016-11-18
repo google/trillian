@@ -54,13 +54,13 @@ func TestLogIntegration(t *testing.T) {
 	// Step 0 - Initialize and connect to log server
 	treeID := tools.GetLogIDFromFlagsOrDie()
 	params := testParameters{
-		startLeaf: *startLeafFlag,
-		leafCount: *numLeavesFlag,
-		queueBatchSize: *queueBatchSizeFlag,
-		sequencerBatchSize: *sequencerBatchSizeFlag,
-		readBatchSize: *readBatchSizeFlag,
+		startLeaf:           *startLeafFlag,
+		leafCount:           *numLeavesFlag,
+		queueBatchSize:      *queueBatchSizeFlag,
+		sequencerBatchSize:  *sequencerBatchSizeFlag,
+		readBatchSize:       *readBatchSizeFlag,
 		sequencingWaitTotal: *waitForSequencingFlag,
-		sequencingPollWait: *waitBetweenQueueChecksFlag}
+		sequencingPollWait:  *waitBetweenQueueChecksFlag}
 
 	if params.startLeaf < 0 || params.leafCount <= 0 {
 		t.Fatalf("Start leaf index must be >= 0 (%d) and number of leaves must be > 0 (%d)", params.startLeaf, params.leafCount)
@@ -224,8 +224,8 @@ func readbackLogEntries(logID int64, client trillian.TrillianLogClient, params t
 			numLeaves = params.readBatchSize
 		}
 
-		glog.Infof("Reading %d leaves from %d ...", numLeaves, currentLeaf + params.startLeaf)
-		req := makeGetLeavesByIndexRequest(logID, currentLeaf + params.startLeaf, numLeaves)
+		glog.Infof("Reading %d leaves from %d ...", numLeaves, currentLeaf+params.startLeaf)
+		req := makeGetLeavesByIndexRequest(logID, currentLeaf+params.startLeaf, numLeaves)
 		ctx, cancel := getRPCDeadlineContext()
 		response, err := client.GetLeavesByIndex(ctx, req)
 		cancel()
@@ -304,9 +304,9 @@ func checkLogRootHashMatches(logID int64, tree *merkle.InMemoryMerkleTree, clien
 // proofs returned should match ones computed by the alternate Merkle Tree implementation, which differs
 // from what the log uses.
 func checkInclusionProofsAtIndex(index int64, logID int64, tree *merkle.InMemoryMerkleTree, client trillian.TrillianLogClient, params testParameters) error {
-	for treeSize := int64(0); treeSize < min(params.leafCount, int64(2 * params.sequencerBatchSize)); treeSize++ {
+	for treeSize := int64(0); treeSize < min(params.leafCount, int64(2*params.sequencerBatchSize)); treeSize++ {
 		ctx, cancel := getRPCDeadlineContext()
-		resp, err := client.GetInclusionProof(ctx, &trillian.GetInclusionProofRequest{LogId: logID, LeafIndex:index, TreeSize:int64(treeSize)})
+		resp, err := client.GetInclusionProof(ctx, &trillian.GetInclusionProofRequest{LogId: logID, LeafIndex: index, TreeSize: int64(treeSize)})
 		cancel()
 
 		if index >= treeSize {
@@ -319,7 +319,7 @@ func checkInclusionProofsAtIndex(index int64, logID int64, tree *merkle.InMemory
 		}
 
 		// If we're not at a valid STH tree size then we can't have a proof
-		if treeSize == 0 || (treeSize % int64(params.sequencerBatchSize)) != 0 {
+		if treeSize == 0 || (treeSize%int64(params.sequencerBatchSize)) != 0 {
 			if err == nil {
 				return fmt.Errorf("log returned proof at non STH size: %d", treeSize)
 			}
@@ -330,7 +330,7 @@ func checkInclusionProofsAtIndex(index int64, logID int64, tree *merkle.InMemory
 			}
 
 			// Remember that the in memory tree uses 1 based leaf indices
-			path := tree.PathToRootAtSnapshot(int(index + 1), int(treeSize))
+			path := tree.PathToRootAtSnapshot(int(index+1), int(treeSize))
 
 			// Compare the proof lengths
 			if got, want := len(resp.Proof.GetProofNode()), len(path); got != want {
