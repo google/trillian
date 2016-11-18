@@ -108,77 +108,23 @@ func NewLogContext(logID int64, trustedRoots *PEMCertPool, rpcClient trillian.Tr
 		timeSource:    timeSource}
 }
 
-// addChainRequest is a struct for parsing JSON add-chain requests. See RFC 6962 Sections 4.1 and 4.2
-type addChainRequest struct {
-	Chain []string
-}
-
-// addChainResponse is a struct for marshalling add-chain responses. See RFC 6962 Sections 4.1 and 4.2
-type addChainResponse struct {
-	SctVersion int    `json:"sct_version"`
-	ID         string `json:"id"`
-	Timestamp  uint64 `json:"timestamp"`
-	Extensions string `json:"extensions"`
-	Signature  string `json:"signature"`
-}
-
-// getEntriesEntry is a struct that represents one element in a get-entries response
-type getEntriesEntry struct {
-	LeafInput []byte `json:"leaf_input"`
-	ExtraData []byte `json:"extra_data"`
-}
-
-// getEntriesResponse is a struct for marshalling get-entries responses. See RFC6962 Section 4.6
-type getEntriesResponse struct {
-	Entries []getEntriesEntry `json:"entries"`
-}
-
-// getSTHResponse is a struct for marshalling get-sth responses. See RFC 6962 Section 4.3
-type getSTHResponse struct {
-	TreeSize        int64  `json:"tree_size"`
-	TimestampMillis int64  `json:"timestamp"`
-	RootHash        []byte `json:"sha256_root_hash"`
-	Signature       []byte `json:"tree_head_signature"`
-}
-
-// getProofByHashResponse is a struct for marshalling get-proof-by-hash responses. See RFC 6962
-// section 4.5
-type getProofByHashResponse struct {
-	LeafIndex int64    `json:"leaf_index"`
-	AuditPath [][]byte `json:"audit_path"`
-}
-
-// getSTHConsistencyResponse is a struct for mashalling get-sth-consistency responses. See
-// RFC 6962 section 4.4
-type getSTHConsistencyResponse struct {
-	Consistency [][]byte `json:"consistency"`
-}
-
-// getEntryAndProofResponse is a struct for marshalling get-entry-and-proof responses. See
-// RFC 6962 Section 4.8
-type getEntryAndProofResponse struct {
-	LeafInput []byte   `json:"leaf_input"`
-	ExtraData []byte   `json:"extra_data"`
-	AuditPath [][]byte `json:"audit_path"`
-}
-
-func parseBodyAsJSONChain(c LogContext, r *http.Request) (addChainRequest, error) {
+func parseBodyAsJSONChain(c LogContext, r *http.Request) (ct.AddChainRequest, error) {
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		glog.V(1).Infof("%s: Failed to read request body: %v", c.logPrefix, err)
-		return addChainRequest{}, err
+		return ct.AddChainRequest{}, err
 	}
 
-	var req addChainRequest
+	var req ct.AddChainRequest
 	if err := json.Unmarshal(body, &req); err != nil {
 		glog.V(1).Infof("%s: Failed to parse request body: %v", c.logPrefix, err)
-		return addChainRequest{}, err
+		return ct.AddChainRequest{}, err
 	}
 
 	// The cert chain is not allowed to be empty. We'll defer other validation for later
 	if len(req.Chain) == 0 {
 		glog.V(1).Infof("%s: Request chain is empty: %s", c.logPrefix, body)
-		return addChainRequest{}, errors.New("cert chain was empty")
+		return ct.AddChainRequest{}, errors.New("cert chain was empty")
 	}
 
 	return req, nil
@@ -338,12 +284,12 @@ func getSTH(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
 	}
 
 	// Now build the final result object that will be marshalled to JSON
-	jsonRsp := getSTHResponse{
-		TreeSize:        int64(sth.TreeSize),
-		RootHash:        sth.SHA256RootHash[:],
-		TimestampMillis: int64(sth.Timestamp),
+	jsonRsp := ct.GetSTHResponse{
+		TreeSize:       sth.TreeSize,
+		SHA256RootHash: sth.SHA256RootHash[:],
+		Timestamp:      sth.Timestamp,
 	}
-	jsonRsp.Signature, err = tls.Marshal(sth.TreeHeadSignature)
+	jsonRsp.TreeHeadSignature, err = tls.Marshal(sth.TreeHeadSignature)
 	if err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("failed to tls.Marshal signature: %v", err)
 	}
@@ -388,7 +334,7 @@ func getSTHConsistency(c LogContext, w http.ResponseWriter, r *http.Request) (in
 	}
 
 	// We got a valid response from the server. Marshal it as JSON and return it to the client
-	jsonRsp := getSTHConsistencyResponse{Consistency: auditPathFromProto(rsp.Proof.ProofNode)}
+	jsonRsp := ct.GetSTHConsistencyResponse{Consistency: auditPathFromProto(rsp.Proof.ProofNode)}
 
 	w.Header().Set(contentTypeHeader, contentTypeJSON)
 	jsonData, err := json.Marshal(&jsonRsp)
@@ -449,7 +395,7 @@ func getProofByHash(c LogContext, w http.ResponseWriter, r *http.Request) (int, 
 	}
 
 	// All checks complete, marshal and return the response
-	proofRsp := getProofByHashResponse{LeafIndex: rsp.Proof[0].LeafIndex, AuditPath: auditPathFromProto(rsp.Proof[0].ProofNode)}
+	proofRsp := ct.GetProofByHashResponse{LeafIndex: rsp.Proof[0].LeafIndex, AuditPath: auditPathFromProto(rsp.Proof[0].ProofNode)}
 
 	w.Header().Set(contentTypeHeader, contentTypeJSON)
 	jsonData, err := json.Marshal(&proofRsp)
@@ -580,10 +526,11 @@ func getEntryAndProof(c LogContext, w http.ResponseWriter, r *http.Request) (int
 	}
 
 	// Build and marshal the response to the client
-	jsonRsp := getEntryAndProofResponse{
+	jsonRsp := ct.GetEntryAndProofResponse{
 		LeafInput: rsp.Leaf.LeafValue,
 		ExtraData: rsp.Leaf.ExtraData,
-		AuditPath: auditPathFromProto(rsp.Proof.ProofNode)}
+		AuditPath: auditPathFromProto(rsp.Proof.ProofNode),
+	}
 
 	w.Header().Set(contentTypeHeader, contentTypeJSON)
 	jsonData, err := json.Marshal(&jsonRsp)
@@ -605,14 +552,14 @@ func getEntryAndProof(c LogContext, w http.ResponseWriter, r *http.Request) (int
 // TODO(Martin2112): This registers on default ServeMux, might need more flexibility?
 func (c LogContext) RegisterHandlers() {
 	// Bind the LogContext instance to give an appHandler instance for each entrypoint.
-	http.Handle("/ct/v1/add-chain", appHandler{context: c, handler: addChain, name: "AddChain"})
-	http.Handle("/ct/v1/add-pre-chain", appHandler{context: c, handler: addPreChain, name: "AddPreChain"})
-	http.Handle("/ct/v1/get-sth", appHandler{context: c, handler: getSTH, name: "GetSTH"})
-	http.Handle("/ct/v1/get-sth-consistency", appHandler{context: c, handler: getSTHConsistency, name: "GetSTHConsistency"})
-	http.Handle("/ct/v1/get-proof-by-hash", appHandler{context: c, handler: getProofByHash, name: "GetProofByHash"})
-	http.Handle("/ct/v1/get-entries", appHandler{context: c, handler: getEntries, name: "GetEntries"})
-	http.Handle("/ct/v1/get-roots", appHandler{context: c, handler: getRoots, name: "GetRoots"})
-	http.Handle("/ct/v1/get-entry-and-proof", appHandler{context: c, handler: getEntryAndProof, name: "GetEntryAndProof"})
+	http.Handle(ct.AddChainPath, appHandler{context: c, handler: addChain, name: "AddChain"})
+	http.Handle(ct.AddPreChainPath, appHandler{context: c, handler: addPreChain, name: "AddPreChain"})
+	http.Handle(ct.GetSTHPath, appHandler{context: c, handler: getSTH, name: "GetSTH"})
+	http.Handle(ct.GetSTHConsistencyPath, appHandler{context: c, handler: getSTHConsistency, name: "GetSTHConsistency"})
+	http.Handle(ct.GetProofByHashPath, appHandler{context: c, handler: getProofByHash, name: "GetProofByHash"})
+	http.Handle(ct.GetEntriesPath, appHandler{context: c, handler: getEntries, name: "GetEntries"})
+	http.Handle(ct.GetRootsPath, appHandler{context: c, handler: getRoots, name: "GetRoots"})
+	http.Handle(ct.GetEntryAndProofPath, appHandler{context: c, handler: getEntryAndProof, name: "GetEntryAndProof"})
 }
 
 // Generates a custom error page to give more information on why something didn't work
@@ -634,7 +581,7 @@ func rpcStatusOK(status *trillian.TrillianApiStatus) bool {
 // cert is of the correct type and chains to a trusted root.
 // TODO(Martin2112): This may not implement all the RFC requirements. Check what is provided
 // by fixchain (called by this code) plus the ones here to make sure that it is compliant.
-func verifyAddChain(c LogContext, req addChainRequest, w http.ResponseWriter, expectingPrecert bool) ([]*x509.Certificate, error) {
+func verifyAddChain(c LogContext, req ct.AddChainRequest, w http.ResponseWriter, expectingPrecert bool) ([]*x509.Certificate, error) {
 	// We already checked that the chain is not empty so can move on to verification
 	validPath, err := ValidateChain(req.Chain, *c.trustedRoots)
 	if err != nil {
@@ -659,22 +606,6 @@ func verifyAddChain(c LogContext, req addChainRequest, w http.ResponseWriter, ex
 	}
 
 	return validPath, nil
-}
-
-// marshalLogIDAndSignatureForResponse is used by add-chain and add-pre-chain. It formats the
-// signature and log id ready to send to the client.
-func marshalLogIDAndSignatureForResponse(sct ct.SignedCertificateTimestamp, km crypto.KeyManager) ([sha256.Size]byte, string, error) {
-	logID, err := GetCTLogID(km)
-	if err != nil {
-		return [32]byte{}, "", fmt.Errorf("failed to marshal logID: %v", err)
-	}
-
-	signature, err := sct.Signature.Base64String()
-	if err != nil {
-		return [32]byte{}, "", fmt.Errorf("failed to marshal signature: %v %v", sct.Signature, err)
-	}
-
-	return logID, signature, nil
 }
 
 // buildLogLeafForAddChain is also used by add-pre-chain and does the hashing to build a
@@ -707,17 +638,21 @@ func buildLogLeafForAddChain(c LogContext, merkleLeaf ct.MerkleTreeLeaf, chain [
 // marshalAndWriteAddChainResponse is used by add-chain and add-pre-chain to create and write
 // the JSON response to the client
 func marshalAndWriteAddChainResponse(sct ct.SignedCertificateTimestamp, km crypto.KeyManager, w http.ResponseWriter) error {
-	logID, signature, err := marshalLogIDAndSignatureForResponse(sct, km)
+	logID, err := GetCTLogID(km)
 	if err != nil {
-		return fmt.Errorf("failed to marshal for response: %v", err)
+		return fmt.Errorf("failed to marshal logID: %v", err)
+	}
+	sig, err := tls.Marshal(sct.Signature)
+	if err != nil {
+		return fmt.Errorf("failed to marshal signature: %v", err)
 	}
 
-	rsp := addChainResponse{
-		SctVersion: int(sct.SCTVersion),
+	rsp := ct.AddChainResponse{
+		SCTVersion: ct.Version(sct.SCTVersion),
 		Timestamp:  sct.Timestamp,
-		ID:         base64.StdEncoding.EncodeToString(logID[:]),
+		ID:         logID[:],
 		Extensions: "",
-		Signature:  signature,
+		Signature:  sig,
 	}
 
 	w.Header().Set(contentTypeHeader, contentTypeJSON)
@@ -835,8 +770,8 @@ func isResponseContiguousRange(rsp *trillian.GetLeavesByIndexResponse, start, en
 
 // marshalGetEntriesResponse does the conversion from the backend response to the one we need for
 // an RFC compliant JSON response to the client.
-func marshalGetEntriesResponse(c LogContext, rsp *trillian.GetLeavesByIndexResponse) (getEntriesResponse, error) {
-	jsonRsp := getEntriesResponse{}
+func marshalGetEntriesResponse(c LogContext, rsp *trillian.GetLeavesByIndexResponse) (ct.GetEntriesResponse, error) {
+	jsonRsp := ct.GetEntriesResponse{}
 
 	for _, leaf := range rsp.Leaves {
 		// We're only deserializing it to ensure it's valid, don't need the result. We still
@@ -851,7 +786,7 @@ func marshalGetEntriesResponse(c LogContext, rsp *trillian.GetLeavesByIndexRespo
 			glog.Warningf("%s: Trailing data after Merkle leaf from backend: %d", c.logPrefix, leaf.LeafIndex)
 		}
 
-		jsonRsp.Entries = append(jsonRsp.Entries, getEntriesEntry{
+		jsonRsp.Entries = append(jsonRsp.Entries, ct.LeafEntry{
 			LeafInput: leaf.LeafValue,
 			ExtraData: leaf.ExtraData,
 		})

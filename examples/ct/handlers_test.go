@@ -7,7 +7,7 @@ import (
 	"bufio"
 	"bytes"
 	"crypto/sha256"
-	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -40,10 +40,6 @@ var fakeTime = time.Date(2016, 7, 22, 11, 01, 13, 0, time.UTC)
 var fakeDeadlineTime = time.Date(2016, 7, 22, 11, 01, 13, 500*1000*1000, time.UTC)
 var fakeTimeSource = util.FakeTimeSource{FakeTime: fakeTime}
 var okStatus = &trillian.TrillianApiStatus{StatusCode: trillian.TrillianApiStatusCode_OK}
-
-type jsonChain struct {
-	Chain []string `json:"chain"`
-}
 
 type getEntriesRangeTestCase struct {
 	start          int64
@@ -78,12 +74,12 @@ var getSTHConsistencyBadRequests = []string{"", "first=apple&second=orange", "fi
 	"first=998&second=997", "first=1000&second=200", "first=10", "second=20"}
 
 // The result we expect after a roundtrip in the successful get proof by hash test
-var expectedInclusionProofByHash = getProofByHashResponse{
+var expectedInclusionProofByHash = ct.GetProofByHashResponse{
 	LeafIndex: 2,
 	AuditPath: [][]byte{[]byte("abcdef"), []byte("ghijkl"), []byte("mnopqr")}}
 
 // The result we expect after a roundtrip in the successful get sth consistency test
-var expectedSTHConsistencyProofByHash = getSTHConsistencyResponse{Consistency: [][]byte{[]byte("abcdef"), []byte("ghijkl"), []byte("mnopqr")}}
+var expectedSTHConsistencyProofByHash = ct.GetSTHConsistencyResponse{Consistency: [][]byte{[]byte("abcdef"), []byte("ghijkl"), []byte("mnopqr")}}
 
 const caCertB64 string = `MIIC0DCCAjmgAwIBAgIBADANBgkqhkiG9w0BAQUFADBVMQswCQYDVQQGEwJHQjEk
 MCIGA1UEChMbQ2VydGlmaWNhdGUgVHJhbnNwYXJlbmN5IENBMQ4wDAYDVQQIEwVX
@@ -469,21 +465,21 @@ func TestAddChain(t *testing.T) {
 	}
 
 	// Roundtrip the response and make sure it's sensible
-	var resp addChainResponse
+	var resp ct.AddChainResponse
 	if err = json.NewDecoder(recorder.Body).Decode(&resp); err != nil {
 		t.Fatalf("failed to unmarshal json: %v, body: %v", err, recorder.Body.Bytes())
 	}
 
-	if got, want := ct.Version(resp.SctVersion), ct.V1; got != want {
+	if got, want := ct.Version(resp.SCTVersion), ct.V1; got != want {
 		t.Fatalf("Got SctVersion %v, expected %v", got, want)
 	}
-	if got, want := resp.ID, ctMockLogID; got != want {
+	if got, want := hex.EncodeToString(resp.ID), ctMockLogID; got != want {
 		t.Fatalf("Got logID %s, expected %s", got, want)
 	}
 	if got, want := resp.Timestamp, uint64(1469185273000000); got != want {
 		t.Fatalf("Got timestamp %d, expected %d", got, want)
 	}
-	if got, want := resp.Signature, "BAMABnNpZ25lZA=="; got != want {
+	if got, want := hex.EncodeToString(resp.Signature), "040300067369676e6564"; got != want {
 		t.Fatalf("Got signature %s, expected %s", got, want)
 	}
 }
@@ -641,21 +637,21 @@ func TestAddPrecertChain(t *testing.T) {
 	}
 
 	// Roundtrip the response and make sure it's sensible
-	var resp addChainResponse
+	var resp ct.AddChainResponse
 	if err = json.NewDecoder(recorder.Body).Decode(&resp); err != nil {
 		t.Fatalf("failed to unmarshal json: %v, body: %v", err, recorder.Body.Bytes())
 	}
 
-	if got, want := ct.Version(resp.SctVersion), ct.V1; got != want {
+	if got, want := ct.Version(resp.SCTVersion), ct.V1; got != want {
 		t.Fatalf("Got SctVersion %v, expected %v", got, want)
 	}
-	if got, want := resp.ID, ctMockLogID; got != want {
+	if got, want := hex.EncodeToString(resp.ID), ctMockLogID; got != want {
 		t.Fatalf("Got logID %s, expected %s", got, want)
 	}
 	if got, want := resp.Timestamp, uint64(1469185273000000); got != want {
 		t.Fatalf("Got timestamp %d, expected %d", got, want)
 	}
-	if got, want := resp.Signature, "BAMABnNpZ25lZA=="; got != want {
+	if got, want := hex.EncodeToString(resp.Signature), "040300067369676e6564"; got != want {
 		t.Fatalf("Got signature %s, expected %s", got, want)
 	}
 }
@@ -812,21 +808,21 @@ func TestGetSTH(t *testing.T) {
 	}
 
 	// Now roundtrip the response and check we got the expected data
-	var parsedJSON getSTHResponse
-	if err := json.Unmarshal(w.Body.Bytes(), &parsedJSON); err != nil {
+	var rsp ct.GetSTHResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &rsp); err != nil {
 		t.Fatalf("Failed to unmarshal json response: %s", w.Body.Bytes())
 	}
 
-	if got, want := parsedJSON.TreeSize, int64(25); got != want {
+	if got, want := rsp.TreeSize, uint64(25); got != want {
 		t.Fatalf("Got treesize %d, expected %d", got, want)
 	}
-	if got, want := parsedJSON.TimestampMillis, int64(12345); got != want {
+	if got, want := rsp.Timestamp, uint64(12345); got != want {
 		t.Fatalf("Got timestamp %d, expected %d", got, want)
 	}
-	if got, want := base64.StdEncoding.EncodeToString(parsedJSON.RootHash), "YWJjZGFiY2RhYmNkYWJjZGFiY2RhYmNkYWJjZGFiY2Q="; got != want {
+	if got, want := hex.EncodeToString(rsp.SHA256RootHash), "6162636461626364616263646162636461626364616263646162636461626364"; got != want {
 		t.Fatalf("Got roothash %s, expected %s", got, want)
 	}
-	if got, want := base64.StdEncoding.EncodeToString(parsedJSON.Signature), "BAMABnNpZ25lZA=="; got != want {
+	if got, want := hex.EncodeToString(rsp.TreeHeadSignature), "040300067369676e6564"; got != want {
 		t.Fatalf("Got signature %s, expected %s", got, want)
 	}
 }
@@ -1011,7 +1007,7 @@ func TestGetEntriesLeafCorrupt(t *testing.T) {
 		t.Fatalf("expected %v for invalid Merkle leaf result, got %v. Body: %v", want, got, w.Body)
 	}
 
-	var jsonMap map[string][]getEntriesEntry
+	var jsonMap map[string][]ct.LeafEntry
 	if err := json.Unmarshal(w.Body.Bytes(), &jsonMap); err != nil {
 		t.Fatalf("Failed to unmarshal json response: %s", w.Body.Bytes())
 	}
@@ -1088,7 +1084,7 @@ func TestGetEntries(t *testing.T) {
 		t.Fatalf("Expected  %v for valid get-entries result, got %v. Body: %v", want, got, w.Body)
 	}
 
-	var jsonMap map[string][]getEntriesEntry
+	var jsonMap map[string][]ct.LeafEntry
 	if err := json.Unmarshal(w.Body.Bytes(), &jsonMap); err != nil {
 		t.Fatalf("Failed to unmarshal json response: %s", w.Body.Bytes())
 	}
@@ -1201,7 +1197,7 @@ func TestGetProofByHashBackendMultipleProofs(t *testing.T) {
 	}
 
 	// Roundtrip the response and make sure it matches the expected one
-	var resp getProofByHashResponse
+	var resp ct.GetProofByHashResponse
 	if err = json.NewDecoder(w.Body).Decode(&resp); err != nil {
 		t.Fatalf("failed to unmarshal json: %v, body: %v", err, w.Body.Bytes())
 	}
@@ -1265,7 +1261,7 @@ func TestGetProofByHash(t *testing.T) {
 	}
 
 	// Roundtrip the response and make sure it matches the expected one
-	var resp getProofByHashResponse
+	var resp ct.GetProofByHashResponse
 	if err = json.NewDecoder(w.Body).Decode(&resp); err != nil {
 		t.Fatalf("failed to unmarshal json: %v, body: %v", err, w.Body.Bytes())
 	}
@@ -1458,7 +1454,7 @@ func TestGetSTHConsistency(t *testing.T) {
 	}
 
 	// Roundtrip the response and make sure it matches
-	var resp getSTHConsistencyResponse
+	var resp ct.GetSTHConsistencyResponse
 
 	if err = json.NewDecoder(w.Body).Decode(&resp); err != nil {
 		t.Fatalf("failed to unmarshal json: %v, body: %v", err, w.Body.Bytes())
@@ -1512,13 +1508,13 @@ func TestGetEntryAndProof(t *testing.T) {
 	}
 
 	// Roundtrip the response and make sure it matches what we expect
-	var resp getEntryAndProofResponse
+	var resp ct.GetEntryAndProofResponse
 	if err = json.NewDecoder(w.Body).Decode(&resp); err != nil {
 		t.Fatalf("failed to unmarshal json: %v, body: %v", err, w.Body.Bytes())
 	}
 
 	// The result we expect after a roundtrip in the successful get entry and proof test
-	expectedGetEntryAndProofResponse := getEntryAndProofResponse{
+	expectedGetEntryAndProofResponse := ct.GetEntryAndProofResponse{
 		LeafInput: leafBytes,
 		ExtraData: []byte("extra"),
 		AuditPath: [][]byte{[]byte("abcdef"), []byte("ghijkl"), []byte("mnopqr")}}
@@ -1529,17 +1525,15 @@ func TestGetEntryAndProof(t *testing.T) {
 }
 
 func createJSONChain(t *testing.T, p PEMCertPool) io.Reader {
-	var chain jsonChain
-
+	var req ct.AddChainRequest
 	for _, rawCert := range p.RawCertificates() {
-		b64 := base64.StdEncoding.EncodeToString(rawCert.Raw)
-		chain.Chain = append(chain.Chain, b64)
+		req.Chain = append(req.Chain, rawCert.Raw)
 	}
 
 	var buffer bytes.Buffer
 	// It's tempting to avoid creating and flushing the intermediate writer but it doesn't work
 	writer := bufio.NewWriter(&buffer)
-	err := json.NewEncoder(writer).Encode(&chain)
+	err := json.NewEncoder(writer).Encode(&req)
 	writer.Flush()
 
 	if err != nil {

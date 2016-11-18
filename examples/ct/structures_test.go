@@ -1,7 +1,7 @@
 package ct
 
 import (
-	"encoding/base64"
+	"encoding/hex"
 	"reflect"
 	"testing"
 	"time"
@@ -23,10 +23,10 @@ MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEw8i8S7qiGEs9NXv0ZJFh6uuOmR2Q
 -----END PUBLIC KEY-----`
 
 // Log ID for testtube log, from known logs page
-const ctTesttubeLogID string = "sMyD5aX5fWuvfAnMKEkEhyrH6IsTLGNQt8b9JuFsbHc="
+const ctTesttubeLogID string = "b0cc83e5a5f97d6baf7c09cc284904872ac7e88b132c6350b7c6fd26e16c6c77"
 
 // Log ID for a dummy log public key of "key" supplied by mock
-const ctMockLogID string = "LHDhK3oGRvkiefQnx7OOczTY5Tic/xZ6HcMOc/gmtoM="
+const ctMockLogID string = "2c70e12b7a0646f92279f427c7b38e7334d8e5389cff167a1dc30e73f826b683"
 
 // This test uses the testtube key rather than our test key so we can verify the
 // result easily
@@ -37,16 +37,16 @@ func TestGetCTLogID(t *testing.T) {
 		t.Fatalf("unexpected error loading public key: %v", err)
 	}
 
-	expected := ctTesttubeLogID
 	got, err := GetCTLogID(km)
 	if err != nil {
 		t.Fatalf("error getting logid: %v", err)
 	}
 
-	got64 := base64.StdEncoding.EncodeToString(got[:])
+	expected := ctTesttubeLogID
+	gotHex := hex.EncodeToString(got[:])
 
-	if expected != got64 {
-		t.Fatalf("expected logID: %s but got: %s", expected, got64)
+	if expected != gotHex {
+		t.Fatalf("expected logID: %s but got: %s", expected, gotHex)
 	}
 }
 

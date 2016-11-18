@@ -3,7 +3,7 @@ package ct
 import (
 	"bytes"
 	"crypto/sha256"
-	"encoding/base64"
+	"encoding/hex"
 	"reflect"
 	"testing"
 
@@ -31,7 +31,7 @@ func TestSignV1SCTForCertificate(t *testing.T) {
 		t.Fatalf("create sct for cert failed: %v", err)
 	}
 
-	logID, err := base64.StdEncoding.DecodeString(ctMockLogID)
+	logID, err := hex.DecodeString(ctMockLogID)
 	if err != nil {
 		t.Fatalf("failed to decode test log id: %s", ctMockLogID)
 	}
@@ -88,13 +88,11 @@ func TestSignV1SCTForPrecertificate(t *testing.T) {
 	km := setupMockKeyManager(mockCtrl, []byte{0x77, 0xf3, 0x5c, 0xc6, 0xad, 0x85, 0xfd, 0xe0, 0x38, 0xfd, 0x36, 0x34, 0x5c, 0x1e, 0x45, 0x58, 0x60, 0x95, 0xb1, 0x7c, 0x28, 0xaa, 0xa5, 0xa5, 0x84, 0x96, 0x37, 0x4b, 0xf8, 0xbb, 0xd9, 0x8})
 
 	leaf, got, err := signV1SCTForPrecertificate(km, cert, fixedTime)
-
 	if err != nil {
 		t.Fatalf("create sct for precert failed: %v", err)
 	}
 
-	logID, err := base64.StdEncoding.DecodeString(ctMockLogID)
-
+	logID, err := hex.DecodeString(ctMockLogID)
 	if err != nil {
 		t.Fatalf("failed to decode test log id: %s", ctMockLogID)
 	}

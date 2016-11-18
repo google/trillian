@@ -2,7 +2,6 @@ package ct
 
 import (
 	"bytes"
-	"encoding/base64"
 	"errors"
 	"fmt"
 
@@ -38,23 +37,15 @@ func IsPrecertificate(cert *x509.Certificate) (bool, error) {
 // end entity certificate in the chain to a trusted root cert, possibly using the intermediates
 // supplied in the chain. Then applies the RFC requirement that the path must involve all
 // the submitted chain in the order of submission.
-func ValidateChain(jsonChain []string, trustedRoots PEMCertPool) ([]*x509.Certificate, error) {
-	// First decode the base 64 certs and make sure they parse as X.509
-	chain := make([]*x509.Certificate, 0, len(jsonChain))
+func ValidateChain(rawChain [][]byte, trustedRoots PEMCertPool) ([]*x509.Certificate, error) {
+	// First make sure the certs parse as X.509
+	chain := make([]*x509.Certificate, 0, len(rawChain))
 	intermediatePool := NewPEMCertPool()
 
-	for i, certB64 := range jsonChain {
-		certBytes, err := base64.StdEncoding.DecodeString(certB64)
-
-		if err != nil {
-			return nil, err
-		}
-
+	for i, certBytes := range rawChain {
 		cert, err := x509.ParseCertificate(certBytes)
-
 		if err != nil {
 			_, ok := err.(x509.NonFatalErrors)
-
 			if !ok {
 				return nil, err
 			}
