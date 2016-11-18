@@ -557,6 +557,82 @@ func TestDequeueLeavesGuardInterval(t *testing.T) {
 	}
 }
 
+func TestDequeueLeavesTimeOrdering(t *testing.T) {
+	// Queue two small batches of leaves at different timestamps. Do two separate dequeue
+	// transactions and make sure the returned leaves are respecting the time ordering of the
+	// queue.
+	logID := createLogID("TestDequeueLeavesTimeOrdering")
+	db := prepareTestLogDB(logID, t)
+	defer db.Close()
+	s := prepareTestLogStorage(logID, t)
+	batchSize := 2
+
+	{
+		tx := beginLogTx(s, t)
+		defer failIfTXStillOpen(t, "TestDequeueLeavesTimeOrdering", tx)
+
+		leaves := createTestLeaves(int64(batchSize), 0)
+		leaves2 := createTestLeaves(int64(batchSize), int64(batchSize))
+
+		if err := tx.QueueLeaves(leaves, fakeQueueTime); err != nil {
+			t.Fatalf("QueueLeaves(1st batch) = %v", err)
+		}
+
+		// These are one second earlier so should be dequeued first
+		if err := tx.QueueLeaves(leaves2, fakeQueueTime.Add(-time.Second)); err != nil {
+			t.Fatalf("QueueLeaves(2nd batch) = %v", err)
+		}
+
+		commit(tx, t)
+	}
+
+	{
+		// Now try to dequeue two leaves and we should get the second batch
+		tx2 := beginLogTx(s, t)
+		defer failIfTXStillOpen(t, "TestDequeueLeavesTimeOrdering", tx2)
+		dequeue1, err := tx2.DequeueLeaves(batchSize, fakeQueueTime)
+
+		if err != nil {
+			t.Fatalf("DequeueLeaves(1st) = %v", err)
+		}
+
+		if got, want := len(dequeue1), batchSize; got != want {
+			t.Fatalf("Dequeue count mismatch (1st) got: %d, want: %d", got, want)
+		}
+
+		ensureAllLeavesDistinct(dequeue1, t)
+
+		// Ensure this is the second batch queued by comparing leaf data.
+		if !leafInRange(dequeue1[0], batchSize, batchSize+batchSize-1) || !leafInRange(dequeue1[1], batchSize, batchSize+batchSize-1) {
+			t.Fatalf("Got leaf from wrong batch (1st dequeue): (%s %s)", string(dequeue1[0].LeafValue), string(dequeue1[1].LeafValue))
+		}
+
+		commit(tx2, t)
+
+		// Try to dequeue again and we should get the batch that was queued first, though at a later time
+		tx3 := beginLogTx(s, t)
+		defer failIfTXStillOpen(t, "TestDequeueLeavesTimeOrdering", tx3)
+		dequeue2, err := tx3.DequeueLeaves(batchSize, fakeQueueTime)
+
+		if err != nil {
+			t.Fatalf("DequeueLeaves(2nd) = %v", err)
+		}
+
+		if got, want := len(dequeue2), batchSize; got != want {
+			t.Fatalf("Dequeue count mismatch (2nd) got: %d, want: %d", got, want)
+		}
+
+		ensureAllLeavesDistinct(dequeue2, t)
+
+		// Ensure this is the first batch by comparing leaf data.
+		if !leafInRange(dequeue2[0], 0, batchSize-1) || !leafInRange(dequeue2[1], 0, batchSize-1) {
+			t.Fatalf("Got leaf from wrong batch (2nd dequeue): (%s %s)", string(dequeue2[0].LeafValue), string(dequeue2[1].LeafValue))
+		}
+
+		commit(tx3, t)
+	}
+}
+
 func TestGetLeavesByHashNotPresent(t *testing.T) {
 	logID := createLogID("TestGetLeavesByHashNotPresent")
 	s := prepareTestLogStorage(logID, t)
@@ -1387,7 +1463,7 @@ func createTestLeaves(n, startSeq int64) []trillian.LogLeaf {
 	hasher := crypto.NewSHA256()
 
 	for l := int64(0); l < n; l++ {
-		lv := fmt.Sprintf("Leaf %d", l)
+		lv := fmt.Sprintf("Leaf %d", l+startSeq)
 		leaf := trillian.LogLeaf{
 			LeafValueHash:  hasher.Digest([]byte(lv)),
 			MerkleLeafHash: hasher.Digest([]byte(lv)),
@@ -1438,6 +1514,16 @@ func failIfTXStillOpen(t *testing.T, op string, tx storage.LogTX) {
 	if tx != nil && tx.IsOpen() {
 		t.Fatalf("Unclosed transaction in : %s", op)
 	}
+}
+
+func leafInRange(leaf trillian.LogLeaf, min, max int) bool {
+	for l := min; l <= max; l++ {
+		if string(leaf.LeafValue) == fmt.Sprintf("Leaf %d", l) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func TestMain(m *testing.M) {

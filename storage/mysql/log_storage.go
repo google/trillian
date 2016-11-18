@@ -25,7 +25,7 @@ const selectQueuedLeavesSQL string = `SELECT LeafValueHash,Payload
 		 FROM Unsequenced
 		 WHERE TreeID=?
 		 AND QueueTimestampNanos<=?
-		 ORDER BY QueueTimestampNanos DESC,LeafValueHash ASC LIMIT ?`
+		 ORDER BY QueueTimestampNanos,LeafValueHash ASC LIMIT ?`
 const insertUnsequencedLeafSQL string = `INSERT INTO LeafData(TreeId,LeafValueHash,LeafValue)
 		 VALUES(?,?,?) ON DUPLICATE KEY UPDATE LeafValueHash=LeafValueHash`
 const insertUnsequencedLeafSQLNoDuplicates string = `INSERT INTO LeafData(TreeId,LeafValueHash,LeafValue)
