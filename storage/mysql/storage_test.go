@@ -603,7 +603,7 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 		ensureAllLeafHashesDistinct(dequeue1, t)
 
 		// Ensure this is the second batch queued by comparing leaf data.
-		if !leafInRange(dequeue1[0], batchSize, batchSize + batchSize - 1) || !leafInRange(dequeue1[1], batchSize, batchSize + batchSize - 1) {
+		if !leafInRange(dequeue1[0], batchSize, batchSize+batchSize-1) || !leafInRange(dequeue1[1], batchSize, batchSize+batchSize-1) {
 			t.Fatalf("Got leaf from wrong batch (1st dequeue): (%s %s)", string(dequeue1[0].LeafValue), string(dequeue1[1].LeafValue))
 		}
 
@@ -625,7 +625,7 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 		ensureAllLeafHashesDistinct(dequeue2, t)
 
 		// Ensure this is the first batch by comparing leaf data.
-		if !leafInRange(dequeue2[0], 0, batchSize - 1) || !leafInRange(dequeue2[1], 0, batchSize - 1) {
+		if !leafInRange(dequeue2[0], 0, batchSize-1) || !leafInRange(dequeue2[1], 0, batchSize-1) {
 			t.Fatalf("Got leaf from wrong batch (2nd dequeue): (%s %s)", string(dequeue2[0].LeafValue), string(dequeue2[1].LeafValue))
 		}
 
@@ -1463,7 +1463,7 @@ func createTestLeaves(n, startSeq int64) []trillian.LogLeaf {
 	hasher := crypto.NewSHA256()
 
 	for l := int64(0); l < n; l++ {
-		lv := fmt.Sprintf("Leaf %d", l + startSeq)
+		lv := fmt.Sprintf("Leaf %d", l+startSeq)
 		leaf := trillian.LogLeaf{
 			LeafValueHash:  hasher.Digest([]byte(lv)),
 			MerkleLeafHash: hasher.Digest([]byte(lv)),
