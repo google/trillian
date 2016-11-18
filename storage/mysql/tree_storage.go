@@ -370,34 +370,16 @@ func (t *treeTX) GetTreeRevisionAtSize(treeSize int64) (int64, error) {
 	return treeRevision, err
 }
 
+// getSubtreesAtRev returns a GetSubtreesFunc which reads at the passed in rev.
+func (t *treeTX) getSubtreesAtRev(rev int64) cache.GetSubtreesFunc {
+	return func(ids []storage.NodeID) ([]*storagepb.SubtreeProto, error) {
+		return t.getSubtrees(rev, ids)
+	}
+}
+
+// GetMerkleNodes returns the requests nodes at (or below) the passed in treeRevision.
 func (t *treeTX) GetMerkleNodes(treeRevision int64, nodeIDs []storage.NodeID) ([]storage.Node, error) {
-	err := t.subtreeCache.Preload(nodeIDs, func(ids []storage.NodeID) ([]*storagepb.SubtreeProto, error) {
-		return t.getSubtrees(treeRevision, ids)
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	ret := make([]storage.Node, 0, len(nodeIDs))
-
-	for _, nodeID := range nodeIDs {
-		h, err := t.subtreeCache.GetNodeHash(
-			nodeID,
-			func(n storage.NodeID) (*storagepb.SubtreeProto, error) {
-				return t.getSubtree(treeRevision, n)
-			})
-		if err != nil {
-			return nil, err
-		}
-		if h != nil {
-			ret = append(ret, storage.Node{
-				NodeID: nodeID,
-				Hash:   h,
-			})
-		}
-	}
-
-	return ret, nil
+	return t.subtreeCache.GetNodes(nodeIDs, t.getSubtreesAtRev(treeRevision))
 }
 
 func (t *treeTX) SetMerkleNodes(nodes []storage.Node) error {

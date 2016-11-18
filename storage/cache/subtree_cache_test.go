@@ -94,6 +94,55 @@ func TestCacheFillOnlyReadsSubtrees(t *testing.T) {
 	}
 }
 
+func TestCacheGetNodesReadsSubtrees(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	m := NewMockNodeStorage(mockCtrl)
+	c := NewSubtreeCache(defaultLogStrata, PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher(crypto.NewSHA256())))
+
+	nodeIDs := []storage.NodeID{
+		storage.NewNodeIDFromHash([]byte("1234")),
+		storage.NewNodeIDFromHash([]byte("4567")),
+		storage.NewNodeIDFromHash([]byte("89ab")),
+	}
+
+	// Set up the expected reads:
+	// We expect one subtree read per entry in nodeIDs
+	for _, nodeID := range nodeIDs {
+		nodeID := nodeID
+		// And it'll be for the prefix of the full node ID (with the default log
+		// strata that'll be everything except the last byte), so modify the prefix
+		// length here accoringly:
+		nodeID.PrefixLenBits -= 8
+		m.EXPECT().GetSubtree(testonly.NodeIDEq(nodeID)).Return(&storagepb.SubtreeProto{
+			Prefix: nodeID.Path[:len(nodeID.Path)-1],
+		}, nil)
+	}
+
+	// Now request the nodes:
+	_, err := c.GetNodes(
+		nodeIDs,
+		// Glue function to convert a call requesting multiple subtrees into a
+		// sequence of calls to our mock storage:
+		func(ids []storage.NodeID) ([]*storagepb.SubtreeProto, error) {
+			ret := make([]*storagepb.SubtreeProto, 0)
+			for _, i := range ids {
+				r, err := m.GetSubtree(i)
+				if err != nil {
+					return nil, err
+				}
+				if r != nil {
+					ret = append(ret, r)
+				}
+			}
+			return ret, nil
+		})
+	if err != nil {
+		t.Errorf("GetNodeHash(_, _) = _, %v", err)
+	}
+}
+
 func noFetch(id storage.NodeID) (*storagepb.SubtreeProto, error) {
 	return nil, errors.New("not supposed to read anything")
 }
