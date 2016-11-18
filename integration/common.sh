@@ -44,3 +44,10 @@ function createMap() {
   mysql ${TESTDBOPTS} -e "INSERT INTO Trees VALUES (${TREE_ID}, 1, 'MAP', 'SHA256', 'SHA256', false)"
 }
 
+# Wait for a server to become ready
+function waitForServerStartup() {
+  PORT=$1
+  wget -q --spider --retry-connrefused --waitretry=1 -t ${STARTUP_WAIT_SECONDS} localhost:${PORT}
+  # Wait a bit more to give it a chance to become actually available e.g. if Travis is slow
+  sleep 2
+}

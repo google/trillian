@@ -19,7 +19,7 @@ popd > /dev/null
 
 # Set an exit trap to ensure we kill the RPC server once we're done.
 trap "kill -INT ${RPC_SERVER_PID}" EXIT
-sleep ${STARTUP_WAIT_SECONDS}
+waitForServerStartup ${RPC_PORT}
 
 # Run the test(s):
 cd ${INTEGRATION_DIR}
