@@ -483,7 +483,7 @@ func TestAddChain(t *testing.T) {
 	if got, want := resp.Timestamp, uint64(1469185273000000); got != want {
 		t.Fatalf("Got timestamp %d, expected %d", got, want)
 	}
-	if got, want := resp.Signature, "BAEABnNpZ25lZA=="; got != want {
+	if got, want := resp.Signature, "BAMABnNpZ25lZA=="; got != want {
 		t.Fatalf("Got signature %s, expected %s", got, want)
 	}
 }
@@ -655,7 +655,7 @@ func TestAddPrecertChain(t *testing.T) {
 	if got, want := resp.Timestamp, uint64(1469185273000000); got != want {
 		t.Fatalf("Got timestamp %d, expected %d", got, want)
 	}
-	if got, want := resp.Signature, "BAEABnNpZ25lZA=="; got != want {
+	if got, want := resp.Signature, "BAMABnNpZ25lZA=="; got != want {
 		t.Fatalf("Got signature %s, expected %s", got, want)
 	}
 }
