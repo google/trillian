@@ -698,9 +698,9 @@ func buildLogLeafForAddChain(c LogContext, merkleLeaf ct.MerkleTreeLeaf, chain [
 	leafHash := sha256.Sum256(leafData)
 
 	return trillian.LogLeaf{
-		MerkleLeafHash: leafHash[:],
-		LeafValue:      leafData,
-		ExtraData:      entryData,
+		LeafValueHash: leafHash[:],
+		LeafValue:     leafData,
+		ExtraData:     entryData,
 	}, nil
 }
 
