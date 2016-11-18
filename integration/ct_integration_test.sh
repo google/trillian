@@ -8,8 +8,8 @@ RPC_PORT=36962
 CT_PORT=6962
 
 echo "Provisioning test log (Tree ID: $TEST_TREE_ID) in database"
-wipeLog ${TEST_TREE_ID}
-createLog ${TEST_TREE_ID}
+${SCRIPTS_DIR}/wipelog.sh ${TEST_TREE_ID}
+${SCRIPTS_DIR}/createlog.sh ${TEST_TREE_ID}
 
 echo "Starting Log RPC server on port ${RPC_PORT}"
 pushd ${TRILLIAN_ROOT} > /dev/null

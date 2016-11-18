@@ -7,8 +7,8 @@ TEST_TREE_ID=123
 RPC_PORT=34556
 
 echo "Provisioning test map (Tree ID: $TEST_TREE_ID) in database"
-wipeMap ${TEST_TREE_ID}
-createMap ${TEST_TREE_ID}
+${SCRIPTS_DIR}/wipemap.sh ${TEST_TREE_ID}
+${SCRIPTS_DIR}/createmap.sh ${TEST_TREE_ID}
 
 echo "Starting Map RPC server on port ${RPC_PORT}"
 pushd ${TRILLIAN_ROOT} > /dev/null
