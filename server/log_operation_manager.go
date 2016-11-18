@@ -131,7 +131,7 @@ func (l LogOperationManager) OperationLoop() {
 
 		quit := l.getLogsAndExecutePass()
 
-		glog.Infof("Log operation manager pass complete")
+		glog.V(1).Infof("Log operation manager pass complete")
 
 		// We might want to bail out early when testing
 		if quit || l.context.oneShot {

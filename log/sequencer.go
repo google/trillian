@@ -198,7 +198,7 @@ func (s Sequencer) SequenceBatch(ctx context.Context, limit int, expiryFunc Curr
 		if expiryFunc(currentRoot) {
 			// Current root is too old, sign one. Will use a new TX, safe as we have no writes
 			// pending in this one.
-			glog.Infof("%s: Current root is too old, create new STH", util.LogIDPrefix(ctx))
+			glog.V(2).Infof("%s: Current root is too old, create new STH", util.LogIDPrefix(ctx))
 			return 0, s.SignRoot(ctx)
 		}
 		return 0, nil
@@ -354,7 +354,7 @@ func (s Sequencer) SignRoot(ctx context.Context) error {
 		tx.Rollback()
 		return err
 	}
-	glog.Infof("%s: new signed root, size %d, tree-revision %d", util.LogIDPrefix(ctx), newLogRoot.TreeSize, newLogRoot.TreeRevision)
+	glog.V(2).Infof("%s: new signed root, size %d, tree-revision %d", util.LogIDPrefix(ctx), newLogRoot.TreeSize, newLogRoot.TreeRevision)
 
 	return tx.Commit()
 }
