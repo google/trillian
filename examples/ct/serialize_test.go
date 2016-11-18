@@ -47,7 +47,7 @@ func TestSignV1SCTForCertificate(t *testing.T) {
 		Signature: ct.DigitallySigned{
 			Algorithm: tls.SignatureAndHashAlgorithm{
 				Hash:      tls.SHA256,
-				Signature: tls.RSA},
+				Signature: tls.ECDSA},
 			Signature: []byte("signed"),
 		},
 	}
@@ -109,7 +109,7 @@ func TestSignV1SCTForPrecertificate(t *testing.T) {
 		Signature: ct.DigitallySigned{
 			Algorithm: tls.SignatureAndHashAlgorithm{
 				Hash:      tls.SHA256,
-				Signature: tls.RSA},
+				Signature: tls.ECDSA},
 			Signature: []byte("signed")}}
 
 	if !reflect.DeepEqual(got, expected) {

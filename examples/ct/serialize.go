@@ -108,9 +108,12 @@ func signSCT(km crypto.KeyManager, t time.Time, sctData []byte) (ct.SignedCertif
 
 	digitallySigned := ct.DigitallySigned{
 		Algorithm: tls.SignatureAndHashAlgorithm{
-			Hash:      tls.SHA256,
-			Signature: tls.RSA},
-		Signature: signature.Signature}
+			Hash: tls.SHA256,
+			// This relies on the protobuf enum values matching the TLS-defined values.
+			Signature: tls.SignatureAlgorithm(km.SignatureAlgorithm()),
+		},
+		Signature: signature.Signature,
+	}
 
 	logID, err := GetCTLogID(km)
 	if err != nil {
@@ -122,7 +125,8 @@ func signSCT(km crypto.KeyManager, t time.Time, sctData []byte) (ct.SignedCertif
 		LogID:      ct.LogID{KeyID: logID},
 		Timestamp:  uint64(t.UnixNano() / millisPerNano), // spec uses millisecond timestamps
 		Extensions: ct.CTExtensions{},
-		Signature:  digitallySigned}, nil
+		Signature:  digitallySigned,
+	}, nil
 }
 
 func getSCTForSignatureInput(t time.Time) ct.SignedCertificateTimestamp {
