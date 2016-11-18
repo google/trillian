@@ -28,6 +28,7 @@ var checkLogEmptyFlag = flag.Bool("check_log_empty", true, "If true ensures log 
 var startLeafFlag = flag.Int64("start_leaf", 0, "The first leaf index to use")
 var numLeavesFlag = flag.Int64("num_leaves", 1000, "The number of leaves to submit and read back")
 var queueBatchSizeFlag = flag.Int("queue_batch_size", 50, "Batch size when queueing leaves")
+var sequencerBatchSizeFlag = flag.Int("sequencing_batch_size", 100, "Batch size for server sequencer")
 var readBatchSizeFlag = flag.Int64("read_batch_size", 50, "Batch size when getting leaves by index")
 var waitForSequencingFlag = flag.Duration("wait_for_sequencing", time.Second*60, "How long to wait for leaves to be sequenced")
 var waitBetweenQueueChecksFlag = flag.Duration("queue_poll_wait", time.Second*5, "How frequently to check the queue while waiting")
@@ -38,17 +39,28 @@ type testParameters struct {
 	startLeaf           int64
 	leafCount           int64
 	queueBatchSize      int
+	sequencerBatchSize  int
 	readBatchSize       int64
 	sequencingWaitTotal time.Duration
 	sequencingPollWait  time.Duration
 }
+
+// inclusionProofTestIndices are the 0 based leaf indices to probe inclusion proofs at.
+var inclusionProofTestIndices = []int64{5, 27, 31, 80, 91}
 
 func TestLogIntegration(t *testing.T) {
 	flag.Parse()
 
 	// Step 0 - Initialize and connect to log server
 	treeID := tools.GetLogIDFromFlagsOrDie()
-	params := testParameters{startLeaf: *startLeafFlag, leafCount: *numLeavesFlag, queueBatchSize: *queueBatchSizeFlag, readBatchSize: *readBatchSizeFlag, sequencingWaitTotal: *waitForSequencingFlag, sequencingPollWait: *waitBetweenQueueChecksFlag}
+	params := testParameters{
+		startLeaf: *startLeafFlag,
+		leafCount: *numLeavesFlag,
+		queueBatchSize: *queueBatchSizeFlag,
+		sequencerBatchSize: *sequencerBatchSizeFlag,
+		readBatchSize: *readBatchSizeFlag,
+		sequencingWaitTotal: *waitForSequencingFlag,
+		sequencingPollWait: *waitBetweenQueueChecksFlag}
 
 	if params.startLeaf < 0 || params.leafCount <= 0 {
 		t.Fatalf("Start leaf index must be >= 0 (%d) and number of leaves must be > 0 (%d)", params.startLeaf, params.leafCount)
@@ -105,8 +117,20 @@ func TestLogIntegration(t *testing.T) {
 	// Step 4 - Cross validation between log and memory tree root hashes
 	glog.Infof("Checking log STH with our constructed in-memory tree ...")
 	tree := buildMemoryMerkleTree(leafMap, params)
-	if err := checkLogRootHashMatches(treeID, tree, client, params); err != nil {
+	if err := checkLogRootHashMatches(treeID, tree, client); err != nil {
 		t.Fatalf("Log consistency check failed: %v", err)
+	}
+
+	// Now that the basic tree has passed validation we can start testing proofs
+
+	// Step 5 - Test some inclusion proofs
+	glog.Info("Testing inclusion proofs")
+
+	// Probe the log at several leaf indices each with a range of tree sizes
+	for _, testIndex := range inclusionProofTestIndices {
+		if err := checkInclusionProofsAtIndex(testIndex, treeID, tree, client, params); err != nil {
+			t.Fatalf("Log inclusion index: %d proof checks failed: %v", testIndex, err)
+		}
 	}
 }
 
@@ -130,9 +154,9 @@ func queueLeaves(treeID int64, client trillian.TrillianLogClient, params testPar
 			glog.Infof("Queueing %d leaves ...", len(leaves))
 
 			req := makeQueueLeavesRequest(treeID, leaves)
-			ctx, cancelFunc := getRPCDeadlineContext()
+			ctx, cancel := getRPCDeadlineContext()
 			response, err := client.QueueLeaves(ctx, &req)
-			cancelFunc()
+			cancel()
 
 			if err != nil {
 				return err
@@ -156,9 +180,9 @@ func waitForSequencing(treeID int64, client trillian.TrillianLogClient, params t
 
 	for endTime.After(time.Now()) {
 		req := trillian.GetSequencedLeafCountRequest{LogId: treeID}
-		ctx, cancelFunc := getRPCDeadlineContext()
+		ctx, cancel := getRPCDeadlineContext()
 		sequencedLeaves, err := client.GetSequencedLeafCount(ctx, &req)
-		cancelFunc()
+		cancel()
 
 		if err != nil {
 			return err
@@ -200,11 +224,11 @@ func readbackLogEntries(logID int64, client trillian.TrillianLogClient, params t
 			numLeaves = params.readBatchSize
 		}
 
-		glog.Infof("Reading %d leaves from %d ...", numLeaves, currentLeaf+params.startLeaf)
-		req := makeGetLeavesByIndexRequest(logID, currentLeaf+params.startLeaf, numLeaves)
-		ctx, cancelFunc := getRPCDeadlineContext()
+		glog.Infof("Reading %d leaves from %d ...", numLeaves, currentLeaf + params.startLeaf)
+		req := makeGetLeavesByIndexRequest(logID, currentLeaf + params.startLeaf, numLeaves)
+		ctx, cancel := getRPCDeadlineContext()
 		response, err := client.GetLeavesByIndex(ctx, req)
-		cancelFunc()
+		cancel()
 
 		if err != nil {
 			return nil, err
@@ -258,7 +282,7 @@ func readbackLogEntries(logID int64, client trillian.TrillianLogClient, params t
 	return leafMap, nil
 }
 
-func checkLogRootHashMatches(logID int64, tree *merkle.InMemoryMerkleTree, client trillian.TrillianLogClient, params testParameters) error {
+func checkLogRootHashMatches(logID int64, tree *merkle.InMemoryMerkleTree, client trillian.TrillianLogClient) error {
 	// Check the STH against the hash we got from our tree
 	resp, err := getLatestSignedLogRoot(client, logID)
 
@@ -269,6 +293,57 @@ func checkLogRootHashMatches(logID int64, tree *merkle.InMemoryMerkleTree, clien
 	// Hash must not be empty and must match the one we built ourselves
 	if got, want := base64.StdEncoding.EncodeToString(resp.SignedLogRoot.RootHash), base64.StdEncoding.EncodeToString(tree.CurrentRoot().Hash()); got != want {
 		return fmt.Errorf("root hash mismatch expected got: %s want: %s", got, want)
+	}
+
+	return nil
+}
+
+// checkInclusionProofsAtIndex obtains and checks proofs at tree sizes from zero up to 2 x the sequencing
+// batch size (or number of leaves queued if less). The log should only serve proofs for indices in a tree
+// at least as big as the index where STHs where the index is a multiple of the sequencer batch size. All
+// proofs returned should match ones computed by the alternate Merkle Tree implementation, which differs
+// from what the log uses.
+func checkInclusionProofsAtIndex(index int64, logID int64, tree *merkle.InMemoryMerkleTree, client trillian.TrillianLogClient, params testParameters) error {
+	for treeSize := int64(0); treeSize < min(params.leafCount, int64(2 * params.sequencerBatchSize)); treeSize++ {
+		ctx, cancel := getRPCDeadlineContext()
+		resp, err := client.GetInclusionProof(ctx, &trillian.GetInclusionProofRequest{LogId: logID, LeafIndex:index, TreeSize:int64(treeSize)})
+		cancel()
+
+		if index >= treeSize {
+			// If the index is larger than the tree size we cannot have a valid proof
+			if err == nil {
+				return fmt.Errorf("log returned proof for index: %d, tree is only size %d", index, treeSize)
+			}
+
+			continue
+		}
+
+		// If we're not at a valid STH tree size then we can't have a proof
+		if treeSize == 0 || (treeSize % int64(params.sequencerBatchSize)) != 0 {
+			if err == nil {
+				return fmt.Errorf("log returned proof at non STH size: %d", treeSize)
+			}
+		} else {
+			// Otherwise we should have a proof, to be compared against our memory tree
+			if err != nil || resp.Status.StatusCode != trillian.TrillianApiStatusCode_OK {
+				return fmt.Errorf("log returned no proof for index %d at size %d, which should have succeeded: %v", index, treeSize, err)
+			}
+
+			// Remember that the in memory tree uses 1 based leaf indices
+			path := tree.PathToRootAtSnapshot(int(index + 1), int(treeSize))
+
+			// Compare the proof lengths
+			if got, want := len(resp.Proof.GetProofNode()), len(path); got != want {
+				return fmt.Errorf("proof s:%d l:%d differs in length: got: %d want: %d", treeSize, index, got, want)
+			}
+
+			// Then the node hashes should all match
+			for i := 0; i < len(path); i++ {
+				if got, want := base64.StdEncoding.EncodeToString(resp.Proof.GetProofNode()[i].NodeHash), base64.StdEncoding.EncodeToString(path[i].Value.Hash()); got != want {
+					return fmt.Errorf("proof mismatch s:%d l:%d i:%d got: %v want: %v", treeSize, treeSize, i, got, want)
+				}
+			}
+		}
 	}
 
 	return nil
@@ -318,9 +393,9 @@ func buildMemoryMerkleTree(leafMap map[int64]*trillian.LogLeaf, params testParam
 
 func getLatestSignedLogRoot(client trillian.TrillianLogClient, logID int64) (*trillian.GetLatestSignedLogRootResponse, error) {
 	req := trillian.GetLatestSignedLogRootRequest{LogId: logID}
-	ctx, cancelFunc := getRPCDeadlineContext()
+	ctx, cancel := getRPCDeadlineContext()
 	resp, err := client.GetLatestSignedLogRoot(ctx, &req)
-	cancelFunc()
+	cancel()
 
 	return resp, err
 }
@@ -328,4 +403,12 @@ func getLatestSignedLogRoot(client trillian.TrillianLogClient, logID int64) (*tr
 // getRPCDeadlineTime calculates the future time an RPC should expire based on our config
 func getRPCDeadlineContext() (context.Context, context.CancelFunc) {
 	return context.WithDeadline(context.Background(), time.Now().Add(*rpcRequestDeadlineFlag))
+}
+
+func min(a, b int64) int64 {
+	if a < b {
+		return a
+	}
+
+	return b
 }
