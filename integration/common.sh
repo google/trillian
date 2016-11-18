@@ -2,6 +2,7 @@ export INTEGRATION_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export TRILLIAN_ROOT=${INTEGRATION_DIR}/..
 export TESTDATA=${TRILLIAN_ROOT}/testdata
 export TESTDBOPTS="-u test --password=zaphod -D test"
+export STARTUP_WAIT_SECONDS=10
 
 function runTest() {
   echo "=== RUN   ${2}"

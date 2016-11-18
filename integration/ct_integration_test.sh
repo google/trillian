@@ -20,7 +20,7 @@ popd > /dev/null
 
 # Set an exit trap to ensure we kill the RPC server once we're done.
 trap "kill -INT ${RPC_SERVER_PID}" EXIT
-sleep 2
+sleep ${STARTUP_WAIT_SECONDS}
 
 echo "Starting CT HTTP server on port ${CT_PORT}"
 pushd ${TRILLIAN_ROOT} > /dev/null
