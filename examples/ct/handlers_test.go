@@ -1564,7 +1564,7 @@ func logLeavesForCert(t *testing.T, km crypto.KeyManager, certs []*x509.Certific
 		t.Fatalf("failed to serialize log entry: %v", err)
 	}
 
-	return []*trillian.LogLeaf{{MerkleLeafHash: leafHash[:], LeafValue: leafData, ExtraData: entryData}}
+	return []*trillian.LogLeaf{{LeafValueHash: leafHash[:], LeafValue: leafData, ExtraData: entryData}}
 }
 
 type dlMatcher struct {
