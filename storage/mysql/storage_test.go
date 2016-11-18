@@ -600,7 +600,7 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 			t.Fatalf("Dequeue count mismatch (1st) got: %d, want: %d", got, want)
 		}
 
-		ensureAllLeafHashesDistinct(dequeue1, t)
+		ensureAllLeavesDistinct(dequeue1, t)
 
 		// Ensure this is the second batch queued by comparing leaf data.
 		if !leafInRange(dequeue1[0], batchSize, batchSize+batchSize-1) || !leafInRange(dequeue1[1], batchSize, batchSize+batchSize-1) {
@@ -622,7 +622,7 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 			t.Fatalf("Dequeue count mismatch (2nd) got: %d, want: %d", got, want)
 		}
 
-		ensureAllLeafHashesDistinct(dequeue2, t)
+		ensureAllLeavesDistinct(dequeue2, t)
 
 		// Ensure this is the first batch by comparing leaf data.
 		if !leafInRange(dequeue2[0], 0, batchSize-1) || !leafInRange(dequeue2[1], 0, batchSize-1) {
