@@ -5,10 +5,11 @@ package integration
 import (
 	"bytes"
 	"crypto/sha256"
-	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"flag"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -45,8 +46,25 @@ type testParameters struct {
 	sequencingPollWait  time.Duration
 }
 
+// both sizes will be multiplied by the sequencer batch size before being passed to the log
+// in cases where we're testing valid proofs
+// TODO(Martin2112): This can be updated when the log supports proofs at arbitrary tree sizes
+type consistencyProofParams struct {
+	size1 int64
+	size2 int64
+}
+
 // inclusionProofTestIndices are the 0 based leaf indices to probe inclusion proofs at.
 var inclusionProofTestIndices = []int64{5, 27, 31, 80, 91}
+
+// consistencyProofTestParams are the intervals
+// to test proofs at
+var consistencyProofTestParams = []consistencyProofParams{{1, 2}, {2, 3}, {1, 3}, {2, 4}}
+
+// consistencyProofBadTestParams are the intervals to probe for consistency proofs, none of
+// these should succeed. Zero is not a valid tree size, nor is -1. 10000000 is outside the
+// range we'll reasonably queue (multiple of batch size).
+var consistencyProofBadTestParams = []consistencyProofParams{{0, 0}, {-1, 0}, {10000000, 10000000}}
 
 func TestLogIntegration(t *testing.T) {
 	flag.Parse()
@@ -140,7 +158,24 @@ func TestLogIntegration(t *testing.T) {
 	// Probe the log at several leaf indices each with a range of tree sizes
 	for _, testIndex := range inclusionProofTestIndices {
 		if err := checkInclusionProofsAtIndex(testIndex, treeID, tree, client, params); err != nil {
-			t.Fatalf("Log inclusion index: %d proof checks failed: %v", testIndex, err)
+			t.Errorf("Log inclusion index: %d proof checks failed: %v", testIndex, err)
+		}
+	}
+
+	// Step 6 - Test some consistency proofs
+
+	// Make some proof requests that we know should not succeed
+	for _, consistParams := range consistencyProofBadTestParams {
+		if err := checkConsistencyProof(consistParams, treeID, tree, client, params); err == nil {
+			t.Errorf("Log consistency for %v: unexpected proof returned", consistParams)
+		}
+	}
+
+	// Probe the log between some tree sizes we know are STHs and check the results against
+	// the in memory tree.
+	for _, consistParams := range consistencyProofTestParams {
+		if err := checkConsistencyProof(consistParams, treeID, tree, client, params); err != nil {
+			t.Fatalf("Log consistency for %v: proof checks failed: %v", consistParams, err)
 		}
 	}
 }
@@ -277,7 +312,7 @@ func readbackLogEntries(logID int64, client trillian.TrillianLogClient, params t
 
 			hash := hasher.HashLeaf(response.Leaves[l].LeafValue)
 
-			if got, want := base64.StdEncoding.EncodeToString(hash), base64.StdEncoding.EncodeToString(leaf.MerkleLeafHash); got != want {
+			if got, want := hex.EncodeToString(hash), hex.EncodeToString(leaf.MerkleLeafHash); got != want {
 				return nil, fmt.Errorf("leaf hash mismatch expected got: %s want: %s", got, want)
 			}
 		}
@@ -302,7 +337,7 @@ func checkLogRootHashMatches(logID int64, tree *merkle.InMemoryMerkleTree, clien
 	}
 
 	// Hash must not be empty and must match the one we built ourselves
-	if got, want := base64.StdEncoding.EncodeToString(resp.SignedLogRoot.RootHash), base64.StdEncoding.EncodeToString(tree.CurrentRoot().Hash()); got != want {
+	if got, want := hex.EncodeToString(resp.SignedLogRoot.RootHash), hex.EncodeToString(tree.CurrentRoot().Hash()); got != want {
 		return fmt.Errorf("root hash mismatch expected got: %s want: %s", got, want)
 	}
 
@@ -314,11 +349,11 @@ func checkLogRootHashMatches(logID int64, tree *merkle.InMemoryMerkleTree, clien
 func checkInclusionProofLeafOutOfRange(logID int64, client trillian.TrillianLogClient, params testParameters) error {
 	// Test is a leaf index bigger than the current tree size
 	ctx, cancel := getRPCDeadlineContext()
-	proof, err := client.GetInclusionProof(ctx, &trillian.GetInclusionProofRequest{LogId: logID, LeafIndex:params.leafCount + 1, TreeSize:int64(params.leafCount)})
+	proof, err := client.GetInclusionProof(ctx, &trillian.GetInclusionProofRequest{LogId: logID, LeafIndex: params.leafCount + 1, TreeSize: int64(params.leafCount)})
 	cancel()
 
 	if err == nil {
-		return fmt.Errorf("log returned proof for leaf index outside tree: %d v %d: %v", params.leafCount + 1, params.leafCount, proof)
+		return fmt.Errorf("log returned proof for leaf index outside tree: %d v %d: %v", params.leafCount+1, params.leafCount, proof)
 	}
 
 	return nil
@@ -329,11 +364,11 @@ func checkInclusionProofLeafOutOfRange(logID int64, client trillian.TrillianLogC
 func checkInclusionProofTreeSizeOutOfRange(logID int64, client trillian.TrillianLogClient, params testParameters) error {
 	// Test is an in range leaf index for a tree size that doesn't exist
 	ctx, cancel := getRPCDeadlineContext()
-	proof, err := client.GetInclusionProof(ctx, &trillian.GetInclusionProofRequest{LogId: logID, LeafIndex:int64(params.sequencerBatchSize), TreeSize: params.leafCount + int64(params.sequencerBatchSize)})
+	proof, err := client.GetInclusionProof(ctx, &trillian.GetInclusionProofRequest{LogId: logID, LeafIndex: int64(params.sequencerBatchSize), TreeSize: params.leafCount + int64(params.sequencerBatchSize)})
 	cancel()
 
 	if err == nil {
-		return fmt.Errorf("log returned proof for tree size outside tree: %d v %d: %v", params.sequencerBatchSize, params.leafCount + int64(params.sequencerBatchSize), proof)
+		return fmt.Errorf("log returned proof for tree size outside tree: %d v %d: %v", params.sequencerBatchSize, params.leafCount+int64(params.sequencerBatchSize), proof)
 	}
 	return nil
 }
@@ -372,21 +407,36 @@ func checkInclusionProofsAtIndex(index int64, logID int64, tree *merkle.InMemory
 			// Remember that the in memory tree uses 1 based leaf indices
 			path := tree.PathToRootAtSnapshot(int(index+1), int(treeSize))
 
-			// Compare the proof lengths
-			if got, want := len(resp.Proof.GetProofNode()), len(path); got != want {
-				return fmt.Errorf("proof s:%d l:%d differs in length: got: %d want: %d", treeSize, index, got, want)
-			}
-
-			// Then the node hashes should all match
-			for i := 0; i < len(path); i++ {
-				if got, want := base64.StdEncoding.EncodeToString(resp.Proof.GetProofNode()[i].NodeHash), base64.StdEncoding.EncodeToString(path[i].Value.Hash()); got != want {
-					return fmt.Errorf("proof mismatch s:%d l:%d i:%d got: %v want: %v", treeSize, treeSize, i, got, want)
-				}
+			if err = compareLogAndTreeProof(resp.Proof, path); err != nil {
+				// The log and tree proof don't match, details in the error
+				return err
 			}
 		}
 	}
 
 	return nil
+}
+
+func checkConsistencyProof(consistParams consistencyProofParams, treeID int64, tree *merkle.InMemoryMerkleTree, client trillian.TrillianLogClient, params testParameters) error {
+	// We expect the proof request to succeed
+	ctx, cancel := getRPCDeadlineContext()
+	resp, err := client.GetConsistencyProof(ctx,
+		&trillian.GetConsistencyProofRequest{
+			LogId: treeID,
+			FirstTreeSize:  consistParams.size1 * int64(params.sequencerBatchSize),
+			SecondTreeSize: (consistParams.size2 * int64(params.sequencerBatchSize)),
+		})
+	cancel()
+
+	if err != nil || resp.Status.StatusCode != trillian.TrillianApiStatusCode_OK {
+		return fmt.Errorf("GetConsistencyProof(%v) = %v %v", consistParams, err, resp)
+	}
+
+	// Get the proof from the memory tree
+	proof := tree.SnapshotConsistency((int(consistParams.size1) * params.sequencerBatchSize), (int(consistParams.size2) * params.sequencerBatchSize))
+
+	// Compare the proofs, they should be identical
+	return compareLogAndTreeProof(resp.Proof, proof)
 }
 
 func makeQueueLeavesRequest(logID int64, leaves []trillian.LogLeaf) trillian.QueueLeavesRequest {
@@ -411,7 +461,7 @@ func makeGetLeavesByIndexRequest(logID int64, startLeaf, numLeaves int64) *trill
 }
 
 func buildMemoryMerkleTree(leafMap map[int64]*trillian.LogLeaf, params testParameters) *merkle.InMemoryMerkleTree {
-	// Build the same tree with two different merkle implementations as an additional check. We don't
+	// Build the same tree with two different Merkle implementations as an additional check. We don't
 	// just rely on the compact tree as the server uses the same code so bugs could be masked
 	compactTree := merkle.NewCompactMerkleTree(merkle.NewRFC6962TreeHasher(crypto.NewSHA256()))
 	merkleTree := merkle.NewInMemoryMerkleTree(merkle.NewRFC6962TreeHasher(crypto.NewSHA256()))
@@ -451,4 +501,44 @@ func min(a, b int64) int64 {
 	}
 
 	return b
+}
+
+// compareLogAndTreeProof compares a proof received from the log against one generated by
+// an in memory Merkle tree. It ensures the proofs contain an identical list of node hashes.
+func compareLogAndTreeProof(logProof *trillian.Proof, treeProof []merkle.TreeEntryDescriptor) error {
+	// Compare the proof lengths
+	if got, want := len(logProof.GetProofNode()), len(treeProof); got != want {
+		return fmt.Errorf("proof differs in length: got: %d want: %d (%s %s)", got, want, formatLogProof(logProof), formatTreeProof(treeProof))
+	}
+
+	// Then the node hashes should all match
+	for i := 0; i < len(treeProof); i++ {
+		if got, want := hex.EncodeToString(logProof.GetProofNode()[i].NodeHash), hex.EncodeToString(treeProof[i].Value.Hash()); got != want {
+			return fmt.Errorf("proof mismatch i:%d got: %v want: %v (%s %s)", i, got, want, formatLogProof(logProof), formatTreeProof(treeProof))
+		}
+	}
+
+	return nil
+}
+
+// formatLogProof makes a printable string from a Proof proto
+func formatLogProof(proof *trillian.Proof) string {
+	hashes := []string{}
+
+	for _, node := range proof.ProofNode {
+		hashes = append(hashes, hex.EncodeToString(node.NodeHash))
+	}
+
+	return fmt.Sprintf("{ %s }", strings.Join(hashes, ","))
+}
+
+// formatTreeProof makes a printable string from a Merkle tree proof
+func formatTreeProof(proof []merkle.TreeEntryDescriptor) string {
+	hashes := []string{}
+
+	for _, node := range proof {
+		hashes = append(hashes, hex.EncodeToString(node.Value.Hash()))
+	}
+
+	return fmt.Sprintf("{ %s }", strings.Join(hashes, ","))
 }
