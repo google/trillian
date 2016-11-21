@@ -20,7 +20,7 @@ popd > /dev/null
 
 # Set an exit trap to ensure we kill the RPC server once we're done.
 trap "kill -INT ${RPC_SERVER_PID}" EXIT
-sleep 2
+waitForServerStartup ${RPC_PORT}
 
 echo "Starting CT HTTP server on port ${CT_PORT}"
 pushd ${TRILLIAN_ROOT} > /dev/null
@@ -32,7 +32,11 @@ popd > /dev/null
 
 # Set an exit trap to ensure we kill the servers once we're done.
 trap "kill -INT ${HTTP_SERVER_PID} ${RPC_SERVER_PID}" EXIT
-sleep 2
+# The server will 404 the request as there's no handler for it. This error doesn't matter
+# as the test will fail if the server is really not up.
+set +e
+waitForServerStartup ${CT_PORT}
+set -e
 
 echo "Running test(s)"
 cd ${INTEGRATION_DIR}

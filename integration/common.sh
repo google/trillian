@@ -2,6 +2,7 @@ export INTEGRATION_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export TRILLIAN_ROOT=${INTEGRATION_DIR}/..
 export TESTDATA=${TRILLIAN_ROOT}/testdata
 export TESTDBOPTS="-u test --password=zaphod -D test"
+export STARTUP_WAIT_SECONDS=10
 
 function runTest() {
   echo "=== RUN   ${2}"
@@ -43,3 +44,10 @@ function createMap() {
   mysql ${TESTDBOPTS} -e "INSERT INTO Trees VALUES (${TREE_ID}, 1, 'MAP', 'SHA256', 'SHA256', false)"
 }
 
+# Wait for a server to become ready
+function waitForServerStartup() {
+  PORT=$1
+  wget -q --spider --retry-connrefused --waitretry=1 -t ${STARTUP_WAIT_SECONDS} localhost:${PORT}
+  # Wait a bit more to give it a chance to become actually available e.g. if Travis is slow
+  sleep 2
+}
