@@ -132,9 +132,9 @@ func (s *SubtreeCache) splitNodeID(id storage.NodeID) ([]byte, Suffix) {
 	return a[:prefixSplit], sfx
 }
 
-// preload calculates the set of subtrees required to cover the passed in node
-// IDs, uses getSubtrees to retrieve them, and finally populates the cache
-// structures with the data.
+// preload calculates the set of subtrees required to know the hashes of the
+// passed in node IDs, uses getSubtrees to retrieve them, and finally populates
+// the cache structures with the data.
 func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -168,8 +168,8 @@ func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc
 	return nil
 }
 
-// GetNodes fetches multiple hashes from storage, and returns them an
-// array of Nodes.
+// GetNodes returns the requested nodes, calling the getSubtrees function if
+// they are not already cached.
 func (s *SubtreeCache) GetNodes(ids []storage.NodeID, getSubtrees GetSubtreesFunc) ([]storage.Node, error) {
 	if err := s.preload(ids, getSubtrees); err != nil {
 		return nil, err
