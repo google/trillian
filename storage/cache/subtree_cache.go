@@ -16,6 +16,9 @@ import (
 // GetSubtreeFunc describes a function which can return a Subtree from storage.
 type GetSubtreeFunc func(id storage.NodeID) (*storagepb.SubtreeProto, error)
 
+// GetSubtreesFunc describes a function which can return a number of Subtrees from storage.
+type GetSubtreesFunc func(ids []storage.NodeID) ([]*storagepb.SubtreeProto, error)
+
 // SetSubtreesFunc describes a function which can store a collection of Subtrees into storage.
 type SetSubtreesFunc func(s []*storagepb.SubtreeProto) error
 
@@ -129,8 +132,10 @@ func (s *SubtreeCache) splitNodeID(id storage.NodeID) ([]byte, Suffix) {
 	return a[:prefixSplit], sfx
 }
 
-// Preload populates the cache based on a specified set of NodeIDs.
-func (s *SubtreeCache) Preload(ids []storage.NodeID, getSubtrees func(id []storage.NodeID) ([]*storagepb.SubtreeProto, error)) error {
+// preload calculates the set of subtrees required to know the hashes of the
+// passed in node IDs, uses getSubtrees to retrieve them, and finally populates
+// the cache structures with the data.
+func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -163,8 +168,45 @@ func (s *SubtreeCache) Preload(ids []storage.NodeID, getSubtrees func(id []stora
 	return nil
 }
 
-// GetNodeHash retrieves the previously written hash and corresponding tree
-// revision for the given node ID.
+// GetNodes returns the requested nodes, calling the getSubtrees function if
+// they are not already cached.
+func (s *SubtreeCache) GetNodes(ids []storage.NodeID, getSubtrees GetSubtreesFunc) ([]storage.Node, error) {
+	if err := s.preload(ids, getSubtrees); err != nil {
+		return nil, err
+	}
+
+	ret := make([]storage.Node, 0, len(ids))
+	for _, id := range ids {
+		h, err := s.GetNodeHash(
+			id,
+			func(n storage.NodeID) (*storagepb.SubtreeProto, error) {
+				// This should never happen - we should've already read all the data we
+				// need above, in Preload()
+				glog.Warning("Unexpectedly reading from within GetNodeHash()")
+				ret, err := getSubtrees([]storage.NodeID{n})
+				if err != nil || len(ret) == 0 {
+					return nil, err
+				}
+				if n := len(ret); n > 1 {
+					return nil, fmt.Errorf("got %d trees, wanted 1", n)
+				}
+				return ret[0], nil
+			})
+		if err != nil {
+			return nil, err
+		}
+
+		if h != nil {
+			ret = append(ret, storage.Node{
+				NodeID: id,
+				Hash:   h,
+			})
+		}
+	}
+	return ret, nil
+}
+
+// GetNodeHash returns a single node hash from the cache.
 func (s *SubtreeCache) GetNodeHash(id storage.NodeID, getSubtree GetSubtreeFunc) ([]byte, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
