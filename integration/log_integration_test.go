@@ -346,11 +346,11 @@ func checkLogRootHashMatches(logID int64, tree *merkle.InMemoryMerkleTree, clien
 func checkInclusionProofLeafOutOfRange(logID int64, client trillian.TrillianLogClient, params testParameters) error {
 	// Test is a leaf index bigger than the current tree size
 	ctx, cancel := getRPCDeadlineContext()
-	proof, err := client.GetInclusionProof(ctx, &trillian.GetInclusionProofRequest{LogId: logID, LeafIndex:params.leafCount + 1, TreeSize:int64(params.leafCount)})
+	proof, err := client.GetInclusionProof(ctx, &trillian.GetInclusionProofRequest{LogId: logID, LeafIndex: params.leafCount + 1, TreeSize: int64(params.leafCount)})
 	cancel()
 
 	if err == nil {
-		return fmt.Errorf("log returned proof for leaf index outside tree: %d v %d: %v", params.leafCount + 1, params.leafCount, proof)
+		return fmt.Errorf("log returned proof for leaf index outside tree: %d v %d: %v", params.leafCount+1, params.leafCount, proof)
 	}
 
 	return nil
@@ -361,11 +361,11 @@ func checkInclusionProofLeafOutOfRange(logID int64, client trillian.TrillianLogC
 func checkInclusionProofTreeSizeOutOfRange(logID int64, client trillian.TrillianLogClient, params testParameters) error {
 	// Test is an in range leaf index for a tree size that doesn't exist
 	ctx, cancel := getRPCDeadlineContext()
-	proof, err := client.GetInclusionProof(ctx, &trillian.GetInclusionProofRequest{LogId: logID, LeafIndex:int64(params.sequencerBatchSize), TreeSize: params.leafCount + int64(params.sequencerBatchSize)})
+	proof, err := client.GetInclusionProof(ctx, &trillian.GetInclusionProofRequest{LogId: logID, LeafIndex: int64(params.sequencerBatchSize), TreeSize: params.leafCount + int64(params.sequencerBatchSize)})
 	cancel()
 
 	if err == nil {
-		return fmt.Errorf("log returned proof for tree size outside tree: %d v %d: %v", params.sequencerBatchSize, params.leafCount + int64(params.sequencerBatchSize), proof)
+		return fmt.Errorf("log returned proof for tree size outside tree: %d v %d: %v", params.sequencerBatchSize, params.leafCount+int64(params.sequencerBatchSize), proof)
 	}
 	return nil
 }
@@ -417,9 +417,9 @@ func checkInclusionProofsAtIndex(index int64, logID int64, tree *merkle.InMemory
 func checkConsistencyProof(consistParams consistencyProofParams, treeID int64, tree *merkle.InMemoryMerkleTree, client trillian.TrillianLogClient, params testParameters) error {
 	// We expect the proof request to succeed
 	ctx, cancel := getRPCDeadlineContext()
-	resp, err := client.GetConsistencyProof(ctx, &trillian.GetConsistencyProofRequest{LogId:treeID,
-		FirstTreeSize:consistParams.firstTreeSize * int64(params.sequencerBatchSize),
-		SecondTreeSize:(consistParams.secondTreeSize * int64(params.sequencerBatchSize))})
+	resp, err := client.GetConsistencyProof(ctx, &trillian.GetConsistencyProofRequest{LogId: treeID,
+		FirstTreeSize:  consistParams.firstTreeSize * int64(params.sequencerBatchSize),
+		SecondTreeSize: (consistParams.secondTreeSize * int64(params.sequencerBatchSize))})
 	cancel()
 
 	if err != nil || resp.Status.StatusCode != trillian.TrillianApiStatusCode_OK {
