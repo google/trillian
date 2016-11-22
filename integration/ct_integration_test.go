@@ -3,6 +3,8 @@
 package integration
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/pem"
 	"flag"
 	"fmt"
@@ -60,29 +62,67 @@ func TestCTIntegration(t *testing.T) {
 	if sth.TreeSize != 0 {
 		t.Errorf("sth.TreeSize=%d; want 0", sth.TreeSize)
 	}
-	when := ctTimestampToTime(sth.Timestamp)
-	fmt.Printf("%v: Got STH(size=%d): roothash=%x\n", when, sth.TreeSize, sth.SHA256RootHash)
-	fmt.Printf("%v\n", signatureToString(&sth.TreeHeadSignature))
+	fmt.Printf("%v: Got STH(size=%d): roothash=%x\n", ctTime(sth.Timestamp), sth.TreeSize, sth.SHA256RootHash)
 
 	// Stage 2: add a single cert (the intermediate CA), get an SCT.
-	certdata, err := ioutil.ReadFile(filepath.Join(*testdata, "int-ca.cert"))
+	chain, err := getChain("int-ca.cert")
 	if err != nil {
-		t.Fatalf("Failed to load certificate: %v", err.Error())
+		t.Fatalf("Failed to load certificate: %v", err)
 	}
-	sct, err := logClient.AddChain(ctx, certsFromPEM(certdata))
+	sct, err := logClient.AddChain(ctx, chain)
 	if err != nil {
-		t.Fatalf("Failed to AddChain(0): %v", err)
+		t.Fatalf("Failed to AddChain(): %v", err)
 	}
 	// Display the SCT
-	when = ctTimestampToTime(sct.Timestamp)
-	fmt.Printf("%v: Uploaded certs to %v log, got SCT:\n", when, sct.SCTVersion)
-	fmt.Printf("%v\n", signatureToString(&sct.Signature))
+	fmt.Printf("%v: Uploaded cert to %v log, got SCT\n", ctTime(sct.Timestamp), sct.SCTVersion)
 
-	// Stage 3: keep getting the STH until tree size becomes 1.
-	// TODO(drysdale)
+	// Keep getting the STH until tree size becomes 1.
+	sth1, err := awaitTreeSize(ctx, logClient, 1, true)
+	if err != nil {
+		t.Fatalf("Failed to get STH for size=1: %v", err)
+	}
 
-	// Stage 4: get a consistency proof from 0->1.
-	// TODO(drysdale)
+	// Stage 3: add a second cert, wait for tree size = 2
+	chain, err = getChain("leaf01.chain")
+	if err != nil {
+		t.Fatalf("Failed to load certificate: %v", err)
+	}
+	sct, err = logClient.AddChain(ctx, chain)
+	if err != nil {
+		t.Fatalf("Failed to AddChain(): %v", err)
+	}
+	fmt.Printf("%v: Uploaded cert to %v log, got SCT\n", ctTime(sct.Timestamp), sct.SCTVersion)
+	sth2, err := awaitTreeSize(ctx, logClient, 2, true)
+	if err != nil {
+		t.Fatalf("Failed to get STH for size=1: %v", err)
+	}
+
+	// Stage 4: get a consistency proof from size 1-> size 2.
+	proof, err := logClient.GetSTHConsistency(ctx, 1, 2)
+	if err != nil {
+		t.Fatalf("Failed to GetSTHConsistency(): %v", err)
+	}
+	//                 sth2
+	//                 / \
+	//  sth1   =>      a b
+	//    |            | |
+	//   d0           d0 d1
+	// So consistency proof is [b] and we should have:
+	//   sth2 == SHA256(0x01 | sth1 | b)
+	if len(proof) != 1 {
+		t.Fatalf("len(proof)=%d; want 1", len(proof))
+	}
+	if len(proof[0]) != sha256.Size {
+		t.Fatalf("len(proof[0])=%d; want %d", len(proof[0]), sha256.Size)
+	}
+	fmt.Printf("Proof 1->2 = %x\n", proof)
+	data := make([]byte, 1+sha256.Size+sha256.Size)
+	data[0] = 0x01
+	copy(data[1:1+sha256.Size], sth1.SHA256RootHash[:])
+	copy(data[1+sha256.Size:], proof[0])
+	if want, got := sha256.Sum256(data), sth2.SHA256RootHash; got != want {
+		t.Errorf("SHA256(1|sth1|proof[0])=%s; want %s", hex.EncodeToString(got[:]), hex.EncodeToString(want[:]))
+	}
 
 	// Stage 5: add certificates 2, 3, 4, 5,...N, for some random N in [4,25]
 	// TODO(drysdale)
@@ -100,7 +140,7 @@ func TestCTIntegration(t *testing.T) {
 	// TODO(drysdale)
 }
 
-func ctTimestampToTime(ts uint64) time.Time {
+func ctTime(ts uint64) time.Time {
 	secs := int64(ts / 1000)
 	msecs := int64(ts % 1000)
 	return time.Unix(secs, msecs*1000000)
@@ -123,4 +163,29 @@ func certsFromPEM(data []byte) []ct.ASN1Cert {
 		}
 	}
 	return chain
+}
+
+func getChain(path string) ([]ct.ASN1Cert, error) {
+	certdata, err := ioutil.ReadFile(filepath.Join(*testdata, path))
+	if err != nil {
+		return nil, fmt.Errorf("Failed to load certificate: %v", err)
+	}
+	return certsFromPEM(certdata), nil
+}
+
+func awaitTreeSize(ctx context.Context, logClient *client.LogClient, size uint64, exact bool) (*ct.SignedTreeHead, error) {
+	var sth *ct.SignedTreeHead
+	for sth == nil || sth.TreeSize < size {
+		time.Sleep(200 * time.Millisecond)
+		var err error
+		sth, err = logClient.GetSTH(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get STH: %v", err)
+		}
+	}
+	if exact && sth.TreeSize != size {
+		return nil, fmt.Errorf("sth.TreeSize=%d; want 1", sth.TreeSize)
+	}
+	fmt.Printf("%v: Got STH(size=%d): roothash=%x\n", ctTime(sth.Timestamp), sth.TreeSize, sth.SHA256RootHash)
+	return sth, nil
 }
