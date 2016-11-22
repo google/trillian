@@ -7,6 +7,7 @@ import (
 	"runtime/debug"
 	"strings"
 	"testing"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/golang/protobuf/proto"
@@ -14,7 +15,6 @@ import (
 	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/testonly"
-	"time"
 )
 
 // TODO(al): add checking to all the Commit() calls in here.
