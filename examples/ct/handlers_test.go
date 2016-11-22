@@ -190,11 +190,11 @@ func TestGetHandlersRejectPost(t *testing.T) {
 
 	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	pool := NewPEMCertPool()
-	handlers := LogContext{rpcClient: client, timeSource: fakeTimeSource}
+	c := LogContext{rpcClient: client, timeSource: fakeTimeSource}
 
 	// Anything in the get handler list should not accept POST. We don't test they accept
 	// GET because that needs different mock backend set up per handler.
-	for _, hp := range allGetHandlersForTest(pool, handlers) {
+	for _, hp := range allGetHandlersForTest(pool, c) {
 		s := httptest.NewServer(hp.handler)
 		defer s.Close()
 
