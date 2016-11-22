@@ -11,7 +11,7 @@ import (
 	"github.com/google/trillian/crypto"
 )
 
-const millisPerNano int64 = 1000
+const millisPerNano int64 = 1000 * 1000
 
 // LogEntry holds the data we send to the backend with the leaf. There is a LogEntry type in
 // the CT code but it is a superset of what we need. These structs are purely containers

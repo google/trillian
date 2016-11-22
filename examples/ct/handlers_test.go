@@ -397,7 +397,7 @@ func TestAddChainPrecert(t *testing.T) {
 // This uses the fake CA as trusted root and submits a chain leaf -> fake intermediate, the
 // backend RPC fails so we get a 500
 func TestAddChainRPCFails(t *testing.T) {
-	toSign := []byte{0x7a, 0xc4, 0xd9, 0xca, 0x5f, 0x2e, 0x23, 0x82, 0xfe, 0xef, 0x5e, 0x95, 0x64, 0x7b, 0x31, 0x11, 0xf, 0x2a, 0x9b, 0x78, 0xa8, 0x3, 0x30, 0x8d, 0xfc, 0x8b, 0x78, 0x6, 0x61, 0xe7, 0x58, 0x44}
+	toSign, _ := hex.DecodeString("1337d72a403b6539f58896decba416d5d4b3603bfa03e1f94bb9b4e898af897d")
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
@@ -432,7 +432,7 @@ func TestAddChainRPCFails(t *testing.T) {
 // This uses the fake CA as trusted root and submits a chain leaf -> fake intermediate, which
 // should be accepted
 func TestAddChain(t *testing.T) {
-	toSign := []byte{0x7a, 0xc4, 0xd9, 0xca, 0x5f, 0x2e, 0x23, 0x82, 0xfe, 0xef, 0x5e, 0x95, 0x64, 0x7b, 0x31, 0x11, 0xf, 0x2a, 0x9b, 0x78, 0xa8, 0x3, 0x30, 0x8d, 0xfc, 0x8b, 0x78, 0x6, 0x61, 0xe7, 0x58, 0x44}
+	toSign, _ := hex.DecodeString("1337d72a403b6539f58896decba416d5d4b3603bfa03e1f94bb9b4e898af897d")
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
@@ -475,7 +475,7 @@ func TestAddChain(t *testing.T) {
 	if got, want := hex.EncodeToString(resp.ID), ctMockLogID; got != want {
 		t.Fatalf("Got logID %s, expected %s", got, want)
 	}
-	if got, want := resp.Timestamp, uint64(1469185273000000); got != want {
+	if got, want := resp.Timestamp, uint64(1469185273000); got != want {
 		t.Fatalf("Got timestamp %d, expected %d", got, want)
 	}
 	if got, want := hex.EncodeToString(resp.Signature), "040300067369676e6564"; got != want {
@@ -554,7 +554,7 @@ func TestAddPrecertChainCert(t *testing.T) {
 // Submit a chain that should be OK but arrange for the backend RPC to fail. Failure should
 // be propagated.
 func TestAddPrecertChainRPCFails(t *testing.T) {
-	toSign := []byte{0xe4, 0x58, 0xf3, 0x6f, 0xbd, 0xed, 0x2e, 0x62, 0x53, 0x30, 0xb3, 0x4, 0x73, 0x10, 0xb4, 0xe2, 0xe1, 0xa7, 0x44, 0x9e, 0x1f, 0x16, 0x6f, 0x78, 0x61, 0x98, 0x32, 0xe5, 0x43, 0x5a, 0x21, 0xff}
+	toSign, _ := hex.DecodeString("e1a8c35f40cd38b94cf050ed71f29467c21475699b1f670b8b1baaea66c2fa6f")
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
@@ -596,7 +596,7 @@ func TestAddPrecertChainRPCFails(t *testing.T) {
 
 // Submit a chain with a valid precert signed by a trusted root. Should be accepted.
 func TestAddPrecertChain(t *testing.T) {
-	toSign := []byte{0xe4, 0x58, 0xf3, 0x6f, 0xbd, 0xed, 0x2e, 0x62, 0x53, 0x30, 0xb3, 0x4, 0x73, 0x10, 0xb4, 0xe2, 0xe1, 0xa7, 0x44, 0x9e, 0x1f, 0x16, 0x6f, 0x78, 0x61, 0x98, 0x32, 0xe5, 0x43, 0x5a, 0x21, 0xff}
+	toSign, _ := hex.DecodeString("e1a8c35f40cd38b94cf050ed71f29467c21475699b1f670b8b1baaea66c2fa6f")
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
@@ -647,7 +647,7 @@ func TestAddPrecertChain(t *testing.T) {
 	if got, want := hex.EncodeToString(resp.ID), ctMockLogID; got != want {
 		t.Fatalf("Got logID %s, expected %s", got, want)
 	}
-	if got, want := resp.Timestamp, uint64(1469185273000000); got != want {
+	if got, want := resp.Timestamp, uint64(1469185273000); got != want {
 		t.Fatalf("Got timestamp %d, expected %d", got, want)
 	}
 	if got, want := hex.EncodeToString(resp.Signature), "040300067369676e6564"; got != want {
