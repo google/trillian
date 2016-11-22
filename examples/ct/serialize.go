@@ -2,6 +2,7 @@ package ct
 
 import (
 	"crypto/sha256"
+	"fmt"
 	"time"
 
 	ct "github.com/google/certificate-transparency/go"
@@ -84,26 +85,29 @@ func serializeAndSignSCT(km crypto.KeyManager, leaf ct.MerkleTreeLeaf, sctInput 
 	// Serialize SCT signature input to get the bytes that need to be signed
 	res, err := ct.SerializeSCTSignatureInput(sctInput, ct.LogEntry{Leaf: leaf})
 	if err != nil {
-		return ct.MerkleTreeLeaf{}, ct.SignedCertificateTimestamp{}, err
+		return ct.MerkleTreeLeaf{}, ct.SignedCertificateTimestamp{}, fmt.Errorf("failed to serialize SCT data: %v", err)
 	}
 
 	// Create a complete SCT including signature
 	sct, err := signSCT(km, t, res)
+	if err != nil {
+		return ct.MerkleTreeLeaf{}, ct.SignedCertificateTimestamp{}, fmt.Errorf("failed to sign SCT data: %v", err)
+	}
 
-	return leaf, sct, err
+	return leaf, sct, nil
 }
 
 func signSCT(km crypto.KeyManager, t time.Time, sctData []byte) (ct.SignedCertificateTimestamp, error) {
 	signer, err := km.Signer()
 	if err != nil {
-		return ct.SignedCertificateTimestamp{}, err
+		return ct.SignedCertificateTimestamp{}, fmt.Errorf("failed to retrieve signer: %v", err)
 	}
 
 	trillianSigner := crypto.NewSigner(crypto.NewSHA256(), km.SignatureAlgorithm(), signer)
 
 	signature, err := trillianSigner.Sign(sctData)
 	if err != nil {
-		return ct.SignedCertificateTimestamp{}, err
+		return ct.SignedCertificateTimestamp{}, fmt.Errorf("failed to sign data: %v", err)
 	}
 
 	digitallySigned := ct.DigitallySigned{
@@ -117,7 +121,7 @@ func signSCT(km crypto.KeyManager, t time.Time, sctData []byte) (ct.SignedCertif
 
 	logID, err := GetCTLogID(km)
 	if err != nil {
-		return ct.SignedCertificateTimestamp{}, err
+		return ct.SignedCertificateTimestamp{}, fmt.Errorf("failed to get logID: %v", err)
 	}
 
 	return ct.SignedCertificateTimestamp{
