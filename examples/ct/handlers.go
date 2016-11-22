@@ -173,24 +173,24 @@ func addChainInternal(c LogContext, w http.ResponseWriter, r *http.Request, isPr
 	// Check the contents of the request and convert to slice of certificates.
 	addChainReq, err := parseBodyAsJSONChain(c, r)
 	if err != nil {
-		return http.StatusBadRequest, err
+		return http.StatusBadRequest, fmt.Errorf("failed to parse add-chain body: %v", err)
 	}
 	chain, err := verifyAddChain(c, addChainReq, w, isPrecert)
 	if err != nil {
-		return http.StatusBadRequest, err
+		return http.StatusBadRequest, fmt.Errorf("failed to verify add-chain contents: %v", err)
 	}
 
 	// Build up the SCT and MerkleTreeLeaf. The SCT will be returned to the client and
 	// the leaf will become part of the data sent to the backend.
 	merkleLeaf, sct, err := signerFn(c.logKeyManager, chain[0], c.timeSource.Now())
 	if err != nil {
-		return http.StatusInternalServerError, fmt.Errorf("failed to create / serialize SCT or Merkle leaf: %v %v", sct, err)
+		return http.StatusInternalServerError, fmt.Errorf("failed to build SCT and Merkle leaf: %v %v", sct, err)
 	}
 
 	// Send the Merkle tree leaf on to the Log server.
 	leaf, err := buildLogLeafForAddChain(c, merkleLeaf, chain)
 	if err != nil {
-		return http.StatusInternalServerError, err
+		return http.StatusInternalServerError, fmt.Errorf("failed to build LogLeaf: %v", err)
 	}
 	req := trillian.QueueLeavesRequest{LogId: c.logID, Leaves: []*trillian.LogLeaf{&leaf}}
 
@@ -204,11 +204,11 @@ func addChainInternal(c LogContext, w http.ResponseWriter, r *http.Request, isPr
 	if glog.V(2) {
 		glog.Infof("%s: %s <= grpc.QueueLeaves status=%v", c.logPrefix, method, rsp.GetStatus())
 	}
-	if err != nil || !rpcStatusOK(rsp.GetStatus()) {
-		// TODO(Martin2112): Possibly cases where the request we sent to the backend is invalid
-		// which isn't really an internal server error.
-		// Request failed on backend
-		return http.StatusInternalServerError, err
+	if err != nil {
+		return http.StatusInternalServerError, fmt.Errorf("backend QueueLeaves request failed: %v", err)
+	}
+	if !rpcStatusOK(rsp.GetStatus()) {
+		return http.StatusInternalServerError, fmt.Errorf("backend QueueLeaves request failed, status=%v", rsp.GetStatus())
 	}
 
 	// As the Log server has successfully queued up the Merkle tree leaf, we can
@@ -217,7 +217,7 @@ func addChainInternal(c LogContext, w http.ResponseWriter, r *http.Request, isPr
 	if err != nil {
 		// reason is logged and http status is already set
 		// TODO(Martin2112): Record failure for monitoring when it's implemented
-		return http.StatusInternalServerError, err
+		return http.StatusInternalServerError, fmt.Errorf("failed to write response: %v", err)
 	}
 	if glog.V(3) {
 		glog.Infof("%s: %s <= SCT", c.logPrefix, method)
@@ -251,8 +251,11 @@ func getSTH(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
 	if glog.V(2) {
 		glog.Infof("%s: GetSTH <= grpc.GetLatestSignedLogRoot status=%v", c.logPrefix, rsp.GetStatus())
 	}
-	if err != nil || !rpcStatusOK(rsp.GetStatus()) {
-		return http.StatusInternalServerError, errors.New("backend rpc failed")
+	if err != nil {
+		return http.StatusInternalServerError, fmt.Errorf("backend GetLatestSignedLogRoot request failed: %v", err)
+	}
+	if !rpcStatusOK(rsp.GetStatus()) {
+		return http.StatusInternalServerError, fmt.Errorf("backend GetLatestSignedLogRoot request failed, status=%v", rsp.GetStatus())
 	}
 
 	// Check over the response.
@@ -303,7 +306,7 @@ func getSTH(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
 	_, err = w.Write(jsonData)
 	if err != nil {
 		// Probably too late for this as headers might have been written but we don't know for sure
-		return http.StatusInternalServerError, err
+		return http.StatusInternalServerError, fmt.Errorf("failed to write response data: %v", err)
 	}
 
 	return http.StatusOK, nil
@@ -316,16 +319,24 @@ func getSTHConsistency(c LogContext, w http.ResponseWriter, r *http.Request) (in
 
 	first, second, err := parseGetSTHConsistencyRange(r)
 	if err != nil {
-		return http.StatusBadRequest, err
+		return http.StatusBadRequest, fmt.Errorf("failed to parse consistency range: %v", err)
 	}
-
 	req := trillian.GetConsistencyProofRequest{LogId: c.logID, FirstTreeSize: first, SecondTreeSize: second}
 	ctx, cancel := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
 	defer cancel()
 
+	if glog.V(2) {
+		glog.Infof("%s: GetSTHConsistency(%d, %d) => grpc.GetConsistencyProof %+v", c.logPrefix, first, second, req)
+	}
 	rsp, err := c.rpcClient.GetConsistencyProof(ctx, &req)
-	if err != nil || !rpcStatusOK(rsp.GetStatus()) {
-		return http.StatusInternalServerError, err
+	if glog.V(2) {
+		glog.Infof("%s: GetSTHConsistency <= grpc.GetConsistencyProof status=%v", c.logPrefix, rsp.GetStatus())
+	}
+	if err != nil {
+		return http.StatusInternalServerError, fmt.Errorf("backend GetConsistencyProof request failed: %v", err)
+	}
+	if !rpcStatusOK(rsp.GetStatus()) {
+		return http.StatusInternalServerError, fmt.Errorf("backend GetConsistencyProof request failed, status=%v", rsp.GetStatus())
 	}
 
 	// Additional sanity checks, none of the hashes in the returned path should be empty
@@ -385,8 +396,11 @@ func getProofByHash(c LogContext, w http.ResponseWriter, r *http.Request) (int, 
 	defer cancel()
 
 	rsp, err := c.rpcClient.GetInclusionProofByHash(ctx, &req)
-	if err != nil || !rpcStatusOK(rsp.GetStatus()) {
-		return http.StatusInternalServerError, fmt.Errorf("get-proof-by-hash: RPC failed, possible extra info: %v", err)
+	if err != nil {
+		return http.StatusInternalServerError, fmt.Errorf("backend GetInclusionProofByHash request failed: %v", err)
+	}
+	if !rpcStatusOK(rsp.GetStatus()) {
+		return http.StatusInternalServerError, fmt.Errorf("backend GetInclusionProofByHash request failed, status=%v", rsp.GetStatus())
 	}
 
 	// Additional sanity checks, none of the hashes in the returned path should be empty
@@ -436,8 +450,11 @@ func getEntries(c LogContext, w http.ResponseWriter, r *http.Request) (int, erro
 	defer cancel()
 
 	rsp, err := c.rpcClient.GetLeavesByIndex(ctx, &req)
-	if err != nil || !rpcStatusOK(rsp.GetStatus()) {
-		return http.StatusInternalServerError, fmt.Errorf("get-entries: RPC failed, possible extra info: %v", err)
+	if err != nil {
+		return http.StatusInternalServerError, fmt.Errorf("backend GetLeavesByIndex request failed: %v", err)
+	}
+	if !rpcStatusOK(rsp.GetStatus()) {
+		return http.StatusInternalServerError, fmt.Errorf("backend GetLeavesByIndex request failed, status=%v", rsp.GetStatus())
 	}
 
 	// Apply additional checks on the response to make sure we got a contiguous leaf range.
@@ -508,7 +525,7 @@ func getEntryAndProof(c LogContext, w http.ResponseWriter, r *http.Request) (int
 	// Ensure both numeric params are present and look reasonable.
 	leafIndex, treeSize, err := parseGetEntryAndProofParams(r)
 	if err != nil {
-		return http.StatusBadRequest, err
+		return http.StatusBadRequest, fmt.Errorf("failed to parse get-entry-and-proof params: %v", err)
 	}
 
 	req := trillian.GetEntryAndProofRequest{LogId: c.logID, LeafIndex: leafIndex, TreeSize: treeSize}
@@ -516,8 +533,11 @@ func getEntryAndProof(c LogContext, w http.ResponseWriter, r *http.Request) (int
 	defer cancel()
 
 	rsp, err := c.rpcClient.GetEntryAndProof(ctx, &req)
-	if err != nil || !rpcStatusOK(rsp.GetStatus()) {
-		return http.StatusInternalServerError, fmt.Errorf("get-entry-and-proof: RPC failed, possible extra info: %v", err)
+	if err != nil {
+		return http.StatusInternalServerError, fmt.Errorf("backend GetEntryAndProof request failed: %v", err)
+	}
+	if !rpcStatusOK(rsp.GetStatus()) {
+		return http.StatusInternalServerError, fmt.Errorf("backend GetEntryAndProof request failed, status=%v", rsp.GetStatus())
 	}
 
 	// Apply some checks that we got reasonable data from the backend
@@ -613,7 +633,7 @@ func verifyAddChain(c LogContext, req ct.AddChainRequest, w http.ResponseWriter,
 func buildLogLeafForAddChain(c LogContext, merkleLeaf ct.MerkleTreeLeaf, chain []*x509.Certificate) (trillian.LogLeaf, error) {
 	leafData, err := tls.Marshal(merkleLeaf)
 	if err != nil {
-		glog.Warningf("%s: Failed to serialize merkle leaf: %v", c.logPrefix, err)
+		glog.Warningf("%s: Failed to serialize Merkle leaf: %v", c.logPrefix, err)
 		return trillian.LogLeaf{}, err
 	}
 

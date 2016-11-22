@@ -680,8 +680,8 @@ func TestGetSTHBackendErrorFails(t *testing.T) {
 	if got, want := w.Code, http.StatusInternalServerError; got != want {
 		t.Fatalf("Expected %v, got %v", want, got)
 	}
-	if want, in := "rpc failed", w.Body.String(); !strings.Contains(in, want) {
-		t.Fatalf("Expected to find %s within %s", want, in)
+	if want, in := "request failed", w.Body.String(); !strings.Contains(in, want) {
+		t.Fatalf("Expected to find %q within %q", want, in)
 	}
 }
 
