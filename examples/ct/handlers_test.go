@@ -143,7 +143,7 @@ func allPostHandlersForTest(client trillian.TrillianLogClient) []handlerAndPath 
 	if !ok {
 		glog.Fatal("Failed to load cert pool")
 	}
-	c := LogContext{rpcClient: client, trustedRoots: pool}
+	c := LogContext{rpcClient: client, trustedRoots: pool, timeSource: fakeTimeSource}
 
 	return []handlerAndPath{
 		{"add-chain", appHandler{context: c, handler: addChain, method: http.MethodPost}},
@@ -305,7 +305,7 @@ func TestGetRoots(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	roots := loadCertsIntoPoolOrDie(t, []string{caAndIntermediateCertsPEM})
-	c := LogContext{trustedRoots: roots}
+	c := LogContext{trustedRoots: roots, timeSource: fakeTimeSource}
 	handler := appHandler{context: c, handler: getRoots, method: http.MethodGet}
 
 	req, err := http.NewRequest("GET", "http://example.com/ct/v1/get-roots", nil)
