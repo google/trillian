@@ -46,13 +46,19 @@ const selectLeavesByIndexSQL string = `SELECT s.MerkleLeafHash,l.LeafValueHash,l
 		     FROM LeafData l,SequencedLeafData s
 		     WHERE l.LeafValueHash = s.LeafValueHash
 		     AND s.SequenceNumber IN (` + placeholderSQL + `) AND l.TreeId = ? AND s.TreeId = l.TreeId`
-const selectLeavesByHashSQL string = `SELECT s.MerkleLeafHash,l.LeafValueHash,l.LeafValue,s.SequenceNumber
+const selectLeavesByMerkleHashSQL string = `SELECT s.MerkleLeafHash,l.LeafValueHash,l.LeafValue,s.SequenceNumber
 		     FROM LeafData l,SequencedLeafData s
 		     WHERE l.LeafValueHash = s.LeafValueHash
 		     AND s.MerkleLeafHash IN (` + placeholderSQL + `) AND l.TreeId = ? AND s.TreeId = l.TreeId`
+const selectLeavesByValueHashSQL string = `SELECT s.MerkleLeafHash,l.LeafValueHash,l.LeafValue,s.SequenceNumber
+		     FROM LeafData l,SequencedLeafData s
+		     WHERE l.LeafValueHash = s.LeafValueHash
+		     AND s.LeafValueHash IN (` + placeholderSQL + `) AND l.TreeId = ? AND s.TreeId = l.TreeId`
 
 // Same as above except with leaves ordered by sequence so we only incur this cost when necessary
-const selectLeavesByHashOrderedBySequenceSQL string = selectLeavesByHashSQL + " ORDER BY s.SequenceNumber"
+const orderBySequenceNumberSQL string = " ORDER BY s.SequenceNumber"
+const selectLeavesByMerkleHashOrderedBySequenceSQL string = selectLeavesByMerkleHashSQL + orderBySequenceNumberSQL
+const selectLeavesByValueHashOrderedBySequenceSQL string = selectLeavesByValueHashSQL + orderBySequenceNumberSQL
 
 var defaultLogStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8}
 
@@ -106,12 +112,20 @@ func (m *mySQLLogStorage) getLeavesByIndexStmt(num int) (*sql.Stmt, error) {
 	return m.getStmt(selectLeavesByIndexSQL, num, "?", "?")
 }
 
-func (m *mySQLLogStorage) getLeavesByHashStmt(num int, orderBySequence bool) (*sql.Stmt, error) {
+func (m *mySQLLogStorage) getLeavesByMerkleHashStmt(num int, orderBySequence bool) (*sql.Stmt, error) {
 	if orderBySequence {
-		return m.getStmt(selectLeavesByHashOrderedBySequenceSQL, num, "?", "?")
+		return m.getStmt(selectLeavesByMerkleHashOrderedBySequenceSQL, num, "?", "?")
 	}
 
-	return m.getStmt(selectLeavesByHashSQL, num, "?", "?")
+	return m.getStmt(selectLeavesByMerkleHashSQL, num, "?", "?")
+}
+
+func (m *mySQLLogStorage) getLeavesByValueHashStmt(num int, orderBySequence bool) (*sql.Stmt, error) {
+	if orderBySequence {
+		return m.getStmt(selectLeavesByValueHashOrderedBySequenceSQL, num, "?", "?")
+	}
+
+	return m.getStmt(selectLeavesByValueHashSQL, num, "?", "?")
 }
 
 func (m *mySQLLogStorage) getDeleteUnsequencedStmt(num int) (*sql.Stmt, error) {
@@ -392,44 +406,24 @@ func (t *logTX) GetLeavesByIndex(leaves []int64) ([]trillian.LogLeaf, error) {
 	return ret, nil
 }
 
+func (t *logTX) GetLeavesByLeafValueHash(leafHashes [][]byte, orderBySequence bool) ([]trillian.LogLeaf, error) {
+	tmpl, err := t.ls.getLeavesByValueHashStmt(len(leafHashes), orderBySequence)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return t.getLeavesByHashInternal(leafHashes, tmpl, "value")
+}
+
 func (t *logTX) GetLeavesByHash(leafHashes [][]byte, orderBySequence bool) ([]trillian.LogLeaf, error) {
-	tmpl, err := t.ls.getLeavesByHashStmt(len(leafHashes), orderBySequence)
+	tmpl, err := t.ls.getLeavesByMerkleHashStmt(len(leafHashes), orderBySequence)
 
 	if err != nil {
 		return nil, err
 	}
-	stx := t.tx.Stmt(tmpl)
-	var args []interface{}
-	for _, hash := range leafHashes {
-		args = append(args, interface{}([]byte(hash)))
-	}
-	args = append(args, interface{}(t.ls.logID))
-	rows, err := stx.Query(args...)
-	if err != nil {
-		glog.Warningf("Failed to get leaves by hash: %s", err)
-		return nil, err
-	}
 
-	// The tree could include duplicates so we don't know how many results will be returned
-	var ret []trillian.LogLeaf
-
-	defer rows.Close()
-	for rows.Next() {
-		leaf := trillian.LogLeaf{}
-
-		if err := rows.Scan(&leaf.MerkleLeafHash, &leaf.LeafValueHash, &leaf.LeafValue, &leaf.LeafIndex); err != nil {
-			glog.Warningf("Failed to scan merkle leaves: %s", err)
-			return nil, err
-		}
-
-		if got, want := len(leaf.MerkleLeafHash), t.ls.hashSizeBytes; got != want {
-			return nil, fmt.Errorf("Scanned leaf does not have hash length %d, got %d", want, got)
-		}
-
-		ret = append(ret, leaf)
-	}
-
-	return ret, nil
+	return t.getLeavesByHashInternal(leafHashes, tmpl, "merkle")
 }
 
 func (t *logTX) LatestSignedLogRoot() (trillian.SignedLogRoot, error) {
@@ -557,6 +551,41 @@ func (t *logTX) getActiveLogIDsInternal(sql string) ([]int64, error) {
 	}
 
 	return logIDs, nil
+}
+
+func (t *logTX) getLeavesByHashInternal(leafHashes [][]byte, tmpl *sql.Stmt, desc string) ([]trillian.LogLeaf, error) {
+	stx := t.tx.Stmt(tmpl)
+	var args []interface{}
+	for _, hash := range leafHashes {
+		args = append(args, interface{}([]byte(hash)))
+	}
+	args = append(args, interface{}(t.ls.logID))
+	rows, err := stx.Query(args...)
+	if err != nil {
+		glog.Warningf("Query() %s hash = %v", desc, err)
+		return nil, err
+	}
+
+	// The tree could include duplicates so we don't know how many results will be returned
+	var ret []trillian.LogLeaf
+
+	defer rows.Close()
+	for rows.Next() {
+		leaf := trillian.LogLeaf{}
+
+		if err := rows.Scan(&leaf.MerkleLeafHash, &leaf.LeafValueHash, &leaf.LeafValue, &leaf.LeafIndex); err != nil {
+			glog.Warningf("LogID: %d Scan() %s = %s", t.ls.logID, desc, err)
+			return nil, err
+		}
+
+		if got, want := len(leaf.MerkleLeafHash), t.ls.hashSizeBytes; got != want {
+			return nil, fmt.Errorf("LogID: %d Scanned leaf %s does not have hash length %d, got %d", t.ls.logID, desc, want, got)
+		}
+
+		ret = append(ret, leaf)
+	}
+
+	return ret, nil
 }
 
 // GetActiveLogIDs returns a list of the IDs of all configured logs
