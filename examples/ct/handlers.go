@@ -54,6 +54,7 @@ type appHandler struct {
 	context LogContext
 	handler func(LogContext, http.ResponseWriter, *http.Request) (int, error)
 	name    string
+	method  string
 }
 
 // ServeHTTP for an appHandler invokes the underlying handler function but
@@ -62,6 +63,21 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if glog.V(2) {
 		glog.Infof("%s: request %v %q => %s", a.context.logPrefix, r.Method, r.URL, a.name)
 	}
+	if r.Method != a.method {
+		glog.Warningf("%s: %s wrong HTTP method: %v", a.context.logPrefix, a.name, r.Method)
+		sendHTTPError(w, http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method))
+		return
+	}
+
+	// For GET requests all params come as form encoded so we might as well parse them now.
+	// POSTs will decode the raw request body as JSON later.
+	if r.Method == http.MethodGet {
+		if err := r.ParseForm(); err != nil {
+			sendHTTPError(w, http.StatusBadRequest, fmt.Errorf("failed to parse form data: %v", err))
+			return
+		}
+	}
+
 	status, err := a.handler(a.context, w, r)
 	glog.V(2).Infof("%s: %s <= status=%d", a.context.logPrefix, a.name, status)
 	if err != nil {
@@ -130,27 +146,6 @@ func parseBodyAsJSONChain(c LogContext, r *http.Request) (ct.AddChainRequest, er
 	return req, nil
 }
 
-// enforceMethod checks that the request method is the one we expect and does some additional
-// common request validation. If it returns false then the http status has been set appropriately
-// and no further action is needed
-func enforceMethod(w http.ResponseWriter, r *http.Request, method string) bool {
-	if r.Method != method {
-		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
-		return false
-	}
-
-	// For GET requests all params come as form encoded so we might as well parse them now.
-	// POSTs will decode the raw request body as JSON later.
-	if r.Method == http.MethodGet {
-		if err := r.ParseForm(); err != nil {
-			sendHTTPError(w, http.StatusBadRequest, err)
-			return false
-		}
-	}
-
-	return true
-}
-
 // addChainInternal is called by add-chain and add-pre-chain as the logic involved in
 // processing these requests is almost identical
 // TODO(Martin2112): Doesn't properly handle duplicate submissions yet but the backend
@@ -164,10 +159,6 @@ func addChainInternal(c LogContext, w http.ResponseWriter, r *http.Request, isPr
 	} else {
 		method = "AddChain"
 		signerFn = signV1SCTForCertificate
-	}
-
-	if !enforceMethod(w, r, http.MethodPost) {
-		return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
 	}
 
 	// Check the contents of the request and convert to slice of certificates.
@@ -235,10 +226,6 @@ func addPreChain(c LogContext, w http.ResponseWriter, r *http.Request) (int, err
 }
 
 func getSTH(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
-	if !enforceMethod(w, r, http.MethodGet) {
-		return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
-	}
-
 	// Forward on to the Log server.
 	req := trillian.GetLatestSignedLogRootRequest{LogId: c.logID}
 	ctx, cancel := context.WithDeadline(context.Background(), getRPCDeadlineTime(c))
@@ -313,10 +300,6 @@ func getSTH(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
 }
 
 func getSTHConsistency(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
-	if !enforceMethod(w, r, http.MethodGet) {
-		return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
-	}
-
 	first, second, err := parseGetSTHConsistencyRange(r)
 	if err != nil {
 		return http.StatusBadRequest, fmt.Errorf("failed to parse consistency range: %v", err)
@@ -363,10 +346,6 @@ func getSTHConsistency(c LogContext, w http.ResponseWriter, r *http.Request) (in
 }
 
 func getProofByHash(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
-	if !enforceMethod(w, r, http.MethodGet) {
-		return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
-	}
-
 	// Accept any non empty hash that decodes from base64 and let the backend validate it further
 	hash := r.FormValue(getProofParamHash)
 	if len(hash) == 0 {
@@ -428,10 +407,6 @@ func getProofByHash(c LogContext, w http.ResponseWriter, r *http.Request) (int, 
 }
 
 func getEntries(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
-	if !enforceMethod(w, r, http.MethodGet) {
-		return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
-	}
-
 	// The first job is to parse the params and make sure they're sensible. We just make
 	// sure the range is valid. We don't do an extra roundtrip to get the current tree
 	// size and prefer to let the backend handle this case
@@ -493,10 +468,6 @@ func getEntries(c LogContext, w http.ResponseWriter, r *http.Request) (int, erro
 }
 
 func getRoots(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
-	if !enforceMethod(w, r, http.MethodGet) {
-		return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
-	}
-
 	// Pull out the raw certificates from the parsed versions
 	rawCerts := make([][]byte, 0, len(c.trustedRoots.RawCertificates()))
 	for _, cert := range c.trustedRoots.RawCertificates() {
@@ -518,10 +489,6 @@ func getRoots(c LogContext, w http.ResponseWriter, r *http.Request) (int, error)
 // See RFC 6962 Section 4.8. This is mostly used for debug purposes rather than by normal
 // CT clients.
 func getEntryAndProof(c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
-	if !enforceMethod(w, r, http.MethodGet) {
-		return http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method)
-	}
-
 	// Ensure both numeric params are present and look reasonable.
 	leafIndex, treeSize, err := parseGetEntryAndProofParams(r)
 	if err != nil {
@@ -572,14 +539,14 @@ func getEntryAndProof(c LogContext, w http.ResponseWriter, r *http.Request) (int
 // TODO(Martin2112): This registers on default ServeMux, might need more flexibility?
 func (c LogContext) RegisterHandlers() {
 	// Bind the LogContext instance to give an appHandler instance for each entrypoint.
-	http.Handle(ct.AddChainPath, appHandler{context: c, handler: addChain, name: "AddChain"})
-	http.Handle(ct.AddPreChainPath, appHandler{context: c, handler: addPreChain, name: "AddPreChain"})
-	http.Handle(ct.GetSTHPath, appHandler{context: c, handler: getSTH, name: "GetSTH"})
-	http.Handle(ct.GetSTHConsistencyPath, appHandler{context: c, handler: getSTHConsistency, name: "GetSTHConsistency"})
-	http.Handle(ct.GetProofByHashPath, appHandler{context: c, handler: getProofByHash, name: "GetProofByHash"})
-	http.Handle(ct.GetEntriesPath, appHandler{context: c, handler: getEntries, name: "GetEntries"})
-	http.Handle(ct.GetRootsPath, appHandler{context: c, handler: getRoots, name: "GetRoots"})
-	http.Handle(ct.GetEntryAndProofPath, appHandler{context: c, handler: getEntryAndProof, name: "GetEntryAndProof"})
+	http.Handle(ct.AddChainPath, appHandler{context: c, handler: addChain, name: "AddChain", method: http.MethodPost})
+	http.Handle(ct.AddPreChainPath, appHandler{context: c, handler: addPreChain, name: "AddPreChain", method: http.MethodPost})
+	http.Handle(ct.GetSTHPath, appHandler{context: c, handler: getSTH, name: "GetSTH", method: http.MethodGet})
+	http.Handle(ct.GetSTHConsistencyPath, appHandler{context: c, handler: getSTHConsistency, name: "GetSTHConsistency", method: http.MethodGet})
+	http.Handle(ct.GetProofByHashPath, appHandler{context: c, handler: getProofByHash, name: "GetProofByHash", method: http.MethodGet})
+	http.Handle(ct.GetEntriesPath, appHandler{context: c, handler: getEntries, name: "GetEntries", method: http.MethodGet})
+	http.Handle(ct.GetRootsPath, appHandler{context: c, handler: getRoots, name: "GetRoots", method: http.MethodGet})
+	http.Handle(ct.GetEntryAndProofPath, appHandler{context: c, handler: getEntryAndProof, name: "GetEntryAndProof", method: http.MethodGet})
 }
 
 // Generates a custom error page to give more information on why something didn't work

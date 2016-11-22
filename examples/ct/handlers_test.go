@@ -128,12 +128,12 @@ type handlerAndPath struct {
 
 func allGetHandlersForTest(trustedRoots *PEMCertPool, c LogContext) []handlerAndPath {
 	return []handlerAndPath{
-		{"get-sth", appHandler{context: c, handler: getSTH}},
-		{"get-sth-consistency", appHandler{context: c, handler: getSTHConsistency}},
-		{"get-proof-by-hash", appHandler{context: c, handler: getProofByHash}},
-		{"get-entries", appHandler{context: c, handler: getEntries}},
-		{"get-roots", appHandler{context: c, handler: getRoots}},
-		{"get-entry-and-proof", appHandler{context: c, handler: getEntryAndProof}},
+		{"get-sth", appHandler{context: c, handler: getSTH, method: http.MethodGet}},
+		{"get-sth-consistency", appHandler{context: c, handler: getSTHConsistency, method: http.MethodGet}},
+		{"get-proof-by-hash", appHandler{context: c, handler: getProofByHash, method: http.MethodGet}},
+		{"get-entries", appHandler{context: c, handler: getEntries, method: http.MethodGet}},
+		{"get-roots", appHandler{context: c, handler: getRoots, method: http.MethodGet}},
+		{"get-entry-and-proof", appHandler{context: c, handler: getEntryAndProof, method: http.MethodGet}},
 	}
 }
 
@@ -146,8 +146,8 @@ func allPostHandlersForTest(client trillian.TrillianLogClient) []handlerAndPath 
 	c := LogContext{rpcClient: client, trustedRoots: pool}
 
 	return []handlerAndPath{
-		{"add-chain", appHandler{context: c, handler: addChain}},
-		{"add-pre-chain", appHandler{context: c, handler: addPreChain}},
+		{"add-chain", appHandler{context: c, handler: addChain, method: http.MethodPost}},
+		{"add-pre-chain", appHandler{context: c, handler: addPreChain, method: http.MethodPost}},
 	}
 }
 
@@ -161,8 +161,8 @@ func TestPostHandlersOnlyAcceptPost(t *testing.T) {
 	for _, hp := range allPostHandlersForTest(client) {
 		s := httptest.NewServer(hp.handler)
 		defer s.Close()
-		resp, err := http.Get(s.URL + "/ct/v1/" + hp.path)
 
+		resp, err := http.Get(s.URL + "/ct/v1/" + hp.path)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -174,7 +174,6 @@ func TestPostHandlersOnlyAcceptPost(t *testing.T) {
 		}
 
 		resp, err = http.Post(s.URL+"/ct/v1/"+hp.path, "application/json", nil)
-
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -307,7 +306,7 @@ func TestGetRoots(t *testing.T) {
 
 	roots := loadCertsIntoPoolOrDie(t, []string{caAndIntermediateCertsPEM})
 	c := LogContext{trustedRoots: roots}
-	handler := appHandler{context: c, handler: getRoots}
+	handler := appHandler{context: c, handler: getRoots, method: http.MethodGet}
 
 	req, err := http.NewRequest("GET", "http://example.com/ct/v1/get-roots", nil)
 	if err != nil {
@@ -667,7 +666,7 @@ func TestGetSTHBackendErrorFails(t *testing.T) {
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
 	client.EXPECT().GetLatestSignedLogRoot(deadlineMatcher(), &trillian.GetLatestSignedLogRootRequest{LogId: 0x42}).Return(nil, errors.New("backendfailure"))
 	c := *NewLogContext(0x42, roots, client, km, time.Millisecond*500, fakeTimeSource)
-	handler := appHandler{context: c, handler: getSTH}
+	handler := appHandler{context: c, handler: getSTH, method: http.MethodGet}
 
 	req, err := http.NewRequest("GET", "http://example.com/ct/v1/get-sth", nil)
 	if err != nil {
@@ -698,7 +697,7 @@ func TestGetSTHInvalidBackendTreeSizeFails(t *testing.T) {
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
 	client.EXPECT().GetLatestSignedLogRoot(deadlineMatcher(), &trillian.GetLatestSignedLogRootRequest{LogId: 0x42}).Return(makeGetRootResponseForTest(12345, -50, []byte("abcdabcdabcdabcdabcdabcdabcdabcd")), nil)
 	c := *NewLogContext(0x42, roots, client, km, time.Millisecond*500, fakeTimeSource)
-	handler := appHandler{context: c, handler: getSTH}
+	handler := appHandler{context: c, handler: getSTH, method: http.MethodGet}
 
 	req, err := http.NewRequest("GET", "http://example.com/ct/v1/get-sth", nil)
 	if err != nil {
@@ -728,7 +727,7 @@ func TestGetSTHMissingRootHashFails(t *testing.T) {
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
 	client.EXPECT().GetLatestSignedLogRoot(deadlineMatcher(), &trillian.GetLatestSignedLogRootRequest{LogId: 0x42}).Return(makeGetRootResponseForTest(12345, 25, []byte("thisisnot32byteslong")), nil)
 	c := *NewLogContext(0x42, roots, client, km, time.Millisecond*500, fakeTimeSource)
-	handler := appHandler{context: c, handler: getSTH}
+	handler := appHandler{context: c, handler: getSTH, method: http.MethodGet}
 
 	req, err := http.NewRequest("GET", "http://example.com/ct/v1/get-sth", nil)
 	if err != nil {
@@ -763,7 +762,7 @@ func TestGetSTHSigningFails(t *testing.T) {
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
 	client.EXPECT().GetLatestSignedLogRoot(deadlineMatcher(), &trillian.GetLatestSignedLogRootRequest{LogId: 0x42}).Return(makeGetRootResponseForTest(12345, 25, []byte("abcdabcdabcdabcdabcdabcdabcdabcd")), nil)
 	c := *NewLogContext(0x42, roots, client, km, time.Millisecond*500, fakeTimeSource)
-	handler := appHandler{context: c, handler: getSTH}
+	handler := appHandler{context: c, handler: getSTH, method: http.MethodGet}
 
 	req, err := http.NewRequest("GET", "http://example.com/ct/v1/get-sth", nil)
 	if err != nil {
@@ -793,7 +792,7 @@ func TestGetSTH(t *testing.T) {
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
 	client.EXPECT().GetLatestSignedLogRoot(deadlineMatcher(), &trillian.GetLatestSignedLogRootRequest{LogId: 0x42}).Return(makeGetRootResponseForTest(12345000000, 25, []byte("abcdabcdabcdabcdabcdabcdabcdabcd")), nil)
 	c := *NewLogContext(0x42, roots, client, km, time.Millisecond*500, fakeTimeSource)
-	handler := appHandler{context: c, handler: getSTH}
+	handler := appHandler{context: c, handler: getSTH, method: http.MethodGet}
 
 	req, err := http.NewRequest("GET", "http://example.com/ct/v1/get-sth", nil)
 	if err != nil {
@@ -868,7 +867,7 @@ func TestGetEntriesRanges(t *testing.T) {
 		}
 
 		c := LogContext{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
-		handler := appHandler{context: c, handler: getEntries}
+		handler := appHandler{context: c, handler: getEntries, method: http.MethodGet}
 
 		path := fmt.Sprintf("/ct/v1/get-entries?start=%d&end=%d", testCase.start, testCase.end)
 		req, err := http.NewRequest("GET", path, nil)
@@ -904,7 +903,7 @@ func TestGetEntriesErrorFromBackend(t *testing.T) {
 	client.EXPECT().GetLeavesByIndex(deadlineMatcher(), &trillian.GetLeavesByIndexRequest{LeafIndex: []int64{1, 2}}).Return(nil, errors.New("bang"))
 
 	c := LogContext{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
-	handler := appHandler{context: c, handler: getEntries}
+	handler := appHandler{context: c, handler: getEntries, method: http.MethodGet}
 
 	req, err := http.NewRequest("GET", "/ct/v1/get-entries?start=1&end=2", nil)
 
@@ -933,7 +932,7 @@ func TestGetEntriesBackendReturnedExtraLeaves(t *testing.T) {
 	client.EXPECT().GetLeavesByIndex(deadlineMatcher(), &trillian.GetLeavesByIndexRequest{LeafIndex: []int64{1, 2}}).Return(&trillian.GetLeavesByIndexResponse{Status: okStatus, Leaves: rpcLeaves}, nil)
 
 	c := LogContext{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
-	handler := appHandler{context: c, handler: getEntries}
+	handler := appHandler{context: c, handler: getEntries, method: http.MethodGet}
 
 	req, err := http.NewRequest("GET", "/ct/v1/get-entries?start=1&end=2", nil)
 
@@ -962,7 +961,7 @@ func TestGetEntriesBackendReturnedNonContiguousRange(t *testing.T) {
 	client.EXPECT().GetLeavesByIndex(deadlineMatcher(), &trillian.GetLeavesByIndexRequest{LeafIndex: []int64{1, 2}}).Return(&trillian.GetLeavesByIndexResponse{Status: okStatus, Leaves: rpcLeaves}, nil)
 
 	c := LogContext{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
-	handler := appHandler{context: c, handler: getEntries}
+	handler := appHandler{context: c, handler: getEntries, method: http.MethodGet}
 
 	req, err := http.NewRequest("GET", "/ct/v1/get-entries?start=1&end=2", nil)
 
@@ -991,7 +990,7 @@ func TestGetEntriesLeafCorrupt(t *testing.T) {
 	client.EXPECT().GetLeavesByIndex(deadlineMatcher(), &trillian.GetLeavesByIndexRequest{LeafIndex: []int64{1, 2}}).Return(&trillian.GetLeavesByIndexResponse{Status: okStatus, Leaves: rpcLeaves}, nil)
 
 	c := LogContext{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
-	handler := appHandler{context: c, handler: getEntries}
+	handler := appHandler{context: c, handler: getEntries, method: http.MethodGet}
 
 	req, err := http.NewRequest("GET", "/ct/v1/get-entries?start=1&end=2", nil)
 
@@ -1069,7 +1068,7 @@ func TestGetEntries(t *testing.T) {
 	client.EXPECT().GetLeavesByIndex(deadlineMatcher(), &trillian.GetLeavesByIndexRequest{LeafIndex: []int64{1, 2}}).Return(&trillian.GetLeavesByIndexResponse{Status: okStatus, Leaves: rpcLeaves}, nil)
 
 	c := LogContext{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
-	handler := appHandler{context: c, handler: getEntries}
+	handler := appHandler{context: c, handler: getEntries, method: http.MethodGet}
 
 	req, err := http.NewRequest("GET", "/ct/v1/get-entries?start=1&end=2", nil)
 
@@ -1125,7 +1124,7 @@ func TestGetProofByHashBadRequests(t *testing.T) {
 
 	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	c := LogContext{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
-	handler := appHandler{context: c, handler: getProofByHash}
+	handler := appHandler{context: c, handler: getProofByHash, method: http.MethodGet}
 
 	for _, requestParamString := range getProofByHashBadRequests {
 		req, err := http.NewRequest("GET", fmt.Sprintf("/ct/v1/proof-by-hash%s", requestParamString), nil)
@@ -1150,7 +1149,7 @@ func TestGetProofByHashBackendFails(t *testing.T) {
 	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	client.EXPECT().GetInclusionProofByHash(deadlineMatcher(), &trillian.GetInclusionProofByHashRequest{LeafHash: []byte("ahash"), TreeSize: 6, OrderBySequence: true}).Return(nil, errors.New("RPCFAIL"))
 	c := LogContext{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
-	handler := appHandler{context: c, handler: getProofByHash}
+	handler := appHandler{context: c, handler: getProofByHash, method: http.MethodGet}
 
 	req, err := http.NewRequest("GET", "/ct/v1/proof-by-hash?tree_size=6&hash=YWhhc2g=", nil)
 
@@ -1180,7 +1179,7 @@ func TestGetProofByHashBackendMultipleProofs(t *testing.T) {
 	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	client.EXPECT().GetInclusionProofByHash(deadlineMatcher(), &trillian.GetInclusionProofByHashRequest{LeafHash: []byte("ahash"), TreeSize: 7, OrderBySequence: true}).Return(&response, nil)
 	c := LogContext{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
-	handler := appHandler{context: c, handler: getProofByHash}
+	handler := appHandler{context: c, handler: getProofByHash, method: http.MethodGet}
 
 	req, err := http.NewRequest("GET", "/ct/v1/proof-by-hash?tree_size=7&hash=YWhhc2g=", nil)
 
@@ -1216,7 +1215,7 @@ func TestGetProofByHashBackendReturnsMissingHash(t *testing.T) {
 	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	client.EXPECT().GetInclusionProofByHash(deadlineMatcher(), &trillian.GetInclusionProofByHashRequest{LeafHash: []byte("ahash"), TreeSize: 9, OrderBySequence: true}).Return(&response, nil)
 	c := LogContext{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
-	handler := appHandler{context: c, handler: getProofByHash}
+	handler := appHandler{context: c, handler: getProofByHash, method: http.MethodGet}
 
 	req, err := http.NewRequest("GET", "/ct/v1/proof-by-hash?tree_size=9&hash=YWhhc2g=", nil)
 
@@ -1245,7 +1244,7 @@ func TestGetProofByHash(t *testing.T) {
 	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	client.EXPECT().GetInclusionProofByHash(deadlineMatcher(), &trillian.GetInclusionProofByHashRequest{LeafHash: []byte("ahash"), TreeSize: 7, OrderBySequence: true}).Return(&response, nil)
 	c := LogContext{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
-	handler := appHandler{context: c, handler: getProofByHash}
+	handler := appHandler{context: c, handler: getProofByHash, method: http.MethodGet}
 
 	req, err := http.NewRequest("GET", "/ct/v1/proof-by-hash?tree_size=7&hash=YWhhc2g=", nil)
 
@@ -1278,7 +1277,7 @@ func TestGetSTHConsistencyBadParams(t *testing.T) {
 
 	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	c := LogContext{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
-	handler := appHandler{context: c, handler: getSTHConsistency}
+	handler := appHandler{context: c, handler: getSTHConsistency, method: http.MethodGet}
 
 	for _, requestParamString := range getSTHConsistencyBadRequests {
 		req, err := http.NewRequest("GET", fmt.Sprintf("/ct/v1/get-sth-consistency%s", requestParamString), nil)
@@ -1303,7 +1302,7 @@ func TestGetEntryAndProofBadParams(t *testing.T) {
 
 	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	c := LogContext{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
-	handler := appHandler{context: c, handler: getEntryAndProof}
+	handler := appHandler{context: c, handler: getEntryAndProof, method: http.MethodGet}
 
 	for _, requestParamString := range getEntryAndProofBadRequests {
 		req, err := http.NewRequest("GET", fmt.Sprintf("/ct/v1/get-entry-and-proof%s", requestParamString), nil)
@@ -1328,7 +1327,7 @@ func TestGetSTHConsistencyBackendRPCFails(t *testing.T) {
 	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	client.EXPECT().GetConsistencyProof(deadlineMatcher(), &trillian.GetConsistencyProofRequest{FirstTreeSize: 10, SecondTreeSize: 20}).Return(nil, errors.New("RPCFAIL"))
 	c := LogContext{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
-	handler := appHandler{context: c, handler: getSTHConsistency}
+	handler := appHandler{context: c, handler: getSTHConsistency, method: http.MethodGet}
 
 	req, err := http.NewRequest("GET", "/ct/v1/get-sth-consistency?first=10&second=20", nil)
 
@@ -1355,7 +1354,7 @@ func TestGetEntryAndProofBackendFails(t *testing.T) {
 	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	client.EXPECT().GetEntryAndProof(deadlineMatcher(), &trillian.GetEntryAndProofRequest{LeafIndex: 1, TreeSize: 3}).Return(nil, errors.New("RPCFAIL"))
 	c := LogContext{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
-	handler := appHandler{context: c, handler: getEntryAndProof}
+	handler := appHandler{context: c, handler: getEntryAndProof, method: http.MethodGet}
 
 	req, err := http.NewRequest("GET", "/ct/v1/get-entry-and-proof?leaf_index=1&tree_size=3", nil)
 
@@ -1384,7 +1383,7 @@ func TestGetSTHConsistencyBackendReturnsInvalidProof(t *testing.T) {
 	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	client.EXPECT().GetConsistencyProof(deadlineMatcher(), &trillian.GetConsistencyProofRequest{FirstTreeSize: 10, SecondTreeSize: 20}).Return(&response, nil)
 	c := LogContext{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
-	handler := appHandler{context: c, handler: getSTHConsistency}
+	handler := appHandler{context: c, handler: getSTHConsistency, method: http.MethodGet}
 
 	req, err := http.NewRequest("GET", "/ct/v1/get-sth-consistency?first=10&second=20", nil)
 
@@ -1413,7 +1412,7 @@ func TestGetEntryAndProofBackendBadResponse(t *testing.T) {
 	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	client.EXPECT().GetEntryAndProof(deadlineMatcher(), &trillian.GetEntryAndProofRequest{LeafIndex: 1, TreeSize: 3}).Return(&response, nil)
 	c := LogContext{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
-	handler := appHandler{context: c, handler: getEntryAndProof}
+	handler := appHandler{context: c, handler: getEntryAndProof, method: http.MethodGet}
 
 	req, err := http.NewRequest("GET", "/ct/v1/get-entry-and-proof?leaf_index=1&tree_size=3", nil)
 
@@ -1438,7 +1437,7 @@ func TestGetSTHConsistency(t *testing.T) {
 	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	client.EXPECT().GetConsistencyProof(deadlineMatcher(), &trillian.GetConsistencyProofRequest{FirstTreeSize: 10, SecondTreeSize: 20}).Return(&response, nil)
 	c := LogContext{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
-	handler := appHandler{context: c, handler: getSTHConsistency}
+	handler := appHandler{context: c, handler: getSTHConsistency, method: http.MethodGet}
 
 	req, err := http.NewRequest("GET", "/ct/v1/get-sth-consistency?first=10&second=20", nil)
 
@@ -1492,7 +1491,7 @@ func TestGetEntryAndProof(t *testing.T) {
 	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 	client.EXPECT().GetEntryAndProof(deadlineMatcher(), &trillian.GetEntryAndProofRequest{LeafIndex: 1, TreeSize: 3}).Return(&response, nil)
 	c := LogContext{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
-	handler := appHandler{context: c, handler: getEntryAndProof}
+	handler := appHandler{context: c, handler: getEntryAndProof, method: http.MethodGet}
 
 	req, err := http.NewRequest("GET", "/ct/v1/get-entry-and-proof?leaf_index=1&tree_size=3", nil)
 
@@ -1588,12 +1587,12 @@ func (d dlMatcher) String() string {
 }
 
 func makeAddPrechainRequest(t *testing.T, c LogContext, body io.Reader) *httptest.ResponseRecorder {
-	handler := appHandler{context: c, handler: addPreChain}
+	handler := appHandler{context: c, handler: addPreChain, method: http.MethodPost}
 	return makeAddChainRequestInternal(t, handler, "add-pre-chain", body)
 }
 
 func makeAddChainRequest(t *testing.T, c LogContext, body io.Reader) *httptest.ResponseRecorder {
-	handler := appHandler{context: c, handler: addChain}
+	handler := appHandler{context: c, handler: addChain, method: http.MethodPost}
 	return makeAddChainRequestInternal(t, handler, "add-chain", body)
 }
 
@@ -1617,7 +1616,7 @@ func getEntriesTestHelper(t *testing.T, request string, expectedStatus int, expl
 	client := mockclient.NewMockTrillianLogClient(mockCtrl)
 
 	c := LogContext{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
-	handler := appHandler{context: c, handler: getEntries}
+	handler := appHandler{context: c, handler: getEntries, method: http.MethodGet}
 
 	path := fmt.Sprintf("/ct/v1/get-entries?%s", request)
 	req, err := http.NewRequest("GET", path, nil)
