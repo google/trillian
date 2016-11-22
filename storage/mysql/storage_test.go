@@ -658,14 +658,10 @@ func TestGetLeavesByLeafValueHashNotPresent(t *testing.T) {
 	defer tx.Commit()
 
 	hashes := [][]byte{[]byte("thisdoesn'texist")}
-	leaves, err := tx.GetLeavesByLeafValueHash(hashes, false)
-
-	if err != nil {
-		t.Fatalf("Error getting leaves by hash: %v", err)
-	}
-
-	if len(leaves) != 0 {
-		t.Fatalf("Expected no leaves returned but got %d", len(leaves))
+	if leaves, err := tx.GetLeavesByLeafValueHash(hashes, false); err != nil {
+		t.Fatalf("GetLeavesByLeafValueHash(%x)=nil,%v; want [],nil", hashes, err)
+	} else if len(leaves) != 0 {
+		t.Fatalf("GetLeavesByLeafValueHash(%s)=%q,nil; want [],nil", hashes, leaves)
 	}
 }
 
@@ -725,17 +721,13 @@ func TestGetLeavesByLeafValueHash(t *testing.T) {
 	defer tx.Commit()
 
 	hashes := [][]byte{dummyRawHash}
-	leaves, err := tx.GetLeavesByLeafValueHash(hashes, false)
-
-	if err != nil {
-		t.Fatalf("Unexpected error getting leaf by hash: %v", err)
+	if leaves, err := tx.GetLeavesByLeafValueHash(hashes, false); err != nil {
+		t.Fatalf("GetLeavesByLeafValueHash(%x)=nil,%v; want [],nil", hashes, err)
+	} else if len(leaves) != 1 {
+		t.Fatalf("GetLeavesByLeafValueHash() = %d leaves, want 1", len(leaves))
+	} else {
+		checkLeafContents(leaves[0], sequenceNumber, dummyRawHash, dummyHash, data, t)
 	}
-
-	if len(leaves) != 1 {
-		t.Fatalf("Got %d leaves but expected one", len(leaves))
-	}
-
-	checkLeafContents(leaves[0], sequenceNumber, dummyRawHash, dummyHash, data, t)
 }
 
 func TestGetLeavesByIndex(t *testing.T) {

@@ -70,7 +70,7 @@ type LeafReader interface {
 	GetSequencedLeafCount() (int64, error)
 	// GetLeavesByIndex returns leaf metadata and data for a set of specified sequenced leaf indexes.
 	GetLeavesByIndex(leaves []int64) ([]trillian.LogLeaf, error)
-	// GetLeavesByHash looks up sequenced leaf metadata and data by their merkle leaf hash. If the
+	// GetLeavesByHash looks up sequenced leaf metadata and data by their Merkle leaf hash. If the
 	// tree permits duplicate leaves callers must be prepared to handle multiple results with the
 	// same hash but different sequence numbers. If orderBySequence is true then the returned data
 	// will be in ascending sequence number order.

@@ -574,12 +574,12 @@ func (t *logTX) getLeavesByHashInternal(leafHashes [][]byte, tmpl *sql.Stmt, des
 		leaf := trillian.LogLeaf{}
 
 		if err := rows.Scan(&leaf.MerkleLeafHash, &leaf.LeafValueHash, &leaf.LeafValue, &leaf.LeafIndex); err != nil {
-			glog.Warningf("Scan() %s = %s", desc, err)
+			glog.Warningf("LogID: %d Scan() %s = %s", t.ls.logID, desc, err)
 			return nil, err
 		}
 
 		if got, want := len(leaf.MerkleLeafHash), t.ls.hashSizeBytes; got != want {
-			return nil, fmt.Errorf("Scanned leaf %s does not have hash length %d, got %d", desc, want, got)
+			return nil, fmt.Errorf("LogID: %d Scanned leaf %s does not have hash length %d, got %d", t.ls.logID, desc, want, got)
 		}
 
 		ret = append(ret, leaf)
