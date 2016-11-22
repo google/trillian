@@ -24,7 +24,8 @@ func TestSignV1SCTForCertificate(t *testing.T) {
 		t.Fatalf("failed to set up test cert: %v", err)
 	}
 
-	km := setupMockKeyManager(mockCtrl, []byte{0x5, 0x62, 0x4f, 0xb4, 0x9e, 0x32, 0x14, 0xb6, 0xc, 0xb8, 0x51, 0x28, 0x23, 0x93, 0x2c, 0x7a, 0x3d, 0x80, 0x93, 0x5f, 0xcd, 0x76, 0xef, 0x91, 0x6a, 0xaf, 0x1b, 0x8c, 0xe8, 0xb5, 0x2, 0xb5})
+	toSign, _ := hex.DecodeString("7052085a63895983fc768ebe0858891bcd4326e797ef3b7ed5996e7655afd7ab")
+	km := setupMockKeyManager(mockCtrl, toSign)
 
 	leaf, got, err := signV1SCTForCertificate(km, cert, fixedTime)
 	if err != nil {
@@ -42,7 +43,7 @@ func TestSignV1SCTForCertificate(t *testing.T) {
 	expected := ct.SignedCertificateTimestamp{
 		SCTVersion: 0,
 		LogID:      ct.LogID{KeyID: ct.SHA256Hash(idArray)},
-		Timestamp:  1504786523000000,
+		Timestamp:  1504786523000,
 		Extensions: ct.CTExtensions{},
 		Signature: ct.DigitallySigned{
 			Algorithm: tls.SignatureAndHashAlgorithm{
@@ -85,7 +86,8 @@ func TestSignV1SCTForPrecertificate(t *testing.T) {
 		t.Fatalf("failed to set up test precert: %v", err)
 	}
 
-	km := setupMockKeyManager(mockCtrl, []byte{0x77, 0xf3, 0x5c, 0xc6, 0xad, 0x85, 0xfd, 0xe0, 0x38, 0xfd, 0x36, 0x34, 0x5c, 0x1e, 0x45, 0x58, 0x60, 0x95, 0xb1, 0x7c, 0x28, 0xaa, 0xa5, 0xa5, 0x84, 0x96, 0x37, 0x4b, 0xf8, 0xbb, 0xd9, 0x8})
+	toSign, _ := hex.DecodeString("af6a0abbf6a67d14f17ba3c0f6271956ca4b19f4d75d79f24c787a80701d6aa8")
+	km := setupMockKeyManager(mockCtrl, toSign)
 
 	leaf, got, err := signV1SCTForPrecertificate(km, cert, fixedTime)
 	if err != nil {
@@ -102,7 +104,7 @@ func TestSignV1SCTForPrecertificate(t *testing.T) {
 
 	expected := ct.SignedCertificateTimestamp{SCTVersion: 0,
 		LogID:      ct.LogID{KeyID: ct.SHA256Hash(idArray)},
-		Timestamp:  1504786523000000,
+		Timestamp:  1504786523000,
 		Extensions: ct.CTExtensions{},
 		Signature: ct.DigitallySigned{
 			Algorithm: tls.SignatureAndHashAlgorithm{
