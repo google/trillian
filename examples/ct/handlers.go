@@ -80,7 +80,7 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Many/most of the handlers forward the request on to the Log RPC server; impose a deadline
 	// on this onward request.
-	ctx, cancel := context.WithDeadline(context.TODO(), getRPCDeadlineTime(a.context))
+	ctx, cancel := context.WithDeadline(r.Context(), getRPCDeadlineTime(a.context))
 	defer cancel()
 
 	status, err := a.handler(ctx, a.context, w, r)
