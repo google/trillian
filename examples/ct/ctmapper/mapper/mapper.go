@@ -74,7 +74,7 @@ func (m *CTMapper) oneMapperRun() (bool, error) {
 	glog.Infof("Fetching entries [%d, %d] from log", startEntry, endEntry)
 
 	// Get the entries from the log:
-	logEntries, err := m.ct.GetEntries(startEntry, endEntry)
+	logEntries, err := m.ct.GetEntries(context.Background(), startEntry, endEntry)
 	if err != nil {
 		return false, err
 	}
