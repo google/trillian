@@ -497,17 +497,6 @@ func pointerify(leaves []trillian.LogLeaf) []*trillian.LogLeaf {
 	return protos
 }
 
-// Don't think we can do this with type assertions, maybe we can
-func bytesToHashes(inputs [][]byte) [][]byte {
-	hashes := make([][]byte, len(inputs), len(inputs))
-
-	for i, hash := range inputs {
-		hashes[i] = hash
-	}
-
-	return hashes
-}
-
 func validateLeafIndices(leafIndices []int64) bool {
 	for _, index := range leafIndices {
 		if index < 0 {
@@ -590,7 +579,7 @@ func (t *TrillianLogRPCServer) getLeavesByHashInternal(ctx context.Context, desc
 		return nil, err
 	}
 
-	leaves, err := fetchFunc(tx, bytesToHashes(req.LeafHash), req.OrderBySequence)
+	leaves, err := fetchFunc(tx, req.LeafHash, req.OrderBySequence)
 	if err != nil {
 		tx.Rollback()
 		return nil, err
