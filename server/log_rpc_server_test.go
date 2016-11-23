@@ -539,12 +539,12 @@ func TestGetLeavesByLeafValueHashInvalidHash(t *testing.T) {
 
 	// Should have succeeded at RPC level
 	if err != nil {
-		t.Fatalf("GetLeavesByLeafValueHash() = %v", err)
+		t.Fatalf("GetLeavesByLeafValueHash(hash empty) = %v, want nil", err)
 	}
 
 	// And failed at app level
 	if got, want := resp.Status.StatusCode, trillian.TrillianApiStatusCode_ERROR; got != want {
-		t.Fatalf("Bad status got: %v, want: %v", got, want)
+		t.Fatalf("GetLeavesByLeafValueHash() = %v, want: %v", got, want)
 	}
 }
 
@@ -559,8 +559,13 @@ func TestGetLeavesByLeafValueHashBeginFails(t *testing.T) {
 
 	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
-	if _, err := server.GetLeavesByLeafValueHash(context.Background(), &getByHashRequest1); err == nil || !strings.Contains(err.Error(), "TX") {
-		t.Fatalf("Wrong error response when begin failed: %v", err)
+	_, err := server.GetLeavesByLeafValueHash(context.Background(), &getByHashRequest1);
+	if err == nil {
+		t.Fatalf("GetLeavesByLeafValueHash() = %v", err)
+	}
+
+	if !strings.Contains(err.Error(), "TX") {
+		t.Fatalf("GetLeavesByLeafValueHash() = %v, want TX error", err)
 	}
 }
 

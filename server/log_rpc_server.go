@@ -586,13 +586,11 @@ func (t *TrillianLogRPCServer) getLeavesByHashInternal(ctx context.Context, desc
 	}
 
 	tx, err := t.prepareStorageTx(req.LogId)
-
 	if err != nil {
 		return nil, err
 	}
 
 	leaves, err := fetchFunc(tx, bytesToHashes(req.LeafHash), req.OrderBySequence)
-
 	if err != nil {
 		tx.Rollback()
 		return nil, err
