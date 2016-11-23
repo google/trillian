@@ -23,6 +23,7 @@ import (
 	"github.com/golang/mock/gomock"
 	ct "github.com/google/certificate-transparency/go"
 	"github.com/google/certificate-transparency/go/fixchain"
+	"github.com/google/certificate-transparency/go/tls"
 	"github.com/google/certificate-transparency/go/x509"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
@@ -1040,17 +1041,29 @@ func TestGetEntries(t *testing.T) {
 	// To pass validation the leaves we return from our dummy RPC must be valid serialized
 	// ct.MerkleTreeLeaf objects
 	merkleLeaf1 := ct.MerkleTreeLeaf{
-		Version:          ct.V1,
-		LeafType:         ct.TimestampedEntryLeafType,
-		TimestampedEntry: ct.TimestampedEntry{Timestamp: 12345, EntryType: ct.X509LogEntryType, X509Entry: []byte("certdatacertdata"), Extensions: ct.CTExtensions{}}}
+		Version:  ct.V1,
+		LeafType: ct.TimestampedEntryLeafType,
+		TimestampedEntry: &ct.TimestampedEntry{
+			Timestamp:  12345,
+			EntryType:  ct.X509LogEntryType,
+			X509Entry:  &ct.ASN1Cert{Data: []byte("certdatacertdata")},
+			Extensions: ct.CTExtensions{},
+		},
+	}
 
 	merkleLeaf2 := ct.MerkleTreeLeaf{
-		Version:          ct.V1,
-		LeafType:         ct.TimestampedEntryLeafType,
-		TimestampedEntry: ct.TimestampedEntry{Timestamp: 67890, EntryType: ct.X509LogEntryType, X509Entry: []byte("certdat2certdat2"), Extensions: ct.CTExtensions{}}}
+		Version:  ct.V1,
+		LeafType: ct.TimestampedEntryLeafType,
+		TimestampedEntry: &ct.TimestampedEntry{
+			Timestamp:  67890,
+			EntryType:  ct.X509LogEntryType,
+			X509Entry:  &ct.ASN1Cert{Data: []byte("certdat2certdat2")},
+			Extensions: ct.CTExtensions{},
+		},
+	}
 
-	merkleBytes1, err1 := leafToBytes(merkleLeaf1)
-	merkleBytes2, err2 := leafToBytes(merkleLeaf2)
+	merkleBytes1, err1 := tls.Marshal(merkleLeaf1)
+	merkleBytes2, err2 := tls.Marshal(merkleLeaf2)
 
 	if err1 != nil || err2 != nil {
 		t.Fatalf("error in test setup for get-entries: %v %v", err1, err2)
@@ -1462,11 +1475,17 @@ func TestGetEntryAndProof(t *testing.T) {
 
 	proof := trillian.Proof{LeafIndex: 2, ProofNode: []*trillian.Node{{NodeHash: []byte("abcdef")}, {NodeHash: []byte("ghijkl")}, {NodeHash: []byte("mnopqr")}}}
 	merkleLeaf := ct.MerkleTreeLeaf{
-		Version:          ct.V1,
-		LeafType:         ct.TimestampedEntryLeafType,
-		TimestampedEntry: ct.TimestampedEntry{Timestamp: 12345, EntryType: ct.X509LogEntryType, X509Entry: []byte("certdatacertdata"), Extensions: ct.CTExtensions{}}}
+		Version:  ct.V1,
+		LeafType: ct.TimestampedEntryLeafType,
+		TimestampedEntry: &ct.TimestampedEntry{
+			Timestamp:  12345,
+			EntryType:  ct.X509LogEntryType,
+			X509Entry:  &ct.ASN1Cert{Data: []byte("certdatacertdata")},
+			Extensions: ct.CTExtensions{},
+		},
+	}
 
-	leafBytes, err := leafToBytes(merkleLeaf)
+	leafBytes, err := tls.Marshal(merkleLeaf)
 
 	if err != nil {
 		t.Fatal("failed to build test Merkle leaf data")
@@ -1531,21 +1550,21 @@ func createJSONChain(t *testing.T, p PEMCertPool) io.Reader {
 }
 
 func logLeavesForCert(t *testing.T, km crypto.KeyManager, certs []*x509.Certificate, merkleLeaf ct.MerkleTreeLeaf) []*trillian.LogLeaf {
-	var b bytes.Buffer
-	if err := writeMerkleTreeLeaf(&b, merkleLeaf); err != nil {
+	leafData, err := tls.Marshal(merkleLeaf)
+	if err != nil {
 		t.Fatalf("failed to serialize leaf: %v", err)
 	}
 
 	// This is a hash of the leaf data, not the the Merkle hash as defined in the RFC.
-	leafHash := sha256.Sum256(b.Bytes())
+	leafHash := sha256.Sum256(leafData)
 	logEntry := NewLogEntry(merkleLeaf, certs)
 
-	var b2 bytes.Buffer
-	if err := logEntry.Serialize(&b2); err != nil {
+	entryData, err := tls.Marshal(*logEntry)
+	if err != nil {
 		t.Fatalf("failed to serialize log entry: %v", err)
 	}
 
-	return []*trillian.LogLeaf{{MerkleLeafHash: leafHash[:], LeafValue: b.Bytes(), ExtraData: b2.Bytes()}}
+	return []*trillian.LogLeaf{{MerkleLeafHash: leafHash[:], LeafValue: leafData, ExtraData: entryData}}
 }
 
 type dlMatcher struct {
@@ -1621,20 +1640,12 @@ func getEntriesTestHelper(t *testing.T, request string, expectedStatus int, expl
 	}
 }
 
-func leafToBytes(leaf ct.MerkleTreeLeaf) ([]byte, error) {
-	var buf bytes.Buffer
-	err := writeMerkleTreeLeaf(&buf, leaf)
-
-	if err != nil {
-		return []byte{}, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func bytesToLeaf(leafBytes []byte) (*ct.MerkleTreeLeaf, error) {
-	buf := bytes.NewBuffer(leafBytes)
-	return ct.ReadMerkleTreeLeaf(buf)
+	var treeLeaf ct.MerkleTreeLeaf
+	if _, err := tls.Unmarshal(leafBytes, &treeLeaf); err != nil {
+		return nil, err
+	}
+	return &treeLeaf, nil
 }
 
 func makeGetRootResponseForTest(stamp, treeSize int64, hash []byte) *trillian.GetLatestSignedLogRootResponse {
