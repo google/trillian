@@ -130,7 +130,12 @@ func pathFromNodeToRootAtSnapshot(node int64, level int, snapshot int64, maxBitL
 			// some nodes to be overwritten. We have versioned tree nodes so this isn't necessary,
 			// we won't see any hashes written since the snapshot point. However we do have to account
 			// for missing levels in the tree.
-			drop := level - subtreeDepth(snapshot, level-1)
+
+			drop := 0
+
+			if level > 0 {
+				drop = level - subtreeDepth(snapshot, level - 1)
+			}
 			sibling = sibling << uint(drop)
 			n, err := storage.NewNodeIDForTreeCoords(int64(level-drop), sibling, maxBitLen)
 			if err != nil {
