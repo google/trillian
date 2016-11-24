@@ -24,18 +24,116 @@ type consistencyProofTestData struct {
 	expectedProof []storage.NodeID
 }
 
-// Expected paths built by examination of the example 7 leaf tree in RFC 6962. When comparing
-// with the document remember that our storage node layers are always populated from the bottom up.
-var expectedPathSize7Index0 = []storage.NodeID{testonly.MustCreateNodeIDForTreeCoords(0, 1, 64), testonly.MustCreateNodeIDForTreeCoords(1, 1, 64), testonly.MustCreateNodeIDForTreeCoords(2, 1, 64)}
-var expectedPathSize7Index3 = []storage.NodeID{testonly.MustCreateNodeIDForTreeCoords(0, 2, 64), testonly.MustCreateNodeIDForTreeCoords(1, 0, 64), testonly.MustCreateNodeIDForTreeCoords(2, 1, 64)}
-var expectedPathSize7Index4 = []storage.NodeID{testonly.MustCreateNodeIDForTreeCoords(0, 5, 64), testonly.MustCreateNodeIDForTreeCoords(0, 6, 64), testonly.MustCreateNodeIDForTreeCoords(2, 0, 64)}
-var expectedPathSize7Index6 = []storage.NodeID{testonly.MustCreateNodeIDForTreeCoords(1, 2, 64), testonly.MustCreateNodeIDForTreeCoords(2, 0, 64)}
+// Expected inclusion proof paths built by examination of the example 7 leaf tree in RFC 6962:
+//
+//                hash              <== Level 3
+//               /    \
+//              /      \
+//             /        \
+//            /          \
+//           /            \
+//          k              l        <== Level 2
+//         / \            / \
+//        /   \          /   \
+//       /     \        /     \
+//      g       h      i      [ ]   <== Level 1
+//     / \     / \    / \    /
+//     a b     c d    e f    j      <== Level 0
+//     | |     | |    | |    |
+//     d0 d1   d2 d3  d4 d5  d6
+//
+// When comparing with the document remember that our storage node layers are always
+// populated from the bottom up, hence the gap at level 1, index 3 in the above picture.
+
+var expectedPathSize7Index0 = []storage.NodeID{ // from a
+	testonly.MustCreateNodeIDForTreeCoords(0, 1, 64), // b
+	testonly.MustCreateNodeIDForTreeCoords(1, 1, 64), // h
+	testonly.MustCreateNodeIDForTreeCoords(2, 1, 64), // l
+}
+var expectedPathSize7Index3 = []storage.NodeID{ // from d
+	testonly.MustCreateNodeIDForTreeCoords(0, 2, 64), // c
+	testonly.MustCreateNodeIDForTreeCoords(1, 0, 64), // g
+	testonly.MustCreateNodeIDForTreeCoords(2, 1, 64), // l
+}
+var expectedPathSize7Index4 = []storage.NodeID{ // from e
+	testonly.MustCreateNodeIDForTreeCoords(0, 5, 64), // f
+	testonly.MustCreateNodeIDForTreeCoords(0, 6, 64), // j
+	testonly.MustCreateNodeIDForTreeCoords(2, 0, 64), // k
+}
+var expectedPathSize7Index6 = []storage.NodeID{ // from j
+	testonly.MustCreateNodeIDForTreeCoords(1, 2, 64), // i
+	testonly.MustCreateNodeIDForTreeCoords(2, 0, 64), // k
+}
 
 // Expected consistency proofs built from the examples in RFC 6962. Again, in our implementation
 // node layers are filled from the bottom upwards.
-var expectedConsistencyProofFromSize6To7 = []storage.NodeID{testonly.MustCreateNodeIDForTreeCoords(1, 2, 64), testonly.MustCreateNodeIDForTreeCoords(0, 6, 64), testonly.MustCreateNodeIDForTreeCoords(2, 0, 64)}
-var expectedConsistencyProofFromSize3To7 = []storage.NodeID{testonly.MustCreateNodeIDForTreeCoords(0, 2, 64), testonly.MustCreateNodeIDForTreeCoords(0, 3, 64), testonly.MustCreateNodeIDForTreeCoords(1, 0, 64), testonly.MustCreateNodeIDForTreeCoords(2, 1, 64)}
-var expectedConsistencyProofFromSize4To7 = []storage.NodeID{testonly.MustCreateNodeIDForTreeCoords(2, 1, 64)}
+var expectedConsistencyProofFromSize1To2 = []storage.NodeID{
+	//                     hash1=g
+	//                          / \
+	//  hash0=a      =>         a b
+	//        |                 | |
+	//        d0               d0 d1
+	testonly.MustCreateNodeIDForTreeCoords(0, 1, 64), // b
+}
+var expectedConsistencyProofFromSize3To7 = []storage.NodeID{
+	//                                             hash
+	//                                            /    \
+	//                                           /      \
+	//                                          /        \
+	//                                         /          \
+	//                            =>          /            \
+	//       hash0                           k              l
+	//       / \                            / \            / \
+	//      /   \                          /   \          /   \
+	//     /     \                        /     \        /     \
+	//     g     [ ]                     g       h      i      [ ]
+	//    / \    /                      / \     / \    / \    /
+	//    a b    c                      a b     c d    e f    j
+	//    | |    |                      | |     | |    | |    |
+	//   d0 d1   d2                     d0 d1   d2 d3  d4 d5  d6
+	testonly.MustCreateNodeIDForTreeCoords(0, 2, 64), // c
+	testonly.MustCreateNodeIDForTreeCoords(0, 3, 64), // d
+	testonly.MustCreateNodeIDForTreeCoords(1, 0, 64), // g
+	testonly.MustCreateNodeIDForTreeCoords(2, 1, 64), // l
+}
+var expectedConsistencyProofFromSize4To7 = []storage.NodeID{
+	//                                             hash
+	//                                            /    \
+	//                                           /      \
+	//                                          /        \
+	//                                         /          \
+	//                            =>          /            \
+	//     hash1=k                           k              l
+	//       /  \                           / \            / \
+	//      /    \                         /   \          /   \
+	//     /      \                       /     \        /     \
+	//     g       h                     g       h      i      [ ]
+	//    / \     / \                   / \     / \    / \    /
+	//    a b     c d                   a b     c d    e f    j
+	//    | |     | |                   | |     | |    | |    |
+	//   d0 d1   d2 d3                  d0 d1   d2 d3  d4 d5  d6
+	testonly.MustCreateNodeIDForTreeCoords(2, 1, 64), // l
+}
+var expectedConsistencyProofFromSize6To7 = []storage.NodeID{
+	//             hash2                           hash
+	//             /  \                           /    \
+	//            /    \                         /      \
+	//           /      \                       /        \
+	//          /        \                     /          \
+	//         /          \       =>          /            \
+	//        k            [ ]               k              l
+	//       / \           /                / \            / \
+	//      /   \         /                /   \          /   \
+	//     /     \        |               /     \        /     \
+	//    g       h       i              g       h      i      [ ]
+	//   / \     / \     / \            / \     / \    / \    /
+	//   a b     c d     e f            a b     c d    e f    j
+	//   | |     | |     | |            | |     | |    | |    |
+	//   d0 d1   d2 d3  d4 d5           d0 d1   d2 d3  d4 d5  d6
+	testonly.MustCreateNodeIDForTreeCoords(1, 2, 64), // i
+	testonly.MustCreateNodeIDForTreeCoords(0, 6, 64), // j
+	testonly.MustCreateNodeIDForTreeCoords(2, 0, 64), // k
+}
 
 var bitLenTests = []bitLenTestData{{0, 0}, {1, 1}, {2, 2}, {3, 2}, {12, 4}}
 
@@ -59,6 +157,7 @@ var pathTestBad = []auditPathTestData{
 
 // These should compute the expected consistency proofs
 var consistencyTests = []consistencyProofTestData{
+	{1, 2, expectedConsistencyProofFromSize1To2},
 	{6, 7, expectedConsistencyProofFromSize6To7},
 	{3, 7, expectedConsistencyProofFromSize3To7},
 	{4, 7, expectedConsistencyProofFromSize4To7}}
