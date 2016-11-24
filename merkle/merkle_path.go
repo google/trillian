@@ -132,9 +132,8 @@ func pathFromNodeToRootAtSnapshot(node int64, level int, snapshot int64, maxBitL
 			// for missing levels in the tree.
 
 			drop := 0
-
 			if level > 0 {
-				drop = level - subtreeDepth(snapshot, level - 1)
+				drop = level - subtreeDepth(snapshot, level-1)
 			}
 			sibling = sibling << uint(drop)
 			n, err := storage.NewNodeIDForTreeCoords(int64(level-drop), sibling, maxBitLen)
