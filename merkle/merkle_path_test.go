@@ -134,6 +134,25 @@ var expectedConsistencyProofFromSize6To7 = []storage.NodeID{
 	testonly.MustCreateNodeIDForTreeCoords(0, 6, 64), // j
 	testonly.MustCreateNodeIDForTreeCoords(2, 0, 64), // k
 }
+var expectedConsistencyProofFromSize2To8 = []storage.NodeID{
+	//                               hash8
+	//                              /    \
+	//                             /      \
+	//                            /        \
+	//                           /          \
+	//              =>          /            \
+	//                         k              l
+	//                        / \            / \
+	//                       /   \          /   \
+	//  hash2=              /     \        /     \
+	//     g               g       h      i      n
+	//    / \             / \     / \    / \    / \
+	//    a b             a b     c d    e f    j m
+	//    | |             | |     | |    | |    | |
+	//   d0 d1            d0 d1   d2 d3  d4 d5 d6 d7
+	testonly.MustCreateNodeIDForTreeCoords(1, 1, 64), // h
+	testonly.MustCreateNodeIDForTreeCoords(2, 1, 64), // l
+}
 
 var bitLenTests = []bitLenTestData{{0, 0}, {1, 1}, {2, 2}, {3, 2}, {12, 4}}
 
@@ -143,7 +162,8 @@ var pathTests = []auditPathTestData{
 	{7, 3, expectedPathSize7Index3},
 	{7, 6, expectedPathSize7Index6},
 	{7, 0, expectedPathSize7Index0},
-	{7, 4, expectedPathSize7Index4}}
+	{7, 4, expectedPathSize7Index4},
+}
 
 // These should all fail
 var pathTestBad = []auditPathTestData{
@@ -160,7 +180,9 @@ var consistencyTests = []consistencyProofTestData{
 	{1, 2, expectedConsistencyProofFromSize1To2},
 	{6, 7, expectedConsistencyProofFromSize6To7},
 	{3, 7, expectedConsistencyProofFromSize3To7},
-	{4, 7, expectedConsistencyProofFromSize4To7}}
+	{4, 7, expectedConsistencyProofFromSize4To7},
+	{2, 8, expectedConsistencyProofFromSize2To8},
+}
 
 // These should all fail to provide proofs
 var consistencyTestsBad = []consistencyProofTestData{
@@ -168,7 +190,8 @@ var consistencyTestsBad = []consistencyProofTestData{
 	{-10, 0, []storage.NodeID{}},
 	{-1, -1, []storage.NodeID{}},
 	{0, 0, []storage.NodeID{}},
-	{9, 8, []storage.NodeID{}}}
+	{9, 8, []storage.NodeID{}},
+}
 
 func TestBitLen(t *testing.T) {
 	for _, testCase := range bitLenTests {
