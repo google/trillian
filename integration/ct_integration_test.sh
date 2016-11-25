@@ -41,7 +41,7 @@ set -e
 echo "Running test(s)"
 cd ${INTEGRATION_DIR}
 set +e
-go test -tags=integration -run ".*CT.*" --timeout=5m ./ --treeid ${TEST_TREE_ID} --ct_http_server="localhost:${CT_PORT}" --public_key_file=${TESTDATA}/ct-http-server.pubkey.pem --testdata=${TESTDATA}
+go test -v -tags=integration -run ".*CT.*" --timeout=5m ./ --treeid ${TEST_TREE_ID} --ct_http_server="localhost:${CT_PORT}" --public_key_file=${TESTDATA}/ct-http-server.pubkey.pem --testdata=${TESTDATA}
 RESULT=$?
 set -e
 
