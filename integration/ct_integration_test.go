@@ -71,11 +71,11 @@ func TestCTIntegration(t *testing.T) {
 	fmt.Printf("%v: Got STH(size=%d): roothash=%x\n", ctTime(sth0.Timestamp), sth0.TreeSize, sth0.SHA256RootHash)
 
 	// Stage 2: add a single cert (the intermediate CA), get an SCT.
-	chain, err := getChain("int-ca.cert")
+	chain0, err := getChain("int-ca.cert")
 	if err != nil {
 		t.Fatalf("Failed to load certificate: %v", err)
 	}
-	sct, err := logClient.AddChain(ctx, chain)
+	sct, err := logClient.AddChain(ctx, chain0)
 	if err != nil {
 		t.Fatalf("Failed to AddChain(): %v", err)
 	}
@@ -90,15 +90,15 @@ func TestCTIntegration(t *testing.T) {
 	fmt.Printf("%v: Got STH(size=%d): roothash=%x\n", ctTime(sth1.Timestamp), sth1.TreeSize, sth1.SHA256RootHash)
 
 	// Stage 3: add a second cert, wait for tree size = 2
-	chain, err = getChain("leaf01.chain")
+	chain1, err := getChain("leaf01.chain")
 	if err != nil {
 		t.Fatalf("Failed to load certificate: %v", err)
 	}
-	sct, err = logClient.AddChain(ctx, chain)
+	sct, err = logClient.AddChain(ctx, chain1)
 	if err != nil {
 		t.Fatalf("Failed to AddChain(): %v", err)
 	}
-	fmt.Printf("%v: Uploaded cert01.cert to %v log, got SCT\n", ctTime(sct.Timestamp), sct.SCTVersion)
+	fmt.Printf("%v: Uploaded cert01.chain to %v log, got SCT\n", ctTime(sct.Timestamp), sct.SCTVersion)
 	sth2, err := awaitTreeSize(ctx, logClient, 2, true)
 	if err != nil {
 		t.Fatalf("Failed to get STH for size=1: %v", err)
@@ -128,7 +128,7 @@ func TestCTIntegration(t *testing.T) {
 	atLeast := 4
 	count := atLeast + rand.Intn(20-atLeast)
 	for i := 2; i <= count; i++ {
-		filename := fmt.Sprintf("leaf%02d.cert", i)
+		filename := fmt.Sprintf("leaf%02d.chain", i)
 		chain, err := getChain(filename)
 		if err != nil {
 			t.Errorf("Failed to load certificate: %v", err)
@@ -165,7 +165,13 @@ func TestCTIntegration(t *testing.T) {
 	// TODO(drysdale)
 
 	// Stage 10: attempt to upload a corrupt certificate.
-	// TODO(drysdale)
+	corruptAt := len(chain1[0].Data) - 3
+	chain1[0].Data[corruptAt] = (chain1[0].Data[corruptAt] + 1)
+	sct, err = logClient.AddChain(ctx, chain1)
+	if err == nil {
+		t.Fatalf("AddChain(corrupt-cert)=%+v,nil; want error", sct)
+	}
+	fmt.Printf("AddChain(corrupt-cert)=nil,%v\n", err)
 }
 
 func ctTime(ts uint64) time.Time {
