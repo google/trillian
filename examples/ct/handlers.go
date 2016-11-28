@@ -760,9 +760,17 @@ func marshalGetEntriesResponse(c LogContext, rsp *trillian.GetLeavesByIndexRespo
 			glog.Warningf("%s: Trailing data after Merkle leaf from backend: %d", c.logPrefix, leaf.LeafIndex)
 		}
 
+		extraData := leaf.ExtraData
+		if len(extraData) == 0 {
+			// TODO(drysdale): remove this when storage/retrieval of ExtraData has been wired up
+			glog.Errorf("%s: Missing ExtraData, faking entry instead", c.logPrefix)
+			// ExtraData should hold a TLS-encoded certificate chain that starts with a
+			// 3-byte length field.
+			extraData = []byte{0, 0, 0}
+		}
 		jsonRsp.Entries = append(jsonRsp.Entries, ct.LeafEntry{
 			LeafInput: leaf.LeafValue,
-			ExtraData: leaf.ExtraData,
+			ExtraData: extraData,
 		})
 	}
 
