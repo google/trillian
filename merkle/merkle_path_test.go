@@ -3,6 +3,8 @@ package merkle
 import (
 	"testing"
 
+	"fmt"
+
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/testonly"
 )
@@ -22,6 +24,17 @@ type consistencyProofTestData struct {
 	priorTreeSize int64
 	treeSize      int64
 	expectedProof []storage.NodeID
+}
+
+var lastNodeWrittenVec = []struct {
+	ts     int64
+	result string
+}{
+	{3, "101"},
+	{5, "1001"},
+	{11, "10101"},
+	{14, "11011"},
+	{15, "11101"},
 }
 
 // Expected inclusion proof paths built by examination of the example 7 leaf tree in RFC 6962:
@@ -74,6 +87,24 @@ var expectedConsistencyProofFromSize1To2 = []storage.NodeID{
 	//        |                 | |
 	//        d0               d0 d1
 	testonly.MustCreateNodeIDForTreeCoords(0, 1, 64), // b
+}
+var expectedConsistencyProofFromSize1To4 = []storage.NodeID{
+	//
+	//
+	//  hash0=a      =>           hash1=k
+	//        |                  /   \
+	//        d0                /     \
+	//                         /      \
+	//                         /       \
+	//                         g       h
+	//                        / \     / \
+	//                        a b     c d
+	//                        | |     | |
+	//                       d0 d1   d2 d3
+	//
+	//
+	testonly.MustCreateNodeIDForTreeCoords(0, 1, 64), // b
+	testonly.MustCreateNodeIDForTreeCoords(1, 1, 64), // h
 }
 var expectedConsistencyProofFromSize3To7 = []storage.NodeID{
 	//                                             hash
@@ -158,6 +189,7 @@ var pathTestBad = []auditPathTestData{
 // These should compute the expected consistency proofs
 var consistencyTests = []consistencyProofTestData{
 	{1, 2, expectedConsistencyProofFromSize1To2},
+	{1, 4, expectedConsistencyProofFromSize1To4},
 	{6, 7, expectedConsistencyProofFromSize6To7},
 	{3, 7, expectedConsistencyProofFromSize3To7},
 	{4, 7, expectedConsistencyProofFromSize4To7}}
@@ -186,7 +218,7 @@ func TestCalcInclusionProofNodeAddresses(t *testing.T) {
 			t.Fatalf("unexpected error calculating path %v: %v", testCase, err)
 		}
 
-		comparePaths(t, path, testCase.expectedPath)
+		comparePaths(t, fmt.Sprintf("i(%d,%d)", testCase.leafIndex, testCase.treeSize), path, testCase.expectedPath)
 	}
 }
 
@@ -213,10 +245,10 @@ func TestCalcConsistencyProofNodeAddresses(t *testing.T) {
 		proof, err := CalcConsistencyProofNodeAddresses(testCase.priorTreeSize, testCase.treeSize, 64)
 
 		if err != nil {
-			t.Fatalf("failed to calculate inclusion proof from %d to %d: %v", testCase.priorTreeSize, testCase.treeSize, err)
+			t.Fatalf("failed to calculate consistency proof from %d to %d: %v", testCase.priorTreeSize, testCase.treeSize, err)
 		}
 
-		comparePaths(t, proof, testCase.expectedProof)
+		comparePaths(t, fmt.Sprintf("c(%d, %d)", testCase.priorTreeSize, testCase.treeSize), proof, testCase.expectedProof)
 	}
 }
 
@@ -239,14 +271,31 @@ func TestCalcConsistencyProofNodeAddressesRejectsBadBitLen(t *testing.T) {
 	}
 }
 
-func comparePaths(t *testing.T, got, expected []storage.NodeID) {
+func comparePaths(t *testing.T, desc string, got, expected []storage.NodeID) {
 	if len(expected) != len(got) {
-		t.Fatalf("expected %d nodes in path but got %d: %v", len(expected), len(got), got)
+		t.Fatalf("%s: expected %d nodes in path but got %d: %v", desc, len(expected), len(got), got)
 	}
 
 	for i := 0; i < len(expected); i++ {
 		if !expected[i].Equivalent(got[i]) {
-			t.Fatalf("expected node %v at position %d but got %v", expected[i], i, got[i])
+			t.Fatalf("%s: expected node %v (%v) at position %d but got %v (%v)", desc, expected[i], expected[i].CoordString(), i, got[i], got[i].CoordString())
+		}
+	}
+}
+
+func TestLastNodeWritten(t *testing.T) {
+	for _, testCase := range lastNodeWrittenVec {
+		str := ""
+		for d := int64(len(testCase.result) - 1); d >= 0; d-- {
+			if lastNodeWritten(d, testCase.ts) {
+				str += "1"
+			} else {
+				str += "0"
+			}
+		}
+
+		if got, want := str, testCase.result; got != want {
+			t.Errorf("lastNodeWritten(%d) got: %s, want: %s", testCase.ts, got, want)
 		}
 	}
 }

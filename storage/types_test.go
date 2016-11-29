@@ -200,3 +200,19 @@ func TestNodeNotEquivalentDifferentPrefix(t *testing.T) {
 		t.Fatalf("%v incorrecly Equivalent with %v", n1, n2)
 	}
 }
+
+// It's important to have confidence in the CoordString output as it's used in debugging
+func TestCoordString(t *testing.T) {
+	// Test some roundtrips for various depths and indices
+	for d := 0; d < 37; d++ {
+		for i := 0; i < 117; i++ {
+			n, err := NewNodeIDForTreeCoords(int64(d), int64(i), 64)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got, want := n.CoordString(), fmt.Sprintf("[d:%d, i:%d]", d, i); got != want {
+				t.Errorf("n.CoordString() got: %v, want: %v", got, want)
+			}
+		}
+	}
+}
