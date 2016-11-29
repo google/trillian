@@ -1,7 +1,6 @@
 package vmap
 
 import (
-	"errors"
 	"sync"
 	"time"
 
@@ -12,13 +11,6 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util"
 	"golang.org/x/net/context"
-)
-
-var (
-	// TODO: Delete when implementation done
-
-	// ErrNotImplemented is returned when an operation is not supported yet
-	ErrNotImplemented = errors.New("Not yet implemented")
 )
 
 // TODO: There is no access control in the server yet and clients could easily modify

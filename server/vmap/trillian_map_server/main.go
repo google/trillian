@@ -41,14 +41,14 @@ func simpleMySQLStorageProvider(treeID int64) (storage.MapStorage, error) {
 
 func checkDatabaseAccessible(dbURI string) error {
 	// TODO(Martin2112): Have to pass a tree ID when we just want metadata. API mismatch
-	storage, err := mysql.NewMapStorage(int64(0), dbURI)
+	mapStorage, err := mysql.NewMapStorage(int64(0), dbURI)
 
 	if err != nil {
 		// This is probably something fundamentally wrong
 		return err
 	}
 
-	tx, err := storage.Begin()
+	tx, err := mapStorage.Begin()
 
 	if err != nil {
 		// Out of resources maybe?

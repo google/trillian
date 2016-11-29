@@ -490,8 +490,8 @@ func (t *TrillianLogRPCServer) commitAndLog(ctx context.Context, tx storage.LogT
 func depointerify(protos []*trillian.LogLeaf) []trillian.LogLeaf {
 	leaves := make([]trillian.LogLeaf, 0, len(protos))
 
-	for _, proto := range protos {
-		leaves = append(leaves, *proto)
+	for _, leafProto := range protos {
+		leaves = append(leaves, *leafProto)
 	}
 
 	return leaves

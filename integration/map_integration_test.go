@@ -39,7 +39,7 @@ func TestMapIntegration(t *testing.T) {
 
 	{
 		// Ensure we're starting with an empty map
-		r, err := client.GetSignedMapRoot(context.Background(), &trillian.GetSignedMapRootRequest{*mapID})
+		r, err := client.GetSignedMapRoot(context.Background(), &trillian.GetSignedMapRootRequest{MapId: *mapID})
 		if err != nil {
 			t.Fatalf("Failed to get empty map head: %v", err)
 		}
@@ -96,7 +96,7 @@ func TestMapIntegration(t *testing.T) {
 	var latestRoot trillian.SignedMapRoot
 	{
 		// Check your head
-		r, err := client.GetSignedMapRoot(context.Background(), &trillian.GetSignedMapRootRequest{*mapID})
+		r, err := client.GetSignedMapRoot(context.Background(), &trillian.GetSignedMapRootRequest{MapId: *mapID})
 		if err != nil {
 			t.Fatalf("Failed to get map head: %v", err)
 		}

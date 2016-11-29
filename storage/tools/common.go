@@ -25,8 +25,8 @@ func GetLogIDFromFlagsOrDie() int64 {
 // TODO: This needs to be tidied up
 func GetLogStorageProviderFromFlags() server.LogStorageProviderFunc {
 	return func(x int64) (storage.LogStorage, error) {
-		storage, err := GetStorageFromFlags(x)
-		return storage, err
+		storageProvider, err := GetStorageFromFlags(x)
+		return storageProvider, err
 	}
 }
 
@@ -49,13 +49,13 @@ func GetStorageFromFlags(treeID int64) (storage.LogStorage, error) {
 // GetStorageFromFlagsOrDie returns a configured storage instance, errors are fatal and if it
 // returns the storage can be used.
 func GetStorageFromFlagsOrDie(treeID int64) storage.LogStorage {
-	storage, err := GetStorageFromFlags(treeID)
+	logStorage, err := GetStorageFromFlags(treeID)
 
 	if err != nil {
 		panic(err)
 	}
 
-	return storage
+	return logStorage
 }
 
 // GetLogServerPort returns the port number to be used when serving log data

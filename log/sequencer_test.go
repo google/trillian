@@ -26,7 +26,6 @@ func rootNeverExpiresFunc(trillian.SignedLogRoot) bool {
 var treeHasher = merkle.NewRFC6962TreeHasher(crypto.NewSHA256())
 
 // These can be shared between tests as they're never modified
-var testLeaf16Hash = []byte{0, 1, 2, 3, 4, 5}
 var testLeaf16Data = []byte("testdataforleaf")
 var testLeaf16 = trillian.LogLeaf{MerkleLeafHash: treeHasher.HashLeaf(testLeaf16Data), LeafValue: testLeaf16Data, ExtraData: nil, LeafIndex: 16}
 

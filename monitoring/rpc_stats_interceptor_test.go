@@ -67,7 +67,7 @@ func TestMultipleOKRequestsTotalLatency(t *testing.T) {
 	for r := 0; r < 3; r++ {
 		resp, err := i(context.Background(), "wibble", &grpc.UnaryServerInfo{FullMethod: "testmethod"}, handler.handler())
 		if resp != "OK" || err != nil {
-			t.Fatalf("request handler returned an error unexpectedly")
+			t.Fatal("request handler returned an error unexpectedly")
 		}
 	}
 
@@ -76,7 +76,7 @@ func TestMultipleOKRequestsTotalLatency(t *testing.T) {
 
 	}
 	if !testMapSizeIs(stats.handlerRequestFailedLatencyMap, 0) {
-		t.Fatalf("incorrectly recorded success latency on errors")
+		t.Fatal("incorrectly recorded success latency on errors")
 	}
 }
 
@@ -90,7 +90,7 @@ func TestMultipleErrorRequestsTotalLatency(t *testing.T) {
 	for r := 0; r < 3; r++ {
 		_, err := i(context.Background(), "wibble", &grpc.UnaryServerInfo{FullMethod: "testmethod"}, handler.handler())
 		if err == nil {
-			t.Fatalf("request handler did not return an error unexpectedly")
+			t.Fatal("request handler did not return an error unexpectedly")
 		}
 	}
 
@@ -99,7 +99,7 @@ func TestMultipleErrorRequestsTotalLatency(t *testing.T) {
 	}
 
 	if !testMapSizeIs(stats.handlerRequestSucceededLatencyMap, 0) {
-		t.Fatalf("incorrectly recorded success latency on errors")
+		t.Fatal("incorrectly recorded success latency on errors")
 	}
 }
 

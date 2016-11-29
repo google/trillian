@@ -498,19 +498,16 @@ func TestMerkleTreePathBuildOnce(t *testing.T) {
 	}
 
 	if mt.LeafCount() != 8 {
-		t.Errorf("8 leaves added but tree size is %d", mt.LeafCount())
-		t.FailNow()
+		t.Fatalf("8 leaves added but tree size is %d", mt.LeafCount())
 	}
 
 	if bytes.Compare(mt.CurrentRoot().hash, decodeHexStringOrPanic(rootsAtSize[7])) != 0 {
-		t.Errorf("Got unexpected root hash: %s %s",
+		t.Fatalf("Got unexpected root hash: %s %s",
 			hex.EncodeToString(mt.CurrentRoot().hash), rootsAtSize[7])
-		t.FailNow()
 	}
 
 	if len(mt.PathToCurrentRoot(9)) > 0 {
-		t.Errorf("Obtained a path for non existent leaf 9")
-		t.FailNow()
+		t.Fatalf("Obtained a path for non existent leaf 9: %v", mt.PathToCurrentRoot(9))
 	}
 
 	for i := 0; i < 6; i++ {

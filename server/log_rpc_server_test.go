@@ -304,7 +304,7 @@ func TestQueueLeavesNoLeavesRejected(t *testing.T) {
 	resp, err := server.QueueLeaves(context.Background(), &queueRequestEmpty)
 
 	if err != nil || resp.Status.StatusCode != trillian.TrillianApiStatusCode_ERROR {
-		t.Fatalf("Allowed zero leaves to be queued")
+		t.Fatal("Allowed zero leaves to be queued")
 	}
 }
 
@@ -945,7 +945,7 @@ func TestGetEntryAndProofBadTreeSize(t *testing.T) {
 	_, err := server.GetEntryAndProof(context.Background(), &getEntryAndProofRequestBadTreeSize)
 
 	if err == nil {
-		t.Fatalf("get entry and proof accepted invalid tree size")
+		t.Fatal("get entry and proof accepted invalid tree size")
 	}
 }
 
@@ -961,7 +961,7 @@ func TestGetEntryAndProofBadLeafIndex(t *testing.T) {
 	_, err := server.GetEntryAndProof(context.Background(), &getEntryAndProofRequestBadLeafIndex)
 
 	if err == nil {
-		t.Fatalf("get entry and proof accepted invalid leaf index")
+		t.Fatal("get entry and proof accepted invalid leaf index")
 	}
 }
 
@@ -977,7 +977,7 @@ func TestGetEntryAndProofBadLeafIndexRange(t *testing.T) {
 	_, err := server.GetEntryAndProof(context.Background(), &getEntryAndProofRequestBadLeafIndexRange)
 
 	if err == nil {
-		t.Fatalf("get entry and proof accepted invalid leaf index (out of range)")
+		t.Fatal("get entry and proof accepted invalid leaf index (out of range)")
 	}
 }
 
@@ -1494,6 +1494,6 @@ func (p *parameterizedTest) executeBeginFailsTest(t *testing.T) {
 	err := p.makeRPC(server)
 
 	if err == nil || !strings.Contains(err.Error(), "TX") {
-		t.Fatalf("Returned wrong error response when begin failed")
+		t.Fatalf("Returned wrong error response when begin failed: %v", err)
 	}
 }

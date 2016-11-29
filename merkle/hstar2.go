@@ -111,8 +111,7 @@ func (s *HStar2) hStarEmpty(n int) ([]byte, error) {
 }
 
 var (
-	smtZero = big.NewInt(0)
-	smtOne  = big.NewInt(1)
+	smtOne = big.NewInt(1)
 )
 
 // hStar2b is the recursive implementation for calculating a sparse Merkle tree

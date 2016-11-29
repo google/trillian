@@ -21,7 +21,7 @@ func TestVerifyMapInclusionProofCatchesWrongKey(t *testing.T) {
 	tv := inclusionProofTestVector[0]
 	tv.Key = []byte("wibble")
 	if err := VerifyMapInclusionProof(h.HashKey(tv.Key), h.HashLeaf(tv.Value), tv.ExpectedRoot, tv.Proof, h); err == nil {
-		t.Errorf("unexpectedly verified proof for incorrect key")
+		t.Error("unexpectedly verified proof for incorrect key")
 	}
 }
 
@@ -30,7 +30,7 @@ func TestVerifyMapInclusionProofCatchesWrongValue(t *testing.T) {
 	tv := inclusionProofTestVector[0]
 	tv.Value = []byte("wibble")
 	if err := VerifyMapInclusionProof(h.HashKey(tv.Key), h.HashLeaf(tv.Value), tv.ExpectedRoot, tv.Proof, h); err == nil {
-		t.Errorf("unexpectedly verified proof for incorrect value")
+		t.Error("unexpectedly verified proof for incorrect value")
 	}
 }
 
@@ -39,7 +39,7 @@ func TestVerifyMapInclusionProofCatchesWrongRoot(t *testing.T) {
 	tv := inclusionProofTestVector[0]
 	tv.ExpectedRoot = h.Digest([]byte("wibble"))
 	if err := VerifyMapInclusionProof(h.HashKey(tv.Key), h.HashLeaf(tv.Value), tv.ExpectedRoot, tv.Proof, h); err == nil {
-		t.Errorf("unexpectedly verified proof for incorrect root")
+		t.Error("unexpectedly verified proof for incorrect root")
 	}
 }
 
@@ -48,7 +48,7 @@ func TestVerifyMapInclusionProofCatchesWrongProof(t *testing.T) {
 	tv := inclusionProofTestVector[0]
 	tv.Proof[250][15] ^= 0x10
 	if err := VerifyMapInclusionProof(h.HashKey(tv.Key), h.HashLeaf(tv.Value), tv.ExpectedRoot, tv.Proof, h); err == nil {
-		t.Errorf("unexpectedly verified proof for incorrect proof")
+		t.Error("unexpectedly verified proof for incorrect proof")
 	}
 }
 
@@ -56,7 +56,7 @@ func TestVerifyMapInclusionProofRejectsShortProof(t *testing.T) {
 	h := NewMapHasher(NewRFC6962TreeHasher(crypto.NewSHA256()))
 	err := VerifyMapInclusionProof(h.HashKey([]byte("hi")), h.HashLeaf([]byte("there")), h.Digest([]byte("root")), [][]byte{h.Digest([]byte("shorty"))}, h)
 	if err == nil {
-		t.Errorf("unexpectedly verified short proof")
+		t.Error("unexpectedly verified short proof")
 	}
 }
 
@@ -65,7 +65,7 @@ func TestVerifyMapInclusionProofRejectsExcess(t *testing.T) {
 	p := make([][]byte, h.Size()*8+1)
 	err := VerifyMapInclusionProof(h.HashKey([]byte("hi")), h.HashLeaf([]byte("there")), h.Digest([]byte("root")), p, h)
 	if err == nil {
-		t.Errorf("unexpectedly verified proof with extra data")
+		t.Error("unexpectedly verified proof with extra data")
 	}
 }
 
@@ -74,7 +74,7 @@ func TestVerifyMapInclusionProofRejectsInvalidKeyHash(t *testing.T) {
 	p := make([][]byte, h.Size()*8)
 	err := VerifyMapInclusionProof([]byte("peppo"), h.HashLeaf([]byte("there")), h.Digest([]byte("root")), p, h)
 	if err == nil {
-		t.Errorf("unexpectedly verified with invalid key hash")
+		t.Error("unexpectedly verified with invalid key hash")
 	}
 }
 
@@ -83,7 +83,7 @@ func TestVerifyMapInclusionProofRejectsInvalidLeafHash(t *testing.T) {
 	p := make([][]byte, h.Size()*8)
 	err := VerifyMapInclusionProof(h.HashKey([]byte("key")), []byte("peppo"), h.Digest([]byte("root")), p, h)
 	if err == nil {
-		t.Errorf("unexpectedly verified with invalid key hash")
+		t.Error("unexpectedly verified with invalid key hash")
 	}
 }
 
@@ -92,7 +92,7 @@ func TestVerifyMapInclusionProofRejectsInvalidRoot(t *testing.T) {
 	p := make([][]byte, h.Size()*8)
 	err := VerifyMapInclusionProof(h.HashKey([]byte("hi")), h.HashLeaf([]byte("there")), []byte("peppo"), p, h)
 	if err == nil {
-		t.Errorf("unexpectedly verified proof with extra data")
+		t.Error("unexpectedly verified proof with extra data")
 	}
 }
 

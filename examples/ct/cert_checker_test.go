@@ -165,8 +165,8 @@ func TestCertCheckerValidChainAccepted(t *testing.T) {
 func pemsToJSONChain(t *testing.T, pemCerts []string) []string {
 	chain := []string{}
 
-	for _, pem := range pemCerts {
-		cert := pemToCert(t, pem)
+	for _, pemCert := range pemCerts {
+		cert := pemToCert(t, pemCert)
 		chain = append(chain, base64.StdEncoding.EncodeToString(cert.Raw))
 	}
 

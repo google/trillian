@@ -27,13 +27,13 @@ func TestCTIntegration(t *testing.T) {
 	if *pubKey != "" {
 		pubkey, err := ioutil.ReadFile(*pubKey)
 		if err != nil {
-			t.Fatalf("Failed to get public key contents: ", err)
+			t.Fatalf("Failed to get public key contents: %v", err)
 		}
 		opts.PublicKey = string(pubkey)
 	}
 	logClient, err := client.New(logURI, nil, opts)
 	if err != nil {
-		t.Fatalf("Failed to create LogClient instance: ", err)
+		t.Fatalf("Failed to create LogClient instance: %v", err)
 	}
 	ctx := context.Background()
 
@@ -58,7 +58,7 @@ func TestCTIntegration(t *testing.T) {
 		t.Errorf("sth.TreeSize=%d; want 0", sth.TreeSize)
 	}
 	when := ctTimestampToTime(sth.Timestamp)
-	fmt.Printf("%v: Got STH: %x\n", when, sth.Version, sth.TreeSize, sth.SHA256RootHash)
+	fmt.Printf("%v: Got STH: %x %v %v\n", when, sth.Version, sth.TreeSize, sth.SHA256RootHash)
 	fmt.Printf("%v\n", signatureToString(&sth.TreeHeadSignature))
 
 	// Stage 2: add a cert, get an SCT

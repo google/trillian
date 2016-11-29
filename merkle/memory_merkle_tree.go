@@ -16,6 +16,7 @@ package merkle
 // -------------------------------------------------------------------------------------------
 
 import (
+	"errors"
 	"fmt"
 )
 
@@ -143,7 +144,7 @@ func (mt *InMemoryMerkleTree) leafHash(leaf int) []byte {
 // update the tree.
 func (mt *InMemoryMerkleTree) NodeCount(level int) int {
 	if mt.lazyLevelCount() <= level {
-		panic(fmt.Errorf("lazyLevelCount <= level in nodeCount"))
+		panic(fmt.Errorf("lazyLevelCount <= level in nodeCount: %d", mt.lazyLevelCount()))
 	}
 
 	return len(mt.tree[level])
@@ -173,7 +174,7 @@ func (mt *InMemoryMerkleTree) root() TreeEntry {
 	lastLevel := len(mt.tree) - 1
 
 	if len(mt.tree[lastLevel]) > 1 {
-		panic(fmt.Errorf("found multiple nodes in root"))
+		panic(fmt.Errorf("found multiple nodes in root: %d", len(mt.tree[lastLevel])))
 	}
 
 	return mt.tree[lastLevel][0]
@@ -198,7 +199,7 @@ func (mt *InMemoryMerkleTree) addLevel() {
 // pushBack appends a node to the level.
 func (mt *InMemoryMerkleTree) pushBack(level int, treeEntry TreeEntry) {
 	if mt.lazyLevelCount() <= level {
-		panic(fmt.Errorf("lazyLevelCount <= level in pushBack"))
+		panic(fmt.Errorf("lazyLevelCount <= level in pushBack: %d", mt.lazyLevelCount()))
 	}
 
 	mt.tree[level] = append(mt.tree[level], treeEntry)
@@ -207,7 +208,7 @@ func (mt *InMemoryMerkleTree) pushBack(level int, treeEntry TreeEntry) {
 // popBack pops (removes and returns) the last node of the level.
 func (mt *InMemoryMerkleTree) popBack(level int) {
 	if len(mt.tree[level]) < 1 {
-		panic(fmt.Errorf("no nodes to pop in popBack"))
+		panic(errors.New("no nodes to pop in popBack"))
 	}
 
 	mt.tree[level] = mt.tree[level][:len(mt.tree[level])-1]
@@ -220,11 +221,11 @@ func (mt *InMemoryMerkleTree) popBack(level int) {
 //
 // Returns the position of the leaf in the tree. Indexing starts at 1,
 // so position = number of leaves in the tree after this update.
-func (mt *InMemoryMerkleTree) AddLeaf(leafData []byte) (assignedSeq int, treeEntry TreeEntry) {
+func (mt *InMemoryMerkleTree) AddLeaf(leafData []byte) (int, TreeEntry) {
 	return mt.addLeafHash(mt.hasher.HashLeaf(leafData))
 }
 
-func (mt *InMemoryMerkleTree) addLeafHash(leafData []byte) (assignedSeq int, newTreeEntry TreeEntry) {
+func (mt *InMemoryMerkleTree) addLeafHash(leafData []byte) (int, TreeEntry) {
 	treeEntry := TreeEntry{}
 	treeEntry.hash = leafData
 
@@ -295,11 +296,11 @@ func (mt *InMemoryMerkleTree) updateToSnapshot(snapshot int) TreeEntry {
 	}
 
 	if snapshot > mt.LeafCount() {
-		panic(fmt.Errorf("snapshot size > leaf count in updateToSnapshot"))
+		panic(errors.New("snapshot size > leaf count in updateToSnapshot"))
 	}
 
 	if snapshot <= mt.leavesProcessed {
-		panic(fmt.Errorf("snapshot size <= leavesProcessed in updateToSnapshot"))
+		panic(errors.New("snapshot size <= leavesProcessed in updateToSnapshot"))
 	}
 
 	// Update tree, moving up level-by-level.
@@ -364,7 +365,7 @@ func (mt *InMemoryMerkleTree) recomputePastSnapshot(snapshot int, nodeLevel int,
 	}
 
 	if snapshot >= mt.leavesProcessed {
-		panic(fmt.Errorf("snapshot size >= leavesProcessed in recomputePastSnapshot"))
+		panic(errors.New("snapshot size >= leavesProcessed in recomputePastSnapshot"))
 	}
 
 	// Recompute nodes on the path of the last leaf.
