@@ -40,9 +40,10 @@ func CalcInclusionProofNodeAddresses(treeSize, index int64, maxBitLen int) ([]st
 			}
 			proof = append(proof, n)
 		} else if sibling == lastNodeAtLevel {
-			// The tree may skip levels because it's not completely filled in. These nodes
-			// don't exist in storage, the value we want is a copy of a node further down
-			// (multiple levels may be skipped).
+			// We're working in the same node coordinate space as the C++ reference implementation
+			// (depth, index) but intermediate nodes with only one child are not written by our storage.
+			// In these cases the value that we want is a copy of a node further down (multiple levels
+			// may be skipped).
 			l, sibling := skipMissingLevels(treeSize, lastNodeAtLevel, depth, node)
 			n, err := storage.NewNodeIDForTreeCoords(int64(l), sibling, maxBitLen)
 			if err != nil {
@@ -143,7 +144,7 @@ func pathFromNodeToRootAtSnapshot(node int64, level int, snapshot int64, maxBitL
 			// this is the only area of the tree that is not fully populated.
 			glog.V(vLevel).Infof("Last: S:%d L:%d", sibling, level)
 
-			// Account for non existent nodes - these can only be the right most node at an
+			// Account for non existent nodes - these can only be the rightmost node at an
 			// intermediate (non leaf) level in the tree so will always be a right sibling.
 			l, sibling := skipMissingLevels(snapshot, lastNode, level, node)
 			n, err := storage.NewNodeIDForTreeCoords(int64(l), sibling, maxBitLen)
@@ -169,7 +170,30 @@ func pathFromNodeToRootAtSnapshot(node int64, level int, snapshot int64, maxBitL
 // examining the bits of the last valid leaf index in a tree of the specified size. Zero bits
 // indicate nodes that are not stored at that tree size.
 //
-// Example:
+// Examples, all using a tree of size 5 leaves:
+//
+// As depicted in RFC 6962, nodes "float" upwards.
+//
+//						hash2
+//					  /  \
+//					 /    \
+//					/      \
+//				 /        \
+//				/          \
+//			  k            i
+//			 / \           |
+//			/   \          e
+//		 /     \         |
+//		g       h       d4
+//	 / \     / \
+//	 a b     c d
+//	 | |     | |
+//	 d0 d1   d2 d3
+//
+// In C++ reference implementation, intermediate nodes are stored, leaves are at level 0.
+// There is a dummy copy from the level below stored where the last node at a level has no right
+// sibling. More detail is given in the comments of:
+// https://github.com/google/certificate-transparency/blob/master/cpp/merkletree/merkle_tree.h
 //
 //             hash2
 //             /  \
@@ -177,22 +201,41 @@ func pathFromNodeToRootAtSnapshot(node int64, level int, snapshot int64, maxBitL
 //           /      \
 //          /        \
 //         /          \
-//        k            [X]
+//        k            e
 //       / \             \
 //      /   \             \
 //     /     \             \
-//    g       h           [X]
+//    g       h           e
 //   / \     / \         /
 //   a b     c d        e
 //   | |     | |        |
 //   d0 d1   d2 d3      d4
 //
+// In our storage implementation shown in the next diagram, [X] nodes with one child are not
+// written, there is no dummy copy. Leaves are at level zero.
+//
+//             hash2
+//             /  \
+//            /    \
+//           /      \
+//          /        \
+//         /          \
+//        k            [X]           Level 2
+//       / \             \
+//      /   \             \
+//     /     \             \
+//    g       h           [X]        Level 1
+//   / \     / \         /
+//   a b     c d        e            Level 0
+//   | |     | |        |
+//   d0 d1   d2 d3      d4
+//
 // Tree size = 5, last index = 4 in binary = 100, append 1 for leaves = 1001.
 // Reading down the RHS: present, not present, not present, present = 1001. So when
-// attempting to fetch the sibling of k the tree should be descended twice to fetch
-// 'e'.
-func lastNodeWritten(d, ts int64) bool {
-	if d == 0 {
+// attempting to fetch the sibling of k (level 2, index 1) the tree should be descended twice to
+// fetch 'e' (level 0, index 4) as (level 1, index 2) is also not present in storage.
+func lastNodeWritten(level, ts int64) bool {
+	if level == 0 {
 		// Leaves always exist
 		return true
 	}
@@ -200,7 +243,7 @@ func lastNodeWritten(d, ts int64) bool {
 	// Last index is size - 1, we shift one to avoid special case (leaves always present)
 	bits := uint64(ts - 1)
 	// Test the bit in the path for the requested level
-	mask := uint64(1) << uint64(d-1)
+	mask := uint64(1) << uint64(level - 1)
 
 	return bits&mask != 0
 }
@@ -211,9 +254,9 @@ func lastNodeWritten(d, ts int64) bool {
 // is the same as the node lower down the tree as there is nothing to hash it with.
 func skipMissingLevels(snapshot, lastNode int64, level int, node int64) (int, int64) {
 	sibling := node ^ 1
-	for level > 0 && (node&1) == 0 && sibling == lastNode && !lastNodeWritten(int64(level), snapshot) {
+	for level > 0 && sibling == lastNode && !lastNodeWritten(int64(level), snapshot) {
 		level--
-		sibling = sibling + sibling
+		sibling *= 2
 		lastNode = (snapshot - 1) >> uint(level)
 		glog.Infof("Move down: S:%d L:%d LN:%d", sibling, level, lastNode)
 	}
