@@ -37,6 +37,9 @@ var lastNodeWrittenVec = []struct {
 	{15, "11101"},
 }
 
+// For the path test tests at tree sizes up to this value
+const testUpToTreeSize = 99
+
 // Expected inclusion proof paths built by examination of the example 7 leaf tree in RFC 6962:
 //
 //                hash              <== Level 3
@@ -296,6 +299,26 @@ func TestLastNodeWritten(t *testing.T) {
 
 		if got, want := str, testCase.result; got != want {
 			t.Errorf("lastNodeWritten(%d) got: %s, want: %s", testCase.ts, got, want)
+		}
+	}
+}
+
+func TestInclusionSucceedsUpToTreeSize(t *testing.T) {
+	for ts := 1; ts < testUpToTreeSize; ts++ {
+		for i := ts; i < ts; i++ {
+			if _, err := CalcInclusionProofNodeAddresses(int64(ts), int64(i), 64); err != nil {
+				t.Errorf("CalcInclusionProofNodeAddresses(ts:%d, i:%d) = %v", ts, i, err)
+			}
+		}
+	}
+}
+
+func TestConsistencySucceedsUpToTreeSize(t *testing.T) {
+	for s1 := 1; s1 < testUpToTreeSize; s1++ {
+		for s2 := s1 + 1; s2 < testUpToTreeSize; s2++ {
+			if _, err := CalcConsistencyProofNodeAddresses(int64(s1), int64(s2), 64); err != nil {
+				t.Errorf("CalcConsistencyProofNodeAddresses(%d, %d) = %v", s1, s2, err)
+			}
 		}
 	}
 }
