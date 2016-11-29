@@ -69,7 +69,12 @@ CREATE TABLE IF NOT EXISTS LeafData(
   -- Note that this is a simple SHA256 hash of the raw data used to detect corruption in transit and
   -- for deduping. It is not the leaf hash output of the treehasher used by the log.
   LeafValueHash        VARBINARY(255) NOT NULL,
+  -- This is the data stored in the leaf for example in CT it contains a DER encoded
+  -- X.509 certificate but is application dependent
   LeafValue            BLOB NOT NULL,
+  -- This is extra data that the application can associate with the leaf should it wish to.
+  -- This data is not included in signing and hashing.
+  ExtraData            BLOB,
   PRIMARY KEY(TreeId, LeafValueHash),
   INDEX LeafHashIdx(LeafValueHash),
   FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE

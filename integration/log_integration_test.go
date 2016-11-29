@@ -193,6 +193,7 @@ func queueLeaves(treeID int64, client trillian.TrillianLogClient, params testPar
 		leaf := trillian.LogLeaf{
 			LeafValueHash: hash[:],
 			LeafValue:     data,
+			ExtraData:     []byte(fmt.Sprintf("Extra %d", leafNumber)),
 		}
 		leaves = append(leaves, leaf)
 
@@ -310,10 +311,16 @@ func readbackLogEntries(logID int64, client trillian.TrillianLogClient, params t
 
 			delete(leafDataPresenceMap, string(leaf.LeafValue))
 
-			hash := hasher.HashLeaf(response.Leaves[l].LeafValue)
+			hash := hasher.HashLeaf(leaf.LeafValue)
 
 			if got, want := hex.EncodeToString(hash), hex.EncodeToString(leaf.MerkleLeafHash); got != want {
-				return nil, fmt.Errorf("leaf hash mismatch expected got: %s want: %s", got, want)
+				return nil, fmt.Errorf("leaf %d hash mismatch expected got: %s want: %s", leaf.LeafIndex, got, want)
+			}
+
+			// Ensure that the ExtraData in the leaf made it through the roundtrip. This was set up when
+			// we queued the leaves.
+			if got, want := hex.EncodeToString(leaf.ExtraData), hex.EncodeToString([]byte(strings.Replace(string(leaf.LeafValue), "Leaf", "Extra", 1))); got != want {
+				return nil, fmt.Errorf("leaf %d extra data got: %s, want:%s (%v)", leaf.LeafIndex, got, want, leaf)
 			}
 		}
 
@@ -422,7 +429,7 @@ func checkConsistencyProof(consistParams consistencyProofParams, treeID int64, t
 	ctx, cancel := getRPCDeadlineContext()
 	resp, err := client.GetConsistencyProof(ctx,
 		&trillian.GetConsistencyProofRequest{
-			LogId: treeID,
+			LogId:          treeID,
 			FirstTreeSize:  consistParams.size1 * int64(params.sequencerBatchSize),
 			SecondTreeSize: (consistParams.size2 * int64(params.sequencerBatchSize)),
 		})

@@ -33,6 +33,9 @@ var fakeQueueTime = time.Date(2016, 11, 10, 15, 16, 27, 0, time.UTC)
 // Time we'll request for guard cutoff in tests that don't test this (should include all above)
 var fakeDequeueCutoffTime = time.Date(2016, 11, 10, 15, 16, 30, 0, time.UTC)
 
+// Used for tests involving extra data
+var someExtraData = []byte("Some extra data")
+
 const leavesToInsert = 5
 const sequenceNumber int64 = 237
 
@@ -43,8 +46,8 @@ const sequenceNumber int64 = 237
 var signedTimestamp = trillian.SignedEntryTimestamp{
 	TimestampNanos: 1234567890, LogId: createLogID("sign").logID, Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
 
-func createFakeLeaf(db *sql.DB, logID int64, rawHash, hash []byte, data []byte, seq int64, t *testing.T) {
-	_, err := db.Exec("INSERT INTO LeafData(TreeId, LeafValueHash, LeafValue) VALUES(?,?,?)", logID, rawHash, data)
+func createFakeLeaf(db *sql.DB, logID int64, rawHash, hash []byte, data, extraData []byte, seq int64, t *testing.T) {
+	_, err := db.Exec("INSERT INTO LeafData(TreeId, LeafValueHash, LeafValue, ExtraData) VALUES(?,?,?,?)", logID, rawHash, data, extraData)
 	_, err2 := db.Exec("INSERT INTO SequencedLeafData(TreeId, SequenceNumber, LeafValueHash, MerkleLeafHash) VALUES(?,?,?,?)", logID, seq, rawHash, hash)
 
 	if err != nil || err2 != nil {
@@ -52,7 +55,7 @@ func createFakeLeaf(db *sql.DB, logID int64, rawHash, hash []byte, data []byte, 
 	}
 }
 
-func checkLeafContents(leaf trillian.LogLeaf, seq int64, rawHash, hash, data []byte, t *testing.T) {
+func checkLeafContents(leaf trillian.LogLeaf, seq int64, rawHash, hash, data, extraData []byte, t *testing.T) {
 	if got, want := leaf.MerkleLeafHash, hash; !bytes.Equal(got, want) {
 		t.Fatalf("Wrong leaf hash in returned leaf got\n%v\nwant:\n%v", got, want)
 	}
@@ -66,6 +69,10 @@ func checkLeafContents(leaf trillian.LogLeaf, seq int64, rawHash, hash, data []b
 	}
 
 	if got, want := leaf.LeafValue, data; !bytes.Equal(got, want) {
+		t.Fatalf("Unxpected data in returned leaf. got:\n%v\nwant:\n%v", got, want)
+	}
+
+	if got, want := leaf.ExtraData, extraData; !bytes.Equal(got, want) {
 		t.Fatalf("Unxpected data in returned leaf. got:\n%v\nwant:\n%v", got, want)
 	}
 }
@@ -538,7 +545,7 @@ func TestGetLeavesByHash(t *testing.T) {
 
 	data := []byte("some data")
 
-	createFakeLeaf(db, logID.logID, dummyRawHash, dummyHash, data, sequenceNumber, t)
+	createFakeLeaf(db, logID.logID, dummyRawHash, dummyHash, data, someExtraData, sequenceNumber, t)
 
 	s := prepareTestLogStorage(logID, t)
 	tx := beginLogTx(s, t)
@@ -555,7 +562,7 @@ func TestGetLeavesByHash(t *testing.T) {
 		t.Fatalf("Got %d leaves but expected one", len(leaves))
 	}
 
-	checkLeafContents(leaves[0], sequenceNumber, dummyRawHash, dummyHash, data, t)
+	checkLeafContents(leaves[0], sequenceNumber, dummyRawHash, dummyHash, data, someExtraData, t)
 }
 
 func TestGetLeavesByLeafValueHash(t *testing.T) {
@@ -566,7 +573,7 @@ func TestGetLeavesByLeafValueHash(t *testing.T) {
 
 	data := []byte("some data")
 
-	createFakeLeaf(db, logID.logID, dummyRawHash, dummyHash, data, sequenceNumber, t)
+	createFakeLeaf(db, logID.logID, dummyRawHash, dummyHash, data, someExtraData, sequenceNumber, t)
 
 	s := prepareTestLogStorage(logID, t)
 	tx := beginLogTx(s, t)
@@ -578,18 +585,18 @@ func TestGetLeavesByLeafValueHash(t *testing.T) {
 	} else if len(leaves) != 1 {
 		t.Fatalf("GetLeavesByLeafValueHash() = %d leaves, want 1", len(leaves))
 	} else {
-		checkLeafContents(leaves[0], sequenceNumber, dummyRawHash, dummyHash, data, t)
+		checkLeafContents(leaves[0], sequenceNumber, dummyRawHash, dummyHash, data, someExtraData, t)
 	}
 }
 
 func TestGetLeavesByIndex(t *testing.T) {
-	// Create fake leaf as if it had been sequenced
+	// Create fake leaf as if it had been sequenced, read it back and check contents
 	logID := createLogID("TestGetLeavesByIndex")
 	db := prepareTestLogDB(logID, t)
 	defer db.Close()
 	data := []byte("some data")
 
-	createFakeLeaf(db, logID.logID, dummyRawHash, dummyHash, data, sequenceNumber, t)
+	createFakeLeaf(db, logID.logID, dummyRawHash, dummyHash, data, someExtraData, sequenceNumber, t)
 
 	s := prepareTestLogStorage(logID, t)
 	tx := beginLogTx(s, t)
@@ -605,7 +612,7 @@ func TestGetLeavesByIndex(t *testing.T) {
 		t.Fatalf("Got %d leaves but expected one", len(leaves))
 	}
 
-	checkLeafContents(leaves[0], sequenceNumber, dummyRawHash, dummyHash, data, t)
+	checkLeafContents(leaves[0], sequenceNumber, dummyRawHash, dummyHash, data, someExtraData, t)
 }
 
 func openTestDBOrDie() *sql.DB {
@@ -927,7 +934,7 @@ func TestGetSequencedLeafCount(t *testing.T) {
 
 		data := []byte("some data")
 
-		createFakeLeaf(db, logID.logID, dummyHash, dummyRawHash, data, sequenceNumber, t)
+		createFakeLeaf(db, logID.logID, dummyHash, dummyRawHash, data, someExtraData, sequenceNumber, t)
 
 		// Create fake leaves for second tree as if they had been sequenced
 		db2 := prepareTestLogDB(logID2, t)
@@ -936,8 +943,8 @@ func TestGetSequencedLeafCount(t *testing.T) {
 		data2 := []byte("some data 2")
 		data3 := []byte("some data 3")
 
-		createFakeLeaf(db2, logID2.logID, dummyHash2, dummyRawHash, data2, sequenceNumber, t)
-		createFakeLeaf(db2, logID2.logID, dummyHash3, dummyRawHash, data3, sequenceNumber+1, t)
+		createFakeLeaf(db2, logID2.logID, dummyHash2, dummyRawHash, data2, someExtraData, sequenceNumber, t)
+		createFakeLeaf(db2, logID2.logID, dummyHash3, dummyRawHash, data3, someExtraData, sequenceNumber + 1, t)
 	}
 
 	// Read back the leaf counts from both trees
