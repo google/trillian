@@ -78,17 +78,17 @@ func TestOpenStateCommit(t *testing.T) {
 	tx, err := s.Begin()
 
 	if err != nil {
-		t.Fatalf("Failed to set up db transaction")
+		t.Fatalf("Failed to set up db transaction: %v", err)
 	}
 
 	if !tx.IsOpen() {
-		t.Fatalf("Transaction should be open on creation")
+		t.Fatal("Transaction should be open on creation")
 	}
 	if err = tx.Commit(); err != nil {
 		t.Fatalf("Failed to commit: %v", err)
 	}
 	if tx.IsOpen() {
-		t.Fatalf("Transaction should be closed after commit")
+		t.Fatal("Transaction should be closed after commit")
 	}
 }
 
@@ -100,17 +100,17 @@ func TestOpenStateRollback(t *testing.T) {
 	tx, err := s.Begin()
 
 	if err != nil {
-		t.Fatalf("Failed to set up db transaction")
+		t.Fatalf("Failed to set up db transaction: %v", err)
 	}
 
 	if !tx.IsOpen() {
-		t.Fatalf("Transaction should be open on creation")
+		t.Fatal("Transaction should be open on creation")
 	}
 	if err = tx.Rollback(); err != nil {
 		t.Fatalf("Failed to commit: %v", err)
 	}
 	if tx.IsOpen() {
-		t.Fatalf("Transaction should be closed after rollback")
+		t.Fatal("Transaction should be closed after rollback")
 	}
 }
 
@@ -160,7 +160,7 @@ func TestQueueLeaves(t *testing.T) {
 	var count int
 
 	if err := db.QueryRow("SELECT COUNT(*) FROM Unsequenced WHERE TreeID=?", logID.logID).Scan(&count); err != nil {
-		t.Fatalf("Could not query row count")
+		t.Fatalf("Could not query row count: %v", err)
 	}
 
 	if leavesToInsert != count {
@@ -170,7 +170,7 @@ func TestQueueLeaves(t *testing.T) {
 	// Additional check on timestamp being set correctly in the database
 	var queueTimestamp int64
 	if err := db.QueryRow("SELECT DISTINCT QueueTimestampNanos FROM Unsequenced WHERE TreeID=?", logID.logID).Scan(&queueTimestamp); err != nil {
-		t.Fatalf("Could not query timestamp")
+		t.Fatalf("Could not query timestamp: %v", err)
 	}
 
 	if got, want := queueTimestamp, fakeQueueTime.UnixNano(); got != want {
@@ -195,7 +195,7 @@ func TestQueueLeavesBadHash(t *testing.T) {
 	tx.Rollback()
 
 	if err == nil {
-		t.Fatalf("Allowed a leaf to be queued with bad hash")
+		t.Fatal("Allowed a leaf to be queued with bad hash")
 	}
 
 	testonly.EnsureErrorContains(t, err, "mismatch")
@@ -679,12 +679,12 @@ func TestGetTreeRevisionAtNonExistentSizeError(t *testing.T) {
 	tx := beginLogTx(s, t)
 	defer tx.Commit()
 
-	if _, err := tx.GetTreeRevisionAtSize(0); err == nil {
-		t.Fatalf("Returned a tree revision for 0 sized tree")
+	if revision, err := tx.GetTreeRevisionAtSize(0); err == nil {
+		t.Fatalf("Returned a tree revision for 0 sized tree: %d", revision)
 	}
 
-	if _, err := tx.GetTreeRevisionAtSize(-427); err == nil {
-		t.Fatalf("Returned a tree revision for -ve sized tree")
+	if revision, err := tx.GetTreeRevisionAtSize(-427); err == nil {
+		t.Fatalf("Returned a tree revision for -ve sized tree: %d", revision)
 	}
 }
 
@@ -802,7 +802,7 @@ func TestDuplicateSignedLogRoot(t *testing.T) {
 
 	// Shouldn't be able to do it again
 	if err := tx.StoreSignedLogRoot(root); err == nil {
-		t.Fatalf("Allowed duplicate signed root")
+		t.Fatal("Allowed duplicate signed root")
 	}
 }
 

@@ -28,7 +28,7 @@ func main() {
 		req := &trillian.SetMapLeavesRequest{
 			MapId: 1,
 			KeyValue: []*trillian.KeyValue{
-				&trillian.KeyValue{
+				{
 					Key: key,
 					Value: &trillian.MapLeaf{
 						LeafHash:  []byte("This is a leaf hash"),

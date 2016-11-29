@@ -163,7 +163,6 @@ func TestPostHandlersOnlyAcceptPost(t *testing.T) {
 	// Anything in the post handler list should only accept POST
 	for _, hp := range allPostHandlersForTest(client) {
 		s := httptest.NewServer(hp.handler)
-		defer s.Close()
 		resp, err := http.Get(s.URL + "/ct/v1/" + hp.path)
 
 		if err != nil {
@@ -185,6 +184,8 @@ func TestPostHandlersOnlyAcceptPost(t *testing.T) {
 		if expected, got := http.StatusBadRequest, resp.StatusCode; expected != got {
 			t.Fatalf("Wrong status code for POST to POST handler, expected %v got %v", expected, got)
 		}
+
+		s.Close()
 	}
 }
 
@@ -200,7 +201,6 @@ func TestGetHandlersRejectPost(t *testing.T) {
 	// GET because that needs different mock backend set up per handler.
 	for _, hp := range allGetHandlersForTest(pool, handlers) {
 		s := httptest.NewServer(hp.handler)
-		defer s.Close()
 
 		resp, err := http.Post(s.URL+"/ct/v1/"+hp.path, "application/json", nil)
 
@@ -211,6 +211,8 @@ func TestGetHandlersRejectPost(t *testing.T) {
 		if expected, got := http.StatusMethodNotAllowed, resp.StatusCode; expected != got {
 			t.Fatalf("Wrong status code for POST to GET handler, expected %v, got %v", expected, got)
 		}
+
+		s.Close()
 	}
 }
 
@@ -222,7 +224,6 @@ func TestPostHandlersRejectEmptyJson(t *testing.T) {
 
 	for _, hp := range allPostHandlersForTest(client) {
 		s := httptest.NewServer(hp.handler)
-		defer s.Close()
 
 		resp, err := http.Post(s.URL+"/ct/v1/"+hp.path, "application/json", strings.NewReader(""))
 
@@ -233,6 +234,8 @@ func TestPostHandlersRejectEmptyJson(t *testing.T) {
 		if expected, got := http.StatusBadRequest, resp.StatusCode; expected != got {
 			t.Fatalf("Wrong status code for empty JSON body, expected %v, got %v", expected, got)
 		}
+
+		s.Close()
 	}
 }
 
@@ -244,7 +247,6 @@ func TestPostHandlersRejectMalformedJson(t *testing.T) {
 
 	for _, hp := range allPostHandlersForTest(client) {
 		s := httptest.NewServer(hp.handler)
-		defer s.Close()
 
 		resp, err := http.Post(s.URL+"/ct/v1/"+hp.path, "application/json", strings.NewReader("{ !£$%^& not valid json "))
 
@@ -255,6 +257,8 @@ func TestPostHandlersRejectMalformedJson(t *testing.T) {
 		if expected, got := http.StatusBadRequest, resp.StatusCode; expected != got {
 			t.Fatalf("Wrong status code for invalid JSON body, expected %v, got %v", expected, got)
 		}
+
+		s.Close()
 	}
 }
 
@@ -266,7 +270,6 @@ func TestPostHandlersRejectEmptyCertChain(t *testing.T) {
 
 	for _, hp := range allPostHandlersForTest(client) {
 		s := httptest.NewServer(hp.handler)
-		defer s.Close()
 
 		resp, err := http.Post(s.URL+"/ct/v1/"+hp.path, "application/json", strings.NewReader(`{ "chain": [] }`))
 
@@ -277,6 +280,8 @@ func TestPostHandlersRejectEmptyCertChain(t *testing.T) {
 		if expected, got := http.StatusBadRequest, resp.StatusCode; expected != got {
 			t.Fatalf("Wrong status code for empty chain in JSON body, expected %v, got %v", expected, got)
 		}
+
+		s.Close()
 	}
 }
 
@@ -288,7 +293,6 @@ func TestPostHandlersAcceptNonEmptyCertChain(t *testing.T) {
 
 	for _, hp := range allPostHandlersForTest(client) {
 		s := httptest.NewServer(hp.handler)
-		defer s.Close()
 
 		resp, err := http.Post(s.URL+"/ct/v1/"+hp.path, "application/json", strings.NewReader(`{ "chain": [ "test" ] }`))
 
@@ -301,6 +305,8 @@ func TestPostHandlersAcceptNonEmptyCertChain(t *testing.T) {
 		if expected1, expected2, got := http.StatusNotImplemented, http.StatusBadRequest, resp.StatusCode; expected1 != got && expected2 != got {
 			t.Fatalf("Wrong status code for non-empty chain in body, expected either %v or %v, got %v", expected1, expected2, got)
 		}
+
+		s.Close()
 	}
 }
 

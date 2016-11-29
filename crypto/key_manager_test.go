@@ -21,7 +21,7 @@ func TestLoadDemoECDSAKeyAndSign(t *testing.T) {
 	km := new(PEMKeyManager)
 
 	// Obviously in real code we wouldn't use a fixed seed
-	rand := rand.New(rand.NewSource(42))
+	randSource := rand.New(rand.NewSource(42))
 
 	hasher := NewSHA256()
 
@@ -37,7 +37,7 @@ func TestLoadDemoECDSAKeyAndSign(t *testing.T) {
 		t.Fatalf("Failed to create signer: %v", err)
 	}
 
-	signed, err := signer.Sign(rand, []byte("hello"), hasher)
+	signed, err := signer.Sign(randSource, []byte("hello"), hasher)
 
 	if err != nil {
 		t.Fatalf("Failed to sign: %v", err)
@@ -48,7 +48,7 @@ func TestLoadDemoECDSAKeyAndSign(t *testing.T) {
 	_, err = asn1.Unmarshal(signed, &signature)
 
 	if err != nil {
-		t.Fatalf("Failed to unmarshal signature as asn.1")
+		t.Fatal("Failed to unmarshal signature as asn.1")
 	}
 
 	publicBlock, rest := pem.Decode([]byte(testonly.DemoPublicKey))

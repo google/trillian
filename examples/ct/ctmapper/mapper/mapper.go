@@ -186,13 +186,13 @@ func main() {
 	}
 	defer conn.Close()
 
-	ct, err := client.New(*sourceLog, nil, jsonclient.Options{})
+	ctClient, err := client.New(*sourceLog, nil, jsonclient.Options{})
 	if err != nil {
 		glog.Exitf("Failed to create CT client: %v", err)
 	}
 	mapper := CTMapper{
 		mapID: int64(*mapID),
-		ct:    ct,
+		ct:    ctClient,
 		vmap:  trillian.NewTrillianMapClient(conn),
 	}
 

@@ -273,7 +273,7 @@ func TestDuplicateSignedMapRoot(t *testing.T) {
 
 	// Shouldn't be able to do it again
 	if err := tx.StoreSignedMapRoot(root); err == nil {
-		t.Fatalf("Allowed duplicate signed map root")
+		t.Fatal("Allowed duplicate signed map root")
 	}
 }
 

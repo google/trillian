@@ -28,10 +28,10 @@ func TestUpdateDomainMap(t *testing.T) {
 	}
 
 	expected := map[string]ctmapperpb.EntryList{
-		"commonName":  ctmapperpb.EntryList{Domain: "commonName", CertIndex: []int64{0, 10, 11, 12, 13}},
-		"anotherName": ctmapperpb.EntryList{Domain: "anotherName", CertIndex: []int64{20}, PrecertIndex: []int64{21}},
-		"alt1":        ctmapperpb.EntryList{Domain: "alt1", CertIndex: []int64{20}, PrecertIndex: []int64{21}},
-		"alt2":        ctmapperpb.EntryList{Domain: "alt2", CertIndex: []int64{20}, PrecertIndex: []int64{21}},
+		"commonName":  {Domain: "commonName", CertIndex: []int64{0, 10, 11, 12, 13}},
+		"anotherName": {Domain: "anotherName", CertIndex: []int64{20}, PrecertIndex: []int64{21}},
+		"alt1":        {Domain: "alt1", CertIndex: []int64{20}, PrecertIndex: []int64{21}},
+		"alt2":        {Domain: "alt2", CertIndex: []int64{20}, PrecertIndex: []int64{21}},
 	}
 
 	m := make(map[string]ctmapperpb.EntryList)

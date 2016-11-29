@@ -63,7 +63,7 @@ func (k PEMKeyManager) SignatureAlgorithm() trillian.SignatureAlgorithm {
 func (k *PEMKeyManager) LoadPrivateKey(pemEncodedKey, password string) error {
 	block, rest := pem.Decode([]byte(pemEncodedKey))
 	if len(rest) > 0 {
-		return fmt.Errorf("extra data found after PEM decoding")
+		return errors.New("extra data found after PEM decoding")
 	}
 
 	der, err := x509.DecryptPEMBlock(block, []byte(password))
