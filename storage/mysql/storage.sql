@@ -72,7 +72,8 @@ CREATE TABLE IF NOT EXISTS LeafData(
   -- This is the data stored in the leaf for example in CT it contains a DER encoded
   -- X.509 certificate but is application dependent
   LeafValue            BLOB NOT NULL,
-  -- This is extra data that the application can associate with the leaf, not required
+  -- This is extra data that the application can associate with the leaf should it wish to.
+  -- This data is not included in signing and hashing.
   ExtraData            BLOB,
   PRIMARY KEY(TreeId, LeafValueHash),
   INDEX LeafHashIdx(LeafValueHash),

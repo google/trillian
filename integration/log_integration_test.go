@@ -317,7 +317,8 @@ func readbackLogEntries(logID int64, client trillian.TrillianLogClient, params t
 				return nil, fmt.Errorf("leaf %d hash mismatch expected got: %s want: %s", leaf.LeafIndex, got, want)
 			}
 
-			// Ensure that the ExtraData in the leaf made it through the roundtrip
+			// Ensure that the ExtraData in the leaf made it through the roundtrip. This was set up when
+			// we queued the leaves.
 			if got, want := hex.EncodeToString(leaf.ExtraData), hex.EncodeToString([]byte(strings.Replace(string(leaf.LeafValue), "Leaf", "Extra", 1))); got != want {
 				return nil, fmt.Errorf("leaf %d extra data got: %s, want:%s (%v)", leaf.LeafIndex, got, want, leaf)
 			}
