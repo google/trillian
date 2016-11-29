@@ -212,7 +212,7 @@ func lastNodeWritten(d, ts int64) bool {
 func skipMissingLevels(snapshot, lastNode int64, level int, node int64) (int, int64) {
 	sibling := node ^ 1
 	for level > 0 && (node&1) == 0 && sibling == lastNode && !lastNodeWritten(int64(level), snapshot) {
-		level -= 1
+		level--
 		sibling = sibling + sibling
 		lastNode = (snapshot - 1) >> uint(level)
 		glog.Infof("Move down: S:%d L:%d LN:%d", sibling, level, lastNode)
