@@ -428,7 +428,7 @@ func checkConsistencyProof(consistParams consistencyProofParams, treeID int64, t
 	ctx, cancel := getRPCDeadlineContext()
 	resp, err := client.GetConsistencyProof(ctx,
 		&trillian.GetConsistencyProofRequest{
-			LogId: treeID,
+			LogId:          treeID,
 			FirstTreeSize:  consistParams.size1 * int64(params.sequencerBatchSize),
 			SecondTreeSize: (consistParams.size2 * int64(params.sequencerBatchSize)),
 		})
