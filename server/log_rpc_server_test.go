@@ -539,12 +539,12 @@ func TestGetLeavesByLeafValueHashInvalidHash(t *testing.T) {
 
 	// Should have succeeded at RPC level
 	if err != nil {
-		t.Fatalf("GetLeavesByLeafValueHash(hash empty) = %v, %v, want: nil, TrillianApiStatusCode_ERROR", err, resp.Status)
+		t.Fatalf("GetLeavesByLeafValueHash(hash empty) = %v, %v, want: TrillianApiStatusCode_ERROR, nil", resp.Status, err)
 	}
 
 	// And failed at app level
 	if got, want := resp.Status.StatusCode, trillian.TrillianApiStatusCode_ERROR; got != want {
-		t.Fatalf("GetLeavesByLeafValueHash(hash empty) = %v, %v, want: %d, %d", err, resp.Status, got, want)
+		t.Fatalf("GetLeavesByLeafValueHash(hash empty) = %v, %v, want: %d, %d", resp.Status, err, got, want)
 	}
 }
 
