@@ -258,7 +258,7 @@ func skipMissingLevels(snapshot, lastNode int64, level int, node int64) (int, in
 		level--
 		sibling *= 2
 		lastNode = (snapshot - 1) >> uint(level)
-		glog.Infof("Move down: S:%d L:%d LN:%d", sibling, level, lastNode)
+		glog.V(vLevel).Infof("Move down: S:%d L:%d LN:%d", sibling, level, lastNode)
 	}
 
 	return level, sibling
