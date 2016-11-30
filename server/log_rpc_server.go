@@ -361,29 +361,18 @@ func (t *TrillianLogRPCServer) GetLeavesByIndex(ctx context.Context, req *trilli
 // to fetch leaves that have been queued but not yet integrated. Logs may accept duplicate
 // entries so this may return more results than the number of hashes in the request.
 func (t *TrillianLogRPCServer) GetLeavesByHash(ctx context.Context, req *trillian.GetLeavesByHashRequest) (*trillian.GetLeavesByHashResponse, error) {
-	ctx = util.NewLogContext(ctx, req.LogId)
-	if len(req.LeafHash) == 0 || !validateLeafHashes(req.LeafHash) {
-		return &trillian.GetLeavesByHashResponse{Status: buildStatusWithDesc(trillian.TrillianApiStatusCode_ERROR, "Must supply at least one hash and none must be empty")}, nil
-	}
+	return t.getLeavesByHashInternal(ctx, "GetLeavesByHash", req, func(tx storage.LogTX, hashes [][]byte, sequenceOrder bool) ([]trillian.LogLeaf, error) {
+		return tx.GetLeavesByHash(hashes, sequenceOrder)
+	})
+}
 
-	tx, err := t.prepareStorageTx(req.LogId)
-
-	if err != nil {
-		return nil, err
-	}
-
-	leaves, err := tx.GetLeavesByHash(bytesToHash(req.LeafHash), req.OrderBySequence)
-
-	if err != nil {
-		tx.Rollback()
-		return nil, err
-	}
-
-	if err := t.commitAndLog(ctx, tx, "GetLeavesByHash"); err != nil {
-		return nil, err
-	}
-
-	return &trillian.GetLeavesByHashResponse{Status: buildStatus(trillian.TrillianApiStatusCode_OK), Leaves: pointerify(leaves)}, nil
+// GetLeavesByLeafValueHash obtains one or more leaves based on their raw hash. It is not possible
+// to fetch leaves that have been queued but not yet integrated. Logs may accept duplicate
+// entries so this may return more results than the number of hashes in the request.
+func (t *TrillianLogRPCServer) GetLeavesByLeafValueHash(ctx context.Context, req *trillian.GetLeavesByHashRequest) (*trillian.GetLeavesByHashResponse, error) {
+	return t.getLeavesByHashInternal(ctx, "GetLeavesByLeafValueHash", req, func(tx storage.LogTX, hashes [][]byte, sequenceOrder bool) ([]trillian.LogLeaf, error) {
+		return tx.GetLeavesByLeafValueHash(hashes, sequenceOrder)
+	})
 }
 
 // GetEntryAndProof returns both a Merkle Leaf entry and an inclusion proof for a given index
@@ -508,17 +497,6 @@ func pointerify(leaves []trillian.LogLeaf) []*trillian.LogLeaf {
 	return protos
 }
 
-// Don't think we can do this with type assertions, maybe we can
-func bytesToHash(inputs [][]byte) [][]byte {
-	hashes := make([][]byte, len(inputs), len(inputs))
-
-	for i, hash := range inputs {
-		hashes[i] = hash
-	}
-
-	return hashes
-}
-
 func validateLeafIndices(leafIndices []int64) bool {
 	for _, index := range leafIndices {
 		if index < 0 {
@@ -586,4 +564,30 @@ func fetchNodesAndBuildProof(tx storage.LogTX, treeRevision, leafIndex int64, pr
 	}
 
 	return trillian.Proof{LeafIndex: leafIndex, ProofNode: proof}, nil
+}
+
+// getLeavesByHashInternal does the work of fetching leaves by either their raw data or merkle
+// tree hash depending on the supplied fetch function
+func (t *TrillianLogRPCServer) getLeavesByHashInternal(ctx context.Context, desc string, req *trillian.GetLeavesByHashRequest, fetchFunc func(storage.LogTX, [][]byte, bool) ([]trillian.LogLeaf, error)) (*trillian.GetLeavesByHashResponse, error) {
+	ctx = util.NewLogContext(ctx, req.LogId)
+	if len(req.LeafHash) == 0 || !validateLeafHashes(req.LeafHash) {
+		return &trillian.GetLeavesByHashResponse{Status: buildStatusWithDesc(trillian.TrillianApiStatusCode_ERROR, fmt.Sprintf("%s: Must supply at least one hash and none must be empty", desc))}, nil
+	}
+
+	tx, err := t.prepareStorageTx(req.LogId)
+	if err != nil {
+		return nil, err
+	}
+
+	leaves, err := fetchFunc(tx, req.LeafHash, req.OrderBySequence)
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	if err := t.commitAndLog(ctx, tx, desc); err != nil {
+		return nil, err
+	}
+
+	return &trillian.GetLeavesByHashResponse{Status: buildStatus(trillian.TrillianApiStatusCode_OK), Leaves: pointerify(leaves)}, nil
 }

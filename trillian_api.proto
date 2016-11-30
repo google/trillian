@@ -170,6 +170,8 @@ service TrillianLog {
     }
     rpc GetLeavesByHash (GetLeavesByHashRequest) returns (GetLeavesByHashResponse) {
     }
+    rpc GetLeavesByLeafValueHash (GetLeavesByHashRequest) returns (GetLeavesByHashResponse) {
+    }
     rpc GetEntryAndProof (GetEntryAndProofRequest) returns (GetEntryAndProofResponse) {
     }
 }
