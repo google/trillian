@@ -544,7 +544,7 @@ func TestGetLeavesByLeafValueHashInvalidHash(t *testing.T) {
 
 	// And failed at app level
 	if got, want := resp.Status.StatusCode, trillian.TrillianApiStatusCode_ERROR; got != want {
-		t.Fatalf("GetLeavesByLeafValueHash(hash empty) = %v, %v, want: nil, %d", err, resp.Status, got, want)
+		t.Fatalf("GetLeavesByLeafValueHash(hash empty) = %v, %v, want: %d, %d", err, resp.Status, got, want)
 	}
 }
 
