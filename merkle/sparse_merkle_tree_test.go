@@ -251,10 +251,10 @@ func TestInclusionProofGetsIncorrectNode(t *testing.T) {
 		const key = "SomeArbitraryKey"
 		proof, err := r.InclusionProof(rev, []byte(key))
 		if err == nil {
-			t.Errorf("InclusionProof() = %v, nil. Want: nil, error", proof)
+			t.Errorf("InclusionProof() = %v, nil want: nil, 1 remain(s) unused", proof)
 		}
 		if !strings.Contains(err.Error(), "1 remain(s) unused") {
-			t.Errorf("InclusionProof() = %v, %v. Want: 1 remain(s) unused", proof, err)
+			t.Errorf("InclusionProof() = %v, %v. want: nil, 1 remain(s) unused", proof, err)
 		}
 	}
 }
