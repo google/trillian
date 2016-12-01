@@ -290,7 +290,7 @@ func TestLastNodeWritten(t *testing.T) {
 	for _, testCase := range lastNodeWrittenVec {
 		str := ""
 		for d := int64(len(testCase.result) - 1); d >= 0; d-- {
-			if lastNodeWritten(d, testCase.ts) {
+			if lastNodePresent(d, testCase.ts) {
 				str += "1"
 			} else {
 				str += "0"

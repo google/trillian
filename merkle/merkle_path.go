@@ -174,23 +174,23 @@ func pathFromNodeToRootAtSnapshot(node int64, level int, snapshot int64, maxBitL
 //
 // As depicted in RFC 6962, nodes "float" upwards.
 //
-//						hash2
-//					  /  \
-//					 /    \
-//					/      \
-//				 /        \
-//				/          \
-//			  k            i
-//			 / \           |
-//			/   \          e
-//		 /     \         |
-//		g       h       d4
-//	 / \     / \
-//	 a b     c d
-//	 | |     | |
-//	 d0 d1   d2 d3
+//            hash2
+//            /  \
+//           /    \
+//          /      \
+//         /        \
+//        /          \
+//        k            i
+//       / \           |
+//      /   \          e
+//     /     \         |
+//    g       h       d4
+//   / \     / \
+//   a b     c d
+//   | |     | |
+//   d0 d1   d2 d3
 //
-// In C++ reference implementation, intermediate nodes are stored, leaves are at level 0.
+// In the C++ reference implementation, intermediate nodes are stored, leaves are at level 0.
 // There is a dummy copy from the level below stored where the last node at a level has no right
 // sibling. More detail is given in the comments of:
 // https://github.com/google/certificate-transparency/blob/master/cpp/merkletree/merkle_tree.h
@@ -211,8 +211,8 @@ func pathFromNodeToRootAtSnapshot(node int64, level int, snapshot int64, maxBitL
 //   | |     | |        |
 //   d0 d1   d2 d3      d4
 //
-// In our storage implementation shown in the next diagram, [X] nodes with one child are not
-// written, there is no dummy copy. Leaves are at level zero.
+// In our storage implementation shown in the next diagram, nodes "sink" downwards, [X] nodes
+// with one child are not written, there is no dummy copy. Leaves are at level zero.
 //
 //             hash2
 //             /  \
@@ -234,7 +234,7 @@ func pathFromNodeToRootAtSnapshot(node int64, level int, snapshot int64, maxBitL
 // Reading down the RHS: present, not present, not present, present = 1001. So when
 // attempting to fetch the sibling of k (level 2, index 1) the tree should be descended twice to
 // fetch 'e' (level 0, index 4) as (level 1, index 2) is also not present in storage.
-func lastNodeWritten(level, ts int64) bool {
+func lastNodePresent(level, ts int64) bool {
 	if level == 0 {
 		// Leaves always exist
 		return true
@@ -254,7 +254,7 @@ func lastNodeWritten(level, ts int64) bool {
 // is the same as the node lower down the tree as there is nothing to hash it with.
 func skipMissingLevels(snapshot, lastNode int64, level int, node int64) (int, int64) {
 	sibling := node ^ 1
-	for level > 0 && sibling == lastNode && !lastNodeWritten(int64(level), snapshot) {
+	for level > 0 && sibling == lastNode && !lastNodePresent(int64(level), snapshot) {
 		level--
 		sibling *= 2
 		lastNode = (snapshot - 1) >> uint(level)
