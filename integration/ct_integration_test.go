@@ -4,9 +4,14 @@ package integration
 
 import (
 	"bytes"
+	"crypto"
+	"crypto/ecdsa"
+	cryptorand "crypto/rand"
+	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/pem"
+	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -20,6 +25,8 @@ import (
 	"github.com/google/certificate-transparency/go/jsonclient"
 	"github.com/google/certificate-transparency/go/merkletree"
 	"github.com/google/certificate-transparency/go/tls"
+	"github.com/google/certificate-transparency/go/x509"
+	"github.com/google/certificate-transparency/go/x509/pkix"
 	"golang.org/x/net/context"
 )
 
@@ -257,6 +264,47 @@ func TestCTIntegration(t *testing.T) {
 	} else {
 		fmt.Printf("AddChain(leaf-only)=nil,%v\n", err)
 	}
+
+	// Stage 12: build and add a pre-certificate.
+	prechain, tbs, err := makePrecertChain(chain[1], chain[0])
+	if err != nil {
+		t.Fatalf("Failed to build pre-certificate: %v", err)
+	}
+	precertSCT, err := logClient.AddPreChain(ctx, prechain)
+	if err != nil {
+		t.Fatalf("Failed to AddPreChain(): %v", err)
+	}
+	fmt.Printf("%v: Uploaded precert to %v log, got SCT\n", ctTime(precertSCT.Timestamp), precertSCT.SCTVersion)
+	treeSize++
+	sthN1, err := awaitTreeSize(ctx, logClient, uint64(treeSize), true)
+	if err != nil {
+		t.Fatalf("Failed to get STH for size=%d: %v", err, treeSize)
+	}
+	fmt.Printf("%v: Got STH(size=%d): roothash=%x\n", ctTime(sthN1.Timestamp), sthN1.TreeSize, sthN1.SHA256RootHash)
+
+	// Stage 13: Retrieve and check pre-cert.
+	precertEntries, err := logClient.GetEntries(ctx, int64(count+1), int64(count+1))
+	if err != nil {
+		t.Fatalf("Failed to GetEntries(%d, %d): %v", count+1, count+1, err)
+	}
+	if len(precertEntries) != 1 {
+		t.Fatalf("Different number of entries (%d) retrieved than expected (%d)", len(precertEntries), count)
+	}
+	leaf := precertEntries[0].Leaf
+	ts := leaf.TimestampedEntry
+	fmt.Printf("Entry[%d] = {Index:%d Leaf:{Version:%v TS:{EntryType:%v Timestamp:%v}}}\n",
+		count+1, precertEntries[0].Index, leaf.Version, ts.EntryType, ctTime(ts.Timestamp))
+
+	if ts.EntryType != ct.PrecertLogEntryType {
+		t.Fatalf("leaf[%d].ts.EntryType=%v; want PrecertLogEntryType", count+1, ts.EntryType)
+	}
+
+	// This assumes that the added entries are sequenced in order.
+	if !bytes.Equal(ts.PrecertEntry.TBSCertificate, tbs) {
+		t.Errorf("leaf[%d].ts.PrecertEntry differs from originally uploaded cert", count+1)
+		t.Errorf("\tuploaded:  %s", hex.EncodeToString(tbs))
+		t.Errorf("\tretrieved: %s", hex.EncodeToString(ts.PrecertEntry.TBSCertificate))
+	}
 }
 
 func ctTime(ts uint64) time.Time {
@@ -311,4 +359,88 @@ func awaitTreeSize(ctx context.Context, logClient *client.LogClient, size uint64
 func checkCTConsistencyProof(sth1, sth2 *ct.SignedTreeHead, proof [][]byte) error {
 	return verifier.VerifyConsistencyProof(int64(sth1.TreeSize), int64(sth2.TreeSize),
 		sth1.SHA256RootHash[:], sth2.SHA256RootHash[:], proof)
+}
+
+func makePrecertChain(chain, issuerData []ct.ASN1Cert) ([]ct.ASN1Cert, []byte, error) {
+	prechain := make([]ct.ASN1Cert, len(chain))
+	copy(prechain[1:], chain[1:])
+	cert, err := x509.ParseCertificate(chain[0].Data)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to parse certificate to build precert from: %v", err)
+	}
+	issuer, err := x509.ParseCertificate(issuerData[0].Data)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to parse issuer of precert: %v", err)
+	}
+
+	// Add the CT poison extension then rebuild the certificate.
+	cert.ExtraExtensions = append(cert.ExtraExtensions, pkix.Extension{
+		Id:       x509.OIDExtensionCTPoison,
+		Critical: true,
+		Value:    []byte{0x05, 0x00}, // ASN.1 NULL
+	})
+	privKey, _, err := loadPrivateKey(filepath.Join(*testdata, "int-ca.privkey.pem"), "babelfish")
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to load private key for re-signing: %v", err)
+	}
+	prechain[0].Data, err = x509.CreateCertificate(cryptorand.Reader, cert, issuer, cert.PublicKey, privKey)
+
+	// Rebuilding the certificate will set the authority key ID to the issuer's subject
+	// key ID, and will re-order extensions.  Extract the corresponding TBSCertificate
+	// and remove the poison for future reference.
+	reparsed, err := x509.ParseCertificate(prechain[0].Data)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to re-parse created precertificate: %v", err)
+	}
+	tbs, err := x509.RemoveCTPoison(reparsed.RawTBSCertificate)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to remove poison from TBSCertificate: %v", err)
+	}
+	return prechain, tbs, nil
+}
+
+func loadPrivateKey(filename, password string) (crypto.PrivateKey, x509.SignatureAlgorithm, error) {
+	pemData, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, x509.UnknownSignatureAlgorithm, fmt.Errorf("failed to read private key PEM file: %v", err)
+	}
+
+	block, rest := pem.Decode([]byte(pemData))
+	if len(rest) > 0 {
+		return nil, x509.UnknownSignatureAlgorithm, fmt.Errorf("extra data found after PEM decoding")
+	}
+
+	der := block.Bytes
+	if password != "" {
+		der, err = x509.DecryptPEMBlock(block, []byte(password))
+		if err != nil {
+			return nil, x509.UnknownSignatureAlgorithm, fmt.Errorf("failed to decrypt PEM block: %v", err)
+		}
+	}
+
+	key, algo, err := parsePrivateKey(der)
+	if err != nil {
+		return nil, x509.UnknownSignatureAlgorithm, fmt.Errorf("failed to parse private key: %v", err)
+	}
+	return key, algo, nil
+}
+
+func parsePrivateKey(key []byte) (crypto.PrivateKey, x509.SignatureAlgorithm, error) {
+	if key, err := x509.ParsePKCS1PrivateKey(key); err == nil {
+		return key, x509.SHA256WithRSA, nil
+	}
+	if key, err := x509.ParsePKCS8PrivateKey(key); err == nil {
+		switch key := key.(type) {
+		case *ecdsa.PrivateKey:
+			return key, x509.ECDSAWithSHA256, nil
+		case *rsa.PrivateKey:
+			return key, x509.SHA256WithRSA, nil
+		default:
+			return nil, x509.UnknownSignatureAlgorithm, fmt.Errorf("unknown private key type: %T", key)
+		}
+	}
+	if key, err := x509.ParseECPrivateKey(key); err == nil {
+		return key, x509.ECDSAWithSHA256, nil
+	}
+	return nil, x509.UnknownSignatureAlgorithm, errors.New("could not parse private key")
 }
