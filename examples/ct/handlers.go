@@ -591,10 +591,15 @@ func buildLogLeafForAddChain(c LogContext, merkleLeaf ct.MerkleTreeLeaf, chain [
 		return trillian.LogLeaf{}, err
 	}
 
-	entry := NewLogEntry(merkleLeaf, chain)
-	entryData, err := tls.Marshal(*entry)
+	isPrecert, err := IsPrecertificate(chain[0])
 	if err != nil {
-		glog.Warningf("%s: Failed to serialize log entry: %v", c.logPrefix, err)
+		glog.Warningf("%s: Failed to determine if cert or pre-cert: %v", c.logPrefix, err)
+		return trillian.LogLeaf{}, err
+	}
+
+	extraData, err := extraDataForChain(chain, isPrecert)
+	if err != nil {
+		glog.Warningf("%s: Failed to serialize chain for ExtraData: %v", c.logPrefix, err)
 		return trillian.LogLeaf{}, err
 	}
 
@@ -605,8 +610,44 @@ func buildLogLeafForAddChain(c LogContext, merkleLeaf ct.MerkleTreeLeaf, chain [
 	return trillian.LogLeaf{
 		LeafValueHash: leafHash[:],
 		LeafValue:     leafData,
-		ExtraData:     entryData,
+		ExtraData:     extraData,
 	}, nil
+}
+
+// extraDataForChain creates the extra data associated with a log entry as described in
+// RFC6962 section 4.6.
+func extraDataForChain(chain []*x509.Certificate, isPrecert bool) ([]byte, error) {
+	var extraData []byte
+	var err error
+	if isPrecert {
+		// For a pre-certificate, the extra data is a TLS-encoded PrecertChainEntry.
+		extra := ct.PrecertChainEntry{
+			PreCertificate:   ct.ASN1Cert{Data: chain[0].Raw},
+			CertificateChain: make([]ct.ASN1Cert, len(chain)-1),
+		}
+		for i := 1; i < len(chain); i++ {
+			extra.CertificateChain[i-1] = ct.ASN1Cert{Data: chain[i].Raw}
+		}
+		extraData, err = tls.Marshal(extra)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		// For a certificate, the extra data is a TLS-encoded:
+		//   ASN.1Cert certificate_chain<0..2^24-1>;
+		// containing the chain after the leaf.
+		extra := ct.CertificateChain{
+			Entries: make([]ct.ASN1Cert, len(chain)-1),
+		}
+		for i := 1; i < len(chain); i++ {
+			extra.Entries[i-1] = ct.ASN1Cert{Data: chain[i].Raw}
+		}
+		extraData, err = tls.Marshal(extra)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return extraData, nil
 }
 
 // marshalAndWriteAddChainResponse is used by add-chain and add-pre-chain to create and write
@@ -762,11 +803,7 @@ func marshalGetEntriesResponse(c LogContext, rsp *trillian.GetLeavesByIndexRespo
 
 		extraData := leaf.ExtraData
 		if len(extraData) == 0 {
-			// TODO(drysdale): remove this when storage/retrieval of ExtraData has been wired up
-			glog.Errorf("%s: Missing ExtraData, faking entry instead", c.logPrefix)
-			// ExtraData should hold a TLS-encoded certificate chain that starts with a
-			// 3-byte length field.
-			extraData = []byte{0, 0, 0}
+			glog.Errorf("%s: Missing ExtraData for leaf %d", c.logPrefix, leaf.LeafIndex)
 		}
 		jsonRsp.Entries = append(jsonRsp.Entries, ct.LeafEntry{
 			LeafInput: leaf.LeafValue,

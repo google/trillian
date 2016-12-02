@@ -418,7 +418,7 @@ func TestAddChainRPCFails(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	leaves := logLeavesForCert(t, km, pool.RawCertificates(), merkleLeaf)
+	leaves := logLeavesForCert(t, km, pool.RawCertificates(), merkleLeaf, false)
 
 	client.EXPECT().QueueLeaves(deadlineMatcher(), &trillian.QueueLeavesRequest{LogId: 0x42, Leaves: leaves}).Return(&trillian.QueueLeavesResponse{Status: &trillian.TrillianApiStatus{StatusCode: trillian.TrillianApiStatusCode(trillian.TrillianApiStatusCode_ERROR)}}, nil)
 
@@ -453,7 +453,7 @@ func TestAddChain(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	leaves := logLeavesForCert(t, km, pool.RawCertificates(), merkleLeaf)
+	leaves := logLeavesForCert(t, km, pool.RawCertificates(), merkleLeaf, false)
 
 	client.EXPECT().QueueLeaves(deadlineMatcher(), &trillian.QueueLeavesRequest{LogId: 0x42, Leaves: leaves}).Return(&trillian.QueueLeavesResponse{Status: &trillian.TrillianApiStatus{StatusCode: trillian.TrillianApiStatusCode_OK}}, nil)
 
@@ -583,7 +583,7 @@ func TestAddPrecertChainRPCFails(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	leaves := logLeavesForCert(t, km, pool.RawCertificates(), merkleLeaf)
+	leaves := logLeavesForCert(t, km, pool.RawCertificates(), merkleLeaf, true)
 
 	client.EXPECT().QueueLeaves(deadlineMatcher(), &trillian.QueueLeavesRequest{LogId: 0x42, Leaves: leaves}).Return(&trillian.QueueLeavesResponse{Status: &trillian.TrillianApiStatus{StatusCode: trillian.TrillianApiStatusCode(trillian.TrillianApiStatusCode_ERROR)}}, nil)
 
@@ -625,7 +625,7 @@ func TestAddPrecertChain(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	leaves := logLeavesForCert(t, km, pool.RawCertificates(), merkleLeaf)
+	leaves := logLeavesForCert(t, km, pool.RawCertificates(), merkleLeaf, true)
 
 	client.EXPECT().QueueLeaves(deadlineMatcher(), &trillian.QueueLeavesRequest{LogId: 0x42, Leaves: leaves}).Return(&trillian.QueueLeavesResponse{Status: &trillian.TrillianApiStatus{StatusCode: trillian.TrillianApiStatusCode_OK}}, nil)
 
@@ -1542,7 +1542,7 @@ func createJSONChain(t *testing.T, p PEMCertPool) io.Reader {
 	return bufio.NewReader(&buffer)
 }
 
-func logLeavesForCert(t *testing.T, km crypto.KeyManager, certs []*x509.Certificate, merkleLeaf ct.MerkleTreeLeaf) []*trillian.LogLeaf {
+func logLeavesForCert(t *testing.T, km crypto.KeyManager, certs []*x509.Certificate, merkleLeaf ct.MerkleTreeLeaf, isPrecert bool) []*trillian.LogLeaf {
 	leafData, err := tls.Marshal(merkleLeaf)
 	if err != nil {
 		t.Fatalf("failed to serialize leaf: %v", err)
@@ -1550,14 +1550,13 @@ func logLeavesForCert(t *testing.T, km crypto.KeyManager, certs []*x509.Certific
 
 	// This is a hash of the leaf data, not the the Merkle hash as defined in the RFC.
 	leafHash := sha256.Sum256(leafData)
-	logEntry := NewLogEntry(merkleLeaf, certs)
 
-	entryData, err := tls.Marshal(*logEntry)
+	extraData, err := extraDataForChain(certs, isPrecert)
 	if err != nil {
-		t.Fatalf("failed to serialize log entry: %v", err)
+		t.Fatalf("failed to serialize extra data: %v", err)
 	}
 
-	return []*trillian.LogLeaf{{LeafValueHash: leafHash[:], LeafValue: leafData, ExtraData: entryData}}
+	return []*trillian.LogLeaf{{LeafValueHash: leafHash[:], LeafValue: leafData, ExtraData: extraData}}
 }
 
 type dlMatcher struct {
