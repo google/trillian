@@ -2,6 +2,7 @@ package ct
 
 import (
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"time"
 
@@ -45,7 +46,7 @@ func signV1TreeHead(km crypto.KeyManager, sth *ct.SignedTreeHead) error {
 
 // signV1SCTForCertificate creates a MerkleTreeLeaf and builds and signs a V1 CT SCT for a certificate
 // using the key held by a key manager.
-func signV1SCTForCertificate(km crypto.KeyManager, cert *x509.Certificate, t time.Time) (ct.MerkleTreeLeaf, ct.SignedCertificateTimestamp, error) {
+func signV1SCTForCertificate(km crypto.KeyManager, cert, issuer *x509.Certificate, t time.Time) (ct.MerkleTreeLeaf, ct.SignedCertificateTimestamp, error) {
 	// Temp SCT for input to the serializer
 	sctInput := getSCTForSignatureInput(t)
 
@@ -65,18 +66,33 @@ func signV1SCTForCertificate(km crypto.KeyManager, cert *x509.Certificate, t tim
 
 // signV1SCTForPrecertificate builds and signs a V1 CT SCT for a pre-certificate using the key
 // held by a key manager.
-func signV1SCTForPrecertificate(km crypto.KeyManager, cert *x509.Certificate, t time.Time) (ct.MerkleTreeLeaf, ct.SignedCertificateTimestamp, error) {
+func signV1SCTForPrecertificate(km crypto.KeyManager, cert, issuer *x509.Certificate, t time.Time) (ct.MerkleTreeLeaf, ct.SignedCertificateTimestamp, error) {
+	if issuer == nil {
+		// Need issuer for the IssuerKeyHash
+		return ct.MerkleTreeLeaf{}, ct.SignedCertificateTimestamp{}, errors.New("no issuer available for pre-certificate")
+	}
 	// Temp SCT for input to the serializer
 	sctInput := getSCTForSignatureInput(t)
 
 	// Build up a LogEntry for the precert
 	// For precerts we need to extract the relevant data from the Certificate container.
 	// This is only possible using the CT specific modified version of X.509.
-	keyHash := sha256.Sum256(cert.RawSubjectPublicKeyInfo)
-	precert := ct.PreCert{IssuerKeyHash: keyHash, TBSCertificate: cert.RawTBSCertificate}
+	keyHash := sha256.Sum256(issuer.RawSubjectPublicKeyInfo)
+	precert := ct.PreCert{
+		IssuerKeyHash:  keyHash,
+		TBSCertificate: cert.RawTBSCertificate,
+	}
 
-	timestampedEntry := ct.TimestampedEntry{Timestamp: sctInput.Timestamp, EntryType: ct.PrecertLogEntryType, PrecertEntry: &precert}
-	leaf := ct.MerkleTreeLeaf{Version: ct.V1, LeafType: ct.TimestampedEntryLeafType, TimestampedEntry: &timestampedEntry}
+	timestampedEntry := ct.TimestampedEntry{
+		Timestamp:    sctInput.Timestamp,
+		EntryType:    ct.PrecertLogEntryType,
+		PrecertEntry: &precert,
+	}
+	leaf := ct.MerkleTreeLeaf{
+		Version:          ct.V1,
+		LeafType:         ct.TimestampedEntryLeafType,
+		TimestampedEntry: &timestampedEntry,
+	}
 
 	return serializeAndSignSCT(km, leaf, sctInput, t)
 }

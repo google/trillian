@@ -412,7 +412,7 @@ func TestAddChainRPCFails(t *testing.T) {
 	chain := createJSONChain(t, *pool)
 
 	// Ignore returned SCT. That's sent to the client and we're testing frontend -> backend interaction
-	merkleLeaf, _, err := signV1SCTForCertificate(km, pool.RawCertificates()[0], fakeTime)
+	merkleLeaf, _, err := signV1SCTForCertificate(km, pool.RawCertificates()[0], nil, fakeTime)
 
 	if err != nil {
 		t.Fatal(err)
@@ -447,7 +447,7 @@ func TestAddChain(t *testing.T) {
 	chain := createJSONChain(t, *pool)
 
 	// Ignore returned SCT. That's sent to the client and we're testing frontend -> backend interaction
-	merkleLeaf, _, err := signV1SCTForCertificate(km, pool.RawCertificates()[0], fakeTime)
+	merkleLeaf, _, err := signV1SCTForCertificate(km, pool.RawCertificates()[0], nil, fakeTime)
 
 	if err != nil {
 		t.Fatal(err)
@@ -554,7 +554,7 @@ func TestAddPrecertChainCert(t *testing.T) {
 // Submit a chain that should be OK but arrange for the backend RPC to fail. Failure should
 // be propagated.
 func TestAddPrecertChainRPCFails(t *testing.T) {
-	toSign, _ := hex.DecodeString("e1a8c35f40cd38b94cf050ed71f29467c21475699b1f670b8b1baaea66c2fa6f")
+	toSign, _ := hex.DecodeString("163979a44d4b4b052aa38348695e12de432f820869deedf53fb5edb4f4916260")
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
@@ -567,18 +567,23 @@ func TestAddPrecertChainRPCFails(t *testing.T) {
 
 	cert, err := fixchain.CertificateFromPEM(testonly.PrecertPEMValid)
 	_, ok := err.(x509.NonFatalErrors)
+	if err != nil && !ok {
+		t.Fatal(err)
+	}
 
+	issuer, err := fixchain.CertificateFromPEM(testonly.CACertPEM)
+	_, ok = err.(x509.NonFatalErrors)
 	if err != nil && !ok {
 		t.Fatal(err)
 	}
 
 	pool := NewPEMCertPool()
 	pool.AddCert(cert)
+	pool.AddCert(issuer)
 	chain := createJSONChain(t, *pool)
 
 	// Ignore returned SCT. That's sent to the client and we're testing frontend -> backend interaction
-	merkleLeaf, _, err := signV1SCTForPrecertificate(km, pool.RawCertificates()[0], fakeTime)
-
+	merkleLeaf, _, err := signV1SCTForPrecertificate(km, pool.RawCertificates()[0], pool.RawCertificates()[1], fakeTime)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -596,7 +601,7 @@ func TestAddPrecertChainRPCFails(t *testing.T) {
 
 // Submit a chain with a valid precert signed by a trusted root. Should be accepted.
 func TestAddPrecertChain(t *testing.T) {
-	toSign, _ := hex.DecodeString("e1a8c35f40cd38b94cf050ed71f29467c21475699b1f670b8b1baaea66c2fa6f")
+	toSign, _ := hex.DecodeString("163979a44d4b4b052aa38348695e12de432f820869deedf53fb5edb4f4916260")
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
@@ -609,18 +614,23 @@ func TestAddPrecertChain(t *testing.T) {
 
 	cert, err := fixchain.CertificateFromPEM(testonly.PrecertPEMValid)
 	_, ok := err.(x509.NonFatalErrors)
+	if err != nil && !ok {
+		t.Fatal(err)
+	}
 
+	issuer, err := fixchain.CertificateFromPEM(testonly.CACertPEM)
+	_, ok = err.(x509.NonFatalErrors)
 	if err != nil && !ok {
 		t.Fatal(err)
 	}
 
 	pool := NewPEMCertPool()
 	pool.AddCert(cert)
+	pool.AddCert(issuer)
 	chain := createJSONChain(t, *pool)
 
 	// Ignore returned SCT. That's sent to the client and we're testing frontend -> backend interaction
-	merkleLeaf, _, err := signV1SCTForPrecertificate(km, pool.RawCertificates()[0], fakeTime)
-
+	merkleLeaf, _, err := signV1SCTForPrecertificate(km, pool.RawCertificates()[0], pool.RawCertificates()[1], fakeTime)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -27,7 +27,7 @@ func TestSignV1SCTForCertificate(t *testing.T) {
 	toSign, _ := hex.DecodeString("7052085a63895983fc768ebe0858891bcd4326e797ef3b7ed5996e7655afd7ab")
 	km := setupMockKeyManager(mockCtrl, toSign)
 
-	leaf, got, err := signV1SCTForCertificate(km, cert, fixedTime)
+	leaf, got, err := signV1SCTForCertificate(km, cert, nil, fixedTime)
 	if err != nil {
 		t.Fatalf("create sct for cert failed: %v", err)
 	}
@@ -89,7 +89,8 @@ func TestSignV1SCTForPrecertificate(t *testing.T) {
 	toSign, _ := hex.DecodeString("af6a0abbf6a67d14f17ba3c0f6271956ca4b19f4d75d79f24c787a80701d6aa8")
 	km := setupMockKeyManager(mockCtrl, toSign)
 
-	leaf, got, err := signV1SCTForPrecertificate(km, cert, fixedTime)
+	// Use the same cert as the issuer for convenience.
+	leaf, got, err := signV1SCTForPrecertificate(km, cert, cert, fixedTime)
 	if err != nil {
 		t.Fatalf("create sct for precert failed: %v", err)
 	}

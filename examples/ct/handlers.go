@@ -157,7 +157,7 @@ func parseBodyAsJSONChain(c LogContext, r *http.Request) (ct.AddChainRequest, er
 // TODO(Martin2112): Doesn't properly handle duplicate submissions yet but the backend
 // needs this to be implemented before we can do it here
 func addChainInternal(ctx context.Context, c LogContext, w http.ResponseWriter, r *http.Request, isPrecert bool) (int, error) {
-	var signerFn func(crypto.KeyManager, *x509.Certificate, time.Time) (ct.MerkleTreeLeaf, ct.SignedCertificateTimestamp, error)
+	var signerFn func(crypto.KeyManager, *x509.Certificate, *x509.Certificate, time.Time) (ct.MerkleTreeLeaf, ct.SignedCertificateTimestamp, error)
 	var method string
 	if isPrecert {
 		method = "AddPreChain"
@@ -179,7 +179,11 @@ func addChainInternal(ctx context.Context, c LogContext, w http.ResponseWriter, 
 
 	// Build up the SCT and MerkleTreeLeaf. The SCT will be returned to the client and
 	// the leaf will become part of the data sent to the backend.
-	merkleLeaf, sct, err := signerFn(c.logKeyManager, chain[0], c.timeSource.Now())
+	var issuer *x509.Certificate
+	if len(chain) > 1 {
+		issuer = chain[1]
+	}
+	merkleLeaf, sct, err := signerFn(c.logKeyManager, chain[0], issuer, c.timeSource.Now())
 	if err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("failed to build SCT and Merkle leaf: %v %v", sct, err)
 	}
