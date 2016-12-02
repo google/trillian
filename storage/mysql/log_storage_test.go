@@ -17,8 +17,6 @@ import (
 	"github.com/google/trillian/testonly"
 )
 
-// TODO(al): add checking to all the Commit() calls in here.
-
 var allTables = []string{"Unsequenced", "TreeHead", "SequencedLeafData", "LeafData", "Subtree", "TreeControl", "Trees", "MapLeaf", "MapHead"}
 
 // Must be 32 bytes to match sha256 length if it was a real hash
@@ -127,7 +125,7 @@ func TestQueueDuplicateLeafFails(t *testing.T) {
 	defer db.Close()
 	s := prepareTestLogStorage(logID, t)
 	tx := beginLogTx(s, t)
-	defer tx.Commit()
+	defer commit(tx, t)
 
 	leaves := createTestLeaves(5, 10)
 
@@ -214,7 +212,7 @@ func TestDequeueLeavesNoneQueued(t *testing.T) {
 	defer db.Close()
 	s := prepareTestLogStorage(logID, t)
 	tx := beginLogTx(s, t)
-	defer tx.Commit()
+	defer commit(tx, t)
 
 	leaves, err := tx.DequeueLeaves(999, fakeDequeueCutoffTime)
 
@@ -261,8 +259,7 @@ func TestDequeueLeaves(t *testing.T) {
 		}
 
 		ensureAllLeavesDistinct(leaves2, t)
-
-		tx2.Commit()
+		commit(tx2, t)
 	}
 
 	{
@@ -319,8 +316,7 @@ func TestDequeueLeavesTwoBatches(t *testing.T) {
 		}
 
 		ensureAllLeavesDistinct(leaves2, t)
-
-		tx2.Commit()
+		commit(tx2, t)
 
 		// Now try to dequeue the rest of them
 		tx3 := beginLogTx(s, t)
@@ -341,7 +337,7 @@ func TestDequeueLeavesTwoBatches(t *testing.T) {
 		leaves4 := append(leaves2, leaves3...)
 		ensureAllLeavesDistinct(leaves4, t)
 
-		tx3.Commit()
+		commit(tx3, t)
 	}
 
 	{
@@ -359,7 +355,7 @@ func TestDequeueLeavesTwoBatches(t *testing.T) {
 			t.Fatalf("Dequeued %d leaves but expected to get none", len(leaves5))
 		}
 
-		tx4.Commit()
+		commit(tx4, t)
 	}
 }
 
@@ -411,8 +407,7 @@ func TestDequeueLeavesGuardInterval(t *testing.T) {
 		}
 
 		ensureAllLeavesDistinct(leaves2, t)
-
-		tx2.Commit()
+		commit(tx2, t)
 	}
 }
 
@@ -496,7 +491,7 @@ func TestGetLeavesByHashNotPresent(t *testing.T) {
 	logID := createLogID("TestGetLeavesByHashNotPresent")
 	s := prepareTestLogStorage(logID, t)
 	tx := beginLogTx(s, t)
-	defer tx.Commit()
+	defer commit(tx, t)
 
 	hashes := [][]byte{[]byte("thisdoesn'texist")}
 	leaves, err := tx.GetLeavesByHash(hashes, false)
@@ -514,7 +509,7 @@ func TestGetLeavesByLeafValueHashNotPresent(t *testing.T) {
 	logID := createLogID("TestGetLeavesByLeafValueHashNotPresent")
 	s := prepareTestLogStorage(logID, t)
 	tx := beginLogTx(s, t)
-	defer tx.Commit()
+	defer commit(tx, t)
 
 	hashes := [][]byte{[]byte("thisdoesn'texist")}
 	if leaves, err := tx.GetLeavesByLeafValueHash(hashes, false); err != nil {
@@ -528,7 +523,7 @@ func TestGetLeavesByIndexNotPresent(t *testing.T) {
 	logID := createLogID("TestGetLeavesByIndexNotPresent")
 	s := prepareTestLogStorage(logID, t)
 	tx := beginLogTx(s, t)
-	defer tx.Commit()
+	defer commit(tx, t)
 
 	_, err := tx.GetLeavesByIndex([]int64{99999})
 
@@ -549,7 +544,7 @@ func TestGetLeavesByHash(t *testing.T) {
 
 	s := prepareTestLogStorage(logID, t)
 	tx := beginLogTx(s, t)
-	defer tx.Commit()
+	defer commit(tx, t)
 
 	hashes := [][]byte{dummyHash}
 	leaves, err := tx.GetLeavesByHash(hashes, false)
@@ -577,7 +572,7 @@ func TestGetLeavesByLeafValueHash(t *testing.T) {
 
 	s := prepareTestLogStorage(logID, t)
 	tx := beginLogTx(s, t)
-	defer tx.Commit()
+	defer commit(tx, t)
 
 	hashes := [][]byte{dummyRawHash}
 	if leaves, err := tx.GetLeavesByLeafValueHash(hashes, false); err != nil {
@@ -600,7 +595,7 @@ func TestGetLeavesByIndex(t *testing.T) {
 
 	s := prepareTestLogStorage(logID, t)
 	tx := beginLogTx(s, t)
-	defer tx.Commit()
+	defer commit(tx, t)
 
 	leaves, err := tx.GetLeavesByIndex([]int64{sequenceNumber})
 
@@ -658,9 +653,7 @@ func TestLatestSignedLogRoot(t *testing.T) {
 		t.Fatalf("Failed to store signed root: %v", err)
 	}
 
-	if err := tx.Commit(); err != nil {
-		t.Fatalf("Failed to commit new log root: %v", err)
-	}
+	commit(tx, t)
 
 	{
 		tx2 := beginLogTx(s, t)
@@ -684,7 +677,7 @@ func TestGetTreeRevisionAtNonExistentSizeError(t *testing.T) {
 	defer db.Close()
 	s := prepareTestLogStorage(logID, t)
 	tx := beginLogTx(s, t)
-	defer tx.Commit()
+	defer commit(tx, t)
 
 	if revision, err := tx.GetTreeRevisionAtSize(0); err == nil {
 		t.Fatalf("Returned a tree revision for 0 sized tree: %d", revision)
@@ -716,12 +709,12 @@ func TestGetTreeRevisionAtSize(t *testing.T) {
 			t.Fatalf("Failed to store signed root2: %v", err)
 		}
 
-		tx.Commit()
+		commit(tx, t)
 	}
 
 	{
 		tx := beginLogTx(s, t)
-		defer tx.Commit()
+		defer commit(tx, t)
 
 		// First two are legit tree head sizes and should work
 		treeRevision1, err := tx.GetTreeRevisionAtSize(16)
@@ -772,12 +765,12 @@ func TestGetTreeRevisionMultipleSameSize(t *testing.T) {
 			t.Fatalf("Failed to store signed root2: %v", err)
 		}
 
-		tx.Commit()
+		commit(tx, t)
 	}
 
 	{
 		tx := beginLogTx(s, t)
-		defer tx.Commit()
+		defer commit(tx, t)
 
 		// We should get back the highest revision at size 16
 		treeRevision, err := tx.GetTreeRevisionAtSize(16)
@@ -798,7 +791,7 @@ func TestDuplicateSignedLogRoot(t *testing.T) {
 	defer db.Close()
 	s := prepareTestLogStorage(logID, t)
 	tx := beginLogTx(s, t)
-	defer tx.Commit()
+	defer commit(tx, t)
 
 	// TODO: Tidy up the log id as it looks silly chained 3 times like this
 	root := trillian.SignedLogRoot{LogId: logID.logID, TimestampNanos: 98765, TreeSize: 16, TreeRevision: 5, RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
@@ -820,7 +813,6 @@ func TestLogRootUpdate(t *testing.T) {
 	defer db.Close()
 	s := prepareTestLogStorage(logID, t)
 	tx := beginLogTx(s, t)
-	defer tx.Commit()
 
 	// TODO: Tidy up the log id as it looks silly chained 3 times like this
 	root := trillian.SignedLogRoot{LogId: logID.logID, TimestampNanos: 98765, TreeSize: 16, TreeRevision: 5, RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
@@ -836,12 +828,11 @@ func TestLogRootUpdate(t *testing.T) {
 		t.Fatalf("Failed to store signed root: %v", err)
 	}
 
-	if err := tx.Commit(); err != nil {
-		t.Fatalf("Failed to commit new log roots: %v", err)
-	}
+	commit(tx, t)
 
-	tx = beginLogTx(s, t)
-	root3, err := tx.LatestSignedLogRoot()
+	tx2 := beginLogTx(s, t)
+	defer commit(tx2, t)
+	root3, err := tx2.LatestSignedLogRoot()
 
 	if err != nil {
 		t.Fatalf("Failed to read back new log root: %v", err)
@@ -886,7 +877,7 @@ func TestGetActiveLogIDsWithPendingWork(t *testing.T) {
 	tx := beginLogTx(s, t)
 
 	logIDs, err := tx.GetActiveLogIDsWithPendingWork()
-	tx.Commit()
+	commit(tx, t)
 
 	if err != nil || len(logIDs) != 0 {
 		t.Fatalf("Should have had no logs with unsequenced work but got: %v %v", logIDs, err)
@@ -909,7 +900,7 @@ func TestGetActiveLogIDsWithPendingWork(t *testing.T) {
 	tx = beginLogTx(s, t)
 
 	logIDs, err = tx.GetActiveLogIDsWithPendingWork()
-	tx.Commit()
+	commit(tx, t)
 
 	if err != nil || len(logIDs) != 1 {
 		t.Fatalf("Should have had one log with unsequenced work but got: %v", logIDs)
@@ -951,7 +942,7 @@ func TestGetSequencedLeafCount(t *testing.T) {
 	s := prepareTestLogStorage(logID, t)
 	tx := beginLogTx(s, t)
 	count1, err := tx.GetSequencedLeafCount()
-	tx.Commit()
+	commit(tx, t)
 
 	if err != nil {
 		t.Fatalf("unexpected error getting leaf count: %v", err)
@@ -964,7 +955,7 @@ func TestGetSequencedLeafCount(t *testing.T) {
 	s = prepareTestLogStorage(logID2, t)
 	tx = beginLogTx(s, t)
 	count2, err := tx.GetSequencedLeafCount()
-	tx.Commit()
+	commit(tx, t)
 
 	if err != nil {
 		t.Fatalf("unexpected error getting leaf count2: %v", err)
