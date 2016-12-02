@@ -250,6 +250,13 @@ func TestCTIntegration(t *testing.T) {
 	} else {
 		fmt.Printf("AddChain(corrupt-cert)=nil,%v\n", err)
 	}
+
+	// Stage 11: attempt to upload a certificate without chain.
+	if sct, err := logClient.AddChain(ctx, chain[1][0:0]); err == nil {
+		t.Fatalf("AddChain(leaf-only)=%+v,nil; want error", sct)
+	} else {
+		fmt.Printf("AddChain(leaf-only)=nil,%v\n", err)
+	}
 }
 
 func ctTime(ts uint64) time.Time {
