@@ -19,6 +19,7 @@ import (
 	"github.com/google/certificate-transparency/go/client"
 	"github.com/google/certificate-transparency/go/jsonclient"
 	"github.com/google/certificate-transparency/go/merkletree"
+	"github.com/google/certificate-transparency/go/tls"
 	"golang.org/x/net/context"
 )
 
@@ -26,6 +27,11 @@ var httpServerFlag = flag.String("ct_http_server", "localhost:8092", "Server add
 var pubKey = flag.String("public_key_file", "", "Name of file containing log's public key")
 var testdata = flag.String("testdata", "testdata", "Name of directory with test data")
 var seed = flag.Int64("seed", -1, "Seed for random number generation")
+
+var verifier = merkletree.NewMerkleVerifier(func(data []byte) []byte {
+	hash := sha256.Sum256(data)
+	return hash[:]
+})
 
 func TestCTIntegration(t *testing.T) {
 	flag.Parse()
@@ -199,10 +205,25 @@ func TestCTIntegration(t *testing.T) {
 	for i := 1; i <= count; i++ {
 		sct := scts[i]
 		fmt.Printf("Inclusion proof leaf %d @ %d -> root %d = ", i, sct.Timestamp, sthN.TreeSize)
-		// Calculate leaf hash =  SHA256(0x00 | d[0])
-		hash := []byte{0x00}
-		// TODO(drysdale): build leaf hash
-		rsp, err := logClient.GetProofByHash(ctx, hash, sthN.TreeSize)
+		// Calculate leaf hash =  SHA256(0x00 | tls-encode(MerkleTreeLeaf))
+		leaf := ct.MerkleTreeLeaf{
+			Version:  ct.V1,
+			LeafType: ct.TimestampedEntryLeafType,
+			TimestampedEntry: &ct.TimestampedEntry{
+				Timestamp:  sct.Timestamp,
+				EntryType:  ct.X509LogEntryType,
+				X509Entry:  &(chain[i][0]),
+				Extensions: sct.Extensions,
+			},
+		}
+		leafData, err := tls.Marshal(leaf)
+		if err != nil {
+			fmt.Printf("<fail: %v>\n", err)
+			t.Errorf("tls.Marshal(leaf[%d])=nil,%v", i, err)
+			continue
+		}
+		hash := sha256.Sum256(append([]byte{merkletree.LeafPrefix}, leafData...))
+		rsp, err := logClient.GetProofByHash(ctx, hash[:], sthN.TreeSize)
 		if err != nil {
 			fmt.Printf("<fail: %v>\n", err)
 			t.Errorf("GetProofByHash(sct[%d], size=%d)=nil,%v", i, sthN.TreeSize, err)
@@ -214,12 +235,9 @@ func TestCTIntegration(t *testing.T) {
 			continue
 		}
 		fmt.Printf("%x\n", rsp.AuditPath)
-		// TODO(drysdale): check inclusion proof
-		/*
-			if err := checkCTInclusionProof(i, sthN.TreeSize, rsp.AuditPath, sthN.SHA256RootHash, @@leaf); err != nil {
-				t.Errorf("inclusion proof verification failed: %v", err)
-			}
-		*/
+		if err := verifier.VerifyInclusionProof(int64(i), int64(sthN.TreeSize), rsp.AuditPath, sthN.SHA256RootHash[:], leafData); err != nil {
+			t.Errorf("inclusion proof verification failed: %v", err)
+		}
 	}
 
 	// Stage 10: attempt to upload a corrupt certificate.
@@ -283,19 +301,7 @@ func awaitTreeSize(ctx context.Context, logClient *client.LogClient, size uint64
 	return sth, nil
 }
 
-func checkCTInclusionProof(leafIndex, treeSize int64, proof [][]byte, root []byte, leaf []byte) error {
-	verifier := merkletree.NewMerkleVerifier(func(data []byte) []byte {
-		hash := sha256.Sum256(data)
-		return hash[:]
-	})
-	return verifier.VerifyInclusionProof(leafIndex, treeSize, proof, root, leaf)
-}
-
 func checkCTConsistencyProof(sth1, sth2 *ct.SignedTreeHead, proof [][]byte) error {
-	verifier := merkletree.NewMerkleVerifier(func(data []byte) []byte {
-		hash := sha256.Sum256(data)
-		return hash[:]
-	})
 	return verifier.VerifyConsistencyProof(int64(sth1.TreeSize), int64(sth2.TreeSize),
 		sth1.SHA256RootHash[:], sth2.SHA256RootHash[:], proof)
 }
