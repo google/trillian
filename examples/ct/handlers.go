@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strconv"
 	"time"
 
@@ -344,11 +345,14 @@ func getSTHConsistency(ctx context.Context, c LogContext, w http.ResponseWriter,
 
 func getProofByHash(ctx context.Context, c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
 	// Accept any non empty hash that decodes from base64 and let the backend validate it further
-	hash := r.FormValue(getProofParamHash)
-	if len(hash) == 0 {
+	escapedHash := r.FormValue(getProofParamHash)
+	if len(escapedHash) == 0 {
 		return http.StatusBadRequest, errors.New("get-proof-by-hash: missing / empty hash param for get-proof-by-hash")
 	}
-
+	hash, err := url.QueryUnescape(escapedHash)
+	if err != nil {
+		return http.StatusBadRequest, fmt.Errorf("get-proof-by-hash: invalid url-encoded hash: %v", err)
+	}
 	leafHash, err := base64.StdEncoding.DecodeString(hash)
 	if err != nil {
 		return http.StatusBadRequest, fmt.Errorf("get-proof-by-hash: invalid base64 hash: %v", err)
