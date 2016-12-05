@@ -75,12 +75,17 @@ func signV1SCTForPrecertificate(km crypto.KeyManager, cert, issuer *x509.Certifi
 	sctInput := getSCTForSignatureInput(t)
 
 	// Build up a LogEntry for the precert
-	// For precerts we need to extract the relevant data from the Certificate container.
-	// This is only possible using the CT specific modified version of X.509.
+	// For precerts we need to extract the relevant data from the Certificate container,
+	// specifically the DER-encoded TBSCertificate, but with the CT poison extension removed.
+	// (This is only possible using the CT specific modified version of the x509 library.)
 	keyHash := sha256.Sum256(issuer.RawSubjectPublicKeyInfo)
+	defangedTBS, err := x509.RemoveCTPoison(cert.RawTBSCertificate)
+	if err != nil {
+		return ct.MerkleTreeLeaf{}, ct.SignedCertificateTimestamp{}, fmt.Errorf("failed to remove poison extension: %v", err)
+	}
 	precert := ct.PreCert{
 		IssuerKeyHash:  keyHash,
-		TBSCertificate: cert.RawTBSCertificate,
+		TBSCertificate: defangedTBS,
 	}
 
 	timestampedEntry := ct.TimestampedEntry{

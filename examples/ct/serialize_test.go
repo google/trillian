@@ -86,7 +86,7 @@ func TestSignV1SCTForPrecertificate(t *testing.T) {
 		t.Fatalf("failed to set up test precert: %v", err)
 	}
 
-	toSign, _ := hex.DecodeString("af6a0abbf6a67d14f17ba3c0f6271956ca4b19f4d75d79f24c787a80701d6aa8")
+	toSign, _ := hex.DecodeString("dfa541729551db7e37715c1d613dc1a0c72cd7efac2de9cfd718d27fc79c018f")
 	km := setupMockKeyManager(mockCtrl, toSign)
 
 	// Use the same cert as the issuer for convenience.
@@ -136,7 +136,8 @@ func TestSignV1SCTForPrecertificate(t *testing.T) {
 	if got, want := keyHash[:], leaf.TimestampedEntry.PrecertEntry.IssuerKeyHash[:]; !bytes.Equal(got, want) {
 		t.Fatalf("Issuer key hash bytes mismatch, got %v, expected %v", got, want)
 	}
-	if got, want := leaf.TimestampedEntry.PrecertEntry.TBSCertificate, cert.RawTBSCertificate; !bytes.Equal(got, want) {
+	defangedTBS, _ := x509.RemoveCTPoison(cert.RawTBSCertificate)
+	if got, want := leaf.TimestampedEntry.PrecertEntry.TBSCertificate, defangedTBS; !bytes.Equal(got, want) {
 		t.Fatalf("TBS cert mismatch, got %v, expected %v", got, want)
 	}
 }

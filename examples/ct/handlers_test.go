@@ -554,7 +554,7 @@ func TestAddPrecertChainCert(t *testing.T) {
 // Submit a chain that should be OK but arrange for the backend RPC to fail. Failure should
 // be propagated.
 func TestAddPrecertChainRPCFails(t *testing.T) {
-	toSign, _ := hex.DecodeString("163979a44d4b4b052aa38348695e12de432f820869deedf53fb5edb4f4916260")
+	toSign, _ := hex.DecodeString("92ecae1a2dc67a6c5f9c96fa5cab4c2faf27c48505b696dad926f161b0ca675a")
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
@@ -601,7 +601,7 @@ func TestAddPrecertChainRPCFails(t *testing.T) {
 
 // Submit a chain with a valid precert signed by a trusted root. Should be accepted.
 func TestAddPrecertChain(t *testing.T) {
-	toSign, _ := hex.DecodeString("163979a44d4b4b052aa38348695e12de432f820869deedf53fb5edb4f4916260")
+	toSign, _ := hex.DecodeString("92ecae1a2dc67a6c5f9c96fa5cab4c2faf27c48505b696dad926f161b0ca675a")
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
