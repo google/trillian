@@ -81,7 +81,7 @@ func TestSerializeLogEntry(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to deserialize log entry: %v", err)
 		} else if len(rest) > 0 {
-			t.Fatalf("trailing data after serialized log entry")
+			t.Error("trailing data after serialized log entry")
 		}
 
 		if !reflect.DeepEqual(logEntry, logEntry2) {

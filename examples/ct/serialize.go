@@ -49,15 +49,14 @@ func signV1SCTForCertificate(km crypto.KeyManager, cert *x509.Certificate, t tim
 	sctInput := getSCTForSignatureInput(t)
 
 	// Build up a MerkleTreeLeaf for the cert
-	timestampedEntry := ct.TimestampedEntry{
-		Timestamp: sctInput.Timestamp,
-		EntryType: ct.X509LogEntryType,
-		X509Entry: &ct.ASN1Cert{Data: cert.Raw},
-	}
 	leaf := ct.MerkleTreeLeaf{
-		Version:          ct.V1,
-		LeafType:         ct.TimestampedEntryLeafType,
-		TimestampedEntry: &timestampedEntry,
+		Version:  ct.V1,
+		LeafType: ct.TimestampedEntryLeafType,
+		TimestampedEntry: &ct.TimestampedEntry{
+			Timestamp: sctInput.Timestamp,
+			EntryType: ct.X509LogEntryType,
+			X509Entry: &ct.ASN1Cert{Data: cert.Raw},
+		},
 	}
 
 	return serializeAndSignSCT(km, leaf, sctInput, t)
