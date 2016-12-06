@@ -5,7 +5,6 @@ package ct
 
 import (
 	"crypto/sha256"
-	"io"
 
 	ct "github.com/google/certificate-transparency/go"
 	"github.com/google/certificate-transparency/go/x509"
@@ -23,7 +22,7 @@ type LogEntry struct {
 	// The leaf structure that was built from the client submission
 	Leaf ct.MerkleTreeLeaf
 	// The complete chain for the certificate or precertificate as raw bytes
-	Chain []ct.ASN1Cert
+	Chain []ct.ASN1Cert `tls:"minlen:0,maxlen:16777215"`
 }
 
 // GetCTLogID takes the key manager for a log and returns the LogID. (see RFC 6962 S3.2)
@@ -44,64 +43,8 @@ func NewLogEntry(leaf ct.MerkleTreeLeaf, certChain []*x509.Certificate) *LogEntr
 	chain := []ct.ASN1Cert{}
 
 	for _, cert := range certChain {
-		chain = append(chain, cert.Raw)
+		chain = append(chain, ct.ASN1Cert{Data: cert.Raw})
 	}
 
 	return &LogEntry{Leaf: leaf, Chain: chain}
-}
-
-// Serialize writes out a LogEntry in binary form. This is not an RFC 6962 data structure
-// and is only used internally by the log.
-func (c LogEntry) Serialize(w io.Writer) error {
-	if err := writeMerkleTreeLeaf(w, c.Leaf); err != nil {
-		return err
-	}
-
-	if err := writeUint(w, uint64(len(c.Chain)), 2); err != nil {
-		return err
-	}
-
-	for _, certBytes := range c.Chain {
-		if err := writeVarBytes(w, certBytes, 4); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// Deserialize reads a binary format LogEntry and stores the result into an existing
-// LogEntry struct. This is an internal data structure and is not defined in RFC 6962 or
-// exposed to clients.
-func (c *LogEntry) Deserialize(r io.Reader) error {
-	leaf, err := ct.ReadMerkleTreeLeaf(r)
-
-	if err != nil {
-		return err
-	}
-
-	c.Leaf = *leaf
-
-	numCerts, err := readUint(r, 2)
-
-	if err != nil {
-		return err
-	}
-
-	chain := make([]ct.ASN1Cert, 0, numCerts)
-	var cert uint64
-
-	for cert = 0; cert < numCerts; cert++ {
-		certBytes, err := readVarBytes(r, 4)
-
-		if err != nil {
-			return err
-		}
-
-		chain = append(chain, certBytes)
-	}
-
-	c.Chain = chain
-
-	return nil
 }

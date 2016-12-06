@@ -1,8 +1,6 @@
 package ct
 
 import (
-	"bufio"
-	"bytes"
 	"encoding/base64"
 	"reflect"
 	"testing"
@@ -10,6 +8,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	ct "github.com/google/certificate-transparency/go"
+	"github.com/google/certificate-transparency/go/tls"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
 )
@@ -64,31 +63,25 @@ func TestSerializeLogEntry(t *testing.T) {
 	ts := ct.TimestampedEntry{
 		Timestamp:  12345,
 		EntryType:  ct.X509LogEntryType,
-		X509Entry:  ct.ASN1Cert([]byte{0x10, 0x11, 0x12, 0x13, 0x20, 0x21, 0x22, 0x23}),
+		X509Entry:  &ct.ASN1Cert{Data: []byte{0x10, 0x11, 0x12, 0x13, 0x20, 0x21, 0x22, 0x23}},
 		Extensions: ct.CTExtensions{}}
-	leaf := ct.MerkleTreeLeaf{LeafType: ct.TimestampedEntryLeafType, Version: ct.V1, TimestampedEntry: ts}
+	leaf := ct.MerkleTreeLeaf{LeafType: ct.TimestampedEntryLeafType, Version: ct.V1, TimestampedEntry: &ts}
 
 	for chainLength := 1; chainLength < 10; chainLength++ {
 		chain := createCertChain(chainLength)
 
-		var buff bytes.Buffer
-		w := bufio.NewWriter(&buff)
-
 		logEntry := LogEntry{Leaf: leaf, Chain: chain}
-		err := logEntry.Serialize(w)
-
+		entryData, err := tls.Marshal(logEntry)
 		if err != nil {
 			t.Fatalf("failed to serialize log entry: %v", err)
 		}
 
-		w.Flush()
-		r := bufio.NewReader(&buff)
-
 		var logEntry2 LogEntry
-		err = logEntry2.Deserialize(r)
-
+		rest, err := tls.Unmarshal(entryData, &logEntry2)
 		if err != nil {
 			t.Fatalf("failed to deserialize log entry: %v", err)
+		} else if len(rest) > 0 {
+			t.Error("trailing data after serialized log entry")
 		}
 
 		if !reflect.DeepEqual(logEntry, logEntry2) {
@@ -127,7 +120,7 @@ func createCertChain(numCerts int) []ct.ASN1Cert {
 			certBytes[i] = byte(c)
 		}
 
-		chain = append(chain, ct.ASN1Cert(certBytes))
+		chain = append(chain, ct.ASN1Cert{Data: certBytes})
 	}
 
 	return chain

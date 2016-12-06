@@ -95,7 +95,7 @@ func (m *CTMapper) oneMapperRun() (bool, error) {
 		}
 		switch entry.Leaf.TimestampedEntry.EntryType {
 		case ct.X509LogEntryType:
-			cert, err := x509.ParseCertificate(entry.Leaf.TimestampedEntry.X509Entry)
+			cert, err := x509.ParseCertificate(entry.Leaf.TimestampedEntry.X509Entry.Data)
 			if err != nil {
 				glog.Warningf("Can't parse cert at index %d, continuing anyway because this is a toy", entry.Index)
 				continue

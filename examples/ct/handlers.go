@@ -1,7 +1,6 @@
 package ct
 
 import (
-	"bytes"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
@@ -690,24 +689,28 @@ func marshalLogIDAndSignatureForResponse(sct ct.SignedCertificateTimestamp, km c
 // buildLogLeafForAddChain is also used by add-pre-chain and does the hashing to build a
 // LogLeaf that will be sent to the backend
 func buildLogLeafForAddChain(c LogContext, merkleLeaf ct.MerkleTreeLeaf, certChain []*x509.Certificate) (trillian.LogLeaf, error) {
-	var leafBuffer bytes.Buffer
-	if err := writeMerkleTreeLeaf(&leafBuffer, merkleLeaf); err != nil {
+	leafData, err := tls.Marshal(merkleLeaf)
+	if err != nil {
 		glog.Warningf("%sFailed to serialize merkle leaf: %v", c.logPrefix, err)
 		return trillian.LogLeaf{}, err
 	}
 
-	var logEntryBuffer bytes.Buffer
-	logEntry := NewLogEntry(merkleLeaf, certChain)
-	if err := logEntry.Serialize(&logEntryBuffer); err != nil {
+	entry := NewLogEntry(merkleLeaf, certChain)
+	entryData, err := tls.Marshal(*entry)
+	if err != nil {
 		glog.Warningf("%sFailed to serialize log entry: %v", c.logPrefix, err)
 		return trillian.LogLeaf{}, err
 	}
 
 	// leafHash is a crosscheck on the data we're sending in the leaf buffer. The backend
 	// does the tree hashing.
-	leafHash := sha256.Sum256(leafBuffer.Bytes())
+	leafHash := sha256.Sum256(leafData)
 
-	return trillian.LogLeaf{MerkleLeafHash: leafHash[:], LeafValue: leafBuffer.Bytes(), ExtraData: logEntryBuffer.Bytes()}, nil
+	return trillian.LogLeaf{
+		MerkleLeafHash: leafHash[:],
+		LeafValue:      leafData,
+		ExtraData:      entryData,
+	}, nil
 }
 
 // marshalAndWriteAddChainResponse is used by add-chain and add-pre-chain to create and write
@@ -869,9 +872,12 @@ func marshalGetEntriesResponse(c LogContext, rpcResponse *trillian.GetLeavesByIn
 		// return the data if it fails to deserialize as otherwise the root hash could not
 		// be verified. However this indicates a potentially serious failure in log operation
 		// or data storage that should be investigated.
-		if _, err := ct.ReadMerkleTreeLeaf(bytes.NewBuffer(leaf.LeafValue)); err != nil {
+		var treeLeaf ct.MerkleTreeLeaf
+		if rest, err := tls.Unmarshal(leaf.LeafValue, &treeLeaf); err != nil {
 			// TODO(Martin2112): Hook this up to monitoring when implemented
-			glog.Warningf("%sFailed to deserialize merkle leaf from backend: %d", c.logPrefix, leaf.LeafIndex)
+			glog.Warningf("%sFailed to deserialize Merkle leaf from backend: %d", c.logPrefix, leaf.LeafIndex)
+		} else if len(rest) > 0 {
+			glog.Warningf("%sTrailing data after Merkle leaf from backend: %d", c.logPrefix, leaf.LeafIndex)
 		}
 
 		jsonResponse.Entries = append(jsonResponse.Entries, getEntriesEntry{
