@@ -53,7 +53,7 @@ func updateDomainMap(m map[string]ctmapperpb.EntryList, cert x509.Certificate, i
 	}
 }
 
-func (m *CTMapper) oneMapperRun() (bool, error) {
+func (m *CTMapper) oneMapperRun(ctx context.Context) (bool, error) {
 	start := time.Now()
 	glog.Info("starting mapping batch")
 	getRootReq := &trillian.GetSignedMapRootRequest{MapId: m.mapID}
@@ -74,7 +74,7 @@ func (m *CTMapper) oneMapperRun() (bool, error) {
 	glog.Infof("Fetching entries [%d, %d] from log", startEntry, endEntry)
 
 	// Get the entries from the log:
-	logEntries, err := m.ct.GetEntries(startEntry, endEntry)
+	logEntries, err := m.ct.GetEntries(ctx, startEntry, endEntry)
 	if err != nil {
 		return false, err
 	}
@@ -195,9 +195,10 @@ func main() {
 		ct:    ctClient,
 		vmap:  trillian.NewTrillianMapClient(conn),
 	}
+	ctx := context.Background()
 
 	for {
-		moreToDo, err := mapper.oneMapperRun()
+		moreToDo, err := mapper.oneMapperRun(ctx)
 		if err != nil {
 			glog.Warningf("mapper run failed: %v", err)
 		}
