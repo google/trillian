@@ -240,7 +240,7 @@ func lastNodePresent(level, ts int64) bool {
 		return true
 	}
 
-	// Last index is size - 1, we shift one to avoid special case (leaves always present)
+	// Last index in the level is the tree size - 1
 	bits := uint64(ts - 1)
 	// Test the bit in the path for the requested level
 	mask := uint64(1) << uint64(level - 1)
