@@ -147,6 +147,19 @@ func (n *NodeID) String() string {
 	return r.String()
 }
 
+// CoordString returns a string representation assuming that the NodeID represents a
+// tree coordinate. Using this on a NodeID for a sparse Merkle tree will give incorrect
+// results. Intended for debugging purposes, the format could change.
+func (n *NodeID) CoordString() string {
+	d := uint64(n.PathLenBits - n.PrefixLenBits)
+	i := uint64(0)
+	for _, p := range n.Path {
+		i = (i << uint64(8)) + uint64(p)
+	}
+
+	return fmt.Sprintf("[d:%d, i:%d]", d, i>>d)
+}
+
 // Siblings returns the siblings of the given node.
 func (n *NodeID) Siblings() []NodeID {
 	r := make([]NodeID, n.PrefixLenBits, n.PrefixLenBits)
