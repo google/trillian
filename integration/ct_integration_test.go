@@ -203,6 +203,7 @@ func TestCTIntegration(t *testing.T) {
 				continue
 			}
 			// This assumes that the added entries are sequenced in order.
+			// TODO(drysdale): relax this assumption.
 			if !bytes.Equal(ts.X509Entry.Data, chain[i+1][0].Data) {
 				t.Errorf("leaf[%d].ts.X509Entry differs from originally uploaded cert", i)
 				t.Errorf("\tuploaded:  %s", hex.EncodeToString(chain[i+1][0].Data))
