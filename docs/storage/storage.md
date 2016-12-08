@@ -67,18 +67,21 @@ much simpler.
 This diagram shows a tree with strata depth 2. It is a somewhat special case as all the levels are
 stored. Note that the root node is never stored and is always recalculated.
 
-![strata depth 2 tree](StratumDepth2.png, "Stratum Depth 2")
+![strata depth 2 tree diagram](StratumDepth2.png, "Stratum Depth 2")
 
 This diagram shows a tree with strata depth 3. Note that only the bottom level of each subtree is
 stored and how the binary path is used as a subtree prefix to identify subtrees.
 
-![strata depth 3 tree](StratumDepth3.png, "Stratum Depth 3")
+![strata depth 3 tree diagram](StratumDepth3.png, "Stratum Depth 3")
 
-### Consistency Requirements
+### Consistency and Other Requirements
 
 Storage implementations must provide strongly consistent updates to the tree data. Some users may
 see an earlier view than others if updates have not been fully propagated yet but they must not see
 partial updates or inconsistent views.
+
+It is not a requirement that the underlying storage is relational. Our initial implementation uses
+an RDBMS and has this ![database schema diagram](database-diagram.pdf, "Trillian DB Schema")
 
 ## Map Storage
 
