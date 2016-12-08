@@ -1,12 +1,13 @@
 # Storage Design Notes
 ## Status: (Very very)^N Draft
+### Author: Martin Smith
 
 ## Tree Node Storage
 
-The node level of storage provides a fairly abstract tree model that is used to implement verifiable 
-logs and maps. Most use cases will not need this level but it is important to know the concepts
-involved. The API for this is defined in `storage/tree_storage.go`. Related protos are in the
-`storage/storagepb` package.
+The node level of storage provides a fairly abstract tree model that is used to implement
+verifiable logs and maps. Most users will not need this level but it is important to know the
+concepts involved. The API for this is defined in `storage/tree_storage.go`. Related protos are in
+the `storage/storagepb` package.
 
 The model provides a versioned view of the tree. Revision numbers increase monotonically as the
 tree is mutated.
@@ -23,42 +24,45 @@ give incorrect results.
 ### Subtree Compaction
 
 As an optimization the tree is not stored as a set of raw nodes but at as a collection of subtrees.
+
 Currently, subtrees must be be a multiple of 8 levels deep (referred to as `strataDepth` in the
 code). Only the bottom level nodes the "leaves" of the subtree are physically stored.
-Intermediate subtree nodes are rehashed from the leaves when the subtree is loaded into memory.
+Intermediate subtree nodes are rehashed from the "leaves" when the subtree is loaded into memory.
 
-Subtrees are keyed by the `NodeID` of the root (effectively a path prefix) and contain the 
-intermediate nodes for that subtree, identified by their suffix. These are actually stored in a 
+Subtrees are keyed by the `NodeID` of the root (effectively a path prefix) and contain the
+intermediate nodes for that subtree, identified by their suffix. These are actually stored in a
 proto map where the key is the suffix path. 
 
 Subtrees are versioned to support the access model for nodes described above. Node addresses within
 the model are distinct because the path to a subtree must be unique.
 
 When node updates are applied they will affect one or more subtrees and caching is used to increase
-efficiency. After all update work has been done in-memory the cache is flushed to storage so each
-affected subtree is written once.
+efficiency. After all updates have been done in-memory the cache is flushed to storage so each
+affected subtree is only written once.
 
 Subtrees are helpful for reads because it is likely that many of the nodes traversed in
 Merkle paths for proofs are part of the same subtree. The number of subtrees involved in a path
 through a large tree from the leaves to the root is also bounded. For writes the subtree update
-batches what would be many smaller writes into one larger but manageable one. 
+batches what would be many smaller writes into one larger but manageable one.
 
-We also gain space efficiency by not storing intermediate nodes. This is a big saving as it avoids
+We gain space efficiency by not storing intermediate nodes. This is a big saving as it avoids
 storing entire tree levels, which get very large as the tree grows. This is magnified further as we
 store many versions of the tree.
 
 #### Subtree Diagrams
 
 This diagram shows a tree as it might actually be stored by our code using subtrees of depth 8.
-Each subtree does not include its root node, though this counts as part of the depth. There are
+
+Each subtree does not include its "root" node, though this counts as part of the depth. There are
 additional subtrees below and to the right of the child subtree shown, they can't easily be shown
-in the diagram. Obviously there could be less than 256 "leaf" nodes in the subtrees if they are not
+in the diagram. Obviously, there could be less than 256 "leaf" nodes in the subtrees if they are not
 yet fully populated.
 
 ![strata depth 8 tree](StratumDepth8.png, "Stratum Depth 8")
 
-As it's hard to visualize the structure with stratum depth 8 some examples of smaller depths might
-make things clearer, though these are not supported by the code the diagrams are simpler.
+As it's hard to visualize the structure at scale with stratum depth 8 some examples of smaller
+depths might make things clearer, though these are not supported by the code the diagrams are
+much simpler.
 
 This diagram shows a tree with strata depth 2. It is a somewhat special case as all the levels are
 stored. Note that the root node is never stored and is always recalculated.
@@ -95,12 +99,14 @@ the Merkle Leaf Hash of the data, which becomes part of the tree.
 
 ### Log NodeIDs / Tree Coordinates
 
-Nodes are notionally addressed using a three dimensional coordinate tuple (level in tree, index in 
-level, revision number). Level zero is always the leaf level and additional intermediate levels 
-are added above this as the tree grows.
+Log nodes are notionally addressed using a three dimensional coordinate tuple (level in tree, index
+in level, revision number).
 
-Levels are only created when they are used. Index is the horizontal position of the node in the
-level, with zero being the leftmost node in each level.
+Level zero is always the leaf level and additional intermediate levels are added above this as the
+tree grows. Levels are only created when they are used.
+
+Index is the horizontal position of the node in the level, with zero being the leftmost node in
+each level.
 
 For example in a tree of size two the leaves are level 0 and index 0 and 1 and the root is
 level 1, index 0.
@@ -135,7 +141,8 @@ snapshots directly available from storage.
 
 As an optimization intermediate nodes with only a left child are not stored. There is more detail
 on how this affects access to tree paths in the file `merkle/merkle_paths.go`. This differes from
-the previous C++ in-memory tree implementation.
+the previous C++ in-memory tree implementation. In summary the code must handle cases where there
+is no right sibling of the rightmost node in a level.
 
 Each batched write also produces an internal tree head, linking that write to the revision number.
 
