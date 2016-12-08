@@ -81,7 +81,7 @@ see an earlier view than others if updates have not been fully propagated yet bu
 partial updates or inconsistent views.
 
 It is not a requirement that the underlying storage is relational. Our initial implementation uses
-an RDBMS and has this ![database schema diagram](database-diagram.pdf, "Trillian DB Schema")
+an RDBMS and has this [database schema diagram](database-diagram.pdf, "Trillian DB Schema")
 
 ## Map Storage
 
