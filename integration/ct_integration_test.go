@@ -35,6 +35,9 @@ var pubKey = flag.String("public_key_file", "", "Name of file containing log's p
 var testDir = flag.String("testdata", "testdata", "Name of directory with test data")
 var seed = flag.Int64("seed", -1, "Seed for random number generation")
 
+// TODO(drysdale): convert to use trillian/merkle to avoid the dependency on the
+// CT code (which in turn requires C++ code).
+
 var verifier = merkletree.NewMerkleVerifier(func(data []byte) []byte {
 	hash := sha256.Sum256(data)
 	return hash[:]
