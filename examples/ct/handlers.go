@@ -412,7 +412,7 @@ func getEntries(ctx context.Context, c LogContext, w http.ResponseWriter, r *htt
 		return http.StatusInternalServerError, fmt.Errorf("backend GetLeavesByIndex request failed, status=%v", rsp.GetStatus())
 	}
 
-	// Apply additional checks on the response to make sure we got a contiguous leaf range.
+	// Apply additional checks on the RPC response to make sure we got a contiguous leaf range.
 	// It's allowed by the RFC for the backend to truncate the range in cases where the
 	// range exceeds the tree size etc. so we could get fewer leaves than we requested but
 	// never more and never anything outside the requested range.
@@ -424,9 +424,10 @@ func getEntries(ctx context.Context, c LogContext, w http.ResponseWriter, r *htt
 		return http.StatusInternalServerError, fmt.Errorf("backend get-entries range received from backend non contiguous: %v", err)
 	}
 
-	// Now we've checked the response and it seems to be valid we need to serialize the
-	// leaves in JSON format. Doing a round trip via the leaf deserializer gives us another
-	// chance to prevent bad / corrupt data from reaching the client.
+	// Now we've checked the RPC response and it seems to be valid we need
+	// to serialize the leaves in JSON format for the HTTP response. Doing a
+	// round trip via the leaf deserializer gives us another chance to
+	// prevent bad / corrupt data from reaching the client.
 	jsonRsp, err := marshalGetEntriesResponse(c, rsp)
 	if err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("failed to process leaves returned from backend: %v", err)
