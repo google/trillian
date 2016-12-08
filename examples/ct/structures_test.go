@@ -46,7 +46,7 @@ func TestGetCTLogID(t *testing.T) {
 	gotHex := hex.EncodeToString(got[:])
 
 	if expected != gotHex {
-		t.Fatalf("expected logID: %s but got: %s", expected, gotHex)
+		t.Errorf("expected logID: %s but got: %s", expected, gotHex)
 	}
 }
 
@@ -55,7 +55,7 @@ func TestGetCTLogIDNotLoaded(t *testing.T) {
 
 	_, err := GetCTLogID(km)
 	if err == nil {
-		t.Fatalf("expected error when no key loaded: %v", err)
+		t.Errorf("expected error when no key loaded: %v", err)
 	}
 }
 
