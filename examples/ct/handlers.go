@@ -61,9 +61,7 @@ type appHandler struct {
 // ServeHTTP for an appHandler invokes the underlying handler function but
 // does additional common error processing.
 func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if glog.V(2) {
-		glog.Infof("%s: request %v %q => %s", a.context.logPrefix, r.Method, r.URL, a.name)
-	}
+	glog.V(2).Infof("%s: request %v %q => %s", a.context.logPrefix, r.Method, r.URL, a.name)
 	if r.Method != a.method {
 		glog.Warningf("%s: %s wrong HTTP method: %v", a.context.logPrefix, a.name, r.Method)
 		sendHTTPError(w, http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method))
@@ -195,13 +193,9 @@ func addChainInternal(ctx context.Context, c LogContext, w http.ResponseWriter, 
 	}
 	req := trillian.QueueLeavesRequest{LogId: c.logID, Leaves: []*trillian.LogLeaf{&leaf}}
 
-	if glog.V(2) {
-		glog.Infof("%s: %s => grpc.QueueLeaves", c.logPrefix, method)
-	}
+	glog.V(2).Infof("%s: %s => grpc.QueueLeaves", c.logPrefix, method)
 	rsp, err := c.rpcClient.QueueLeaves(ctx, &req)
-	if glog.V(2) {
-		glog.Infof("%s: %s <= grpc.QueueLeaves status=%v", c.logPrefix, method, rsp.GetStatus())
-	}
+	glog.V(2).Infof("%s: %s <= grpc.QueueLeaves status=%v", c.logPrefix, method, rsp.GetStatus())
 	if err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("backend QueueLeaves request failed: %v", err)
 	}
@@ -217,9 +211,7 @@ func addChainInternal(ctx context.Context, c LogContext, w http.ResponseWriter, 
 		// TODO(Martin2112): Record failure for monitoring when it's implemented
 		return http.StatusInternalServerError, fmt.Errorf("failed to write response: %v", err)
 	}
-	if glog.V(3) {
-		glog.Infof("%s: %s <= SCT", c.logPrefix, method)
-	}
+	glog.V(3).Infof("%s: %s <= SCT", c.logPrefix, method)
 
 	return http.StatusOK, nil
 }
@@ -235,13 +227,9 @@ func addPreChain(ctx context.Context, c LogContext, w http.ResponseWriter, r *ht
 func getSTH(ctx context.Context, c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
 	// Forward on to the Log server.
 	req := trillian.GetLatestSignedLogRootRequest{LogId: c.logID}
-	if glog.V(2) {
-		glog.Infof("%s: GetSTH => grpc.GetLatestSignedLogRoot %+v", c.logPrefix, req)
-	}
+	glog.V(2).Infof("%s: GetSTH => grpc.GetLatestSignedLogRoot %+v", c.logPrefix, req)
 	rsp, err := c.rpcClient.GetLatestSignedLogRoot(ctx, &req)
-	if glog.V(2) {
-		glog.Infof("%s: GetSTH <= grpc.GetLatestSignedLogRoot status=%v", c.logPrefix, rsp.GetStatus())
-	}
+	glog.V(2).Infof("%s: GetSTH <= grpc.GetLatestSignedLogRoot status=%v", c.logPrefix, rsp.GetStatus())
 	if err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("backend GetLatestSignedLogRoot request failed: %v", err)
 	}
@@ -254,9 +242,7 @@ func getSTH(ctx context.Context, c LogContext, w http.ResponseWriter, r *http.Re
 	if slr == nil {
 		return http.StatusInternalServerError, fmt.Errorf("no log root returned")
 	}
-	if glog.V(3) {
-		glog.Infof("%s: GetSTH <= slr=%+v", c.logPrefix, slr)
-	}
+	glog.V(3).Infof("%s: GetSTH <= slr=%+v", c.logPrefix, slr)
 	if treeSize := slr.TreeSize; treeSize < 0 {
 		return http.StatusInternalServerError, fmt.Errorf("bad tree size from backend: %d", treeSize)
 	}
@@ -310,13 +296,9 @@ func getSTHConsistency(ctx context.Context, c LogContext, w http.ResponseWriter,
 	}
 	req := trillian.GetConsistencyProofRequest{LogId: c.logID, FirstTreeSize: first, SecondTreeSize: second}
 
-	if glog.V(2) {
-		glog.Infof("%s: GetSTHConsistency(%d, %d) => grpc.GetConsistencyProof %+v", c.logPrefix, first, second, req)
-	}
+	glog.V(2).Infof("%s: GetSTHConsistency(%d, %d) => grpc.GetConsistencyProof %+v", c.logPrefix, first, second, req)
 	rsp, err := c.rpcClient.GetConsistencyProof(ctx, &req)
-	if glog.V(2) {
-		glog.Infof("%s: GetSTHConsistency <= grpc.GetConsistencyProof status=%v", c.logPrefix, rsp.GetStatus())
-	}
+	glog.V(2).Infof("%s: GetSTHConsistency <= grpc.GetConsistencyProof status=%v", c.logPrefix, rsp.GetStatus())
 	if err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("backend GetConsistencyProof request failed: %v", err)
 	}
