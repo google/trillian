@@ -4,14 +4,9 @@ package integration
 
 import (
 	"bytes"
-	"crypto"
-	"crypto/ecdsa"
 	cryptorand "crypto/rand"
-	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/pem"
-	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -27,6 +22,8 @@ import (
 	"github.com/google/certificate-transparency/go/tls"
 	"github.com/google/certificate-transparency/go/x509"
 	"github.com/google/certificate-transparency/go/x509/pkix"
+	"github.com/google/trillian/crypto"
+	"github.com/google/trillian/testonly"
 	"golang.org/x/net/context"
 )
 
@@ -321,27 +318,12 @@ func signatureToString(signed *ct.DigitallySigned) string {
 	return fmt.Sprintf("Signature: Hash=%v Sign=%v Value=%x", signed.Algorithm.Hash, signed.Algorithm.Signature, signed.Signature)
 }
 
-func certsFromPEM(data []byte) []ct.ASN1Cert {
-	var chain []ct.ASN1Cert
-	for {
-		var block *pem.Block
-		block, data = pem.Decode(data)
-		if block == nil {
-			break
-		}
-		if block.Type == "CERTIFICATE" {
-			chain = append(chain, ct.ASN1Cert{Data: block.Bytes})
-		}
-	}
-	return chain
-}
-
 func getChain(path string) ([]ct.ASN1Cert, error) {
 	certdata, err := ioutil.ReadFile(filepath.Join(*testDir, path))
 	if err != nil {
 		return nil, fmt.Errorf("Failed to load certificate: %v", err)
 	}
-	return certsFromPEM(certdata), nil
+	return testonly.CertsFromPEM(certdata), nil
 }
 
 func awaitTreeSize(ctx context.Context, logClient *client.LogClient, size uint64, exact bool) (*ct.SignedTreeHead, error) {
@@ -383,11 +365,16 @@ func makePrecertChain(chain, issuerData []ct.ASN1Cert) ([]ct.ASN1Cert, []byte, e
 		Critical: true,
 		Value:    []byte{0x05, 0x00}, // ASN.1 NULL
 	})
-	privKey, _, err := loadPrivateKey(filepath.Join(*testDir, "int-ca.privkey.pem"), "babelfish")
+
+	km, err := crypto.LoadPasswordProtectedPrivateKey(filepath.Join(*testDir, "int-ca.privkey.pem"), "babelfish")
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to load private key for re-signing: %v", err)
 	}
-	prechain[0].Data, err = x509.CreateCertificate(cryptorand.Reader, cert, issuer, cert.PublicKey, privKey)
+	signer, err := km.Signer()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to retrieve signer for re-signing: %v", err)
+	}
+	prechain[0].Data, err = x509.CreateCertificate(cryptorand.Reader, cert, issuer, cert.PublicKey, signer)
 
 	// Rebuilding the certificate will set the authority key ID to the issuer's subject
 	// key ID, and will re-order extensions.  Extract the corresponding TBSCertificate
@@ -401,50 +388,4 @@ func makePrecertChain(chain, issuerData []ct.ASN1Cert) ([]ct.ASN1Cert, []byte, e
 		return nil, nil, fmt.Errorf("failed to remove poison from TBSCertificate: %v", err)
 	}
 	return prechain, tbs, nil
-}
-
-func loadPrivateKey(filename, password string) (crypto.PrivateKey, x509.SignatureAlgorithm, error) {
-	pemData, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return nil, x509.UnknownSignatureAlgorithm, fmt.Errorf("failed to read private key PEM file: %v", err)
-	}
-
-	block, rest := pem.Decode([]byte(pemData))
-	if len(rest) > 0 {
-		return nil, x509.UnknownSignatureAlgorithm, fmt.Errorf("extra data found after PEM decoding")
-	}
-
-	der := block.Bytes
-	if password != "" {
-		der, err = x509.DecryptPEMBlock(block, []byte(password))
-		if err != nil {
-			return nil, x509.UnknownSignatureAlgorithm, fmt.Errorf("failed to decrypt PEM block: %v", err)
-		}
-	}
-
-	key, algo, err := parsePrivateKey(der)
-	if err != nil {
-		return nil, x509.UnknownSignatureAlgorithm, fmt.Errorf("failed to parse private key: %v", err)
-	}
-	return key, algo, nil
-}
-
-func parsePrivateKey(key []byte) (crypto.PrivateKey, x509.SignatureAlgorithm, error) {
-	if key, err := x509.ParsePKCS1PrivateKey(key); err == nil {
-		return key, x509.SHA256WithRSA, nil
-	}
-	if key, err := x509.ParsePKCS8PrivateKey(key); err == nil {
-		switch key := key.(type) {
-		case *ecdsa.PrivateKey:
-			return key, x509.ECDSAWithSHA256, nil
-		case *rsa.PrivateKey:
-			return key, x509.SHA256WithRSA, nil
-		default:
-			return nil, x509.UnknownSignatureAlgorithm, fmt.Errorf("unknown private key type: %T", key)
-		}
-	}
-	if key, err := x509.ParseECPrivateKey(key); err == nil {
-		return key, x509.ECDSAWithSHA256, nil
-	}
-	return nil, x509.UnknownSignatureAlgorithm, errors.New("could not parse private key")
 }
