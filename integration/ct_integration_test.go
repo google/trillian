@@ -32,7 +32,7 @@ import (
 
 var httpServerFlag = flag.String("ct_http_server", "localhost:8092", "Server address:port")
 var pubKey = flag.String("public_key_file", "", "Name of file containing log's public key")
-var testdata = flag.String("testdata", "testdata", "Name of directory with test data")
+var testDir = flag.String("testdata", "testdata", "Name of directory with test data")
 var seed = flag.Int64("seed", -1, "Seed for random number generation")
 
 var verifier = merkletree.NewMerkleVerifier(func(data []byte) []byte {
@@ -333,7 +333,7 @@ func certsFromPEM(data []byte) []ct.ASN1Cert {
 }
 
 func getChain(path string) ([]ct.ASN1Cert, error) {
-	certdata, err := ioutil.ReadFile(filepath.Join(*testdata, path))
+	certdata, err := ioutil.ReadFile(filepath.Join(*testDir, path))
 	if err != nil {
 		return nil, fmt.Errorf("Failed to load certificate: %v", err)
 	}
@@ -379,7 +379,7 @@ func makePrecertChain(chain, issuerData []ct.ASN1Cert) ([]ct.ASN1Cert, []byte, e
 		Critical: true,
 		Value:    []byte{0x05, 0x00}, // ASN.1 NULL
 	})
-	privKey, _, err := loadPrivateKey(filepath.Join(*testdata, "int-ca.privkey.pem"), "babelfish")
+	privKey, _, err := loadPrivateKey(filepath.Join(*testDir, "int-ca.privkey.pem"), "babelfish")
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to load private key for re-signing: %v", err)
 	}
