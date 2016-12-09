@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"time"
 
@@ -412,16 +413,12 @@ func getEntries(ctx context.Context, c LogContext, w http.ResponseWriter, r *htt
 		return http.StatusInternalServerError, fmt.Errorf("backend GetLeavesByIndex request failed, status=%v", rsp.GetStatus())
 	}
 
-	// Apply additional checks on the RPC response to make sure we got a contiguous leaf range.
-	// It's allowed by the RFC for the backend to truncate the range in cases where the
-	// range exceeds the tree size etc. so we could get fewer leaves than we requested but
-	// never more and never anything outside the requested range.
-	if got, want := len(rsp.Leaves), len(req.LeafIndex); got > want {
-		return http.StatusInternalServerError, fmt.Errorf("backend returned too many leaves: %d v %d", got, want)
-	}
-
-	if err := isResponseContiguousRange(rsp, start, end); err != nil {
-		return http.StatusInternalServerError, fmt.Errorf("backend get-entries range received from backend non contiguous: %v", err)
+	// Trillian doesn't guarantee the returned leaves are in order (they don't need to be
+	// because each leaf comes with an index).  CT doesn't expose an index field and so
+	// needs to return leaves in order.  Therefore, sort the results (and check for missing
+	// or duplicate indices along the way).
+	if err := sortLeafRange(rsp, start, end); err != nil {
+		return http.StatusInternalServerError, fmt.Errorf("backend get-entries range invalid: %v", err)
 	}
 
 	// Now we've checked the RPC response and it seems to be valid we need
@@ -757,17 +754,29 @@ func buildIndicesForRange(start, end int64) []int64 {
 	return indices
 }
 
-// isResponseContiguousRange checks that the response has a contiguous range of leaves and
-// that it is a subset or equal to the requested range. This is additional protection against
-// backend bugs. Returns nil if the response looks valid.
-func isResponseContiguousRange(rsp *trillian.GetLeavesByIndexResponse, start, end int64) error {
-	for li, l := range rsp.Leaves {
-		if li > 0 && rsp.Leaves[li].LeafIndex-rsp.Leaves[li-1].LeafIndex != 1 {
-			return fmt.Errorf("backend returned non contiguous leaves: %v %v", rsp.Leaves[li-1], rsp.Leaves[li])
-		}
+type byLeafIndex []*trillian.LogLeaf
 
-		if l.LeafIndex < start || l.LeafIndex > end {
-			return fmt.Errorf("backend returned leaf:%d outside requested range:%d, %d", l.LeafIndex, start, end)
+func (ll byLeafIndex) Len() int {
+	return len(ll)
+}
+func (ll byLeafIndex) Swap(i, j int) {
+	ll[i], ll[j] = ll[j], ll[i]
+}
+func (ll byLeafIndex) Less(i, j int) bool {
+	return ll[i].LeafIndex < ll[j].LeafIndex
+}
+
+// sortLeafRange re-orders the leaves in rsp to be in ascending order by LeafIndex.  It also
+// checks that the resulting range of leaves in rsp is valid, starting at start and finishing
+// at end (or before) without duplicates.
+func sortLeafRange(rsp *trillian.GetLeavesByIndexResponse, start, end int64) error {
+	if got := int64(len(rsp.Leaves)); got > (end + 1 - start) {
+		return fmt.Errorf("backend returned too many leaves: %d v [%d,%d]", got, start, end)
+	}
+	sort.Sort(byLeafIndex(rsp.Leaves))
+	for i, leaf := range rsp.Leaves {
+		if leaf.LeafIndex != (start + int64(i)) {
+			return fmt.Errorf("backend returned unexpected leaf index: rsp.Leaves[%d].LeafIndex=%d for range [%d,%d]", i, leaf.LeafIndex, start, end)
 		}
 	}
 
