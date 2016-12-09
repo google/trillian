@@ -9,10 +9,14 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto"
+	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/testonly"
 	"golang.org/x/net/context"
 )
+
+var th = merkle.NewRFC6962TreeHasher(crypto.NewSHA256())
 
 var logID1 = int64(1)
 var logID2 = int64(2)
@@ -21,10 +25,13 @@ var leaf0Minus2Request = trillian.GetLeavesByIndexRequest{LogId: logID1, LeafInd
 var leaf03Request = trillian.GetLeavesByIndexRequest{LogId: logID1, LeafIndex: []int64{0, 3}}
 var leaf0Log2Request = trillian.GetLeavesByIndexRequest{LogId: logID2, LeafIndex: []int64{0}}
 
-var leaf1 = trillian.LogLeaf{LeafIndex: 1, MerkleLeafHash: []byte("hash"), LeafValue: []byte("value"), ExtraData: []byte("extra")}
-var leaf3 = trillian.LogLeaf{LeafIndex: 3, MerkleLeafHash: []byte("hash3"), LeafValue: []byte("value3"), ExtraData: []byte("extra3")}
-var expectedLeaf1 = trillian.LogLeaf{LeafIndex: 1, MerkleLeafHash: []byte("hash"), LeafValue: []byte("value"), ExtraData: []byte("extra")}
-var expectedLeaf3 = trillian.LogLeaf{LeafIndex: 3, MerkleLeafHash: []byte("hash3"), LeafValue: []byte("value3"), ExtraData: []byte("extra3")}
+var leaf1Data = []byte("value")
+var leaf3Data = []byte("value3")
+
+var leaf1 = trillian.LogLeaf{LeafIndex: 1, MerkleLeafHash: th.HashLeaf(leaf1Data), LeafValue: leaf1Data, ExtraData: []byte("extra")}
+var leaf3 = trillian.LogLeaf{LeafIndex: 3, MerkleLeafHash: th.HashLeaf(leaf3Data), LeafValue: leaf3Data, ExtraData: []byte("extra3")}
+var expectedLeaf1 = trillian.LogLeaf{LeafIndex: 1, MerkleLeafHash: th.HashLeaf(leaf1Data), LeafValue: leaf1Data, ExtraData: []byte("extra")}
+var expectedLeaf3 = trillian.LogLeaf{LeafIndex: 3, MerkleLeafHash: th.HashLeaf(leaf3Data), LeafValue: leaf3Data, ExtraData: []byte("extra3")}
 
 var queueRequest0 = trillian.QueueLeavesRequest{LogId: logID1, Leaves: []*trillian.LogLeaf{&expectedLeaf1}}
 var queueRequest0Log2 = trillian.QueueLeavesRequest{LogId: logID2, Leaves: []*trillian.LogLeaf{&expectedLeaf1}}
@@ -181,7 +188,7 @@ func TestGetLeavesByIndex(t *testing.T) {
 	}
 
 	if len(resp.Leaves) != 1 || !proto.Equal(resp.Leaves[0], &expectedLeaf1) {
-		t.Fatalf("Expected leaf: %v but got: %v", expectedLeaf1, resp.Leaves[0])
+		t.Fatalf("Expected leaf: %v but got: %v", &expectedLeaf1, resp.Leaves[0])
 	}
 }
 
