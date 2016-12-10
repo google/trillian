@@ -11,6 +11,14 @@ env:
   - GOFLAGS=
   - GOFLAGS=-race
 
+addons:
+    apt:
+        sources:
+            - ubuntu-toolchain-r-test
+        packages:
+            - gcc-4.8
+            - g++-4.8
+
 install:
   - |
     if [ ! -d $HOME/gopath/src/github.com/google ]; then
@@ -21,6 +29,8 @@ install:
   - if [[ $TRAVIS_OS_NAME == "osx" ]]; then brew update > /dev/null && brew install mariadb && mysql.server start; fi
 
 script:
+  - export CXX="g++-4.8"
+  - export CC="gcc-4.8"
   - go install github.com/golang/mock/mockgen
   - go get -u github.com/golang/lint/golint
   - go get -u github.com/golang/protobuf/...
