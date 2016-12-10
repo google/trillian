@@ -63,4 +63,5 @@ if [ $RESULT != 0 ]; then
     echo "HTTP Server log:"
     echo "--------------------"
     cat ${TMPDIR}/ct_server.INFO
+    exit $RESULT
 fi

@@ -40,4 +40,5 @@ if [ $RESULT != 0 ]; then
     echo "Server log:"
     echo "--------------------"
     cat ${TMPDIR}/trillian_map_server.INFO
+    exit $RESULT
 fi
