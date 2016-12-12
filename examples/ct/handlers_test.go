@@ -885,8 +885,9 @@ func TestGetEntriesRanges(t *testing.T) {
 		handler.ServeHTTP(w, req)
 
 		if got := w.Code; got != test.want {
-			t.Errorf("GetEntries(%d, %d)=%d; want %d for test  %s", test.start, test.end, got, test.want, test.desc)
-		} else if test.rpc && !strings.Contains(w.Body.String(), "RPCMADE") {
+			t.Errorf("GetEntries(%d, %d)=%d; want %d for test %s", test.start, test.end, got, test.want, test.desc)
+		}
+		if test.rpc && !strings.Contains(w.Body.String(), "RPCMADE") {
 			// If an RPC was emitted, it should have received and propagated an error.
 			t.Errorf("GetEntries(%d, %d)=%q; expect RPCMADE for test %s", test.start, test.end, w.Body, test.desc)
 		}
@@ -899,7 +900,7 @@ func TestSortLeafRange(t *testing.T) {
 		start   int64
 		end     int64
 		entries []int
-		errstr  string
+		errStr  string
 	}{
 		{1, 2, []int{1, 2}, ""},
 		{1, 1, []int{1}, ""},
@@ -918,11 +919,11 @@ func TestSortLeafRange(t *testing.T) {
 			rsp.Leaves = append(rsp.Leaves, &trillian.LogLeaf{LeafIndex: int64(idx)})
 		}
 		err := sortLeafRange(&rsp, test.start, test.end)
-		if test.errstr != "" {
+		if test.errStr != "" {
 			if err == nil {
-				t.Errorf("sortLeafRange(%v, %d, %d)=nil; want %q", test.entries, test.start, test.end, test.errstr)
-			} else if !strings.Contains(err.Error(), test.errstr) {
-				t.Errorf("sortLeafRange(%v, %d, %d)=%v; want %q", test.entries, test.start, test.end, err, test.errstr)
+				t.Errorf("sortLeafRange(%v, %d, %d)=nil; want substring %q", test.entries, test.start, test.end, test.errStr)
+			} else if !strings.Contains(err.Error(), test.errStr) {
+				t.Errorf("sortLeafRange(%v, %d, %d)=%v; want substring %q", test.entries, test.start, test.end, err, test.errStr)
 			}
 			continue
 		}
