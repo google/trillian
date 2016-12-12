@@ -105,6 +105,9 @@ CREATE TABLE IF NOT EXISTS Unsequenced(
   -- Note that this is a simple SHA256 hash of the raw data used to detect corruption in transit.
   -- It is not the leaf hash output of the treehasher used by the log.
   LeafValueHash        VARBINARY(255) NOT NULL,
+  -- This is a MerkleLeafHash as defined by the treehasher that the log uses. For example for
+  -- CT this hash will include the leaf prefix byte as well as the leaf data.
+  MerkleLeafHash       VARBINARY(255) NOT NULL,
   -- SHA256("queueId"|TreeId|leafValueHash)
   -- We want this to be unique per entry per log, but queryable by FEs so that
   -- we can try to stomp dupe submissions.

@@ -136,7 +136,7 @@ type testContext struct {
 
 // This gets modified so tests need their own copies
 func getLeaf42() trillian.LogLeaf {
-	testLeaf42Hash := []byte{0, 1, 2, 3, 4, 5}
+	testLeaf42Hash := treeHasher.HashLeaf(testLeaf16Data)
 	return trillian.LogLeaf{MerkleLeafHash: testLeaf42Hash, LeafValue: testLeaf16Data, ExtraData: nil, LeafIndex: 42}
 }
 

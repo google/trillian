@@ -7,6 +7,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util"
@@ -78,6 +79,12 @@ func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.Qu
 
 	if len(leaves) == 0 {
 		return &trillian.QueueLeavesResponse{Status: buildStatusWithDesc(trillian.TrillianApiStatusCode_ERROR, "Must queue at least one leaf")}, nil
+	}
+
+	// TODO(al): TreeHasher must be selected based on log config.
+	th := merkle.NewRFC6962TreeHasher(crypto.NewSHA256())
+	for i := range leaves {
+		leaves[i].MerkleLeafHash = th.HashLeaf(leaves[i].LeafValue)
 	}
 
 	tx, err := t.prepareStorageTx(req.LogId)

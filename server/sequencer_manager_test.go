@@ -10,10 +10,13 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
+	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/util"
 )
+
+var treeHasher = merkle.NewRFC6962TreeHasher(crypto.NewSHA256())
 
 // Arbitrary time for use in tests
 var fakeTime = time.Date(2016, 6, 28, 13, 40, 12, 45, time.UTC)
@@ -21,8 +24,7 @@ var fakeTimeSource = util.FakeTimeSource{FakeTime: fakeTime}
 
 // We use a size zero tree for testing, Merkle tree state restore is tested elsewhere
 var testLogID1 = int64(1)
-var testLeaf0Hash = []byte{0, 1, 2, 3, 4, 5}
-var testLeaf0 = trillian.LogLeaf{MerkleLeafHash: testLeaf0Hash, LeafValue: nil, ExtraData: nil, LeafIndex: 0}
+var testLeaf0 = trillian.LogLeaf{MerkleLeafHash: treeHasher.HashLeaf([]byte{}), LeafValue: nil, ExtraData: nil, LeafIndex: 0}
 var testLeaf0Updated = trillian.LogLeaf{MerkleLeafHash: testonly.MustDecodeBase64("bjQLnP+zepicpUTmu3gKLHiQHT+zNzh2hRGjBhevoB0="), LeafValue: nil, ExtraData: nil, LeafIndex: 0}
 var testRoot0 = trillian.SignedLogRoot{
 	TreeSize:     0,
