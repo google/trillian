@@ -30,11 +30,9 @@ var leaf3Data = []byte("value3")
 
 var leaf1 = trillian.LogLeaf{LeafIndex: 1, MerkleLeafHash: th.HashLeaf(leaf1Data), LeafValue: leaf1Data, ExtraData: []byte("extra")}
 var leaf3 = trillian.LogLeaf{LeafIndex: 3, MerkleLeafHash: th.HashLeaf(leaf3Data), LeafValue: leaf3Data, ExtraData: []byte("extra3")}
-var expectedLeaf1 = trillian.LogLeaf{LeafIndex: 1, MerkleLeafHash: th.HashLeaf(leaf1Data), LeafValue: leaf1Data, ExtraData: []byte("extra")}
-var expectedLeaf3 = trillian.LogLeaf{LeafIndex: 3, MerkleLeafHash: th.HashLeaf(leaf3Data), LeafValue: leaf3Data, ExtraData: []byte("extra3")}
 
-var queueRequest0 = trillian.QueueLeavesRequest{LogId: logID1, Leaves: []*trillian.LogLeaf{&expectedLeaf1}}
-var queueRequest0Log2 = trillian.QueueLeavesRequest{LogId: logID2, Leaves: []*trillian.LogLeaf{&expectedLeaf1}}
+var queueRequest0 = trillian.QueueLeavesRequest{LogId: logID1, Leaves: []*trillian.LogLeaf{&leaf1}}
+var queueRequest0Log2 = trillian.QueueLeavesRequest{LogId: logID2, Leaves: []*trillian.LogLeaf{&leaf1}}
 var queueRequestEmpty = trillian.QueueLeavesRequest{LogId: logID1, Leaves: []*trillian.LogLeaf{}}
 
 var getLogRootRequest1 = trillian.GetLatestSignedLogRootRequest{LogId: logID1}
@@ -187,8 +185,8 @@ func TestGetLeavesByIndex(t *testing.T) {
 		t.Fatalf("Expected app level ok status but got: %v", resp.Status.StatusCode)
 	}
 
-	if len(resp.Leaves) != 1 || !proto.Equal(resp.Leaves[0], &expectedLeaf1) {
-		t.Fatalf("Expected leaf: %v but got: %v", &expectedLeaf1, resp.Leaves[0])
+	if len(resp.Leaves) != 1 || !proto.Equal(resp.Leaves[0], &leaf1) {
+		t.Fatalf("Expected leaf: %v but got: %v", &leaf1, resp.Leaves[0])
 	}
 }
 
@@ -220,12 +218,12 @@ func TestGetLeavesByIndexMultiple(t *testing.T) {
 		t.Fatalf("Expected two leaves but got %d", len(resp.Leaves))
 	}
 
-	if !proto.Equal(resp.Leaves[0], &expectedLeaf1) {
-		t.Fatalf("Expected leaf1: %v but got: %v", &expectedLeaf1, resp.Leaves[0])
+	if !proto.Equal(resp.Leaves[0], &leaf1) {
+		t.Fatalf("Expected leaf1: %v but got: %v", &leaf1, resp.Leaves[0])
 	}
 
-	if !proto.Equal(resp.Leaves[1], &expectedLeaf3) {
-		t.Fatalf("Expected leaf3: %v but got: %v", &expectedLeaf3, resp.Leaves[0])
+	if !proto.Equal(resp.Leaves[1], &leaf3) {
+		t.Fatalf("Expected leaf3: %v but got: %v", &leaf3, resp.Leaves[0])
 	}
 }
 
@@ -528,8 +526,8 @@ func TestGetLeavesByHash(t *testing.T) {
 		t.Fatalf("Expected app level ok status but got: %v", resp.Status.StatusCode)
 	}
 
-	if len(resp.Leaves) != 2 || !proto.Equal(resp.Leaves[0], &expectedLeaf1) || !proto.Equal(resp.Leaves[1], &expectedLeaf3) {
-		t.Fatalf("Expected leaves %v and %v but got: %v", &expectedLeaf1, &expectedLeaf3, resp.Leaves)
+	if len(resp.Leaves) != 2 || !proto.Equal(resp.Leaves[0], &leaf1) || !proto.Equal(resp.Leaves[1], &leaf3) {
+		t.Fatalf("Expected leaves %v and %v but got: %v", &leaf1, &leaf3, resp.Leaves)
 	}
 }
 
@@ -566,7 +564,7 @@ func TestGetLeavesByLeafValueHashBeginFails(t *testing.T) {
 
 	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
-	_, err := server.GetLeavesByLeafValueHash(context.Background(), &getByHashRequest1);
+	_, err := server.GetLeavesByLeafValueHash(context.Background(), &getByHashRequest1)
 	if err == nil {
 		t.Fatalf("GetLeavesByLeafValueHash() = nil, want: error")
 	}
@@ -645,8 +643,8 @@ func TestGetLeavesByLeafValueHash(t *testing.T) {
 		t.Fatalf("Bad status got: %v, want: %v", got, want)
 	}
 
-	if len(resp.Leaves) != 2 || !proto.Equal(resp.Leaves[0], &expectedLeaf1) || !proto.Equal(resp.Leaves[1], &expectedLeaf3) {
-		t.Fatalf("Expected leaves %v and %v but got: %v", &expectedLeaf1, &expectedLeaf3, resp.Leaves)
+	if len(resp.Leaves) != 2 || !proto.Equal(resp.Leaves[0], &leaf1) || !proto.Equal(resp.Leaves[1], &leaf3) {
+		t.Fatalf("Expected leaves %v and %v but got: %v", &leaf1, &leaf3, resp.Leaves)
 	}
 }
 
@@ -1281,8 +1279,8 @@ func TestGetEntryAndProof(t *testing.T) {
 	}
 
 	// Check we got the correct leaf data
-	if !proto.Equal(response.Leaf, &expectedLeaf1) {
-		t.Fatalf("Expected leaf %v but got: %v", expectedLeaf1, response.Leaf)
+	if !proto.Equal(response.Leaf, &leaf1) {
+		t.Fatalf("Expected leaf %v but got: %v", leaf1, response.Leaf)
 	}
 }
 
