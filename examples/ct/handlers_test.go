@@ -41,24 +41,6 @@ var fakeDeadlineTime = time.Date(2016, 7, 22, 11, 01, 13, 500*1000*1000, time.UT
 var fakeTimeSource = util.FakeTimeSource{FakeTime: fakeTime}
 var okStatus = &trillian.TrillianApiStatus{StatusCode: trillian.TrillianApiStatusCode_OK}
 
-type getEntriesRangeTestCase struct {
-	start          int64
-	end            int64
-	expectedStatus int
-	explanation    string
-	rpcExpected    bool
-}
-
-var getEntriesRangeTestCases = []getEntriesRangeTestCase{
-	{-1, 0, http.StatusBadRequest, "-ve start value not allowed", false},
-	{0, -1, http.StatusBadRequest, "-ve end value not allowed", false},
-	{20, 10, http.StatusBadRequest, "invalid range end>start", false},
-	{3000, -50, http.StatusBadRequest, "invalid range, -ve end", false},
-	{10, 20, http.StatusInternalServerError, "valid range", true},
-	{10, 10, http.StatusInternalServerError, "valid range, one entry", true},
-	{10, 9, http.StatusBadRequest, "invalid range, edge case", false},
-	{1000, 50000, http.StatusBadRequest, "range too large to be accepted", false}}
-
 // List of requests for get-entry-and-proof that should be rejected with bad request status
 var getEntryAndProofBadRequests = []string{
 	"", "leaf_index=b", "leaf_index=1&tree_size=-1", "leaf_index=-1&tree_size=1",
@@ -864,43 +846,90 @@ func TestGetEntriesRejectsMissingParams(t *testing.T) {
 }
 
 func TestGetEntriesRanges(t *testing.T) {
+	var tests = []struct {
+		start int64
+		end   int64
+		want  int
+		desc  string
+		rpc   bool
+	}{
+		{-1, 0, http.StatusBadRequest, "-ve start value not allowed", false},
+		{0, -1, http.StatusBadRequest, "-ve end value not allowed", false},
+		{20, 10, http.StatusBadRequest, "invalid range end>start", false},
+		{3000, -50, http.StatusBadRequest, "invalid range, -ve end", false},
+		{10, 20, http.StatusInternalServerError, "valid range", true},
+		{10, 10, http.StatusInternalServerError, "valid range, one entry", true},
+		{10, 9, http.StatusBadRequest, "invalid range, edge case", false},
+		{1000, 50000, http.StatusBadRequest, "range too large to be accepted", false},
+	}
+
 	// This tests that only valid ranges make it to the backend for get-entries.
 	// We're testing request handling up to the point where we make the RPC so arrange for
 	// it to fail with a specific error.
-	for _, testCase := range getEntriesRangeTestCases {
+	for _, test := range tests {
 		mockCtrl := gomock.NewController(t)
-
 		client := mockclient.NewMockTrillianLogClient(mockCtrl)
 
-		if testCase.rpcExpected {
-			client.EXPECT().GetLeavesByIndex(deadlineMatcher(), &trillian.GetLeavesByIndexRequest{LeafIndex: buildIndicesForRange(testCase.start, testCase.end)}).Return(nil, errors.New("RPCMADE"))
+		if test.rpc {
+			client.EXPECT().GetLeavesByIndex(deadlineMatcher(), &trillian.GetLeavesByIndexRequest{LeafIndex: buildIndicesForRange(test.start, test.end)}).Return(nil, errors.New("RPCMADE"))
 		}
 
 		c := LogContext{rpcClient: client, timeSource: fakeTimeSource, rpcDeadline: time.Millisecond * 500}
 		handler := appHandler{context: c, handler: getEntries, method: http.MethodGet}
-
-		path := fmt.Sprintf("/ct/v1/get-entries?start=%d&end=%d", testCase.start, testCase.end)
+		path := fmt.Sprintf("/ct/v1/get-entries?start=%d&end=%d", test.start, test.end)
 		req, err := http.NewRequest("GET", path, nil)
-
 		if err != nil {
 			t.Fatal(err)
 		}
-
 		w := httptest.NewRecorder()
 		handler.ServeHTTP(w, req)
 
-		if expected, got := testCase.expectedStatus, w.Code; expected != got {
-			t.Fatalf("expected status %d, got %d for test case %s", expected, got, testCase.explanation)
+		if got := w.Code; got != test.want {
+			t.Errorf("GetEntries(%d, %d)=%d; want %d for test %s", test.start, test.end, got, test.want, test.desc)
 		}
-
-		// Additionally check that we saw our expected backend error and didn't get the result by
-		// chance
-		if testCase.expectedStatus == http.StatusInternalServerError {
-			if !strings.Contains(w.Body.String(), "RPCMADE") {
-				t.Fatalf("Did not get expected backend error: %s\n%s", testCase.explanation, w.Body)
-			}
+		if test.rpc && !strings.Contains(w.Body.String(), "RPCMADE") {
+			// If an RPC was emitted, it should have received and propagated an error.
+			t.Errorf("GetEntries(%d, %d)=%q; expect RPCMADE for test %s", test.start, test.end, w.Body, test.desc)
 		}
 		mockCtrl.Finish()
+	}
+}
+
+func TestSortLeafRange(t *testing.T) {
+	var tests = []struct {
+		start   int64
+		end     int64
+		entries []int
+		errStr  string
+	}{
+		{1, 2, []int{1, 2}, ""},
+		{1, 1, []int{1}, ""},
+		{5, 12, []int{5, 6, 7, 8, 9, 10, 11, 12}, ""},
+		{5, 12, []int{5, 6, 7, 8, 9, 10}, ""},
+		{5, 12, []int{7, 6, 8, 9, 10, 5}, ""},
+		{5, 12, []int{5, 5, 6, 7, 8, 9, 10}, "unexpected leaf index"},
+		{5, 12, []int{6, 7, 8, 9, 10, 11, 12}, "unexpected leaf index"},
+		{5, 12, []int{5, 6, 7, 8, 9, 10, 12}, "unexpected leaf index"},
+		{5, 12, []int{5, 6, 7, 8, 9, 10, 11, 12, 13}, "too many leaves"},
+		{1, 4, []int{5, 2, 3}, "unexpected leaf index"},
+	}
+	for _, test := range tests {
+		rsp := trillian.GetLeavesByIndexResponse{}
+		for _, idx := range test.entries {
+			rsp.Leaves = append(rsp.Leaves, &trillian.LogLeaf{LeafIndex: int64(idx)})
+		}
+		err := sortLeafRange(&rsp, test.start, test.end)
+		if test.errStr != "" {
+			if err == nil {
+				t.Errorf("sortLeafRange(%v, %d, %d)=nil; want substring %q", test.entries, test.start, test.end, test.errStr)
+			} else if !strings.Contains(err.Error(), test.errStr) {
+				t.Errorf("sortLeafRange(%v, %d, %d)=%v; want substring %q", test.entries, test.start, test.end, err, test.errStr)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("sortLeafRange(%v, %d, %d)=%v; want nil", test.entries, test.start, test.end, err)
+		}
 	}
 }
 
@@ -985,7 +1014,7 @@ func TestGetEntriesBackendReturnedNonContiguousRange(t *testing.T) {
 	if got, want := w.Code, http.StatusInternalServerError; got != want {
 		t.Fatalf("expected %v for backend too many leaves, got %v. Body: %v", want, got, w.Body)
 	}
-	if in, want := w.Body.String(), "non contiguous"; !strings.Contains(in, want) {
+	if in, want := w.Body.String(), "unexpected leaf index"; !strings.Contains(in, want) {
 		t.Fatalf("unexpected error for invalid sparse range: %s", in)
 	}
 }
