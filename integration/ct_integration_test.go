@@ -283,7 +283,7 @@ func TestCTIntegration(t *testing.T) {
 	}
 	fmt.Printf("%v: Got STH(size=%d): roothash=%x\n", ctTime(sthN1.Timestamp), sthN1.TreeSize, sthN1.SHA256RootHash)
 
-	// Stage 13: Retrieve and check pre-cert.
+	// Stage 13: retrieve and check pre-cert.
 	precertEntries, err := logClient.GetEntries(ctx, int64(count+1), int64(count+1))
 	if err != nil {
 		t.Fatalf("Failed to GetEntries(%d, %d): %v", count+1, count+1, err)
@@ -306,6 +306,44 @@ func TestCTIntegration(t *testing.T) {
 		t.Errorf("\tuploaded:  %s", hex.EncodeToString(tbs))
 		t.Errorf("\tretrieved: %s", hex.EncodeToString(ts.PrecertEntry.TBSCertificate))
 	}
+
+	// Stage 14: get an inclusion proof for the precert.
+	fmt.Printf("Inclusion proof leaf @ %d -> root %d = ", precertSCT.Timestamp, sthN1.TreeSize)
+	// Calculate leaf hash =  SHA256(0x00 | tls-encode(MerkleTreeLeaf))
+	issuer, err := x509.ParseCertificate(prechain[1].Data)
+	if err != nil {
+		t.Fatalf("failed to parse issuer certificate: %v", err)
+	}
+	leaf = ct.MerkleTreeLeaf{
+		Version:  ct.V1,
+		LeafType: ct.TimestampedEntryLeafType,
+		TimestampedEntry: &ct.TimestampedEntry{
+			Timestamp: precertSCT.Timestamp,
+			EntryType: ct.PrecertLogEntryType,
+			PrecertEntry: &ct.PreCert{
+				IssuerKeyHash:  sha256.Sum256(issuer.RawSubjectPublicKeyInfo),
+				TBSCertificate: tbs,
+			},
+			Extensions: precertSCT.Extensions,
+		},
+	}
+	leafData, err := tls.Marshal(leaf)
+	if err != nil {
+		t.Fatalf("tls.Marshal(precertLeaf)=nil,%v", err)
+	}
+	hash := sha256.Sum256(append([]byte{merkletree.LeafPrefix}, leafData...))
+	rsp, err := logClient.GetProofByHash(ctx, hash[:], sthN1.TreeSize)
+	if err != nil {
+		t.Fatalf("GetProofByHash(precertSCT, size=%d)=nil,%v", sthN1.TreeSize, err)
+	}
+	if rsp.LeafIndex != int64(count+1) {
+		t.Errorf("GetProofByHash(precertSCT, size=%d) has LeafIndex %d", sthN1.TreeSize, rsp.LeafIndex)
+	}
+	fmt.Printf("%x\n", rsp.AuditPath)
+	if err := verifier.VerifyInclusionProof(int64(count+1), int64(sthN1.TreeSize), rsp.AuditPath, sthN1.SHA256RootHash[:], leafData); err != nil {
+		t.Errorf("inclusion proof verification failed: %v", err)
+	}
+
 }
 
 func ctTime(ts uint64) time.Time {
