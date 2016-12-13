@@ -179,8 +179,10 @@ func (s Sequencer) SequenceBatch(ctx context.Context, limit int) (int, error) {
 	}
 
 	// TODO(al): Have a better detection mechanism for there being no stored root.
+	// TODO(mhs): Might be better to create empty root in provisioning API when it exists
 	if currentRoot.RootHash == nil {
 		glog.Warningf("%s: Fresh log - no previous TreeHeads exist.", util.LogIDPrefix(ctx))
+		return 0, s.SignRoot(ctx)
 	}
 
 	// There might be no work to be done. But we possibly still need to create an STH if the
