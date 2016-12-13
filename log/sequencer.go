@@ -40,11 +40,6 @@ type Sequencer struct {
 //           the subtrees.
 const maxTreeDepth = 64
 
-// CurrentRootExpiredFunc examines a signed log root and decides if it has expired with respect
-// to a max age duration and a given time source
-// TODO(Martin2112): This is all likely to go away when we switch to application STHs
-type CurrentRootExpiredFunc func(trillian.SignedLogRoot) bool
-
 // NewSequencer creates a new Sequencer instance for the specified inputs.
 func NewSequencer(hasher merkle.TreeHasher, timeSource util.TimeSource, logStorage storage.LogStorage, km crypto.KeyManager) *Sequencer {
 	return &Sequencer{hasher: hasher, timeSource: timeSource, logStorage: logStorage, keyManager: km}
@@ -156,7 +151,7 @@ func (s Sequencer) createRootSignature(ctx context.Context, root trillian.Signed
 // TODO(Martin2112): Can possibly improve by deferring a function that attempts to rollback,
 // which will fail if the tx was committed. Should only do this if we can hide the details of
 // the underlying storage transactions and it doesn't create other problems.
-func (s Sequencer) SequenceBatch(ctx context.Context, limit int, expiryFunc CurrentRootExpiredFunc) (int, error) {
+func (s Sequencer) SequenceBatch(ctx context.Context, limit int) (int, error) {
 	tx, err := s.logStorage.Begin()
 
 	if err != nil {
@@ -192,14 +187,7 @@ func (s Sequencer) SequenceBatch(ctx context.Context, limit int, expiryFunc Curr
 	// current one is too old. If there's work to be done then we'll be creating a root anyway.
 	if len(leaves) == 0 {
 		// We have nothing to integrate into the tree
-		tx.Commit()
-		if expiryFunc(currentRoot) {
-			// Current root is too old, sign one. Will use a new TX, safe as we have no writes
-			// pending in this one.
-			glog.V(2).Infof("%s: Current root is too old, create new STH", util.LogIDPrefix(ctx))
-			return 0, s.SignRoot(ctx)
-		}
-		return 0, nil
+		return 0, tx.Commit()
 	}
 
 	merkleTree, err := s.initMerkleTreeFromStorage(ctx, currentRoot, tx)

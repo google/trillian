@@ -137,40 +137,6 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 	sm.ExecutePass([]int64{logID}, createTestContext(provider))
 }
 
-// Tests that a new root is signed if it's due even when there is no work to sequence.
-// The various failure cases of SignRoot() are tested in the sequencer tests. This is
-// an interaction test.
-func TestSignsIfNoWorkAndRootExpired(t *testing.T) {
-	mockCtrl := gomock.NewController(t)
-	defer mockCtrl.Finish()
-
-	mockStorage := storage.NewMockLogStorage(mockCtrl)
-	mockTx := storage.NewMockLogTX(mockCtrl)
-	mockKeyManager := crypto.NewMockKeyManager(mockCtrl)
-	mockKeyManager.EXPECT().SignatureAlgorithm().AnyTimes().Return(trillian.SignatureAlgorithm_ECDSA)
-	logID := int64(1)
-	hasher := crypto.NewSHA256()
-
-	mockStorage.EXPECT().Begin().AnyTimes().Return(mockTx, nil)
-	mockTx.EXPECT().WriteRevision().AnyTimes().Return(writeRev)
-	mockTx.EXPECT().Commit().AnyTimes().Return(nil)
-	mockTx.EXPECT().LatestSignedLogRoot().AnyTimes().Return(testRoot0, nil)
-	mockTx.EXPECT().DequeueLeaves(50, fakeTime).Return([]trillian.LogLeaf{}, nil)
-	mockTx.EXPECT().StoreSignedLogRoot(updatedRootSignOnly).AnyTimes().Return(nil)
-
-	mockSigner := crypto.NewMockSigner(mockCtrl)
-	mockSigner.EXPECT().Sign(gomock.Any(), []byte{0xeb, 0x7d, 0xa1, 0x4f, 0x1e, 0x60, 0x91, 0x24, 0xa, 0xf7, 0x1c, 0xcd, 0xdb, 0xd4, 0xca, 0x38, 0x4b, 0x12, 0xe4, 0xa3, 0xcf, 0x80, 0x5, 0x55, 0x17, 0x71, 0x35, 0xaf, 0x80, 0x11, 0xa, 0x87}, hasher).Return([]byte("signed"), nil)
-	mockKeyManager.EXPECT().Signer().Return(mockSigner, nil)
-
-	provider := mockStorageProviderForSequencer(mockStorage)
-	sm := NewSequencerManager(mockKeyManager, provider, zeroDuration)
-
-	tc := createTestContext(provider)
-	// Lower the expiry so we can trigger a signing for a root older than 5 seconds
-	tc.signInterval = time.Second * 5
-	sm.ExecutePass([]int64{logID}, tc)
-}
-
 func TestSequencerManagerGuardWindow(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()

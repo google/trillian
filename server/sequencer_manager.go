@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/log"
 	"github.com/google/trillian/merkle"
@@ -16,15 +15,6 @@ type SequencerManager struct {
 	keyManager     crypto.KeyManager
 	guardWindow    time.Duration
 	cachedProvider *cachedLogStorageProvider
-}
-
-func isRootTooOld(ts util.TimeSource, maxAge time.Duration) log.CurrentRootExpiredFunc {
-	return func(root trillian.SignedLogRoot) bool {
-		rootTime := time.Unix(0, root.TimestampNanos)
-		rootAge := ts.Now().Sub(rootTime)
-
-		return rootAge > maxAge
-	}
 }
 
 // NewSequencerManager creates a new SequencerManager instance based on the provided KeyManager instance
@@ -71,7 +61,7 @@ func (s SequencerManager) ExecutePass(logIDs []int64, logctx LogOperationManager
 		sequencer := log.NewSequencer(merkle.NewRFC6962TreeHasher(crypto.NewSHA256()), logctx.timeSource, storage, s.keyManager)
 		sequencer.SetGuardWindow(s.guardWindow)
 
-		leaves, err := sequencer.SequenceBatch(ctx, logctx.batchSize, isRootTooOld(logctx.timeSource, logctx.signInterval))
+		leaves, err := sequencer.SequenceBatch(ctx, logctx.batchSize)
 
 		if err != nil {
 			glog.Warningf("%s: Error trying to sequence batch for: %v", util.LogIDPrefix(ctx), err)
