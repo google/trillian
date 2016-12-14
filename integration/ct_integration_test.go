@@ -23,14 +23,15 @@ import (
 	"github.com/google/certificate-transparency/go/x509"
 	"github.com/google/certificate-transparency/go/x509/pkix"
 	"github.com/google/trillian/crypto"
+	ctcfg "github.com/google/trillian/examples/ct"
 	"github.com/google/trillian/testonly"
 	"golang.org/x/net/context"
 )
 
 var httpServerFlag = flag.String("ct_http_server", "localhost:8092", "Server address:port")
-var pubKey = flag.String("public_key_file", "", "Name of file containing log's public key")
 var testDir = flag.String("testdata", "testdata", "Name of directory with test data")
 var seed = flag.Int64("seed", -1, "Seed for random number generation")
+var logConfigFlag = flag.String("log_config", "", "File holding log config in JSON")
 
 // TODO(drysdale): convert to use trillian/merkle to avoid the dependency on the
 // CT code (which in turn requires C++ code).
@@ -42,21 +43,31 @@ var verifier = merkletree.NewMerkleVerifier(func(data []byte) []byte {
 
 func TestCTIntegration(t *testing.T) {
 	flag.Parse()
-	logURI := "http://" + (*httpServerFlag)
 	if *seed == -1 {
 		*seed = time.Now().UTC().UnixNano() & 0xFFFFFFFF
 	}
 	fmt.Printf("Today's test has been brought to you by the letters C and T and the number %#x\n", *seed)
 	rand.Seed(*seed)
 
+	cfg, err := ctcfg.LogConfigFromFile(*logConfigFlag)
+	if err != nil {
+		t.Fatalf("Failed to read log config: %v", err)
+	}
+
+	testCTIntegrationForLog(t, cfg[0])
+}
+
+// Run tests against the log with configuration cfg.
+func testCTIntegrationForLog(t *testing.T, cfg ctcfg.LogConfig) {
 	opts := jsonclient.Options{}
-	if *pubKey != "" {
-		pubkey, err := ioutil.ReadFile(*pubKey)
+	if cfg.PubKeyPEMFile != "" {
+		pubkey, err := ioutil.ReadFile(cfg.PubKeyPEMFile)
 		if err != nil {
 			t.Fatalf("Failed to get public key contents: %v", err)
 		}
 		opts.PublicKey = string(pubkey)
 	}
+	logURI := "http://" + (*httpServerFlag)
 	logClient, err := client.New(logURI, nil, opts)
 	if err != nil {
 		t.Fatalf("Failed to create LogClient instance: %v", err)
