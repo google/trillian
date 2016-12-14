@@ -7,6 +7,11 @@ RPC_PORT=36962
 CT_PORT=6962
 TEST_TREE_ID=6962
 
+# Build config file with absolute paths
+CT_CFG=$(mktemp ${INTEGRATION_DIR}/ct-XXXXXX)
+sed "s!@TESTDATA@!${TESTDATA}!" ./integration/ct_integration_test.cfg > ${CT_CFG}
+trap "rm ${CT_CFG}" EXIT
+
 echo "Provisioning test log (Tree ID: ${TEST_TREE_ID}) in database"
 ${SCRIPTS_DIR}/wipelog.sh ${TEST_TREE_ID}
 ${SCRIPTS_DIR}/createlog.sh ${TEST_TREE_ID}
@@ -25,7 +30,7 @@ waitForServerStartup ${RPC_PORT}
 echo "Starting CT HTTP server on port ${CT_PORT}"
 pushd ${TRILLIAN_ROOT} > /dev/null
 go build ${GOFLAGS} ./examples/ct/ct_server/
-./ct_server --log_config="./integration/ct_integration_test.cfg"  --log_rpc_server="localhost:${RPC_PORT}" --port=${CT_PORT} &
+./ct_server --log_config=${CT_CFG} --log_rpc_server="localhost:${RPC_PORT}" --port=${CT_PORT} &
 HTTP_SERVER_PID=$!
 popd > /dev/null
 
@@ -43,6 +48,7 @@ go test -v -tags=integration -run ".*CT.*" --timeout=5m ./integration --treeid $
 RESULT=$?
 set -e
 
+rm ${CT_CFG}
 trap - EXIT
 echo "Stopping CT HTTP server (pid ${HTTP_SERVER_PID}) on port ${CT_PORT}"
 kill -INT ${HTTP_SERVER_PID}
