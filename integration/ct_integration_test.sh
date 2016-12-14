@@ -5,16 +5,20 @@ INTEGRATION_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 RPC_PORT=36962
 CT_PORT=6962
-TEST_TREE_ID=6962
 
 # Build config file with absolute paths
 CT_CFG=$(mktemp ${INTEGRATION_DIR}/ct-XXXXXX)
 sed "s!@TESTDATA@!${TESTDATA}!" ./integration/ct_integration_test.cfg > ${CT_CFG}
 trap "rm ${CT_CFG}" EXIT
 
-echo "Provisioning test log (Tree ID: ${TEST_TREE_ID}) in database"
-${SCRIPTS_DIR}/wipelog.sh ${TEST_TREE_ID}
-${SCRIPTS_DIR}/createlog.sh ${TEST_TREE_ID}
+# Retrieve tree IDs from config file
+TREE_IDS=$(grep LogID ${CT_CFG} | grep -o '[0-9]\+'| xargs)
+for id in ${TREE_IDS}
+do
+    echo "Provisioning test log (Tree ID: ${id}) in database"
+    ${SCRIPTS_DIR}/wipelog.sh ${id}
+    ${SCRIPTS_DIR}/createlog.sh ${id}
+done
 
 echo "Starting Log RPC server on port ${RPC_PORT}"
 pushd ${TRILLIAN_ROOT} > /dev/null
@@ -44,7 +48,7 @@ set -e
 
 echo "Running test(s)"
 set +e
-go test -v -tags=integration -run ".*CT.*" --timeout=5m ./integration --treeid ${TEST_TREE_ID} --ct_http_server="localhost:${CT_PORT}" --public_key_file=${TESTDATA}/ct-http-server.pubkey.pem --testdata=${TESTDATA}
+go test -v -tags=integration -run ".*CT.*" --timeout=5m ./integration --log_config ${CT_CFG} --ct_http_server="localhost:${CT_PORT}" --testdata=${TESTDATA}
 RESULT=$?
 set -e
 
