@@ -3,11 +3,11 @@ set -e
 INTEGRATION_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 . ${INTEGRATION_DIR}/common.sh
 
-TEST_TREE_ID=6962
 RPC_PORT=36962
 CT_PORT=6962
+TEST_TREE_ID=6962
 
-echo "Provisioning test log (Tree ID: $TEST_TREE_ID) in database"
+echo "Provisioning test log (Tree ID: ${TEST_TREE_ID}) in database"
 ${SCRIPTS_DIR}/wipelog.sh ${TEST_TREE_ID}
 ${SCRIPTS_DIR}/createlog.sh ${TEST_TREE_ID}
 
@@ -25,8 +25,7 @@ waitForServerStartup ${RPC_PORT}
 echo "Starting CT HTTP server on port ${CT_PORT}"
 pushd ${TRILLIAN_ROOT} > /dev/null
 go build ${GOFLAGS} ./examples/ct/ct_server/
-# TODO(drysdale): drop the --log_id flag once the CT HTTP server is multi-tenant
-./ct_server --private_key_password=dirk --private_key_file=${TESTDATA}/ct-http-server.privkey.pem --public_key_file=${TESTDATA}/ct-http-server.pubkey.pem --log_rpc_server="localhost:${RPC_PORT}" --port=${CT_PORT} --trusted_roots=${TESTDATA}/fake-ca.cert --log_id ${TEST_TREE_ID} &
+./ct_server --log_config="./integration/ct_integration_test.cfg"  --log_rpc_server="localhost:${RPC_PORT}" --port=${CT_PORT} &
 HTTP_SERVER_PID=$!
 popd > /dev/null
 
@@ -39,9 +38,8 @@ waitForServerStartup ${CT_PORT}
 set -e
 
 echo "Running test(s)"
-cd ${INTEGRATION_DIR}
 set +e
-go test -v -tags=integration -run ".*CT.*" --timeout=5m ./ --treeid ${TEST_TREE_ID} --ct_http_server="localhost:${CT_PORT}" --public_key_file=${TESTDATA}/ct-http-server.pubkey.pem --testdata=${TESTDATA}
+go test -v -tags=integration -run ".*CT.*" --timeout=5m ./integration --treeid ${TEST_TREE_ID} --ct_http_server="localhost:${CT_PORT}" --public_key_file=${TESTDATA}/ct-http-server.pubkey.pem --testdata=${TESTDATA}
 RESULT=$?
 set -e
 
