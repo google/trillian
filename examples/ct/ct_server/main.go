@@ -57,8 +57,10 @@ func main() {
 	defer conn.Close()
 	client := trillian.NewTrillianLogClient(conn)
 
-	if err := cfg[0].SetUpInstance(client, *rpcDeadlineFlag); err != nil {
-		glog.Fatalf("Failed to set up log instance for %+v: %v", cfg, err)
+	for _, c := range cfg {
+		if err := c.SetUpInstance(client, *rpcDeadlineFlag); err != nil {
+			glog.Fatalf("Failed to set up log instance for %+v: %v", cfg, err)
+		}
 	}
 
 	// Bring up the HTTP server and serve until we get a signal not to.
