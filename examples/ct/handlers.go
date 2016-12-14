@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/golang/glog"
@@ -103,7 +104,9 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 type LogContext struct {
 	// logID is the tree ID that identifies this log in node storage
 	logID int64
-	// logPrefix is a pre-formatted string identifying the log for diagnostics.
+	// urlPrefix is the prefix for URLs for this log
+	urlPrefix string
+	// logPrefix is a pre-formatted string identifying the log for diagnostics
 	logPrefix string
 	// trustedRoots is a pool of certificates that defines the roots the CT log will accept
 	trustedRoots *PEMCertPool
@@ -118,10 +121,11 @@ type LogContext struct {
 }
 
 // NewLogContext creates a new instance of LogContext.
-func NewLogContext(logID int64, trustedRoots *PEMCertPool, rpcClient trillian.TrillianLogClient, km crypto.KeyManager, rpcDeadline time.Duration, timeSource util.TimeSource) *LogContext {
+func NewLogContext(logID int64, prefix string, trustedRoots *PEMCertPool, rpcClient trillian.TrillianLogClient, km crypto.KeyManager, rpcDeadline time.Duration, timeSource util.TimeSource) *LogContext {
 	return &LogContext{
 		logID:         logID,
-		logPrefix:     fmt.Sprintf("{%d}", logID),
+		urlPrefix:     prefix,
+		logPrefix:     fmt.Sprintf("%s{%d}", prefix, logID),
 		trustedRoots:  trustedRoots,
 		rpcClient:     rpcClient,
 		logKeyManager: km,
@@ -512,16 +516,21 @@ func getEntryAndProof(ctx context.Context, c LogContext, w http.ResponseWriter, 
 
 // RegisterHandlers registers a HandleFunc for all of the RFC6962 defined methods.
 // TODO(Martin2112): This registers on default ServeMux, might need more flexibility?
-func (c LogContext) RegisterHandlers() {
+func (c LogContext) RegisterHandlers(prefix string) {
+	if !strings.HasPrefix(prefix, "/") {
+		prefix = "/" + prefix
+	}
+	prefix = strings.TrimRight(prefix, "/")
+
 	// Bind the LogContext instance to give an appHandler instance for each entrypoint.
-	http.Handle(ct.AddChainPath, appHandler{context: c, handler: addChain, name: "AddChain", method: http.MethodPost})
-	http.Handle(ct.AddPreChainPath, appHandler{context: c, handler: addPreChain, name: "AddPreChain", method: http.MethodPost})
-	http.Handle(ct.GetSTHPath, appHandler{context: c, handler: getSTH, name: "GetSTH", method: http.MethodGet})
-	http.Handle(ct.GetSTHConsistencyPath, appHandler{context: c, handler: getSTHConsistency, name: "GetSTHConsistency", method: http.MethodGet})
-	http.Handle(ct.GetProofByHashPath, appHandler{context: c, handler: getProofByHash, name: "GetProofByHash", method: http.MethodGet})
-	http.Handle(ct.GetEntriesPath, appHandler{context: c, handler: getEntries, name: "GetEntries", method: http.MethodGet})
-	http.Handle(ct.GetRootsPath, appHandler{context: c, handler: getRoots, name: "GetRoots", method: http.MethodGet})
-	http.Handle(ct.GetEntryAndProofPath, appHandler{context: c, handler: getEntryAndProof, name: "GetEntryAndProof", method: http.MethodGet})
+	http.Handle(prefix+ct.AddChainPath, appHandler{context: c, handler: addChain, name: "AddChain", method: http.MethodPost})
+	http.Handle(prefix+ct.AddPreChainPath, appHandler{context: c, handler: addPreChain, name: "AddPreChain", method: http.MethodPost})
+	http.Handle(prefix+ct.GetSTHPath, appHandler{context: c, handler: getSTH, name: "GetSTH", method: http.MethodGet})
+	http.Handle(prefix+ct.GetSTHConsistencyPath, appHandler{context: c, handler: getSTHConsistency, name: "GetSTHConsistency", method: http.MethodGet})
+	http.Handle(prefix+ct.GetProofByHashPath, appHandler{context: c, handler: getProofByHash, name: "GetProofByHash", method: http.MethodGet})
+	http.Handle(prefix+ct.GetEntriesPath, appHandler{context: c, handler: getEntries, name: "GetEntries", method: http.MethodGet})
+	http.Handle(prefix+ct.GetRootsPath, appHandler{context: c, handler: getRoots, name: "GetRoots", method: http.MethodGet})
+	http.Handle(prefix+ct.GetEntryAndProofPath, appHandler{context: c, handler: getEntryAndProof, name: "GetEntryAndProof", method: http.MethodGet})
 }
 
 // Generates a custom error page to give more information on why something didn't work

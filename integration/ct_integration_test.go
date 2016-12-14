@@ -67,7 +67,7 @@ func testCTIntegrationForLog(t *testing.T, cfg ctcfg.LogConfig) {
 		}
 		opts.PublicKey = string(pubkey)
 	}
-	logURI := "http://" + (*httpServerFlag)
+	logURI := "http://" + (*httpServerFlag) + "/" + cfg.Prefix
 	logClient, err := client.New(logURI, nil, opts)
 	if err != nil {
 		t.Fatalf("Failed to create LogClient instance: %v", err)

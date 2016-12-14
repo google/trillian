@@ -332,7 +332,7 @@ func TestAddChainMissingIntermediate(t *testing.T) {
 	km.EXPECT().SignatureAlgorithm().AnyTimes().Return(trillian.SignatureAlgorithm_ECDSA)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.FakeCACertPEM})
-	c := *NewLogContext(0x42, roots, client, km, time.Millisecond*500, fakeTimeSource)
+	c := *NewLogContext(0x42, "", roots, client, km, time.Millisecond*500, fakeTimeSource)
 
 	pool := loadCertsIntoPoolOrDie(t, []string{testonly.LeafSignedByFakeIntermediateCertPEM})
 	chain := createJSONChain(t, *pool)
@@ -355,7 +355,7 @@ func TestAddChainPrecert(t *testing.T) {
 	km.EXPECT().SignatureAlgorithm().AnyTimes().Return(trillian.SignatureAlgorithm_ECDSA)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
-	c := *NewLogContext(0x42, roots, client, km, time.Millisecond*500, fakeTimeSource)
+	c := *NewLogContext(0x42, "", roots, client, km, time.Millisecond*500, fakeTimeSource)
 
 	// TODO(Martin2112): I don't think CT should return NonFatalError for something we expect
 	// to happen - seeing a precert extension. If this is fixed upstream remove all references from
@@ -388,7 +388,7 @@ func TestAddChainRPCFails(t *testing.T) {
 	km.EXPECT().SignatureAlgorithm().AnyTimes().Return(trillian.SignatureAlgorithm_ECDSA)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.FakeCACertPEM})
-	c := *NewLogContext(0x42, roots, client, km, time.Millisecond*500, fakeTimeSource)
+	c := *NewLogContext(0x42, "", roots, client, km, time.Millisecond*500, fakeTimeSource)
 
 	pool := loadCertsIntoPoolOrDie(t, []string{testonly.LeafSignedByFakeIntermediateCertPEM, testonly.FakeIntermediateCertPEM})
 	chain := createJSONChain(t, *pool)
@@ -423,7 +423,7 @@ func TestAddChain(t *testing.T) {
 	km.EXPECT().SignatureAlgorithm().AnyTimes().Return(trillian.SignatureAlgorithm_ECDSA)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.FakeCACertPEM})
-	c := *NewLogContext(0x42, roots, client, km, time.Millisecond*500, fakeTimeSource)
+	c := *NewLogContext(0x42, "", roots, client, km, time.Millisecond*500, fakeTimeSource)
 
 	pool := loadCertsIntoPoolOrDie(t, []string{testonly.LeafSignedByFakeIntermediateCertPEM, testonly.FakeIntermediateCertPEM})
 	chain := createJSONChain(t, *pool)
@@ -475,7 +475,7 @@ func TestAddPrecertChainInvalidPath(t *testing.T) {
 	km.EXPECT().SignatureAlgorithm().AnyTimes().Return(trillian.SignatureAlgorithm_ECDSA)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
-	c := *NewLogContext(0x42, roots, client, km, time.Millisecond*500, fakeTimeSource)
+	c := *NewLogContext(0x42, "", roots, client, km, time.Millisecond*500, fakeTimeSource)
 
 	cert, err := fixchain.CertificateFromPEM(testonly.PrecertPEMValid)
 	_, ok := err.(x509.NonFatalErrors)
@@ -514,7 +514,7 @@ func TestAddPrecertChainCert(t *testing.T) {
 	km.EXPECT().SignatureAlgorithm().AnyTimes().Return(trillian.SignatureAlgorithm_ECDSA)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
-	c := *NewLogContext(0x42, roots, client, km, time.Millisecond*500, fakeTimeSource)
+	c := *NewLogContext(0x42, "", roots, client, km, time.Millisecond*500, fakeTimeSource)
 
 	cert, err := fixchain.CertificateFromPEM(testonly.TestCertPEM)
 
@@ -545,7 +545,7 @@ func TestAddPrecertChainRPCFails(t *testing.T) {
 	km.EXPECT().SignatureAlgorithm().AnyTimes().Return(trillian.SignatureAlgorithm_ECDSA)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
-	c := *NewLogContext(0x42, roots, client, km, time.Millisecond*500, fakeTimeSource)
+	c := *NewLogContext(0x42, "", roots, client, km, time.Millisecond*500, fakeTimeSource)
 
 	cert, err := fixchain.CertificateFromPEM(testonly.PrecertPEMValid)
 	_, ok := err.(x509.NonFatalErrors)
@@ -592,7 +592,7 @@ func TestAddPrecertChain(t *testing.T) {
 	km.EXPECT().SignatureAlgorithm().AnyTimes().Return(trillian.SignatureAlgorithm_ECDSA)
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
-	c := *NewLogContext(0x42, roots, client, km, time.Millisecond*500, fakeTimeSource)
+	c := *NewLogContext(0x42, "", roots, client, km, time.Millisecond*500, fakeTimeSource)
 
 	cert, err := fixchain.CertificateFromPEM(testonly.PrecertPEMValid)
 	_, ok := err.(x509.NonFatalErrors)
@@ -657,7 +657,7 @@ func TestGetSTHBackendErrorFails(t *testing.T) {
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
 	client.EXPECT().GetLatestSignedLogRoot(deadlineMatcher(), &trillian.GetLatestSignedLogRootRequest{LogId: 0x42}).Return(nil, errors.New("backendfailure"))
-	c := *NewLogContext(0x42, roots, client, km, time.Millisecond*500, fakeTimeSource)
+	c := *NewLogContext(0x42, "", roots, client, km, time.Millisecond*500, fakeTimeSource)
 	handler := appHandler{context: c, handler: getSTH, method: http.MethodGet}
 
 	req, err := http.NewRequest("GET", "http://example.com/ct/v1/get-sth", nil)
@@ -688,7 +688,7 @@ func TestGetSTHInvalidBackendTreeSizeFails(t *testing.T) {
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
 	client.EXPECT().GetLatestSignedLogRoot(deadlineMatcher(), &trillian.GetLatestSignedLogRootRequest{LogId: 0x42}).Return(makeGetRootResponseForTest(12345, -50, []byte("abcdabcdabcdabcdabcdabcdabcdabcd")), nil)
-	c := *NewLogContext(0x42, roots, client, km, time.Millisecond*500, fakeTimeSource)
+	c := *NewLogContext(0x42, "", roots, client, km, time.Millisecond*500, fakeTimeSource)
 	handler := appHandler{context: c, handler: getSTH, method: http.MethodGet}
 
 	req, err := http.NewRequest("GET", "http://example.com/ct/v1/get-sth", nil)
@@ -718,7 +718,7 @@ func TestGetSTHMissingRootHashFails(t *testing.T) {
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
 	client.EXPECT().GetLatestSignedLogRoot(deadlineMatcher(), &trillian.GetLatestSignedLogRootRequest{LogId: 0x42}).Return(makeGetRootResponseForTest(12345, 25, []byte("thisisnot32byteslong")), nil)
-	c := *NewLogContext(0x42, roots, client, km, time.Millisecond*500, fakeTimeSource)
+	c := *NewLogContext(0x42, "", roots, client, km, time.Millisecond*500, fakeTimeSource)
 	handler := appHandler{context: c, handler: getSTH, method: http.MethodGet}
 
 	req, err := http.NewRequest("GET", "http://example.com/ct/v1/get-sth", nil)
@@ -753,7 +753,7 @@ func TestGetSTHSigningFails(t *testing.T) {
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
 	client.EXPECT().GetLatestSignedLogRoot(deadlineMatcher(), &trillian.GetLatestSignedLogRootRequest{LogId: 0x42}).Return(makeGetRootResponseForTest(12345, 25, []byte("abcdabcdabcdabcdabcdabcdabcdabcd")), nil)
-	c := *NewLogContext(0x42, roots, client, km, time.Millisecond*500, fakeTimeSource)
+	c := *NewLogContext(0x42, "", roots, client, km, time.Millisecond*500, fakeTimeSource)
 	handler := appHandler{context: c, handler: getSTH, method: http.MethodGet}
 
 	req, err := http.NewRequest("GET", "http://example.com/ct/v1/get-sth", nil)
@@ -783,7 +783,7 @@ func TestGetSTH(t *testing.T) {
 
 	roots := loadCertsIntoPoolOrDie(t, []string{testonly.CACertPEM})
 	client.EXPECT().GetLatestSignedLogRoot(deadlineMatcher(), &trillian.GetLatestSignedLogRootRequest{LogId: 0x42}).Return(makeGetRootResponseForTest(12345000000, 25, []byte("abcdabcdabcdabcdabcdabcdabcdabcd")), nil)
-	c := *NewLogContext(0x42, roots, client, km, time.Millisecond*500, fakeTimeSource)
+	c := *NewLogContext(0x42, "", roots, client, km, time.Millisecond*500, fakeTimeSource)
 	handler := appHandler{context: c, handler: getSTH, method: http.MethodGet}
 
 	req, err := http.NewRequest("GET", "http://example.com/ct/v1/get-sth", nil)

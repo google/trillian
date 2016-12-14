@@ -15,6 +15,7 @@ import (
 // LogConfig describes the configuration options for a log instance.
 type LogConfig struct {
 	LogID           int64
+	Prefix          string
 	RootsPEMFile    string
 	PubKeyPEMFile   string
 	PrivKeyPEMFile  string
@@ -82,8 +83,8 @@ func (cfg LogConfig) SetUpInstance(client trillian.TrillianLogClient, deadline t
 	}
 
 	// Create and register the handlers using the RPC client we just set up
-	ctx := NewLogContext(cfg.LogID, roots, client, km, deadline, new(util.SystemTimeSource))
-	ctx.RegisterHandlers()
+	ctx := NewLogContext(cfg.LogID, cfg.Prefix, roots, client, km, deadline, new(util.SystemTimeSource))
+	ctx.RegisterHandlers(cfg.Prefix)
 
 	return nil
 }
