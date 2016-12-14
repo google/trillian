@@ -12,6 +12,7 @@ import (
 	"github.com/google/trillian/storage/tools"
 )
 
+var treeIDFlag = flag.Int64("treeid", 3, "The tree id to use")
 var numInsertionsFlag = flag.Int("num_insertions", 10, "Number of entries to insert in the tree")
 var startInsertFromFlag = flag.Int("start_from", 0, "The sequence number of the first inserted item")
 var queueBatchSizeFlag = flag.Int("queue_batch_size", 50, "Queue leaves batch size")
@@ -36,8 +37,7 @@ func main() {
 	flag.Parse()
 	validateFlagsOrDie()
 
-	treeID := tools.GetLogIDFromFlagsOrDie()
-	storage := tools.GetStorageFromFlagsOrDie(treeID)
+	storage := tools.GetStorageFromFlagsOrDie(*treeIDFlag)
 
 	tx, err := storage.Begin()
 

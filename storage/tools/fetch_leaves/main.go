@@ -9,6 +9,7 @@ import (
 	"github.com/google/trillian/storage/tools"
 )
 
+var treeIDFlag = flag.Int64("treeid", 3, "The tree id to use")
 var fetchLeavesFlag = flag.Int("fetch_leaves", 1, "Number of entries to fetch")
 var startFetchFromFlag = flag.Int("start_fetch_at", 0, "The sequence number of the first leaf to fetch")
 var leafHashHex = flag.String("leaf_hash", "", "The hash of a leaf to fetch")
@@ -28,8 +29,7 @@ func main() {
 	flag.Parse()
 	validateFetchFlagsOrDie()
 
-	treeID := tools.GetLogIDFromFlagsOrDie()
-	storage := tools.GetStorageFromFlagsOrDie(treeID)
+	storage := tools.GetStorageFromFlagsOrDie(*treeIDFlag)
 
 	tx, err := storage.Begin()
 
