@@ -17,11 +17,11 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/merkle"
-	"github.com/google/trillian/storage/tools"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
 
+var treeIDFlag = flag.Int64("treeid", 3, "The tree id to use")
 var serverFlag = flag.String("log_rpc_server", "localhost:8092", "Server address:port")
 var queueLeavesFlag = flag.Bool("queue_leaves", true, "If true queues leaves, false just reads from the log")
 var awaitSequencingFlag = flag.Bool("await_sequencing", true, "If true then waits until log size is at least num_leaves")
@@ -70,7 +70,7 @@ func TestLogIntegration(t *testing.T) {
 	flag.Parse()
 
 	// Step 0 - Initialize and connect to log server
-	treeID := tools.GetLogIDFromFlagsOrDie()
+	treeID := *treeIDFlag
 	params := testParameters{
 		startLeaf:           *startLeafFlag,
 		leafCount:           *numLeavesFlag,

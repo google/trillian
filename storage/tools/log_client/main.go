@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc"
 )
 
+var treeIDFlag = flag.Int64("treeid", 3, "The tree id to use")
 var startLeafFlag = flag.Int64("start_leaf", 0, "The first leaf index to fetch")
 var numLeavesFlag = flag.Int64("num_leaves", 1, "The number of leaves to fetch")
 
@@ -46,7 +47,7 @@ func main() {
 
 	client := trillian.NewTrillianLogClient(conn)
 
-	req := buildGetLeavesByIndexRequest(tools.GetLogIDFromFlagsOrDie(), *startLeafFlag, *numLeavesFlag)
+	req := buildGetLeavesByIndexRequest(*treeIDFlag, *startLeafFlag, *numLeavesFlag)
 	getLeafByIndexResponse, err := client.GetLeavesByIndex(context.Background(), req)
 
 	if err != nil {

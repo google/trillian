@@ -8,16 +8,10 @@ import (
 	"github.com/google/trillian/storage/mysql"
 )
 
-var treeIDFlag = flag.Int64("treeid", 3, "The tree id to use")
 var storageTypeFlag = flag.String("storage_type", "mysql", "Which type of storage to use")
 var mysqlURIFlag = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test",
 	"uri to use with mysql storage")
 var serverPortFlag = flag.Int("port", 8090, "Port to serve log requests on")
-
-// GetLogIDFromFlagsOrDie returns the Trillian LogID from the current flags configuration.
-func GetLogIDFromFlagsOrDie() int64 {
-	return *treeIDFlag
-}
 
 // GetLogStorageProviderFromFlags returns a storage provider configured from our
 // flag settings.
