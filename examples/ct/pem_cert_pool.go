@@ -3,6 +3,8 @@ package ct
 import (
 	"crypto/sha256"
 	"encoding/pem"
+	"fmt"
+	"io/ioutil"
 
 	"github.com/golang/glog"
 	"github.com/google/certificate-transparency/go/x509"
@@ -65,6 +67,19 @@ func (p *PEMCertPool) AppendCertsFromPEM(pemCerts []byte) (ok bool) {
 	}
 
 	return
+}
+
+// AppendCertsFromPEMFile adds certs from a file that contains concatenated PEM data.
+func (p *PEMCertPool) AppendCertsFromPEMFile(pemFile string) error {
+	pemData, err := ioutil.ReadFile(pemFile)
+	if err != nil {
+		return fmt.Errorf("failed to load PEM certs file: %v", err)
+	}
+
+	if !p.AppendCertsFromPEM(pemData) {
+		return fmt.Errorf("failed to parse PEM certs file: %v", err)
+	}
+	return nil
 }
 
 // Subjects returns a list of the DER-encoded subjects of all of the certificates in the pool.
