@@ -12,20 +12,17 @@ import (
 
 	"golang.org/x/net/context"
 
-	_ "github.com/go-sql-driver/mysql"
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
+	"github.com/google/trillian/extension"
+	"github.com/google/trillian/extension/builtin"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/server"
-	"github.com/google/trillian/storage"
-	"github.com/google/trillian/storage/mysql"
 	"github.com/google/trillian/util"
 	"google.golang.org/grpc"
 )
 
-var mysqlURIFlag = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test",
-	"uri to use with mysql storage")
 var serverPortFlag = flag.Int("port", 8090, "Port to serve log RPC requests on")
 var exportRPCMetrics = flag.Bool("exportMetrics", true, "If true starts HTTP server and exports stats")
 var httpPortFlag = flag.Int("http_port", 8091, "Port to serve HTTP metrics on")
@@ -40,36 +37,27 @@ var sequencerGuardWindowFlag = flag.Duration("sequencer_guard_window", 0, "If se
 var privateKeyFile = flag.String("private_key_file", "", "File containing a PEM encoded private key")
 var privateKeyPassword = flag.String("private_key_password", "", "Password for server private key")
 
-// TODO(Martin2112): Needs to be able to swap out for different storage type
-func simpleMySQLStorageProvider(treeID int64) (storage.LogStorage, error) {
-	return mysql.NewLogStorage(treeID, *mysqlURIFlag)
-}
-
-func checkDatabaseAccessible(dbURI string) error {
+func checkDatabaseAccessible(registry extension.ExtensionRegistry) error {
 	// TODO(Martin2112): Have to pass a tree ID when we just want metadata. API mismatch
-	logStorage, err := mysql.NewLogStorage(int64(0), dbURI)
-
+	logStorage, err := registry.GetLogStorage(int64(0))
 	if err != nil {
 		// This is probably something fundamentally wrong
 		return err
 	}
 
 	tx, err := logStorage.Begin()
-
 	if err != nil {
 		// Out of resources maybe?
 		return err
 	}
-
 	defer tx.Commit()
 
 	// Pull the log ids, we don't care about the result, we just want to know that it works
 	_, err = tx.GetActiveLogIDs()
-
 	return err
 }
 
-func startRPCServer(listener net.Listener, port int, provider server.LogStorageProviderFunc) *grpc.Server {
+func startRPCServer(listener net.Listener, port int, registry extension.ExtensionRegistry) *grpc.Server {
 	// Create and publish the RPC stats objects
 	statsInterceptor := monitoring.NewRPCStatsInterceptor(util.SystemTimeSource{}, "ct", "example")
 	statsInterceptor.Publish()
@@ -77,7 +65,7 @@ func startRPCServer(listener net.Listener, port int, provider server.LogStorageP
 	// Create the server, using the interceptor to record stats on the requests
 	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(statsInterceptor.Interceptor()))
 
-	logServer := server.NewTrillianLogRPCServer(provider, new(util.SystemTimeSource))
+	logServer := server.NewTrillianLogRPCServer(registry, new(util.SystemTimeSource))
 	trillian.RegisterTrillianLogServer(grpcServer, logServer)
 
 	return grpcServer
@@ -116,7 +104,12 @@ func main() {
 	glog.Info("**** Log RPC Server Starting ****")
 
 	// First make sure we can access the database, quit if not
-	if err := checkDatabaseAccessible(*mysqlURIFlag); err != nil {
+	registry, err := builtin.NewDefaultExtensionRegistry()
+	if err != nil {
+		glog.Fatalf("Failed create extension registry: %v", err)
+	}
+
+	if err := checkDatabaseAccessible(registry); err != nil {
 		glog.Errorf("Could not access storage, check db configuration and flags")
 		os.Exit(1)
 	}
@@ -154,13 +147,12 @@ func main() {
 	// TODO(Martin2112): Should respect read only mode and the flags in tree control etc
 	ctx, cancel := context.WithCancel(context.Background())
 
-	storageProvider := simpleMySQLStorageProvider
-	sequencerManager := server.NewSequencerManager(keyManager, storageProvider, *sequencerGuardWindowFlag)
-	sequencerTask := server.NewLogOperationManager(ctx, storageProvider, *batchSizeFlag, *sequencerSleepBetweenRunsFlag, *signerIntervalFlag, util.SystemTimeSource{}, sequencerManager)
+	sequencerManager := server.NewSequencerManager(keyManager, registry, *sequencerGuardWindowFlag)
+	sequencerTask := server.NewLogOperationManager(ctx, registry, *batchSizeFlag, *sequencerSleepBetweenRunsFlag, *signerIntervalFlag, util.SystemTimeSource{}, sequencerManager)
 	go sequencerTask.OperationLoop()
 
 	// Bring up the RPC server and then block until we get a signal to stop
-	rpcServer := startRPCServer(lis, *serverPortFlag, storageProvider)
+	rpcServer := startRPCServer(lis, *serverPortFlag, registry)
 	go awaitSignal(rpcServer)
 	err = rpcServer.Serve(lis)
 

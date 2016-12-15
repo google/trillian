@@ -39,6 +39,27 @@ func (m *EntryList) String() string            { return proto.CompactTextString(
 func (*EntryList) ProtoMessage()               {}
 func (*EntryList) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{0} }
 
+func (m *EntryList) GetDomain() string {
+	if m != nil {
+		return m.Domain
+	}
+	return ""
+}
+
+func (m *EntryList) GetCertIndex() []int64 {
+	if m != nil {
+		return m.CertIndex
+	}
+	return nil
+}
+
+func (m *EntryList) GetPrecertIndex() []int64 {
+	if m != nil {
+		return m.PrecertIndex
+	}
+	return nil
+}
+
 func init() {
 	proto.RegisterType((*EntryList)(nil), "trillian.examples.ct.ctmapper.ctmapperpb.EntryList")
 }

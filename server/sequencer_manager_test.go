@@ -10,6 +10,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
+	"github.com/google/trillian/extension"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/testonly"
@@ -76,10 +77,10 @@ func TestSequencerManagerNothingToDo(t *testing.T) {
 	mockKeyManager := crypto.NewMockKeyManager(mockCtrl)
 	mockKeyManager.EXPECT().SignatureAlgorithm().AnyTimes().Return(trillian.SignatureAlgorithm_ECDSA)
 
-	provider := mockStorageProviderForSequencer(mockStorage)
-	sm := NewSequencerManager(mockKeyManager, provider, zeroDuration)
+	registry := registryForSequencer(mockStorage)
+	sm := NewSequencerManager(mockKeyManager, registry, zeroDuration)
 
-	sm.ExecutePass([]int64{}, createTestContext(provider))
+	sm.ExecutePass([]int64{}, createTestContext(registry))
 }
 
 func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
@@ -98,10 +99,10 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 	mockKeyManager := crypto.NewMockKeyManager(mockCtrl)
 	mockKeyManager.EXPECT().SignatureAlgorithm().AnyTimes().Return(trillian.SignatureAlgorithm_ECDSA)
 
-	provider := mockStorageProviderForSequencer(mockStorage)
-	sm := NewSequencerManager(mockKeyManager, provider, zeroDuration)
+	registry := registryForSequencer(mockStorage)
+	sm := NewSequencerManager(mockKeyManager, registry, zeroDuration)
 
-	sm.ExecutePass([]int64{logID}, createTestContext(provider))
+	sm.ExecutePass([]int64{logID}, createTestContext(registry))
 }
 
 func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
@@ -131,10 +132,10 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 	mockSigner.EXPECT().Sign(gomock.Any(), []byte{23, 147, 61, 51, 131, 170, 136, 10, 82, 12, 93, 42, 98, 88, 131, 100, 101, 187, 124, 189, 202, 207, 66, 137, 95, 117, 205, 34, 109, 242, 103, 248}, hasher).Return([]byte("signed"), nil)
 	mockKeyManager.EXPECT().Signer().Return(mockSigner, nil)
 
-	provider := mockStorageProviderForSequencer(mockStorage)
-	sm := NewSequencerManager(mockKeyManager, provider, zeroDuration)
+	registry := registryForSequencer(mockStorage)
+	sm := NewSequencerManager(mockKeyManager, registry, zeroDuration)
 
-	sm.ExecutePass([]int64{logID}, createTestContext(provider))
+	sm.ExecutePass([]int64{logID}, createTestContext(registry))
 }
 
 func TestSequencerManagerGuardWindow(t *testing.T) {
@@ -153,13 +154,13 @@ func TestSequencerManagerGuardWindow(t *testing.T) {
 	mockTx.EXPECT().DequeueLeaves(50, fakeTime.Add(-time.Second*5)).Return([]trillian.LogLeaf{}, nil)
 	mockKeyManager := crypto.NewMockKeyManager(mockCtrl)
 
-	provider := mockStorageProviderForSequencer(mockStorage)
-	sm := NewSequencerManager(mockKeyManager, provider, time.Second*5)
+	registry := registryForSequencer(mockStorage)
+	sm := NewSequencerManager(mockKeyManager, registry, time.Second*5)
 
-	sm.ExecutePass([]int64{logID}, createTestContext(mockStorageProviderForSequencer(mockStorage)))
+	sm.ExecutePass([]int64{logID}, createTestContext(registry))
 }
 
-func mockStorageProviderForSequencer(mockStorage storage.LogStorage) LogStorageProviderFunc {
+func mockStorageProviderForSequencer(mockStorage storage.LogStorage) testonly.GetLogStorageFunc {
 	return func(id int64) (storage.LogStorage, error) {
 		if id >= 0 && id <= 1 {
 			return mockStorage, nil
@@ -168,12 +169,16 @@ func mockStorageProviderForSequencer(mockStorage storage.LogStorage) LogStorageP
 	}
 }
 
-func createTestContext(sp LogStorageProviderFunc) LogOperationManagerContext {
+func registryForSequencer(mockStorage storage.LogStorage) extension.ExtensionRegistry {
+	return testonly.NewRegistryWithLogProvider(mockStorageProviderForSequencer(mockStorage))
+}
+
+func createTestContext(registry extension.ExtensionRegistry) LogOperationManagerContext {
 	// Set sign interval to 100 years so it won't trigger a root expiry signing unless overridden
 	ctx := util.NewLogContext(context.Background(), -1)
 	return LogOperationManagerContext{
 		ctx:              ctx,
-		cachedProvider:   newCachedLogStorageProvider(sp),
+		registry:         registry,
 		batchSize:        50,
 		sleepBetweenRuns: time.Second,
 		oneShot:          true,

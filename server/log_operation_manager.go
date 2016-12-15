@@ -6,6 +6,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/golang/glog"
+	"github.com/google/trillian/extension"
 	"github.com/google/trillian/util"
 )
 
@@ -23,8 +24,8 @@ type LogOperation interface {
 type LogOperationManagerContext struct {
 	// ctx is general context for cancellation and diagnostic info
 	ctx context.Context
-	// cachedProvider maps log IDs to log storage
-	cachedProvider *cachedLogStorageProvider
+	// registry provides access to Trillian storage
+	registry extension.ExtensionRegistry
 	// batchSize is the batch size to be passed to tasks run by this manager
 	batchSize int
 	// sleepBetweenRuns is the time to pause after all active logs have processed a batch
@@ -48,11 +49,11 @@ type LogOperationManager struct {
 }
 
 // NewLogOperationManager creates a new LogOperationManager instance.
-func NewLogOperationManager(ctx context.Context, sp LogStorageProviderFunc, batchSize int, sleepBetweenRuns time.Duration, signInterval time.Duration, timeSource util.TimeSource, logOperation LogOperation) *LogOperationManager {
+func NewLogOperationManager(ctx context.Context, registry extension.ExtensionRegistry, batchSize int, sleepBetweenRuns time.Duration, signInterval time.Duration, timeSource util.TimeSource, logOperation LogOperation) *LogOperationManager {
 	return &LogOperationManager{
 		context: LogOperationManagerContext{
 			ctx:              ctx,
-			cachedProvider:   newCachedLogStorageProvider(sp),
+			registry:         registry,
 			batchSize:        batchSize,
 			sleepBetweenRuns: sleepBetweenRuns,
 			signInterval:     signInterval,
@@ -63,11 +64,11 @@ func NewLogOperationManager(ctx context.Context, sp LogStorageProviderFunc, batc
 }
 
 // NewLogOperationManagerForTest creates a one-shot LogOperationManager instance, for use by tests only.
-func NewLogOperationManagerForTest(ctx context.Context, sp LogStorageProviderFunc, batchSize int, sleepBetweenRuns time.Duration, signInterval time.Duration, timeSource util.TimeSource, logOperation LogOperation) *LogOperationManager {
+func NewLogOperationManagerForTest(ctx context.Context, registry extension.ExtensionRegistry, batchSize int, sleepBetweenRuns time.Duration, signInterval time.Duration, timeSource util.TimeSource, logOperation LogOperation) *LogOperationManager {
 	return &LogOperationManager{
 		context: LogOperationManagerContext{
 			ctx:              ctx,
-			cachedProvider:   newCachedLogStorageProvider(sp),
+			registry:         registry,
 			batchSize:        batchSize,
 			sleepBetweenRuns: sleepBetweenRuns,
 			signInterval:     signInterval,
@@ -81,7 +82,7 @@ func NewLogOperationManagerForTest(ctx context.Context, sp LogStorageProviderFun
 func (l LogOperationManager) getLogsAndExecutePass() bool {
 	// TODO(Martin2112) using log ID zero because we don't have an id for metadata ops
 	// this API could improved
-	provider, err := l.context.cachedProvider.storageForLog(0)
+	provider, err := l.context.registry.GetLogStorage(0)
 
 	// If we get an error, we can't do anything but wait until the next run through
 	if err != nil {

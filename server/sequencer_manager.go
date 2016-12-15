@@ -5,6 +5,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/trillian/crypto"
+	"github.com/google/trillian/extension"
 	"github.com/google/trillian/log"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/util"
@@ -12,18 +13,18 @@ import (
 
 // SequencerManager provides sequencing operations for a collection of Logs.
 type SequencerManager struct {
-	keyManager     crypto.KeyManager
-	guardWindow    time.Duration
-	cachedProvider *cachedLogStorageProvider
+	keyManager  crypto.KeyManager
+	guardWindow time.Duration
+	registry    extension.ExtensionRegistry
 }
 
 // NewSequencerManager creates a new SequencerManager instance based on the provided KeyManager instance
 // and guard window.
-func NewSequencerManager(km crypto.KeyManager, p LogStorageProviderFunc, gw time.Duration) *SequencerManager {
+func NewSequencerManager(km crypto.KeyManager, registry extension.ExtensionRegistry, gw time.Duration) *SequencerManager {
 	return &SequencerManager{
-		keyManager:     km,
-		guardWindow:    gw,
-		cachedProvider: newCachedLogStorageProvider(p),
+		keyManager:  km,
+		guardWindow: gw,
+		registry:    registry,
 	}
 }
 
@@ -47,7 +48,7 @@ func (s SequencerManager) ExecutePass(logIDs []int64, logctx LogOperationManager
 		default:
 		}
 
-		storage, err := s.cachedProvider.storageForLog(logID)
+		storage, err := s.registry.GetLogStorage(logID)
 		ctx := util.NewLogContext(logctx.ctx, logID)
 
 		// TODO(Martin2112): Honour the sequencing enabled in log parameters, needs an API change

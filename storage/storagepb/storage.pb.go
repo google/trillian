@@ -41,6 +41,20 @@ func (m *NodeIDProto) String() string            { return proto.CompactTextStrin
 func (*NodeIDProto) ProtoMessage()               {}
 func (*NodeIDProto) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{0} }
 
+func (m *NodeIDProto) GetPath() []byte {
+	if m != nil {
+		return m.Path
+	}
+	return nil
+}
+
+func (m *NodeIDProto) GetPrefixLenBits() int32 {
+	if m != nil {
+		return m.PrefixLenBits
+	}
+	return 0
+}
+
 // SubtreeProto contains nodes of a subtree.
 type SubtreeProto struct {
 	// subtree's prefix (must be a multiple of 8 bits)
@@ -60,6 +74,27 @@ func (m *SubtreeProto) Reset()                    { *m = SubtreeProto{} }
 func (m *SubtreeProto) String() string            { return proto.CompactTextString(m) }
 func (*SubtreeProto) ProtoMessage()               {}
 func (*SubtreeProto) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{1} }
+
+func (m *SubtreeProto) GetPrefix() []byte {
+	if m != nil {
+		return m.Prefix
+	}
+	return nil
+}
+
+func (m *SubtreeProto) GetDepth() int32 {
+	if m != nil {
+		return m.Depth
+	}
+	return 0
+}
+
+func (m *SubtreeProto) GetRootHash() []byte {
+	if m != nil {
+		return m.RootHash
+	}
+	return nil
+}
 
 func (m *SubtreeProto) GetLeaves() map[string][]byte {
 	if m != nil {
