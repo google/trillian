@@ -104,7 +104,7 @@ func TestGetLeavesByIndexBeginFailsCausesError(t *testing.T) {
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
 
-	mockStorage.EXPECT().Begin().Return(mockTx, errors.New("TX"))
+	mockStorage.EXPECT().Snapshot().Return(mockTx, errors.New("TX"))
 
 	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
@@ -119,7 +119,7 @@ func TestGetLeavesByIndexStorageError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	test := newParameterizedTest(ctrl, "GetLeavesByIndex",
+	test := newParameterizedTest(ctrl, "GetLeavesByIndex", readOnly,
 		func(t *storage.MockLogTX) {
 			t.EXPECT().GetLeavesByIndex([]int64{0}).Return([]trillian.LogLeaf{}, errors.New("STORAGE"))
 		},
@@ -135,7 +135,7 @@ func TestGetLeavesByIndexInvalidLogId(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	test := newParameterizedTest(ctrl, "GetLeavesByIndex",
+	test := newParameterizedTest(ctrl, "GetLeavesByIndex", readOnly,
 		func(t *storage.MockLogTX) {},
 		func(s *TrillianLogRPCServer) error {
 			_, err := s.GetLeavesByIndex(context.Background(), &leaf0Log2Request)
@@ -149,7 +149,7 @@ func TestGetLeavesByIndexCommitFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	test := newParameterizedTest(ctrl, "GetLeavesByIndex",
+	test := newParameterizedTest(ctrl, "GetLeavesByIndex", readOnly,
 		func(t *storage.MockLogTX) {
 			t.EXPECT().GetLeavesByIndex([]int64{0}).Return([]trillian.LogLeaf{leaf1}, nil)
 		},
@@ -168,7 +168,7 @@ func TestGetLeavesByIndex(t *testing.T) {
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
 
-	mockStorage.EXPECT().Begin().Return(mockTx, nil)
+	mockStorage.EXPECT().Snapshot().Return(mockTx, nil)
 	mockTx.EXPECT().GetLeavesByIndex([]int64{0}).Return([]trillian.LogLeaf{leaf1}, nil)
 	mockTx.EXPECT().Commit().Return(nil)
 	mockTx.EXPECT().IsOpen().AnyTimes().Return(false)
@@ -197,7 +197,7 @@ func TestGetLeavesByIndexMultiple(t *testing.T) {
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
 
-	mockStorage.EXPECT().Begin().Return(mockTx, nil)
+	mockStorage.EXPECT().Snapshot().Return(mockTx, nil)
 	mockTx.EXPECT().GetLeavesByIndex([]int64{0, 3}).Return([]trillian.LogLeaf{leaf1, leaf3}, nil)
 	mockTx.EXPECT().Commit().Return(nil)
 	mockTx.EXPECT().IsOpen().AnyTimes().Return(false)
@@ -231,7 +231,7 @@ func TestQueueLeavesStorageError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	test := newParameterizedTest(ctrl, "QueueLeaves",
+	test := newParameterizedTest(ctrl, "QueueLeaves", readWrite,
 		func(t *storage.MockLogTX) {
 			t.EXPECT().QueueLeaves([]trillian.LogLeaf{leaf1}, fakeTime).Return(errors.New("STORAGE"))
 		},
@@ -247,7 +247,7 @@ func TestQueueLeavesInvalidLogId(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	test := newParameterizedTest(ctrl, "QueueLeaves",
+	test := newParameterizedTest(ctrl, "QueueLeaves", readWrite,
 		func(t *storage.MockLogTX) {},
 		func(s *TrillianLogRPCServer) error {
 			_, err := s.QueueLeaves(context.Background(), &queueRequest0Log2)
@@ -261,7 +261,7 @@ func TestQueueLeavesCommitFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	test := newParameterizedTest(ctrl, "QueueLeaves",
+	test := newParameterizedTest(ctrl, "QueueLeaves", readWrite,
 		func(t *storage.MockLogTX) {
 			t.EXPECT().QueueLeaves([]trillian.LogLeaf{leaf1}, fakeTime).Return(nil)
 		},
@@ -317,7 +317,7 @@ func TestQueueLeavesBeginFailsCausesError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	test := newParameterizedTest(ctrl, "QueueLeaves",
+	test := newParameterizedTest(ctrl, "QueueLeaves", readWrite,
 		func(t *storage.MockLogTX) {},
 		func(s *TrillianLogRPCServer) error {
 			_, err := s.QueueLeaves(context.Background(), &queueRequest0)
@@ -334,7 +334,7 @@ func TestGetLatestSignedLogRootBeginFails(t *testing.T) {
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
 
-	mockStorage.EXPECT().Begin().Return(mockTx, errors.New("TX"))
+	mockStorage.EXPECT().Snapshot().Return(mockTx, errors.New("TX"))
 
 	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
@@ -349,7 +349,7 @@ func TestGetLatestSignedLogRootStorageFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	test := newParameterizedTest(ctrl, "LatestSignedLogRoot",
+	test := newParameterizedTest(ctrl, "LatestSignedLogRoot", readOnly,
 		func(t *storage.MockLogTX) {
 			t.EXPECT().LatestSignedLogRoot().Return(trillian.SignedLogRoot{}, errors.New("STORAGE"))
 		},
@@ -365,7 +365,7 @@ func TestGetLatestSignedLogRootCommitFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	test := newParameterizedTest(ctrl, "LatestSignedLogRoot",
+	test := newParameterizedTest(ctrl, "LatestSignedLogRoot", readOnly,
 		func(t *storage.MockLogTX) { t.EXPECT().LatestSignedLogRoot().Return(trillian.SignedLogRoot{}, nil) },
 		func(s *TrillianLogRPCServer) error {
 			_, err := s.GetLatestSignedLogRoot(context.Background(), &getLogRootRequest1)
@@ -379,7 +379,7 @@ func TestGetLatestSignedLogRootInvalidLogId(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	test := newParameterizedTest(ctrl, "LatestSignedLogRoot",
+	test := newParameterizedTest(ctrl, "LatestSignedLogRoot", readOnly,
 		func(t *storage.MockLogTX) {},
 		func(s *TrillianLogRPCServer) error {
 			_, err := s.GetLatestSignedLogRoot(context.Background(), &getLogRootRequest2)
@@ -396,7 +396,7 @@ func TestGetLatestSignedLogRoot(t *testing.T) {
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
 
-	mockStorage.EXPECT().Begin().Return(mockTx, nil)
+	mockStorage.EXPECT().Snapshot().Return(mockTx, nil)
 	mockTx.EXPECT().LatestSignedLogRoot().Return(signedRoot1, nil)
 	mockTx.EXPECT().Commit().Return(nil)
 
@@ -446,7 +446,7 @@ func TestGetLeavesByHashBeginFails(t *testing.T) {
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
 
-	mockStorage.EXPECT().Begin().Return(mockTx, errors.New("TX"))
+	mockStorage.EXPECT().Snapshot().Return(mockTx, errors.New("TX"))
 
 	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
@@ -461,7 +461,7 @@ func TestGetLeavesByHashStorageFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	test := newParameterizedTest(ctrl, "GetLeavesByHash",
+	test := newParameterizedTest(ctrl, "GetLeavesByHash", readOnly,
 		func(t *storage.MockLogTX) {
 			t.EXPECT().GetLeavesByHash([][]byte{[]byte("test"), []byte("data")}, false).Return([]trillian.LogLeaf{}, errors.New("STORAGE"))
 		},
@@ -477,7 +477,7 @@ func TestLeavesByHashCommitFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	test := newParameterizedTest(ctrl, "GetLeavesByHash",
+	test := newParameterizedTest(ctrl, "GetLeavesByHash", readOnly,
 		func(t *storage.MockLogTX) {
 			t.EXPECT().GetLeavesByHash([][]byte{[]byte("test"), []byte("data")}, false).Return([]trillian.LogLeaf{}, nil)
 		},
@@ -493,7 +493,7 @@ func TestGetLeavesByHashInvalidLogId(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	test := newParameterizedTest(ctrl, "GetLeavesByHash",
+	test := newParameterizedTest(ctrl, "GetLeavesByHash", readOnly,
 		func(t *storage.MockLogTX) {},
 		func(s *TrillianLogRPCServer) error {
 			_, err := s.GetLeavesByHash(context.Background(), &getByHashRequest2)
@@ -510,7 +510,7 @@ func TestGetLeavesByHash(t *testing.T) {
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
 
-	mockStorage.EXPECT().Begin().Return(mockTx, nil)
+	mockStorage.EXPECT().Snapshot().Return(mockTx, nil)
 	mockTx.EXPECT().GetLeavesByHash([][]byte{[]byte("test"), []byte("data")}, false).Return([]trillian.LogLeaf{leaf1, leaf3}, nil)
 	mockTx.EXPECT().Commit().Return(nil)
 
@@ -560,7 +560,7 @@ func TestGetLeavesByLeafValueHashBeginFails(t *testing.T) {
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
 
-	mockStorage.EXPECT().Begin().Return(mockTx, errors.New("TX"))
+	mockStorage.EXPECT().Snapshot().Return(mockTx, errors.New("TX"))
 
 	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
@@ -578,7 +578,7 @@ func TestGetLeavesByLeafValueHashStorageFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	test := newParameterizedTest(ctrl, "GetLeavesByLeafValueHash",
+	test := newParameterizedTest(ctrl, "GetLeavesByLeafValueHash", readOnly,
 		func(t *storage.MockLogTX) {
 			t.EXPECT().GetLeavesByLeafValueHash([][]byte{[]byte("test"), []byte("data")}, false).Return([]trillian.LogLeaf{}, errors.New("STORAGE"))
 		},
@@ -594,7 +594,7 @@ func TestLeavesByLeafValueHashCommitFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	test := newParameterizedTest(ctrl, "GetLeavesByLeafValueHash",
+	test := newParameterizedTest(ctrl, "GetLeavesByLeafValueHash", readOnly,
 		func(t *storage.MockLogTX) {
 			t.EXPECT().GetLeavesByLeafValueHash([][]byte{[]byte("test"), []byte("data")}, false).Return([]trillian.LogLeaf{}, nil)
 		},
@@ -610,7 +610,7 @@ func TestGetLeavesByLeafValueHashInvalidLogId(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	test := newParameterizedTest(ctrl, "GetLeavesByLeafValueHash",
+	test := newParameterizedTest(ctrl, "GetLeavesByLeafValueHash", readOnly,
 		func(t *storage.MockLogTX) {},
 		func(s *TrillianLogRPCServer) error {
 			_, err := s.GetLeavesByLeafValueHash(context.Background(), &getByHashRequest2)
@@ -627,7 +627,7 @@ func TestGetLeavesByLeafValueHash(t *testing.T) {
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
 
-	mockStorage.EXPECT().Begin().Return(mockTx, nil)
+	mockStorage.EXPECT().Snapshot().Return(mockTx, nil)
 	mockTx.EXPECT().GetLeavesByLeafValueHash([][]byte{[]byte("test"), []byte("data")}, false).Return([]trillian.LogLeaf{leaf1, leaf3}, nil)
 	mockTx.EXPECT().Commit().Return(nil)
 
@@ -684,7 +684,7 @@ func TestGetProofByHashBeginTXFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	test := newParameterizedTest(ctrl, "GetInclusionProofByHash",
+	test := newParameterizedTest(ctrl, "GetInclusionProofByHash", readOnly,
 		func(t *storage.MockLogTX) {},
 		func(s *TrillianLogRPCServer) error {
 			_, err := s.GetInclusionProofByHash(context.Background(), &getInclusionProofByHashRequest25)
@@ -698,7 +698,7 @@ func TestGetProofByHashNoRevisionForTreeSize(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	test := newParameterizedTest(ctrl, "GetInclusionProofByHash",
+	test := newParameterizedTest(ctrl, "GetInclusionProofByHash", readOnly,
 		func(t *storage.MockLogTX) {
 			t.EXPECT().GetTreeRevisionAtSize(getInclusionProofByHashRequest25.TreeSize).Return(int64(0), errors.New("STORAGE"))
 		},
@@ -714,7 +714,7 @@ func TestGetProofByHashNoLeafForHash(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	test := newParameterizedTest(ctrl, "GetInclusionProofByHash",
+	test := newParameterizedTest(ctrl, "GetInclusionProofByHash", readOnly,
 		func(t *storage.MockLogTX) {
 			t.EXPECT().GetTreeRevisionAtSize(getInclusionProofByHashRequest25.TreeSize).Return(int64(17), nil)
 			t.EXPECT().GetLeavesByHash([][]byte{[]byte("ahash")}, false).Return([]trillian.LogLeaf{}, errors.New("STORAGE"))
@@ -731,7 +731,7 @@ func TestGetProofByHashGetNodesFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	test := newParameterizedTest(ctrl, "GetInclusionProofByHash",
+	test := newParameterizedTest(ctrl, "GetInclusionProofByHash", readOnly,
 		func(t *storage.MockLogTX) {
 			t.EXPECT().GetTreeRevisionAtSize(getInclusionProofByHashRequest7.TreeSize).Return(int64(3), nil)
 			t.EXPECT().GetLeavesByHash([][]byte{[]byte("ahash")}, false).Return([]trillian.LogLeaf{{LeafIndex: 2}}, nil)
@@ -751,7 +751,7 @@ func TestGetProofByHashWrongNodeCountFetched(t *testing.T) {
 
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
-	mockStorage.EXPECT().Begin().Return(mockTx, nil)
+	mockStorage.EXPECT().Snapshot().Return(mockTx, nil)
 
 	mockTx.EXPECT().GetTreeRevisionAtSize(getInclusionProofByHashRequest7.TreeSize).Return(int64(3), nil)
 	mockTx.EXPECT().GetLeavesByHash([][]byte{[]byte("ahash")}, false).Return([]trillian.LogLeaf{{LeafIndex: 2}}, nil)
@@ -774,7 +774,7 @@ func TestGetProofByHashWrongNodeReturned(t *testing.T) {
 
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
-	mockStorage.EXPECT().Begin().Return(mockTx, nil)
+	mockStorage.EXPECT().Snapshot().Return(mockTx, nil)
 
 	mockTx.EXPECT().GetTreeRevisionAtSize(getInclusionProofByHashRequest7.TreeSize).Return(int64(3), nil)
 	mockTx.EXPECT().GetLeavesByHash([][]byte{[]byte("ahash")}, false).Return([]trillian.LogLeaf{{LeafIndex: 2}}, nil)
@@ -795,7 +795,7 @@ func TestGetProofByHashCommitFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	test := newParameterizedTest(ctrl, "GetInclusionProofByHash",
+	test := newParameterizedTest(ctrl, "GetInclusionProofByHash", readOnly,
 		func(t *storage.MockLogTX) {
 			t.EXPECT().GetTreeRevisionAtSize(getInclusionProofByIndexRequest7.TreeSize).Return(int64(3), nil)
 			t.EXPECT().GetLeavesByHash([][]byte{[]byte("ahash")}, false).Return([]trillian.LogLeaf{{LeafIndex: 2}}, nil)
@@ -815,7 +815,7 @@ func TestGetProofByHash(t *testing.T) {
 
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
-	mockStorage.EXPECT().Begin().Return(mockTx, nil)
+	mockStorage.EXPECT().Snapshot().Return(mockTx, nil)
 
 	mockTx.EXPECT().GetTreeRevisionAtSize(getInclusionProofByHashRequest7.TreeSize).Return(int64(3), nil)
 	mockTx.EXPECT().GetLeavesByHash([][]byte{[]byte("ahash")}, false).Return([]trillian.LogLeaf{{LeafIndex: 2}}, nil)
@@ -906,7 +906,7 @@ func TestGetProofByIndexBeginTXFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	test := newParameterizedTest(ctrl, "GetInclusionProof",
+	test := newParameterizedTest(ctrl, "GetInclusionProof", readOnly,
 		func(t *storage.MockLogTX) {},
 		func(s *TrillianLogRPCServer) error {
 			_, err := s.GetInclusionProof(context.Background(), &getInclusionProofByIndexRequest25)
@@ -920,7 +920,7 @@ func TestGetProofByIndexNoRevisionForTreeSize(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	test := newParameterizedTest(ctrl, "GetInclusionProof",
+	test := newParameterizedTest(ctrl, "GetInclusionProof", readOnly,
 		func(t *storage.MockLogTX) {
 			t.EXPECT().GetTreeRevisionAtSize(getInclusionProofByIndexRequest25.TreeSize).Return(int64(0), errors.New("STORAGE"))
 		},
@@ -936,7 +936,7 @@ func TestGetProofByIndexGetNodesFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	test := newParameterizedTest(ctrl, "GetInclusionProof",
+	test := newParameterizedTest(ctrl, "GetInclusionProof", readOnly,
 		func(t *storage.MockLogTX) {
 			t.EXPECT().GetTreeRevisionAtSize(getInclusionProofByIndexRequest7.TreeSize).Return(int64(3), nil)
 			t.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{}, errors.New("STORAGE"))
@@ -955,7 +955,7 @@ func TestGetProofByIndexWrongNodeCountFetched(t *testing.T) {
 
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
-	mockStorage.EXPECT().Begin().Return(mockTx, nil)
+	mockStorage.EXPECT().Snapshot().Return(mockTx, nil)
 
 	mockTx.EXPECT().GetTreeRevisionAtSize(getInclusionProofByIndexRequest7.TreeSize).Return(int64(3), nil)
 	// The server expects three nodes from storage but we return only two
@@ -977,7 +977,7 @@ func TestGetProofByIndexWrongNodeReturned(t *testing.T) {
 
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
-	mockStorage.EXPECT().Begin().Return(mockTx, nil)
+	mockStorage.EXPECT().Snapshot().Return(mockTx, nil)
 
 	mockTx.EXPECT().GetTreeRevisionAtSize(getInclusionProofByIndexRequest7.TreeSize).Return(int64(3), nil)
 	// We set this up so one of the returned nodes has the wrong ID
@@ -997,7 +997,7 @@ func TestGetProofByIndexCommitFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	test := newParameterizedTest(ctrl, "GetInclusionProof",
+	test := newParameterizedTest(ctrl, "GetInclusionProof", readOnly,
 		func(t *storage.MockLogTX) {
 			t.EXPECT().GetTreeRevisionAtSize(getInclusionProofByIndexRequest7.TreeSize).Return(int64(3), nil)
 			t.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3}, {NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2}, {NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3}}, nil)
@@ -1016,7 +1016,7 @@ func TestGetProofByIndex(t *testing.T) {
 
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
-	mockStorage.EXPECT().Begin().Return(mockTx, nil)
+	mockStorage.EXPECT().Snapshot().Return(mockTx, nil)
 
 	mockTx.EXPECT().GetTreeRevisionAtSize(getInclusionProofByIndexRequest7.TreeSize).Return(int64(3), nil)
 	mockTx.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{
@@ -1108,7 +1108,7 @@ func TestGetEntryAndProofBeginTXFails(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockStorage := storage.NewMockLogStorage(ctrl)
-	mockStorage.EXPECT().Begin().Return(nil, errors.New("BeginTX"))
+	mockStorage.EXPECT().Snapshot().Return(nil, errors.New("BeginTX"))
 
 	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 
@@ -1125,7 +1125,7 @@ func TestGetEntryAndProofGetTreeSizeAtRevisionFails(t *testing.T) {
 
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
-	mockStorage.EXPECT().Begin().Return(mockTx, nil)
+	mockStorage.EXPECT().Snapshot().Return(mockTx, nil)
 
 	mockTx.EXPECT().GetTreeRevisionAtSize(getEntryAndProofRequest17.TreeSize).Return(int64(0), errors.New("NOREVISION"))
 	mockTx.EXPECT().Rollback().Return(nil)
@@ -1145,7 +1145,7 @@ func TestGetEntryAndProofGetMerkleNodesFails(t *testing.T) {
 
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
-	mockStorage.EXPECT().Begin().Return(mockTx, nil)
+	mockStorage.EXPECT().Snapshot().Return(mockTx, nil)
 
 	mockTx.EXPECT().GetTreeRevisionAtSize(getEntryAndProofRequest7.TreeSize).Return(int64(3), nil)
 	mockTx.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{}, errors.New("GetNodes"))
@@ -1166,7 +1166,7 @@ func TestGetEntryAndProofGetLeavesFails(t *testing.T) {
 
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
-	mockStorage.EXPECT().Begin().Return(mockTx, nil)
+	mockStorage.EXPECT().Snapshot().Return(mockTx, nil)
 
 	mockTx.EXPECT().GetTreeRevisionAtSize(getEntryAndProofRequest7.TreeSize).Return(int64(3), nil)
 	mockTx.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{
@@ -1191,7 +1191,7 @@ func TestGetEntryAndProofGetLeavesReturnsMultiple(t *testing.T) {
 
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
-	mockStorage.EXPECT().Begin().Return(mockTx, nil)
+	mockStorage.EXPECT().Snapshot().Return(mockTx, nil)
 
 	mockTx.EXPECT().GetTreeRevisionAtSize(getEntryAndProofRequest7.TreeSize).Return(int64(3), nil)
 	mockTx.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{
@@ -1217,7 +1217,7 @@ func TestGetEntryAndProofCommitFails(t *testing.T) {
 
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
-	mockStorage.EXPECT().Begin().Return(mockTx, nil)
+	mockStorage.EXPECT().Snapshot().Return(mockTx, nil)
 
 	mockTx.EXPECT().GetTreeRevisionAtSize(getEntryAndProofRequest7.TreeSize).Return(int64(3), nil)
 	mockTx.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{
@@ -1242,7 +1242,7 @@ func TestGetEntryAndProof(t *testing.T) {
 
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
-	mockStorage.EXPECT().Begin().Return(mockTx, nil)
+	mockStorage.EXPECT().Snapshot().Return(mockTx, nil)
 
 	mockTx.EXPECT().GetTreeRevisionAtSize(getEntryAndProofRequest7.TreeSize).Return(int64(3), nil)
 	mockTx.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{
@@ -1288,7 +1288,7 @@ func TestGetSequencedLeafCountBeginTXFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	test := newParameterizedTest(ctrl, "GetSequencedLeafCount",
+	test := newParameterizedTest(ctrl, "GetSequencedLeafCount", readOnly,
 		func(t *storage.MockLogTX) {},
 		func(s *TrillianLogRPCServer) error {
 			_, err := s.GetSequencedLeafCount(context.Background(), &trillian.GetSequencedLeafCountRequest{LogId: logID1})
@@ -1302,7 +1302,7 @@ func TestGetSequencedLeafCountStorageFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	test := newParameterizedTest(ctrl, "GetSequencedLeafCount",
+	test := newParameterizedTest(ctrl, "GetSequencedLeafCount", readOnly,
 		func(t *storage.MockLogTX) {
 			t.EXPECT().GetSequencedLeafCount().Return(int64(0), errors.New("STORAGE"))
 		},
@@ -1318,7 +1318,7 @@ func TestGetSequencedLeafCountCommitFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	test := newParameterizedTest(ctrl, "GetSequencedLeafCount",
+	test := newParameterizedTest(ctrl, "GetSequencedLeafCount", readOnly,
 		func(t *storage.MockLogTX) {
 			t.EXPECT().GetSequencedLeafCount().Return(int64(27), nil)
 		},
@@ -1336,7 +1336,7 @@ func TestGetSequencedLeafCount(t *testing.T) {
 
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
-	mockStorage.EXPECT().Begin().Return(mockTx, nil)
+	mockStorage.EXPECT().Snapshot().Return(mockTx, nil)
 
 	mockTx.EXPECT().GetSequencedLeafCount().Return(int64(268), nil)
 	mockTx.EXPECT().Commit().Return(nil)
@@ -1378,7 +1378,7 @@ func TestGetConsistencyProofBeginTXFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	test := newParameterizedTest(ctrl, "GetConsistencyProof",
+	test := newParameterizedTest(ctrl, "GetConsistencyProof", readOnly,
 		func(t *storage.MockLogTX) {},
 		func(s *TrillianLogRPCServer) error {
 			_, err := s.GetConsistencyProof(context.Background(), &getConsistencyProofRequest25)
@@ -1392,7 +1392,7 @@ func TestGetConsistencyProofGetTreeRevision1Fails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	test := newParameterizedTest(ctrl, "GetConsistencyProof",
+	test := newParameterizedTest(ctrl, "GetConsistencyProof", readOnly,
 		func(t *storage.MockLogTX) {
 			t.EXPECT().GetTreeRevisionAtSize(getConsistencyProofRequest25.FirstTreeSize).Return(int64(0), errors.New("STORAGE"))
 		},
@@ -1408,7 +1408,7 @@ func TestGetConsistencyProofGetTreeRevision2Fails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	test := newParameterizedTest(ctrl, "GetConsistencyProof",
+	test := newParameterizedTest(ctrl, "GetConsistencyProof", readOnly,
 		func(t *storage.MockLogTX) {
 			t.EXPECT().GetTreeRevisionAtSize(getConsistencyProofRequest25.FirstTreeSize).Return(int64(11), nil)
 			t.EXPECT().GetTreeRevisionAtSize(getConsistencyProofRequest25.SecondTreeSize).Return(int64(0), errors.New("STORAGE"))
@@ -1425,7 +1425,7 @@ func TestGetConsistencyProofGetNodesFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	test := newParameterizedTest(ctrl, "GetConsistencyProof",
+	test := newParameterizedTest(ctrl, "GetConsistencyProof", readOnly,
 		func(t *storage.MockLogTX) {
 			t.EXPECT().GetTreeRevisionAtSize(getConsistencyProofRequest7.FirstTreeSize).Return(int64(3), nil)
 			t.EXPECT().GetTreeRevisionAtSize(getConsistencyProofRequest7.SecondTreeSize).Return(int64(5), nil)
@@ -1445,7 +1445,7 @@ func TestGetConsistencyProofGetNodesReturnsWrongCount(t *testing.T) {
 
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
-	mockStorage.EXPECT().Begin().Return(mockTx, nil)
+	mockStorage.EXPECT().Snapshot().Return(mockTx, nil)
 
 	mockTx.EXPECT().GetTreeRevisionAtSize(getConsistencyProofRequest7.FirstTreeSize).Return(int64(3), nil)
 	mockTx.EXPECT().GetTreeRevisionAtSize(getConsistencyProofRequest7.SecondTreeSize).Return(int64(5), nil)
@@ -1468,7 +1468,7 @@ func TestGetConsistencyProofGetNodesReturnsWrongNode(t *testing.T) {
 
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
-	mockStorage.EXPECT().Begin().Return(mockTx, nil)
+	mockStorage.EXPECT().Snapshot().Return(mockTx, nil)
 
 	mockTx.EXPECT().GetTreeRevisionAtSize(getConsistencyProofRequest7.FirstTreeSize).Return(int64(3), nil)
 	mockTx.EXPECT().GetTreeRevisionAtSize(getConsistencyProofRequest7.SecondTreeSize).Return(int64(5), nil)
@@ -1489,7 +1489,7 @@ func TestGetConsistencyProofCommitFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	test := newParameterizedTest(ctrl, "GetConsistencyProof",
+	test := newParameterizedTest(ctrl, "GetConsistencyProof", readOnly,
 		func(t *storage.MockLogTX) {
 			t.EXPECT().GetTreeRevisionAtSize(getConsistencyProofRequest7.FirstTreeSize).Return(int64(3), nil)
 			t.EXPECT().GetTreeRevisionAtSize(getConsistencyProofRequest7.SecondTreeSize).Return(int64(5), nil)
@@ -1509,7 +1509,7 @@ func TestGetConsistencyProof(t *testing.T) {
 
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
-	mockStorage.EXPECT().Begin().Return(mockTx, nil)
+	mockStorage.EXPECT().Snapshot().Return(mockTx, nil)
 
 	mockTx.EXPECT().GetTreeRevisionAtSize(getConsistencyProofRequest7.FirstTreeSize).Return(int64(3), nil)
 	mockTx.EXPECT().GetTreeRevisionAtSize(getConsistencyProofRequest7.SecondTreeSize).Return(int64(5), nil)
@@ -1546,22 +1546,35 @@ func TestGetConsistencyProof(t *testing.T) {
 type prepareMockTXFunc func(*storage.MockLogTX)
 type makeRPCFunc func(*TrillianLogRPCServer) error
 
+type txMode int
+
+const (
+	readOnly txMode = iota
+	readWrite
+)
+
 type parameterizedTest struct {
 	ctrl      *gomock.Controller
 	operation string
+	mode      txMode
 	prepareTx prepareMockTXFunc
 	makeRPC   makeRPCFunc
 }
 
-func newParameterizedTest(ctrl *gomock.Controller, operation string, prepareTx prepareMockTXFunc, makeRPC makeRPCFunc) *parameterizedTest {
-	return &parameterizedTest{ctrl, operation, prepareTx, makeRPC}
+func newParameterizedTest(ctrl *gomock.Controller, operation string, m txMode, prepareTx prepareMockTXFunc, makeRPC makeRPCFunc) *parameterizedTest {
+	return &parameterizedTest{ctrl, operation, m, prepareTx, makeRPC}
 }
 
 func (p *parameterizedTest) executeCommitFailsTest(t *testing.T) {
 	mockStorage := storage.NewMockLogStorage(p.ctrl)
 	mockTx := storage.NewMockLogTX(p.ctrl)
 
-	mockStorage.EXPECT().Begin().Return(mockTx, nil)
+	switch p.mode {
+	case readOnly:
+		mockStorage.EXPECT().Snapshot().Return(mockTx, nil)
+	case readWrite:
+		mockStorage.EXPECT().Begin().Return(mockTx, nil)
+	}
 	p.prepareTx(mockTx)
 	mockTx.EXPECT().Commit().Return(errors.New("bang"))
 	mockTx.EXPECT().IsOpen().AnyTimes().Return(false)
@@ -1592,7 +1605,12 @@ func (p *parameterizedTest) executeStorageFailureTest(t *testing.T) {
 	mockStorage := storage.NewMockLogStorage(p.ctrl)
 	mockTx := storage.NewMockLogTX(p.ctrl)
 
-	mockStorage.EXPECT().Begin().Return(mockTx, nil)
+	switch p.mode {
+	case readOnly:
+		mockStorage.EXPECT().Snapshot().Return(mockTx, nil)
+	case readWrite:
+		mockStorage.EXPECT().Begin().Return(mockTx, nil)
+	}
 	p.prepareTx(mockTx)
 	mockTx.EXPECT().Rollback().Return(nil)
 
@@ -1609,7 +1627,12 @@ func (p *parameterizedTest) executeBeginFailsTest(t *testing.T) {
 	mockStorage := storage.NewMockLogStorage(p.ctrl)
 	mockTx := storage.NewMockLogTX(p.ctrl)
 
-	mockStorage.EXPECT().Begin().Return(mockTx, errors.New("TX"))
+	switch p.mode {
+	case readOnly:
+		mockStorage.EXPECT().Snapshot().Return(mockTx, errors.New("TX"))
+	case readWrite:
+		mockStorage.EXPECT().Begin().Return(mockTx, errors.New("TX"))
+	}
 
 	server := NewTrillianLogRPCServer(mockStorageProviderfunc(mockStorage), fakeTimeSource)
 

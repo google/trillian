@@ -463,6 +463,16 @@ func (_mr *_MockReadOnlyLogTXRecorder) LatestSignedLogRoot() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "LatestSignedLogRoot")
 }
 
+func (_m *MockReadOnlyLogTX) Rollback() error {
+	ret := _m.ctrl.Call(_m, "Rollback")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+func (_mr *_MockReadOnlyLogTXRecorder) Rollback() *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "Rollback")
+}
+
 // Mock of ReadOnlyMapTX interface
 type MockReadOnlyMapTX struct {
 	ctrl     *gomock.Controller
@@ -536,6 +546,16 @@ func (_m *MockReadOnlyMapTX) LatestSignedMapRoot() (trillian.SignedMapRoot, erro
 
 func (_mr *_MockReadOnlyMapTXRecorder) LatestSignedMapRoot() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "LatestSignedMapRoot")
+}
+
+func (_m *MockReadOnlyMapTX) Rollback() error {
+	ret := _m.ctrl.Call(_m, "Rollback")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+func (_mr *_MockReadOnlyMapTXRecorder) Rollback() *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "Rollback")
 }
 
 // Mock of MapStorage interface

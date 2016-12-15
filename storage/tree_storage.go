@@ -4,6 +4,7 @@ package storage
 type ReadOnlyTreeTX interface {
 	NodeReader
 	Commit() error
+	Rollback() error
 }
 
 // TreeTX represents an in-process tree-modifying transaction.
