@@ -7,7 +7,12 @@ import (
 	"github.com/google/trillian/storage"
 )
 
+// GetLogStorageFunc returns a storage.LogStorage or fails.
+// Used as an implementation of extension.Registry.GetLogStorage in tests.
 type GetLogStorageFunc func(int64) (storage.LogStorage, error)
+
+// GetMapStorageFunc returns a storage.MapStorage or fails.
+// Used as an implementation of extension.Registry.GetMapStorage in tests.
 type GetMapStorageFunc func(int64) (storage.MapStorage, error)
 
 type testRegistry struct {
@@ -31,20 +36,16 @@ func (r testRegistry) GetMapStorage(treeID int64) (storage.MapStorage, error) {
 	return r.getMapStorageFunc(treeID)
 }
 
-func NewRegistryForLogTests(ls storage.LogStorage) extension.ExtensionRegistry {
-	getLogStorageFunc := func(int64) (storage.LogStorage, error) {
-		return ls, nil
-	}
-	return testRegistry{getLogStorageFunc: getLogStorageFunc, getMapStorageFunc: defaultGetMapStorage}
-}
-
-func NewRegistryWithLogStorage(ls storage.LogStorage) extension.ExtensionRegistry {
+// NewRegistryWithLogStorage returns an extension.Registry backed by ls.
+func NewRegistryWithLogStorage(ls storage.LogStorage) extension.Registry {
 	getLogStorage := func(int64) (storage.LogStorage, error) {
 		return ls, nil
 	}
-	return testRegistry{getLogStorageFunc: getLogStorage, getMapStorageFunc: defaultGetMapStorage}
+	return NewRegistryWithLogProvider(getLogStorage)
 }
 
-func NewRegistryWithLogProvider(f GetLogStorageFunc) extension.ExtensionRegistry {
+// NewRegistryWithLogProvider returns an extension.Registry whose GetLogStorage function is
+// backed by f.
+func NewRegistryWithLogProvider(f GetLogStorageFunc) extension.Registry {
 	return testRegistry{getLogStorageFunc: f, getMapStorageFunc: defaultGetMapStorage}
 }

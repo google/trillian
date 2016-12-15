@@ -31,7 +31,7 @@ var httpPortFlag = flag.Int("http_port", 8091, "Port to serve HTTP metrics on")
 var privateKeyFile = flag.String("private_key_file", "", "File containing a PEM encoded private key")
 var privateKeyPassword = flag.String("private_key_password", "", "Password for server private key")
 
-func checkDatabaseAccessible(registry extension.ExtensionRegistry) error {
+func checkDatabaseAccessible(registry extension.Registry) error {
 	// TODO(Martin2112): Have to pass a tree ID when we just want metadata. API mismatch
 	mapStorage, err := registry.GetMapStorage(int64(0))
 
@@ -52,7 +52,7 @@ func checkDatabaseAccessible(registry extension.ExtensionRegistry) error {
 	return nil
 }
 
-func startRPCServer(listener net.Listener, port int, registry extension.ExtensionRegistry) *grpc.Server {
+func startRPCServer(listener net.Listener, port int, registry extension.Registry) *grpc.Server {
 	grpcServer := grpc.NewServer()
 	mapServer := vmap.NewTrillianMapServer(registry)
 	trillian.RegisterTrillianMapServer(grpcServer, mapServer)

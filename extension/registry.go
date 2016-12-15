@@ -4,10 +4,10 @@ import (
 	"github.com/google/trillian/storage"
 )
 
-// ExtensionRegistry defines all extension points available in Trillian.
+// Registry defines all extension points available in Trillian.
 // Customizations may easily swap the underlying storage systems by providing their own
 // implementation.
-type ExtensionRegistry interface {
+type Registry interface {
 
 	// GetLogStorage returns a configured storage.LogStorage instance for the specified tree ID or an
 	// error if the storage cannot be setup.

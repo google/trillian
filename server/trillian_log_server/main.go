@@ -37,7 +37,7 @@ var sequencerGuardWindowFlag = flag.Duration("sequencer_guard_window", 0, "If se
 var privateKeyFile = flag.String("private_key_file", "", "File containing a PEM encoded private key")
 var privateKeyPassword = flag.String("private_key_password", "", "Password for server private key")
 
-func checkDatabaseAccessible(registry extension.ExtensionRegistry) error {
+func checkDatabaseAccessible(registry extension.Registry) error {
 	// TODO(Martin2112): Have to pass a tree ID when we just want metadata. API mismatch
 	logStorage, err := registry.GetLogStorage(int64(0))
 	if err != nil {
@@ -57,7 +57,7 @@ func checkDatabaseAccessible(registry extension.ExtensionRegistry) error {
 	return err
 }
 
-func startRPCServer(listener net.Listener, port int, registry extension.ExtensionRegistry) *grpc.Server {
+func startRPCServer(listener net.Listener, port int, registry extension.Registry) *grpc.Server {
 	// Create and publish the RPC stats objects
 	statsInterceptor := monitoring.NewRPCStatsInterceptor(util.SystemTimeSource{}, "ct", "example")
 	statsInterceptor.Publish()

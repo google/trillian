@@ -15,12 +15,12 @@ import (
 type SequencerManager struct {
 	keyManager  crypto.KeyManager
 	guardWindow time.Duration
-	registry    extension.ExtensionRegistry
+	registry    extension.Registry
 }
 
 // NewSequencerManager creates a new SequencerManager instance based on the provided KeyManager instance
 // and guard window.
-func NewSequencerManager(km crypto.KeyManager, registry extension.ExtensionRegistry, gw time.Duration) *SequencerManager {
+func NewSequencerManager(km crypto.KeyManager, registry extension.Registry, gw time.Duration) *SequencerManager {
 	return &SequencerManager{
 		keyManager:  km,
 		guardWindow: gw,

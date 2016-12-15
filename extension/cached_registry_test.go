@@ -12,7 +12,7 @@ func TestGetLogStorage(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	registry := NewMockExtensionRegistry(ctrl)
+	registry := NewMockRegistry(ctrl)
 	cachedRegistry := NewCachedExtensionRegistry(registry)
 
 	ls1 := storage.NewMockLogStorage(ctrl)
@@ -31,9 +31,9 @@ func TestGetLogStorage(t *testing.T) {
 	for _, test := range tests {
 		got, err := cachedRegistry.GetLogStorage(test.treeID)
 		if err != nil {
-			t.Errorf("GetLogStorage(%v) failed with error: %v", err)
+			t.Errorf("GetLogStorage(%v) failed with error: %v", test.treeID, err)
 		} else if got != test.want {
-			t.Errorf("GetLogStorage(%v) failed, want %q, got %q", test.want, got)
+			t.Errorf("GetLogStorage(%v) failed, want %q, got %q", test.treeID, test.want, got)
 		}
 	}
 }
@@ -42,7 +42,7 @@ func TestGetLogStorageError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	registry := NewMockExtensionRegistry(ctrl)
+	registry := NewMockRegistry(ctrl)
 	cachedRegistry := NewCachedExtensionRegistry(registry)
 
 	want := fmt.Errorf("Error getting log storage")
@@ -63,7 +63,7 @@ func TestGetMapStorage(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	registry := NewMockExtensionRegistry(ctrl)
+	registry := NewMockRegistry(ctrl)
 	cachedRegistry := NewCachedExtensionRegistry(registry)
 
 	ms1 := storage.NewMockMapStorage(ctrl)
@@ -82,9 +82,9 @@ func TestGetMapStorage(t *testing.T) {
 	for _, test := range tests {
 		got, err := cachedRegistry.GetMapStorage(test.treeID)
 		if err != nil {
-			t.Errorf("GetMapStorage(%v) failed with error: %v", err)
+			t.Errorf("GetMapStorage(%v) failed with error: %v", test.treeID, err)
 		} else if got != test.want {
-			t.Errorf("GetMapStorage(%v) failed, want %q, got %q", test.want, got)
+			t.Errorf("GetMapStorage(%v) failed, want %q, got %q", test.treeID, test.want, got)
 		}
 	}
 }
@@ -93,7 +93,7 @@ func TestGetMapStorageError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	registry := NewMockExtensionRegistry(ctrl)
+	registry := NewMockRegistry(ctrl)
 	cachedRegistry := NewCachedExtensionRegistry(registry)
 
 	want := fmt.Errorf("Error getting map storage")

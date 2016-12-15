@@ -25,7 +25,7 @@ type LogOperationManagerContext struct {
 	// ctx is general context for cancellation and diagnostic info
 	ctx context.Context
 	// registry provides access to Trillian storage
-	registry extension.ExtensionRegistry
+	registry extension.Registry
 	// batchSize is the batch size to be passed to tasks run by this manager
 	batchSize int
 	// sleepBetweenRuns is the time to pause after all active logs have processed a batch
@@ -49,7 +49,7 @@ type LogOperationManager struct {
 }
 
 // NewLogOperationManager creates a new LogOperationManager instance.
-func NewLogOperationManager(ctx context.Context, registry extension.ExtensionRegistry, batchSize int, sleepBetweenRuns time.Duration, signInterval time.Duration, timeSource util.TimeSource, logOperation LogOperation) *LogOperationManager {
+func NewLogOperationManager(ctx context.Context, registry extension.Registry, batchSize int, sleepBetweenRuns time.Duration, signInterval time.Duration, timeSource util.TimeSource, logOperation LogOperation) *LogOperationManager {
 	return &LogOperationManager{
 		context: LogOperationManagerContext{
 			ctx:              ctx,
@@ -64,7 +64,7 @@ func NewLogOperationManager(ctx context.Context, registry extension.ExtensionReg
 }
 
 // NewLogOperationManagerForTest creates a one-shot LogOperationManager instance, for use by tests only.
-func NewLogOperationManagerForTest(ctx context.Context, registry extension.ExtensionRegistry, batchSize int, sleepBetweenRuns time.Duration, signInterval time.Duration, timeSource util.TimeSource, logOperation LogOperation) *LogOperationManager {
+func NewLogOperationManagerForTest(ctx context.Context, registry extension.Registry, batchSize int, sleepBetweenRuns time.Duration, signInterval time.Duration, timeSource util.TimeSource, logOperation LogOperation) *LogOperationManager {
 	return &LogOperationManager{
 		context: LogOperationManagerContext{
 			ctx:              ctx,

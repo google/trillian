@@ -21,11 +21,11 @@ type MapStorageProviderFunc func(int64) (storage.MapStorage, error)
 
 // TrillianMapServer implements the RPC API defined in the proto
 type TrillianMapServer struct {
-	registry extension.ExtensionRegistry
+	registry extension.Registry
 }
 
 // NewTrillianMapServer creates a new RPC server backed by registry
-func NewTrillianMapServer(registry extension.ExtensionRegistry) *TrillianMapServer {
+func NewTrillianMapServer(registry extension.Registry) *TrillianMapServer {
 	return &TrillianMapServer{registry}
 }
 

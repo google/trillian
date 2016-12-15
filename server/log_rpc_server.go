@@ -22,12 +22,12 @@ const proofMaxBitLen = 64
 
 // TrillianLogRPCServer implements the RPC API defined in the proto
 type TrillianLogRPCServer struct {
-	registry   extension.ExtensionRegistry
+	registry   extension.Registry
 	timeSource util.TimeSource
 }
 
 // NewTrillianLogRPCServer creates a new RPC server backed by a LogStorageProvider.
-func NewTrillianLogRPCServer(registry extension.ExtensionRegistry, timeSource util.TimeSource) *TrillianLogRPCServer {
+func NewTrillianLogRPCServer(registry extension.Registry, timeSource util.TimeSource) *TrillianLogRPCServer {
 	return &TrillianLogRPCServer{
 		registry:   registry,
 		timeSource: timeSource,

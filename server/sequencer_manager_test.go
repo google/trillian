@@ -169,11 +169,11 @@ func mockStorageProviderForSequencer(mockStorage storage.LogStorage) testonly.Ge
 	}
 }
 
-func registryForSequencer(mockStorage storage.LogStorage) extension.ExtensionRegistry {
+func registryForSequencer(mockStorage storage.LogStorage) extension.Registry {
 	return testonly.NewRegistryWithLogProvider(mockStorageProviderForSequencer(mockStorage))
 }
 
-func createTestContext(registry extension.ExtensionRegistry) LogOperationManagerContext {
+func createTestContext(registry extension.Registry) LogOperationManagerContext {
 	// Set sign interval to 100 years so it won't trigger a root expiry signing unless overridden
 	ctx := util.NewLogContext(context.Background(), -1)
 	return LogOperationManagerContext{

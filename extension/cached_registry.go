@@ -7,7 +7,7 @@ import (
 )
 
 type cachedRegistry struct {
-	registry ExtensionRegistry
+	registry Registry
 
 	mu              sync.Mutex
 	logStorageCache map[int64]storage.LogStorage
@@ -46,9 +46,9 @@ func (r *cachedRegistry) GetMapStorage(treeID int64) (storage.MapStorage, error)
 	return storage, nil
 }
 
-// NewCachedExtensionRegistry wraps a registry into a cached implementation, which caches storages
-// per tree ID.
-func NewCachedExtensionRegistry(registry ExtensionRegistry) ExtensionRegistry {
+// NewCachedRegistry wraps a registry into a cached implementation, which caches storages per tree
+// ID.
+func NewCachedRegistry(registry Registry) Registry {
 	return &cachedRegistry{
 		registry:        registry,
 		logStorageCache: make(map[int64]storage.LogStorage),
