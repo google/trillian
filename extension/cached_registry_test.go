@@ -13,7 +13,7 @@ func TestGetLogStorage(t *testing.T) {
 	defer ctrl.Finish()
 
 	registry := NewMockRegistry(ctrl)
-	cachedRegistry := NewCachedExtensionRegistry(registry)
+	cachedRegistry := NewCachedRegistry(registry)
 
 	ls1 := storage.NewMockLogStorage(ctrl)
 	ls2 := storage.NewMockLogStorage(ctrl)
@@ -43,7 +43,7 @@ func TestGetLogStorageError(t *testing.T) {
 	defer ctrl.Finish()
 
 	registry := NewMockRegistry(ctrl)
-	cachedRegistry := NewCachedExtensionRegistry(registry)
+	cachedRegistry := NewCachedRegistry(registry)
 
 	want := fmt.Errorf("Error getting log storage")
 	registry.EXPECT().GetLogStorage(int64(1)).Times(2).Return(nil, want)
@@ -64,7 +64,7 @@ func TestGetMapStorage(t *testing.T) {
 	defer ctrl.Finish()
 
 	registry := NewMockRegistry(ctrl)
-	cachedRegistry := NewCachedExtensionRegistry(registry)
+	cachedRegistry := NewCachedRegistry(registry)
 
 	ms1 := storage.NewMockMapStorage(ctrl)
 	ms2 := storage.NewMockMapStorage(ctrl)
@@ -94,7 +94,7 @@ func TestGetMapStorageError(t *testing.T) {
 	defer ctrl.Finish()
 
 	registry := NewMockRegistry(ctrl)
-	cachedRegistry := NewCachedExtensionRegistry(registry)
+	cachedRegistry := NewCachedRegistry(registry)
 
 	want := fmt.Errorf("Error getting map storage")
 	registry.EXPECT().GetMapStorage(int64(1)).Times(2).Return(nil, want)
