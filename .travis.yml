@@ -33,7 +33,7 @@ script:
   - export CC="gcc-4.8"
   - go install github.com/golang/mock/mockgen
   - go get -u github.com/golang/lint/golint
-  - go get -u github.com/golang/protobuf/...
+  - go get -u github.com/golang/protobuf/proto/...
   - MOCKFILES=$(find . -name mock_\*.go)
   - rm ${MOCKFILES}
   - PBFILES=$(find . -name \*.pb.go)
