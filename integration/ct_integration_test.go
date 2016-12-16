@@ -66,16 +66,16 @@ func TestCTIntegration(t *testing.T) {
 	// Stage 0: get accepted roots, which should just be the fake CA.
 	roots, err := logClient.GetAcceptedRoots(ctx)
 	if err != nil {
-		t.Fatalf("Failed to get roots: %v", err)
+		t.Fatalf("GetAcceptedRoots()=(nil,%v); want (roots,nil)", err)
 	}
 	if len(roots) != 1 {
-		t.Errorf("len(GetAcceptableRoots())=%d; want 1", len(roots))
+		t.Errorf("len(GetAcceptedRoots())=%d; want 1", len(roots))
 	}
 
 	// Stage 1: get the STH, which should be empty.
 	sth0, err := logClient.GetSTH(ctx)
 	if err != nil {
-		t.Fatalf("Failed to get STH: %v", err)
+		t.Fatalf("GetSTH()=(nil,%v); want (sth,nil)", err)
 	}
 	if sth0.Version != 0 {
 		t.Errorf("sth.Version=%v; want V1(0)", sth0.Version)
@@ -94,7 +94,7 @@ func TestCTIntegration(t *testing.T) {
 	}
 	scts[0], err = logClient.AddChain(ctx, chain[0])
 	if err != nil {
-		t.Fatalf("Failed to AddChain(): %v", err)
+		t.Fatalf("AddChain(int-ca.cert)=(nil,%v); want (sct,nil)", err)
 	}
 	// Display the SCT
 	fmt.Printf("%v: Uploaded int-ca.cert to %v log, got SCT\n", ctTime(scts[0].Timestamp), scts[0].SCTVersion)
@@ -102,7 +102,7 @@ func TestCTIntegration(t *testing.T) {
 	// Keep getting the STH until tree size becomes 1.
 	sth1, err := awaitTreeSize(ctx, logClient, 1, true)
 	if err != nil {
-		t.Fatalf("Failed to get STH for size=1: %v", err)
+		t.Fatalf("awaitTreeSize(1)=(nil,%v); want (sth,nil)", err)
 	}
 	fmt.Printf("%v: Got STH(size=%d): roothash=%x\n", ctTime(sth1.Timestamp), sth1.TreeSize, sth1.SHA256RootHash)
 
@@ -113,19 +113,19 @@ func TestCTIntegration(t *testing.T) {
 	}
 	scts[1], err = logClient.AddChain(ctx, chain[1])
 	if err != nil {
-		t.Fatalf("Failed to AddChain(): %v", err)
+		t.Fatalf("AddChain(leaf01)=(nil,%v); want (sct,nil)", err)
 	}
 	fmt.Printf("%v: Uploaded cert01.chain to %v log, got SCT\n", ctTime(scts[1].Timestamp), scts[1].SCTVersion)
 	sth2, err := awaitTreeSize(ctx, logClient, 2, true)
 	if err != nil {
-		t.Fatalf("Failed to get STH for size=1: %v", err)
+		t.Fatalf("awaitTreeSize(2)=(nil,%v); want (sth,nil)", err)
 	}
 	fmt.Printf("%v: Got STH(size=%d): roothash=%x\n", ctTime(sth2.Timestamp), sth2.TreeSize, sth2.SHA256RootHash)
 
 	// Stage 4: get a consistency proof from size 1-> size 2.
 	proof12, err := logClient.GetSTHConsistency(ctx, 1, 2)
 	if err != nil {
-		t.Fatalf("Failed to GetSTHConsistency(1, 2): %v", err)
+		t.Fatalf("GetSTHConsistency(1, 2)=(nil,%v); want (proof12,nil)", err)
 	}
 	//                 sth2
 	//                 / \
@@ -138,7 +138,7 @@ func TestCTIntegration(t *testing.T) {
 		t.Fatalf("len(proof12)=%d; want 1", len(proof12))
 	}
 	if err := checkCTConsistencyProof(sth1, sth2, proof12); err != nil {
-		t.Fatalf("consistency proof verification failed: %v", err)
+		t.Fatalf("checkCTConsistencyProof(sth1,sth2,proof12)=%v; want nil", err)
 	}
 
 	// Stage 5: add certificates 2, 3, 4, 5,...N, for some random N in [4,20]
@@ -152,7 +152,7 @@ func TestCTIntegration(t *testing.T) {
 		}
 		scts[i], err = logClient.AddChain(ctx, chain[i])
 		if err != nil {
-			t.Fatalf("Failed to AddChain(): %v", err)
+			t.Fatalf("AddChain(leaf%02d)=(nil,%v); want (sct,nil)", i, err)
 		}
 		fmt.Printf("%v: Uploaded %s to %v log, got SCT[%d]\n", ctTime(scts[i].Timestamp), filename, scts[i].SCTVersion, i)
 	}
@@ -161,28 +161,28 @@ func TestCTIntegration(t *testing.T) {
 	treeSize := 1 + count
 	sthN, err := awaitTreeSize(ctx, logClient, uint64(treeSize), true)
 	if err != nil {
-		t.Fatalf("Failed to get STH for size=%d: %v", treeSize, err)
+		t.Fatalf("awaitTreeSize(%d)=(nil,%v); want (sth,nil)", treeSize, err)
 	}
 	fmt.Printf("%v: Got STH(size=%d): roothash=%x\n", ctTime(sthN.Timestamp), sthN.TreeSize, sthN.SHA256RootHash)
 
 	// Stage 7: get a consistency proof from 2->(1+N).
 	proof2N, err := logClient.GetSTHConsistency(ctx, 2, uint64(treeSize))
 	if err != nil {
-		t.Errorf("Failed to GetSTHConsistency(2, %d): %v", treeSize, err)
+		t.Errorf("GetSTHConsistency(2, %d)=(nil,%v); want (proof2N,nil)", treeSize, err)
 	} else {
 		fmt.Printf("Proof size 2->%d: %x\n", treeSize, proof2N)
 		if err := checkCTConsistencyProof(sth2, sthN, proof2N); err != nil {
-			t.Errorf("consistency proof verification failed: %v", err)
+			t.Errorf("checkCTConsistencyProof(sth2,sthN,proof2N)=%v; want nil", err)
 		}
 	}
 
 	// Stage 8: get entries [1, N] (start at 1 to skip int-ca.cert)
 	entries, err := logClient.GetEntries(ctx, 1, int64(count))
 	if err != nil {
-		t.Errorf("Failed to GetEntries(1, %d): %v", count, err)
+		t.Errorf("GetEntries(1,%d)=(nil,%v); want (entries,nil)", count, err)
 	} else {
 		if len(entries) < count {
-			t.Errorf("Fewer entries (%d) retrieved than expected (%d)", len(entries), count)
+			t.Errorf("len(entries)=%d; want %d", len(entries), count)
 		}
 		for i, entry := range entries {
 			leaf := entry.Leaf
@@ -227,24 +227,24 @@ func TestCTIntegration(t *testing.T) {
 		leafData, err := tls.Marshal(leaf)
 		if err != nil {
 			fmt.Printf("<fail: %v>\n", err)
-			t.Errorf("tls.Marshal(leaf[%d])=nil,%v", i, err)
+			t.Errorf("tls.Marshal(leaf[%d])=(nil,%v); want (data,nil)", i, err)
 			continue
 		}
 		hash := sha256.Sum256(append([]byte{merkletree.LeafPrefix}, leafData...))
 		rsp, err := logClient.GetProofByHash(ctx, hash[:], sthN.TreeSize)
 		if err != nil {
 			fmt.Printf("<fail: %v>\n", err)
-			t.Errorf("GetProofByHash(sct[%d], size=%d)=nil,%v", i, sthN.TreeSize, err)
+			t.Errorf("GetProofByHash(sct[%d],size=%d)=(nil,%v); want (proof,nil)", i, sthN.TreeSize, err)
 			continue
 		}
 		if rsp.LeafIndex != int64(i) {
-			fmt.Printf("<fail: wrong index>\n", err)
-			t.Errorf("GetProofByHash(sct[%d], size=%d) has LeafIndex %d", i, sthN.TreeSize, rsp.LeafIndex)
+			fmt.Print("<fail: wrong index>\n", err)
+			t.Errorf("GetProofByHash(sct[%d],size=%d).LeafIndex=%d; want %d", i, sthN.TreeSize, rsp.LeafIndex, i)
 			continue
 		}
 		fmt.Printf("%x\n", rsp.AuditPath)
 		if err := verifier.VerifyInclusionProof(int64(i), int64(sthN.TreeSize), rsp.AuditPath, sthN.SHA256RootHash[:], leafData); err != nil {
-			t.Errorf("inclusion proof verification failed: %v", err)
+			t.Errorf("VerifyInclusionProof(%d, %d,...)=%v", i, sthN.TreeSize, err)
 		}
 	}
 
@@ -254,16 +254,16 @@ func TestCTIntegration(t *testing.T) {
 	corruptAt := len(corruptChain[0].Data) - 3
 	corruptChain[0].Data[corruptAt] = (corruptChain[0].Data[corruptAt] + 1)
 	if sct, err := logClient.AddChain(ctx, corruptChain); err == nil {
-		t.Fatalf("AddChain(corrupt-cert)=%+v,nil; want error", sct)
+		t.Fatalf("AddChain(corrupt-cert)=(%+v,nil); want (nil,error)", sct)
 	} else {
-		fmt.Printf("AddChain(corrupt-cert)=nil,%v\n", err)
+		fmt.Printf("AddChain(corrupt-cert)=(nil,%v)\n", err)
 	}
 
 	// Stage 11: attempt to upload a certificate without chain.
 	if sct, err := logClient.AddChain(ctx, chain[1][0:0]); err == nil {
-		t.Fatalf("AddChain(leaf-only)=%+v,nil; want error", sct)
+		t.Fatalf("AddChain(leaf-only)=(%+v,nil); want (nil,error)", sct)
 	} else {
-		fmt.Printf("AddChain(leaf-only)=nil,%v\n", err)
+		fmt.Printf("AddChain(leaf-only)=(nil,%v)\n", err)
 	}
 
 	// Stage 12: build and add a pre-certificate.
@@ -273,23 +273,23 @@ func TestCTIntegration(t *testing.T) {
 	}
 	precertSCT, err := logClient.AddPreChain(ctx, prechain)
 	if err != nil {
-		t.Fatalf("Failed to AddPreChain(): %v", err)
+		t.Fatalf("AddPreChain()=(nil,%v); want (sct,nil)", err)
 	}
 	fmt.Printf("%v: Uploaded precert to %v log, got SCT\n", ctTime(precertSCT.Timestamp), precertSCT.SCTVersion)
 	treeSize++
 	sthN1, err := awaitTreeSize(ctx, logClient, uint64(treeSize), true)
 	if err != nil {
-		t.Fatalf("Failed to get STH for size=%d: %v", err, treeSize)
+		t.Fatalf("awaitTreeSize(%d)=(nil,%v); want (sth,nil)", treeSize, err)
 	}
 	fmt.Printf("%v: Got STH(size=%d): roothash=%x\n", ctTime(sthN1.Timestamp), sthN1.TreeSize, sthN1.SHA256RootHash)
 
 	// Stage 13: retrieve and check pre-cert.
 	precertEntries, err := logClient.GetEntries(ctx, int64(count+1), int64(count+1))
 	if err != nil {
-		t.Fatalf("Failed to GetEntries(%d, %d): %v", count+1, count+1, err)
+		t.Fatalf("GetEntries(%d,%d)=(nil,%v); want (entries,nil)", count+1, count+1, err)
 	}
 	if len(precertEntries) != 1 {
-		t.Fatalf("Different number of entries (%d) retrieved than expected (%d)", len(precertEntries), count)
+		t.Fatalf("len(entries)=%d; want %d", len(precertEntries), count)
 	}
 	leaf := precertEntries[0].Leaf
 	ts := leaf.TimestampedEntry
@@ -329,21 +329,20 @@ func TestCTIntegration(t *testing.T) {
 	}
 	leafData, err := tls.Marshal(leaf)
 	if err != nil {
-		t.Fatalf("tls.Marshal(precertLeaf)=nil,%v", err)
+		t.Fatalf("tls.Marshal(precertLeaf)=(nil,%v); want (data,nil)", err)
 	}
 	hash := sha256.Sum256(append([]byte{merkletree.LeafPrefix}, leafData...))
 	rsp, err := logClient.GetProofByHash(ctx, hash[:], sthN1.TreeSize)
 	if err != nil {
-		t.Fatalf("GetProofByHash(precertSCT, size=%d)=nil,%v", sthN1.TreeSize, err)
+		t.Fatalf("GetProofByHash(precertSCT, size=%d)=(nil,%v); want (proof,nil)", sthN1.TreeSize, err)
 	}
-	if rsp.LeafIndex != int64(count+1) {
-		t.Errorf("GetProofByHash(precertSCT, size=%d) has LeafIndex %d", sthN1.TreeSize, rsp.LeafIndex)
+	if want := int64(count + 1); rsp.LeafIndex != want {
+		t.Errorf("GetProofByHash(precertSCT, size=%d).LeafIndex=%d; want %d", sthN1.TreeSize, rsp.LeafIndex, want)
 	}
 	fmt.Printf("%x\n", rsp.AuditPath)
 	if err := verifier.VerifyInclusionProof(int64(count+1), int64(sthN1.TreeSize), rsp.AuditPath, sthN1.SHA256RootHash[:], leafData); err != nil {
-		t.Errorf("inclusion proof verification failed: %v", err)
+		t.Errorf("VerifyInclusionProof(%d,%d,...)=%v; want nil", count+1, sthN1.TreeSize, err)
 	}
-
 }
 
 func ctTime(ts uint64) time.Time {
