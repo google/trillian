@@ -1,11 +1,13 @@
 package testonly
 
 import (
-	"fmt"
+	"errors"
 
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/storage"
 )
+
+var errNotImplemented = errors.New("not implemented")
 
 // GetLogStorageFunc returns a storage.LogStorage or fails.
 // Used as an implementation of extension.Registry.GetLogStorage in tests.
@@ -21,11 +23,11 @@ type testRegistry struct {
 }
 
 func defaultGetLogStorage(int64) (storage.LogStorage, error) {
-	return nil, fmt.Errorf("Not implemented")
+	return nil, errNotImplemented
 }
 
 func defaultGetMapStorage(int64) (storage.MapStorage, error) {
-	return nil, fmt.Errorf("Not implemented")
+	return nil, errNotImplemented
 }
 
 func (r testRegistry) GetLogStorage(treeID int64) (storage.LogStorage, error) {
@@ -38,10 +40,7 @@ func (r testRegistry) GetMapStorage(treeID int64) (storage.MapStorage, error) {
 
 // NewRegistryWithLogStorage returns an extension.Registry backed by ls.
 func NewRegistryWithLogStorage(ls storage.LogStorage) extension.Registry {
-	getLogStorage := func(int64) (storage.LogStorage, error) {
-		return ls, nil
-	}
-	return NewRegistryWithLogProvider(getLogStorage)
+	return NewRegistryWithLogProvider(func(int64) (storage.LogStorage, error) { return ls, nil })
 }
 
 // NewRegistryWithLogProvider returns an extension.Registry whose GetLogStorage function is

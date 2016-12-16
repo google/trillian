@@ -110,7 +110,7 @@ func main() {
 	}
 
 	if err := checkDatabaseAccessible(registry); err != nil {
-		glog.Errorf("Could not access storage, check db configuration and flags")
+		glog.Errorf("Could not access storage, check db configuration and flags: %v", err)
 		os.Exit(1)
 	}
 

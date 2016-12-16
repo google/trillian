@@ -98,8 +98,8 @@ func main() {
 	}
 
 	// First make sure we can access the database, quit if not
-	if err = checkDatabaseAccessible(registry); err != nil {
-		glog.Errorf("Could not access storage, check db configuration and flags")
+	if err := checkDatabaseAccessible(registry); err != nil {
+		glog.Errorf("Could not access storage, check db configuration and flags: %v", err)
 		os.Exit(1)
 	}
 

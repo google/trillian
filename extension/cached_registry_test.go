@@ -30,10 +30,11 @@ func TestGetLogStorage(t *testing.T) {
 	}
 	for _, test := range tests {
 		got, err := cachedRegistry.GetLogStorage(test.treeID)
-		if err != nil {
-			t.Errorf("GetLogStorage(%v) failed with error: %v", test.treeID, err)
-		} else if got != test.want {
-			t.Errorf("GetLogStorage(%v) failed, want %q, got %q", test.treeID, test.want, got)
+		switch {
+		case err != nil:
+			t.Errorf("GetLogStorage(%v) = (_, %v)", test.treeID, err)
+		case got != test.want:
+			t.Errorf("GetLogStorage(%v) = (%q, nil), want %q", test.treeID, got, test.want)
 		}
 	}
 }
@@ -51,10 +52,11 @@ func TestGetLogStorageError(t *testing.T) {
 	// Run twice to make sure caching isn't doing anything funky
 	for i := 0; i < 2; i++ {
 		ls, err := cachedRegistry.GetLogStorage(1)
-		if err == nil || err != want {
-			t.Errorf("want %q, got %q", want, err)
-		} else if ls != nil {
-			t.Errorf("returned LogStorage should be nil, got %q", ls)
+		switch {
+		case err != want:
+			t.Errorf("GetLogStorage(1) = (_, %q), want %q", err, want)
+		case ls != nil:
+			t.Errorf("GetLogStorage(1) = (%q, _), want nil", ls)
 		}
 	}
 }
@@ -81,10 +83,11 @@ func TestGetMapStorage(t *testing.T) {
 	}
 	for _, test := range tests {
 		got, err := cachedRegistry.GetMapStorage(test.treeID)
-		if err != nil {
-			t.Errorf("GetMapStorage(%v) failed with error: %v", test.treeID, err)
-		} else if got != test.want {
-			t.Errorf("GetMapStorage(%v) failed, want %q, got %q", test.treeID, test.want, got)
+		switch {
+		case err != nil:
+			t.Errorf("GetMapStorage(%v) = (_, %v)", test.treeID, err)
+		case got != test.want:
+			t.Errorf("GetMapStorage(%v) = (%q, nil), want %q", test.treeID, got, test.want)
 		}
 	}
 }
@@ -102,10 +105,11 @@ func TestGetMapStorageError(t *testing.T) {
 	// Run twice to make sure caching isn't doing anything funky
 	for i := 0; i < 2; i++ {
 		ls, err := cachedRegistry.GetMapStorage(1)
-		if err == nil || err != want {
-			t.Errorf("want %q, got %q", want, err)
-		} else if ls != nil {
-			t.Errorf("returned MapStorage should be nil, got %q", ls)
+		switch {
+		case err != want:
+			t.Errorf("GetMapStorage(1) = (_, %q), want %q", err, want)
+		case ls != nil:
+			t.Errorf("GetMapStorage(1) = (%q, _), want nil", ls)
 		}
 	}
 }
