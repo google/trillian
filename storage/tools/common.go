@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/google/trillian/server"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/mysql"
 )
@@ -23,7 +22,7 @@ func GetLogIDFromFlagsOrDie() int64 {
 // GetLogStorageProviderFromFlags returns a storage provider configured from our
 // flag settings.
 // TODO: This needs to be tidied up
-func GetLogStorageProviderFromFlags() server.LogStorageProviderFunc {
+func GetLogStorageProviderFromFlags() func(x int64) (storage.LogStorage, error) {
 	return func(x int64) (storage.LogStorage, error) {
 		storageProvider, err := GetStorageFromFlags(x)
 		return storageProvider, err
@@ -56,6 +55,11 @@ func GetStorageFromFlagsOrDie(treeID int64) storage.LogStorage {
 	}
 
 	return logStorage
+}
+
+// GetMapStorageFromFlags returns a configured MapStorage instance or an error.
+func GetMapStorageFromFlags(treeID int64) (storage.MapStorage, error) {
+	return mysql.NewMapStorage(treeID, *mysqlURIFlag)
 }
 
 // GetLogServerPort returns the port number to be used when serving log data

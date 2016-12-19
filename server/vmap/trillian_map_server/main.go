@@ -16,14 +16,12 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
+	"github.com/google/trillian/extension"
+	"github.com/google/trillian/extension/builtin"
 	"github.com/google/trillian/server/vmap"
-	"github.com/google/trillian/storage"
-	"github.com/google/trillian/storage/mysql"
 	"google.golang.org/grpc"
 )
 
-var mysqlURIFlag = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test",
-	"uri to use with mysql storage")
 var serverPortFlag = flag.Int("port", 8090, "Port to serve log RPC requests on")
 var exportRPCMetrics = flag.Bool("exportMetrics", true, "If true starts HTTP server and exports stats")
 var httpPortFlag = flag.Int("http_port", 8091, "Port to serve HTTP metrics on")
@@ -33,15 +31,9 @@ var httpPortFlag = flag.Int("http_port", 8091, "Port to serve HTTP metrics on")
 var privateKeyFile = flag.String("private_key_file", "", "File containing a PEM encoded private key")
 var privateKeyPassword = flag.String("private_key_password", "", "Password for server private key")
 
-// TODO(Martin2112): Needs a more realistic provider of map storage with some caching
-// and ability to swap out for different storage type
-func simpleMySQLStorageProvider(treeID int64) (storage.MapStorage, error) {
-	return mysql.NewMapStorage(treeID, *mysqlURIFlag)
-}
-
-func checkDatabaseAccessible(dbURI string) error {
+func checkDatabaseAccessible(registry extension.Registry) error {
 	// TODO(Martin2112): Have to pass a tree ID when we just want metadata. API mismatch
-	mapStorage, err := mysql.NewMapStorage(int64(0), dbURI)
+	mapStorage, err := registry.GetMapStorage(int64(0))
 
 	if err != nil {
 		// This is probably something fundamentally wrong
@@ -60,9 +52,9 @@ func checkDatabaseAccessible(dbURI string) error {
 	return nil
 }
 
-func startRPCServer(listener net.Listener, port int, provider vmap.MapStorageProviderFunc) *grpc.Server {
+func startRPCServer(listener net.Listener, port int, registry extension.Registry) *grpc.Server {
 	grpcServer := grpc.NewServer()
-	mapServer := vmap.NewTrillianMapServer(provider)
+	mapServer := vmap.NewTrillianMapServer(registry)
 	trillian.RegisterTrillianMapServer(grpcServer, mapServer)
 
 	return grpcServer
@@ -100,16 +92,21 @@ func main() {
 	glog.CopyStandardLogTo("WARNING")
 	glog.Info("**** Map RPC Server Starting ****")
 
+	registry, err := builtin.NewDefaultExtensionRegistry()
+	if err != nil {
+		glog.Fatalf("Failed create extension registry: %v", err)
+	}
+
 	// First make sure we can access the database, quit if not
-	if err := checkDatabaseAccessible(*mysqlURIFlag); err != nil {
-		glog.Errorf("Could not access storage, check db configuration and flags")
+	if err := checkDatabaseAccessible(registry); err != nil {
+		glog.Errorf("Could not access storage, check db configuration and flags: %v", err)
 		os.Exit(1)
 	}
 
 	// Load up our private key, exit if this fails to work
 	// TODO(Martin2112): This will need to be changed for multi tenant as we'll need at
 	// least one key per tenant, possibly more.
-	_, err := crypto.LoadPasswordProtectedPrivateKey(*privateKeyFile, *privateKeyPassword)
+	_, err = crypto.LoadPasswordProtectedPrivateKey(*privateKeyFile, *privateKeyPassword)
 
 	if err != nil {
 		glog.Fatalf("Failed to load map server key: %v", err)
@@ -135,7 +132,7 @@ func main() {
 	}
 
 	// Bring up the RPC server and then block until we get a signal to stop
-	rpcServer := startRPCServer(lis, *serverPortFlag, simpleMySQLStorageProvider)
+	rpcServer := startRPCServer(lis, *serverPortFlag, registry)
 	go awaitSignal(rpcServer)
 	err = rpcServer.Serve(lis)
 

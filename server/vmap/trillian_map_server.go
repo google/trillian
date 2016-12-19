@@ -1,12 +1,12 @@
 package vmap
 
 import (
-	"sync"
 	"time"
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
+	"github.com/google/trillian/extension"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util"
@@ -21,34 +21,12 @@ type MapStorageProviderFunc func(int64) (storage.MapStorage, error)
 
 // TrillianMapServer implements the RPC API defined in the proto
 type TrillianMapServer struct {
-	storageProvider MapStorageProviderFunc
-	// Must hold this lock before accessing the storage map
-	storageMapGuard sync.Mutex
-	// Map from tree ID to storage impl for that map
-	storageMap map[int64]storage.MapStorage
+	registry extension.Registry
 }
 
-// NewTrillianMapServer creates a new RPC server backed by a MapStorageProvider.
-func NewTrillianMapServer(p MapStorageProviderFunc) *TrillianMapServer {
-	return &TrillianMapServer{storageProvider: p, storageMap: make(map[int64]storage.MapStorage)}
-}
-
-func (t *TrillianMapServer) getStorageForMap(mapID int64) (storage.MapStorage, error) {
-	t.storageMapGuard.Lock()
-	defer t.storageMapGuard.Unlock()
-
-	s, ok := t.storageMap[mapID]
-
-	if ok {
-		return s, nil
-	}
-
-	s, err := t.storageProvider(mapID)
-
-	if err == nil {
-		t.storageMap[mapID] = s
-	}
-	return s, err
+// NewTrillianMapServer creates a new RPC server backed by registry
+func NewTrillianMapServer(registry extension.Registry) *TrillianMapServer {
+	return &TrillianMapServer{registry}
 }
 
 func (t *TrillianMapServer) getHasherForMap(mapID int64) (merkle.MapHasher, error) {
@@ -59,7 +37,7 @@ func (t *TrillianMapServer) getHasherForMap(mapID int64) (merkle.MapHasher, erro
 // GetLeaves implements the GetLeaves RPC method.
 func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapLeavesRequest) (resp *trillian.GetMapLeavesResponse, err error) {
 	ctx = util.NewMapContext(ctx, req.MapId)
-	s, err := t.getStorageForMap(req.MapId)
+	s, err := t.registry.GetMapStorage(req.MapId)
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +122,7 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 // SetLeaves implements the SetLeaves RPC method.
 func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapLeavesRequest) (resp *trillian.SetMapLeavesResponse, err error) {
 	ctx = util.NewMapContext(ctx, req.MapId)
-	s, err := t.getStorageForMap(req.MapId)
+	s, err := t.registry.GetMapStorage(req.MapId)
 	if err != nil {
 		return nil, err
 	}
@@ -222,7 +200,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 // GetSignedMapRoot implements the GetSignedMapRoot RPC method.
 func (t *TrillianMapServer) GetSignedMapRoot(ctx context.Context, req *trillian.GetSignedMapRootRequest) (resp *trillian.GetSignedMapRootResponse, err error) {
 	ctx = util.NewMapContext(ctx, req.MapId)
-	s, err := t.getStorageForMap(req.MapId)
+	s, err := t.registry.GetMapStorage(req.MapId)
 	if err != nil {
 		return nil, err
 	}
