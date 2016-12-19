@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"expvar"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -63,6 +64,8 @@ type appHandler struct {
 // ServeHTTP for an appHandler invokes the underlying handler function but
 // does additional common error processing.
 func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	a.context.exp.vars.Add("http-all-reqs", 1)
+	a.context.exp.reqs.Add(a.name, 1)
 	glog.V(2).Infof("%s: request %v %q => %s", a.context.logPrefix, r.Method, r.URL, a.name)
 	if r.Method != a.method {
 		glog.Warningf("%s: %s wrong HTTP method: %v", a.context.logPrefix, a.name, r.Method)
@@ -86,6 +89,11 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	status, err := a.handler(ctx, a.context, w, r)
 	glog.V(2).Infof("%s: %s <= status=%d", a.context.logPrefix, a.name, status)
+	a.context.exp.allRsps.Add(strconv.Itoa(status), 1)
+	e := a.context.exp.rsps.Get(a.name)
+	if e, ok := e.(*expvar.Map); ok {
+		e.Add(strconv.Itoa(status), 1)
+	}
 	if err != nil {
 		glog.Warningf("%s: %s handler error: %v", a.context.logPrefix, a.name, err)
 		sendHTTPError(w, status, err)
@@ -118,11 +126,24 @@ type LogContext struct {
 	rpcDeadline time.Duration
 	// timeSource is a util.TimeSource that can be injected for testing
 	timeSource util.TimeSource
+	// Various per-log statistics
+	exp struct {
+		vars             *expvar.Map // varname => expvar.Var, includes all below
+		lastSCTTimestamp *expvar.Int
+		lastSTHTimestamp *expvar.Int
+		lastSTHTreeSize  *expvar.Int
+		// Statistics for HTTP requests/responses
+		reqs    *expvar.Map // entrypoint => expvar.Int  (as "http-reqs")
+		allRsps *expvar.Map // http.rc => expvar.Int  (as "http-all-rsps")
+		rsps    *expvar.Map // entrypoint => expvar.Map[http.rc => expvar.Int]  (as "http-rsps")
+	}
 }
+
+var entrypoints = []string{"AddChain", "AddPreChain", "GetSTH", "GetSTHConsistency", "GetProofByHash", "GetEntries", "GetRoots", "GetEntryAndProof"}
 
 // NewLogContext creates a new instance of LogContext.
 func NewLogContext(logID int64, prefix string, trustedRoots *PEMCertPool, rpcClient trillian.TrillianLogClient, km crypto.KeyManager, rpcDeadline time.Duration, timeSource util.TimeSource) *LogContext {
-	return &LogContext{
+	ctx := &LogContext{
 		logID:         logID,
 		urlPrefix:     prefix,
 		logPrefix:     fmt.Sprintf("%s{%d}", prefix, logID),
@@ -130,7 +151,34 @@ func NewLogContext(logID int64, prefix string, trustedRoots *PEMCertPool, rpcCli
 		rpcClient:     rpcClient,
 		logKeyManager: km,
 		rpcDeadline:   rpcDeadline,
-		timeSource:    timeSource}
+		timeSource:    timeSource,
+	}
+
+	// Initialize all the exported variables.
+	ctx.exp.vars = new(expvar.Map).Init()
+
+	e := new(expvar.Int)
+	e.Set(logID)
+	ctx.exp.vars.Set("log-id", e)
+	ctx.exp.lastSCTTimestamp = new(expvar.Int)
+	ctx.exp.vars.Set("last-sct-timestamp", ctx.exp.lastSCTTimestamp)
+	ctx.exp.lastSTHTimestamp = new(expvar.Int)
+	ctx.exp.vars.Set("last-sth-timestamp", ctx.exp.lastSTHTimestamp)
+	ctx.exp.lastSTHTreeSize = new(expvar.Int)
+	ctx.exp.vars.Set("last-sth-treesize", ctx.exp.lastSTHTreeSize)
+
+	// TODO(drysdale): investigate whether there's a generic wrapper to do this
+	ctx.exp.reqs = new(expvar.Map).Init()
+	ctx.exp.vars.Set("http-reqs", ctx.exp.reqs)
+	ctx.exp.allRsps = new(expvar.Map).Init()
+	ctx.exp.vars.Set("http-all-rsps", ctx.exp.allRsps)
+	ctx.exp.rsps = new(expvar.Map).Init()
+	for _, ep := range entrypoints {
+		ctx.exp.rsps.Set(ep, new(expvar.Map).Init())
+	}
+	ctx.exp.vars.Set("http-rsps", ctx.exp.rsps)
+
+	return ctx
 }
 
 func parseBodyAsJSONChain(c LogContext, r *http.Request) (ct.AddChainRequest, error) {
@@ -217,6 +265,7 @@ func addChainInternal(ctx context.Context, c LogContext, w http.ResponseWriter, 
 		return http.StatusInternalServerError, fmt.Errorf("failed to write response: %v", err)
 	}
 	glog.V(3).Infof("%s: %s <= SCT", c.logPrefix, method)
+	c.exp.lastSCTTimestamp.Set(int64(sct.Timestamp))
 
 	return http.StatusOK, nil
 }
@@ -290,6 +339,8 @@ func getSTH(ctx context.Context, c LogContext, w http.ResponseWriter, r *http.Re
 		// Probably too late for this as headers might have been written but we don't know for sure
 		return http.StatusInternalServerError, fmt.Errorf("failed to write response data: %v", err)
 	}
+	c.exp.lastSTHTimestamp.Set(int64(sth.Timestamp))
+	c.exp.lastSTHTreeSize.Set(int64(sth.TreeSize))
 
 	return http.StatusOK, nil
 }

@@ -3,6 +3,7 @@ package ct
 import (
 	"encoding/json"
 	"errors"
+	"expvar"
 	"fmt"
 	"io/ioutil"
 	"time"
@@ -21,6 +22,10 @@ type LogConfig struct {
 	PrivKeyPEMFile  string
 	PrivKeyPassword string
 }
+
+var (
+	logVars = expvar.NewMap("logs")
+)
 
 // LogConfigFromFile creates a slice of LogConfig options from the given
 // filename, which should contain JSON encoded configuration data.
@@ -85,6 +90,7 @@ func (cfg LogConfig) SetUpInstance(client trillian.TrillianLogClient, deadline t
 	// Create and register the handlers using the RPC client we just set up
 	ctx := NewLogContext(cfg.LogID, cfg.Prefix, roots, client, km, deadline, new(util.SystemTimeSource))
 	ctx.RegisterHandlers(cfg.Prefix)
+	logVars.Set(cfg.Prefix, ctx.exp.vars)
 
 	return nil
 }
