@@ -69,7 +69,7 @@ additional subtrees below and to the right of the child subtree shown, they can'
 in the diagram. Obviously, there could be less than 256 "leaf" nodes in the subtrees if they are not
 yet fully populated. A node always belongs to exactly one subtree, there is no overlap.
 
-![strata depth 8 tree](StratumDepth8.png, "Stratum Depth 8")
+![strata depth 8 tree](StratumDepth8.png "Stratum Depth 8")
 
 As it's hard to visualize the structure at scale with stratum depth 8, some examples of smaller
 depths might make things clearer. Though these are not supported by the current implementation
@@ -78,12 +78,12 @@ the diagrams are much simpler.
 This diagram shows a tree with stratum depth 2. It is a somewhat special case as all the levels are
 stored. Note that the root node is never stored and is always recalculated.
 
-![strata depth 2 tree diagram](StratumDepth2.png, "Stratum Depth 2")
+![strata depth 2 tree diagram](StratumDepth2.png "Stratum Depth 2")
 
 This diagram shows a tree with stratum depth 3. Note that only the bottom level of each subtree is
 stored and how the binary path is used as a subtree prefix to identify subtrees.
 
-![strata depth 3 tree diagram](StratumDepth3.png, "Stratum Depth 3")
+![strata depth 3 tree diagram](StratumDepth3.png "Stratum Depth 3")
 
 ### Consistency and Other Requirements
 
