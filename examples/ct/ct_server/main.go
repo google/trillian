@@ -1,6 +1,7 @@
 package main
 
 import (
+	_ "expvar" // For HTTP server registration
 	"flag"
 	"fmt"
 	"net/http"
