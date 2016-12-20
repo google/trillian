@@ -139,7 +139,8 @@ type LogContext struct {
 	}
 }
 
-var entrypoints = []string{"AddChain", "AddPreChain", "GetSTH", "GetSTHConsistency", "GetProofByHash", "GetEntries", "GetRoots", "GetEntryAndProof"}
+// Entrypoints is a list of entrypoint names as exposed in statistics.
+var Entrypoints = []string{"AddChain", "AddPreChain", "GetSTH", "GetSTHConsistency", "GetProofByHash", "GetEntries", "GetRoots", "GetEntryAndProof"}
 
 // NewLogContext creates a new instance of LogContext.
 func NewLogContext(logID int64, prefix string, trustedRoots *PEMCertPool, rpcClient trillian.TrillianLogClient, km crypto.KeyManager, rpcDeadline time.Duration, timeSource util.TimeSource) *LogContext {
@@ -173,7 +174,7 @@ func NewLogContext(logID int64, prefix string, trustedRoots *PEMCertPool, rpcCli
 	ctx.exp.allRsps = new(expvar.Map).Init()
 	ctx.exp.vars.Set("http-all-rsps", ctx.exp.allRsps)
 	ctx.exp.rsps = new(expvar.Map).Init()
-	for _, ep := range entrypoints {
+	for _, ep := range Entrypoints {
 		ctx.exp.rsps.Set(ep, new(expvar.Map).Init())
 	}
 	ctx.exp.vars.Set("http-rsps", ctx.exp.rsps)
