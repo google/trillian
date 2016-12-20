@@ -284,9 +284,10 @@ func TestCTIntegration(t *testing.T) {
 	fmt.Printf("%v: Got STH(size=%d): roothash=%x\n", ctTime(sthN1.Timestamp), sthN1.TreeSize, sthN1.SHA256RootHash)
 
 	// Stage 13: retrieve and check pre-cert.
-	precertEntries, err := logClient.GetEntries(ctx, int64(count+1), int64(count+1))
+	precertIndex := int64(count + 1)
+	precertEntries, err := logClient.GetEntries(ctx, precertIndex, precertIndex)
 	if err != nil {
-		t.Fatalf("GetEntries(%d,%d)=(nil,%v); want (entries,nil)", count+1, count+1, err)
+		t.Fatalf("GetEntries(%d,%d)=(nil,%v); want (entries,nil)", precertIndex, precertIndex, err)
 	}
 	if len(precertEntries) != 1 {
 		t.Fatalf("len(entries)=%d; want %d", len(precertEntries), count)
@@ -294,15 +295,15 @@ func TestCTIntegration(t *testing.T) {
 	leaf := precertEntries[0].Leaf
 	ts := leaf.TimestampedEntry
 	fmt.Printf("Entry[%d] = {Index:%d Leaf:{Version:%v TS:{EntryType:%v Timestamp:%v}}}\n",
-		count+1, precertEntries[0].Index, leaf.Version, ts.EntryType, ctTime(ts.Timestamp))
+		precertIndex, precertEntries[0].Index, leaf.Version, ts.EntryType, ctTime(ts.Timestamp))
 
 	if ts.EntryType != ct.PrecertLogEntryType {
-		t.Fatalf("leaf[%d].ts.EntryType=%v; want PrecertLogEntryType", count+1, ts.EntryType)
+		t.Fatalf("leaf[%d].ts.EntryType=%v; want PrecertLogEntryType", precertIndex, ts.EntryType)
 	}
 
 	// This assumes that the added entries are sequenced in order.
 	if !bytes.Equal(ts.PrecertEntry.TBSCertificate, tbs) {
-		t.Errorf("leaf[%d].ts.PrecertEntry differs from originally uploaded cert", count+1)
+		t.Errorf("leaf[%d].ts.PrecertEntry differs from originally uploaded cert", precertIndex)
 		t.Errorf("\tuploaded:  %s", hex.EncodeToString(tbs))
 		t.Errorf("\tretrieved: %s", hex.EncodeToString(ts.PrecertEntry.TBSCertificate))
 	}
@@ -340,8 +341,8 @@ func TestCTIntegration(t *testing.T) {
 		t.Errorf("GetProofByHash(precertSCT, size=%d).LeafIndex=%d; want %d", sthN1.TreeSize, rsp.LeafIndex, want)
 	}
 	fmt.Printf("%x\n", rsp.AuditPath)
-	if err := verifier.VerifyInclusionProof(int64(count+1), int64(sthN1.TreeSize), rsp.AuditPath, sthN1.SHA256RootHash[:], leafData); err != nil {
-		t.Errorf("VerifyInclusionProof(%d,%d,...)=%v; want nil", count+1, sthN1.TreeSize, err)
+	if err := verifier.VerifyInclusionProof(precertIndex, int64(sthN1.TreeSize), rsp.AuditPath, sthN1.SHA256RootHash[:], leafData); err != nil {
+		t.Errorf("VerifyInclusionProof(%d,%d,...)=%v; want nil", precertIndex, sthN1.TreeSize, err)
 	}
 }
 
