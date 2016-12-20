@@ -185,8 +185,8 @@ func testCTIntegrationForLog(cfg ctcfg.LogConfig) error {
 		if err != nil {
 			return fmt.Errorf("got AddChain(leaf%02d)=(nil,%v); want (_,nil)", i, err)
 		}
-		fmt.Printf("%s: Uploaded %s to %v log, got SCT[%d](time=%q)\n", cfg.Prefix, filename, scts[i].SCTVersion, i, ctTime(scts[i].Timestamp))
 	}
+	fmt.Printf("%s: Uploaded leaf02-leaf%02d to log, got SCTs\n", cfg.Prefix, count)
 
 	// Stage 6: keep getting the STH until tree size becomes 1 + N (allows for int-ca.cert).
 	treeSize := 1 + count
@@ -217,7 +217,6 @@ func testCTIntegrationForLog(cfg ctcfg.LogConfig) error {
 	for i, entry := range entries {
 		leaf := entry.Leaf
 		ts := leaf.TimestampedEntry
-		fmt.Printf("%s: Entry[%d] = {Index:%d Leaf:{Version:%v TS:{EntryType:%v Timestamp:%v}}}\n", cfg.Prefix, 1+i, entry.Index, leaf.Version, ts.EntryType, ctTime(ts.Timestamp))
 		if leaf.Version != 0 {
 			return fmt.Errorf("leaf[%d].Version=%v; want V1(0)", i, leaf.Version)
 		}
@@ -234,11 +233,11 @@ func testCTIntegrationForLog(cfg ctcfg.LogConfig) error {
 			return fmt.Errorf("leaf[%d].ts.X509Entry differs from originally uploaded cert", i)
 		}
 	}
+	fmt.Printf("%s: Got entries [1:%d+1]\n", cfg.Prefix, count)
 
 	// Stage 9: get an audit proof for each certificate we have an SCT for.
 	for i := 1; i <= count; i++ {
 		sct := scts[i]
-		fmt.Printf("%s: Inclusion proof leaf %d @ %d -> root %d = ", cfg.Prefix, i, sct.Timestamp, sthN.TreeSize)
 		// Calculate leaf hash =  SHA256(0x00 | tls-encode(MerkleTreeLeaf))
 		leaf := ct.MerkleTreeLeaf{
 			Version:  ct.V1,
@@ -252,24 +251,21 @@ func testCTIntegrationForLog(cfg ctcfg.LogConfig) error {
 		}
 		leafData, err := tls.Marshal(leaf)
 		if err != nil {
-			fmt.Printf("<fail: %v>\n", err)
 			return fmt.Errorf("tls.Marshal(leaf[%d])=(nil,%v); want (_,nil)", i, err)
 		}
 		hash := sha256.Sum256(append([]byte{merkletree.LeafPrefix}, leafData...))
 		rsp, err := logClient.GetProofByHash(ctx, hash[:], sthN.TreeSize)
 		if err != nil {
-			fmt.Printf("<fail: %v>\n", err)
 			return fmt.Errorf("got GetProofByHash(sct[%d],size=%d)=(nil,%v); want (_,nil)", i, sthN.TreeSize, err)
 		}
 		if rsp.LeafIndex != int64(i) {
-			fmt.Print("<fail: wrong index>\n", err)
 			return fmt.Errorf("got GetProofByHash(sct[%d],size=%d).LeafIndex=%d; want %d", i, sthN.TreeSize, rsp.LeafIndex, i)
 		}
-		fmt.Printf("%x\n", rsp.AuditPath)
 		if err := verifier.VerifyInclusionProof(int64(i), int64(sthN.TreeSize), rsp.AuditPath, sthN.SHA256RootHash[:], leafData); err != nil {
 			return fmt.Errorf("got VerifyInclusionProof(%d, %d,...)=%v", i, sthN.TreeSize, err)
 		}
 	}
+	fmt.Printf("%s: Got inclusion proofs [1:%d+1]\n", cfg.Prefix, count)
 
 	// Stage 10: attempt to upload a corrupt certificate.
 	corruptChain := make([]ct.ASN1Cert, len(chain[1]))
@@ -328,7 +324,6 @@ func testCTIntegrationForLog(cfg ctcfg.LogConfig) error {
 	}
 
 	// Stage 14: get an inclusion proof for the precert.
-	fmt.Printf("%s: Inclusion proof leaf @ %d -> root %d = ", cfg.Prefix, precertSCT.Timestamp, sthN1.TreeSize)
 	// Calculate leaf hash =  SHA256(0x00 | tls-encode(MerkleTreeLeaf))
 	issuer, err := x509.ParseCertificate(prechain[1].Data)
 	if err != nil {
@@ -359,7 +354,7 @@ func testCTIntegrationForLog(cfg ctcfg.LogConfig) error {
 	if want := int64(count + 1); rsp.LeafIndex != want {
 		return fmt.Errorf("got GetProofByHash(precertSCT, size=%d).LeafIndex=%d; want %d", sthN1.TreeSize, rsp.LeafIndex, want)
 	}
-	fmt.Printf("%x\n", rsp.AuditPath)
+	fmt.Printf("%s: Inclusion proof leaf %d @ %d -> root %d = %x\n", cfg.Prefix, precertIndex, precertSCT.Timestamp, sthN1.TreeSize, rsp.AuditPath)
 	if err := verifier.VerifyInclusionProof(precertIndex, int64(sthN1.TreeSize), rsp.AuditPath, sthN1.SHA256RootHash[:], leafData); err != nil {
 		return fmt.Errorf("got VerifyInclusionProof(%d,%d,...)=%v; want nil", precertIndex, sthN1.TreeSize, err)
 	}
