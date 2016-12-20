@@ -27,6 +27,23 @@ var (
 	logVars = expvar.NewMap("logs")
 )
 
+// LogStats matches the schema of the exported JSON stats for a particular log instance.
+type LogStats struct {
+	LogID            int                       `json:"log-id"`
+	LastSCTTimestamp int                       `json:"last-sct-timestamp"`
+	LastSTHTimestamp int                       `json:"last-sth-timestamp"`
+	LastSTHTreesize  int                       `json:"last-sth-treesize"`
+	HTTPAllReqs      int                       `json:"http-all-reqs"`
+	HTTPAllRsps      map[string]int            `json:"http-all-rsps"` // status => count
+	HTTPReq          map[string]int            `json:"http-reqs"`     // entrypoint => count
+	HTTPRsps         map[string]map[string]int `json:"http-rsps"`     // entrypoint => status => count
+}
+
+// AllStats matches the schema of the entire exported JSON stats.
+type AllStats struct {
+	Logs map[string]LogStats `json:"logs"`
+}
+
 // LogConfigFromFile creates a slice of LogConfig options from the given
 // filename, which should contain JSON encoded configuration data.
 func LogConfigFromFile(filename string) ([]LogConfig, error) {
