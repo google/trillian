@@ -16,7 +16,7 @@ Trillian: General Transparency
      - [Map Mode](#map-mode)
      - [Log Mode](#log-mode)
      - [Personalities](#personalities)
- - [Use Cases](#use=cases)
+ - [Use Cases](#use-cases)
      - [Certificate Transparency Log](#certificate-transparency-log)
      - [Verifiable Log-Derived Map](#verifiable-log-derived-map)
 
