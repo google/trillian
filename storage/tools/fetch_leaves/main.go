@@ -4,9 +4,8 @@ import (
 	"encoding/hex"
 	"flag"
 
-	_ "github.com/go-sql-driver/mysql"
 	log "github.com/golang/glog"
-	"github.com/google/trillian/storage/tools"
+	"github.com/google/trillian/extension/builtin"
 )
 
 var treeIDFlag = flag.Int64("treeid", 3, "The tree id to use")
@@ -29,7 +28,14 @@ func main() {
 	flag.Parse()
 	validateFetchFlagsOrDie()
 
-	storage := tools.GetStorageFromFlagsOrDie(*treeIDFlag)
+	registry, err := builtin.NewDefaultExtensionRegistry()
+	if err != nil {
+		panic(err)
+	}
+	storage, err := registry.GetLogStorage(*treeIDFlag)
+	if err != nil {
+		panic(err)
+	}
 
 	tx, err := storage.Begin()
 
