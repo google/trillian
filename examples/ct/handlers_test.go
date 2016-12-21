@@ -107,21 +107,21 @@ func (info handlerTestInfo) expectSign(toSign string) {
 	info.km.EXPECT().Signer().AnyTimes().Return(mockSigner, nil)
 }
 
-func (info handlerTestInfo) getHandlers() map[string]appHandler {
-	return map[string]appHandler{
-		"get-sth":             appHandler{context: info.c, handler: getSTH, name: "GetSTH", method: http.MethodGet},
-		"get-sth-consistency": appHandler{context: info.c, handler: getSTHConsistency, name: "GetSTHConsistency", method: http.MethodGet},
-		"get-proof-by-hash":   appHandler{context: info.c, handler: getProofByHash, name: "GetProofByHash", method: http.MethodGet},
-		"get-entries":         appHandler{context: info.c, handler: getEntries, name: "GetEntries", method: http.MethodGet},
-		"get-roots":           appHandler{context: info.c, handler: getRoots, name: "GetRoots", method: http.MethodGet},
-		"get-entry-and-proof": appHandler{context: info.c, handler: getEntryAndProof, name: "GetEntryAndProof", method: http.MethodGet},
+func (info handlerTestInfo) getHandlers() map[string]AppHandler {
+	return map[string]AppHandler{
+		"get-sth":             AppHandler{Context: info.c, Handler: getSTH, Name: "GetSTH", Method: http.MethodGet},
+		"get-sth-consistency": AppHandler{Context: info.c, Handler: getSTHConsistency, Name: "GetSTHConsistency", Method: http.MethodGet},
+		"get-proof-by-hash":   AppHandler{Context: info.c, Handler: getProofByHash, Name: "GetProofByHash", Method: http.MethodGet},
+		"get-entries":         AppHandler{Context: info.c, Handler: getEntries, Name: "GetEntries", Method: http.MethodGet},
+		"get-roots":           AppHandler{Context: info.c, Handler: getRoots, Name: "GetRoots", Method: http.MethodGet},
+		"get-entry-and-proof": AppHandler{Context: info.c, Handler: getEntryAndProof, Name: "GetEntryAndProof", Method: http.MethodGet},
 	}
 }
 
-func (info handlerTestInfo) postHandlers() map[string]appHandler {
-	return map[string]appHandler{
-		"add-chain":     appHandler{context: info.c, handler: addChain, name: "AddChain", method: http.MethodPost},
-		"add-pre-chain": appHandler{context: info.c, handler: addPreChain, name: "AddPreChain", method: http.MethodPost},
+func (info handlerTestInfo) postHandlers() map[string]AppHandler {
+	return map[string]AppHandler{
+		"add-chain":     AppHandler{Context: info.c, Handler: addChain, Name: "AddChain", Method: http.MethodPost},
+		"add-pre-chain": AppHandler{Context: info.c, Handler: addPreChain, Name: "AddPreChain", Method: http.MethodPost},
 	}
 }
 
@@ -201,7 +201,7 @@ func TestPostHandlersFailure(t *testing.T) {
 func TestGetRoots(t *testing.T) {
 	info := setupTest(t, []string{caAndIntermediateCertsPEM})
 	defer info.mockCtrl.Finish()
-	handler := appHandler{context: info.c, handler: getRoots, name: "GetRoots", method: http.MethodGet}
+	handler := AppHandler{Context: info.c, Handler: getRoots, Name: "GetRoots", Method: http.MethodGet}
 
 	req, err := http.NewRequest("GET", "http://example.com/ct/v1/get-roots", nil)
 	if err != nil {
@@ -448,7 +448,7 @@ func TestGetSTH(t *testing.T) {
 			signer.EXPECT().Sign(gomock.Any(), gomock.Any(), gomock.Any()).Return(test.signResult, test.signErr)
 			info.km.EXPECT().Signer().Return(signer, nil)
 		}
-		handler := appHandler{context: info.c, handler: getSTH, name: "GetSTH", method: http.MethodGet}
+		handler := AppHandler{Context: info.c, Handler: getSTH, Name: "GetSTH", Method: http.MethodGet}
 		w := httptest.NewRecorder()
 		handler.ServeHTTP(w, req)
 		if got := w.Code; got != test.want {
@@ -607,7 +607,7 @@ func TestGetEntries(t *testing.T) {
 	}
 	info := setupTest(t, nil)
 	defer info.mockCtrl.Finish()
-	handler := appHandler{context: info.c, handler: getEntries, name: "GetEntries", method: http.MethodGet}
+	handler := AppHandler{Context: info.c, Handler: getEntries, Name: "GetEntries", Method: http.MethodGet}
 
 	for _, test := range tests {
 		path := fmt.Sprintf("/ct/v1/get-entries?%s", test.req)
@@ -679,7 +679,7 @@ func TestGetEntriesRanges(t *testing.T) {
 
 	info := setupTest(t, nil)
 	defer info.mockCtrl.Finish()
-	handler := appHandler{context: info.c, handler: getEntries, name: "GetEntries", method: http.MethodGet}
+	handler := AppHandler{Context: info.c, Handler: getEntries, Name: "GetEntries", Method: http.MethodGet}
 
 	// This tests that only valid ranges make it to the backend for get-entries.
 	// We're testing request handling up to the point where we make the RPC so arrange for
@@ -849,7 +849,7 @@ func TestGetProofByHash(t *testing.T) {
 	}
 	info := setupTest(t, nil)
 	defer info.mockCtrl.Finish()
-	handler := appHandler{context: info.c, handler: getProofByHash, name: "GetProofByHash", method: http.MethodGet}
+	handler := AppHandler{Context: info.c, Handler: getProofByHash, Name: "GetProofByHash", Method: http.MethodGet}
 
 	for _, test := range tests {
 		req, err := http.NewRequest("GET", fmt.Sprintf("/ct/v1/proof-by-hash?%s", test.req), nil)
@@ -982,7 +982,7 @@ func TestGetSTHConsistency(t *testing.T) {
 
 	info := setupTest(t, nil)
 	defer info.mockCtrl.Finish()
-	handler := appHandler{context: info.c, handler: getSTHConsistency, name: "GetSTHConsistency", method: http.MethodGet}
+	handler := AppHandler{Context: info.c, Handler: getSTHConsistency, Name: "GetSTHConsistency", Method: http.MethodGet}
 
 	for _, test := range tests {
 		req, err := http.NewRequest("GET", fmt.Sprintf("/ct/v1/get-sth-consistency?%s", test.req), nil)
@@ -1118,7 +1118,7 @@ func TestGetEntryAndProof(t *testing.T) {
 
 	info := setupTest(t, nil)
 	defer info.mockCtrl.Finish()
-	handler := appHandler{context: info.c, handler: getEntryAndProof, name: "GetEntryAndProof", method: http.MethodGet}
+	handler := AppHandler{Context: info.c, Handler: getEntryAndProof, Name: "GetEntryAndProof", Method: http.MethodGet}
 
 	for _, test := range tests {
 		req, err := http.NewRequest("GET", fmt.Sprintf("/ct/v1/get-entry-and-proof?%s", test.req), nil)
@@ -1225,16 +1225,16 @@ func (d dlMatcher) String() string {
 }
 
 func makeAddPrechainRequest(t *testing.T, c LogContext, body io.Reader) *httptest.ResponseRecorder {
-	handler := appHandler{context: c, handler: addPreChain, name: "AddPreChain", method: http.MethodPost}
+	handler := AppHandler{Context: c, Handler: addPreChain, Name: "AddPreChain", Method: http.MethodPost}
 	return makeAddChainRequestInternal(t, handler, "add-pre-chain", body)
 }
 
 func makeAddChainRequest(t *testing.T, c LogContext, body io.Reader) *httptest.ResponseRecorder {
-	handler := appHandler{context: c, handler: addChain, name: "AddChain", method: http.MethodPost}
+	handler := AppHandler{Context: c, Handler: addChain, Name: "AddChain", Method: http.MethodPost}
 	return makeAddChainRequestInternal(t, handler, "add-chain", body)
 }
 
-func makeAddChainRequestInternal(t *testing.T, handler appHandler, path string, body io.Reader) *httptest.ResponseRecorder {
+func makeAddChainRequestInternal(t *testing.T, handler AppHandler, path string, body io.Reader) *httptest.ResponseRecorder {
 	req, err := http.NewRequest("POST", fmt.Sprintf("http://example.com/ct/v1/%s", path), body)
 	if err != nil {
 		t.Fatalf("Failed to create POST request: %v", err)
