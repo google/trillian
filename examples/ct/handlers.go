@@ -52,23 +52,23 @@ const (
 	getEntryAndProofParamTreeSize = "tree_size"
 )
 
-// appHandler holds a LogContext and a handler function that uses it, and is
+// AppHandler holds a LogContext and a handler function that uses it, and is
 // an implementation of the http.Handler interface.
-type appHandler struct {
-	context LogContext
-	handler func(context.Context, LogContext, http.ResponseWriter, *http.Request) (int, error)
-	name    string
-	method  string
+type AppHandler struct {
+	Context LogContext
+	Handler func(context.Context, LogContext, http.ResponseWriter, *http.Request) (int, error)
+	Name    string
+	Method  string // http.MethodGet or http.MethodPost
 }
 
-// ServeHTTP for an appHandler invokes the underlying handler function but
+// ServeHTTP for an AppHandler invokes the underlying handler function but
 // does additional common error processing.
-func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	a.context.exp.vars.Add("http-all-reqs", 1)
-	a.context.exp.reqs.Add(a.name, 1)
-	glog.V(2).Infof("%s: request %v %q => %s", a.context.logPrefix, r.Method, r.URL, a.name)
-	if r.Method != a.method {
-		glog.Warningf("%s: %s wrong HTTP method: %v", a.context.logPrefix, a.name, r.Method)
+func (a AppHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	a.Context.exp.vars.Add("http-all-reqs", 1)
+	a.Context.exp.reqs.Add(a.Name, 1)
+	glog.V(2).Infof("%s: request %v %q => %s", a.Context.logPrefix, r.Method, r.URL, a.Name)
+	if r.Method != a.Method {
+		glog.Warningf("%s: %s wrong HTTP method: %v", a.Context.logPrefix, a.Name, r.Method)
 		sendHTTPError(w, http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method))
 		return
 	}
@@ -84,25 +84,25 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Many/most of the handlers forward the request on to the Log RPC server; impose a deadline
 	// on this onward request.
-	ctx, cancel := context.WithDeadline(r.Context(), getRPCDeadlineTime(a.context))
+	ctx, cancel := context.WithDeadline(r.Context(), getRPCDeadlineTime(a.Context))
 	defer cancel()
 
-	status, err := a.handler(ctx, a.context, w, r)
-	glog.V(2).Infof("%s: %s <= status=%d", a.context.logPrefix, a.name, status)
-	a.context.exp.allRsps.Add(strconv.Itoa(status), 1)
-	e := a.context.exp.rsps.Get(a.name)
+	status, err := a.Handler(ctx, a.Context, w, r)
+	glog.V(2).Infof("%s: %s <= status=%d", a.Context.logPrefix, a.Name, status)
+	a.Context.exp.allRsps.Add(strconv.Itoa(status), 1)
+	e := a.Context.exp.rsps.Get(a.Name)
 	if e, ok := e.(*expvar.Map); ok {
 		e.Add(strconv.Itoa(status), 1)
 	}
 	if err != nil {
-		glog.Warningf("%s: %s handler error: %v", a.context.logPrefix, a.name, err)
+		glog.Warningf("%s: %s handler error: %v", a.Context.logPrefix, a.Name, err)
 		sendHTTPError(w, status, err)
 		return
 	}
 
 	// Additional check, for consistency the handler must return an error for non-200 status
 	if status != http.StatusOK {
-		glog.Warningf("%s: %s handler non 200 without error: %d %v", a.context.logPrefix, a.name, status, err)
+		glog.Warningf("%s: %s handler non 200 without error: %d %v", a.Context.logPrefix, a.Name, status, err)
 		sendHTTPError(w, http.StatusInternalServerError, fmt.Errorf("http handler misbehaved, status: %d", status))
 		return
 	}
@@ -566,23 +566,35 @@ func getEntryAndProof(ctx context.Context, c LogContext, w http.ResponseWriter, 
 	return http.StatusOK, nil
 }
 
-// RegisterHandlers registers a HandleFunc for all of the RFC6962 defined methods.
-// TODO(Martin2112): This registers on default ServeMux, might need more flexibility?
-func (c LogContext) RegisterHandlers(prefix string) {
+// Handlers returns a map from URL paths (with the given prefix) and AppHandler instances
+// to handle those entrypoints.
+func (c LogContext) Handlers(prefix string) map[string]AppHandler {
 	if !strings.HasPrefix(prefix, "/") {
 		prefix = "/" + prefix
 	}
 	prefix = strings.TrimRight(prefix, "/")
 
 	// Bind the LogContext instance to give an appHandler instance for each entrypoint.
-	http.Handle(prefix+ct.AddChainPath, appHandler{context: c, handler: addChain, name: "AddChain", method: http.MethodPost})
-	http.Handle(prefix+ct.AddPreChainPath, appHandler{context: c, handler: addPreChain, name: "AddPreChain", method: http.MethodPost})
-	http.Handle(prefix+ct.GetSTHPath, appHandler{context: c, handler: getSTH, name: "GetSTH", method: http.MethodGet})
-	http.Handle(prefix+ct.GetSTHConsistencyPath, appHandler{context: c, handler: getSTHConsistency, name: "GetSTHConsistency", method: http.MethodGet})
-	http.Handle(prefix+ct.GetProofByHashPath, appHandler{context: c, handler: getProofByHash, name: "GetProofByHash", method: http.MethodGet})
-	http.Handle(prefix+ct.GetEntriesPath, appHandler{context: c, handler: getEntries, name: "GetEntries", method: http.MethodGet})
-	http.Handle(prefix+ct.GetRootsPath, appHandler{context: c, handler: getRoots, name: "GetRoots", method: http.MethodGet})
-	http.Handle(prefix+ct.GetEntryAndProofPath, appHandler{context: c, handler: getEntryAndProof, name: "GetEntryAndProof", method: http.MethodGet})
+	handlers := map[string]AppHandler{
+		prefix + ct.AddChainPath:          AppHandler{Context: c, Handler: addChain, Name: "AddChain", Method: http.MethodPost},
+		prefix + ct.AddPreChainPath:       AppHandler{Context: c, Handler: addPreChain, Name: "AddPreChain", Method: http.MethodPost},
+		prefix + ct.GetSTHPath:            AppHandler{Context: c, Handler: getSTH, Name: "GetSTH", Method: http.MethodGet},
+		prefix + ct.GetSTHConsistencyPath: AppHandler{Context: c, Handler: getSTHConsistency, Name: "GetSTHConsistency", Method: http.MethodGet},
+		prefix + ct.GetProofByHashPath:    AppHandler{Context: c, Handler: getProofByHash, Name: "GetProofByHash", Method: http.MethodGet},
+		prefix + ct.GetEntriesPath:        AppHandler{Context: c, Handler: getEntries, Name: "GetEntries", Method: http.MethodGet},
+		prefix + ct.GetRootsPath:          AppHandler{Context: c, Handler: getRoots, Name: "GetRoots", Method: http.MethodGet},
+		prefix + ct.GetEntryAndProofPath:  AppHandler{Context: c, Handler: getEntryAndProof, Name: "GetEntryAndProof", Method: http.MethodGet},
+	}
+	return handlers
+}
+
+// RegisterHandlers registers a HandleFunc for all of the RFC6962 defined methods.
+// TODO(Martin2112): This registers on default ServeMux, might need more flexibility?
+func (c LogContext) RegisterHandlers(prefix string) {
+	handlers := c.Handlers(prefix)
+	for path, handler := range handlers {
+		http.Handle(path, handler)
+	}
 }
 
 // Generates a custom error page to give more information on why something didn't work
