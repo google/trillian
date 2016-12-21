@@ -32,14 +32,14 @@ func MerkleTreeLeafTestRootHashes() [][]byte {
 // MerkleTreeLeafTestInputs(), as described above.
 func CompactMerkleTreeLeafTestNodeHashes() [][][]byte {
 	return [][][]byte{
-		[][]byte{MustDecodeBase64("bjQLnP+zepicpUTmu3gKLHiQHT+zNzh2hRGjBhevoB0=")},
-		[][]byte{nil, MustDecodeBase64("+sVCA+fMaWzw38tCySodnbr3CtnmIfS9jZhmLwDjwSU=")},
+		nil, // perfect tree size, 2^0
+		nil, // perfect tree size, 2^1
 		[][]byte{MustDecodeBase64("ApjRIpBtz8EIkstTpzmS/FufST6kybrbJ7eRtBJ6f+c="), MustDecodeBase64("+sVCA+fMaWzw38tCySodnbr3CtnmIfS9jZhmLwDjwSU=")},
-		[][]byte{nil, nil, MustDecodeBase64("037kGJdt2VdTwcc4Yrk5j6Kiz5tP8P3+izDNlSCWFLc=")},
+		nil, // perfect tree size, 2^2
 		[][]byte{MustDecodeBase64("vBoGQ7EuTS18d5GPROD095qDi2z57FtcKD4fTYhZnms="), nil, MustDecodeBase64("037kGJdt2VdTwcc4Yrk5j6Kiz5tP8P3+izDNlSCWFLc=")},
 		[][]byte{nil, MustDecodeBase64("DrxdNDf74tsVi58Sah0RjjCBgQMdCpSfje3t68VY72o="), MustDecodeBase64("037kGJdt2VdTwcc4Yrk5j6Kiz5tP8P3+izDNlSCWFLc=")},
 		[][]byte{MustDecodeBase64("sIaT7C5yFZcTBkHoIR5+7cy0wmQTlj7ubB4u0W/7Gl8="), MustDecodeBase64("DrxdNDf74tsVi58Sah0RjjCBgQMdCpSfje3t68VY72o="), MustDecodeBase64("037kGJdt2VdTwcc4Yrk5j6Kiz5tP8P3+izDNlSCWFLc=")},
-		[][]byte{nil, nil, nil, MustDecodeBase64("XcnaeacGWamtVZy3Ad7ZoqudgjqtL0lgz+Nw7/RgQyg=")},
+		nil, // perfect tree size, 2^3
 	}
 }
 

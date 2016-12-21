@@ -229,6 +229,9 @@ func (c CompactMerkleTree) Size() int64 {
 
 // Hashes returns a copy of the set of node hashes that comprise the compact representation of the tree.
 func (c CompactMerkleTree) Hashes() [][]byte {
+	if isPerfectTree(c.size) {
+		return nil
+	}
 	n := make([][]byte, len(c.nodes))
 	copy(n, c.nodes)
 	return n
