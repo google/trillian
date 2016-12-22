@@ -12,7 +12,7 @@ import (
 
 var (
 	treeIDFlag     = flag.Int64("treeid", 3, "The tree id to use")
-	serverPortFlag = flag.Int("port", 8090, "Port to serve log requests on")
+	serverPortFlag = flag.Int("port", 8090, "Log server port (must be on localhost)")
 	startLeafFlag  = flag.Int64("start_leaf", 0, "The first leaf index to fetch")
 	numLeavesFlag  = flag.Int64("num_leaves", 1, "The number of leaves to fetch")
 )
