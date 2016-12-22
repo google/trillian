@@ -52,8 +52,20 @@ const (
 	getEntryAndProofParamTreeSize = "tree_size"
 )
 
-// Entrypoints is a list of entrypoint names as exposed in statistics.
-var Entrypoints = []string{"AddChain", "AddPreChain", "GetSTH", "GetSTHConsistency", "GetProofByHash", "GetEntries", "GetRoots", "GetEntryAndProof"}
+// Constants for entrypoint names, as exposed in statistics/logging.
+const (
+	addChainName          = "AddChain"
+	addPreChainName       = "AddPreChain"
+	getSTHName            = "GetSTH"
+	getSTHConsistencyName = "GetSTHConsistency"
+	getProofByHashName    = "GetProofByHash"
+	getEntriesName        = "GetEntries"
+	getRootsName          = "GetRoots"
+	getEntryAndProofName  = "GetEntryAndProof"
+)
+
+// Entrypoints is a list of entrypoint names as exposed in statistics/logging.
+var Entrypoints = []string{addChainName, addPreChainName, getSTHName, getSTHConsistencyName, getProofByHashName, getEntriesName, getRootsName, getEntryAndProofName}
 
 // PathHandlers maps from a path to the relevant AppHandler instance.
 type PathHandlers map[string]AppHandler
@@ -195,17 +207,16 @@ func (c LogContext) Handlers(prefix string) PathHandlers {
 	prefix = strings.TrimRight(prefix, "/")
 
 	// Bind the LogContext instance to give an appHandler instance for each entrypoint.
-	handlers := map[string]AppHandler{
-		prefix + ct.AddChainPath:          AppHandler{Context: c, Handler: addChain, Name: "AddChain", Method: http.MethodPost},
-		prefix + ct.AddPreChainPath:       AppHandler{Context: c, Handler: addPreChain, Name: "AddPreChain", Method: http.MethodPost},
-		prefix + ct.GetSTHPath:            AppHandler{Context: c, Handler: getSTH, Name: "GetSTH", Method: http.MethodGet},
-		prefix + ct.GetSTHConsistencyPath: AppHandler{Context: c, Handler: getSTHConsistency, Name: "GetSTHConsistency", Method: http.MethodGet},
-		prefix + ct.GetProofByHashPath:    AppHandler{Context: c, Handler: getProofByHash, Name: "GetProofByHash", Method: http.MethodGet},
-		prefix + ct.GetEntriesPath:        AppHandler{Context: c, Handler: getEntries, Name: "GetEntries", Method: http.MethodGet},
-		prefix + ct.GetRootsPath:          AppHandler{Context: c, Handler: getRoots, Name: "GetRoots", Method: http.MethodGet},
-		prefix + ct.GetEntryAndProofPath:  AppHandler{Context: c, Handler: getEntryAndProof, Name: "GetEntryAndProof", Method: http.MethodGet},
+	return PathHandlers{
+		prefix + ct.AddChainPath:          AppHandler{Context: c, Handler: addChain, Name: addChainName, Method: http.MethodPost},
+		prefix + ct.AddPreChainPath:       AppHandler{Context: c, Handler: addPreChain, Name: addPreChainName, Method: http.MethodPost},
+		prefix + ct.GetSTHPath:            AppHandler{Context: c, Handler: getSTH, Name: getSTHName, Method: http.MethodGet},
+		prefix + ct.GetSTHConsistencyPath: AppHandler{Context: c, Handler: getSTHConsistency, Name: getSTHConsistencyName, Method: http.MethodGet},
+		prefix + ct.GetProofByHashPath:    AppHandler{Context: c, Handler: getProofByHash, Name: getProofByHashName, Method: http.MethodGet},
+		prefix + ct.GetEntriesPath:        AppHandler{Context: c, Handler: getEntries, Name: getEntriesName, Method: http.MethodGet},
+		prefix + ct.GetRootsPath:          AppHandler{Context: c, Handler: getRoots, Name: getRootsName, Method: http.MethodGet},
+		prefix + ct.GetEntryAndProofPath:  AppHandler{Context: c, Handler: getEntryAndProof, Name: getEntryAndProofName, Method: http.MethodGet},
 	}
-	return handlers
 }
 
 func parseBodyAsJSONChain(c LogContext, r *http.Request) (ct.AddChainRequest, error) {
@@ -238,10 +249,10 @@ func addChainInternal(ctx context.Context, c LogContext, w http.ResponseWriter, 
 	var signerFn func(crypto.KeyManager, *x509.Certificate, *x509.Certificate, time.Time) (ct.MerkleTreeLeaf, ct.SignedCertificateTimestamp, error)
 	var method string
 	if isPrecert {
-		method = "AddPreChain"
+		method = addPreChainName
 		signerFn = signV1SCTForPrecertificate
 	} else {
-		method = "AddChain"
+		method = addChainName
 		signerFn = signV1SCTForCertificate
 	}
 
