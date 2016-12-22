@@ -198,6 +198,39 @@ func TestPostHandlersFailure(t *testing.T) {
 	}
 }
 
+func TestHandlers(t *testing.T) {
+	path := "/test-prefix/ct/v1/add-chain"
+	var tests = []string{
+		"/test-prefix/",
+		"test-prefix/",
+		"/test-prefix",
+		"test-prefix",
+	}
+	info := setupTest(t, nil)
+	defer info.mockCtrl.Finish()
+	for _, test := range tests {
+		handlers := info.c.Handlers(test)
+		if h, ok := handlers[path]; !ok {
+			t.Errorf("Handlers(%s)[%q]=%+v; want _", test, path, h)
+		} else if h.Name != "AddChain" {
+			t.Errorf("Handlers(%s)[%q].Name=%q; want 'AddChain'", test, path, h.Name)
+		}
+		// Check each entrypoint has a handler
+		if got, want := len(handlers), len(Entrypoints); got != want {
+			t.Errorf("len(Handlers(%s))=%d; want %d", test, got, want)
+		}
+	outer:
+		for _, ep := range Entrypoints {
+			for _, v := range handlers {
+				if v.Name == ep {
+					continue outer
+				}
+			}
+			t.Errorf("Handlers(%s) missing entry with .Name=%q", test, ep)
+		}
+	}
+}
+
 func TestGetRoots(t *testing.T) {
 	info := setupTest(t, []string{caAndIntermediateCertsPEM})
 	defer info.mockCtrl.Finish()

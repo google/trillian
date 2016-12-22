@@ -52,6 +52,24 @@ const (
 	getEntryAndProofParamTreeSize = "tree_size"
 )
 
+// Constants for entrypoint names, as exposed in statistics/logging.
+const (
+	addChainName          = "AddChain"
+	addPreChainName       = "AddPreChain"
+	getSTHName            = "GetSTH"
+	getSTHConsistencyName = "GetSTHConsistency"
+	getProofByHashName    = "GetProofByHash"
+	getEntriesName        = "GetEntries"
+	getRootsName          = "GetRoots"
+	getEntryAndProofName  = "GetEntryAndProof"
+)
+
+// Entrypoints is a list of entrypoint names as exposed in statistics/logging.
+var Entrypoints = []string{addChainName, addPreChainName, getSTHName, getSTHConsistencyName, getProofByHashName, getEntriesName, getRootsName, getEntryAndProofName}
+
+// PathHandlers maps from a path to the relevant AppHandler instance.
+type PathHandlers map[string]AppHandler
+
 // AppHandler holds a LogContext and a handler function that uses it, and is
 // an implementation of the http.Handler interface.
 type AppHandler struct {
@@ -62,13 +80,13 @@ type AppHandler struct {
 }
 
 // ServeHTTP for an AppHandler invokes the underlying handler function but
-// does additional common error processing.
+// does additional common error and stats processing.
 func (a AppHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	a.Context.exp.vars.Add("http-all-reqs", 1)
 	a.Context.exp.reqs.Add(a.Name, 1)
-	glog.V(2).Infof("%s: request %v %q => %s", a.Context.logPrefix, r.Method, r.URL, a.Name)
+	glog.V(2).Infof("%s: request %v %q => %s", a.Context.LogPrefix, r.Method, r.URL, a.Name)
 	if r.Method != a.Method {
-		glog.Warningf("%s: %s wrong HTTP method: %v", a.Context.logPrefix, a.Name, r.Method)
+		glog.Warningf("%s: %s wrong HTTP method: %v", a.Context.LogPrefix, a.Name, r.Method)
 		sendHTTPError(w, http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method))
 		return
 	}
@@ -88,21 +106,21 @@ func (a AppHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	status, err := a.Handler(ctx, a.Context, w, r)
-	glog.V(2).Infof("%s: %s <= status=%d", a.Context.logPrefix, a.Name, status)
+	glog.V(2).Infof("%s: %s <= status=%d", a.Context.LogPrefix, a.Name, status)
 	a.Context.exp.allRsps.Add(strconv.Itoa(status), 1)
 	e := a.Context.exp.rsps.Get(a.Name)
 	if e, ok := e.(*expvar.Map); ok {
 		e.Add(strconv.Itoa(status), 1)
 	}
 	if err != nil {
-		glog.Warningf("%s: %s handler error: %v", a.Context.logPrefix, a.Name, err)
+		glog.Warningf("%s: %s handler error: %v", a.Context.LogPrefix, a.Name, err)
 		sendHTTPError(w, status, err)
 		return
 	}
 
 	// Additional check, for consistency the handler must return an error for non-200 status
 	if status != http.StatusOK {
-		glog.Warningf("%s: %s handler non 200 without error: %d %v", a.Context.logPrefix, a.Name, status, err)
+		glog.Warningf("%s: %s handler non 200 without error: %d %v", a.Context.LogPrefix, a.Name, status, err)
 		sendHTTPError(w, http.StatusInternalServerError, fmt.Errorf("http handler misbehaved, status: %d", status))
 		return
 	}
@@ -110,12 +128,15 @@ func (a AppHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // LogContext holds information for a specific log instance.
 type LogContext struct {
+	// LogPrefix is a pre-formatted string identifying the log for diagnostics
+	LogPrefix string
+	// TimeSource is a util.TimeSource that can be injected for testing
+	TimeSource util.TimeSource
+
 	// logID is the tree ID that identifies this log in node storage
 	logID int64
 	// urlPrefix is the prefix for URLs for this log
 	urlPrefix string
-	// logPrefix is a pre-formatted string identifying the log for diagnostics
-	logPrefix string
 	// trustedRoots is a pool of certificates that defines the roots the CT log will accept
 	trustedRoots *PEMCertPool
 	// rpcClient is the client used to communicate with the trillian backend
@@ -124,8 +145,6 @@ type LogContext struct {
 	logKeyManager crypto.KeyManager
 	// rpcDeadline is the deadline that will be set on all backend RPC requests
 	rpcDeadline time.Duration
-	// timeSource is a util.TimeSource that can be injected for testing
-	timeSource util.TimeSource
 	// Various per-log statistics
 	exp struct {
 		vars             *expvar.Map // varname => expvar.Var, includes all below
@@ -139,20 +158,17 @@ type LogContext struct {
 	}
 }
 
-// Entrypoints is a list of entrypoint names as exposed in statistics.
-var Entrypoints = []string{"AddChain", "AddPreChain", "GetSTH", "GetSTHConsistency", "GetProofByHash", "GetEntries", "GetRoots", "GetEntryAndProof"}
-
 // NewLogContext creates a new instance of LogContext.
 func NewLogContext(logID int64, prefix string, trustedRoots *PEMCertPool, rpcClient trillian.TrillianLogClient, km crypto.KeyManager, rpcDeadline time.Duration, timeSource util.TimeSource) *LogContext {
 	ctx := &LogContext{
 		logID:         logID,
 		urlPrefix:     prefix,
-		logPrefix:     fmt.Sprintf("%s{%d}", prefix, logID),
+		LogPrefix:     fmt.Sprintf("%s{%d}", prefix, logID),
 		trustedRoots:  trustedRoots,
 		rpcClient:     rpcClient,
 		logKeyManager: km,
 		rpcDeadline:   rpcDeadline,
-		timeSource:    timeSource,
+		TimeSource:    timeSource,
 	}
 
 	// Initialize all the exported variables.
@@ -182,22 +198,43 @@ func NewLogContext(logID int64, prefix string, trustedRoots *PEMCertPool, rpcCli
 	return ctx
 }
 
+// Handlers returns a map from URL paths (with the given prefix) and AppHandler instances
+// to handle those entrypoints.
+func (c LogContext) Handlers(prefix string) PathHandlers {
+	if !strings.HasPrefix(prefix, "/") {
+		prefix = "/" + prefix
+	}
+	prefix = strings.TrimRight(prefix, "/")
+
+	// Bind the LogContext instance to give an appHandler instance for each entrypoint.
+	return PathHandlers{
+		prefix + ct.AddChainPath:          AppHandler{Context: c, Handler: addChain, Name: addChainName, Method: http.MethodPost},
+		prefix + ct.AddPreChainPath:       AppHandler{Context: c, Handler: addPreChain, Name: addPreChainName, Method: http.MethodPost},
+		prefix + ct.GetSTHPath:            AppHandler{Context: c, Handler: getSTH, Name: getSTHName, Method: http.MethodGet},
+		prefix + ct.GetSTHConsistencyPath: AppHandler{Context: c, Handler: getSTHConsistency, Name: getSTHConsistencyName, Method: http.MethodGet},
+		prefix + ct.GetProofByHashPath:    AppHandler{Context: c, Handler: getProofByHash, Name: getProofByHashName, Method: http.MethodGet},
+		prefix + ct.GetEntriesPath:        AppHandler{Context: c, Handler: getEntries, Name: getEntriesName, Method: http.MethodGet},
+		prefix + ct.GetRootsPath:          AppHandler{Context: c, Handler: getRoots, Name: getRootsName, Method: http.MethodGet},
+		prefix + ct.GetEntryAndProofPath:  AppHandler{Context: c, Handler: getEntryAndProof, Name: getEntryAndProofName, Method: http.MethodGet},
+	}
+}
+
 func parseBodyAsJSONChain(c LogContext, r *http.Request) (ct.AddChainRequest, error) {
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		glog.V(1).Infof("%s: Failed to read request body: %v", c.logPrefix, err)
+		glog.V(1).Infof("%s: Failed to read request body: %v", c.LogPrefix, err)
 		return ct.AddChainRequest{}, err
 	}
 
 	var req ct.AddChainRequest
 	if err := json.Unmarshal(body, &req); err != nil {
-		glog.V(1).Infof("%s: Failed to parse request body: %v", c.logPrefix, err)
+		glog.V(1).Infof("%s: Failed to parse request body: %v", c.LogPrefix, err)
 		return ct.AddChainRequest{}, err
 	}
 
 	// The cert chain is not allowed to be empty. We'll defer other validation for later
 	if len(req.Chain) == 0 {
-		glog.V(1).Infof("%s: Request chain is empty: %s", c.logPrefix, body)
+		glog.V(1).Infof("%s: Request chain is empty: %s", c.LogPrefix, body)
 		return ct.AddChainRequest{}, errors.New("cert chain was empty")
 	}
 
@@ -212,10 +249,10 @@ func addChainInternal(ctx context.Context, c LogContext, w http.ResponseWriter, 
 	var signerFn func(crypto.KeyManager, *x509.Certificate, *x509.Certificate, time.Time) (ct.MerkleTreeLeaf, ct.SignedCertificateTimestamp, error)
 	var method string
 	if isPrecert {
-		method = "AddPreChain"
+		method = addPreChainName
 		signerFn = signV1SCTForPrecertificate
 	} else {
-		method = "AddChain"
+		method = addChainName
 		signerFn = signV1SCTForCertificate
 	}
 
@@ -235,7 +272,7 @@ func addChainInternal(ctx context.Context, c LogContext, w http.ResponseWriter, 
 	if len(chain) > 1 {
 		issuer = chain[1]
 	}
-	merkleLeaf, sct, err := signerFn(c.logKeyManager, chain[0], issuer, c.timeSource.Now())
+	merkleLeaf, sct, err := signerFn(c.logKeyManager, chain[0], issuer, c.TimeSource.Now())
 	if err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("failed to build SCT and Merkle leaf: %v %v", sct, err)
 	}
@@ -247,9 +284,9 @@ func addChainInternal(ctx context.Context, c LogContext, w http.ResponseWriter, 
 	}
 	req := trillian.QueueLeavesRequest{LogId: c.logID, Leaves: []*trillian.LogLeaf{&leaf}}
 
-	glog.V(2).Infof("%s: %s => grpc.QueueLeaves", c.logPrefix, method)
+	glog.V(2).Infof("%s: %s => grpc.QueueLeaves", c.LogPrefix, method)
 	rsp, err := c.rpcClient.QueueLeaves(ctx, &req)
-	glog.V(2).Infof("%s: %s <= grpc.QueueLeaves status=%v", c.logPrefix, method, rsp.GetStatus())
+	glog.V(2).Infof("%s: %s <= grpc.QueueLeaves status=%v", c.LogPrefix, method, rsp.GetStatus())
 	if err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("backend QueueLeaves request failed: %v", err)
 	}
@@ -265,7 +302,7 @@ func addChainInternal(ctx context.Context, c LogContext, w http.ResponseWriter, 
 		// TODO(Martin2112): Record failure for monitoring when it's implemented
 		return http.StatusInternalServerError, fmt.Errorf("failed to write response: %v", err)
 	}
-	glog.V(3).Infof("%s: %s <= SCT", c.logPrefix, method)
+	glog.V(3).Infof("%s: %s <= SCT", c.LogPrefix, method)
 	c.exp.lastSCTTimestamp.Set(int64(sct.Timestamp))
 
 	return http.StatusOK, nil
@@ -282,9 +319,9 @@ func addPreChain(ctx context.Context, c LogContext, w http.ResponseWriter, r *ht
 func getSTH(ctx context.Context, c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
 	// Forward on to the Log server.
 	req := trillian.GetLatestSignedLogRootRequest{LogId: c.logID}
-	glog.V(2).Infof("%s: GetSTH => grpc.GetLatestSignedLogRoot %+v", c.logPrefix, req)
+	glog.V(2).Infof("%s: GetSTH => grpc.GetLatestSignedLogRoot %+v", c.LogPrefix, req)
 	rsp, err := c.rpcClient.GetLatestSignedLogRoot(ctx, &req)
-	glog.V(2).Infof("%s: GetSTH <= grpc.GetLatestSignedLogRoot status=%v", c.logPrefix, rsp.GetStatus())
+	glog.V(2).Infof("%s: GetSTH <= grpc.GetLatestSignedLogRoot status=%v", c.LogPrefix, rsp.GetStatus())
 	if err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("backend GetLatestSignedLogRoot request failed: %v", err)
 	}
@@ -297,7 +334,7 @@ func getSTH(ctx context.Context, c LogContext, w http.ResponseWriter, r *http.Re
 	if slr == nil {
 		return http.StatusInternalServerError, fmt.Errorf("no log root returned")
 	}
-	glog.V(3).Infof("%s: GetSTH <= slr=%+v", c.logPrefix, slr)
+	glog.V(3).Infof("%s: GetSTH <= slr=%+v", c.LogPrefix, slr)
 	if treeSize := slr.TreeSize; treeSize < 0 {
 		return http.StatusInternalServerError, fmt.Errorf("bad tree size from backend: %d", treeSize)
 	}
@@ -353,9 +390,9 @@ func getSTHConsistency(ctx context.Context, c LogContext, w http.ResponseWriter,
 	}
 	req := trillian.GetConsistencyProofRequest{LogId: c.logID, FirstTreeSize: first, SecondTreeSize: second}
 
-	glog.V(2).Infof("%s: GetSTHConsistency(%d, %d) => grpc.GetConsistencyProof %+v", c.logPrefix, first, second, req)
+	glog.V(2).Infof("%s: GetSTHConsistency(%d, %d) => grpc.GetConsistencyProof %+v", c.LogPrefix, first, second, req)
 	rsp, err := c.rpcClient.GetConsistencyProof(ctx, &req)
-	glog.V(2).Infof("%s: GetSTHConsistency <= grpc.GetConsistencyProof status=%v", c.logPrefix, rsp.GetStatus())
+	glog.V(2).Infof("%s: GetSTHConsistency <= grpc.GetConsistencyProof status=%v", c.LogPrefix, rsp.GetStatus())
 	if err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("backend GetConsistencyProof request failed: %v", err)
 	}
@@ -434,7 +471,7 @@ func getProofByHash(ctx context.Context, c LogContext, w http.ResponseWriter, r 
 	w.Header().Set(contentTypeHeader, contentTypeJSON)
 	jsonData, err := json.Marshal(&proofRsp)
 	if err != nil {
-		glog.Warningf("%s: Failed to marshal get-proof-by-hash resp: %v", c.logPrefix, proofRsp)
+		glog.Warningf("%s: Failed to marshal get-proof-by-hash resp: %v", c.LogPrefix, proofRsp)
 		return http.StatusInternalServerError, fmt.Errorf("failed to marshal get-proof-by-hash resp: %v, error: %v", proofRsp, err)
 	}
 
@@ -513,7 +550,7 @@ func getRoots(ctx context.Context, c LogContext, w http.ResponseWriter, r *http.
 	enc := json.NewEncoder(w)
 	err := enc.Encode(jsonMap)
 	if err != nil {
-		glog.Warningf("%s: get_roots failed: %v", c.logPrefix, err)
+		glog.Warningf("%s: get_roots failed: %v", c.LogPrefix, err)
 		return http.StatusInternalServerError, fmt.Errorf("get-roots failed with: %v", err)
 	}
 
@@ -566,37 +603,6 @@ func getEntryAndProof(ctx context.Context, c LogContext, w http.ResponseWriter, 
 	return http.StatusOK, nil
 }
 
-// Handlers returns a map from URL paths (with the given prefix) and AppHandler instances
-// to handle those entrypoints.
-func (c LogContext) Handlers(prefix string) map[string]AppHandler {
-	if !strings.HasPrefix(prefix, "/") {
-		prefix = "/" + prefix
-	}
-	prefix = strings.TrimRight(prefix, "/")
-
-	// Bind the LogContext instance to give an appHandler instance for each entrypoint.
-	handlers := map[string]AppHandler{
-		prefix + ct.AddChainPath:          AppHandler{Context: c, Handler: addChain, Name: "AddChain", Method: http.MethodPost},
-		prefix + ct.AddPreChainPath:       AppHandler{Context: c, Handler: addPreChain, Name: "AddPreChain", Method: http.MethodPost},
-		prefix + ct.GetSTHPath:            AppHandler{Context: c, Handler: getSTH, Name: "GetSTH", Method: http.MethodGet},
-		prefix + ct.GetSTHConsistencyPath: AppHandler{Context: c, Handler: getSTHConsistency, Name: "GetSTHConsistency", Method: http.MethodGet},
-		prefix + ct.GetProofByHashPath:    AppHandler{Context: c, Handler: getProofByHash, Name: "GetProofByHash", Method: http.MethodGet},
-		prefix + ct.GetEntriesPath:        AppHandler{Context: c, Handler: getEntries, Name: "GetEntries", Method: http.MethodGet},
-		prefix + ct.GetRootsPath:          AppHandler{Context: c, Handler: getRoots, Name: "GetRoots", Method: http.MethodGet},
-		prefix + ct.GetEntryAndProofPath:  AppHandler{Context: c, Handler: getEntryAndProof, Name: "GetEntryAndProof", Method: http.MethodGet},
-	}
-	return handlers
-}
-
-// RegisterHandlers registers a HandleFunc for all of the RFC6962 defined methods.
-// TODO(Martin2112): This registers on default ServeMux, might need more flexibility?
-func (c LogContext) RegisterHandlers(prefix string) {
-	handlers := c.Handlers(prefix)
-	for path, handler := range handlers {
-		http.Handle(path, handler)
-	}
-}
-
 // Generates a custom error page to give more information on why something didn't work
 // TODO(Martin2112): Not sure if we want to expose any detail or not
 func sendHTTPError(w http.ResponseWriter, statusCode int, err error) {
@@ -605,7 +611,7 @@ func sendHTTPError(w http.ResponseWriter, statusCode int, err error) {
 
 // getRPCDeadlineTime calculates the future time an RPC should expire based on our config
 func getRPCDeadlineTime(c LogContext) time.Time {
-	return c.timeSource.Now().Add(c.rpcDeadline)
+	return c.TimeSource.Now().Add(c.rpcDeadline)
 }
 
 func rpcStatusOK(status *trillian.TrillianApiStatus) bool {
@@ -633,9 +639,9 @@ func verifyAddChain(c LogContext, req ct.AddChainRequest, w http.ResponseWriter,
 	// The type of the leaf must match the one the handler expects
 	if isPrecert != expectingPrecert {
 		if expectingPrecert {
-			glog.Warningf("%s: Cert (or precert with invalid CT ext) submitted as precert chain: %v", c.logPrefix, req)
+			glog.Warningf("%s: Cert (or precert with invalid CT ext) submitted as precert chain: %v", c.LogPrefix, req)
 		} else {
-			glog.Warningf("%s: Precert (or cert with invalid CT ext) submitted as cert chain: %v", c.logPrefix, req)
+			glog.Warningf("%s: Precert (or cert with invalid CT ext) submitted as cert chain: %v", c.LogPrefix, req)
 		}
 		return nil, fmt.Errorf("cert / precert mismatch: %v", expectingPrecert)
 	}
@@ -648,19 +654,19 @@ func verifyAddChain(c LogContext, req ct.AddChainRequest, w http.ResponseWriter,
 func buildLogLeafForAddChain(c LogContext, merkleLeaf ct.MerkleTreeLeaf, chain []*x509.Certificate) (trillian.LogLeaf, error) {
 	leafData, err := tls.Marshal(merkleLeaf)
 	if err != nil {
-		glog.Warningf("%s: Failed to serialize Merkle leaf: %v", c.logPrefix, err)
+		glog.Warningf("%s: Failed to serialize Merkle leaf: %v", c.LogPrefix, err)
 		return trillian.LogLeaf{}, err
 	}
 
 	isPrecert, err := IsPrecertificate(chain[0])
 	if err != nil {
-		glog.Warningf("%s: Failed to determine if cert or pre-cert: %v", c.logPrefix, err)
+		glog.Warningf("%s: Failed to determine if cert or pre-cert: %v", c.LogPrefix, err)
 		return trillian.LogLeaf{}, err
 	}
 
 	extraData, err := extraDataForChain(chain, isPrecert)
 	if err != nil {
-		glog.Warningf("%s: Failed to serialize chain for ExtraData: %v", c.logPrefix, err)
+		glog.Warningf("%s: Failed to serialize chain for ExtraData: %v", c.LogPrefix, err)
 		return trillian.LogLeaf{}, err
 	}
 
@@ -869,14 +875,14 @@ func marshalGetEntriesResponse(c LogContext, rsp *trillian.GetLeavesByIndexRespo
 		var treeLeaf ct.MerkleTreeLeaf
 		if rest, err := tls.Unmarshal(leaf.LeafValue, &treeLeaf); err != nil {
 			// TODO(Martin2112): Hook this up to monitoring when implemented
-			glog.Warningf("%s: Failed to deserialize Merkle leaf from backend: %d", c.logPrefix, leaf.LeafIndex)
+			glog.Warningf("%s: Failed to deserialize Merkle leaf from backend: %d", c.LogPrefix, leaf.LeafIndex)
 		} else if len(rest) > 0 {
-			glog.Warningf("%s: Trailing data after Merkle leaf from backend: %d", c.logPrefix, leaf.LeafIndex)
+			glog.Warningf("%s: Trailing data after Merkle leaf from backend: %d", c.LogPrefix, leaf.LeafIndex)
 		}
 
 		extraData := leaf.ExtraData
 		if len(extraData) == 0 {
-			glog.Errorf("%s: Missing ExtraData for leaf %d", c.logPrefix, leaf.LeafIndex)
+			glog.Errorf("%s: Missing ExtraData for leaf %d", c.LogPrefix, leaf.LeafIndex)
 		}
 		jsonRsp.Entries = append(jsonRsp.Entries, ct.LeafEntry{
 			LeafInput: leaf.LeafValue,

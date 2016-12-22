@@ -66,48 +66,48 @@ func LogConfigFromFile(filename string) ([]LogConfig, error) {
 
 // SetUpInstance sets up a log instance that uses the specified client to communicate
 // with the Trillian RPC back end.
-func (cfg LogConfig) SetUpInstance(client trillian.TrillianLogClient, deadline time.Duration) error {
+func (cfg LogConfig) SetUpInstance(client trillian.TrillianLogClient, deadline time.Duration) (*PathHandlers, error) {
 	// Check config validity.
 	if len(cfg.RootsPEMFile) == 0 {
-		return errors.New("need to specify RootsPEMFile")
+		return nil, errors.New("need to specify RootsPEMFile")
 	}
 	if len(cfg.PubKeyPEMFile) == 0 {
-		return errors.New("need to specify PubKeyPEMFile")
+		return nil, errors.New("need to specify PubKeyPEMFile")
 	}
 	if len(cfg.PrivKeyPEMFile) == 0 {
-		return errors.New("need to specify PrivKeyPEMFile")
+		return nil, errors.New("need to specify PrivKeyPEMFile")
 	}
 
 	// Load the trusted roots
 	roots := NewPEMCertPool()
 	if err := roots.AppendCertsFromPEMFile(cfg.RootsPEMFile); err != nil {
-		return fmt.Errorf("failed to read trusted roots: %v", err)
+		return nil, fmt.Errorf("failed to read trusted roots: %v", err)
 	}
 
 	// Set up a key manager instance for this log.
 	km := crypto.NewPEMKeyManager()
 	privData, err := ioutil.ReadFile(cfg.PrivKeyPEMFile)
 	if err != nil {
-		return fmt.Errorf("failed to load private key file: %v", err)
+		return nil, fmt.Errorf("failed to load private key file: %v", err)
 	}
 
 	if err := km.LoadPrivateKey(string(privData), cfg.PrivKeyPassword); err != nil {
-		return fmt.Errorf("failed to parse private key: %v", err)
+		return nil, fmt.Errorf("failed to parse private key: %v", err)
 	}
 
 	pubData, err := ioutil.ReadFile(cfg.PubKeyPEMFile)
 	if err != nil {
-		return fmt.Errorf("failed to load public key file: %v", err)
+		return nil, fmt.Errorf("failed to load public key file: %v", err)
 	}
 
 	if err := km.LoadPublicKey(string(pubData)); err != nil {
-		return fmt.Errorf("failed to parse public key: %v", err)
+		return nil, fmt.Errorf("failed to parse public key: %v", err)
 	}
 
 	// Create and register the handlers using the RPC client we just set up
 	ctx := NewLogContext(cfg.LogID, cfg.Prefix, roots, client, km, deadline, new(util.SystemTimeSource))
-	ctx.RegisterHandlers(cfg.Prefix)
 	logVars.Set(cfg.Prefix, ctx.exp.vars)
 
-	return nil
+	handlers := ctx.Handlers(cfg.Prefix)
+	return &handlers, nil
 }

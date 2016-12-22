@@ -59,8 +59,12 @@ func main() {
 	client := trillian.NewTrillianLogClient(conn)
 
 	for _, c := range cfg {
-		if err := c.SetUpInstance(client, *rpcDeadlineFlag); err != nil {
+		handlers, err := c.SetUpInstance(client, *rpcDeadlineFlag)
+		if err != nil {
 			glog.Fatalf("Failed to set up log instance for %+v: %v", cfg, err)
+		}
+		for path, handler := range *handlers {
+			http.Handle(path, handler)
 		}
 	}
 
