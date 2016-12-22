@@ -6,14 +6,16 @@ import (
 	"time"
 
 	"github.com/google/trillian"
-	"github.com/google/trillian/storage/tools"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
 
-var treeIDFlag = flag.Int64("treeid", 3, "The tree id to use")
-var startLeafFlag = flag.Int64("start_leaf", 0, "The first leaf index to fetch")
-var numLeavesFlag = flag.Int64("num_leaves", 1, "The number of leaves to fetch")
+var (
+	treeIDFlag     = flag.Int64("treeid", 3, "The tree id to use")
+	serverPortFlag = flag.Int("port", 8090, "Log server port (must be on localhost)")
+	startLeafFlag  = flag.Int64("start_leaf", 0, "The first leaf index to fetch")
+	numLeavesFlag  = flag.Int64("num_leaves", 1, "The number of leaves to fetch")
+)
 
 func buildGetLeavesByIndexRequest(logID int64, startLeaf, numLeaves int64) *trillian.GetLeavesByIndexRequest {
 	if startLeaf < 0 || numLeaves <= 0 {
@@ -34,9 +36,8 @@ func buildGetLeavesByIndexRequest(logID int64, startLeaf, numLeaves int64) *tril
 func main() {
 	flag.Parse()
 
-	port := tools.GetLogServerPort()
-
 	// TODO: Other options apart from insecure connections
+	port := *serverPortFlag
 	conn, err := grpc.Dial(fmt.Sprintf("localhost:%d", port), grpc.WithInsecure(), grpc.WithTimeout(time.Second*5))
 
 	if err != nil {
