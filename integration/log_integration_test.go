@@ -1,5 +1,3 @@
-//+build integration
-
 package integration
 
 import (
@@ -21,7 +19,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-var treeIDFlag = flag.Int64("treeid", 3, "The tree id to use")
+var treeIDFlag = flag.Int64("treeid", -1, "The tree id to use")
 var serverFlag = flag.String("log_rpc_server", "localhost:8092", "Server address:port")
 var queueLeavesFlag = flag.Bool("queue_leaves", true, "If true queues leaves, false just reads from the log")
 var awaitSequencingFlag = flag.Bool("await_sequencing", true, "If true then waits until log size is at least num_leaves")
@@ -68,6 +66,9 @@ var consistencyProofBadTestParams = []consistencyProofParams{{0, 0}, {-1, 0}, {1
 
 func TestLogIntegration(t *testing.T) {
 	flag.Parse()
+	if *treeIDFlag == -1 {
+		t.Skip("Integration test skipped as no tree ID provided")
+	}
 
 	// Step 0 - Initialize and connect to log server
 	treeID := *treeIDFlag
