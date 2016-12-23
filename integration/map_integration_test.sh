@@ -24,7 +24,7 @@ waitForServerStartup ${RPC_PORT}
 # Run the test(s):
 cd ${INTEGRATION_DIR}
 set +e
-go test -tags=integration -run ".*Map.*" --timeout=5m ./ --map_id ${TEST_TREE_ID} --map_rpc_server="localhost:${RPC_PORT}"
+go test -run ".*Map.*" --timeout=5m ./ --map_id ${TEST_TREE_ID} --map_rpc_server="localhost:${RPC_PORT}"
 RESULT=$?
 set -e
 

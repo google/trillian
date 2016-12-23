@@ -1,5 +1,3 @@
-//+build integration
-
 package integration
 
 import (
@@ -20,7 +18,7 @@ import (
 )
 
 var server = flag.String("map_rpc_server", "localhost:8091", "Server address:port")
-var mapID = flag.Int64("map_id", 1, "Trillian MapID to use for test")
+var mapID = flag.Int64("map_id", -1, "Trillian MapID to use for test")
 
 func getClient() (*grpc.ClientConn, trillian.TrillianMapClient, error) {
 	conn, err := grpc.Dial(*server, grpc.WithInsecure())
@@ -31,6 +29,11 @@ func getClient() (*grpc.ClientConn, trillian.TrillianMapClient, error) {
 }
 
 func TestMapIntegration(t *testing.T) {
+	flag.Parse()
+	if *mapID == -1 {
+		t.Skip("Integration test skipped as no map ID provided")
+	}
+
 	conn, client, err := getClient()
 	if err != nil {
 		t.Fatalf("Failed to get map client: %v", err)

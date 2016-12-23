@@ -1,5 +1,3 @@
-//+build integration
-
 package integration
 
 import (
@@ -47,6 +45,9 @@ var verifier = merkletree.NewMerkleVerifier(func(data []byte) []byte {
 
 func TestCTIntegration(t *testing.T) {
 	flag.Parse()
+	if *logConfigFlag == "" {
+		t.Skip("Integration test skipped as no log config provided")
+	}
 	if *seed == -1 {
 		*seed = time.Now().UTC().UnixNano() & 0xFFFFFFFF
 	}

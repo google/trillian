@@ -24,7 +24,7 @@ waitForServerStartup ${RPC_PORT}
 # Run the test(s):
 cd ${INTEGRATION_DIR}
 set +e
-go test -tags=integration -run ".*Log.*" --timeout=5m ./ --treeid ${TEST_TREE_ID} --log_rpc_server="localhost:${RPC_PORT}"
+go test -run ".*Log.*" --timeout=5m ./ --treeid ${TEST_TREE_ID} --log_rpc_server="localhost:${RPC_PORT}"
 RESULT=$?
 set -e
 
