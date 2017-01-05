@@ -935,7 +935,7 @@ func TestGetSequencedLeafCount(t *testing.T) {
 		data3 := []byte("some data 3")
 
 		createFakeLeaf(db2, logID2.logID, dummyHash2, dummyRawHash, data2, someExtraData, sequenceNumber, t)
-		createFakeLeaf(db2, logID2.logID, dummyHash3, dummyRawHash, data3, someExtraData, sequenceNumber + 1, t)
+		createFakeLeaf(db2, logID2.logID, dummyHash3, dummyRawHash, data3, someExtraData, sequenceNumber+1, t)
 	}
 
 	// Read back the leaf counts from both trees
