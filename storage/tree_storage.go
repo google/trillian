@@ -34,7 +34,9 @@ type TreeTX interface {
 type NodeReader interface {
 	// GetTreeRevisionAtSize returns the max node version for a tree at a particular size.
 	// It is an error to request tree sizes larger than the currently published tree size.
-	GetTreeRevisionAtSize(treeSize int64) (int64, error)
+	// If exact is true then a tree revision will only be returned if one exists for the specified
+	// tree size. If exact is false then the revision for an arbitrary larger size is returned.
+	GetTreeRevisionAtSize(treeSize int64, exact bool) (int64, error)
 	// GetMerkleNodes looks up the set of nodes identified by ids, at treeRevision, and returns them.
 	GetMerkleNodes(treeRevision int64, ids []NodeID) ([]Node, error)
 }

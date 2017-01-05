@@ -92,7 +92,7 @@ func (t *TrillianLogRPCServer) GetInclusionProof(ctx context.Context, req *trill
 		return nil, err
 	}
 
-	treeRevision, err := tx.GetTreeRevisionAtSize(req.TreeSize)
+	treeRevision, err := tx.GetTreeRevisionAtSize(req.TreeSize, true)
 	if err != nil {
 		tx.Rollback()
 		return nil, err
@@ -134,7 +134,7 @@ func (t *TrillianLogRPCServer) GetInclusionProofByHash(ctx context.Context, req 
 		return nil, err
 	}
 
-	treeRevision, err := tx.GetTreeRevisionAtSize(req.TreeSize)
+	treeRevision, err := tx.GetTreeRevisionAtSize(req.TreeSize, true)
 	if err != nil {
 		tx.Rollback()
 		return nil, err
@@ -199,13 +199,13 @@ func (t *TrillianLogRPCServer) GetConsistencyProof(ctx context.Context, req *tri
 
 	// We need to make sure that both the given sizes are actually STHs, though we don't use the
 	// first tree revision in fetches
-	_, err = tx.GetTreeRevisionAtSize(req.FirstTreeSize)
+	_, err = tx.GetTreeRevisionAtSize(req.FirstTreeSize, true)
 	if err != nil {
 		tx.Rollback()
 		return nil, err
 	}
 
-	secondTreeRevision, err := tx.GetTreeRevisionAtSize(req.SecondTreeSize)
+	secondTreeRevision, err := tx.GetTreeRevisionAtSize(req.SecondTreeSize, true)
 	if err != nil {
 		tx.Rollback()
 		return nil, err
@@ -342,7 +342,7 @@ func (t *TrillianLogRPCServer) GetEntryAndProof(ctx context.Context, req *trilli
 		return nil, err
 	}
 
-	treeRevision, err := tx.GetTreeRevisionAtSize(req.TreeSize)
+	treeRevision, err := tx.GetTreeRevisionAtSize(req.TreeSize, true)
 	if err != nil {
 		tx.Rollback()
 		return nil, err
