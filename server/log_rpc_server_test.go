@@ -45,24 +45,28 @@ var getByHashRequest2 = trillian.GetLeavesByHashRequest{LogId: logID2, LeafHash:
 
 var getInclusionProofByHashRequestBadTreeSize = trillian.GetInclusionProofByHashRequest{LogId: logID1, TreeSize: -50, LeafHash: []byte("data")}
 var getInclusionProofByHashRequestBadHash = trillian.GetInclusionProofByHashRequest{LogId: logID1, TreeSize: 50, LeafHash: []byte{}}
+var getInclusionProofByHashRequestRehash = trillian.GetInclusionProofByHashRequest{LogId: logID1, TreeSize: 25, LeafHash: []byte("ahash"), AllowRehashing:true}
 var getInclusionProofByHashRequest7 = trillian.GetInclusionProofByHashRequest{LogId: logID1, TreeSize: 7, LeafHash: []byte("ahash")}
 var getInclusionProofByHashRequest25 = trillian.GetInclusionProofByHashRequest{LogId: logID1, TreeSize: 25, LeafHash: []byte("ahash")}
 
 var getInclusionProofByIndexRequestBadTreeSize = trillian.GetInclusionProofRequest{LogId: logID1, TreeSize: -50, LeafIndex: 10}
 var getInclusionProofByIndexRequestBadLeafIndex = trillian.GetInclusionProofRequest{LogId: logID1, TreeSize: 50, LeafIndex: -10}
 var getInclusionProofByIndexRequestBadLeafIndexRange = trillian.GetInclusionProofRequest{LogId: logID1, TreeSize: 50, LeafIndex: 60}
+var getInclusionProofByIndexRequestRehash = trillian.GetInclusionProofRequest{LogId: logID1, TreeSize: 7, LeafIndex: 2, AllowRehashing: true}
 var getInclusionProofByIndexRequest7 = trillian.GetInclusionProofRequest{LogId: logID1, TreeSize: 7, LeafIndex: 2}
 var getInclusionProofByIndexRequest25 = trillian.GetInclusionProofRequest{LogId: logID1, TreeSize: 50, LeafIndex: 25}
 
 var getEntryAndProofRequestBadTreeSize = trillian.GetEntryAndProofRequest{LogId: logID1, TreeSize: -20, LeafIndex: 20}
 var getEntryAndProofRequestBadLeafIndex = trillian.GetEntryAndProofRequest{LogId: logID1, TreeSize: 25, LeafIndex: -5}
 var getEntryAndProofRequestBadLeafIndexRange = trillian.GetEntryAndProofRequest{LogId: logID1, TreeSize: 25, LeafIndex: 30}
+var getEntryAndProofRequestRehash = trillian.GetEntryAndProofRequest{LogId: logID1, TreeSize: 17, LeafIndex: 3, AllowRehashing: true}
 var getEntryAndProofRequest17 = trillian.GetEntryAndProofRequest{LogId: logID1, TreeSize: 17, LeafIndex: 3}
 var getEntryAndProofRequest7 = trillian.GetEntryAndProofRequest{LogId: logID1, TreeSize: 7, LeafIndex: 2}
 
 var getConsistencyProofRequestBadFirstTreeSize = trillian.GetConsistencyProofRequest{LogId: logID1, FirstTreeSize: -10, SecondTreeSize: 25}
 var getConsistencyProofRequestBadSecondTreeSize = trillian.GetConsistencyProofRequest{LogId: logID1, FirstTreeSize: 10, SecondTreeSize: -25}
 var getConsistencyProofRequestBadRange = trillian.GetConsistencyProofRequest{LogId: logID1, FirstTreeSize: 330, SecondTreeSize: 329}
+var getConsistencyProofRequestRehash = trillian.GetConsistencyProofRequest{LogId: logID1, FirstTreeSize: 10, SecondTreeSize: 25, AllowRehashing: true}
 var getConsistencyProofRequest25 = trillian.GetConsistencyProofRequest{LogId: logID1, FirstTreeSize: 10, SecondTreeSize: 25}
 var getConsistencyProofRequest7 = trillian.GetConsistencyProofRequest{LogId: logID1, FirstTreeSize: 4, SecondTreeSize: 7}
 
@@ -70,6 +74,43 @@ var nodeIdsInclusionSize7Index2 = []storage.NodeID{
 	testonly.MustCreateNodeIDForTreeCoords(0, 3, 64),
 	testonly.MustCreateNodeIDForTreeCoords(1, 0, 64),
 	testonly.MustCreateNodeIDForTreeCoords(2, 1, 64)}
+
+// Only one of the request fields should be set, depending on the request type being tested
+type proofReqErrorTest struct {
+	iReq        *trillian.GetInclusionProofRequest
+	hReq        *trillian.GetInclusionProofByHashRequest
+	pReq        *trillian.GetEntryAndProofRequest
+	cReq        *trillian.GetConsistencyProofRequest
+	expectedErr string // Expected string to be included in the error message
+	msg         string // A message included in the test output if the test fails
+}
+
+var iProofReqErrorTests = []proofReqErrorTest{
+	{iReq:&getInclusionProofByIndexRequestBadTreeSize, msg:"bad tree size", expectedErr:"tree size" },
+	{iReq:&getInclusionProofByIndexRequestBadLeafIndex, msg:"bad leaf index", expectedErr:"leaf index" },
+	{iReq:&getInclusionProofByIndexRequestBadLeafIndexRange, msg:"bad leaf index range", expectedErr:"does not exist" },
+	{iReq:&getInclusionProofByIndexRequestRehash, msg:"rehashing requested", expectedErr:"rehash" },
+}
+
+var hProofReqErrorTests = []proofReqErrorTest{
+	{hReq:&getInclusionProofByHashRequestBadTreeSize, msg:"bad tree size", expectedErr:"tree size" },
+	{hReq:&getInclusionProofByHashRequestBadHash, msg:"bad hash", expectedErr:"invalid leaf hash" },
+	{hReq:&getInclusionProofByHashRequestRehash, msg:"rehashing requested", expectedErr:"rehash" },
+}
+
+var pProofReqErrorTests = []proofReqErrorTest{
+	{pReq:&getEntryAndProofRequestBadTreeSize, msg:"bad tree size", expectedErr:"tree size" },
+	{pReq:&getEntryAndProofRequestBadLeafIndex, msg:"bad leaf index", expectedErr:"index:" },
+	{pReq:&getEntryAndProofRequestBadLeafIndexRange, msg:"bad leaf index range", expectedErr:"exceeds tree size" },
+	{pReq:&getEntryAndProofRequestRehash, msg:"rehashing requested", expectedErr:"rehash" },
+}
+
+var cProofReqErrorTests = []proofReqErrorTest{
+	{cReq:&getConsistencyProofRequestBadFirstTreeSize, msg:"bad first size", expectedErr:"first tree size"},
+	{cReq:&getConsistencyProofRequestBadSecondTreeSize, msg:"bad second size", expectedErr:"second tree size"},
+	{cReq:&getConsistencyProofRequestBadRange, msg:"bad range", expectedErr:"must be > first"},
+	{cReq:&getConsistencyProofRequestRehash, msg:"rehashing requested", expectedErr:"rehash" },
+}
 
 var nodeIdsConsistencySize4ToSize7 = []storage.NodeID{testonly.MustCreateNodeIDForTreeCoords(2, 1, 64)}
 
@@ -657,35 +698,22 @@ func TestGetLeavesByLeafValueHash(t *testing.T) {
 	}
 }
 
-func TestGetProofByHashBadTreeSize(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+func TestGetProofByHashInvalidRequests(t *testing.T) {
+	for _, test := range hProofReqErrorTests {
+		ctrl := gomock.NewController(t)
 
-	// Request should fail validation before any storage operations
-	mockStorage := storage.NewMockLogStorage(ctrl)
-	registry := testonly.NewRegistryWithLogProvider(mockStorageProviderFunc(mockStorage))
-	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
+		// Request should fail validation before any storage operations
+		mockStorage := storage.NewMockLogStorage(ctrl)
+		registry := testonly.NewRegistryWithLogProvider(mockStorageProviderFunc(mockStorage))
+		server := NewTrillianLogRPCServer(registry, fakeTimeSource)
 
-	_, err := server.GetInclusionProofByHash(context.Background(), &getInclusionProofByHashRequestBadTreeSize)
+		_, err := server.GetInclusionProofByHash(context.Background(), test.hReq)
 
-	if err == nil {
-		t.Fatalf("get inclusion proof by hash accepted invalid tree size: %v", getInclusionProofByHashRequestBadTreeSize)
-	}
-}
+		if err == nil || !strings.Contains(err.Error(), test.expectedErr) {
+			t.Errorf("want: error=...%s..., got: %v for test: %s, req: %v", test.expectedErr, err, test.msg, test.hReq)
+		}
 
-func TestGetProofByHashBadHash(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	// Request should fail validation before any storage operations
-	mockStorage := storage.NewMockLogStorage(ctrl)
-	registry := testonly.NewRegistryWithLogProvider(mockStorageProviderFunc(mockStorage))
-	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
-
-	_, err := server.GetInclusionProofByHash(context.Background(), &getInclusionProofByHashRequestBadHash)
-
-	if err == nil {
-		t.Fatalf("get inclusion proof by hash accepted invalid leaf hash: %v", getInclusionProofByHashRequestBadHash)
+		ctrl.Finish()
 	}
 }
 
@@ -867,51 +895,22 @@ func TestGetProofByHash(t *testing.T) {
 	}
 }
 
-func TestGetProofByIndexBadTreeSize(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+func TestGetProofByIndexInvalidRequests(t *testing.T) {
+	for _, test := range iProofReqErrorTests {
+		ctrl := gomock.NewController(t)
 
-	// Request should fail validation before any storage operations
-	mockStorage := storage.NewMockLogStorage(ctrl)
-	registry := testonly.NewRegistryWithLogProvider(mockStorageProviderFunc(mockStorage))
-	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
+		// Request should fail validation before any storage operations
+		mockStorage := storage.NewMockLogStorage(ctrl)
+		registry := testonly.NewRegistryWithLogProvider(mockStorageProviderFunc(mockStorage))
+		server := NewTrillianLogRPCServer(registry, fakeTimeSource)
 
-	_, err := server.GetInclusionProof(context.Background(), &getInclusionProofByIndexRequestBadTreeSize)
+		_, err := server.GetInclusionProof(context.Background(), test.iReq)
 
-	if err == nil {
-		t.Fatalf("get inclusion proof by index accepted invalid tree size: %v", getInclusionProofByHashRequestBadTreeSize)
-	}
-}
+		if err == nil || !strings.Contains(err.Error(), test.expectedErr) {
+			t.Errorf("want: error=...%s..., got: %v for test: %s, req: %v", test.expectedErr, err, test.msg, test.iReq)
+		}
 
-func TestGetProofByIndexBadIndex(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	// Request should fail validation before any storage operations
-	mockStorage := storage.NewMockLogStorage(ctrl)
-	registry := testonly.NewRegistryWithLogProvider(mockStorageProviderFunc(mockStorage))
-	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
-
-	_, err := server.GetInclusionProof(context.Background(), &getInclusionProofByIndexRequestBadLeafIndex)
-
-	if err == nil {
-		t.Fatalf("get inclusion proof by index accepted invalid leaf index: %v", getInclusionProofByIndexRequestBadLeafIndex)
-	}
-}
-
-func TestGetProofByIndexBadIndexRange(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	// Request should fail validation before any storage operations
-	mockStorage := storage.NewMockLogStorage(ctrl)
-	registry := testonly.NewRegistryWithLogProvider(mockStorageProviderFunc(mockStorage))
-	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
-
-	_, err := server.GetInclusionProof(context.Background(), &getInclusionProofByIndexRequestBadLeafIndexRange)
-
-	if err == nil {
-		t.Fatalf("get inclusion proof by index accepted invalid leaf index (outside tree size): %v", getInclusionProofByIndexRequestBadLeafIndexRange)
+		ctrl.Finish()
 	}
 }
 
@@ -1071,51 +1070,22 @@ func TestGetProofByIndex(t *testing.T) {
 	}
 }
 
-func TestGetEntryAndProofBadTreeSize(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+func TestGetEntryAndProofInvalidRequests(t *testing.T) {
+	for _, test := range pProofReqErrorTests {
+		ctrl := gomock.NewController(t)
 
-	// Request should fail validation before any storage operations
-	mockStorage := storage.NewMockLogStorage(ctrl)
-	registry := testonly.NewRegistryWithLogProvider(mockStorageProviderFunc(mockStorage))
-	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
+		// Request should fail validation before any storage operations
+		mockStorage := storage.NewMockLogStorage(ctrl)
+		registry := testonly.NewRegistryWithLogProvider(mockStorageProviderFunc(mockStorage))
+		server := NewTrillianLogRPCServer(registry, fakeTimeSource)
 
-	_, err := server.GetEntryAndProof(context.Background(), &getEntryAndProofRequestBadTreeSize)
+		_, err := server.GetEntryAndProof(context.Background(), test.pReq)
 
-	if err == nil {
-		t.Fatal("get entry and proof accepted invalid tree size")
-	}
-}
+		if err == nil || !strings.Contains(err.Error(), test.expectedErr) {
+			t.Errorf("want: error=...%s..., got: %v for test: %s, req: %v", test.expectedErr, err, test.msg, test.pReq)
+		}
 
-func TestGetEntryAndProofBadLeafIndex(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	// Request should fail validation before any storage operations
-	mockStorage := storage.NewMockLogStorage(ctrl)
-	registry := testonly.NewRegistryWithLogProvider(mockStorageProviderFunc(mockStorage))
-	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
-
-	_, err := server.GetEntryAndProof(context.Background(), &getEntryAndProofRequestBadLeafIndex)
-
-	if err == nil {
-		t.Fatal("get entry and proof accepted invalid leaf index")
-	}
-}
-
-func TestGetEntryAndProofBadLeafIndexRange(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	// Request should fail validation before any storage operations
-	mockStorage := storage.NewMockLogStorage(ctrl)
-	registry := testonly.NewRegistryWithLogProvider(mockStorageProviderFunc(mockStorage))
-	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
-
-	_, err := server.GetEntryAndProof(context.Background(), &getEntryAndProofRequestBadLeafIndexRange)
-
-	if err == nil {
-		t.Fatal("get entry and proof accepted invalid leaf index (out of range)")
+		ctrl.Finish()
 	}
 }
 
@@ -1382,20 +1352,22 @@ func TestGetSequencedLeafCount(t *testing.T) {
 	}
 }
 
-func TestGetConsistencyProofRejectsBadRequests(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+func TestGetConsistencyProofInvalidRequests(t *testing.T) {
+	for _, test := range cProofReqErrorTests {
+		ctrl := gomock.NewController(t)
 
-	mockStorage := storage.NewMockLogStorage(ctrl)
-	registry := testonly.NewRegistryWithLogProvider(mockStorageProviderFunc(mockStorage))
-	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
+		// Request should fail validation before any storage operations
+		mockStorage := storage.NewMockLogStorage(ctrl)
+		registry := testonly.NewRegistryWithLogProvider(mockStorageProviderFunc(mockStorage))
+		server := NewTrillianLogRPCServer(registry, fakeTimeSource)
 
-	for _, request := range []trillian.GetConsistencyProofRequest{getConsistencyProofRequestBadFirstTreeSize, getConsistencyProofRequestBadSecondTreeSize, getConsistencyProofRequestBadRange} {
-		_, err := server.GetConsistencyProof(context.Background(), &request)
+		_, err := server.GetConsistencyProof(context.Background(), test.cReq)
 
-		if err == nil {
-			t.Fatalf("get consistency proof accepted invalid request: %v", request)
+		if err == nil || !strings.Contains(err.Error(), test.expectedErr) {
+			t.Errorf("want: error=...%s..., got: %v for test: %s, req: %v", test.expectedErr, err, test.msg, test.cReq)
 		}
+
+		ctrl.Finish()
 	}
 }
 

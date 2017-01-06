@@ -13,10 +13,14 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util"
 	"golang.org/x/net/context"
+	"github.com/vektra/errors"
 )
 
 // TODO: There is no access control in the server yet and clients could easily modify
 // any tree.
+
+// TODO(Martin2112): Remove this when the arbitrary tree size proof feature is implemented
+var rehashNotImplError error = errors.New("rehashing requested but not implemented yet")
 
 // Pass this as a fixed value to proof calculations. It's used as the max depth of the tree
 const proofMaxBitLen = 64
@@ -72,6 +76,9 @@ func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.Qu
 // Similar to the get proof by hash handler but one less step as we don't need to look up the index
 func (t *TrillianLogRPCServer) GetInclusionProof(ctx context.Context, req *trillian.GetInclusionProofRequest) (*trillian.GetInclusionProofResponse, error) {
 	ctx = util.NewLogContext(ctx, req.LogId)
+	if req.AllowRehashing {
+		return nil, rehashNotImplError
+	}
 	// Reject obviously invalid tree sizes and leaf indices
 	if req.TreeSize <= 0 {
 		return nil, fmt.Errorf("%s: invalid tree size for proof by hash: %d", util.LogIDPrefix(ctx), req.TreeSize)
@@ -118,6 +125,9 @@ func (t *TrillianLogRPCServer) GetInclusionProof(ctx context.Context, req *trill
 // contain duplicate hashes it is possible for multiple proofs to be returned.
 func (t *TrillianLogRPCServer) GetInclusionProofByHash(ctx context.Context, req *trillian.GetInclusionProofByHashRequest) (*trillian.GetInclusionProofByHashResponse, error) {
 	ctx = util.NewLogContext(ctx, req.LogId)
+	if req.AllowRehashing {
+		return nil, rehashNotImplError
+	}
 	// Reject obviously invalid tree sizes
 	if req.TreeSize <= 0 {
 		return nil, fmt.Errorf("%s: invalid tree size for proof by hash: %d", util.LogIDPrefix(ctx), req.TreeSize)
@@ -174,6 +184,9 @@ func (t *TrillianLogRPCServer) GetInclusionProofByHash(ctx context.Context, req 
 // see the example trees in RFC 6962.
 func (t *TrillianLogRPCServer) GetConsistencyProof(ctx context.Context, req *trillian.GetConsistencyProofRequest) (*trillian.GetConsistencyProofResponse, error) {
 	ctx = util.NewLogContext(ctx, req.LogId)
+	if req.AllowRehashing {
+		return nil, rehashNotImplError
+	}
 	// Reject requests where the parameters don't make sense
 	if req.FirstTreeSize <= 0 {
 		return nil, fmt.Errorf("%s: first tree size must be > 0 but was %d", util.LogIDPrefix(ctx), req.FirstTreeSize)
@@ -322,6 +335,9 @@ func (t *TrillianLogRPCServer) GetLeavesByLeafValueHash(ctx context.Context, req
 // and tree size.
 func (t *TrillianLogRPCServer) GetEntryAndProof(ctx context.Context, req *trillian.GetEntryAndProofRequest) (*trillian.GetEntryAndProofResponse, error) {
 	ctx = util.NewLogContext(ctx, req.LogId)
+	if req.AllowRehashing {
+		return nil, rehashNotImplError
+	}
 	// Reject parameters that are obviously not valid
 	if req.TreeSize <= 0 {
 		return nil, fmt.Errorf("%s: invalid tree size for GetEntryAndProof: %d", util.LogIDPrefix(ctx), req.TreeSize)
