@@ -365,7 +365,13 @@ func (t *treeTX) GetTreeRevisionAtSize(treeSize int64, exact bool) (int64, error
 		return 0, fmt.Errorf("invalid tree size: %d", treeSize)
 	}
 
-	stmt := map[bool]string{false: selectTreeRevisionAtSizeOrLargerSQL, true:selectTreeRevisionAtSizeSQL}[exact]
+	var stmt string
+	if exact {
+		stmt = selectTreeRevisionAtSizeSQL
+	} else {
+		stmt = selectTreeRevisionAtSizeOrLargerSQL
+	}
+
 	var treeRevision int64
 	err := t.tx.QueryRow(stmt, t.ts.treeID, treeSize).Scan(&treeRevision)
 

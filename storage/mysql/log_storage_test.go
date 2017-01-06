@@ -735,40 +735,26 @@ func TestGetTreeRevisionAtSize(t *testing.T) {
 		defer commit(tx, t)
 
 		// First two are legit tree head sizes and should work
-		treeRevision1, err := tx.GetTreeRevisionAtSize(16, true)
-
-		if err != nil {
-			t.Fatalf("Failed to get tree revision1: %v", err)
+		if treeRevision1, err := tx.GetTreeRevisionAtSize(16, true); err != nil || treeRevision1 != 5 {
+			t.Fatalf("Want revision=5, err=nil got: revision=%d, err=%v", treeRevision1, err)
 		}
 
-		treeRevision2, err := tx.GetTreeRevisionAtSize(27, true)
-
-		if err != nil {
-			t.Fatalf("Failed to get tree revision2: %v", err)
-		}
-
-		if treeRevision1 != 5 || treeRevision2 != 11 {
-			t.Fatalf("Expected tree revisions 5,11 but got %d,%d", treeRevision1, treeRevision2)
+		if treeRevision2, err := tx.GetTreeRevisionAtSize(27, true); err != nil || treeRevision2 != 11 {
+			t.Fatalf("Want revision=11, err=nil got: revision=%d, err=%v", treeRevision2, err)
 		}
 
 		// But an intermediate value shouldn't work
-		treeRevision3, err := tx.GetTreeRevisionAtSize(21, true)
-
-		if err == nil {
-			t.Fatalf("Unexpectedly returned revision for nonexistent tree size: %d", treeRevision3)
+		if treeRevision3, err := tx.GetTreeRevisionAtSize(21, true); err == nil {
+			t.Fatalf("Want error for size:21 but got revision:%d", treeRevision3)
 		}
 
-		// Unless we allow inexact tree sizes, in which case we should get the next largest (11)
-		treeRevision4, err := tx.GetTreeRevisionAtSize(21, false)
-
-		if err != nil || treeRevision4 != 11 {
+		// Unless we allow inexact sizes, in which case we should get the next largest revision
+		if treeRevision4, err := tx.GetTreeRevisionAtSize(21, false); err != nil || treeRevision4 != 11 {
 			t.Fatalf("Got: %d %v for tree size 21 (inexact), want: 11, nil", treeRevision4, err)
 		}
 
 		// A value >= largest tree size should also not be allowed
-		treeRevision5, err := tx.GetTreeRevisionAtSize(30, true)
-
-		if err == nil {
+		if treeRevision5, err := tx.GetTreeRevisionAtSize(30, true); err == nil {
 			t.Fatalf("Got: %d %v for tree size 30, want: 0, error", treeRevision5, err)
 		}
 	}
