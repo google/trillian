@@ -3,6 +3,8 @@ package server
 import (
 	"errors"
 	"fmt"
+	"context"
+	"errors"
 
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
@@ -12,8 +14,6 @@ import (
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util"
-	"golang.org/x/net/context"
-	"github.com/vektra/errors"
 )
 
 // TODO: There is no access control in the server yet and clients could easily modify

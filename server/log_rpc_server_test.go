@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -13,7 +14,6 @@ import (
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/testonly"
-	"golang.org/x/net/context"
 )
 
 var th = merkle.NewRFC6962TreeHasher(crypto.NewSHA256())
@@ -45,7 +45,7 @@ var getByHashRequest2 = trillian.GetLeavesByHashRequest{LogId: logID2, LeafHash:
 
 var getInclusionProofByHashRequestBadTreeSize = trillian.GetInclusionProofByHashRequest{LogId: logID1, TreeSize: -50, LeafHash: []byte("data")}
 var getInclusionProofByHashRequestBadHash = trillian.GetInclusionProofByHashRequest{LogId: logID1, TreeSize: 50, LeafHash: []byte{}}
-var getInclusionProofByHashRequestRehash = trillian.GetInclusionProofByHashRequest{LogId: logID1, TreeSize: 25, LeafHash: []byte("ahash"), AllowRehashing:true}
+var getInclusionProofByHashRequestRehash = trillian.GetInclusionProofByHashRequest{LogId: logID1, TreeSize: 25, LeafHash: []byte("ahash"), AllowRehashing: true}
 var getInclusionProofByHashRequest7 = trillian.GetInclusionProofByHashRequest{LogId: logID1, TreeSize: 7, LeafHash: []byte("ahash")}
 var getInclusionProofByHashRequest25 = trillian.GetInclusionProofByHashRequest{LogId: logID1, TreeSize: 25, LeafHash: []byte("ahash")}
 
@@ -86,30 +86,30 @@ type proofReqErrorTest struct {
 }
 
 var iProofReqErrorTests = []proofReqErrorTest{
-	{iReq:&getInclusionProofByIndexRequestBadTreeSize, msg:"bad tree size", expectedErr:"tree size" },
-	{iReq:&getInclusionProofByIndexRequestBadLeafIndex, msg:"bad leaf index", expectedErr:"leaf index" },
-	{iReq:&getInclusionProofByIndexRequestBadLeafIndexRange, msg:"bad leaf index range", expectedErr:"does not exist" },
-	{iReq:&getInclusionProofByIndexRequestRehash, msg:"rehashing requested", expectedErr:"rehash" },
+	{iReq: &getInclusionProofByIndexRequestBadTreeSize, msg: "bad tree size", expectedErr: "tree size"},
+	{iReq: &getInclusionProofByIndexRequestBadLeafIndex, msg: "bad leaf index", expectedErr: "leaf index"},
+	{iReq: &getInclusionProofByIndexRequestBadLeafIndexRange, msg: "bad leaf index range", expectedErr: "does not exist"},
+	{iReq: &getInclusionProofByIndexRequestRehash, msg: "rehashing requested", expectedErr: "rehash"},
 }
 
 var hProofReqErrorTests = []proofReqErrorTest{
-	{hReq:&getInclusionProofByHashRequestBadTreeSize, msg:"bad tree size", expectedErr:"tree size" },
-	{hReq:&getInclusionProofByHashRequestBadHash, msg:"bad hash", expectedErr:"invalid leaf hash" },
-	{hReq:&getInclusionProofByHashRequestRehash, msg:"rehashing requested", expectedErr:"rehash" },
+	{hReq: &getInclusionProofByHashRequestBadTreeSize, msg: "bad tree size", expectedErr: "tree size"},
+	{hReq: &getInclusionProofByHashRequestBadHash, msg: "bad hash", expectedErr: "invalid leaf hash"},
+	{hReq: &getInclusionProofByHashRequestRehash, msg: "rehashing requested", expectedErr: "rehash"},
 }
 
 var pProofReqErrorTests = []proofReqErrorTest{
-	{pReq:&getEntryAndProofRequestBadTreeSize, msg:"bad tree size", expectedErr:"tree size" },
-	{pReq:&getEntryAndProofRequestBadLeafIndex, msg:"bad leaf index", expectedErr:"index:" },
-	{pReq:&getEntryAndProofRequestBadLeafIndexRange, msg:"bad leaf index range", expectedErr:"exceeds tree size" },
-	{pReq:&getEntryAndProofRequestRehash, msg:"rehashing requested", expectedErr:"rehash" },
+	{pReq: &getEntryAndProofRequestBadTreeSize, msg: "bad tree size", expectedErr: "tree size"},
+	{pReq: &getEntryAndProofRequestBadLeafIndex, msg: "bad leaf index", expectedErr: "index:"},
+	{pReq: &getEntryAndProofRequestBadLeafIndexRange, msg: "bad leaf index range", expectedErr: "exceeds tree size"},
+	{pReq: &getEntryAndProofRequestRehash, msg: "rehashing requested", expectedErr: "rehash"},
 }
 
 var cProofReqErrorTests = []proofReqErrorTest{
-	{cReq:&getConsistencyProofRequestBadFirstTreeSize, msg:"bad first size", expectedErr:"first tree size"},
-	{cReq:&getConsistencyProofRequestBadSecondTreeSize, msg:"bad second size", expectedErr:"second tree size"},
-	{cReq:&getConsistencyProofRequestBadRange, msg:"bad range", expectedErr:"must be > first"},
-	{cReq:&getConsistencyProofRequestRehash, msg:"rehashing requested", expectedErr:"rehash" },
+	{cReq: &getConsistencyProofRequestBadFirstTreeSize, msg: "bad first size", expectedErr: "first tree size"},
+	{cReq: &getConsistencyProofRequestBadSecondTreeSize, msg: "bad second size", expectedErr: "second tree size"},
+	{cReq: &getConsistencyProofRequestBadRange, msg: "bad range", expectedErr: "must be > first"},
+	{cReq: &getConsistencyProofRequestRehash, msg: "rehashing requested", expectedErr: "rehash"},
 }
 
 var nodeIdsConsistencySize4ToSize7 = []storage.NodeID{testonly.MustCreateNodeIDForTreeCoords(2, 1, 64)}
