@@ -1,10 +1,9 @@
 package server
 
 import (
-	"errors"
-	"fmt"
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
