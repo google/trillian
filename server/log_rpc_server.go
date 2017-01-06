@@ -19,7 +19,7 @@ import (
 // any tree.
 
 // TODO(Martin2112): Remove this when the arbitrary tree size proof feature is implemented
-var rehashNotImplError error = errors.New("rehashing requested but not implemented yet")
+var errRehashNotImpl = errors.New("rehashing requested but not implemented yet")
 
 // Pass this as a fixed value to proof calculations. It's used as the max depth of the tree
 const proofMaxBitLen = 64
@@ -76,7 +76,7 @@ func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.Qu
 func (t *TrillianLogRPCServer) GetInclusionProof(ctx context.Context, req *trillian.GetInclusionProofRequest) (*trillian.GetInclusionProofResponse, error) {
 	ctx = util.NewLogContext(ctx, req.LogId)
 	if req.AllowRehashing {
-		return nil, rehashNotImplError
+		return nil, errRehashNotImpl
 	}
 	// Reject obviously invalid tree sizes and leaf indices
 	if req.TreeSize <= 0 {
@@ -125,7 +125,7 @@ func (t *TrillianLogRPCServer) GetInclusionProof(ctx context.Context, req *trill
 func (t *TrillianLogRPCServer) GetInclusionProofByHash(ctx context.Context, req *trillian.GetInclusionProofByHashRequest) (*trillian.GetInclusionProofByHashResponse, error) {
 	ctx = util.NewLogContext(ctx, req.LogId)
 	if req.AllowRehashing {
-		return nil, rehashNotImplError
+		return nil, errRehashNotImpl
 	}
 	// Reject obviously invalid tree sizes
 	if req.TreeSize <= 0 {
@@ -184,7 +184,7 @@ func (t *TrillianLogRPCServer) GetInclusionProofByHash(ctx context.Context, req 
 func (t *TrillianLogRPCServer) GetConsistencyProof(ctx context.Context, req *trillian.GetConsistencyProofRequest) (*trillian.GetConsistencyProofResponse, error) {
 	ctx = util.NewLogContext(ctx, req.LogId)
 	if req.AllowRehashing {
-		return nil, rehashNotImplError
+		return nil, errRehashNotImpl
 	}
 	// Reject requests where the parameters don't make sense
 	if req.FirstTreeSize <= 0 {
@@ -335,7 +335,7 @@ func (t *TrillianLogRPCServer) GetLeavesByLeafValueHash(ctx context.Context, req
 func (t *TrillianLogRPCServer) GetEntryAndProof(ctx context.Context, req *trillian.GetEntryAndProofRequest) (*trillian.GetEntryAndProofResponse, error) {
 	ctx = util.NewLogContext(ctx, req.LogId)
 	if req.AllowRehashing {
-		return nil, rehashNotImplError
+		return nil, errRehashNotImpl
 	}
 	// Reject parameters that are obviously not valid
 	if req.TreeSize <= 0 {
