@@ -17,6 +17,7 @@ type NodeFetch struct {
 	Rehash bool
 }
 
+// Equivalent return true iff the other represents the same rehash state and NodeID as the other.
 func (n NodeFetch) Equivalent(other NodeFetch) bool {
 	return n.Rehash == other.Rehash && n.NodeID.Equivalent(other.NodeID)
 }
