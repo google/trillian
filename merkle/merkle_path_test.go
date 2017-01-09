@@ -59,22 +59,22 @@ const testUpToTreeSize = 99
 // When comparing with the document remember that our storage node layers are always
 // populated from the bottom up, hence the gap at level 1, index 3 in the above picture.
 
-var expectedPathSize7Index0 = []NodeFetch{// from a
+var expectedPathSize7Index0 = []NodeFetch{ // from a
 	MustCreateNodeFetchForTreeCoords(0, 1, 64, false), // b
 	MustCreateNodeFetchForTreeCoords(1, 1, 64, false), // h
 	MustCreateNodeFetchForTreeCoords(2, 1, 64, false), // l
 }
-var expectedPathSize7Index3 = []NodeFetch{// from d
+var expectedPathSize7Index3 = []NodeFetch{ // from d
 	MustCreateNodeFetchForTreeCoords(0, 2, 64, false), // c
 	MustCreateNodeFetchForTreeCoords(1, 0, 64, false), // g
 	MustCreateNodeFetchForTreeCoords(2, 1, 64, false), // l
 }
-var expectedPathSize7Index4 = []NodeFetch{// from e
+var expectedPathSize7Index4 = []NodeFetch{ // from e
 	MustCreateNodeFetchForTreeCoords(0, 5, 64, false), // f
 	MustCreateNodeFetchForTreeCoords(0, 6, 64, false), // j
 	MustCreateNodeFetchForTreeCoords(2, 0, 64, false), // k
 }
-var expectedPathSize7Index6 = []NodeFetch{// from j
+var expectedPathSize7Index6 = []NodeFetch{ // from j
 	MustCreateNodeFetchForTreeCoords(1, 2, 64, false), // i
 	MustCreateNodeFetchForTreeCoords(2, 0, 64, false), // k
 }
@@ -349,5 +349,5 @@ func MustCreateNodeFetchForTreeCoords(depth, index int64, maxPathBits int, rehas
 	if err != nil {
 		panic(err)
 	}
-	return NodeFetch{NodeID:n, Rehash:rehash}
+	return NodeFetch{NodeID: n, Rehash: rehash}
 }
