@@ -1,6 +1,7 @@
 package server
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/golang/glog"
@@ -488,7 +489,7 @@ func fetchNodesAndBuildProof(tx storage.ReadOnlyLogTX, treeRevision, leafIndex i
 
 		// TODO(Martin2112): Remove this when rehashing is implemented
 		if fetch.Rehash {
-			return []trillian.Proof{}, errors.New("proof requires rehashing but it's not implemented yet")
+			return trillian.Proof{}, errors.New("proof requires rehashing but it's not implemented yet")
 		}
 	}
 
