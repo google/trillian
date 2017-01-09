@@ -485,6 +485,11 @@ func fetchNodesAndBuildProof(tx storage.ReadOnlyLogTX, treeRevision, leafIndex i
 
 	for _, fetch := range proofNodeFetches {
 		proofNodeIDs = append(proofNodeIDs, fetch.NodeID)
+
+		// TODO(Martin2112): Remove this when rehashing is implemented
+		if fetch.Rehash {
+			return []trillian.Proof{}, errors.New("proof requires rehashing but it's not implemented yet")
+		}
 	}
 
 	proofNodes, err := tx.GetMerkleNodes(treeRevision, proofNodeIDs)
