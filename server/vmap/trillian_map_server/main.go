@@ -23,7 +23,7 @@ import (
 )
 
 var serverPortFlag = flag.Int("port", 8090, "Port to serve log RPC requests on")
-var exportRPCMetrics = flag.Bool("exportMetrics", true, "If true starts HTTP server and exports stats")
+var exportRPCMetrics = flag.Bool("export_metrics", true, "If true starts HTTP server and exports stats")
 var httpPortFlag = flag.Int("http_port", 8091, "Port to serve HTTP metrics on")
 
 // TODO(Martin2112): Single private key doesn't really work for multi tenant and we can't use
@@ -34,14 +34,12 @@ var privateKeyPassword = flag.String("private_key_password", "", "Password for s
 func checkDatabaseAccessible(registry extension.Registry) error {
 	// TODO(Martin2112): Have to pass a tree ID when we just want metadata. API mismatch
 	mapStorage, err := registry.GetMapStorage(int64(0))
-
 	if err != nil {
 		// This is probably something fundamentally wrong
 		return err
 	}
 
 	tx, err := mapStorage.Begin()
-
 	if err != nil {
 		// Out of resources maybe?
 		return err
@@ -107,16 +105,14 @@ func main() {
 	// TODO(Martin2112): This will need to be changed for multi tenant as we'll need at
 	// least one key per tenant, possibly more.
 	_, err = crypto.LoadPasswordProtectedPrivateKey(*privateKeyFile, *privateKeyPassword)
-
 	if err != nil {
 		glog.Fatalf("Failed to load map server key: %v", err)
 	}
 
 	// Start HTTP server (optional)
 	if *exportRPCMetrics {
-		err := startHTTPServer(*httpPortFlag)
-
-		if err != nil {
+		glog.Infof("Creating HTP server starting on port: %d", *httpPortFlag)
+		if err := startHTTPServer(*httpPortFlag); err != nil {
 			glog.Fatalf("Failed to start http server on port %d: %v", *httpPortFlag, err)
 		}
 	}
@@ -125,7 +121,6 @@ func main() {
 	glog.Infof("Creating RPC server starting on port: %d", *serverPortFlag)
 	// TODO(Martin2112): More flexible listen address configuration
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", *serverPortFlag))
-
 	if err != nil {
 		glog.Errorf("Failed to listen on the server port: %d, because: %v", *serverPortFlag, err)
 		os.Exit(1)
@@ -135,7 +130,6 @@ func main() {
 	rpcServer := startRPCServer(lis, *serverPortFlag, registry)
 	go awaitSignal(rpcServer)
 	err = rpcServer.Serve(lis)
-
 	if err != nil {
 		glog.Errorf("RPC server terminated on port %d: %v", *serverPortFlag, err)
 		os.Exit(1)

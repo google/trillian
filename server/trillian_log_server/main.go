@@ -24,7 +24,7 @@ import (
 )
 
 var serverPortFlag = flag.Int("port", 8090, "Port to serve log RPC requests on")
-var exportRPCMetrics = flag.Bool("exportMetrics", true, "If true starts HTTP server and exports stats")
+var exportRPCMetrics = flag.Bool("export_metrics", true, "If true starts HTTP server and exports stats")
 var httpPortFlag = flag.Int("http_port", 8091, "Port to serve HTTP metrics on")
 
 var sequencerSleepBetweenRunsFlag = flag.Duration("sequencer_sleep_between_runs", time.Second*10, "Time to pause after each sequencing pass through all logs")
@@ -125,18 +125,16 @@ func main() {
 
 	// Start HTTP server (optional)
 	if *exportRPCMetrics {
-		err := startHTTPServer(*httpPortFlag)
-
-		if err != nil {
+		glog.Infof("Creating HTP server starting on port: %d", *httpPortFlag)
+		if err := startHTTPServer(*httpPortFlag); err != nil {
 			glog.Fatalf("Failed to start http server on port %d: %v", *httpPortFlag, err)
 		}
 	}
 
 	// Set up the listener for the server
-	glog.Infof("Creating RPC server starting on port: %d", *serverPortFlag)
 	// TODO(Martin2112): More flexible listen address configuration
+	glog.Infof("Creating RPC server starting on port: %d", *serverPortFlag)
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", *serverPortFlag))
-
 	if err != nil {
 		glog.Errorf("Failed to listen on the server port: %d, because: %v", *serverPortFlag, err)
 		os.Exit(1)
@@ -155,7 +153,6 @@ func main() {
 	rpcServer := startRPCServer(lis, *serverPortFlag, registry)
 	go awaitSignal(rpcServer)
 	err = rpcServer.Serve(lis)
-
 	if err != nil {
 		glog.Errorf("RPC server terminated on port %d: %v", *serverPortFlag, err)
 		os.Exit(1)
