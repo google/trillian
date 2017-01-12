@@ -169,7 +169,7 @@ func TestNodeNotEquivalentPrefixLen(t *testing.T) {
 	n1 := NewNodeIDWithPrefix(0x1234, l, l, l)
 	n2 := NewNodeIDWithPrefix(0x1234, l-1, l, l)
 	if n1.Equivalent(n2) {
-		t.Fatalf("%v incorrecly Equivalent with %v", n1, n2)
+		t.Fatalf("%v incorrectly Equivalent with %v", n1, n2)
 	}
 }
 
@@ -178,7 +178,7 @@ func TestNodeNotEquivalentIDLen(t *testing.T) {
 	n1 := NewNodeIDWithPrefix(0x1234, l, l, l)
 	n2 := NewNodeIDWithPrefix(0x1234, l, l+1, l+1)
 	if n1.Equivalent(n2) {
-		t.Fatalf("%v incorrecly Equivalent with %v", n1, n2)
+		t.Fatalf("%v incorrectly Equivalent with %v", n1, n2)
 	}
 }
 
@@ -197,7 +197,7 @@ func TestNodeNotEquivalentDifferentPrefix(t *testing.T) {
 	n1 := NewNodeIDWithPrefix(0x1234, l, l, l)
 	n2 := NewNodeIDWithPrefix(0x5432, l, l, l)
 	if n1.Equivalent(n2) {
-		t.Fatalf("%v incorrecly Equivalent with %v", n1, n2)
+		t.Fatalf("%v incorrectly Equivalent with %v", n1, n2)
 	}
 }
 

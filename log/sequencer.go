@@ -35,7 +35,7 @@ type Sequencer struct {
 }
 
 // maxTreeDepth sets an upper limit on the size of Log trees.
-// TODO(al): We actually can't go beyond 2^63 entries becuase we use int64s,
+// TODO(al): We actually can't go beyond 2^63 entries because we use int64s,
 //           but we need to calculate tree depths from a multiple of 8 due to
 //           the subtrees.
 const maxTreeDepth = 64

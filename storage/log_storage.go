@@ -47,7 +47,7 @@ type LogStorage interface {
 	Begin() (LogTX, error)
 }
 
-// LeafQueuer provides a write-only interface for the queueing (but not necesarily integration) of leaves.
+// LeafQueuer provides a write-only interface for the queueing (but not necessarily integration) of leaves.
 type LeafQueuer interface {
 	// QueueLeaves enqueues leaves for later integration into the tree.
 	QueueLeaves(leaves []trillian.LogLeaf, queueTimestamp time.Time) error
