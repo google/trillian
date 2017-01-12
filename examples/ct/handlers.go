@@ -48,7 +48,7 @@ const (
 	getSTHConsistencyParamSecond = "second"
 	// The name of the get-entry-and-proof index parameter
 	getEntryAndProofParamLeafIndex = "leaf_index"
-	// The name of the get-entry-and-proof tree size paramter
+	// The name of the get-entry-and-proof tree size parameter
 	getEntryAndProofParamTreeSize = "tree_size"
 )
 

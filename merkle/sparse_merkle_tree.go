@@ -99,7 +99,7 @@ type subtreeWriter struct {
 // getOrCreateChildSubtree returns, or creates and returns, a subtree for the
 // specified childPrefix.
 func (s *subtreeWriter) getOrCreateChildSubtree(childPrefix []byte) (Subtree, error) {
-	// TODO(al): figure out we actualy need these copies and remove them if not.
+	// TODO(al): figure out we actually need these copies and remove them if not.
 	//           If we do then tidy up with a copyBytes helper.
 	cp := append(make([]byte, 0, len(childPrefix)), childPrefix...)
 	childPrefixStr := string(cp)
@@ -117,7 +117,7 @@ func (s *subtreeWriter) getOrCreateChildSubtree(childPrefix []byte) (Subtree, er
 
 		// Since a new subtree worker is being created we'll add a future to
 		// to the leafQueue such that calculation of *this* subtree's root will
-		// incorportate the newly calculated child subtree root.
+		// incorporate the newly calculated child subtree root.
 		s.leafQueue <- func() (*indexAndHash, error) {
 			// RootHash blocks until the root is available (or it's errored out)
 			h, err := subtree.RootHash()
@@ -328,7 +328,7 @@ func newLocalSubtreeWriter(rev int64, prefix []byte, depths []int, newTX newTXFu
 
 // NewSparseMerkleTreeWriter returns a new SparseMerkleTreeWriter, which will
 // write data back into the tree at the specified revision, using the passed
-// in MapHasher to calulate/verify tree hashes, storing via tx.
+// in MapHasher to calculate/verify tree hashes, storing via tx.
 func NewSparseMerkleTreeWriter(rev int64, h MapHasher, newTX newTXFunc) (*SparseMerkleTreeWriter, error) {
 	// TODO(al): allow the tree layering sizes to be customisable somehow.
 	const topSubtreeSize = 8 // must be a multiple of 8 for now.
