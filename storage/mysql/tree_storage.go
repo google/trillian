@@ -329,7 +329,7 @@ func (t *treeTX) storeSubtrees(subtrees []*storagepb.SubtreeProto) error {
 		glog.Warningf("Failed to set merkle subtrees: %s", err)
 		return err
 	}
-	_, err = r.RowsAffected()
+	_, _ = r.RowsAffected()
 	return nil
 }
 
