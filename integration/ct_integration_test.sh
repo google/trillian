@@ -40,8 +40,7 @@ popd > /dev/null
 
 # Set an exit trap to ensure we kill the servers once we're done.
 trap "kill -INT ${HTTP_SERVER_PID} ${RPC_SERVER_PID}" EXIT
-# The server will 404 the request as there's no handler for it. This error doesn't matter
-# as the test will fail if the server is really not up.
+
 set +e
 waitForServerStartup ${CT_PORT}
 set -e
