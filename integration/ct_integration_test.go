@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -30,7 +31,7 @@ import (
 	"golang.org/x/net/context/ctxhttp"
 )
 
-var httpServerFlag = flag.String("ct_http_server", "localhost:8092", "Server address:port")
+var httpServerFlag = flag.String("ct_http_server", "localhost:8092", "Comma-separated list of servers, each as address:port")
 var testDir = flag.String("testdata", "testdata", "Name of directory with test data")
 var seed = flag.Int64("seed", -1, "Seed for random number generation")
 var logConfigFlag = flag.String("log_config", "", "File holding log config in JSON")
@@ -82,6 +83,16 @@ func TestCTIntegration(t *testing.T) {
 	}
 }
 
+type clientPool []*client.LogClient
+
+// Pick a random client from the pool.
+func (p clientPool) Pick() *client.LogClient {
+	if len(p) == 0 {
+		return nil
+	}
+	return p[rand.Intn(len(p))]
+}
+
 // Run tests against the log with configuration cfg.
 func testCTIntegrationForLog(cfg ctfe.LogConfig) error {
 	opts := jsonclient.Options{}
@@ -92,10 +103,13 @@ func testCTIntegrationForLog(cfg ctfe.LogConfig) error {
 		}
 		opts.PublicKey = string(pubkey)
 	}
-	logURI := "http://" + (*httpServerFlag) + "/" + cfg.Prefix
-	logClient, err := client.New(logURI, nil, opts)
-	if err != nil {
-		return fmt.Errorf("failed to create LogClient instance: %v", err)
+	var pool clientPool
+	for _, s := range strings.Split(*httpServerFlag, ",") {
+		c, err := client.New("http://"+s+"/"+cfg.Prefix, nil, opts)
+		if err != nil {
+			return fmt.Errorf("failed to create LogClient instance: %v", err)
+		}
+		pool = append(pool, c)
 	}
 	ctx := context.Background()
 	stats := newWantStats(cfg.LogID)
@@ -104,7 +118,7 @@ func testCTIntegrationForLog(cfg ctfe.LogConfig) error {
 	}
 
 	// Stage 0: get accepted roots, which should just be the fake CA.
-	roots, err := logClient.GetAcceptedRoots(ctx)
+	roots, err := pool.Pick().GetAcceptedRoots(ctx)
 	stats.done("GetRoots", 200)
 	if err != nil {
 		return fmt.Errorf("got GetAcceptedRoots()=(nil,%v); want (_,nil)", err)
@@ -114,7 +128,7 @@ func testCTIntegrationForLog(cfg ctfe.LogConfig) error {
 	}
 
 	// Stage 1: get the STH, which should be empty.
-	sth0, err := logClient.GetSTH(ctx)
+	sth0, err := pool.Pick().GetSTH(ctx)
 	stats.done("GetSTH", 200)
 	if err != nil {
 		return fmt.Errorf("got GetSTH()=(nil,%v); want (_,nil)", err)
@@ -134,7 +148,7 @@ func testCTIntegrationForLog(cfg ctfe.LogConfig) error {
 	if err != nil {
 		return fmt.Errorf("failed to load certificate: %v", err)
 	}
-	scts[0], err = logClient.AddChain(ctx, chain[0])
+	scts[0], err = pool.Pick().AddChain(ctx, chain[0])
 	stats.done("AddChain", 200)
 	if err != nil {
 		return fmt.Errorf("got AddChain(int-ca.cert)=(nil,%v); want (_,nil)", err)
@@ -143,7 +157,7 @@ func testCTIntegrationForLog(cfg ctfe.LogConfig) error {
 	fmt.Printf("%s: Uploaded int-ca.cert to %v log, got SCT(time=%q)\n", cfg.Prefix, scts[0].SCTVersion, ctTime(scts[0].Timestamp))
 
 	// Keep getting the STH until tree size becomes 1.
-	sth1, err := awaitTreeSize(ctx, logClient, 1, true, &stats)
+	sth1, err := awaitTreeSize(ctx, pool.Pick(), 1, true, &stats)
 	if err != nil {
 		return fmt.Errorf("awaitTreeSize(1)=(nil,%v); want (_,nil)", err)
 	}
@@ -157,20 +171,20 @@ func testCTIntegrationForLog(cfg ctfe.LogConfig) error {
 	if err != nil {
 		return fmt.Errorf("failed to load certificate: %v", err)
 	}
-	scts[1], err = logClient.AddChain(ctx, chain[1])
+	scts[1], err = pool.Pick().AddChain(ctx, chain[1])
 	stats.done("AddChain", 200)
 	if err != nil {
 		return fmt.Errorf("got AddChain(leaf01)=(nil,%v); want (_,nil)", err)
 	}
 	fmt.Printf("%s: Uploaded cert01.chain to %v log, got SCT(time=%q)\n", cfg.Prefix, scts[1].SCTVersion, ctTime(scts[1].Timestamp))
-	sth2, err := awaitTreeSize(ctx, logClient, 2, true, &stats)
+	sth2, err := awaitTreeSize(ctx, pool.Pick(), 2, true, &stats)
 	if err != nil {
 		return fmt.Errorf("failed to get STH for size=1: %v", err)
 	}
 	fmt.Printf("%s: Got STH(time=%q, size=%d): roothash=%x\n", cfg.Prefix, ctTime(sth2.Timestamp), sth2.TreeSize, sth2.SHA256RootHash)
 
 	// Stage 4: get a consistency proof from size 1-> size 2.
-	proof12, err := logClient.GetSTHConsistency(ctx, 1, 2)
+	proof12, err := pool.Pick().GetSTHConsistency(ctx, 1, 2)
 	stats.done("GetSTHConsistency", 200)
 	if err != nil {
 		return fmt.Errorf("got GetSTHConsistency(1, 2)=(nil,%v); want (_,nil)", err)
@@ -201,7 +215,7 @@ func testCTIntegrationForLog(cfg ctfe.LogConfig) error {
 		if err != nil {
 			return fmt.Errorf("failed to load certificate: %v", err)
 		}
-		scts[i], err = logClient.AddChain(ctx, chain[i])
+		scts[i], err = pool.Pick().AddChain(ctx, chain[i])
 		stats.done("AddChain", 200)
 		if err != nil {
 			return fmt.Errorf("got AddChain(leaf%02d)=(nil,%v); want (_,nil)", i, err)
@@ -214,14 +228,14 @@ func testCTIntegrationForLog(cfg ctfe.LogConfig) error {
 
 	// Stage 6: keep getting the STH until tree size becomes 1 + N (allows for int-ca.cert).
 	treeSize := 1 + count
-	sthN, err := awaitTreeSize(ctx, logClient, uint64(treeSize), true, &stats)
+	sthN, err := awaitTreeSize(ctx, pool.Pick(), uint64(treeSize), true, &stats)
 	if err != nil {
 		return fmt.Errorf("awaitTreeSize(%d)=(nil,%v); want (_,nil)", treeSize, err)
 	}
 	fmt.Printf("%s: Got STH(time=%q, size=%d): roothash=%x\n", cfg.Prefix, ctTime(sthN.Timestamp), sthN.TreeSize, sthN.SHA256RootHash)
 
 	// Stage 7: get a consistency proof from 2->(1+N).
-	proof2N, err := logClient.GetSTHConsistency(ctx, 2, uint64(treeSize))
+	proof2N, err := pool.Pick().GetSTHConsistency(ctx, 2, uint64(treeSize))
 	stats.done("GetSTHConsistency", 200)
 	if err != nil {
 		return fmt.Errorf("got GetSTHConsistency(2, %d)=(nil,%v); want (_,nil)", treeSize, err)
@@ -232,7 +246,7 @@ func testCTIntegrationForLog(cfg ctfe.LogConfig) error {
 	}
 
 	// Stage 8: get entries [1, N] (start at 1 to skip int-ca.cert)
-	entries, err := logClient.GetEntries(ctx, 1, int64(count))
+	entries, err := pool.Pick().GetEntries(ctx, 1, int64(count))
 	stats.done("GetEntries", 200)
 	if err != nil {
 		return fmt.Errorf("got GetEntries(1,%d)=(nil,%v); want (_,nil)", count, err)
@@ -283,7 +297,7 @@ func testCTIntegrationForLog(cfg ctfe.LogConfig) error {
 			return fmt.Errorf("tls.Marshal(leaf[%d])=(nil,%v); want (_,nil)", i, err)
 		}
 		hash := sha256.Sum256(append([]byte{merkletree.LeafPrefix}, leafData...))
-		rsp, err := logClient.GetProofByHash(ctx, hash[:], sthN.TreeSize)
+		rsp, err := pool.Pick().GetProofByHash(ctx, hash[:], sthN.TreeSize)
 		stats.done("GetProofByHash", 200)
 		if err != nil {
 			return fmt.Errorf("got GetProofByHash(sct[%d],size=%d)=(nil,%v); want (_,nil)", i, sthN.TreeSize, err)
@@ -305,14 +319,14 @@ func testCTIntegrationForLog(cfg ctfe.LogConfig) error {
 	copy(corruptChain, chain[1])
 	corruptAt := len(corruptChain[0].Data) - 3
 	corruptChain[0].Data[corruptAt] = (corruptChain[0].Data[corruptAt] + 1)
-	if sct, err := logClient.AddChain(ctx, corruptChain); err == nil {
+	if sct, err := pool.Pick().AddChain(ctx, corruptChain); err == nil {
 		return fmt.Errorf("got AddChain(corrupt-cert)=(%+v,nil); want (nil,error)", sct)
 	}
 	stats.done("AddChain", 400)
 	fmt.Printf("%s: AddChain(corrupt-cert)=nil,%v\n", cfg.Prefix, err)
 
 	// Stage 11: attempt to upload a certificate without chain.
-	if sct, err := logClient.AddChain(ctx, chain[1][0:0]); err == nil {
+	if sct, err := pool.Pick().AddChain(ctx, chain[1][0:0]); err == nil {
 		return fmt.Errorf("got AddChain(leaf-only)=(%+v,nil); want (nil,error)", sct)
 	}
 	stats.done("AddChain", 400)
@@ -326,14 +340,14 @@ func testCTIntegrationForLog(cfg ctfe.LogConfig) error {
 	if err != nil {
 		return fmt.Errorf("failed to build pre-certificate: %v", err)
 	}
-	precertSCT, err := logClient.AddPreChain(ctx, prechain)
+	precertSCT, err := pool.Pick().AddPreChain(ctx, prechain)
 	stats.done("AddPreChain", 200)
 	if err != nil {
 		return fmt.Errorf("got AddPreChain()=(nil,%v); want (_,nil)", err)
 	}
 	fmt.Printf("%s: Uploaded precert to %v log, got SCT(time=%q)\n", cfg.Prefix, precertSCT.SCTVersion, ctTime(precertSCT.Timestamp))
 	treeSize++
-	sthN1, err := awaitTreeSize(ctx, logClient, uint64(treeSize), true, &stats)
+	sthN1, err := awaitTreeSize(ctx, pool.Pick(), uint64(treeSize), true, &stats)
 	if err != nil {
 		return fmt.Errorf("awaitTreeSize(%d)=(nil,%v); want (_,nil)", treeSize, err)
 	}
@@ -341,7 +355,7 @@ func testCTIntegrationForLog(cfg ctfe.LogConfig) error {
 
 	// Stage 13: retrieve and check pre-cert.
 	precertIndex := int64(count + 1)
-	precertEntries, err := logClient.GetEntries(ctx, precertIndex, precertIndex)
+	precertEntries, err := pool.Pick().GetEntries(ctx, precertIndex, precertIndex)
 	stats.done("GetEntries", 200)
 	if err != nil {
 		return fmt.Errorf("got GetEntries(%d,%d)=(nil,%v); want (_,nil)", precertIndex, precertIndex, err)
@@ -390,7 +404,7 @@ func testCTIntegrationForLog(cfg ctfe.LogConfig) error {
 		return fmt.Errorf("tls.Marshal(precertLeaf)=(nil,%v); want (_,nil)", err)
 	}
 	hash := sha256.Sum256(append([]byte{merkletree.LeafPrefix}, leafData...))
-	rsp, err := logClient.GetProofByHash(ctx, hash[:], sthN1.TreeSize)
+	rsp, err := pool.Pick().GetProofByHash(ctx, hash[:], sthN1.TreeSize)
 	stats.done("GetProofByHash", 200)
 	if err != nil {
 		return fmt.Errorf("got GetProofByHash(precertSCT, size=%d)=nil,%v", sthN1.TreeSize, err)
@@ -517,35 +531,51 @@ func (want *wantStats) done(ep string, rc int) {
 }
 
 func (want *wantStats) check(cfg ctfe.LogConfig) error {
-	statsURI := "http://" + (*httpServerFlag) + "/debug/vars"
-	httpReq, err := http.NewRequest(http.MethodGet, statsURI, nil)
-	if err != nil {
-		return fmt.Errorf("failed to build GET request: %v", err)
-	}
-	client := new(http.Client)
+	ctx := context.Background()
+	got := newWantStats(int64(want.LogID))
+	rcs := []string{"200", "400"}
+	for _, s := range strings.Split(*httpServerFlag, ",") {
+		httpReq, err := http.NewRequest(http.MethodGet, "http://"+s+"/debug/vars", nil)
+		if err != nil {
+			return fmt.Errorf("failed to build GET request: %v", err)
+		}
+		client := new(http.Client)
 
-	httpRsp, err := ctxhttp.Do(context.Background(), client, httpReq)
-	if err != nil {
-		return fmt.Errorf("getting stats failed: %v", err)
-	}
-	defer httpRsp.Body.Close()
-	defer ioutil.ReadAll(httpRsp.Body)
-	if httpRsp.StatusCode != http.StatusOK {
-		return fmt.Errorf("got HTTP Status %q", httpRsp.Status)
+		httpRsp, err := ctxhttp.Do(ctx, client, httpReq)
+		if err != nil {
+			return fmt.Errorf("getting stats failed: %v", err)
+		}
+		defer httpRsp.Body.Close()
+		defer ioutil.ReadAll(httpRsp.Body)
+		if httpRsp.StatusCode != http.StatusOK {
+			return fmt.Errorf("got HTTP Status %q", httpRsp.Status)
+		}
+		var stats ctfe.AllStats
+		if err := json.NewDecoder(httpRsp.Body).Decode(&stats); err != nil {
+			return fmt.Errorf("failed to json.Decode(), result: %v", err)
+		}
+		gotSingle := stats.Logs[cfg.Prefix]
+		if gotSingle.LogID != want.LogID {
+			return fmt.Errorf("got stats.log-id %d, want %d", got.LogID, want.LogID)
+		}
+
+		// Accumulate per-server stats for this log into overall per-log stats.
+		got.HTTPAllReqs += gotSingle.HTTPAllReqs
+		for _, rc := range rcs {
+			got.HTTPAllRsps[rc] += gotSingle.HTTPAllRsps[rc]
+		}
+		for _, ep := range ctfe.Entrypoints {
+			got.HTTPReq[ep] += gotSingle.HTTPReq[ep]
+			for _, rc := range rcs {
+				got.HTTPRsps[ep][rc] += gotSingle.HTTPRsps[ep][rc]
+			}
+		}
 	}
 
-	var stats ctfe.AllStats
-	if err := json.NewDecoder(httpRsp.Body).Decode(&stats); err != nil {
-		return fmt.Errorf("failed to json.Decode() result: %v", err)
-	}
-	got := stats.Logs[cfg.Prefix]
-	if got.LogID != want.LogID {
-		return fmt.Errorf("got stats.log-id %d, want %d", got.LogID, want.LogID)
-	}
+	// Now compare accumulated actual stats with what we expect to see.
 	if got.HTTPAllReqs != want.HTTPAllReqs {
 		return fmt.Errorf("got stats.http-all-reqs %d, want %d", got.HTTPAllReqs, want.HTTPAllReqs)
 	}
-	rcs := []string{"200", "400"}
 	for _, rc := range rcs {
 		if got.HTTPAllRsps[rc] != want.HTTPAllRsps[rc] {
 			return fmt.Errorf("got stats.http-all-rsps[%s]=%d; want %d", rc, got.HTTPAllRsps[rc], want.HTTPAllRsps[rc])
