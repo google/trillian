@@ -109,19 +109,19 @@ func (info handlerTestInfo) expectSign(toSign string) {
 
 func (info handlerTestInfo) getHandlers() map[string]AppHandler {
 	return map[string]AppHandler{
-		"get-sth":             AppHandler{Context: info.c, Handler: getSTH, Name: "GetSTH", Method: http.MethodGet},
-		"get-sth-consistency": AppHandler{Context: info.c, Handler: getSTHConsistency, Name: "GetSTHConsistency", Method: http.MethodGet},
-		"get-proof-by-hash":   AppHandler{Context: info.c, Handler: getProofByHash, Name: "GetProofByHash", Method: http.MethodGet},
-		"get-entries":         AppHandler{Context: info.c, Handler: getEntries, Name: "GetEntries", Method: http.MethodGet},
-		"get-roots":           AppHandler{Context: info.c, Handler: getRoots, Name: "GetRoots", Method: http.MethodGet},
-		"get-entry-and-proof": AppHandler{Context: info.c, Handler: getEntryAndProof, Name: "GetEntryAndProof", Method: http.MethodGet},
+		"get-sth":             {Context: info.c, Handler: getSTH, Name: "GetSTH", Method: http.MethodGet},
+		"get-sth-consistency": {Context: info.c, Handler: getSTHConsistency, Name: "GetSTHConsistency", Method: http.MethodGet},
+		"get-proof-by-hash":   {Context: info.c, Handler: getProofByHash, Name: "GetProofByHash", Method: http.MethodGet},
+		"get-entries":         {Context: info.c, Handler: getEntries, Name: "GetEntries", Method: http.MethodGet},
+		"get-roots":           {Context: info.c, Handler: getRoots, Name: "GetRoots", Method: http.MethodGet},
+		"get-entry-and-proof": {Context: info.c, Handler: getEntryAndProof, Name: "GetEntryAndProof", Method: http.MethodGet},
 	}
 }
 
 func (info handlerTestInfo) postHandlers() map[string]AppHandler {
 	return map[string]AppHandler{
-		"add-chain":     AppHandler{Context: info.c, Handler: addChain, Name: "AddChain", Method: http.MethodPost},
-		"add-pre-chain": AppHandler{Context: info.c, Handler: addPreChain, Name: "AddPreChain", Method: http.MethodPost},
+		"add-chain":     {Context: info.c, Handler: addChain, Name: "AddChain", Method: http.MethodPost},
+		"add-pre-chain": {Context: info.c, Handler: addPreChain, Name: "AddPreChain", Method: http.MethodPost},
 	}
 }
 
@@ -824,7 +824,7 @@ func TestGetProofByHash(t *testing.T) {
 			rpcRsp: &trillian.GetInclusionProofByHashResponse{
 				Status: okStatus,
 				Proof: []*trillian.Proof{
-					&trillian.Proof{
+					{
 						LeafIndex: 2,
 						// Proof to match inclusionProof above.
 						ProofNode: []*trillian.Node{
@@ -834,7 +834,7 @@ func TestGetProofByHash(t *testing.T) {
 						},
 					},
 					// Second proof ignored.
-					&trillian.Proof{
+					{
 						LeafIndex: 2,
 						ProofNode: []*trillian.Node{
 							{NodeHash: []byte("ghijkl")},
@@ -849,7 +849,7 @@ func TestGetProofByHash(t *testing.T) {
 			rpcRsp: &trillian.GetInclusionProofByHashResponse{
 				Status: okStatus,
 				Proof: []*trillian.Proof{
-					&trillian.Proof{
+					{
 						LeafIndex: 2,
 						ProofNode: []*trillian.Node{
 							{NodeHash: []byte("abcdef")},
@@ -867,7 +867,7 @@ func TestGetProofByHash(t *testing.T) {
 			rpcRsp: &trillian.GetInclusionProofByHashResponse{
 				Status: okStatus,
 				Proof: []*trillian.Proof{
-					&trillian.Proof{
+					{
 						LeafIndex: 2,
 						// Proof to match inclusionProof above.
 						ProofNode: []*trillian.Node{
