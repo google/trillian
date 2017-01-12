@@ -1,4 +1,5 @@
-trillian_log_server
-trillian_map_server
-ct_server
-protoc
+/trillian_log_server
+/trillian_map_server
+/ct_server
+/loglb
+/protoc
