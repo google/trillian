@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-INTEGRATION_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+INTEGRATION_DIR="$( cd "$( dirname "$0" )" && pwd )"
 . ${INTEGRATION_DIR}/common.sh
 
 TEST_TREE_ID=1123
