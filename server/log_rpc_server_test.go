@@ -45,28 +45,24 @@ var getByHashRequest2 = trillian.GetLeavesByHashRequest{LogId: logID2, LeafHash:
 
 var getInclusionProofByHashRequestBadTreeSize = trillian.GetInclusionProofByHashRequest{LogId: logID1, TreeSize: -50, LeafHash: []byte("data")}
 var getInclusionProofByHashRequestBadHash = trillian.GetInclusionProofByHashRequest{LogId: logID1, TreeSize: 50, LeafHash: []byte{}}
-var getInclusionProofByHashRequestRehash = trillian.GetInclusionProofByHashRequest{LogId: logID1, TreeSize: 25, LeafHash: []byte("ahash"), AllowRehashing: true}
 var getInclusionProofByHashRequest7 = trillian.GetInclusionProofByHashRequest{LogId: logID1, TreeSize: 7, LeafHash: []byte("ahash")}
 var getInclusionProofByHashRequest25 = trillian.GetInclusionProofByHashRequest{LogId: logID1, TreeSize: 25, LeafHash: []byte("ahash")}
 
 var getInclusionProofByIndexRequestBadTreeSize = trillian.GetInclusionProofRequest{LogId: logID1, TreeSize: -50, LeafIndex: 10}
 var getInclusionProofByIndexRequestBadLeafIndex = trillian.GetInclusionProofRequest{LogId: logID1, TreeSize: 50, LeafIndex: -10}
 var getInclusionProofByIndexRequestBadLeafIndexRange = trillian.GetInclusionProofRequest{LogId: logID1, TreeSize: 50, LeafIndex: 60}
-var getInclusionProofByIndexRequestRehash = trillian.GetInclusionProofRequest{LogId: logID1, TreeSize: 7, LeafIndex: 2, AllowRehashing: true}
 var getInclusionProofByIndexRequest7 = trillian.GetInclusionProofRequest{LogId: logID1, TreeSize: 7, LeafIndex: 2}
 var getInclusionProofByIndexRequest25 = trillian.GetInclusionProofRequest{LogId: logID1, TreeSize: 50, LeafIndex: 25}
 
 var getEntryAndProofRequestBadTreeSize = trillian.GetEntryAndProofRequest{LogId: logID1, TreeSize: -20, LeafIndex: 20}
 var getEntryAndProofRequestBadLeafIndex = trillian.GetEntryAndProofRequest{LogId: logID1, TreeSize: 25, LeafIndex: -5}
 var getEntryAndProofRequestBadLeafIndexRange = trillian.GetEntryAndProofRequest{LogId: logID1, TreeSize: 25, LeafIndex: 30}
-var getEntryAndProofRequestRehash = trillian.GetEntryAndProofRequest{LogId: logID1, TreeSize: 17, LeafIndex: 3, AllowRehashing: true}
 var getEntryAndProofRequest17 = trillian.GetEntryAndProofRequest{LogId: logID1, TreeSize: 17, LeafIndex: 3}
 var getEntryAndProofRequest7 = trillian.GetEntryAndProofRequest{LogId: logID1, TreeSize: 7, LeafIndex: 2}
 
 var getConsistencyProofRequestBadFirstTreeSize = trillian.GetConsistencyProofRequest{LogId: logID1, FirstTreeSize: -10, SecondTreeSize: 25}
 var getConsistencyProofRequestBadSecondTreeSize = trillian.GetConsistencyProofRequest{LogId: logID1, FirstTreeSize: 10, SecondTreeSize: -25}
 var getConsistencyProofRequestBadRange = trillian.GetConsistencyProofRequest{LogId: logID1, FirstTreeSize: 330, SecondTreeSize: 329}
-var getConsistencyProofRequestRehash = trillian.GetConsistencyProofRequest{LogId: logID1, FirstTreeSize: 10, SecondTreeSize: 25, AllowRehashing: true}
 var getConsistencyProofRequest25 = trillian.GetConsistencyProofRequest{LogId: logID1, FirstTreeSize: 10, SecondTreeSize: 25}
 var getConsistencyProofRequest7 = trillian.GetConsistencyProofRequest{LogId: logID1, FirstTreeSize: 4, SecondTreeSize: 7}
 
@@ -89,27 +85,23 @@ var iProofReqErrorTests = []proofReqErrorTest{
 	{iReq: &getInclusionProofByIndexRequestBadTreeSize, msg: "bad tree size", expectedErr: "tree size"},
 	{iReq: &getInclusionProofByIndexRequestBadLeafIndex, msg: "bad leaf index", expectedErr: "leaf index"},
 	{iReq: &getInclusionProofByIndexRequestBadLeafIndexRange, msg: "bad leaf index range", expectedErr: "does not exist"},
-	{iReq: &getInclusionProofByIndexRequestRehash, msg: "rehashing requested", expectedErr: "rehash"},
 }
 
 var hProofReqErrorTests = []proofReqErrorTest{
 	{hReq: &getInclusionProofByHashRequestBadTreeSize, msg: "bad tree size", expectedErr: "tree size"},
 	{hReq: &getInclusionProofByHashRequestBadHash, msg: "bad hash", expectedErr: "invalid leaf hash"},
-	{hReq: &getInclusionProofByHashRequestRehash, msg: "rehashing requested", expectedErr: "rehash"},
 }
 
 var pProofReqErrorTests = []proofReqErrorTest{
 	{pReq: &getEntryAndProofRequestBadTreeSize, msg: "bad tree size", expectedErr: "tree size"},
 	{pReq: &getEntryAndProofRequestBadLeafIndex, msg: "bad leaf index", expectedErr: "index:"},
 	{pReq: &getEntryAndProofRequestBadLeafIndexRange, msg: "bad leaf index range", expectedErr: "exceeds tree size"},
-	{pReq: &getEntryAndProofRequestRehash, msg: "rehashing requested", expectedErr: "rehash"},
 }
 
 var cProofReqErrorTests = []proofReqErrorTest{
 	{cReq: &getConsistencyProofRequestBadFirstTreeSize, msg: "bad first size", expectedErr: "first tree size"},
 	{cReq: &getConsistencyProofRequestBadSecondTreeSize, msg: "bad second size", expectedErr: "second tree size"},
 	{cReq: &getConsistencyProofRequestBadRange, msg: "bad range", expectedErr: "must be > first"},
-	{cReq: &getConsistencyProofRequestRehash, msg: "rehashing requested", expectedErr: "rehash"},
 }
 
 var nodeIdsConsistencySize4ToSize7 = []storage.NodeID{testonly.MustCreateNodeIDForTreeCoords(2, 1, 64)}
