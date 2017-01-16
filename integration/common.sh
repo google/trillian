@@ -6,14 +6,16 @@ export TESTDBOPTS="-u test --password=zaphod -D test"
 export STARTUP_WAIT_SECONDS=10
 
 function runTest() {
-  echo "=== RUN   ${2}"
-  "${INTEGRATION_DIR}/$1"
+  local name=$1
+  local script=$2
+  echo "=== RUN   ${name}"
+  "${INTEGRATION_DIR}"/"${script}" "$3" "$4" "$5" "$6" "$7" "$8"
   rc=$?
   if [ $rc -ne 0 ]; then
-    echo "--- FAIL: ${2}"
+    echo "--- FAIL: ${name}"
     return $rc
   fi
-  echo "--- PASS: ${2}"
+  echo "--- PASS: ${name}"
   return 0
 }
 
