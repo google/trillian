@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 INTEGRATION_DIR="$( cd "$( dirname "$0" )" && pwd )"
-. ${INTEGRATION_DIR}/common.sh
+. "${INTEGRATION_DIR}"/common.sh
 
 RPC_PORTS="36962 36963 36964"
 RPC_SERVERS="localhost:36962,localhost:36963,localhost:36964"
@@ -9,14 +9,14 @@ LB_PORT=46962
 CT_PORTS="6962 6963 6964"
 CT_SERVERS="localhost:6962,localhost:6963,localhost:6964"
 
-. ${INTEGRATION_DIR}/ct_config.sh
+. "${INTEGRATION_DIR}"/ct_config.sh
 
 # Start a set of Log RPC servers.  Note that each of them will run their own
 # sequencer; a proper deployment should have a single master sequencer, but
 # for this test we rely on the transactional nature of the sequencing operation.
 # TODO(drysdale): update this comment once the Trillian open-source code includes
 # some kind of sequencer mastership election.
-pushd ${TRILLIAN_ROOT} > /dev/null
+pushd "${TRILLIAN_ROOT}" > /dev/null
 go build ${GOFLAGS} ./server/trillian_log_server/
 for port in ${RPC_PORTS}
 do
@@ -35,7 +35,7 @@ done
 
 # Start a toy gRPC load balancer.  It randomly sprays RPCs across the
 # backends.
-pushd ${TRILLIAN_ROOT} > /dev/null
+pushd "${TRILLIAN_ROOT}" > /dev/null
 go build ${GOFLAGS} ./testonly/loglb
 echo "Starting Log RPC load balancer ${LB_PORT} -> ${RPC_SERVERS}"
 ./loglb --backends ${RPC_SERVERS} --port ${LB_PORT} &
@@ -46,7 +46,7 @@ waitForServerStartup ${LB_PORT}
 
 
 # Start a set of CT personalities.
-pushd ${TRILLIAN_ROOT} > /dev/null
+pushd "${TRILLIAN_ROOT}" > /dev/null
 go build ${GOFLAGS} ./examples/ct/ct_server/
 for port in ${CT_PORTS}
 do
@@ -67,11 +67,11 @@ set -e
 
 echo "Running test(s)"
 set +e
-go test -v -run ".*CT.*" --timeout=5m ./integration --log_config ${CT_CFG} --ct_http_server=${CT_SERVERS} --testdata=${TESTDATA}
+go test -v -run ".*CT.*" --timeout=5m ./integration --log_config "${CT_CFG}" --ct_http_server=${CT_SERVERS} --testdata=${TESTDATA}
 RESULT=$?
 set -e
 
-rm ${CT_CFG}
+rm "${CT_CFG}"
 for pid in ${HTTP_SERVER_PIDS}
 do
     echo "Stopping CT HTTP server (pid ${pid})"

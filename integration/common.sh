@@ -1,13 +1,13 @@
 export INTEGRATION_DIR="$( cd "$( dirname "$0" )" && pwd )"
-export TRILLIAN_ROOT=${INTEGRATION_DIR}/..
-export SCRIPTS_DIR=${TRILLIAN_ROOT}/scripts
-export TESTDATA=${TRILLIAN_ROOT}/testdata
+export TRILLIAN_ROOT="${INTEGRATION_DIR}"/..
+export SCRIPTS_DIR="${TRILLIAN_ROOT}"/scripts
+export TESTDATA="${TRILLIAN_ROOT}"/testdata
 export TESTDBOPTS="-u test --password=zaphod -D test"
 export STARTUP_WAIT_SECONDS=10
 
 function runTest() {
   echo "=== RUN   ${2}"
-  ${INTEGRATION_DIR}/$1
+  "${INTEGRATION_DIR}/$1"
   rc=$?
   if [ $rc -ne 0 ]; then
     echo "--- FAIL: ${2}"
