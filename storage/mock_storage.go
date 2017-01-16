@@ -128,15 +128,16 @@ func (_mr *_MockLogTXRecorder) GetSequencedLeafCount() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetSequencedLeafCount")
 }
 
-func (_m *MockLogTX) GetTreeRevisionAtSize(_param0 int64, _param1 bool) (int64, error) {
-	ret := _m.ctrl.Call(_m, "GetTreeRevisionAtSize", _param0, _param1)
+func (_m *MockLogTX) GetTreeRevisionIncludingSize(_param0 int64) (int64, int64, error) {
+	ret := _m.ctrl.Call(_m, "GetTreeRevisionIncludingSize", _param0)
 	ret0, _ := ret[0].(int64)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret1, _ := ret[1].(int64)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
-func (_mr *_MockLogTXRecorder) GetTreeRevisionAtSize(arg0, arg1 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetTreeRevisionAtSize", arg0, arg1)
+func (_mr *_MockLogTXRecorder) GetTreeRevisionIncludingSize(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetTreeRevisionIncludingSize", arg0)
 }
 
 func (_m *MockLogTX) IsOpen() bool {
@@ -273,15 +274,16 @@ func (_mr *_MockMapTXRecorder) GetMerkleNodes(arg0, arg1 interface{}) *gomock.Ca
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetMerkleNodes", arg0, arg1)
 }
 
-func (_m *MockMapTX) GetTreeRevisionAtSize(_param0 int64, _param1 bool) (int64, error) {
-	ret := _m.ctrl.Call(_m, "GetTreeRevisionAtSize", _param0, _param1)
+func (_m *MockMapTX) GetTreeRevisionIncludingSize(_param0 int64) (int64, int64, error) {
+	ret := _m.ctrl.Call(_m, "GetTreeRevisionIncludingSize", _param0)
 	ret0, _ := ret[0].(int64)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret1, _ := ret[1].(int64)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
-func (_mr *_MockMapTXRecorder) GetTreeRevisionAtSize(arg0, arg1 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetTreeRevisionAtSize", arg0, arg1)
+func (_mr *_MockMapTXRecorder) GetTreeRevisionIncludingSize(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetTreeRevisionIncludingSize", arg0)
 }
 
 func (_m *MockMapTX) IsOpen() bool {
@@ -441,15 +443,16 @@ func (_mr *_MockReadOnlyLogTXRecorder) GetSequencedLeafCount() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetSequencedLeafCount")
 }
 
-func (_m *MockReadOnlyLogTX) GetTreeRevisionAtSize(_param0 int64, _param1 bool) (int64, error) {
-	ret := _m.ctrl.Call(_m, "GetTreeRevisionAtSize", _param0, _param1)
+func (_m *MockReadOnlyLogTX) GetTreeRevisionIncludingSize(_param0 int64) (int64, int64, error) {
+	ret := _m.ctrl.Call(_m, "GetTreeRevisionIncludingSize", _param0)
 	ret0, _ := ret[0].(int64)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret1, _ := ret[1].(int64)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
-func (_mr *_MockReadOnlyLogTXRecorder) GetTreeRevisionAtSize(arg0, arg1 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetTreeRevisionAtSize", arg0, arg1)
+func (_mr *_MockReadOnlyLogTXRecorder) GetTreeRevisionIncludingSize(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetTreeRevisionIncludingSize", arg0)
 }
 
 func (_m *MockReadOnlyLogTX) LatestSignedLogRoot() (trillian.SignedLogRoot, error) {
@@ -526,15 +529,16 @@ func (_mr *_MockReadOnlyMapTXRecorder) GetMerkleNodes(arg0, arg1 interface{}) *g
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetMerkleNodes", arg0, arg1)
 }
 
-func (_m *MockReadOnlyMapTX) GetTreeRevisionAtSize(_param0 int64, _param1 bool) (int64, error) {
-	ret := _m.ctrl.Call(_m, "GetTreeRevisionAtSize", _param0, _param1)
+func (_m *MockReadOnlyMapTX) GetTreeRevisionIncludingSize(_param0 int64) (int64, int64, error) {
+	ret := _m.ctrl.Call(_m, "GetTreeRevisionIncludingSize", _param0)
 	ret0, _ := ret[0].(int64)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret1, _ := ret[1].(int64)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
-func (_mr *_MockReadOnlyMapTXRecorder) GetTreeRevisionAtSize(arg0, arg1 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetTreeRevisionAtSize", arg0, arg1)
+func (_mr *_MockReadOnlyMapTXRecorder) GetTreeRevisionIncludingSize(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetTreeRevisionIncludingSize", arg0)
 }
 
 func (_m *MockReadOnlyMapTX) LatestSignedMapRoot() (trillian.SignedMapRoot, error) {

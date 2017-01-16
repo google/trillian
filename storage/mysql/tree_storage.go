@@ -18,8 +18,7 @@ import (
 const insertSubtreeMultiSQL string = `INSERT INTO Subtree(TreeId, SubtreeId, Nodes, SubtreeRevision) ` + placeholderSQL
 const insertTreeHeadSQL string = `INSERT INTO TreeHead(TreeId,TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature)
 		 VALUES(?,?,?,?,?,?)`
-const selectTreeRevisionAtSizeSQL string = "SELECT TreeRevision FROM TreeHead WHERE TreeId=? AND TreeSize=? ORDER BY TreeRevision DESC LIMIT 1"
-const selectTreeRevisionAtSizeOrLargerSQL string = "SELECT TreeRevision FROM TreeHead WHERE TreeId=? AND TreeSize>=? ORDER BY TreeRevision DESC LIMIT 1"
+const selectTreeRevisionAtSizeOrLargerSQL string = "SELECT TreeRevision,TreeSize FROM TreeHead WHERE TreeId=? AND TreeSize>=? ORDER BY TreeRevision LIMIT 1"
 const selectActiveLogsSQL string = "select TreeId, KeyId from Trees where TreeType='LOG'"
 const selectActiveLogsWithUnsequencedSQL string = "SELECT DISTINCT t.TreeId, t.KeyId from Trees t INNER JOIN Unsequenced u WHERE TreeType='LOG' AND t.TreeId=u.TreeId"
 
@@ -359,23 +358,16 @@ func checkResultOkAndRowCountIs(res sql.Result, err error, count int64) error {
 // It is an error to request tree sizes larger than the currently published tree size.
 // For an inexact tree size this implementation always returns the next largest revision if an
 // exact one does not exist but it isn't required to do so.
-func (t *treeTX) GetTreeRevisionAtSize(treeSize int64, exact bool) (int64, error) {
+func (t *treeTX) GetTreeRevisionIncludingSize(treeSize int64) (int64, int64, error) {
 	// Negative size is not sensible and a zero sized tree has no nodes so no revisions
 	if treeSize <= 0 {
-		return 0, fmt.Errorf("invalid tree size: %d", treeSize)
+		return 0, 0, fmt.Errorf("invalid tree size: %d", treeSize)
 	}
 
-	var stmt string
-	if exact {
-		stmt = selectTreeRevisionAtSizeSQL
-	} else {
-		stmt = selectTreeRevisionAtSizeOrLargerSQL
-	}
+	var treeRevision, actualTreeSize int64
+	err := t.tx.QueryRow(selectTreeRevisionAtSizeOrLargerSQL, t.ts.treeID, treeSize).Scan(&treeRevision, &actualTreeSize)
 
-	var treeRevision int64
-	err := t.tx.QueryRow(stmt, t.ts.treeID, treeSize).Scan(&treeRevision)
-
-	return treeRevision, err
+	return treeRevision, actualTreeSize, err
 }
 
 // getSubtreesAtRev returns a GetSubtreesFunc which reads at the passed in rev.
