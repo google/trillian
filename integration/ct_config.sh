@@ -2,7 +2,7 @@
 # Builds configuration for a CT test, set in ${CT_CFG},
 # sets ${TREE_IDS} and provisions logs for them.
 set -e
-INTEGRATION_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+INTEGRATION_DIR="$( cd "$( dirname "$0" )" && pwd )"
 . ${INTEGRATION_DIR}/common.sh
 
 # Build config file with absolute paths
