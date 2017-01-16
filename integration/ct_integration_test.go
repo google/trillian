@@ -31,7 +31,7 @@ import (
 	"golang.org/x/net/context/ctxhttp"
 )
 
-var httpServerFlag = flag.String("ct_http_server", "localhost:8092", "Comma-separated list of servers, each as address:port")
+var httpServersFlag = flag.String("ct_http_servers", "localhost:8092", "Comma-separated list of (assumed interchangeable) servers, each as address:port")
 var testDir = flag.String("testdata", "testdata", "Name of directory with test data")
 var seed = flag.Int64("seed", -1, "Seed for random number generation")
 var logConfigFlag = flag.String("log_config", "", "File holding log config in JSON")
@@ -104,7 +104,7 @@ func testCTIntegrationForLog(cfg ctfe.LogConfig) error {
 		opts.PublicKey = string(pubkey)
 	}
 	var pool clientPool
-	for _, s := range strings.Split(*httpServerFlag, ",") {
+	for _, s := range strings.Split(*httpServersFlag, ",") {
 		c, err := client.New("http://"+s+"/"+cfg.Prefix, nil, opts)
 		if err != nil {
 			return fmt.Errorf("failed to create LogClient instance: %v", err)
@@ -534,7 +534,7 @@ func (want *wantStats) check(cfg ctfe.LogConfig) error {
 	ctx := context.Background()
 	got := newWantStats(int64(want.LogID))
 	rcs := []string{"200", "400"}
-	for _, s := range strings.Split(*httpServerFlag, ",") {
+	for _, s := range strings.Split(*httpServersFlag, ",") {
 		httpReq, err := http.NewRequest(http.MethodGet, "http://"+s+"/debug/vars", nil)
 		if err != nil {
 			return fmt.Errorf("failed to build GET request: %v", err)
