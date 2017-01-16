@@ -17,8 +17,8 @@ go build ${GOFLAGS} ./server/vmap/trillian_map_server/
 RPC_SERVER_PID=$!
 popd > /dev/null
 
-# Set an exit trap to ensure we kill the RPC server once we're done.
-trap "kill -INT ${RPC_SERVER_PID}" EXIT
+# Ensure we kill the RPC server once we're done.
+TO_KILL="${RPC_SERVER_PID}"
 waitForServerStartup ${RPC_PORT}
 
 # Run the test(s):
@@ -29,8 +29,8 @@ RESULT=$?
 set -e
 
 echo "Stopping Map RPC server on port ${RPC_PORT}"
-trap - EXIT
 kill -INT ${RPC_SERVER_PID}
+TO_KILL=""
 
 if [ $RESULT != 0 ]; then
     sleep 1

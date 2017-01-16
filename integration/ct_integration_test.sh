@@ -15,8 +15,8 @@ go build ${GOFLAGS} ./server/trillian_log_server/
 RPC_SERVER_PID=$!
 popd > /dev/null
 
-# Set an exit trap to ensure we kill the RPC server once we're done.
-trap "kill -INT ${RPC_SERVER_PID}" EXIT
+# Ensure we kill the RPC server once we're done.
+TO_KILL="${RPC_SERVER_PID}"
 waitForServerStartup ${RPC_PORT}
 
 echo "Starting CT HTTP server on port ${CT_PORT}"
@@ -26,8 +26,8 @@ go build ${GOFLAGS} ./examples/ct/ct_server/
 HTTP_SERVER_PID=$!
 popd > /dev/null
 
-# Set an exit trap to ensure we kill the servers once we're done.
-trap "kill -INT ${HTTP_SERVER_PID} ${RPC_SERVER_PID}" EXIT
+# Ensure we kill the servers once we're done.
+TO_KILL="${HTTP_SERVER_PID} ${RPC_SERVER_PID}"
 
 set +e
 waitForServerStartup ${CT_PORT}
@@ -39,13 +39,11 @@ go test -v -run ".*CT.*" --timeout=5m ./integration --log_config "${CT_CFG}" --c
 RESULT=$?
 set -e
 
-rm "${CT_CFG}"
-trap - EXIT
 echo "Stopping CT HTTP server (pid ${HTTP_SERVER_PID}) on port ${CT_PORT}"
 kill -INT ${HTTP_SERVER_PID}
-
 echo "Stopping Log RPC server (pid ${RPC_SERVER_PID}) on port ${RPC_PORT}"
 kill -INT ${RPC_SERVER_PID}
+TO_KILL=""
 
 if [ $RESULT != 0 ]; then
     sleep 1

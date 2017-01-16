@@ -26,8 +26,8 @@ do
 done
 popd > /dev/null
 
-# Set an exit trap to ensure we kill the RPC servers once we're done.
-trap "kill -INT ${RPC_SERVER_PIDS}" EXIT
+# Ensure we kill the RPC servers once we're done.
+TO_KILL="${RPC_SERVER_PIDS}"
 for port in ${RPC_PORTS}
 do
     waitForServerStartup ${port}
@@ -41,7 +41,7 @@ echo "Starting Log RPC load balancer ${LB_PORT} -> ${RPC_SERVERS}"
 ./loglb --backends ${RPC_SERVERS} --port ${LB_PORT} &
 LB_SERVER_PID=$!
 popd > /dev/null
-trap "kill -INT ${LB_SERVER_PID} ${RPC_SERVER_PIDS}" EXIT
+TO_KILL="${LB_SERVER_PID} ${RPC_SERVER_PIDS}"
 waitForServerStartup ${LB_PORT}
 
 
@@ -56,8 +56,8 @@ do
 done
 popd > /dev/null
 
-# Set an exit trap to ensure we kill the servers once we're done.
-trap "kill -INT ${HTTP_SERVER_PIDS} ${LB_SERVER_PID} ${RPC_SERVER_PIDS}" EXIT
+# Ensure we kill the servers once we're done.
+TO_KILL="${HTTP_SERVER_PIDS} ${LB_SERVER_PID} ${RPC_SERVER_PIDS}"
 set +e
 for port in ${CT_PORTS}
 do
@@ -71,7 +71,6 @@ go test -v -run ".*CT.*" --timeout=5m ./integration --log_config "${CT_CFG}" --c
 RESULT=$?
 set -e
 
-rm "${CT_CFG}"
 for pid in ${HTTP_SERVER_PIDS}
 do
     echo "Stopping CT HTTP server (pid ${pid})"
@@ -84,6 +83,6 @@ do
     echo "Stopping Log RPC server (pid ${pid})"
     kill -INT ${pid}
 done
+TO_KILL=""
 
-trap - EXIT
 exit $RESULT

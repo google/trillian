@@ -26,3 +26,18 @@ function waitForServerStartup() {
   # Wait a bit more to give it a chance to become actually available e.g. if Travis is slow
   sleep 2
 }
+
+
+# Clean up anything in ${TO_KILL} and ${TO_DELETE}.
+function onExit() {
+  if [[ "${TO_KILL}" ]]; then
+    echo "Killing ${TO_KILL} on exit"
+    kill -INT ${TO_KILL}
+  fi
+  if [[ "${TO_DELETE}" ]]; then
+    echo "Deleting ${TO_DELETE} on exit"
+    rm ${TO_DELETE}
+  fi
+}
+
+trap onExit EXIT
