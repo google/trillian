@@ -35,7 +35,7 @@ set -e
 
 echo "Running test(s)"
 set +e
-go test -v -run ".*CT.*" --timeout=5m ./integration --log_config "${CT_CFG}" --ct_http_server="localhost:${CT_PORT}" --testdata=${TESTDATA}
+go test -v -run ".*CT.*" --timeout=5m ./integration --log_config "${CT_CFG}" --ct_http_servers="localhost:${CT_PORT}" --testdata=${TESTDATA}
 RESULT=$?
 set -e
 
