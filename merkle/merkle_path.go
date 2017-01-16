@@ -10,15 +10,27 @@ import (
 // Verbosity level for logging of debug related items
 const vLevel = 2
 
+// NodeFetch bundles a nodeID with additional information on how to use the node to construct the
+// correct proof.
+type NodeFetch struct {
+	NodeID storage.NodeID
+	Rehash bool
+}
+
+// Equivalent return true iff the other represents the same rehash state and NodeID as the other.
+func (n NodeFetch) Equivalent(other NodeFetch) bool {
+	return n.Rehash == other.Rehash && n.NodeID.Equivalent(other.NodeID)
+}
+
 // CalcInclusionProofNodeAddresses returns the tree node IDs needed to
 // build an inclusion proof for a specified leaf and tree size. The maxBitLen parameter
 // is copied into all the returned nodeIDs.
-func CalcInclusionProofNodeAddresses(treeSize, index int64, maxBitLen int) ([]storage.NodeID, error) {
+func CalcInclusionProofNodeAddresses(treeSize, index int64, maxBitLen int) ([]NodeFetch, error) {
 	if index >= treeSize || index < 0 || treeSize < 1 || maxBitLen < 0 {
-		return []storage.NodeID{}, fmt.Errorf("invalid params ts: %d index: %d, bitlen:%d", treeSize, index, maxBitLen)
+		return []NodeFetch{}, fmt.Errorf("invalid params ts: %d index: %d, bitlen:%d", treeSize, index, maxBitLen)
 	}
 
-	proof := make([]storage.NodeID, 0, bitLen(treeSize)+1)
+	proof := make([]NodeFetch, 0, bitLen(treeSize)+1)
 
 	sizeLessOne := treeSize - 1
 
@@ -38,7 +50,7 @@ func CalcInclusionProofNodeAddresses(treeSize, index int64, maxBitLen int) ([]st
 			if err != nil {
 				return nil, err
 			}
-			proof = append(proof, n)
+			proof = append(proof, NodeFetch{NodeID: n})
 		} else if sibling == lastNodeAtLevel {
 			// We're working in the same node coordinate space as the C++ reference implementation
 			// (depth, index) but intermediate nodes with only one child are not written by our storage.
@@ -49,7 +61,7 @@ func CalcInclusionProofNodeAddresses(treeSize, index int64, maxBitLen int) ([]st
 			if err != nil {
 				return nil, err
 			}
-			proof = append(proof, n)
+			proof = append(proof, NodeFetch{NodeID: n})
 		}
 
 		node = node >> 1
@@ -66,9 +78,9 @@ func CalcInclusionProofNodeAddresses(treeSize, index int64, maxBitLen int) ([]st
 // the input tree sizes correspond to valid tree heads. All returned NodeIDs are tree
 // coordinates within the new tree. It is assumed that they will be fetched from storage
 // at a revision corresponding to the STH associated with the treeSize parameter.
-func CalcConsistencyProofNodeAddresses(previousTreeSize, treeSize int64, maxBitLen int) ([]storage.NodeID, error) {
+func CalcConsistencyProofNodeAddresses(previousTreeSize, treeSize int64, maxBitLen int) ([]NodeFetch, error) {
 	if previousTreeSize > treeSize || previousTreeSize < 1 || treeSize < 1 || maxBitLen <= 0 {
-		return []storage.NodeID{}, fmt.Errorf("invalid params prior: %d treesize: %d, bitlen:%d", previousTreeSize, treeSize, maxBitLen)
+		return []NodeFetch{}, fmt.Errorf("invalid params prior: %d treesize: %d, bitlen:%d", previousTreeSize, treeSize, maxBitLen)
 	}
 
 	return snapshotConsistency(previousTreeSize, treeSize, maxBitLen)
@@ -78,8 +90,8 @@ func CalcConsistencyProofNodeAddresses(previousTreeSize, treeSize int64, maxBitL
 // two snapshots. Based on the C++ code used by CT but adjusted to fit our situation.
 // In particular the code does not need to handle the case where overwritten node hashes
 // must be recursively computed because we have versioned nodes.
-func snapshotConsistency(snapshot1, snapshot2 int64, maxBitLen int) ([]storage.NodeID, error) {
-	proof := make([]storage.NodeID, 0, bitLen(snapshot2)+1)
+func snapshotConsistency(snapshot1, snapshot2 int64, maxBitLen int) ([]NodeFetch, error) {
+	proof := make([]NodeFetch, 0, bitLen(snapshot2)+1)
 
 	glog.V(vLevel).Infof("snapshotConsistency: %d -> %d", snapshot1, snapshot2)
 
@@ -101,7 +113,7 @@ func snapshotConsistency(snapshot1, snapshot2 int64, maxBitLen int) ([]storage.N
 		if err != nil {
 			return nil, err
 		}
-		proof = append(proof, n)
+		proof = append(proof, NodeFetch{NodeID: n})
 	}
 
 	// Now append the path from this node to the root of snapshot2.
@@ -112,9 +124,9 @@ func snapshotConsistency(snapshot1, snapshot2 int64, maxBitLen int) ([]storage.N
 	return append(proof, p...), nil
 }
 
-func pathFromNodeToRootAtSnapshot(node int64, level int, snapshot int64, maxBitLen int) ([]storage.NodeID, error) {
+func pathFromNodeToRootAtSnapshot(node int64, level int, snapshot int64, maxBitLen int) ([]NodeFetch, error) {
 	glog.V(vLevel).Infof("pathFromNodeToRootAtSnapshot: N:%d, L:%d, S:%d", node, level, snapshot)
-	proof := make([]storage.NodeID, 0, bitLen(snapshot)+1)
+	proof := make([]NodeFetch, 0, bitLen(snapshot)+1)
 
 	if snapshot == 0 {
 		return proof, nil
@@ -133,7 +145,7 @@ func pathFromNodeToRootAtSnapshot(node int64, level int, snapshot int64, maxBitL
 			if err != nil {
 				return nil, err
 			}
-			proof = append(proof, n)
+			proof = append(proof, NodeFetch{NodeID: n})
 		} else if sibling == lastNode {
 			// The sibling is the last node of the level in the snapshot tree.
 			// In the C++ code we'd potentially recompute the node value here because we could be
@@ -151,7 +163,7 @@ func pathFromNodeToRootAtSnapshot(node int64, level int, snapshot int64, maxBitL
 			if err != nil {
 				return nil, err
 			}
-			proof = append(proof, n)
+			proof = append(proof, NodeFetch{NodeID: n})
 		} else {
 			glog.V(vLevel).Infof("Nonexistent: S:%d L:%d", sibling, level)
 		}

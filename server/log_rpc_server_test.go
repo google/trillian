@@ -574,7 +574,7 @@ func TestGetLeavesByLeafValueHashBeginFails(t *testing.T) {
 
 	_, err := server.GetLeavesByLeafValueHash(context.Background(), &getByHashRequest1)
 	if err == nil {
-		t.Fatalf("GetLeavesByLeafValueHash() = nil, want: error")
+		t.Fatal("GetLeavesByLeafValueHash() = nil, want: error")
 	}
 
 	if !strings.Contains(err.Error(), "TX") {

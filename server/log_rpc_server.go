@@ -1,6 +1,7 @@
 package server
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/golang/glog"
@@ -479,7 +480,19 @@ func getInclusionProofForLeafIndexAtRevision(tx storage.ReadOnlyLogTX, treeRevis
 
 // fetchNodesAndBuildProof is used by both inclusion and consistency proofs. It fetches the nodes
 // from storage and converts them into the proof proto that will be returned to the client.
-func fetchNodesAndBuildProof(tx storage.ReadOnlyLogTX, treeRevision, leafIndex int64, proofNodeIDs []storage.NodeID) (trillian.Proof, error) {
+func fetchNodesAndBuildProof(tx storage.ReadOnlyLogTX, treeRevision, leafIndex int64, proofNodeFetches []merkle.NodeFetch) (trillian.Proof, error) {
+	// TODO(Martin2112): Implement the rehashing. Currently just fetches the nodes and ignores this
+	proofNodeIDs := make([]storage.NodeID, 0, len(proofNodeFetches))
+
+	for _, fetch := range proofNodeFetches {
+		proofNodeIDs = append(proofNodeIDs, fetch.NodeID)
+
+		// TODO(Martin2112): Remove this when rehashing is implemented
+		if fetch.Rehash {
+			return trillian.Proof{}, errors.New("proof requires rehashing but it's not implemented yet")
+		}
+	}
+
 	proofNodes, err := tx.GetMerkleNodes(treeRevision, proofNodeIDs)
 	if err != nil {
 		return trillian.Proof{}, err
