@@ -700,16 +700,16 @@ func TestGetTreeRevisionAtSize(t *testing.T) {
 
 		// First two are tree head sizes and returned version should match
 		if treeRevision1, treeSize1, err := tx.GetTreeRevisionIncludingSize(16); err != nil || treeRevision1 != 5 || treeSize1 != 16 {
-			t.Fatalf("Want revision=5, size=16, err=nil got: revision=%d, size=%d, err=%v", treeRevision1, err)
+			t.Fatalf("Want revision=5, size=16, err=nil got: revision=%d size=%d err=%v", treeRevision1, treeSize1, err)
 		}
 
 		if treeRevision2, treeSize2, err := tx.GetTreeRevisionIncludingSize(27); err != nil || treeRevision2 != 11 || treeSize2 != 27 {
-			t.Fatalf("Want revision=11, size=27, err=nil got: revision=%d, err=%v", treeRevision2, treeSize2, err)
+			t.Fatalf("Want revision=11, size=27, err=nil got: revision=%d size=%d err=%v", treeRevision2, treeSize2, err)
 		}
 
 		// A tree size between revisions should return the next highest
 		if treeRevision3, treeSize3, err := tx.GetTreeRevisionIncludingSize(21); err != nil || treeRevision3 != 11 || treeSize3 != 27 {
-			t.Fatalf("Want revision=11, size=27, err=nil got: revision=%d, err=%v", treeRevision3, treeSize3, err)
+			t.Fatalf("Want revision=11, size=27, err=nil got: revision=%d size=%d err=%v", treeRevision3, treeSize3, err)
 		}
 
 		// A value >= largest tree size should not be allowed
