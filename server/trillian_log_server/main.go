@@ -21,6 +21,7 @@ import (
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/util"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
 var serverPortFlag = flag.Int("port", 8090, "Port to serve log RPC requests on")
@@ -67,6 +68,8 @@ func startRPCServer(listener net.Listener, port int, registry extension.Registry
 
 	logServer := server.NewTrillianLogRPCServer(registry, new(util.SystemTimeSource))
 	trillian.RegisterTrillianLogServer(grpcServer, logServer)
+
+	reflection.Register(grpcServer)
 
 	return grpcServer
 }
