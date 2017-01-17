@@ -50,6 +50,7 @@ func NewFakeNodeReader(mappings []NodeMapping, treeSize, treeRevision int64) *Fa
 	return &FakeNodeReader{nodeMap: nodeMap, treeSize: treeSize, treeRevision: treeRevision}
 }
 
+// GetTreeRevisionAtSize implements the corresponding NodeReader API
 func (f FakeNodeReader) GetTreeRevisionAtSize(treeSize int64) (int64, error) {
 	if f.treeSize != treeSize {
 		return int64(0), fmt.Errorf("GetTreeRevisionAtSize() got treeSize:%d, want: %d", treeSize, f.treeSize)
@@ -58,6 +59,7 @@ func (f FakeNodeReader) GetTreeRevisionAtSize(treeSize int64) (int64, error) {
 	return f.treeRevision, nil
 }
 
+// GetTreeRevisionAtSize implements the corresponding NodeReader API
 func (f FakeNodeReader) GetMerkleNodes(treeRevision int64, NodeIDs []storage.NodeID) ([]storage.Node, error) {
 	if f.treeRevision > treeRevision {
 		return []storage.Node{}, fmt.Errorf("GetMerkleNodes() got treeRevision:%d, want up to: %d", treeRevision, f.treeRevision)
@@ -88,6 +90,9 @@ type MultiFakeNodeReader struct {
 	readers []FakeNodeReader
 }
 
+// LeafBatch describes a set of leaves to be loaded into a MultiFakeNodeReader via a compact
+// merkle tree. As each batch is added to the tree a set of node updates are collected
+// and recorded in a FakeNodeReader for that revision.
 type LeafBatch struct {
 	TreeRevision int64
 	Leaves       []string
@@ -155,6 +160,7 @@ func (m MultiFakeNodeReader) readerForNodeID(nodeID storage.NodeID, revision int
 	return nil
 }
 
+// GetTreeRevisionAtSize implements the corresponding NodeReader API
 func (m MultiFakeNodeReader) GetTreeRevisionAtSize(treeSize int64) (int64, error) {
 	for i := len(m.readers) - 1; i >= 0; i-- {
 		if m.readers[i].treeSize == treeSize {
@@ -165,6 +171,7 @@ func (m MultiFakeNodeReader) GetTreeRevisionAtSize(treeSize int64) (int64, error
 	return int64(0), fmt.Errorf("want revision for tree size: %d but it doesn't exist", treeSize)
 }
 
+// GetMerkleNodes implements the corresponding NodeReader API
 func (m MultiFakeNodeReader) GetMerkleNodes(treeRevision int64, NodeIDs []storage.NodeID) ([]storage.Node, error) {
 	// Find the correct reader for the supplied tree revision. This must be done for each node
 	// as earlier revisions may still be relevant
