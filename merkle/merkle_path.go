@@ -30,46 +30,7 @@ func CalcInclusionProofNodeAddresses(treeSize, index int64, maxBitLen int) ([]No
 		return []NodeFetch{}, fmt.Errorf("invalid params ts: %d index: %d, bitlen:%d", treeSize, index, maxBitLen)
 	}
 
-	proof := make([]NodeFetch, 0, bitLen(treeSize)+1)
-
-	sizeLessOne := treeSize - 1
-
-	if bitLen(treeSize) == 0 || index > sizeLessOne {
-		return proof, nil
-	}
-
-	node := index
-	depth := 0
-	lastNodeAtLevel := sizeLessOne
-
-	for depth < bitLen(sizeLessOne) {
-		sibling := node ^ 1
-		if sibling < lastNodeAtLevel {
-			// Tree must be completely filled in up to this node index
-			n, err := storage.NewNodeIDForTreeCoords(int64(depth), sibling, maxBitLen)
-			if err != nil {
-				return nil, err
-			}
-			proof = append(proof, NodeFetch{NodeID: n})
-		} else if sibling == lastNodeAtLevel {
-			// We're working in the same node coordinate space as the C++ reference implementation
-			// (depth, index) but intermediate nodes with only one child are not written by our storage.
-			// In these cases the value that we want is a copy of a node further down (multiple levels
-			// may be skipped).
-			l, sibling := skipMissingLevels(treeSize, lastNodeAtLevel, depth, node)
-			n, err := storage.NewNodeIDForTreeCoords(int64(l), sibling, maxBitLen)
-			if err != nil {
-				return nil, err
-			}
-			proof = append(proof, NodeFetch{NodeID: n})
-		}
-
-		node = node >> 1
-		lastNodeAtLevel = lastNodeAtLevel >> 1
-		depth++
-	}
-
-	return proof, nil
+	return pathFromNodeToRootAtSnapshot(index, 0, treeSize, maxBitLen)
 }
 
 // CalcConsistencyProofNodeAddresses returns the tree node IDs needed to
