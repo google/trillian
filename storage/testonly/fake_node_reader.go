@@ -59,7 +59,7 @@ func (f FakeNodeReader) GetTreeRevisionAtSize(treeSize int64) (int64, error) {
 	return f.treeRevision, nil
 }
 
-// GetTreeRevisionAtSize implements the corresponding NodeReader API
+// GetMerkleNodes implements the corresponding NodeReader API
 func (f FakeNodeReader) GetMerkleNodes(treeRevision int64, NodeIDs []storage.NodeID) ([]storage.Node, error) {
 	if f.treeRevision > treeRevision {
 		return []storage.Node{}, fmt.Errorf("GetMerkleNodes() got treeRevision:%d, want up to: %d", treeRevision, f.treeRevision)
