@@ -1,7 +1,6 @@
 syntax = "proto3";
 
 package trillian;
-option go_package = "github.com/google/trillian;trillian";
 
 // What goes in here?
 // Things which are exposed through the public trillian APIs.

@@ -1,3 +1,3 @@
 package ctmapperpb
 
-//go:generate sh -c "cd $GOPATH/src && protoc --go_out=plugins=grpc:. github.com/google/trillian/examples/ct/ctmapper/ctmapperpb/*proto"
+//go:generate protoc -I=. -I=$GOPATH/src/ --go_out=plugins=grpc:. ct_mapper.proto
