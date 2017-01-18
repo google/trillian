@@ -1,7 +1,5 @@
 syntax = "proto3";
 
-option go_package = "github.com/google/trillian;trillian";
-
 package trillian;
 
 // What goes in here?
