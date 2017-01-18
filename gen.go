@@ -1,3 +1,3 @@
 package trillian
 
-//go:generate sh -c "cd $GOPATH/src && protoc --go_out=plugins=grpc:. github.com/google/trillian/trillian_api.proto github.com/google/trillian/trillian.proto"
+//go:generate protoc -I=. -I=$GOPATH/src/ --go_out=plugins=grpc:. trillian_api.proto trillian.proto

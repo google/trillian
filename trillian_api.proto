@@ -5,9 +5,8 @@ option java_package = "com.google.trillian.proto";
 option java_outer_classname = "TrillianApiProto";
 
 package trillian;
-option go_package = "github.com/google/trillian;trillian";
 
-import "github.com/google/trillian/trillian.proto";
+import "trillian.proto";
 
 // TrillianApiStatusCode is an application level status code
 enum TrillianApiStatusCode {
