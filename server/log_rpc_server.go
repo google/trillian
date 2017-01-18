@@ -15,7 +15,6 @@
 package server
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/google/trillian"
@@ -34,9 +33,6 @@ import (
 
 // TODO: There is no access control in the server yet and clients could easily modify
 // any tree.
-
-// TODO(Martin2112): Remove this when the feature is fully implemented
-var errRehashNotSupported = errors.New("proof request requires rehash but it's not implemented yet")
 
 // Pass this as a fixed value to proof calculations. It's used as the max depth of the tree
 const proofMaxBitLen = 64
@@ -137,14 +133,7 @@ func (t *TrillianLogRPCServer) GetInclusionProof(ctx context.Context, req *trill
 		return nil, err
 	}
 
-	// TODO(Martin2112): Pass tree size as snapshot size to proof recomputation when implemented
-	// and remove this check.
-	if treeSize != req.TreeSize {
-		tx.Rollback()
-		return nil, errRehashNotSupported
-	}
-
-	proof, err := getInclusionProofForLeafIndexAtRevision(tx, treeRevision, req.TreeSize, req.LeafIndex)
+	proof, err := getInclusionProofForLeafIndexAtRevision(tx, req.TreeSize, treeRevision, treeSize, req.LeafIndex)
 	if err != nil {
 		tx.Rollback()
 		return nil, err
@@ -186,12 +175,6 @@ func (t *TrillianLogRPCServer) GetInclusionProofByHash(ctx context.Context, req 
 		return nil, err
 	}
 
-	// TODO(Martin2112): Pass tree size as snapshot size to proof recomputation when implemented
-	// and remove this check.
-	if treeSize != req.TreeSize {
-		return nil, errRehashNotSupported
-	}
-
 	// Find the leaf index of the supplied hash
 	leafHashes := [][]byte{req.LeafHash}
 	leaves, err := tx.GetLeavesByHash(leafHashes, req.OrderBySequence)
@@ -203,7 +186,7 @@ func (t *TrillianLogRPCServer) GetInclusionProofByHash(ctx context.Context, req 
 	// TODO(Martin2112): Need to define a limit on number of results or some form of paging etc.
 	proofs := make([]*trillian.Proof, 0, len(leaves))
 	for _, leaf := range leaves {
-		proof, err := getInclusionProofForLeafIndexAtRevision(tx, treeRevision, req.TreeSize, leaf.LeafIndex)
+		proof, err := getInclusionProofForLeafIndexAtRevision(tx, req.TreeSize, treeRevision, treeSize, leaf.LeafIndex)
 		if err != nil {
 			tx.Rollback()
 			return nil, err
@@ -239,29 +222,9 @@ func (t *TrillianLogRPCServer) GetConsistencyProof(ctx context.Context, req *tri
 		return nil, fmt.Errorf("%s: second tree size (%d) must be > first tree size (%d)", util.LogIDPrefix(ctx), req.SecondTreeSize, req.FirstTreeSize)
 	}
 
-	nodeIDs, err := merkle.CalcConsistencyProofNodeAddresses(req.FirstTreeSize, req.SecondTreeSize, proofMaxBitLen)
+	tx, err := t.prepareReadOnlyStorageTx(req.LogId)
 	if err != nil {
 		return nil, err
-	}
-
-	tx, err := t.prepareReadOnlyStorageTx(ctx, req.LogId)
-	if err != nil {
-		return nil, err
-	}
-
-	// We need to make sure that both the given sizes are actually STHs, though we don't use the
-	// first tree revision in fetches
-	// TODO(Martin2112): This fetch can be removed when rehashing is implemented
-	_, firstTreeSize, err := tx.GetTreeRevisionIncludingSize(req.FirstTreeSize)
-	if err != nil {
-		tx.Rollback()
-		return nil, err
-	}
-
-	// TODO(Martin2112): Pass tree size as snapshot size to proof recomputation when implemented
-	// and remove this check.
-	if firstTreeSize != req.FirstTreeSize {
-		return nil, errRehashNotSupported
 	}
 
 	secondTreeRevision, secondTreeSize, err := tx.GetTreeRevisionIncludingSize(req.SecondTreeSize)
@@ -270,15 +233,15 @@ func (t *TrillianLogRPCServer) GetConsistencyProof(ctx context.Context, req *tri
 		return nil, err
 	}
 
-	// TODO(Martin2112): Pass tree size as snapshot size to proof recomputation when implemented
-	// and remove this check.
-	if secondTreeSize != req.SecondTreeSize {
-		return nil, errRehashNotSupported
+	// TODO(Martin2112): Should pass actual tree size as param3 but we don't have it yet
+	nodeFetches, err := merkle.CalcConsistencyProofNodeAddresses(req.FirstTreeSize, req.SecondTreeSize, secondTreeSize, proofMaxBitLen)
+	if err != nil {
+		return nil, err
 	}
 
 	// Do all the node fetches at the second tree revision, which is what the node ids were calculated
 	// against.
-	proof, err := fetchNodesAndBuildProof(tx, secondTreeRevision, 0, nodeIDs)
+	proof, err := fetchNodesAndBuildProof(tx, secondTreeRevision, 0, nodeFetches)
 	if err != nil {
 		tx.Rollback()
 		return nil, err
@@ -404,13 +367,7 @@ func (t *TrillianLogRPCServer) GetEntryAndProof(ctx context.Context, req *trilli
 		return nil, err
 	}
 
-	// TODO(Martin2112): Pass tree size as snapshot size to proof recomputation when implemented
-	// and remove this check.
-	if treeSize != req.TreeSize {
-		return nil, errRehashNotSupported
-	}
-
-	proof, err := getInclusionProofForLeafIndexAtRevision(tx, treeRevision, req.TreeSize, req.LeafIndex)
+	proof, err := getInclusionProofForLeafIndexAtRevision(tx, req.TreeSize, treeRevision, treeSize, req.LeafIndex)
 	if err != nil {
 		tx.Rollback()
 		return nil, err
@@ -529,10 +486,10 @@ func validateLeafHashes(leafHashes [][]byte) bool {
 // getInclusionProofForLeafIndexAtRevision is used by multiple handlers. It does the storage fetching
 // and makes additional checks on the returned proof. Returns a Proof suitable for inclusion in
 // an RPC response
-func getInclusionProofForLeafIndexAtRevision(tx storage.ReadOnlyLogTX, treeRevision, treeSize, leafIndex int64) (trillian.Proof, error) {
+func getInclusionProofForLeafIndexAtRevision(tx storage.ReadOnlyLogTX, snapshot, treeRevision, treeSize, leafIndex int64) (trillian.Proof, error) {
 	// We have the tree size and leaf index so we know the nodes that we need to serve the proof
 	// TODO(Martin2112): Not sure about hardcoding maxBitLen here
-	proofNodeIDs, err := merkle.CalcInclusionProofNodeAddresses(treeSize, leafIndex, proofMaxBitLen)
+	proofNodeIDs, err := merkle.CalcInclusionProofNodeAddresses(treeSize, leafIndex, snapshot, proofMaxBitLen)
 	if err != nil {
 		return trillian.Proof{}, err
 	}

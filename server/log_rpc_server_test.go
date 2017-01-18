@@ -714,8 +714,8 @@ func TestGetProofByHashWrongNodeReturned(t *testing.T) {
 
 	_, err := server.GetInclusionProofByHash(context.Background(), &getInclusionProofByHashRequest7)
 
-	if err == nil || !strings.Contains(err.Error(), "expected node") || !strings.Contains(err.Error(), "at proof pos 1") {
-		t.Fatalf("get inclusion proof by hash returned no or wrong error when get nodes returns wrong count: %v", err)
+	if err == nil || !strings.Contains(err.Error(), "didn't return it") {
+		t.Fatalf("get inclusion proof by hash returned no or wrong error when get nodes returns wrong node: %v", err)
 	}
 }
 
@@ -891,8 +891,8 @@ func TestGetProofByIndexWrongNodeReturned(t *testing.T) {
 
 	_, err := server.GetInclusionProof(context.Background(), &getInclusionProofByIndexRequest7)
 
-	if err == nil || !strings.Contains(err.Error(), "expected node") || !strings.Contains(err.Error(), "at proof pos 1") {
-		t.Fatalf("get inclusion proof by index returned no or wrong error when get nodes returns wrong count: %v", err)
+	if err == nil || !strings.Contains(err.Error(), "didn't return it") {
+		t.Fatalf("get inclusion proof by index returned no or wrong error when get nodes returns wrong node: %v", err)
 	}
 }
 
@@ -1368,7 +1368,7 @@ func TestGetConsistencyProofGetNodesReturnsWrongNode(t *testing.T) {
 
 	_, err := server.GetConsistencyProof(context.Background(), &getConsistencyProofRequest7)
 
-	if err == nil || !strings.Contains(err.Error(), "at proof pos 0") {
+	if err == nil || !strings.Contains(err.Error(), "didn't return it") {
 		t.Fatalf("get consistency proof returned no or wrong error when get nodes returns wrong node: %v", err)
 	}
 }

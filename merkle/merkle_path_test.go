@@ -250,7 +250,7 @@ func TestBitLen(t *testing.T) {
 
 func TestCalcInclusionProofNodeAddresses(t *testing.T) {
 	for _, testCase := range pathTests {
-		path, err := CalcInclusionProofNodeAddresses(testCase.treeSize, testCase.leafIndex, 64)
+		path, err := CalcInclusionProofNodeAddresses(testCase.treeSize, testCase.leafIndex, testCase.treeSize, 64)
 
 		if err != nil {
 			t.Fatalf("unexpected error calculating path %v: %v", testCase, err)
@@ -262,7 +262,7 @@ func TestCalcInclusionProofNodeAddresses(t *testing.T) {
 
 func TestCalcInclusionProofNodeAddressesBadRanges(t *testing.T) {
 	for _, testCase := range pathTestBad {
-		_, err := CalcInclusionProofNodeAddresses(testCase.treeSize, testCase.leafIndex, 64)
+		_, err := CalcInclusionProofNodeAddresses(testCase.treeSize, testCase.leafIndex, testCase.treeSize, 64)
 
 		if err == nil {
 			t.Fatalf("incorrectly accepted bad params: %v", testCase)
@@ -271,7 +271,7 @@ func TestCalcInclusionProofNodeAddressesBadRanges(t *testing.T) {
 }
 
 func TestCalcInclusionProofNodeAddressesRejectsBadBitLen(t *testing.T) {
-	_, err := CalcInclusionProofNodeAddresses(7, 3, -64)
+	_, err := CalcInclusionProofNodeAddresses(7, 3, 7, -64)
 
 	if err == nil {
 		t.Fatal("incorrectly accepted -ve maxBitLen")
@@ -280,7 +280,7 @@ func TestCalcInclusionProofNodeAddressesRejectsBadBitLen(t *testing.T) {
 
 func TestCalcConsistencyProofNodeAddresses(t *testing.T) {
 	for _, testCase := range consistencyTests {
-		proof, err := CalcConsistencyProofNodeAddresses(testCase.priorTreeSize, testCase.treeSize, 64)
+		proof, err := CalcConsistencyProofNodeAddresses(testCase.priorTreeSize, testCase.treeSize, testCase.treeSize, 64)
 
 		if err != nil {
 			t.Fatalf("failed to calculate consistency proof from %d to %d: %v", testCase.priorTreeSize, testCase.treeSize, err)
@@ -292,7 +292,7 @@ func TestCalcConsistencyProofNodeAddresses(t *testing.T) {
 
 func TestCalcConsistencyProofNodeAddressesBadInputs(t *testing.T) {
 	for _, testCase := range consistencyTestsBad {
-		_, err := CalcConsistencyProofNodeAddresses(testCase.priorTreeSize, testCase.treeSize, 64)
+		_, err := CalcConsistencyProofNodeAddresses(testCase.priorTreeSize, testCase.treeSize, testCase.treeSize, 64)
 
 		if err == nil {
 			t.Fatalf("consistency path calculation accepted bad input: %v", testCase)
@@ -301,8 +301,8 @@ func TestCalcConsistencyProofNodeAddressesBadInputs(t *testing.T) {
 }
 
 func TestCalcConsistencyProofNodeAddressesRejectsBadBitLen(t *testing.T) {
-	_, err := CalcConsistencyProofNodeAddresses(6, 7, -1)
-	_, err2 := CalcConsistencyProofNodeAddresses(6, 7, 0)
+	_, err := CalcConsistencyProofNodeAddresses(6, 7, 7, -1)
+	_, err2 := CalcConsistencyProofNodeAddresses(6, 7, 7, 0)
 
 	if err == nil || err2 == nil {
 		t.Fatalf("consistency path calculation accepted bad bitlen: %v %v", err, err2)
@@ -341,7 +341,7 @@ func TestLastNodeWritten(t *testing.T) {
 func TestInclusionSucceedsUpToTreeSize(t *testing.T) {
 	for ts := 1; ts < testUpToTreeSize; ts++ {
 		for i := ts; i < ts; i++ {
-			if _, err := CalcInclusionProofNodeAddresses(int64(ts), int64(i), 64); err != nil {
+			if _, err := CalcInclusionProofNodeAddresses(int64(ts), int64(i), int64(ts), 64); err != nil {
 				t.Errorf("CalcInclusionProofNodeAddresses(ts:%d, i:%d) = %v", ts, i, err)
 			}
 		}
@@ -351,7 +351,7 @@ func TestInclusionSucceedsUpToTreeSize(t *testing.T) {
 func TestConsistencySucceedsUpToTreeSize(t *testing.T) {
 	for s1 := 1; s1 < testUpToTreeSize; s1++ {
 		for s2 := s1 + 1; s2 < testUpToTreeSize; s2++ {
-			if _, err := CalcConsistencyProofNodeAddresses(int64(s1), int64(s2), 64); err != nil {
+			if _, err := CalcConsistencyProofNodeAddresses(int64(s1), int64(s2), int64(s2), 64); err != nil {
 				t.Errorf("CalcConsistencyProofNodeAddresses(%d, %d) = %v", s1, s2, err)
 			}
 		}
