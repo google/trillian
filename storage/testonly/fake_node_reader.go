@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"encoding/hex"
+	"github.com/golang/glog"
 	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
@@ -40,8 +41,8 @@ func NewFakeNodeReader(mappings []NodeMapping, treeSize, treeRevision int64) *Fa
 		_, ok := nodeMap[mapping.NodeID.String()]
 
 		if ok {
-			// Duplicate mapping - bail out
-			return nil
+			// Duplicate mapping - the test data is invalid so don't continue
+			glog.Fatalf("NewFakeNodeReader duplicate mapping for: %s in:\n%v", mapping.NodeID.String(), mappings)
 		}
 
 		nodeMap[mapping.NodeID.String()] = mapping.Node
@@ -50,7 +51,7 @@ func NewFakeNodeReader(mappings []NodeMapping, treeSize, treeRevision int64) *Fa
 	return &FakeNodeReader{nodeMap: nodeMap, treeSize: treeSize, treeRevision: treeRevision}
 }
 
-// GetTreeRevisionAtSize implements the corresponding NodeReader API
+// GetTreeRevisionAtSize implements the corresponding NodeReader API.
 func (f FakeNodeReader) GetTreeRevisionAtSize(treeSize int64) (int64, error) {
 	if f.treeSize != treeSize {
 		return int64(0), fmt.Errorf("GetTreeRevisionAtSize() got treeSize:%d, want: %d", treeSize, f.treeSize)
@@ -59,10 +60,10 @@ func (f FakeNodeReader) GetTreeRevisionAtSize(treeSize int64) (int64, error) {
 	return f.treeRevision, nil
 }
 
-// GetMerkleNodes implements the corresponding NodeReader API
+// GetMerkleNodes implements the corresponding NodeReader API.
 func (f FakeNodeReader) GetMerkleNodes(treeRevision int64, NodeIDs []storage.NodeID) ([]storage.Node, error) {
 	if f.treeRevision > treeRevision {
-		return []storage.Node{}, fmt.Errorf("GetMerkleNodes() got treeRevision:%d, want up to: %d", treeRevision, f.treeRevision)
+		return nil, fmt.Errorf("GetMerkleNodes() got treeRevision:%d, want up to: %d", treeRevision, f.treeRevision)
 	}
 
 	nodes := make([]storage.Node, 0, len(NodeIDs))
@@ -70,7 +71,7 @@ func (f FakeNodeReader) GetMerkleNodes(treeRevision int64, NodeIDs []storage.Nod
 		node, ok := f.nodeMap[nodeID.String()]
 
 		if !ok {
-			return []storage.Node{}, fmt.Errorf("GetMerkleNodes() unknown node ID: %v", nodeID)
+			return nil, fmt.Errorf("GetMerkleNodes() unknown node ID: %v", nodeID)
 		}
 
 		nodes = append(nodes, node)
@@ -92,7 +93,8 @@ type MultiFakeNodeReader struct {
 
 // LeafBatch describes a set of leaves to be loaded into a MultiFakeNodeReader via a compact
 // merkle tree. As each batch is added to the tree a set of node updates are collected
-// and recorded in a FakeNodeReader for that revision.
+// and recorded in a FakeNodeReader for that revision. The expected root should be the
+// result of calling CurrentRoot() on the compact Merkle tree encoded by hex.EncodeToString().
 type LeafBatch struct {
 	TreeRevision int64
 	Leaves       []string
@@ -109,12 +111,19 @@ func NewMultiFakeNodeReader(readers []FakeNodeReader) *MultiFakeNodeReader {
 // This has the advantage of not needing to manually create all the data structures but the
 // disadvantage is that a bug in the compact tree could be reflected in test using this
 // code. To help guard against this we check the tree root hash after each batch has been
-// processed.
+// processed. The supplied batches should be in ascending order of tree revision.
 func NewMultiFakeNodeReaderFromLeaves(batches []LeafBatch) *MultiFakeNodeReader {
 	tree := merkle.NewCompactMerkleTree(merkle.NewRFC6962TreeHasher(crypto.NewSHA256()))
 	readers := make([]FakeNodeReader, 0, len(batches))
 
+	lastBatchRevision := int64(0)
 	for _, batch := range batches {
+		if batch.TreeRevision <= lastBatchRevision {
+			glog.Fatalf("Batches out of order revision: %d, last: %d in:\n%v", batch.TreeRevision,
+				lastBatchRevision, batches)
+		}
+
+		lastBatchRevision = batch.TreeRevision
 		nodeMap := make(map[string]storage.Node)
 		for _, leaf := range batch.Leaves {
 			// We're only interested in the side effects of adding leaves - the node updates
@@ -160,7 +169,7 @@ func (m MultiFakeNodeReader) readerForNodeID(nodeID storage.NodeID, revision int
 	return nil
 }
 
-// GetTreeRevisionAtSize implements the corresponding NodeReader API
+// GetTreeRevisionAtSize implements the corresponding NodeReader API.
 func (m MultiFakeNodeReader) GetTreeRevisionAtSize(treeSize int64) (int64, error) {
 	for i := len(m.readers) - 1; i >= 0; i-- {
 		if m.readers[i].treeSize == treeSize {
@@ -171,7 +180,7 @@ func (m MultiFakeNodeReader) GetTreeRevisionAtSize(treeSize int64) (int64, error
 	return int64(0), fmt.Errorf("want revision for tree size: %d but it doesn't exist", treeSize)
 }
 
-// GetMerkleNodes implements the corresponding NodeReader API
+// GetMerkleNodes implements the corresponding NodeReader API.
 func (m MultiFakeNodeReader) GetMerkleNodes(treeRevision int64, NodeIDs []storage.NodeID) ([]storage.Node, error) {
 	// Find the correct reader for the supplied tree revision. This must be done for each node
 	// as earlier revisions may still be relevant
@@ -180,13 +189,13 @@ func (m MultiFakeNodeReader) GetMerkleNodes(treeRevision int64, NodeIDs []storag
 		reader := m.readerForNodeID(nID, treeRevision)
 
 		if reader == nil {
-			return []storage.Node{},
+			return nil,
 				fmt.Errorf("want nodeID: %v with revision <= %d but no reader has it\n%v", nID, treeRevision, m)
 		}
 
 		node, err := reader.GetMerkleNodes(treeRevision, []storage.NodeID{nID})
 		if err != nil {
-			return []storage.Node{}, err
+			return nil, err
 		}
 
 		nodes = append(nodes, node[0])
