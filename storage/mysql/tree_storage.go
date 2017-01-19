@@ -15,25 +15,29 @@ import (
 )
 
 // These statements are fixed
-const insertSubtreeMultiSQL string = `INSERT INTO Subtree(TreeId, SubtreeId, Nodes, SubtreeRevision) ` + placeholderSQL
-const insertTreeHeadSQL string = `INSERT INTO TreeHead(TreeId,TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature)
+const (
+	insertSubtreeMultiSQL = `INSERT INTO Subtree(TreeId, SubtreeId, Nodes, SubtreeRevision) ` + placeholderSQL
+	insertTreeHeadSQL     = `INSERT INTO TreeHead(TreeId,TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature)
 		 VALUES(?,?,?,?,?,?)`
-const selectTreeRevisionAtSizeOrLargerSQL string = "SELECT TreeRevision,TreeSize FROM TreeHead WHERE TreeId=? AND TreeSize>=? ORDER BY TreeRevision LIMIT 1"
-const selectActiveLogsSQL string = "select TreeId, KeyId from Trees where TreeType='LOG'"
-const selectActiveLogsWithUnsequencedSQL string = "SELECT DISTINCT t.TreeId, t.KeyId from Trees t INNER JOIN Unsequenced u WHERE TreeType='LOG' AND t.TreeId=u.TreeId"
+	selectTreeRevisionAtSizeOrLargerSQL = "SELECT TreeRevision,TreeSize FROM TreeHead WHERE TreeId=? AND TreeSize>=? ORDER BY TreeRevision LIMIT 1"
+	selectActiveLogsSQL                 = "SELECT TreeId, KeyId from Trees where TreeType='LOG'"
+	selectActiveLogsWithUnsequencedSQL  = "SELECT DISTINCT t.TreeId, t.KeyId from Trees t INNER JOIN Unsequenced u WHERE TreeType='LOG' AND t.TreeId=u.TreeId"
 
-const selectSubtreeSQL string = `SELECT x.SubtreeId, x.MaxRevision, Subtree.Nodes
-				 FROM (SELECT n.SubtreeId, max(n.SubtreeRevision) AS MaxRevision
-							 FROM Subtree n
-							 WHERE n.SubtreeId IN (` + placeholderSQL + `) AND
-										 n.TreeId = ? AND
-										 n.SubtreeRevision <= ?
-							 GROUP BY n.SubtreeId) AS x
-				 INNER JOIN Subtree ON Subtree.SubtreeId = x.SubtreeId AND
-														Subtree.SubtreeRevision = x.MaxRevision AND
-														Subtree.TreeId = ?`
-
-const placeholderSQL string = "<placeholder>"
+	selectSubtreeSQL = `
+ SELECT x.SubtreeId, x.MaxRevision, Subtree.Nodes
+ FROM (
+ 	SELECT n.SubtreeId, max(n.SubtreeRevision) AS MaxRevision
+	FROM Subtree n
+	WHERE n.SubtreeId IN (` + placeholderSQL + `) AND
+	 n.TreeId = ? AND n.SubtreeRevision <= ?
+	GROUP BY n.SubtreeId
+ ) AS x
+ INNER JOIN Subtree 
+ ON Subtree.SubtreeId = x.SubtreeId 
+ AND Subtree.SubtreeRevision = x.MaxRevision 
+ AND Subtree.TreeId = ?`
+	placeholderSQL = "<placeholder>"
+)
 
 // mySQLTreeStorage is shared between the mySQLLog- and (forthcoming) mySQLMap-
 // Storage implementations, and contains functionality which is common to both,

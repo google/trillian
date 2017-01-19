@@ -19,46 +19,47 @@ import (
 	"github.com/google/trillian/storage/cache"
 )
 
-const getTreePropertiesSQL string = "SELECT AllowsDuplicateLeaves FROM Trees WHERE TreeId=?"
-const getTreeParametersSQL string = "SELECT ReadOnlyRequests From TreeControl WHERE TreeID=?"
-const selectQueuedLeavesSQL string = `SELECT LeafValueHash,MerkleLeafHash,Payload
-		 FROM Unsequenced
-		 WHERE TreeID=?
-		 AND QueueTimestampNanos<=?
-		 ORDER BY QueueTimestampNanos,LeafValueHash ASC LIMIT ?`
-const insertUnsequencedLeafSQL string = `INSERT INTO LeafData(TreeId,LeafValueHash,LeafValue,ExtraData)
+const (
+	getTreePropertiesSQL  = "SELECT AllowsDuplicateLeaves FROM Trees WHERE TreeId=?"
+	getTreeParametersSQL  = "SELECT ReadOnlyRequests From TreeControl WHERE TreeID=?"
+	selectQueuedLeavesSQL = `SELECT LeafValueHash,MerkleLeafHash,Payload
+		FROM Unsequenced
+		WHERE TreeID=?
+		AND QueueTimestampNanos<=?
+		ORDER BY QueueTimestampNanos,LeafValueHash ASC LIMIT ?`
+	insertUnsequencedLeafSQL = `INSERT INTO LeafData(TreeId,LeafValueHash,LeafValue,ExtraData)
 		 VALUES(?,?,?,?) ON DUPLICATE KEY UPDATE LeafValueHash=LeafValueHash`
-const insertUnsequencedLeafSQLNoDuplicates string = `INSERT INTO LeafData(TreeId,LeafValueHash,LeafValue,ExtraData)
+	insertUnsequencedLeafSQLNoDuplicates = `INSERT INTO LeafData(TreeId,LeafValueHash,LeafValue,ExtraData)
 		 VALUES(?,?,?,?)`
-const insertUnsequencedEntrySQL string = `INSERT INTO Unsequenced(TreeId,LeafValueHash,MerkleLeafHash,MessageId,Payload,QueueTimestampNanos)
-     VALUES(?,?,?,?,?,?)`
-const insertSequencedLeafSQL string = `INSERT INTO SequencedLeafData(TreeId,LeafValueHash,MerkleLeafHash,SequenceNumber)
+	insertUnsequencedEntrySQL = `INSERT INTO Unsequenced(TreeId,LeafValueHash,MerkleLeafHash,MessageId,Payload,QueueTimestampNanos)
+		 VALUES(?,?,?,?,?,?)`
+	insertSequencedLeafSQL = `INSERT INTO SequencedLeafData(TreeId,LeafValueHash,MerkleLeafHash,SequenceNumber)
 		 VALUES(?,?,?,?)`
-const selectSequencedLeafCountSQL string = "SELECT COUNT(*) FROM SequencedLeafData WHERE TreeId=?"
-const selectLatestSignedLogRootSQL string = `SELECT TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature
+	selectSequencedLeafCountSQL  = "SELECT COUNT(*) FROM SequencedLeafData WHERE TreeId=?"
+	selectLatestSignedLogRootSQL = `SELECT TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature
 		 FROM TreeHead WHERE TreeId=?
 		 ORDER BY TreeHeadTimestamp DESC LIMIT 1`
 
-// These statements need to be expanded to provide the correct number of parameter placeholders
-// for a particular case
-const deleteUnsequencedSQL string = "DELETE FROM Unsequenced WHERE LeafValueHash IN (<placeholder>) AND TreeId = ?"
-const selectLeavesByIndexSQL string = `SELECT s.MerkleLeafHash,l.LeafValueHash,l.LeafValue,s.SequenceNumber,l.ExtraData
+	// These statements need to be expanded to provide the correct number of parameter placeholders.
+	deleteUnsequencedSQL   = "DELETE FROM Unsequenced WHERE LeafValueHash IN (<placeholder>) AND TreeId = ?"
+	selectLeavesByIndexSQL = `SELECT s.MerkleLeafHash,l.LeafValueHash,l.LeafValue,s.SequenceNumber,l.ExtraData
 		     FROM LeafData l,SequencedLeafData s
 		     WHERE l.LeafValueHash = s.LeafValueHash
 		     AND s.SequenceNumber IN (` + placeholderSQL + `) AND l.TreeId = ? AND s.TreeId = l.TreeId`
-const selectLeavesByMerkleHashSQL string = `SELECT s.MerkleLeafHash,l.LeafValueHash,l.LeafValue,s.SequenceNumber,l.ExtraData
+	selectLeavesByMerkleHashSQL = `SELECT s.MerkleLeafHash,l.LeafValueHash,l.LeafValue,s.SequenceNumber,l.ExtraData
 		     FROM LeafData l,SequencedLeafData s
 		     WHERE l.LeafValueHash = s.LeafValueHash
 		     AND s.MerkleLeafHash IN (` + placeholderSQL + `) AND l.TreeId = ? AND s.TreeId = l.TreeId`
-const selectLeavesByValueHashSQL string = `SELECT s.MerkleLeafHash,l.LeafValueHash,l.LeafValue,s.SequenceNumber,l.ExtraData
+	selectLeavesByValueHashSQL = `SELECT s.MerkleLeafHash,l.LeafValueHash,l.LeafValue,s.SequenceNumber,l.ExtraData
 		     FROM LeafData l,SequencedLeafData s
 		     WHERE l.LeafValueHash = s.LeafValueHash
 		     AND s.LeafValueHash IN (` + placeholderSQL + `) AND l.TreeId = ? AND s.TreeId = l.TreeId`
 
-// Same as above except with leaves ordered by sequence so we only incur this cost when necessary
-const orderBySequenceNumberSQL string = " ORDER BY s.SequenceNumber"
-const selectLeavesByMerkleHashOrderedBySequenceSQL string = selectLeavesByMerkleHashSQL + orderBySequenceNumberSQL
-const selectLeavesByValueHashOrderedBySequenceSQL string = selectLeavesByValueHashSQL + orderBySequenceNumberSQL
+	// Same as above except with leaves ordered by sequence so we only incur this cost when necessary
+	orderBySequenceNumberSQL                     = " ORDER BY s.SequenceNumber"
+	selectLeavesByMerkleHashOrderedBySequenceSQL = selectLeavesByMerkleHashSQL + orderBySequenceNumberSQL
+	selectLeavesByValueHashOrderedBySequenceSQL  = selectLeavesByValueHashSQL + orderBySequenceNumberSQL
+)
 
 var defaultLogStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8}
 

@@ -12,16 +12,14 @@ import (
 	"github.com/google/trillian/storage/cache"
 )
 
-const insertMapHeadSQL string = `INSERT INTO MapHead(TreeId, MapHeadTimestamp, RootHash, MapRevision, RootSignature, MapperData)
+const (
+	insertMapHeadSQL = `INSERT INTO MapHead(TreeId, MapHeadTimestamp, RootHash, MapRevision, RootSignature, MapperData)
 	VALUES(?, ?, ?, ?, ?, ?)`
-
-const selectLatestSignedMapRootSQL string = `SELECT MapHeadTimestamp, RootHash, MapRevision, RootSignature, MapperData
+	selectLatestSignedMapRootSQL = `SELECT MapHeadTimestamp, RootHash, MapRevision, RootSignature, MapperData
 		 FROM MapHead WHERE TreeId=?
 		 ORDER BY MapHeadTimestamp DESC LIMIT 1`
-
-const insertMapLeafSQL string = `INSERT INTO MapLeaf(TreeId, KeyHash, MapRevision, LeafValue) VALUES (?, ?, ?, ?)`
-
-const selectMapLeafSQL string = `
+	insertMapLeafSQL = `INSERT INTO MapLeaf(TreeId, KeyHash, MapRevision, LeafValue) VALUES (?, ?, ?, ?)`
+	selectMapLeafSQL = `
  SELECT t1.KeyHash, t1.MapRevision, t1.LeafValue
  FROM MapLeaf t1
  INNER JOIN
@@ -35,6 +33,7 @@ const selectMapLeafSQL string = `
  ON t1.TreeId=t2.TreeId
  AND t1.KeyHash=t2.KeyHash
  AND t1.MapRevision=t2.maxrev`
+)
 
 var defaultMapStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 176}
 
