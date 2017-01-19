@@ -1,15 +1,17 @@
 package server
 
 import (
+	"errors"
 	"fmt"
 
-	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util"
+
+	"github.com/golang/glog"
 	"golang.org/x/net/context"
 )
 
