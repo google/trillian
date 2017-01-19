@@ -25,10 +25,16 @@ message TrillianApiStatus {
 }
 
 message LogLeaf {
+    // merkle_leaf_hash is over leaf data and optional extra_data.
     bytes merkle_leaf_hash = 1;
+    // leaf_value contains arbitrary data.
     bytes leaf_value = 2;
+    // extra_data is optional metadata. e.g. a timestamp.
     bytes extra_data = 3;
+    // leaf_index is optional. Trillian will assign the next available index when unset.
+    // TODO: remove this into separate AddSequencedLeaves API.
     int64 leaf_index = 4;
+    // leaf_value_hash is over leaf_value to support deduping.
     bytes leaf_value_hash = 5;
 }
 
