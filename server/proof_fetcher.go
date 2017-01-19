@@ -127,7 +127,7 @@ func dedupAndFetchNodes(tx storage.NodeReader, treeRevision int64, fetches []mer
 	}
 
 	if len(proofNodeIDs) < len(fetches) {
-		glog.V(2).Infof("deduplication saved %d node fetch(es)", len(fetches) - len(proofNodeIDs))
+		glog.V(2).Infof("deduplication saved %d node fetch(es)", len(fetches)-len(proofNodeIDs))
 	}
 
 	// Use the deduplicated list of nodeIDs in the storage fetch

@@ -210,7 +210,7 @@ func TestTree32InclusionProofFetchAll(t *testing.T) {
 	for ts := 2; ts <= 32; ts++ {
 		mt := treeAtSize(ts)
 		r := testonly.NewMultiFakeNodeReaderFromLeaves([]testonly.LeafBatch{
-			{TreeRevision: 3, Leaves: expandLeaves(0, ts - 1), ExpectedRoot: expectedRootAtSize(mt)},
+			{TreeRevision: 3, Leaves: expandLeaves(0, ts-1), ExpectedRoot: expectedRootAtSize(mt)},
 		})
 
 		for s := 2; s <= ts; s++ {
@@ -226,7 +226,7 @@ func TestTree32InclusionProofFetchAll(t *testing.T) {
 				}
 
 				// We use +1 here because of the 1 based leaf indexing of this implementation
-				refProof := mt.PathToRootAtSnapshot(l + 1, s)
+				refProof := mt.PathToRootAtSnapshot(l+1, s)
 
 				if got, want := len(proof.ProofNode), len(refProof); got != want {
 					t.Fatalf("(%d, %d, %d): got proof len: %d, want: %d: %v\n%v", ts, s, l, got, want, fetches, refProof)
@@ -265,7 +265,7 @@ func TestTree32InclusionProofFetchMultiBatch(t *testing.T) {
 			}
 
 			// We use +1 here because of the 1 based leaf indexing of this implementation
-			refProof := mt.PathToRootAtSnapshot(l + 1, s)
+			refProof := mt.PathToRootAtSnapshot(l+1, s)
 
 			if got, want := len(proof.ProofNode), len(refProof); got != want {
 				t.Fatalf("(%d, %d, %d): got proof len: %d, want: %d: %v\n%v", 32, s, l, got, want, fetches, refProof)
@@ -284,7 +284,7 @@ func TestTree32ConsistencyProofFetchAll(t *testing.T) {
 	for ts := 2; ts <= 32; ts++ {
 		mt := treeAtSize(ts)
 		r := testonly.NewMultiFakeNodeReaderFromLeaves([]testonly.LeafBatch{
-			{TreeRevision: 3, Leaves: expandLeaves(0, ts - 1), ExpectedRoot: expectedRootAtSize(mt)},
+			{TreeRevision: 3, Leaves: expandLeaves(0, ts-1), ExpectedRoot: expectedRootAtSize(mt)},
 		})
 
 		for s1 := 2; s1 < ts; s1++ {
@@ -334,7 +334,7 @@ func mustCreateNodeID(depth, node int64) storage.NodeID {
 }
 
 func expandLeaves(n, m int) []string {
-	leaves := make([]string, 0, m - n + 1)
+	leaves := make([]string, 0, m-n+1)
 	for l := n; l <= m; l++ {
 		leaves = append(leaves, fmt.Sprintf("Leaf %d", l))
 	}
@@ -349,7 +349,7 @@ func expectedRootAtSize(mt *merkle.InMemoryMerkleTree) string {
 }
 
 func treeAtSize(n int) *merkle.InMemoryMerkleTree {
-	leaves := expandLeaves(0, n - 1)
+	leaves := expandLeaves(0, n-1)
 	mt := merkle.NewInMemoryMerkleTree(merkle.NewRFC6962TreeHasher(crypto.NewSHA256()))
 
 	for _, leaf := range leaves {
