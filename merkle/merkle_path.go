@@ -15,11 +15,11 @@
 package merkle
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/golang/glog"
 	"github.com/google/trillian/storage"
-	"github.com/vektra/errors"
 )
 
 // Verbosity levels for logging of debug related items
@@ -39,10 +39,12 @@ func (n NodeFetch) Equivalent(other NodeFetch) bool {
 }
 
 // CalcInclusionProofNodeAddresses returns the tree node IDs needed to
-// build an inclusion proof for a specified leaf and tree size. The maxBitLen parameter
+// build an inclusion proof for a specified leaf and tree size. The snapshot parameter
+// is the tree size being queried for, treeSize is the actual size of the tree at the revision
+// we are using to fetch nodes (this can be > snapshot). The maxBitLen parameter
 // is copied into all the returned nodeIDs.
 func CalcInclusionProofNodeAddresses(snapshot, index, treeSize int64, maxBitLen int) ([]NodeFetch, error) {
-	if snapshot > treeSize || index >= snapshot || index < 0 || snapshot < 1 || maxBitLen < 0 {
+	if snapshot > treeSize || index >= snapshot || index < 0 || snapshot < 1 || maxBitLen <= 0 {
 		return []NodeFetch{}, fmt.Errorf("invalid params s: %d index: %d ts: %d, bitlen:%d", snapshot, index, treeSize, maxBitLen)
 	}
 
@@ -50,8 +52,10 @@ func CalcInclusionProofNodeAddresses(snapshot, index, treeSize int64, maxBitLen 
 }
 
 // CalcConsistencyProofNodeAddresses returns the tree node IDs needed to
-// build a consistency proof between two specified tree sizes. The maxBitLen parameter
-// is copied into all the returned nodeIDs. The caller is responsible for checking that
+// build a consistency proof between two specified tree sizes. snapshot1 and snapshot2 represent
+// the two tree sizes for which consistency should be proved, treeSize is the actual size of the
+// tree at the revision we are using to fetch nodes (this can be > snapshot2). The maxBitLen
+// parameter is copied into all the returned nodeIDs. The caller is responsible for checking that
 // the input tree sizes correspond to valid tree heads. All returned NodeIDs are tree
 // coordinates within the new tree. It is assumed that they will be fetched from storage
 // at a revision corresponding to the STH associated with the treeSize parameter.
@@ -169,7 +173,8 @@ func pathFromNodeToRootAtSnapshot(node int64, level int, snapshot, treeSize int6
 // also need to take into account missing levels, see the tree diagrams in this file.
 // If called with snapshot equal to the tree size returns empty. Otherwise, assuming no errors,
 // the output of this should always be exactly one node. Either a copy of one of the nodes in
-// the tree or a rehashing of multiple nodes to a single result node.
+// the tree or a rehashing of multiple nodes to a single result node with the value it would have
+// had if the prior snapshot had been stored.
 func recomputePastSnapshot(snapshot, treeSize int64, nodeLevel int, maxBitlen int) ([]NodeFetch, error) {
 	glog.V(vLevel).Infof("recompute s:%d ts:%d level:%d", snapshot, treeSize, nodeLevel)
 
@@ -228,7 +233,7 @@ func recomputePastSnapshot(snapshot, treeSize int64, nodeLevel int, maxBitlen in
 	}
 
 	rehash := false
-	rootEmitted := false
+	subRootEmitted := false  // whether we've added the recomputed subtree root to the path yet
 
 	for lastNode != 0 {
 		glog.V(vvLevel).Infof("in loop level:%d ln:%d lnal:%d", level, lastNode, lastNodeAtLevel)
@@ -239,10 +244,10 @@ func recomputePastSnapshot(snapshot, treeSize int64, nodeLevel int, maxBitlen in
 				return []NodeFetch{}, err
 			}
 
-			if !rehash && !rootEmitted {
+			if !rehash && !subRootEmitted {
 				glog.V(vvLevel).Info("emit root (2)")
 				fetches = append(fetches, NodeFetch{Rehash: true, NodeID: savedNodeID})
-				rootEmitted = true
+				subRootEmitted = true
 			}
 
 			glog.V(vvLevel).Infof("rehash with %s", nodeID.CoordString())
@@ -254,7 +259,7 @@ func recomputePastSnapshot(snapshot, treeSize int64, nodeLevel int, maxBitlen in
 		lastNodeAtLevel >>= 1
 		level++
 
-		if nodeLevel == level && !rootEmitted {
+		if nodeLevel == level && !subRootEmitted {
 			glog.V(vvLevel).Info("emit root (3)")
 			return append(fetches, NodeFetch{Rehash: rehash, NodeID: savedNodeID}), nil
 		}
@@ -378,12 +383,12 @@ func checkRecomputation(fetches []NodeFetch) error {
 		return errors.New("recomputePastSnapshot returned nothing")
 	} else if len(fetches) == 1 {
 		if fetches[0].Rehash {
-			return errors.New("recomputePastSnapshot returned invalid rehash")
+			return fmt.Errorf("recomputePastSnapshot returned invalid rehash: %v", fetches)
 		}
 	} else {
 		for i := range fetches {
 			if i > 0 && fetches[i].Rehash != fetches[0].Rehash {
-				return errors.New("recomputePastSnapshot returned multiple nodes")
+				return fmt.Errorf("recomputePastSnapshot returned multiple nodes: %v", fetches)
 			}
 		}
 	}
