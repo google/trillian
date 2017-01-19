@@ -121,11 +121,17 @@ func (m *TrillianApiStatus) GetDescription() string {
 }
 
 type LogLeaf struct {
+	// merkle_leaf_hash is over leaf data and optional extra_data.
 	MerkleLeafHash []byte `protobuf:"bytes,1,opt,name=merkle_leaf_hash,json=merkleLeafHash,proto3" json:"merkle_leaf_hash,omitempty"`
-	LeafValue      []byte `protobuf:"bytes,2,opt,name=leaf_value,json=leafValue,proto3" json:"leaf_value,omitempty"`
-	ExtraData      []byte `protobuf:"bytes,3,opt,name=extra_data,json=extraData,proto3" json:"extra_data,omitempty"`
-	LeafIndex      int64  `protobuf:"varint,4,opt,name=leaf_index,json=leafIndex" json:"leaf_index,omitempty"`
-	LeafValueHash  []byte `protobuf:"bytes,5,opt,name=leaf_value_hash,json=leafValueHash,proto3" json:"leaf_value_hash,omitempty"`
+	// leaf_value contains arbitrary data.
+	LeafValue []byte `protobuf:"bytes,2,opt,name=leaf_value,json=leafValue,proto3" json:"leaf_value,omitempty"`
+	// extra_data is optional metadata. e.g. a timestamp.
+	ExtraData []byte `protobuf:"bytes,3,opt,name=extra_data,json=extraData,proto3" json:"extra_data,omitempty"`
+	// leaf_index is optional. Trillian will assign the next available index when unset.
+	// TODO: remove this into separate AddSequencedLeaves API.
+	LeafIndex int64 `protobuf:"varint,4,opt,name=leaf_index,json=leafIndex" json:"leaf_index,omitempty"`
+	// leaf_value_hash is over leaf_value to support deduping.
+	LeafValueHash []byte `protobuf:"bytes,5,opt,name=leaf_value_hash,json=leafValueHash,proto3" json:"leaf_value_hash,omitempty"`
 }
 
 func (m *LogLeaf) Reset()                    { *m = LogLeaf{} }
