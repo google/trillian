@@ -110,12 +110,6 @@ of MySQL running and configured
  - to listen on the standard MySQL port 3306 (so `mysql --host=127.0.0.1
    --port=3306` connects OK)
  - not to require a password for the `root` user
- - not to include the
-   [`ONLY_FULL_GROUP_BY` SQL mode](http://dev.mysql.com/doc/refman/5.7/en/sql-mode.html#sqlmode_only_full_group_by)
-   (this is
-   [enabled by default](http://dev.mysql.com/doc/refman/5.7/en/sql-mode.html#sql-mode-setting)
-   for MySQL versions >= 5.7 but can be disabled, e.g. with `SET GLOBAL
-   sql_mode=(SELECT REPLACE(@@sql_mode,'ONLY_FULL_GROUP_BY',''));`).
 
 You can then set up the [expected tables](storage/mysql/storage.sql) in a
 `test` database like so:

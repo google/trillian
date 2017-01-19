@@ -2,7 +2,6 @@ package mysql
 
 import (
 	"database/sql"
-	"fmt"
 	"testing"
 
 	"github.com/golang/protobuf/proto"
@@ -161,44 +160,43 @@ func TestMapSetGetMultipleRevisions(t *testing.T) {
 	defer db.Close()
 	s := prepareTestMapStorage(mapID, t)
 
-	numRevs := 3
-	values := make([]trillian.MapLeaf, numRevs)
-	for i := 0; i < numRevs; i++ {
-		values[i] = trillian.MapLeaf{
-			KeyHash:   keyHash,
-			LeafHash:  []byte(fmt.Sprintf("A Hash %d", i)),
-			LeafValue: []byte(fmt.Sprintf("A Value %d", i)),
-			ExtraData: []byte(fmt.Sprintf("Some Extra Data %d", i)),
-		}
-	}
-
-	for i := 0; i < numRevs; i++ {
+	for _, tc := range []struct {
+		rev  int64
+		leaf trillian.MapLeaf
+	}{
+		{0, trillian.MapLeaf{keyHash, []byte{0}, []byte{0}, []byte{0}}},
+		{1, trillian.MapLeaf{keyHash, []byte{1}, []byte{1}, []byte{1}}},
+		{2, trillian.MapLeaf{keyHash, []byte{2}, []byte{2}, []byte{2}}},
+		{3, trillian.MapLeaf{keyHash, []byte{3}, []byte{3}, []byte{3}}},
+	} {
+		// Write the current test case.
 		tx := beginMapTx(s, t)
 		mysqlMapTX := tx.(*mapTX)
-		mysqlMapTX.treeTX.writeRevision = int64(i)
-		if err := tx.Set(keyHash, values[i]); err != nil {
-			t.Fatalf("Failed to set %v to %v: %v", keyHash, values[i], err)
+		mysqlMapTX.treeTX.writeRevision = tc.rev
+		if err := tx.Set(keyHash, tc.leaf); err != nil {
+			t.Fatalf("Failed to set %v to %v: %v", keyHash, tc.leaf, err)
 		}
 		if err := tx.Commit(); err != nil {
 			t.Fatalf("Failed to commit: %v", err)
 		}
-	}
 
-	for i := 0; i < numRevs; i++ {
-		tx := beginMapTx(s, t)
+		// Read. Verify that we get the current tc.
+		for i := int64(0); i < tc.rev; i++ {
+			tx := beginMapTx(s, t)
 
-		readValues, err := tx.Get(int64(i), [][]byte{keyHash})
-		if err != nil {
-			t.Fatalf("At rev %d failed to get %v:  %v", i, keyHash, err)
-		}
-		if got, want := len(readValues), 1; got != want {
-			t.Fatalf("At rev %d got %d values, expected %d", i, got, want)
-		}
-		if got, want := &readValues[0], &values[i]; !proto.Equal(got, want) {
-			t.Fatalf("At rev %d read back %v, but expected %v", i, got, want)
-		}
-		if err := tx.Commit(); err != nil {
-			t.Fatalf("At rev %d failed to commit: %v", i, err)
+			readValues, err := tx.Get(i, [][]byte{keyHash})
+			if err != nil {
+				t.Fatalf("At rev %d failed to get %v:  %v", i, keyHash, err)
+			}
+			if got, want := len(readValues), 1; got != want {
+				t.Fatalf("At rev %d got %d values, expected %d", i, got, want)
+			}
+			if got, want := &readValues[0], &tc.leaf; !proto.Equal(got, want) {
+				t.Fatalf("At rev %d read back %v, but expected %v", i, got, want)
+			}
+			if err := tx.Commit(); err != nil {
+				t.Fatalf("At rev %d failed to commit: %v", i, err)
+			}
 		}
 	}
 }
