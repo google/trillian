@@ -160,7 +160,7 @@ func TestMapSetGetMultipleRevisions(t *testing.T) {
 	defer db.Close()
 	s := prepareTestMapStorage(mapID, t)
 
-	for _, tc := range []struct {
+	tests := []struct {
 		rev  int64
 		leaf trillian.MapLeaf
 	}{
@@ -168,7 +168,8 @@ func TestMapSetGetMultipleRevisions(t *testing.T) {
 		{1, trillian.MapLeaf{keyHash, []byte{1}, []byte{1}, []byte{1}}},
 		{2, trillian.MapLeaf{keyHash, []byte{2}, []byte{2}, []byte{2}}},
 		{3, trillian.MapLeaf{keyHash, []byte{3}, []byte{3}, []byte{3}}},
-	} {
+	}
+	for _, tc := range tests {
 		// Write the current test case.
 		tx := beginMapTx(s, t)
 		mysqlMapTX := tx.(*mapTX)
@@ -181,22 +182,20 @@ func TestMapSetGetMultipleRevisions(t *testing.T) {
 		}
 
 		// Read. Verify that we get the current tc.
-		for i := int64(0); i < tc.rev; i++ {
-			tx := beginMapTx(s, t)
-
-			readValues, err := tx.Get(i, [][]byte{keyHash})
-			if err != nil {
-				t.Fatalf("At rev %d failed to get %v:  %v", i, keyHash, err)
-			}
-			if got, want := len(readValues), 1; got != want {
-				t.Fatalf("At rev %d got %d values, expected %d", i, got, want)
-			}
-			if got, want := &readValues[0], &tc.leaf; !proto.Equal(got, want) {
-				t.Fatalf("At rev %d read back %v, but expected %v", i, got, want)
-			}
-			if err := tx.Commit(); err != nil {
-				t.Fatalf("At rev %d failed to commit: %v", i, err)
-			}
+		tx2 := beginMapTx(s, t)
+		rev := int64(len(tests))
+		readValues, err := tx2.Get(rev, [][]byte{keyHash})
+		if err != nil {
+			t.Fatalf("At rev %d failed to get %v:  %v", rev, keyHash, err)
+		}
+		if got, want := len(readValues), 1; got != want {
+			t.Fatalf("At rev %d got %d values, expected %d", rev, got, want)
+		}
+		if got, want := &readValues[0], &tc.leaf; !proto.Equal(got, want) {
+			t.Fatalf("At rev %d read back %v, but expected %v", rev, got, want)
+		}
+		if err := tx2.Commit(); err != nil {
+			t.Fatalf("At rev %d failed to commit: %v", rev, err)
 		}
 	}
 }

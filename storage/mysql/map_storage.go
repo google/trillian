@@ -29,7 +29,7 @@ const selectMapLeafSQL string = `
 	SELECT TreeId, KeyHash, MAX(MapRevision) as maxrev
 	FROM MapLeaf t0
 	WHERE t0.KeyHash IN (` + placeholderSQL + `) AND
-	      t0.TreeId = ? AND t0.MapRevision >= ?
+	      t0.TreeId = ? AND t0.MapRevision <= ?
 	GROUP BY t0.TreeId, t0.KeyHash
  ) t2
  ON t1.TreeId=t2.TreeId
