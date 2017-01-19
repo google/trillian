@@ -51,10 +51,10 @@ func NewFakeNodeReader(mappings []NodeMapping, treeSize, treeRevision int64) *Fa
 	return &FakeNodeReader{nodeMap: nodeMap, treeSize: treeSize, treeRevision: treeRevision}
 }
 
-// GetTreeRevisionAtSize implements the corresponding NodeReader API.
-func (f FakeNodeReader) GetTreeRevisionAtSize(treeSize int64) (int64, error) {
-	if f.treeSize != treeSize {
-		return int64(0), fmt.Errorf("GetTreeRevisionAtSize() got treeSize:%d, want: %d", treeSize, f.treeSize)
+// GetTreeRevisionIncludingSize implements the corresponding NodeReader API.
+func (f FakeNodeReader) GetTreeRevisionIncludingSize(treeSize int64) (int64, error) {
+	if f.treeSize < treeSize {
+		return int64(0), fmt.Errorf("GetTreeRevisionIncludingSize() got treeSize:%d, want: >= %d", treeSize, f.treeSize)
 	}
 
 	return f.treeRevision, nil
@@ -169,15 +169,15 @@ func (m MultiFakeNodeReader) readerForNodeID(nodeID storage.NodeID, revision int
 	return nil
 }
 
-// GetTreeRevisionAtSize implements the corresponding NodeReader API.
-func (m MultiFakeNodeReader) GetTreeRevisionAtSize(treeSize int64) (int64, error) {
+// GetTreeRevisionIncludingSize implements the corresponding NodeReader API.
+func (m MultiFakeNodeReader) GetTreeRevisionIncludingSize(treeSize int64) (int64, int64, error) {
 	for i := len(m.readers) - 1; i >= 0; i-- {
-		if m.readers[i].treeSize == treeSize {
-			return m.readers[i].treeRevision, nil
+		if m.readers[i].treeSize >= treeSize {
+			return m.readers[i].treeRevision, m.readers[i].treeSize, nil
 		}
 	}
 
-	return int64(0), fmt.Errorf("want revision for tree size: %d but it doesn't exist", treeSize)
+	return int64(0), int64(0), fmt.Errorf("want revision for tree size: %d but it doesn't exist", treeSize)
 }
 
 // GetMerkleNodes implements the corresponding NodeReader API.
