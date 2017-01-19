@@ -670,24 +670,6 @@ func TestLatestSignedLogRoot(t *testing.T) {
 	}
 }
 
-func TestGetTreeRevisionAtNonExistentSizeError(t *testing.T) {
-	// Have to set all this up though we won't actually write anything
-	logID := createLogID("TestGetTreeRevisionAtSize")
-	db := prepareTestLogDB(logID, t)
-	defer db.Close()
-	s := prepareTestLogStorage(logID, t)
-	tx := beginLogTx(s, t)
-	defer commit(tx, t)
-
-	if revision, err := tx.GetTreeRevisionAtSize(0); err == nil {
-		t.Fatalf("Returned a tree revision for 0 sized tree: %d", revision)
-	}
-
-	if revision, err := tx.GetTreeRevisionAtSize(-427); err == nil {
-		t.Fatalf("Returned a tree revision for -ve sized tree: %d", revision)
-	}
-}
-
 func TestGetTreeRevisionAtSize(t *testing.T) {
 	logID := createLogID("TestGetTreeRevisionAtSize")
 	db := prepareTestLogDB(logID, t)
@@ -716,28 +698,23 @@ func TestGetTreeRevisionAtSize(t *testing.T) {
 		tx := beginLogTx(s, t)
 		defer commit(tx, t)
 
-		// First two are legit tree head sizes and should work
-		treeRevision1, err := tx.GetTreeRevisionAtSize(16)
-
-		if err != nil {
-			t.Fatalf("Failed to get tree revision1: %v", err)
+		// First two are tree head sizes and returned version should match
+		if treeRevision1, treeSize1, err := tx.GetTreeRevisionIncludingSize(16); err != nil || treeRevision1 != 5 || treeSize1 != 16 {
+			t.Fatalf("Want revision=5, size=16, err=nil got: revision=%d size=%d err=%v", treeRevision1, treeSize1, err)
 		}
 
-		treeRevision2, err := tx.GetTreeRevisionAtSize(27)
-
-		if err != nil {
-			t.Fatalf("Failed to get tree revision2: %v", err)
+		if treeRevision2, treeSize2, err := tx.GetTreeRevisionIncludingSize(27); err != nil || treeRevision2 != 11 || treeSize2 != 27 {
+			t.Fatalf("Want revision=11, size=27, err=nil got: revision=%d size=%d err=%v", treeRevision2, treeSize2, err)
 		}
 
-		if treeRevision1 != 5 || treeRevision2 != 11 {
-			t.Fatalf("Expected tree revisions 5,11 but got %d,%d", treeRevision1, treeRevision2)
+		// A tree size between revisions should return the next highest
+		if treeRevision3, treeSize3, err := tx.GetTreeRevisionIncludingSize(21); err != nil || treeRevision3 != 11 || treeSize3 != 27 {
+			t.Fatalf("Want revision=11, size=27, err=nil got: revision=%d size=%d err=%v", treeRevision3, treeSize3, err)
 		}
 
-		// But an intermediate value shouldn't work
-		treeRevision3, err := tx.GetTreeRevisionAtSize(21)
-
-		if err == nil {
-			t.Fatalf("Unexpectedly returned revision for nonexistent tree size: %d", treeRevision3)
+		// A value >= largest tree size should not be allowed
+		if treeRevision4, treeSize4, err := tx.GetTreeRevisionIncludingSize(30); err == nil {
+			t.Fatalf("Got: revision=%d size=%d err=%v for tree size 30, want: 0, 0, error", treeRevision4, treeSize4, err)
 		}
 	}
 }
@@ -772,15 +749,15 @@ func TestGetTreeRevisionMultipleSameSize(t *testing.T) {
 		tx := beginLogTx(s, t)
 		defer commit(tx, t)
 
-		// We should get back the highest revision at size 16
-		treeRevision, err := tx.GetTreeRevisionAtSize(16)
+		// We should get back the first revision at size 16
+		treeRevision, treeSize, err := tx.GetTreeRevisionIncludingSize(16)
 
 		if err != nil {
 			t.Fatalf("Failed to get tree revision: %v", err)
 		}
 
-		if treeRevision != 13 {
-			t.Fatalf("Expected tree revisions 13 but got %d", treeRevision)
+		if treeRevision != 11 || treeSize != 16 {
+			t.Fatalf("got revision=%d, size=%d, want: revision=11, size=16", treeRevision, treeSize)
 		}
 	}
 }

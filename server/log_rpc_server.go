@@ -16,6 +16,9 @@ import (
 // TODO: There is no access control in the server yet and clients could easily modify
 // any tree.
 
+// TODO(Martin2112): Remove this when the feature is fully implemented
+var errRehashNotSupported = errors.New("proof request requires rehash but it's not implemented yet")
+
 // Pass this as a fixed value to proof calculations. It's used as the max depth of the tree
 const proofMaxBitLen = 64
 
@@ -90,10 +93,16 @@ func (t *TrillianLogRPCServer) GetInclusionProof(ctx context.Context, req *trill
 		return nil, err
 	}
 
-	treeRevision, err := tx.GetTreeRevisionAtSize(req.TreeSize)
+	treeRevision, treeSize, err := tx.GetTreeRevisionIncludingSize(req.TreeSize)
 	if err != nil {
 		tx.Rollback()
 		return nil, err
+	}
+
+	// TODO(Martin2112): Pass tree size as snapshot size to proof recomputation when implemented
+	// and remove this check.
+	if treeSize != req.TreeSize {
+		return nil, errRehashNotSupported
 	}
 
 	proof, err := getInclusionProofForLeafIndexAtRevision(tx, treeRevision, req.TreeSize, req.LeafIndex)
@@ -132,10 +141,16 @@ func (t *TrillianLogRPCServer) GetInclusionProofByHash(ctx context.Context, req 
 		return nil, err
 	}
 
-	treeRevision, err := tx.GetTreeRevisionAtSize(req.TreeSize)
+	treeRevision, treeSize, err := tx.GetTreeRevisionIncludingSize(req.TreeSize)
 	if err != nil {
 		tx.Rollback()
 		return nil, err
+	}
+
+	// TODO(Martin2112): Pass tree size as snapshot size to proof recomputation when implemented
+	// and remove this check.
+	if treeSize != req.TreeSize {
+		return nil, errRehashNotSupported
 	}
 
 	// Find the leaf index of the supplied hash
@@ -197,16 +212,29 @@ func (t *TrillianLogRPCServer) GetConsistencyProof(ctx context.Context, req *tri
 
 	// We need to make sure that both the given sizes are actually STHs, though we don't use the
 	// first tree revision in fetches
-	_, err = tx.GetTreeRevisionAtSize(req.FirstTreeSize)
+	// TODO(Martin2112): This fetch can be removed when rehashing is implemented
+	_, firstTreeSize, err := tx.GetTreeRevisionIncludingSize(req.FirstTreeSize)
 	if err != nil {
 		tx.Rollback()
 		return nil, err
 	}
 
-	secondTreeRevision, err := tx.GetTreeRevisionAtSize(req.SecondTreeSize)
+	// TODO(Martin2112): Pass tree size as snapshot size to proof recomputation when implemented
+	// and remove this check.
+	if firstTreeSize != req.FirstTreeSize {
+		return nil, errRehashNotSupported
+	}
+
+	secondTreeRevision, secondTreeSize, err := tx.GetTreeRevisionIncludingSize(req.SecondTreeSize)
 	if err != nil {
 		tx.Rollback()
 		return nil, err
+	}
+
+	// TODO(Martin2112): Pass tree size as snapshot size to proof recomputation when implemented
+	// and remove this check.
+	if secondTreeSize != req.SecondTreeSize {
+		return nil, errRehashNotSupported
 	}
 
 	// Do all the node fetches at the second tree revision, which is what the node ids were calculated
@@ -340,10 +368,16 @@ func (t *TrillianLogRPCServer) GetEntryAndProof(ctx context.Context, req *trilli
 		return nil, err
 	}
 
-	treeRevision, err := tx.GetTreeRevisionAtSize(req.TreeSize)
+	treeRevision, treeSize, err := tx.GetTreeRevisionIncludingSize(req.TreeSize)
 	if err != nil {
 		tx.Rollback()
 		return nil, err
+	}
+
+	// TODO(Martin2112): Pass tree size as snapshot size to proof recomputation when implemented
+	// and remove this check.
+	if treeSize != req.TreeSize {
+		return nil, errRehashNotSupported
 	}
 
 	proof, err := getInclusionProofForLeafIndexAtRevision(tx, treeRevision, req.TreeSize, req.LeafIndex)
