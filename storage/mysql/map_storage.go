@@ -27,7 +27,7 @@ const selectMapLeafSQL string = `SELECT KeyHash, MAX(MapRevision), LeafValue
 	 WHERE KeyHash IN (` + placeholderSQL + `) AND
 	       TreeId = ? AND
 				 MapRevision >= ?
-	 GROUP BY KeyHash`
+	 GROUP BY KeyHash, LeafValue`
 
 var defaultMapStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 176}
 
