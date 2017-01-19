@@ -2,7 +2,6 @@ package mysql
 
 import (
 	"database/sql"
-	"fmt"
 	"testing"
 
 	"github.com/golang/protobuf/proto"
@@ -161,44 +160,48 @@ func TestMapSetGetMultipleRevisions(t *testing.T) {
 	defer db.Close()
 	s := prepareTestMapStorage(mapID, t)
 
-	numRevs := 3
-	values := make([]trillian.MapLeaf, numRevs)
-	for i := 0; i < numRevs; i++ {
-		values[i] = trillian.MapLeaf{
-			KeyHash:   keyHash,
-			LeafHash:  []byte(fmt.Sprintf("A Hash %d", i)),
-			LeafValue: []byte(fmt.Sprintf("A Value %d", i)),
-			ExtraData: []byte(fmt.Sprintf("Some Extra Data %d", i)),
-		}
+	tests := []struct {
+		rev  int64
+		leaf trillian.MapLeaf
+	}{
+		{0, trillian.MapLeaf{keyHash, []byte{0}, []byte{0}, []byte{0}}},
+		{1, trillian.MapLeaf{keyHash, []byte{1}, []byte{1}, []byte{1}}},
+		{2, trillian.MapLeaf{keyHash, []byte{2}, []byte{2}, []byte{2}}},
+		{3, trillian.MapLeaf{keyHash, []byte{3}, []byte{3}, []byte{3}}},
 	}
-
-	for i := 0; i < numRevs; i++ {
+	for _, tc := range tests {
+		// Write the current test case.
 		tx := beginMapTx(s, t)
 		mysqlMapTX := tx.(*mapTX)
-		mysqlMapTX.treeTX.writeRevision = int64(i)
-		if err := tx.Set(keyHash, values[i]); err != nil {
-			t.Fatalf("Failed to set %v to %v: %v", keyHash, values[i], err)
+		mysqlMapTX.treeTX.writeRevision = tc.rev
+		if err := tx.Set(keyHash, tc.leaf); err != nil {
+			t.Fatalf("Failed to set %v to %v: %v", keyHash, tc.leaf, err)
 		}
 		if err := tx.Commit(); err != nil {
 			t.Fatalf("Failed to commit: %v", err)
 		}
-	}
 
-	for i := 0; i < numRevs; i++ {
-		tx := beginMapTx(s, t)
-
-		readValues, err := tx.Get(int64(i), [][]byte{keyHash})
-		if err != nil {
-			t.Fatalf("At rev %d failed to get %v:  %v", i, keyHash, err)
-		}
-		if got, want := len(readValues), 1; got != want {
-			t.Fatalf("At rev %d got %d values, expected %d", i, got, want)
-		}
-		if got, want := &readValues[0], &values[i]; !proto.Equal(got, want) {
-			t.Fatalf("At rev %d read back %v, but expected %v", i, got, want)
-		}
-		if err := tx.Commit(); err != nil {
-			t.Fatalf("At rev %d failed to commit: %v", i, err)
+		// Read at a point in time in the future. Expect to get the latest value.
+		// Read at each point in the past. Expect to get that exact point in history.
+		for i := int64(0); i < int64(len(tests)); i++ {
+			expectRev := i
+			if expectRev > tc.rev {
+				expectRev = tc.rev // For future revisions, expect the current value.
+			}
+			tx2 := beginMapTx(s, t)
+			readValues, err := tx2.Get(i, [][]byte{keyHash})
+			if err != nil {
+				t.Fatalf("At i %d failed to get %v:  %v", i, keyHash, err)
+			}
+			if got, want := len(readValues), 1; got != want {
+				t.Fatalf("At i %d got %d values, expected %d", i, got, want)
+			}
+			if got, want := &readValues[0], &tests[expectRev].leaf; !proto.Equal(got, want) {
+				t.Fatalf("At i %d read back %v, but expected %v", i, got, want)
+			}
+			if err := tx2.Commit(); err != nil {
+				t.Fatalf("At i %d failed to commit: %v", i, err)
+			}
 		}
 	}
 }

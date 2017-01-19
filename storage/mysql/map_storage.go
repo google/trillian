@@ -21,13 +21,20 @@ const selectLatestSignedMapRootSQL string = `SELECT MapHeadTimestamp, RootHash, 
 
 const insertMapLeafSQL string = `INSERT INTO MapLeaf(TreeId, KeyHash, MapRevision, LeafValue) VALUES (?, ?, ?, ?)`
 
-// Note that MapRevision is stored negated, hence the odd equality check below:
-const selectMapLeafSQL string = `SELECT KeyHash, MAX(MapRevision), LeafValue
-	 FROM MapLeaf
-	 WHERE KeyHash IN (` + placeholderSQL + `) AND
-	       TreeId = ? AND
-				 MapRevision >= ?
-	 GROUP BY KeyHash`
+const selectMapLeafSQL string = `
+ SELECT t1.KeyHash, t1.MapRevision, t1.LeafValue
+ FROM MapLeaf t1
+ INNER JOIN
+ (
+	SELECT TreeId, KeyHash, MAX(MapRevision) as maxrev
+	FROM MapLeaf t0
+	WHERE t0.KeyHash IN (` + placeholderSQL + `) AND
+	      t0.TreeId = ? AND t0.MapRevision <= ?
+	GROUP BY t0.TreeId, t0.KeyHash
+ ) t2
+ ON t1.TreeId=t2.TreeId
+ AND t1.KeyHash=t2.KeyHash
+ AND t1.MapRevision=t2.maxrev`
 
 var defaultMapStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 176}
 
@@ -117,8 +124,7 @@ func (m *mapTX) Set(keyHash []byte, value trillian.MapLeaf) error {
 	}
 	defer stmt.Close()
 
-	// Note: MapRevision is stored negated:
-	_, err = stmt.Exec(m.ms.mapID, []byte(keyHash), -m.writeRevision, flatValue)
+	_, err = stmt.Exec(m.ms.mapID, []byte(keyHash), m.writeRevision, flatValue)
 	return err
 }
 
@@ -135,9 +141,7 @@ func (m *mapTX) Get(revision int64, keyHashes [][]byte) ([]trillian.MapLeaf, err
 		args = append(args, []byte(k[:]))
 	}
 	args = append(args, m.ms.mapID)
-	// Note: MapRevision is negated when stored to cause more recent revisions to
-	// appear earlier in query results.
-	args = append(args, -revision)
+	args = append(args, revision)
 
 	glog.Infof("args size %d", len(args))
 
