@@ -181,21 +181,27 @@ func TestMapSetGetMultipleRevisions(t *testing.T) {
 			t.Fatalf("Failed to commit: %v", err)
 		}
 
-		// Read. Verify that we get the current tc.
-		tx2 := beginMapTx(s, t)
-		rev := int64(len(tests))
-		readValues, err := tx2.Get(rev, [][]byte{keyHash})
-		if err != nil {
-			t.Fatalf("At rev %d failed to get %v:  %v", rev, keyHash, err)
-		}
-		if got, want := len(readValues), 1; got != want {
-			t.Fatalf("At rev %d got %d values, expected %d", rev, got, want)
-		}
-		if got, want := &readValues[0], &tc.leaf; !proto.Equal(got, want) {
-			t.Fatalf("At rev %d read back %v, but expected %v", rev, got, want)
-		}
-		if err := tx2.Commit(); err != nil {
-			t.Fatalf("At rev %d failed to commit: %v", rev, err)
+		// Read at a point in time in the future. Expect to get the latest value.
+		// Read at each point in the past. Expect to get that exact point in history.
+		for i := int64(0); i < int64(len(tests)); i++ {
+			expectRev := i
+			if expectRev > tc.rev {
+				expectRev = tc.rev // For future revisions, expect the current value.
+			}
+			tx2 := beginMapTx(s, t)
+			readValues, err := tx2.Get(i, [][]byte{keyHash})
+			if err != nil {
+				t.Fatalf("At i %d failed to get %v:  %v", i, keyHash, err)
+			}
+			if got, want := len(readValues), 1; got != want {
+				t.Fatalf("At i %d got %d values, expected %d", i, got, want)
+			}
+			if got, want := &readValues[0], &tests[expectRev].leaf; !proto.Equal(got, want) {
+				t.Fatalf("At i %d read back %v, but expected %v", i, got, want)
+			}
+			if err := tx2.Commit(); err != nil {
+				t.Fatalf("At i %d failed to commit: %v", i, err)
+			}
 		}
 	}
 }
