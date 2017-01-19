@@ -358,7 +358,7 @@ func TestQueueLeavesNoLeavesRejected(t *testing.T) {
 
 	resp, err := server.QueueLeaves(context.Background(), &queueRequestEmpty)
 
-	if err != nil || resp.Status.StatusCode != trillian.TrillianApiStatusCode_ERROR {
+	if err == nil || resp.Status.StatusCode != trillian.TrillianApiStatusCode_ERROR {
 		t.Fatal("Allowed zero leaves to be queued")
 	}
 }

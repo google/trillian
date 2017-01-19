@@ -19,6 +19,8 @@ import (
 )
 
 const (
+	setTreePropertiesSQL = `INSERT INTO Trees(TreeId,KeyId,TreeType,LeafHasherType,TreeHasherType,AllowsDuplicateLeaves)
+		VALUES(?, 1, 'MAP', 'SHA256', 'SHA256', false)`
 	getTreePropertiesSQL  = "SELECT AllowsDuplicateLeaves FROM Trees WHERE TreeId=?"
 	getTreeParametersSQL  = "SELECT ReadOnlyRequests From TreeControl WHERE TreeID=?"
 	selectQueuedLeavesSQL = `SELECT LeafIdentityHash,MerkleLeafHash,Payload
