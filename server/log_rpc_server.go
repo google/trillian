@@ -12,7 +12,10 @@ import (
 	"github.com/google/trillian/util"
 
 	"github.com/golang/glog"
+	"github.com/golang/protobuf/ptypes/empty"
 	"golang.org/x/net/context"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 )
 
 // TODO: There is no access control in the server yet and clients could easily modify
@@ -36,6 +39,19 @@ func NewTrillianLogRPCServer(registry extension.Registry, timeSource util.TimeSo
 		registry:   registry,
 		timeSource: timeSource,
 	}
+}
+
+// QueueLeaf submits one leaf to the queue.
+func (t *TrillianLogRPCServer) QueueLeaf(ctx context.Context, req *trillian.QueueLeafRequest) (*empty.Empty, error) {
+	queueReq := &trillian.QueueLeavesRequest{
+		LogId:  req.LogId,
+		Leaves: []*trillian.LogLeaf{req.Leaf},
+	}
+	resp, err := t.QueueLeaves(ctx, queueReq)
+	if err != nil {
+		return nil, err
+	}
+	return nil, grpc.Errorf(codes.Code(resp.Status.StatusCode), resp.Status.Description)
 }
 
 // QueueLeaves submits a batch of leaves to the log for later integration into the underlying tree.

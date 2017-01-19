@@ -7,6 +7,7 @@ option java_outer_classname = "TrillianApiProto";
 package trillian;
 
 import "trillian.proto";
+import "google/protobuf/empty.proto";
 
 // TrillianApiStatusCode is an application level status code
 enum TrillianApiStatusCode {
@@ -52,6 +53,11 @@ message Proof {
 message QueueLeavesRequest {
     int64 log_id = 1;
     repeated LogLeaf leaves = 2;
+}
+
+message QueueLeafRequest {
+    int64 log_id = 1;
+    LogLeaf leaf = 2;
 }
 
 // TODO(Martin2112): This will eventually contain the signed timestamps and stuff that we return for
@@ -152,6 +158,8 @@ message GetEntryAndProofResponse {
 // (for handling reads) and provides Log level ones such as being able to obtain proofs.
 // Clients cannot directly modify the log data via this API.
 service TrillianLog {
+    // QueueLeaf adds a single leaf to the queue.
+    rpc QueueLeaf (QueueLeafRequest) returns (google.protobuf.Empty) {}
     // Corresponds to the LeafQueuer API
     rpc QueueLeaves (QueueLeavesRequest) returns (QueueLeavesResponse) {
     }

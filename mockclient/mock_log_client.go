@@ -5,6 +5,7 @@ package mockclient
 
 import (
 	gomock "github.com/golang/mock/gomock"
+	empty "github.com/golang/protobuf/ptypes/empty"
 	trillian "github.com/google/trillian"
 	context "golang.org/x/net/context"
 	grpc "google.golang.org/grpc"
@@ -175,6 +176,22 @@ func (_mr *_MockTrillianLogClientRecorder) GetSequencedLeafCount(arg0, arg1 inte
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetSequencedLeafCount", _s...)
 }
 
+func (_m *MockTrillianLogClient) QueueLeaf(_param0 context.Context, _param1 *trillian.QueueLeafRequest, _param2 ...grpc.CallOption) (*empty.Empty, error) {
+	_s := []interface{}{_param0, _param1}
+	for _, _x := range _param2 {
+		_s = append(_s, _x)
+	}
+	ret := _m.ctrl.Call(_m, "QueueLeaf", _s...)
+	ret0, _ := ret[0].(*empty.Empty)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+func (_mr *_MockTrillianLogClientRecorder) QueueLeaf(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	_s := append([]interface{}{arg0, arg1}, arg2...)
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "QueueLeaf", _s...)
+}
+
 func (_m *MockTrillianLogClient) QueueLeaves(_param0 context.Context, _param1 *trillian.QueueLeavesRequest, _param2 ...grpc.CallOption) (*trillian.QueueLeavesResponse, error) {
 	_s := []interface{}{_param0, _param1}
 	for _, _x := range _param2 {
@@ -309,6 +326,17 @@ func (_m *MockTrillianLogServer) GetSequencedLeafCount(_param0 context.Context, 
 
 func (_mr *_MockTrillianLogServerRecorder) GetSequencedLeafCount(arg0, arg1 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetSequencedLeafCount", arg0, arg1)
+}
+
+func (_m *MockTrillianLogServer) QueueLeaf(_param0 context.Context, _param1 *trillian.QueueLeafRequest) (*empty.Empty, error) {
+	ret := _m.ctrl.Call(_m, "QueueLeaf", _param0, _param1)
+	ret0, _ := ret[0].(*empty.Empty)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+func (_mr *_MockTrillianLogServerRecorder) QueueLeaf(arg0, arg1 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "QueueLeaf", arg0, arg1)
 }
 
 func (_m *MockTrillianLogServer) QueueLeaves(_param0 context.Context, _param1 *trillian.QueueLeavesRequest) (*trillian.QueueLeavesResponse, error) {
