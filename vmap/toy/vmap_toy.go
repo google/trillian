@@ -18,13 +18,13 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-var MySQLURIFlag = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "")
+var mySQLURIFlag = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "")
 
 func main() {
 	flag.Parse()
 	glog.Info("Starting...")
 	mapID := int64(1)
-	ms, err := mysql.NewMapStorage(mapID, *MySQLURIFlag)
+	ms, err := mysql.NewMapStorage(mapID, *mySQLURIFlag)
 	if err != nil {
 		glog.Fatalf("Failed to open mysql storage: %v", err)
 	}
