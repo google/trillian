@@ -44,12 +44,12 @@ func Verify(pub crypto.PublicKey, data []byte, sig trillian.DigitallySigned) err
 	switch key := pub.(type) {
 	case *ecdsa.PublicKey:
 		if sigAlgo != trillian.SignatureAlgorithm_ECDSA {
-			return fmt.Errorf("Signature algorithm does not match public key.")
+			return fmt.Errorf("signature algorithm does not match public key")
 		}
 		return verifyECDSA(key, digest, sig.Signature)
 	case *rsa.PublicKey:
 		if sigAlgo != trillian.SignatureAlgorithm_RSA {
-			return fmt.Errorf("Signature algorithm does not match public key.")
+			return fmt.Errorf("signature algorithm does not match public key")
 		}
 		return verifyRSA(key, digest, sig.Signature, hasher.Hash, hasher)
 	default:
