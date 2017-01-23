@@ -355,7 +355,7 @@ func getSTH(ctx context.Context, c LogContext, w http.ResponseWriter, r *http.Re
 		return http.StatusInternalServerError, fmt.Errorf("failed to sign tree head: %v", err)
 	}
 
-	// Now build the final result object that will be marshalled to JSON
+	// Now build the final result object that will be marshaled to JSON
 	jsonRsp := ct.GetSTHResponse{
 		TreeSize:       sth.TreeSize,
 		SHA256RootHash: sth.SHA256RootHash[:],

@@ -72,7 +72,7 @@ If you're not with the Go program of working within its
 [own directory tree](https://golang.org/cmd/go/#hdr-GOPATH_environment_variable), then:
 
 ```console
-% cd <your favourite directory for git repos>
+% cd <your favorite directory for git repos>
 % git clone https://github.com/google/trillian.git
 % ln -s `pwd`/trillian $GOPATH/src/github.com/google  # you may have to make this directory first
 % cd trillian
@@ -172,7 +172,7 @@ The Trillian service expects to be paired with additional code that is specific
 to the particular application of the transparent store; this is known as a
 *personality*.
 
-The primary purpose of a personality is to implement **admission critera** for
+The primary purpose of a personality is to implement **admission criteria** for
 the store, so that only particular types of data are added to the store. For
 example, a certificate transparency log only accepts data items that are valid
 certificates; a "CT Log" personality would police this, so that the Trillian
@@ -187,7 +187,7 @@ The per-application personality is also responsible for providing an
 externally-visible interface, typically over HTTP[S].
 
 Note that a personality may need to implement its own data store,
-seperate from Trillian.  In particular, if the personality does not
+separate from Trillian.  In particular, if the personality does not
 completely trust Trillian, it needs to store the various things that
 Trillian signs in order to be able to detect problems (and so the
 personality effectively also acts as a monitor for Trillian).

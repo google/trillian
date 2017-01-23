@@ -19,14 +19,26 @@ func TestMapRootUpdate(t *testing.T) {
 	defer tx.Commit()
 
 	// TODO: Tidy up the map id as it looks silly chained 3 times like this
-	root := trillian.SignedMapRoot{MapId: mapID.mapID, TimestampNanos: 98765, MapRevision: 5, RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
+	root := trillian.SignedMapRoot{
+		MapId:          mapID.mapID,
+		TimestampNanos: 98765,
+		MapRevision:    5,
+		RootHash:       []byte(dummyHash),
+		Signature:      &trillian.DigitallySigned{Signature: []byte("notempty")},
+	}
 
 	if err := tx.StoreSignedMapRoot(root); err != nil {
 		t.Fatalf("Failed to store signed map root: %v", err)
 	}
 
 	// TODO: Tidy up the map id as it looks silly chained 3 times like this
-	root2 := trillian.SignedMapRoot{MapId: mapID.mapID, TimestampNanos: 98766, MapRevision: 6, RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
+	root2 := trillian.SignedMapRoot{
+		MapId:          mapID.mapID,
+		TimestampNanos: 98766,
+		MapRevision:    6,
+		RootHash:       []byte(dummyHash),
+		Signature:      &trillian.DigitallySigned{Signature: []byte("notempty")},
+	}
 
 	if err := tx.StoreSignedMapRoot(root2); err != nil {
 		t.Fatalf("Failed to store signed map root: %v", err)
@@ -164,10 +176,10 @@ func TestMapSetGetMultipleRevisions(t *testing.T) {
 		rev  int64
 		leaf trillian.MapLeaf
 	}{
-		{0, trillian.MapLeaf{keyHash, []byte{0}, []byte{0}, []byte{0}}},
-		{1, trillian.MapLeaf{keyHash, []byte{1}, []byte{1}, []byte{1}}},
-		{2, trillian.MapLeaf{keyHash, []byte{2}, []byte{2}, []byte{2}}},
-		{3, trillian.MapLeaf{keyHash, []byte{3}, []byte{3}, []byte{3}}},
+		{0, trillian.MapLeaf{KeyHash: keyHash, LeafHash: []byte{0}, LeafValue: []byte{0}, ExtraData: []byte{0}}},
+		{1, trillian.MapLeaf{KeyHash: keyHash, LeafHash: []byte{1}, LeafValue: []byte{1}, ExtraData: []byte{1}}},
+		{2, trillian.MapLeaf{KeyHash: keyHash, LeafHash: []byte{2}, LeafValue: []byte{2}, ExtraData: []byte{2}}},
+		{3, trillian.MapLeaf{KeyHash: keyHash, LeafHash: []byte{3}, LeafValue: []byte{3}, ExtraData: []byte{3}}},
 	}
 	for _, tc := range tests {
 		// Write the current test case.
