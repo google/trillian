@@ -99,27 +99,6 @@ func (m *DigitallySigned) String() string            { return proto.CompactTextS
 func (*DigitallySigned) ProtoMessage()               {}
 func (*DigitallySigned) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{0} }
 
-func (m *DigitallySigned) GetSignatureAlgorithm() SignatureAlgorithm {
-	if m != nil {
-		return m.SignatureAlgorithm
-	}
-	return SignatureAlgorithm_ANONYMOUS
-}
-
-func (m *DigitallySigned) GetHashAlgorithm() HashAlgorithm {
-	if m != nil {
-		return m.HashAlgorithm
-	}
-	return HashAlgorithm_NONE
-}
-
-func (m *DigitallySigned) GetSignature() []byte {
-	if m != nil {
-		return m.Signature
-	}
-	return nil
-}
-
 type SignedEntryTimestamp struct {
 	TimestampNanos int64            `protobuf:"varint,1,opt,name=timestamp_nanos,json=timestampNanos" json:"timestamp_nanos,omitempty"`
 	LogId          int64            `protobuf:"varint,2,opt,name=log_id,json=logId" json:"log_id,omitempty"`
@@ -130,20 +109,6 @@ func (m *SignedEntryTimestamp) Reset()                    { *m = SignedEntryTime
 func (m *SignedEntryTimestamp) String() string            { return proto.CompactTextString(m) }
 func (*SignedEntryTimestamp) ProtoMessage()               {}
 func (*SignedEntryTimestamp) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{1} }
-
-func (m *SignedEntryTimestamp) GetTimestampNanos() int64 {
-	if m != nil {
-		return m.TimestampNanos
-	}
-	return 0
-}
-
-func (m *SignedEntryTimestamp) GetLogId() int64 {
-	if m != nil {
-		return m.LogId
-	}
-	return 0
-}
 
 func (m *SignedEntryTimestamp) GetSignature() *DigitallySigned {
 	if m != nil {
@@ -170,46 +135,11 @@ func (m *SignedLogRoot) String() string            { return proto.CompactTextStr
 func (*SignedLogRoot) ProtoMessage()               {}
 func (*SignedLogRoot) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{2} }
 
-func (m *SignedLogRoot) GetTimestampNanos() int64 {
-	if m != nil {
-		return m.TimestampNanos
-	}
-	return 0
-}
-
-func (m *SignedLogRoot) GetRootHash() []byte {
-	if m != nil {
-		return m.RootHash
-	}
-	return nil
-}
-
-func (m *SignedLogRoot) GetTreeSize() int64 {
-	if m != nil {
-		return m.TreeSize
-	}
-	return 0
-}
-
 func (m *SignedLogRoot) GetSignature() *DigitallySigned {
 	if m != nil {
 		return m.Signature
 	}
 	return nil
-}
-
-func (m *SignedLogRoot) GetLogId() int64 {
-	if m != nil {
-		return m.LogId
-	}
-	return 0
-}
-
-func (m *SignedLogRoot) GetTreeRevision() int64 {
-	if m != nil {
-		return m.TreeRevision
-	}
-	return 0
 }
 
 type MapperMetadata struct {
@@ -222,27 +152,6 @@ func (m *MapperMetadata) Reset()                    { *m = MapperMetadata{} }
 func (m *MapperMetadata) String() string            { return proto.CompactTextString(m) }
 func (*MapperMetadata) ProtoMessage()               {}
 func (*MapperMetadata) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{3} }
-
-func (m *MapperMetadata) GetSourceLogId() []byte {
-	if m != nil {
-		return m.SourceLogId
-	}
-	return nil
-}
-
-func (m *MapperMetadata) GetHighestFullyCompletedSeq() int64 {
-	if m != nil {
-		return m.HighestFullyCompletedSeq
-	}
-	return 0
-}
-
-func (m *MapperMetadata) GetHighestPartiallyCompletedSeq() int64 {
-	if m != nil {
-		return m.HighestPartiallyCompletedSeq
-	}
-	return 0
-}
 
 // SignedMapRoot represents a commitment by a Map to a particular tree.
 type SignedMapRoot struct {
@@ -260,20 +169,6 @@ func (m *SignedMapRoot) String() string            { return proto.CompactTextStr
 func (*SignedMapRoot) ProtoMessage()               {}
 func (*SignedMapRoot) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{4} }
 
-func (m *SignedMapRoot) GetTimestampNanos() int64 {
-	if m != nil {
-		return m.TimestampNanos
-	}
-	return 0
-}
-
-func (m *SignedMapRoot) GetRootHash() []byte {
-	if m != nil {
-		return m.RootHash
-	}
-	return nil
-}
-
 func (m *SignedMapRoot) GetMetadata() *MapperMetadata {
 	if m != nil {
 		return m.Metadata
@@ -286,20 +181,6 @@ func (m *SignedMapRoot) GetSignature() *DigitallySigned {
 		return m.Signature
 	}
 	return nil
-}
-
-func (m *SignedMapRoot) GetMapId() int64 {
-	if m != nil {
-		return m.MapId
-	}
-	return 0
-}
-
-func (m *SignedMapRoot) GetMapRevision() int64 {
-	if m != nil {
-		return m.MapRevision
-	}
-	return 0
 }
 
 func init() {
