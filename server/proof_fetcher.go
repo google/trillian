@@ -17,7 +17,6 @@ package server
 import (
 	"fmt"
 
-	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
@@ -31,7 +30,7 @@ import (
 // revisions. This code only relies on the NodeReader interface so can be tested without
 // a complete storage implementation.
 func fetchNodesAndBuildProof(tx storage.NodeReader, treeRevision, leafIndex int64, proofNodeFetches []merkle.NodeFetch) (trillian.Proof, error) {
-	proofNodes, err := dedupAndFetchNodes(tx, treeRevision, proofNodeFetches)
+	proofNodes, err := fetchNodes(tx, treeRevision, proofNodeFetches)
 	if err != nil {
 		return trillian.Proof{}, err
 	}
@@ -108,62 +107,31 @@ func (r *rehasher) rehashedProof(leafIndex int64) (trillian.Proof, error) {
 	return trillian.Proof{LeafIndex: leafIndex, ProofNode: r.proof}, r.proofError
 }
 
-// dedupAndFetchNodes() removes duplicates from the set of fetches and then passes the result to
-// storage. After writng this code I realised I don't have a solid proof that fetches for Merkle
-// paths could involve duplicate nodes so it could be that this isn't ever useful. Further
-// thought is required.
-func dedupAndFetchNodes(tx storage.NodeReader, treeRevision int64, fetches []merkle.NodeFetch) ([]storage.Node, error) {
+// fetchNodes removes duplicates from the set of fetches and then passes the result to
+// storage.
+func fetchNodes(tx storage.NodeReader, treeRevision int64, fetches []merkle.NodeFetch) ([]storage.Node, error) {
 	// To start with we remove any duplicate fetches
-	m := make(map[string]storage.NodeID)
 	proofNodeIDs := make([]storage.NodeID, 0, len(fetches))
 
-	// Remove duplicates, preserving the order of the input otherwise
 	for _, fetch := range fetches {
-		if _, ok := m[fetch.NodeID.String()]; !ok {
-			// First time we've seen the ID
-			m[fetch.NodeID.String()] = fetch.NodeID
-			proofNodeIDs = append(proofNodeIDs, fetch.NodeID)
-		}
+		proofNodeIDs = append(proofNodeIDs, fetch.NodeID)
 	}
 
-	if len(proofNodeIDs) < len(fetches) {
-		glog.V(2).Infof("deduplication saved %d node fetch(es)", len(fetches)-len(proofNodeIDs))
-	}
-
-	// Use the deduplicated list of nodeIDs in the storage fetch
 	proofNodes, err := tx.GetMerkleNodes(treeRevision, proofNodeIDs)
 	if err != nil {
-		return []storage.Node{}, err
+		return nil, err
 	}
 
 	if len(proofNodes) != len(proofNodeIDs) {
-		return []storage.Node{}, fmt.Errorf("expected %d nodes from storage but got %d", len(proofNodeIDs), len(proofNodes))
+		return nil, fmt.Errorf("expected %d nodes from storage but got %d", len(proofNodeIDs), len(proofNodes))
 	}
 
-	// Then rebuild what we would have got if we'd fetched the duplicates
-	nodes := make([]storage.Node, 0, len(fetches))
-	nm := make(map[string]storage.Node)
-
-	for _, node := range proofNodes {
-		nm[node.NodeID.String()] = node
-	}
-
-	for _, fetch := range fetches {
-		node, ok := nm[fetch.NodeID.String()]
-
-		if !ok {
-			return []storage.Node{}, fmt.Errorf("wanted node ID: %s but storage didn't return it", fetch.NodeID.String())
-		}
-
-		nodes = append(nodes, node)
-	}
-
-	for i, node := range nodes {
+	for i, node := range proofNodes {
 		// additional check that the correct node was returned
 		if !node.NodeID.Equivalent(fetches[i].NodeID) {
 			return []storage.Node{}, fmt.Errorf("expected node %v at proof pos %d but got %v", fetches[i], i, node.NodeID)
 		}
 	}
 
-	return nodes, nil
+	return proofNodes, nil
 }

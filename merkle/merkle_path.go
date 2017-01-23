@@ -45,7 +45,7 @@ func (n NodeFetch) Equivalent(other NodeFetch) bool {
 // is copied into all the returned nodeIDs.
 func CalcInclusionProofNodeAddresses(snapshot, index, treeSize int64, maxBitLen int) ([]NodeFetch, error) {
 	if snapshot > treeSize || index >= snapshot || index < 0 || snapshot < 1 || maxBitLen <= 0 {
-		return []NodeFetch{}, fmt.Errorf("invalid params s: %d index: %d ts: %d, bitlen:%d", snapshot, index, treeSize, maxBitLen)
+		return nil, fmt.Errorf("invalid params s: %d index: %d ts: %d, bitlen:%d", snapshot, index, treeSize, maxBitLen)
 	}
 
 	return pathFromNodeToRootAtSnapshot(index, 0, snapshot, treeSize, maxBitLen)
@@ -61,7 +61,7 @@ func CalcInclusionProofNodeAddresses(snapshot, index, treeSize int64, maxBitLen 
 // at a revision corresponding to the STH associated with the treeSize parameter.
 func CalcConsistencyProofNodeAddresses(snapshot1, snapshot2, treeSize int64, maxBitLen int) ([]NodeFetch, error) {
 	if snapshot1 > snapshot2 || snapshot1 > treeSize || snapshot2 > treeSize || snapshot1 < 1 || snapshot2 < 1 || maxBitLen <= 0 {
-		return []NodeFetch{}, fmt.Errorf("invalid params s1: %d s2: %d tss: %d, bitlen:%d", snapshot1, snapshot2, treeSize, maxBitLen)
+		return nil, fmt.Errorf("invalid params s1: %d s2: %d ts: %d, bitlen:%d", snapshot1, snapshot2, treeSize, maxBitLen)
 	}
 
 	return snapshotConsistency(snapshot1, snapshot2, treeSize, maxBitLen)
@@ -145,12 +145,12 @@ func pathFromNodeToRootAtSnapshot(node int64, level int, snapshot, treeSize int6
 				// the additional fetches needed to do this later
 				rehashFetches, err := recomputePastSnapshot(snapshot, treeSize, level, maxBitLen)
 				if err != nil {
-					return []NodeFetch{}, err
+					return nil, err
 				}
 
 				// Extra check that the recomputation produced one node
 				if err = checkRecomputation(rehashFetches); err != nil {
-					return []NodeFetch{}, err
+					return nil, err
 				}
 
 				proof = append(proof, rehashFetches...)
@@ -172,9 +172,9 @@ func pathFromNodeToRootAtSnapshot(node int64, level int, snapshot, treeSize int6
 // tree state at the snapshot size differs from the size we've stored it at. The calculations
 // also need to take into account missing levels, see the tree diagrams in this file.
 // If called with snapshot equal to the tree size returns empty. Otherwise, assuming no errors,
-// the output of this should always be exactly one node. Either a copy of one of the nodes in
-// the tree or a rehashing of multiple nodes to a single result node with the value it would have
-// had if the prior snapshot had been stored.
+// the output of this should always be exactly one node after resolving any rehashing.
+// Either a copy of one of the nodes in the tree or a rehashing of multiple nodes to a single
+// result node with the value it would have had if the prior snapshot had been stored.
 func recomputePastSnapshot(snapshot, treeSize int64, nodeLevel int, maxBitlen int) ([]NodeFetch, error) {
 	glog.V(vLevel).Infof("recompute s:%d ts:%d level:%d", snapshot, treeSize, nodeLevel)
 
@@ -182,9 +182,9 @@ func recomputePastSnapshot(snapshot, treeSize int64, nodeLevel int, maxBitlen in
 
 	if snapshot == treeSize {
 		// Nothing to do
-		return []NodeFetch{}, nil
+		return nil, nil
 	} else if snapshot > treeSize {
-		return fetches, fmt.Errorf("recomputePastSnapshot: %d does not exist for tree of size %d", snapshot, treeSize)
+		return nil, fmt.Errorf("recomputePastSnapshot: %d does not exist for tree of size %d", snapshot, treeSize)
 	}
 
 	// We're recomputing the right hand path, the one to the last leaf
@@ -194,16 +194,16 @@ func recomputePastSnapshot(snapshot, treeSize int64, nodeLevel int, maxBitlen in
 	// This is the index of the last node that actually exists in the underlying tree
 	lastNodeAtLevel := treeSize - 1
 
-	// Work up towards, the root we may find the node we need without needing to rehash if
-	// it turns out that the left siblings and parents exist all the way up to the level we're
-	// recalculating.
+	// Work up towards the root. We may find the node we need without needing to rehash if
+	// it turns out that the tree is complete up to the level we're recalculating at this
+	// snapshot.
 	for (lastNode & 1) != 0 {
 		if nodeLevel == level {
 			// Then we want a copy of the node at this level
 			glog.V(vvLevel).Infof("copying l:%d ln:%d", level, lastNode)
 			nodeID, err := siblingIDSkipLevels(snapshot, lastNodeAtLevel, level, lastNode^1, maxBitlen)
 			if err != nil {
-				return []NodeFetch{}, err
+				return nil, err
 			}
 
 			glog.V(vvLevel).Infof("copy node at %s", nodeID.CoordString())
@@ -224,7 +224,7 @@ func recomputePastSnapshot(snapshot, treeSize int64, nodeLevel int, maxBitlen in
 	savedNodeID, err := siblingIDSkipLevels(snapshot, lastNodeAtLevel, level, lastNode^1, maxBitlen)
 	glog.V(vvLevel).Infof("root for recompute is: %s", savedNodeID.CoordString())
 	if err != nil {
-		return []NodeFetch{}, err
+		return nil, err
 	}
 
 	if nodeLevel == level {
@@ -233,15 +233,19 @@ func recomputePastSnapshot(snapshot, treeSize int64, nodeLevel int, maxBitlen in
 	}
 
 	rehash := false
-	subRootEmitted := false  // whether we've added the recomputed subtree root to the path yet
+	subRootEmitted := false // whether we've added the recomputed subtree root to the path yet
 
+	// Move towards the tree root (increasing level). Exit when we reach the root or the
+	// level that is being recomputed. Defer emitting the subtree root to the path until
+	// the appropriate point because we don't immediately know whether it's part of the
+	// rehashing.
 	for lastNode != 0 {
 		glog.V(vvLevel).Infof("in loop level:%d ln:%d lnal:%d", level, lastNode, lastNodeAtLevel)
 
 		if (lastNode & 1) != 0 {
 			nodeID, err := siblingIDSkipLevels(snapshot, lastNodeAtLevel, level, (lastNode-1)^1, maxBitlen)
 			if err != nil {
-				return []NodeFetch{}, err
+				return nil, err
 			}
 
 			if !rehash && !subRootEmitted {
@@ -379,16 +383,17 @@ func skipMissingLevels(snapshot, lastNode int64, level int, node int64) (int, in
 // there is only one fetch then it must not be a rehash. If all checks pass then the fetches
 // represent one node after rehashing is completed.
 func checkRecomputation(fetches []NodeFetch) error {
-	if len(fetches) == 0 {
+	switch len(fetches) {
+	case 0:
 		return errors.New("recomputePastSnapshot returned nothing")
-	} else if len(fetches) == 1 {
+	case 1:
 		if fetches[0].Rehash {
 			return fmt.Errorf("recomputePastSnapshot returned invalid rehash: %v", fetches)
 		}
-	} else {
+	default:
 		for i := range fetches {
 			if i > 0 && fetches[i].Rehash != fetches[0].Rehash {
-				return fmt.Errorf("recomputePastSnapshot returned multiple nodes: %v", fetches)
+				return fmt.Errorf("recomputePastSnapshot returned mismatched rehash nodes: %v", fetches)
 			}
 		}
 	}

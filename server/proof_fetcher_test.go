@@ -2,12 +2,9 @@ package server
 
 import (
 	"encoding/hex"
-	"errors"
 	"fmt"
-	"reflect"
 	"testing"
 
-	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
@@ -56,110 +53,53 @@ var n4n5 = &trillian.Node{NodeHash: th.HashChildren(h5, h4)}
 var rehashTests = []rehashTest{
 	{
 		desc:    "no rehash",
-		index:   int64(126),
+		index:   126,
 		nodes:   []storage.Node{sn1, sn2, sn3},
 		fetches: []merkle.NodeFetch{{Rehash: false}, {Rehash: false}, {Rehash: false}},
 		output: trillian.Proof{
-			LeafIndex: int64(126),
+			LeafIndex: 126,
 			ProofNode: []*trillian.Node{n1, n2, n3},
 		},
 	},
 	{
 		desc:    "single rehash",
-		index:   int64(999),
+		index:   999,
 		nodes:   []storage.Node{sn1, sn2, sn3, sn4, sn5},
 		fetches: []merkle.NodeFetch{{Rehash: false}, {Rehash: true}, {Rehash: true}, {Rehash: false}, {Rehash: false}},
 		output: trillian.Proof{
-			LeafIndex: int64(999),
+			LeafIndex: 999,
 			ProofNode: []*trillian.Node{n1, n2n3, n4, n5},
 		},
 	},
 	{
 		desc:    "single rehash at end",
-		index:   int64(11),
+		index:   11,
 		nodes:   []storage.Node{sn1, sn2, sn3},
 		fetches: []merkle.NodeFetch{{Rehash: false}, {Rehash: true}, {Rehash: true}},
 		output: trillian.Proof{
-			LeafIndex: int64(11),
+			LeafIndex: 11,
 			ProofNode: []*trillian.Node{n1, n2n3},
 		},
 	},
 	{
 		desc:    "single rehash multiple nodes",
-		index:   int64(23),
+		index:   23,
 		nodes:   []storage.Node{sn1, sn2, sn3, sn4, sn5},
 		fetches: []merkle.NodeFetch{{Rehash: false}, {Rehash: true}, {Rehash: true}, {Rehash: true}, {Rehash: false}},
 		output: trillian.Proof{
-			LeafIndex: int64(23),
+			LeafIndex: 23,
 			ProofNode: []*trillian.Node{n1, n2n3n4, n5},
 		},
 	},
 	{
 		desc:    "multiple rehash",
-		index:   int64(45),
+		index:   45,
 		nodes:   []storage.Node{sn1, sn2, sn3, sn4, sn5},
 		fetches: []merkle.NodeFetch{{Rehash: true}, {Rehash: true}, {Rehash: false}, {Rehash: true}, {Rehash: true}},
 		output: trillian.Proof{
-			LeafIndex: int64(45),
+			LeafIndex: 45,
 			ProofNode: []*trillian.Node{n1n2, n3, n4n5},
 		},
-	},
-}
-
-// Test data used to test node fech deduplication in isolation
-type dedupTest struct {
-	desc         string
-	input        []merkle.NodeFetch // input fetches to deduper
-	storageIDs   []storage.NodeID   // ids sent to storage layer
-	storageNodes []storage.Node     // nodes returned by storage layer
-	storageError error              // error returned by storage layer
-	result       []storage.Node     // expected result with dupes reinstated
-}
-
-// Contents of these don't really matter as long as they have distinct IDs
-var f11 = merkle.NodeFetch{NodeID: mustCreateNodeID(1, 1)}
-var f12 = merkle.NodeFetch{NodeID: mustCreateNodeID(1, 2)}
-var f31 = merkle.NodeFetch{NodeID: mustCreateNodeID(3, 1)}
-
-var n11 = storage.Node{NodeID: f11.NodeID, NodeRevision: 37}
-var n12 = storage.Node{NodeID: f12.NodeID, NodeRevision: 37}
-var n31 = storage.Node{NodeID: f31.NodeID, NodeRevision: 37}
-
-var dedupTests = []dedupTest{
-	{
-		desc:         "no dupes",
-		input:        []merkle.NodeFetch{f11, f12, f31},
-		storageIDs:   []storage.NodeID{f11.NodeID, f12.NodeID, f31.NodeID},
-		storageNodes: []storage.Node{n11, n12, n31},
-		result:       []storage.Node{n11, n12, n31},
-	},
-	{
-		desc:         "one dupe",
-		input:        []merkle.NodeFetch{f11, f12, f31, f11},
-		storageIDs:   []storage.NodeID{f11.NodeID, f12.NodeID, f31.NodeID},
-		storageNodes: []storage.Node{n11, n12, n31},
-		result:       []storage.Node{n11, n12, n31, n11},
-	},
-	{
-		desc:         "multi dupe",
-		input:        []merkle.NodeFetch{f11, f12, f11, f11, f31, f11},
-		storageIDs:   []storage.NodeID{f11.NodeID, f12.NodeID, f31.NodeID},
-		storageNodes: []storage.Node{n11, n12, n31},
-		result:       []storage.Node{n11, n12, n11, n11, n31, n11},
-	},
-	{
-		desc:         "storage fail",
-		input:        []merkle.NodeFetch{f11, f12, f11, f11, f31, f11},
-		storageIDs:   []storage.NodeID{f11.NodeID, f12.NodeID, f31.NodeID},
-		storageNodes: []storage.Node{},
-		storageError: errors.New("storage"),
-	},
-	{
-		desc:         "storage wrong node",
-		input:        []merkle.NodeFetch{f11, f12, f11, f11, f31, f11},
-		storageIDs:   []storage.NodeID{f11.NodeID, f12.NodeID, f31.NodeID},
-		storageNodes: []storage.Node{},
-		storageError: errors.New("storage"),
 	},
 }
 
@@ -180,29 +120,6 @@ func TestRehasher(t *testing.T) {
 		if !proto.Equal(&got, &want) {
 			t.Errorf("rehash test %s:\ngot: %v\nwant: %v", rehashTest.desc, got, want)
 		}
-	}
-}
-
-func TestDedupFetcher(t *testing.T) {
-	for _, dedupTest := range dedupTests {
-		ctrl := gomock.NewController(t)
-		tx := storage.NewMockLogTX(ctrl)
-		tx.EXPECT().GetMerkleNodes(int64(37), dedupTest.storageIDs).Return(dedupTest.storageNodes, dedupTest.storageError)
-		nodes, err := dedupAndFetchNodes(tx, 37, dedupTest.input)
-
-		if err == nil && dedupTest.storageError != nil {
-			t.Fatalf("%s: got nil, want error: %v", dedupTest.desc, err)
-		}
-
-		if err != nil && dedupTest.storageError == nil {
-			t.Fatalf("%s: got error: %v, want nil", dedupTest.desc, err)
-		}
-
-		if got, want := nodes, dedupTest.result; len(want) > 0 && !reflect.DeepEqual(got, want) {
-			t.Errorf("%s: got: %v, want: %v", dedupTest.desc, got, want)
-		}
-
-		ctrl.Finish()
 	}
 }
 
