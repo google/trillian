@@ -2,6 +2,8 @@ Trillian: General Transparency
 ==============================
 
 [![Build Status](https://travis-ci.org/google/trillian.svg?branch=master)](https://travis-ci.org/google/trillian)
+[![Go Report Card](https://goreportcard.com/badge/github.com/google/trillian)](https://goreportcard.com/report/github.com/google/trillian)
+[![GoDoc](https://godoc.org/github.com/google/trillian?status.svg)](https://godoc.org/github.com/google/trillian)
 
  - [Overview](#overview)
  - [Working with the Code](#working-with-the-code)
