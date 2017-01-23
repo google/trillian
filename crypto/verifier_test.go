@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/google/trillian"
+	"github.com/google/trillian/testonly"
 )
 
 const (
@@ -30,45 +31,48 @@ csFaQhohkiCEthY51Ga6Xa+ggn+eTZtf9Q==
 )
 
 func TestSignVerify(t *testing.T) {
-	for _, tc := range []struct {
+	for _, test := range []struct {
 		PEM      string
+		password string
 		HashAlgo trillian.HashAlgorithm
 		SigAlgo  trillian.SignatureAlgorithm
 	}{
-		{privPEM, trillian.HashAlgorithm_SHA256, trillian.SignatureAlgorithm_ECDSA},
+		{privPEM, "", trillian.HashAlgorithm_SHA256, trillian.SignatureAlgorithm_ECDSA},
+		{testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass,
+			trillian.HashAlgorithm_SHA256, trillian.SignatureAlgorithm_ECDSA},
 	} {
 
 		km := NewPEMKeyManager()
-		if err := km.LoadPrivateKey(tc.PEM, ""); err != nil {
-			t.Error(err)
+		if err := km.LoadPrivateKey(test.PEM, test.password); err != nil {
+			t.Errorf("LoadPrivateKey(_, %v)=%v, want nil", test.password, err)
 			continue
 		}
 		kmsigner, err := km.Signer()
 		if err != nil {
-			t.Error(err)
+			t.Errorf("Signer()=%v, want nil", err)
 			continue
 		}
-		hasher, err := NewHasher(tc.HashAlgo)
+		hasher, err := NewHasher(test.HashAlgo)
 		if err != nil {
-			t.Error(err)
+			t.Errorf("NewHasher(%v)=%v, want nil", test.HashAlgo, err)
 			continue
 		}
-		signer := NewSigner(hasher, tc.SigAlgo, kmsigner)
+		signer := NewSigner(hasher, test.SigAlgo, kmsigner)
 
 		// Sign and Verify.
 		msg := []byte("foo")
 		signed, err := signer.Sign(msg)
 		if err != nil {
-			t.Error(err)
+			t.Errorf("Sign()=%v, want nil", err)
 			continue
 		}
 		pub, err := km.GetPublicKey()
 		if err != nil {
-			t.Error(err)
+			t.Errorf("GetPublicKey()=%v, want nil", err)
 			continue
 		}
 		if err := Verify(pub, msg, signed); err != nil {
-			t.Error(err)
+			t.Errorf("Verify(,,)=%v, want nil", err)
 		}
 	}
 }
