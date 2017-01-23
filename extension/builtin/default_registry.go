@@ -10,17 +10,19 @@ import (
 	"github.com/google/trillian/storage/mysql"
 )
 
-var mysqlURIFlag = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "uri to use with mysql storage")
+// MySQLURIFlag is the mysql db connection string.
+var MySQLURIFlag = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test",
+	"uri to use with mysql storage")
 
 // Default implementation of extension.Registry.
 type defaultRegistry struct{}
 
 func (r defaultRegistry) GetLogStorage(treeID int64) (storage.LogStorage, error) {
-	return mysql.NewLogStorage(treeID, *mysqlURIFlag)
+	return mysql.NewLogStorage(treeID, *MySQLURIFlag)
 }
 
 func (r defaultRegistry) GetMapStorage(treeID int64) (storage.MapStorage, error) {
-	return mysql.NewMapStorage(treeID, *mysqlURIFlag)
+	return mysql.NewMapStorage(treeID, *MySQLURIFlag)
 }
 
 // NewDefaultExtensionRegistry returns the default extension.Registry implementation, which is
