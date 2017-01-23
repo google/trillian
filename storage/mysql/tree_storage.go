@@ -8,7 +8,6 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
-	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/storage/storagepb"
@@ -100,31 +99,6 @@ func expandPlaceholderSQL(sql string, num int, first, rest string) string {
 	parameters := first + strings.Repeat(","+rest, num-1)
 
 	return strings.Replace(sql, placeholderSQL, parameters, 1)
-}
-
-func decodeSignedTimestamp(signedEntryTimestampBytes []byte) (trillian.SignedEntryTimestamp, error) {
-	var signedEntryTimestamp trillian.SignedEntryTimestamp
-
-	if err := proto.Unmarshal(signedEntryTimestampBytes, &signedEntryTimestamp); err != nil {
-		glog.Warningf("Failed to decode SignedTimestamp: %s", err)
-		return trillian.SignedEntryTimestamp{}, err
-	}
-
-	return signedEntryTimestamp, nil
-}
-
-// EncodeSignedTimestamp returns serialized data for the given SignedEntryTimestamp.
-// TODO: Pull the encoding / decoding out of this file, move up to Storage. Review after
-// all current PRs submitted.
-func EncodeSignedTimestamp(signedEntryTimestamp trillian.SignedEntryTimestamp) ([]byte, error) {
-	marshalled, err := proto.Marshal(&signedEntryTimestamp)
-
-	if err != nil {
-		glog.Warningf("Failed to encode SignedTimestamp: %s", err)
-		return nil, err
-	}
-
-	return marshalled, err
 }
 
 // Node IDs are stored using proto serialization
