@@ -6,7 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/golang/glog"
@@ -14,7 +14,6 @@ import (
 )
 
 // Parallel tests must get different log or map ids
-var idMutex sync.Mutex
 var testLogID int64
 var testMapID int64
 
@@ -115,19 +114,21 @@ func forceWriteRevision(rev int64, tx storage.TreeTX) {
 }
 
 func createLogID(testName string) logIDAndTest {
-	idMutex.Lock()
-	defer idMutex.Unlock()
-	testLogID++
+	atomic.AddInt64(&testLogID, 1)
 
-	return logIDAndTest{logID: testLogID, testName: testName}
+	return logIDAndTest{
+		logID:    testLogID,
+		testName: testName,
+	}
 }
 
 func createMapID(testName string) mapIDAndTest {
-	idMutex.Lock()
-	defer idMutex.Unlock()
-	testLogID++
+	atomic.AddInt64(&testMapID, 1)
 
-	return mapIDAndTest{mapID: testMapID, testName: testName}
+	return mapIDAndTest{
+		mapID:    testMapID,
+		testName: testName,
+	}
 }
 
 func createTestDB() {
