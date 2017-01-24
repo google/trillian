@@ -35,13 +35,13 @@ install:
   - export PATH=$(pwd)/protoc/bin:$PATH
   - go get -d ./...
   - if [[ $TRAVIS_OS_NAME == "osx" ]]; then brew update > /dev/null && brew install mariadb && mysql.server start; fi
-  - go get -u github.com/golang/lint/golint
-  - go get -u github.com/kisielk/errcheck
+  - go get -u github.com/client9/misspell/cmd/misspell
   - go get -u github.com/fzipp/gocyclo
   - go get -u github.com/gordonklaus/ineffassign
-  - go get -u github.com/client9/misspell/cmd/misspell
+  - go get -u github.com/golang/lint/golint
   - go get -u github.com/golang/protobuf/proto
   - go get -u github.com/golang/protobuf/protoc-gen-go
+  - go get -u github.com/kisielk/errcheck
   - go install github.com/golang/{mock/mockgen,protobuf/protoc-gen-go}
 
 script:
