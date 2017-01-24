@@ -12,17 +12,28 @@ const (
 	setTreePropertiesSQL = `INSERT INTO Trees(TreeId,KeyId,TreeType,LeafHasherType,TreeHasherType,AllowsDuplicateLeaves) VALUES(?, ?, ?, ?, ?, ?)`
 	setTreeParametersSQL = `INSERT INTO TreeControl(TreeId,ReadOnlyRequests,SigningEnabled,SequencingEnabled,SequenceIntervalSeconds,SignIntervalSeconds) 
 		VALUES(?, ?, ?, ?, ?, ?)`
-	deleteTreeSQL1 = `DELETE FROM Trees WHERE TreeId = ?`
-	deleteTreeSQL2 = `DELETE FROM TreeControl WHERE TreeId = ?`
+	deleteTreeSQL        = `DELETE FROM Trees WHERE TreeId = ?`
+	deleteTreeControlSQL = `DELETE FROM TreeControl WHERE TreeId = ?`
+
+	keyID                = 1
+	treeType             = "LOG"
+	leafHasherType       = "SHA256"
+	treeHasherType       = "SHA256"
+	allowDuplicateLeaves = false
+	readOnly             = false
+	signingEnabled       = false
+	sequencingEnabled    = false
+	sequenceInterval     = 1
+	signInterval         = 1
 )
 
-// CreateLog instantiates a new log with default parameters.
-// TODO(codinglama): Move to admin API when the adnmin API is created.
-func CreateLog(logID int64, dbURL string) error {
+// CreateTree instantiates a new log with default parameters.
+// TODO(codinglama): Move to admin API when the admin API is created.
+func CreateTree(treeID int64, dbURL string) error {
 	th := merkle.NewRFC6962TreeHasher(crypto.NewSHA256())
-	m, err := newTreeStorage(logID, dbURL, th.Size(), defaultLogStrata, cache.PopulateLogSubtreeNodes(th))
+	m, err := newTreeStorage(treeID, dbURL, th.Size(), defaultLogStrata, cache.PopulateLogSubtreeNodes(th))
 	if err != nil {
-		return fmt.Errorf("Couldn't create a new treeStorage: %s", err)
+		return fmt.Errorf("couldn't create a new treeStorage: %s", err)
 	}
 	// Set Tree Row
 	stmt, err := m.db.Prepare(setTreePropertiesSQL)
@@ -30,7 +41,7 @@ func CreateLog(logID int64, dbURL string) error {
 		return err
 	}
 	defer stmt.Close()
-	_, err = stmt.Exec(logID, 1, "MAP", "SHA256", "SHA256", false)
+	_, err = stmt.Exec(treeID, keyID, treeType, leafHasherType, treeHasherType, allowDuplicateLeaves)
 	if err != nil {
 		return err
 	}
@@ -40,39 +51,32 @@ func CreateLog(logID int64, dbURL string) error {
 		return err
 	}
 	defer stmt2.Close()
-	_, err = stmt2.Exec(logID, false, false, false, 1, 1)
+	_, err = stmt2.Exec(treeID, readOnly, signingEnabled, sequencingEnabled, sequenceInterval, signInterval)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-// DeleteLog deletes
-func DeleteLog(logID int64, dbURL string) error {
+// DeleteTree deletes a tree by the treeID.
+func DeleteTree(treeID int64, dbURL string) error {
 	th := merkle.NewRFC6962TreeHasher(crypto.NewSHA256())
-	m, err := newTreeStorage(logID, dbURL, th.Size(), defaultLogStrata, cache.PopulateLogSubtreeNodes(th))
+	m, err := newTreeStorage(treeID, dbURL, th.Size(), defaultLogStrata, cache.PopulateLogSubtreeNodes(th))
 	if err != nil {
-		return fmt.Errorf("Couldn't create a new treeStorage: %s", err)
+		return fmt.Errorf("couldn't create a new treeStorage: %s", err)
 	}
-	// Delete Tree Control Row
-	stmt2, err := m.db.Prepare(deleteTreeSQL2)
-	if err != nil {
-		return err
-	}
-	defer stmt2.Close()
-	_, err = stmt2.Exec(logID)
-	if err != nil {
-		return err
-	}
-	// Delete Tree Row
-	stmt, err := m.db.Prepare(deleteTreeSQL1)
-	if err != nil {
-		return err
-	}
-	defer stmt.Close()
-	_, err = stmt.Exec(logID)
-	if err != nil {
-		return err
+
+	for _, sql := range []string{deleteTreeControlSQL, deleteTreeSQL} {
+		// Delete Tree Row
+		stmt, err := m.db.Prepare(sql)
+		if err != nil {
+			return err
+		}
+		defer stmt.Close()
+		_, err = stmt.Exec(treeID)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

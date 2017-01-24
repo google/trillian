@@ -960,10 +960,10 @@ func ensureAllLeavesDistinct(leaves []trillian.LogLeaf, t *testing.T) {
 }
 
 func prepareTestLogStorage(logID logIDAndTest, t *testing.T) storage.LogStorage {
-	if err := DeleteLog(logID.logID, "test:zaphod@tcp(127.0.0.1:3306)/test"); err != nil {
+	if err := DeleteTree(logID.logID, "test:zaphod@tcp(127.0.0.1:3306)/test"); err != nil {
 		t.Fatalf("Failed to delete log storage: %s", err)
 	}
-	if err := CreateLog(logID.logID, "test:zaphod@tcp(127.0.0.1:3306)/test"); err != nil {
+	if err := CreateTree(logID.logID, "test:zaphod@tcp(127.0.0.1:3306)/test"); err != nil {
 		t.Fatalf("Failed to create new log storage: %s", err)
 	}
 	s, err := NewLogStorage(logID.logID, "test:zaphod@tcp(127.0.0.1:3306)/test")
