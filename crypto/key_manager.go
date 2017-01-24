@@ -179,14 +179,13 @@ func parsePrivateKey(key []byte) (crypto.PrivateKey, trillian.SignatureAlgorithm
 			return nil, trillian.SignatureAlgorithm_ANONYMOUS, fmt.Errorf("unknown private key type: %T", key)
 		}
 	}
-	key2, err := x509.ParseECPrivateKey(key)
-	if err != nil {
-		glog.Warningf("error parsing EC key: %s", err)
-		return nil, trillian.SignatureAlgorithm_ANONYMOUS, errors.New("could not parse private key")
+	var err error
+	if key, err := x509.ParseECPrivateKey(key); err == nil {
+		return key, trillian.SignatureAlgorithm_ECDSA, nil
 	}
 
-	return key2, trillian.SignatureAlgorithm_ECDSA, nil
-
+	glog.Warningf("error parsing EC key: %s", err)
+	return nil, trillian.SignatureAlgorithm_ANONYMOUS, errors.New("could not parse private key")
 }
 
 // LoadPasswordProtectedPrivateKey initializes and returns a new KeyManager using a PEM encoded
