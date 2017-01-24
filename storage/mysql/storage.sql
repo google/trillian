@@ -97,7 +97,7 @@ CREATE TABLE IF NOT EXISTS SequencedLeafData(
   MerkleLeafHash       VARBINARY(255) NOT NULL,
   PRIMARY KEY(TreeId, SequenceNumber),
   FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE,
-  FOREIGN KEY(TreeId, LeafValueHash) REFERENCES LeafData(TreeId, LeafValueHash)
+  FOREIGN KEY(TreeId, LeafValueHash) REFERENCES LeafData(TreeId, LeafValueHash) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS Unsequenced(

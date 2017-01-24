@@ -42,9 +42,12 @@ const sequenceNumber int64 = 237
 // no locks afterwards.
 
 var signedTimestamp = trillian.SignedEntryTimestamp{
-	TimestampNanos: 1234567890, LogId: createLogID("sign").logID, Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
+	TimestampNanos: 1234567890,
+	LogId:          createLogID("sign").logID,
+	Signature:      &trillian.DigitallySigned{Signature: []byte("notempty")},
+}
 
-func createFakeLeaf(db *sql.DB, logID int64, rawHash, hash []byte, data, extraData []byte, seq int64, t *testing.T) {
+func createFakeLeaf(db *sql.DB, logID int64, rawHash, hash, data, extraData []byte, seq int64, t *testing.T) {
 	_, err := db.Exec("INSERT INTO LeafData(TreeId, LeafValueHash, LeafValue, ExtraData) VALUES(?,?,?,?)", logID, rawHash, data, extraData)
 	_, err2 := db.Exec("INSERT INTO SequencedLeafData(TreeId, SequenceNumber, LeafValueHash, MerkleLeafHash) VALUES(?,?,?,?)", logID, seq, rawHash, hash)
 
@@ -537,12 +540,12 @@ func TestGetLeavesByHash(t *testing.T) {
 	logID := createLogID("TestGetLeavesByHash")
 	db := prepareTestLogDB(logID, t)
 	defer db.Close()
+	s := prepareTestLogStorage(logID, t)
 
 	data := []byte("some data")
 
 	createFakeLeaf(db, logID.logID, dummyRawHash, dummyHash, data, someExtraData, sequenceNumber, t)
 
-	s := prepareTestLogStorage(logID, t)
 	tx := beginLogTx(s, t)
 	defer commit(tx, t)
 
@@ -565,12 +568,12 @@ func TestGetLeavesByLeafValueHash(t *testing.T) {
 	logID := createLogID("TestGetLeavesByLeafValueHash")
 	db := prepareTestLogDB(logID, t)
 	defer db.Close()
+	s := prepareTestLogStorage(logID, t)
 
 	data := []byte("some data")
 
 	createFakeLeaf(db, logID.logID, dummyRawHash, dummyHash, data, someExtraData, sequenceNumber, t)
 
-	s := prepareTestLogStorage(logID, t)
 	tx := beginLogTx(s, t)
 	defer commit(tx, t)
 
@@ -589,11 +592,11 @@ func TestGetLeavesByIndex(t *testing.T) {
 	logID := createLogID("TestGetLeavesByIndex")
 	db := prepareTestLogDB(logID, t)
 	defer db.Close()
+	s := prepareTestLogStorage(logID, t)
 	data := []byte("some data")
 
 	createFakeLeaf(db, logID.logID, dummyRawHash, dummyHash, data, someExtraData, sequenceNumber, t)
 
-	s := prepareTestLogStorage(logID, t)
 	tx := beginLogTx(s, t)
 	defer commit(tx, t)
 
@@ -823,13 +826,13 @@ func TestLogRootUpdate(t *testing.T) {
 func TestGetActiveLogIDs(t *testing.T) {
 	// Have to wipe everything to ensure we start with zero log trees configured
 	cleanTestDB()
+	logID := createLogID("TestGetActiveLogIDs")
+	s := prepareTestLogStorage(logID, t)
 
 	// This creates one tree
-	logID := createLogID("TestGetActiveLogIDs")
 	db := prepareTestLogDB(logID, t)
 	defer db.Close()
 
-	s := prepareTestLogStorage(logID, t)
 	tx := beginLogTx(s, t)
 
 	logIDs, err := tx.GetActiveLogIDs()
@@ -847,10 +850,10 @@ func TestGetActiveLogIDsWithPendingWork(t *testing.T) {
 	// Have to wipe everything to ensure we start with zero log trees configured
 	cleanTestDB()
 	logID := createLogID("TestGetActiveLogIDsWithPendingWork")
+	s := prepareTestLogStorage(logID, t)
 	db := prepareTestLogDB(logID, t)
 	defer db.Close()
 
-	s := prepareTestLogStorage(logID, t)
 	tx := beginLogTx(s, t)
 
 	logIDs, err := tx.GetActiveLogIDsWithPendingWork()
@@ -893,7 +896,8 @@ func TestGetSequencedLeafCount(t *testing.T) {
 	// We'll create leaves for two different trees
 	logID := createLogID("TestGetSequencedLeafCount")
 	logID2 := createLogID("TestGetSequencedLeafCount2")
-
+	s1 := prepareTestLogStorage(logID, t)
+	s2 := prepareTestLogStorage(logID2, t)
 	{
 		db := prepareTestLogDB(logID, t)
 
@@ -916,8 +920,7 @@ func TestGetSequencedLeafCount(t *testing.T) {
 	}
 
 	// Read back the leaf counts from both trees
-	s := prepareTestLogStorage(logID, t)
-	tx := beginLogTx(s, t)
+	tx := beginLogTx(s1, t)
 	count1, err := tx.GetSequencedLeafCount()
 	commit(tx, t)
 
@@ -929,8 +932,7 @@ func TestGetSequencedLeafCount(t *testing.T) {
 		t.Fatalf("expected %d sequenced for logId but got %d", want, got)
 	}
 
-	s = prepareTestLogStorage(logID2, t)
-	tx = beginLogTx(s, t)
+	tx = beginLogTx(s2, t)
 	count2, err := tx.GetSequencedLeafCount()
 	commit(tx, t)
 
@@ -958,11 +960,16 @@ func ensureAllLeavesDistinct(leaves []trillian.LogLeaf, t *testing.T) {
 }
 
 func prepareTestLogStorage(logID logIDAndTest, t *testing.T) storage.LogStorage {
+	if err := DeleteLog(logID.logID, "test:zaphod@tcp(127.0.0.1:3306)/test"); err != nil {
+		t.Fatalf("Failed to delete log storage: %s", err)
+	}
+	if err := CreateLog(logID.logID, "test:zaphod@tcp(127.0.0.1:3306)/test"); err != nil {
+		t.Fatalf("Failed to create new log storage: %s", err)
+	}
 	s, err := NewLogStorage(logID.logID, "test:zaphod@tcp(127.0.0.1:3306)/test")
 	if err != nil {
 		t.Fatalf("Failed to open log storage: %s", err)
 	}
-
 	return s
 }
 

@@ -80,33 +80,25 @@ func NewLogStorage(id int64, dbURL string) (storage.LogStorage, error) {
 	th := merkle.NewRFC6962TreeHasher(crypto.NewSHA256())
 	ts, err := newTreeStorage(id, dbURL, th.Size(), defaultLogStrata, cache.PopulateLogSubtreeNodes(th))
 	if err != nil {
-		glog.Warningf("Couldn't create a new treeStorage: %s", err)
-		return nil, err
+		return nil, fmt.Errorf("Couldn't create a new treeStorage: %s", err)
 	}
 
-	s := mySQLLogStorage{
+	var allowDuplicates, readOnly bool
+	if err := ts.db.QueryRow(getTreePropertiesSQL, id).Scan(&allowDuplicates); err != nil {
+		return nil, fmt.Errorf("Failed to get tree row for treeID %v: %s", id, err)
+	}
+
+	err = ts.db.QueryRow(getTreeParametersSQL, id).Scan(&readOnly)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get tree control row for treeID %v: %s", id, err)
+	}
+
+	return &mySQLLogStorage{
 		mySQLTreeStorage: ts,
 		logID:            id,
-	}
-
-	// TODO: This should not default but it would currently complicate testing and can be
-	// implemented later when the create tree API has been defined.
-	if err := s.db.QueryRow(getTreePropertiesSQL, id).Scan(&s.allowDuplicates); err == sql.ErrNoRows {
-		s.allowDuplicates = false
-	} else if err != nil {
-		glog.Warningf("Failed to get trees row for id %v: %s", id, err)
-		return nil, err
-	}
-
-	err = s.db.QueryRow(getTreeParametersSQL, id).Scan(&s.readOnly)
-
-	// TODO(Martin2112): It's probably not ok for the log to have no parameters set. Enforce this when
-	// we have an admin API and / or we're further along.
-	if err == sql.ErrNoRows {
-		glog.Warningf("*** Opening storage for log: %v but it has no params configured ***", id)
-	}
-
-	return &s, nil
+		allowDuplicates:  allowDuplicates,
+		readOnly:         readOnly,
+	}, nil
 }
 
 func (m *mySQLLogStorage) getLeavesByIndexStmt(num int) (*sql.Stmt, error) {
