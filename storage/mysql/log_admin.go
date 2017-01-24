@@ -69,7 +69,6 @@ func DeleteTree(treeID int64, dbURL string) error {
 	}
 
 	for _, sql := range []string{deleteTreeControlSQL, deleteTreeSQL} {
-		// Delete Tree Row
 		stmt, err := m.db.Prepare(sql)
 		if err != nil {
 			return err
