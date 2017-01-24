@@ -65,7 +65,7 @@ func (s SequencerManager) ExecutePass(logIDs []int64, logctx LogOperationManager
 		storage, err := s.registry.GetLogStorage(logID)
 		ctx := util.NewLogContext(logctx.ctx, logID)
 
-		// TODO(Martin2112): Honour the sequencing enabled in log parameters, needs an API change
+		// TODO(Martin2112): Honor the sequencing enabled in log parameters, needs an API change
 		// so deferring it
 		if err != nil {
 			glog.Warningf("%s: Storage provider failed for id because: %v", util.LogIDPrefix(ctx), err)

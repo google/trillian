@@ -180,7 +180,7 @@ correct version to request when reading nodes.
 #### Reading Leaves
 
 API requests for leaf data involve a straightforward query by leaf data hash, leaf Merkle hash or
-leaf index followed by formatting and marshalling the data to be returned to the client.
+leaf index followed by formatting and marshaling the data to be returned to the client.
 
 #### Serving Proofs
 
