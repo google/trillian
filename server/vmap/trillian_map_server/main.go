@@ -23,9 +23,9 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
-var serverPortFlag = flag.Int("port", 8090, "Port to serve log RPC requests on")
+var serverPortFlag = flag.Int("port", 18090, "Port to serve log RPC requests on")
 var exportRPCMetrics = flag.Bool("export_metrics", true, "If true starts HTTP server and exports stats")
-var httpPortFlag = flag.Int("http_port", 8091, "Port to serve HTTP metrics on")
+var httpPortFlag = flag.Int("http_port", 18091, "Port to serve HTTP metrics on")
 
 // TODO(Martin2112): Single private key doesn't really work for multi tenant and we can't use
 // an HSM interface in this way. Deferring these issues for later.

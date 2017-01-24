@@ -4,7 +4,7 @@ INTEGRATION_DIR="$( cd "$( dirname "$0" )" && pwd )"
 . "${INTEGRATION_DIR}"/common.sh
 
 TEST_TREE_ID=1123
-RPC_PORT=34557
+RPC_PORT=44557
 
 echo "Provisioning test log (Tree ID: $TEST_TREE_ID) in database"
 "${SCRIPTS_DIR}"/wipelog.sh ${TEST_TREE_ID}
