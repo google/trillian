@@ -49,7 +49,7 @@ func (c *LogClient) AddLeaf(data []byte) error {
 		LogId: c.LogID,
 		Leaf:  leaf,
 	}
-	ctx := context.TODO()
+	ctx := context.Background()
 	_, err := c.client.QueueLeaf(ctx, &req)
 	// TODO(gdbelvin): Get proof by hash
 	// TODO(gdbelvin): backoff with jitter

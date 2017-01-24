@@ -17,31 +17,41 @@ package client
 import (
 	"testing"
 
+	"github.com/google/trillian/storage/mysql"
 	"github.com/google/trillian/testonly/integration"
 )
 
 func TestAddLeaf(t *testing.T) {
-	env, err := integration.NewEnv("client")
+	logID := int64(1234)
+	env, err := integration.NewLogEnv("client")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer env.Close()
-	client := New(int64(1234), env.ClientConn)
+	if err := mysql.CreateTree(logID, env.DBURI); err != nil {
+		t.Errorf("Failed to create log: %v", err)
+	}
+
+	client := New(logID, env.ClientConn)
 
 	if err := client.AddLeaf([]byte("foo")); err != nil {
-		t.Error(err)
+		t.Errorf("Failed to add Leaf: %v", err)
 	}
 }
 
 func TestAddSameLeaf(t *testing.T) {
+	logID := int64(1234)
 	t.Skip("Submitting two leaves currently breaks")
-	env, err := integration.NewEnv("client")
+	env, err := integration.NewLogEnv("client")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer env.Close()
-	client := New(int64(1234), env.ClientConn)
+	client := New(logID, env.ClientConn)
 
+	if err := mysql.CreateTree(logID, env.DBURI); err != nil {
+		t.Errorf("Failed to create log: %v", err)
+	}
 	if err := client.AddLeaf([]byte("foo")); err != nil {
 		t.Error(err)
 	}
