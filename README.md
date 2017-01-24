@@ -12,6 +12,7 @@ Trillian: General Transparency
      - [Rebuilding Generated Code](#rebuilding-generated-code)
      - [MySQL Setup](#mysql-setup)
      - [Unit Tests](#unit-tests)
+     - [Presubmit Checks](#presubmit)
      - [Integration Test](#integration-test)
  - [Design](#design)
      - [Design Overview](#design-overview)
@@ -126,6 +127,19 @@ Are you sure? y
 
 Assuming MySQL is running locally, the following command runs all of the unit
 tests for the code, and should complete successfully:
+
+### Presubmit Checks
+
+Before checking in code, please ensure that the presubmit checks pass. 
+
+```
+go get -u github.com/golang/lint/golint
+go get -u github.com/kisielk/errcheck
+go get -u github.com/fzipp/gocyclo
+go get -u github.com/gordonklaus/ineffassign
+go get -u github.com/client9/misspell/cmd/misspell
+./presubmit.sh
+```
 
 ```console
 % go test -v ./...

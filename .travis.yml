@@ -33,22 +33,21 @@ install:
       unzip protoc-3.0.0-${TRAVIS_OS_NAME}-x86_64.zip
     )
   - export PATH=$(pwd)/protoc/bin:$PATH
-  - go get -d -v -t ./...
+  - go get -d ./...
   - if [[ $TRAVIS_OS_NAME == "osx" ]]; then brew update > /dev/null && brew install mariadb && mysql.server start; fi
+  - go get -u github.com/golang/lint/golint
+  - go get -u github.com/kisielk/errcheck
+  - go get -u github.com/fzipp/gocyclo
+  - go get -u github.com/gordonklaus/ineffassign
+  - go get -u github.com/client9/misspell/cmd/misspell
+  - go get -u github.com/golang/protobuf/proto
+  - go get -u github.com/golang/protobuf/protoc-gen-go
+  - go install github.com/golang/{mock/mockgen,protobuf/protoc-gen-go}
 
 script:
   - export CXX="g++-4.8"
   - export CC="gcc-4.8"
-  - go get -u github.com/golang/{lint/golint,protobuf/proto,protobuf/protoc-gen-go}/...
-  - go install github.com/golang/{mock/mockgen,protobuf/protoc-gen-go}
-  - MOCKFILES=$(find . -name mock_\*.go)
-  - rm ${MOCKFILES}
-  - PBFILES=$(find . -name \*.pb.go)
-  - rm ${PBFILES}
-  - golint --set_exit_status ./...  # Run golint while generated files are missing
-  - go vet ./...
-  - go generate -run="protoc" -x ./... # Run first o/w mockgen fails
-  - go generate -run="mockgen" -x ./...
+  - ./presubmit.sh
   - |
       # Check re-generation didn't change anything
       status=$(git status --porcelain) || :
@@ -58,8 +57,6 @@ script:
         git diff
         exit 1
       fi
-  - go build ${GOFLAGS} -v ./...
-  - go test ${GOFLAGS} -v ./...
   - ./integration/integration_test.sh
 
 services: mysql
