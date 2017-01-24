@@ -80,9 +80,13 @@ func (k *PEMKeyManager) LoadPrivateKey(pemEncodedKey, password string) error {
 		return errors.New("extra data found after PEM decoding")
 	}
 
-	der, err := x509.DecryptPEMBlock(block, []byte(password))
-	if err != nil {
-		return err
+	der := block.Bytes
+	if password != "" {
+		pwdDer, err := x509.DecryptPEMBlock(block, []byte(password))
+		if err != nil {
+			return err
+		}
+		der = pwdDer
 	}
 
 	key, algo, err := parsePrivateKey(der)
@@ -92,6 +96,11 @@ func (k *PEMKeyManager) LoadPrivateKey(pemEncodedKey, password string) error {
 
 	k.serverPrivateKey = key
 	k.signatureAlgorithm = algo
+	signer, err := k.Signer()
+	if err != nil {
+		return err
+	}
+	k.serverPublicKey = signer.Public()
 	return nil
 }
 
