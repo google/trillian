@@ -88,6 +88,7 @@ func NewLogStorage(id int64, dbURL string) (storage.LogStorage, error) {
 		return nil, fmt.Errorf("Failed to get tree row for treeID %v: %s", id, err)
 	}
 
+	// TODO(martin2112): Verify that the tree is of type LOG.
 	err = ts.db.QueryRow(getTreeParametersSQL, id).Scan(&readOnly)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get tree control row for treeID %v: %s", id, err)
