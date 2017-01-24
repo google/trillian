@@ -49,12 +49,12 @@ func TestSignVerify(t *testing.T) {
 		}
 		kmsigner, err := km.Signer()
 		if err != nil {
-			t.Errorf("Signer()=%v, want nil", err)
+			t.Errorf("Signer()=(_,%v), want (_,nil)", err)
 			continue
 		}
 		hasher, err := NewHasher(test.HashAlgo)
 		if err != nil {
-			t.Errorf("NewHasher(%v)=%v, want nil", test.HashAlgo, err)
+			t.Errorf("NewHasher(%v)=(_,%v), want (_,nil)", test.HashAlgo, err)
 			continue
 		}
 		signer := NewSigner(hasher, test.SigAlgo, kmsigner)
@@ -63,12 +63,12 @@ func TestSignVerify(t *testing.T) {
 		msg := []byte("foo")
 		signed, err := signer.Sign(msg)
 		if err != nil {
-			t.Errorf("Sign()=%v, want nil", err)
+			t.Errorf("Sign()=(_,%v), want (_,nil)", err)
 			continue
 		}
 		pub, err := km.GetPublicKey()
 		if err != nil {
-			t.Errorf("GetPublicKey()=%v, want nil", err)
+			t.Errorf("GetPublicKey()=(_,%v), want (_,nil)", err)
 			continue
 		}
 		if err := Verify(pub, msg, signed); err != nil {
