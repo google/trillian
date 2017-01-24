@@ -80,7 +80,7 @@ func NewLogStorage(id int64, dbURL string) (storage.LogStorage, error) {
 	th := merkle.NewRFC6962TreeHasher(crypto.NewSHA256())
 	ts, err := newTreeStorage(id, dbURL, th.Size(), defaultLogStrata, cache.PopulateLogSubtreeNodes(th))
 	if err != nil {
-		return nil, fmt.Errorf("Couldn't create a new treeStorage: %s", err)
+		return nil, fmt.Errorf("couldn't create a new treeStorage: %s", err)
 	}
 
 	var allowDuplicates, readOnly bool
