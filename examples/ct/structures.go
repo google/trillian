@@ -1,7 +1,7 @@
 package ct
 
 // Code to handle encoding / decoding various data structures used in RFC 6962. Does not
-// contain the low level serialization.
+// contain the low level serialisation.
 
 import (
 	"crypto/sha256"

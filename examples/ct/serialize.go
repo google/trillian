@@ -103,10 +103,10 @@ func signV1SCTForPrecertificate(km crypto.KeyManager, cert, issuer *x509.Certifi
 }
 
 func serializeAndSignSCT(km crypto.KeyManager, leaf ct.MerkleTreeLeaf, sctInput ct.SignedCertificateTimestamp, t time.Time) (ct.MerkleTreeLeaf, ct.SignedCertificateTimestamp, error) {
-	// Serialize SCT signature input to get the bytes that need to be signed
+	// Serialise SCT signature input to get the bytes that need to be signed
 	res, err := ct.SerializeSCTSignatureInput(sctInput, ct.LogEntry{Leaf: leaf})
 	if err != nil {
-		return ct.MerkleTreeLeaf{}, ct.SignedCertificateTimestamp{}, fmt.Errorf("failed to serialize SCT data: %v", err)
+		return ct.MerkleTreeLeaf{}, ct.SignedCertificateTimestamp{}, fmt.Errorf("failed to serialise SCT data: %v", err)
 	}
 
 	// Create a complete SCT including signature

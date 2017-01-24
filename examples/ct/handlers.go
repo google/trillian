@@ -171,7 +171,7 @@ func NewLogContext(logID int64, prefix string, trustedRoots *PEMCertPool, rpcCli
 		TimeSource:    timeSource,
 	}
 
-	// Initialize all the exported variables.
+	// Initialise all the exported variables.
 	ctx.exp.vars = new(expvar.Map).Init()
 
 	e := new(expvar.Int)
@@ -355,7 +355,7 @@ func getSTH(ctx context.Context, c LogContext, w http.ResponseWriter, r *http.Re
 		return http.StatusInternalServerError, fmt.Errorf("failed to sign tree head: %v", err)
 	}
 
-	// Now build the final result object that will be marshaled to JSON
+	// Now build the final result object that will be marshalled to JSON
 	jsonRsp := ct.GetSTHResponse{
 		TreeSize:       sth.TreeSize,
 		SHA256RootHash: sth.SHA256RootHash[:],
@@ -515,7 +515,7 @@ func getEntries(ctx context.Context, c LogContext, w http.ResponseWriter, r *htt
 	}
 
 	// Now we've checked the RPC response and it seems to be valid we need
-	// to serialize the leaves in JSON format for the HTTP response. Doing a
+	// to serialise the leaves in JSON format for the HTTP response. Doing a
 	// round trip via the leaf deserializer gives us another chance to
 	// prevent bad / corrupt data from reaching the client.
 	jsonRsp, err := marshalGetEntriesResponse(c, rsp)
@@ -654,7 +654,7 @@ func verifyAddChain(c LogContext, req ct.AddChainRequest, w http.ResponseWriter,
 func buildLogLeafForAddChain(c LogContext, merkleLeaf ct.MerkleTreeLeaf, chain []*x509.Certificate) (trillian.LogLeaf, error) {
 	leafData, err := tls.Marshal(merkleLeaf)
 	if err != nil {
-		glog.Warningf("%s: Failed to serialize Merkle leaf: %v", c.LogPrefix, err)
+		glog.Warningf("%s: Failed to serialise Merkle leaf: %v", c.LogPrefix, err)
 		return trillian.LogLeaf{}, err
 	}
 
@@ -666,7 +666,7 @@ func buildLogLeafForAddChain(c LogContext, merkleLeaf ct.MerkleTreeLeaf, chain [
 
 	extraData, err := extraDataForChain(chain, isPrecert)
 	if err != nil {
-		glog.Warningf("%s: Failed to serialize chain for ExtraData: %v", c.LogPrefix, err)
+		glog.Warningf("%s: Failed to serialise chain for ExtraData: %v", c.LogPrefix, err)
 		return trillian.LogLeaf{}, err
 	}
 

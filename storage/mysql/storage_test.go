@@ -34,7 +34,7 @@ func TestNodeIDSerialization(t *testing.T) {
 	serializedBytes, err := encodeNodeID(nodeID)
 
 	if err != nil {
-		t.Fatalf("Failed to serialize NodeID: %v, %v", nodeID, err)
+		t.Fatalf("Failed to serialise NodeID: %v, %v", nodeID, err)
 	}
 
 	nodeID2, err := decodeNodeID(serializedBytes)

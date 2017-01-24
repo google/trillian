@@ -138,7 +138,7 @@ func (s Sequencer) initMerkleTreeFromStorage(ctx context.Context, currentRoot tr
 		return merkle.NewCompactMerkleTree(s.hasher), nil
 	}
 
-	// Initialize the compact tree state to match the latest root in the database
+	// Initialise the compact tree state to match the latest root in the database
 	return s.buildMerkleTreeFromStorageAtRoot(ctx, currentRoot, tx)
 }
 
@@ -321,7 +321,7 @@ func (s Sequencer) SignRoot(ctx context.Context) error {
 		return err
 	}
 
-	// Initialize a Merkle Tree from the state in storage. This should fail if the tree is
+	// Initialise a Merkle Tree from the state in storage. This should fail if the tree is
 	// in a corrupt state.
 	merkleTree, err := s.initMerkleTreeFromStorage(ctx, currentRoot, tx)
 

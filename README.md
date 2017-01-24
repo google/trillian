@@ -73,7 +73,7 @@ If you're not with the Go program of working within its
 [own directory tree](https://golang.org/cmd/go/#hdr-GOPATH_environment_variable), then:
 
 ```console
-% cd <your favorite directory for git repos>
+% cd <your favourite directory for git repos>
 % git clone https://github.com/google/trillian.git
 % ln -s `pwd`/trillian $GOPATH/src/github.com/google  # you may have to make this directory first
 % cd trillian
@@ -195,7 +195,7 @@ service can process all incoming data blindly.
 A personality may also perform **canonicalization** on incoming data, to
 convert equivalent formulations of the same underlying data to a single
 canonical format, avoiding needless duplication.  (For example, keys in
-JSON dictionaries could be sorted, or Unicode string data could be normalized.)
+JSON dictionaries could be sorted, or Unicode string data could be normalised.)
 
 The per-application personality is also responsible for providing an
 externally-visible interface, typically over HTTP[S].
@@ -235,7 +235,7 @@ of the Map as of a particular revision.
 TODO: add description of per-personality Mappers
 
 TODO: add description of distribution: how many instances run, how distributed,
-how synchronized (master election), mention use of transactions as a fallback
+how synchronised (master election), mention use of transactions as a fallback
 (in case of errors in master election).
 
 ![Map components](docs/MapDesign.png)
@@ -305,7 +305,7 @@ A concrete example of this might be a VLDM that monitors a certificate
 transparency Log and builds a corresponding Map from domain names to the set of
 certificates associated with that domain.
 
-The following table summarizes properties of data structures laid in the
+The following table summarises properties of data structures laid in the
 [Verifiable Data Structures](docs/VerifiableDataStructures.pdf) white paper.
 “Efficiently” means that a client can and should perform this validation
 themselves.  “Full audit” means that to validate correctly, a client would need

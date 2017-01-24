@@ -64,7 +64,7 @@ type GetNodeFunc func(depth int, index int64) ([]byte, error)
 // This can fail if the nodes required to recreate the tree state cannot be fetched or the calculated
 // root hash after population does not match the value we expect.
 // |f| will be called a number of times with the co-ordinates of internal MerkleTree nodes whose hash values are
-// required to initialize the internal state of the CompactMerkleTree.  |expectedRoot| is the known-good tree root
+// required to initialise the internal state of the CompactMerkleTree.  |expectedRoot| is the known-good tree root
 // of the tree at |size|, and is used to verify the correct initial state of the CompactMerkleTree after initialisation.
 func NewCompactMerkleTreeWithState(hasher TreeHasher, size int64, f GetNodeFunc, expectedRoot []byte) (*CompactMerkleTree, error) {
 	sizeBits := bitLen(size)
@@ -193,7 +193,7 @@ func (c *CompactMerkleTree) AddLeafHash(leafHash []byte, f setNodeFunc) (assigne
 		return
 	}
 
-	// Initialize our running hash value to the leaf hash
+	// Initialise our running hash value to the leaf hash
 	hash := leafHash
 	bit := 0
 	// Iterate over the bits in our tree size

@@ -101,7 +101,7 @@ func expandPlaceholderSQL(sql string, num int, first, rest string) string {
 	return strings.Replace(sql, placeholderSQL, parameters, 1)
 }
 
-// Node IDs are stored using proto serialization
+// Node IDs are stored using proto serialisation
 func decodeNodeID(nodeIDBytes []byte) (*storage.NodeID, error) {
 	var nodeIDProto storagepb.NodeIDProto
 

@@ -29,7 +29,7 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
-// NodeIDProto is the serialized form of NodeID. It's used only for persistence in storage.
+// NodeIDProto is the serialised form of NodeID. It's used only for persistence in storage.
 // As this is long-term we prefer not to use a Go specific format.
 type NodeIDProto struct {
 	Path          []byte `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`

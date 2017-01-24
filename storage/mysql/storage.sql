@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS TreeHead(
 -- ---------------------------------------------
 
 -- Creating index at same time as table allows some storage engines to better
--- optimize physical storage layout. Most engines allow multiple nulls in a
+-- optimise physical storage layout. Most engines allow multiple nulls in a
 -- unique index but some may not.
 
 -- A leaf that has not been sequenced has a row in this table. If duplicate leaves

@@ -73,7 +73,7 @@ func TestSerializeLogEntry(t *testing.T) {
 		logEntry := LogEntry{Leaf: leaf, Chain: chain}
 		entryData, err := tls.Marshal(logEntry)
 		if err != nil {
-			t.Fatalf("failed to serialize log entry: %v", err)
+			t.Fatalf("failed to serialise log entry: %v", err)
 		}
 
 		var logEntry2 LogEntry
@@ -81,11 +81,11 @@ func TestSerializeLogEntry(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to deserialize log entry: %v", err)
 		} else if len(rest) > 0 {
-			t.Error("trailing data after serialized log entry")
+			t.Error("trailing data after serialised log entry")
 		}
 
 		if !reflect.DeepEqual(logEntry, logEntry2) {
-			t.Fatalf("log entry mismatch after serialization roundtrip, %v != %v", logEntry, logEntry2)
+			t.Fatalf("log entry mismatch after serialisation roundtrip, %v != %v", logEntry, logEntry2)
 		}
 	}
 }

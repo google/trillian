@@ -159,7 +159,7 @@ type SignedLogRoot struct {
 	RootHash       []byte `protobuf:"bytes,2,opt,name=root_hash,json=rootHash,proto3" json:"root_hash,omitempty"`
 	// TreeSize is the number of entries in the tree.
 	TreeSize int64 `protobuf:"varint,3,opt,name=tree_size,json=treeSize" json:"tree_size,omitempty"`
-	// TODO(al): define serialized format for the signature scheme.
+	// TODO(al): define serialised format for the signature scheme.
 	Signature    *DigitallySigned `protobuf:"bytes,4,opt,name=signature" json:"signature,omitempty"`
 	LogId        int64            `protobuf:"varint,5,opt,name=log_id,json=logId" json:"log_id,omitempty"`
 	TreeRevision int64            `protobuf:"varint,6,opt,name=tree_revision,json=treeRevision" json:"tree_revision,omitempty"`
@@ -249,7 +249,7 @@ type SignedMapRoot struct {
 	TimestampNanos int64           `protobuf:"varint,1,opt,name=timestamp_nanos,json=timestampNanos" json:"timestamp_nanos,omitempty"`
 	RootHash       []byte          `protobuf:"bytes,2,opt,name=root_hash,json=rootHash,proto3" json:"root_hash,omitempty"`
 	Metadata       *MapperMetadata `protobuf:"bytes,3,opt,name=metadata" json:"metadata,omitempty"`
-	// TODO(al): define serialized format for the signature scheme.
+	// TODO(al): define serialised format for the signature scheme.
 	Signature   *DigitallySigned `protobuf:"bytes,4,opt,name=signature" json:"signature,omitempty"`
 	MapId       int64            `protobuf:"varint,5,opt,name=map_id,json=mapId" json:"map_id,omitempty"`
 	MapRevision int64            `protobuf:"varint,6,opt,name=map_revision,json=mapRevision" json:"map_revision,omitempty"`

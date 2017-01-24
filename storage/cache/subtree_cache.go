@@ -59,7 +59,7 @@ type Suffix struct {
 	path []byte
 }
 
-func (s Suffix) serialize() string {
+func (s Suffix) serialise() string {
 	r := make([]byte, 1, 1+(len(s.path)))
 	r[0] = s.bits
 	r = append(r, s.path...)
