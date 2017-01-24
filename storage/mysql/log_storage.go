@@ -66,7 +66,7 @@ var defaultLogStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 
 type mySQLLogStorage struct {
 	*mySQLTreeStorage
 
-	// These options can only sensibly be set when storage is initialised
+	// These options can only sensibly be set when storage is initialized
 	logID           int64
 	allowDuplicates bool
 

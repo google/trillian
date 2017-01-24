@@ -51,7 +51,7 @@ message SignedLogRoot {
   bytes root_hash = 2;
 	// TreeSize is the number of entries in the tree.
   int64 tree_size = 3;
-	// TODO(al): define serialised format for the signature scheme.
+	// TODO(al): define serialized format for the signature scheme.
   DigitallySigned signature = 4;
 
   int64 log_id = 5;
@@ -69,7 +69,7 @@ message SignedMapRoot {
   int64 timestamp_nanos = 1;
   bytes root_hash = 2;
   MapperMetadata metadata = 3;
-	// TODO(al): define serialised format for the signature scheme.
+	// TODO(al): define serialized format for the signature scheme.
   DigitallySigned signature = 4;
 
   int64 map_id = 5;

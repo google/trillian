@@ -65,7 +65,7 @@ type TreeEntryDescriptor struct {
 
 // InMemoryMerkleTree holds a Merkle Tree in memory as a 2D node array
 type InMemoryMerkleTree struct {
-	// A container for nodes, organised according to levels and sorted
+	// A container for nodes, organized according to levels and sorted
 	// left-to-right in each level. tree_[0] is the leaf level, etc.
 	// The hash of nodes tree_[i][j] and tree_[i][j+1] (j even) is stored
 	// at tree_[i+1][j/2]. When tree_[i][j] is the last node of the level with

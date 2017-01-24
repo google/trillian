@@ -232,7 +232,7 @@ func TestCacheFlush(t *testing.T) {
 func TestSuffixSerializeFormat(t *testing.T) {
 	s := Suffix{5, []byte{0xae}}
 	if got, want := s.serialize(), "Ba4="; got != want {
-		t.Fatalf("Got serialised suffix of %s, expected %s", got, want)
+		t.Fatalf("Got serialized suffix of %s, expected %s", got, want)
 	}
 }
 

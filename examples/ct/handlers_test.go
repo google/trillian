@@ -516,7 +516,7 @@ func TestGetSTH(t *testing.T) {
 }
 
 func TestGetEntries(t *testing.T) {
-	// Create a couple of valid serialised ct.MerkleTreeLeaf objects
+	// Create a couple of valid serialized ct.MerkleTreeLeaf objects
 	merkleLeaf1 := ct.MerkleTreeLeaf{
 		Version:  ct.V1,
 		LeafType: ct.TimestampedEntryLeafType,
@@ -1218,7 +1218,7 @@ func createJSONChain(t *testing.T, p PEMCertPool) io.Reader {
 func logLeavesForCert(t *testing.T, km crypto.KeyManager, certs []*x509.Certificate, merkleLeaf ct.MerkleTreeLeaf, isPrecert bool) []*trillian.LogLeaf {
 	leafData, err := tls.Marshal(merkleLeaf)
 	if err != nil {
-		t.Fatalf("failed to serialise leaf: %v", err)
+		t.Fatalf("failed to serialize leaf: %v", err)
 	}
 
 	// This is a hash of the leaf data, not the the Merkle hash as defined in the RFC.
@@ -1226,7 +1226,7 @@ func logLeavesForCert(t *testing.T, km crypto.KeyManager, certs []*x509.Certific
 
 	extraData, err := extraDataForChain(certs, isPrecert)
 	if err != nil {
-		t.Fatalf("failed to serialise extra data: %v", err)
+		t.Fatalf("failed to serialize extra data: %v", err)
 	}
 
 	return []*trillian.LogLeaf{{LeafValueHash: leafHash[:], LeafValue: leafData, ExtraData: extraData}}

@@ -72,7 +72,7 @@ leaf%.chain: leaf%.cert int-ca.cert
 # clean removes things that regenerate exactly the same.
 clean:
 	rm -f $(SERVER_PUBKEYS)
-# distclean removes things that regenerate with changes (e.g. timestamped, randomised).
+# distclean removes things that regenerate with changes (e.g. timestamped, randomized).
 distclean: clean
 	rm -f $(SERVER_PUBKEYS) fake-ca.cert int-ca.cert int-ca.csr.pem
 	rm -f $(LEAF_CERTS) $(LEAF_CSRS) $(LEAF_CHAINS)

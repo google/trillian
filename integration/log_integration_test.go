@@ -43,7 +43,7 @@ func TestLogIntegration(t *testing.T) {
 		t.Skip("Log integration test skipped as no tree ID provided")
 	}
 
-	// Initialise and connect to log server
+	// Initialize and connect to log server
 	params := TestParameters{
 		treeID:              *treeIDFlag,
 		checkLogEmpty:       *checkLogEmptyFlag,

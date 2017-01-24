@@ -71,7 +71,7 @@ yet fully populated. A node always belongs to exactly one subtree, there is no o
 
 ![strata depth 8 tree](StratumDepth8.png "Stratum Depth 8")
 
-As it's hard to visualise the structure at scale with stratum depth 8, some examples of smaller
+As it's hard to visualize the structure at scale with stratum depth 8, some examples of smaller
 depths might make things clearer. Though these are not supported by the current implementation
 the diagrams are much simpler.
 
@@ -180,7 +180,7 @@ correct version to request when reading nodes.
 #### Reading Leaves
 
 API requests for leaf data involve a straightforward query by leaf data hash, leaf Merkle hash or
-leaf index followed by formatting and marshalling the data to be returned to the client.
+leaf index followed by formatting and marshaling the data to be returned to the client.
 
 #### Serving Proofs
 

@@ -17,7 +17,7 @@ Here's a sample procedure of how to use custom extensions:
 
 1. Create your own [extension.Registry](
    https://github.com/google/trillian/blob/master/extension/registry.go)
-   implementation, customising as desired.
+   implementation, customizing as desired.
 
   * If you want to reuse some of the standard extensions, refer to
     [defaultRegistry](https://github.com/google/trillian/blob/master/extension/builtin/default_registry.go).
@@ -33,4 +33,4 @@ Here's a sample procedure of how to use custom extensions:
    https://github.com/google/trillian/search?utf8=%E2%9C%93&q=%22builtin.NewDefaultExtensionRegistry%28%29%22&type=Code)
    with your implementation.
 
-1. Your customised Trillian is now ready for use.
+1. Your customized Trillian is now ready for use.

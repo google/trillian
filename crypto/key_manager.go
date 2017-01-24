@@ -179,7 +179,7 @@ func parsePrivateKey(key []byte) (crypto.PrivateKey, trillian.SignatureAlgorithm
 	return nil, trillian.SignatureAlgorithm_ANONYMOUS, errors.New("could not parse private key")
 }
 
-// LoadPasswordProtectedPrivateKey initialises and returns a new KeyManager using a PEM encoded
+// LoadPasswordProtectedPrivateKey initializes and returns a new KeyManager using a PEM encoded
 // private key read from a file. The key may be protected by a password.
 func LoadPasswordProtectedPrivateKey(keyFile, keyPassword string) (KeyManager, error) {
 	if len(keyFile) == 0 || len(keyPassword) == 0 {

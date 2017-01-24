@@ -17,7 +17,7 @@ func TestIsPrecertificate(t *testing.T) {
 		t.Fatalf("Unexpected error from precert check %v", err)
 	}
 	if !isPrecert {
-		t.Fatal("Valid precert not recognised")
+		t.Fatal("Valid precert not recognized")
 	}
 
 	// Wipe all the extensions and try again
