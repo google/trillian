@@ -8,5 +8,7 @@ then
     mysql -u root "$@" -e 'CREATE DATABASE test;'
     mysql -u root "$@" -e "GRANT ALL ON test.* TO 'test'@'localhost' IDENTIFIED BY 'zaphod';"
     mysql -u root "$@" -D test < storage/mysql/storage.sql
+    #TODO(codingllama): remove when db connection check doesn't ping log 0
+    ./scripts/createlog.sh 0
 fi
 echo
