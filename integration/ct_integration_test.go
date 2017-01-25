@@ -49,6 +49,7 @@ var httpServersFlag = flag.String("ct_http_servers", "localhost:8092", "Comma-se
 var testDir = flag.String("testdata", "testdata", "Name of directory with test data")
 var seed = flag.Int64("seed", -1, "Seed for random number generation")
 var logConfigFlag = flag.String("log_config", "", "File holding log config in JSON")
+var skipStats = flag.Bool("skip_stats", false, "Skip checks of expected log statistics")
 
 // TODO(drysdale): convert to use trillian/merkle to avoid the dependency on the
 // CT code (which in turn requires C++ code).
@@ -545,6 +546,9 @@ func (want *wantStats) done(ep string, rc int) {
 }
 
 func (want *wantStats) check(cfg ctfe.LogConfig) error {
+	if *skipStats {
+		return nil
+	}
 	ctx := context.Background()
 	got := newWantStats(int64(want.LogID))
 	rcs := []string{"200", "400"}
