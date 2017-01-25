@@ -132,7 +132,7 @@ go get -u github.com/client9/misspell/cmd/misspell
 go get -u github.com/fzipp/gocyclo
 go get -u github.com/gordonklaus/ineffassign
 go get -u github.com/golang/lint/golint
-./presubmit.sh
+./scripts/presubmit.sh
 ```
 
 ```console
