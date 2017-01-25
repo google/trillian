@@ -47,7 +47,7 @@ install:
 script:
   - export CXX="g++-4.8"
   - export CC="gcc-4.8"
-  - ./presubmit.sh
+  - ./scripts/presubmit.sh
   - |
       # Check re-generation didn't change anything
       status=$(git status --porcelain) || :
@@ -63,4 +63,3 @@ services: mysql
 
 before_script:
   - yes | ./scripts/resetdb.sh
-
