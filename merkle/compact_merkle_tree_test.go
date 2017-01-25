@@ -199,10 +199,10 @@ func TestCompactVsFullTree(t *testing.T) {
 	imt := NewInMemoryMerkleTree(NewRFC6962TreeHasher(crypto.NewSHA256()))
 	nodes := make(map[string][]byte)
 
-	for i := 0; i < 1024; i++ {
+	for i := int64(0); i < 1024; i++ {
 		cmt, err := NewCompactMerkleTreeWithState(
 			NewRFC6962TreeHasher(crypto.NewSHA256()),
-			int64(imt.LeafCount()),
+			imt.LeafCount(),
 			func(depth int, index int64) ([]byte, error) {
 				k, err := nodeKey(depth, index)
 				if err != nil {
