@@ -23,10 +23,16 @@ var mySQLURIFlag = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/tes
 func main() {
 	flag.Parse()
 	glog.Info("Starting...")
-	mapID := int64(1)
-	ms, err := mysql.NewMapStorage(mapID, *mySQLURIFlag)
+
+	db, err := mysql.OpenDB(*mySQLURIFlag)
 	if err != nil {
-		glog.Fatalf("Failed to open mysql storage: %v", err)
+		glog.Fatalf("Failed to open DB connection: %v", err)
+	}
+
+	mapID := int64(1)
+	ms, err := mysql.NewMapStorage(mapID, db)
+	if err != nil {
+		glog.Fatalf("Failed create MapStorage: %v", err)
 	}
 
 	hasher := merkle.NewMapHasher(merkle.NewRFC6962TreeHasher(crypto.NewSHA256()))

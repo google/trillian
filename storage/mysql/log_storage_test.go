@@ -80,11 +80,11 @@ func checkLeafContents(leaf trillian.LogLeaf, seq int64, rawHash, hash, data, ex
 
 func TestOpenStateCommit(t *testing.T) {
 	logID := createLogID("TestOpenStateCommit")
-	db := prepareTestLogDB(logID, t)
-	defer db.Close()
-	s := prepareTestLogStorage(logID, t)
-	tx, err := s.Begin()
+	cleanTestDB(DB)
+	prepareTestLogDB(DB, logID, t)
+	s := prepareTestLogStorage(DB, logID, t)
 
+	tx, err := s.Begin()
 	if err != nil {
 		t.Fatalf("Failed to set up db transaction: %v", err)
 	}
@@ -102,11 +102,11 @@ func TestOpenStateCommit(t *testing.T) {
 
 func TestOpenStateRollback(t *testing.T) {
 	logID := createLogID("TestOpenStateRollback")
-	db := prepareTestLogDB(logID, t)
-	defer db.Close()
-	s := prepareTestLogStorage(logID, t)
-	tx, err := s.Begin()
+	cleanTestDB(DB)
+	prepareTestLogDB(DB, logID, t)
+	s := prepareTestLogStorage(DB, logID, t)
 
+	tx, err := s.Begin()
 	if err != nil {
 		t.Fatalf("Failed to set up db transaction: %v", err)
 	}
@@ -124,9 +124,9 @@ func TestOpenStateRollback(t *testing.T) {
 
 func TestQueueDuplicateLeafFails(t *testing.T) {
 	logID := createLogID("TestQueueDuplicateLeafFails")
-	db := prepareTestLogDB(logID, t)
-	defer db.Close()
-	s := prepareTestLogStorage(logID, t)
+	cleanTestDB(DB)
+	prepareTestLogDB(DB, logID, t)
+	s := prepareTestLogStorage(DB, logID, t)
 	tx := beginLogTx(s, t)
 	defer commit(tx, t)
 
@@ -149,9 +149,9 @@ func TestQueueDuplicateLeafFails(t *testing.T) {
 
 func TestQueueLeaves(t *testing.T) {
 	logID := createLogID("TestQueueLeaves")
-	db := prepareTestLogDB(logID, t)
-	defer db.Close()
-	s := prepareTestLogStorage(logID, t)
+	cleanTestDB(DB)
+	prepareTestLogDB(DB, logID, t)
+	s := prepareTestLogStorage(DB, logID, t)
 	tx := beginLogTx(s, t)
 	defer failIfTXStillOpen(t, "TestQueueLeaves", tx)
 
@@ -167,7 +167,7 @@ func TestQueueLeaves(t *testing.T) {
 	// unsequenced data.
 	var count int
 
-	if err := db.QueryRow("SELECT COUNT(*) FROM Unsequenced WHERE TreeID=?", logID.logID).Scan(&count); err != nil {
+	if err := DB.QueryRow("SELECT COUNT(*) FROM Unsequenced WHERE TreeID=?", logID.logID).Scan(&count); err != nil {
 		t.Fatalf("Could not query row count: %v", err)
 	}
 
@@ -177,7 +177,7 @@ func TestQueueLeaves(t *testing.T) {
 
 	// Additional check on timestamp being set correctly in the database
 	var queueTimestamp int64
-	if err := db.QueryRow("SELECT DISTINCT QueueTimestampNanos FROM Unsequenced WHERE TreeID=?", logID.logID).Scan(&queueTimestamp); err != nil {
+	if err := DB.QueryRow("SELECT DISTINCT QueueTimestampNanos FROM Unsequenced WHERE TreeID=?", logID.logID).Scan(&queueTimestamp); err != nil {
 		t.Fatalf("Could not query timestamp: %v", err)
 	}
 
@@ -188,9 +188,9 @@ func TestQueueLeaves(t *testing.T) {
 
 func TestQueueLeavesBadHash(t *testing.T) {
 	logID := createLogID("TestQueueLeavesBadHash")
-	db := prepareTestLogDB(logID, t)
-	defer db.Close()
-	s := prepareTestLogStorage(logID, t)
+	cleanTestDB(DB)
+	prepareTestLogDB(DB, logID, t)
+	s := prepareTestLogStorage(DB, logID, t)
 	tx := beginLogTx(s, t)
 	defer failIfTXStillOpen(t, "TestQueueLeavesBadHash", tx)
 
@@ -211,9 +211,9 @@ func TestQueueLeavesBadHash(t *testing.T) {
 
 func TestDequeueLeavesNoneQueued(t *testing.T) {
 	logID := createLogID("TestDequeueLeavesNoneQueued")
-	db := prepareTestLogDB(logID, t)
-	defer db.Close()
-	s := prepareTestLogStorage(logID, t)
+	cleanTestDB(DB)
+	prepareTestLogDB(DB, logID, t)
+	s := prepareTestLogStorage(DB, logID, t)
 	tx := beginLogTx(s, t)
 	defer commit(tx, t)
 
@@ -230,9 +230,9 @@ func TestDequeueLeavesNoneQueued(t *testing.T) {
 
 func TestDequeueLeaves(t *testing.T) {
 	logID := createLogID("TestDequeueLeaves")
-	db := prepareTestLogDB(logID, t)
-	defer db.Close()
-	s := prepareTestLogStorage(logID, t)
+	cleanTestDB(DB)
+	prepareTestLogDB(DB, logID, t)
+	s := prepareTestLogStorage(DB, logID, t)
 
 	{
 		tx := beginLogTx(s, t)
@@ -284,9 +284,9 @@ func TestDequeueLeaves(t *testing.T) {
 
 func TestDequeueLeavesTwoBatches(t *testing.T) {
 	logID := createLogID("TestDequeueLeavesTwoBatches")
-	db := prepareTestLogDB(logID, t)
-	defer db.Close()
-	s := prepareTestLogStorage(logID, t)
+	cleanTestDB(DB)
+	prepareTestLogDB(DB, logID, t)
+	s := prepareTestLogStorage(DB, logID, t)
 
 	leavesToDequeue1 := 3
 	leavesToDequeue2 := 2
@@ -367,9 +367,9 @@ func TestDequeueLeavesTwoBatches(t *testing.T) {
 // are returned.
 func TestDequeueLeavesGuardInterval(t *testing.T) {
 	logID := createLogID("TestDequeueLeavesGuardInterval")
-	db := prepareTestLogDB(logID, t)
-	defer db.Close()
-	s := prepareTestLogStorage(logID, t)
+	cleanTestDB(DB)
+	prepareTestLogDB(DB, logID, t)
+	s := prepareTestLogStorage(DB, logID, t)
 
 	{
 		tx := beginLogTx(s, t)
@@ -419,9 +419,9 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 	// transactions and make sure the returned leaves are respecting the time ordering of the
 	// queue.
 	logID := createLogID("TestDequeueLeavesTimeOrdering")
-	db := prepareTestLogDB(logID, t)
-	defer db.Close()
-	s := prepareTestLogStorage(logID, t)
+	cleanTestDB(DB)
+	prepareTestLogDB(DB, logID, t)
+	s := prepareTestLogStorage(DB, logID, t)
 	batchSize := 2
 
 	{
@@ -492,7 +492,8 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 
 func TestGetLeavesByHashNotPresent(t *testing.T) {
 	logID := createLogID("TestGetLeavesByHashNotPresent")
-	s := prepareTestLogStorage(logID, t)
+	cleanTestDB(DB)
+	s := prepareTestLogStorage(DB, logID, t)
 	tx := beginLogTx(s, t)
 	defer commit(tx, t)
 
@@ -510,7 +511,8 @@ func TestGetLeavesByHashNotPresent(t *testing.T) {
 
 func TestGetLeavesByLeafValueHashNotPresent(t *testing.T) {
 	logID := createLogID("TestGetLeavesByLeafValueHashNotPresent")
-	s := prepareTestLogStorage(logID, t)
+	cleanTestDB(DB)
+	s := prepareTestLogStorage(DB, logID, t)
 	tx := beginLogTx(s, t)
 	defer commit(tx, t)
 
@@ -524,7 +526,8 @@ func TestGetLeavesByLeafValueHashNotPresent(t *testing.T) {
 
 func TestGetLeavesByIndexNotPresent(t *testing.T) {
 	logID := createLogID("TestGetLeavesByIndexNotPresent")
-	s := prepareTestLogStorage(logID, t)
+	cleanTestDB(DB)
+	s := prepareTestLogStorage(DB, logID, t)
 	tx := beginLogTx(s, t)
 	defer commit(tx, t)
 
@@ -538,13 +541,13 @@ func TestGetLeavesByIndexNotPresent(t *testing.T) {
 func TestGetLeavesByHash(t *testing.T) {
 	// Create fake leaf as if it had been sequenced
 	logID := createLogID("TestGetLeavesByHash")
-	db := prepareTestLogDB(logID, t)
-	defer db.Close()
-	s := prepareTestLogStorage(logID, t)
+	cleanTestDB(DB)
+	prepareTestLogDB(DB, logID, t)
+	s := prepareTestLogStorage(DB, logID, t)
 
 	data := []byte("some data")
 
-	createFakeLeaf(db, logID.logID, dummyRawHash, dummyHash, data, someExtraData, sequenceNumber, t)
+	createFakeLeaf(DB, logID.logID, dummyRawHash, dummyHash, data, someExtraData, sequenceNumber, t)
 
 	tx := beginLogTx(s, t)
 	defer commit(tx, t)
@@ -566,13 +569,12 @@ func TestGetLeavesByHash(t *testing.T) {
 func TestGetLeavesByLeafValueHash(t *testing.T) {
 	// Create fake leaf as if it had been sequenced
 	logID := createLogID("TestGetLeavesByLeafValueHash")
-	db := prepareTestLogDB(logID, t)
-	defer db.Close()
-	s := prepareTestLogStorage(logID, t)
+	cleanTestDB(DB)
+	prepareTestLogDB(DB, logID, t)
+	s := prepareTestLogStorage(DB, logID, t)
 
 	data := []byte("some data")
-
-	createFakeLeaf(db, logID.logID, dummyRawHash, dummyHash, data, someExtraData, sequenceNumber, t)
+	createFakeLeaf(DB, logID.logID, dummyRawHash, dummyHash, data, someExtraData, sequenceNumber, t)
 
 	tx := beginLogTx(s, t)
 	defer commit(tx, t)
@@ -590,12 +592,12 @@ func TestGetLeavesByLeafValueHash(t *testing.T) {
 func TestGetLeavesByIndex(t *testing.T) {
 	// Create fake leaf as if it had been sequenced, read it back and check contents
 	logID := createLogID("TestGetLeavesByIndex")
-	db := prepareTestLogDB(logID, t)
-	defer db.Close()
-	s := prepareTestLogStorage(logID, t)
-	data := []byte("some data")
+	cleanTestDB(DB)
+	prepareTestLogDB(DB, logID, t)
+	s := prepareTestLogStorage(DB, logID, t)
 
-	createFakeLeaf(db, logID.logID, dummyRawHash, dummyHash, data, someExtraData, sequenceNumber, t)
+	data := []byte("some data")
+	createFakeLeaf(DB, logID.logID, dummyRawHash, dummyHash, data, someExtraData, sequenceNumber, t)
 
 	tx := beginLogTx(s, t)
 	defer commit(tx, t)
@@ -613,25 +615,15 @@ func TestGetLeavesByIndex(t *testing.T) {
 	checkLeafContents(leaves[0], sequenceNumber, dummyRawHash, dummyHash, data, someExtraData, t)
 }
 
-func openTestDBOrDie() *sql.DB {
-	db, err := sql.Open("mysql", "test:zaphod@tcp(127.0.0.1:3306)/test")
-	if err != nil {
-		panic(err)
-	}
-
-	return db
-}
-
 func TestLatestSignedRootNoneWritten(t *testing.T) {
 	logID := createLogID("TestLatestSignedLogRootNoneWritten")
-	db := prepareTestLogDB(logID, t)
-	defer db.Close()
-	s := prepareTestLogStorage(logID, t)
+	cleanTestDB(DB)
+	prepareTestLogDB(DB, logID, t)
+	s := prepareTestLogStorage(DB, logID, t)
 	tx := beginLogTx(s, t)
 	defer tx.Rollback()
 
 	root, err := tx.LatestSignedLogRoot()
-
 	if err != nil {
 		t.Fatalf("Failed to read an empty log root: %v", err)
 	}
@@ -643,9 +635,9 @@ func TestLatestSignedRootNoneWritten(t *testing.T) {
 
 func TestLatestSignedLogRoot(t *testing.T) {
 	logID := createLogID("TestLatestSignedLogRoot")
-	db := prepareTestLogDB(logID, t)
-	defer db.Close()
-	s := prepareTestLogStorage(logID, t)
+	cleanTestDB(DB)
+	prepareTestLogDB(DB, logID, t)
+	s := prepareTestLogStorage(DB, logID, t)
 	tx := beginLogTx(s, t)
 	defer tx.Rollback()
 
@@ -675,9 +667,9 @@ func TestLatestSignedLogRoot(t *testing.T) {
 
 func TestGetTreeRevisionAtSize(t *testing.T) {
 	logID := createLogID("TestGetTreeRevisionAtSize")
-	db := prepareTestLogDB(logID, t)
-	defer db.Close()
-	s := prepareTestLogStorage(logID, t)
+	cleanTestDB(DB)
+	prepareTestLogDB(DB, logID, t)
+	s := prepareTestLogStorage(DB, logID, t)
 
 	{
 		tx := beginLogTx(s, t)
@@ -724,9 +716,9 @@ func TestGetTreeRevisionAtSize(t *testing.T) {
 
 func TestGetTreeRevisionMultipleSameSize(t *testing.T) {
 	logID := createLogID("TestGetTreeRevisionAtSize")
-	db := prepareTestLogDB(logID, t)
-	defer db.Close()
-	s := prepareTestLogStorage(logID, t)
+	cleanTestDB(DB)
+	prepareTestLogDB(DB, logID, t)
+	s := prepareTestLogStorage(DB, logID, t)
 
 	{
 		tx := beginLogTx(s, t)
@@ -767,9 +759,9 @@ func TestGetTreeRevisionMultipleSameSize(t *testing.T) {
 
 func TestDuplicateSignedLogRoot(t *testing.T) {
 	logID := createLogID("TestDuplicateSignedLogRoot")
-	db := prepareTestLogDB(logID, t)
-	defer db.Close()
-	s := prepareTestLogStorage(logID, t)
+	cleanTestDB(DB)
+	prepareTestLogDB(DB, logID, t)
+	s := prepareTestLogStorage(DB, logID, t)
 	tx := beginLogTx(s, t)
 	defer commit(tx, t)
 
@@ -789,9 +781,9 @@ func TestDuplicateSignedLogRoot(t *testing.T) {
 func TestLogRootUpdate(t *testing.T) {
 	// Write two roots for a log and make sure the one with the newest timestamp supersedes
 	logID := createLogID("TestLatestSignedLogRoot")
-	db := prepareTestLogDB(logID, t)
-	defer db.Close()
-	s := prepareTestLogStorage(logID, t)
+	cleanTestDB(DB)
+	prepareTestLogDB(DB, logID, t)
+	s := prepareTestLogStorage(DB, logID, t)
 	tx := beginLogTx(s, t)
 
 	// TODO: Tidy up the log id as it looks silly chained 3 times like this
@@ -824,15 +816,11 @@ func TestLogRootUpdate(t *testing.T) {
 }
 
 func TestGetActiveLogIDs(t *testing.T) {
-	// Have to wipe everything to ensure we start with zero log trees configured
-	cleanTestDB()
 	logID := createLogID("TestGetActiveLogIDs")
-	s := prepareTestLogStorage(logID, t)
-
+	cleanTestDB(DB)
 	// This creates one tree
-	db := prepareTestLogDB(logID, t)
-	defer db.Close()
-
+	prepareTestLogDB(DB, logID, t)
+	s := prepareTestLogStorage(DB, logID, t)
 	tx := beginLogTx(s, t)
 
 	logIDs, err := tx.GetActiveLogIDs()
@@ -847,13 +835,10 @@ func TestGetActiveLogIDs(t *testing.T) {
 }
 
 func TestGetActiveLogIDsWithPendingWork(t *testing.T) {
-	// Have to wipe everything to ensure we start with zero log trees configured
-	cleanTestDB()
 	logID := createLogID("TestGetActiveLogIDsWithPendingWork")
-	s := prepareTestLogStorage(logID, t)
-	db := prepareTestLogDB(logID, t)
-	defer db.Close()
-
+	cleanTestDB(DB)
+	prepareTestLogDB(DB, logID, t)
+	s := prepareTestLogStorage(DB, logID, t)
 	tx := beginLogTx(s, t)
 
 	logIDs, err := tx.GetActiveLogIDsWithPendingWork()
@@ -896,27 +881,21 @@ func TestGetSequencedLeafCount(t *testing.T) {
 	// We'll create leaves for two different trees
 	logID := createLogID("TestGetSequencedLeafCount")
 	logID2 := createLogID("TestGetSequencedLeafCount2")
-	s1 := prepareTestLogStorage(logID, t)
-	s2 := prepareTestLogStorage(logID2, t)
+	cleanTestDB(DB)
+	s1 := prepareTestLogStorage(DB, logID, t)
+	s2 := prepareTestLogStorage(DB, logID2, t)
 	{
-		db := prepareTestLogDB(logID, t)
-
 		// Create fake leaf as if it had been sequenced
-		defer db.Close()
-
+		prepareTestLogDB(DB, logID, t)
 		data := []byte("some data")
-
-		createFakeLeaf(db, logID.logID, dummyHash, dummyRawHash, data, someExtraData, sequenceNumber, t)
+		createFakeLeaf(DB, logID.logID, dummyHash, dummyRawHash, data, someExtraData, sequenceNumber, t)
 
 		// Create fake leaves for second tree as if they had been sequenced
-		db2 := prepareTestLogDB(logID2, t)
-		defer db2.Close()
-
+		prepareTestLogDB(DB, logID2, t)
 		data2 := []byte("some data 2")
 		data3 := []byte("some data 3")
-
-		createFakeLeaf(db2, logID2.logID, dummyHash2, dummyRawHash, data2, someExtraData, sequenceNumber, t)
-		createFakeLeaf(db2, logID2.logID, dummyHash3, dummyRawHash, data3, someExtraData, sequenceNumber+1, t)
+		createFakeLeaf(DB, logID2.logID, dummyHash2, dummyRawHash, data2, someExtraData, sequenceNumber, t)
+		createFakeLeaf(DB, logID2.logID, dummyHash3, dummyRawHash, data3, someExtraData, sequenceNumber+1, t)
 	}
 
 	// Read back the leaf counts from both trees
@@ -955,71 +934,6 @@ func ensureAllLeavesDistinct(leaves []trillian.LogLeaf, t *testing.T) {
 				t.Fatalf("Unexpectedly got a duplicate leaf hash: %v %v",
 					leaves[i].LeafValueHash, leaves[j].LeafValueHash)
 			}
-		}
-	}
-}
-
-func prepareTestLogStorage(logID logIDAndTest, t *testing.T) storage.LogStorage {
-	if err := DeleteTree(logID.logID, "test:zaphod@tcp(127.0.0.1:3306)/test"); err != nil {
-		t.Fatalf("Failed to delete log storage: %s", err)
-	}
-	if err := CreateTree(logID.logID, "test:zaphod@tcp(127.0.0.1:3306)/test"); err != nil {
-		t.Fatalf("Failed to create new log storage: %s", err)
-	}
-	s, err := NewLogStorage(logID.logID, "test:zaphod@tcp(127.0.0.1:3306)/test")
-	if err != nil {
-		t.Fatalf("Failed to open log storage: %s", err)
-	}
-	return s
-}
-
-// This removes all database contents for the specified log id so tests run in a
-// predictable environment. For obvious reasons this should only be allowed to run
-// against test databases. This method panics if any of the deletions fails to make
-// sure tests can't inadvertently succeed.
-func prepareTestTreeDB(treeID int64, t *testing.T) *sql.DB {
-	db := openTestDBOrDie()
-
-	// Wipe out anything that was there for this tree id
-	for _, table := range allTables {
-		_, err := db.Exec(fmt.Sprintf("DELETE FROM %s WHERE TreeId=?", table), treeID)
-
-		if err != nil {
-			t.Fatalf("Failed to delete rows in %s for %d: %s", table, treeID, err)
-		}
-	}
-	return db
-}
-
-// This removes all database contents for the specified log id so tests run in a
-// predictable environment. For obvious reasons this should only be allowed to run
-// against test databases. This method panics if any of the deletions fails to make
-// sure tests can't inadvertently succeed.
-func prepareTestLogDB(logID logIDAndTest, t *testing.T) *sql.DB {
-	db := prepareTestTreeDB(logID.logID, t)
-
-	// Now put back the tree row for this log id
-	_, err := db.Exec(`REPLACE INTO Trees(TreeId, KeyId, TreeType, LeafHasherType, TreeHasherType)
-					 VALUES(?, ?, "LOG", "SHA256", "SHA256")`, logID.logID, logID.logID)
-
-	if err != nil {
-		t.Fatalf("Failed to create tree entry for test: %v", err)
-	}
-
-	return db
-}
-
-// This deletes all the entries in the database. Only use this with a test database
-func cleanTestDB() {
-	db := openTestDBOrDie()
-	defer db.Close()
-
-	// Wipe out anything that was there for this log id
-	for _, table := range allTables {
-		_, err := db.Exec(fmt.Sprintf("DELETE FROM %s", table))
-
-		if err != nil {
-			panic(fmt.Errorf("Failed to delete rows in %s: %s", table, err))
 		}
 	}
 }

@@ -3,6 +3,7 @@ package mysql
 import (
 	"bytes"
 	"crypto/sha256"
+	"database/sql"
 	"flag"
 	"fmt"
 	"os"
@@ -51,9 +52,8 @@ func TestNodeIDSerialization(t *testing.T) {
 
 func TestNodeRoundTrip(t *testing.T) {
 	logID := createLogID("TestNodeRoundTrip")
-	db := prepareTestLogDB(logID, t)
-	defer db.Close()
-	s := prepareTestLogStorage(logID, t)
+	prepareTestLogDB(DB, logID, t)
+	s := prepareTestLogStorage(DB, logID, t)
 
 	const writeRevision = int64(100)
 
@@ -131,15 +131,6 @@ func createMapID(testName string) mapIDAndTest {
 	}
 }
 
-func createTestDB() {
-	db := openTestDBOrDie()
-	_, err := db.Exec(`REPLACE INTO Trees(TreeId, KeyId, TreeType, LeafHasherType, TreeHasherType)
-					 VALUES(23, "hi", "LOG", "SHA256", "SHA256")`)
-	if err != nil {
-		panic(err)
-	}
-}
-
 func createSomeNodes(testName string, treeID int64) []storage.Node {
 	r := make([]storage.Node, 4)
 	for i := range r {
@@ -166,9 +157,83 @@ func nodesAreEqual(lhs []storage.Node, rhs []storage.Node) error {
 	return nil
 }
 
+func openTestDBOrDie() *sql.DB {
+	db, err := OpenDB("test:zaphod@tcp(127.0.0.1:3306)/test")
+	if err != nil {
+		panic(err)
+	}
+	return db
+}
+
+// cleanTestDB deletes all the entries in the database. Only use this with a test database
+func cleanTestDB(db *sql.DB) {
+	// Wipe out anything that was there for this log id
+	for _, table := range allTables {
+		_, err := db.Exec(fmt.Sprintf("DELETE FROM %s", table))
+
+		if err != nil {
+			panic(fmt.Errorf("Failed to delete rows in %s: %s", table, err))
+		}
+	}
+}
+
+func createTestDB(db *sql.DB) {
+	_, err := db.Exec(`REPLACE INTO Trees(TreeId, KeyId, TreeType, LeafHasherType, TreeHasherType)
+					 VALUES(23, "hi", "LOG", "SHA256", "SHA256")`)
+	if err != nil {
+		panic(err)
+	}
+}
+
+// prepareTestTreeDB removes all database contents for the specified log id so tests run in a predictable environment. For obvious reasons this should only be allowed to run against test databases. This method panics if any of the deletions fails to make sure tests can't inadvertently succeed.
+func prepareTestTreeDB(db *sql.DB, treeID int64, t *testing.T) {
+	// Wipe out anything that was there for this tree id
+	for _, table := range allTables {
+		_, err := db.Exec(fmt.Sprintf("DELETE FROM %s WHERE TreeId=?", table), treeID)
+
+		if err != nil {
+			t.Fatalf("Failed to delete rows in %s for %d: %s", table, treeID, err)
+		}
+	}
+}
+
+// prepareTestLogDB removes all database contents for the specified log id so tests run in a predictable environment. For obvious reasons this should only be allowed to run against test databases. This method panics if any of the deletions fails to make sure tests can't inadvertently succeed.
+func prepareTestLogDB(db *sql.DB, logID logIDAndTest, t *testing.T) {
+	prepareTestTreeDB(db, logID.logID, t)
+
+	// Now put back the tree row for this log id
+	_, err := db.Exec(`REPLACE INTO Trees(TreeId, KeyId, TreeType, LeafHasherType, TreeHasherType)
+					 VALUES(?, ?, "LOG", "SHA256", "SHA256")`, logID.logID, logID.logID)
+
+	if err != nil {
+		t.Fatalf("Failed to create tree entry for test: %v", err)
+	}
+
+}
+
+func prepareTestLogStorage(db *sql.DB, logID logIDAndTest, t *testing.T) storage.LogStorage {
+	if err := DeleteTree(logID.logID, db); err != nil {
+		t.Fatalf("Failed to delete log storage: %s", err)
+	}
+	if err := CreateTree(logID.logID, db); err != nil {
+		t.Fatalf("Failed to create new log storage: %s", err)
+	}
+	s, err := NewLogStorage(logID.logID, db)
+	if err != nil {
+		t.Fatalf("Failed to open log storage: %s", err)
+	}
+	return s
+}
+
+// DB is the database used for tests. It's initialized and closed by TestMain().
+var DB *sql.DB
+
 func TestMain(m *testing.M) {
 	flag.Parse()
-	cleanTestDB()
-	createTestDB()
-	os.Exit(m.Run())
+	DB = openTestDBOrDie()
+	defer DB.Close()
+	cleanTestDB(DB)
+	createTestDB(DB)
+	ec := m.Run()
+	os.Exit(ec)
 }
