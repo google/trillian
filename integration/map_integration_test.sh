@@ -18,7 +18,7 @@ RPC_SERVER_PID=$!
 popd > /dev/null
 
 # Ensure we kill the RPC server once we're done.
-TO_KILL="${RPC_SERVER_PID}"
+TO_KILL+=(${RPC_SERVER_PID})
 waitForServerStartup ${RPC_PORT}
 
 # Run the test(s):
@@ -28,9 +28,9 @@ go test -run ".*Map.*" --timeout=5m ./ --map_id ${TEST_TREE_ID} --map_rpc_server
 RESULT=$?
 set -e
 
-echo "Stopping Map RPC server on port ${RPC_PORT}"
-kill -INT ${RPC_SERVER_PID}
-TO_KILL=""
+echo "Stopping MAP RPC server (pid ${RPC_SERVER_PID})"
+killPid ${RPC_SERVER_PID}
+TO_KILL=()
 
 if [ $RESULT != 0 ]; then
     sleep 1
