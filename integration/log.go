@@ -59,7 +59,7 @@ func DefaultTestParameters(treeID int64) TestParameters {
 		queueBatchSize:      50,
 		sequencerBatchSize:  100,
 		readBatchSize:       50,
-		sequencingWaitTotal: time.Second * 60,
+		sequencingWaitTotal: 10 * time.Second * 60,
 		sequencingPollWait:  time.Second * 5,
 		rpcRequestDeadline:  time.Second * 10,
 	}
@@ -155,6 +155,7 @@ func RunLogIntegration(client trillian.TrillianLogClient, params TestParameters)
 	}
 
 	// Step 6 - Test some consistency proofs
+	glog.Info("Testing consistency proofs")
 
 	// Make some proof requests that we know should not succeed
 	for _, consistParams := range consistencyProofBadTestParams {
