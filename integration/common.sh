@@ -23,23 +23,46 @@ function runTest() {
 function waitForServerStartup() {
   # The server will 404 the request as there's no handler for it. This error doesn't matter
   # as the test will fail if the server is really not up.
-  PORT=$1
+  local PORT=$1
   wget -q --spider --retry-connrefused --waitretry=1 -t ${STARTUP_WAIT_SECONDS} localhost:${PORT}
   # Wait a bit more to give it a chance to become actually available e.g. if Travis is slow
   sleep 2
 }
 
+function killPid() {
+  local pid=$1
+  set +e
+  while kill -INT ${pid} > /dev/null
+  do
+    sleep 1
+    ((count++))
+    if ! ps -p ${pid} > /dev/null ; then
+      break
+    fi
+    if [ $count -gt 5 ]; then
+      echo "Now do kill -KILL ${pid}"
+      kill -KILL ${pid}
+      break
+    fi
+    echo "Retry kill -INT ${pid}"
+  done
+  set -e
+}
 
 # Clean up anything in ${TO_KILL} and ${TO_DELETE}.
+declare -a TO_KILL
+declare -a TO_DELETE
 function onExit() {
-  if [[ "${TO_KILL}" ]]; then
-    echo "Killing ${TO_KILL} on exit"
-    kill -INT ${TO_KILL}
-  fi
-  if [[ "${TO_DELETE}" ]]; then
-    echo "Deleting ${TO_DELETE} on exit"
-    rm ${TO_DELETE}
-  fi
+  for pid in "${TO_KILL[@]}"
+  do
+    echo "Killing ${pid} on exit"
+    killPid "${pid}"
+  done
+  for file in "${TO_DELETE[@]}"
+  do
+    echo "Deleting ${file} on exit"
+    rm ${file}
+  done
 }
 
 trap onExit EXIT
