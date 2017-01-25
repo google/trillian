@@ -406,7 +406,7 @@ func checkInclusionProofsAtIndex(index int64, logID int64, tree *merkle.InMemory
 			}
 
 			// Remember that the in memory tree uses 1 based leaf indices
-			path := tree.PathToRootAtSnapshot(int(index+1), int(treeSize))
+			path := tree.PathToRootAtSnapshot(index+1, treeSize)
 
 			if err = compareLogAndTreeProof(resp.Proof, path); err != nil {
 				// The log and tree proof don't match, details in the error
@@ -434,7 +434,9 @@ func checkConsistencyProof(consistParams consistencyProofParams, treeID int64, t
 	}
 
 	// Get the proof from the memory tree
-	proof := tree.SnapshotConsistency((int(consistParams.size1) * params.sequencerBatchSize), (int(consistParams.size2) * params.sequencerBatchSize))
+	proof := tree.SnapshotConsistency(
+		(consistParams.size1 * int64(params.sequencerBatchSize)),
+		(consistParams.size2 * int64(params.sequencerBatchSize)))
 
 	// Compare the proofs, they should be identical
 	return compareLogAndTreeProof(resp.Proof, proof)
