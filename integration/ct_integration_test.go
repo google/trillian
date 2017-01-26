@@ -25,6 +25,7 @@ import (
 	"math/rand"
 	"net/http"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -269,6 +270,8 @@ func testCTIntegrationForLog(cfg ctfe.LogConfig) error {
 	if len(entries) < count {
 		return fmt.Errorf("len(entries)=%d; want %d", len(entries), count)
 	}
+	gotHashes := make(map[[sha256.Size]byte]bool)
+	wantHashes := make(map[[sha256.Size]byte]bool)
 	for i, entry := range entries {
 		leaf := entry.Leaf
 		ts := leaf.TimestampedEntry
@@ -282,11 +285,13 @@ func testCTIntegrationForLog(cfg ctfe.LogConfig) error {
 		if ts.EntryType != ct.X509LogEntryType {
 			return fmt.Errorf("leaf[%d].ts.EntryType=%v; want X509LogEntryType", i, ts.EntryType)
 		}
-		// This assumes that the added entries are sequenced in order.
-		// TODO(drysdale): relax this assumption.
-		if !bytes.Equal(ts.X509Entry.Data, chain[i+1][0].Data) {
-			return fmt.Errorf("leaf[%d].ts.X509Entry differs from originally uploaded cert", i)
-		}
+		// The certificates might not be sequenced in the order they were uploaded, so
+		// compare the set of hashes.
+		gotHashes[sha256.Sum256(ts.X509Entry.Data)] = true
+		wantHashes[sha256.Sum256(chain[i+1][0].Data)] = true
+	}
+	if !reflect.DeepEqual(gotHashes, wantHashes) {
+		return fmt.Errorf("retrieved cert hashes don't match uploaded cert hashes")
 	}
 	fmt.Printf("%s: Got entries [1:%d+1]\n", cfg.Prefix, count)
 	if err := stats.check(cfg); err != nil {
