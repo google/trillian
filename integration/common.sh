@@ -33,8 +33,7 @@ killPid() {
   local pid=$1
   set +e
   local count=0
-  while kill -INT ${pid} > /dev/null
-  do
+  while kill -INT ${pid} > /dev/null 2>&1; do
     sleep 1
     ((count++))
     if ! ps -p ${pid} > /dev/null ; then
@@ -55,14 +54,12 @@ declare -a TO_KILL
 declare -a TO_DELETE
 onExit() {
   local pid=0
-  for pid in "${TO_KILL[@]}"
-  do
+  for pid in "${TO_KILL[@]}"; do
     echo "Killing ${pid} on exit"
     killPid "${pid}"
   done
   local file=""
-  for file in "${TO_DELETE[@]}"
-  do
+  for file in "${TO_DELETE[@]}"; do
     echo "Deleting ${file} on exit"
     rm ${file}
   done

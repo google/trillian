@@ -19,8 +19,7 @@ BASE_RPC_PORT=36961
 BASE_HTTP_PORT=6961
 LB_PORT=46962
 
-for ((i=0; i < RPC_SERVER_COUNT; i++))
-do
+for ((i=0; i < RPC_SERVER_COUNT; i++)); do
   port=$((BASE_RPC_PORT + i))
   if [[ $i -eq 0 ]]; then
     RPC_PORTS="${port}"
@@ -31,8 +30,7 @@ do
   fi
 done
 
-for ((i=0; i < HTTP_SERVER_COUNT; i++))
-do
+for ((i=0; i < HTTP_SERVER_COUNT; i++)); do
   port=$((BASE_HTTP_PORT + i))
   if [[ $i -eq 0 ]]; then
     CT_PORTS="${port}"
@@ -52,8 +50,7 @@ done
 # some kind of sequencer mastership election.
 pushd "${TRILLIAN_ROOT}" > /dev/null
 declare -a RPC_SERVER_PIDS
-for port in ${RPC_PORTS}
-do
+for port in ${RPC_PORTS}; do
     echo "Starting Log RPC server on port ${port}"
     ./trillian_log_server --private_key_password=towel --private_key_file=${TESTDATA}/log-rpc-server.privkey.pem --port ${port} --signer_interval="1s" --sequencer_sleep_between_runs="1s" --batch_size=100 --export_metrics=false &
     pid=$!
@@ -62,8 +59,7 @@ do
 done
 popd > /dev/null
 
-for port in ${RPC_PORTS}
-do
+for port in ${RPC_PORTS}; do
     waitForServerStartup ${port}
 done
 
@@ -81,8 +77,7 @@ waitForServerStartup ${LB_PORT}
 # Start a set of CT personalities.
 pushd "${TRILLIAN_ROOT}" > /dev/null
 declare -a HTTP_SERVER_PIDS
-for port in ${CT_PORTS}
-do
+for port in ${CT_PORTS}; do
     echo "Starting CT HTTP server on port ${port}"
     ./ct_server --log_config=${CT_CFG} --log_rpc_server="localhost:${LB_PORT}" --port=${port} &
     pid=$!
@@ -92,8 +87,7 @@ done
 popd > /dev/null
 
 set +e
-for port in ${CT_PORTS}
-do
+for port in ${CT_PORTS}; do
     waitForServerStartup ${port}
 done
 set -e
@@ -104,15 +98,13 @@ go test -v -run ".*CT.*" --timeout=5m ./integration --log_config "${CT_CFG}" --c
 RESULT=$?
 set -e
 
-for pid in "${HTTP_SERVER_PIDS[@]}"
-do
+for pid in "${HTTP_SERVER_PIDS[@]}"; do
     echo "Stopping CT HTTP server (pid ${pid})"
     killPid ${pid}
 done
 echo "Stopping Log RPC load balancer (pid ${LB_SERVER_PID})"
 killPid ${LB_SERVER_PID}
-for pid in "${RPC_SERVER_PIDS[@]}"
-do
+for pid in "${RPC_SERVER_PIDS[@]}"; do
     echo "Stopping Log RPC server (pid ${pid})"
     killPid ${pid}
 done
