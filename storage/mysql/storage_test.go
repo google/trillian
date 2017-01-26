@@ -166,6 +166,7 @@ func openTestDBOrDie() *sql.DB {
 }
 
 // cleanTestDB deletes all the entries in the database. Only use this with a test database
+// TODO(gdbelvin): Migrate to testonly/integration
 func cleanTestDB(db *sql.DB) {
 	// Wipe out anything that was there for this log id
 	for _, table := range allTables {
@@ -177,6 +178,7 @@ func cleanTestDB(db *sql.DB) {
 	}
 }
 
+// TODO(codingllama): Migrate to Admin API
 func createTestDB(db *sql.DB) {
 	_, err := db.Exec(`REPLACE INTO Trees(TreeId, KeyId, TreeType, LeafHasherType, TreeHasherType)
 					 VALUES(23, "hi", "LOG", "SHA256", "SHA256")`)
@@ -186,6 +188,7 @@ func createTestDB(db *sql.DB) {
 }
 
 // prepareTestTreeDB removes all database contents for the specified log id so tests run in a predictable environment. For obvious reasons this should only be allowed to run against test databases. This method panics if any of the deletions fails to make sure tests can't inadvertently succeed.
+// TODO(gdbelvin): Migrate to testonly/integration / create a new DB for freshness
 func prepareTestTreeDB(db *sql.DB, treeID int64, t *testing.T) {
 	// Wipe out anything that was there for this tree id
 	for _, table := range allTables {
@@ -198,6 +201,7 @@ func prepareTestTreeDB(db *sql.DB, treeID int64, t *testing.T) {
 }
 
 // prepareTestLogDB removes all database contents for the specified log id so tests run in a predictable environment. For obvious reasons this should only be allowed to run against test databases. This method panics if any of the deletions fails to make sure tests can't inadvertently succeed.
+// TODO(codingllama): Migrate to Admin API
 func prepareTestLogDB(db *sql.DB, logID logIDAndTest, t *testing.T) {
 	prepareTestTreeDB(db, logID.logID, t)
 
