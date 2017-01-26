@@ -134,6 +134,7 @@ func (t *TrillianLogRPCServer) GetInclusionProof(ctx context.Context, req *trill
 	// TODO(Martin2112): Pass tree size as snapshot size to proof recomputation when implemented
 	// and remove this check.
 	if treeSize != req.TreeSize {
+		tx.Rollback()
 		return nil, errRehashNotSupported
 	}
 
