@@ -55,7 +55,8 @@ type mySQLTreeStorage struct {
 	strataDepths   []int
 }
 
-func openDB(dbURL string) (*sql.DB, error) {
+// OpenDB opens a database connection for all MySQL-based storage implementations.
+func OpenDB(dbURL string) (*sql.DB, error) {
 	db, err := sql.Open("mysql", dbURL)
 	if err != nil {
 		// Don't log uri as it could contain credentials
@@ -71,22 +72,16 @@ func openDB(dbURL string) (*sql.DB, error) {
 	return db, nil
 }
 
-func newTreeStorage(treeID int64, dbURL string, hashSizeBytes int, strataDepths []int, populateSubtree storage.PopulateSubtreeFunc) (*mySQLTreeStorage, error) {
-	db, err := openDB(dbURL)
-	if err != nil {
-		return &mySQLTreeStorage{}, err
-	}
-
-	s := mySQLTreeStorage{
+// TODO(codingllama): Remove error return
+func newTreeStorage(treeID int64, db *sql.DB, hashSizeBytes int, strataDepths []int, populateSubtree storage.PopulateSubtreeFunc) (*mySQLTreeStorage, error) {
+	return &mySQLTreeStorage{
 		treeID:          treeID,
 		db:              db,
 		hashSizeBytes:   hashSizeBytes,
 		populateSubtree: populateSubtree,
 		statements:      make(map[string]map[int]*sql.Stmt),
 		strataDepths:    strataDepths,
-	}
-
-	return &s, nil
+	}, nil
 }
 
 // expandPlaceholderSQL expands an sql statement by adding a specified number of '?'

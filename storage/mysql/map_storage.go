@@ -48,10 +48,10 @@ func (m *mySQLMapStorage) MapID() int64 {
 }
 
 // NewMapStorage creates a mySQLMapStorage instance for the specified MySQL URL.
-func NewMapStorage(id int64, dbURL string) (storage.MapStorage, error) {
+func NewMapStorage(id int64, db *sql.DB) (storage.MapStorage, error) {
 	// TODO(al): pass this through/configure from DB
 	th := merkle.NewRFC6962TreeHasher(crypto.NewSHA256())
-	ts, err := newTreeStorage(id, dbURL, th.Size(), defaultMapStrata, cache.PopulateMapSubtreeNodes(th))
+	ts, err := newTreeStorage(id, db, th.Size(), defaultMapStrata, cache.PopulateMapSubtreeNodes(th))
 	if err != nil {
 		glog.Warningf("Couldn't create a new treeStorage: %s", err)
 		return nil, err

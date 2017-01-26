@@ -12,9 +12,9 @@ import (
 func TestMapRootUpdate(t *testing.T) {
 	// Write two roots for a map and make sure the one with the newest timestamp supersedes
 	mapID := createMapID("TestLatestSignedMapRoot")
-	db := prepareTestMapDB(mapID, t)
-	defer db.Close()
-	s := prepareTestMapStorage(mapID, t)
+	cleanTestDB(DB)
+	prepareTestMapDB(DB, mapID, t)
+	s := prepareTestMapStorage(DB, mapID, t)
 	tx := beginMapTx(s, t)
 	defer tx.Commit()
 
@@ -69,12 +69,10 @@ var mapLeaf = trillian.MapLeaf{
 }
 
 func TestMapSetGetRoundTrip(t *testing.T) {
-	cleanTestDB()
-
 	mapID := createMapID("TestMapSetGetRoundTrip")
-	db := prepareTestMapDB(mapID, t)
-	defer db.Close()
-	s := prepareTestMapStorage(mapID, t)
+	cleanTestDB(DB)
+	prepareTestMapDB(DB, mapID, t)
+	s := prepareTestMapStorage(DB, mapID, t)
 
 	readRev := int64(1)
 
@@ -109,12 +107,10 @@ func TestMapSetGetRoundTrip(t *testing.T) {
 }
 
 func TestMapSetSameKeyInSameRevisionFails(t *testing.T) {
-	cleanTestDB()
-
 	mapID := createMapID("TestMapSetSameKeyInSameRevisionFails")
-	db := prepareTestMapDB(mapID, t)
-	defer db.Close()
-	s := prepareTestMapStorage(mapID, t)
+	cleanTestDB(DB)
+	prepareTestMapDB(DB, mapID, t)
+	s := prepareTestMapStorage(DB, mapID, t)
 
 	{
 		tx := beginMapTx(s, t)
@@ -140,12 +136,10 @@ func TestMapSetSameKeyInSameRevisionFails(t *testing.T) {
 }
 
 func TestMapGetUnknownKey(t *testing.T) {
-	cleanTestDB()
-
 	mapID := createMapID("TestMapGetUnknownKey")
-	db := prepareTestMapDB(mapID, t)
-	defer db.Close()
-	s := prepareTestMapStorage(mapID, t)
+	cleanTestDB(DB)
+	prepareTestMapDB(DB, mapID, t)
+	s := prepareTestMapStorage(DB, mapID, t)
 
 	{
 		tx := beginMapTx(s, t)
@@ -164,13 +158,11 @@ func TestMapGetUnknownKey(t *testing.T) {
 }
 
 func TestMapSetGetMultipleRevisions(t *testing.T) {
-	cleanTestDB()
-
 	// Write two roots for a map and make sure the one with the newest timestamp supersedes
 	mapID := createMapID("TestMapSetGetMultipleRevisions")
-	db := prepareTestMapDB(mapID, t)
-	defer db.Close()
-	s := prepareTestMapStorage(mapID, t)
+	cleanTestDB(DB)
+	prepareTestMapDB(DB, mapID, t)
+	s := prepareTestMapStorage(DB, mapID, t)
 
 	tests := []struct {
 		rev  int64
@@ -220,9 +212,9 @@ func TestMapSetGetMultipleRevisions(t *testing.T) {
 
 func TestLatestSignedMapRootNoneWritten(t *testing.T) {
 	mapID := createMapID("TestLatestSignedMapRootNoneWritten")
-	db := prepareTestMapDB(mapID, t)
-	defer db.Close()
-	s := prepareTestMapStorage(mapID, t)
+	cleanTestDB(DB)
+	prepareTestMapDB(DB, mapID, t)
+	s := prepareTestMapStorage(DB, mapID, t)
 	tx := beginMapTx(s, t)
 	defer tx.Rollback()
 
@@ -239,9 +231,9 @@ func TestLatestSignedMapRootNoneWritten(t *testing.T) {
 
 func TestLatestSignedMapRoot(t *testing.T) {
 	mapID := createMapID("TestLatestSignedMapRoot")
-	db := prepareTestMapDB(mapID, t)
-	defer db.Close()
-	s := prepareTestMapStorage(mapID, t)
+	cleanTestDB(DB)
+	prepareTestMapDB(DB, mapID, t)
+	s := prepareTestMapStorage(DB, mapID, t)
 	tx := beginMapTx(s, t)
 	defer tx.Rollback()
 
@@ -273,9 +265,9 @@ func TestLatestSignedMapRoot(t *testing.T) {
 
 func TestDuplicateSignedMapRoot(t *testing.T) {
 	mapID := createMapID("TestDuplicateSignedMapRoot")
-	db := prepareTestMapDB(mapID, t)
-	defer db.Close()
-	s := prepareTestMapStorage(mapID, t)
+	cleanTestDB(DB)
+	prepareTestMapDB(DB, mapID, t)
+	s := prepareTestMapStorage(DB, mapID, t)
 	tx := beginMapTx(s, t)
 	defer tx.Commit()
 
@@ -292,12 +284,11 @@ func TestDuplicateSignedMapRoot(t *testing.T) {
 	}
 }
 
-func prepareTestMapStorage(mapID mapIDAndTest, t *testing.T) storage.MapStorage {
-	s, err := NewMapStorage(mapID.mapID, "test:zaphod@tcp(127.0.0.1:3306)/test")
+func prepareTestMapStorage(db *sql.DB, mapID mapIDAndTest, t *testing.T) storage.MapStorage {
+	s, err := NewMapStorage(mapID.mapID, db)
 	if err != nil {
 		t.Fatalf("Failed to open map storage: %s", err)
 	}
-
 	return s
 }
 
@@ -305,18 +296,14 @@ func prepareTestMapStorage(mapID mapIDAndTest, t *testing.T) storage.MapStorage 
 // predictable environment. For obvious reasons this should only be allowed to run
 // against test databases. This method panics if any of the deletions fails to make
 // sure tests can't inadvertently succeed.
-func prepareTestMapDB(mapID mapIDAndTest, t *testing.T) *sql.DB {
-	db := prepareTestTreeDB(mapID.mapID, t)
-
+func prepareTestMapDB(db *sql.DB, mapID mapIDAndTest, t *testing.T) {
+	prepareTestTreeDB(DB, mapID.mapID, t)
 	// Now put back the tree row for this log id
 	_, err := db.Exec(`REPLACE INTO Trees(TreeId, KeyId, TreeType, LeafHasherType, TreeHasherType)
 					 VALUES(?, ?, "LOG", "SHA256", "SHA256")`, mapID.mapID, mapID.mapID)
-
 	if err != nil {
 		t.Fatalf("Failed to create tree entry for test: %v", err)
 	}
-
-	return db
 }
 
 func beginMapTx(s storage.MapStorage, t *testing.T) storage.MapTX {

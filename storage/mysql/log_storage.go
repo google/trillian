@@ -75,10 +75,10 @@ type mySQLLogStorage struct {
 }
 
 // NewLogStorage creates a mySQLLogStorage instance for the specified MySQL URL.
-func NewLogStorage(id int64, dbURL string) (storage.LogStorage, error) {
+func NewLogStorage(id int64, db *sql.DB) (storage.LogStorage, error) {
 	// TODO(al): pass this through/configure from DB
 	th := merkle.NewRFC6962TreeHasher(crypto.NewSHA256())
-	ts, err := newTreeStorage(id, dbURL, th.Size(), defaultLogStrata, cache.PopulateLogSubtreeNodes(th))
+	ts, err := newTreeStorage(id, db, th.Size(), defaultLogStrata, cache.PopulateLogSubtreeNodes(th))
 	if err != nil {
 		return nil, fmt.Errorf("couldn't create a new treeStorage: %s", err)
 	}
