@@ -23,8 +23,8 @@ runTest() {
 waitForServerStartup() {
   # The server will 404 the request as there's no handler for it. This error doesn't matter
   # as the test will fail if the server is really not up.
-  local PORT=$1
-  wget -q --spider --retry-connrefused --waitretry=1 -t ${STARTUP_WAIT_SECONDS} localhost:${PORT}
+  local port=$1
+  wget -q --spider --retry-connrefused --waitretry=1 -t ${STARTUP_WAIT_SECONDS} localhost:${port}
   # Wait a bit more to give it a chance to become actually available e.g. if Travis is slow
   sleep 2
 }
@@ -32,6 +32,7 @@ waitForServerStartup() {
 killPid() {
   local pid=$1
   set +e
+  local count=0
   while kill -INT ${pid} > /dev/null
   do
     sleep 1
@@ -53,11 +54,13 @@ killPid() {
 declare -a TO_KILL
 declare -a TO_DELETE
 onExit() {
+  local pid=0
   for pid in "${TO_KILL[@]}"
   do
     echo "Killing ${pid} on exit"
     killPid "${pid}"
   done
+  local file=""
   for file in "${TO_DELETE[@]}"
   do
     echo "Deleting ${file} on exit"
