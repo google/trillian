@@ -6,9 +6,11 @@ INTEGRATION_DIR="$( cd "$( dirname "$0" )" && pwd )"
 TEST_TREE_ID=1123
 RPC_PORT=34557
 
-echo "Provisioning test log (Tree ID: $TEST_TREE_ID) in database"
-"${SCRIPTS_DIR}"/wipelog.sh ${TEST_TREE_ID}
-"${SCRIPTS_DIR}"/createlog.sh ${TEST_TREE_ID}
+yes | "${SCRIPTS_DIR}"/resetdb.sh
+for tid in 0 $TEST_TREE_ID; do
+  echo "Provisioning test log (Tree ID: $tid) in database"
+  "${SCRIPTS_DIR}"/createlog.sh ${tid}
+done
 
 echo "Starting Log RPC server on port ${RPC_PORT}"
 pushd "${TRILLIAN_ROOT}" > /dev/null

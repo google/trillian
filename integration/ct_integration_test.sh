@@ -3,6 +3,10 @@ set -e
 INTEGRATION_DIR="$( cd "$( dirname "$0" )" && pwd )"
 . "${INTEGRATION_DIR}"/common.sh
 
+yes | "${SCRIPTS_DIR}"/resetdb.sh
+echo "Provisioning test log (Tree ID: 0) in database"
+"${SCRIPTS_DIR}"/createlog.sh 0
+
 # Default to one RPC server and one HTTP server.
 RPC_SERVER_COUNT=${1:-1}
 HTTP_SERVER_COUNT=${2:-1}
