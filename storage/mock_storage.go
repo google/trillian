@@ -95,17 +95,6 @@ func (_mr *_MockLogTXRecorder) GetLeavesByIndex(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetLeavesByIndex", arg0)
 }
 
-func (_m *MockLogTX) GetLeavesByLeafValueHash(_param0 [][]byte, _param1 bool) ([]trillian.LogLeaf, error) {
-	ret := _m.ctrl.Call(_m, "GetLeavesByLeafValueHash", _param0, _param1)
-	ret0, _ := ret[0].([]trillian.LogLeaf)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-func (_mr *_MockLogTXRecorder) GetLeavesByLeafValueHash(arg0, arg1 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetLeavesByLeafValueHash", arg0, arg1)
-}
-
 func (_m *MockLogTX) GetMerkleNodes(_param0 int64, _param1 []NodeID) ([]Node, error) {
 	ret := _m.ctrl.Call(_m, "GetMerkleNodes", _param0, _param1)
 	ret0, _ := ret[0].([]Node)
@@ -408,17 +397,6 @@ func (_m *MockReadOnlyLogTX) GetLeavesByIndex(_param0 []int64) ([]trillian.LogLe
 
 func (_mr *_MockReadOnlyLogTXRecorder) GetLeavesByIndex(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetLeavesByIndex", arg0)
-}
-
-func (_m *MockReadOnlyLogTX) GetLeavesByLeafValueHash(_param0 [][]byte, _param1 bool) ([]trillian.LogLeaf, error) {
-	ret := _m.ctrl.Call(_m, "GetLeavesByLeafValueHash", _param0, _param1)
-	ret0, _ := ret[0].([]trillian.LogLeaf)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-func (_mr *_MockReadOnlyLogTXRecorder) GetLeavesByLeafValueHash(arg0, arg1 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetLeavesByLeafValueHash", arg0, arg1)
 }
 
 func (_m *MockReadOnlyLogTX) GetMerkleNodes(_param0 int64, _param1 []NodeID) ([]Node, error) {

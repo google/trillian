@@ -89,11 +89,6 @@ type LeafReader interface {
 	// same hash but different sequence numbers. If orderBySequence is true then the returned data
 	// will be in ascending sequence number order.
 	GetLeavesByHash(leafHashes [][]byte, orderBySequence bool) ([]trillian.LogLeaf, error)
-	// GetLeavesByLeafValueHash looks up sequenced leaf metadata and data by their raw leaf value hash.
-	// If the tree permits duplicate leaves callers must be prepared to handle multiple results with the
-	// same hash but different sequence numbers. If orderBySequence is true then the returned data
-	// will be in ascending sequence number order.
-	GetLeavesByLeafValueHash(leafHashes [][]byte, orderBySequence bool) ([]trillian.LogLeaf, error)
 }
 
 // LogRootReader provides an interface for reading SignedLogRoots.

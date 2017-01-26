@@ -144,22 +144,6 @@ func (_mr *_MockTrillianLogClientRecorder) GetLeavesByIndex(arg0, arg1 interface
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetLeavesByIndex", _s...)
 }
 
-func (_m *MockTrillianLogClient) GetLeavesByLeafValueHash(_param0 context.Context, _param1 *trillian.GetLeavesByHashRequest, _param2 ...grpc.CallOption) (*trillian.GetLeavesByHashResponse, error) {
-	_s := []interface{}{_param0, _param1}
-	for _, _x := range _param2 {
-		_s = append(_s, _x)
-	}
-	ret := _m.ctrl.Call(_m, "GetLeavesByLeafValueHash", _s...)
-	ret0, _ := ret[0].(*trillian.GetLeavesByHashResponse)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-func (_mr *_MockTrillianLogClientRecorder) GetLeavesByLeafValueHash(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
-	_s := append([]interface{}{arg0, arg1}, arg2...)
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetLeavesByLeafValueHash", _s...)
-}
-
 func (_m *MockTrillianLogClient) GetSequencedLeafCount(_param0 context.Context, _param1 *trillian.GetSequencedLeafCountRequest, _param2 ...grpc.CallOption) (*trillian.GetSequencedLeafCountResponse, error) {
 	_s := []interface{}{_param0, _param1}
 	for _, _x := range _param2 {
@@ -304,17 +288,6 @@ func (_m *MockTrillianLogServer) GetLeavesByIndex(_param0 context.Context, _para
 
 func (_mr *_MockTrillianLogServerRecorder) GetLeavesByIndex(arg0, arg1 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetLeavesByIndex", arg0, arg1)
-}
-
-func (_m *MockTrillianLogServer) GetLeavesByLeafValueHash(_param0 context.Context, _param1 *trillian.GetLeavesByHashRequest) (*trillian.GetLeavesByHashResponse, error) {
-	ret := _m.ctrl.Call(_m, "GetLeavesByLeafValueHash", _param0, _param1)
-	ret0, _ := ret[0].(*trillian.GetLeavesByHashResponse)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-func (_mr *_MockTrillianLogServerRecorder) GetLeavesByLeafValueHash(arg0, arg1 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetLeavesByLeafValueHash", arg0, arg1)
 }
 
 func (_m *MockTrillianLogServer) GetSequencedLeafCount(_param0 context.Context, _param1 *trillian.GetSequencedLeafCountRequest) (*trillian.GetSequencedLeafCountResponse, error) {

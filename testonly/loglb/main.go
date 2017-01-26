@@ -121,12 +121,6 @@ func (lb *randomLoadBalancer) GetLeavesByHash(ctx context.Context, req *trillian
 	return bc.client.GetLeavesByHash(ctx, req)
 }
 
-func (lb *randomLoadBalancer) GetLeavesByLeafValueHash(ctx context.Context, req *trillian.GetLeavesByHashRequest) (*trillian.GetLeavesByHashResponse, error) {
-	bc := lb.pick()
-	glog.V(3).Infof("forward GetLeavesByLeafValueHash request to backend %s", bc.server)
-	return bc.client.GetLeavesByLeafValueHash(ctx, req)
-}
-
 func (lb *randomLoadBalancer) GetEntryAndProof(ctx context.Context, req *trillian.GetEntryAndProofRequest) (*trillian.GetEntryAndProofResponse, error) {
 	bc := lb.pick()
 	glog.V(3).Infof("forward GetEntryAndProof request to backend %s", bc.server)

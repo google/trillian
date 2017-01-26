@@ -14,7 +14,6 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/storage"
-	"github.com/google/trillian/testonly"
 )
 
 var allTables = []string{"Unsequenced", "TreeHead", "SequencedLeafData", "LeafData", "Subtree", "TreeControl", "Trees", "MapLeaf", "MapHead"}
@@ -48,8 +47,8 @@ var signedTimestamp = trillian.SignedEntryTimestamp{
 }
 
 func createFakeLeaf(db *sql.DB, logID int64, rawHash, hash, data, extraData []byte, seq int64, t *testing.T) {
-	_, err := db.Exec("INSERT INTO LeafData(TreeId, LeafValueHash, LeafValue, ExtraData) VALUES(?,?,?,?)", logID, rawHash, data, extraData)
-	_, err2 := db.Exec("INSERT INTO SequencedLeafData(TreeId, SequenceNumber, LeafValueHash, MerkleLeafHash) VALUES(?,?,?,?)", logID, seq, rawHash, hash)
+	_, err := db.Exec("INSERT INTO LeafData(TreeId, LeafIdentityHash, LeafValue, ExtraData) VALUES(?,?,?,?)", logID, rawHash, data, extraData)
+	_, err2 := db.Exec("INSERT INTO SequencedLeafData(TreeId, SequenceNumber, LeafIdentityHash, MerkleLeafHash) VALUES(?,?,?,?)", logID, seq, rawHash, hash)
 
 	if err != nil || err2 != nil {
 		t.Fatalf("Failed to create test leaves: %v %v", err, err2)
@@ -61,7 +60,7 @@ func checkLeafContents(leaf trillian.LogLeaf, seq int64, rawHash, hash, data, ex
 		t.Fatalf("Wrong leaf hash in returned leaf got\n%v\nwant:\n%v", got, want)
 	}
 
-	if got, want := leaf.LeafValueHash, rawHash; !bytes.Equal(got, want) {
+	if got, want := leaf.LeafIdentityHash, rawHash; !bytes.Equal(got, want) {
 		t.Fatalf("Wrong raw leaf hash in returned leaf got\n%v\nwant:\n%v", got, want)
 	}
 
@@ -184,29 +183,6 @@ func TestQueueLeaves(t *testing.T) {
 	if got, want := queueTimestamp, fakeQueueTime.UnixNano(); got != want {
 		t.Fatalf("Incorrect queue timestamp got: %d want: %d", got, want)
 	}
-}
-
-func TestQueueLeavesBadHash(t *testing.T) {
-	logID := createLogID("TestQueueLeavesBadHash")
-	cleanTestDB(DB)
-	prepareTestLogDB(DB, logID, t)
-	s := prepareTestLogStorage(DB, logID, t)
-	tx := beginLogTx(s, t)
-	defer failIfTXStillOpen(t, "TestQueueLeavesBadHash", tx)
-
-	leaves := createTestLeaves(leavesToInsert, 20)
-
-	// Deliberately corrupt one of the hashes so it should be rejected
-	leaves[3].LeafValueHash = crypto.NewSHA256().Digest([]byte("this cannot be valid"))
-
-	err := tx.QueueLeaves(leaves, fakeQueueTime)
-	tx.Rollback()
-
-	if err == nil {
-		t.Fatal("Allowed a leaf to be queued with bad hash")
-	}
-
-	testonly.EnsureErrorContains(t, err, "mismatch")
 }
 
 func TestDequeueLeavesNoneQueued(t *testing.T) {
@@ -509,21 +485,6 @@ func TestGetLeavesByHashNotPresent(t *testing.T) {
 	}
 }
 
-func TestGetLeavesByLeafValueHashNotPresent(t *testing.T) {
-	logID := createLogID("TestGetLeavesByLeafValueHashNotPresent")
-	cleanTestDB(DB)
-	s := prepareTestLogStorage(DB, logID, t)
-	tx := beginLogTx(s, t)
-	defer commit(tx, t)
-
-	hashes := [][]byte{[]byte("thisdoesn'texist")}
-	if leaves, err := tx.GetLeavesByLeafValueHash(hashes, false); err != nil {
-		t.Fatalf("GetLeavesByLeafValueHash(%x)=nil,%v; want [],nil", hashes, err)
-	} else if len(leaves) != 0 {
-		t.Fatalf("GetLeavesByLeafValueHash(%s)=%q,nil; want [],nil", hashes, leaves)
-	}
-}
-
 func TestGetLeavesByIndexNotPresent(t *testing.T) {
 	logID := createLogID("TestGetLeavesByIndexNotPresent")
 	cleanTestDB(DB)
@@ -564,29 +525,6 @@ func TestGetLeavesByHash(t *testing.T) {
 	}
 
 	checkLeafContents(leaves[0], sequenceNumber, dummyRawHash, dummyHash, data, someExtraData, t)
-}
-
-func TestGetLeavesByLeafValueHash(t *testing.T) {
-	// Create fake leaf as if it had been sequenced
-	logID := createLogID("TestGetLeavesByLeafValueHash")
-	cleanTestDB(DB)
-	prepareTestLogDB(DB, logID, t)
-	s := prepareTestLogStorage(DB, logID, t)
-
-	data := []byte("some data")
-	createFakeLeaf(DB, logID.logID, dummyRawHash, dummyHash, data, someExtraData, sequenceNumber, t)
-
-	tx := beginLogTx(s, t)
-	defer commit(tx, t)
-
-	hashes := [][]byte{dummyRawHash}
-	if leaves, err := tx.GetLeavesByLeafValueHash(hashes, false); err != nil {
-		t.Fatalf("GetLeavesByLeafValueHash(%x)=nil,%v; want [],nil", hashes, err)
-	} else if len(leaves) != 1 {
-		t.Fatalf("GetLeavesByLeafValueHash() = %d leaves, want 1", len(leaves))
-	} else {
-		checkLeafContents(leaves[0], sequenceNumber, dummyRawHash, dummyHash, data, someExtraData, t)
-	}
 }
 
 func TestGetLeavesByIndex(t *testing.T) {
@@ -930,9 +868,9 @@ func ensureAllLeavesDistinct(leaves []trillian.LogLeaf, t *testing.T) {
 	// data structures we could do this properly.
 	for i := range leaves {
 		for j := range leaves {
-			if i != j && bytes.Equal(leaves[i].LeafValueHash, leaves[j].LeafValueHash) {
+			if i != j && bytes.Equal(leaves[i].LeafIdentityHash, leaves[j].LeafIdentityHash) {
 				t.Fatalf("Unexpectedly got a duplicate leaf hash: %v %v",
-					leaves[i].LeafValueHash, leaves[j].LeafValueHash)
+					leaves[i].LeafIdentityHash, leaves[j].LeafIdentityHash)
 			}
 		}
 	}
@@ -946,11 +884,11 @@ func createTestLeaves(n, startSeq int64) []trillian.LogLeaf {
 	for l := int64(0); l < n; l++ {
 		lv := fmt.Sprintf("Leaf %d", l+startSeq)
 		leaf := trillian.LogLeaf{
-			LeafValueHash:  hasher.Digest([]byte(lv)),
-			MerkleLeafHash: hasher.Digest([]byte(lv)),
-			LeafValue:      []byte(lv),
-			ExtraData:      []byte(fmt.Sprintf("Extra %d", l)),
-			LeafIndex:      int64(startSeq + l),
+			LeafIdentityHash: hasher.Digest([]byte(lv)),
+			MerkleLeafHash:   hasher.Digest([]byte(lv)),
+			LeafValue:        []byte(lv),
+			ExtraData:        []byte(fmt.Sprintf("Extra %d", l)),
+			LeafIndex:        int64(startSeq + l),
 		}
 		leaves = append(leaves, leaf)
 	}
