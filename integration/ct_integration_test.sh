@@ -3,6 +3,11 @@ set -e
 INTEGRATION_DIR="$( cd "$( dirname "$0" )" && pwd )"
 . "${INTEGRATION_DIR}"/common.sh
 
+echo "Building code"
+go build ${GOFLAGS} ./server/trillian_log_server/
+go build ${GOFLAGS} ./testonly/loglb
+go build ${GOFLAGS} ./examples/ct/ct_server/
+
 yes | "${SCRIPTS_DIR}"/resetdb.sh
 echo "Provisioning test log (Tree ID: 0) in database"
 "${SCRIPTS_DIR}"/createlog.sh 0
@@ -46,7 +51,6 @@ done
 # TODO(drysdale): update this comment once the Trillian open-source code includes
 # some kind of sequencer mastership election.
 pushd "${TRILLIAN_ROOT}" > /dev/null
-go build ${GOFLAGS} ./server/trillian_log_server/
 declare -a RPC_SERVER_PIDS
 for port in ${RPC_PORTS}
 do
@@ -66,7 +70,6 @@ done
 # Start a toy gRPC load balancer.  It randomly sprays RPCs across the
 # backends.
 pushd "${TRILLIAN_ROOT}" > /dev/null
-go build ${GOFLAGS} ./testonly/loglb
 echo "Starting Log RPC load balancer ${LB_PORT} -> ${RPC_SERVERS}"
 ./loglb --backends ${RPC_SERVERS} --port ${LB_PORT} &
 LB_SERVER_PID=$!
@@ -77,7 +80,6 @@ waitForServerStartup ${LB_PORT}
 
 # Start a set of CT personalities.
 pushd "${TRILLIAN_ROOT}" > /dev/null
-go build ${GOFLAGS} ./examples/ct/ct_server/
 declare -a HTTP_SERVER_PIDS
 for port in ${CT_PORTS}
 do

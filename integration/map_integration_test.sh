@@ -3,6 +3,9 @@ set -e
 INTEGRATION_DIR="$( cd "$( dirname "$0" )" && pwd )"
 . "${INTEGRATION_DIR}"/common.sh
 
+echo "Building code"
+go build ${GOFLAGS} ./server/vmap/trillian_map_server/
+
 TEST_TREE_ID=123
 RPC_PORT=34556
 
@@ -12,7 +15,6 @@ yes | "${SCRIPTS_DIR}"/resetdb.sh
 
 echo "Starting Map RPC server on port ${RPC_PORT}"
 pushd "${TRILLIAN_ROOT}" > /dev/null
-go build ${GOFLAGS} ./server/vmap/trillian_map_server/
 ./trillian_map_server --private_key_password=towel --private_key_file=${TESTDATA}/map-rpc-server.privkey.pem --port ${RPC_PORT} &
 RPC_SERVER_PID=$!
 popd > /dev/null
