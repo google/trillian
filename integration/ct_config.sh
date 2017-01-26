@@ -7,7 +7,6 @@ INTEGRATION_DIR="$( cd "$( dirname "$0" )" && pwd )"
 
 # Build config file with absolute paths
 CT_CFG=$(mktemp "${INTEGRATION_DIR}"/ct-XXXXXX)
-TO_DELETE="${TO_DELETE} ${CT_CFG}"
 sed "s!@TESTDATA@!${TESTDATA}!" ./integration/ct_integration_test.cfg > ${CT_CFG}
 
 # Retrieve tree IDs from config file
@@ -17,4 +16,3 @@ for id in ${TREE_IDS}; do
     "${SCRIPTS_DIR}"/wipelog.sh ${id}
     "${SCRIPTS_DIR}"/createlog.sh ${id}
 done
-
