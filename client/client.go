@@ -41,9 +41,9 @@ func New(logID int64, cc *grpc.ClientConn) *LogClient {
 func (c *LogClient) AddLeaf(data []byte) error {
 	hash := sha256.Sum256(data)
 	leaf := &trillian.LogLeaf{
-		LeafValue:      data,
-		MerkleLeafHash: hash[:],
-		LeafValueHash:  hash[:],
+		LeafValue:        data,
+		MerkleLeafHash:   hash[:],
+		LeafIdentityHash: hash[:],
 	}
 	req := trillian.QueueLeafRequest{
 		LogId: c.LogID,
