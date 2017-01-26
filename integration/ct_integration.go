@@ -17,6 +17,7 @@ package integration
 import (
 	"bytes"
 	"context"
+	basecrypto "crypto"
 	cryptorand "crypto/rand"
 	"crypto/sha256"
 	"encoding/json"
@@ -308,7 +309,19 @@ func RunCTIntegrationForLog(cfg ctfe.LogConfig, servers, testdir string, stats *
 	}
 
 	// Stage 12: build and add a pre-certificate.
-	prechain, tbs, err := MakePrecertChain(testdir, chain[1], chain[0])
+	signer, err := MakeSigner(testdir)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve signer for re-signing: %v", err)
+	}
+	leafCert, err := x509.ParseCertificate(chain[1][0].Data)
+	if err != nil {
+		return fmt.Errorf("failed to parse leaf certificate to build precert from: %v", err)
+	}
+	issuer, err := x509.ParseCertificate(chain[0][0].Data)
+	if err != nil {
+		return fmt.Errorf("failed to parse issuer for precert: %v", err)
+	}
+	prechain, tbs, err := MakePrecertChain(chain[1], leafCert, issuer, signer)
 	if err != nil {
 		return fmt.Errorf("failed to build pre-certificate: %v", err)
 	}
@@ -352,10 +365,6 @@ func RunCTIntegrationForLog(cfg ctfe.LogConfig, servers, testdir string, stats *
 
 	// Stage 14: get an inclusion proof for the precert.
 	// Calculate leaf hash =  SHA256(0x00 | tls-encode(MerkleTreeLeaf))
-	issuer, err := x509.ParseCertificate(prechain[1].Data)
-	if err != nil {
-		return fmt.Errorf("failed to parse issuer certificate: %v", err)
-	}
 	leaf = ct.MerkleTreeLeaf{
 		Version:  ct.V1,
 		LeafType: ct.TimestampedEntryLeafType,
@@ -440,19 +449,22 @@ func CheckCTConsistencyProof(sth1, sth2 *ct.SignedTreeHead, proof [][]byte) erro
 		sth1.SHA256RootHash[:], sth2.SHA256RootHash[:], proof)
 }
 
-// MakePrecertChain builds a precert chain based from the given cert chain, converting and
-// re-signing relative to the given issuerData.
-func MakePrecertChain(dir string, chain, issuerData []ct.ASN1Cert) ([]ct.ASN1Cert, []byte, error) {
+// MakePrecertChain builds a precert chain based from the given cert chain and cert, converting and
+// re-signing relative to the given issuer.
+func MakePrecertChain(chain []ct.ASN1Cert, cert, issuer *x509.Certificate, signer basecrypto.Signer) ([]ct.ASN1Cert, []byte, error) {
 	prechain := make([]ct.ASN1Cert, len(chain))
 	copy(prechain[1:], chain[1:])
 	cert, err := x509.ParseCertificate(chain[0].Data)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to parse certificate to build precert from: %v", err)
 	}
-	issuer, err := x509.ParseCertificate(issuerData[0].Data)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to parse issuer of precert: %v", err)
+
+	// Randomize the subject key ID.
+	randData := make([]byte, 128)
+	if _, err := cryptorand.Read(randData); err != nil {
+		return nil, nil, fmt.Errorf("failed to read random data: %v", err)
 	}
+	cert.SubjectKeyId = randData
 
 	// Add the CT poison extension then rebuild the certificate.
 	cert.ExtraExtensions = append(cert.ExtraExtensions, pkix.Extension{
@@ -461,15 +473,11 @@ func MakePrecertChain(dir string, chain, issuerData []ct.ASN1Cert) ([]ct.ASN1Cer
 		Value:    []byte{0x05, 0x00}, // ASN.1 NULL
 	})
 
-	km, err := crypto.LoadPasswordProtectedPrivateKey(filepath.Join(dir, "int-ca.privkey.pem"), "babelfish")
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to load private key for re-signing: %v", err)
-	}
-	signer, err := km.Signer()
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to retrieve signer for re-signing: %v", err)
-	}
+	// Create a fresh certificate, signed by the intermediate CA.
 	prechain[0].Data, err = x509.CreateCertificate(cryptorand.Reader, cert, issuer, cert.PublicKey, signer)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create certificate: %v", err)
+	}
 
 	// Rebuilding the certificate will set the authority key ID to the issuer's subject
 	// key ID, and will re-order extensions.  Extract the corresponding TBSCertificate
@@ -483,6 +491,38 @@ func MakePrecertChain(dir string, chain, issuerData []ct.ASN1Cert) ([]ct.ASN1Cer
 		return nil, nil, fmt.Errorf("failed to remove poison from TBSCertificate: %v", err)
 	}
 	return prechain, tbs, nil
+}
+
+// MakeCertChain builds a new cert chain based from the given cert chain, changing SubjectKeyId and
+// re-signing relative to the given issuer.
+func MakeCertChain(chain []ct.ASN1Cert, cert, issuer *x509.Certificate, signer basecrypto.Signer) ([]ct.ASN1Cert, error) {
+	newchain := make([]ct.ASN1Cert, len(chain))
+	copy(newchain[1:], chain[1:])
+
+	// Randomize the subject key ID.
+	randData := make([]byte, 128)
+	if _, err := cryptorand.Read(randData); err != nil {
+		return nil, fmt.Errorf("failed to read random data: %v", err)
+	}
+	cert.SubjectKeyId = randData
+
+	// Create a fresh certificate, signed by the intermediate CA.
+	var err error
+	newchain[0].Data, err = x509.CreateCertificate(cryptorand.Reader, cert, issuer, cert.PublicKey, signer)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create certificate: %v", err)
+	}
+
+	return newchain, nil
+}
+
+// MakeSigner creates a signer using the private key in the test directory.
+func MakeSigner(testdir string) (basecrypto.Signer, error) {
+	km, err := crypto.LoadPasswordProtectedPrivateKey(filepath.Join(testdir, "int-ca.privkey.pem"), "babelfish")
+	if err != nil {
+		return nil, fmt.Errorf("failed to load private key for re-signing: %v", err)
+	}
+	return km.Signer()
 }
 
 // Track HTTP requests/responses in parallel so we can check the stats exported by the log.
