@@ -3,5 +3,6 @@
 /ct_server
 /loglb
 /protoc
+/ct_hammer
 *.swp
 *.swo
