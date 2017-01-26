@@ -5,7 +5,7 @@ export TESTDATA="${TRILLIAN_ROOT}"/testdata
 export TESTDBOPTS="-u test --password=zaphod -D test"
 export STARTUP_WAIT_SECONDS=10
 
-function runTest() {
+runTest() {
   local name=$1
   local script=$2
   echo "=== RUN   ${name}"
@@ -20,7 +20,7 @@ function runTest() {
 }
 
 # Wait for a server to become ready
-function waitForServerStartup() {
+waitForServerStartup() {
   # The server will 404 the request as there's no handler for it. This error doesn't matter
   # as the test will fail if the server is really not up.
   local PORT=$1
@@ -29,7 +29,7 @@ function waitForServerStartup() {
   sleep 2
 }
 
-function killPid() {
+killPid() {
   local pid=$1
   set +e
   while kill -INT ${pid} > /dev/null
@@ -52,7 +52,7 @@ function killPid() {
 # Clean up anything in ${TO_KILL} and ${TO_DELETE}.
 declare -a TO_KILL
 declare -a TO_DELETE
-function onExit() {
+onExit() {
   for pid in "${TO_KILL[@]}"
   do
     echo "Killing ${pid} on exit"
