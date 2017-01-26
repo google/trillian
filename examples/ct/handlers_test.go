@@ -1221,15 +1221,14 @@ func logLeavesForCert(t *testing.T, km crypto.KeyManager, certs []*x509.Certific
 		t.Fatalf("failed to serialize leaf: %v", err)
 	}
 
-	// This is a hash of the leaf data, not the the Merkle hash as defined in the RFC.
-	leafHash := sha256.Sum256(leafData)
+	leafIDHash := sha256.Sum256(certs[0].Raw)
 
 	extraData, err := extraDataForChain(certs, isPrecert)
 	if err != nil {
 		t.Fatalf("failed to serialize extra data: %v", err)
 	}
 
-	return []*trillian.LogLeaf{{LeafValueHash: leafHash[:], LeafValue: leafData, ExtraData: extraData}}
+	return []*trillian.LogLeaf{{LeafIdentityHash: leafIDHash[:], LeafValue: leafData, ExtraData: extraData}}
 }
 
 type dlMatcher struct {

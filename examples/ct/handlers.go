@@ -670,14 +670,14 @@ func buildLogLeafForAddChain(c LogContext, merkleLeaf ct.MerkleTreeLeaf, chain [
 		return trillian.LogLeaf{}, err
 	}
 
-	// leafHash is a crosscheck on the data we're sending in the leaf buffer. The backend
-	// does the tree hashing.
-	leafHash := sha256.Sum256(leafData)
+	// leafIDHash allows Trillian to detect duplicate entries, so this should be
+	// a hash over the cert data.
+	leafIDHash := sha256.Sum256(chain[0].Raw)
 
 	return trillian.LogLeaf{
-		LeafValueHash: leafHash[:],
-		LeafValue:     leafData,
-		ExtraData:     extraData,
+		LeafIdentityHash: leafIDHash[:],
+		LeafValue:        leafData,
+		ExtraData:        extraData,
 	}, nil
 }
 

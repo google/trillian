@@ -1,7 +1,6 @@
 package mysql
 
 import (
-	"bytes"
 	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
@@ -22,18 +21,18 @@ import (
 const (
 	getTreePropertiesSQL  = "SELECT AllowsDuplicateLeaves FROM Trees WHERE TreeId=?"
 	getTreeParametersSQL  = "SELECT ReadOnlyRequests From TreeControl WHERE TreeID=?"
-	selectQueuedLeavesSQL = `SELECT LeafValueHash,MerkleLeafHash,Payload
+	selectQueuedLeavesSQL = `SELECT LeafIdentityHash,MerkleLeafHash,Payload
 		FROM Unsequenced
 		WHERE TreeID=?
 		AND QueueTimestampNanos<=?
-		ORDER BY QueueTimestampNanos,LeafValueHash ASC LIMIT ?`
-	insertUnsequencedLeafSQL = `INSERT INTO LeafData(TreeId,LeafValueHash,LeafValue,ExtraData)
-		 VALUES(?,?,?,?) ON DUPLICATE KEY UPDATE LeafValueHash=LeafValueHash`
-	insertUnsequencedLeafSQLNoDuplicates = `INSERT INTO LeafData(TreeId,LeafValueHash,LeafValue,ExtraData)
+		ORDER BY QueueTimestampNanos,LeafIdentityHash ASC LIMIT ?`
+	insertUnsequencedLeafSQL = `INSERT INTO LeafData(TreeId,LeafIdentityHash,LeafValue,ExtraData)
+		 VALUES(?,?,?,?) ON DUPLICATE KEY UPDATE LeafIdentityHash=LeafIdentityHash`
+	insertUnsequencedLeafSQLNoDuplicates = `INSERT INTO LeafData(TreeId,LeafIdentityHash,LeafValue,ExtraData)
 		 VALUES(?,?,?,?)`
-	insertUnsequencedEntrySQL = `INSERT INTO Unsequenced(TreeId,LeafValueHash,MerkleLeafHash,MessageId,Payload,QueueTimestampNanos)
+	insertUnsequencedEntrySQL = `INSERT INTO Unsequenced(TreeId,LeafIdentityHash,MerkleLeafHash,MessageId,Payload,QueueTimestampNanos)
 		 VALUES(?,?,?,?,?,?)`
-	insertSequencedLeafSQL = `INSERT INTO SequencedLeafData(TreeId,LeafValueHash,MerkleLeafHash,SequenceNumber)
+	insertSequencedLeafSQL = `INSERT INTO SequencedLeafData(TreeId,LeafIdentityHash,MerkleLeafHash,SequenceNumber)
 		 VALUES(?,?,?,?)`
 	selectSequencedLeafCountSQL  = "SELECT COUNT(*) FROM SequencedLeafData WHERE TreeId=?"
 	selectLatestSignedLogRootSQL = `SELECT TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature
@@ -41,24 +40,19 @@ const (
 		 ORDER BY TreeHeadTimestamp DESC LIMIT 1`
 
 	// These statements need to be expanded to provide the correct number of parameter placeholders.
-	deleteUnsequencedSQL   = "DELETE FROM Unsequenced WHERE LeafValueHash IN (<placeholder>) AND TreeId = ?"
-	selectLeavesByIndexSQL = `SELECT s.MerkleLeafHash,l.LeafValueHash,l.LeafValue,s.SequenceNumber,l.ExtraData
+	deleteUnsequencedSQL   = "DELETE FROM Unsequenced WHERE LeafIdentityHash IN (<placeholder>) AND TreeId = ?"
+	selectLeavesByIndexSQL = `SELECT s.MerkleLeafHash,l.LeafIdentityHash,l.LeafValue,s.SequenceNumber,l.ExtraData
 		     FROM LeafData l,SequencedLeafData s
-		     WHERE l.LeafValueHash = s.LeafValueHash
+		     WHERE l.LeafIdentityHash = s.LeafIdentityHash
 		     AND s.SequenceNumber IN (` + placeholderSQL + `) AND l.TreeId = ? AND s.TreeId = l.TreeId`
-	selectLeavesByMerkleHashSQL = `SELECT s.MerkleLeafHash,l.LeafValueHash,l.LeafValue,s.SequenceNumber,l.ExtraData
+	selectLeavesByMerkleHashSQL = `SELECT s.MerkleLeafHash,l.LeafIdentityHash,l.LeafValue,s.SequenceNumber,l.ExtraData
 		     FROM LeafData l,SequencedLeafData s
-		     WHERE l.LeafValueHash = s.LeafValueHash
+		     WHERE l.LeafIdentityHash = s.LeafIdentityHash
 		     AND s.MerkleLeafHash IN (` + placeholderSQL + `) AND l.TreeId = ? AND s.TreeId = l.TreeId`
-	selectLeavesByValueHashSQL = `SELECT s.MerkleLeafHash,l.LeafValueHash,l.LeafValue,s.SequenceNumber,l.ExtraData
-		     FROM LeafData l,SequencedLeafData s
-		     WHERE l.LeafValueHash = s.LeafValueHash
-		     AND s.LeafValueHash IN (` + placeholderSQL + `) AND l.TreeId = ? AND s.TreeId = l.TreeId`
 
 	// Same as above except with leaves ordered by sequence so we only incur this cost when necessary
 	orderBySequenceNumberSQL                     = " ORDER BY s.SequenceNumber"
 	selectLeavesByMerkleHashOrderedBySequenceSQL = selectLeavesByMerkleHashSQL + orderBySequenceNumberSQL
-	selectLeavesByValueHashOrderedBySequenceSQL  = selectLeavesByValueHashSQL + orderBySequenceNumberSQL
 )
 
 var defaultLogStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8}
@@ -112,14 +106,6 @@ func (m *mySQLLogStorage) getLeavesByMerkleHashStmt(num int, orderBySequence boo
 	}
 
 	return m.getStmt(selectLeavesByMerkleHashSQL, num, "?", "?")
-}
-
-func (m *mySQLLogStorage) getLeavesByValueHashStmt(num int, orderBySequence bool) (*sql.Stmt, error) {
-	if orderBySequence {
-		return m.getStmt(selectLeavesByValueHashOrderedBySequenceSQL, num, "?", "?")
-	}
-
-	return m.getStmt(selectLeavesByValueHashSQL, num, "?", "?")
 }
 
 func (m *mySQLLogStorage) getDeleteUnsequencedStmt(num int) (*sql.Stmt, error) {
@@ -235,28 +221,28 @@ func (t *logTX) DequeueLeaves(limit int, cutoffTime time.Time) ([]trillian.LogLe
 	defer rows.Close()
 
 	for rows.Next() {
-		var leafHash []byte
+		var leafIDHash []byte
 		var merkleHash []byte
 		var payload []byte
 
-		err := rows.Scan(&leafHash, &merkleHash, &payload)
+		err := rows.Scan(&leafIDHash, &merkleHash, &payload)
 
 		if err != nil {
 			glog.Warningf("Error scanning work rows: %s", err)
 			return nil, err
 		}
 
-		if len(leafHash) != t.ts.hashSizeBytes {
+		if len(leafIDHash) != t.ts.hashSizeBytes {
 			return nil, errors.New("Dequeued a leaf with incorrect hash size")
 		}
 
 		// Note: the ExtraData being nil here is OK as the sequencer only writes to the
 		// SequencedLeafData table and the client supplied value is already written to LeafData.
 		leaf := trillian.LogLeaf{
-			LeafValueHash:  leafHash,
-			MerkleLeafHash: merkleHash,
-			LeafValue:      payload,
-			ExtraData:      nil,
+			LeafIdentityHash: leafIDHash,
+			MerkleLeafHash:   merkleHash,
+			LeafValue:        payload,
+			ExtraData:        nil,
 		}
 		leaves = append(leaves, leaf)
 	}
@@ -281,14 +267,8 @@ func (t *logTX) DequeueLeaves(limit int, cutoffTime time.Time) ([]trillian.LogLe
 func (t *logTX) QueueLeaves(leaves []trillian.LogLeaf, queueTimestamp time.Time) error {
 	// Don't accept batches if any of the leaves are invalid.
 	for _, leaf := range leaves {
-		if len(leaf.LeafValueHash) != t.ts.hashSizeBytes {
-			return fmt.Errorf("queued leaf must have a hash of length %d", t.ts.hashSizeBytes)
-		}
-
-		// Validate the hash as a consistency check that the data was received OK. Note: at
-		// this stage it is not a Merkle tree hash for the leaf.
-		if got, want := crypto.NewSHA256().Digest(leaf.LeafValue), leaf.LeafValueHash; !bytes.Equal(got, want) {
-			return fmt.Errorf("leaf value / data hash mismatch got: %v, want: %v", got, want)
+		if len(leaf.LeafIdentityHash) != t.ts.hashSizeBytes {
+			return fmt.Errorf("queued leaf must have a leaf ID hash of length %d", t.ts.hashSizeBytes)
 		}
 	}
 
@@ -308,7 +288,7 @@ func (t *logTX) QueueLeaves(leaves []trillian.LogLeaf, queueTimestamp time.Time)
 		// can suppress errors unrelated to key collisions. We don't use REPLACE because
 		// if there's ever a hash collision it will do the wrong thing and it also
 		// causes a DELETE / INSERT, which is undesirable.
-		_, err := t.tx.Exec(insertSQL, t.ls.logID, leaf.LeafValueHash, leaf.LeafValue, leaf.ExtraData)
+		_, err := t.tx.Exec(insertSQL, t.ls.logID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData)
 
 		if err != nil {
 			glog.Warningf("Error inserting %d into LeafData: %s", i, err)
@@ -337,11 +317,11 @@ func (t *logTX) QueueLeaves(leaves []trillian.LogLeaf, queueTimestamp time.Time)
 
 		hasher.Write(messageIDBytes)
 		binary.Write(hasher, binary.LittleEndian, t.ls.logID)
-		hasher.Write(leaf.LeafValueHash)
+		hasher.Write(leaf.LeafIdentityHash)
 		messageID := hasher.Sum(nil)
 
 		_, err = t.tx.Exec(insertUnsequencedEntrySQL,
-			t.ls.logID, leaf.LeafValueHash, leaf.MerkleLeafHash, messageID, leaf.LeafValue, queueTimestamp.UnixNano())
+			t.ls.logID, leaf.LeafIdentityHash, leaf.MerkleLeafHash, messageID, leaf.LeafValue, queueTimestamp.UnixNano())
 
 		if err != nil {
 			glog.Warningf("Error inserting into Unsequenced: %s", err)
@@ -386,7 +366,7 @@ func (t *logTX) GetLeavesByIndex(leaves []int64) ([]trillian.LogLeaf, error) {
 
 	defer rows.Close()
 	for rows.Next() {
-		if err := rows.Scan(&ret[num].MerkleLeafHash, &ret[num].LeafValueHash, &ret[num].LeafValue, &ret[num].LeafIndex, &ret[num].ExtraData); err != nil {
+		if err := rows.Scan(&ret[num].MerkleLeafHash, &ret[num].LeafIdentityHash, &ret[num].LeafValue, &ret[num].LeafIndex, &ret[num].ExtraData); err != nil {
 			glog.Warningf("Failed to scan merkle leaves: %s", err)
 			return nil, err
 		}
@@ -402,16 +382,6 @@ func (t *logTX) GetLeavesByIndex(leaves []int64) ([]trillian.LogLeaf, error) {
 		return nil, fmt.Errorf("expected %d leaves, but saw %d", len(leaves), num)
 	}
 	return ret, nil
-}
-
-func (t *logTX) GetLeavesByLeafValueHash(leafHashes [][]byte, orderBySequence bool) ([]trillian.LogLeaf, error) {
-	tmpl, err := t.ls.getLeavesByValueHashStmt(len(leafHashes), orderBySequence)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return t.getLeavesByHashInternal(leafHashes, tmpl, "value")
 }
 
 func (t *logTX) GetLeavesByHash(leafHashes [][]byte, orderBySequence bool) ([]trillian.LogLeaf, error) {
@@ -478,11 +448,11 @@ func (t *logTX) UpdateSequencedLeaves(leaves []trillian.LogLeaf) error {
 	// and can be implemented later if necessary
 	for _, leaf := range leaves {
 		// This should fail on insert but catch it early
-		if len(leaf.LeafValueHash) != t.ts.hashSizeBytes {
+		if len(leaf.LeafIdentityHash) != t.ts.hashSizeBytes {
 			return errors.New("Sequenced leaf has incorrect hash size")
 		}
 
-		_, err := t.tx.Exec(insertSequencedLeafSQL, t.ls.logID, leaf.LeafValueHash, leaf.MerkleLeafHash,
+		_, err := t.tx.Exec(insertSequencedLeafSQL, t.ls.logID, leaf.LeafIdentityHash, leaf.MerkleLeafHash,
 			leaf.LeafIndex)
 
 		if err != nil {
@@ -503,7 +473,7 @@ func (t *logTX) removeSequencedLeaves(leaves []trillian.LogLeaf) error {
 	stx := t.tx.Stmt(tmpl)
 	var args []interface{}
 	for _, leaf := range leaves {
-		args = append(args, interface{}(leaf.LeafValueHash))
+		args = append(args, interface{}(leaf.LeafIdentityHash))
 	}
 	args = append(args, interface{}(t.ls.logID))
 	result, err := stx.Exec(args...)
@@ -571,7 +541,7 @@ func (t *logTX) getLeavesByHashInternal(leafHashes [][]byte, tmpl *sql.Stmt, des
 	for rows.Next() {
 		leaf := trillian.LogLeaf{}
 
-		if err := rows.Scan(&leaf.MerkleLeafHash, &leaf.LeafValueHash, &leaf.LeafValue, &leaf.LeafIndex, &leaf.ExtraData); err != nil {
+		if err := rows.Scan(&leaf.MerkleLeafHash, &leaf.LeafIdentityHash, &leaf.LeafValue, &leaf.LeafIndex, &leaf.ExtraData); err != nil {
 			glog.Warningf("LogID: %d Scan() %s = %s", t.ls.logID, desc, err)
 			return nil, err
 		}

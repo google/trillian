@@ -35,8 +35,23 @@ message LogLeaf {
     // leaf_index is optional. Trillian will assign the next available index when unset.
     // TODO: remove this into separate AddSequencedLeaves API.
     int64 leaf_index = 4;
-    // leaf_value_hash is over leaf_value to support deduping.
-    bytes leaf_value_hash = 5;
+    // leaf_identity_hash is a hash over the identity of this leaf.
+    // It's intended to provide a mechanism for the personality to provide a
+    // hint to Trillian that two leaves should be considered "duplicates" even
+    // though their leaf_values differ.
+    //
+    // E.g. in a CT personality multiple add-chain calls for an identical
+    // certificate would produce differing leaf_data bytes (due to the presence
+    // of SCT elements), with just this information Trillian would be unable to
+    // determine that, within the context of the personality, these entries are
+    // dupes, so the CT personality sets leaf_identity_hash to H(cert),
+    // which allows Trillian to detect the duplicates.
+    //
+    // Continuing the CT example, for a CT mirror personality (which must allow
+    // dupes since the source log could contain them), the part of the
+    // personality which fetches and submits the entries might set
+    // leaf_identity_hash to H(seq||certdata).
+    bytes leaf_identity_hash = 5;
 }
 
 message Node {
@@ -182,8 +197,6 @@ service TrillianLog {
     rpc GetLeavesByIndex (GetLeavesByIndexRequest) returns (GetLeavesByIndexResponse) {
     }
     rpc GetLeavesByHash (GetLeavesByHashRequest) returns (GetLeavesByHashResponse) {
-    }
-    rpc GetLeavesByLeafValueHash (GetLeavesByHashRequest) returns (GetLeavesByHashResponse) {
     }
     rpc GetEntryAndProof (GetEntryAndProofRequest) returns (GetEntryAndProofResponse) {
     }

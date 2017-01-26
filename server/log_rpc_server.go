@@ -368,15 +368,6 @@ func (t *TrillianLogRPCServer) GetLeavesByHash(ctx context.Context, req *trillia
 	})
 }
 
-// GetLeavesByLeafValueHash obtains one or more leaves based on their raw hash. It is not possible
-// to fetch leaves that have been queued but not yet integrated. Logs may accept duplicate
-// entries so this may return more results than the number of hashes in the request.
-func (t *TrillianLogRPCServer) GetLeavesByLeafValueHash(ctx context.Context, req *trillian.GetLeavesByHashRequest) (*trillian.GetLeavesByHashResponse, error) {
-	return t.getLeavesByHashInternal(ctx, "GetLeavesByLeafValueHash", req, func(tx storage.ReadOnlyLogTX, hashes [][]byte, sequenceOrder bool) ([]trillian.LogLeaf, error) {
-		return tx.GetLeavesByLeafValueHash(hashes, sequenceOrder)
-	})
-}
-
 // GetEntryAndProof returns both a Merkle Leaf entry and an inclusion proof for a given index
 // and tree size.
 func (t *TrillianLogRPCServer) GetEntryAndProof(ctx context.Context, req *trillian.GetEntryAndProofRequest) (*trillian.GetEntryAndProofResponse, error) {

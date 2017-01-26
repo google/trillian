@@ -182,12 +182,12 @@ func queueLeaves(client trillian.TrillianLogClient, params TestParameters) error
 		leafNumber := params.startLeaf + l
 
 		data := []byte(fmt.Sprintf("Leaf %d", leafNumber))
-		hash := sha256.Sum256(data)
+		idHash := sha256.Sum256(data)
 
 		leaf := trillian.LogLeaf{
-			LeafValueHash: hash[:],
-			LeafValue:     data,
-			ExtraData:     []byte(fmt.Sprintf("Extra %d", leafNumber)),
+			LeafIdentityHash: idHash[:],
+			LeafValue:        data,
+			ExtraData:        []byte(fmt.Sprintf("Extra %d", leafNumber)),
 		}
 		leaves = append(leaves, leaf)
 
