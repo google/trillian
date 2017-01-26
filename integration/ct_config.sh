@@ -12,8 +12,7 @@ sed "s!@TESTDATA@!${TESTDATA}!" ./integration/ct_integration_test.cfg > ${CT_CFG
 
 # Retrieve tree IDs from config file
 TREE_IDS=$(grep LogID ${CT_CFG} | grep -o '[0-9]\+')
-for id in ${TREE_IDS}
-do
+for id in ${TREE_IDS}; do
     echo "Provisioning test log (Tree ID: ${id}) in database"
     "${SCRIPTS_DIR}"/wipelog.sh ${id}
     "${SCRIPTS_DIR}"/createlog.sh ${id}
