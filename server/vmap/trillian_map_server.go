@@ -90,7 +90,7 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 			return nil, err
 		}
 		kvi := trillian.KeyValueInclusion{
-			KeyValue: &trillian.IndexValue{
+			IndexValue: &trillian.IndexValue{
 				Index: leaf.Index,
 				Value: &leaf,
 			},

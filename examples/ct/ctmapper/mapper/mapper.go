@@ -149,7 +149,7 @@ func (m *CTMapper) oneMapperRun(ctx context.Context) (bool, error) {
 		if len(v.Inclusion) > 0 {
 			proofs++
 		}
-		if err := pb.Unmarshal(v.KeyValue.Value.LeafValue, &e); err != nil {
+		if err := pb.Unmarshal(v.IndexValue.Value.LeafValue, &e); err != nil {
 			return false, err
 		}
 		glog.Infof("Got %#v", e)

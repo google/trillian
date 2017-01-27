@@ -131,22 +131,22 @@ func RunMapIntegration(ctx context.Context, mapID int64, client trillian.Trillia
 				return fmt.Errorf("got %d values, expected %d", got, want)
 			}
 			for _, kv := range r.KeyValue {
-				ev := expectedValues[string(kv.KeyValue.Index)]
+				ev := expectedValues[string(kv.IndexValue.Index)]
 				if ev == nil {
-					return fmt.Errorf("unexpected key returned: %v", string(kv.KeyValue.Index))
+					return fmt.Errorf("unexpected key returned: %v", string(kv.IndexValue.Index))
 				}
-				if got, want := ev, kv.KeyValue.Value.LeafValue; !bytes.Equal(got, want) {
+				if got, want := ev, kv.IndexValue.Value.LeafValue; !bytes.Equal(got, want) {
 					return fmt.Errorf("got value %x, expected %x", got, want)
 				}
-				leafHash := h.HashLeaf(kv.KeyValue.Value.LeafValue)
+				leafHash := h.HashLeaf(kv.IndexValue.Value.LeafValue)
 				proof := make([][]byte, len(kv.Inclusion))
 				for i, v := range kv.Inclusion {
 					proof[i] = v
 				}
-				if err := merkle.VerifyMapInclusionProof(kv.KeyValue.Index, leafHash, latestRoot.RootHash, proof, h); err != nil {
-					return fmt.Errorf("inclusion proof failed to verify for key %s: %v", kv.KeyValue.Index, err)
+				if err := merkle.VerifyMapInclusionProof(kv.IndexValue.Index, leafHash, latestRoot.RootHash, proof, h); err != nil {
+					return fmt.Errorf("inclusion proof failed to verify for key %s: %v", kv.IndexValue.Index, err)
 				}
-				delete(expectedValues, string(kv.KeyValue.Index))
+				delete(expectedValues, string(kv.IndexValue.Index))
 			}
 		}
 		if got := len(expectedValues); got != 0 {

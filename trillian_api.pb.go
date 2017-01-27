@@ -812,8 +812,8 @@ func (m *IndexValue) GetValue() *MapLeaf {
 }
 
 type KeyValueInclusion struct {
-	KeyValue  *IndexValue `protobuf:"bytes,1,opt,name=key_value,json=keyValue" json:"key_value,omitempty"`
-	Inclusion [][]byte    `protobuf:"bytes,2,rep,name=inclusion,proto3" json:"inclusion,omitempty"`
+	IndexValue *IndexValue `protobuf:"bytes,1,opt,name=key_value,json=keyValue" json:"key_value,omitempty"`
+	Inclusion  [][]byte    `protobuf:"bytes,2,rep,name=inclusion,proto3" json:"inclusion,omitempty"`
 }
 
 func (m *KeyValueInclusion) Reset()                    { *m = KeyValueInclusion{} }
@@ -823,7 +823,7 @@ func (*KeyValueInclusion) Descriptor() ([]byte, []int) { return fileDescriptor0,
 
 func (m *KeyValueInclusion) GetKeyValue() *IndexValue {
 	if m != nil {
-		return m.KeyValue
+		return m.IndexValue
 	}
 	return nil
 }

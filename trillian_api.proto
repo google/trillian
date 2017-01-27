@@ -221,7 +221,7 @@ message IndexValue {
 }
 
 message KeyValueInclusion {
-  IndexValue key_value = 1;
+  IndexValue index_value = 1;
   repeated bytes inclusion = 2;
 }
 
