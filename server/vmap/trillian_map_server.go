@@ -73,15 +73,7 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 		KeyValue: make([]*trillian.KeyValueInclusion, 0, len(req.Key)),
 	}
 
-	keyHashes := make([][]byte, 0, len(req.Key))
-	hashToKey := make(map[string][]byte)
-	for _, key := range req.Key {
-		keyHash := key
-		keyHashes = append(keyHashes, keyHash)
-		hashToKey[string(keyHash)] = key
-	}
-
-	leaves, err := tx.Get(req.Revision, keyHashes)
+	leaves, err := tx.Get(req.Revision, req.Key)
 	if err != nil {
 		return nil, err
 	}
@@ -89,19 +81,13 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 	glog.Infof("%s: wanted %d leaves, found %d", util.MapIDPrefix(ctx), len(req.Key), len(leaves))
 
 	for _, leaf := range leaves {
-		leaf := leaf
-		key, ok := hashToKey[string(leaf.Index)]
-		if !ok {
-			glog.Warningf("%s: Retrieved unrequested leaf with keyhash: %v, skipping", util.MapIDPrefix(ctx), leaf.Index)
-			continue
-		}
-		proof, err := smtReader.InclusionProof(req.Revision, key)
+		proof, err := smtReader.InclusionProof(req.Revision, leaf.Index)
 		if err != nil {
 			return nil, err
 		}
 		kvi := trillian.KeyValueInclusion{
 			KeyValue: &trillian.KeyValue{
-				Key:   key,
+				Key:   leaf.Index,
 				Value: &leaf,
 			},
 			Inclusion: make([][]byte, 0, len(proof)),
