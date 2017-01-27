@@ -74,7 +74,7 @@ func (s Sequencer) buildMerkleTreeFromStorageAtRoot(ctx context.Context, root tr
 			glog.Warningf("%s: Failed to create nodeID: %v", util.LogIDPrefix(ctx), err)
 			return nil, err
 		}
-		nodes, err := tx.GetMerkleNodes(ctx, root.TreeRevision, []storage.NodeID{nodeID})
+		nodes, err := tx.GetMerkleNodes(root.TreeRevision, []storage.NodeID{nodeID})
 
 		if err != nil {
 			glog.Warningf("%s: Failed to get Merkle nodes: %s", util.LogIDPrefix(ctx), err)
@@ -175,20 +175,20 @@ func (s Sequencer) SequenceBatch(ctx context.Context, limit int) (int, error) {
 
 	// Very recent leaves inside the guard window will not be available for sequencing
 	guardCutoffTime := s.timeSource.Now().Add(-s.sequencerGuardWindow)
-	leaves, err := tx.DequeueLeaves(ctx, limit, guardCutoffTime)
+	leaves, err := tx.DequeueLeaves(limit, guardCutoffTime)
 
 	if err != nil {
 		glog.Warningf("%s: Sequencer failed to dequeue leaves: %s", util.LogIDPrefix(ctx), err)
-		tx.Rollback(ctx)
+		tx.Rollback()
 		return 0, err
 	}
 
 	// Get the latest known root from storage
-	currentRoot, err := tx.LatestSignedLogRoot(ctx)
+	currentRoot, err := tx.LatestSignedLogRoot()
 
 	if err != nil {
 		glog.Warningf("%s: Sequencer failed to get latest root: %s", util.LogIDPrefix(ctx), err)
-		tx.Rollback(ctx)
+		tx.Rollback()
 		return 0, err
 	}
 
@@ -203,13 +203,13 @@ func (s Sequencer) SequenceBatch(ctx context.Context, limit int) (int, error) {
 	// current one is too old. If there's work to be done then we'll be creating a root anyway.
 	if len(leaves) == 0 {
 		// We have nothing to integrate into the tree
-		return 0, tx.Commit(ctx)
+		return 0, tx.Commit()
 	}
 
 	merkleTree, err := s.initMerkleTreeFromStorage(ctx, currentRoot, tx)
 
 	if err != nil {
-		tx.Rollback(ctx)
+		tx.Rollback()
 		return 0, err
 	}
 
@@ -219,29 +219,29 @@ func (s Sequencer) SequenceBatch(ctx context.Context, limit int) (int, error) {
 	// number so it should not be possible for colliding updates to commit.
 	newVersion := tx.WriteRevision()
 	if got, want := newVersion, currentRoot.TreeRevision+int64(1); got != want {
-		tx.Rollback(ctx)
+		tx.Rollback()
 		return 0, fmt.Errorf("%s: got writeRevision of %d, but expected %d", util.LogIDPrefix(ctx), got, want)
 	}
 
 	// Assign leaf sequence numbers and collate node updates
 	nodeMap, sequencedLeaves, err := s.sequenceLeaves(merkleTree, leaves)
 	if err != nil {
-		tx.Rollback(ctx)
+		tx.Rollback()
 		return 0, err
 	}
 
 	// We should still have the same number of leaves
 	if want, got := len(leaves), len(sequencedLeaves); want != got {
-		tx.Rollback(ctx)
+		tx.Rollback()
 		return 0, fmt.Errorf("%s: wanted: %d leaves after sequencing but we got: %d", util.LogIDPrefix(ctx), want, got)
 	}
 
 	// Write the new sequence numbers to the leaves in the DB
-	err = tx.UpdateSequencedLeaves(ctx, sequencedLeaves)
+	err = tx.UpdateSequencedLeaves(sequencedLeaves)
 
 	if err != nil {
 		glog.Warningf("%s: Sequencer failed to update sequenced leaves: %s", util.LogIDPrefix(ctx), err)
-		tx.Rollback(ctx)
+		tx.Rollback()
 		return 0, err
 	}
 
@@ -253,16 +253,16 @@ func (s Sequencer) SequenceBatch(ctx context.Context, limit int) (int, error) {
 	if err != nil {
 		// probably an internal error with map building, unexpected
 		glog.Warningf("%s: Failed to build target nodes in sequencer: %s", util.LogIDPrefix(ctx), err)
-		tx.Rollback(ctx)
+		tx.Rollback()
 		return 0, err
 	}
 
 	// Now insert or update the nodes affected by the above, at the new tree version
-	err = tx.SetMerkleNodes(ctx, targetNodes)
+	err = tx.SetMerkleNodes(targetNodes)
 
 	if err != nil {
 		glog.Warningf("%s: Sequencer failed to set Merkle nodes: %s", util.LogIDPrefix(ctx), err)
-		tx.Rollback(ctx)
+		tx.Rollback()
 		return 0, err
 	}
 
@@ -280,22 +280,22 @@ func (s Sequencer) SequenceBatch(ctx context.Context, limit int) (int, error) {
 
 	if err != nil {
 		glog.Warningf("%s: signer failed to sign root: %v", util.LogIDPrefix(ctx), err)
-		tx.Rollback(ctx)
+		tx.Rollback()
 		return 0, err
 	}
 
 	newLogRoot.Signature = &signature
 
-	err = tx.StoreSignedLogRoot(ctx, newLogRoot)
+	err = tx.StoreSignedLogRoot(newLogRoot)
 
 	if err != nil {
 		glog.Warningf("%s: failed to write updated tree root: %s", util.LogIDPrefix(ctx), err)
-		tx.Rollback(ctx)
+		tx.Rollback()
 		return 0, err
 	}
 
 	// The batch is now fully sequenced and we're done
-	if err := tx.Commit(ctx); err != nil {
+	if err := tx.Commit(); err != nil {
 		return 0, err
 	}
 
@@ -313,11 +313,11 @@ func (s Sequencer) SignRoot(ctx context.Context) error {
 	}
 
 	// Get the latest known root from storage
-	currentRoot, err := tx.LatestSignedLogRoot(ctx)
+	currentRoot, err := tx.LatestSignedLogRoot()
 
 	if err != nil {
 		glog.Warningf("%s: signer failed to get latest root: %s", util.LogIDPrefix(ctx), err)
-		tx.Rollback(ctx)
+		tx.Rollback()
 		return err
 	}
 
@@ -326,7 +326,7 @@ func (s Sequencer) SignRoot(ctx context.Context) error {
 	merkleTree, err := s.initMerkleTreeFromStorage(ctx, currentRoot, tx)
 
 	if err != nil {
-		tx.Rollback(ctx)
+		tx.Rollback()
 		return err
 	}
 
@@ -344,19 +344,19 @@ func (s Sequencer) SignRoot(ctx context.Context) error {
 
 	if err != nil {
 		glog.Warningf("%s: signer failed to sign root: %v", util.LogIDPrefix(ctx), err)
-		tx.Rollback(ctx)
+		tx.Rollback()
 		return err
 	}
 
 	newLogRoot.Signature = &signature
 
 	// Store the new root and we're done
-	if err := tx.StoreSignedLogRoot(ctx, newLogRoot); err != nil {
+	if err := tx.StoreSignedLogRoot(newLogRoot); err != nil {
 		glog.Warningf("%s: signer failed to write updated root: %v", util.LogIDPrefix(ctx), err)
-		tx.Rollback(ctx)
+		tx.Rollback()
 		return err
 	}
 	glog.V(2).Infof("%s: new signed root, size %d, tree-revision %d", util.LogIDPrefix(ctx), newLogRoot.TreeSize, newLogRoot.TreeRevision)
 
-	return tx.Commit(ctx)
+	return tx.Commit()
 }

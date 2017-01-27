@@ -14,15 +14,11 @@
 
 package storage
 
-import (
-	"context"
-)
-
 // ReadOnlyTreeTX represents a read-only transaction on a TreeStorage.
 type ReadOnlyTreeTX interface {
 	NodeReader
-	Commit(ctx context.Context) error
-	Rollback(ctx context.Context) error
+	Commit() error
+	Rollback() error
 }
 
 // TreeTX represents an in-process tree-modifying transaction.
@@ -34,10 +30,10 @@ type TreeTX interface {
 	NodeReaderWriter
 
 	// Commit applies the operations performed to the underlying storage, or returns an error.
-	Commit(ctx context.Context) error
+	Commit() error
 
 	// Rollback aborts any performed operations. No updates must be applied to the underlying storage.
-	Rollback(ctx context.Context) error
+	Rollback() error
 
 	// Open indicates if this transaction is open. An open transaction is one for which
 	// Commit() or Rollback() has never been called. Implementations must do all clean up
@@ -57,9 +53,9 @@ type NodeReader interface {
 	// This may return a revision for any tree size at least as large as that requested. The
 	// size of the tree is returned along with the corresponding revision. The caller should
 	// be aware that this may differ from the requested size.
-	GetTreeRevisionIncludingSize(ctx context.Context, treeSize int64) (revision, size int64, err error)
+	GetTreeRevisionIncludingSize(treeSize int64) (revision, size int64, err error)
 	// GetMerkleNodes looks up the set of nodes identified by ids, at treeRevision, and returns them.
-	GetMerkleNodes(ctx context.Context, treeRevision int64, ids []NodeID) ([]Node, error)
+	GetMerkleNodes(treeRevision int64, ids []NodeID) ([]Node, error)
 }
 
 // NodeReaderWriter provides a read-write interface into the stored tree nodes.
@@ -67,5 +63,5 @@ type NodeReaderWriter interface {
 	NodeReader
 
 	// SetMerkleNodes stores the provided nodes, at the transaction's writeRevision.
-	SetMerkleNodes(ctx context.Context, nodes []Node) error
+	SetMerkleNodes(nodes []Node) error
 }

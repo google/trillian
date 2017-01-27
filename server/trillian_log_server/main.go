@@ -51,10 +51,10 @@ func checkDatabaseAccessible(registry extension.Registry) error {
 		// Out of resources maybe?
 		return err
 	}
-	defer tx.Commit(ctx)
+	defer tx.Commit()
 
 	// Pull the log ids, we don't care about the result, we just want to know that it works
-	_, err = tx.GetActiveLogIDs(ctx)
+	_, err = tx.GetActiveLogIDs()
 	return err
 }
 

@@ -47,7 +47,7 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 		return nil, err
 	}
 	defer func() {
-		e := tx.Commit(ctx)
+		e := tx.Commit()
 		if e != nil && err == nil {
 			resp, err = nil, e
 		}
@@ -62,7 +62,7 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 
 	if req.Revision < 0 {
 		// need to know the newest published revision
-		r, err := tx.LatestSignedMapRoot(ctx)
+		r, err := tx.LatestSignedMapRoot()
 		if err != nil {
 			return nil, err
 		}
@@ -84,7 +84,7 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 		hashToKey[string(keyHash)] = key
 	}
 
-	leaves, err := tx.Get(ctx, req.Revision, keyHashes)
+	leaves, err := tx.Get(req.Revision, keyHashes)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +98,7 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 			glog.Warningf("%s: Retrieved unrequested leaf with keyhash: %v, skipping", util.MapIDPrefix(ctx), leaf.KeyHash)
 			continue
 		}
-		proof, err := smtReader.InclusionProof(ctx, req.Revision, key)
+		proof, err := smtReader.InclusionProof(req.Revision, key)
 		if err != nil {
 			return nil, err
 		}
@@ -135,11 +135,11 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		if err != nil {
 			// Something went wrong, we should rollback and not return any partial/wrong data
 			resp = nil
-			tx.Rollback(ctx)
+			tx.Rollback()
 			return
 		}
 		// try to commit the tx
-		e := tx.Commit(ctx)
+		e := tx.Commit()
 		if e != nil {
 			// don't return partial/uncommitted/wrong data:
 			glog.Warningf("%s: Commit failed for SetLeaves: %v", util.MapIDPrefix(ctx), e)
@@ -168,14 +168,14 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		keyHash := hasher.HashKey(kv.Key)
 		valHash := hasher.HashLeaf(kv.Value.LeafValue)
 		leaves = append(leaves, merkle.HashKeyValue{HashedKey: keyHash, HashedValue: valHash})
-		if err = tx.Set(ctx, keyHash, *kv.Value); err != nil {
+		if err = tx.Set(keyHash, *kv.Value); err != nil {
 			return nil, err
 		}
 	}
-	if err = smtWriter.SetLeaves(ctx, leaves); err != nil {
+	if err = smtWriter.SetLeaves(leaves); err != nil {
 		return nil, err
 	}
-	rootHash, err := smtWriter.CalculateRoot(ctx)
+	rootHash, err := smtWriter.CalculateRoot()
 
 	newRoot := trillian.SignedMapRoot{
 		TimestampNanos: time.Now().UnixNano(),
@@ -188,7 +188,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 	}
 
 	// TODO(al): need an smtWriter.Rollback() or similar I think.
-	if err = tx.StoreSignedMapRoot(ctx, newRoot); err != nil {
+	if err = tx.StoreSignedMapRoot(newRoot); err != nil {
 		return nil, err
 	}
 	resp = &trillian.SetMapLeavesResponse{
@@ -211,14 +211,14 @@ func (t *TrillianMapServer) GetSignedMapRoot(ctx context.Context, req *trillian.
 	}
 	defer func() {
 		// try to commit the tx
-		e := tx.Commit(ctx)
+		e := tx.Commit()
 		if e != nil && err == nil {
 			glog.Warningf("%s: Commit failed for GetSignedMapRoot: %v", util.MapIDPrefix(ctx), e)
 			resp, err = nil, e
 		}
 	}()
 
-	r, err := tx.LatestSignedMapRoot(ctx)
+	r, err := tx.LatestSignedMapRoot()
 	if err != nil {
 		return nil, err
 	}

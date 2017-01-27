@@ -47,7 +47,7 @@ func checkDatabaseAccessible(registry extension.Registry) error {
 		// Out of resources maybe?
 		return err
 	}
-	defer tx.Commit(ctx)
+	defer tx.Commit()
 
 	// TODO(al): Add some sort of liveness ping here
 	return nil

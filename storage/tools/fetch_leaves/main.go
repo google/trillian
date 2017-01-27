@@ -46,7 +46,7 @@ func main() {
 		panic(err)
 	}
 
-	leafCount, err := tx.GetSequencedLeafCount(ctx)
+	leafCount, err := tx.GetSequencedLeafCount()
 
 	if err != nil {
 		panic(err)
@@ -61,7 +61,7 @@ func main() {
 			panic(err)
 		}
 
-		fetchedLeaves, err := tx.GetLeavesByHash(ctx, [][]byte{hash}, false)
+		fetchedLeaves, err := tx.GetLeavesByHash([][]byte{hash}, false)
 
 		if err != nil {
 			panic(err)
@@ -80,7 +80,7 @@ func main() {
 			leaves = append(leaves, int64(leafNumber))
 		}
 
-		fetchedLeaves, err := tx.GetLeavesByIndex(ctx, leaves)
+		fetchedLeaves, err := tx.GetLeavesByIndex(leaves)
 
 		if err != nil {
 			panic(err)
@@ -91,7 +91,7 @@ func main() {
 		}
 	}
 
-	err = tx.Commit(ctx)
+	err = tx.Commit()
 
 	if err != nil {
 		panic(err)

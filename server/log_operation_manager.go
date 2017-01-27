@@ -111,15 +111,15 @@ func (l LogOperationManager) getLogsAndExecutePass(ctx context.Context) bool {
 	}
 
 	// Inner loop is across all active logs, currently one at a time
-	logIDs, err := tx.GetActiveLogIDs(ctx)
+	logIDs, err := tx.GetActiveLogIDs()
 
 	if err != nil {
 		glog.Warningf("Failed to get log list for run: %v", err)
-		tx.Rollback(ctx)
+		tx.Rollback()
 		return false
 	}
 
-	if err := tx.Commit(ctx); err != nil {
+	if err := tx.Commit(); err != nil {
 		glog.Warningf("Failed to commit getting logs: %v", err)
 		return false
 	}

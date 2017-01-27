@@ -64,7 +64,7 @@ type MapStorage interface {
 // Setter allows the setting of key->value pairs on the map.
 type Setter interface {
 	// Set sets key to leaf
-	Set(ctx context.Context, keyHash []byte, value trillian.MapLeaf) error
+	Set(keyHash []byte, value trillian.MapLeaf) error
 }
 
 // Getter allows access to the values stored in the map.
@@ -75,17 +75,17 @@ type Getter interface {
 	// The returned array of MapLeaves will only contain entries for which values
 	// exist.  i.e. requesting a set of unknown keys would result in a
 	// zero-length array being returned.
-	Get(ctx context.Context, revision int64, keyHashes [][]byte) ([]trillian.MapLeaf, error)
+	Get(revision int64, keyHashes [][]byte) ([]trillian.MapLeaf, error)
 }
 
 // MapRootReader provides access to the map roots.
 type MapRootReader interface {
 	// LatestSignedMapRoot returns the most recently created SignedMapRoot.
-	LatestSignedMapRoot(ctx context.Context) (trillian.SignedMapRoot, error)
+	LatestSignedMapRoot() (trillian.SignedMapRoot, error)
 }
 
 // MapRootWriter allows the storage of new SignedMapRoots
 type MapRootWriter interface {
 	// StoreSignedMapRoot stores root.
-	StoreSignedMapRoot(ctx context.Context, root trillian.SignedMapRoot) error
+	StoreSignedMapRoot(root trillian.SignedMapRoot) error
 }

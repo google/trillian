@@ -31,103 +31,103 @@ func (_m *MockLogTX) EXPECT() *_MockLogTXRecorder {
 	return _m.recorder
 }
 
-func (_m *MockLogTX) Commit(_param0 context.Context) error {
-	ret := _m.ctrl.Call(_m, "Commit", _param0)
+func (_m *MockLogTX) Commit() error {
+	ret := _m.ctrl.Call(_m, "Commit")
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockLogTXRecorder) Commit(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "Commit", arg0)
+func (_mr *_MockLogTXRecorder) Commit() *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "Commit")
 }
 
-func (_m *MockLogTX) DequeueLeaves(_param0 context.Context, _param1 int, _param2 time.Time) ([]trillian.LogLeaf, error) {
-	ret := _m.ctrl.Call(_m, "DequeueLeaves", _param0, _param1, _param2)
+func (_m *MockLogTX) DequeueLeaves(_param0 int, _param1 time.Time) ([]trillian.LogLeaf, error) {
+	ret := _m.ctrl.Call(_m, "DequeueLeaves", _param0, _param1)
 	ret0, _ := ret[0].([]trillian.LogLeaf)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-func (_mr *_MockLogTXRecorder) DequeueLeaves(arg0, arg1, arg2 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "DequeueLeaves", arg0, arg1, arg2)
+func (_mr *_MockLogTXRecorder) DequeueLeaves(arg0, arg1 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "DequeueLeaves", arg0, arg1)
 }
 
-func (_m *MockLogTX) GetActiveLogIDs(_param0 context.Context) ([]int64, error) {
-	ret := _m.ctrl.Call(_m, "GetActiveLogIDs", _param0)
+func (_m *MockLogTX) GetActiveLogIDs() ([]int64, error) {
+	ret := _m.ctrl.Call(_m, "GetActiveLogIDs")
 	ret0, _ := ret[0].([]int64)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-func (_mr *_MockLogTXRecorder) GetActiveLogIDs(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetActiveLogIDs", arg0)
+func (_mr *_MockLogTXRecorder) GetActiveLogIDs() *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetActiveLogIDs")
 }
 
-func (_m *MockLogTX) GetActiveLogIDsWithPendingWork(_param0 context.Context) ([]int64, error) {
-	ret := _m.ctrl.Call(_m, "GetActiveLogIDsWithPendingWork", _param0)
+func (_m *MockLogTX) GetActiveLogIDsWithPendingWork() ([]int64, error) {
+	ret := _m.ctrl.Call(_m, "GetActiveLogIDsWithPendingWork")
 	ret0, _ := ret[0].([]int64)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-func (_mr *_MockLogTXRecorder) GetActiveLogIDsWithPendingWork(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetActiveLogIDsWithPendingWork", arg0)
+func (_mr *_MockLogTXRecorder) GetActiveLogIDsWithPendingWork() *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetActiveLogIDsWithPendingWork")
 }
 
-func (_m *MockLogTX) GetLeavesByHash(_param0 context.Context, _param1 [][]byte, _param2 bool) ([]trillian.LogLeaf, error) {
-	ret := _m.ctrl.Call(_m, "GetLeavesByHash", _param0, _param1, _param2)
+func (_m *MockLogTX) GetLeavesByHash(_param0 [][]byte, _param1 bool) ([]trillian.LogLeaf, error) {
+	ret := _m.ctrl.Call(_m, "GetLeavesByHash", _param0, _param1)
 	ret0, _ := ret[0].([]trillian.LogLeaf)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-func (_mr *_MockLogTXRecorder) GetLeavesByHash(arg0, arg1, arg2 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetLeavesByHash", arg0, arg1, arg2)
+func (_mr *_MockLogTXRecorder) GetLeavesByHash(arg0, arg1 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetLeavesByHash", arg0, arg1)
 }
 
-func (_m *MockLogTX) GetLeavesByIndex(_param0 context.Context, _param1 []int64) ([]trillian.LogLeaf, error) {
-	ret := _m.ctrl.Call(_m, "GetLeavesByIndex", _param0, _param1)
+func (_m *MockLogTX) GetLeavesByIndex(_param0 []int64) ([]trillian.LogLeaf, error) {
+	ret := _m.ctrl.Call(_m, "GetLeavesByIndex", _param0)
 	ret0, _ := ret[0].([]trillian.LogLeaf)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-func (_mr *_MockLogTXRecorder) GetLeavesByIndex(arg0, arg1 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetLeavesByIndex", arg0, arg1)
+func (_mr *_MockLogTXRecorder) GetLeavesByIndex(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetLeavesByIndex", arg0)
 }
 
-func (_m *MockLogTX) GetMerkleNodes(_param0 context.Context, _param1 int64, _param2 []NodeID) ([]Node, error) {
-	ret := _m.ctrl.Call(_m, "GetMerkleNodes", _param0, _param1, _param2)
+func (_m *MockLogTX) GetMerkleNodes(_param0 int64, _param1 []NodeID) ([]Node, error) {
+	ret := _m.ctrl.Call(_m, "GetMerkleNodes", _param0, _param1)
 	ret0, _ := ret[0].([]Node)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-func (_mr *_MockLogTXRecorder) GetMerkleNodes(arg0, arg1, arg2 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetMerkleNodes", arg0, arg1, arg2)
+func (_mr *_MockLogTXRecorder) GetMerkleNodes(arg0, arg1 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetMerkleNodes", arg0, arg1)
 }
 
-func (_m *MockLogTX) GetSequencedLeafCount(_param0 context.Context) (int64, error) {
-	ret := _m.ctrl.Call(_m, "GetSequencedLeafCount", _param0)
+func (_m *MockLogTX) GetSequencedLeafCount() (int64, error) {
+	ret := _m.ctrl.Call(_m, "GetSequencedLeafCount")
 	ret0, _ := ret[0].(int64)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-func (_mr *_MockLogTXRecorder) GetSequencedLeafCount(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetSequencedLeafCount", arg0)
+func (_mr *_MockLogTXRecorder) GetSequencedLeafCount() *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetSequencedLeafCount")
 }
 
-func (_m *MockLogTX) GetTreeRevisionIncludingSize(_param0 context.Context, _param1 int64) (int64, int64, error) {
-	ret := _m.ctrl.Call(_m, "GetTreeRevisionIncludingSize", _param0, _param1)
+func (_m *MockLogTX) GetTreeRevisionIncludingSize(_param0 int64) (int64, int64, error) {
+	ret := _m.ctrl.Call(_m, "GetTreeRevisionIncludingSize", _param0)
 	ret0, _ := ret[0].(int64)
 	ret1, _ := ret[1].(int64)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
 }
 
-func (_mr *_MockLogTXRecorder) GetTreeRevisionIncludingSize(arg0, arg1 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetTreeRevisionIncludingSize", arg0, arg1)
+func (_mr *_MockLogTXRecorder) GetTreeRevisionIncludingSize(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetTreeRevisionIncludingSize", arg0)
 }
 
 func (_m *MockLogTX) IsOpen() bool {
@@ -140,65 +140,65 @@ func (_mr *_MockLogTXRecorder) IsOpen() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "IsOpen")
 }
 
-func (_m *MockLogTX) LatestSignedLogRoot(_param0 context.Context) (trillian.SignedLogRoot, error) {
-	ret := _m.ctrl.Call(_m, "LatestSignedLogRoot", _param0)
+func (_m *MockLogTX) LatestSignedLogRoot() (trillian.SignedLogRoot, error) {
+	ret := _m.ctrl.Call(_m, "LatestSignedLogRoot")
 	ret0, _ := ret[0].(trillian.SignedLogRoot)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-func (_mr *_MockLogTXRecorder) LatestSignedLogRoot(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "LatestSignedLogRoot", arg0)
+func (_mr *_MockLogTXRecorder) LatestSignedLogRoot() *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "LatestSignedLogRoot")
 }
 
-func (_m *MockLogTX) QueueLeaves(_param0 context.Context, _param1 []trillian.LogLeaf, _param2 time.Time) error {
-	ret := _m.ctrl.Call(_m, "QueueLeaves", _param0, _param1, _param2)
+func (_m *MockLogTX) QueueLeaves(_param0 []trillian.LogLeaf, _param1 time.Time) error {
+	ret := _m.ctrl.Call(_m, "QueueLeaves", _param0, _param1)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockLogTXRecorder) QueueLeaves(arg0, arg1, arg2 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "QueueLeaves", arg0, arg1, arg2)
+func (_mr *_MockLogTXRecorder) QueueLeaves(arg0, arg1 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "QueueLeaves", arg0, arg1)
 }
 
-func (_m *MockLogTX) Rollback(_param0 context.Context) error {
-	ret := _m.ctrl.Call(_m, "Rollback", _param0)
+func (_m *MockLogTX) Rollback() error {
+	ret := _m.ctrl.Call(_m, "Rollback")
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockLogTXRecorder) Rollback(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "Rollback", arg0)
+func (_mr *_MockLogTXRecorder) Rollback() *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "Rollback")
 }
 
-func (_m *MockLogTX) SetMerkleNodes(_param0 context.Context, _param1 []Node) error {
-	ret := _m.ctrl.Call(_m, "SetMerkleNodes", _param0, _param1)
+func (_m *MockLogTX) SetMerkleNodes(_param0 []Node) error {
+	ret := _m.ctrl.Call(_m, "SetMerkleNodes", _param0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockLogTXRecorder) SetMerkleNodes(arg0, arg1 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "SetMerkleNodes", arg0, arg1)
+func (_mr *_MockLogTXRecorder) SetMerkleNodes(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "SetMerkleNodes", arg0)
 }
 
-func (_m *MockLogTX) StoreSignedLogRoot(_param0 context.Context, _param1 trillian.SignedLogRoot) error {
-	ret := _m.ctrl.Call(_m, "StoreSignedLogRoot", _param0, _param1)
+func (_m *MockLogTX) StoreSignedLogRoot(_param0 trillian.SignedLogRoot) error {
+	ret := _m.ctrl.Call(_m, "StoreSignedLogRoot", _param0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockLogTXRecorder) StoreSignedLogRoot(arg0, arg1 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "StoreSignedLogRoot", arg0, arg1)
+func (_mr *_MockLogTXRecorder) StoreSignedLogRoot(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "StoreSignedLogRoot", arg0)
 }
 
-func (_m *MockLogTX) UpdateSequencedLeaves(_param0 context.Context, _param1 []trillian.LogLeaf) error {
-	ret := _m.ctrl.Call(_m, "UpdateSequencedLeaves", _param0, _param1)
+func (_m *MockLogTX) UpdateSequencedLeaves(_param0 []trillian.LogLeaf) error {
+	ret := _m.ctrl.Call(_m, "UpdateSequencedLeaves", _param0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockLogTXRecorder) UpdateSequencedLeaves(arg0, arg1 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "UpdateSequencedLeaves", arg0, arg1)
+func (_mr *_MockLogTXRecorder) UpdateSequencedLeaves(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "UpdateSequencedLeaves", arg0)
 }
 
 func (_m *MockLogTX) WriteRevision() int64 {
@@ -232,48 +232,48 @@ func (_m *MockMapTX) EXPECT() *_MockMapTXRecorder {
 	return _m.recorder
 }
 
-func (_m *MockMapTX) Commit(_param0 context.Context) error {
-	ret := _m.ctrl.Call(_m, "Commit", _param0)
+func (_m *MockMapTX) Commit() error {
+	ret := _m.ctrl.Call(_m, "Commit")
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockMapTXRecorder) Commit(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "Commit", arg0)
+func (_mr *_MockMapTXRecorder) Commit() *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "Commit")
 }
 
-func (_m *MockMapTX) Get(_param0 context.Context, _param1 int64, _param2 [][]byte) ([]trillian.MapLeaf, error) {
-	ret := _m.ctrl.Call(_m, "Get", _param0, _param1, _param2)
+func (_m *MockMapTX) Get(_param0 int64, _param1 [][]byte) ([]trillian.MapLeaf, error) {
+	ret := _m.ctrl.Call(_m, "Get", _param0, _param1)
 	ret0, _ := ret[0].([]trillian.MapLeaf)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-func (_mr *_MockMapTXRecorder) Get(arg0, arg1, arg2 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "Get", arg0, arg1, arg2)
+func (_mr *_MockMapTXRecorder) Get(arg0, arg1 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "Get", arg0, arg1)
 }
 
-func (_m *MockMapTX) GetMerkleNodes(_param0 context.Context, _param1 int64, _param2 []NodeID) ([]Node, error) {
-	ret := _m.ctrl.Call(_m, "GetMerkleNodes", _param0, _param1, _param2)
+func (_m *MockMapTX) GetMerkleNodes(_param0 int64, _param1 []NodeID) ([]Node, error) {
+	ret := _m.ctrl.Call(_m, "GetMerkleNodes", _param0, _param1)
 	ret0, _ := ret[0].([]Node)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-func (_mr *_MockMapTXRecorder) GetMerkleNodes(arg0, arg1, arg2 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetMerkleNodes", arg0, arg1, arg2)
+func (_mr *_MockMapTXRecorder) GetMerkleNodes(arg0, arg1 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetMerkleNodes", arg0, arg1)
 }
 
-func (_m *MockMapTX) GetTreeRevisionIncludingSize(_param0 context.Context, _param1 int64) (int64, int64, error) {
-	ret := _m.ctrl.Call(_m, "GetTreeRevisionIncludingSize", _param0, _param1)
+func (_m *MockMapTX) GetTreeRevisionIncludingSize(_param0 int64) (int64, int64, error) {
+	ret := _m.ctrl.Call(_m, "GetTreeRevisionIncludingSize", _param0)
 	ret0, _ := ret[0].(int64)
 	ret1, _ := ret[1].(int64)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
 }
 
-func (_mr *_MockMapTXRecorder) GetTreeRevisionIncludingSize(arg0, arg1 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetTreeRevisionIncludingSize", arg0, arg1)
+func (_mr *_MockMapTXRecorder) GetTreeRevisionIncludingSize(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetTreeRevisionIncludingSize", arg0)
 }
 
 func (_m *MockMapTX) IsOpen() bool {
@@ -286,55 +286,55 @@ func (_mr *_MockMapTXRecorder) IsOpen() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "IsOpen")
 }
 
-func (_m *MockMapTX) LatestSignedMapRoot(_param0 context.Context) (trillian.SignedMapRoot, error) {
-	ret := _m.ctrl.Call(_m, "LatestSignedMapRoot", _param0)
+func (_m *MockMapTX) LatestSignedMapRoot() (trillian.SignedMapRoot, error) {
+	ret := _m.ctrl.Call(_m, "LatestSignedMapRoot")
 	ret0, _ := ret[0].(trillian.SignedMapRoot)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-func (_mr *_MockMapTXRecorder) LatestSignedMapRoot(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "LatestSignedMapRoot", arg0)
+func (_mr *_MockMapTXRecorder) LatestSignedMapRoot() *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "LatestSignedMapRoot")
 }
 
-func (_m *MockMapTX) Rollback(_param0 context.Context) error {
-	ret := _m.ctrl.Call(_m, "Rollback", _param0)
+func (_m *MockMapTX) Rollback() error {
+	ret := _m.ctrl.Call(_m, "Rollback")
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockMapTXRecorder) Rollback(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "Rollback", arg0)
+func (_mr *_MockMapTXRecorder) Rollback() *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "Rollback")
 }
 
-func (_m *MockMapTX) Set(_param0 context.Context, _param1 []byte, _param2 trillian.MapLeaf) error {
-	ret := _m.ctrl.Call(_m, "Set", _param0, _param1, _param2)
+func (_m *MockMapTX) Set(_param0 []byte, _param1 trillian.MapLeaf) error {
+	ret := _m.ctrl.Call(_m, "Set", _param0, _param1)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockMapTXRecorder) Set(arg0, arg1, arg2 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "Set", arg0, arg1, arg2)
+func (_mr *_MockMapTXRecorder) Set(arg0, arg1 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "Set", arg0, arg1)
 }
 
-func (_m *MockMapTX) SetMerkleNodes(_param0 context.Context, _param1 []Node) error {
-	ret := _m.ctrl.Call(_m, "SetMerkleNodes", _param0, _param1)
+func (_m *MockMapTX) SetMerkleNodes(_param0 []Node) error {
+	ret := _m.ctrl.Call(_m, "SetMerkleNodes", _param0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockMapTXRecorder) SetMerkleNodes(arg0, arg1 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "SetMerkleNodes", arg0, arg1)
+func (_mr *_MockMapTXRecorder) SetMerkleNodes(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "SetMerkleNodes", arg0)
 }
 
-func (_m *MockMapTX) StoreSignedMapRoot(_param0 context.Context, _param1 trillian.SignedMapRoot) error {
-	ret := _m.ctrl.Call(_m, "StoreSignedMapRoot", _param0, _param1)
+func (_m *MockMapTX) StoreSignedMapRoot(_param0 trillian.SignedMapRoot) error {
+	ret := _m.ctrl.Call(_m, "StoreSignedMapRoot", _param0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockMapTXRecorder) StoreSignedMapRoot(arg0, arg1 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "StoreSignedMapRoot", arg0, arg1)
+func (_mr *_MockMapTXRecorder) StoreSignedMapRoot(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "StoreSignedMapRoot", arg0)
 }
 
 func (_m *MockMapTX) WriteRevision() int64 {
@@ -368,91 +368,91 @@ func (_m *MockReadOnlyLogTX) EXPECT() *_MockReadOnlyLogTXRecorder {
 	return _m.recorder
 }
 
-func (_m *MockReadOnlyLogTX) Commit(_param0 context.Context) error {
-	ret := _m.ctrl.Call(_m, "Commit", _param0)
+func (_m *MockReadOnlyLogTX) Commit() error {
+	ret := _m.ctrl.Call(_m, "Commit")
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockReadOnlyLogTXRecorder) Commit(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "Commit", arg0)
+func (_mr *_MockReadOnlyLogTXRecorder) Commit() *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "Commit")
 }
 
-func (_m *MockReadOnlyLogTX) GetLeavesByHash(_param0 context.Context, _param1 [][]byte, _param2 bool) ([]trillian.LogLeaf, error) {
-	ret := _m.ctrl.Call(_m, "GetLeavesByHash", _param0, _param1, _param2)
+func (_m *MockReadOnlyLogTX) GetLeavesByHash(_param0 [][]byte, _param1 bool) ([]trillian.LogLeaf, error) {
+	ret := _m.ctrl.Call(_m, "GetLeavesByHash", _param0, _param1)
 	ret0, _ := ret[0].([]trillian.LogLeaf)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-func (_mr *_MockReadOnlyLogTXRecorder) GetLeavesByHash(arg0, arg1, arg2 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetLeavesByHash", arg0, arg1, arg2)
+func (_mr *_MockReadOnlyLogTXRecorder) GetLeavesByHash(arg0, arg1 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetLeavesByHash", arg0, arg1)
 }
 
-func (_m *MockReadOnlyLogTX) GetLeavesByIndex(_param0 context.Context, _param1 []int64) ([]trillian.LogLeaf, error) {
-	ret := _m.ctrl.Call(_m, "GetLeavesByIndex", _param0, _param1)
+func (_m *MockReadOnlyLogTX) GetLeavesByIndex(_param0 []int64) ([]trillian.LogLeaf, error) {
+	ret := _m.ctrl.Call(_m, "GetLeavesByIndex", _param0)
 	ret0, _ := ret[0].([]trillian.LogLeaf)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-func (_mr *_MockReadOnlyLogTXRecorder) GetLeavesByIndex(arg0, arg1 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetLeavesByIndex", arg0, arg1)
+func (_mr *_MockReadOnlyLogTXRecorder) GetLeavesByIndex(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetLeavesByIndex", arg0)
 }
 
-func (_m *MockReadOnlyLogTX) GetMerkleNodes(_param0 context.Context, _param1 int64, _param2 []NodeID) ([]Node, error) {
-	ret := _m.ctrl.Call(_m, "GetMerkleNodes", _param0, _param1, _param2)
+func (_m *MockReadOnlyLogTX) GetMerkleNodes(_param0 int64, _param1 []NodeID) ([]Node, error) {
+	ret := _m.ctrl.Call(_m, "GetMerkleNodes", _param0, _param1)
 	ret0, _ := ret[0].([]Node)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-func (_mr *_MockReadOnlyLogTXRecorder) GetMerkleNodes(arg0, arg1, arg2 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetMerkleNodes", arg0, arg1, arg2)
+func (_mr *_MockReadOnlyLogTXRecorder) GetMerkleNodes(arg0, arg1 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetMerkleNodes", arg0, arg1)
 }
 
-func (_m *MockReadOnlyLogTX) GetSequencedLeafCount(_param0 context.Context) (int64, error) {
-	ret := _m.ctrl.Call(_m, "GetSequencedLeafCount", _param0)
+func (_m *MockReadOnlyLogTX) GetSequencedLeafCount() (int64, error) {
+	ret := _m.ctrl.Call(_m, "GetSequencedLeafCount")
 	ret0, _ := ret[0].(int64)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-func (_mr *_MockReadOnlyLogTXRecorder) GetSequencedLeafCount(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetSequencedLeafCount", arg0)
+func (_mr *_MockReadOnlyLogTXRecorder) GetSequencedLeafCount() *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetSequencedLeafCount")
 }
 
-func (_m *MockReadOnlyLogTX) GetTreeRevisionIncludingSize(_param0 context.Context, _param1 int64) (int64, int64, error) {
-	ret := _m.ctrl.Call(_m, "GetTreeRevisionIncludingSize", _param0, _param1)
+func (_m *MockReadOnlyLogTX) GetTreeRevisionIncludingSize(_param0 int64) (int64, int64, error) {
+	ret := _m.ctrl.Call(_m, "GetTreeRevisionIncludingSize", _param0)
 	ret0, _ := ret[0].(int64)
 	ret1, _ := ret[1].(int64)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
 }
 
-func (_mr *_MockReadOnlyLogTXRecorder) GetTreeRevisionIncludingSize(arg0, arg1 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetTreeRevisionIncludingSize", arg0, arg1)
+func (_mr *_MockReadOnlyLogTXRecorder) GetTreeRevisionIncludingSize(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetTreeRevisionIncludingSize", arg0)
 }
 
-func (_m *MockReadOnlyLogTX) LatestSignedLogRoot(_param0 context.Context) (trillian.SignedLogRoot, error) {
-	ret := _m.ctrl.Call(_m, "LatestSignedLogRoot", _param0)
+func (_m *MockReadOnlyLogTX) LatestSignedLogRoot() (trillian.SignedLogRoot, error) {
+	ret := _m.ctrl.Call(_m, "LatestSignedLogRoot")
 	ret0, _ := ret[0].(trillian.SignedLogRoot)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-func (_mr *_MockReadOnlyLogTXRecorder) LatestSignedLogRoot(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "LatestSignedLogRoot", arg0)
+func (_mr *_MockReadOnlyLogTXRecorder) LatestSignedLogRoot() *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "LatestSignedLogRoot")
 }
 
-func (_m *MockReadOnlyLogTX) Rollback(_param0 context.Context) error {
-	ret := _m.ctrl.Call(_m, "Rollback", _param0)
+func (_m *MockReadOnlyLogTX) Rollback() error {
+	ret := _m.ctrl.Call(_m, "Rollback")
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockReadOnlyLogTXRecorder) Rollback(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "Rollback", arg0)
+func (_mr *_MockReadOnlyLogTXRecorder) Rollback() *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "Rollback")
 }
 
 // Mock of ReadOnlyMapTX interface
@@ -476,69 +476,69 @@ func (_m *MockReadOnlyMapTX) EXPECT() *_MockReadOnlyMapTXRecorder {
 	return _m.recorder
 }
 
-func (_m *MockReadOnlyMapTX) Commit(_param0 context.Context) error {
-	ret := _m.ctrl.Call(_m, "Commit", _param0)
+func (_m *MockReadOnlyMapTX) Commit() error {
+	ret := _m.ctrl.Call(_m, "Commit")
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockReadOnlyMapTXRecorder) Commit(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "Commit", arg0)
+func (_mr *_MockReadOnlyMapTXRecorder) Commit() *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "Commit")
 }
 
-func (_m *MockReadOnlyMapTX) Get(_param0 context.Context, _param1 int64, _param2 [][]byte) ([]trillian.MapLeaf, error) {
-	ret := _m.ctrl.Call(_m, "Get", _param0, _param1, _param2)
+func (_m *MockReadOnlyMapTX) Get(_param0 int64, _param1 [][]byte) ([]trillian.MapLeaf, error) {
+	ret := _m.ctrl.Call(_m, "Get", _param0, _param1)
 	ret0, _ := ret[0].([]trillian.MapLeaf)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-func (_mr *_MockReadOnlyMapTXRecorder) Get(arg0, arg1, arg2 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "Get", arg0, arg1, arg2)
+func (_mr *_MockReadOnlyMapTXRecorder) Get(arg0, arg1 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "Get", arg0, arg1)
 }
 
-func (_m *MockReadOnlyMapTX) GetMerkleNodes(_param0 context.Context, _param1 int64, _param2 []NodeID) ([]Node, error) {
-	ret := _m.ctrl.Call(_m, "GetMerkleNodes", _param0, _param1, _param2)
+func (_m *MockReadOnlyMapTX) GetMerkleNodes(_param0 int64, _param1 []NodeID) ([]Node, error) {
+	ret := _m.ctrl.Call(_m, "GetMerkleNodes", _param0, _param1)
 	ret0, _ := ret[0].([]Node)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-func (_mr *_MockReadOnlyMapTXRecorder) GetMerkleNodes(arg0, arg1, arg2 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetMerkleNodes", arg0, arg1, arg2)
+func (_mr *_MockReadOnlyMapTXRecorder) GetMerkleNodes(arg0, arg1 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetMerkleNodes", arg0, arg1)
 }
 
-func (_m *MockReadOnlyMapTX) GetTreeRevisionIncludingSize(_param0 context.Context, _param1 int64) (int64, int64, error) {
-	ret := _m.ctrl.Call(_m, "GetTreeRevisionIncludingSize", _param0, _param1)
+func (_m *MockReadOnlyMapTX) GetTreeRevisionIncludingSize(_param0 int64) (int64, int64, error) {
+	ret := _m.ctrl.Call(_m, "GetTreeRevisionIncludingSize", _param0)
 	ret0, _ := ret[0].(int64)
 	ret1, _ := ret[1].(int64)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
 }
 
-func (_mr *_MockReadOnlyMapTXRecorder) GetTreeRevisionIncludingSize(arg0, arg1 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetTreeRevisionIncludingSize", arg0, arg1)
+func (_mr *_MockReadOnlyMapTXRecorder) GetTreeRevisionIncludingSize(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetTreeRevisionIncludingSize", arg0)
 }
 
-func (_m *MockReadOnlyMapTX) LatestSignedMapRoot(_param0 context.Context) (trillian.SignedMapRoot, error) {
-	ret := _m.ctrl.Call(_m, "LatestSignedMapRoot", _param0)
+func (_m *MockReadOnlyMapTX) LatestSignedMapRoot() (trillian.SignedMapRoot, error) {
+	ret := _m.ctrl.Call(_m, "LatestSignedMapRoot")
 	ret0, _ := ret[0].(trillian.SignedMapRoot)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-func (_mr *_MockReadOnlyMapTXRecorder) LatestSignedMapRoot(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "LatestSignedMapRoot", arg0)
+func (_mr *_MockReadOnlyMapTXRecorder) LatestSignedMapRoot() *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "LatestSignedMapRoot")
 }
 
-func (_m *MockReadOnlyMapTX) Rollback(_param0 context.Context) error {
-	ret := _m.ctrl.Call(_m, "Rollback", _param0)
+func (_m *MockReadOnlyMapTX) Rollback() error {
+	ret := _m.ctrl.Call(_m, "Rollback")
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockReadOnlyMapTXRecorder) Rollback(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "Rollback", arg0)
+func (_mr *_MockReadOnlyMapTXRecorder) Rollback() *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "Rollback")
 }
 
 // Mock of MapStorage interface
