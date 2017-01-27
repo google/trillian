@@ -22,7 +22,11 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
@@ -314,10 +318,13 @@ func (t *logTreeTX) QueueLeaves(leaves []trillian.LogLeaf, queueTimestamp time.T
 		// if there's ever a hash collision it will do the wrong thing and it also
 		// causes a DELETE / INSERT, which is undesirable.
 		_, err := t.tx.Exec(insertSQL, t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData)
-
 		if err != nil {
+			if strings.Contains(err.Error(), "Duplicate entry") {
+				return grpc.Errorf(codes.AlreadyExists, "Leaf already exists for IdentityHash: %x. err: %v",
+					leaf.LeafIdentityHash, err)
+			}
 			glog.Warningf("Error inserting %d into LeafData: %s", i, err)
-			return fmt.Errorf("LeafData: %d, %v", i, err)
+			return grpc.Errorf(codes.Unknown, "Insert into LeafData failed for leaf %d: %v", i, err)
 		}
 
 		// Create the work queue entry

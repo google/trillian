@@ -18,47 +18,65 @@ import (
 	"context"
 	"testing"
 
-	"github.com/google/trillian/storage/mysql"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+
+	"github.com/golang/glog"
+	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/testonly/integration"
 )
 
+const logID = int64(1234)
+
+func TestAddGetLeaf(t *testing.T) {
+	// TODO: Build a GetLeaf method and test a full get/set cycle.
+}
+
 func TestAddLeaf(t *testing.T) {
 	ctx := context.Background()
-	logID := int64(1234)
-	env, err := integration.NewLogEnv("client")
+	env, err := integration.NewLogEnv("TestAddLeaf")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer env.Close()
-	if err := mysql.CreateTree(logID, env.DB); err != nil {
+	if err := env.CreateLog(logID); err != nil {
 		t.Errorf("Failed to create log: %v", err)
 	}
 
-	client := New(logID, env.ClientConn)
+	client := New(logID, env.ClientConn, testonly.Hasher)
+	client.MaxTries = 1
 
+	if err, want := client.AddLeaf(ctx, []byte("foo")), codes.DeadlineExceeded; grpc.Code(err) != want {
+		t.Errorf("AddLeaf(): %v, want, %v", err, want)
+	}
+	env.Sequencer.OperationLoop() // Sequence the new node.
+	glog.Infof("try AddLeaf again")
 	if err := client.AddLeaf(ctx, []byte("foo")); err != nil {
 		t.Errorf("Failed to add Leaf: %v", err)
 	}
 }
 
-func TestAddSameLeaf(t *testing.T) {
+func TestUpdateSTR(t *testing.T) {
 	ctx := context.Background()
-	logID := int64(1234)
-	t.Skip("Submitting two leaves currently breaks")
-	env, err := integration.NewLogEnv("client")
+	env, err := integration.NewLogEnv("TestUpdateSTR")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer env.Close()
-	client := New(logID, env.ClientConn)
-
-	if err := mysql.CreateTree(logID, env.DB); err != nil {
+	if err := env.CreateLog(logID); err != nil {
 		t.Errorf("Failed to create log: %v", err)
 	}
-	if err := client.AddLeaf(ctx, []byte("foo")); err != nil {
+	client := New(logID, env.ClientConn, testonly.Hasher)
+
+	before := client.STR.TreeSize
+	if err, want := client.AddLeaf(ctx, []byte("foo")), codes.DeadlineExceeded; grpc.Code(err) != want {
+		t.Errorf("AddLeaf(): %v, want, %v", err, want)
+	}
+	env.Sequencer.OperationLoop() // Sequence the new node.
+	if err := client.UpdateSTR(ctx); err != nil {
 		t.Error(err)
 	}
-	if err := client.AddLeaf(ctx, []byte("foo")); err != nil {
-		t.Error(err)
+	if got, want := client.STR.TreeSize, before; got <= want {
+		t.Errorf("Tree size after add Leaf: %v, want > %v", got, want)
 	}
 }
