@@ -159,7 +159,8 @@ func (m *mySQLTreeStorage) setSubtreeStmt(num int) (*sql.Stmt, error) {
 	return m.getStmt(insertSubtreeMultiSQL, num, "VALUES(?, ?, ?, ?)", "(?, ?, ?, ?)")
 }
 
-func (m *mySQLTreeStorage) beginTreeTx() (treeTX, error) {
+func (m *mySQLTreeStorage) beginTreeTx(ctx context.Context) (treeTX, error) {
+	// TODO(alcutter): use BeginTX(ctx) when we move to Go 1.8
 	t, err := m.db.Begin()
 	if err != nil {
 		glog.Warningf("Could not start tree TX: %s", err)
@@ -181,8 +182,8 @@ type treeTX struct {
 	writeRevision int64
 }
 
-func (t *treeTX) getSubtree(ctx context.Context, treeRevision int64, nodeID storage.NodeID) (*storagepb.SubtreeProto, error) {
-	s, err := t.getSubtrees(ctx, treeRevision, []storage.NodeID{nodeID})
+func (t *treeTX) getSubtree(treeRevision int64, nodeID storage.NodeID) (*storagepb.SubtreeProto, error) {
+	s, err := t.getSubtrees(treeRevision, []storage.NodeID{nodeID})
 	if err != nil {
 		return nil, err
 	}
@@ -196,7 +197,7 @@ func (t *treeTX) getSubtree(ctx context.Context, treeRevision int64, nodeID stor
 	}
 }
 
-func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []storage.NodeID) ([]*storagepb.SubtreeProto, error) {
+func (t *treeTX) getSubtrees(treeRevision int64, nodeIDs []storage.NodeID) ([]*storagepb.SubtreeProto, error) {
 	if len(nodeIDs) == 0 {
 		return nil, nil
 	}
@@ -265,7 +266,7 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []
 	return ret, nil
 }
 
-func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.SubtreeProto) error {
+func (t *treeTX) storeSubtrees(subtrees []*storagepb.SubtreeProto) error {
 	if len(subtrees) == 0 {
 		glog.Warning("attempted to store 0 subtrees...")
 		return nil
@@ -332,7 +333,7 @@ func checkResultOkAndRowCountIs(res sql.Result, err error, count int64) error {
 // It is an error to request tree sizes larger than the currently published tree size.
 // For an inexact tree size this implementation always returns the next largest revision if an
 // exact one does not exist but it isn't required to do so.
-func (t *treeTX) GetTreeRevisionIncludingSize(ctx context.Context, treeSize int64) (int64, int64, error) {
+func (t *treeTX) GetTreeRevisionIncludingSize(treeSize int64) (int64, int64, error) {
 	// Negative size is not sensible and a zero sized tree has no nodes so no revisions
 	if treeSize <= 0 {
 		return 0, 0, fmt.Errorf("invalid tree size: %d", treeSize)
@@ -345,22 +346,22 @@ func (t *treeTX) GetTreeRevisionIncludingSize(ctx context.Context, treeSize int6
 }
 
 // getSubtreesAtRev returns a GetSubtreesFunc which reads at the passed in rev.
-func (t *treeTX) getSubtreesAtRev(ctx context.Context, rev int64) cache.GetSubtreesFunc {
+func (t *treeTX) getSubtreesAtRev(rev int64) cache.GetSubtreesFunc {
 	return func(ids []storage.NodeID) ([]*storagepb.SubtreeProto, error) {
-		return t.getSubtrees(ctx, rev, ids)
+		return t.getSubtrees(rev, ids)
 	}
 }
 
 // GetMerkleNodes returns the requests nodes at (or below) the passed in treeRevision.
-func (t *treeTX) GetMerkleNodes(ctx context.Context, treeRevision int64, nodeIDs []storage.NodeID) ([]storage.Node, error) {
-	return t.subtreeCache.GetNodes(nodeIDs, t.getSubtreesAtRev(ctx, treeRevision))
+func (t *treeTX) GetMerkleNodes(treeRevision int64, nodeIDs []storage.NodeID) ([]storage.Node, error) {
+	return t.subtreeCache.GetNodes(nodeIDs, t.getSubtreesAtRev(treeRevision))
 }
 
-func (t *treeTX) SetMerkleNodes(ctx context.Context, nodes []storage.Node) error {
+func (t *treeTX) SetMerkleNodes(nodes []storage.Node) error {
 	for _, n := range nodes {
 		err := t.subtreeCache.SetNodeHash(n.NodeID, n.Hash,
 			func(nID storage.NodeID) (*storagepb.SubtreeProto, error) {
-				return t.getSubtree(ctx, t.writeRevision, nID)
+				return t.getSubtree(t.writeRevision, nID)
 			})
 		if err != nil {
 			return err
@@ -369,9 +370,9 @@ func (t *treeTX) SetMerkleNodes(ctx context.Context, nodes []storage.Node) error
 	return nil
 }
 
-func (t *treeTX) Commit(ctx context.Context) error {
+func (t *treeTX) Commit() error {
 	if t.writeRevision > -1 {
-		t.subtreeCache.Flush(func(st []*storagepb.SubtreeProto) error { return t.storeSubtrees(ctx, st) })
+		t.subtreeCache.Flush(func(st []*storagepb.SubtreeProto) error { return t.storeSubtrees(st) })
 	}
 	t.closed = true
 	err := t.tx.Commit()
@@ -383,7 +384,7 @@ func (t *treeTX) Commit(ctx context.Context) error {
 	return err
 }
 
-func (t *treeTX) Rollback(ctx context.Context) error {
+func (t *treeTX) Rollback() error {
 	t.closed = true
 	err := t.tx.Rollback()
 

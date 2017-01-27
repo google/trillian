@@ -92,9 +92,9 @@ func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.Qu
 		return nil, err
 	}
 
-	err = tx.QueueLeaves(ctx, leaves, t.timeSource.Now())
+	err = tx.QueueLeaves(leaves, t.timeSource.Now())
 	if err != nil {
-		tx.Rollback(ctx)
+		tx.Rollback()
 		return nil, err
 	}
 
@@ -131,27 +131,27 @@ func (t *TrillianLogRPCServer) GetInclusionProof(ctx context.Context, req *trill
 		return nil, err
 	}
 
-	treeRevision, treeSize, err := tx.GetTreeRevisionIncludingSize(ctx, req.TreeSize)
+	treeRevision, treeSize, err := tx.GetTreeRevisionIncludingSize(req.TreeSize)
 	if err != nil {
-		tx.Rollback(ctx)
+		tx.Rollback()
 		return nil, err
 	}
 
 	// TODO(Martin2112): Pass tree size as snapshot size to proof recomputation when implemented
 	// and remove this check.
 	if treeSize != req.TreeSize {
-		tx.Rollback(ctx)
+		tx.Rollback()
 		return nil, errRehashNotSupported
 	}
 
-	proof, err := getInclusionProofForLeafIndexAtRevision(ctx, tx, treeRevision, req.TreeSize, req.LeafIndex)
+	proof, err := getInclusionProofForLeafIndexAtRevision(tx, treeRevision, req.TreeSize, req.LeafIndex)
 	if err != nil {
-		tx.Rollback(ctx)
+		tx.Rollback()
 		return nil, err
 	}
 
 	// The work is complete, can return the response
-	err = tx.Commit(ctx)
+	err = tx.Commit()
 	if err != nil {
 		return nil, err
 	}
@@ -180,9 +180,9 @@ func (t *TrillianLogRPCServer) GetInclusionProofByHash(ctx context.Context, req 
 		return nil, err
 	}
 
-	treeRevision, treeSize, err := tx.GetTreeRevisionIncludingSize(ctx, req.TreeSize)
+	treeRevision, treeSize, err := tx.GetTreeRevisionIncludingSize(req.TreeSize)
 	if err != nil {
-		tx.Rollback(ctx)
+		tx.Rollback()
 		return nil, err
 	}
 
@@ -194,25 +194,25 @@ func (t *TrillianLogRPCServer) GetInclusionProofByHash(ctx context.Context, req 
 
 	// Find the leaf index of the supplied hash
 	leafHashes := [][]byte{req.LeafHash}
-	leaves, err := tx.GetLeavesByHash(ctx, leafHashes, req.OrderBySequence)
+	leaves, err := tx.GetLeavesByHash(leafHashes, req.OrderBySequence)
 	if err != nil {
-		tx.Rollback(ctx)
+		tx.Rollback()
 		return nil, err
 	}
 
 	// TODO(Martin2112): Need to define a limit on number of results or some form of paging etc.
 	proofs := make([]*trillian.Proof, 0, len(leaves))
 	for _, leaf := range leaves {
-		proof, err := getInclusionProofForLeafIndexAtRevision(ctx, tx, treeRevision, req.TreeSize, leaf.LeafIndex)
+		proof, err := getInclusionProofForLeafIndexAtRevision(tx, treeRevision, req.TreeSize, leaf.LeafIndex)
 		if err != nil {
-			tx.Rollback(ctx)
+			tx.Rollback()
 			return nil, err
 		}
 		proofs = append(proofs, &proof)
 	}
 
 	// The work is complete, can return the response
-	err = tx.Commit(ctx)
+	err = tx.Commit()
 	if err != nil {
 		return nil, err
 	}
@@ -252,9 +252,9 @@ func (t *TrillianLogRPCServer) GetConsistencyProof(ctx context.Context, req *tri
 	// We need to make sure that both the given sizes are actually STHs, though we don't use the
 	// first tree revision in fetches
 	// TODO(Martin2112): This fetch can be removed when rehashing is implemented
-	_, firstTreeSize, err := tx.GetTreeRevisionIncludingSize(ctx, req.FirstTreeSize)
+	_, firstTreeSize, err := tx.GetTreeRevisionIncludingSize(req.FirstTreeSize)
 	if err != nil {
-		tx.Rollback(ctx)
+		tx.Rollback()
 		return nil, err
 	}
 
@@ -264,9 +264,9 @@ func (t *TrillianLogRPCServer) GetConsistencyProof(ctx context.Context, req *tri
 		return nil, errRehashNotSupported
 	}
 
-	secondTreeRevision, secondTreeSize, err := tx.GetTreeRevisionIncludingSize(ctx, req.SecondTreeSize)
+	secondTreeRevision, secondTreeSize, err := tx.GetTreeRevisionIncludingSize(req.SecondTreeSize)
 	if err != nil {
-		tx.Rollback(ctx)
+		tx.Rollback()
 		return nil, err
 	}
 
@@ -278,13 +278,13 @@ func (t *TrillianLogRPCServer) GetConsistencyProof(ctx context.Context, req *tri
 
 	// Do all the node fetches at the second tree revision, which is what the node ids were calculated
 	// against.
-	proof, err := fetchNodesAndBuildProof(ctx, tx, secondTreeRevision, 0, nodeIDs)
+	proof, err := fetchNodesAndBuildProof(tx, secondTreeRevision, 0, nodeIDs)
 	if err != nil {
-		tx.Rollback(ctx)
+		tx.Rollback()
 		return nil, err
 	}
 
-	err = tx.Commit(ctx)
+	err = tx.Commit()
 	if err != nil {
 		return nil, err
 	}
@@ -302,9 +302,9 @@ func (t *TrillianLogRPCServer) GetLatestSignedLogRoot(ctx context.Context, req *
 		return nil, err
 	}
 
-	signedRoot, err := tx.LatestSignedLogRoot(ctx)
+	signedRoot, err := tx.LatestSignedLogRoot()
 	if err != nil {
-		tx.Rollback(ctx)
+		tx.Rollback()
 		return nil, err
 	}
 
@@ -324,9 +324,9 @@ func (t *TrillianLogRPCServer) GetSequencedLeafCount(ctx context.Context, req *t
 		return nil, err
 	}
 
-	leafCount, err := tx.GetSequencedLeafCount(ctx)
+	leafCount, err := tx.GetSequencedLeafCount()
 	if err != nil {
-		tx.Rollback(ctx)
+		tx.Rollback()
 		return nil, err
 	}
 
@@ -352,9 +352,9 @@ func (t *TrillianLogRPCServer) GetLeavesByIndex(ctx context.Context, req *trilli
 		return nil, err
 	}
 
-	leaves, err := tx.GetLeavesByIndex(ctx, req.LeafIndex)
+	leaves, err := tx.GetLeavesByIndex(req.LeafIndex)
 	if err != nil {
-		tx.Rollback(ctx)
+		tx.Rollback()
 		return nil, err
 	}
 
@@ -370,7 +370,7 @@ func (t *TrillianLogRPCServer) GetLeavesByIndex(ctx context.Context, req *trilli
 // entries so this may return more results than the number of hashes in the request.
 func (t *TrillianLogRPCServer) GetLeavesByHash(ctx context.Context, req *trillian.GetLeavesByHashRequest) (*trillian.GetLeavesByHashResponse, error) {
 	return t.getLeavesByHashInternal(ctx, "GetLeavesByHash", req, func(tx storage.ReadOnlyLogTX, hashes [][]byte, sequenceOrder bool) ([]trillian.LogLeaf, error) {
-		return tx.GetLeavesByHash(ctx, hashes, sequenceOrder)
+		return tx.GetLeavesByHash(hashes, sequenceOrder)
 	})
 }
 
@@ -398,9 +398,9 @@ func (t *TrillianLogRPCServer) GetEntryAndProof(ctx context.Context, req *trilli
 		return nil, err
 	}
 
-	treeRevision, treeSize, err := tx.GetTreeRevisionIncludingSize(ctx, req.TreeSize)
+	treeRevision, treeSize, err := tx.GetTreeRevisionIncludingSize(req.TreeSize)
 	if err != nil {
-		tx.Rollback(ctx)
+		tx.Rollback()
 		return nil, err
 	}
 
@@ -410,25 +410,25 @@ func (t *TrillianLogRPCServer) GetEntryAndProof(ctx context.Context, req *trilli
 		return nil, errRehashNotSupported
 	}
 
-	proof, err := getInclusionProofForLeafIndexAtRevision(ctx, tx, treeRevision, req.TreeSize, req.LeafIndex)
+	proof, err := getInclusionProofForLeafIndexAtRevision(tx, treeRevision, req.TreeSize, req.LeafIndex)
 	if err != nil {
-		tx.Rollback(ctx)
+		tx.Rollback()
 		return nil, err
 	}
 
 	// We also need the leaf entry
-	leaves, err := tx.GetLeavesByIndex(ctx, []int64{req.LeafIndex})
+	leaves, err := tx.GetLeavesByIndex([]int64{req.LeafIndex})
 	if err != nil {
-		tx.Rollback(ctx)
+		tx.Rollback()
 		return nil, err
 	}
 
 	if len(leaves) != 1 {
-		tx.Rollback(ctx)
+		tx.Rollback()
 		return nil, fmt.Errorf("expected one leaf from storage but got: %d", len(leaves))
 	}
 
-	err = tx.Commit(ctx)
+	err = tx.Commit()
 
 	if err != nil {
 		return nil, err
@@ -481,7 +481,7 @@ func buildStatusWithDesc(code trillian.TrillianApiStatusCode, desc string) *tril
 }
 
 func (t *TrillianLogRPCServer) commitAndLog(ctx context.Context, tx storage.ReadOnlyLogTX, op string) error {
-	err := tx.Commit(ctx)
+	err := tx.Commit()
 	if err != nil {
 		glog.Warningf("%s: Commit failed for %s: %v", util.LogIDPrefix(ctx), op, err)
 	}
@@ -529,7 +529,7 @@ func validateLeafHashes(leafHashes [][]byte) bool {
 // getInclusionProofForLeafIndexAtRevision is used by multiple handlers. It does the storage fetching
 // and makes additional checks on the returned proof. Returns a Proof suitable for inclusion in
 // an RPC response
-func getInclusionProofForLeafIndexAtRevision(ctx context.Context, tx storage.ReadOnlyLogTX, treeRevision, treeSize, leafIndex int64) (trillian.Proof, error) {
+func getInclusionProofForLeafIndexAtRevision(tx storage.ReadOnlyLogTX, treeRevision, treeSize, leafIndex int64) (trillian.Proof, error) {
 	// We have the tree size and leaf index so we know the nodes that we need to serve the proof
 	// TODO(Martin2112): Not sure about hardcoding maxBitLen here
 	proofNodeIDs, err := merkle.CalcInclusionProofNodeAddresses(treeSize, leafIndex, proofMaxBitLen)
@@ -537,7 +537,7 @@ func getInclusionProofForLeafIndexAtRevision(ctx context.Context, tx storage.Rea
 		return trillian.Proof{}, err
 	}
 
-	return fetchNodesAndBuildProof(ctx, tx, treeRevision, leafIndex, proofNodeIDs)
+	return fetchNodesAndBuildProof(tx, treeRevision, leafIndex, proofNodeIDs)
 }
 
 // getLeavesByHashInternal does the work of fetching leaves by either their raw data or merkle
@@ -555,7 +555,7 @@ func (t *TrillianLogRPCServer) getLeavesByHashInternal(ctx context.Context, desc
 
 	leaves, err := fetchFunc(tx, req.LeafHash, req.OrderBySequence)
 	if err != nil {
-		tx.Rollback(ctx)
+		tx.Rollback()
 		return nil, err
 	}
 

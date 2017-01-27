@@ -105,10 +105,10 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 	logID := int64(1)
 
 	mockStorage.EXPECT().Begin(gomock.Any()).Return(mockTx, nil)
-	mockTx.EXPECT().Commit(gomock.Any()).Return(nil)
+	mockTx.EXPECT().Commit().Return(nil)
 	mockTx.EXPECT().WriteRevision().AnyTimes().Return(writeRev)
-	mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(testRoot0, nil)
-	mockTx.EXPECT().DequeueLeaves(gomock.Any(), 50, fakeTime).Return([]trillian.LogLeaf{}, nil)
+	mockTx.EXPECT().LatestSignedLogRoot().Return(testRoot0, nil)
+	mockTx.EXPECT().DequeueLeaves(50, fakeTime).Return([]trillian.LogLeaf{}, nil)
 	mockKeyManager := crypto.NewMockKeyManager(mockCtrl)
 	mockKeyManager.EXPECT().SignatureAlgorithm().AnyTimes().Return(trillian.SignatureAlgorithm_ECDSA)
 
@@ -131,14 +131,14 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 
 	// Set up enough mockery to be able to sequence. We don't test all the error paths
 	// through sequencer as other tests cover this
-	mockTx.EXPECT().Commit(gomock.Any()).Return(nil)
-	mockTx.EXPECT().Rollback(gomock.Any()).AnyTimes().Do(func() { panic(nil) })
+	mockTx.EXPECT().Commit().Return(nil)
+	mockTx.EXPECT().Rollback().AnyTimes().Do(func() { panic(nil) })
 	mockTx.EXPECT().WriteRevision().AnyTimes().Return(testRoot0.TreeRevision + 1)
-	mockTx.EXPECT().DequeueLeaves(gomock.Any(), 50, fakeTime).Return([]trillian.LogLeaf{testLeaf0}, nil)
-	mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(testRoot0, nil)
-	mockTx.EXPECT().UpdateSequencedLeaves(gomock.Any(), []trillian.LogLeaf{testLeaf0Updated}).Return(nil)
-	mockTx.EXPECT().SetMerkleNodes(gomock.Any(), updatedNodes0).Return(nil)
-	mockTx.EXPECT().StoreSignedLogRoot(gomock.Any(), updatedRoot).Return(nil)
+	mockTx.EXPECT().DequeueLeaves(50, fakeTime).Return([]trillian.LogLeaf{testLeaf0}, nil)
+	mockTx.EXPECT().LatestSignedLogRoot().Return(testRoot0, nil)
+	mockTx.EXPECT().UpdateSequencedLeaves([]trillian.LogLeaf{testLeaf0Updated}).Return(nil)
+	mockTx.EXPECT().SetMerkleNodes(updatedNodes0).Return(nil)
+	mockTx.EXPECT().StoreSignedLogRoot(updatedRoot).Return(nil)
 	mockStorage.EXPECT().Begin(gomock.Any()).Return(mockTx, nil)
 
 	mockSigner := crypto.NewMockSigner(mockCtrl)
@@ -160,11 +160,11 @@ func TestSequencerManagerGuardWindow(t *testing.T) {
 	logID := int64(1)
 
 	mockStorage.EXPECT().Begin(gomock.Any()).Return(mockTx, nil)
-	mockTx.EXPECT().Commit(gomock.Any()).Return(nil)
+	mockTx.EXPECT().Commit().Return(nil)
 	mockTx.EXPECT().WriteRevision().AnyTimes().Return(writeRev)
-	mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(testRoot0, nil)
+	mockTx.EXPECT().LatestSignedLogRoot().Return(testRoot0, nil)
 	// Expect a 5 second guard window to be passed from manager -> sequencer -> storage
-	mockTx.EXPECT().DequeueLeaves(gomock.Any(), 50, fakeTime.Add(-time.Second*5)).Return([]trillian.LogLeaf{}, nil)
+	mockTx.EXPECT().DequeueLeaves(50, fakeTime.Add(-time.Second*5)).Return([]trillian.LogLeaf{}, nil)
 	mockKeyManager := crypto.NewMockKeyManager(mockCtrl)
 
 	registry := registryForSequencer(mockStorage)

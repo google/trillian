@@ -74,15 +74,15 @@ func TestNodeRoundTrip(t *testing.T) {
 		}
 
 		// Need to read nodes before attempting to write
-		if _, err := tx.GetMerkleNodes(ctx, 99, nodeIDsToRead); err != nil {
+		if _, err := tx.GetMerkleNodes(99, nodeIDsToRead); err != nil {
 			t.Fatalf("Failed to read nodes: %s", err)
 		}
 
-		if err := tx.SetMerkleNodes(ctx, nodesToStore); err != nil {
+		if err := tx.SetMerkleNodes(nodesToStore); err != nil {
 			t.Fatalf("Failed to store nodes: %s", err)
 		}
 
-		if err := tx.Commit(ctx); err != nil {
+		if err := tx.Commit(); err != nil {
 			t.Fatalf("Failed to commit nodes: %s", err)
 		}
 	}
@@ -94,7 +94,7 @@ func TestNodeRoundTrip(t *testing.T) {
 			t.Fatalf("Failed to Begin: %s", err)
 		}
 
-		readNodes, err := tx.GetMerkleNodes(ctx, 100, nodeIDsToRead)
+		readNodes, err := tx.GetMerkleNodes(100, nodeIDsToRead)
 		if err != nil {
 			t.Fatalf("Failed to retrieve nodes: %s", err)
 		}
@@ -102,7 +102,7 @@ func TestNodeRoundTrip(t *testing.T) {
 			t.Fatalf("Read back different nodes from the ones stored: %s", err)
 		}
 
-		if err := tx.Commit(ctx); err != nil {
+		if err := tx.Commit(); err != nil {
 			t.Fatalf("Failed to commit read: %s", err)
 		}
 	}

@@ -15,7 +15,6 @@
 package server
 
 import (
-	"context"
 	"errors"
 	"fmt"
 
@@ -27,7 +26,7 @@ import (
 
 // fetchNodesAndBuildProof is used by both inclusion and consistency proofs. It fetches the nodes
 // from storage and converts them into the proof proto that will be returned to the client.
-func fetchNodesAndBuildProof(ctx context.Context, tx storage.NodeReader, treeRevision, leafIndex int64, proofNodeFetches []merkle.NodeFetch) (trillian.Proof, error) {
+func fetchNodesAndBuildProof(tx storage.NodeReader, treeRevision, leafIndex int64, proofNodeFetches []merkle.NodeFetch) (trillian.Proof, error) {
 	// TODO(Martin2112): Implement the rehashing. Currently just fetches the nodes and ignores this
 	proofNodeIDs := make([]storage.NodeID, 0, len(proofNodeFetches))
 
@@ -40,7 +39,7 @@ func fetchNodesAndBuildProof(ctx context.Context, tx storage.NodeReader, treeRev
 		}
 	}
 
-	proofNodes, err := tx.GetMerkleNodes(ctx, treeRevision, proofNodeIDs)
+	proofNodes, err := tx.GetMerkleNodes(treeRevision, proofNodeIDs)
 	if err != nil {
 		return trillian.Proof{}, err
 	}

@@ -89,19 +89,19 @@ func main() {
 		glog.Infof("Created %d k/v pairs...", len(h))
 
 		glog.Info("SetLeaves...")
-		if err := w.SetLeaves(ctx, h); err != nil {
+		if err := w.SetLeaves(h); err != nil {
 			glog.Fatalf("Failed to batch %d: %v", x, err)
 		}
 		glog.Info("SetLeaves done.")
 
 		glog.Info("CalculateRoot...")
-		root, err = w.CalculateRoot(ctx)
+		root, err = w.CalculateRoot()
 		if err != nil {
 			glog.Fatalf("Failed to calculate root hash: %v", err)
 		}
 		glog.Infof("CalculateRoot (%d), root: %s", x, base64.StdEncoding.EncodeToString(root))
 
-		if err := tx.StoreSignedMapRoot(ctx, trillian.SignedMapRoot{
+		if err := tx.StoreSignedMapRoot(trillian.SignedMapRoot{
 			TimestampNanos: time.Now().UnixNano(),
 			RootHash:       root,
 			MapId:          mapID,
@@ -111,7 +111,7 @@ func main() {
 			glog.Fatalf("Failed to store SMH: %v", err)
 		}
 
-		err = tx.Commit(ctx)
+		err = tx.Commit()
 		if err != nil {
 			glog.Fatalf("Failed to Commit() tx: %v", err)
 		}
