@@ -61,11 +61,11 @@ func (t *TrillianLogRPCServer) QueueLeaf(ctx context.Context, req *trillian.Queu
 		LogId:  req.LogId,
 		Leaves: []*trillian.LogLeaf{req.Leaf},
 	}
-	resp, err := t.QueueLeaves(ctx, queueReq)
+	_, err := t.QueueLeaves(ctx, queueReq)
 	if err != nil {
 		return nil, err
 	}
-	return nil, grpc.Errorf(codes.Code(resp.Status.StatusCode), resp.Status.Description)
+	return &empty.Empty{}, nil
 }
 
 // QueueLeaves submits a batch of leaves to the log for later integration into the underlying tree.
@@ -74,7 +74,11 @@ func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.Qu
 	leaves := depointerify(req.Leaves)
 
 	if len(leaves) == 0 {
-		return &trillian.QueueLeavesResponse{Status: buildStatusWithDesc(trillian.TrillianApiStatusCode_ERROR, "Must queue at least one leaf")}, nil
+		return &trillian.QueueLeavesResponse{
+			Status: buildStatusWithDesc(
+				trillian.TrillianApiStatusCode_ERROR,
+				"Must queue at least one leaf"),
+		}, grpc.Errorf(codes.InvalidArgument, "len(leafs)=0, want > 0")
 	}
 
 	// TODO(al): TreeHasher must be selected based on log config.
@@ -98,7 +102,9 @@ func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.Qu
 		return nil, err
 	}
 
-	return &trillian.QueueLeavesResponse{Status: buildStatus(trillian.TrillianApiStatusCode_OK)}, nil
+	return &trillian.QueueLeavesResponse{
+		Status: buildStatus(trillian.TrillianApiStatusCode_OK),
+	}, nil
 }
 
 // GetInclusionProof obtains the proof of inclusion in the tree for a leaf that has been sequenced.
