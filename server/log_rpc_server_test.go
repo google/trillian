@@ -17,7 +17,6 @@ package server
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strings"
 	"testing"
 
@@ -120,12 +119,9 @@ var cProofReqErrorTests = []proofReqErrorTest{
 
 var nodeIdsConsistencySize4ToSize7 = []storage.NodeID{testonly.MustCreateNodeIDForTreeCoords(2, 1, 64)}
 
-func mockStorageProviderFunc(mockStorage storage.LogStorage) testonly.GetLogStorageFunc {
-	return func(id int64) (storage.LogStorage, error) {
-		if id == 1 {
-			return mockStorage, nil
-		}
-		return nil, fmt.Errorf("BADLOGID: %d", id)
+func mockStorageProviderFunc(mockStorage *storage.MockLogStorage) testonly.GetLogStorageFunc {
+	return func() (storage.LogStorage, error) {
+		return mockStorage, nil
 	}
 }
 
@@ -151,7 +147,8 @@ func TestGetLeavesByIndexBeginFailsCausesError(t *testing.T) {
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
 
-	mockStorage.EXPECT().Snapshot(gomock.Any()).Return(mockTx, errors.New("TX"))
+	// TODO(codingllama): Do we need a logID here?
+	mockStorage.EXPECT().Snapshot(gomock.Any(), gomock.Any()).Return(mockTx, errors.New("TX"))
 	registry := testonly.NewRegistryWithLogProvider(mockStorageProviderFunc(mockStorage))
 	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
 
@@ -189,7 +186,7 @@ func TestGetLeavesByIndexInvalidLogId(t *testing.T) {
 			return err
 		})
 
-	test.executeInvalidLogIDTest(t)
+	test.executeInvalidLogIDTest(t, true /* snapshot */)
 }
 
 func TestGetLeavesByIndexCommitFails(t *testing.T) {
@@ -215,7 +212,8 @@ func TestGetLeavesByIndex(t *testing.T) {
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
 
-	mockStorage.EXPECT().Snapshot(gomock.Any()).Return(mockTx, nil)
+	// TODO(codingllama): Do we need a logID here?
+	mockStorage.EXPECT().Snapshot(gomock.Any(), gomock.Any()).Return(mockTx, nil)
 	mockTx.EXPECT().GetLeavesByIndex([]int64{0}).Return([]trillian.LogLeaf{leaf1}, nil)
 	mockTx.EXPECT().Commit().Return(nil)
 	mockTx.EXPECT().IsOpen().AnyTimes().Return(false)
@@ -245,7 +243,8 @@ func TestGetLeavesByIndexMultiple(t *testing.T) {
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
 
-	mockStorage.EXPECT().Snapshot(gomock.Any()).Return(mockTx, nil)
+	// TODO(codingllama): Do we need a logID here?
+	mockStorage.EXPECT().Snapshot(gomock.Any(), gomock.Any()).Return(mockTx, nil)
 	mockTx.EXPECT().GetLeavesByIndex([]int64{0, 3}).Return([]trillian.LogLeaf{leaf1, leaf3}, nil)
 	mockTx.EXPECT().Commit().Return(nil)
 	mockTx.EXPECT().IsOpen().AnyTimes().Return(false)
@@ -303,7 +302,7 @@ func TestQueueLeavesInvalidLogId(t *testing.T) {
 			return err
 		})
 
-	test.executeInvalidLogIDTest(t)
+	test.executeInvalidLogIDTest(t, false /* snapshot */)
 }
 
 func TestQueueLeavesCommitFails(t *testing.T) {
@@ -329,7 +328,8 @@ func TestQueueLeaves(t *testing.T) {
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
 
-	mockStorage.EXPECT().Begin(gomock.Any()).Return(mockTx, nil)
+	// TODO(codingllama): A treeID shouldn't be necessary here
+	mockStorage.EXPECT().Begin(gomock.Any(), gomock.Any()).Return(mockTx, nil)
 	mockTx.EXPECT().QueueLeaves([]trillian.LogLeaf{leaf1}, fakeTime).Return(nil)
 	mockTx.EXPECT().Commit().Return(nil)
 	mockTx.EXPECT().IsOpen().AnyTimes().Return(false)
@@ -384,7 +384,8 @@ func TestGetLatestSignedLogRootBeginFails(t *testing.T) {
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
 
-	mockStorage.EXPECT().Snapshot(gomock.Any()).Return(mockTx, errors.New("TX"))
+	// TODO(codingllama): Do we need a logID here?
+	mockStorage.EXPECT().Snapshot(gomock.Any(), gomock.Any()).Return(mockTx, errors.New("TX"))
 
 	registry := testonly.NewRegistryWithLogProvider(mockStorageProviderFunc(mockStorage))
 	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
@@ -439,7 +440,7 @@ func TestGetLatestSignedLogRootInvalidLogId(t *testing.T) {
 			return err
 		})
 
-	test.executeInvalidLogIDTest(t)
+	test.executeInvalidLogIDTest(t, true /* snapshot */)
 }
 
 func TestGetLatestSignedLogRoot(t *testing.T) {
@@ -449,7 +450,8 @@ func TestGetLatestSignedLogRoot(t *testing.T) {
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
 
-	mockStorage.EXPECT().Snapshot(gomock.Any()).Return(mockTx, nil)
+	// TODO(codingllama): Do we need a logID here?
+	mockStorage.EXPECT().Snapshot(gomock.Any(), gomock.Any()).Return(mockTx, nil)
 	mockTx.EXPECT().LatestSignedLogRoot().Return(signedRoot1, nil)
 	mockTx.EXPECT().Commit().Return(nil)
 
@@ -500,7 +502,8 @@ func TestGetLeavesByHashBeginFails(t *testing.T) {
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
 
-	mockStorage.EXPECT().Snapshot(gomock.Any()).Return(mockTx, errors.New("TX"))
+	// TODO(codingllama): Do we need a logID here?
+	mockStorage.EXPECT().Snapshot(gomock.Any(), gomock.Any()).Return(mockTx, errors.New("TX"))
 
 	registry := testonly.NewRegistryWithLogProvider(mockStorageProviderFunc(mockStorage))
 	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
@@ -555,7 +558,7 @@ func TestGetLeavesByHashInvalidLogId(t *testing.T) {
 			return err
 		})
 
-	test.executeInvalidLogIDTest(t)
+	test.executeInvalidLogIDTest(t, true /* snapshot */)
 }
 
 func TestGetLeavesByHash(t *testing.T) {
@@ -565,7 +568,8 @@ func TestGetLeavesByHash(t *testing.T) {
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
 
-	mockStorage.EXPECT().Snapshot(gomock.Any()).Return(mockTx, nil)
+	// TODO(codingllama): Do we need a logID here?
+	mockStorage.EXPECT().Snapshot(gomock.Any(), gomock.Any()).Return(mockTx, nil)
 	mockTx.EXPECT().GetLeavesByHash([][]byte{[]byte("test"), []byte("data")}, false).Return([]trillian.LogLeaf{leaf1, leaf3}, nil)
 	mockTx.EXPECT().Commit().Return(nil)
 
@@ -677,7 +681,8 @@ func TestGetProofByHashWrongNodeCountFetched(t *testing.T) {
 
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
-	mockStorage.EXPECT().Snapshot(gomock.Any()).Return(mockTx, nil)
+	// TODO(codingllama): Do we need a logID here?
+	mockStorage.EXPECT().Snapshot(gomock.Any(), gomock.Any()).Return(mockTx, nil)
 
 	mockTx.EXPECT().GetTreeRevisionIncludingSize(getInclusionProofByHashRequest7.TreeSize).Return(int64(3), getInclusionProofByHashRequest7.TreeSize, nil)
 	mockTx.EXPECT().GetLeavesByHash([][]byte{[]byte("ahash")}, false).Return([]trillian.LogLeaf{{LeafIndex: 2}}, nil)
@@ -701,7 +706,8 @@ func TestGetProofByHashWrongNodeReturned(t *testing.T) {
 
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
-	mockStorage.EXPECT().Snapshot(gomock.Any()).Return(mockTx, nil)
+	// TODO(codingllama): Do we need a logID here?
+	mockStorage.EXPECT().Snapshot(gomock.Any(), gomock.Any()).Return(mockTx, nil)
 
 	mockTx.EXPECT().GetTreeRevisionIncludingSize(getInclusionProofByHashRequest7.TreeSize).Return(int64(3), getInclusionProofByHashRequest7.TreeSize, nil)
 	mockTx.EXPECT().GetLeavesByHash([][]byte{[]byte("ahash")}, false).Return([]trillian.LogLeaf{{LeafIndex: 2}}, nil)
@@ -743,7 +749,8 @@ func TestGetProofByHash(t *testing.T) {
 
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
-	mockStorage.EXPECT().Snapshot(gomock.Any()).Return(mockTx, nil)
+	// TODO(codingllama): Do we need a logID here?
+	mockStorage.EXPECT().Snapshot(gomock.Any(), gomock.Any()).Return(mockTx, nil)
 
 	mockTx.EXPECT().GetTreeRevisionIncludingSize(getInclusionProofByHashRequest7.TreeSize).Return(int64(3), getInclusionProofByHashRequest7.TreeSize, nil)
 	mockTx.EXPECT().GetLeavesByHash([][]byte{[]byte("ahash")}, false).Return([]trillian.LogLeaf{{LeafIndex: 2}}, nil)
@@ -856,7 +863,8 @@ func TestGetProofByIndexWrongNodeCountFetched(t *testing.T) {
 
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
-	mockStorage.EXPECT().Snapshot(gomock.Any()).Return(mockTx, nil)
+	// TODO(codingllama): Do we need a logID here?
+	mockStorage.EXPECT().Snapshot(gomock.Any(), gomock.Any()).Return(mockTx, nil)
 
 	mockTx.EXPECT().GetTreeRevisionIncludingSize(getInclusionProofByIndexRequest7.TreeSize).Return(int64(3), getInclusionProofByIndexRequest7.TreeSize, nil)
 	// The server expects three nodes from storage but we return only two
@@ -879,7 +887,8 @@ func TestGetProofByIndexWrongNodeReturned(t *testing.T) {
 
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
-	mockStorage.EXPECT().Snapshot(gomock.Any()).Return(mockTx, nil)
+	// TODO(codingllama): Do we need a logID here?
+	mockStorage.EXPECT().Snapshot(gomock.Any(), gomock.Any()).Return(mockTx, nil)
 
 	mockTx.EXPECT().GetTreeRevisionIncludingSize(getInclusionProofByIndexRequest7.TreeSize).Return(int64(3), getInclusionProofByIndexRequest7.TreeSize, nil)
 	// We set this up so one of the returned nodes has the wrong ID
@@ -919,7 +928,8 @@ func TestGetProofByIndex(t *testing.T) {
 
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
-	mockStorage.EXPECT().Snapshot(gomock.Any()).Return(mockTx, nil)
+	// TODO(codingllama): Do we need a logID here?
+	mockStorage.EXPECT().Snapshot(gomock.Any(), gomock.Any()).Return(mockTx, nil)
 
 	mockTx.EXPECT().GetTreeRevisionIncludingSize(getInclusionProofByIndexRequest7.TreeSize).Return(int64(3), getInclusionProofByIndexRequest7.TreeSize, nil)
 	mockTx.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{
@@ -984,7 +994,8 @@ func TestGetEntryAndProofBeginTXFails(t *testing.T) {
 
 	mockStorage := storage.NewMockLogStorage(ctrl)
 
-	mockStorage.EXPECT().Snapshot(gomock.Any()).Return(nil, errors.New("BeginTX"))
+	// TODO(codingllama): Do we need a logID here?
+	mockStorage.EXPECT().Snapshot(gomock.Any(), gomock.Any()).Return(nil, errors.New("BeginTX"))
 	registry := testonly.NewRegistryWithLogProvider(mockStorageProviderFunc(mockStorage))
 	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
 
@@ -1001,7 +1012,8 @@ func TestGetEntryAndProofGetTreeSizeAtRevisionFails(t *testing.T) {
 
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
-	mockStorage.EXPECT().Snapshot(gomock.Any()).Return(mockTx, nil)
+	// TODO(codingllama): Do we need a logID here?
+	mockStorage.EXPECT().Snapshot(gomock.Any(), gomock.Any()).Return(mockTx, nil)
 
 	mockTx.EXPECT().GetTreeRevisionIncludingSize(getEntryAndProofRequest17.TreeSize).Return(int64(0), int64(0), errors.New("NOREVISION"))
 	mockTx.EXPECT().Rollback().Return(nil)
@@ -1022,7 +1034,8 @@ func TestGetEntryAndProofGetMerkleNodesFails(t *testing.T) {
 
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
-	mockStorage.EXPECT().Snapshot(gomock.Any()).Return(mockTx, nil)
+	// TODO(codingllama): Do we need a logID here?
+	mockStorage.EXPECT().Snapshot(gomock.Any(), gomock.Any()).Return(mockTx, nil)
 
 	mockTx.EXPECT().GetTreeRevisionIncludingSize(getEntryAndProofRequest7.TreeSize).Return(int64(3), getEntryAndProofRequest7.TreeSize, nil)
 	mockTx.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{}, errors.New("GetNodes"))
@@ -1044,7 +1057,8 @@ func TestGetEntryAndProofGetLeavesFails(t *testing.T) {
 
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
-	mockStorage.EXPECT().Snapshot(gomock.Any()).Return(mockTx, nil)
+	// TODO(codingllama): Do we need a logID here?
+	mockStorage.EXPECT().Snapshot(gomock.Any(), gomock.Any()).Return(mockTx, nil)
 
 	mockTx.EXPECT().GetTreeRevisionIncludingSize(getEntryAndProofRequest7.TreeSize).Return(int64(3), getEntryAndProofRequest7.TreeSize, nil)
 	mockTx.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{
@@ -1070,7 +1084,8 @@ func TestGetEntryAndProofGetLeavesReturnsMultiple(t *testing.T) {
 
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
-	mockStorage.EXPECT().Snapshot(gomock.Any()).Return(mockTx, nil)
+	// TODO(codingllama): Do we need a logID here?
+	mockStorage.EXPECT().Snapshot(gomock.Any(), gomock.Any()).Return(mockTx, nil)
 
 	mockTx.EXPECT().GetTreeRevisionIncludingSize(getEntryAndProofRequest7.TreeSize).Return(int64(3), getEntryAndProofRequest7.TreeSize, nil)
 	mockTx.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{
@@ -1097,7 +1112,8 @@ func TestGetEntryAndProofCommitFails(t *testing.T) {
 
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
-	mockStorage.EXPECT().Snapshot(gomock.Any()).Return(mockTx, nil)
+	// TODO(codingllama): Do we need a logID here?
+	mockStorage.EXPECT().Snapshot(gomock.Any(), gomock.Any()).Return(mockTx, nil)
 
 	mockTx.EXPECT().GetTreeRevisionIncludingSize(getEntryAndProofRequest7.TreeSize).Return(int64(3), getEntryAndProofRequest7.TreeSize, nil)
 	mockTx.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{
@@ -1123,7 +1139,8 @@ func TestGetEntryAndProof(t *testing.T) {
 
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
-	mockStorage.EXPECT().Snapshot(gomock.Any()).Return(mockTx, nil)
+	// TODO(codingllama): Do we need a logID here?
+	mockStorage.EXPECT().Snapshot(gomock.Any(), gomock.Any()).Return(mockTx, nil)
 
 	mockTx.EXPECT().GetTreeRevisionIncludingSize(getEntryAndProofRequest7.TreeSize).Return(int64(3), getEntryAndProofRequest7.TreeSize, nil)
 	mockTx.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{
@@ -1218,7 +1235,8 @@ func TestGetSequencedLeafCount(t *testing.T) {
 
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
-	mockStorage.EXPECT().Snapshot(gomock.Any()).Return(mockTx, nil)
+	// TODO(codingllama): Do we need a logID here?
+	mockStorage.EXPECT().Snapshot(gomock.Any(), gomock.Any()).Return(mockTx, nil)
 
 	mockTx.EXPECT().GetSequencedLeafCount().Return(int64(268), nil)
 	mockTx.EXPECT().Commit().Return(nil)
@@ -1313,7 +1331,8 @@ func TestGetConsistencyProofGetNodesReturnsWrongCount(t *testing.T) {
 
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
-	mockStorage.EXPECT().Snapshot(gomock.Any()).Return(mockTx, nil)
+	// TODO(codingllama): Do we need a logID here?
+	mockStorage.EXPECT().Snapshot(gomock.Any(), gomock.Any()).Return(mockTx, nil)
 
 	mockTx.EXPECT().GetTreeRevisionIncludingSize(getConsistencyProofRequest7.SecondTreeSize).Return(int64(5), getConsistencyProofRequest7.SecondTreeSize, nil)
 	// The server expects one node from storage but we return two
@@ -1336,7 +1355,8 @@ func TestGetConsistencyProofGetNodesReturnsWrongNode(t *testing.T) {
 
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
-	mockStorage.EXPECT().Snapshot(gomock.Any()).Return(mockTx, nil)
+	// TODO(codingllama): Do we need a logID here?
+	mockStorage.EXPECT().Snapshot(gomock.Any(), gomock.Any()).Return(mockTx, nil)
 
 	mockTx.EXPECT().GetTreeRevisionIncludingSize(getConsistencyProofRequest7.SecondTreeSize).Return(int64(5), getConsistencyProofRequest7.SecondTreeSize, nil)
 	// Return an unexpected node that wasn't requested
@@ -1376,7 +1396,8 @@ func TestGetConsistencyProof(t *testing.T) {
 
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTX(ctrl)
-	mockStorage.EXPECT().Snapshot(gomock.Any()).Return(mockTx, nil)
+	// TODO(codingllama): Do we need a logID here?
+	mockStorage.EXPECT().Snapshot(gomock.Any(), gomock.Any()).Return(mockTx, nil)
 
 	mockTx.EXPECT().GetTreeRevisionIncludingSize(getConsistencyProofRequest7.SecondTreeSize).Return(int64(5), getConsistencyProofRequest7.SecondTreeSize, nil)
 	mockTx.EXPECT().GetMerkleNodes(int64(5), nodeIdsConsistencySize4ToSize7).Return([]storage.Node{{NodeID: testonly.MustCreateNodeIDForTreeCoords(2, 1, 64), NodeRevision: 3, Hash: []byte("nodehash")}}, nil)
@@ -1438,9 +1459,11 @@ func (p *parameterizedTest) executeCommitFailsTest(t *testing.T) {
 
 	switch p.mode {
 	case readOnly:
-		mockStorage.EXPECT().Snapshot(gomock.Any()).Return(mockTx, nil)
+		// TODO(codingllama): Do we need a logID here?
+		mockStorage.EXPECT().Snapshot(gomock.Any(), gomock.Any()).Return(mockTx, nil)
 	case readWrite:
-		mockStorage.EXPECT().Begin(gomock.Any()).Return(mockTx, nil)
+		// TODO(codingllama): Do we need a logID here?
+		mockStorage.EXPECT().Begin(gomock.Any(), gomock.Any()).Return(mockTx, nil)
 	}
 	p.prepareTx(mockTx)
 	mockTx.EXPECT().Commit().Return(errors.New("bang"))
@@ -1456,8 +1479,14 @@ func (p *parameterizedTest) executeCommitFailsTest(t *testing.T) {
 	}
 }
 
-func (p *parameterizedTest) executeInvalidLogIDTest(t *testing.T) {
+func (p *parameterizedTest) executeInvalidLogIDTest(t *testing.T, snapshot bool) {
 	mockStorage := storage.NewMockLogStorage(p.ctrl)
+	if ctx, logID := gomock.Any(), int64(2); snapshot {
+		mockStorage.EXPECT().Snapshot(ctx, logID).Return(nil, errors.New("BADLOGID"))
+	} else {
+		mockStorage.EXPECT().Begin(ctx, logID).Return(nil, errors.New("BADLOGID"))
+	}
+
 	registry := testonly.NewRegistryWithLogProvider(mockStorageProviderFunc(mockStorage))
 	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
 
@@ -1475,9 +1504,11 @@ func (p *parameterizedTest) executeStorageFailureTest(t *testing.T) {
 
 	switch p.mode {
 	case readOnly:
-		mockStorage.EXPECT().Snapshot(gomock.Any()).Return(mockTx, nil)
+		// TODO(codingllama): Do we need a logID here?
+		mockStorage.EXPECT().Snapshot(gomock.Any(), gomock.Any()).Return(mockTx, nil)
 	case readWrite:
-		mockStorage.EXPECT().Begin(gomock.Any()).Return(mockTx, nil)
+		// TODO(codingllama): Do we need a logID here?
+		mockStorage.EXPECT().Begin(gomock.Any(), gomock.Any()).Return(mockTx, nil)
 	}
 	p.prepareTx(mockTx)
 	mockTx.EXPECT().Rollback().Return(nil)
@@ -1498,9 +1529,11 @@ func (p *parameterizedTest) executeBeginFailsTest(t *testing.T) {
 
 	switch p.mode {
 	case readOnly:
-		mockStorage.EXPECT().Snapshot(gomock.Any()).Return(mockTx, errors.New("TX"))
+		// TODO(codingllama): Do we need a logID here?
+		mockStorage.EXPECT().Snapshot(gomock.Any(), gomock.Any()).Return(mockTx, errors.New("TX"))
 	case readWrite:
-		mockStorage.EXPECT().Begin(gomock.Any()).Return(mockTx, errors.New("TX"))
+		// TODO(codingllama): Do we need a logID here?
+		mockStorage.EXPECT().Begin(gomock.Any(), gomock.Any()).Return(mockTx, errors.New("TX"))
 	}
 
 	registry := testonly.NewRegistryWithLogProvider(mockStorageProviderFunc(mockStorage))

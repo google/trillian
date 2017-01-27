@@ -33,36 +33,30 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	storage, err := registry.GetLogStorage(*treeIDFlag)
+	storage, err := registry.GetLogStorage()
 	if err != nil {
 		panic(err)
 	}
 
 	ctx := context.Background()
-
-	tx, err := storage.Snapshot(ctx)
-
+	tx, err := storage.Snapshot(ctx, *treeIDFlag)
 	if err != nil {
 		panic(err)
 	}
 
 	leafCount, err := tx.GetSequencedLeafCount()
-
 	if err != nil {
 		panic(err)
 	}
-
 	log.Infof("Sequenced leaf count in storage is: %d", leafCount)
 
 	if len(*leafHashHex) > 0 {
 		hash, err := hex.DecodeString(*leafHashHex)
-
 		if err != nil {
 			panic(err)
 		}
 
 		fetchedLeaves, err := tx.GetLeavesByHash([][]byte{hash}, false)
-
 		if err != nil {
 			panic(err)
 		}
@@ -81,7 +75,6 @@ func main() {
 		}
 
 		fetchedLeaves, err := tx.GetLeavesByIndex(leaves)
-
 		if err != nil {
 			panic(err)
 		}
@@ -91,9 +84,7 @@ func main() {
 		}
 	}
 
-	err = tx.Commit()
-
-	if err != nil {
+	if err := tx.Commit(); err != nil {
 		panic(err)
 	}
 }

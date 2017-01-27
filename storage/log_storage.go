@@ -48,7 +48,7 @@ type ReadOnlyLogStorage interface {
 	// Commit must be called when the caller is finished with the returned object,
 	// and values read through it should only be propagated if Commit returns
 	// without error.
-	Snapshot(ctx context.Context) (ReadOnlyLogTX, error)
+	Snapshot(ctx context.Context, treeID int64) (ReadOnlyLogTX, error)
 }
 
 // LogStorage should be implemented by concrete storage mechanisms which want to support Logs.
@@ -59,7 +59,7 @@ type LogStorage interface {
 	// Either Commit or Rollback must be called when the caller is finished with
 	// the returned object, and values read through it should only be propagated
 	// if Commit returns without error.
-	Begin(ctx context.Context) (LogTX, error)
+	Begin(ctx context.Context, treeID int64) (LogTX, error)
 }
 
 // LeafQueuer provides a write-only interface for the queueing (but not necessarily integration) of leaves.

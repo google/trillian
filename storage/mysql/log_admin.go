@@ -2,11 +2,6 @@ package mysql
 
 import (
 	"database/sql"
-	"fmt"
-
-	"github.com/google/trillian/crypto"
-	"github.com/google/trillian/merkle"
-	"github.com/google/trillian/storage/cache"
 )
 
 const (
@@ -31,14 +26,8 @@ const (
 // CreateTree instantiates a new log with default parameters.
 // TODO(codinglama): Move to admin API when the admin API is created.
 func CreateTree(treeID int64, db *sql.DB) error {
-	// TODO(codinglama) replace with a GetDatabase from the new extension API when LogID is removed.
-	th := merkle.NewRFC6962TreeHasher(crypto.NewSHA256())
-	m, err := newTreeStorage(treeID, db, th.Size(), defaultLogStrata, cache.PopulateLogSubtreeNodes(th))
-	if err != nil {
-		return fmt.Errorf("couldn't create a new treeStorage: %s", err)
-	}
 	// Insert Tree Row
-	stmt, err := m.db.Prepare(setTreePropertiesSQL)
+	stmt, err := db.Prepare(setTreePropertiesSQL)
 	if err != nil {
 		return err
 	}
@@ -48,7 +37,7 @@ func CreateTree(treeID int64, db *sql.DB) error {
 		return err
 	}
 	// Insert Tree Control Row
-	stmt2, err := m.db.Prepare(setTreeParametersSQL)
+	stmt2, err := db.Prepare(setTreeParametersSQL)
 	if err != nil {
 		return err
 	}
@@ -62,15 +51,8 @@ func CreateTree(treeID int64, db *sql.DB) error {
 
 // DeleteTree deletes a tree by the treeID.
 func DeleteTree(treeID int64, db *sql.DB) error {
-	// TODO(codinglama) replace with a GetDatabase from the new extension API when LogID is removed.
-	th := merkle.NewRFC6962TreeHasher(crypto.NewSHA256())
-	m, err := newTreeStorage(treeID, db, th.Size(), defaultLogStrata, cache.PopulateLogSubtreeNodes(th))
-	if err != nil {
-		return fmt.Errorf("couldn't create a new treeStorage: %s", err)
-	}
-
 	for _, sql := range []string{deleteTreeControlSQL, deleteTreeSQL} {
-		stmt, err := m.db.Prepare(sql)
+		stmt, err := db.Prepare(sql)
 		if err != nil {
 			return err
 		}

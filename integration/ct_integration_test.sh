@@ -19,8 +19,9 @@ BASE_RPC_PORT=36961
 BASE_HTTP_PORT=6961
 LB_PORT=46962
 
+port=${BASE_RPC_PORT}
 for ((i=0; i < RPC_SERVER_COUNT; i++)); do
-  port=$((BASE_RPC_PORT + i))
+  port=$((port + 2))
   if [[ $i -eq 0 ]]; then
     RPC_PORTS="${port}"
     RPC_SERVERS="localhost:${port}"
@@ -30,8 +31,9 @@ for ((i=0; i < RPC_SERVER_COUNT; i++)); do
   fi
 done
 
+port=${BASE_HTTP_PORT}
 for ((i=0; i < HTTP_SERVER_COUNT; i++)); do
-  port=$((BASE_HTTP_PORT + i))
+  port=$((port + 1))
   if [[ $i -eq 0 ]]; then
     CT_PORTS="${port}"
     CT_SERVERS="localhost:${port}"

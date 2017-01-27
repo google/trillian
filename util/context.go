@@ -39,6 +39,15 @@ func NewMapContext(ctx context.Context, mapID int64) context.Context {
 	return context.WithValue(ctx, mapIDKey, mapID)
 }
 
+// LogID returns the log ID within the context or an error.
+func LogID(ctx context.Context) (int64, error) {
+	logID, ok := ctx.Value(logIDKey).(int64)
+	if !ok {
+		return 0, fmt.Errorf("cannot read logID from ctx: %v", ctx)
+	}
+	return logID, nil
+}
+
 // LogIDPrefix returns an identifier for the log associated with ctx in a form
 // suitable for use as a diagnostic prefix.
 func LogIDPrefix(ctx context.Context) string {

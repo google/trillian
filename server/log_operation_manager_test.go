@@ -32,7 +32,8 @@ func TestLogOperationManagerBeginFails(t *testing.T) {
 
 	mockTx := storage.NewMockLogTX(ctrl)
 	mockStorage := storage.NewMockLogStorage(ctrl)
-	mockStorage.EXPECT().Begin(gomock.Any()).Return(mockTx, errors.New("TX"))
+	// TODO(codingllama): A treeID shouldn't be necessary here
+	mockStorage.EXPECT().Begin(gomock.Any(), gomock.Any()).Return(mockTx, errors.New("TX"))
 
 	mockLogOp := NewMockLogOperation(ctrl)
 
@@ -50,7 +51,8 @@ func TestLogOperationManagerGetLogsFails(t *testing.T) {
 	mockTx.EXPECT().GetActiveLogIDs().Return([]int64{}, errors.New("getactivelogs"))
 	mockTx.EXPECT().Rollback().Return(nil)
 	mockStorage := storage.NewMockLogStorage(ctrl)
-	mockStorage.EXPECT().Begin(gomock.Any()).Return(mockTx, nil)
+	// TODO(codingllama): A treeID shouldn't be necessary here
+	mockStorage.EXPECT().Begin(gomock.Any(), gomock.Any()).Return(mockTx, nil)
 
 	mockLogOp := NewMockLogOperation(ctrl)
 
@@ -68,7 +70,8 @@ func TestLogOperationManagerCommitFails(t *testing.T) {
 	mockTx.EXPECT().GetActiveLogIDs().Return([]int64{}, nil)
 	mockTx.EXPECT().Commit().Return(errors.New("commit"))
 	mockStorage := storage.NewMockLogStorage(ctrl)
-	mockStorage.EXPECT().Begin(gomock.Any()).Return(mockTx, nil)
+	// TODO(codingllama): A treeID shouldn't be necessary here
+	mockStorage.EXPECT().Begin(gomock.Any(), gomock.Any()).Return(mockTx, nil)
 
 	mockLogOp := NewMockLogOperation(ctrl)
 
@@ -105,7 +108,8 @@ func TestLogOperationManagerPassesIDs(t *testing.T) {
 	mockTx.EXPECT().GetActiveLogIDs().Return([]int64{logID1, logID2}, nil)
 	mockTx.EXPECT().Commit().AnyTimes().Return(nil)
 	mockStorage := storage.NewMockLogStorage(ctrl)
-	mockStorage.EXPECT().Begin(gomock.Any()).Return(mockTx, nil)
+	// TODO(codingllama): A treeID shouldn't be necessary here
+	mockStorage.EXPECT().Begin(gomock.Any(), gomock.Any()).Return(mockTx, nil)
 
 	mockLogOp := NewMockLogOperation(ctrl)
 	mockLogOp.EXPECT().ExecutePass([]int64{logID1, logID2}, logOpMgrContextMatcher{50}).Return(false)

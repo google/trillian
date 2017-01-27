@@ -16,7 +16,6 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -104,7 +103,8 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 	mockTx := storage.NewMockLogTX(mockCtrl)
 	logID := int64(1)
 
-	mockStorage.EXPECT().Begin(gomock.Any()).Return(mockTx, nil)
+	// TODO(codingllama): Do we need a logID here?
+	mockStorage.EXPECT().Begin(gomock.Any(), gomock.Any()).Return(mockTx, nil)
 	mockTx.EXPECT().Commit().Return(nil)
 	mockTx.EXPECT().WriteRevision().AnyTimes().Return(writeRev)
 	mockTx.EXPECT().LatestSignedLogRoot().Return(testRoot0, nil)
@@ -139,7 +139,8 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 	mockTx.EXPECT().UpdateSequencedLeaves([]trillian.LogLeaf{testLeaf0Updated}).Return(nil)
 	mockTx.EXPECT().SetMerkleNodes(updatedNodes0).Return(nil)
 	mockTx.EXPECT().StoreSignedLogRoot(updatedRoot).Return(nil)
-	mockStorage.EXPECT().Begin(gomock.Any()).Return(mockTx, nil)
+	// TODO(codingllama): Do we need a logID here?
+	mockStorage.EXPECT().Begin(gomock.Any(), gomock.Any()).Return(mockTx, nil)
 
 	mockSigner := crypto.NewMockSigner(mockCtrl)
 	mockSigner.EXPECT().Sign(gomock.Any(), []byte{23, 147, 61, 51, 131, 170, 136, 10, 82, 12, 93, 42, 98, 88, 131, 100, 101, 187, 124, 189, 202, 207, 66, 137, 95, 117, 205, 34, 109, 242, 103, 248}, hasher).Return([]byte("signed"), nil)
@@ -159,7 +160,8 @@ func TestSequencerManagerGuardWindow(t *testing.T) {
 	mockTx := storage.NewMockLogTX(mockCtrl)
 	logID := int64(1)
 
-	mockStorage.EXPECT().Begin(gomock.Any()).Return(mockTx, nil)
+	// TODO(codingllama): Do we need a logID here?
+	mockStorage.EXPECT().Begin(gomock.Any(), gomock.Any()).Return(mockTx, nil)
 	mockTx.EXPECT().Commit().Return(nil)
 	mockTx.EXPECT().WriteRevision().AnyTimes().Return(writeRev)
 	mockTx.EXPECT().LatestSignedLogRoot().Return(testRoot0, nil)
@@ -174,11 +176,8 @@ func TestSequencerManagerGuardWindow(t *testing.T) {
 }
 
 func mockStorageProviderForSequencer(mockStorage storage.LogStorage) testonly.GetLogStorageFunc {
-	return func(id int64) (storage.LogStorage, error) {
-		if id >= 0 && id <= 1 {
-			return mockStorage, nil
-		}
-		return nil, fmt.Errorf("BADLOGID: %d", id)
+	return func() (storage.LogStorage, error) {
+		return mockStorage, nil
 	}
 }
 

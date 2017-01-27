@@ -45,10 +45,7 @@ type ReadOnlyMapStorage interface {
 	// Commit must be called when the caller is finished with the returned object,
 	// and values read through it should only be propagated if Commit returns
 	// without error.
-	Snapshot(ctx context.Context) (ReadOnlyMapTX, error)
-
-	// Returns the MapID this storage relates to.
-	MapID() int64
+	Snapshot(ctx context.Context, treeID int64) (ReadOnlyMapTX, error)
 }
 
 // MapStorage should be implemented by concrete storage mechanisms which want to support Maps
@@ -58,7 +55,7 @@ type MapStorage interface {
 	// Either Commit or Rollback must be called when the caller is finished with
 	// the returned object, and values read through it should only be propagated
 	// if Commit returns without error.
-	Begin(ctx context.Context) (MapTX, error)
+	Begin(ctx context.Context, treeID int64) (MapTX, error)
 }
 
 // Setter allows the setting of key->value pairs on the map.

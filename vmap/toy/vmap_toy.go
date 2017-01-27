@@ -31,7 +31,7 @@ func main() {
 	}
 
 	mapID := int64(1)
-	ms, err := mysql.NewMapStorage(mapID, db)
+	ms, err := mysql.NewMapStorage(db)
 	if err != nil {
 		glog.Fatalf("Failed create MapStorage: %v", err)
 	}
@@ -68,13 +68,13 @@ func main() {
 
 	var root []byte
 	for x := 0; x < numBatches; x++ {
-		tx, err := ms.Begin(ctx)
+		tx, err := ms.Begin(ctx, mapID)
 		if err != nil {
 			glog.Fatalf("Failed to Begin() a new tx: %v", err)
 		}
 		w, err := merkle.NewSparseMerkleTreeWriter(tx.WriteRevision(), hasher,
 			func() (storage.TreeTX, error) {
-				return ms.Begin(ctx)
+				return ms.Begin(ctx, mapID)
 			})
 		if err != nil {
 			glog.Fatalf("Failed to create new SMTWriter: %v", err)

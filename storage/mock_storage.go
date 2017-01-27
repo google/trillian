@@ -562,36 +562,26 @@ func (_m *MockMapStorage) EXPECT() *_MockMapStorageRecorder {
 	return _m.recorder
 }
 
-func (_m *MockMapStorage) Begin(_param0 context.Context) (MapTX, error) {
-	ret := _m.ctrl.Call(_m, "Begin", _param0)
+func (_m *MockMapStorage) Begin(_param0 context.Context, _param1 int64) (MapTX, error) {
+	ret := _m.ctrl.Call(_m, "Begin", _param0, _param1)
 	ret0, _ := ret[0].(MapTX)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-func (_mr *_MockMapStorageRecorder) Begin(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "Begin", arg0)
+func (_mr *_MockMapStorageRecorder) Begin(arg0, arg1 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "Begin", arg0, arg1)
 }
 
-func (_m *MockMapStorage) MapID() int64 {
-	ret := _m.ctrl.Call(_m, "MapID")
-	ret0, _ := ret[0].(int64)
-	return ret0
-}
-
-func (_mr *_MockMapStorageRecorder) MapID() *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "MapID")
-}
-
-func (_m *MockMapStorage) Snapshot(_param0 context.Context) (ReadOnlyMapTX, error) {
-	ret := _m.ctrl.Call(_m, "Snapshot", _param0)
+func (_m *MockMapStorage) Snapshot(_param0 context.Context, _param1 int64) (ReadOnlyMapTX, error) {
+	ret := _m.ctrl.Call(_m, "Snapshot", _param0, _param1)
 	ret0, _ := ret[0].(ReadOnlyMapTX)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-func (_mr *_MockMapStorageRecorder) Snapshot(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "Snapshot", arg0)
+func (_mr *_MockMapStorageRecorder) Snapshot(arg0, arg1 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "Snapshot", arg0, arg1)
 }
 
 // Mock of LogStorage interface
@@ -615,24 +605,24 @@ func (_m *MockLogStorage) EXPECT() *_MockLogStorageRecorder {
 	return _m.recorder
 }
 
-func (_m *MockLogStorage) Begin(_param0 context.Context) (LogTX, error) {
-	ret := _m.ctrl.Call(_m, "Begin", _param0)
+func (_m *MockLogStorage) Begin(_param0 context.Context, _param1 int64) (LogTX, error) {
+	ret := _m.ctrl.Call(_m, "Begin", _param0, _param1)
 	ret0, _ := ret[0].(LogTX)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-func (_mr *_MockLogStorageRecorder) Begin(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "Begin", arg0)
+func (_mr *_MockLogStorageRecorder) Begin(arg0, arg1 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "Begin", arg0, arg1)
 }
 
-func (_m *MockLogStorage) Snapshot(_param0 context.Context) (ReadOnlyLogTX, error) {
-	ret := _m.ctrl.Call(_m, "Snapshot", _param0)
+func (_m *MockLogStorage) Snapshot(_param0 context.Context, _param1 int64) (ReadOnlyLogTX, error) {
+	ret := _m.ctrl.Call(_m, "Snapshot", _param0, _param1)
 	ret0, _ := ret[0].(ReadOnlyLogTX)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-func (_mr *_MockLogStorageRecorder) Snapshot(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "Snapshot", arg0)
+func (_mr *_MockLogStorageRecorder) Snapshot(arg0, arg1 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "Snapshot", arg0, arg1)
 }

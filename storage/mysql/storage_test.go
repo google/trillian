@@ -32,20 +32,16 @@ type mapIDAndTest struct {
 // Explicit test for node id conversion to / from protos.
 func TestNodeIDSerialization(t *testing.T) {
 	nodeID := storage.NodeID{Path: []byte("hello"), PrefixLenBits: 3, PathLenBits: 40}
-	serializedBytes, err := encodeNodeID(nodeID)
 
+	serializedBytes, err := encodeNodeID(nodeID)
 	if err != nil {
 		t.Fatalf("Failed to serialize NodeID: %v, %v", nodeID, err)
 	}
 
 	nodeID2, err := decodeNodeID(serializedBytes)
-
 	if err != nil {
 		t.Fatalf("Failed to deserialize NodeID: %v, %v", nodeID, err)
 	}
-
-	t.Logf("1:\n%v (%s)\n2:\n%v (%s)", nodeID, nodeID.String(), *nodeID2, nodeID2.String())
-
 	if expected, got := nodeID.String(), nodeID2.String(); expected != got {
 		t.Errorf("Round trip of nodeID failed: %v %v", expected, got)
 	}
@@ -67,7 +63,7 @@ func TestNodeRoundTrip(t *testing.T) {
 	ctx := context.Background()
 
 	{
-		tx, err := s.Begin(ctx)
+		tx, err := s.Begin(ctx, logID.logID)
 		forceWriteRevision(writeRevision, tx)
 		if err != nil {
 			t.Fatalf("Failed to Begin: %s", err)
@@ -88,7 +84,7 @@ func TestNodeRoundTrip(t *testing.T) {
 	}
 
 	{
-		tx, err := s.Begin(ctx)
+		tx, err := s.Begin(ctx, logID.logID)
 
 		if err != nil {
 			t.Fatalf("Failed to Begin: %s", err)
@@ -225,7 +221,7 @@ func prepareTestLogStorage(db *sql.DB, logID logIDAndTest, t *testing.T) storage
 	if err := CreateTree(logID.logID, db); err != nil {
 		t.Fatalf("Failed to create new log storage: %s", err)
 	}
-	s, err := NewLogStorage(logID.logID, db)
+	s, err := NewLogStorage(db)
 	if err != nil {
 		t.Fatalf("Failed to open log storage: %s", err)
 	}

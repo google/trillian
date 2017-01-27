@@ -41,21 +41,18 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	storage, err := registry.GetLogStorage(*treeIDFlag)
+	storage, err := registry.GetLogStorage()
 	if err != nil {
 		panic(err)
 	}
 
 	ctx := context.Background()
-
-	tx, err := storage.Begin(ctx)
-
+	tx, err := storage.Begin(ctx, *treeIDFlag)
 	if err != nil {
 		panic(err)
 	}
 
 	leaves := []trillian.LogLeaf{}
-
 	for l := 0; l < *numInsertionsFlag; l++ {
 		// Leaf data based in the sequence number so we can check the hashes
 		leafNumber := *startInsertFromFlag + l
@@ -84,16 +81,12 @@ func main() {
 
 	// There might be some leaves left over that didn't get queued yet
 	if len(leaves) > 0 {
-		err = tx.QueueLeaves(leaves, time.Now())
-
-		if err != nil {
+		if err := tx.QueueLeaves(leaves, time.Now()); err != nil {
 			panic(err)
 		}
 	}
 
-	err = tx.Commit()
-
-	if err != nil {
+	if err := tx.Commit(); err != nil {
 		panic(err)
 	}
 }
