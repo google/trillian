@@ -30,7 +30,7 @@ import (
 
 const (
 	createSQLFile = "../storage/mysql/storage.sql"
-	mysqlURI      = "root@tcp(127.0.0.1:3306)/"
+	mysqlRootURI  = "root@tcp(127.0.0.1:3306)/"
 )
 
 // LogEnv is a test environment that contains both a log server and a connection to it.
@@ -38,7 +38,7 @@ type LogEnv struct {
 	grpcServer *grpc.Server
 	logServer  *server.TrillianLogRPCServer
 	ClientConn *grpc.ClientConn
-	DBURI      string
+	DB         *sql.DB
 }
 
 // listen opens a random high numbered port for listening.
@@ -55,55 +55,53 @@ func listen() (string, net.Listener, error) {
 	return addr, lis, nil
 }
 
-// resetDB drops and recreates the test database.
-// Returns a URI to the test database.
-// TODO(gdbelvin): Convert to CreateDB when registry can take a db object.
-func resetDB(testID string) (string, error) {
-	var mysqlURIdb = fmt.Sprintf("root@tcp(127.0.0.1:3306)/log_unittest_%v", testID)
-	builtin.MySQLURIFlag = &mysqlURIdb
+// getTestDB drops and recreates the test database.
+// Returns a database connection to the test database.
+func getTestDB(testID string) (*sql.DB, error) {
+	var testDBURI = fmt.Sprintf("root@tcp(127.0.0.1:3306)/log_unittest_%v", testID)
+	builtin.MySQLURIFlag = &testDBURI
 
 	// Drop existing database.
-	db, err := sql.Open("mysql", mysqlURI)
+	dbRoot, err := sql.Open("mysql", mysqlRootURI)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	defer db.Close()
+	defer dbRoot.Close()
 	resetSQL := []string{
 		fmt.Sprintf("DROP DATABASE IF EXISTS log_unittest_%v;", testID),
 		fmt.Sprintf("CREATE DATABASE log_unittest_%v;", testID),
 		fmt.Sprintf("GRANT ALL ON log_unittest_%v.* TO 'log_unittest'@'localhost' IDENTIFIED BY 'zaphod';", testID),
 	}
 	for _, sql := range resetSQL {
-		if _, err := db.Exec(sql); err != nil {
-			return "", err
+		if _, err := dbRoot.Exec(sql); err != nil {
+			return nil, err
 		}
 	}
 
 	// Create new database.
-	dbTest, err := sql.Open("mysql", mysqlURIdb)
+	dbTest, err := sql.Open("mysql", testDBURI)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	defer dbTest.Close()
 	createSQL, err := ioutil.ReadFile(createSQLFile)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	sqlSlice := strings.Split(string(createSQL), ";\n")
 	// Omit the last element of the slice, since it will be "".
 	for _, sql := range sqlSlice[:len(sqlSlice)-1] {
 		if _, err := dbTest.Exec(sql); err != nil {
-			return "", err
+			return nil, err
 		}
 	}
 
-	return mysqlURIdb, nil
+	return dbTest, nil
 }
 
 // NewLogEnv creates a fresh DB, log server, and client.
 // testID should be unique to each unittest package so as to allow parallel tests.
 func NewLogEnv(testID string) (*LogEnv, error) {
-	dbstr, err := resetDB(testID)
+	db, err := getTestDB(testID)
 	if err != nil {
 		return nil, err
 	}
@@ -135,11 +133,12 @@ func NewLogEnv(testID string) (*LogEnv, error) {
 		grpcServer: grpcServer,
 		logServer:  logServer,
 		ClientConn: cc,
-		DBURI:      dbstr,
+		DB:         db,
 	}, nil
 }
 
 // Close shuts down the server.
 func (env *LogEnv) Close() {
 	env.grpcServer.Stop()
+	env.DB.Close()
 }

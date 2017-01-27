@@ -28,7 +28,7 @@ func TestAddLeaf(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer env.Close()
-	if err := mysql.CreateTree(logID, env.DBURI); err != nil {
+	if err := mysql.CreateTree(logID, env.DB); err != nil {
 		t.Errorf("Failed to create log: %v", err)
 	}
 
@@ -49,7 +49,7 @@ func TestAddSameLeaf(t *testing.T) {
 	defer env.Close()
 	client := New(logID, env.ClientConn)
 
-	if err := mysql.CreateTree(logID, env.DBURI); err != nil {
+	if err := mysql.CreateTree(logID, env.DB); err != nil {
 		t.Errorf("Failed to create log: %v", err)
 	}
 	if err := client.AddLeaf([]byte("foo")); err != nil {
