@@ -788,7 +788,7 @@ func (m *MapLeaf) GetExtraData() []byte {
 }
 
 type KeyValue struct {
-	Key   []byte   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	Index []byte   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
 	Value *MapLeaf `protobuf:"bytes,2,opt,name=value" json:"value,omitempty"`
 }
 
@@ -799,7 +799,7 @@ func (*KeyValue) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{24
 
 func (m *KeyValue) GetKey() []byte {
 	if m != nil {
-		return m.Key
+		return m.Index
 	}
 	return nil
 }

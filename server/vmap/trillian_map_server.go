@@ -87,7 +87,7 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 		}
 		kvi := trillian.KeyValueInclusion{
 			KeyValue: &trillian.KeyValue{
-				Key:   leaf.Index,
+				Index: leaf.Index,
 				Value: &leaf,
 			},
 			Inclusion: make([][]byte, 0, len(proof)),
@@ -148,10 +148,17 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 	leaves := make([]merkle.HashKeyValue, 0, len(req.KeyValue))
 	for i := 0; i < len(req.KeyValue); i++ {
 		kv := req.KeyValue[i]
-		keyHash := kv.Key
 		valHash := hasher.HashLeaf(kv.Value.LeafValue)
+<<<<<<< HEAD
 		leaves = append(leaves, merkle.HashKeyValue{HashedKey: keyHash, HashedValue: valHash})
 		if err = tx.Set(keyHash, *kv.Value); err != nil {
+=======
+		leaves = append(leaves, merkle.HashKeyValue{
+			HashedKey:   kv.Index,
+			HashedValue: valHash,
+		})
+		if err = tx.Set(ctx, kv.Index, *kv.Value); err != nil {
+>>>>>>> ff8bb83... KeyValue.Key -> Index
 			return nil, err
 		}
 	}

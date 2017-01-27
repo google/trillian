@@ -167,13 +167,17 @@ func (m *CTMapper) oneMapperRun(ctx context.Context) (bool, error) {
 		KeyValue: make([]*trillian.KeyValue, 0, len(domains)),
 	}
 	for k, v := range domains {
+		index := HashDomain(k)
 		b, err := pb.Marshal(&v)
 		if err != nil {
 			return false, err
 		}
-		setReq.KeyValue = append(setReq.KeyValue, &trillian.KeyValue{Key: []byte(k), Value: &trillian.MapLeaf{
-			LeafValue: b,
-		}})
+		setReq.KeyValue = append(setReq.KeyValue, &trillian.KeyValue{
+			Index: index,
+			Value: &trillian.MapLeaf{
+				LeafValue: b,
+			},
+		})
 	}
 
 	setReq.MapperData = meta

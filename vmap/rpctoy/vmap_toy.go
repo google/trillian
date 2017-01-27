@@ -65,7 +65,7 @@ func main() {
 
 		for y := 0; y < batchSize; y++ {
 			req.KeyValue[y] = &trillian.KeyValue{
-				Key: []byte(fmt.Sprintf("key-%d-%d", x, y)),
+				Index: []byte(fmt.Sprintf("key-%d-%d", x, y)),
 				Value: &trillian.MapLeaf{
 					LeafValue: []byte(fmt.Sprintf("value-%d-%d", x, y)),
 				},

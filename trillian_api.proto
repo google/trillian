@@ -216,7 +216,7 @@ message MapLeaf {
 }
 
 message KeyValue {
-  bytes key = 1;
+  bytes index = 1;
   MapLeaf value = 2;
 }
 
