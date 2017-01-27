@@ -29,8 +29,8 @@ install:
   - |
     (
       cd protoc
-      wget https://github.com/google/protobuf/releases/download/v3.0.0/protoc-3.0.0-${TRAVIS_OS_NAME}-x86_64.zip
-      unzip protoc-3.0.0-${TRAVIS_OS_NAME}-x86_64.zip
+      wget https://github.com/google/protobuf/releases/download/v3.1.0/protoc-3.1.0-${TRAVIS_OS_NAME}-x86_64.zip
+      unzip protoc-3.1.0-${TRAVIS_OS_NAME}-x86_64.zip
     )
   - export PATH=$(pwd)/protoc/bin:$PATH
   - go get -d ./...
@@ -43,6 +43,7 @@ install:
   - go get -u github.com/golang/protobuf/protoc-gen-go
   - go get -u github.com/kisielk/errcheck
   - go install github.com/golang/{mock/mockgen,protobuf/protoc-gen-go}
+  - protoc --version
 
 script:
   - export CXX="g++-4.8"
