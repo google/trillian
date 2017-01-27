@@ -23,6 +23,9 @@ type rehashTest struct {
 	output  trillian.Proof
 }
 
+// An arbitrary tree revision to be used in tests
+const testTreeRevision int64 = 3
+
 // Raw hashes for dummy storage nodes
 var h1 = th.HashLeaf([]byte("Hash 1"))
 var h2 = th.HashLeaf([]byte("Hash 2"))
@@ -50,60 +53,60 @@ var n2n3 = &trillian.Node{NodeHash: th.HashChildren(h3, h2)}
 var n2n3n4 = &trillian.Node{NodeHash: th.HashChildren(h4, th.HashChildren(h3, h2))}
 var n4n5 = &trillian.Node{NodeHash: th.HashChildren(h5, h4)}
 
-var rehashTests = []rehashTest{
-	{
-		desc:    "no rehash",
-		index:   126,
-		nodes:   []storage.Node{sn1, sn2, sn3},
-		fetches: []merkle.NodeFetch{{Rehash: false}, {Rehash: false}, {Rehash: false}},
-		output: trillian.Proof{
-			LeafIndex: 126,
-			ProofNode: []*trillian.Node{n1, n2, n3},
-		},
-	},
-	{
-		desc:    "single rehash",
-		index:   999,
-		nodes:   []storage.Node{sn1, sn2, sn3, sn4, sn5},
-		fetches: []merkle.NodeFetch{{Rehash: false}, {Rehash: true}, {Rehash: true}, {Rehash: false}, {Rehash: false}},
-		output: trillian.Proof{
-			LeafIndex: 999,
-			ProofNode: []*trillian.Node{n1, n2n3, n4, n5},
-		},
-	},
-	{
-		desc:    "single rehash at end",
-		index:   11,
-		nodes:   []storage.Node{sn1, sn2, sn3},
-		fetches: []merkle.NodeFetch{{Rehash: false}, {Rehash: true}, {Rehash: true}},
-		output: trillian.Proof{
-			LeafIndex: 11,
-			ProofNode: []*trillian.Node{n1, n2n3},
-		},
-	},
-	{
-		desc:    "single rehash multiple nodes",
-		index:   23,
-		nodes:   []storage.Node{sn1, sn2, sn3, sn4, sn5},
-		fetches: []merkle.NodeFetch{{Rehash: false}, {Rehash: true}, {Rehash: true}, {Rehash: true}, {Rehash: false}},
-		output: trillian.Proof{
-			LeafIndex: 23,
-			ProofNode: []*trillian.Node{n1, n2n3n4, n5},
-		},
-	},
-	{
-		desc:    "multiple rehash",
-		index:   45,
-		nodes:   []storage.Node{sn1, sn2, sn3, sn4, sn5},
-		fetches: []merkle.NodeFetch{{Rehash: true}, {Rehash: true}, {Rehash: false}, {Rehash: true}, {Rehash: true}},
-		output: trillian.Proof{
-			LeafIndex: 45,
-			ProofNode: []*trillian.Node{n1n2, n3, n4n5},
-		},
-	},
-}
-
 func TestRehasher(t *testing.T) {
+	var rehashTests = []rehashTest{
+		{
+			desc:    "no rehash",
+			index:   126,
+			nodes:   []storage.Node{sn1, sn2, sn3},
+			fetches: []merkle.NodeFetch{{Rehash: false}, {Rehash: false}, {Rehash: false}},
+			output: trillian.Proof{
+				LeafIndex: 126,
+				ProofNode: []*trillian.Node{n1, n2, n3},
+			},
+		},
+		{
+			desc:    "single rehash",
+			index:   999,
+			nodes:   []storage.Node{sn1, sn2, sn3, sn4, sn5},
+			fetches: []merkle.NodeFetch{{Rehash: false}, {Rehash: true}, {Rehash: true}, {Rehash: false}, {Rehash: false}},
+			output: trillian.Proof{
+				LeafIndex: 999,
+				ProofNode: []*trillian.Node{n1, n2n3, n4, n5},
+			},
+		},
+		{
+			desc:    "single rehash at end",
+			index:   11,
+			nodes:   []storage.Node{sn1, sn2, sn3},
+			fetches: []merkle.NodeFetch{{Rehash: false}, {Rehash: true}, {Rehash: true}},
+			output: trillian.Proof{
+				LeafIndex: 11,
+				ProofNode: []*trillian.Node{n1, n2n3},
+			},
+		},
+		{
+			desc:    "single rehash multiple nodes",
+			index:   23,
+			nodes:   []storage.Node{sn1, sn2, sn3, sn4, sn5},
+			fetches: []merkle.NodeFetch{{Rehash: false}, {Rehash: true}, {Rehash: true}, {Rehash: true}, {Rehash: false}},
+			output: trillian.Proof{
+				LeafIndex: 23,
+				ProofNode: []*trillian.Node{n1, n2n3n4, n5},
+			},
+		},
+		{
+			desc:    "multiple rehash",
+			index:   45,
+			nodes:   []storage.Node{sn1, sn2, sn3, sn4, sn5},
+			fetches: []merkle.NodeFetch{{Rehash: true}, {Rehash: true}, {Rehash: false}, {Rehash: true}, {Rehash: true}},
+			output: trillian.Proof{
+				LeafIndex: 45,
+				ProofNode: []*trillian.Node{n1n2, n3, n4n5},
+			},
+		},
+	}
+
 	for _, rehashTest := range rehashTests {
 		r := newRehasher()
 		for i, node := range rehashTest.nodes {
@@ -127,7 +130,7 @@ func TestTree32InclusionProofFetchAll(t *testing.T) {
 	for ts := 2; ts <= 32; ts++ {
 		mt := treeAtSize(ts)
 		r := testonly.NewMultiFakeNodeReaderFromLeaves([]testonly.LeafBatch{
-			{TreeRevision: 3, Leaves: expandLeaves(0, ts-1), ExpectedRoot: expectedRootAtSize(mt)},
+			{TreeRevision: testTreeRevision, Leaves: expandLeaves(0, ts - 1), ExpectedRoot: expectedRootAtSize(mt)},
 		})
 
 		for s := int64(2); s <= int64(ts); s++ {
@@ -137,7 +140,7 @@ func TestTree32InclusionProofFetchAll(t *testing.T) {
 					t.Fatal(err)
 				}
 
-				proof, err := fetchNodesAndBuildProof(r, 3, int64(l), fetches)
+				proof, err := fetchNodesAndBuildProof(r, testTreeRevision, int64(l), fetches)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -163,10 +166,10 @@ func TestTree32InclusionProofFetchMultiBatch(t *testing.T) {
 	mt := treeAtSize(32)
 	// The reader is built up with multiple batches, 4 batches x 8 leaves each
 	r := testonly.NewMultiFakeNodeReaderFromLeaves([]testonly.LeafBatch{
-		{TreeRevision: 3, Leaves: expandLeaves(0, 7), ExpectedRoot: expectedRootAtSize(treeAtSize(8))},
-		{TreeRevision: 4, Leaves: expandLeaves(8, 15), ExpectedRoot: expectedRootAtSize(treeAtSize(16))},
-		{TreeRevision: 5, Leaves: expandLeaves(16, 23), ExpectedRoot: expectedRootAtSize(treeAtSize(24))},
-		{TreeRevision: 6, Leaves: expandLeaves(24, 31), ExpectedRoot: expectedRootAtSize(mt)},
+		{TreeRevision: testTreeRevision, Leaves: expandLeaves(0, 7), ExpectedRoot: expectedRootAtSize(treeAtSize(8))},
+		{TreeRevision: testTreeRevision + 1, Leaves: expandLeaves(8, 15), ExpectedRoot: expectedRootAtSize(treeAtSize(16))},
+		{TreeRevision: testTreeRevision + 2, Leaves: expandLeaves(16, 23), ExpectedRoot: expectedRootAtSize(treeAtSize(24))},
+		{TreeRevision: testTreeRevision + 3, Leaves: expandLeaves(24, 31), ExpectedRoot: expectedRootAtSize(mt)},
 	})
 
 	for s := int64(2); s <= 32; s++ {
@@ -176,7 +179,8 @@ func TestTree32InclusionProofFetchMultiBatch(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			proof, err := fetchNodesAndBuildProof(r, 6, l, fetches)
+			// Use the highest tree revision that should be available from the node reader
+			proof, err := fetchNodesAndBuildProof(r, testTreeRevision + 3, l, fetches)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -201,7 +205,7 @@ func TestTree32ConsistencyProofFetchAll(t *testing.T) {
 	for ts := 2; ts <= 32; ts++ {
 		mt := treeAtSize(ts)
 		r := testonly.NewMultiFakeNodeReaderFromLeaves([]testonly.LeafBatch{
-			{TreeRevision: 3, Leaves: expandLeaves(0, ts-1), ExpectedRoot: expectedRootAtSize(mt)},
+			{TreeRevision: testTreeRevision, Leaves: expandLeaves(0, ts - 1), ExpectedRoot: expectedRootAtSize(mt)},
 		})
 
 		for s1 := int64(2); s1 < int64(ts); s1++ {
@@ -211,7 +215,7 @@ func TestTree32ConsistencyProofFetchAll(t *testing.T) {
 					t.Fatal(err)
 				}
 
-				proof, err := fetchNodesAndBuildProof(r, 3, int64(s1), fetches)
+				proof, err := fetchNodesAndBuildProof(r, testTreeRevision, int64(s1), fetches)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -237,17 +241,7 @@ func mustMarshalNodeID(nodeID storage.NodeID) []byte {
 	if err != nil {
 		panic(err)
 	}
-
 	return idBytes
-}
-
-func mustCreateNodeID(depth, node int64) storage.NodeID {
-	nodeID, err := storage.NewNodeIDForTreeCoords(depth, node, 64)
-	if err != nil {
-		panic(err)
-	}
-
-	return nodeID
 }
 
 func expandLeaves(n, m int) []string {
@@ -255,7 +249,6 @@ func expandLeaves(n, m int) []string {
 	for l := n; l <= m; l++ {
 		leaves = append(leaves, fmt.Sprintf("Leaf %d", l))
 	}
-
 	return leaves
 }
 
@@ -268,10 +261,8 @@ func expectedRootAtSize(mt *merkle.InMemoryMerkleTree) string {
 func treeAtSize(n int) *merkle.InMemoryMerkleTree {
 	leaves := expandLeaves(0, n-1)
 	mt := merkle.NewInMemoryMerkleTree(merkle.NewRFC6962TreeHasher(crypto.NewSHA256()))
-
 	for _, leaf := range leaves {
 		mt.AddLeaf([]byte(leaf))
 	}
-
 	return mt
 }
