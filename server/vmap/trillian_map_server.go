@@ -149,9 +149,9 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		return nil, err
 	}
 
-	leaves := make([]merkle.HashKeyValue, 0, len(req.KeyValue))
-	for i := 0; i < len(req.KeyValue); i++ {
-		kv := req.KeyValue[i]
+	leaves := make([]merkle.HashKeyValue, 0, len(req.IndexValue))
+	for i := 0; i < len(req.IndexValue); i++ {
+		kv := req.IndexValue[i]
 		valHash := hasher.HashLeaf(kv.Value.LeafValue)
 		leaves = append(leaves, merkle.HashKeyValue{
 			HashedKey:   kv.Index,

@@ -239,7 +239,7 @@ message GetMapLeavesResponse {
 
 message SetMapLeavesRequest {
   int64 map_id = 1;
-  repeated IndexValue key_value = 2;
+  repeated IndexValue index_value = 2;
   MapperMetadata mapper_data = 3;
 }
 

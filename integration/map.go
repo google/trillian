@@ -56,8 +56,8 @@ func RunMapIntegration(ctx context.Context, mapID int64, client trillian.Trillia
 			glog.Infof("Starting batch %d...", x)
 
 			req := &trillian.SetMapLeavesRequest{
-				MapId:    mapID,
-				KeyValue: make([]*trillian.IndexValue, batchSize),
+				MapId:      mapID,
+				IndexValue: make([]*trillian.IndexValue, batchSize),
 			}
 
 			for y := 0; y < batchSize; y++ {
@@ -66,7 +66,7 @@ func RunMapIntegration(ctx context.Context, mapID int64, client trillian.Trillia
 				ExpectedIndexes = append(ExpectedIndexes, index)
 				value := []byte(fmt.Sprintf("value-%d-%d", x, y))
 				expectedValues[string(key)] = value
-				req.KeyValue[y] = &trillian.IndexValue{
+				req.IndexValue[y] = &trillian.IndexValue{
 					Index: index,
 					Value: &trillian.MapLeaf{
 						LeafValue: value,
@@ -78,7 +78,7 @@ func RunMapIntegration(ctx context.Context, mapID int64, client trillian.Trillia
 			if err != nil {
 				return fmt.Errorf("failed to write batch %d: %v", x, err)
 			}
-			glog.Infof("Set %d k/v pairs", len(req.KeyValue))
+			glog.Infof("Set %d k/v pairs", len(req.IndexValue))
 			root = resp.MapRoot.RootHash
 			rev++
 		}

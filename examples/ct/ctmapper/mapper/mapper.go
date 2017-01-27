@@ -163,8 +163,8 @@ func (m *CTMapper) oneMapperRun(ctx context.Context) (bool, error) {
 	glog.Info("Storing updated map values for domains...")
 	// Store updated map values:
 	setReq := &trillian.SetMapLeavesRequest{
-		MapId:    m.mapID,
-		KeyValue: make([]*trillian.IndexValue, 0, len(domains)),
+		MapId:      m.mapID,
+		IndexValue: make([]*trillian.IndexValue, 0, len(domains)),
 	}
 	for k, v := range domains {
 		index := HashDomain(k)
@@ -172,7 +172,7 @@ func (m *CTMapper) oneMapperRun(ctx context.Context) (bool, error) {
 		if err != nil {
 			return false, err
 		}
-		setReq.KeyValue = append(setReq.KeyValue, &trillian.IndexValue{
+		setReq.IndexValue = append(setReq.IndexValue, &trillian.IndexValue{
 			Index: index,
 			Value: &trillian.MapLeaf{
 				LeafValue: b,
@@ -188,7 +188,7 @@ func (m *CTMapper) oneMapperRun(ctx context.Context) (bool, error) {
 	}
 	glog.Infof("Set resp: %v", setResp)
 	d := time.Now().Sub(start)
-	glog.Infof("Map run complete, took %.1f secs to update %d values (%0.2f/s)", d.Seconds(), len(setReq.KeyValue), float64(len(setReq.KeyValue))/d.Seconds())
+	glog.Infof("Map run complete, took %.1f secs to update %d values (%0.2f/s)", d.Seconds(), len(setReq.IndexValue), float64(len(setReq.IndexValue))/d.Seconds())
 	return true, nil
 }
 

@@ -59,19 +59,19 @@ func main() {
 		glog.Infof("Starting batch %d...", x)
 
 		req := &trillian.SetMapLeavesRequest{
-			MapId:    1,
-			KeyValue: make([]*trillian.IndexValue, batchSize),
+			MapId:      1,
+			IndexValue: make([]*trillian.IndexValue, batchSize),
 		}
 
 		for y := 0; y < batchSize; y++ {
-			req.KeyValue[y] = &trillian.IndexValue{
+			req.IndexValue[y] = &trillian.IndexValue{
 				Index: []byte(fmt.Sprintf("key-%d-%d", x, y)),
 				Value: &trillian.MapLeaf{
 					LeafValue: []byte(fmt.Sprintf("value-%d-%d", x, y)),
 				},
 			}
 		}
-		glog.Infof("Created %d k/v pairs...", len(req.KeyValue))
+		glog.Infof("Created %d k/v pairs...", len(req.IndexValue))
 
 		glog.Info("SetLeaves...")
 		resp, err := c.SetLeaves(context.Background(), req)
