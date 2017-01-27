@@ -19,6 +19,7 @@ import (
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/extension/builtin"
 	"github.com/google/trillian/server/vmap"
+	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
@@ -40,12 +41,13 @@ func checkDatabaseAccessible(registry extension.Registry) error {
 		return err
 	}
 
-	tx, err := mapStorage.Begin()
+	ctx := context.TODO()
+	tx, err := mapStorage.Begin(ctx)
 	if err != nil {
 		// Out of resources maybe?
 		return err
 	}
-	defer tx.Commit()
+	defer tx.Commit(ctx)
 
 	// TODO(al): Add some sort of liveness ping here
 	return nil

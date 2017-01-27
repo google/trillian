@@ -10,8 +10,6 @@ import (
 	"syscall"
 	"time"
 
-	"golang.org/x/net/context"
-
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
@@ -20,6 +18,7 @@ import (
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/util"
+	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
@@ -46,15 +45,16 @@ func checkDatabaseAccessible(registry extension.Registry) error {
 		return err
 	}
 
-	tx, err := logStorage.Begin()
+	ctx := context.TODO()
+	tx, err := logStorage.Begin(ctx)
 	if err != nil {
 		// Out of resources maybe?
 		return err
 	}
-	defer tx.Commit()
+	defer tx.Commit(ctx)
 
 	// Pull the log ids, we don't care about the result, we just want to know that it works
-	_, err = tx.GetActiveLogIDs()
+	_, err = tx.GetActiveLogIDs(ctx)
 	return err
 }
 

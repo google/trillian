@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"time"
 
@@ -12,7 +13,6 @@ import (
 	"github.com/google/certificate-transparency/go/x509"
 	"github.com/google/trillian"
 	"github.com/google/trillian/examples/ct/ctmapper/ctmapperpb"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
 

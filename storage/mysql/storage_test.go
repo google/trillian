@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"database/sql"
 	"flag"
@@ -63,35 +64,37 @@ func TestNodeRoundTrip(t *testing.T) {
 		nodeIDsToRead[i] = nodesToStore[i].NodeID
 	}
 
+	ctx := context.Background()
+
 	{
-		tx, err := s.Begin()
+		tx, err := s.Begin(ctx)
 		forceWriteRevision(writeRevision, tx)
 		if err != nil {
 			t.Fatalf("Failed to Begin: %s", err)
 		}
 
 		// Need to read nodes before attempting to write
-		if _, err := tx.GetMerkleNodes(99, nodeIDsToRead); err != nil {
+		if _, err := tx.GetMerkleNodes(ctx, 99, nodeIDsToRead); err != nil {
 			t.Fatalf("Failed to read nodes: %s", err)
 		}
 
-		if err := tx.SetMerkleNodes(nodesToStore); err != nil {
+		if err := tx.SetMerkleNodes(ctx, nodesToStore); err != nil {
 			t.Fatalf("Failed to store nodes: %s", err)
 		}
 
-		if err := tx.Commit(); err != nil {
+		if err := tx.Commit(ctx); err != nil {
 			t.Fatalf("Failed to commit nodes: %s", err)
 		}
 	}
 
 	{
-		tx, err := s.Begin()
+		tx, err := s.Begin(ctx)
 
 		if err != nil {
 			t.Fatalf("Failed to Begin: %s", err)
 		}
 
-		readNodes, err := tx.GetMerkleNodes(100, nodeIDsToRead)
+		readNodes, err := tx.GetMerkleNodes(ctx, 100, nodeIDsToRead)
 		if err != nil {
 			t.Fatalf("Failed to retrieve nodes: %s", err)
 		}
@@ -99,7 +102,7 @@ func TestNodeRoundTrip(t *testing.T) {
 			t.Fatalf("Read back different nodes from the ones stored: %s", err)
 		}
 
-		if err := tx.Commit(); err != nil {
+		if err := tx.Commit(ctx); err != nil {
 			t.Fatalf("Failed to commit read: %s", err)
 		}
 	}

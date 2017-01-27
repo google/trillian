@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"flag"
 	"fmt"
@@ -9,7 +10,6 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/testonly"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
 

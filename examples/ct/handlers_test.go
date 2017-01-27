@@ -3,6 +3,7 @@ package ct
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -26,7 +27,6 @@ import (
 	"github.com/google/trillian/examples/ct/testonly"
 	"github.com/google/trillian/mockclient"
 	"github.com/google/trillian/util"
-	"golang.org/x/net/context"
 )
 
 // Arbitrary time for use in tests

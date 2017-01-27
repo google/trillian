@@ -42,12 +42,12 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 		return nil, err
 	}
 
-	tx, err := s.Snapshot()
+	tx, err := s.Snapshot(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer func() {
-		e := tx.Commit()
+		e := tx.Commit(ctx)
 		if e != nil && err == nil {
 			resp, err = nil, e
 		}
@@ -62,7 +62,7 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 
 	if req.Revision < 0 {
 		// need to know the newest published revision
-		r, err := tx.LatestSignedMapRoot()
+		r, err := tx.LatestSignedMapRoot(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -84,7 +84,7 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 		hashToKey[string(keyHash)] = key
 	}
 
-	leaves, err := tx.Get(req.Revision, keyHashes)
+	leaves, err := tx.Get(ctx, req.Revision, keyHashes)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +98,7 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 			glog.Warningf("%s: Retrieved unrequested leaf with keyhash: %v, skipping", util.MapIDPrefix(ctx), leaf.KeyHash)
 			continue
 		}
-		proof, err := smtReader.InclusionProof(req.Revision, key)
+		proof, err := smtReader.InclusionProof(ctx, req.Revision, key)
 		if err != nil {
 			return nil, err
 		}
@@ -127,7 +127,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		return nil, err
 	}
 
-	tx, err := s.Begin()
+	tx, err := s.Begin(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -135,11 +135,11 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		if err != nil {
 			// Something went wrong, we should rollback and not return any partial/wrong data
 			resp = nil
-			tx.Rollback()
+			tx.Rollback(ctx)
 			return
 		}
 		// try to commit the tx
-		e := tx.Commit()
+		e := tx.Commit(ctx)
 		if e != nil {
 			// don't return partial/uncommitted/wrong data:
 			glog.Warningf("%s: Commit failed for SetLeaves: %v", util.MapIDPrefix(ctx), e)
@@ -156,7 +156,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 	glog.Infof("%s: Writing at revision %d", util.MapIDPrefix(ctx), tx.WriteRevision())
 
 	smtWriter, err := merkle.NewSparseMerkleTreeWriter(tx.WriteRevision(), hasher, func() (storage.TreeTX, error) {
-		return s.Begin()
+		return s.Begin(ctx)
 	})
 	if err != nil {
 		return nil, err
@@ -168,14 +168,14 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		keyHash := hasher.HashKey(kv.Key)
 		valHash := hasher.HashLeaf(kv.Value.LeafValue)
 		leaves = append(leaves, merkle.HashKeyValue{HashedKey: keyHash, HashedValue: valHash})
-		if err = tx.Set(keyHash, *kv.Value); err != nil {
+		if err = tx.Set(ctx, keyHash, *kv.Value); err != nil {
 			return nil, err
 		}
 	}
-	if err = smtWriter.SetLeaves(leaves); err != nil {
+	if err = smtWriter.SetLeaves(ctx, leaves); err != nil {
 		return nil, err
 	}
-	rootHash, err := smtWriter.CalculateRoot()
+	rootHash, err := smtWriter.CalculateRoot(ctx)
 
 	newRoot := trillian.SignedMapRoot{
 		TimestampNanos: time.Now().UnixNano(),
@@ -188,7 +188,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 	}
 
 	// TODO(al): need an smtWriter.Rollback() or similar I think.
-	if err = tx.StoreSignedMapRoot(newRoot); err != nil {
+	if err = tx.StoreSignedMapRoot(ctx, newRoot); err != nil {
 		return nil, err
 	}
 	resp = &trillian.SetMapLeavesResponse{
@@ -205,20 +205,20 @@ func (t *TrillianMapServer) GetSignedMapRoot(ctx context.Context, req *trillian.
 		return nil, err
 	}
 
-	tx, err := s.Snapshot()
+	tx, err := s.Snapshot(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer func() {
 		// try to commit the tx
-		e := tx.Commit()
+		e := tx.Commit(ctx)
 		if e != nil && err == nil {
 			glog.Warningf("%s: Commit failed for GetSignedMapRoot: %v", util.MapIDPrefix(ctx), e)
 			resp, err = nil, e
 		}
 	}()
 
-	r, err := tx.LatestSignedMapRoot()
+	r, err := tx.LatestSignedMapRoot(ctx)
 	if err != nil {
 		return nil, err
 	}

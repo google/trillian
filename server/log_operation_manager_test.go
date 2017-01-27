@@ -15,6 +15,7 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"testing"
@@ -23,7 +24,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util"
-	"golang.org/x/net/context"
 )
 
 func TestLogOperationManagerBeginFails(t *testing.T) {
@@ -32,7 +32,7 @@ func TestLogOperationManagerBeginFails(t *testing.T) {
 
 	mockTx := storage.NewMockLogTX(ctrl)
 	mockStorage := storage.NewMockLogStorage(ctrl)
-	mockStorage.EXPECT().Begin().Return(mockTx, errors.New("TX"))
+	mockStorage.EXPECT().Begin(gomock.Any()).Return(mockTx, errors.New("TX"))
 
 	mockLogOp := NewMockLogOperation(ctrl)
 
@@ -47,10 +47,10 @@ func TestLogOperationManagerGetLogsFails(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockTx := storage.NewMockLogTX(ctrl)
-	mockTx.EXPECT().GetActiveLogIDs().Return([]int64{}, errors.New("getactivelogs"))
-	mockTx.EXPECT().Rollback().Return(nil)
+	mockTx.EXPECT().GetActiveLogIDs(gomock.Any()).Return([]int64{}, errors.New("getactivelogs"))
+	mockTx.EXPECT().Rollback(gomock.Any()).Return(nil)
 	mockStorage := storage.NewMockLogStorage(ctrl)
-	mockStorage.EXPECT().Begin().Return(mockTx, nil)
+	mockStorage.EXPECT().Begin(gomock.Any()).Return(mockTx, nil)
 
 	mockLogOp := NewMockLogOperation(ctrl)
 
@@ -65,10 +65,10 @@ func TestLogOperationManagerCommitFails(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockTx := storage.NewMockLogTX(ctrl)
-	mockTx.EXPECT().GetActiveLogIDs().Return([]int64{}, nil)
-	mockTx.EXPECT().Commit().Return(errors.New("commit"))
+	mockTx.EXPECT().GetActiveLogIDs(gomock.Any()).Return([]int64{}, nil)
+	mockTx.EXPECT().Commit(gomock.Any()).Return(errors.New("commit"))
 	mockStorage := storage.NewMockLogStorage(ctrl)
-	mockStorage.EXPECT().Begin().Return(mockTx, nil)
+	mockStorage.EXPECT().Begin(gomock.Any()).Return(mockTx, nil)
 
 	mockLogOp := NewMockLogOperation(ctrl)
 
@@ -102,10 +102,10 @@ func TestLogOperationManagerPassesIDs(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockTx := storage.NewMockLogTX(ctrl)
-	mockTx.EXPECT().GetActiveLogIDs().Return([]int64{logID1, logID2}, nil)
-	mockTx.EXPECT().Commit().AnyTimes().Return(nil)
+	mockTx.EXPECT().GetActiveLogIDs(gomock.Any()).Return([]int64{logID1, logID2}, nil)
+	mockTx.EXPECT().Commit(gomock.Any()).AnyTimes().Return(nil)
 	mockStorage := storage.NewMockLogStorage(ctrl)
-	mockStorage.EXPECT().Begin().Return(mockTx, nil)
+	mockStorage.EXPECT().Begin(gomock.Any()).Return(mockTx, nil)
 
 	mockLogOp := NewMockLogOperation(ctrl)
 	mockLogOp.EXPECT().ExecutePass([]int64{logID1, logID2}, logOpMgrContextMatcher{50}).Return(false)

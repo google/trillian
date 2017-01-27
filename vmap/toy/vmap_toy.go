@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"flag"
 	"fmt"
@@ -63,15 +64,17 @@ func main() {
 	numBatches := testVecs[testIndex].numBatches
 	expectedRootB64 := testVecs[testIndex].expectedRootB64
 
+	ctx := context.Background()
+
 	var root []byte
 	for x := 0; x < numBatches; x++ {
-		tx, err := ms.Begin()
+		tx, err := ms.Begin(ctx)
 		if err != nil {
 			glog.Fatalf("Failed to Begin() a new tx: %v", err)
 		}
 		w, err := merkle.NewSparseMerkleTreeWriter(tx.WriteRevision(), hasher,
 			func() (storage.TreeTX, error) {
-				return ms.Begin()
+				return ms.Begin(ctx)
 			})
 		if err != nil {
 			glog.Fatalf("Failed to create new SMTWriter: %v", err)
@@ -86,19 +89,19 @@ func main() {
 		glog.Infof("Created %d k/v pairs...", len(h))
 
 		glog.Info("SetLeaves...")
-		if err := w.SetLeaves(h); err != nil {
+		if err := w.SetLeaves(ctx, h); err != nil {
 			glog.Fatalf("Failed to batch %d: %v", x, err)
 		}
 		glog.Info("SetLeaves done.")
 
 		glog.Info("CalculateRoot...")
-		root, err = w.CalculateRoot()
+		root, err = w.CalculateRoot(ctx)
 		if err != nil {
 			glog.Fatalf("Failed to calculate root hash: %v", err)
 		}
 		glog.Infof("CalculateRoot (%d), root: %s", x, base64.StdEncoding.EncodeToString(root))
 
-		if err := tx.StoreSignedMapRoot(trillian.SignedMapRoot{
+		if err := tx.StoreSignedMapRoot(ctx, trillian.SignedMapRoot{
 			TimestampNanos: time.Now().UnixNano(),
 			RootHash:       root,
 			MapId:          mapID,
@@ -108,7 +111,7 @@ func main() {
 			glog.Fatalf("Failed to store SMH: %v", err)
 		}
 
-		err = tx.Commit()
+		err = tx.Commit(ctx)
 		if err != nil {
 			glog.Fatalf("Failed to Commit() tx: %v", err)
 		}
