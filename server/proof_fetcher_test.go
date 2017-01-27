@@ -130,7 +130,7 @@ func TestTree32InclusionProofFetchAll(t *testing.T) {
 	for ts := 2; ts <= 32; ts++ {
 		mt := treeAtSize(ts)
 		r := testonly.NewMultiFakeNodeReaderFromLeaves([]testonly.LeafBatch{
-			{TreeRevision: testTreeRevision, Leaves: expandLeaves(0, ts - 1), ExpectedRoot: expectedRootAtSize(mt)},
+			{TreeRevision: testTreeRevision, Leaves: expandLeaves(0, ts-1), ExpectedRoot: expectedRootAtSize(mt)},
 		})
 
 		for s := int64(2); s <= int64(ts); s++ {
@@ -180,7 +180,7 @@ func TestTree32InclusionProofFetchMultiBatch(t *testing.T) {
 			}
 
 			// Use the highest tree revision that should be available from the node reader
-			proof, err := fetchNodesAndBuildProof(r, testTreeRevision + 3, l, fetches)
+			proof, err := fetchNodesAndBuildProof(r, testTreeRevision+3, l, fetches)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -205,7 +205,7 @@ func TestTree32ConsistencyProofFetchAll(t *testing.T) {
 	for ts := 2; ts <= 32; ts++ {
 		mt := treeAtSize(ts)
 		r := testonly.NewMultiFakeNodeReaderFromLeaves([]testonly.LeafBatch{
-			{TreeRevision: testTreeRevision, Leaves: expandLeaves(0, ts - 1), ExpectedRoot: expectedRootAtSize(mt)},
+			{TreeRevision: testTreeRevision, Leaves: expandLeaves(0, ts-1), ExpectedRoot: expectedRootAtSize(mt)},
 		})
 
 		for s1 := int64(2); s1 < int64(ts); s1++ {
