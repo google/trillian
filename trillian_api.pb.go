@@ -811,24 +811,24 @@ func (m *IndexValue) GetValue() *MapLeaf {
 	return nil
 }
 
-type KeyValueInclusion struct {
+type IndexValueInclusion struct {
 	IndexValue *IndexValue `protobuf:"bytes,1,opt,name=key_value,json=keyValue" json:"key_value,omitempty"`
 	Inclusion  [][]byte    `protobuf:"bytes,2,rep,name=inclusion,proto3" json:"inclusion,omitempty"`
 }
 
-func (m *KeyValueInclusion) Reset()                    { *m = KeyValueInclusion{} }
-func (m *KeyValueInclusion) String() string            { return proto.CompactTextString(m) }
-func (*KeyValueInclusion) ProtoMessage()               {}
-func (*KeyValueInclusion) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{25} }
+func (m *IndexValueInclusion) Reset()                    { *m = IndexValueInclusion{} }
+func (m *IndexValueInclusion) String() string            { return proto.CompactTextString(m) }
+func (*IndexValueInclusion) ProtoMessage()               {}
+func (*IndexValueInclusion) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{25} }
 
-func (m *KeyValueInclusion) GetKeyValue() *IndexValue {
+func (m *IndexValueInclusion) GetKeyValue() *IndexValue {
 	if m != nil {
 		return m.IndexValue
 	}
 	return nil
 }
 
-func (m *KeyValueInclusion) GetInclusion() [][]byte {
+func (m *IndexValueInclusion) GetInclusion() [][]byte {
 	if m != nil {
 		return m.Inclusion
 	}
@@ -868,9 +868,9 @@ func (m *GetMapLeavesRequest) GetRevision() int64 {
 }
 
 type GetMapLeavesResponse struct {
-	Status   *TrillianApiStatus   `protobuf:"bytes,1,opt,name=status" json:"status,omitempty"`
-	KeyValue []*KeyValueInclusion `protobuf:"bytes,2,rep,name=key_value,json=keyValue" json:"key_value,omitempty"`
-	MapRoot  *SignedMapRoot       `protobuf:"bytes,3,opt,name=map_root,json=mapRoot" json:"map_root,omitempty"`
+	Status   *TrillianApiStatus     `protobuf:"bytes,1,opt,name=status" json:"status,omitempty"`
+	KeyValue []*IndexValueInclusion `protobuf:"bytes,2,rep,name=key_value,json=keyValue" json:"key_value,omitempty"`
+	MapRoot  *SignedMapRoot         `protobuf:"bytes,3,opt,name=map_root,json=mapRoot" json:"map_root,omitempty"`
 }
 
 func (m *GetMapLeavesResponse) Reset()                    { *m = GetMapLeavesResponse{} }
@@ -885,7 +885,7 @@ func (m *GetMapLeavesResponse) GetStatus() *TrillianApiStatus {
 	return nil
 }
 
-func (m *GetMapLeavesResponse) GetKeyValue() []*KeyValueInclusion {
+func (m *GetMapLeavesResponse) GetKeyValue() []*IndexValueInclusion {
 	if m != nil {
 		return m.KeyValue
 	}
@@ -1021,7 +1021,7 @@ func init() {
 	proto.RegisterType((*GetEntryAndProofResponse)(nil), "trillian.GetEntryAndProofResponse")
 	proto.RegisterType((*MapLeaf)(nil), "trillian.MapLeaf")
 	proto.RegisterType((*IndexValue)(nil), "trillian.IndexValue")
-	proto.RegisterType((*KeyValueInclusion)(nil), "trillian.KeyValueInclusion")
+	proto.RegisterType((*IndexValueInclusion)(nil), "trillian.KeyValueInclusion")
 	proto.RegisterType((*GetMapLeavesRequest)(nil), "trillian.GetMapLeavesRequest")
 	proto.RegisterType((*GetMapLeavesResponse)(nil), "trillian.GetMapLeavesResponse")
 	proto.RegisterType((*SetMapLeavesRequest)(nil), "trillian.SetMapLeavesRequest")
