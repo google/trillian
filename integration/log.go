@@ -171,7 +171,7 @@ func RunLogIntegration(client trillian.TrillianLogClient, params TestParameters)
 
 		// Only do this if the batch size changes when halved
 		if params.queueBatchSize > 1 {
-			if err := checkConsistencyProof(consistParams, params.treeID, tree, client, params, int64(params.queueBatchSize / 2)); err != nil {
+			if err := checkConsistencyProof(consistParams, params.treeID, tree, client, params, int64(params.queueBatchSize/2)); err != nil {
 				return fmt.Errorf("log consistency for %v: proof checks failed (Non STH size): %v", consistParams, err)
 			}
 		}
@@ -405,7 +405,7 @@ func checkInclusionProofsAtIndex(index int64, logID int64, tree *merkle.InMemory
 		}
 
 		// Remember that the in memory tree uses 1 based leaf indices
-		path := tree.PathToRootAtSnapshot(index + 1, treeSize)
+		path := tree.PathToRootAtSnapshot(index+1, treeSize)
 
 		if err = compareLogAndTreeProof(resp.Proof, path); err != nil {
 			// The log and tree proof don't match, details in the error
