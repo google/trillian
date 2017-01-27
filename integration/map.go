@@ -137,7 +137,7 @@ func RunMapIntegration(ctx context.Context, mapID int64, client trillian.Trillia
 				if got, want := ev, kv.KeyValue.Value.LeafValue; !bytes.Equal(got, want) {
 					return fmt.Errorf("got value %x, expected %x", got, want)
 				}
-				keyHash := h.HashKey(kv.KeyValue.Key)
+				keyHash := kv.KeyValue.Key
 				leafHash := h.HashLeaf(kv.KeyValue.Value.LeafValue)
 				proof := make([][]byte, len(kv.Inclusion))
 				for i, v := range kv.Inclusion {

@@ -76,7 +76,7 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 	keyHashes := make([][]byte, 0, len(req.Key))
 	hashToKey := make(map[string][]byte)
 	for _, key := range req.Key {
-		keyHash := kh.HashKey(key)
+		keyHash := key
 		keyHashes = append(keyHashes, keyHash)
 		hashToKey[string(keyHash)] = key
 	}
@@ -162,7 +162,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 	leaves := make([]merkle.HashKeyValue, 0, len(req.KeyValue))
 	for i := 0; i < len(req.KeyValue); i++ {
 		kv := req.KeyValue[i]
-		keyHash := hasher.HashKey(kv.Key)
+		keyHash := kv.Key
 		valHash := hasher.HashLeaf(kv.Value.LeafValue)
 		leaves = append(leaves, merkle.HashKeyValue{HashedKey: keyHash, HashedValue: valHash})
 		if err = tx.Set(keyHash, *kv.Value); err != nil {

@@ -83,7 +83,7 @@ func main() {
 		glog.Infof("Starting batch %d...", x)
 		h := make([]merkle.HashKeyValue, batchSize)
 		for y := 0; y < batchSize; y++ {
-			h[y].HashedKey = hasher.HashKey([]byte(fmt.Sprintf("key-%d-%d", x, y)))
+			h[y].HashedKey = testonly.HashKey(fmt.Sprintf("key-%d-%d", x, y))
 			h[y].HashedValue = hasher.TreeHasher.HashLeaf([]byte(fmt.Sprintf("value-%d-%d", x, y)))
 		}
 		glog.Infof("Created %d k/v pairs...", len(h))
