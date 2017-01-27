@@ -46,7 +46,5 @@ func TestMapIntegration(t *testing.T) {
 	}
 	defer conn.Close()
 	ctx := context.Background()
-	if err := RunMapIntegration(ctx, *mapID, client); err != nil {
-		t.Fatalf("Test failed: %v", err)
-	}
+	RunMapIntegration(ctx, t, *mapID, client)
 }
