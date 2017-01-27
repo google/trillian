@@ -1,6 +1,7 @@
 package vmap
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/golang/glog"
@@ -81,6 +82,9 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 	glog.Infof("%s: wanted %d leaves, found %d", util.MapIDPrefix(ctx), len(req.Index), len(leaves))
 
 	for _, leaf := range leaves {
+		if got, want := len(leaf.Index), kh.Size(); got != want {
+			return nil, fmt.Errorf("len(indexes=%v, want %v", got, want)
+		}
 		proof, err := smtReader.InclusionProof(req.Revision, leaf.Index)
 		if err != nil {
 			return nil, err
@@ -149,16 +153,11 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 	for i := 0; i < len(req.KeyValue); i++ {
 		kv := req.KeyValue[i]
 		valHash := hasher.HashLeaf(kv.Value.LeafValue)
-<<<<<<< HEAD
-		leaves = append(leaves, merkle.HashKeyValue{HashedKey: keyHash, HashedValue: valHash})
-		if err = tx.Set(keyHash, *kv.Value); err != nil {
-=======
 		leaves = append(leaves, merkle.HashKeyValue{
 			HashedKey:   kv.Index,
 			HashedValue: valHash,
 		})
-		if err = tx.Set(ctx, kv.Index, *kv.Value); err != nil {
->>>>>>> ff8bb83... KeyValue.Key -> Index
+		if err = tx.Set(kv.Index, *kv.Value); err != nil {
 			return nil, err
 		}
 	}

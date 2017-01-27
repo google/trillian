@@ -109,17 +109,17 @@ func (m *mapTX) Set(keyHash []byte, value trillian.MapLeaf) error {
 	return err
 }
 
-func (m *mapTX) Get(revision int64, keyHashes [][]byte) ([]trillian.MapLeaf, error) {
-	stmt, err := m.ms.getStmt(selectMapLeafSQL, len(keyHashes), "?", "?")
+func (m *mapTX) Get(revision int64, indexes [][]byte) ([]trillian.MapLeaf, error) {
+	stmt, err := m.ms.getStmt(selectMapLeafSQL, len(indexes), "?", "?")
 	if err != nil {
 		return nil, err
 	}
 	stx := m.tx.Stmt(stmt)
 	defer stx.Close()
 
-	args := make([]interface{}, 0, len(keyHashes)+2)
-	for _, k := range keyHashes {
-		args = append(args, []byte(k[:]))
+	args := make([]interface{}, len(indexes), len(indexes)+2)
+	for i, index := range indexes {
+		args[i] = index
 	}
 	args = append(args, m.treeID)
 	args = append(args, revision)
@@ -134,7 +134,7 @@ func (m *mapTX) Get(revision int64, keyHashes [][]byte) ([]trillian.MapLeaf, err
 		return nil, err
 	}
 
-	ret := make([]trillian.MapLeaf, 0, len(keyHashes))
+	ret := make([]trillian.MapLeaf, 0, len(indexes))
 	nr := 0
 	er := 0
 	for rows.Next() {
