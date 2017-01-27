@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"flag"
 	"time"
 
@@ -28,6 +29,13 @@ type CTMapper struct {
 	mapID int64
 	ct    *client.LogClient
 	vmap  trillian.TrillianMapClient
+}
+
+// HashDomain converts a domain into a map index.
+func HashDomain(key string) []byte {
+	h := sha256.New()
+	h.Write([]byte(key))
+	return h.Sum(nil)
 }
 
 func updateDomainMap(m map[string]ctmapperpb.EntryList, cert x509.Certificate, index int64, isPrecert bool) {
@@ -120,11 +128,13 @@ func (m *CTMapper) oneMapperRun(ctx context.Context) (bool, error) {
 	// Fetch the current map values for those domains:
 	getReq := &trillian.GetMapLeavesRequest{
 		MapId:    m.mapID,
-		Key:      make([][]byte, 0, len(domains)),
+		Index:    make([][]byte, len(domains)),
 		Revision: -1,
 	}
-	for k := range domains {
-		getReq.Key = append(getReq.Key, []byte(k))
+	i := 0
+	for d := range domains {
+		getReq.Index[i] = HashDomain(d)
+		i++
 	}
 
 	getResp, err := m.vmap.GetLeaves(context.Background(), getReq)

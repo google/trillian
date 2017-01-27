@@ -50,7 +50,7 @@ func main() {
 		req := &trillian.GetMapLeavesRequest{
 			MapId:    1,
 			Revision: -1,
-			Key: [][]byte{
+			Index: [][]byte{
 				key,
 			},
 		}

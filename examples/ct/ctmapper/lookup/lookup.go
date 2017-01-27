@@ -35,7 +35,7 @@ func main() {
 		domain := flag.Arg(i)
 		req := &trillian.GetMapLeavesRequest{
 			MapId:    mapID,
-			Key:      [][]byte{[]byte(domain)},
+			Index:    [][]byte{[]byte(domain)},
 			Revision: -1,
 		}
 		resp, err := vmap.GetLeaves(context.Background(), req)

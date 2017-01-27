@@ -118,16 +118,16 @@ func RunMapIntegration(ctx context.Context, mapID int64, client trillian.Trillia
 		h := merkle.NewMapHasher(merkle.NewRFC6962TreeHasher(crypto.NewSHA256()))
 
 		for x := 0; x < numBatches; x++ {
-			getReq.Key = make([][]byte, 0, batchSize)
+			getReq.Index = make([][]byte, 0, batchSize)
 			for y := 0; y < batchSize; y++ {
-				getReq.Key = append(getReq.Key, ExpectedIndexes[keyOrder[i]])
+				getReq.Index = append(getReq.Index, ExpectedIndexes[keyOrder[i]])
 				i++
 			}
 			r, err := client.GetLeaves(ctx, &getReq)
 			if err != nil {
 				return fmt.Errorf("failed to get values: %v", err)
 			}
-			if got, want := len(r.KeyValue), len(getReq.Key); got != want {
+			if got, want := len(r.KeyValue), len(getReq.Index); got != want {
 				return fmt.Errorf("got %d values, expected %d", got, want)
 			}
 			for _, kv := range r.KeyValue {

@@ -70,15 +70,15 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 	smtReader := merkle.NewSparseMerkleTreeReader(req.Revision, kh, tx)
 
 	resp = &trillian.GetMapLeavesResponse{
-		KeyValue: make([]*trillian.KeyValueInclusion, 0, len(req.Key)),
+		KeyValue: make([]*trillian.KeyValueInclusion, 0, len(req.Index)),
 	}
 
-	leaves, err := tx.Get(req.Revision, req.Key)
+	leaves, err := tx.Get(req.Revision, req.Index)
 	if err != nil {
 		return nil, err
 	}
 
-	glog.Infof("%s: wanted %d leaves, found %d", util.MapIDPrefix(ctx), len(req.Key), len(leaves))
+	glog.Infof("%s: wanted %d leaves, found %d", util.MapIDPrefix(ctx), len(req.Index), len(leaves))
 
 	for _, leaf := range leaves {
 		proof, err := smtReader.InclusionProof(req.Revision, leaf.Index)
