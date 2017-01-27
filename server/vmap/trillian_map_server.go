@@ -71,7 +71,7 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 	smtReader := merkle.NewSparseMerkleTreeReader(req.Revision, kh, tx)
 
 	resp = &trillian.GetMapLeavesResponse{
-		IndexValue: make([]*trillian.IndexValueInclusion, 0, len(req.Index)),
+		IndexValue: make([]*trillian.IndexValueInclusion, len(req.Index)),
 	}
 
 	leaves, err := tx.Get(req.Revision, req.Index)
@@ -81,7 +81,7 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 
 	glog.Infof("%s: wanted %d leaves, found %d", util.MapIDPrefix(ctx), len(req.Index), len(leaves))
 
-	for _, leaf := range leaves {
+	for i, leaf := range leaves {
 		if got, want := len(leaf.Index), kh.Size(); got != want {
 			return nil, fmt.Errorf("len(indexes=%v, want %v", got, want)
 		}
@@ -94,13 +94,13 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 				Index: leaf.Index,
 				Value: &leaf,
 			},
-			Inclusion: make([][]byte, 0, len(proof)),
+			Inclusion: make([][]byte, len(proof)),
 		}
-		for j := 0; j < len(proof); j++ {
-			kvi.Inclusion = append(kvi.Inclusion, []byte(proof[j]))
+		for i := range proof {
+			kvi.Inclusion[i] = proof[i]
 		}
 
-		resp.IndexValue = append(resp.IndexValue, &kvi)
+		resp.IndexValue[i] = &kvi
 	}
 
 	return resp, nil

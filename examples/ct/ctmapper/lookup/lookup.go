@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"flag"
 
 	"github.com/golang/glog"
@@ -13,6 +14,13 @@ import (
 
 var mapServer = flag.String("map_server", "", "host:port for the map server")
 var mapID = flag.Int("map_id", -1, "Map ID to write to")
+
+// HashDomain converts a domain into a map index.
+func HashDomain(key string) []byte {
+	h := sha256.New()
+	h.Write([]byte(key))
+	return h.Sum(nil)
+}
 
 func main() {
 	flag.Parse()
@@ -35,7 +43,7 @@ func main() {
 		domain := flag.Arg(i)
 		req := &trillian.GetMapLeavesRequest{
 			MapId:    mapID,
-			Index:    [][]byte{[]byte(domain)},
+			Index:    [][]byte{HashDomain(domain)},
 			Revision: -1,
 		}
 		resp, err := vmap.GetLeaves(context.Background(), req)
