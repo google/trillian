@@ -206,7 +206,7 @@ service TrillianLog {
 message MapLeaf {
   // index is the location of this leaf.
   // All indexes for a given Map must contain a constant number of bits.
-  bytes key_hash = 1;
+  bytes index = 1;
   // leaf_hash is the tree hash of leaf_value.
   bytes leaf_hash = 2;
   // leaf_value is the data the tree commits to.

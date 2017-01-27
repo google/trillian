@@ -745,7 +745,7 @@ func (m *GetEntryAndProofResponse) GetLeaf() *LogLeaf {
 type MapLeaf struct {
 	// index is the location of this leaf.
 	// All indexes for a given Map must contain a constant number of bits.
-	KeyHash []byte `protobuf:"bytes,1,opt,name=key_hash,json=keyHash,proto3" json:"key_hash,omitempty"`
+	Index []byte `protobuf:"bytes,1,opt,name=key_hash,json=keyHash,proto3" json:"key_hash,omitempty"`
 	// leaf_hash is the tree hash of leaf_value.
 	LeafHash []byte `protobuf:"bytes,2,opt,name=leaf_hash,json=leafHash,proto3" json:"leaf_hash,omitempty"`
 	// leaf_value is the data the tree commits to.
@@ -761,7 +761,7 @@ func (*MapLeaf) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{23}
 
 func (m *MapLeaf) GetKeyHash() []byte {
 	if m != nil {
-		return m.KeyHash
+		return m.Index
 	}
 	return nil
 }

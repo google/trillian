@@ -154,7 +154,7 @@ func (m *mapTX) Get(revision int64, keyHashes [][]byte) ([]trillian.MapLeaf, err
 		if err != nil {
 			return nil, err
 		}
-		mapLeaf.KeyHash = mapKeyHash
+		mapLeaf.Index = mapKeyHash
 		ret = append(ret, mapLeaf)
 		nr++
 	}

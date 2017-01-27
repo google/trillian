@@ -90,9 +90,9 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 
 	for _, leaf := range leaves {
 		leaf := leaf
-		key, ok := hashToKey[string(leaf.KeyHash)]
+		key, ok := hashToKey[string(leaf.Index)]
 		if !ok {
-			glog.Warningf("%s: Retrieved unrequested leaf with keyhash: %v, skipping", util.MapIDPrefix(ctx), leaf.KeyHash)
+			glog.Warningf("%s: Retrieved unrequested leaf with keyhash: %v, skipping", util.MapIDPrefix(ctx), leaf.Index)
 			continue
 		}
 		proof, err := smtReader.InclusionProof(req.Revision, key)
