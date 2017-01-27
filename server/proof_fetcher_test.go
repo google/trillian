@@ -130,9 +130,9 @@ func TestTree32InclusionProofFetchAll(t *testing.T) {
 			{TreeRevision: 3, Leaves: expandLeaves(0, ts-1), ExpectedRoot: expectedRootAtSize(mt)},
 		})
 
-		for s := 2; s <= ts; s++ {
-			for l := 0; l < s; l++ {
-				fetches, err := merkle.CalcInclusionProofNodeAddresses(int64(s), int64(l), int64(ts), 64)
+		for s := int64(2); s <= int64(ts); s++ {
+			for l := int64(0); l < s; l++ {
+				fetches, err := merkle.CalcInclusionProofNodeAddresses(s, l, int64(ts), 64)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -169,14 +169,14 @@ func TestTree32InclusionProofFetchMultiBatch(t *testing.T) {
 		{TreeRevision: 6, Leaves: expandLeaves(24, 31), ExpectedRoot: expectedRootAtSize(mt)},
 	})
 
-	for s := 2; s <= 32; s++ {
-		for l := 0; l < s; l++ {
-			fetches, err := merkle.CalcInclusionProofNodeAddresses(int64(s), int64(l), 32, 64)
+	for s := int64(2); s <= 32; s++ {
+		for l := int64(0); l < s; l++ {
+			fetches, err := merkle.CalcInclusionProofNodeAddresses(s, l, 32, 64)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			proof, err := fetchNodesAndBuildProof(r, 6, int64(l), fetches)
+			proof, err := fetchNodesAndBuildProof(r, 6, l, fetches)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -204,9 +204,9 @@ func TestTree32ConsistencyProofFetchAll(t *testing.T) {
 			{TreeRevision: 3, Leaves: expandLeaves(0, ts-1), ExpectedRoot: expectedRootAtSize(mt)},
 		})
 
-		for s1 := 2; s1 < ts; s1++ {
-			for s2 := s1 + 1; s2 < ts; s2++ {
-				fetches, err := merkle.CalcConsistencyProofNodeAddresses(int64(s1), int64(s2), int64(ts), 64)
+		for s1 := int64(2); s1 < int64(ts); s1++ {
+			for s2 := int64(s1 + 1); s2 < int64(ts); s2++ {
+				fetches, err := merkle.CalcConsistencyProofNodeAddresses(s1, s2, int64(ts), 64)
 				if err != nil {
 					t.Fatal(err)
 				}
