@@ -16,6 +16,7 @@ package integration
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"fmt"
 	"math/rand"
@@ -25,7 +26,6 @@ import (
 	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/testonly"
-	"golang.org/x/net/context"
 )
 
 // RunMapIntegration runs a map integration test using the given map ID and client.

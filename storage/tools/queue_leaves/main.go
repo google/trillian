@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/sha256"
 	"flag"
 	"fmt"
@@ -45,7 +46,9 @@ func main() {
 		panic(err)
 	}
 
-	tx, err := storage.Begin()
+	ctx := context.Background()
+
+	tx, err := storage.Begin(ctx)
 
 	if err != nil {
 		panic(err)
@@ -70,7 +73,7 @@ func main() {
 		leaves = append(leaves, leaf)
 
 		if len(leaves) >= *queueBatchSizeFlag {
-			err = tx.QueueLeaves(leaves, time.Now())
+			err = tx.QueueLeaves(ctx, leaves, time.Now())
 			leaves = leaves[:0] // starting new batch
 
 			if err != nil {
@@ -81,14 +84,14 @@ func main() {
 
 	// There might be some leaves left over that didn't get queued yet
 	if len(leaves) > 0 {
-		err = tx.QueueLeaves(leaves, time.Now())
+		err = tx.QueueLeaves(ctx, leaves, time.Now())
 
 		if err != nil {
 			panic(err)
 		}
 	}
 
-	err = tx.Commit()
+	err = tx.Commit(ctx)
 
 	if err != nil {
 		panic(err)

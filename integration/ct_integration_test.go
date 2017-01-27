@@ -16,6 +16,7 @@ package integration
 
 import (
 	"bytes"
+	"context"
 	cryptorand "crypto/rand"
 	"crypto/sha256"
 	"encoding/json"
@@ -42,7 +43,6 @@ import (
 	"github.com/google/trillian/crypto"
 	ctfe "github.com/google/trillian/examples/ct"
 	"github.com/google/trillian/testonly"
-	"golang.org/x/net/context"
 	"golang.org/x/net/context/ctxhttp"
 )
 

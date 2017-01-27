@@ -1,6 +1,7 @@
 package ct
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
@@ -22,7 +23,6 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/util"
-	"golang.org/x/net/context"
 )
 
 const (

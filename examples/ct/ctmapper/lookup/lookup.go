@@ -1,13 +1,13 @@
 package main
 
 import (
+	"context"
 	"flag"
 
 	"github.com/golang/glog"
 	pb "github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 	"github.com/google/trillian/examples/ct/ctmapper/ctmapperpb"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
 

@@ -16,6 +16,7 @@ package integration
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -27,7 +28,6 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/merkle"
-	"golang.org/x/net/context"
 )
 
 // TestParameters bundles up all the settings for a test run

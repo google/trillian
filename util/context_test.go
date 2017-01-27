@@ -15,9 +15,8 @@
 package util
 
 import (
+	"context"
 	"testing"
-
-	"golang.org/x/net/context"
 )
 
 var tests = []struct {

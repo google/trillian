@@ -15,9 +15,8 @@
 package server
 
 import (
+	"context"
 	"time"
-
-	"golang.org/x/net/context"
 
 	"github.com/golang/glog"
 	"github.com/google/trillian/extension"
@@ -93,7 +92,7 @@ func NewLogOperationManagerForTest(ctx context.Context, registry extension.Regis
 	}
 }
 
-func (l LogOperationManager) getLogsAndExecutePass() bool {
+func (l LogOperationManager) getLogsAndExecutePass(ctx context.Context) bool {
 	// TODO(Martin2112) using log ID zero because we don't have an id for metadata ops
 	// this API could improved
 	provider, err := l.context.registry.GetLogStorage(0)
@@ -104,7 +103,7 @@ func (l LogOperationManager) getLogsAndExecutePass() bool {
 		return false
 	}
 
-	tx, err := provider.Begin()
+	tx, err := provider.Begin(ctx)
 
 	if err != nil {
 		glog.Warningf("Failed to get tx for run: %v", err)
@@ -112,15 +111,15 @@ func (l LogOperationManager) getLogsAndExecutePass() bool {
 	}
 
 	// Inner loop is across all active logs, currently one at a time
-	logIDs, err := tx.GetActiveLogIDs()
+	logIDs, err := tx.GetActiveLogIDs(ctx)
 
 	if err != nil {
 		glog.Warningf("Failed to get log list for run: %v", err)
-		tx.Rollback()
+		tx.Rollback(ctx)
 		return false
 	}
 
-	if err := tx.Commit(); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 		glog.Warningf("Failed to commit getting logs: %v", err)
 		return false
 	}
@@ -144,7 +143,8 @@ func (l LogOperationManager) OperationLoop() {
 		// Wait for the configured time before going for another pass
 		time.Sleep(l.context.sleepBetweenRuns)
 
-		quit := l.getLogsAndExecutePass()
+		// TODO(alcutter): want a child context with deadline here?
+		quit := l.getLogsAndExecutePass(l.context.ctx)
 
 		glog.V(1).Infof("Log operation manager pass complete")
 

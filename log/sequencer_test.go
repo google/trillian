@@ -15,12 +15,11 @@
 package log
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"testing"
 	"time"
-
-	"golang.org/x/net/context"
 
 	"github.com/golang/mock/gomock"
 	"github.com/google/trillian"
@@ -168,49 +167,49 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) (testCont
 	mockTx.EXPECT().WriteRevision().AnyTimes().Return(params.writeRevision)
 
 	if params.beginFails {
-		mockStorage.EXPECT().Begin().AnyTimes().Return(mockTx, errors.New("TX"))
+		mockStorage.EXPECT().Begin(gomock.Any()).AnyTimes().Return(mockTx, errors.New("TX"))
 	} else {
-		mockStorage.EXPECT().Begin().AnyTimes().Return(mockTx, nil)
+		mockStorage.EXPECT().Begin(gomock.Any()).AnyTimes().Return(mockTx, nil)
 	}
 
 	if params.shouldCommit {
 		if !params.commitFails {
-			mockTx.EXPECT().Commit().AnyTimes().Return(nil)
+			mockTx.EXPECT().Commit(gomock.Any()).AnyTimes().Return(nil)
 		} else {
-			mockTx.EXPECT().Commit().AnyTimes().Return(params.commitError)
+			mockTx.EXPECT().Commit(gomock.Any()).AnyTimes().Return(params.commitError)
 		}
 	}
 
 	if params.shouldRollback {
-		mockTx.EXPECT().Rollback().AnyTimes().Return(nil)
+		mockTx.EXPECT().Rollback(gomock.Any()).AnyTimes().Return(nil)
 	}
 
 	if !params.skipDequeue {
 		if params.overrideDequeueTime != nil {
-			mockTx.EXPECT().DequeueLeaves(params.dequeueLimit, *params.overrideDequeueTime).AnyTimes().Return(params.dequeuedLeaves, params.dequeuedError)
+			mockTx.EXPECT().DequeueLeaves(gomock.Any(), params.dequeueLimit, *params.overrideDequeueTime).AnyTimes().Return(params.dequeuedLeaves, params.dequeuedError)
 		} else {
-			mockTx.EXPECT().DequeueLeaves(params.dequeueLimit, fakeTimeForTest).AnyTimes().Return(params.dequeuedLeaves, params.dequeuedError)
+			mockTx.EXPECT().DequeueLeaves(gomock.Any(), params.dequeueLimit, fakeTimeForTest).AnyTimes().Return(params.dequeuedLeaves, params.dequeuedError)
 		}
 	}
 
 	if params.latestSignedRoot != nil {
-		mockTx.EXPECT().LatestSignedLogRoot().AnyTimes().Return(*params.latestSignedRoot, params.latestSignedRootError)
+		mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).AnyTimes().Return(*params.latestSignedRoot, params.latestSignedRootError)
 	}
 
 	if params.updatedLeaves != nil {
-		mockTx.EXPECT().UpdateSequencedLeaves(*params.updatedLeaves).AnyTimes().Return(params.updatedLeavesError)
+		mockTx.EXPECT().UpdateSequencedLeaves(gomock.Any(), *params.updatedLeaves).AnyTimes().Return(params.updatedLeavesError)
 	}
 
 	if params.merkleNodesSet != nil {
-		mockTx.EXPECT().SetMerkleNodes(testonly.NodeSet(*params.merkleNodesSet)).AnyTimes().Return(params.merkleNodesSetError)
+		mockTx.EXPECT().SetMerkleNodes(gomock.Any(), testonly.NodeSet(*params.merkleNodesSet)).AnyTimes().Return(params.merkleNodesSetError)
 	}
 
 	if !params.skipStoreSignedRoot {
 		if params.storeSignedRoot != nil {
-			mockTx.EXPECT().StoreSignedLogRoot(*params.storeSignedRoot).AnyTimes().Return(params.storeSignedRootError)
+			mockTx.EXPECT().StoreSignedLogRoot(gomock.Any(), *params.storeSignedRoot).AnyTimes().Return(params.storeSignedRootError)
 		} else {
 			// At the moment if we're going to fail the operation we accept any root
-			mockTx.EXPECT().StoreSignedLogRoot(gomock.Any()).AnyTimes().Return(params.storeSignedRootError)
+			mockTx.EXPECT().StoreSignedLogRoot(gomock.Any(), gomock.Any()).AnyTimes().Return(params.storeSignedRootError)
 		}
 	}
 

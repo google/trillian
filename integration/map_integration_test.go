@@ -15,11 +15,11 @@
 package integration
 
 import (
+	"context"
 	"flag"
 	"testing"
 
 	"github.com/google/trillian"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
 

@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"context"
 	"database/sql"
 
 	"github.com/golang/glog"
@@ -70,7 +71,7 @@ func NewMapStorage(id int64, db *sql.DB) (storage.MapStorage, error) {
 	return &s, nil
 }
 
-func (m *mySQLMapStorage) Begin() (storage.MapTX, error) {
+func (m *mySQLMapStorage) Begin(ctx context.Context) (storage.MapTX, error) {
 	ttx, err := m.beginTreeTx()
 	if err != nil {
 		return nil, err
@@ -80,7 +81,7 @@ func (m *mySQLMapStorage) Begin() (storage.MapTX, error) {
 		ms:     m,
 	}
 
-	root, err := ret.LatestSignedMapRoot()
+	root, err := ret.LatestSignedMapRoot(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -90,8 +91,8 @@ func (m *mySQLMapStorage) Begin() (storage.MapTX, error) {
 	return ret, nil
 }
 
-func (m *mySQLMapStorage) Snapshot() (storage.ReadOnlyMapTX, error) {
-	tx, err := m.Begin()
+func (m *mySQLMapStorage) Snapshot(ctx context.Context) (storage.ReadOnlyMapTX, error) {
+	tx, err := m.Begin(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +108,7 @@ func (m *mapTX) WriteRevision() int64 {
 	return m.treeTX.writeRevision
 }
 
-func (m *mapTX) Set(keyHash []byte, value trillian.MapLeaf) error {
+func (m *mapTX) Set(ctx context.Context, keyHash []byte, value trillian.MapLeaf) error {
 	// TODO(al): consider storing some sort of value which represents the group of keys being set in this Tx.
 	//           That way, if this attempt partially fails (i.e. because some subset of the in-the-future Merkle
 	//           nodes do get written), we can enforce that future map update attempts are a complete replay of
@@ -127,7 +128,7 @@ func (m *mapTX) Set(keyHash []byte, value trillian.MapLeaf) error {
 	return err
 }
 
-func (m *mapTX) Get(revision int64, keyHashes [][]byte) ([]trillian.MapLeaf, error) {
+func (m *mapTX) Get(ctx context.Context, revision int64, keyHashes [][]byte) ([]trillian.MapLeaf, error) {
 	stmt, err := m.ms.getStmt(selectMapLeafSQL, len(keyHashes), "?", "?")
 	if err != nil {
 		return nil, err
@@ -180,7 +181,7 @@ func (m *mapTX) Get(revision int64, keyHashes [][]byte) ([]trillian.MapLeaf, err
 	return ret, nil
 }
 
-func (m *mapTX) LatestSignedMapRoot() (trillian.SignedMapRoot, error) {
+func (m *mapTX) LatestSignedMapRoot(ctx context.Context) (trillian.SignedMapRoot, error) {
 	var timestamp, mapRevision int64
 	var rootHash, rootSignatureBytes []byte
 	var rootSignature trillian.DigitallySigned
@@ -227,7 +228,7 @@ func (m *mapTX) LatestSignedMapRoot() (trillian.SignedMapRoot, error) {
 	return ret, nil
 }
 
-func (m *mapTX) StoreSignedMapRoot(root trillian.SignedMapRoot) error {
+func (m *mapTX) StoreSignedMapRoot(ctx context.Context, root trillian.SignedMapRoot) error {
 	signatureBytes, err := proto.Marshal(root.Signature)
 	if err != nil {
 		glog.Warningf("Failed to marshal root signature: %v %v", root.Signature, err)

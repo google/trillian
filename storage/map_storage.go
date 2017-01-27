@@ -15,6 +15,8 @@
 package storage
 
 import (
+	"context"
+
 	"github.com/google/trillian"
 )
 
@@ -43,7 +45,7 @@ type ReadOnlyMapStorage interface {
 	// Commit must be called when the caller is finished with the returned object,
 	// and values read through it should only be propagated if Commit returns
 	// without error.
-	Snapshot() (ReadOnlyMapTX, error)
+	Snapshot(ctx context.Context) (ReadOnlyMapTX, error)
 
 	// Returns the MapID this storage relates to.
 	MapID() int64
@@ -56,13 +58,13 @@ type MapStorage interface {
 	// Either Commit or Rollback must be called when the caller is finished with
 	// the returned object, and values read through it should only be propagated
 	// if Commit returns without error.
-	Begin() (MapTX, error)
+	Begin(ctx context.Context) (MapTX, error)
 }
 
 // Setter allows the setting of key->value pairs on the map.
 type Setter interface {
 	// Set sets key to leaf
-	Set(keyHash []byte, value trillian.MapLeaf) error
+	Set(ctx context.Context, keyHash []byte, value trillian.MapLeaf) error
 }
 
 // Getter allows access to the values stored in the map.
@@ -73,17 +75,17 @@ type Getter interface {
 	// The returned array of MapLeaves will only contain entries for which values
 	// exist.  i.e. requesting a set of unknown keys would result in a
 	// zero-length array being returned.
-	Get(revision int64, keyHashes [][]byte) ([]trillian.MapLeaf, error)
+	Get(ctx context.Context, revision int64, keyHashes [][]byte) ([]trillian.MapLeaf, error)
 }
 
 // MapRootReader provides access to the map roots.
 type MapRootReader interface {
 	// LatestSignedMapRoot returns the most recently created SignedMapRoot.
-	LatestSignedMapRoot() (trillian.SignedMapRoot, error)
+	LatestSignedMapRoot(ctx context.Context) (trillian.SignedMapRoot, error)
 }
 
 // MapRootWriter allows the storage of new SignedMapRoots
 type MapRootWriter interface {
 	// StoreSignedMapRoot stores root.
-	StoreSignedMapRoot(root trillian.SignedMapRoot) error
+	StoreSignedMapRoot(ctx context.Context, root trillian.SignedMapRoot) error
 }

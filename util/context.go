@@ -15,9 +15,8 @@
 package util
 
 import (
+	"context"
 	"fmt"
-
-	"golang.org/x/net/context"
 )
 
 type contextKey int
