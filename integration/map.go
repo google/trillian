@@ -45,7 +45,7 @@ func RunMapIntegration(ctx context.Context, mapID int64, client trillian.Trillia
 	const batchSize = 64
 	const numBatches = 32
 	const expectedRootB64 = "XxWv/gFSjVVujxdCdDX4Z/GC/9JD8g/y8s1Ayf+boaE="
-	expectedKeys := make([][]byte, 0, batchSize*numBatches)
+	ExpectedIndexes := make([][]byte, 0, batchSize*numBatches)
 	expectedValues := make(map[string][]byte)
 
 	{
@@ -61,12 +61,13 @@ func RunMapIntegration(ctx context.Context, mapID int64, client trillian.Trillia
 			}
 
 			for y := 0; y < batchSize; y++ {
-				key := []byte(fmt.Sprintf("key-%d-%d", x, y))
-				expectedKeys = append(expectedKeys, key)
+				key := fmt.Sprintf("key-%d-%d", x, y)
+				index := testonly.HashKey(key)
+				ExpectedIndexes = append(ExpectedIndexes, index)
 				value := []byte(fmt.Sprintf("value-%d-%d", x, y))
 				expectedValues[string(key)] = value
 				req.KeyValue[y] = &trillian.KeyValue{
-					Key: key,
+					Key: index,
 					Value: &trillian.MapLeaf{
 						LeafValue: value,
 					},
@@ -111,7 +112,7 @@ func RunMapIntegration(ctx context.Context, mapID int64, client trillian.Trillia
 			Revision: latestRoot.MapRevision,
 		}
 		// Mix up the ordering of requests
-		keyOrder := rand.Perm(len(expectedKeys))
+		keyOrder := rand.Perm(len(ExpectedIndexes))
 		i := 0
 
 		h := merkle.NewMapHasher(merkle.NewRFC6962TreeHasher(crypto.NewSHA256()))
@@ -119,7 +120,7 @@ func RunMapIntegration(ctx context.Context, mapID int64, client trillian.Trillia
 		for x := 0; x < numBatches; x++ {
 			getReq.Key = make([][]byte, 0, batchSize)
 			for y := 0; y < batchSize; y++ {
-				getReq.Key = append(getReq.Key, expectedKeys[keyOrder[i]])
+				getReq.Key = append(getReq.Key, ExpectedIndexes[keyOrder[i]])
 				i++
 			}
 			r, err := client.GetLeaves(ctx, &getReq)

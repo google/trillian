@@ -204,7 +204,8 @@ service TrillianLog {
 
 // MapLeaf represents the data behind Map leaves.
 message MapLeaf {
-  // key_hash is the hash of the key for this leaf.
+  // index is the location of this leaf.
+  // All indexes for a given Map must contain a constant number of bits.
   bytes key_hash = 1;
   // leaf_hash is the tree hash of leaf_value.
   bytes leaf_hash = 2;

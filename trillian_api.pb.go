@@ -743,7 +743,8 @@ func (m *GetEntryAndProofResponse) GetLeaf() *LogLeaf {
 
 // MapLeaf represents the data behind Map leaves.
 type MapLeaf struct {
-	// key_hash is the hash of the key for this leaf.
+	// index is the location of this leaf.
+	// All indexes for a given Map must contain a constant number of bits.
 	KeyHash []byte `protobuf:"bytes,1,opt,name=key_hash,json=keyHash,proto3" json:"key_hash,omitempty"`
 	// leaf_hash is the tree hash of leaf_value.
 	LeafHash []byte `protobuf:"bytes,2,opt,name=leaf_hash,json=leafHash,proto3" json:"leaf_hash,omitempty"`
