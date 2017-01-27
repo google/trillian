@@ -57,7 +57,7 @@ func RunMapIntegration(ctx context.Context, mapID int64, client trillian.Trillia
 
 			req := &trillian.SetMapLeavesRequest{
 				MapId:    mapID,
-				KeyValue: make([]*trillian.KeyValue, batchSize),
+				KeyValue: make([]*trillian.IndexValue, batchSize),
 			}
 
 			for y := 0; y < batchSize; y++ {
@@ -66,7 +66,7 @@ func RunMapIntegration(ctx context.Context, mapID int64, client trillian.Trillia
 				ExpectedIndexes = append(ExpectedIndexes, index)
 				value := []byte(fmt.Sprintf("value-%d-%d", x, y))
 				expectedValues[string(key)] = value
-				req.KeyValue[y] = &trillian.KeyValue{
+				req.KeyValue[y] = &trillian.IndexValue{
 					Index: index,
 					Value: &trillian.MapLeaf{
 						LeafValue: value,

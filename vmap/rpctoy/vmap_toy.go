@@ -60,11 +60,11 @@ func main() {
 
 		req := &trillian.SetMapLeavesRequest{
 			MapId:    1,
-			KeyValue: make([]*trillian.KeyValue, batchSize),
+			KeyValue: make([]*trillian.IndexValue, batchSize),
 		}
 
 		for y := 0; y < batchSize; y++ {
-			req.KeyValue[y] = &trillian.KeyValue{
+			req.KeyValue[y] = &trillian.IndexValue{
 				Index: []byte(fmt.Sprintf("key-%d-%d", x, y)),
 				Value: &trillian.MapLeaf{
 					LeafValue: []byte(fmt.Sprintf("value-%d-%d", x, y)),

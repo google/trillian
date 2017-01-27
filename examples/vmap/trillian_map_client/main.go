@@ -29,7 +29,7 @@ func main() {
 	{
 		req := &trillian.SetMapLeavesRequest{
 			MapId: 1,
-			KeyValue: []*trillian.KeyValue{
+			KeyValue: []*trillian.IndexValue{
 				{
 					Index: index,
 					Value: &trillian.MapLeaf{
