@@ -90,7 +90,7 @@ func RunCTIntegrationForLog(cfg ctfe.LogConfig, servers, testdir string, stats *
 
 	// Stage 0: get accepted roots, which should just be the fake CA.
 	roots, err := pool.Pick().GetAcceptedRoots(ctx)
-	stats.done("GetRoots", 200)
+	stats.done(ctfe.GetRootsName, 200)
 	if err != nil {
 		return fmt.Errorf("got GetAcceptedRoots()=(nil,%v); want (_,nil)", err)
 	}
@@ -100,7 +100,7 @@ func RunCTIntegrationForLog(cfg ctfe.LogConfig, servers, testdir string, stats *
 
 	// Stage 1: get the STH, which should be empty.
 	sth0, err := pool.Pick().GetSTH(ctx)
-	stats.done("GetSTH", 200)
+	stats.done(ctfe.GetSTHName, 200)
 	if err != nil {
 		return fmt.Errorf("got GetSTH()=(nil,%v); want (_,nil)", err)
 	}
@@ -120,7 +120,7 @@ func RunCTIntegrationForLog(cfg ctfe.LogConfig, servers, testdir string, stats *
 		return fmt.Errorf("failed to load certificate: %v", err)
 	}
 	scts[0], err = pool.Pick().AddChain(ctx, chain[0])
-	stats.done("AddChain", 200)
+	stats.done(ctfe.AddChainName, 200)
 	if err != nil {
 		return fmt.Errorf("got AddChain(int-ca.cert)=(nil,%v); want (_,nil)", err)
 	}
@@ -143,7 +143,7 @@ func RunCTIntegrationForLog(cfg ctfe.LogConfig, servers, testdir string, stats *
 		return fmt.Errorf("failed to load certificate: %v", err)
 	}
 	scts[1], err = pool.Pick().AddChain(ctx, chain[1])
-	stats.done("AddChain", 200)
+	stats.done(ctfe.AddChainName, 200)
 	if err != nil {
 		return fmt.Errorf("got AddChain(leaf01)=(nil,%v); want (_,nil)", err)
 	}
@@ -156,7 +156,7 @@ func RunCTIntegrationForLog(cfg ctfe.LogConfig, servers, testdir string, stats *
 
 	// Stage 4: get a consistency proof from size 1-> size 2.
 	proof12, err := pool.Pick().GetSTHConsistency(ctx, 1, 2)
-	stats.done("GetSTHConsistency", 200)
+	stats.done(ctfe.GetSTHConsistencyName, 200)
 	if err != nil {
 		return fmt.Errorf("got GetSTHConsistency(1, 2)=(nil,%v); want (_,nil)", err)
 	}
@@ -187,7 +187,7 @@ func RunCTIntegrationForLog(cfg ctfe.LogConfig, servers, testdir string, stats *
 			return fmt.Errorf("failed to load certificate: %v", err)
 		}
 		scts[i], err = pool.Pick().AddChain(ctx, chain[i])
-		stats.done("AddChain", 200)
+		stats.done(ctfe.AddChainName, 200)
 		if err != nil {
 			return fmt.Errorf("got AddChain(leaf%02d)=(nil,%v); want (_,nil)", i, err)
 		}
@@ -207,7 +207,7 @@ func RunCTIntegrationForLog(cfg ctfe.LogConfig, servers, testdir string, stats *
 
 	// Stage 7: get a consistency proof from 2->(1+N).
 	proof2N, err := pool.Pick().GetSTHConsistency(ctx, 2, uint64(treeSize))
-	stats.done("GetSTHConsistency", 200)
+	stats.done(ctfe.GetSTHConsistencyName, 200)
 	if err != nil {
 		return fmt.Errorf("got GetSTHConsistency(2, %d)=(nil,%v); want (_,nil)", treeSize, err)
 	}
@@ -218,7 +218,7 @@ func RunCTIntegrationForLog(cfg ctfe.LogConfig, servers, testdir string, stats *
 
 	// Stage 8: get entries [1, N] (start at 1 to skip int-ca.cert)
 	entries, err := pool.Pick().GetEntries(ctx, 1, int64(count))
-	stats.done("GetEntries", 200)
+	stats.done(ctfe.GetEntriesName, 200)
 	if err != nil {
 		return fmt.Errorf("got GetEntries(1,%d)=(nil,%v); want (_,nil)", count, err)
 	}
@@ -273,7 +273,7 @@ func RunCTIntegrationForLog(cfg ctfe.LogConfig, servers, testdir string, stats *
 		}
 		hash := sha256.Sum256(append([]byte{merkletree.LeafPrefix}, leafData...))
 		rsp, err := pool.Pick().GetProofByHash(ctx, hash[:], sthN.TreeSize)
-		stats.done("GetProofByHash", 200)
+		stats.done(ctfe.GetProofByHashName, 200)
 		if err != nil {
 			return fmt.Errorf("got GetProofByHash(sct[%d],size=%d)=(nil,%v); want (_,nil)", i, sthN.TreeSize, err)
 		}
@@ -294,14 +294,14 @@ func RunCTIntegrationForLog(cfg ctfe.LogConfig, servers, testdir string, stats *
 	if sct, err := pool.Pick().AddChain(ctx, corruptChain); err == nil {
 		return fmt.Errorf("got AddChain(corrupt-cert)=(%+v,nil); want (nil,error)", sct)
 	}
-	stats.done("AddChain", 400)
+	stats.done(ctfe.AddChainName, 400)
 	fmt.Printf("%s: AddChain(corrupt-cert)=nil,%v\n", cfg.Prefix, err)
 
 	// Stage 11: attempt to upload a certificate without chain.
 	if sct, err := pool.Pick().AddChain(ctx, chain[1][0:0]); err == nil {
 		return fmt.Errorf("got AddChain(leaf-only)=(%+v,nil); want (nil,error)", sct)
 	}
-	stats.done("AddChain", 400)
+	stats.done(ctfe.AddChainName, 400)
 	fmt.Printf("%s: AddChain(leaf-only)=nil,%v\n", cfg.Prefix, err)
 	if err := stats.check(cfg, servers); err != nil {
 		return fmt.Errorf("unexpected stats check: %v", err)
@@ -313,7 +313,7 @@ func RunCTIntegrationForLog(cfg ctfe.LogConfig, servers, testdir string, stats *
 		return fmt.Errorf("failed to build pre-certificate: %v", err)
 	}
 	precertSCT, err := pool.Pick().AddPreChain(ctx, prechain)
-	stats.done("AddPreChain", 200)
+	stats.done(ctfe.AddPreChainName, 200)
 	if err != nil {
 		return fmt.Errorf("got AddPreChain()=(nil,%v); want (_,nil)", err)
 	}
@@ -328,7 +328,7 @@ func RunCTIntegrationForLog(cfg ctfe.LogConfig, servers, testdir string, stats *
 	// Stage 13: retrieve and check pre-cert.
 	precertIndex := int64(count + 1)
 	precertEntries, err := pool.Pick().GetEntries(ctx, precertIndex, precertIndex)
-	stats.done("GetEntries", 200)
+	stats.done(ctfe.GetEntriesName, 200)
 	if err != nil {
 		return fmt.Errorf("got GetEntries(%d,%d)=(nil,%v); want (_,nil)", precertIndex, precertIndex, err)
 	}
@@ -375,7 +375,7 @@ func RunCTIntegrationForLog(cfg ctfe.LogConfig, servers, testdir string, stats *
 	}
 	hash := sha256.Sum256(append([]byte{merkletree.LeafPrefix}, leafData...))
 	rsp, err := pool.Pick().GetProofByHash(ctx, hash[:], sthN1.TreeSize)
-	stats.done("GetProofByHash", 200)
+	stats.done(ctfe.GetProofByHashName, 200)
 	if err != nil {
 		return fmt.Errorf("got GetProofByHash(precertSCT, size=%d)=nil,%v", sthN1.TreeSize, err)
 	}
@@ -422,7 +422,7 @@ func AwaitTreeSize(ctx context.Context, logClient *client.LogClient, size uint64
 		var err error
 		sth, err = logClient.GetSTH(ctx)
 		if stats != nil {
-			stats.done("GetSTH", 200)
+			stats.done(ctfe.GetSTHName, 200)
 		}
 		if err != nil {
 			return nil, fmt.Errorf("failed to get STH: %v", err)
@@ -492,8 +492,8 @@ func newWantStats(logID int64) *wantStats {
 	stats := wantStats{
 		LogID:       int(logID),
 		HTTPAllRsps: make(map[string]int),
-		HTTPReq:     make(map[string]int),
-		HTTPRsps:    make(map[string]map[string]int),
+		HTTPReq:     make(map[ctfe.EntrypointName]int),
+		HTTPRsps:    make(map[ctfe.EntrypointName]map[string]int),
 	}
 	for _, ep := range ctfe.Entrypoints {
 		stats.HTTPRsps[ep] = make(map[string]int)
@@ -501,7 +501,7 @@ func newWantStats(logID int64) *wantStats {
 	return &stats
 }
 
-func (want *wantStats) done(ep string, rc int) {
+func (want *wantStats) done(ep ctfe.EntrypointName, rc int) {
 	if want == nil {
 		return
 	}

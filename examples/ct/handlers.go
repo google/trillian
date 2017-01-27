@@ -52,20 +52,23 @@ const (
 	getEntryAndProofParamTreeSize = "tree_size"
 )
 
+// EntrypointName identifies a CT entrypoint as defined in section 4 of RFC 6962.
+type EntrypointName string
+
 // Constants for entrypoint names, as exposed in statistics/logging.
 const (
-	addChainName          = "AddChain"
-	addPreChainName       = "AddPreChain"
-	getSTHName            = "GetSTH"
-	getSTHConsistencyName = "GetSTHConsistency"
-	getProofByHashName    = "GetProofByHash"
-	getEntriesName        = "GetEntries"
-	getRootsName          = "GetRoots"
-	getEntryAndProofName  = "GetEntryAndProof"
+	AddChainName          = EntrypointName("AddChain")
+	AddPreChainName       = EntrypointName("AddPreChain")
+	GetSTHName            = EntrypointName("GetSTH")
+	GetSTHConsistencyName = EntrypointName("GetSTHConsistency")
+	GetProofByHashName    = EntrypointName("GetProofByHash")
+	GetEntriesName        = EntrypointName("GetEntries")
+	GetRootsName          = EntrypointName("GetRoots")
+	GetEntryAndProofName  = EntrypointName("GetEntryAndProof")
 )
 
 // Entrypoints is a list of entrypoint names as exposed in statistics/logging.
-var Entrypoints = []string{addChainName, addPreChainName, getSTHName, getSTHConsistencyName, getProofByHashName, getEntriesName, getRootsName, getEntryAndProofName}
+var Entrypoints = []EntrypointName{AddChainName, AddPreChainName, GetSTHName, GetSTHConsistencyName, GetProofByHashName, GetEntriesName, GetRootsName, GetEntryAndProofName}
 
 // PathHandlers maps from a path to the relevant AppHandler instance.
 type PathHandlers map[string]AppHandler
@@ -75,7 +78,7 @@ type PathHandlers map[string]AppHandler
 type AppHandler struct {
 	Context LogContext
 	Handler func(context.Context, LogContext, http.ResponseWriter, *http.Request) (int, error)
-	Name    string
+	Name    EntrypointName
 	Method  string // http.MethodGet or http.MethodPost
 }
 
@@ -83,7 +86,7 @@ type AppHandler struct {
 // does additional common error and stats processing.
 func (a AppHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	a.Context.exp.vars.Add("http-all-reqs", 1)
-	a.Context.exp.reqs.Add(a.Name, 1)
+	a.Context.exp.reqs.Add(string(a.Name), 1)
 	glog.V(2).Infof("%s: request %v %q => %s", a.Context.LogPrefix, r.Method, r.URL, a.Name)
 	if r.Method != a.Method {
 		glog.Warningf("%s: %s wrong HTTP method: %v", a.Context.LogPrefix, a.Name, r.Method)
@@ -108,7 +111,7 @@ func (a AppHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	status, err := a.Handler(ctx, a.Context, w, r)
 	glog.V(2).Infof("%s: %s <= status=%d", a.Context.LogPrefix, a.Name, status)
 	a.Context.exp.allRsps.Add(strconv.Itoa(status), 1)
-	e := a.Context.exp.rsps.Get(a.Name)
+	e := a.Context.exp.rsps.Get(string(a.Name))
 	if e, ok := e.(*expvar.Map); ok {
 		e.Add(strconv.Itoa(status), 1)
 	}
@@ -191,7 +194,7 @@ func NewLogContext(logID int64, prefix string, trustedRoots *PEMCertPool, rpcCli
 	ctx.exp.vars.Set("http-all-rsps", ctx.exp.allRsps)
 	ctx.exp.rsps = new(expvar.Map).Init()
 	for _, ep := range Entrypoints {
-		ctx.exp.rsps.Set(ep, new(expvar.Map).Init())
+		ctx.exp.rsps.Set(string(ep), new(expvar.Map).Init())
 	}
 	ctx.exp.vars.Set("http-rsps", ctx.exp.rsps)
 
@@ -208,14 +211,14 @@ func (c LogContext) Handlers(prefix string) PathHandlers {
 
 	// Bind the LogContext instance to give an appHandler instance for each entrypoint.
 	return PathHandlers{
-		prefix + ct.AddChainPath:          AppHandler{Context: c, Handler: addChain, Name: addChainName, Method: http.MethodPost},
-		prefix + ct.AddPreChainPath:       AppHandler{Context: c, Handler: addPreChain, Name: addPreChainName, Method: http.MethodPost},
-		prefix + ct.GetSTHPath:            AppHandler{Context: c, Handler: getSTH, Name: getSTHName, Method: http.MethodGet},
-		prefix + ct.GetSTHConsistencyPath: AppHandler{Context: c, Handler: getSTHConsistency, Name: getSTHConsistencyName, Method: http.MethodGet},
-		prefix + ct.GetProofByHashPath:    AppHandler{Context: c, Handler: getProofByHash, Name: getProofByHashName, Method: http.MethodGet},
-		prefix + ct.GetEntriesPath:        AppHandler{Context: c, Handler: getEntries, Name: getEntriesName, Method: http.MethodGet},
-		prefix + ct.GetRootsPath:          AppHandler{Context: c, Handler: getRoots, Name: getRootsName, Method: http.MethodGet},
-		prefix + ct.GetEntryAndProofPath:  AppHandler{Context: c, Handler: getEntryAndProof, Name: getEntryAndProofName, Method: http.MethodGet},
+		prefix + ct.AddChainPath:          AppHandler{Context: c, Handler: addChain, Name: AddChainName, Method: http.MethodPost},
+		prefix + ct.AddPreChainPath:       AppHandler{Context: c, Handler: addPreChain, Name: AddPreChainName, Method: http.MethodPost},
+		prefix + ct.GetSTHPath:            AppHandler{Context: c, Handler: getSTH, Name: GetSTHName, Method: http.MethodGet},
+		prefix + ct.GetSTHConsistencyPath: AppHandler{Context: c, Handler: getSTHConsistency, Name: GetSTHConsistencyName, Method: http.MethodGet},
+		prefix + ct.GetProofByHashPath:    AppHandler{Context: c, Handler: getProofByHash, Name: GetProofByHashName, Method: http.MethodGet},
+		prefix + ct.GetEntriesPath:        AppHandler{Context: c, Handler: getEntries, Name: GetEntriesName, Method: http.MethodGet},
+		prefix + ct.GetRootsPath:          AppHandler{Context: c, Handler: getRoots, Name: GetRootsName, Method: http.MethodGet},
+		prefix + ct.GetEntryAndProofPath:  AppHandler{Context: c, Handler: getEntryAndProof, Name: GetEntryAndProofName, Method: http.MethodGet},
 	}
 }
 
@@ -247,12 +250,12 @@ func parseBodyAsJSONChain(c LogContext, r *http.Request) (ct.AddChainRequest, er
 // needs this to be implemented before we can do it here
 func addChainInternal(ctx context.Context, c LogContext, w http.ResponseWriter, r *http.Request, isPrecert bool) (int, error) {
 	var signerFn func(crypto.KeyManager, *x509.Certificate, *x509.Certificate, time.Time) (ct.MerkleTreeLeaf, ct.SignedCertificateTimestamp, error)
-	var method string
+	var method EntrypointName
 	if isPrecert {
-		method = addPreChainName
+		method = AddPreChainName
 		signerFn = signV1SCTForPrecertificate
 	} else {
-		method = addChainName
+		method = AddChainName
 		signerFn = signV1SCTForCertificate
 	}
 
