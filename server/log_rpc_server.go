@@ -489,7 +489,7 @@ func validateLeafHashes(leafHashes [][]byte) bool {
 func getInclusionProofForLeafIndexAtRevision(tx storage.ReadOnlyLogTX, snapshot, treeRevision, treeSize, leafIndex int64) (trillian.Proof, error) {
 	// We have the tree size and leaf index so we know the nodes that we need to serve the proof
 	// TODO(Martin2112): Not sure about hardcoding maxBitLen here
-	proofNodeIDs, err := merkle.CalcInclusionProofNodeAddresses(treeSize, leafIndex, snapshot, proofMaxBitLen)
+	proofNodeIDs, err := merkle.CalcInclusionProofNodeAddresses(snapshot, leafIndex, treeSize, proofMaxBitLen)
 	if err != nil {
 		return trillian.Proof{}, err
 	}

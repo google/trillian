@@ -65,9 +65,6 @@ func DefaultTestParameters(treeID int64) TestParameters {
 	}
 }
 
-// both sizes will be multiplied by the sequencer batch size before being passed to the log
-// in cases where we're testing valid proofs
-// TODO(Martin2112): This can be updated when the log supports proofs at arbitrary tree sizes
 type consistencyProofParams struct {
 	size1 int64
 	size2 int64
@@ -157,18 +154,26 @@ func RunLogIntegration(client trillian.TrillianLogClient, params TestParameters)
 	// Step 6 - Test some consistency proofs
 	glog.Info("Testing consistency proofs")
 
-	// Make some proof requests that we know should not succeed
+	// Make some consistency proof requests that we know should not succeed
 	for _, consistParams := range consistencyProofBadTestParams {
-		if err := checkConsistencyProof(consistParams, params.treeID, tree, client, params); err == nil {
+		if err := checkConsistencyProof(consistParams, params.treeID, tree, client, params, int64(params.queueBatchSize)); err == nil {
 			return fmt.Errorf("log consistency for %v: unexpected proof returned", consistParams)
 		}
 	}
 
-	// Probe the log between some tree sizes we know are STHs and check the results against
-	// the in memory tree.
+	// Probe the log between some tree sizes we know are included and check the results against
+	// the in memory tree. Request proofs at both STH and non STH sizes unless batch size is one,
+	// when these would be equivalent requests.
 	for _, consistParams := range consistencyProofTestParams {
-		if err := checkConsistencyProof(consistParams, params.treeID, tree, client, params); err != nil {
+		if err := checkConsistencyProof(consistParams, params.treeID, tree, client, params, int64(params.queueBatchSize)); err != nil {
 			return fmt.Errorf("log consistency for %v: proof checks failed: %v", consistParams, err)
+		}
+
+		// Only do this if the batch size changes when halved
+		if params.queueBatchSize > 1 {
+			if err := checkConsistencyProof(consistParams, params.treeID, tree, client, params, int64(params.queueBatchSize / 2)); err != nil {
+				return fmt.Errorf("log consistency for %v: proof checks failed (Non STH size): %v", consistParams, err)
+			}
 		}
 	}
 	return nil
@@ -385,8 +390,8 @@ func checkInclusionProofsAtIndex(index int64, logID int64, tree *merkle.InMemory
 		resp, err := client.GetInclusionProof(ctx, &trillian.GetInclusionProofRequest{LogId: logID, LeafIndex: index, TreeSize: int64(treeSize)})
 		cancel()
 
+		// If the index is larger than the tree size we cannot have a valid proof
 		if index >= treeSize {
-			// If the index is larger than the tree size we cannot have a valid proof
 			if err == nil {
 				return fmt.Errorf("log returned proof for index: %d, tree is only size %d", index, treeSize)
 			}
@@ -394,38 +399,31 @@ func checkInclusionProofsAtIndex(index int64, logID int64, tree *merkle.InMemory
 			continue
 		}
 
-		// If we're not at a valid STH tree size then we can't have a proof
-		if treeSize == 0 || (treeSize%int64(params.sequencerBatchSize)) != 0 {
-			if err == nil {
-				return fmt.Errorf("log returned proof at non STH size: %d", treeSize)
-			}
-		} else {
-			// Otherwise we should have a proof, to be compared against our memory tree
-			if err != nil || resp.Status.StatusCode != trillian.TrillianApiStatusCode_OK {
-				return fmt.Errorf("log returned no proof for index %d at size %d, which should have succeeded: %v", index, treeSize, err)
-			}
+		// Otherwise we should have a proof, to be compared against our memory tree
+		if err != nil || resp.Status.StatusCode != trillian.TrillianApiStatusCode_OK {
+			return fmt.Errorf("log returned no proof for index %d at size %d, which should have succeeded: %v", index, treeSize, err)
+		}
 
-			// Remember that the in memory tree uses 1 based leaf indices
-			path := tree.PathToRootAtSnapshot(index+1, treeSize)
+		// Remember that the in memory tree uses 1 based leaf indices
+		path := tree.PathToRootAtSnapshot(index + 1, treeSize)
 
-			if err = compareLogAndTreeProof(resp.Proof, path); err != nil {
-				// The log and tree proof don't match, details in the error
-				return err
-			}
+		if err = compareLogAndTreeProof(resp.Proof, path); err != nil {
+			// The log and tree proof don't match, details in the error
+			return err
 		}
 	}
 
 	return nil
 }
 
-func checkConsistencyProof(consistParams consistencyProofParams, treeID int64, tree *merkle.InMemoryMerkleTree, client trillian.TrillianLogClient, params TestParameters) error {
+func checkConsistencyProof(consistParams consistencyProofParams, treeID int64, tree *merkle.InMemoryMerkleTree, client trillian.TrillianLogClient, params TestParameters, batchSize int64) error {
 	// We expect the proof request to succeed
 	ctx, cancel := getRPCDeadlineContext(params)
 	resp, err := client.GetConsistencyProof(ctx,
 		&trillian.GetConsistencyProofRequest{
 			LogId:          treeID,
-			FirstTreeSize:  consistParams.size1 * int64(params.sequencerBatchSize),
-			SecondTreeSize: (consistParams.size2 * int64(params.sequencerBatchSize)),
+			FirstTreeSize:  consistParams.size1 * int64(batchSize),
+			SecondTreeSize: (consistParams.size2 * int64(batchSize)),
 		})
 	cancel()
 
@@ -435,8 +433,8 @@ func checkConsistencyProof(consistParams consistencyProofParams, treeID int64, t
 
 	// Get the proof from the memory tree
 	proof := tree.SnapshotConsistency(
-		(consistParams.size1 * int64(params.sequencerBatchSize)),
-		(consistParams.size2 * int64(params.sequencerBatchSize)))
+		(consistParams.size1 * int64(batchSize)),
+		(consistParams.size2 * int64(batchSize)))
 
 	// Compare the proofs, they should be identical
 	return compareLogAndTreeProof(resp.Proof, proof)
