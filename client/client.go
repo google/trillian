@@ -38,7 +38,7 @@ func New(logID int64, cc *grpc.ClientConn) *LogClient {
 }
 
 // AddLeaf adds leaf to the append only log. It blocks until a verifiable response is received.
-func (c *LogClient) AddLeaf(data []byte) error {
+func (c *LogClient) AddLeaf(ctx context.Context, data []byte) error {
 	hash := sha256.Sum256(data)
 	leaf := &trillian.LogLeaf{
 		LeafValue:        data,
@@ -49,7 +49,6 @@ func (c *LogClient) AddLeaf(data []byte) error {
 		LogId: c.LogID,
 		Leaf:  leaf,
 	}
-	ctx := context.Background()
 	_, err := c.client.QueueLeaf(ctx, &req)
 	// TODO(gdbelvin): Get proof by hash
 	// TODO(gdbelvin): backoff with jitter
