@@ -127,10 +127,10 @@ func RunMapIntegration(ctx context.Context, mapID int64, client trillian.Trillia
 			if err != nil {
 				return fmt.Errorf("failed to get values: %v", err)
 			}
-			if got, want := len(r.KeyValue), len(getReq.Index); got != want {
+			if got, want := len(r.IndexValue), len(getReq.Index); got != want {
 				return fmt.Errorf("got %d values, expected %d", got, want)
 			}
-			for _, kv := range r.KeyValue {
+			for _, kv := range r.IndexValue {
 				ev := expectedValues[string(kv.IndexValue.Index)]
 				if ev == nil {
 					return fmt.Errorf("unexpected key returned: %v", string(kv.IndexValue.Index))

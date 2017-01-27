@@ -233,7 +233,7 @@ message GetMapLeavesRequest {
 
 message GetMapLeavesResponse {
   TrillianApiStatus status = 1;
-  repeated IndexValueInclusion key_value = 2;
+  repeated IndexValueInclusion index_value = 2;
   SignedMapRoot map_root = 3;
 }
 

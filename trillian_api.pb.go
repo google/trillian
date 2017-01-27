@@ -868,9 +868,9 @@ func (m *GetMapLeavesRequest) GetRevision() int64 {
 }
 
 type GetMapLeavesResponse struct {
-	Status   *TrillianApiStatus     `protobuf:"bytes,1,opt,name=status" json:"status,omitempty"`
-	KeyValue []*IndexValueInclusion `protobuf:"bytes,2,rep,name=key_value,json=keyValue" json:"key_value,omitempty"`
-	MapRoot  *SignedMapRoot         `protobuf:"bytes,3,opt,name=map_root,json=mapRoot" json:"map_root,omitempty"`
+	Status     *TrillianApiStatus     `protobuf:"bytes,1,opt,name=status" json:"status,omitempty"`
+	IndexValue []*IndexValueInclusion `protobuf:"bytes,2,rep,name=key_value,json=keyValue" json:"key_value,omitempty"`
+	MapRoot    *SignedMapRoot         `protobuf:"bytes,3,opt,name=map_root,json=mapRoot" json:"map_root,omitempty"`
 }
 
 func (m *GetMapLeavesResponse) Reset()                    { *m = GetMapLeavesResponse{} }
@@ -887,7 +887,7 @@ func (m *GetMapLeavesResponse) GetStatus() *TrillianApiStatus {
 
 func (m *GetMapLeavesResponse) GetKeyValue() []*IndexValueInclusion {
 	if m != nil {
-		return m.KeyValue
+		return m.IndexValue
 	}
 	return nil
 }
