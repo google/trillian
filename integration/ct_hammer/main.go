@@ -18,6 +18,7 @@ var (
 	testDir         = flag.String("testdata", "testdata", "Name of directory with test data")
 	seed            = flag.Int64("seed", -1, "Seed for random number generation")
 	logConfigFlag   = flag.String("log_config", "", "File holding log config in JSON")
+	mmdFlag         = flag.Duration("mmd", 2*time.Minute, "MMD for logs")
 	operationsFlag  = flag.Uint64("operations", ^uint64(0), "Number of operations to perform")
 )
 var (
@@ -95,6 +96,7 @@ func main() {
 		wg.Add(1)
 		cfg := integration.HammerConfig{
 			LogCfg:     c,
+			MMD:        *mmdFlag,
 			LeafChain:  leafChain,
 			LeafCert:   leafCert,
 			CACert:     caCert,
