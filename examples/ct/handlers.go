@@ -464,6 +464,9 @@ func getProofByHash(ctx context.Context, c LogContext, w http.ResponseWriter, r 
 	}
 
 	// Additional sanity checks, none of the hashes in the returned path should be empty
+	if len(rsp.Proof) == 0 {
+		return http.StatusInternalServerError, fmt.Errorf("get-proof-by-hash: backend returned empty proof")
+	}
 	if !checkAuditPath(rsp.Proof[0].ProofNode) {
 		return http.StatusInternalServerError, fmt.Errorf("get-proof-by-hash: backend returned invalid proof: %v", rsp.Proof[0])
 	}
