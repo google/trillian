@@ -105,10 +105,11 @@ func (m *mapTX) Set(keyHash []byte, value trillian.MapLeaf) error {
 	}
 	defer stmt.Close()
 
-	_, err = stmt.Exec(m.treeID, []byte(keyHash), m.writeRevision, flatValue)
+	_, err = stmt.Exec(m.treeID, keyHash, m.writeRevision, flatValue)
 	return err
 }
 
+// TODO: API problem: there's nothing to say which map leaves correspond to which indexes.
 func (m *mapTX) Get(revision int64, indexes [][]byte) ([]trillian.MapLeaf, error) {
 	stmt, err := m.ms.getStmt(selectMapLeafSQL, len(indexes), "?", "?")
 	if err != nil {

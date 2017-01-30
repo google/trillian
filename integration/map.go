@@ -64,7 +64,7 @@ func RunMapIntegration(ctx context.Context, mapID int64, client trillian.Trillia
 
 		req := &trillian.SetMapLeavesRequest{
 			MapId:      mapID,
-			IndexValue: tests[x*batchSize : (x+1)*batchSize-1],
+			IndexValue: tests[x*batchSize : (x+1)*batchSize],
 		}
 
 		_, err := client.SetLeaves(ctx, req)
@@ -98,7 +98,7 @@ func RunMapIntegration(ctx context.Context, mapID int64, client trillian.Trillia
 		getReq := &trillian.GetMapLeavesRequest{
 			MapId:    mapID,
 			Revision: latestRoot.MapRevision,
-			Index:    randIndexes[i*batchSize : (i+1)*batchSize-1],
+			Index:    randIndexes[i*batchSize : (i+1)*batchSize],
 		}
 
 		r, err := client.GetLeaves(ctx, getReq)
@@ -108,22 +108,22 @@ func RunMapIntegration(ctx context.Context, mapID int64, client trillian.Trillia
 		if got, want := len(r.IndexValueInclusion), len(getReq.Index); got != want {
 			return fmt.Errorf("got %d values, expected %d", got, want)
 		}
-		for _, kv := range r.IndexValueInclusion {
-			ev := lookup[hex.EncodeToString(kv.IndexValue.Index)]
-			if ev == nil {
-				return fmt.Errorf("unexpected key returned: %v", string(kv.IndexValue.Index))
+		for _, incl := range r.IndexValueInclusion {
+			kv := incl.IndexValue
+			ev, ok := lookup[hex.EncodeToString(kv.Index)]
+			if !ok {
+				return fmt.Errorf("unexpected key returned: %v", string(kv.Index))
 			}
-			if got, want := ev.Value.LeafValue,
-				kv.IndexValue.Value.LeafValue; !bytes.Equal(got, want) {
-				return fmt.Errorf("got value %x, expected %x", got, want)
+			if got, want := kv.Index, kv.Value.Index; !bytes.Equal(got, want) {
+				return fmt.Errorf("inconsistent leaf: Index %s, Value.Index: %s", got, want)
 			}
-			leafHash := h.HashLeaf(kv.IndexValue.Value.LeafValue)
-			proof := make([][]byte, len(kv.Inclusion))
-			for i, v := range kv.Inclusion {
-				proof[i] = v
+			if got, want := kv.Value.LeafValue, ev.Value.LeafValue; !bytes.Equal(got, want) {
+				t.Logf("for key %s: got %s", kv.Index, kv.Value.LeafValue)
+				return fmt.Errorf("got value %s, expected %s", got, want)
 			}
-			if err := merkle.VerifyMapInclusionProof(kv.IndexValue.Index, leafHash, latestRoot.RootHash, proof, h); err != nil {
-				return fmt.Errorf("inclusion proof failed to verify for key %s: %v", kv.IndexValue.Index, err)
+			leafHash := h.HashLeaf(kv.Value.LeafValue)
+			if err := merkle.VerifyMapInclusionProof(kv.Index, leafHash, latestRoot.RootHash, incl.Inclusion, h); err != nil {
+				return fmt.Errorf("inclusion proof failed to verify for key %s: %v", incl.IndexValue.Index, err)
 			}
 		}
 	}

@@ -21,7 +21,11 @@ import "crypto/sha256"
 
 // HashKey converts an identity string into a map index.
 func HashKey(key string) []byte {
-	h := sha256.New()
-	h.Write([]byte(key))
-	return h.Sum(nil)
+	size := sha256.New().Size()
+	if len(key) > size {
+		panic("key too long")
+	}
+	b := make([]byte, size)
+	copy(b, key)
+	return b
 }
