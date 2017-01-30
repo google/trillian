@@ -399,6 +399,21 @@ func RunCTIntegrationForLog(cfg ctfe.LogConfig, servers, testdir string, stats *
 		return fmt.Errorf("unexpected stats check: %v", err)
 	}
 
+	// Stage 15: invalid consistency proof
+	if rsp, err := pool.Pick().GetSTHConsistency(ctx, 2, 299); err == nil {
+		return fmt.Errorf("got GetSTHConsistency(2,299)=(%+v,nil); want (nil,_)", rsp)
+	}
+	stats.done(ctfe.GetSTHConsistencyName, 400)
+	fmt.Printf("%s: GetSTHConsistency(2,299)=(nil,_)\n", cfg.Prefix)
+
+	// Stage 16: invalid inclusion proof
+	wrong := sha256.Sum256([]byte("simply wrong"))
+	if rsp, err := pool.Pick().GetProofByHash(ctx, wrong[:], sthN1.TreeSize); err == nil {
+		return fmt.Errorf("got GetProofByHash(wrong, size=%d)=(%v,nil); want (nil,_)", sthN1.TreeSize, rsp)
+	}
+	stats.done(ctfe.GetProofByHashName, 400)
+	fmt.Printf("%s: GetProofByHash(wrong,%d)=(nil,_)\n", cfg.Prefix, sthN1.TreeSize)
+
 	return nil
 }
 
