@@ -222,7 +222,7 @@ func (t *TrillianLogRPCServer) GetConsistencyProof(ctx context.Context, req *tri
 		return nil, fmt.Errorf("%s: second tree size (%d) must be > first tree size (%d)", util.LogIDPrefix(ctx), req.SecondTreeSize, req.FirstTreeSize)
 	}
 
-	tx, err := t.prepareReadOnlyStorageTx(req.LogId)
+	tx, err := t.prepareReadOnlyStorageTx(ctx, req.LogId)
 	if err != nil {
 		return nil, err
 	}
@@ -233,7 +233,6 @@ func (t *TrillianLogRPCServer) GetConsistencyProof(ctx context.Context, req *tri
 		return nil, err
 	}
 
-	// TODO(Martin2112): Should pass actual tree size as param3 but we don't have it yet
 	nodeFetches, err := merkle.CalcConsistencyProofNodeAddresses(req.FirstTreeSize, req.SecondTreeSize, secondTreeSize, proofMaxBitLen)
 	if err != nil {
 		return nil, err
