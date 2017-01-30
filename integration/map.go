@@ -17,7 +17,6 @@ package integration
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"math/rand"
@@ -46,7 +45,6 @@ func RunMapIntegration(ctx context.Context, mapID int64, client trillian.Trillia
 	// Generate tests.
 	const batchSize = 64
 	const numBatches = 32
-	const expectedRootB64 = "XxWv/gFSjVVujxdCdDX4Z/GC/9JD8g/y8s1Ayf+boaE="
 	tests := make([]*trillian.IndexValue, batchSize*numBatches)
 	lookup := make(map[string]*trillian.IndexValue)
 	for i := range tests {
@@ -60,48 +58,34 @@ func RunMapIntegration(ctx context.Context, mapID int64, client trillian.Trillia
 		lookup[hex.EncodeToString(index)] = tests[i]
 	}
 
-	{
-		// Write some data in batches
-		rev := int64(0)
-		var root []byte
-		for x := 0; x < numBatches; x++ {
-			glog.Infof("Starting batch %d...", x)
+	// Write some data in batches
+	for x := 0; x < numBatches; x++ {
+		glog.Infof("Starting batch %d...", x)
 
-			req := &trillian.SetMapLeavesRequest{
-				MapId:      mapID,
-				IndexValue: tests[x*batchSize : (x+1)*batchSize-1],
-			}
-
-			resp, err := client.SetLeaves(ctx, req)
-			if err != nil {
-				return fmt.Errorf("failed to write batch %d: %v", x, err)
-			}
-			glog.Infof("Set %d k/v pairs", len(req.IndexValue))
-			root = resp.MapRoot.RootHash
-			rev++
+		req := &trillian.SetMapLeavesRequest{
+			MapId:      mapID,
+			IndexValue: tests[x*batchSize : (x+1)*batchSize-1],
 		}
-		if expected, got := testonly.MustDecodeBase64(expectedRootB64), root; !bytes.Equal(expected, root) {
-			return fmt.Errorf("expected root %s, got root: %s", base64.StdEncoding.EncodeToString(expected), base64.StdEncoding.EncodeToString(got))
-		}
-	}
 
-	var latestRoot trillian.SignedMapRoot
-	{
-		// Check your head
-		r, err := client.GetSignedMapRoot(ctx, &trillian.GetSignedMapRootRequest{MapId: mapID})
+		_, err := client.SetLeaves(ctx, req)
 		if err != nil {
-			return fmt.Errorf("failed to get map head: %v", err)
+			return fmt.Errorf("failed to write batch %d: %v", x, err)
 		}
-
-		if got, want := r.MapRoot.MapRevision, int64(numBatches); got != want {
-			return fmt.Errorf("got SMH with revision %d, expected %d", got, want)
-		}
-		if expected, got := testonly.MustDecodeBase64(expectedRootB64), r.MapRoot.RootHash; !bytes.Equal(expected, got) {
-			return fmt.Errorf("expected root %s, got root: %s", base64.StdEncoding.EncodeToString(expected), base64.StdEncoding.EncodeToString(got))
-		}
-		glog.Infof("Got expected roothash@%d: %s", r.MapRoot.MapRevision, base64.StdEncoding.EncodeToString(r.MapRoot.RootHash))
-		latestRoot = *r.MapRoot
+		glog.Infof("Set %d k/v pairs", len(req.IndexValue))
 	}
+
+	// Check your head
+	var latestRoot trillian.SignedMapRoot
+	r, err := client.GetSignedMapRoot(ctx, &trillian.GetSignedMapRootRequest{MapId: mapID})
+	if err != nil {
+		return fmt.Errorf("failed to get map head: %v", err)
+	}
+
+	if got, want := r.MapRoot.MapRevision, int64(numBatches); got != want {
+		return fmt.Errorf("got SMH with revision %d, expected %d", got, want)
+	}
+	// TODO(gbelvin) replace expected root test with proper inclusion tests.
+	latestRoot = *r.MapRoot
 
 	// Check values
 	// Mix up the ordering of requests
