@@ -71,7 +71,7 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 	smtReader := merkle.NewSparseMerkleTreeReader(req.Revision, kh, tx)
 
 	resp = &trillian.GetMapLeavesResponse{
-		IndexValue: make([]*trillian.IndexValueInclusion, len(req.Index)),
+		IndexValueInclusion: make([]*trillian.IndexValueInclusion, len(req.Index)),
 	}
 
 	leaves, err := tx.Get(req.Revision, req.Index)
@@ -100,7 +100,7 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 			kvi.Inclusion[i] = proof[i]
 		}
 
-		resp.IndexValue[i] = &kvi
+		resp.IndexValueInclusion[i] = &kvi
 	}
 
 	return resp, nil
