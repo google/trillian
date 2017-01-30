@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"math/rand"
 
@@ -42,11 +43,22 @@ func RunMapIntegration(ctx context.Context, mapID int64, client trillian.Trillia
 		}
 	}
 
+	// Generate tests.
 	const batchSize = 64
 	const numBatches = 32
 	const expectedRootB64 = "XxWv/gFSjVVujxdCdDX4Z/GC/9JD8g/y8s1Ayf+boaE="
-	ExpectedIndexes := make([][]byte, batchSize*numBatches)
-	expectedValues := make(map[string][]byte)
+	tests := make([]*trillian.IndexValue, batchSize*numBatches)
+	lookup := make(map[string]*trillian.IndexValue)
+	for i := range tests {
+		index := testonly.HashKey(fmt.Sprintf("key-%d", i))
+		tests[i] = &trillian.IndexValue{
+			Index: index,
+			Value: &trillian.MapLeaf{
+				LeafValue: []byte(fmt.Sprintf("value-%d", i)),
+			},
+		}
+		lookup[hex.EncodeToString(index)] = tests[i]
+	}
 
 	{
 		// Write some data in batches
@@ -57,21 +69,7 @@ func RunMapIntegration(ctx context.Context, mapID int64, client trillian.Trillia
 
 			req := &trillian.SetMapLeavesRequest{
 				MapId:      mapID,
-				IndexValue: make([]*trillian.IndexValue, batchSize),
-			}
-
-			for y := 0; y < batchSize; y++ {
-				key := fmt.Sprintf("key-%d-%d", x, y)
-				index := testonly.HashKey(key)
-				ExpectedIndexes[x*batchSize+y] = index
-				value := []byte(fmt.Sprintf("value-%d-%d", x, y))
-				expectedValues[string(index)] = value
-				req.IndexValue[y] = &trillian.IndexValue{
-					Index: index,
-					Value: &trillian.MapLeaf{
-						LeafValue: value,
-					},
-				}
+				IndexValue: tests[x*batchSize : (x+1)*batchSize-1],
 			}
 
 			resp, err := client.SetLeaves(ctx, req)
@@ -105,52 +103,45 @@ func RunMapIntegration(ctx context.Context, mapID int64, client trillian.Trillia
 		latestRoot = *r.MapRoot
 	}
 
-	{
-		// Check values
-		getReq := trillian.GetMapLeavesRequest{
+	// Check values
+	// Mix up the ordering of requests
+	h := merkle.NewMapHasher(merkle.NewRFC6962TreeHasher(crypto.NewSHA256()))
+	randIndexes := make([][]byte, len(tests))
+	for i, r := range rand.Perm(len(tests)) {
+		randIndexes[i] = tests[r].Index
+	}
+	for i := 0; i < numBatches; i++ {
+		getReq := &trillian.GetMapLeavesRequest{
 			MapId:    mapID,
 			Revision: latestRoot.MapRevision,
-		}
-		// Mix up the ordering of requests
-		keyOrder := rand.Perm(len(ExpectedIndexes))
-
-		h := merkle.NewMapHasher(merkle.NewRFC6962TreeHasher(crypto.NewSHA256()))
-
-		for x := 0; x < numBatches; x++ {
-			getReq.Index = make([][]byte, batchSize)
-			for y := range getReq.Index {
-				getReq.Index[y] = ExpectedIndexes[keyOrder[x*batchSize+y]]
-			}
-			r, err := client.GetLeaves(ctx, &getReq)
-			if err != nil {
-				return fmt.Errorf("failed to get values: %v", err)
-			}
-			if got, want := len(r.IndexValue), len(getReq.Index); got != want {
-				return fmt.Errorf("got %d values, expected %d", got, want)
-			}
-			for _, kv := range r.IndexValue {
-				ev := expectedValues[string(kv.IndexValue.Index)]
-				if ev == nil {
-					return fmt.Errorf("unexpected key returned: %v", string(kv.IndexValue.Index))
-				}
-				if got, want := ev, kv.IndexValue.Value.LeafValue; !bytes.Equal(got, want) {
-					return fmt.Errorf("got value %x, expected %x", got, want)
-				}
-				leafHash := h.HashLeaf(kv.IndexValue.Value.LeafValue)
-				proof := make([][]byte, len(kv.Inclusion))
-				for i, v := range kv.Inclusion {
-					proof[i] = v
-				}
-				if err := merkle.VerifyMapInclusionProof(kv.IndexValue.Index, leafHash, latestRoot.RootHash, proof, h); err != nil {
-					return fmt.Errorf("inclusion proof failed to verify for key %s: %v", kv.IndexValue.Index, err)
-				}
-				delete(expectedValues, string(kv.IndexValue.Index))
-			}
-		}
-		if got := len(expectedValues); got != 0 {
-			return fmt.Errorf("still have %d unmatched expected values remaining", got)
+			Index:    randIndexes[i*batchSize : (i+1)*batchSize-1],
 		}
 
+		r, err := client.GetLeaves(ctx, getReq)
+		if err != nil {
+			return fmt.Errorf("failed to get values: %v", err)
+		}
+		if got, want := len(r.IndexValue), len(getReq.Index); got != want {
+			return fmt.Errorf("got %d values, expected %d", got, want)
+		}
+		for _, kv := range r.IndexValue {
+			ev := lookup[hex.EncodeToString(kv.IndexValue.Index)]
+			if ev == nil {
+				return fmt.Errorf("unexpected key returned: %v", string(kv.IndexValue.Index))
+			}
+			if got, want := ev.Value.LeafValue,
+				kv.IndexValue.Value.LeafValue; !bytes.Equal(got, want) {
+				return fmt.Errorf("got value %x, expected %x", got, want)
+			}
+			leafHash := h.HashLeaf(kv.IndexValue.Value.LeafValue)
+			proof := make([][]byte, len(kv.Inclusion))
+			for i, v := range kv.Inclusion {
+				proof[i] = v
+			}
+			if err := merkle.VerifyMapInclusionProof(kv.IndexValue.Index, leafHash, latestRoot.RootHash, proof, h); err != nil {
+				return fmt.Errorf("inclusion proof failed to verify for key %s: %v", kv.IndexValue.Index, err)
+			}
+		}
 	}
 	return nil
 }
