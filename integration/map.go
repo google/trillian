@@ -118,7 +118,6 @@ func RunMapIntegration(ctx context.Context, mapID int64, client trillian.Trillia
 				return fmt.Errorf("inconsistent leaf: Index %s, Value.Index: %s", got, want)
 			}
 			if got, want := kv.Value.LeafValue, ev.Value.LeafValue; !bytes.Equal(got, want) {
-				t.Logf("for key %s: got %s", kv.Index, kv.Value.LeafValue)
 				return fmt.Errorf("got value %s, expected %s", got, want)
 			}
 			leafHash := h.HashLeaf(kv.Value.LeafValue)

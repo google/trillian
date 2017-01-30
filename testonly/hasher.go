@@ -19,8 +19,17 @@ package testonly
 
 import "crypto/sha256"
 
-// HashKey converts an identity string into a map index.
+// HashKey converts an identity string into a map index using SHA256.
+// This preserves tests that precomputed indexes based on SHA256.
 func HashKey(key string) []byte {
+	h := sha256.New()
+	h.Write([]byte(key))
+	return h.Sum(nil)
+}
+
+// TransparentHash returns a key that can be visually inspected.
+// This supports testing where it was nice to see what the key was.
+func TransparentHash(key string) []byte {
 	size := sha256.New().Size()
 	if len(key) > size {
 		panic("key too long")

@@ -147,7 +147,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		// TODO(gbelvin) only have ONE place where index is stored.
 		kv.Value.Index = kv.Index
 
-		if err = tx.Set(ctx, kv.Value.Index, *kv.Value); err != nil {
+		if err = tx.Set(kv.Value.Index, *kv.Value); err != nil {
 			return nil, err
 		}
 		if err = smtWriter.SetLeaves([]merkle.HashKeyValue{
@@ -160,7 +160,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		}
 	}
 
-	rootHash, err := smtWriter.CalculateRoot(ctx)
+	rootHash, err := smtWriter.CalculateRoot()
 	newRoot := trillian.SignedMapRoot{
 		TimestampNanos: time.Now().UnixNano(),
 		RootHash:       rootHash,
