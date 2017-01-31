@@ -26,7 +26,7 @@ import (
 )
 
 var httpServersFlag = flag.String("ct_http_servers", "localhost:8092", "Comma-separated list of (assumed interchangeable) servers, each as address:port")
-var testDir = flag.String("testdata", "testdata", "Name of directory with test data")
+var testDir = flag.String("testdata_dir", "testdata", "Name of directory with test data")
 var seed = flag.Int64("seed", -1, "Seed for random number generation")
 var logConfigFlag = flag.String("log_config", "", "File holding log config in JSON")
 var skipStats = flag.Bool("skip_stats", false, "Skip checks of expected log statistics")

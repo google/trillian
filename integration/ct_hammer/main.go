@@ -15,7 +15,7 @@ import (
 
 var (
 	httpServersFlag = flag.String("ct_http_servers", "localhost:8092", "Comma-separated list of (assumed interchangeable) servers, each as address:port")
-	testDir         = flag.String("testdata", "testdata", "Name of directory with test data")
+	testDir         = flag.String("testdata_dir", "testdata", "Name of directory with test data")
 	seed            = flag.Int64("seed", -1, "Seed for random number generation")
 	logConfigFlag   = flag.String("log_config", "", "File holding log config in JSON")
 	mmdFlag         = flag.Duration("mmd", 2*time.Minute, "MMD for logs")
