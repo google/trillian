@@ -58,9 +58,10 @@ func (t TreeEntry) HashInto(dest []byte) []byte {
 // TreeEntryDescriptor wraps a node and is used to describe tree paths, which are useful to have
 // access to when testing the code and examining how it works
 type TreeEntryDescriptor struct {
-	Value  TreeEntry
-	XCoord int64 // The horizontal node coordinate
-	YCoord int64 // The vertical node coordinate
+	Value    TreeEntry
+	XCoord   int64 // The horizontal node coordinate
+	YCoord   int64 // The vertical node coordinate
+	Rehashed bool  // True iff the node was actually recomputed
 }
 
 // InMemoryMerkleTree holds a Merkle Tree in memory as a 2D node array
@@ -282,7 +283,8 @@ func (mt *InMemoryMerkleTree) RootAtSnapshot(snapshot int64) TreeEntry {
 	}
 
 	// snapshot < leaves_processed_: recompute the snapshot root.
-	return mt.recomputePastSnapshot(snapshot, 0, nil)
+	root, _ := mt.recomputePastSnapshot(snapshot, 0, nil)
+	return root
 }
 
 // updateToSnapshot updates the tree to a given snapshot (if necessary), returns the root.
@@ -349,10 +351,11 @@ func (mt *InMemoryMerkleTree) updateToSnapshot(snapshot int64) TreeEntry {
 
 // recomputePastSnapshot returns the root of the tree as it was for a past snapshot.
 // If node is not nil, additionally records the rightmost node for the given snapshot and node_level.
-func (mt *InMemoryMerkleTree) recomputePastSnapshot(snapshot int64, nodeLevel int64, node *TreeEntry) TreeEntry {
+func (mt *InMemoryMerkleTree) recomputePastSnapshot(snapshot int64, nodeLevel int64, node *TreeEntry) (TreeEntry, bool) {
 	level := int64(0)
 	// Index of the rightmost node at the current level for this snapshot.
 	lastNode := snapshot - 1
+	rehashed := false
 
 	if snapshot == mt.leavesProcessed {
 		// Nothing to recompute.
@@ -365,7 +368,7 @@ func (mt *InMemoryMerkleTree) recomputePastSnapshot(snapshot int64, nodeLevel in
 			}
 		}
 
-		return mt.root()
+		return mt.root(), rehashed
 	}
 
 	if snapshot >= mt.leavesProcessed {
@@ -396,6 +399,7 @@ func (mt *InMemoryMerkleTree) recomputePastSnapshot(snapshot int64, nodeLevel in
 		if isRightChild(lastNode) {
 			// Recompute the parent of tree_[level][last_node].
 			subtreeRoot = TreeEntry{mt.hasher.HashChildren(mt.tree[level][lastNode-1].hash, subtreeRoot.hash)}
+			rehashed = true
 		}
 		// Else the parent is a dummy copy of the current node; do nothing.
 
@@ -406,7 +410,7 @@ func (mt *InMemoryMerkleTree) recomputePastSnapshot(snapshot int64, nodeLevel in
 		}
 	}
 
-	return subtreeRoot
+	return subtreeRoot, rehashed
 }
 
 // PathToCurrentRoot get the Merkle path from leaf to root for a given leaf.
@@ -463,14 +467,14 @@ func (mt *InMemoryMerkleTree) pathFromNodeToRootAtSnapshot(node int64, level int
 		if sibling < lastNode {
 			// The sibling is not the last node of the level in the snapshot
 			// tree, so its value is correct in the tree.
-			path = append(path, TreeEntryDescriptor{mt.tree[level][sibling], level, sibling})
+			path = append(path, TreeEntryDescriptor{Value:mt.tree[level][sibling], XCoord:level, YCoord:sibling})
 		} else if sibling == lastNode {
 			// The sibling is the last node of the level in the snapshot tree,
 			// so we get its value for the snapshot. Get the root in the same pass.
 			var recomputeNode TreeEntry
 
-			mt.recomputePastSnapshot(snapshot, level, &recomputeNode)
-			path = append(path, TreeEntryDescriptor{recomputeNode, -level, -sibling})
+			_, rehashed := mt.recomputePastSnapshot(snapshot, level, &recomputeNode)
+			path = append(path, TreeEntryDescriptor{Value:recomputeNode, XCoord:level, YCoord:sibling, Rehashed:rehashed})
 		}
 		// Else sibling > last_node so the sibling does not exist. Do nothing.
 		// Continue moving up in the tree, ignoring dummy copies.
@@ -511,7 +515,7 @@ func (mt *InMemoryMerkleTree) SnapshotConsistency(snapshot1 int64, snapshot2 int
 
 	// Record the node, unless we already reached the root of snapshot1.
 	if node != 0 {
-		proof = append(proof, TreeEntryDescriptor{mt.tree[level][node], level, node})
+		proof = append(proof, TreeEntryDescriptor{Value:mt.tree[level][node], XCoord:level, YCoord:node})
 	}
 
 	// Now record the path from this node to the root of snapshot2.
