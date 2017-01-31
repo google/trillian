@@ -117,8 +117,7 @@ func main() {
 	// Bring up the RPC server and then block until we get a signal to stop
 	rpcServer := startRPCServer(lis, *serverPortFlag, registry)
 	defer glog.Flush()
-	err = rpcServer.Serve(lis)
-	if err != nil {
-		glog.Fatalf("RPC server terminated on port %d: %v", *serverPortFlag, err)
+	if err = rpcServer.Serve(lis); err != nil {
+		glog.Errorf("RPC server terminated on port %d: %v", *serverPortFlag, err)
 	}
 }

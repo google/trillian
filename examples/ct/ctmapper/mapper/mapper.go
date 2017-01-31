@@ -1,8 +1,21 @@
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package main
 
 import (
 	"context"
-	"crypto/sha256"
 	"flag"
 	"time"
 
@@ -13,6 +26,7 @@ import (
 	"github.com/google/certificate-transparency/go/jsonclient"
 	"github.com/google/certificate-transparency/go/x509"
 	"github.com/google/trillian"
+	"github.com/google/trillian/examples/ct/ctmapper"
 	"github.com/google/trillian/examples/ct/ctmapper/ctmapperpb"
 	"google.golang.org/grpc"
 )
@@ -29,13 +43,6 @@ type CTMapper struct {
 	mapID int64
 	ct    *client.LogClient
 	vmap  trillian.TrillianMapClient
-}
-
-// HashDomain converts a domain into a map index.
-func HashDomain(key string) []byte {
-	h := sha256.New()
-	h.Write([]byte(key))
-	return h.Sum(nil)
 }
 
 func updateDomainMap(m map[string]ctmapperpb.EntryList, cert x509.Certificate, index int64, isPrecert bool) {
@@ -128,13 +135,11 @@ func (m *CTMapper) oneMapperRun(ctx context.Context) (bool, error) {
 	// Fetch the current map values for those domains:
 	getReq := &trillian.GetMapLeavesRequest{
 		MapId:    m.mapID,
-		Index:    make([][]byte, len(domains)),
+		Index:    make([][]byte, 0, len(domains)),
 		Revision: -1,
 	}
-	i := 0
 	for d := range domains {
-		getReq.Index[i] = HashDomain(d)
-		i++
+		getReq.Index = append(getReq.Index, ctmapper.HashDomain(d))
 	}
 
 	getResp, err := m.vmap.GetLeaves(context.Background(), getReq)
@@ -167,7 +172,7 @@ func (m *CTMapper) oneMapperRun(ctx context.Context) (bool, error) {
 		IndexValue: make([]*trillian.IndexValue, 0, len(domains)),
 	}
 	for k, v := range domains {
-		index := HashDomain(k)
+		index := ctmapper.HashDomain(k)
 		b, err := pb.Marshal(&v)
 		if err != nil {
 			return false, err

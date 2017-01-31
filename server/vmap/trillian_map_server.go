@@ -145,6 +145,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		// TODO(gbelvin) use LeafHash rather than computing here.
 		kv.Value.LeafHash = hasher.HashLeaf(kv.Value.LeafValue)
 		// TODO(gbelvin) only have ONE place where index is stored.
+		// TODO(gbelvin) Verify that Index is of the proper length.
 		kv.Value.Index = kv.Index
 
 		if err = tx.Set(kv.Value.Index, *kv.Value); err != nil {

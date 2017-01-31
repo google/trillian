@@ -38,7 +38,7 @@ func RunMapIntegration(ctx context.Context, mapID int64, client trillian.Trillia
 		}
 
 		if got, want := r.MapRoot.MapRevision, int64(0); got != want {
-			return fmt.Errorf("got SMH with revision %d, expected %d", got, want)
+			return fmt.Errorf("got SMH with revision %d, want %d", got, want)
 		}
 	}
 
@@ -82,7 +82,7 @@ func RunMapIntegration(ctx context.Context, mapID int64, client trillian.Trillia
 	}
 
 	if got, want := r.MapRoot.MapRevision, int64(numBatches); got != want {
-		return fmt.Errorf("got SMH with revision %d, expected %d", got, want)
+		return fmt.Errorf("got SMH with revision %d, want %d", got, want)
 	}
 	// TODO(gbelvin) replace expected root test with proper inclusion tests.
 	latestRoot = *r.MapRoot
@@ -106,7 +106,7 @@ func RunMapIntegration(ctx context.Context, mapID int64, client trillian.Trillia
 			return fmt.Errorf("failed to get values: %v", err)
 		}
 		if got, want := len(r.IndexValueInclusion), len(getReq.Index); got != want {
-			return fmt.Errorf("got %d values, expected %d", got, want)
+			return fmt.Errorf("got %d values, want %d", got, want)
 		}
 		for _, incl := range r.IndexValueInclusion {
 			kv := incl.IndexValue
@@ -118,7 +118,7 @@ func RunMapIntegration(ctx context.Context, mapID int64, client trillian.Trillia
 				return fmt.Errorf("inconsistent leaf: Index %s, Value.Index: %s", got, want)
 			}
 			if got, want := kv.Value.LeafValue, ev.Value.LeafValue; !bytes.Equal(got, want) {
-				return fmt.Errorf("got value %s, expected %s", got, want)
+				return fmt.Errorf("got value %s, want %s", got, want)
 			}
 			leafHash := h.HashLeaf(kv.Value.LeafValue)
 			if err := merkle.VerifyMapInclusionProof(kv.Index, leafHash, latestRoot.RootHash, incl.Inclusion, h); err != nil {

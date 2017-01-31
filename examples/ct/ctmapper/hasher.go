@@ -12,28 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package testonly
-
-// This file implements the hashing functions that are part of a Trillian
-// personality.
+package ctmapper
 
 import "crypto/sha256"
 
-// HashKey converts a map key into a map index using SHA256.
-// This preserves tests that precomputed indexes based on SHA256.
-func HashKey(key string) []byte {
+// HashDomain converts a domain into a map index.
+func HashDomain(key string) []byte {
 	h := sha256.New()
 	h.Write([]byte(key))
 	return h.Sum(nil)
-}
-
-// TransparentHash returns a key that can be visually inspected.
-// This supports testing where it was nice to see what the key was.
-func TransparentHash(key string) []byte {
-	if len(key) > sha256.Size {
-		panic("key too long")
-	}
-	b := make([]byte, sha256.Size)
-	copy(b, key)
-	return b
 }

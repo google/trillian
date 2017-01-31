@@ -109,7 +109,8 @@ func (m *mapTX) Set(keyHash []byte, value trillian.MapLeaf) error {
 	return err
 }
 
-// TODO: API problem: there's nothing to say which map leaves correspond to which indexes.
+// MapLeaf indexes are overwritten rather than returning the MapLeaf proto provided in Set.
+// TODO: return a map[_something_]Mapleaf or []IndexValue to separate the index from the value.
 func (m *mapTX) Get(revision int64, indexes [][]byte) ([]trillian.MapLeaf, error) {
 	stmt, err := m.ms.getStmt(selectMapLeafSQL, len(indexes), "?", "?")
 	if err != nil {
@@ -118,9 +119,9 @@ func (m *mapTX) Get(revision int64, indexes [][]byte) ([]trillian.MapLeaf, error
 	stx := m.tx.Stmt(stmt)
 	defer stx.Close()
 
-	args := make([]interface{}, len(indexes), len(indexes)+2)
-	for i, index := range indexes {
-		args[i] = index
+	args := make([]interface{}, 0, len(indexes)+2)
+	for _, index := range indexes {
+		args = append(args, index)
 	}
 	args = append(args, m.treeID)
 	args = append(args, revision)
