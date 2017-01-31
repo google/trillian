@@ -43,8 +43,8 @@ func NewLogVerifier(hasher TreeHasher) LogVerifier {
 }
 
 // VerifyInclusionProof verifies the correctness of the proof given the passed in information about the tree and leaf.
-func (m LogVerifier) VerifyInclusionProof(leafIndex, treeSize int64, proof [][]byte, root []byte, leaf []byte) error {
-	calcRoot, err := m.RootFromInclusionProof(leafIndex, treeSize, proof, leaf)
+func (v LogVerifier) VerifyInclusionProof(leafIndex, treeSize int64, proof [][]byte, root []byte, leaf []byte) error {
+	calcRoot, err := v.RootFromInclusionProof(leafIndex, treeSize, proof, leaf)
 	if err != nil {
 		return err
 	}
@@ -58,46 +58,61 @@ func (m LogVerifier) VerifyInclusionProof(leafIndex, treeSize int64, proof [][]b
 }
 
 // RootFromInclusionProof calculates the expected tree root given the proof and leaf.
-// leafIndex starts at 0. treeSize starts at 1.
-func (m LogVerifier) RootFromInclusionProof(leafIndex, treeSize int64, proof [][]byte, leaf []byte) ([]byte, error) {
-	if leafIndex >= treeSize {
-		return nil, fmt.Errorf("leafIndex %d > treeSize %d", leafIndex, treeSize)
+// leafIndex starts at 0.  treeSize is the number of nodes in the tree.
+// proof is an array of neighbor nodes from the bottom to the root.
+func (v LogVerifier) RootFromInclusionProof(leafIndex, treeSize int64, proof [][]byte, leaf []byte) ([]byte, error) {
+	if leafIndex < 0 {
+		return nil, errors.New("invalid leafIndex < 0")
 	}
-	if leafIndex < 0 || treeSize < 1 {
-		return nil, errors.New("leafIndex < 0 or treeSize < 1")
+	if treeSize < 0 {
+		return nil, errors.New("invalid treeSize < 0")
+	}
+	lastIndex := treeSize - 1 // Rightmost node in tree.
+	if leafIndex > lastIndex {
+		return nil, fmt.Errorf("leafIndex is not in a tree of size %d, want %d<%d", treeSize, leafIndex, treeSize)
 	}
 
-	nodeIndex := leafIndex
-	lastNode := treeSize - 1
-	nodeHash := m.hasher.HashLeaf(leaf)
+	cntIndex := leafIndex
+	cntHash := v.hasher.HashLeaf(leaf)
 	proofIndex := 0
 
-	for lastNode > 0 {
-		if proofIndex == len(proof) {
+	// Tree is numbered as follows, where nodes at each level are counted from left to right.
+	//       0
+	//     0   1
+	//   0  1 2  3
+
+	// Hash sibling nodes into the current hash starting at the leaf and continuing to the root.
+	// Use the highest order 1 bit in the rightmost node as the stopping condition.
+	for lastIndex > 0 {
+		if proofIndex >= len(proof) {
 			return nil, fmt.Errorf("insuficient number of proof components (%d) for treeSize %d", len(proof), treeSize)
 		}
-		if isRightChild(nodeIndex) {
-			nodeHash = m.hasher.HashChildren(proof[proofIndex], nodeHash)
+		if isRightChild(cntIndex) {
+			cntHash = v.hasher.HashChildren(proof[proofIndex], cntHash)
 			proofIndex++
-		} else if nodeIndex < lastNode {
-			nodeHash = m.hasher.HashChildren(nodeHash, proof[proofIndex])
+		} else if cntIndex < lastIndex {
+			cntHash = v.hasher.HashChildren(cntHash, proof[proofIndex])
 			proofIndex++
 		} else {
-			// the sibling does not exist and the parent is a dummy copy; do nothing.
+			// The sibling does not exist.
 		}
-		nodeIndex = parent(nodeIndex)
-		lastNode = parent(lastNode)
+		cntIndex = parent(cntIndex)
+		lastIndex = parent(lastIndex)
 	}
 	if proofIndex != len(proof) {
 		return nil, fmt.Errorf("invalid proof, expected %d components, but have %d", proofIndex, len(proof))
 	}
-	return nodeHash, nil
+	return cntHash, nil
 }
 
 // VerifyConsistencyProof checks that the passed in consistency proof is valid between the passed in tree snapshots.
-func (m LogVerifier) VerifyConsistencyProof(snapshot1, snapshot2 int64, root1, root2 []byte, proof [][]byte) error {
-	if snapshot1 > snapshot2 {
-		return fmt.Errorf("snapshot1 (%d) > snapshot2 (%d)", snapshot1, snapshot2)
+// Snapshots are the respective treeSizes. shapshot2 >= snapshot1 >= 0.
+func (v LogVerifier) VerifyConsistencyProof(snapshot1, snapshot2 int64, root1, root2 []byte, proof [][]byte) error {
+	if snapshot1 < 0 {
+		return fmt.Errorf("snapshot1 (%d) < 0 ", snapshot1)
+	}
+	if snapshot2 < snapshot1 {
+		return fmt.Errorf("snapshot2 (%d) < snapshot1 (%d)", snapshot1, snapshot2)
 	}
 	if snapshot1 == snapshot2 {
 		if !bytes.Equal(root1, root2) {
@@ -109,10 +124,9 @@ func (m LogVerifier) VerifyConsistencyProof(snapshot1, snapshot2 int64, root1, r
 		if len(proof) > 0 {
 			return fmt.Errorf("root1 and root2 match, but proof is non-empty")
 		}
-		// proof ok
+		// proof ok.
 		return nil
 	}
-
 	if snapshot1 == 0 {
 		// Any snapshot greater than 0 is consistent with snapshot 0.
 		if len(proof) > 0 {
@@ -120,7 +134,6 @@ func (m LogVerifier) VerifyConsistencyProof(snapshot1, snapshot2 int64, root1, r
 		}
 		return nil
 	}
-
 	if len(proof) == 0 {
 		return errors.New("empty proof")
 	}
@@ -147,21 +160,22 @@ func (m LogVerifier) VerifyConsistencyProof(snapshot1, snapshot2 int64, root1, r
 		node2Hash = root1
 	}
 
+	// Use the highest order 1 bit in the rightmost node of snapshot1 as the stopping condition.
 	for node > 0 {
-		if proofIndex == len(proof) {
+		if proofIndex >= len(proof) {
 			return errors.New("insufficient number of proof components")
 		}
 
 		if isRightChild(node) {
-			node1Hash = m.hasher.HashChildren(proof[proofIndex], node1Hash)
-			node2Hash = m.hasher.HashChildren(proof[proofIndex], node2Hash)
+			node1Hash = v.hasher.HashChildren(proof[proofIndex], node1Hash)
+			node2Hash = v.hasher.HashChildren(proof[proofIndex], node2Hash)
 			proofIndex++
 		} else if node < lastNode {
-			// The sibling only exists in the later tree. The parent in the snapshot1 tree is a dummy copy.
-			node2Hash = m.hasher.HashChildren(node2Hash, proof[proofIndex])
+			// Test whether a sibling node to the right exists at this level.
+			node2Hash = v.hasher.HashChildren(node2Hash, proof[proofIndex])
 			proofIndex++
 		} else {
-			// Else the sibling does not exist in either tree. Do nothing.
+			// The sibling does not exist.
 		}
 
 		node = parent(node)
@@ -176,12 +190,13 @@ func (m LogVerifier) VerifyConsistencyProof(snapshot1, snapshot2 int64, root1, r
 		}
 	}
 
+	// Use the highest order 1 bit in the rightmost node of snapshot2 as the stopping condition.
 	for lastNode > 0 {
-		if proofIndex == len(proof) {
+		if proofIndex >= len(proof) {
 			return errors.New("can't verify newer root; insufficient number of proof components")
 		}
 
-		node2Hash = m.hasher.HashChildren(node2Hash, proof[proofIndex])
+		node2Hash = v.hasher.HashChildren(node2Hash, proof[proofIndex])
 		proofIndex++
 		lastNode = parent(lastNode)
 	}
@@ -197,6 +212,5 @@ func (m LogVerifier) VerifyConsistencyProof(snapshot1, snapshot2 int64, root1, r
 		return errors.New("proof has too many components")
 	}
 
-	// proof ok
-	return nil
+	return nil // Proof OK.
 }
