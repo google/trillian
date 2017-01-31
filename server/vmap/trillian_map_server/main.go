@@ -38,7 +38,7 @@ func checkDatabaseAccessible(registry extension.Registry) error {
 	}
 
 	// TODO(codingllama): We shouldn't use a mapID here
-	tx, err := mapStorage.Begin(context.Background(), 0)
+	tx, err := mapStorage.BeginForTree(context.Background(), 0)
 	if err != nil {
 		return err
 	}
@@ -47,12 +47,11 @@ func checkDatabaseAccessible(registry extension.Registry) error {
 	return tx.Commit()
 }
 
-func startRPCServer(listener net.Listener, port int, registry extension.Registry) *grpc.Server {
+func startRPCServer(registry extension.Registry) *grpc.Server {
 	grpcServer := grpc.NewServer()
 	mapServer := vmap.NewTrillianMapServer(registry)
 	trillian.RegisterTrillianMapServer(grpcServer, mapServer)
 	reflection.Register(grpcServer)
-
 	return grpcServer
 }
 
@@ -88,8 +87,7 @@ func main() {
 	// Load up our private key, exit if this fails to work
 	// TODO(Martin2112): This will need to be changed for multi tenant as we'll need at
 	// least one key per tenant, possibly more.
-	_, err = crypto.LoadPasswordProtectedPrivateKey(*privateKeyFile, *privateKeyPassword)
-	if err != nil {
+	if _, err = crypto.LoadPasswordProtectedPrivateKey(*privateKeyFile, *privateKeyPassword); err != nil {
 		glog.Fatalf("Failed to load map server key: %v", err)
 	}
 
@@ -111,7 +109,7 @@ func main() {
 	}
 
 	// Bring up the RPC server and then block until we get a signal to stop
-	rpcServer := startRPCServer(lis, *serverPortFlag, registry)
+	rpcServer := startRPCServer(registry)
 	defer glog.Flush()
 	if err = rpcServer.Serve(lis); err != nil {
 		glog.Errorf("RPC server terminated on port %d: %v", *serverPortFlag, err)

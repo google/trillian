@@ -67,13 +67,13 @@ func main() {
 
 	var root []byte
 	for x := 0; x < numBatches; x++ {
-		tx, err := ms.Begin(ctx, mapID)
+		tx, err := ms.BeginForTree(ctx, mapID)
 		if err != nil {
 			glog.Fatalf("Failed to Begin() a new tx: %v", err)
 		}
 		w, err := merkle.NewSparseMerkleTreeWriter(tx.WriteRevision(), hasher,
 			func() (storage.TreeTX, error) {
-				return ms.Begin(ctx, mapID)
+				return ms.BeginForTree(ctx, mapID)
 			})
 		if err != nil {
 			glog.Fatalf("Failed to create new SMTWriter: %v", err)

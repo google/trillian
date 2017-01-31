@@ -100,8 +100,8 @@ const (
 	TreeState_UNKNOWN_TREE_STATE TreeState = 0
 	// Active trees are able to respond to both read and write requests.
 	TreeState_ACTIVE TreeState = 1
-	// Frozen trees are only able to respond to read requests, writing to a
-	// frozen tree is forbidden.
+	// Frozen trees are only able to respond to read requests, writing to a frozen
+	// tree is forbidden.
 	TreeState_FROZEN TreeState = 2
 	// Tree was been deleted, therefore is invisible and acts similarly to a
 	// non-existing tree for all requests.

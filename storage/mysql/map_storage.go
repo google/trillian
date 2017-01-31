@@ -48,7 +48,7 @@ func NewMapStorage(db *sql.DB) (storage.MapStorage, error) {
 	}, nil
 }
 
-func (m *mySQLMapStorage) Begin(ctx context.Context, treeID int64) (storage.MapTX, error) {
+func (m *mySQLMapStorage) BeginForTree(ctx context.Context, treeID int64) (storage.MapTreeTX, error) {
 	// TODO(codingllama): Validate treeType, read hash algorithm from storage
 	th := merkle.NewRFC6962TreeHasher()
 
@@ -57,7 +57,7 @@ func (m *mySQLMapStorage) Begin(ctx context.Context, treeID int64) (storage.MapT
 		return nil, err
 	}
 
-	mtx := &mapTX{
+	mtx := &mapTreeTX{
 		treeTX: ttx,
 		ms:     m,
 	}
@@ -71,24 +71,24 @@ func (m *mySQLMapStorage) Begin(ctx context.Context, treeID int64) (storage.MapT
 	return mtx, nil
 }
 
-func (m *mySQLMapStorage) Snapshot(ctx context.Context, treeID int64) (storage.ReadOnlyMapTX, error) {
-	tx, err := m.Begin(ctx, treeID)
+func (m *mySQLMapStorage) SnapshotForTree(ctx context.Context, treeID int64) (storage.ReadOnlyMapTreeTX, error) {
+	tx, err := m.BeginForTree(ctx, treeID)
 	if err != nil {
 		return nil, err
 	}
-	return tx.(storage.ReadOnlyMapTX), nil
+	return tx.(storage.ReadOnlyMapTreeTX), nil
 }
 
-type mapTX struct {
+type mapTreeTX struct {
 	treeTX
 	ms *mySQLMapStorage
 }
 
-func (m *mapTX) WriteRevision() int64 {
+func (m *mapTreeTX) WriteRevision() int64 {
 	return m.treeTX.writeRevision
 }
 
-func (m *mapTX) Set(keyHash []byte, value trillian.MapLeaf) error {
+func (m *mapTreeTX) Set(keyHash []byte, value trillian.MapLeaf) error {
 	// TODO(al): consider storing some sort of value which represents the group of keys being set in this Tx.
 	//           That way, if this attempt partially fails (i.e. because some subset of the in-the-future Merkle
 	//           nodes do get written), we can enforce that future map update attempts are a complete replay of
@@ -110,7 +110,7 @@ func (m *mapTX) Set(keyHash []byte, value trillian.MapLeaf) error {
 
 // MapLeaf indexes are overwritten rather than returning the MapLeaf proto provided in Set.
 // TODO: return a map[_something_]Mapleaf or []IndexValue to separate the index from the value.
-func (m *mapTX) Get(revision int64, indexes [][]byte) ([]trillian.MapLeaf, error) {
+func (m *mapTreeTX) Get(revision int64, indexes [][]byte) ([]trillian.MapLeaf, error) {
 	stmt, err := m.ms.getStmt(selectMapLeafSQL, len(indexes), "?", "?")
 	if err != nil {
 		return nil, err
@@ -163,7 +163,7 @@ func (m *mapTX) Get(revision int64, indexes [][]byte) ([]trillian.MapLeaf, error
 	return ret, nil
 }
 
-func (m *mapTX) LatestSignedMapRoot() (trillian.SignedMapRoot, error) {
+func (m *mapTreeTX) LatestSignedMapRoot() (trillian.SignedMapRoot, error) {
 	var timestamp, mapRevision int64
 	var rootHash, rootSignatureBytes []byte
 	var rootSignature trillian.DigitallySigned
@@ -210,7 +210,7 @@ func (m *mapTX) LatestSignedMapRoot() (trillian.SignedMapRoot, error) {
 	return ret, nil
 }
 
-func (m *mapTX) StoreSignedMapRoot(root trillian.SignedMapRoot) error {
+func (m *mapTreeTX) StoreSignedMapRoot(root trillian.SignedMapRoot) error {
 	signatureBytes, err := proto.Marshal(root.Signature)
 	if err != nil {
 		glog.Warningf("Failed to marshal root signature: %v %v", root.Signature, err)

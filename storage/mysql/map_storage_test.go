@@ -29,7 +29,7 @@ func TestMapBegin(t *testing.T) {
 
 	ctx := context.TODO()
 	for _, test := range tests {
-		tx, err := storage.Begin(ctx, test.mapID)
+		tx, err := storage.BeginForTree(ctx, test.mapID)
 		if err != nil {
 			t.Fatalf("Begin() = (_, %v), want = (_, nil)", err)
 		}
@@ -68,7 +68,7 @@ func TestMapSnapshot(t *testing.T) {
 
 	ctx := context.TODO()
 	for _, test := range tests {
-		tx, err := storage.Snapshot(ctx, test.mapID)
+		tx, err := storage.SnapshotForTree(ctx, test.mapID)
 		if err != nil {
 			t.Fatalf("Snapshot() = (_, %v), want = (_, nil)", err)
 		}
@@ -258,7 +258,7 @@ func TestMapSetGetMultipleRevisions(t *testing.T) {
 	for _, tc := range tests {
 		// Write the current test case.
 		tx := beginMapTx(ctx, s, mapID, t)
-		mysqlMapTX := tx.(*mapTX)
+		mysqlMapTX := tx.(*mapTreeTX)
 		mysqlMapTX.treeTX.writeRevision = tc.rev
 		if err := tx.Set(keyHash, tc.leaf); err != nil {
 			t.Fatalf("Failed to set %v to %v: %v", keyHash, tc.leaf, err)
@@ -391,8 +391,8 @@ func prepareTestMapDB(db *sql.DB, mapID mapIDAndTest, t *testing.T) {
 	}
 }
 
-func beginMapTx(ctx context.Context, s storage.MapStorage, mapID mapIDAndTest, t *testing.T) storage.MapTX {
-	tx, err := s.Begin(ctx, mapID.mapID)
+func beginMapTx(ctx context.Context, s storage.MapStorage, mapID mapIDAndTest, t *testing.T) storage.MapTreeTX {
+	tx, err := s.BeginForTree(ctx, mapID.mapID)
 	if err != nil {
 		t.Fatalf("Failed to begin map tx: %v", err)
 	}

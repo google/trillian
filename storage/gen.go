@@ -14,4 +14,4 @@
 
 package storage
 
-//go:generate mockgen -self_package github.com/google/trillian/storage -package storage -destination mock_storage.go -imports=trillian=github.com/google/trillian,storagepb=github.com/google/trillian/storage/storagepb github.com/google/trillian/storage LogStorage,LogTreeTX,MapStorage,MapTX,ReadOnlyLogTX,ReadOnlyLogTreeTX,ReadOnlyMapTX
+//go:generate mockgen -self_package github.com/google/trillian/storage -package storage -destination mock_storage.go -imports=trillian=github.com/google/trillian,storagepb=github.com/google/trillian/storage/storagepb github.com/google/trillian/storage LogStorage,LogTreeTX,MapStorage,MapTreeTX,ReadOnlyLogTX,ReadOnlyLogTreeTX,ReadOnlyMapTreeTX
