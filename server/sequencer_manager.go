@@ -66,7 +66,7 @@ func (s SequencerManager) ExecutePass(logIDs []int64, logctx LogOperationManager
 		// so deferring it
 		storage, err := s.registry.GetLogStorage()
 		if err != nil {
-			glog.Warningf("%s: failed acquiring log storage: %v", logID, err)
+			glog.Warningf("%s: failed to acquire log storage: %v", logID, err)
 			continue
 		}
 		ctx := util.NewLogContext(logctx.ctx, logID)
