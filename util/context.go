@@ -40,6 +40,7 @@ func NewMapContext(ctx context.Context, mapID int64) context.Context {
 }
 
 // LogID returns the log ID within the context or an error.
+// TODO(codingllama): Remove LogID and use an explicit parameter
 func LogID(ctx context.Context) (int64, error) {
 	logID, ok := ctx.Value(logIDKey).(int64)
 	if !ok {
