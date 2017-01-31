@@ -210,8 +210,12 @@ tree as it grows from size 7 to size 8 as shown in the following diagrams:
 
 Assume that only the size 8 tree is stored. When the tree of size eight is queried for an
 inclusion proof of leaf 'e' to the older root at size 7 the proof cannot be directly constructed
-from the node hashes as they are represented in storage at the later point on the right. The
-value of node 'z' differs from the prior state, which got overwritten when the internal node ‘t’
-was added at size 8. This hash value is needed to construct the proof so it must be recalculated.
+from the node hashes as they are represented in storage at the later point on the right. 
+
+The value of node 'z' differs from the prior state, which got overwritten when the internal node ‘t’
+was added at size 8. This hash value 'z' at size 7 is needed to construct the proof so it must
+be recalculated. The value of 's' is unchanged so hashing 's' together with 'g' correctly
+recreates the hash of the internal node 'z'.
+
 The example is a simple case but there may be several levels of nodes affected depending on the
 size of the tree and therefore the shape of the right hand path at that size.
