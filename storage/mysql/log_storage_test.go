@@ -15,6 +15,7 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/storage"
+	"reflect"
 )
 
 var allTables = []string{"Unsequenced", "TreeHead", "SequencedLeafData", "LeafData", "Subtree", "TreeControl", "Trees", "MapLeaf", "MapHead"}
@@ -40,12 +41,6 @@ const sequenceNumber int64 = 237
 // Tests that access the db should each use a distinct log ID to prevent lock contention when
 // run in parallel or race conditions / unexpected interactions. Tests that pass should hold
 // no locks afterwards.
-
-var signedTimestamp = trillian.SignedEntryTimestamp{
-	TimestampNanos: 1234567890,
-	LogId:          createLogID("sign").logID,
-	Signature:      &trillian.DigitallySigned{Signature: []byte("notempty")},
-}
 
 func createFakeLeaf(db *sql.DB, logID int64, rawHash, hash, data, extraData []byte, seq int64, t *testing.T) {
 	_, err := db.Exec("INSERT INTO LeafData(TreeId, LeafIdentityHash, LeafValue, ExtraData) VALUES(?,?,?,?)", logID, rawHash, data, extraData)
@@ -120,7 +115,7 @@ func TestBegin(t *testing.T) {
 			}
 		}
 
-		tx, err := storage.Begin(ctx, test.logID)
+		tx, err := storage.BeginForTree(ctx, test.logID)
 		if hasError, wantError := err != nil, test.err != ""; hasError || wantError {
 			if hasError != wantError || (wantError && !strings.Contains(err.Error(), test.err)) {
 				t.Errorf("Begin() = (_, '%v'), want = (_, '...%v...')", err, test.err)
@@ -129,8 +124,8 @@ func TestBegin(t *testing.T) {
 		}
 
 		// TODO(codingllama): It would be better to test this via side effects of other public methods
-		if tx.(*logTX).allowDuplicates != test.allowDuplicates {
-			t.Errorf("tx.allowDuplicates = %v, want = %v", tx.(*logTX).allowDuplicates, test.allowDuplicates)
+		if tx.(*logTreeTX).allowDuplicates != test.allowDuplicates {
+			t.Errorf("tx.allowDuplicates = %v, want = %v", tx.(*logTreeTX).allowDuplicates, test.allowDuplicates)
 		}
 
 		root, err := tx.LatestSignedLogRoot()
@@ -170,7 +165,7 @@ func TestSnapshot(t *testing.T) {
 
 	ctx := context.TODO()
 	for _, test := range tests {
-		tx, err := storage.Snapshot(ctx, test.logID)
+		tx, err := storage.SnapshotForTree(ctx, test.logID)
 		if hasError, wantError := err != nil, test.err != ""; hasError || wantError {
 			if hasError != wantError || (wantError && !strings.Contains(err.Error(), test.err)) {
 				t.Errorf("Begin() = (_, '%v'), want = (_, '...%v...')", err, test.err)
@@ -199,7 +194,7 @@ func TestOpenStateCommit(t *testing.T) {
 	s := prepareTestLogStorage(DB, logID, t)
 	ctx := context.Background()
 
-	tx, err := s.Begin(ctx, logID.logID)
+	tx, err := s.BeginForTree(ctx, logID.logID)
 	if err != nil {
 		t.Fatalf("Failed to set up db transaction: %v", err)
 	}
@@ -222,7 +217,7 @@ func TestOpenStateRollback(t *testing.T) {
 	s := prepareTestLogStorage(DB, logID, t)
 	ctx := context.Background()
 
-	tx, err := s.Begin(ctx, logID.logID)
+	tx, err := s.BeginForTree(ctx, logID.logID)
 	if err != nil {
 		t.Fatalf("Failed to set up db transaction: %v", err)
 	}
@@ -870,65 +865,215 @@ func TestLogRootUpdate(t *testing.T) {
 	}
 }
 
-func TestGetActiveLogIDs(t *testing.T) {
-	logID := createLogID("TestGetActiveLogIDs")
-	cleanTestDB(DB)
-	// This creates one tree
-	prepareTestLogDB(DB, logID, t)
-	s := prepareTestLogStorage(DB, logID, t)
-	tx := beginLogTx(s, logID, t)
+// getActiveLogIDsFn creates a TX, calls the appropriate GetActiveLogIDs* function, commits the TX
+// and returns the results.
+type getActiveLogIDsFn func(storage.LogStorage, context.Context, int64) ([]int64, error)
 
-	logIDs, err := tx.GetActiveLogIDs()
+type getActiveIDsTest struct {
+	name string
+	fn   getActiveLogIDsFn
+}
 
+func toIDsMap(ids []int64) map[int64]bool {
+	idsMap := make(map[int64]bool)
+	for _, logID := range ids {
+		idsMap[logID] = true
+	}
+	return idsMap
+}
+
+// runTestGetActiveLogIDsInternal calls test.fn (which is either GetActiveLogIDs or
+// GetActiveLogIDsWithPendingWork) and check that the result matches wantIds.
+func runTestGetActiveLogIDsInternal(t *testing.T, test getActiveIDsTest, logID int64, wantIds []int64) {
+	s, err := NewLogStorage(DB)
 	if err != nil {
-		t.Fatalf("Failed to get log ids: %v", err)
+		t.Fatalf("NewLogStorage() = (_, %v), want = (_, nil)", err)
 	}
 
-	if got, want := len(logIDs), 1; got != want {
-		t.Fatalf("Got %d logID(s), wanted %d", got, want)
+	logIDs, err := test.fn(s, context.TODO(), logID)
+	if err != nil {
+		t.Errorf("%v = (_, %v_, want = (_, nil)", test.name, err)
+		return
+	}
+
+	if got, want := len(logIDs), len(wantIds); got != want {
+		t.Errorf("%v: got %d IDs, want = %v", test.name, got, want)
+		return
+	}
+	if got, want := toIDsMap(logIDs), toIDsMap(wantIds); !reflect.DeepEqual(got, want) {
+		t.Errorf("%v = (%v, _), want = (%v, _)", test.name, got, want)
+	}
+}
+
+func runTestGetActiveLogIDs(t *testing.T, test getActiveIDsTest) {
+	logID1 := createLogID("TestGetActiveLogIDs1")
+	logID2 := createLogID("TestGetActiveLogIDs2")
+	logID3 := createLogID("TestGetActiveLogIDs3")
+	cleanTestDB(DB)
+	prepareTestLogDB(DB, logID1, t)
+	prepareTestLogDB(DB, logID2, t)
+	prepareTestLogDB(DB, logID3, t)
+
+	wantIds := []int64{logID1.logID, logID2.logID, logID3.logID}
+	runTestGetActiveLogIDsInternal(t, test, logID1.logID, wantIds)
+}
+
+func runTestGetActiveLogIDsWithPendingWork(t *testing.T, test getActiveIDsTest) {
+	logID1 := createLogID("TestGetActiveLogIDsWithPendingWork1")
+	logID2 := createLogID("TestGetActiveLogIDsWithPendingWork2")
+	logID3 := createLogID("TestGetActiveLogIDsWithPendingWork3")
+	cleanTestDB(DB)
+	prepareTestLogDB(DB, logID1, t)
+	prepareTestLogDB(DB, logID2, t)
+	prepareTestLogDB(DB, logID3, t)
+
+	s, err := NewLogStorage(DB)
+	if err != nil {
+		t.Fatalf("NewLogStorage() = (_, %v), want = (_, nil)", err)
+	}
+
+	// Do a first run without any pending logs
+	runTestGetActiveLogIDsInternal(t, test, logID1.logID, nil)
+
+	for _, logID := range []logIDAndTest{logID1, logID2, logID3} {
+		tx := beginLogTx(s, logID, t)
+		leaves := createTestLeaves(leavesToInsert, 2)
+		if err := tx.QueueLeaves(leaves, fakeQueueTime); err != nil {
+			t.Fatalf("failed to queue leaves for log %v: %v", logID.logID, err)
+		}
+		if err := tx.Commit(); err != nil {
+			t.Fatalf("failed to Commit leaves for log %v: %v", logID.logID, err)
+		}
+	}
+
+	wantIds := []int64{logID1.logID, logID2.logID, logID3.logID}
+	runTestGetActiveLogIDsInternal(t, test, logID1.logID, wantIds)
+}
+
+func TestGetActiveLogIDs(t *testing.T) {
+	getActiveIDsBegin := func(s storage.LogStorage, ctx context.Context, logID int64) ([]int64, error) {
+		tx, err := s.BeginForTree(ctx, logID)
+		if err != nil {
+			return nil, err
+		}
+		ids, err := tx.GetActiveLogIDs()
+		if err != nil {
+			return nil, err
+		}
+		if err := tx.Commit(); err != nil {
+			return nil, err
+		}
+		return ids, nil
+	}
+	getActiveIDsSnapshot := func(s storage.LogStorage, ctx context.Context, logID int64) ([]int64, error) {
+		tx, err := s.Snapshot(ctx)
+		if err != nil {
+			return nil, err
+		}
+		ids, err := tx.GetActiveLogIDs()
+		if err != nil {
+			return nil, err
+		}
+		if err := tx.Commit(); err != nil {
+			return nil, err
+		}
+		return ids, nil
+	}
+
+	tests := []getActiveIDsTest{
+		{name: "getActiveIDsBegin", fn: getActiveIDsBegin},
+		{name: "getActiveIDsSnapshot", fn: getActiveIDsSnapshot},
+	}
+	for _, test := range tests {
+		runTestGetActiveLogIDs(t, test)
+	}
+}
+
+func TestGetActiveLogIDsEmpty(t *testing.T) {
+	cleanTestDB(DB)
+
+	s, err := NewLogStorage(DB)
+	if err != nil {
+		t.Fatalf("NewLogStorage() = (_, %v), want = (_, nil)", err)
+	}
+
+	tx, err := s.Snapshot(context.TODO())
+	if err != nil {
+		t.Fatalf("Snapshot() = (_, %v), want = (_, nil)", err)
+	}
+
+	activeIDs, err := tx.GetActiveLogIDs()
+	if err != nil {
+		t.Fatalf("GetActiveLogIDs() = (_, %v), want = (_, nil)", err)
+	}
+	if got, want := len(activeIDs), 0; got != want {
+		t.Errorf("GetActiveLogIDs(): got %v IDs, want = %v", got, want)
+	}
+
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("Commit() = %v, want = nil", err)
 	}
 }
 
 func TestGetActiveLogIDsWithPendingWork(t *testing.T) {
-	logID := createLogID("TestGetActiveLogIDsWithPendingWork")
-	cleanTestDB(DB)
-	prepareTestLogDB(DB, logID, t)
-	s := prepareTestLogStorage(DB, logID, t)
-	tx := beginLogTx(s, logID, t)
-
-	logIDs, err := tx.GetActiveLogIDsWithPendingWork()
-	commit(tx, t)
-
-	if err != nil || len(logIDs) != 0 {
-		t.Fatalf("Should have had no logs with unsequenced work but got: %v %v", logIDs, err)
-	}
-
-	{
-		tx := beginLogTx(s, logID, t)
-		defer failIfTXStillOpen(t, "TestGetActiveLogIDsFiltered", tx)
-
-		leaves := createTestLeaves(leavesToInsert, 2)
-
-		if err := tx.QueueLeaves(leaves, fakeQueueTime); err != nil {
-			t.Fatalf("Failed to queue leaves: %v", err)
+	getActiveIDsBegin := func(s storage.LogStorage, ctx context.Context, logID int64) ([]int64, error) {
+		tx, err := s.BeginForTree(ctx, logID)
+		if err != nil {
+			return nil, err
 		}
-
-		commit(tx, t)
+		ids, err := tx.GetActiveLogIDsWithPendingWork()
+		if err != nil {
+			return nil, err
+		}
+		if err := tx.Commit(); err != nil {
+			return nil, err
+		}
+		return ids, nil
+	}
+	getActiveIDsSnapshot := func(s storage.LogStorage, ctx context.Context, logID int64) ([]int64, error) {
+		tx, err := s.Snapshot(ctx)
+		if err != nil {
+			return nil, err
+		}
+		ids, err := tx.GetActiveLogIDsWithPendingWork()
+		if err != nil {
+			return nil, err
+		}
+		if err := tx.Commit(); err != nil {
+			return nil, err
+		}
+		return ids, nil
 	}
 
-	// We should now see the logID that we just created work for
-	tx = beginLogTx(s, logID, t)
+	tests := []getActiveIDsTest{
+		{name: "getActiveIDsBegin", fn: getActiveIDsBegin},
+		{name: "getActiveIDsSnapshot", fn: getActiveIDsSnapshot},
+	}
+	for _, test := range tests {
+		runTestGetActiveLogIDsWithPendingWork(t, test)
+	}
+}
 
-	logIDs, err = tx.GetActiveLogIDsWithPendingWork()
-	commit(tx, t)
+func TestReadOnlyLogTX_Rollback(t *testing.T) {
+	cleanTestDB(DB)
 
-	if err != nil || len(logIDs) != 1 {
-		t.Fatalf("Should have had one log with unsequenced work but got: %v", logIDs)
+	s, err := NewLogStorage(DB)
+	if err != nil {
+		t.Fatalf("NewLogStorage() = (_, %v), want = (_, nil)", err)
 	}
 
-	expected, got := logID.logID, logIDs[0]
-	if expected != got {
-		t.Fatalf("Expected to see tree ID: %d but got: %d", expected, got)
+	tx, err := s.Snapshot(context.TODO())
+	if err != nil {
+		t.Fatalf("Snapshot() = (_, %v), want = (_, nil)", err)
+	}
+
+	if _, err := tx.GetActiveLogIDs(); err != nil {
+		t.Fatalf("GetActiveLogIDs() = (_, %v), want = (_, nil)", err)
+	}
+
+	// It's a bit hard to have a more meaningful test. This should suffice.
+	if err := tx.Rollback(); err != nil {
+		t.Errorf("Rollback() = (_, %v), want = (_, nil)", err)
 	}
 }
 
@@ -1014,14 +1159,14 @@ func createTestLeaves(n, startSeq int64) []trillian.LogLeaf {
 }
 
 // Convenience methods to avoid copying out "if err != nil { blah }" all over the place
-func commit(tx storage.LogTX, t *testing.T) {
+func commit(tx storage.LogTreeTX, t *testing.T) {
 	if err := tx.Commit(); err != nil {
 		t.Fatalf("Failed to commit tx: %v", err)
 	}
 }
 
-func beginLogTx(s storage.LogStorage, logID logIDAndTest, t *testing.T) storage.LogTX {
-	tx, err := s.Begin(context.Background(), logID.logID)
+func beginLogTx(s storage.LogStorage, logID logIDAndTest, t *testing.T) storage.LogTreeTX {
+	tx, err := s.BeginForTree(context.Background(), logID.logID)
 
 	if err != nil {
 		t.Fatalf("Failed to begin log tx: %v", err)
@@ -1030,7 +1175,7 @@ func beginLogTx(s storage.LogStorage, logID logIDAndTest, t *testing.T) storage.
 	return tx
 }
 
-func failIfTXStillOpen(t *testing.T, op string, tx storage.LogTX) {
+func failIfTXStillOpen(t *testing.T, op string, tx storage.LogTreeTX) {
 	if r := recover(); r != nil {
 		// Check for the test bailing with panic before testing for unclosed tx.
 		// debug.Stack() does the right thing and includes the original failure point

@@ -44,21 +44,21 @@ func checkDatabaseAccessible(registry extension.Registry) error {
 		return err
 	}
 
-	// TODO(codingllama): A treeID shouldn't be necessary here
-	ctx := context.TODO()
-	tx, err := logStorage.Begin(ctx, 0)
+	tx, err := logStorage.Snapshot(context.Background())
 	if err != nil {
-		// Out of resources maybe?
 		return err
 	}
-	defer tx.Commit()
 
 	// Pull the log ids, we don't care about the result, we just want to know that it works
-	_, err = tx.GetActiveLogIDs()
-	return err
+	if _, err := tx.GetActiveLogIDs(); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit()
 }
 
-func startRPCServer(listener net.Listener, port int, registry extension.Registry) *grpc.Server {
+func startRPCServer(registry extension.Registry) *grpc.Server {
 	// Create and publish the RPC stats objects
 	statsInterceptor := monitoring.NewRPCStatsInterceptor(util.SystemTimeSource{}, "ct", "example")
 	statsInterceptor.Publish()
@@ -153,7 +153,7 @@ func main() {
 	go sequencerTask.OperationLoop()
 
 	// Bring up the RPC server and then block until we get a signal to stop
-	rpcServer := startRPCServer(lis, *serverPortFlag, registry)
+	rpcServer := startRPCServer(registry)
 	go awaitSignal(rpcServer)
 	err = rpcServer.Serve(lis)
 	if err != nil {

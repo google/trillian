@@ -138,7 +138,7 @@ func (s Sequencer) sequenceLeaves(mt *merkle.CompactMerkleTree, leaves []trillia
 	return nodeMap, leaves, nil
 }
 
-func (s Sequencer) initMerkleTreeFromStorage(ctx context.Context, currentRoot trillian.SignedLogRoot, tx storage.LogTX) (*merkle.CompactMerkleTree, error) {
+func (s Sequencer) initMerkleTreeFromStorage(ctx context.Context, currentRoot trillian.SignedLogRoot, tx storage.LogTreeTX) (*merkle.CompactMerkleTree, error) {
 	if currentRoot.TreeSize == 0 {
 		return merkle.NewCompactMerkleTree(s.hasher), nil
 	}
@@ -171,7 +171,7 @@ func (s Sequencer) createRootSignature(ctx context.Context, root trillian.Signed
 // which will fail if the tx was committed. Should only do this if we can hide the details of
 // the underlying storage transactions and it doesn't create other problems.
 func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int) (int, error) {
-	tx, err := s.logStorage.Begin(ctx, logID)
+	tx, err := s.logStorage.BeginForTree(ctx, logID)
 	if err != nil {
 		glog.Warningf("%v: Sequencer failed to start tx: %v", logID, err)
 		return 0, err
@@ -298,7 +298,7 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int) (i
 
 // SignRoot wraps up all the operations for creating a new log signed root.
 func (s Sequencer) SignRoot(ctx context.Context, logID int64) error {
-	tx, err := s.logStorage.Begin(ctx, logID)
+	tx, err := s.logStorage.BeginForTree(ctx, logID)
 	if err != nil {
 		glog.Warningf("%v: signer failed to start tx: %v", logID, err)
 		return err

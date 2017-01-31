@@ -326,7 +326,7 @@ func (t *TrillianLogRPCServer) GetLeavesByIndex(ctx context.Context, req *trilli
 // to fetch leaves that have been queued but not yet integrated. Logs may accept duplicate
 // entries so this may return more results than the number of hashes in the request.
 func (t *TrillianLogRPCServer) GetLeavesByHash(ctx context.Context, req *trillian.GetLeavesByHashRequest) (*trillian.GetLeavesByHashResponse, error) {
-	return t.getLeavesByHashInternal(ctx, "GetLeavesByHash", req, func(tx storage.ReadOnlyLogTX, hashes [][]byte, sequenceOrder bool) ([]trillian.LogLeaf, error) {
+	return t.getLeavesByHashInternal(ctx, "GetLeavesByHash", req, func(tx storage.ReadOnlyLogTreeTX, hashes [][]byte, sequenceOrder bool) ([]trillian.LogLeaf, error) {
 		return tx.GetLeavesByHash(hashes, sequenceOrder)
 	})
 }
@@ -391,13 +391,13 @@ func (t *TrillianLogRPCServer) GetEntryAndProof(ctx context.Context, req *trilli
 		Leaf:  &leaves[0]}, nil
 }
 
-func (t *TrillianLogRPCServer) prepareStorageTx(ctx context.Context, treeID int64) (storage.LogTX, error) {
+func (t *TrillianLogRPCServer) prepareStorageTx(ctx context.Context, treeID int64) (storage.LogTreeTX, error) {
 	s, err := t.registry.GetLogStorage()
 	if err != nil {
 		return nil, err
 	}
 
-	tx, err := s.Begin(ctx, treeID)
+	tx, err := s.BeginForTree(ctx, treeID)
 	if err != nil {
 		return nil, err
 	}
@@ -405,13 +405,13 @@ func (t *TrillianLogRPCServer) prepareStorageTx(ctx context.Context, treeID int6
 	return tx, err
 }
 
-func (t *TrillianLogRPCServer) prepareReadOnlyStorageTx(ctx context.Context, treeID int64) (storage.ReadOnlyLogTX, error) {
+func (t *TrillianLogRPCServer) prepareReadOnlyStorageTx(ctx context.Context, treeID int64) (storage.ReadOnlyLogTreeTX, error) {
 	s, err := t.registry.GetLogStorage()
 	if err != nil {
 		return nil, err
 	}
 
-	tx, err := s.Snapshot(ctx, treeID)
+	tx, err := s.SnapshotForTree(ctx, treeID)
 	if err != nil {
 		return nil, err
 	}
@@ -419,7 +419,7 @@ func (t *TrillianLogRPCServer) prepareReadOnlyStorageTx(ctx context.Context, tre
 	return tx, err
 }
 
-func (t *TrillianLogRPCServer) commitAndLog(ctx context.Context, tx storage.ReadOnlyLogTX, op string) error {
+func (t *TrillianLogRPCServer) commitAndLog(ctx context.Context, tx storage.ReadOnlyLogTreeTX, op string) error {
 	err := tx.Commit()
 	if err != nil {
 		glog.Warningf("%s: Commit failed for %s: %v", util.LogIDPrefix(ctx), op, err)
@@ -468,7 +468,7 @@ func validateLeafHashes(leafHashes [][]byte) bool {
 // getInclusionProofForLeafIndexAtRevision is used by multiple handlers. It does the storage fetching
 // and makes additional checks on the returned proof. Returns a Proof suitable for inclusion in
 // an RPC response
-func getInclusionProofForLeafIndexAtRevision(tx storage.ReadOnlyLogTX, snapshot, treeRevision, treeSize, leafIndex int64) (trillian.Proof, error) {
+func getInclusionProofForLeafIndexAtRevision(tx storage.ReadOnlyLogTreeTX, snapshot, treeRevision, treeSize, leafIndex int64) (trillian.Proof, error) {
 	// We have the tree size and leaf index so we know the nodes that we need to serve the proof
 	proofNodeIDs, err := merkle.CalcInclusionProofNodeAddresses(snapshot, leafIndex, treeSize, proofMaxBitLen)
 	if err != nil {
@@ -480,7 +480,7 @@ func getInclusionProofForLeafIndexAtRevision(tx storage.ReadOnlyLogTX, snapshot,
 
 // getLeavesByHashInternal does the work of fetching leaves by either their raw data or merkle
 // tree hash depending on the supplied fetch function
-func (t *TrillianLogRPCServer) getLeavesByHashInternal(ctx context.Context, desc string, req *trillian.GetLeavesByHashRequest, fetchFunc func(storage.ReadOnlyLogTX, [][]byte, bool) ([]trillian.LogLeaf, error)) (*trillian.GetLeavesByHashResponse, error) {
+func (t *TrillianLogRPCServer) getLeavesByHashInternal(ctx context.Context, desc string, req *trillian.GetLeavesByHashRequest, fetchFunc func(storage.ReadOnlyLogTreeTX, [][]byte, bool) ([]trillian.LogLeaf, error)) (*trillian.GetLeavesByHashResponse, error) {
 	ctx = util.NewLogContext(ctx, req.LogId)
 	if len(req.LeafHash) == 0 || !validateLeafHashes(req.LeafHash) {
 		return &trillian.GetLeavesByHashResponse{}, nil

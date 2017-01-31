@@ -34,21 +34,17 @@ var privateKeyPassword = flag.String("private_key_password", "", "Password for s
 func checkDatabaseAccessible(registry extension.Registry) error {
 	mapStorage, err := registry.GetMapStorage()
 	if err != nil {
-		// This is probably something fundamentally wrong
 		return err
 	}
 
 	// TODO(codingllama): We shouldn't use a mapID here
-	ctx := context.TODO()
-	tx, err := mapStorage.Begin(ctx, 0)
+	tx, err := mapStorage.Begin(context.Background(), 0)
 	if err != nil {
-		// Out of resources maybe?
 		return err
 	}
-	defer tx.Commit()
 
-	// TODO(al): Add some sort of liveness ping here
-	return nil
+	// TODO(codingllama): Add some sort of liveness ping here
+	return tx.Commit()
 }
 
 func startRPCServer(listener net.Listener, port int, registry extension.Registry) *grpc.Server {

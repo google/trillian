@@ -137,7 +137,7 @@ type testParameters struct {
 
 // Tests get their own mock context so they can be run in parallel safely
 type testContext struct {
-	mockTx         *storage.MockLogTX
+	mockTx         *storage.MockLogTreeTX
 	mockStorage    *storage.MockLogStorage
 	mockKeyManager *crypto.MockKeyManager
 	sequencer      *Sequencer
@@ -164,14 +164,13 @@ type protoMatcher struct {
 
 func createTestContext(ctrl *gomock.Controller, params testParameters) (testContext, context.Context) {
 	mockStorage := storage.NewMockLogStorage(ctrl)
-	mockTx := storage.NewMockLogTX(ctrl)
+	mockTx := storage.NewMockLogTreeTX(ctrl)
 
 	mockTx.EXPECT().WriteRevision().AnyTimes().Return(params.writeRevision)
-
 	if params.beginFails {
-		mockStorage.EXPECT().Begin(gomock.Any(), params.logID).AnyTimes().Return(mockTx, errors.New("TX"))
+		mockStorage.EXPECT().BeginForTree(gomock.Any(), params.logID).AnyTimes().Return(mockTx, errors.New("TX"))
 	} else {
-		mockStorage.EXPECT().Begin(gomock.Any(), params.logID).AnyTimes().Return(mockTx, nil)
+		mockStorage.EXPECT().BeginForTree(gomock.Any(), params.logID).AnyTimes().Return(mockTx, nil)
 	}
 
 	if params.shouldCommit {
