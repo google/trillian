@@ -107,10 +107,9 @@ func (r *rehasher) rehashedProof(leafIndex int64) (trillian.Proof, error) {
 	return trillian.Proof{LeafIndex: leafIndex, ProofNode: r.proof}, r.proofError
 }
 
-// fetchNodes removes duplicates from the set of fetches and then passes the result to
-// storage.
+// fetchNodes extracts the NodeIDs from a list of NodeFetch structs and passes them
+// to storage, returning the result after some additional validation checks.
 func fetchNodes(tx storage.NodeReader, treeRevision int64, fetches []merkle.NodeFetch) ([]storage.Node, error) {
-	// To start with we remove any duplicate fetches
 	proofNodeIDs := make([]storage.NodeID, 0, len(fetches))
 
 	for _, fetch := range fetches {
