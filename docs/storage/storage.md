@@ -195,10 +195,23 @@ reference implementation of RFC 6962. The output of this is an ordered slice of 
 be fetched from storage. After a successful read the hashes are extracted from the nodes and
 returned to the client.
 
-Updates to the tree can be batched so not every version exists in storage. The current
-implementation is restricted to serving proofs for versions that have an associated
-tree head. 
+Updates to the tree can be batched so not every version exists in storage. To serve proofs
+at a version intermediate between two stored versions it can be necessary to recompute hashes
+on the rightmost path. This requires extra nodes to be fetched but is bounded by the depth of
+the tree so this never becomes unmanageable.
 
-For example if revision 1 is at tree size 6 and revision 2 is at tree size 8 then a consistency
-proof can be requested between sizes 6 and 8 but not between 7 and 8. This will be addressed in
-future.
+Nodes node may have been overwritten in the second snapshot when a right hand sibling was added
+as a child. For an example of how this affects Merkle paths for proofs consider the state of the
+tree as it grows from size 7 to size 8 as shown in the following diagrams:
+
+![Merkle tree size 7 diagram](tree_7.png "Merkle Tree Size 7")
+
+![Merkle tree size 8 diagram](tree_8.png "Merkle Tree Size 8")
+
+Assume that only the size 8 tree is stored. When the tree of size eight is queried for an
+inclusion proof of leaf 'e' to the older root at size 7 the proof cannot be directly constructed
+from the node hashes as they are represented in storage at the later point on the right. The
+value of node 'z' differs from the prior state, which got overwritten when the internal node ‘t’
+was added at size 8. This hash value is needed to construct the proof so it must be recalculated.
+The example is a simple case but there may be several levels of nodes affected depending on the
+size of the tree and therefore the shape of the right hand path at that size.
