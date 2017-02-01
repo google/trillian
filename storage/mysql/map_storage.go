@@ -40,63 +40,44 @@ var defaultMapStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 176}
 
 type mySQLMapStorage struct {
 	*mySQLTreeStorage
-
-	mapID int64
-}
-
-func (m *mySQLMapStorage) MapID() int64 {
-	return m.mapID
 }
 
 // NewMapStorage creates a mySQLMapStorage instance for the specified MySQL URL.
-func NewMapStorage(id int64, db *sql.DB) (storage.MapStorage, error) {
-	// TODO(al): pass this through/configure from DB
-	th := merkle.NewRFC6962TreeHasher(crypto.NewSHA256())
-	ts, err := newTreeStorage(id, db, th.Size(), defaultMapStrata, cache.PopulateMapSubtreeNodes(th))
-	if err != nil {
-		glog.Warningf("Couldn't create a new treeStorage: %s", err)
-		return nil, err
-	}
-
-	s := mySQLMapStorage{
-		mySQLTreeStorage: ts,
-		mapID:            id,
-	}
-
-	if err != nil {
-		glog.Warningf("Couldn't create a new treeStorage: %s", err)
-		return nil, err
-	}
-
-	return &s, nil
+func NewMapStorage(db *sql.DB) (storage.MapStorage, error) {
+	return &mySQLMapStorage{
+		mySQLTreeStorage: newTreeStorage(db),
+	}, nil
 }
 
-func (m *mySQLMapStorage) Begin(ctx context.Context) (storage.MapTX, error) {
-	ttx, err := m.beginTreeTx(ctx)
+func (m *mySQLMapStorage) Begin(ctx context.Context, treeID int64) (storage.MapTX, error) {
+	// TODO(codingllama): Validate treeType, read hash algorithm from storage
+	th := merkle.NewRFC6962TreeHasher(crypto.NewSHA256())
+
+	ttx, err := m.beginTreeTx(ctx, treeID, th.Size(), defaultMapStrata, cache.PopulateMapSubtreeNodes(th))
 	if err != nil {
 		return nil, err
 	}
-	ret := &mapTX{
+
+	mtx := &mapTX{
 		treeTX: ttx,
 		ms:     m,
 	}
 
-	root, err := ret.LatestSignedMapRoot()
+	root, err := mtx.LatestSignedMapRoot()
 	if err != nil {
 		return nil, err
 	}
+	mtx.treeTX.writeRevision = root.MapRevision + 1
 
-	ret.treeTX.writeRevision = root.MapRevision + 1
-
-	return ret, nil
+	return mtx, nil
 }
 
-func (m *mySQLMapStorage) Snapshot(ctx context.Context) (storage.ReadOnlyMapTX, error) {
-	tx, err := m.Begin(ctx)
+func (m *mySQLMapStorage) Snapshot(ctx context.Context, treeID int64) (storage.ReadOnlyMapTX, error) {
+	tx, err := m.Begin(ctx, treeID)
 	if err != nil {
 		return nil, err
 	}
-	return tx.(storage.ReadOnlyMapTX), err
+	return tx.(storage.ReadOnlyMapTX), nil
 }
 
 type mapTX struct {
@@ -124,7 +105,7 @@ func (m *mapTX) Set(keyHash []byte, value trillian.MapLeaf) error {
 	}
 	defer stmt.Close()
 
-	_, err = stmt.Exec(m.ms.mapID, []byte(keyHash), m.writeRevision, flatValue)
+	_, err = stmt.Exec(m.treeID, []byte(keyHash), m.writeRevision, flatValue)
 	return err
 }
 
@@ -140,7 +121,7 @@ func (m *mapTX) Get(revision int64, keyHashes [][]byte) ([]trillian.MapLeaf, err
 	for _, k := range keyHashes {
 		args = append(args, []byte(k[:]))
 	}
-	args = append(args, m.ms.mapID)
+	args = append(args, m.treeID)
 	args = append(args, revision)
 
 	glog.Infof("args size %d", len(args))
@@ -194,7 +175,7 @@ func (m *mapTX) LatestSignedMapRoot() (trillian.SignedMapRoot, error) {
 	}
 	defer stmt.Close()
 
-	err = stmt.QueryRow(m.ms.mapID).Scan(
+	err = stmt.QueryRow(m.treeID).Scan(
 		&timestamp, &rootHash, &mapRevision, &rootSignatureBytes, &mapperMetaBytes)
 
 	// It's possible there are no roots for this tree yet
@@ -221,7 +202,7 @@ func (m *mapTX) LatestSignedMapRoot() (trillian.SignedMapRoot, error) {
 		TimestampNanos: timestamp,
 		MapRevision:    mapRevision,
 		Signature:      &rootSignature,
-		MapId:          m.ms.mapID,
+		MapId:          m.treeID,
 		Metadata:       mapperMeta,
 	}
 
@@ -252,7 +233,7 @@ func (m *mapTX) StoreSignedMapRoot(root trillian.SignedMapRoot) error {
 	defer stmt.Close()
 
 	// TODO(al): store transactionLogHead too
-	res, err := stmt.Exec(m.ms.mapID, root.TimestampNanos, root.RootHash, root.MapRevision, signatureBytes, mapperMetaBytes)
+	res, err := stmt.Exec(m.treeID, root.TimestampNanos, root.RootHash, root.MapRevision, signatureBytes, mapperMetaBytes)
 
 	if err != nil {
 		glog.Warningf("Failed to store signed map root: %s", err)

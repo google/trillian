@@ -25,36 +25,36 @@ var errNotImplemented = errors.New("not implemented")
 
 // GetLogStorageFunc returns a storage.LogStorage or fails.
 // Used as an implementation of extension.Registry.GetLogStorage in tests.
-type GetLogStorageFunc func(int64) (storage.LogStorage, error)
+type GetLogStorageFunc func() (storage.LogStorage, error)
 
 // GetMapStorageFunc returns a storage.MapStorage or fails.
 // Used as an implementation of extension.Registry.GetMapStorage in tests.
-type GetMapStorageFunc func(int64) (storage.MapStorage, error)
+type GetMapStorageFunc func() (storage.MapStorage, error)
 
 type testRegistry struct {
 	getLogStorageFunc GetLogStorageFunc
 	getMapStorageFunc GetMapStorageFunc
 }
 
-func defaultGetLogStorage(int64) (storage.LogStorage, error) {
+func defaultGetLogStorage() (storage.LogStorage, error) {
 	return nil, errNotImplemented
 }
 
-func defaultGetMapStorage(int64) (storage.MapStorage, error) {
+func defaultGetMapStorage() (storage.MapStorage, error) {
 	return nil, errNotImplemented
 }
 
-func (r testRegistry) GetLogStorage(treeID int64) (storage.LogStorage, error) {
-	return r.getLogStorageFunc(treeID)
+func (r testRegistry) GetLogStorage() (storage.LogStorage, error) {
+	return r.getLogStorageFunc()
 }
 
-func (r testRegistry) GetMapStorage(treeID int64) (storage.MapStorage, error) {
-	return r.getMapStorageFunc(treeID)
+func (r testRegistry) GetMapStorage() (storage.MapStorage, error) {
+	return r.getMapStorageFunc()
 }
 
 // NewRegistryWithLogStorage returns an extension.Registry backed by ls.
 func NewRegistryWithLogStorage(ls storage.LogStorage) extension.Registry {
-	return NewRegistryWithLogProvider(func(int64) (storage.LogStorage, error) { return ls, nil })
+	return NewRegistryWithLogProvider(func() (storage.LogStorage, error) { return ls, nil })
 }
 
 // NewRegistryWithLogProvider returns an extension.Registry whose GetLogStorage function is

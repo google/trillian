@@ -78,6 +78,120 @@ func checkLeafContents(leaf trillian.LogLeaf, seq int64, rawHash, hash, data, ex
 	}
 }
 
+func setAllowsDuplicates(db *sql.DB, treeID int64, allowDuplicates bool) error {
+	stmt, err := db.Prepare("UPDATE Trees SET AllowsDuplicateLeaves = ? WHERE TreeId = ?")
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(allowDuplicates, treeID)
+	return err
+}
+
+func TestBegin(t *testing.T) {
+	logID1 := createLogID("TestBegin1")
+	logID2 := createLogID("TestBegin2")
+	cleanTestDB(DB)
+	prepareTestLogDB(DB, logID1, t)
+	prepareTestLogDB(DB, logID2, t)
+
+	storage, err := NewLogStorage(DB)
+	if err != nil {
+		t.Fatalf("NewLogStorage() = (_, %v)", err)
+	}
+
+	tests := []struct {
+		logID           int64
+		err             string
+		allowDuplicates bool
+		writeRevision   int
+	}{
+		{logID: -1, err: "failed to get tree row"},
+		{logID: logID1.logID, allowDuplicates: true},
+		{logID: logID2.logID, allowDuplicates: false},
+	}
+
+	ctx := context.TODO()
+	for _, test := range tests {
+		if test.allowDuplicates {
+			if err := setAllowsDuplicates(DB, test.logID, test.allowDuplicates); err != nil {
+				t.Fatalf("setup error: cannot set allowDuplicates on DB: %v", err)
+			}
+		}
+
+		tx, err := storage.Begin(ctx, test.logID)
+		if hasError, wantError := err != nil, test.err != ""; hasError || wantError {
+			if hasError != wantError || (wantError && !strings.Contains(err.Error(), test.err)) {
+				t.Errorf("Begin() = (_, '%v'), want = (_, '...%v...')", err, test.err)
+			}
+			continue
+		}
+
+		// TODO(codingllama): It would be better to test this via side effects of other public methods
+		if tx.(*logTX).allowDuplicates != test.allowDuplicates {
+			t.Errorf("tx.allowDuplicates = %v, want = %v", tx.(*logTX).allowDuplicates, test.allowDuplicates)
+		}
+
+		root, err := tx.LatestSignedLogRoot()
+		if err != nil {
+			t.Errorf("LatestSignedLogRoot() = (_, %v), want = (_, nil)", err)
+		}
+
+		if got, want := tx.WriteRevision(), root.TreeRevision+1; got != want {
+			t.Errorf("WriteRevision() = %v, want = %v", got, want)
+		}
+
+		if err := tx.Commit(); err != nil {
+			t.Errorf("Commit() = %v, want = nil", err)
+		}
+
+	}
+
+}
+
+func TestSnapshot(t *testing.T) {
+	logID := createLogID("TestSnapshot")
+	cleanTestDB(DB)
+	prepareTestLogDB(DB, logID, t)
+
+	storage, err := NewLogStorage(DB)
+	if err != nil {
+		t.Fatalf("NewLogStorage() = (_, %v)", err)
+	}
+
+	tests := []struct {
+		logID int64
+		err   string
+	}{
+		{logID: -1, err: "failed to get tree row"},
+		{logID: logID.logID},
+	}
+
+	ctx := context.TODO()
+	for _, test := range tests {
+		tx, err := storage.Snapshot(ctx, test.logID)
+		if hasError, wantError := err != nil, test.err != ""; hasError || wantError {
+			if hasError != wantError || (wantError && !strings.Contains(err.Error(), test.err)) {
+				t.Errorf("Begin() = (_, '%v'), want = (_, '...%v...')", err, test.err)
+			}
+			continue
+		}
+
+		// Do a read so we have something to commit on the snapshot
+		_, err = tx.LatestSignedLogRoot()
+		if err != nil {
+			t.Errorf("LatestSignedLogRoot() = (_, %v), want = (_, nil)", err)
+		}
+
+		if err := tx.Commit(); err != nil {
+			t.Errorf("Commit() = %v, want = nil", err)
+		}
+
+	}
+
+}
+
 func TestOpenStateCommit(t *testing.T) {
 	logID := createLogID("TestOpenStateCommit")
 	cleanTestDB(DB)
@@ -85,7 +199,7 @@ func TestOpenStateCommit(t *testing.T) {
 	s := prepareTestLogStorage(DB, logID, t)
 	ctx := context.Background()
 
-	tx, err := s.Begin(ctx)
+	tx, err := s.Begin(ctx, logID.logID)
 	if err != nil {
 		t.Fatalf("Failed to set up db transaction: %v", err)
 	}
@@ -108,7 +222,7 @@ func TestOpenStateRollback(t *testing.T) {
 	s := prepareTestLogStorage(DB, logID, t)
 	ctx := context.Background()
 
-	tx, err := s.Begin(ctx)
+	tx, err := s.Begin(ctx, logID.logID)
 	if err != nil {
 		t.Fatalf("Failed to set up db transaction: %v", err)
 	}
@@ -129,7 +243,7 @@ func TestQueueDuplicateLeafFails(t *testing.T) {
 	cleanTestDB(DB)
 	prepareTestLogDB(DB, logID, t)
 	s := prepareTestLogStorage(DB, logID, t)
-	tx := beginLogTx(s, t)
+	tx := beginLogTx(s, logID, t)
 	defer commit(tx, t)
 
 	leaves := createTestLeaves(5, 10)
@@ -154,7 +268,7 @@ func TestQueueLeaves(t *testing.T) {
 	cleanTestDB(DB)
 	prepareTestLogDB(DB, logID, t)
 	s := prepareTestLogStorage(DB, logID, t)
-	tx := beginLogTx(s, t)
+	tx := beginLogTx(s, logID, t)
 	defer failIfTXStillOpen(t, "TestQueueLeaves", tx)
 
 	leaves := createTestLeaves(leavesToInsert, 20)
@@ -193,7 +307,7 @@ func TestDequeueLeavesNoneQueued(t *testing.T) {
 	cleanTestDB(DB)
 	prepareTestLogDB(DB, logID, t)
 	s := prepareTestLogStorage(DB, logID, t)
-	tx := beginLogTx(s, t)
+	tx := beginLogTx(s, logID, t)
 	defer commit(tx, t)
 
 	leaves, err := tx.DequeueLeaves(999, fakeDequeueCutoffTime)
@@ -214,7 +328,7 @@ func TestDequeueLeaves(t *testing.T) {
 	s := prepareTestLogStorage(DB, logID, t)
 
 	{
-		tx := beginLogTx(s, t)
+		tx := beginLogTx(s, logID, t)
 		defer failIfTXStillOpen(t, "TestDequeLeaves", tx)
 
 		leaves := createTestLeaves(leavesToInsert, 20)
@@ -228,7 +342,7 @@ func TestDequeueLeaves(t *testing.T) {
 
 	{
 		// Now try to dequeue them
-		tx2 := beginLogTx(s, t)
+		tx2 := beginLogTx(s, logID, t)
 		defer failIfTXStillOpen(t, "TestDequeLeaves", tx2)
 		leaves2, err := tx2.DequeueLeaves(99, fakeDequeueCutoffTime)
 
@@ -246,7 +360,7 @@ func TestDequeueLeaves(t *testing.T) {
 
 	{
 		// If we dequeue again then we should now get nothing
-		tx3 := beginLogTx(s, t)
+		tx3 := beginLogTx(s, logID, t)
 		defer tx3.Rollback()
 
 		leaves3, err := tx3.DequeueLeaves(99, fakeDequeueCutoffTime)
@@ -271,7 +385,7 @@ func TestDequeueLeavesTwoBatches(t *testing.T) {
 	leavesToDequeue2 := 2
 
 	{
-		tx := beginLogTx(s, t)
+		tx := beginLogTx(s, logID, t)
 		defer failIfTXStillOpen(t, "TestDequeueLeavesTwoBatches", tx)
 
 		leaves := createTestLeaves(leavesToInsert, 20)
@@ -285,7 +399,7 @@ func TestDequeueLeavesTwoBatches(t *testing.T) {
 
 	{
 		// Now try to dequeue some of them
-		tx2 := beginLogTx(s, t)
+		tx2 := beginLogTx(s, logID, t)
 		defer failIfTXStillOpen(t, "TestDequeueLeavesTwoBatches-tx2", tx2)
 		leaves2, err := tx2.DequeueLeaves(leavesToDequeue1, fakeDequeueCutoffTime)
 
@@ -301,7 +415,7 @@ func TestDequeueLeavesTwoBatches(t *testing.T) {
 		commit(tx2, t)
 
 		// Now try to dequeue the rest of them
-		tx3 := beginLogTx(s, t)
+		tx3 := beginLogTx(s, logID, t)
 		defer failIfTXStillOpen(t, "TestDequeueLeavesTwoBatches-tx3", tx3)
 		leaves3, err := tx3.DequeueLeaves(leavesToDequeue2, fakeDequeueCutoffTime)
 
@@ -324,7 +438,7 @@ func TestDequeueLeavesTwoBatches(t *testing.T) {
 
 	{
 		// If we dequeue again then we should now get nothing
-		tx4 := beginLogTx(s, t)
+		tx4 := beginLogTx(s, logID, t)
 		defer failIfTXStillOpen(t, "TestDequeueLeavesTwoBatches-tx4", tx4)
 
 		leaves5, err := tx4.DequeueLeaves(99, fakeDequeueCutoffTime)
@@ -351,7 +465,7 @@ func TestDequeueLeavesGuardInterval(t *testing.T) {
 	s := prepareTestLogStorage(DB, logID, t)
 
 	{
-		tx := beginLogTx(s, t)
+		tx := beginLogTx(s, logID, t)
 		defer failIfTXStillOpen(t, "TestDequeueLeavesGuardInterval", tx)
 
 		leaves := createTestLeaves(leavesToInsert, 20)
@@ -365,7 +479,7 @@ func TestDequeueLeavesGuardInterval(t *testing.T) {
 
 	{
 		// Now try to dequeue them using a cutoff that means we should get none
-		tx2 := beginLogTx(s, t)
+		tx2 := beginLogTx(s, logID, t)
 		defer failIfTXStillOpen(t, "TestDequeueLeavesGuardInterval", tx2)
 		leaves2, err := tx2.DequeueLeaves(99, fakeQueueTime.Add(-time.Second))
 
@@ -404,7 +518,7 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 	batchSize := 2
 
 	{
-		tx := beginLogTx(s, t)
+		tx := beginLogTx(s, logID, t)
 		defer failIfTXStillOpen(t, "TestDequeueLeavesTimeOrdering", tx)
 
 		leaves := createTestLeaves(int64(batchSize), 0)
@@ -424,7 +538,7 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 
 	{
 		// Now try to dequeue two leaves and we should get the second batch
-		tx2 := beginLogTx(s, t)
+		tx2 := beginLogTx(s, logID, t)
 		defer failIfTXStillOpen(t, "TestDequeueLeavesTimeOrdering", tx2)
 		dequeue1, err := tx2.DequeueLeaves(batchSize, fakeQueueTime)
 
@@ -446,7 +560,7 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 		commit(tx2, t)
 
 		// Try to dequeue again and we should get the batch that was queued first, though at a later time
-		tx3 := beginLogTx(s, t)
+		tx3 := beginLogTx(s, logID, t)
 		defer failIfTXStillOpen(t, "TestDequeueLeavesTimeOrdering", tx3)
 		dequeue2, err := tx3.DequeueLeaves(batchSize, fakeQueueTime)
 
@@ -473,7 +587,7 @@ func TestGetLeavesByHashNotPresent(t *testing.T) {
 	logID := createLogID("TestGetLeavesByHashNotPresent")
 	cleanTestDB(DB)
 	s := prepareTestLogStorage(DB, logID, t)
-	tx := beginLogTx(s, t)
+	tx := beginLogTx(s, logID, t)
 	defer commit(tx, t)
 
 	hashes := [][]byte{[]byte("thisdoesn'texist")}
@@ -492,7 +606,7 @@ func TestGetLeavesByIndexNotPresent(t *testing.T) {
 	logID := createLogID("TestGetLeavesByIndexNotPresent")
 	cleanTestDB(DB)
 	s := prepareTestLogStorage(DB, logID, t)
-	tx := beginLogTx(s, t)
+	tx := beginLogTx(s, logID, t)
 	defer commit(tx, t)
 
 	_, err := tx.GetLeavesByIndex([]int64{99999})
@@ -513,7 +627,7 @@ func TestGetLeavesByHash(t *testing.T) {
 
 	createFakeLeaf(DB, logID.logID, dummyRawHash, dummyHash, data, someExtraData, sequenceNumber, t)
 
-	tx := beginLogTx(s, t)
+	tx := beginLogTx(s, logID, t)
 	defer commit(tx, t)
 
 	hashes := [][]byte{dummyHash}
@@ -540,7 +654,7 @@ func TestGetLeavesByIndex(t *testing.T) {
 	data := []byte("some data")
 	createFakeLeaf(DB, logID.logID, dummyRawHash, dummyHash, data, someExtraData, sequenceNumber, t)
 
-	tx := beginLogTx(s, t)
+	tx := beginLogTx(s, logID, t)
 	defer commit(tx, t)
 
 	leaves, err := tx.GetLeavesByIndex([]int64{sequenceNumber})
@@ -561,7 +675,7 @@ func TestLatestSignedRootNoneWritten(t *testing.T) {
 	cleanTestDB(DB)
 	prepareTestLogDB(DB, logID, t)
 	s := prepareTestLogStorage(DB, logID, t)
-	tx := beginLogTx(s, t)
+	tx := beginLogTx(s, logID, t)
 	defer tx.Rollback()
 
 	root, err := tx.LatestSignedLogRoot()
@@ -579,7 +693,7 @@ func TestLatestSignedLogRoot(t *testing.T) {
 	cleanTestDB(DB)
 	prepareTestLogDB(DB, logID, t)
 	s := prepareTestLogStorage(DB, logID, t)
-	tx := beginLogTx(s, t)
+	tx := beginLogTx(s, logID, t)
 	defer tx.Rollback()
 
 	// TODO: Tidy up the log id as it looks silly chained 3 times like this
@@ -592,7 +706,7 @@ func TestLatestSignedLogRoot(t *testing.T) {
 	commit(tx, t)
 
 	{
-		tx2 := beginLogTx(s, t)
+		tx2 := beginLogTx(s, logID, t)
 		defer tx2.Rollback()
 		root2, err := tx2.LatestSignedLogRoot()
 
@@ -613,7 +727,7 @@ func TestGetTreeRevisionAtSize(t *testing.T) {
 	s := prepareTestLogStorage(DB, logID, t)
 
 	{
-		tx := beginLogTx(s, t)
+		tx := beginLogTx(s, logID, t)
 
 		// TODO: Tidy up the log id as it looks silly chained 3 times like this
 		root := trillian.SignedLogRoot{LogId: logID.logID, TimestampNanos: 98765, TreeSize: 16, TreeRevision: 5, RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
@@ -631,7 +745,7 @@ func TestGetTreeRevisionAtSize(t *testing.T) {
 	}
 
 	{
-		tx := beginLogTx(s, t)
+		tx := beginLogTx(s, logID, t)
 		defer commit(tx, t)
 
 		// First two are tree head sizes and returned version should match
@@ -662,7 +776,7 @@ func TestGetTreeRevisionMultipleSameSize(t *testing.T) {
 	s := prepareTestLogStorage(DB, logID, t)
 
 	{
-		tx := beginLogTx(s, t)
+		tx := beginLogTx(s, logID, t)
 
 		// Normally tree heads at the same tree size must have the same revision because nothing was
 		// added between them by definition, this is an artificial situation just for testing.
@@ -682,7 +796,7 @@ func TestGetTreeRevisionMultipleSameSize(t *testing.T) {
 	}
 
 	{
-		tx := beginLogTx(s, t)
+		tx := beginLogTx(s, logID, t)
 		defer commit(tx, t)
 
 		// We should get back the first revision at size 16
@@ -703,7 +817,7 @@ func TestDuplicateSignedLogRoot(t *testing.T) {
 	cleanTestDB(DB)
 	prepareTestLogDB(DB, logID, t)
 	s := prepareTestLogStorage(DB, logID, t)
-	tx := beginLogTx(s, t)
+	tx := beginLogTx(s, logID, t)
 	defer commit(tx, t)
 
 	// TODO: Tidy up the log id as it looks silly chained 3 times like this
@@ -725,7 +839,7 @@ func TestLogRootUpdate(t *testing.T) {
 	cleanTestDB(DB)
 	prepareTestLogDB(DB, logID, t)
 	s := prepareTestLogStorage(DB, logID, t)
-	tx := beginLogTx(s, t)
+	tx := beginLogTx(s, logID, t)
 
 	// TODO: Tidy up the log id as it looks silly chained 3 times like this
 	root := trillian.SignedLogRoot{LogId: logID.logID, TimestampNanos: 98765, TreeSize: 16, TreeRevision: 5, RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
@@ -743,7 +857,7 @@ func TestLogRootUpdate(t *testing.T) {
 
 	commit(tx, t)
 
-	tx2 := beginLogTx(s, t)
+	tx2 := beginLogTx(s, logID, t)
 	defer commit(tx2, t)
 	root3, err := tx2.LatestSignedLogRoot()
 
@@ -762,7 +876,7 @@ func TestGetActiveLogIDs(t *testing.T) {
 	// This creates one tree
 	prepareTestLogDB(DB, logID, t)
 	s := prepareTestLogStorage(DB, logID, t)
-	tx := beginLogTx(s, t)
+	tx := beginLogTx(s, logID, t)
 
 	logIDs, err := tx.GetActiveLogIDs()
 
@@ -780,7 +894,7 @@ func TestGetActiveLogIDsWithPendingWork(t *testing.T) {
 	cleanTestDB(DB)
 	prepareTestLogDB(DB, logID, t)
 	s := prepareTestLogStorage(DB, logID, t)
-	tx := beginLogTx(s, t)
+	tx := beginLogTx(s, logID, t)
 
 	logIDs, err := tx.GetActiveLogIDsWithPendingWork()
 	commit(tx, t)
@@ -790,7 +904,7 @@ func TestGetActiveLogIDsWithPendingWork(t *testing.T) {
 	}
 
 	{
-		tx := beginLogTx(s, t)
+		tx := beginLogTx(s, logID, t)
 		defer failIfTXStillOpen(t, "TestGetActiveLogIDsFiltered", tx)
 
 		leaves := createTestLeaves(leavesToInsert, 2)
@@ -803,7 +917,7 @@ func TestGetActiveLogIDsWithPendingWork(t *testing.T) {
 	}
 
 	// We should now see the logID that we just created work for
-	tx = beginLogTx(s, t)
+	tx = beginLogTx(s, logID, t)
 
 	logIDs, err = tx.GetActiveLogIDsWithPendingWork()
 	commit(tx, t)
@@ -840,7 +954,7 @@ func TestGetSequencedLeafCount(t *testing.T) {
 	}
 
 	// Read back the leaf counts from both trees
-	tx := beginLogTx(s1, t)
+	tx := beginLogTx(s1, logID, t)
 	count1, err := tx.GetSequencedLeafCount()
 	commit(tx, t)
 
@@ -852,7 +966,7 @@ func TestGetSequencedLeafCount(t *testing.T) {
 		t.Fatalf("expected %d sequenced for logId but got %d", want, got)
 	}
 
-	tx = beginLogTx(s2, t)
+	tx = beginLogTx(s2, logID2, t)
 	count2, err := tx.GetSequencedLeafCount()
 	commit(tx, t)
 
@@ -906,8 +1020,8 @@ func commit(tx storage.LogTX, t *testing.T) {
 	}
 }
 
-func beginLogTx(s storage.LogStorage, t *testing.T) storage.LogTX {
-	tx, err := s.Begin(context.Background())
+func beginLogTx(s storage.LogStorage, logID logIDAndTest, t *testing.T) storage.LogTX {
+	tx, err := s.Begin(context.Background(), logID.logID)
 
 	if err != nil {
 		t.Fatalf("Failed to begin log tx: %v", err)

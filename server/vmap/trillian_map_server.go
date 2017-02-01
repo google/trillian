@@ -16,9 +16,6 @@ import (
 // TODO: There is no access control in the server yet and clients could easily modify
 // any tree.
 
-// MapStorageProviderFunc decouples the server from storage implementations
-type MapStorageProviderFunc func(int64) (storage.MapStorage, error)
-
 // TrillianMapServer implements the RPC API defined in the proto
 type TrillianMapServer struct {
 	registry extension.Registry
@@ -37,12 +34,12 @@ func (t *TrillianMapServer) getHasherForMap(mapID int64) (merkle.MapHasher, erro
 // GetLeaves implements the GetLeaves RPC method.
 func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapLeavesRequest) (resp *trillian.GetMapLeavesResponse, err error) {
 	ctx = util.NewMapContext(ctx, req.MapId)
-	s, err := t.registry.GetMapStorage(req.MapId)
+	s, err := t.registry.GetMapStorage()
 	if err != nil {
 		return nil, err
 	}
 
-	tx, err := s.Snapshot(ctx)
+	tx, err := s.Snapshot(ctx, req.MapId)
 	if err != nil {
 		return nil, err
 	}
@@ -122,12 +119,12 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 // SetLeaves implements the SetLeaves RPC method.
 func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapLeavesRequest) (resp *trillian.SetMapLeavesResponse, err error) {
 	ctx = util.NewMapContext(ctx, req.MapId)
-	s, err := t.registry.GetMapStorage(req.MapId)
+	s, err := t.registry.GetMapStorage()
 	if err != nil {
 		return nil, err
 	}
 
-	tx, err := s.Begin(ctx)
+	tx, err := s.Begin(ctx, req.MapId)
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +153,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 	glog.Infof("%s: Writing at revision %d", util.MapIDPrefix(ctx), tx.WriteRevision())
 
 	smtWriter, err := merkle.NewSparseMerkleTreeWriter(tx.WriteRevision(), hasher, func() (storage.TreeTX, error) {
-		return s.Begin(ctx)
+		return s.Begin(ctx, req.MapId)
 	})
 	if err != nil {
 		return nil, err
@@ -180,7 +177,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 	newRoot := trillian.SignedMapRoot{
 		TimestampNanos: time.Now().UnixNano(),
 		RootHash:       rootHash,
-		MapId:          s.MapID(),
+		MapId:          req.MapId,
 		MapRevision:    tx.WriteRevision(),
 		Metadata:       req.MapperData,
 		// TODO(al): Actually sign stuff, etc!
@@ -200,12 +197,12 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 // GetSignedMapRoot implements the GetSignedMapRoot RPC method.
 func (t *TrillianMapServer) GetSignedMapRoot(ctx context.Context, req *trillian.GetSignedMapRootRequest) (resp *trillian.GetSignedMapRootResponse, err error) {
 	ctx = util.NewMapContext(ctx, req.MapId)
-	s, err := t.registry.GetMapStorage(req.MapId)
+	s, err := t.registry.GetMapStorage()
 	if err != nil {
 		return nil, err
 	}
 
-	tx, err := s.Snapshot(ctx)
+	tx, err := s.Snapshot(ctx, req.MapId)
 	if err != nil {
 		return nil, err
 	}

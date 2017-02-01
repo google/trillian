@@ -20,14 +20,12 @@ type defaultRegistry struct {
 	db *sql.DB
 }
 
-// TODO(codingllama): Get rid of the error return
-func (r defaultRegistry) GetLogStorage(treeID int64) (storage.LogStorage, error) {
-	return mysql.NewLogStorage(treeID, r.db)
+func (r *defaultRegistry) GetLogStorage() (storage.LogStorage, error) {
+	return mysql.NewLogStorage(r.db)
 }
 
-// TODO(codingllama): Get rid of the error return
-func (r defaultRegistry) GetMapStorage(treeID int64) (storage.MapStorage, error) {
-	return mysql.NewMapStorage(treeID, r.db)
+func (r *defaultRegistry) GetMapStorage() (storage.MapStorage, error) {
+	return mysql.NewMapStorage(r.db)
 }
 
 // NewDefaultExtensionRegistry returns the default extension.Registry implementation, which is

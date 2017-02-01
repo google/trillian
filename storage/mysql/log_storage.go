@@ -60,40 +60,12 @@ var defaultLogStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 
 
 type mySQLLogStorage struct {
 	*mySQLTreeStorage
-
-	// These options can only sensibly be set when storage is initialized
-	logID           int64
-	allowDuplicates bool
-
-	// These options can reasonably be changed during operation
-	readOnly bool
 }
 
 // NewLogStorage creates a mySQLLogStorage instance for the specified MySQL URL.
-func NewLogStorage(id int64, db *sql.DB) (storage.LogStorage, error) {
-	// TODO(al): pass this through/configure from DB
-	th := merkle.NewRFC6962TreeHasher(crypto.NewSHA256())
-	ts, err := newTreeStorage(id, db, th.Size(), defaultLogStrata, cache.PopulateLogSubtreeNodes(th))
-	if err != nil {
-		return nil, fmt.Errorf("couldn't create a new treeStorage: %s", err)
-	}
-
-	var allowDuplicates, readOnly bool
-	if err := ts.db.QueryRow(getTreePropertiesSQL, id).Scan(&allowDuplicates); err != nil {
-		return nil, fmt.Errorf("Failed to get tree row for treeID %v: %s", id, err)
-	}
-
-	// TODO(martin2112): Verify that the tree is of type LOG.
-	err = ts.db.QueryRow(getTreeParametersSQL, id).Scan(&readOnly)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get tree control row for treeID %v: %s", id, err)
-	}
-
+func NewLogStorage(db *sql.DB) (storage.LogStorage, error) {
 	return &mySQLLogStorage{
-		mySQLTreeStorage: ts,
-		logID:            id,
-		allowDuplicates:  allowDuplicates,
-		readOnly:         readOnly,
+		mySQLTreeStorage: newTreeStorage(db),
 	}, nil
 }
 
@@ -113,85 +85,41 @@ func (m *mySQLLogStorage) getDeleteUnsequencedStmt(num int) (*sql.Stmt, error) {
 	return m.getStmt(deleteUnsequencedSQL, num, "?", "?")
 }
 
-/*
-// Is this all unused?
-
-func (m *mySQLLogStorage) LatestSignedLogRoot(ctx context.Context) (trillian.SignedLogRoot, error) {
-	t, err := m.Begin(ctx)
-
-	if err != nil {
-		return trillian.SignedLogRoot{}, err
+func (m *mySQLLogStorage) beginInternal(ctx context.Context, treeID int64) (storage.LogTX, error) {
+	// TODO(codingllama): Validate treeType, read hash algorithm from storage
+	var allowDuplicates bool
+	if err := m.db.QueryRow(getTreePropertiesSQL, treeID).Scan(&allowDuplicates); err != nil {
+		return nil, fmt.Errorf("failed to get tree row for treeID %v: %s", treeID, err)
 	}
+	th := merkle.NewRFC6962TreeHasher(crypto.NewSHA256())
 
-	defer t.Commit()
-	return t.LatestSignedLogRoot()
-}
-
-func (m *mySQLLogStorage) GetSequencedLeafCount(ctx context.Context) (int64, error) {
-	t, err := m.Begin(ctx)
-
-	if err != nil {
-		return 0, err
-	}
-
-	defer t.Commit(ctx)
-	return t.GetSequencedLeafCount(ctx)
-}
-
-func (m *mySQLLogStorage) GetLeavesByIndex(ctx context.Context, leaves []int64) ([]trillian.LogLeaf, error) {
-	t, err := m.Begin(ctx)
-
-	if err != nil {
-		return []trillian.LogLeaf{}, err
-	}
-	defer t.Commit(ctx)
-	return t.GetLeavesByIndex(ctx, leaves)
-}
-
-func (m *mySQLLogStorage) GetLeavesByHash(ctx context.Context, leafHashes [][]byte, orderBySequence bool) ([]trillian.LogLeaf, error) {
-	t, err := m.Begin(ctx)
-
-	if err != nil {
-		return []trillian.LogLeaf{}, err
-	}
-	defer t.Commit(ctx)
-	return t.GetLeavesByHash(ctx, leafHashes, orderBySequence)
-}
-*/
-
-func (m *mySQLLogStorage) beginInternal(ctx context.Context) (storage.LogTX, error) {
-	ttx, err := m.beginTreeTx(ctx)
+	ttx, err := m.beginTreeTx(ctx, treeID, th.Size(), defaultLogStrata, cache.PopulateLogSubtreeNodes(th))
 	if err != nil {
 		return nil, err
 	}
-	ret := &logTX{
-		treeTX: ttx,
-		ls:     m,
+
+	ltx := &logTX{
+		treeTX:          ttx,
+		ls:              m,
+		allowDuplicates: allowDuplicates,
 	}
 
-	root, err := ret.LatestSignedLogRoot()
+	root, err := ltx.LatestSignedLogRoot()
 	if err != nil {
 		ttx.Rollback()
 		return nil, err
 	}
+	ltx.treeTX.writeRevision = root.TreeRevision + 1
 
-	ret.treeTX.writeRevision = root.TreeRevision + 1
-
-	return ret, nil
+	return ltx, nil
 }
 
-func (m *mySQLLogStorage) Begin(ctx context.Context) (storage.LogTX, error) {
-	// Reject attempts to start a writable transaction in read only mode. Anything that
-	// doesn't write is a part of Snapshot so is still available via that API.
-	if m.readOnly {
-		return nil, storage.ErrReadOnly
-	}
-
-	return m.beginInternal(ctx)
+func (m *mySQLLogStorage) Begin(ctx context.Context, treeID int64) (storage.LogTX, error) {
+	return m.beginInternal(ctx, treeID)
 }
 
-func (m *mySQLLogStorage) Snapshot(ctx context.Context) (storage.ReadOnlyLogTX, error) {
-	tx, err := m.beginInternal(ctx)
+func (m *mySQLLogStorage) Snapshot(ctx context.Context, treeID int64) (storage.ReadOnlyLogTX, error) {
+	tx, err := m.beginInternal(ctx, treeID)
 	if err != nil {
 		return nil, err
 	}
@@ -200,7 +128,8 @@ func (m *mySQLLogStorage) Snapshot(ctx context.Context) (storage.ReadOnlyLogTX, 
 
 type logTX struct {
 	treeTX
-	ls *mySQLLogStorage
+	ls              *mySQLLogStorage
+	allowDuplicates bool
 }
 
 func (t *logTX) WriteRevision() int64 {
@@ -216,7 +145,7 @@ func (t *logTX) DequeueLeaves(limit int, cutoffTime time.Time) ([]trillian.LogLe
 	}
 
 	leaves := make([]trillian.LogLeaf, 0, limit)
-	rows, err := stx.Query(t.ls.logID, cutoffTime.UnixNano(), limit)
+	rows, err := stx.Query(t.treeID, cutoffTime.UnixNano(), limit)
 
 	if err != nil {
 		glog.Warningf("Failed to select rows for work: %s", err)
@@ -237,7 +166,7 @@ func (t *logTX) DequeueLeaves(limit int, cutoffTime time.Time) ([]trillian.LogLe
 			return nil, err
 		}
 
-		if len(leafIDHash) != t.ts.hashSizeBytes {
+		if len(leafIDHash) != t.hashSizeBytes {
 			return nil, errors.New("Dequeued a leaf with incorrect hash size")
 		}
 
@@ -272,8 +201,8 @@ func (t *logTX) DequeueLeaves(limit int, cutoffTime time.Time) ([]trillian.LogLe
 func (t *logTX) QueueLeaves(leaves []trillian.LogLeaf, queueTimestamp time.Time) error {
 	// Don't accept batches if any of the leaves are invalid.
 	for _, leaf := range leaves {
-		if len(leaf.LeafIdentityHash) != t.ts.hashSizeBytes {
-			return fmt.Errorf("queued leaf must have a leaf ID hash of length %d", t.ts.hashSizeBytes)
+		if len(leaf.LeafIdentityHash) != t.hashSizeBytes {
+			return fmt.Errorf("queued leaf must have a leaf ID hash of length %d", t.hashSizeBytes)
 		}
 	}
 
@@ -282,7 +211,7 @@ func (t *logTX) QueueLeaves(leaves []trillian.LogLeaf, queueTimestamp time.Time)
 	// leaf data in the database.
 	var insertSQL string
 
-	if t.ls.allowDuplicates {
+	if t.allowDuplicates {
 		insertSQL = insertUnsequencedLeafSQL
 	} else {
 		insertSQL = insertUnsequencedLeafSQLNoDuplicates
@@ -293,7 +222,7 @@ func (t *logTX) QueueLeaves(leaves []trillian.LogLeaf, queueTimestamp time.Time)
 		// can suppress errors unrelated to key collisions. We don't use REPLACE because
 		// if there's ever a hash collision it will do the wrong thing and it also
 		// causes a DELETE / INSERT, which is undesirable.
-		_, err := t.tx.Exec(insertSQL, t.ls.logID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData)
+		_, err := t.tx.Exec(insertSQL, t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData)
 
 		if err != nil {
 			glog.Warningf("Error inserting %d into LeafData: %s", i, err)
@@ -311,7 +240,7 @@ func (t *logTX) QueueLeaves(leaves []trillian.LogLeaf, queueTimestamp time.Time)
 		// and everything will get rolled back
 		messageIDBytes := make([]byte, 8)
 
-		if t.ls.allowDuplicates {
+		if t.allowDuplicates {
 			_, err := rand.Read(messageIDBytes)
 
 			if err != nil {
@@ -321,12 +250,12 @@ func (t *logTX) QueueLeaves(leaves []trillian.LogLeaf, queueTimestamp time.Time)
 		}
 
 		hasher.Write(messageIDBytes)
-		binary.Write(hasher, binary.LittleEndian, t.ls.logID)
+		binary.Write(hasher, binary.LittleEndian, t.treeID)
 		hasher.Write(leaf.LeafIdentityHash)
 		messageID := hasher.Sum(nil)
 
 		_, err = t.tx.Exec(insertUnsequencedEntrySQL,
-			t.ls.logID, leaf.LeafIdentityHash, leaf.MerkleLeafHash, messageID, leaf.LeafValue, queueTimestamp.UnixNano())
+			t.treeID, leaf.LeafIdentityHash, leaf.MerkleLeafHash, messageID, leaf.LeafValue, queueTimestamp.UnixNano())
 
 		if err != nil {
 			glog.Warningf("Error inserting into Unsequenced: %s", err)
@@ -340,7 +269,7 @@ func (t *logTX) QueueLeaves(leaves []trillian.LogLeaf, queueTimestamp time.Time)
 func (t *logTX) GetSequencedLeafCount() (int64, error) {
 	var sequencedLeafCount int64
 
-	err := t.tx.QueryRow(selectSequencedLeafCountSQL, t.ls.logID).Scan(&sequencedLeafCount)
+	err := t.tx.QueryRow(selectSequencedLeafCountSQL, t.treeID).Scan(&sequencedLeafCount)
 
 	if err != nil {
 		glog.Warningf("Error getting sequenced leaf count: %s", err)
@@ -359,7 +288,7 @@ func (t *logTX) GetLeavesByIndex(leaves []int64) ([]trillian.LogLeaf, error) {
 	for _, nodeID := range leaves {
 		args = append(args, interface{}(int64(nodeID)))
 	}
-	args = append(args, interface{}(t.ls.logID))
+	args = append(args, interface{}(t.treeID))
 	rows, err := stx.Query(args...)
 	if err != nil {
 		glog.Warningf("Failed to get leaves by idx: %s", err)
@@ -376,7 +305,7 @@ func (t *logTX) GetLeavesByIndex(leaves []int64) ([]trillian.LogLeaf, error) {
 			return nil, err
 		}
 
-		if got, want := len(ret[num].MerkleLeafHash), t.ts.hashSizeBytes; got != want {
+		if got, want := len(ret[num].MerkleLeafHash), t.hashSizeBytes; got != want {
 			return nil, fmt.Errorf("scanned leaf does not have hash length %d, got %d", want, got)
 		}
 
@@ -405,7 +334,7 @@ func (t *logTX) LatestSignedLogRoot() (trillian.SignedLogRoot, error) {
 	var rootSignature trillian.DigitallySigned
 
 	err := t.tx.QueryRow(
-		selectLatestSignedLogRootSQL, t.ls.logID).Scan(
+		selectLatestSignedLogRootSQL, t.treeID).Scan(
 		&timestamp, &treeSize, &rootHash, &treeRevision, &rootSignatureBytes)
 
 	// It's possible there are no roots for this tree yet
@@ -425,7 +354,7 @@ func (t *logTX) LatestSignedLogRoot() (trillian.SignedLogRoot, error) {
 		TimestampNanos: timestamp,
 		TreeRevision:   treeRevision,
 		Signature:      &rootSignature,
-		LogId:          t.ls.logID,
+		LogId:          t.treeID,
 		TreeSize:       treeSize,
 	}, nil
 }
@@ -438,7 +367,7 @@ func (t *logTX) StoreSignedLogRoot(root trillian.SignedLogRoot) error {
 		return err
 	}
 
-	res, err := t.tx.Exec(insertTreeHeadSQL, t.ls.logID, root.TimestampNanos, root.TreeSize,
+	res, err := t.tx.Exec(insertTreeHeadSQL, t.treeID, root.TimestampNanos, root.TreeSize,
 		root.RootHash, root.TreeRevision, signatureBytes)
 
 	if err != nil {
@@ -453,11 +382,11 @@ func (t *logTX) UpdateSequencedLeaves(leaves []trillian.LogLeaf) error {
 	// and can be implemented later if necessary
 	for _, leaf := range leaves {
 		// This should fail on insert but catch it early
-		if len(leaf.LeafIdentityHash) != t.ts.hashSizeBytes {
+		if len(leaf.LeafIdentityHash) != t.hashSizeBytes {
 			return errors.New("Sequenced leaf has incorrect hash size")
 		}
 
-		_, err := t.tx.Exec(insertSequencedLeafSQL, t.ls.logID, leaf.LeafIdentityHash, leaf.MerkleLeafHash,
+		_, err := t.tx.Exec(insertSequencedLeafSQL, t.treeID, leaf.LeafIdentityHash, leaf.MerkleLeafHash,
 			leaf.LeafIndex)
 
 		if err != nil {
@@ -480,7 +409,7 @@ func (t *logTX) removeSequencedLeaves(leaves []trillian.LogLeaf) error {
 	for _, leaf := range leaves {
 		args = append(args, interface{}(leaf.LeafIdentityHash))
 	}
-	args = append(args, interface{}(t.ls.logID))
+	args = append(args, interface{}(t.treeID))
 	result, err := stx.Exec(args...)
 
 	if err != nil {
@@ -532,7 +461,7 @@ func (t *logTX) getLeavesByHashInternal(leafHashes [][]byte, tmpl *sql.Stmt, des
 	for _, hash := range leafHashes {
 		args = append(args, interface{}([]byte(hash)))
 	}
-	args = append(args, interface{}(t.ls.logID))
+	args = append(args, interface{}(t.treeID))
 	rows, err := stx.Query(args...)
 	if err != nil {
 		glog.Warningf("Query() %s hash = %v", desc, err)
@@ -547,12 +476,12 @@ func (t *logTX) getLeavesByHashInternal(leafHashes [][]byte, tmpl *sql.Stmt, des
 		leaf := trillian.LogLeaf{}
 
 		if err := rows.Scan(&leaf.MerkleLeafHash, &leaf.LeafIdentityHash, &leaf.LeafValue, &leaf.LeafIndex, &leaf.ExtraData); err != nil {
-			glog.Warningf("LogID: %d Scan() %s = %s", t.ls.logID, desc, err)
+			glog.Warningf("LogID: %d Scan() %s = %s", t.treeID, desc, err)
 			return nil, err
 		}
 
-		if got, want := len(leaf.MerkleLeafHash), t.ls.hashSizeBytes; got != want {
-			return nil, fmt.Errorf("LogID: %d Scanned leaf %s does not have hash length %d, got %d", t.ls.logID, desc, want, got)
+		if got, want := len(leaf.MerkleLeafHash), t.hashSizeBytes; got != want {
+			return nil, fmt.Errorf("LogID: %d Scanned leaf %s does not have hash length %d, got %d", t.treeID, desc, want, got)
 		}
 
 		ret = append(ret, leaf)

@@ -93,9 +93,7 @@ func NewLogOperationManagerForTest(ctx context.Context, registry extension.Regis
 }
 
 func (l LogOperationManager) getLogsAndExecutePass(ctx context.Context) bool {
-	// TODO(Martin2112) using log ID zero because we don't have an id for metadata ops
-	// this API could improved
-	provider, err := l.context.registry.GetLogStorage(0)
+	provider, err := l.context.registry.GetLogStorage()
 
 	// If we get an error, we can't do anything but wait until the next run through
 	if err != nil {
@@ -103,7 +101,8 @@ func (l LogOperationManager) getLogsAndExecutePass(ctx context.Context) bool {
 		return false
 	}
 
-	tx, err := provider.Begin(ctx)
+	// TODO(codingllama): A treeID shouldn't be necessary here
+	tx, err := provider.Begin(ctx, 0)
 
 	if err != nil {
 		glog.Warningf("Failed to get tx for run: %v", err)

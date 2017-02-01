@@ -398,12 +398,12 @@ func (t *TrillianLogRPCServer) GetEntryAndProof(ctx context.Context, req *trilli
 }
 
 func (t *TrillianLogRPCServer) prepareStorageTx(ctx context.Context, treeID int64) (storage.LogTX, error) {
-	s, err := t.registry.GetLogStorage(treeID)
+	s, err := t.registry.GetLogStorage()
 	if err != nil {
 		return nil, err
 	}
 
-	tx, err := s.Begin(ctx)
+	tx, err := s.Begin(ctx, treeID)
 	if err != nil {
 		return nil, err
 	}
@@ -412,12 +412,12 @@ func (t *TrillianLogRPCServer) prepareStorageTx(ctx context.Context, treeID int6
 }
 
 func (t *TrillianLogRPCServer) prepareReadOnlyStorageTx(ctx context.Context, treeID int64) (storage.ReadOnlyLogTX, error) {
-	s, err := t.registry.GetLogStorage(treeID)
+	s, err := t.registry.GetLogStorage()
 	if err != nil {
 		return nil, err
 	}
 
-	tx, err := s.Snapshot(ctx)
+	tx, err := s.Snapshot(ctx, treeID)
 	if err != nil {
 		return nil, err
 	}

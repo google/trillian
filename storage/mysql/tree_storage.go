@@ -42,10 +42,7 @@ const (
 // mySQLTreeStorage is shared between the mySQLLog- and (forthcoming) mySQLMap-
 // Storage implementations, and contains functionality which is common to both,
 type mySQLTreeStorage struct {
-	treeID          int64
-	db              *sql.DB
-	hashSizeBytes   int
-	populateSubtree storage.PopulateSubtreeFunc
+	db *sql.DB
 
 	// Must hold the mutex before manipulating the statement map. Sharing a lock because
 	// it only needs to be held while the statements are built, not while they execute and
@@ -53,7 +50,6 @@ type mySQLTreeStorage struct {
 	// in the query to the statement that should be used.
 	statementMutex sync.Mutex
 	statements     map[string]map[int]*sql.Stmt
-	strataDepths   []int
 }
 
 // OpenDB opens a database connection for all MySQL-based storage implementations.
@@ -73,16 +69,11 @@ func OpenDB(dbURL string) (*sql.DB, error) {
 	return db, nil
 }
 
-// TODO(codingllama): Remove error return
-func newTreeStorage(treeID int64, db *sql.DB, hashSizeBytes int, strataDepths []int, populateSubtree storage.PopulateSubtreeFunc) (*mySQLTreeStorage, error) {
+func newTreeStorage(db *sql.DB) *mySQLTreeStorage {
 	return &mySQLTreeStorage{
-		treeID:          treeID,
-		db:              db,
-		hashSizeBytes:   hashSizeBytes,
-		populateSubtree: populateSubtree,
-		statements:      make(map[string]map[int]*sql.Stmt),
-		strataDepths:    strataDepths,
-	}, nil
+		db:         db,
+		statements: make(map[string]map[int]*sql.Stmt),
+	}
 }
 
 // expandPlaceholderSQL expands an sql statement by adding a specified number of '?'
@@ -159,7 +150,7 @@ func (m *mySQLTreeStorage) setSubtreeStmt(num int) (*sql.Stmt, error) {
 	return m.getStmt(insertSubtreeMultiSQL, num, "VALUES(?, ?, ?, ?)", "(?, ?, ?, ?)")
 }
 
-func (m *mySQLTreeStorage) beginTreeTx(ctx context.Context) (treeTX, error) {
+func (m *mySQLTreeStorage) beginTreeTx(ctx context.Context, treeID int64, hashSizeBytes int, strataDepths []int, populateSubtree storage.PopulateSubtreeFunc) (treeTX, error) {
 	// TODO(alcutter): use BeginTX(ctx) when we move to Go 1.8
 	t, err := m.db.Begin()
 	if err != nil {
@@ -169,7 +160,9 @@ func (m *mySQLTreeStorage) beginTreeTx(ctx context.Context) (treeTX, error) {
 	return treeTX{
 		tx:            t,
 		ts:            m,
-		subtreeCache:  cache.NewSubtreeCache(m.strataDepths, m.populateSubtree),
+		treeID:        treeID,
+		hashSizeBytes: hashSizeBytes,
+		subtreeCache:  cache.NewSubtreeCache(strataDepths, populateSubtree),
 		writeRevision: -1,
 	}, nil
 }
@@ -178,6 +171,8 @@ type treeTX struct {
 	closed        bool
 	tx            *sql.Tx
 	ts            *mySQLTreeStorage
+	treeID        int64
+	hashSizeBytes int
 	subtreeCache  cache.SubtreeCache
 	writeRevision int64
 }
@@ -222,9 +217,9 @@ func (t *treeTX) getSubtrees(treeRevision int64, nodeIDs []storage.NodeID) ([]*s
 		args = append(args, interface{}(nodeIDBytes))
 	}
 
-	args = append(args, interface{}(t.ts.treeID))
+	args = append(args, interface{}(t.treeID))
 	args = append(args, interface{}(treeRevision))
-	args = append(args, interface{}(t.ts.treeID))
+	args = append(args, interface{}(t.treeID))
 
 	rows, err := stx.Query(args...)
 	if err != nil {
@@ -286,7 +281,7 @@ func (t *treeTX) storeSubtrees(subtrees []*storagepb.SubtreeProto) error {
 		if err != nil {
 			return err
 		}
-		args = append(args, t.ts.treeID)
+		args = append(args, t.treeID)
 		args = append(args, s.Prefix)
 		args = append(args, subtreeBytes)
 		args = append(args, t.writeRevision)
@@ -340,7 +335,7 @@ func (t *treeTX) GetTreeRevisionIncludingSize(treeSize int64) (int64, int64, err
 	}
 
 	var treeRevision, actualTreeSize int64
-	err := t.tx.QueryRow(selectTreeRevisionAtSizeOrLargerSQL, t.ts.treeID, treeSize).Scan(&treeRevision, &actualTreeSize)
+	err := t.tx.QueryRow(selectTreeRevisionAtSizeOrLargerSQL, t.treeID, treeSize).Scan(&treeRevision, &actualTreeSize)
 
 	return treeRevision, actualTreeSize, err
 }

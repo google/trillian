@@ -62,15 +62,14 @@ func (s SequencerManager) ExecutePass(logIDs []int64, logctx LogOperationManager
 		default:
 		}
 
-		storage, err := s.registry.GetLogStorage(logID)
-		ctx := util.NewLogContext(logctx.ctx, logID)
-
 		// TODO(Martin2112): Honor the sequencing enabled in log parameters, needs an API change
 		// so deferring it
+		storage, err := s.registry.GetLogStorage()
 		if err != nil {
-			glog.Warningf("%s: Storage provider failed for id because: %v", util.LogIDPrefix(ctx), err)
+			glog.Warningf("%s: failed to acquire log storage: %v", logID, err)
 			continue
 		}
+		ctx := util.NewLogContext(logctx.ctx, logID)
 
 		// TODO(Martin2112): Allow for different tree hashers to be used by different logs
 		sequencer := log.NewSequencer(merkle.NewRFC6962TreeHasher(crypto.NewSHA256()), logctx.timeSource, storage, s.keyManager)

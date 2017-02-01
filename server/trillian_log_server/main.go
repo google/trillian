@@ -37,16 +37,16 @@ var sequencerGuardWindowFlag = flag.Duration("sequencer_guard_window", 0, "If se
 var privateKeyFile = flag.String("private_key_file", "", "File containing a PEM encoded private key")
 var privateKeyPassword = flag.String("private_key_password", "", "Password for server private key")
 
+// TODO(codingllama): Consider moving to server creation
 func checkDatabaseAccessible(registry extension.Registry) error {
-	// TODO(Martin2112): Have to pass a tree ID when we just want metadata. API mismatch
-	logStorage, err := registry.GetLogStorage(int64(0))
+	logStorage, err := registry.GetLogStorage()
 	if err != nil {
-		// This is probably something fundamentally wrong
 		return err
 	}
 
+	// TODO(codingllama): A treeID shouldn't be necessary here
 	ctx := context.TODO()
-	tx, err := logStorage.Begin(ctx)
+	tx, err := logStorage.Begin(ctx, 0)
 	if err != nil {
 		// Out of resources maybe?
 		return err

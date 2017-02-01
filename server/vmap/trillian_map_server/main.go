@@ -33,16 +33,17 @@ var httpPortFlag = flag.Int("http_port", 8091, "Port to serve HTTP metrics on")
 var privateKeyFile = flag.String("private_key_file", "", "File containing a PEM encoded private key")
 var privateKeyPassword = flag.String("private_key_password", "", "Password for server private key")
 
+// TODO(codingllama): Consider moving to server creation
 func checkDatabaseAccessible(registry extension.Registry) error {
-	// TODO(Martin2112): Have to pass a tree ID when we just want metadata. API mismatch
-	mapStorage, err := registry.GetMapStorage(int64(0))
+	mapStorage, err := registry.GetMapStorage()
 	if err != nil {
 		// This is probably something fundamentally wrong
 		return err
 	}
 
+	// TODO(codingllama): We shouldn't use a mapID here
 	ctx := context.TODO()
-	tx, err := mapStorage.Begin(ctx)
+	tx, err := mapStorage.Begin(ctx, 0)
 	if err != nil {
 		// Out of resources maybe?
 		return err
