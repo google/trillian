@@ -79,12 +79,59 @@ func main() {
 		ctfe.GetEntryAndProofName:  *getEntryAndProofBias,
 	}}
 
-	fmt.Print("\n\nStop ")
+	fmt.Print("\n\nStop")
 	for i := 0; i < 8; i++ {
 		time.Sleep(100 * time.Millisecond)
 		fmt.Print(".")
 	}
-	fmt.Print(" Hammer Time\n\n")
+
+	fmt.Print(`
+                                   ':++/.
+                                  'sddhhyo'
+                                  /hyyho+s-       '-:/+:.
+                                 .sdhhysoy-  ' '/sdmNNmmy'
+                             ':oooymmmdddmysymhmNNNNNNNh-
+                      '.:::+so++++ymmmNNNdyyyNNNNNMMNd/'
+             '...:::/://osoo++s+yyhmNNNMmdddhyymNNhs+.
+     '..-://+++/////+//+sooosyyhdmmdNNNMmmmhhs+y/-'
+    'oooooooo++++++/ossyyyyhhhhdddyymNNmhdmmdy:-'
+  ':ohhso++/++//+/+/////:oyyyddhhy+/hmNNNMMMmo-'
+  -hddo-''               +syyhhyyy+:ymNNMMNms:'
+  'ss+'                  /sssyssyyo/sdmmmds+/.
+   ''                    +sssssyyyysyhhyys+:.'
+                         +ssyyssoosoosss+/:.'
+                        -yyyyysooso+so+/::-'
+                        smmdhyssssoso+//:-'
+                       -mNMMMNdyssyso+/:.'
+                   ':shmMMMMMMMMNMMNmo.
+                  -hNMMMMMMMMMMMMMMMMd/'
+                 .hNMMMMMMMMMMMMMMMMMMNy/.
+                .yNMMMMMMMMMMMMMMMMMMMMMMd:
+              .omMMMMMMMMMMMMMMMMMMMMNMMMMNo'
+            .omMMMMMMMMMMMMMMMMMMMMMMMMMMMMMy.
+           -dNMMMMMMMMMMMMMMMMMNNMMMMMNMMMMMMy'
+          :dMMMMMMMMMMMMMMMMMMMNmNMMMMNNMMMMMN/
+         .dMMMMMMMMMMMMMMMMMMMNmmMMMMMMMMMMMMMs'
+         +NMMMMMMMMMMMMNmMMMMMNmNMMMMMMMMMMMMMy'
+         -mMMMMMMMMMMMMMMMMMMMNNMMMMMMMMMMMMMMo'
+         'hNMMMMMMMMMMMMMMMMMMMMMMMMMMMNNNMNNh.
+          sNMMMMMMMMMMMMMMMMMMMMMMMMMMNNNNmh+.
+          /NMMMMMMMMMMMMMMMMMNdmNMMMMMNNNm:
+          -mMMMMMMMMMMMMMMNms-''/mMMMNddNm-
+           oNMMMMMMMMMMMMd/'     +NMMNddmm:
+           -mMMMMMMMMMMMN+'      'sNMMMNNmy-
+            sNMMMMMMMMMNd.        'sNNMNNNmh-
+            :NMMMMMMMMNm:          'yNNMMNNmy'
+            'yNMMMMMMMNo'           .hNMMMNNm.
+             .dMMMMMNNy'             -dNMMNNN:
+              oNMMMNNm-               /NNMMNN/
+              :NMMMMNh.                yNMMNms'
+              :mMMMNN/                 -mMMMNy'
+              'yNMmho'                  sNNmNNs.
+            ''/mMMMmy'                  -mNMMMMNdhhy+'
+          .yNNMMMMMNm+'                 /NMMMNNNmdy+-
+           :hNNMMMNdd/'                 /dmNNdso+:.'`)
+	fmt.Print("\n\nHammer Time\n\n")
 
 	type result struct {
 		prefix string
