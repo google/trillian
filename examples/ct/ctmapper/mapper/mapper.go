@@ -1,3 +1,17 @@
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package main
 
 import (
@@ -12,6 +26,7 @@ import (
 	"github.com/google/certificate-transparency/go/jsonclient"
 	"github.com/google/certificate-transparency/go/x509"
 	"github.com/google/trillian"
+	"github.com/google/trillian/examples/ct/ctmapper"
 	"github.com/google/trillian/examples/ct/ctmapper/ctmapperpb"
 	"google.golang.org/grpc"
 )
@@ -120,11 +135,11 @@ func (m *CTMapper) oneMapperRun(ctx context.Context) (bool, error) {
 	// Fetch the current map values for those domains:
 	getReq := &trillian.GetMapLeavesRequest{
 		MapId:    m.mapID,
-		Key:      make([][]byte, 0, len(domains)),
+		Index:    make([][]byte, 0, len(domains)),
 		Revision: -1,
 	}
-	for k := range domains {
-		getReq.Key = append(getReq.Key, []byte(k))
+	for d := range domains {
+		getReq.Index = append(getReq.Index, ctmapper.HashDomain(d))
 	}
 
 	getResp, err := m.vmap.GetLeaves(context.Background(), getReq)
@@ -134,12 +149,12 @@ func (m *CTMapper) oneMapperRun(ctx context.Context) (bool, error) {
 	//glog.Info("Get resp: %v", getResp)
 
 	proofs := 0
-	for _, v := range getResp.KeyValue {
+	for _, v := range getResp.IndexValueInclusion {
 		e := ctmapperpb.EntryList{}
 		if len(v.Inclusion) > 0 {
 			proofs++
 		}
-		if err := pb.Unmarshal(v.KeyValue.Value.LeafValue, &e); err != nil {
+		if err := pb.Unmarshal(v.IndexValue.Value.LeafValue, &e); err != nil {
 			return false, err
 		}
 		glog.Infof("Got %#v", e)
@@ -148,22 +163,26 @@ func (m *CTMapper) oneMapperRun(ctx context.Context) (bool, error) {
 		domains[e.Domain] = el
 		glog.Infof("will update for %s", e.Domain)
 	}
-	glog.Infof("Got %d values, and %d proofs", len(getResp.KeyValue), proofs)
+	glog.Infof("Got %d values, and %d proofs", len(getResp.IndexValueInclusion), proofs)
 
 	glog.Info("Storing updated map values for domains...")
 	// Store updated map values:
 	setReq := &trillian.SetMapLeavesRequest{
-		MapId:    m.mapID,
-		KeyValue: make([]*trillian.KeyValue, 0, len(domains)),
+		MapId:      m.mapID,
+		IndexValue: make([]*trillian.IndexValue, 0, len(domains)),
 	}
 	for k, v := range domains {
+		index := ctmapper.HashDomain(k)
 		b, err := pb.Marshal(&v)
 		if err != nil {
 			return false, err
 		}
-		setReq.KeyValue = append(setReq.KeyValue, &trillian.KeyValue{Key: []byte(k), Value: &trillian.MapLeaf{
-			LeafValue: b,
-		}})
+		setReq.IndexValue = append(setReq.IndexValue, &trillian.IndexValue{
+			Index: index,
+			Value: &trillian.MapLeaf{
+				LeafValue: b,
+			},
+		})
 	}
 
 	setReq.MapperData = meta
@@ -174,7 +193,7 @@ func (m *CTMapper) oneMapperRun(ctx context.Context) (bool, error) {
 	}
 	glog.Infof("Set resp: %v", setResp)
 	d := time.Now().Sub(start)
-	glog.Infof("Map run complete, took %.1f secs to update %d values (%0.2f/s)", d.Seconds(), len(setReq.KeyValue), float64(len(setReq.KeyValue))/d.Seconds())
+	glog.Infof("Map run complete, took %.1f secs to update %d values (%0.2f/s)", d.Seconds(), len(setReq.IndexValue), float64(len(setReq.IndexValue))/d.Seconds())
 	return true, nil
 }
 

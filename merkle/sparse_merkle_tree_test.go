@@ -232,7 +232,7 @@ func TestInclusionProofForNullEntryInEmptyTree(t *testing.T) {
 	tx.EXPECT().Commit().AnyTimes().Return(nil)
 	tx.EXPECT().GetMerkleNodes(int64(rev), gomock.Any()).Return([]storage.Node{}, nil)
 	const key = "SomeArbitraryKey"
-	proof, err := r.InclusionProof(rev, []byte(key))
+	proof, err := r.InclusionProof(rev, testonly.HashKey(key))
 	if err != nil {
 		t.Fatalf("Got error while retrieving inclusion proof: %v", err)
 	}
@@ -263,7 +263,8 @@ func TestInclusionProofGetsIncorrectNode(t *testing.T) {
 		tx.EXPECT().Commit().AnyTimes().Return(nil)
 		tx.EXPECT().GetMerkleNodes(int64(rev), gomock.Any()).Return([]storage.Node{testNode}, nil)
 		const key = "SomeArbitraryKey"
-		proof, err := r.InclusionProof(rev, []byte(key))
+		index := testonly.HashKey(key)
+		proof, err := r.InclusionProof(rev, index)
 		if err == nil {
 			t.Errorf("InclusionProof() = %v, nil want: nil, 1 remain(s) unused", proof)
 		}
@@ -281,7 +282,7 @@ func TestInclusionProofPassesThroughStorageError(t *testing.T) {
 	r, tx := getSparseMerkleTreeReaderWithMockTX(mockCtrl, rev)
 	e := errors.New("boo")
 	tx.EXPECT().GetMerkleNodes(int64(rev), gomock.Any()).Return([]storage.Node{}, e)
-	_, err := r.InclusionProof(rev, []byte("Whatever"))
+	_, err := r.InclusionProof(rev, testonly.HashKey("Whatever"))
 	if err != e {
 		t.Fatalf("InclusionProof() should've returned an error '%v', but got '%v'", e, err)
 	}
@@ -294,7 +295,7 @@ func TestInclusionProofGetsTooManyNodes(t *testing.T) {
 	const rev = 100
 	r, tx := getSparseMerkleTreeReaderWithMockTX(mockCtrl, rev)
 	const key = "SomeArbitraryKey"
-	keyHash := r.hasher.HashKey([]byte(key))
+	keyHash := testonly.HashKey(key)
 	// going to return one too many nodes
 	nodes := make([]storage.Node, 257, 257)
 	// First build a plausible looking set of proof nodes.
@@ -308,7 +309,7 @@ func TestInclusionProofGetsTooManyNodes(t *testing.T) {
 
 	tx.EXPECT().Commit().AnyTimes().Return(nil)
 	tx.EXPECT().GetMerkleNodes(int64(rev), gomock.Any()).AnyTimes().Return(nodes, nil)
-	_, err := r.InclusionProof(rev, []byte(key))
+	_, err := r.InclusionProof(rev, testonly.HashKey(key))
 	if err == nil {
 		t.Fatal("InclusionProof() should've returned an error due to extra unused node")
 	}
@@ -343,7 +344,7 @@ func testSparseTreeCalculatedRoot(t *testing.T, vec sparseTestVector) {
 func testSparseTreeCalculatedRootWithWriter(t *testing.T, rev int64, vec sparseTestVector, w *SparseMerkleTreeWriter) {
 	var leaves []HashKeyValue
 	for _, kv := range vec.kv {
-		leaves = append(leaves, HashKeyValue{w.hasher.HashKey([]byte(kv.k)), w.hasher.HashLeaf([]byte(kv.v))})
+		leaves = append(leaves, HashKeyValue{testonly.HashKey(kv.k), w.hasher.HashLeaf([]byte(kv.v))})
 	}
 
 	if err := w.SetLeaves(leaves); err != nil {
@@ -403,7 +404,7 @@ func testSparseTreeFetches(t *testing.T, vec sparseTestVector) {
 
 		// calculate the set of expected node reads.
 		for _, kv := range vec.kv {
-			keyHash := w.hasher.HashKey([]byte(kv.k))
+			keyHash := testonly.HashKey(kv.k)
 			nodeID := storage.NewNodeIDFromHash(keyHash)
 			leafNodeIDs = append(leafNodeIDs, nodeID)
 			sibs := nodeID.Siblings()
@@ -572,7 +573,7 @@ func DISABLEDTestSparseMerkleTreeWriterBigBatch(t *testing.T) {
 	for x := 0; x < numBatches; x++ {
 		h := make([]HashKeyValue, batchSize)
 		for y := 0; y < batchSize; y++ {
-			h[y].HashedKey = w.hasher.HashKey([]byte(fmt.Sprintf("key-%d-%d", x, y)))
+			h[y].HashedKey = testonly.HashKey(fmt.Sprintf("key-%d-%d", x, y))
 			h[y].HashedValue = w.hasher.TreeHasher.HashLeaf([]byte(fmt.Sprintf("value-%d-%d", x, y)))
 		}
 		if err := w.SetLeaves(h); err != nil {

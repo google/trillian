@@ -24,7 +24,8 @@ import (
 func TestVerifyMapInclusionProofWorks(t *testing.T) {
 	h := NewMapHasher(NewRFC6962TreeHasher(crypto.NewSHA256()))
 	for i, tv := range inclusionProofTestVector {
-		if err := VerifyMapInclusionProof(h.HashKey(tv.Key), h.HashLeaf(tv.Value), tv.ExpectedRoot, tv.Proof, h); err != nil {
+		index := testonly.HashKey(tv.Key)
+		if err := VerifyMapInclusionProof(index, h.HashLeaf(tv.Value), tv.ExpectedRoot, tv.Proof, h); err != nil {
 			t.Errorf("(test %d) proof verification failed: %v", i, err)
 		}
 	}
@@ -33,8 +34,9 @@ func TestVerifyMapInclusionProofWorks(t *testing.T) {
 func TestVerifyMapInclusionProofCatchesWrongKey(t *testing.T) {
 	h := NewMapHasher(NewRFC6962TreeHasher(crypto.NewSHA256()))
 	tv := inclusionProofTestVector[0]
-	tv.Key = []byte("wibble")
-	if err := VerifyMapInclusionProof(h.HashKey(tv.Key), h.HashLeaf(tv.Value), tv.ExpectedRoot, tv.Proof, h); err == nil {
+	tv.Key = "wibble"
+	index := testonly.HashKey(tv.Key)
+	if err := VerifyMapInclusionProof(index, h.HashLeaf(tv.Value), tv.ExpectedRoot, tv.Proof, h); err == nil {
 		t.Error("unexpectedly verified proof for incorrect key")
 	}
 }
@@ -43,7 +45,8 @@ func TestVerifyMapInclusionProofCatchesWrongValue(t *testing.T) {
 	h := NewMapHasher(NewRFC6962TreeHasher(crypto.NewSHA256()))
 	tv := inclusionProofTestVector[0]
 	tv.Value = []byte("wibble")
-	if err := VerifyMapInclusionProof(h.HashKey(tv.Key), h.HashLeaf(tv.Value), tv.ExpectedRoot, tv.Proof, h); err == nil {
+	index := testonly.HashKey(tv.Key)
+	if err := VerifyMapInclusionProof(index, h.HashLeaf(tv.Value), tv.ExpectedRoot, tv.Proof, h); err == nil {
 		t.Error("unexpectedly verified proof for incorrect value")
 	}
 }
@@ -52,7 +55,8 @@ func TestVerifyMapInclusionProofCatchesWrongRoot(t *testing.T) {
 	h := NewMapHasher(NewRFC6962TreeHasher(crypto.NewSHA256()))
 	tv := inclusionProofTestVector[0]
 	tv.ExpectedRoot = h.Digest([]byte("wibble"))
-	if err := VerifyMapInclusionProof(h.HashKey(tv.Key), h.HashLeaf(tv.Value), tv.ExpectedRoot, tv.Proof, h); err == nil {
+	index := testonly.HashKey(tv.Key)
+	if err := VerifyMapInclusionProof(index, h.HashLeaf(tv.Value), tv.ExpectedRoot, tv.Proof, h); err == nil {
 		t.Error("unexpectedly verified proof for incorrect root")
 	}
 }
@@ -61,14 +65,16 @@ func TestVerifyMapInclusionProofCatchesWrongProof(t *testing.T) {
 	h := NewMapHasher(NewRFC6962TreeHasher(crypto.NewSHA256()))
 	tv := inclusionProofTestVector[0]
 	tv.Proof[250][15] ^= 0x10
-	if err := VerifyMapInclusionProof(h.HashKey(tv.Key), h.HashLeaf(tv.Value), tv.ExpectedRoot, tv.Proof, h); err == nil {
+	index := testonly.HashKey(tv.Key)
+	if err := VerifyMapInclusionProof(index, h.HashLeaf(tv.Value), tv.ExpectedRoot, tv.Proof, h); err == nil {
 		t.Error("unexpectedly verified proof for incorrect proof")
 	}
 }
 
 func TestVerifyMapInclusionProofRejectsShortProof(t *testing.T) {
 	h := NewMapHasher(NewRFC6962TreeHasher(crypto.NewSHA256()))
-	err := VerifyMapInclusionProof(h.HashKey([]byte("hi")), h.HashLeaf([]byte("there")), h.Digest([]byte("root")), [][]byte{h.Digest([]byte("shorty"))}, h)
+	index := testonly.HashKey("hi")
+	err := VerifyMapInclusionProof(index, h.HashLeaf([]byte("there")), h.Digest([]byte("root")), [][]byte{h.Digest([]byte("shorty"))}, h)
 	if err == nil {
 		t.Error("unexpectedly verified short proof")
 	}
@@ -77,7 +83,8 @@ func TestVerifyMapInclusionProofRejectsShortProof(t *testing.T) {
 func TestVerifyMapInclusionProofRejectsExcess(t *testing.T) {
 	h := NewMapHasher(NewRFC6962TreeHasher(crypto.NewSHA256()))
 	p := make([][]byte, h.Size()*8+1)
-	err := VerifyMapInclusionProof(h.HashKey([]byte("hi")), h.HashLeaf([]byte("there")), h.Digest([]byte("root")), p, h)
+	index := testonly.HashKey("hi")
+	err := VerifyMapInclusionProof(index, h.HashLeaf([]byte("there")), h.Digest([]byte("root")), p, h)
 	if err == nil {
 		t.Error("unexpectedly verified proof with extra data")
 	}
@@ -95,7 +102,8 @@ func TestVerifyMapInclusionProofRejectsInvalidKeyHash(t *testing.T) {
 func TestVerifyMapInclusionProofRejectsInvalidLeafHash(t *testing.T) {
 	h := NewMapHasher(NewRFC6962TreeHasher(crypto.NewSHA256()))
 	p := make([][]byte, h.Size()*8)
-	err := VerifyMapInclusionProof(h.HashKey([]byte("key")), []byte("peppo"), h.Digest([]byte("root")), p, h)
+	index := testonly.HashKey("key")
+	err := VerifyMapInclusionProof(index, []byte("peppo"), h.Digest([]byte("root")), p, h)
 	if err == nil {
 		t.Error("unexpectedly verified with invalid key hash")
 	}
@@ -104,7 +112,8 @@ func TestVerifyMapInclusionProofRejectsInvalidLeafHash(t *testing.T) {
 func TestVerifyMapInclusionProofRejectsInvalidRoot(t *testing.T) {
 	h := NewMapHasher(NewRFC6962TreeHasher(crypto.NewSHA256()))
 	p := make([][]byte, h.Size()*8)
-	err := VerifyMapInclusionProof(h.HashKey([]byte("hi")), h.HashLeaf([]byte("there")), []byte("peppo"), p, h)
+	index := testonly.HashKey("hi")
+	err := VerifyMapInclusionProof(index, h.HashLeaf([]byte("there")), []byte("peppo"), p, h)
 	if err == nil {
 		t.Error("unexpectedly verified proof with extra data")
 	}
@@ -112,12 +121,13 @@ func TestVerifyMapInclusionProofRejectsInvalidRoot(t *testing.T) {
 
 // Testdata produced with python
 var inclusionProofTestVector = []struct {
-	Key          []byte
+	Key          string
 	Value        []byte
 	Proof        [][]byte
 	ExpectedRoot []byte
 }{
-	{[]byte("key-0-848"),
+	{
+		"key-0-848",
 		[]byte("value-0-848"),
 		[][]byte{
 			// 246 x nil
@@ -150,7 +160,7 @@ var inclusionProofTestVector = []struct {
 		},
 		testonly.MustDecodeBase64("U6ANU1en3BSbbnWqhV2nTGtQ+scBlaZf9kRPEEDZsHM="),
 	}, {
-		[]byte("key-1-848"),
+		"key-1-848",
 		[]byte("value-1-848"),
 		[][]byte{
 			// 246 x nil
@@ -183,7 +193,7 @@ var inclusionProofTestVector = []struct {
 		},
 		testonly.MustDecodeBase64("gdpe8FlS2bUYksxb392j+v/qxyYwUZC9uj1Lm62r3d0="),
 	}, {
-		[]byte("key-2-848"),
+		"key-2-848",
 		[]byte("value-2-848"),
 		[][]byte{
 			// 244 x nil
@@ -218,7 +228,7 @@ var inclusionProofTestVector = []struct {
 		},
 		testonly.MustDecodeBase64("vfV8k7xAvSNHvDp7lmKjppWlXlYh3ftq801B1QmFMA8="),
 	}, {
-		[]byte("key-3-848"),
+		"key-3-848",
 		[]byte("value-3-848"),
 		[][]byte{
 			// 236 x nil
@@ -255,7 +265,7 @@ var inclusionProofTestVector = []struct {
 		},
 		testonly.MustDecodeBase64("7LkdcssuSGAv+6BrLXhUXZbuxWepuGy6ZaJe2JcHy2w="),
 	}, {
-		[]byte("key-4-848"),
+		"key-4-848",
 		[]byte("value-4-848"),
 		[][]byte{
 			// 243 x nil
@@ -291,7 +301,7 @@ var inclusionProofTestVector = []struct {
 		},
 		testonly.MustDecodeBase64("bEapbZbXfyhAZqLAFPpbx2KMX/m9FvHenwFJFIn2LHs="),
 	}, {
-		[]byte("key-4-848"),
+		"key-4-848",
 		[]byte("value-4-848"),
 		[][]byte{
 			// 243 x nil

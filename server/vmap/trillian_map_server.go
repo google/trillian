@@ -69,48 +69,30 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 
 	smtReader := merkle.NewSparseMerkleTreeReader(req.Revision, kh, tx)
 
-	resp = &trillian.GetMapLeavesResponse{
-		KeyValue: make([]*trillian.KeyValueInclusion, 0, len(req.Key)),
-	}
-
-	keyHashes := make([][]byte, 0, len(req.Key))
-	hashToKey := make(map[string][]byte)
-	for _, key := range req.Key {
-		keyHash := kh.HashKey(key)
-		keyHashes = append(keyHashes, keyHash)
-		hashToKey[string(keyHash)] = key
-	}
-
-	leaves, err := tx.Get(req.Revision, keyHashes)
+	leaves, err := tx.Get(req.Revision, req.Index)
 	if err != nil {
 		return nil, err
 	}
 
-	glog.Infof("%s: wanted %d leaves, found %d", util.MapIDPrefix(ctx), len(req.Key), len(leaves))
+	glog.Infof("%s: wanted %d leaves, found %d", util.MapIDPrefix(ctx), len(req.Index), len(leaves))
 
-	for _, leaf := range leaves {
-		leaf := leaf
-		key, ok := hashToKey[string(leaf.KeyHash)]
-		if !ok {
-			glog.Warningf("%s: Retrieved unrequested leaf with keyhash: %v, skipping", util.MapIDPrefix(ctx), leaf.KeyHash)
-			continue
-		}
-		proof, err := smtReader.InclusionProof(req.Revision, key)
+	resp = &trillian.GetMapLeavesResponse{
+		IndexValueInclusion: make([]*trillian.IndexValueInclusion, len(leaves)),
+	}
+	for i, leaf := range leaves {
+		proof, err := smtReader.InclusionProof(req.Revision, leaf.Index)
 		if err != nil {
 			return nil, err
 		}
-		kvi := trillian.KeyValueInclusion{
-			KeyValue: &trillian.KeyValue{
-				Key:   key,
-				Value: &leaf,
+		// Copy the leaf from the iterator, which gets overwritten
+		value := leaf
+		resp.IndexValueInclusion[i] = &trillian.IndexValueInclusion{
+			IndexValue: &trillian.IndexValue{
+				Index: leaf.Index,
+				Value: &value,
 			},
-			Inclusion: make([][]byte, 0, len(proof)),
+			Inclusion: proof,
 		}
-		for j := 0; j < len(proof); j++ {
-			kvi.Inclusion = append(kvi.Inclusion, []byte(proof[j]))
-		}
-
-		resp.KeyValue = append(resp.KeyValue, &kvi)
 	}
 
 	return resp, nil
@@ -159,21 +141,27 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		return nil, err
 	}
 
-	leaves := make([]merkle.HashKeyValue, 0, len(req.KeyValue))
-	for i := 0; i < len(req.KeyValue); i++ {
-		kv := req.KeyValue[i]
-		keyHash := hasher.HashKey(kv.Key)
-		valHash := hasher.HashLeaf(kv.Value.LeafValue)
-		leaves = append(leaves, merkle.HashKeyValue{HashedKey: keyHash, HashedValue: valHash})
-		if err = tx.Set(keyHash, *kv.Value); err != nil {
+	for _, kv := range req.IndexValue {
+		// TODO(gbelvin) use LeafHash rather than computing here.
+		kv.Value.LeafHash = hasher.HashLeaf(kv.Value.LeafValue)
+		// TODO(gbelvin) only have ONE place where index is stored.
+		// TODO(gbelvin) Verify that Index is of the proper length.
+		kv.Value.Index = kv.Index
+
+		if err = tx.Set(kv.Value.Index, *kv.Value); err != nil {
+			return nil, err
+		}
+		if err = smtWriter.SetLeaves([]merkle.HashKeyValue{
+			{
+				HashedKey:   kv.Value.Index,
+				HashedValue: kv.Value.LeafHash,
+			},
+		}); err != nil {
 			return nil, err
 		}
 	}
-	if err = smtWriter.SetLeaves(leaves); err != nil {
-		return nil, err
-	}
-	rootHash, err := smtWriter.CalculateRoot()
 
+	rootHash, err := smtWriter.CalculateRoot()
 	newRoot := trillian.SignedMapRoot{
 		TimestampNanos: time.Now().UnixNano(),
 		RootHash:       rootHash,

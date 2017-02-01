@@ -5,6 +5,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
+	"github.com/google/trillian/testonly"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
@@ -22,14 +23,15 @@ func main() {
 
 	c := trillian.NewTrillianMapClient(conn)
 
-	key := []byte("This Is A Key")
+	key := "This Is A Key"
+	index := testonly.HashKey(key)
 
 	{
 		req := &trillian.SetMapLeavesRequest{
 			MapId: 1,
-			KeyValue: []*trillian.KeyValue{
+			IndexValue: []*trillian.IndexValue{
 				{
-					Key: key,
+					Index: index,
 					Value: &trillian.MapLeaf{
 						LeafHash:  []byte("This is a leaf hash"),
 						LeafValue: []byte("This is a leaf value"),
@@ -50,8 +52,8 @@ func main() {
 		req := &trillian.GetMapLeavesRequest{
 			MapId:    1,
 			Revision: -1,
-			Key: [][]byte{
-				key,
+			Index: [][]byte{
+				index,
 			},
 		}
 		resp, err := c.GetLeaves(context.Background(), req)

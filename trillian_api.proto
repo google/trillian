@@ -204,8 +204,9 @@ service TrillianLog {
 
 // MapLeaf represents the data behind Map leaves.
 message MapLeaf {
-  // key_hash is the hash of the key for this leaf.
-  bytes key_hash = 1;
+  // index is the location of this leaf.
+  // All indexes for a given Map must contain a constant number of bits.
+  bytes index = 1;
   // leaf_hash is the tree hash of leaf_value.
   bytes leaf_hash = 2;
   // leaf_value is the data the tree commits to.
@@ -214,31 +215,31 @@ message MapLeaf {
   bytes extra_data = 4;
 }
 
-message KeyValue {
-  bytes key = 1;
+message IndexValue {
+  bytes index = 1;
   MapLeaf value = 2;
 }
 
-message KeyValueInclusion {
-  KeyValue key_value = 1;
+message IndexValueInclusion {
+  IndexValue index_value = 1;
   repeated bytes inclusion = 2;
 }
 
 message GetMapLeavesRequest {
   int64 map_id = 1;
-  repeated bytes key = 2;
+  repeated bytes index = 2;
   int64 revision = 3;
 }
 
 message GetMapLeavesResponse {
   TrillianApiStatus status = 1;
-  repeated KeyValueInclusion key_value = 2;
+  repeated IndexValueInclusion index_value_inclusion = 2;
   SignedMapRoot map_root = 3;
 }
 
 message SetMapLeavesRequest {
   int64 map_id = 1;
-  repeated KeyValue key_value = 2;
+  repeated IndexValue index_value = 2;
   MapperMetadata mapper_data = 3;
 }
 

@@ -14,15 +14,10 @@
 
 package merkle
 
-import (
-	"github.com/google/trillian/crypto"
-)
-
 // MapHasher is a specialised TreeHasher which also knows about the set of
 // "null" hashes for the unused sections of a SparseMerkleTree.
 type MapHasher struct {
 	TreeHasher
-	HashKey    keyHashFunc
 	nullHashes [][]byte
 }
 
@@ -30,16 +25,7 @@ type MapHasher struct {
 func NewMapHasher(th TreeHasher) MapHasher {
 	return MapHasher{
 		TreeHasher: th,
-		HashKey:    keyHasher(th.Hasher),
 		nullHashes: createNullHashes(th),
-	}
-}
-
-type keyHashFunc func([]byte) []byte
-
-func keyHasher(h crypto.Hasher) keyHashFunc {
-	return func(b []byte) []byte {
-		return h.Digest(b)
 	}
 }
 

@@ -386,9 +386,8 @@ func (s SparseMerkleTreeReader) RootAtRevision(rev int64) ([]byte, error) {
 // InclusionProof returns an inclusion (or non-inclusion) proof for the
 // specified key at the specified revision.
 // If the revision does not exist it will return ErrNoSuchRevision error.
-func (s SparseMerkleTreeReader) InclusionProof(rev int64, key []byte) ([][]byte, error) {
-	kh := s.hasher.HashKey(key)
-	nid := storage.NewNodeIDFromHash(kh)
+func (s SparseMerkleTreeReader) InclusionProof(rev int64, index []byte) ([][]byte, error) {
+	nid := storage.NewNodeIDFromHash(index)
 	sibs := nid.Siblings()
 	nodes, err := s.tx.GetMerkleNodes(rev, sibs)
 	if err != nil {

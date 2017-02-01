@@ -5,9 +5,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"os/signal"
-	"syscall"
-	"time"
 
 	"net/http"
 	_ "net/http/pprof"
@@ -76,20 +73,6 @@ func startHTTPServer(port int) error {
 	return nil
 }
 
-func awaitSignal(rpcServer *grpc.Server) {
-	// Arrange notification for the standard set of signals used to terminate a server
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-
-	// Now block main and wait for a signal
-	sig := <-sigs
-	glog.Warningf("Signal received: %v", sig)
-	glog.Flush()
-
-	// Bring down the RPC server, which will unblock main
-	rpcServer.Stop()
-}
-
 func main() {
 	flag.Parse()
 	glog.CopyStandardLogTo("WARNING")
@@ -133,15 +116,8 @@ func main() {
 
 	// Bring up the RPC server and then block until we get a signal to stop
 	rpcServer := startRPCServer(lis, *serverPortFlag, registry)
-	go awaitSignal(rpcServer)
-	err = rpcServer.Serve(lis)
-	if err != nil {
+	defer glog.Flush()
+	if err = rpcServer.Serve(lis); err != nil {
 		glog.Errorf("RPC server terminated on port %d: %v", *serverPortFlag, err)
-		os.Exit(1)
 	}
-
-	// Give things a few seconds to tidy up
-	glog.Infof("Stopping map server, about to exit")
-	glog.Flush()
-	time.Sleep(time.Second * 5)
 }

@@ -105,21 +105,23 @@ func (m *mapTX) Set(keyHash []byte, value trillian.MapLeaf) error {
 	}
 	defer stmt.Close()
 
-	_, err = stmt.Exec(m.treeID, []byte(keyHash), m.writeRevision, flatValue)
+	_, err = stmt.Exec(m.treeID, keyHash, m.writeRevision, flatValue)
 	return err
 }
 
-func (m *mapTX) Get(revision int64, keyHashes [][]byte) ([]trillian.MapLeaf, error) {
-	stmt, err := m.ms.getStmt(selectMapLeafSQL, len(keyHashes), "?", "?")
+// MapLeaf indexes are overwritten rather than returning the MapLeaf proto provided in Set.
+// TODO: return a map[_something_]Mapleaf or []IndexValue to separate the index from the value.
+func (m *mapTX) Get(revision int64, indexes [][]byte) ([]trillian.MapLeaf, error) {
+	stmt, err := m.ms.getStmt(selectMapLeafSQL, len(indexes), "?", "?")
 	if err != nil {
 		return nil, err
 	}
 	stx := m.tx.Stmt(stmt)
 	defer stx.Close()
 
-	args := make([]interface{}, 0, len(keyHashes)+2)
-	for _, k := range keyHashes {
-		args = append(args, []byte(k[:]))
+	args := make([]interface{}, 0, len(indexes)+2)
+	for _, index := range indexes {
+		args = append(args, index)
 	}
 	args = append(args, m.treeID)
 	args = append(args, revision)
@@ -134,7 +136,7 @@ func (m *mapTX) Get(revision int64, keyHashes [][]byte) ([]trillian.MapLeaf, err
 		return nil, err
 	}
 
-	ret := make([]trillian.MapLeaf, 0, len(keyHashes))
+	ret := make([]trillian.MapLeaf, 0, len(indexes))
 	nr := 0
 	er := 0
 	for rows.Next() {
@@ -154,7 +156,7 @@ func (m *mapTX) Get(revision int64, keyHashes [][]byte) ([]trillian.MapLeaf, err
 		if err != nil {
 			return nil, err
 		}
-		mapLeaf.KeyHash = mapKeyHash
+		mapLeaf.Index = mapKeyHash
 		ret = append(ret, mapLeaf)
 		nr++
 	}

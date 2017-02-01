@@ -139,7 +139,7 @@ func TestMapRootUpdate(t *testing.T) {
 
 var keyHash = []byte([]byte("A Key Hash"))
 var mapLeaf = trillian.MapLeaf{
-	KeyHash:   keyHash,
+	Index:     keyHash,
 	LeafHash:  []byte("A Hash"),
 	LeafValue: []byte("A Value"),
 	ExtraData: []byte("Some Extra Data"),
@@ -248,10 +248,10 @@ func TestMapSetGetMultipleRevisions(t *testing.T) {
 		rev  int64
 		leaf trillian.MapLeaf
 	}{
-		{0, trillian.MapLeaf{KeyHash: keyHash, LeafHash: []byte{0}, LeafValue: []byte{0}, ExtraData: []byte{0}}},
-		{1, trillian.MapLeaf{KeyHash: keyHash, LeafHash: []byte{1}, LeafValue: []byte{1}, ExtraData: []byte{1}}},
-		{2, trillian.MapLeaf{KeyHash: keyHash, LeafHash: []byte{2}, LeafValue: []byte{2}, ExtraData: []byte{2}}},
-		{3, trillian.MapLeaf{KeyHash: keyHash, LeafHash: []byte{3}, LeafValue: []byte{3}, ExtraData: []byte{3}}},
+		{0, trillian.MapLeaf{Index: keyHash, LeafHash: []byte{0}, LeafValue: []byte{0}, ExtraData: []byte{0}}},
+		{1, trillian.MapLeaf{Index: keyHash, LeafHash: []byte{1}, LeafValue: []byte{1}, ExtraData: []byte{1}}},
+		{2, trillian.MapLeaf{Index: keyHash, LeafHash: []byte{2}, LeafValue: []byte{2}, ExtraData: []byte{2}}},
+		{3, trillian.MapLeaf{Index: keyHash, LeafHash: []byte{3}, LeafValue: []byte{3}, ExtraData: []byte{3}}},
 	}
 
 	ctx := context.Background()
