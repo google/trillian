@@ -24,6 +24,7 @@ import (
 // ReadOnlyLogTX provides a read-only view into log data.
 // A ReadOnlyLogTX, unlike ReadOnlyLogTreeTX, is not tied to a particular tree.
 type ReadOnlyLogTX interface {
+	DatabaseChecker
 	LogMetadata
 
 	// Commit ensures the data read by the TX is consistent in the database. Only after Commit the

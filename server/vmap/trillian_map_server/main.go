@@ -50,14 +50,13 @@ func checkDatabaseAccessible(registry extension.Registry) error {
 	if err != nil {
 		return err
 	}
-
-	// TODO(codingllama): We shouldn't use a mapID here
-	tx, err := mapStorage.BeginForTree(context.Background(), 0)
+	tx, err := mapStorage.Snapshot(context.Background())
 	if err != nil {
 		return err
 	}
-
-	// TODO(codingllama): Add some sort of liveness ping here
+	if err := tx.CheckDatabaseAccessible(); err != nil {
+		return err
+	}
 	return tx.Commit()
 }
 

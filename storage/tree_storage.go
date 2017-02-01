@@ -49,6 +49,12 @@ type TreeTX interface {
 	WriteRevision() int64
 }
 
+// DatabaseChecker performs connectivity checks on the database.
+type DatabaseChecker interface {
+	// CheckDatabaseAccessible returns nil if the database is accessible, error otherwise.
+	CheckDatabaseAccessible() error
+}
+
 // NodeReader provides a read-only interface into the stored tree nodes.
 type NodeReader interface {
 	// GetMerkleNodes looks up the set of nodes identified by ids, at treeRevision, and returns them.

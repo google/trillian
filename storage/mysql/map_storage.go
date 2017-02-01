@@ -62,6 +62,30 @@ func NewMapStorage(db *sql.DB) (storage.MapStorage, error) {
 	}, nil
 }
 
+type readOnlyMapTX struct {
+	tx *sql.Tx
+}
+
+func (m *mySQLMapStorage) Snapshot(ctx context.Context) (storage.ReadOnlyMapTX, error) {
+	tx, err := m.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	return &readOnlyMapTX{tx}, nil
+}
+
+func (t *readOnlyMapTX) Commit() error {
+	return t.tx.Commit()
+}
+
+func (t *readOnlyMapTX) Rollback() error {
+	return t.tx.Rollback()
+}
+
+func (t *readOnlyMapTX) CheckDatabaseAccessible() error {
+	return checkDatabaseAccessible(t.tx)
+}
+
 func (m *mySQLMapStorage) hasher(treeID int64) (merkle.TreeHasher, error) {
 	// TODO: read hash algorithm from storage.
 	return merkle.Factory(merkle.RFC6962SHA256Type)

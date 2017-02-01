@@ -34,7 +34,6 @@ import (
 
 const (
 	getTreePropertiesSQL  = "SELECT AllowsDuplicateLeaves FROM Trees WHERE TreeId=?"
-	getTreeParametersSQL  = "SELECT ReadOnlyRequests From TreeControl WHERE TreeID=?"
 	selectQueuedLeavesSQL = `SELECT LeafIdentityHash,MerkleLeafHash,Payload
 			FROM Unsequenced
 			WHERE TreeID=?
@@ -150,6 +149,10 @@ func (t *readOnlyLogTX) Commit() error {
 
 func (t *readOnlyLogTX) Rollback() error {
 	return t.tx.Rollback()
+}
+
+func (t *readOnlyLogTX) CheckDatabaseAccessible() error {
+	return checkDatabaseAccessible(t.tx)
 }
 
 func (t *readOnlyLogTX) GetActiveLogIDs() ([]int64, error) {

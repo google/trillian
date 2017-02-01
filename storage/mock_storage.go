@@ -295,6 +295,17 @@ func (_mr *_MockMapStorageRecorder) BeginForTree(arg0, arg1 interface{}) *gomock
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "BeginForTree", arg0, arg1)
 }
 
+func (_m *MockMapStorage) Snapshot(_param0 context.Context) (ReadOnlyMapTX, error) {
+	ret := _m.ctrl.Call(_m, "Snapshot", _param0)
+	ret0, _ := ret[0].(ReadOnlyMapTX)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+func (_mr *_MockMapStorageRecorder) Snapshot(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "Snapshot", arg0)
+}
+
 func (_m *MockMapStorage) SnapshotForTree(_param0 context.Context, _param1 int64) (ReadOnlyMapTreeTX, error) {
 	ret := _m.ctrl.Call(_m, "SnapshotForTree", _param0, _param1)
 	ret0, _ := ret[0].(ReadOnlyMapTreeTX)
@@ -459,6 +470,16 @@ func NewMockReadOnlyLogTX(ctrl *gomock.Controller) *MockReadOnlyLogTX {
 
 func (_m *MockReadOnlyLogTX) EXPECT() *_MockReadOnlyLogTXRecorder {
 	return _m.recorder
+}
+
+func (_m *MockReadOnlyLogTX) CheckDatabaseAccessible() error {
+	ret := _m.ctrl.Call(_m, "CheckDatabaseAccessible")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+func (_mr *_MockReadOnlyLogTXRecorder) CheckDatabaseAccessible() *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "CheckDatabaseAccessible")
 }
 
 func (_m *MockReadOnlyLogTX) Commit() error {

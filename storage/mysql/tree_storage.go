@@ -407,3 +407,14 @@ func (t *treeTX) Rollback() error {
 func (t *treeTX) IsOpen() bool {
 	return !t.closed
 }
+
+func checkDatabaseAccessible(tx *sql.Tx) error {
+	stmt, err := tx.Prepare("SELECT TreeId FROM Trees LIMIT 1")
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec()
+	return err
+}

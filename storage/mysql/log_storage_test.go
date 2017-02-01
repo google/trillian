@@ -156,7 +156,6 @@ func TestBegin(t *testing.T) {
 		}
 
 	}
-
 }
 
 func TestSnapshot(t *testing.T) {
@@ -198,7 +197,6 @@ func TestSnapshot(t *testing.T) {
 		}
 
 	}
-
 }
 
 func TestOpenStateCommit(t *testing.T) {
@@ -973,6 +971,28 @@ func TestGetActiveLogIDsWithPendingWork(t *testing.T) {
 	}
 	for _, test := range tests {
 		runTestGetActiveLogIDsWithPendingWork(t, test)
+	}
+}
+
+func TestReadOnlyLogTX_CheckDatabaseAccessible(t *testing.T) {
+	cleanTestDB(DB)
+
+	s, err := NewLogStorage(DB)
+	if err != nil {
+		t.Fatalf("NewLogStorage() = (_, %v), want = (_, nil)", err)
+	}
+
+	tx, err := s.Snapshot(context.TODO())
+	if err != nil {
+		t.Fatalf("Snapshot() = (_, %v), want = (_, nil)", err)
+	}
+
+	if err := tx.CheckDatabaseAccessible(); err != nil {
+		t.Errorf("CheckDatabaseAccessible() = %v, want = nil", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		t.Errorf("Commit() = (_, %v), want = (_, nil)", err)
 	}
 }
 
