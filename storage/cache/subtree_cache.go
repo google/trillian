@@ -153,11 +153,14 @@ func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc
 		}
 	}
 
+	glog.Warningf("preload wants %d subtrees: %v", len(want), want)
+
 	list := make([]storage.NodeID, 0, len(want))
 	for _, v := range want {
 		list = append(list, *v)
 	}
 	subtrees, err := getSubtrees(list)
+	glog.Warningf("preload got %d subtrees", len(subtrees))
 	if err != nil {
 		return err
 	}
@@ -313,9 +316,14 @@ func (s *SubtreeCache) Flush(setSubtrees SetSubtreesFunc) error {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
+	glog.Warningf("flushing cache with %d dirty prefixes", len(s.dirtyPrefixes))
 	treesToWrite := make([]*storagepb.SubtreeProto, 0, len(s.dirtyPrefixes))
+	unclean := 0
+	toWrite := 0
+	leaves := 0
 	for k, v := range s.subtrees {
 		if s.dirtyPrefixes[k] {
+			unclean++
 			bk := []byte(k)
 			if !bytes.Equal(bk, v.Prefix) {
 				return fmt.Errorf("inconsistent cache: prefix key is %v, but cached object claims %v", bk, v.Prefix)
@@ -323,14 +331,19 @@ func (s *SubtreeCache) Flush(setSubtrees SetSubtreesFunc) error {
 			// TODO(al): Do actually write this one once we're storing the updated
 			// subtree root value here during tree update calculations.
 			v.RootHash = nil
+			leaves += len(v.Leaves)
 
 			if len(v.Leaves) > 0 {
 				// clear the internal node cache; we don't want to write that.
+				glog.Warningf("writing %d leaves for %v", len(v.Leaves), v.Prefix)
 				v.InternalNodes = nil
 				treesToWrite = append(treesToWrite, v)
+				toWrite++
 			}
 		}
 	}
+	glog.Warningf("claimed dirty %d and we found %d subtrees toWrite %d leaves %d",
+		len(s.dirtyPrefixes), unclean, toWrite, leaves)
 	if len(treesToWrite) == 0 {
 		return nil
 	}
