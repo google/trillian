@@ -70,11 +70,8 @@ func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.Qu
 	leaves := depointerify(req.Leaves)
 
 	if len(leaves) == 0 {
-		return &trillian.QueueLeavesResponse{
-			Status: buildStatusWithDesc(
-				trillian.TrillianApiStatusCode_ERROR,
-				"Must queue at least one leaf"),
-		}, grpc.Errorf(codes.InvalidArgument, "len(leafs)=0, want > 0")
+		return &trillian.QueueLeavesResponse{},
+			grpc.Errorf(codes.InvalidArgument, "len(leafs)=0, want > 0")
 	}
 
 	// TODO(al): TreeHasher must be selected based on log config.
@@ -98,9 +95,7 @@ func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.Qu
 		return nil, err
 	}
 
-	return &trillian.QueueLeavesResponse{
-		Status: buildStatus(trillian.TrillianApiStatusCode_OK),
-	}, nil
+	return &trillian.QueueLeavesResponse{}, nil
 }
 
 // GetInclusionProof obtains the proof of inclusion in the tree for a leaf that has been sequenced.
@@ -145,7 +140,7 @@ func (t *TrillianLogRPCServer) GetInclusionProof(ctx context.Context, req *trill
 		return nil, err
 	}
 
-	response := trillian.GetInclusionProofResponse{Status: buildStatus(trillian.TrillianApiStatusCode_OK), Proof: &proof}
+	response := trillian.GetInclusionProofResponse{Proof: &proof}
 	return &response, nil
 }
 
@@ -200,7 +195,7 @@ func (t *TrillianLogRPCServer) GetInclusionProofByHash(ctx context.Context, req 
 		return nil, err
 	}
 
-	response := trillian.GetInclusionProofByHashResponse{Status: buildStatus(trillian.TrillianApiStatusCode_OK), Proof: proofs}
+	response := trillian.GetInclusionProofByHashResponse{Proof: proofs}
 	return &response, nil
 }
 
@@ -252,7 +247,7 @@ func (t *TrillianLogRPCServer) GetConsistencyProof(ctx context.Context, req *tri
 	}
 
 	// We have everything we need. Return the proof
-	return &trillian.GetConsistencyProofResponse{Status: buildStatus(trillian.TrillianApiStatusCode_OK), Proof: &proof}, nil
+	return &trillian.GetConsistencyProofResponse{Proof: &proof}, nil
 }
 
 // GetLatestSignedLogRoot obtains the latest published tree root for the Merkle Tree that
@@ -274,7 +269,7 @@ func (t *TrillianLogRPCServer) GetLatestSignedLogRoot(ctx context.Context, req *
 		return nil, err
 	}
 
-	return &trillian.GetLatestSignedLogRootResponse{Status: buildStatus(trillian.TrillianApiStatusCode_OK), SignedLogRoot: &signedRoot}, nil
+	return &trillian.GetLatestSignedLogRootResponse{SignedLogRoot: &signedRoot}, nil
 }
 
 // GetSequencedLeafCount returns the number of leaves that have been integrated into the Merkle
@@ -296,7 +291,7 @@ func (t *TrillianLogRPCServer) GetSequencedLeafCount(ctx context.Context, req *t
 		return nil, err
 	}
 
-	return &trillian.GetSequencedLeafCountResponse{Status: buildStatus(trillian.TrillianApiStatusCode_OK), LeafCount: leafCount}, nil
+	return &trillian.GetSequencedLeafCountResponse{LeafCount: leafCount}, nil
 }
 
 // GetLeavesByIndex obtains one or more leaves based on their sequence number within the
@@ -306,7 +301,7 @@ func (t *TrillianLogRPCServer) GetSequencedLeafCount(ctx context.Context, req *t
 func (t *TrillianLogRPCServer) GetLeavesByIndex(ctx context.Context, req *trillian.GetLeavesByIndexRequest) (*trillian.GetLeavesByIndexResponse, error) {
 	ctx = util.NewLogContext(ctx, req.LogId)
 	if !validateLeafIndices(req.LeafIndex) {
-		return &trillian.GetLeavesByIndexResponse{Status: buildStatusWithDesc(trillian.TrillianApiStatusCode_ERROR, "Invalid -ve leaf index in request")}, nil
+		return &trillian.GetLeavesByIndexResponse{}, nil
 	}
 
 	tx, err := t.prepareReadOnlyStorageTx(ctx, req.LogId)
@@ -324,7 +319,7 @@ func (t *TrillianLogRPCServer) GetLeavesByIndex(ctx context.Context, req *trilli
 		return nil, err
 	}
 
-	return &trillian.GetLeavesByIndexResponse{Status: buildStatus(trillian.TrillianApiStatusCode_OK), Leaves: pointerify(leaves)}, nil
+	return &trillian.GetLeavesByIndexResponse{Leaves: pointerify(leaves)}, nil
 }
 
 // GetLeavesByHash obtains one or more leaves based on their tree hash. It is not possible
@@ -392,9 +387,8 @@ func (t *TrillianLogRPCServer) GetEntryAndProof(ctx context.Context, req *trilli
 
 	// Work is complete, we have everything we need for the response
 	return &trillian.GetEntryAndProofResponse{
-		Status: buildStatus(trillian.TrillianApiStatusCode_OK),
-		Proof:  &proof,
-		Leaf:   &leaves[0]}, nil
+		Proof: &proof,
+		Leaf:  &leaves[0]}, nil
 }
 
 func (t *TrillianLogRPCServer) prepareStorageTx(ctx context.Context, treeID int64) (storage.LogTX, error) {
@@ -423,17 +417,6 @@ func (t *TrillianLogRPCServer) prepareReadOnlyStorageTx(ctx context.Context, tre
 	}
 
 	return tx, err
-}
-
-func buildStatus(code trillian.TrillianApiStatusCode) *trillian.TrillianApiStatus {
-	return &trillian.TrillianApiStatus{StatusCode: code}
-}
-
-func buildStatusWithDesc(code trillian.TrillianApiStatusCode, desc string) *trillian.TrillianApiStatus {
-	status := buildStatus(code)
-	status.Description = desc
-
-	return status
 }
 
 func (t *TrillianLogRPCServer) commitAndLog(ctx context.Context, tx storage.ReadOnlyLogTX, op string) error {
@@ -500,7 +483,7 @@ func getInclusionProofForLeafIndexAtRevision(tx storage.ReadOnlyLogTX, snapshot,
 func (t *TrillianLogRPCServer) getLeavesByHashInternal(ctx context.Context, desc string, req *trillian.GetLeavesByHashRequest, fetchFunc func(storage.ReadOnlyLogTX, [][]byte, bool) ([]trillian.LogLeaf, error)) (*trillian.GetLeavesByHashResponse, error) {
 	ctx = util.NewLogContext(ctx, req.LogId)
 	if len(req.LeafHash) == 0 || !validateLeafHashes(req.LeafHash) {
-		return &trillian.GetLeavesByHashResponse{Status: buildStatusWithDesc(trillian.TrillianApiStatusCode_ERROR, fmt.Sprintf("%s: Must supply at least one hash and none must be empty", desc))}, nil
+		return &trillian.GetLeavesByHashResponse{}, nil
 	}
 
 	tx, err := t.prepareReadOnlyStorageTx(ctx, req.LogId)
@@ -518,5 +501,5 @@ func (t *TrillianLogRPCServer) getLeavesByHashInternal(ctx context.Context, desc
 		return nil, err
 	}
 
-	return &trillian.GetLeavesByHashResponse{Status: buildStatus(trillian.TrillianApiStatusCode_OK), Leaves: pointerify(leaves)}, nil
+	return &trillian.GetLeavesByHashResponse{Leaves: pointerify(leaves)}, nil
 }

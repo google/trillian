@@ -213,14 +213,3 @@ func (t *TrillianMapServer) GetSignedMapRoot(ctx context.Context, req *trillian.
 	}
 	return resp, err
 }
-
-func buildStatus(code trillian.TrillianApiStatusCode) *trillian.TrillianApiStatus {
-	return &trillian.TrillianApiStatus{StatusCode: code}
-}
-
-func buildStatusWithDesc(code trillian.TrillianApiStatusCode, desc string) *trillian.TrillianApiStatus {
-	status := buildStatus(code)
-	status.Description = desc
-
-	return status
-}

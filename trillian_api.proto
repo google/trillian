@@ -9,22 +9,6 @@ package trillian;
 import "trillian.proto";
 import "google/protobuf/empty.proto";
 
-// TrillianApiStatusCode is an application level status code
-enum TrillianApiStatusCode {
-    OK = 0;
-    ERROR = 1;
-}
-
-// All operations return a TrillianApiStatus.
-// TODO(Martin2112): Most of the operations are not fully defined yet. They will be implemented soon
-message TrillianApiStatus {
-    // The status code indicates the overall result of the operation.
-    TrillianApiStatusCode status_code = 1;
-    // Applications should not make assumptions about the contents of description. They
-    // should use status_code only when making error handling decisions.
-    string description = 2;
-}
-
 message LogLeaf {
     // merkle_leaf_hash is over leaf data and optional extra_data.
     bytes merkle_leaf_hash = 1;
@@ -78,7 +62,6 @@ message QueueLeafRequest {
 // TODO(Martin2112): This will eventually contain the signed timestamps and stuff that we return for
 // the queued leaves
 message QueueLeavesResponse {
-    TrillianApiStatus status = 1;
 }
 
 message GetInclusionProofRequest {
@@ -88,7 +71,6 @@ message GetInclusionProofRequest {
 }
 
 message GetInclusionProofResponse {
-    TrillianApiStatus status = 1;
     Proof proof = 2;
 }
 
@@ -100,7 +82,6 @@ message GetInclusionProofByHashRequest {
 }
 
 message GetInclusionProofByHashResponse {
-    TrillianApiStatus status = 1;
     // Logs can potentially contain leaves with duplicate hashes so it's possible
     // for this to return multiple proofs.
     repeated Proof proof = 2;
@@ -113,7 +94,6 @@ message GetConsistencyProofRequest {
 }
 
 message GetConsistencyProofResponse {
-    TrillianApiStatus status = 1;
     Proof proof = 2;
 }
 
@@ -124,7 +104,6 @@ message GetLeavesByHashRequest {
 }
 
 message GetLeavesByHashResponse {
-    TrillianApiStatus status = 1;
     repeated LogLeaf leaves = 2;
 }
 
@@ -134,7 +113,6 @@ message GetLeavesByIndexRequest {
 }
 
 message GetLeavesByIndexResponse {
-    TrillianApiStatus status = 1;
     repeated LogLeaf leaves = 2;
 }
 
@@ -143,7 +121,6 @@ message GetSequencedLeafCountRequest {
 }
 
 message GetSequencedLeafCountResponse {
-    TrillianApiStatus status = 1;
     int64 leaf_count = 2;
 }
 
@@ -152,7 +129,6 @@ message GetLatestSignedLogRootRequest {
 }
 
 message GetLatestSignedLogRootResponse {
-    TrillianApiStatus status = 1;
     SignedLogRoot signed_log_root = 2;
 }
 
@@ -163,7 +139,6 @@ message GetEntryAndProofRequest {
 }
 
 message GetEntryAndProofResponse {
-    TrillianApiStatus status = 1;
     Proof proof = 2;
     LogLeaf leaf = 3;
 }
@@ -232,7 +207,6 @@ message GetMapLeavesRequest {
 }
 
 message GetMapLeavesResponse {
-  TrillianApiStatus status = 1;
   repeated IndexValueInclusion index_value_inclusion = 2;
   SignedMapRoot map_root = 3;
 }
@@ -244,7 +218,6 @@ message SetMapLeavesRequest {
 }
 
 message SetMapLeavesResponse {
-  TrillianApiStatus status = 1;
   SignedMapRoot map_root = 2;
 }
 
@@ -253,7 +226,6 @@ message GetSignedMapRootRequest {
 }
 
 message GetSignedMapRootResponse {
-  TrillianApiStatus status = 1;
   SignedMapRoot map_root = 2;
 }
 

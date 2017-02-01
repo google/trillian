@@ -133,10 +133,8 @@ func TestGetLeavesByIndexInvalidIndexRejected(t *testing.T) {
 	registry := testonly.NewRegistryWithLogProvider(mockStorageProviderFunc(mockStorage))
 	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
 
-	resp, err := server.GetLeavesByIndex(context.Background(), &leaf0Minus2Request)
-
-	if err != nil || resp.Status.StatusCode != trillian.TrillianApiStatusCode_ERROR {
-		t.Fatalf("Returned non app level error response for negative leaf index: %d", resp.Status.StatusCode)
+	if _, err := server.GetLeavesByIndex(context.Background(), &leaf0Minus2Request); err != nil {
+		t.Fatalf("Returned non app level error response for negative leaf index: %v", err)
 	}
 }
 
@@ -227,10 +225,6 @@ func TestGetLeavesByIndex(t *testing.T) {
 		t.Fatalf("Failed to get leaf by index: %v", err)
 	}
 
-	if expected, got := trillian.TrillianApiStatusCode_OK, resp.Status.StatusCode; expected != got {
-		t.Fatalf("Expected app level ok status but got: %v", resp.Status.StatusCode)
-	}
-
 	if len(resp.Leaves) != 1 || !proto.Equal(resp.Leaves[0], &leaf1) {
 		t.Fatalf("Expected leaf: %v but got: %v", &leaf1, resp.Leaves[0])
 	}
@@ -256,10 +250,6 @@ func TestGetLeavesByIndexMultiple(t *testing.T) {
 
 	if err != nil {
 		t.Fatalf("Failed to get leaf by index: %v", err)
-	}
-
-	if expected, got := trillian.TrillianApiStatusCode_OK, resp.Status.StatusCode; expected != got {
-		t.Fatalf("Expected app level ok status but got: %v", resp.Status.StatusCode)
 	}
 
 	if len(resp.Leaves) != 2 {
@@ -337,14 +327,8 @@ func TestQueueLeaves(t *testing.T) {
 	registry := testonly.NewRegistryWithLogProvider(mockStorageProviderFunc(mockStorage))
 	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
 
-	resp, err := server.QueueLeaves(context.Background(), &queueRequest0)
-
-	if err != nil {
+	if _, err := server.QueueLeaves(context.Background(), &queueRequest0); err != nil {
 		t.Fatalf("Failed to get leaf by index: %v", err)
-	}
-
-	if expected, got := trillian.TrillianApiStatusCode_OK, resp.Status.StatusCode; expected != got {
-		t.Fatalf("Expected app level ok status but got: %v", resp.Status.StatusCode)
 	}
 }
 
@@ -356,9 +340,7 @@ func TestQueueLeavesNoLeavesRejected(t *testing.T) {
 	registry := testonly.NewRegistryWithLogProvider(mockStorageProviderFunc(mockStorage))
 	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
 
-	resp, err := server.QueueLeaves(context.Background(), &queueRequestEmpty)
-
-	if err == nil || resp.Status.StatusCode != trillian.TrillianApiStatusCode_ERROR {
+	if _, err := server.QueueLeaves(context.Background(), &queueRequestEmpty); err == nil {
 		t.Fatal("Allowed zero leaves to be queued")
 	}
 }
@@ -464,10 +446,6 @@ func TestGetLatestSignedLogRoot(t *testing.T) {
 		t.Fatalf("Failed to get log root: %v", err)
 	}
 
-	if expected, got := trillian.TrillianApiStatusCode_OK, resp.Status.StatusCode; expected != got {
-		t.Fatalf("Expected app level ok status but got: %v", resp.Status.StatusCode)
-	}
-
 	if !proto.Equal(&signedRoot1, resp.SignedLogRoot) {
 		t.Fatalf("Log root proto mismatch:\n%v\n%v", signedRoot1, resp.SignedLogRoot)
 	}
@@ -482,16 +460,8 @@ func TestGetLeavesByHashInvalidHash(t *testing.T) {
 	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
 
 	// This request includes an empty hash, which isn't allowed
-	resp, err := server.GetLeavesByHash(context.Background(), &getByHashRequestBadHash)
-
-	// Should have succeeded at RPC level
-	if err != nil {
+	if _, err := server.GetLeavesByHash(context.Background(), &getByHashRequestBadHash); err != nil {
 		t.Fatalf("Request failed with unexpected error: %v", err)
-	}
-
-	// And failed at app level
-	if expected, got := trillian.TrillianApiStatusCode_ERROR, resp.Status.StatusCode; expected != got {
-		t.Fatalf("Expected app level error status but got: %v", resp.Status.StatusCode)
 	}
 }
 
@@ -580,10 +550,6 @@ func TestGetLeavesByHash(t *testing.T) {
 
 	if err != nil {
 		t.Fatalf("Got error trying to get leaves by hash: %v", err)
-	}
-
-	if expected, got := trillian.TrillianApiStatusCode_OK, resp.Status.StatusCode; expected != got {
-		t.Fatalf("Expected app level ok status but got: %v", resp.Status.StatusCode)
 	}
 
 	if len(resp.Leaves) != 2 || !proto.Equal(resp.Leaves[0], &leaf1) || !proto.Equal(resp.Leaves[1], &leaf3) {
@@ -769,7 +735,7 @@ func TestGetProofByHash(t *testing.T) {
 		t.Fatalf("get inclusion proof by hash should have succeeded but we got: %v", err)
 	}
 
-	if proofResponse == nil || proofResponse.Status == nil || proofResponse.Status.StatusCode != trillian.TrillianApiStatusCode_OK {
+	if proofResponse == nil {
 		t.Fatalf("server response was not successful: %v", proofResponse)
 	}
 
@@ -947,7 +913,7 @@ func TestGetProofByIndex(t *testing.T) {
 		t.Fatalf("get inclusion proof by index should have succeeded but we got: %v", err)
 	}
 
-	if proofResponse == nil || proofResponse.Status == nil || proofResponse.Status.StatusCode != trillian.TrillianApiStatusCode_OK {
+	if proofResponse == nil {
 		t.Fatalf("server response was not successful: %v", proofResponse)
 	}
 
@@ -1155,7 +1121,7 @@ func TestGetEntryAndProof(t *testing.T) {
 
 	response, err := server.GetEntryAndProof(context.Background(), &getEntryAndProofRequest7)
 
-	if err != nil || response.Status.StatusCode != trillian.TrillianApiStatusCode_OK {
+	if err != nil {
 		t.Fatalf("get entry and proof should have succeeded but we got: %v", err)
 	}
 
@@ -1248,10 +1214,6 @@ func TestGetSequencedLeafCount(t *testing.T) {
 
 	if err != nil {
 		t.Fatalf("expected no error getting leaf count but got: %v", err)
-	}
-
-	if response.Status == nil || response.Status.StatusCode != trillian.TrillianApiStatusCode_OK {
-		t.Fatalf("server response was not successful: %v", response)
 	}
 
 	if got, want := response.LeafCount, int64(268); got != want {
@@ -1410,10 +1372,6 @@ func TestGetConsistencyProof(t *testing.T) {
 
 	if err != nil {
 		t.Fatalf("failed to get consistency proof: %v", err)
-	}
-
-	if expected, got := trillian.TrillianApiStatusCode_OK, response.Status.StatusCode; expected != got {
-		t.Fatalf("Expected app level ok status but got: %v", response.Status.StatusCode)
 	}
 
 	// Ensure we got the expected proof
