@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"math/rand"
+	"os"
 	"sync"
 	"time"
 
@@ -35,11 +36,12 @@ var (
 func main() {
 	flag.Parse()
 	if *logConfigFlag == "" {
-		glog.Fatal("Test aborted as no log config provided")
+		glog.Fatal("Test aborted as no log config provided (via --log_config)")
 	}
 	if *seed == -1 {
 		*seed = time.Now().UTC().UnixNano() & 0xFFFFFFFF
 	}
+	fmt.Printf("Today's test has been brought to you by the letters C and T and the number %#x\n", *seed)
 	rand.Seed(*seed)
 
 	cfg, err := ctfe.LogConfigFromFile(*logConfigFlag)
@@ -160,9 +162,14 @@ func main() {
 	}
 	wg.Wait()
 	close(results)
+	errCount := 0
 	for e := range results {
 		if e.err != nil {
+			errCount++
 			glog.Errorf("%s: %v", e.prefix, e.err)
 		}
+	}
+	if errCount > 0 {
+		os.Exit(1)
 	}
 }
