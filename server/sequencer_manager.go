@@ -49,7 +49,7 @@ func (s SequencerManager) Name() string {
 
 // ExecutePass performs sequencing for the specified set of Logs.
 func (s SequencerManager) ExecutePass(logIDs []int64, logctx LogOperationManagerContext) bool {
-	glog.V(1).Infof("Beginning sequencing run for %d active log(s)", len(logIDs))
+	glog.V(1).Infof("beginning sequencing run for %v active log(s)", len(logIDs))
 
 	successCount := 0
 	leavesAdded := 0
@@ -66,7 +66,7 @@ func (s SequencerManager) ExecutePass(logIDs []int64, logctx LogOperationManager
 		// so deferring it
 		storage, err := s.registry.GetLogStorage()
 		if err != nil {
-			glog.Warningf("%s: failed to acquire log storage: %v", logID, err)
+			glog.Warningf("%v: failed to acquire log storage: %v", logID, err)
 			continue
 		}
 		ctx := util.NewLogContext(logctx.ctx, logID)
@@ -75,10 +75,9 @@ func (s SequencerManager) ExecutePass(logIDs []int64, logctx LogOperationManager
 		sequencer := log.NewSequencer(merkle.NewRFC6962TreeHasher(crypto.NewSHA256()), logctx.timeSource, storage, s.keyManager)
 		sequencer.SetGuardWindow(s.guardWindow)
 
-		leaves, err := sequencer.SequenceBatch(ctx, logctx.batchSize)
-
+		leaves, err := sequencer.SequenceBatch(ctx, logID, logctx.batchSize)
 		if err != nil {
-			glog.Warningf("%s: Error trying to sequence batch for: %v", util.LogIDPrefix(ctx), err)
+			glog.Warningf("%v: Error trying to sequence batch for: %v", logID, err)
 			continue
 		}
 
@@ -86,7 +85,6 @@ func (s SequencerManager) ExecutePass(logIDs []int64, logctx LogOperationManager
 		leavesAdded += leaves
 	}
 
-	glog.V(1).Infof("Sequencing run completed %d succeeded %d failed %d leaves integrated", successCount, len(logIDs)-successCount, leavesAdded)
-
+	glog.V(1).Infof("sequencing run completed %v succeeded %v failed %v leaves integrated", successCount, len(logIDs)-successCount, leavesAdded)
 	return false
 }

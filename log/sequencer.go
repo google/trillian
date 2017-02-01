@@ -170,15 +170,10 @@ func (s Sequencer) createRootSignature(ctx context.Context, root trillian.Signed
 // TODO(Martin2112): Can possibly improve by deferring a function that attempts to rollback,
 // which will fail if the tx was committed. Should only do this if we can hide the details of
 // the underlying storage transactions and it doesn't create other problems.
-func (s Sequencer) SequenceBatch(ctx context.Context, limit int) (int, error) {
-	logID, err := util.LogID(ctx)
-	if err != nil {
-		return 0, err
-	}
-
+func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int) (int, error) {
 	tx, err := s.logStorage.Begin(ctx, logID)
 	if err != nil {
-		glog.Warningf("%s: Sequencer failed to start tx: %s", util.LogIDPrefix(ctx), err)
+		glog.Warningf("%v: Sequencer failed to start tx: %v", logID, err)
 		return 0, err
 	}
 
@@ -186,7 +181,7 @@ func (s Sequencer) SequenceBatch(ctx context.Context, limit int) (int, error) {
 	guardCutoffTime := s.timeSource.Now().Add(-s.sequencerGuardWindow)
 	leaves, err := tx.DequeueLeaves(limit, guardCutoffTime)
 	if err != nil {
-		glog.Warningf("%s: Sequencer failed to dequeue leaves: %s", util.LogIDPrefix(ctx), err)
+		glog.Warningf("%v: Sequencer failed to dequeue leaves: %v", logID, err)
 		tx.Rollback()
 		return 0, err
 	}
@@ -194,7 +189,7 @@ func (s Sequencer) SequenceBatch(ctx context.Context, limit int) (int, error) {
 	// Get the latest known root from storage
 	currentRoot, err := tx.LatestSignedLogRoot()
 	if err != nil {
-		glog.Warningf("%s: Sequencer failed to get latest root: %s", util.LogIDPrefix(ctx), err)
+		glog.Warningf("%v: Sequencer failed to get latest root: %v", logID, err)
 		tx.Rollback()
 		return 0, err
 	}
@@ -202,8 +197,8 @@ func (s Sequencer) SequenceBatch(ctx context.Context, limit int) (int, error) {
 	// TODO(al): Have a better detection mechanism for there being no stored root.
 	// TODO(mhs): Might be better to create empty root in provisioning API when it exists
 	if currentRoot.RootHash == nil {
-		glog.Warningf("%s: Fresh log - no previous TreeHeads exist.", util.LogIDPrefix(ctx))
-		return 0, s.SignRoot(ctx)
+		glog.Warningf("%v: Fresh log - no previous TreeHeads exist.", logID)
+		return 0, s.SignRoot(ctx, logID)
 	}
 
 	// There might be no work to be done. But we possibly still need to create an STH if the
@@ -226,7 +221,7 @@ func (s Sequencer) SequenceBatch(ctx context.Context, limit int) (int, error) {
 	newVersion := tx.WriteRevision()
 	if got, want := newVersion, currentRoot.TreeRevision+int64(1); got != want {
 		tx.Rollback()
-		return 0, fmt.Errorf("%s: got writeRevision of %d, but expected %d", util.LogIDPrefix(ctx), got, want)
+		return 0, fmt.Errorf("%v: got writeRevision of %v, but expected %v", logID, got, want)
 	}
 
 	// Assign leaf sequence numbers and collate node updates
@@ -239,12 +234,12 @@ func (s Sequencer) SequenceBatch(ctx context.Context, limit int) (int, error) {
 	// We should still have the same number of leaves
 	if want, got := len(leaves), len(sequencedLeaves); want != got {
 		tx.Rollback()
-		return 0, fmt.Errorf("%s: wanted: %d leaves after sequencing but we got: %d", util.LogIDPrefix(ctx), want, got)
+		return 0, fmt.Errorf("%v: wanted: %v leaves after sequencing but we got: %v", logID, want, got)
 	}
 
 	// Write the new sequence numbers to the leaves in the DB
 	if err := tx.UpdateSequencedLeaves(sequencedLeaves); err != nil {
-		glog.Warningf("%s: Sequencer failed to update sequenced leaves: %s", util.LogIDPrefix(ctx), err)
+		glog.Warningf("%v: Sequencer failed to update sequenced leaves: %v", logID, err)
 		tx.Rollback()
 		return 0, err
 	}
@@ -255,14 +250,14 @@ func (s Sequencer) SequenceBatch(ctx context.Context, limit int) (int, error) {
 	targetNodes, err := s.buildNodesFromNodeMap(nodeMap, newVersion)
 	if err != nil {
 		// probably an internal error with map building, unexpected
-		glog.Warningf("%s: Failed to build target nodes in sequencer: %s", util.LogIDPrefix(ctx), err)
+		glog.Warningf("%v: Failed to build target nodes in sequencer: %v", logID, err)
 		tx.Rollback()
 		return 0, err
 	}
 
 	// Now insert or update the nodes affected by the above, at the new tree version
 	if err := tx.SetMerkleNodes(targetNodes); err != nil {
-		glog.Warningf("%s: Sequencer failed to set Merkle nodes: %s", util.LogIDPrefix(ctx), err)
+		glog.Warningf("%v: Sequencer failed to set Merkle nodes: %v", logID, err)
 		tx.Rollback()
 		return 0, err
 	}
@@ -279,7 +274,7 @@ func (s Sequencer) SequenceBatch(ctx context.Context, limit int) (int, error) {
 	// Hash and sign the root, update it with the signature
 	signature, err := s.createRootSignature(ctx, newLogRoot)
 	if err != nil {
-		glog.Warningf("%s: signer failed to sign root: %v", util.LogIDPrefix(ctx), err)
+		glog.Warningf("%v: signer failed to sign root: %v", logID, err)
 		tx.Rollback()
 		return 0, err
 	}
@@ -287,7 +282,7 @@ func (s Sequencer) SequenceBatch(ctx context.Context, limit int) (int, error) {
 	newLogRoot.Signature = &signature
 
 	if err := tx.StoreSignedLogRoot(newLogRoot); err != nil {
-		glog.Warningf("%s: failed to write updated tree root: %s", util.LogIDPrefix(ctx), err)
+		glog.Warningf("%v: failed to write updated tree root: %v", logID, err)
 		tx.Rollback()
 		return 0, err
 	}
@@ -297,27 +292,22 @@ func (s Sequencer) SequenceBatch(ctx context.Context, limit int) (int, error) {
 		return 0, err
 	}
 
-	glog.Infof("%s: sequenced %d leaves, size %d, tree-revision %d", util.LogIDPrefix(ctx), len(leaves), newLogRoot.TreeSize, newLogRoot.TreeRevision)
+	glog.Infof("%v: sequenced %v leaves, size %v, tree-revision %v", logID, len(leaves), newLogRoot.TreeSize, newLogRoot.TreeRevision)
 	return len(leaves), nil
 }
 
 // SignRoot wraps up all the operations for creating a new log signed root.
-func (s Sequencer) SignRoot(ctx context.Context) error {
-	logID, err := util.LogID(ctx)
-	if err != nil {
-		return err
-	}
-
+func (s Sequencer) SignRoot(ctx context.Context, logID int64) error {
 	tx, err := s.logStorage.Begin(ctx, logID)
 	if err != nil {
-		glog.Warningf("%s: signer failed to start tx: %s", util.LogIDPrefix(ctx), err)
+		glog.Warningf("%v: signer failed to start tx: %v", logID, err)
 		return err
 	}
 
 	// Get the latest known root from storage
 	currentRoot, err := tx.LatestSignedLogRoot()
 	if err != nil {
-		glog.Warningf("%s: signer failed to get latest root: %s", util.LogIDPrefix(ctx), err)
+		glog.Warningf("%v: signer failed to get latest root: %v", logID, err)
 		tx.Rollback()
 		return err
 	}
@@ -342,7 +332,7 @@ func (s Sequencer) SignRoot(ctx context.Context) error {
 	// Hash and sign the root
 	signature, err := s.createRootSignature(ctx, newLogRoot)
 	if err != nil {
-		glog.Warningf("%s: signer failed to sign root: %v", util.LogIDPrefix(ctx), err)
+		glog.Warningf("%v: signer failed to sign root: %v", logID, err)
 		tx.Rollback()
 		return err
 	}
@@ -350,11 +340,11 @@ func (s Sequencer) SignRoot(ctx context.Context) error {
 
 	// Store the new root and we're done
 	if err := tx.StoreSignedLogRoot(newLogRoot); err != nil {
-		glog.Warningf("%s: signer failed to write updated root: %v", util.LogIDPrefix(ctx), err)
+		glog.Warningf("%v: signer failed to write updated root: %v", logID, err)
 		tx.Rollback()
 		return err
 	}
-	glog.V(2).Infof("%s: new signed root, size %d, tree-revision %d", util.LogIDPrefix(ctx), newLogRoot.TreeSize, newLogRoot.TreeRevision)
+	glog.V(2).Infof("%v: new signed root, size %v, tree-revision %v", logID, newLogRoot.TreeSize, newLogRoot.TreeRevision)
 
 	return tx.Commit()
 }
