@@ -111,7 +111,7 @@ func RunCTIntegrationForLog(cfg ctfe.LogConfig, servers, testdir string, stats *
 	if sth0.TreeSize != 0 {
 		return fmt.Errorf("sth.TreeSize=%d; want 0", sth0.TreeSize)
 	}
-	fmt.Printf("%s: Got STH(time=%q, size=%d): roothash=%x\n", cfg.Prefix, TimeFromMS(sth0.Timestamp), sth0.TreeSize, sth0.SHA256RootHash)
+	fmt.Printf("%s: Got STH(time=%q, size=%d): roothash=%x\n", cfg.Prefix, timeFromMS(sth0.Timestamp), sth0.TreeSize, sth0.SHA256RootHash)
 
 	// Stage 2: add a single cert (the intermediate CA), get an SCT.
 	var scts [21]*ct.SignedCertificateTimestamp // 0=int-ca, 1-20=leaves
@@ -126,14 +126,14 @@ func RunCTIntegrationForLog(cfg ctfe.LogConfig, servers, testdir string, stats *
 		return fmt.Errorf("got AddChain(int-ca.cert)=(nil,%v); want (_,nil)", err)
 	}
 	// Display the SCT
-	fmt.Printf("%s: Uploaded int-ca.cert to %v log, got SCT(time=%q)\n", cfg.Prefix, scts[0].SCTVersion, TimeFromMS(scts[0].Timestamp))
+	fmt.Printf("%s: Uploaded int-ca.cert to %v log, got SCT(time=%q)\n", cfg.Prefix, scts[0].SCTVersion, timeFromMS(scts[0].Timestamp))
 
 	// Keep getting the STH until tree size becomes 1.
-	sth1, err := AwaitTreeSize(ctx, pool.Pick(), 1, true, stats)
+	sth1, err := awaitTreeSize(ctx, pool.Pick(), 1, true, stats)
 	if err != nil {
 		return fmt.Errorf("AwaitTreeSize(1)=(nil,%v); want (_,nil)", err)
 	}
-	fmt.Printf("%s: Got STH(time=%q, size=%d): roothash=%x\n", cfg.Prefix, TimeFromMS(sth1.Timestamp), sth1.TreeSize, sth1.SHA256RootHash)
+	fmt.Printf("%s: Got STH(time=%q, size=%d): roothash=%x\n", cfg.Prefix, timeFromMS(sth1.Timestamp), sth1.TreeSize, sth1.SHA256RootHash)
 	if err := stats.check(cfg, servers); err != nil {
 		return fmt.Errorf("unexpected stats check: %v", err)
 	}
@@ -148,12 +148,12 @@ func RunCTIntegrationForLog(cfg ctfe.LogConfig, servers, testdir string, stats *
 	if err != nil {
 		return fmt.Errorf("got AddChain(leaf01)=(nil,%v); want (_,nil)", err)
 	}
-	fmt.Printf("%s: Uploaded cert01.chain to %v log, got SCT(time=%q)\n", cfg.Prefix, scts[1].SCTVersion, TimeFromMS(scts[1].Timestamp))
-	sth2, err := AwaitTreeSize(ctx, pool.Pick(), 2, true, stats)
+	fmt.Printf("%s: Uploaded cert01.chain to %v log, got SCT(time=%q)\n", cfg.Prefix, scts[1].SCTVersion, timeFromMS(scts[1].Timestamp))
+	sth2, err := awaitTreeSize(ctx, pool.Pick(), 2, true, stats)
 	if err != nil {
 		return fmt.Errorf("failed to get STH for size=1: %v", err)
 	}
-	fmt.Printf("%s: Got STH(time=%q, size=%d): roothash=%x\n", cfg.Prefix, TimeFromMS(sth2.Timestamp), sth2.TreeSize, sth2.SHA256RootHash)
+	fmt.Printf("%s: Got STH(time=%q, size=%d): roothash=%x\n", cfg.Prefix, timeFromMS(sth2.Timestamp), sth2.TreeSize, sth2.SHA256RootHash)
 
 	// Stage 4: get a consistency proof from size 1-> size 2.
 	proof12, err := pool.Pick().GetSTHConsistency(ctx, 1, 2)
@@ -171,7 +171,7 @@ func RunCTIntegrationForLog(cfg ctfe.LogConfig, servers, testdir string, stats *
 	if len(proof12) != 1 {
 		return fmt.Errorf("len(proof12)=%d; want 1", len(proof12))
 	}
-	if err := CheckCTConsistencyProof(sth1, sth2, proof12); err != nil {
+	if err := checkCTConsistencyProof(sth1, sth2, proof12); err != nil {
 		return fmt.Errorf("got CheckCTConsistencyProof(sth1,sth2,proof12)=%v; want nil", err)
 	}
 	if err := stats.check(cfg, servers); err != nil {
@@ -200,11 +200,11 @@ func RunCTIntegrationForLog(cfg ctfe.LogConfig, servers, testdir string, stats *
 
 	// Stage 6: keep getting the STH until tree size becomes 1 + N (allows for int-ca.cert).
 	treeSize := 1 + count
-	sthN, err := AwaitTreeSize(ctx, pool.Pick(), uint64(treeSize), true, stats)
+	sthN, err := awaitTreeSize(ctx, pool.Pick(), uint64(treeSize), true, stats)
 	if err != nil {
 		return fmt.Errorf("AwaitTreeSize(%d)=(nil,%v); want (_,nil)", treeSize, err)
 	}
-	fmt.Printf("%s: Got STH(time=%q, size=%d): roothash=%x\n", cfg.Prefix, TimeFromMS(sthN.Timestamp), sthN.TreeSize, sthN.SHA256RootHash)
+	fmt.Printf("%s: Got STH(time=%q, size=%d): roothash=%x\n", cfg.Prefix, timeFromMS(sthN.Timestamp), sthN.TreeSize, sthN.SHA256RootHash)
 
 	// Stage 7: get a consistency proof from 2->(1+N).
 	proof2N, err := pool.Pick().GetSTHConsistency(ctx, 2, uint64(treeSize))
@@ -213,7 +213,7 @@ func RunCTIntegrationForLog(cfg ctfe.LogConfig, servers, testdir string, stats *
 		return fmt.Errorf("got GetSTHConsistency(2, %d)=(nil,%v); want (_,nil)", treeSize, err)
 	}
 	fmt.Printf("%s: Proof size 2->%d: %x\n", cfg.Prefix, treeSize, proof2N)
-	if err := CheckCTConsistencyProof(sth2, sthN, proof2N); err != nil {
+	if err := checkCTConsistencyProof(sth2, sthN, proof2N); err != nil {
 		return fmt.Errorf("got CheckCTConsistencyProof(sth2,sthN,proof2N)=%v; want nil", err)
 	}
 
@@ -321,7 +321,7 @@ func RunCTIntegrationForLog(cfg ctfe.LogConfig, servers, testdir string, stats *
 	if err != nil {
 		return fmt.Errorf("failed to parse issuer for precert: %v", err)
 	}
-	prechain, tbs, err := MakePrecertChain(chain[1], leafCert, issuer, signer)
+	prechain, tbs, err := makePrecertChain(chain[1], leafCert, issuer, signer)
 	if err != nil {
 		return fmt.Errorf("failed to build pre-certificate: %v", err)
 	}
@@ -330,13 +330,13 @@ func RunCTIntegrationForLog(cfg ctfe.LogConfig, servers, testdir string, stats *
 	if err != nil {
 		return fmt.Errorf("got AddPreChain()=(nil,%v); want (_,nil)", err)
 	}
-	fmt.Printf("%s: Uploaded precert to %v log, got SCT(time=%q)\n", cfg.Prefix, precertSCT.SCTVersion, TimeFromMS(precertSCT.Timestamp))
+	fmt.Printf("%s: Uploaded precert to %v log, got SCT(time=%q)\n", cfg.Prefix, precertSCT.SCTVersion, timeFromMS(precertSCT.Timestamp))
 	treeSize++
-	sthN1, err := AwaitTreeSize(ctx, pool.Pick(), uint64(treeSize), true, stats)
+	sthN1, err := awaitTreeSize(ctx, pool.Pick(), uint64(treeSize), true, stats)
 	if err != nil {
 		return fmt.Errorf("AwaitTreeSize(%d)=(nil,%v); want (_,nil)", treeSize, err)
 	}
-	fmt.Printf("%s: Got STH(time=%q, size=%d): roothash=%x\n", cfg.Prefix, TimeFromMS(sthN1.Timestamp), sthN1.TreeSize, sthN1.SHA256RootHash)
+	fmt.Printf("%s: Got STH(time=%q, size=%d): roothash=%x\n", cfg.Prefix, timeFromMS(sthN1.Timestamp), sthN1.TreeSize, sthN1.SHA256RootHash)
 
 	// Stage 13: retrieve and check pre-cert.
 	precertIndex := int64(count + 1)
@@ -351,7 +351,7 @@ func RunCTIntegrationForLog(cfg ctfe.LogConfig, servers, testdir string, stats *
 	leaf := precertEntries[0].Leaf
 	ts := leaf.TimestampedEntry
 	fmt.Printf("%s: Entry[%d] = {Index:%d Leaf:{Version:%v TS:{EntryType:%v Timestamp:%v}}}\n",
-		cfg.Prefix, precertIndex, precertEntries[0].Index, leaf.Version, ts.EntryType, TimeFromMS(ts.Timestamp))
+		cfg.Prefix, precertIndex, precertEntries[0].Index, leaf.Version, ts.EntryType, timeFromMS(ts.Timestamp))
 
 	if ts.EntryType != ct.PrecertLogEntryType {
 		return fmt.Errorf("leaf[%d].ts.EntryType=%v; want PrecertLogEntryType", precertIndex, ts.EntryType)
@@ -417,15 +417,16 @@ func RunCTIntegrationForLog(cfg ctfe.LogConfig, servers, testdir string, stats *
 	return nil
 }
 
-// TimeFromMS converts a timestamp in milliseconds (as used in CT) to a time.Time.
-func TimeFromMS(ts uint64) time.Time {
+// timeFromMS converts a timestamp in milliseconds (as used in CT) to a time.Time.
+func timeFromMS(ts uint64) time.Time {
 	secs := int64(ts / 1000)
 	msecs := int64(ts % 1000)
 	return time.Unix(secs, msecs*1000000)
 }
 
-// SignatureToString formats a CT signature for display.
-func SignatureToString(signed *ct.DigitallySigned) string {
+// signatureToString formats a CT signature for display.
+// TODO(drysdale): move this to <CT>/go/types.go as DigitallySigned.String()
+func signatureToString(signed *ct.DigitallySigned) string {
 	return fmt.Sprintf("Signature: Hash=%v Sign=%v Value=%x", signed.Algorithm.Hash, signed.Algorithm.Signature, signed.Signature)
 }
 
@@ -438,8 +439,8 @@ func GetChain(dir, path string) ([]ct.ASN1Cert, error) {
 	return testonly.CertsFromPEM(certdata), nil
 }
 
-// AwaitTreeSize loops until the an STH is retrieved that is the specified size (or larger, if exact is false).
-func AwaitTreeSize(ctx context.Context, logClient *client.LogClient, size uint64, exact bool, stats *wantStats) (*ct.SignedTreeHead, error) {
+// awaitTreeSize loops until the an STH is retrieved that is the specified size (or larger, if exact is false).
+func awaitTreeSize(ctx context.Context, logClient *client.LogClient, size uint64, exact bool, stats *wantStats) (*ct.SignedTreeHead, error) {
 	var sth *ct.SignedTreeHead
 	for sth == nil || sth.TreeSize < size {
 		time.Sleep(200 * time.Millisecond)
@@ -458,15 +459,15 @@ func AwaitTreeSize(ctx context.Context, logClient *client.LogClient, size uint64
 	return sth, nil
 }
 
-// CheckCTConsistencyProof checks the given consistency proof.
-func CheckCTConsistencyProof(sth1, sth2 *ct.SignedTreeHead, proof [][]byte) error {
+// checkCTConsistencyProof checks the given consistency proof.
+func checkCTConsistencyProof(sth1, sth2 *ct.SignedTreeHead, proof [][]byte) error {
 	return Verifier.VerifyConsistencyProof(int64(sth1.TreeSize), int64(sth2.TreeSize),
 		sth1.SHA256RootHash[:], sth2.SHA256RootHash[:], proof)
 }
 
-// MakePrecertChain builds a precert chain based from the given cert chain and cert, converting and
+// makePrecertChain builds a precert chain based from the given cert chain and cert, converting and
 // re-signing relative to the given issuer.
-func MakePrecertChain(chain []ct.ASN1Cert, cert, issuer *x509.Certificate, signer basecrypto.Signer) ([]ct.ASN1Cert, []byte, error) {
+func makePrecertChain(chain []ct.ASN1Cert, cert, issuer *x509.Certificate, signer basecrypto.Signer) ([]ct.ASN1Cert, []byte, error) {
 	prechain := make([]ct.ASN1Cert, len(chain))
 	copy(prechain[1:], chain[1:])
 	cert, err := x509.ParseCertificate(chain[0].Data)
@@ -508,9 +509,9 @@ func MakePrecertChain(chain []ct.ASN1Cert, cert, issuer *x509.Certificate, signe
 	return prechain, tbs, nil
 }
 
-// MakeCertChain builds a new cert chain based from the given cert chain, changing SubjectKeyId and
+// makeCertChain builds a new cert chain based from the given cert chain, changing SubjectKeyId and
 // re-signing relative to the given issuer.
-func MakeCertChain(chain []ct.ASN1Cert, cert, issuer *x509.Certificate, signer basecrypto.Signer) ([]ct.ASN1Cert, error) {
+func makeCertChain(chain []ct.ASN1Cert, cert, issuer *x509.Certificate, signer basecrypto.Signer) ([]ct.ASN1Cert, error) {
 	newchain := make([]ct.ASN1Cert, len(chain))
 	copy(newchain[1:], chain[1:])
 

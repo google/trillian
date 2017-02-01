@@ -105,7 +105,7 @@ func (pc *pendingCerts) canAppend(now time.Time, mmd time.Duration) bool {
 			break
 		}
 	}
-	lastTime := TimeFromMS(pc[last].sct.Timestamp)
+	lastTime := timeFromMS(pc[last].sct.Timestamp)
 	nextTime := lastTime.Add(mmd / sctCount)
 	return now.After(nextTime)
 }
@@ -177,7 +177,7 @@ func HammerCTLog(cfg HammerConfig) error {
 		status := http.StatusOK
 		switch ep {
 		case ctfe.AddChainName:
-			chain, err := MakeCertChain(cfg.LeafChain, cfg.LeafCert, cfg.CACert, cfg.Signer)
+			chain, err := makeCertChain(cfg.LeafChain, cfg.LeafCert, cfg.CACert, cfg.Signer)
 			if err != nil {
 				return fmt.Errorf("failed to make fresh cert: %v", err)
 			}
@@ -185,7 +185,7 @@ func HammerCTLog(cfg HammerConfig) error {
 			if err != nil {
 				return fmt.Errorf("failed to add-chain: %v", err)
 			}
-			glog.V(2).Infof("%s: Uploaded cert, got SCT(time=%q)", cfg.LogCfg.Prefix, TimeFromMS(sct.Timestamp))
+			glog.V(2).Infof("%s: Uploaded cert, got SCT(time=%q)", cfg.LogCfg.Prefix, timeFromMS(sct.Timestamp))
 			if pending.canAppend(time.Now(), cfg.MMD) {
 				// Calculate leaf hash =  SHA256(0x00 | tls-encode(MerkleTreeLeaf))
 				submitted := submittedCert{precert: false, sct: sct}
@@ -199,7 +199,7 @@ func HammerCTLog(cfg HammerConfig) error {
 						Extensions: sct.Extensions,
 					},
 				}
-				submitted.integrateBy = TimeFromMS(sct.Timestamp).Add(cfg.MMD)
+				submitted.integrateBy = timeFromMS(sct.Timestamp).Add(cfg.MMD)
 				submitted.leafData, err = tls.Marshal(leaf)
 				if err != nil {
 					return fmt.Errorf("failed to tls.Marshal leaf cert: %v", err)
@@ -209,7 +209,7 @@ func HammerCTLog(cfg HammerConfig) error {
 				glog.V(3).Infof("%s: Uploaded cert has leaf-hash %x", cfg.LogCfg.Prefix, submitted.leafHash)
 			}
 		case ctfe.AddPreChainName:
-			prechain, tbs, err := MakePrecertChain(cfg.LeafChain, cfg.LeafCert, cfg.CACert, cfg.Signer)
+			prechain, tbs, err := makePrecertChain(cfg.LeafChain, cfg.LeafCert, cfg.CACert, cfg.Signer)
 			if err != nil {
 				return fmt.Errorf("failed to make fresh pre-cert: %v", err)
 			}
@@ -217,7 +217,7 @@ func HammerCTLog(cfg HammerConfig) error {
 			if err != nil {
 				return fmt.Errorf("failed to add-pre-chain: %v", err)
 			}
-			glog.V(2).Infof("%s: Uploaded pre-cert, got SCT(time=%q)", cfg.LogCfg.Prefix, TimeFromMS(sct.Timestamp))
+			glog.V(2).Infof("%s: Uploaded pre-cert, got SCT(time=%q)", cfg.LogCfg.Prefix, timeFromMS(sct.Timestamp))
 			if pending.canAppend(time.Now(), cfg.MMD) {
 				// Calculate leaf hash =  SHA256(0x00 | tls-encode(MerkleTreeLeaf))
 				submitted := submittedCert{precert: true, sct: sct}
@@ -234,7 +234,7 @@ func HammerCTLog(cfg HammerConfig) error {
 						Extensions: sct.Extensions,
 					},
 				}
-				submitted.integrateBy = TimeFromMS(sct.Timestamp).Add(cfg.MMD)
+				submitted.integrateBy = timeFromMS(sct.Timestamp).Add(cfg.MMD)
 				submitted.leafData, err = tls.Marshal(leaf)
 				if err != nil {
 					return fmt.Errorf("tls.Marshal(precertLeaf)=(nil,%v); want (_,nil)", err)
@@ -253,7 +253,7 @@ func HammerCTLog(cfg HammerConfig) error {
 			if err != nil {
 				return fmt.Errorf("failed to get-sth: %v", err)
 			}
-			glog.V(2).Infof("%s: Got STH(time=%q, size=%d)", cfg.LogCfg.Prefix, TimeFromMS(sth[0].Timestamp), sth[0].TreeSize)
+			glog.V(2).Infof("%s: Got STH(time=%q, size=%d)", cfg.LogCfg.Prefix, timeFromMS(sth[0].Timestamp), sth[0].TreeSize)
 		case ctfe.GetSTHConsistencyName:
 			// Get current size, and pick an earlier size
 			sthNow, err := pool.Pick().GetSTH(ctx)
@@ -274,7 +274,7 @@ func HammerCTLog(cfg HammerConfig) error {
 			if err != nil {
 				return fmt.Errorf("failed to get-sth-consistency(%d, %d): %v", sth[which].TreeSize, sthNow.TreeSize, err)
 			}
-			if err := CheckCTConsistencyProof(sth[which], sthNow, proof); err != nil {
+			if err := checkCTConsistencyProof(sth[which], sthNow, proof); err != nil {
 				return fmt.Errorf("get-sth-consistency(%d, %d) proof check failed: %v", sth[which].TreeSize, sthNow.TreeSize, err)
 			}
 			glog.V(2).Infof("%s: Got STH consistency proof (size=%d => %d) len %d",
