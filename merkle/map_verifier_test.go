@@ -23,7 +23,7 @@ import (
 
 func TestVerifyMapInclusionProofWorks(t *testing.T) {
 	h := NewMapHasher(NewRFC6962TreeHasher(crypto.NewSHA256()))
-	for i, tv := range inclusionProofTestVector {
+	for i, tv := range mapInclusionTestVector {
 		index := testonly.HashKey(tv.Key)
 		if err := VerifyMapInclusionProof(index, h.HashLeaf(tv.Value), tv.ExpectedRoot, tv.Proof, h); err != nil {
 			t.Errorf("(test %d) proof verification failed: %v", i, err)
@@ -33,7 +33,7 @@ func TestVerifyMapInclusionProofWorks(t *testing.T) {
 
 func TestVerifyMapInclusionProofCatchesWrongKey(t *testing.T) {
 	h := NewMapHasher(NewRFC6962TreeHasher(crypto.NewSHA256()))
-	tv := inclusionProofTestVector[0]
+	tv := mapInclusionTestVector[0]
 	tv.Key = "wibble"
 	index := testonly.HashKey(tv.Key)
 	if err := VerifyMapInclusionProof(index, h.HashLeaf(tv.Value), tv.ExpectedRoot, tv.Proof, h); err == nil {
@@ -43,7 +43,7 @@ func TestVerifyMapInclusionProofCatchesWrongKey(t *testing.T) {
 
 func TestVerifyMapInclusionProofCatchesWrongValue(t *testing.T) {
 	h := NewMapHasher(NewRFC6962TreeHasher(crypto.NewSHA256()))
-	tv := inclusionProofTestVector[0]
+	tv := mapInclusionTestVector[0]
 	tv.Value = []byte("wibble")
 	index := testonly.HashKey(tv.Key)
 	if err := VerifyMapInclusionProof(index, h.HashLeaf(tv.Value), tv.ExpectedRoot, tv.Proof, h); err == nil {
@@ -53,7 +53,7 @@ func TestVerifyMapInclusionProofCatchesWrongValue(t *testing.T) {
 
 func TestVerifyMapInclusionProofCatchesWrongRoot(t *testing.T) {
 	h := NewMapHasher(NewRFC6962TreeHasher(crypto.NewSHA256()))
-	tv := inclusionProofTestVector[0]
+	tv := mapInclusionTestVector[0]
 	tv.ExpectedRoot = h.Digest([]byte("wibble"))
 	index := testonly.HashKey(tv.Key)
 	if err := VerifyMapInclusionProof(index, h.HashLeaf(tv.Value), tv.ExpectedRoot, tv.Proof, h); err == nil {
@@ -63,7 +63,7 @@ func TestVerifyMapInclusionProofCatchesWrongRoot(t *testing.T) {
 
 func TestVerifyMapInclusionProofCatchesWrongProof(t *testing.T) {
 	h := NewMapHasher(NewRFC6962TreeHasher(crypto.NewSHA256()))
-	tv := inclusionProofTestVector[0]
+	tv := mapInclusionTestVector[0]
 	tv.Proof[250][15] ^= 0x10
 	index := testonly.HashKey(tv.Key)
 	if err := VerifyMapInclusionProof(index, h.HashLeaf(tv.Value), tv.ExpectedRoot, tv.Proof, h); err == nil {
@@ -120,7 +120,7 @@ func TestVerifyMapInclusionProofRejectsInvalidRoot(t *testing.T) {
 }
 
 // Testdata produced with python
-var inclusionProofTestVector = []struct {
+var mapInclusionTestVector = []struct {
 	Key          string
 	Value        []byte
 	Proof        [][]byte
