@@ -48,6 +48,16 @@ func NewTrillianLogRPCServer(registry extension.Registry, timeSource util.TimeSo
 	}
 }
 
+// CheckDatabaseAccessible returns nil if the database is accessible, error
+// otherwise.
+func (t *TrillianLogRPCServer) CheckDatabaseAccessible() error {
+	s, err := t.registry.GetLogStorage()
+	if err != nil {
+		return err
+	}
+	return s.CheckDatabaseAccessible(context.Background())
+}
+
 // QueueLeaf submits one leaf to the queue.
 func (t *TrillianLogRPCServer) QueueLeaf(ctx context.Context, req *trillian.QueueLeafRequest) (*empty.Empty, error) {
 	queueReq := &trillian.QueueLeavesRequest{

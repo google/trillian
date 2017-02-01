@@ -50,29 +50,22 @@ var sequencerGuardWindowFlag = flag.Duration("sequencer_guard_window", 0, "If se
 var privateKeyFile = flag.String("private_key_file", "", "File containing a PEM encoded private key")
 var privateKeyPassword = flag.String("private_key_password", "", "Password for server private key")
 
-// TODO(codingllama): Consider moving to server creation
-func checkDatabaseAccessible(registry extension.Registry) error {
-	logStorage, err := registry.GetLogStorage()
-	if err != nil {
-		return err
+func startRPCServer(registry extension.Registry) (*grpc.Server, error) {
+	logServer := server.NewTrillianLogRPCServer(registry, new(util.SystemTimeSource))
+	if err := logServer.CheckDatabaseAccessible(); err != nil {
+		return nil, err
 	}
-	return logStorage.CheckDatabaseAccessible(context.Background())
-}
 
-func startRPCServer(registry extension.Registry) *grpc.Server {
 	// Create and publish the RPC stats objects
 	statsInterceptor := monitoring.NewRPCStatsInterceptor(util.SystemTimeSource{}, "ct", "example")
 	statsInterceptor.Publish()
 
 	// Create the server, using the interceptor to record stats on the requests
 	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(statsInterceptor.Interceptor()))
-
-	logServer := server.NewTrillianLogRPCServer(registry, new(util.SystemTimeSource))
 	trillian.RegisterTrillianLogServer(grpcServer, logServer)
-
 	reflection.Register(grpcServer)
 
-	return grpcServer
+	return grpcServer, nil
 }
 
 func startHTTPServer(port int) error {
@@ -113,16 +106,10 @@ func main() {
 		glog.Fatalf("Failed create extension registry: %v", err)
 	}
 
-	if err := checkDatabaseAccessible(registry); err != nil {
-		glog.Errorf("Could not access storage, check db configuration and flags: %v", err)
-		os.Exit(1)
-	}
-
 	// Load up our private key, exit if this fails to work
 	// TODO(Martin2112): This will need to be changed for multi tenant as we'll need at
 	// least one key per tenant, possibly more.
 	keyManager, err := crypto.LoadPasswordProtectedPrivateKey(*privateKeyFile, *privateKeyPassword)
-
 	if err != nil {
 		glog.Fatalf("Failed to load log server key: %v", err)
 	}
@@ -140,8 +127,7 @@ func main() {
 	glog.Infof("Creating RPC server starting on port: %d", *serverPortFlag)
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", *serverPortFlag))
 	if err != nil {
-		glog.Errorf("Failed to listen on the server port: %d, because: %v", *serverPortFlag, err)
-		os.Exit(1)
+		glog.Exitf("Failed to listen on the server port: %d, because: %v", *serverPortFlag, err)
 	}
 
 	// Start the sequencing loop, which will run until we terminate the process. This controls
@@ -154,12 +140,14 @@ func main() {
 	go sequencerTask.OperationLoop()
 
 	// Bring up the RPC server and then block until we get a signal to stop
-	rpcServer := startRPCServer(registry)
-	go awaitSignal(rpcServer)
-	err = rpcServer.Serve(lis)
+	rpcServer, err := startRPCServer(registry)
 	if err != nil {
-		glog.Errorf("RPC server terminated on port %d: %v", *serverPortFlag, err)
-		os.Exit(1)
+		glog.Errorf("Failed to start RPC server: %v", err)
+	}
+	go awaitSignal(rpcServer)
+
+	if err := rpcServer.Serve(lis); err != nil {
+		glog.Fatalf("RPC server terminated on port %d: %v", *serverPortFlag, err)
 	}
 
 	// Shut down everything we previously started, rpc server is already down
