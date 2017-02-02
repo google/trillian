@@ -63,7 +63,7 @@ type AdminStorage interface {
 	// Begin starts a read/write transaction.
 	// A transaction must be explicitly committed before the data read by it
 	// is considered consistent.
-	Begin(ctx context.Context, treeID int64) (AdminTX, error)
+	Begin(ctx context.Context) (AdminTX, error)
 }
 
 // AdminReader provides a read-only interface for tree data.
