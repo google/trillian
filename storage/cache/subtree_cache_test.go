@@ -270,6 +270,11 @@ func TestRepopulateLogSubtree(t *testing.T) {
 			t.Fatalf("failed to create suffix key: %v", err)
 		}
 		s.Leaves[sfx] = leafHash
+		if numLeaves == 1 << uint(defaultLogStrata[0]) {
+			s.InternalNodeCount = uint32(len(cmtStorage.InternalNodes))
+		} else {
+			s.InternalNodeCount = 0
+		}
 		cmtStorage.Leaves[sfx] = leafHash
 
 		if err := populateTheThing(&s); err != nil {
