@@ -69,7 +69,8 @@ type SubtreeProto struct {
 	// the subtree are not generally stored. However internal nodes are stored for
 	// partially filled log subtrees.
 	InternalNodes map[string][]byte `protobuf:"bytes,5,rep,name=internal_nodes,json=internalNodes" json:"internal_nodes,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	// Used as a crosscheck on the internal node map by recording its expected size
+	// Used as a crosscheck on the internal node map by recording its expected size after
+	// loading and repopulation.
 	InternalNodeCount uint32 `protobuf:"varint,6,opt,name=internal_node_count,json=internalNodeCount" json:"internal_node_count,omitempty"`
 }
 
