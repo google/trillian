@@ -244,7 +244,7 @@ func TestRepopulateLogSubtree(t *testing.T) {
 	}
 	s := storagepb.SubtreeProto{
 		Leaves: make(map[string][]byte),
-		Depth:         int32(defaultLogStrata[0]),
+		Depth:  int32(defaultLogStrata[0]),
 	}
 	c := NewSubtreeCache(defaultLogStrata, PopulateLogSubtreeNodes(merkle.NewRFC6962TreeHasher(crypto.NewSHA256())), PrepareLogSubtreeWrite())
 	for numLeaves := int64(1); numLeaves <= 256; numLeaves++ {
@@ -281,7 +281,7 @@ func TestRepopulateLogSubtree(t *testing.T) {
 
 		// Repopulation should only have happened with a full subtree, otherwise the internal nodes map
 		// should be empty
-		if numLeaves != 1 << uint(defaultLogStrata[0]) {
+		if numLeaves != 1<<uint(defaultLogStrata[0]) {
 			if len(s.InternalNodes) != 0 {
 				t.Fatalf("(it %d) internal nodes should be empty but got: %v", numLeaves, s.InternalNodes)
 			}

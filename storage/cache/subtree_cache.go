@@ -37,17 +37,17 @@ type stratumInfo struct {
 type SubtreeCache struct {
 	// prefixLengths contains the strata prefix sizes for each multiple-of-8 tree
 	// size.
-	stratumInfo         []stratumInfo
+	stratumInfo []stratumInfo
 	// subtrees contains the Subtree data read from storage, and is updated by
 	// calls to SetNodeHash.
-	subtrees            map[string]*storagepb.SubtreeProto
+	subtrees map[string]*storagepb.SubtreeProto
 	// dirtyPrefixes keeps track of all Subtrees which need to be written back
 	// to storage.
-	dirtyPrefixes       map[string]bool
+	dirtyPrefixes map[string]bool
 	// mutex guards access to the maps above.
-	mutex               *sync.RWMutex
+	mutex *sync.RWMutex
 	// used to rebuild internal nodes when subtrees are loaded
-	populateSubtree     storage.PopulateSubtreeFunc
+	populateSubtree storage.PopulateSubtreeFunc
 	// used for preparation work when subtrees are about to be written to storage
 	prepareSubtreeWrite storage.PrepareSubtreeWriteFunc
 }
@@ -436,7 +436,7 @@ func PopulateLogSubtreeNodes(treeHasher merkle.TreeHasher) storage.PopulateSubtr
 					// no space for the root in the node cache
 					return
 				}
-				key, err := makeSuffixKey(8 - depth, index << uint(depth))
+				key, err := makeSuffixKey(8-depth, index<<uint(depth))
 				if err != nil {
 					// TODO(al): Don't panic Mr. Mainwaring.
 					panic(err)

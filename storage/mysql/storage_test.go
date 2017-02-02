@@ -12,9 +12,9 @@ import (
 	"testing"
 
 	"github.com/golang/glog"
-	"github.com/google/trillian/storage"
-	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/crypto"
+	"github.com/google/trillian/merkle"
+	"github.com/google/trillian/storage"
 )
 
 // Parallel tests must get different log or map ids
@@ -131,7 +131,7 @@ func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 		}
 
 		// Need to read nodes before attempting to write
-		if _, err := tx.GetMerkleNodes(writeRevision - 1, nodeIDsToRead); err != nil {
+		if _, err := tx.GetMerkleNodes(writeRevision-1, nodeIDsToRead); err != nil {
 			t.Fatalf("Failed to read nodes: %s", err)
 		}
 
