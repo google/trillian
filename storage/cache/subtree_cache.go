@@ -411,6 +411,9 @@ func PopulateMapSubtreeNodes(treeHasher merkle.TreeHasher) storage.PopulateSubtr
 func PopulateLogSubtreeNodes(treeHasher merkle.TreeHasher) storage.PopulateSubtreeFunc {
 	return func(st *storagepb.SubtreeProto) error {
 		cmt := merkle.NewCompactMerkleTree(treeHasher)
+		if st.Depth < 1 {
+			return fmt.Errorf("populate log subtree with invalid depth: %d", st.Depth)
+		}
 		fullyPopulatedLeafCount := 1 << uint(st.Depth)
 
 		// We're going to rebuild internal nodes if the subtree is fully populated so clear them now
