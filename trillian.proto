@@ -98,7 +98,7 @@ message Tree {
   // between ACTIVE and FROZEN.
   // Deleted trees are set as SOFT_DELETED for a certain time period, after
   // which they'll automatically transition to HARD_DELETED.
-  TreeState state = 2;
+  TreeState tree_state = 2;
 
   // Type of the tree.
   // Readonly.
