@@ -69,7 +69,7 @@ type AdminStorage interface {
 // AdminReader provides a read-only interface for tree data.
 type AdminReader interface {
 	// GetTree returns the tree corresponding to treeID or an error.
-	GetTree(ctx context.Context, treeID int64) (trillian.Tree, error)
+	GetTree(ctx context.Context, treeID int64) (*trillian.Tree, error)
 
 	// ListTreeIDs returns the IDs of all trees in storage.
 	// Note that there's no authorization restriction on the IDs returned,
@@ -90,5 +90,5 @@ type AdminWriter interface {
 	// the storage layer, thus may be ignored by the implementation.
 	// Remaining fields must be set to valid values.
 	// Returns an error if the tree is invalid or creation fails.
-	CreateTree(ctx context.Context, tree trillian.Tree) (trillian.Tree, error)
+	CreateTree(ctx context.Context, tree *trillian.Tree) (*trillian.Tree, error)
 }
