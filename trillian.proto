@@ -5,15 +5,27 @@ package trillian;
 // What goes in here?
 // Things which are exposed through the public trillian APIs.
 
-// This defines the way empty / node / leaf hashes are constructed incorporating
-// preimage protection, which can be application specific.
-enum TreeHasherPreimageType {
-  // For Certificate transparency leaf hash prefix = 0x00, node prefix = 0x01, empty hash
-  // is digest([]byte{}) as defined in the specification
-  RFC_6962_PREIMAGE = 0;
+// Supported hash algorithms. The numbering space is the same as for TLS,
+// given in RFC 5246 s7.4.1.4.1 and at:
+// http://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-18
+enum HashAlgorithm {
+  NONE = 0;
+  SHA256 = 4;
 }
 
-// Supported signature algorithms.  The numbering space is the same as for TLS,
+// Defines the way empty / node / leaf hashes are constructed incorporating
+// preimage protection, which can be application specific.
+enum HashStrategy {
+  // Hash strategy cannot be determined. Included to enable detection of
+  // mismatched proto versions being used. Represents an invalid value.
+  UNKNOWN_HASH_STRATEGY = 0;
+
+  // Certificate Transparency strategy: leaf hash prefix = 0x00, node prefix =
+  // 0x01, empty hash is digest([]byte{}), as defined in the specification.
+  RFC_6962 = 1;
+}
+
+// Supported signature algorithms. The numbering space is the same as for TLS,
 // given in RFC 5246 s7.4.1.4.1 and at:
 // http://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-16
 enum SignatureAlgorithm {
@@ -22,12 +34,107 @@ enum SignatureAlgorithm {
   ECDSA = 3;
 }
 
-// Supported hash algorithms.  The numbering space is the same as for TLS,
-// given in RFC 5246 s7.4.1.4.1 and at:
-// http://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-18
-enum HashAlgorithm {
-  NONE = 0;
-  SHA256 = 4;
+// State of the tree.
+enum TreeState {
+  // Tree state cannot be determined. Included to enable detection of
+  // mismatched proto versions being used. Represents an invalid value.
+  UNKNOWN_TREE_STATE = 0;
+
+  // Active trees are able to respond to both read and write requests.
+  ACTIVE = 1;
+
+  // Frozen trees are only able to respond to read requests, writting to a
+  // frozen tree is forbidden.
+  FROZEN = 2;
+
+  // Tree was been deleted, therefore is invisible and acts similarly to a
+  // non-existing tree for all requests.
+  // A soft deleted tree may be undeleted while the soft-deletion period has not
+  // passed.
+  SOFT_DELETED = 3;
+
+  // A hard deleted tree was been definitely deleted and cannot be recovered.
+  // Acts an a non-existing tree for all read and write requests, but blocks the
+  // tree ID from ever being reused.
+  HARD_DELETED = 4;
+}
+
+// Type of the tree.
+enum TreeType {
+  // Tree type cannot be determined. Included to enable detection of
+  // mismatched proto versions being used. Represents an invalid value.
+  UNKNOWN_TREE_TYPE = 0;
+
+  // Tree represents a verifiable log.
+  LOG = 1;
+
+  // Tree represents a verifiable map.
+  MAP  =2;
+}
+
+// Duplicate policy of a tree.
+enum DuplicatePolicy {
+  // Policy cannot be determined. Included to enable detection of
+  // mismatched proto versions being used. Represents an invalid value.
+  UNKNOWN_DUPLICATE_POLICY = 0;
+
+  // Duplicates are not allowed in the tree and will cause errors on insertion.
+  DUPLICATES_NOT_ALLOWED = 1;
+
+  // Duplicates are allowed in the tree.
+  DUPLICATES_ALLOWED = 2;
+}
+
+// Represents a tree, which may be either a verifiable log or map.
+// Readonly attributes are assigned at tree creation, after which they may not
+// be modified.
+message Tree {
+  // ID of the tree.
+  // Readonly.
+  int64 tree_id = 1;
+
+  // State of the tree.
+  // Trees are active after creation. At any point the tree may transition
+  // between ACTIVE and FROZEN.
+  // Deleted trees are set as SOFT_DELETED for a certain time period, after
+  // which they'll automatically transition to HARD_DELETED.
+  TreeState state = 2;
+
+  // Type of the tree.
+  // Readonly.
+  TreeType tree_type = 3;
+
+  // Hash strategy to be used by the tree.
+  // Readonly.
+  HashStrategy hash_strategy = 4;
+
+  // Hash algorithm to be used by the tree.
+  // Readonly.
+  HashAlgorithm hash_algorithm = 5;
+
+  // Signature algorithm to be used by the tree.
+  // Readonly.
+  SignatureAlgorithm signature_algorithm = 6;
+
+  // Duplicate policy to be used by the tree.
+  // Readonly.
+  DuplicatePolicy duplicate_policy = 7;
+
+  // Display name of the tree.
+  // Optional.
+  string display_name = 8;
+
+  // Description of the tree,
+  // Optional.
+  string description = 9;
+
+  // Timestamp of tree creation.
+  // Readonly.
+  int64 create_time_millis_since_epoch = 10;
+
+  // Timestamp of last tree update.
+  // Readonly (automatically assigned on updates).
+  int64 update_time_millis_since_epoch = 11;
 }
 
 // Protocol buffer encoding of the TLS DigitallySigned type, from
