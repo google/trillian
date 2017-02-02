@@ -418,7 +418,7 @@ func PopulateLogSubtreeNodes(treeHasher merkle.TreeHasher) storage.PopulateSubtr
 
 		// We're going to rebuild internal nodes if the subtree is fully populated so clear them now.
 		// Also they might have been left nil if none existed
-		if (st.InternalNodes == nil && len(st.Leaves) == 0) || len(st.Leaves) == fullyPopulatedLeafCount {
+		if st.InternalNodes == nil || len(st.Leaves) == fullyPopulatedLeafCount {
 			st.InternalNodes = make(map[string][]byte)
 		}
 
