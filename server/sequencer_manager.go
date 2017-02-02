@@ -49,7 +49,7 @@ func (s SequencerManager) Name() string {
 
 // ExecutePass performs sequencing for the specified set of Logs.
 func (s SequencerManager) ExecutePass(logIDs []int64, logctx LogOperationManagerContext) bool {
-	glog.V(1).Infof("beginning sequencing run for %v active log(s)", len(logIDs))
+	glog.V(1).Infof("Beginning sequencing run for %v active log(s)", len(logIDs))
 
 	successCount := 0
 	leavesAdded := 0
@@ -85,6 +85,6 @@ func (s SequencerManager) ExecutePass(logIDs []int64, logctx LogOperationManager
 		leavesAdded += leaves
 	}
 
-	glog.V(1).Infof("sequencing run completed %v succeeded %v failed %v leaves integrated", successCount, len(logIDs)-successCount, leavesAdded)
+	glog.V(1).Infof("Sequencing run completed %v succeeded %v failed %v leaves integrated", successCount, len(logIDs)-successCount, leavesAdded)
 	return false
 }
