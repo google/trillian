@@ -67,7 +67,7 @@ func (p ClientPool) Pick() *client.LogClient {
 // RunCTIntegrationForLog tests against the log with configuration cfg, with a set
 // of comma-separated server addresses given by servers, assuming that testdir holds
 // a variety of test data files.
-func RunCTIntegrationForLog(cfg ctfe.LogConfig, servers, testdir string, stats *wantStats) error {
+func RunCTIntegrationForLog(cfg ctfe.LogConfig, servers, testdir string, mmd time.Duration, stats *wantStats) error {
 	opts := jsonclient.Options{}
 	if cfg.PubKeyPEMFile != "" {
 		pubkey, err := ioutil.ReadFile(cfg.PubKeyPEMFile)
@@ -129,7 +129,7 @@ func RunCTIntegrationForLog(cfg ctfe.LogConfig, servers, testdir string, stats *
 	fmt.Printf("%s: Uploaded int-ca.cert to %v log, got SCT(time=%q)\n", cfg.Prefix, scts[0].SCTVersion, timeFromMS(scts[0].Timestamp))
 
 	// Keep getting the STH until tree size becomes 1.
-	sth1, err := awaitTreeSize(ctx, pool.Pick(), 1, true, stats)
+	sth1, err := awaitTreeSize(ctx, pool.Pick(), 1, true, mmd, stats)
 	if err != nil {
 		return fmt.Errorf("AwaitTreeSize(1)=(nil,%v); want (_,nil)", err)
 	}
@@ -149,7 +149,7 @@ func RunCTIntegrationForLog(cfg ctfe.LogConfig, servers, testdir string, stats *
 		return fmt.Errorf("got AddChain(leaf01)=(nil,%v); want (_,nil)", err)
 	}
 	fmt.Printf("%s: Uploaded cert01.chain to %v log, got SCT(time=%q)\n", cfg.Prefix, scts[1].SCTVersion, timeFromMS(scts[1].Timestamp))
-	sth2, err := awaitTreeSize(ctx, pool.Pick(), 2, true, stats)
+	sth2, err := awaitTreeSize(ctx, pool.Pick(), 2, true, mmd, stats)
 	if err != nil {
 		return fmt.Errorf("failed to get STH for size=1: %v", err)
 	}
@@ -200,7 +200,7 @@ func RunCTIntegrationForLog(cfg ctfe.LogConfig, servers, testdir string, stats *
 
 	// Stage 6: keep getting the STH until tree size becomes 1 + N (allows for int-ca.cert).
 	treeSize := 1 + count
-	sthN, err := awaitTreeSize(ctx, pool.Pick(), uint64(treeSize), true, stats)
+	sthN, err := awaitTreeSize(ctx, pool.Pick(), uint64(treeSize), true, mmd, stats)
 	if err != nil {
 		return fmt.Errorf("AwaitTreeSize(%d)=(nil,%v); want (_,nil)", treeSize, err)
 	}
@@ -332,7 +332,7 @@ func RunCTIntegrationForLog(cfg ctfe.LogConfig, servers, testdir string, stats *
 	}
 	fmt.Printf("%s: Uploaded precert to %v log, got SCT(time=%q)\n", cfg.Prefix, precertSCT.SCTVersion, timeFromMS(precertSCT.Timestamp))
 	treeSize++
-	sthN1, err := awaitTreeSize(ctx, pool.Pick(), uint64(treeSize), true, stats)
+	sthN1, err := awaitTreeSize(ctx, pool.Pick(), uint64(treeSize), true, mmd, stats)
 	if err != nil {
 		return fmt.Errorf("AwaitTreeSize(%d)=(nil,%v); want (_,nil)", treeSize, err)
 	}
@@ -440,9 +440,13 @@ func GetChain(dir, path string) ([]ct.ASN1Cert, error) {
 }
 
 // awaitTreeSize loops until the an STH is retrieved that is the specified size (or larger, if exact is false).
-func awaitTreeSize(ctx context.Context, logClient *client.LogClient, size uint64, exact bool, stats *wantStats) (*ct.SignedTreeHead, error) {
+func awaitTreeSize(ctx context.Context, logClient *client.LogClient, size uint64, exact bool, mmd time.Duration, stats *wantStats) (*ct.SignedTreeHead, error) {
 	var sth *ct.SignedTreeHead
+	deadline := time.Now().Add(mmd)
 	for sth == nil || sth.TreeSize < size {
+		if time.Now().After(deadline) {
+			return nil, fmt.Errorf("deadline for STH inclusion expired (MMD=%v)", mmd)
+		}
 		time.Sleep(200 * time.Millisecond)
 		var err error
 		sth, err = logClient.GetSTH(ctx)

@@ -29,6 +29,7 @@ var httpServersFlag = flag.String("ct_http_servers", "localhost:8092", "Comma-se
 var testDir = flag.String("testdata_dir", "testdata", "Name of directory with test data")
 var seed = flag.Int64("seed", -1, "Seed for random number generation")
 var logConfigFlag = flag.String("log_config", "", "File holding log config in JSON")
+var mmdFlag = flag.Duration("mmd", 30*time.Second, "MMD for tested logs")
 var skipStats = flag.Bool("skip_stats", false, "Skip checks of expected log statistics")
 
 func TestCTIntegration(t *testing.T) {
@@ -61,7 +62,7 @@ func TestCTIntegration(t *testing.T) {
 			if !*skipStats {
 				stats = newWantStats(c.LogID)
 			}
-			err := RunCTIntegrationForLog(c, *httpServersFlag, *testDir, stats)
+			err := RunCTIntegrationForLog(c, *httpServersFlag, *testDir, *mmdFlag, stats)
 			results <- result{prefix: c.Prefix, err: err}
 		}(c)
 	}
