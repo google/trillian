@@ -269,6 +269,8 @@ func (s *SubtreeCache) getNodeHashUnderLock(id storage.NodeID, getSubtree GetSub
 		nh = c.InternalNodes[sx.serialize()]
 	}
 	if nh == nil {
+		glog.Warningf("got a nil hash for: %v %d %v %d %d %d",
+			sx.serialize(), sx.bits, sx.path, c.Depth, len(c.InternalNodes), len(c.Leaves))
 		return nil, nil
 	}
 	return nh, nil
@@ -335,7 +337,7 @@ func (s *SubtreeCache) Flush(setSubtrees SetSubtreesFunc) error {
 
 			if len(v.Leaves) > 0 {
 				// clear the internal node cache; we don't want to write that.
-				glog.Warningf("writing %d leaves for %v", len(v.Leaves), v.Prefix)
+				glog.Warningf("writing %d leaves for %v losing %d", len(v.Leaves), v.Prefix, len(v.InternalNodes))
 				v.InternalNodes = nil
 				treesToWrite = append(treesToWrite, v)
 				toWrite++
@@ -418,6 +420,7 @@ func PopulateLogSubtreeNodes(treeHasher merkle.TreeHasher) storage.PopulateSubtr
 	return func(st *storagepb.SubtreeProto) error {
 		st.InternalNodes = make(map[string][]byte)
 		cmt := merkle.NewCompactMerkleTree(treeHasher)
+		glog.Warningf("reading %d leaves for %v", len(st.Leaves), st.Prefix)
 		for leafIndex := int64(0); leafIndex < int64(len(st.Leaves)); leafIndex++ {
 			sfx, err := makeSuffixKey(8, leafIndex)
 			if err != nil {
@@ -445,6 +448,7 @@ func PopulateLogSubtreeNodes(treeHasher merkle.TreeHasher) storage.PopulateSubtr
 				return fmt.Errorf("got seq of %d, but expected %d", got, expected)
 			}
 		}
+		glog.Warningf("repopulated %d internal nodes for %v", len(st.InternalNodes), st.Prefix)
 		st.RootHash = cmt.CurrentRoot()
 		return nil
 	}
