@@ -164,44 +164,6 @@ func TestTree813FetchAll(t *testing.T) {
 	}
 }
 
-func TestTree813FetchAll(t *testing.T) {
-	const ts int64 = 813
-
-	mt := treeAtSize(int(ts))
-	r := testonly.NewMultiFakeNodeReaderFromLeaves([]testonly.LeafBatch{
-		{TreeRevision: testTreeRevision, Leaves: expandLeaves(0, int(ts - 1)), ExpectedRoot: expectedRootAtSize(mt)},
-	})
-
-	for l := int64(271); l < ts; l++ {
-		fetches, err := merkle.CalcInclusionProofNodeAddresses(ts, l, ts, 64)
-
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		proof, err := fetchNodesAndBuildProof(r, testTreeRevision, int64(l), fetches)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		// We use +1 here because of the 1 based leaf indexing of this implementation
-		refProof := mt.PathToRootAtSnapshot(l + 1, ts)
-
-		if got, want := len(proof.ProofNode), len(refProof); got != want {
-			for i, f := range fetches {
-				t.Errorf("Fetch: %d => %s", i, f.NodeID.CoordString())
-			}
-			t.Fatalf("(%d, %d, %d): got proof len: %d, want: %d: %v\n%v", ts, ts, l, got, want, fetches, refProof)
-		}
-
-		for i := 0; i < len(proof.ProofNode); i++ {
-			if got, want := hex.EncodeToString(proof.ProofNode[i].NodeHash), hex.EncodeToString(refProof[i].Value.Hash()); got != want {
-				t.Fatalf("(%d, %d, %d): %d got proof node: %s, want: %s l:%d fetches: %v", ts, ts, l, i, got, want, len(proof.ProofNode), fetches)
-			}
-		}
-	}
-}
-
 func TestTree32InclusionProofFetchAll(t *testing.T) {
 	for ts := 2; ts <= 32; ts++ {
 		mt := treeAtSize(ts)
