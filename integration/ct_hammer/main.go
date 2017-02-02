@@ -53,7 +53,6 @@ var (
 )
 
 func main() {
-
 	flag.Parse()
 	if *logConfigFlag == "" {
 		glog.Fatal("Test aborted as no log config provided (via --log_config)")
