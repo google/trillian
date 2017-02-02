@@ -288,13 +288,10 @@ func addChainInternal(ctx context.Context, c LogContext, w http.ResponseWriter, 
 	req := trillian.QueueLeavesRequest{LogId: c.logID, Leaves: []*trillian.LogLeaf{&leaf}}
 
 	glog.V(2).Infof("%s: %s => grpc.QueueLeaves", c.LogPrefix, method)
-	rsp, err := c.rpcClient.QueueLeaves(ctx, &req)
-	glog.V(2).Infof("%s: %s <= grpc.QueueLeaves status=%v", c.LogPrefix, method, rsp.GetStatus())
+	_, err = c.rpcClient.QueueLeaves(ctx, &req)
+	glog.V(2).Infof("%s: %s <= grpc.QueueLeaves err=%v", c.LogPrefix, method, err)
 	if err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("backend QueueLeaves request failed: %v", err)
-	}
-	if !rpcStatusOK(rsp.GetStatus()) {
-		return http.StatusInternalServerError, fmt.Errorf("backend QueueLeaves request failed, status=%v", rsp.GetStatus())
 	}
 
 	// As the Log server has successfully queued up the Merkle tree leaf, we can
@@ -324,12 +321,9 @@ func getSTH(ctx context.Context, c LogContext, w http.ResponseWriter, r *http.Re
 	req := trillian.GetLatestSignedLogRootRequest{LogId: c.logID}
 	glog.V(2).Infof("%s: GetSTH => grpc.GetLatestSignedLogRoot %+v", c.LogPrefix, req)
 	rsp, err := c.rpcClient.GetLatestSignedLogRoot(ctx, &req)
-	glog.V(2).Infof("%s: GetSTH <= grpc.GetLatestSignedLogRoot status=%v", c.LogPrefix, rsp.GetStatus())
+	glog.V(2).Infof("%s: GetSTH <= grpc.GetLatestSignedLogRoot err=%v", c.LogPrefix, err)
 	if err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("backend GetLatestSignedLogRoot request failed: %v", err)
-	}
-	if !rpcStatusOK(rsp.GetStatus()) {
-		return http.StatusInternalServerError, fmt.Errorf("backend GetLatestSignedLogRoot request failed, status=%v", rsp.GetStatus())
 	}
 
 	// Check over the response.
@@ -395,12 +389,9 @@ func getSTHConsistency(ctx context.Context, c LogContext, w http.ResponseWriter,
 
 	glog.V(2).Infof("%s: GetSTHConsistency(%d, %d) => grpc.GetConsistencyProof %+v", c.LogPrefix, first, second, req)
 	rsp, err := c.rpcClient.GetConsistencyProof(ctx, &req)
-	glog.V(2).Infof("%s: GetSTHConsistency <= grpc.GetConsistencyProof status=%v", c.LogPrefix, rsp.GetStatus())
+	glog.V(2).Infof("%s: GetSTHConsistency <= grpc.GetConsistencyProof err=%v", c.LogPrefix, err)
 	if err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("backend GetConsistencyProof request failed: %v", err)
-	}
-	if !rpcStatusOK(rsp.GetStatus()) {
-		return http.StatusInternalServerError, fmt.Errorf("backend GetConsistencyProof request failed, status=%v", rsp.GetStatus())
 	}
 
 	// Additional sanity checks, none of the hashes in the returned path should be empty
@@ -459,9 +450,6 @@ func getProofByHash(ctx context.Context, c LogContext, w http.ResponseWriter, r 
 	if err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("backend GetInclusionProofByHash request failed: %v", err)
 	}
-	if !rpcStatusOK(rsp.GetStatus()) {
-		return http.StatusInternalServerError, fmt.Errorf("backend GetInclusionProofByHash request failed, status=%v", rsp.GetStatus())
-	}
 
 	// Additional sanity checks, none of the hashes in the returned path should be empty
 	if len(rsp.Proof) == 0 {
@@ -507,9 +495,6 @@ func getEntries(ctx context.Context, c LogContext, w http.ResponseWriter, r *htt
 	rsp, err := c.rpcClient.GetLeavesByIndex(ctx, &req)
 	if err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("backend GetLeavesByIndex request failed: %v", err)
-	}
-	if !rpcStatusOK(rsp.GetStatus()) {
-		return http.StatusInternalServerError, fmt.Errorf("backend GetLeavesByIndex request failed, status=%v", rsp.GetStatus())
 	}
 
 	// Trillian doesn't guarantee the returned leaves are in order (they don't need to be
@@ -577,9 +562,6 @@ func getEntryAndProof(ctx context.Context, c LogContext, w http.ResponseWriter, 
 	if err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("backend GetEntryAndProof request failed: %v", err)
 	}
-	if !rpcStatusOK(rsp.GetStatus()) {
-		return http.StatusInternalServerError, fmt.Errorf("backend GetEntryAndProof request failed, status=%v", rsp.GetStatus())
-	}
 
 	// Apply some checks that we got reasonable data from the backend
 	if rsp.Proof == nil || rsp.Leaf == nil || len(rsp.Proof.ProofNode) == 0 || len(rsp.Leaf.LeafValue) == 0 {
@@ -618,10 +600,6 @@ func sendHTTPError(w http.ResponseWriter, statusCode int, err error) {
 // getRPCDeadlineTime calculates the future time an RPC should expire based on our config
 func getRPCDeadlineTime(c LogContext) time.Time {
 	return c.TimeSource.Now().Add(c.rpcDeadline)
-}
-
-func rpcStatusOK(status *trillian.TrillianApiStatus) bool {
-	return status != nil && status.StatusCode == trillian.TrillianApiStatusCode_OK
 }
 
 // verifyAddChain is used by add-chain and add-pre-chain. It does the checks that the supplied

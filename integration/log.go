@@ -90,7 +90,7 @@ func RunLogIntegration(client trillian.TrillianLogClient, params TestParameters)
 		glog.Infof("Checking log is empty before starting test")
 		resp, err := getLatestSignedLogRoot(client, params)
 
-		if err != nil || resp.Status.StatusCode != trillian.TrillianApiStatusCode_OK {
+		if err != nil {
 			return fmt.Errorf("failed to get latest log root: %v %v", resp, err)
 		}
 
@@ -201,17 +201,12 @@ func queueLeaves(client trillian.TrillianLogClient, params TestParameters) error
 
 			req := makeQueueLeavesRequest(params.treeID, leaves)
 			ctx, cancel := getRPCDeadlineContext(params)
-			response, err := client.QueueLeaves(ctx, &req)
+			_, err := client.QueueLeaves(ctx, &req)
 			cancel()
 
 			if err != nil {
 				return err
 			}
-
-			if got := response.Status; got == nil || got.StatusCode != trillian.TrillianApiStatusCode_OK {
-				return fmt.Errorf("queue leaves failed: %s %d", response.Status.Description, response.Status.StatusCode)
-			}
-
 			leaves = leaves[:0] // starting new batch
 		}
 	}
@@ -278,10 +273,6 @@ func readbackLogEntries(logID int64, client trillian.TrillianLogClient, params T
 
 		if err != nil {
 			return nil, err
-		}
-
-		if got := response.Status; got == nil || got.StatusCode != trillian.TrillianApiStatusCode_OK {
-			return nil, fmt.Errorf("read leaves failed: %s %d", response.Status.Description, response.Status.StatusCode)
 		}
 
 		// Check we got the right leaf count
@@ -400,7 +391,7 @@ func checkInclusionProofsAtIndex(index int64, logID int64, tree *merkle.InMemory
 		}
 
 		// Otherwise we should have a proof, to be compared against our memory tree
-		if err != nil || resp.Status.StatusCode != trillian.TrillianApiStatusCode_OK {
+		if err != nil {
 			return fmt.Errorf("log returned no proof for index %d at size %d, which should have succeeded: %v", index, treeSize, err)
 		}
 
@@ -427,7 +418,7 @@ func checkConsistencyProof(consistParams consistencyProofParams, treeID int64, t
 		})
 	cancel()
 
-	if err != nil || resp.Status.StatusCode != trillian.TrillianApiStatusCode_OK {
+	if err != nil {
 		return fmt.Errorf("GetConsistencyProof(%v) = %v %v", consistParams, err, resp)
 	}
 

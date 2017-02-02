@@ -27,6 +27,8 @@ import (
 	"github.com/google/trillian/examples/ct/testonly"
 	"github.com/google/trillian/mockclient"
 	"github.com/google/trillian/util"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 )
 
 // Arbitrary time for use in tests
@@ -35,7 +37,6 @@ var fakeTime = time.Date(2016, 7, 22, 11, 01, 13, 0, time.UTC)
 // The deadline should be the above bumped by 500ms
 var fakeDeadlineTime = time.Date(2016, 7, 22, 11, 01, 13, 500*1000*1000, time.UTC)
 var fakeTimeSource = util.FakeTimeSource{FakeTime: fakeTime}
-var okStatus = &trillian.TrillianApiStatus{StatusCode: trillian.TrillianApiStatusCode_OK}
 
 const caCertB64 string = `MIIC0DCCAjmgAwIBAgIBADANBgkqhkiG9w0BAQUFADBVMQswCQYDVQQGEwJHQjEk
 MCIGA1UEChMbQ2VydGlmaWNhdGUgVHJhbnNwYXJlbmN5IENBMQ4wDAYDVQQIEwVX
@@ -267,11 +268,11 @@ func TestGetRoots(t *testing.T) {
 
 func TestAddChain(t *testing.T) {
 	var tests = []struct {
-		descr     string
-		chain     []string
-		toSign    string // hex-encoded
-		rpcStatus trillian.TrillianApiStatusCode
-		want      int
+		descr  string
+		chain  []string
+		toSign string // hex-encoded
+		want   int
+		err    error
 	}{
 		{
 			descr: "leaf-only",
@@ -284,18 +285,17 @@ func TestAddChain(t *testing.T) {
 			want:  http.StatusBadRequest,
 		},
 		{
-			descr:     "backend-rpc-fail",
-			chain:     []string{testonly.LeafSignedByFakeIntermediateCertPEM, testonly.FakeIntermediateCertPEM},
-			toSign:    "1337d72a403b6539f58896decba416d5d4b3603bfa03e1f94bb9b4e898af897d",
-			rpcStatus: trillian.TrillianApiStatusCode_ERROR,
-			want:      http.StatusInternalServerError,
+			descr:  "backend-rpc-fail",
+			chain:  []string{testonly.LeafSignedByFakeIntermediateCertPEM, testonly.FakeIntermediateCertPEM},
+			toSign: "1337d72a403b6539f58896decba416d5d4b3603bfa03e1f94bb9b4e898af897d",
+			want:   http.StatusInternalServerError,
+			err:    grpc.Errorf(codes.Internal, "error"),
 		},
 		{
-			descr:     "success",
-			chain:     []string{testonly.LeafSignedByFakeIntermediateCertPEM, testonly.FakeIntermediateCertPEM},
-			toSign:    "1337d72a403b6539f58896decba416d5d4b3603bfa03e1f94bb9b4e898af897d",
-			rpcStatus: trillian.TrillianApiStatusCode_OK,
-			want:      http.StatusOK,
+			descr:  "success",
+			chain:  []string{testonly.LeafSignedByFakeIntermediateCertPEM, testonly.FakeIntermediateCertPEM},
+			toSign: "1337d72a403b6539f58896decba416d5d4b3603bfa03e1f94bb9b4e898af897d",
+			want:   http.StatusOK,
 		},
 	}
 	info := setupTest(t, []string{testonly.FakeCACertPEM})
@@ -312,7 +312,7 @@ func TestAddChain(t *testing.T) {
 				continue
 			}
 			leaves := logLeavesForCert(t, info.km, pool.RawCertificates(), merkleLeaf, false)
-			info.client.EXPECT().QueueLeaves(deadlineMatcher(), &trillian.QueueLeavesRequest{LogId: 0x42, Leaves: leaves}).Return(&trillian.QueueLeavesResponse{Status: &trillian.TrillianApiStatus{StatusCode: test.rpcStatus}}, nil)
+			info.client.EXPECT().QueueLeaves(deadlineMatcher(), &trillian.QueueLeavesRequest{LogId: 0x42, Leaves: leaves}).Return(&trillian.QueueLeavesResponse{}, test.err)
 		}
 
 		recorder := makeAddChainRequest(t, info.c, chain)
@@ -344,11 +344,11 @@ func TestAddChain(t *testing.T) {
 
 func TestAddPrechain(t *testing.T) {
 	var tests = []struct {
-		descr     string
-		chain     []string
-		toSign    string // hex-encoded
-		rpcStatus trillian.TrillianApiStatusCode
-		want      int
+		descr  string
+		chain  []string
+		toSign string // hex-encoded
+		err    error
+		want   int
 	}{
 		{
 			descr: "leaf-signed-by-different",
@@ -361,18 +361,17 @@ func TestAddPrechain(t *testing.T) {
 			want:  http.StatusBadRequest,
 		},
 		{
-			descr:     "backend-rpc-fail",
-			chain:     []string{testonly.PrecertPEMValid, testonly.CACertPEM},
-			toSign:    "92ecae1a2dc67a6c5f9c96fa5cab4c2faf27c48505b696dad926f161b0ca675a",
-			rpcStatus: trillian.TrillianApiStatusCode_ERROR,
-			want:      http.StatusInternalServerError,
+			descr:  "backend-rpc-fail",
+			chain:  []string{testonly.PrecertPEMValid, testonly.CACertPEM},
+			toSign: "92ecae1a2dc67a6c5f9c96fa5cab4c2faf27c48505b696dad926f161b0ca675a",
+			err:    grpc.Errorf(codes.Internal, "error"),
+			want:   http.StatusInternalServerError,
 		},
 		{
-			descr:     "success",
-			chain:     []string{testonly.PrecertPEMValid, testonly.CACertPEM},
-			toSign:    "92ecae1a2dc67a6c5f9c96fa5cab4c2faf27c48505b696dad926f161b0ca675a",
-			rpcStatus: trillian.TrillianApiStatusCode_OK,
-			want:      http.StatusOK,
+			descr:  "success",
+			chain:  []string{testonly.PrecertPEMValid, testonly.CACertPEM},
+			toSign: "92ecae1a2dc67a6c5f9c96fa5cab4c2faf27c48505b696dad926f161b0ca675a",
+			want:   http.StatusOK,
 		},
 	}
 	info := setupTest(t, []string{testonly.CACertPEM})
@@ -389,7 +388,7 @@ func TestAddPrechain(t *testing.T) {
 				continue
 			}
 			leaves := logLeavesForCert(t, info.km, pool.RawCertificates(), merkleLeaf, true)
-			info.client.EXPECT().QueueLeaves(deadlineMatcher(), &trillian.QueueLeavesRequest{LogId: 0x42, Leaves: leaves}).Return(&trillian.QueueLeavesResponse{Status: &trillian.TrillianApiStatus{StatusCode: test.rpcStatus}}, nil)
+			info.client.EXPECT().QueueLeaves(deadlineMatcher(), &trillian.QueueLeavesRequest{LogId: 0x42, Leaves: leaves}).Return(&trillian.QueueLeavesResponse{}, test.err)
 		}
 
 		recorder := makeAddPrechainRequest(t, info.c, chain)
@@ -598,7 +597,6 @@ func TestGetEntries(t *testing.T) {
 			req:   "start=1&end=2",
 			want:  http.StatusInternalServerError,
 			rpcRsp: &trillian.GetLeavesByIndexResponse{
-				Status: okStatus,
 				Leaves: []*trillian.LogLeaf{{LeafIndex: 1}, {LeafIndex: 2}, {LeafIndex: 3}},
 			},
 			errStr: "too many leaves",
@@ -608,7 +606,6 @@ func TestGetEntries(t *testing.T) {
 			req:   "start=1&end=2",
 			want:  http.StatusInternalServerError,
 			rpcRsp: &trillian.GetLeavesByIndexResponse{
-				Status: okStatus,
 				Leaves: []*trillian.LogLeaf{{LeafIndex: 1}, {LeafIndex: 3}},
 			},
 			errStr: "unexpected leaf index",
@@ -618,7 +615,6 @@ func TestGetEntries(t *testing.T) {
 			req:   "start=1&end=2",
 			want:  http.StatusOK,
 			rpcRsp: &trillian.GetLeavesByIndexResponse{
-				Status: okStatus,
 				Leaves: []*trillian.LogLeaf{
 					{LeafIndex: 1, MerkleLeafHash: []byte("hash"), LeafValue: []byte("NOT A MERKLE TREE LEAF")},
 					{LeafIndex: 2, MerkleLeafHash: []byte("hash"), LeafValue: []byte("NOT A MERKLE TREE LEAF")},
@@ -630,7 +626,6 @@ func TestGetEntries(t *testing.T) {
 			req:   "start=1&end=2",
 			want:  http.StatusOK,
 			rpcRsp: &trillian.GetLeavesByIndexResponse{
-				Status: okStatus,
 				Leaves: []*trillian.LogLeaf{
 					{LeafIndex: 1, MerkleLeafHash: []byte("hash"), LeafValue: merkleBytes1, ExtraData: []byte("extra1")},
 					{LeafIndex: 2, MerkleLeafHash: []byte("hash"), LeafValue: merkleBytes2, ExtraData: []byte("extra2")},
@@ -822,7 +817,6 @@ func TestGetProofByHash(t *testing.T) {
 			req:  "tree_size=7&hash=YWhhc2g=",
 			want: http.StatusOK,
 			rpcRsp: &trillian.GetInclusionProofByHashResponse{
-				Status: okStatus,
 				Proof: []*trillian.Proof{
 					{
 						LeafIndex: 2,
@@ -847,7 +841,6 @@ func TestGetProofByHash(t *testing.T) {
 			req:  "tree_size=9&hash=YWhhc2g=",
 			want: http.StatusInternalServerError,
 			rpcRsp: &trillian.GetInclusionProofByHashResponse{
-				Status: okStatus,
 				Proof: []*trillian.Proof{
 					{
 						LeafIndex: 2,
@@ -865,7 +858,6 @@ func TestGetProofByHash(t *testing.T) {
 			req:  "tree_size=7&hash=YWhhc2g=",
 			want: http.StatusOK,
 			rpcRsp: &trillian.GetInclusionProofByHashResponse{
-				Status: okStatus,
 				Proof: []*trillian.Proof{
 					{
 						LeafIndex: 2,
@@ -983,7 +975,6 @@ func TestGetSTHConsistency(t *testing.T) {
 			req:  "first=10&second=20",
 			want: http.StatusInternalServerError,
 			rpcRsp: &trillian.GetConsistencyProofResponse{
-				Status: okStatus,
 				Proof: &trillian.Proof{
 					LeafIndex: 2,
 					ProofNode: []*trillian.Node{
@@ -999,7 +990,6 @@ func TestGetSTHConsistency(t *testing.T) {
 			req:  "first=10&second=20",
 			want: http.StatusOK,
 			rpcRsp: &trillian.GetConsistencyProofResponse{
-				Status: okStatus,
 				Proof: &trillian.Proof{
 					LeafIndex: 2,
 					// Proof to match consistencyProof above.
@@ -1124,13 +1114,12 @@ func TestGetEntryAndProof(t *testing.T) {
 			req:  "leaf_index=1&tree_size=3",
 			want: http.StatusInternalServerError,
 			// No result data in backend response
-			rpcRsp: &trillian.GetEntryAndProofResponse{Status: okStatus},
+			rpcRsp: &trillian.GetEntryAndProofResponse{},
 		},
 		{
 			req:  "leaf_index=1&tree_size=3",
 			want: http.StatusOK,
 			rpcRsp: &trillian.GetEntryAndProofResponse{
-				Status: okStatus,
 				Proof: &trillian.Proof{
 					LeafIndex: 2,
 					ProofNode: []*trillian.Node{
@@ -1288,7 +1277,6 @@ func bytesToLeaf(leafBytes []byte) (*ct.MerkleTreeLeaf, error) {
 
 func makeGetRootResponseForTest(stamp, treeSize int64, hash []byte) *trillian.GetLatestSignedLogRootResponse {
 	return &trillian.GetLatestSignedLogRootResponse{
-		Status: &trillian.TrillianApiStatus{StatusCode: trillian.TrillianApiStatusCode_OK},
 		SignedLogRoot: &trillian.SignedLogRoot{
 			TimestampNanos: stamp,
 			TreeSize:       treeSize,
