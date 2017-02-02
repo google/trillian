@@ -37,17 +37,19 @@ type stratumInfo struct {
 type SubtreeCache struct {
 	// prefixLengths contains the strata prefix sizes for each multiple-of-8 tree
 	// size.
-	stratumInfo []stratumInfo
+	stratumInfo         []stratumInfo
 	// subtrees contains the Subtree data read from storage, and is updated by
 	// calls to SetNodeHash.
-	subtrees map[string]*storagepb.SubtreeProto
+	subtrees            map[string]*storagepb.SubtreeProto
 	// dirtyPrefixes keeps track of all Subtrees which need to be written back
 	// to storage.
-	dirtyPrefixes map[string]bool
+	dirtyPrefixes       map[string]bool
 	// mutex guards access to the maps above.
-	mutex *sync.RWMutex
-
-	populateSubtree storage.PopulateSubtreeFunc
+	mutex               *sync.RWMutex
+	// used to rebuild internal nodes when subtrees are loaded
+	populateSubtree     storage.PopulateSubtreeFunc
+	// used for preparation work when subtrees are about to be written to storage
+	prepareSubtreeWrite storage.PrepareSubtreeWriteFunc
 }
 
 // Suffix represents the tail of a NodeID, indexing into the Subtree which
@@ -71,7 +73,7 @@ func (s Suffix) serialize() string {
 // internal nodes given its leaves, and will be called for each subtree loaded
 // from storage.
 // TODO(al): consider supporting different sized subtrees - for now everything's subtrees of 8 levels.
-func NewSubtreeCache(strataDepths []int, populateSubtree storage.PopulateSubtreeFunc) SubtreeCache {
+func NewSubtreeCache(strataDepths []int, populateSubtree storage.PopulateSubtreeFunc, prepareSubtreeWrite storage.PrepareSubtreeWriteFunc) SubtreeCache {
 	// TODO(al): pass this in
 	maxTreeDepth := 256
 	// Precalculate strata information based on the passed in strata depths:
@@ -99,11 +101,12 @@ func NewSubtreeCache(strataDepths []int, populateSubtree storage.PopulateSubtree
 	}
 
 	return SubtreeCache{
-		stratumInfo:     sInfo,
-		subtrees:        make(map[string]*storagepb.SubtreeProto),
-		dirtyPrefixes:   make(map[string]bool),
-		mutex:           new(sync.RWMutex),
-		populateSubtree: populateSubtree,
+		stratumInfo:         sInfo,
+		subtrees:            make(map[string]*storagepb.SubtreeProto),
+		dirtyPrefixes:       make(map[string]bool),
+		mutex:               new(sync.RWMutex),
+		populateSubtree:     populateSubtree,
+		prepareSubtreeWrite: prepareSubtreeWrite,
 	}
 }
 
@@ -269,8 +272,6 @@ func (s *SubtreeCache) getNodeHashUnderLock(id storage.NodeID, getSubtree GetSub
 		nh = c.InternalNodes[sx.serialize()]
 	}
 	if nh == nil {
-		glog.Warningf("got a nil hash for: %v %d %v %d %d %d",
-			sx.serialize(), sx.bits, sx.path, c.Depth, len(c.InternalNodes), len(c.Leaves))
 		return nil, nil
 	}
 	return nh, nil
@@ -336,16 +337,15 @@ func (s *SubtreeCache) Flush(setSubtrees SetSubtreesFunc) error {
 			leaves += len(v.Leaves)
 
 			if len(v.Leaves) > 0 {
-				// clear the internal node cache; we don't want to write that.
-				glog.Warningf("writing %d leaves for %v losing %d", len(v.Leaves), v.Prefix, len(v.InternalNodes))
-				v.InternalNodes = nil
+				// prepare internal nodes ready for the write (tree type specific)
+				if err := s.prepareSubtreeWrite(v); err != nil {
+					return err
+				}
 				treesToWrite = append(treesToWrite, v)
 				toWrite++
 			}
 		}
 	}
-	glog.Warningf("claimed dirty %d and we found %d subtrees toWrite %d leaves %d",
-		len(s.dirtyPrefixes), unclean, toWrite, leaves)
 	if len(treesToWrite) == 0 {
 		return nil
 	}
@@ -415,12 +415,20 @@ func PopulateMapSubtreeNodes(treeHasher merkle.TreeHasher) storage.PopulateSubtr
 // subtree Leaves map.
 //
 // This uses the CompactMerkleTree to repopulate internal nodes, and so will
-// handle imperfect (but left-hand dense) subtrees.
+// handle imperfect (but left-hand dense) subtrees. Note that we only rebuild internal
+// nodes when the subtree is fully populated. For an explanation of why see the comments
+// below for PrepareLogSubtreeWrite.
 func PopulateLogSubtreeNodes(treeHasher merkle.TreeHasher) storage.PopulateSubtreeFunc {
 	return func(st *storagepb.SubtreeProto) error {
-		st.InternalNodes = make(map[string][]byte)
 		cmt := merkle.NewCompactMerkleTree(treeHasher)
-		glog.Warningf("reading %d leaves for %v", len(st.Leaves), st.Prefix)
+		fullyPopulatedLeafCount := 1 << uint(st.Depth)
+
+		// We're going to rebuild internal nodes if the subtree is fully populated so clear them now
+		if len(st.Leaves) == fullyPopulatedLeafCount {
+			st.InternalNodes = make(map[string][]byte)
+		}
+
+		// We need to update the subtree root hash regardless of whether it's fully populated
 		for leafIndex := int64(0); leafIndex < int64(len(st.Leaves)); leafIndex++ {
 			sfx, err := makeSuffixKey(8, leafIndex)
 			if err != nil {
@@ -435,12 +443,14 @@ func PopulateLogSubtreeNodes(treeHasher merkle.TreeHasher) storage.PopulateSubtr
 					// no space for the root in the node cache
 					return
 				}
-				key, err := makeSuffixKey(8-depth, index<<uint(depth))
+				key, err := makeSuffixKey(8 - depth, index << uint(depth))
 				if err != nil {
 					// TODO(al): Don't panic Mr. Mainwaring.
 					panic(err)
 				}
-				if depth > 0 {
+				// Don't put leaves into the internal map and only update if we're rebuilding internal
+				// nodes
+				if depth > 0 && len(st.Leaves) == fullyPopulatedLeafCount {
 					st.InternalNodes[key] = h
 				}
 			})
@@ -448,8 +458,43 @@ func PopulateLogSubtreeNodes(treeHasher merkle.TreeHasher) storage.PopulateSubtr
 				return fmt.Errorf("got seq of %d, but expected %d", got, expected)
 			}
 		}
-		glog.Warningf("repopulated %d internal nodes for %v", len(st.InternalNodes), st.Prefix)
 		st.RootHash = cmt.CurrentRoot()
+		return nil
+	}
+}
+
+// PrepareMapSubtreeWriteFunc prepares a map subtree for writing. For maps the internal
+// nodes are never written to storage and are thus always cleared
+func PrepareMapSubtreeWrite() storage.PrepareSubtreeWriteFunc {
+	return func(st *storagepb.SubtreeProto) error {
+		st.InternalNodes = nil
+		return nil
+	}
+}
+
+// PrepareLogSubtreeWriteFunc prepares a log subtree for writing. If the subtree is fully
+// populated the internal nodes are cleared. Otherwise they are written.
+//
+// To see why this is necessary consider the case where a tree has a single full subtree
+// and then an additional leaf is added.
+//
+// This causes an extra level to be added to the tree with an internal node that is a hash
+// of the root of the left full subtree and the new leaf. Thus the internal nodes cannot be
+// correctly reconstructed when the tree is reloaded because of the dependency on another
+// subtree.
+//
+// Fully populated subtrees don't have this problem because by definition they can only
+// contain internal nodes built from their contents.
+func PrepareLogSubtreeWrite() storage.PrepareSubtreeWriteFunc {
+	return func(st *storagepb.SubtreeProto) error {
+		if st.Depth < 1 {
+			return fmt.Errorf("prepare subtree for log write invalid depth: %d", st.Depth)
+		}
+		fullyPopulatedNodeCount := 1 << uint(st.Depth)
+		// If the subtree is fully populated we can safely clear the internal nodes
+		if len(st.Leaves) == fullyPopulatedNodeCount {
+			st.InternalNodes = nil
+		}
 		return nil
 	}
 }

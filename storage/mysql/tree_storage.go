@@ -150,7 +150,7 @@ func (m *mySQLTreeStorage) setSubtreeStmt(num int) (*sql.Stmt, error) {
 	return m.getStmt(insertSubtreeMultiSQL, num, "VALUES(?, ?, ?, ?)", "(?, ?, ?, ?)")
 }
 
-func (m *mySQLTreeStorage) beginTreeTx(ctx context.Context, treeID int64, hashSizeBytes int, strataDepths []int, populateSubtree storage.PopulateSubtreeFunc) (treeTX, error) {
+func (m *mySQLTreeStorage) beginTreeTx(ctx context.Context, treeID int64, hashSizeBytes int, strataDepths []int, populateSubtree storage.PopulateSubtreeFunc, prepareSubtreeWrite storage.PrepareSubtreeWriteFunc) (treeTX, error) {
 	// TODO(alcutter): use BeginTX(ctx) when we move to Go 1.8
 	t, err := m.db.Begin()
 	if err != nil {
@@ -162,7 +162,7 @@ func (m *mySQLTreeStorage) beginTreeTx(ctx context.Context, treeID int64, hashSi
 		ts:            m,
 		treeID:        treeID,
 		hashSizeBytes: hashSizeBytes,
-		subtreeCache:  cache.NewSubtreeCache(strataDepths, populateSubtree),
+		subtreeCache:  cache.NewSubtreeCache(strataDepths, populateSubtree, prepareSubtreeWrite),
 		writeRevision: -1,
 	}, nil
 }
@@ -256,7 +256,7 @@ func (t *treeTX) getSubtrees(treeRevision int64, nodeIDs []storage.NodeID) ([]*s
 		ret = append(ret, &subtree)
 	}
 
-	// The InternalNodes cache is nil here, but the SubtreeCache (which called
+	// The InternalNodes cache is possibly nil here, but the SubtreeCache (which called
 	// this method) will re-populate it.
 	return ret, nil
 }
@@ -277,9 +277,6 @@ func (t *treeTX) storeSubtrees(subtrees []*storagepb.SubtreeProto) error {
 		if s.Prefix == nil {
 			panic(fmt.Errorf("nil prefix on %v", s))
 		}
-		// Ensure we're not storing the internal nodes, since we'll just recalculate
-		// them when we read this subtree back.
-		s.InternalNodes = nil
 		subtreeBytes, err := proto.Marshal(s)
 		if err != nil {
 			return err

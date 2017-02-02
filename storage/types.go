@@ -213,3 +213,7 @@ func (n *NodeID) Equivalent(other NodeID) bool {
 // PopulateSubtreeFunc is a function which knows how to re-populate a subtree
 // from just its leaf nodes.
 type PopulateSubtreeFunc func(*storagepb.SubtreeProto) error
+
+// PrepareSubtreeWriteFunc is a function that carries out any required tree type specific
+// manipulation of a subtree before it's written to storage
+type PrepareSubtreeWriteFunc func(*storagepb.SubtreeProto) error

@@ -53,7 +53,7 @@ func (m *mySQLMapStorage) Begin(ctx context.Context, treeID int64) (storage.MapT
 	// TODO(codingllama): Validate treeType, read hash algorithm from storage
 	th := merkle.NewRFC6962TreeHasher(crypto.NewSHA256())
 
-	ttx, err := m.beginTreeTx(ctx, treeID, th.Size(), defaultMapStrata, cache.PopulateMapSubtreeNodes(th))
+	ttx, err := m.beginTreeTx(ctx, treeID, th.Size(), defaultMapStrata, cache.PopulateMapSubtreeNodes(th), cache.PrepareMapSubtreeWrite())
 	if err != nil {
 		return nil, err
 	}

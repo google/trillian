@@ -2,15 +2,12 @@ package cache
 
 import (
 	"bytes"
-	"encoding/base64"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"reflect"
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
@@ -45,7 +42,7 @@ var defaultLogStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 
 var defaultMapStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 176}
 
 func TestSplitNodeID(t *testing.T) {
-	c := NewSubtreeCache(defaultMapStrata, PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher(crypto.NewSHA256())))
+	c := NewSubtreeCache(defaultMapStrata, PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher(crypto.NewSHA256())), PrepareMapSubtreeWrite())
 	for i, v := range splitTestVector {
 		n := storage.NewNodeIDFromHash(v.inPath)
 		n.PrefixLenBits = v.inPathLenBits
@@ -70,7 +67,7 @@ func TestCacheFillOnlyReadsSubtrees(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	m := NewMockNodeStorage(mockCtrl)
-	c := NewSubtreeCache(defaultLogStrata, PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher(crypto.NewSHA256())))
+	c := NewSubtreeCache(defaultLogStrata, PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher(crypto.NewSHA256())), PrepareMapSubtreeWrite())
 
 	nodeID := storage.NewNodeIDFromHash([]byte("1234"))
 	// When we loop around asking for all 0..32 bit prefix lengths of the above
@@ -99,7 +96,7 @@ func TestCacheGetNodesReadsSubtrees(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	m := NewMockNodeStorage(mockCtrl)
-	c := NewSubtreeCache(defaultLogStrata, PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher(crypto.NewSHA256())))
+	c := NewSubtreeCache(defaultLogStrata, PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher(crypto.NewSHA256())), PrepareMapSubtreeWrite())
 
 	nodeIDs := []storage.NodeID{
 		storage.NewNodeIDFromHash([]byte("1234")),
@@ -152,7 +149,7 @@ func TestCacheFlush(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	m := NewMockNodeStorage(mockCtrl)
-	c := NewSubtreeCache(defaultMapStrata, PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher(crypto.NewSHA256())))
+	c := NewSubtreeCache(defaultMapStrata, PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher(crypto.NewSHA256())), PrepareMapSubtreeWrite())
 
 	h := "0123456789abcdef0123456789abcdef"
 	nodeID := storage.NewNodeIDFromHash([]byte(h))
@@ -236,59 +233,6 @@ func TestSuffixSerializeFormat(t *testing.T) {
 	}
 }
 
-func TestRepopulateMapSubtreeKAT(t *testing.T) {
-	hasher := merkle.NewRFC6962TreeHasher(crypto.NewSHA256())
-	populateTheThing := PopulateMapSubtreeNodes(hasher)
-	pb, err := ioutil.ReadFile("../../testdata/map_good_subtree.pb")
-	if err != nil {
-		t.Fatalf("failed to read test data: %v", err)
-	}
-	goodSubtree := storagepb.SubtreeProto{}
-	if err := proto.UnmarshalText(string(pb), &goodSubtree); err != nil {
-		t.Fatalf("failed to unmarshal SubtreeProto: %v", err)
-	}
-
-	leavesOnly := storagepb.SubtreeProto{}
-	if err := proto.UnmarshalText(string(pb), &leavesOnly); err != nil {
-		t.Fatalf("failed to unmarshal SubtreeProto: %v", err)
-	}
-	// erase the internal nodes
-	leavesOnly.InternalNodes = make(map[string][]byte)
-
-	if err := populateTheThing(&leavesOnly); err != nil {
-		t.Fatalf("failed to repopulate subtree: %v", err)
-	}
-	if got, want := []byte(leavesOnly.RootHash), []byte(goodSubtree.RootHash); !bytes.Equal(got, want) {
-		t.Errorf("recalculated incorrect root: got %v, wanted %v", got, want)
-	}
-	if got, want := len(leavesOnly.InternalNodes), len(goodSubtree.InternalNodes); got != want {
-		t.Errorf("recalculated tree has %d internal nodes, expected %d", got, want)
-	}
-
-	for k, v := range goodSubtree.InternalNodes {
-		h, ok := leavesOnly.InternalNodes[k]
-		if !ok {
-			t.Errorf("Reconstructed tree missing internal node for %v", k)
-			continue
-		}
-		if got, want := h, v; !bytes.Equal(got, want) {
-			t.Errorf("Recalculated incorrect hash for node %v, got %v expected %v", k, got, want)
-		}
-		delete(leavesOnly.InternalNodes, k)
-	}
-	if numExtraNodes := len(leavesOnly.InternalNodes); numExtraNodes > 0 {
-		t.Errorf("Reconstructed tree has %d unexpected extra nodes:", numExtraNodes)
-		for k := range leavesOnly.InternalNodes {
-			rk, err := base64.StdEncoding.DecodeString(k)
-			if err != nil {
-				t.Errorf("  invalid base64: %v", err)
-				continue
-			}
-			t.Errorf("  %v (%v)", k, rk)
-		}
-	}
-}
-
 func TestRepopulateLogSubtree(t *testing.T) {
 	hasher := merkle.NewRFC6962TreeHasher(crypto.NewSHA256())
 	populateTheThing := PopulateLogSubtreeNodes(hasher)
@@ -296,12 +240,14 @@ func TestRepopulateLogSubtree(t *testing.T) {
 	cmtStorage := storagepb.SubtreeProto{
 		Leaves:        make(map[string][]byte),
 		InternalNodes: make(map[string][]byte),
+		Depth:         int32(defaultLogStrata[0]),
 	}
 	s := storagepb.SubtreeProto{
 		Leaves: make(map[string][]byte),
+		Depth:         int32(defaultLogStrata[0]),
 	}
-	c := NewSubtreeCache(defaultLogStrata, PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher(crypto.NewSHA256())))
-	for numLeaves := int64(1); numLeaves < 255; numLeaves++ {
+	c := NewSubtreeCache(defaultLogStrata, PopulateLogSubtreeNodes(merkle.NewRFC6962TreeHasher(crypto.NewSHA256())), PrepareLogSubtreeWrite())
+	for numLeaves := int64(1); numLeaves <= 256; numLeaves++ {
 		// clear internal nodes
 		s.InternalNodes = make(map[string][]byte)
 
@@ -329,83 +275,18 @@ func TestRepopulateLogSubtree(t *testing.T) {
 		if err := populateTheThing(&s); err != nil {
 			t.Fatalf("failed populate subtree: %v", err)
 		}
-
 		if got, expected := s.RootHash, cmt.CurrentRoot(); !bytes.Equal(got, expected) {
 			t.Fatalf("Got root %v for tree size %d, expected %v. subtree:\n%#v", got, numLeaves, expected, s.String())
 		}
 
-		if !reflect.DeepEqual(cmtStorage.InternalNodes, s.InternalNodes) {
-			t.Fatalf("(it %d) CMT internal nodes are\n%v, but sparse internal nodes are\n%v", numLeaves, cmtStorage.InternalNodes, s.InternalNodes)
-		}
-	}
-}
-
-type logKATData struct {
-	File      string
-	NumLeaves int
-}
-
-func TestRepopulateLogSubtreeKAT(t *testing.T) {
-	testVector := []logKATData{
-		{"log_good_subtree_5.pb", 5},
-		{"log_good_subtree_55.pb", 55},
-	}
-
-	for _, k := range testVector {
-		runLogSubtreeKAT(t, k)
-	}
-}
-
-func runLogSubtreeKAT(t *testing.T, data logKATData) {
-	hasher := merkle.NewRFC6962TreeHasher(crypto.NewSHA256())
-	populateTheThing := PopulateLogSubtreeNodes(hasher)
-	pb, err := ioutil.ReadFile("../../testdata/" + data.File)
-	if err != nil {
-		t.Fatalf("failed to read test data: %v", err)
-	}
-	goodSubtree := storagepb.SubtreeProto{}
-	if err := proto.UnmarshalText(string(pb), &goodSubtree); err != nil {
-		t.Fatalf("failed to unmarshal SubtreeProto: %v", err)
-	}
-	t.Logf("good root %v", goodSubtree.RootHash)
-
-	leavesOnly := storagepb.SubtreeProto{}
-	if err := proto.UnmarshalText(string(pb), &leavesOnly); err != nil {
-		t.Fatalf("failed to unmarshal SubtreeProto: %v", err)
-	}
-	// erase the internal nodes
-	leavesOnly.InternalNodes = make(map[string][]byte)
-
-	if err := populateTheThing(&leavesOnly); err != nil {
-		t.Fatalf("failed to repopulate subtree: %v", err)
-	}
-	if got, want := leavesOnly.RootHash, goodSubtree.RootHash; !bytes.Equal(got, want) {
-		t.Errorf("recalculated incorrect root: got %v, wanted %v", got, want)
-	}
-	if got, want := len(leavesOnly.InternalNodes), len(goodSubtree.InternalNodes); got != want {
-		t.Errorf("recalculated tree has %d internal nodes, expected %d", got, want)
-	}
-
-	for k, v := range goodSubtree.InternalNodes {
-		h, ok := leavesOnly.InternalNodes[k]
-		if !ok {
-			t.Errorf("Reconstructed tree missing internal node for %v", k)
-			continue
-		}
-		if got, want := h, v; !bytes.Equal(got, want) {
-			t.Errorf("Recalculated incorrect hash for node %v, got %v expected %v", k, got, want)
-		}
-		delete(leavesOnly.InternalNodes, k)
-	}
-	if numExtraNodes := len(leavesOnly.InternalNodes); numExtraNodes > 0 {
-		t.Errorf("Reconstructed tree has %d unexpected extra nodes:", numExtraNodes)
-		for k := range leavesOnly.InternalNodes {
-			rk, err := base64.StdEncoding.DecodeString(k)
-			if err != nil {
-				t.Errorf("  invalid base64: %v", err)
-				continue
+		// Repopulation should only have happened with a full subtree, otherwise the internal nodes map
+		// should be empty
+		if numLeaves != 1 << uint(defaultLogStrata[0]) {
+			if len(s.InternalNodes) != 0 {
+				t.Fatalf("(it %d) internal nodes should be empty but got: %v", numLeaves, s.InternalNodes)
 			}
-			t.Errorf("  %v (%v)", k, rk)
+		} else if !reflect.DeepEqual(cmtStorage.InternalNodes, s.InternalNodes) {
+			t.Fatalf("(it %d) CMT internal nodes are\n%v, but sparse internal nodes are\n%v", numLeaves, cmtStorage.InternalNodes, s.InternalNodes)
 		}
 	}
 }
@@ -414,7 +295,7 @@ func TestPrefixLengths(t *testing.T) {
 	strata := []int{8, 8, 16, 32, 64, 128}
 	stratumInfo := []stratumInfo{{0, 8}, {1, 8}, {2, 16}, {2, 16}, {4, 32}, {4, 32}, {4, 32}, {4, 32}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}}
 
-	c := NewSubtreeCache(strata, PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher(crypto.NewSHA256())))
+	c := NewSubtreeCache(strata, PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher(crypto.NewSHA256())), PrepareMapSubtreeWrite())
 
 	if got, want := c.stratumInfo, stratumInfo; !reflect.DeepEqual(got, want) {
 		t.Fatalf("Got prefixLengths of %v, expected %v", got, want)
@@ -422,7 +303,7 @@ func TestPrefixLengths(t *testing.T) {
 }
 
 func TestGetStratumInfo(t *testing.T) {
-	c := NewSubtreeCache(defaultMapStrata, PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher(crypto.NewSHA256())))
+	c := NewSubtreeCache(defaultMapStrata, PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher(crypto.NewSHA256())), PrepareMapSubtreeWrite())
 	testVec := []struct {
 		depth int
 		info  stratumInfo

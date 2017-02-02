@@ -106,6 +106,8 @@ func TestNodeRoundTrip(t *testing.T) {
 	}
 }
 
+// This test ensures that node writes cross subtree boundaries so this edge case in the subtree
+// cache gets exercised. Any tree size > 256 will do this.
 func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 	logID := createLogID("TestLogNodeRoundTripMultiSubtree")
 	prepareTestLogDB(DB, logID, t)
