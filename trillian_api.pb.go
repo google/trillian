@@ -42,6 +42,7 @@ It has these top-level messages:
 	SetMapLeavesResponse
 	GetSignedMapRootRequest
 	GetSignedMapRootResponse
+	Tree
 	DigitallySigned
 	SignedEntryTimestamp
 	SignedLogRoot
