@@ -39,6 +39,7 @@ message LogLeaf {
 }
 
 message Node {
+    // TODO(Martin2112): remove node_id and node_revision
     bytes node_id = 1;
     bytes node_hash = 2;
     int64 node_revision = 3;
@@ -62,6 +63,7 @@ message QueueLeafRequest {
 // TODO(Martin2112): This will eventually contain the signed timestamps and stuff that we return for
 // the queued leaves
 message QueueLeavesResponse {
+  // TODO(gbelvin): Reply with success codes
 }
 
 message GetInclusionProofRequest {
@@ -84,6 +86,7 @@ message GetInclusionProofByHashRequest {
 message GetInclusionProofByHashResponse {
     // Logs can potentially contain leaves with duplicate hashes so it's possible
     // for this to return multiple proofs.
+    // TODO(gbelvin) only return one proof.
     repeated Proof proof = 2;
 }
 
@@ -104,6 +107,7 @@ message GetLeavesByHashRequest {
 }
 
 message GetLeavesByHashResponse {
+    // TODO(gbelvin) reply with error codes.
     repeated LogLeaf leaves = 2;
 }
 
@@ -113,6 +117,7 @@ message GetLeavesByIndexRequest {
 }
 
 message GetLeavesByIndexResponse {
+    // TODO(gbelvin) reply with error codes.
     repeated LogLeaf leaves = 2;
 }
 
@@ -191,6 +196,7 @@ message MapLeaf {
 }
 
 message IndexValue {
+  // TODO(gbelvin): RemoveIndex value in favor of using the index inside MapLeaf.
   bytes index = 1;
   MapLeaf value = 2;
 }
@@ -207,6 +213,7 @@ message GetMapLeavesRequest {
 }
 
 message GetMapLeavesResponse {
+  // TODO(gbelvin): Return an error per index lookup. 
   repeated IndexValueInclusion index_value_inclusion = 2;
   SignedMapRoot map_root = 3;
 }
@@ -219,6 +226,7 @@ message SetMapLeavesRequest {
 
 message SetMapLeavesResponse {
   SignedMapRoot map_root = 2;
+  // TODO(gbelvin): Return an error per index lookup. 
 }
 
 message GetSignedMapRootRequest {

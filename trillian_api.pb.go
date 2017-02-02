@@ -140,6 +140,7 @@ func (m *LogLeaf) GetLeafIdentityHash() []byte {
 }
 
 type Node struct {
+	// TODO(Martin2112): remove node_id and node_revision
 	NodeId       []byte `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
 	NodeHash     []byte `protobuf:"bytes,2,opt,name=node_hash,json=nodeHash,proto3" json:"node_hash,omitempty"`
 	NodeRevision int64  `protobuf:"varint,3,opt,name=node_revision,json=nodeRevision" json:"node_revision,omitempty"`
@@ -344,6 +345,7 @@ func (m *GetInclusionProofByHashRequest) GetOrderBySequence() bool {
 type GetInclusionProofByHashResponse struct {
 	// Logs can potentially contain leaves with duplicate hashes so it's possible
 	// for this to return multiple proofs.
+	// TODO(gbelvin) only return one proof.
 	Proof []*Proof `protobuf:"bytes,2,rep,name=proof" json:"proof,omitempty"`
 }
 
@@ -440,6 +442,7 @@ func (m *GetLeavesByHashRequest) GetOrderBySequence() bool {
 }
 
 type GetLeavesByHashResponse struct {
+	// TODO(gbelvin) reply with error codes.
 	Leaves []*LogLeaf `protobuf:"bytes,2,rep,name=leaves" json:"leaves,omitempty"`
 }
 
@@ -480,6 +483,7 @@ func (m *GetLeavesByIndexRequest) GetLeafIndex() []int64 {
 }
 
 type GetLeavesByIndexResponse struct {
+	// TODO(gbelvin) reply with error codes.
 	Leaves []*LogLeaf `protobuf:"bytes,2,rep,name=leaves" json:"leaves,omitempty"`
 }
 
@@ -662,6 +666,7 @@ func (m *MapLeaf) GetExtraData() []byte {
 }
 
 type IndexValue struct {
+	// TODO(gbelvin): RemoveIndex value in favor of using the index inside MapLeaf.
 	Index []byte   `protobuf:"bytes,1,opt,name=index,proto3" json:"index,omitempty"`
 	Value *MapLeaf `protobuf:"bytes,2,opt,name=value" json:"value,omitempty"`
 }
@@ -742,6 +747,7 @@ func (m *GetMapLeavesRequest) GetRevision() int64 {
 }
 
 type GetMapLeavesResponse struct {
+	// TODO(gbelvin): Return an error per index lookup.
 	IndexValueInclusion []*IndexValueInclusion `protobuf:"bytes,2,rep,name=index_value_inclusion,json=indexValueInclusion" json:"index_value_inclusion,omitempty"`
 	MapRoot             *SignedMapRoot         `protobuf:"bytes,3,opt,name=map_root,json=mapRoot" json:"map_root,omitempty"`
 }
