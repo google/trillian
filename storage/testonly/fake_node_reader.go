@@ -7,6 +7,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/testonly"
 )
 
 // This is a fake implementation of a NodeReader intended for use in testing Merkle path code.
@@ -112,7 +113,7 @@ func NewMultiFakeNodeReader(readers []FakeNodeReader) *MultiFakeNodeReader {
 // code. To help guard against this we check the tree root hash after each batch has been
 // processed. The supplied batches should be in ascending order of tree revision.
 func NewMultiFakeNodeReaderFromLeaves(batches []LeafBatch) *MultiFakeNodeReader {
-	tree := merkle.NewCompactMerkleTree(merkle.NewRFC6962TreeHasher())
+	tree := merkle.NewCompactMerkleTree(testonly.Hasher)
 	readers := make([]FakeNodeReader, 0, len(batches))
 
 	lastBatchRevision := int64(0)

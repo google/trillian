@@ -12,41 +12,37 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package testonly
-
-// This file implements the hashing functions that are part of a Trillian
-// personality.
+package merkle
 
 import (
 	"crypto"
-	"crypto/sha256"
+	"fmt"
 )
 
-// Hasher is the default hasher for tests.
-// TODO: Make this a custom algorithm to decouple hashing from coded defaults.
-var Hasher = rfc6962{crypto.SHA256}
-
-// HashKey converts a map key into a map index using SHA256.
-// This preserves tests that precomputed indexes based on SHA256.
-func HashKey(key string) []byte {
-	h := sha256.New()
-	h.Write([]byte(key))
-	return h.Sum(nil)
+// Hasher defines hashing functions for use in tree operations.
+type Hasher interface {
+	HashLeaf(leaf []byte) []byte
+	HashEmpty() []byte
+	NullHash(depth int) []byte
+	HashChildren(left, right []byte) []byte
+	Size() int
 }
 
-// TransparentHash returns a key that can be visually inspected.
-// This supports testing where it was nice to see what the key was.
-func TransparentHash(key string) []byte {
-	if len(key) > sha256.Size {
-		panic("key too long")
+var hashTypes = map[string]Hasher{
+	"RFC6962-SHA256": rfc6962{crypto.SHA256},
+}
+
+// Factory returns hashers of given types.
+func Factory(t string) (Hasher, error) {
+	h, ok := hashTypes[t]
+	if !ok {
+		return nil, fmt.Errorf("hash type %s not found", t)
 	}
-	b := make([]byte, sha256.Size)
-	copy(b, key)
-	return b
+	return h, nil
 }
 
 //
-// Test RFC6962 Hasher
+// RFC6962 Hasher
 //
 
 type rfc6962 struct {
@@ -61,8 +57,7 @@ const (
 
 // HashEmpty returns the hash of an empty element for the tree
 func (t rfc6962) HashEmpty() []byte {
-	h := t.New()
-	return h.Sum(nil)
+	return t.HashLeaf([]byte{})
 }
 
 // HashLeaf returns the Merkle tree leaf hash of the data passed in through leaf.
@@ -91,7 +86,7 @@ func (t rfc6962) Size() int {
 // NullHash returns the empty hash at a given depth.
 func (t rfc6962) NullHash(depth int) []byte {
 	h := t.HashEmpty()
-	for i := t.Size() * 8; i >= depth; i-- {
+	for i := t.Size()*8 - 1; i > depth; i-- {
 		h = t.HashChildren(h, h)
 	}
 	return h

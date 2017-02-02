@@ -25,17 +25,14 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
-	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/util"
 )
 
-var treeHasher = merkle.NewRFC6962TreeHasher()
-
 // These can be shared between tests as they're never modified
 var testLeaf16Data = []byte("testdataforleaf")
-var testLeaf16 = trillian.LogLeaf{MerkleLeafHash: treeHasher.HashLeaf(testLeaf16Data), LeafValue: testLeaf16Data, ExtraData: nil, LeafIndex: 16}
+var testLeaf16 = trillian.LogLeaf{MerkleLeafHash: testonly.Hasher.HashLeaf(testLeaf16Data), LeafValue: testLeaf16Data, ExtraData: nil, LeafIndex: 16}
 
 // RootHash can't be nil because that's how the sequencer currently detects that there was no stored tree head.
 var testRoot16 = trillian.SignedLogRoot{TreeSize: 16, TreeRevision: 5, RootHash: []byte{}}
@@ -146,7 +143,7 @@ type testContext struct {
 
 // This gets modified so tests need their own copies
 func getLeaf42() trillian.LogLeaf {
-	testLeaf42Hash := treeHasher.HashLeaf(testLeaf16Data)
+	testLeaf42Hash := testonly.Hasher.HashLeaf(testLeaf16Data)
 	return trillian.LogLeaf{MerkleLeafHash: testLeaf42Hash, LeafValue: testLeaf16Data, ExtraData: nil, LeafIndex: 42}
 }
 
@@ -225,7 +222,7 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) (testCont
 		mockKeyManager.EXPECT().SignatureAlgorithm().AnyTimes().Return(trillian.SignatureAlgorithm_ECDSA)
 	}
 
-	sequencer := NewSequencer(treeHasher, util.FakeTimeSource{FakeTime: fakeTimeForTest}, mockStorage, mockKeyManager)
+	sequencer := NewSequencer(testonly.Hasher, util.FakeTimeSource{FakeTime: fakeTimeForTest}, mockStorage, mockKeyManager)
 
 	return testContext{mockTx: mockTx, mockStorage: mockStorage, mockKeyManager: mockKeyManager, sequencer: sequencer}, util.NewLogContext(context.Background(), params.logID)
 }

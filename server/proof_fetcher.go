@@ -44,7 +44,7 @@ func fetchNodesAndBuildProof(tx storage.NodeReader, treeRevision, leafIndex int6
 
 // rehasher bundles the rehashing logic into a simple state machine
 type rehasher struct {
-	th         merkle.TreeHasher
+	th         merkle.Hasher
 	rehashing  bool
 	rehashNode storage.Node
 	proof      []*trillian.Node
@@ -53,9 +53,13 @@ type rehasher struct {
 
 // init must be called before the rehasher is used or reused
 func newRehasher() *rehasher {
+	// TODO(Martin2112): Hasher must be selected based on log config.
+	hasher, err := merkle.Factory("RFC6962-SHA256")
+	if err != nil {
+		panic("Uknown hash strategy")
+	}
 	return &rehasher{
-		// TODO(Martin2112): TreeHasher must be selected based on log config.
-		th: merkle.NewRFC6962TreeHasher(),
+		th: hasher,
 	}
 }
 

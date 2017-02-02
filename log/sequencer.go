@@ -37,7 +37,7 @@ import (
 // There is no strong ordering guarantee but in general entries will be processed
 // in order of submission to the log.
 type Sequencer struct {
-	hasher     merkle.TreeHasher
+	hasher     merkle.Hasher
 	timeSource util.TimeSource
 	logStorage storage.LogStorage
 	keyManager crypto.KeyManager
@@ -55,7 +55,7 @@ type Sequencer struct {
 const maxTreeDepth = 64
 
 // NewSequencer creates a new Sequencer instance for the specified inputs.
-func NewSequencer(hasher merkle.TreeHasher, timeSource util.TimeSource, logStorage storage.LogStorage, km crypto.KeyManager) *Sequencer {
+func NewSequencer(hasher merkle.Hasher, timeSource util.TimeSource, logStorage storage.LogStorage, km crypto.KeyManager) *Sequencer {
 	return &Sequencer{
 		hasher:     hasher,
 		timeSource: timeSource,

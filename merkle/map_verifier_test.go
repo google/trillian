@@ -21,7 +21,7 @@ import (
 )
 
 func TestVerifyMapInclusionProofWorks(t *testing.T) {
-	h := NewMapHasher(NewRFC6962TreeHasher())
+	h := testonly.Hasher
 	for i, tv := range mapInclusionTestVector {
 		index := testonly.HashKey(tv.Key)
 		if err := VerifyMapInclusionProof(index, h.HashLeaf(tv.Value), tv.ExpectedRoot, tv.Proof, h); err != nil {
@@ -31,7 +31,7 @@ func TestVerifyMapInclusionProofWorks(t *testing.T) {
 }
 
 func TestVerifyMapInclusionProofCatchesWrongKey(t *testing.T) {
-	h := NewMapHasher(NewRFC6962TreeHasher())
+	h := testonly.Hasher
 	tv := mapInclusionTestVector[0]
 	tv.Key = "wibble"
 	index := testonly.HashKey(tv.Key)
@@ -41,7 +41,7 @@ func TestVerifyMapInclusionProofCatchesWrongKey(t *testing.T) {
 }
 
 func TestVerifyMapInclusionProofCatchesWrongValue(t *testing.T) {
-	h := NewMapHasher(NewRFC6962TreeHasher())
+	h := testonly.Hasher
 	tv := mapInclusionTestVector[0]
 	tv.Value = []byte("wibble")
 	index := testonly.HashKey(tv.Key)
@@ -51,9 +51,9 @@ func TestVerifyMapInclusionProofCatchesWrongValue(t *testing.T) {
 }
 
 func TestVerifyMapInclusionProofCatchesWrongRoot(t *testing.T) {
-	h := NewMapHasher(NewRFC6962TreeHasher())
+	h := testonly.Hasher
 	tv := mapInclusionTestVector[0]
-	tv.ExpectedRoot = h.Digest([]byte("wibble"))
+	tv.ExpectedRoot = h.HashLeaf([]byte("wibble"))
 	index := testonly.HashKey(tv.Key)
 	if err := VerifyMapInclusionProof(index, h.HashLeaf(tv.Value), tv.ExpectedRoot, tv.Proof, h); err == nil {
 		t.Error("unexpectedly verified proof for incorrect root")
@@ -61,7 +61,7 @@ func TestVerifyMapInclusionProofCatchesWrongRoot(t *testing.T) {
 }
 
 func TestVerifyMapInclusionProofCatchesWrongProof(t *testing.T) {
-	h := NewMapHasher(NewRFC6962TreeHasher())
+	h := testonly.Hasher
 	tv := mapInclusionTestVector[0]
 	tv.Proof[250][15] ^= 0x10
 	index := testonly.HashKey(tv.Key)
@@ -71,45 +71,45 @@ func TestVerifyMapInclusionProofCatchesWrongProof(t *testing.T) {
 }
 
 func TestVerifyMapInclusionProofRejectsShortProof(t *testing.T) {
-	h := NewMapHasher(NewRFC6962TreeHasher())
+	h := testonly.Hasher
 	index := testonly.HashKey("hi")
-	err := VerifyMapInclusionProof(index, h.HashLeaf([]byte("there")), h.Digest([]byte("root")), [][]byte{h.Digest([]byte("shorty"))}, h)
+	err := VerifyMapInclusionProof(index, h.HashLeaf([]byte("there")), h.HashLeaf([]byte("root")), [][]byte{h.HashLeaf([]byte("shorty"))}, h)
 	if err == nil {
 		t.Error("unexpectedly verified short proof")
 	}
 }
 
 func TestVerifyMapInclusionProofRejectsExcess(t *testing.T) {
-	h := NewMapHasher(NewRFC6962TreeHasher())
+	h := testonly.Hasher
 	p := make([][]byte, h.Size()*8+1)
 	index := testonly.HashKey("hi")
-	err := VerifyMapInclusionProof(index, h.HashLeaf([]byte("there")), h.Digest([]byte("root")), p, h)
+	err := VerifyMapInclusionProof(index, h.HashLeaf([]byte("there")), h.HashLeaf([]byte("root")), p, h)
 	if err == nil {
 		t.Error("unexpectedly verified proof with extra data")
 	}
 }
 
 func TestVerifyMapInclusionProofRejectsInvalidKeyHash(t *testing.T) {
-	h := NewMapHasher(NewRFC6962TreeHasher())
+	h := testonly.Hasher
 	p := make([][]byte, h.Size()*8)
-	err := VerifyMapInclusionProof([]byte("peppo"), h.HashLeaf([]byte("there")), h.Digest([]byte("root")), p, h)
+	err := VerifyMapInclusionProof([]byte("peppo"), h.HashLeaf([]byte("there")), h.HashLeaf([]byte("root")), p, h)
 	if err == nil {
 		t.Error("unexpectedly verified with invalid key hash")
 	}
 }
 
 func TestVerifyMapInclusionProofRejectsInvalidLeafHash(t *testing.T) {
-	h := NewMapHasher(NewRFC6962TreeHasher())
+	h := testonly.Hasher
 	p := make([][]byte, h.Size()*8)
 	index := testonly.HashKey("key")
-	err := VerifyMapInclusionProof(index, []byte("peppo"), h.Digest([]byte("root")), p, h)
+	err := VerifyMapInclusionProof(index, []byte("peppo"), h.HashLeaf([]byte("root")), p, h)
 	if err == nil {
 		t.Error("unexpectedly verified with invalid key hash")
 	}
 }
 
 func TestVerifyMapInclusionProofRejectsInvalidRoot(t *testing.T) {
-	h := NewMapHasher(NewRFC6962TreeHasher())
+	h := testonly.Hasher
 	p := make([][]byte, h.Size()*8)
 	index := testonly.HashKey("hi")
 	err := VerifyMapInclusionProof(index, h.HashLeaf([]byte("there")), []byte("peppo"), p, h)

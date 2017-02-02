@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"math/rand"
 	"testing"
+
+	"github.com/google/trillian/testonly"
 )
 
 // Note test inputs came from the values used by the C++ code. The original
@@ -117,10 +119,6 @@ func decodeHexStringOrPanic(hs string) []byte {
 	return data
 }
 
-func makeEmptyTree() *InMemoryMerkleTree {
-	return NewInMemoryMerkleTree(NewRFC6962TreeHasher())
-}
-
 func makeFuzzTestData() [][]byte {
 	var data [][]byte
 
@@ -165,26 +163,26 @@ func downToPowerOfTwo(i int64) int64 {
 }
 
 // Reference implementation of Merkle hash, for cross-checking.
-func referenceMerkleTreeHash(inputs [][]byte, treehasher TreeHasher) []byte {
+func referenceMerkleTreeHash(inputs [][]byte, hasher Hasher) []byte {
 	if len(inputs) == 0 {
-		return treehasher.HashEmpty()
+		return hasher.HashEmpty()
 	}
 
 	if len(inputs) == 1 {
-		return treehasher.HashLeaf(inputs[0])
+		return hasher.HashLeaf(inputs[0])
 	}
 
 	split := downToPowerOfTwo(int64(len(inputs)))
 
-	lhs := TreeEntry{referenceMerkleTreeHash(inputs[:split], treehasher)}
-	rhs := TreeEntry{referenceMerkleTreeHash(inputs[split:], treehasher)}
+	lhs := TreeEntry{referenceMerkleTreeHash(inputs[:split], hasher)}
+	rhs := TreeEntry{referenceMerkleTreeHash(inputs[split:], hasher)}
 
-	return treehasher.HashChildren(lhs.hash, rhs.hash)
+	return hasher.HashChildren(lhs.hash, rhs.hash)
 }
 
 // Reference implementation of Merkle paths. Path from leaf to root,
 // excluding the leaf and root themselves.
-func referenceMerklePath(inputs [][]byte, leaf int64, treehasher TreeHasher) [][]byte {
+func referenceMerklePath(inputs [][]byte, leaf int64, hasher Hasher) [][]byte {
 	var path [][]byte
 
 	inputLen := int64(len(inputs))
@@ -201,13 +199,13 @@ func referenceMerklePath(inputs [][]byte, leaf int64, treehasher TreeHasher) [][
 	var subpath [][]byte
 
 	if leaf <= split {
-		subpath = referenceMerklePath(inputs[:split], leaf, treehasher)
+		subpath = referenceMerklePath(inputs[:split], leaf, hasher)
 		path = append(path, subpath...)
-		path = append(path, referenceMerkleTreeHash(inputs[split:], treehasher))
+		path = append(path, referenceMerkleTreeHash(inputs[split:], hasher))
 	} else {
-		subpath = referenceMerklePath(inputs[split:], leaf-split, treehasher)
+		subpath = referenceMerklePath(inputs[split:], leaf-split, hasher)
 		path = append(path, subpath...)
-		path = append(path, referenceMerkleTreeHash(inputs[:split], treehasher))
+		path = append(path, referenceMerkleTreeHash(inputs[:split], hasher))
 	}
 
 	return path
@@ -216,7 +214,7 @@ func referenceMerklePath(inputs [][]byte, leaf int64, treehasher TreeHasher) [][
 // Reference implementation of snapshot consistency.
 // Call with haveRoot1 = true.
 func referenceSnapshotConsistency(inputs [][]byte, snapshot2 int64,
-	snapshot1 int64, treehasher TreeHasher, haveRoot1 bool) [][]byte {
+	snapshot1 int64, hasher Hasher, haveRoot1 bool) [][]byte {
 
 	var proof [][]byte
 
@@ -230,7 +228,7 @@ func referenceSnapshotConsistency(inputs [][]byte, snapshot2 int64,
 			// Record the hash of this subtree unless it's the root for which
 			// the proof was originally requested. (This happens when the snapshot1
 			// tree is balanced.)
-			proof = append(proof, referenceMerkleTreeHash(inputs[:snapshot1], treehasher))
+			proof = append(proof, referenceMerkleTreeHash(inputs[:snapshot1], hasher))
 		}
 		return proof
 	}
@@ -243,26 +241,26 @@ func referenceSnapshotConsistency(inputs [][]byte, snapshot2 int64,
 		// Root of snapshot1 is in the left subtree of snapshot2.
 		// Prove that the left subtrees are consistent.
 		subproof = referenceSnapshotConsistency(inputs[:split], split, snapshot1,
-			treehasher, haveRoot1)
+			hasher, haveRoot1)
 		proof = append(proof, subproof...)
 		// Record the hash of the right subtree (only present in snapshot2).
-		proof = append(proof, referenceMerkleTreeHash(inputs[split:], treehasher))
+		proof = append(proof, referenceMerkleTreeHash(inputs[split:], hasher))
 	} else {
 		// Snapshot1 root is at the same level as snapshot2 root.
 		// Prove that the right subtrees are consistent. The right subtree
 		// doesn't contain the root of snapshot1, so set haveRoot1 = false.
 		subproof =
 			referenceSnapshotConsistency(inputs[split:], snapshot2-split,
-				snapshot1-split, treehasher, false)
+				snapshot1-split, hasher, false)
 		proof = append(proof, subproof...)
 		// Record the hash of the left subtree (equal in both trees).
-		proof = append(proof, referenceMerkleTreeHash(inputs[:split], treehasher))
+		proof = append(proof, referenceMerkleTreeHash(inputs[:split], hasher))
 	}
 	return proof
 }
 
 func TestEmptyTreeIsEmpty(t *testing.T) {
-	mt := makeEmptyTree()
+	mt := NewInMemoryMerkleTree(testonly.Hasher)
 
 	if mt.LevelCount() != 0 {
 		t.Errorf("Empty tree had levels: %d", mt.LevelCount())
@@ -274,7 +272,8 @@ func TestEmptyTreeIsEmpty(t *testing.T) {
 }
 
 func TestEmptyTreeHash(t *testing.T) {
-	actual := makeEmptyTree().CurrentRoot().hash
+	mt := NewInMemoryMerkleTree(testonly.Hasher)
+	actual := mt.CurrentRoot().hash
 	actualStr := hex.EncodeToString(actual)
 
 	if actualStr != emptyTreeHashValue {
@@ -315,7 +314,7 @@ func validateTree(mt *InMemoryMerkleTree, l int64, t *testing.T) {
 }
 
 func TestBuildTreeBuildOneAtATime(t *testing.T) {
-	mt := makeEmptyTree()
+	mt := NewInMemoryMerkleTree(testonly.Hasher)
 
 	// Add to the tree, checking after each leaf
 	for l := int64(0); l < 8; l++ {
@@ -325,7 +324,7 @@ func TestBuildTreeBuildOneAtATime(t *testing.T) {
 }
 
 func TestBuildTreeBuildAllAtOnce(t *testing.T) {
-	mt := makeEmptyTree()
+	mt := NewInMemoryMerkleTree(testonly.Hasher)
 
 	for l := 0; l < 3; l++ {
 		mt.AddLeaf(decodeHexStringOrPanic(leafInputs[l]))
@@ -343,7 +342,7 @@ func TestBuildTreeBuildAllAtOnce(t *testing.T) {
 }
 
 func TestBuildTreeBuildTwoChunks(t *testing.T) {
-	mt := makeEmptyTree()
+	mt := NewInMemoryMerkleTree(testonly.Hasher)
 
 	// Add to the tree, checking after each leaf
 	for l := 0; l < 8; l++ {
@@ -371,7 +370,7 @@ func TestDownToPowerOfTwoSanity(t *testing.T) {
 func TestReferenceMerklePathSanity(t *testing.T) {
 	var data [][]byte
 
-	mt := makeEmptyTree()
+	mt := NewInMemoryMerkleTree(testonly.Hasher)
 
 	for s := 0; s < 8; s++ {
 		data = append(data, decodeHexStringOrPanic(leafInputs[s]))
@@ -399,7 +398,7 @@ func TestMerkleTreeRootFuzz(t *testing.T) {
 	data := makeFuzzTestData()
 
 	for treeSize := int64(1); treeSize <= fuzzTestSize; treeSize++ {
-		mt := makeEmptyTree()
+		mt := NewInMemoryMerkleTree(testonly.Hasher)
 
 		for l := int64(0); l < treeSize; l++ {
 			mt.AddLeaf(data[l])
@@ -427,7 +426,7 @@ func TestMerkleTreePathFuzz(t *testing.T) {
 
 	for treeSize := int64(1); treeSize <= fuzzTestSize; treeSize++ {
 		//mt := makeLoggingEmptyTree(t)
-		mt := makeEmptyTree()
+		mt := NewInMemoryMerkleTree(testonly.Hasher)
 
 		for l := int64(0); l < treeSize; l++ {
 			mt.AddLeaf(data[l])
@@ -468,7 +467,7 @@ func TestMerkleTreeConsistencyFuzz(t *testing.T) {
 	data := makeFuzzTestData()
 
 	for treeSize := int64(1); treeSize <= fuzzTestSize; treeSize++ {
-		mt := makeEmptyTree()
+		mt := NewInMemoryMerkleTree(testonly.Hasher)
 
 		for l := int64(0); l < treeSize; l++ {
 			mt.AddLeaf(data[l])
@@ -504,7 +503,7 @@ func TestMerkleTreeConsistencyFuzz(t *testing.T) {
 
 func TestMerkleTreePathBuildOnce(t *testing.T) {
 	// First tree: build in one go.
-	mt := makeEmptyTree()
+	mt := NewInMemoryMerkleTree(testonly.Hasher)
 
 	for i := 0; i < 8; i++ {
 		mt.AddLeaf(decodeHexStringOrPanic(leafInputs[i]))
@@ -548,13 +547,13 @@ func TestMerkleTreePathBuildOnce(t *testing.T) {
 func TestMerkleTreePathBuildIncrementally(t *testing.T) {
 	// Second tree: build incrementally.
 	// First tree: build in one go.
-	mt := makeEmptyTree()
+	mt := NewInMemoryMerkleTree(testonly.Hasher)
 
 	for i := 0; i < 8; i++ {
 		mt.AddLeaf(decodeHexStringOrPanic(leafInputs[i]))
 	}
 
-	mt2 := makeEmptyTree()
+	mt2 := NewInMemoryMerkleTree(testonly.Hasher)
 
 	p1 := mt2.PathToCurrentRoot(0)
 	p2 := mt.PathToRootAtSnapshot(0, 0)
@@ -594,7 +593,7 @@ func TestMerkleTreePathBuildIncrementally(t *testing.T) {
 }
 
 func TestProofConsistencyTestVectors(t *testing.T) {
-	mt := makeEmptyTree()
+	mt := NewInMemoryMerkleTree(testonly.Hasher)
 
 	for i := 0; i < 8; i++ {
 		mt.AddLeaf(decodeHexStringOrPanic(leafInputs[i]))
@@ -633,7 +632,7 @@ func TestProofConsistencyTestVectors(t *testing.T) {
 }
 
 func TestAddLeafHash(t *testing.T) {
-	mt := makeEmptyTree()
+	mt := NewInMemoryMerkleTree(testonly.Hasher)
 	hash := "0123456789abcdef0123456789abcdef"
 
 	index, treeEntry := mt.addLeafHash(decodeHexStringOrPanic(hash))
@@ -648,7 +647,7 @@ func TestAddLeafHash(t *testing.T) {
 }
 
 func TestHashAccessor(t *testing.T) {
-	mt := makeEmptyTree()
+	mt := NewInMemoryMerkleTree(testonly.Hasher)
 	hash := "0123456789abcdef0123456789abcdef"
 
 	index, treeEntry := mt.addLeafHash(decodeHexStringOrPanic(hash))
@@ -663,7 +662,7 @@ func TestHashAccessor(t *testing.T) {
 }
 
 func TestHashIntoAccessor(t *testing.T) {
-	mt := makeEmptyTree()
+	mt := NewInMemoryMerkleTree(testonly.Hasher)
 	hash := "0123456789abcdef0123456789abcdef"
 
 	index, treeEntry := mt.addLeafHash(decodeHexStringOrPanic(hash))

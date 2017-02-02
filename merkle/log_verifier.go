@@ -32,11 +32,11 @@ func (e RootMismatchError) Error() string {
 
 // LogVerifier verifies inclusion and consistency proofs for append only logs.
 type LogVerifier struct {
-	hasher TreeHasher
+	hasher Hasher
 }
 
 // NewLogVerifier returns a new LogVerifier for a tree.
-func NewLogVerifier(hasher TreeHasher) LogVerifier {
+func NewLogVerifier(hasher Hasher) LogVerifier {
 	return LogVerifier{
 		hasher: hasher,
 	}

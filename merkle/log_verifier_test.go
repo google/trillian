@@ -20,6 +20,8 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+
+	"github.com/google/trillian/testonly"
 )
 
 type logProofTestVector struct {
@@ -294,13 +296,8 @@ func verifierConsistencyCheck(v *LogVerifier, snapshot1, snapshot2 int64, root1,
 	return nil
 }
 
-func getVerifier() LogVerifier {
-	hasher := NewRFC6962TreeHasher()
-	return NewLogVerifier(hasher)
-}
-
 func TestVerifyInclusionProof(t *testing.T) {
-	v := getVerifier()
+	v := NewLogVerifier(testonly.Hasher)
 	path := [][]byte{}
 	// Various invalid paths
 	if err := v.VerifyInclusionProof(0, 0, path, []byte{}, []byte{}); err == nil {
@@ -347,7 +344,7 @@ func TestVerifyInclusionProof(t *testing.T) {
 }
 
 func TestVerifyConsistencyProof(t *testing.T) {
-	v := getVerifier()
+	v := NewLogVerifier(testonly.Hasher)
 
 	proof := [][]byte{}
 	root1 := []byte("don't care")

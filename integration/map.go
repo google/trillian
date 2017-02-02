@@ -88,7 +88,7 @@ func RunMapIntegration(ctx context.Context, mapID int64, client trillian.Trillia
 
 	// Check values
 	// Mix up the ordering of requests
-	h := merkle.NewMapHasher(merkle.NewRFC6962TreeHasher())
+	h := testonly.Hasher
 	randIndexes := make([][]byte, len(tests))
 	for i, r := range rand.Perm(len(tests)) {
 		randIndexes[i] = tests[r].Index

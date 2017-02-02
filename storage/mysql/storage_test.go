@@ -14,6 +14,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/testonly"
 )
 
 // Parallel tests must get different log or map ids
@@ -209,7 +210,7 @@ func createSomeNodes(testName string, treeID int64) []storage.Node {
 }
 
 func createLogNodesForTreeAtSize(ts, rev int64) []storage.Node {
-	tree := merkle.NewCompactMerkleTree(merkle.NewRFC6962TreeHasher())
+	tree := merkle.NewCompactMerkleTree(testonly.Hasher)
 	nodeMap := make(map[string]storage.Node)
 	for l := 0; l < int(ts); l++ {
 		// We're only interested in the side effects of adding leaves - the node updates
