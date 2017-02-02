@@ -96,33 +96,33 @@ func (l LogOperationManager) getLogsAndExecutePass(ctx context.Context) bool {
 	provider, err := l.context.registry.GetLogStorage()
 	// If we get an error, we can't do anything but wait until the next run through
 	if err != nil {
-		glog.Warningf("failed to get storage provider for run: %v", err)
+		glog.Warningf("Failed to get storage provider for run: %v", err)
 		return false
 	}
 
 	tx, err := provider.Snapshot(ctx)
 	if err != nil {
-		glog.Warningf("failed to get tx for run: %v", err)
+		glog.Warningf("Failed to get tx for run: %v", err)
 		return false
 	}
 
 	// Inner loop is across all active logs, currently one at a time
 	logIDs, err := tx.GetActiveLogIDs()
 	if err != nil {
-		glog.Warningf("failed to get log list for run: %v", err)
+		glog.Warningf("Failed to get log list for run: %v", err)
 		tx.Rollback()
 		return false
 	}
 
 	if err := tx.Commit(); err != nil {
-		glog.Warningf("failed to commit getting logs: %v", err)
+		glog.Warningf("Failed to commit getting logs: %v", err)
 		return false
 	}
 
 	// Process each active log once, exit if we've seen a quit signal
 	quit := l.logOperation.ExecutePass(logIDs, l.context)
 	if quit {
-		glog.Infof("log operation manager shutting down")
+		glog.Infof("Log operation manager shutting down")
 	}
 	return quit
 }

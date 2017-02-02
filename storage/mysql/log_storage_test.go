@@ -892,7 +892,7 @@ func runTestGetActiveLogIDsInternal(t *testing.T, test getActiveIDsTest, logID i
 
 	logIDs, err := test.fn(s, context.TODO(), logID)
 	if err != nil {
-		t.Errorf("%v = (_, %v_, want = (_, nil)", test.name, err)
+		t.Errorf("%v = (_, %v), want = (_, nil)", test.name, err)
 		return
 	}
 

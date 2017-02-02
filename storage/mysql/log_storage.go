@@ -125,7 +125,7 @@ type readOnlyLogTX struct {
 func (m *mySQLLogStorage) Snapshot(ctx context.Context) (storage.ReadOnlyLogTX, error) {
 	tx, err := m.db.Begin()
 	if err != nil {
-		glog.Warningf("could not start ReadOnlyLogTX: %s", err)
+		glog.Warningf("Could not start ReadOnlyLogTX: %s", err)
 		return nil, err
 	}
 	return &readOnlyLogTX{tx}, nil
