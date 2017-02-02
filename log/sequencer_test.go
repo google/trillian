@@ -168,7 +168,6 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) (testCont
 
 	mockTx.EXPECT().WriteRevision().AnyTimes().Return(params.writeRevision)
 
-	// TODO(codingllama): treeID shouldn't be used below
 	if params.beginFails {
 		mockStorage.EXPECT().Begin(gomock.Any(), params.logID).AnyTimes().Return(mockTx, errors.New("TX"))
 	} else {
@@ -245,7 +244,7 @@ func TestBeginTXFails(t *testing.T) {
 	}
 	c, ctx := createTestContext(ctrl, params)
 
-	leaves, err := c.sequencer.SequenceBatch(ctx, 1)
+	leaves, err := c.sequencer.SequenceBatch(ctx, params.logID, 1)
 	if leaves != 0 {
 		t.Fatalf("Unexpectedly sequenced %d leaves on error", leaves)
 	}
@@ -266,7 +265,7 @@ func TestSequenceWithNothingQueued(t *testing.T) {
 	}
 	c, ctx := createTestContext(ctrl, params)
 
-	leaves, err := c.sequencer.SequenceBatch(ctx, 1)
+	leaves, err := c.sequencer.SequenceBatch(ctx, params.logID, 1)
 	if leaves != 0 {
 		t.Fatalf("Unexpectedly sequenced %d leaves on error", leaves)
 	}
@@ -296,7 +295,7 @@ func TestGuardWindowPassthrough(t *testing.T) {
 	c, ctx := createTestContext(ctrl, params)
 	c.sequencer.SetGuardWindow(guardInterval)
 
-	leaves, err := c.sequencer.SequenceBatch(ctx, 1)
+	leaves, err := c.sequencer.SequenceBatch(ctx, params.logID, 1)
 	if leaves != 0 {
 		t.Fatalf("Expected no leaves sequenced when in guard interval but got: %d", leaves)
 	}
@@ -318,7 +317,7 @@ func TestDequeueError(t *testing.T) {
 	}
 	c, ctx := createTestContext(ctrl, params)
 
-	leafCount, err := c.sequencer.SequenceBatch(ctx, 1)
+	leafCount, err := c.sequencer.SequenceBatch(ctx, params.logID, 1)
 	testonly.EnsureErrorContains(t, err, "dequeue")
 	if leafCount != 0 {
 		t.Fatalf("Unexpectedly sequenced %d leaves on error", leafCount)
@@ -340,7 +339,7 @@ func TestLatestRootError(t *testing.T) {
 	}
 	c, ctx := createTestContext(ctrl, params)
 
-	leafCount, err := c.sequencer.SequenceBatch(ctx, 1)
+	leafCount, err := c.sequencer.SequenceBatch(ctx, params.logID, 1)
 	if leafCount != 0 {
 		t.Fatalf("Unexpectedly sequenced %d leaves on error", leafCount)
 	}
@@ -365,7 +364,7 @@ func TestUpdateSequencedLeavesError(t *testing.T) {
 	}
 	c, ctx := createTestContext(ctrl, params)
 
-	leafCount, err := c.sequencer.SequenceBatch(ctx, 1)
+	leafCount, err := c.sequencer.SequenceBatch(ctx, params.logID, 1)
 	if leafCount != 0 {
 		t.Fatalf("Unexpectedly sequenced %d leaves on error", leafCount)
 	}
@@ -391,7 +390,7 @@ func TestSetMerkleNodesError(t *testing.T) {
 	}
 	c, ctx := createTestContext(ctrl, params)
 
-	leafCount, err := c.sequencer.SequenceBatch(ctx, 1)
+	leafCount, err := c.sequencer.SequenceBatch(ctx, params.logID, 1)
 	if leafCount != 0 {
 		t.Fatalf("Unexpectedly sequenced %d leaves on error", leafCount)
 	}
@@ -421,7 +420,7 @@ func TestStoreSignedRootError(t *testing.T) {
 	}
 	c, ctx := createTestContext(ctrl, params)
 
-	leafCount, err := c.sequencer.SequenceBatch(ctx, 1)
+	leafCount, err := c.sequencer.SequenceBatch(ctx, params.logID, 1)
 	if leafCount != 0 {
 		t.Fatalf("Unexpectedly sequenced %d leaves on error", leafCount)
 	}
@@ -449,7 +448,7 @@ func TestStoreSignedRootKeyManagerFails(t *testing.T) {
 	}
 	c, ctx := createTestContext(ctrl, params)
 
-	leafCount, err := c.sequencer.SequenceBatch(ctx, 1)
+	leafCount, err := c.sequencer.SequenceBatch(ctx, params.logID, 1)
 	if leafCount != 0 {
 		t.Fatalf("Unexpectedly sequenced %d leaves on error", leafCount)
 	}
@@ -478,7 +477,7 @@ func TestStoreSignedRootSignerFails(t *testing.T) {
 	}
 	c, ctx := createTestContext(ctrl, params)
 
-	leafCount, err := c.sequencer.SequenceBatch(ctx, 1)
+	leafCount, err := c.sequencer.SequenceBatch(ctx, params.logID, 1)
 	if leafCount != 0 {
 		t.Fatalf("Unexpectedly sequenced %d leaves on error", leafCount)
 	}
@@ -510,7 +509,7 @@ func TestCommitFails(t *testing.T) {
 	}
 	c, ctx := createTestContext(ctrl, params)
 
-	leafCount, err := c.sequencer.SequenceBatch(ctx, 1)
+	leafCount, err := c.sequencer.SequenceBatch(ctx, params.logID, 1)
 	if leafCount != 0 {
 		t.Fatalf("Unexpectedly sequenced %d leaves on error", leafCount)
 	}
@@ -541,7 +540,7 @@ func TestSequenceBatch(t *testing.T) {
 	}
 	c, ctx := createTestContext(ctrl, params)
 
-	leafCount, err := c.sequencer.SequenceBatch(ctx, 1)
+	leafCount, err := c.sequencer.SequenceBatch(ctx, params.logID, 1)
 	if err != nil {
 		t.Fatalf("Expected sequencing to succeed, but got err: %v", err)
 	}
@@ -557,7 +556,7 @@ func TestSignBeginTxFails(t *testing.T) {
 	params := testParameters{logID: 154035, beginFails: true}
 	c, ctx := createTestContext(ctrl, params)
 
-	err := c.sequencer.SignRoot(ctx)
+	err := c.sequencer.SignRoot(ctx, params.logID)
 	testonly.EnsureErrorContains(t, err, "TX")
 }
 
@@ -575,7 +574,7 @@ func TestSignLatestRootFails(t *testing.T) {
 	}
 	c, ctx := createTestContext(ctrl, params)
 
-	err := c.sequencer.SignRoot(ctx)
+	err := c.sequencer.SignRoot(ctx, params.logID)
 	testonly.EnsureErrorContains(t, err, "root")
 }
 
@@ -595,7 +594,7 @@ func TestSignedRootKeyManagerFails(t *testing.T) {
 	}
 	c, ctx := createTestContext(ctrl, params)
 
-	err := c.sequencer.SignRoot(ctx)
+	err := c.sequencer.SignRoot(ctx, params.logID)
 	testonly.EnsureErrorContains(t, err, "keymanager")
 }
 
@@ -616,7 +615,7 @@ func TestSignRootSignerFails(t *testing.T) {
 	}
 	c, ctx := createTestContext(ctrl, params)
 
-	err := c.sequencer.SignRoot(ctx)
+	err := c.sequencer.SignRoot(ctx, params.logID)
 	testonly.EnsureErrorContains(t, err, "signer")
 }
 
@@ -637,7 +636,7 @@ func TestSignRootStoreSignedRootFails(t *testing.T) {
 	}
 	c, ctx := createTestContext(ctrl, params)
 
-	err := c.sequencer.SignRoot(ctx)
+	err := c.sequencer.SignRoot(ctx, params.logID)
 	testonly.EnsureErrorContains(t, err, "storesignedroot")
 }
 
@@ -659,7 +658,7 @@ func TestSignRootCommitFails(t *testing.T) {
 	}
 	c, ctx := createTestContext(ctrl, params)
 
-	err := c.sequencer.SignRoot(ctx)
+	err := c.sequencer.SignRoot(ctx, params.logID)
 	testonly.EnsureErrorContains(t, err, "commit")
 }
 
@@ -679,7 +678,7 @@ func TestSignRoot(t *testing.T) {
 	}
 	c, ctx := createTestContext(ctrl, params)
 
-	if err := c.sequencer.SignRoot(ctx); err != nil {
+	if err := c.sequencer.SignRoot(ctx, params.logID); err != nil {
 		t.Fatalf("Expected signing to succeed, but got err: %v", err)
 	}
 }
@@ -701,7 +700,7 @@ func TestSignRootNoExistingRoot(t *testing.T) {
 	}
 	c, ctx := createTestContext(ctrl, params)
 
-	if err := c.sequencer.SignRoot(ctx); err != nil {
+	if err := c.sequencer.SignRoot(ctx, params.logID); err != nil {
 		t.Fatalf("Expected signing to succeed, but got err: %v", err)
 	}
 }
