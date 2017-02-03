@@ -124,7 +124,7 @@ func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 	ctx := context.Background()
 
 	{
-		tx, err := s.Begin(ctx, logID.logID)
+		tx, err := s.BeginForTree(ctx, logID.logID)
 		forceWriteRevision(writeRevision, tx)
 		if err != nil {
 			t.Fatalf("Failed to Begin: %s", err)
@@ -145,7 +145,7 @@ func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 	}
 
 	{
-		tx, err := s.Begin(ctx, logID.logID)
+		tx, err := s.BeginForTree(ctx, logID.logID)
 
 		if err != nil {
 			t.Fatalf("Failed to Begin: %s", err)
