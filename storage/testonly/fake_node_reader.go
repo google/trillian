@@ -145,8 +145,8 @@ func NewMultiFakeNodeReaderFromLeaves(batches []LeafBatch) *MultiFakeNodeReader 
 				nID, err := storage.NewNodeIDForTreeCoords(int64(depth), index, 64)
 
 				if err != nil {
-					return (fmt.Errorf("failed to create a nodeID for tree - should not happen d:%d i:%d",
-						depth, index))
+					return fmt.Errorf("failed to create a nodeID for tree - should not happen d:%d i:%d",
+						depth, index)
 				}
 
 				nodeMap[nID.String()] = storage.Node{NodeID: nID, NodeRevision: batch.TreeRevision, Hash: hash}
