@@ -150,7 +150,7 @@ func (m *mySQLTreeStorage) setSubtreeStmt(num int) (*sql.Stmt, error) {
 	return m.getStmt(insertSubtreeMultiSQL, num, "VALUES(?, ?, ?, ?)", "(?, ?, ?, ?)")
 }
 
-func (m *mySQLTreeStorage) beginTreeTx(ctx context.Context, treeID int64, hashSizeBytes int, strataDepths []int, populateSubtree storage.PopulateSubtreeFunc, prepareSubtreeWrite storage.PrepareSubtreeWriteFunc) (treeTX, error) {
+func (m *mySQLTreeStorage) beginTreeTx(ctx context.Context, treeID int64, hashSizeBytes int, strataDepths []int, populate storage.PopulateSubtreeFunc, prepare storage.PrepareSubtreeWriteFunc) (treeTX, error) {
 	// TODO(alcutter): use BeginTX(ctx) when we move to Go 1.8
 	t, err := m.db.Begin()
 	if err != nil {
@@ -162,7 +162,7 @@ func (m *mySQLTreeStorage) beginTreeTx(ctx context.Context, treeID int64, hashSi
 		ts:            m,
 		treeID:        treeID,
 		hashSizeBytes: hashSizeBytes,
-		subtreeCache:  cache.NewSubtreeCache(strataDepths, populateSubtree, prepareSubtreeWrite),
+		subtreeCache:  cache.NewSubtreeCache(strataDepths, populate, prepare),
 		writeRevision: -1,
 	}, nil
 }

@@ -474,7 +474,7 @@ func PopulateLogSubtreeNodes(treeHasher merkle.TreeHasher) storage.PopulateSubtr
 }
 
 // PrepareMapSubtreeWrite prepares a map subtree for writing. For maps the internal
-// nodes are never written to storage and are thus always cleared
+// nodes are never written to storage and are thus always cleared.
 func PrepareMapSubtreeWrite() storage.PrepareSubtreeWriteFunc {
 	return func(st *storagepb.SubtreeProto) error {
 		st.InternalNodes = nil
@@ -506,9 +506,9 @@ func PrepareLogSubtreeWrite() storage.PrepareSubtreeWriteFunc {
 		if st.Depth < 1 {
 			return fmt.Errorf("prepare subtree for log write invalid depth: %d", st.Depth)
 		}
-		fullyPopulatedNodeCount := 1 << uint(st.Depth)
+		maxLeaves := 1 << uint(st.Depth)
 		// If the subtree is fully populated we can safely clear the internal nodes
-		if len(st.Leaves) == fullyPopulatedNodeCount {
+		if len(st.Leaves) == maxLeaves {
 			st.InternalNodes = nil
 		}
 		return nil
