@@ -155,7 +155,7 @@ func (m *mySQLLogStorage) beginInternal(ctx context.Context, treeID int64) (stor
 	}
 	th := merkle.NewRFC6962TreeHasher(crypto.NewSHA256())
 
-	ttx, err := m.beginTreeTx(ctx, treeID, th.Size(), defaultLogStrata, cache.PopulateLogSubtreeNodes(th))
+	ttx, err := m.beginTreeTx(ctx, treeID, th.Size(), defaultLogStrata, cache.PopulateLogSubtreeNodes(th), cache.PrepareLogSubtreeWrite())
 	if err != nil {
 		return nil, err
 	}

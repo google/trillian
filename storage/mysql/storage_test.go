@@ -12,6 +12,8 @@ import (
 	"testing"
 
 	"github.com/golang/glog"
+	"github.com/google/trillian/crypto"
+	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
 )
 
@@ -104,6 +106,72 @@ func TestNodeRoundTrip(t *testing.T) {
 	}
 }
 
+// This test ensures that node writes cross subtree boundaries so this edge case in the subtree
+// cache gets exercised. Any tree size > 256 will do this.
+func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
+	logID := createLogID("TestLogNodeRoundTripMultiSubtree")
+	prepareTestLogDB(DB, logID, t)
+	s := prepareTestLogStorage(DB, logID, t)
+
+	const writeRevision = int64(100)
+
+	nodesToStore := createLogNodesForTreeAtSize(871, writeRevision)
+	nodeIDsToRead := make([]storage.NodeID, len(nodesToStore))
+	for i := range nodesToStore {
+		nodeIDsToRead[i] = nodesToStore[i].NodeID
+	}
+
+	ctx := context.Background()
+
+	{
+		tx, err := s.BeginForTree(ctx, logID.logID)
+		forceWriteRevision(writeRevision, tx)
+		if err != nil {
+			t.Fatalf("Failed to Begin: %s", err)
+		}
+
+		// Need to read nodes before attempting to write
+		if _, err := tx.GetMerkleNodes(writeRevision-1, nodeIDsToRead); err != nil {
+			t.Fatalf("Failed to read nodes: %s", err)
+		}
+
+		if err := tx.SetMerkleNodes(nodesToStore); err != nil {
+			t.Fatalf("Failed to store nodes: %s", err)
+		}
+
+		if err := tx.Commit(); err != nil {
+			t.Fatalf("Failed to commit nodes: %s", err)
+		}
+	}
+
+	{
+		tx, err := s.BeginForTree(ctx, logID.logID)
+
+		if err != nil {
+			t.Fatalf("Failed to Begin: %s", err)
+		}
+
+		readNodes, err := tx.GetMerkleNodes(100, nodeIDsToRead)
+		if err != nil {
+			t.Fatalf("Failed to retrieve nodes: %s", err)
+		}
+		if err := nodesAreEqual(readNodes, nodesToStore); err != nil {
+			missing, extra := diffNodes(readNodes, nodesToStore)
+			for _, n := range missing {
+				t.Errorf("Missing: %s %s", n.NodeID.String(), n.NodeID.CoordString())
+			}
+			for _, n := range extra {
+				t.Errorf("Extra  : %s %s", n.NodeID.String(), n.NodeID.CoordString())
+			}
+			t.Fatalf("Read back different nodes from the ones stored: %s", err)
+		}
+
+		if err := tx.Commit(); err != nil {
+			t.Fatalf("Failed to commit read: %s", err)
+		}
+	}
+}
+
 func forceWriteRevision(rev int64, tx storage.TreeTX) {
 	mtx, ok := tx.(*logTreeTX)
 	if !ok {
@@ -141,6 +209,32 @@ func createSomeNodes(testName string, treeID int64) []storage.Node {
 	return r
 }
 
+func createLogNodesForTreeAtSize(ts, rev int64) []storage.Node {
+	tree := merkle.NewCompactMerkleTree(merkle.NewRFC6962TreeHasher(crypto.NewSHA256()))
+	nodeMap := make(map[string]storage.Node)
+	for l := 0; l < int(ts); l++ {
+		// We're only interested in the side effects of adding leaves - the node updates
+		tree.AddLeaf([]byte(fmt.Sprintf("Leaf %d", l)), func(depth int, index int64, hash []byte) {
+			nID, err := storage.NewNodeIDForTreeCoords(int64(depth), index, 64)
+
+			if err != nil {
+				panic(fmt.Errorf("failed to create a nodeID for tree - should not happen d:%d i:%d",
+					depth, index))
+			}
+
+			nodeMap[nID.String()] = storage.Node{NodeID: nID, NodeRevision: rev, Hash: hash}
+		})
+	}
+
+	// Unroll the map, which has deduped the updates for us and retained the latest
+	nodes := make([]storage.Node, 0, len(nodeMap))
+	for _, v := range nodeMap {
+		nodes = append(nodes, v)
+	}
+
+	return nodes
+}
+
 func nodesAreEqual(lhs []storage.Node, rhs []storage.Node) error {
 	if ls, rs := len(lhs), len(rhs); ls != rs {
 		return fmt.Errorf("different number of nodes, %d vs %d", ls, rs)
@@ -150,7 +244,7 @@ func nodesAreEqual(lhs []storage.Node, rhs []storage.Node) error {
 			return fmt.Errorf("NodeIDs are not the same,\nlhs = %v,\nrhs = %v", l, r)
 		}
 		if l, r := lhs[i].Hash, rhs[i].Hash; !bytes.Equal(l, r) {
-			return fmt.Errorf("Hashes are not the same,\nlhs = %v,\nrhs = %v", l, r)
+			return fmt.Errorf("Hashes are not the same for %s,\nlhs = %v,\nrhs = %v", lhs[i].NodeID.CoordString(), l, r)
 		}
 	}
 	return nil
@@ -162,6 +256,27 @@ func openTestDBOrDie() *sql.DB {
 		panic(err)
 	}
 	return db
+}
+
+func diffNodes(got, want []storage.Node) ([]storage.Node, []storage.Node) {
+	missing := []storage.Node{}
+	gotMap := make(map[string]storage.Node)
+	for _, n := range got {
+		gotMap[n.NodeID.String()] = n
+	}
+	for _, n := range want {
+		_, ok := gotMap[n.NodeID.String()]
+		if !ok {
+			missing = append(missing, n)
+		}
+		delete(gotMap, n.NodeID.String())
+	}
+	// Unpack the extra nodes to return both as slices
+	extra := make([]storage.Node, 0, len(gotMap))
+	for _, v := range gotMap {
+		extra = append(extra, v)
+	}
+	return missing, extra
 }
 
 // cleanTestDB deletes all the entries in the database. Only use this with a test database

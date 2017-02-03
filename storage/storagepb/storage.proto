@@ -25,7 +25,11 @@ message SubtreeProto {
   map<string, bytes> leaves = 4;
 
   // Map of suffix (within subtree) to subtree-internal node hash.
-  // This structure is only used in RAM as a cache, the internal nodes of
-  // the subtree are not generally stored.
+  // This structure is usually used in RAM as a cache, the internal nodes of
+  // the subtree are not generally stored. However internal nodes are stored for
+  // partially filled log subtrees.
   map<string, bytes> internal_nodes = 5;
+  // Used as a crosscheck on the internal node map by recording its expected size after
+  // loading and repopulation.
+  uint32 internal_node_count = 6;
 }
