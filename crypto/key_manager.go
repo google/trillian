@@ -75,7 +75,7 @@ func (k PEMKeyManager) SignatureAlgorithm() trillian.SignatureAlgorithm {
 	return k.signatureAlgorithm
 }
 
-// HashAlgorithm identifies the signature algorithm used by this key manager.
+// HashAlgorithm identifies the hash algorithm used to sign objects.
 func (k PEMKeyManager) HashAlgorithm() trillian.HashAlgorithm {
 	// TODO: Save the hash algorithm in the key serialization.
 	// Return a default hash algorithm for now.

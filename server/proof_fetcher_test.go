@@ -291,8 +291,8 @@ func expandLeaves(n, m int) []string {
 
 // expectedRootAtSize uses the in memory tree, the tree built with Compact Merkle Tree should
 // have the same root.
-func expectedRootAtSize(mt *merkle.InMemoryMerkleTree) string {
-	return hex.EncodeToString(mt.CurrentRoot().Hash())
+func expectedRootAtSize(mt *merkle.InMemoryMerkleTree) []byte {
+	return mt.CurrentRoot().Hash()
 }
 
 func treeAtSize(n int) *merkle.InMemoryMerkleTree {

@@ -26,7 +26,7 @@ var hashLookup = map[trillian.HashAlgorithm]crypto.Hash{
 	trillian.HashAlgorithm_SHA256: crypto.SHA256,
 }
 
-var cipherLookup = map[crypto.Hash]trillian.HashAlgorithm{
+var reverseHashLookup = map[crypto.Hash]trillian.HashAlgorithm{
 	crypto.SHA256: trillian.HashAlgorithm_SHA256,
 }
 
@@ -34,7 +34,7 @@ var cipherLookup = map[crypto.Hash]trillian.HashAlgorithm{
 func LookupHash(hash trillian.HashAlgorithm) (crypto.Hash, error) {
 	hasher, ok := hashLookup[hash]
 	if !ok {
-		return 0, fmt.Errorf("Unsupported hash algorithm %v", hash)
+		return 0, fmt.Errorf("unsupported hash algorithm %v", hash)
 	}
 	return hasher, nil
 }

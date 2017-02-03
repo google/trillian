@@ -39,7 +39,7 @@ const (
 	RFC6962NodeHashPrefix = 1
 )
 
-// TreeHasher is a set of domain separated hashers for creating Merkle tree hashes.
+// TreeHasher implements the RFC6962 tree hashing algorithm.
 type TreeHasher struct {
 	crypto.Hash
 }

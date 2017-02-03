@@ -74,7 +74,7 @@ func (s Signer) Sign(data []byte) (trillian.DigitallySigned, error) {
 
 	return trillian.DigitallySigned{
 		SignatureAlgorithm: s.sigAlgorithm,
-		HashAlgorithm:      cipherLookup[s.hasher],
+		HashAlgorithm:      reverseHashLookup[s.hasher],
 		Signature:          sig}, nil
 }
 
