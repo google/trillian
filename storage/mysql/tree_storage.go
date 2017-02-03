@@ -270,7 +270,6 @@ func (t *treeTX) storeSubtrees(subtrees []*storagepb.SubtreeProto) error {
 	// TODO(al): probably need to be able to batch this in the case where we have
 	// a really large number of subtrees to store.
 	args := make([]interface{}, 0, len(subtrees))
-	glog.Warningf("writing %d subtrees", len(subtrees))
 
 	for _, s := range subtrees {
 		s := s

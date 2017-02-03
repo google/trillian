@@ -46,10 +46,10 @@ type SubtreeCache struct {
 	dirtyPrefixes map[string]bool
 	// mutex guards access to the maps above.
 	mutex *sync.RWMutex
-	// used to rebuild internal nodes when subtrees are loaded
-	populateSubtree storage.PopulateSubtreeFunc
-	// used for preparation work when subtrees are about to be written to storage
-	prepareSubtreeWrite storage.PrepareSubtreeWriteFunc
+	// populate is used to rebuild internal nodes when subtrees are loaded from storage.
+	populate storage.PopulateSubtreeFunc
+	// prepare is used for preparation work when subtrees are about to be written to storage.
+	prepare storage.PrepareSubtreeWriteFunc
 }
 
 // Suffix represents the tail of a NodeID, indexing into the Subtree which
@@ -101,12 +101,12 @@ func NewSubtreeCache(strataDepths []int, populateSubtree storage.PopulateSubtree
 	}
 
 	return SubtreeCache{
-		stratumInfo:         sInfo,
-		subtrees:            make(map[string]*storagepb.SubtreeProto),
-		dirtyPrefixes:       make(map[string]bool),
-		mutex:               new(sync.RWMutex),
-		populateSubtree:     populateSubtree,
-		prepareSubtreeWrite: prepareSubtreeWrite,
+		stratumInfo:   sInfo,
+		subtrees:      make(map[string]*storagepb.SubtreeProto),
+		dirtyPrefixes: make(map[string]bool),
+		mutex:         new(sync.RWMutex),
+		populate:      populateSubtree,
+		prepare:       prepareSubtreeWrite,
 	}
 }
 
@@ -165,7 +165,7 @@ func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc
 		return err
 	}
 	for _, t := range subtrees {
-		s.populateSubtree(t)
+		s.populate(t)
 		s.subtrees[string(t.Prefix)] = t
 	}
 	return nil
@@ -243,7 +243,7 @@ func (s *SubtreeCache) getNodeHashUnderLock(id storage.NodeID, getSubtree GetSub
 				InternalNodes: make(map[string][]byte),
 			}
 		} else {
-			if err := s.populateSubtree(c); err != nil {
+			if err := s.populate(c); err != nil {
 				return nil, err
 			}
 		}
@@ -329,7 +329,7 @@ func (s *SubtreeCache) Flush(setSubtrees SetSubtreesFunc) error {
 
 			if len(v.Leaves) > 0 {
 				// prepare internal nodes ready for the write (tree type specific)
-				if err := s.prepareSubtreeWrite(v); err != nil {
+				if err := s.prepare(v); err != nil {
 					return err
 				}
 				treesToWrite = append(treesToWrite, v)
@@ -414,12 +414,14 @@ func PopulateLogSubtreeNodes(treeHasher merkle.TreeHasher) storage.PopulateSubtr
 		if st.Depth < 1 {
 			return fmt.Errorf("populate log subtree with invalid depth: %d", st.Depth)
 		}
-		fullyPopulatedLeafCount := 1 << uint(st.Depth)
+		// maxLeaves is the number of leaves that fully populates a subtree of the depth we are
+		// working with.
+		maxLeaves := 1 << uint(st.Depth)
 
 		// If the subtree is fully populated then the internal node map is expected to be nil but in
 		// case it isn't we recreate it as we're about to rebuild the contents. We'll check
 		// below that the number of nodes is what we expected to have.
-		if st.InternalNodes == nil || len(st.Leaves) == fullyPopulatedLeafCount {
+		if st.InternalNodes == nil || len(st.Leaves) == maxLeaves {
 			st.InternalNodes = make(map[string][]byte)
 		}
 
@@ -448,7 +450,7 @@ func PopulateLogSubtreeNodes(treeHasher merkle.TreeHasher) storage.PopulateSubtr
 				}
 				// Don't put leaves into the internal map and only update if we're rebuilding internal
 				// nodes. If the subtree was saved with internal nodes then we don't touch the map.
-				if depth > 0 && len(st.Leaves) == fullyPopulatedLeafCount {
+				if depth > 0 && len(st.Leaves) == maxLeaves {
 					st.InternalNodes[key] = h
 				}
 			})
@@ -489,9 +491,12 @@ func PrepareMapSubtreeWrite() storage.PrepareSubtreeWriteFunc {
 // and then an additional leaf is added.
 //
 // This causes an extra level to be added to the tree with an internal node that is a hash
-// of the root of the left full subtree and the new leaf. Thus the internal nodes cannot be
-// correctly reconstructed when the tree is reloaded because of the dependency on another
-// subtree.
+// of the root of the left full subtree and the new leaf. Note that the leaves remain at
+// level zero in the overall tree coordinate space but they are now in a lower subtree stratum
+// than they were before the last node was added as the tree has grown above them.
+//
+// Thus in the case just discussed the internal nodes cannot be correctly reconstructed
+// in isolation when the tree is reloaded because of the dependency on another subtree.
 //
 // Fully populated subtrees don't have this problem because by definition they can only
 // contain internal nodes built from their own contents.
