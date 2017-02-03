@@ -21,18 +21,33 @@ import (
 	"github.com/google/trillian"
 )
 
-// ReadOnlyLogTX provides a read-only view into the Log data.
+// ReadOnlyLogTX provides a read-only view into log data.
+// A ReadOnlyLogTX, unlike ReadOnlyLogTreeTX, is not tied to a particular tree.
 type ReadOnlyLogTX interface {
+	LogMetadata
+
+	// Commit ensures the data read by the TX is consistent in the database. Only after Commit the
+	// data read should be regarded as valid.
+	Commit() error
+
+	// Rollback discards the read-only TX.
+	Rollback() error
+}
+
+// ReadOnlyLogTreeTX provides a read-only view into the Log data.
+// A ReadOnlyLogTreeTX can only read from the tree specified in its creation.
+type ReadOnlyLogTreeTX interface {
 	ReadOnlyTreeTX
 	LeafReader
 	LogRootReader
 }
 
-// LogTX is the transactional interface for reading/updating a Log.
+// LogTreeTX is the transactional interface for reading/updating a Log.
 // It extends the basic TreeTX interface with Log specific methods.
 // After a call to Commit or Rollback implementations must be in a clean state and have
 // released any resources owned by the LogTX.
-type LogTX interface {
+// A LogTreeTX can only modify the tree specified in its creation.
+type LogTreeTX interface {
 	TreeTX
 	LogRootReader
 	LogRootWriter
@@ -44,22 +59,25 @@ type LogTX interface {
 
 // ReadOnlyLogStorage represents a narrowed read-only view into a LogStorage.
 type ReadOnlyLogStorage interface {
-	// Snapshot starts a read-only transaction.
+	// Snapshot starts a read-only transaction not tied to any particular tree.
+	Snapshot(ctx context.Context) (ReadOnlyLogTX, error)
+
+	// SnapshotForTree starts a read-only transaction for the specified treeID.
 	// Commit must be called when the caller is finished with the returned object,
 	// and values read through it should only be propagated if Commit returns
 	// without error.
-	Snapshot(ctx context.Context, treeID int64) (ReadOnlyLogTX, error)
+	SnapshotForTree(ctx context.Context, treeID int64) (ReadOnlyLogTreeTX, error)
 }
 
 // LogStorage should be implemented by concrete storage mechanisms which want to support Logs.
 type LogStorage interface {
 	ReadOnlyLogStorage
 
-	// Begin starts a new Log transaction.
+	// BeginForTree starts a transaction for the specified treeID.
 	// Either Commit or Rollback must be called when the caller is finished with
 	// the returned object, and values read through it should only be propagated
 	// if Commit returns without error.
-	Begin(ctx context.Context, treeID int64) (LogTX, error)
+	BeginForTree(ctx context.Context, treeID int64) (LogTreeTX, error)
 }
 
 // LeafQueuer provides a write-only interface for the queueing (but not necessarily integration) of leaves.

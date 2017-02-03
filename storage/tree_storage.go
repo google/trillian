@@ -15,6 +15,7 @@
 package storage
 
 // ReadOnlyTreeTX represents a read-only transaction on a TreeStorage.
+// A ReadOnlyTreeTX can only modify the tree specified in its creation.
 type ReadOnlyTreeTX interface {
 	NodeReader
 	Commit() error
@@ -26,6 +27,7 @@ type ReadOnlyTreeTX interface {
 // After a call to Commit or Rollback, all operations on the transaction will fail.
 // After a call to Commit or Rollback implementations must be in a clean state and have
 // released any resources owned by the TreeTX.
+// A TreeTX can only modify the tree specified in its creation.
 type TreeTX interface {
 	NodeReaderWriter
 

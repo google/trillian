@@ -370,24 +370,18 @@ func (t *treeTX) Commit() error {
 		t.subtreeCache.Flush(func(st []*storagepb.SubtreeProto) error { return t.storeSubtrees(st) })
 	}
 	t.closed = true
-	err := t.tx.Commit()
-
-	if err != nil {
+	if err := t.tx.Commit(); err != nil {
 		glog.Warningf("TX commit error: %s", err)
 	}
-
-	return err
+	return nil
 }
 
 func (t *treeTX) Rollback() error {
 	t.closed = true
-	err := t.tx.Rollback()
-
-	if err != nil {
+	if err := t.tx.Rollback(); err != nil {
 		glog.Warningf("TX rollback error: %s", err)
 	}
-
-	return err
+	return nil
 }
 
 func (t *treeTX) IsOpen() bool {

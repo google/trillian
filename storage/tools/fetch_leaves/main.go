@@ -39,7 +39,7 @@ func main() {
 	}
 
 	ctx := context.Background()
-	tx, err := storage.Snapshot(ctx, *treeIDFlag)
+	tx, err := storage.SnapshotForTree(ctx, *treeIDFlag)
 	if err != nil {
 		panic(err)
 	}

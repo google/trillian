@@ -1,8 +1,10 @@
-/trillian_log_server
-/trillian_map_server
+/.idea
+/ct_hammer
 /ct_server
 /loglb
 /protoc
-/ct_hammer
-*.swp
+/trillian_log_server
+/trillian_map_server
+*.iml
 *.swo
+*.swp

@@ -94,16 +94,13 @@ func NewLogOperationManagerForTest(ctx context.Context, registry extension.Regis
 
 func (l LogOperationManager) getLogsAndExecutePass(ctx context.Context) bool {
 	provider, err := l.context.registry.GetLogStorage()
-
 	// If we get an error, we can't do anything but wait until the next run through
 	if err != nil {
 		glog.Warningf("Failed to get storage provider for run: %v", err)
 		return false
 	}
 
-	// TODO(codingllama): A treeID shouldn't be necessary here
-	tx, err := provider.Begin(ctx, 0)
-
+	tx, err := provider.Snapshot(ctx)
 	if err != nil {
 		glog.Warningf("Failed to get tx for run: %v", err)
 		return false
@@ -111,7 +108,6 @@ func (l LogOperationManager) getLogsAndExecutePass(ctx context.Context) bool {
 
 	// Inner loop is across all active logs, currently one at a time
 	logIDs, err := tx.GetActiveLogIDs()
-
 	if err != nil {
 		glog.Warningf("Failed to get log list for run: %v", err)
 		tx.Rollback()
@@ -128,7 +124,6 @@ func (l LogOperationManager) getLogsAndExecutePass(ctx context.Context) bool {
 	if quit {
 		glog.Infof("Log operation manager shutting down")
 	}
-
 	return quit
 }
 

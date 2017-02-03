@@ -63,7 +63,7 @@ func TestNodeRoundTrip(t *testing.T) {
 	ctx := context.Background()
 
 	{
-		tx, err := s.Begin(ctx, logID.logID)
+		tx, err := s.BeginForTree(ctx, logID.logID)
 		forceWriteRevision(writeRevision, tx)
 		if err != nil {
 			t.Fatalf("Failed to Begin: %s", err)
@@ -84,7 +84,7 @@ func TestNodeRoundTrip(t *testing.T) {
 	}
 
 	{
-		tx, err := s.Begin(ctx, logID.logID)
+		tx, err := s.BeginForTree(ctx, logID.logID)
 
 		if err != nil {
 			t.Fatalf("Failed to Begin: %s", err)
@@ -105,7 +105,7 @@ func TestNodeRoundTrip(t *testing.T) {
 }
 
 func forceWriteRevision(rev int64, tx storage.TreeTX) {
-	mtx, ok := tx.(*logTX)
+	mtx, ok := tx.(*logTreeTX)
 	if !ok {
 		panic(nil)
 	}

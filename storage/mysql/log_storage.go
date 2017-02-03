@@ -85,7 +85,69 @@ func (m *mySQLLogStorage) getDeleteUnsequencedStmt(num int) (*sql.Stmt, error) {
 	return m.getStmt(deleteUnsequencedSQL, num, "?", "?")
 }
 
-func (m *mySQLLogStorage) beginInternal(ctx context.Context, treeID int64) (storage.LogTX, error) {
+func getActiveLogIDsInternal(tx *sql.Tx, sql string) ([]int64, error) {
+	rows, err := tx.Query(sql)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	logIDs := make([]int64, 0)
+	for rows.Next() {
+		var keyID []byte
+		var treeID int64
+		if err := rows.Scan(&treeID, &keyID); err != nil {
+			return nil, err
+		}
+		logIDs = append(logIDs, treeID)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return logIDs, nil
+}
+
+func getActiveLogIDs(tx *sql.Tx) ([]int64, error) {
+	return getActiveLogIDsInternal(tx, selectActiveLogsSQL)
+}
+
+func getActiveLogIDsWithPendingWork(tx *sql.Tx) ([]int64, error) {
+	return getActiveLogIDsInternal(tx, selectActiveLogsWithUnsequencedSQL)
+}
+
+// readOnlyLogTX implements storage.ReadOnlyLogTX
+type readOnlyLogTX struct {
+	tx *sql.Tx
+}
+
+func (m *mySQLLogStorage) Snapshot(ctx context.Context) (storage.ReadOnlyLogTX, error) {
+	tx, err := m.db.Begin()
+	if err != nil {
+		glog.Warningf("Could not start ReadOnlyLogTX: %s", err)
+		return nil, err
+	}
+	return &readOnlyLogTX{tx}, nil
+}
+
+func (t *readOnlyLogTX) Commit() error {
+	return t.tx.Commit()
+}
+
+func (t *readOnlyLogTX) Rollback() error {
+	return t.tx.Rollback()
+}
+
+func (t *readOnlyLogTX) GetActiveLogIDs() ([]int64, error) {
+	return getActiveLogIDs(t.tx)
+}
+
+func (t *readOnlyLogTX) GetActiveLogIDsWithPendingWork() ([]int64, error) {
+	return getActiveLogIDsWithPendingWork(t.tx)
+}
+
+func (m *mySQLLogStorage) beginInternal(ctx context.Context, treeID int64) (storage.LogTreeTX, error) {
 	// TODO(codingllama): Validate treeType, read hash algorithm from storage
 	var allowDuplicates bool
 	if err := m.db.QueryRow(getTreePropertiesSQL, treeID).Scan(&allowDuplicates); err != nil {
@@ -98,7 +160,7 @@ func (m *mySQLLogStorage) beginInternal(ctx context.Context, treeID int64) (stor
 		return nil, err
 	}
 
-	ltx := &logTX{
+	ltx := &logTreeTX{
 		treeTX:          ttx,
 		ls:              m,
 		allowDuplicates: allowDuplicates,
@@ -114,29 +176,29 @@ func (m *mySQLLogStorage) beginInternal(ctx context.Context, treeID int64) (stor
 	return ltx, nil
 }
 
-func (m *mySQLLogStorage) Begin(ctx context.Context, treeID int64) (storage.LogTX, error) {
+func (m *mySQLLogStorage) BeginForTree(ctx context.Context, treeID int64) (storage.LogTreeTX, error) {
 	return m.beginInternal(ctx, treeID)
 }
 
-func (m *mySQLLogStorage) Snapshot(ctx context.Context, treeID int64) (storage.ReadOnlyLogTX, error) {
+func (m *mySQLLogStorage) SnapshotForTree(ctx context.Context, treeID int64) (storage.ReadOnlyLogTreeTX, error) {
 	tx, err := m.beginInternal(ctx, treeID)
 	if err != nil {
 		return nil, err
 	}
-	return tx.(storage.ReadOnlyLogTX), err
+	return tx.(storage.ReadOnlyLogTreeTX), err
 }
 
-type logTX struct {
+type logTreeTX struct {
 	treeTX
 	ls              *mySQLLogStorage
 	allowDuplicates bool
 }
 
-func (t *logTX) WriteRevision() int64 {
+func (t *logTreeTX) WriteRevision() int64 {
 	return t.treeTX.writeRevision
 }
 
-func (t *logTX) DequeueLeaves(limit int, cutoffTime time.Time) ([]trillian.LogLeaf, error) {
+func (t *logTreeTX) DequeueLeaves(limit int, cutoffTime time.Time) ([]trillian.LogLeaf, error) {
 	stx, err := t.tx.Prepare(selectQueuedLeavesSQL)
 
 	if err != nil {
@@ -198,7 +260,7 @@ func (t *logTX) DequeueLeaves(limit int, cutoffTime time.Time) ([]trillian.LogLe
 	return leaves, nil
 }
 
-func (t *logTX) QueueLeaves(leaves []trillian.LogLeaf, queueTimestamp time.Time) error {
+func (t *logTreeTX) QueueLeaves(leaves []trillian.LogLeaf, queueTimestamp time.Time) error {
 	// Don't accept batches if any of the leaves are invalid.
 	for _, leaf := range leaves {
 		if len(leaf.LeafIdentityHash) != t.hashSizeBytes {
@@ -266,7 +328,7 @@ func (t *logTX) QueueLeaves(leaves []trillian.LogLeaf, queueTimestamp time.Time)
 	return nil
 }
 
-func (t *logTX) GetSequencedLeafCount() (int64, error) {
+func (t *logTreeTX) GetSequencedLeafCount() (int64, error) {
 	var sequencedLeafCount int64
 
 	err := t.tx.QueryRow(selectSequencedLeafCountSQL, t.treeID).Scan(&sequencedLeafCount)
@@ -278,7 +340,7 @@ func (t *logTX) GetSequencedLeafCount() (int64, error) {
 	return sequencedLeafCount, err
 }
 
-func (t *logTX) GetLeavesByIndex(leaves []int64) ([]trillian.LogLeaf, error) {
+func (t *logTreeTX) GetLeavesByIndex(leaves []int64) ([]trillian.LogLeaf, error) {
 	tmpl, err := t.ls.getLeavesByIndexStmt(len(leaves))
 	if err != nil {
 		return nil, err
@@ -318,7 +380,7 @@ func (t *logTX) GetLeavesByIndex(leaves []int64) ([]trillian.LogLeaf, error) {
 	return ret, nil
 }
 
-func (t *logTX) GetLeavesByHash(leafHashes [][]byte, orderBySequence bool) ([]trillian.LogLeaf, error) {
+func (t *logTreeTX) GetLeavesByHash(leafHashes [][]byte, orderBySequence bool) ([]trillian.LogLeaf, error) {
 	tmpl, err := t.ls.getLeavesByMerkleHashStmt(len(leafHashes), orderBySequence)
 
 	if err != nil {
@@ -328,7 +390,7 @@ func (t *logTX) GetLeavesByHash(leafHashes [][]byte, orderBySequence bool) ([]tr
 	return t.getLeavesByHashInternal(leafHashes, tmpl, "merkle")
 }
 
-func (t *logTX) LatestSignedLogRoot() (trillian.SignedLogRoot, error) {
+func (t *logTreeTX) LatestSignedLogRoot() (trillian.SignedLogRoot, error) {
 	var timestamp, treeSize, treeRevision int64
 	var rootHash, rootSignatureBytes []byte
 	var rootSignature trillian.DigitallySigned
@@ -359,7 +421,7 @@ func (t *logTX) LatestSignedLogRoot() (trillian.SignedLogRoot, error) {
 	}, nil
 }
 
-func (t *logTX) StoreSignedLogRoot(root trillian.SignedLogRoot) error {
+func (t *logTreeTX) StoreSignedLogRoot(root trillian.SignedLogRoot) error {
 	signatureBytes, err := proto.Marshal(root.Signature)
 
 	if err != nil {
@@ -377,7 +439,7 @@ func (t *logTX) StoreSignedLogRoot(root trillian.SignedLogRoot) error {
 	return checkResultOkAndRowCountIs(res, err, 1)
 }
 
-func (t *logTX) UpdateSequencedLeaves(leaves []trillian.LogLeaf) error {
+func (t *logTreeTX) UpdateSequencedLeaves(leaves []trillian.LogLeaf) error {
 	// TODO: In theory we can do this with CASE / WHEN in one SQL statement but it's more fiddly
 	// and can be implemented later if necessary
 	for _, leaf := range leaves {
@@ -398,7 +460,7 @@ func (t *logTX) UpdateSequencedLeaves(leaves []trillian.LogLeaf) error {
 	return nil
 }
 
-func (t *logTX) removeSequencedLeaves(leaves []trillian.LogLeaf) error {
+func (t *logTreeTX) removeSequencedLeaves(leaves []trillian.LogLeaf) error {
 	tmpl, err := t.ls.getDeleteUnsequencedStmt(len(leaves))
 	if err != nil {
 		glog.Warningf("Failed to get delete statement for sequenced work: %s", err)
@@ -426,36 +488,7 @@ func (t *logTX) removeSequencedLeaves(leaves []trillian.LogLeaf) error {
 	return nil
 }
 
-func (t *logTX) getActiveLogIDsInternal(sql string) ([]int64, error) {
-	rows, err := t.tx.Query(sql)
-
-	if err != nil {
-		return nil, err
-	}
-
-	defer rows.Close()
-
-	logIDs := make([]int64, 0, 0)
-
-	for rows.Next() {
-		var keyID []byte
-		var treeID int64
-
-		if err := rows.Scan(&treeID, &keyID); err != nil {
-			return []int64{}, err
-		}
-
-		logIDs = append(logIDs, treeID)
-	}
-
-	if rows.Err() != nil {
-		return []int64{}, rows.Err()
-	}
-
-	return logIDs, nil
-}
-
-func (t *logTX) getLeavesByHashInternal(leafHashes [][]byte, tmpl *sql.Stmt, desc string) ([]trillian.LogLeaf, error) {
+func (t *logTreeTX) getLeavesByHashInternal(leafHashes [][]byte, tmpl *sql.Stmt, desc string) ([]trillian.LogLeaf, error) {
 	stx := t.tx.Stmt(tmpl)
 	var args []interface{}
 	for _, hash := range leafHashes {
@@ -491,12 +524,12 @@ func (t *logTX) getLeavesByHashInternal(leafHashes [][]byte, tmpl *sql.Stmt, des
 }
 
 // GetActiveLogIDs returns a list of the IDs of all configured logs
-func (t *logTX) GetActiveLogIDs() ([]int64, error) {
-	return t.getActiveLogIDsInternal(selectActiveLogsSQL)
+func (t *logTreeTX) GetActiveLogIDs() ([]int64, error) {
+	return getActiveLogIDs(t.tx)
 }
 
 // GetActiveLogIDsWithPendingWork returns a list of the IDs of all configured logs
 // that have queued unsequenced leaves that need to be integrated
-func (t *logTX) GetActiveLogIDsWithPendingWork() ([]int64, error) {
-	return t.getActiveLogIDsInternal(selectActiveLogsWithUnsequencedSQL)
+func (t *logTreeTX) GetActiveLogIDsWithPendingWork() ([]int64, error) {
+	return getActiveLogIDsWithPendingWork(t.tx)
 }

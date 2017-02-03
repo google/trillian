@@ -47,7 +47,7 @@ func main() {
 	}
 
 	ctx := context.Background()
-	tx, err := storage.Begin(ctx, *treeIDFlag)
+	tx, err := storage.BeginForTree(ctx, *treeIDFlag)
 	if err != nil {
 		panic(err)
 	}
