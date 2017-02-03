@@ -141,15 +141,16 @@ func NewMultiFakeNodeReaderFromLeaves(batches []LeafBatch) *MultiFakeNodeReader 
 		nodeMap := make(map[string]storage.Node)
 		for _, leaf := range batch.Leaves {
 			// We're only interested in the side effects of adding leaves - the node updates
-			tree.AddLeaf([]byte(leaf), func(depth int, index int64, hash []byte) {
+			tree.AddLeaf([]byte(leaf), func(depth int, index int64, hash []byte) error {
 				nID, err := storage.NewNodeIDForTreeCoords(int64(depth), index, 64)
 
 				if err != nil {
-					panic(fmt.Errorf("failed to create a nodeID for tree - should not happen d:%d i:%d",
+					return (fmt.Errorf("failed to create a nodeID for tree - should not happen d:%d i:%d",
 						depth, index))
 				}
 
 				nodeMap[nID.String()] = storage.Node{NodeID: nID, NodeRevision: batch.TreeRevision, Hash: hash}
+				return nil
 			})
 		}
 

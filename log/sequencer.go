@@ -113,16 +113,20 @@ func (s Sequencer) sequenceLeaves(mt *merkle.CompactMerkleTree, leaves []*trilli
 	nodeMap := make(map[string]storage.Node)
 	// Update the tree state and sequence the leaves and assign sequence numbers to the new leaves
 	for i, leaf := range leaves {
-		seq := mt.AddLeafHash(leaf.MerkleLeafHash, func(depth int, index int64, hash []byte) {
+		seq, err := mt.AddLeafHash(leaf.MerkleLeafHash, func(depth int, index int64, hash []byte) error {
 			nodeID, err := storage.NewNodeIDForTreeCoords(int64(depth), index, maxTreeDepth)
 			if err != nil {
-				return
+				return err
 			}
 			nodeMap[nodeID.String()] = storage.Node{
 				NodeID: nodeID,
 				Hash:   hash,
 			}
+			return nil
 		})
+		if err != nil {
+			return nil, nil, err
+		}
 		// The leaf has now been sequenced.
 		leaves[i].LeafIndex = seq
 		// Store leaf hash in the Merkle tree too:

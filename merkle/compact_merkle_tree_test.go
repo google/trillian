@@ -80,7 +80,9 @@ func TestAddingLeaves(t *testing.T) {
 		}
 
 		for i := 0; i < 8; i++ {
-			tree.AddLeaf(inputs[i], func(int, int64, []byte) {})
+			tree.AddLeaf(inputs[i], func(int, int64, []byte) error {
+				return nil
+			})
 			if err := checkUnusedNodesInvariant(tree); err != nil {
 				t.Fatalf("UnusedNodesInvariant check failed: %v", err)
 			}
@@ -100,7 +102,9 @@ func TestAddingLeaves(t *testing.T) {
 		// Second tree, add nodes all at once
 		tree := NewCompactMerkleTree(testonly.Hasher)
 		for i := 0; i < 8; i++ {
-			tree.AddLeaf(inputs[i], func(int, int64, []byte) {})
+			tree.AddLeaf(inputs[i], func(int, int64, []byte) error {
+				return nil
+			})
 			if err := checkUnusedNodesInvariant(tree); err != nil {
 				t.Fatalf("UnusedNodesInvariant check failed: %v", err)
 			}
@@ -120,7 +124,9 @@ func TestAddingLeaves(t *testing.T) {
 		// Third tree, add nodes in two chunks
 		tree := NewCompactMerkleTree(testonly.Hasher)
 		for i := 0; i < 3; i++ {
-			tree.AddLeaf(inputs[i], func(int, int64, []byte) {})
+			tree.AddLeaf(inputs[i], func(int, int64, []byte) error {
+				return nil
+			})
 			if err := checkUnusedNodesInvariant(tree); err != nil {
 				t.Fatalf("UnusedNodesInvariant check failed: %v", err)
 			}
@@ -136,7 +142,9 @@ func TestAddingLeaves(t *testing.T) {
 		}
 
 		for i := 3; i < 8; i++ {
-			tree.AddLeaf(inputs[i], func(int, int64, []byte) {})
+			tree.AddLeaf(inputs[i], func(int, int64, []byte) error {
+				return nil
+			})
 			if err := checkUnusedNodesInvariant(tree); err != nil {
 				t.Fatalf("UnusedNodesInvariant check failed: %v", err)
 			}
@@ -218,14 +226,18 @@ func TestCompactVsFullTree(t *testing.T) {
 
 		iSeq, iHash := imt.AddLeaf(newLeaf)
 
-		cSeq, cHash := cmt.AddLeaf(newLeaf,
-			func(depth int, index int64, hash []byte) {
+		cSeq, cHash, err := cmt.AddLeaf(newLeaf,
+			func(depth int, index int64, hash []byte) error {
 				k, err := nodeKey(depth, index)
 				if err != nil {
-					t.Errorf("failed to create nodeID: %v", err)
+					return fmt.Errorf("failed to create nodeID: %v", err)
 				}
 				nodes[k] = hash
+				return nil
 			})
+		if err != nil {
+			t.Fatalf("mt update failed: %v", err)
+		}
 
 		// In-Memory tree is 1-based for sequence numbers, since it's based on the original CT C++ impl.
 		if got, want := iSeq, i+1; got != want {
@@ -268,7 +280,9 @@ func TestRootHashForVariousTreeSizes(t *testing.T) {
 		tree := NewCompactMerkleTree(testonly.Hasher)
 		for i := int64(0); i < test.size; i++ {
 			l := []byte{byte(i & 0xff), byte((i >> 8) & 0xff)}
-			tree.AddLeaf(l, func(int, int64, []byte) {})
+			tree.AddLeaf(l, func(int, int64, []byte) error {
+				return nil
+			})
 		}
 		if got, want := tree.CurrentRoot(), test.wantRoot; !bytes.Equal(got, want) {
 			t.Errorf("Test (treesize=%v) got root %v, want %v", test.size, b64e(got), b64e(want))

@@ -126,7 +126,10 @@ func RunLogIntegration(client trillian.TrillianLogClient, params TestParameters)
 
 	// Step 4 - Cross validation between log and memory tree root hashes
 	glog.Infof("Checking log STH with our constructed in-memory tree ...")
-	tree := buildMemoryMerkleTree(leafMap, params)
+	tree, err := buildMemoryMerkleTree(leafMap, params)
+	if err != nil {
+		return err
+	}
 	if err := checkLogRootHashMatches(tree, client, params); err != nil {
 		return fmt.Errorf("log consistency check failed: %v", err)
 	}
@@ -448,7 +451,7 @@ func makeGetLeavesByIndexRequest(logID int64, startLeaf, numLeaves int64) *trill
 	return &trillian.GetLeavesByIndexRequest{LogId: logID, LeafIndex: leafIndices}
 }
 
-func buildMemoryMerkleTree(leafMap map[int64]*trillian.LogLeaf, params TestParameters) *merkle.InMemoryMerkleTree {
+func buildMemoryMerkleTree(leafMap map[int64]*trillian.LogLeaf, params TestParameters) (*merkle.InMemoryMerkleTree, error) {
 	// Build the same tree with two different Merkle implementations as an additional check. We don't
 	// just rely on the compact tree as the server uses the same code so bugs could be masked
 	compactTree := merkle.NewCompactMerkleTree(testonly.Hasher)
@@ -456,17 +459,19 @@ func buildMemoryMerkleTree(leafMap map[int64]*trillian.LogLeaf, params TestParam
 
 	// We use the leafMap as we need to use the same order for the memory tree to get the same hash.
 	for l := params.startLeaf; l < params.leafCount; l++ {
-		compactTree.AddLeaf(leafMap[l].LeafValue, func(depth int, index int64, hash []byte) {})
+		compactTree.AddLeaf(leafMap[l].LeafValue, func(depth int, index int64, hash []byte) error {
+			return nil
+		})
 		merkleTree.AddLeaf(leafMap[l].LeafValue)
 	}
 
 	// If the two reference results disagree there's no point in continuing the checks. This is a
 	// "can't happen" situation.
 	if !bytes.Equal(compactTree.CurrentRoot(), merkleTree.CurrentRoot().Hash()) {
-		glog.Fatalf("different root hash results from merkle tree building: %v and %v", compactTree.CurrentRoot(), merkleTree.CurrentRoot())
+		return nil, fmt.Errorf("different root hash results from merkle tree building: %v and %v", compactTree.CurrentRoot(), merkleTree.CurrentRoot())
 	}
 
-	return merkleTree
+	return merkleTree, nil
 }
 
 func getLatestSignedLogRoot(client trillian.TrillianLogClient, params TestParameters) (*trillian.GetLatestSignedLogRootResponse, error) {
