@@ -7,7 +7,7 @@ echo "Building code"
 go build ${GOFLAGS} ./server/trillian_log_server/
 
 TEST_TREE_ID=1123
-RPC_PORT=34557
+RPC_PORT=44557
 
 yes | "${SCRIPTS_DIR}"/resetdb.sh
 for tid in 0 $TEST_TREE_ID; do
