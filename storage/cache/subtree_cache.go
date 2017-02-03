@@ -416,9 +416,9 @@ func PopulateLogSubtreeNodes(treeHasher merkle.TreeHasher) storage.PopulateSubtr
 		}
 		fullyPopulatedLeafCount := 1 << uint(st.Depth)
 
-		// We're going to rebuild internal nodes if the subtree is fully populated so clear them now.
-		// Also they might have been left nil by the storage layer.
-		// TODO(Martin2112): Ensure nil map handling is correct, it seems this shouldn't be needed
+		// If the subtree is fully populated then the internal node map is expected to be nil but in
+		// case it isn't we recreate it as we're about to rebuild the contents. We'll check
+		// below that the number of nodes is what we expected to have.
 		if st.InternalNodes == nil || len(st.Leaves) == fullyPopulatedLeafCount {
 			st.InternalNodes = make(map[string][]byte)
 		}
@@ -440,11 +440,14 @@ func PopulateLogSubtreeNodes(treeHasher merkle.TreeHasher) storage.PopulateSubtr
 				}
 				key, err := makeSuffixKey(8-depth, index<<uint(depth))
 				if err != nil {
+					// This can only happen if we somehow ended up outside of the subtree. For example
+					// if more leaves were added to the CMT than the fully populated count for the strata
+					// depth.
 					// TODO(al): Don't panic Mr. Mainwaring.
 					panic(err)
 				}
 				// Don't put leaves into the internal map and only update if we're rebuilding internal
-				// nodes
+				// nodes. If the subtree was saved with internal nodes then we don't touch the map.
 				if depth > 0 && len(st.Leaves) == fullyPopulatedLeafCount {
 					st.InternalNodes[key] = h
 				}
@@ -459,6 +462,8 @@ func PopulateLogSubtreeNodes(treeHasher merkle.TreeHasher) storage.PopulateSubtr
 		// as before the subtree was written to storage. Either because they were loaded from
 		// storage or just rebuilt above.
 		if got, want := uint32(len(st.InternalNodes)), st.InternalNodeCount; got != want {
+			// TODO(Martin2112): Possibly replace this with stronger checks on the data in
+			// subtrees on disk so we can detect corruption.
 			return fmt.Errorf("log repop got: %d internal nodes, want: %d", got, want)
 		}
 
@@ -470,8 +475,9 @@ func PopulateLogSubtreeNodes(treeHasher merkle.TreeHasher) storage.PopulateSubtr
 // nodes are never written to storage and are thus always cleared
 func PrepareMapSubtreeWrite() storage.PrepareSubtreeWriteFunc {
 	return func(st *storagepb.SubtreeProto) error {
-		st.InternalNodeCount = uint32(len(st.InternalNodes))
 		st.InternalNodes = nil
+		// We don't check the node count for map subtrees but ensure it's zero for consistency
+		st.InternalNodeCount = 0
 		return nil
 	}
 }
@@ -491,6 +497,7 @@ func PrepareMapSubtreeWrite() storage.PrepareSubtreeWriteFunc {
 // contain internal nodes built from their own contents.
 func PrepareLogSubtreeWrite() storage.PrepareSubtreeWriteFunc {
 	return func(st *storagepb.SubtreeProto) error {
+		st.InternalNodeCount = uint32(len(st.InternalNodes))
 		if st.Depth < 1 {
 			return fmt.Errorf("prepare subtree for log write invalid depth: %d", st.Depth)
 		}
