@@ -15,6 +15,7 @@
 package crypto
 
 import (
+	"crypto"
 	"crypto/ecdsa"
 	"crypto/x509"
 	"encoding/asn1"
@@ -37,7 +38,7 @@ func TestLoadDemoECDSAKeyAndSign(t *testing.T) {
 	// Obviously in real code we wouldn't use a fixed seed
 	randSource := rand.New(rand.NewSource(42))
 
-	hasher := NewSHA256()
+	hasher := crypto.SHA256
 
 	err := km.LoadPrivateKey(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
 

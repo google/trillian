@@ -3,6 +3,7 @@ package mysql
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"fmt"
 	"runtime/debug"
@@ -13,7 +14,6 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/storage"
 	"reflect"
 )
@@ -1141,13 +1141,14 @@ func ensureAllLeavesDistinct(leaves []trillian.LogLeaf, t *testing.T) {
 // Creates some test leaves with predictable data
 func createTestLeaves(n, startSeq int64) []trillian.LogLeaf {
 	var leaves []trillian.LogLeaf
-	hasher := crypto.NewSHA256()
-
 	for l := int64(0); l < n; l++ {
 		lv := fmt.Sprintf("Leaf %d", l+startSeq)
+		h := sha256.New()
+		h.Write([]byte(lv))
+		leafHash := h.Sum(nil)
 		leaf := trillian.LogLeaf{
-			LeafIdentityHash: hasher.Digest([]byte(lv)),
-			MerkleLeafHash:   hasher.Digest([]byte(lv)),
+			LeafIdentityHash: leafHash,
+			MerkleLeafHash:   leafHash,
 			LeafValue:        []byte(lv),
 			ExtraData:        []byte(fmt.Sprintf("Extra %d", l)),
 			LeafIndex:        int64(startSeq + l),

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
@@ -42,7 +43,7 @@ var defaultLogStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 
 var defaultMapStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 176}
 
 func TestSplitNodeID(t *testing.T) {
-	c := NewSubtreeCache(defaultMapStrata, PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher(crypto.NewSHA256())), PrepareMapSubtreeWrite())
+	c := NewSubtreeCache(defaultMapStrata, PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher()), PrepareMapSubtreeWrite())
 	for i, v := range splitTestVector {
 		n := storage.NewNodeIDFromHash(v.inPath)
 		n.PrefixLenBits = v.inPathLenBits
@@ -67,7 +68,7 @@ func TestCacheFillOnlyReadsSubtrees(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	m := NewMockNodeStorage(mockCtrl)
-	c := NewSubtreeCache(defaultLogStrata, PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher(crypto.NewSHA256())), PrepareMapSubtreeWrite())
+	c := NewSubtreeCache(defaultLogStrata, PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher()), PrepareMapSubtreeWrite())
 
 	nodeID := storage.NewNodeIDFromHash([]byte("1234"))
 	// When we loop around asking for all 0..32 bit prefix lengths of the above
@@ -96,7 +97,7 @@ func TestCacheGetNodesReadsSubtrees(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	m := NewMockNodeStorage(mockCtrl)
-	c := NewSubtreeCache(defaultLogStrata, PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher(crypto.NewSHA256())), PrepareMapSubtreeWrite())
+	c := NewSubtreeCache(defaultLogStrata, PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher()), PrepareMapSubtreeWrite())
 
 	nodeIDs := []storage.NodeID{
 		storage.NewNodeIDFromHash([]byte("1234")),
@@ -149,7 +150,7 @@ func TestCacheFlush(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	m := NewMockNodeStorage(mockCtrl)
-	c := NewSubtreeCache(defaultMapStrata, PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher(crypto.NewSHA256())), PrepareMapSubtreeWrite())
+	c := NewSubtreeCache(defaultMapStrata, PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher()), PrepareMapSubtreeWrite())
 
 	h := "0123456789abcdef0123456789abcdef"
 	nodeID := storage.NewNodeIDFromHash([]byte(h))
@@ -234,7 +235,7 @@ func TestSuffixSerializeFormat(t *testing.T) {
 }
 
 func TestRepopulateLogSubtree(t *testing.T) {
-	hasher := merkle.NewRFC6962TreeHasher(crypto.NewSHA256())
+	hasher := merkle.NewRFC6962TreeHasher()
 	populateTheThing := PopulateLogSubtreeNodes(hasher)
 	cmt := merkle.NewCompactMerkleTree(hasher)
 	cmtStorage := storagepb.SubtreeProto{
@@ -246,7 +247,7 @@ func TestRepopulateLogSubtree(t *testing.T) {
 		Leaves: make(map[string][]byte),
 		Depth:  int32(defaultLogStrata[0]),
 	}
-	c := NewSubtreeCache(defaultLogStrata, PopulateLogSubtreeNodes(merkle.NewRFC6962TreeHasher(crypto.NewSHA256())), PrepareLogSubtreeWrite())
+	c := NewSubtreeCache(defaultLogStrata, PopulateLogSubtreeNodes(merkle.NewRFC6962TreeHasher()), PrepareLogSubtreeWrite())
 	for numLeaves := int64(1); numLeaves <= 256; numLeaves++ {
 		// clear internal nodes
 		s.InternalNodes = make(map[string][]byte)
@@ -300,7 +301,7 @@ func TestPrefixLengths(t *testing.T) {
 	strata := []int{8, 8, 16, 32, 64, 128}
 	stratumInfo := []stratumInfo{{0, 8}, {1, 8}, {2, 16}, {2, 16}, {4, 32}, {4, 32}, {4, 32}, {4, 32}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {8, 64}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}, {16, 128}}
 
-	c := NewSubtreeCache(strata, PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher(crypto.NewSHA256())), PrepareMapSubtreeWrite())
+	c := NewSubtreeCache(strata, PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher()), PrepareMapSubtreeWrite())
 
 	if got, want := c.stratumInfo, stratumInfo; !reflect.DeepEqual(got, want) {
 		t.Fatalf("Got prefixLengths of %v, expected %v", got, want)
@@ -308,7 +309,7 @@ func TestPrefixLengths(t *testing.T) {
 }
 
 func TestGetStratumInfo(t *testing.T) {
-	c := NewSubtreeCache(defaultMapStrata, PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher(crypto.NewSHA256())), PrepareMapSubtreeWrite())
+	c := NewSubtreeCache(defaultMapStrata, PopulateMapSubtreeNodes(merkle.NewRFC6962TreeHasher()), PrepareMapSubtreeWrite())
 	testVec := []struct {
 		depth int
 		info  stratumInfo

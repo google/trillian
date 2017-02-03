@@ -7,7 +7,6 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testonly"
@@ -298,7 +297,7 @@ func expectedRootAtSize(mt *merkle.InMemoryMerkleTree) string {
 
 func treeAtSize(n int) *merkle.InMemoryMerkleTree {
 	leaves := expandLeaves(0, n-1)
-	mt := merkle.NewInMemoryMerkleTree(merkle.NewRFC6962TreeHasher(crypto.NewSHA256()))
+	mt := merkle.NewInMemoryMerkleTree(merkle.NewRFC6962TreeHasher())
 	for _, leaf := range leaves {
 		mt.AddLeaf([]byte(leaf))
 	}

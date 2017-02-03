@@ -20,8 +20,6 @@ import (
 	"errors"
 	"fmt"
 	"testing"
-
-	"github.com/google/trillian/crypto"
 )
 
 type logProofTestVector struct {
@@ -297,7 +295,7 @@ func verifierConsistencyCheck(v *LogVerifier, snapshot1, snapshot2 int64, root1,
 }
 
 func getVerifier() LogVerifier {
-	hasher := NewRFC6962TreeHasher(crypto.NewSHA256())
+	hasher := NewRFC6962TreeHasher()
 	return NewLogVerifier(hasher)
 }
 

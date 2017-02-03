@@ -13,7 +13,6 @@ import (
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
@@ -153,7 +152,7 @@ func (m *mySQLLogStorage) beginInternal(ctx context.Context, treeID int64) (stor
 	if err := m.db.QueryRow(getTreePropertiesSQL, treeID).Scan(&allowDuplicates); err != nil {
 		return nil, fmt.Errorf("failed to get tree row for treeID %v: %s", treeID, err)
 	}
-	th := merkle.NewRFC6962TreeHasher(crypto.NewSHA256())
+	th := merkle.NewRFC6962TreeHasher()
 
 	ttx, err := m.beginTreeTx(ctx, treeID, th.Size(), defaultLogStrata, cache.PopulateLogSubtreeNodes(th), cache.PrepareLogSubtreeWrite())
 	if err != nil {

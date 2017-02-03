@@ -15,7 +15,7 @@
 package merkle
 
 import (
-	"github.com/google/trillian/crypto"
+	"crypto"
 )
 
 // TODO(al): investigate whether we need configurable TreeHashers for
@@ -41,60 +41,39 @@ const (
 
 // TreeHasher is a set of domain separated hashers for creating Merkle tree hashes.
 type TreeHasher struct {
-	crypto.Hasher
-	leafHasher  func([]byte) []byte
-	nodeHasher  func([]byte) []byte
-	emptyHasher func() []byte
+	crypto.Hash
 }
 
 // NewRFC6962TreeHasher creates a new TreeHasher based on the passed in hash function.
 // TODO(Martin2112): Move anything CT specific out of here to <handwave> look over there
-func NewRFC6962TreeHasher(hasher crypto.Hasher) TreeHasher {
-	return TreeHasher{
-		Hasher:      hasher,
-		leafHasher:  rfc6962LeafHasher(hasher),
-		nodeHasher:  rfc6962NodeHasher(hasher),
-		emptyHasher: rfc6962EmptyHasher(hasher),
-	}
+func NewRFC6962TreeHasher() TreeHasher {
+	return TreeHasher{Hash: crypto.SHA256}
 }
 
 // HashEmpty returns the hash of an empty element for the tree
 func (t TreeHasher) HashEmpty() []byte {
-	return t.emptyHasher()
+	return t.Digest([]byte{})
 }
 
 // HashLeaf returns the Merkle tree leaf hash of the data passed in through leaf.
 // The data in leaf is prefixed by the LeafHashPrefix.
 func (t TreeHasher) HashLeaf(leaf []byte) []byte {
-	return t.leafHasher(leaf)
+	return t.Digest(append([]byte{RFC6962LeafHashPrefix}, leaf...))
 }
 
 // HashChildren returns the inner Merkle tree node hash of the the two child nodes l and r.
 // The hashed structure is NodeHashPrefix||l||r.
 func (t TreeHasher) HashChildren(l, r []byte) []byte {
-	return t.nodeHasher(append(append([]byte{}, l...), r...))
+	hr := t.New()
+	hr.Write([]byte{RFC6962NodeHashPrefix})
+	hr.Write(l)
+	hr.Write(r)
+	return hr.Sum(nil)
 }
 
-type emptyHashFunc func() []byte
-type hashFunc func([]byte) []byte
-
-// rfc6962EmptyHasher builds a function to calculate the hash of an empty element for CT
-func rfc6962EmptyHasher(h crypto.Hasher) emptyHashFunc {
-	return func() []byte {
-		return h.Digest([]byte{})
-	}
-}
-
-// rfc6962LeafHasher builds a function to calculate leaf hashes based on the Hasher h for CT.
-func rfc6962LeafHasher(h crypto.Hasher) hashFunc {
-	return func(b []byte) []byte {
-		return h.Digest(append([]byte{RFC6962LeafHashPrefix}, b...))
-	}
-}
-
-// rfc6962NodeHasher builds a function to calculate internal node hashes based on the Hasher h for CT.
-func rfc6962NodeHasher(h crypto.Hasher) hashFunc {
-	return func(b []byte) []byte {
-		return h.Digest(append([]byte{RFC6962NodeHashPrefix}, b...))
-	}
+// Digest calculates the digest of b according to the underlying algorithm.
+func (t TreeHasher) Digest(b []byte) []byte {
+	hr := t.New()
+	hr.Write(b)
+	return hr.Sum(nil)
 }

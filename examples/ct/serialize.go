@@ -25,7 +25,7 @@ func signV1TreeHead(km crypto.KeyManager, sth *ct.SignedTreeHead) error {
 		return err
 	}
 
-	trillianSigner := crypto.NewSigner(crypto.NewSHA256(), km.SignatureAlgorithm(), signer)
+	trillianSigner := crypto.NewSigner(km.HashAlgorithm(), km.SignatureAlgorithm(), signer)
 
 	signature, err := trillianSigner.Sign(sthBytes)
 	if err != nil {
@@ -124,7 +124,7 @@ func signSCT(km crypto.KeyManager, t time.Time, sctData []byte) (ct.SignedCertif
 		return ct.SignedCertificateTimestamp{}, fmt.Errorf("failed to retrieve signer: %v", err)
 	}
 
-	trillianSigner := crypto.NewSigner(crypto.NewSHA256(), km.SignatureAlgorithm(), signer)
+	trillianSigner := crypto.NewSigner(km.HashAlgorithm(), km.SignatureAlgorithm(), signer)
 
 	signature, err := trillianSigner.Sign(sctData)
 	if err != nil {
