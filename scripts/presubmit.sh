@@ -12,6 +12,11 @@ find . -name "mock_*" -delete
 golint --set_exit_status ./...
 go vet ./...
 misspell -error -locale US .
+nolicense=$(find . -name "*.go" | xargs grep -L "Apache License")
+if [[ "${nolicense}" ]]; then
+    echo "Missing license header in: ${nolicense}"
+    exit 1
+fi
 regenerate
 trap - EXIT
 go build ./...
