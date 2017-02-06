@@ -23,6 +23,10 @@ import (
 type Hasher interface {
 	HashLeaf(leaf []byte) []byte
 	HashEmpty() []byte
+	// NullHash computes the hash of an empty subtree of height treeHeight - nodeDepth.
+	//
+	// NullHash is expected to be an O(1) efficient function.
+	// Implementations of Hasher SHOULD cache results if NullHash is not O(1)
 	NullHash(depth int) []byte
 	HashChildren(left, right []byte) []byte
 	Size() int
@@ -84,9 +88,10 @@ func (t rfc6962) Size() int {
 }
 
 // NullHash returns the empty hash at a given depth.
-func (t rfc6962) NullHash(depth int) []byte {
+func (t rfc6962) NullHash(depth) []byte {
 	h := t.HashEmpty()
-	for i := t.Size()*8 - 1; i > depth; i-- {
+	height := t.Size() * 8
+	for i := height - 1; i > depth; i-- {
 		h = t.HashChildren(h, h)
 	}
 	return h
