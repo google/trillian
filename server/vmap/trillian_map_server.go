@@ -38,7 +38,7 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 		return nil, err
 	}
 
-	tx, err := s.Snapshot(ctx, req.MapId)
+	tx, err := s.SnapshotForTree(ctx, req.MapId)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +105,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		return nil, err
 	}
 
-	tx, err := s.Begin(ctx, req.MapId)
+	tx, err := s.BeginForTree(ctx, req.MapId)
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +134,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 	glog.Infof("%s: Writing at revision %d", util.MapIDPrefix(ctx), tx.WriteRevision())
 
 	smtWriter, err := merkle.NewSparseMerkleTreeWriter(tx.WriteRevision(), hasher, func() (storage.TreeTX, error) {
-		return s.Begin(ctx, req.MapId)
+		return s.BeginForTree(ctx, req.MapId)
 	})
 	if err != nil {
 		return nil, err
@@ -189,7 +189,7 @@ func (t *TrillianMapServer) GetSignedMapRoot(ctx context.Context, req *trillian.
 		return nil, err
 	}
 
-	tx, err := s.Snapshot(ctx, req.MapId)
+	tx, err := s.SnapshotForTree(ctx, req.MapId)
 	if err != nil {
 		return nil, err
 	}

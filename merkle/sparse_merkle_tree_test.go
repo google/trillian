@@ -72,20 +72,20 @@ func maybeProfileMemory(t *testing.T) {
 	}
 }
 
-func newTX(tx storage.MapTX) func() (storage.TreeTX, error) {
+func newTX(tx storage.MapTreeTX) func() (storage.TreeTX, error) {
 	return func() (storage.TreeTX, error) {
 		glog.Infof("new tx")
 		return tx, nil
 	}
 }
 
-func getSparseMerkleTreeReaderWithMockTX(ctrl *gomock.Controller, rev int64) (*SparseMerkleTreeReader, *storage.MockMapTX) {
-	tx := storage.NewMockMapTX(ctrl)
+func getSparseMerkleTreeReaderWithMockTX(ctrl *gomock.Controller, rev int64) (*SparseMerkleTreeReader, *storage.MockMapTreeTX) {
+	tx := storage.NewMockMapTreeTX(ctrl)
 	return NewSparseMerkleTreeReader(rev, NewMapHasher(NewRFC6962TreeHasher()), tx), tx
 }
 
-func getSparseMerkleTreeWriterWithMockTX(ctrl *gomock.Controller, rev int64) (*SparseMerkleTreeWriter, *storage.MockMapTX) {
-	tx := storage.NewMockMapTX(ctrl)
+func getSparseMerkleTreeWriterWithMockTX(ctrl *gomock.Controller, rev int64) (*SparseMerkleTreeWriter, *storage.MockMapTreeTX) {
+	tx := storage.NewMockMapTreeTX(ctrl)
 	tx.EXPECT().WriteRevision().AnyTimes().Return(rev)
 	tree, err := NewSparseMerkleTreeWriter(rev, NewMapHasher(NewRFC6962TreeHasher()), newTX(tx))
 	if err != nil {

@@ -20,18 +20,20 @@ import (
 	"github.com/google/trillian"
 )
 
-// ReadOnlyMapTX provides a read-only view into the Map data.
-type ReadOnlyMapTX interface {
+// ReadOnlyMapTreeTX provides a read-only view into the Map data.
+// A ReadOnlyMapTreeTX can only read from the tree specified in its creation.
+type ReadOnlyMapTreeTX interface {
 	ReadOnlyTreeTX
 	MapRootReader
 	Getter
 }
 
-// MapTX is the transactional interface for reading/modifying a Map.
+// MapTreeTX is the transactional interface for reading/modifying a Map.
 // It extends the basic TreeTX interface with Map specific methods.
 // After a call to Commit or Rollback implementations must be in a clean state and have
 // released any resources owned by the MapTX.
-type MapTX interface {
+// A MapTreeTX can only read from the tree specified in its creation.
+type MapTreeTX interface {
 	TreeTX
 	MapRootReader
 	MapRootWriter
@@ -41,21 +43,21 @@ type MapTX interface {
 
 // ReadOnlyMapStorage provides a narrow read-only view into a MapStorage.
 type ReadOnlyMapStorage interface {
-	// Snapshot starts a new read-only transaction.
+	// SnapshotForTree starts a new read-only transaction.
 	// Commit must be called when the caller is finished with the returned object,
 	// and values read through it should only be propagated if Commit returns
 	// without error.
-	Snapshot(ctx context.Context, treeID int64) (ReadOnlyMapTX, error)
+	SnapshotForTree(ctx context.Context, treeID int64) (ReadOnlyMapTreeTX, error)
 }
 
 // MapStorage should be implemented by concrete storage mechanisms which want to support Maps
 type MapStorage interface {
 	ReadOnlyMapStorage
-	// Begin starts a new Map transaction.
+	// BeginForTree starts a new Map transaction.
 	// Either Commit or Rollback must be called when the caller is finished with
 	// the returned object, and values read through it should only be propagated
 	// if Commit returns without error.
-	Begin(ctx context.Context, treeID int64) (MapTX, error)
+	BeginForTree(ctx context.Context, treeID int64) (MapTreeTX, error)
 }
 
 // Setter allows the setting of key->value pairs on the map.
