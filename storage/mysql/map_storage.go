@@ -7,7 +7,6 @@ import (
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
@@ -51,7 +50,7 @@ func NewMapStorage(db *sql.DB) (storage.MapStorage, error) {
 
 func (m *mySQLMapStorage) Begin(ctx context.Context, treeID int64) (storage.MapTX, error) {
 	// TODO(codingllama): Validate treeType, read hash algorithm from storage
-	th := merkle.NewRFC6962TreeHasher(crypto.NewSHA256())
+	th := merkle.NewRFC6962TreeHasher()
 
 	ttx, err := m.beginTreeTx(ctx, treeID, th.Size(), defaultMapStrata, cache.PopulateMapSubtreeNodes(th), cache.PrepareMapSubtreeWrite())
 	if err != nil {

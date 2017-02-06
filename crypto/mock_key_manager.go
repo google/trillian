@@ -52,6 +52,16 @@ func (_mr *_MockKeyManagerRecorder) GetRawPublicKey() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetRawPublicKey")
 }
 
+func (_m *MockKeyManager) HashAlgorithm() trillian.HashAlgorithm {
+	ret := _m.ctrl.Call(_m, "HashAlgorithm")
+	ret0, _ := ret[0].(trillian.HashAlgorithm)
+	return ret0
+}
+
+func (_mr *_MockKeyManagerRecorder) HashAlgorithm() *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "HashAlgorithm")
+}
+
 func (_m *MockKeyManager) SignatureAlgorithm() trillian.SignatureAlgorithm {
 	ret := _m.ctrl.Call(_m, "SignatureAlgorithm")
 	ret0, _ := ret[0].(trillian.SignatureAlgorithm)

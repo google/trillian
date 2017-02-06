@@ -16,6 +16,7 @@ package log
 
 import (
 	"context"
+	gocrypto "crypto"
 	"errors"
 	"fmt"
 	"testing"
@@ -30,7 +31,7 @@ import (
 	"github.com/google/trillian/util"
 )
 
-var treeHasher = merkle.NewRFC6962TreeHasher(crypto.NewSHA256())
+var treeHasher = merkle.NewRFC6962TreeHasher()
 
 // These can be shared between tests as they're never modified
 var testLeaf16Data = []byte("testdataforleaf")
@@ -218,7 +219,8 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) (testCont
 
 	if params.setupSigner {
 		mockSigner := crypto.NewMockSigner(ctrl)
-		mockSigner.EXPECT().Sign(gomock.Any(), params.dataToSign, treeHasher.Hasher).AnyTimes().Return(params.signingResult, params.signingError)
+		mockKeyManager.EXPECT().HashAlgorithm().AnyTimes().Return(trillian.HashAlgorithm_SHA256)
+		mockSigner.EXPECT().Sign(gomock.Any(), params.dataToSign, gocrypto.SHA256).AnyTimes().Return(params.signingResult, params.signingError)
 		mockKeyManager.EXPECT().Signer().AnyTimes().Return(mockSigner, params.keyManagerError)
 		mockKeyManager.EXPECT().SignatureAlgorithm().AnyTimes().Return(trillian.SignatureAlgorithm_ECDSA)
 	}

@@ -17,6 +17,7 @@ package crypto
 import (
 	"bytes"
 	"crypto"
+	"crypto/sha256"
 	"errors"
 	"reflect"
 	"testing"
@@ -30,8 +31,9 @@ const message string = "testing"
 const result string = "echo"
 
 func messageHash() []byte {
-	h := NewSHA256()
-	return h.Digest([]byte(message))
+	h := sha256.New()
+	h.Write([]byte(message))
+	return h.Sum(nil)
 }
 
 type usesSHA256Hasher struct{}
@@ -57,7 +59,7 @@ func TestSigner(t *testing.T) {
 
 	mockSigner.EXPECT().Sign(gomock.Any(), digest, usesSHA256Hasher{}).Return([]byte(result), nil)
 
-	logSigner := createTestSigner(t, mockSigner)
+	logSigner := createTestSigner(mockSigner)
 
 	sig, err := logSigner.Sign([]byte(message))
 
@@ -85,7 +87,7 @@ func TestSignerFails(t *testing.T) {
 
 	mockSigner.EXPECT().Sign(gomock.Any(), digest[:], usesSHA256Hasher{}).Return(digest, errors.New("sign"))
 
-	logSigner := createTestSigner(t, mockSigner)
+	logSigner := createTestSigner(mockSigner)
 
 	_, err := logSigner.Sign([]byte(message))
 
@@ -106,7 +108,7 @@ func TestSignLogRootSignerFails(t *testing.T) {
 		[]byte{0xe5, 0xb3, 0x18, 0x1a, 0xec, 0xc8, 0x64, 0xc6, 0x39, 0x6d, 0x83, 0x21, 0x7a, 0x18, 0x3, 0x9, 0xf5, 0xa0, 0x25, 0xde, 0xf7, 0x1b, 0xdb, 0x2d, 0xbe, 0x42, 0x8a, 0x4a, 0xab, 0xc1, 0xcd, 0x49},
 		usesSHA256Hasher{}).Return([]byte{}, errors.New("signfail"))
 
-	logSigner := createTestSigner(t, mockSigner)
+	logSigner := createTestSigner(mockSigner)
 
 	root := trillian.SignedLogRoot{TimestampNanos: 2267709, RootHash: []byte("Islington"), TreeSize: 2}
 	_, err := logSigner.SignLogRoot(root)
@@ -124,7 +126,7 @@ func TestSignLogRoot(t *testing.T) {
 		[]byte{0xe5, 0xb3, 0x18, 0x1a, 0xec, 0xc8, 0x64, 0xc6, 0x39, 0x6d, 0x83, 0x21, 0x7a, 0x18, 0x3, 0x9, 0xf5, 0xa0, 0x25, 0xde, 0xf7, 0x1b, 0xdb, 0x2d, 0xbe, 0x42, 0x8a, 0x4a, 0xab, 0xc1, 0xcd, 0x49},
 		usesSHA256Hasher{}).Return([]byte(result), nil)
 
-	logSigner := createTestSigner(t, mockSigner)
+	logSigner := createTestSigner(mockSigner)
 
 	root := trillian.SignedLogRoot{TimestampNanos: 2267709, RootHash: []byte("Islington"), TreeSize: 2}
 	signature, err := logSigner.SignLogRoot(root)
@@ -147,11 +149,6 @@ func TestSignLogRoot(t *testing.T) {
 	}
 }
 
-func createTestSigner(t *testing.T, mock *MockSigner) *Signer {
-	hasher, err := NewHasher(trillian.HashAlgorithm_SHA256)
-	if err != nil {
-		t.Fatalf("Failed to create new hasher: %s", err)
-	}
-
-	return NewSigner(hasher, trillian.SignatureAlgorithm_RSA, mock)
+func createTestSigner(mock *MockSigner) *Signer {
+	return NewSigner(trillian.HashAlgorithm_SHA256, trillian.SignatureAlgorithm_RSA, mock)
 }

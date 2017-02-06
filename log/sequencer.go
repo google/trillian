@@ -154,7 +154,7 @@ func (s Sequencer) createRootSignature(ctx context.Context, root trillian.Signed
 		return trillian.DigitallySigned{}, err
 	}
 
-	trillianSigner := crypto.NewSigner(s.hasher.Hasher, s.keyManager.SignatureAlgorithm(), signer)
+	trillianSigner := crypto.NewSigner(s.keyManager.HashAlgorithm(), s.keyManager.SignatureAlgorithm(), signer)
 
 	signature, err := trillianSigner.SignLogRoot(root)
 	if err != nil {

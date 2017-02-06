@@ -39,6 +39,8 @@ type KeyManager interface {
 	Signer() (crypto.Signer, error)
 	// SignatureAlgorithm returns the value that identifies the signature algorithm.
 	SignatureAlgorithm() trillian.SignatureAlgorithm
+	// HashAlgorithm returns the type of hash that will be used for signing with this key.
+	HashAlgorithm() trillian.HashAlgorithm
 	// GetPublicKey returns the public key previously loaded. It is an error to call this
 	// before a public key has been loaded
 	GetPublicKey() (crypto.PublicKey, error)
@@ -71,6 +73,13 @@ func (k PEMKeyManager) NewPEMKeyManager(key crypto.PrivateKey) *PEMKeyManager {
 // SignatureAlgorithm identifies the signature algorithm used by this key manager.
 func (k PEMKeyManager) SignatureAlgorithm() trillian.SignatureAlgorithm {
 	return k.signatureAlgorithm
+}
+
+// HashAlgorithm identifies the hash algorithm used to sign objects.
+func (k PEMKeyManager) HashAlgorithm() trillian.HashAlgorithm {
+	// TODO: Save the hash algorithm in the key serialization.
+	// Return a default hash algorithm for now.
+	return trillian.HashAlgorithm_SHA256
 }
 
 // LoadPrivateKey loads a private key from a PEM encoded string, decrypting it if necessary

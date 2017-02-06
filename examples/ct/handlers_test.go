@@ -90,6 +90,7 @@ func setupTest(t *testing.T, pemRoots []string) handlerTestInfo {
 	info.km = crypto.NewMockKeyManager(info.mockCtrl)
 	info.km.EXPECT().GetRawPublicKey().AnyTimes().Return([]byte("key"), nil)
 	info.km.EXPECT().SignatureAlgorithm().AnyTimes().Return(trillian.SignatureAlgorithm_ECDSA)
+	info.km.EXPECT().HashAlgorithm().AnyTimes().Return(trillian.HashAlgorithm_SHA256)
 	info.client = mockclient.NewMockTrillianLogClient(info.mockCtrl)
 	info.roots = NewPEMCertPool()
 	for _, pemRoot := range pemRoots {

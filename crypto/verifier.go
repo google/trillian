@@ -34,11 +34,13 @@ func Verify(pub crypto.PublicKey, data []byte, sig trillian.DigitallySigned) err
 	sigAlgo := sig.SignatureAlgorithm
 
 	// Recompute digest
-	hasher, err := NewHasher(sig.HashAlgorithm)
+	hasher, err := LookupHash(sig.HashAlgorithm)
 	if err != nil {
 		return err
 	}
-	digest := hasher.Digest(data)
+	h := hasher.New()
+	h.Write(data)
+	digest := h.Sum(nil)
 
 	// Verify signature algo type
 	switch key := pub.(type) {
@@ -51,7 +53,7 @@ func Verify(pub crypto.PublicKey, data []byte, sig trillian.DigitallySigned) err
 		if sigAlgo != trillian.SignatureAlgorithm_RSA {
 			return fmt.Errorf("signature algorithm does not match public key")
 		}
-		return verifyRSA(key, digest, sig.Signature, hasher.Hash, hasher)
+		return verifyRSA(key, digest, sig.Signature, hasher, hasher)
 	default:
 		return fmt.Errorf("unknown private key type: %T", key)
 	}

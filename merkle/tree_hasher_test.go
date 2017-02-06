@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/testonly"
 )
 
@@ -38,7 +37,7 @@ func ensureHashMatches(expected, actual []byte, testCase string, t *testing.T) {
 }
 
 func TestRfc6962Hasher(t *testing.T) {
-	hasher := NewRFC6962TreeHasher(crypto.NewSHA256())
+	hasher := NewRFC6962TreeHasher()
 
 	ensureHashMatches(testonly.MustHexDecode(rfc6962EmptyHashHex), hasher.HashEmpty(), "RFC962 Empty", t)
 	ensureHashMatches(testonly.MustHexDecode(rfc6962LeafL123456HashHex), hasher.HashLeaf([]byte("L123456")), "RFC6962 Leaf", t)

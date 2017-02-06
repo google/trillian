@@ -52,12 +52,7 @@ func TestSignVerify(t *testing.T) {
 			t.Errorf("Signer()=(_,%v), want (_,nil)", err)
 			continue
 		}
-		hasher, err := NewHasher(test.HashAlgo)
-		if err != nil {
-			t.Errorf("NewHasher(%v)=(_,%v), want (_,nil)", test.HashAlgo, err)
-			continue
-		}
-		signer := NewSigner(hasher, test.SigAlgo, kmsigner)
+		signer := NewSigner(test.HashAlgo, test.SigAlgo, kmsigner)
 
 		// Sign and Verify.
 		msg := []byte("foo")

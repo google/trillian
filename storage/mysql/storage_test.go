@@ -12,7 +12,6 @@ import (
 	"testing"
 
 	"github.com/golang/glog"
-	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
 )
@@ -210,7 +209,7 @@ func createSomeNodes(testName string, treeID int64) []storage.Node {
 }
 
 func createLogNodesForTreeAtSize(ts, rev int64) []storage.Node {
-	tree := merkle.NewCompactMerkleTree(merkle.NewRFC6962TreeHasher(crypto.NewSHA256()))
+	tree := merkle.NewCompactMerkleTree(merkle.NewRFC6962TreeHasher())
 	nodeMap := make(map[string]storage.Node)
 	for l := 0; l < int(ts); l++ {
 		// We're only interested in the side effects of adding leaves - the node updates

@@ -5,7 +5,6 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
@@ -28,7 +27,7 @@ func NewTrillianMapServer(registry extension.Registry) *TrillianMapServer {
 
 func (t *TrillianMapServer) getHasherForMap(mapID int64) (merkle.MapHasher, error) {
 	// TODO(al): actually return tailored hashers.
-	return merkle.NewMapHasher(merkle.NewRFC6962TreeHasher(crypto.NewSHA256())), nil
+	return merkle.NewMapHasher(merkle.NewRFC6962TreeHasher()), nil
 }
 
 // GetLeaves implements the GetLeaves RPC method.

@@ -95,6 +95,7 @@ func setupMockKeyManager(ctrl *gomock.Controller, toSign []byte) *crypto.MockKey
 	mockKeyManager := setupMockKeyManagerForSth(ctrl, toSign)
 	mockKeyManager.EXPECT().GetRawPublicKey().AnyTimes().Return([]byte("key"), nil)
 	mockKeyManager.EXPECT().SignatureAlgorithm().AnyTimes().Return(trillian.SignatureAlgorithm_ECDSA)
+	mockKeyManager.EXPECT().HashAlgorithm().AnyTimes().Return(trillian.HashAlgorithm_SHA256)
 
 	return mockKeyManager
 }

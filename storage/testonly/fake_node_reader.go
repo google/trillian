@@ -1,11 +1,10 @@
 package testonly
 
 import (
+	"bytes"
 	"fmt"
 
-	"encoding/hex"
 	"github.com/golang/glog"
-	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
 )
@@ -98,7 +97,7 @@ type MultiFakeNodeReader struct {
 type LeafBatch struct {
 	TreeRevision int64
 	Leaves       []string
-	ExpectedRoot string
+	ExpectedRoot []byte
 }
 
 // NewMultiFakeNodeReader creates a MultiFakeNodeReader delegating to a number of FakeNodeReaders
@@ -113,7 +112,7 @@ func NewMultiFakeNodeReader(readers []FakeNodeReader) *MultiFakeNodeReader {
 // code. To help guard against this we check the tree root hash after each batch has been
 // processed. The supplied batches should be in ascending order of tree revision.
 func NewMultiFakeNodeReaderFromLeaves(batches []LeafBatch) *MultiFakeNodeReader {
-	tree := merkle.NewCompactMerkleTree(merkle.NewRFC6962TreeHasher(crypto.NewSHA256()))
+	tree := merkle.NewCompactMerkleTree(merkle.NewRFC6962TreeHasher())
 	readers := make([]FakeNodeReader, 0, len(batches))
 
 	lastBatchRevision := int64(0)
@@ -140,8 +139,8 @@ func NewMultiFakeNodeReaderFromLeaves(batches []LeafBatch) *MultiFakeNodeReader 
 		}
 
 		// Sanity check the tree root hash against the one we expect to see.
-		if got, want := hex.EncodeToString(tree.CurrentRoot()), batch.ExpectedRoot; got != want {
-			panic(fmt.Errorf("NewMultiFakeNodeReaderFromLeaves() got root: %s, want: %s (%v)", got, want, batch))
+		if got, want := tree.CurrentRoot(), batch.ExpectedRoot; !bytes.Equal(got, want) {
+			panic(fmt.Errorf("NewMultiFakeNodeReaderFromLeaves() got root: %x, want: %x (%v)", got, want, batch))
 		}
 
 		// Unroll the update map to []NodeMappings to retain the most recent node update within

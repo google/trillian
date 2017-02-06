@@ -7,7 +7,6 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testonly"
@@ -292,13 +291,13 @@ func expandLeaves(n, m int) []string {
 
 // expectedRootAtSize uses the in memory tree, the tree built with Compact Merkle Tree should
 // have the same root.
-func expectedRootAtSize(mt *merkle.InMemoryMerkleTree) string {
-	return hex.EncodeToString(mt.CurrentRoot().Hash())
+func expectedRootAtSize(mt *merkle.InMemoryMerkleTree) []byte {
+	return mt.CurrentRoot().Hash()
 }
 
 func treeAtSize(n int) *merkle.InMemoryMerkleTree {
 	leaves := expandLeaves(0, n-1)
-	mt := merkle.NewInMemoryMerkleTree(merkle.NewRFC6962TreeHasher(crypto.NewSHA256()))
+	mt := merkle.NewInMemoryMerkleTree(merkle.NewRFC6962TreeHasher())
 	for _, leaf := range leaves {
 		mt.AddLeaf([]byte(leaf))
 	}

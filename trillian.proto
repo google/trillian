@@ -43,7 +43,7 @@ enum TreeState {
   // Active trees are able to respond to both read and write requests.
   ACTIVE = 1;
 
-  // Frozen trees are only able to respond to read requests, writting to a
+  // Frozen trees are only able to respond to read requests, writing to a
   // frozen tree is forbidden.
   FROZEN = 2;
 

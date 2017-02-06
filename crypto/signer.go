@@ -37,7 +37,7 @@ const (
 // Signer is responsible for signing log-related data and producing the appropriate
 // application specific signature objects.
 type Signer struct {
-	hasher       Hasher
+	hasher       crypto.Hash
 	signer       crypto.Signer
 	sigAlgorithm trillian.SignatureAlgorithm
 }
@@ -45,13 +45,21 @@ type Signer struct {
 // NewSigner creates a new Signer wrapping up a hasher and a signer. For the moment
 // we only support SHA256 hashing and either ECDSA or RSA signing but this is not enforced
 // here.
-func NewSigner(hasher Hasher, signatureAlgorithm trillian.SignatureAlgorithm, signer crypto.Signer) *Signer {
-	return &Signer{hasher, signer, signatureAlgorithm}
+func NewSigner(hashAlgo trillian.HashAlgorithm, sigAlgo trillian.SignatureAlgorithm, signer crypto.Signer) *Signer {
+	h, ok := hashLookup[hashAlgo]
+	if !ok {
+		// TODO(gbelvin): return error from Signer.
+		panic("unsupported hash algorithm")
+	}
+
+	return &Signer{h, signer, sigAlgo}
 }
 
 // Sign obtains a signature after first hashing the input data.
 func (s Signer) Sign(data []byte) (trillian.DigitallySigned, error) {
-	digest := s.hasher.Digest(data)
+	h := s.hasher.New()
+	h.Write(data)
+	digest := h.Sum(nil)
 
 	if len(digest) != s.hasher.Size() {
 		return trillian.DigitallySigned{}, fmt.Errorf("hasher returned unexpected digest length: %d, %d",
@@ -66,7 +74,7 @@ func (s Signer) Sign(data []byte) (trillian.DigitallySigned, error) {
 
 	return trillian.DigitallySigned{
 		SignatureAlgorithm: s.sigAlgorithm,
-		HashAlgorithm:      s.hasher.HashAlgorithm(),
+		HashAlgorithm:      reverseHashLookup[s.hasher],
 		Signature:          sig}, nil
 }
 

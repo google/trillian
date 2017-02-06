@@ -18,7 +18,6 @@ import (
 	"fmt"
 
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
@@ -75,7 +74,7 @@ func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.Qu
 	}
 
 	// TODO(al): TreeHasher must be selected based on log config.
-	th := merkle.NewRFC6962TreeHasher(crypto.NewSHA256())
+	th := merkle.NewRFC6962TreeHasher()
 	for i := range leaves {
 		leaves[i].MerkleLeafHash = th.HashLeaf(leaves[i].LeafValue)
 	}
