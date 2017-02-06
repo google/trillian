@@ -28,9 +28,21 @@ give incorrect results.
 As an optimization, the tree is not stored as a set of raw nodes but at as a collection of subtrees.
 
 Currently, subtrees must be be a multiple of 8 levels deep (referred to as `strataDepth` in the
-code) so it's not allowed to have e.g. a 7 level depth but 8 or 16 is fine. Only the bottom level 
-nodes (the "leaves") of each subtree are physically stored. Intermediate subtree nodes are rehashed from the "leaves" when the subtree is loaded into memory.
-See `storage/cache/subtree_cache.go` for more details.
+code) so it's not allowed to have e.g. a 7 level depth but 8 or 16 is fine. Only the bottom level
+nodes (the "leaves") of each subtree are physically stored. Intermediate subtree nodes are rehashed
+from the "leaves" when the subtree is loaded into memory. See `storage/cache/subtree_cache.go` for
+more details.
+
+Note some caveats to the above paragraph. If depth multiples other than 8 are used this
+might require changes to the way node ID prefix and suffixes are packed and unpacked from
+byte slices. There are additional assumptions that all log subtrees are the same depth, though
+these would be easier to remove.
+
+For maps the internal nodes are always cleared when stored and then rebuilt from the subtree
+"leaf" nodes when the subtree is reloaded. Logs use a modified strategy because it is possible
+for internal nodes to depend on more than one subtree. For logs the internal nodes are cleared
+on storage if the subtree is fully populated. This prevents the loss of internal nodes that
+depend on other subtrees as the tree is growing in levels.
 
 This storage arrangement was chosen because we have predictable access patterns to our data and do
 not require classes of tree modification like re-parenting a subtree. It would probably not be
@@ -53,12 +65,13 @@ Merkle paths for proofs are part of the same subtree. The number of subtrees inv
 through a large tree from the leaves to the root is also bounded. For writes the subtree update
 batches what would be many smaller writes into one larger but manageable one.
 
-We gain space efficiency by not storing intermediate nodes. This is a big saving, especially for
-log storage. It avoids storing entire tree levels, which get very large as the tree grows. This
-adds up to an approx 50% space saving. This is magnified further as we store many versions of the
-tree. For the map case things aren't quite as good because multiple subtree revisions need to be
-stored with the same prefix but only one "leaf" node differing. The efficiency of this needs to
-be determined for large maps.
+We gain space efficiency by not storing intermediate nodes (except as noted above for logs
+and partially full subtrees). This is a big saving, especially for log storage. It avoids storing
+entire tree levels, which get very large as the tree grows. This adds up to an approx 50% space
+saving. This is magnified further as we store many versions of the tree. For the map case
+things aren't quite as good because multiple subtree revisions need to be stored with the same
+prefix but only one "leaf" node differing. The efficiency of this needs to be determined for
+large maps.
 
 #### Subtree Diagrams
 
