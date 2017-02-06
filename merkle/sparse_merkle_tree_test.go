@@ -80,7 +80,7 @@ func newTX(tx storage.MapTreeTX) func() (storage.TreeTX, error) {
 }
 
 func getSparseMerkleTreeReaderWithMockTX(ctrl *gomock.Controller, rev int64) (*SparseMerkleTreeReader, *storage.MockMapTreeTX) {
-	tx := storage.NewMockMapTX(ctrl)
+	tx := storage.NewMockMapTreeTX(ctrl)
 	return NewSparseMerkleTreeReader(rev, NewMapHasher(NewRFC6962TreeHasher()), tx), tx
 }
 
