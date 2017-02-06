@@ -33,9 +33,24 @@ type stratumInfo struct {
 	depth int
 }
 
-// SubtreeCache provides a caching access to Subtree storage.
+const (
+	// maxSupportedTreeDepth is the maximum depth a tree can reach. Note that log trees are
+	// further limited to a depth of 63 by the use of signed 64 bit leaf indices. Map trees
+	// do not have this restriction.
+	maxSupportedTreeDepth = 256
+	// depthQuantum defines the smallest supported subtree depth and all subtrees must be
+	// a multiple of this value in depth.
+	depthQuantum = 8
+	// logStrataDepth is the strata that must be used for all log subtrees.
+	logStrataDepth = 8
+)
+
+// SubtreeCache provides a caching access to Subtree storage. Currently there are assumptions
+// in the code that all subtrees are multiple of 8 in depth and that log subtrees are always
+// of depth 8. It is not possible to just change the constants above and have things still
+// work. This is because of issues like byte packing of node IDs.
 type SubtreeCache struct {
-	// prefixLengths contains the strata prefix sizes for each multiple-of-8 tree
+	// prefixLengths contains the strata prefix sizes for each multiple-of-depthQuantum tree
 	// size.
 	stratumInfo []stratumInfo
 	// subtrees contains the Subtree data read from storage, and is updated by
@@ -75,23 +90,23 @@ func (s Suffix) serialize() string {
 // TODO(al): consider supporting different sized subtrees - for now everything's subtrees of 8 levels.
 func NewSubtreeCache(strataDepths []int, populateSubtree storage.PopulateSubtreeFunc, prepareSubtreeWrite storage.PrepareSubtreeWriteFunc) SubtreeCache {
 	// TODO(al): pass this in
-	maxTreeDepth := 256
+	maxTreeDepth := maxSupportedTreeDepth
 	// Precalculate strata information based on the passed in strata depths:
-	sInfo := make([]stratumInfo, 0, maxTreeDepth/8)
+	sInfo := make([]stratumInfo, 0, maxTreeDepth/depthQuantum)
 	t := 0
 	for _, sDepth := range strataDepths {
 		// Verify the stratum depth makes sense:
 		if sDepth <= 0 {
 			panic(fmt.Errorf("got invalid strata depth of %d: can't be <= 0", sDepth))
 		}
-		if sDepth%8 != 0 {
-			panic(fmt.Errorf("got strata depth of %d, must be a multiple of 8", sDepth))
+		if sDepth%depthQuantum != 0 {
+			panic(fmt.Errorf("got strata depth of %d, must be a multiple of %d", sDepth, depthQuantum))
 		}
 
-		pb := t / 8
-		for i := 0; i < sDepth; i += 8 {
+		pb := t / depthQuantum
+		for i := 0; i < sDepth; i += depthQuantum {
 			sInfo = append(sInfo, stratumInfo{pb, sDepth})
-			t += 8
+			t += depthQuantum
 		}
 	}
 	// TODO(al): This needs to be passed in, particularly for Map use cases where
@@ -111,7 +126,7 @@ func NewSubtreeCache(strataDepths []int, populateSubtree storage.PopulateSubtree
 }
 
 func (s *SubtreeCache) stratumInfoForPrefixLength(numBits int) stratumInfo {
-	return s.stratumInfo[numBits/8]
+	return s.stratumInfo[numBits/depthQuantum]
 }
 
 // splitNodeID breaks a NodeID out into its prefix and suffix parts.
@@ -126,11 +141,11 @@ func (s *SubtreeCache) splitNodeID(id storage.NodeID) ([]byte, Suffix) {
 	prefixSplit := sInfo.prefixBytes
 	sfx := Suffix{
 		bits: byte((id.PrefixLenBits-1)%sInfo.depth) + 1,
-		path: a[prefixSplit : prefixSplit+sInfo.depth/8],
+		path: a[prefixSplit : prefixSplit+sInfo.depth/depthQuantum],
 	}
-	maskIndex := int((sfx.bits - 1) / 8)
-	maskLowBits := (sfx.bits-1)%8 + 1
-	sfx.path[maskIndex] &= ((0x01 << maskLowBits) - 1) << uint(8-maskLowBits)
+	maskIndex := int((sfx.bits - 1) / depthQuantum)
+	maskLowBits := (sfx.bits-1)%depthQuantum + 1
+	sfx.path[maskIndex] &= ((0x01 << maskLowBits) - 1) << uint(depthQuantum-maskLowBits)
 
 	return a[:prefixSplit], sfx
 }
@@ -150,7 +165,7 @@ func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc
 		pxKey := string(px)
 		_, ok := s.subtrees[pxKey]
 		// TODO(al): fix for non-uniform strata
-		id.PrefixLenBits = len(px) * 8
+		id.PrefixLenBits = len(px) * depthQuantum
 		if !ok {
 			want[pxKey] = &id
 		}
@@ -224,7 +239,7 @@ func (s *SubtreeCache) getNodeHashUnderLock(id storage.NodeID, getSubtree GetSub
 	if c == nil {
 		// Cache miss, so we'll try to fetch from storage.
 		subID := id
-		subID.PrefixLenBits = len(px) * 8
+		subID.PrefixLenBits = len(px) * depthQuantum // this won't work if depthQuantum changes
 		var err error
 		c, err = getSubtree(subID)
 		if err != nil {
@@ -260,9 +275,10 @@ func (s *SubtreeCache) getNodeHashUnderLock(id storage.NodeID, getSubtree GetSub
 
 	// Look up the hash in the appropriate map.
 	// The leaf hashes are stored in a separate map to the internal nodes so that
-	// we can easily dump (and later reconstruct) the internal nodes.
-	// Since the subtrees are fixed to a depth of 8, any suffix with 8
-	// significant bits must be a leaf hash.
+	// we can easily dump (and later reconstruct) the internal nodes. As log subtrees
+	// have a fixed depth if the suffix has the same number of significant bits as the
+	// subtree depth then this is a leaf. For example if the subtree is depth 8 its leaves
+	// have 8 significant suffix bits.
 	if int32(sx.bits) == c.Depth {
 		nh = c.Leaves[sx.serialize()]
 	} else {
@@ -363,14 +379,14 @@ func PopulateMapSubtreeNodes(treeHasher merkle.TreeHasher) storage.PopulateSubtr
 	return func(st *storagepb.SubtreeProto) error {
 		st.InternalNodes = make(map[string][]byte)
 		rootID := storage.NewNodeIDFromHash(st.Prefix)
-		fullTreeDepth := treeHasher.Size() * 8
+		fullTreeDepth := treeHasher.Size() * depthQuantum
 		leaves := make([]merkle.HStar2LeafHash, 0, len(st.Leaves))
 		for k64, v := range st.Leaves {
 			k, err := base64.StdEncoding.DecodeString(k64)
 			if err != nil {
 				return err
 			}
-			if k[0]%8 != 0 {
+			if k[0]%depthQuantum != 0 {
 				return fmt.Errorf("unexpected non-leaf suffix found: %x", k)
 			}
 			leaves = append(leaves, merkle.HStar2LeafHash{
@@ -427,7 +443,7 @@ func PopulateLogSubtreeNodes(treeHasher merkle.TreeHasher) storage.PopulateSubtr
 
 		// We need to update the subtree root hash regardless of whether it's fully populated
 		for leafIndex := int64(0); leafIndex < int64(len(st.Leaves)); leafIndex++ {
-			sfx, err := makeSuffixKey(8, leafIndex)
+			sfx, err := makeSuffixKey(logStrataDepth, leafIndex)
 			if err != nil {
 				return err
 			}
@@ -436,11 +452,11 @@ func PopulateLogSubtreeNodes(treeHasher merkle.TreeHasher) storage.PopulateSubtr
 				return fmt.Errorf("unexpectedly got nil for subtree leaf suffix %s", sfx)
 			}
 			seq := cmt.AddLeafHash(h, func(depth int, index int64, h []byte) {
-				if depth == 8 && index == 0 {
+				if depth == logStrataDepth && index == 0 {
 					// no space for the root in the node cache
 					return
 				}
-				key, err := makeSuffixKey(8-depth, index<<uint(depth))
+				key, err := makeSuffixKey(logStrataDepth-depth, index<<uint(depth))
 				if err != nil {
 					// This can only happen if we somehow ended up outside of the subtree. For example
 					// if more leaves were added to the CMT than the fully populated count for the strata
