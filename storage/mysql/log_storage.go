@@ -146,15 +146,23 @@ func (t *readOnlyLogTX) GetActiveLogIDsWithPendingWork() ([]int64, error) {
 	return getActiveLogIDsWithPendingWork(t.tx)
 }
 
+func (m *mySQLLogStorage) hasher(treeID int64) (merkle.Hasher, error) {
+	// TODO: read hash algorithm from storage.
+	return merkle.Factory("RFC6962-SHA256")
+}
+
 func (m *mySQLLogStorage) beginInternal(ctx context.Context, treeID int64) (storage.LogTreeTX, error) {
-	// TODO(codingllama): Validate treeType, read hash algorithm from storage
+	// TODO(codingllama): Validate treeType
 	var allowDuplicates bool
 	if err := m.db.QueryRow(getTreePropertiesSQL, treeID).Scan(&allowDuplicates); err != nil {
 		return nil, fmt.Errorf("failed to get tree row for treeID %v: %s", treeID, err)
 	}
-	th := merkle.NewRFC6962TreeHasher()
+	hasher, err := m.hasher(treeID)
+	if err != nil {
+		return nil, err
+	}
 
-	ttx, err := m.beginTreeTx(ctx, treeID, th.Size(), defaultLogStrata, cache.PopulateLogSubtreeNodes(th), cache.PrepareLogSubtreeWrite())
+	ttx, err := m.beginTreeTx(ctx, treeID, hasher.Size(), defaultLogStrata, cache.PopulateLogSubtreeNodes(hasher), cache.PrepareLogSubtreeWrite())
 	if err != nil {
 		return nil, err
 	}

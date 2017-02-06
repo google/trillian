@@ -32,7 +32,7 @@ import (
 // to provide proofs etc.
 type SparseMerkleTreeReader struct {
 	tx           storage.ReadOnlyTreeTX
-	hasher       MapHasher
+	hasher       Hasher
 	treeRevision int64
 }
 
@@ -41,7 +41,7 @@ type newTXFunc func() (storage.TreeTX, error)
 // SparseMerkleTreeWriter knows how to store/update a stored sparse Merkle tree
 // via a TreeStorage transaction.
 type SparseMerkleTreeWriter struct {
-	hasher       MapHasher
+	hasher       Hasher
 	treeRevision int64
 	tree         Subtree
 }
@@ -105,7 +105,7 @@ type subtreeWriter struct {
 	tx           storage.TreeTX
 	treeRevision int64
 
-	treeHasher TreeHasher
+	hasher Hasher
 
 	getSubtree getSubtreeFunc
 }
@@ -232,8 +232,8 @@ func (s *subtreeWriter) buildSubtree() {
 	}
 
 	// calculate new root, and intermediate nodes:
-	hs2 := NewHStar2(s.treeHasher)
-	treeDepthOffset := (s.treeHasher.Size()-len(s.prefix))*8 - s.subtreeDepth
+	hs2 := NewHStar2(s.hasher)
+	treeDepthOffset := (s.hasher.Size()-len(s.prefix))*8 - s.subtreeDepth
 	addressSize := len(s.prefix) + s.subtreeDepth/8
 	root, err := hs2.HStar2Nodes(s.subtreeDepth, treeDepthOffset, leaves,
 		func(depth int, index *big.Int) ([]byte, error) {
@@ -294,9 +294,9 @@ var (
 )
 
 // NewSparseMerkleTreeReader returns a new SparseMerkleTreeReader, reading at
-// the specified tree revision, using the passed in MapHasher for calculating
+// the specified tree revision, using the passed in Hasher for calculating
 // and verifying tree hashes read via tx.
-func NewSparseMerkleTreeReader(rev int64, h MapHasher, tx storage.ReadOnlyTreeTX) *SparseMerkleTreeReader {
+func NewSparseMerkleTreeReader(rev int64, h Hasher, tx storage.ReadOnlyTreeTX) *SparseMerkleTreeReader {
 	return &SparseMerkleTreeReader{
 		tx:           tx,
 		hasher:       h,
@@ -314,7 +314,7 @@ func leafQueueSize(depths []int) int {
 }
 
 // newLocalSubtreeWriter creates a new local go-routine based subtree worker.
-func newLocalSubtreeWriter(rev int64, prefix []byte, depths []int, newTX newTXFunc, h TreeHasher) (Subtree, error) {
+func newLocalSubtreeWriter(rev int64, prefix []byte, depths []int, newTX newTXFunc, h Hasher) (Subtree, error) {
 	tx, err := newTX()
 	if err != nil {
 		return nil, err
@@ -328,7 +328,7 @@ func newLocalSubtreeWriter(rev int64, prefix []byte, depths []int, newTX newTXFu
 		root:         make(chan rootHashOrError, 1),
 		children:     make(map[string]Subtree),
 		tx:           tx,
-		treeHasher:   h,
+		hasher:       h,
 		getSubtree: func(p []byte) (Subtree, error) {
 			myPrefix := bytes.Join([][]byte{prefix, p}, []byte{})
 			return newLocalSubtreeWriter(rev, myPrefix, depths[1:], newTX, h)
@@ -343,11 +343,11 @@ func newLocalSubtreeWriter(rev int64, prefix []byte, depths []int, newTX newTXFu
 
 // NewSparseMerkleTreeWriter returns a new SparseMerkleTreeWriter, which will
 // write data back into the tree at the specified revision, using the passed
-// in MapHasher to calculate/verify tree hashes, storing via tx.
-func NewSparseMerkleTreeWriter(rev int64, h MapHasher, newTX newTXFunc) (*SparseMerkleTreeWriter, error) {
+// in Hasher to calculate/verify tree hashes, storing via tx.
+func NewSparseMerkleTreeWriter(rev int64, h Hasher, newTX newTXFunc) (*SparseMerkleTreeWriter, error) {
 	// TODO(al): allow the tree layering sizes to be customisable somehow.
 	const topSubtreeSize = 8 // must be a multiple of 8 for now.
-	tree, err := newLocalSubtreeWriter(rev, []byte{}, []int{topSubtreeSize, h.Size()*8 - topSubtreeSize}, newTX, h.TreeHasher)
+	tree, err := newLocalSubtreeWriter(rev, []byte{}, []int{topSubtreeSize, h.Size()*8 - topSubtreeSize}, newTX, h)
 	if err != nil {
 		return nil, err
 	}

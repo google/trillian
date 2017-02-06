@@ -28,7 +28,7 @@ import (
 // append-only logs, but adds support for nil/"default" proof nodes.
 //
 // Returns nil on a successful verification, and an error otherwise.
-func VerifyMapInclusionProof(index []byte, leafHash []byte, expectedRoot []byte, proof [][]byte, h MapHasher) error {
+func VerifyMapInclusionProof(index []byte, leafHash []byte, expectedRoot []byte, proof [][]byte, h Hasher) error {
 	hBits := h.Size() * 8
 
 	if got, want := len(proof), hBits; got != want {
@@ -54,7 +54,7 @@ func VerifyMapInclusionProof(index []byte, leafHash []byte, expectedRoot []byte,
 		proofIsRightHandElement := nID.Bit(bit) == 0
 		pElement := proof[bit]
 		if len(pElement) == 0 {
-			pElement = h.nullHashes[hBits-1-bit]
+			pElement = h.NullHash(hBits - 1 - bit)
 		}
 		if got, want := len(pElement)*8, hBits; got != want {
 			return fmt.Errorf("invalid proof: element has length %d, expected %d", got, want)

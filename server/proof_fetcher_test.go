@@ -10,6 +10,7 @@ import (
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testonly"
+	trillian_testonly "github.com/google/trillian/testonly"
 )
 
 // rehashTest encapsulates one test case for the rehasher in isolation. Input data like the storage
@@ -297,7 +298,7 @@ func expectedRootAtSize(mt *merkle.InMemoryMerkleTree) []byte {
 
 func treeAtSize(n int) *merkle.InMemoryMerkleTree {
 	leaves := expandLeaves(0, n-1)
-	mt := merkle.NewInMemoryMerkleTree(merkle.NewRFC6962TreeHasher())
+	mt := merkle.NewInMemoryMerkleTree(trillian_testonly.Hasher)
 	for _, leaf := range leaves {
 		mt.AddLeaf([]byte(leaf))
 	}
