@@ -131,7 +131,7 @@ func TestTree813FetchAll(t *testing.T) {
 
 	mt := treeAtSize(int(ts))
 	r := testonly.NewMultiFakeNodeReaderFromLeaves([]testonly.LeafBatch{
-		{TreeRevision: testTreeRevision, Leaves: expandLeaves(0, int(ts - 1)), ExpectedRoot: expectedRootAtSize(mt)},
+		{TreeRevision: testTreeRevision, Leaves: expandLeaves(0, int(ts-1)), ExpectedRoot: expectedRootAtSize(mt)},
 	})
 
 	for l := int64(271); l < ts; l++ {
@@ -147,7 +147,7 @@ func TestTree813FetchAll(t *testing.T) {
 		}
 
 		// We use +1 here because of the 1 based leaf indexing of this implementation
-		refProof := mt.PathToRootAtSnapshot(l + 1, ts)
+		refProof := mt.PathToRootAtSnapshot(l+1, ts)
 
 		if got, want := len(proof.ProofNode), len(refProof); got != want {
 			for i, f := range fetches {
