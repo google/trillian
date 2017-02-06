@@ -17,6 +17,8 @@ package merkle
 import (
 	"crypto"
 	"fmt"
+
+	"github.com/google/trillian/merkle/rfc6962"
 )
 
 // Hasher defines hashing functions for use in tree operations.
@@ -33,7 +35,7 @@ type Hasher interface {
 }
 
 var hashTypes = map[string]Hasher{
-	"RFC6962-SHA256": rfc6962{crypto.SHA256},
+	"RFC6962-SHA256": rfc6962.Hasher{crypto.SHA256},
 }
 
 // Factory returns hashers of given types.
@@ -43,56 +45,4 @@ func Factory(t string) (Hasher, error) {
 		return nil, fmt.Errorf("hash type %s not found", t)
 	}
 	return h, nil
-}
-
-//
-// RFC6962 Hasher
-//
-
-type rfc6962 struct {
-	crypto.Hash
-}
-
-// Domain separation prefixes
-const (
-	RFC6962LeafHashPrefix = 0
-	RFC6962NodeHashPrefix = 1
-)
-
-// HashEmpty returns the hash of an empty element for the tree
-func (t rfc6962) HashEmpty() []byte {
-	return t.HashLeaf([]byte{})
-}
-
-// HashLeaf returns the Merkle tree leaf hash of the data passed in through leaf.
-// The data in leaf is prefixed by the LeafHashPrefix.
-func (t rfc6962) HashLeaf(leaf []byte) []byte {
-	h := t.New()
-	h.Write([]byte{RFC6962LeafHashPrefix})
-	h.Write(leaf)
-	return h.Sum(nil)
-}
-
-// HashChildren returns the inner Merkle tree node hash of the the two child nodes l and r.
-// The hashed structure is NodeHashPrefix||l||r.
-func (t rfc6962) HashChildren(l, r []byte) []byte {
-	h := t.New()
-	h.Write([]byte{RFC6962NodeHashPrefix})
-	h.Write(l)
-	h.Write(r)
-	return h.Sum(nil)
-}
-
-func (t rfc6962) Size() int {
-	return t.New().Size()
-}
-
-// NullHash returns the empty hash at a given depth.
-func (t rfc6962) NullHash(depth) []byte {
-	h := t.HashEmpty()
-	height := t.Size() * 8
-	for i := height - 1; i > depth; i-- {
-		h = t.HashChildren(h, h)
-	}
-	return h
 }
