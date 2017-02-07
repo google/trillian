@@ -251,7 +251,7 @@ func TestRepopulateLogSubtree(t *testing.T) {
 		s.InternalNodes = make(map[string][]byte)
 
 		leaf := []byte(fmt.Sprintf("this is leaf %d", numLeaves))
-		leafHash := hasher.Digest(leaf)
+		leafHash := hasher.HashLeaf(leaf)
 		cmt.AddLeafHash(leafHash, func(depth int, index int64, h []byte) {
 			n, err := storage.NewNodeIDForTreeCoords(int64(depth), index, 8)
 			if err != nil {

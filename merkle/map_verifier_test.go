@@ -20,101 +20,40 @@ import (
 	"github.com/google/trillian/testonly"
 )
 
-func TestVerifyMapInclusionProofWorks(t *testing.T) {
+func TestVerifyMap(t *testing.T) {
 	h := NewMapHasher(NewRFC6962TreeHasher())
-	for i, tv := range mapInclusionTestVector {
-		index := testonly.HashKey(tv.Key)
-		if err := VerifyMapInclusionProof(index, h.HashLeaf(tv.Value), tv.ExpectedRoot, tv.Proof, h); err != nil {
-			t.Errorf("(test %d) proof verification failed: %v", i, err)
+	tv := mapInclusionTestVector[0]
+
+	// Copy the bad proof so we don't mess up the good proof.
+	badProof := make([][]byte, len(tv.Proof))
+	for i := range badProof {
+		badProof[i] = make([]byte, len(tv.Proof[i]))
+		copy(badProof[i], tv.Proof[i])
+	}
+	badProof[250][15] ^= 0x10
+
+	for _, test := range []struct {
+		desc  string
+		key   string
+		leaf  []byte
+		root  []byte
+		proof [][]byte
+		want  bool
+	}{
+		{"correct", tv.Key, tv.Value, tv.ExpectedRoot, tv.Proof, true},
+		{"incorrect key", "w", tv.Value, tv.ExpectedRoot, tv.Proof, false},
+		{"incorrect value", tv.Key, []byte("w"), tv.ExpectedRoot, tv.Proof, false},
+		{"incorrect root", tv.Key, tv.Value, []byte("w"), tv.Proof, false},
+		{"incorrect proof", tv.Key, tv.Value, tv.ExpectedRoot, badProof, false},
+		{"short proof", tv.Key, tv.Value, tv.ExpectedRoot, [][]byte{[]byte("shorty")}, false},
+		{"excess proof", tv.Key, tv.Value, tv.ExpectedRoot, make([][]byte, h.Size()*8+1), false},
+	} {
+		index := testonly.HashKey(test.key)
+		leafHash := h.HashLeaf(test.leaf)
+		err := VerifyMapInclusionProof(index, leafHash, test.root, test.proof, h)
+		if got := err == nil; got != test.want {
+			t.Errorf("%v: VerifyMapInclusionProof(): %v, want %v", test.desc, err, test.want)
 		}
-	}
-}
-
-func TestVerifyMapInclusionProofCatchesWrongKey(t *testing.T) {
-	h := NewMapHasher(NewRFC6962TreeHasher())
-	tv := mapInclusionTestVector[0]
-	tv.Key = "wibble"
-	index := testonly.HashKey(tv.Key)
-	if err := VerifyMapInclusionProof(index, h.HashLeaf(tv.Value), tv.ExpectedRoot, tv.Proof, h); err == nil {
-		t.Error("unexpectedly verified proof for incorrect key")
-	}
-}
-
-func TestVerifyMapInclusionProofCatchesWrongValue(t *testing.T) {
-	h := NewMapHasher(NewRFC6962TreeHasher())
-	tv := mapInclusionTestVector[0]
-	tv.Value = []byte("wibble")
-	index := testonly.HashKey(tv.Key)
-	if err := VerifyMapInclusionProof(index, h.HashLeaf(tv.Value), tv.ExpectedRoot, tv.Proof, h); err == nil {
-		t.Error("unexpectedly verified proof for incorrect value")
-	}
-}
-
-func TestVerifyMapInclusionProofCatchesWrongRoot(t *testing.T) {
-	h := NewMapHasher(NewRFC6962TreeHasher())
-	tv := mapInclusionTestVector[0]
-	tv.ExpectedRoot = h.Digest([]byte("wibble"))
-	index := testonly.HashKey(tv.Key)
-	if err := VerifyMapInclusionProof(index, h.HashLeaf(tv.Value), tv.ExpectedRoot, tv.Proof, h); err == nil {
-		t.Error("unexpectedly verified proof for incorrect root")
-	}
-}
-
-func TestVerifyMapInclusionProofCatchesWrongProof(t *testing.T) {
-	h := NewMapHasher(NewRFC6962TreeHasher())
-	tv := mapInclusionTestVector[0]
-	tv.Proof[250][15] ^= 0x10
-	index := testonly.HashKey(tv.Key)
-	if err := VerifyMapInclusionProof(index, h.HashLeaf(tv.Value), tv.ExpectedRoot, tv.Proof, h); err == nil {
-		t.Error("unexpectedly verified proof for incorrect proof")
-	}
-}
-
-func TestVerifyMapInclusionProofRejectsShortProof(t *testing.T) {
-	h := NewMapHasher(NewRFC6962TreeHasher())
-	index := testonly.HashKey("hi")
-	err := VerifyMapInclusionProof(index, h.HashLeaf([]byte("there")), h.Digest([]byte("root")), [][]byte{h.Digest([]byte("shorty"))}, h)
-	if err == nil {
-		t.Error("unexpectedly verified short proof")
-	}
-}
-
-func TestVerifyMapInclusionProofRejectsExcess(t *testing.T) {
-	h := NewMapHasher(NewRFC6962TreeHasher())
-	p := make([][]byte, h.Size()*8+1)
-	index := testonly.HashKey("hi")
-	err := VerifyMapInclusionProof(index, h.HashLeaf([]byte("there")), h.Digest([]byte("root")), p, h)
-	if err == nil {
-		t.Error("unexpectedly verified proof with extra data")
-	}
-}
-
-func TestVerifyMapInclusionProofRejectsInvalidKeyHash(t *testing.T) {
-	h := NewMapHasher(NewRFC6962TreeHasher())
-	p := make([][]byte, h.Size()*8)
-	err := VerifyMapInclusionProof([]byte("peppo"), h.HashLeaf([]byte("there")), h.Digest([]byte("root")), p, h)
-	if err == nil {
-		t.Error("unexpectedly verified with invalid key hash")
-	}
-}
-
-func TestVerifyMapInclusionProofRejectsInvalidLeafHash(t *testing.T) {
-	h := NewMapHasher(NewRFC6962TreeHasher())
-	p := make([][]byte, h.Size()*8)
-	index := testonly.HashKey("key")
-	err := VerifyMapInclusionProof(index, []byte("peppo"), h.Digest([]byte("root")), p, h)
-	if err == nil {
-		t.Error("unexpectedly verified with invalid key hash")
-	}
-}
-
-func TestVerifyMapInclusionProofRejectsInvalidRoot(t *testing.T) {
-	h := NewMapHasher(NewRFC6962TreeHasher())
-	p := make([][]byte, h.Size()*8)
-	index := testonly.HashKey("hi")
-	err := VerifyMapInclusionProof(index, h.HashLeaf([]byte("there")), []byte("peppo"), p, h)
-	if err == nil {
-		t.Error("unexpectedly verified proof with extra data")
 	}
 }
 

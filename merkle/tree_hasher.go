@@ -52,28 +52,24 @@ func NewRFC6962TreeHasher() TreeHasher {
 
 // HashEmpty returns the hash of an empty element for the tree
 func (t TreeHasher) HashEmpty() []byte {
-	return t.Digest([]byte{})
+	return t.New().Sum(nil)
 }
 
 // HashLeaf returns the Merkle tree leaf hash of the data passed in through leaf.
 // The data in leaf is prefixed by the LeafHashPrefix.
 func (t TreeHasher) HashLeaf(leaf []byte) []byte {
-	return t.Digest(append([]byte{RFC6962LeafHashPrefix}, leaf...))
+	h := t.New()
+	h.Write([]byte{RFC6962LeafHashPrefix})
+	h.Write(leaf)
+	return h.Sum(nil)
 }
 
 // HashChildren returns the inner Merkle tree node hash of the the two child nodes l and r.
 // The hashed structure is NodeHashPrefix||l||r.
 func (t TreeHasher) HashChildren(l, r []byte) []byte {
-	hr := t.New()
-	hr.Write([]byte{RFC6962NodeHashPrefix})
-	hr.Write(l)
-	hr.Write(r)
-	return hr.Sum(nil)
-}
-
-// Digest calculates the digest of b according to the underlying algorithm.
-func (t TreeHasher) Digest(b []byte) []byte {
-	hr := t.New()
-	hr.Write(b)
-	return hr.Sum(nil)
+	h := t.New()
+	h.Write([]byte{RFC6962NodeHashPrefix})
+	h.Write(l)
+	h.Write(r)
+	return h.Sum(nil)
 }

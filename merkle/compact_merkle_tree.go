@@ -107,10 +107,9 @@ func NewCompactMerkleTreeWithState(hasher TreeHasher, size int64, f GetNodeFunc,
 
 // NewCompactMerkleTree creates a new CompactMerkleTree with size zero. This always succeeds.
 func NewCompactMerkleTree(hasher TreeHasher) *CompactMerkleTree {
-	emptyHash := hasher.Digest([]byte{})
 	r := CompactMerkleTree{
 		hasher: hasher,
-		root:   emptyHash[:],
+		root:   hasher.HashEmpty(),
 		nodes:  make([][]byte, 0),
 		size:   0,
 	}
