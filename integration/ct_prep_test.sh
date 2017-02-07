@@ -25,9 +25,9 @@ echo "Provisioning test log (Tree ID: 0) in database"
 # Default to one RPC server and one HTTP server.
 RPC_SERVER_COUNT=${1:-1}
 HTTP_SERVER_COUNT=${2:-1}
-BASE_RPC_PORT=36961
-BASE_HTTP_PORT=6961
-LB_PORT=46962
+BASE_RPC_PORT=36962
+BASE_HTTP_PORT=6962
+LB_PORT=26962
 
 port=${BASE_RPC_PORT}
 for ((i=0; i < RPC_SERVER_COUNT; i++)); do
@@ -64,7 +64,7 @@ pushd "${TRILLIAN_ROOT}" > /dev/null
 declare -a RPC_SERVER_PIDS
 for port in ${RPC_PORTS}; do
     echo "Starting Log RPC server on port ${port}"
-    ./trillian_log_server --private_key_password=towel --private_key_file=${TESTDATA}/log-rpc-server.privkey.pem --port ${port} --signer_interval="1s" --sequencer_sleep_between_runs="1s" --batch_size=100 --export_metrics=false &
+    ./trillian_log_server --private_key_password=towel --private_key_file=${TESTDATA}/log-rpc-server.privkey.pem --port ${port} --signer_interval="1s" --sequencer_sleep_between_runs="1s" --batch_size=500 --export_metrics=false &
     pid=$!
     RPC_SERVER_PIDS+=(${pid})
 done

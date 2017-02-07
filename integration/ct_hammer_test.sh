@@ -18,7 +18,7 @@ TO_KILL+=(${RPC_SERVER_PIDS[@]})
 
 echo "Running test(s)"
 set +e
-./ct_hammer --log_config "${CT_CFG}" --ct_http_servers=${CT_SERVERS} --testdata_dir=${TESTDATA} --mmd=10s
+./ct_hammer --log_config "${CT_CFG}" --ct_http_servers=${CT_SERVERS} --testdata_dir=${TESTDATA} --mmd=30s
 RESULT=$?
 set -e
 
