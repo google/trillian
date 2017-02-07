@@ -332,7 +332,7 @@ func (s *hammerState) getProofByHash(ctx context.Context) error {
 	// Get and check an inclusion proof.
 	rsp, err := s.pool.Pick().GetProofByHash(ctx, submitted.leafHash[:], sth.TreeSize)
 	if err != nil {
-		return fmt.Errorf("failed to get-proof-by-hash(size=%d): %v", sth.TreeSize, err)
+		return fmt.Errorf("failed to get-proof-by-hash(size=%d) on cert with SCT @ %v: %v, %+v", sth.TreeSize, timeFromMS(submitted.sct.Timestamp), err, rsp)
 	}
 	if err := Verifier.VerifyInclusionProof(rsp.LeafIndex, int64(sth.TreeSize), rsp.AuditPath, sth.SHA256RootHash[:], submitted.leafData); err != nil {
 		return fmt.Errorf("failed to VerifyInclusionProof(%d, %d)=%v", rsp.LeafIndex, sth.TreeSize, err)
