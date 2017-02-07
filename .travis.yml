@@ -47,6 +47,7 @@ install:
 script:
   - export CXX="g++-4.8"
   - export CC="gcc-4.8"
+  - set -e
   - ./scripts/presubmit.sh
   - |
       # Check re-generation didn't change anything
