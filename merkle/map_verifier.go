@@ -28,7 +28,7 @@ import (
 // append-only logs, but adds support for nil/"default" proof nodes.
 //
 // Returns nil on a successful verification, and an error otherwise.
-func VerifyMapInclusionProof(index []byte, leafHash []byte, expectedRoot []byte, proof [][]byte, h MapHasher) error {
+func VerifyMapInclusionProof(index, leafHash, expectedRoot []byte, proof [][]byte, h MapHasher) error {
 	hBits := h.Size() * 8
 
 	if got, want := len(proof), hBits; got != want {
@@ -39,9 +39,6 @@ func VerifyMapInclusionProof(index []byte, leafHash []byte, expectedRoot []byte,
 	}
 	if got, want := len(leafHash)*8, hBits; got != want {
 		return fmt.Errorf("invalid leafHash length %d, expected %d", got, want)
-	}
-	if got, want := len(expectedRoot)*8, hBits; got != want {
-		return fmt.Errorf("invalid expectedRoot length %d, expected %d", got, want)
 	}
 
 	// TODO(al): Remove this dep on storage, since clients will want to use this code.
