@@ -83,7 +83,7 @@ func (t *readOnlyMapTX) Rollback() error {
 }
 
 func (t *readOnlyMapTX) IsConnected() error {
-	return checkDatabaseAccessible(t.tx)
+	return isConnected(t.tx)
 }
 
 func (m *mySQLMapStorage) hasher(treeID int64) (merkle.TreeHasher, error) {

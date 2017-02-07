@@ -408,7 +408,7 @@ func (t *treeTX) IsOpen() bool {
 	return !t.closed
 }
 
-func checkDatabaseAccessible(tx *sql.Tx) error {
+func isConnected(tx *sql.Tx) error {
 	stmt, err := tx.Prepare("SELECT TreeId FROM Trees LIMIT 1")
 	if err != nil {
 		return err

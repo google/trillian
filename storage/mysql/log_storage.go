@@ -152,7 +152,7 @@ func (t *readOnlyLogTX) Rollback() error {
 }
 
 func (t *readOnlyLogTX) IsConnected() error {
-	return checkDatabaseAccessible(t.tx)
+	return isConnected(t.tx)
 }
 
 func (t *readOnlyLogTX) GetActiveLogIDs() ([]int64, error) {
