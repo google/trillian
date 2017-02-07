@@ -81,13 +81,13 @@ func newTX(tx storage.MapTreeTX) func() (storage.TreeTX, error) {
 
 func getSparseMerkleTreeReaderWithMockTX(ctrl *gomock.Controller, rev int64) (*SparseMerkleTreeReader, *storage.MockMapTreeTX) {
 	tx := storage.NewMockMapTreeTX(ctrl)
-	return NewSparseMerkleTreeReader(rev, NewMapHasher(NewRFC6962TreeHasher()), tx), tx
+	return NewSparseMerkleTreeReader(rev, NewMapHasher(testonly.Hasher), tx), tx
 }
 
 func getSparseMerkleTreeWriterWithMockTX(ctrl *gomock.Controller, rev int64) (*SparseMerkleTreeWriter, *storage.MockMapTreeTX) {
 	tx := storage.NewMockMapTreeTX(ctrl)
 	tx.EXPECT().WriteRevision().AnyTimes().Return(rev)
-	tree, err := NewSparseMerkleTreeWriter(rev, NewMapHasher(NewRFC6962TreeHasher()), newTX(tx))
+	tree, err := NewSparseMerkleTreeWriter(rev, NewMapHasher(testonly.Hasher), newTX(tx))
 	if err != nil {
 		panic(err)
 	}
@@ -112,7 +112,7 @@ func (r rootNodeMatcher) String() string {
 func getEmptyRootNode() storage.Node {
 	return storage.Node{
 		NodeID:       storage.NewEmptyNodeID(0),
-		Hash:         testonly.MustDecodeBase64(sparseEmptyRootHashB64),
+		Hash:         sparseEmptyRootHashB64,
 		NodeRevision: 0,
 	}
 }
@@ -573,7 +573,7 @@ func DISABLEDTestSparseMerkleTreeWriterBigBatch(t *testing.T) {
 		h := make([]HashKeyValue, batchSize)
 		for y := 0; y < batchSize; y++ {
 			h[y].HashedKey = testonly.HashKey(fmt.Sprintf("key-%d-%d", x, y))
-			h[y].HashedValue = w.hasher.TreeHasher.HashLeaf([]byte(fmt.Sprintf("value-%d-%d", x, y)))
+			h[y].HashedValue = w.hasher.HashLeaf([]byte(fmt.Sprintf("value-%d-%d", x, y)))
 		}
 		if err := w.SetLeaves(h); err != nil {
 			t.Fatalf("Failed to batch %d: %v", x, err)

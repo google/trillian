@@ -62,11 +62,19 @@ func NewMapStorage(db *sql.DB) (storage.MapStorage, error) {
 	}, nil
 }
 
+func (m *mySQLMapStorage) hasher(treeID int64) (merkle.TreeHasher, error) {
+	// TODO: read hash algorithm from storage.
+	return merkle.Factory("RFC6962-SHA256")
+}
+
 func (m *mySQLMapStorage) BeginForTree(ctx context.Context, treeID int64) (storage.MapTreeTX, error) {
 	// TODO(codingllama): Validate treeType, read hash algorithm from storage
-	th := merkle.NewRFC6962TreeHasher()
+	hasher, err := m.hasher(treeID)
+	if err != nil {
+		return nil, err
+	}
 
-	ttx, err := m.beginTreeTx(ctx, treeID, th.Size(), defaultMapStrata, cache.PopulateMapSubtreeNodes(th), cache.PrepareMapSubtreeWrite())
+	ttx, err := m.beginTreeTx(ctx, treeID, hasher.Size(), defaultMapStrata, cache.PopulateMapSubtreeNodes(hasher), cache.PrepareMapSubtreeWrite())
 	if err != nil {
 		return nil, err
 	}

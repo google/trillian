@@ -41,7 +41,11 @@ func NewTrillianMapServer(registry extension.Registry) *TrillianMapServer {
 
 func (t *TrillianMapServer) getHasherForMap(mapID int64) (merkle.MapHasher, error) {
 	// TODO(al): actually return tailored hashers.
-	return merkle.NewMapHasher(merkle.NewRFC6962TreeHasher()), nil
+	h, err := merkle.Factory(merkle.RFC6962SHA256Type)
+	if err != nil {
+		return merkle.MapHasher{}, err
+	}
+	return merkle.NewMapHasher(h), nil
 }
 
 // GetLeaves implements the GetLeaves RPC method.

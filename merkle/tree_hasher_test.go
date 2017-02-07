@@ -37,7 +37,7 @@ func ensureHashMatches(expected, actual []byte, testCase string, t *testing.T) {
 }
 
 func TestRfc6962Hasher(t *testing.T) {
-	hasher := NewRFC6962TreeHasher()
+	hasher := testonly.Hasher
 
 	ensureHashMatches(testonly.MustHexDecode(rfc6962EmptyHashHex), hasher.HashEmpty(), "RFC962 Empty", t)
 	ensureHashMatches(testonly.MustHexDecode(rfc6962LeafL123456HashHex), hasher.HashLeaf([]byte("L123456")), "RFC6962 Leaf", t)

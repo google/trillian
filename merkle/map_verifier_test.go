@@ -21,7 +21,7 @@ import (
 )
 
 func TestVerifyMap(t *testing.T) {
-	h := NewMapHasher(NewRFC6962TreeHasher())
+	h := NewMapHasher(testonly.Hasher)
 	tv := mapInclusionTestVector[0]
 
 	// Copy the bad proof so we don't mess up the good proof.
