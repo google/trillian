@@ -383,7 +383,7 @@ func TestDuplicateSignedMapRoot(t *testing.T) {
 	}
 }
 
-func TestReadOnlyMapTX_CheckDatabaseAccessible(t *testing.T) {
+func TestReadOnlyMapTX_IsConnected(t *testing.T) {
 	cleanTestDB(DB)
 
 	s, err := NewMapStorage(DB)
@@ -396,8 +396,8 @@ func TestReadOnlyMapTX_CheckDatabaseAccessible(t *testing.T) {
 		t.Fatalf("Snapshot() = (_, %v), want = (_, nil)", err)
 	}
 
-	if err := tx.CheckDatabaseAccessible(); err != nil {
-		t.Errorf("CheckDatabaseAccessible() = %v, want = nil", err)
+	if err := tx.IsConnected(); err != nil {
+		t.Errorf("IsConnected() = %v, want = nil", err)
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -419,8 +419,8 @@ func TestReadOnlyMapTX_Rollback(t *testing.T) {
 	}
 
 	// Do *something* before rolling back
-	if err := tx.CheckDatabaseAccessible(); err != nil {
-		t.Fatalf("CheckDatabaseAccessible() = %v, want = nil", err)
+	if err := tx.IsConnected(); err != nil {
+		t.Fatalf("IsConnected() = %v, want = nil", err)
 	}
 
 	// It's a bit hard to have a more meaningful test. This should suffice.

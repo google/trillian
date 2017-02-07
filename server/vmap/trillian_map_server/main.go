@@ -54,7 +54,7 @@ func checkDatabaseAccessible(registry extension.Registry) error {
 	if err != nil {
 		return err
 	}
-	if err := tx.CheckDatabaseAccessible(); err != nil {
+	if err := tx.IsConnected(); err != nil {
 		return err
 	}
 	return tx.Commit()

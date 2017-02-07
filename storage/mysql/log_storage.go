@@ -151,7 +151,7 @@ func (t *readOnlyLogTX) Rollback() error {
 	return t.tx.Rollback()
 }
 
-func (t *readOnlyLogTX) CheckDatabaseAccessible() error {
+func (t *readOnlyLogTX) IsConnected() error {
 	return checkDatabaseAccessible(t.tx)
 }
 

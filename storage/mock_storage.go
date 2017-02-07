@@ -472,16 +472,6 @@ func (_m *MockReadOnlyLogTX) EXPECT() *_MockReadOnlyLogTXRecorder {
 	return _m.recorder
 }
 
-func (_m *MockReadOnlyLogTX) CheckDatabaseAccessible() error {
-	ret := _m.ctrl.Call(_m, "CheckDatabaseAccessible")
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-func (_mr *_MockReadOnlyLogTXRecorder) CheckDatabaseAccessible() *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "CheckDatabaseAccessible")
-}
-
 func (_m *MockReadOnlyLogTX) Commit() error {
 	ret := _m.ctrl.Call(_m, "Commit")
 	ret0, _ := ret[0].(error)
@@ -512,6 +502,16 @@ func (_m *MockReadOnlyLogTX) GetActiveLogIDsWithPendingWork() ([]int64, error) {
 
 func (_mr *_MockReadOnlyLogTXRecorder) GetActiveLogIDsWithPendingWork() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetActiveLogIDsWithPendingWork")
+}
+
+func (_m *MockReadOnlyLogTX) IsConnected() error {
+	ret := _m.ctrl.Call(_m, "IsConnected")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+func (_mr *_MockReadOnlyLogTXRecorder) IsConnected() *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "IsConnected")
 }
 
 func (_m *MockReadOnlyLogTX) Rollback() error {

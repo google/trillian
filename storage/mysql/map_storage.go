@@ -82,7 +82,7 @@ func (t *readOnlyMapTX) Rollback() error {
 	return t.tx.Rollback()
 }
 
-func (t *readOnlyMapTX) CheckDatabaseAccessible() error {
+func (t *readOnlyMapTX) IsConnected() error {
 	return checkDatabaseAccessible(t.tx)
 }
 

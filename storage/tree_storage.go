@@ -51,8 +51,8 @@ type TreeTX interface {
 
 // DatabaseChecker performs connectivity checks on the database.
 type DatabaseChecker interface {
-	// CheckDatabaseAccessible returns nil if the database is accessible, error otherwise.
-	CheckDatabaseAccessible() error
+	// IsConnected returns nil if connected to the database, error otherwise.
+	IsConnected() error
 }
 
 // NodeReader provides a read-only interface into the stored tree nodes.

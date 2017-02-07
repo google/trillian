@@ -974,7 +974,7 @@ func TestGetActiveLogIDsWithPendingWork(t *testing.T) {
 	}
 }
 
-func TestReadOnlyLogTX_CheckDatabaseAccessible(t *testing.T) {
+func TestReadOnlyLogTX_IsConnected(t *testing.T) {
 	cleanTestDB(DB)
 
 	s, err := NewLogStorage(DB)
@@ -987,8 +987,8 @@ func TestReadOnlyLogTX_CheckDatabaseAccessible(t *testing.T) {
 		t.Fatalf("Snapshot() = (_, %v), want = (_, nil)", err)
 	}
 
-	if err := tx.CheckDatabaseAccessible(); err != nil {
-		t.Errorf("CheckDatabaseAccessible() = %v, want = nil", err)
+	if err := tx.IsConnected(); err != nil {
+		t.Errorf("IsConnected() = %v, want = nil", err)
 	}
 
 	if err := tx.Commit(); err != nil {
