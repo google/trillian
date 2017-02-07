@@ -28,96 +28,53 @@ import (
 	"github.com/google/trillian/testonly"
 )
 
-var th = merkle.NewRFC6962TreeHasher()
+var (
+	th                 = merkle.NewRFC6962TreeHasher()
+	logID1             = int64(1)
+	logID2             = int64(2)
+	leaf0Request       = trillian.GetLeavesByIndexRequest{LogId: logID1, LeafIndex: []int64{0}}
+	leaf0Minus2Request = trillian.GetLeavesByIndexRequest{LogId: logID1, LeafIndex: []int64{0, -2}}
+	leaf03Request      = trillian.GetLeavesByIndexRequest{LogId: logID1, LeafIndex: []int64{0, 3}}
+	leaf0Log2Request   = trillian.GetLeavesByIndexRequest{LogId: logID2, LeafIndex: []int64{0}}
 
-var logID1 = int64(1)
-var logID2 = int64(2)
-var leaf0Request = trillian.GetLeavesByIndexRequest{LogId: logID1, LeafIndex: []int64{0}}
-var leaf0Minus2Request = trillian.GetLeavesByIndexRequest{LogId: logID1, LeafIndex: []int64{0, -2}}
-var leaf03Request = trillian.GetLeavesByIndexRequest{LogId: logID1, LeafIndex: []int64{0, 3}}
-var leaf0Log2Request = trillian.GetLeavesByIndexRequest{LogId: logID2, LeafIndex: []int64{0}}
+	leaf1Data = []byte("value")
+	leaf3Data = []byte("value3")
 
-var leaf1Data = []byte("value")
-var leaf3Data = []byte("value3")
+	leaf1 = trillian.LogLeaf{LeafIndex: 1, MerkleLeafHash: th.HashLeaf(leaf1Data), LeafValue: leaf1Data, ExtraData: []byte("extra")}
+	leaf3 = trillian.LogLeaf{LeafIndex: 3, MerkleLeafHash: th.HashLeaf(leaf3Data), LeafValue: leaf3Data, ExtraData: []byte("extra3")}
 
-var leaf1 = trillian.LogLeaf{LeafIndex: 1, MerkleLeafHash: th.HashLeaf(leaf1Data), LeafValue: leaf1Data, ExtraData: []byte("extra")}
-var leaf3 = trillian.LogLeaf{LeafIndex: 3, MerkleLeafHash: th.HashLeaf(leaf3Data), LeafValue: leaf3Data, ExtraData: []byte("extra3")}
+	queueRequest0     = trillian.QueueLeavesRequest{LogId: logID1, Leaves: []*trillian.LogLeaf{&leaf1}}
+	queueRequest0Log2 = trillian.QueueLeavesRequest{LogId: logID2, Leaves: []*trillian.LogLeaf{&leaf1}}
+	queueRequestEmpty = trillian.QueueLeavesRequest{LogId: logID1, Leaves: []*trillian.LogLeaf{}}
 
-var queueRequest0 = trillian.QueueLeavesRequest{LogId: logID1, Leaves: []*trillian.LogLeaf{&leaf1}}
-var queueRequest0Log2 = trillian.QueueLeavesRequest{LogId: logID2, Leaves: []*trillian.LogLeaf{&leaf1}}
-var queueRequestEmpty = trillian.QueueLeavesRequest{LogId: logID1, Leaves: []*trillian.LogLeaf{}}
+	getLogRootRequest1 = trillian.GetLatestSignedLogRootRequest{LogId: logID1}
+	getLogRootRequest2 = trillian.GetLatestSignedLogRootRequest{LogId: logID2}
+	revision1          = int64(5)
+	signedRoot1        = trillian.SignedLogRoot{TimestampNanos: 987654321, RootHash: []byte("A NICE HASH"), TreeSize: 7, TreeRevision: revision1}
 
-var getLogRootRequest1 = trillian.GetLatestSignedLogRootRequest{LogId: logID1}
-var getLogRootRequest2 = trillian.GetLatestSignedLogRootRequest{LogId: logID2}
-var revision1 = int64(5)
-var signedRoot1 = trillian.SignedLogRoot{TimestampNanos: 987654321, RootHash: []byte("A NICE HASH"), TreeSize: 7, TreeRevision: revision1}
+	getByHashRequest1       = trillian.GetLeavesByHashRequest{LogId: logID1, LeafHash: [][]byte{[]byte("test"), []byte("data")}}
+	getByHashRequestBadHash = trillian.GetLeavesByHashRequest{LogId: logID1, LeafHash: [][]byte{[]byte(""), []byte("data")}}
+	getByHashRequest2       = trillian.GetLeavesByHashRequest{LogId: logID2, LeafHash: [][]byte{[]byte("test"), []byte("data")}}
 
-var getByHashRequest1 = trillian.GetLeavesByHashRequest{LogId: logID1, LeafHash: [][]byte{[]byte("test"), []byte("data")}}
-var getByHashRequestBadHash = trillian.GetLeavesByHashRequest{LogId: logID1, LeafHash: [][]byte{[]byte(""), []byte("data")}}
-var getByHashRequest2 = trillian.GetLeavesByHashRequest{LogId: logID2, LeafHash: [][]byte{[]byte("test"), []byte("data")}}
+	getInclusionProofByHashRequest7  = trillian.GetInclusionProofByHashRequest{LogId: logID1, TreeSize: 7, LeafHash: []byte("ahash")}
+	getInclusionProofByHashRequest25 = trillian.GetInclusionProofByHashRequest{LogId: logID1, TreeSize: 25, LeafHash: []byte("ahash")}
 
-var getInclusionProofByHashRequestBadTreeSize = trillian.GetInclusionProofByHashRequest{LogId: logID1, TreeSize: -50, LeafHash: []byte("data")}
-var getInclusionProofByHashRequestBadHash = trillian.GetInclusionProofByHashRequest{LogId: logID1, TreeSize: 50, LeafHash: []byte{}}
-var getInclusionProofByHashRequest7 = trillian.GetInclusionProofByHashRequest{LogId: logID1, TreeSize: 7, LeafHash: []byte("ahash")}
-var getInclusionProofByHashRequest25 = trillian.GetInclusionProofByHashRequest{LogId: logID1, TreeSize: 25, LeafHash: []byte("ahash")}
+	getInclusionProofByIndexRequest7  = trillian.GetInclusionProofRequest{LogId: logID1, TreeSize: 7, LeafIndex: 2}
+	getInclusionProofByIndexRequest25 = trillian.GetInclusionProofRequest{LogId: logID1, TreeSize: 50, LeafIndex: 25}
 
-var getInclusionProofByIndexRequestBadTreeSize = trillian.GetInclusionProofRequest{LogId: logID1, TreeSize: -50, LeafIndex: 10}
-var getInclusionProofByIndexRequestBadLeafIndex = trillian.GetInclusionProofRequest{LogId: logID1, TreeSize: 50, LeafIndex: -10}
-var getInclusionProofByIndexRequestBadLeafIndexRange = trillian.GetInclusionProofRequest{LogId: logID1, TreeSize: 50, LeafIndex: 60}
-var getInclusionProofByIndexRequest7 = trillian.GetInclusionProofRequest{LogId: logID1, TreeSize: 7, LeafIndex: 2}
-var getInclusionProofByIndexRequest25 = trillian.GetInclusionProofRequest{LogId: logID1, TreeSize: 50, LeafIndex: 25}
+	getEntryAndProofRequest17 = trillian.GetEntryAndProofRequest{LogId: logID1, TreeSize: 17, LeafIndex: 3}
+	getEntryAndProofRequest7  = trillian.GetEntryAndProofRequest{LogId: logID1, TreeSize: 7, LeafIndex: 2}
 
-var getEntryAndProofRequestBadTreeSize = trillian.GetEntryAndProofRequest{LogId: logID1, TreeSize: -20, LeafIndex: 20}
-var getEntryAndProofRequestBadLeafIndex = trillian.GetEntryAndProofRequest{LogId: logID1, TreeSize: 25, LeafIndex: -5}
-var getEntryAndProofRequestBadLeafIndexRange = trillian.GetEntryAndProofRequest{LogId: logID1, TreeSize: 25, LeafIndex: 30}
-var getEntryAndProofRequest17 = trillian.GetEntryAndProofRequest{LogId: logID1, TreeSize: 17, LeafIndex: 3}
-var getEntryAndProofRequest7 = trillian.GetEntryAndProofRequest{LogId: logID1, TreeSize: 7, LeafIndex: 2}
+	getConsistencyProofRequest25 = trillian.GetConsistencyProofRequest{LogId: logID1, FirstTreeSize: 10, SecondTreeSize: 25}
+	getConsistencyProofRequest7  = trillian.GetConsistencyProofRequest{LogId: logID1, FirstTreeSize: 4, SecondTreeSize: 7}
 
-var getConsistencyProofRequestBadFirstTreeSize = trillian.GetConsistencyProofRequest{LogId: logID1, FirstTreeSize: -10, SecondTreeSize: 25}
-var getConsistencyProofRequestBadSecondTreeSize = trillian.GetConsistencyProofRequest{LogId: logID1, FirstTreeSize: 10, SecondTreeSize: -25}
-var getConsistencyProofRequestBadRange = trillian.GetConsistencyProofRequest{LogId: logID1, FirstTreeSize: 330, SecondTreeSize: 329}
-var getConsistencyProofRequest25 = trillian.GetConsistencyProofRequest{LogId: logID1, FirstTreeSize: 10, SecondTreeSize: 25}
-var getConsistencyProofRequest7 = trillian.GetConsistencyProofRequest{LogId: logID1, FirstTreeSize: 4, SecondTreeSize: 7}
+	nodeIdsInclusionSize7Index2 = []storage.NodeID{
+		testonly.MustCreateNodeIDForTreeCoords(0, 3, 64),
+		testonly.MustCreateNodeIDForTreeCoords(1, 0, 64),
+		testonly.MustCreateNodeIDForTreeCoords(2, 1, 64)}
 
-var nodeIdsInclusionSize7Index2 = []storage.NodeID{
-	testonly.MustCreateNodeIDForTreeCoords(0, 3, 64),
-	testonly.MustCreateNodeIDForTreeCoords(1, 0, 64),
-	testonly.MustCreateNodeIDForTreeCoords(2, 1, 64)}
-
-// Only one of the request fields should be set, depending on the request type being tested
-type proofReqErrorTest struct {
-	iReq        *trillian.GetInclusionProofRequest
-	hReq        *trillian.GetInclusionProofByHashRequest
-	pReq        *trillian.GetEntryAndProofRequest
-	cReq        *trillian.GetConsistencyProofRequest
-	expectedErr string // Expected string to be included in the error message
-	msg         string // A message included in the test output if the test fails
-}
-
-var iProofReqErrorTests = []proofReqErrorTest{
-	{iReq: &getInclusionProofByIndexRequestBadTreeSize, msg: "bad tree size", expectedErr: "tree size"},
-	{iReq: &getInclusionProofByIndexRequestBadLeafIndex, msg: "bad leaf index", expectedErr: "leaf index"},
-	{iReq: &getInclusionProofByIndexRequestBadLeafIndexRange, msg: "bad leaf index range", expectedErr: "does not exist"},
-}
-
-var hProofReqErrorTests = []proofReqErrorTest{
-	{hReq: &getInclusionProofByHashRequestBadTreeSize, msg: "bad tree size", expectedErr: "tree size"},
-	{hReq: &getInclusionProofByHashRequestBadHash, msg: "bad hash", expectedErr: "invalid leaf hash"},
-}
-
-var pProofReqErrorTests = []proofReqErrorTest{
-	{pReq: &getEntryAndProofRequestBadTreeSize, msg: "bad tree size", expectedErr: "tree size"},
-	{pReq: &getEntryAndProofRequestBadLeafIndex, msg: "bad leaf index", expectedErr: "index:"},
-	{pReq: &getEntryAndProofRequestBadLeafIndexRange, msg: "bad leaf index range", expectedErr: "exceeds tree size"},
-}
-
-var cProofReqErrorTests = []proofReqErrorTest{
-	{cReq: &getConsistencyProofRequestBadFirstTreeSize, msg: "bad first size", expectedErr: "first tree size"},
-	{cReq: &getConsistencyProofRequestBadSecondTreeSize, msg: "bad second size", expectedErr: "second tree size"},
-	{cReq: &getConsistencyProofRequestBadRange, msg: "bad range", expectedErr: "must be > first"},
-}
-
-var nodeIdsConsistencySize4ToSize7 = []storage.NodeID{testonly.MustCreateNodeIDForTreeCoords(2, 1, 64)}
+	nodeIdsConsistencySize4ToSize7 = []storage.NodeID{testonly.MustCreateNodeIDForTreeCoords(2, 1, 64)}
+)
 
 func mockStorageProviderFunc(mockStorage *storage.MockLogStorage) testonly.GetLogStorageFunc {
 	return func() (storage.LogStorage, error) {
@@ -530,25 +487,6 @@ func TestGetLeavesByHash(t *testing.T) {
 	}
 }
 
-func TestGetProofByHashInvalidRequests(t *testing.T) {
-	for _, test := range hProofReqErrorTests {
-		ctrl := gomock.NewController(t)
-
-		// Request should fail validation before any storage operations
-		mockStorage := storage.NewMockLogStorage(ctrl)
-		registry := testonly.NewRegistryWithLogProvider(mockStorageProviderFunc(mockStorage))
-		server := NewTrillianLogRPCServer(registry, fakeTimeSource)
-
-		_, err := server.GetInclusionProofByHash(context.Background(), test.hReq)
-
-		if err == nil || !strings.Contains(err.Error(), test.expectedErr) {
-			t.Errorf("want: error=...%s..., got: %v for test: %s, req: %v", test.expectedErr, err, test.msg, test.hReq)
-		}
-
-		ctrl.Finish()
-	}
-}
-
 func TestGetProofByHashBeginTXFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -711,24 +649,6 @@ func TestGetProofByHash(t *testing.T) {
 	}
 }
 
-func TestGetProofByIndexInvalidRequests(t *testing.T) {
-	for _, test := range iProofReqErrorTests {
-		ctrl := gomock.NewController(t)
-
-		// Request should fail validation before any storage operations
-		mockStorage := storage.NewMockLogStorage(ctrl)
-		registry := testonly.NewRegistryWithLogProvider(mockStorageProviderFunc(mockStorage))
-		server := NewTrillianLogRPCServer(registry, fakeTimeSource)
-
-		_, err := server.GetInclusionProof(context.Background(), test.iReq)
-		if err == nil || !strings.Contains(err.Error(), test.expectedErr) {
-			t.Errorf("want: error=...%s..., got: %v for test: %s, req: %v", test.expectedErr, err, test.msg, test.iReq)
-		}
-
-		ctrl.Finish()
-	}
-}
-
 func TestGetProofByIndexBeginTXFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -867,24 +787,6 @@ func TestGetProofByIndex(t *testing.T) {
 
 	if !proto.Equal(proofResponse.Proof, &expectedProof) {
 		t.Fatalf("expected proof: %v but got: %v", expectedProof, proofResponse.Proof)
-	}
-}
-
-func TestGetEntryAndProofInvalidRequests(t *testing.T) {
-	for _, test := range pProofReqErrorTests {
-		ctrl := gomock.NewController(t)
-
-		// Request should fail validation before any storage operations
-		mockStorage := storage.NewMockLogStorage(ctrl)
-		registry := testonly.NewRegistryWithLogProvider(mockStorageProviderFunc(mockStorage))
-		server := NewTrillianLogRPCServer(registry, fakeTimeSource)
-
-		_, err := server.GetEntryAndProof(context.Background(), test.pReq)
-		if err == nil || !strings.Contains(err.Error(), test.expectedErr) {
-			t.Errorf("want: error=...%s..., got: %v for test: %s, req: %v", test.expectedErr, err, test.msg, test.pReq)
-		}
-
-		ctrl.Finish()
 	}
 }
 
@@ -1119,24 +1021,6 @@ func TestGetSequencedLeafCount(t *testing.T) {
 
 	if got, want := response.LeafCount, int64(268); got != want {
 		t.Fatalf("expected leaf count: %d but got: %d", want, got)
-	}
-}
-
-func TestGetConsistencyProofInvalidRequests(t *testing.T) {
-	for _, test := range cProofReqErrorTests {
-		ctrl := gomock.NewController(t)
-
-		// Request should fail validation before any storage operations
-		mockStorage := storage.NewMockLogStorage(ctrl)
-		registry := testonly.NewRegistryWithLogProvider(mockStorageProviderFunc(mockStorage))
-		server := NewTrillianLogRPCServer(registry, fakeTimeSource)
-
-		_, err := server.GetConsistencyProof(context.Background(), test.cReq)
-		if err == nil || !strings.Contains(err.Error(), test.expectedErr) {
-			t.Errorf("want: error=...%s..., got: %v for test: %s, req: %v", test.expectedErr, err, test.msg, test.cReq)
-		}
-
-		ctrl.Finish()
 	}
 }
 
