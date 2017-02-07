@@ -49,7 +49,8 @@ var queueRequestEmpty = trillian.QueueLeavesRequest{LogId: logID1, Leaves: []*tr
 
 var getLogRootRequest1 = trillian.GetLatestSignedLogRootRequest{LogId: logID1}
 var getLogRootRequest2 = trillian.GetLatestSignedLogRootRequest{LogId: logID2}
-var signedRoot1 = trillian.SignedLogRoot{TimestampNanos: 987654321, RootHash: []byte("A NICE HASH"), TreeSize: 7}
+var revision1 = int64(5)
+var signedRoot1 = trillian.SignedLogRoot{TimestampNanos: 987654321, RootHash: []byte("A NICE HASH"), TreeSize: 7, TreeRevision: revision1}
 
 var getByHashRequest1 = trillian.GetLeavesByHashRequest{LogId: logID1, LeafHash: [][]byte{[]byte("test"), []byte("data")}}
 var getByHashRequestBadHash = trillian.GetLeavesByHashRequest{LogId: logID1, LeafHash: [][]byte{[]byte(""), []byte("data")}}
@@ -562,29 +563,12 @@ func TestGetProofByHashBeginTXFails(t *testing.T) {
 	test.executeBeginFailsTest(t, getInclusionProofByHashRequest25.LogId)
 }
 
-func TestGetProofByHashNoRevisionForTreeSize(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	test := newParameterizedTest(ctrl, "GetInclusionProofByHash", readOnly,
-		func(t *storage.MockLogTreeTX) {
-			t.EXPECT().GetTreeRevisionIncludingSize(getInclusionProofByHashRequest25.TreeSize).Return(int64(0), int64(0), errors.New("STORAGE"))
-		},
-		func(s *TrillianLogRPCServer) error {
-			_, err := s.GetInclusionProofByHash(context.Background(), &getInclusionProofByHashRequest25)
-			return err
-		})
-
-	test.executeStorageFailureTest(t, getInclusionProofByHashRequest25.LogId)
-}
-
 func TestGetProofByHashNoLeafForHash(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	test := newParameterizedTest(ctrl, "GetInclusionProofByHash", readOnly,
 		func(t *storage.MockLogTreeTX) {
-			t.EXPECT().GetTreeRevisionIncludingSize(getInclusionProofByHashRequest25.TreeSize).Return(int64(17), getInclusionProofByHashRequest25.TreeSize, nil)
 			t.EXPECT().GetLeavesByHash([][]byte{[]byte("ahash")}, false).Return([]trillian.LogLeaf{}, errors.New("STORAGE"))
 		},
 		func(s *TrillianLogRPCServer) error {
@@ -601,9 +585,10 @@ func TestGetProofByHashGetNodesFails(t *testing.T) {
 
 	test := newParameterizedTest(ctrl, "GetInclusionProofByHash", readOnly,
 		func(t *storage.MockLogTreeTX) {
-			t.EXPECT().GetTreeRevisionIncludingSize(getInclusionProofByHashRequest7.TreeSize).Return(int64(3), getInclusionProofByHashRequest7.TreeSize, nil)
+			t.EXPECT().LatestSignedLogRoot().Return(signedRoot1, nil)
+			t.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
 			t.EXPECT().GetLeavesByHash([][]byte{[]byte("ahash")}, false).Return([]trillian.LogLeaf{{LeafIndex: 2}}, nil)
-			t.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{}, errors.New("STORAGE"))
+			t.EXPECT().GetMerkleNodes(revision1, nodeIdsInclusionSize7Index2).Return([]storage.Node{}, errors.New("STORAGE"))
 		},
 		func(s *TrillianLogRPCServer) error {
 			_, err := s.GetInclusionProofByHash(context.Background(), &getInclusionProofByHashRequest7)
@@ -621,10 +606,11 @@ func TestGetProofByHashWrongNodeCountFetched(t *testing.T) {
 	mockTx := storage.NewMockLogTreeTX(ctrl)
 	mockStorage.EXPECT().SnapshotForTree(gomock.Any(), getInclusionProofByHashRequest7.LogId).Return(mockTx, nil)
 
-	mockTx.EXPECT().GetTreeRevisionIncludingSize(getInclusionProofByHashRequest7.TreeSize).Return(int64(3), getInclusionProofByHashRequest7.TreeSize, nil)
+	mockTx.EXPECT().LatestSignedLogRoot().Return(signedRoot1, nil)
+	mockTx.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
 	mockTx.EXPECT().GetLeavesByHash([][]byte{[]byte("ahash")}, false).Return([]trillian.LogLeaf{{LeafIndex: 2}}, nil)
 	// The server expects three nodes from storage but we return only two
-	mockTx.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{{NodeRevision: 3}, {NodeRevision: 2}}, nil)
+	mockTx.EXPECT().GetMerkleNodes(revision1, nodeIdsInclusionSize7Index2).Return([]storage.Node{{NodeRevision: 3}, {NodeRevision: 2}}, nil)
 	mockTx.EXPECT().Rollback().Return(nil)
 
 	registry := testonly.NewRegistryWithLogProvider(mockStorageProviderFunc(mockStorage))
@@ -644,10 +630,11 @@ func TestGetProofByHashWrongNodeReturned(t *testing.T) {
 	mockTx := storage.NewMockLogTreeTX(ctrl)
 	mockStorage.EXPECT().SnapshotForTree(gomock.Any(), getInclusionProofByHashRequest7.LogId).Return(mockTx, nil)
 
-	mockTx.EXPECT().GetTreeRevisionIncludingSize(getInclusionProofByHashRequest7.TreeSize).Return(int64(3), getInclusionProofByHashRequest7.TreeSize, nil)
+	mockTx.EXPECT().LatestSignedLogRoot().Return(signedRoot1, nil)
+	mockTx.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
 	mockTx.EXPECT().GetLeavesByHash([][]byte{[]byte("ahash")}, false).Return([]trillian.LogLeaf{{LeafIndex: 2}}, nil)
 	// We set this up so one of the returned nodes has the wrong ID
-	mockTx.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3}, {NodeID: testonly.MustCreateNodeIDForTreeCoords(4, 5, 64), NodeRevision: 2}, {NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3}}, nil)
+	mockTx.EXPECT().GetMerkleNodes(revision1, nodeIdsInclusionSize7Index2).Return([]storage.Node{{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3}, {NodeID: testonly.MustCreateNodeIDForTreeCoords(4, 5, 64), NodeRevision: 2}, {NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3}}, nil)
 	mockTx.EXPECT().Rollback().Return(nil)
 
 	registry := testonly.NewRegistryWithLogProvider(mockStorageProviderFunc(mockStorage))
@@ -665,9 +652,10 @@ func TestGetProofByHashCommitFails(t *testing.T) {
 
 	test := newParameterizedTest(ctrl, "GetInclusionProofByHash", readOnly,
 		func(t *storage.MockLogTreeTX) {
-			t.EXPECT().GetTreeRevisionIncludingSize(getInclusionProofByIndexRequest7.TreeSize).Return(int64(3), getInclusionProofByIndexRequest7.TreeSize, nil)
+			t.EXPECT().LatestSignedLogRoot().Return(signedRoot1, nil)
+			t.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
 			t.EXPECT().GetLeavesByHash([][]byte{[]byte("ahash")}, false).Return([]trillian.LogLeaf{{LeafIndex: 2}}, nil)
-			t.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3}, {NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2}, {NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3}}, nil)
+			t.EXPECT().GetMerkleNodes(revision1, nodeIdsInclusionSize7Index2).Return([]storage.Node{{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3}, {NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2}, {NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3}}, nil)
 		},
 		func(s *TrillianLogRPCServer) error {
 			_, err := s.GetInclusionProofByHash(context.Background(), &getInclusionProofByHashRequest7)
@@ -685,9 +673,10 @@ func TestGetProofByHash(t *testing.T) {
 	mockTx := storage.NewMockLogTreeTX(ctrl)
 	mockStorage.EXPECT().SnapshotForTree(gomock.Any(), getInclusionProofByHashRequest7.LogId).Return(mockTx, nil)
 
-	mockTx.EXPECT().GetTreeRevisionIncludingSize(getInclusionProofByHashRequest7.TreeSize).Return(int64(3), getInclusionProofByHashRequest7.TreeSize, nil)
+	mockTx.EXPECT().LatestSignedLogRoot().Return(signedRoot1, nil)
+	mockTx.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
 	mockTx.EXPECT().GetLeavesByHash([][]byte{[]byte("ahash")}, false).Return([]trillian.LogLeaf{{LeafIndex: 2}}, nil)
-	mockTx.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{
+	mockTx.EXPECT().GetMerkleNodes(revision1, nodeIdsInclusionSize7Index2).Return([]storage.Node{
 		{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3, Hash: []byte("nodehash0")},
 		{NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2, Hash: []byte("nodehash1")},
 		{NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3, Hash: []byte("nodehash2")}}, nil)
@@ -754,30 +743,15 @@ func TestGetProofByIndexBeginTXFails(t *testing.T) {
 	test.executeBeginFailsTest(t, getInclusionProofByIndexRequest25.LogId)
 }
 
-func TestGetProofByIndexNoRevisionForTreeSize(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	test := newParameterizedTest(ctrl, "GetInclusionProof", readOnly,
-		func(t *storage.MockLogTreeTX) {
-			t.EXPECT().GetTreeRevisionIncludingSize(getInclusionProofByIndexRequest25.TreeSize).Return(int64(0), int64(0), errors.New("STORAGE"))
-		},
-		func(s *TrillianLogRPCServer) error {
-			_, err := s.GetInclusionProof(context.Background(), &getInclusionProofByIndexRequest25)
-			return err
-		})
-
-	test.executeStorageFailureTest(t, getInclusionProofByIndexRequest25.LogId)
-}
-
 func TestGetProofByIndexGetNodesFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	test := newParameterizedTest(ctrl, "GetInclusionProof", readOnly,
 		func(t *storage.MockLogTreeTX) {
-			t.EXPECT().GetTreeRevisionIncludingSize(getInclusionProofByIndexRequest7.TreeSize).Return(int64(3), getInclusionProofByIndexRequest7.TreeSize, nil)
-			t.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{}, errors.New("STORAGE"))
+			t.EXPECT().LatestSignedLogRoot().Return(signedRoot1, nil)
+			t.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
+			t.EXPECT().GetMerkleNodes(revision1, nodeIdsInclusionSize7Index2).Return([]storage.Node{}, errors.New("STORAGE"))
 		},
 		func(s *TrillianLogRPCServer) error {
 			_, err := s.GetInclusionProof(context.Background(), &getInclusionProofByIndexRequest7)
@@ -795,9 +769,10 @@ func TestGetProofByIndexWrongNodeCountFetched(t *testing.T) {
 	mockTx := storage.NewMockLogTreeTX(ctrl)
 	mockStorage.EXPECT().SnapshotForTree(gomock.Any(), getInclusionProofByHashRequest7.LogId).Return(mockTx, nil)
 
-	mockTx.EXPECT().GetTreeRevisionIncludingSize(getInclusionProofByIndexRequest7.TreeSize).Return(int64(3), getInclusionProofByIndexRequest7.TreeSize, nil)
 	// The server expects three nodes from storage but we return only two
-	mockTx.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{{NodeRevision: 3}, {NodeRevision: 2}}, nil)
+	mockTx.EXPECT().LatestSignedLogRoot().Return(signedRoot1, nil)
+	mockTx.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
+	mockTx.EXPECT().GetMerkleNodes(revision1, nodeIdsInclusionSize7Index2).Return([]storage.Node{{NodeRevision: 3}, {NodeRevision: 2}}, nil)
 	mockTx.EXPECT().Rollback().Return(nil)
 
 	registry := testonly.NewRegistryWithLogProvider(mockStorageProviderFunc(mockStorage))
@@ -817,9 +792,10 @@ func TestGetProofByIndexWrongNodeReturned(t *testing.T) {
 	mockTx := storage.NewMockLogTreeTX(ctrl)
 	mockStorage.EXPECT().SnapshotForTree(gomock.Any(), getInclusionProofByIndexRequest7.LogId).Return(mockTx, nil)
 
-	mockTx.EXPECT().GetTreeRevisionIncludingSize(getInclusionProofByIndexRequest7.TreeSize).Return(int64(3), getInclusionProofByIndexRequest7.TreeSize, nil)
 	// We set this up so one of the returned nodes has the wrong ID
-	mockTx.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3}, {NodeID: testonly.MustCreateNodeIDForTreeCoords(4, 5, 64), NodeRevision: 2}, {NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3}}, nil)
+	mockTx.EXPECT().LatestSignedLogRoot().Return(signedRoot1, nil)
+	mockTx.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
+	mockTx.EXPECT().GetMerkleNodes(revision1, nodeIdsInclusionSize7Index2).Return([]storage.Node{{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3}, {NodeID: testonly.MustCreateNodeIDForTreeCoords(4, 5, 64), NodeRevision: 2}, {NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3}}, nil)
 	mockTx.EXPECT().Rollback().Return(nil)
 
 	registry := testonly.NewRegistryWithLogProvider(mockStorageProviderFunc(mockStorage))
@@ -837,8 +813,9 @@ func TestGetProofByIndexCommitFails(t *testing.T) {
 
 	test := newParameterizedTest(ctrl, "GetInclusionProof", readOnly,
 		func(t *storage.MockLogTreeTX) {
-			t.EXPECT().GetTreeRevisionIncludingSize(getInclusionProofByIndexRequest7.TreeSize).Return(int64(3), getInclusionProofByIndexRequest7.TreeSize, nil)
-			t.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3}, {NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2}, {NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3}}, nil)
+			t.EXPECT().LatestSignedLogRoot().Return(signedRoot1, nil)
+			t.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
+			t.EXPECT().GetMerkleNodes(revision1, nodeIdsInclusionSize7Index2).Return([]storage.Node{{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3}, {NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2}, {NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3}}, nil)
 		},
 		func(s *TrillianLogRPCServer) error {
 			_, err := s.GetInclusionProof(context.Background(), &getInclusionProofByIndexRequest7)
@@ -856,8 +833,9 @@ func TestGetProofByIndex(t *testing.T) {
 	mockTx := storage.NewMockLogTreeTX(ctrl)
 	mockStorage.EXPECT().SnapshotForTree(gomock.Any(), getInclusionProofByIndexRequest7.LogId).Return(mockTx, nil)
 
-	mockTx.EXPECT().GetTreeRevisionIncludingSize(getInclusionProofByIndexRequest7.TreeSize).Return(int64(3), getInclusionProofByIndexRequest7.TreeSize, nil)
-	mockTx.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{
+	mockTx.EXPECT().LatestSignedLogRoot().Return(signedRoot1, nil)
+	mockTx.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
+	mockTx.EXPECT().GetMerkleNodes(revision1, nodeIdsInclusionSize7Index2).Return([]storage.Node{
 		{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3, Hash: []byte("nodehash0")},
 		{NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2, Hash: []byte("nodehash1")},
 		{NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3, Hash: []byte("nodehash2")}}, nil)
@@ -925,26 +903,6 @@ func TestGetEntryAndProofBeginTXFails(t *testing.T) {
 	}
 }
 
-func TestGetEntryAndProofGetTreeSizeAtRevisionFails(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockStorage := storage.NewMockLogStorage(ctrl)
-	mockTx := storage.NewMockLogTreeTX(ctrl)
-	mockStorage.EXPECT().SnapshotForTree(gomock.Any(), getEntryAndProofRequest17.LogId).Return(mockTx, nil)
-
-	mockTx.EXPECT().GetTreeRevisionIncludingSize(getEntryAndProofRequest17.TreeSize).Return(int64(0), int64(0), errors.New("NOREVISION"))
-	mockTx.EXPECT().Rollback().Return(nil)
-
-	registry := testonly.NewRegistryWithLogProvider(mockStorageProviderFunc(mockStorage))
-	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
-
-	_, err := server.GetEntryAndProof(context.Background(), &getEntryAndProofRequest17)
-	if err == nil || !strings.Contains(err.Error(), "NOREVISION") {
-		t.Fatalf("get entry and proof returned no or wrong error when no revision: %v", err)
-	}
-}
-
 func TestGetEntryAndProofGetMerkleNodesFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -953,8 +911,9 @@ func TestGetEntryAndProofGetMerkleNodesFails(t *testing.T) {
 	mockTx := storage.NewMockLogTreeTX(ctrl)
 	mockStorage.EXPECT().SnapshotForTree(gomock.Any(), getEntryAndProofRequest7.LogId).Return(mockTx, nil)
 
-	mockTx.EXPECT().GetTreeRevisionIncludingSize(getEntryAndProofRequest7.TreeSize).Return(int64(3), getEntryAndProofRequest7.TreeSize, nil)
-	mockTx.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{}, errors.New("GetNodes"))
+	mockTx.EXPECT().LatestSignedLogRoot().Return(signedRoot1, nil)
+	mockTx.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
+	mockTx.EXPECT().GetMerkleNodes(revision1, nodeIdsInclusionSize7Index2).Return([]storage.Node{}, errors.New("GetNodes"))
 	mockTx.EXPECT().Rollback().Return(nil)
 
 	registry := testonly.NewRegistryWithLogProvider(mockStorageProviderFunc(mockStorage))
@@ -974,8 +933,9 @@ func TestGetEntryAndProofGetLeavesFails(t *testing.T) {
 	mockTx := storage.NewMockLogTreeTX(ctrl)
 	mockStorage.EXPECT().SnapshotForTree(gomock.Any(), getEntryAndProofRequest7.LogId).Return(mockTx, nil)
 
-	mockTx.EXPECT().GetTreeRevisionIncludingSize(getEntryAndProofRequest7.TreeSize).Return(int64(3), getEntryAndProofRequest7.TreeSize, nil)
-	mockTx.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{
+	mockTx.EXPECT().LatestSignedLogRoot().Return(signedRoot1, nil)
+	mockTx.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
+	mockTx.EXPECT().GetMerkleNodes(revision1, nodeIdsInclusionSize7Index2).Return([]storage.Node{
 		{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3, Hash: []byte("nodehash0")},
 		{NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2, Hash: []byte("nodehash1")},
 		{NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3, Hash: []byte("nodehash2")}}, nil)
@@ -999,8 +959,9 @@ func TestGetEntryAndProofGetLeavesReturnsMultiple(t *testing.T) {
 	mockTx := storage.NewMockLogTreeTX(ctrl)
 	mockStorage.EXPECT().SnapshotForTree(gomock.Any(), getEntryAndProofRequest7.LogId).Return(mockTx, nil)
 
-	mockTx.EXPECT().GetTreeRevisionIncludingSize(getEntryAndProofRequest7.TreeSize).Return(int64(3), getEntryAndProofRequest7.TreeSize, nil)
-	mockTx.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{
+	mockTx.EXPECT().LatestSignedLogRoot().Return(signedRoot1, nil)
+	mockTx.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
+	mockTx.EXPECT().GetMerkleNodes(revision1, nodeIdsInclusionSize7Index2).Return([]storage.Node{
 		{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3, Hash: []byte("nodehash0")},
 		{NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2, Hash: []byte("nodehash1")},
 		{NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3, Hash: []byte("nodehash2")}}, nil)
@@ -1025,8 +986,9 @@ func TestGetEntryAndProofCommitFails(t *testing.T) {
 	mockTx := storage.NewMockLogTreeTX(ctrl)
 	mockStorage.EXPECT().SnapshotForTree(gomock.Any(), getEntryAndProofRequest7.LogId).Return(mockTx, nil)
 
-	mockTx.EXPECT().GetTreeRevisionIncludingSize(getEntryAndProofRequest7.TreeSize).Return(int64(3), getEntryAndProofRequest7.TreeSize, nil)
-	mockTx.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{
+	mockTx.EXPECT().LatestSignedLogRoot().Return(signedRoot1, nil)
+	mockTx.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
+	mockTx.EXPECT().GetMerkleNodes(revision1, nodeIdsInclusionSize7Index2).Return([]storage.Node{
 		{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3, Hash: []byte("nodehash0")},
 		{NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2, Hash: []byte("nodehash1")},
 		{NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3, Hash: []byte("nodehash2")}}, nil)
@@ -1050,8 +1012,9 @@ func TestGetEntryAndProof(t *testing.T) {
 	mockTx := storage.NewMockLogTreeTX(ctrl)
 	mockStorage.EXPECT().SnapshotForTree(gomock.Any(), getEntryAndProofRequest7.LogId).Return(mockTx, nil)
 
-	mockTx.EXPECT().GetTreeRevisionIncludingSize(getEntryAndProofRequest7.TreeSize).Return(int64(3), getEntryAndProofRequest7.TreeSize, nil)
-	mockTx.EXPECT().GetMerkleNodes(int64(3), nodeIdsInclusionSize7Index2).Return([]storage.Node{
+	mockTx.EXPECT().LatestSignedLogRoot().Return(signedRoot1, nil)
+	mockTx.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
+	mockTx.EXPECT().GetMerkleNodes(revision1, nodeIdsInclusionSize7Index2).Return([]storage.Node{
 		{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3, Hash: []byte("nodehash0")},
 		{NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2, Hash: []byte("nodehash1")},
 		{NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3, Hash: []byte("nodehash2")}}, nil)
@@ -1191,30 +1154,15 @@ func TestGetConsistencyProofBeginTXFails(t *testing.T) {
 	test.executeBeginFailsTest(t, getConsistencyProofRequest25.LogId)
 }
 
-func TestGetConsistencyProofGetTreeRevisionForSecondTreeSizeFails(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	test := newParameterizedTest(ctrl, "GetConsistencyProof", readOnly,
-		func(t *storage.MockLogTreeTX) {
-			t.EXPECT().GetTreeRevisionIncludingSize(getConsistencyProofRequest25.SecondTreeSize).Return(int64(0), int64(0), errors.New("STORAGE"))
-		},
-		func(s *TrillianLogRPCServer) error {
-			_, err := s.GetConsistencyProof(context.Background(), &getConsistencyProofRequest25)
-			return err
-		})
-
-	test.executeStorageFailureTest(t, getConsistencyProofRequest25.LogId)
-}
-
 func TestGetConsistencyProofGetNodesFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	test := newParameterizedTest(ctrl, "GetConsistencyProof", readOnly,
 		func(t *storage.MockLogTreeTX) {
-			t.EXPECT().GetTreeRevisionIncludingSize(getConsistencyProofRequest7.SecondTreeSize).Return(int64(5), getConsistencyProofRequest7.SecondTreeSize, nil)
-			t.EXPECT().GetMerkleNodes(int64(5), nodeIdsConsistencySize4ToSize7).Return([]storage.Node{}, errors.New("STORAGE"))
+			t.EXPECT().LatestSignedLogRoot().Return(signedRoot1, nil)
+			t.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
+			t.EXPECT().GetMerkleNodes(revision1, nodeIdsConsistencySize4ToSize7).Return([]storage.Node{}, errors.New("STORAGE"))
 		},
 		func(s *TrillianLogRPCServer) error {
 			_, err := s.GetConsistencyProof(context.Background(), &getConsistencyProofRequest7)
@@ -1232,9 +1180,10 @@ func TestGetConsistencyProofGetNodesReturnsWrongCount(t *testing.T) {
 	mockTx := storage.NewMockLogTreeTX(ctrl)
 	mockStorage.EXPECT().SnapshotForTree(gomock.Any(), getConsistencyProofRequest7.LogId).Return(mockTx, nil)
 
-	mockTx.EXPECT().GetTreeRevisionIncludingSize(getConsistencyProofRequest7.SecondTreeSize).Return(int64(5), getConsistencyProofRequest7.SecondTreeSize, nil)
+	mockTx.EXPECT().LatestSignedLogRoot().Return(signedRoot1, nil)
+	mockTx.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
 	// The server expects one node from storage but we return two
-	mockTx.EXPECT().GetMerkleNodes(int64(5), nodeIdsConsistencySize4ToSize7).Return([]storage.Node{{NodeRevision: 3}, {NodeRevision: 2}}, nil)
+	mockTx.EXPECT().GetMerkleNodes(revision1, nodeIdsConsistencySize4ToSize7).Return([]storage.Node{{NodeRevision: 3}, {NodeRevision: 2}}, nil)
 	mockTx.EXPECT().Rollback().Return(nil)
 
 	registry := testonly.NewRegistryWithLogProvider(mockStorageProviderFunc(mockStorage))
@@ -1254,9 +1203,10 @@ func TestGetConsistencyProofGetNodesReturnsWrongNode(t *testing.T) {
 	mockTx := storage.NewMockLogTreeTX(ctrl)
 	mockStorage.EXPECT().SnapshotForTree(gomock.Any(), getConsistencyProofRequest7.LogId).Return(mockTx, nil)
 
-	mockTx.EXPECT().GetTreeRevisionIncludingSize(getConsistencyProofRequest7.SecondTreeSize).Return(int64(5), getConsistencyProofRequest7.SecondTreeSize, nil)
+	mockTx.EXPECT().LatestSignedLogRoot().Return(signedRoot1, nil)
+	mockTx.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
 	// Return an unexpected node that wasn't requested
-	mockTx.EXPECT().GetMerkleNodes(int64(5), nodeIdsConsistencySize4ToSize7).Return([]storage.Node{{NodeID: testonly.MustCreateNodeIDForTreeCoords(1, 2, 64), NodeRevision: 3}}, nil)
+	mockTx.EXPECT().GetMerkleNodes(revision1, nodeIdsConsistencySize4ToSize7).Return([]storage.Node{{NodeID: testonly.MustCreateNodeIDForTreeCoords(1, 2, 64), NodeRevision: 3}}, nil)
 	mockTx.EXPECT().Rollback().Return(nil)
 
 	registry := testonly.NewRegistryWithLogProvider(mockStorageProviderFunc(mockStorage))
@@ -1274,8 +1224,9 @@ func TestGetConsistencyProofCommitFails(t *testing.T) {
 
 	test := newParameterizedTest(ctrl, "GetConsistencyProof", readOnly,
 		func(t *storage.MockLogTreeTX) {
-			t.EXPECT().GetTreeRevisionIncludingSize(getConsistencyProofRequest7.SecondTreeSize).Return(int64(5), getConsistencyProofRequest7.SecondTreeSize, nil)
-			t.EXPECT().GetMerkleNodes(int64(5), nodeIdsConsistencySize4ToSize7).Return([]storage.Node{{NodeID: testonly.MustCreateNodeIDForTreeCoords(2, 1, 64), NodeRevision: 3}}, nil)
+			t.EXPECT().LatestSignedLogRoot().Return(signedRoot1, nil)
+			t.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
+			t.EXPECT().GetMerkleNodes(revision1, nodeIdsConsistencySize4ToSize7).Return([]storage.Node{{NodeID: testonly.MustCreateNodeIDForTreeCoords(2, 1, 64), NodeRevision: 3}}, nil)
 		},
 		func(s *TrillianLogRPCServer) error {
 			_, err := s.GetConsistencyProof(context.Background(), &getConsistencyProofRequest7)
@@ -1293,8 +1244,9 @@ func TestGetConsistencyProof(t *testing.T) {
 	mockTx := storage.NewMockLogTreeTX(ctrl)
 	mockStorage.EXPECT().SnapshotForTree(gomock.Any(), getConsistencyProofRequest7.LogId).Return(mockTx, nil)
 
-	mockTx.EXPECT().GetTreeRevisionIncludingSize(getConsistencyProofRequest7.SecondTreeSize).Return(int64(5), getConsistencyProofRequest7.SecondTreeSize, nil)
-	mockTx.EXPECT().GetMerkleNodes(int64(5), nodeIdsConsistencySize4ToSize7).Return([]storage.Node{{NodeID: testonly.MustCreateNodeIDForTreeCoords(2, 1, 64), NodeRevision: 3, Hash: []byte("nodehash")}}, nil)
+	mockTx.EXPECT().LatestSignedLogRoot().Return(signedRoot1, nil)
+	mockTx.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
+	mockTx.EXPECT().GetMerkleNodes(revision1, nodeIdsConsistencySize4ToSize7).Return([]storage.Node{{NodeID: testonly.MustCreateNodeIDForTreeCoords(2, 1, 64), NodeRevision: 3, Hash: []byte("nodehash")}}, nil)
 	mockTx.EXPECT().Commit().Return(nil)
 
 	registry := testonly.NewRegistryWithLogProvider(mockStorageProviderFunc(mockStorage))

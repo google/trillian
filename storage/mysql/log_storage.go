@@ -165,12 +165,12 @@ func (m *mySQLLogStorage) beginInternal(ctx context.Context, treeID int64) (stor
 		allowDuplicates: allowDuplicates,
 	}
 
-	root, err := ltx.LatestSignedLogRoot()
+	ltx.root, err = ltx.fetchLatestRoot()
 	if err != nil {
 		ttx.Rollback()
 		return nil, err
 	}
-	ltx.treeTX.writeRevision = root.TreeRevision + 1
+	ltx.treeTX.writeRevision = ltx.root.TreeRevision + 1
 
 	return ltx, nil
 }
@@ -190,7 +190,12 @@ func (m *mySQLLogStorage) SnapshotForTree(ctx context.Context, treeID int64) (st
 type logTreeTX struct {
 	treeTX
 	ls              *mySQLLogStorage
+	root            trillian.SignedLogRoot
 	allowDuplicates bool
+}
+
+func (t *logTreeTX) ReadRevision() int64 {
+	return t.root.TreeRevision
 }
 
 func (t *logTreeTX) WriteRevision() int64 {
@@ -390,6 +395,11 @@ func (t *logTreeTX) GetLeavesByHash(leafHashes [][]byte, orderBySequence bool) (
 }
 
 func (t *logTreeTX) LatestSignedLogRoot() (trillian.SignedLogRoot, error) {
+	return t.root, nil
+}
+
+// fetchLatestRoot reads the latest SignedLogRoot from the DB and returns it.
+func (t *logTreeTX) fetchLatestRoot() (trillian.SignedLogRoot, error) {
 	var timestamp, treeSize, treeRevision int64
 	var rootHash, rootSignatureBytes []byte
 	var rootSignature trillian.DigitallySigned
