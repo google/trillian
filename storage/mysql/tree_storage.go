@@ -380,11 +380,17 @@ func (t *treeTX) SetMerkleNodes(nodes []storage.Node) error {
 
 func (t *treeTX) Commit() error {
 	if t.writeRevision > -1 {
-		t.subtreeCache.Flush(func(st []*storagepb.SubtreeProto) error { return t.storeSubtrees(st) })
+		if err := t.subtreeCache.Flush(func(st []*storagepb.SubtreeProto) error {
+			return t.storeSubtrees(st)
+		}); err != nil {
+			glog.Warningf("TX commit flush error: %v", err)
+			return err
+		}
 	}
 	t.closed = true
 	if err := t.tx.Commit(); err != nil {
 		glog.Warningf("TX commit error: %s", err)
+		return err
 	}
 	return nil
 }
@@ -393,6 +399,7 @@ func (t *treeTX) Rollback() error {
 	t.closed = true
 	if err := t.tx.Rollback(); err != nil {
 		glog.Warningf("TX rollback error: %s", err)
+		return err
 	}
 	return nil
 }
