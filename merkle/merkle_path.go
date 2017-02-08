@@ -38,7 +38,7 @@ func (n NodeFetch) Equivalent(other NodeFetch) bool {
 	return n.Rehash == other.Rehash && n.NodeID.Equivalent(other.NodeID)
 }
 
-// checkSnapshot performs a couple of simple sanity checks on sa and treeSize
+// checkSnapshot performs a couple of simple sanity checks on ss and treeSize
 // and returns an error if there's a problem.
 func checkSnapshot(ssDesc string, ss, treeSize int64) error {
 	if ss < 1 {
@@ -57,16 +57,16 @@ func checkSnapshot(ssDesc string, ss, treeSize int64) error {
 // is copied into all the returned nodeIDs.
 func CalcInclusionProofNodeAddresses(snapshot, index, treeSize int64, maxBitLen int) ([]NodeFetch, error) {
 	if err := checkSnapshot("snapshot", snapshot, treeSize); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("invalid parameter to CalcInclusionProofNodeAddresses: %v", err)
 	}
 	if index >= snapshot {
-		return nil, fmt.Errorf("index %d is >= snapshot %d", index, snapshot)
+		return nil, fmt.Errorf("invalid parameter to CalcInclusionProofNodeAddresses: index %d is >= snapshot %d", index, snapshot)
 	}
 	if index < 0 {
-		return nil, fmt.Errorf("index %d is < 0", index)
+		return nil, fmt.Errorf("invalid parameter to CalcInclusionProofNodeAddresses: index %d is < 0", index)
 	}
 	if maxBitLen <= 0 {
-		return nil, fmt.Errorf("maxBitLen %d <= 0", maxBitLen)
+		return nil, fmt.Errorf("invalid parameter to CalcInclusionProofNodeAddresses: maxBitLen %d <= 0", maxBitLen)
 	}
 
 	return pathFromNodeToRootAtSnapshot(index, 0, snapshot, treeSize, maxBitLen)
@@ -82,16 +82,16 @@ func CalcInclusionProofNodeAddresses(snapshot, index, treeSize int64, maxBitLen 
 // at a revision corresponding to the STH associated with the treeSize parameter.
 func CalcConsistencyProofNodeAddresses(snapshot1, snapshot2, treeSize int64, maxBitLen int) ([]NodeFetch, error) {
 	if err := checkSnapshot("snapshot1", snapshot1, treeSize); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("invalid parameter to CalcConsistencyProofNodeAddresses: %v", err)
 	}
 	if err := checkSnapshot("snapshot2", snapshot2, treeSize); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("invalid parameter to CalcConsistencyProofNodeAddresses: %v", err)
 	}
 	if snapshot1 > snapshot2 {
-		return nil, fmt.Errorf("snapshot1 %d > snapshot2 %d", snapshot1, snapshot2)
+		return nil, fmt.Errorf("invalid parameter to CalcConsistencyProofNodeAddresses: snapshot1 %d > snapshot2 %d", snapshot1, snapshot2)
 	}
 	if maxBitLen <= 0 {
-		return nil, fmt.Errorf("maxBitLen %d <= 0", maxBitLen)
+		return nil, fmt.Errorf("invalid parameter to CalcConsistencyProofNodeAddresses: maxBitLen %d <= 0", maxBitLen)
 	}
 
 	return snapshotConsistency(snapshot1, snapshot2, treeSize, maxBitLen)
