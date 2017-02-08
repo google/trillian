@@ -72,7 +72,12 @@ func (s SequencerManager) ExecutePass(logIDs []int64, logctx LogOperationManager
 		ctx := util.NewLogContext(logctx.ctx, logID)
 
 		// TODO(Martin2112): Allow for different tree hashers to be used by different logs
-		sequencer := log.NewSequencer(merkle.NewRFC6962TreeHasher(), logctx.timeSource, storage, s.keyManager)
+		hasher, err := merkle.Factory(merkle.RFC6962SHA256Type)
+		if err != nil {
+			glog.Errorf("Unknown hash strategy for log %d: %v", logID, err)
+			continue
+		}
+		sequencer := log.NewSequencer(hasher, logctx.timeSource, storage, s.keyManager)
 		sequencer.SetGuardWindow(s.guardWindow)
 
 		leaves, err := sequencer.SequenceBatch(ctx, logID, logctx.batchSize)

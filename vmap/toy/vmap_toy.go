@@ -49,7 +49,11 @@ func main() {
 		glog.Fatalf("Failed create MapStorage: %v", err)
 	}
 
-	hasher := merkle.NewMapHasher(merkle.NewRFC6962TreeHasher())
+	h, err := merkle.Factory(merkle.RFC6962SHA256Type)
+	if err != nil {
+		glog.Fatalf("Could not find hasher: %v", err)
+	}
+	hasher := merkle.NewMapHasher(h)
 
 	testVecs := []struct {
 		batchSize       int

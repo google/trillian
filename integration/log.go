@@ -27,6 +27,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle"
+	"github.com/google/trillian/testonly"
 )
 
 // TestParameters bundles up all the settings for a test run
@@ -255,8 +256,6 @@ func readbackLogEntries(logID int64, client trillian.TrillianLogClient, params T
 	}
 
 	for currentLeaf < params.leafCount {
-		hasher := merkle.NewRFC6962TreeHasher()
-
 		// We have to allow for the last batch potentially being a short one
 		numLeaves := params.leafCount - currentLeaf
 
@@ -300,7 +299,7 @@ func readbackLogEntries(logID int64, client trillian.TrillianLogClient, params T
 
 			delete(leafDataPresenceMap, string(leaf.LeafValue))
 
-			hash := hasher.HashLeaf(leaf.LeafValue)
+			hash := testonly.Hasher.HashLeaf(leaf.LeafValue)
 
 			if got, want := hex.EncodeToString(hash), hex.EncodeToString(leaf.MerkleLeafHash); got != want {
 				return nil, fmt.Errorf("leaf %d hash mismatch expected got: %s want: %s", leaf.LeafIndex, got, want)
@@ -454,8 +453,8 @@ func makeGetLeavesByIndexRequest(logID int64, startLeaf, numLeaves int64) *trill
 func buildMemoryMerkleTree(leafMap map[int64]*trillian.LogLeaf, params TestParameters) *merkle.InMemoryMerkleTree {
 	// Build the same tree with two different Merkle implementations as an additional check. We don't
 	// just rely on the compact tree as the server uses the same code so bugs could be masked
-	compactTree := merkle.NewCompactMerkleTree(merkle.NewRFC6962TreeHasher())
-	merkleTree := merkle.NewInMemoryMerkleTree(merkle.NewRFC6962TreeHasher())
+	compactTree := merkle.NewCompactMerkleTree(testonly.Hasher)
+	merkleTree := merkle.NewInMemoryMerkleTree(testonly.Hasher)
 
 	// We use the leafMap as we need to use the same order for the memory tree to get the same hash.
 	for l := params.startLeaf; l < params.leafCount; l++ {
