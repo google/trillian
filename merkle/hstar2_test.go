@@ -27,6 +27,7 @@ import (
 
 // This root was calculated with the C++/Python sparse Merkle tree code in the
 // github.com/google/certificate-transparency repo.
+// TODO(alcutter): replace with hash-dependent computation. How is this computed?
 var sparseEmptyRootHashB64 = testonly.MustDecodeBase64("xmifEIEqCYCXbZUz2Dh1KCFmFZVn7DUVVxbBQTr1PWo=")
 
 // createHStar2Leaves builds a list of HStar2LeafHash structs suitable for

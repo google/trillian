@@ -162,7 +162,7 @@ func (t *readOnlyLogTX) GetActiveLogIDsWithPendingWork() ([]int64, error) {
 
 func (m *mySQLLogStorage) hasher(treeID int64) (merkle.TreeHasher, error) {
 	// TODO: read hash algorithm from storage.
-	return merkle.Factory("RFC6962-SHA256")
+	return merkle.Factory(merkle.RFC6962SHA256Type)
 }
 
 func (m *mySQLLogStorage) beginInternal(ctx context.Context, treeID int64) (storage.LogTreeTX, error) {

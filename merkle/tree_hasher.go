@@ -31,6 +31,7 @@ type TreeHasher interface {
 	HashEmpty() []byte
 	HashLeaf(leaf []byte) []byte
 	HashChildren(l, r []byte) []byte
+	// TODO(gbelvin): Replace Size() with BitLength().
 	Size() int
 }
 

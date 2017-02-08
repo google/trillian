@@ -64,7 +64,7 @@ func NewMapStorage(db *sql.DB) (storage.MapStorage, error) {
 
 func (m *mySQLMapStorage) hasher(treeID int64) (merkle.TreeHasher, error) {
 	// TODO: read hash algorithm from storage.
-	return merkle.Factory("RFC6962-SHA256")
+	return merkle.Factory(merkle.RFC6962SHA256Type)
 }
 
 func (m *mySQLMapStorage) BeginForTree(ctx context.Context, treeID int64) (storage.MapTreeTX, error) {

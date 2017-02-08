@@ -54,9 +54,9 @@ type rehasher struct {
 // init must be called before the rehasher is used or reused
 func newRehasher() *rehasher {
 	// TODO(Martin2112): Hasher must be selected based on log config.
-	hasher, err := merkle.Factory("RFC6962-SHA256")
+	hasher, err := merkle.Factory(merkle.RFC6962SHA256Type)
 	if err != nil {
-		panic("Uknown hash strategy")
+		panic("Unknown hash strategy")
 	}
 	return &rehasher{
 		th: hasher,
