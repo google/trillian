@@ -76,11 +76,11 @@ func (m *mySQLMapStorage) BeginForTree(ctx context.Context, treeID int64) (stora
 		ms:     m,
 	}
 
-	root, err := mtx.LatestSignedMapRoot()
+	mtx.root, err = mtx.LatestSignedMapRoot()
 	if err != nil {
 		return nil, err
 	}
-	mtx.treeTX.writeRevision = root.MapRevision + 1
+	mtx.treeTX.writeRevision = mtx.root.MapRevision + 1
 
 	return mtx, nil
 }
@@ -95,7 +95,12 @@ func (m *mySQLMapStorage) SnapshotForTree(ctx context.Context, treeID int64) (st
 
 type mapTreeTX struct {
 	treeTX
-	ms *mySQLMapStorage
+	ms   *mySQLMapStorage
+	root trillian.SignedMapRoot
+}
+
+func (m *mapTreeTX) ReadRevision() int64 {
+	return m.root.MapRevision
 }
 
 func (m *mapTreeTX) WriteRevision() int64 {

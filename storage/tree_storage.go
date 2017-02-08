@@ -18,8 +18,21 @@ package storage
 // A ReadOnlyTreeTX can only modify the tree specified in its creation.
 type ReadOnlyTreeTX interface {
 	NodeReader
+
+	// ReadRevision returns the tree revision that was current at the time this
+	// transaction was started.
+	ReadRevision() int64
+
+	// Commit attempts to commit any reads performed under this transaction.
 	Commit() error
+
+	// Rollback aborts this transaction.
 	Rollback() error
+
+	// Open indicates if this transaction is open. An open transaction is one for which
+	// Commit() or Rollback() has never been called. Implementations must do all clean up
+	// in these methods so transactions are assumed closed regardless of the reported success.
+	IsOpen() bool
 }
 
 // TreeTX represents an in-process tree-modifying transaction.
@@ -29,18 +42,8 @@ type ReadOnlyTreeTX interface {
 // released any resources owned by the TreeTX.
 // A TreeTX can only modify the tree specified in its creation.
 type TreeTX interface {
-	NodeReaderWriter
-
-	// Commit applies the operations performed to the underlying storage, or returns an error.
-	Commit() error
-
-	// Rollback aborts any performed operations. No updates must be applied to the underlying storage.
-	Rollback() error
-
-	// Open indicates if this transaction is open. An open transaction is one for which
-	// Commit() or Rollback() has never been called. Implementations must do all clean up
-	// in these methods so transactions are assumed closed regardless of the reported success.
-	IsOpen() bool
+	ReadOnlyTreeTX
+	NodeWriter
 
 	// WriteRevision returns the tree revision that any writes through this TreeTX will be stored at.
 	WriteRevision() int64
@@ -48,22 +51,12 @@ type TreeTX interface {
 
 // NodeReader provides a read-only interface into the stored tree nodes.
 type NodeReader interface {
-	// GetTreeRevisionIncludingSize returns the revision and actual size for a tree at a requested
-	// size.
-	//
-	// It is an error to request tree sizes larger than the currently published tree size.
-	// This may return a revision for any tree size at least as large as that requested. The
-	// size of the tree is returned along with the corresponding revision. The caller should
-	// be aware that this may differ from the requested size.
-	GetTreeRevisionIncludingSize(treeSize int64) (revision, size int64, err error)
 	// GetMerkleNodes looks up the set of nodes identified by ids, at treeRevision, and returns them.
 	GetMerkleNodes(treeRevision int64, ids []NodeID) ([]Node, error)
 }
 
-// NodeReaderWriter provides a read-write interface into the stored tree nodes.
-type NodeReaderWriter interface {
-	NodeReader
-
+// NodeWriter provides a write interface into the stored tree nodes.
+type NodeWriter interface {
 	// SetMerkleNodes stores the provided nodes, at the transaction's writeRevision.
 	SetMerkleNodes(nodes []Node) error
 }

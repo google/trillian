@@ -121,13 +121,12 @@ func (t *TrillianLogRPCServer) GetInclusionProof(ctx context.Context, req *trill
 		return nil, err
 	}
 
-	treeRevision, treeSize, err := tx.GetTreeRevisionIncludingSize(req.TreeSize)
+	root, err := tx.LatestSignedLogRoot()
 	if err != nil {
-		tx.Rollback()
 		return nil, err
 	}
 
-	proof, err := getInclusionProofForLeafIndexAtRevision(tx, req.TreeSize, treeRevision, treeSize, req.LeafIndex)
+	proof, err := getInclusionProofForLeafIndex(tx, req.TreeSize, req.LeafIndex, root.TreeSize)
 	if err != nil {
 		tx.Rollback()
 		return nil, err
@@ -163,12 +162,6 @@ func (t *TrillianLogRPCServer) GetInclusionProofByHash(ctx context.Context, req 
 		return nil, err
 	}
 
-	treeRevision, treeSize, err := tx.GetTreeRevisionIncludingSize(req.TreeSize)
-	if err != nil {
-		tx.Rollback()
-		return nil, err
-	}
-
 	// Find the leaf index of the supplied hash
 	leafHashes := [][]byte{req.LeafHash}
 	leaves, err := tx.GetLeavesByHash(leafHashes, req.OrderBySequence)
@@ -177,10 +170,15 @@ func (t *TrillianLogRPCServer) GetInclusionProofByHash(ctx context.Context, req 
 		return nil, err
 	}
 
+	root, err := tx.LatestSignedLogRoot()
+	if err != nil {
+		return nil, err
+	}
+
 	// TODO(Martin2112): Need to define a limit on number of results or some form of paging etc.
 	proofs := make([]*trillian.Proof, 0, len(leaves))
 	for _, leaf := range leaves {
-		proof, err := getInclusionProofForLeafIndexAtRevision(tx, req.TreeSize, treeRevision, treeSize, leaf.LeafIndex)
+		proof, err := getInclusionProofForLeafIndex(tx, req.TreeSize, leaf.LeafIndex, root.TreeSize)
 		if err != nil {
 			tx.Rollback()
 			return nil, err
@@ -221,20 +219,19 @@ func (t *TrillianLogRPCServer) GetConsistencyProof(ctx context.Context, req *tri
 		return nil, err
 	}
 
-	secondTreeRevision, secondTreeSize, err := tx.GetTreeRevisionIncludingSize(req.SecondTreeSize)
+	root, err := tx.LatestSignedLogRoot()
 	if err != nil {
-		tx.Rollback()
 		return nil, err
 	}
 
-	nodeFetches, err := merkle.CalcConsistencyProofNodeAddresses(req.FirstTreeSize, req.SecondTreeSize, secondTreeSize, proofMaxBitLen)
+	nodeFetches, err := merkle.CalcConsistencyProofNodeAddresses(req.FirstTreeSize, req.SecondTreeSize, root.TreeSize, proofMaxBitLen)
 	if err != nil {
 		return nil, err
 	}
 
 	// Do all the node fetches at the second tree revision, which is what the node ids were calculated
 	// against.
-	proof, err := fetchNodesAndBuildProof(tx, secondTreeRevision, 0, nodeFetches)
+	proof, err := fetchNodesAndBuildProof(tx, tx.ReadRevision(), 0, nodeFetches)
 	if err != nil {
 		tx.Rollback()
 		return nil, err
@@ -354,13 +351,12 @@ func (t *TrillianLogRPCServer) GetEntryAndProof(ctx context.Context, req *trilli
 		return nil, err
 	}
 
-	treeRevision, treeSize, err := tx.GetTreeRevisionIncludingSize(req.TreeSize)
+	root, err := tx.LatestSignedLogRoot()
 	if err != nil {
-		tx.Rollback()
 		return nil, err
 	}
 
-	proof, err := getInclusionProofForLeafIndexAtRevision(tx, req.TreeSize, treeRevision, treeSize, req.LeafIndex)
+	proof, err := getInclusionProofForLeafIndex(tx, req.TreeSize, req.LeafIndex, root.TreeSize)
 	if err != nil {
 		tx.Rollback()
 		return nil, err
@@ -464,17 +460,17 @@ func validateLeafHashes(leafHashes [][]byte) bool {
 	return true
 }
 
-// getInclusionProofForLeafIndexAtRevision is used by multiple handlers. It does the storage fetching
+// getInclusionProofForLeafIndex is used by multiple handlers. It does the storage fetching
 // and makes additional checks on the returned proof. Returns a Proof suitable for inclusion in
 // an RPC response
-func getInclusionProofForLeafIndexAtRevision(tx storage.ReadOnlyLogTreeTX, snapshot, treeRevision, treeSize, leafIndex int64) (trillian.Proof, error) {
+func getInclusionProofForLeafIndex(tx storage.ReadOnlyLogTreeTX, snapshot, leafIndex, treeSize int64) (trillian.Proof, error) {
 	// We have the tree size and leaf index so we know the nodes that we need to serve the proof
 	proofNodeIDs, err := merkle.CalcInclusionProofNodeAddresses(snapshot, leafIndex, treeSize, proofMaxBitLen)
 	if err != nil {
 		return trillian.Proof{}, err
 	}
 
-	return fetchNodesAndBuildProof(tx, treeRevision, leafIndex, proofNodeIDs)
+	return fetchNodesAndBuildProof(tx, tx.ReadRevision(), leafIndex, proofNodeIDs)
 }
 
 // getLeavesByHashInternal does the work of fetching leaves by either their raw data or merkle
