@@ -24,6 +24,17 @@ import (
 	"github.com/google/trillian/storage"
 )
 
+func TestMySQLMapStorage_CheckDatabaseAccessible(t *testing.T) {
+	cleanTestDB(DB)
+	s, err := NewMapStorage(DB)
+	if err != nil {
+		t.Fatalf("NewMapStorage() = (_, %v), want = (_, nil)", err)
+	}
+	if err := s.CheckDatabaseAccessible(context.Background()); err != nil {
+		t.Errorf("CheckDatabaseAccessible() = %v, want = nil", err)
+	}
+}
+
 func TestMapBegin(t *testing.T) {
 	mapID := createMapID("TestBegin")
 	cleanTestDB(DB)
@@ -383,28 +394,6 @@ func TestDuplicateSignedMapRoot(t *testing.T) {
 	}
 }
 
-func TestReadOnlyMapTX_IsConnected(t *testing.T) {
-	cleanTestDB(DB)
-
-	s, err := NewMapStorage(DB)
-	if err != nil {
-		t.Fatalf("NewMapStorage() = (_, %v), want = (_, nil)", err)
-	}
-
-	tx, err := s.Snapshot(context.TODO())
-	if err != nil {
-		t.Fatalf("Snapshot() = (_, %v), want = (_, nil)", err)
-	}
-
-	if err := tx.IsConnected(); err != nil {
-		t.Errorf("IsConnected() = %v, want = nil", err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		t.Errorf("Commit() = (_, %v), want = (_, nil)", err)
-	}
-}
-
 func TestReadOnlyMapTX_Rollback(t *testing.T) {
 	cleanTestDB(DB)
 
@@ -416,11 +405,6 @@ func TestReadOnlyMapTX_Rollback(t *testing.T) {
 	tx, err := s.Snapshot(context.TODO())
 	if err != nil {
 		t.Fatalf("Snapshot() = (_, %v), want = (_, nil)", err)
-	}
-
-	// Do *something* before rolling back
-	if err := tx.IsConnected(); err != nil {
-		t.Fatalf("IsConnected() = %v, want = nil", err)
 	}
 
 	// It's a bit hard to have a more meaningful test. This should suffice.

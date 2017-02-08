@@ -50,14 +50,7 @@ func checkDatabaseAccessible(registry extension.Registry) error {
 	if err != nil {
 		return err
 	}
-	tx, err := mapStorage.Snapshot(context.Background())
-	if err != nil {
-		return err
-	}
-	if err := tx.IsConnected(); err != nil {
-		return err
-	}
-	return tx.Commit()
+	return mapStorage.CheckDatabaseAccessible(context.Background())
 }
 
 func startRPCServer(registry extension.Registry) *grpc.Server {

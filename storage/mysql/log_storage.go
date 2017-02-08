@@ -81,6 +81,10 @@ func NewLogStorage(db *sql.DB) (storage.LogStorage, error) {
 	}, nil
 }
 
+func (m *mySQLLogStorage) CheckDatabaseAccessible(ctx context.Context) error {
+	return checkDatabaseAccessible(ctx, m.db)
+}
+
 func (m *mySQLLogStorage) getLeavesByIndexStmt(num int) (*sql.Stmt, error) {
 	return m.getStmt(selectLeavesByIndexSQL, num, "?", "?")
 }
@@ -149,10 +153,6 @@ func (t *readOnlyLogTX) Commit() error {
 
 func (t *readOnlyLogTX) Rollback() error {
 	return t.tx.Rollback()
-}
-
-func (t *readOnlyLogTX) IsConnected() error {
-	return isConnected(t.tx)
 }
 
 func (t *readOnlyLogTX) GetActiveLogIDs() ([]int64, error) {

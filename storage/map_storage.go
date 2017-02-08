@@ -23,8 +23,6 @@ import (
 // ReadOnlyMapTX provides a read-only view into log data.
 // A ReadOnlyMapTX, unlike ReadOnlyMapTreeTX, is not tied to a particular tree.
 type ReadOnlyMapTX interface {
-	DatabaseChecker
-
 	// Commit ensures the data read by the TX is consistent in the database. Only after Commit the
 	// data read should be regarded as valid.
 	Commit() error
@@ -56,6 +54,8 @@ type MapTreeTX interface {
 
 // ReadOnlyMapStorage provides a narrow read-only view into a MapStorage.
 type ReadOnlyMapStorage interface {
+	DatabaseChecker
+
 	// Snapshot starts a read-only transaction not tied to any particular tree.
 	Snapshot(ctx context.Context) (ReadOnlyMapTX, error)
 

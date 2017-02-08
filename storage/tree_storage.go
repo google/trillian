@@ -14,6 +14,10 @@
 
 package storage
 
+import (
+	"context"
+)
+
 // ReadOnlyTreeTX represents a read-only transaction on a TreeStorage.
 // A ReadOnlyTreeTX can only modify the tree specified in its creation.
 type ReadOnlyTreeTX interface {
@@ -51,8 +55,8 @@ type TreeTX interface {
 
 // DatabaseChecker performs connectivity checks on the database.
 type DatabaseChecker interface {
-	// IsConnected returns nil if connected to the database, error otherwise.
-	IsConnected() error
+	// CheckDatabaseAccessible returns nil if the database is accessible, error otherwise.
+	CheckDatabaseAccessible(ctx context.Context) error
 }
 
 // NodeReader provides a read-only interface into the stored tree nodes.

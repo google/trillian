@@ -62,6 +62,10 @@ func NewMapStorage(db *sql.DB) (storage.MapStorage, error) {
 	}, nil
 }
 
+func (m *mySQLMapStorage) CheckDatabaseAccessible(ctx context.Context) error {
+	return checkDatabaseAccessible(ctx, m.db)
+}
+
 type readOnlyMapTX struct {
 	tx *sql.Tx
 }
@@ -80,10 +84,6 @@ func (t *readOnlyMapTX) Commit() error {
 
 func (t *readOnlyMapTX) Rollback() error {
 	return t.tx.Rollback()
-}
-
-func (t *readOnlyMapTX) IsConnected() error {
-	return isConnected(t.tx)
 }
 
 func (m *mySQLMapStorage) hasher(treeID int64) (merkle.TreeHasher, error) {

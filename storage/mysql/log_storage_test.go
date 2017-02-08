@@ -98,6 +98,17 @@ func setAllowsDuplicates(db *sql.DB, treeID int64, allowDuplicates bool) error {
 	return err
 }
 
+func TestMySQLLogStorage_CheckDatabaseAccessible(t *testing.T) {
+	cleanTestDB(DB)
+	s, err := NewLogStorage(DB)
+	if err != nil {
+		t.Fatalf("NewLogStorage() = (_, %v), want = (_, nil)", err)
+	}
+	if err := s.CheckDatabaseAccessible(context.Background()); err != nil {
+		t.Errorf("CheckDatabaseAccessible() = %v, want = nil", err)
+	}
+}
+
 func TestBegin(t *testing.T) {
 	logID1 := createLogID("TestBegin1")
 	logID2 := createLogID("TestBegin2")
@@ -971,28 +982,6 @@ func TestGetActiveLogIDsWithPendingWork(t *testing.T) {
 	}
 	for _, test := range tests {
 		runTestGetActiveLogIDsWithPendingWork(t, test)
-	}
-}
-
-func TestReadOnlyLogTX_IsConnected(t *testing.T) {
-	cleanTestDB(DB)
-
-	s, err := NewLogStorage(DB)
-	if err != nil {
-		t.Fatalf("NewLogStorage() = (_, %v), want = (_, nil)", err)
-	}
-
-	tx, err := s.Snapshot(context.TODO())
-	if err != nil {
-		t.Fatalf("Snapshot() = (_, %v), want = (_, nil)", err)
-	}
-
-	if err := tx.IsConnected(); err != nil {
-		t.Errorf("IsConnected() = %v, want = nil", err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		t.Errorf("Commit() = (_, %v), want = (_, nil)", err)
 	}
 }
 
