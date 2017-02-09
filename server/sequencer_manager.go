@@ -15,6 +15,7 @@
 package server
 
 import (
+	"sync"
 	"time"
 
 	"github.com/golang/glog"
@@ -54,42 +55,55 @@ func (s SequencerManager) ExecutePass(logIDs []int64, logctx LogOperationManager
 	successCount := 0
 	leavesAdded := 0
 
+	var wg sync.WaitGroup
+
 	for _, logID := range logIDs {
-		// See if it's time to quit
-		select {
-		case <-logctx.ctx.Done():
-			return true
-		default:
-		}
+		wg.Add(1)
+		logID := logID
+		go func() {
+			defer wg.Done()
 
-		// TODO(Martin2112): Honor the sequencing enabled in log parameters, needs an API change
-		// so deferring it
-		storage, err := s.registry.GetLogStorage()
-		if err != nil {
-			glog.Warningf("%v: failed to acquire log storage: %v", logID, err)
-			continue
-		}
-		ctx := util.NewLogContext(logctx.ctx, logID)
+			start := time.Now()
 
-		// TODO(Martin2112): Allow for different tree hashers to be used by different logs
-		hasher, err := merkle.Factory(merkle.RFC6962SHA256Type)
-		if err != nil {
-			glog.Errorf("Unknown hash strategy for log %d: %v", logID, err)
-			continue
-		}
-		sequencer := log.NewSequencer(hasher, logctx.timeSource, storage, s.keyManager)
-		sequencer.SetGuardWindow(s.guardWindow)
+			// TODO(Martin2112): Honor the sequencing enabled in log parameters, needs an API change
+			// so deferring it
+			storage, err := s.registry.GetLogStorage()
+			if err != nil {
+				glog.Warningf("%v: failed to acquire log storage: %v", logID, err)
+				return
+			}
+			ctx := util.NewLogContext(logctx.ctx, logID)
 
-		leaves, err := sequencer.SequenceBatch(ctx, logID, logctx.batchSize)
-		if err != nil {
-			glog.Warningf("%v: Error trying to sequence batch for: %v", logID, err)
-			continue
-		}
+			// TODO(Martin2112): Allow for different tree hashers to be used by different logs
+			hasher, err := merkle.Factory(merkle.RFC6962SHA256Type)
+			if err != nil {
+				glog.Errorf("Unknown hash strategy for log %d: %v", logID, err)
+				return
+			}
+			sequencer := log.NewSequencer(hasher, logctx.timeSource, storage, s.keyManager)
+			sequencer.SetGuardWindow(s.guardWindow)
 
-		successCount++
-		leavesAdded += leaves
+			leaves, err := sequencer.SequenceBatch(ctx, logID, logctx.batchSize)
+			if err != nil {
+				glog.Warningf("%v: Error trying to sequence batch for: %v", logID, err)
+				return
+			}
+			d := time.Now().Sub(start).Seconds()
+			glog.Infof("%v: sequenced %d leaves in %.2f seconds (%d qps)", logID, leaves, d, float64(leaves)/d)
+
+			successCount++
+			leavesAdded += leaves
+		}()
 	}
 
-	glog.V(1).Infof("Sequencing run completed %v succeeded %v failed %v leaves integrated", successCount, len(logIDs)-successCount, leavesAdded)
+	wg.Wait()
+
+	glog.V(1).Infof("Sequencing group run completed %v succeeded %v failed %v leaves integrated", successCount, len(logIDs)-successCount, leavesAdded)
+
+	select {
+	case <-logctx.ctx.Done():
+		return true
+	default:
+	}
 	return false
 }
