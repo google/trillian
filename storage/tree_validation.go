@@ -16,6 +16,7 @@ package storage
 
 import (
 	"fmt"
+
 	"github.com/google/trillian"
 )
 

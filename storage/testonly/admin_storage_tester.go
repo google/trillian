@@ -16,10 +16,11 @@ package testonly
 
 import (
 	"context"
-	"github.com/google/trillian"
-	"github.com/google/trillian/storage"
 	"reflect"
 	"testing"
+
+	"github.com/google/trillian"
+	"github.com/google/trillian/storage"
 )
 
 // LogTree is a valid, LOG-type trillian.Tree for tests.

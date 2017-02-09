@@ -14,6 +14,7 @@ SET GLOBAL sql_mode = 'STRICT_ALL_TABLES';
 -- TODO(codingllama): Add NOT NULL constraints to most columns
 CREATE TABLE IF NOT EXISTS Trees(
   TreeId                BIGINT NOT NULL,
+  -- TODO(codingllama): Remove KeyId, it isn't wired to anything
   KeyId                 VARBINARY(255) NOT NULL,
   TreeState             ENUM('ACTIVE', 'FROZEN', 'SOFT_DELETED', 'HARD_DELETED'),
   TreeType              ENUM('LOG', 'MAP') NOT NULL,

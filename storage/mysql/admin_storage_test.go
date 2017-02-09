@@ -15,14 +15,14 @@
 package mysql
 
 import (
+	"context"
 	"testing"
 
-	"context"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testonly"
 )
 
-var selectTreeControlByID = "SELECT ReadOnlyRequests, SigningEnabled, SequencingEnabled, SequenceIntervalSeconds, SignIntervalSeconds FROM TreeControl WHERE TreeId = ?"
+const selectTreeControlByID = "SELECT ReadOnlyRequests, SigningEnabled, SequencingEnabled, SequenceIntervalSeconds, SignIntervalSeconds FROM TreeControl WHERE TreeId = ?"
 
 func TestMysqlAdminStorage(t *testing.T) {
 	tester := &testonly.AdminStorageTester{NewAdminStorage: func() storage.AdminStorage {

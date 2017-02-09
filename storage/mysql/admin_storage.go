@@ -17,20 +17,18 @@ package mysql
 import (
 	"database/sql"
 	"fmt"
+	"sync"
+	"time"
+
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
 	"golang.org/x/net/context"
-	"sync"
-	"time"
 )
 
 const (
 	defaultSequenceIntervalSeconds = 60
 	defaultSignIntervalSeconds     = 60
-)
-
-var (
-	selectTrees = `
+	selectTrees                    = `
 		SELECT
 			TreeId,
 			TreeState,
@@ -139,15 +137,7 @@ func readTree(row row) (*trillian.Tree, error) {
 	tree := &trillian.Tree{}
 
 	// Enums and Datetimes need an extra conversion step
-	var treeState string
-	var treeType string
-	var hashStrategy string
-	var hashAlgorithm string
-	var signatureAlgorithm string
-	var duplicatePolicy string
-	var createDatetime string
-	var updateDatetime string
-
+	var treeState, treeType, hashStrategy, hashAlgorithm, signatureAlgorithm, duplicatePolicy, createDatetime, updateDatetime string
 	err := row.Scan(
 		&tree.TreeId,
 		&treeState,
@@ -331,6 +321,7 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 
 	_, err = insertTreeStmt.Exec(
 		newTree.TreeId,
+		// TODO(codingllama): Set KeyId to something meaningful?
 		1, /* KeyId */
 		newTree.TreeState.String(),
 		newTree.TreeType.String(),
@@ -350,7 +341,7 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 		return nil, err
 	}
 
-	// MySQL silently truncates data when running on non-strict mode.
+	// MySQL silently truncates data when running in non-strict mode.
 	// We shouldn't be using non-strict modes, but let's guard against it
 	// anyway.
 	if _, err := t.GetTree(ctx, newTree.TreeId); err != nil {

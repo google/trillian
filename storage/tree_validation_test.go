@@ -15,8 +15,9 @@
 package storage
 
 import (
-	"github.com/google/trillian"
 	"testing"
+
+	"github.com/google/trillian"
 )
 
 func TestValidateTreeForCreation(t *testing.T) {
