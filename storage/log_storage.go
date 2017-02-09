@@ -59,6 +59,8 @@ type LogTreeTX interface {
 
 // ReadOnlyLogStorage represents a narrowed read-only view into a LogStorage.
 type ReadOnlyLogStorage interface {
+	DatabaseChecker
+
 	// Snapshot starts a read-only transaction not tied to any particular tree.
 	Snapshot(ctx context.Context) (ReadOnlyLogTX, error)
 

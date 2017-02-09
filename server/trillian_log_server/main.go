@@ -57,19 +57,7 @@ func checkDatabaseAccessible(registry extension.Registry) error {
 	if err != nil {
 		return err
 	}
-
-	tx, err := logStorage.Snapshot(context.Background())
-	if err != nil {
-		return err
-	}
-
-	// Pull the log ids, we don't care about the result, we just want to know that it works
-	if _, err := tx.GetActiveLogIDs(); err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	return tx.Commit()
+	return logStorage.CheckDatabaseAccessible(context.Background())
 }
 
 func startRPCServer(registry extension.Registry) *grpc.Server {

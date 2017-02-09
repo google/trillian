@@ -70,7 +70,7 @@ func TestNodeRoundTrip(t *testing.T) {
 
 	const writeRevision = int64(100)
 
-	nodesToStore := createSomeNodes("TestNodeRoundTrip", logID.logID)
+	nodesToStore := createSomeNodes()
 	nodeIDsToRead := make([]storage.NodeID, len(nodesToStore))
 	for i := range nodesToStore {
 		nodeIDsToRead[i] = nodesToStore[i].NodeID
@@ -212,7 +212,7 @@ func createMapID(testName string) mapIDAndTest {
 	}
 }
 
-func createSomeNodes(testName string, treeID int64) []storage.Node {
+func createSomeNodes() []storage.Node {
 	r := make([]storage.Node, 4)
 	for i := range r {
 		r[i].NodeID = storage.NewNodeIDWithPrefix(uint64(i), 8, 8, 8)

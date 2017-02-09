@@ -24,6 +24,17 @@ import (
 	"github.com/google/trillian/storage"
 )
 
+func TestMySQLMapStorage_CheckDatabaseAccessible(t *testing.T) {
+	cleanTestDB(DB)
+	s, err := NewMapStorage(DB)
+	if err != nil {
+		t.Fatalf("NewMapStorage() = (_, %v), want = (_, nil)", err)
+	}
+	if err := s.CheckDatabaseAccessible(context.Background()); err != nil {
+		t.Errorf("CheckDatabaseAccessible() = %v, want = nil", err)
+	}
+}
+
 func TestMapBegin(t *testing.T) {
 	mapID := createMapID("TestBegin")
 	cleanTestDB(DB)
@@ -104,7 +115,7 @@ func TestMapRootUpdate(t *testing.T) {
 	mapID := createMapID("TestLatestSignedMapRoot")
 	cleanTestDB(DB)
 	prepareTestMapDB(DB, mapID, t)
-	s := prepareTestMapStorage(DB, mapID, t)
+	s := prepareTestMapStorage(DB, t)
 	ctx := context.Background()
 	tx := beginMapTx(ctx, s, mapID, t)
 	defer tx.Commit()
@@ -163,7 +174,7 @@ func TestMapSetGetRoundTrip(t *testing.T) {
 	mapID := createMapID("TestMapSetGetRoundTrip")
 	cleanTestDB(DB)
 	prepareTestMapDB(DB, mapID, t)
-	s := prepareTestMapStorage(DB, mapID, t)
+	s := prepareTestMapStorage(DB, t)
 
 	readRev := int64(1)
 
@@ -202,7 +213,7 @@ func TestMapSetSameKeyInSameRevisionFails(t *testing.T) {
 	mapID := createMapID("TestMapSetSameKeyInSameRevisionFails")
 	cleanTestDB(DB)
 	prepareTestMapDB(DB, mapID, t)
-	s := prepareTestMapStorage(DB, mapID, t)
+	s := prepareTestMapStorage(DB, t)
 	ctx := context.Background()
 
 	{
@@ -232,7 +243,7 @@ func TestMapGetUnknownKey(t *testing.T) {
 	mapID := createMapID("TestMapGetUnknownKey")
 	cleanTestDB(DB)
 	prepareTestMapDB(DB, mapID, t)
-	s := prepareTestMapStorage(DB, mapID, t)
+	s := prepareTestMapStorage(DB, t)
 	ctx := context.Background()
 
 	{
@@ -256,7 +267,7 @@ func TestMapSetGetMultipleRevisions(t *testing.T) {
 	mapID := createMapID("TestMapSetGetMultipleRevisions")
 	cleanTestDB(DB)
 	prepareTestMapDB(DB, mapID, t)
-	s := prepareTestMapStorage(DB, mapID, t)
+	s := prepareTestMapStorage(DB, t)
 
 	tests := []struct {
 		rev  int64
@@ -310,7 +321,7 @@ func TestLatestSignedMapRootNoneWritten(t *testing.T) {
 	mapID := createMapID("TestLatestSignedMapRootNoneWritten")
 	cleanTestDB(DB)
 	prepareTestMapDB(DB, mapID, t)
-	s := prepareTestMapStorage(DB, mapID, t)
+	s := prepareTestMapStorage(DB, t)
 	ctx := context.Background()
 	tx := beginMapTx(ctx, s, mapID, t)
 	defer tx.Rollback()
@@ -330,7 +341,7 @@ func TestLatestSignedMapRoot(t *testing.T) {
 	mapID := createMapID("TestLatestSignedMapRoot")
 	cleanTestDB(DB)
 	prepareTestMapDB(DB, mapID, t)
-	s := prepareTestMapStorage(DB, mapID, t)
+	s := prepareTestMapStorage(DB, t)
 	ctx := context.Background()
 	tx := beginMapTx(ctx, s, mapID, t)
 	defer tx.Rollback()
@@ -365,7 +376,7 @@ func TestDuplicateSignedMapRoot(t *testing.T) {
 	mapID := createMapID("TestDuplicateSignedMapRoot")
 	cleanTestDB(DB)
 	prepareTestMapDB(DB, mapID, t)
-	s := prepareTestMapStorage(DB, mapID, t)
+	s := prepareTestMapStorage(DB, t)
 	ctx := context.Background()
 	tx := beginMapTx(ctx, s, mapID, t)
 	defer tx.Commit()
@@ -383,7 +394,26 @@ func TestDuplicateSignedMapRoot(t *testing.T) {
 	}
 }
 
-func prepareTestMapStorage(db *sql.DB, mapID mapIDAndTest, t *testing.T) storage.MapStorage {
+func TestReadOnlyMapTX_Rollback(t *testing.T) {
+	cleanTestDB(DB)
+
+	s, err := NewMapStorage(DB)
+	if err != nil {
+		t.Fatalf("NewMapStorage() = (_, %v), want = (_, nil)", err)
+	}
+
+	tx, err := s.Snapshot(context.TODO())
+	if err != nil {
+		t.Fatalf("Snapshot() = (_, %v), want = (_, nil)", err)
+	}
+
+	// It's a bit hard to have a more meaningful test. This should suffice.
+	if err := tx.Rollback(); err != nil {
+		t.Errorf("Rollback() = (_, %v), want = (_, nil)", err)
+	}
+}
+
+func prepareTestMapStorage(db *sql.DB, t *testing.T) storage.MapStorage {
 	s, err := NewMapStorage(db)
 	if err != nil {
 		t.Fatalf("Failed to open map storage: %s", err)

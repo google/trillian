@@ -34,7 +34,6 @@ import (
 
 const (
 	getTreePropertiesSQL  = "SELECT AllowsDuplicateLeaves FROM Trees WHERE TreeId=?"
-	getTreeParametersSQL  = "SELECT ReadOnlyRequests From TreeControl WHERE TreeID=?"
 	selectQueuedLeavesSQL = `SELECT LeafIdentityHash,MerkleLeafHash,Payload
 			FROM Unsequenced
 			WHERE TreeID=?
@@ -80,6 +79,10 @@ func NewLogStorage(db *sql.DB) (storage.LogStorage, error) {
 	return &mySQLLogStorage{
 		mySQLTreeStorage: newTreeStorage(db),
 	}, nil
+}
+
+func (m *mySQLLogStorage) CheckDatabaseAccessible(ctx context.Context) error {
+	return checkDatabaseAccessible(ctx, m.db)
 }
 
 func (m *mySQLLogStorage) getLeavesByIndexStmt(num int) (*sql.Stmt, error) {

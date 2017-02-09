@@ -98,6 +98,17 @@ func setAllowsDuplicates(db *sql.DB, treeID int64, allowDuplicates bool) error {
 	return err
 }
 
+func TestMySQLLogStorage_CheckDatabaseAccessible(t *testing.T) {
+	cleanTestDB(DB)
+	s, err := NewLogStorage(DB)
+	if err != nil {
+		t.Fatalf("NewLogStorage() = (_, %v), want = (_, nil)", err)
+	}
+	if err := s.CheckDatabaseAccessible(context.Background()); err != nil {
+		t.Errorf("CheckDatabaseAccessible() = %v, want = nil", err)
+	}
+}
+
 func TestBegin(t *testing.T) {
 	logID1 := createLogID("TestBegin1")
 	logID2 := createLogID("TestBegin2")
@@ -156,7 +167,6 @@ func TestBegin(t *testing.T) {
 		}
 
 	}
-
 }
 
 func TestSnapshot(t *testing.T) {
@@ -198,7 +208,6 @@ func TestSnapshot(t *testing.T) {
 		}
 
 	}
-
 }
 
 func TestOpenStateCommit(t *testing.T) {

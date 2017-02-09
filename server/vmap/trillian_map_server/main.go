@@ -50,15 +50,7 @@ func checkDatabaseAccessible(registry extension.Registry) error {
 	if err != nil {
 		return err
 	}
-
-	// TODO(codingllama): We shouldn't use a mapID here
-	tx, err := mapStorage.BeginForTree(context.Background(), 0)
-	if err != nil {
-		return err
-	}
-
-	// TODO(codingllama): Add some sort of liveness ping here
-	return tx.Commit()
+	return mapStorage.CheckDatabaseAccessible(context.Background())
 }
 
 func startRPCServer(registry extension.Registry) *grpc.Server {
