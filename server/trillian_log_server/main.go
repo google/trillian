@@ -42,7 +42,6 @@ var exportRPCMetrics = flag.Bool("export_metrics", true, "If true starts HTTP se
 var httpPortFlag = flag.Int("http_port", 8091, "Port to serve HTTP metrics on")
 
 var sequencerSleepBetweenRunsFlag = flag.Duration("sequencer_sleep_between_runs", time.Second*10, "Time to pause after each sequencing pass through all logs")
-var signerIntervalFlag = flag.Duration("signer_interval", time.Second*120, "Time after which a new STH is created even if no leaves added")
 var batchSizeFlag = flag.Int("batch_size", 50, "Max number of leaves to process per batch")
 var sequencerGuardWindowFlag = flag.Duration("sequencer_guard_window", 0, "If set, the time elapsed before submitted leaves are eligible for sequencing")
 
@@ -151,7 +150,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	sequencerManager := server.NewSequencerManager(keyManager, registry, *sequencerGuardWindowFlag)
-	sequencerTask := server.NewLogOperationManager(ctx, registry, *batchSizeFlag, *sequencerSleepBetweenRunsFlag, *signerIntervalFlag, util.SystemTimeSource{}, sequencerManager)
+	sequencerTask := server.NewLogOperationManager(ctx, registry, *batchSizeFlag, *sequencerSleepBetweenRunsFlag, util.SystemTimeSource{}, sequencerManager)
 	go sequencerTask.OperationLoop()
 
 	// Bring up the RPC server and then block until we get a signal to stop

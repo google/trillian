@@ -36,7 +36,7 @@ func TestLogOperationManagerSnapshotFails(t *testing.T) {
 	mockLogOp := NewMockLogOperation(ctrl)
 
 	ctx := util.NewLogContext(context.Background(), -1)
-	lom := NewLogOperationManagerForTest(ctx, registryForSequencer(mockStorage), 50, time.Second, time.Second, fakeTimeSource, mockLogOp)
+	lom := NewLogOperationManagerForTest(ctx, registryForSequencer(mockStorage), 50, time.Second, fakeTimeSource, mockLogOp)
 
 	lom.OperationLoop()
 }
@@ -54,7 +54,7 @@ func TestLogOperationManagerGetLogsFails(t *testing.T) {
 	mockLogOp := NewMockLogOperation(ctrl)
 
 	ctx := util.NewLogContext(context.Background(), -1)
-	lom := NewLogOperationManagerForTest(ctx, registryForSequencer(mockStorage), 50, time.Second, time.Second, fakeTimeSource, mockLogOp)
+	lom := NewLogOperationManagerForTest(ctx, registryForSequencer(mockStorage), 50, time.Second, fakeTimeSource, mockLogOp)
 
 	lom.OperationLoop()
 }
@@ -72,7 +72,7 @@ func TestLogOperationManagerCommitFails(t *testing.T) {
 	mockLogOp := NewMockLogOperation(ctrl)
 
 	ctx := util.NewLogContext(context.Background(), -1)
-	lom := NewLogOperationManagerForTest(ctx, registryForSequencer(mockStorage), 50, time.Second, time.Second, fakeTimeSource, mockLogOp)
+	lom := NewLogOperationManagerForTest(ctx, registryForSequencer(mockStorage), 50, time.Second, fakeTimeSource, mockLogOp)
 
 	lom.OperationLoop()
 }
@@ -110,7 +110,7 @@ func TestLogOperationManagerPassesIDs(t *testing.T) {
 	mockLogOp.EXPECT().ExecutePass([]int64{logID1, logID2}, logOpMgrContextMatcher{50}).Return(false)
 
 	ctx := util.NewLogContext(context.Background(), -1)
-	lom := NewLogOperationManagerForTest(ctx, registryForSequencer(mockStorage), 50, time.Second, time.Second, fakeTimeSource, mockLogOp)
+	lom := NewLogOperationManagerForTest(ctx, registryForSequencer(mockStorage), 50, time.Second, fakeTimeSource, mockLogOp)
 
 	lom.OperationLoop()
 }
