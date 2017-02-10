@@ -43,8 +43,6 @@ type LogOperationManagerContext struct {
 	batchSize int
 	// sleepBetweenRuns is the time to pause after all active logs have processed a batch
 	sleepBetweenRuns time.Duration
-	// signInterval is the interval when we will create new STHs if no new leaves added
-	signInterval time.Duration
 	// oneShot is for use by tests only, it exits after one pass
 	oneShot bool
 	// timeSource allows us to mock this in tests
@@ -62,14 +60,13 @@ type LogOperationManager struct {
 }
 
 // NewLogOperationManager creates a new LogOperationManager instance.
-func NewLogOperationManager(ctx context.Context, registry extension.Registry, batchSize int, sleepBetweenRuns time.Duration, signInterval time.Duration, timeSource util.TimeSource, logOperation LogOperation) *LogOperationManager {
+func NewLogOperationManager(ctx context.Context, registry extension.Registry, batchSize int, sleepBetweenRuns time.Duration, timeSource util.TimeSource, logOperation LogOperation) *LogOperationManager {
 	return &LogOperationManager{
 		context: LogOperationManagerContext{
 			ctx:              ctx,
 			registry:         registry,
 			batchSize:        batchSize,
 			sleepBetweenRuns: sleepBetweenRuns,
-			signInterval:     signInterval,
 			timeSource:       timeSource,
 		},
 		logOperation: logOperation,
@@ -77,14 +74,13 @@ func NewLogOperationManager(ctx context.Context, registry extension.Registry, ba
 }
 
 // NewLogOperationManagerForTest creates a one-shot LogOperationManager instance, for use by tests only.
-func NewLogOperationManagerForTest(ctx context.Context, registry extension.Registry, batchSize int, sleepBetweenRuns time.Duration, signInterval time.Duration, timeSource util.TimeSource, logOperation LogOperation) *LogOperationManager {
+func NewLogOperationManagerForTest(ctx context.Context, registry extension.Registry, batchSize int, sleepBetweenRuns time.Duration, timeSource util.TimeSource, logOperation LogOperation) *LogOperationManager {
 	return &LogOperationManager{
 		context: LogOperationManagerContext{
 			ctx:              ctx,
 			registry:         registry,
 			batchSize:        batchSize,
 			sleepBetweenRuns: sleepBetweenRuns,
-			signInterval:     signInterval,
 			timeSource:       timeSource,
 			oneShot:          true,
 		},
