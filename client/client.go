@@ -21,8 +21,8 @@ import (
 	"time"
 
 	"github.com/google/trillian"
+	"github.com/google/trillian/client/backoff"
 	"github.com/google/trillian/merkle"
-	"github.com/jpillora/Backoff"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )

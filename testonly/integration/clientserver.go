@@ -142,7 +142,7 @@ func NewLogEnv(testID string) (*LogEnv, error) {
 	sequencerManager := server.NewSequencerManager(keyManager, registry,
 		sequencerWindow)
 	sequencerTask := server.NewLogOperationManagerForTest(ctx, registry,
-		batchSize, sleep, signInterval, timeSource, sequencerManager)
+		batchSize, sleep, timeSource, sequencerManager)
 
 	// Listen and start server.
 	addr, lis, err := listen()
