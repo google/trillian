@@ -64,7 +64,7 @@ pushd "${TRILLIAN_ROOT}" > /dev/null
 declare -a RPC_SERVER_PIDS
 for port in ${RPC_PORTS}; do
     echo "Starting Log RPC server on port ${port}"
-    ./trillian_log_server --private_key_password=towel --private_key_file=${TESTDATA}/log-rpc-server.privkey.pem --port ${port} --signer_interval="1s" --sequencer_sleep_between_runs="1s" --batch_size=500 --export_metrics=false &
+    ./trillian_log_server --private_key_password=towel --private_key_file=${TESTDATA}/log-rpc-server.privkey.pem --port ${port} --sequencer_sleep_between_runs="1s" --batch_size=500 --export_metrics=false &
     pid=$!
     RPC_SERVER_PIDS+=(${pid})
 done
