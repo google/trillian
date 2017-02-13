@@ -79,7 +79,7 @@ type AdminReader interface {
 	// ListTrees returns all trees in storage.
 	// Note that there's no authorization restriction on the trees returned,
 	// so it should be used with caution in production code.
-	ListTrees(ctx context.Context) ([]trillian.Tree, error)
+	ListTrees(ctx context.Context) ([]*trillian.Tree, error)
 }
 
 // AdminWriter provides a write-only interface for tree data.
