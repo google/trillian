@@ -36,7 +36,7 @@ type TreeHasher interface {
 }
 
 var hashTypes = map[string]TreeHasher{
-	RFC6962SHA256Type: rfc6962.TreeHasher{crypto.SHA256},
+	RFC6962SHA256Type: rfc6962.TreeHasher{Hash: crypto.SHA256},
 }
 
 // Factory supports fetching custom hashers based on tree types.

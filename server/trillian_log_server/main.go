@@ -37,19 +37,20 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
-var serverPortFlag = flag.Int("port", 8090, "Port to serve log RPC requests on")
-var exportRPCMetrics = flag.Bool("export_metrics", true, "If true starts HTTP server and exports stats")
-var httpPortFlag = flag.Int("http_port", 8091, "Port to serve HTTP metrics on")
+var (
+	serverPortFlag                = flag.Int("port", 8090, "Port to serve log RPC requests on")
+	exportRPCMetrics              = flag.Bool("export_metrics", true, "If true starts HTTP server and exports stats")
+	httpPortFlag                  = flag.Int("http_port", 8091, "Port to serve HTTP metrics on")
+	sequencerSleepBetweenRunsFlag = flag.Duration("sequencer_sleep_between_runs", time.Second*10, "Time to pause after each sequencing pass through all logs")
+	batchSizeFlag                 = flag.Int("batch_size", 50, "Max number of leaves to process per batch")
+	numSeqFlag                    = flag.Int("num_sequencers", 10, "Number of sequencers to run in parallel")
+	sequencerGuardWindowFlag      = flag.Duration("sequencer_guard_window", 0, "If set, the time elapsed before submitted leaves are eligible for sequencing")
 
-var sequencerSleepBetweenRunsFlag = flag.Duration("sequencer_sleep_between_runs", time.Second*10, "Time to pause after each sequencing pass through all logs")
-var batchSizeFlag = flag.Int("batch_size", 50, "Max number of leaves to process per batch")
-var numSeqFlag = flag.Int("num_sequencers", 10, "Number of sequencers to run in parallel")
-var sequencerGuardWindowFlag = flag.Duration("sequencer_guard_window", 0, "If set, the time elapsed before submitted leaves are eligible for sequencing")
-
-// TODO(Martin2112): Single private key doesn't really work for multi tenant and we can't use
-// an HSM interface in this way. Deferring these issues for later.
-var privateKeyFile = flag.String("private_key_file", "", "File containing a PEM encoded private key")
-var privateKeyPassword = flag.String("private_key_password", "", "Password for server private key")
+	// TODO(Martin2112): Single private key doesn't really work for multi tenant and we can't use
+	// an HSM interface in this way. Deferring these issues for later.
+	privateKeyFile     = flag.String("private_key_file", "", "File containing a PEM encoded private key")
+	privateKeyPassword = flag.String("private_key_password", "", "Password for server private key")
+)
 
 // TODO(codingllama): Consider moving to server creation
 func checkDatabaseAccessible(registry extension.Registry) error {

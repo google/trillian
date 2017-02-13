@@ -15,15 +15,19 @@
 package integration
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"io/ioutil"
 	"net"
 	"strings"
+	"time"
 
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/extension/builtin"
 	"github.com/google/trillian/server"
+	"github.com/google/trillian/storage/mysql"
 	"github.com/google/trillian/util"
 	"google.golang.org/grpc"
 )
@@ -33,12 +37,25 @@ const (
 	mysqlRootURI  = "root@tcp(127.0.0.1:3306)/"
 )
 
+var (
+	privateKeyFile     = "../testdata/log-rpc-server.privkey.pem"
+	privateKeyPassword = "towel"
+	sequencerWindow    = time.Duration(0)
+	batchSize          = 50
+	sleep              = time.Duration(0)
+	signInterval       = time.Duration(0)
+	timeSource         = util.SystemTimeSource{}
+	ctx                = context.Background()
+)
+
 // LogEnv is a test environment that contains both a log server and a connection to it.
 type LogEnv struct {
-	grpcServer *grpc.Server
-	logServer  *server.TrillianLogRPCServer
-	ClientConn *grpc.ClientConn
-	DB         *sql.DB
+	grpcServer   *grpc.Server
+	logServer    *server.TrillianLogRPCServer
+	LogOperation server.LogOperation
+	Sequencer    *server.LogOperationManager
+	ClientConn   *grpc.ClientConn
+	DB           *sql.DB
 }
 
 // listen opens a random high numbered port for listening.
@@ -112,9 +129,20 @@ func NewLogEnv(testID string) (*LogEnv, error) {
 		return nil, err
 	}
 
+	// Start Log Server.
 	grpcServer := grpc.NewServer()
 	logServer := server.NewTrillianLogRPCServer(registry, timesource)
 	trillian.RegisterTrillianLogServer(grpcServer, logServer)
+
+	// Start Sequencer.
+	keyManager, err := crypto.LoadPasswordProtectedPrivateKey(privateKeyFile, privateKeyPassword)
+	if err != nil {
+		return nil, err
+	}
+	sequencerManager := server.NewSequencerManager(keyManager, registry,
+		sequencerWindow)
+	sequencerTask := server.NewLogOperationManagerForTest(ctx, registry,
+		batchSize, sleep, timeSource, sequencerManager)
 
 	// Listen and start server.
 	addr, lis, err := listen()
@@ -130,15 +158,28 @@ func NewLogEnv(testID string) (*LogEnv, error) {
 	}
 
 	return &LogEnv{
-		grpcServer: grpcServer,
-		logServer:  logServer,
-		ClientConn: cc,
-		DB:         db,
+		grpcServer:   grpcServer,
+		logServer:    logServer,
+		ClientConn:   cc,
+		DB:           db,
+		LogOperation: sequencerManager,
+		Sequencer:    sequencerTask,
 	}, nil
 }
 
 // Close shuts down the server.
 func (env *LogEnv) Close() {
-	env.grpcServer.Stop()
+	env.ClientConn.Close()
+	env.grpcServer.GracefulStop()
 	env.DB.Close()
+}
+
+// CreateLog creates a log and signs the first empty tree head.
+func (env *LogEnv) CreateLog(logID int64) error {
+	if err := mysql.CreateTree(logID, env.DB); err != nil {
+		return err
+	}
+	// Sign the first empty tree head.
+	env.Sequencer.OperationLoop()
+	return nil
 }

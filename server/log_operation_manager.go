@@ -137,9 +137,6 @@ func (l LogOperationManager) OperationLoop() {
 
 	// Outer loop, runs until terminated
 	for {
-		// Wait for the configured time before going for another pass
-		time.Sleep(l.context.sleepBetweenRuns)
-
 		// TODO(alcutter): want a child context with deadline here?
 		quit := l.getLogsAndExecutePass(l.context.ctx)
 
@@ -150,5 +147,8 @@ func (l LogOperationManager) OperationLoop() {
 			glog.Infof("Log operation manager shutting down")
 			return
 		}
+
+		// Wait for the configured time before going for another pass
+		time.Sleep(l.context.sleepBetweenRuns)
 	}
 }

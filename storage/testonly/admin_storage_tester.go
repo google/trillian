@@ -23,29 +23,31 @@ import (
 	"github.com/google/trillian/storage"
 )
 
-// LogTree is a valid, LOG-type trillian.Tree for tests.
-var LogTree *trillian.Tree = &trillian.Tree{
-	TreeState:          trillian.TreeState_ACTIVE,
-	TreeType:           trillian.TreeType_LOG,
-	HashStrategy:       trillian.HashStrategy_RFC_6962,
-	HashAlgorithm:      trillian.HashAlgorithm_SHA256,
-	SignatureAlgorithm: trillian.SignatureAlgorithm_ECDSA,
-	DuplicatePolicy:    trillian.DuplicatePolicy_DUPLICATES_NOT_ALLOWED,
-	DisplayName:        "Llamas Log",
-	Description:        "Registry of publicly-owned llamas",
-}
+var (
+	// LogTree is a valid, LOG-type trillian.Tree for tests.
+	LogTree = &trillian.Tree{
+		TreeState:          trillian.TreeState_ACTIVE,
+		TreeType:           trillian.TreeType_LOG,
+		HashStrategy:       trillian.HashStrategy_RFC_6962,
+		HashAlgorithm:      trillian.HashAlgorithm_SHA256,
+		SignatureAlgorithm: trillian.SignatureAlgorithm_ECDSA,
+		DuplicatePolicy:    trillian.DuplicatePolicy_DUPLICATES_NOT_ALLOWED,
+		DisplayName:        "Llamas Log",
+		Description:        "Registry of publicly-owned llamas",
+	}
 
-// MapTree is a valid, MAP-type trillian.Tree for tests.
-var MapTree *trillian.Tree = &trillian.Tree{
-	TreeState:          trillian.TreeState_ACTIVE,
-	TreeType:           trillian.TreeType_MAP,
-	HashStrategy:       trillian.HashStrategy_RFC_6962,
-	HashAlgorithm:      trillian.HashAlgorithm_SHA256,
-	SignatureAlgorithm: trillian.SignatureAlgorithm_ECDSA,
-	DuplicatePolicy:    trillian.DuplicatePolicy_DUPLICATES_ALLOWED,
-	DisplayName:        "Llamas Map",
-	Description:        "Key Transparency map for all your digital llama needs.",
-}
+	// MapTree is a valid, MAP-type trillian.Tree for tests.
+	MapTree = &trillian.Tree{
+		TreeState:          trillian.TreeState_ACTIVE,
+		TreeType:           trillian.TreeType_MAP,
+		HashStrategy:       trillian.HashStrategy_RFC_6962,
+		HashAlgorithm:      trillian.HashAlgorithm_SHA256,
+		SignatureAlgorithm: trillian.SignatureAlgorithm_ECDSA,
+		DuplicatePolicy:    trillian.DuplicatePolicy_DUPLICATES_ALLOWED,
+		DisplayName:        "Llamas Map",
+		Description:        "Key Transparency map for all your digital llama needs.",
+	}
+)
 
 // AdminStorageTester runs a suite of tests against AdminStorage implementations.
 type AdminStorageTester struct {
@@ -136,7 +138,7 @@ func (tester *AdminStorageTester) TestCreateTree(t *testing.T) {
 		}
 		wantTree = *storedTree
 		if !reflect.DeepEqual(newTree, &wantTree) {
-			t.Errorf("%v: newTree = %v, wantTree = %v", i, newTree, &wantTree)
+			t.Errorf("%v: newTree = \n%v, wantTree = \n%v", i, newTree, &wantTree)
 		}
 		if err := readOnlyTX.Commit(); err != nil {
 			t.Errorf("%v: Commit() = %v, want = nil", i, err)

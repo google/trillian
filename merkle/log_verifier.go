@@ -43,8 +43,8 @@ func NewLogVerifier(hasher TreeHasher) LogVerifier {
 }
 
 // VerifyInclusionProof verifies the correctness of the proof given the passed in information about the tree and leaf.
-func (v LogVerifier) VerifyInclusionProof(leafIndex, treeSize int64, proof [][]byte, root []byte, leaf []byte) error {
-	calcRoot, err := v.RootFromInclusionProof(leafIndex, treeSize, proof, leaf)
+func (v LogVerifier) VerifyInclusionProof(leafIndex, treeSize int64, proof [][]byte, root []byte, leafHash []byte) error {
+	calcRoot, err := v.RootFromInclusionProof(leafIndex, treeSize, proof, leafHash)
 	if err != nil {
 		return err
 	}
@@ -60,7 +60,7 @@ func (v LogVerifier) VerifyInclusionProof(leafIndex, treeSize int64, proof [][]b
 // RootFromInclusionProof calculates the expected tree root given the proof and leaf.
 // leafIndex starts at 0.  treeSize is the number of nodes in the tree.
 // proof is an array of neighbor nodes from the bottom to the root.
-func (v LogVerifier) RootFromInclusionProof(leafIndex, treeSize int64, proof [][]byte, leaf []byte) ([]byte, error) {
+func (v LogVerifier) RootFromInclusionProof(leafIndex, treeSize int64, proof [][]byte, leafHash []byte) ([]byte, error) {
 	if leafIndex < 0 {
 		return nil, errors.New("invalid leafIndex < 0")
 	}
@@ -73,7 +73,7 @@ func (v LogVerifier) RootFromInclusionProof(leafIndex, treeSize int64, proof [][
 	}
 
 	cntIndex := leafIndex
-	cntHash := v.hasher.HashLeaf(leaf)
+	cntHash := leafHash
 	proofIndex := 0
 
 	// Tree is numbered as follows, where nodes at each level are counted from left to right.
