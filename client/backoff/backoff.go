@@ -32,7 +32,7 @@ type Backoff struct {
 // Duration returns the time to wait on duration x.
 // Every time Duration is called, the returned value will exponentially increase by Factor
 // until Backoff.Max. If Jitter is enabled, will wait an additional random value between
-// 0 and factor^x * min
+// 0 and factor^x * min, capped by Backoff.Max.
 func (b *Backoff) Duration() time.Duration {
 	// min( min * factor ^ x , max)
 	minNanos := float64(b.Min.Nanoseconds())
