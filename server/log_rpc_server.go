@@ -48,9 +48,8 @@ func NewTrillianLogRPCServer(registry extension.Registry, timeSource util.TimeSo
 	}
 }
 
-// CheckDatabaseAccessible returns nil if the database is accessible, error
-// otherwise.
-func (t *TrillianLogRPCServer) CheckDatabaseAccessible() error {
+// IsHealthy returns nil if the server is healthy, error otherwise.
+func (t *TrillianLogRPCServer) IsHealthy() error {
 	s, err := t.registry.GetLogStorage()
 	if err != nil {
 		return err

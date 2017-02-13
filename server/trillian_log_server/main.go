@@ -52,7 +52,7 @@ var privateKeyPassword = flag.String("private_key_password", "", "Password for s
 
 func startRPCServer(registry extension.Registry) (*grpc.Server, error) {
 	logServer := server.NewTrillianLogRPCServer(registry, new(util.SystemTimeSource))
-	if err := logServer.CheckDatabaseAccessible(); err != nil {
+	if err := logServer.IsHealthy(); err != nil {
 		return nil, err
 	}
 
@@ -142,7 +142,7 @@ func main() {
 	// Bring up the RPC server and then block until we get a signal to stop
 	rpcServer, err := startRPCServer(registry)
 	if err != nil {
-		glog.Errorf("Failed to start RPC server: %v", err)
+		glog.Exitf("Failed to start RPC server: %v", err)
 	}
 	go awaitSignal(rpcServer)
 

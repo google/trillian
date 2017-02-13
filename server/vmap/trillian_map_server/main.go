@@ -44,7 +44,7 @@ var privateKeyPassword = flag.String("private_key_password", "", "Password for s
 
 func startRPCServer(registry extension.Registry) (*grpc.Server, error) {
 	mapServer := vmap.NewTrillianMapServer(registry)
-	if err := mapServer.CheckDatabaseAccessible(); err != nil {
+	if err := mapServer.IsHealthy(); err != nil {
 		return nil, err
 	}
 	grpcServer := grpc.NewServer()
@@ -102,7 +102,7 @@ func main() {
 	// Bring up the RPC server and then block until we get a signal to stop
 	rpcServer, err := startRPCServer(registry)
 	if err != nil {
-		glog.Errorf("Failed to start RPC server: %v", err)
+		glog.Exitf("Failed to start RPC server: %v", err)
 	}
 	defer glog.Flush()
 

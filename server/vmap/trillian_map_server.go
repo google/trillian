@@ -39,9 +39,8 @@ func NewTrillianMapServer(registry extension.Registry) *TrillianMapServer {
 	return &TrillianMapServer{registry}
 }
 
-// CheckDatabaseAccessible returns nil if the database is accessible, error
-// otherwise.
-func (t *TrillianMapServer) CheckDatabaseAccessible() error {
+// IsHealthy returns nil if the server is healthy, error otherwise.
+func (t *TrillianMapServer) IsHealthy() error {
 	s, err := t.registry.GetMapStorage()
 	if err != nil {
 		return err
