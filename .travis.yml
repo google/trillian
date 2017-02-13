@@ -11,14 +11,6 @@ env:
   - GOFLAGS=
   - GOFLAGS=-race
 
-addons:
-    apt:
-        sources:
-            - ubuntu-toolchain-r-test
-        packages:
-            - gcc-4.8
-            - g++-4.8
-
 install:
   - |
     if [ ! -d $HOME/gopath/src/github.com/google ]; then
@@ -45,8 +37,6 @@ install:
   - go install github.com/golang/{mock/mockgen,protobuf/protoc-gen-go}
 
 script:
-  - export CXX="g++-4.8"
-  - export CC="gcc-4.8"
   - set -e
   - ./scripts/presubmit.sh
   - |
