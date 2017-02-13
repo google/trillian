@@ -43,6 +43,7 @@ var httpPortFlag = flag.Int("http_port", 8091, "Port to serve HTTP metrics on")
 
 var sequencerSleepBetweenRunsFlag = flag.Duration("sequencer_sleep_between_runs", time.Second*10, "Time to pause after each sequencing pass through all logs")
 var batchSizeFlag = flag.Int("batch_size", 50, "Max number of leaves to process per batch")
+var numSeqFlag = flag.Int("num_sequencers", 10, "Number of sequencers to run in parallel")
 var sequencerGuardWindowFlag = flag.Duration("sequencer_guard_window", 0, "If set, the time elapsed before submitted leaves are eligible for sequencing")
 
 // TODO(Martin2112): Single private key doesn't really work for multi tenant and we can't use
@@ -150,7 +151,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	sequencerManager := server.NewSequencerManager(keyManager, registry, *sequencerGuardWindowFlag)
-	sequencerTask := server.NewLogOperationManager(ctx, registry, *batchSizeFlag, *sequencerSleepBetweenRunsFlag, util.SystemTimeSource{}, sequencerManager)
+	sequencerTask := server.NewLogOperationManager(ctx, registry, *batchSizeFlag, *numSeqFlag, *sequencerSleepBetweenRunsFlag, util.SystemTimeSource{}, sequencerManager)
 	go sequencerTask.OperationLoop()
 
 	// Bring up the RPC server and then block until we get a signal to stop

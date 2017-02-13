@@ -49,61 +49,78 @@ func (s SequencerManager) Name() string {
 }
 
 // ExecutePass performs sequencing for the specified set of Logs.
-func (s SequencerManager) ExecutePass(logIDs []int64, logctx LogOperationManagerContext) bool {
-	glog.V(1).Infof("Beginning sequencing run for %v active log(s)", len(logIDs))
+func (s SequencerManager) ExecutePass(logIDs []int64, logctx LogOperationManagerContext) {
+	if logctx.numSequencers == 0 {
+		glog.Warning("Called ExecutePass with numSequencers == 0, assuming 1")
+		logctx.numSequencers = 1
+	}
+	glog.V(1).Infof("Beginning sequencing run for %v active log(s) using %d sequencers", len(logIDs), logctx.numSequencers)
 
+	startBatch := time.Now()
+
+	var mu sync.Mutex
 	successCount := 0
 	leavesAdded := 0
 
+	storage, err := s.registry.GetLogStorage()
+	if err != nil {
+		glog.Warningf("Failed to acquire log storage: %v", err)
+		return
+	}
+
 	var wg sync.WaitGroup
+	toSeq := make(chan int64, len(logIDs))
 
 	for _, logID := range logIDs {
+		toSeq <- logID
+	}
+	close(toSeq)
+
+	for i := 0; i < logctx.numSequencers; i++ {
 		wg.Add(1)
-		logID := logID
 		go func() {
 			defer wg.Done()
+			for {
+				logID, more := <-toSeq
+				if !more {
+					return
+				}
 
-			start := time.Now()
+				start := time.Now()
 
-			// TODO(Martin2112): Honor the sequencing enabled in log parameters, needs an API change
-			// so deferring it
-			storage, err := s.registry.GetLogStorage()
-			if err != nil {
-				glog.Warningf("%v: failed to acquire log storage: %v", logID, err)
-				return
+				// TODO(Martin2112): Honor the sequencing enabled in log parameters, needs an API change
+				// so deferring it
+				ctx := util.NewLogContext(logctx.ctx, logID)
+
+				// TODO(Martin2112): Allow for different tree hashers to be used by different logs
+				hasher, err := merkle.Factory(merkle.RFC6962SHA256Type)
+				if err != nil {
+					glog.Errorf("Unknown hash strategy for log %d: %v", logID, err)
+					continue
+				}
+				sequencer := log.NewSequencer(hasher, logctx.timeSource, storage, s.keyManager)
+				sequencer.SetGuardWindow(s.guardWindow)
+
+				leaves, err := sequencer.SequenceBatch(ctx, logID, logctx.batchSize)
+				if err != nil {
+					glog.Warningf("%v: Error trying to sequence batch for: %v", logID, err)
+					continue
+				}
+				d := time.Now().Sub(start).Seconds()
+				glog.Infof("%v: sequenced %d leaves in %.2f seconds (%.2f qps)", logID, leaves, d, float64(leaves)/d)
+
+				mu.Lock()
+				defer mu.Unlock()
+				successCount++
+				leavesAdded += leaves
 			}
-			ctx := util.NewLogContext(logctx.ctx, logID)
-
-			// TODO(Martin2112): Allow for different tree hashers to be used by different logs
-			hasher, err := merkle.Factory(merkle.RFC6962SHA256Type)
-			if err != nil {
-				glog.Errorf("Unknown hash strategy for log %d: %v", logID, err)
-				return
-			}
-			sequencer := log.NewSequencer(hasher, logctx.timeSource, storage, s.keyManager)
-			sequencer.SetGuardWindow(s.guardWindow)
-
-			leaves, err := sequencer.SequenceBatch(ctx, logID, logctx.batchSize)
-			if err != nil {
-				glog.Warningf("%v: Error trying to sequence batch for: %v", logID, err)
-				return
-			}
-			d := time.Now().Sub(start).Seconds()
-			glog.Infof("%v: sequenced %d leaves in %.2f seconds (%d qps)", logID, leaves, d, float64(leaves)/d)
-
-			successCount++
-			leavesAdded += leaves
 		}()
 	}
 
 	wg.Wait()
+	d := time.Now().Sub(startBatch).Seconds()
 
-	glog.V(1).Infof("Sequencing group run completed %v succeeded %v failed %v leaves integrated", successCount, len(logIDs)-successCount, leavesAdded)
-
-	select {
-	case <-logctx.ctx.Done():
-		return true
-	default:
-	}
-	return false
+	mu.Lock()
+	defer mu.Unlock()
+	glog.V(1).Infof("Sequencing group run completed in %.2f seconds: %v succeeded, %v failed, %v leaves integrated", d, successCount, len(logIDs)-successCount, leavesAdded)
 }

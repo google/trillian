@@ -107,7 +107,7 @@ func TestLogOperationManagerPassesIDs(t *testing.T) {
 	mockStorage.EXPECT().Snapshot(gomock.Any()).Return(mockTx, nil)
 
 	mockLogOp := NewMockLogOperation(ctrl)
-	mockLogOp.EXPECT().ExecutePass([]int64{logID1, logID2}, logOpMgrContextMatcher{50}).Return(false)
+	mockLogOp.EXPECT().ExecutePass([]int64{logID1, logID2}, logOpMgrContextMatcher{50})
 
 	ctx := util.NewLogContext(context.Background(), -1)
 	lom := NewLogOperationManagerForTest(ctx, registryForSequencer(mockStorage), 50, time.Second, fakeTimeSource, mockLogOp)

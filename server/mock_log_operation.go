@@ -28,10 +28,8 @@ func (_m *MockLogOperation) EXPECT() *_MockLogOperationRecorder {
 	return _m.recorder
 }
 
-func (_m *MockLogOperation) ExecutePass(_param0 []int64, _param1 LogOperationManagerContext) bool {
-	ret := _m.ctrl.Call(_m, "ExecutePass", _param0, _param1)
-	ret0, _ := ret[0].(bool)
-	return ret0
+func (_m *MockLogOperation) ExecutePass(_param0 []int64, _param1 LogOperationManagerContext) {
+	_m.ctrl.Call(_m, "ExecutePass", _param0, _param1)
 }
 
 func (_mr *_MockLogOperationRecorder) ExecutePass(arg0, arg1 interface{}) *gomock.Call {

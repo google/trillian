@@ -28,9 +28,8 @@ import (
 type LogOperation interface {
 	// Name returns the name of the task.
 	Name() string
-	// ExecutePass performs a single pass of processing on a set of logs; its
-	// return value indicates whether the LogOperation task should terminate.
-	ExecutePass(logIDs []int64, context LogOperationManagerContext) bool
+	// ExecutePass performs a single pass of processing on a set of logs.
+	ExecutePass(logIDs []int64, context LogOperationManagerContext)
 }
 
 // LogOperationManagerContext bundles up the values so testing can be made easier
@@ -47,6 +46,8 @@ type LogOperationManagerContext struct {
 	oneShot bool
 	// timeSource allows us to mock this in tests
 	timeSource util.TimeSource
+	// numSequencers is the number of sequencers to run in parallel.
+	numSequencers int
 }
 
 // LogOperationManager controls scheduling activities for logs. At the moment it's very simple
@@ -60,7 +61,7 @@ type LogOperationManager struct {
 }
 
 // NewLogOperationManager creates a new LogOperationManager instance.
-func NewLogOperationManager(ctx context.Context, registry extension.Registry, batchSize int, sleepBetweenRuns time.Duration, timeSource util.TimeSource, logOperation LogOperation) *LogOperationManager {
+func NewLogOperationManager(ctx context.Context, registry extension.Registry, batchSize, numSequencers int, sleepBetweenRuns time.Duration, timeSource util.TimeSource, logOperation LogOperation) *LogOperationManager {
 	return &LogOperationManager{
 		context: LogOperationManagerContext{
 			ctx:              ctx,
@@ -68,6 +69,7 @@ func NewLogOperationManager(ctx context.Context, registry extension.Registry, ba
 			batchSize:        batchSize,
 			sleepBetweenRuns: sleepBetweenRuns,
 			timeSource:       timeSource,
+			numSequencers:    numSequencers,
 		},
 		logOperation: logOperation,
 	}
@@ -83,6 +85,7 @@ func NewLogOperationManagerForTest(ctx context.Context, registry extension.Regis
 			sleepBetweenRuns: sleepBetweenRuns,
 			timeSource:       timeSource,
 			oneShot:          true,
+			numSequencers:    5,
 		},
 		logOperation: logOperation,
 	}
@@ -115,12 +118,16 @@ func (l LogOperationManager) getLogsAndExecutePass(ctx context.Context) bool {
 		return false
 	}
 
-	// Process each active log once, exit if we've seen a quit signal
-	quit := l.logOperation.ExecutePass(logIDs, l.context)
-	if quit {
-		glog.Infof("Log operation manager shutting down")
+	// Process each active log once.
+	l.logOperation.ExecutePass(logIDs, l.context)
+
+	// See if it's time to quit
+	select {
+	case <-ctx.Done():
+		return true
+	default:
 	}
-	return quit
+	return false
 }
 
 // OperationLoop starts the manager working. It continues until told to exit.
@@ -140,6 +147,7 @@ func (l LogOperationManager) OperationLoop() {
 
 		// We might want to bail out early when testing
 		if quit || l.context.oneShot {
+			glog.Infof("Log operation manager shutting down")
 			return
 		}
 	}
