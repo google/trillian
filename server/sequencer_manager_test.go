@@ -163,14 +163,10 @@ func TestSequencerManagerGuardWindow(t *testing.T) {
 	sm.ExecutePass([]int64{logID}, createTestContext(registry))
 }
 
-func mockStorageProviderForSequencer(mockStorage storage.LogStorage) testonly.GetLogStorageFunc {
-	return func() (storage.LogStorage, error) {
-		return mockStorage, nil
-	}
-}
-
 func registryForSequencer(mockStorage storage.LogStorage) extension.Registry {
-	return testonly.NewRegistryWithLogProvider(mockStorageProviderForSequencer(mockStorage))
+	return &testRegistry{
+		logStorageFunc: func() (storage.LogStorage, error) { return mockStorage, nil },
+	}
 }
 
 func createTestContext(registry extension.Registry) LogOperationManagerContext {
