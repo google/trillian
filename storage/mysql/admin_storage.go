@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/google/trillian"
+	spb "github.com/google/trillian/proto/signature"
 	"github.com/google/trillian/storage"
 	"golang.org/x/net/context"
 )
@@ -171,13 +172,13 @@ func readTree(row row) (*trillian.Tree, error) {
 	} else {
 		return nil, fmt.Errorf("unknown HashStrategy: %v", hashStrategy)
 	}
-	if ha, ok := trillian.HashAlgorithm_value[hashAlgorithm]; ok {
-		tree.HashAlgorithm = trillian.HashAlgorithm(ha)
+	if ha, ok := spb.DigitallySigned_HashAlgorithm_value[hashAlgorithm]; ok {
+		tree.HashAlgorithm = spb.DigitallySigned_HashAlgorithm(ha)
 	} else {
 		return nil, fmt.Errorf("unknown HashAlgorithm: %v", hashAlgorithm)
 	}
-	if sa, ok := trillian.SignatureAlgorithm_value[signatureAlgorithm]; ok {
-		tree.SignatureAlgorithm = trillian.SignatureAlgorithm(sa)
+	if sa, ok := spb.DigitallySigned_SignatureAlgorithm_value[signatureAlgorithm]; ok {
+		tree.SignatureAlgorithm = spb.DigitallySigned_SignatureAlgorithm(sa)
 	} else {
 		return nil, fmt.Errorf("unknown SignatureAlgorithm: %v", signatureAlgorithm)
 	}

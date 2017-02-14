@@ -24,6 +24,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/google/trillian"
+	spb "github.com/google/trillian/proto/signature"
 	"github.com/google/trillian/testonly"
 )
 
@@ -67,10 +68,10 @@ func TestSigner(t *testing.T) {
 		t.Fatalf("Failed to sign: %s", err)
 	}
 
-	if got, want := sig.HashAlgorithm, trillian.HashAlgorithm_SHA256; got != want {
+	if got, want := sig.HashAlgorithm, spb.DigitallySigned_SHA256; got != want {
 		t.Fatalf("Hash alg incorrect, got %v expected %d", got, want)
 	}
-	if got, want := sig.SignatureAlgorithm, trillian.SignatureAlgorithm_RSA; got != want {
+	if got, want := sig.SignatureAlgorithm, spb.DigitallySigned_RSA; got != want {
 		t.Fatalf("Sig alg incorrect, got %v expected %v", got, want)
 	}
 	if got, want := []byte(result), sig.Signature; !bytes.Equal(got, want) {
@@ -141,14 +142,15 @@ func TestSignLogRoot(t *testing.T) {
 		t.Fatalf("Got %v, but expected unmodified signed root %v", root, expected)
 	}
 	// And signature is correct
-	expectedSignature := trillian.DigitallySigned{SignatureAlgorithm: trillian.SignatureAlgorithm_RSA,
-		HashAlgorithm: trillian.HashAlgorithm_SHA256,
-		Signature:     []byte("echo")}
+	expectedSignature := spb.DigitallySigned{
+		SignatureAlgorithm: spb.DigitallySigned_RSA,
+		HashAlgorithm:      spb.DigitallySigned_SHA256,
+		Signature:          []byte("echo")}
 	if !reflect.DeepEqual(signature, expectedSignature) {
 		t.Fatalf("Got %v, but expected %v", signature, expectedSignature)
 	}
 }
 
 func createTestSigner(mock *MockSigner) *Signer {
-	return NewSigner(trillian.HashAlgorithm_SHA256, trillian.SignatureAlgorithm_RSA, mock)
+	return NewSigner(crypto.SHA256, spb.DigitallySigned_RSA, mock)
 }

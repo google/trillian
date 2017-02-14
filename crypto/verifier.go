@@ -23,20 +23,20 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/google/trillian"
+	spb "github.com/google/trillian/proto/signature"
 )
 
 // ErrVerify occurs whenever signature verification fails.
 var ErrVerify = errors.New("signature verification failed")
 
 // Verify cryptographically verifies the output of Signer.
-func Verify(pub crypto.PublicKey, data []byte, sig trillian.DigitallySigned) error {
+func Verify(pub crypto.PublicKey, data []byte, sig spb.DigitallySigned) error {
 	sigAlgo := sig.SignatureAlgorithm
 
 	// Recompute digest
-	hasher, err := LookupHash(sig.HashAlgorithm)
-	if err != nil {
-		return err
+	hasher, ok := signerHashLookup[sig.HashAlgorithm]
+	if !ok {
+		return fmt.Errorf("unsupported hash algorithm %v", hasher)
 	}
 	h := hasher.New()
 	h.Write(data)
@@ -45,12 +45,12 @@ func Verify(pub crypto.PublicKey, data []byte, sig trillian.DigitallySigned) err
 	// Verify signature algo type
 	switch key := pub.(type) {
 	case *ecdsa.PublicKey:
-		if sigAlgo != trillian.SignatureAlgorithm_ECDSA {
+		if sigAlgo != spb.DigitallySigned_ECDSA {
 			return fmt.Errorf("signature algorithm does not match public key")
 		}
 		return verifyECDSA(key, digest, sig.Signature)
 	case *rsa.PublicKey:
-		if sigAlgo != trillian.SignatureAlgorithm_RSA {
+		if sigAlgo != spb.DigitallySigned_RSA {
 			return fmt.Errorf("signature algorithm does not match public key")
 		}
 		return verifyRSA(key, digest, sig.Signature, hasher, hasher)

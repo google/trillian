@@ -6,7 +6,7 @@ package crypto
 import (
 	crypto "crypto"
 	gomock "github.com/golang/mock/gomock"
-	trillian "github.com/google/trillian"
+	signature "github.com/google/trillian/proto/signature"
 )
 
 // Mock of KeyManager interface
@@ -52,9 +52,9 @@ func (_mr *_MockKeyManagerRecorder) GetRawPublicKey() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetRawPublicKey")
 }
 
-func (_m *MockKeyManager) HashAlgorithm() trillian.HashAlgorithm {
+func (_m *MockKeyManager) HashAlgorithm() crypto.Hash {
 	ret := _m.ctrl.Call(_m, "HashAlgorithm")
-	ret0, _ := ret[0].(trillian.HashAlgorithm)
+	ret0, _ := ret[0].(crypto.Hash)
 	return ret0
 }
 
@@ -62,9 +62,9 @@ func (_mr *_MockKeyManagerRecorder) HashAlgorithm() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "HashAlgorithm")
 }
 
-func (_m *MockKeyManager) SignatureAlgorithm() trillian.SignatureAlgorithm {
+func (_m *MockKeyManager) SignatureAlgorithm() signature.DigitallySigned_SignatureAlgorithm {
 	ret := _m.ctrl.Call(_m, "SignatureAlgorithm")
-	ret0, _ := ret[0].(trillian.SignatureAlgorithm)
+	ret0, _ := ret[0].(signature.DigitallySigned_SignatureAlgorithm)
 	return ret0
 }
 

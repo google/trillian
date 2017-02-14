@@ -22,6 +22,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle"
+	spb "github.com/google/trillian/proto/signature"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
 )
@@ -217,7 +218,7 @@ func (m *mapTreeTX) Get(revision int64, indexes [][]byte) ([]trillian.MapLeaf, e
 func (m *mapTreeTX) LatestSignedMapRoot() (trillian.SignedMapRoot, error) {
 	var timestamp, mapRevision int64
 	var rootHash, rootSignatureBytes []byte
-	var rootSignature trillian.DigitallySigned
+	var rootSignature spb.DigitallySigned
 	var mapperMetaBytes []byte
 	var mapperMeta *trillian.MapperMetadata
 

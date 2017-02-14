@@ -21,6 +21,7 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/merkle"
+	spb "github.com/google/trillian/proto/signature"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util"
 	"golang.org/x/net/context"
@@ -186,7 +187,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		MapRevision:    tx.WriteRevision(),
 		Metadata:       req.MapperData,
 		// TODO(al): Actually sign stuff, etc!
-		Signature: &trillian.DigitallySigned{},
+		Signature: &spb.DigitallySigned{},
 	}
 
 	// TODO(al): need an smtWriter.Rollback() or similar I think.

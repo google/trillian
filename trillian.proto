@@ -1,17 +1,25 @@
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 syntax = "proto3";
 
 package trillian;
 
+import "github.com/google/trillian/proto/signature/signature.proto";
+
 // What goes in here?
 // Things which are exposed through the public trillian APIs.
-
-// Supported hash algorithms. The numbering space is the same as for TLS,
-// given in RFC 5246 s7.4.1.4.1 and at:
-// http://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-18
-enum HashAlgorithm {
-  NONE = 0;
-  SHA256 = 4;
-}
 
 // Defines the way empty / node / leaf hashes are constructed incorporating
 // preimage protection, which can be application specific.
@@ -23,15 +31,6 @@ enum HashStrategy {
   // Certificate Transparency strategy: leaf hash prefix = 0x00, node prefix =
   // 0x01, empty hash is digest([]byte{}), as defined in the specification.
   RFC_6962 = 1;
-}
-
-// Supported signature algorithms. The numbering space is the same as for TLS,
-// given in RFC 5246 s7.4.1.4.1 and at:
-// http://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-16
-enum SignatureAlgorithm {
-  ANONYMOUS = 0;
-  RSA = 1;
-  ECDSA = 3;
 }
 
 // State of the tree.
@@ -110,11 +109,11 @@ message Tree {
 
   // Hash algorithm to be used by the tree.
   // Readonly.
-  HashAlgorithm hash_algorithm = 5;
+  signature.DigitallySigned.HashAlgorithm hash_algorithm = 5;
 
   // Signature algorithm to be used by the tree.
   // Readonly.
-  SignatureAlgorithm signature_algorithm = 6;
+  signature.DigitallySigned.SignatureAlgorithm signature_algorithm = 6;
 
   // Duplicate policy to be used by the tree.
   // Readonly.
@@ -137,18 +136,10 @@ message Tree {
   int64 update_time_millis_since_epoch = 11;
 }
 
-// Protocol buffer encoding of the TLS DigitallySigned type, from
-// RFC 5246 s4.7.
-message DigitallySigned {
-  SignatureAlgorithm signature_algorithm = 1;
-  HashAlgorithm hash_algorithm = 2;
-  bytes signature = 3;
-}
-
 message SignedEntryTimestamp {
   int64 timestamp_nanos = 1;
   int64 log_id = 2;
-  DigitallySigned signature = 3;
+  signature.DigitallySigned signature = 3;
 }
 
 // SignedLogRoot represents a commitment by a Log to a particular tree.
@@ -159,7 +150,7 @@ message SignedLogRoot {
 	// TreeSize is the number of entries in the tree.
   int64 tree_size = 3;
 	// TODO(al): define serialized format for the signature scheme.
-  DigitallySigned signature = 4;
+  signature.DigitallySigned signature = 4;
 
   int64 log_id = 5;
   int64 tree_revision = 6;
@@ -177,7 +168,7 @@ message SignedMapRoot {
   bytes root_hash = 2;
   MapperMetadata metadata = 3;
 	// TODO(al): define serialized format for the signature scheme.
-  DigitallySigned signature = 4;
+  signature.DigitallySigned signature = 4;
 
   int64 map_id = 5;
   int64 map_revision = 6;

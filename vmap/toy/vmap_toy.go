@@ -25,6 +25,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle"
+	spb "github.com/google/trillian/proto/signature"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/mysql"
 	"github.com/google/trillian/testonly"
@@ -123,7 +124,7 @@ func main() {
 			RootHash:       root,
 			MapId:          mapID,
 			MapRevision:    tx.WriteRevision(),
-			Signature:      &trillian.DigitallySigned{},
+			Signature:      &spb.DigitallySigned{},
 		}); err != nil {
 			glog.Fatalf("Failed to store SMH: %v", err)
 		}
