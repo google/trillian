@@ -34,7 +34,7 @@ func TestAddGetLeaf(t *testing.T) {
 
 func TestAddLeaf(t *testing.T) {
 	ctx := context.Background()
-	env, err := integration.NewLogEnv("TestAddLeaf")
+	env, err := integration.NewLogEnv(ctx, "TestAddLeaf")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +58,7 @@ func TestAddLeaf(t *testing.T) {
 
 func TestUpdateSTR(t *testing.T) {
 	ctx := context.Background()
-	env, err := integration.NewLogEnv("TestUpdateSTR")
+	env, err := integration.NewLogEnv(ctx, "TestUpdateSTR")
 	if err != nil {
 		t.Fatal(err)
 	}
