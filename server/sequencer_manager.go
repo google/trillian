@@ -110,9 +110,9 @@ func (s SequencerManager) ExecutePass(logIDs []int64, logctx LogOperationManager
 				glog.Infof("%v: sequenced %d leaves in %.2f seconds (%.2f qps)", logID, leaves, d, float64(leaves)/d)
 
 				mu.Lock()
-				defer mu.Unlock()
 				successCount++
 				leavesAdded += leaves
+				mu.Unlock()
 			}
 		}()
 	}
