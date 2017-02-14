@@ -45,7 +45,6 @@ var (
 	sleep              = time.Duration(0)
 	signInterval       = time.Duration(0)
 	timeSource         = util.SystemTimeSource{}
-	ctx                = context.Background()
 )
 
 // LogEnv is a test environment that contains both a log server and a connection to it.
@@ -117,7 +116,7 @@ func getTestDB(testID string) (*sql.DB, error) {
 
 // NewLogEnv creates a fresh DB, log server, and client.
 // testID should be unique to each unittest package so as to allow parallel tests.
-func NewLogEnv(testID string) (*LogEnv, error) {
+func NewLogEnv(ctx context.Context, testID string) (*LogEnv, error) {
 	db, err := getTestDB(testID)
 	if err != nil {
 		return nil, err
