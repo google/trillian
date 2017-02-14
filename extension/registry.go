@@ -23,11 +23,9 @@ import (
 // implementation.
 type Registry interface {
 
-	// GetLogStorage returns a configured storage.LogStorage instance for the specified tree ID or an
-	// error if the storage cannot be set up.
+	// GetLogStorage returns a configured storage.LogStorage instance or an error if the storage cannot be set up.
 	GetLogStorage() (storage.LogStorage, error)
 
-	// GetMapStorage returns a configured storage.MapStorage instance for the specified tree ID or an
-	// error if the storage cannot be set up.
+	// GetMapStorage returns a configured storage.MapStorage instance or an error if the storage cannot be set up.
 	GetMapStorage() (storage.MapStorage, error)
 }

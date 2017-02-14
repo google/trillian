@@ -44,7 +44,6 @@ func (r *defaultRegistry) GetMapStorage() (storage.MapStorage, error) {
 
 // NewDefaultExtensionRegistry returns the default extension.Registry implementation, which is
 // backed by a MySQL database and configured via flags.
-// The returned registry is wraped in a cached registry.
 func NewDefaultExtensionRegistry() (extension.Registry, error) {
 	db, err := mysql.OpenDB(*MySQLURIFlag)
 	if err != nil {
