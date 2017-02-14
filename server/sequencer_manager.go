@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/log"
 	"github.com/google/trillian/merkle"
@@ -28,16 +27,14 @@ import (
 
 // SequencerManager provides sequencing operations for a collection of Logs.
 type SequencerManager struct {
-	keyManager  crypto.KeyManager
 	guardWindow time.Duration
 	registry    extension.Registry
 }
 
 // NewSequencerManager creates a new SequencerManager instance based on the provided KeyManager instance
 // and guard window.
-func NewSequencerManager(km crypto.KeyManager, registry extension.Registry, gw time.Duration) *SequencerManager {
+func NewSequencerManager(registry extension.Registry, gw time.Duration) *SequencerManager {
 	return &SequencerManager{
-		keyManager:  km,
 		guardWindow: gw,
 		registry:    registry,
 	}
@@ -98,7 +95,14 @@ func (s SequencerManager) ExecutePass(logIDs []int64, logctx LogOperationManager
 					glog.Errorf("Unknown hash strategy for log %d: %v", logID, err)
 					continue
 				}
-				sequencer := log.NewSequencer(hasher, logctx.timeSource, storage, s.keyManager)
+
+				keyManager, err := s.registry.GetKeyManager(logID)
+				if err != nil {
+					glog.Errorf("No key manager for log %d: %v", logID, err)
+					continue
+				}
+
+				sequencer := log.NewSequencer(hasher, logctx.timeSource, storage, keyManager)
 				sequencer.SetGuardWindow(s.guardWindow)
 
 				leaves, err := sequencer.SequenceBatch(ctx, logID, logctx.batchSize)

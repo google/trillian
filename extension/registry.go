@@ -15,6 +15,7 @@
 package extension
 
 import (
+	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/storage"
 )
 
@@ -28,4 +29,8 @@ type Registry interface {
 
 	// GetMapStorage returns a configured storage.MapStorage instance or an error if the storage cannot be set up.
 	GetMapStorage() (storage.MapStorage, error)
+
+	// GetKeyManager returns a configured crypto.KeyManager instance for the specified tree ID or an
+	// error if the key manager cannot be set up.
+	GetKeyManager(treeID int64) (crypto.KeyManager, error)
 }

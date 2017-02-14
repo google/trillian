@@ -26,7 +26,6 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/extension/builtin"
 	"github.com/google/trillian/monitoring"
@@ -45,11 +44,6 @@ var (
 	batchSizeFlag                 = flag.Int("batch_size", 50, "Max number of leaves to process per batch")
 	numSeqFlag                    = flag.Int("num_sequencers", 10, "Number of sequencers to run in parallel")
 	sequencerGuardWindowFlag      = flag.Duration("sequencer_guard_window", 0, "If set, the time elapsed before submitted leaves are eligible for sequencing")
-
-	// TODO(Martin2112): Single private key doesn't really work for multi tenant and we can't use
-	// an HSM interface in this way. Deferring these issues for later.
-	privateKeyFile     = flag.String("private_key_file", "", "File containing a PEM encoded private key")
-	privateKeyPassword = flag.String("private_key_password", "", "Password for server private key")
 )
 
 func startRPCServer(registry extension.Registry) (*grpc.Server, error) {
@@ -102,18 +96,10 @@ func main() {
 	glog.CopyStandardLogTo("WARNING")
 	glog.Info("**** Log RPC Server Starting ****")
 
-	// First make sure we can access the database, quit if not
+	// First make sure we can access the database and keys, quit if not
 	registry, err := builtin.NewDefaultExtensionRegistry()
 	if err != nil {
 		glog.Exitf("Failed to create extension registry: %v", err)
-	}
-
-	// Load up our private key, exit if this fails to work
-	// TODO(Martin2112): This will need to be changed for multi tenant as we'll need at
-	// least one key per tenant, possibly more.
-	keyManager, err := crypto.LoadPasswordProtectedPrivateKey(*privateKeyFile, *privateKeyPassword)
-	if err != nil {
-		glog.Exitf("Failed to load log server key: %v", err)
 	}
 
 	// Start HTTP server (optional)
@@ -137,7 +123,7 @@ func main() {
 	// TODO(Martin2112): Should respect read only mode and the flags in tree control etc
 	ctx, cancel := context.WithCancel(context.Background())
 
-	sequencerManager := server.NewSequencerManager(keyManager, registry, *sequencerGuardWindowFlag)
+	sequencerManager := server.NewSequencerManager(registry, *sequencerGuardWindowFlag)
 	sequencerTask := server.NewLogOperationManager(ctx, registry, *batchSizeFlag, *numSeqFlag, *sequencerSleepBetweenRunsFlag, util.SystemTimeSource{}, sequencerManager)
 	go sequencerTask.OperationLoop()
 

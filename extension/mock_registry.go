@@ -5,6 +5,7 @@ package extension
 
 import (
 	gomock "github.com/golang/mock/gomock"
+	crypto "github.com/google/trillian/crypto"
 	storage "github.com/google/trillian/storage"
 )
 
@@ -27,6 +28,17 @@ func NewMockRegistry(ctrl *gomock.Controller) *MockRegistry {
 
 func (_m *MockRegistry) EXPECT() *_MockRegistryRecorder {
 	return _m.recorder
+}
+
+func (_m *MockRegistry) GetKeyManager(_param0 int64) (crypto.KeyManager, error) {
+	ret := _m.ctrl.Call(_m, "GetKeyManager", _param0)
+	ret0, _ := ret[0].(crypto.KeyManager)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+func (_mr *_MockRegistryRecorder) GetKeyManager(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetKeyManager", arg0)
 }
 
 func (_m *MockRegistry) GetLogStorage() (storage.LogStorage, error) {
