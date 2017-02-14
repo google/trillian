@@ -17,6 +17,7 @@ package integration
 import (
 	"context"
 	"database/sql"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -24,7 +25,6 @@ import (
 	"time"
 
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/extension/builtin"
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/storage/mysql"
@@ -123,6 +123,9 @@ func NewLogEnv(testID string) (*LogEnv, error) {
 		return nil, err
 	}
 
+	flag.Set("private_key_file", privateKeyFile)
+	flag.Set("private_key_password", privateKeyPassword)
+
 	timesource := &util.SystemTimeSource{}
 	registry, err := builtin.NewDefaultExtensionRegistry()
 	if err != nil {
@@ -135,12 +138,7 @@ func NewLogEnv(testID string) (*LogEnv, error) {
 	trillian.RegisterTrillianLogServer(grpcServer, logServer)
 
 	// Start Sequencer.
-	keyManager, err := crypto.LoadPasswordProtectedPrivateKey(privateKeyFile, privateKeyPassword)
-	if err != nil {
-		return nil, err
-	}
-	sequencerManager := server.NewSequencerManager(keyManager, registry,
-		sequencerWindow)
+	sequencerManager := server.NewSequencerManager(registry, sequencerWindow)
 	sequencerTask := server.NewLogOperationManagerForTest(ctx, registry,
 		batchSize, sleep, timeSource, sequencerManager)
 

@@ -25,7 +25,6 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/golang/glog"
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/extension/builtin"
 	"github.com/google/trillian/server/vmap"
@@ -36,11 +35,6 @@ import (
 var serverPortFlag = flag.Int("port", 8090, "Port to serve log RPC requests on")
 var exportRPCMetrics = flag.Bool("export_metrics", true, "If true starts HTTP server and exports stats")
 var httpPortFlag = flag.Int("http_port", 8091, "Port to serve HTTP metrics on")
-
-// TODO(Martin2112): Single private key doesn't really work for multi tenant and we can't use
-// an HSM interface in this way. Deferring these issues for later.
-var privateKeyFile = flag.String("private_key_file", "", "File containing a PEM encoded private key")
-var privateKeyPassword = flag.String("private_key_password", "", "Password for server private key")
 
 func startRPCServer(registry extension.Registry) (*grpc.Server, error) {
 	mapServer := vmap.NewTrillianMapServer(registry)
@@ -74,13 +68,6 @@ func main() {
 	registry, err := builtin.NewDefaultExtensionRegistry()
 	if err != nil {
 		glog.Exitf("Failed to create extension registry: %v", err)
-	}
-
-	// Load up our private key, exit if this fails to work
-	// TODO(Martin2112): This will need to be changed for multi tenant as we'll need at
-	// least one key per tenant, possibly more.
-	if _, err = crypto.LoadPasswordProtectedPrivateKey(*privateKeyFile, *privateKeyPassword); err != nil {
-		glog.Exitf("Failed to load map server key: %v", err)
 	}
 
 	// Start HTTP server (optional)

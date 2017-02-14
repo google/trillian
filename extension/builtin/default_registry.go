@@ -20,18 +20,25 @@ import (
 
 	_ "github.com/go-sql-driver/mysql" // Load MySQL driver
 
+	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/mysql"
 )
 
-// MySQLURIFlag is the mysql db connection string.
-var MySQLURIFlag = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test",
-	"uri to use with mysql storage")
+var (
+	// MySQLURIFlag is the mysql db connection string.
+	MySQLURIFlag = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "uri to use with mysql storage")
+	// TODO(Martin2112): Single private key doesn't really work for multi tenant and we can't use
+	// an HSM interface in this way. Deferring these issues for later.
+	privateKeyFile     = flag.String("private_key_file", "", "File containing a PEM encoded private key")
+	privateKeyPassword = flag.String("private_key_password", "", "Password for server private key")
+)
 
 // Default implementation of extension.Registry.
 type defaultRegistry struct {
 	db *sql.DB
+	km crypto.KeyManager
 }
 
 func (r *defaultRegistry) GetLogStorage() (storage.LogStorage, error) {
@@ -42,6 +49,10 @@ func (r *defaultRegistry) GetMapStorage() (storage.MapStorage, error) {
 	return mysql.NewMapStorage(r.db)
 }
 
+func (r *defaultRegistry) GetKeyManager(treeID int64) (crypto.KeyManager, error) {
+	return r.km, nil
+}
+
 // NewDefaultExtensionRegistry returns the default extension.Registry implementation, which is
 // backed by a MySQL database and configured via flags.
 func NewDefaultExtensionRegistry() (extension.Registry, error) {
@@ -49,7 +60,12 @@ func NewDefaultExtensionRegistry() (extension.Registry, error) {
 	if err != nil {
 		return nil, err
 	}
+	km, err := crypto.LoadPasswordProtectedPrivateKey(*privateKeyFile, *privateKeyPassword)
+	if err != nil {
+		return nil, err
+	}
 	return &defaultRegistry{
 		db: db,
+		km: km,
 	}, nil
 }
