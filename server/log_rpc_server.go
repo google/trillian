@@ -48,6 +48,15 @@ func NewTrillianLogRPCServer(registry extension.Registry, timeSource util.TimeSo
 	}
 }
 
+// IsHealthy returns nil if the server is healthy, error otherwise.
+func (t *TrillianLogRPCServer) IsHealthy() error {
+	s, err := t.registry.GetLogStorage()
+	if err != nil {
+		return err
+	}
+	return s.CheckDatabaseAccessible(context.Background())
+}
+
 // QueueLeaf submits one leaf to the queue.
 func (t *TrillianLogRPCServer) QueueLeaf(ctx context.Context, req *trillian.QueueLeafRequest) (*empty.Empty, error) {
 	queueReq := &trillian.QueueLeavesRequest{

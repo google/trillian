@@ -39,6 +39,15 @@ func NewTrillianMapServer(registry extension.Registry) *TrillianMapServer {
 	return &TrillianMapServer{registry}
 }
 
+// IsHealthy returns nil if the server is healthy, error otherwise.
+func (t *TrillianMapServer) IsHealthy() error {
+	s, err := t.registry.GetMapStorage()
+	if err != nil {
+		return err
+	}
+	return s.CheckDatabaseAccessible(context.Background())
+}
+
 func (t *TrillianMapServer) getHasherForMap(mapID int64) (merkle.MapHasher, error) {
 	// TODO(al): actually return tailored hashers.
 	h, err := merkle.Factory(merkle.RFC6962SHA256Type)
