@@ -130,6 +130,11 @@ func (l LogOperationManager) getLogsAndExecutePass(ctx context.Context) bool {
 	return false
 }
 
+// OperationSingle performs a single pass of the manager.
+func (l LogOperationManager) OperationSingle() {
+	l.getLogsAndExecutePass(l.context.ctx)
+}
+
 // OperationLoop starts the manager working. It continues until told to exit.
 // TODO(Martin2112): No mechanism for error reporting etc., this is OK for v1 but needs work
 func (l LogOperationManager) OperationLoop() {
