@@ -40,18 +40,18 @@ func main() {
 
 	db, err := mysql.OpenDB(*mySQLURIFlag)
 	if err != nil {
-		glog.Fatalf("Failed to open DB connection: %v", err)
+		glog.Exitf("Failed to open DB connection: %v", err)
 	}
 
 	mapID := int64(1)
 	ms, err := mysql.NewMapStorage(db)
 	if err != nil {
-		glog.Fatalf("Failed create MapStorage: %v", err)
+		glog.Exitf("Failed create MapStorage: %v", err)
 	}
 
 	h, err := merkle.Factory(merkle.RFC6962SHA256Type)
 	if err != nil {
-		glog.Fatalf("Could not find hasher: %v", err)
+		glog.Exitf("Could not find hasher: %v", err)
 	}
 	hasher := merkle.NewMapHasher(h)
 
@@ -87,14 +87,14 @@ func main() {
 	for x := 0; x < numBatches; x++ {
 		tx, err := ms.BeginForTree(ctx, mapID)
 		if err != nil {
-			glog.Fatalf("Failed to Begin() a new tx: %v", err)
+			glog.Exitf("Failed to Begin() a new tx: %v", err)
 		}
 		w, err := merkle.NewSparseMerkleTreeWriter(tx.WriteRevision(), hasher,
 			func() (storage.TreeTX, error) {
 				return ms.BeginForTree(ctx, mapID)
 			})
 		if err != nil {
-			glog.Fatalf("Failed to create new SMTWriter: %v", err)
+			glog.Exitf("Failed to create new SMTWriter: %v", err)
 		}
 
 		glog.Infof("Starting batch %d...", x)
@@ -107,14 +107,14 @@ func main() {
 
 		glog.Info("SetLeaves...")
 		if err := w.SetLeaves(h); err != nil {
-			glog.Fatalf("Failed to batch %d: %v", x, err)
+			glog.Exitf("Failed to batch %d: %v", x, err)
 		}
 		glog.Info("SetLeaves done.")
 
 		glog.Info("CalculateRoot...")
 		root, err = w.CalculateRoot()
 		if err != nil {
-			glog.Fatalf("Failed to calculate root hash: %v", err)
+			glog.Exitf("Failed to calculate root hash: %v", err)
 		}
 		glog.Infof("CalculateRoot (%d), root: %s", x, base64.StdEncoding.EncodeToString(root))
 
@@ -125,17 +125,17 @@ func main() {
 			MapRevision:    tx.WriteRevision(),
 			Signature:      &trillian.DigitallySigned{},
 		}); err != nil {
-			glog.Fatalf("Failed to store SMH: %v", err)
+			glog.Exitf("Failed to store SMH: %v", err)
 		}
 
 		err = tx.Commit()
 		if err != nil {
-			glog.Fatalf("Failed to Commit() tx: %v", err)
+			glog.Exitf("Failed to Commit() tx: %v", err)
 		}
 	}
 
 	if expected, got := testonly.MustDecodeBase64(expectedRootB64), root; !bytes.Equal(expected, root) {
-		glog.Fatalf("Expected root %s, got root: %s", base64.StdEncoding.EncodeToString(expected), base64.StdEncoding.EncodeToString(got))
+		glog.Exitf("Expected root %s, got root: %s", base64.StdEncoding.EncodeToString(expected), base64.StdEncoding.EncodeToString(got))
 	}
 	glog.Infof("Finished, root: %s", base64.StdEncoding.EncodeToString(root))
 

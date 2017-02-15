@@ -55,7 +55,7 @@ var (
 func main() {
 	flag.Parse()
 	if *logConfigFlag == "" {
-		glog.Fatal("Test aborted as no log config provided (via --log_config)")
+		glog.Exit("Test aborted as no log config provided (via --log_config)")
 	}
 	if *seed == -1 {
 		*seed = time.Now().UTC().UnixNano() & 0xFFFFFFFF
@@ -65,29 +65,29 @@ func main() {
 
 	cfg, err := ctfe.LogConfigFromFile(*logConfigFlag)
 	if err != nil {
-		glog.Fatalf("Failed to read log config: %v", err)
+		glog.Exitf("Failed to read log config: %v", err)
 	}
 
 	// Retrieve the test data.
 	caChain, err := integration.GetChain(*testDir, "int-ca.cert")
 	if err != nil {
-		glog.Fatalf("failed to load certificate: %v", err)
+		glog.Exitf("failed to load certificate: %v", err)
 	}
 	leafChain, err := integration.GetChain(*testDir, "leaf01.chain")
 	if err != nil {
-		glog.Fatalf("failed to load certificate: %v", err)
+		glog.Exitf("failed to load certificate: %v", err)
 	}
 	signer, err := integration.MakeSigner(*testDir)
 	if err != nil {
-		glog.Fatalf("failed to retrieve signer for re-signing: %v", err)
+		glog.Exitf("failed to retrieve signer for re-signing: %v", err)
 	}
 	leafCert, err := x509.ParseCertificate(leafChain[0].Data)
 	if err != nil {
-		glog.Fatalf("failed to parse leaf certificate to build precert from: %v", err)
+		glog.Exitf("failed to parse leaf certificate to build precert from: %v", err)
 	}
 	caCert, err := x509.ParseCertificate(caChain[0].Data)
 	if err != nil {
-		glog.Fatalf("failed to parse issuer for precert: %v", err)
+		glog.Exitf("failed to parse issuer for precert: %v", err)
 	}
 	bias := integration.HammerBias{Bias: map[ctfe.EntrypointName]int{
 		ctfe.AddChainName:          *addChainBias,

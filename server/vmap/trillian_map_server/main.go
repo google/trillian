@@ -73,21 +73,21 @@ func main() {
 
 	registry, err := builtin.NewDefaultExtensionRegistry()
 	if err != nil {
-		glog.Fatalf("Failed create extension registry: %v", err)
+		glog.Exitf("Failed to create extension registry: %v", err)
 	}
 
 	// Load up our private key, exit if this fails to work
 	// TODO(Martin2112): This will need to be changed for multi tenant as we'll need at
 	// least one key per tenant, possibly more.
 	if _, err = crypto.LoadPasswordProtectedPrivateKey(*privateKeyFile, *privateKeyPassword); err != nil {
-		glog.Fatalf("Failed to load map server key: %v", err)
+		glog.Exitf("Failed to load map server key: %v", err)
 	}
 
 	// Start HTTP server (optional)
 	if *exportRPCMetrics {
 		glog.Infof("Creating HTP server starting on port: %d", *httpPortFlag)
 		if err := startHTTPServer(*httpPortFlag); err != nil {
-			glog.Fatalf("Failed to start http server on port %d: %v", *httpPortFlag, err)
+			glog.Exitf("Failed to start http server on port %d: %v", *httpPortFlag, err)
 		}
 	}
 

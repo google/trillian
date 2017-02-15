@@ -189,7 +189,7 @@ func main() {
 	if *exportRPCMetrics {
 		err := startHTTPServer(*httpPortFlag)
 		if err != nil {
-			glog.Fatalf("Failed to start http server on port %d: %v", *httpPortFlag, err)
+			glog.Exitf("Failed to start http server on port %d: %v", *httpPortFlag, err)
 		}
 	}
 

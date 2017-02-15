@@ -105,7 +105,7 @@ func main() {
 	// First make sure we can access the database, quit if not
 	registry, err := builtin.NewDefaultExtensionRegistry()
 	if err != nil {
-		glog.Fatalf("Failed create extension registry: %v", err)
+		glog.Exitf("Failed to create extension registry: %v", err)
 	}
 
 	// Load up our private key, exit if this fails to work
@@ -113,14 +113,14 @@ func main() {
 	// least one key per tenant, possibly more.
 	keyManager, err := crypto.LoadPasswordProtectedPrivateKey(*privateKeyFile, *privateKeyPassword)
 	if err != nil {
-		glog.Fatalf("Failed to load log server key: %v", err)
+		glog.Exitf("Failed to load log server key: %v", err)
 	}
 
 	// Start HTTP server (optional)
 	if *exportRPCMetrics {
 		glog.Infof("Creating HTP server starting on port: %d", *httpPortFlag)
 		if err := startHTTPServer(*httpPortFlag); err != nil {
-			glog.Fatalf("Failed to start http server on port %d: %v", *httpPortFlag, err)
+			glog.Exitf("Failed to start http server on port %d: %v", *httpPortFlag, err)
 		}
 	}
 
@@ -149,7 +149,7 @@ func main() {
 	go awaitSignal(rpcServer)
 
 	if err := rpcServer.Serve(lis); err != nil {
-		glog.Fatalf("RPC server terminated on port %d: %v", *serverPortFlag, err)
+		glog.Errorf("RPC server terminated on port %d: %v", *serverPortFlag, err)
 	}
 
 	// Shut down everything we previously started, rpc server is already down
