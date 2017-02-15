@@ -62,7 +62,11 @@ func NewSigner(hashAlgo crypto.Hash, sigAlgo spb.DigitallySigned_SignatureAlgori
 		panic("unsupported hash algorithm")
 	}
 
-	return &Signer{hashAlgo, signer, sigAlgo}
+	return &Signer{
+		hasher:       hashAlgo,
+		signer:       signer,
+		sigAlgorithm: sigAlgo,
+	}
 }
 
 // Sign obtains a signature after first hashing the input data.
