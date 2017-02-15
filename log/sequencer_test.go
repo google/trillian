@@ -25,7 +25,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
-	spb "github.com/google/trillian/proto/signature"
+	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/util"
@@ -57,9 +57,9 @@ var expectedSignedRoot = trillian.SignedLogRoot{
 	TreeRevision:   6,
 	TreeSize:       17,
 	LogId:          0,
-	Signature: &spb.DigitallySigned{
-		SignatureAlgorithm: spb.DigitallySigned_ECDSA,
-		HashAlgorithm:      spb.DigitallySigned_SHA256,
+	Signature: &sigpb.DigitallySigned{
+		SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
+		HashAlgorithm:      sigpb.DigitallySigned_SHA256,
 		Signature:          []byte("signed"),
 	},
 }
@@ -71,9 +71,9 @@ var expectedSignedRoot16 = trillian.SignedLogRoot{
 	TreeSize:       16,
 	RootHash:       testRoot16.RootHash,
 	LogId:          0,
-	Signature: &spb.DigitallySigned{
-		SignatureAlgorithm: spb.DigitallySigned_ECDSA,
-		HashAlgorithm:      spb.DigitallySigned_SHA256,
+	Signature: &sigpb.DigitallySigned{
+		SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
+		HashAlgorithm:      sigpb.DigitallySigned_SHA256,
 		Signature:          []byte("signed"),
 	},
 }
@@ -85,9 +85,9 @@ var expectedSignedRoot0 = trillian.SignedLogRoot{
 	TreeRevision:   1,
 	TreeSize:       0,
 	LogId:          0,
-	Signature: &spb.DigitallySigned{
-		SignatureAlgorithm: spb.DigitallySigned_ECDSA,
-		HashAlgorithm:      spb.DigitallySigned_SHA256,
+	Signature: &sigpb.DigitallySigned{
+		SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
+		HashAlgorithm:      sigpb.DigitallySigned_SHA256,
 		Signature:          []byte("signed"),
 	},
 }
@@ -223,7 +223,7 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) (testCont
 		mockKeyManager.EXPECT().HashAlgorithm().AnyTimes().Return(gocrypto.SHA256)
 		mockSigner.EXPECT().Sign(gomock.Any(), params.dataToSign, gocrypto.SHA256).AnyTimes().Return(params.signingResult, params.signingError)
 		mockKeyManager.EXPECT().Signer().AnyTimes().Return(mockSigner, params.keyManagerError)
-		mockKeyManager.EXPECT().SignatureAlgorithm().AnyTimes().Return(spb.DigitallySigned_ECDSA)
+		mockKeyManager.EXPECT().SignatureAlgorithm().AnyTimes().Return(sigpb.DigitallySigned_ECDSA)
 	}
 
 	sequencer := NewSequencer(testonly.Hasher, util.FakeTimeSource{FakeTime: fakeTimeForTest}, mockStorage, mockKeyManager)

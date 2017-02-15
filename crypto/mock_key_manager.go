@@ -6,7 +6,7 @@ package crypto
 import (
 	crypto "crypto"
 	gomock "github.com/golang/mock/gomock"
-	signature "github.com/google/trillian/proto/signature"
+	sigpb "github.com/google/trillian/crypto/sigpb"
 )
 
 // Mock of KeyManager interface
@@ -62,9 +62,9 @@ func (_mr *_MockKeyManagerRecorder) HashAlgorithm() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "HashAlgorithm")
 }
 
-func (_m *MockKeyManager) SignatureAlgorithm() signature.DigitallySigned_SignatureAlgorithm {
+func (_m *MockKeyManager) SignatureAlgorithm() sigpb.DigitallySigned_SignatureAlgorithm {
 	ret := _m.ctrl.Call(_m, "SignatureAlgorithm")
-	ret0, _ := ret[0].(signature.DigitallySigned_SignatureAlgorithm)
+	ret0, _ := ret[0].(sigpb.DigitallySigned_SignatureAlgorithm)
 	return ret0
 }
 

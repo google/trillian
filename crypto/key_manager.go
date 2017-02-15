@@ -25,7 +25,7 @@ import (
 	"io/ioutil"
 
 	"github.com/golang/glog"
-	spb "github.com/google/trillian/proto/signature"
+	"github.com/google/trillian/crypto/sigpb"
 )
 
 // KeyManager loads and holds our private and public keys. Should support ECDSA and RSA keys.
@@ -38,7 +38,7 @@ type KeyManager interface {
 	// manager.
 	Signer() (crypto.Signer, error)
 	// SignatureAlgorithm returns the value that identifies the signature algorithm.
-	SignatureAlgorithm() spb.DigitallySigned_SignatureAlgorithm
+	SignatureAlgorithm() sigpb.DigitallySigned_SignatureAlgorithm
 	// HashAlgorithm returns the type of hash that will be used for signing with this key.
 	HashAlgorithm() crypto.Hash
 	// GetPublicKey returns the public key previously loaded. It is an error to call this
@@ -54,7 +54,7 @@ type KeyManager interface {
 // PEM file.
 type PEMKeyManager struct {
 	serverPrivateKey   crypto.PrivateKey
-	signatureAlgorithm spb.DigitallySigned_SignatureAlgorithm
+	signatureAlgorithm sigpb.DigitallySigned_SignatureAlgorithm
 	serverPublicKey    crypto.PublicKey
 	rawPublicKey       []byte
 }
@@ -71,7 +71,7 @@ func (k PEMKeyManager) NewPEMKeyManager(key crypto.PrivateKey) *PEMKeyManager {
 }
 
 // SignatureAlgorithm identifies the signature algorithm used by this key manager.
-func (k PEMKeyManager) SignatureAlgorithm() spb.DigitallySigned_SignatureAlgorithm {
+func (k PEMKeyManager) SignatureAlgorithm() sigpb.DigitallySigned_SignatureAlgorithm {
 	return k.signatureAlgorithm
 }
 
@@ -172,29 +172,29 @@ func (k PEMKeyManager) GetRawPublicKey() ([]byte, error) {
 	return k.rawPublicKey, nil
 }
 
-func parsePrivateKey(key []byte) (crypto.PrivateKey, spb.DigitallySigned_SignatureAlgorithm, error) {
+func parsePrivateKey(key []byte) (crypto.PrivateKey, sigpb.DigitallySigned_SignatureAlgorithm, error) {
 	// Our two ways of reading keys are ParsePKCS1PrivateKey and ParsePKCS8PrivateKey.
 	// And ParseECPrivateKey. Our three ways of parsing keys are ... I'll come in again.
 	if key, err := x509.ParsePKCS1PrivateKey(key); err == nil {
-		return key, spb.DigitallySigned_RSA, nil
+		return key, sigpb.DigitallySigned_RSA, nil
 	}
 	if key, err := x509.ParsePKCS8PrivateKey(key); err == nil {
 		switch key := key.(type) {
 		case *ecdsa.PrivateKey:
-			return key, spb.DigitallySigned_ECDSA, nil
+			return key, sigpb.DigitallySigned_ECDSA, nil
 		case *rsa.PrivateKey:
-			return key, spb.DigitallySigned_RSA, nil
+			return key, sigpb.DigitallySigned_RSA, nil
 		default:
-			return nil, spb.DigitallySigned_ANONYMOUS, fmt.Errorf("unknown private key type: %T", key)
+			return nil, sigpb.DigitallySigned_ANONYMOUS, fmt.Errorf("unknown private key type: %T", key)
 		}
 	}
 	var err error
 	if key, err := x509.ParseECPrivateKey(key); err == nil {
-		return key, spb.DigitallySigned_ECDSA, nil
+		return key, sigpb.DigitallySigned_ECDSA, nil
 	}
 
 	glog.Warningf("error parsing EC key: %s", err)
-	return nil, spb.DigitallySigned_ANONYMOUS, errors.New("could not parse private key")
+	return nil, sigpb.DigitallySigned_ANONYMOUS, errors.New("could not parse private key")
 }
 
 // LoadPasswordProtectedPrivateKey initializes and returns a new KeyManager using a PEM encoded

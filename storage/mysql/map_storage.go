@@ -21,8 +21,8 @@ import (
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
+	spb "github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/merkle"
-	spb "github.com/google/trillian/proto/signature"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
 )

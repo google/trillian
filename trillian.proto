@@ -16,7 +16,7 @@ syntax = "proto3";
 
 package trillian;
 
-import "github.com/google/trillian/proto/signature/signature.proto";
+import "github.com/google/trillian/crypto/sigpb/sigpb.proto";
 
 // What goes in here?
 // Things which are exposed through the public trillian APIs.
@@ -109,11 +109,11 @@ message Tree {
 
   // Hash algorithm to be used by the tree.
   // Readonly.
-  signature.DigitallySigned.HashAlgorithm hash_algorithm = 5;
+  sigpb.DigitallySigned.HashAlgorithm hash_algorithm = 5;
 
   // Signature algorithm to be used by the tree.
   // Readonly.
-  signature.DigitallySigned.SignatureAlgorithm signature_algorithm = 6;
+  sigpb.DigitallySigned.SignatureAlgorithm signature_algorithm = 6;
 
   // Duplicate policy to be used by the tree.
   // Readonly.
@@ -139,7 +139,7 @@ message Tree {
 message SignedEntryTimestamp {
   int64 timestamp_nanos = 1;
   int64 log_id = 2;
-  signature.DigitallySigned signature = 3;
+  sigpb.DigitallySigned signature = 3;
 }
 
 // SignedLogRoot represents a commitment by a Log to a particular tree.
@@ -150,7 +150,7 @@ message SignedLogRoot {
 	// TreeSize is the number of entries in the tree.
   int64 tree_size = 3;
 	// TODO(al): define serialized format for the signature scheme.
-  signature.DigitallySigned signature = 4;
+  sigpb.DigitallySigned signature = 4;
 
   int64 log_id = 5;
   int64 tree_revision = 6;
@@ -168,7 +168,7 @@ message SignedMapRoot {
   bytes root_hash = 2;
   MapperMetadata metadata = 3;
 	// TODO(al): define serialized format for the signature scheme.
-  signature.DigitallySigned signature = 4;
+  sigpb.DigitallySigned signature = 4;
 
   int64 map_id = 5;
   int64 map_revision = 6;

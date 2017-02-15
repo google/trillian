@@ -23,14 +23,14 @@ import (
 	"fmt"
 	"math/big"
 
-	spb "github.com/google/trillian/proto/signature"
+	"github.com/google/trillian/crypto/sigpb"
 )
 
 // ErrVerify occurs whenever signature verification fails.
 var ErrVerify = errors.New("signature verification failed")
 
 // Verify cryptographically verifies the output of Signer.
-func Verify(pub crypto.PublicKey, data []byte, sig spb.DigitallySigned) error {
+func Verify(pub crypto.PublicKey, data []byte, sig sigpb.DigitallySigned) error {
 	sigAlgo := sig.SignatureAlgorithm
 
 	// Recompute digest
@@ -45,12 +45,12 @@ func Verify(pub crypto.PublicKey, data []byte, sig spb.DigitallySigned) error {
 	// Verify signature algo type
 	switch key := pub.(type) {
 	case *ecdsa.PublicKey:
-		if sigAlgo != spb.DigitallySigned_ECDSA {
+		if sigAlgo != sigpb.DigitallySigned_ECDSA {
 			return fmt.Errorf("signature algorithm does not match public key")
 		}
 		return verifyECDSA(key, digest, sig.Signature)
 	case *rsa.PublicKey:
-		if sigAlgo != spb.DigitallySigned_RSA {
+		if sigAlgo != sigpb.DigitallySigned_RSA {
 			return fmt.Errorf("signature algorithm does not match public key")
 		}
 		return verifyRSA(key, digest, sig.Signature, hasher, hasher)

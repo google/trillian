@@ -14,7 +14,7 @@
 
 syntax = "proto3";
 
-package signature;
+package sigpb;
 
 // Protocol buffer encoding of the TLS DigitallySigned type, from RFC 5246 §4.7.
 message DigitallySigned {

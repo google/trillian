@@ -12,6 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package signature
+package sigpb
 
-//go:generate protoc -I=. --go_out=:. signature.proto
+//go:generate protoc -I=. --go_out=:. sigpb.proto

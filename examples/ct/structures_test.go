@@ -25,7 +25,7 @@ import (
 	ct "github.com/google/certificate-transparency/go"
 	"github.com/google/certificate-transparency/go/tls"
 	"github.com/google/trillian/crypto"
-	spb "github.com/google/trillian/proto/signature"
+	spb "github.com/google/trillian/crypto/sigpb"
 )
 
 var fixedTime = time.Date(2017, 9, 7, 12, 15, 23, 0, time.UTC)

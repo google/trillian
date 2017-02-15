@@ -18,7 +18,7 @@ import (
 	"fmt"
 
 	"github.com/google/trillian"
-	spb "github.com/google/trillian/proto/signature"
+	"github.com/google/trillian/crypto/sigpb"
 )
 
 const (
@@ -38,9 +38,9 @@ func ValidateTreeForCreation(tree *trillian.Tree) error {
 		return fmt.Errorf("invalid tree_type: %s", tree.TreeType)
 	case tree.HashStrategy == trillian.HashStrategy_UNKNOWN_HASH_STRATEGY:
 		return fmt.Errorf("invalid hash_strategy: %s", tree.HashStrategy)
-	case tree.HashAlgorithm == spb.DigitallySigned_NONE:
+	case tree.HashAlgorithm == sigpb.DigitallySigned_NONE:
 		return fmt.Errorf("invalid hash_algorithm: %s", tree.HashStrategy)
-	case tree.SignatureAlgorithm == spb.DigitallySigned_ANONYMOUS:
+	case tree.SignatureAlgorithm == sigpb.DigitallySigned_ANONYMOUS:
 		return fmt.Errorf("invalid signature_algorithm: %s", tree.HashStrategy)
 	case tree.DuplicatePolicy == trillian.DuplicatePolicy_UNKNOWN_DUPLICATE_POLICY:
 		return fmt.Errorf("invalid duplicate_policy: %s", tree.HashStrategy)

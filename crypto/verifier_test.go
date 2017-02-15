@@ -18,7 +18,7 @@ import (
 	"crypto"
 	"testing"
 
-	spb "github.com/google/trillian/proto/signature"
+	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/testonly"
 )
 
@@ -36,11 +36,11 @@ func TestSignVerify(t *testing.T) {
 		PEM      string
 		password string
 		HashAlgo crypto.Hash
-		SigAlgo  spb.DigitallySigned_SignatureAlgorithm
+		SigAlgo  sigpb.DigitallySigned_SignatureAlgorithm
 	}{
-		{privPEM, "", crypto.SHA256, spb.DigitallySigned_ECDSA},
+		{privPEM, "", crypto.SHA256, sigpb.DigitallySigned_ECDSA},
 		{testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass,
-			crypto.SHA256, spb.DigitallySigned_ECDSA},
+			crypto.SHA256, sigpb.DigitallySigned_ECDSA},
 	} {
 
 		km := NewPEMKeyManager()

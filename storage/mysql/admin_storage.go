@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"github.com/google/trillian"
-	spb "github.com/google/trillian/proto/signature"
+	spb "github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/storage"
 	"golang.org/x/net/context"
 )
