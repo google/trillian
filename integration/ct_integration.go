@@ -44,9 +44,6 @@ import (
 	"golang.org/x/net/context/ctxhttp"
 )
 
-// TODO(drysdale): convert to use trillian/merkle to avoid the dependency on the
-// CT code (which in turn requires C++ code).
-
 // Verifier is used to verify Merkle tree calculations.
 var Verifier = merkletree.NewMerkleVerifier(func(data []byte) []byte {
 	hash := sha256.Sum256(data)
