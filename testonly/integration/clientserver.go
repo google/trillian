@@ -17,14 +17,15 @@ package integration
 import (
 	"context"
 	"database/sql"
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"net"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/extension/builtin"
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/storage/mysql"
@@ -42,19 +43,20 @@ var (
 	privateKeyPassword = "towel"
 	sequencerWindow    = time.Duration(0)
 	batchSize          = 50
-	sleep              = time.Duration(0)
-	signInterval       = time.Duration(0)
+	sleepBetweenRuns   = 100 * time.Millisecond
 	timeSource         = util.SystemTimeSource{}
 )
 
 // LogEnv is a test environment that contains both a log server and a connection to it.
 type LogEnv struct {
-	grpcServer   *grpc.Server
-	logServer    *server.TrillianLogRPCServer
-	LogOperation server.LogOperation
-	Sequencer    *server.LogOperationManager
-	ClientConn   *grpc.ClientConn
-	DB           *sql.DB
+	pendingTasks    *sync.WaitGroup
+	grpcServer      *grpc.Server
+	logServer       *server.TrillianLogRPCServer
+	LogOperation    server.LogOperation
+	Sequencer       *server.LogOperationManager
+	sequencerCancel context.CancelFunc
+	ClientConn      *grpc.ClientConn
+	DB              *sql.DB
 }
 
 // listen opens a random high numbered port for listening.
@@ -75,7 +77,6 @@ func listen() (string, net.Listener, error) {
 // Returns a database connection to the test database.
 func getTestDB(testID string) (*sql.DB, error) {
 	var testDBURI = fmt.Sprintf("root@tcp(127.0.0.1:3306)/log_unittest_%v", testID)
-	builtin.MySQLURIFlag = &testDBURI
 
 	// Drop existing database.
 	dbRoot, err := sql.Open("mysql", mysqlRootURI)
@@ -114,60 +115,96 @@ func getTestDB(testID string) (*sql.DB, error) {
 	return dbTest, nil
 }
 
-// NewLogEnv creates a fresh DB, log server, and client.
+// NewLogEnv creates a fresh DB, log server, and client. The numSequencers parameter
+// indicates how many sequencers to run in parallel; if numSequencers is zero a
+// manually-controlled test sequencer is used.
 // testID should be unique to each unittest package so as to allow parallel tests.
-func NewLogEnv(ctx context.Context, testID string) (*LogEnv, error) {
+func NewLogEnv(ctx context.Context, numSequencers int, testID string) (*LogEnv, error) {
 	db, err := getTestDB(testID)
 	if err != nil {
 		return nil, err
 	}
 
-	flag.Set("private_key_file", privateKeyFile)
-	flag.Set("private_key_password", privateKeyPassword)
-
-	timesource := &util.SystemTimeSource{}
-	registry, err := builtin.NewDefaultExtensionRegistry()
+	km, err := crypto.LoadPasswordProtectedPrivateKey(privateKeyFile, privateKeyPassword)
 	if err != nil {
 		return nil, err
 	}
 
-	// Start Log Server.
+	timesource := &util.SystemTimeSource{}
+	registry, err := builtin.NewExtensionRegistry(db, km)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create Log Server.
 	grpcServer := grpc.NewServer()
 	logServer := server.NewTrillianLogRPCServer(registry, timesource)
 	trillian.RegisterTrillianLogServer(grpcServer, logServer)
 
-	// Start Sequencer.
+	// Create Sequencer.
 	sequencerManager := server.NewSequencerManager(registry, sequencerWindow)
-	sequencerTask := server.NewLogOperationManagerForTest(ctx, registry,
-		batchSize, sleep, timeSource, sequencerManager)
+	var wg sync.WaitGroup
+	var sequencerTask *server.LogOperationManager
+	var cancel context.CancelFunc
+	if numSequencers == 0 {
+		// Test sequencer that needs manual triggering (with env.Sequencer.OperationLoop()).
+		sequencerTask = server.NewLogOperationManagerForTest(ctx, registry,
+			batchSize, sleepBetweenRuns, timeSource, sequencerManager)
+	} else {
+		// Start a live sequencer in a goroutine.
+		var ctx2 context.Context
+		ctx2, cancel = context.WithCancel(ctx)
+		sequencerTask = server.NewLogOperationManager(ctx2, registry,
+			batchSize, numSequencers, sleepBetweenRuns, timesource, sequencerManager)
+		wg.Add(1)
+		go func(wg *sync.WaitGroup, om *server.LogOperationManager) {
+			defer wg.Done()
+			om.OperationLoop()
+		}(&wg, sequencerTask)
+	}
 
 	// Listen and start server.
 	addr, lis, err := listen()
 	if err != nil {
+		if cancel != nil {
+			cancel()
+		}
 		return nil, err
 	}
-	go grpcServer.Serve(lis)
+	wg.Add(1)
+	go func(wg *sync.WaitGroup, grpcServer *grpc.Server, lis net.Listener) {
+		defer wg.Done()
+		grpcServer.Serve(lis)
+	}(&wg, grpcServer, lis)
 
 	// Connect to the server.
 	cc, err := grpc.Dial(addr, grpc.WithInsecure())
 	if err != nil {
+		if cancel != nil {
+			cancel()
+		}
 		return nil, err
 	}
-
 	return &LogEnv{
-		grpcServer:   grpcServer,
-		logServer:    logServer,
-		ClientConn:   cc,
-		DB:           db,
-		LogOperation: sequencerManager,
-		Sequencer:    sequencerTask,
+		pendingTasks:    &wg,
+		grpcServer:      grpcServer,
+		logServer:       logServer,
+		ClientConn:      cc,
+		DB:              db,
+		LogOperation:    sequencerManager,
+		Sequencer:       sequencerTask,
+		sequencerCancel: cancel,
 	}, nil
 }
 
 // Close shuts down the server.
 func (env *LogEnv) Close() {
+	if env.sequencerCancel != nil {
+		env.sequencerCancel()
+	}
 	env.ClientConn.Close()
 	env.grpcServer.GracefulStop()
+	env.pendingTasks.Wait()
 	env.DB.Close()
 }
 
@@ -177,6 +214,6 @@ func (env *LogEnv) CreateLog(logID int64) error {
 		return err
 	}
 	// Sign the first empty tree head.
-	env.Sequencer.OperationLoop()
+	env.Sequencer.OperationSingle()
 	return nil
 }
