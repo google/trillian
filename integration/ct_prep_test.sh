@@ -41,7 +41,7 @@ for ((i=0; i < RPC_SERVER_COUNT; i++)); do
   RPC_SERVERS="${RPC_SERVERS},localhost:${port}"
 
   echo "Starting Log RPC server on port ${port}"
-  ./trillian_log_server --private_key_password=towel --private_key_file=${TESTDATA}/log-rpc-server.privkey.pem --port ${port} --sequencer_sleep_between_runs="1s" --batch_size=500 --export_metrics=false &
+  ./trillian_log_server --private_key_password=towel --private_key_file=${TESTDATA}/log-rpc-server.privkey.pem --port ${port} --sequencer_sleep_between_runs="1s" --batch_size=500 --export_metrics=false --num_sequencers 2 &
   pid=$!
   RPC_SERVER_PIDS+=(${pid})
   waitForServerStartup ${port}
