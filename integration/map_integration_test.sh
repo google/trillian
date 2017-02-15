@@ -7,7 +7,7 @@ echo "Building code"
 go build ${GOFLAGS} ./server/vmap/trillian_map_server/
 
 TEST_TREE_ID=123
-RPC_PORT=34556
+RPC_PORT=$(pickUnusedPort)
 
 echo "Provisioning test map (Tree ID: $TEST_TREE_ID) in database"
 yes | "${SCRIPTS_DIR}"/resetdb.sh
