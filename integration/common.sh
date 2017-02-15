@@ -29,6 +29,17 @@ waitForServerStartup() {
   sleep 2
 }
 
+pickUnusedPort() {
+  local base=6962
+  local port
+  for (( port = "${base}" ; port <= 61000 ; port++ )); do
+    if ! lsof -i :$port > /dev/null; then
+      echo $port
+      break
+    fi
+  done
+}
+
 killPid() {
   local pid=$1
   set +e
