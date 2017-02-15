@@ -56,7 +56,7 @@ func main() {
 	// Get log config from file before we start.
 	cfg, err := ct.LogConfigFromFile(*logConfigFlag)
 	if err != nil {
-		glog.Fatalf("Failed to read log config: %v", err)
+		glog.Exitf("Failed to read log config: %v", err)
 	}
 
 	glog.CopyStandardLogTo("WARNING")
@@ -67,7 +67,7 @@ func main() {
 	// to backend.
 	conn, err := grpc.Dial(*rpcBackendFlag, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
-		glog.Fatalf("Could not connect to rpc server: %v", err)
+		glog.Exitf("Could not connect to rpc server: %v", err)
 	}
 	defer conn.Close()
 	client := trillian.NewTrillianLogClient(conn)
@@ -75,7 +75,7 @@ func main() {
 	for _, c := range cfg {
 		handlers, err := c.SetUpInstance(client, *rpcDeadlineFlag)
 		if err != nil {
-			glog.Fatalf("Failed to set up log instance for %+v: %v", cfg, err)
+			glog.Exitf("Failed to set up log instance for %+v: %v", cfg, err)
 		}
 		for path, handler := range *handlers {
 			http.Handle(path, handler)
