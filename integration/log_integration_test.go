@@ -15,11 +15,13 @@
 package integration
 
 import (
+	"context"
 	"flag"
 	"testing"
 	"time"
 
 	"github.com/google/trillian"
+	"github.com/google/trillian/testonly/integration"
 	"google.golang.org/grpc"
 )
 
@@ -70,6 +72,27 @@ func TestLogIntegration(t *testing.T) {
 	defer conn.Close()
 
 	client := trillian.NewTrillianLogClient(conn)
+	if err := RunLogIntegration(client, params); err != nil {
+		t.Fatalf("Test failed: %v", err)
+	}
+}
+
+func TestInProcessLogIntegration(t *testing.T) {
+	ctx := context.Background()
+	const numSequencers = 2
+	env, err := integration.NewLogEnv(ctx, numSequencers, "TestInProcessLogIntegration")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer env.Close()
+
+	const logID = int64(6962)
+	if err := env.CreateLog(logID); err != nil {
+		t.Fatalf("Failed to create log: %v", err)
+	}
+
+	client := trillian.NewTrillianLogClient(env.ClientConn)
+	params := DefaultTestParameters(logID)
 	if err := RunLogIntegration(client, params); err != nil {
 		t.Fatalf("Test failed: %v", err)
 	}
