@@ -53,6 +53,13 @@ func (r *defaultRegistry) GetKeyManager(treeID int64) (crypto.KeyManager, error)
 	return r.km, nil
 }
 
+// NewExtensionRegistry returns an extension.Registry implementation backed by a given
+// MySQL database and a KeyManager instance.
+func NewExtensionRegistry(db *sql.DB, km crypto.KeyManager) (extension.Registry, error) {
+	return &defaultRegistry{db: db, km: km}, nil
+
+}
+
 // NewDefaultExtensionRegistry returns the default extension.Registry implementation, which is
 // backed by a MySQL database and configured via flags.
 func NewDefaultExtensionRegistry() (extension.Registry, error) {
@@ -64,8 +71,5 @@ func NewDefaultExtensionRegistry() (extension.Registry, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &defaultRegistry{
-		db: db,
-		km: km,
-	}, nil
+	return NewExtensionRegistry(db, km)
 }
