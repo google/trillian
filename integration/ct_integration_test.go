@@ -15,6 +15,7 @@
 package integration
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"math/rand"
@@ -22,7 +23,8 @@ import (
 	"testing"
 	"time"
 
-	ctfe "github.com/google/trillian/examples/ct"
+	"github.com/google/trillian/examples/ct"
+	"github.com/google/trillian/testonly/integration"
 )
 
 var httpServersFlag = flag.String("ct_http_servers", "localhost:8092", "Comma-separated list of (assumed interchangeable) servers, each as address:port")
@@ -43,34 +45,88 @@ func TestCTIntegration(t *testing.T) {
 	fmt.Printf("Today's test has been brought to you by the letters C and T and the number %#x\n", *seed)
 	rand.Seed(*seed)
 
-	cfg, err := ctfe.LogConfigFromFile(*logConfigFlag)
+	cfgs, err := ct.LogConfigFromFile(*logConfigFlag)
 	if err != nil {
 		t.Fatalf("Failed to read log config: %v", err)
 	}
 
+	if err := runParallelTests(cfgs, *httpServersFlag, *testDir, *mmdFlag); err != nil {
+		t.Errorf("%v", err)
+	}
+}
+
+func runParallelTests(cfgs []ct.LogConfig, servers, testDir string, mmd time.Duration) error {
 	type result struct {
 		prefix string
 		err    error
 	}
-	results := make(chan result, len(cfg))
+	results := make(chan result, len(cfgs))
 	var wg sync.WaitGroup
-	for _, c := range cfg {
+	for _, cfg := range cfgs {
 		wg.Add(1)
-		go func(c ctfe.LogConfig) {
+		go func(cfg ct.LogConfig) {
 			defer wg.Done()
 			var stats *wantStats
 			if !*skipStats {
-				stats = newWantStats(c.LogID)
+				stats = newWantStats(cfg.LogID)
 			}
-			err := RunCTIntegrationForLog(c, *httpServersFlag, *testDir, *mmdFlag, stats)
-			results <- result{prefix: c.Prefix, err: err}
-		}(c)
+			err := RunCTIntegrationForLog(cfg, servers, testDir, mmd, stats)
+			results <- result{prefix: cfg.Prefix, err: err}
+		}(cfg)
 	}
 	wg.Wait()
 	close(results)
 	for e := range results {
 		if e.err != nil {
-			t.Errorf("%s: %v", e.prefix, e.err)
+			return fmt.Errorf("%s: failed: %v", e.prefix, e.err)
 		}
+	}
+	return nil
+}
+
+const (
+	rootsPEMFile    = "../testdata/fake-ca.cert"
+	pubKeyPEMFile   = "../testdata/ct-http-server.pubkey.pem"
+	privKeyPEMFile  = "../testdata/ct-http-server.privkey.pem"
+	privKeyPassword = "dirk"
+)
+
+func TestInProcessCTIntegration(t *testing.T) {
+	ctx := context.Background()
+	cfgs := []ct.LogConfig{
+		{
+			LogID:           6962,
+			Prefix:          "athos",
+			RootsPEMFile:    rootsPEMFile,
+			PubKeyPEMFile:   pubKeyPEMFile,
+			PrivKeyPEMFile:  privKeyPEMFile,
+			PrivKeyPassword: privKeyPassword,
+		},
+		{
+			LogID:           16962,
+			Prefix:          "porthos",
+			RootsPEMFile:    rootsPEMFile,
+			PubKeyPEMFile:   pubKeyPEMFile,
+			PrivKeyPEMFile:  privKeyPEMFile,
+			PrivKeyPassword: privKeyPassword,
+		},
+		{
+			LogID:           26962,
+			Prefix:          "aramis",
+			RootsPEMFile:    rootsPEMFile,
+			PubKeyPEMFile:   pubKeyPEMFile,
+			PrivKeyPEMFile:  privKeyPEMFile,
+			PrivKeyPassword: privKeyPassword,
+		},
+	}
+
+	env, err := integration.NewCTLogEnv(ctx, cfgs, 2, "TestInProcessCTIntegration")
+	if err != nil {
+		t.Fatalf("Failed to launch test environment: %v", err)
+	}
+	defer env.Close()
+
+	if err := runParallelTests(cfgs, env.CTAddr, "../testdata", 120*time.Second); err != nil {
+		t.Errorf("%v", err)
 	}
 }
