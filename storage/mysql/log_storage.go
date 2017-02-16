@@ -38,7 +38,7 @@ import (
 
 const (
 	getTreePropertiesSQL  = "SELECT AllowsDuplicateLeaves FROM Trees WHERE TreeId=?"
-	selectQueuedLeavesSQL = `SELECT LeafIdentityHash,MerkleLeafHash,Payload
+	selectQueuedLeavesSQL = `SELECT LeafIdentityHash,MerkleLeafHash
 			FROM Unsequenced
 			WHERE TreeID=?
 			AND QueueTimestampNanos<=?
@@ -47,8 +47,8 @@ const (
 			VALUES(?,?,?,?) ON DUPLICATE KEY UPDATE LeafIdentityHash=LeafIdentityHash`
 	insertUnsequencedLeafSQLNoDuplicates = `INSERT INTO LeafData(TreeId,LeafIdentityHash,LeafValue,ExtraData)
 			VALUES(?,?,?,?)`
-	insertUnsequencedEntrySQL = `INSERT INTO Unsequenced(TreeId,LeafIdentityHash,MerkleLeafHash,MessageId,Payload,QueueTimestampNanos)
-			VALUES(?,?,?,?,?,?)`
+	insertUnsequencedEntrySQL = `INSERT INTO Unsequenced(TreeId,LeafIdentityHash,MerkleLeafHash,MessageId,QueueTimestampNanos)
+			VALUES(?,?,?,?,?)`
 	insertSequencedLeafSQL = `INSERT INTO SequencedLeafData(TreeId,LeafIdentityHash,MerkleLeafHash,SequenceNumber)
 			VALUES(?,?,?,?)`
 	selectSequencedLeafCountSQL  = "SELECT COUNT(*) FROM SequencedLeafData WHERE TreeId=?"
@@ -252,9 +252,8 @@ func (t *logTreeTX) DequeueLeaves(limit int, cutoffTime time.Time) ([]trillian.L
 	for rows.Next() {
 		var leafIDHash []byte
 		var merkleHash []byte
-		var payload []byte
 
-		err := rows.Scan(&leafIDHash, &merkleHash, &payload)
+		err := rows.Scan(&leafIDHash, &merkleHash)
 
 		if err != nil {
 			glog.Warningf("Error scanning work rows: %s", err)
@@ -265,13 +264,12 @@ func (t *logTreeTX) DequeueLeaves(limit int, cutoffTime time.Time) ([]trillian.L
 			return nil, errors.New("Dequeued a leaf with incorrect hash size")
 		}
 
-		// Note: the ExtraData being nil here is OK as the sequencer only writes to the
-		// SequencedLeafData table and the client supplied value is already written to LeafData.
+		// Note: the LeafData and ExtraData being nil here is OK as this is only used by the
+		// sequencer. The sequencer only writes to the SequencedLeafData table and the client
+		// supplied data was already written to LeafData as part of queueing the leaf.
 		leaf := trillian.LogLeaf{
 			LeafIdentityHash: leafIDHash,
 			MerkleLeafHash:   merkleHash,
-			LeafValue:        payload,
-			ExtraData:        nil,
 		}
 		leaves = append(leaves, leaf)
 	}
@@ -353,7 +351,7 @@ func (t *logTreeTX) QueueLeaves(leaves []trillian.LogLeaf, queueTimestamp time.T
 		messageID := hasher.Sum(nil)
 
 		_, err = t.tx.Exec(insertUnsequencedEntrySQL,
-			t.treeID, leaf.LeafIdentityHash, leaf.MerkleLeafHash, messageID, leaf.LeafValue, queueTimestamp.UnixNano())
+			t.treeID, leaf.LeafIdentityHash, leaf.MerkleLeafHash, messageID, queueTimestamp.UnixNano())
 
 		if err != nil {
 			glog.Warningf("Error inserting into Unsequenced: %s", err)

@@ -534,13 +534,12 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 	prepareTestLogDB(DB, logID, t)
 	s := prepareTestLogStorage(DB, logID, t)
 	batchSize := 2
+	leaves := createTestLeaves(int64(batchSize), 0)
+	leaves2 := createTestLeaves(int64(batchSize), int64(batchSize))
 
 	{
 		tx := beginLogTx(s, logID, t)
 		defer failIfTXStillOpen(t, "TestDequeueLeavesTimeOrdering", tx)
-
-		leaves := createTestLeaves(int64(batchSize), 0)
-		leaves2 := createTestLeaves(int64(batchSize), int64(batchSize))
 
 		if err := tx.QueueLeaves(leaves, fakeQueueTime); err != nil {
 			t.Fatalf("QueueLeaves(1st batch) = %v", err)
@@ -570,9 +569,10 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 
 		ensureAllLeavesDistinct(dequeue1, t)
 
-		// Ensure this is the second batch queued by comparing leaf data.
-		if !leafInRange(dequeue1[0], batchSize, batchSize+batchSize-1) || !leafInRange(dequeue1[1], batchSize, batchSize+batchSize-1) {
-			t.Fatalf("Got leaf from wrong batch (1st dequeue): (%s %s)", string(dequeue1[0].LeafValue), string(dequeue1[1].LeafValue))
+		// Ensure this is the second batch queued by comparing leaf hashes (must be distinct as
+		// the leaf data was).
+		if !leafInBatch(dequeue1[0], leaves2) || !leafInBatch(dequeue1[1], leaves2) {
+			t.Fatalf("Got leaf from wrong batch (1st dequeue): %v", dequeue1)
 		}
 
 		commit(tx2, t)
@@ -592,9 +592,9 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 
 		ensureAllLeavesDistinct(dequeue2, t)
 
-		// Ensure this is the first batch by comparing leaf data.
-		if !leafInRange(dequeue2[0], 0, batchSize-1) || !leafInRange(dequeue2[1], 0, batchSize-1) {
-			t.Fatalf("Got leaf from wrong batch (2nd dequeue): (%s %s)", string(dequeue2[0].LeafValue), string(dequeue2[1].LeafValue))
+		// Ensure this is the first batch by comparing leaf hashes.
+		if !leafInBatch(dequeue2[0], leaves) || !leafInBatch(dequeue2[1], leaves) {
+			t.Fatalf("Got leaf from wrong batch (2nd dequeue): %v", dequeue2)
 		}
 
 		commit(tx3, t)
@@ -1119,9 +1119,9 @@ func failIfTXStillOpen(t *testing.T, op string, tx storage.LogTreeTX) {
 	}
 }
 
-func leafInRange(leaf trillian.LogLeaf, min, max int) bool {
-	for l := min; l <= max; l++ {
-		if string(leaf.LeafValue) == fmt.Sprintf("Leaf %d", l) {
+func leafInBatch(leaf trillian.LogLeaf, batch []trillian.LogLeaf) bool {
+	for _, bl := range batch {
+		if bytes.Equal(bl.LeafIdentityHash, leaf.LeafIdentityHash) {
 			return true
 		}
 	}

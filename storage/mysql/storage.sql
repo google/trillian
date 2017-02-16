@@ -133,7 +133,6 @@ CREATE TABLE IF NOT EXISTS Unsequenced(
   -- We want this to be unique per entry per log, but queryable by FEs so that
   -- we can try to stomp dupe submissions.
   MessageId            BINARY(32) NOT NULL,
-  Payload              BLOB NOT NULL,
   QueueTimestampNanos  BIGINT NOT NULL,
   PRIMARY KEY (TreeId, LeafIdentityHash, MessageId)
 );
