@@ -109,12 +109,35 @@ func (c *LogClient) UpdateSTR(ctx context.Context) error {
 		LogId: c.LogID,
 	}
 	resp, err := c.client.GetLatestSignedLogRoot(ctx, req)
+	str := resp.SignedLogRoot
 	if err != nil {
 		return err
 	}
-	// TODO(gdbelvin): Verify SignedLogRoot
+	// TODO(gdbelvin): Verify SignedLogRoot Signature
 
-	c.STR = *resp.SignedLogRoot
+	// Implicitly trust the first STH we get.
+	if c.STR.TreeSize != 0 {
+		// Get consistency proof.
+		req := &trillian.GetConsistencyProofRequest{
+			LogId:          c.LogID,
+			FirstTreeSize:  c.STR.TreeSize,
+			SecondTreeSize: str.TreeSize,
+		}
+		proof, err := c.client.GetConsistencyProof(ctx, req)
+		if err != nil {
+			return err
+		}
+		// Verify consistency proof.
+		v := merkle.NewLogVerifier(c.hasher)
+		if err := v.VerifyConsistencyProof(
+			c.STR.TreeSize, str.TreeSize,
+			c.STR.RootHash, str.RootHash,
+			convertProof(proof.Proof)); err != nil {
+			return err
+		}
+	}
+
+	c.STR = *str
 	return nil
 }
 
