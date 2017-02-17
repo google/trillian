@@ -18,11 +18,11 @@ package ct
 // contain the low level serialization.
 
 import (
+	"crypto"
 	"crypto/sha256"
 
 	ct "github.com/google/certificate-transparency/go"
 	"github.com/google/certificate-transparency/go/x509"
-	"github.com/google/trillian/crypto"
 )
 
 const millisPerNano int64 = 1000 * 1000
@@ -41,14 +41,12 @@ type LogEntry struct {
 
 // GetCTLogID takes the key manager for a log and returns the LogID. (see RFC 6962 S3.2)
 // In CT V1 the log id is a hash of the public key.
-func GetCTLogID(km crypto.KeyManager) ([sha256.Size]byte, error) {
-	key, err := km.GetRawPublicKey()
-
+func GetCTLogID(pk crypto.PublicKey) ([sha256.Size]byte, error) {
+	pubBytes, err := x509.MarshalPKIXPublicKey(pk)
 	if err != nil {
 		return [sha256.Size]byte{}, err
 	}
-
-	return sha256.Sum256(key), nil
+	return sha256.Sum256(pubBytes), nil
 }
 
 // NewLogEntry creates a new LogEntry instance based on the given Merkle tree leaf

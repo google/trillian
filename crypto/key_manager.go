@@ -34,28 +34,22 @@ import (
 // separately. KeyManager is an interface as we expect multiple implementations supporting
 // different ways of accessing keys.
 type KeyManager interface {
-	// Signer returns a crypto.Signer that can sign data using the private key held by the
-	// manager.
-	Signer() (crypto.Signer, error)
+	// Signer returns a crypto.Signer that can sign data using the private key.
+	Signer() crypto.Signer
 	// SignatureAlgorithm returns the value that identifies the signature algorithm.
 	SignatureAlgorithm() sigpb.DigitallySigned_SignatureAlgorithm
 	// HashAlgorithm returns the type of hash that will be used for signing with this key.
 	HashAlgorithm() crypto.Hash
-	// GetPublicKey returns the public key previously loaded. It is an error to call this
-	// before a public key has been loaded
-	GetPublicKey() (crypto.PublicKey, error)
-	// GetRawPublicKey returns the DER encoded public key bytes.
-	// This is needed for some applications that exchange or embed key hashes in structures.
-	// It is an error to call this before a public key has been loaded
-	GetRawPublicKey() ([]byte, error)
+	// PublicKey returns the public key corresponding to the private key.
+	PublicKey() crypto.PublicKey
 }
 
 // PEMKeyManager is an instance of KeyManager that loads its key data from an encrypted
 // PEM file.
 type PEMKeyManager struct {
+	signer             crypto.Signer
 	serverPrivateKey   crypto.PrivateKey
 	signatureAlgorithm sigpb.DigitallySigned_SignatureAlgorithm
-	serverPublicKey    crypto.PublicKey
 	rawPublicKey       []byte
 }
 
@@ -103,73 +97,26 @@ func (k *PEMKeyManager) LoadPrivateKey(pemEncodedKey, password string) error {
 		return err
 	}
 
+	switch key.(type) {
+	case *ecdsa.PrivateKey, *rsa.PrivateKey:
+		k.signer = key.(crypto.Signer)
+	default:
+		return errors.New("unsupported key type")
+	}
+
 	k.serverPrivateKey = key
 	k.signatureAlgorithm = algo
-	signer, err := k.Signer()
-	if err != nil {
-		return err
-	}
-	k.serverPublicKey = signer.Public()
 	return nil
 }
 
-// LoadPublicKey loads a public key from a PEM encoded string.
-func (k *PEMKeyManager) LoadPublicKey(pemEncodedKey string) error {
-	publicBlock, rest := pem.Decode([]byte(pemEncodedKey))
-	if publicBlock == nil {
-		return errors.New("could not decode PEM for public key")
-	}
-	if len(rest) > 0 {
-		return errors.New("extra data found after PEM key decoded")
-	}
-
-	k.rawPublicKey = publicBlock.Bytes
-
-	parsedKey, err := x509.ParsePKIXPublicKey(publicBlock.Bytes)
-	if err != nil {
-		return errors.New("unable to parse public key")
-	}
-
-	k.serverPublicKey = parsedKey
-	return nil
+// Signer returns a signer based on our private key.
+func (k PEMKeyManager) Signer() crypto.Signer {
+	return k.signer
 }
 
-// Signer returns a signer based on our private key. Returns an error if no private key
-// has been loaded.
-func (k PEMKeyManager) Signer() (crypto.Signer, error) {
-	if k.serverPrivateKey == nil {
-		return nil, errors.New("private key is not loaded")
-	}
-
-	// Good old interface{}, this wouldn't be necessary in a proper type system. If it's
-	// even the right thing to do but I couldn't find any useful docs so meh
-	switch k.serverPrivateKey.(type) {
-	case *ecdsa.PrivateKey, *rsa.PrivateKey:
-		return k.serverPrivateKey.(crypto.Signer), nil
-	}
-
-	return nil, errors.New("unsupported key type")
-}
-
-// GetPublicKey returns the public key previously loaded or an error if LoadPublicKey has
-// not been previously called successfully.
-func (k PEMKeyManager) GetPublicKey() (crypto.PublicKey, error) {
-	if k.serverPublicKey == nil {
-		return nil, errors.New("called GetPublicKey() but one is not loaded")
-	}
-
-	return k.serverPublicKey, nil
-}
-
-// GetRawPublicKey returns the DER encoded public key bytes as loaded from the file.
-// This is needed for some applications that exchange or embed key hashes in structures.
-// The result will be an error if a public key has not been loaded
-func (k PEMKeyManager) GetRawPublicKey() ([]byte, error) {
-	if k.rawPublicKey == nil {
-		return nil, errors.New("called GetRawPublicKey() but one is not loaded")
-	}
-
-	return k.rawPublicKey, nil
+// PublicKey returns the public key corresponding to the private key.
+func (k PEMKeyManager) PublicKey() crypto.PublicKey {
+	return k.signer.Public()
 }
 
 func parsePrivateKey(key []byte) (crypto.PrivateKey, sigpb.DigitallySigned_SignatureAlgorithm, error) {

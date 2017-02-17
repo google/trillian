@@ -48,12 +48,7 @@ func TestSignVerify(t *testing.T) {
 			t.Errorf("LoadPrivateKey(_, %v)=%v, want nil", test.password, err)
 			continue
 		}
-		kmsigner, err := km.Signer()
-		if err != nil {
-			t.Errorf("Signer()=(_,%v), want (_,nil)", err)
-			continue
-		}
-		signer := NewSigner(test.HashAlgo, test.SigAlgo, kmsigner)
+		signer := NewSigner(test.HashAlgo, test.SigAlgo, km.Signer())
 
 		// Sign and Verify.
 		msg := []byte("foo")
@@ -62,11 +57,7 @@ func TestSignVerify(t *testing.T) {
 			t.Errorf("Sign()=(_,%v), want (_,nil)", err)
 			continue
 		}
-		pub, err := km.GetPublicKey()
-		if err != nil {
-			t.Errorf("GetPublicKey()=(_,%v), want (_,nil)", err)
-			continue
-		}
+		pub := km.PublicKey()
 		if err := Verify(pub, msg, signed); err != nil {
 			t.Errorf("Verify(,,)=%v, want nil", err)
 		}

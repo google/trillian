@@ -18,7 +18,9 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/rsa"
+	"crypto/x509"
 	"encoding/asn1"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"math/big"
@@ -28,6 +30,24 @@ import (
 
 // ErrVerify occurs whenever signature verification fails.
 var ErrVerify = errors.New("signature verification failed")
+
+// PublicKeyFromPEM converts a PEM object into a crypto.PublicKey
+func PublicKeyFromPEM(pemEncodedKey string) (crypto.PublicKey, error) {
+	publicBlock, rest := pem.Decode([]byte(pemEncodedKey))
+	if publicBlock == nil {
+		return nil, errors.New("could not decode PEM for public key")
+	}
+	if len(rest) > 0 {
+		return nil, errors.New("extra data found after PEM key decoded")
+	}
+
+	parsedKey, err := x509.ParsePKIXPublicKey(publicBlock.Bytes)
+	if err != nil {
+		return nil, errors.New("unable to parse public key")
+	}
+
+	return parsedKey, nil
+}
 
 // Verify cryptographically verifies the output of Signer.
 func Verify(pub crypto.PublicKey, data []byte, sig sigpb.DigitallySigned) error {

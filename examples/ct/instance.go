@@ -109,15 +109,6 @@ func (cfg LogConfig) SetUpInstance(client trillian.TrillianLogClient, deadline t
 		return nil, fmt.Errorf("failed to parse private key: %v", err)
 	}
 
-	pubData, err := ioutil.ReadFile(cfg.PubKeyPEMFile)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load public key file: %v", err)
-	}
-
-	if err := km.LoadPublicKey(string(pubData)); err != nil {
-		return nil, fmt.Errorf("failed to parse public key: %v", err)
-	}
-
 	// Create and register the handlers using the RPC client we just set up
 	ctx := NewLogContext(cfg.LogID, cfg.Prefix, roots, client, km, deadline, new(util.SystemTimeSource))
 	logVars.Set(cfg.Prefix, ctx.exp.vars)

@@ -88,8 +88,12 @@ LPd2G+er1/w5wxpM/hvZbWc0yoLyLd5aDIu73YJde28+dhKtjbMAp+IRaYhgIyYi
 hMOqXSGR79oQv5I103s6KjQNWUGblKSFZvP6w82LU9Wk6YJw6tKXsHIQ+c5KITix
 iBEUO5P6TnqH3TfhOF8sKQg=`
 
-const caAndIntermediateCertsPEM string = "-----BEGIN CERTIFICATE-----\n" + caCertB64 + "\n-----END CERTIFICATE-----\n" +
-	"\n-----BEGIN CERTIFICATE-----\n" + intermediateCertB64 + "\n-----END CERTIFICATE-----\n"
+const caAndIntermediateCertsPEM string = "-----BEGIN CERTIFICATE-----\n" +
+	caCertB64 +
+	"\n-----END CERTIFICATE-----\n" +
+	"\n-----BEGIN CERTIFICATE-----\n" +
+	intermediateCertB64 +
+	"\n-----END CERTIFICATE-----\n"
 
 type handlerTestInfo struct {
 	mockCtrl *gomock.Controller
@@ -101,12 +105,19 @@ type handlerTestInfo struct {
 
 // setupTest creates mock objects and contexts.  Caller should invoke info.mockCtrl.Finish().
 func setupTest(t *testing.T, pemRoots []string) handlerTestInfo {
+
 	info := handlerTestInfo{}
 	info.mockCtrl = gomock.NewController(t)
+
 	info.km = crypto.NewMockKeyManager(info.mockCtrl)
-	info.km.EXPECT().GetRawPublicKey().AnyTimes().Return([]byte("key"), nil)
+	pubkey, err := crypto.PublicKeyFromPEM(ctTesttubePublicKey)
+	if err != nil {
+		panic(err)
+	}
+	info.km.EXPECT().PublicKey().AnyTimes().Return(pubkey)
 	info.km.EXPECT().SignatureAlgorithm().AnyTimes().Return(spb.DigitallySigned_ECDSA)
 	info.km.EXPECT().HashAlgorithm().AnyTimes().Return(gocrypto.SHA256)
+
 	info.client = mockclient.NewMockTrillianLogClient(info.mockCtrl)
 	info.roots = NewPEMCertPool()
 	for _, pemRoot := range pemRoots {
@@ -122,7 +133,7 @@ func (info handlerTestInfo) expectSign(toSign string) {
 	data, _ := hex.DecodeString(toSign)
 	mockSigner := crypto.NewMockSigner(info.mockCtrl)
 	mockSigner.EXPECT().Sign(gomock.Any(), data, gomock.Any()).AnyTimes().Return([]byte("signed"), nil)
-	info.km.EXPECT().Signer().AnyTimes().Return(mockSigner, nil)
+	info.km.EXPECT().Signer().AnyTimes().Return(mockSigner)
 }
 
 func (info handlerTestInfo) getHandlers() map[string]AppHandler {
@@ -346,8 +357,8 @@ func TestAddChain(t *testing.T) {
 			if got, want := ct.Version(resp.SCTVersion), ct.V1; got != want {
 				t.Errorf("resp.SCTVersion=%v; want %v", got, want)
 			}
-			if got, want := hex.EncodeToString(resp.ID), ctMockLogID; got != want {
-				t.Errorf("resp.ID=%s; want %s", got, want)
+			if got, want := resp.ID, ctTesttubeLogID[:]; !bytes.Equal(got, want) {
+				t.Errorf("resp.ID=%v; want %v", got, want)
 			}
 			if got, want := resp.Timestamp, uint64(1469185273000); got != want {
 				t.Errorf("resp.Timestamp=%d; want %d", got, want)
@@ -422,8 +433,8 @@ func TestAddPrechain(t *testing.T) {
 			if got, want := ct.Version(resp.SCTVersion), ct.V1; got != want {
 				t.Errorf("resp.SCTVersion=%v; want %v", got, want)
 			}
-			if got, want := hex.EncodeToString(resp.ID), ctMockLogID; got != want {
-				t.Errorf("resp.ID=%s; want %s", got, want)
+			if got, want := resp.ID, ctTesttubeLogID[:]; !bytes.Equal(got, want) {
+				t.Errorf("resp.ID=%v; want %v", got, want)
 			}
 			if got, want := resp.Timestamp, uint64(1469185273000); got != want {
 				t.Errorf("resp.Timestamp=%d; want %d", got, want)
@@ -495,7 +506,7 @@ func TestGetSTH(t *testing.T) {
 		} else if test.signResult != nil || test.signErr != nil {
 			signer := crypto.NewMockSigner(info.mockCtrl)
 			signer.EXPECT().Sign(gomock.Any(), gomock.Any(), gomock.Any()).Return(test.signResult, test.signErr)
-			info.km.EXPECT().Signer().Return(signer, nil)
+			info.km.EXPECT().Signer().Return(signer)
 		}
 		handler := AppHandler{Context: info.c, Handler: getSTH, Name: "GetSTH", Method: http.MethodGet}
 		w := httptest.NewRecorder()

@@ -30,28 +30,6 @@ func (_m *MockKeyManager) EXPECT() *_MockKeyManagerRecorder {
 	return _m.recorder
 }
 
-func (_m *MockKeyManager) GetPublicKey() (crypto.PublicKey, error) {
-	ret := _m.ctrl.Call(_m, "GetPublicKey")
-	ret0, _ := ret[0].(crypto.PublicKey)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-func (_mr *_MockKeyManagerRecorder) GetPublicKey() *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetPublicKey")
-}
-
-func (_m *MockKeyManager) GetRawPublicKey() ([]byte, error) {
-	ret := _m.ctrl.Call(_m, "GetRawPublicKey")
-	ret0, _ := ret[0].([]byte)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-func (_mr *_MockKeyManagerRecorder) GetRawPublicKey() *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetRawPublicKey")
-}
-
 func (_m *MockKeyManager) HashAlgorithm() crypto.Hash {
 	ret := _m.ctrl.Call(_m, "HashAlgorithm")
 	ret0, _ := ret[0].(crypto.Hash)
@@ -60,6 +38,16 @@ func (_m *MockKeyManager) HashAlgorithm() crypto.Hash {
 
 func (_mr *_MockKeyManagerRecorder) HashAlgorithm() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "HashAlgorithm")
+}
+
+func (_m *MockKeyManager) PublicKey() crypto.PublicKey {
+	ret := _m.ctrl.Call(_m, "PublicKey")
+	ret0, _ := ret[0].(crypto.PublicKey)
+	return ret0
+}
+
+func (_mr *_MockKeyManagerRecorder) PublicKey() *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "PublicKey")
 }
 
 func (_m *MockKeyManager) SignatureAlgorithm() sigpb.DigitallySigned_SignatureAlgorithm {
@@ -72,11 +60,10 @@ func (_mr *_MockKeyManagerRecorder) SignatureAlgorithm() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "SignatureAlgorithm")
 }
 
-func (_m *MockKeyManager) Signer() (crypto.Signer, error) {
+func (_m *MockKeyManager) Signer() crypto.Signer {
 	ret := _m.ctrl.Call(_m, "Signer")
 	ret0, _ := ret[0].(crypto.Signer)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	return ret0
 }
 
 func (_mr *_MockKeyManagerRecorder) Signer() *gomock.Call {

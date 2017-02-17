@@ -126,11 +126,10 @@ type testParameters struct {
 	storeSignedRoot      *trillian.SignedLogRoot
 	storeSignedRootError error
 
-	setupSigner     bool
-	keyManagerError error
-	dataToSign      []byte
-	signingResult   []byte
-	signingError    error
+	setupSigner   bool
+	dataToSign    []byte
+	signingResult []byte
+	signingError  error
 
 	writeRevision int64
 
@@ -222,7 +221,7 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) (testCont
 		mockSigner := crypto.NewMockSigner(ctrl)
 		mockKeyManager.EXPECT().HashAlgorithm().AnyTimes().Return(gocrypto.SHA256)
 		mockSigner.EXPECT().Sign(gomock.Any(), params.dataToSign, gocrypto.SHA256).AnyTimes().Return(params.signingResult, params.signingError)
-		mockKeyManager.EXPECT().Signer().AnyTimes().Return(mockSigner, params.keyManagerError)
+		mockKeyManager.EXPECT().Signer().AnyTimes().Return(mockSigner)
 		mockKeyManager.EXPECT().SignatureAlgorithm().AnyTimes().Return(sigpb.DigitallySigned_ECDSA)
 	}
 
@@ -429,34 +428,6 @@ func TestStoreSignedRootError(t *testing.T) {
 	testonly.EnsureErrorContains(t, err, "storesignedroot")
 }
 
-func TestStoreSignedRootKeyManagerFails(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	leaves := []trillian.LogLeaf{getLeaf42()}
-	updatedLeaves := []trillian.LogLeaf{testLeaf16}
-	params := testParameters{
-		logID:            154035,
-		writeRevision:    testRoot16.TreeRevision + 1,
-		dequeueLimit:     1,
-		shouldRollback:   true,
-		dequeuedLeaves:   leaves,
-		latestSignedRoot: &testRoot16,
-		updatedLeaves:    &updatedLeaves,
-		merkleNodesSet:   &updatedNodes,
-		storeSignedRoot:  nil,
-		setupSigner:      true,
-		keyManagerError:  errors.New("keymanagerfailed"),
-	}
-	c, ctx := createTestContext(ctrl, params)
-
-	leafCount, err := c.sequencer.SequenceBatch(ctx, params.logID, 1)
-	if leafCount != 0 {
-		t.Fatalf("Unexpectedly sequenced %d leaves on error", leafCount)
-	}
-	testonly.EnsureErrorContains(t, err, "keymanagerfailed")
-}
-
 func TestStoreSignedRootSignerFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -578,26 +549,6 @@ func TestSignLatestRootFails(t *testing.T) {
 
 	err := c.sequencer.SignRoot(ctx, params.logID)
 	testonly.EnsureErrorContains(t, err, "root")
-}
-
-func TestSignedRootKeyManagerFails(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	params := testParameters{
-		logID:            154035,
-		writeRevision:    testRoot16.TreeRevision + 1,
-		dequeueLimit:     1,
-		shouldRollback:   true,
-		latestSignedRoot: &testRoot16,
-		storeSignedRoot:  nil,
-		setupSigner:      true,
-		keyManagerError:  errors.New("keymanagerfailed"),
-	}
-	c, ctx := createTestContext(ctrl, params)
-
-	err := c.sequencer.SignRoot(ctx, params.logID)
-	testonly.EnsureErrorContains(t, err, "keymanager")
 }
 
 func TestSignRootSignerFails(t *testing.T) {

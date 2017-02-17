@@ -46,17 +46,9 @@ func TestSignV1SCTForCertificate(t *testing.T) {
 		t.Fatalf("create sct for cert failed: %v", err)
 	}
 
-	logID, err := hex.DecodeString(ctMockLogID)
-	if err != nil {
-		t.Fatalf("failed to decode test log id: %s", ctMockLogID)
-	}
-
-	var idArray [sha256.Size]byte
-	copy(idArray[:], logID)
-
 	expected := ct.SignedCertificateTimestamp{
 		SCTVersion: 0,
-		LogID:      ct.LogID{KeyID: ct.SHA256Hash(idArray)},
+		LogID:      ct.LogID{KeyID: ctTesttubeLogID},
 		Timestamp:  1504786523000,
 		Extensions: ct.CTExtensions{},
 		Signature: ct.DigitallySigned{
@@ -109,16 +101,9 @@ func TestSignV1SCTForPrecertificate(t *testing.T) {
 		t.Fatalf("create sct for precert failed: %v", err)
 	}
 
-	logID, err := hex.DecodeString(ctMockLogID)
-	if err != nil {
-		t.Fatalf("failed to decode test log id: %s", ctMockLogID)
-	}
-
-	var idArray [sha256.Size]byte
-	copy(idArray[:], logID)
-
-	expected := ct.SignedCertificateTimestamp{SCTVersion: 0,
-		LogID:      ct.LogID{KeyID: ct.SHA256Hash(idArray)},
+	expected := ct.SignedCertificateTimestamp{
+		SCTVersion: 0,
+		LogID:      ct.LogID{KeyID: ctTesttubeLogID},
 		Timestamp:  1504786523000,
 		Extensions: ct.CTExtensions{},
 		Signature: ct.DigitallySigned{

@@ -134,7 +134,7 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 
 	mockSigner := crypto.NewMockSigner(mockCtrl)
 	mockSigner.EXPECT().Sign(gomock.Any(), []byte{23, 147, 61, 51, 131, 170, 136, 10, 82, 12, 93, 42, 98, 88, 131, 100, 101, 187, 124, 189, 202, 207, 66, 137, 95, 117, 205, 34, 109, 242, 103, 248}, gocrypto.SHA256).Return([]byte("signed"), nil)
-	mockKeyManager.EXPECT().Signer().Return(mockSigner, nil)
+	mockKeyManager.EXPECT().Signer().Return(mockSigner)
 
 	registry := extension.NewMockRegistry(mockCtrl)
 	registry.EXPECT().GetLogStorage().Return(mockStorage, nil)
