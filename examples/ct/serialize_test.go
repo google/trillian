@@ -67,8 +67,8 @@ func TestSignV1SCTForCertificate(t *testing.T) {
 		},
 	}
 
-	if !reflect.DeepEqual(got, expected) {
-		t.Fatalf("Mismatched SCT (cert), got %v, expected %v", got, expected)
+	if !reflect.DeepEqual(*got, expected) {
+		t.Fatalf("Mismatched SCT (cert), got \n%v, expected \n%v", got, expected)
 	}
 
 	// Additional checks that the MerkleTreeLeaf we built is correct
@@ -127,8 +127,8 @@ func TestSignV1SCTForPrecertificate(t *testing.T) {
 				Signature: tls.ECDSA},
 			Signature: []byte("signed")}}
 
-	if !reflect.DeepEqual(got, expected) {
-		t.Fatalf("Mismatched SCT (precert), got %v, expected %v", got, expected)
+	if !reflect.DeepEqual(*got, expected) {
+		t.Fatalf("Mismatched SCT (precert), got \n%v, expected \n%v", got, expected)
 	}
 
 	// Additional checks that the MerkleTreeLeaf we built is correct

@@ -54,13 +54,12 @@ func signV1TreeHead(km crypto.KeyManager, sth *ct.SignedTreeHead) error {
 		},
 		Signature: signature.Signature,
 	}
-
 	return nil
 }
 
 // signV1SCTForCertificate creates a MerkleTreeLeaf and builds and signs a V1 CT SCT for a certificate
 // using the key held by a key manager.
-func signV1SCTForCertificate(km crypto.KeyManager, cert, issuer *x509.Certificate, t time.Time) (ct.MerkleTreeLeaf, ct.SignedCertificateTimestamp, error) {
+func signV1SCTForCertificate(km crypto.KeyManager, cert, issuer *x509.Certificate, t time.Time) (*ct.MerkleTreeLeaf, *ct.SignedCertificateTimestamp, error) {
 	// Temp SCT for input to the serializer
 	sctInput := getSCTForSignatureInput(t)
 
@@ -80,10 +79,10 @@ func signV1SCTForCertificate(km crypto.KeyManager, cert, issuer *x509.Certificat
 
 // signV1SCTForPrecertificate builds and signs a V1 CT SCT for a pre-certificate using the key
 // held by a key manager.
-func signV1SCTForPrecertificate(km crypto.KeyManager, cert, issuer *x509.Certificate, t time.Time) (ct.MerkleTreeLeaf, ct.SignedCertificateTimestamp, error) {
+func signV1SCTForPrecertificate(km crypto.KeyManager, cert, issuer *x509.Certificate, t time.Time) (*ct.MerkleTreeLeaf, *ct.SignedCertificateTimestamp, error) {
 	if issuer == nil {
 		// Need issuer for the IssuerKeyHash
-		return ct.MerkleTreeLeaf{}, ct.SignedCertificateTimestamp{}, errors.New("no issuer available for pre-certificate")
+		return nil, nil, errors.New("no issuer available for pre-certificate")
 	}
 	// Temp SCT for input to the serializer
 	sctInput := getSCTForSignatureInput(t)
@@ -95,7 +94,7 @@ func signV1SCTForPrecertificate(km crypto.KeyManager, cert, issuer *x509.Certifi
 	keyHash := sha256.Sum256(issuer.RawSubjectPublicKeyInfo)
 	defangedTBS, err := x509.RemoveCTPoison(cert.RawTBSCertificate)
 	if err != nil {
-		return ct.MerkleTreeLeaf{}, ct.SignedCertificateTimestamp{}, fmt.Errorf("failed to remove poison extension: %v", err)
+		return nil, nil, fmt.Errorf("failed to remove poison extension: %v", err)
 	}
 	precert := ct.PreCert{
 		IssuerKeyHash:  keyHash,
@@ -116,33 +115,33 @@ func signV1SCTForPrecertificate(km crypto.KeyManager, cert, issuer *x509.Certifi
 	return serializeAndSignSCT(km, leaf, sctInput, t)
 }
 
-func serializeAndSignSCT(km crypto.KeyManager, leaf ct.MerkleTreeLeaf, sctInput ct.SignedCertificateTimestamp, t time.Time) (ct.MerkleTreeLeaf, ct.SignedCertificateTimestamp, error) {
+func serializeAndSignSCT(km crypto.KeyManager, leaf ct.MerkleTreeLeaf, sctInput ct.SignedCertificateTimestamp, t time.Time) (*ct.MerkleTreeLeaf, *ct.SignedCertificateTimestamp, error) {
 	// Serialize SCT signature input to get the bytes that need to be signed
 	res, err := ct.SerializeSCTSignatureInput(sctInput, ct.LogEntry{Leaf: leaf})
 	if err != nil {
-		return ct.MerkleTreeLeaf{}, ct.SignedCertificateTimestamp{}, fmt.Errorf("failed to serialize SCT data: %v", err)
+		return nil, nil, fmt.Errorf("failed to serialize SCT data: %v", err)
 	}
 
 	// Create a complete SCT including signature
 	sct, err := signSCT(km, t, res)
 	if err != nil {
-		return ct.MerkleTreeLeaf{}, ct.SignedCertificateTimestamp{}, fmt.Errorf("failed to sign SCT data: %v", err)
+		return nil, nil, fmt.Errorf("failed to sign SCT data: %v", err)
 	}
 
-	return leaf, sct, nil
+	return &leaf, sct, nil
 }
 
-func signSCT(km crypto.KeyManager, t time.Time, sctData []byte) (ct.SignedCertificateTimestamp, error) {
+func signSCT(km crypto.KeyManager, t time.Time, sctData []byte) (*ct.SignedCertificateTimestamp, error) {
 	signer, err := km.Signer()
 	if err != nil {
-		return ct.SignedCertificateTimestamp{}, fmt.Errorf("failed to retrieve signer: %v", err)
+		return nil, fmt.Errorf("failed to retrieve signer: %v", err)
 	}
 
 	trillianSigner := crypto.NewSigner(km.HashAlgorithm(), km.SignatureAlgorithm(), signer)
 
 	signature, err := trillianSigner.Sign(sctData)
 	if err != nil {
-		return ct.SignedCertificateTimestamp{}, fmt.Errorf("failed to sign data: %v", err)
+		return nil, fmt.Errorf("failed to sign data: %v", err)
 	}
 
 	digitallySigned := ct.DigitallySigned{
@@ -156,10 +155,10 @@ func signSCT(km crypto.KeyManager, t time.Time, sctData []byte) (ct.SignedCertif
 
 	logID, err := GetCTLogID(km)
 	if err != nil {
-		return ct.SignedCertificateTimestamp{}, fmt.Errorf("failed to get logID: %v", err)
+		return nil, fmt.Errorf("failed to get logID: %v", err)
 	}
 
-	return ct.SignedCertificateTimestamp{
+	return &ct.SignedCertificateTimestamp{
 		SCTVersion: ct.V1,
 		LogID:      ct.LogID{KeyID: logID},
 		Timestamp:  uint64(t.UnixNano() / millisPerNano), // spec uses millisecond timestamps
