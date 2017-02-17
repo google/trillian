@@ -47,7 +47,7 @@ var (
 // Signer is responsible for signing log-related data and producing the appropriate
 // application specific signature objects.
 type Signer struct {
-	hasher       crypto.Hash
+	hash         crypto.Hash
 	signer       crypto.Signer
 	sigAlgorithm sigpb.DigitallySigned_SignatureAlgorithm
 }
@@ -55,15 +55,15 @@ type Signer struct {
 // NewSigner creates a new Signer wrapping up a hasher and a signer. For the moment
 // we only support SHA256 hashing and either ECDSA or RSA signing but this is not enforced
 // here.
-func NewSigner(hashAlgo crypto.Hash, sigAlgo sigpb.DigitallySigned_SignatureAlgorithm, signer crypto.Signer) *Signer {
-	_, ok := reverseSignerHashLookup[hashAlgo]
+func NewSigner(hash crypto.Hash, sigAlgo sigpb.DigitallySigned_SignatureAlgorithm, signer crypto.Signer) *Signer {
+	_, ok := reverseSignerHashLookup[hash]
 	if !ok {
 		// TODO(gbelvin): return error from Signer.
 		panic("unsupported hash algorithm")
 	}
 
 	return &Signer{
-		hasher:       hashAlgo,
+		hash:         hash,
 		signer:       signer,
 		sigAlgorithm: sigAlgo,
 	}
@@ -71,16 +71,16 @@ func NewSigner(hashAlgo crypto.Hash, sigAlgo sigpb.DigitallySigned_SignatureAlgo
 
 // Sign obtains a signature after first hashing the input data.
 func (s Signer) Sign(data []byte) (sigpb.DigitallySigned, error) {
-	h := s.hasher.New()
+	h := s.hash.New()
 	h.Write(data)
 	digest := h.Sum(nil)
 
-	if len(digest) != s.hasher.Size() {
+	if len(digest) != s.hash.Size() {
 		return sigpb.DigitallySigned{}, fmt.Errorf("hasher returned unexpected digest length: %d, %d",
-			len(digest), s.hasher.Size())
+			len(digest), s.hash.Size())
 	}
 
-	sig, err := s.signer.Sign(rand.Reader, digest, s.hasher)
+	sig, err := s.signer.Sign(rand.Reader, digest, s.hash)
 
 	if err != nil {
 		return sigpb.DigitallySigned{}, err
@@ -88,7 +88,7 @@ func (s Signer) Sign(data []byte) (sigpb.DigitallySigned, error) {
 
 	return sigpb.DigitallySigned{
 		SignatureAlgorithm: s.sigAlgorithm,
-		HashAlgorithm:      reverseSignerHashLookup[s.hasher],
+		HashAlgorithm:      reverseSignerHashLookup[s.hash],
 		Signature:          sig,
 	}, nil
 }
