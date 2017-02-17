@@ -79,7 +79,8 @@ func TestSequencerManagerNothingToDo(t *testing.T) {
 	mockKeyManager.EXPECT().SignatureAlgorithm().AnyTimes().Return(trillian.SignatureAlgorithm_ECDSA)
 	mockKeyManager.EXPECT().HashAlgorithm().AnyTimes().Return(trillian.HashAlgorithm_SHA256)
 
-	registry := registryForSequencer(mockStorage)
+	registry := extension.NewMockRegistry(mockCtrl)
+	registry.EXPECT().GetLogStorage().Return(mockStorage, nil)
 	sm := NewSequencerManager(mockKeyManager, registry, zeroDuration)
 
 	sm.ExecutePass([]int64{}, createTestContext(registry))
@@ -102,7 +103,8 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 	mockKeyManager.EXPECT().SignatureAlgorithm().AnyTimes().Return(trillian.SignatureAlgorithm_ECDSA)
 	mockKeyManager.EXPECT().HashAlgorithm().AnyTimes().Return(trillian.HashAlgorithm_SHA256)
 
-	registry := registryForSequencer(mockStorage)
+	registry := extension.NewMockRegistry(mockCtrl)
+	registry.EXPECT().GetLogStorage().Return(mockStorage, nil)
 	sm := NewSequencerManager(mockKeyManager, registry, zeroDuration)
 
 	sm.ExecutePass([]int64{logID}, createTestContext(registry))
@@ -135,7 +137,8 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 	mockSigner.EXPECT().Sign(gomock.Any(), []byte{23, 147, 61, 51, 131, 170, 136, 10, 82, 12, 93, 42, 98, 88, 131, 100, 101, 187, 124, 189, 202, 207, 66, 137, 95, 117, 205, 34, 109, 242, 103, 248}, gocrypto.SHA256).Return([]byte("signed"), nil)
 	mockKeyManager.EXPECT().Signer().Return(mockSigner, nil)
 
-	registry := registryForSequencer(mockStorage)
+	registry := extension.NewMockRegistry(mockCtrl)
+	registry.EXPECT().GetLogStorage().Return(mockStorage, nil)
 	sm := NewSequencerManager(mockKeyManager, registry, zeroDuration)
 
 	sm.ExecutePass([]int64{logID}, createTestContext(registry))
@@ -157,20 +160,11 @@ func TestSequencerManagerGuardWindow(t *testing.T) {
 	mockTx.EXPECT().DequeueLeaves(50, fakeTime.Add(-time.Second*5)).Return([]trillian.LogLeaf{}, nil)
 	mockKeyManager := crypto.NewMockKeyManager(mockCtrl)
 
-	registry := registryForSequencer(mockStorage)
+	registry := extension.NewMockRegistry(mockCtrl)
+	registry.EXPECT().GetLogStorage().Return(mockStorage, nil)
 	sm := NewSequencerManager(mockKeyManager, registry, time.Second*5)
 
 	sm.ExecutePass([]int64{logID}, createTestContext(registry))
-}
-
-func mockStorageProviderForSequencer(mockStorage storage.LogStorage) testonly.GetLogStorageFunc {
-	return func() (storage.LogStorage, error) {
-		return mockStorage, nil
-	}
-}
-
-func registryForSequencer(mockStorage storage.LogStorage) extension.Registry {
-	return testonly.NewRegistryWithLogProvider(mockStorageProviderForSequencer(mockStorage))
 }
 
 func createTestContext(registry extension.Registry) LogOperationManagerContext {
