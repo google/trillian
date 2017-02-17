@@ -43,8 +43,8 @@ func TestSignVerify(t *testing.T) {
 			crypto.SHA256, sigpb.DigitallySigned_ECDSA},
 	} {
 
-		km := NewPEMKeyManager()
-		if err := km.LoadPrivateKey(test.PEM, test.password); err != nil {
+		km, err := NewFromPrivatePEM([]byte(test.PEM), test.password)
+		if err != nil {
 			t.Errorf("LoadPrivateKey(_, %v)=%v, want nil", test.password, err)
 			continue
 		}

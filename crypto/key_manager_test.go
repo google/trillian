@@ -33,15 +33,11 @@ type ecdsaSig struct {
 }
 
 func TestLoadDemoECDSAKeyAndSign(t *testing.T) {
-	km := new(PEMKeyManager)
-
 	// Obviously in real code we wouldn't use a fixed seed
 	randSource := rand.New(rand.NewSource(42))
-
 	hasher := crypto.SHA256
 
-	err := km.LoadPrivateKey(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
-
+	km, err := NewFromPrivatePEM([]byte(testonly.DemoPrivateKey), testonly.DemoPrivateKeyPass)
 	if err != nil {
 		t.Fatalf("Failed to load key: %v", err)
 	}

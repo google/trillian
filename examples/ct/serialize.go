@@ -28,7 +28,7 @@ import (
 
 // signV1TreeHead signs a tree head for CT. The input STH should have been built from a
 // backend response and already checked for validity.
-func signV1TreeHead(km crypto.KeyManager, sth *ct.SignedTreeHead) error {
+func signV1TreeHead(km crypto.PrivateKeyManager, sth *ct.SignedTreeHead) error {
 	signer := km.Signer()
 	sthBytes, err := ct.SerializeSTHSignatureInput(*sth)
 	if err != nil {
@@ -55,7 +55,11 @@ func signV1TreeHead(km crypto.KeyManager, sth *ct.SignedTreeHead) error {
 
 // signV1SCTForCertificate creates a MerkleTreeLeaf and builds and signs a V1 CT SCT for a certificate
 // using the key held by a key manager.
+<<<<<<< HEAD
 func signV1SCTForCertificate(km crypto.KeyManager, cert, issuer *x509.Certificate, t time.Time) (*ct.MerkleTreeLeaf, *ct.SignedCertificateTimestamp, error) {
+=======
+func signV1SCTForCertificate(km crypto.PrivateKeyManager, cert, issuer *x509.Certificate, t time.Time) (ct.MerkleTreeLeaf, ct.SignedCertificateTimestamp, error) {
+>>>>>>> Enforce key checking during New
 	// Temp SCT for input to the serializer
 	sctInput := getSCTForSignatureInput(t)
 
@@ -75,7 +79,11 @@ func signV1SCTForCertificate(km crypto.KeyManager, cert, issuer *x509.Certificat
 
 // signV1SCTForPrecertificate builds and signs a V1 CT SCT for a pre-certificate using the key
 // held by a key manager.
+<<<<<<< HEAD
 func signV1SCTForPrecertificate(km crypto.KeyManager, cert, issuer *x509.Certificate, t time.Time) (*ct.MerkleTreeLeaf, *ct.SignedCertificateTimestamp, error) {
+=======
+func signV1SCTForPrecertificate(km crypto.PrivateKeyManager, cert, issuer *x509.Certificate, t time.Time) (ct.MerkleTreeLeaf, ct.SignedCertificateTimestamp, error) {
+>>>>>>> Enforce key checking during New
 	if issuer == nil {
 		// Need issuer for the IssuerKeyHash
 		return nil, nil, errors.New("no issuer available for pre-certificate")
@@ -111,7 +119,11 @@ func signV1SCTForPrecertificate(km crypto.KeyManager, cert, issuer *x509.Certifi
 	return serializeAndSignSCT(km, leaf, sctInput, t)
 }
 
+<<<<<<< HEAD
 func serializeAndSignSCT(km crypto.KeyManager, leaf ct.MerkleTreeLeaf, sctInput ct.SignedCertificateTimestamp, t time.Time) (*ct.MerkleTreeLeaf, *ct.SignedCertificateTimestamp, error) {
+=======
+func serializeAndSignSCT(km crypto.PrivateKeyManager, leaf ct.MerkleTreeLeaf, sctInput ct.SignedCertificateTimestamp, t time.Time) (ct.MerkleTreeLeaf, ct.SignedCertificateTimestamp, error) {
+>>>>>>> Enforce key checking during New
 	// Serialize SCT signature input to get the bytes that need to be signed
 	res, err := ct.SerializeSCTSignatureInput(sctInput, ct.LogEntry{Leaf: leaf})
 	if err != nil {
@@ -127,7 +139,11 @@ func serializeAndSignSCT(km crypto.KeyManager, leaf ct.MerkleTreeLeaf, sctInput 
 	return &leaf, sct, nil
 }
 
+<<<<<<< HEAD
 func signSCT(km crypto.KeyManager, t time.Time, sctData []byte) (*ct.SignedCertificateTimestamp, error) {
+=======
+func signSCT(km crypto.PrivateKeyManager, t time.Time, sctData []byte) (ct.SignedCertificateTimestamp, error) {
+>>>>>>> Enforce key checking during New
 	trillianSigner := crypto.NewSigner(km.HashAlgorithm(), km.SignatureAlgorithm(), km.Signer())
 	signature, err := trillianSigner.Sign(sctData)
 	if err != nil {

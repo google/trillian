@@ -41,7 +41,7 @@ type Sequencer struct {
 	hasher     merkle.TreeHasher
 	timeSource util.TimeSource
 	logStorage storage.LogStorage
-	keyManager crypto.KeyManager
+	keyManager crypto.PrivateKeyManager
 
 	// These parameters could theoretically be adjusted during operation
 	// sequencerGuardWindow is used to ensure entries newer than the guard window will not be
@@ -56,7 +56,7 @@ type Sequencer struct {
 const maxTreeDepth = 64
 
 // NewSequencer creates a new Sequencer instance for the specified inputs.
-func NewSequencer(hasher merkle.TreeHasher, timeSource util.TimeSource, logStorage storage.LogStorage, km crypto.KeyManager) *Sequencer {
+func NewSequencer(hasher merkle.TreeHasher, timeSource util.TimeSource, logStorage storage.LogStorage, km crypto.PrivateKeyManager) *Sequencer {
 	return &Sequencer{
 		hasher:     hasher,
 		timeSource: timeSource,

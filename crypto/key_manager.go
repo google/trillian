@@ -24,16 +24,12 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/golang/glog"
 	"github.com/google/trillian/crypto/sigpb"
 )
 
-// KeyManager loads and holds our private and public keys. Should support ECDSA and RSA keys.
-// The crypto.Signer API allows for obtaining a public key from a private key but there are
-// cases where we have the public key only, such as mirroring another log, so we treat them
-// separately. KeyManager is an interface as we expect multiple implementations supporting
-// different ways of accessing keys.
-type KeyManager interface {
+// PrivateKeyManager supports signing data with a private key that may be stored
+// in a secure location, which is not immediately available to this client.
+type PrivateKeyManager interface {
 	// Signer returns a crypto.Signer that can sign data using the private key.
 	Signer() crypto.Signer
 	// SignatureAlgorithm returns the value that identifies the signature algorithm.
@@ -48,20 +44,7 @@ type KeyManager interface {
 // PEM file.
 type PEMKeyManager struct {
 	signer             crypto.Signer
-	serverPrivateKey   crypto.PrivateKey
 	signatureAlgorithm sigpb.DigitallySigned_SignatureAlgorithm
-	rawPublicKey       []byte
-}
-
-// NewPEMKeyManager creates an uninitialized PEMKeyManager. Keys must be loaded before it
-// can be used
-func NewPEMKeyManager() *PEMKeyManager {
-	return &PEMKeyManager{}
-}
-
-// NewPEMKeyManager creates a PEMKeyManager using a private key that has already been loaded
-func (k PEMKeyManager) NewPEMKeyManager(key crypto.PrivateKey) *PEMKeyManager {
-	return &PEMKeyManager{serverPrivateKey: key}
 }
 
 // SignatureAlgorithm identifies the signature algorithm used by this key manager.
@@ -76,39 +59,6 @@ func (k PEMKeyManager) HashAlgorithm() crypto.Hash {
 	return crypto.SHA256
 }
 
-// LoadPrivateKey loads a private key from a PEM encoded string, decrypting it if necessary
-func (k *PEMKeyManager) LoadPrivateKey(pemEncodedKey, password string) error {
-	block, rest := pem.Decode([]byte(pemEncodedKey))
-	if len(rest) > 0 {
-		return errors.New("extra data found after PEM decoding")
-	}
-
-	der := block.Bytes
-	if password != "" {
-		pwdDer, err := x509.DecryptPEMBlock(block, []byte(password))
-		if err != nil {
-			return err
-		}
-		der = pwdDer
-	}
-
-	key, algo, err := parsePrivateKey(der)
-	if err != nil {
-		return err
-	}
-
-	switch key.(type) {
-	case *ecdsa.PrivateKey, *rsa.PrivateKey:
-		k.signer = key.(crypto.Signer)
-	default:
-		return errors.New("unsupported key type")
-	}
-
-	k.serverPrivateKey = key
-	k.signatureAlgorithm = algo
-	return nil
-}
-
 // Signer returns a signer based on our private key.
 func (k PEMKeyManager) Signer() crypto.Signer {
 	return k.signer
@@ -119,50 +69,74 @@ func (k PEMKeyManager) PublicKey() crypto.PublicKey {
 	return k.signer.Public()
 }
 
-func parsePrivateKey(key []byte) (crypto.PrivateKey, sigpb.DigitallySigned_SignatureAlgorithm, error) {
-	// Our two ways of reading keys are ParsePKCS1PrivateKey and ParsePKCS8PrivateKey.
-	// And ParseECPrivateKey. Our three ways of parsing keys are ... I'll come in again.
-	if key, err := x509.ParsePKCS1PrivateKey(key); err == nil {
-		return key, sigpb.DigitallySigned_RSA, nil
-	}
-	if key, err := x509.ParsePKCS8PrivateKey(key); err == nil {
-		switch key := key.(type) {
-		case *ecdsa.PrivateKey:
-			return key, sigpb.DigitallySigned_ECDSA, nil
-		case *rsa.PrivateKey:
-			return key, sigpb.DigitallySigned_RSA, nil
-		default:
-			return nil, sigpb.DigitallySigned_ANONYMOUS, fmt.Errorf("unknown private key type: %T", key)
-		}
-	}
-	var err error
-	if key, err := x509.ParseECPrivateKey(key); err == nil {
-		return key, sigpb.DigitallySigned_ECDSA, nil
+// NewFromPrivateKey creates PrivateKeyManager using a private key.
+func NewFromPrivateKey(key crypto.PrivateKey) (PrivateKeyManager, error) {
+	var signer crypto.Signer
+	var sigAlgo sigpb.DigitallySigned_SignatureAlgorithm
+
+	switch key.(type) {
+	case *ecdsa.PrivateKey:
+		signer = key.(crypto.Signer)
+		sigAlgo = sigpb.DigitallySigned_ECDSA
+	case *rsa.PrivateKey:
+		signer = key.(crypto.Signer)
+		sigAlgo = sigpb.DigitallySigned_RSA
+	default:
+		return nil, errors.New("unsupported key type")
 	}
 
-	glog.Warningf("error parsing EC key: %s", err)
-	return nil, sigpb.DigitallySigned_ANONYMOUS, errors.New("could not parse private key")
+	return &PEMKeyManager{
+		signer:             signer,
+		signatureAlgorithm: sigAlgo,
+	}, nil
 }
 
-// LoadPasswordProtectedPrivateKey initializes and returns a new KeyManager using a PEM encoded
+func parsePrivateKey(key []byte) (crypto.PrivateKey, error) {
+	if key, err := x509.ParsePKCS1PrivateKey(key); err == nil {
+		return key, nil
+	}
+	if key, err := x509.ParsePKCS8PrivateKey(key); err == nil {
+		return key, nil
+	}
+	if key, err := x509.ParseECPrivateKey(key); err == nil {
+		return key, nil
+	}
+	return nil, errors.New("could not parse private key")
+}
+
+// NewFromPrivatePEM returns key manager for a password protected PEM object.
+func NewFromPrivatePEM(pemBlock []byte, password string) (PrivateKeyManager, error) {
+	block, rest := pem.Decode(pemBlock)
+	if len(rest) > 0 {
+		return nil, errors.New("extra data found after PEM decoding")
+	}
+
+	der := block.Bytes
+	if password != "" {
+		pwdDer, err := x509.DecryptPEMBlock(block, []byte(password))
+		if err != nil {
+			return nil, err
+		}
+		der = pwdDer
+	}
+
+	key, err := parsePrivateKey(der)
+	if err != nil {
+		return nil, err
+	}
+	return NewFromPrivateKey(key)
+}
+
+// NewFromPrivatePEMFile initializes and returns a new KeyManager using a PEM encoded
 // private key read from a file. The key may be protected by a password.
-func LoadPasswordProtectedPrivateKey(keyFile, keyPassword string) (KeyManager, error) {
+func NewFromPrivatePEMFile(keyFile, keyPassword string) (PrivateKeyManager, error) {
 	if len(keyFile) == 0 || len(keyPassword) == 0 {
 		return nil, errors.New("private key file and password must be specified")
 	}
 
 	pemData, err := ioutil.ReadFile(keyFile)
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to read data from key file: %s because: %v", keyFile, err)
 	}
-
-	km := NewPEMKeyManager()
-	err = km.LoadPrivateKey(string(pemData[:]), keyPassword)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return *km, nil
+	return NewFromPrivatePEM(pemData, keyPassword)
 }

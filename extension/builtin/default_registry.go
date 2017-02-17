@@ -67,7 +67,7 @@ func NewDefaultExtensionRegistry() (extension.Registry, error) {
 	if err != nil {
 		return nil, err
 	}
-	km, err := crypto.LoadPasswordProtectedPrivateKey(*privateKeyFile, *privateKeyPassword)
+	km, err := crypto.NewFromPrivatePEMFile(*privateKeyFile, *privateKeyPassword)
 	if err != nil {
 		return nil, err
 	}

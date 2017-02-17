@@ -535,7 +535,7 @@ func makeCertChain(chain []ct.ASN1Cert, cert, issuer *x509.Certificate, signer b
 
 // MakeSigner creates a signer using the private key in the test directory.
 func MakeSigner(testdir string) (basecrypto.Signer, error) {
-	km, err := crypto.LoadPasswordProtectedPrivateKey(filepath.Join(testdir, "int-ca.privkey.pem"), "babelfish")
+	km, err := crypto.NewFromPrivatePEMFile(filepath.Join(testdir, "int-ca.privkey.pem"), "babelfish")
 	if err != nil {
 		return nil, fmt.Errorf("failed to load private key for re-signing: %v", err)
 	}
