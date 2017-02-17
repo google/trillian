@@ -20,19 +20,31 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/asn1"
+	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"math/big"
 
+	"github.com/benlaurie/objecthash/go/objecthash"
 	"github.com/google/trillian/crypto/sigpb"
 )
 
 // ErrVerify occurs whenever signature verification fails.
 var ErrVerify = errors.New("signature verification failed")
 
+// PublicKeyFromFile returns the public key contained in the keyFile.
+func PublicKeyFromFile(keyFile string) (crypto.PublicKey, error) {
+	pemData, err := ioutil.ReadFile(keyFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read: %s. %v", keyFile, err)
+	}
+	return PublicKeyFromPEM(pemData)
+}
+
 // PublicKeyFromPEM converts a PEM object into a crypto.PublicKey
-func PublicKeyFromPEM(pemEncodedKey string) (crypto.PublicKey, error) {
+func PublicKeyFromPEM(pemEncodedKey []byte) (crypto.PublicKey, error) {
 	publicBlock, rest := pem.Decode([]byte(pemEncodedKey))
 	if publicBlock == nil {
 		return nil, errors.New("could not decode PEM for public key")
@@ -49,8 +61,23 @@ func PublicKeyFromPEM(pemEncodedKey string) (crypto.PublicKey, error) {
 	return parsedKey, nil
 }
 
+// VerifyObject verifies the output of SignObject.
+func VerifyObject(pub crypto.PublicKey, obj interface{}, sig *sigpb.DigitallySigned) error {
+	j, err := json.Marshal(obj)
+	if err != nil {
+		return err
+	}
+	hash := objecthash.CommonJSONHash(string(j))
+
+	if err := Verify(pub, hash[:], sig); err != nil {
+		return err
+	}
+	return nil
+
+}
+
 // Verify cryptographically verifies the output of Signer.
-func Verify(pub crypto.PublicKey, data []byte, sig sigpb.DigitallySigned) error {
+func Verify(pub crypto.PublicKey, data []byte, sig *sigpb.DigitallySigned) error {
 	sigAlgo := sig.SignatureAlgorithm
 
 	// Recompute digest

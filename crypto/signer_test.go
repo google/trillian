@@ -129,7 +129,11 @@ func TestSignLogRoot(t *testing.T) {
 
 	logSigner := createTestSigner(mockSigner)
 
-	root := trillian.SignedLogRoot{TimestampNanos: 2267709, RootHash: []byte("Islington"), TreeSize: 2}
+	root := trillian.SignedLogRoot{
+		TimestampNanos: 2267709,
+		RootHash:       []byte("Islington"),
+		TreeSize:       2,
+	}
 	signature, err := logSigner.SignLogRoot(root)
 
 	if err != nil {
@@ -137,7 +141,9 @@ func TestSignLogRoot(t *testing.T) {
 	}
 
 	// Check root is not modified
-	expected := trillian.SignedLogRoot{TimestampNanos: 2267709, RootHash: []byte("Islington"), TreeSize: 2}
+	expected := trillian.SignedLogRoot{
+		TimestampNanos: 2267709,
+		RootHash:       []byte("Islington"), TreeSize: 2}
 	if !reflect.DeepEqual(root, expected) {
 		t.Fatalf("Got %v, but expected unmodified signed root %v", root, expected)
 	}
@@ -146,7 +152,7 @@ func TestSignLogRoot(t *testing.T) {
 		SignatureAlgorithm: sigpb.DigitallySigned_RSA,
 		HashAlgorithm:      sigpb.DigitallySigned_SHA256,
 		Signature:          []byte("echo")}
-	if !reflect.DeepEqual(signature, expectedSignature) {
+	if !reflect.DeepEqual(*signature, expectedSignature) {
 		t.Fatalf("Got %v, but expected %v", signature, expectedSignature)
 	}
 }

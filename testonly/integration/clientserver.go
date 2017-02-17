@@ -40,12 +40,15 @@ const (
 )
 
 var (
+	publicKeyFile      = "../testdata/log-rpc-server.pubkey.pem"
 	privateKeyFile     = "../testdata/log-rpc-server.privkey.pem"
 	privateKeyPassword = "towel"
 	sequencerWindow    = time.Duration(0)
 	batchSize          = 50
 	sleepBetweenRuns   = 100 * time.Millisecond
 	timeSource         = util.SystemTimeSource{}
+	// PublicKey returns the public key that verifies responses from this server.
+	PublicKey, _ = crypto.PublicKeyFromFile(publicKeyFile)
 )
 
 // LogEnv is a test environment that contains both a log server and a connection to it.

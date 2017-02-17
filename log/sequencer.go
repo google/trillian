@@ -148,12 +148,12 @@ func (s Sequencer) initMerkleTreeFromStorage(ctx context.Context, currentRoot tr
 	return s.buildMerkleTreeFromStorageAtRoot(ctx, currentRoot, tx)
 }
 
-func (s Sequencer) createRootSignature(ctx context.Context, root trillian.SignedLogRoot) (sigpb.DigitallySigned, error) {
+func (s Sequencer) createRootSignature(ctx context.Context, root trillian.SignedLogRoot) (*sigpb.DigitallySigned, error) {
 	trillianSigner := crypto.NewSigner(s.keyManager.SignatureAlgorithm(), s.keyManager)
 	signature, err := trillianSigner.SignLogRoot(root)
 	if err != nil {
 		glog.Warningf("%s: signer failed to sign root: %v", util.LogIDPrefix(ctx), err)
-		return sigpb.DigitallySigned{}, err
+		return nil, err
 	}
 
 	return signature, nil
@@ -274,7 +274,7 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int) (i
 		return 0, err
 	}
 
-	newLogRoot.Signature = &signature
+	newLogRoot.Signature = signature
 
 	if err := tx.StoreSignedLogRoot(newLogRoot); err != nil {
 		glog.Warningf("%v: failed to write updated tree root: %v", logID, err)
@@ -331,7 +331,7 @@ func (s Sequencer) SignRoot(ctx context.Context, logID int64) error {
 		tx.Rollback()
 		return err
 	}
-	newLogRoot.Signature = &signature
+	newLogRoot.Signature = signature
 
 	// Store the new root and we're done
 	if err := tx.StoreSignedLogRoot(newLogRoot); err != nil {
