@@ -30,9 +30,9 @@ func (_m *MockRegistry) EXPECT() *_MockRegistryRecorder {
 	return _m.recorder
 }
 
-func (_m *MockRegistry) GetKeyManager(_param0 int64) (crypto.KeyManager, error) {
+func (_m *MockRegistry) GetKeyManager(_param0 int64) (crypto.PrivateKeyManager, error) {
 	ret := _m.ctrl.Call(_m, "GetKeyManager", _param0)
-	ret0, _ := ret[0].(crypto.KeyManager)
+	ret0, _ := ret[0].(crypto.PrivateKeyManager)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

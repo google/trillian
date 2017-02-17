@@ -89,12 +89,12 @@ func TestSerializeLogEntry(t *testing.T) {
 }
 
 // Creates a mock key manager for use in interaction tests
-func setupMockKeyManager(ctrl *gomock.Controller, toSign []byte) *crypto.MockKeyManager {
+func setupMockPrivateKeyManager(ctrl *gomock.Controller, toSign []byte) *crypto.MockPrivateKeyManager {
 	pubkey, err := crypto.PublicKeyFromPEM(ctTesttubePublicKey)
 	if err != nil {
 		panic(err)
 	}
-	mockKeyManager := setupMockKeyManagerForSth(ctrl, toSign)
+	mockKeyManager := setupMockPrivateKeyManagerForSth(ctrl, toSign)
 	mockKeyManager.EXPECT().PublicKey().AnyTimes().Return(pubkey)
 	mockKeyManager.EXPECT().SignatureAlgorithm().AnyTimes().Return(spb.DigitallySigned_ECDSA)
 	mockKeyManager.EXPECT().HashAlgorithm().AnyTimes().Return(gocrypto.SHA256)
@@ -103,8 +103,8 @@ func setupMockKeyManager(ctrl *gomock.Controller, toSign []byte) *crypto.MockKey
 }
 
 // As above but we don't expect the call for a public key as we don't need it for an STH
-func setupMockKeyManagerForSth(ctrl *gomock.Controller, toSign []byte) *crypto.MockKeyManager {
-	mockKeyManager := crypto.NewMockKeyManager(ctrl)
+func setupMockPrivateKeyManagerForSth(ctrl *gomock.Controller, toSign []byte) *crypto.MockPrivateKeyManager {
+	mockKeyManager := crypto.NewMockPrivateKeyManager(ctrl)
 	mockSigner := crypto.NewMockSigner(ctrl)
 	mockSigner.EXPECT().Sign(gomock.Any(), toSign, gomock.Any()).AnyTimes().Return([]byte("signed"), nil)
 	mockKeyManager.EXPECT().Signer().AnyTimes().Return(mockSigner)

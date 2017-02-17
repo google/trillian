@@ -97,7 +97,7 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 	mockTx.EXPECT().WriteRevision().AnyTimes().Return(writeRev)
 	mockTx.EXPECT().LatestSignedLogRoot().Return(testRoot0, nil)
 	mockTx.EXPECT().DequeueLeaves(50, fakeTime).Return([]trillian.LogLeaf{}, nil)
-	mockKeyManager := crypto.NewMockKeyManager(mockCtrl)
+	mockKeyManager := crypto.NewMockPrivateKeyManager(mockCtrl)
 	mockKeyManager.EXPECT().SignatureAlgorithm().AnyTimes().Return(sigpb.DigitallySigned_ECDSA)
 	mockKeyManager.EXPECT().HashAlgorithm().AnyTimes().Return(gocrypto.SHA256)
 
@@ -115,7 +115,7 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 
 	mockStorage := storage.NewMockLogStorage(mockCtrl)
 	mockTx := storage.NewMockLogTreeTX(mockCtrl)
-	mockKeyManager := crypto.NewMockKeyManager(mockCtrl)
+	mockKeyManager := crypto.NewMockPrivateKeyManager(mockCtrl)
 	mockKeyManager.EXPECT().SignatureAlgorithm().AnyTimes().Return(sigpb.DigitallySigned_ECDSA)
 	mockKeyManager.EXPECT().HashAlgorithm().AnyTimes().Return(gocrypto.SHA256)
 	var logID int64 = 1
@@ -158,7 +158,7 @@ func TestSequencerManagerGuardWindow(t *testing.T) {
 	mockTx.EXPECT().LatestSignedLogRoot().Return(testRoot0, nil)
 	// Expect a 5 second guard window to be passed from manager -> sequencer -> storage
 	mockTx.EXPECT().DequeueLeaves(50, fakeTime.Add(-time.Second*5)).Return([]trillian.LogLeaf{}, nil)
-	mockKeyManager := crypto.NewMockKeyManager(mockCtrl)
+	mockKeyManager := crypto.NewMockPrivateKeyManager(mockCtrl)
 
 	registry := extension.NewMockRegistry(mockCtrl)
 	registry.EXPECT().GetLogStorage().Return(mockStorage, nil)

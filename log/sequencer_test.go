@@ -140,7 +140,7 @@ type testParameters struct {
 type testContext struct {
 	mockTx         *storage.MockLogTreeTX
 	mockStorage    *storage.MockLogStorage
-	mockKeyManager *crypto.MockKeyManager
+	mockKeyManager *crypto.MockPrivateKeyManager
 	sequencer      *Sequencer
 }
 
@@ -215,7 +215,7 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) (testCont
 		}
 	}
 
-	mockKeyManager := crypto.NewMockKeyManager(ctrl)
+	mockKeyManager := crypto.NewMockPrivateKeyManager(ctrl)
 
 	if params.setupSigner {
 		mockSigner := crypto.NewMockSigner(ctrl)

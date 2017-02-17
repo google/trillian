@@ -97,7 +97,7 @@ const caAndIntermediateCertsPEM string = "-----BEGIN CERTIFICATE-----\n" +
 
 type handlerTestInfo struct {
 	mockCtrl *gomock.Controller
-	km       *crypto.MockKeyManager
+	km       *crypto.MockPrivateKeyManager
 	roots    *PEMCertPool
 	client   *mockclient.MockTrillianLogClient
 	c        LogContext
@@ -109,7 +109,7 @@ func setupTest(t *testing.T, pemRoots []string) handlerTestInfo {
 	info := handlerTestInfo{}
 	info.mockCtrl = gomock.NewController(t)
 
-	info.km = crypto.NewMockKeyManager(info.mockCtrl)
+	info.km = crypto.NewMockPrivateKeyManager(info.mockCtrl)
 	pubkey, err := crypto.PublicKeyFromPEM(ctTesttubePublicKey)
 	if err != nil {
 		panic(err)
