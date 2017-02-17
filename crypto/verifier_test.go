@@ -15,9 +15,10 @@
 package crypto
 
 import (
+	"crypto"
 	"testing"
 
-	"github.com/google/trillian"
+	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/testonly"
 )
 
@@ -34,12 +35,12 @@ func TestSignVerify(t *testing.T) {
 	for _, test := range []struct {
 		PEM      string
 		password string
-		HashAlgo trillian.HashAlgorithm
-		SigAlgo  trillian.SignatureAlgorithm
+		HashAlgo crypto.Hash
+		SigAlgo  sigpb.DigitallySigned_SignatureAlgorithm
 	}{
-		{privPEM, "", trillian.HashAlgorithm_SHA256, trillian.SignatureAlgorithm_ECDSA},
+		{privPEM, "", crypto.SHA256, sigpb.DigitallySigned_ECDSA},
 		{testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass,
-			trillian.HashAlgorithm_SHA256, trillian.SignatureAlgorithm_ECDSA},
+			crypto.SHA256, sigpb.DigitallySigned_ECDSA},
 	} {
 
 		km := NewPEMKeyManager()

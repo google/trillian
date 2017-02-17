@@ -24,6 +24,7 @@ import (
 	"github.com/benlaurie/objecthash/go/objecthash"
 	"github.com/golang/glog"
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto/sigpb"
 )
 
 // Constants used as map keys when building input for ObjectHash. They must not be changed
@@ -34,48 +35,62 @@ const (
 	mapKeyTreeSize       string = "TreeSize"
 )
 
+var (
+	signerHashLookup = map[sigpb.DigitallySigned_HashAlgorithm]crypto.Hash{
+		sigpb.DigitallySigned_SHA256: crypto.SHA256,
+	}
+	reverseSignerHashLookup = map[crypto.Hash]sigpb.DigitallySigned_HashAlgorithm{
+		crypto.SHA256: sigpb.DigitallySigned_SHA256,
+	}
+)
+
 // Signer is responsible for signing log-related data and producing the appropriate
 // application specific signature objects.
 type Signer struct {
-	hasher       crypto.Hash
+	hash         crypto.Hash
 	signer       crypto.Signer
-	sigAlgorithm trillian.SignatureAlgorithm
+	sigAlgorithm sigpb.DigitallySigned_SignatureAlgorithm
 }
 
 // NewSigner creates a new Signer wrapping up a hasher and a signer. For the moment
 // we only support SHA256 hashing and either ECDSA or RSA signing but this is not enforced
 // here.
-func NewSigner(hashAlgo trillian.HashAlgorithm, sigAlgo trillian.SignatureAlgorithm, signer crypto.Signer) *Signer {
-	h, ok := hashLookup[hashAlgo]
+func NewSigner(hash crypto.Hash, sigAlgo sigpb.DigitallySigned_SignatureAlgorithm, signer crypto.Signer) *Signer {
+	_, ok := reverseSignerHashLookup[hash]
 	if !ok {
 		// TODO(gbelvin): return error from Signer.
 		panic("unsupported hash algorithm")
 	}
 
-	return &Signer{h, signer, sigAlgo}
+	return &Signer{
+		hash:         hash,
+		signer:       signer,
+		sigAlgorithm: sigAlgo,
+	}
 }
 
 // Sign obtains a signature after first hashing the input data.
-func (s Signer) Sign(data []byte) (trillian.DigitallySigned, error) {
-	h := s.hasher.New()
+func (s Signer) Sign(data []byte) (sigpb.DigitallySigned, error) {
+	h := s.hash.New()
 	h.Write(data)
 	digest := h.Sum(nil)
 
-	if len(digest) != s.hasher.Size() {
-		return trillian.DigitallySigned{}, fmt.Errorf("hasher returned unexpected digest length: %d, %d",
-			len(digest), s.hasher.Size())
+	if len(digest) != s.hash.Size() {
+		return sigpb.DigitallySigned{}, fmt.Errorf("hasher returned unexpected digest length: %d, %d",
+			len(digest), s.hash.Size())
 	}
 
-	sig, err := s.signer.Sign(rand.Reader, digest, s.hasher)
+	sig, err := s.signer.Sign(rand.Reader, digest, s.hash)
 
 	if err != nil {
-		return trillian.DigitallySigned{}, err
+		return sigpb.DigitallySigned{}, err
 	}
 
-	return trillian.DigitallySigned{
+	return sigpb.DigitallySigned{
 		SignatureAlgorithm: s.sigAlgorithm,
-		HashAlgorithm:      reverseHashLookup[s.hasher],
-		Signature:          sig}, nil
+		HashAlgorithm:      reverseSignerHashLookup[s.hash],
+		Signature:          sig,
+	}, nil
 }
 
 func (s Signer) hashRoot(root trillian.SignedLogRoot) []byte {
@@ -95,13 +110,13 @@ func (s Signer) hashRoot(root trillian.SignedLogRoot) []byte {
 
 // SignLogRoot updates a log root to include a signature from the crypto signer this object
 // was created with. Signatures use objecthash on a fixed JSON format of the root.
-func (s Signer) SignLogRoot(root trillian.SignedLogRoot) (trillian.DigitallySigned, error) {
+func (s Signer) SignLogRoot(root trillian.SignedLogRoot) (sigpb.DigitallySigned, error) {
 	objectHash := s.hashRoot(root)
 	signature, err := s.Sign(objectHash[:])
 
 	if err != nil {
 		glog.Warningf("Signer failed to sign root: %v", err)
-		return trillian.DigitallySigned{}, err
+		return sigpb.DigitallySigned{}, err
 	}
 
 	return signature, nil

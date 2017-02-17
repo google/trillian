@@ -15,6 +15,7 @@
 package ct
 
 import (
+	gocrypto "crypto"
 	"encoding/hex"
 	"reflect"
 	"testing"
@@ -23,8 +24,8 @@ import (
 	"github.com/golang/mock/gomock"
 	ct "github.com/google/certificate-transparency/go"
 	"github.com/google/certificate-transparency/go/tls"
-	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
+	spb "github.com/google/trillian/crypto/sigpb"
 )
 
 var fixedTime = time.Date(2017, 9, 7, 12, 15, 23, 0, time.UTC)
@@ -108,8 +109,8 @@ func TestSerializeLogEntry(t *testing.T) {
 func setupMockKeyManager(ctrl *gomock.Controller, toSign []byte) *crypto.MockKeyManager {
 	mockKeyManager := setupMockKeyManagerForSth(ctrl, toSign)
 	mockKeyManager.EXPECT().GetRawPublicKey().AnyTimes().Return([]byte("key"), nil)
-	mockKeyManager.EXPECT().SignatureAlgorithm().AnyTimes().Return(trillian.SignatureAlgorithm_ECDSA)
-	mockKeyManager.EXPECT().HashAlgorithm().AnyTimes().Return(trillian.HashAlgorithm_SHA256)
+	mockKeyManager.EXPECT().SignatureAlgorithm().AnyTimes().Return(spb.DigitallySigned_ECDSA)
+	mockKeyManager.EXPECT().HashAlgorithm().AnyTimes().Return(gocrypto.SHA256)
 
 	return mockKeyManager
 }

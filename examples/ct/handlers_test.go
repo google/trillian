@@ -18,6 +18,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	gocrypto "crypto"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -38,6 +39,7 @@ import (
 	"github.com/google/certificate-transparency/go/x509"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
+	spb "github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/examples/ct/testonly"
 	"github.com/google/trillian/mockclient"
 	"github.com/google/trillian/util"
@@ -103,8 +105,8 @@ func setupTest(t *testing.T, pemRoots []string) handlerTestInfo {
 	info.mockCtrl = gomock.NewController(t)
 	info.km = crypto.NewMockKeyManager(info.mockCtrl)
 	info.km.EXPECT().GetRawPublicKey().AnyTimes().Return([]byte("key"), nil)
-	info.km.EXPECT().SignatureAlgorithm().AnyTimes().Return(trillian.SignatureAlgorithm_ECDSA)
-	info.km.EXPECT().HashAlgorithm().AnyTimes().Return(trillian.HashAlgorithm_SHA256)
+	info.km.EXPECT().SignatureAlgorithm().AnyTimes().Return(spb.DigitallySigned_ECDSA)
+	info.km.EXPECT().HashAlgorithm().AnyTimes().Return(gocrypto.SHA256)
 	info.client = mockclient.NewMockTrillianLogClient(info.mockCtrl)
 	info.roots = NewPEMCertPool()
 	for _, pemRoot := range pemRoots {

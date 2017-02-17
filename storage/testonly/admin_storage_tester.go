@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/google/trillian"
+	spb "github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/storage"
 )
 
@@ -29,8 +30,8 @@ var (
 		TreeState:          trillian.TreeState_ACTIVE,
 		TreeType:           trillian.TreeType_LOG,
 		HashStrategy:       trillian.HashStrategy_RFC_6962,
-		HashAlgorithm:      trillian.HashAlgorithm_SHA256,
-		SignatureAlgorithm: trillian.SignatureAlgorithm_ECDSA,
+		HashAlgorithm:      spb.DigitallySigned_SHA256,
+		SignatureAlgorithm: spb.DigitallySigned_ECDSA,
 		DuplicatePolicy:    trillian.DuplicatePolicy_DUPLICATES_NOT_ALLOWED,
 		DisplayName:        "Llamas Log",
 		Description:        "Registry of publicly-owned llamas",
@@ -41,8 +42,8 @@ var (
 		TreeState:          trillian.TreeState_ACTIVE,
 		TreeType:           trillian.TreeType_MAP,
 		HashStrategy:       trillian.HashStrategy_RFC_6962,
-		HashAlgorithm:      trillian.HashAlgorithm_SHA256,
-		SignatureAlgorithm: trillian.SignatureAlgorithm_ECDSA,
+		HashAlgorithm:      spb.DigitallySigned_SHA256,
+		SignatureAlgorithm: spb.DigitallySigned_ECDSA,
 		DuplicatePolicy:    trillian.DuplicatePolicy_DUPLICATES_ALLOWED,
 		DisplayName:        "Llamas Map",
 		Description:        "Key Transparency map for all your digital llama needs.",

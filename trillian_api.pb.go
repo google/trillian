@@ -42,7 +42,6 @@ It has these top-level messages:
 	GetSignedMapRootRequest
 	GetSignedMapRootResponse
 	Tree
-	DigitallySigned
 	SignedEntryTimestamp
 	SignedLogRoot
 	MapperMetadata

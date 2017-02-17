@@ -23,6 +23,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
+	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/testonly"
@@ -47,9 +48,9 @@ var testRoot0 = trillian.SignedLogRoot{
 	TreeRevision: 0,
 	LogId:        testLogID1,
 	RootHash:     []byte{},
-	Signature: &trillian.DigitallySigned{
-		HashAlgorithm:      trillian.HashAlgorithm_SHA256,
-		SignatureAlgorithm: trillian.SignatureAlgorithm_ECDSA,
+	Signature: &sigpb.DigitallySigned{
+		HashAlgorithm:      sigpb.DigitallySigned_SHA256,
+		SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
 	},
 }
 var updatedNodes0 = []storage.Node{{NodeID: storage.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, PrefixLenBits: 64, PathLenBits: 64}, Hash: testonly.MustDecodeBase64("bjQLnP+zepicpUTmu3gKLHiQHT+zNzh2hRGjBhevoB0="), NodeRevision: 1}}
@@ -58,9 +59,9 @@ var updatedRoot = trillian.SignedLogRoot{
 	TimestampNanos: fakeTime.UnixNano(),
 	RootHash:       []byte{110, 52, 11, 156, 255, 179, 122, 152, 156, 165, 68, 230, 187, 120, 10, 44, 120, 144, 29, 63, 179, 55, 56, 118, 133, 17, 163, 6, 23, 175, 160, 29},
 	TreeSize:       1,
-	Signature: &trillian.DigitallySigned{
-		HashAlgorithm:      trillian.HashAlgorithm_SHA256,
-		SignatureAlgorithm: trillian.SignatureAlgorithm_ECDSA,
+	Signature: &sigpb.DigitallySigned{
+		HashAlgorithm:      sigpb.DigitallySigned_SHA256,
+		SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
 		Signature:          []byte("signed"),
 	},
 	TreeRevision: 1,
@@ -76,8 +77,8 @@ func TestSequencerManagerNothingToDo(t *testing.T) {
 
 	mockStorage := storage.NewMockLogStorage(mockCtrl)
 	mockKeyManager := crypto.NewMockKeyManager(mockCtrl)
-	mockKeyManager.EXPECT().SignatureAlgorithm().AnyTimes().Return(trillian.SignatureAlgorithm_ECDSA)
-	mockKeyManager.EXPECT().HashAlgorithm().AnyTimes().Return(trillian.HashAlgorithm_SHA256)
+	mockKeyManager.EXPECT().SignatureAlgorithm().AnyTimes().Return(sigpb.DigitallySigned_ECDSA)
+	mockKeyManager.EXPECT().HashAlgorithm().AnyTimes().Return(gocrypto.SHA256)
 
 	registry := extension.NewMockRegistry(mockCtrl)
 	registry.EXPECT().GetLogStorage().Return(mockStorage, nil)
@@ -100,8 +101,8 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 	mockTx.EXPECT().LatestSignedLogRoot().Return(testRoot0, nil)
 	mockTx.EXPECT().DequeueLeaves(50, fakeTime).Return([]trillian.LogLeaf{}, nil)
 	mockKeyManager := crypto.NewMockKeyManager(mockCtrl)
-	mockKeyManager.EXPECT().SignatureAlgorithm().AnyTimes().Return(trillian.SignatureAlgorithm_ECDSA)
-	mockKeyManager.EXPECT().HashAlgorithm().AnyTimes().Return(trillian.HashAlgorithm_SHA256)
+	mockKeyManager.EXPECT().SignatureAlgorithm().AnyTimes().Return(sigpb.DigitallySigned_ECDSA)
+	mockKeyManager.EXPECT().HashAlgorithm().AnyTimes().Return(gocrypto.SHA256)
 
 	registry := extension.NewMockRegistry(mockCtrl)
 	registry.EXPECT().GetLogStorage().Return(mockStorage, nil)
@@ -117,8 +118,8 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 	mockStorage := storage.NewMockLogStorage(mockCtrl)
 	mockTx := storage.NewMockLogTreeTX(mockCtrl)
 	mockKeyManager := crypto.NewMockKeyManager(mockCtrl)
-	mockKeyManager.EXPECT().SignatureAlgorithm().AnyTimes().Return(trillian.SignatureAlgorithm_ECDSA)
-	mockKeyManager.EXPECT().HashAlgorithm().AnyTimes().Return(trillian.HashAlgorithm_SHA256)
+	mockKeyManager.EXPECT().SignatureAlgorithm().AnyTimes().Return(sigpb.DigitallySigned_ECDSA)
+	mockKeyManager.EXPECT().HashAlgorithm().AnyTimes().Return(gocrypto.SHA256)
 	var logID int64 = 1
 
 	// Set up enough mockery to be able to sequence. We don't test all the error paths

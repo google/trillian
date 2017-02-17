@@ -24,6 +24,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
+	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util"
@@ -147,11 +148,11 @@ func (s Sequencer) initMerkleTreeFromStorage(ctx context.Context, currentRoot tr
 	return s.buildMerkleTreeFromStorageAtRoot(ctx, currentRoot, tx)
 }
 
-func (s Sequencer) createRootSignature(ctx context.Context, root trillian.SignedLogRoot) (trillian.DigitallySigned, error) {
+func (s Sequencer) createRootSignature(ctx context.Context, root trillian.SignedLogRoot) (sigpb.DigitallySigned, error) {
 	signer, err := s.keyManager.Signer()
 	if err != nil {
 		glog.Warningf("%s: key manager failed to create crypto.Signer: %v", util.LogIDPrefix(ctx), err)
-		return trillian.DigitallySigned{}, err
+		return sigpb.DigitallySigned{}, err
 	}
 
 	trillianSigner := crypto.NewSigner(s.keyManager.HashAlgorithm(), s.keyManager.SignatureAlgorithm(), signer)
@@ -159,7 +160,7 @@ func (s Sequencer) createRootSignature(ctx context.Context, root trillian.Signed
 	signature, err := trillianSigner.SignLogRoot(root)
 	if err != nil {
 		glog.Warningf("%s: signer failed to sign root: %v", util.LogIDPrefix(ctx), err)
-		return trillian.DigitallySigned{}, err
+		return sigpb.DigitallySigned{}, err
 	}
 
 	return signature, nil

@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto/sigpb"
 )
 
 func TestValidateTreeForCreation(t *testing.T) {
@@ -43,10 +44,10 @@ func TestValidateTreeForCreation(t *testing.T) {
 	invalidHashStrategy.HashStrategy = trillian.HashStrategy_UNKNOWN_HASH_STRATEGY
 
 	invalidHashAlgorithm := newTree()
-	invalidHashAlgorithm.HashAlgorithm = trillian.HashAlgorithm_NONE
+	invalidHashAlgorithm.HashAlgorithm = sigpb.DigitallySigned_NONE
 
 	invalidSignatureAlgorithm := newTree()
-	invalidSignatureAlgorithm.SignatureAlgorithm = trillian.SignatureAlgorithm_ANONYMOUS
+	invalidSignatureAlgorithm.SignatureAlgorithm = sigpb.DigitallySigned_ANONYMOUS
 
 	invalidDuplicatePolicy := newTree()
 	invalidDuplicatePolicy.DuplicatePolicy = trillian.DuplicatePolicy_UNKNOWN_DUPLICATE_POLICY
@@ -92,8 +93,8 @@ func newTree() *trillian.Tree {
 		TreeState:          trillian.TreeState_ACTIVE,
 		TreeType:           trillian.TreeType_LOG,
 		HashStrategy:       trillian.HashStrategy_RFC_6962,
-		HashAlgorithm:      trillian.HashAlgorithm_SHA256,
-		SignatureAlgorithm: trillian.SignatureAlgorithm_ECDSA,
+		HashAlgorithm:      sigpb.DigitallySigned_SHA256,
+		SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
 		DuplicatePolicy:    trillian.DuplicatePolicy_DUPLICATES_NOT_ALLOWED,
 		DisplayName:        "Llamas Log",
 		Description:        "Registry of publicly-owned llamas",

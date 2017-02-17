@@ -21,6 +21,7 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
+	spb "github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/storage"
 )
 
@@ -126,7 +127,7 @@ func TestMapRootUpdate(t *testing.T) {
 		TimestampNanos: 98765,
 		MapRevision:    5,
 		RootHash:       []byte(dummyHash),
-		Signature:      &trillian.DigitallySigned{Signature: []byte("notempty")},
+		Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
 	}
 
 	if err := tx.StoreSignedMapRoot(root); err != nil {
@@ -139,7 +140,7 @@ func TestMapRootUpdate(t *testing.T) {
 		TimestampNanos: 98766,
 		MapRevision:    6,
 		RootHash:       []byte(dummyHash),
-		Signature:      &trillian.DigitallySigned{Signature: []byte("notempty")},
+		Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
 	}
 
 	if err := tx.StoreSignedMapRoot(root2); err != nil {
@@ -347,7 +348,7 @@ func TestLatestSignedMapRoot(t *testing.T) {
 	defer tx.Rollback()
 
 	// TODO: Tidy up the map id as it looks silly chained 3 times like this
-	root := trillian.SignedMapRoot{MapId: mapID.mapID, TimestampNanos: 98765, MapRevision: 5, RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
+	root := trillian.SignedMapRoot{MapId: mapID.mapID, TimestampNanos: 98765, MapRevision: 5, RootHash: []byte(dummyHash), Signature: &spb.DigitallySigned{Signature: []byte("notempty")}}
 
 	if err := tx.StoreSignedMapRoot(root); err != nil {
 		t.Fatalf("Failed to store signed root: %v", err)
@@ -382,7 +383,7 @@ func TestDuplicateSignedMapRoot(t *testing.T) {
 	defer tx.Commit()
 
 	// TODO: Tidy up the map id as it looks silly chained 3 times like this
-	root := trillian.SignedMapRoot{MapId: mapID.mapID, TimestampNanos: 98765, MapRevision: 5, RootHash: []byte(dummyHash), Signature: &trillian.DigitallySigned{Signature: []byte("notempty")}}
+	root := trillian.SignedMapRoot{MapId: mapID.mapID, TimestampNanos: 98765, MapRevision: 5, RootHash: []byte(dummyHash), Signature: &spb.DigitallySigned{Signature: []byte("notempty")}}
 
 	if err := tx.StoreSignedMapRoot(root); err != nil {
 		t.Fatalf("Failed to store signed map root: %v", err)
