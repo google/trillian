@@ -26,8 +26,6 @@ import (
 	"github.com/google/trillian/testonly/integration"
 )
 
-const logID = int64(1234)
-
 func TestAddGetLeaf(t *testing.T) {
 	// TODO: Build a GetLeaf method and test a full get/set cycle.
 }
@@ -39,8 +37,9 @@ func TestAddLeaf(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer env.Close()
-	if err := env.CreateLog(logID); err != nil {
-		t.Errorf("Failed to create log: %v", err)
+	logID, err := env.CreateLog()
+	if err != nil {
+		t.Fatalf("Failed to create log: %v", err)
 	}
 
 	client := New(logID, env.ClientConn, testonly.Hasher)
@@ -63,8 +62,9 @@ func TestUpdateSTR(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer env.Close()
-	if err := env.CreateLog(logID); err != nil {
-		t.Errorf("Failed to create log: %v", err)
+	logID, err := env.CreateLog()
+	if err != nil {
+		t.Fatalf("Failed to create log: %v", err)
 	}
 	client := New(logID, env.ClientConn, testonly.Hasher)
 

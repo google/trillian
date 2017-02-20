@@ -42,11 +42,11 @@ type defaultRegistry struct {
 }
 
 func (r *defaultRegistry) GetLogStorage() (storage.LogStorage, error) {
-	return mysql.NewLogStorage(r.db)
+	return mysql.NewLogStorage(r.db), nil
 }
 
 func (r *defaultRegistry) GetMapStorage() (storage.MapStorage, error) {
-	return mysql.NewMapStorage(r.db)
+	return mysql.NewMapStorage(r.db), nil
 }
 
 func (r *defaultRegistry) GetKeyManager(treeID int64) (crypto.KeyManager, error) {

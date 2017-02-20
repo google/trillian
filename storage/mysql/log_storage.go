@@ -80,10 +80,10 @@ type mySQLLogStorage struct {
 }
 
 // NewLogStorage creates a mySQLLogStorage instance for the specified MySQL URL.
-func NewLogStorage(db *sql.DB) (storage.LogStorage, error) {
+func NewLogStorage(db *sql.DB) storage.LogStorage {
 	return &mySQLLogStorage{
 		mySQLTreeStorage: newTreeStorage(db),
-	}, nil
+	}
 }
 
 func (m *mySQLLogStorage) CheckDatabaseAccessible(ctx context.Context) error {

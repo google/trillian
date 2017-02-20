@@ -37,7 +37,7 @@ type CTLogEnv struct {
 
 // NewCTLogEnv creates a fresh DB, log server, and CT personality.
 // testID should be unique to each unittest package so as to allow parallel tests.
-func NewCTLogEnv(ctx context.Context, cfgs []ct.LogConfig, numSequencers int, testID string) (*CTLogEnv, error) {
+func NewCTLogEnv(ctx context.Context, cfgs []*ct.LogConfig, numSequencers int, testID string) (*CTLogEnv, error) {
 	// Start log server and signer.
 	logEnv, err := NewLogEnv(ctx, numSequencers, testID)
 	if err != nil {
@@ -46,9 +46,11 @@ func NewCTLogEnv(ctx context.Context, cfgs []ct.LogConfig, numSequencers int, te
 
 	// Provision the logs.
 	for _, cfg := range cfgs {
-		if err := logEnv.CreateLog(cfg.LogID); err != nil {
+		logID, err := logEnv.CreateLog()
+		if err != nil {
 			return nil, fmt.Errorf("failed to provision log %d: %v", cfg.LogID, err)
 		}
+		cfg.LogID = logID
 	}
 
 	// Start the CT personality.
@@ -58,7 +60,7 @@ func NewCTLogEnv(ctx context.Context, cfgs []ct.LogConfig, numSequencers int, te
 	}
 	server := http.Server{Addr: addr, Handler: nil}
 	logEnv.pendingTasks.Add(1)
-	go func(env *LogEnv, server *http.Server, listener net.Listener, cfgs []ct.LogConfig) {
+	go func(env *LogEnv, server *http.Server, listener net.Listener, cfgs []*ct.LogConfig) {
 		defer env.pendingTasks.Done()
 		client := trillian.NewTrillianLogClient(env.ClientConn)
 		for _, cfg := range cfgs {

@@ -29,6 +29,7 @@ import (
 	"github.com/google/trillian/extension/builtin"
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/storage/mysql"
+	"github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/util"
 	"google.golang.org/grpc"
 )
@@ -209,11 +210,21 @@ func (env *LogEnv) Close() {
 }
 
 // CreateLog creates a log and signs the first empty tree head.
-func (env *LogEnv) CreateLog(logID int64) error {
-	if err := mysql.CreateTree(logID, env.DB); err != nil {
-		return err
+func (env *LogEnv) CreateLog() (int64, error) {
+	s := mysql.NewAdminStorage(env.DB)
+	ctx := context.Background()
+	tx, err := s.Begin(ctx)
+	if err != nil {
+		return 0, err
+	}
+	tree, err := tx.CreateTree(ctx, testonly.LogTree)
+	if err != nil {
+		return 0, err
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, err
 	}
 	// Sign the first empty tree head.
 	env.Sequencer.OperationSingle()
-	return nil
+	return tree.TreeId, nil
 }

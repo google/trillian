@@ -86,8 +86,8 @@ func TestInProcessLogIntegration(t *testing.T) {
 	}
 	defer env.Close()
 
-	const logID = int64(6962)
-	if err := env.CreateLog(logID); err != nil {
+	logID, err := env.CreateLog()
+	if err != nil {
 		t.Fatalf("Failed to create log: %v", err)
 	}
 

@@ -57,10 +57,10 @@ type mySQLMapStorage struct {
 }
 
 // NewMapStorage creates a mySQLMapStorage instance for the specified MySQL URL.
-func NewMapStorage(db *sql.DB) (storage.MapStorage, error) {
+func NewMapStorage(db *sql.DB) storage.MapStorage {
 	return &mySQLMapStorage{
 		mySQLTreeStorage: newTreeStorage(db),
-	}, nil
+	}
 }
 
 func (m *mySQLMapStorage) CheckDatabaseAccessible(ctx context.Context) error {
