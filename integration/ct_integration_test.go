@@ -19,7 +19,6 @@ import (
 	"flag"
 	"fmt"
 	"math/rand"
-	"sync"
 	"testing"
 	"time"
 
@@ -50,38 +49,19 @@ func TestCTIntegration(t *testing.T) {
 		t.Fatalf("Failed to read log config: %v", err)
 	}
 
-	if err := runParallelTests(cfgs, *httpServersFlag, *testDir, *mmdFlag); err != nil {
-		t.Errorf("%v", err)
-	}
-}
-
-func runParallelTests(cfgs []ct.LogConfig, servers, testDir string, mmd time.Duration) error {
-	type result struct {
-		prefix string
-		err    error
-	}
-	results := make(chan result, len(cfgs))
-	var wg sync.WaitGroup
 	for _, cfg := range cfgs {
-		wg.Add(1)
-		go func(cfg ct.LogConfig) {
-			defer wg.Done()
+		cfg := cfg // capture config
+		t.Run(cfg.Prefix, func(t *testing.T) {
+			t.Parallel()
 			var stats *wantStats
 			if !*skipStats {
 				stats = newWantStats(cfg.LogID)
 			}
-			err := RunCTIntegrationForLog(cfg, servers, testDir, mmd, stats)
-			results <- result{prefix: cfg.Prefix, err: err}
-		}(cfg)
+			if err := RunCTIntegrationForLog(cfg, *httpServersFlag, *testDir, *mmdFlag, stats); err != nil {
+				t.Errorf("%s: failed: %v", cfg.Prefix, err)
+			}
+		})
 	}
-	wg.Wait()
-	close(results)
-	for e := range results {
-		if e.err != nil {
-			return fmt.Errorf("%s: failed: %v", e.prefix, e.err)
-		}
-	}
-	return nil
 }
 
 const (
@@ -126,7 +106,19 @@ func TestInProcessCTIntegration(t *testing.T) {
 	}
 	defer env.Close()
 
-	if err := runParallelTests(cfgs, env.CTAddr, "../testdata", 120*time.Second); err != nil {
-		t.Errorf("%v", err)
-	}
+	mmd := 120 * time.Second
+	// Run a container for the parallel sub-tests, so that we wait until they
+	// all complete before terminating the test environment.
+	t.Run("container", func(t *testing.T) {
+		for _, cfg := range cfgs {
+			cfg := cfg // capture config
+			t.Run(cfg.Prefix, func(t *testing.T) {
+				t.Parallel()
+				stats := newWantStats(cfg.LogID)
+				if err := RunCTIntegrationForLog(cfg, env.CTAddr, "../testdata", mmd, stats); err != nil {
+					t.Errorf("%s: failed: %v", cfg.Prefix, err)
+				}
+			})
+		}
+	})
 }
