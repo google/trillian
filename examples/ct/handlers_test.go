@@ -328,7 +328,7 @@ func TestAddChain(t *testing.T) {
 				t.Errorf("Unexpected error signing SCT: %v", err)
 				continue
 			}
-			leaves := logLeavesForCert(t, info.km, pool.RawCertificates(), *merkleLeaf, false)
+			leaves := logLeavesForCert(t, info.km, pool.RawCertificates(), merkleLeaf, false)
 			info.client.EXPECT().QueueLeaves(deadlineMatcher(), &trillian.QueueLeavesRequest{LogId: 0x42, Leaves: leaves}).Return(&trillian.QueueLeavesResponse{}, test.err)
 		}
 
@@ -404,7 +404,7 @@ func TestAddPrechain(t *testing.T) {
 				t.Errorf("Unexpected error signing SCT: %v", err)
 				continue
 			}
-			leaves := logLeavesForCert(t, info.km, pool.RawCertificates(), *merkleLeaf, true)
+			leaves := logLeavesForCert(t, info.km, pool.RawCertificates(), merkleLeaf, true)
 			info.client.EXPECT().QueueLeaves(deadlineMatcher(), &trillian.QueueLeavesRequest{LogId: 0x42, Leaves: leaves}).Return(&trillian.QueueLeavesResponse{}, test.err)
 		}
 
