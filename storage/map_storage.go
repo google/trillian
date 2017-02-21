@@ -29,6 +29,9 @@ type ReadOnlyMapTX interface {
 
 	// Rollback discards the read-only TX.
 	Rollback() error
+
+	// Close attempts to Rollback the TX if it's open, it's a noop otherwise.
+	Close() error
 }
 
 // ReadOnlyMapTreeTX provides a read-only view into the Map data.

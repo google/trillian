@@ -159,6 +159,13 @@ func (t *readOnlyLogTX) Rollback() error {
 	return t.tx.Rollback()
 }
 
+func (t *readOnlyLogTX) Close() error {
+	if err := t.Rollback(); err != nil && err != sql.ErrTxDone {
+		return err
+	}
+	return nil
+}
+
 func (t *readOnlyLogTX) GetActiveLogIDs() ([]int64, error) {
 	return getActiveLogIDs(t.tx)
 }

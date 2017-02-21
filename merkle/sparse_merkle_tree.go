@@ -211,6 +211,7 @@ func nodeIDFromAddress(size int, prefix []byte, index *big.Int, depth int) stora
 // subsequently closed when this method exits.
 func (s *subtreeWriter) buildSubtree() {
 	defer close(s.root)
+	defer s.tx.Close()
 
 	leaves := make([]HStar2LeafHash, 0, len(s.leafQueue))
 	nodesToStore := make([]storage.Node, 0, len(s.leafQueue)*2)

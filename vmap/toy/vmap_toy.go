@@ -87,6 +87,7 @@ func main() {
 		if err != nil {
 			glog.Exitf("Failed to Begin() a new tx: %v", err)
 		}
+		defer tx.Close()
 		w, err := merkle.NewSparseMerkleTreeWriter(tx.WriteRevision(), hasher,
 			func() (storage.TreeTX, error) {
 				return ms.BeginForTree(ctx, mapID)
@@ -126,8 +127,7 @@ func main() {
 			glog.Exitf("Failed to store SMH: %v", err)
 		}
 
-		err = tx.Commit()
-		if err != nil {
+		if err := tx.Commit(); err != nil {
 			glog.Exitf("Failed to Commit() tx: %v", err)
 		}
 	}

@@ -87,6 +87,13 @@ func (t *readOnlyMapTX) Rollback() error {
 	return t.tx.Rollback()
 }
 
+func (t *readOnlyMapTX) Close() error {
+	if err := t.Rollback(); err != nil && err != sql.ErrTxDone {
+		return err
+	}
+	return nil
+}
+
 func (m *mySQLMapStorage) hasher(treeID int64) (merkle.TreeHasher, error) {
 	// TODO: read hash algorithm from storage.
 	return merkle.Factory(merkle.RFC6962SHA256Type)

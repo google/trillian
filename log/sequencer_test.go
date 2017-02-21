@@ -189,10 +189,8 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) (testCont
 			mockTx.EXPECT().Commit().AnyTimes().Return(params.commitError)
 		}
 	}
-
-	if params.shouldRollback {
-		mockTx.EXPECT().Rollback().AnyTimes().Return(nil)
-	}
+	// Close is always called, regardless of explicit commits
+	mockTx.EXPECT().Close().AnyTimes().Return(nil)
 
 	if !params.skipDequeue {
 		if params.overrideDequeueTime != nil {
@@ -316,10 +314,9 @@ func TestDequeueError(t *testing.T) {
 	defer ctrl.Finish()
 
 	params := testParameters{
-		logID:          154035,
-		dequeueLimit:   1,
-		shouldRollback: true,
-		dequeuedError:  errors.New("dequeue"),
+		logID:         154035,
+		dequeueLimit:  1,
+		dequeuedError: errors.New("dequeue"),
 	}
 	c, ctx := createTestContext(ctrl, params)
 
@@ -338,7 +335,6 @@ func TestLatestRootError(t *testing.T) {
 	params := testParameters{
 		logID:                 154035,
 		dequeueLimit:          1,
-		shouldRollback:        true,
 		dequeuedLeaves:        leaves,
 		latestSignedRoot:      &testRoot16,
 		latestSignedRootError: errors.New("root"),
@@ -362,7 +358,6 @@ func TestUpdateSequencedLeavesError(t *testing.T) {
 		logID:              154035,
 		writeRevision:      testRoot16.TreeRevision + 1,
 		dequeueLimit:       1,
-		shouldRollback:     true,
 		dequeuedLeaves:     leaves,
 		latestSignedRoot:   &testRoot16,
 		updatedLeaves:      &updatedLeaves,
@@ -387,7 +382,6 @@ func TestSetMerkleNodesError(t *testing.T) {
 		logID:               154035,
 		writeRevision:       testRoot16.TreeRevision + 1,
 		dequeueLimit:        1,
-		shouldRollback:      true,
 		dequeuedLeaves:      leaves,
 		latestSignedRoot:    &testRoot16,
 		updatedLeaves:       &updatedLeaves,
@@ -413,7 +407,6 @@ func TestStoreSignedRootError(t *testing.T) {
 		logID:                154035,
 		writeRevision:        testRoot16.TreeRevision + 1,
 		dequeueLimit:         1,
-		shouldRollback:       true,
 		dequeuedLeaves:       leaves,
 		latestSignedRoot:     &testRoot16,
 		updatedLeaves:        &updatedLeaves,
@@ -443,7 +436,6 @@ func TestStoreSignedRootSignerFails(t *testing.T) {
 		logID:            154035,
 		writeRevision:    testRoot16.TreeRevision + 1,
 		dequeueLimit:     1,
-		shouldRollback:   true,
 		dequeuedLeaves:   leaves,
 		latestSignedRoot: &testRoot16,
 		updatedLeaves:    &updatedLeaves,
@@ -546,7 +538,6 @@ func TestSignLatestRootFails(t *testing.T) {
 		logID:                 154035,
 		writeRevision:         testRoot16.TreeRevision + 1,
 		dequeueLimit:          1,
-		shouldRollback:        true,
 		latestSignedRoot:      &testRoot16,
 		latestSignedRootError: errors.New("root"),
 	}
@@ -564,7 +555,6 @@ func TestSignRootSignerFails(t *testing.T) {
 		logID:            154035,
 		writeRevision:    testRoot16.TreeRevision + 1,
 		dequeueLimit:     1,
-		shouldRollback:   true,
 		latestSignedRoot: &testRoot16,
 		storeSignedRoot:  nil,
 		setupSigner:      true,
@@ -584,7 +574,6 @@ func TestSignRootStoreSignedRootFails(t *testing.T) {
 	params := testParameters{
 		logID:                154035,
 		writeRevision:        testRoot16.TreeRevision + 1,
-		shouldRollback:       true,
 		latestSignedRoot:     &testRoot16,
 		storeSignedRoot:      nil,
 		storeSignedRootError: errors.New("storesignedroot"),
@@ -627,7 +616,6 @@ func TestSignRoot(t *testing.T) {
 	params := testParameters{
 		logID:            154035,
 		writeRevision:    testRoot16.TreeRevision + 1,
-		shouldRollback:   true,
 		latestSignedRoot: &testRoot16,
 		storeSignedRoot:  &expectedSignedRoot16,
 		setupSigner:      true,
@@ -648,7 +636,6 @@ func TestSignRootNoExistingRoot(t *testing.T) {
 	params := testParameters{
 		logID:            154035,
 		writeRevision:    testRoot16.TreeRevision + 1,
-		shouldRollback:   true,
 		latestSignedRoot: &trillian.SignedLogRoot{},
 		storeSignedRoot:  &expectedSignedRoot0,
 		setupSigner:      true,

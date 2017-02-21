@@ -404,6 +404,13 @@ func (t *treeTX) Rollback() error {
 	return nil
 }
 
+func (t *treeTX) Close() error {
+	if !t.closed {
+		return t.Rollback()
+	}
+	return nil
+}
+
 func (t *treeTX) IsOpen() bool {
 	return !t.closed
 }

@@ -190,6 +190,7 @@ func (tester *AdminStorageTester) TestListTrees(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%v: Snapshot() = %v, want = nil", i, err)
 		}
+		defer tx.Close()
 		runListTreeIDsTest(ctx, t, i, tx, wantTrees)
 		runListTreesTest(ctx, t, i, tx, wantTrees)
 		if err := tx.Commit(); err != nil {
@@ -269,6 +270,7 @@ func (tester *AdminStorageTester) TestAdminTXClose(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%v: Begin() = (_, %v), want = (_, nil)", i, err)
 		}
+		defer tx.Close()
 
 		tree, err := tx.CreateTree(ctx, LogTree)
 		if err != nil {

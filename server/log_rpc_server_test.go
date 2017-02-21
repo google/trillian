@@ -156,6 +156,7 @@ func TestGetLeavesByIndex(t *testing.T) {
 	mockStorage.EXPECT().SnapshotForTree(gomock.Any(), leaf0Request.LogId).Return(mockTx, nil)
 	mockTx.EXPECT().GetLeavesByIndex([]int64{0}).Return([]*trillian.LogLeaf{leaf1}, nil)
 	mockTx.EXPECT().Commit().Return(nil)
+	mockTx.EXPECT().Close().Return(nil)
 	mockTx.EXPECT().IsOpen().AnyTimes().Return(false)
 
 	mockRegistry := extension.NewMockRegistry(ctrl)
@@ -181,6 +182,7 @@ func TestGetLeavesByIndexMultiple(t *testing.T) {
 	mockStorage.EXPECT().SnapshotForTree(gomock.Any(), leaf03Request.LogId).Return(mockTx, nil)
 	mockTx.EXPECT().GetLeavesByIndex([]int64{0, 3}).Return([]*trillian.LogLeaf{leaf1, leaf3}, nil)
 	mockTx.EXPECT().Commit().Return(nil)
+	mockTx.EXPECT().Close().Return(nil)
 	mockTx.EXPECT().IsOpen().AnyTimes().Return(false)
 
 	mockRegistry := extension.NewMockRegistry(ctrl)
@@ -260,6 +262,7 @@ func TestQueueLeaves(t *testing.T) {
 	mockStorage.EXPECT().BeginForTree(gomock.Any(), queueRequest0.LogId).Return(mockTx, nil)
 	mockTx.EXPECT().QueueLeaves([]*trillian.LogLeaf{leaf1}, fakeTime).Return(nil)
 	mockTx.EXPECT().Commit().Return(nil)
+	mockTx.EXPECT().Close().Return(nil)
 	mockTx.EXPECT().IsOpen().AnyTimes().Return(false)
 
 	mockRegistry := extension.NewMockRegistry(ctrl)
@@ -369,6 +372,7 @@ func TestGetLatestSignedLogRoot(t *testing.T) {
 	mockStorage.EXPECT().SnapshotForTree(gomock.Any(), getLogRootRequest1.LogId).Return(mockTx, nil)
 	mockTx.EXPECT().LatestSignedLogRoot().Return(signedRoot1, nil)
 	mockTx.EXPECT().Commit().Return(nil)
+	mockTx.EXPECT().Close().Return(nil)
 
 	mockRegistry := extension.NewMockRegistry(ctrl)
 	mockRegistry.EXPECT().GetLogStorage().Return(mockStorage, nil)
@@ -482,6 +486,7 @@ func TestGetLeavesByHash(t *testing.T) {
 	mockStorage.EXPECT().SnapshotForTree(gomock.Any(), getByHashRequest1.LogId).Return(mockTx, nil)
 	mockTx.EXPECT().GetLeavesByHash([][]byte{[]byte("test"), []byte("data")}, false).Return([]*trillian.LogLeaf{leaf1, leaf3}, nil)
 	mockTx.EXPECT().Commit().Return(nil)
+	mockTx.EXPECT().Close().Return(nil)
 
 	mockRegistry := extension.NewMockRegistry(ctrl)
 	mockRegistry.EXPECT().GetLogStorage().Return(mockStorage, nil)
@@ -559,7 +564,7 @@ func TestGetProofByHashWrongNodeCountFetched(t *testing.T) {
 	mockTx.EXPECT().GetLeavesByHash([][]byte{[]byte("ahash")}, false).Return([]*trillian.LogLeaf{{LeafIndex: 2}}, nil)
 	// The server expects three nodes from storage but we return only two
 	mockTx.EXPECT().GetMerkleNodes(revision1, nodeIdsInclusionSize7Index2).Return([]storage.Node{{NodeRevision: 3}, {NodeRevision: 2}}, nil)
-	mockTx.EXPECT().Rollback().Return(nil)
+	mockTx.EXPECT().Close().Return(nil)
 
 	mockRegistry := extension.NewMockRegistry(ctrl)
 	mockRegistry.EXPECT().GetLogStorage().Return(mockStorage, nil)
@@ -584,7 +589,7 @@ func TestGetProofByHashWrongNodeReturned(t *testing.T) {
 	mockTx.EXPECT().GetLeavesByHash([][]byte{[]byte("ahash")}, false).Return([]*trillian.LogLeaf{{LeafIndex: 2}}, nil)
 	// We set this up so one of the returned nodes has the wrong ID
 	mockTx.EXPECT().GetMerkleNodes(revision1, nodeIdsInclusionSize7Index2).Return([]storage.Node{{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3}, {NodeID: testonly.MustCreateNodeIDForTreeCoords(4, 5, 64), NodeRevision: 2}, {NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3}}, nil)
-	mockTx.EXPECT().Rollback().Return(nil)
+	mockTx.EXPECT().Close().Return(nil)
 
 	mockRegistry := extension.NewMockRegistry(ctrl)
 	mockRegistry.EXPECT().GetLogStorage().Return(mockStorage, nil)
@@ -631,6 +636,7 @@ func TestGetProofByHash(t *testing.T) {
 		{NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2, Hash: []byte("nodehash1")},
 		{NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3, Hash: []byte("nodehash2")}}, nil)
 	mockTx.EXPECT().Commit().Return(nil)
+	mockTx.EXPECT().Close().Return(nil)
 
 	mockRegistry := extension.NewMockRegistry(ctrl)
 	mockRegistry.EXPECT().GetLogStorage().Return(mockStorage, nil)
@@ -706,7 +712,7 @@ func TestGetProofByIndexWrongNodeCountFetched(t *testing.T) {
 	mockTx.EXPECT().LatestSignedLogRoot().Return(signedRoot1, nil)
 	mockTx.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
 	mockTx.EXPECT().GetMerkleNodes(revision1, nodeIdsInclusionSize7Index2).Return([]storage.Node{{NodeRevision: 3}, {NodeRevision: 2}}, nil)
-	mockTx.EXPECT().Rollback().Return(nil)
+	mockTx.EXPECT().Close().Return(nil)
 
 	mockRegistry := extension.NewMockRegistry(ctrl)
 	mockRegistry.EXPECT().GetLogStorage().Return(mockStorage, nil)
@@ -730,7 +736,7 @@ func TestGetProofByIndexWrongNodeReturned(t *testing.T) {
 	mockTx.EXPECT().LatestSignedLogRoot().Return(signedRoot1, nil)
 	mockTx.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
 	mockTx.EXPECT().GetMerkleNodes(revision1, nodeIdsInclusionSize7Index2).Return([]storage.Node{{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3}, {NodeID: testonly.MustCreateNodeIDForTreeCoords(4, 5, 64), NodeRevision: 2}, {NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3}}, nil)
-	mockTx.EXPECT().Rollback().Return(nil)
+	mockTx.EXPECT().Close().Return(nil)
 
 	mockRegistry := extension.NewMockRegistry(ctrl)
 	mockRegistry.EXPECT().GetLogStorage().Return(mockStorage, nil)
@@ -775,6 +781,7 @@ func TestGetProofByIndex(t *testing.T) {
 		{NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2, Hash: []byte("nodehash1")},
 		{NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3, Hash: []byte("nodehash2")}}, nil)
 	mockTx.EXPECT().Commit().Return(nil)
+	mockTx.EXPECT().Close().Return(nil)
 
 	mockRegistry := extension.NewMockRegistry(ctrl)
 	mockRegistry.EXPECT().GetLogStorage().Return(mockStorage, nil)
@@ -833,7 +840,7 @@ func TestGetEntryAndProofGetMerkleNodesFails(t *testing.T) {
 	mockTx.EXPECT().LatestSignedLogRoot().Return(signedRoot1, nil)
 	mockTx.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
 	mockTx.EXPECT().GetMerkleNodes(revision1, nodeIdsInclusionSize7Index2).Return([]storage.Node{}, errors.New("GetNodes"))
-	mockTx.EXPECT().Rollback().Return(nil)
+	mockTx.EXPECT().Close().Return(nil)
 
 	mockRegistry := extension.NewMockRegistry(ctrl)
 	mockRegistry.EXPECT().GetLogStorage().Return(mockStorage, nil)
@@ -860,7 +867,7 @@ func TestGetEntryAndProofGetLeavesFails(t *testing.T) {
 		{NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2, Hash: []byte("nodehash1")},
 		{NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3, Hash: []byte("nodehash2")}}, nil)
 	mockTx.EXPECT().GetLeavesByIndex([]int64{2}).Return(nil, errors.New("GetLeaves"))
-	mockTx.EXPECT().Rollback().Return(nil)
+	mockTx.EXPECT().Close().Return(nil)
 
 	mockRegistry := extension.NewMockRegistry(ctrl)
 	mockRegistry.EXPECT().GetLogStorage().Return(mockStorage, nil)
@@ -888,7 +895,7 @@ func TestGetEntryAndProofGetLeavesReturnsMultiple(t *testing.T) {
 		{NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3, Hash: []byte("nodehash2")}}, nil)
 	// Code passed one leaf index so expects one result, but we return more
 	mockTx.EXPECT().GetLeavesByIndex([]int64{2}).Return([]*trillian.LogLeaf{leaf1, leaf3}, nil)
-	mockTx.EXPECT().Rollback().Return(nil)
+	mockTx.EXPECT().Close().Return(nil)
 
 	mockRegistry := extension.NewMockRegistry(ctrl)
 	mockRegistry.EXPECT().GetLogStorage().Return(mockStorage, nil)
@@ -916,6 +923,7 @@ func TestGetEntryAndProofCommitFails(t *testing.T) {
 		{NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3, Hash: []byte("nodehash2")}}, nil)
 	mockTx.EXPECT().GetLeavesByIndex([]int64{2}).Return([]*trillian.LogLeaf{leaf1}, nil)
 	mockTx.EXPECT().Commit().Return(errors.New("COMMIT"))
+	mockTx.EXPECT().Close().Return(nil)
 
 	mockRegistry := extension.NewMockRegistry(ctrl)
 	mockRegistry.EXPECT().GetLogStorage().Return(mockStorage, nil)
@@ -943,6 +951,7 @@ func TestGetEntryAndProof(t *testing.T) {
 		{NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3, Hash: []byte("nodehash2")}}, nil)
 	mockTx.EXPECT().GetLeavesByIndex([]int64{2}).Return([]*trillian.LogLeaf{leaf1}, nil)
 	mockTx.EXPECT().Commit().Return(nil)
+	mockTx.EXPECT().Close().Return(nil)
 
 	mockRegistry := extension.NewMockRegistry(ctrl)
 	mockRegistry.EXPECT().GetLogStorage().Return(mockStorage, nil)
@@ -1032,6 +1041,7 @@ func TestGetSequencedLeafCount(t *testing.T) {
 
 	mockTx.EXPECT().GetSequencedLeafCount().Return(int64(268), nil)
 	mockTx.EXPECT().Commit().Return(nil)
+	mockTx.EXPECT().Close().Return(nil)
 
 	mockRegistry := extension.NewMockRegistry(ctrl)
 	mockRegistry.EXPECT().GetLogStorage().Return(mockStorage, nil)
@@ -1091,7 +1101,7 @@ func TestGetConsistencyProofGetNodesReturnsWrongCount(t *testing.T) {
 	mockTx.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
 	// The server expects one node from storage but we return two
 	mockTx.EXPECT().GetMerkleNodes(revision1, nodeIdsConsistencySize4ToSize7).Return([]storage.Node{{NodeRevision: 3}, {NodeRevision: 2}}, nil)
-	mockTx.EXPECT().Rollback().Return(nil)
+	mockTx.EXPECT().Close().Return(nil)
 
 	mockRegistry := extension.NewMockRegistry(ctrl)
 	mockRegistry.EXPECT().GetLogStorage().Return(mockStorage, nil)
@@ -1115,7 +1125,7 @@ func TestGetConsistencyProofGetNodesReturnsWrongNode(t *testing.T) {
 	mockTx.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
 	// Return an unexpected node that wasn't requested
 	mockTx.EXPECT().GetMerkleNodes(revision1, nodeIdsConsistencySize4ToSize7).Return([]storage.Node{{NodeID: testonly.MustCreateNodeIDForTreeCoords(1, 2, 64), NodeRevision: 3}}, nil)
-	mockTx.EXPECT().Rollback().Return(nil)
+	mockTx.EXPECT().Close().Return(nil)
 
 	mockRegistry := extension.NewMockRegistry(ctrl)
 	mockRegistry.EXPECT().GetLogStorage().Return(mockStorage, nil)
@@ -1157,6 +1167,7 @@ func TestGetConsistencyProof(t *testing.T) {
 	mockTx.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
 	mockTx.EXPECT().GetMerkleNodes(revision1, nodeIdsConsistencySize4ToSize7).Return([]storage.Node{{NodeID: testonly.MustCreateNodeIDForTreeCoords(2, 1, 64), NodeRevision: 3, Hash: []byte("nodehash")}}, nil)
 	mockTx.EXPECT().Commit().Return(nil)
+	mockTx.EXPECT().Close().Return(nil)
 
 	mockRegistry := extension.NewMockRegistry(ctrl)
 	mockRegistry.EXPECT().GetLogStorage().Return(mockStorage, nil)
@@ -1218,6 +1229,7 @@ func (p *parameterizedTest) executeCommitFailsTest(t *testing.T, logID int64) {
 	}
 	p.prepareTx(mockTx)
 	mockTx.EXPECT().Commit().Return(errors.New("bang"))
+	mockTx.EXPECT().Close().Return(errors.New("bang"))
 	mockTx.EXPECT().IsOpen().AnyTimes().Return(false)
 
 	mockRegistry := extension.NewMockRegistry(p.ctrl)
@@ -1258,7 +1270,7 @@ func (p *parameterizedTest) executeStorageFailureTest(t *testing.T, logID int64)
 		mockStorage.EXPECT().BeginForTree(gomock.Any(), logID).Return(mockTx, nil)
 	}
 	p.prepareTx(mockTx)
-	mockTx.EXPECT().Rollback().Return(nil)
+	mockTx.EXPECT().Close().Return(nil)
 
 	mockRegistry := extension.NewMockRegistry(p.ctrl)
 	mockRegistry.EXPECT().GetLogStorage().Return(mockStorage, nil)

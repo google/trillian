@@ -95,6 +95,16 @@ func (_m *MockLogTreeTX) EXPECT() *_MockLogTreeTXRecorder {
 	return _m.recorder
 }
 
+func (_m *MockLogTreeTX) Close() error {
+	ret := _m.ctrl.Call(_m, "Close")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+func (_mr *_MockLogTreeTXRecorder) Close() *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "Close")
+}
+
 func (_m *MockLogTreeTX) Commit() error {
 	ret := _m.ctrl.Call(_m, "Commit")
 	ret0, _ := ret[0].(error)
@@ -358,6 +368,16 @@ func (_m *MockMapTreeTX) EXPECT() *_MockMapTreeTXRecorder {
 	return _m.recorder
 }
 
+func (_m *MockMapTreeTX) Close() error {
+	ret := _m.ctrl.Call(_m, "Close")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+func (_mr *_MockMapTreeTXRecorder) Close() *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "Close")
+}
+
 func (_m *MockMapTreeTX) Commit() error {
 	ret := _m.ctrl.Call(_m, "Commit")
 	ret0, _ := ret[0].(error)
@@ -492,6 +512,16 @@ func (_m *MockReadOnlyLogTX) EXPECT() *_MockReadOnlyLogTXRecorder {
 	return _m.recorder
 }
 
+func (_m *MockReadOnlyLogTX) Close() error {
+	ret := _m.ctrl.Call(_m, "Close")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+func (_mr *_MockReadOnlyLogTXRecorder) Close() *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "Close")
+}
+
 func (_m *MockReadOnlyLogTX) Commit() error {
 	ret := _m.ctrl.Call(_m, "Commit")
 	ret0, _ := ret[0].(error)
@@ -553,6 +583,16 @@ func NewMockReadOnlyLogTreeTX(ctrl *gomock.Controller) *MockReadOnlyLogTreeTX {
 
 func (_m *MockReadOnlyLogTreeTX) EXPECT() *_MockReadOnlyLogTreeTXRecorder {
 	return _m.recorder
+}
+
+func (_m *MockReadOnlyLogTreeTX) Close() error {
+	ret := _m.ctrl.Call(_m, "Close")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+func (_mr *_MockReadOnlyLogTreeTXRecorder) Close() *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "Close")
 }
 
 func (_m *MockReadOnlyLogTreeTX) Commit() error {
@@ -669,6 +709,16 @@ func NewMockReadOnlyMapTreeTX(ctrl *gomock.Controller) *MockReadOnlyMapTreeTX {
 
 func (_m *MockReadOnlyMapTreeTX) EXPECT() *_MockReadOnlyMapTreeTXRecorder {
 	return _m.recorder
+}
+
+func (_m *MockReadOnlyMapTreeTX) Close() error {
+	ret := _m.ctrl.Call(_m, "Close")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+func (_mr *_MockReadOnlyMapTreeTXRecorder) Close() *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "Close")
 }
 
 func (_m *MockReadOnlyMapTreeTX) Commit() error {

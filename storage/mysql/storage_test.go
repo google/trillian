@@ -64,7 +64,7 @@ func TestNodeRoundTrip(t *testing.T) {
 
 	{
 		tx := beginLogTx(s, logID, t)
-		defer closeTX(tx)
+		defer tx.Close()
 		forceWriteRevision(writeRevision, tx)
 
 		// Need to read nodes before attempting to write
@@ -81,7 +81,7 @@ func TestNodeRoundTrip(t *testing.T) {
 
 	{
 		tx := beginLogTx(s, logID, t)
-		defer closeTX(tx)
+		defer tx.Close()
 
 		readNodes, err := tx.GetMerkleNodes(100, nodeIDsToRead)
 		if err != nil {
@@ -110,7 +110,7 @@ func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 
 	{
 		tx := beginLogTx(s, logID, t)
-		defer closeTX(tx)
+		defer tx.Close()
 		forceWriteRevision(writeRevision, tx)
 
 		// Need to read nodes before attempting to write
@@ -127,7 +127,7 @@ func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 
 	{
 		tx := beginLogTx(s, logID, t)
-		defer closeTX(tx)
+		defer tx.Close()
 
 		readNodes, err := tx.GetMerkleNodes(100, nodeIDsToRead)
 		if err != nil {
