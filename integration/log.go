@@ -180,7 +180,7 @@ func RunLogIntegration(client trillian.TrillianLogClient, params TestParameters)
 }
 
 func queueLeaves(client trillian.TrillianLogClient, params TestParameters) error {
-	leaves := []trillian.LogLeaf{}
+	leaves := []*trillian.LogLeaf{}
 
 	for l := int64(0); l < params.leafCount; l++ {
 		// Leaf data based on the sequence number so we can check the hashes
@@ -189,8 +189,9 @@ func queueLeaves(client trillian.TrillianLogClient, params TestParameters) error
 		data := []byte(fmt.Sprintf("Leaf %d", leafNumber))
 		idHash := sha256.Sum256(data)
 
-		leaf := trillian.LogLeaf{
+		leaf := &trillian.LogLeaf{
 			LeafIdentityHash: idHash[:],
+			MerkleLeafHash:   testonly.Hasher.HashLeaf(data),
 			LeafValue:        data,
 			ExtraData:        []byte(fmt.Sprintf("Extra %d", leafNumber)),
 		}
@@ -199,9 +200,11 @@ func queueLeaves(client trillian.TrillianLogClient, params TestParameters) error
 		if len(leaves) >= params.queueBatchSize || (l+1) == params.leafCount {
 			glog.Infof("Queueing %d leaves ...", len(leaves))
 
-			req := makeQueueLeavesRequest(params.treeID, leaves)
 			ctx, cancel := getRPCDeadlineContext(params)
-			_, err := client.QueueLeaves(ctx, &req)
+			_, err := client.QueueLeaves(ctx, &trillian.QueueLeavesRequest{
+				LogId:  params.treeID,
+				Leaves: leaves,
+			})
 			cancel()
 
 			if err != nil {
@@ -376,7 +379,11 @@ func checkInclusionProofTreeSizeOutOfRange(logID int64, client trillian.Trillian
 func checkInclusionProofsAtIndex(index int64, logID int64, tree *merkle.InMemoryMerkleTree, client trillian.TrillianLogClient, params TestParameters) error {
 	for treeSize := int64(0); treeSize < min(params.leafCount, int64(2*params.sequencerBatchSize)); treeSize++ {
 		ctx, cancel := getRPCDeadlineContext(params)
-		resp, err := client.GetInclusionProof(ctx, &trillian.GetInclusionProofRequest{LogId: logID, LeafIndex: index, TreeSize: int64(treeSize)})
+		resp, err := client.GetInclusionProof(ctx, &trillian.GetInclusionProofRequest{
+			LogId:     logID,
+			LeafIndex: index,
+			TreeSize:  int64(treeSize),
+		})
 		cancel()
 
 		// If the index is larger than the tree size we cannot have a valid proof
@@ -427,17 +434,6 @@ func checkConsistencyProof(consistParams consistencyProofParams, treeID int64, t
 
 	// Compare the proofs, they should be identical
 	return compareLogAndTreeProof(resp.Proof, proof)
-}
-
-func makeQueueLeavesRequest(logID int64, leaves []trillian.LogLeaf) trillian.QueueLeavesRequest {
-	leafProtos := make([]*trillian.LogLeaf, 0, len(leaves))
-
-	for _, leaf := range leaves {
-		leaf := leaf
-		leafProtos = append(leafProtos, &leaf)
-	}
-
-	return trillian.QueueLeavesRequest{LogId: logID, Leaves: leafProtos}
 }
 
 func makeGetLeavesByIndexRequest(logID int64, startLeaf, numLeaves int64) *trillian.GetLeavesByIndexRequest {

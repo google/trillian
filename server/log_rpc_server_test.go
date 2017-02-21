@@ -50,9 +50,8 @@ var (
 	revision1          = int64(5)
 	signedRoot1        = trillian.SignedLogRoot{TimestampNanos: 987654321, RootHash: []byte("A NICE HASH"), TreeSize: 7, TreeRevision: revision1}
 
-	getByHashRequest1       = trillian.GetLeavesByHashRequest{LogId: logID1, LeafHash: [][]byte{[]byte("test"), []byte("data")}}
-	getByHashRequestBadHash = trillian.GetLeavesByHashRequest{LogId: logID1, LeafHash: [][]byte{[]byte(""), []byte("data")}}
-	getByHashRequest2       = trillian.GetLeavesByHashRequest{LogId: logID2, LeafHash: [][]byte{[]byte("test"), []byte("data")}}
+	getByHashRequest1 = trillian.GetLeavesByHashRequest{LogId: logID1, LeafHash: [][]byte{[]byte("test"), []byte("data")}}
+	getByHashRequest2 = trillian.GetLeavesByHashRequest{LogId: logID2, LeafHash: [][]byte{[]byte("test"), []byte("data")}}
 
 	getInclusionProofByHashRequest7  = trillian.GetInclusionProofByHashRequest{LogId: logID1, TreeSize: 7, LeafHash: []byte("ahash")}
 	getInclusionProofByHashRequest25 = trillian.GetInclusionProofByHashRequest{LogId: logID1, TreeSize: 25, LeafHash: []byte("ahash")}
@@ -392,9 +391,23 @@ func TestGetLeavesByHashInvalidHash(t *testing.T) {
 	mockRegistry := extension.NewMockRegistry(ctrl)
 	server := NewTrillianLogRPCServer(mockRegistry, fakeTimeSource)
 
-	// This request includes an empty hash, which isn't allowed
-	if _, err := server.GetLeavesByHash(context.Background(), &getByHashRequestBadHash); err != nil {
-		t.Fatalf("Request failed with unexpected error: %v", err)
+	for _, test := range []struct {
+		req     *trillian.GetLeavesByHashRequest
+		wantErr bool
+	}{
+		{
+			// This request includes an empty hash, which isn't allowed
+			req: &trillian.GetLeavesByHashRequest{
+				LogId:    logID1,
+				LeafHash: [][]byte{[]byte(""), []byte("data")},
+			},
+			wantErr: true,
+		},
+	} {
+		_, err := server.GetLeavesByHash(context.Background(), test.req)
+		if got := err != nil; got != test.wantErr {
+			t.Errorf("GetLeavesByHash(%v): %v, wantErr: %v", test.req, err, test.wantErr)
+		}
 	}
 }
 

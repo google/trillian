@@ -78,12 +78,6 @@ func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.Qu
 	}
 	leaves := depointerify(req.Leaves)
 
-	// TODO(al): Hasher must be selected based on log config.
-	th, _ := merkle.Factory(merkle.RFC6962SHA256Type)
-	for i := range leaves {
-		leaves[i].MerkleLeafHash = th.HashLeaf(leaves[i].LeafValue)
-	}
-
 	tx, err := t.prepareStorageTx(ctx, req.LogId)
 	if err != nil {
 		return nil, err
@@ -160,6 +154,9 @@ func (t *TrillianLogRPCServer) GetInclusionProofByHash(ctx context.Context, req 
 		tx.Rollback()
 		return nil, err
 	}
+	if len(leaves) < 1 {
+		return nil, grpc.Errorf(codes.NotFound, "No leaves for hash: %x", req.LeafHash)
+	}
 
 	root, err := tx.LatestSignedLogRoot()
 	if err != nil {
@@ -183,8 +180,9 @@ func (t *TrillianLogRPCServer) GetInclusionProofByHash(ctx context.Context, req 
 		return nil, err
 	}
 
-	response := trillian.GetInclusionProofByHashResponse{Proof: proofs}
-	return &response, nil
+	return &trillian.GetInclusionProofByHashResponse{
+		Proof: proofs,
+	}, nil
 }
 
 // GetConsistencyProof obtains a proof that two versions of the tree are consistent with each
@@ -450,7 +448,7 @@ func getInclusionProofForLeafIndex(tx storage.ReadOnlyLogTreeTX, snapshot, leafI
 func (t *TrillianLogRPCServer) getLeavesByHashInternal(ctx context.Context, desc string, req *trillian.GetLeavesByHashRequest, fetchFunc func(storage.ReadOnlyLogTreeTX, [][]byte, bool) ([]trillian.LogLeaf, error)) (*trillian.GetLeavesByHashResponse, error) {
 	ctx = util.NewLogContext(ctx, req.LogId)
 	if len(req.LeafHash) == 0 || !validateLeafHashes(req.LeafHash) {
-		return &trillian.GetLeavesByHashResponse{}, nil
+		return nil, grpc.Errorf(codes.FailedPrecondition, "Invalid leaf hash")
 	}
 
 	tx, err := t.prepareReadOnlyStorageTx(ctx, req.LogId)
@@ -468,5 +466,7 @@ func (t *TrillianLogRPCServer) getLeavesByHashInternal(ctx context.Context, desc
 		return nil, err
 	}
 
-	return &trillian.GetLeavesByHashResponse{Leaves: pointerify(leaves)}, nil
+	return &trillian.GetLeavesByHashResponse{
+		Leaves: pointerify(leaves),
+	}, nil
 }
