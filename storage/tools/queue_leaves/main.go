@@ -66,7 +66,7 @@ func main() {
 		panic(err)
 	}
 
-	leaves := []trillian.LogLeaf{}
+	leaves := []*trillian.LogLeaf{}
 	for l := 0; l < *numInsertionsFlag; l++ {
 		// Leaf data based in the sequence number so we can check the hashes
 		leafNumber := *startInsertFromFlag + l
@@ -76,7 +76,7 @@ func main() {
 
 		log.Infof("Preparing leaf %d\n", leafNumber)
 
-		leaf := trillian.LogLeaf{
+		leaf := &trillian.LogLeaf{
 			MerkleLeafHash: []byte(hash[:]),
 			LeafValue:      data,
 			ExtraData:      nil,
