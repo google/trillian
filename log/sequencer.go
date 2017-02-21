@@ -149,8 +149,7 @@ func (s Sequencer) initMerkleTreeFromStorage(ctx context.Context, currentRoot tr
 }
 
 func (s Sequencer) createRootSignature(ctx context.Context, root trillian.SignedLogRoot) (sigpb.DigitallySigned, error) {
-	trillianSigner := crypto.NewSigner(s.keyManager.SignatureAlgorithm(), s.keyManager.Signer())
-
+	trillianSigner := crypto.NewSigner(s.keyManager.SignatureAlgorithm(), s.keyManager)
 	signature, err := trillianSigner.SignLogRoot(root)
 	if err != nil {
 		glog.Warningf("%s: signer failed to sign root: %v", util.LogIDPrefix(ctx), err)

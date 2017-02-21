@@ -218,10 +218,7 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) (testCont
 	mockKeyManager := crypto.NewMockPrivateKeyManager(ctrl)
 
 	if params.setupSigner {
-		mockSigner := crypto.NewMockSigner(ctrl)
-		mockKeyManager.EXPECT().HashAlgorithm().AnyTimes().Return(gocrypto.SHA256)
-		mockSigner.EXPECT().Sign(gomock.Any(), params.dataToSign, gocrypto.SHA256).AnyTimes().Return(params.signingResult, params.signingError)
-		mockKeyManager.EXPECT().Signer().AnyTimes().Return(mockSigner)
+		mockKeyManager.EXPECT().Sign(gomock.Any(), params.dataToSign, gocrypto.SHA256).AnyTimes().Return(params.signingResult, params.signingError)
 		mockKeyManager.EXPECT().SignatureAlgorithm().AnyTimes().Return(sigpb.DigitallySigned_ECDSA)
 	}
 

@@ -42,7 +42,7 @@ func TestLoadDemoECDSAKeyAndSign(t *testing.T) {
 		t.Fatalf("Failed to load key: %v", err)
 	}
 
-	signed, err := km.Signer().Sign(randSource, []byte("hello"), hasher)
+	signed, err := km.Sign(randSource, []byte("hello"), hasher)
 
 	if err != nil {
 		t.Fatalf("Failed to sign: %v", err)

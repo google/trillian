@@ -30,34 +30,22 @@ import (
 // PrivateKeyManager supports signing data with a private key that may be stored
 // in a secure location, which is not immediately available to this client.
 type PrivateKeyManager interface {
-	// Signer returns a crypto.Signer that can sign data using the private key.
-	Signer() crypto.Signer
+	// Signer implements a crypto.Signer that can sign data using the private key.
+	crypto.Signer
 	// SignatureAlgorithm returns the value that identifies the signature algorithm.
 	SignatureAlgorithm() sigpb.DigitallySigned_SignatureAlgorithm
-	// PublicKey returns the public key corresponding to the private key.
-	PublicKey() crypto.PublicKey
 }
 
 // PEMKeyManager is an instance of KeyManager that loads its key data from an encrypted
 // PEM file.
 type PEMKeyManager struct {
-	signer             crypto.Signer
+	crypto.Signer
 	signatureAlgorithm sigpb.DigitallySigned_SignatureAlgorithm
 }
 
 // SignatureAlgorithm identifies the signature algorithm used by this key manager.
 func (k PEMKeyManager) SignatureAlgorithm() sigpb.DigitallySigned_SignatureAlgorithm {
 	return k.signatureAlgorithm
-}
-
-// Signer returns a signer based on our private key.
-func (k PEMKeyManager) Signer() crypto.Signer {
-	return k.signer
-}
-
-// PublicKey returns the public key corresponding to the private key.
-func (k PEMKeyManager) PublicKey() crypto.PublicKey {
-	return k.signer.Public()
 }
 
 // NewFromPrivateKey creates PrivateKeyManager using a private key.
@@ -77,7 +65,7 @@ func NewFromPrivateKey(key crypto.PrivateKey) (PrivateKeyManager, error) {
 	}
 
 	return &PEMKeyManager{
-		signer:             signer,
+		Signer:             signer,
 		signatureAlgorithm: sigAlgo,
 	}, nil
 }

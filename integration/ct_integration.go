@@ -539,7 +539,7 @@ func MakeSigner(testdir string) (basecrypto.Signer, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to load private key for re-signing: %v", err)
 	}
-	return km.Signer(), nil
+	return km, nil
 }
 
 // Track HTTP requests/responses in parallel so we can check the stats exported by the log.

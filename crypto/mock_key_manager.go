@@ -7,6 +7,7 @@ import (
 	crypto "crypto"
 	gomock "github.com/golang/mock/gomock"
 	sigpb "github.com/google/trillian/crypto/sigpb"
+	io "io"
 )
 
 // Mock of PrivateKeyManager interface
@@ -30,24 +31,25 @@ func (_m *MockPrivateKeyManager) EXPECT() *_MockPrivateKeyManagerRecorder {
 	return _m.recorder
 }
 
-func (_m *MockPrivateKeyManager) HashAlgorithm() crypto.Hash {
-	ret := _m.ctrl.Call(_m, "HashAlgorithm")
-	ret0, _ := ret[0].(crypto.Hash)
-	return ret0
-}
-
-func (_mr *_MockPrivateKeyManagerRecorder) HashAlgorithm() *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "HashAlgorithm")
-}
-
-func (_m *MockPrivateKeyManager) PublicKey() crypto.PublicKey {
-	ret := _m.ctrl.Call(_m, "PublicKey")
+func (_m *MockPrivateKeyManager) Public() crypto.PublicKey {
+	ret := _m.ctrl.Call(_m, "Public")
 	ret0, _ := ret[0].(crypto.PublicKey)
 	return ret0
 }
 
-func (_mr *_MockPrivateKeyManagerRecorder) PublicKey() *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "PublicKey")
+func (_mr *_MockPrivateKeyManagerRecorder) Public() *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "Public")
+}
+
+func (_m *MockPrivateKeyManager) Sign(_param0 io.Reader, _param1 []byte, _param2 crypto.SignerOpts) ([]byte, error) {
+	ret := _m.ctrl.Call(_m, "Sign", _param0, _param1, _param2)
+	ret0, _ := ret[0].([]byte)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+func (_mr *_MockPrivateKeyManagerRecorder) Sign(arg0, arg1, arg2 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "Sign", arg0, arg1, arg2)
 }
 
 func (_m *MockPrivateKeyManager) SignatureAlgorithm() sigpb.DigitallySigned_SignatureAlgorithm {
@@ -58,14 +60,4 @@ func (_m *MockPrivateKeyManager) SignatureAlgorithm() sigpb.DigitallySigned_Sign
 
 func (_mr *_MockPrivateKeyManagerRecorder) SignatureAlgorithm() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "SignatureAlgorithm")
-}
-
-func (_m *MockPrivateKeyManager) Signer() crypto.Signer {
-	ret := _m.ctrl.Call(_m, "Signer")
-	ret0, _ := ret[0].(crypto.Signer)
-	return ret0
-}
-
-func (_mr *_MockPrivateKeyManagerRecorder) Signer() *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "Signer")
 }

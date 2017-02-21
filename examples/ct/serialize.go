@@ -29,13 +29,12 @@ import (
 // signV1TreeHead signs a tree head for CT. The input STH should have been built from a
 // backend response and already checked for validity.
 func signV1TreeHead(km crypto.PrivateKeyManager, sth *ct.SignedTreeHead) error {
-	signer := km.Signer()
 	sthBytes, err := ct.SerializeSTHSignatureInput(*sth)
 	if err != nil {
 		return err
 	}
 
-	trillianSigner := crypto.NewSigner(km.SignatureAlgorithm(), signer)
+	trillianSigner := crypto.NewSigner(km.SignatureAlgorithm(), km)
 
 	signature, err := trillianSigner.Sign(sthBytes)
 	if err != nil {
@@ -128,7 +127,7 @@ func serializeAndSignSCT(km crypto.PrivateKeyManager, leaf ct.MerkleTreeLeaf, sc
 }
 
 func signSCT(km crypto.PrivateKeyManager, t time.Time, sctData []byte) (*ct.SignedCertificateTimestamp, error) {
-	trillianSigner := crypto.NewSigner(km.SignatureAlgorithm(), km.Signer())
+	trillianSigner := crypto.NewSigner(km.SignatureAlgorithm(), km)
 	signature, err := trillianSigner.Sign(sctData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign data: %v", err)
@@ -143,7 +142,7 @@ func signSCT(km crypto.PrivateKeyManager, t time.Time, sctData []byte) (*ct.Sign
 		Signature: signature.Signature,
 	}
 
-	logID, err := GetCTLogID(km.PublicKey())
+	logID, err := GetCTLogID(km.Public())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get logID: %v", err)
 	}

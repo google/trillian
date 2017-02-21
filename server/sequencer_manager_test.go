@@ -99,7 +99,6 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 	mockTx.EXPECT().DequeueLeaves(50, fakeTime).Return([]trillian.LogLeaf{}, nil)
 	mockKeyManager := crypto.NewMockPrivateKeyManager(mockCtrl)
 	mockKeyManager.EXPECT().SignatureAlgorithm().AnyTimes().Return(sigpb.DigitallySigned_ECDSA)
-	mockKeyManager.EXPECT().HashAlgorithm().AnyTimes().Return(gocrypto.SHA256)
 
 	registry := extension.NewMockRegistry(mockCtrl)
 	registry.EXPECT().GetLogStorage().Return(mockStorage, nil)
@@ -117,7 +116,6 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 	mockTx := storage.NewMockLogTreeTX(mockCtrl)
 	mockKeyManager := crypto.NewMockPrivateKeyManager(mockCtrl)
 	mockKeyManager.EXPECT().SignatureAlgorithm().AnyTimes().Return(sigpb.DigitallySigned_ECDSA)
-	mockKeyManager.EXPECT().HashAlgorithm().AnyTimes().Return(gocrypto.SHA256)
 	var logID int64 = 1
 
 	// Set up enough mockery to be able to sequence. We don't test all the error paths
@@ -132,9 +130,7 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 	mockTx.EXPECT().StoreSignedLogRoot(updatedRoot).Return(nil)
 	mockStorage.EXPECT().BeginForTree(gomock.Any(), logID).Return(mockTx, nil)
 
-	mockSigner := crypto.NewMockSigner(mockCtrl)
-	mockSigner.EXPECT().Sign(gomock.Any(), []byte{23, 147, 61, 51, 131, 170, 136, 10, 82, 12, 93, 42, 98, 88, 131, 100, 101, 187, 124, 189, 202, 207, 66, 137, 95, 117, 205, 34, 109, 242, 103, 248}, gocrypto.SHA256).Return([]byte("signed"), nil)
-	mockKeyManager.EXPECT().Signer().Return(mockSigner)
+	mockKeyManager.EXPECT().Sign(gomock.Any(), []byte{23, 147, 61, 51, 131, 170, 136, 10, 82, 12, 93, 42, 98, 88, 131, 100, 101, 187, 124, 189, 202, 207, 66, 137, 95, 117, 205, 34, 109, 242, 103, 248}, gocrypto.SHA256).Return([]byte("signed"), nil)
 
 	registry := extension.NewMockRegistry(mockCtrl)
 	registry.EXPECT().GetLogStorage().Return(mockStorage, nil)

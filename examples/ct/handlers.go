@@ -718,7 +718,7 @@ func extraDataForChain(chain []*x509.Certificate, isPrecert bool) ([]byte, error
 // marshalAndWriteAddChainResponse is used by add-chain and add-pre-chain to create and write
 // the JSON response to the client
 func marshalAndWriteAddChainResponse(sct *ct.SignedCertificateTimestamp, km crypto.PrivateKeyManager, w http.ResponseWriter) error {
-	logID, err := GetCTLogID(km.PublicKey())
+	logID, err := GetCTLogID(km.Public())
 	if err != nil {
 		return fmt.Errorf("failed to marshal logID: %v", err)
 	}

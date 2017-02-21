@@ -48,7 +48,7 @@ func TestSignVerify(t *testing.T) {
 			t.Errorf("LoadPrivateKey(_, %v)=%v, want nil", test.password, err)
 			continue
 		}
-		signer := NewSigner(test.SigAlgo, km.Signer())
+		signer := NewSigner(test.SigAlgo, km)
 
 		// Sign and Verify.
 		msg := []byte("foo")
@@ -57,7 +57,7 @@ func TestSignVerify(t *testing.T) {
 			t.Errorf("Sign()=(_,%v), want (_,nil)", err)
 			continue
 		}
-		pub := km.PublicKey()
+		pub := km.Public()
 		if err := Verify(pub, msg, signed); err != nil {
 			t.Errorf("Verify(,,)=%v, want nil", err)
 		}

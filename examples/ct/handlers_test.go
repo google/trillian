@@ -18,7 +18,6 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	gocrypto "crypto"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -114,9 +113,8 @@ func setupTest(t *testing.T, pemRoots []string) handlerTestInfo {
 	if err != nil {
 		panic(err)
 	}
-	info.km.EXPECT().PublicKey().AnyTimes().Return(pubkey)
+	info.km.EXPECT().Public().AnyTimes().Return(pubkey)
 	info.km.EXPECT().SignatureAlgorithm().AnyTimes().Return(spb.DigitallySigned_ECDSA)
-	info.km.EXPECT().HashAlgorithm().AnyTimes().Return(gocrypto.SHA256)
 
 	info.client = mockclient.NewMockTrillianLogClient(info.mockCtrl)
 	info.roots = NewPEMCertPool()
@@ -131,9 +129,7 @@ func setupTest(t *testing.T, pemRoots []string) handlerTestInfo {
 
 func (info handlerTestInfo) expectSign(toSign string) {
 	data, _ := hex.DecodeString(toSign)
-	mockSigner := crypto.NewMockSigner(info.mockCtrl)
-	mockSigner.EXPECT().Sign(gomock.Any(), data, gomock.Any()).AnyTimes().Return([]byte("signed"), nil)
-	info.km.EXPECT().Signer().AnyTimes().Return(mockSigner)
+	info.km.EXPECT().Sign(gomock.Any(), data, gomock.Any()).AnyTimes().Return([]byte("signed"), nil)
 }
 
 func (info handlerTestInfo) getHandlers() map[string]AppHandler {
@@ -504,9 +500,7 @@ func TestGetSTH(t *testing.T) {
 		if len(test.toSign) > 0 {
 			info.expectSign(test.toSign)
 		} else if test.signResult != nil || test.signErr != nil {
-			signer := crypto.NewMockSigner(info.mockCtrl)
-			signer.EXPECT().Sign(gomock.Any(), gomock.Any(), gomock.Any()).Return(test.signResult, test.signErr)
-			info.km.EXPECT().Signer().Return(signer)
+			info.km.EXPECT().Sign(gomock.Any(), gomock.Any(), gomock.Any()).Return(test.signResult, test.signErr)
 		}
 		handler := AppHandler{Context: info.c, Handler: getSTH, Name: "GetSTH", Method: http.MethodGet}
 		w := httptest.NewRecorder()
