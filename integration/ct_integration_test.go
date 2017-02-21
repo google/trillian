@@ -73,9 +73,8 @@ const (
 
 func TestInProcessCTIntegration(t *testing.T) {
 	ctx := context.Background()
-	cfgs := []ct.LogConfig{
+	cfgs := []*ct.LogConfig{
 		{
-			LogID:           6962,
 			Prefix:          "athos",
 			RootsPEMFile:    rootsPEMFile,
 			PubKeyPEMFile:   pubKeyPEMFile,
@@ -83,7 +82,6 @@ func TestInProcessCTIntegration(t *testing.T) {
 			PrivKeyPassword: privKeyPassword,
 		},
 		{
-			LogID:           16962,
 			Prefix:          "porthos",
 			RootsPEMFile:    rootsPEMFile,
 			PubKeyPEMFile:   pubKeyPEMFile,
@@ -91,7 +89,6 @@ func TestInProcessCTIntegration(t *testing.T) {
 			PrivKeyPassword: privKeyPassword,
 		},
 		{
-			LogID:           26962,
 			Prefix:          "aramis",
 			RootsPEMFile:    rootsPEMFile,
 			PubKeyPEMFile:   pubKeyPEMFile,
@@ -115,7 +112,7 @@ func TestInProcessCTIntegration(t *testing.T) {
 			t.Run(cfg.Prefix, func(t *testing.T) {
 				t.Parallel()
 				stats := newWantStats(cfg.LogID)
-				if err := RunCTIntegrationForLog(cfg, env.CTAddr, "../testdata", mmd, stats); err != nil {
+				if err := RunCTIntegrationForLog(*cfg, env.CTAddr, "../testdata", mmd, stats); err != nil {
 					t.Errorf("%s: failed: %v", cfg.Prefix, err)
 				}
 			})

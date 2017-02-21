@@ -45,10 +45,7 @@ func main() {
 	}
 
 	mapID := int64(1)
-	ms, err := mysql.NewMapStorage(db)
-	if err != nil {
-		glog.Exitf("Failed create MapStorage: %v", err)
-	}
+	ms := mysql.NewMapStorage(db)
 
 	h, err := merkle.Factory(merkle.RFC6962SHA256Type)
 	if err != nil {
