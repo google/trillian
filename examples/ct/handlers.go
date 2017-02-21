@@ -159,7 +159,7 @@ type LogContext struct {
 	// rpcClient is the client used to communicate with the trillian backend
 	rpcClient trillian.TrillianLogClient
 	// logKeyManager holds the keys this log needs to sign objects
-	logKeyManager crypto.KeyManager
+	logKeyManager crypto.PrivateKeyManager
 	// rpcDeadline is the deadline that will be set on all backend RPC requests
 	rpcDeadline time.Duration
 	// Various per-log statistics
@@ -176,7 +176,7 @@ type LogContext struct {
 }
 
 // NewLogContext creates a new instance of LogContext.
-func NewLogContext(logID int64, prefix string, trustedRoots *PEMCertPool, rpcClient trillian.TrillianLogClient, km crypto.KeyManager, rpcDeadline time.Duration, timeSource util.TimeSource) *LogContext {
+func NewLogContext(logID int64, prefix string, trustedRoots *PEMCertPool, rpcClient trillian.TrillianLogClient, km crypto.PrivateKeyManager, rpcDeadline time.Duration, timeSource util.TimeSource) *LogContext {
 	ctx := &LogContext{
 		logID:         logID,
 		urlPrefix:     prefix,
@@ -263,7 +263,7 @@ func parseBodyAsJSONChain(c LogContext, r *http.Request) (ct.AddChainRequest, er
 // TODO(Martin2112): Doesn't properly handle duplicate submissions yet but the backend
 // needs this to be implemented before we can do it here
 func addChainInternal(ctx context.Context, c LogContext, w http.ResponseWriter, r *http.Request, isPrecert bool) (int, error) {
-	var signerFn func(crypto.KeyManager, *x509.Certificate, *x509.Certificate, time.Time) (*ct.MerkleTreeLeaf, *ct.SignedCertificateTimestamp, error)
+	var signerFn func(crypto.PrivateKeyManager, *x509.Certificate, *x509.Certificate, time.Time) (*ct.MerkleTreeLeaf, *ct.SignedCertificateTimestamp, error)
 	var method EntrypointName
 	if isPrecert {
 		method = AddPreChainName
@@ -717,8 +717,8 @@ func extraDataForChain(chain []*x509.Certificate, isPrecert bool) ([]byte, error
 
 // marshalAndWriteAddChainResponse is used by add-chain and add-pre-chain to create and write
 // the JSON response to the client
-func marshalAndWriteAddChainResponse(sct *ct.SignedCertificateTimestamp, km crypto.KeyManager, w http.ResponseWriter) error {
-	logID, err := GetCTLogID(km)
+func marshalAndWriteAddChainResponse(sct *ct.SignedCertificateTimestamp, km crypto.PrivateKeyManager, w http.ResponseWriter) error {
+	logID, err := GetCTLogID(km.Public())
 	if err != nil {
 		return fmt.Errorf("failed to marshal logID: %v", err)
 	}

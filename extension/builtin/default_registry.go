@@ -38,7 +38,7 @@ var (
 // Default implementation of extension.Registry.
 type defaultRegistry struct {
 	db *sql.DB
-	km crypto.KeyManager
+	km crypto.PrivateKeyManager
 }
 
 func (r *defaultRegistry) GetLogStorage() (storage.LogStorage, error) {
@@ -49,13 +49,13 @@ func (r *defaultRegistry) GetMapStorage() (storage.MapStorage, error) {
 	return mysql.NewMapStorage(r.db)
 }
 
-func (r *defaultRegistry) GetKeyManager(treeID int64) (crypto.KeyManager, error) {
+func (r *defaultRegistry) GetKeyManager(treeID int64) (crypto.PrivateKeyManager, error) {
 	return r.km, nil
 }
 
 // NewExtensionRegistry returns an extension.Registry implementation backed by a given
 // MySQL database and a KeyManager instance.
-func NewExtensionRegistry(db *sql.DB, km crypto.KeyManager) (extension.Registry, error) {
+func NewExtensionRegistry(db *sql.DB, km crypto.PrivateKeyManager) (extension.Registry, error) {
 	return &defaultRegistry{db: db, km: km}, nil
 
 }
@@ -67,7 +67,7 @@ func NewDefaultExtensionRegistry() (extension.Registry, error) {
 	if err != nil {
 		return nil, err
 	}
-	km, err := crypto.LoadPasswordProtectedPrivateKey(*privateKeyFile, *privateKeyPassword)
+	km, err := crypto.NewFromPrivatePEMFile(*privateKeyFile, *privateKeyPassword)
 	if err != nil {
 		return nil, err
 	}

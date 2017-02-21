@@ -32,5 +32,5 @@ type Registry interface {
 
 	// GetKeyManager returns a configured crypto.KeyManager instance for the specified tree ID or an
 	// error if the key manager cannot be set up.
-	GetKeyManager(treeID int64) (crypto.KeyManager, error)
+	GetKeyManager(treeID int64) (crypto.PrivateKeyManager, error)
 }

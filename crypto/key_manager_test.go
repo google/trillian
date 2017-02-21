@@ -33,26 +33,16 @@ type ecdsaSig struct {
 }
 
 func TestLoadDemoECDSAKeyAndSign(t *testing.T) {
-	km := new(PEMKeyManager)
-
 	// Obviously in real code we wouldn't use a fixed seed
 	randSource := rand.New(rand.NewSource(42))
-
 	hasher := crypto.SHA256
 
-	err := km.LoadPrivateKey(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
-
+	km, err := NewFromPrivatePEM(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
 	if err != nil {
 		t.Fatalf("Failed to load key: %v", err)
 	}
 
-	signer, err := km.Signer()
-
-	if err != nil {
-		t.Fatalf("Failed to create signer: %v", err)
-	}
-
-	signed, err := signer.Sign(randSource, []byte("hello"), hasher)
+	signed, err := km.Sign(randSource, []byte("hello"), hasher)
 
 	if err != nil {
 		t.Fatalf("Failed to sign: %v", err)
@@ -81,28 +71,5 @@ func TestLoadDemoECDSAKeyAndSign(t *testing.T) {
 
 	if !ecdsa.Verify(publicKey, []byte("hello"), signature.R, signature.S) {
 		t.Fatal("Signature did not verify on round trip test")
-	}
-}
-
-func TestLoadDemoECDSAPublicKey(t *testing.T) {
-	km := new(PEMKeyManager)
-
-	if err := km.LoadPublicKey(testonly.DemoPublicKey); err != nil {
-		t.Fatal("Failed to load public key")
-	}
-
-	key, err := km.GetPublicKey()
-	if err != nil {
-		t.Fatalf("Unexpected error getting public key: %v", err)
-	}
-
-	if key == nil {
-		t.Fatal("Key manager did not return public key after loading it")
-	}
-
-	// Additional sanity check on type as we know it must be an ECDSA key
-
-	if _, ok := key.(*ecdsa.PublicKey); !ok {
-		t.Fatalf("Expected to have loaded an ECDSA key but got: %v", key)
 	}
 }

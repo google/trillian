@@ -39,24 +39,19 @@ func TestSignV1SCTForCertificate(t *testing.T) {
 	}
 
 	toSign, _ := hex.DecodeString("7052085a63895983fc768ebe0858891bcd4326e797ef3b7ed5996e7655afd7ab")
-	km := setupMockKeyManager(mockCtrl, toSign)
+	km, err := setupMockPrivateKeyManager(mockCtrl, toSign)
+	if err != nil {
+		t.Fatalf("could not create key manager: %v", err)
+	}
 
 	leaf, got, err := signV1SCTForCertificate(km, cert, nil, fixedTime)
 	if err != nil {
 		t.Fatalf("create sct for cert failed: %v", err)
 	}
 
-	logID, err := hex.DecodeString(ctMockLogID)
-	if err != nil {
-		t.Fatalf("failed to decode test log id: %s", ctMockLogID)
-	}
-
-	var idArray [sha256.Size]byte
-	copy(idArray[:], logID)
-
 	expected := ct.SignedCertificateTimestamp{
 		SCTVersion: 0,
-		LogID:      ct.LogID{KeyID: ct.SHA256Hash(idArray)},
+		LogID:      ct.LogID{KeyID: ctTesttubeLogID},
 		Timestamp:  1504786523000,
 		Extensions: ct.CTExtensions{},
 		Signature: ct.DigitallySigned{
@@ -101,7 +96,10 @@ func TestSignV1SCTForPrecertificate(t *testing.T) {
 	}
 
 	toSign, _ := hex.DecodeString("dfa541729551db7e37715c1d613dc1a0c72cd7efac2de9cfd718d27fc79c018f")
-	km := setupMockKeyManager(mockCtrl, toSign)
+	km, err := setupMockPrivateKeyManager(mockCtrl, toSign)
+	if err != nil {
+		t.Fatalf("could not create key manager: %v", err)
+	}
 
 	// Use the same cert as the issuer for convenience.
 	leaf, got, err := signV1SCTForPrecertificate(km, cert, cert, fixedTime)
@@ -109,16 +107,9 @@ func TestSignV1SCTForPrecertificate(t *testing.T) {
 		t.Fatalf("create sct for precert failed: %v", err)
 	}
 
-	logID, err := hex.DecodeString(ctMockLogID)
-	if err != nil {
-		t.Fatalf("failed to decode test log id: %s", ctMockLogID)
-	}
-
-	var idArray [sha256.Size]byte
-	copy(idArray[:], logID)
-
-	expected := ct.SignedCertificateTimestamp{SCTVersion: 0,
-		LogID:      ct.LogID{KeyID: ct.SHA256Hash(idArray)},
+	expected := ct.SignedCertificateTimestamp{
+		SCTVersion: 0,
+		LogID:      ct.LogID{KeyID: ctTesttubeLogID},
 		Timestamp:  1504786523000,
 		Extensions: ct.CTExtensions{},
 		Signature: ct.DigitallySigned{

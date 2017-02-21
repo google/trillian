@@ -99,23 +99,9 @@ func (cfg LogConfig) SetUpInstance(client trillian.TrillianLogClient, deadline t
 	}
 
 	// Set up a key manager instance for this log.
-	km := crypto.NewPEMKeyManager()
-	privData, err := ioutil.ReadFile(cfg.PrivKeyPEMFile)
+	km, err := crypto.NewFromPrivatePEMFile(cfg.PrivKeyPEMFile, cfg.PrivKeyPassword)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load private key file: %v", err)
-	}
-
-	if err := km.LoadPrivateKey(string(privData), cfg.PrivKeyPassword); err != nil {
-		return nil, fmt.Errorf("failed to parse private key: %v", err)
-	}
-
-	pubData, err := ioutil.ReadFile(cfg.PubKeyPEMFile)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load public key file: %v", err)
-	}
-
-	if err := km.LoadPublicKey(string(pubData)); err != nil {
-		return nil, fmt.Errorf("failed to parse public key: %v", err)
+		return nil, fmt.Errorf("failed to load private key: %v", err)
 	}
 
 	// Create and register the handlers using the RPC client we just set up
