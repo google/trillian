@@ -11,26 +11,18 @@ SET GLOBAL sql_mode = 'STRICT_ALL_TABLES';
 
 -- Tree parameters should not be changed after creation. Doing so can
 -- render the data in the tree unusable or inconsistent.
--- TODO(codingllama): Add NOT NULL constraints to most columns
 CREATE TABLE IF NOT EXISTS Trees(
   TreeId                BIGINT NOT NULL,
-  -- TODO(codingllama): Remove KeyId, it isn't wired to anything
-  KeyId                 VARBINARY(255) NOT NULL,
-  TreeState             ENUM('ACTIVE', 'FROZEN', 'SOFT_DELETED', 'HARD_DELETED'),
+  TreeState             ENUM('ACTIVE', 'FROZEN', 'SOFT_DELETED', 'HARD_DELETED') NOT NULL,
   TreeType              ENUM('LOG', 'MAP') NOT NULL,
-  HashStrategy          ENUM('RFC_6962'),
-  HashAlgorithm         ENUM('SHA256'),
+  HashStrategy          ENUM('RFC_6962') NOT NULL,
+  HashAlgorithm         ENUM('SHA256') NOT NULL,
   SignatureAlgorithm    ENUM('ECDSA', 'RSA') NOT NULL,
-  DuplicatePolicy       ENUM('NOT_ALLOWED', 'ALLOWED'),
+  DuplicatePolicy       ENUM('NOT_ALLOWED', 'ALLOWED') NOT NULL,
   DisplayName           VARCHAR(20),
   Description           VARCHAR(200),
-  CreateTime            DATETIME,
-  UpdateTime            DATETIME,
-  -- TODO(codingllama): Replace with HashAlgorithm
-  LeafHasherType        ENUM('SHA256') NOT NULL,
-  TreeHasherType        ENUM('SHA256') NOT NULL,
-  -- TODO(codingllama): Replace with DuplicatePolicy
-  AllowsDuplicateLeaves BOOLEAN NOT NULL DEFAULT 0,
+  CreateTime            DATETIME NOT NULL,
+  UpdateTime            DATETIME NOT NULL,
   PRIMARY KEY(TreeId)
 );
 
@@ -38,12 +30,10 @@ CREATE TABLE IF NOT EXISTS Trees(
 -- administrative purposes.
 CREATE TABLE IF NOT EXISTS TreeControl(
   TreeId                  BIGINT NOT NULL,
-  -- TODO(codingllama): Replace with TreeState.FROZEN
-  ReadOnlyRequests        BOOLEAN,
-  SigningEnabled          BOOLEAN,
-  SequencingEnabled       BOOLEAN,
-  SequenceIntervalSeconds INTEGER,
-  SignIntervalSeconds     INTEGER,
+  SigningEnabled          BOOLEAN NOT NULL,
+  SequencingEnabled       BOOLEAN NOT NULL,
+  SequenceIntervalSeconds INTEGER NOT NULL,
+  SignIntervalSeconds     INTEGER NOT NULL,
   PRIMARY KEY(TreeId),
   FOREIGN KEY(TreeId) REFERENCES Trees(TreeId)
 );

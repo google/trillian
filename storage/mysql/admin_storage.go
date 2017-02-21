@@ -287,7 +287,6 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 	insertTreeStmt, err := t.tx.Prepare(`
 		INSERT INTO Trees(
 			TreeId,
-			KeyId,
 			TreeState,
 			TreeType,
 			HashStrategy,
@@ -297,11 +296,8 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 			DisplayName,
 			Description,
 			CreateTime,
-			UpdateTime,
-			LeafHasherType,
-			TreeHasherType,
-			AllowsDuplicateLeaves)
-		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+			UpdateTime)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 	if err != nil {
 		return nil, err
 	}
@@ -322,8 +318,6 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 
 	_, err = insertTreeStmt.Exec(
 		newTree.TreeId,
-		// TODO(codingllama): Set KeyId to something meaningful?
-		1, /* KeyId */
 		newTree.TreeState.String(),
 		newTree.TreeType.String(),
 		newTree.HashStrategy.String(),
@@ -332,11 +326,8 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 		duplicatePolicy,
 		newTree.DisplayName,
 		newTree.Description,
-		nowDatetime,                                                            /* CreateTime */
-		nowDatetime,                                                            /* UpdateTime */
-		newTree.HashAlgorithm.String(),                                         /* LeafHasherType */
-		newTree.HashAlgorithm.String(),                                         /* TreeHasherType */
-		newTree.DuplicatePolicy == trillian.DuplicatePolicy_DUPLICATES_ALLOWED, /* AllowsDuplicateLeaves */
+		nowDatetime, /* CreateTime */
+		nowDatetime, /* UpdateTime */
 	)
 	if err != nil {
 		return nil, err
@@ -355,21 +346,19 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 	insertControlStmt, err := t.tx.Prepare(`
 		INSERT INTO TreeControl(
 			TreeId,
-			ReadOnlyRequests,
 			SigningEnabled,
 			SequencingEnabled,
 			SequenceIntervalSeconds,
 			SignIntervalSeconds)
-		VALUES(?, ?, ?, ?, ?, ?)`)
+		VALUES(?, ?, ?, ?, ?)`)
 	if err != nil {
 		return nil, err
 	}
 	defer insertControlStmt.Close()
 	_, err = insertControlStmt.Exec(
 		newTree.TreeId,
-		false, /* ReadOnlyRequests */
-		true,  /* SigningEnabled */
-		true,  /* SequencingEnabled */
+		true, /* SigningEnabled */
+		true, /* SequencingEnabled */
 		defaultSequenceIntervalSeconds,
 		defaultSignIntervalSeconds,
 	)
