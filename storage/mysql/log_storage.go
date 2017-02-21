@@ -417,7 +417,6 @@ func (t *logTreeTX) GetLeavesByIndex(leaves []int64) ([]trillian.LogLeaf, error)
 
 func (t *logTreeTX) GetLeavesByHash(leafHashes [][]byte, orderBySequence bool) ([]trillian.LogLeaf, error) {
 	tmpl, err := t.ls.getLeavesByMerkleHashStmt(len(leafHashes), orderBySequence)
-
 	if err != nil {
 		return nil, err
 	}
