@@ -43,8 +43,9 @@ func TestMapBegin(t *testing.T) {
 	}{
 		{mapID: mapID},
 	}
+
+	ctx := context.Background()
 	for _, test := range tests {
-		ctx := context.Background()
 		tx, err := storage.BeginForTree(ctx, test.mapID)
 		if err != nil {
 			t.Fatalf("Begin() = (_, %v), want = (_, nil)", err)
@@ -71,8 +72,9 @@ func TestMapSnapshot(t *testing.T) {
 	}{
 		{mapID: mapID},
 	}
+
+	ctx := context.Background()
 	for _, test := range tests {
-		ctx := context.Background()
 		tx, err := storage.SnapshotForTree(ctx, test.mapID)
 		if err != nil {
 			t.Fatalf("Snapshot() = (_, %v), want = (_, nil)", err)
@@ -231,8 +233,8 @@ func TestMapSetGetMultipleRevisions(t *testing.T) {
 		{3, trillian.MapLeaf{Index: keyHash, LeafHash: []byte{3}, LeafValue: []byte{3}, ExtraData: []byte{3}}},
 	}
 
+	ctx := context.Background()
 	for _, tc := range tests {
-		ctx := context.Background()
 		// Write the current test case.
 		tx := beginMapTx(ctx, s, mapID, t)
 		mysqlMapTX := tx.(*mapTreeTX)
@@ -300,7 +302,8 @@ func TestLatestSignedMapRoot(t *testing.T) {
 		TimestampNanos: 98765,
 		MapRevision:    5,
 		RootHash:       []byte(dummyHash),
-		Signature:      &spb.DigitallySigned{Signature: []byte("notempty")}}
+		Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
+	}
 	if err := tx.StoreSignedMapRoot(root); err != nil {
 		t.Fatalf("Failed to store signed root: %v", err)
 	}
@@ -336,7 +339,8 @@ func TestDuplicateSignedMapRoot(t *testing.T) {
 		TimestampNanos: 98765,
 		MapRevision:    5,
 		RootHash:       []byte(dummyHash),
-		Signature:      &spb.DigitallySigned{Signature: []byte("notempty")}}
+		Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
+	}
 	if err := tx.StoreSignedMapRoot(root); err != nil {
 		t.Fatalf("Failed to store signed map root: %v", err)
 	}

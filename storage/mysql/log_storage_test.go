@@ -168,8 +168,8 @@ func TestSnapshot(t *testing.T) {
 		{logID: logID},
 	}
 
+	ctx := context.Background()
 	for _, test := range tests {
-		ctx := context.Background()
 		tx, err := s.SnapshotForTree(ctx, test.logID)
 		defer closeTX(tx)
 		if hasError, wantError := err != nil, test.err != ""; hasError || wantError {
@@ -187,7 +187,7 @@ func TestSnapshot(t *testing.T) {
 	}
 }
 
-func TestOpenStateCommit(t *testing.T) {
+func TestOpenStateCommitRollback(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
 	s := NewLogStorage(DB)
@@ -614,7 +614,8 @@ func TestLatestSignedLogRoot(t *testing.T) {
 		TreeSize:       16,
 		TreeRevision:   5,
 		RootHash:       []byte(dummyHash),
-		Signature:      &spb.DigitallySigned{Signature: []byte("notempty")}}
+		Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
+	}
 	if err := tx.StoreSignedLogRoot(root); err != nil {
 		t.Fatalf("Failed to store signed root: %v", err)
 	}
@@ -648,7 +649,8 @@ func TestDuplicateSignedLogRoot(t *testing.T) {
 		TreeSize:       16,
 		TreeRevision:   5,
 		RootHash:       []byte(dummyHash),
-		Signature:      &spb.DigitallySigned{Signature: []byte("notempty")}}
+		Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
+	}
 	if err := tx.StoreSignedLogRoot(root); err != nil {
 		t.Fatalf("Failed to store signed root: %v", err)
 	}
@@ -673,7 +675,8 @@ func TestLogRootUpdate(t *testing.T) {
 		TreeSize:       16,
 		TreeRevision:   5,
 		RootHash:       []byte(dummyHash),
-		Signature:      &spb.DigitallySigned{Signature: []byte("notempty")}}
+		Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
+	}
 	if err := tx.StoreSignedLogRoot(root); err != nil {
 		t.Fatalf("Failed to store signed root: %v", err)
 	}
@@ -683,7 +686,8 @@ func TestLogRootUpdate(t *testing.T) {
 		TreeSize:       16,
 		TreeRevision:   6,
 		RootHash:       []byte(dummyHash),
-		Signature:      &spb.DigitallySigned{Signature: []byte("notempty")}}
+		Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
+	}
 	if err := tx.StoreSignedLogRoot(root2); err != nil {
 		t.Fatalf("Failed to store signed root: %v", err)
 	}

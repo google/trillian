@@ -37,6 +37,7 @@ type CTLogEnv struct {
 
 // NewCTLogEnv creates a fresh DB, log server, and CT personality.
 // testID should be unique to each unittest package so as to allow parallel tests.
+// Created logIDs will be set to cfgs.
 func NewCTLogEnv(ctx context.Context, cfgs []*ct.LogConfig, numSequencers int, testID string) (*CTLogEnv, error) {
 	// Start log server and signer.
 	logEnv, err := NewLogEnv(ctx, numSequencers, testID)
