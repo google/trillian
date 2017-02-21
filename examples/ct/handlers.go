@@ -310,7 +310,7 @@ func addChainInternal(ctx context.Context, c LogContext, w http.ResponseWriter, 
 
 	// As the Log server has successfully queued up the Merkle tree leaf, we can
 	// respond with an SCT.
-	err = marshalAndWriteAddChainResponse(*sct, c.logKeyManager, w)
+	err = marshalAndWriteAddChainResponse(sct, c.logKeyManager, w)
 	if err != nil {
 		// reason is logged and http status is already set
 		// TODO(Martin2112): Record failure for monitoring when it's implemented
@@ -717,7 +717,7 @@ func extraDataForChain(chain []*x509.Certificate, isPrecert bool) ([]byte, error
 
 // marshalAndWriteAddChainResponse is used by add-chain and add-pre-chain to create and write
 // the JSON response to the client
-func marshalAndWriteAddChainResponse(sct ct.SignedCertificateTimestamp, km crypto.KeyManager, w http.ResponseWriter) error {
+func marshalAndWriteAddChainResponse(sct *ct.SignedCertificateTimestamp, km crypto.KeyManager, w http.ResponseWriter) error {
 	logID, err := GetCTLogID(km)
 	if err != nil {
 		return fmt.Errorf("failed to marshal logID: %v", err)
