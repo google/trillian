@@ -1221,8 +1221,8 @@ func createJSONChain(t *testing.T, p PEMCertPool) io.Reader {
 	return bufio.NewReader(&buffer)
 }
 
-func logLeavesForCert(t *testing.T, km crypto.KeyManager, certs []*x509.Certificate, merkleLeaf ct.MerkleTreeLeaf, isPrecert bool) []*trillian.LogLeaf {
-	leafData, err := tls.Marshal(merkleLeaf)
+func logLeavesForCert(t *testing.T, km crypto.KeyManager, certs []*x509.Certificate, merkleLeaf *ct.MerkleTreeLeaf, isPrecert bool) []*trillian.LogLeaf {
+	leafData, err := tls.Marshal(*merkleLeaf)
 	if err != nil {
 		t.Fatalf("failed to serialize leaf: %v", err)
 	}
