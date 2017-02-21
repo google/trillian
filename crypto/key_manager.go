@@ -36,14 +36,14 @@ type PrivateKeyManager interface {
 	SignatureAlgorithm() sigpb.DigitallySigned_SignatureAlgorithm
 }
 
-// LocalSigner signs objects using in-memory key material.
-type LocalSigner struct {
+// localSigner signs objects using in-memory key material.
+type localSigner struct {
 	crypto.Signer
 	signatureAlgorithm sigpb.DigitallySigned_SignatureAlgorithm
 }
 
 // SignatureAlgorithm identifies the signature algorithm used by this key manager.
-func (k LocalSigner) SignatureAlgorithm() sigpb.DigitallySigned_SignatureAlgorithm {
+func (k localSigner) SignatureAlgorithm() sigpb.DigitallySigned_SignatureAlgorithm {
 	return k.signatureAlgorithm
 }
 
@@ -51,12 +51,12 @@ func (k LocalSigner) SignatureAlgorithm() sigpb.DigitallySigned_SignatureAlgorit
 func NewFromPrivateKey(key crypto.PrivateKey) (PrivateKeyManager, error) {
 	switch key := key.(type) {
 	case *ecdsa.PrivateKey:
-		return &LocalSigner{
+		return &localSigner{
 			Signer:             key,
 			signatureAlgorithm: sigpb.DigitallySigned_ECDSA,
 		}, nil
 	case *rsa.PrivateKey:
-		return &LocalSigner{
+		return &localSigner{
 			Signer:             key,
 			signatureAlgorithm: sigpb.DigitallySigned_RSA,
 		}, nil
@@ -66,19 +66,22 @@ func NewFromPrivateKey(key crypto.PrivateKey) (PrivateKeyManager, error) {
 }
 
 func parsePrivateKey(key []byte) (crypto.PrivateKey, error) {
-	if key, err := x509.ParsePKCS1PrivateKey(key); err == nil {
-		return key, nil
+	key1, err1 := x509.ParsePKCS1PrivateKey(key)
+	if err1 == nil {
+		return key1, nil
 	}
-	if key, err := x509.ParsePKCS8PrivateKey(key); err == nil {
-		return key, nil
+	key2, err2 := x509.ParsePKCS8PrivateKey(key)
+	if err2 == nil {
+		return key2, nil
 	}
-	if key, err := x509.ParseECPrivateKey(key); err == nil {
-		return key, nil
+	key3, err3 := x509.ParseECPrivateKey(key)
+	if err3 == nil {
+		return key3, nil
 	}
-	return nil, errors.New("could not parse private key")
+	return nil, fmt.Errorf("could not parse private key as PKCS1: %v, PKCS8: %v, or SEC1: %v", err1, err2, err3)
 }
 
-// NewFromPrivatePEM returns key manager for a password protected PEM object.
+// NewFromPrivatePEM returns key manager for a PEM object which may be password protected.
 func NewFromPrivatePEM(pemBlock, password string) (PrivateKeyManager, error) {
 	block, rest := pem.Decode([]byte(pemBlock))
 	if len(rest) > 0 {
