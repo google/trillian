@@ -250,7 +250,7 @@ func cleanTestDB(db *sql.DB) {
 func createMapForTests(db *sql.DB) int64 {
 	tree, err := createTree(db, storageto.MapTree)
 	if err != nil {
-		panic(fmt.Sprint("Error creating map: %v", err))
+		panic(fmt.Sprintf("Error creating map: %v", err))
 	}
 	return tree.TreeId
 }
@@ -259,7 +259,7 @@ func createMapForTests(db *sql.DB) int64 {
 func createLogForTests(db *sql.DB) int64 {
 	tree, err := createTree(db, storageto.LogTree)
 	if err != nil {
-		panic(fmt.Sprint("Error creating log: %v", err))
+		panic(fmt.Sprintf("Error creating log: %v", err))
 	}
 	return tree.TreeId
 }
