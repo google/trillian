@@ -37,7 +37,7 @@ func TestLoadDemoECDSAKeyAndSign(t *testing.T) {
 	randSource := rand.New(rand.NewSource(42))
 	hasher := crypto.SHA256
 
-	km, err := NewFromPrivatePEM([]byte(testonly.DemoPrivateKey), testonly.DemoPrivateKeyPass)
+	km, err := NewFromPrivatePEM(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
 	if err != nil {
 		t.Fatalf("Failed to load key: %v", err)
 	}

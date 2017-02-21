@@ -88,15 +88,15 @@ func TestSerializeLogEntry(t *testing.T) {
 }
 
 // Creates a mock key manager for use in interaction tests
-func setupMockPrivateKeyManager(ctrl *gomock.Controller, toSign []byte) *crypto.MockPrivateKeyManager {
+func setupMockPrivateKeyManager(ctrl *gomock.Controller, toSign []byte) (*crypto.MockPrivateKeyManager, error) {
 	pubkey, err := crypto.PublicKeyFromPEM(ctTesttubePublicKey)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	mockKeyManager := setupMockPrivateKeyManagerForSth(ctrl, toSign)
 	mockKeyManager.EXPECT().Public().AnyTimes().Return(pubkey)
 	mockKeyManager.EXPECT().SignatureAlgorithm().AnyTimes().Return(spb.DigitallySigned_ECDSA)
-	return mockKeyManager
+	return mockKeyManager, nil
 }
 
 // As above but we don't expect the call for a public key as we don't need it for an STH

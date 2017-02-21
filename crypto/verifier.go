@@ -43,7 +43,7 @@ func PublicKeyFromPEM(pemEncodedKey string) (crypto.PublicKey, error) {
 
 	parsedKey, err := x509.ParsePKIXPublicKey(publicBlock.Bytes)
 	if err != nil {
-		return nil, errors.New("unable to parse public key")
+		return nil, fmt.Errorf("unable to parse public key: %v", err)
 	}
 
 	return parsedKey, nil

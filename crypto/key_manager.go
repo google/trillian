@@ -36,38 +36,33 @@ type PrivateKeyManager interface {
 	SignatureAlgorithm() sigpb.DigitallySigned_SignatureAlgorithm
 }
 
-// PEMKeyManager is an instance of KeyManager that loads its key data from an encrypted
-// PEM file.
-type PEMKeyManager struct {
+// LocalSigner signs objects using in-memory key material.
+type LocalSigner struct {
 	crypto.Signer
 	signatureAlgorithm sigpb.DigitallySigned_SignatureAlgorithm
 }
 
 // SignatureAlgorithm identifies the signature algorithm used by this key manager.
-func (k PEMKeyManager) SignatureAlgorithm() sigpb.DigitallySigned_SignatureAlgorithm {
+func (k LocalSigner) SignatureAlgorithm() sigpb.DigitallySigned_SignatureAlgorithm {
 	return k.signatureAlgorithm
 }
 
 // NewFromPrivateKey creates PrivateKeyManager using a private key.
 func NewFromPrivateKey(key crypto.PrivateKey) (PrivateKeyManager, error) {
-	var signer crypto.Signer
-	var sigAlgo sigpb.DigitallySigned_SignatureAlgorithm
-
-	switch key.(type) {
+	switch key := key.(type) {
 	case *ecdsa.PrivateKey:
-		signer = key.(crypto.Signer)
-		sigAlgo = sigpb.DigitallySigned_ECDSA
+		return &LocalSigner{
+			Signer:             key,
+			signatureAlgorithm: sigpb.DigitallySigned_ECDSA,
+		}, nil
 	case *rsa.PrivateKey:
-		signer = key.(crypto.Signer)
-		sigAlgo = sigpb.DigitallySigned_RSA
+		return &LocalSigner{
+			Signer:             key,
+			signatureAlgorithm: sigpb.DigitallySigned_RSA,
+		}, nil
 	default:
-		return nil, errors.New("unsupported key type")
+		return nil, fmt.Errorf("unsupported key type: %T", key)
 	}
-
-	return &PEMKeyManager{
-		Signer:             signer,
-		signatureAlgorithm: sigAlgo,
-	}, nil
 }
 
 func parsePrivateKey(key []byte) (crypto.PrivateKey, error) {
@@ -84,8 +79,8 @@ func parsePrivateKey(key []byte) (crypto.PrivateKey, error) {
 }
 
 // NewFromPrivatePEM returns key manager for a password protected PEM object.
-func NewFromPrivatePEM(pemBlock []byte, password string) (PrivateKeyManager, error) {
-	block, rest := pem.Decode(pemBlock)
+func NewFromPrivatePEM(pemBlock, password string) (PrivateKeyManager, error) {
+	block, rest := pem.Decode([]byte(pemBlock))
 	if len(rest) > 0 {
 		return nil, errors.New("extra data found after PEM decoding")
 	}
@@ -106,16 +101,12 @@ func NewFromPrivatePEM(pemBlock []byte, password string) (PrivateKeyManager, err
 	return NewFromPrivateKey(key)
 }
 
-// NewFromPrivatePEMFile initializes and returns a new KeyManager using a PEM encoded
+// NewFromPrivatePEMFile initializes and returns a new PrivateKeyManager using a PEM encoded
 // private key read from a file. The key may be protected by a password.
 func NewFromPrivatePEMFile(keyFile, keyPassword string) (PrivateKeyManager, error) {
-	if len(keyFile) == 0 || len(keyPassword) == 0 {
-		return nil, errors.New("private key file and password must be specified")
-	}
-
 	pemData, err := ioutil.ReadFile(keyFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read data from key file: %s because: %v", keyFile, err)
 	}
-	return NewFromPrivatePEM(pemData, keyPassword)
+	return NewFromPrivatePEM(string(pemData), keyPassword)
 }

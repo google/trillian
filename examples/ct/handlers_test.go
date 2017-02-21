@@ -430,7 +430,7 @@ func TestAddPrechain(t *testing.T) {
 				t.Errorf("resp.SCTVersion=%v; want %v", got, want)
 			}
 			if got, want := resp.ID, ctTesttubeLogID[:]; !bytes.Equal(got, want) {
-				t.Errorf("resp.ID=%v; want %v", got, want)
+				t.Errorf("resp.ID=%x; want %x", got, want)
 			}
 			if got, want := resp.Timestamp, uint64(1469185273000); got != want {
 				t.Errorf("resp.Timestamp=%d; want %d", got, want)

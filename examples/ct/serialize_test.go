@@ -39,7 +39,10 @@ func TestSignV1SCTForCertificate(t *testing.T) {
 	}
 
 	toSign, _ := hex.DecodeString("7052085a63895983fc768ebe0858891bcd4326e797ef3b7ed5996e7655afd7ab")
-	km := setupMockPrivateKeyManager(mockCtrl, toSign)
+	km, err := setupMockPrivateKeyManager(mockCtrl, toSign)
+	if err != nil {
+		t.Fatalf("could not create key manager: %v", err)
+	}
 
 	leaf, got, err := signV1SCTForCertificate(km, cert, nil, fixedTime)
 	if err != nil {
@@ -93,7 +96,10 @@ func TestSignV1SCTForPrecertificate(t *testing.T) {
 	}
 
 	toSign, _ := hex.DecodeString("dfa541729551db7e37715c1d613dc1a0c72cd7efac2de9cfd718d27fc79c018f")
-	km := setupMockPrivateKeyManager(mockCtrl, toSign)
+	km, err := setupMockPrivateKeyManager(mockCtrl, toSign)
+	if err != nil {
+		t.Fatalf("could not create key manager: %v", err)
+	}
 
 	// Use the same cert as the issuer for convenience.
 	leaf, got, err := signV1SCTForPrecertificate(km, cert, cert, fixedTime)
