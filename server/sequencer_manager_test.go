@@ -36,13 +36,18 @@ var fakeTimeSource = util.FakeTimeSource{FakeTime: fakeTime}
 
 // We use a size zero tree for testing, Merkle tree state restore is tested elsewhere
 var testLogID1 = int64(1)
-var testLeaf0 = trillian.LogLeaf{
+var testLeaf0 = &trillian.LogLeaf{
 	MerkleLeafHash: testonly.Hasher.HashLeaf([]byte{}),
 	LeafValue:      nil,
 	ExtraData:      nil,
 	LeafIndex:      0,
 }
-var testLeaf0Updated = trillian.LogLeaf{MerkleLeafHash: testonly.MustDecodeBase64("bjQLnP+zepicpUTmu3gKLHiQHT+zNzh2hRGjBhevoB0="), LeafValue: nil, ExtraData: nil, LeafIndex: 0}
+var testLeaf0Updated = &trillian.LogLeaf{
+	MerkleLeafHash: testonly.MustDecodeBase64("bjQLnP+zepicpUTmu3gKLHiQHT+zNzh2hRGjBhevoB0="),
+	LeafValue:      nil,
+	ExtraData:      nil,
+	LeafIndex:      0,
+}
 var testRoot0 = trillian.SignedLogRoot{
 	TreeSize:     0,
 	TreeRevision: 0,
@@ -96,7 +101,7 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 	mockTx.EXPECT().Commit().Return(nil)
 	mockTx.EXPECT().WriteRevision().AnyTimes().Return(writeRev)
 	mockTx.EXPECT().LatestSignedLogRoot().Return(testRoot0, nil)
-	mockTx.EXPECT().DequeueLeaves(50, fakeTime).Return([]trillian.LogLeaf{}, nil)
+	mockTx.EXPECT().DequeueLeaves(50, fakeTime).Return([]*trillian.LogLeaf{}, nil)
 	mockKeyManager := crypto.NewMockPrivateKeyManager(mockCtrl)
 	mockKeyManager.EXPECT().SignatureAlgorithm().AnyTimes().Return(sigpb.DigitallySigned_ECDSA)
 
@@ -123,9 +128,9 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 	mockTx.EXPECT().Commit().Return(nil)
 	mockTx.EXPECT().Rollback().AnyTimes().Do(func() { panic(nil) })
 	mockTx.EXPECT().WriteRevision().AnyTimes().Return(testRoot0.TreeRevision + 1)
-	mockTx.EXPECT().DequeueLeaves(50, fakeTime).Return([]trillian.LogLeaf{testLeaf0}, nil)
+	mockTx.EXPECT().DequeueLeaves(50, fakeTime).Return([]*trillian.LogLeaf{testLeaf0}, nil)
 	mockTx.EXPECT().LatestSignedLogRoot().Return(testRoot0, nil)
-	mockTx.EXPECT().UpdateSequencedLeaves([]trillian.LogLeaf{testLeaf0Updated}).Return(nil)
+	mockTx.EXPECT().UpdateSequencedLeaves([]*trillian.LogLeaf{testLeaf0Updated}).Return(nil)
 	mockTx.EXPECT().SetMerkleNodes(updatedNodes0).Return(nil)
 	mockTx.EXPECT().StoreSignedLogRoot(updatedRoot).Return(nil)
 	mockStorage.EXPECT().BeginForTree(gomock.Any(), logID).Return(mockTx, nil)
@@ -153,7 +158,7 @@ func TestSequencerManagerGuardWindow(t *testing.T) {
 	mockTx.EXPECT().WriteRevision().AnyTimes().Return(writeRev)
 	mockTx.EXPECT().LatestSignedLogRoot().Return(testRoot0, nil)
 	// Expect a 5 second guard window to be passed from manager -> sequencer -> storage
-	mockTx.EXPECT().DequeueLeaves(50, fakeTime.Add(-time.Second*5)).Return([]trillian.LogLeaf{}, nil)
+	mockTx.EXPECT().DequeueLeaves(50, fakeTime.Add(-time.Second*5)).Return([]*trillian.LogLeaf{}, nil)
 	mockKeyManager := crypto.NewMockPrivateKeyManager(mockCtrl)
 
 	registry := extension.NewMockRegistry(mockCtrl)
