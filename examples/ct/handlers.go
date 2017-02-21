@@ -263,7 +263,7 @@ func parseBodyAsJSONChain(c LogContext, r *http.Request) (ct.AddChainRequest, er
 // TODO(Martin2112): Doesn't properly handle duplicate submissions yet but the backend
 // needs this to be implemented before we can do it here
 func addChainInternal(ctx context.Context, c LogContext, w http.ResponseWriter, r *http.Request, isPrecert bool) (int, error) {
-	var signerFn func(crypto.KeyManager, *x509.Certificate, *x509.Certificate, time.Time) (ct.MerkleTreeLeaf, ct.SignedCertificateTimestamp, error)
+	var signerFn func(crypto.KeyManager, *x509.Certificate, *x509.Certificate, time.Time) (*ct.MerkleTreeLeaf, *ct.SignedCertificateTimestamp, error)
 	var method EntrypointName
 	if isPrecert {
 		method = AddPreChainName
@@ -295,7 +295,7 @@ func addChainInternal(ctx context.Context, c LogContext, w http.ResponseWriter, 
 	}
 
 	// Send the Merkle tree leaf on to the Log server.
-	leaf, err := buildLogLeafForAddChain(c, merkleLeaf, chain)
+	leaf, err := buildLogLeafForAddChain(c, *merkleLeaf, chain)
 	if err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("failed to build LogLeaf: %v", err)
 	}
@@ -717,7 +717,7 @@ func extraDataForChain(chain []*x509.Certificate, isPrecert bool) ([]byte, error
 
 // marshalAndWriteAddChainResponse is used by add-chain and add-pre-chain to create and write
 // the JSON response to the client
-func marshalAndWriteAddChainResponse(sct ct.SignedCertificateTimestamp, km crypto.KeyManager, w http.ResponseWriter) error {
+func marshalAndWriteAddChainResponse(sct *ct.SignedCertificateTimestamp, km crypto.KeyManager, w http.ResponseWriter) error {
 	logID, err := GetCTLogID(km)
 	if err != nil {
 		return fmt.Errorf("failed to marshal logID: %v", err)
