@@ -152,5 +152,5 @@ func TestSignLogRoot(t *testing.T) {
 }
 
 func createTestSigner(mock *MockSigner) *Signer {
-	return NewSigner(crypto.SHA256, sigpb.DigitallySigned_RSA, mock)
+	return NewSigner(sigpb.DigitallySigned_RSA, mock)
 }

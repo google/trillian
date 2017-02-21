@@ -55,7 +55,7 @@ func (r *defaultRegistry) GetKeyManager(treeID int64) (crypto.PrivateKeyManager,
 
 // NewExtensionRegistry returns an extension.Registry implementation backed by a given
 // MySQL database and a KeyManager instance.
-func NewExtensionRegistry(db *sql.DB, km crypto.KeyManager) (extension.Registry, error) {
+func NewExtensionRegistry(db *sql.DB, km crypto.PrivateKeyManager) (extension.Registry, error) {
 	return &defaultRegistry{db: db, km: km}, nil
 
 }

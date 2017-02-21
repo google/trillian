@@ -48,7 +48,7 @@ func TestSignVerify(t *testing.T) {
 			t.Errorf("LoadPrivateKey(_, %v)=%v, want nil", test.password, err)
 			continue
 		}
-		signer := NewSigner(test.HashAlgo, test.SigAlgo, km.Signer())
+		signer := NewSigner(test.SigAlgo, km.Signer())
 
 		// Sign and Verify.
 		msg := []byte("foo")

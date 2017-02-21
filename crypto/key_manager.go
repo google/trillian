@@ -34,8 +34,6 @@ type PrivateKeyManager interface {
 	Signer() crypto.Signer
 	// SignatureAlgorithm returns the value that identifies the signature algorithm.
 	SignatureAlgorithm() sigpb.DigitallySigned_SignatureAlgorithm
-	// HashAlgorithm returns the type of hash that will be used for signing with this key.
-	HashAlgorithm() crypto.Hash
 	// PublicKey returns the public key corresponding to the private key.
 	PublicKey() crypto.PublicKey
 }
@@ -50,13 +48,6 @@ type PEMKeyManager struct {
 // SignatureAlgorithm identifies the signature algorithm used by this key manager.
 func (k PEMKeyManager) SignatureAlgorithm() sigpb.DigitallySigned_SignatureAlgorithm {
 	return k.signatureAlgorithm
-}
-
-// HashAlgorithm identifies the hash algorithm used to sign objects.
-func (k PEMKeyManager) HashAlgorithm() crypto.Hash {
-	// TODO: Save the hash algorithm in the key serialization.
-	// Return a default hash algorithm for now.
-	return crypto.SHA256
 }
 
 // Signer returns a signer based on our private key.

@@ -55,15 +55,9 @@ type Signer struct {
 // NewSigner creates a new Signer wrapping up a hasher and a signer. For the moment
 // we only support SHA256 hashing and either ECDSA or RSA signing but this is not enforced
 // here.
-func NewSigner(hash crypto.Hash, sigAlgo sigpb.DigitallySigned_SignatureAlgorithm, signer crypto.Signer) *Signer {
-	_, ok := reverseSignerHashLookup[hash]
-	if !ok {
-		// TODO(gbelvin): return error from Signer.
-		panic("unsupported hash algorithm")
-	}
-
+func NewSigner(sigAlgo sigpb.DigitallySigned_SignatureAlgorithm, signer crypto.Signer) *Signer {
 	return &Signer{
-		hash:         hash,
+		hash:         crypto.SHA256,
 		signer:       signer,
 		sigAlgorithm: sigAlgo,
 	}
