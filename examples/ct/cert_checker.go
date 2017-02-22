@@ -97,6 +97,7 @@ func ValidateChain(rawChain [][]byte, trustedRoots PEMCertPool) ([]*x509.Certifi
 	// Verify might have found multiple paths to roots. Now we check that we have a path that
 	// uses all the certs in the order they were submitted so as to comply with RFC 6962
 	// requirements detailed in Section 3.1.
+nextVerifiedChain:
 	for _, verifiedChain := range chains {
 		// The verified chain includes a root, which we don't need to include in the comparison
 		chainMinusRoot := verifiedChain[:len(verifiedChain)-1]
@@ -107,7 +108,7 @@ func ValidateChain(rawChain [][]byte, trustedRoots PEMCertPool) ([]*x509.Certifi
 
 		for i, certInChain := range chainMinusRoot {
 			if certInChain != chain[i] {
-				continue
+				continue nextVerifiedChain
 			}
 		}
 
