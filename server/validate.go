@@ -74,5 +74,11 @@ func validateQueueLeavesRequest(req *trillian.QueueLeavesRequest) error {
 	if len(req.Leaves) == 0 {
 		return grpc.Errorf(codes.InvalidArgument, "len(leaves)=0, want > 0")
 	}
+	for _, leaf := range req.Leaves {
+		if len(leaf.MerkleLeafHash) == 0 {
+			return grpc.Errorf(codes.InvalidArgument, "Missing MerkleLeafHash")
+		}
+
+	}
 	return nil
 }

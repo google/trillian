@@ -191,6 +191,7 @@ func queueLeaves(client trillian.TrillianLogClient, params TestParameters) error
 
 		leaf := trillian.LogLeaf{
 			LeafIdentityHash: idHash[:],
+			MerkleLeafHash:   testonly.Hasher.HashLeaf(data),
 			LeafValue:        data,
 			ExtraData:        []byte(fmt.Sprintf("Extra %d", leafNumber)),
 		}
