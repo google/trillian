@@ -15,7 +15,7 @@
 package client
 
 import (
-	"log"
+	"math/rand"
 
 	context "golang.org/x/net/context"
 
@@ -45,7 +45,9 @@ func (c *MockLogClient) QueueLeaves(ctx context.Context, in *trillian.QueueLeave
 func (c *MockLogClient) GetInclusionProof(ctx context.Context, in *trillian.GetInclusionProofRequest, opts ...grpc.CallOption) (*trillian.GetInclusionProofResponse, error) {
 	resp, err := c.c.GetInclusionProof(ctx, in)
 	if c.mGetInclusionProof {
-		resp.Proof.ProofNode[3].NodeHash[4] ^= 3
+		i := rand.Intn(len(resp.Proof.ProofNode))
+		j := rand.Intn(len(resp.Proof.ProofNode[i].NodeHash))
+		resp.Proof.ProofNode[i].NodeHash[j] ^= 4
 	}
 	return resp, err
 }
@@ -54,8 +56,10 @@ func (c *MockLogClient) GetInclusionProof(ctx context.Context, in *trillian.GetI
 func (c *MockLogClient) GetInclusionProofByHash(ctx context.Context, in *trillian.GetInclusionProofByHashRequest, opts ...grpc.CallOption) (*trillian.GetInclusionProofByHashResponse, error) {
 	resp, err := c.c.GetInclusionProofByHash(ctx, in)
 	if c.mGetInclusionProof {
-		log.Print(resp)
-		resp.Proof[0].ProofNode[0].NodeHash[4] ^= 3
+		h := rand.Intn(len(resp.Proof))
+		i := rand.Intn(len(resp.Proof[h].ProofNode))
+		j := rand.Intn(len(resp.Proof[h].ProofNode[i].NodeHash))
+		resp.Proof[h].ProofNode[i].NodeHash[j] ^= 4
 	}
 	return resp, err
 }
@@ -64,8 +68,9 @@ func (c *MockLogClient) GetInclusionProofByHash(ctx context.Context, in *trillia
 func (c *MockLogClient) GetConsistencyProof(ctx context.Context, in *trillian.GetConsistencyProofRequest, opts ...grpc.CallOption) (*trillian.GetConsistencyProofResponse, error) {
 	resp, err := c.c.GetConsistencyProof(ctx, in)
 	if c.mGetConsistencyProof {
-		log.Print(resp)
-		resp.Proof.ProofNode[0].NodeHash[3] ^= 3
+		i := rand.Intn(len(resp.Proof.ProofNode))
+		j := rand.Intn(len(resp.Proof.ProofNode[i].NodeHash))
+		resp.Proof.ProofNode[i].NodeHash[j] ^= 4
 	}
 	return resp, err
 }

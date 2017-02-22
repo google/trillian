@@ -16,6 +16,7 @@ package ct
 
 import (
 	"context"
+	gocrypto "crypto"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
@@ -36,7 +37,7 @@ import (
 	"github.com/google/certificate-transparency/go/x509"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
-	"github.com/google/trillian/merkle"
+	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/util"
 )
 
@@ -84,8 +85,8 @@ const (
 
 var (
 	// Entrypoints is a list of entrypoint names as exposed in statistics/logging.
-	Entrypoints   = []EntrypointName{AddChainName, AddPreChainName, GetSTHName, GetSTHConsistencyName, GetProofByHashName, GetEntriesName, GetRootsName, GetEntryAndProofName}
-	treeHasher, _ = merkle.Factory(merkle.RFC6962SHA256Type)
+	Entrypoints = []EntrypointName{AddChainName, AddPreChainName, GetSTHName, GetSTHConsistencyName, GetProofByHashName, GetEntriesName, GetRootsName, GetEntryAndProofName}
+	treeHasher  = rfc6962.TreeHasher{Hash: gocrypto.SHA256}
 )
 
 // PathHandlers maps from a path to the relevant AppHandler instance.

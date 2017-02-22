@@ -72,6 +72,7 @@ func TestAddLeaf(t *testing.T) {
 
 		if err, want := client.AddLeaf(ctx, []byte(test.desc)), codes.DeadlineExceeded; grpc.Code(err) != want {
 			t.Errorf("AddLeaf(%v): %v, want, %v", test.desc, err, want)
+			continue
 		}
 		env.Sequencer.OperationLoop() // Sequence the new node.
 		err := client.AddLeaf(ctx, []byte(test.desc))

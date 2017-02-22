@@ -117,7 +117,7 @@ func (c *LogClient) UpdateSTR(ctx context.Context) error {
 	}
 	// TODO(gdbelvin): Verify SignedLogRoot Signature
 
-	if str.TreeSize == c.STR.TreeSize && bytes.Equal(str.RootHash, str.RootHash) {
+	if str.TreeSize == c.STR.TreeSize && bytes.Equal(str.RootHash, c.STR.RootHash) {
 		// Tree has not been updated.
 		return nil
 	}
