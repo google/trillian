@@ -15,25 +15,19 @@
 package crypto
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/google/trillian"
-)
-
-const (
-	publicKeyFile      = "../testdata/log-rpc-server.pubkey.pem"
-	privateKeyFile     = "../testdata/log-rpc-server.privkey.pem"
-	privateKeyPassword = "towel"
+	"github.com/google/trillian/testonly"
 )
 
 func TestSignLogRoot(t *testing.T) {
-	km, err := NewFromPrivatePEMFile(privateKeyFile, privateKeyPassword)
+	km, err := NewFromPrivatePEM(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
 	if err != nil {
 		t.Fatalf("Failed to open test key")
 	}
 	signer := NewSigner(km.SignatureAlgorithm(), km)
-	pk, err := PublicKeyFromFile(publicKeyFile)
+	pk, err := PublicKeyFromPEM(testonly.DemoPublicKey)
 	if err != nil {
 		t.Fatalf("Failed to load public key")
 	}
@@ -49,17 +43,12 @@ func TestSignLogRoot(t *testing.T) {
 			},
 		},
 	} {
-		before := test.root // Capture test value.
 		signature, err := signer.SignLogRoot(test.root)
 		if err != nil {
 			t.Errorf("Failed to sign log root: %v", err)
 		}
-		// Check root is not modified
-		if !reflect.DeepEqual(test.root, before) {
-			t.Errorf("Got %v, but expected unmodified signed root %v", test.root, before)
-		}
-		// And signature is correct
-		h := HashTrillianSignedLogRoot(test.root)
+		// Check that the signature is correct
+		h := HashLogRoot(test.root)
 		if err := Verify(pk, h, signature); err != nil {
 			t.Errorf("Verify(%v) failed: %v", test.root, err)
 		}

@@ -121,7 +121,7 @@ func (c *LogClient) UpdateSTR(ctx context.Context) error {
 	str := resp.SignedLogRoot
 
 	// Verify SignedLogRoot signature.
-	hash := crypto.HashTrillianSignedLogRoot(*str)
+	hash := crypto.HashLogRoot(*str)
 	if err := crypto.Verify(c.pubKey, hash, str.Signature); err != nil {
 		return err
 	}

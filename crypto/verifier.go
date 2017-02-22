@@ -40,11 +40,11 @@ func PublicKeyFromFile(keyFile string) (crypto.PublicKey, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to read: %s. %v", keyFile, err)
 	}
-	return PublicKeyFromPEM(pemData)
+	return PublicKeyFromPEM(string(pemData))
 }
 
 // PublicKeyFromPEM converts a PEM object into a crypto.PublicKey
-func PublicKeyFromPEM(pemEncodedKey []byte) (crypto.PublicKey, error) {
+func PublicKeyFromPEM(pemEncodedKey string) (crypto.PublicKey, error) {
 	publicBlock, rest := pem.Decode([]byte(pemEncodedKey))
 	if publicBlock == nil {
 		return nil, errors.New("could not decode PEM for public key")
@@ -69,11 +69,7 @@ func VerifyObject(pub crypto.PublicKey, obj interface{}, sig *sigpb.DigitallySig
 	}
 	hash := objecthash.CommonJSONHash(string(j))
 
-	if err := Verify(pub, hash[:], sig); err != nil {
-		return err
-	}
-	return nil
-
+	return Verify(pub, hash[:], sig)
 }
 
 // Verify cryptographically verifies the output of Signer.

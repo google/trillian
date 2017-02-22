@@ -24,7 +24,7 @@ import (
 )
 
 // This file contains struct specific mappings and data structures.
-// TODO(alcutter): remove data-structure specific operations.
+// TODO(gdbelvin): remove data-structure specific operations.
 
 // Constants used as map keys when building input for ObjectHash. They must not be changed
 // as this will change the output of hashRoot()
@@ -34,29 +34,23 @@ const (
 	mapKeyTreeSize       string = "TreeSize"
 )
 
-// HashTrillianSignedLogRoot hashes SignedLogRoot objects in a custom way.
-func HashTrillianSignedLogRoot(root trillian.SignedLogRoot) []byte {
-	rootMap := make(map[string]interface{})
-
-	// Pull out the fields we want to hash. Caution: use string format for int64 values as they
-	// can overflow when JSON encoded otherwise (it uses floats). We want to be sure that people
+// HashLogRoot hashes SignedLogRoot objects in a custom way
+// using the map of properties listed above.
+func HashLogRoot(root trillian.SignedLogRoot) []byte {
+	// Pull out the fields we want to hash.
+	// Caution: use string format for int64 values as they can overflow when
+	// JSON encoded otherwise (it uses floats). We want to be sure that people
 	// using JSON to verify hashes can build the exact same input to ObjectHash.
-	rootMap[mapKeyRootHash] = base64.StdEncoding.EncodeToString(root.RootHash)
-	rootMap[mapKeyTimestampNanos] = strconv.FormatInt(root.TimestampNanos, 10)
-	rootMap[mapKeyTreeSize] = strconv.FormatInt(root.TreeSize, 10)
+	rootMap := map[string]string{
+		mapKeyRootHash:       base64.StdEncoding.EncodeToString(root.RootHash),
+		mapKeyTimestampNanos: strconv.FormatInt(root.TimestampNanos, 10),
+		mapKeyTreeSize:       strconv.FormatInt(root.TreeSize, 10)}
 
 	hash := objecthash.ObjectHash(rootMap)
 	return hash[:]
 }
 
-// SignLogRoot updates a log root to include a signature from the crypto signer this object
-// was created with. Signatures use objecthash on a fixed JSON format of the root.
-func (s Signer) SignLogRoot(root trillian.SignedLogRoot) (*sigpb.DigitallySigned, error) {
-	objectHash := HashTrillianSignedLogRoot(root)
-	signature, err := s.Sign(objectHash[:])
-	if err != nil {
-		return nil, err
-	}
-
-	return signature, nil
+// SignLogRoot returns a signature using objecthash on a fixed JSON format of the root.
+func (s *Signer) SignLogRoot(root trillian.SignedLogRoot) (*sigpb.DigitallySigned, error) {
+	return s.Sign(HashLogRoot(root))
 }

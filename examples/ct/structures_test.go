@@ -41,7 +41,7 @@ MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEw8i8S7qiGEs9NXv0ZJFh6uuOmR2Q
 // This test uses the testtube key rather than our test key so we can verify the
 // result easily
 func TestGetCTLogID(t *testing.T) {
-	pk, err := crypto.PublicKeyFromPEM([]byte(ctTesttubePublicKey))
+	pk, err := crypto.PublicKeyFromPEM(ctTesttubePublicKey)
 	if err != nil {
 		t.Fatalf("unexpected error loading public key: %v", err)
 	}
@@ -89,7 +89,7 @@ func TestSerializeLogEntry(t *testing.T) {
 
 // Creates a mock key manager for use in interaction tests
 func setupMockPrivateKeyManager(ctrl *gomock.Controller, toSign []byte) (*crypto.MockPrivateKeyManager, error) {
-	pubkey, err := crypto.PublicKeyFromPEM([]byte(ctTesttubePublicKey))
+	pubkey, err := crypto.PublicKeyFromPEM(ctTesttubePublicKey)
 	if err != nil {
 		return nil, err
 	}

@@ -109,7 +109,7 @@ func setupTest(t *testing.T, pemRoots []string) handlerTestInfo {
 	info.mockCtrl = gomock.NewController(t)
 
 	info.km = crypto.NewMockPrivateKeyManager(info.mockCtrl)
-	pubkey, err := crypto.PublicKeyFromPEM([]byte(ctTesttubePublicKey))
+	pubkey, err := crypto.PublicKeyFromPEM(ctTesttubePublicKey)
 	if err != nil {
 		panic(err)
 	}

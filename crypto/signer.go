@@ -18,7 +18,6 @@ import (
 	"crypto"
 	"crypto/rand"
 	"encoding/json"
-	"fmt"
 
 	"github.com/benlaurie/objecthash/go/objecthash"
 	"github.com/google/trillian/crypto/sigpb"
@@ -53,18 +52,12 @@ func NewSigner(sigAlgo sigpb.DigitallySigned_SignatureAlgorithm, signer crypto.S
 }
 
 // Sign obtains a signature after first hashing the input data.
-func (s Signer) Sign(data []byte) (*sigpb.DigitallySigned, error) {
+func (s *Signer) Sign(data []byte) (*sigpb.DigitallySigned, error) {
 	h := s.hash.New()
 	h.Write(data)
 	digest := h.Sum(nil)
 
-	if len(digest) != s.hash.Size() {
-		return nil, fmt.Errorf("hasher returned unexpected digest length: %d, %d",
-			len(digest), s.hash.Size())
-	}
-
 	sig, err := s.signer.Sign(rand.Reader, digest, s.hash)
-
 	if err != nil {
 		return nil, err
 	}
@@ -77,15 +70,11 @@ func (s Signer) Sign(data []byte) (*sigpb.DigitallySigned, error) {
 }
 
 // SignObject signs the requested object using ObjectHash.
-func (s Signer) SignObject(obj interface{}) (*sigpb.DigitallySigned, error) {
+func (s *Signer) SignObject(obj interface{}) (*sigpb.DigitallySigned, error) {
 	j, err := json.Marshal(obj)
 	if err != nil {
 		return nil, err
 	}
 	hash := objecthash.CommonJSONHash(string(j))
-	sig, err := s.Sign(hash[:])
-	if err != nil {
-		return nil, err
-	}
-	return sig, nil
+	return s.Sign(hash[:])
 }
