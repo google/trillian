@@ -161,6 +161,7 @@ func (t *readOnlyLogTX) Rollback() error {
 
 func (t *readOnlyLogTX) Close() error {
 	if err := t.Rollback(); err != nil && err != sql.ErrTxDone {
+		glog.Warningf("Rollback error on Close(): %v", err)
 		return err
 	}
 	return nil

@@ -20,6 +20,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/golang/glog"
 	"github.com/google/trillian"
 	spb "github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/storage"
@@ -113,7 +114,11 @@ func (t *adminTX) Close() error {
 	closed := t.closed
 	t.mu.RUnlock()
 	if !closed {
-		return t.Rollback()
+		err := t.Rollback()
+		if err != nil {
+			glog.Warningf("Rollback error on Close(): %v", err)
+		}
+		return err
 	}
 	return nil
 }
