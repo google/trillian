@@ -87,14 +87,24 @@ func checkLeafContents(leaf trillian.LogLeaf, seq int64, rawHash, hash, data, ex
 	}
 }
 
-func setAllowsDuplicates(db *sql.DB, treeID int64, allowDuplicates bool) error {
-	stmt, err := db.Prepare("UPDATE Trees SET AllowsDuplicateLeaves = ? WHERE TreeId = ?")
+// TODO(codingllama): Replace with a GetTree/UpdateTree sequence, when the latter is available.
+func updateDuplicatePolicy(db *sql.DB, treeID int64, duplicatePolicy trillian.DuplicatePolicy) error {
+	dbPolicy := ""
+	for k, v := range duplicatePolicyMap {
+		if v == duplicatePolicy {
+			dbPolicy = k
+			break
+		}
+	}
+	if dbPolicy == "" {
+		return fmt.Errorf("unknown DuplicatePolicy: %s", duplicatePolicy)
+	}
+	stmt, err := db.Prepare("UPDATE Trees SET DuplicatePolicy = ? WHERE TreeId = ?")
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
-
-	_, err = stmt.Exec(allowDuplicates, treeID)
+	_, err = stmt.Exec(dbPolicy, treeID)
 	return err
 }
 
@@ -115,19 +125,19 @@ func TestBegin(t *testing.T) {
 	tests := []struct {
 		logID           int64
 		err             string
-		allowDuplicates bool
+		duplicatePolicy trillian.DuplicatePolicy
 		writeRevision   int
 	}{
 		{logID: -1, err: "failed to get tree row"},
-		{logID: logID1, allowDuplicates: true},
-		{logID: logID2, allowDuplicates: false},
+		{logID: logID1, duplicatePolicy: trillian.DuplicatePolicy_DUPLICATES_ALLOWED},
+		{logID: logID2, duplicatePolicy: trillian.DuplicatePolicy_DUPLICATES_NOT_ALLOWED},
 	}
 
 	ctx := context.Background()
 	for _, test := range tests {
-		if test.allowDuplicates {
-			if err := setAllowsDuplicates(DB, test.logID, test.allowDuplicates); err != nil {
-				t.Fatalf("setup error: cannot set allowDuplicates on DB: %v", err)
+		if test.duplicatePolicy != trillian.DuplicatePolicy_UNKNOWN_DUPLICATE_POLICY {
+			if err := updateDuplicatePolicy(DB, test.logID, test.duplicatePolicy); err != nil {
+				t.Fatalf("cannot update DuplicatePolicy: %v", err)
 			}
 		}
 
@@ -141,8 +151,8 @@ func TestBegin(t *testing.T) {
 		}
 
 		// TODO(codingllama): It would be better to test this via side effects of other public methods
-		if tx.(*logTreeTX).allowDuplicates != test.allowDuplicates {
-			t.Errorf("tx.allowDuplicates = %v, want = %v", tx.(*logTreeTX).allowDuplicates, test.allowDuplicates)
+		if tx.(*logTreeTX).duplicatePolicy != test.duplicatePolicy {
+			t.Errorf("tx.allowDuplicates = %s, want = %s", tx.(*logTreeTX).duplicatePolicy, test.duplicatePolicy)
 		}
 		root, err := tx.LatestSignedLogRoot()
 		if err != nil {

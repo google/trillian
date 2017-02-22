@@ -38,7 +38,7 @@ import (
 )
 
 const (
-	getTreePropertiesSQL  = "SELECT AllowsDuplicateLeaves FROM Trees WHERE TreeId=?"
+	getTreePropertiesSQL  = "SELECT DuplicatePolicy FROM Trees WHERE TreeId=?"
 	selectQueuedLeavesSQL = `SELECT LeafIdentityHash,MerkleLeafHash
 			FROM Unsequenced
 			WHERE TreeID=?
@@ -115,9 +115,8 @@ func getActiveLogIDsInternal(tx *sql.Tx, sql string) ([]int64, error) {
 
 	logIDs := make([]int64, 0)
 	for rows.Next() {
-		var keyID []byte
 		var treeID int64
-		if err := rows.Scan(&treeID, &keyID); err != nil {
+		if err := rows.Scan(&treeID); err != nil {
 			return nil, err
 		}
 		logIDs = append(logIDs, treeID)
@@ -175,10 +174,15 @@ func (m *mySQLLogStorage) hasher(treeID int64) (merkle.TreeHasher, error) {
 
 func (m *mySQLLogStorage) beginInternal(ctx context.Context, treeID int64) (storage.LogTreeTX, error) {
 	// TODO(codingllama): Validate treeType
-	var allowDuplicates bool
-	if err := m.db.QueryRow(getTreePropertiesSQL, treeID).Scan(&allowDuplicates); err != nil {
+	var duplicatePolicy string
+	if err := m.db.QueryRow(getTreePropertiesSQL, treeID).Scan(&duplicatePolicy); err != nil {
 		return nil, fmt.Errorf("failed to get tree row for treeID %v: %s", treeID, err)
 	}
+	policy, ok := duplicatePolicyMap[duplicatePolicy]
+	if !ok {
+		return nil, fmt.Errorf("unknown DuplicatePolicy: %v", duplicatePolicy)
+	}
+
 	hasher, err := m.hasher(treeID)
 	if err != nil {
 		return nil, err
@@ -192,7 +196,7 @@ func (m *mySQLLogStorage) beginInternal(ctx context.Context, treeID int64) (stor
 	ltx := &logTreeTX{
 		treeTX:          ttx,
 		ls:              m,
-		allowDuplicates: allowDuplicates,
+		duplicatePolicy: policy,
 	}
 
 	ltx.root, err = ltx.fetchLatestRoot()
@@ -221,7 +225,7 @@ type logTreeTX struct {
 	treeTX
 	ls              *mySQLLogStorage
 	root            trillian.SignedLogRoot
-	allowDuplicates bool
+	duplicatePolicy trillian.DuplicatePolicy
 }
 
 func (t *logTreeTX) ReadRevision() int64 {
@@ -305,7 +309,7 @@ func (t *logTreeTX) QueueLeaves(leaves []trillian.LogLeaf, queueTimestamp time.T
 	// leaf data in the database.
 	var insertSQL string
 
-	if t.allowDuplicates {
+	if t.duplicatePolicy == trillian.DuplicatePolicy_DUPLICATES_ALLOWED {
 		insertSQL = insertUnsequencedLeafSQL
 	} else {
 		insertSQL = insertUnsequencedLeafSQLNoDuplicates
@@ -337,7 +341,7 @@ func (t *logTreeTX) QueueLeaves(leaves []trillian.LogLeaf, queueTimestamp time.T
 		// and everything will get rolled back
 		messageIDBytes := make([]byte, 8)
 
-		if t.allowDuplicates {
+		if t.duplicatePolicy == trillian.DuplicatePolicy_DUPLICATES_ALLOWED {
 			_, err := rand.Read(messageIDBytes)
 
 			if err != nil {
