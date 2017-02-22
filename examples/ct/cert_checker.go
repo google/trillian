@@ -107,7 +107,7 @@ nextVerifiedChain:
 		}
 
 		for i, certInChain := range chainMinusRoot {
-			if certInChain != chain[i] {
+			if !certInChain.Equal(chain[i]) {
 				continue nextVerifiedChain
 			}
 		}
