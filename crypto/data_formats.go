@@ -24,7 +24,7 @@ import (
 )
 
 // This file contains struct specific mappings and data structures.
-// TODO: remove data-structure specific operations.
+// TODO(alcutter): remove data-structure specific operations.
 
 // Constants used as map keys when building input for ObjectHash. They must not be changed
 // as this will change the output of hashRoot()
@@ -46,7 +46,6 @@ func HashTrillianSignedLogRoot(root trillian.SignedLogRoot) []byte {
 	rootMap[mapKeyTreeSize] = strconv.FormatInt(root.TreeSize, 10)
 
 	hash := objecthash.ObjectHash(rootMap)
-
 	return hash[:]
 }
 
@@ -55,7 +54,6 @@ func HashTrillianSignedLogRoot(root trillian.SignedLogRoot) []byte {
 func (s Signer) SignLogRoot(root trillian.SignedLogRoot) (*sigpb.DigitallySigned, error) {
 	objectHash := HashTrillianSignedLogRoot(root)
 	signature, err := s.Sign(objectHash[:])
-
 	if err != nil {
 		return nil, err
 	}

@@ -19,7 +19,6 @@ import (
 	"crypto"
 	"crypto/sha256"
 	"errors"
-	"reflect"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -115,46 +114,6 @@ func TestSignLogRootSignerFails(t *testing.T) {
 	_, err := logSigner.SignLogRoot(root)
 
 	testonly.EnsureErrorContains(t, err, "signfail")
-}
-
-func TestSignLogRoot(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockSigner := NewMockSigner(ctrl)
-
-	mockSigner.EXPECT().Sign(gomock.Any(),
-		[]byte{0xe5, 0xb3, 0x18, 0x1a, 0xec, 0xc8, 0x64, 0xc6, 0x39, 0x6d, 0x83, 0x21, 0x7a, 0x18, 0x3, 0x9, 0xf5, 0xa0, 0x25, 0xde, 0xf7, 0x1b, 0xdb, 0x2d, 0xbe, 0x42, 0x8a, 0x4a, 0xab, 0xc1, 0xcd, 0x49},
-		usesSHA256Hasher{}).Return([]byte(result), nil)
-
-	logSigner := createTestSigner(mockSigner)
-
-	root := trillian.SignedLogRoot{
-		TimestampNanos: 2267709,
-		RootHash:       []byte("Islington"),
-		TreeSize:       2,
-	}
-	signature, err := logSigner.SignLogRoot(root)
-
-	if err != nil {
-		t.Fatalf("Failed to sign log root: %v", err)
-	}
-
-	// Check root is not modified
-	expected := trillian.SignedLogRoot{
-		TimestampNanos: 2267709,
-		RootHash:       []byte("Islington"), TreeSize: 2}
-	if !reflect.DeepEqual(root, expected) {
-		t.Fatalf("Got %v, but expected unmodified signed root %v", root, expected)
-	}
-	// And signature is correct
-	expectedSignature := sigpb.DigitallySigned{
-		SignatureAlgorithm: sigpb.DigitallySigned_RSA,
-		HashAlgorithm:      sigpb.DigitallySigned_SHA256,
-		Signature:          []byte("echo")}
-	if !reflect.DeepEqual(*signature, expectedSignature) {
-		t.Fatalf("Got %v, but expected %v", signature, expectedSignature)
-	}
 }
 
 func createTestSigner(mock *MockSigner) *Signer {

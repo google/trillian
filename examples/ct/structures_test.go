@@ -89,7 +89,7 @@ func TestSerializeLogEntry(t *testing.T) {
 
 // Creates a mock key manager for use in interaction tests
 func setupMockPrivateKeyManager(ctrl *gomock.Controller, toSign []byte) (*crypto.MockPrivateKeyManager, error) {
-	pubkey, err := crypto.PublicKeyFromPEM(ctTesttubePublicKey)
+	pubkey, err := crypto.PublicKeyFromPEM([]byte(ctTesttubePublicKey))
 	if err != nil {
 		return nil, err
 	}
