@@ -111,6 +111,9 @@ CREATE TABLE IF NOT EXISTS SequencedLeafData(
 
 CREATE TABLE IF NOT EXISTS Unsequenced(
   TreeId               BIGINT NOT NULL,
+  -- Used to try to reduce queue contention. With bucketed queue turned on it's set to
+  -- (time%n) << 8 || MerkleLeafHash[0]
+  Bucket               INTEGER NOT NULL,
   -- This is a personality specific has of some subset of the leaf data.
   -- It's only purpose is to allow Trillian to identify duplicate entries in
   -- the context of the personality.
@@ -118,12 +121,11 @@ CREATE TABLE IF NOT EXISTS Unsequenced(
   -- This is a MerkleLeafHash as defined by the treehasher that the log uses. For example for
   -- CT this hash will include the leaf prefix byte as well as the leaf data.
   MerkleLeafHash       VARBINARY(255) NOT NULL,
-  -- SHA256("queueId"|TreeId|leafValueHash)
-  -- We want this to be unique per entry per log, but queryable by FEs so that
-  -- we can try to stomp dupe submissions.
-  MessageId            BINARY(32) NOT NULL,
   QueueTimestampNanos  BIGINT NOT NULL,
-  PRIMARY KEY (TreeId, LeafIdentityHash, MessageId)
+  PRIMARY KEY(TreeId, Bucket, QueueTimestampNanos, MerkleLeafHash),
+  FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE,
+  FOREIGN KEY(TreeId, LeafIdentityHash) REFERENCES LeafData(TreeId, LeafIdentityHash) ON DELETE CASCADE,
+  INDEX QueueTimeIdx(QueueTimestampNanos)
 );
 
 

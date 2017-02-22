@@ -28,14 +28,16 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/storage/storagepb"
 	storageto "github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/testonly"
+	"github.com/google/trillian/util"
 )
 
 func TestNodeRoundTrip(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB)
+	s := NewLogStorage(DB, noBucketConfig, util.FakeTimeSource{})
 
 	const writeRevision = int64(100)
 	nodesToStore := createSomeNodes()
@@ -81,7 +83,7 @@ func TestNodeRoundTrip(t *testing.T) {
 func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB)
+	s := NewLogStorage(DB, noBucketConfig, util.FakeTimeSource{})
 
 	const writeRevision = int64(100)
 	nodesToStore := createLogNodesForTreeAtSize(871, writeRevision)
@@ -245,7 +247,6 @@ func createLogForTests(db *sql.DB) int64 {
 	return tree.TreeId
 }
 
-// createTree creates the specified tree using AdminStorage.
 func createTree(db *sql.DB, tree *trillian.Tree) (*trillian.Tree, error) {
 	s := NewAdminStorage(db)
 	ctx := context.Background()

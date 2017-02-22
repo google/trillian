@@ -47,3 +47,24 @@ message SubtreeProto {
   // loading and repopulation.
   uint32 internal_node_count = 6;
 }
+
+message LogStorageConfig {
+  // num_unseq_buckets defines the length of the unsequenced time ring buffer.
+  // This value must *never* be reduced for any provisioned tree while there is
+  // unsequenced work for it remaining in the queue.
+  //
+  // This value should be >= 1, and there's probably not much benefit in
+  // raising it past about 4 but this is currently unexplored territory.
+  int64 num_unseq_buckets = 1;
+
+  // num_merkle_buckets defines the number of individual buckets below each
+  // unsequenced ring bucket.
+  // This value may be changed at any time (so long as you understand the
+  // impact it'll have on integration performace!)
+  //
+  // This value must lie in the range [1..256]
+  int64 num_merkle_buckets = 2;
+  // If this is set to false then bucketing is off and the bucket stored will
+  // always be zero. Otherwise it's enabled and the rules listed above apply.
+  bool enable_buckets = 3;
+}

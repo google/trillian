@@ -17,13 +17,11 @@ package mysql
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
-	"crypto/sha256"
 	"database/sql"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"sort"
+	rnd "math/rand"
 	"strings"
 	"time"
 
@@ -34,6 +32,8 @@ import (
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
+	"github.com/google/trillian/storage/storagepb"
+	"github.com/google/trillian/util"
 )
 
 const (
@@ -41,13 +41,14 @@ const (
 	selectQueuedLeavesSQL = `SELECT LeafIdentityHash,MerkleLeafHash
 			FROM Unsequenced
 			WHERE TreeID=?
+			AND Bucket IN(<placeholder>)
 			AND QueueTimestampNanos<=?
 			ORDER BY QueueTimestampNanos,LeafIdentityHash ASC LIMIT ?`
 	insertUnsequencedLeafSQL = `INSERT INTO LeafData(TreeId,LeafIdentityHash,LeafValue,ExtraData)
 			VALUES(?,?,?,?) ON DUPLICATE KEY UPDATE LeafIdentityHash=LeafIdentityHash`
 	insertUnsequencedLeafSQLNoDuplicates = `INSERT INTO LeafData(TreeId,LeafIdentityHash,LeafValue,ExtraData)
 			VALUES(?,?,?,?)`
-	insertUnsequencedEntrySQL = `INSERT INTO Unsequenced(TreeId,LeafIdentityHash,MerkleLeafHash,MessageId,QueueTimestampNanos)
+	insertUnsequencedEntrySQL = `INSERT INTO Unsequenced(TreeId,Bucket,LeafIdentityHash,MerkleLeafHash,QueueTimestampNanos)
 			VALUES(?,?,?,?,?)`
 	insertSequencedLeafSQL = `INSERT INTO SequencedLeafData(TreeId,LeafIdentityHash,MerkleLeafHash,SequenceNumber)
 			VALUES(?,?,?,?)`
@@ -70,18 +71,24 @@ const (
 	// Same as above except with leaves ordered by sequence so we only incur this cost when necessary
 	orderBySequenceNumberSQL                     = " ORDER BY s.SequenceNumber"
 	selectLeavesByMerkleHashOrderedBySequenceSQL = selectLeavesByMerkleHashSQL + orderBySequenceNumberSQL
+	numByteValues                                = 256
 )
 
 var defaultLogStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8}
 
 type mySQLLogStorage struct {
 	*mySQLTreeStorage
+	// TODO(Martin2112): Currently applies to all trees. Possibly allow it to be set per tree
+	config     *storagepb.LogStorageConfig
+	timeSource util.TimeSource
 }
 
 // NewLogStorage creates a mySQLLogStorage instance for the specified MySQL URL.
-func NewLogStorage(db *sql.DB) storage.LogStorage {
+func NewLogStorage(db *sql.DB, config *storagepb.LogStorageConfig, timeSource util.TimeSource) storage.LogStorage {
 	return &mySQLLogStorage{
 		mySQLTreeStorage: newTreeStorage(db),
+		config:           config,
+		timeSource:       timeSource,
 	}
 }
 
@@ -244,31 +251,50 @@ func (t *logTreeTX) WriteRevision() int64 {
 }
 
 func (t *logTreeTX) DequeueLeaves(limit int, cutoffTime time.Time) ([]*trillian.LogLeaf, error) {
-	stx, err := t.tx.Prepare(selectQueuedLeavesSQL)
+	// Get a list of buckets we'll try to take from. The idea is that queueing and dequeuing
+	// will be updating different ranges of the key space at any time. On some storage
+	// platforms this allows for reduced write contention.
+	now := t.ls.timeSource.Now().UTC().Unix()
+	buckets := genDequeueBuckets(now, t.ls.config, rnd.Intn(numByteValues))
 
+	glog.Infof("Buckets: %v Now: %d", buckets, now)
+
+	// Marshall the arguments for the query inc. potentially variable number of buckets
+	args := make([]interface{}, 0, len(buckets)+3)
+	args = append(args, interface{}(t.treeID))
+
+	// populate args with buckets
+	for _, bucket := range buckets {
+		args = append(args, interface{}(bucket))
+	}
+
+	args = append(args, interface{}(cutoffTime.UnixNano()))
+	args = append(args, interface{}(limit))
+
+	tmpl, err := t.ls.getStmt(selectQueuedLeavesSQL, len(buckets), "?", "?")
 	if err != nil {
 		glog.Warningf("Failed to prepare dequeue select: %s", err)
 		return nil, err
 	}
 
 	leaves := make([]*trillian.LogLeaf, 0, limit)
-	rows, err := stx.Query(t.treeID, cutoffTime.UnixNano(), limit)
-
+	stx := t.tx.Stmt(tmpl)
+	rows, err := stx.Query(args...)
 	if err != nil {
-		glog.Warningf("Failed to select rows for work: %s", err)
+		glog.Warningf("Failed to select rows for dequeue: %s", err)
 		return nil, err
 	}
 
 	defer rows.Close()
 
-	for rows.Next() {
+	for rows.Next() && limit > 0 {
 		var leafIDHash []byte
 		var merkleHash []byte
 
 		err := rows.Scan(&leafIDHash, &merkleHash)
 
 		if err != nil {
-			glog.Warningf("Error scanning work rows: %s", err)
+			glog.Warningf("Error scanning queued rows: %s", err)
 			return nil, err
 		}
 
@@ -327,6 +353,7 @@ func (t *logTreeTX) QueueLeaves(leaves []*trillian.LogLeaf, queueTimestamp time.
 	copy(orderedLeaves, leaves)
 	sort.Sort(byLeafIdentityHash(orderedLeaves))
 
+	now := t.ls.timeSource.Now().UTC().Unix()
 	for i, leaf := range orderedLeaves {
 		// Create the unsequenced leaf data entry. We don't use INSERT IGNORE because this
 		// can suppress errors unrelated to key collisions. We don't use REPLACE because
@@ -346,32 +373,11 @@ func (t *logTreeTX) QueueLeaves(leaves []*trillian.LogLeaf, queueTimestamp time.
 		}
 
 		// Create the work queue entry
-		// Message ids only need to guard against duplicates for the time that entries are
-		// in the unsequenced queue, which should be short, but we'll still use a strong hash.
-		// TODO(alcutter): get this from somewhere else
-		hasher := sha256.New()
-
-		// We use a fixed zero message id if the log disallows duplicates otherwise a random one.
-		// the fixed id will collide if dups submitted when not allowed so the insert won't succeed
-		// and everything will get rolled back
-		messageIDBytes := make([]byte, 8)
-
-		if t.duplicatePolicy == trillian.DuplicatePolicy_DUPLICATES_ALLOWED {
-			_, err := rand.Read(messageIDBytes)
-
-			if err != nil {
-				glog.Warningf("Failed to get a random message id: %s", err)
-				return err
-			}
-		}
-
-		hasher.Write(messageIDBytes)
-		binary.Write(hasher, binary.LittleEndian, t.treeID)
-		hasher.Write(leaf.LeafIdentityHash)
-		messageID := hasher.Sum(nil)
+		bucket := getQueueBucket(now, t.ls.config)
+		bucket = bucket | int32(leaf.MerkleLeafHash[0])
 
 		_, err = t.tx.Exec(insertUnsequencedEntrySQL,
-			t.treeID, leaf.LeafIdentityHash, leaf.MerkleLeafHash, messageID, queueTimestamp.UnixNano())
+			t.treeID, bucket, leaf.LeafIdentityHash, leaf.MerkleLeafHash, queueTimestamp.UnixNano())
 
 		if err != nil {
 			glog.Warningf("Error inserting into Unsequenced: %s", err)
@@ -606,4 +612,33 @@ func (l byLeafIdentityHash) Swap(i, j int) {
 }
 func (l byLeafIdentityHash) Less(i, j int) bool {
 	return bytes.Compare(l[i].LeafIdentityHash, l[j].LeafIdentityHash) == -1
+}
+
+// genDequeueBuckets returns a list of buckets from which work should be currently taken.
+// Using a ring buffer like approach, if enabled, this tries to separate the table key space
+// regions that are being written by queueing and sequencing at a particular time. This can be
+// effective for storage types that split data into ranges. It's usefulness for a generic RDBMS
+// needs to be evaluated.
+func genDequeueBuckets(now int64, config *storagepb.LogStorageConfig, merkleBucket int) []int32 {
+	if config == nil || !config.EnableBuckets {
+		return []int32{0} // everything always uses bucket zero
+	}
+
+	n := int(numByteValues / config.NumMerkleBuckets)
+	ret := make([]int32, 0, n)
+	bucketHigh := int32((((now + config.NumUnseqBuckets/2) % config.NumUnseqBuckets) << 8))
+	for i := merkleBucket; i < merkleBucket+n; i++ {
+		ret = append(ret, bucketHigh|int32(i%numByteValues))
+	}
+	return ret
+}
+
+// getQueueBucket gets the bucket currently used for queuing new work. If bucketing is enabled
+// it should always return a value not in the set of buckets returned by genDequeueBuckets
+// at the same point in time.
+func getQueueBucket(now int64, config *storagepb.LogStorageConfig) int32 {
+	if config == nil || !config.EnableBuckets {
+		return 0 // everything always uses bucket zero
+	}
+	return int32((now % config.NumUnseqBuckets) << 8)
 }

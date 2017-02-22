@@ -24,6 +24,8 @@ import (
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/mysql"
+	"github.com/google/trillian/storage/storagepb"
+	"github.com/google/trillian/util"
 )
 
 var (
@@ -33,6 +35,11 @@ var (
 	// an HSM interface in this way. Deferring these issues for later.
 	privateKeyFile     = flag.String("private_key_file", "", "File containing a PEM encoded private key")
 	privateKeyPassword = flag.String("private_key_password", "", "Password for server private key")
+	// The next three flags control bucketed queueing. See comments in storage.proto for how to
+	// set these values. By default this feature is not enabled. Values currently apply to all trees.
+	bucketedQueue    = flag.Bool("bucketed_queue", false, "Whether to enable queue bucketing strategy")
+	numUnseqBuckets  = flag.Int64("num_unseq_buckets", 4, "Number of unsequenced queue buckets")
+	numMerkleBuckets = flag.Int64("num_merkle_buckets", 16, "Number of merkle queue buckets below each main bucket")
 )
 
 // Default implementation of extension.Registry.
@@ -42,7 +49,11 @@ type defaultRegistry struct {
 }
 
 func (r *defaultRegistry) GetLogStorage() (storage.LogStorage, error) {
-	return mysql.NewLogStorage(r.db), nil
+	return mysql.NewLogStorage(r.db, &storagepb.LogStorageConfig{
+		EnableBuckets:    *bucketedQueue,
+		NumUnseqBuckets:  *numUnseqBuckets,
+		NumMerkleBuckets: *numMerkleBuckets,
+	}, util.SystemTimeSource{}), nil
 }
 
 func (r *defaultRegistry) GetMapStorage() (storage.MapStorage, error) {
