@@ -16,7 +16,6 @@ package ct
 
 import (
 	"context"
-	gocrypto "crypto"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
@@ -37,7 +36,6 @@ import (
 	"github.com/google/certificate-transparency/go/x509"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
-	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/util"
 )
 
@@ -83,11 +81,8 @@ const (
 	GetEntryAndProofName  = EntrypointName("GetEntryAndProof")
 )
 
-var (
-	// Entrypoints is a list of entrypoint names as exposed in statistics/logging.
-	Entrypoints = []EntrypointName{AddChainName, AddPreChainName, GetSTHName, GetSTHConsistencyName, GetProofByHashName, GetEntriesName, GetRootsName, GetEntryAndProofName}
-	treeHasher  = rfc6962.TreeHasher{Hash: gocrypto.SHA256}
-)
+// Entrypoints is a list of entrypoint names as exposed in statistics/logging.
+var Entrypoints = []EntrypointName{AddChainName, AddPreChainName, GetSTHName, GetSTHConsistencyName, GetProofByHashName, GetEntriesName, GetRootsName, GetEntryAndProofName}
 
 // PathHandlers maps from a path to the relevant AppHandler instance.
 type PathHandlers map[string]AppHandler
@@ -304,10 +299,7 @@ func addChainInternal(ctx context.Context, c LogContext, w http.ResponseWriter, 
 	if err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("failed to build LogLeaf: %v", err)
 	}
-	req := trillian.QueueLeavesRequest{
-		LogId:  c.logID,
-		Leaves: []*trillian.LogLeaf{leaf},
-	}
+	req := trillian.QueueLeavesRequest{LogId: c.logID, Leaves: []*trillian.LogLeaf{&leaf}}
 
 	glog.V(2).Infof("%s: %s => grpc.QueueLeaves", c.LogPrefix, method)
 	_, err = c.rpcClient.QueueLeaves(ctx, &req)
@@ -657,32 +649,31 @@ func verifyAddChain(c LogContext, req ct.AddChainRequest, w http.ResponseWriter,
 
 // buildLogLeafForAddChain is also used by add-pre-chain and does the hashing to build a
 // LogLeaf that will be sent to the backend
-func buildLogLeafForAddChain(c LogContext, merkleLeaf ct.MerkleTreeLeaf, chain []*x509.Certificate) (*trillian.LogLeaf, error) {
+func buildLogLeafForAddChain(c LogContext, merkleLeaf ct.MerkleTreeLeaf, chain []*x509.Certificate) (trillian.LogLeaf, error) {
 	leafData, err := tls.Marshal(merkleLeaf)
 	if err != nil {
 		glog.Warningf("%s: Failed to serialize Merkle leaf: %v", c.LogPrefix, err)
-		return nil, err
+		return trillian.LogLeaf{}, err
 	}
 
 	isPrecert, err := IsPrecertificate(chain[0])
 	if err != nil {
 		glog.Warningf("%s: Failed to determine if cert or pre-cert: %v", c.LogPrefix, err)
-		return nil, err
+		return trillian.LogLeaf{}, err
 	}
 
 	extraData, err := extraDataForChain(chain, isPrecert)
 	if err != nil {
 		glog.Warningf("%s: Failed to serialize chain for ExtraData: %v", c.LogPrefix, err)
-		return nil, err
+		return trillian.LogLeaf{}, err
 	}
 
 	// leafIDHash allows Trillian to detect duplicate entries, so this should be
 	// a hash over the cert data.
 	leafIDHash := sha256.Sum256(chain[0].Raw)
 
-	return &trillian.LogLeaf{
+	return trillian.LogLeaf{
 		LeafIdentityHash: leafIDHash[:],
-		MerkleLeafHash:   treeHasher.HashLeaf(leafData),
 		LeafValue:        leafData,
 		ExtraData:        extraData,
 	}, nil

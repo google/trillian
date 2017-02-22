@@ -1239,14 +1239,7 @@ func logLeavesForCert(t *testing.T, km crypto.PrivateKeyManager, certs []*x509.C
 		t.Fatalf("failed to serialize extra data: %v", err)
 	}
 
-	return []*trillian.LogLeaf{
-		{
-			LeafIdentityHash: leafIDHash[:],
-			MerkleLeafHash:   treeHasher.HashLeaf(leafData),
-			LeafValue:        leafData,
-			ExtraData:        extraData,
-		},
-	}
+	return []*trillian.LogLeaf{{LeafIdentityHash: leafIDHash[:], LeafValue: leafData, ExtraData: extraData}}
 }
 
 type dlMatcher struct {

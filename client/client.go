@@ -18,6 +18,7 @@ package client
 import (
 	"bytes"
 	"context"
+	"crypto"
 	"crypto/sha256"
 	"errors"
 	"time"
@@ -25,9 +26,12 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/client/backoff"
 	"github.com/google/trillian/merkle"
+	"github.com/google/trillian/merkle/rfc6962"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
+
+var treeHasher = rfc6962.TreeHasher{Hash: crypto.SHA256}
 
 // LogClient represents a client for a given Trillian log instance.
 type LogClient struct {
@@ -61,7 +65,7 @@ func (c *LogClient) AddLeaf(ctx context.Context, data []byte) error {
 	switch {
 	case grpc.Code(err) == codes.AlreadyExists:
 		// If the leaf already exists, don't wait for an update.
-		return c.getInclusionProof(ctx, leaf.MerkleLeafHash, c.STR.TreeSize)
+		return c.getInclusionProof(ctx, treeHasher.HashLeaf(leaf.LeafValue), c.STR.TreeSize)
 	case err != nil:
 		return err
 	default:
@@ -185,7 +189,6 @@ func buildLeaf(data []byte) *trillian.LogLeaf {
 	hash := sha256.Sum256(data)
 	leaf := &trillian.LogLeaf{
 		LeafValue:        data,
-		MerkleLeafHash:   hash[:],
 		LeafIdentityHash: hash[:],
 	}
 	return leaf

@@ -78,6 +78,12 @@ func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.Qu
 	}
 	leaves := depointerify(req.Leaves)
 
+	// TODO(al): Hasher must be selected based on log config.
+	th, _ := merkle.Factory(merkle.RFC6962SHA256Type)
+	for i := range leaves {
+		leaves[i].MerkleLeafHash = th.HashLeaf(leaves[i].LeafValue)
+	}
+
 	tx, err := t.prepareStorageTx(ctx, req.LogId)
 	if err != nil {
 		return nil, err
