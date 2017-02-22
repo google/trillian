@@ -105,9 +105,9 @@ func (_mr *_MockLogTreeTXRecorder) Commit() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Commit")
 }
 
-func (_m *MockLogTreeTX) DequeueLeaves(_param0 int, _param1 time.Time) ([]trillian.LogLeaf, error) {
+func (_m *MockLogTreeTX) DequeueLeaves(_param0 int, _param1 time.Time) ([]*trillian.LogLeaf, error) {
 	ret := _m.ctrl.Call(_m, "DequeueLeaves", _param0, _param1)
-	ret0, _ := ret[0].([]trillian.LogLeaf)
+	ret0, _ := ret[0].([]*trillian.LogLeaf)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -138,9 +138,9 @@ func (_mr *_MockLogTreeTXRecorder) GetActiveLogIDsWithPendingWork() *gomock.Call
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetActiveLogIDsWithPendingWork")
 }
 
-func (_m *MockLogTreeTX) GetLeavesByHash(_param0 [][]byte, _param1 bool) ([]trillian.LogLeaf, error) {
+func (_m *MockLogTreeTX) GetLeavesByHash(_param0 [][]byte, _param1 bool) ([]*trillian.LogLeaf, error) {
 	ret := _m.ctrl.Call(_m, "GetLeavesByHash", _param0, _param1)
-	ret0, _ := ret[0].([]trillian.LogLeaf)
+	ret0, _ := ret[0].([]*trillian.LogLeaf)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -149,9 +149,9 @@ func (_mr *_MockLogTreeTXRecorder) GetLeavesByHash(arg0, arg1 interface{}) *gomo
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetLeavesByHash", arg0, arg1)
 }
 
-func (_m *MockLogTreeTX) GetLeavesByIndex(_param0 []int64) ([]trillian.LogLeaf, error) {
+func (_m *MockLogTreeTX) GetLeavesByIndex(_param0 []int64) ([]*trillian.LogLeaf, error) {
 	ret := _m.ctrl.Call(_m, "GetLeavesByIndex", _param0)
-	ret0, _ := ret[0].([]trillian.LogLeaf)
+	ret0, _ := ret[0].([]*trillian.LogLeaf)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -203,7 +203,7 @@ func (_mr *_MockLogTreeTXRecorder) LatestSignedLogRoot() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "LatestSignedLogRoot")
 }
 
-func (_m *MockLogTreeTX) QueueLeaves(_param0 []trillian.LogLeaf, _param1 time.Time) error {
+func (_m *MockLogTreeTX) QueueLeaves(_param0 []*trillian.LogLeaf, _param1 time.Time) error {
 	ret := _m.ctrl.Call(_m, "QueueLeaves", _param0, _param1)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -253,7 +253,7 @@ func (_mr *_MockLogTreeTXRecorder) StoreSignedLogRoot(arg0 interface{}) *gomock.
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "StoreSignedLogRoot", arg0)
 }
 
-func (_m *MockLogTreeTX) UpdateSequencedLeaves(_param0 []trillian.LogLeaf) error {
+func (_m *MockLogTreeTX) UpdateSequencedLeaves(_param0 []*trillian.LogLeaf) error {
 	ret := _m.ctrl.Call(_m, "UpdateSequencedLeaves", _param0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -565,9 +565,9 @@ func (_mr *_MockReadOnlyLogTreeTXRecorder) Commit() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Commit")
 }
 
-func (_m *MockReadOnlyLogTreeTX) GetLeavesByHash(_param0 [][]byte, _param1 bool) ([]trillian.LogLeaf, error) {
+func (_m *MockReadOnlyLogTreeTX) GetLeavesByHash(_param0 [][]byte, _param1 bool) ([]*trillian.LogLeaf, error) {
 	ret := _m.ctrl.Call(_m, "GetLeavesByHash", _param0, _param1)
-	ret0, _ := ret[0].([]trillian.LogLeaf)
+	ret0, _ := ret[0].([]*trillian.LogLeaf)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -576,9 +576,9 @@ func (_mr *_MockReadOnlyLogTreeTXRecorder) GetLeavesByHash(arg0, arg1 interface{
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetLeavesByHash", arg0, arg1)
 }
 
-func (_m *MockReadOnlyLogTreeTX) GetLeavesByIndex(_param0 []int64) ([]trillian.LogLeaf, error) {
+func (_m *MockReadOnlyLogTreeTX) GetLeavesByIndex(_param0 []int64) ([]*trillian.LogLeaf, error) {
 	ret := _m.ctrl.Call(_m, "GetLeavesByIndex", _param0)
-	ret0, _ := ret[0].([]trillian.LogLeaf)
+	ret0, _ := ret[0].([]*trillian.LogLeaf)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
