@@ -87,6 +87,94 @@ func TestValidateTreeForCreation(t *testing.T) {
 	}
 }
 
+func TestValidateTreeForUpdate(t *testing.T) {
+	tests := []struct {
+		desc     string
+		updatefn func(*trillian.Tree)
+		wantErr  bool
+	}{
+		{
+			desc: "valid",
+			updatefn: func(tree *trillian.Tree) {
+				tree.TreeState = trillian.TreeState_FROZEN
+				tree.DisplayName = "Frozen Tree"
+				tree.Description = "A Frozen Tree"
+			},
+		},
+		{
+			desc:     "noop",
+			updatefn: func(tree *trillian.Tree) {},
+		},
+		// Changes on readonly fields
+		{
+			desc: "TreeId",
+			updatefn: func(tree *trillian.Tree) {
+				tree.TreeId++
+			},
+			wantErr: true,
+		},
+		{
+			desc: "TreeType",
+			updatefn: func(tree *trillian.Tree) {
+				tree.TreeType = trillian.TreeType_MAP
+			},
+			wantErr: true,
+		},
+		{
+			desc: "HashStrategy",
+			updatefn: func(tree *trillian.Tree) {
+				tree.HashStrategy = trillian.HashStrategy_UNKNOWN_HASH_STRATEGY
+			},
+			wantErr: true,
+		},
+		{
+			desc: "HashAlgorithm",
+			updatefn: func(tree *trillian.Tree) {
+				tree.HashAlgorithm = sigpb.DigitallySigned_NONE
+			},
+			wantErr: true,
+		},
+		{
+			desc: "SignatureAlgorithm",
+			updatefn: func(tree *trillian.Tree) {
+				tree.SignatureAlgorithm = sigpb.DigitallySigned_RSA
+			},
+			wantErr: true,
+		},
+		{
+			desc: "DuplicatePolicy",
+			updatefn: func(tree *trillian.Tree) {
+				tree.DuplicatePolicy = trillian.DuplicatePolicy_DUPLICATES_ALLOWED
+			},
+			wantErr: true,
+		},
+		{
+			desc: "CreateTime",
+			updatefn: func(tree *trillian.Tree) {
+				tree.CreateTimeMillisSinceEpoch++
+			},
+			wantErr: true,
+		},
+		{
+			desc: "UpdateTime",
+			updatefn: func(tree *trillian.Tree) {
+				tree.UpdateTimeMillisSinceEpoch++
+			},
+			wantErr: true,
+		},
+	}
+	for _, test := range tests {
+		tree := newTree()
+		baseTree := *tree
+		test.updatefn(tree)
+
+		err := ValidateTreeForUpdate(&baseTree, tree)
+		if hasErr := err != nil; hasErr != test.wantErr {
+			t.Errorf("%v: ValidateTreeForUpdate() = %v, wantErr = %v", test.desc, err, test.wantErr)
+		}
+	}
+}
+
 // newTree returns a valid tree for tests.
 func newTree() *trillian.Tree {
 	return &trillian.Tree{

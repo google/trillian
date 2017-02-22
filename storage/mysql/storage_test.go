@@ -220,7 +220,6 @@ func openTestDBOrDie() *sql.DB {
 
 // cleanTestDB deletes all the entries in the database.
 func cleanTestDB(db *sql.DB) {
-	// Wipe out anything that was there for this log id
 	for _, table := range allTables {
 		if _, err := db.Exec(fmt.Sprintf("DELETE FROM %s", table)); err != nil {
 			panic(fmt.Errorf("Failed to delete rows in %s: %s", table, err))

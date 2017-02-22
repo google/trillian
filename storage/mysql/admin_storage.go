@@ -371,6 +371,42 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 	return &newTree, nil
 }
 
+func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(*trillian.Tree)) (*trillian.Tree, error) {
+	tree, err := t.GetTree(ctx, treeID)
+	if err != nil {
+		return nil, err
+	}
+
+	beforeUpdate := *tree
+	updateFunc(tree)
+	if err := storage.ValidateTreeForUpdate(&beforeUpdate, tree); err != nil {
+		return nil, err
+	}
+
+	now := time.Now()
+	tree.UpdateTimeMillisSinceEpoch = toMillisSinceEpoch(now)
+
+	stmt, err := t.tx.Prepare(`
+		UPDATE Trees
+		SET TreeState = ?, DisplayName = ?, Description = ?, UpdateTime = ?
+		WHERE TreeId = ?`)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+
+	if _, err = stmt.Exec(
+		tree.TreeState.String(),
+		tree.DisplayName,
+		tree.Description,
+		toDatetime(now),
+		tree.TreeId); err != nil {
+		return nil, err
+	}
+
+	return tree, nil
+}
+
 func toMillisSinceEpoch(t time.Time) int64 {
 	// Don't bother with UnixNano(), MySQL only stores second-precision
 	return t.Unix() * 1000

@@ -91,4 +91,11 @@ type AdminWriter interface {
 	// Remaining fields must be set to valid values.
 	// Returns an error if the tree is invalid or creation fails.
 	CreateTree(ctx context.Context, tree *trillian.Tree) (*trillian.Tree, error)
+
+	// UpdateTree updates the specified tree in storage, returning a tree
+	// with all storage-generated fields set.
+	// updateFunc is called to perform the desired tree modifications.
+	// Returns an error if the tree is invalid or the update cannot be
+	// performed.
+	UpdateTree(ctx context.Context, treeID int64, updateFunc func(*trillian.Tree)) (*trillian.Tree, error)
 }
