@@ -21,7 +21,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 
-	"github.com/golang/glog"
+	"github.com/google/trillian"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/testonly/integration"
 )
@@ -42,16 +42,42 @@ func TestAddLeaf(t *testing.T) {
 		t.Fatalf("Failed to create log: %v", err)
 	}
 
-	client := New(logID, env.ClientConn, testonly.Hasher)
-	client.MaxTries = 1
+	cli := trillian.NewTrillianLogClient(env.ClientConn)
+	for _, test := range []struct {
+		desc    string
+		client  trillian.TrillianLogClient
+		wantErr bool
+	}{
+		{
+			desc:   "success 1",
+			client: &MockLogClient{c: cli},
+		},
+		{
+			desc:   "success 2",
+			client: &MockLogClient{c: cli},
+		},
+		{
+			desc:    "invalid inclusion proof",
+			client:  &MockLogClient{c: cli, mGetInclusionProof: true},
+			wantErr: true,
+		},
+		{
+			desc:    "invalid consistency proof",
+			client:  &MockLogClient{c: cli, mGetConsistencyProof: true},
+			wantErr: true,
+		},
+	} {
+		client := New(logID, test.client, testonly.Hasher)
+		client.MaxTries = 1
 
-	if err, want := client.AddLeaf(ctx, []byte("foo")), codes.DeadlineExceeded; grpc.Code(err) != want {
-		t.Errorf("AddLeaf(): %v, want, %v", err, want)
-	}
-	env.Sequencer.OperationLoop() // Sequence the new node.
-	glog.Infof("try AddLeaf again")
-	if err := client.AddLeaf(ctx, []byte("foo")); err != nil {
-		t.Errorf("Failed to add Leaf: %v", err)
+		if err, want := client.AddLeaf(ctx, []byte(test.desc)), codes.DeadlineExceeded; grpc.Code(err) != want {
+			t.Errorf("AddLeaf(%v): %v, want, %v", test.desc, err, want)
+		}
+		env.Sequencer.OperationLoop() // Sequence the new node.
+		err := client.AddLeaf(ctx, []byte(test.desc))
+		if got := err != nil; got != test.wantErr {
+			t.Errorf("AddLeaf(%v): %v, want error: %v", test.desc, err, test.wantErr)
+		}
 	}
 }
 
@@ -66,7 +92,8 @@ func TestUpdateSTR(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create log: %v", err)
 	}
-	client := New(logID, env.ClientConn, testonly.Hasher)
+	cli := trillian.NewTrillianLogClient(env.ClientConn)
+	client := New(logID, cli, testonly.Hasher)
 
 	before := client.STR.TreeSize
 	if err, want := client.AddLeaf(ctx, []byte("foo")), codes.DeadlineExceeded; grpc.Code(err) != want {

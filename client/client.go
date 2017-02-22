@@ -16,8 +16,10 @@
 package client
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
+	"errors"
 	"time"
 
 	"github.com/google/trillian"
@@ -37,10 +39,10 @@ type LogClient struct {
 }
 
 // New returns a new LogClient.
-func New(logID int64, cc *grpc.ClientConn, hasher merkle.TreeHasher) *LogClient {
+func New(logID int64, client trillian.TrillianLogClient, hasher merkle.TreeHasher) *LogClient {
 	return &LogClient{
 		LogID:    logID,
-		client:   trillian.NewTrillianLogClient(cc),
+		client:   client,
 		hasher:   hasher,
 		MaxTries: 3,
 	}
@@ -109,12 +111,40 @@ func (c *LogClient) UpdateSTR(ctx context.Context) error {
 		LogId: c.LogID,
 	}
 	resp, err := c.client.GetLatestSignedLogRoot(ctx, req)
+	str := resp.SignedLogRoot
 	if err != nil {
 		return err
 	}
-	// TODO(gdbelvin): Verify SignedLogRoot
+	// TODO(gdbelvin): Verify SignedLogRoot Signature
 
-	c.STR = *resp.SignedLogRoot
+	if str.TreeSize == c.STR.TreeSize && bytes.Equal(str.RootHash, str.RootHash) {
+		// Tree has not been updated.
+		return nil
+	}
+
+	// Implicitly trust the first STH we get.
+	if c.STR.TreeSize != 0 {
+		// Get consistency proof.
+		req := &trillian.GetConsistencyProofRequest{
+			LogId:          c.LogID,
+			FirstTreeSize:  c.STR.TreeSize,
+			SecondTreeSize: str.TreeSize,
+		}
+		proof, err := c.client.GetConsistencyProof(ctx, req)
+		if err != nil {
+			return err
+		}
+		// Verify consistency proof.
+		v := merkle.NewLogVerifier(c.hasher)
+		if err := v.VerifyConsistencyProof(
+			c.STR.TreeSize, str.TreeSize,
+			c.STR.RootHash, str.RootHash,
+			convertProof(proof.Proof)); err != nil {
+			return err
+		}
+	}
+
+	c.STR = *str
 	return nil
 }
 
@@ -127,6 +157,9 @@ func (c *LogClient) getInclusionProof(ctx context.Context, leafHash []byte, tree
 	resp, err := c.client.GetInclusionProofByHash(ctx, req)
 	if err != nil {
 		return err
+	}
+	if len(resp.Proof) < 1 {
+		return errors.New("no inclusion proof supplied")
 	}
 	for _, proof := range resp.Proof {
 		neighbors := convertProof(proof)

@@ -31,12 +31,16 @@ import (
 	"github.com/google/trillian/util"
 )
 
-// These can be shared between tests as they're never modified
-var testLeaf16Data = []byte("testdataforleaf")
-var testLeaf16 = trillian.LogLeaf{
-	MerkleLeafHash: testonly.Hasher.HashLeaf(testLeaf16Data),
-	LeafValue:      testLeaf16Data,
-	ExtraData:      nil, LeafIndex: 16}
+var (
+	// These can be shared between tests as they're never modified
+	testLeaf16Data = []byte("testdataforleaf")
+	testLeaf16     = &trillian.LogLeaf{
+		MerkleLeafHash: testonly.Hasher.HashLeaf(testLeaf16Data),
+		LeafValue:      testLeaf16Data,
+		ExtraData:      nil,
+		LeafIndex:      16,
+	}
+)
 
 // RootHash can't be nil because that's how the sequencer currently detects that there was no stored tree head.
 var testRoot16 = trillian.SignedLogRoot{TreeSize: 16, TreeRevision: 5, RootHash: []byte{}}
@@ -110,13 +114,13 @@ type testParameters struct {
 	shouldRollback bool
 
 	skipDequeue    bool
-	dequeuedLeaves []trillian.LogLeaf
+	dequeuedLeaves []*trillian.LogLeaf
 	dequeuedError  error
 
 	latestSignedRootError error
 	latestSignedRoot      *trillian.SignedLogRoot
 
-	updatedLeaves      *[]trillian.LogLeaf
+	updatedLeaves      *[]*trillian.LogLeaf
 	updatedLeavesError error
 
 	merkleNodesSet      *[]storage.Node
@@ -145,9 +149,13 @@ type testContext struct {
 }
 
 // This gets modified so tests need their own copies
-func getLeaf42() trillian.LogLeaf {
-	testLeaf42Hash := testonly.Hasher.HashLeaf(testLeaf16Data)
-	return trillian.LogLeaf{MerkleLeafHash: testLeaf42Hash, LeafValue: testLeaf16Data, ExtraData: nil, LeafIndex: 42}
+func getLeaf42() *trillian.LogLeaf {
+	return &trillian.LogLeaf{
+		MerkleLeafHash: testonly.Hasher.HashLeaf(testLeaf16Data),
+		LeafValue:      testLeaf16Data,
+		ExtraData:      nil,
+		LeafIndex:      42,
+	}
 }
 
 func fakeTime() time.Time {
@@ -258,7 +266,7 @@ func TestSequenceWithNothingQueued(t *testing.T) {
 		dequeueLimit:        1,
 		shouldCommit:        true,
 		latestSignedRoot:    &testRoot16,
-		dequeuedLeaves:      []trillian.LogLeaf{},
+		dequeuedLeaves:      []*trillian.LogLeaf{},
 		skipStoreSignedRoot: true,
 	}
 	c, ctx := createTestContext(ctrl, params)
@@ -286,7 +294,7 @@ func TestGuardWindowPassthrough(t *testing.T) {
 		dequeueLimit:        1,
 		shouldCommit:        true,
 		latestSignedRoot:    &testRoot16,
-		dequeuedLeaves:      []trillian.LogLeaf{},
+		dequeuedLeaves:      []*trillian.LogLeaf{},
 		skipStoreSignedRoot: true,
 		overrideDequeueTime: &expectedCutoffTime,
 	}
@@ -326,7 +334,7 @@ func TestLatestRootError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	leaves := []trillian.LogLeaf{getLeaf42()}
+	leaves := []*trillian.LogLeaf{getLeaf42()}
 	params := testParameters{
 		logID:                 154035,
 		dequeueLimit:          1,
@@ -348,8 +356,8 @@ func TestUpdateSequencedLeavesError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	leaves := []trillian.LogLeaf{getLeaf42()}
-	updatedLeaves := []trillian.LogLeaf{testLeaf16}
+	leaves := []*trillian.LogLeaf{getLeaf42()}
+	updatedLeaves := []*trillian.LogLeaf{testLeaf16}
 	params := testParameters{
 		logID:              154035,
 		writeRevision:      testRoot16.TreeRevision + 1,
@@ -373,8 +381,8 @@ func TestSetMerkleNodesError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	leaves := []trillian.LogLeaf{getLeaf42()}
-	updatedLeaves := []trillian.LogLeaf{testLeaf16}
+	leaves := []*trillian.LogLeaf{getLeaf42()}
+	updatedLeaves := []*trillian.LogLeaf{testLeaf16}
 	params := testParameters{
 		logID:               154035,
 		writeRevision:       testRoot16.TreeRevision + 1,
@@ -399,8 +407,8 @@ func TestStoreSignedRootError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	leaves := []trillian.LogLeaf{getLeaf42()}
-	updatedLeaves := []trillian.LogLeaf{testLeaf16}
+	leaves := []*trillian.LogLeaf{getLeaf42()}
+	updatedLeaves := []*trillian.LogLeaf{testLeaf16}
 	params := testParameters{
 		logID:                154035,
 		writeRevision:        testRoot16.TreeRevision + 1,
@@ -429,8 +437,8 @@ func TestStoreSignedRootSignerFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	leaves := []trillian.LogLeaf{getLeaf42()}
-	updatedLeaves := []trillian.LogLeaf{testLeaf16}
+	leaves := []*trillian.LogLeaf{getLeaf42()}
+	updatedLeaves := []*trillian.LogLeaf{testLeaf16}
 	params := testParameters{
 		logID:            154035,
 		writeRevision:    testRoot16.TreeRevision + 1,
@@ -458,8 +466,8 @@ func TestCommitFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	leaves := []trillian.LogLeaf{getLeaf42()}
-	updatedLeaves := []trillian.LogLeaf{testLeaf16}
+	leaves := []*trillian.LogLeaf{getLeaf42()}
+	updatedLeaves := []*trillian.LogLeaf{testLeaf16}
 
 	params := testParameters{
 		logID:            154035,
@@ -492,8 +500,8 @@ func TestSequenceBatch(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	leaves := []trillian.LogLeaf{getLeaf42()}
-	updatedLeaves := []trillian.LogLeaf{testLeaf16}
+	leaves := []*trillian.LogLeaf{getLeaf42()}
+	updatedLeaves := []*trillian.LogLeaf{testLeaf16}
 	params := testParameters{
 		logID:            154035,
 		writeRevision:    testRoot16.TreeRevision + 1,

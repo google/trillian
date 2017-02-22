@@ -65,7 +65,7 @@ func createFakeLeaf(db *sql.DB, logID int64, rawHash, hash, data, extraData []by
 	}
 }
 
-func checkLeafContents(leaf trillian.LogLeaf, seq int64, rawHash, hash, data, extraData []byte, t *testing.T) {
+func checkLeafContents(leaf *trillian.LogLeaf, seq int64, rawHash, hash, data, extraData []byte, t *testing.T) {
 	if got, want := leaf.MerkleLeafHash, hash; !bytes.Equal(got, want) {
 		t.Fatalf("Wrong leaf hash in returned leaf got\n%v\nwant:\n%v", got, want)
 	}
@@ -950,7 +950,7 @@ func TestGetSequencedLeafCount(t *testing.T) {
 	commit(tx, t)
 }
 
-func ensureAllLeavesDistinct(leaves []trillian.LogLeaf, t *testing.T) {
+func ensureAllLeavesDistinct(leaves []*trillian.LogLeaf, t *testing.T) {
 	// All the leaf value hashes should be distinct because the leaves were created with distinct
 	// leaf data. If only we had maps with slices as keys or sets or pretty much any kind of usable
 	// data structures we could do this properly.
@@ -965,14 +965,14 @@ func ensureAllLeavesDistinct(leaves []trillian.LogLeaf, t *testing.T) {
 }
 
 // Creates some test leaves with predictable data
-func createTestLeaves(n, startSeq int64) []trillian.LogLeaf {
-	var leaves []trillian.LogLeaf
+func createTestLeaves(n, startSeq int64) []*trillian.LogLeaf {
+	var leaves []*trillian.LogLeaf
 	for l := int64(0); l < n; l++ {
 		lv := fmt.Sprintf("Leaf %d", l+startSeq)
 		h := sha256.New()
 		h.Write([]byte(lv))
 		leafHash := h.Sum(nil)
-		leaf := trillian.LogLeaf{
+		leaf := &trillian.LogLeaf{
 			LeafIdentityHash: leafHash,
 			MerkleLeafHash:   leafHash,
 			LeafValue:        []byte(lv),
@@ -1028,7 +1028,7 @@ func closeSnapshot(tx closeableSnapshot) error {
 	return tx.Rollback()
 }
 
-func leafInBatch(leaf trillian.LogLeaf, batch []trillian.LogLeaf) bool {
+func leafInBatch(leaf *trillian.LogLeaf, batch []*trillian.LogLeaf) bool {
 	for _, bl := range batch {
 		if bytes.Equal(bl.LeafIdentityHash, leaf.LeafIdentityHash) {
 			return true
