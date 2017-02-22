@@ -22,7 +22,7 @@ import (
 	"github.com/google/trillian/storage/testonly"
 )
 
-const selectTreeControlByID = "SELECT SigningEnabled, SequencingEnabled, SequenceIntervalSeconds, SignIntervalSeconds FROM TreeControl WHERE TreeId = ?"
+const selectTreeControlByID = "SELECT SigningEnabled, SequencingEnabled, SequenceIntervalSeconds FROM TreeControl WHERE TreeId = ?"
 
 func TestMysqlAdminStorage(t *testing.T) {
 	tester := &testonly.AdminStorageTester{NewAdminStorage: func() storage.AdminStorage {
@@ -52,16 +52,13 @@ func TestAdminTX_CreateTree_InitializesStorageStructures(t *testing.T) {
 
 	// Check if TreeControl is correctly written.
 	var signingEnabled, sequencingEnabled bool
-	var sequenceIntervalSeconds, signIntervalSeconds int
-	if err := DB.QueryRow(selectTreeControlByID, tree.TreeId).Scan(&signingEnabled, &sequencingEnabled, &sequenceIntervalSeconds, &signIntervalSeconds); err != nil {
+	var sequenceIntervalSeconds int
+	if err := DB.QueryRow(selectTreeControlByID, tree.TreeId).Scan(&signingEnabled, &sequencingEnabled, &sequenceIntervalSeconds); err != nil {
 		t.Fatalf("Failed to read TreeControl: %v", err)
 	}
 	// We don't mind about specific values, defaults change, but let's check
 	// that important numbers are not zeroed.
 	if sequenceIntervalSeconds <= 0 {
 		t.Errorf("sequenceIntervalSeconds = %v, want > 0", sequenceIntervalSeconds)
-	}
-	if signIntervalSeconds <= 0 {
-		t.Errorf("signIntervalSeconds = %v, want > 0", signIntervalSeconds)
 	}
 }

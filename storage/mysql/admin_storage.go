@@ -28,7 +28,6 @@ import (
 
 const (
 	defaultSequenceIntervalSeconds = 60
-	defaultSignIntervalSeconds     = 60
 	selectTrees                    = `
 		SELECT
 			TreeId,
@@ -348,9 +347,8 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 			TreeId,
 			SigningEnabled,
 			SequencingEnabled,
-			SequenceIntervalSeconds,
-			SignIntervalSeconds)
-		VALUES(?, ?, ?, ?, ?)`)
+			SequenceIntervalSeconds)
+		VALUES(?, ?, ?, ?)`)
 	if err != nil {
 		return nil, err
 	}
@@ -360,7 +358,6 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 		true, /* SigningEnabled */
 		true, /* SequencingEnabled */
 		defaultSequenceIntervalSeconds,
-		defaultSignIntervalSeconds,
 	)
 	if err != nil {
 		return nil, err

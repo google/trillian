@@ -14,5 +14,5 @@ mysql ${testdbopts} -e "
     INSERT INTO Trees(TreeId, TreeState, TreeType, HashStrategy, HashAlgorithm, SignatureAlgorithm, DuplicatePolicy, CreateTime, UpdateTime)
     VALUES (${tree_id}, 'ACTIVE', '${tree_type}', 'RFC_6962', 'SHA256', 'RSA', 'NOT_ALLOWED', NOW(), NOW())"
 mysql ${testdbopts} -e "
-    INSERT INTO TreeControl(TreeId, SigningEnabled, SequencingEnabled, SequenceIntervalSeconds, SignIntervalSeconds)
-    VALUES(${tree_id}, false, false, 1, 1)"
+    INSERT INTO TreeControl(TreeId, SigningEnabled, SequencingEnabled, SequenceIntervalSeconds)
+    VALUES(${tree_id}, true, true, 1)"

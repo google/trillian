@@ -33,7 +33,6 @@ CREATE TABLE IF NOT EXISTS TreeControl(
   SigningEnabled          BOOLEAN NOT NULL,
   SequencingEnabled       BOOLEAN NOT NULL,
   SequenceIntervalSeconds INTEGER NOT NULL,
-  SignIntervalSeconds     INTEGER NOT NULL,
   PRIMARY KEY(TreeId),
   FOREIGN KEY(TreeId) REFERENCES Trees(TreeId)
 );
