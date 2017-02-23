@@ -316,8 +316,14 @@ func TestAddChain(t *testing.T) {
 			err:    grpc.Errorf(codes.Internal, "error"),
 		},
 		{
-			descr:  "success",
+			descr:  "success-without-root",
 			chain:  []string{testonly.LeafSignedByFakeIntermediateCertPEM, testonly.FakeIntermediateCertPEM},
+			toSign: "1337d72a403b6539f58896decba416d5d4b3603bfa03e1f94bb9b4e898af897d",
+			want:   http.StatusOK,
+		},
+		{
+			descr:  "success",
+			chain:  []string{testonly.LeafSignedByFakeIntermediateCertPEM, testonly.FakeIntermediateCertPEM, testonly.FakeCACertPEM},
 			toSign: "1337d72a403b6539f58896decba416d5d4b3603bfa03e1f94bb9b4e898af897d",
 			want:   http.StatusOK,
 		},
@@ -330,12 +336,21 @@ func TestAddChain(t *testing.T) {
 		chain := createJSONChain(t, *pool)
 		if len(test.toSign) > 0 {
 			info.expectSign(test.toSign)
+			root := info.roots.RawCertificates()[0]
 			merkleLeaf, _, err := signV1SCTForCertificate(info.km, pool.RawCertificates()[0], nil, fakeTime)
 			if err != nil {
 				t.Errorf("Unexpected error signing SCT: %v", err)
 				continue
 			}
-			leaves := logLeavesForCert(t, info.km, pool.RawCertificates(), merkleLeaf, false)
+			leafChain := pool.RawCertificates()
+			if !leafChain[len(leafChain)-1].Equal(root) {
+				// The submitted chain may not include a root, but the generated LogLeaf will
+				fullChain := make([]*x509.Certificate, len(leafChain)+1)
+				copy(fullChain, leafChain)
+				fullChain[len(leafChain)] = root
+				leafChain = fullChain
+			}
+			leaves := logLeavesForCert(t, info.km, leafChain, merkleLeaf, false)
 			info.client.EXPECT().QueueLeaves(deadlineMatcher(), &trillian.QueueLeavesRequest{LogId: 0x42, Leaves: leaves}).Return(&trillian.QueueLeavesResponse{}, test.err)
 		}
 
@@ -370,6 +385,7 @@ func TestAddPrechain(t *testing.T) {
 	var tests = []struct {
 		descr  string
 		chain  []string
+		root   string
 		toSign string // hex-encoded
 		err    error
 		want   int
@@ -397,6 +413,12 @@ func TestAddPrechain(t *testing.T) {
 			toSign: "92ecae1a2dc67a6c5f9c96fa5cab4c2faf27c48505b696dad926f161b0ca675a",
 			want:   http.StatusOK,
 		},
+		{
+			descr:  "success-without-root",
+			chain:  []string{testonly.PrecertPEMValid},
+			toSign: "92ecae1a2dc67a6c5f9c96fa5cab4c2faf27c48505b696dad926f161b0ca675a",
+			want:   http.StatusOK,
+		},
 	}
 	info := setupTest(t, []string{testonly.CACertPEM})
 	defer info.mockCtrl.Finish()
@@ -406,18 +428,27 @@ func TestAddPrechain(t *testing.T) {
 		chain := createJSONChain(t, *pool)
 		if len(test.toSign) > 0 {
 			info.expectSign(test.toSign)
-			merkleLeaf, _, err := signV1SCTForPrecertificate(info.km, pool.RawCertificates()[0], pool.RawCertificates()[1], fakeTime)
+			root := info.roots.RawCertificates()[0]
+			merkleLeaf, _, err := signV1SCTForPrecertificate(info.km, pool.RawCertificates()[0], root, fakeTime)
 			if err != nil {
 				t.Errorf("Unexpected error signing SCT: %v", err)
 				continue
 			}
-			leaves := logLeavesForCert(t, info.km, pool.RawCertificates(), merkleLeaf, true)
+			leafChain := pool.RawCertificates()
+			if !leafChain[len(leafChain)-1].Equal(root) {
+				// The submitted chain may not include a root, but the generated LogLeaf will
+				fullChain := make([]*x509.Certificate, len(leafChain)+1)
+				copy(fullChain, leafChain)
+				fullChain[len(leafChain)] = root
+				leafChain = fullChain
+			}
+			leaves := logLeavesForCert(t, info.km, leafChain, merkleLeaf, true)
 			info.client.EXPECT().QueueLeaves(deadlineMatcher(), &trillian.QueueLeavesRequest{LogId: 0x42, Leaves: leaves}).Return(&trillian.QueueLeavesResponse{}, test.err)
 		}
 
 		recorder := makeAddPrechainRequest(t, info.c, chain)
 		if recorder.Code != test.want {
-			t.Errorf("addPrechain(%s)=%d (body:%v); want %dv", test.descr, recorder.Code, recorder.Body, test.want)
+			t.Errorf("addPrechain(%s)=%d (body:%v); want %d", test.descr, recorder.Code, recorder.Body, test.want)
 			continue
 		}
 		if test.want == http.StatusOK {

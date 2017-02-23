@@ -99,20 +99,20 @@ func ValidateChain(rawChain [][]byte, trustedRoots PEMCertPool) ([]*x509.Certifi
 	// requirements detailed in Section 3.1.
 nextVerifiedChain:
 	for _, verifiedChain := range chains {
-		// The verified chain includes a root, which we don't need to include in the comparison
-		chainMinusRoot := verifiedChain[:len(verifiedChain)-1]
-
-		if len(chainMinusRoot) != len(chain) {
+		// The verified chain includes a root, but the input chain may or may not include a
+		// root (RFC 6962 s4.1/ s4.2 "the last [certificate] is either the root certificate
+		// or a certificate that chains to a known root certificate").
+		if len(chain) != len(verifiedChain) && len(chain) != (len(verifiedChain)-1) {
 			continue
 		}
 
-		for i, certInChain := range chainMinusRoot {
-			if !certInChain.Equal(chain[i]) {
+		for i, certInChain := range chain {
+			if !certInChain.Equal(verifiedChain[i]) {
 				continue nextVerifiedChain
 			}
 		}
 
-		return chainMinusRoot, nil
+		return verifiedChain, nil
 	}
 
 	return nil, errors.New("no RFC compliant path to root found when trying to validate chain")
