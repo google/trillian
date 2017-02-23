@@ -328,7 +328,7 @@ func (t *logTreeTX) QueueLeaves(leaves []*trillian.LogLeaf, queueTimestamp time.
 		_, err := t.tx.Exec(insertSQL, t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData)
 		if err != nil {
 			if strings.Contains(err.Error(), "Duplicate entry") {
-				return storage.StorageError{
+				return storage.Error{
 					ErrType: storage.DuplicateLeaf,
 					Cause:   err,
 					Detail:  fmt.Sprintf("IdentityHash: %x", leaf.LeafIdentityHash),

@@ -26,16 +26,16 @@ const (
 	DuplicateLeaf = iota
 )
 
-// StorageError is a typed error that the storage layer can return to give callers information
+// Error is a typed error that the storage layer can return to give callers information
 // about the error to decide how to handle it.
-type StorageError struct {
+type Error struct {
 	ErrType int
 	Detail  string
 	Cause   error
 }
 
-// Error formats the internal details of a StorageError.
-func (s StorageError) Error() string {
+// Error formats the internal details of an Error including the original cause.
+func (s Error) Error() string {
 	return fmt.Sprintf("Storage: %d: %s: %v", s.ErrType, s.Detail, s.Cause)
 }
 

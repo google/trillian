@@ -283,7 +283,7 @@ func TestQueueLeavesDuplicateErrorMapped(t *testing.T) {
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTreeTX(ctrl)
 	mockStorage.EXPECT().BeginForTree(gomock.Any(), queueRequest0.LogId).Return(mockTx, nil)
-	mockTx.EXPECT().QueueLeaves([]*trillian.LogLeaf{leaf1}, fakeTime).Return(storage.StorageError{
+	mockTx.EXPECT().QueueLeaves([]*trillian.LogLeaf{leaf1}, fakeTime).Return(storage.Error{
 		ErrType:storage.DuplicateLeaf,
 		Detail: "duplicate test"})
 	mockTx.EXPECT().Close().Return(nil)
