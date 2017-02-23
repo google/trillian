@@ -287,19 +287,19 @@ func TestQueueLeavesDuplicateErrorMapped(t *testing.T) {
 
 	tests := []errMapTest{
 		{
-			err:   storage.Error{ErrType: storage.DuplicateLeaf, Detail: "duplicate test"},
+			err:  storage.Error{ErrType: storage.DuplicateLeaf, Detail: "duplicate test"},
 			want: codes.AlreadyExists,
 		},
 		{
-			err:   storage.Error{ErrType: -23, Detail: "negative type"},
+			err:  storage.Error{ErrType: -23, Detail: "negative type"},
 			want: codes.Unknown,
 		},
 		{
-			err:   storage.Error{ErrType: 999999999, Detail: "undefined type"},
+			err:  storage.Error{ErrType: 999999999, Detail: "undefined type"},
 			want: codes.Unknown,
 		},
 		{
-			err:   errors.New("some other kind of error"),
+			err:  errors.New("some other kind of error"),
 			want: codes.Unknown,
 		},
 	}
@@ -309,7 +309,7 @@ func TestQueueLeavesDuplicateErrorMapped(t *testing.T) {
 		mockTx := storage.NewMockLogTreeTX(ctrl)
 		mockStorage.EXPECT().BeginForTree(gomock.Any(), queueRequest0.LogId).Return(mockTx, nil)
 		mockTx.EXPECT().QueueLeaves([]*trillian.LogLeaf{leaf1}, fakeTime).Return(test.err)
-		mockTx.EXPECT().Rollback().Return(nil)
+		mockTx.EXPECT().Close().Return(nil)
 		mockTx.EXPECT().IsOpen().AnyTimes().Return(false)
 
 		mockRegistry := extension.NewMockRegistry(ctrl)
