@@ -50,6 +50,7 @@ func TestMapBegin(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Begin() = (_, %v), want = (_, nil)", err)
 		}
+		defer tx.Close()
 		root, err := tx.LatestSignedMapRoot()
 		if err != nil {
 			t.Errorf("LatestSignedMapRoot() = (_, %v), want = (_, nil)", err)
@@ -79,6 +80,7 @@ func TestMapSnapshot(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Snapshot() = (_, %v), want = (_, nil)", err)
 		}
+		defer tx.Close()
 		// Do a read so we have something to commit on the snapshot
 		_, err = tx.LatestSignedMapRoot()
 		if err != nil {
@@ -96,7 +98,7 @@ func TestMapRootUpdate(t *testing.T) {
 
 	ctx := context.Background()
 	tx := beginMapTx(ctx, s, mapID, t)
-	defer tx.Rollback()
+	defer tx.Close()
 
 	root := trillian.SignedMapRoot{
 		MapId:          mapID,
@@ -123,6 +125,7 @@ func TestMapRootUpdate(t *testing.T) {
 	}
 
 	tx = beginMapTx(ctx, s, mapID, t)
+	defer tx.Close()
 	root3, err := tx.LatestSignedMapRoot()
 	if err != nil {
 		t.Fatalf("Failed to read back new map root: %v", err)
@@ -150,6 +153,7 @@ func TestMapSetGetRoundTrip(t *testing.T) {
 	ctx := context.Background()
 	{
 		tx := beginMapTx(ctx, s, mapID, t)
+		defer tx.Close()
 		if err := tx.Set(keyHash, mapLeaf); err != nil {
 			t.Fatalf("Failed to set %v to %v: %v", keyHash, mapLeaf, err)
 		}
@@ -160,6 +164,7 @@ func TestMapSetGetRoundTrip(t *testing.T) {
 
 	{
 		tx := beginMapTx(ctx, s, mapID, t)
+		defer tx.Close()
 		readValues, err := tx.Get(readRev, [][]byte{keyHash})
 		if err != nil {
 			t.Fatalf("Failed to get %v:  %v", keyHash, err)
@@ -183,6 +188,7 @@ func TestMapSetSameKeyInSameRevisionFails(t *testing.T) {
 
 	{
 		tx := beginMapTx(ctx, s, mapID, t)
+		defer tx.Close()
 		if err := tx.Set(keyHash, mapLeaf); err != nil {
 			t.Fatalf("Failed to set %v to %v: %v", keyHash, mapLeaf, err)
 		}
@@ -193,6 +199,7 @@ func TestMapSetSameKeyInSameRevisionFails(t *testing.T) {
 
 	{
 		tx := beginMapTx(ctx, s, mapID, t)
+		defer tx.Close()
 		if err := tx.Set(keyHash, mapLeaf); err == nil {
 			t.Fatalf("Unexpectedly succeeded in setting %v to %v", keyHash, mapLeaf)
 		}
@@ -207,6 +214,7 @@ func TestMapGetUnknownKey(t *testing.T) {
 
 	ctx := context.Background()
 	tx := beginMapTx(ctx, s, mapID, t)
+	defer tx.Close()
 	readValues, err := tx.Get(1, [][]byte{[]byte("This doesn't exist.")})
 	if err != nil {
 		t.Fatalf("Read returned error %v", err)
@@ -237,6 +245,7 @@ func TestMapSetGetMultipleRevisions(t *testing.T) {
 	for _, tc := range tests {
 		// Write the current test case.
 		tx := beginMapTx(ctx, s, mapID, t)
+		defer tx.Close()
 		mysqlMapTX := tx.(*mapTreeTX)
 		mysqlMapTX.treeTX.writeRevision = tc.rev
 		if err := tx.Set(keyHash, tc.leaf); err != nil {
@@ -254,6 +263,7 @@ func TestMapSetGetMultipleRevisions(t *testing.T) {
 				expectRev = tc.rev // For future revisions, expect the current value.
 			}
 			tx2 := beginMapTx(ctx, s, mapID, t)
+			defer tx2.Close()
 			readValues, err := tx2.Get(i, [][]byte{keyHash})
 			if err != nil {
 				t.Fatalf("At i %d failed to get %v:  %v", i, keyHash, err)
@@ -276,7 +286,7 @@ func TestLatestSignedMapRootNoneWritten(t *testing.T) {
 
 	ctx := context.Background()
 	tx := beginMapTx(ctx, s, mapID, t)
-	defer tx.Rollback()
+	defer tx.Close()
 
 	root, err := tx.LatestSignedMapRoot()
 	if err != nil {
@@ -295,7 +305,7 @@ func TestLatestSignedMapRoot(t *testing.T) {
 
 	ctx := context.Background()
 	tx := beginMapTx(ctx, s, mapID, t)
-	defer tx.Rollback()
+	defer tx.Close()
 
 	root := trillian.SignedMapRoot{
 		MapId:          mapID,
@@ -313,7 +323,7 @@ func TestLatestSignedMapRoot(t *testing.T) {
 
 	{
 		tx2 := beginMapTx(ctx, s, mapID, t)
-		defer tx2.Rollback()
+		defer tx2.Close()
 		root2, err := tx2.LatestSignedMapRoot()
 		if err != nil {
 			t.Fatalf("Failed to read back new map root: %v", err)
@@ -332,7 +342,7 @@ func TestDuplicateSignedMapRoot(t *testing.T) {
 
 	ctx := context.Background()
 	tx := beginMapTx(ctx, s, mapID, t)
-	defer tx.Rollback()
+	defer tx.Close()
 
 	root := trillian.SignedMapRoot{
 		MapId:          mapID,
@@ -358,6 +368,7 @@ func TestReadOnlyMapTX_Rollback(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Snapshot() = (_, %v), want = (_, nil)", err)
 	}
+	defer tx.Close()
 	// It's a bit hard to have a more meaningful test. This should suffice.
 	if err := tx.Rollback(); err != nil {
 		t.Errorf("Rollback() = (_, %v), want = (_, nil)", err)

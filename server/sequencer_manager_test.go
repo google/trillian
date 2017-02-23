@@ -99,6 +99,7 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 
 	mockStorage.EXPECT().BeginForTree(gomock.Any(), logID).Return(mockTx, nil)
 	mockTx.EXPECT().Commit().Return(nil)
+	mockTx.EXPECT().Close().Return(nil)
 	mockTx.EXPECT().WriteRevision().AnyTimes().Return(writeRev)
 	mockTx.EXPECT().LatestSignedLogRoot().Return(testRoot0, nil)
 	mockTx.EXPECT().DequeueLeaves(50, fakeTime).Return([]*trillian.LogLeaf{}, nil)
@@ -126,7 +127,7 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 	// Set up enough mockery to be able to sequence. We don't test all the error paths
 	// through sequencer as other tests cover this
 	mockTx.EXPECT().Commit().Return(nil)
-	mockTx.EXPECT().Rollback().AnyTimes().Do(func() { panic(nil) })
+	mockTx.EXPECT().Close().Return(nil)
 	mockTx.EXPECT().WriteRevision().AnyTimes().Return(testRoot0.TreeRevision + 1)
 	mockTx.EXPECT().DequeueLeaves(50, fakeTime).Return([]*trillian.LogLeaf{testLeaf0}, nil)
 	mockTx.EXPECT().LatestSignedLogRoot().Return(testRoot0, nil)
@@ -155,6 +156,7 @@ func TestSequencerManagerGuardWindow(t *testing.T) {
 
 	mockStorage.EXPECT().BeginForTree(gomock.Any(), logID).Return(mockTx, nil)
 	mockTx.EXPECT().Commit().Return(nil)
+	mockTx.EXPECT().Close().Return(nil)
 	mockTx.EXPECT().WriteRevision().AnyTimes().Return(writeRev)
 	mockTx.EXPECT().LatestSignedLogRoot().Return(testRoot0, nil)
 	// Expect a 5 second guard window to be passed from manager -> sequencer -> storage

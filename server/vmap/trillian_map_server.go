@@ -59,7 +59,7 @@ func (t *TrillianMapServer) getHasherForMap(mapID int64) (merkle.MapHasher, erro
 }
 
 // GetLeaves implements the GetLeaves RPC method.
-func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapLeavesRequest) (resp *trillian.GetMapLeavesResponse, err error) {
+func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapLeavesRequest) (*trillian.GetMapLeavesResponse, error) {
 	ctx = util.NewMapContext(ctx, req.MapId)
 	s, err := t.registry.GetMapStorage()
 	if err != nil {
@@ -70,12 +70,7 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		e := tx.Commit()
-		if e != nil && err == nil {
-			resp, err = nil, e
-		}
-	}()
+	defer tx.Close()
 
 	kh, err := t.getHasherForMap(req.MapId)
 	if err != nil {
@@ -100,10 +95,9 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 	if err != nil {
 		return nil, err
 	}
-
 	glog.Infof("%s: wanted %d leaves, found %d", util.MapIDPrefix(ctx), len(req.Index), len(leaves))
 
-	resp = &trillian.GetMapLeavesResponse{
+	resp := &trillian.GetMapLeavesResponse{
 		IndexValueInclusion: make([]*trillian.IndexValueInclusion, len(leaves)),
 	}
 	for i, leaf := range leaves {
@@ -122,11 +116,15 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 		}
 	}
 
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
 	return resp, nil
 }
 
 // SetLeaves implements the SetLeaves RPC method.
-func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapLeavesRequest) (resp *trillian.SetMapLeavesResponse, err error) {
+func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapLeavesRequest) (*trillian.SetMapLeavesResponse, error) {
 	ctx = util.NewMapContext(ctx, req.MapId)
 	s, err := t.registry.GetMapStorage()
 	if err != nil {
@@ -137,22 +135,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if err != nil {
-			// Something went wrong, we should rollback and not return any partial/wrong data
-			resp = nil
-			tx.Rollback()
-			return
-		}
-		// try to commit the tx
-		e := tx.Commit()
-		if e != nil {
-			// don't return partial/uncommitted/wrong data:
-			glog.Warningf("%s: Commit failed for SetLeaves: %v", util.MapIDPrefix(ctx), e)
-			resp = nil
-			err = e
-		}
-	}()
+	defer tx.Close()
 
 	hasher, err := t.getHasherForMap(req.MapId)
 	if err != nil {
@@ -203,14 +186,19 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 	if err = tx.StoreSignedMapRoot(newRoot); err != nil {
 		return nil, err
 	}
-	resp = &trillian.SetMapLeavesResponse{
-		MapRoot: &newRoot,
+
+	if err := tx.Commit(); err != nil {
+		glog.Warningf("%s: Commit failed for SetLeaves: %v", util.MapIDPrefix(ctx), err)
+		return nil, err
 	}
-	return resp, nil
+
+	return &trillian.SetMapLeavesResponse{
+		MapRoot: &newRoot,
+	}, nil
 }
 
 // GetSignedMapRoot implements the GetSignedMapRoot RPC method.
-func (t *TrillianMapServer) GetSignedMapRoot(ctx context.Context, req *trillian.GetSignedMapRootRequest) (resp *trillian.GetSignedMapRootResponse, err error) {
+func (t *TrillianMapServer) GetSignedMapRoot(ctx context.Context, req *trillian.GetSignedMapRootRequest) (*trillian.GetSignedMapRootResponse, error) {
 	ctx = util.NewMapContext(ctx, req.MapId)
 	s, err := t.registry.GetMapStorage()
 	if err != nil {
@@ -221,22 +209,19 @@ func (t *TrillianMapServer) GetSignedMapRoot(ctx context.Context, req *trillian.
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		// try to commit the tx
-		e := tx.Commit()
-		if e != nil && err == nil {
-			glog.Warningf("%s: Commit failed for GetSignedMapRoot: %v", util.MapIDPrefix(ctx), e)
-			resp, err = nil, e
-		}
-	}()
+	defer tx.Close()
 
 	r, err := tx.LatestSignedMapRoot()
 	if err != nil {
 		return nil, err
 	}
 
-	resp = &trillian.GetSignedMapRootResponse{
-		MapRoot: &r,
+	if err := tx.Commit(); err != nil {
+		glog.Warningf("%s: Commit failed for GetSignedMapRoot: %v", util.MapIDPrefix(ctx), err)
+		return nil, err
 	}
-	return resp, err
+
+	return &trillian.GetSignedMapRootResponse{
+		MapRoot: &r,
+	}, nil
 }

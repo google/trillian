@@ -404,6 +404,17 @@ func (t *treeTX) Rollback() error {
 	return nil
 }
 
+func (t *treeTX) Close() error {
+	if !t.closed {
+		err := t.Rollback()
+		if err != nil {
+			glog.Warningf("Rollback error on Close(): %v", err)
+		}
+		return err
+	}
+	return nil
+}
+
 func (t *treeTX) IsOpen() bool {
 	return !t.closed
 }

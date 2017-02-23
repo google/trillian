@@ -104,12 +104,12 @@ func (l LogOperationManager) getLogsAndExecutePass(ctx context.Context) bool {
 		glog.Warningf("Failed to get tx for run: %v", err)
 		return false
 	}
+	defer tx.Close()
 
 	// Inner loop is across all active logs, currently one at a time
 	logIDs, err := tx.GetActiveLogIDs()
 	if err != nil {
 		glog.Warningf("Failed to get log list for run: %v", err)
-		tx.Rollback()
 		return false
 	}
 

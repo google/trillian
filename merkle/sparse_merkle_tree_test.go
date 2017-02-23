@@ -334,6 +334,7 @@ func testSparseTreeCalculatedRoot(t *testing.T, vec sparseTestVector) {
 	w, tx := getSparseMerkleTreeWriterWithMockTX(mockCtrl, rev)
 
 	tx.EXPECT().Commit().AnyTimes().Return(nil)
+	tx.EXPECT().Close().AnyTimes().Return(nil)
 	tx.EXPECT().GetMerkleNodes(int64(rev), gomock.Any()).AnyTimes().Return([]storage.Node{}, nil)
 	tx.EXPECT().SetMerkleNodes(gomock.Any()).AnyTimes().Return(nil)
 
@@ -393,6 +394,7 @@ func testSparseTreeFetches(t *testing.T, vec sparseTestVector) {
 	const rev = 100
 	w, tx := getSparseMerkleTreeWriterWithMockTX(mockCtrl, rev)
 	tx.EXPECT().Commit().AnyTimes().Return(nil)
+	tx.EXPECT().Close().AnyTimes().Return(nil)
 
 	reads := make(map[string]string)
 	readMutex := sync.Mutex{}
