@@ -257,13 +257,10 @@ func (t *logTreeTX) DequeueLeaves(limit int, cutoffTime time.Time) ([]*trillian.
 	now := t.ls.timeSource.Now().UTC().Unix()
 	buckets := genDequeueBuckets(now, t.ls.config, rnd.Intn(numByteValues))
 
-	glog.Infof("Buckets: %v Now: %d", buckets, now)
-
 	// Marshall the arguments for the query inc. potentially variable number of buckets
 	args := make([]interface{}, 0, len(buckets)+3)
 	args = append(args, interface{}(t.treeID))
 
-	// populate args with buckets
 	for _, bucket := range buckets {
 		args = append(args, interface{}(bucket))
 	}
@@ -287,7 +284,7 @@ func (t *logTreeTX) DequeueLeaves(limit int, cutoffTime time.Time) ([]*trillian.
 
 	defer rows.Close()
 
-	for rows.Next() && limit > 0 {
+	for rows.Next() {
 		var leafIDHash []byte
 		var merkleHash []byte
 
@@ -373,8 +370,7 @@ func (t *logTreeTX) QueueLeaves(leaves []*trillian.LogLeaf, queueTimestamp time.
 		}
 
 		// Create the work queue entry
-		bucket := getQueueBucket(now, t.ls.config)
-		bucket = bucket | int32(leaf.MerkleLeafHash[0])
+		bucket := getQueueBucket(now, t.ls.config, leaf.MerkleLeafHash[0])
 
 		_, err = t.tx.Exec(insertUnsequencedEntrySQL,
 			t.treeID, bucket, leaf.LeafIdentityHash, leaf.MerkleLeafHash, queueTimestamp.UnixNano())
@@ -635,10 +631,11 @@ func genDequeueBuckets(now int64, config *storagepb.LogStorageConfig, merkleBuck
 
 // getQueueBucket gets the bucket currently used for queuing new work. If bucketing is enabled
 // it should always return a value not in the set of buckets returned by genDequeueBuckets
-// at the same point in time.
-func getQueueBucket(now int64, config *storagepb.LogStorageConfig) int32 {
+// at the same point in time. The mlh0 parameter should be the first byte of the leaf
+// MerkleTreeHash.
+func getQueueBucket(now int64, config *storagepb.LogStorageConfig, mlh0 byte) int32 {
 	if config == nil || !config.EnableBuckets {
 		return 0 // everything always uses bucket zero
 	}
-	return int32((now % config.NumUnseqBuckets) << 8)
+	return int32((now % config.NumUnseqBuckets) << 8) | int32(mlh0)
 }

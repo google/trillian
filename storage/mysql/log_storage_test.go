@@ -51,9 +51,6 @@ var fakeDequeueCutoffTime = time.Date(2016, 11, 10, 15, 16, 30, 0, time.UTC)
 // Used for tests involving extra data
 var someExtraData = []byte("Some extra data")
 
-// Config with bucketing disabled
-var noBucketConfig = &storagepb.LogStorageConfig{EnableBuckets:false}
-
 const leavesToInsert = 5
 const sequenceNumber int64 = 237
 
@@ -115,7 +112,7 @@ func updateDuplicatePolicy(db *sql.DB, treeID int64, duplicatePolicy trillian.Du
 
 func TestMySQLLogStorage_CheckDatabaseAccessible(t *testing.T) {
 	cleanTestDB(DB)
-	s := NewLogStorage(DB, noBucketConfig, util.FakeTimeSource{})
+	s := getLogStorage()
 	if err := s.CheckDatabaseAccessible(context.Background()); err != nil {
 		t.Errorf("CheckDatabaseAccessible() = %v, want = nil", err)
 	}
@@ -126,7 +123,7 @@ func TestBegin(t *testing.T) {
 	logID1 := createLogForTests(DB)
 	logID2 := createLogForTests(DB)
 
-	storage := NewLogStorage(DB, noBucketConfig, util.FakeTimeSource{})
+	s := getLogStorage()
 
 	tests := []struct {
 		logID           int64
@@ -147,7 +144,7 @@ func TestBegin(t *testing.T) {
 			}
 		}
 
-		tx, err := storage.BeginForTree(ctx, test.logID)
+		tx, err := s.BeginForTree(ctx, test.logID)
 		if hasError, wantError := err != nil, test.err != ""; hasError || wantError {
 			if hasError != wantError || (wantError && !strings.Contains(err.Error(), test.err)) {
 				t.Errorf("Begin() = (_, '%v'), want = (_, '...%v...')", err, test.err)
@@ -207,7 +204,7 @@ func TestSnapshot(t *testing.T) {
 func TestIsOpenCommitRollbackClosed(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB, noBucketConfig, util.FakeTimeSource{})
+	s := getLogStorage()
 
 	tests := []struct {
 		commit, rollback, close bool
@@ -244,7 +241,7 @@ func TestIsOpenCommitRollbackClosed(t *testing.T) {
 func TestQueueDuplicateLeafFails(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB, noBucketConfig, util.FakeTimeSource{})
+	s := getLogStorage()
 
 	tx := beginLogTx(s, logID, t)
 	defer tx.Close()
@@ -263,7 +260,7 @@ func TestQueueDuplicateLeafFails(t *testing.T) {
 func TestQueueLeaves(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB, noBucketConfig, util.FakeTimeSource{})
+	s := getLogStorage()
 
 	tx := beginLogTx(s, logID, t)
 	defer tx.Close()
@@ -296,7 +293,7 @@ func TestQueueLeaves(t *testing.T) {
 func TestDequeueLeavesNoneQueued(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB, noBucketConfig, util.FakeTimeSource{})
+	s := getLogStorage()
 
 	tx := beginLogTx(s, logID, t)
 	defer tx.Close()
@@ -311,10 +308,10 @@ func TestDequeueLeavesNoneQueued(t *testing.T) {
 	commit(tx, t)
 }
 
-func TestDequeueLeaves(t *testing.T) {
+func TestDequeueLeavesX(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB, noBucketConfig, util.FakeTimeSource{})
+	s := getLogStorage()
 
 	{
 		tx := beginLogTx(s, logID, t)
@@ -359,7 +356,7 @@ func TestDequeueLeaves(t *testing.T) {
 func TestDequeueLeavesTwoBatches(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB, noBucketConfig, util.FakeTimeSource{})
+	s := getLogStorage()
 
 	leavesToDequeue1 := 3
 	leavesToDequeue2 := 2
@@ -427,7 +424,7 @@ func TestDequeueLeavesTwoBatches(t *testing.T) {
 func TestDequeueLeavesGuardInterval(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB, noBucketConfig, util.FakeTimeSource{})
+	s := getLogStorage()
 
 	{
 		tx := beginLogTx(s, logID, t)
@@ -470,7 +467,7 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 	// queue.
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB, noBucketConfig, util.FakeTimeSource{})
+	s := getLogStorage()
 
 	batchSize := 2
 	leaves := createTestLeaves(int64(batchSize), 0)
@@ -601,7 +598,7 @@ func TestQueueLeavesBucketed(t *testing.T) {
 func TestGetLeavesByHashNotPresent(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB, noBucketConfig, util.FakeTimeSource{})
+	s := getLogStorage()
 
 	tx := beginLogTx(s, logID, t)
 	defer tx.Close()
@@ -620,7 +617,7 @@ func TestGetLeavesByHashNotPresent(t *testing.T) {
 func TestGetLeavesByIndexNotPresent(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB, noBucketConfig, util.FakeTimeSource{})
+	s := getLogStorage()
 
 	tx := beginLogTx(s, logID, t)
 	defer tx.Close()
@@ -635,7 +632,7 @@ func TestGetLeavesByHash(t *testing.T) {
 	// Create fake leaf as if it had been sequenced
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB, noBucketConfig, util.FakeTimeSource{})
+	s := getLogStorage()
 
 	data := []byte("some data")
 	createFakeLeaf(DB, logID, dummyRawHash, dummyHash, data, someExtraData, sequenceNumber, t)
@@ -659,7 +656,7 @@ func TestGetLeavesByIndex(t *testing.T) {
 	// Create fake leaf as if it had been sequenced, read it back and check contents
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB, noBucketConfig, util.FakeTimeSource{})
+	s := getLogStorage()
 
 	data := []byte("some data")
 	createFakeLeaf(DB, logID, dummyRawHash, dummyHash, data, someExtraData, sequenceNumber, t)
@@ -681,7 +678,7 @@ func TestGetLeavesByIndex(t *testing.T) {
 func TestLatestSignedRootNoneWritten(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB, noBucketConfig, util.FakeTimeSource{})
+	s := getLogStorage()
 
 	tx := beginLogTx(s, logID, t)
 	defer tx.Close()
@@ -699,7 +696,7 @@ func TestLatestSignedRootNoneWritten(t *testing.T) {
 func TestLatestSignedLogRoot(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB, noBucketConfig, util.FakeTimeSource{})
+	s := getLogStorage()
 
 	tx := beginLogTx(s, logID, t)
 	defer tx.Close()
@@ -734,7 +731,7 @@ func TestLatestSignedLogRoot(t *testing.T) {
 func TestDuplicateSignedLogRoot(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB, noBucketConfig, util.FakeTimeSource{})
+	s := getLogStorage()
 
 	tx := beginLogTx(s, logID, t)
 	defer tx.Close()
@@ -761,7 +758,7 @@ func TestLogRootUpdate(t *testing.T) {
 	// Write two roots for a log and make sure the one with the newest timestamp supersedes
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB, noBucketConfig, util.FakeTimeSource{})
+	s := getLogStorage()
 
 	tx := beginLogTx(s, logID, t)
 	defer tx.Close()
@@ -821,8 +818,7 @@ func toIDsMap(ids []int64) map[int64]bool {
 // runTestGetActiveLogIDsInternal calls test.fn (which is either GetActiveLogIDs or
 // GetActiveLogIDsWithPendingWork) and check that the result matches wantIds.
 func runTestGetActiveLogIDsInternal(t *testing.T, test getActiveIDsTest, logID int64, wantIds []int64) {
-	s := NewLogStorage(DB, noBucketConfig, util.FakeTimeSource{})
-
+	s := getLogStorage()
 	logIDs, err := test.fn(s, context.Background(), logID)
 	if err != nil {
 		t.Errorf("%v = (_, %v), want = (_, nil)", test.name, err)
@@ -852,7 +848,7 @@ func runTestGetActiveLogIDsWithPendingWork(t *testing.T, test getActiveIDsTest) 
 	logID1 := createLogForTests(DB)
 	logID2 := createLogForTests(DB)
 	logID3 := createLogForTests(DB)
-	s := NewLogStorage(DB, noBucketConfig, util.FakeTimeSource{})
+	s := getLogStorage()
 
 	// Do a first run without any pending logs
 	runTestGetActiveLogIDsInternal(t, test, logID1, nil)
@@ -914,7 +910,7 @@ func TestGetActiveLogIDs(t *testing.T) {
 
 func TestGetActiveLogIDsEmpty(t *testing.T) {
 	cleanTestDB(DB)
-	s := NewLogStorage(DB,	noBucketConfig, util.FakeTimeSource{FakeTime:fakeQueueTime})
+	s := getLogStorage()
 
 	tx, err := s.Snapshot(context.TODO())
 	if err != nil {
@@ -978,7 +974,7 @@ func TestGetActiveLogIDsWithPendingWork(t *testing.T) {
 
 func TestReadOnlyLogTX_Rollback(t *testing.T) {
 	cleanTestDB(DB)
-	s := NewLogStorage(DB,	noBucketConfig, util.FakeTimeSource{FakeTime:fakeQueueTime})
+	s := getLogStorage()
 
 	tx, err := s.Snapshot(context.Background())
 	if err != nil {
@@ -999,7 +995,7 @@ func TestGetSequencedLeafCount(t *testing.T) {
 	cleanTestDB(DB)
 	logID1 := createLogForTests(DB)
 	logID2 := createLogForTests(DB)
-	s := NewLogStorage(DB, noBucketConfig, util.FakeTimeSource{})
+	s := getLogStorage()
 
 	{
 		// Create fake leaf as if it had been sequenced
@@ -1076,7 +1072,7 @@ func TestQueueDequeueBucketsDisjoint(t *testing.T) {
 
 		for i := 0; i < len(increments); i++ {
 			now := ts.Now().UTC().Unix()
-			queueBucket := getQueueBucket(now, config)
+			queueBucket := getQueueBucket(now, config, byte(mb))
 			dequeueBuckets := genDequeueBuckets(now, config, mb)
 
 			if len(dequeueBuckets) == 0 {

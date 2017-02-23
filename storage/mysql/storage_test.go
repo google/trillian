@@ -28,16 +28,16 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
-	"github.com/google/trillian/storage/storagepb"
 	storageto "github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/util"
+	"github.com/google/trillian/storage/storagepb"
 )
 
 func TestNodeRoundTrip(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB, noBucketConfig, util.FakeTimeSource{})
+	s := getLogStorage()
 
 	const writeRevision = int64(100)
 	nodesToStore := createSomeNodes()
@@ -83,7 +83,7 @@ func TestNodeRoundTrip(t *testing.T) {
 func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB, noBucketConfig, util.FakeTimeSource{})
+	s := getLogStorage()
 
 	const writeRevision = int64(100)
 	nodesToStore := createLogNodesForTreeAtSize(871, writeRevision)
@@ -263,6 +263,11 @@ func createTree(db *sql.DB, tree *trillian.Tree) (*trillian.Tree, error) {
 		return nil, err
 	}
 	return newTree, nil
+}
+
+func getLogStorage() storage.LogStorage {
+	return NewLogStorage(DB, &storagepb.LogStorageConfig{EnableBuckets:false},
+		util.FakeTimeSource{fakeQueueTime})
 }
 
 // DB is the database used for tests. It's initialized and closed by TestMain().
