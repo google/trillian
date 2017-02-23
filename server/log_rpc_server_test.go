@@ -281,26 +281,26 @@ func TestQueueLeavesDuplicateErrorMapped(t *testing.T) {
 	defer ctrl.Finish()
 
 	type errMapTest struct {
-		storageErr   error
-		expectedCode codes.Code
+		err  error
+		want codes.Code
 	}
 
 	tests := []errMapTest{
 		{
-			storageErr:   storage.Error{ErrType: storage.DuplicateLeaf, Detail: "duplicate test"},
-			expectedCode: codes.AlreadyExists,
+			err:   storage.Error{ErrType: storage.DuplicateLeaf, Detail: "duplicate test"},
+			want: codes.AlreadyExists,
 		},
 		{
-			storageErr:   storage.Error{ErrType: -23, Detail: "negative type"},
-			expectedCode: codes.Unknown,
+			err:   storage.Error{ErrType: -23, Detail: "negative type"},
+			want: codes.Unknown,
 		},
 		{
-			storageErr:   storage.Error{ErrType: 999999999, Detail: "undefined type"},
-			expectedCode: codes.Unknown,
+			err:   storage.Error{ErrType: 999999999, Detail: "undefined type"},
+			want: codes.Unknown,
 		},
 		{
-			storageErr:   errors.New("some other kind of error"),
-			expectedCode: codes.Unknown,
+			err:   errors.New("some other kind of error"),
+			want: codes.Unknown,
 		},
 	}
 
@@ -308,7 +308,7 @@ func TestQueueLeavesDuplicateErrorMapped(t *testing.T) {
 		mockStorage := storage.NewMockLogStorage(ctrl)
 		mockTx := storage.NewMockLogTreeTX(ctrl)
 		mockStorage.EXPECT().BeginForTree(gomock.Any(), queueRequest0.LogId).Return(mockTx, nil)
-		mockTx.EXPECT().QueueLeaves([]*trillian.LogLeaf{leaf1}, fakeTime).Return(test.storageErr)
+		mockTx.EXPECT().QueueLeaves([]*trillian.LogLeaf{leaf1}, fakeTime).Return(test.err)
 		mockTx.EXPECT().Rollback().Return(nil)
 		mockTx.EXPECT().IsOpen().AnyTimes().Return(false)
 
@@ -322,7 +322,7 @@ func TestQueueLeavesDuplicateErrorMapped(t *testing.T) {
 			t.Fatalf("Did not propagate duplicate leaf storage error to client")
 		}
 		// The error should have been mapped to the expected GRPC code
-		if got, want := grpc.Code(err), test.expectedCode; got != want {
+		if got, want := grpc.Code(err), test.want; got != want {
 			t.Fatalf("Got grpc code: %d for duplicate leaf, want: %d, err=%v", got, want, err)
 		}
 	}
