@@ -300,7 +300,7 @@ func TestQueueLeavesDuplicateErrorMapped(t *testing.T) {
 	}
 	// The error should have been mapped to GRPC Already Exists
 	if got, want := grpc.Code(err), codes.AlreadyExists; got != want {
-		t.Fatalf("Got grpc code: %d for duplicate leaf, want: %d (AlreadyExists)")
+		t.Fatalf("Got grpc code: %d for duplicate leaf, want: %d (AlreadyExists)", got, want)
 	}
 }
 
