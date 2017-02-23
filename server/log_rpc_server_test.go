@@ -26,6 +26,8 @@ import (
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/testonly"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc"
 )
 
 var (
@@ -270,7 +272,35 @@ func TestQueueLeaves(t *testing.T) {
 	server := NewTrillianLogRPCServer(mockRegistry, fakeTimeSource)
 
 	if _, err := server.QueueLeaves(context.Background(), &queueRequest0); err != nil {
-		t.Fatalf("Failed to get leaf by index: %v", err)
+		t.Fatalf("Failed to queue leaf: %v", err)
+	}
+}
+
+func TestQueueLeavesDuplicateErrorMapped(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockStorage := storage.NewMockLogStorage(ctrl)
+	mockTx := storage.NewMockLogTreeTX(ctrl)
+	mockStorage.EXPECT().BeginForTree(gomock.Any(), queueRequest0.LogId).Return(mockTx, nil)
+	mockTx.EXPECT().QueueLeaves([]*trillian.LogLeaf{leaf1}, fakeTime).Return(storage.StorageError{
+		ErrType:storage.DuplicateLeaf,
+		Detail: "duplicate test"})
+	mockTx.EXPECT().Close().Return(nil)
+	mockTx.EXPECT().IsOpen().AnyTimes().Return(false)
+
+	mockRegistry := extension.NewMockRegistry(ctrl)
+	mockRegistry.EXPECT().GetLogStorage().Return(mockStorage, nil)
+	server := NewTrillianLogRPCServer(mockRegistry, fakeTimeSource)
+
+	_, err := server.QueueLeaves(context.Background(), &queueRequest0)
+	if err == nil {
+		// The operation should not have succeeded
+		t.Fatalf("Did not propagate duplicate leaf storage error to client")
+	}
+	// The error should have been mapped to GRPC Already Exists
+	if got, want := grpc.Code(err), codes.AlreadyExists; got != want {
+		t.Fatalf("Got grpc code: %d for duplicate leaf, want: %d (AlreadyExists)")
 	}
 }
 

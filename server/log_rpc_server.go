@@ -91,6 +91,12 @@ func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.Qu
 
 	err = tx.QueueLeaves(req.Leaves, t.timeSource.Now())
 	if err != nil {
+		if se, ok := err.(storage.StorageError); ok {
+			if se.ErrType == storage.DuplicateLeaf {
+				return nil, grpc.Errorf(codes.AlreadyExists, "Leaf hash already exists: %v", se)
+			}
+		}
+
 		return nil, err
 	}
 
