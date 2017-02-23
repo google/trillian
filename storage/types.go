@@ -21,7 +21,7 @@ import (
 	"github.com/google/trillian/storage/storagepb"
 )
 
-// Integer types to distinguish storage errors that might need to be mapped at a higher level
+// Integer types to distinguish storage errors that might need to be mapped at a higher level.
 const (
 	DuplicateLeaf = iota
 )
@@ -34,7 +34,7 @@ type StorageError struct {
 	Cause   error
 }
 
-// Error formats the internal details of a StorageError
+// Error formats the internal details of a StorageError.
 func (s StorageError) Error() string {
 	return fmt.Sprintf("Storage: %d: %s: %v", s.ErrType, s.Detail, s.Cause)
 }
