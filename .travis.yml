@@ -21,8 +21,8 @@ install:
   - |
     (
       cd protoc
-      wget https://github.com/google/protobuf/releases/download/v3.0.0/protoc-3.0.0-${TRAVIS_OS_NAME}-x86_64.zip
-      unzip protoc-3.0.0-${TRAVIS_OS_NAME}-x86_64.zip
+      wget https://github.com/google/protobuf/releases/download/v3.2.0/protoc-3.2.0-${TRAVIS_OS_NAME}-x86_64.zip
+      unzip protoc-3.2.0-${TRAVIS_OS_NAME}-x86_64.zip
     )
   - export PATH=$(pwd)/protoc/bin:$PATH
   - go get -d ./...
