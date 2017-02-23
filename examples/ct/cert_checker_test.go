@@ -168,7 +168,8 @@ func TestCertCheckerValidChainAccepted(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error verifying valid chain %v", err)
 	}
-	if got, want := len(validPath), 2; got != want {
+	// Expect leaf/intermediate/root.
+	if got, want := len(validPath), 3; got != want {
 		t.Fatalf(" got path of len %d, but expected length %d", got, want)
 	}
 }
