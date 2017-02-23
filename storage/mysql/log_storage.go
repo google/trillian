@@ -25,9 +25,6 @@ import (
 	"strings"
 	"time"
 
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
@@ -331,11 +328,14 @@ func (t *logTreeTX) QueueLeaves(leaves []*trillian.LogLeaf, queueTimestamp time.
 		_, err := t.tx.Exec(insertSQL, t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData)
 		if err != nil {
 			if strings.Contains(err.Error(), "Duplicate entry") {
-				return grpc.Errorf(codes.AlreadyExists, "Leaf already exists for IdentityHash: %x. err: %v",
-					leaf.LeafIdentityHash, err)
+				return storage.Error{
+					ErrType: storage.DuplicateLeaf,
+					Cause:   err,
+					Detail:  fmt.Sprintf("IdentityHash: %x", leaf.LeafIdentityHash),
+				}
 			}
 			glog.Warningf("Error inserting %d into LeafData: %s", i, err)
-			return grpc.Errorf(codes.Unknown, "Insert into LeafData failed for leaf %d: %v", i, err)
+			return err
 		}
 
 		// Create the work queue entry

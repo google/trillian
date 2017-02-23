@@ -16,14 +16,28 @@ package storage
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 
 	"github.com/google/trillian/storage/storagepb"
 )
 
-// ErrReadOnly is returned when storage operations are not allowed because a resource is read only
-var ErrReadOnly = errors.New("storage: Operation not allowed because resource is read only")
+// Integer types to distinguish storage errors that might need to be mapped at a higher level.
+const (
+	DuplicateLeaf = iota
+)
+
+// Error is a typed error that the storage layer can return to give callers information
+// about the error to decide how to handle it.
+type Error struct {
+	ErrType int
+	Detail  string
+	Cause   error
+}
+
+// Error formats the internal details of an Error including the original cause.
+func (s Error) Error() string {
+	return fmt.Sprintf("Storage: %d: %s: %v", s.ErrType, s.Detail, s.Cause)
+}
 
 // Node represents a single node in a Merkle tree.
 type Node struct {
