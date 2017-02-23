@@ -291,7 +291,7 @@ func TestQueueLeavesDuplicateErrorMapped(t *testing.T) {
 			expectedCode: codes.AlreadyExists,
 		},
 		{
-			storageErr: storage.Error{ErrType: -23, Detail: "negative type"},
+			storageErr:   storage.Error{ErrType: -23, Detail: "negative type"},
 			expectedCode: codes.Unknown,
 		},
 		{
