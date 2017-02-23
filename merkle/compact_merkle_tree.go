@@ -175,6 +175,9 @@ func (c *CompactMerkleTree) recalculateRoot(f setNodeFunc) error {
 func (c *CompactMerkleTree) AddLeaf(data []byte, f setNodeFunc) (int64, []byte, error) {
 	h := c.hasher.HashLeaf(data)
 	seq, err := c.AddLeafHash(h, f)
+	if err != nil {
+		return -1, nil, err
+	}
 	return seq, h, err
 }
 
