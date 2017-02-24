@@ -17,22 +17,10 @@ package crypto
 import (
 	"crypto"
 	"crypto/rand"
-	"encoding/base64"
-	"fmt"
-	"strconv"
+	"encoding/json"
 
 	"github.com/benlaurie/objecthash/go/objecthash"
-	"github.com/golang/glog"
-	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/sigpb"
-)
-
-// Constants used as map keys when building input for ObjectHash. They must not be changed
-// as this will change the output of hashRoot()
-const (
-	mapKeyRootHash       string = "RootHash"
-	mapKeyTimestampNanos string = "TimestampNanos"
-	mapKeyTreeSize       string = "TreeSize"
 )
 
 var (
@@ -64,54 +52,29 @@ func NewSigner(sigAlgo sigpb.DigitallySigned_SignatureAlgorithm, signer crypto.S
 }
 
 // Sign obtains a signature after first hashing the input data.
-func (s Signer) Sign(data []byte) (sigpb.DigitallySigned, error) {
+func (s *Signer) Sign(data []byte) (*sigpb.DigitallySigned, error) {
 	h := s.hash.New()
 	h.Write(data)
 	digest := h.Sum(nil)
 
-	if len(digest) != s.hash.Size() {
-		return sigpb.DigitallySigned{}, fmt.Errorf("hasher returned unexpected digest length: %d, %d",
-			len(digest), s.hash.Size())
-	}
-
 	sig, err := s.signer.Sign(rand.Reader, digest, s.hash)
-
 	if err != nil {
-		return sigpb.DigitallySigned{}, err
+		return nil, err
 	}
 
-	return sigpb.DigitallySigned{
+	return &sigpb.DigitallySigned{
 		SignatureAlgorithm: s.sigAlgorithm,
 		HashAlgorithm:      reverseSignerHashLookup[s.hash],
 		Signature:          sig,
 	}, nil
 }
 
-func (s Signer) hashRoot(root trillian.SignedLogRoot) []byte {
-	rootMap := make(map[string]interface{})
-
-	// Pull out the fields we want to hash. Caution: use string format for int64 values as they
-	// can overflow when JSON encoded otherwise (it uses floats). We want to be sure that people
-	// using JSON to verify hashes can build the exact same input to ObjectHash.
-	rootMap[mapKeyRootHash] = base64.StdEncoding.EncodeToString(root.RootHash)
-	rootMap[mapKeyTimestampNanos] = strconv.FormatInt(root.TimestampNanos, 10)
-	rootMap[mapKeyTreeSize] = strconv.FormatInt(root.TreeSize, 10)
-
-	hash := objecthash.ObjectHash(rootMap)
-
-	return hash[:]
-}
-
-// SignLogRoot updates a log root to include a signature from the crypto signer this object
-// was created with. Signatures use objecthash on a fixed JSON format of the root.
-func (s Signer) SignLogRoot(root trillian.SignedLogRoot) (sigpb.DigitallySigned, error) {
-	objectHash := s.hashRoot(root)
-	signature, err := s.Sign(objectHash[:])
-
+// SignObject signs the requested object using ObjectHash.
+func (s *Signer) SignObject(obj interface{}) (*sigpb.DigitallySigned, error) {
+	j, err := json.Marshal(obj)
 	if err != nil {
-		glog.Warningf("Signer failed to sign root: %v", err)
-		return sigpb.DigitallySigned{}, err
+		return nil, err
 	}
-
-	return signature, nil
+	hash := objecthash.CommonJSONHash(string(j))
+	return s.Sign(hash[:])
 }

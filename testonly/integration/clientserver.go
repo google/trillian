@@ -30,6 +30,7 @@ import (
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/storage/mysql"
 	"github.com/google/trillian/storage/testonly"
+	to "github.com/google/trillian/testonly"
 	"github.com/google/trillian/util"
 	"google.golang.org/grpc"
 )
@@ -40,12 +41,12 @@ const (
 )
 
 var (
-	privateKeyFile     = "../testdata/log-rpc-server.privkey.pem"
-	privateKeyPassword = "towel"
-	sequencerWindow    = time.Duration(0)
-	batchSize          = 50
-	sleepBetweenRuns   = 100 * time.Millisecond
-	timeSource         = util.SystemTimeSource{}
+	sequencerWindow  = time.Duration(0)
+	batchSize        = 50
+	sleepBetweenRuns = 100 * time.Millisecond
+	timeSource       = util.SystemTimeSource{}
+	// PublicKey returns the public key that verifies responses from this server.
+	PublicKey, _ = crypto.PublicKeyFromPEM(to.DemoPublicKey)
 )
 
 // LogEnv is a test environment that contains both a log server and a connection to it.
@@ -126,7 +127,7 @@ func NewLogEnv(ctx context.Context, numSequencers int, testID string) (*LogEnv, 
 		return nil, err
 	}
 
-	km, err := crypto.NewFromPrivatePEMFile(privateKeyFile, privateKeyPassword)
+	km, err := crypto.NewFromPrivatePEM(to.DemoPrivateKey, to.DemoPrivateKeyPass)
 	if err != nil {
 		return nil, err
 	}

@@ -18,20 +18,18 @@ package client
 import (
 	"bytes"
 	"context"
-	"crypto"
+	gocrypto "crypto"
 	"crypto/sha256"
 	"errors"
 	"time"
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/client/backoff"
+	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/merkle"
-	"github.com/google/trillian/merkle/rfc6962"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
-
-var treeHasher = rfc6962.TreeHasher{Hash: crypto.SHA256}
 
 // LogClient represents a client for a given Trillian log instance.
 type LogClient struct {
@@ -40,15 +38,17 @@ type LogClient struct {
 	hasher   merkle.TreeHasher
 	STR      trillian.SignedLogRoot
 	MaxTries int
+	pubKey   gocrypto.PublicKey
 }
 
 // New returns a new LogClient.
-func New(logID int64, client trillian.TrillianLogClient, hasher merkle.TreeHasher) *LogClient {
+func New(logID int64, client trillian.TrillianLogClient, hasher merkle.TreeHasher, pubKey gocrypto.PublicKey) *LogClient {
 	return &LogClient{
 		LogID:    logID,
 		client:   client,
 		hasher:   hasher,
 		MaxTries: 3,
+		pubKey:   pubKey,
 	}
 }
 
@@ -60,12 +60,12 @@ func (c *LogClient) AddLeaf(ctx context.Context, data []byte) error {
 		return err
 	}
 
-	leaf := buildLeaf(data)
+	leaf := c.buildLeaf(data)
 	err := c.queueLeaf(ctx, leaf)
 	switch {
 	case grpc.Code(err) == codes.AlreadyExists:
 		// If the leaf already exists, don't wait for an update.
-		return c.getInclusionProof(ctx, treeHasher.HashLeaf(leaf.LeafValue), c.STR.TreeSize)
+		return c.getInclusionProof(ctx, leaf.MerkleLeafHash, c.STR.TreeSize)
 	case err != nil:
 		return err
 	default:
@@ -115,12 +115,18 @@ func (c *LogClient) UpdateSTR(ctx context.Context) error {
 		LogId: c.LogID,
 	}
 	resp, err := c.client.GetLatestSignedLogRoot(ctx, req)
-	str := resp.SignedLogRoot
 	if err != nil {
 		return err
 	}
-	// TODO(gdbelvin): Verify SignedLogRoot Signature
+	str := resp.SignedLogRoot
 
+	// Verify SignedLogRoot signature.
+	hash := crypto.HashLogRoot(*str)
+	if err := crypto.Verify(c.pubKey, hash, str.Signature); err != nil {
+		return err
+	}
+
+	// Verify Consistency proof.
 	if str.TreeSize == c.STR.TreeSize && bytes.Equal(str.RootHash, c.STR.RootHash) {
 		// Tree has not been updated.
 		return nil
@@ -147,7 +153,6 @@ func (c *LogClient) UpdateSTR(ctx context.Context) error {
 			return err
 		}
 	}
-
 	c.STR = *str
 	return nil
 }
@@ -185,10 +190,11 @@ func convertProof(proof *trillian.Proof) [][]byte {
 	return neighbors
 }
 
-func buildLeaf(data []byte) *trillian.LogLeaf {
+func (c *LogClient) buildLeaf(data []byte) *trillian.LogLeaf {
 	hash := sha256.Sum256(data)
 	leaf := &trillian.LogLeaf{
 		LeafValue:        data,
+		MerkleLeafHash:   c.hasher.HashLeaf(data),
 		LeafIdentityHash: hash[:],
 	}
 	return leaf
