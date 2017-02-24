@@ -97,23 +97,27 @@ func ValidateChain(rawChain [][]byte, trustedRoots PEMCertPool) ([]*x509.Certifi
 	// Verify might have found multiple paths to roots. Now we check that we have a path that
 	// uses all the certs in the order they were submitted so as to comply with RFC 6962
 	// requirements detailed in Section 3.1.
-nextVerifiedChain:
 	for _, verifiedChain := range chains {
-		// The verified chain includes a root, but the input chain may or may not include a
-		// root (RFC 6962 s4.1/ s4.2 "the last [certificate] is either the root certificate
-		// or a certificate that chains to a known root certificate").
-		if len(chain) != len(verifiedChain) && len(chain) != (len(verifiedChain)-1) {
-			continue
+		if chainsEquivalent(chain, verifiedChain) {
+			return verifiedChain, nil
 		}
-
-		for i, certInChain := range chain {
-			if !certInChain.Equal(verifiedChain[i]) {
-				continue nextVerifiedChain
-			}
-		}
-
-		return verifiedChain, nil
 	}
 
 	return nil, errors.New("no RFC compliant path to root found when trying to validate chain")
+}
+
+func chainsEquivalent(inChain []*x509.Certificate, verifiedChain []*x509.Certificate) bool {
+	// The verified chain includes a root, but the input chain may or may not include a
+	// root (RFC 6962 s4.1/ s4.2 "the last [certificate] is either the root certificate
+	// or a certificate that chains to a known root certificate").
+	if len(inChain) != len(verifiedChain) && len(inChain) != (len(verifiedChain)-1) {
+		return false
+	}
+
+	for i, certInChain := range inChain {
+		if !certInChain.Equal(verifiedChain[i]) {
+			return false
+		}
+	}
+	return true
 }
