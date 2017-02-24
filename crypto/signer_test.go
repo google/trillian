@@ -111,11 +111,45 @@ func TestSignLogRootSignerFails(t *testing.T) {
 	logSigner := createTestSigner(mockSigner)
 
 	root := trillian.SignedLogRoot{TimestampNanos: 2267709, RootHash: []byte("Islington"), TreeSize: 2}
-	_, err := logSigner.SignLogRoot(root)
+	_, err := logSigner.Sign(HashLogRoot(root))
 
 	testonly.EnsureErrorContains(t, err, "signfail")
 }
 
 func createTestSigner(mock *MockSigner) *Signer {
 	return NewSigner(sigpb.DigitallySigned_RSA, mock)
+}
+
+func TestSignLogRoot(t *testing.T) {
+	km, err := NewFromPrivatePEM(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
+	if err != nil {
+		t.Fatalf("Failed to open test key")
+	}
+	signer := NewSigner(km.SignatureAlgorithm(), km)
+	pk, err := PublicKeyFromPEM(testonly.DemoPublicKey)
+	if err != nil {
+		t.Fatalf("Failed to load public key")
+	}
+
+	for _, test := range []struct {
+		root trillian.SignedLogRoot
+	}{
+		{
+			root: trillian.SignedLogRoot{
+				TimestampNanos: 2267709,
+				RootHash:       []byte("Islington"),
+				TreeSize:       2,
+			},
+		},
+	} {
+		signature, err := signer.Sign(HashLogRoot(test.root))
+		if err != nil {
+			t.Errorf("Failed to sign log root: %v", err)
+		}
+		// Check that the signature is correct
+		h := HashLogRoot(test.root)
+		if err := Verify(pk, h, signature); err != nil {
+			t.Errorf("Verify(%v) failed: %v", test.root, err)
+		}
+	}
 }

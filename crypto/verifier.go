@@ -34,7 +34,7 @@ import (
 // ErrVerify occurs whenever signature verification fails.
 var ErrVerify = errors.New("signature verification failed")
 
-// PublicKeyFromFile returns the public key contained in the keyFile.
+// PublicKeyFromFile returns the public key contained in the keyFile in PEM format.
 func PublicKeyFromFile(keyFile string) (crypto.PublicKey, error) {
 	pemData, err := ioutil.ReadFile(keyFile)
 	if err != nil {
@@ -61,7 +61,7 @@ func PublicKeyFromPEM(pemEncodedKey string) (crypto.PublicKey, error) {
 	return parsedKey, nil
 }
 
-// VerifyObject verifies the output of SignObject.
+// VerifyObject verifies the output of Signer.SignObject.
 func VerifyObject(pub crypto.PublicKey, obj interface{}, sig *sigpb.DigitallySigned) error {
 	j, err := json.Marshal(obj)
 	if err != nil {

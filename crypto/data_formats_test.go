@@ -18,20 +18,10 @@ import (
 	"testing"
 
 	"github.com/google/trillian"
-	"github.com/google/trillian/testonly"
 )
 
-func TestSignLogRoot(t *testing.T) {
-	km, err := NewFromPrivatePEM(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
-	if err != nil {
-		t.Fatalf("Failed to open test key")
-	}
-	signer := NewSigner(km.SignatureAlgorithm(), km)
-	pk, err := PublicKeyFromPEM(testonly.DemoPublicKey)
-	if err != nil {
-		t.Fatalf("Failed to load public key")
-	}
-
+func TestHashLogRoot(t *testing.T) {
+	unique := make(map[[20]byte]bool)
 	for _, test := range []struct {
 		root trillian.SignedLogRoot
 	}{
@@ -42,15 +32,35 @@ func TestSignLogRoot(t *testing.T) {
 				TreeSize:       2,
 			},
 		},
+		{
+			root: trillian.SignedLogRoot{
+				TimestampNanos: 2267708,
+				RootHash:       []byte("Islington"),
+				TreeSize:       2,
+			},
+		},
+		{
+			root: trillian.SignedLogRoot{
+				TimestampNanos: 2267709,
+				RootHash:       []byte("Oslington"),
+				TreeSize:       2,
+			},
+		},
+		{
+			root: trillian.SignedLogRoot{
+				TimestampNanos: 2267709,
+				RootHash:       []byte("Islington"),
+				TreeSize:       3,
+			},
+		},
 	} {
-		signature, err := signer.SignLogRoot(test.root)
-		if err != nil {
-			t.Errorf("Failed to sign log root: %v", err)
+		hash := HashLogRoot(test.root)
+		var h [20]byte
+		copy(h[:], hash)
+		if _, ok := unique[h]; ok {
+			t.Errorf("Found duplicate hash from input %v", test.root)
 		}
-		// Check that the signature is correct
-		h := HashLogRoot(test.root)
-		if err := Verify(pk, h, signature); err != nil {
-			t.Errorf("Verify(%v) failed: %v", test.root, err)
-		}
+		unique[h] = true
 	}
+
 }

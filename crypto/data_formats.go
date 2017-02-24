@@ -20,7 +20,6 @@ import (
 
 	"github.com/benlaurie/objecthash/go/objecthash"
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto/sigpb"
 )
 
 // This file contains struct specific mappings and data structures.
@@ -34,8 +33,9 @@ const (
 	mapKeyTreeSize       string = "TreeSize"
 )
 
-// HashLogRoot hashes SignedLogRoot objects in a custom way
-// using the map of properties listed above.
+// HashLogRoot hashes SignedLogRoot objects using ObjectHash with
+// "RootHash", "TimestampNanos", and "TreeSize", used as keys in
+// a map.
 func HashLogRoot(root trillian.SignedLogRoot) []byte {
 	// Pull out the fields we want to hash.
 	// Caution: use string format for int64 values as they can overflow when
@@ -48,9 +48,4 @@ func HashLogRoot(root trillian.SignedLogRoot) []byte {
 
 	hash := objecthash.ObjectHash(rootMap)
 	return hash[:]
-}
-
-// SignLogRoot returns a signature using objecthash on a fixed JSON format of the root.
-func (s *Signer) SignLogRoot(root trillian.SignedLogRoot) (*sigpb.DigitallySigned, error) {
-	return s.Sign(HashLogRoot(root))
 }
