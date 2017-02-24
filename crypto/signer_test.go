@@ -67,14 +67,17 @@ func TestSigner(t *testing.T) {
 		{message: []byte("message")},
 	} {
 		sig, err := signer.Sign(test.message)
-		if got, want := sig.HashAlgorithm, sigpb.DigitallySigned_SHA256; got != want {
-			t.Fatalf("Hash alg incorrect, got %v expected %d", got, want)
-		}
-		if got, want := sig.SignatureAlgorithm, sigpb.DigitallySigned_ECDSA; got != want {
-			t.Fatalf("Sig alg incorrect, got %v expected %v", got, want)
-		}
 		if err != nil {
 			t.Errorf("Failed to sign log root: %v", err)
+		}
+		if got := len(sig.Signature); got == 0 {
+			t.Errorf("len(sig): %v, want > 0", got)
+		}
+		if got, want := sig.HashAlgorithm, sigpb.DigitallySigned_SHA256; got != want {
+			t.Errorf("Hash alg incorrect, got %v expected %d", got, want)
+		}
+		if got, want := sig.SignatureAlgorithm, sigpb.DigitallySigned_ECDSA; got != want {
+			t.Errorf("Sig alg incorrect, got %v expected %v", got, want)
 		}
 		// Check that the signature is correct
 		if err := Verify(pk, test.message, sig); err != nil {
