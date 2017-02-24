@@ -55,6 +55,7 @@ func TestSigner(t *testing.T) {
 		t.Fatalf("Failed to open test key")
 	}
 	signer := NewSigner(km.SignatureAlgorithm(), km)
+
 	pk, err := PublicKeyFromPEM(testonly.DemoPublicKey)
 	if err != nil {
 		t.Fatalf("Failed to load public key")
@@ -65,12 +66,18 @@ func TestSigner(t *testing.T) {
 	}{
 		{message: []byte("message")},
 	} {
-		signature, err := signer.Sign(test.message)
+		sig, err := signer.Sign(test.message)
+		if got, want := sig.HashAlgorithm, sigpb.DigitallySigned_SHA256; got != want {
+			t.Fatalf("Hash alg incorrect, got %v expected %d", got, want)
+		}
+		if got, want := sig.SignatureAlgorithm, sigpb.DigitallySigned_ECDSA; got != want {
+			t.Fatalf("Sig alg incorrect, got %v expected %v", got, want)
+		}
 		if err != nil {
 			t.Errorf("Failed to sign log root: %v", err)
 		}
 		// Check that the signature is correct
-		if err := Verify(pk, test.message, signature); err != nil {
+		if err := Verify(pk, test.message, sig); err != nil {
 			t.Errorf("Verify(%v) failed: %v", test.message, err)
 		}
 	}
