@@ -15,7 +15,6 @@
 package crypto
 
 import (
-	"bytes"
 	"crypto"
 	"crypto/sha256"
 	"errors"
@@ -51,30 +50,29 @@ func (i usesSHA256Hasher) String() string {
 }
 
 func TestSigner(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockSigner := NewMockSigner(ctrl)
-	digest := messageHash()
-
-	mockSigner.EXPECT().Sign(gomock.Any(), digest, usesSHA256Hasher{}).Return([]byte(result), nil)
-
-	logSigner := createTestSigner(mockSigner)
-
-	sig, err := logSigner.Sign([]byte(message))
-
+	km, err := NewFromPrivatePEM(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
 	if err != nil {
-		t.Fatalf("Failed to sign: %s", err)
+		t.Fatalf("Failed to open test key")
+	}
+	signer := NewSigner(km.SignatureAlgorithm(), km)
+	pk, err := PublicKeyFromPEM(testonly.DemoPublicKey)
+	if err != nil {
+		t.Fatalf("Failed to load public key")
 	}
 
-	if got, want := sig.HashAlgorithm, sigpb.DigitallySigned_SHA256; got != want {
-		t.Fatalf("Hash alg incorrect, got %v expected %d", got, want)
-	}
-	if got, want := sig.SignatureAlgorithm, sigpb.DigitallySigned_RSA; got != want {
-		t.Fatalf("Sig alg incorrect, got %v expected %v", got, want)
-	}
-	if got, want := []byte(result), sig.Signature; !bytes.Equal(got, want) {
-		t.Fatalf("Mismatched sig got [%v] expected [%v]", got, want)
+	for _, test := range []struct {
+		message []byte
+	}{
+		{message: []byte("message")},
+	} {
+		signature, err := signer.Sign(test.message)
+		if err != nil {
+			t.Errorf("Failed to sign log root: %v", err)
+		}
+		// Check that the signature is correct
+		if err := Verify(pk, test.message, signature); err != nil {
+			t.Errorf("Verify(%v) failed: %v", test.message, err)
+		}
 	}
 }
 
@@ -118,38 +116,4 @@ func TestSignLogRootSignerFails(t *testing.T) {
 
 func createTestSigner(mock *MockSigner) *Signer {
 	return NewSigner(sigpb.DigitallySigned_RSA, mock)
-}
-
-func TestSignLogRoot(t *testing.T) {
-	km, err := NewFromPrivatePEM(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
-	if err != nil {
-		t.Fatalf("Failed to open test key")
-	}
-	signer := NewSigner(km.SignatureAlgorithm(), km)
-	pk, err := PublicKeyFromPEM(testonly.DemoPublicKey)
-	if err != nil {
-		t.Fatalf("Failed to load public key")
-	}
-
-	for _, test := range []struct {
-		root trillian.SignedLogRoot
-	}{
-		{
-			root: trillian.SignedLogRoot{
-				TimestampNanos: 2267709,
-				RootHash:       []byte("Islington"),
-				TreeSize:       2,
-			},
-		},
-	} {
-		signature, err := signer.Sign(HashLogRoot(test.root))
-		if err != nil {
-			t.Errorf("Failed to sign log root: %v", err)
-		}
-		// Check that the signature is correct
-		h := HashLogRoot(test.root)
-		if err := Verify(pk, h, signature); err != nil {
-			t.Errorf("Verify(%v) failed: %v", test.root, err)
-		}
-	}
 }
