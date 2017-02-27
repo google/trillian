@@ -60,7 +60,7 @@ message LogStorageConfig {
   // num_merkle_buckets defines the number of individual buckets below each
   // unsequenced ring bucket.
   // This value may be changed at any time (so long as you understand the
-  // impact it'll have on integration performace!)
+  // impact it'll have on integration performance!)
   //
   // This value must lie in the range [1..256]
   int64 num_merkle_buckets = 2;
