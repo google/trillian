@@ -32,24 +32,6 @@ import (
 	"github.com/google/trillian/testonly"
 )
 
-// Explicit test for node id conversion to / from protos.
-func TestNodeIDSerialization(t *testing.T) {
-	nodeID := storage.NodeID{Path: []byte("hello"), PrefixLenBits: 3, PathLenBits: 40}
-
-	serializedBytes, err := encodeNodeID(nodeID)
-	if err != nil {
-		t.Fatalf("Failed to serialize NodeID: %v, %v", nodeID, err)
-	}
-
-	nodeID2, err := decodeNodeID(serializedBytes)
-	if err != nil {
-		t.Fatalf("Failed to deserialize NodeID: %v, %v", nodeID, err)
-	}
-	if expected, got := nodeID.String(), nodeID2.String(); expected != got {
-		t.Errorf("Round trip of nodeID failed: %v %v", expected, got)
-	}
-}
-
 func TestNodeRoundTrip(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)

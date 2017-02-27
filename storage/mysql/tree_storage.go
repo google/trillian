@@ -102,30 +102,6 @@ func expandPlaceholderSQL(sql string, num int, first, rest string) string {
 	return strings.Replace(sql, placeholderSQL, parameters, 1)
 }
 
-// Node IDs are stored using proto serialization
-func decodeNodeID(nodeIDBytes []byte) (*storage.NodeID, error) {
-	var nodeIDProto storagepb.NodeIDProto
-
-	if err := proto.Unmarshal(nodeIDBytes, &nodeIDProto); err != nil {
-		glog.Warningf("Failed to decode nodeid: %s", err)
-		return nil, err
-	}
-
-	return storage.NewNodeIDFromProto(nodeIDProto), nil
-}
-
-func encodeNodeID(n storage.NodeID) ([]byte, error) {
-	nodeIDProto := n.AsProto()
-	marshalledBytes, err := proto.Marshal(nodeIDProto)
-
-	if err != nil {
-		glog.Warningf("Failed to encode nodeid: %s", err)
-		return nil, err
-	}
-
-	return marshalledBytes, nil
-}
-
 // getStmt creates and caches sql.Stmt structs based on the passed in statement
 // and number of bound arguments.
 // TODO(al,martin): consider pulling this all out as a separate unit for reuse
