@@ -133,7 +133,7 @@ type LogStorageConfig struct {
 	// num_merkle_buckets defines the number of individual buckets below each
 	// unsequenced ring bucket.
 	// This value may be changed at any time (so long as you understand the
-	// impact it'll have on integration performace!)
+	// impact it'll have on integration performance!)
 	//
 	// This value must lie in the range [1..256]
 	NumMerkleBuckets int64 `protobuf:"varint,2,opt,name=num_merkle_buckets,json=numMerkleBuckets" json:"num_merkle_buckets,omitempty"`
