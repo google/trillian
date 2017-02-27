@@ -581,8 +581,8 @@ func TestQueueLeavesBucketed(t *testing.T) {
 				t.Fatalf("Dequeue from bucket failed: %v", err)
 			}
 			// If we got too many leaves at once then bucketing is broken
-			if len(leaves) > 8 {
-				t.Fatalf("Dequeued too many leaves from bucket: %v", leaves)
+			if len(dql) > 12 {
+				t.Fatalf("Dequeued too many leaves from bucket: %d, %v", len(dql), dql)
 			}
 
 			leaves = append(leaves, dql...)
