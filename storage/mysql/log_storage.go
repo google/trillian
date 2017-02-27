@@ -88,19 +88,19 @@ func (m *mySQLLogStorage) CheckDatabaseAccessible(ctx context.Context) error {
 }
 
 func (m *mySQLLogStorage) getLeavesByIndexStmt(num int) (*sql.Stmt, error) {
-	return m.getStmt(selectLeavesByIndexSQL, num, "?", "?")
+	return m.stmts.GetStmt(expandPlaceholderSQL(selectLeavesByIndexSQL, num, "?", "?"), num)
 }
 
 func (m *mySQLLogStorage) getLeavesByMerkleHashStmt(num int, orderBySequence bool) (*sql.Stmt, error) {
 	if orderBySequence {
-		return m.getStmt(selectLeavesByMerkleHashOrderedBySequenceSQL, num, "?", "?")
+		return m.stmts.GetStmt(expandPlaceholderSQL(selectLeavesByMerkleHashOrderedBySequenceSQL, num, "?", "?"), num)
 	}
 
-	return m.getStmt(selectLeavesByMerkleHashSQL, num, "?", "?")
+	return m.stmts.GetStmt(expandPlaceholderSQL(selectLeavesByMerkleHashSQL, num, "?", "?"), num)
 }
 
 func (m *mySQLLogStorage) getDeleteUnsequencedStmt(num int) (*sql.Stmt, error) {
-	return m.getStmt(deleteUnsequencedSQL, num, "?", "?")
+	return m.stmts.GetStmt(expandPlaceholderSQL(deleteUnsequencedSQL, num, "?", "?"), num)
 }
 
 func getActiveLogIDsInternal(tx *sql.Tx, sql string) ([]int64, error) {

@@ -19,7 +19,6 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
-	"sync"
 
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
@@ -57,13 +56,7 @@ const (
 // Storage implementations, and contains functionality which is common to both,
 type mySQLTreeStorage struct {
 	db *sql.DB
-
-	// Must hold the mutex before manipulating the statement map. Sharing a lock because
-	// it only needs to be held while the statements are built, not while they execute and
-	// this will be a short time. These maps are from the number of placeholder '?'
-	// in the query to the statement that should be used.
-	statementMutex sync.Mutex
-	statements     map[string]map[int]*sql.Stmt
+	stmts *cache.StmtCache
 }
 
 // OpenDB opens a database connection for all MySQL-based storage implementations.
@@ -86,7 +79,7 @@ func OpenDB(dbURL string) (*sql.DB, error) {
 func newTreeStorage(db *sql.DB) *mySQLTreeStorage {
 	return &mySQLTreeStorage{
 		db:         db,
-		statements: make(map[string]map[int]*sql.Stmt),
+		stmts:      cache.NewStmtCache(db),
 	}
 }
 
@@ -126,42 +119,13 @@ func encodeNodeID(n storage.NodeID) ([]byte, error) {
 	return marshalledBytes, nil
 }
 
-// getStmt creates and caches sql.Stmt structs based on the passed in statement
-// and number of bound arguments.
-// TODO(al,martin): consider pulling this all out as a separate unit for reuse
-// elsewhere.
-func (m *mySQLTreeStorage) getStmt(statement string, num int, first, rest string) (*sql.Stmt, error) {
-	m.statementMutex.Lock()
-	defer m.statementMutex.Unlock()
-
-	if m.statements[statement] != nil {
-		if m.statements[statement][num] != nil {
-			// TODO(al,martin): we'll possibly need to expire Stmts from the cache,
-			// e.g. when DB connections break etc.
-			return m.statements[statement][num], nil
-		}
-	} else {
-		m.statements[statement] = make(map[int]*sql.Stmt)
-	}
-
-	s, err := m.db.Prepare(expandPlaceholderSQL(statement, num, first, rest))
-
-	if err != nil {
-		glog.Warningf("Failed to prepare statement %d: %s", num, err)
-		return nil, err
-	}
-
-	m.statements[statement][num] = s
-
-	return s, nil
-}
-
 func (m *mySQLTreeStorage) getSubtreeStmt(num int) (*sql.Stmt, error) {
-	return m.getStmt(selectSubtreeSQL, num, "?", "?")
+	return m.stmts.GetStmt(expandPlaceholderSQL(selectSubtreeSQL, num, "?", "?"), num)
 }
 
 func (m *mySQLTreeStorage) setSubtreeStmt(num int) (*sql.Stmt, error) {
-	return m.getStmt(insertSubtreeMultiSQL, num, "VALUES(?, ?, ?, ?)", "(?, ?, ?, ?)")
+	return m.stmts.GetStmt(
+		expandPlaceholderSQL(insertSubtreeMultiSQL, num, "VALUES(?, ?, ?, ?)", "(?, ?, ?, ?)"), num)
 }
 
 func (m *mySQLTreeStorage) beginTreeTx(ctx context.Context, treeID int64, hashSizeBytes int, strataDepths []int, populate storage.PopulateSubtreeFunc, prepare storage.PrepareSubtreeWriteFunc) (treeTX, error) {
