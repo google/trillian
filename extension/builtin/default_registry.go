@@ -39,7 +39,7 @@ var (
 	// set these values. By default this feature is not enabled. Values currently apply to all trees.
 	bucketedQueue    = flag.Bool("bucketed_queue", false, "Whether to enable queue bucketing strategy")
 	numUnseqBuckets  = flag.Int64("num_unseq_buckets", 4, "Number of unsequenced queue buckets")
-	numMerkleBuckets = flag.Int64("num_merkle_buckets", 16, "Number of merkle queue buckets below each main bucket")
+	numMerkleBuckets = flag.Int64("num_merkle_buckets", 8, "Number of merkle queue buckets below each main bucket")
 )
 
 // Default implementation of extension.Registry.
