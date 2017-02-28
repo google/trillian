@@ -32,7 +32,7 @@ import (
 )
 
 var (
-	ErrVerify = errors.New("signature verification failed")
+	errVerify = errors.New("signature verification failed")
 
 	cryptoHashLookup = map[sigpb.DigitallySigned_HashAlgorithm]crypto.Hash{
 		sigpb.DigitallySigned_SHA256: crypto.SHA256,
@@ -120,14 +120,14 @@ func verifyECDSA(pub *ecdsa.PublicKey, hashed, sig []byte) error {
 	}
 	rest, err := asn1.Unmarshal(sig, &ecdsaSig)
 	if err != nil {
-		return ErrVerify
+		return errVerify
 	}
 	if len(rest) != 0 {
-		return ErrVerify
+		return errVerify
 	}
 
 	if !ecdsa.Verify(pub, hashed, ecdsaSig.R, ecdsaSig.S) {
-		return ErrVerify
+		return errVerify
 	}
 	return nil
 
