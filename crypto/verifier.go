@@ -31,8 +31,13 @@ import (
 	"github.com/google/trillian/crypto/sigpb"
 )
 
-// ErrVerify occurs whenever signature verification fails.
-var ErrVerify = errors.New("signature verification failed")
+var (
+	ErrVerify = errors.New("signature verification failed")
+
+	cryptoHashLookup = map[sigpb.DigitallySigned_HashAlgorithm]crypto.Hash{
+		sigpb.DigitallySigned_SHA256: crypto.SHA256,
+	}
+)
 
 // PublicKeyFromFile returns the public key contained in the keyFile in PEM format.
 func PublicKeyFromFile(keyFile string) (crypto.PublicKey, error) {
@@ -77,7 +82,7 @@ func Verify(pub crypto.PublicKey, data []byte, sig *sigpb.DigitallySigned) error
 	sigAlgo := sig.SignatureAlgorithm
 
 	// Recompute digest
-	hasher, ok := signerHashLookup[sig.HashAlgorithm]
+	hasher, ok := cryptoHashLookup[sig.HashAlgorithm]
 	if !ok {
 		return fmt.Errorf("unsupported hash algorithm %v", hasher)
 	}
