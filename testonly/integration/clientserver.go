@@ -132,7 +132,6 @@ func NewLogEnv(ctx context.Context, numSequencers int, testID string) (*LogEnv, 
 		return nil, err
 	}
 
-	timesource := &util.SystemTimeSource{}
 	registry, err := builtin.NewExtensionRegistry(db, km)
 	if err != nil {
 		return nil, err
@@ -140,7 +139,7 @@ func NewLogEnv(ctx context.Context, numSequencers int, testID string) (*LogEnv, 
 
 	// Create Log Server.
 	grpcServer := grpc.NewServer()
-	logServer := server.NewTrillianLogRPCServer(registry, timesource)
+	logServer := server.NewTrillianLogRPCServer(registry, timeSource)
 	trillian.RegisterTrillianLogServer(grpcServer, logServer)
 
 	// Create Sequencer.
@@ -157,7 +156,7 @@ func NewLogEnv(ctx context.Context, numSequencers int, testID string) (*LogEnv, 
 		var ctx2 context.Context
 		ctx2, cancel = context.WithCancel(ctx)
 		sequencerTask = server.NewLogOperationManager(ctx2, registry,
-			batchSize, numSequencers, sleepBetweenRuns, timesource, sequencerManager)
+			batchSize, numSequencers, sleepBetweenRuns, timeSource, sequencerManager)
 		wg.Add(1)
 		go func(wg *sync.WaitGroup, om *server.LogOperationManager) {
 			defer wg.Done()
