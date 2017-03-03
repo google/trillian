@@ -45,7 +45,7 @@ func TestSignVerify(t *testing.T) {
 			t.Errorf("LoadPrivateKey(_, %v)=%v, want nil", test.password, err)
 			continue
 		}
-		signer := NewSigner(km)
+		signer := NewSignerFromPrivateKeyManager(km)
 
 		// Sign and Verify.
 		msg := []byte("foo")

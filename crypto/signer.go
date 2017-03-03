@@ -37,7 +37,16 @@ type Signer struct {
 // NewSigner creates a new Signer wrapping up a hasher and a signer. For the moment
 // we only support SHA256 hashing and either ECDSA or RSA signing but this is not enforced
 // here.
-func NewSigner(key PrivateKeyManager) *Signer {
+func NewSigner(sigAlgo sigpb.DigitallySigned_SignatureAlgorithm, signer crypto.Signer) *Signer {
+	return NewSignerFromPrivateKeyManager(localSigner{
+		Signer:             signer,
+		signatureAlgorithm: sigAlgo,
+	})
+}
+
+// NewSignerFromPrivateKeyManager creates a new Signer wrapping up a hasher and a signer.
+// For the moment, we only support SHA256 hashing and either ECDSA or RSA signing but this is not enforced here.
+func NewSignerFromPrivateKeyManager(key PrivateKeyManager) *Signer {
 	return &Signer{
 		hash: crypto.SHA256,
 		key:  key,
