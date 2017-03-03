@@ -34,7 +34,7 @@ func signV1TreeHead(km crypto.PrivateKeyManager, sth *ct.SignedTreeHead) error {
 		return err
 	}
 
-	trillianSigner := crypto.NewSigner(km.SignatureAlgorithm(), km)
+	trillianSigner := crypto.NewSignerFromPrivateKeyManager(km)
 
 	signature, err := trillianSigner.Sign(sthBytes)
 	if err != nil {
@@ -127,7 +127,7 @@ func serializeAndSignSCT(km crypto.PrivateKeyManager, leaf ct.MerkleTreeLeaf, sc
 }
 
 func signSCT(km crypto.PrivateKeyManager, t time.Time, sctData []byte) (*ct.SignedCertificateTimestamp, error) {
-	trillianSigner := crypto.NewSigner(km.SignatureAlgorithm(), km)
+	trillianSigner := crypto.NewSignerFromPrivateKeyManager(km)
 	signature, err := trillianSigner.Sign(sctData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign data: %v", err)

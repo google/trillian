@@ -23,14 +23,9 @@ import (
 	"github.com/google/trillian/crypto/sigpb"
 )
 
-var (
-	signerHashLookup = map[sigpb.DigitallySigned_HashAlgorithm]crypto.Hash{
-		sigpb.DigitallySigned_SHA256: crypto.SHA256,
-	}
-	reverseSignerHashLookup = map[crypto.Hash]sigpb.DigitallySigned_HashAlgorithm{
-		crypto.SHA256: sigpb.DigitallySigned_SHA256,
-	}
-)
+var sigpbHashLookup = map[crypto.Hash]sigpb.DigitallySigned_HashAlgorithm{
+	crypto.SHA256: sigpb.DigitallySigned_SHA256,
+}
 
 // Signer is responsible for signing log-related data and producing the appropriate
 // application specific signature objects.
@@ -51,6 +46,12 @@ func NewSigner(sigAlgo sigpb.DigitallySigned_SignatureAlgorithm, signer crypto.S
 	}
 }
 
+// NewSignerFromPrivateKeyManager creates a new Signer wrapping up a hasher and a private key.
+// For the moment, we only support SHA256 hashing and either ECDSA or RSA signing but this is not enforced here.
+func NewSignerFromPrivateKeyManager(key PrivateKeyManager) *Signer {
+	return NewSigner(key.SignatureAlgorithm(), key)
+}
+
 // Sign obtains a signature after first hashing the input data.
 func (s *Signer) Sign(data []byte) (*sigpb.DigitallySigned, error) {
 	h := s.hash.New()
@@ -64,7 +65,7 @@ func (s *Signer) Sign(data []byte) (*sigpb.DigitallySigned, error) {
 
 	return &sigpb.DigitallySigned{
 		SignatureAlgorithm: s.sigAlgorithm,
-		HashAlgorithm:      reverseSignerHashLookup[s.hash],
+		HashAlgorithm:      sigpbHashLookup[s.hash],
 		Signature:          sig,
 	}, nil
 }

@@ -18,7 +18,6 @@ import (
 	"crypto"
 	"testing"
 
-	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/testonly"
 )
 
@@ -36,11 +35,9 @@ func TestSignVerify(t *testing.T) {
 		PEM      string
 		password string
 		HashAlgo crypto.Hash
-		SigAlgo  sigpb.DigitallySigned_SignatureAlgorithm
 	}{
-		{privPEM, "", crypto.SHA256, sigpb.DigitallySigned_ECDSA},
-		{testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass,
-			crypto.SHA256, sigpb.DigitallySigned_ECDSA},
+		{privPEM, "", crypto.SHA256},
+		{testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass, crypto.SHA256},
 	} {
 
 		km, err := NewFromPrivatePEM(test.PEM, test.password)
@@ -48,7 +45,7 @@ func TestSignVerify(t *testing.T) {
 			t.Errorf("LoadPrivateKey(_, %v)=%v, want nil", test.password, err)
 			continue
 		}
-		signer := NewSigner(test.SigAlgo, km)
+		signer := NewSignerFromPrivateKeyManager(km)
 
 		// Sign and Verify.
 		msg := []byte("foo")
