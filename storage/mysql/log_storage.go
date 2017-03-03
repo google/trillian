@@ -15,6 +15,7 @@
 package mysql
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
@@ -22,6 +23,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -320,7 +322,12 @@ func (t *logTreeTX) QueueLeaves(leaves []*trillian.LogLeaf, queueTimestamp time.
 		insertSQL = insertUnsequencedLeafSQLNoDuplicates
 	}
 
-	for i, leaf := range leaves {
+	// Insert in order of the hash values in the leaves.
+	orderedLeaves := make([]*trillian.LogLeaf, len(leaves))
+	copy(orderedLeaves, leaves)
+	sort.Sort(byLeafIdentityHash(orderedLeaves))
+
+	for i, leaf := range orderedLeaves {
 		// Create the unsequenced leaf data entry. We don't use INSERT IGNORE because this
 		// can suppress errors unrelated to key collisions. We don't use REPLACE because
 		// if there's ever a hash collision it will do the wrong thing and it also
@@ -510,7 +517,12 @@ func (t *logTreeTX) UpdateSequencedLeaves(leaves []*trillian.LogLeaf) error {
 	return nil
 }
 
+// removeSequencedLeaves removes the passed in leaves slice (which may be
+// modified as part of the operation).
 func (t *logTreeTX) removeSequencedLeaves(leaves []*trillian.LogLeaf) error {
+	// Delete in order of the hash values in the leaves.
+	sort.Sort(byLeafIdentityHash(leaves))
+
 	tmpl, err := t.ls.getDeleteUnsequencedStmt(len(leaves))
 	if err != nil {
 		glog.Warningf("Failed to get delete statement for sequenced work: %s", err)
@@ -582,4 +594,16 @@ func (t *logTreeTX) GetActiveLogIDs() ([]int64, error) {
 // that have queued unsequenced leaves that need to be integrated
 func (t *logTreeTX) GetActiveLogIDsWithPendingWork() ([]int64, error) {
 	return getActiveLogIDsWithPendingWork(t.tx)
+}
+
+type byLeafIdentityHash []*trillian.LogLeaf
+
+func (l byLeafIdentityHash) Len() int {
+	return len(l)
+}
+func (l byLeafIdentityHash) Swap(i, j int) {
+	l[i], l[j] = l[j], l[i]
+}
+func (l byLeafIdentityHash) Less(i, j int) bool {
+	return bytes.Compare(l[i].LeafIdentityHash, l[j].LeafIdentityHash) == -1
 }

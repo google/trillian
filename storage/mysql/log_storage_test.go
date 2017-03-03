@@ -21,6 +21,7 @@ import (
 	"database/sql"
 	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -958,6 +959,30 @@ func TestGetSequencedLeafCount(t *testing.T) {
 		t.Fatalf("expected %d sequenced for logId2 but got %d", want, got)
 	}
 	commit(tx, t)
+}
+
+func TestSortByLeafIdentityHash(t *testing.T) {
+	l := make([]*trillian.LogLeaf, 30)
+	for i := range l {
+		hash := sha256.Sum256([]byte{byte(i)})
+		leaf := trillian.LogLeaf{
+			LeafIdentityHash: hash[:],
+			LeafValue:        []byte(fmt.Sprintf("Value %d", i)),
+			ExtraData:        []byte(fmt.Sprintf("Extra %d", i)),
+			LeafIndex:        int64(i),
+		}
+		l[i] = &leaf
+	}
+	sort.Sort(byLeafIdentityHash(l))
+	for i := range l {
+		if i == 0 {
+			continue
+		}
+		if bytes.Compare(l[i-1].LeafIdentityHash, l[i].LeafIdentityHash) != -1 {
+			t.Errorf("sorted leaves not in order, [%d] = %x, [%d] = %x", i-1, l[i-1].LeafIdentityHash, i, l[i].LeafIdentityHash)
+		}
+	}
+
 }
 
 func ensureAllLeavesDistinct(leaves []*trillian.LogLeaf, t *testing.T) {

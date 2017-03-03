@@ -60,6 +60,7 @@ type AdminStorageTester struct {
 // RunAllTests runs all AdminStorage tests.
 func (tester *AdminStorageTester) RunAllTests(t *testing.T) {
 	t.Run("TestCreateTree", tester.TestCreateTree)
+	t.Run("TestUpdateTree", tester.TestUpdateTree)
 	t.Run("TestListTrees", tester.TestListTrees)
 	t.Run("TestAdminTXClose", tester.TestAdminTXClose)
 }
@@ -83,9 +84,9 @@ func (tester *AdminStorageTester) TestCreateTree(t *testing.T) {
 		{tree: &validTree2},
 	}
 
+	ctx := context.Background()
 	s := tester.NewAdminStorage()
 	for i, test := range tests {
-		ctx := context.Background()
 		tx, err := s.Begin(ctx)
 		if err != nil {
 			t.Fatalf("%v: Begin() = %v, want = nil", i, err)
@@ -126,25 +127,196 @@ func (tester *AdminStorageTester) TestCreateTree(t *testing.T) {
 		}
 
 		// Make sure a tree was correctly stored
-		ctx = context.Background()
-		readOnlyTX, err := s.Snapshot(ctx)
+		storedTree, err := getTree(ctx, s, newTree.TreeId)
 		if err != nil {
-			t.Fatalf("%v: Snapshot() = %v, want = nil", i, err)
-		}
-		defer readOnlyTX.Close()
-		storedTree, err := readOnlyTX.GetTree(ctx, newTree.TreeId)
-		if err != nil {
-			t.Errorf(":%v: GetTree() = (%v, %v), want = (%v, nil)", i, newTree.TreeId, err, newTree)
+			t.Errorf(":%v: getTree() = (%v, %v), want = (%v, nil)", i, newTree.TreeId, err, newTree)
 			continue
 		}
 		wantTree = *storedTree
 		if !reflect.DeepEqual(newTree, &wantTree) {
 			t.Errorf("%v: newTree = \n%v, wantTree = \n%v", i, newTree, &wantTree)
 		}
-		if err := readOnlyTX.Commit(); err != nil {
-			t.Errorf("%v: Commit() = %v, want = nil", i, err)
+	}
+}
+
+// TestUpdateTree tests AdminStorage Tree updates.
+func (tester *AdminStorageTester) TestUpdateTree(t *testing.T) {
+	ctx := context.Background()
+	s := tester.NewAdminStorage()
+
+	unrelatedTree, err := createTree(ctx, s, MapTree)
+	if err != nil {
+		t.Fatalf("createTree() = (_, %v), want = (_, nil)", err)
+	}
+
+	referenceLog := *LogTree
+	validLog := referenceLog
+	validLog.TreeState = trillian.TreeState_FROZEN
+	validLog.DisplayName = "Frozen Tree"
+	validLog.Description = "A Frozen Tree"
+	validLogFunc := func(t *trillian.Tree) {
+		t.TreeState = validLog.TreeState
+		t.DisplayName = validLog.DisplayName
+		t.Description = validLog.Description
+	}
+
+	invalidLogFunc := func(t *trillian.Tree) {
+		t.TreeState = trillian.TreeState_UNKNOWN_TREE_STATE
+	}
+
+	readonlyChangedFunc := func(t *trillian.Tree) {
+		t.TreeType = trillian.TreeType_MAP
+	}
+
+	referenceMap := *MapTree
+	validMap := referenceMap
+	validMap.DisplayName = "Updated Map"
+	validMapFunc := func(t *trillian.Tree) {
+		t.DisplayName = validMap.DisplayName
+	}
+
+	// Test for an unknown tree outside the loop: it makes the test logic simpler
+	if _, errOnUpdate, err := updateTree(ctx, s, -1, func(t *trillian.Tree) {}); err == nil || !errOnUpdate {
+		t.Errorf("updateTree(_, -1, _) = (_, %v, %v), want = (_, true, lookup error)", errOnUpdate, err)
+	}
+
+	tests := []struct {
+		desc         string
+		create, want *trillian.Tree
+		updateFunc   func(*trillian.Tree)
+		wantErr      bool
+	}{
+		{
+			desc:       "validLog",
+			create:     &referenceLog,
+			updateFunc: validLogFunc,
+			want:       &validLog,
+		},
+		{
+			desc:       "invalidLog",
+			create:     &referenceLog,
+			updateFunc: invalidLogFunc,
+			wantErr:    true,
+		},
+		{
+			desc:       "readonlyChanged",
+			create:     &referenceLog,
+			updateFunc: readonlyChangedFunc,
+			wantErr:    true,
+		},
+		{
+			desc:       "validMap",
+			create:     &referenceMap,
+			updateFunc: validMapFunc,
+			want:       &validMap,
+		},
+	}
+	for _, test := range tests {
+		createdTree, err := createTree(ctx, s, test.create)
+		if err != nil {
+			t.Errorf("createTree() = (_, %v), want = (_, nil)", err)
+			continue
+		}
+
+		updatedTree, errOnUpdate, err := updateTree(ctx, s, createdTree.TreeId, test.updateFunc)
+		if err != nil && !errOnUpdate {
+			t.Errorf("%v: updateTree() failed with non-Update error: %v", test.desc, err)
+			continue
+		}
+
+		if hasErr := err != nil; hasErr != test.wantErr {
+			t.Errorf("%v: updateTree() = (_, %v), wantErr = %v", test.desc, err, test.wantErr)
+			continue
+		} else if hasErr {
+			continue
+		}
+
+		if createdTree.TreeId != updatedTree.TreeId {
+			t.Errorf("%v: TreeId = %v, want = %v", test.desc, updatedTree.TreeId, createdTree.TreeId)
+		}
+		if createdTree.CreateTimeMillisSinceEpoch != updatedTree.CreateTimeMillisSinceEpoch {
+			t.Errorf("%v: CreateTime = %v, want = %v", test.desc, updatedTree.CreateTimeMillisSinceEpoch, createdTree.CreateTimeMillisSinceEpoch)
+		}
+		if createdTree.UpdateTimeMillisSinceEpoch > updatedTree.UpdateTimeMillisSinceEpoch {
+			t.Errorf("%v: UpdateTime = %v, want >= %v", test.desc, updatedTree.UpdateTimeMillisSinceEpoch, createdTree.UpdateTimeMillisSinceEpoch)
+		}
+		// Copy storage-generated values to want before comparing
+		wantTree := *test.want
+		wantTree.TreeId = updatedTree.TreeId
+		wantTree.CreateTimeMillisSinceEpoch = updatedTree.CreateTimeMillisSinceEpoch
+		wantTree.UpdateTimeMillisSinceEpoch = updatedTree.UpdateTimeMillisSinceEpoch
+		if !reflect.DeepEqual(updatedTree, &wantTree) {
+			t.Errorf("%v: updatedTree doesn't match wantTree:\n"+
+				"got =  %v,\n"+
+				"want = %v", test.desc, updatedTree, &wantTree)
+		}
+
+		if storedTree, err := getTree(ctx, s, updatedTree.TreeId); err != nil {
+			t.Errorf(":%v: getTree() = (_, %v), want = (_, nil)", test.desc, err)
+		} else if !reflect.DeepEqual(storedTree, updatedTree) {
+			t.Errorf("%v: storedTree doesn't match updatedTree:\n"+
+				"got =  %v,\n"+
+				"want = %v", test.desc, storedTree, updatedTree)
+		}
+
+		if unrelatedAfterTest, err := getTree(ctx, s, unrelatedTree.TreeId); err != nil {
+			t.Errorf("%v: getTree() = (_, %v), want = (_, nil)", test.desc, err)
+		} else if !reflect.DeepEqual(unrelatedAfterTest, unrelatedTree) {
+			t.Errorf("%v: unrelatedTree changed:\n"+
+				"got  = %v,\n"+
+				"want = %v", test.desc, unrelatedAfterTest, unrelatedTree)
 		}
 	}
+}
+
+func createTree(ctx context.Context, s storage.AdminStorage, tree *trillian.Tree) (*trillian.Tree, error) {
+	tx, err := s.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Close()
+	newTree, err := tx.CreateTree(ctx, tree)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return newTree, nil
+}
+
+// updateTree updates the specified tree.
+// The bool return signifies whether the error was returned by the UpdateTree() call.
+func updateTree(ctx context.Context, s storage.AdminStorage, treeID int64, updateFunc func(*trillian.Tree)) (*trillian.Tree, bool, error) {
+	tx, err := s.Begin(ctx)
+	if err != nil {
+		return nil, false, err
+	}
+	defer tx.Close()
+	newTree, err := tx.UpdateTree(ctx, treeID, updateFunc)
+	if err != nil {
+		return nil, true, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, false, err
+	}
+	return newTree, false, nil
+}
+
+func getTree(ctx context.Context, s storage.AdminStorage, treeID int64) (*trillian.Tree, error) {
+	tx, err := s.Snapshot(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Close()
+	tree, err := tx.GetTree(ctx, treeID)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return tree, nil
 }
 
 // TestListTrees tests both ListTreeIDs and ListTrees.
@@ -157,6 +329,7 @@ func (tester *AdminStorageTester) TestListTrees(t *testing.T) {
 		{newTrees: 3}, // total 4
 	}
 
+	ctx := context.Background()
 	s := tester.NewAdminStorage()
 
 	wantTrees := []*trillian.Tree{}
@@ -164,28 +337,18 @@ func (tester *AdminStorageTester) TestListTrees(t *testing.T) {
 		// Setup new trees (as specified)
 		if test.newTrees > 0 {
 			before := len(wantTrees)
-			ctx := context.Background()
-			tx, err := s.Begin(ctx)
-			if err != nil {
-				t.Fatalf("%v: Begin() = %v, want = nil", i, err)
-			}
-			defer tx.Close()
 			for j := 0; j < test.newTrees; j++ {
-				tree, err := tx.CreateTree(ctx, LogTree)
+				tree, err := createTree(ctx, s, LogTree)
 				if err != nil {
 					t.Fatalf("%v: CreateTree() = (_, %v), want = (_, nil)", i, err)
 				}
 				wantTrees = append(wantTrees, tree)
-			}
-			if err := tx.Commit(); err != nil {
-				t.Fatalf("%v: Commit() = %v, want = nil", i, err)
 			}
 			if got := len(wantTrees) - before; got != test.newTrees {
 				t.Fatalf("got %v new trees, want = %v", got, test.newTrees)
 			}
 		}
 
-		ctx := context.Background()
 		tx, err := s.Snapshot(ctx)
 		if err != nil {
 			t.Fatalf("%v: Snapshot() = %v, want = nil", i, err)
@@ -263,9 +426,10 @@ func (tester *AdminStorageTester) TestAdminTXClose(t *testing.T) {
 		{wantRollback: true}, // Close() before Commit() or Rollback() will cause a rollback
 	}
 
+	ctx := context.Background()
 	s := tester.NewAdminStorage()
+
 	for i, test := range tests {
-		ctx := context.Background()
 		tx, err := s.Begin(ctx)
 		if err != nil {
 			t.Fatalf("%v: Begin() = (_, %v), want = (_, nil)", i, err)
@@ -295,7 +459,6 @@ func (tester *AdminStorageTester) TestAdminTXClose(t *testing.T) {
 			continue
 		}
 
-		ctx = context.Background()
 		tx2, err := s.Snapshot(ctx)
 		if err != nil {
 			t.Fatalf("%v: Snapshot() = (_, %v), want = (_, nil)", i, err)

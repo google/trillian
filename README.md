@@ -74,7 +74,8 @@ If you're not with the Go program of working within its
 ```console
 % cd <your favorite directory for git repos>
 % git clone https://github.com/google/trillian.git
-% ln -s `pwd`/trillian $GOPATH/src/github.com/google  # you may have to make this directory first
+% mkdir -p $GOPATH/src/github.com/google
+% ln -s $(pwd)/trillian $GOPATH/src/github.com/google
 % cd trillian
 % go get -d -v -t ./...
 % go build ./...
