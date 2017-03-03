@@ -30,27 +30,26 @@ var sigpbHashLookup = map[crypto.Hash]sigpb.DigitallySigned_HashAlgorithm{
 // Signer is responsible for signing log-related data and producing the appropriate
 // application specific signature objects.
 type Signer struct {
-	hash crypto.Hash
-	key  PrivateKeyManager
+	hash         crypto.Hash
+	signer       crypto.Signer
+	sigAlgorithm sigpb.DigitallySigned_SignatureAlgorithm
 }
 
 // NewSigner creates a new Signer wrapping up a hasher and a signer. For the moment
 // we only support SHA256 hashing and either ECDSA or RSA signing but this is not enforced
 // here.
 func NewSigner(sigAlgo sigpb.DigitallySigned_SignatureAlgorithm, signer crypto.Signer) *Signer {
-	return NewSignerFromPrivateKeyManager(localSigner{
-		Signer:             signer,
-		signatureAlgorithm: sigAlgo,
-	})
+	return &Signer{
+		hash:         crypto.SHA256,
+		signer:       signer,
+		sigAlgorithm: sigAlgo,
+	}
 }
 
-// NewSignerFromPrivateKeyManager creates a new Signer wrapping up a hasher and a signer.
+// NewSignerFromPrivateKeyManager creates a new Signer wrapping up a hasher and a private key.
 // For the moment, we only support SHA256 hashing and either ECDSA or RSA signing but this is not enforced here.
 func NewSignerFromPrivateKeyManager(key PrivateKeyManager) *Signer {
-	return &Signer{
-		hash: crypto.SHA256,
-		key:  key,
-	}
+	return NewSigner(key.SignatureAlgorithm(), key)
 }
 
 // Sign obtains a signature after first hashing the input data.
@@ -59,13 +58,13 @@ func (s *Signer) Sign(data []byte) (*sigpb.DigitallySigned, error) {
 	h.Write(data)
 	digest := h.Sum(nil)
 
-	sig, err := s.key.Sign(rand.Reader, digest, s.hash)
+	sig, err := s.signer.Sign(rand.Reader, digest, s.hash)
 	if err != nil {
 		return nil, err
 	}
 
 	return &sigpb.DigitallySigned{
-		SignatureAlgorithm: s.key.SignatureAlgorithm(),
+		SignatureAlgorithm: s.sigAlgorithm,
 		HashAlgorithm:      sigpbHashLookup[s.hash],
 		Signature:          sig,
 	}, nil

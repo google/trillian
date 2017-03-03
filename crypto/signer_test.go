@@ -94,7 +94,7 @@ func TestSignerFails(t *testing.T) {
 	digest := messageHash()
 	mockKey.EXPECT().Sign(gomock.Any(), digest[:], usesSHA256Hasher{}).Return(digest, errors.New("sign"))
 
-	logSigner := NewSignerFromPrivateKeyManager(mockKey)
+	logSigner := NewSigner(sigpb.DigitallySigned_ECDSA, mockKey)
 
 	_, err := logSigner.Sign([]byte(message))
 
@@ -114,7 +114,7 @@ func TestSignLogRootSignerFails(t *testing.T) {
 		[]byte{0xe5, 0xb3, 0x18, 0x1a, 0xec, 0xc8, 0x64, 0xc6, 0x39, 0x6d, 0x83, 0x21, 0x7a, 0x18, 0x3, 0x9, 0xf5, 0xa0, 0x25, 0xde, 0xf7, 0x1b, 0xdb, 0x2d, 0xbe, 0x42, 0x8a, 0x4a, 0xab, 0xc1, 0xcd, 0x49},
 		usesSHA256Hasher{}).Return([]byte{}, errors.New("signfail"))
 
-	logSigner := NewSignerFromPrivateKeyManager(mockKey)
+	logSigner := NewSigner(sigpb.DigitallySigned_ECDSA, mockKey)
 
 	root := trillian.SignedLogRoot{TimestampNanos: 2267709, RootHash: []byte("Islington"), TreeSize: 2}
 	_, err := logSigner.Sign(HashLogRoot(root))
