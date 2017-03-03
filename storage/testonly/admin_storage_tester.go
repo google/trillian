@@ -84,9 +84,9 @@ func (tester *AdminStorageTester) TestCreateTree(t *testing.T) {
 		{tree: &validTree2},
 	}
 
+	ctx := context.Background()
 	s := tester.NewAdminStorage()
 	for i, test := range tests {
-		ctx := context.Background()
 		tx, err := s.Begin(ctx)
 		if err != nil {
 			t.Fatalf("%v: Begin() = %v, want = nil", i, err)
@@ -127,7 +127,7 @@ func (tester *AdminStorageTester) TestCreateTree(t *testing.T) {
 		}
 
 		// Make sure a tree was correctly stored
-		storedTree, err := getTree(s, newTree.TreeId)
+		storedTree, err := getTree(ctx, s, newTree.TreeId)
 		if err != nil {
 			t.Errorf(":%v: getTree() = (%v, %v), want = (%v, nil)", i, newTree.TreeId, err, newTree)
 			continue
@@ -141,9 +141,10 @@ func (tester *AdminStorageTester) TestCreateTree(t *testing.T) {
 
 // TestUpdateTree tests AdminStorage Tree updates.
 func (tester *AdminStorageTester) TestUpdateTree(t *testing.T) {
+	ctx := context.Background()
 	s := tester.NewAdminStorage()
 
-	unrelatedTree, err := createTree(s, MapTree)
+	unrelatedTree, err := createTree(ctx, s, MapTree)
 	if err != nil {
 		t.Fatalf("createTree() = (_, %v), want = (_, nil)", err)
 	}
@@ -175,7 +176,7 @@ func (tester *AdminStorageTester) TestUpdateTree(t *testing.T) {
 	}
 
 	// Test for an unknown tree outside the loop: it makes the test logic simpler
-	if _, errOnUpdate, err := updateTree(s, -1, func(t *trillian.Tree) {}); err == nil || !errOnUpdate {
+	if _, errOnUpdate, err := updateTree(ctx, s, -1, func(t *trillian.Tree) {}); err == nil || !errOnUpdate {
 		t.Errorf("updateTree(_, -1, _) = (_, %v, %v), want = (_, true, lookup error)", errOnUpdate, err)
 	}
 
@@ -211,13 +212,13 @@ func (tester *AdminStorageTester) TestUpdateTree(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		createdTree, err := createTree(s, test.create)
+		createdTree, err := createTree(ctx, s, test.create)
 		if err != nil {
 			t.Errorf("createTree() = (_, %v), want = (_, nil)", err)
 			continue
 		}
 
-		updatedTree, errOnUpdate, err := updateTree(s, createdTree.TreeId, test.updateFunc)
+		updatedTree, errOnUpdate, err := updateTree(ctx, s, createdTree.TreeId, test.updateFunc)
 		if err != nil && !errOnUpdate {
 			t.Errorf("%v: updateTree() failed with non-Update error: %v", test.desc, err)
 			continue
@@ -250,7 +251,7 @@ func (tester *AdminStorageTester) TestUpdateTree(t *testing.T) {
 				"want = %v", test.desc, updatedTree, &wantTree)
 		}
 
-		if storedTree, err := getTree(s, updatedTree.TreeId); err != nil {
+		if storedTree, err := getTree(ctx, s, updatedTree.TreeId); err != nil {
 			t.Errorf(":%v: getTree() = (_, %v), want = (_, nil)", test.desc, err)
 		} else if !reflect.DeepEqual(storedTree, updatedTree) {
 			t.Errorf("%v: storedTree doesn't match updatedTree:\n"+
@@ -258,7 +259,7 @@ func (tester *AdminStorageTester) TestUpdateTree(t *testing.T) {
 				"want = %v", test.desc, storedTree, updatedTree)
 		}
 
-		if unrelatedAfterTest, err := getTree(s, unrelatedTree.TreeId); err != nil {
+		if unrelatedAfterTest, err := getTree(ctx, s, unrelatedTree.TreeId); err != nil {
 			t.Errorf("%v: getTree() = (_, %v), want = (_, nil)", test.desc, err)
 		} else if !reflect.DeepEqual(unrelatedAfterTest, unrelatedTree) {
 			t.Errorf("%v: unrelatedTree changed:\n"+
@@ -268,8 +269,7 @@ func (tester *AdminStorageTester) TestUpdateTree(t *testing.T) {
 	}
 }
 
-func createTree(s storage.AdminStorage, tree *trillian.Tree) (*trillian.Tree, error) {
-	ctx := context.Background()
+func createTree(ctx context.Context, s storage.AdminStorage, tree *trillian.Tree) (*trillian.Tree, error) {
 	tx, err := s.Begin(ctx)
 	if err != nil {
 		return nil, err
@@ -287,8 +287,7 @@ func createTree(s storage.AdminStorage, tree *trillian.Tree) (*trillian.Tree, er
 
 // updateTree updates the specified tree.
 // The bool return signifies whether the error was returned by the UpdateTree() call.
-func updateTree(s storage.AdminStorage, treeID int64, updateFunc func(*trillian.Tree)) (*trillian.Tree, bool, error) {
-	ctx := context.Background()
+func updateTree(ctx context.Context, s storage.AdminStorage, treeID int64, updateFunc func(*trillian.Tree)) (*trillian.Tree, bool, error) {
 	tx, err := s.Begin(ctx)
 	if err != nil {
 		return nil, false, err
@@ -304,8 +303,7 @@ func updateTree(s storage.AdminStorage, treeID int64, updateFunc func(*trillian.
 	return newTree, false, nil
 }
 
-func getTree(s storage.AdminStorage, treeID int64) (*trillian.Tree, error) {
-	ctx := context.Background()
+func getTree(ctx context.Context, s storage.AdminStorage, treeID int64) (*trillian.Tree, error) {
 	tx, err := s.Snapshot(ctx)
 	if err != nil {
 		return nil, err
@@ -331,6 +329,7 @@ func (tester *AdminStorageTester) TestListTrees(t *testing.T) {
 		{newTrees: 3}, // total 4
 	}
 
+	ctx := context.Background()
 	s := tester.NewAdminStorage()
 
 	wantTrees := []*trillian.Tree{}
@@ -338,28 +337,18 @@ func (tester *AdminStorageTester) TestListTrees(t *testing.T) {
 		// Setup new trees (as specified)
 		if test.newTrees > 0 {
 			before := len(wantTrees)
-			ctx := context.Background()
-			tx, err := s.Begin(ctx)
-			if err != nil {
-				t.Fatalf("%v: Begin() = %v, want = nil", i, err)
-			}
-			defer tx.Close()
 			for j := 0; j < test.newTrees; j++ {
-				tree, err := tx.CreateTree(ctx, LogTree)
+				tree, err := createTree(ctx, s, LogTree)
 				if err != nil {
 					t.Fatalf("%v: CreateTree() = (_, %v), want = (_, nil)", i, err)
 				}
 				wantTrees = append(wantTrees, tree)
-			}
-			if err := tx.Commit(); err != nil {
-				t.Fatalf("%v: Commit() = %v, want = nil", i, err)
 			}
 			if got := len(wantTrees) - before; got != test.newTrees {
 				t.Fatalf("got %v new trees, want = %v", got, test.newTrees)
 			}
 		}
 
-		ctx := context.Background()
 		tx, err := s.Snapshot(ctx)
 		if err != nil {
 			t.Fatalf("%v: Snapshot() = %v, want = nil", i, err)
@@ -437,9 +426,10 @@ func (tester *AdminStorageTester) TestAdminTXClose(t *testing.T) {
 		{wantRollback: true}, // Close() before Commit() or Rollback() will cause a rollback
 	}
 
+	ctx := context.Background()
 	s := tester.NewAdminStorage()
+
 	for i, test := range tests {
-		ctx := context.Background()
 		tx, err := s.Begin(ctx)
 		if err != nil {
 			t.Fatalf("%v: Begin() = (_, %v), want = (_, nil)", i, err)
@@ -469,7 +459,6 @@ func (tester *AdminStorageTester) TestAdminTXClose(t *testing.T) {
 			continue
 		}
 
-		ctx = context.Background()
 		tx2, err := s.Snapshot(ctx)
 		if err != nil {
 			t.Fatalf("%v: Snapshot() = (_, %v), want = (_, nil)", i, err)
