@@ -94,7 +94,9 @@ type AdminWriter interface {
 
 	// UpdateTree updates the specified tree in storage, returning a tree
 	// with all storage-generated fields set.
-	// updateFunc is called to perform the desired tree modifications.
+	// updateFunc is called to perform the desired tree modifications. Refer
+	// to trillian.Tree for details on which fields are mutable and what is
+	// considered valid.
 	// Returns an error if the tree is invalid or the update cannot be
 	// performed.
 	UpdateTree(ctx context.Context, treeID int64, updateFunc func(*trillian.Tree)) (*trillian.Tree, error)

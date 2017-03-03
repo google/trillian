@@ -149,7 +149,6 @@ func (tester *AdminStorageTester) TestUpdateTree(t *testing.T) {
 	}
 
 	referenceLog := *LogTree
-
 	validLog := referenceLog
 	validLog.TreeState = trillian.TreeState_FROZEN
 	validLog.DisplayName = "Frozen Tree"
@@ -177,42 +176,42 @@ func (tester *AdminStorageTester) TestUpdateTree(t *testing.T) {
 
 	// Test for an unknown tree outside the loop: it makes the test logic simpler
 	if _, errOnUpdate, err := updateTree(s, -1, func(t *trillian.Tree) {}); err == nil || !errOnUpdate {
-		t.Errorf("updateTree() = (_, %v, %v), wanted lookup error (ie, error on update)", errOnUpdate, err)
+		t.Errorf("updateTree(_, -1, _) = (_, %v, %v), want = (_, true, lookup error)", errOnUpdate, err)
 	}
 
 	tests := []struct {
-		desc                 string
-		createTree, wantTree *trillian.Tree
-		updateFunc           func(*trillian.Tree)
-		wantErr              bool
+		desc         string
+		create, want *trillian.Tree
+		updateFunc   func(*trillian.Tree)
+		wantErr      bool
 	}{
 		{
 			desc:       "validLog",
-			createTree: &referenceLog,
+			create:     &referenceLog,
 			updateFunc: validLogFunc,
-			wantTree:   &validLog,
+			want:       &validLog,
 		},
 		{
 			desc:       "invalidLog",
-			createTree: &referenceLog,
+			create:     &referenceLog,
 			updateFunc: invalidLogFunc,
 			wantErr:    true,
 		},
 		{
 			desc:       "readonlyChanged",
-			createTree: &referenceLog,
+			create:     &referenceLog,
 			updateFunc: readonlyChangedFunc,
 			wantErr:    true,
 		},
 		{
 			desc:       "validMap",
-			createTree: &referenceMap,
+			create:     &referenceMap,
 			updateFunc: validMapFunc,
-			wantTree:   &validMap,
+			want:       &validMap,
 		},
 	}
 	for _, test := range tests {
-		createdTree, err := createTree(s, test.createTree)
+		createdTree, err := createTree(s, test.create)
 		if err != nil {
 			t.Errorf("createTree() = (_, %v), want = (_, nil)", err)
 			continue
@@ -240,8 +239,8 @@ func (tester *AdminStorageTester) TestUpdateTree(t *testing.T) {
 		if createdTree.UpdateTimeMillisSinceEpoch > updatedTree.UpdateTimeMillisSinceEpoch {
 			t.Errorf("%v: UpdateTime = %v, want >= %v", test.desc, updatedTree.UpdateTimeMillisSinceEpoch, createdTree.UpdateTimeMillisSinceEpoch)
 		}
-		// Copy storage-generated values to wantTree before comparing
-		wantTree := *test.wantTree
+		// Copy storage-generated values to want before comparing
+		wantTree := *test.want
 		wantTree.TreeId = updatedTree.TreeId
 		wantTree.CreateTimeMillisSinceEpoch = updatedTree.CreateTimeMillisSinceEpoch
 		wantTree.UpdateTimeMillisSinceEpoch = updatedTree.UpdateTimeMillisSinceEpoch
