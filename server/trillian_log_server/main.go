@@ -18,10 +18,6 @@ import (
 	"flag"
 	"fmt"
 	"net"
-	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/golang/glog"
@@ -59,34 +55,6 @@ func startRPCServer(registry extension.Registry) (*grpc.Server, error) {
 	return grpcServer, nil
 }
 
-// TODO(drysdale): commonize the following 2 fns across all main()s
-func startHTTPServer(port int) error {
-	sock, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
-	if err != nil {
-		return err
-	}
-	go func() {
-		glog.Info("HTTP server starting")
-		http.Serve(sock, nil)
-	}()
-
-	return nil
-}
-
-func awaitSignal(rpcServer *grpc.Server) {
-	// Arrange notification for the standard set of signals used to terminate a server
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-
-	// Now block main and wait for a signal
-	sig := <-sigs
-	glog.Warningf("Signal received: %v", sig)
-	glog.Flush()
-
-	// Bring down the RPC server, which will unblock main
-	rpcServer.Stop()
-}
-
 func main() {
 	flag.Parse()
 	glog.CopyStandardLogTo("WARNING")
@@ -101,7 +69,7 @@ func main() {
 	// Start HTTP server (optional)
 	if *exportRPCMetrics {
 		glog.Infof("Creating HTP server starting on port: %d", *httpPortFlag)
-		if err := startHTTPServer(*httpPortFlag); err != nil {
+		if err := util.StartHTTPServer(*httpPortFlag); err != nil {
 			glog.Exitf("Failed to start http server on port %d: %v", *httpPortFlag, err)
 		}
 	}
@@ -119,7 +87,10 @@ func main() {
 	if err != nil {
 		glog.Exitf("Failed to start RPC server: %v", err)
 	}
-	go awaitSignal(rpcServer)
+	go util.AwaitSignal(func() {
+		// Bring down the RPC server, which will unblock main
+		rpcServer.Stop()
+	})
 
 	if err := rpcServer.Serve(lis); err != nil {
 		glog.Errorf("RPC server terminated on port %d: %v", *serverPortFlag, err)
