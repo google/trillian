@@ -15,13 +15,12 @@
 package server
 
 import (
+	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util"
-
-	"github.com/golang/glog"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -62,11 +61,17 @@ func (t *TrillianLogRPCServer) QueueLeaf(ctx context.Context, req *trillian.Queu
 		LogId:  req.LogId,
 		Leaves: []*trillian.LogLeaf{req.Leaf},
 	}
-	_, err := t.QueueLeaves(ctx, queueReq)
+	queueRsp, err := t.QueueLeaves(ctx, queueReq)
 	if err != nil {
 		return nil, err
 	}
-	return &trillian.QueueLeafResponse{}, nil
+	if queueRsp == nil {
+		return nil, grpc.Errorf(codes.Internal, "missing response")
+	}
+	if len(queueRsp.QueuedLeaves) != 1 {
+		return nil, grpc.Errorf(codes.Internal, "unexpected count of leaves %d", len(queueRsp.QueuedLeaves))
+	}
+	return &trillian.QueueLeafResponse{QueuedLeaf: queueRsp.QueuedLeaves[0]}, nil
 }
 
 // QueueLeaves submits a batch of leaves to the log for later integration into the underlying tree.
@@ -101,7 +106,12 @@ func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.Qu
 		return nil, err
 	}
 
-	return &trillian.QueueLeavesResponse{}, nil
+	var queuedLeaves []*trillian.QueuedLogLeaf
+	for _, leaf := range req.Leaves {
+		queuedLeaf := trillian.QueuedLogLeaf{Leaf: leaf}
+		queuedLeaves = append(queuedLeaves, &queuedLeaf)
+	}
+	return &trillian.QueueLeavesResponse{QueuedLeaves: queuedLeaves}, nil
 }
 
 // GetInclusionProof obtains the proof of inclusion in the tree for a leaf that has been sequenced.
