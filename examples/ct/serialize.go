@@ -124,24 +124,14 @@ func signV1SCTForPrecertificate(signer *crypto.Signer, cert, issuer *x509.Certif
 
 func serializeAndSignSCT(signer *crypto.Signer, leaf ct.MerkleTreeLeaf, sctInput ct.SignedCertificateTimestamp, t time.Time) (*ct.SignedCertificateTimestamp, error) {
 	// Serialize SCT signature input to get the bytes that need to be signed
-	res, err := ct.SerializeSCTSignatureInput(sctInput, ct.LogEntry{Leaf: leaf})
+	data, err := ct.SerializeSCTSignatureInput(sctInput, ct.LogEntry{Leaf: leaf})
 	if err != nil {
 		return nil, fmt.Errorf("failed to serialize SCT data: %v", err)
 	}
 
-	// Create a complete SCT including signature
-	sct, err := signSCT(signer, t, res)
+	signature, err := signer.Sign(data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign SCT data: %v", err)
-	}
-
-	return sct, nil
-}
-
-func signSCT(signer *crypto.Signer, t time.Time, sctData []byte) (*ct.SignedCertificateTimestamp, error) {
-	signature, err := signer.Sign(sctData)
-	if err != nil {
-		return nil, fmt.Errorf("failed to sign data: %v", err)
 	}
 
 	digitallySigned := ct.DigitallySigned{
@@ -155,7 +145,7 @@ func signSCT(signer *crypto.Signer, t time.Time, sctData []byte) (*ct.SignedCert
 
 	logID, err := GetCTLogID(signer.Public())
 	if err != nil {
-		return nil, fmt.Errorf("failed to get logID: %v", err)
+		return nil, fmt.Errorf("failed to get logID for signing: %v", err)
 	}
 
 	return &ct.SignedCertificateTimestamp{
