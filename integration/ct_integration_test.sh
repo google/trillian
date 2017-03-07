@@ -12,6 +12,7 @@ HTTP_SERVER_COUNT=${2:-1}
 # Ensure everything is tidied on exit
 TO_DELETE="${TO_DELETE} ${CT_CFG}"
 TO_KILL+=(${HTTP_SERVER_PIDS[@]})
+TO_KILL+=(${LOG_SIGNER_PIDS[@]})
 TO_KILL+=(${LB_SERVER_PID})
 TO_KILL+=(${RPC_SERVER_PIDS[@]})
 

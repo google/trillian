@@ -7,6 +7,7 @@
 #  - CT_SERVERS      : list of HTTP addresses (comma separated)
 #  - LB_PORT         : port for RPC load balancer
 #  - RPC_SERVER_PIDS : bash array of RPC server pids
+#  - LOG_SIGNER_PIDS : bash array of signer pids
 #  - LB_SERVER_PID   : RPC load balancer pid
 #  - CT_SERVER_PIDS  : bash array of CT HTTP server pids
 set -e
@@ -15,6 +16,7 @@ INTEGRATION_DIR="$( cd "$( dirname "$0" )" && pwd )"
 
 echo "Building code"
 go build ${GOFLAGS} ./server/trillian_log_server/
+go build ${GOFLAGS} ./server/trillian_log_signer/
 go build ${GOFLAGS} ./testonly/loglb
 go build ${GOFLAGS} ./examples/ct/ct_server/
 
@@ -25,14 +27,11 @@ echo "Provisioning test log (Tree ID: 0) in database"
 # Default to one RPC server and one HTTP server.
 RPC_SERVER_COUNT=${1:-1}
 HTTP_SERVER_COUNT=${2:-1}
+LOG_SIGNER_COUNT=1
 
 . "${INTEGRATION_DIR}"/ct_config.sh
 
-# Start a set of Log RPC servers.  Note that each of them will run their own
-# sequencer; a proper deployment should have a single master sequencer, but
-# for this test we rely on the transactional nature of the sequencing operation.
-# TODO(drysdale): update this comment once the Trillian open-source code includes
-# some kind of sequencer mastership election.
+# Start a set of Log RPC servers.
 pushd "${TRILLIAN_ROOT}" > /dev/null
 declare -a RPC_SERVER_PIDS
 for ((i=0; i < RPC_SERVER_COUNT; i++)); do
@@ -41,7 +40,7 @@ for ((i=0; i < RPC_SERVER_COUNT; i++)); do
   RPC_SERVERS="${RPC_SERVERS},localhost:${port}"
 
   echo "Starting Log RPC server on port ${port}"
-  ./trillian_log_server --private_key_password=towel --private_key_file=${TESTDATA}/log-rpc-server.privkey.pem --port ${port} --sequencer_sleep_between_runs="1s" --batch_size=500 --export_metrics=false --num_sequencers 2 &
+  ./trillian_log_server --private_key_password=towel --private_key_file=${TESTDATA}/log-rpc-server.privkey.pem --port ${port} --export_metrics=false &
   pid=$!
   RPC_SERVER_PIDS+=(${pid})
   waitForServerStartup ${port}
@@ -59,6 +58,16 @@ LB_SERVER_PID=$!
 popd > /dev/null
 waitForServerStartup ${LB_PORT}
 
+# Start a single signer.
+# TODO(drysdale): update to run multiple signers once the Trillian open-source code includes
+# some kind of sequencer/signer mastership election.
+declare -a LOG_SIGNER_PIDS
+for ((i=0; i < LOG_SIGNER_COUNT; i++)); do
+  echo "Starting Log signer"
+  ./trillian_log_signer --private_key_password=towel --private_key_file=${TESTDATA}/log-rpc-server.privkey.pem --sequencer_sleep_between_runs="1s" --batch_size=500 --export_metrics=false --num_sequencers 2 &
+  pid=$!
+  LOG_SIGNER_PIDS+=(${pid})
+done
 
 # Start a set of CT personalities.
 pushd "${TRILLIAN_ROOT}" > /dev/null
