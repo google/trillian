@@ -3,6 +3,7 @@
 /ct_server
 /loglb
 /protoc
+/trillian_log_signer
 /trillian_log_server
 /trillian_map_server
 *.iml
