@@ -22,6 +22,7 @@ package trillian;
 
 import "trillian.proto";
 import "google/protobuf/empty.proto";
+import "google/protobuf/field_mask.proto";
 
 message LogLeaf {
     // merkle_leaf_hash is over leaf data and optional extra_data.
@@ -257,4 +258,70 @@ service TrillianMap {
   rpc GetLeaves(GetMapLeavesRequest) returns(GetMapLeavesResponse) {}
   rpc SetLeaves(SetMapLeavesRequest) returns(SetMapLeavesResponse) {}
   rpc GetSignedMapRoot(GetSignedMapRootRequest) returns(GetSignedMapRootResponse) {}
+}
+
+// Trillian Administrative interface.
+// Allows creation and management of Trillian trees (both log and map trees).
+service TrillianAdmin {
+  // Lists all trees the requester has access to.
+  rpc ListTrees(ListTreesRequest) returns(ListTreesResponse) {}
+
+  // Retrieves a tree by ID.
+  rpc GetTree(GetTreeRequest) returns(Tree) {}
+
+  // Creates a new tree.
+  // System-generated fields are not required and will be ignored if present,
+  // e.g.: tree_id, create_time and update_time.
+  // Returns the created tree, with all system-generated fields assigned.
+  rpc CreateTree(CreateTreeRequest) returns(Tree) {}
+
+  // Updates a tree.
+  // See Tree for details. Readonly fields cannot be updated.
+  rpc UpdateTree(UpdateTreeRequest) returns(Tree) {}
+
+  // Soft-deletes a tree.
+  // A soft-deleted tree may be undeleted for a certain period, after which
+  // it'll be permanently deleted.
+  // TODO(codingllama): Provide an undelete RPC.
+  rpc DeleteTree(DeleteTreeRequest) returns(google.protobuf.Empty) {}
+}
+
+// ListTrees request.
+// No filters or pagination options are provided.
+message ListTreesRequest {}
+
+// ListTrees response.
+// No pagination is provided, all trees the requester has access to are
+// returned.
+message ListTreesResponse {
+  // Trees matching the list request filters.
+  repeated Tree tree = 1;
+}
+
+// GetTree request.
+message GetTreeRequest {
+  // ID of the tree to retrieve.
+  int64 tree_id = 1;
+}
+
+// CreateTree request.
+message CreateTreeRequest {
+  // Tree to be created. See Tree and CreateTree for more details.
+  Tree tree = 1;
+}
+
+// UpdateTree request.
+message UpdateTreeRequest {
+  // Tree to be updated.
+  Tree tree = 1;
+
+  // Fields modified by the update request.
+  // For example: "tree_state", "display_name", "description".
+  google.protobuf.FieldMask update_mask = 2;
+}
+
+// DeleteTree request.
+message DeleteTreeRequest {
+  // ID of the tree to delete.
+  int64 tree_id = 1;
 }

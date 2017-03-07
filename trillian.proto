@@ -129,6 +129,7 @@ message Tree {
 
   // Timestamp of tree creation.
   // Readonly.
+  // TODO(codingllama): Migrate public APIs to google.protobuf.Timestamp.
   int64 create_time_millis_since_epoch = 10;
 
   // Timestamp of last tree update.

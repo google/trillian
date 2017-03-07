@@ -178,6 +178,7 @@ type Tree struct {
 	Description string `protobuf:"bytes,9,opt,name=description" json:"description,omitempty"`
 	// Timestamp of tree creation.
 	// Readonly.
+	// TODO(codingllama): Migrate public APIs to google.protobuf.Timestamp.
 	CreateTimeMillisSinceEpoch int64 `protobuf:"varint,10,opt,name=create_time_millis_since_epoch,json=createTimeMillisSinceEpoch" json:"create_time_millis_since_epoch,omitempty"`
 	// Timestamp of last tree update.
 	// Readonly (automatically assigned on updates).
