@@ -70,8 +70,11 @@ func signV1SCTForCertificate(signer *crypto.Signer, cert, issuer *x509.Certifica
 			X509Entry: &ct.ASN1Cert{Data: cert.Raw},
 		},
 	}
-
-	return serializeAndSignSCT(signer, leaf, sctInput, t)
+	sct, err := serializeAndSignSCT(signer, leaf, sctInput, t)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &leaf, sct, nil
 }
 
 // signV1SCTForPrecertificate builds and signs a V1 CT SCT for a pre-certificate using the key
@@ -112,23 +115,27 @@ func signV1SCTForPrecertificate(signer *crypto.Signer, cert, issuer *x509.Certif
 		TimestampedEntry: &timestampedEntry,
 	}
 
-	return serializeAndSignSCT(signer, leaf, sctInput, t)
+	sct, err := serializeAndSignSCT(signer, leaf, sctInput, t)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &leaf, sct, err
 }
 
-func serializeAndSignSCT(signer *crypto.Signer, leaf ct.MerkleTreeLeaf, sctInput ct.SignedCertificateTimestamp, t time.Time) (*ct.MerkleTreeLeaf, *ct.SignedCertificateTimestamp, error) {
+func serializeAndSignSCT(signer *crypto.Signer, leaf ct.MerkleTreeLeaf, sctInput ct.SignedCertificateTimestamp, t time.Time) (*ct.SignedCertificateTimestamp, error) {
 	// Serialize SCT signature input to get the bytes that need to be signed
 	res, err := ct.SerializeSCTSignatureInput(sctInput, ct.LogEntry{Leaf: leaf})
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to serialize SCT data: %v", err)
+		return nil, fmt.Errorf("failed to serialize SCT data: %v", err)
 	}
 
 	// Create a complete SCT including signature
 	sct, err := signSCT(signer, t, res)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to sign SCT data: %v", err)
+		return nil, fmt.Errorf("failed to sign SCT data: %v", err)
 	}
 
-	return &leaf, sct, nil
+	return sct, nil
 }
 
 func signSCT(signer *crypto.Signer, t time.Time, sctData []byte) (*ct.SignedCertificateTimestamp, error) {
