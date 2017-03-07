@@ -33,7 +33,7 @@ var logConfigFlag = flag.String("log_config", "", "File holding log config in JS
 var mmdFlag = flag.Duration("mmd", 30*time.Second, "MMD for tested logs")
 var skipStats = flag.Bool("skip_stats", false, "Skip checks of expected log statistics")
 
-func TestCTIntegration(t *testing.T) {
+func TestLiveCTIntegration(t *testing.T) {
 	flag.Parse()
 	if *logConfigFlag == "" {
 		t.Skip("Integration test skipped as no log config provided")

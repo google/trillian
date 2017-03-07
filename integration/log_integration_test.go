@@ -39,7 +39,7 @@ var waitForSequencingFlag = flag.Duration("wait_for_sequencing", time.Second*60,
 var waitBetweenQueueChecksFlag = flag.Duration("queue_poll_wait", time.Second*5, "How frequently to check the queue while waiting")
 var rpcRequestDeadlineFlag = flag.Duration("rpc_deadline", time.Second*10, "Deadline to use for all RPC requests")
 
-func TestLogIntegration(t *testing.T) {
+func TestLiveLogIntegration(t *testing.T) {
 	flag.Parse()
 	if *treeIDFlag == -1 {
 		t.Skip("Log integration test skipped as no tree ID provided")

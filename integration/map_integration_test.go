@@ -34,7 +34,7 @@ func getClient() (*grpc.ClientConn, trillian.TrillianMapClient, error) {
 	return conn, trillian.NewTrillianMapClient(conn), nil
 }
 
-func TestMapIntegration(t *testing.T) {
+func TestLiveMapIntegration(t *testing.T) {
 	flag.Parse()
 	if *mapID == -1 {
 		t.Skip("Map integration test skipped as no map ID provided")
