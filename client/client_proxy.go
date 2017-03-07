@@ -17,10 +17,8 @@ package client
 import (
 	"math/rand"
 
-	context "golang.org/x/net/context"
-
-	google_protobuf "github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/trillian"
+	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
 
@@ -32,7 +30,7 @@ type MockLogClient struct {
 }
 
 // QueueLeaf forwards requests.
-func (c *MockLogClient) QueueLeaf(ctx context.Context, in *trillian.QueueLeafRequest, opts ...grpc.CallOption) (*google_protobuf.Empty, error) {
+func (c *MockLogClient) QueueLeaf(ctx context.Context, in *trillian.QueueLeafRequest, opts ...grpc.CallOption) (*trillian.QueueLeafResponse, error) {
 	return c.c.QueueLeaf(ctx, in)
 }
 

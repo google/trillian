@@ -23,6 +23,7 @@ package trillian;
 import "trillian.proto";
 import "google/protobuf/empty.proto";
 import "google/protobuf/field_mask.proto";
+import "google/rpc/status.proto";
 
 message LogLeaf {
     // merkle_leaf_hash is over leaf data and optional extra_data.
@@ -65,6 +66,16 @@ message Proof {
     repeated Node proof_node = 2;
 }
 
+// QueuedLogLeaf represents a log leaf that has been queued for inclusion; it may
+// be pending or already exist in the log (if the log does not allow duplicates).
+message QueuedLogLeaf {
+    // The leaf is present if status.code is:
+    //  - google.rpc.OK : the leaf is the same as in the QueueLea{f,ves}Request
+    //  - google.rpc.ALREADY_EXISTS : the leaf is the one already present in the log.
+    LogLeaf leaf = 1;
+    google.rpc.Status status = 2;
+}
+
 message QueueLeavesRequest {
     int64 log_id = 1;
     repeated LogLeaf leaves = 2;
@@ -75,10 +86,13 @@ message QueueLeafRequest {
     LogLeaf leaf = 2;
 }
 
-// TODO(Martin2112): This will eventually contain the signed timestamps and stuff that we return for
-// the queued leaves
+message QueueLeafResponse {
+    QueuedLogLeaf queued_leaf = 2;
+}
+
 message QueueLeavesResponse {
-  // TODO(gbelvin): Reply with success codes
+    // Same number and order as in the corresponding request.
+    repeated QueuedLogLeaf queued_leaves = 2;
 }
 
 message GetInclusionProofRequest {
@@ -169,7 +183,7 @@ message GetEntryAndProofResponse {
 // Clients cannot directly modify the log data via this API.
 service TrillianLog {
     // QueueLeaf adds a single leaf to the queue.
-    rpc QueueLeaf (QueueLeafRequest) returns (google.protobuf.Empty) {}
+    rpc QueueLeaf (QueueLeafRequest) returns (QueueLeafResponse) {}
     // Corresponds to the LeafQueuer API
     rpc QueueLeaves (QueueLeavesRequest) returns (QueueLeavesResponse) {
     }

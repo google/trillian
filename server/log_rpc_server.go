@@ -22,7 +22,6 @@ import (
 	"github.com/google/trillian/util"
 
 	"github.com/golang/glog"
-	"github.com/golang/protobuf/ptypes/empty"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -58,7 +57,7 @@ func (t *TrillianLogRPCServer) IsHealthy() error {
 }
 
 // QueueLeaf submits one leaf to the queue.
-func (t *TrillianLogRPCServer) QueueLeaf(ctx context.Context, req *trillian.QueueLeafRequest) (*empty.Empty, error) {
+func (t *TrillianLogRPCServer) QueueLeaf(ctx context.Context, req *trillian.QueueLeafRequest) (*trillian.QueueLeafResponse, error) {
 	queueReq := &trillian.QueueLeavesRequest{
 		LogId:  req.LogId,
 		Leaves: []*trillian.LogLeaf{req.Leaf},
@@ -67,7 +66,7 @@ func (t *TrillianLogRPCServer) QueueLeaf(ctx context.Context, req *trillian.Queu
 	if err != nil {
 		return nil, err
 	}
-	return &empty.Empty{}, nil
+	return &trillian.QueueLeafResponse{}, nil
 }
 
 // QueueLeaves submits a batch of leaves to the log for later integration into the underlying tree.
