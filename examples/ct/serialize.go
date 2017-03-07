@@ -54,8 +54,11 @@ func signV1TreeHead(signer *crypto.Signer, sth *ct.SignedTreeHead) error {
 // signV1SCTForCertificate creates a MerkleTreeLeaf and builds and signs a V1 CT SCT for a certificate
 // using the key held by a key manager.
 func signV1SCTForCertificate(signer *crypto.Signer, cert, issuer *x509.Certificate, t time.Time) (*ct.MerkleTreeLeaf, *ct.SignedCertificateTimestamp, error) {
-	// Temp SCT for input to the serializer
-	sctInput := getSCTForSignatureInput(t)
+	sctInput := ct.SignedCertificateTimestamp{
+		SCTVersion: ct.V1,
+		Timestamp:  uint64(t.UnixNano() / millisPerNano),
+		Extensions: ct.CTExtensions{},
+	}
 
 	// Build up a MerkleTreeLeaf for the cert
 	leaf := ct.MerkleTreeLeaf{
@@ -78,8 +81,11 @@ func signV1SCTForPrecertificate(signer *crypto.Signer, cert, issuer *x509.Certif
 		// Need issuer for the IssuerKeyHash
 		return nil, nil, errors.New("no issuer available for pre-certificate")
 	}
-	// Temp SCT for input to the serializer
-	sctInput := getSCTForSignatureInput(t)
+	sctInput := ct.SignedCertificateTimestamp{
+		SCTVersion: ct.V1,
+		Timestamp:  uint64(t.UnixNano() / millisPerNano),
+		Extensions: ct.CTExtensions{},
+	}
 
 	// Build up a LogEntry for the precert
 	// For precerts we need to extract the relevant data from the Certificate container,
@@ -152,11 +158,4 @@ func signSCT(signer *crypto.Signer, t time.Time, sctData []byte) (*ct.SignedCert
 		Extensions: ct.CTExtensions{},
 		Signature:  digitallySigned,
 	}, nil
-}
-
-func getSCTForSignatureInput(t time.Time) ct.SignedCertificateTimestamp {
-	return ct.SignedCertificateTimestamp{
-		SCTVersion: ct.V1,
-		Timestamp:  uint64(t.UnixNano() / millisPerNano), // spec uses millisecond timestamps
-		Extensions: ct.CTExtensions{}}
 }
