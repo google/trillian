@@ -16,12 +16,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
-	"net"
-	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/golang/glog"
@@ -40,33 +34,6 @@ var (
 	sequencerGuardWindowFlag      = flag.Duration("sequencer_guard_window", 0, "If set, the time elapsed before submitted leaves are eligible for sequencing")
 )
 
-func startHTTPServer(port int) error {
-	sock, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
-	if err != nil {
-		return err
-	}
-	go func() {
-		glog.Info("HTTP server starting")
-		http.Serve(sock, nil)
-	}()
-
-	return nil
-}
-
-func awaitSignal(cancel context.CancelFunc) {
-	// Arrange notification for the standard set of signals used for termination.
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-
-	// Now block main and wait for a signal
-	sig := <-sigs
-	glog.Warningf("Signal received: %v", sig)
-	glog.Flush()
-
-	// Cancel the main context.
-	cancel()
-}
-
 func main() {
 	flag.Parse()
 	glog.CopyStandardLogTo("WARNING")
@@ -81,7 +48,7 @@ func main() {
 	// Start HTTP server (optional)
 	if *exportRPCMetrics {
 		glog.Infof("Creating HTP server starting on port: %d", *httpPortFlag)
-		if err := startHTTPServer(*httpPortFlag); err != nil {
+		if err := util.StartHTTPServer(*httpPortFlag); err != nil {
 			glog.Exitf("Failed to start http server on port %d: %v", *httpPortFlag, err)
 		}
 	}
@@ -90,7 +57,7 @@ func main() {
 	// both sequencing and signing.
 	// TODO(Martin2112): Should respect read only mode and the flags in tree control etc
 	ctx, cancel := context.WithCancel(context.Background())
-	go awaitSignal(cancel)
+	go util.AwaitSignal(cancel)
 
 	sequencerManager := server.NewSequencerManager(registry, *sequencerGuardWindowFlag)
 	sequencerTask := server.NewLogOperationManager(ctx, registry, *batchSizeFlag, *numSeqFlag, *sequencerSleepBetweenRunsFlag, util.SystemTimeSource{}, sequencerManager)

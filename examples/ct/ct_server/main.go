@@ -20,14 +20,13 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"os/signal"
-	"syscall"
 
 	"time"
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/examples/ct"
+	"github.com/google/trillian/util"
 	"google.golang.org/grpc"
 )
 
@@ -36,20 +35,6 @@ var serverPortFlag = flag.Int("port", 6962, "Port to serve CT log requests on")
 var rpcBackendFlag = flag.String("log_rpc_server", "localhost:8090", "Backend Log RPC server to use")
 var rpcDeadlineFlag = flag.Duration("rpc_deadline", time.Second*10, "Deadline for backend RPC requests")
 var logConfigFlag = flag.String("log_config", "", "File holding log config in JSON")
-
-func awaitSignal() {
-	// Arrange notification for the standard set of signals used to terminate a server
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-
-	// Now block main and wait for a signal
-	sig := <-sigs
-	glog.Warningf("Signal received: %v", sig)
-	glog.Flush()
-
-	// Terminate the process
-	os.Exit(1)
-}
 
 func main() {
 	flag.Parse()
@@ -83,7 +68,9 @@ func main() {
 	}
 
 	// Bring up the HTTP server and serve until we get a signal not to.
-	go awaitSignal()
+	go util.AwaitSignal(func() {
+		os.Exit(1)
+	})
 	server := http.Server{Addr: fmt.Sprintf("localhost:%d", *serverPortFlag), Handler: nil}
 	err = server.ListenAndServe()
 	glog.Warningf("Server exited: %v", err)
