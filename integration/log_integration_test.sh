@@ -36,7 +36,7 @@ popd > /dev/null
 # Run the test(s):
 cd "${INTEGRATION_DIR}"
 set +e
-go test -run ".*Log.*" --timeout=5m ./ --treeid ${TEST_TREE_ID} --log_rpc_server="localhost:${RPC_PORT}"
+go test -run ".*LiveLog.*" --timeout=5m ./ --treeid ${TEST_TREE_ID} --log_rpc_server="localhost:${RPC_PORT}"
 RESULT=$?
 set -e
 
