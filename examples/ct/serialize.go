@@ -156,3 +156,12 @@ func serializeAndSignSCT(signer *crypto.Signer, leaf ct.MerkleTreeLeaf, sctInput
 		Signature:  digitallySigned,
 	}, nil
 }
+
+func regenerateSCT(signer *crypto.Signer, leaf ct.MerkleTreeLeaf) (*ct.SignedCertificateTimestamp, error) {
+	sctInput := ct.SignedCertificateTimestamp{
+		SCTVersion: ct.V1,
+		Timestamp:  leaf.TimestampedEntry.Timestamp,
+		Extensions: ct.CTExtensions{},
+	}
+	return serializeAndSignSCT(signer, leaf, sctInput)
+}

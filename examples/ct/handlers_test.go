@@ -43,6 +43,8 @@ import (
 	"github.com/google/trillian/mockclient"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/util"
+	"google.golang.org/genproto/googleapis/rpc/code"
+	"google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
@@ -345,7 +347,15 @@ func TestAddChain(t *testing.T) {
 				leafChain = fullChain
 			}
 			leaves := logLeavesForCert(t, leafChain, merkleLeaf, false)
-			info.client.EXPECT().QueueLeaves(deadlineMatcher(), &trillian.QueueLeavesRequest{LogId: 0x42, Leaves: leaves}).Return(&trillian.QueueLeavesResponse{}, test.err)
+			queuedLeaves := make([]*trillian.QueuedLogLeaf, len(leaves))
+			for i, leaf := range leaves {
+				queuedLeaves[i] = &trillian.QueuedLogLeaf{
+					Leaf:   leaf,
+					Status: &status.Status{Code: int32(code.Code_OK)},
+				}
+			}
+			rsp := trillian.QueueLeavesResponse{QueuedLeaves: queuedLeaves}
+			info.client.EXPECT().QueueLeaves(deadlineMatcher(), &trillian.QueueLeavesRequest{LogId: 0x42, Leaves: leaves}).Return(&rsp, test.err)
 		}
 
 		recorder := makeAddChainRequest(t, info.c, chain)
@@ -442,7 +452,15 @@ func TestAddPrechain(t *testing.T) {
 				leafChain = fullChain
 			}
 			leaves := logLeavesForCert(t, leafChain, merkleLeaf, true)
-			info.client.EXPECT().QueueLeaves(deadlineMatcher(), &trillian.QueueLeavesRequest{LogId: 0x42, Leaves: leaves}).Return(&trillian.QueueLeavesResponse{}, test.err)
+			queuedLeaves := make([]*trillian.QueuedLogLeaf, len(leaves))
+			for i, leaf := range leaves {
+				queuedLeaves[i] = &trillian.QueuedLogLeaf{
+					Leaf:   leaf,
+					Status: &status.Status{Code: int32(code.Code_OK)},
+				}
+			}
+			rsp := trillian.QueueLeavesResponse{QueuedLeaves: queuedLeaves}
+			info.client.EXPECT().QueueLeaves(deadlineMatcher(), &trillian.QueueLeavesRequest{LogId: 0x42, Leaves: leaves}).Return(&rsp, test.err)
 		}
 
 		recorder := makeAddPrechainRequest(t, info.c, chain)
