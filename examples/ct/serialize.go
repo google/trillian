@@ -70,7 +70,7 @@ func signV1SCTForCertificate(signer *crypto.Signer, cert, issuer *x509.Certifica
 			X509Entry: &ct.ASN1Cert{Data: cert.Raw},
 		},
 	}
-	sct, err := serializeAndSignSCT(signer, leaf, sctInput, t)
+	sct, err := serializeAndSignSCT(signer, leaf, sctInput)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -115,14 +115,14 @@ func signV1SCTForPrecertificate(signer *crypto.Signer, cert, issuer *x509.Certif
 		TimestampedEntry: &timestampedEntry,
 	}
 
-	sct, err := serializeAndSignSCT(signer, leaf, sctInput, t)
+	sct, err := serializeAndSignSCT(signer, leaf, sctInput)
 	if err != nil {
 		return nil, nil, err
 	}
 	return &leaf, sct, err
 }
 
-func serializeAndSignSCT(signer *crypto.Signer, leaf ct.MerkleTreeLeaf, sctInput ct.SignedCertificateTimestamp, t time.Time) (*ct.SignedCertificateTimestamp, error) {
+func serializeAndSignSCT(signer *crypto.Signer, leaf ct.MerkleTreeLeaf, sctInput ct.SignedCertificateTimestamp) (*ct.SignedCertificateTimestamp, error) {
 	// Serialize SCT signature input to get the bytes that need to be signed
 	data, err := ct.SerializeSCTSignatureInput(sctInput, ct.LogEntry{Leaf: leaf})
 	if err != nil {
@@ -151,7 +151,7 @@ func serializeAndSignSCT(signer *crypto.Signer, leaf ct.MerkleTreeLeaf, sctInput
 	return &ct.SignedCertificateTimestamp{
 		SCTVersion: ct.V1,
 		LogID:      ct.LogID{KeyID: logID},
-		Timestamp:  uint64(t.UnixNano() / millisPerNano), // spec uses millisecond timestamps
+		Timestamp:  sctInput.Timestamp,
 		Extensions: ct.CTExtensions{},
 		Signature:  digitallySigned,
 	}, nil
