@@ -26,6 +26,7 @@ import (
 	"github.com/google/trillian/extension/builtin"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/server"
+	"github.com/google/trillian/server/admin"
 	"github.com/google/trillian/util"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -38,20 +39,23 @@ var (
 )
 
 func startRPCServer(registry extension.Registry) (*grpc.Server, error) {
-	logServer := server.NewTrillianLogRPCServer(registry, new(util.SystemTimeSource))
-	if err := logServer.IsHealthy(); err != nil {
-		return nil, err
-	}
-
 	// Create and publish the RPC stats objects
 	statsInterceptor := monitoring.NewRPCStatsInterceptor(util.SystemTimeSource{}, "ct", "example")
 	statsInterceptor.Publish()
 
 	// Create the server, using the interceptor to record stats on the requests
 	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(statsInterceptor.Interceptor()))
-	trillian.RegisterTrillianLogServer(grpcServer, logServer)
-	reflection.Register(grpcServer)
 
+	logServer := server.NewTrillianLogRPCServer(registry, new(util.SystemTimeSource))
+	if err := logServer.IsHealthy(); err != nil {
+		return nil, err
+	}
+	trillian.RegisterTrillianLogServer(grpcServer, logServer)
+
+	adminServer := admin.New()
+	trillian.RegisterTrillianAdminServer(grpcServer, adminServer)
+
+	reflection.Register(grpcServer)
 	return grpcServer, nil
 }
 
