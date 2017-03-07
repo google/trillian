@@ -31,19 +31,14 @@ import (
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/util"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
 
 var (
-	serverPortFlag                = flag.Int("port", 8090, "Port to serve log RPC requests on")
-	exportRPCMetrics              = flag.Bool("export_metrics", true, "If true starts HTTP server and exports stats")
-	httpPortFlag                  = flag.Int("http_port", 8091, "Port to serve HTTP metrics on")
-	sequencerSleepBetweenRunsFlag = flag.Duration("sequencer_sleep_between_runs", time.Second*10, "Time to pause after each sequencing pass through all logs")
-	batchSizeFlag                 = flag.Int("batch_size", 50, "Max number of leaves to process per batch")
-	numSeqFlag                    = flag.Int("num_sequencers", 10, "Number of sequencers to run in parallel")
-	sequencerGuardWindowFlag      = flag.Duration("sequencer_guard_window", 0, "If set, the time elapsed before submitted leaves are eligible for sequencing")
+	serverPortFlag   = flag.Int("port", 8090, "Port to serve log RPC requests on")
+	exportRPCMetrics = flag.Bool("export_metrics", true, "If true starts HTTP server and exports stats")
+	httpPortFlag     = flag.Int("http_port", 8091, "Port to serve HTTP metrics on")
 )
 
 func startRPCServer(registry extension.Registry) (*grpc.Server, error) {
@@ -64,6 +59,7 @@ func startRPCServer(registry extension.Registry) (*grpc.Server, error) {
 	return grpcServer, nil
 }
 
+// TODO(drysdale): commonize the following 2 fns across all main()s
 func startHTTPServer(port int) error {
 	sock, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
 	if err != nil {
@@ -118,15 +114,6 @@ func main() {
 		glog.Exitf("Failed to listen on the server port: %d, because: %v", *serverPortFlag, err)
 	}
 
-	// Start the sequencing loop, which will run until we terminate the process. This controls
-	// both sequencing and signing.
-	// TODO(Martin2112): Should respect read only mode and the flags in tree control etc
-	ctx, cancel := context.WithCancel(context.Background())
-
-	sequencerManager := server.NewSequencerManager(registry, *sequencerGuardWindowFlag)
-	sequencerTask := server.NewLogOperationManager(ctx, registry, *batchSizeFlag, *numSeqFlag, *sequencerSleepBetweenRunsFlag, util.SystemTimeSource{}, sequencerManager)
-	go sequencerTask.OperationLoop()
-
 	// Bring up the RPC server and then block until we get a signal to stop
 	rpcServer, err := startRPCServer(registry)
 	if err != nil {
@@ -137,9 +124,6 @@ func main() {
 	if err := rpcServer.Serve(lis); err != nil {
 		glog.Errorf("RPC server terminated on port %d: %v", *serverPortFlag, err)
 	}
-
-	// Shut down everything we previously started, rpc server is already down
-	cancel()
 
 	// Give things a few seconds to tidy up
 	glog.Infof("Stopping server, about to exit")
