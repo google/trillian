@@ -27,6 +27,7 @@ import (
 	"github.com/google/trillian/client/backoff"
 	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/merkle"
+	"google.golang.org/genproto/googleapis/rpc/code"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
@@ -206,6 +207,13 @@ func (c *LogClient) queueLeaf(ctx context.Context, leaf *trillian.LogLeaf) error
 		LogId: c.LogID,
 		Leaf:  leaf,
 	}
-	_, err := c.client.QueueLeaf(ctx, &req)
-	return err
+	rsp, err := c.client.QueueLeaf(ctx, &req)
+	if err != nil {
+		return err
+	}
+	if rsp.QueuedLeaf.Status != nil && rsp.QueuedLeaf.Status.Code == int32(code.Code_ALREADY_EXISTS) {
+		// Convert this to AlreadyExists
+		return grpc.Errorf(codes.AlreadyExists, "leaf already exists")
+	}
+	return nil
 }

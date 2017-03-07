@@ -290,7 +290,7 @@ func TestQueueLeaves(t *testing.T) {
 	}
 }
 
-func TestQueueLeavesDuplicateErrorMapped(t *testing.T) {
+func TestQueueLeavesErrorMapped(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -302,7 +302,7 @@ func TestQueueLeavesDuplicateErrorMapped(t *testing.T) {
 	tests := []errMapTest{
 		{
 			err:  storage.Error{ErrType: storage.DuplicateLeaf, Detail: "duplicate test"},
-			want: codes.AlreadyExists,
+			want: codes.OK,
 		},
 		{
 			err:  storage.Error{ErrType: -23, Detail: "negative type"},
@@ -332,13 +332,15 @@ func TestQueueLeavesDuplicateErrorMapped(t *testing.T) {
 
 		_, err := server.QueueLeaves(context.Background(), &queueRequest0)
 		if err == nil {
-			// The operation should not have succeeded
-			t.Errorf("Did not propagate storage error to client")
+			if test.want != codes.OK {
+				// The operation should not have succeeded
+				t.Errorf("Did not propagate storage error to client")
+			}
 			continue
 		}
 		// The error should have been mapped to the expected GRPC code
-		if got, want := grpc.Code(err), test.want; got != want {
-			t.Errorf("Got grpc code: %d (%q) for storage error %q, want: %d", got, err, test.err, want)
+		if got := grpc.Code(err); got != test.want {
+			t.Errorf("Got grpc code: %d (%q) for storage error %q, want: %d", got, err, test.err, test.want)
 		}
 	}
 }
