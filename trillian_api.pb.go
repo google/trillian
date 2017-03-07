@@ -1528,7 +1528,7 @@ type TrillianAdminClient interface {
 	GetTree(ctx context.Context, in *GetTreeRequest, opts ...grpc.CallOption) (*Tree, error)
 	// Creates a new tree.
 	// System-generated fields are not required and will be ignored if present,
-	// eg: tree_id, create_time and update_time.
+	// e.g.: tree_id, create_time and update_time.
 	// Returns the created tree, with all system-generated fields assigned.
 	CreateTree(ctx context.Context, in *CreateTreeRequest, opts ...grpc.CallOption) (*Tree, error)
 	// Updates a tree.
@@ -1603,7 +1603,7 @@ type TrillianAdminServer interface {
 	GetTree(context.Context, *GetTreeRequest) (*Tree, error)
 	// Creates a new tree.
 	// System-generated fields are not required and will be ignored if present,
-	// eg: tree_id, create_time and update_time.
+	// e.g.: tree_id, create_time and update_time.
 	// Returns the created tree, with all system-generated fields assigned.
 	CreateTree(context.Context, *CreateTreeRequest) (*Tree, error)
 	// Updates a tree.

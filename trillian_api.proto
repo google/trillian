@@ -271,7 +271,7 @@ service TrillianAdmin {
 
   // Creates a new tree.
   // System-generated fields are not required and will be ignored if present,
-  // eg: tree_id, create_time and update_time.
+  // e.g.: tree_id, create_time and update_time.
   // Returns the created tree, with all system-generated fields assigned.
   rpc CreateTree(CreateTreeRequest) returns(Tree) {}
 
