@@ -46,18 +46,16 @@ var (
 type defaultRegistry struct {
 	db *sql.DB
 	km crypto.PrivateKeyManager
+	ls storage.LogStorage
+	ms storage.MapStorage
 }
 
 func (r *defaultRegistry) GetLogStorage() (storage.LogStorage, error) {
-	return mysql.NewLogStorage(r.db, &storagepb.LogStorageConfig{
-		EnableBuckets:    *bucketedQueue,
-		NumUnseqBuckets:  *numUnseqBuckets,
-		NumMerkleBuckets: *numMerkleBuckets,
-	}, util.SystemTimeSource{}), nil
+	return r.ls, nil
 }
 
 func (r *defaultRegistry) GetMapStorage() (storage.MapStorage, error) {
-	return mysql.NewMapStorage(r.db), nil
+	return r.ms, nil
 }
 
 func (r *defaultRegistry) GetKeyManager(treeID int64) (crypto.PrivateKeyManager, error) {
@@ -67,8 +65,16 @@ func (r *defaultRegistry) GetKeyManager(treeID int64) (crypto.PrivateKeyManager,
 // NewExtensionRegistry returns an extension.Registry implementation backed by a given
 // MySQL database and a KeyManager instance.
 func NewExtensionRegistry(db *sql.DB, km crypto.PrivateKeyManager) (extension.Registry, error) {
-	return &defaultRegistry{db: db, km: km}, nil
-
+	return &defaultRegistry{
+		db: db,
+		km: km,
+		ls: mysql.NewLogStorage(db, &storagepb.LogStorageConfig{
+			EnableBuckets:    *bucketedQueue,
+			NumUnseqBuckets:  *numUnseqBuckets,
+			NumMerkleBuckets: *numMerkleBuckets,
+		}, util.SystemTimeSource{}),
+	  ms: mysql.NewMapStorage(db),
+	}, nil
 }
 
 // NewDefaultExtensionRegistry returns the default extension.Registry implementation, which is
