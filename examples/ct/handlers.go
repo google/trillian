@@ -30,6 +30,8 @@ import (
 	"strings"
 	"time"
 
+	"google.golang.org/genproto/googleapis/rpc/code"
+
 	"github.com/golang/glog"
 	ct "github.com/google/certificate-transparency/go"
 	"github.com/google/certificate-transparency/go/tls"
@@ -302,10 +304,30 @@ func addChainInternal(ctx context.Context, c LogContext, w http.ResponseWriter, 
 	req := trillian.QueueLeavesRequest{LogId: c.logID, Leaves: []*trillian.LogLeaf{&leaf}}
 
 	glog.V(2).Infof("%s: %s => grpc.QueueLeaves", c.LogPrefix, method)
-	_, err = c.rpcClient.QueueLeaves(ctx, &req)
+	rsp, err := c.rpcClient.QueueLeaves(ctx, &req)
 	glog.V(2).Infof("%s: %s <= grpc.QueueLeaves err=%v", c.LogPrefix, method, err)
 	if err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("backend QueueLeaves request failed: %v", err)
+	}
+	if rsp == nil {
+		return http.StatusInternalServerError, fmt.Errorf("missing QueueLeaves response")
+	}
+	if len(rsp.QueuedLeaves) != 1 {
+		return http.StatusInternalServerError, fmt.Errorf("unexpected QueueLeaves response leaf count: %d", len(rsp.QueuedLeaves))
+	}
+	queuedLeaf := rsp.QueuedLeaves[0]
+	if queuedLeaf.Status != nil && queuedLeaf.Status.Code == int32(code.Code_ALREADY_EXISTS) {
+		// The leaf already exists, so use that leaf as the basis for an SCT.
+		var origLeaf ct.MerkleTreeLeaf
+		if rest, err := tls.Unmarshal(queuedLeaf.Leaf.LeafValue, &origLeaf); err != nil {
+			return http.StatusInternalServerError, fmt.Errorf("failed to reconstruct MerkleTreeLeaf: %v", err)
+		} else if len(rest) > 0 {
+			return http.StatusInternalServerError, fmt.Errorf("extra data (%d bytes) on reconstructing MerkleTreeLeaf", len(rest))
+		}
+		sct, err = regenerateSCT(c.signer, origLeaf)
+		if err != nil {
+			return http.StatusInternalServerError, fmt.Errorf("failed to regenerate SCT: %v", err)
+		}
 	}
 
 	// As the Log server has successfully queued up the Merkle tree leaf, we can
