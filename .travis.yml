@@ -23,6 +23,9 @@ install:
       cd ../protoc
       wget https://github.com/google/protobuf/releases/download/v3.2.0/protoc-3.2.0-${TRAVIS_OS_NAME}-x86_64.zip
       unzip protoc-3.2.0-${TRAVIS_OS_NAME}-x86_64.zip
+      git clone https://github.com/googleapis/googleapis.git
+      cd include/google
+      ln -s ../../googleapis/google/rpc
     )
   - export PATH=$(pwd)/../protoc/bin:$PATH
   - go get -d ./...

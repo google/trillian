@@ -31,7 +31,6 @@ import (
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/util"
 
-	"github.com/golang/protobuf/ptypes/empty"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
@@ -81,7 +80,7 @@ func (lb randomLoadBalancer) pick() *backendConn {
 
 // Implement each of the methods in the TrillianLogServer interface.
 
-func (lb *randomLoadBalancer) QueueLeaf(ctx context.Context, req *trillian.QueueLeafRequest) (*empty.Empty, error) {
+func (lb *randomLoadBalancer) QueueLeaf(ctx context.Context, req *trillian.QueueLeafRequest) (*trillian.QueueLeafResponse, error) {
 	bc := lb.pick()
 	glog.V(3).Infof("forward QueueLeaf request to backend %s", bc.server)
 	return bc.client.QueueLeaf(ctx, req)
