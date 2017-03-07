@@ -17,6 +17,7 @@ package server
 import (
 	"context"
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -26,6 +27,7 @@ import (
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/testonly"
+	"google.golang.org/genproto/googleapis/rpc/code"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
@@ -256,6 +258,7 @@ func TestQueueLeavesCommitFails(t *testing.T) {
 }
 
 func TestQueueLeaves(t *testing.T) {
+	ctx := context.Background()
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -271,8 +274,19 @@ func TestQueueLeaves(t *testing.T) {
 	mockRegistry.EXPECT().GetLogStorage().Return(mockStorage, nil)
 	server := NewTrillianLogRPCServer(mockRegistry, fakeTimeSource)
 
-	if _, err := server.QueueLeaves(context.Background(), &queueRequest0); err != nil {
+	rsp, err := server.QueueLeaves(ctx, &queueRequest0)
+	if err != nil {
 		t.Fatalf("Failed to queue leaf: %v", err)
+	}
+	if len(rsp.QueuedLeaves) != 1 {
+		t.Errorf("QueueLeaves() returns %d leaves; want 1", len(rsp.QueuedLeaves))
+	}
+	queuedLeaf := rsp.QueuedLeaves[0]
+	if queuedLeaf.Status != nil && queuedLeaf.Status.Code != int32(code.Code_OK) {
+		t.Errorf("QueueLeaves().Status=%d,nil; want %d,nil", queuedLeaf.Status.Code, code.Code_OK)
+	}
+	if !reflect.DeepEqual(queueRequest0.Leaves[0], queuedLeaf.Leaf) {
+		t.Errorf("QueueLeaves()=%+v,nil; want %+v,nil", queuedLeaf, queueRequest0.Leaves)
 	}
 }
 
@@ -319,11 +333,12 @@ func TestQueueLeavesDuplicateErrorMapped(t *testing.T) {
 		_, err := server.QueueLeaves(context.Background(), &queueRequest0)
 		if err == nil {
 			// The operation should not have succeeded
-			t.Fatalf("Did not propagate duplicate leaf storage error to client")
+			t.Errorf("Did not propagate storage error to client")
+			continue
 		}
 		// The error should have been mapped to the expected GRPC code
 		if got, want := grpc.Code(err), test.want; got != want {
-			t.Fatalf("Got grpc code: %d for duplicate leaf, want: %d, err=%v", got, want, err)
+			t.Errorf("Got grpc code: %d (%q) for storage error %q, want: %d", got, err, test.err, want)
 		}
 	}
 }
