@@ -27,6 +27,7 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/extension/builtin"
+	"github.com/google/trillian/server/admin"
 	"github.com/google/trillian/server/vmap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -37,12 +38,17 @@ var exportRPCMetrics = flag.Bool("export_metrics", true, "If true starts HTTP se
 var httpPortFlag = flag.Int("http_port", 8091, "Port to serve HTTP metrics on")
 
 func startRPCServer(registry extension.Registry) (*grpc.Server, error) {
+	grpcServer := grpc.NewServer()
+
 	mapServer := vmap.NewTrillianMapServer(registry)
 	if err := mapServer.IsHealthy(); err != nil {
 		return nil, err
 	}
-	grpcServer := grpc.NewServer()
 	trillian.RegisterTrillianMapServer(grpcServer, mapServer)
+
+	adminServer := admin.New()
+	trillian.RegisterTrillianAdminServer(grpcServer, adminServer)
+
 	reflection.Register(grpcServer)
 	return grpcServer, nil
 }
