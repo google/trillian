@@ -11,7 +11,7 @@ find . -name "*.pb.go" -delete
 find . -name "mock_*" -delete
 golint --set_exit_status ./...
 go vet ./...
-misspell -error -locale US .
+misspell -error -i cancelled,CANCELLED -locale US .
 nolicense=$(find . -name '*.go' -or -name '*.proto' | grep -v ./protoc | xargs grep -L "Apache License")
 if [[ "${nolicense}" ]]; then
     echo "Missing license header in: ${nolicense}"
