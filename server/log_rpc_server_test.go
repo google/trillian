@@ -217,7 +217,7 @@ func TestQueueLeavesStorageError(t *testing.T) {
 
 	test := newParameterizedTest(ctrl, "QueueLeaves", readWrite,
 		func(t *storage.MockLogTreeTX) {
-			t.EXPECT().QueueLeaves([]*trillian.LogLeaf{leaf1}, fakeTime).Return(errors.New("STORAGE"))
+			t.EXPECT().QueueLeaves([]*trillian.LogLeaf{leaf1}, fakeTime).Return(nil, errors.New("STORAGE"))
 		},
 		func(s *TrillianLogRPCServer) error {
 			_, err := s.QueueLeaves(context.Background(), &queueRequest0)
@@ -247,7 +247,7 @@ func TestQueueLeavesCommitFails(t *testing.T) {
 
 	test := newParameterizedTest(ctrl, "QueueLeaves", readWrite,
 		func(t *storage.MockLogTreeTX) {
-			t.EXPECT().QueueLeaves([]*trillian.LogLeaf{leaf1}, fakeTime).Return(nil)
+			t.EXPECT().QueueLeaves([]*trillian.LogLeaf{leaf1}, fakeTime).Return([]*trillian.LogLeaf{nil}, nil)
 		},
 		func(s *TrillianLogRPCServer) error {
 			_, err := s.QueueLeaves(context.Background(), &queueRequest0)
@@ -265,7 +265,7 @@ func TestQueueLeaves(t *testing.T) {
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTreeTX(ctrl)
 	mockStorage.EXPECT().BeginForTree(gomock.Any(), queueRequest0.LogId).Return(mockTx, nil)
-	mockTx.EXPECT().QueueLeaves([]*trillian.LogLeaf{leaf1}, fakeTime).Return(nil)
+	mockTx.EXPECT().QueueLeaves([]*trillian.LogLeaf{leaf1}, fakeTime).Return([]*trillian.LogLeaf{nil}, nil)
 	mockTx.EXPECT().Commit().Return(nil)
 	mockTx.EXPECT().Close().Return(nil)
 	mockTx.EXPECT().IsOpen().AnyTimes().Return(false)
@@ -288,6 +288,27 @@ func TestQueueLeaves(t *testing.T) {
 	if !reflect.DeepEqual(queueRequest0.Leaves[0], queuedLeaf.Leaf) {
 		t.Errorf("QueueLeaves()=%+v,nil; want %+v,nil", queuedLeaf, queueRequest0.Leaves)
 	}
+
+	// Repeating the operation gives ALREADY_EXISTS.
+	mockRegistry.EXPECT().GetLogStorage().Return(mockStorage, nil)
+	mockStorage.EXPECT().BeginForTree(gomock.Any(), queueRequest0.LogId).Return(mockTx, nil)
+	mockTx.EXPECT().QueueLeaves([]*trillian.LogLeaf{leaf1}, fakeTime).Return([]*trillian.LogLeaf{leaf1}, nil)
+	mockTx.EXPECT().Commit().Return(nil)
+	mockTx.EXPECT().Close().Return(nil)
+	rsp, err = server.QueueLeaves(ctx, &queueRequest0)
+	if err != nil {
+		t.Fatalf("Failed to re-queue leaf: %v", err)
+	}
+	if len(rsp.QueuedLeaves) != 1 {
+		t.Errorf("QueueLeaves() returns %d leaves; want 1", len(rsp.QueuedLeaves))
+	}
+	queuedLeaf = rsp.QueuedLeaves[0]
+	if queuedLeaf.Status == nil || queuedLeaf.Status.Code != int32(code.Code_ALREADY_EXISTS) {
+		t.Errorf("QueueLeaves().Status=%d,nil; want %d,nil", queuedLeaf.Status, code.Code_ALREADY_EXISTS)
+	}
+	if !reflect.DeepEqual(queueRequest0.Leaves[0], queuedLeaf.Leaf) {
+		t.Errorf("QueueLeaves()=%+v,nil; want %+v,nil", queuedLeaf, queueRequest0.Leaves)
+	}
 }
 
 func TestQueueLeavesErrorMapped(t *testing.T) {
@@ -302,7 +323,7 @@ func TestQueueLeavesErrorMapped(t *testing.T) {
 	tests := []errMapTest{
 		{
 			err:  storage.Error{ErrType: storage.DuplicateLeaf, Detail: "duplicate test"},
-			want: codes.OK,
+			want: codes.Unknown,
 		},
 		{
 			err:  storage.Error{ErrType: -23, Detail: "negative type"},
@@ -322,7 +343,7 @@ func TestQueueLeavesErrorMapped(t *testing.T) {
 		mockStorage := storage.NewMockLogStorage(ctrl)
 		mockTx := storage.NewMockLogTreeTX(ctrl)
 		mockStorage.EXPECT().BeginForTree(gomock.Any(), queueRequest0.LogId).Return(mockTx, nil)
-		mockTx.EXPECT().QueueLeaves([]*trillian.LogLeaf{leaf1}, fakeTime).Return(test.err)
+		mockTx.EXPECT().QueueLeaves([]*trillian.LogLeaf{leaf1}, fakeTime).Return(nil, test.err)
 		mockTx.EXPECT().Close().Return(nil)
 		mockTx.EXPECT().IsOpen().AnyTimes().Return(false)
 
