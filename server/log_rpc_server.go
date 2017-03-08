@@ -95,23 +95,9 @@ func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.Qu
 	}
 	defer tx.Close()
 
-	err = tx.QueueLeaves(req.Leaves, t.timeSource.Now())
+	existingLeaves, err := tx.QueueLeaves(req.Leaves, t.timeSource.Now())
 	if err != nil {
-		if se, ok := err.(storage.Error); !ok || se.ErrType != storage.DuplicateLeaf {
-			return nil, err
-		}
-		// Return the existing leaves on AlreadyExists.
-		// TODO(drysdale): cope with batch where some are OK and some are duplicate.
-		var queuedLeaves []*trillian.QueuedLogLeaf
-		for _, leaf := range req.Leaves {
-			// TODO(drysdale): this needs to be the original stored leaf, not the request leaf
-			queuedLeaf := trillian.QueuedLogLeaf{
-				Leaf:   leaf,
-				Status: &status.Status{Code: int32(code.Code_ALREADY_EXISTS)},
-			}
-			queuedLeaves = append(queuedLeaves, &queuedLeaf)
-		}
-		return &trillian.QueueLeavesResponse{QueuedLeaves: queuedLeaves}, nil
+		return nil, err
 	}
 
 	if err := t.commitAndLog(ctx, tx, "QueueLeaves"); err != nil {
@@ -119,9 +105,19 @@ func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.Qu
 	}
 
 	var queuedLeaves []*trillian.QueuedLogLeaf
-	for _, leaf := range req.Leaves {
-		queuedLeaf := trillian.QueuedLogLeaf{Leaf: leaf}
-		queuedLeaves = append(queuedLeaves, &queuedLeaf)
+	for i, existingLeaf := range existingLeaves {
+		if existingLeaf != nil {
+			// Append the existing leaf to the response.
+			queuedLeaf := trillian.QueuedLogLeaf{
+				Leaf:   existingLeaf,
+				Status: &status.Status{Code: int32(code.Code_ALREADY_EXISTS)},
+			}
+			queuedLeaves = append(queuedLeaves, &queuedLeaf)
+		} else {
+			// Return the leaf from the request if it is new.
+			queuedLeaf := trillian.QueuedLogLeaf{Leaf: req.Leaves[i]}
+			queuedLeaves = append(queuedLeaves, &queuedLeaf)
+		}
 	}
 	return &trillian.QueueLeavesResponse{QueuedLeaves: queuedLeaves}, nil
 }

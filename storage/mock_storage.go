@@ -372,10 +372,11 @@ func (_mr *_MockLogTreeTXRecorder) LatestSignedLogRoot() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "LatestSignedLogRoot")
 }
 
-func (_m *MockLogTreeTX) QueueLeaves(_param0 []*trillian.LogLeaf, _param1 time.Time) error {
+func (_m *MockLogTreeTX) QueueLeaves(_param0 []*trillian.LogLeaf, _param1 time.Time) ([]*trillian.LogLeaf, error) {
 	ret := _m.ctrl.Call(_m, "QueueLeaves", _param0, _param1)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret0, _ := ret[0].([]*trillian.LogLeaf)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 func (_mr *_MockLogTreeTXRecorder) QueueLeaves(arg0, arg1 interface{}) *gomock.Call {
