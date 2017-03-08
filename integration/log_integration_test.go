@@ -38,6 +38,7 @@ var readBatchSizeFlag = flag.Int64("read_batch_size", 50, "Batch size when getti
 var waitForSequencingFlag = flag.Duration("wait_for_sequencing", time.Second*60, "How long to wait for leaves to be sequenced")
 var waitBetweenQueueChecksFlag = flag.Duration("queue_poll_wait", time.Second*5, "How frequently to check the queue while waiting")
 var rpcRequestDeadlineFlag = flag.Duration("rpc_deadline", time.Second*10, "Deadline to use for all RPC requests")
+var customLeafPrefixFlag = flag.String("custom_leaf_prefix", "", "Prefix string added to all queued leaves")
 
 func TestLiveLogIntegration(t *testing.T) {
 	flag.Parse()
@@ -59,6 +60,7 @@ func TestLiveLogIntegration(t *testing.T) {
 		sequencingWaitTotal: *waitForSequencingFlag,
 		sequencingPollWait:  *waitBetweenQueueChecksFlag,
 		rpcRequestDeadline:  *rpcRequestDeadlineFlag,
+		customLeafPrefix:    *customLeafPrefixFlag,
 	}
 	if params.startLeaf < 0 || params.leafCount <= 0 {
 		t.Fatalf("Start leaf index must be >= 0 (%d) and number of leaves must be > 0 (%d)", params.startLeaf, params.leafCount)
