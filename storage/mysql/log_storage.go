@@ -66,6 +66,14 @@ const (
 			FROM LeafData l,SequencedLeafData s
 			WHERE l.LeafIdentityHash = s.LeafIdentityHash
 			AND s.MerkleLeafHash IN (` + placeholderSQL + `) AND l.TreeId = ? AND s.TreeId = l.TreeId`
+	// TODO(drysdale): rework the code so the dummy hash isn't needed (e.g. this assumes hash size is 32)
+	dummyMerkleLeafHash = "00000000000000000000000000000000"
+	// This statement returns a dummy Merkle leaf hash value (which must be
+	// of the right size) so that its signature matches that of the other
+	// leaf-selection statements.
+	selectLeavesByLeafIdentityHashSQL = `SELECT '` + dummyMerkleLeafHash + `',l.LeafIdentityHash,l.LeafValue,-1,l.ExtraData
+			FROM LeafData l
+			WHERE l.LeafIdentityHash IN (` + placeholderSQL + `) AND l.TreeId = ?`
 
 	// Same as above except with leaves ordered by sequence so we only incur this cost when necessary
 	orderBySequenceNumberSQL                     = " ORDER BY s.SequenceNumber"
@@ -99,6 +107,10 @@ func (m *mySQLLogStorage) getLeavesByMerkleHashStmt(num int, orderBySequence boo
 	}
 
 	return m.getStmt(selectLeavesByMerkleHashSQL, num, "?", "?")
+}
+
+func (m *mySQLLogStorage) getLeavesByLeafIdentityHashStmt(num int) (*sql.Stmt, error) {
+	return m.getStmt(selectLeavesByLeafIdentityHashSQL, num, "?", "?")
 }
 
 func (m *mySQLLogStorage) getDeleteUnsequencedStmt(num int) (*sql.Stmt, error) {
@@ -440,6 +452,16 @@ func (t *logTreeTX) GetLeavesByHash(leafHashes [][]byte, orderBySequence bool) (
 	}
 
 	return t.getLeavesByHashInternal(leafHashes, tmpl, "merkle")
+}
+
+// Retrieve leaf data by LeafIdentityHash, returned as a slice of LogLeaf objects for convenience.
+// However, note that the returned LogLeaf objects will not have a valid MerkleLeafHash or LeafIndex.
+func (t *logTreeTX) getLeafDataByIdentityHash(leafHashes [][]byte) ([]*trillian.LogLeaf, error) {
+	tmpl, err := t.ls.getLeavesByLeafIdentityHashStmt(len(leafHashes))
+	if err != nil {
+		return nil, err
+	}
+	return t.getLeavesByHashInternal(leafHashes, tmpl, "leaf-identity")
 }
 
 func (t *logTreeTX) LatestSignedLogRoot() (trillian.SignedLogRoot, error) {
