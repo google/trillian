@@ -124,8 +124,7 @@ CREATE TABLE IF NOT EXISTS Unsequenced(
   QueueTimestampNanos  BIGINT NOT NULL,
   PRIMARY KEY(TreeId, Bucket, QueueTimestampNanos, MerkleLeafHash),
   FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE,
-  FOREIGN KEY(TreeId, LeafIdentityHash) REFERENCES LeafData(TreeId, LeafIdentityHash) ON DELETE CASCADE,
-  INDEX QueueTimeIdx(QueueTimestampNanos)
+  FOREIGN KEY(TreeId, LeafIdentityHash) REFERENCES LeafData(TreeId, LeafIdentityHash) ON DELETE CASCADE
 );
 
 
