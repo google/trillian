@@ -620,9 +620,15 @@ func genDequeueBuckets(now int64, config *storagepb.LogStorageConfig, merkleBuck
 		return []int32{0} // everything always uses bucket zero
 	}
 
+	// If there's only one merkle bucket we can just use a single constant value for this
+	// part of the bucket id instead of expanding all of them. We then only bucket by time.
+	bucketHigh := int32((((now + config.NumUnseqBuckets/2) % config.NumUnseqBuckets) << 8))
+	if config.NumMerkleBuckets <= 1 {
+		return []int32{bucketHigh}
+	}
+
 	n := int(numByteValues / config.NumMerkleBuckets)
 	ret := make([]int32, 0, n)
-	bucketHigh := int32((((now + config.NumUnseqBuckets/2) % config.NumUnseqBuckets) << 8))
 	for i := merkleBucket; i < merkleBucket+n; i++ {
 		ret = append(ret, bucketHigh|int32(i%numByteValues))
 	}
@@ -636,6 +642,11 @@ func genDequeueBuckets(now int64, config *storagepb.LogStorageConfig, merkleBuck
 func getQueueBucket(now int64, config *storagepb.LogStorageConfig, mlh0 byte) int32 {
 	if config == nil || !config.EnableBuckets {
 		return 0 // everything always uses bucket zero
+	}
+	// As above if there's one merkle bucket we ignore the second level merkle bucket value and
+	// just bucket by time.
+	if config.NumMerkleBuckets <= 1 {
+		mlh0 = 0
 	}
 	return int32((now % config.NumUnseqBuckets) << 8) | int32(mlh0)
 }
