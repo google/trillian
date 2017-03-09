@@ -30,6 +30,8 @@ import (
 	"github.com/google/trillian/util"
 )
 
+const logLatency bool = true
+
 // TODO(Martin2112): Add admin support for safely changing params like guard window during operation
 // TODO(Martin2112): Add support for enabling and controlling sequencing as part of admin API
 
@@ -165,6 +167,7 @@ func (s Sequencer) createRootSignature(ctx context.Context, root trillian.Signed
 // which will fail if the tx was committed. Should only do this if we can hide the details of
 // the underlying storage transactions and it doesn't create other problems.
 func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int) (int, error) {
+	start := s.timeSource.Now()
 	tx, err := s.logStorage.BeginForTree(ctx, logID)
 	if err != nil {
 		glog.Warningf("%v: Sequencer failed to start tx: %v", logID, err)
@@ -179,6 +182,8 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int) (i
 		glog.Warningf("%v: Sequencer failed to dequeue leaves: %v", logID, err)
 		return 0, err
 	}
+	dqt := s.timeSource.Now()
+	s.logLatency("Dequeue", start)
 
 	// Get the latest known root from storage
 	currentRoot, err := tx.LatestSignedLogRoot()
@@ -186,6 +191,9 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int) (i
 		glog.Warningf("%v: Sequencer failed to get latest root: %v", logID, err)
 		return 0, err
 	}
+
+	rt := s.timeSource.Now()
+	s.logLatency("Get root", dqt)
 
 	// TODO(al): Have a better detection mechanism for there being no stored root.
 	// TODO(mhs): Might be better to create empty root in provisioning API when it exists
@@ -207,6 +215,9 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int) (i
 		return 0, err
 	}
 
+	mtt := s.timeSource.Now()
+	s.logLatency("Merkle Init", rt)
+
 	// We've done all the reads, can now do the updates.
 	// TODO: This relies on us being the only process updating the map, which isn't enforced yet
 	// though the schema should now prevent multiple STHs being inserted with the same revision
@@ -222,6 +233,9 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int) (i
 		return 0, err
 	}
 
+	st := s.timeSource.Now()
+	s.logLatency("Sequence", mtt)
+
 	// We should still have the same number of leaves
 	if want, got := len(leaves), len(sequencedLeaves); want != got {
 		return 0, fmt.Errorf("%v: wanted: %v leaves after sequencing but we got: %v", logID, want, got)
@@ -232,6 +246,9 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int) (i
 		glog.Warningf("%v: Sequencer failed to update sequenced leaves: %v", logID, err)
 		return 0, err
 	}
+
+	uslt := s.timeSource.Now()
+	s.logLatency("Update Leaves", st)
 
 	// Build objects for the nodes to be updated. Because we deduped via the map each
 	// node can only be created / updated once in each tree revision and they cannot
@@ -248,6 +265,9 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int) (i
 		glog.Warningf("%v: Sequencer failed to set Merkle nodes: %v", logID, err)
 		return 0, err
 	}
+
+	nodet := s.timeSource.Now()
+	s.logLatency("Update Nodes", uslt)
 
 	// Create the log root ready for signing
 	newLogRoot := trillian.SignedLogRoot{
@@ -272,11 +292,15 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int) (i
 		return 0, err
 	}
 
+	ssrt := s.timeSource.Now()
+	s.logLatency("Update Root", nodet)
+
 	// The batch is now fully sequenced and we're done
 	if err := tx.Commit(); err != nil {
 		return 0, err
 	}
 
+	s.logLatency("Commit", ssrt)
 	glog.Infof("%v: sequenced %v leaves, size %v, tree-revision %v", logID, len(leaves), newLogRoot.TreeSize, newLogRoot.TreeRevision)
 	return len(leaves), nil
 }
@@ -329,4 +353,12 @@ func (s Sequencer) SignRoot(ctx context.Context, logID int64) error {
 	glog.V(2).Infof("%v: new signed root, size %v, tree-revision %v", logID, newLogRoot.TreeSize, newLogRoot.TreeRevision)
 
 	return tx.Commit()
+}
+
+func (s Sequencer) logLatency(label string, start time.Time) {
+	if logLatency {
+		now := s.timeSource.Now()
+		d := now.Sub(start).Seconds()
+		glog.Infof("%s Latency: %.2f sec", d)
+	}
 }
