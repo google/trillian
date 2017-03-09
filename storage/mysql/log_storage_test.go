@@ -57,12 +57,19 @@ const sequenceNumber int64 = 237
 // run in parallel or race conditions / unexpected interactions. Tests that pass should hold
 // no locks afterwards.
 
-func createFakeLeaf(db *sql.DB, logID int64, rawHash, hash, data, extraData []byte, seq int64, t *testing.T) {
+func createFakeLeaf(db *sql.DB, logID int64, rawHash, hash, data, extraData []byte, seq int64, t *testing.T) *trillian.LogLeaf {
 	_, err := db.Exec("INSERT INTO LeafData(TreeId, LeafIdentityHash, LeafValue, ExtraData) VALUES(?,?,?,?)", logID, rawHash, data, extraData)
 	_, err2 := db.Exec("INSERT INTO SequencedLeafData(TreeId, SequenceNumber, LeafIdentityHash, MerkleLeafHash) VALUES(?,?,?,?)", logID, seq, rawHash, hash)
 
 	if err != nil || err2 != nil {
 		t.Fatalf("Failed to create test leaves: %v %v", err, err2)
+	}
+	return &trillian.LogLeaf{
+		MerkleLeafHash:   hash,
+		LeafValue:        data,
+		ExtraData:        extraData,
+		LeafIndex:        seq,
+		LeafIdentityHash: rawHash,
 	}
 }
 
@@ -578,6 +585,63 @@ func TestGetLeavesByHash(t *testing.T) {
 	}
 	checkLeafContents(leaves[0], sequenceNumber, dummyRawHash, dummyHash, data, someExtraData, t)
 	commit(tx, t)
+}
+
+func TestGetLeafDataByIdentityHash(t *testing.T) {
+	// Create fake leaf as if it had been sequenced
+	cleanTestDB(DB)
+	logID := createLogForTests(DB)
+	s := NewLogStorage(DB)
+	data := []byte("some data")
+	leaf := createFakeLeaf(DB, logID, dummyRawHash, dummyHash, data, someExtraData, sequenceNumber, t)
+	leaf.LeafIndex = -1
+	leaf.MerkleLeafHash = []byte(dummyMerkleLeafHash)
+	leaf2 := createFakeLeaf(DB, logID, dummyHash2, dummyHash2, data, someExtraData, sequenceNumber+1, t)
+	leaf2.LeafIndex = -1
+	leaf2.MerkleLeafHash = []byte(dummyMerkleLeafHash)
+
+	var tests = []struct {
+		hashes [][]byte
+		want   []*trillian.LogLeaf
+	}{
+		{
+			hashes: [][]byte{dummyRawHash},
+			want:   []*trillian.LogLeaf{leaf},
+		},
+		{
+			hashes: [][]byte{[]byte{0x01, 0x02}},
+		},
+		{
+			hashes: [][]byte{
+				dummyRawHash,
+				[]byte{0x01, 0x02},
+				dummyHash2,
+				[]byte{0x01, 0x02},
+			},
+			// Note: leaves not necessarily returned in order requested.
+			want: []*trillian.LogLeaf{leaf2, leaf},
+		},
+	}
+	for _, test := range tests {
+		tx := beginLogTx(s, logID, t)
+		defer tx.Close()
+
+		leaves, err := tx.(*logTreeTX).getLeafDataByIdentityHash(test.hashes)
+		if err != nil {
+			t.Errorf("getLeavesByIdentityHash(_) = (_,%v); want (_,nil)", err)
+			continue
+		}
+		if len(leaves) != len(test.want) {
+			t.Errorf("getLeavesByIdentityHash(_) = (|%d|,nil); want (|%d|,nil)", len(leaves), len(test.want))
+			continue
+		}
+		for i, want := range test.want {
+			if !reflect.DeepEqual(leaves[i], want) {
+				t.Errorf("getLeavesByIdentityHash(_)[%d] = %+v; want %+v", i, leaves[i], want)
+			}
+		}
+		commit(tx, t)
+	}
 }
 
 func TestGetLeavesByIndex(t *testing.T) {
