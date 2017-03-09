@@ -359,6 +359,6 @@ func (s Sequencer) logLatency(label string, start time.Time) {
 	if logLatency {
 		now := s.timeSource.Now()
 		d := now.Sub(start).Seconds()
-		glog.Infof("%s Latency: %.2f sec", d)
+		glog.Infof("%s Latency: %.2f sec", label, d)
 	}
 }
