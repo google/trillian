@@ -261,7 +261,7 @@ func readbackLogEntries(logID int64, client trillian.TrillianLogClient, params T
 	leafDataPresenceMap := make(map[string]bool)
 
 	for l := int64(0); l < params.leafCount; l++ {
-		leafDataPresenceMap[fmt.Sprintf("Leaf %d", l+params.startLeaf)] = true
+		leafDataPresenceMap[fmt.Sprintf("%sLeaf %d", params.customLeafPrefix, l+params.startLeaf)] = true
 	}
 
 	for currentLeaf < params.leafCount {
