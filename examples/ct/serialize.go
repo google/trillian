@@ -18,7 +18,6 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
-	"time"
 
 	ct "github.com/google/certificate-transparency/go"
 	"github.com/google/certificate-transparency/go/tls"
@@ -64,26 +63,6 @@ func buildV1MerkleTreeLeafForCert(cert, issuer *x509.Certificate, timestamp uint
 	return &leaf, nil
 }
 
-// signV1SCTForCertificate creates a MerkleTreeLeaf and builds and signs a V1 CT SCT for a certificate
-// using the key held by a key manager.
-func signV1SCTForCertificate(signer *crypto.Signer, cert, issuer *x509.Certificate, t time.Time) (*ct.MerkleTreeLeaf, *ct.SignedCertificateTimestamp, error) {
-	sctInput := ct.SignedCertificateTimestamp{
-		SCTVersion: ct.V1,
-		Timestamp:  uint64(t.UnixNano() / millisPerNano),
-		Extensions: ct.CTExtensions{},
-	}
-
-	leaf, err := buildV1MerkleTreeLeafForCert(cert, issuer, sctInput.Timestamp)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to build MerkleTreeLeaf: %v", err)
-	}
-	sct, err := serializeAndSignSCT(signer, leaf, sctInput)
-	if err != nil {
-		return nil, nil, err
-	}
-	return leaf, sct, nil
-}
-
 func buildV1MerkleTreeLeafForPrecert(cert, issuer *x509.Certificate, timestamp uint64) (*ct.MerkleTreeLeaf, error) {
 	if issuer == nil {
 		// Need issuer for the IssuerKeyHash
@@ -116,29 +95,13 @@ func buildV1MerkleTreeLeafForPrecert(cert, issuer *x509.Certificate, timestamp u
 	return &leaf, nil
 }
 
-// signV1SCTForPrecertificate builds and signs a V1 CT SCT for a pre-certificate using the key
-// held by a key manager.
-func signV1SCTForPrecertificate(signer *crypto.Signer, cert, issuer *x509.Certificate, t time.Time) (*ct.MerkleTreeLeaf, *ct.SignedCertificateTimestamp, error) {
+func buildV1SCT(signer *crypto.Signer, leaf *ct.MerkleTreeLeaf) (*ct.SignedCertificateTimestamp, error) {
+	// Serialize SCT signature input to get the bytes that need to be signed
 	sctInput := ct.SignedCertificateTimestamp{
 		SCTVersion: ct.V1,
-		Timestamp:  uint64(t.UnixNano() / millisPerNano),
+		Timestamp:  leaf.TimestampedEntry.Timestamp,
 		Extensions: ct.CTExtensions{},
 	}
-
-	leaf, err := buildV1MerkleTreeLeafForPrecert(cert, issuer, sctInput.Timestamp)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to build MerkleTreeLeaf: %v", err)
-	}
-
-	sct, err := serializeAndSignSCT(signer, leaf, sctInput)
-	if err != nil {
-		return nil, nil, err
-	}
-	return leaf, sct, err
-}
-
-func serializeAndSignSCT(signer *crypto.Signer, leaf *ct.MerkleTreeLeaf, sctInput ct.SignedCertificateTimestamp) (*ct.SignedCertificateTimestamp, error) {
-	// Serialize SCT signature input to get the bytes that need to be signed
 	data, err := ct.SerializeSCTSignatureInput(sctInput, ct.LogEntry{Leaf: *leaf})
 	if err != nil {
 		return nil, fmt.Errorf("failed to serialize SCT data: %v", err)
@@ -170,13 +133,4 @@ func serializeAndSignSCT(signer *crypto.Signer, leaf *ct.MerkleTreeLeaf, sctInpu
 		Extensions: ct.CTExtensions{},
 		Signature:  digitallySigned,
 	}, nil
-}
-
-func regenerateSCT(signer *crypto.Signer, leaf ct.MerkleTreeLeaf) (*ct.SignedCertificateTimestamp, error) {
-	sctInput := ct.SignedCertificateTimestamp{
-		SCTVersion: ct.V1,
-		Timestamp:  leaf.TimestampedEntry.Timestamp,
-		Extensions: ct.CTExtensions{},
-	}
-	return serializeAndSignSCT(signer, &leaf, sctInput)
 }
