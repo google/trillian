@@ -30,8 +30,6 @@ import (
 	"strings"
 	"time"
 
-	"google.golang.org/genproto/googleapis/rpc/code"
-
 	"github.com/golang/glog"
 	ct "github.com/google/certificate-transparency/go"
 	"github.com/google/certificate-transparency/go/tls"
@@ -297,12 +295,12 @@ func addChainInternal(ctx context.Context, c LogContext, w http.ResponseWriter, 
 	if err != nil {
 		return http.StatusBadRequest, fmt.Errorf("failed to build MerkleTreeLeaf: %v", err)
 	}
-
-	// Send the Merkle tree leaf on to the Log server.
 	leaf, err := buildLogLeafForAddChain(c, *merkleLeaf, chain)
 	if err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("failed to build LogLeaf: %v", err)
 	}
+
+	// Send the Merkle tree leaf on to the Log server.
 	req := trillian.QueueLeavesRequest{LogId: c.logID, Leaves: []*trillian.LogLeaf{&leaf}}
 
 	glog.V(2).Infof("%s: %s => grpc.QueueLeaves", c.LogPrefix, method)
@@ -318,22 +316,18 @@ func addChainInternal(ctx context.Context, c LogContext, w http.ResponseWriter, 
 		return http.StatusInternalServerError, fmt.Errorf("unexpected QueueLeaves response leaf count: %d", len(rsp.QueuedLeaves))
 	}
 	queuedLeaf := rsp.QueuedLeaves[0]
-	if queuedLeaf.Status != nil && queuedLeaf.Status.Code == int32(code.Code_ALREADY_EXISTS) {
-		// The leaf already exists, so use that leaf as the basis for an SCT.
-		var origLeaf ct.MerkleTreeLeaf
-		if rest, err := tls.Unmarshal(queuedLeaf.Leaf.LeafValue, &origLeaf); err != nil {
-			return http.StatusInternalServerError, fmt.Errorf("failed to reconstruct MerkleTreeLeaf: %v", err)
-		} else if len(rest) > 0 {
-			return http.StatusInternalServerError, fmt.Errorf("extra data (%d bytes) on reconstructing MerkleTreeLeaf", len(rest))
-		}
-		merkleLeaf = &origLeaf
-	} else if queuedLeaf.Status.Code != int32(code.Code_OK) {
-		return http.StatusInternalServerError, fmt.Errorf("unexpected QueueLeaves leaf status: %v", queuedLeaf.Status.Code)
+
+	// Always use the returned leaf as the basis for an SCT.
+	var loggedLeaf ct.MerkleTreeLeaf
+	if rest, err := tls.Unmarshal(queuedLeaf.Leaf.LeafValue, &loggedLeaf); err != nil {
+		return http.StatusInternalServerError, fmt.Errorf("failed to reconstruct MerkleTreeLeaf: %v", err)
+	} else if len(rest) > 0 {
+		return http.StatusInternalServerError, fmt.Errorf("extra data (%d bytes) on reconstructing MerkleTreeLeaf", len(rest))
 	}
 
-	// As the Log server has successfully queued up the Merkle tree leaf, we can
+	// As the Log server has definitely got the Merkle tree leaf, we can
 	// generate an SCT and respond with it.
-	sct, err := buildV1SCT(c.signer, merkleLeaf)
+	sct, err := buildV1SCT(c.signer, &loggedLeaf)
 	if err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("failed to generate SCT: %v", err)
 	}
