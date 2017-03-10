@@ -15,7 +15,7 @@
 package extension
 
 import (
-	"github.com/google/trillian/crypto"
+	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/storage"
 )
 
@@ -33,6 +33,6 @@ type Registry interface {
 	// GetMapStorage returns a configured storage.MapStorage instance or an error if the storage cannot be set up.
 	GetMapStorage() (storage.MapStorage, error)
 
-	// GetSigner returns a configured crypto.Signer instance for the specified tree ID or an error if the signer cannot be set up.
-	GetSigner(treeID int64) (*crypto.Signer, error)
+	// GetKeyProvider returns a keys.Provider that allows access to the private keys belonging to all trees.
+	GetKeyProvider() (keys.Provider, error)
 }

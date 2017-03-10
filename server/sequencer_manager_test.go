@@ -16,17 +16,18 @@ package server
 
 import (
 	"context"
+	"crypto"
 	"fmt"
 	"testing"
 	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/storage"
+	stestonly "github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/util"
 )
@@ -77,8 +78,20 @@ var zeroDuration = 0 * time.Second
 
 const writeRev = int64(24)
 
+type keyProvider struct {
+	signers map[int64]crypto.Signer
+}
+
+func (p *keyProvider) Signer(ctx context.Context, tree *trillian.Tree) (crypto.Signer, error) {
+	signer := p.signers[tree.GetTreeId()]
+	if signer == nil {
+		return nil, fmt.Errorf("no signer for tree %v", tree.GetTreeId())
+	}
+	return signer, nil
+}
+
 // newSignerWithFixedSig returns a fake signer that always returns the specified signature.
-func newSignerWithFixedSig(sig *sigpb.DigitallySigned) (*crypto.Signer, error) {
+func newSignerWithFixedSig(sig *sigpb.DigitallySigned) (crypto.Signer, error) {
 	key, err := keys.NewFromPublicPEM(testonly.DemoPublicKey)
 	if err != nil {
 		return nil, err
@@ -88,17 +101,20 @@ func newSignerWithFixedSig(sig *sigpb.DigitallySigned) (*crypto.Signer, error) {
 		return nil, fmt.Errorf("signature algorithm does not match demo public key")
 	}
 
-	return crypto.NewSigner(testonly.NewSignerWithFixedSig(key, sig.Signature)), nil
+	return testonly.NewSignerWithFixedSig(key, sig.Signature), nil
 }
 
 func TestSequencerManagerNothingToDo(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
+	mockAdmin := storage.NewMockAdminStorage(mockCtrl)
 	mockStorage := storage.NewMockLogStorage(mockCtrl)
 
 	registry := extension.NewMockRegistry(mockCtrl)
+	registry.EXPECT().GetAdminStorage().Return(mockAdmin)
 	registry.EXPECT().GetLogStorage().Return(mockStorage, nil)
+	registry.EXPECT().GetKeyProvider().Return(&keyProvider{}, nil)
 	sm := NewSequencerManager(registry, zeroDuration)
 
 	sm.ExecutePass([]int64{}, createTestContext(registry))
@@ -108,10 +124,12 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
+	logID := stestonly.LogTree.GetTreeId()
+	mockAdmin := storage.NewMockAdminStorage(mockCtrl)
+	mockAdminTx := storage.NewMockReadOnlyAdminTX(mockCtrl)
 	mockStorage := storage.NewMockLogStorage(mockCtrl)
 	mockTx := storage.NewMockLogTreeTX(mockCtrl)
 
-	const logID int64 = 1
 	signer, err := newSignerWithFixedSig(updatedRoot.Signature)
 	if err != nil {
 		t.Fatalf("Failed to create test signer (%v)", err)
@@ -124,9 +142,16 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 	mockTx.EXPECT().LatestSignedLogRoot().Return(testRoot0, nil)
 	mockTx.EXPECT().DequeueLeaves(50, fakeTime).Return([]*trillian.LogLeaf{}, nil)
 
+	mockAdmin.EXPECT().Snapshot(gomock.Any()).Return(mockAdminTx, nil)
+	mockAdminTx.EXPECT().GetTree(gomock.Any(), logID).Return(stestonly.LogTree, nil)
+	mockAdminTx.EXPECT().Close().Return(nil)
+
 	registry := extension.NewMockRegistry(mockCtrl)
+	registry.EXPECT().GetAdminStorage().Return(mockAdmin)
 	registry.EXPECT().GetLogStorage().Return(mockStorage, nil)
-	registry.EXPECT().GetSigner(logID).Return(signer, nil)
+	registry.EXPECT().GetKeyProvider().Return(&keyProvider{
+		signers: map[int64]crypto.Signer{logID: signer},
+	}, nil)
 	sm := NewSequencerManager(registry, zeroDuration)
 
 	sm.ExecutePass([]int64{logID}, createTestContext(registry))
@@ -136,10 +161,12 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
+	logID := stestonly.LogTree.GetTreeId()
+	mockAdmin := storage.NewMockAdminStorage(mockCtrl)
+	mockAdminTx := storage.NewMockReadOnlyAdminTX(mockCtrl)
 	mockStorage := storage.NewMockLogStorage(mockCtrl)
 	mockTx := storage.NewMockLogTreeTX(mockCtrl)
 
-	const logID int64 = 1
 	signer, err := newSignerWithFixedSig(updatedRoot.Signature)
 	if err != nil {
 		t.Fatalf("Failed to create test signer (%v)", err)
@@ -157,9 +184,17 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 	mockTx.EXPECT().StoreSignedLogRoot(updatedRoot).Return(nil)
 	mockStorage.EXPECT().BeginForTree(gomock.Any(), logID).Return(mockTx, nil)
 
+	mockAdmin.EXPECT().Snapshot(gomock.Any()).Return(mockAdminTx, nil)
+	mockAdminTx.EXPECT().GetTree(gomock.Any(), logID).Return(stestonly.LogTree, nil)
+	mockAdminTx.EXPECT().Close().Return(nil)
+
 	registry := extension.NewMockRegistry(mockCtrl)
+	registry.EXPECT().GetAdminStorage().Return(mockAdmin)
 	registry.EXPECT().GetLogStorage().Return(mockStorage, nil)
-	registry.EXPECT().GetSigner(logID).Return(signer, nil)
+	registry.EXPECT().GetKeyProvider().Return(&keyProvider{
+		signers: map[int64]crypto.Signer{logID: signer},
+	}, nil)
+
 	sm := NewSequencerManager(registry, zeroDuration)
 
 	sm.ExecutePass([]int64{logID}, createTestContext(registry))
@@ -169,10 +204,12 @@ func TestSequencerManagerGuardWindow(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
+	logID := stestonly.LogTree.GetTreeId()
+	mockAdmin := storage.NewMockAdminStorage(mockCtrl)
+	mockAdminTx := storage.NewMockReadOnlyAdminTX(mockCtrl)
 	mockStorage := storage.NewMockLogStorage(mockCtrl)
 	mockTx := storage.NewMockLogTreeTX(mockCtrl)
 
-	const logID int64 = 1
 	signer, err := newSignerWithFixedSig(updatedRoot.Signature)
 	if err != nil {
 		t.Fatalf("Failed to create test signer (%v)", err)
@@ -186,9 +223,17 @@ func TestSequencerManagerGuardWindow(t *testing.T) {
 	// Expect a 5 second guard window to be passed from manager -> sequencer -> storage
 	mockTx.EXPECT().DequeueLeaves(50, fakeTime.Add(-time.Second*5)).Return([]*trillian.LogLeaf{}, nil)
 
+	mockAdmin.EXPECT().Snapshot(gomock.Any()).Return(mockAdminTx, nil)
+	mockAdminTx.EXPECT().GetTree(gomock.Any(), logID).Return(stestonly.LogTree, nil)
+	mockAdminTx.EXPECT().Close().Return(nil)
+
 	registry := extension.NewMockRegistry(mockCtrl)
+	registry.EXPECT().GetAdminStorage().Return(mockAdmin)
 	registry.EXPECT().GetLogStorage().Return(mockStorage, nil)
-	registry.EXPECT().GetSigner(logID).Return(signer, nil)
+	registry.EXPECT().GetKeyProvider().Return(&keyProvider{
+		signers: map[int64]crypto.Signer{logID: signer},
+	}, nil)
+
 	sm := NewSequencerManager(registry, time.Second*5)
 
 	sm.ExecutePass([]int64{logID}, createTestContext(registry))

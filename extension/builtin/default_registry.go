@@ -15,12 +15,16 @@
 package builtin
 
 import (
+	"context"
+	"crypto"
 	"database/sql"
 	"flag"
+	"fmt"
 
 	_ "github.com/go-sql-driver/mysql" // Load MySQL driver
 
-	"github.com/google/trillian/crypto"
+	"github.com/golang/protobuf/ptypes"
+	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/storage"
@@ -30,16 +34,11 @@ import (
 var (
 	// MySQLURIFlag is the mysql db connection string.
 	MySQLURIFlag = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "uri to use with mysql storage")
-	// TODO(Martin2112): Single private key doesn't really work for multi tenant and we can't use
-	// an HSM interface in this way. Deferring these issues for later.
-	privateKeyFile     = flag.String("private_key_file", "", "File containing a PEM encoded private key")
-	privateKeyPassword = flag.String("private_key_password", "", "Password for server private key")
 )
 
 // Default implementation of extension.Registry.
 type defaultRegistry struct {
-	db     *sql.DB
-	signer *crypto.Signer
+	db *sql.DB
 }
 
 func (r *defaultRegistry) GetAdminStorage() storage.AdminStorage {
@@ -54,27 +53,45 @@ func (r *defaultRegistry) GetMapStorage() (storage.MapStorage, error) {
 	return mysql.NewMapStorage(r.db), nil
 }
 
-func (r *defaultRegistry) GetSigner(treeID int64) (*crypto.Signer, error) {
-	return r.signer, nil
+func (r *defaultRegistry) GetKeyProvider() (keys.Provider, error) {
+	return keyProvider{}, nil
 }
 
 // NewExtensionRegistry returns an extension.Registry implementation backed by a given
-// MySQL database and signer.
-func NewExtensionRegistry(db *sql.DB, signer *crypto.Signer) (extension.Registry, error) {
-	return &defaultRegistry{db: db, signer: signer}, nil
-
+// MySQL database. It supports loading private keys from PEM files.
+func NewExtensionRegistry(db *sql.DB) (extension.Registry, error) {
+	return &defaultRegistry{db: db}, nil
 }
 
 // NewDefaultExtensionRegistry returns the default extension.Registry implementation, which is
 // backed by a MySQL database and configured via flags.
+// It supports loading private keys from PEM files.
 func NewDefaultExtensionRegistry() (extension.Registry, error) {
 	db, err := mysql.OpenDB(*MySQLURIFlag)
 	if err != nil {
 		return nil, err
 	}
-	key, err := keys.NewFromPrivatePEMFile(*privateKeyFile, *privateKeyPassword)
-	if err != nil {
-		return nil, err
+	return NewExtensionRegistry(db)
+}
+
+// keyProvider implements keys.Provider.
+type keyProvider struct{}
+
+// Signer returns a crypto.Signer for the given tree.
+func (p keyProvider) Signer(ctx context.Context, tree *trillian.Tree) (crypto.Signer, error) {
+	if tree.PrivateKey == nil {
+		return nil, fmt.Errorf("tree %d has no PrivateKey", tree.GetTreeId())
 	}
-	return NewExtensionRegistry(db, crypto.NewSigner(key))
+
+	var privateKey ptypes.DynamicAny
+	if err := ptypes.UnmarshalAny(tree.PrivateKey, &privateKey); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal private key for tree %d: %v", tree.GetTreeId(), err)
+	}
+
+	switch privateKey := privateKey.Message.(type) {
+	case *trillian.PEMKeyFile:
+		return keys.NewFromPrivatePEMFile(privateKey.Path, privateKey.Password)
+	}
+
+	return nil, fmt.Errorf("unsupported PrivateKey type for tree %d: %T", tree.GetTreeId(), privateKey.Message)
 }

@@ -26,5 +26,5 @@ func NewRegistryForTests(testID string) (extension.Registry, error) {
 	if err != nil {
 		return nil, err
 	}
-	return builtin.NewExtensionRegistry(db, nil /* signer */)
+	return builtin.NewExtensionRegistry(db)
 }

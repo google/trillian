@@ -15,6 +15,7 @@
 package keys
 
 import (
+	"context"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/rsa"
@@ -23,7 +24,15 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+
+	"github.com/google/trillian"
 )
+
+// Provider handles acquisition of signers for trees.
+type Provider interface {
+	// Signer returns a signer for the given tree.
+	Signer(context.Context, *trillian.Tree) (crypto.Signer, error)
+}
 
 // NewFromPrivatePEMFile reads a PEM-encoded private key from a file.
 // The key may be protected by a password.

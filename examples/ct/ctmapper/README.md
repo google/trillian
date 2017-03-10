@@ -19,7 +19,7 @@ go build ./examples/ct/ctmapper/mapper
 go build ./examples/ct/ctmapper/lookup
 
 # in one terminal:
-./trillian_map_server --logtostderr --private_key_password=towel --private_key_file=testdata/trillian-map-server-key.pem
+./trillian_map_server --logtostderr
 
 # in another (leaving the trillian_map_server running):
 ./mapper -source http://ct.googleapis.com/pilot -map_id=1 -map_server=localhost:8091 --logtostderr

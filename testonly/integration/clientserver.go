@@ -21,14 +21,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/extension/builtin"
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/storage/mysql"
 	"github.com/google/trillian/storage/testonly"
-	to "github.com/google/trillian/testonly"
 	"github.com/google/trillian/util"
 	"google.golang.org/grpc"
 )
@@ -39,7 +38,11 @@ var (
 	sleepBetweenRuns = 100 * time.Millisecond
 	timeSource       = util.SystemTimeSource{}
 	// PublicKey returns the public key that verifies responses from this server.
-	PublicKey, _ = keys.NewFromPublicPEM(to.DemoPublicKey)
+	PublicKey, _ = keys.NewFromPublicPEMFile("../testdata/log-rpc-server.pubkey.pem")
+	privateKey   = &trillian.PEMKeyFile{
+		Path:     "../testdata/log-rpc-server.privkey.pem",
+		Password: "towel",
+	}
 )
 
 // LogEnv is a test environment that contains both a log server and a connection to it.
@@ -78,12 +81,7 @@ func NewLogEnv(ctx context.Context, numSequencers int, testID string) (*LogEnv, 
 		return nil, err
 	}
 
-	key, err := keys.NewFromPrivatePEM(to.DemoPrivateKey, to.DemoPrivateKeyPass)
-	if err != nil {
-		return nil, err
-	}
-
-	registry, err := builtin.NewExtensionRegistry(db, crypto.NewSigner(key))
+	registry, err := builtin.NewExtensionRegistry(db)
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +166,15 @@ func (env *LogEnv) CreateLog() (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	tree, err := tx.CreateTree(ctx, testonly.LogTree)
+
+	tree := testonly.LogTree
+
+	tree.PrivateKey, err = ptypes.MarshalAny(privateKey)
+	if err != nil {
+		return 0, err
+	}
+
+	tree, err = tx.CreateTree(ctx, tree)
 	if err != nil {
 		return 0, err
 	}

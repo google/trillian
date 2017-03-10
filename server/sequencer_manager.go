@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/golang/glog"
+	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/log"
 	"github.com/google/trillian/merkle"
@@ -61,9 +62,17 @@ func (s SequencerManager) ExecutePass(logIDs []int64, logctx LogOperationManager
 
 	storage, err := s.registry.GetLogStorage()
 	if err != nil {
-		glog.Warningf("Failed to acquire log storage: %v", err)
+		glog.Errorf("Failed to acquire log storage: %v", err)
 		return
 	}
+
+	keyProvider, err := s.registry.GetKeyProvider()
+	if err != nil {
+		glog.Errorf("Failed to acquire key provider: %v", err)
+		return
+	}
+
+	admin := s.registry.GetAdminStorage()
 
 	var wg sync.WaitGroup
 	toSeq := make(chan int64, len(logIDs))
@@ -96,13 +105,26 @@ func (s SequencerManager) ExecutePass(logIDs []int64, logctx LogOperationManager
 					continue
 				}
 
-				signer, err := s.registry.GetSigner(logID)
+				snapshot, err := admin.Snapshot(ctx)
 				if err != nil {
-					glog.Errorf("No signer for log %d: %v", logID, err)
+					glog.Errorf("Could not get storage snapshot for log %d: %v", logID, err)
+					continue
+				}
+				defer snapshot.Close()
+
+				tree, err := snapshot.GetTree(ctx, logID)
+				if err != nil {
+					glog.Errorf("Could not get tree config from admin storage for log %d: %v", logID, err)
 					continue
 				}
 
-				sequencer := log.NewSequencer(hasher, logctx.timeSource, storage, signer)
+				signer, err := keyProvider.Signer(ctx, tree)
+				if err != nil {
+					glog.Errorf("Could not get signer for log %d: %v", logID, err)
+					continue
+				}
+
+				sequencer := log.NewSequencer(hasher, logctx.timeSource, storage, crypto.NewSigner(signer))
 				sequencer.SetGuardWindow(s.guardWindow)
 
 				leaves, err := sequencer.SequenceBatch(ctx, logID, logctx.batchSize)
