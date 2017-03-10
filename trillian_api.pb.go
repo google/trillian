@@ -52,14 +52,15 @@ It has these top-level messages:
 	SignedLogRoot
 	MapperMetadata
 	SignedMapRoot
+	PEMKeyFile
 */
 package trillian
 
 import proto "github.com/golang/protobuf/proto"
 import fmt "fmt"
 import math "math"
-import google_protobuf "github.com/golang/protobuf/ptypes/empty"
-import google_protobuf1 "google.golang.org/genproto/protobuf/field_mask"
+import google_protobuf1 "github.com/golang/protobuf/ptypes/empty"
+import google_protobuf2 "google.golang.org/genproto/protobuf/field_mask"
 
 import (
 	context "golang.org/x/net/context"
@@ -930,7 +931,7 @@ type UpdateTreeRequest struct {
 	Tree *Tree `protobuf:"bytes,1,opt,name=tree" json:"tree,omitempty"`
 	// Fields modified by the update request.
 	// For example: "tree_state", "display_name", "description".
-	UpdateMask *google_protobuf1.FieldMask `protobuf:"bytes,2,opt,name=update_mask,json=updateMask" json:"update_mask,omitempty"`
+	UpdateMask *google_protobuf2.FieldMask `protobuf:"bytes,2,opt,name=update_mask,json=updateMask" json:"update_mask,omitempty"`
 }
 
 func (m *UpdateTreeRequest) Reset()                    { *m = UpdateTreeRequest{} }
@@ -945,7 +946,7 @@ func (m *UpdateTreeRequest) GetTree() *Tree {
 	return nil
 }
 
-func (m *UpdateTreeRequest) GetUpdateMask() *google_protobuf1.FieldMask {
+func (m *UpdateTreeRequest) GetUpdateMask() *google_protobuf2.FieldMask {
 	if m != nil {
 		return m.UpdateMask
 	}
@@ -1022,7 +1023,7 @@ const _ = grpc.SupportPackageIsVersion4
 
 type TrillianLogClient interface {
 	// QueueLeaf adds a single leaf to the queue.
-	QueueLeaf(ctx context.Context, in *QueueLeafRequest, opts ...grpc.CallOption) (*google_protobuf.Empty, error)
+	QueueLeaf(ctx context.Context, in *QueueLeafRequest, opts ...grpc.CallOption) (*google_protobuf1.Empty, error)
 	// Corresponds to the LeafQueuer API
 	QueueLeaves(ctx context.Context, in *QueueLeavesRequest, opts ...grpc.CallOption) (*QueueLeavesResponse, error)
 	// No direct equivalent at the storage level
@@ -1046,8 +1047,8 @@ func NewTrillianLogClient(cc *grpc.ClientConn) TrillianLogClient {
 	return &trillianLogClient{cc}
 }
 
-func (c *trillianLogClient) QueueLeaf(ctx context.Context, in *QueueLeafRequest, opts ...grpc.CallOption) (*google_protobuf.Empty, error) {
-	out := new(google_protobuf.Empty)
+func (c *trillianLogClient) QueueLeaf(ctx context.Context, in *QueueLeafRequest, opts ...grpc.CallOption) (*google_protobuf1.Empty, error) {
+	out := new(google_protobuf1.Empty)
 	err := grpc.Invoke(ctx, "/trillian.TrillianLog/QueueLeaf", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
@@ -1140,7 +1141,7 @@ func (c *trillianLogClient) GetEntryAndProof(ctx context.Context, in *GetEntryAn
 
 type TrillianLogServer interface {
 	// QueueLeaf adds a single leaf to the queue.
-	QueueLeaf(context.Context, *QueueLeafRequest) (*google_protobuf.Empty, error)
+	QueueLeaf(context.Context, *QueueLeafRequest) (*google_protobuf1.Empty, error)
 	// Corresponds to the LeafQueuer API
 	QueueLeaves(context.Context, *QueueLeavesRequest) (*QueueLeavesResponse, error)
 	// No direct equivalent at the storage level
@@ -1538,7 +1539,7 @@ type TrillianAdminClient interface {
 	// A soft-deleted tree may be undeleted for a certain period, after which
 	// it'll be permanently deleted.
 	// TODO(codingllama): Provide an undelete RPC.
-	DeleteTree(ctx context.Context, in *DeleteTreeRequest, opts ...grpc.CallOption) (*google_protobuf.Empty, error)
+	DeleteTree(ctx context.Context, in *DeleteTreeRequest, opts ...grpc.CallOption) (*google_protobuf1.Empty, error)
 }
 
 type trillianAdminClient struct {
@@ -1585,8 +1586,8 @@ func (c *trillianAdminClient) UpdateTree(ctx context.Context, in *UpdateTreeRequ
 	return out, nil
 }
 
-func (c *trillianAdminClient) DeleteTree(ctx context.Context, in *DeleteTreeRequest, opts ...grpc.CallOption) (*google_protobuf.Empty, error) {
-	out := new(google_protobuf.Empty)
+func (c *trillianAdminClient) DeleteTree(ctx context.Context, in *DeleteTreeRequest, opts ...grpc.CallOption) (*google_protobuf1.Empty, error) {
+	out := new(google_protobuf1.Empty)
 	err := grpc.Invoke(ctx, "/trillian.TrillianAdmin/DeleteTree", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
@@ -1613,7 +1614,7 @@ type TrillianAdminServer interface {
 	// A soft-deleted tree may be undeleted for a certain period, after which
 	// it'll be permanently deleted.
 	// TODO(codingllama): Provide an undelete RPC.
-	DeleteTree(context.Context, *DeleteTreeRequest) (*google_protobuf.Empty, error)
+	DeleteTree(context.Context, *DeleteTreeRequest) (*google_protobuf1.Empty, error)
 }
 
 func RegisterTrillianAdminServer(s *grpc.Server, srv TrillianAdminServer) {

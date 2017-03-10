@@ -17,6 +17,7 @@ syntax = "proto3";
 package trillian;
 
 import "github.com/google/trillian/crypto/sigpb/sigpb.proto";
+import "google/protobuf/any.proto";
 
 // What goes in here?
 // Things which are exposed through the public trillian APIs.
@@ -135,6 +136,12 @@ message Tree {
   // Timestamp of last tree update.
   // Readonly (automatically assigned on updates).
   int64 update_time_millis_since_epoch = 11;
+
+  // Identifies the private key used for signing tree heads and entry
+  // timestamps.
+  // This can be any type of message to accommodate different key management
+  // systems, e.g. PEM files, HSMs, etc.
+  google.protobuf.Any private_key = 12;
 }
 
 message SignedEntryTimestamp {
@@ -173,4 +180,13 @@ message SignedMapRoot {
 
   int64 map_id = 5;
   int64 map_revision = 6;
+}
+
+// PEMKeyFile identifies a private key stored in a PEM-encoded file.
+message PEMKeyFile {
+  // File path of the private key.
+  string path = 1;
+  // Password for decrypting the private key.
+  // If empty, indicates that the private key is not encrypted.
+  string password = 2;
 }
