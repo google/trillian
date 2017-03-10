@@ -17,7 +17,7 @@ package integration
 import (
 	"bytes"
 	"context"
-	basecrypto "crypto"
+	"crypto"
 	cryptorand "crypto/rand"
 	"crypto/sha256"
 	"encoding/json"
@@ -38,7 +38,7 @@ import (
 	"github.com/google/certificate-transparency/go/tls"
 	"github.com/google/certificate-transparency/go/x509"
 	"github.com/google/certificate-transparency/go/x509/pkix"
-	"github.com/google/trillian/crypto"
+	"github.com/google/trillian/crypto/keys"
 	ctfe "github.com/google/trillian/examples/ct"
 	"github.com/google/trillian/testonly"
 	"golang.org/x/net/context/ctxhttp"
@@ -462,7 +462,7 @@ func checkCTConsistencyProof(sth1, sth2 *ct.SignedTreeHead, proof [][]byte) erro
 
 // makePrecertChain builds a precert chain based from the given cert chain and cert, converting and
 // re-signing relative to the given issuer.
-func makePrecertChain(chain []ct.ASN1Cert, cert, issuer *x509.Certificate, signer basecrypto.Signer) ([]ct.ASN1Cert, []byte, error) {
+func makePrecertChain(chain []ct.ASN1Cert, cert, issuer *x509.Certificate, signer crypto.Signer) ([]ct.ASN1Cert, []byte, error) {
 	prechain := make([]ct.ASN1Cert, len(chain))
 	copy(prechain[1:], chain[1:])
 	cert, err := x509.ParseCertificate(chain[0].Data)
@@ -506,7 +506,7 @@ func makePrecertChain(chain []ct.ASN1Cert, cert, issuer *x509.Certificate, signe
 
 // makeCertChain builds a new cert chain based from the given cert chain, changing SubjectKeyId and
 // re-signing relative to the given issuer.
-func makeCertChain(chain []ct.ASN1Cert, cert, issuer *x509.Certificate, signer basecrypto.Signer) ([]ct.ASN1Cert, error) {
+func makeCertChain(chain []ct.ASN1Cert, cert, issuer *x509.Certificate, signer crypto.Signer) ([]ct.ASN1Cert, error) {
 	newchain := make([]ct.ASN1Cert, len(chain))
 	copy(newchain[1:], chain[1:])
 
@@ -528,12 +528,12 @@ func makeCertChain(chain []ct.ASN1Cert, cert, issuer *x509.Certificate, signer b
 }
 
 // MakeSigner creates a signer using the private key in the test directory.
-func MakeSigner(testdir string) (basecrypto.Signer, error) {
-	km, err := crypto.NewFromPrivatePEMFile(filepath.Join(testdir, "int-ca.privkey.pem"), "babelfish")
+func MakeSigner(testdir string) (crypto.Signer, error) {
+	key, err := keys.NewFromPrivatePEMFile(filepath.Join(testdir, "int-ca.privkey.pem"), "babelfish")
 	if err != nil {
 		return nil, fmt.Errorf("failed to load private key for re-signing: %v", err)
 	}
-	return km, nil
+	return key, nil
 }
 
 // Track HTTP requests/responses in parallel so we can check the stats exported by the log.

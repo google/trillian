@@ -18,16 +18,14 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/rsa"
-	"crypto/x509"
 	"encoding/asn1"
 	"encoding/json"
-	"encoding/pem"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"math/big"
 
 	"github.com/benlaurie/objecthash/go/objecthash"
+	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/sigpb"
 )
 
@@ -38,33 +36,6 @@ var (
 		sigpb.DigitallySigned_SHA256: crypto.SHA256,
 	}
 )
-
-// PublicKeyFromFile returns the public key contained in the keyFile in PEM format.
-func PublicKeyFromFile(keyFile string) (crypto.PublicKey, error) {
-	pemData, err := ioutil.ReadFile(keyFile)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read: %s. %v", keyFile, err)
-	}
-	return PublicKeyFromPEM(string(pemData))
-}
-
-// PublicKeyFromPEM converts a PEM object into a crypto.PublicKey
-func PublicKeyFromPEM(pemEncodedKey string) (crypto.PublicKey, error) {
-	publicBlock, rest := pem.Decode([]byte(pemEncodedKey))
-	if publicBlock == nil {
-		return nil, errors.New("could not decode PEM for public key")
-	}
-	if len(rest) > 0 {
-		return nil, errors.New("extra data found after PEM key decoded")
-	}
-
-	parsedKey, err := x509.ParsePKIXPublicKey(publicBlock.Bytes)
-	if err != nil {
-		return nil, fmt.Errorf("unable to parse public key: %v", err)
-	}
-
-	return parsedKey, nil
-}
 
 // VerifyObject verifies the output of Signer.SignObject.
 func VerifyObject(pub crypto.PublicKey, obj interface{}, sig *sigpb.DigitallySigned) error {
@@ -79,7 +50,9 @@ func VerifyObject(pub crypto.PublicKey, obj interface{}, sig *sigpb.DigitallySig
 
 // Verify cryptographically verifies the output of Signer.
 func Verify(pub crypto.PublicKey, data []byte, sig *sigpb.DigitallySigned) error {
-	sigAlgo := sig.SignatureAlgorithm
+	if keys.SignatureAlgorithm(pub) != sig.SignatureAlgorithm {
+		return fmt.Errorf("signature algorithm does not match public key")
+	}
 
 	// Recompute digest
 	hasher, ok := cryptoHashLookup[sig.HashAlgorithm]
@@ -90,20 +63,13 @@ func Verify(pub crypto.PublicKey, data []byte, sig *sigpb.DigitallySigned) error
 	h.Write(data)
 	digest := h.Sum(nil)
 
-	// Verify signature algo type
-	switch key := pub.(type) {
+	switch pub := pub.(type) {
 	case *ecdsa.PublicKey:
-		if sigAlgo != sigpb.DigitallySigned_ECDSA {
-			return fmt.Errorf("signature algorithm does not match public key")
-		}
-		return verifyECDSA(key, digest, sig.Signature)
+		return verifyECDSA(pub, digest, sig.Signature)
 	case *rsa.PublicKey:
-		if sigAlgo != sigpb.DigitallySigned_RSA {
-			return fmt.Errorf("signature algorithm does not match public key")
-		}
-		return verifyRSA(key, digest, sig.Signature, hasher, hasher)
+		return verifyRSA(pub, digest, sig.Signature, hasher, hasher)
 	default:
-		return fmt.Errorf("unknown private key type: %T", key)
+		return fmt.Errorf("unknown private key type: %T", pub)
 	}
 }
 

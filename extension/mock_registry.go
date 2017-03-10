@@ -30,17 +30,6 @@ func (_m *MockRegistry) EXPECT() *_MockRegistryRecorder {
 	return _m.recorder
 }
 
-func (_m *MockRegistry) GetKeyManager(_param0 int64) (crypto.PrivateKeyManager, error) {
-	ret := _m.ctrl.Call(_m, "GetKeyManager", _param0)
-	ret0, _ := ret[0].(crypto.PrivateKeyManager)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-func (_mr *_MockRegistryRecorder) GetKeyManager(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetKeyManager", arg0)
-}
-
 func (_m *MockRegistry) GetLogStorage() (storage.LogStorage, error) {
 	ret := _m.ctrl.Call(_m, "GetLogStorage")
 	ret0, _ := ret[0].(storage.LogStorage)
@@ -61,4 +50,15 @@ func (_m *MockRegistry) GetMapStorage() (storage.MapStorage, error) {
 
 func (_mr *_MockRegistryRecorder) GetMapStorage() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetMapStorage")
+}
+
+func (_m *MockRegistry) GetSigner(_param0 int64) (*crypto.Signer, error) {
+	ret := _m.ctrl.Call(_m, "GetSigner", _param0)
+	ret0, _ := ret[0].(*crypto.Signer)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+func (_mr *_MockRegistryRecorder) GetSigner(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetSigner", arg0)
 }

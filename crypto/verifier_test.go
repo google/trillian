@@ -18,6 +18,7 @@ import (
 	"crypto"
 	"testing"
 
+	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/testonly"
 )
 
@@ -40,22 +41,21 @@ func TestSignVerify(t *testing.T) {
 		{testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass, crypto.SHA256},
 	} {
 
-		km, err := NewFromPrivatePEM(test.PEM, test.password)
+		key, err := keys.NewFromPrivatePEM(test.PEM, test.password)
 		if err != nil {
-			t.Errorf("LoadPrivateKey(_, %v)=%v, want nil", test.password, err)
+			t.Errorf("LoadPrivateKey(_, %q)=%v, want nil", test.password, err)
 			continue
 		}
-		signer := NewSignerFromPrivateKeyManager(km)
 
 		// Sign and Verify.
 		msg := []byte("foo")
-		signed, err := signer.Sign(msg)
+		signed, err := NewSigner(key).Sign(msg)
 		if err != nil {
 			t.Errorf("Sign()=(_,%v), want (_,nil)", err)
 			continue
 		}
-		pub := km.Public()
-		if err := Verify(pub, msg, signed); err != nil {
+
+		if err := Verify(key.Public(), msg, signed); err != nil {
 			t.Errorf("Verify(,,)=%v, want nil", err)
 		}
 	}

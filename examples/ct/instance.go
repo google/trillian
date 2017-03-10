@@ -24,6 +24,7 @@ import (
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
+	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/util"
 )
 
@@ -98,14 +99,16 @@ func (cfg LogConfig) SetUpInstance(client trillian.TrillianLogClient, deadline t
 		return nil, fmt.Errorf("failed to read trusted roots: %v", err)
 	}
 
-	// Set up a key manager instance for this log.
-	km, err := crypto.NewFromPrivatePEMFile(cfg.PrivKeyPEMFile, cfg.PrivKeyPassword)
+	// Load the private key for this log.
+	key, err := keys.NewFromPrivatePEMFile(cfg.PrivKeyPEMFile, cfg.PrivKeyPassword)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load private key: %v", err)
 	}
 
+	signer := crypto.NewSigner(key)
+
 	// Create and register the handlers using the RPC client we just set up
-	ctx := NewLogContext(cfg.LogID, cfg.Prefix, roots, client, km, deadline, new(util.SystemTimeSource))
+	ctx := NewLogContext(cfg.LogID, cfg.Prefix, roots, client, signer, deadline, new(util.SystemTimeSource))
 	logVars.Set(cfg.Prefix, ctx.exp.vars)
 
 	handlers := ctx.Handlers(cfg.Prefix)

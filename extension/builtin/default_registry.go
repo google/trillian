@@ -21,6 +21,7 @@ import (
 	_ "github.com/go-sql-driver/mysql" // Load MySQL driver
 
 	"github.com/google/trillian/crypto"
+	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/mysql"
@@ -37,8 +38,8 @@ var (
 
 // Default implementation of extension.Registry.
 type defaultRegistry struct {
-	db *sql.DB
-	km crypto.PrivateKeyManager
+	db     *sql.DB
+	signer *crypto.Signer
 }
 
 func (r *defaultRegistry) GetLogStorage() (storage.LogStorage, error) {
@@ -49,14 +50,14 @@ func (r *defaultRegistry) GetMapStorage() (storage.MapStorage, error) {
 	return mysql.NewMapStorage(r.db), nil
 }
 
-func (r *defaultRegistry) GetKeyManager(treeID int64) (crypto.PrivateKeyManager, error) {
-	return r.km, nil
+func (r *defaultRegistry) GetSigner(treeID int64) (*crypto.Signer, error) {
+	return r.signer, nil
 }
 
 // NewExtensionRegistry returns an extension.Registry implementation backed by a given
-// MySQL database and a KeyManager instance.
-func NewExtensionRegistry(db *sql.DB, km crypto.PrivateKeyManager) (extension.Registry, error) {
-	return &defaultRegistry{db: db, km: km}, nil
+// MySQL database and signer.
+func NewExtensionRegistry(db *sql.DB, signer *crypto.Signer) (extension.Registry, error) {
+	return &defaultRegistry{db: db, signer: signer}, nil
 
 }
 
@@ -67,9 +68,9 @@ func NewDefaultExtensionRegistry() (extension.Registry, error) {
 	if err != nil {
 		return nil, err
 	}
-	km, err := crypto.NewFromPrivatePEMFile(*privateKeyFile, *privateKeyPassword)
+	key, err := keys.NewFromPrivatePEMFile(*privateKeyFile, *privateKeyPassword)
 	if err != nil {
 		return nil, err
 	}
-	return NewExtensionRegistry(db, km)
+	return NewExtensionRegistry(db, crypto.NewSigner(key))
 }

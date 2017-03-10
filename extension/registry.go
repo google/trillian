@@ -30,7 +30,6 @@ type Registry interface {
 	// GetMapStorage returns a configured storage.MapStorage instance or an error if the storage cannot be set up.
 	GetMapStorage() (storage.MapStorage, error)
 
-	// GetKeyManager returns a configured crypto.KeyManager instance for the specified tree ID or an
-	// error if the key manager cannot be set up.
-	GetKeyManager(treeID int64) (crypto.PrivateKeyManager, error)
+	// GetSigner returns a configured crypto.Signer instance for the specified tree ID or an error if the signer cannot be set up.
+	GetSigner(treeID int64) (*crypto.Signer, error)
 }
