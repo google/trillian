@@ -135,6 +135,17 @@ func RunCTIntegrationForLog(cfg ctfe.LogConfig, servers, testdir string, mmd tim
 		return fmt.Errorf("unexpected stats check: %v", err)
 	}
 
+	// Stage 2.5: add the same cert, expect an SCT with the same timestamp as before.
+	var sctCopy *ct.SignedCertificateTimestamp
+	sctCopy, err = pool.Pick().AddChain(ctx, chain[0])
+	if err != nil {
+		return fmt.Errorf("got re-AddChain(int-ca.cert)=(nil,%v); want (_,nil)", err)
+	}
+	stats.done(ctfe.AddChainName, 200)
+	if scts[0].Timestamp != sctCopy.Timestamp {
+		return fmt.Errorf("got sct @ %v; want @ %v", sctCopy, scts[0])
+	}
+
 	// Stage 3: add a second cert, wait for tree size = 2
 	chain[1], err = GetChain(testdir, "leaf01.chain")
 	if err != nil {
