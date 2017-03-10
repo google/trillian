@@ -27,10 +27,10 @@ import (
 )
 
 var (
-	fixedTime      = time.Date(2017, 9, 7, 12, 15, 23, 0, time.UTC)
-	fixedTimestamp = uint64(fixedTime.UnixNano() / millisPerNano)
-	demoLogID      = [32]byte{19, 56, 222, 93, 229, 36, 102, 128, 227, 214, 3, 121, 93, 175, 126, 236, 97, 217, 34, 32, 40, 233, 98, 27, 46, 179, 164, 251, 84, 10, 60, 57}
-	fakeSignature  = []byte("signed")
+	fixedTime       = time.Date(2017, 9, 7, 12, 15, 23, 0, time.UTC)
+	fixedTimeMillis = uint64(fixedTime.UnixNano() / millisPerNano)
+	demoLogID       = [32]byte{19, 56, 222, 93, 229, 36, 102, 128, 227, 214, 3, 121, 93, 175, 126, 236, 97, 217, 34, 32, 40, 233, 98, 27, 46, 179, 164, 251, 84, 10, 60, 57}
+	fakeSignature   = []byte("signed")
 )
 
 func TestGetCTLogID(t *testing.T) {

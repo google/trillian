@@ -283,15 +283,16 @@ func addChainInternal(ctx context.Context, c LogContext, w http.ResponseWriter, 
 		return http.StatusBadRequest, fmt.Errorf("failed to verify add-chain contents: %v", err)
 	}
 
-	// This is now.
-	timestamp := uint64(c.TimeSource.Now().UnixNano() / millisPerNano)
+	// Get the current time in the form used throughout RFC6962, namely milliseconds since Unix
+	// epoch, and use this throughout.
+	timeMillis := uint64(c.TimeSource.Now().UnixNano() / millisPerNano)
 
 	// Build the MerkleTreeLeaf that gets sent to the backend, and make a trillian.LogLeaf for it.
 	var issuer *x509.Certificate
 	if len(chain) > 1 {
 		issuer = chain[1]
 	}
-	merkleLeaf, err := makeLeafFn(chain[0], issuer, timestamp)
+	merkleLeaf, err := makeLeafFn(chain[0], issuer, timeMillis)
 	if err != nil {
 		return http.StatusBadRequest, fmt.Errorf("failed to build MerkleTreeLeaf: %v", err)
 	}

@@ -42,7 +42,7 @@ func TestBuildV1MerkleTreeLeafForCert(t *testing.T) {
 		t.Fatalf("could not create signer: %v", err)
 	}
 
-	leaf, err := buildV1MerkleTreeLeafForCert(cert, nil, fixedTimestamp)
+	leaf, err := buildV1MerkleTreeLeafForCert(cert, nil, fixedTimeMillis)
 	if err != nil {
 		t.Fatalf("buildV1MerkleTreeLeafForCert()=nil,%v; want _,nil", err)
 	}
@@ -54,7 +54,7 @@ func TestBuildV1MerkleTreeLeafForCert(t *testing.T) {
 	expected := ct.SignedCertificateTimestamp{
 		SCTVersion: 0,
 		LogID:      ct.LogID{KeyID: demoLogID},
-		Timestamp:  1504786523000,
+		Timestamp:  fixedTimeMillis,
 		Extensions: ct.CTExtensions{},
 		Signature: ct.DigitallySigned{
 			Algorithm: tls.SignatureAndHashAlgorithm{
@@ -103,7 +103,7 @@ func TestSignV1SCTForPrecertificate(t *testing.T) {
 	}
 
 	// Use the same cert as the issuer for convenience.
-	leaf, err := buildV1MerkleTreeLeafForPrecert(cert, cert, fixedTimestamp)
+	leaf, err := buildV1MerkleTreeLeafForPrecert(cert, cert, fixedTimeMillis)
 	if err != nil {
 		t.Fatalf("buildV1MerkleTreeLeafForCert()=nil,%v; want _,nil", err)
 	}
@@ -115,7 +115,7 @@ func TestSignV1SCTForPrecertificate(t *testing.T) {
 	expected := ct.SignedCertificateTimestamp{
 		SCTVersion: 0,
 		LogID:      ct.LogID{KeyID: demoLogID},
-		Timestamp:  1504786523000,
+		Timestamp:  fixedTimeMillis,
 		Extensions: ct.CTExtensions{},
 		Signature: ct.DigitallySigned{
 			Algorithm: tls.SignatureAndHashAlgorithm{
