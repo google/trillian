@@ -51,6 +51,7 @@ import (
 
 // Arbitrary time for use in tests
 var fakeTime = time.Date(2016, 7, 22, 11, 01, 13, 0, time.UTC)
+var fakeTimestamp = uint64(fakeTime.UnixNano() / millisPerNano)
 
 // The deadline should be the above bumped by 500ms
 var fakeDeadlineTime = time.Date(2016, 7, 22, 11, 01, 13, 500*1000*1000, time.UTC)
@@ -333,7 +334,7 @@ func TestAddChain(t *testing.T) {
 		chain := createJSONChain(t, *pool)
 		if len(test.toSign) > 0 {
 			root := info.roots.RawCertificates()[0]
-			merkleLeaf, _, err := signV1SCTForCertificate(signer, pool.RawCertificates()[0], nil, fakeTime)
+			merkleLeaf, err := buildV1MerkleTreeLeafForCert(pool.RawCertificates()[0], nil, fakeTimestamp)
 			if err != nil {
 				t.Errorf("Unexpected error signing SCT: %v", err)
 				continue
@@ -438,7 +439,7 @@ func TestAddPrechain(t *testing.T) {
 		chain := createJSONChain(t, *pool)
 		if len(test.toSign) > 0 {
 			root := info.roots.RawCertificates()[0]
-			merkleLeaf, _, err := signV1SCTForPrecertificate(signer, pool.RawCertificates()[0], root, fakeTime)
+			merkleLeaf, err := buildV1MerkleTreeLeafForPrecert(pool.RawCertificates()[0], root, fakeTimestamp)
 			if err != nil {
 				t.Errorf("Unexpected error signing SCT: %v", err)
 				continue
