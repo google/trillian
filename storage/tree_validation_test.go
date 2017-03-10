@@ -17,6 +17,7 @@ package storage
 import (
 	"testing"
 
+	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/sigpb"
 )
@@ -61,6 +62,12 @@ func TestValidateTreeForCreation(t *testing.T) {
 		A Very Long Description That Clearly Won't Fit, Also Mentions Llamas, For Some Reason Has Only Capitalized Words And Keeps Repeating Itself.
 		`
 
+	unsupportedKey := newTree()
+	unsupportedKey.PrivateKey.TypeUrl = "urn://unknown-type"
+
+	invalidKey := newTree()
+	invalidKey.PrivateKey.Value = []byte("foobar")
+
 	tests := []struct {
 		tree    *trillian.Tree
 		wantErr bool
@@ -78,6 +85,8 @@ func TestValidateTreeForCreation(t *testing.T) {
 		{tree: invalidDuplicatePolicy, wantErr: true},
 		{tree: invalidDisplayName, wantErr: true},
 		{tree: invalidDescription, wantErr: true},
+		{tree: unsupportedKey, wantErr: true},
+		{tree: invalidKey, wantErr: true},
 	}
 	for i, test := range tests {
 		err := ValidateTreeForCreation(test.tree)
@@ -177,6 +186,14 @@ func TestValidateTreeForUpdate(t *testing.T) {
 
 // newTree returns a valid tree for tests.
 func newTree() *trillian.Tree {
+	privateKey, err := ptypes.MarshalAny(&trillian.PEMKeyFile{
+		Path:     "foo.pem",
+		Password: "password123",
+	})
+	if err != nil {
+		panic(err)
+	}
+
 	return &trillian.Tree{
 		TreeState:          trillian.TreeState_ACTIVE,
 		TreeType:           trillian.TreeType_LOG,
@@ -186,5 +203,6 @@ func newTree() *trillian.Tree {
 		DuplicatePolicy:    trillian.DuplicatePolicy_DUPLICATES_NOT_ALLOWED,
 		DisplayName:        "Llamas Log",
 		Description:        "Registry of publicly-owned llamas",
+		PrivateKey:         privateKey,
 	}
 }

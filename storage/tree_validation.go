@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/sigpb"
 )
@@ -32,6 +33,14 @@ const (
 // See the documentation on trillian.Tree for reference on which values are
 // valid.
 func ValidateTreeForCreation(tree *trillian.Tree) error {
+	// Check that the private_key proto contains a valid serialised proto.
+	// TODO(robpercival): Could we attempt to produce an STH at this point,
+	// to verify that the key works?
+	var privateKey ptypes.DynamicAny
+	if err := ptypes.UnmarshalAny(tree.PrivateKey, &privateKey); err != nil {
+		return fmt.Errorf("invalid private_key: %v", err)
+	}
+
 	switch {
 	case tree.TreeState != trillian.TreeState_ACTIVE:
 		return fmt.Errorf("invalid tree_state: %s", tree.TreeState)
@@ -75,6 +84,8 @@ func ValidateTreeForUpdate(storedTree, newTree *trillian.Tree) error {
 		return errors.New("readonly field changed: create_time")
 	case storedTree.UpdateTimeMillisSinceEpoch != newTree.UpdateTimeMillisSinceEpoch:
 		return errors.New("readonly field changed: update_time")
+	case storedTree.PrivateKey != newTree.PrivateKey:
+		return errors.New("readonly field changed: private_key")
 	}
 	return validateMutableTreeFields(newTree)
 }

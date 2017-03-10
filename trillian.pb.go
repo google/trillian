@@ -188,6 +188,10 @@ type Tree struct {
 	// timestamps.
 	// This can be any type of message to accommodate different key management
 	// systems, e.g. PEM files, HSMs, etc.
+	// Readonly.
+	// TODO(RJPercival): Implement sufficient validation to allow this field to be
+	// mutable. It should be mutable in the sense that the key can be migrated to
+	// a different key management system, but the key itself should never change.
 	PrivateKey *google_protobuf.Any `protobuf:"bytes,12,opt,name=private_key,json=privateKey" json:"private_key,omitempty"`
 }
 
