@@ -22,6 +22,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/testonly"
 )
@@ -50,13 +51,13 @@ func (i usesSHA256Hasher) String() string {
 }
 
 func TestSigner(t *testing.T) {
-	km, err := NewFromPrivatePEM(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
+	key, err := keys.NewFromPrivatePEM(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
 	if err != nil {
 		t.Fatalf("Failed to open test key")
 	}
-	signer := NewSignerFromPrivateKeyManager(km)
+	signer := NewSigner(key)
 
-	pk, err := PublicKeyFromPEM(testonly.DemoPublicKey)
+	pk, err := keys.NewFromPublicPEM(testonly.DemoPublicKey)
 	if err != nil {
 		t.Fatalf("Failed to load public key")
 	}
@@ -90,14 +91,12 @@ func TestSignerFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockKey := NewMockPrivateKeyManager(ctrl)
-	digest := messageHash()
-	mockKey.EXPECT().Sign(gomock.Any(), digest[:], usesSHA256Hasher{}).Return(digest, errors.New("sign"))
+	key, err := keys.NewFromPrivatePEM(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
+	if err != nil {
+		t.Fatalf("Failed to load private key: %v", err)
+	}
 
-	logSigner := NewSigner(sigpb.DigitallySigned_ECDSA, mockKey)
-
-	_, err := logSigner.Sign([]byte(message))
-
+	_, err = NewSigner(testonly.NewSignerWithErr(key, errors.New("sign"))).Sign([]byte(message))
 	if err == nil {
 		t.Fatalf("Ignored a signing error: %v", err)
 	}
@@ -109,15 +108,14 @@ func TestSignLogRootSignerFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockKey := NewMockPrivateKeyManager(ctrl)
-	mockKey.EXPECT().Sign(gomock.Any(),
-		[]byte{0xe5, 0xb3, 0x18, 0x1a, 0xec, 0xc8, 0x64, 0xc6, 0x39, 0x6d, 0x83, 0x21, 0x7a, 0x18, 0x3, 0x9, 0xf5, 0xa0, 0x25, 0xde, 0xf7, 0x1b, 0xdb, 0x2d, 0xbe, 0x42, 0x8a, 0x4a, 0xab, 0xc1, 0xcd, 0x49},
-		usesSHA256Hasher{}).Return([]byte{}, errors.New("signfail"))
+	key, err := keys.NewFromPrivatePEM(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
+	if err != nil {
+		t.Fatalf("Failed to load public key: %v", err)
+	}
 
-	logSigner := NewSigner(sigpb.DigitallySigned_ECDSA, mockKey)
-
+	s := testonly.NewSignerWithErr(key, errors.New("signfail"))
 	root := trillian.SignedLogRoot{TimestampNanos: 2267709, RootHash: []byte("Islington"), TreeSize: 2}
-	_, err := logSigner.Sign(HashLogRoot(root))
+	_, err = NewSigner(s).Sign(HashLogRoot(root))
 
 	testonly.EnsureErrorContains(t, err, "signfail")
 }

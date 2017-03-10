@@ -38,9 +38,10 @@ import (
 	"github.com/google/certificate-transparency/go/x509"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
-	spb "github.com/google/trillian/crypto/sigpb"
-	"github.com/google/trillian/examples/ct/testonly"
+	"github.com/google/trillian/crypto/keys"
+	cttestonly "github.com/google/trillian/examples/ct/testonly"
 	"github.com/google/trillian/mockclient"
+	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/util"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -96,40 +97,28 @@ const caAndIntermediateCertsPEM string = "-----BEGIN CERTIFICATE-----\n" +
 
 type handlerTestInfo struct {
 	mockCtrl *gomock.Controller
-	km       *crypto.MockPrivateKeyManager
 	roots    *PEMCertPool
 	client   *mockclient.MockTrillianLogClient
 	c        LogContext
 }
 
 // setupTest creates mock objects and contexts.  Caller should invoke info.mockCtrl.Finish().
-func setupTest(t *testing.T, pemRoots []string) handlerTestInfo {
-
-	info := handlerTestInfo{}
-	info.mockCtrl = gomock.NewController(t)
-
-	info.km = crypto.NewMockPrivateKeyManager(info.mockCtrl)
-	pubkey, err := crypto.PublicKeyFromPEM(ctTesttubePublicKey)
-	if err != nil {
-		panic(err)
+func setupTest(t *testing.T, pemRoots []string, signer *crypto.Signer) handlerTestInfo {
+	info := handlerTestInfo{
+		mockCtrl: gomock.NewController(t),
+		roots:    NewPEMCertPool(),
 	}
-	info.km.EXPECT().Public().AnyTimes().Return(pubkey)
-	info.km.EXPECT().SignatureAlgorithm().AnyTimes().Return(spb.DigitallySigned_ECDSA)
 
 	info.client = mockclient.NewMockTrillianLogClient(info.mockCtrl)
-	info.roots = NewPEMCertPool()
+	info.c = *NewLogContext(0x42, "test", info.roots, info.client, signer, time.Millisecond*500, fakeTimeSource)
+
 	for _, pemRoot := range pemRoots {
 		if !info.roots.AppendCertsFromPEM([]byte(pemRoot)) {
 			glog.Fatal("failed to load cert pool")
 		}
 	}
-	info.c = *NewLogContext(0x42, "test", info.roots, info.client, info.km, time.Millisecond*500, fakeTimeSource)
-	return info
-}
 
-func (info handlerTestInfo) expectSign(toSign string) {
-	data, _ := hex.DecodeString(toSign)
-	info.km.EXPECT().Sign(gomock.Any(), data, gomock.Any()).AnyTimes().Return([]byte("signed"), nil)
+	return info
 }
 
 func (info handlerTestInfo) getHandlers() map[string]AppHandler {
@@ -151,7 +140,7 @@ func (info handlerTestInfo) postHandlers() map[string]AppHandler {
 }
 
 func TestPostHandlersRejectGet(t *testing.T) {
-	info := setupTest(t, []string{testonly.FakeCACertPEM})
+	info := setupTest(t, []string{cttestonly.FakeCACertPEM}, nil)
 	defer info.mockCtrl.Finish()
 
 	// Anything in the post handler list should reject GET
@@ -172,7 +161,7 @@ func TestPostHandlersRejectGet(t *testing.T) {
 }
 
 func TestGetHandlersRejectPost(t *testing.T) {
-	info := setupTest(t, []string{testonly.FakeCACertPEM})
+	info := setupTest(t, []string{cttestonly.FakeCACertPEM}, nil)
 	defer info.mockCtrl.Finish()
 
 	// Anything in the get handler list should reject POST.
@@ -204,7 +193,7 @@ func TestPostHandlersFailure(t *testing.T) {
 		{"wrong-chain", strings.NewReader(`{ "chain": [ "test" ] }`), http.StatusBadRequest},
 	}
 
-	info := setupTest(t, []string{testonly.FakeCACertPEM})
+	info := setupTest(t, []string{cttestonly.FakeCACertPEM}, nil)
 	defer info.mockCtrl.Finish()
 	for path, handler := range info.postHandlers() {
 		s := httptest.NewServer(handler)
@@ -231,7 +220,7 @@ func TestHandlers(t *testing.T) {
 		"/test-prefix",
 		"test-prefix",
 	}
-	info := setupTest(t, nil)
+	info := setupTest(t, nil, nil)
 	defer info.mockCtrl.Finish()
 	for _, test := range tests {
 		handlers := info.c.Handlers(test)
@@ -257,7 +246,7 @@ func TestHandlers(t *testing.T) {
 }
 
 func TestGetRoots(t *testing.T) {
-	info := setupTest(t, []string{caAndIntermediateCertsPEM})
+	info := setupTest(t, []string{caAndIntermediateCertsPEM}, nil)
 	defer info.mockCtrl.Finish()
 	handler := AppHandler{Context: info.c, Handler: getRoots, Name: "GetRoots", Method: http.MethodGet}
 
@@ -300,44 +289,49 @@ func TestAddChain(t *testing.T) {
 	}{
 		{
 			descr: "leaf-only",
-			chain: []string{testonly.LeafSignedByFakeIntermediateCertPEM},
+			chain: []string{cttestonly.LeafSignedByFakeIntermediateCertPEM},
 			want:  http.StatusBadRequest,
 		},
 		{
 			descr: "wrong-entry-type",
-			chain: []string{testonly.PrecertPEMValid},
+			chain: []string{cttestonly.PrecertPEMValid},
 			want:  http.StatusBadRequest,
 		},
 		{
 			descr:  "backend-rpc-fail",
-			chain:  []string{testonly.LeafSignedByFakeIntermediateCertPEM, testonly.FakeIntermediateCertPEM},
+			chain:  []string{cttestonly.LeafSignedByFakeIntermediateCertPEM, cttestonly.FakeIntermediateCertPEM},
 			toSign: "1337d72a403b6539f58896decba416d5d4b3603bfa03e1f94bb9b4e898af897d",
 			want:   http.StatusInternalServerError,
 			err:    grpc.Errorf(codes.Internal, "error"),
 		},
 		{
 			descr:  "success-without-root",
-			chain:  []string{testonly.LeafSignedByFakeIntermediateCertPEM, testonly.FakeIntermediateCertPEM},
+			chain:  []string{cttestonly.LeafSignedByFakeIntermediateCertPEM, cttestonly.FakeIntermediateCertPEM},
 			toSign: "1337d72a403b6539f58896decba416d5d4b3603bfa03e1f94bb9b4e898af897d",
 			want:   http.StatusOK,
 		},
 		{
 			descr:  "success",
-			chain:  []string{testonly.LeafSignedByFakeIntermediateCertPEM, testonly.FakeIntermediateCertPEM, testonly.FakeCACertPEM},
+			chain:  []string{cttestonly.LeafSignedByFakeIntermediateCertPEM, cttestonly.FakeIntermediateCertPEM, cttestonly.FakeCACertPEM},
 			toSign: "1337d72a403b6539f58896decba416d5d4b3603bfa03e1f94bb9b4e898af897d",
 			want:   http.StatusOK,
 		},
 	}
-	info := setupTest(t, []string{testonly.FakeCACertPEM})
+
+	signer, err := setupSigner(fakeSignature)
+	if err != nil {
+		t.Fatalf("Failed to create test signer: %v", err)
+	}
+
+	info := setupTest(t, []string{cttestonly.FakeCACertPEM}, signer)
 	defer info.mockCtrl.Finish()
 
 	for _, test := range tests {
 		pool := loadCertsIntoPoolOrDie(t, test.chain)
 		chain := createJSONChain(t, *pool)
 		if len(test.toSign) > 0 {
-			info.expectSign(test.toSign)
 			root := info.roots.RawCertificates()[0]
-			merkleLeaf, _, err := signV1SCTForCertificate(info.km, pool.RawCertificates()[0], nil, fakeTime)
+			merkleLeaf, _, err := signV1SCTForCertificate(signer, pool.RawCertificates()[0], nil, fakeTime)
 			if err != nil {
 				t.Errorf("Unexpected error signing SCT: %v", err)
 				continue
@@ -350,7 +344,7 @@ func TestAddChain(t *testing.T) {
 				fullChain[len(leafChain)] = root
 				leafChain = fullChain
 			}
-			leaves := logLeavesForCert(t, info.km, leafChain, merkleLeaf, false)
+			leaves := logLeavesForCert(t, leafChain, merkleLeaf, false)
 			info.client.EXPECT().QueueLeaves(deadlineMatcher(), &trillian.QueueLeavesRequest{LogId: 0x42, Leaves: leaves}).Return(&trillian.QueueLeavesResponse{}, test.err)
 		}
 
@@ -368,7 +362,7 @@ func TestAddChain(t *testing.T) {
 			if got, want := ct.Version(resp.SCTVersion), ct.V1; got != want {
 				t.Errorf("resp.SCTVersion=%v; want %v", got, want)
 			}
-			if got, want := resp.ID, ctTesttubeLogID[:]; !bytes.Equal(got, want) {
+			if got, want := resp.ID, demoLogID[:]; !bytes.Equal(got, want) {
 				t.Errorf("resp.ID=%v; want %v", got, want)
 			}
 			if got, want := resp.Timestamp, uint64(1469185273000); got != want {
@@ -392,44 +386,49 @@ func TestAddPrechain(t *testing.T) {
 	}{
 		{
 			descr: "leaf-signed-by-different",
-			chain: []string{testonly.PrecertPEMValid, testonly.FakeIntermediateCertPEM},
+			chain: []string{cttestonly.PrecertPEMValid, cttestonly.FakeIntermediateCertPEM},
 			want:  http.StatusBadRequest,
 		},
 		{
 			descr: "wrong-entry-type",
-			chain: []string{testonly.TestCertPEM},
+			chain: []string{cttestonly.TestCertPEM},
 			want:  http.StatusBadRequest,
 		},
 		{
 			descr:  "backend-rpc-fail",
-			chain:  []string{testonly.PrecertPEMValid, testonly.CACertPEM},
+			chain:  []string{cttestonly.PrecertPEMValid, cttestonly.CACertPEM},
 			toSign: "92ecae1a2dc67a6c5f9c96fa5cab4c2faf27c48505b696dad926f161b0ca675a",
 			err:    grpc.Errorf(codes.Internal, "error"),
 			want:   http.StatusInternalServerError,
 		},
 		{
 			descr:  "success",
-			chain:  []string{testonly.PrecertPEMValid, testonly.CACertPEM},
+			chain:  []string{cttestonly.PrecertPEMValid, cttestonly.CACertPEM},
 			toSign: "92ecae1a2dc67a6c5f9c96fa5cab4c2faf27c48505b696dad926f161b0ca675a",
 			want:   http.StatusOK,
 		},
 		{
 			descr:  "success-without-root",
-			chain:  []string{testonly.PrecertPEMValid},
+			chain:  []string{cttestonly.PrecertPEMValid},
 			toSign: "92ecae1a2dc67a6c5f9c96fa5cab4c2faf27c48505b696dad926f161b0ca675a",
 			want:   http.StatusOK,
 		},
 	}
-	info := setupTest(t, []string{testonly.CACertPEM})
+
+	signer, err := setupSigner(fakeSignature)
+	if err != nil {
+		t.Fatalf("Failed to create test signer: %v", err)
+	}
+
+	info := setupTest(t, []string{cttestonly.CACertPEM}, signer)
 	defer info.mockCtrl.Finish()
 
 	for _, test := range tests {
 		pool := loadCertsIntoPoolOrDie(t, test.chain)
 		chain := createJSONChain(t, *pool)
 		if len(test.toSign) > 0 {
-			info.expectSign(test.toSign)
 			root := info.roots.RawCertificates()[0]
-			merkleLeaf, _, err := signV1SCTForPrecertificate(info.km, pool.RawCertificates()[0], root, fakeTime)
+			merkleLeaf, _, err := signV1SCTForPrecertificate(signer, pool.RawCertificates()[0], root, fakeTime)
 			if err != nil {
 				t.Errorf("Unexpected error signing SCT: %v", err)
 				continue
@@ -442,7 +441,7 @@ func TestAddPrechain(t *testing.T) {
 				fullChain[len(leafChain)] = root
 				leafChain = fullChain
 			}
-			leaves := logLeavesForCert(t, info.km, leafChain, merkleLeaf, true)
+			leaves := logLeavesForCert(t, leafChain, merkleLeaf, true)
 			info.client.EXPECT().QueueLeaves(deadlineMatcher(), &trillian.QueueLeavesRequest{LogId: 0x42, Leaves: leaves}).Return(&trillian.QueueLeavesResponse{}, test.err)
 		}
 
@@ -460,7 +459,7 @@ func TestAddPrechain(t *testing.T) {
 			if got, want := ct.Version(resp.SCTVersion), ct.V1; got != want {
 				t.Errorf("resp.SCTVersion=%v; want %v", got, want)
 			}
-			if got, want := resp.ID, ctTesttubeLogID[:]; !bytes.Equal(got, want) {
+			if got, want := resp.ID, demoLogID[:]; !bytes.Equal(got, want) {
 				t.Errorf("resp.ID=%x; want %x", got, want)
 			}
 			if got, want := resp.Timestamp, uint64(1469185273000); got != want {
@@ -475,14 +474,13 @@ func TestAddPrechain(t *testing.T) {
 
 func TestGetSTH(t *testing.T) {
 	var tests = []struct {
-		descr      string
-		rpcRsp     *trillian.GetLatestSignedLogRootResponse
-		rpcErr     error
-		toSign     string // hex-encoded
-		signResult []byte
-		signErr    error
-		want       int
-		errStr     string
+		descr   string
+		rpcRsp  *trillian.GetLatestSignedLogRootResponse
+		rpcErr  error
+		toSign  string // hex-encoded
+		signErr error
+		want    int
+		errStr  string
 	}{
 		{
 			descr:  "backend-failure",
@@ -503,67 +501,77 @@ func TestGetSTH(t *testing.T) {
 			errStr: "bad hash size",
 		},
 		{
-			descr:      "signer-fail",
-			rpcRsp:     makeGetRootResponseForTest(12345, 25, []byte("abcdabcdabcdabcdabcdabcdabcdabcd")),
-			want:       http.StatusInternalServerError,
-			signResult: []byte{},
-			signErr:    errors.New("signerfails"),
-			errStr:     "signerfails",
+			descr:   "signer-fail",
+			rpcRsp:  makeGetRootResponseForTest(12345, 25, []byte("abcdabcdabcdabcdabcdabcdabcdabcd")),
+			want:    http.StatusInternalServerError,
+			signErr: errors.New("signerfails"),
+			errStr:  "signerfails",
 		},
 		{
-			descr:      "ok",
-			rpcRsp:     makeGetRootResponseForTest(12345000000, 25, []byte("abcdabcdabcdabcdabcdabcdabcdabcd")),
-			toSign:     "1e88546f5157bfaf77ca2454690b602631fedae925bbe7cf708ea275975bfe74",
-			want:       http.StatusOK,
-			signResult: []byte{},
+			descr:  "ok",
+			rpcRsp: makeGetRootResponseForTest(12345000000, 25, []byte("abcdabcdabcdabcdabcdabcdabcdabcd")),
+			toSign: "1e88546f5157bfaf77ca2454690b602631fedae925bbe7cf708ea275975bfe74",
+			want:   http.StatusOK,
 		},
 	}
-	info := setupTest(t, []string{testonly.CACertPEM})
-	defer info.mockCtrl.Finish()
+
+	key, err := keys.NewFromPublicPEM(testonly.DemoPublicKey)
+	if err != nil {
+		t.Fatalf("Failed to load public key: %v", err)
+	}
 
 	for _, test := range tests {
-		info.client.EXPECT().GetLatestSignedLogRoot(deadlineMatcher(), &trillian.GetLatestSignedLogRootRequest{LogId: 0x42}).Return(test.rpcRsp, test.rpcErr)
-		req, err := http.NewRequest("GET", "http://example.com/ct/v1/get-sth", nil)
-		if err != nil {
-			t.Errorf("Failed to create request: %v", err)
-			continue
-		}
-		if len(test.toSign) > 0 {
-			info.expectSign(test.toSign)
-		} else if test.signResult != nil || test.signErr != nil {
-			info.km.EXPECT().Sign(gomock.Any(), gomock.Any(), gomock.Any()).Return(test.signResult, test.signErr)
-		}
-		handler := AppHandler{Context: info.c, Handler: getSTH, Name: "GetSTH", Method: http.MethodGet}
-		w := httptest.NewRecorder()
-		handler.ServeHTTP(w, req)
-		if got := w.Code; got != test.want {
-			t.Errorf("GetSTH(%s).Code=%d; want %d", test.descr, got, test.want)
-		}
-		if test.errStr != "" {
-			if body := w.Body.String(); !strings.Contains(body, test.errStr) {
-				t.Errorf("GetSTH(%s)=%q; want to find %q", test.descr, body, test.errStr)
+		// Run deferred funcs at the end of each iteration.
+		func() {
+			var signer *crypto.Signer
+			if test.signErr != nil {
+				signer = crypto.NewSigner(testonly.NewSignerWithErr(key, test.signErr))
+			} else {
+				signer = crypto.NewSigner(testonly.NewSignerWithFixedSig(key, fakeSignature))
 			}
-			continue
-		}
 
-		var rsp ct.GetSTHResponse
-		if err := json.Unmarshal(w.Body.Bytes(), &rsp); err != nil {
-			t.Errorf("Failed to unmarshal json response: %s", w.Body.Bytes())
-			continue
-		}
+			info := setupTest(t, []string{cttestonly.CACertPEM}, signer)
+			defer info.mockCtrl.Finish()
 
-		if got, want := rsp.TreeSize, uint64(25); got != want {
-			t.Errorf("GetSTH(%s).TreeSize=%d; want %d", test.descr, got, want)
-		}
-		if got, want := rsp.Timestamp, uint64(12345); got != want {
-			t.Errorf("GetSTH(%s).Timestamp=%d; want %d", test.descr, got, want)
-		}
-		if got, want := hex.EncodeToString(rsp.SHA256RootHash), "6162636461626364616263646162636461626364616263646162636461626364"; got != want {
-			t.Errorf("GetSTH(%s).SHA256RootHash=%s; want %s", test.descr, got, want)
-		}
-		if got, want := hex.EncodeToString(rsp.TreeHeadSignature), "040300067369676e6564"; got != want {
-			t.Errorf("GetSTH(%s).TreeHeadSignature=%s; want %s", test.descr, got, want)
-		}
+			info.client.EXPECT().GetLatestSignedLogRoot(deadlineMatcher(), &trillian.GetLatestSignedLogRootRequest{LogId: 0x42}).Return(test.rpcRsp, test.rpcErr)
+			req, err := http.NewRequest("GET", "http://example.com/ct/v1/get-sth", nil)
+			if err != nil {
+				t.Errorf("Failed to create request: %v", err)
+				return
+			}
+
+			handler := AppHandler{Context: info.c, Handler: getSTH, Name: "GetSTH", Method: http.MethodGet}
+			w := httptest.NewRecorder()
+			handler.ServeHTTP(w, req)
+			if got := w.Code; got != test.want {
+				t.Errorf("GetSTH(%s).Code=%d; want %d", test.descr, got, test.want)
+			}
+			if test.errStr != "" {
+				if body := w.Body.String(); !strings.Contains(body, test.errStr) {
+					t.Errorf("GetSTH(%s)=%q; want to find %q", test.descr, body, test.errStr)
+				}
+				return
+			}
+
+			var rsp ct.GetSTHResponse
+			if err := json.Unmarshal(w.Body.Bytes(), &rsp); err != nil {
+				t.Errorf("Failed to unmarshal json response: %s", w.Body.Bytes())
+				return
+			}
+
+			if got, want := rsp.TreeSize, uint64(25); got != want {
+				t.Errorf("GetSTH(%s).TreeSize=%d; want %d", test.descr, got, want)
+			}
+			if got, want := rsp.Timestamp, uint64(12345); got != want {
+				t.Errorf("GetSTH(%s).Timestamp=%d; want %d", test.descr, got, want)
+			}
+			if got, want := hex.EncodeToString(rsp.SHA256RootHash), "6162636461626364616263646162636461626364616263646162636461626364"; got != want {
+				t.Errorf("GetSTH(%s).SHA256RootHash=%s; want %s", test.descr, got, want)
+			}
+			if got, want := hex.EncodeToString(rsp.TreeHeadSignature), "040300067369676e6564"; got != want {
+				t.Errorf("GetSTH(%s).TreeHeadSignature=%s; want %s", test.descr, got, want)
+			}
+		}()
 	}
 }
 
@@ -686,7 +694,7 @@ func TestGetEntries(t *testing.T) {
 			},
 		},
 	}
-	info := setupTest(t, nil)
+	info := setupTest(t, nil, nil)
 	defer info.mockCtrl.Finish()
 	handler := AppHandler{Context: info.c, Handler: getEntries, Name: "GetEntries", Method: http.MethodGet}
 
@@ -758,7 +766,7 @@ func TestGetEntriesRanges(t *testing.T) {
 		{1000, 50000, http.StatusBadRequest, "range too large to be accepted", false},
 	}
 
-	info := setupTest(t, nil)
+	info := setupTest(t, nil, nil)
 	defer info.mockCtrl.Finish()
 	handler := AppHandler{Context: info.c, Handler: getEntries, Name: "GetEntries", Method: http.MethodGet}
 
@@ -925,7 +933,7 @@ func TestGetProofByHash(t *testing.T) {
 			},
 		},
 	}
-	info := setupTest(t, nil)
+	info := setupTest(t, nil, nil)
 	defer info.mockCtrl.Finish()
 	handler := AppHandler{Context: info.c, Handler: getProofByHash, Name: "GetProofByHash", Method: http.MethodGet}
 
@@ -1056,7 +1064,7 @@ func TestGetSTHConsistency(t *testing.T) {
 		},
 	}
 
-	info := setupTest(t, nil)
+	info := setupTest(t, nil, nil)
 	defer info.mockCtrl.Finish()
 	handler := AppHandler{Context: info.c, Handler: getSTHConsistency, Name: "GetSTHConsistency", Method: http.MethodGet}
 
@@ -1191,7 +1199,7 @@ func TestGetEntryAndProof(t *testing.T) {
 		},
 	}
 
-	info := setupTest(t, nil)
+	info := setupTest(t, nil, nil)
 	defer info.mockCtrl.Finish()
 	handler := AppHandler{Context: info.c, Handler: getEntryAndProof, Name: "GetEntryAndProof", Method: http.MethodGet}
 
@@ -1257,7 +1265,7 @@ func createJSONChain(t *testing.T, p PEMCertPool) io.Reader {
 	return bufio.NewReader(&buffer)
 }
 
-func logLeavesForCert(t *testing.T, km crypto.PrivateKeyManager, certs []*x509.Certificate, merkleLeaf *ct.MerkleTreeLeaf, isPrecert bool) []*trillian.LogLeaf {
+func logLeavesForCert(t *testing.T, certs []*x509.Certificate, merkleLeaf *ct.MerkleTreeLeaf, isPrecert bool) []*trillian.LogLeaf {
 	leafData, err := tls.Marshal(*merkleLeaf)
 	if err != nil {
 		t.Fatalf("failed to serialize leaf: %v", err)

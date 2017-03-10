@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 
 	"github.com/benlaurie/objecthash/go/objecthash"
+	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/sigpb"
 )
 
@@ -30,26 +31,23 @@ var sigpbHashLookup = map[crypto.Hash]sigpb.DigitallySigned_HashAlgorithm{
 // Signer is responsible for signing log-related data and producing the appropriate
 // application specific signature objects.
 type Signer struct {
-	hash         crypto.Hash
-	signer       crypto.Signer
-	sigAlgorithm sigpb.DigitallySigned_SignatureAlgorithm
+	hash   crypto.Hash
+	signer crypto.Signer
 }
 
 // NewSigner creates a new Signer wrapping up a hasher and a signer. For the moment
 // we only support SHA256 hashing and either ECDSA or RSA signing but this is not enforced
 // here.
-func NewSigner(sigAlgo sigpb.DigitallySigned_SignatureAlgorithm, signer crypto.Signer) *Signer {
+func NewSigner(signer crypto.Signer) *Signer {
 	return &Signer{
-		hash:         crypto.SHA256,
-		signer:       signer,
-		sigAlgorithm: sigAlgo,
+		hash:   crypto.SHA256,
+		signer: signer,
 	}
 }
 
-// NewSignerFromPrivateKeyManager creates a new Signer wrapping up a hasher and a private key.
-// For the moment, we only support SHA256 hashing and either ECDSA or RSA signing but this is not enforced here.
-func NewSignerFromPrivateKeyManager(key PrivateKeyManager) *Signer {
-	return NewSigner(key.SignatureAlgorithm(), key)
+// Public returns the public key that can verify signatures produced by s.
+func (s *Signer) Public() crypto.PublicKey {
+	return s.signer.Public()
 }
 
 // Sign obtains a signature after first hashing the input data.
@@ -64,7 +62,7 @@ func (s *Signer) Sign(data []byte) (*sigpb.DigitallySigned, error) {
 	}
 
 	return &sigpb.DigitallySigned{
-		SignatureAlgorithm: s.sigAlgorithm,
+		SignatureAlgorithm: keys.SignatureAlgorithm(s.Public()),
 		HashAlgorithm:      sigpbHashLookup[s.hash],
 		Signature:          sig,
 	}, nil

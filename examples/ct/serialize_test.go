@@ -17,7 +17,6 @@ package ct
 import (
 	"bytes"
 	"crypto/sha256"
-	"encoding/hex"
 	"reflect"
 	"testing"
 
@@ -38,27 +37,26 @@ func TestSignV1SCTForCertificate(t *testing.T) {
 		t.Fatalf("failed to set up test cert: %v", err)
 	}
 
-	toSign, _ := hex.DecodeString("7052085a63895983fc768ebe0858891bcd4326e797ef3b7ed5996e7655afd7ab")
-	km, err := setupMockPrivateKeyManager(mockCtrl, toSign)
+	signer, err := setupSigner(fakeSignature)
 	if err != nil {
-		t.Fatalf("could not create key manager: %v", err)
+		t.Fatalf("could not create signer: %v", err)
 	}
 
-	leaf, got, err := signV1SCTForCertificate(km, cert, nil, fixedTime)
+	leaf, got, err := signV1SCTForCertificate(signer, cert, nil, fixedTime)
 	if err != nil {
 		t.Fatalf("create sct for cert failed: %v", err)
 	}
 
 	expected := ct.SignedCertificateTimestamp{
 		SCTVersion: 0,
-		LogID:      ct.LogID{KeyID: ctTesttubeLogID},
+		LogID:      ct.LogID{KeyID: demoLogID},
 		Timestamp:  1504786523000,
 		Extensions: ct.CTExtensions{},
 		Signature: ct.DigitallySigned{
 			Algorithm: tls.SignatureAndHashAlgorithm{
 				Hash:      tls.SHA256,
 				Signature: tls.ECDSA},
-			Signature: []byte("signed"),
+			Signature: fakeSignature,
 		},
 	}
 
@@ -95,28 +93,27 @@ func TestSignV1SCTForPrecertificate(t *testing.T) {
 		t.Fatalf("failed to set up test precert: %v", err)
 	}
 
-	toSign, _ := hex.DecodeString("dfa541729551db7e37715c1d613dc1a0c72cd7efac2de9cfd718d27fc79c018f")
-	km, err := setupMockPrivateKeyManager(mockCtrl, toSign)
+	signer, err := setupSigner(fakeSignature)
 	if err != nil {
-		t.Fatalf("could not create key manager: %v", err)
+		t.Fatalf("could not create signer: %v", err)
 	}
 
 	// Use the same cert as the issuer for convenience.
-	leaf, got, err := signV1SCTForPrecertificate(km, cert, cert, fixedTime)
+	leaf, got, err := signV1SCTForPrecertificate(signer, cert, cert, fixedTime)
 	if err != nil {
 		t.Fatalf("create sct for precert failed: %v", err)
 	}
 
 	expected := ct.SignedCertificateTimestamp{
 		SCTVersion: 0,
-		LogID:      ct.LogID{KeyID: ctTesttubeLogID},
+		LogID:      ct.LogID{KeyID: demoLogID},
 		Timestamp:  1504786523000,
 		Extensions: ct.CTExtensions{},
 		Signature: ct.DigitallySigned{
 			Algorithm: tls.SignatureAndHashAlgorithm{
 				Hash:      tls.SHA256,
 				Signature: tls.ECDSA},
-			Signature: []byte("signed")}}
+			Signature: fakeSignature}}
 
 	if !reflect.DeepEqual(*got, expected) {
 		t.Fatalf("Mismatched SCT (precert), got \n%v, expected \n%v", got, expected)

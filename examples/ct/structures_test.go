@@ -19,29 +19,21 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/mock/gomock"
 	ct "github.com/google/certificate-transparency/go"
 	"github.com/google/certificate-transparency/go/tls"
 	"github.com/google/trillian/crypto"
-	spb "github.com/google/trillian/crypto/sigpb"
+	"github.com/google/trillian/crypto/keys"
+	"github.com/google/trillian/testonly"
 )
 
 var (
-	fixedTime       = time.Date(2017, 9, 7, 12, 15, 23, 0, time.UTC)
-	ctTesttubeLogID = [32]byte{176, 204, 131, 229, 165, 249, 125, 107, 175, 124, 9, 204,
-		40, 73, 4, 135, 42, 199, 232, 139, 19, 44, 99, 80, 183, 198, 253, 38, 225, 108, 108, 119}
-	// Public key for Google Testtube log, taken from CT Github repository
-	ctTesttubePublicKey = `
------BEGIN PUBLIC KEY-----
-MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEw8i8S7qiGEs9NXv0ZJFh6uuOmR2Q
-7dPprzk9XNNGkUXjzqx2SDvRfiwKYwBljfWujozHESVPQyydGaHhkaSz/g==
------END PUBLIC KEY-----`
+	fixedTime     = time.Date(2017, 9, 7, 12, 15, 23, 0, time.UTC)
+	demoLogID     = [32]byte{19, 56, 222, 93, 229, 36, 102, 128, 227, 214, 3, 121, 93, 175, 126, 236, 97, 217, 34, 32, 40, 233, 98, 27, 46, 179, 164, 251, 84, 10, 60, 57}
+	fakeSignature = []byte("signed")
 )
 
-// This test uses the testtube key rather than our test key so we can verify the
-// result easily
 func TestGetCTLogID(t *testing.T) {
-	pk, err := crypto.PublicKeyFromPEM(ctTesttubePublicKey)
+	pk, err := keys.NewFromPublicPEM(testonly.DemoPublicKey)
 	if err != nil {
 		t.Fatalf("unexpected error loading public key: %v", err)
 	}
@@ -51,7 +43,7 @@ func TestGetCTLogID(t *testing.T) {
 		t.Fatalf("error getting logid: %v", err)
 	}
 
-	if want := ctTesttubeLogID; got != want {
+	if want := demoLogID; got != want {
 		t.Errorf("logID: \n%v want \n%v", got, want)
 	}
 }
@@ -87,23 +79,15 @@ func TestSerializeLogEntry(t *testing.T) {
 	}
 }
 
-// Creates a mock key manager for use in interaction tests
-func setupMockPrivateKeyManager(ctrl *gomock.Controller, toSign []byte) (*crypto.MockPrivateKeyManager, error) {
-	pubkey, err := crypto.PublicKeyFromPEM(ctTesttubePublicKey)
+// Creates a fake signer for use in interaction tests.
+// It will always return fakeSig when asked to sign something.
+func setupSigner(fakeSig []byte) (*crypto.Signer, error) {
+	key, err := keys.NewFromPublicPEM(testonly.DemoPublicKey)
 	if err != nil {
 		return nil, err
 	}
-	mockKeyManager := setupMockPrivateKeyManagerForSth(ctrl, toSign)
-	mockKeyManager.EXPECT().Public().AnyTimes().Return(pubkey)
-	mockKeyManager.EXPECT().SignatureAlgorithm().AnyTimes().Return(spb.DigitallySigned_ECDSA)
-	return mockKeyManager, nil
-}
 
-// As above but we don't expect the call for a public key as we don't need it for an STH
-func setupMockPrivateKeyManagerForSth(ctrl *gomock.Controller, toSign []byte) *crypto.MockPrivateKeyManager {
-	mockKeyManager := crypto.NewMockPrivateKeyManager(ctrl)
-	mockKeyManager.EXPECT().Sign(gomock.Any(), toSign, gomock.Any()).AnyTimes().Return([]byte("signed"), nil)
-	return mockKeyManager
+	return crypto.NewSigner(testonly.NewSignerWithFixedSig(key, fakeSig)), nil
 }
 
 // Creates a dummy cert chain

@@ -26,6 +26,7 @@ import (
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
+	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/extension/builtin"
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/storage/mysql"
@@ -46,7 +47,7 @@ var (
 	sleepBetweenRuns = 100 * time.Millisecond
 	timeSource       = util.SystemTimeSource{}
 	// PublicKey returns the public key that verifies responses from this server.
-	PublicKey, _ = crypto.PublicKeyFromPEM(to.DemoPublicKey)
+	PublicKey, _ = keys.NewFromPublicPEM(to.DemoPublicKey)
 )
 
 // LogEnv is a test environment that contains both a log server and a connection to it.
@@ -127,12 +128,12 @@ func NewLogEnv(ctx context.Context, numSequencers int, testID string) (*LogEnv, 
 		return nil, err
 	}
 
-	km, err := crypto.NewFromPrivatePEM(to.DemoPrivateKey, to.DemoPrivateKeyPass)
+	key, err := keys.NewFromPrivatePEM(to.DemoPrivateKey, to.DemoPrivateKeyPass)
 	if err != nil {
 		return nil, err
 	}
 
-	registry, err := builtin.NewExtensionRegistry(db, km)
+	registry, err := builtin.NewExtensionRegistry(db, crypto.NewSigner(key))
 	if err != nil {
 		return nil, err
 	}

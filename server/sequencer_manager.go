@@ -96,13 +96,13 @@ func (s SequencerManager) ExecutePass(logIDs []int64, logctx LogOperationManager
 					continue
 				}
 
-				keyManager, err := s.registry.GetKeyManager(logID)
+				signer, err := s.registry.GetSigner(logID)
 				if err != nil {
-					glog.Errorf("No key manager for log %d: %v", logID, err)
+					glog.Errorf("No signer for log %d: %v", logID, err)
 					continue
 				}
 
-				sequencer := log.NewSequencer(hasher, logctx.timeSource, storage, keyManager)
+				sequencer := log.NewSequencer(hasher, logctx.timeSource, storage, signer)
 				sequencer.SetGuardWindow(s.guardWindow)
 
 				leaves, err := sequencer.SequenceBatch(ctx, logID, logctx.batchSize)

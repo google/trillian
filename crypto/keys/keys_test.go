@@ -12,19 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package crypto
+package keys
 
 import (
 	"crypto"
 	"crypto/ecdsa"
-	"crypto/x509"
 	"encoding/asn1"
-	"encoding/pem"
-	"fmt"
 	"math/big"
 	"math/rand"
 	"testing"
 
+	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/testonly"
 )
 
@@ -32,17 +30,17 @@ type ecdsaSig struct {
 	R, S *big.Int
 }
 
-func TestLoadDemoECDSAKeyAndSign(t *testing.T) {
+func TestLoadECDSAKeyAndSign(t *testing.T) {
 	// Obviously in real code we wouldn't use a fixed seed
 	randSource := rand.New(rand.NewSource(42))
 	hasher := crypto.SHA256
 
-	km, err := NewFromPrivatePEM(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
+	k, err := NewFromPrivatePEM(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
 	if err != nil {
 		t.Fatalf("Failed to load key: %v", err)
 	}
 
-	signed, err := km.Sign(randSource, []byte("hello"), hasher)
+	signed, err := k.Sign(randSource, []byte("hello"), hasher)
 
 	if err != nil {
 		t.Fatalf("Failed to sign: %v", err)
@@ -56,20 +54,21 @@ func TestLoadDemoECDSAKeyAndSign(t *testing.T) {
 		t.Fatal("Failed to unmarshal signature as asn.1")
 	}
 
-	publicBlock, rest := pem.Decode([]byte(testonly.DemoPublicKey))
-	parsedKey, err := x509.ParsePKIXPublicKey(publicBlock.Bytes)
-
-	if len(rest) > 0 {
-		t.Fatal("Extra data after key in PEM string")
-	}
-
-	if err != nil {
-		panic(fmt.Errorf("Public test key failed to parse: %v", err))
-	}
-
-	publicKey := parsedKey.(*ecdsa.PublicKey)
+	publicKey := k.Public().(*ecdsa.PublicKey)
 
 	if !ecdsa.Verify(publicKey, []byte("hello"), signature.R, signature.S) {
 		t.Fatal("Signature did not verify on round trip test")
+	}
+}
+
+func TestSignatureAlgorithm(t *testing.T) {
+	privateKey, err := NewFromPrivatePEM(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
+	if err != nil {
+		t.Fatalf("Failed to load key: %v", err)
+	}
+
+	publicKey := privateKey.Public()
+	if got, want := SignatureAlgorithm(publicKey), sigpb.DigitallySigned_ECDSA; got != want {
+		t.Errorf("SignatureAlgorithm(%v) = %v, want %v", publicKey, got, want)
 	}
 }

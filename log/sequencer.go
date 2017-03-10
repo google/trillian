@@ -41,7 +41,7 @@ type Sequencer struct {
 	hasher     merkle.TreeHasher
 	timeSource util.TimeSource
 	logStorage storage.LogStorage
-	keyManager crypto.PrivateKeyManager
+	signer     *crypto.Signer
 
 	// These parameters could theoretically be adjusted during operation
 	// sequencerGuardWindow is used to ensure entries newer than the guard window will not be
@@ -56,12 +56,12 @@ type Sequencer struct {
 const maxTreeDepth = 64
 
 // NewSequencer creates a new Sequencer instance for the specified inputs.
-func NewSequencer(hasher merkle.TreeHasher, timeSource util.TimeSource, logStorage storage.LogStorage, km crypto.PrivateKeyManager) *Sequencer {
+func NewSequencer(hasher merkle.TreeHasher, timeSource util.TimeSource, logStorage storage.LogStorage, signer *crypto.Signer) *Sequencer {
 	return &Sequencer{
 		hasher:     hasher,
 		timeSource: timeSource,
 		logStorage: logStorage,
-		keyManager: km,
+		signer:     signer,
 	}
 }
 
@@ -149,8 +149,7 @@ func (s Sequencer) initMerkleTreeFromStorage(ctx context.Context, currentRoot tr
 }
 
 func (s Sequencer) createRootSignature(ctx context.Context, root trillian.SignedLogRoot) (*sigpb.DigitallySigned, error) {
-	trillianSigner := crypto.NewSignerFromPrivateKeyManager(s.keyManager)
-	signature, err := trillianSigner.Sign(crypto.HashLogRoot(root))
+	signature, err := s.signer.Sign(crypto.HashLogRoot(root))
 	if err != nil {
 		glog.Warningf("%s: signer failed to sign root: %v", util.LogIDPrefix(ctx), err)
 		return nil, err
