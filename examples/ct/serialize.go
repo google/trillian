@@ -50,12 +50,12 @@ func signV1TreeHead(signer *crypto.Signer, sth *ct.SignedTreeHead) error {
 	return nil
 }
 
-func buildV1MerkleTreeLeafForCert(cert, issuer *x509.Certificate, timestamp uint64) (*ct.MerkleTreeLeaf, error) {
+func buildV1MerkleTreeLeafForCert(cert, issuer *x509.Certificate, timeMillis uint64) (*ct.MerkleTreeLeaf, error) {
 	leaf := ct.MerkleTreeLeaf{
 		Version:  ct.V1,
 		LeafType: ct.TimestampedEntryLeafType,
 		TimestampedEntry: &ct.TimestampedEntry{
-			Timestamp: timestamp,
+			Timestamp: timeMillis,
 			EntryType: ct.X509LogEntryType,
 			X509Entry: &ct.ASN1Cert{Data: cert.Raw},
 		},
@@ -63,7 +63,7 @@ func buildV1MerkleTreeLeafForCert(cert, issuer *x509.Certificate, timestamp uint
 	return &leaf, nil
 }
 
-func buildV1MerkleTreeLeafForPrecert(cert, issuer *x509.Certificate, timestamp uint64) (*ct.MerkleTreeLeaf, error) {
+func buildV1MerkleTreeLeafForPrecert(cert, issuer *x509.Certificate, timeMillis uint64) (*ct.MerkleTreeLeaf, error) {
 	if issuer == nil {
 		// Need issuer for the IssuerKeyHash
 		return nil, errors.New("no issuer available for pre-certificate")
@@ -83,7 +83,7 @@ func buildV1MerkleTreeLeafForPrecert(cert, issuer *x509.Certificate, timestamp u
 	}
 
 	timestampedEntry := ct.TimestampedEntry{
-		Timestamp:    timestamp,
+		Timestamp:    timeMillis,
 		EntryType:    ct.PrecertLogEntryType,
 		PrecertEntry: &precert,
 	}
