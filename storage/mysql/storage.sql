@@ -84,7 +84,6 @@ CREATE TABLE IF NOT EXISTS LeafData(
   -- This data is not included in signing and hashing.
   ExtraData            BLOB,
   PRIMARY KEY(TreeId, LeafIdentityHash),
-  INDEX LeafHashIdx(LeafIdentityHash),
   FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE
 );
 
