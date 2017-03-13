@@ -25,12 +25,13 @@ import (
 	"strings"
 	"testing"
 	"time"
-
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 	spb "github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/storage/storagepb"
+	"github.com/google/trillian/util"
 )
 
 var allTables = []string{"Unsequenced", "TreeHead", "SequencedLeafData", "LeafData", "Subtree", "TreeControl", "Trees", "MapLeaf", "MapHead"}
@@ -111,7 +112,7 @@ func updateDuplicatePolicy(db *sql.DB, treeID int64, duplicatePolicy trillian.Du
 
 func TestMySQLLogStorage_CheckDatabaseAccessible(t *testing.T) {
 	cleanTestDB(DB)
-	s := NewLogStorage(DB)
+	s := getLogStorage()
 	if err := s.CheckDatabaseAccessible(context.Background()); err != nil {
 		t.Errorf("CheckDatabaseAccessible() = %v, want = nil", err)
 	}
@@ -121,7 +122,8 @@ func TestBegin(t *testing.T) {
 	cleanTestDB(DB)
 	logID1 := createLogForTests(DB)
 	logID2 := createLogForTests(DB)
-	storage := NewLogStorage(DB)
+
+	s := getLogStorage()
 
 	tests := []struct {
 		logID           int64
@@ -142,7 +144,7 @@ func TestBegin(t *testing.T) {
 			}
 		}
 
-		tx, err := storage.BeginForTree(ctx, test.logID)
+		tx, err := s.BeginForTree(ctx, test.logID)
 		if hasError, wantError := err != nil, test.err != ""; hasError || wantError {
 			if hasError != wantError || (wantError && !strings.Contains(err.Error(), test.err)) {
 				t.Errorf("Begin() = (_, '%v'), want = (_, '...%v...')", err, test.err)
@@ -169,7 +171,8 @@ func TestBegin(t *testing.T) {
 func TestSnapshot(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB)
+	s := NewLogStorage(DB, &storagepb.LogStorageConfig{EnableBuckets:false},
+		util.FakeTimeSource{FakeTime:fakeQueueTime})
 
 	tests := []struct {
 		logID int64
@@ -201,7 +204,7 @@ func TestSnapshot(t *testing.T) {
 func TestIsOpenCommitRollbackClosed(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB)
+	s := getLogStorage()
 
 	tests := []struct {
 		commit, rollback, close bool
@@ -238,7 +241,7 @@ func TestIsOpenCommitRollbackClosed(t *testing.T) {
 func TestQueueDuplicateLeafFails(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB)
+	s := getLogStorage()
 
 	tx := beginLogTx(s, logID, t)
 	defer tx.Close()
@@ -257,7 +260,7 @@ func TestQueueDuplicateLeafFails(t *testing.T) {
 func TestQueueLeaves(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB)
+	s := getLogStorage()
 
 	tx := beginLogTx(s, logID, t)
 	defer tx.Close()
@@ -290,7 +293,7 @@ func TestQueueLeaves(t *testing.T) {
 func TestDequeueLeavesNoneQueued(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB)
+	s := getLogStorage()
 
 	tx := beginLogTx(s, logID, t)
 	defer tx.Close()
@@ -305,10 +308,10 @@ func TestDequeueLeavesNoneQueued(t *testing.T) {
 	commit(tx, t)
 }
 
-func TestDequeueLeaves(t *testing.T) {
+func TestDequeueLeavesX(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB)
+	s := getLogStorage()
 
 	{
 		tx := beginLogTx(s, logID, t)
@@ -353,7 +356,7 @@ func TestDequeueLeaves(t *testing.T) {
 func TestDequeueLeavesTwoBatches(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB)
+	s := getLogStorage()
 
 	leavesToDequeue1 := 3
 	leavesToDequeue2 := 2
@@ -421,7 +424,7 @@ func TestDequeueLeavesTwoBatches(t *testing.T) {
 func TestDequeueLeavesGuardInterval(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB)
+	s := getLogStorage()
 
 	{
 		tx := beginLogTx(s, logID, t)
@@ -464,7 +467,7 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 	// queue.
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB)
+	s := getLogStorage()
 
 	batchSize := 2
 	leaves := createTestLeaves(int64(batchSize), 0)
@@ -523,10 +526,79 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 	}
 }
 
+func TestQueueLeavesBucketed(t *testing.T) {
+	cleanTestDB(DB)
+	logID := createLogForTests(DB)
+	numLeaves := 20
+	// Bucketing based on seconds, the first 2 zeroes are the initial queue and trial dequeue
+	increments := []time.Duration{0, 0, 1 * time.Second, 2 * time.Second, 3 * time.Second, 4 * time.Second,
+		5 * time.Second, 6 * time.Second, 7 * time.Second, 8 * time.Second, 9 * time.Second, 10 * time.Second,
+		11 * time.Second, 12 * time.Second, 13 * time.Second, 14 * time.Second, 15 * time.Second,
+		16 * time.Second, 17 * time.Second, 18 * time.Second, 19 * time.Second}
+	ts := util.IncrementingFakeTimeSource{BaseTime: fakeQueueTime, Increments: increments}
+	config := &storagepb.LogStorageConfig{
+		EnableBuckets:    true,
+		NumUnseqBuckets:  4,
+		NumMerkleBuckets: 2,
+	}
+	s := NewLogStorage(DB, config, &ts)
+	tx := beginLogTx(s, logID, t)
+	defer tx.Close()
+
+	// Use enough leaves to spread out between buckets
+	leaves := createTestLeaves(int64(numLeaves), 20)
+
+	if err := tx.QueueLeaves(leaves, fakeQueueTime); err != nil {
+		t.Fatalf("Failed to queue leaves: %v", err)
+	}
+
+	commit(tx, t)
+	leaves = []*trillian.LogLeaf{}
+
+	{
+		// Dequeuing should return nothing because the buckets should be disjoint for the same
+		// fake time
+		tx2 := beginLogTx(s, logID, t)
+		leaves, err := tx2.DequeueLeaves(numLeaves, fakeDequeueCutoffTime)
+		tx2.Commit()
+		if err != nil {
+			t.Fatalf("Failed to dequeue from bucket: %v", err)
+		}
+
+		if got, want := len(leaves), 0; got != want {
+			t.Fatalf("got: %d leaves dequeued from bucket, want: %d", got, want)
+		}
+	}
+
+	{
+		// Now we move the fake time forwards and expect the dequeue bucket to pick up the work we
+		// queued before we run out of attempts. There is also some randomness involved.
+		for attempt := 0; len(leaves) < numLeaves && attempt < 19; attempt++ {
+			tx3 := beginLogTx(s, logID, t)
+			dql, err := tx3.DequeueLeaves(numLeaves, fakeDequeueCutoffTime)
+			tx3.Commit()
+			if err != nil {
+				t.Fatalf("Dequeue from bucket failed: %v", err)
+			}
+			// If we got too many leaves at once then bucketing is broken
+			if len(dql) > 12 {
+				t.Fatalf("Dequeued too many leaves from bucket: %d, %v", len(dql), dql)
+			}
+
+			leaves = append(leaves, dql...)
+		}
+	}
+
+	// Final check that we accumulated all the queued leaves
+	if got, want := len(leaves), numLeaves; got != want {
+		t.Errorf("Dequeue from bucket got: %d leaves, want: %d", got, want)
+	}
+}
+
 func TestGetLeavesByHashNotPresent(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB)
+	s := getLogStorage()
 
 	tx := beginLogTx(s, logID, t)
 	defer tx.Close()
@@ -545,7 +617,7 @@ func TestGetLeavesByHashNotPresent(t *testing.T) {
 func TestGetLeavesByIndexNotPresent(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB)
+	s := getLogStorage()
 
 	tx := beginLogTx(s, logID, t)
 	defer tx.Close()
@@ -560,7 +632,7 @@ func TestGetLeavesByHash(t *testing.T) {
 	// Create fake leaf as if it had been sequenced
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB)
+	s := getLogStorage()
 
 	data := []byte("some data")
 	createFakeLeaf(DB, logID, dummyRawHash, dummyHash, data, someExtraData, sequenceNumber, t)
@@ -584,7 +656,7 @@ func TestGetLeavesByIndex(t *testing.T) {
 	// Create fake leaf as if it had been sequenced, read it back and check contents
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB)
+	s := getLogStorage()
 
 	data := []byte("some data")
 	createFakeLeaf(DB, logID, dummyRawHash, dummyHash, data, someExtraData, sequenceNumber, t)
@@ -606,7 +678,7 @@ func TestGetLeavesByIndex(t *testing.T) {
 func TestLatestSignedRootNoneWritten(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB)
+	s := getLogStorage()
 
 	tx := beginLogTx(s, logID, t)
 	defer tx.Close()
@@ -624,7 +696,7 @@ func TestLatestSignedRootNoneWritten(t *testing.T) {
 func TestLatestSignedLogRoot(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB)
+	s := getLogStorage()
 
 	tx := beginLogTx(s, logID, t)
 	defer tx.Close()
@@ -659,7 +731,7 @@ func TestLatestSignedLogRoot(t *testing.T) {
 func TestDuplicateSignedLogRoot(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB)
+	s := getLogStorage()
 
 	tx := beginLogTx(s, logID, t)
 	defer tx.Close()
@@ -686,7 +758,7 @@ func TestLogRootUpdate(t *testing.T) {
 	// Write two roots for a log and make sure the one with the newest timestamp supersedes
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB)
+	s := getLogStorage()
 
 	tx := beginLogTx(s, logID, t)
 	defer tx.Close()
@@ -746,8 +818,7 @@ func toIDsMap(ids []int64) map[int64]bool {
 // runTestGetActiveLogIDsInternal calls test.fn (which is either GetActiveLogIDs or
 // GetActiveLogIDsWithPendingWork) and check that the result matches wantIds.
 func runTestGetActiveLogIDsInternal(t *testing.T, test getActiveIDsTest, logID int64, wantIds []int64) {
-	s := NewLogStorage(DB)
-
+	s := getLogStorage()
 	logIDs, err := test.fn(s, context.Background(), logID)
 	if err != nil {
 		t.Errorf("%v = (_, %v), want = (_, nil)", test.name, err)
@@ -777,7 +848,7 @@ func runTestGetActiveLogIDsWithPendingWork(t *testing.T, test getActiveIDsTest) 
 	logID1 := createLogForTests(DB)
 	logID2 := createLogForTests(DB)
 	logID3 := createLogForTests(DB)
-	s := NewLogStorage(DB)
+	s := getLogStorage()
 
 	// Do a first run without any pending logs
 	runTestGetActiveLogIDsInternal(t, test, logID1, nil)
@@ -839,9 +910,9 @@ func TestGetActiveLogIDs(t *testing.T) {
 
 func TestGetActiveLogIDsEmpty(t *testing.T) {
 	cleanTestDB(DB)
-	s := NewLogStorage(DB)
+	s := getLogStorage()
 
-	tx, err := s.Snapshot(context.Background())
+	tx, err := s.Snapshot(context.TODO())
 	if err != nil {
 		t.Fatalf("Snapshot() = (_, %v), want = (_, nil)", err)
 	}
@@ -903,7 +974,8 @@ func TestGetActiveLogIDsWithPendingWork(t *testing.T) {
 
 func TestReadOnlyLogTX_Rollback(t *testing.T) {
 	cleanTestDB(DB)
-	s := NewLogStorage(DB)
+	s := getLogStorage()
+
 	tx, err := s.Snapshot(context.Background())
 	if err != nil {
 		t.Fatalf("Snapshot() = (_, %v), want = (_, nil)", err)
@@ -923,7 +995,7 @@ func TestGetSequencedLeafCount(t *testing.T) {
 	cleanTestDB(DB)
 	logID1 := createLogForTests(DB)
 	logID2 := createLogForTests(DB)
-	s := NewLogStorage(DB)
+	s := getLogStorage()
 
 	{
 		// Create fake leaf as if it had been sequenced
@@ -978,11 +1050,43 @@ func TestSortByLeafIdentityHash(t *testing.T) {
 		if i == 0 {
 			continue
 		}
-		if bytes.Compare(l[i-1].LeafIdentityHash, l[i].LeafIdentityHash) != -1 {
-			t.Errorf("sorted leaves not in order, [%d] = %x, [%d] = %x", i-1, l[i-1].LeafIdentityHash, i, l[i].LeafIdentityHash)
+		if bytes.Compare(l[i - 1].LeafIdentityHash, l[i].LeafIdentityHash) != -1 {
+			t.Errorf("sorted leaves not in order, [%d] = %x, [%d] = %x", i - 1, l[i - 1].LeafIdentityHash, i, l[i].LeafIdentityHash)
 		}
 	}
+}
 
+func TestQueueDequeueBucketsDisjoint(t *testing.T) {
+	// Sanity test that the dequeue bucket list doesn't intersect with the queue bucket (for same
+	// MerkleLeafHash[0]).
+	// Test at least enough times to run through all the bucket combinations (8), then again
+	// with different increments
+	increments := []time.Duration{1 * time.Second, 1 * time.Second, 1 * time.Second, 1 * time.Second,
+		1 * time.Second, 1 * time.Second, 1 * time.Second, 1 * time.Second, 3 * time.Second, 23 * time.Second, 116 * time.Second,
+		248 * time.Second, 736 * time.Second, 12345 * time.Second, 99999 * time.Second, 1048576 * time.Second}
+	config := &storagepb.LogStorageConfig{EnableBuckets: true,
+		NumUnseqBuckets: 2, NumMerkleBuckets: 4}
+
+	for mb := 0; mb < numByteValues; mb++ {
+		ts := util.IncrementingFakeTimeSource{BaseTime: fakeQueueTime, Increments: increments}
+
+		for i := 0; i < len(increments); i++ {
+			now := ts.Now().UTC().Unix()
+			queueBucket := getQueueBucket(now, config, byte(mb))
+			dequeueBuckets := genDequeueBuckets(now, config, mb)
+
+			if len(dequeueBuckets) == 0 {
+				t.Errorf("got: len(dequeueBuckets) == 0, want: >0 for: mb: %d, queue: %d, dequeue: %v",
+					mb, queueBucket, dequeueBuckets)
+			}
+
+			for _, b := range dequeueBuckets {
+				if (b & 0xff00) == (queueBucket & 0xff00) {
+					t.Errorf("bucket collision: mb: %d, queue: %d, dequeue: %v", mb, queueBucket, dequeueBuckets)
+				}
+			}
+		}
+	}
 }
 
 func ensureAllLeavesDistinct(leaves []*trillian.LogLeaf, t *testing.T) {

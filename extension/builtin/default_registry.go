@@ -24,6 +24,8 @@ import (
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/mysql"
+	"github.com/google/trillian/storage/storagepb"
+	"github.com/google/trillian/util"
 )
 
 var (
@@ -33,20 +35,27 @@ var (
 	// an HSM interface in this way. Deferring these issues for later.
 	privateKeyFile     = flag.String("private_key_file", "", "File containing a PEM encoded private key")
 	privateKeyPassword = flag.String("private_key_password", "", "Password for server private key")
+	// The next three flags control bucketed queueing. See comments in storage.proto for how to
+	// set these values. By default this feature is not enabled. Values currently apply to all trees.
+	bucketedQueue    = flag.Bool("bucketed_queue", false, "Whether to enable queue bucketing strategy")
+	numUnseqBuckets  = flag.Int64("num_unseq_buckets", 4, "Number of unsequenced queue buckets")
+	numMerkleBuckets = flag.Int64("num_merkle_buckets", 8, "Number of merkle queue buckets below each main bucket")
 )
 
 // Default implementation of extension.Registry.
 type defaultRegistry struct {
 	db *sql.DB
 	km crypto.PrivateKeyManager
+	ls storage.LogStorage
+	ms storage.MapStorage
 }
 
 func (r *defaultRegistry) GetLogStorage() (storage.LogStorage, error) {
-	return mysql.NewLogStorage(r.db), nil
+	return r.ls, nil
 }
 
 func (r *defaultRegistry) GetMapStorage() (storage.MapStorage, error) {
-	return mysql.NewMapStorage(r.db), nil
+	return r.ms, nil
 }
 
 func (r *defaultRegistry) GetKeyManager(treeID int64) (crypto.PrivateKeyManager, error) {
@@ -56,8 +65,16 @@ func (r *defaultRegistry) GetKeyManager(treeID int64) (crypto.PrivateKeyManager,
 // NewExtensionRegistry returns an extension.Registry implementation backed by a given
 // MySQL database and a KeyManager instance.
 func NewExtensionRegistry(db *sql.DB, km crypto.PrivateKeyManager) (extension.Registry, error) {
-	return &defaultRegistry{db: db, km: km}, nil
-
+	return &defaultRegistry{
+		db: db,
+		km: km,
+		ls: mysql.NewLogStorage(db, &storagepb.LogStorageConfig{
+			EnableBuckets:    *bucketedQueue,
+			NumUnseqBuckets:  *numUnseqBuckets,
+			NumMerkleBuckets: *numMerkleBuckets,
+		}, util.SystemTimeSource{}),
+	  ms: mysql.NewMapStorage(db),
+	}, nil
 }
 
 // NewDefaultExtensionRegistry returns the default extension.Registry implementation, which is

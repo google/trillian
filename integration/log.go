@@ -44,6 +44,7 @@ type TestParameters struct {
 	sequencingWaitTotal time.Duration
 	sequencingPollWait  time.Duration
 	rpcRequestDeadline  time.Duration
+	customLeafPrefix    string
 }
 
 // DefaultTestParameters builds a TestParameters object for a normal
@@ -62,6 +63,7 @@ func DefaultTestParameters(treeID int64) TestParameters {
 		sequencingWaitTotal: 10 * time.Second * 60,
 		sequencingPollWait:  time.Second * 5,
 		rpcRequestDeadline:  time.Second * 10,
+		customLeafPrefix:    "",
 	}
 }
 
@@ -186,20 +188,21 @@ func queueLeaves(client trillian.TrillianLogClient, params TestParameters) error
 		// Leaf data based on the sequence number so we can check the hashes
 		leafNumber := params.startLeaf + l
 
-		data := []byte(fmt.Sprintf("Leaf %d", leafNumber))
+		data := []byte(fmt.Sprintf("%sLeaf %d", params.customLeafPrefix, leafNumber))
 		idHash := sha256.Sum256(data)
 
 		leaf := &trillian.LogLeaf{
 			LeafIdentityHash: idHash[:],
 			MerkleLeafHash:   testonly.Hasher.HashLeaf(data),
 			LeafValue:        data,
-			ExtraData:        []byte(fmt.Sprintf("Extra %d", leafNumber)),
+			ExtraData:        []byte(fmt.Sprintf("%sExtra %d", params.customLeafPrefix, leafNumber)),
 		}
 		leaves = append(leaves, leaf)
 
 		if len(leaves) >= params.queueBatchSize || (l+1) == params.leafCount {
 			glog.Infof("Queueing %d leaves ...", len(leaves))
 
+			start := time.Now()
 			ctx, cancel := getRPCDeadlineContext(params)
 			_, err := client.QueueLeaves(ctx, &trillian.QueueLeavesRequest{
 				LogId:  params.treeID,
@@ -210,6 +213,9 @@ func queueLeaves(client trillian.TrillianLogClient, params TestParameters) error
 			if err != nil {
 				return err
 			}
+			d := time.Now().Sub(start).Seconds()
+			glog.Infof("%v: queued %d leaves in %.2f seconds (%.2f qps)",
+				params.treeID, len(leaves), d, float64(len(leaves))/d)
 			leaves = leaves[:0] // starting new batch
 		}
 	}
@@ -255,7 +261,7 @@ func readbackLogEntries(logID int64, client trillian.TrillianLogClient, params T
 	leafDataPresenceMap := make(map[string]bool)
 
 	for l := int64(0); l < params.leafCount; l++ {
-		leafDataPresenceMap[fmt.Sprintf("Leaf %d", l+params.startLeaf)] = true
+		leafDataPresenceMap[fmt.Sprintf("%sLeaf %d", params.customLeafPrefix, l+params.startLeaf)] = true
 	}
 
 	for currentLeaf < params.leafCount {
