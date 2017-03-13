@@ -17,14 +17,14 @@ install:
       mkdir -p $HOME/gopath/src/github.com/google
       ln -s $TRAVIS_BUILD_DIR $HOME/gopath/src/github.com/google/trillian
     fi
-  - mkdir protoc
+  - mkdir ../protoc
   - |
     (
-      cd protoc
+      cd ../protoc
       wget https://github.com/google/protobuf/releases/download/v3.2.0/protoc-3.2.0-${TRAVIS_OS_NAME}-x86_64.zip
       unzip protoc-3.2.0-${TRAVIS_OS_NAME}-x86_64.zip
     )
-  - export PATH=$(pwd)/protoc/bin:$PATH
+  - export PATH=$(pwd)/../protoc/bin:$PATH
   - go get -d ./...
   - if [[ $TRAVIS_OS_NAME == "osx" ]]; then brew update > /dev/null && brew install mariadb && mysql.server start; fi
   - go get -u github.com/client9/misspell/cmd/misspell
