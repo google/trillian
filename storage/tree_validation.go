@@ -33,7 +33,7 @@ const (
 // See the documentation on trillian.Tree for reference on which values are
 // valid.
 func ValidateTreeForCreation(tree *trillian.Tree) error {
-	// Check that the private_key proto contains a valid serialised proto.
+	// Check that the private_key proto contains a valid serialized proto.
 	// TODO(robpercival): Could we attempt to produce an STH at this point,
 	// to verify that the key works?
 	var privateKey ptypes.DynamicAny
