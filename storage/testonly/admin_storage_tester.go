@@ -19,10 +19,22 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes"
+	"github.com/golang/protobuf/ptypes/any"
 	"github.com/google/trillian"
 	spb "github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/storage"
 )
+
+// mustMarshal panics if ptypes.MarshalAny fails.
+func mustMarshalAny(pb proto.Message) *any.Any {
+	value, err := ptypes.MarshalAny(pb)
+	if err != nil {
+		panic(err)
+	}
+	return value
+}
 
 var (
 	// LogTree is a valid, LOG-type trillian.Tree for tests.
@@ -35,6 +47,10 @@ var (
 		DuplicatePolicy:    trillian.DuplicatePolicy_DUPLICATES_NOT_ALLOWED,
 		DisplayName:        "Llamas Log",
 		Description:        "Registry of publicly-owned llamas",
+		PrivateKey: mustMarshalAny(&trillian.PEMKeyFile{
+			Path:     "testdata/log-rpc-server.privkey.pem",
+			Password: "towel",
+		}),
 	}
 
 	// MapTree is a valid, MAP-type trillian.Tree for tests.
@@ -47,6 +63,10 @@ var (
 		DuplicatePolicy:    trillian.DuplicatePolicy_DUPLICATES_ALLOWED,
 		DisplayName:        "Llamas Map",
 		Description:        "Key Transparency map for all your digital llama needs.",
+		PrivateKey: mustMarshalAny(&trillian.PEMKeyFile{
+			Path:     "testdata/map-rpc-server.privkey.pem",
+			Password: "dirk",
+		}),
 	}
 )
 
