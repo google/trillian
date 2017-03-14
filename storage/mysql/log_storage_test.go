@@ -651,14 +651,14 @@ func TestGetLeafDataByIdentityHash(t *testing.T) {
 			want:   []*trillian.LogLeaf{leaf},
 		},
 		{
-			hashes: [][]byte{[]byte{0x01, 0x02}},
+			hashes: [][]byte{{0x01, 0x02}},
 		},
 		{
 			hashes: [][]byte{
 				dummyRawHash,
-				[]byte{0x01, 0x02},
+				{0x01, 0x02},
 				dummyHash2,
-				[]byte{0x01, 0x02},
+				{0x01, 0x02},
 			},
 			// Note: leaves not necessarily returned in order requested.
 			want: []*trillian.LogLeaf{leaf2, leaf},
