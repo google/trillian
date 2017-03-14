@@ -171,6 +171,19 @@ func TestValidateTreeForUpdate(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			desc: "PrivateKey",
+			updatefn: func(tree *trillian.Tree) {
+				key, err := ptypes.MarshalAny(&trillian.PEMKeyFile{
+					Path: "different.pem",
+				})
+				if err != nil {
+					panic(err)
+				}
+				tree.PrivateKey = key
+			},
+			wantErr: true,
+		},
 	}
 	for _, test := range tests {
 		tree := newTree()
