@@ -242,39 +242,63 @@ func TestIsOpenCommitRollbackClosed(t *testing.T) {
 	}
 }
 
-func TestQueueDuplicateLeafFails(t *testing.T) {
+func TestQueueDuplicateLeaf(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
 	s := NewLogStorage(DB)
-
-	tx := beginLogTx(s, logID, t)
-	defer tx.Close()
-
 	count := 15
 	leaves := createTestLeaves(int64(count), 10)
-	if _, err := tx.QueueLeaves(leaves, fakeQueueTime); err != nil {
-		t.Fatalf("Failed to queue leaves: %v", err)
-	}
-	// Two overlapping sets of leaves:
-	//   leaves  = [10, 11, 12, ...]
-	//   leaves2 = [12, 13, 14, ...]
-	// so first (count - 2) are duplicates.
 	leaves2 := createTestLeaves(int64(count), 12)
-	existing, err := tx.QueueLeaves(leaves2, fakeQueueTime)
-	if err != nil {
-		t.Fatalf("Failed to re-queue leaves: %v", err)
+	leaves3 := createTestLeaves(3, 100)
+
+	// Note that tests accumulate queued leaves on top of each other.
+	var tests = []struct {
+		leaves []*trillian.LogLeaf
+		want   []*trillian.LogLeaf
+	}{
+		{
+			// [10, 11, 12, ...]
+			leaves: leaves,
+			want:   make([]*trillian.LogLeaf, count),
+		},
+		{
+			// [12, 13, 14, ...] so first (count-2) are duplicates
+			leaves: leaves2,
+			want:   append(leaves[2:], nil, nil),
+		},
+		{
+			// [10, 100, 11, 101, 102] so [dup, new, dup, new, dup]
+			leaves: []*trillian.LogLeaf{leaves[0], leaves3[0], leaves[1], leaves3[1], leaves[2]},
+			want:   []*trillian.LogLeaf{leaves[0], nil, leaves[1], nil, leaves[2]},
+		},
 	}
-	commit(tx, t)
-	for i := 0; i < (count - 2); i++ {
-		if existing[i] == nil {
-			t.Errorf("QueueLeaves()[%d]=nil; want non-nil", i)
-		} else if bytes.Compare(existing[i].LeafIdentityHash, leaves2[i].LeafIdentityHash) != 0 {
-			t.Errorf("QueueLeaves()[%d].LeafIdentityHash=%x; want %x", i, existing[i].LeafIdentityHash, leaves2[i].LeafIdentityHash)
+
+	for _, test := range tests {
+		tx := beginLogTx(s, logID, t)
+		defer tx.Close()
+		existing, err := tx.QueueLeaves(test.leaves, fakeQueueTime)
+		if err != nil {
+			t.Fatalf("Failed to queue leaves: %v", err)
 		}
-	}
-	for i := (count - 2); i < count; i++ {
-		if existing[i] != nil {
-			t.Errorf("QueueLeaves[%d]=%v; want nil", i, existing[i])
+		commit(tx, t)
+
+		if len(existing) != len(test.want) {
+			t.Errorf("|QueueLeaves()|=%d; want %d", len(existing), len(test.want))
+			continue
+		}
+		for i, want := range test.want {
+			got := existing[i]
+			if want == nil {
+				if got != nil {
+					t.Errorf("QueueLeaves()[%d]=%v; want nil", i, got)
+				}
+				continue
+			}
+			if got == nil {
+				t.Errorf("QueueLeaves()[%d]=nil; want non-nil", i)
+			} else if bytes.Compare(got.LeafIdentityHash, want.LeafIdentityHash) != 0 {
+				t.Errorf("QueueLeaves()[%d].LeafIdentityHash=%x; want %x", i, got.LeafIdentityHash, want.LeafIdentityHash)
+			}
 		}
 	}
 }
