@@ -68,20 +68,11 @@ get -d -v -t ./...`).
 
 ### Building
 
-If you're not with the Go program of working within its
-[own directory tree](https://golang.org/cmd/go/#hdr-GOPATH_environment_variable), then:
-
 ```console
-% cd <your favorite directory for git repos>
-% git clone https://github.com/google/trillian.git
-% mkdir -p $GOPATH/src/github.com/google
-% ln -s $(pwd)/trillian $GOPATH/src/github.com/google
-% cd trillian
-% go get -d -v -t ./...
-% go build ./...
+% go get -u -v -t github.com/google/trillian
+% cd $GOPATH/src/github.com/google/trillian
+% go test ./...
 ```
-
-If you are with the Go program, then you know what to do.
 
 ### Rebuilding Generated Code
 
