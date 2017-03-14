@@ -421,12 +421,6 @@ func timeFromMS(ts uint64) time.Time {
 	return time.Unix(secs, msecs*1000000)
 }
 
-// signatureToString formats a CT signature for display.
-// TODO(drysdale): move this to <CT>/go/types.go as DigitallySigned.String()
-func signatureToString(signed *ct.DigitallySigned) string {
-	return fmt.Sprintf("Signature: Hash=%v Sign=%v Value=%x", signed.Algorithm.Hash, signed.Algorithm.Signature, signed.Signature)
-}
-
 // GetChain retrieves a certificate from a file of the given name and directory.
 func GetChain(dir, path string) ([]ct.ASN1Cert, error) {
 	certdata, err := ioutil.ReadFile(filepath.Join(dir, path))
