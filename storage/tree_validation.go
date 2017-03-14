@@ -49,7 +49,7 @@ func ValidateTreeForCreation(tree *trillian.Tree) error {
 	case tree.DuplicatePolicy == trillian.DuplicatePolicy_UNKNOWN_DUPLICATE_POLICY:
 		return fmt.Errorf("invalid duplicate_policy: %s", tree.DuplicatePolicy)
 	case tree.PrivateKey == nil:
-		return fmt.Errorf("a private_key is required")
+		return errors.New("a private_key is required")
 	}
 
 	// Check that the private_key proto contains a valid serialized proto.
