@@ -21,6 +21,8 @@ import (
 	"time"
 
 	"github.com/golang/glog"
+	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes/any"
 	"github.com/google/trillian"
 	spb "github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/storage"
@@ -41,7 +43,8 @@ const (
 			DisplayName,
 			Description,
 			CreateTime,
-			UpdateTime
+			UpdateTime,
+			PrivateKey
 		FROM Trees`
 	selectTreeByID = selectTrees + " WHERE TreeId = ?"
 )
@@ -143,6 +146,7 @@ func readTree(row row) (*trillian.Tree, error) {
 
 	// Enums and Datetimes need an extra conversion step
 	var treeState, treeType, hashStrategy, hashAlgorithm, signatureAlgorithm, duplicatePolicy, createDatetime, updateDatetime string
+	var privateKey []byte
 	err := row.Scan(
 		&tree.TreeId,
 		&treeState,
@@ -155,6 +159,7 @@ func readTree(row row) (*trillian.Tree, error) {
 		&tree.Description,
 		&createDatetime,
 		&updateDatetime,
+		&privateKey,
 	)
 	if err != nil {
 		return nil, err
@@ -219,6 +224,11 @@ func readTree(row row) (*trillian.Tree, error) {
 		return nil, err
 	}
 	tree.UpdateTimeMillisSinceEpoch = toMillisSinceEpoch(updateTime)
+
+	tree.PrivateKey = &any.Any{}
+	if err := proto.Unmarshal(privateKey, tree.PrivateKey); err != nil {
+		return nil, fmt.Errorf("could not unmarshal PrivateKey: %v", err)
+	}
 
 	return tree, nil
 }
@@ -300,8 +310,9 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 			DisplayName,
 			Description,
 			CreateTime,
-			UpdateTime)
-		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+			UpdateTime,
+			PrivateKey)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 	if err != nil {
 		return nil, err
 	}
@@ -320,6 +331,11 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 		return nil, fmt.Errorf("unexpected DuplicatePolicy value: %v", newTree.DuplicatePolicy)
 	}
 
+	privateKey, err := proto.Marshal(newTree.PrivateKey)
+	if err != nil {
+		return nil, fmt.Errorf("could not marshal PrivateKey: %v", err)
+	}
+
 	_, err = insertTreeStmt.Exec(
 		newTree.TreeId,
 		newTree.TreeState.String(),
@@ -332,6 +348,7 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 		newTree.Description,
 		nowDatetime, /* CreateTime */
 		nowDatetime, /* UpdateTime */
+		privateKey,
 	)
 	if err != nil {
 		return nil, err
