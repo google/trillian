@@ -4,10 +4,9 @@
 package storage
 
 import (
-	context0 "context"
+	context "context"
 	gomock "github.com/golang/mock/gomock"
 	trillian "github.com/google/trillian"
-	context "golang.org/x/net/context"
 	time "time"
 )
 
@@ -191,7 +190,7 @@ func (_m *MockLogStorage) EXPECT() *_MockLogStorageRecorder {
 	return _m.recorder
 }
 
-func (_m *MockLogStorage) BeginForTree(_param0 context0.Context, _param1 int64) (LogTreeTX, error) {
+func (_m *MockLogStorage) BeginForTree(_param0 context.Context, _param1 int64) (LogTreeTX, error) {
 	ret := _m.ctrl.Call(_m, "BeginForTree", _param0, _param1)
 	ret0, _ := ret[0].(LogTreeTX)
 	ret1, _ := ret[1].(error)
@@ -202,7 +201,7 @@ func (_mr *_MockLogStorageRecorder) BeginForTree(arg0, arg1 interface{}) *gomock
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "BeginForTree", arg0, arg1)
 }
 
-func (_m *MockLogStorage) CheckDatabaseAccessible(_param0 context0.Context) error {
+func (_m *MockLogStorage) CheckDatabaseAccessible(_param0 context.Context) error {
 	ret := _m.ctrl.Call(_m, "CheckDatabaseAccessible", _param0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -212,7 +211,7 @@ func (_mr *_MockLogStorageRecorder) CheckDatabaseAccessible(arg0 interface{}) *g
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "CheckDatabaseAccessible", arg0)
 }
 
-func (_m *MockLogStorage) Snapshot(_param0 context0.Context) (ReadOnlyLogTX, error) {
+func (_m *MockLogStorage) Snapshot(_param0 context.Context) (ReadOnlyLogTX, error) {
 	ret := _m.ctrl.Call(_m, "Snapshot", _param0)
 	ret0, _ := ret[0].(ReadOnlyLogTX)
 	ret1, _ := ret[1].(error)
@@ -223,7 +222,7 @@ func (_mr *_MockLogStorageRecorder) Snapshot(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Snapshot", arg0)
 }
 
-func (_m *MockLogStorage) SnapshotForTree(_param0 context0.Context, _param1 int64) (ReadOnlyLogTreeTX, error) {
+func (_m *MockLogStorage) SnapshotForTree(_param0 context.Context, _param1 int64) (ReadOnlyLogTreeTX, error) {
 	ret := _m.ctrl.Call(_m, "SnapshotForTree", _param0, _param1)
 	ret0, _ := ret[0].(ReadOnlyLogTreeTX)
 	ret1, _ := ret[1].(error)
@@ -464,7 +463,7 @@ func (_m *MockMapStorage) EXPECT() *_MockMapStorageRecorder {
 	return _m.recorder
 }
 
-func (_m *MockMapStorage) BeginForTree(_param0 context0.Context, _param1 int64) (MapTreeTX, error) {
+func (_m *MockMapStorage) BeginForTree(_param0 context.Context, _param1 int64) (MapTreeTX, error) {
 	ret := _m.ctrl.Call(_m, "BeginForTree", _param0, _param1)
 	ret0, _ := ret[0].(MapTreeTX)
 	ret1, _ := ret[1].(error)
@@ -475,7 +474,7 @@ func (_mr *_MockMapStorageRecorder) BeginForTree(arg0, arg1 interface{}) *gomock
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "BeginForTree", arg0, arg1)
 }
 
-func (_m *MockMapStorage) CheckDatabaseAccessible(_param0 context0.Context) error {
+func (_m *MockMapStorage) CheckDatabaseAccessible(_param0 context.Context) error {
 	ret := _m.ctrl.Call(_m, "CheckDatabaseAccessible", _param0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -485,7 +484,7 @@ func (_mr *_MockMapStorageRecorder) CheckDatabaseAccessible(arg0 interface{}) *g
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "CheckDatabaseAccessible", arg0)
 }
 
-func (_m *MockMapStorage) Snapshot(_param0 context0.Context) (ReadOnlyMapTX, error) {
+func (_m *MockMapStorage) Snapshot(_param0 context.Context) (ReadOnlyMapTX, error) {
 	ret := _m.ctrl.Call(_m, "Snapshot", _param0)
 	ret0, _ := ret[0].(ReadOnlyMapTX)
 	ret1, _ := ret[1].(error)
@@ -496,7 +495,7 @@ func (_mr *_MockMapStorageRecorder) Snapshot(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Snapshot", arg0)
 }
 
-func (_m *MockMapStorage) SnapshotForTree(_param0 context0.Context, _param1 int64) (ReadOnlyMapTreeTX, error) {
+func (_m *MockMapStorage) SnapshotForTree(_param0 context.Context, _param1 int64) (ReadOnlyMapTreeTX, error) {
 	ret := _m.ctrl.Call(_m, "SnapshotForTree", _param0, _param1)
 	ret0, _ := ret[0].(ReadOnlyMapTreeTX)
 	ret1, _ := ret[1].(error)
