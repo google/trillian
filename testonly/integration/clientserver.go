@@ -22,10 +22,12 @@ import (
 	"sync"
 	"time"
 
+	_ "github.com/go-sql-driver/mysql" // Load MySQL driver
+
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys"
-	"github.com/google/trillian/extension/builtin"
+	"github.com/google/trillian/extension"
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/storage/mysql"
 	"github.com/google/trillian/storage/testonly"
@@ -90,9 +92,10 @@ func NewLogEnv(ctx context.Context, numSequencers int, testID string) (*LogEnv, 
 		return nil, err
 	}
 
-	registry, err := builtin.NewExtensionRegistry(db)
-	if err != nil {
-		return nil, err
+	registry := extension.Registry{
+		AdminStorage:  mysql.NewAdminStorage(db),
+		SignerFactory: keys.PEMSignerFactory{},
+		LogStorage:    mysql.NewLogStorage(db),
 	}
 
 	// Create Log Server.

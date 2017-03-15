@@ -19,6 +19,8 @@ import (
 	"time"
 
 	"github.com/golang/glog"
+	"github.com/google/trillian/crypto/keys"
+	"github.com/google/trillian/extension"
 	"github.com/google/trillian/extension/builtin"
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/util"
@@ -39,10 +41,13 @@ func main() {
 	glog.CopyStandardLogTo("WARNING")
 	glog.Info("**** Log Signer Starting ****")
 
-	// First make sure we can access the database and keys, quit if not
-	registry, err := builtin.NewDefaultExtensionRegistry()
-	if err != nil {
-		glog.Exitf("Failed to create extension registry: %v", err)
+	registry := extension.Registry{
+		SignerFactory: keys.PEMSignerFactory{},
+	}
+
+	// First make sure we can access the database, quit if not
+	if err := builtin.UseMySQLDBSetByFlags(&registry); err != nil {
+		glog.Exitf("Failed to setup MySQL database: %v", err)
 	}
 
 	// Start HTTP server (optional)

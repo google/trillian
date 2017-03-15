@@ -100,8 +100,9 @@ func TestAdminServer_BeginError(t *testing.T) {
 			as.EXPECT().Begin(ctx).Return(nil, errors.New("begin error"))
 		}
 
-		registry := extension.NewMockRegistry(ctrl)
-		registry.EXPECT().GetAdminStorage().Return(as)
+		registry := extension.Registry{
+			AdminStorage: as,
+		}
 
 		s := &Server{registry: registry}
 		if err := test.fn(ctx, s); err == nil {
@@ -220,7 +221,7 @@ func TestAdminServer_CreateTree(t *testing.T) {
 // adminTestSetup contains an operational Server and required dependencies.
 // It's created via setupAdminServer.
 type adminTestSetup struct {
-	registry   *extension.MockRegistry
+	registry   extension.Registry
 	as         *storage.MockAdminStorage
 	tx         *storage.MockAdminTX
 	snapshotTX *storage.MockReadOnlyAdminTX
@@ -260,8 +261,9 @@ func setupAdminStorage(ctrl *gomock.Controller, snapshot, shouldCommit, commitEr
 		}
 	}
 
-	registry := extension.NewMockRegistry(ctrl)
-	registry.EXPECT().GetAdminStorage().Return(as)
+	registry := extension.Registry{
+		AdminStorage: as,
+	}
 
 	s := &Server{registry}
 
