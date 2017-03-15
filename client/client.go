@@ -120,10 +120,6 @@ func (c *LogClient) UpdateSTR(ctx context.Context) error {
 	}
 	str := resp.SignedLogRoot
 
-	if str.Signature == nil {
-		return errors.New("no signature supplied")
-	}
-
 	// Verify SignedLogRoot signature.
 	hash := crypto.HashLogRoot(*str)
 	if err := crypto.Verify(c.pubKey, hash, str.Signature); err != nil {
