@@ -78,6 +78,11 @@ func GetTestDB(testID string) (*sql.DB, error) {
 	return dbTest, nil
 }
 
+// relativeToPackage returns the input path p as an absolute path, resolved relative to this
+// package.
+// The working directory for Go tests is the dir of test file. Using "plain" relative paths in test
+// utilities is, therefore, brittle, as the directory structure may change depending on where the
+// tests are placed.
 func relativeToPackage(p string) (string, error) {
 	_, file, _, ok := runtime.Caller(0)
 	if !ok {
