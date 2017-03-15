@@ -25,6 +25,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/golang/glog"
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/extension/builtin"
 	"github.com/google/trillian/server/admin"
@@ -71,9 +72,12 @@ func main() {
 	glog.CopyStandardLogTo("WARNING")
 	glog.Info("**** Map RPC Server Starting ****")
 
-	registry, err := builtin.NewDefaultExtensionRegistry()
-	if err != nil {
-		glog.Exitf("Failed to create extension registry: %v", err)
+	registry := extension.Registry{
+		SignerFactory: keys.PEMSignerFactory{},
+	}
+
+	if err := builtin.UseMySQLDBSetByFlags(&registry); err != nil {
+		glog.Exitf("Failed to setup MySQL database: %v", err)
 	}
 
 	// Start HTTP server (optional)

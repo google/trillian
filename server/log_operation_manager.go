@@ -92,14 +92,7 @@ func NewLogOperationManagerForTest(ctx context.Context, registry extension.Regis
 }
 
 func (l LogOperationManager) getLogsAndExecutePass(ctx context.Context) bool {
-	provider, err := l.context.registry.GetLogStorage()
-	// If we get an error, we can't do anything but wait until the next run through
-	if err != nil {
-		glog.Warningf("Failed to get storage provider for run: %v", err)
-		return false
-	}
-
-	tx, err := provider.Snapshot(ctx)
+	tx, err := l.context.registry.LogStorage.Snapshot(ctx)
 	if err != nil {
 		glog.Warningf("Failed to get tx for run: %v", err)
 		return false

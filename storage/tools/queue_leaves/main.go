@@ -23,6 +23,7 @@ import (
 
 	log "github.com/golang/glog"
 	"github.com/google/trillian"
+	"github.com/google/trillian/extension"
 	"github.com/google/trillian/extension/builtin"
 )
 
@@ -51,17 +52,13 @@ func main() {
 	flag.Parse()
 	validateFlagsOrDie()
 
-	registry, err := builtin.NewDefaultExtensionRegistry()
-	if err != nil {
-		panic(err)
-	}
-	storage, err := registry.GetLogStorage()
-	if err != nil {
+	registry := extension.Registry{}
+	if err := builtin.UseMySQLDBSetByFlags(&registry); err != nil {
 		panic(err)
 	}
 
 	ctx := context.Background()
-	tx, err := storage.BeginForTree(ctx, *treeIDFlag)
+	tx, err := registry.LogStorage.BeginForTree(ctx, *treeIDFlag)
 	if err != nil {
 		panic(err)
 	}

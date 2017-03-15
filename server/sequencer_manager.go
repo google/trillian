@@ -16,6 +16,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -61,12 +62,6 @@ func (s SequencerManager) ExecutePass(logIDs []int64, logctx LogOperationManager
 	successCount := 0
 	leavesAdded := 0
 
-	storage, err := s.registry.GetLogStorage()
-	if err != nil {
-		glog.Errorf("Failed to acquire log storage: %v", err)
-		return
-	}
-
 	var wg sync.WaitGroup
 	toSeq := make(chan int64, len(logIDs))
 
@@ -104,7 +99,7 @@ func (s SequencerManager) ExecutePass(logIDs []int64, logctx LogOperationManager
 					continue
 				}
 
-				sequencer := log.NewSequencer(hasher, logctx.timeSource, storage, signer)
+				sequencer := log.NewSequencer(hasher, logctx.timeSource, s.registry.LogStorage, signer)
 				sequencer.SetGuardWindow(s.guardWindow)
 
 				leaves, err := sequencer.SequenceBatch(ctx, logID, logctx.batchSize)
@@ -132,7 +127,14 @@ func (s SequencerManager) ExecutePass(logIDs []int64, logctx LogOperationManager
 }
 
 func newSigner(ctx context.Context, registry extension.Registry, logID int64) (*crypto.Signer, error) {
-	snapshot, err := registry.GetAdminStorage().Snapshot(ctx)
+	if registry.AdminStorage == nil {
+		return nil, fmt.Errorf("no AdminStorage provided by registry")
+	}
+	if registry.SignerFactory == nil {
+		return nil, fmt.Errorf("no SignerFactory provided by registry")
+	}
+
+	snapshot, err := registry.AdminStorage.Snapshot(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -147,12 +149,7 @@ func newSigner(ctx context.Context, registry extension.Registry, logID int64) (*
 		return nil, err
 	}
 
-	keyProvider, err := registry.GetSignerFactory()
-	if err != nil {
-		return nil, err
-	}
-
-	signer, err := keyProvider.NewSigner(ctx, tree)
+	signer, err := registry.SignerFactory.NewSigner(ctx, tree)
 	if err != nil {
 		return nil, err
 	}

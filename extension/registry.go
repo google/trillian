@@ -22,17 +22,13 @@ import (
 // Registry defines all extension points available in Trillian.
 // Customizations may easily swap the underlying storage systems by providing their own
 // implementation.
-type Registry interface {
-
-	// GetAdminStorage returns the storage.AdminStorage to be used.
-	GetAdminStorage() storage.AdminStorage
-
-	// GetLogStorage returns a configured storage.LogStorage instance or an error if the storage cannot be set up.
-	GetLogStorage() (storage.LogStorage, error)
-
-	// GetMapStorage returns a configured storage.MapStorage instance or an error if the storage cannot be set up.
-	GetMapStorage() (storage.MapStorage, error)
-
-	// GetSignerFactory returns a keys.SignerFactory that allows access to the private keys belonging to all trees.
-	GetSignerFactory() (keys.SignerFactory, error)
+type Registry struct {
+	// AdminStorage is the storage implementation to use for persisting tree metadata.
+	storage.AdminStorage
+	// LogStorage is the storage implementation to use for persisting logs.
+	storage.LogStorage
+	// MapStorage is the storage implementation to use for persisting maps.
+	storage.MapStorage
+	// SignerFactory provides the keys used for generating signatures for each tree.
+	keys.SignerFactory
 }

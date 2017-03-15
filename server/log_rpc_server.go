@@ -50,11 +50,7 @@ func NewTrillianLogRPCServer(registry extension.Registry, timeSource util.TimeSo
 
 // IsHealthy returns nil if the server is healthy, error otherwise.
 func (t *TrillianLogRPCServer) IsHealthy() error {
-	s, err := t.registry.GetLogStorage()
-	if err != nil {
-		return err
-	}
-	return s.CheckDatabaseAccessible(context.Background())
+	return t.registry.LogStorage.CheckDatabaseAccessible(context.Background())
 }
 
 // QueueLeaf submits one leaf to the queue.
@@ -378,11 +374,7 @@ func (t *TrillianLogRPCServer) GetEntryAndProof(ctx context.Context, req *trilli
 }
 
 func (t *TrillianLogRPCServer) prepareStorageTx(ctx context.Context, treeID int64) (storage.LogTreeTX, error) {
-	s, err := t.registry.GetLogStorage()
-	if err != nil {
-		return nil, err
-	}
-	tx, err := s.BeginForTree(ctx, treeID)
+	tx, err := t.registry.LogStorage.BeginForTree(ctx, treeID)
 	if err != nil {
 		return nil, err
 	}
@@ -390,11 +382,7 @@ func (t *TrillianLogRPCServer) prepareStorageTx(ctx context.Context, treeID int6
 }
 
 func (t *TrillianLogRPCServer) prepareReadOnlyStorageTx(ctx context.Context, treeID int64) (storage.ReadOnlyLogTreeTX, error) {
-	s, err := t.registry.GetLogStorage()
-	if err != nil {
-		return nil, err
-	}
-	tx, err := s.SnapshotForTree(ctx, treeID)
+	tx, err := t.registry.LogStorage.SnapshotForTree(ctx, treeID)
 	if err != nil {
 		return nil, err
 	}

@@ -15,19 +15,12 @@
 package builtin
 
 import (
-	"context"
-	"crypto"
 	"database/sql"
 	"flag"
-	"fmt"
 
 	_ "github.com/go-sql-driver/mysql" // Load MySQL driver
 
-	"github.com/golang/protobuf/ptypes"
-	"github.com/google/trillian"
-	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/extension"
-	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/mysql"
 )
 
@@ -36,62 +29,20 @@ var (
 	MySQLURIFlag = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "uri to use with mysql storage")
 )
 
-// Default implementation of extension.Registry.
-type defaultRegistry struct {
-	db *sql.DB
+// UseSQLDB configures the registry to use the given SQL database for all storage.
+func UseSQLDB(r *extension.Registry, db *sql.DB) {
+	r.AdminStorage = mysql.NewAdminStorage(db)
+	r.LogStorage = mysql.NewLogStorage(db)
+	r.MapStorage = mysql.NewMapStorage(db)
 }
 
-func (r *defaultRegistry) GetAdminStorage() storage.AdminStorage {
-	return mysql.NewAdminStorage(r.db)
-}
-
-func (r *defaultRegistry) GetLogStorage() (storage.LogStorage, error) {
-	return mysql.NewLogStorage(r.db), nil
-}
-
-func (r *defaultRegistry) GetMapStorage() (storage.MapStorage, error) {
-	return mysql.NewMapStorage(r.db), nil
-}
-
-func (r *defaultRegistry) GetSignerFactory() (keys.SignerFactory, error) {
-	return signerFactory{}, nil
-}
-
-// NewExtensionRegistry returns an extension.Registry implementation backed by a given
-// MySQL database. It supports loading private keys from PEM files.
-func NewExtensionRegistry(db *sql.DB) (extension.Registry, error) {
-	return &defaultRegistry{db: db}, nil
-}
-
-// NewDefaultExtensionRegistry returns the default extension.Registry implementation, which is
-// backed by a MySQL database and configured via flags.
-// It supports loading private keys from PEM files.
-func NewDefaultExtensionRegistry() (extension.Registry, error) {
+// UseMySQLDBSetByFlags configures the registry to use the MySQL database specified by the --mysql_uri flag for all storage.
+func UseMySQLDBSetByFlags(r *extension.Registry) error {
 	db, err := mysql.OpenDB(*MySQLURIFlag)
 	if err != nil {
-		return nil, err
-	}
-	return NewExtensionRegistry(db)
-}
-
-// signerFactory implements keys.SignerFactory.
-type signerFactory struct{}
-
-// NewSigner returns a crypto.Signer for the given tree.
-func (f signerFactory) NewSigner(ctx context.Context, tree *trillian.Tree) (crypto.Signer, error) {
-	if tree.PrivateKey == nil {
-		return nil, fmt.Errorf("tree %d has no PrivateKey", tree.GetTreeId())
+		return err
 	}
 
-	var privateKey ptypes.DynamicAny
-	if err := ptypes.UnmarshalAny(tree.PrivateKey, &privateKey); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal private key for tree %d: %v", tree.GetTreeId(), err)
-	}
-
-	switch privateKey := privateKey.Message.(type) {
-	case *trillian.PEMKeyFile:
-		return keys.NewFromPrivatePEMFile(privateKey.Path, privateKey.Password)
-	}
-
-	return nil, fmt.Errorf("unsupported PrivateKey type for tree %d: %T", tree.GetTreeId(), privateKey.Message)
+	UseSQLDB(r, db)
+	return nil
 }

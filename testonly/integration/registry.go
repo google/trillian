@@ -15,8 +15,9 @@
 package integration
 
 import (
+	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/extension"
-	"github.com/google/trillian/extension/builtin"
+	"github.com/google/trillian/storage/mysql"
 )
 
 // NewRegistryForTests returns an extension.Registry for integration tests.
@@ -24,7 +25,13 @@ import (
 func NewRegistryForTests(testID string) (extension.Registry, error) {
 	db, err := GetTestDB(testID)
 	if err != nil {
-		return nil, err
+		return extension.Registry{}, err
 	}
-	return builtin.NewExtensionRegistry(db)
+
+	return extension.Registry{
+		AdminStorage:  mysql.NewAdminStorage(db),
+		SignerFactory: keys.PEMSignerFactory{},
+		LogStorage:    mysql.NewLogStorage(db),
+		MapStorage:    mysql.NewMapStorage(db),
+	}, nil
 }

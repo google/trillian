@@ -34,13 +34,14 @@ func TestLogOperationManagerSnapshotFails(t *testing.T) {
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockStorage.EXPECT().Snapshot(gomock.Any()).Return(nil, errors.New("TX"))
 
-	mockRegistry := extension.NewMockRegistry(ctrl)
-	mockRegistry.EXPECT().GetLogStorage().Return(mockStorage, nil)
+	registry := extension.Registry{
+		LogStorage: mockStorage,
+	}
 
 	mockLogOp := NewMockLogOperation(ctrl)
 
 	ctx := util.NewLogContext(context.Background(), -1)
-	lom := NewLogOperationManagerForTest(ctx, mockRegistry, 50, time.Second, fakeTimeSource, mockLogOp)
+	lom := NewLogOperationManagerForTest(ctx, registry, 50, time.Second, fakeTimeSource, mockLogOp)
 
 	lom.OperationLoop()
 }
@@ -55,13 +56,14 @@ func TestLogOperationManagerGetLogsFails(t *testing.T) {
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockStorage.EXPECT().Snapshot(gomock.Any()).Return(mockTx, nil)
 
-	mockRegistry := extension.NewMockRegistry(ctrl)
-	mockRegistry.EXPECT().GetLogStorage().Return(mockStorage, nil)
+	registry := extension.Registry{
+		LogStorage: mockStorage,
+	}
 
 	mockLogOp := NewMockLogOperation(ctrl)
 
 	ctx := util.NewLogContext(context.Background(), -1)
-	lom := NewLogOperationManagerForTest(ctx, mockRegistry, 50, time.Second, fakeTimeSource, mockLogOp)
+	lom := NewLogOperationManagerForTest(ctx, registry, 50, time.Second, fakeTimeSource, mockLogOp)
 
 	lom.OperationLoop()
 }
@@ -77,13 +79,14 @@ func TestLogOperationManagerCommitFails(t *testing.T) {
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockStorage.EXPECT().Snapshot(gomock.Any()).Return(mockTx, nil)
 
-	mockRegistry := extension.NewMockRegistry(ctrl)
-	mockRegistry.EXPECT().GetLogStorage().Return(mockStorage, nil)
+	registry := extension.Registry{
+		LogStorage: mockStorage,
+	}
 
 	mockLogOp := NewMockLogOperation(ctrl)
 
 	ctx := util.NewLogContext(context.Background(), -1)
-	lom := NewLogOperationManagerForTest(ctx, mockRegistry, 50, time.Second, fakeTimeSource, mockLogOp)
+	lom := NewLogOperationManagerForTest(ctx, registry, 50, time.Second, fakeTimeSource, mockLogOp)
 
 	lom.OperationLoop()
 }
@@ -118,14 +121,15 @@ func TestLogOperationManagerPassesIDs(t *testing.T) {
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockStorage.EXPECT().Snapshot(gomock.Any()).Return(mockTx, nil)
 
-	mockRegistry := extension.NewMockRegistry(ctrl)
-	mockRegistry.EXPECT().GetLogStorage().Return(mockStorage, nil)
+	registry := extension.Registry{
+		LogStorage: mockStorage,
+	}
 
 	mockLogOp := NewMockLogOperation(ctrl)
 	mockLogOp.EXPECT().ExecutePass([]int64{logID1, logID2}, logOpMgrContextMatcher{50})
 
 	ctx := util.NewLogContext(context.Background(), -1)
-	lom := NewLogOperationManagerForTest(ctx, mockRegistry, 50, time.Second, fakeTimeSource, mockLogOp)
+	lom := NewLogOperationManagerForTest(ctx, registry, 50, time.Second, fakeTimeSource, mockLogOp)
 
 	lom.OperationLoop()
 }
