@@ -68,25 +68,97 @@ func TestValidateTreeForCreation(t *testing.T) {
 	invalidKey := newTree()
 	invalidKey.PrivateKey.Value = []byte("foobar")
 
+	nilKey := newTree()
+	nilKey.PrivateKey = nil
+
 	tests := []struct {
+		desc    string
 		tree    *trillian.Tree
 		wantErr bool
 	}{
-		{tree: valid1},
-		{tree: valid2},
-		{tree: invalidState1, wantErr: true},
-		{tree: invalidState2, wantErr: true},
-		{tree: invalidState3, wantErr: true},
-		{tree: invalidState4, wantErr: true},
-		{tree: invalidType, wantErr: true},
-		{tree: invalidHashStrategy, wantErr: true},
-		{tree: invalidHashAlgorithm, wantErr: true},
-		{tree: invalidSignatureAlgorithm, wantErr: true},
-		{tree: invalidDuplicatePolicy, wantErr: true},
-		{tree: invalidDisplayName, wantErr: true},
-		{tree: invalidDescription, wantErr: true},
-		{tree: unsupportedKey, wantErr: true},
-		{tree: invalidKey, wantErr: true},
+		{
+			desc: "valid1",
+			tree: valid1,
+		},
+		{
+			desc: "valid2",
+			tree: valid2,
+		},
+		{
+			desc:    "nilTree",
+			tree:    nil,
+			wantErr: true,
+		},
+		{
+			desc:    "invalidState1",
+			tree:    invalidState1,
+			wantErr: true,
+		},
+		{
+			desc:    "invalidState2",
+			tree:    invalidState2,
+			wantErr: true,
+		},
+		{
+			desc:    "invalidState3",
+			tree:    invalidState3,
+			wantErr: true,
+		},
+		{
+			desc:    "invalidState4",
+			tree:    invalidState4,
+			wantErr: true,
+		},
+		{
+			desc:    "invalidType",
+			tree:    invalidType,
+			wantErr: true,
+		},
+		{
+			desc:    "invalidHashStrategy",
+			tree:    invalidHashStrategy,
+			wantErr: true,
+		},
+		{
+			desc:    "invalidHashAlgorithm",
+			tree:    invalidHashAlgorithm,
+			wantErr: true,
+		},
+		{
+			desc:    "invalidSignatureAlgorithm",
+			tree:    invalidSignatureAlgorithm,
+			wantErr: true,
+		},
+		{
+			desc:    "invalidDuplicatePolicy",
+			tree:    invalidDuplicatePolicy,
+			wantErr: true,
+		},
+		{
+			desc:    "invalidDisplayName",
+			tree:    invalidDisplayName,
+			wantErr: true,
+		},
+		{
+			desc:    "invalidDescription",
+			tree:    invalidDescription,
+			wantErr: true,
+		},
+		{
+			desc:    "unsupportedKey",
+			tree:    unsupportedKey,
+			wantErr: true,
+		},
+		{
+			desc:    "invalidKey",
+			tree:    invalidKey,
+			wantErr: true,
+		},
+		{
+			desc:    "nilKey",
+			tree:    nilKey,
+			wantErr: true,
+		},
 	}
 	for i, test := range tests {
 		err := ValidateTreeForCreation(test.tree)

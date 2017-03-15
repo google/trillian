@@ -17,6 +17,7 @@ package admin
 import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/trillian"
+	"github.com/google/trillian/extension"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -25,23 +26,52 @@ import (
 var errNotImplemented = grpc.Errorf(codes.Unimplemented, "not implemented")
 
 // adminServer is an implementation of trillian.TrillianAdminServer.
-type adminServer struct{}
+type adminServer struct {
+	registry extension.Registry
+}
 
 // New returns a trillian.TrillianAdminServer implementation.
-func New() trillian.TrillianAdminServer {
-	return &adminServer{}
+func New(registry extension.Registry) trillian.TrillianAdminServer {
+	return &adminServer{registry}
 }
 
 func (s *adminServer) ListTrees(context.Context, *trillian.ListTreesRequest) (*trillian.ListTreesResponse, error) {
 	return nil, errNotImplemented
 }
 
-func (s *adminServer) GetTree(context.Context, *trillian.GetTreeRequest) (*trillian.Tree, error) {
-	return nil, errNotImplemented
+func (s *adminServer) GetTree(ctx context.Context, request *trillian.GetTreeRequest) (*trillian.Tree, error) {
+	storage := s.registry.GetAdminStorage()
+	tx, err := storage.Snapshot(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Close()
+	// TODO(codingllama): This needs access control
+	tree, err := tx.GetTree(ctx, request.GetTreeId())
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return tree, nil
 }
 
-func (s *adminServer) CreateTree(context.Context, *trillian.CreateTreeRequest) (*trillian.Tree, error) {
-	return nil, errNotImplemented
+func (s *adminServer) CreateTree(ctx context.Context, request *trillian.CreateTreeRequest) (*trillian.Tree, error) {
+	storage := s.registry.GetAdminStorage()
+	tx, err := storage.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Close()
+	tree, err := tx.CreateTree(ctx, request.GetTree())
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return tree, nil
 }
 
 func (s *adminServer) UpdateTree(context.Context, *trillian.UpdateTreeRequest) (*trillian.Tree, error) {

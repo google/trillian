@@ -24,6 +24,9 @@ import (
 // implementation.
 type Registry interface {
 
+	// GetAdminStorage returns the storage.AdminStorage to be used.
+	GetAdminStorage() storage.AdminStorage
+
 	// GetLogStorage returns a configured storage.LogStorage instance or an error if the storage cannot be set up.
 	GetLogStorage() (storage.LogStorage, error)
 

@@ -42,6 +42,10 @@ type defaultRegistry struct {
 	signer *crypto.Signer
 }
 
+func (r *defaultRegistry) GetAdminStorage() storage.AdminStorage {
+	return mysql.NewAdminStorage(r.db)
+}
+
 func (r *defaultRegistry) GetLogStorage() (storage.LogStorage, error) {
 	return mysql.NewLogStorage(r.db), nil
 }

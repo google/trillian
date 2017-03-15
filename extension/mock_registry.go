@@ -30,6 +30,16 @@ func (_m *MockRegistry) EXPECT() *_MockRegistryRecorder {
 	return _m.recorder
 }
 
+func (_m *MockRegistry) GetAdminStorage() storage.AdminStorage {
+	ret := _m.ctrl.Call(_m, "GetAdminStorage")
+	ret0, _ := ret[0].(storage.AdminStorage)
+	return ret0
+}
+
+func (_mr *_MockRegistryRecorder) GetAdminStorage() *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetAdminStorage")
+}
+
 func (_m *MockRegistry) GetLogStorage() (storage.LogStorage, error) {
 	ret := _m.ctrl.Call(_m, "GetLogStorage")
 	ret0, _ := ret[0].(storage.LogStorage)
