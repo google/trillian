@@ -20,13 +20,10 @@ import (
 	"reflect"
 	"testing"
 
-	_ "github.com/go-sql-driver/mysql" // Load MySQL driver
-
 	"github.com/google/trillian"
-	"github.com/google/trillian/extension/builtin"
 	sa "github.com/google/trillian/server/admin"
-	"github.com/google/trillian/storage/mysql"
 	"github.com/google/trillian/storage/testonly"
+	"github.com/google/trillian/testonly/integration"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
@@ -176,14 +173,7 @@ func setupAdminServer() (trillian.TrillianAdminClient, func(), error) {
 	}
 	// lis is closed via returned func
 
-	// TODO(alanparra): Have a standard way to get a registry for tests. With a few changes
-	// we could leverage the utilities under testonly/integration.
-	db, err := mysql.OpenDB(*builtin.MySQLURIFlag)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	registry, err := builtin.NewExtensionRegistry(db, nil /* signer */)
+	registry, err := integration.NewRegistryForTests("AdminIntegrationTest")
 	if err != nil {
 		return nil, nil, err
 	}
