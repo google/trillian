@@ -15,10 +15,10 @@
 package crypto
 
 import (
-	"crypto"
 	"testing"
 
 	"github.com/google/trillian/crypto/keys"
+	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/testonly"
 )
 
@@ -33,30 +33,51 @@ csFaQhohkiCEthY51Ga6Xa+ggn+eTZtf9Q==
 
 func TestSignVerify(t *testing.T) {
 	for _, test := range []struct {
-		PEM      string
-		password string
-		HashAlgo crypto.Hash
+		name          string
+		pem           string
+		password      string
+		skipSigning   bool
+		wantVerifyErr bool
 	}{
-		{privPEM, "", crypto.SHA256},
-		{testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass, crypto.SHA256},
+		{
+			name:     "ECDSA key",
+			pem:      privPEM,
+			password: "",
+		},
+		{
+			name:     "Demo key",
+			pem:      testonly.DemoPrivateKey,
+			password: testonly.DemoPrivateKeyPass,
+		},
+		{
+			name:          "Nil signature",
+			pem:           testonly.DemoPrivateKey,
+			password:      testonly.DemoPrivateKeyPass,
+			skipSigning:   true,
+			wantVerifyErr: true,
+		},
 	} {
 
-		key, err := keys.NewFromPrivatePEM(test.PEM, test.password)
+		key, err := keys.NewFromPrivatePEM(test.pem, test.password)
 		if err != nil {
-			t.Errorf("LoadPrivateKey(_, %q)=%v, want nil", test.password, err)
+			t.Errorf("%s: LoadPrivateKey(_, %q)=%v, want nil", test.name, test.password, err)
 			continue
 		}
 
 		// Sign and Verify.
 		msg := []byte("foo")
-		signed, err := NewSigner(key).Sign(msg)
-		if err != nil {
-			t.Errorf("Sign()=(_,%v), want (_,nil)", err)
-			continue
+		var signature *sigpb.DigitallySigned
+		if !test.skipSigning {
+			signature, err = NewSigner(key).Sign(msg)
+			if err != nil {
+				t.Errorf("%s: Sign()=(_,%v), want (_,nil)", test.name, err)
+				continue
+			}
 		}
 
-		if err := Verify(key.Public(), msg, signed); err != nil {
-			t.Errorf("Verify(,,)=%v, want nil", err)
+		err = Verify(key.Public(), msg, signature)
+		if gotErr := err != nil; gotErr != test.wantVerifyErr {
+			t.Errorf("%s: Verify(,,)=%v, want err? %t", test.name, err, test.wantVerifyErr)
 		}
 	}
 }
