@@ -32,32 +32,32 @@ import (
 func TestAdminServer_Unimplemented(t *testing.T) {
 	tests := []struct {
 		desc string
-		fn   func(context.Context, trillian.TrillianAdminServer) error
+		fn   func(context.Context, *Server) error
 	}{
 		{
 			desc: "ListTrees",
-			fn: func(ctx context.Context, s trillian.TrillianAdminServer) error {
+			fn: func(ctx context.Context, s *Server) error {
 				_, err := s.ListTrees(ctx, &trillian.ListTreesRequest{})
 				return err
 			},
 		},
 		{
 			desc: "UpdateTree",
-			fn: func(ctx context.Context, s trillian.TrillianAdminServer) error {
+			fn: func(ctx context.Context, s *Server) error {
 				_, err := s.UpdateTree(ctx, &trillian.UpdateTreeRequest{})
 				return err
 			},
 		},
 		{
 			desc: "DeleteTree",
-			fn: func(ctx context.Context, s trillian.TrillianAdminServer) error {
+			fn: func(ctx context.Context, s *Server) error {
 				_, err := s.DeleteTree(ctx, &trillian.DeleteTreeRequest{})
 				return err
 			},
 		},
 	}
 	ctx := context.Background()
-	s := &adminServer{}
+	s := &Server{}
 	for _, test := range tests {
 		if err := test.fn(ctx, s); grpc.Code(err) != codes.Unimplemented {
 			t.Errorf("%v: got = %v, want = %s", test.desc, err, codes.Unimplemented)
@@ -71,12 +71,12 @@ func TestAdminServer_BeginError(t *testing.T) {
 
 	tests := []struct {
 		desc     string
-		fn       func(context.Context, trillian.TrillianAdminServer) error
+		fn       func(context.Context, *Server) error
 		snapshot bool
 	}{
 		{
 			desc: "GetTree",
-			fn: func(ctx context.Context, s trillian.TrillianAdminServer) error {
+			fn: func(ctx context.Context, s *Server) error {
 				_, err := s.GetTree(ctx, &trillian.GetTreeRequest{TreeId: 12345})
 				return err
 			},
@@ -84,7 +84,7 @@ func TestAdminServer_BeginError(t *testing.T) {
 		},
 		{
 			desc: "CreateTree",
-			fn: func(ctx context.Context, s trillian.TrillianAdminServer) error {
+			fn: func(ctx context.Context, s *Server) error {
 				_, err := s.CreateTree(ctx, &trillian.CreateTreeRequest{Tree: testonly.LogTree})
 				return err
 			},
@@ -103,7 +103,7 @@ func TestAdminServer_BeginError(t *testing.T) {
 		registry := extension.NewMockRegistry(ctrl)
 		registry.EXPECT().GetAdminStorage().Return(as)
 
-		s := &adminServer{registry: registry}
+		s := &Server{registry: registry}
 		if err := test.fn(ctx, s); err == nil {
 			t.Errorf("%v: got = %v, want non-nil", test.desc, err)
 		}
@@ -217,14 +217,14 @@ func TestAdminServer_CreateTree(t *testing.T) {
 	}
 }
 
-// adminTestSetup contains an operational adminServer and required dependencies.
+// adminTestSetup contains an operational Server and required dependencies.
 // It's created via setupAdminServer.
 type adminTestSetup struct {
 	registry   *extension.MockRegistry
 	as         *storage.MockAdminStorage
 	tx         *storage.MockAdminTX
 	snapshotTX *storage.MockReadOnlyAdminTX
-	server     *adminServer
+	server     *Server
 }
 
 // setupAdminStorage configures storage mocks according to input parameters.
@@ -263,7 +263,7 @@ func setupAdminStorage(ctrl *gomock.Controller, snapshot, shouldCommit, commitEr
 	registry := extension.NewMockRegistry(ctrl)
 	registry.EXPECT().GetAdminStorage().Return(as)
 
-	s := &adminServer{registry}
+	s := &Server{registry}
 
 	return adminTestSetup{registry, as, tx, snapshotTX, s}
 }
