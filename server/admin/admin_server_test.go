@@ -136,7 +136,7 @@ func TestAdminServer_GetTree(t *testing.T) {
 
 	ctx := context.Background()
 	for _, test := range tests {
-		setup := setupAdminServer(ctrl, true /* snapshot */, !test.getErr /* shouldCommit */, test.commitErr)
+		setup := setupAdminStorage(ctrl, true /* snapshot */, !test.getErr /* shouldCommit */, test.commitErr)
 		tx := setup.snapshotTX
 		s := setup.server
 
@@ -192,7 +192,7 @@ func TestAdminServer_CreateTree(t *testing.T) {
 
 	ctx := context.Background()
 	for _, test := range tests {
-		setup := setupAdminServer(ctrl, false /* snapshot */, !test.createErr /* shouldCommit */, test.commitErr)
+		setup := setupAdminStorage(ctrl, false /* snapshot */, !test.createErr /* shouldCommit */, test.commitErr)
 		tx := setup.tx
 		s := setup.server
 
@@ -231,7 +231,7 @@ type adminTestSetup struct {
 // Storage will be set to use either snapshots or regular TXs via snapshot parameter.
 // Whether the snapshot/TX is expected to be committed (and if it should error doing so) is
 // controlled via shouldCommit and commitErr parameters.
-func setupAdminServer(ctrl *gomock.Controller, snapshot, shouldCommit, commitErr bool) adminTestSetup {
+func setupAdminStorage(ctrl *gomock.Controller, snapshot, shouldCommit, commitErr bool) adminTestSetup {
 	as := storage.NewMockAdminStorage(ctrl)
 
 	var snapshotTX *storage.MockReadOnlyAdminTX

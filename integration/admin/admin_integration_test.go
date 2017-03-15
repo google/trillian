@@ -142,9 +142,14 @@ func TestAdminServer_GetTree(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			desc:   "notFound",
+			desc:   "negativeTreeID",
 			treeID: -1,
 			// TODO(codingllama): Check correctness of returned codes.Code
+			wantErr: true,
+		},
+		{
+			desc:    "notFound",
+			treeID:  12345,
 			wantErr: true,
 		},
 	}
