@@ -16,6 +16,7 @@ package integration
 
 import (
 	"context"
+	"crypto"
 	"database/sql"
 	"net"
 	"sync"
@@ -38,12 +39,20 @@ var (
 	sleepBetweenRuns = 100 * time.Millisecond
 	timeSource       = util.SystemTimeSource{}
 	// PublicKey returns the public key that verifies responses from this server.
-	PublicKey, _ = keys.NewFromPublicPEMFile("../testdata/log-rpc-server.pubkey.pem")
-	privateKey   = &trillian.PEMKeyFile{
-		Path:     "../testdata/log-rpc-server.privkey.pem",
+	PublicKey  = keyFromPublicPEMFile(relativeToPackage("../../testdata/log-rpc-server.pubkey.pem"))
+	privateKey = &trillian.PEMKeyFile{
+		Path:     relativeToPackage("../../testdata/log-rpc-server.privkey.pem"),
 		Password: "towel",
 	}
 )
+
+func keyFromPublicPEMFile(path string) crypto.PublicKey {
+	key, err := keys.NewFromPublicPEMFile(path)
+	if err != nil {
+		panic(err)
+	}
+	return key
+}
 
 // LogEnv is a test environment that contains both a log server and a connection to it.
 type LogEnv struct {

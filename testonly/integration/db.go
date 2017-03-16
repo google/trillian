@@ -16,7 +16,6 @@ package integration
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"path"
@@ -59,11 +58,7 @@ func GetTestDB(testID string) (*sql.DB, error) {
 		return nil, err
 	}
 
-	createSQLPath, err := relativeToPackage(createSQLFile)
-	if err != nil {
-		return nil, err
-	}
-	createSQL, err := ioutil.ReadFile(createSQLPath)
+	createSQL, err := ioutil.ReadFile(relativeToPackage(createSQLFile))
 	if err != nil {
 		return nil, err
 	}
@@ -83,10 +78,15 @@ func GetTestDB(testID string) (*sql.DB, error) {
 // The working directory for Go tests is the dir of test file. Using "plain" relative paths in test
 // utilities is, therefore, brittle, as the directory structure may change depending on where the
 // tests are placed.
-func relativeToPackage(p string) (string, error) {
+func relativeToPackage(p string) string {
 	_, file, _, ok := runtime.Caller(0)
 	if !ok {
-		return "", errors.New("cannot get caller information")
+		panic("cannot get caller information")
 	}
-	return filepath.Abs(filepath.Join(path.Dir(file), p))
+
+	absPath, err := filepath.Abs(filepath.Join(path.Dir(file), p))
+	if err != nil {
+		panic(err)
+	}
+	return absPath
 }
