@@ -35,10 +35,12 @@ func New(registry extension.Registry) *Server {
 	return &Server{registry}
 }
 
+// ListTrees implements trillian.TrillianAdminServer.ListTrees.
 func (s *Server) ListTrees(context.Context, *trillian.ListTreesRequest) (*trillian.ListTreesResponse, error) {
 	return nil, errNotImplemented
 }
 
+// GetTree implements trillian.TrillianAdminServer.GetTree.
 func (s *Server) GetTree(ctx context.Context, request *trillian.GetTreeRequest) (*trillian.Tree, error) {
 	storage := s.registry.GetAdminStorage()
 	tx, err := storage.Snapshot(ctx)
@@ -57,6 +59,7 @@ func (s *Server) GetTree(ctx context.Context, request *trillian.GetTreeRequest) 
 	return tree, nil
 }
 
+// CreateTree implements trillian.TrillianAdminServer.CreateTree.
 func (s *Server) CreateTree(ctx context.Context, request *trillian.CreateTreeRequest) (*trillian.Tree, error) {
 	storage := s.registry.GetAdminStorage()
 	tx, err := storage.Begin(ctx)
@@ -74,10 +77,12 @@ func (s *Server) CreateTree(ctx context.Context, request *trillian.CreateTreeReq
 	return tree, nil
 }
 
+// UpdateTree implements trillian.TrillianAdminServer.UpdateTree.
 func (s *Server) UpdateTree(context.Context, *trillian.UpdateTreeRequest) (*trillian.Tree, error) {
 	return nil, errNotImplemented
 }
 
+// DeleteTree implements trillian.TrillianAdminServer.DeleteTree.
 func (s *Server) DeleteTree(context.Context, *trillian.DeleteTreeRequest) (*empty.Empty, error) {
 	return nil, errNotImplemented
 }
