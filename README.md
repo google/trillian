@@ -69,10 +69,9 @@ get -d -v -t ./...`).
 ### Building
 
 ```console
-% go get github.com/google/trillian
+% go get -u -v -t github.com/google/trillian
 % cd $GOPATH/src/github.com/google/trillian
-% go get -t -u -v ./...
-% go test ./... && go install ./...
+% go test ./...
 ```
 
 ### Rebuilding Generated Code
@@ -89,8 +88,6 @@ Re-generating mock or protobuffer files is only needed if you're changing
 the original files; if you do, run the following command:
 
 ```console
-% git clone https://github.com/googleapis/googleapis.git \
-    $GOPATH/src/github.com/googleapis/googleapis
 % go generate -x ./...  # hunts for //go:generate comments and runs them
 ```
 
@@ -99,6 +96,10 @@ You'll need to have the following tools installed to do this:
   - `mockgen` tool from https://github.com/golang/mock
   - `protoc` and the Go protoc extension (see documentation linked from the
     [protobuf site](https://github.com/google/protobuf))
+       - You also need the `.proto` files from the
+         [google/rpc](https://github.com/googleapis/googleapis/tree/master/google/rpc)
+         directory of the [googleapis](https://github.com/googleapis/googleapis)
+         project to be installed somewhere in `protoc`'s search path.
 
 ### MySQL Setup
 
