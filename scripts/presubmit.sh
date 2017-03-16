@@ -63,13 +63,13 @@ main() {
     check_cmd goimports golang.org/x/tools/cmd/goimports
 
     echo 'running gofmt'
-    gofmt -s -w $go_srcs
+    gofmt -s -w ${go_srcs}
     echo 'running goimports'
-    goimports -w $go_srcs
+    goimports -w ${go_srcs}
   fi
 
   echo 'running golint'
-  golint --set_exit_status "${go_srcs[@]}" > /dev/null 2>&1
+  printf '%s\n' ${go_srcs} | xargs -i golint --set_exit_status '{}'
 
   echo 'running go vet'
   go vet ./...
@@ -82,19 +82,19 @@ main() {
   misspell -error -i cancelled,CANCELLED -locale US .
 
   echo 'checking license header'
-  local nolicense="$(printf '%s\n' ${go_srcs} ${proto_srcs} | xargs grep -L "Apache License")"
+  local nolicense="$(grep -L 'Apache License' ${go_srcs} ${proto_srcs})"
   if [[ "${nolicense}" ]]; then
     echo "Missing license header in: ${nolicense}"
     exit 5
   fi
 
-  if [[ "$run_generate" -eq 1 ]]; then
+  if [[ "${run_generate}" -eq 1 ]]; then
     echo 'running go generate'
     go generate -run="protoc" ./...
     go generate -run="mockgen" ./...
   fi
 
-  if [[ "$run_build" -eq 1 ]]; then
+  if [[ "${run_build}" -eq 1 ]]; then
     local goflags=''
     if [[ "${GOFLAGS:+x}" ]]; then
       goflags="${GOFLAGS}"
