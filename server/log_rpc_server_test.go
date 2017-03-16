@@ -304,7 +304,7 @@ func TestQueueLeaves(t *testing.T) {
 	}
 	queuedLeaf = rsp.QueuedLeaves[0]
 	if queuedLeaf.Status == nil || queuedLeaf.Status.Code != int32(code.Code_ALREADY_EXISTS) {
-		t.Errorf("QueueLeaves().Status=%d,nil; want %d,nil", queuedLeaf.Status, code.Code_ALREADY_EXISTS)
+		t.Errorf("QueueLeaves().Status=%d,nil; want %d,nil", queuedLeaf.Status.Code, code.Code_ALREADY_EXISTS)
 	}
 	if !reflect.DeepEqual(queueRequest0.Leaves[0], queuedLeaf.Leaf) {
 		t.Errorf("QueueLeaves()=%+v,nil; want %+v,nil", queuedLeaf, queueRequest0.Leaves)
