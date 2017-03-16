@@ -50,6 +50,10 @@ func VerifyObject(pub crypto.PublicKey, obj interface{}, sig *sigpb.DigitallySig
 
 // Verify cryptographically verifies the output of Signer.
 func Verify(pub crypto.PublicKey, data []byte, sig *sigpb.DigitallySigned) error {
+	if sig == nil {
+		return errors.New("signature is nil")
+	}
+
 	if keys.SignatureAlgorithm(pub) != sig.SignatureAlgorithm {
 		return fmt.Errorf("signature algorithm does not match public key")
 	}
