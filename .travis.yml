@@ -23,11 +23,10 @@ install:
       cd ../protoc
       wget https://github.com/google/protobuf/releases/download/v3.2.0/protoc-3.2.0-${TRAVIS_OS_NAME}-x86_64.zip
       unzip protoc-3.2.0-${TRAVIS_OS_NAME}-x86_64.zip
-      git clone https://github.com/googleapis/googleapis.git
-      cd include/google
-      ln -s ../../googleapis/google/rpc
     )
   - export PATH=$(pwd)/../protoc/bin:$PATH
+  # googleapis is not Go code, but it's required for .pb.go regeneration because of API dependencies.
+  - git clone https://github.com/googleapis/googleapis.git $GOPATH/src/github.com/googleapis/googleapis
   - go get -d ./...
   - if [[ $TRAVIS_OS_NAME == "osx" ]]; then brew update > /dev/null && brew install mariadb && mysql.server start; fi
   - go get -u github.com/client9/misspell/cmd/misspell
