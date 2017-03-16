@@ -25,21 +25,23 @@ import (
 
 var errNotImplemented = grpc.Errorf(codes.Unimplemented, "not implemented")
 
-// adminServer is an implementation of trillian.TrillianAdminServer.
-type adminServer struct {
+// Server is an implementation of trillian.TrillianAdminServer.
+type Server struct {
 	registry extension.Registry
 }
 
 // New returns a trillian.TrillianAdminServer implementation.
-func New(registry extension.Registry) trillian.TrillianAdminServer {
-	return &adminServer{registry}
+func New(registry extension.Registry) *Server {
+	return &Server{registry}
 }
 
-func (s *adminServer) ListTrees(context.Context, *trillian.ListTreesRequest) (*trillian.ListTreesResponse, error) {
+// ListTrees implements trillian.TrillianAdminServer.ListTrees.
+func (s *Server) ListTrees(context.Context, *trillian.ListTreesRequest) (*trillian.ListTreesResponse, error) {
 	return nil, errNotImplemented
 }
 
-func (s *adminServer) GetTree(ctx context.Context, request *trillian.GetTreeRequest) (*trillian.Tree, error) {
+// GetTree implements trillian.TrillianAdminServer.GetTree.
+func (s *Server) GetTree(ctx context.Context, request *trillian.GetTreeRequest) (*trillian.Tree, error) {
 	storage := s.registry.GetAdminStorage()
 	tx, err := storage.Snapshot(ctx)
 	if err != nil {
@@ -57,7 +59,8 @@ func (s *adminServer) GetTree(ctx context.Context, request *trillian.GetTreeRequ
 	return tree, nil
 }
 
-func (s *adminServer) CreateTree(ctx context.Context, request *trillian.CreateTreeRequest) (*trillian.Tree, error) {
+// CreateTree implements trillian.TrillianAdminServer.CreateTree.
+func (s *Server) CreateTree(ctx context.Context, request *trillian.CreateTreeRequest) (*trillian.Tree, error) {
 	storage := s.registry.GetAdminStorage()
 	tx, err := storage.Begin(ctx)
 	if err != nil {
@@ -74,10 +77,12 @@ func (s *adminServer) CreateTree(ctx context.Context, request *trillian.CreateTr
 	return tree, nil
 }
 
-func (s *adminServer) UpdateTree(context.Context, *trillian.UpdateTreeRequest) (*trillian.Tree, error) {
+// UpdateTree implements trillian.TrillianAdminServer.UpdateTree.
+func (s *Server) UpdateTree(context.Context, *trillian.UpdateTreeRequest) (*trillian.Tree, error) {
 	return nil, errNotImplemented
 }
 
-func (s *adminServer) DeleteTree(context.Context, *trillian.DeleteTreeRequest) (*empty.Empty, error) {
+// DeleteTree implements trillian.TrillianAdminServer.DeleteTree.
+func (s *Server) DeleteTree(context.Context, *trillian.DeleteTreeRequest) (*empty.Empty, error) {
 	return nil, errNotImplemented
 }
