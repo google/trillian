@@ -26,6 +26,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/go-sql-driver/mysql"
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
@@ -33,7 +34,6 @@ import (
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
-	"github.com/go-sql-driver/mysql"
 )
 
 const (
