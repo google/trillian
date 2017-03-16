@@ -21,18 +21,21 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
-	"errors"
-	"fmt"
 	"io/ioutil"
+	"os"
 
 	"github.com/google/trillian/crypto/sigpb"
+	"github.com/google/trillian/errors"
 )
 
 // NewFromPublicPEMFile reads a PEM-encoded public key from a file.
 func NewFromPublicPEMFile(keyFile string) (crypto.PublicKey, error) {
 	pemData, err := ioutil.ReadFile(keyFile)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read: %s. %v", keyFile, err)
+		if os.IsNotExist(err) {
+			return nil, errors.Errorf(errors.NotFound, "file does not exist: %q", keyFile)
+		}
+		return nil, errors.Errorf(errors.InvalidArgument, "failed to read public key from file %q: %v", keyFile, err)
 	}
 	return NewFromPublicPEM(string(pemData))
 }
@@ -41,10 +44,10 @@ func NewFromPublicPEMFile(keyFile string) (crypto.PublicKey, error) {
 func NewFromPublicPEM(pemEncodedKey string) (crypto.PublicKey, error) {
 	publicBlock, rest := pem.Decode([]byte(pemEncodedKey))
 	if publicBlock == nil {
-		return nil, errors.New("could not decode PEM for public key")
+		return nil, errors.New(errors.InvalidArgument, "could not decode PEM for public key")
 	}
 	if len(rest) > 0 {
-		return nil, errors.New("extra data found after PEM key decoded")
+		return nil, errors.New(errors.InvalidArgument, "extra data found after PEM key decoded")
 	}
 
 	return NewFromPublicDER(publicBlock.Bytes)
@@ -54,7 +57,7 @@ func NewFromPublicPEM(pemEncodedKey string) (crypto.PublicKey, error) {
 func NewFromPublicDER(der []byte) (crypto.PublicKey, error) {
 	key, err := x509.ParsePKIXPublicKey(der)
 	if err != nil {
-		return nil, fmt.Errorf("unable to parse public key: %v", err)
+		return nil, errors.Errorf(errors.InvalidArgument, "unable to parse public key: %v", err)
 	}
 
 	return key, nil

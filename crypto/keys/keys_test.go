@@ -25,6 +25,7 @@ import (
 	"testing"
 
 	"github.com/google/trillian/crypto/sigpb"
+	"github.com/google/trillian/errors"
 	"github.com/google/trillian/testonly"
 )
 
@@ -85,7 +86,7 @@ func TestLoadPrivateKeyAndSign(t *testing.T) {
 		keyPEM      string
 		keyPath     string
 		keyPass     string
-		wantLoadErr bool
+		wantLoadErr errors.Code
 	}{
 		{
 			name:    "ECDSA with password",
@@ -100,13 +101,13 @@ func TestLoadPrivateKeyAndSign(t *testing.T) {
 		{
 			name:        "Non-existent file",
 			keyPath:     "non-existent.pem",
-			wantLoadErr: true,
+			wantLoadErr: errors.NotFound,
 		},
 		{
 			name:        "ECDSA with wrong password",
 			keyPEM:      testonly.DemoPrivateKey,
 			keyPass:     testonly.DemoPrivateKeyPass + "foo",
-			wantLoadErr: true,
+			wantLoadErr: errors.PermissionDenied,
 		},
 		{
 			name:   "ECDSA",
@@ -123,12 +124,12 @@ func TestLoadPrivateKeyAndSign(t *testing.T) {
 		{
 			name:        "ECDSA with trailing junk",
 			keyPEM:      ecdsaPrivateKey + "\nfoobar",
-			wantLoadErr: true,
+			wantLoadErr: errors.InvalidArgument,
 		},
 		{
 			name:        "Corrupt ECDSA",
 			keyPEM:      corruptEcdsaPrivateKey,
-			wantLoadErr: true,
+			wantLoadErr: errors.InvalidArgument,
 		},
 	}
 
@@ -138,21 +139,19 @@ func TestLoadPrivateKeyAndSign(t *testing.T) {
 		switch {
 		case test.keyPEM != "":
 			k, err = NewFromPrivatePEM(test.keyPEM, test.keyPass)
-			switch gotErr := err != nil; {
-			case gotErr != test.wantLoadErr:
-				t.Errorf("%s: NewFromPrivatePEM(_, _) = (%v, %v), want err? %t", test.name, k, err, test.wantLoadErr)
+			if got, want := errors.ErrorCode(err), test.wantLoadErr; got != want {
+				t.Errorf("%s: NewFromPrivatePEM(_, _) = (_, %v: %v), want err.Code == %v", test.name, got, err, want)
 				continue
-			case gotErr:
+			} else if got != errors.OK {
 				continue
 			}
 
 		case test.keyPath != "":
 			k, err = NewFromPrivatePEMFile(test.keyPath, test.keyPass)
-			switch gotErr := err != nil; {
-			case gotErr != test.wantLoadErr:
-				t.Errorf("%s: NewFromPrivatePEMFile(_, _) = (%v, %v), want err? %t", test.name, k, err, test.wantLoadErr)
+			if got, want := errors.ErrorCode(err), test.wantLoadErr; got != want {
+				t.Errorf("%s: NewFromPrivatePEMFile(_, _) = (_, %v: %v), want err.Code == %v", test.name, got, err, want)
 				continue
-			case gotErr:
+			} else if got != errors.OK {
 				continue
 			}
 
