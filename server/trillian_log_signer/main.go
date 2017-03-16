@@ -18,16 +18,19 @@ import (
 	"flag"
 	"time"
 
+	_ "github.com/go-sql-driver/mysql" // Load MySQL driver
+
 	"github.com/golang/glog"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/extension"
-	"github.com/google/trillian/extension/builtin"
 	"github.com/google/trillian/server"
+	"github.com/google/trillian/storage/mysql"
 	"github.com/google/trillian/util"
 	"golang.org/x/net/context"
 )
 
 var (
+	mySQLURI                      = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "Connection URI for MySQL database")
 	exportRPCMetrics              = flag.Bool("export_metrics", true, "If true starts HTTP server and exports stats")
 	httpPortFlag                  = flag.Int("http_port", 8091, "Port to serve HTTP metrics on")
 	sequencerSleepBetweenRunsFlag = flag.Duration("sequencer_sleep_between_runs", time.Second*10, "Time to pause after each sequencing pass through all logs")
@@ -41,13 +44,16 @@ func main() {
 	glog.CopyStandardLogTo("WARNING")
 	glog.Info("**** Log Signer Starting ****")
 
-	registry := extension.Registry{
-		SignerFactory: keys.PEMSignerFactory{},
+	// First make sure we can access the database, quit if not
+	db, err := mysql.OpenDB(*mySQLURI)
+	if err != nil {
+		glog.Exitf("Failed to open MySQL database: %v", err)
 	}
 
-	// First make sure we can access the database, quit if not
-	if err := builtin.UseMySQLDBSetByFlags(&registry); err != nil {
-		glog.Exitf("Failed to setup MySQL database: %v", err)
+	registry := extension.Registry{
+		AdminStorage:  mysql.NewAdminStorage(db),
+		SignerFactory: keys.PEMSignerFactory{},
+		LogStorage:    mysql.NewLogStorage(db),
 	}
 
 	// Start HTTP server (optional)

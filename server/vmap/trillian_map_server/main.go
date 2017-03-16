@@ -22,21 +22,25 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 
-	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/go-sql-driver/mysql" // Load MySQL driver
+
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/extension"
-	"github.com/google/trillian/extension/builtin"
 	"github.com/google/trillian/server/admin"
 	"github.com/google/trillian/server/vmap"
+	"github.com/google/trillian/storage/mysql"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
 
-var serverPortFlag = flag.Int("port", 8090, "Port to serve log RPC requests on")
-var exportRPCMetrics = flag.Bool("export_metrics", true, "If true starts HTTP server and exports stats")
-var httpPortFlag = flag.Int("http_port", 8091, "Port to serve HTTP metrics on")
+var (
+	mySQLURI         = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "Connection URI for MySQL database")
+	serverPortFlag   = flag.Int("port", 8090, "Port to serve log RPC requests on")
+	exportRPCMetrics = flag.Bool("export_metrics", true, "If true starts HTTP server and exports stats")
+	httpPortFlag     = flag.Int("http_port", 8091, "Port to serve HTTP metrics on")
+)
 
 func startRPCServer(registry extension.Registry) (*grpc.Server, error) {
 	grpcServer := grpc.NewServer()
@@ -72,12 +76,16 @@ func main() {
 	glog.CopyStandardLogTo("WARNING")
 	glog.Info("**** Map RPC Server Starting ****")
 
-	registry := extension.Registry{
-		SignerFactory: keys.PEMSignerFactory{},
+	// First make sure we can access the database, quit if not
+	db, err := mysql.OpenDB(*mySQLURI)
+	if err != nil {
+		glog.Exitf("Failed to open MySQL database: %v", err)
 	}
 
-	if err := builtin.UseMySQLDBSetByFlags(&registry); err != nil {
-		glog.Exitf("Failed to setup MySQL database: %v", err)
+	registry := extension.Registry{
+		AdminStorage:  mysql.NewAdminStorage(db),
+		SignerFactory: keys.PEMSignerFactory{},
+		MapStorage:    mysql.NewMapStorage(db),
 	}
 
 	// Start HTTP server (optional)

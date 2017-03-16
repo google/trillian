@@ -23,14 +23,16 @@ import (
 
 	log "github.com/golang/glog"
 	"github.com/google/trillian"
-	"github.com/google/trillian/extension"
-	"github.com/google/trillian/extension/builtin"
+	"github.com/google/trillian/storage/mysql"
 )
 
-var treeIDFlag = flag.Int64("treeid", 3, "The tree id to use")
-var numInsertionsFlag = flag.Int("num_insertions", 10, "Number of entries to insert in the tree")
-var startInsertFromFlag = flag.Int("start_from", 0, "The sequence number of the first inserted item")
-var queueBatchSizeFlag = flag.Int("queue_batch_size", 50, "Queue leaves batch size")
+var (
+	mySQLURI            = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "Connection URI for MySQL database")
+	treeIDFlag          = flag.Int64("treeid", 3, "The tree id to use")
+	numInsertionsFlag   = flag.Int("num_insertions", 10, "Number of entries to insert in the tree")
+	startInsertFromFlag = flag.Int("start_from", 0, "The sequence number of the first inserted item")
+	queueBatchSizeFlag  = flag.Int("queue_batch_size", 50, "Queue leaves batch size")
+)
 
 func validateFlagsOrDie() {
 	if *numInsertionsFlag <= 0 {
@@ -52,13 +54,14 @@ func main() {
 	flag.Parse()
 	validateFlagsOrDie()
 
-	registry := extension.Registry{}
-	if err := builtin.UseMySQLDBSetByFlags(&registry); err != nil {
-		panic(err)
+	db, err := mysql.OpenDB(*mySQLURI)
+	if err != nil {
+		log.Exitf("Failed to open MySQL database: %v", err)
 	}
 
+	storage := mysql.NewLogStorage(db)
 	ctx := context.Background()
-	tx, err := registry.LogStorage.BeginForTree(ctx, *treeIDFlag)
+	tx, err := storage.BeginForTree(ctx, *treeIDFlag)
 	if err != nil {
 		panic(err)
 	}
