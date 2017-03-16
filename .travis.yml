@@ -43,7 +43,9 @@ script:
   - ./scripts/presubmit.sh
   - |
       # Check re-generation didn't change anything
-      status=$(git status --porcelain) || :
+      # Skip protoc-generated files (.pb.go) because protoc is not determinist
+      # when generating file descriptors.
+      status=$(git status --porcelain | grep -v .pb.go) || :
       if [[ -n ${status} ]]; then
         echo "Regenerated files differ from checked-in versions: ${status}"
         git status
