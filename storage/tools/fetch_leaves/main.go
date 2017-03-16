@@ -52,6 +52,7 @@ func main() {
 	if err != nil {
 		log.Exitf("Failed to open MySQL database: %v", err)
 	}
+	defer db.Close()
 
 	storage := mysql.NewLogStorage(db)
 	ctx := context.Background()
