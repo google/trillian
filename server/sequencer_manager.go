@@ -15,6 +15,7 @@
 package server
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -66,14 +67,6 @@ func (s SequencerManager) ExecutePass(logIDs []int64, logctx LogOperationManager
 		return
 	}
 
-	keyProvider, err := s.registry.GetKeyProvider()
-	if err != nil {
-		glog.Errorf("Failed to acquire key provider: %v", err)
-		return
-	}
-
-	admin := s.registry.GetAdminStorage()
-
 	var wg sync.WaitGroup
 	toSeq := make(chan int64, len(logIDs))
 
@@ -105,26 +98,13 @@ func (s SequencerManager) ExecutePass(logIDs []int64, logctx LogOperationManager
 					continue
 				}
 
-				snapshot, err := admin.Snapshot(ctx)
-				if err != nil {
-					glog.Errorf("Could not get storage snapshot for log %d: %v", logID, err)
-					continue
-				}
-				defer snapshot.Close()
-
-				tree, err := snapshot.GetTree(ctx, logID)
-				if err != nil {
-					glog.Errorf("Could not get tree config from admin storage for log %d: %v", logID, err)
-					continue
-				}
-
-				signer, err := keyProvider.Signer(ctx, tree)
+				signer, err := newSigner(ctx, s.registry, logID)
 				if err != nil {
 					glog.Errorf("Could not get signer for log %d: %v", logID, err)
 					continue
 				}
 
-				sequencer := log.NewSequencer(hasher, logctx.timeSource, storage, crypto.NewSigner(signer))
+				sequencer := log.NewSequencer(hasher, logctx.timeSource, storage, signer)
 				sequencer.SetGuardWindow(s.guardWindow)
 
 				leaves, err := sequencer.SequenceBatch(ctx, logID, logctx.batchSize)
@@ -149,4 +129,33 @@ func (s SequencerManager) ExecutePass(logIDs []int64, logctx LogOperationManager
 	mu.Lock()
 	defer mu.Unlock()
 	glog.V(1).Infof("Sequencing group run completed in %.2f seconds: %v succeeded, %v failed, %v leaves integrated", d, successCount, len(logIDs)-successCount, leavesAdded)
+}
+
+func newSigner(ctx context.Context, registry extension.Registry, logID int64) (*crypto.Signer, error) {
+	snapshot, err := registry.GetAdminStorage().Snapshot(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer snapshot.Close()
+
+	tree, err := snapshot.GetTree(ctx, logID)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := snapshot.Commit(); err != nil {
+		return nil, err
+	}
+
+	keyProvider, err := registry.GetKeyProvider()
+	if err != nil {
+		return nil, err
+	}
+
+	signer, err := keyProvider.Signer(ctx, tree)
+	if err != nil {
+		return nil, err
+	}
+
+	return crypto.NewSigner(signer), nil
 }

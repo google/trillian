@@ -108,13 +108,10 @@ func TestSequencerManagerNothingToDo(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	mockAdmin := storage.NewMockAdminStorage(mockCtrl)
 	mockStorage := storage.NewMockLogStorage(mockCtrl)
 
 	registry := extension.NewMockRegistry(mockCtrl)
-	registry.EXPECT().GetAdminStorage().Return(mockAdmin)
 	registry.EXPECT().GetLogStorage().Return(mockStorage, nil)
-	registry.EXPECT().GetKeyProvider().Return(&keyProvider{}, nil)
 	sm := NewSequencerManager(registry, zeroDuration)
 
 	sm.ExecutePass([]int64{}, createTestContext(registry))
@@ -144,6 +141,7 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 
 	mockAdmin.EXPECT().Snapshot(gomock.Any()).Return(mockAdminTx, nil)
 	mockAdminTx.EXPECT().GetTree(gomock.Any(), logID).Return(stestonly.LogTree, nil)
+	mockAdminTx.EXPECT().Commit().Return(nil)
 	mockAdminTx.EXPECT().Close().Return(nil)
 
 	registry := extension.NewMockRegistry(mockCtrl)
@@ -186,6 +184,7 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 
 	mockAdmin.EXPECT().Snapshot(gomock.Any()).Return(mockAdminTx, nil)
 	mockAdminTx.EXPECT().GetTree(gomock.Any(), logID).Return(stestonly.LogTree, nil)
+	mockAdminTx.EXPECT().Commit().Return(nil)
 	mockAdminTx.EXPECT().Close().Return(nil)
 
 	registry := extension.NewMockRegistry(mockCtrl)
@@ -225,6 +224,7 @@ func TestSequencerManagerGuardWindow(t *testing.T) {
 
 	mockAdmin.EXPECT().Snapshot(gomock.Any()).Return(mockAdminTx, nil)
 	mockAdminTx.EXPECT().GetTree(gomock.Any(), logID).Return(stestonly.LogTree, nil)
+	mockAdminTx.EXPECT().Commit().Return(nil)
 	mockAdminTx.EXPECT().Close().Return(nil)
 
 	registry := extension.NewMockRegistry(mockCtrl)
