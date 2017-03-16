@@ -19,15 +19,19 @@ import (
 	"encoding/hex"
 	"flag"
 
+	_ "github.com/go-sql-driver/mysql" // Load MySQL driver
+
 	log "github.com/golang/glog"
-	"github.com/google/trillian/extension"
-	"github.com/google/trillian/extension/builtin"
+	"github.com/google/trillian/storage/mysql"
 )
 
-var treeIDFlag = flag.Int64("treeid", 3, "The tree id to use")
-var fetchLeavesFlag = flag.Int("fetch_leaves", 1, "Number of entries to fetch")
-var startFetchFromFlag = flag.Int("start_fetch_at", 0, "The sequence number of the first leaf to fetch")
-var leafHashHex = flag.String("leaf_hash", "", "The hash of a leaf to fetch")
+var (
+	mySQLURI           = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "Connection URI for MySQL database")
+	treeIDFlag         = flag.Int64("treeid", 3, "The tree id to use")
+	fetchLeavesFlag    = flag.Int("fetch_leaves", 1, "Number of entries to fetch")
+	startFetchFromFlag = flag.Int("start_fetch_at", 0, "The sequence number of the first leaf to fetch")
+	leafHashHex        = flag.String("leaf_hash", "", "The hash of a leaf to fetch")
+)
 
 func validateFetchFlagsOrDie() {
 	if *fetchLeavesFlag <= 0 {
@@ -44,13 +48,14 @@ func main() {
 	flag.Parse()
 	validateFetchFlagsOrDie()
 
-	registry := extension.Registry{}
-	if err := builtin.UseMySQLDBSetByFlags(&registry); err != nil {
-		panic(err)
+	db, err := mysql.OpenDB(*mySQLURI)
+	if err != nil {
+		log.Exitf("Failed to open MySQL database: %v", err)
 	}
 
+	storage := mysql.NewLogStorage(db)
 	ctx := context.Background()
-	tx, err := registry.LogStorage.SnapshotForTree(ctx, *treeIDFlag)
+	tx, err := storage.SnapshotForTree(ctx, *treeIDFlag)
 	if err != nil {
 		panic(err)
 	}
