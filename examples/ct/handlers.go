@@ -263,14 +263,14 @@ func parseBodyAsJSONChain(c LogContext, r *http.Request) (ct.AddChainRequest, er
 // TODO(Martin2112): Doesn't properly handle duplicate submissions yet but the backend
 // needs this to be implemented before we can do it here
 func addChainInternal(ctx context.Context, c LogContext, w http.ResponseWriter, r *http.Request, isPrecert bool) (int, error) {
-	var signerFn func(*crypto.Signer, *x509.Certificate, *x509.Certificate, time.Time) (*ct.MerkleTreeLeaf, *ct.SignedCertificateTimestamp, error)
+	var makeLeafFn func(*x509.Certificate, *x509.Certificate, uint64) (*ct.MerkleTreeLeaf, error)
 	var method EntrypointName
 	if isPrecert {
 		method = AddPreChainName
-		signerFn = signV1SCTForPrecertificate
+		makeLeafFn = buildV1MerkleTreeLeafForPrecert
 	} else {
 		method = AddChainName
-		signerFn = signV1SCTForCertificate
+		makeLeafFn = buildV1MerkleTreeLeafForCert
 	}
 
 	// Check the contents of the request and convert to slice of certificates.
@@ -283,33 +283,55 @@ func addChainInternal(ctx context.Context, c LogContext, w http.ResponseWriter, 
 		return http.StatusBadRequest, fmt.Errorf("failed to verify add-chain contents: %v", err)
 	}
 
-	// Build up the SCT and MerkleTreeLeaf. The SCT will be returned to the client and
-	// the leaf will become part of the data sent to the backend.
+	// Get the current time in the form used throughout RFC6962, namely milliseconds since Unix
+	// epoch, and use this throughout.
+	timeMillis := uint64(c.TimeSource.Now().UnixNano() / millisPerNano)
+
+	// Build the MerkleTreeLeaf that gets sent to the backend, and make a trillian.LogLeaf for it.
 	var issuer *x509.Certificate
 	if len(chain) > 1 {
 		issuer = chain[1]
 	}
-	merkleLeaf, sct, err := signerFn(c.signer, chain[0], issuer, c.TimeSource.Now())
+	merkleLeaf, err := makeLeafFn(chain[0], issuer, timeMillis)
 	if err != nil {
-		return http.StatusInternalServerError, fmt.Errorf("failed to build SCT and Merkle leaf: %v %v", sct, err)
+		return http.StatusBadRequest, fmt.Errorf("failed to build MerkleTreeLeaf: %v", err)
 	}
-
-	// Send the Merkle tree leaf on to the Log server.
 	leaf, err := buildLogLeafForAddChain(c, *merkleLeaf, chain)
 	if err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("failed to build LogLeaf: %v", err)
 	}
+
+	// Send the Merkle tree leaf on to the Log server.
 	req := trillian.QueueLeavesRequest{LogId: c.logID, Leaves: []*trillian.LogLeaf{&leaf}}
 
 	glog.V(2).Infof("%s: %s => grpc.QueueLeaves", c.LogPrefix, method)
-	_, err = c.rpcClient.QueueLeaves(ctx, &req)
+	rsp, err := c.rpcClient.QueueLeaves(ctx, &req)
 	glog.V(2).Infof("%s: %s <= grpc.QueueLeaves err=%v", c.LogPrefix, method, err)
 	if err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("backend QueueLeaves request failed: %v", err)
 	}
+	if rsp == nil {
+		return http.StatusInternalServerError, fmt.Errorf("missing QueueLeaves response")
+	}
+	if len(rsp.QueuedLeaves) != 1 {
+		return http.StatusInternalServerError, fmt.Errorf("unexpected QueueLeaves response leaf count: %d", len(rsp.QueuedLeaves))
+	}
+	queuedLeaf := rsp.QueuedLeaves[0]
 
-	// As the Log server has successfully queued up the Merkle tree leaf, we can
-	// respond with an SCT.
+	// Always use the returned leaf as the basis for an SCT.
+	var loggedLeaf ct.MerkleTreeLeaf
+	if rest, err := tls.Unmarshal(queuedLeaf.Leaf.LeafValue, &loggedLeaf); err != nil {
+		return http.StatusInternalServerError, fmt.Errorf("failed to reconstruct MerkleTreeLeaf: %v", err)
+	} else if len(rest) > 0 {
+		return http.StatusInternalServerError, fmt.Errorf("extra data (%d bytes) on reconstructing MerkleTreeLeaf", len(rest))
+	}
+
+	// As the Log server has definitely got the Merkle tree leaf, we can
+	// generate an SCT and respond with it.
+	sct, err := buildV1SCT(c.signer, &loggedLeaf)
+	if err != nil {
+		return http.StatusInternalServerError, fmt.Errorf("failed to generate SCT: %v", err)
+	}
 	err = marshalAndWriteAddChainResponse(sct, c.signer, w)
 	if err != nil {
 		// reason is logged and http status is already set

@@ -17,10 +17,7 @@ package integration
 import (
 	"context"
 	"database/sql"
-	"fmt"
-	"io/ioutil"
 	"net"
-	"strings"
 	"sync"
 	"time"
 
@@ -34,11 +31,6 @@ import (
 	to "github.com/google/trillian/testonly"
 	"github.com/google/trillian/util"
 	"google.golang.org/grpc"
-)
-
-const (
-	createSQLFile = "../storage/mysql/storage.sql"
-	mysqlRootURI  = "root@tcp(127.0.0.1:3306)/"
 )
 
 var (
@@ -76,54 +68,12 @@ func listen() (string, net.Listener, error) {
 	return addr, lis, nil
 }
 
-// getTestDB drops and recreates the test database.
-// Returns a database connection to the test database.
-func getTestDB(testID string) (*sql.DB, error) {
-	var testDBURI = fmt.Sprintf("root@tcp(127.0.0.1:3306)/log_unittest_%v", testID)
-
-	// Drop existing database.
-	dbRoot, err := sql.Open("mysql", mysqlRootURI)
-	if err != nil {
-		return nil, err
-	}
-	defer dbRoot.Close()
-	resetSQL := []string{
-		fmt.Sprintf("DROP DATABASE IF EXISTS log_unittest_%v;", testID),
-		fmt.Sprintf("CREATE DATABASE log_unittest_%v;", testID),
-		fmt.Sprintf("GRANT ALL ON log_unittest_%v.* TO 'log_unittest'@'localhost' IDENTIFIED BY 'zaphod';", testID),
-	}
-	for _, sql := range resetSQL {
-		if _, err := dbRoot.Exec(sql); err != nil {
-			return nil, err
-		}
-	}
-
-	// Create new database.
-	dbTest, err := sql.Open("mysql", testDBURI)
-	if err != nil {
-		return nil, err
-	}
-	createSQL, err := ioutil.ReadFile(createSQLFile)
-	if err != nil {
-		return nil, err
-	}
-	sqlSlice := strings.Split(string(createSQL), ";\n")
-	// Omit the last element of the slice, since it will be "".
-	for _, sql := range sqlSlice[:len(sqlSlice)-1] {
-		if _, err := dbTest.Exec(sql); err != nil {
-			return nil, err
-		}
-	}
-
-	return dbTest, nil
-}
-
 // NewLogEnv creates a fresh DB, log server, and client. The numSequencers parameter
 // indicates how many sequencers to run in parallel; if numSequencers is zero a
 // manually-controlled test sequencer is used.
 // testID should be unique to each unittest package so as to allow parallel tests.
 func NewLogEnv(ctx context.Context, numSequencers int, testID string) (*LogEnv, error) {
-	db, err := getTestDB(testID)
+	db, err := GetTestDB(testID)
 	if err != nil {
 		return nil, err
 	}

@@ -15,15 +15,15 @@
 package server
 
 import (
+	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util"
-
-	"github.com/golang/glog"
-	"github.com/golang/protobuf/ptypes/empty"
 	"golang.org/x/net/context"
+	"google.golang.org/genproto/googleapis/rpc/code"
+	"google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
@@ -58,16 +58,22 @@ func (t *TrillianLogRPCServer) IsHealthy() error {
 }
 
 // QueueLeaf submits one leaf to the queue.
-func (t *TrillianLogRPCServer) QueueLeaf(ctx context.Context, req *trillian.QueueLeafRequest) (*empty.Empty, error) {
+func (t *TrillianLogRPCServer) QueueLeaf(ctx context.Context, req *trillian.QueueLeafRequest) (*trillian.QueueLeafResponse, error) {
 	queueReq := &trillian.QueueLeavesRequest{
 		LogId:  req.LogId,
 		Leaves: []*trillian.LogLeaf{req.Leaf},
 	}
-	_, err := t.QueueLeaves(ctx, queueReq)
+	queueRsp, err := t.QueueLeaves(ctx, queueReq)
 	if err != nil {
 		return nil, err
 	}
-	return &empty.Empty{}, nil
+	if queueRsp == nil {
+		return nil, grpc.Errorf(codes.Internal, "missing response")
+	}
+	if len(queueRsp.QueuedLeaves) != 1 {
+		return nil, grpc.Errorf(codes.Internal, "unexpected count of leaves %d", len(queueRsp.QueuedLeaves))
+	}
+	return &trillian.QueueLeafResponse{QueuedLeaf: queueRsp.QueuedLeaves[0]}, nil
 }
 
 // QueueLeaves submits a batch of leaves to the log for later integration into the underlying tree.
@@ -89,12 +95,8 @@ func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.Qu
 	}
 	defer tx.Close()
 
-	err = tx.QueueLeaves(req.Leaves, t.timeSource.Now())
+	existingLeaves, err := tx.QueueLeaves(req.Leaves, t.timeSource.Now())
 	if err != nil {
-		if se, ok := err.(storage.Error); ok && se.ErrType == storage.DuplicateLeaf {
-			return nil, grpc.Errorf(codes.AlreadyExists, "Leaf hash already exists: %v", se)
-		}
-
 		return nil, err
 	}
 
@@ -102,7 +104,22 @@ func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.Qu
 		return nil, err
 	}
 
-	return &trillian.QueueLeavesResponse{}, nil
+	var queuedLeaves []*trillian.QueuedLogLeaf
+	for i, existingLeaf := range existingLeaves {
+		if existingLeaf != nil {
+			// Append the existing leaf to the response.
+			queuedLeaf := trillian.QueuedLogLeaf{
+				Leaf:   existingLeaf,
+				Status: &status.Status{Code: int32(code.Code_ALREADY_EXISTS)},
+			}
+			queuedLeaves = append(queuedLeaves, &queuedLeaf)
+		} else {
+			// Return the leaf from the request if it is new.
+			queuedLeaf := trillian.QueuedLogLeaf{Leaf: req.Leaves[i]}
+			queuedLeaves = append(queuedLeaves, &queuedLeaf)
+		}
+	}
+	return &trillian.QueueLeavesResponse{QueuedLeaves: queuedLeaves}, nil
 }
 
 // GetInclusionProof obtains the proof of inclusion in the tree for a leaf that has been sequenced.

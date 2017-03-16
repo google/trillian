@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2017 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,6 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package storage
+package integration
 
-//go:generate mockgen -self_package github.com/google/trillian/storage -package storage -destination mock_storage.go -imports=trillian=github.com/google/trillian,storagepb=github.com/google/trillian/storage/storagepb github.com/google/trillian/storage AdminStorage,AdminTX,LogStorage,LogTreeTX,MapStorage,MapTreeTX,ReadOnlyAdminTX,ReadOnlyLogTX,ReadOnlyLogTreeTX,ReadOnlyMapTreeTX
+import (
+	"github.com/google/trillian/extension"
+	"github.com/google/trillian/extension/builtin"
+)
+
+// NewRegistryForTests returns an extension.Registry for integration tests.
+// A new database will be recreated, as per GetTestDB.
+func NewRegistryForTests(testID string) (extension.Registry, error) {
+	db, err := GetTestDB(testID)
+	if err != nil {
+		return nil, err
+	}
+	return builtin.NewExtensionRegistry(db, nil /* signer */)
+}

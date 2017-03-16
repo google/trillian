@@ -46,7 +46,7 @@ func startRPCServer(registry extension.Registry) (*grpc.Server, error) {
 	}
 	trillian.RegisterTrillianMapServer(grpcServer, mapServer)
 
-	adminServer := admin.New()
+	adminServer := admin.New(registry)
 	trillian.RegisterTrillianAdminServer(grpcServer, adminServer)
 
 	reflection.Register(grpcServer)

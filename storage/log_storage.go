@@ -88,7 +88,13 @@ type LogStorage interface {
 // LeafQueuer provides a write-only interface for the queueing (but not necessarily integration) of leaves.
 type LeafQueuer interface {
 	// QueueLeaves enqueues leaves for later integration into the tree.
-	QueueLeaves(leaves []*trillian.LogLeaf, queueTimestamp time.Time) error
+	// If error is nil, the returned slice of leaves will be the same size as the
+	// input, and each entry will hold:
+	//  - the existing leaf entry if a duplicate has been submitted
+	//  - nil otherwise.
+	// Duplicates are only reported if the underlying tree does not permit duplicates, and are
+	// considered duplicate if their leaf.LeafIdentityHash matches.
+	QueueLeaves(leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.LogLeaf, error)
 }
 
 // LeafDequeuer provides an interface for reading previously queued leaves for integration into the tree.

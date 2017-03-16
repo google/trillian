@@ -95,28 +95,47 @@ func (tester *AdminStorageTester) TestCreateTree(t *testing.T) {
 	validTree1 := *LogTree
 	validTree2 := *MapTree
 
+	validTreeWithoutOptionals := *LogTree
+	validTreeWithoutOptionals.DisplayName = ""
+	validTreeWithoutOptionals.Description = ""
+
 	tests := []struct {
+		desc    string
 		tree    *trillian.Tree
 		wantErr bool
 	}{
-		{tree: &invalidTree, wantErr: true},
-		{tree: &validTree1},
-		{tree: &validTree2},
+		{
+			desc:    "invalidTree",
+			tree:    &invalidTree,
+			wantErr: true,
+		},
+		{
+			desc: "validTree1",
+			tree: &validTree1,
+		},
+		{
+			desc: "validTree2",
+			tree: &validTree2,
+		},
+		{
+			desc: "validTreeWithoutOptionals",
+			tree: &validTreeWithoutOptionals,
+		},
 	}
 
 	ctx := context.Background()
 	s := tester.NewAdminStorage()
-	for i, test := range tests {
+	for _, test := range tests {
 		tx, err := s.Begin(ctx)
 		if err != nil {
-			t.Fatalf("%v: Begin() = %v, want = nil", i, err)
+			t.Fatalf("%v: Begin() = %v, want = nil", test.desc, err)
 		}
 		defer tx.Close()
 
 		// Test CreateTree up to the tx commit
 		newTree, err := tx.CreateTree(ctx, test.tree)
 		if hasErr := err != nil; hasErr != test.wantErr {
-			t.Errorf("%v: CreateTree() = (_, %v), wantErr = %v", i, err, test.wantErr)
+			t.Errorf("%v: CreateTree() = (_, %v), wantErr = %v", test.desc, err, test.wantErr)
 			continue
 		} else if hasErr {
 			// Tested above
@@ -124,13 +143,13 @@ func (tester *AdminStorageTester) TestCreateTree(t *testing.T) {
 		}
 		switch {
 		case newTree.TreeId == 0:
-			t.Errorf("%v: TreeID not returned from creation: %v", i, newTree)
+			t.Errorf("%v: TreeID not returned from creation: %v", test.desc, newTree)
 			continue
 		case newTree.CreateTimeMillisSinceEpoch <= 0:
-			t.Errorf("%v: CreateTime not returned from creation: %v", i, newTree)
+			t.Errorf("%v: CreateTime not returned from creation: %v", test.desc, newTree)
 			continue
 		case newTree.CreateTimeMillisSinceEpoch != newTree.UpdateTimeMillisSinceEpoch:
-			t.Errorf("%v: CreateTime != UpdateTime: %v", i, newTree)
+			t.Errorf("%v: CreateTime != UpdateTime: %v", test.desc, newTree)
 			continue
 		}
 		wantTree := *test.tree
@@ -138,23 +157,23 @@ func (tester *AdminStorageTester) TestCreateTree(t *testing.T) {
 		wantTree.CreateTimeMillisSinceEpoch = newTree.CreateTimeMillisSinceEpoch
 		wantTree.UpdateTimeMillisSinceEpoch = newTree.UpdateTimeMillisSinceEpoch
 		if !reflect.DeepEqual(newTree, &wantTree) {
-			t.Errorf("%v: newTree = %v, want = %v", i, newTree, wantTree)
+			t.Errorf("%v: newTree = %v, want = %v", test.desc, newTree, wantTree)
 			continue
 		}
 		if err := tx.Commit(); err != nil {
-			t.Errorf("%v: Commit() = %v, want = nil", i, err)
+			t.Errorf("%v: Commit() = %v, want = nil", test.desc, err)
 			continue
 		}
 
 		// Make sure a tree was correctly stored
 		storedTree, err := getTree(ctx, s, newTree.TreeId)
 		if err != nil {
-			t.Errorf(":%v: getTree() = (%v, %v), want = (%v, nil)", i, newTree.TreeId, err, newTree)
+			t.Errorf(":%v: getTree() = (%v, %v), want = (%v, nil)", test.desc, newTree.TreeId, err, newTree)
 			continue
 		}
 		wantTree = *storedTree
 		if !reflect.DeepEqual(newTree, &wantTree) {
-			t.Errorf("%v: newTree = \n%v, wantTree = \n%v", i, newTree, &wantTree)
+			t.Errorf("%v: newTree = \n%v, wantTree = \n%v", test.desc, newTree, &wantTree)
 		}
 	}
 }
@@ -179,6 +198,13 @@ func (tester *AdminStorageTester) TestUpdateTree(t *testing.T) {
 		t.DisplayName = validLog.DisplayName
 		t.Description = validLog.Description
 	}
+
+	validLogWithoutOptionalsFunc := func(t *trillian.Tree) {
+		t.DisplayName = ""
+		t.Description = ""
+	}
+	validLogWithoutOptionals := referenceLog
+	validLogWithoutOptionalsFunc(&validLogWithoutOptionals)
 
 	invalidLogFunc := func(t *trillian.Tree) {
 		t.TreeState = trillian.TreeState_UNKNOWN_TREE_STATE
@@ -211,6 +237,12 @@ func (tester *AdminStorageTester) TestUpdateTree(t *testing.T) {
 			create:     &referenceLog,
 			updateFunc: validLogFunc,
 			want:       &validLog,
+		},
+		{
+			desc:       "validLogWithoutOptionals",
+			create:     &referenceLog,
+			updateFunc: validLogWithoutOptionalsFunc,
+			want:       &validLogWithoutOptionals,
 		},
 		{
 			desc:       "invalidLog",

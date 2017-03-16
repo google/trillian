@@ -15,6 +15,7 @@
 package mysql
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"sync"
@@ -26,7 +27,6 @@ import (
 	"github.com/google/trillian"
 	spb "github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/storage"
-	"golang.org/x/net/context"
 )
 
 const (
@@ -146,6 +146,7 @@ func readTree(row row) (*trillian.Tree, error) {
 
 	// Enums and Datetimes need an extra conversion step
 	var treeState, treeType, hashStrategy, hashAlgorithm, signatureAlgorithm, duplicatePolicy, createDatetime, updateDatetime string
+	var displayName, description sql.NullString
 	var privateKey []byte
 	err := row.Scan(
 		&tree.TreeId,
@@ -155,8 +156,8 @@ func readTree(row row) (*trillian.Tree, error) {
 		&hashAlgorithm,
 		&signatureAlgorithm,
 		&duplicatePolicy,
-		&tree.DisplayName,
-		&tree.Description,
+		&displayName,
+		&description,
 		&createDatetime,
 		&updateDatetime,
 		&privateKey,
@@ -164,6 +165,9 @@ func readTree(row row) (*trillian.Tree, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	setNullStringIfValid(displayName, &tree.DisplayName)
+	setNullStringIfValid(description, &tree.Description)
 
 	// Convert all things!
 	if ts, ok := trillian.TreeState_value[treeState]; ok {
@@ -231,6 +235,13 @@ func readTree(row row) (*trillian.Tree, error) {
 	}
 
 	return tree, nil
+}
+
+// setNullStringIfValid assigns src to dest if src is Valid.
+func setNullStringIfValid(src sql.NullString, dest *string) {
+	if src.Valid {
+		*dest = src.String
+	}
 }
 
 func (t *adminTX) ListTreeIDs(ctx context.Context) ([]int64, error) {

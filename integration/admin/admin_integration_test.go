@@ -17,10 +17,13 @@ package admin
 import (
 	"context"
 	"net"
+	"reflect"
 	"testing"
 
 	"github.com/google/trillian"
 	sa "github.com/google/trillian/server/admin"
+	"github.com/google/trillian/storage/testonly"
+	"github.com/google/trillian/testonly/integration"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
@@ -40,20 +43,6 @@ func TestAdminServer_Unimplemented(t *testing.T) {
 			desc: "ListTrees",
 			fn: func(ctx context.Context, c trillian.TrillianAdminClient) error {
 				_, err := c.ListTrees(ctx, &trillian.ListTreesRequest{})
-				return err
-			},
-		},
-		{
-			desc: "GetTree",
-			fn: func(ctx context.Context, c trillian.TrillianAdminClient) error {
-				_, err := c.GetTree(ctx, &trillian.GetTreeRequest{})
-				return err
-			},
-		},
-		{
-			desc: "CreateTree",
-			fn: func(ctx context.Context, c trillian.TrillianAdminClient) error {
-				_, err := c.CreateTree(ctx, &trillian.CreateTreeRequest{})
 				return err
 			},
 		},
@@ -81,6 +70,98 @@ func TestAdminServer_Unimplemented(t *testing.T) {
 	}
 }
 
+func TestAdminServer_CreateTree(t *testing.T) {
+	client, closeFn, err := setupAdminServer()
+	if err != nil {
+		t.Fatalf("setupAdminServer() failed: %v", err)
+	}
+	defer closeFn()
+
+	invalidTree := *testonly.LogTree
+	invalidTree.TreeState = trillian.TreeState_HARD_DELETED
+
+	tests := []struct {
+		desc string
+		req  *trillian.CreateTreeRequest
+		// TODO(codingllama): Check correctness of returned codes.Code
+		wantErr bool
+	}{
+		{
+			desc: "validTree",
+			req: &trillian.CreateTreeRequest{
+				Tree: testonly.LogTree,
+			},
+		},
+		{
+			desc:    "nilTree",
+			req:     &trillian.CreateTreeRequest{},
+			wantErr: true,
+		},
+		{
+			desc: "invalidTree",
+			req: &trillian.CreateTreeRequest{
+				Tree: &invalidTree,
+			},
+			wantErr: true,
+		},
+	}
+
+	ctx := context.Background()
+	for _, test := range tests {
+		createdTree, err := client.CreateTree(ctx, test.req)
+		if hasErr := err != nil; hasErr != test.wantErr {
+			t.Errorf("%v: CreateTree() = (_, %v), wantErr = %v", test.desc, err, test.wantErr)
+			continue
+		} else if hasErr {
+			continue
+		}
+		storedTree, err := client.GetTree(ctx, &trillian.GetTreeRequest{TreeId: createdTree.TreeId})
+		if err != nil {
+			t.Errorf("%v: GetTree() = (_, %v), want = (_, nil)", test.desc, err)
+			continue
+		}
+		if !reflect.DeepEqual(storedTree, createdTree) {
+			t.Errorf("%v: storedTree doesn't match createdTree:\nstoredTree =  %v,\ncreatedTree = %v", test.desc, storedTree, createdTree)
+		}
+	}
+}
+
+func TestAdminServer_GetTree(t *testing.T) {
+	client, closeFn, err := setupAdminServer()
+	if err != nil {
+		t.Fatalf("setupAdminServer() failed: %v", err)
+	}
+	defer closeFn()
+
+	tests := []struct {
+		desc    string
+		treeID  int64
+		wantErr bool
+	}{
+		{
+			desc:   "negativeTreeID",
+			treeID: -1,
+			// TODO(codingllama): Check correctness of returned codes.Code
+			wantErr: true,
+		},
+		{
+			desc:    "notFound",
+			treeID:  12345,
+			wantErr: true,
+		},
+	}
+
+	ctx := context.Background()
+	for _, test := range tests {
+		_, err = client.GetTree(ctx, &trillian.GetTreeRequest{TreeId: test.treeID})
+		if hasErr := err != nil; hasErr != test.wantErr {
+			t.Errorf("%v: GetTree() = (_, %v), wantErr = %v", test.desc, err, test.wantErr)
+		}
+		// Success of GetTree is part of TestAdminServer_CreateTree, so it's not asserted
+		// here.
+	}
+}
+
 // setupAdminServer prepares and starts an Admin Server, returning a client and
 // a close function if successful.
 // The close function should be defer-called if error is not nil to ensure a
@@ -92,9 +173,14 @@ func setupAdminServer() (trillian.TrillianAdminClient, func(), error) {
 	}
 	// lis is closed via returned func
 
+	registry, err := integration.NewRegistryForTests("AdminIntegrationTest")
+	if err != nil {
+		return nil, nil, err
+	}
+
 	grpcServer := grpc.NewServer()
 	// grpcServer is stopped via returned func
-	server := sa.New()
+	server := sa.New(registry)
 	trillian.RegisterTrillianAdminServer(grpcServer, server)
 	go grpcServer.Serve(lis)
 

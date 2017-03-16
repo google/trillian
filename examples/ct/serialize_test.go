@@ -28,7 +28,7 @@ import (
 	"github.com/google/trillian/examples/ct/testonly"
 )
 
-func TestSignV1SCTForCertificate(t *testing.T) {
+func TestBuildV1MerkleTreeLeafForCert(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
@@ -42,15 +42,19 @@ func TestSignV1SCTForCertificate(t *testing.T) {
 		t.Fatalf("could not create signer: %v", err)
 	}
 
-	leaf, got, err := signV1SCTForCertificate(signer, cert, nil, fixedTime)
+	leaf, err := buildV1MerkleTreeLeafForCert(cert, nil, fixedTimeMillis)
 	if err != nil {
-		t.Fatalf("create sct for cert failed: %v", err)
+		t.Fatalf("buildV1MerkleTreeLeafForCert()=nil,%v; want _,nil", err)
+	}
+	got, err := buildV1SCT(signer, leaf)
+	if err != nil {
+		t.Fatalf("buildV1SCT()=nil,%v; want _,nil", err)
 	}
 
 	expected := ct.SignedCertificateTimestamp{
 		SCTVersion: 0,
 		LogID:      ct.LogID{KeyID: demoLogID},
-		Timestamp:  1504786523000,
+		Timestamp:  fixedTimeMillis,
 		Extensions: ct.CTExtensions{},
 		Signature: ct.DigitallySigned{
 			Algorithm: tls.SignatureAndHashAlgorithm{
@@ -99,15 +103,19 @@ func TestSignV1SCTForPrecertificate(t *testing.T) {
 	}
 
 	// Use the same cert as the issuer for convenience.
-	leaf, got, err := signV1SCTForPrecertificate(signer, cert, cert, fixedTime)
+	leaf, err := buildV1MerkleTreeLeafForPrecert(cert, cert, fixedTimeMillis)
 	if err != nil {
-		t.Fatalf("create sct for precert failed: %v", err)
+		t.Fatalf("buildV1MerkleTreeLeafForCert()=nil,%v; want _,nil", err)
+	}
+	got, err := buildV1SCT(signer, leaf)
+	if err != nil {
+		t.Fatalf("buildV1SCT()=nil,%v; want _,nil", err)
 	}
 
 	expected := ct.SignedCertificateTimestamp{
 		SCTVersion: 0,
 		LogID:      ct.LogID{KeyID: demoLogID},
-		Timestamp:  1504786523000,
+		Timestamp:  fixedTimeMillis,
 		Extensions: ct.CTExtensions{},
 		Signature: ct.DigitallySigned{
 			Algorithm: tls.SignatureAndHashAlgorithm{

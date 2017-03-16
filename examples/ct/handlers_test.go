@@ -43,12 +43,15 @@ import (
 	"github.com/google/trillian/mockclient"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/util"
+	"google.golang.org/genproto/googleapis/rpc/code"
+	"google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
 
 // Arbitrary time for use in tests
 var fakeTime = time.Date(2016, 7, 22, 11, 01, 13, 0, time.UTC)
+var fakeTimeMillis = uint64(fakeTime.UnixNano() / millisPerNano)
 
 // The deadline should be the above bumped by 500ms
 var fakeDeadlineTime = time.Date(2016, 7, 22, 11, 01, 13, 500*1000*1000, time.UTC)
@@ -331,7 +334,7 @@ func TestAddChain(t *testing.T) {
 		chain := createJSONChain(t, *pool)
 		if len(test.toSign) > 0 {
 			root := info.roots.RawCertificates()[0]
-			merkleLeaf, _, err := signV1SCTForCertificate(signer, pool.RawCertificates()[0], nil, fakeTime)
+			merkleLeaf, err := buildV1MerkleTreeLeafForCert(pool.RawCertificates()[0], nil, fakeTimeMillis)
 			if err != nil {
 				t.Errorf("Unexpected error signing SCT: %v", err)
 				continue
@@ -345,7 +348,15 @@ func TestAddChain(t *testing.T) {
 				leafChain = fullChain
 			}
 			leaves := logLeavesForCert(t, leafChain, merkleLeaf, false)
-			info.client.EXPECT().QueueLeaves(deadlineMatcher(), &trillian.QueueLeavesRequest{LogId: 0x42, Leaves: leaves}).Return(&trillian.QueueLeavesResponse{}, test.err)
+			queuedLeaves := make([]*trillian.QueuedLogLeaf, len(leaves))
+			for i, leaf := range leaves {
+				queuedLeaves[i] = &trillian.QueuedLogLeaf{
+					Leaf:   leaf,
+					Status: &status.Status{Code: int32(code.Code_OK)},
+				}
+			}
+			rsp := trillian.QueueLeavesResponse{QueuedLeaves: queuedLeaves}
+			info.client.EXPECT().QueueLeaves(deadlineMatcher(), &trillian.QueueLeavesRequest{LogId: 0x42, Leaves: leaves}).Return(&rsp, test.err)
 		}
 
 		recorder := makeAddChainRequest(t, info.c, chain)
@@ -428,7 +439,7 @@ func TestAddPrechain(t *testing.T) {
 		chain := createJSONChain(t, *pool)
 		if len(test.toSign) > 0 {
 			root := info.roots.RawCertificates()[0]
-			merkleLeaf, _, err := signV1SCTForPrecertificate(signer, pool.RawCertificates()[0], root, fakeTime)
+			merkleLeaf, err := buildV1MerkleTreeLeafForPrecert(pool.RawCertificates()[0], root, fakeTimeMillis)
 			if err != nil {
 				t.Errorf("Unexpected error signing SCT: %v", err)
 				continue
@@ -442,7 +453,15 @@ func TestAddPrechain(t *testing.T) {
 				leafChain = fullChain
 			}
 			leaves := logLeavesForCert(t, leafChain, merkleLeaf, true)
-			info.client.EXPECT().QueueLeaves(deadlineMatcher(), &trillian.QueueLeavesRequest{LogId: 0x42, Leaves: leaves}).Return(&trillian.QueueLeavesResponse{}, test.err)
+			queuedLeaves := make([]*trillian.QueuedLogLeaf, len(leaves))
+			for i, leaf := range leaves {
+				queuedLeaves[i] = &trillian.QueuedLogLeaf{
+					Leaf:   leaf,
+					Status: &status.Status{Code: int32(code.Code_OK)},
+				}
+			}
+			rsp := trillian.QueueLeavesResponse{QueuedLeaves: queuedLeaves}
+			info.client.EXPECT().QueueLeaves(deadlineMatcher(), &trillian.QueueLeavesRequest{LogId: 0x42, Leaves: leaves}).Return(&rsp, test.err)
 		}
 
 		recorder := makeAddPrechainRequest(t, info.c, chain)

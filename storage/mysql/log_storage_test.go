@@ -57,12 +57,19 @@ const sequenceNumber int64 = 237
 // run in parallel or race conditions / unexpected interactions. Tests that pass should hold
 // no locks afterwards.
 
-func createFakeLeaf(db *sql.DB, logID int64, rawHash, hash, data, extraData []byte, seq int64, t *testing.T) {
+func createFakeLeaf(db *sql.DB, logID int64, rawHash, hash, data, extraData []byte, seq int64, t *testing.T) *trillian.LogLeaf {
 	_, err := db.Exec("INSERT INTO LeafData(TreeId, LeafIdentityHash, LeafValue, ExtraData) VALUES(?,?,?,?)", logID, rawHash, data, extraData)
 	_, err2 := db.Exec("INSERT INTO SequencedLeafData(TreeId, SequenceNumber, LeafIdentityHash, MerkleLeafHash) VALUES(?,?,?,?)", logID, seq, rawHash, hash)
 
 	if err != nil || err2 != nil {
 		t.Fatalf("Failed to create test leaves: %v %v", err, err2)
+	}
+	return &trillian.LogLeaf{
+		MerkleLeafHash:   hash,
+		LeafValue:        data,
+		ExtraData:        extraData,
+		LeafIndex:        seq,
+		LeafIdentityHash: rawHash,
 	}
 }
 
@@ -235,23 +242,65 @@ func TestIsOpenCommitRollbackClosed(t *testing.T) {
 	}
 }
 
-func TestQueueDuplicateLeafFails(t *testing.T) {
+func TestQueueDuplicateLeaf(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
 	s := NewLogStorage(DB)
+	count := 15
+	leaves := createTestLeaves(int64(count), 10)
+	leaves2 := createTestLeaves(int64(count), 12)
+	leaves3 := createTestLeaves(3, 100)
 
-	tx := beginLogTx(s, logID, t)
-	defer tx.Close()
+	// Note that tests accumulate queued leaves on top of each other.
+	var tests = []struct {
+		leaves []*trillian.LogLeaf
+		want   []*trillian.LogLeaf
+	}{
+		{
+			// [10, 11, 12, ...]
+			leaves: leaves,
+			want:   make([]*trillian.LogLeaf, count),
+		},
+		{
+			// [12, 13, 14, ...] so first (count-2) are duplicates
+			leaves: leaves2,
+			want:   append(leaves[2:], nil, nil),
+		},
+		{
+			// [10, 100, 11, 101, 102] so [dup, new, dup, new, dup]
+			leaves: []*trillian.LogLeaf{leaves[0], leaves3[0], leaves[1], leaves3[1], leaves[2]},
+			want:   []*trillian.LogLeaf{leaves[0], nil, leaves[1], nil, leaves[2]},
+		},
+	}
 
-	leaves := createTestLeaves(5, 10)
-	if err := tx.QueueLeaves(leaves, fakeQueueTime); err != nil {
-		t.Fatalf("Failed to queue leaves: %v", err)
+	for _, test := range tests {
+		tx := beginLogTx(s, logID, t)
+		defer tx.Close()
+		existing, err := tx.QueueLeaves(test.leaves, fakeQueueTime)
+		if err != nil {
+			t.Fatalf("Failed to queue leaves: %v", err)
+		}
+		commit(tx, t)
+
+		if len(existing) != len(test.want) {
+			t.Errorf("|QueueLeaves()|=%d; want %d", len(existing), len(test.want))
+			continue
+		}
+		for i, want := range test.want {
+			got := existing[i]
+			if want == nil {
+				if got != nil {
+					t.Errorf("QueueLeaves()[%d]=%v; want nil", i, got)
+				}
+				continue
+			}
+			if got == nil {
+				t.Errorf("QueueLeaves()[%d]=nil; want non-nil", i)
+			} else if bytes.Compare(got.LeafIdentityHash, want.LeafIdentityHash) != 0 {
+				t.Errorf("QueueLeaves()[%d].LeafIdentityHash=%x; want %x", i, got.LeafIdentityHash, want.LeafIdentityHash)
+			}
+		}
 	}
-	leaves2 := createTestLeaves(5, 12)
-	if err := tx.QueueLeaves(leaves2, fakeQueueTime); err == nil {
-		t.Fatal("Allowed duplicate leaves to be inserted")
-	}
-	commit(tx, t)
 }
 
 func TestQueueLeaves(t *testing.T) {
@@ -263,7 +312,7 @@ func TestQueueLeaves(t *testing.T) {
 	defer tx.Close()
 
 	leaves := createTestLeaves(leavesToInsert, 20)
-	if err := tx.QueueLeaves(leaves, fakeQueueTime); err != nil {
+	if _, err := tx.QueueLeaves(leaves, fakeQueueTime); err != nil {
 		t.Fatalf("Failed to queue leaves: %v", err)
 	}
 	commit(tx, t)
@@ -314,7 +363,7 @@ func TestDequeueLeaves(t *testing.T) {
 		tx := beginLogTx(s, logID, t)
 		defer tx.Close()
 		leaves := createTestLeaves(leavesToInsert, 20)
-		if err := tx.QueueLeaves(leaves, fakeDequeueCutoffTime); err != nil {
+		if _, err := tx.QueueLeaves(leaves, fakeDequeueCutoffTime); err != nil {
 			t.Fatalf("Failed to queue leaves: %v", err)
 		}
 		commit(tx, t)
@@ -362,7 +411,7 @@ func TestDequeueLeavesTwoBatches(t *testing.T) {
 		tx := beginLogTx(s, logID, t)
 		defer tx.Close()
 		leaves := createTestLeaves(leavesToInsert, 20)
-		if err := tx.QueueLeaves(leaves, fakeDequeueCutoffTime); err != nil {
+		if _, err := tx.QueueLeaves(leaves, fakeDequeueCutoffTime); err != nil {
 			t.Fatalf("Failed to queue leaves: %v", err)
 		}
 		commit(tx, t)
@@ -427,7 +476,7 @@ func TestDequeueLeavesGuardInterval(t *testing.T) {
 		tx := beginLogTx(s, logID, t)
 		defer tx.Close()
 		leaves := createTestLeaves(leavesToInsert, 20)
-		if err := tx.QueueLeaves(leaves, fakeQueueTime); err != nil {
+		if _, err := tx.QueueLeaves(leaves, fakeQueueTime); err != nil {
 			t.Fatalf("Failed to queue leaves: %v", err)
 		}
 		commit(tx, t)
@@ -473,11 +522,11 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 	{
 		tx := beginLogTx(s, logID, t)
 		defer tx.Close()
-		if err := tx.QueueLeaves(leaves, fakeQueueTime); err != nil {
+		if _, err := tx.QueueLeaves(leaves, fakeQueueTime); err != nil {
 			t.Fatalf("QueueLeaves(1st batch) = %v", err)
 		}
 		// These are one second earlier so should be dequeued first
-		if err := tx.QueueLeaves(leaves2, fakeQueueTime.Add(-time.Second)); err != nil {
+		if _, err := tx.QueueLeaves(leaves2, fakeQueueTime.Add(-time.Second)); err != nil {
 			t.Fatalf("QueueLeaves(2nd batch) = %v", err)
 		}
 		commit(tx, t)
@@ -578,6 +627,63 @@ func TestGetLeavesByHash(t *testing.T) {
 	}
 	checkLeafContents(leaves[0], sequenceNumber, dummyRawHash, dummyHash, data, someExtraData, t)
 	commit(tx, t)
+}
+
+func TestGetLeafDataByIdentityHash(t *testing.T) {
+	// Create fake leaf as if it had been sequenced
+	cleanTestDB(DB)
+	logID := createLogForTests(DB)
+	s := NewLogStorage(DB)
+	data := []byte("some data")
+	leaf := createFakeLeaf(DB, logID, dummyRawHash, dummyHash, data, someExtraData, sequenceNumber, t)
+	leaf.LeafIndex = -1
+	leaf.MerkleLeafHash = []byte(dummyMerkleLeafHash)
+	leaf2 := createFakeLeaf(DB, logID, dummyHash2, dummyHash2, data, someExtraData, sequenceNumber+1, t)
+	leaf2.LeafIndex = -1
+	leaf2.MerkleLeafHash = []byte(dummyMerkleLeafHash)
+
+	var tests = []struct {
+		hashes [][]byte
+		want   []*trillian.LogLeaf
+	}{
+		{
+			hashes: [][]byte{dummyRawHash},
+			want:   []*trillian.LogLeaf{leaf},
+		},
+		{
+			hashes: [][]byte{[]byte{0x01, 0x02}},
+		},
+		{
+			hashes: [][]byte{
+				dummyRawHash,
+				[]byte{0x01, 0x02},
+				dummyHash2,
+				[]byte{0x01, 0x02},
+			},
+			// Note: leaves not necessarily returned in order requested.
+			want: []*trillian.LogLeaf{leaf2, leaf},
+		},
+	}
+	for _, test := range tests {
+		tx := beginLogTx(s, logID, t)
+		defer tx.Close()
+
+		leaves, err := tx.(*logTreeTX).getLeafDataByIdentityHash(test.hashes)
+		if err != nil {
+			t.Errorf("getLeavesByIdentityHash(_) = (_,%v); want (_,nil)", err)
+			continue
+		}
+		commit(tx, t)
+		if len(leaves) != len(test.want) {
+			t.Errorf("getLeavesByIdentityHash(_) = (|%d|,nil); want (|%d|,nil)", len(leaves), len(test.want))
+			continue
+		}
+		for i, want := range test.want {
+			if !reflect.DeepEqual(leaves[i], want) {
+				t.Errorf("getLeavesByIdentityHash(_)[%d] = %+v; want %+v", i, leaves[i], want)
+			}
+		}
+	}
 }
 
 func TestGetLeavesByIndex(t *testing.T) {
@@ -786,7 +892,7 @@ func runTestGetActiveLogIDsWithPendingWork(t *testing.T, test getActiveIDsTest) 
 		tx := beginLogTx(s, logID, t)
 		defer tx.Close()
 		leaves := createTestLeaves(leavesToInsert, 2)
-		if err := tx.QueueLeaves(leaves, fakeQueueTime); err != nil {
+		if _, err := tx.QueueLeaves(leaves, fakeQueueTime); err != nil {
 			t.Fatalf("Failed to queue leaves for log %v: %v", logID, err)
 		}
 		commit(tx, t)

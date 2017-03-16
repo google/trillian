@@ -33,15 +33,9 @@ const (
 // See the documentation on trillian.Tree for reference on which values are
 // valid.
 func ValidateTreeForCreation(tree *trillian.Tree) error {
-	// Check that the private_key proto contains a valid serialized proto.
-	// TODO(robpercival): Could we attempt to produce an STH at this point,
-	// to verify that the key works?
-	var privateKey ptypes.DynamicAny
-	if err := ptypes.UnmarshalAny(tree.PrivateKey, &privateKey); err != nil {
-		return fmt.Errorf("invalid private_key: %v", err)
-	}
-
 	switch {
+	case tree == nil:
+		return errors.New("a tree is required")
 	case tree.TreeState != trillian.TreeState_ACTIVE:
 		return fmt.Errorf("invalid tree_state: %s", tree.TreeState)
 	case tree.TreeType == trillian.TreeType_UNKNOWN_TREE_TYPE:
@@ -54,7 +48,18 @@ func ValidateTreeForCreation(tree *trillian.Tree) error {
 		return fmt.Errorf("invalid signature_algorithm: %s", tree.SignatureAlgorithm)
 	case tree.DuplicatePolicy == trillian.DuplicatePolicy_UNKNOWN_DUPLICATE_POLICY:
 		return fmt.Errorf("invalid duplicate_policy: %s", tree.DuplicatePolicy)
+	case tree.PrivateKey == nil:
+		return errors.New("a private_key is required")
 	}
+
+	// Check that the private_key proto contains a valid serialized proto.
+	// TODO(robpercival): Could we attempt to produce an STH at this point,
+	// to verify that the key works?
+	var privateKey ptypes.DynamicAny
+	if err := ptypes.UnmarshalAny(tree.PrivateKey, &privateKey); err != nil {
+		return fmt.Errorf("invalid private_key: %v", err)
+	}
+
 	return validateMutableTreeFields(tree)
 }
 
