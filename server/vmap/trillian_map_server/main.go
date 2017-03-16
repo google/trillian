@@ -81,6 +81,7 @@ func main() {
 	if err != nil {
 		glog.Exitf("Failed to open MySQL database: %v", err)
 	}
+	defer db.Close()
 
 	registry := extension.Registry{
 		AdminStorage:  mysql.NewAdminStorage(db),
