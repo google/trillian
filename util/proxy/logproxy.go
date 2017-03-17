@@ -12,23 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package logproxy forwards Trillian Log Server requests to another server.
-package logproxy
+// Package proxy forwards Trillian Log Server requests to another server.
+package proxy
 
 import (
-	"golang.org/x/net/context"
-
 	"github.com/google/trillian"
+	"golang.org/x/net/context"
 )
 
 // Log implements the TrillianLogServer interface.
-// For each RPC, Log forwards the request to the assicated method in
+//
+// For each RPC, Log forwards the request to the associated method in
 // the TrillianLogClient.
 type Log struct {
 	c trillian.TrillianLogClient
 }
 
-// NewLog returns a new proxy for the TrillianLog
+// NewLog returns a new proxy for the TrillianLogServer.
 func NewLog(c trillian.TrillianLogClient) *Log {
 	return &Log{c: c}
 }
