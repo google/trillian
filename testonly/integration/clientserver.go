@@ -40,21 +40,12 @@ var (
 	batchSize        = 50
 	sleepBetweenRuns = 100 * time.Millisecond
 	timeSource       = util.SystemTimeSource{}
-	// PublicKey returns the public key that verifies responses from this server.
-	PublicKey  = keyFromPublicPEMFile(relativeToPackage("../../testdata/log-rpc-server.pubkey.pem"))
-	privateKey = &trillian.PEMKeyFile{
+	publicKeyPath    = relativeToPackage("../../testdata/log-rpc-server.pubkey.pem")
+	privateKeyInfo   = &trillian.PEMKeyFile{
 		Path:     relativeToPackage("../../testdata/log-rpc-server.privkey.pem"),
 		Password: "towel",
 	}
 )
-
-func keyFromPublicPEMFile(path string) crypto.PublicKey {
-	key, err := keys.NewFromPublicPEMFile(path)
-	if err != nil {
-		panic(err)
-	}
-	return key
-}
 
 // LogEnv is a test environment that contains both a log server and a connection to it.
 type LogEnv struct {
@@ -66,6 +57,8 @@ type LogEnv struct {
 	sequencerCancel context.CancelFunc
 	ClientConn      *grpc.ClientConn
 	DB              *sql.DB
+	// PublicKey is the public key that verifies responses from this server.
+	PublicKey crypto.PublicKey
 }
 
 // listen opens a random high numbered port for listening.
@@ -147,12 +140,22 @@ func NewLogEnv(ctx context.Context, numSequencers int, testID string) (*LogEnv, 
 		}
 		return nil, err
 	}
+
+	publicKey, err := keys.NewFromPublicPEMFile(publicKeyPath)
+	if err != nil {
+		if cancel != nil {
+			cancel()
+		}
+		return nil, err
+	}
+
 	return &LogEnv{
 		pendingTasks:    &wg,
 		grpcServer:      grpcServer,
 		logServer:       logServer,
 		ClientConn:      cc,
 		DB:              db,
+		PublicKey:       publicKey,
 		LogOperation:    sequencerManager,
 		Sequencer:       sequencerTask,
 		sequencerCancel: cancel,
@@ -181,7 +184,7 @@ func (env *LogEnv) CreateLog() (int64, error) {
 
 	tree := testonly.LogTree
 
-	tree.PrivateKey, err = ptypes.MarshalAny(privateKey)
+	tree.PrivateKey, err = ptypes.MarshalAny(privateKeyInfo)
 	if err != nil {
 		return 0, err
 	}
