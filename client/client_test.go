@@ -67,7 +67,7 @@ func TestAddLeaf(t *testing.T) {
 			wantErr: true,
 		},
 	} {
-		client := New(logID, test.client, testonly.Hasher, integration.PublicKey)
+		client := New(logID, test.client, testonly.Hasher, env.PublicKey)
 		client.MaxTries = 1
 
 		if err, want := client.AddLeaf(ctx, []byte(test.desc)), codes.DeadlineExceeded; grpc.Code(err) != want {
@@ -94,7 +94,7 @@ func TestUpdateSTR(t *testing.T) {
 		t.Fatalf("Failed to create log: %v", err)
 	}
 	cli := trillian.NewTrillianLogClient(env.ClientConn)
-	client := New(logID, cli, testonly.Hasher, integration.PublicKey)
+	client := New(logID, cli, testonly.Hasher, env.PublicKey)
 
 	before := client.STR.TreeSize
 	if err, want := client.AddLeaf(ctx, []byte("foo")), codes.DeadlineExceeded; grpc.Code(err) != want {
