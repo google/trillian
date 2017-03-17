@@ -15,7 +15,7 @@ yes | "${SCRIPTS_DIR}"/resetdb.sh
 
 echo "Starting Map RPC server on port ${RPC_PORT}"
 pushd "${TRILLIAN_ROOT}" > /dev/null
-./trillian_map_server --private_key_password=towel --private_key_file=${TESTDATA}/map-rpc-server.privkey.pem --port ${RPC_PORT} &
+./trillian_map_server --port ${RPC_PORT} &
 RPC_SERVER_PID=$!
 popd > /dev/null
 

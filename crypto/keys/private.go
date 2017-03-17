@@ -15,6 +15,7 @@
 package keys
 
 import (
+	"context"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/rsa"
@@ -23,7 +24,18 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+
+	"github.com/google/trillian"
 )
+
+// SignerFactory creates signers for Trillian trees.
+// A signers may be created by loading a private key, interfacing with a HSM,
+// or sending network requests to a remote key management service, to give a few
+// examples.
+type SignerFactory interface {
+	// NewSigner returns a signer for the given tree.
+	NewSigner(context.Context, *trillian.Tree) (crypto.Signer, error)
+}
 
 // NewFromPrivatePEMFile reads a PEM-encoded private key from a file.
 // The key may be protected by a password.

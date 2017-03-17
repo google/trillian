@@ -18,7 +18,7 @@ done
 
 echo "Starting Log RPC server on port ${RPC_PORT}"
 pushd "${TRILLIAN_ROOT}" > /dev/null
-./trillian_log_server --private_key_password=towel --private_key_file=${TESTDATA}/log-rpc-server.privkey.pem --port ${RPC_PORT} &
+./trillian_log_server --port ${RPC_PORT} &
 RPC_SERVER_PID=$!
 popd > /dev/null
 
@@ -28,7 +28,7 @@ waitForServerStartup ${RPC_PORT}
 
 echo "Starting Log signer"
 pushd "${TRILLIAN_ROOT}" > /dev/null
-./trillian_log_signer --private_key_password=towel --private_key_file=${TESTDATA}/log-rpc-server.privkey.pem --sequencer_sleep_between_runs="1s" --batch_size=100 --export_metrics=false &
+./trillian_log_signer --sequencer_sleep_between_runs="1s" --batch_size=100 --export_metrics=false &
 LOG_SIGNER_PID=$!
 TO_KILL+=(${LOG_SIGNER_PID})
 popd > /dev/null

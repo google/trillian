@@ -15,10 +15,12 @@
 package server
 
 import (
+	"context"
 	"sync"
 	"time"
 
 	"github.com/golang/glog"
+	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/log"
 	"github.com/google/trillian/merkle"
@@ -61,7 +63,7 @@ func (s SequencerManager) ExecutePass(logIDs []int64, logctx LogOperationManager
 
 	storage, err := s.registry.GetLogStorage()
 	if err != nil {
-		glog.Warningf("Failed to acquire log storage: %v", err)
+		glog.Errorf("Failed to acquire log storage: %v", err)
 		return
 	}
 
@@ -96,9 +98,9 @@ func (s SequencerManager) ExecutePass(logIDs []int64, logctx LogOperationManager
 					continue
 				}
 
-				signer, err := s.registry.GetSigner(logID)
+				signer, err := newSigner(ctx, s.registry, logID)
 				if err != nil {
-					glog.Errorf("No signer for log %d: %v", logID, err)
+					glog.Errorf("Could not get signer for log %d: %v", logID, err)
 					continue
 				}
 
@@ -127,4 +129,33 @@ func (s SequencerManager) ExecutePass(logIDs []int64, logctx LogOperationManager
 	mu.Lock()
 	defer mu.Unlock()
 	glog.V(1).Infof("Sequencing group run completed in %.2f seconds: %v succeeded, %v failed, %v leaves integrated", d, successCount, len(logIDs)-successCount, leavesAdded)
+}
+
+func newSigner(ctx context.Context, registry extension.Registry, logID int64) (*crypto.Signer, error) {
+	snapshot, err := registry.GetAdminStorage().Snapshot(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer snapshot.Close()
+
+	tree, err := snapshot.GetTree(ctx, logID)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := snapshot.Commit(); err != nil {
+		return nil, err
+	}
+
+	keyProvider, err := registry.GetSignerFactory()
+	if err != nil {
+		return nil, err
+	}
+
+	signer, err := keyProvider.NewSigner(ctx, tree)
+	if err != nil {
+		return nil, err
+	}
+
+	return crypto.NewSigner(signer), nil
 }

@@ -40,7 +40,7 @@ for ((i=0; i < RPC_SERVER_COUNT; i++)); do
   RPC_SERVERS="${RPC_SERVERS},localhost:${port}"
 
   echo "Starting Log RPC server on port ${port}"
-  ./trillian_log_server --private_key_password=towel --private_key_file=${TESTDATA}/log-rpc-server.privkey.pem --port ${port} --export_metrics=false &
+  ./trillian_log_server --port ${port} --export_metrics=false &
   pid=$!
   RPC_SERVER_PIDS+=(${pid})
   waitForServerStartup ${port}
@@ -64,7 +64,7 @@ waitForServerStartup ${LB_PORT}
 declare -a LOG_SIGNER_PIDS
 for ((i=0; i < LOG_SIGNER_COUNT; i++)); do
   echo "Starting Log signer"
-  ./trillian_log_signer --private_key_password=towel --private_key_file=${TESTDATA}/log-rpc-server.privkey.pem --sequencer_sleep_between_runs="1s" --batch_size=500 --export_metrics=false --num_sequencers 2 &
+  ./trillian_log_signer --sequencer_sleep_between_runs="1s" --batch_size=500 --export_metrics=false --num_sequencers 2 &
   pid=$!
   LOG_SIGNER_PIDS+=(${pid})
 done

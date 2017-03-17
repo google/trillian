@@ -5,7 +5,7 @@ package extension
 
 import (
 	gomock "github.com/golang/mock/gomock"
-	crypto "github.com/google/trillian/crypto"
+	keys "github.com/google/trillian/crypto/keys"
 	storage "github.com/google/trillian/storage"
 )
 
@@ -62,13 +62,13 @@ func (_mr *_MockRegistryRecorder) GetMapStorage() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetMapStorage")
 }
 
-func (_m *MockRegistry) GetSigner(_param0 int64) (*crypto.Signer, error) {
-	ret := _m.ctrl.Call(_m, "GetSigner", _param0)
-	ret0, _ := ret[0].(*crypto.Signer)
+func (_m *MockRegistry) GetSignerFactory() (keys.SignerFactory, error) {
+	ret := _m.ctrl.Call(_m, "GetSignerFactory")
+	ret0, _ := ret[0].(keys.SignerFactory)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-func (_mr *_MockRegistryRecorder) GetSigner(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetSigner", arg0)
+func (_mr *_MockRegistryRecorder) GetSignerFactory() *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetSignerFactory")
 }
