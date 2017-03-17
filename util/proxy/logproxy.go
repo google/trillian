@@ -18,7 +18,6 @@ package logproxy
 import (
 	"golang.org/x/net/context"
 
-	google_protobuf "github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/trillian"
 )
 
@@ -29,13 +28,13 @@ type Log struct {
 	c trillian.TrillianLogClient
 }
 
-// New returns a new proxy for the TrillianLog
-func New(c trillian.TrillianLogClient) *Log {
+// NewLog returns a new proxy for the TrillianLog
+func NewLog(c trillian.TrillianLogClient) *Log {
 	return &Log{c: c}
 }
 
 // QueueLeaf forwards the RPC.
-func (p *Log) QueueLeaf(ctx context.Context, in *trillian.QueueLeafRequest) (*google_protobuf.Empty, error) {
+func (p *Log) QueueLeaf(ctx context.Context, in *trillian.QueueLeafRequest) (*trillian.QueueLeafResponse, error) {
 	return p.c.QueueLeaf(ctx, in)
 }
 
@@ -54,7 +53,7 @@ func (p *Log) GetInclusionProofByHash(ctx context.Context, in *trillian.GetInclu
 	return p.c.GetInclusionProofByHash(ctx, in)
 }
 
-// GetConsistencyProof forwards requests the RPC.
+// GetConsistencyProof forwards the RPC.
 func (p *Log) GetConsistencyProof(ctx context.Context, in *trillian.GetConsistencyProofRequest) (*trillian.GetConsistencyProofResponse, error) {
 	return p.c.GetConsistencyProof(ctx, in)
 }
