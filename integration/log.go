@@ -267,7 +267,11 @@ func readbackLogEntries(logID int64, client trillian.TrillianLogClient, params T
 		}
 
 		glog.Infof("Reading %d leaves from %d ...", numLeaves, currentLeaf+params.startLeaf)
-		req := makeGetLeavesByIndexRequest(logID, currentLeaf+params.startLeaf, numLeaves)
+		req := &trillian.GetLeavesByIndexRequest{
+			LogId:      logID,
+			StartIndex: currentLeaf + params.startLeaf,
+			PageSize:   numLeaves,
+		}
 		ctx, cancel := getRPCDeadlineContext(params)
 		response, err := client.GetLeavesByIndex(ctx, req)
 		cancel()
@@ -434,16 +438,6 @@ func checkConsistencyProof(consistParams consistencyProofParams, treeID int64, t
 
 	// Compare the proofs, they should be identical
 	return compareLogAndTreeProof(resp.Proof, proof)
-}
-
-func makeGetLeavesByIndexRequest(logID int64, startLeaf, numLeaves int64) *trillian.GetLeavesByIndexRequest {
-	leafIndices := make([]int64, 0, numLeaves)
-
-	for l := int64(0); l < numLeaves; l++ {
-		leafIndices = append(leafIndices, l+startLeaf)
-	}
-
-	return &trillian.GetLeavesByIndexRequest{LogId: logID, LeafIndex: leafIndices}
 }
 
 func buildMemoryMerkleTree(leafMap map[int64]*trillian.LogLeaf, params TestParameters) *merkle.InMemoryMerkleTree {

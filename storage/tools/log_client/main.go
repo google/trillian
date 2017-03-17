@@ -36,13 +36,11 @@ func buildGetLeavesByIndexRequest(logID int64, startLeaf, numLeaves int64) *tril
 		panic("Start leaf index and num_leaves must be >= 0")
 	}
 
-	var leafIndices []int64
-
-	for l := int64(0); l < numLeaves; l++ {
-		leafIndices = append(leafIndices, l+startLeaf)
+	return &trillian.GetLeavesByIndexRequest{
+		LogId:      logID,
+		StartIndex: startLeaf,
+		PageSize:   numLeaves,
 	}
-
-	return &trillian.GetLeavesByIndexRequest{LogId: logID, LeafIndex: leafIndices}
 }
 
 // TODO: Move this code out to a better place when we tidy up the initial test main stuff

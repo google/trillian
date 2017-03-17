@@ -142,12 +142,13 @@ message GetLeavesByHashResponse {
 
 message GetLeavesByIndexRequest {
     int64 log_id = 1;
-    repeated int64 leaf_index = 2;
+    int64 start_index = 2;
+    int64 page_size = 3;
 }
 
 message GetLeavesByIndexResponse {
-    // TODO(gbelvin) reply with error codes.
-    repeated LogLeaf leaves = 2;
+    repeated LogLeaf leaves = 1;
+    int64 next_page_index = 2;
 }
 
 message GetSequencedLeafCountRequest {

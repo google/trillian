@@ -673,22 +673,13 @@ func TestGetEntries(t *testing.T) {
 			errStr: "bang",
 		},
 		{
-			descr: "backend extra leaves",
+			descr: "backend not enough leaves",
 			req:   "start=1&end=2",
 			want:  http.StatusInternalServerError,
 			rpcRsp: &trillian.GetLeavesByIndexResponse{
-				Leaves: []*trillian.LogLeaf{{LeafIndex: 1}, {LeafIndex: 2}, {LeafIndex: 3}},
+				Leaves: []*trillian.LogLeaf{{LeafIndex: 1}},
 			},
-			errStr: "too many leaves",
-		},
-		{
-			descr: "backend non-contiguous range",
-			req:   "start=1&end=2",
-			want:  http.StatusInternalServerError,
-			rpcRsp: &trillian.GetLeavesByIndexResponse{
-				Leaves: []*trillian.LogLeaf{{LeafIndex: 1}, {LeafIndex: 3}},
-			},
-			errStr: "unexpected leaf index",
+			errStr: "did not return enough leaves",
 		},
 		{
 			descr: "backend leaf corrupt",
@@ -725,7 +716,11 @@ func TestGetEntries(t *testing.T) {
 			continue
 		}
 		if test.rpcRsp != nil || test.rpcErr != nil {
-			info.client.EXPECT().GetLeavesByIndex(deadlineMatcher(), &trillian.GetLeavesByIndexRequest{LogId: 0x42, LeafIndex: []int64{1, 2}}).Return(test.rpcRsp, test.rpcErr)
+			info.client.EXPECT().GetLeavesByIndex(deadlineMatcher(), &trillian.GetLeavesByIndexRequest{
+				LogId:      0x42,
+				StartIndex: 1,
+				PageSize:   2,
+			}).Return(test.rpcRsp, test.rpcErr)
 		}
 
 		w := httptest.NewRecorder()
@@ -794,7 +789,11 @@ func TestGetEntriesRanges(t *testing.T) {
 	// it to fail with a specific error.
 	for _, test := range tests {
 		if test.rpc {
-			info.client.EXPECT().GetLeavesByIndex(deadlineMatcher(), &trillian.GetLeavesByIndexRequest{LogId: 0x42, LeafIndex: buildIndicesForRange(test.start, test.end)}).Return(nil, errors.New("RPCMADE"))
+			info.client.EXPECT().GetLeavesByIndex(deadlineMatcher(), &trillian.GetLeavesByIndexRequest{
+				LogId:      0x42,
+				StartIndex: test.start,
+				PageSize:   test.end - test.start + 1,
+			}).Return(nil, errors.New("RPCMADE"))
 		}
 
 		path := fmt.Sprintf("/ct/v1/get-entries?start=%d&end=%d", test.start, test.end)
@@ -812,44 +811,6 @@ func TestGetEntriesRanges(t *testing.T) {
 		if test.rpc && !strings.Contains(w.Body.String(), "RPCMADE") {
 			// If an RPC was emitted, it should have received and propagated an error.
 			t.Errorf("getEntries(%d, %d)=%q; expect RPCMADE for test %s", test.start, test.end, w.Body, test.desc)
-		}
-	}
-}
-
-func TestSortLeafRange(t *testing.T) {
-	var tests = []struct {
-		start   int64
-		end     int64
-		entries []int
-		errStr  string
-	}{
-		{1, 2, []int{1, 2}, ""},
-		{1, 1, []int{1}, ""},
-		{5, 12, []int{5, 6, 7, 8, 9, 10, 11, 12}, ""},
-		{5, 12, []int{5, 6, 7, 8, 9, 10}, ""},
-		{5, 12, []int{7, 6, 8, 9, 10, 5}, ""},
-		{5, 12, []int{5, 5, 6, 7, 8, 9, 10}, "unexpected leaf index"},
-		{5, 12, []int{6, 7, 8, 9, 10, 11, 12}, "unexpected leaf index"},
-		{5, 12, []int{5, 6, 7, 8, 9, 10, 12}, "unexpected leaf index"},
-		{5, 12, []int{5, 6, 7, 8, 9, 10, 11, 12, 13}, "too many leaves"},
-		{1, 4, []int{5, 2, 3}, "unexpected leaf index"},
-	}
-	for _, test := range tests {
-		rsp := trillian.GetLeavesByIndexResponse{}
-		for _, idx := range test.entries {
-			rsp.Leaves = append(rsp.Leaves, &trillian.LogLeaf{LeafIndex: int64(idx)})
-		}
-		err := sortLeafRange(&rsp, test.start, test.end)
-		if test.errStr != "" {
-			if err == nil {
-				t.Errorf("sortLeafRange(%v, %d, %d)=nil; want substring %q", test.entries, test.start, test.end, test.errStr)
-			} else if !strings.Contains(err.Error(), test.errStr) {
-				t.Errorf("sortLeafRange(%v, %d, %d)=%v; want substring %q", test.entries, test.start, test.end, err, test.errStr)
-			}
-			continue
-		}
-		if err != nil {
-			t.Errorf("sortLeafRange(%v, %d, %d)=%v; want nil", test.entries, test.start, test.end, err)
 		}
 	}
 }
