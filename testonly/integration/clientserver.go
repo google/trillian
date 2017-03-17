@@ -49,6 +49,7 @@ var (
 
 // LogEnv is a test environment that contains both a log server and a connection to it.
 type LogEnv struct {
+	registry        extension.Registry
 	pendingTasks    *sync.WaitGroup
 	grpcServer      *grpc.Server
 	logServer       *server.TrillianLogRPCServer
@@ -150,6 +151,7 @@ func NewLogEnv(ctx context.Context, numSequencers int, testID string) (*LogEnv, 
 	}
 
 	return &LogEnv{
+		registry:        registry,
 		pendingTasks:    &wg,
 		grpcServer:      grpcServer,
 		logServer:       logServer,
@@ -175,9 +177,8 @@ func (env *LogEnv) Close() {
 
 // CreateLog creates a log and signs the first empty tree head.
 func (env *LogEnv) CreateLog() (int64, error) {
-	s := mysql.NewAdminStorage(env.DB)
 	ctx := context.Background()
-	tx, err := s.Begin(ctx)
+	tx, err := env.registry.AdminStorage.Begin(ctx)
 	if err != nil {
 		return 0, err
 	}
