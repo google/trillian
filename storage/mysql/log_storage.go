@@ -353,13 +353,11 @@ func (t *logTreeTX) QueueLeaves(leaves []*trillian.LogLeaf, queueTimestamp time.
 		// if there's ever a hash collision it will do the wrong thing and it also
 		// causes a DELETE / INSERT, which is undesirable.
 		_, err := t.tx.Exec(insertSQL, t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData)
-		if err != nil {
-			if mysqlErr, ok := err.(*mysql.MySQLError); ok && mysqlErr.Number == errNumDuplicate {
-				// Remember the duplicate leaf, using the requested leaf for now.
-				existingLeaves[leafPos.idx] = leaf
-				existingCount++
-				continue
-			}
+		if isDuplicateErr(err) {
+			// Remember the duplicate leaf, using the requested leaf for now.
+			existingLeaves[leafPos.idx] = leaf
+			existingCount++
+			continue
 		}
 		if err != nil {
 			glog.Warningf("Error inserting %d into LeafData: %s", i, err)
@@ -694,4 +692,14 @@ func (l byLeafIdentityHashWithPosition) Swap(i, j int) {
 }
 func (l byLeafIdentityHashWithPosition) Less(i, j int) bool {
 	return bytes.Compare(l[i].leaf.LeafIdentityHash, l[j].leaf.LeafIdentityHash) == -1
+}
+
+func isDuplicateErr(err error) bool {
+	if err != nil {
+		if mysqlErr, ok := err.(*mysql.MySQLError); ok && mysqlErr.Number == errNumDuplicate {
+			return true
+		}
+	}
+
+	return false
 }
