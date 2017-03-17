@@ -104,6 +104,10 @@ func NewLogEnv(ctx context.Context, numSequencers int, testID string) (*LogEnv, 
 	var cancel context.CancelFunc
 	if numSequencers == 0 {
 		// Test sequencer that needs manual triggering (with env.Sequencer.OperationLoop()).
+		//
+		// TODO(https://github.com/google/trillian/issues/419): if NewLogOperationManagerForTest()
+		// wasn't holding onto ctx after it returns, this code could be simplified to use a cancelable
+		// context for both code paths.
 		sequencerTask = server.NewLogOperationManagerForTest(ctx, registry,
 			batchSize, sleepBetweenRuns, timeSource, sequencerManager)
 	} else {
@@ -184,7 +188,6 @@ func (env *LogEnv) CreateLog() (int64, error) {
 	}
 
 	tree := testonly.LogTree
-
 	tree.PrivateKey, err = ptypes.MarshalAny(privateKeyInfo)
 	if err != nil {
 		return 0, err
