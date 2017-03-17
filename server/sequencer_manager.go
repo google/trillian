@@ -147,12 +147,12 @@ func newSigner(ctx context.Context, registry extension.Registry, logID int64) (*
 		return nil, err
 	}
 
-	keyProvider, err := registry.GetKeyProvider()
+	keyProvider, err := registry.GetSignerFactory()
 	if err != nil {
 		return nil, err
 	}
 
-	signer, err := keyProvider.Signer(ctx, tree)
+	signer, err := keyProvider.NewSigner(ctx, tree)
 	if err != nil {
 		return nil, err
 	}

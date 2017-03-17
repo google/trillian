@@ -33,6 +33,6 @@ type Registry interface {
 	// GetMapStorage returns a configured storage.MapStorage instance or an error if the storage cannot be set up.
 	GetMapStorage() (storage.MapStorage, error)
 
-	// GetKeyProvider returns a keys.Provider that allows access to the private keys belonging to all trees.
-	GetKeyProvider() (keys.Provider, error)
+	// GetSignerFactory returns a keys.SignerFactory that allows access to the private keys belonging to all trees.
+	GetSignerFactory() (keys.SignerFactory, error)
 }

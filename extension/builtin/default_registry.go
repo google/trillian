@@ -53,8 +53,8 @@ func (r *defaultRegistry) GetMapStorage() (storage.MapStorage, error) {
 	return mysql.NewMapStorage(r.db), nil
 }
 
-func (r *defaultRegistry) GetKeyProvider() (keys.Provider, error) {
-	return keyProvider{}, nil
+func (r *defaultRegistry) GetSignerFactory() (keys.SignerFactory, error) {
+	return signerFactory{}, nil
 }
 
 // NewExtensionRegistry returns an extension.Registry implementation backed by a given
@@ -74,11 +74,11 @@ func NewDefaultExtensionRegistry() (extension.Registry, error) {
 	return NewExtensionRegistry(db)
 }
 
-// keyProvider implements keys.Provider.
-type keyProvider struct{}
+// signerFactory implements keys.SignerFactory.
+type signerFactory struct{}
 
-// Signer returns a crypto.Signer for the given tree.
-func (p keyProvider) Signer(ctx context.Context, tree *trillian.Tree) (crypto.Signer, error) {
+// NewSigner returns a crypto.Signer for the given tree.
+func (f signerFactory) NewSigner(ctx context.Context, tree *trillian.Tree) (crypto.Signer, error) {
 	if tree.PrivateKey == nil {
 		return nil, fmt.Errorf("tree %d has no PrivateKey", tree.GetTreeId())
 	}

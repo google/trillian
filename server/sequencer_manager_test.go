@@ -78,12 +78,12 @@ var zeroDuration = 0 * time.Second
 
 const writeRev = int64(24)
 
-type keyProvider struct {
+type signerFactory struct {
 	signers map[int64]crypto.Signer
 }
 
-func (p *keyProvider) Signer(ctx context.Context, tree *trillian.Tree) (crypto.Signer, error) {
-	signer := p.signers[tree.GetTreeId()]
+func (f *signerFactory) NewSigner(ctx context.Context, tree *trillian.Tree) (crypto.Signer, error) {
+	signer := f.signers[tree.GetTreeId()]
 	if signer == nil {
 		return nil, fmt.Errorf("no signer for tree %v", tree.GetTreeId())
 	}
@@ -147,7 +147,7 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 	registry := extension.NewMockRegistry(mockCtrl)
 	registry.EXPECT().GetAdminStorage().Return(mockAdmin)
 	registry.EXPECT().GetLogStorage().Return(mockStorage, nil)
-	registry.EXPECT().GetKeyProvider().Return(&keyProvider{
+	registry.EXPECT().GetSignerFactory().Return(&signerFactory{
 		signers: map[int64]crypto.Signer{logID: signer},
 	}, nil)
 	sm := NewSequencerManager(registry, zeroDuration)
@@ -190,7 +190,7 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 	registry := extension.NewMockRegistry(mockCtrl)
 	registry.EXPECT().GetAdminStorage().Return(mockAdmin)
 	registry.EXPECT().GetLogStorage().Return(mockStorage, nil)
-	registry.EXPECT().GetKeyProvider().Return(&keyProvider{
+	registry.EXPECT().GetSignerFactory().Return(&signerFactory{
 		signers: map[int64]crypto.Signer{logID: signer},
 	}, nil)
 
@@ -230,7 +230,7 @@ func TestSequencerManagerGuardWindow(t *testing.T) {
 	registry := extension.NewMockRegistry(mockCtrl)
 	registry.EXPECT().GetAdminStorage().Return(mockAdmin)
 	registry.EXPECT().GetLogStorage().Return(mockStorage, nil)
-	registry.EXPECT().GetKeyProvider().Return(&keyProvider{
+	registry.EXPECT().GetSignerFactory().Return(&signerFactory{
 		signers: map[int64]crypto.Signer{logID: signer},
 	}, nil)
 

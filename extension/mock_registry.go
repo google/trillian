@@ -40,17 +40,6 @@ func (_mr *_MockRegistryRecorder) GetAdminStorage() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetAdminStorage")
 }
 
-func (_m *MockRegistry) GetKeyProvider() (keys.Provider, error) {
-	ret := _m.ctrl.Call(_m, "GetKeyProvider")
-	ret0, _ := ret[0].(keys.Provider)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-func (_mr *_MockRegistryRecorder) GetKeyProvider() *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetKeyProvider")
-}
-
 func (_m *MockRegistry) GetLogStorage() (storage.LogStorage, error) {
 	ret := _m.ctrl.Call(_m, "GetLogStorage")
 	ret0, _ := ret[0].(storage.LogStorage)
@@ -71,4 +60,15 @@ func (_m *MockRegistry) GetMapStorage() (storage.MapStorage, error) {
 
 func (_mr *_MockRegistryRecorder) GetMapStorage() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetMapStorage")
+}
+
+func (_m *MockRegistry) GetSignerFactory() (keys.SignerFactory, error) {
+	ret := _m.ctrl.Call(_m, "GetSignerFactory")
+	ret0, _ := ret[0].(keys.SignerFactory)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+func (_mr *_MockRegistryRecorder) GetSignerFactory() *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetSignerFactory")
 }

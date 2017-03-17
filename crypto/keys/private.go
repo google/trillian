@@ -28,10 +28,13 @@ import (
 	"github.com/google/trillian"
 )
 
-// Provider handles acquisition of signers for trees.
-type Provider interface {
-	// Signer returns a signer for the given tree.
-	Signer(context.Context, *trillian.Tree) (crypto.Signer, error)
+// SignerFactory creates signers for Trillian trees.
+// A signers may be created by loading a private key, interfacing with a HSM,
+// or sending network requests to a remote key management service, to give a few
+// examples.
+type SignerFactory interface {
+	// NewSigner returns a signer for the given tree.
+	NewSigner(context.Context, *trillian.Tree) (crypto.Signer, error)
 }
 
 // NewFromPrivatePEMFile reads a PEM-encoded private key from a file.
