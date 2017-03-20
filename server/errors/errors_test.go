@@ -49,7 +49,7 @@ func TestWrapError(t *testing.T) {
 	for _, test := range tests {
 		// We can't use == for rpcErrors because grpc.Errorf returns *rpcError.
 		if diff := pretty.Compare(WrapError(test.err), test.wantErr); diff != "" {
-			t.Errorf("WrapError('%v') diff:\n%s", test.err, diff)
+			t.Errorf("WrapError('%T') diff:\n%s", test.err, diff)
 		}
 	}
 }
