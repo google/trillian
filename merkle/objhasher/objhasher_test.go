@@ -1,0 +1,45 @@
+// Copyright 2016 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package objhasher
+
+import (
+	"encoding/hex"
+	"testing"
+)
+
+func TestObjectHasher(t *testing.T) {
+	h := ObjectHasher
+
+	for _, tc := range []struct {
+		json []byte
+		want string
+	}{
+		{
+			// Verify that ordering does not affect output hash.
+			json: []byte(`{"k1":"v1","k2":"v2","k3":"v3"}`),
+			want: "ddd65f1f7568269a30df7cafc26044537dc2f02a1a0d830da61762fc3e687057",
+		},
+		{
+			// Same values, different order.
+			json: []byte(`{"k2":"v2","k1":"v1","k3":"v3"}`),
+			want: "ddd65f1f7568269a30df7cafc26044537dc2f02a1a0d830da61762fc3e687057",
+		},
+	} {
+		leaf := h.HashLeaf(tc.json)
+		if got := hex.EncodeToString(leaf); got != tc.want {
+			t.Errorf("HashLeaf(%v): \n%v, want \n%v", tc.json, got, tc.want)
+		}
+	}
+}
