@@ -14,14 +14,14 @@
 
 package errors
 
-import (
-	"fmt"
-)
+import "fmt"
 
-// Code mirrors GRPC's codes.Code.
+// Code mirrors gRPC's codes.Code.
 type Code uint32
 
-// Descriptions are copied over for developer convenience.
+// Descriptions are copied from
+// https://github.com/grpc/grpc-go/blob/master/codes/codes.go for developer
+// convenience.
 const (
 	// Canceled indicates the operation was cancelled (typically by the caller).
 	Canceled Code = 1
@@ -135,9 +135,15 @@ const (
 
 	// DataLoss indicates unrecoverable data loss or corruption.
 	DataLoss Code = 15
+
+	// Codes are expected to map 1:1 to gRPC codes. If you want to add a new
+	// value that's not on gRPC consider carefully the implications before
+	// you do so.
 )
 
-// TrillianError is an error with additional information.
+// TrillianError associates an error message with a failure code in order to
+// make error translation possible by other layers (e.g., TrillianError to
+// gRPC).
 type TrillianError interface {
 	error
 

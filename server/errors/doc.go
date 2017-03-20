@@ -12,23 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package errors contains utilities to translate TrillianErrors to gRPC errors.
 package errors
-
-import (
-	te "github.com/google/trillian/errors"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-)
-
-// WrapError wraps err as a gRPC error if err is a TrillianError, else err is
-// returned unmodified.
-func WrapError(err error) error {
-	switch err := err.(type) {
-	case te.TrillianError:
-		return grpc.Errorf(codes.Code(err.Code()), err.Error())
-	default:
-		// Nothing to do: if it's a gRPC error it's already correct, if not gRPC will assume
-		// codes.Unknown.
-		return err
-	}
-}
