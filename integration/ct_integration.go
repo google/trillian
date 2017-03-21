@@ -186,6 +186,19 @@ func RunCTIntegrationForLog(cfg ctfe.LogConfig, servers, testdir string, mmd tim
 		return fmt.Errorf("unexpected stats check: %v", err)
 	}
 
+	// Stage 4.5: get a consistency proof from size 0-> size 2, which should be empty.
+	proof02, err := pool.Pick().GetSTHConsistency(ctx, 0, 2)
+	stats.done(ctfe.GetSTHConsistencyName, 200)
+	if err != nil {
+		return fmt.Errorf("got GetSTHConsistency(0, 2)=(nil,%v); want (_,nil)", err)
+	}
+	if len(proof02) != 0 {
+		return fmt.Errorf("len(proof02)=%d; want 0", len(proof02))
+	}
+	if err := stats.check(cfg, servers); err != nil {
+		return fmt.Errorf("unexpected stats check: %v", err)
+	}
+
 	// Stage 5: add certificates 2, 3, 4, 5,...N, for some random N in [4,20]
 	atLeast := 4
 	count := atLeast + rand.Intn(20-atLeast)
