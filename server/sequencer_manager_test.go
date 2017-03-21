@@ -109,7 +109,7 @@ func TestSequencerManagerNothingToDo(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	registry := extension.Registry{
-		LogStorage:   storage.NewMockLogStorage(mockCtrl),
+		LogStorage: storage.NewMockLogStorage(mockCtrl),
 	}
 
 	sm := NewSequencerManager(registry, zeroDuration)
