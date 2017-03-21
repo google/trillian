@@ -421,22 +421,28 @@ func getSTHConsistency(ctx context.Context, c LogContext, w http.ResponseWriter,
 	if err != nil {
 		return http.StatusBadRequest, fmt.Errorf("failed to parse consistency range: %v", err)
 	}
-	req := trillian.GetConsistencyProofRequest{LogId: c.logID, FirstTreeSize: first, SecondTreeSize: second}
 
-	glog.V(2).Infof("%s: GetSTHConsistency(%d, %d) => grpc.GetConsistencyProof %+v", c.LogPrefix, first, second, req)
-	rsp, err := c.rpcClient.GetConsistencyProof(ctx, &req)
-	glog.V(2).Infof("%s: GetSTHConsistency <= grpc.GetConsistencyProof err=%v", c.LogPrefix, err)
-	if err != nil {
-		return http.StatusInternalServerError, fmt.Errorf("backend GetConsistencyProof request failed: %v", err)
+	var jsonRsp ct.GetSTHConsistencyResponse
+	if first != 0 {
+		req := trillian.GetConsistencyProofRequest{LogId: c.logID, FirstTreeSize: first, SecondTreeSize: second}
+
+		glog.V(2).Infof("%s: GetSTHConsistency(%d, %d) => grpc.GetConsistencyProof %+v", c.LogPrefix, first, second, req)
+		rsp, err := c.rpcClient.GetConsistencyProof(ctx, &req)
+		glog.V(2).Infof("%s: GetSTHConsistency <= grpc.GetConsistencyProof err=%v", c.LogPrefix, err)
+		if err != nil {
+			return http.StatusInternalServerError, fmt.Errorf("backend GetConsistencyProof request failed: %v", err)
+		}
+
+		// Additional sanity checks, none of the hashes in the returned path should be empty
+		if !checkAuditPath(rsp.Proof.ProofNode) {
+			return http.StatusInternalServerError, fmt.Errorf("backend returned invalid proof: %v", rsp.Proof)
+		}
+
+		// We got a valid response from the server. Marshal it as JSON and return it to the client
+		jsonRsp.Consistency = auditPathFromProto(rsp.Proof.ProofNode)
+	} else {
+		glog.V(2).Infof("%s: GetSTHConsistency(%d, %d) starts from 0 so return empty proof", c.LogPrefix, first, second)
 	}
-
-	// Additional sanity checks, none of the hashes in the returned path should be empty
-	if !checkAuditPath(rsp.Proof.ProofNode) {
-		return http.StatusInternalServerError, fmt.Errorf("backend returned invalid proof: %v", rsp.Proof)
-	}
-
-	// We got a valid response from the server. Marshal it as JSON and return it to the client
-	jsonRsp := ct.GetSTHConsistencyResponse{Consistency: auditPathFromProto(rsp.Proof.ProofNode)}
 
 	w.Header().Set(contentTypeHeader, contentTypeJSON)
 	jsonData, err := json.Marshal(&jsonRsp)
@@ -832,8 +838,8 @@ func parseGetSTHConsistencyRange(r *http.Request) (int64, int64, error) {
 		return 0, 0, err
 	}
 
-	if first <= 0 || second <= 0 {
-		return 0, 0, fmt.Errorf("first and second params cannot be <=0: %d %d", first, second)
+	if first < 0 || second < 0 {
+		return 0, 0, fmt.Errorf("first and second params cannot be <0: %d %d", first, second)
 	}
 	if second <= first {
 		return 0, 0, fmt.Errorf("invalid first, second params: %d %d", first, second)
