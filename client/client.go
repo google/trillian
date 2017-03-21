@@ -34,40 +34,35 @@ import (
 
 // LogClient represents a client for a given Trillian log instance.
 type LogClient struct {
-	LogID    int64
-	client   trillian.TrillianLogClient
-	hasher   merkle.TreeHasher
-	str      trillian.SignedLogRoot
-	maxTries int
-	pubKey   gocrypto.PublicKey
+	LogID  int64
+	client trillian.TrillianLogClient
+	hasher merkle.TreeHasher
+	root   trillian.SignedLogRoot
+	pubKey gocrypto.PublicKey
 }
 
 // New returns a new LogClient.
-func New(logID int64, client trillian.TrillianLogClient, hasher merkle.TreeHasher, pubKey gocrypto.PublicKey) LogVerifier {
+func New(logID int64, client trillian.TrillianLogClient, hasher merkle.TreeHasher, pubKey gocrypto.PublicKey) VerifyingLogClient {
 	return &LogClient{
-		LogID:    logID,
-		client:   client,
-		hasher:   hasher,
-		maxTries: 3,
-		pubKey:   pubKey,
+		LogID:  logID,
+		client: client,
+		hasher: hasher,
+		pubKey: pubKey,
 	}
 }
 
-// STR returns the current trusted SignedLogRoot
-func (c *LogClient) STR() trillian.SignedLogRoot {
-	return c.str
-}
-
-// SetMaxTries sets the maximum number of requests to make before returning DeadlineExceeded.
-func (c *LogClient) SetMaxTries(tries int) {
-	c.maxTries = tries
+// Root returns the current trusted SignedLogRoot.
+// The client blindly trusts the first Root it sees.
+// All others must have consistency proofs between the last Root seen and the new one.
+func (c *LogClient) Root() trillian.SignedLogRoot {
+	return c.root
 }
 
 // AddLeaf adds leaf to the append only log.
 // Blocks until it gets a verifiable response.
 func (c *LogClient) AddLeaf(ctx context.Context, data []byte) error {
-	// Fetch the current STR so we can detect when we update.
-	if err := c.UpdateSTR(ctx); err != nil {
+	// Fetch the current Root so we can detect when we update.
+	if err := c.UpdateRoot(ctx); err != nil {
 		return err
 	}
 
@@ -76,52 +71,52 @@ func (c *LogClient) AddLeaf(ctx context.Context, data []byte) error {
 	switch {
 	case grpc.Code(err) == codes.AlreadyExists:
 		// If the leaf already exists, don't wait for an update.
-		return c.getInclusionProof(ctx, leaf.MerkleLeafHash, c.str.TreeSize)
+		return c.getInclusionProof(ctx, leaf.MerkleLeafHash, c.root.TreeSize)
 	case err != nil:
 		return err
 	default:
 		err := grpc.Errorf(codes.NotFound, "Pre-loop condition")
-		for i := 0; grpc.Code(err) == codes.NotFound && i < c.maxTries; i++ {
+		for i := 0; grpc.Code(err) == codes.NotFound && ctx.Err() == nil; i++ {
 			// Wait for TreeSize to update.
-			if err := c.waitForSTRUpdate(ctx, c.maxTries); err != nil {
+			if err := c.waitForRootUpdate(ctx); err != nil {
 				return err
 			}
 
 			// Get proof by hash.
-			err = c.getInclusionProof(ctx, leaf.MerkleLeafHash, c.str.TreeSize)
+			err = c.getInclusionProof(ctx, leaf.MerkleLeafHash, c.root.TreeSize)
 		}
 		return err
 	}
 }
 
-// waitForSTRUpdate repeatedly fetches the STR until the TreeSize changes
-// or until a maximum number of attempts has been tried.
-func (c *LogClient) waitForSTRUpdate(ctx context.Context, attempts int) error {
+// waitForRootUpdate repeatedly fetches the Root until the TreeSize changes
+// or until ctx times out.
+func (c *LogClient) waitForRootUpdate(ctx context.Context) error {
 	b := &backoff.Backoff{
 		Min:    100 * time.Millisecond,
 		Max:    10 * time.Second,
 		Factor: 2,
 		Jitter: true,
 	}
-	startTreeSize := c.str.TreeSize
+	startTreeSize := c.root.TreeSize
 	for i := 0; ; i++ {
-		if err := c.UpdateSTR(ctx); err != nil {
+		if err := c.UpdateRoot(ctx); err != nil {
 			return err
 		}
-		if c.str.TreeSize > startTreeSize {
+		if c.root.TreeSize > startTreeSize {
 			return nil
 		}
-		if i >= (attempts - 1) {
+		if err := ctx.Err(); err != nil {
 			return grpc.Errorf(codes.DeadlineExceeded,
-				"UpdateSTR().TreeSize: %v, want > %v. Tried %v times.",
-				c.str.TreeSize, startTreeSize, i+1)
+				"%v. TreeSize: %v, want > %v. Tried %v times.",
+				err, c.root.TreeSize, startTreeSize, i+1)
 		}
 		time.Sleep(b.Duration())
 	}
 }
 
-// UpdateSTR retrieves the current SignedLogRoot and verifies it.
-func (c *LogClient) UpdateSTR(ctx context.Context) error {
+// UpdateRoot retrieves the current SignedLogRoot and verifies it.
+func (c *LogClient) UpdateRoot(ctx context.Context) error {
 	req := &trillian.GetLatestSignedLogRootRequest{
 		LogId: c.LogID,
 	}
@@ -138,17 +133,17 @@ func (c *LogClient) UpdateSTR(ctx context.Context) error {
 	}
 
 	// Verify Consistency proof.
-	if str.TreeSize == c.str.TreeSize && bytes.Equal(str.RootHash, c.str.RootHash) {
+	if str.TreeSize == c.root.TreeSize && bytes.Equal(str.RootHash, c.root.RootHash) {
 		// Tree has not been updated.
 		return nil
 	}
 
-	// Implicitly trust the first STH we get.
-	if c.str.TreeSize != 0 {
+	// Implicitly trust the first root we get.
+	if c.root.TreeSize != 0 {
 		// Get consistency proof.
 		req := &trillian.GetConsistencyProofRequest{
 			LogId:          c.LogID,
-			FirstTreeSize:  c.str.TreeSize,
+			FirstTreeSize:  c.root.TreeSize,
 			SecondTreeSize: str.TreeSize,
 		}
 		proof, err := c.client.GetConsistencyProof(ctx, req)
@@ -158,13 +153,13 @@ func (c *LogClient) UpdateSTR(ctx context.Context) error {
 		// Verify consistency proof.
 		v := merkle.NewLogVerifier(c.hasher)
 		if err := v.VerifyConsistencyProof(
-			c.str.TreeSize, str.TreeSize,
-			c.str.RootHash, str.RootHash,
+			c.root.TreeSize, str.TreeSize,
+			c.root.RootHash, str.RootHash,
 			convertProof(proof.Proof)); err != nil {
 			return err
 		}
 	}
-	c.str = *str
+	c.root = *str
 	return nil
 }
 
@@ -184,7 +179,7 @@ func (c *LogClient) getInclusionProof(ctx context.Context, leafHash []byte, tree
 	for _, proof := range resp.Proof {
 		neighbors := convertProof(proof)
 		v := merkle.NewLogVerifier(c.hasher)
-		if err := v.VerifyInclusionProof(proof.LeafIndex, treeSize, neighbors, c.str.RootHash, leafHash); err != nil {
+		if err := v.VerifyInclusionProof(proof.LeafIndex, treeSize, neighbors, c.root.RootHash, leafHash); err != nil {
 			return err
 		}
 	}

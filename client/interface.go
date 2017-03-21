@@ -20,10 +20,15 @@ import (
 	"github.com/google/trillian"
 )
 
-// LogVerifier is a client that verifies output from Trillian.
-type LogVerifier interface {
+// VerifyingLogClient is a client that verifies output from Trillian.
+type VerifyingLogClient interface {
+	// AddLeaf adds data to the Trillian Log and blocks until an inclusion proof
+	// is available. If no proof is available within the ctx deadline, DeadlineExceeded
+	// is returned.
 	AddLeaf(ctx context.Context, data []byte) error
-	UpdateSTR(ctx context.Context) error
-	STR() trillian.SignedLogRoot
-	SetMaxTries(int)
+	// UpdateRoot fetches and verifies the current SignedTreeRoot.
+	// It checks signatures as well as consistency proofs from the last-seen root.
+	UpdateRoot(ctx context.Context) error
+	// Root provides the last root obtained by UpdateRoot.
+	Root() trillian.SignedLogRoot
 }
