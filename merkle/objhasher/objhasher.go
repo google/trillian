@@ -30,22 +30,27 @@ const nodeHashPrefix = 1
 type objhasher struct{}
 
 // HashEmpty returns the hash of an empty element for the tree
-func (t objhasher) HashEmpty() []byte {
+func (o *objhasher) HashEmpty() []byte {
 	return sha256.New().Sum(nil)
 }
 
 // HashLeaf returns the object hash of leaf, which must be a JSON object.
-func (t objhasher) HashLeaf(leaf []byte) []byte {
+func (o *objhasher) HashLeaf(leaf []byte) []byte {
 	hash := objecthash.CommonJSONHash(string(leaf))
 	return hash[:]
 }
 
 // HashChildren returns the inner Merkle tree node hash of the the two child nodes l and r.
 // The hashed structure is NodeHashPrefix||l||r.
-func (t objhasher) HashChildren(l, r []byte) []byte {
+func (o *objhasher) HashChildren(l []byte, r []byte) []byte {
 	h := sha256.New()
 	h.Write([]byte{nodeHashPrefix})
 	h.Write(l)
 	h.Write(r)
 	return h.Sum(nil)
+}
+
+// Size returns the number of bytes in the hash output.
+func (o *objhasher) Size() int {
+	return sha256.Size
 }
