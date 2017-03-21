@@ -15,12 +15,10 @@
 package storage
 
 import (
-	"errors"
-	"fmt"
-
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/sigpb"
+	"github.com/google/trillian/errors"
 )
 
 const (
@@ -35,21 +33,21 @@ const (
 func ValidateTreeForCreation(tree *trillian.Tree) error {
 	switch {
 	case tree == nil:
-		return errors.New("a tree is required")
+		return errors.New(errors.InvalidArgument, "a tree is required")
 	case tree.TreeState != trillian.TreeState_ACTIVE:
-		return fmt.Errorf("invalid tree_state: %s", tree.TreeState)
+		return errors.Errorf(errors.InvalidArgument, "invalid tree_state: %s", tree.TreeState)
 	case tree.TreeType == trillian.TreeType_UNKNOWN_TREE_TYPE:
-		return fmt.Errorf("invalid tree_type: %s", tree.TreeType)
+		return errors.Errorf(errors.InvalidArgument, "invalid tree_type: %s", tree.TreeType)
 	case tree.HashStrategy == trillian.HashStrategy_UNKNOWN_HASH_STRATEGY:
-		return fmt.Errorf("invalid hash_strategy: %s", tree.HashStrategy)
+		return errors.Errorf(errors.InvalidArgument, "invalid hash_strategy: %s", tree.HashStrategy)
 	case tree.HashAlgorithm == sigpb.DigitallySigned_NONE:
-		return fmt.Errorf("invalid hash_algorithm: %s", tree.HashAlgorithm)
+		return errors.Errorf(errors.InvalidArgument, "invalid hash_algorithm: %s", tree.HashAlgorithm)
 	case tree.SignatureAlgorithm == sigpb.DigitallySigned_ANONYMOUS:
-		return fmt.Errorf("invalid signature_algorithm: %s", tree.SignatureAlgorithm)
+		return errors.Errorf(errors.InvalidArgument, "invalid signature_algorithm: %s", tree.SignatureAlgorithm)
 	case tree.DuplicatePolicy == trillian.DuplicatePolicy_UNKNOWN_DUPLICATE_POLICY:
-		return fmt.Errorf("invalid duplicate_policy: %s", tree.DuplicatePolicy)
+		return errors.Errorf(errors.InvalidArgument, "invalid duplicate_policy: %s", tree.DuplicatePolicy)
 	case tree.PrivateKey == nil:
-		return errors.New("a private_key is required")
+		return errors.New(errors.InvalidArgument, "a private_key is required")
 	}
 
 	// Check that the private_key proto contains a valid serialized proto.
@@ -57,7 +55,7 @@ func ValidateTreeForCreation(tree *trillian.Tree) error {
 	// to verify that the key works?
 	var privateKey ptypes.DynamicAny
 	if err := ptypes.UnmarshalAny(tree.PrivateKey, &privateKey); err != nil {
-		return fmt.Errorf("invalid private_key: %v", err)
+		return errors.Errorf(errors.InvalidArgument, "invalid private_key: %v", err)
 	}
 
 	return validateMutableTreeFields(tree)
@@ -74,23 +72,23 @@ func ValidateTreeForUpdate(storedTree, newTree *trillian.Tree) error {
 	// Check that readonly fields didn't change
 	switch {
 	case storedTree.TreeId != newTree.TreeId:
-		return errors.New("readonly field changed: tree_id")
+		return errors.New(errors.InvalidArgument, "readonly field changed: tree_id")
 	case storedTree.TreeType != newTree.TreeType:
-		return errors.New("readonly field changed: tree_type")
+		return errors.New(errors.InvalidArgument, "readonly field changed: tree_type")
 	case storedTree.HashStrategy != newTree.HashStrategy:
-		return errors.New("readonly field changed: hash_strategy")
+		return errors.New(errors.InvalidArgument, "readonly field changed: hash_strategy")
 	case storedTree.HashAlgorithm != newTree.HashAlgorithm:
-		return errors.New("readonly field changed: hash_algorithm")
+		return errors.New(errors.InvalidArgument, "readonly field changed: hash_algorithm")
 	case storedTree.SignatureAlgorithm != newTree.SignatureAlgorithm:
-		return errors.New("readonly field changed: signature_algorithm")
+		return errors.New(errors.InvalidArgument, "readonly field changed: signature_algorithm")
 	case storedTree.DuplicatePolicy != newTree.DuplicatePolicy:
-		return errors.New("readonly field changed: duplicate_policy")
+		return errors.New(errors.InvalidArgument, "readonly field changed: duplicate_policy")
 	case storedTree.CreateTimeMillisSinceEpoch != newTree.CreateTimeMillisSinceEpoch:
-		return errors.New("readonly field changed: create_time")
+		return errors.New(errors.InvalidArgument, "readonly field changed: create_time")
 	case storedTree.UpdateTimeMillisSinceEpoch != newTree.UpdateTimeMillisSinceEpoch:
-		return errors.New("readonly field changed: update_time")
+		return errors.New(errors.InvalidArgument, "readonly field changed: update_time")
 	case storedTree.PrivateKey != newTree.PrivateKey:
-		return errors.New("readonly field changed: private_key")
+		return errors.New(errors.InvalidArgument, "readonly field changed: private_key")
 	}
 	return validateMutableTreeFields(newTree)
 }
@@ -98,11 +96,11 @@ func ValidateTreeForUpdate(storedTree, newTree *trillian.Tree) error {
 func validateMutableTreeFields(tree *trillian.Tree) error {
 	switch {
 	case tree.TreeState == trillian.TreeState_UNKNOWN_TREE_STATE:
-		return fmt.Errorf("invalid tree_state: %v", tree.TreeState)
+		return errors.Errorf(errors.InvalidArgument, "invalid tree_state: %v", tree.TreeState)
 	case len(tree.DisplayName) > maxDisplayNameLength:
-		return fmt.Errorf("display_name too big, max length is %v: %v", maxDisplayNameLength, tree.DisplayName)
+		return errors.Errorf(errors.InvalidArgument, "display_name too big, max length is %v: %v", maxDisplayNameLength, tree.DisplayName)
 	case len(tree.Description) > maxDescriptionLength:
-		return fmt.Errorf("description too big, max length is %v: %v", maxDescriptionLength, tree.Description)
+		return errors.Errorf(errors.InvalidArgument, "description too big, max length is %v: %v", maxDescriptionLength, tree.Description)
 	}
 	return nil
 }

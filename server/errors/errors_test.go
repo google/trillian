@@ -15,6 +15,7 @@
 package errors
 
 import (
+	"database/sql"
 	"errors"
 	"testing"
 
@@ -44,6 +45,10 @@ func TestWrapError(t *testing.T) {
 		{
 			err:     err,
 			wantErr: err,
+		},
+		{
+			err:     sql.ErrNoRows,
+			wantErr: grpc.Errorf(codes.NotFound, sql.ErrNoRows.Error()),
 		},
 	}
 	for _, test := range tests {

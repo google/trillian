@@ -15,6 +15,7 @@
 package errors
 
 import (
+	"errors"
 	"testing"
 
 	"google.golang.org/grpc/codes"
@@ -45,6 +46,22 @@ func TestCodes(t *testing.T) {
 	for _, test := range tests {
 		if uint64(test.got) != uint64(test.want) {
 			t.Errorf("got = %v, want = %v", test.got, test.want)
+		}
+	}
+}
+
+func TestErrorCode(t *testing.T) {
+	tests := []struct {
+		err      error
+		wantCode Code
+	}{
+		{err: Errorf(InvalidArgument, "invalid argument error"), wantCode: InvalidArgument},
+		{err: Errorf(NotFound, "not found error"), wantCode: NotFound},
+		{err: errors.New("generic error"), wantCode: Unknown},
+	}
+	for _, test := range tests {
+		if got := ErrorCode(test.err); got != test.wantCode {
+			t.Errorf("err = %v, wantCode = %v", test.err, test.wantCode)
 		}
 	}
 }

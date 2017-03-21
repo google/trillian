@@ -20,6 +20,7 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/sigpb"
+	"github.com/google/trillian/errors"
 )
 
 func TestValidateTreeForCreation(t *testing.T) {
@@ -162,8 +163,11 @@ func TestValidateTreeForCreation(t *testing.T) {
 	}
 	for i, test := range tests {
 		err := ValidateTreeForCreation(test.tree)
-		if hasErr := err != nil; hasErr != test.wantErr {
+		switch hasErr := err != nil; {
+		case hasErr != test.wantErr:
 			t.Errorf("%v: ValidateTreeForCreation() = %v, wantErr = %v", i, err, test.wantErr)
+		case hasErr && errors.ErrorCode(err) != errors.InvalidArgument:
+			t.Errorf("%v: ValidateTreeForCreation() = %v, wantCode = %v", i, err, errors.InvalidArgument)
 		}
 	}
 }
@@ -263,8 +267,11 @@ func TestValidateTreeForUpdate(t *testing.T) {
 		test.updatefn(tree)
 
 		err := ValidateTreeForUpdate(&baseTree, tree)
-		if hasErr := err != nil; hasErr != test.wantErr {
+		switch hasErr := err != nil; {
+		case hasErr != test.wantErr:
 			t.Errorf("%v: ValidateTreeForUpdate() = %v, wantErr = %v", test.desc, err, test.wantErr)
+		case hasErr && errors.ErrorCode(err) != errors.InvalidArgument:
+			t.Errorf("%v: ValidateTreeForUpdate() = %v, wantCode = %d", test.desc, err, errors.InvalidArgument)
 		}
 	}
 }

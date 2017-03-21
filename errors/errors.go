@@ -164,6 +164,16 @@ func (e *trillianError) Code() Code {
 	return e.code
 }
 
+// ErrorCode returns the assigned Code if err is a TrillianError, Unknown
+// otherwise.
+func ErrorCode(err error) Code {
+	terr, ok := err.(TrillianError)
+	if ok {
+		return terr.Code()
+	}
+	return Unknown
+}
+
 // Errorf creates a TrillianError from the specified code and message.
 func Errorf(code Code, format string, a ...interface{}) error {
 	return &trillianError{code, fmt.Sprintf(format, a...)}

@@ -81,10 +81,9 @@ func TestAdminServer_CreateTree(t *testing.T) {
 	invalidTree.TreeState = trillian.TreeState_HARD_DELETED
 
 	tests := []struct {
-		desc string
-		req  *trillian.CreateTreeRequest
-		// TODO(codingllama): Check correctness of returned codes.Code
-		wantErr bool
+		desc     string
+		req      *trillian.CreateTreeRequest
+		wantCode codes.Code
 	}{
 		{
 			desc: "validTree",
@@ -93,26 +92,26 @@ func TestAdminServer_CreateTree(t *testing.T) {
 			},
 		},
 		{
-			desc:    "nilTree",
-			req:     &trillian.CreateTreeRequest{},
-			wantErr: true,
+			desc:     "nilTree",
+			req:      &trillian.CreateTreeRequest{},
+			wantCode: codes.InvalidArgument,
 		},
 		{
 			desc: "invalidTree",
 			req: &trillian.CreateTreeRequest{
 				Tree: &invalidTree,
 			},
-			wantErr: true,
+			wantCode: codes.InvalidArgument,
 		},
 	}
 
 	ctx := context.Background()
 	for _, test := range tests {
 		createdTree, err := client.CreateTree(ctx, test.req)
-		if hasErr := err != nil; hasErr != test.wantErr {
-			t.Errorf("%v: CreateTree() = (_, %v), wantErr = %v", test.desc, err, test.wantErr)
+		if grpc.Code(err) != test.wantCode {
+			t.Errorf("%v: CreateTree() = (_, %v), wantCode = %v", test.desc, err, test.wantCode)
 			continue
-		} else if hasErr {
+		} else if err != nil {
 			continue
 		}
 		storedTree, err := client.GetTree(ctx, &trillian.GetTreeRequest{TreeId: createdTree.TreeId})
@@ -134,31 +133,29 @@ func TestAdminServer_GetTree(t *testing.T) {
 	defer closeFn()
 
 	tests := []struct {
-		desc    string
-		treeID  int64
-		wantErr bool
+		desc     string
+		treeID   int64
+		wantCode codes.Code
 	}{
 		{
-			desc:   "negativeTreeID",
-			treeID: -1,
-			// TODO(codingllama): Check correctness of returned codes.Code
-			wantErr: true,
+			desc:     "negativeTreeID",
+			treeID:   -1,
+			wantCode: codes.NotFound,
 		},
 		{
-			desc:    "notFound",
-			treeID:  12345,
-			wantErr: true,
+			desc:     "notFound",
+			treeID:   12345,
+			wantCode: codes.NotFound,
 		},
 	}
 
 	ctx := context.Background()
 	for _, test := range tests {
 		_, err = client.GetTree(ctx, &trillian.GetTreeRequest{TreeId: test.treeID})
-		if hasErr := err != nil; hasErr != test.wantErr {
-			t.Errorf("%v: GetTree() = (_, %v), wantErr = %v", test.desc, err, test.wantErr)
+		if grpc.Code(err) != test.wantCode {
+			t.Errorf("%v: GetTree() = (_, %v), wantCode = %v", test.desc, err, test.wantCode)
 		}
-		// Success of GetTree is part of TestAdminServer_CreateTree, so it's not asserted
-		// here.
+		// Success of GetTree is part of TestAdminServer_CreateTree, so it's not asserted here.
 	}
 }
 
