@@ -18,6 +18,7 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/trillian"
 	"github.com/google/trillian/extension"
+	"github.com/google/trillian/server/errors"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -42,6 +43,14 @@ func (s *Server) ListTrees(context.Context, *trillian.ListTreesRequest) (*trilli
 
 // GetTree implements trillian.TrillianAdminServer.GetTree.
 func (s *Server) GetTree(ctx context.Context, request *trillian.GetTreeRequest) (*trillian.Tree, error) {
+	tree, err := s.getTreeImpl(ctx, request)
+	if err != nil {
+		return nil, errors.WrapError(err)
+	}
+	return tree, nil
+}
+
+func (s *Server) getTreeImpl(ctx context.Context, request *trillian.GetTreeRequest) (*trillian.Tree, error) {
 	tx, err := s.registry.AdminStorage.Snapshot(ctx)
 	if err != nil {
 		return nil, err
@@ -60,6 +69,14 @@ func (s *Server) GetTree(ctx context.Context, request *trillian.GetTreeRequest) 
 
 // CreateTree implements trillian.TrillianAdminServer.CreateTree.
 func (s *Server) CreateTree(ctx context.Context, request *trillian.CreateTreeRequest) (*trillian.Tree, error) {
+	tree, err := s.createTreeImpl(ctx, request)
+	if err != nil {
+		return nil, errors.WrapError(err)
+	}
+	return tree, err
+}
+
+func (s *Server) createTreeImpl(ctx context.Context, request *trillian.CreateTreeRequest) (*trillian.Tree, error) {
 	tx, err := s.registry.AdminStorage.Begin(ctx)
 	if err != nil {
 		return nil, err

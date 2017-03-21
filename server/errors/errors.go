@@ -15,14 +15,21 @@
 package errors
 
 import (
+	"database/sql"
+
 	te "github.com/google/trillian/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
 
-// WrapError wraps err as a gRPC error if err is a TrillianError, else err is
-// returned unmodified.
+// WrapError wraps err as a gRPC error if err is a TrillianError or a well-known
+// error instance (such as canonical sql errors), else err is returned
+// unmodified.
 func WrapError(err error) error {
+	if err == sql.ErrNoRows {
+		return grpc.Errorf(codes.NotFound, err.Error())
+	}
+
 	switch err := err.(type) {
 	case te.TrillianError:
 		return grpc.Errorf(codes.Code(err.Code()), err.Error())
