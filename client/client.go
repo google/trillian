@@ -37,20 +37,30 @@ type LogClient struct {
 	LogID    int64
 	client   trillian.TrillianLogClient
 	hasher   merkle.TreeHasher
-	STR      trillian.SignedLogRoot
-	MaxTries int
+	str      trillian.SignedLogRoot
+	maxTries int
 	pubKey   gocrypto.PublicKey
 }
 
 // New returns a new LogClient.
-func New(logID int64, client trillian.TrillianLogClient, hasher merkle.TreeHasher, pubKey gocrypto.PublicKey) *LogClient {
+func New(logID int64, client trillian.TrillianLogClient, hasher merkle.TreeHasher, pubKey gocrypto.PublicKey) LogVerifier {
 	return &LogClient{
 		LogID:    logID,
 		client:   client,
 		hasher:   hasher,
-		MaxTries: 3,
+		maxTries: 3,
 		pubKey:   pubKey,
 	}
+}
+
+// STR returns the current trusted SignedLogRoot
+func (c *LogClient) STR() trillian.SignedLogRoot {
+	return c.str
+}
+
+// SetMaxTries sets the maximum number of requests to make before returning DeadlineExceeded.
+func (c *LogClient) SetMaxTries(tries int) {
+	c.maxTries = tries
 }
 
 // AddLeaf adds leaf to the append only log.
@@ -66,19 +76,19 @@ func (c *LogClient) AddLeaf(ctx context.Context, data []byte) error {
 	switch {
 	case grpc.Code(err) == codes.AlreadyExists:
 		// If the leaf already exists, don't wait for an update.
-		return c.getInclusionProof(ctx, leaf.MerkleLeafHash, c.STR.TreeSize)
+		return c.getInclusionProof(ctx, leaf.MerkleLeafHash, c.str.TreeSize)
 	case err != nil:
 		return err
 	default:
 		err := grpc.Errorf(codes.NotFound, "Pre-loop condition")
-		for i := 0; grpc.Code(err) == codes.NotFound && i < c.MaxTries; i++ {
+		for i := 0; grpc.Code(err) == codes.NotFound && i < c.maxTries; i++ {
 			// Wait for TreeSize to update.
-			if err := c.waitForSTRUpdate(ctx, c.MaxTries); err != nil {
+			if err := c.waitForSTRUpdate(ctx, c.maxTries); err != nil {
 				return err
 			}
 
 			// Get proof by hash.
-			err = c.getInclusionProof(ctx, leaf.MerkleLeafHash, c.STR.TreeSize)
+			err = c.getInclusionProof(ctx, leaf.MerkleLeafHash, c.str.TreeSize)
 		}
 		return err
 	}
@@ -93,18 +103,18 @@ func (c *LogClient) waitForSTRUpdate(ctx context.Context, attempts int) error {
 		Factor: 2,
 		Jitter: true,
 	}
-	startTreeSize := c.STR.TreeSize
+	startTreeSize := c.str.TreeSize
 	for i := 0; ; i++ {
 		if err := c.UpdateSTR(ctx); err != nil {
 			return err
 		}
-		if c.STR.TreeSize > startTreeSize {
+		if c.str.TreeSize > startTreeSize {
 			return nil
 		}
 		if i >= (attempts - 1) {
 			return grpc.Errorf(codes.DeadlineExceeded,
 				"UpdateSTR().TreeSize: %v, want > %v. Tried %v times.",
-				c.STR.TreeSize, startTreeSize, i+1)
+				c.str.TreeSize, startTreeSize, i+1)
 		}
 		time.Sleep(b.Duration())
 	}
@@ -128,17 +138,17 @@ func (c *LogClient) UpdateSTR(ctx context.Context) error {
 	}
 
 	// Verify Consistency proof.
-	if str.TreeSize == c.STR.TreeSize && bytes.Equal(str.RootHash, c.STR.RootHash) {
+	if str.TreeSize == c.str.TreeSize && bytes.Equal(str.RootHash, c.str.RootHash) {
 		// Tree has not been updated.
 		return nil
 	}
 
 	// Implicitly trust the first STH we get.
-	if c.STR.TreeSize != 0 {
+	if c.str.TreeSize != 0 {
 		// Get consistency proof.
 		req := &trillian.GetConsistencyProofRequest{
 			LogId:          c.LogID,
-			FirstTreeSize:  c.STR.TreeSize,
+			FirstTreeSize:  c.str.TreeSize,
 			SecondTreeSize: str.TreeSize,
 		}
 		proof, err := c.client.GetConsistencyProof(ctx, req)
@@ -148,13 +158,13 @@ func (c *LogClient) UpdateSTR(ctx context.Context) error {
 		// Verify consistency proof.
 		v := merkle.NewLogVerifier(c.hasher)
 		if err := v.VerifyConsistencyProof(
-			c.STR.TreeSize, str.TreeSize,
-			c.STR.RootHash, str.RootHash,
+			c.str.TreeSize, str.TreeSize,
+			c.str.RootHash, str.RootHash,
 			convertProof(proof.Proof)); err != nil {
 			return err
 		}
 	}
-	c.STR = *str
+	c.str = *str
 	return nil
 }
 
@@ -174,7 +184,7 @@ func (c *LogClient) getInclusionProof(ctx context.Context, leafHash []byte, tree
 	for _, proof := range resp.Proof {
 		neighbors := convertProof(proof)
 		v := merkle.NewLogVerifier(c.hasher)
-		if err := v.VerifyInclusionProof(proof.LeafIndex, treeSize, neighbors, c.STR.RootHash, leafHash); err != nil {
+		if err := v.VerifyInclusionProof(proof.LeafIndex, treeSize, neighbors, c.str.RootHash, leafHash); err != nil {
 			return err
 		}
 	}

@@ -68,7 +68,7 @@ func TestAddLeaf(t *testing.T) {
 		},
 	} {
 		client := New(logID, test.client, testonly.Hasher, env.PublicKey)
-		client.MaxTries = 1
+		client.SetMaxTries(1)
 
 		if err, want := client.AddLeaf(ctx, []byte(test.desc)), codes.DeadlineExceeded; grpc.Code(err) != want {
 			t.Errorf("AddLeaf(%v): %v, want, %v", test.desc, err, want)
@@ -96,7 +96,7 @@ func TestUpdateSTR(t *testing.T) {
 	cli := trillian.NewTrillianLogClient(env.ClientConn)
 	client := New(logID, cli, testonly.Hasher, env.PublicKey)
 
-	before := client.STR.TreeSize
+	before := client.STR().TreeSize
 	if err, want := client.AddLeaf(ctx, []byte("foo")), codes.DeadlineExceeded; grpc.Code(err) != want {
 		t.Errorf("AddLeaf(): %v, want, %v", err, want)
 	}
@@ -104,7 +104,7 @@ func TestUpdateSTR(t *testing.T) {
 	if err := client.UpdateSTR(ctx); err != nil {
 		t.Error(err)
 	}
-	if got, want := client.STR.TreeSize, before; got <= want {
+	if got, want := client.STR().TreeSize, before; got <= want {
 		t.Errorf("Tree size after add Leaf: %v, want > %v", got, want)
 	}
 }
