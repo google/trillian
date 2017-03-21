@@ -42,7 +42,7 @@ func (o *objhasher) HashLeaf(leaf []byte) []byte {
 
 // HashChildren returns the inner Merkle tree node hash of the the two child nodes l and r.
 // The hashed structure is NodeHashPrefix||l||r.
-func (o *objhasher) HashChildren(l []byte, r []byte) []byte {
+func (o *objhasher) HashChildren(l, r []byte) []byte {
 	h := sha256.New()
 	h.Write([]byte{nodeHashPrefix})
 	h.Write(l)
