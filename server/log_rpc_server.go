@@ -31,8 +31,11 @@ import (
 // TODO: There is no access control in the server yet and clients could easily modify
 // any tree.
 
-// Pass this as a fixed value to proof calculations. It's used as the max depth of the tree
-const proofMaxBitLen = 64
+const (
+	// Pass this as a fixed value to proof calculations. It's used as the max depth of the tree
+	proofMaxBitLen = 64
+	maxPageSize    = 1024
+)
 
 // TrillianLogRPCServer implements the RPC API defined in the proto
 type TrillianLogRPCServer struct {
@@ -293,8 +296,8 @@ func (t *TrillianLogRPCServer) GetSequencedLeafCount(ctx context.Context, req *t
 // can get ahead of this point. Not currently clear what component should own this state.
 func (t *TrillianLogRPCServer) GetLeavesByIndex(ctx context.Context, req *trillian.GetLeavesByIndexRequest) (*trillian.GetLeavesByIndexResponse, error) {
 	ctx = util.NewLogContext(ctx, req.LogId)
-	if !validateLeafIndices(req.LeafIndex) {
-		return &trillian.GetLeavesByIndexResponse{}, nil
+	if req.StartIndex < 0 {
+		return nil, grpc.Errorf(codes.InvalidArgument, "StartIndex < 0")
 	}
 
 	tx, err := t.prepareReadOnlyStorageTx(ctx, req.LogId)
@@ -303,7 +306,16 @@ func (t *TrillianLogRPCServer) GetLeavesByIndex(ctx context.Context, req *trilli
 	}
 	defer tx.Close()
 
-	leaves, err := tx.GetLeavesByIndex(req.LeafIndex)
+	// Limit page size to some maximum value so adversaries can't invoke an OOM.
+	if req.PageSize > maxPageSize {
+		req.PageSize = maxPageSize
+	}
+	indexes := make([]int64, 0, req.PageSize)
+	for i := req.StartIndex; i < req.StartIndex+req.PageSize; i++ {
+		indexes = append(indexes, i)
+	}
+
+	leaves, err := tx.GetLeavesByIndex(indexes)
 	if err != nil {
 		return nil, err
 	}
@@ -395,16 +407,6 @@ func (t *TrillianLogRPCServer) commitAndLog(ctx context.Context, tx storage.Read
 		glog.Warningf("%s: Commit failed for %s: %v", util.LogIDPrefix(ctx), op, err)
 	}
 	return err
-}
-
-func validateLeafIndices(leafIndices []int64) bool {
-	for _, index := range leafIndices {
-		if index < 0 {
-			return false
-		}
-	}
-
-	return true
 }
 
 // We only validate they're not empty at this point, we let the log do any further checks

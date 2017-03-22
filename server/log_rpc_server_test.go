@@ -17,6 +17,7 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -33,17 +34,14 @@ import (
 )
 
 var (
-	th                 = testonly.Hasher
-	logID1             = int64(1)
-	logID2             = int64(2)
-	leaf0Request       = trillian.GetLeavesByIndexRequest{LogId: logID1, LeafIndex: []int64{0}}
-	leaf0Minus2Request = trillian.GetLeavesByIndexRequest{LogId: logID1, LeafIndex: []int64{0, -2}}
-	leaf03Request      = trillian.GetLeavesByIndexRequest{LogId: logID1, LeafIndex: []int64{0, 3}}
-	leaf0Log2Request   = trillian.GetLeavesByIndexRequest{LogId: logID2, LeafIndex: []int64{0}}
-	leaf1Data          = []byte("value")
-	leaf3Data          = []byte("value3")
-	leaf1              = &trillian.LogLeaf{LeafIndex: 1, MerkleLeafHash: th.HashLeaf(leaf1Data), LeafValue: leaf1Data, ExtraData: []byte("extra")}
-	leaf3              = &trillian.LogLeaf{LeafIndex: 3, MerkleLeafHash: th.HashLeaf(leaf3Data), LeafValue: leaf3Data, ExtraData: []byte("extra3")}
+	th           = testonly.Hasher
+	logID1       = int64(1)
+	logID2       = int64(2)
+	leaf0Request = trillian.GetLeavesByIndexRequest{LogId: logID1, StartIndex: 0, PageSize: 1}
+	leaf1Data    = []byte("value")
+	leaf3Data    = []byte("value3")
+	leaf1        = &trillian.LogLeaf{LeafIndex: 1, MerkleLeafHash: th.HashLeaf(leaf1Data), LeafValue: leaf1Data, ExtraData: []byte("extra")}
+	leaf3        = &trillian.LogLeaf{LeafIndex: 3, MerkleLeafHash: th.HashLeaf(leaf3Data), LeafValue: leaf3Data, ExtraData: []byte("extra3")}
 
 	queueRequest0     = trillian.QueueLeavesRequest{LogId: logID1, Leaves: []*trillian.LogLeaf{leaf1}}
 	queueRequest0Log2 = trillian.QueueLeavesRequest{LogId: logID2, Leaves: []*trillian.LogLeaf{leaf1}}
@@ -77,32 +75,88 @@ var (
 	nodeIdsConsistencySize4ToSize7 = []storage.NodeID{testonly.MustCreateNodeIDForTreeCoords(2, 1, 64)}
 )
 
-func TestGetLeavesByIndexInvalidIndexRejected(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+func TestGetLeavesByIndex(t *testing.T) {
+	for _, tc := range []struct {
+		desc    string
+		want    codes.Code
+		req     *trillian.GetLeavesByIndexRequest
+		indexes []int64
+	}{
+		{
+			desc: "Negative StartIndex",
+			want: codes.InvalidArgument,
+			req: &trillian.GetLeavesByIndexRequest{
+				LogId:      logID1,
+				StartIndex: -2,
+				PageSize:   1,
+			},
+		},
+		{
+			desc: "Invalid LogID",
+			want: codes.Unknown,
+			req: &trillian.GetLeavesByIndexRequest{
+				LogId:      logID2,
+				StartIndex: 0,
+				PageSize:   1,
+			},
+		},
+		{
+			desc: "Multiple",
+			req: &trillian.GetLeavesByIndexRequest{
+				LogId:      logID1,
+				StartIndex: 0,
+				PageSize:   3,
+			},
+			indexes: []int64{0, 1, 2},
+		},
+	} {
+		// Return test specific values results
+		results := make([]*trillian.LogLeaf, 0, len(tc.indexes))
+		for _, i := range tc.indexes {
+			value := []byte(fmt.Sprintf("value%d", i))
+			results = append(results, &trillian.LogLeaf{
+				LeafIndex:      i,
+				LeafValue:      value,
+				MerkleLeafHash: th.HashLeaf(value),
+				ExtraData:      value,
+			})
+		}
 
-	registry := extension.Registry{}
-	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		mockStorage := storage.NewMockLogStorage(ctrl)
+		mockTx := storage.NewMockLogTreeTX(ctrl)
+		registry := extension.Registry{
+			LogStorage: mockStorage,
+		}
 
-	if _, err := server.GetLeavesByIndex(context.Background(), &leaf0Minus2Request); err != nil {
-		t.Fatalf("Returned non app level error response for negative leaf index: %v", err)
-	}
-}
+		switch tc.want {
+		case codes.OK:
+			mockStorage.EXPECT().SnapshotForTree(gomock.Any(), tc.req.LogId).Return(mockTx, nil)
+			mockTx.EXPECT().GetLeavesByIndex(tc.indexes).Return(results, nil)
+			mockTx.EXPECT().Commit().Return(nil)
+			mockTx.EXPECT().Close().Return(nil)
+			mockTx.EXPECT().IsOpen().AnyTimes().Return(false)
+		case codes.Unknown:
+			mockStorage.EXPECT().SnapshotForTree(gomock.Any(), tc.req.LogId).Return(nil, errors.New("TX"))
+		}
 
-func TestGetLeavesByIndexBeginFailsCausesError(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+		server := NewTrillianLogRPCServer(registry, fakeTimeSource)
 
-	mockStorage := storage.NewMockLogStorage(ctrl)
-	mockStorage.EXPECT().SnapshotForTree(gomock.Any(), leaf0Request.LogId).Return(nil, errors.New("TX"))
-	registry := extension.Registry{
-		LogStorage: mockStorage,
-	}
-	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
-
-	_, err := server.GetLeavesByIndex(context.Background(), &leaf0Request)
-	if err == nil || !strings.Contains(err.Error(), "TX") {
-		t.Fatalf("Returned wrong error response when begin failed: %v", err)
+		resp, err := server.GetLeavesByIndex(context.Background(), tc.req)
+		if got := grpc.Code(err); got != tc.want {
+			t.Errorf("GetLeavesByIndex(%v): %s, want %s", tc.req, got, tc.want)
+		}
+		if err == nil {
+			if got, want := len(resp.Leaves), len(tc.indexes); got != want {
+				t.Errorf("GetLeavesByIndex(%v): %v leaves, want %v", tc.req, got, want)
+			}
+			for i, l := range resp.Leaves {
+				if got, want := l.LeafIndex, tc.indexes[i]; got != want {
+					t.Errorf("GetLeavesByIndex(%v)[%v]: %v, want %v", tc.req, i, got, want)
+				}
+			}
+		}
 	}
 }
 
@@ -122,20 +176,6 @@ func TestGetLeavesByIndexStorageError(t *testing.T) {
 	test.executeStorageFailureTest(t, leaf0Request.LogId)
 }
 
-func TestGetLeavesByIndexInvalidLogId(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	test := newParameterizedTest(ctrl, "GetLeavesByIndex", readOnly,
-		func(t *storage.MockLogTreeTX) {},
-		func(s *TrillianLogRPCServer) error {
-			_, err := s.GetLeavesByIndex(context.Background(), &leaf0Log2Request)
-			return err
-		})
-
-	test.executeInvalidLogIDTest(t, true /* snapshot */)
-}
-
 func TestGetLeavesByIndexCommitFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -150,68 +190,6 @@ func TestGetLeavesByIndexCommitFails(t *testing.T) {
 		})
 
 	test.executeCommitFailsTest(t, leaf0Request.LogId)
-}
-
-func TestGetLeavesByIndex(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockStorage := storage.NewMockLogStorage(ctrl)
-	mockTx := storage.NewMockLogTreeTX(ctrl)
-	mockStorage.EXPECT().SnapshotForTree(gomock.Any(), leaf0Request.LogId).Return(mockTx, nil)
-	mockTx.EXPECT().GetLeavesByIndex([]int64{0}).Return([]*trillian.LogLeaf{leaf1}, nil)
-	mockTx.EXPECT().Commit().Return(nil)
-	mockTx.EXPECT().Close().Return(nil)
-	mockTx.EXPECT().IsOpen().AnyTimes().Return(false)
-
-	registry := extension.Registry{
-		LogStorage: mockStorage,
-	}
-	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
-
-	resp, err := server.GetLeavesByIndex(context.Background(), &leaf0Request)
-	if err != nil {
-		t.Fatalf("Failed to get leaf by index: %v", err)
-	}
-
-	if len(resp.Leaves) != 1 || !proto.Equal(resp.Leaves[0], leaf1) {
-		t.Fatalf("Expected leaf: %v but got: %v", leaf1, resp.Leaves[0])
-	}
-}
-
-func TestGetLeavesByIndexMultiple(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockStorage := storage.NewMockLogStorage(ctrl)
-	mockTx := storage.NewMockLogTreeTX(ctrl)
-	mockStorage.EXPECT().SnapshotForTree(gomock.Any(), leaf03Request.LogId).Return(mockTx, nil)
-	mockTx.EXPECT().GetLeavesByIndex([]int64{0, 3}).Return([]*trillian.LogLeaf{leaf1, leaf3}, nil)
-	mockTx.EXPECT().Commit().Return(nil)
-	mockTx.EXPECT().Close().Return(nil)
-	mockTx.EXPECT().IsOpen().AnyTimes().Return(false)
-
-	registry := extension.Registry{
-		LogStorage: mockStorage,
-	}
-	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
-
-	resp, err := server.GetLeavesByIndex(context.Background(), &leaf03Request)
-	if err != nil {
-		t.Fatalf("Failed to get leaf by index: %v", err)
-	}
-
-	if len(resp.Leaves) != 2 {
-		t.Fatalf("Expected two leaves but got %d", len(resp.Leaves))
-	}
-
-	if !proto.Equal(resp.Leaves[0], leaf1) {
-		t.Fatalf("Expected leaf1: %v but got: %v", leaf1, resp.Leaves[0])
-	}
-
-	if !proto.Equal(resp.Leaves[1], leaf3) {
-		t.Fatalf("Expected leaf3: %v but got: %v", leaf3, resp.Leaves[0])
-	}
 }
 
 func TestQueueLeavesStorageError(t *testing.T) {

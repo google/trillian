@@ -84,6 +84,27 @@ func (c *LogClient) AddLeaf(ctx context.Context, data []byte) error {
 	}
 }
 
+// ListByIndex returns the requested leaves by index.
+func (c *LogClient) ListByIndex(ctx context.Context, start, count int64) ([]*trillian.LogLeaf, error) {
+	leaves := make([]*trillian.LogLeaf, 0, count)
+
+	for int64(len(leaves)) < count {
+		resp, err := c.client.GetLeavesByIndex(ctx,
+			&trillian.GetLeavesByIndexRequest{
+				LogId:      c.LogID,
+				StartIndex: start,
+				PageSize:   count,
+			})
+		if err != nil {
+			return nil, err
+		}
+		leaves = append(leaves, resp.Leaves...)
+		start += int64(len(resp.Leaves))
+		count -= int64(len(resp.Leaves))
+	}
+	return leaves, nil
+}
+
 // waitForSTRUpdate repeatedly fetches the STR until the TreeSize changes
 // or until a maximum number of attempts has been tried.
 func (c *LogClient) waitForSTRUpdate(ctx context.Context, attempts int) error {
