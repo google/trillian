@@ -4,6 +4,7 @@ INTEGRATION_DIR="$( cd "$( dirname "$0" )" && pwd )"
 . "${INTEGRATION_DIR}"/common.sh
 
 echo "Building code"
+go build ${GOFLAGS} ./cmd/createtree/
 go build ${GOFLAGS} ./server/vmap/trillian_map_server/
 
 yes | "${SCRIPTS_DIR}"/resetdb.sh
