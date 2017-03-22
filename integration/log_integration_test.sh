@@ -4,23 +4,23 @@ INTEGRATION_DIR="$( cd "$( dirname "$0" )" && pwd )"
 . "${INTEGRATION_DIR}"/common.sh
 
 echo "Building code"
+go build ${GOFLAGS} ./cmd/createtree/
 go build ${GOFLAGS} ./server/trillian_log_server/
 go build ${GOFLAGS} ./server/trillian_log_signer/
 
-TEST_TREE_ID=1123
-RPC_PORT=$(pickUnusedPort)
-
 yes | "${SCRIPTS_DIR}"/resetdb.sh
-for tid in 0 $TEST_TREE_ID; do
-  echo "Provisioning test log (Tree ID: $tid) in database"
-  "${SCRIPTS_DIR}"/createlog.sh ${tid}
-done
+
+RPC_PORT=$(pickUnusedPort)
 
 echo "Starting Log RPC server on port ${RPC_PORT}"
 pushd "${TRILLIAN_ROOT}" > /dev/null
 ./trillian_log_server --port ${RPC_PORT} &
 RPC_SERVER_PID=$!
 popd > /dev/null
+waitForServerStartup ${RPC_PORT}
+
+TEST_TREE_ID=$(./createtree --admin_endpoint="localhost:${RPC_PORT}" --pem_key_path=testdata/log-rpc-server.privkey.pem --pem_key_password=towel)
+echo "Created tree ${TEST_TREE_ID}"
 
 # Ensure we kill the RPC server once we're done.
 TO_KILL+=(${RPC_SERVER_PID})
