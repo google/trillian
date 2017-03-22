@@ -17,6 +17,7 @@ package client
 import (
 	"context"
 	"testing"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -26,13 +27,14 @@ import (
 	"github.com/google/trillian/testonly/integration"
 )
 
+const timeout = 100 * time.Millisecond
+
 func TestAddGetLeaf(t *testing.T) {
 	// TODO: Build a GetLeaf method and test a full get/set cycle.
 }
 
 func TestAddLeaf(t *testing.T) {
-	ctx := context.Background()
-	env, err := integration.NewLogEnv(ctx, 0, "TestAddLeaf")
+	env, err := integration.NewLogEnv(context.Background(), 0, "TestAddLeaf")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,23 +70,24 @@ func TestAddLeaf(t *testing.T) {
 		},
 	} {
 		client := New(logID, test.client, testonly.Hasher, env.PublicKey)
-		client.MaxTries = 1
-
-		if err, want := client.AddLeaf(ctx, []byte(test.desc)), codes.DeadlineExceeded; grpc.Code(err) != want {
-			t.Errorf("AddLeaf(%v): %v, want, %v", test.desc, err, want)
-			continue
+		{
+			ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(timeout))
+			defer cancel()
+			if err, want := client.AddLeaf(ctx, []byte(test.desc)), codes.DeadlineExceeded; grpc.Code(err) != want {
+				t.Errorf("AddLeaf(%v): %v, want, %v", test.desc, err, want)
+				continue
+			}
 		}
 		env.Sequencer.OperationLoop() // Sequence the new node.
-		err := client.AddLeaf(ctx, []byte(test.desc))
+		err := client.AddLeaf(context.Background(), []byte(test.desc))
 		if got := err != nil; got != test.wantErr {
 			t.Errorf("AddLeaf(%v): %v, want error: %v", test.desc, err, test.wantErr)
 		}
 	}
 }
 
-func TestUpdateSTR(t *testing.T) {
-	ctx := context.Background()
-	env, err := integration.NewLogEnv(ctx, 0, "TestUpdateSTR")
+func TestUpdateRoot(t *testing.T) {
+	env, err := integration.NewLogEnv(context.Background(), 0, "TestUpdateRoot")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,15 +99,21 @@ func TestUpdateSTR(t *testing.T) {
 	cli := trillian.NewTrillianLogClient(env.ClientConn)
 	client := New(logID, cli, testonly.Hasher, env.PublicKey)
 
-	before := client.STR.TreeSize
-	if err, want := client.AddLeaf(ctx, []byte("foo")), codes.DeadlineExceeded; grpc.Code(err) != want {
-		t.Errorf("AddLeaf(): %v, want, %v", err, want)
+	before := client.Root().TreeSize
+
+	{
+		ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(timeout))
+		defer cancel()
+		if err, want := client.AddLeaf(ctx, []byte("foo")), codes.DeadlineExceeded; grpc.Code(err) != want {
+			t.Errorf("AddLeaf(): %v, want, %v", err, want)
+		}
 	}
+
 	env.Sequencer.OperationLoop() // Sequence the new node.
-	if err := client.UpdateSTR(ctx); err != nil {
+	if err := client.UpdateRoot(context.Background()); err != nil {
 		t.Error(err)
 	}
-	if got, want := client.STR.TreeSize, before; got <= want {
+	if got, want := client.Root().TreeSize, before; got <= want {
 		t.Errorf("Tree size after add Leaf: %v, want > %v", got, want)
 	}
 }
