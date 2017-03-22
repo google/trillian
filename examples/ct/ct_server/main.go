@@ -31,6 +31,7 @@ import (
 )
 
 // Global flags that affect all log instances.
+var serverHostFlag = flag.String("host", "localhost", "Address to serve CT log requests on")
 var serverPortFlag = flag.Int("port", 6962, "Port to serve CT log requests on")
 var rpcBackendFlag = flag.String("log_rpc_server", "localhost:8090", "Backend Log RPC server to use")
 var rpcDeadlineFlag = flag.Duration("rpc_deadline", time.Second*10, "Deadline for backend RPC requests")
@@ -71,7 +72,7 @@ func main() {
 	go util.AwaitSignal(func() {
 		os.Exit(1)
 	})
-	server := http.Server{Addr: fmt.Sprintf("localhost:%d", *serverPortFlag), Handler: nil}
+	server := http.Server{Addr: fmt.Sprintf("%s:%d", *serverHostFlag, *serverPortFlag), Handler: nil}
 	err = server.ListenAndServe()
 	glog.Warningf("Server exited: %v", err)
 	glog.Flush()
