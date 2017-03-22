@@ -134,7 +134,6 @@ func (c *LogClient) UpdateRoot(ctx context.Context) error {
 
 	// Verify Consistency proof.
 	if str.TreeSize == c.root.TreeSize &&
-		str.TreeSize == c.root.TreeSize &&
 		bytes.Equal(str.RootHash, c.root.RootHash) {
 		// Tree has not been updated.
 		return nil
