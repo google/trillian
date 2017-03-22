@@ -51,9 +51,8 @@ func New(logID int64, client trillian.TrillianLogClient, hasher merkle.TreeHashe
 	}
 }
 
-// Root returns the current trusted SignedLogRoot.
-// The client blindly trusts the first Root it sees.
-// All others must have consistency proofs between the last Root seen and the new one.
+// Root returns the last valid root seen by UpdateRoot.
+// Returns an empty SignedLogRoot if UpdateRoot has not been called.
 func (c *LogClient) Root() trillian.SignedLogRoot {
 	return c.root
 }
@@ -115,7 +114,8 @@ func (c *LogClient) waitForRootUpdate(ctx context.Context) error {
 	}
 }
 
-// UpdateRoot retrieves the current SignedLogRoot and verifies it.
+// UpdateRoot retrieves the current SignedLogRoot.
+// Verifies the signature, and the consistency proof if this is not the first root this client has seen.
 func (c *LogClient) UpdateRoot(ctx context.Context) error {
 	req := &trillian.GetLatestSignedLogRootRequest{
 		LogId: c.LogID,
@@ -133,7 +133,9 @@ func (c *LogClient) UpdateRoot(ctx context.Context) error {
 	}
 
 	// Verify Consistency proof.
-	if str.TreeSize == c.root.TreeSize && bytes.Equal(str.RootHash, c.root.RootHash) {
+	if str.TreeSize == c.root.TreeSize &&
+		str.TreeSize == c.root.TreeSize &&
+		bytes.Equal(str.RootHash, c.root.RootHash) {
 		// Tree has not been updated.
 		return nil
 	}
