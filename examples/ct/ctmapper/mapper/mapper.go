@@ -149,12 +149,12 @@ func (m *CTMapper) oneMapperRun(ctx context.Context) (bool, error) {
 	//glog.Info("Get resp: %v", getResp)
 
 	proofs := 0
-	for _, v := range getResp.IndexValueInclusion {
+	for _, v := range getResp.MapLeafInclusion {
 		e := ctmapperpb.EntryList{}
 		if len(v.Inclusion) > 0 {
 			proofs++
 		}
-		if err := pb.Unmarshal(v.IndexValue.Value.LeafValue, &e); err != nil {
+		if err := pb.Unmarshal(v.Leaf.LeafValue, &e); err != nil {
 			return false, err
 		}
 		glog.Infof("Got %#v", e)
@@ -163,13 +163,13 @@ func (m *CTMapper) oneMapperRun(ctx context.Context) (bool, error) {
 		domains[e.Domain] = el
 		glog.Infof("will update for %s", e.Domain)
 	}
-	glog.Infof("Got %d values, and %d proofs", len(getResp.IndexValueInclusion), proofs)
+	glog.Infof("Got %d values, and %d proofs", len(getResp.MapLeafInclusion), proofs)
 
 	glog.Info("Storing updated map values for domains...")
 	// Store updated map values:
 	setReq := &trillian.SetMapLeavesRequest{
-		MapId:      m.mapID,
-		IndexValue: make([]*trillian.IndexValue, 0, len(domains)),
+		MapId:  m.mapID,
+		Leaves: make([]*trillian.MapLeaf, 0, len(domains)),
 	}
 	for k, v := range domains {
 		index := ctmapper.HashDomain(k)
@@ -177,11 +177,9 @@ func (m *CTMapper) oneMapperRun(ctx context.Context) (bool, error) {
 		if err != nil {
 			return false, err
 		}
-		setReq.IndexValue = append(setReq.IndexValue, &trillian.IndexValue{
-			Index: index,
-			Value: &trillian.MapLeaf{
-				LeafValue: b,
-			},
+		setReq.Leaves = append(setReq.Leaves, &trillian.MapLeaf{
+			Index:     index,
+			LeafValue: b,
 		})
 	}
 
@@ -193,7 +191,7 @@ func (m *CTMapper) oneMapperRun(ctx context.Context) (bool, error) {
 	}
 	glog.Infof("Set resp: %v", setResp)
 	d := time.Now().Sub(start)
-	glog.Infof("Map run complete, took %.1f secs to update %d values (%0.2f/s)", d.Seconds(), len(setReq.IndexValue), float64(len(setReq.IndexValue))/d.Seconds())
+	glog.Infof("Map run complete, took %.1f secs to update %d values (%0.2f/s)", d.Seconds(), len(setReq.Leaves), float64(len(setReq.Leaves))/d.Seconds())
 	return true, nil
 }
 

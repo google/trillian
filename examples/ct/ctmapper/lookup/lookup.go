@@ -58,14 +58,14 @@ func main() {
 			glog.Warning("Failed to lookup domain %s: %v", domain, err)
 			continue
 		}
-		for _, kv := range resp.IndexValueInclusion {
+		for _, kv := range resp.MapLeafInclusion {
 			el := ctmapperpb.EntryList{}
-			v := kv.IndexValue.Value.LeafValue
+			v := kv.Leaf.LeafValue
 			if len(v) == 0 {
 				continue
 			}
 			if err := pb.Unmarshal(v, &el); err != nil {
-				glog.Warning("Failed to unmarshal leaf %s: %v", kv.IndexValue.Value.LeafValue, err)
+				glog.Warning("Failed to unmarshal leaf %s: %v", kv.Leaf.LeafValue, err)
 				continue
 			}
 			glog.Infof("Found %s with certs at indices %v and pre-certs at indices %v", el.Domain, el.CertIndex, el.PrecertIndex)

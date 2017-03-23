@@ -44,15 +44,13 @@ func RunMapIntegration(ctx context.Context, mapID int64, client trillian.Trillia
 	// Generate tests.
 	const batchSize = 64
 	const numBatches = 32
-	tests := make([]*trillian.IndexValue, batchSize*numBatches)
-	lookup := make(map[string]*trillian.IndexValue)
+	tests := make([]*trillian.MapLeaf, batchSize*numBatches)
+	lookup := make(map[string]*trillian.MapLeaf)
 	for i := range tests {
 		index := testonly.HashKey(fmt.Sprintf("key-%d", i))
-		tests[i] = &trillian.IndexValue{
-			Index: index,
-			Value: &trillian.MapLeaf{
-				LeafValue: []byte(fmt.Sprintf("value-%d", i)),
-			},
+		tests[i] = &trillian.MapLeaf{
+			Index:     index,
+			LeafValue: []byte(fmt.Sprintf("value-%d", i)),
 		}
 		lookup[hex.EncodeToString(index)] = tests[i]
 	}
@@ -62,15 +60,15 @@ func RunMapIntegration(ctx context.Context, mapID int64, client trillian.Trillia
 		glog.Infof("Starting batch %d...", x)
 
 		req := &trillian.SetMapLeavesRequest{
-			MapId:      mapID,
-			IndexValue: tests[x*batchSize : (x+1)*batchSize],
+			MapId:  mapID,
+			Leaves: tests[x*batchSize : (x+1)*batchSize],
 		}
 
 		_, err := client.SetLeaves(ctx, req)
 		if err != nil {
 			return fmt.Errorf("failed to write batch %d: %v", x, err)
 		}
-		glog.Infof("Set %d k/v pairs", len(req.IndexValue))
+		glog.Infof("Set %d k/v pairs", len(req.Leaves))
 	}
 
 	// Check your head
@@ -104,24 +102,21 @@ func RunMapIntegration(ctx context.Context, mapID int64, client trillian.Trillia
 		if err != nil {
 			return fmt.Errorf("failed to get values: %v", err)
 		}
-		if got, want := len(r.IndexValueInclusion), len(getReq.Index); got != want {
+		if got, want := len(r.MapLeafInclusion), len(getReq.Index); got != want {
 			return fmt.Errorf("got %d values, want %d", got, want)
 		}
-		for _, incl := range r.IndexValueInclusion {
-			kv := incl.IndexValue
-			ev, ok := lookup[hex.EncodeToString(kv.Index)]
+		for _, incl := range r.MapLeafInclusion {
+			leaf := incl.Leaf
+			ev, ok := lookup[hex.EncodeToString(leaf.Index)]
 			if !ok {
-				return fmt.Errorf("unexpected key returned: %v", string(kv.Index))
+				return fmt.Errorf("unexpected key returned: %v", string(leaf.Index))
 			}
-			if got, want := kv.Index, kv.Value.Index; !bytes.Equal(got, want) {
-				return fmt.Errorf("inconsistent leaf: Index %s, Value.Index: %s", got, want)
-			}
-			if got, want := kv.Value.LeafValue, ev.Value.LeafValue; !bytes.Equal(got, want) {
+			if got, want := leaf.LeafValue, ev.LeafValue; !bytes.Equal(got, want) {
 				return fmt.Errorf("got value %s, want %s", got, want)
 			}
-			leafHash := h.HashLeaf(kv.Value.LeafValue)
-			if err := merkle.VerifyMapInclusionProof(kv.Index, leafHash, latestRoot.RootHash, incl.Inclusion, h); err != nil {
-				return fmt.Errorf("inclusion proof failed to verify for key %s: %v", incl.IndexValue.Index, err)
+			leafHash := h.HashLeaf(leaf.LeafValue)
+			if err := merkle.VerifyMapInclusionProof(leaf.Index, leafHash, latestRoot.RootHash, incl.Inclusion, h); err != nil {
+				return fmt.Errorf("inclusion proof failed to verify for key %s: %v", incl.Leaf.Index, err)
 			}
 		}
 	}

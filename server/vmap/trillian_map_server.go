@@ -89,7 +89,7 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 	glog.Infof("%s: wanted %d leaves, found %d", util.MapIDPrefix(ctx), len(req.Index), len(leaves))
 
 	resp := &trillian.GetMapLeavesResponse{
-		IndexValueInclusion: make([]*trillian.IndexValueInclusion, len(leaves)),
+		MapLeafInclusion: make([]*trillian.MapLeafInclusion, len(leaves)),
 	}
 	for i, leaf := range leaves {
 		proof, err := smtReader.InclusionProof(req.Revision, leaf.Index)
@@ -98,11 +98,8 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 		}
 		// Copy the leaf from the iterator, which gets overwritten
 		value := leaf
-		resp.IndexValueInclusion[i] = &trillian.IndexValueInclusion{
-			IndexValue: &trillian.IndexValue{
-				Index: leaf.Index,
-				Value: &value,
-			},
+		resp.MapLeafInclusion[i] = &trillian.MapLeafInclusion{
+			Leaf:      &value,
 			Inclusion: proof,
 		}
 	}
@@ -137,20 +134,18 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		return nil, err
 	}
 
-	for _, kv := range req.IndexValue {
-		// TODO(gbelvin) use LeafHash rather than computing here.
-		kv.Value.LeafHash = hasher.HashLeaf(kv.Value.LeafValue)
-		// TODO(gbelvin) only have ONE place where index is stored.
+	for _, l := range req.Leaves {
 		// TODO(gbelvin) Verify that Index is of the proper length.
-		kv.Value.Index = kv.Index
+		// TODO(gbelvin) use LeafHash rather than computing here.
+		l.LeafHash = hasher.HashLeaf(l.LeafValue)
 
-		if err = tx.Set(kv.Value.Index, *kv.Value); err != nil {
+		if err = tx.Set(l.Index, *l); err != nil {
 			return nil, err
 		}
 		if err = smtWriter.SetLeaves([]merkle.HashKeyValue{
 			{
-				HashedKey:   kv.Value.Index,
-				HashedValue: kv.Value.LeafHash,
+				HashedKey:   l.Index,
+				HashedValue: l.LeafHash,
 			},
 		}); err != nil {
 			return nil, err
