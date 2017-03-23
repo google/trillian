@@ -23,6 +23,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/extension"
+	"github.com/google/trillian/monitoring/metric"
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/storage/mysql"
 	"github.com/google/trillian/util"
@@ -37,12 +38,19 @@ var (
 	batchSizeFlag                 = flag.Int("batch_size", 50, "Max number of leaves to process per batch")
 	numSeqFlag                    = flag.Int("num_sequencers", 10, "Number of sequencers to run in parallel")
 	sequencerGuardWindowFlag      = flag.Duration("sequencer_guard_window", 0, "If set, the time elapsed before submitted leaves are eligible for sequencing")
+	dumpMetricsInterval           = flag.Duration("dump_metrics_interval", 0, "If greater than 0, how often to dump metrics to the logs.")
 )
 
 func main() {
 	flag.Parse()
 	glog.CopyStandardLogTo("WARNING")
 	glog.Info("**** Log Signer Starting ****")
+
+	// Enable dumping of metrics to the log at regular interval,
+	// if requested.
+	if *dumpMetricsInterval > 0 {
+		go metric.DumpToLog(context.Background(), *dumpMetricsInterval)
+	}
 
 	// First make sure we can access the database, quit if not
 	db, err := mysql.OpenDB(*mySQLURI)

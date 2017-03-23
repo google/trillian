@@ -15,6 +15,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"net"
@@ -27,6 +28,7 @@ import (
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/monitoring"
+	"github.com/google/trillian/monitoring/metric"
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/server/admin"
 	"github.com/google/trillian/storage/mysql"
@@ -36,10 +38,11 @@ import (
 )
 
 var (
-	mySQLURI         = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "Connection URI for MySQL database")
-	serverPortFlag   = flag.Int("port", 8090, "Port to serve log RPC requests on")
-	exportRPCMetrics = flag.Bool("export_metrics", true, "If true starts HTTP server and exports stats")
-	httpPortFlag     = flag.Int("http_port", 8091, "Port to serve HTTP metrics on")
+	mySQLURI            = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "Connection URI for MySQL database")
+	serverPortFlag      = flag.Int("port", 8090, "Port to serve log RPC requests on")
+	exportRPCMetrics    = flag.Bool("export_metrics", true, "If true starts HTTP server and exports stats")
+	httpPortFlag        = flag.Int("http_port", 8091, "Port to serve HTTP metrics on")
+	dumpMetricsInterval = flag.Duration("dump_metrics_interval", 0, "If greater than 0, how often to dump metrics to the logs.")
 )
 
 func startRPCServer(registry extension.Registry) (*grpc.Server, error) {
@@ -67,6 +70,12 @@ func main() {
 	flag.Parse()
 	glog.CopyStandardLogTo("WARNING")
 	glog.Info("**** Log RPC Server Starting ****")
+
+	// Enable dumping of metrics to the log at regular interval,
+	// if requested.
+	if *dumpMetricsInterval > 0 {
+		go metric.DumpToLog(context.Background(), *dumpMetricsInterval)
+	}
 
 	// First make sure we can access the database, quit if not
 	db, err := mysql.OpenDB(*mySQLURI)

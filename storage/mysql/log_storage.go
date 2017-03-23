@@ -32,6 +32,7 @@ import (
 	"github.com/google/trillian"
 	spb "github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/merkle"
+	"github.com/google/trillian/monitoring/metric"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
 )
@@ -83,7 +84,12 @@ const (
 	errNumDuplicate = 1062
 )
 
-var defaultLogStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8}
+var (
+	defaultLogStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8}
+
+	queuedCounter   = metric.NewCounter("mysql_queued_leaves")
+	dequeuedCounter = metric.NewCounter("mysql_dequeued_leaves")
+)
 
 type mySQLLogStorage struct {
 	*mySQLTreeStorage
@@ -315,6 +321,8 @@ func (t *logTreeTX) DequeueLeaves(limit int, cutoffTime time.Time) ([]*trillian.
 		return nil, err
 	}
 
+	dequeuedCounter.Add(int64(len(leaves)))
+
 	return leaves, nil
 }
 
@@ -431,6 +439,8 @@ func (t *logTreeTX) QueueLeaves(leaves []*trillian.LogLeaf, queueTimestamp time.
 			return nil, fmt.Errorf("failed to find existing leaf for hash %x", requested.LeafIdentityHash)
 		}
 	}
+
+	queuedCounter.Add(int64(len(leaves)))
 
 	return existingLeaves, nil
 }
