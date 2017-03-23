@@ -40,7 +40,7 @@ var HashStrategy_value = map[string]int32{
 func (x HashStrategy) String() string {
 	return proto.EnumName(HashStrategy_name, int32(x))
 }
-func (HashStrategy) EnumDescriptor() ([]byte, []int) { return fileDescriptor2, []int{0} }
+func (HashStrategy) EnumDescriptor() ([]byte, []int) { return fileDescriptor3, []int{0} }
 
 // State of the tree.
 type TreeState int32
@@ -83,7 +83,7 @@ var TreeState_value = map[string]int32{
 func (x TreeState) String() string {
 	return proto.EnumName(TreeState_name, int32(x))
 }
-func (TreeState) EnumDescriptor() ([]byte, []int) { return fileDescriptor2, []int{1} }
+func (TreeState) EnumDescriptor() ([]byte, []int) { return fileDescriptor3, []int{1} }
 
 // Type of the tree.
 type TreeType int32
@@ -112,7 +112,7 @@ var TreeType_value = map[string]int32{
 func (x TreeType) String() string {
 	return proto.EnumName(TreeType_name, int32(x))
 }
-func (TreeType) EnumDescriptor() ([]byte, []int) { return fileDescriptor2, []int{2} }
+func (TreeType) EnumDescriptor() ([]byte, []int) { return fileDescriptor3, []int{2} }
 
 // Duplicate policy of a tree.
 type DuplicatePolicy int32
@@ -141,7 +141,7 @@ var DuplicatePolicy_value = map[string]int32{
 func (x DuplicatePolicy) String() string {
 	return proto.EnumName(DuplicatePolicy_name, int32(x))
 }
-func (DuplicatePolicy) EnumDescriptor() ([]byte, []int) { return fileDescriptor2, []int{3} }
+func (DuplicatePolicy) EnumDescriptor() ([]byte, []int) { return fileDescriptor3, []int{3} }
 
 // Represents a tree, which may be either a verifiable log or map.
 // Readonly attributes are assigned at tree creation, after which they may not
@@ -198,7 +198,7 @@ type Tree struct {
 func (m *Tree) Reset()                    { *m = Tree{} }
 func (m *Tree) String() string            { return proto.CompactTextString(m) }
 func (*Tree) ProtoMessage()               {}
-func (*Tree) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{0} }
+func (*Tree) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{0} }
 
 func (m *Tree) GetTreeId() int64 {
 	if m != nil {
@@ -293,7 +293,7 @@ type SignedEntryTimestamp struct {
 func (m *SignedEntryTimestamp) Reset()                    { *m = SignedEntryTimestamp{} }
 func (m *SignedEntryTimestamp) String() string            { return proto.CompactTextString(m) }
 func (*SignedEntryTimestamp) ProtoMessage()               {}
-func (*SignedEntryTimestamp) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{1} }
+func (*SignedEntryTimestamp) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{1} }
 
 func (m *SignedEntryTimestamp) GetTimestampNanos() int64 {
 	if m != nil {
@@ -332,7 +332,7 @@ type SignedLogRoot struct {
 func (m *SignedLogRoot) Reset()                    { *m = SignedLogRoot{} }
 func (m *SignedLogRoot) String() string            { return proto.CompactTextString(m) }
 func (*SignedLogRoot) ProtoMessage()               {}
-func (*SignedLogRoot) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{2} }
+func (*SignedLogRoot) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{2} }
 
 func (m *SignedLogRoot) GetTimestampNanos() int64 {
 	if m != nil {
@@ -385,7 +385,7 @@ type MapperMetadata struct {
 func (m *MapperMetadata) Reset()                    { *m = MapperMetadata{} }
 func (m *MapperMetadata) String() string            { return proto.CompactTextString(m) }
 func (*MapperMetadata) ProtoMessage()               {}
-func (*MapperMetadata) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{3} }
+func (*MapperMetadata) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{3} }
 
 func (m *MapperMetadata) GetSourceLogId() []byte {
 	if m != nil {
@@ -422,7 +422,7 @@ type SignedMapRoot struct {
 func (m *SignedMapRoot) Reset()                    { *m = SignedMapRoot{} }
 func (m *SignedMapRoot) String() string            { return proto.CompactTextString(m) }
 func (*SignedMapRoot) ProtoMessage()               {}
-func (*SignedMapRoot) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{4} }
+func (*SignedMapRoot) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{4} }
 
 func (m *SignedMapRoot) GetTimestampNanos() int64 {
 	if m != nil {
@@ -478,7 +478,7 @@ type PEMKeyFile struct {
 func (m *PEMKeyFile) Reset()                    { *m = PEMKeyFile{} }
 func (m *PEMKeyFile) String() string            { return proto.CompactTextString(m) }
 func (*PEMKeyFile) ProtoMessage()               {}
-func (*PEMKeyFile) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{5} }
+func (*PEMKeyFile) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{5} }
 
 func (m *PEMKeyFile) GetPath() string {
 	if m != nil {
@@ -507,9 +507,9 @@ func init() {
 	proto.RegisterEnum("trillian.DuplicatePolicy", DuplicatePolicy_name, DuplicatePolicy_value)
 }
 
-func init() { proto.RegisterFile("trillian.proto", fileDescriptor2) }
+func init() { proto.RegisterFile("trillian.proto", fileDescriptor3) }
 
-var fileDescriptor2 = []byte{
+var fileDescriptor3 = []byte{
 	// 963 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0xac, 0x55, 0xcb, 0x6e, 0xdb, 0x46,
 	0x17, 0x0e, 0x7d, 0x91, 0xa5, 0x23, 0xd9, 0xe6, 0x3f, 0x89, 0xfd, 0xd3, 0x4e, 0xd0, 0xba, 0x6a,
