@@ -16,7 +16,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"net"
 	"testing"
 
@@ -140,53 +139,26 @@ func TestRun(t *testing.T) {
 
 	ctx := context.Background()
 	for _, test := range tests {
-		test := test
-		func() {
-			var out *string
-			printer := func(a ...interface{}) (int, error) {
-				str := fmt.Sprintln(a...)
-				out = &str
-				return 0, nil
-			}
+		server.err = test.createErr
 
-			if test.createErr != nil {
-				server.err = test.createErr
-				defer func() {
-					server.err = nil
-				}()
-			}
+		tree, err := createTree(ctx, test.opts)
+		switch hasErr := err != nil; {
+		case hasErr != test.wantErr:
+			t.Errorf("%v: createTree() returned err = '%v', wantErr = %v", test.desc, err, test.wantErr)
+			return
+		case hasErr:
+			return
+		}
 
-			tree, err := createTree(ctx, test.opts, printer)
-			switch hasErr := err != nil; {
-			case hasErr != test.wantErr:
-				t.Errorf("%v: createTree() returned err = '%v', wantErr = %v", test.desc, err, test.wantErr)
-				return
-			case hasErr:
-				return
-			}
-
-			// Copy storage-generated fields before comparison
-			test.wantTree.TreeId = tree.TreeId
-			test.wantTree.CreateTimeMillisSinceEpoch = tree.CreateTimeMillisSinceEpoch
-			test.wantTree.UpdateTimeMillisSinceEpoch = tree.UpdateTimeMillisSinceEpoch
-
-			if diff := pretty.Compare(tree, test.wantTree); diff != "" {
-				t.Errorf("%v: post-createTree diff:\n%v", test.desc, diff)
-			}
-
-			if out == nil {
-				t.Errorf("%v: no output recorded", test.desc)
-			} else if want := fmt.Sprintf("%v\n", tree.TreeId); *out != want {
-				t.Errorf("%v: out = %v, want = %v", test.desc, *out, want)
-			}
-		}()
+		if diff := pretty.Compare(tree, test.wantTree); diff != "" {
+			t.Errorf("%v: post-createTree diff:\n%v", test.desc, diff)
+		}
 	}
 }
 
 // fakeAdminServer that implements CreateTree. If err is nil, the CreateTree
-// input is echoed as the output, with the addition of storage-generated fields.
-// If err is non-nil it'll be returned instead. The remaining methods are not
-// implemented.
+// input is echoed as the output, otherwise err is returned instead.
+// The remaining methods are not implemented.
 type fakeAdminServer struct {
 	err error
 }
@@ -218,9 +190,6 @@ func (s *fakeAdminServer) CreateTree(ctx context.Context, req *trillian.CreateTr
 		return nil, s.err
 	}
 	resp := *req.Tree
-	resp.TreeId = 42 // "Random" number
-	resp.CreateTimeMillisSinceEpoch = 1
-	resp.UpdateTimeMillisSinceEpoch = 1 // Same as CreateTime for new trees.
 	return &resp, nil
 }
 

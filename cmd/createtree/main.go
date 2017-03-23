@@ -70,11 +70,7 @@ type createOpts struct {
 	privateKeyType, pemKeyPath, pemKeyPass                                                                    string
 }
 
-// printer mimicks the println signature.
-// It's meant to facilitate testing.
-type printer func(a ...interface{}) (n int, err error)
-
-func createTree(ctx context.Context, opts *createOpts, printer printer) (*trillian.Tree, error) {
+func createTree(ctx context.Context, opts *createOpts) (*trillian.Tree, error) {
 	req, err := newRequest(opts)
 	if err != nil {
 		return nil, err
@@ -90,12 +86,6 @@ func createTree(ctx context.Context, opts *createOpts, printer printer) (*trilli
 	if err != nil {
 		return nil, err
 	}
-
-	// DO NOT change the output format, scripts are meant to depend on it.
-	// If you really want to change it, provide an output_format flag and
-	// keep the default as-is.
-	printer(tree.TreeId)
-
 	return tree, nil
 }
 
@@ -189,9 +179,16 @@ func newOptsFromFlags() *createOpts {
 
 func main() {
 	flag.Parse()
+
 	ctx := context.Background()
-	if _, err := createTree(ctx, newOptsFromFlags(), fmt.Println); err != nil {
+	tree, err := createTree(ctx, newOptsFromFlags())
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to create tree: %v\n", err)
 		os.Exit(1)
 	}
+
+	// DO NOT change the output format, scripts are meant to depend on it.
+	// If you really want to change it, provide an output_format flag and
+	// keep the default as-is.
+	fmt.Println(tree.TreeId)
 }
