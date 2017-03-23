@@ -41,7 +41,7 @@ message IndexValue {
   MapLeaf value = 2;
 }
 
-message IndexValueInclusion {
+message MapLeafInclusion {
   IndexValue index_value = 1;
   repeated bytes inclusion = 2;
 }
@@ -54,7 +54,7 @@ message GetMapLeavesRequest {
 
 message GetMapLeavesResponse {
   // TODO(gbelvin): Return an error per index lookup.
-  repeated IndexValueInclusion index_value_inclusion = 2;
+  repeated MapLeafInclusion index_value_inclusion = 2;
   SignedMapRoot map_root = 3;
 }
 
