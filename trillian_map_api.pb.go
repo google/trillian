@@ -90,8 +90,8 @@ func (m *IndexValue) GetValue() *MapLeaf {
 }
 
 type MapLeafInclusion struct {
-	IndexValue *IndexValue `protobuf:"bytes,1,opt,name=index_value,json=indexValue" json:"index_value,omitempty"`
-	Inclusion  [][]byte    `protobuf:"bytes,2,rep,name=inclusion,proto3" json:"inclusion,omitempty"`
+	Leaf      *IndexValue `protobuf:"bytes,1,opt,name=index_value,json=indexValue" json:"index_value,omitempty"`
+	Inclusion [][]byte    `protobuf:"bytes,2,rep,name=inclusion,proto3" json:"inclusion,omitempty"`
 }
 
 func (m *MapLeafInclusion) Reset()                    { *m = MapLeafInclusion{} }
@@ -101,7 +101,7 @@ func (*MapLeafInclusion) Descriptor() ([]byte, []int) { return fileDescriptor1, 
 
 func (m *MapLeafInclusion) GetIndexValue() *IndexValue {
 	if m != nil {
-		return m.IndexValue
+		return m.Leaf
 	}
 	return nil
 }

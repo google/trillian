@@ -99,7 +99,7 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 		// Copy the leaf from the iterator, which gets overwritten
 		value := leaf
 		resp.IndexValueInclusion[i] = &trillian.MapLeafInclusion{
-			IndexValue: &trillian.IndexValue{
+			Leaf: &trillian.IndexValue{
 				Index: leaf.Index,
 				Value: &value,
 			},
