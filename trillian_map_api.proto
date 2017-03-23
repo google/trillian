@@ -53,8 +53,7 @@ message GetMapLeavesRequest {
 }
 
 message GetMapLeavesResponse {
-  // TODO(gbelvin): Return an error per index lookup.
-  repeated MapLeafInclusion index_value_inclusion = 2;
+  repeated MapLeafInclusion map_leaf_inclusion = 2;
   SignedMapRoot map_root = 3;
 }
 

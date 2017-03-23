@@ -149,7 +149,7 @@ func (m *CTMapper) oneMapperRun(ctx context.Context) (bool, error) {
 	//glog.Info("Get resp: %v", getResp)
 
 	proofs := 0
-	for _, v := range getResp.IndexValueInclusion {
+	for _, v := range getResp.MapLeafInclusion {
 		e := ctmapperpb.EntryList{}
 		if len(v.Inclusion) > 0 {
 			proofs++
@@ -163,7 +163,7 @@ func (m *CTMapper) oneMapperRun(ctx context.Context) (bool, error) {
 		domains[e.Domain] = el
 		glog.Infof("will update for %s", e.Domain)
 	}
-	glog.Infof("Got %d values, and %d proofs", len(getResp.IndexValueInclusion), proofs)
+	glog.Infof("Got %d values, and %d proofs", len(getResp.MapLeafInclusion), proofs)
 
 	glog.Info("Storing updated map values for domains...")
 	// Store updated map values:

@@ -58,7 +58,7 @@ func main() {
 			glog.Warning("Failed to lookup domain %s: %v", domain, err)
 			continue
 		}
-		for _, kv := range resp.IndexValueInclusion {
+		for _, kv := range resp.MapLeafInclusion {
 			el := ctmapperpb.EntryList{}
 			v := kv.Leaf.LeafValue
 			if len(v) == 0 {

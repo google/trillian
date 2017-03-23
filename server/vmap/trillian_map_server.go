@@ -89,7 +89,7 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 	glog.Infof("%s: wanted %d leaves, found %d", util.MapIDPrefix(ctx), len(req.Index), len(leaves))
 
 	resp := &trillian.GetMapLeavesResponse{
-		IndexValueInclusion: make([]*trillian.MapLeafInclusion, len(leaves)),
+		MapLeafInclusion: make([]*trillian.MapLeafInclusion, len(leaves)),
 	}
 	for i, leaf := range leaves {
 		proof, err := smtReader.InclusionProof(req.Revision, leaf.Index)
@@ -98,7 +98,7 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 		}
 		// Copy the leaf from the iterator, which gets overwritten
 		value := leaf
-		resp.IndexValueInclusion[i] = &trillian.MapLeafInclusion{
+		resp.MapLeafInclusion[i] = &trillian.MapLeafInclusion{
 			Leaf:      &value,
 			Inclusion: proof,
 		}

@@ -104,10 +104,10 @@ func RunMapIntegration(ctx context.Context, mapID int64, client trillian.Trillia
 		if err != nil {
 			return fmt.Errorf("failed to get values: %v", err)
 		}
-		if got, want := len(r.IndexValueInclusion), len(getReq.Index); got != want {
+		if got, want := len(r.MapLeafInclusion), len(getReq.Index); got != want {
 			return fmt.Errorf("got %d values, want %d", got, want)
 		}
-		for _, incl := range r.IndexValueInclusion {
+		for _, incl := range r.MapLeafInclusion {
 			leaf := incl.Leaf
 			ev, ok := lookup[hex.EncodeToString(leaf.Index)]
 			if !ok {
