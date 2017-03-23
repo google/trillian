@@ -48,6 +48,7 @@ for ((i=0; i < RPC_SERVER_COUNT; i++)); do
 done
 RPC_PORTS="${RPC_PORTS:1}"
 RPC_SERVERS="${RPC_SERVERS:1}"
+popd > /dev/null
 
 . "${INTEGRATION_DIR}"/ct_config.sh "${ADMIN_SERVER}"
 
