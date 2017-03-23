@@ -69,14 +69,14 @@ main() {
   fi
 
   echo 'running golint'
-  printf '%s\n' ${go_srcs} | xargs -i golint --set_exit_status '{}'
+  printf '%s\n' ${go_srcs} | xargs -I'{}' golint --set_exit_status '{}'
 
   echo 'running go vet'
   go vet ./...
 
   echo 'running gocyclo'
   # Do not fail on gocyclo tests, hence the "|| true".
-  printf '%s\n' ${go_srcs} | xargs -i bash -c 'gocyclo -over 25 {} || true'
+  printf '%s\n' ${go_srcs} | xargs -I'{}' bash -c 'gocyclo -over 25 {} || true'
 
   echo 'running misspell'
   misspell -error -i cancelled,CANCELLED -locale US .
