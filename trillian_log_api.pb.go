@@ -37,7 +37,6 @@ It has these top-level messages:
 	GetEntryAndProofRequest
 	GetEntryAndProofResponse
 	MapLeaf
-	IndexValue
 	MapLeafInclusion
 	GetMapLeavesRequest
 	GetMapLeavesResponse
