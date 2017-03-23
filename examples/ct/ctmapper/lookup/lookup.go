@@ -60,12 +60,12 @@ func main() {
 		}
 		for _, kv := range resp.IndexValueInclusion {
 			el := ctmapperpb.EntryList{}
-			v := kv.Leaf.Value.LeafValue
+			v := kv.Leaf.LeafValue
 			if len(v) == 0 {
 				continue
 			}
 			if err := pb.Unmarshal(v, &el); err != nil {
-				glog.Warning("Failed to unmarshal leaf %s: %v", kv.Leaf.Value.LeafValue, err)
+				glog.Warning("Failed to unmarshal leaf %s: %v", kv.Leaf.LeafValue, err)
 				continue
 			}
 			glog.Infof("Found %s with certs at indices %v and pre-certs at indices %v", el.Domain, el.CertIndex, el.PrecertIndex)

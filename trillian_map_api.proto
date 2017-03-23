@@ -42,7 +42,7 @@ message IndexValue {
 }
 
 message MapLeafInclusion {
-  IndexValue leaf = 1;
+  MapLeaf leaf = 1;
   repeated bytes inclusion = 2;
 }
 
