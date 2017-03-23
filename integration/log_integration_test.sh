@@ -19,7 +19,7 @@ RPC_SERVER_PID=$!
 popd > /dev/null
 waitForServerStartup ${RPC_PORT}
 
-TEST_TREE_ID=$(./createtree --admin_endpoint="localhost:${RPC_PORT}" --pem_key_path=testdata/log-rpc-server.privkey.pem --pem_key_password=towel)
+TEST_TREE_ID=$(./createtree --admin_server="localhost:${RPC_PORT}" --pem_key_path=testdata/log-rpc-server.privkey.pem --pem_key_password=towel)
 echo "Created tree ${TEST_TREE_ID}"
 
 # Ensure we kill the RPC server once we're done.

@@ -57,7 +57,7 @@ func TestRun(t *testing.T) {
 	defer stopFn()
 
 	validOpts := newOptsFromFlags()
-	validOpts.endpoint = lis.Addr().String()
+	validOpts.addr = lis.Addr().String()
 	validOpts.pemKeyPath = pemKey.Path
 	validOpts.pemKeyPass = pemKey.Password
 
@@ -138,18 +138,16 @@ func TestRun(t *testing.T) {
 		},
 	}
 
+	ctx := context.Background()
 	for _, test := range tests {
 		test := test
 		func() {
 			var out *string
-			println = func(a ...interface{}) (int, error) {
+			printer := func(a ...interface{}) (int, error) {
 				str := fmt.Sprintln(a...)
 				out = &str
 				return 0, nil
 			}
-			defer func() {
-				println = fmt.Println
-			}()
 
 			if test.createErr != nil {
 				server.err = test.createErr
@@ -158,7 +156,7 @@ func TestRun(t *testing.T) {
 				}()
 			}
 
-			tree, err := createTree(test.opts)
+			tree, err := createTree(ctx, test.opts, printer)
 			switch hasErr := err != nil; {
 			case hasErr != test.wantErr:
 				t.Errorf("%v: createTree() returned err = '%v', wantErr = %v", test.desc, err, test.wantErr)
@@ -166,6 +164,11 @@ func TestRun(t *testing.T) {
 			case hasErr:
 				return
 			}
+
+			// Copy storage-generated fields before comparison
+			test.wantTree.TreeId = tree.TreeId
+			test.wantTree.CreateTimeMillisSinceEpoch = tree.CreateTimeMillisSinceEpoch
+			test.wantTree.UpdateTimeMillisSinceEpoch = tree.UpdateTimeMillisSinceEpoch
 
 			if diff := pretty.Compare(tree, test.wantTree); diff != "" {
 				t.Errorf("%v: post-createTree diff:\n%v", test.desc, diff)
@@ -180,10 +183,18 @@ func TestRun(t *testing.T) {
 	}
 }
 
+// fakeAdminServer that implements CreateTree. If err is nil, the CreateTree
+// input is echoed as the output, with the addition of storage-generated fields.
+// If err is non-nil it'll be returned instead. The remaining methods are not
+// implemented.
 type fakeAdminServer struct {
 	err error
 }
 
+// startFakeServer starts a fakeAdminServer on a random port.
+// Returns the started server, the listener it's using for connection and a
+// close function that must be defer-called on the scope the server is meant to
+// stop.
 func startFakeServer() (*fakeAdminServer, net.Listener, func(), error) {
 	grpcServer := grpc.NewServer()
 	fakeServer := &fakeAdminServer{}
@@ -206,7 +217,11 @@ func (s *fakeAdminServer) CreateTree(ctx context.Context, req *trillian.CreateTr
 	if s.err != nil {
 		return nil, s.err
 	}
-	return req.Tree, nil
+	resp := *req.Tree
+	resp.TreeId = 42 // "Random" number
+	resp.CreateTimeMillisSinceEpoch = 1
+	resp.UpdateTimeMillisSinceEpoch = 1 // Same as CreateTime for new trees.
+	return &resp, nil
 }
 
 var errUnimplemented = errors.New("unimplemented")

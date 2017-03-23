@@ -4,10 +4,10 @@
 set -e
 
 if [[ $# -ne 1 ]]; then
-  echo "Usage: $0 <admin_endpoint>"
+  echo "Usage: $0 <admin_server_address>"
   exit 1
 fi
-ADMIN_ENDPOINT="$1"
+ADMIN_SERVER="$1"
 
 INTEGRATION_DIR="$( cd "$( dirname "$0" )" && pwd )"
 . "${INTEGRATION_DIR}"/common.sh
@@ -21,13 +21,9 @@ go build ${GOFLAGS} ./cmd/createtree/
 
 num_logs=$(grep -c '@TREE_ID@' "${CT_CFG}")
 for i in $(seq ${num_logs}); do
-  pem_file=$(grep -m$i 'PrivKeyPEMFile' "${CT_CFG}" | tail -1 | awk -F'"' '{print $4}')
-  pem_pass=$(grep -m$i 'PrivKeyPassword' "${CT_CFG}" | tail -1 | awk -F'"' '{print $4}')
-  echo "Creating tree with PEM key: ${pem_file}"
-
-  tree_id=$(./createtree --admin_endpoint="${ADMIN_ENDPOINT}" --pem_key_path="${pem_file}" --pem_key_password="${pem_pass}")
+  # TODO(daviddrysdale): Consider using distinct keys for each log
+  tree_id=$(./createtree --admin_server="${ADMIN_SERVER}" --pem_key_path=testdata/log-rpc-server.privkey.pem --pem_key_password=towel)
   echo "Created tree ${tree_id}"
-
   sed -i "0,/@TREE_ID@/s/@TREE_ID@/${tree_id}/" "${CT_CFG}"
 done
 

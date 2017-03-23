@@ -23,13 +23,13 @@ go build ./examples/ct/ctmapper/lookup
 
 # in another (leaving the trillian_map_server running):
 go build ./cmd/createtree/
-./createtree \
-    --admin_endpoint=localhost:8090 \
+tree_id=$(./createtree \
+    --admin_server=localhost:8090 \
     --pem_key_path=testdata/log-rpc-server.privkey.pem \
-    --pem_key_password=towel
+    --pem_key_password=towel)
 ./mapper \
     -source http://ct.googleapis.com/pilot \
-    -map_id=CREATE_TREE_OUTPUT \
+    -map_id=${tree_id} \
     -map_server=localhost:8091 \
     --logtostderr
 ```

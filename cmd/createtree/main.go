@@ -12,6 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package main contains the implementation and entry point for the createtree
+// command.
+//
+// Example usage:
+// $ ./createtree \
+//     --admin_server=host:port \
+//     --pem_key_path=/path/to/pem/file \
+//     --pem_key_password=mypassword
+//
+// The command outputs the tree ID of the created tree to stdout, or an error to
+// stderr in case of failure. The output is minimal to allow for easy usage in
+// automated scripts.
+//
+// Several flags are provided to configure the create tree, most of which try to
+// assume reasonable defaults. Multiple types of private keys may be supported;
+// one has only to set the appropriate --private_key_format value and supply the
+// corresponding flags for the chosen key type.
 package main
 
 import (
@@ -29,7 +46,7 @@ import (
 )
 
 var (
-	adminEndpoint = flag.String("admin_endpoint", "", "Endpoint of the gRPC Trillian Admin Server")
+	adminServerAddr = flag.String("admin_server", "", "Address of the gRPC Trillian Admin Server (host:port)")
 
 	treeState          = flag.String("tree_state", trillian.TreeState_ACTIVE.String(), "State of the new tree")
 	treeType           = flag.String("tree_type", trillian.TreeType_LOG.String(), "Type of the new tree")
@@ -40,35 +57,35 @@ var (
 	displayName        = flag.String("display_name", "", "Display name of the new tree")
 	description        = flag.String("description", "", "Description of the new tree")
 
-	privateKeyType = flag.String("private_key_type", "PEMKeyFile", "Type of private key to be used")
-	pemKeyPath     = flag.String("pem_key_path", "", "Path to the private key PEM file")
-	pemKeyPassword = flag.String("pem_key_password", "", "Password of the private key PEM file")
+	privateKeyFormat = flag.String("private_key_format", "PEMKeyFile", "Type of private key to be used")
+	pemKeyPath       = flag.String("pem_key_path", "", "Path to the private key PEM file")
+	pemKeyPassword   = flag.String("pem_key_password", "", "Password of the private key PEM file")
 )
-
-// println is used by tests to examine program output.
-var println = fmt.Println
 
 // createOpts contains all user-supplied options required to run the program.
 // It's meant to facilitate tests and focus flag reads to a single point.
 type createOpts struct {
-	endpoint                                                                                                  string
+	addr                                                                                                      string
 	treeState, treeType, hashStrategy, hashAlgorithm, sigAlgorithm, duplicatePolicy, displayName, description string
 	privateKeyType, pemKeyPath, pemKeyPass                                                                    string
 }
 
-func createTree(opts *createOpts) (*trillian.Tree, error) {
-	req, err := newRequestFromFlags(opts)
+// printer mimicks the println signature.
+// It's meant to facilitate testing.
+type printer func(a ...interface{}) (n int, err error)
+
+func createTree(ctx context.Context, opts *createOpts, printer printer) (*trillian.Tree, error) {
+	req, err := newRequest(opts)
 	if err != nil {
 		return nil, err
 	}
 
-	conn, err := grpc.Dial(opts.endpoint, grpc.WithInsecure())
+	conn, err := grpc.Dial(opts.addr, grpc.WithInsecure())
 	if err != nil {
 		return nil, err
 	}
 	defer conn.Close()
 
-	ctx := context.Background()
 	tree, err := trillian.NewTrillianAdminClient(conn).CreateTree(ctx, req)
 	if err != nil {
 		return nil, err
@@ -77,71 +94,62 @@ func createTree(opts *createOpts) (*trillian.Tree, error) {
 	// DO NOT change the output format, scripts are meant to depend on it.
 	// If you really want to change it, provide an output_format flag and
 	// keep the default as-is.
-	println(tree.TreeId)
+	printer(tree.TreeId)
 
 	return tree, nil
 }
 
-func newRequestFromFlags(opts *createOpts) (*trillian.CreateTreeRequest, error) {
-	tree := &trillian.Tree{
-		DisplayName: opts.displayName,
-		Description: opts.description,
+func newRequest(opts *createOpts) (*trillian.CreateTreeRequest, error) {
+	ts, ok := trillian.TreeState_value[opts.treeState]
+	if !ok {
+		return nil, fmt.Errorf("unknown TreeState: %v", opts.treeState)
 	}
 
-	enums := []struct {
-		values map[string]int32
-		name   string
-		assign func(int32, *trillian.Tree)
-	}{
-		{
-			trillian.TreeState_value,
-			opts.treeState,
-			func(v int32, t *trillian.Tree) { t.TreeState = trillian.TreeState(v) },
-		},
-		{
-			trillian.TreeType_value,
-			opts.treeType,
-			func(v int32, t *trillian.Tree) { t.TreeType = trillian.TreeType(v) },
-		},
-		{
-			trillian.HashStrategy_value,
-			opts.hashStrategy,
-			func(v int32, t *trillian.Tree) { t.HashStrategy = trillian.HashStrategy(v) },
-		},
-		{
-			sigpb.DigitallySigned_HashAlgorithm_value,
-			opts.hashAlgorithm,
-			func(v int32, t *trillian.Tree) { t.HashAlgorithm = sigpb.DigitallySigned_HashAlgorithm(v) },
-		},
-		{
-			sigpb.DigitallySigned_SignatureAlgorithm_value,
-			opts.sigAlgorithm,
-			func(v int32, t *trillian.Tree) { t.SignatureAlgorithm = sigpb.DigitallySigned_SignatureAlgorithm(v) },
-		},
-		{
-			trillian.DuplicatePolicy_value,
-			opts.duplicatePolicy,
-			func(v int32, t *trillian.Tree) { t.DuplicatePolicy = trillian.DuplicatePolicy(v) },
-		},
-	}
-	for _, e := range enums {
-		value, ok := e.values[e.name]
-		if !ok {
-			return nil, fmt.Errorf("unknown enum value: %v", e.name)
-		}
-		e.assign(value, tree)
+	tt, ok := trillian.TreeType_value[opts.treeType]
+	if !ok {
+		return nil, fmt.Errorf("unknown TreeType: %v", opts.treeType)
 	}
 
-	pk, err := newPkFromFlags(opts)
+	hs, ok := trillian.HashStrategy_value[opts.hashStrategy]
+	if !ok {
+		return nil, fmt.Errorf("unknown HashStrategy: %v", opts.hashStrategy)
+	}
+
+	ha, ok := sigpb.DigitallySigned_HashAlgorithm_value[opts.hashAlgorithm]
+	if !ok {
+		return nil, fmt.Errorf("unknown HashAlgorithm: %v", opts.hashAlgorithm)
+	}
+
+	sa, ok := sigpb.DigitallySigned_SignatureAlgorithm_value[opts.sigAlgorithm]
+	if !ok {
+		return nil, fmt.Errorf("unknown SignatureAlgorithm: %v", opts.sigAlgorithm)
+	}
+
+	dp, ok := trillian.DuplicatePolicy_value[opts.duplicatePolicy]
+	if !ok {
+		return nil, fmt.Errorf("unknown DuplicatePolicy: %v", opts.duplicatePolicy)
+	}
+
+	pk, err := newPK(opts)
 	if err != nil {
 		return nil, err
 	}
-	tree.PrivateKey = pk
 
+	tree := &trillian.Tree{
+		TreeState:          trillian.TreeState(ts),
+		TreeType:           trillian.TreeType(tt),
+		HashStrategy:       trillian.HashStrategy(hs),
+		HashAlgorithm:      sigpb.DigitallySigned_HashAlgorithm(ha),
+		SignatureAlgorithm: sigpb.DigitallySigned_SignatureAlgorithm(sa),
+		DuplicatePolicy:    trillian.DuplicatePolicy(dp),
+		DisplayName:        opts.displayName,
+		Description:        opts.description,
+		PrivateKey:         pk,
+	}
 	return &trillian.CreateTreeRequest{Tree: tree}, nil
 }
 
-func newPkFromFlags(opts *createOpts) (*any.Any, error) {
+func newPK(opts *createOpts) (*any.Any, error) {
 	switch opts.privateKeyType {
 	case "PEMKeyFile":
 		path := opts.pemKeyPath
@@ -164,7 +172,7 @@ func newPkFromFlags(opts *createOpts) (*any.Any, error) {
 
 func newOptsFromFlags() *createOpts {
 	return &createOpts{
-		endpoint:        *adminEndpoint,
+		addr:            *adminServerAddr,
 		treeState:       *treeState,
 		treeType:        *treeType,
 		hashStrategy:    *hashStrategy,
@@ -173,7 +181,7 @@ func newOptsFromFlags() *createOpts {
 		duplicatePolicy: *duplicatePolicy,
 		displayName:     *displayName,
 		description:     *description,
-		privateKeyType:  *privateKeyType,
+		privateKeyType:  *privateKeyFormat,
 		pemKeyPath:      *pemKeyPath,
 		pemKeyPass:      *pemKeyPassword,
 	}
@@ -181,7 +189,8 @@ func newOptsFromFlags() *createOpts {
 
 func main() {
 	flag.Parse()
-	if _, err := createTree(newOptsFromFlags()); err != nil {
+	ctx := context.Background()
+	if _, err := createTree(ctx, newOptsFromFlags(), fmt.Println); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to create tree: %v\n", err)
 		os.Exit(1)
 	}

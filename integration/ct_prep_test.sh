@@ -41,14 +41,15 @@ for ((i=0; i < RPC_SERVER_COUNT; i++)); do
   RPC_SERVER_PIDS+=(${pid})
   waitForServerStartup ${port}
 
+  # Use the first Log server as the Admin server (any would do)
   if [[ $i -eq 0 ]]; then
-    ADMIN_ENDPOINT="localhost:$port"
+    ADMIN_SERVER="localhost:$port"
   fi
 done
 RPC_PORTS="${RPC_PORTS:1}"
 RPC_SERVERS="${RPC_SERVERS:1}"
 
-. "${INTEGRATION_DIR}"/ct_config.sh "${ADMIN_ENDPOINT}"
+. "${INTEGRATION_DIR}"/ct_config.sh "${ADMIN_SERVER}"
 
 # Start a toy gRPC load balancer.  It randomly sprays RPCs across the
 # backends.
