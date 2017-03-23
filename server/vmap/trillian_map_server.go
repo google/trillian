@@ -134,20 +134,18 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		return nil, err
 	}
 
-	for _, kv := range req.Leaves {
-		// TODO(gbelvin) use LeafHash rather than computing here.
-		kv.Value.LeafHash = hasher.HashLeaf(kv.Value.LeafValue)
-		// TODO(gbelvin) only have ONE place where index is stored.
+	for _, l := range req.Leaves {
 		// TODO(gbelvin) Verify that Index is of the proper length.
-		kv.Value.Index = kv.Index
+		// TODO(gbelvin) use LeafHash rather than computing here.
+		l.LeafHash = hasher.HashLeaf(l.LeafValue)
 
-		if err = tx.Set(kv.Value.Index, *kv.Value); err != nil {
+		if err = tx.Set(l.Index, *l); err != nil {
 			return nil, err
 		}
 		if err = smtWriter.SetLeaves([]merkle.HashKeyValue{
 			{
-				HashedKey:   kv.Value.Index,
-				HashedValue: kv.Value.LeafHash,
+				HashedKey:   l.Index,
+				HashedValue: l.LeafHash,
 			},
 		}); err != nil {
 			return nil, err

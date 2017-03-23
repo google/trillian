@@ -44,15 +44,13 @@ func RunMapIntegration(ctx context.Context, mapID int64, client trillian.Trillia
 	// Generate tests.
 	const batchSize = 64
 	const numBatches = 32
-	tests := make([]*trillian.IndexValue, batchSize*numBatches)
-	lookup := make(map[string]*trillian.IndexValue)
+	tests := make([]*trillian.MapLeaf, batchSize*numBatches)
+	lookup := make(map[string]*trillian.MapLeaf)
 	for i := range tests {
 		index := testonly.HashKey(fmt.Sprintf("key-%d", i))
-		tests[i] = &trillian.IndexValue{
-			Index: index,
-			Value: &trillian.MapLeaf{
-				LeafValue: []byte(fmt.Sprintf("value-%d", i)),
-			},
+		tests[i] = &trillian.MapLeaf{
+			Index:     index,
+			LeafValue: []byte(fmt.Sprintf("value-%d", i)),
 		}
 		lookup[hex.EncodeToString(index)] = tests[i]
 	}
@@ -113,7 +111,7 @@ func RunMapIntegration(ctx context.Context, mapID int64, client trillian.Trillia
 			if !ok {
 				return fmt.Errorf("unexpected key returned: %v", string(leaf.Index))
 			}
-			if got, want := leaf.LeafValue, ev.Value.LeafValue; !bytes.Equal(got, want) {
+			if got, want := leaf.LeafValue, ev.LeafValue; !bytes.Equal(got, want) {
 				return fmt.Errorf("got value %s, want %s", got, want)
 			}
 			leafHash := h.HashLeaf(leaf.LeafValue)

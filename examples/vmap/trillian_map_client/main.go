@@ -43,14 +43,12 @@ func main() {
 	{
 		req := &trillian.SetMapLeavesRequest{
 			MapId: 1,
-			Leaves: []*trillian.IndexValue{
+			Leaves: []*trillian.MapLeaf{
 				{
-					Index: index,
-					Value: &trillian.MapLeaf{
-						LeafHash:  []byte("This is a leaf hash"),
-						LeafValue: []byte("This is a leaf value"),
-						ExtraData: []byte("This is some extra data"),
-					},
+					Index:     index,
+					LeafHash:  []byte("This is a leaf hash"),
+					LeafValue: []byte("This is a leaf value"),
+					ExtraData: []byte("This is some extra data"),
 				},
 			},
 		}

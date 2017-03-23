@@ -169,7 +169,7 @@ func (m *CTMapper) oneMapperRun(ctx context.Context) (bool, error) {
 	// Store updated map values:
 	setReq := &trillian.SetMapLeavesRequest{
 		MapId:  m.mapID,
-		Leaves: make([]*trillian.IndexValue, 0, len(domains)),
+		Leaves: make([]*trillian.MapLeaf, 0, len(domains)),
 	}
 	for k, v := range domains {
 		index := ctmapper.HashDomain(k)
@@ -177,11 +177,9 @@ func (m *CTMapper) oneMapperRun(ctx context.Context) (bool, error) {
 		if err != nil {
 			return false, err
 		}
-		setReq.Leaves = append(setReq.Leaves, &trillian.IndexValue{
-			Index: index,
-			Value: &trillian.MapLeaf{
-				LeafValue: b,
-			},
+		setReq.Leaves = append(setReq.Leaves, &trillian.MapLeaf{
+			Index:     index,
+			LeafValue: b,
 		})
 	}
 

@@ -59,7 +59,7 @@ message GetMapLeavesResponse {
 
 message SetMapLeavesRequest {
   int64 map_id = 1;
-  repeated IndexValue leaves = 2;
+  repeated MapLeaf leaves = 2;
   MapperMetadata mapper_data = 3;
 }
 
