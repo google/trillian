@@ -171,7 +171,7 @@ func (m *GetMapLeavesResponse) GetMapRoot() *SignedMapRoot {
 
 type SetMapLeavesRequest struct {
 	MapId      int64           `protobuf:"varint,1,opt,name=map_id,json=mapId" json:"map_id,omitempty"`
-	IndexValue []*IndexValue   `protobuf:"bytes,2,rep,name=index_value,json=indexValue" json:"index_value,omitempty"`
+	Leaves     []*IndexValue   `protobuf:"bytes,2,rep,name=index_value,json=indexValue" json:"index_value,omitempty"`
 	MapperData *MapperMetadata `protobuf:"bytes,3,opt,name=mapper_data,json=mapperData" json:"mapper_data,omitempty"`
 }
 
@@ -189,7 +189,7 @@ func (m *SetMapLeavesRequest) GetMapId() int64 {
 
 func (m *SetMapLeavesRequest) GetIndexValue() []*IndexValue {
 	if m != nil {
-		return m.IndexValue
+		return m.Leaves
 	}
 	return nil
 }

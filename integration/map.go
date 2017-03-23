@@ -62,15 +62,15 @@ func RunMapIntegration(ctx context.Context, mapID int64, client trillian.Trillia
 		glog.Infof("Starting batch %d...", x)
 
 		req := &trillian.SetMapLeavesRequest{
-			MapId:      mapID,
-			IndexValue: tests[x*batchSize : (x+1)*batchSize],
+			MapId:  mapID,
+			Leaves: tests[x*batchSize : (x+1)*batchSize],
 		}
 
 		_, err := client.SetLeaves(ctx, req)
 		if err != nil {
 			return fmt.Errorf("failed to write batch %d: %v", x, err)
 		}
-		glog.Infof("Set %d k/v pairs", len(req.IndexValue))
+		glog.Infof("Set %d k/v pairs", len(req.Leaves))
 	}
 
 	// Check your head

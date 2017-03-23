@@ -43,7 +43,7 @@ func main() {
 	{
 		req := &trillian.SetMapLeavesRequest{
 			MapId: 1,
-			IndexValue: []*trillian.IndexValue{
+			Leaves: []*trillian.IndexValue{
 				{
 					Index: index,
 					Value: &trillian.MapLeaf{

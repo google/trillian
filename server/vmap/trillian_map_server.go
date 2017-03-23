@@ -134,7 +134,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		return nil, err
 	}
 
-	for _, kv := range req.IndexValue {
+	for _, kv := range req.Leaves {
 		// TODO(gbelvin) use LeafHash rather than computing here.
 		kv.Value.LeafHash = hasher.HashLeaf(kv.Value.LeafValue)
 		// TODO(gbelvin) only have ONE place where index is stored.
