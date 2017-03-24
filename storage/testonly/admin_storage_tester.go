@@ -25,6 +25,7 @@ import (
 	"github.com/google/trillian"
 	spb "github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/storage"
+	"github.com/kylelemons/godebug/pretty"
 )
 
 // mustMarshal panics if ptypes.MarshalAny fails.
@@ -141,21 +142,23 @@ func (tester *AdminStorageTester) TestCreateTree(t *testing.T) {
 			// Tested above
 			continue
 		}
+		createTimeMillis := newTree.CreateTimeMillisSinceEpoch
+		updateTimeMillis := newTree.UpdateTimeMillisSinceEpoch
 		switch {
 		case newTree.TreeId == 0:
 			t.Errorf("%v: TreeID not returned from creation: %v", test.desc, newTree)
 			continue
-		case newTree.CreateTimeMillisSinceEpoch <= 0:
+		case createTimeMillis <= 0:
 			t.Errorf("%v: CreateTime not returned from creation: %v", test.desc, newTree)
 			continue
-		case newTree.CreateTimeMillisSinceEpoch != newTree.UpdateTimeMillisSinceEpoch:
+		case createTimeMillis != updateTimeMillis:
 			t.Errorf("%v: CreateTime != UpdateTime: %v", test.desc, newTree)
 			continue
 		}
 		wantTree := *test.tree
 		wantTree.TreeId = newTree.TreeId
-		wantTree.CreateTimeMillisSinceEpoch = newTree.CreateTimeMillisSinceEpoch
-		wantTree.UpdateTimeMillisSinceEpoch = newTree.UpdateTimeMillisSinceEpoch
+		wantTree.CreateTimeMillisSinceEpoch = createTimeMillis
+		wantTree.UpdateTimeMillisSinceEpoch = updateTimeMillis
 		if !reflect.DeepEqual(newTree, &wantTree) {
 			t.Errorf("%v: newTree = %v, want = %v", test.desc, newTree, wantTree)
 			continue
@@ -165,15 +168,14 @@ func (tester *AdminStorageTester) TestCreateTree(t *testing.T) {
 			continue
 		}
 
-		// Make sure a tree was correctly stored
+		// Make sure a tree was correctly stored.
 		storedTree, err := getTree(ctx, s, newTree.TreeId)
 		if err != nil {
 			t.Errorf(":%v: getTree() = (%v, %v), want = (%v, nil)", test.desc, newTree.TreeId, err, newTree)
 			continue
 		}
-		wantTree = *storedTree
-		if !reflect.DeepEqual(newTree, &wantTree) {
-			t.Errorf("%v: newTree = \n%v, wantTree = \n%v", test.desc, newTree, &wantTree)
+		if diff := pretty.Compare(storedTree, newTree); diff != "" {
+			t.Errorf("%v: storedTree differs:\n%s", test.desc, diff)
 		}
 	}
 }
