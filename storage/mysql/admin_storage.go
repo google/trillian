@@ -302,12 +302,9 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 
 	now := time.Now()
 	nowDatetime := toDatetime(now)
-	nowMillis := toMillisSinceEpoch(now)
 
 	newTree := *tree
 	newTree.TreeId = id
-	newTree.CreateTimeMillisSinceEpoch = nowMillis
-	newTree.UpdateTimeMillisSinceEpoch = nowMillis
 
 	insertTreeStmt, err := t.tx.Prepare(`
 		INSERT INTO Trees(
@@ -368,11 +365,17 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 	// MySQL silently truncates data when running in non-strict mode.
 	// We shouldn't be using non-strict modes, but let's guard against it
 	// anyway.
-	if _, err := t.GetTree(ctx, newTree.TreeId); err != nil {
+	storedTree, err := t.GetTree(ctx, newTree.TreeId)
+	if err != nil {
 		// GetTree will fail for truncated enums (they get recorded as
 		// empty strings, which will not match any known value).
 		return nil, fmt.Errorf("enum truncated: %v", err)
 	}
+
+	// Use the timestamps that are stored in the database, in case MySQL
+	// did any rounding.
+	newTree.CreateTimeMillisSinceEpoch = storedTree.CreateTimeMillisSinceEpoch
+	newTree.UpdateTimeMillisSinceEpoch = storedTree.UpdateTimeMillisSinceEpoch
 
 	// TODO(codingllama): There's a strong disconnect between trillian.Tree and TreeControl. Are we OK with that?
 	insertControlStmt, err := t.tx.Prepare(`
