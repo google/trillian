@@ -21,15 +21,11 @@ go build ${GOFLAGS} ./testonly/loglb
 go build ${GOFLAGS} ./examples/ct/ct_server/
 
 yes | "${SCRIPTS_DIR}"/resetdb.sh
-echo "Provisioning test log (Tree ID: 0) in database"
-"${SCRIPTS_DIR}"/createlog.sh 0
 
 # Default to one RPC server and one HTTP server.
 RPC_SERVER_COUNT=${1:-1}
 HTTP_SERVER_COUNT=${2:-1}
 LOG_SIGNER_COUNT=1
-
-. "${INTEGRATION_DIR}"/ct_config.sh
 
 # Start a set of Log RPC servers.
 pushd "${TRILLIAN_ROOT}" > /dev/null
@@ -44,9 +40,16 @@ for ((i=0; i < RPC_SERVER_COUNT; i++)); do
   pid=$!
   RPC_SERVER_PIDS+=(${pid})
   waitForServerStartup ${port}
+
+  # Use the first Log server as the Admin server (any would do)
+  if [[ $i -eq 0 ]]; then
+    ADMIN_SERVER="localhost:$port"
+  fi
 done
 RPC_PORTS="${RPC_PORTS:1}"
 RPC_SERVERS="${RPC_SERVERS:1}"
+
+. "${INTEGRATION_DIR}"/ct_config.sh "${ADMIN_SERVER}"
 
 # Start a toy gRPC load balancer.  It randomly sprays RPCs across the
 # backends.

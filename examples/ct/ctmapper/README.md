@@ -10,9 +10,9 @@ which have that domain in their subject/SAN fields.
 ## Running the example
 
 ```bash
-# Ensure you have your MySQL DB set up correctly, with tables created by the contents of storage/mysql/storage.sql
-# Insert a new entry into the Trees table to provision a Map:
-mysql -u root -p test -e "source storage/mysql/drop_storage.sql;  source storage/mysql/storage.sql; insert into Trees values(1, 1, 'MAP', 'SHA256', 'SHA256', false);"
+# Ensure you have your MySQL DB set up correctly, with tables created by the
+# contents of storage/mysql/storage.sql
+yes | scripts/resetdb.sh
 
 go build ./server/vmap/trillian_map_server
 go build ./examples/ct/ctmapper/mapper
@@ -22,12 +22,24 @@ go build ./examples/ct/ctmapper/lookup
 ./trillian_map_server --logtostderr
 
 # in another (leaving the trillian_map_server running):
-./mapper -source http://ct.googleapis.com/pilot -map_id=1 -map_server=localhost:8091 --logtostderr
+go build ./cmd/createtree/
+tree_id=$(./createtree \
+    --admin_server=localhost:8090 \
+    --pem_key_path=testdata/log-rpc-server.privkey.pem \
+    --pem_key_password=towel)
+./mapper \
+    -source http://ct.googleapis.com/pilot \
+    -map_id=${tree_id} \
+    -map_server=localhost:8091 \
+    --logtostderr
 ```
 
 You should then be able to look up domains in the map like so:
 
 ```bash
-./lookup -map_id=1 -map_server=localhost:8091 --logtostderr mail.google.com www.langeoog.de  # etc. etc.
+./lookup \
+    -map_id=1 \
+    -map_server=localhost:8091 \
+    --logtostderr \
+    mail.google.com www.langeoog.de  # etc. etc.
 ```
-
