@@ -16,7 +16,6 @@ package admin
 
 import (
 	"errors"
-	"reflect"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -24,6 +23,7 @@ import (
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testonly"
+	"github.com/kylelemons/godebug/pretty"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -141,24 +141,27 @@ func TestAdminServer_GetTree(t *testing.T) {
 		tx := setup.snapshotTX
 		s := setup.server
 
-		req := &trillian.GetTreeRequest{TreeId: 12345}
-		wantTree := testonly.LogTree
+		storedTree := *testonly.LogTree
+		storedTree.TreeId = 12345
 		if test.getErr {
-			tx.EXPECT().GetTree(ctx, req.TreeId).Return(nil, errors.New("GetTree failed"))
+			tx.EXPECT().GetTree(ctx, storedTree.TreeId).Return(nil, errors.New("GetTree failed"))
 		} else {
-			tx.EXPECT().GetTree(ctx, req.TreeId).Return(wantTree, nil)
+			tx.EXPECT().GetTree(ctx, storedTree.TreeId).Return(&storedTree, nil)
 		}
 		wantErr := test.getErr || test.commitErr
 
-		tree, err := s.GetTree(ctx, req)
+		tree, err := s.GetTree(ctx, &trillian.GetTreeRequest{TreeId: storedTree.TreeId})
 		if hasErr := err != nil; hasErr != wantErr {
 			t.Errorf("%v: GetTree() = (_, %v), wantErr = %v", test.desc, err, wantErr)
 			continue
 		} else if hasErr {
 			continue
 		}
-		if !reflect.DeepEqual(tree, wantTree) {
-			t.Errorf("%v: GetTree() = (%v, _), want = (%v, _)", test.desc, tree, wantTree)
+
+		wantTree := storedTree
+		wantTree.PrivateKey = nil // redacted
+		if diff := pretty.Compare(tree, &wantTree); diff != "" {
+			t.Errorf("%v: post-GetTree diff (-got +want):\n%v", test.desc, diff)
 		}
 	}
 }
@@ -197,10 +200,13 @@ func TestAdminServer_CreateTree(t *testing.T) {
 		tx := setup.tx
 		s := setup.server
 
+		newTree := *test.req.Tree
+		newTree.TreeId = 12345
+		newTree.CreateTimeMillisSinceEpoch = 1
+		newTree.UpdateTimeMillisSinceEpoch = 1
 		if test.createErr {
 			tx.EXPECT().CreateTree(ctx, test.req.Tree).Return(nil, errors.New("CreateTree failed"))
 		} else {
-			newTree := *test.req.Tree
 			tx.EXPECT().CreateTree(ctx, test.req.Tree).Return(&newTree, nil)
 		}
 		wantErr := test.createErr || test.commitErr
@@ -212,8 +218,11 @@ func TestAdminServer_CreateTree(t *testing.T) {
 		} else if hasErr {
 			continue
 		}
-		if !reflect.DeepEqual(tree, test.req.Tree) {
-			t.Errorf("%v: CreateTree() = (%v, _), want = (%v, _)", test.desc, tree, test.req.Tree)
+
+		wantTree := newTree
+		wantTree.PrivateKey = nil // redacted
+		if diff := pretty.Compare(tree, &wantTree); diff != "" {
+			t.Errorf("%v: post-CreateTree diff (-got +want):\n%v", test.desc, diff)
 		}
 	}
 }

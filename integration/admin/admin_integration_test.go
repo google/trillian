@@ -17,13 +17,13 @@ package admin
 import (
 	"context"
 	"net"
-	"reflect"
 	"testing"
 
 	"github.com/google/trillian"
 	sa "github.com/google/trillian/server/admin"
 	"github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/testonly/integration"
+	"github.com/kylelemons/godebug/pretty"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
@@ -114,13 +114,14 @@ func TestAdminServer_CreateTree(t *testing.T) {
 		} else if err != nil {
 			continue
 		}
+
 		storedTree, err := client.GetTree(ctx, &trillian.GetTreeRequest{TreeId: createdTree.TreeId})
 		if err != nil {
 			t.Errorf("%v: GetTree() = (_, %v), want = (_, nil)", test.desc, err)
 			continue
 		}
-		if !reflect.DeepEqual(storedTree, createdTree) {
-			t.Errorf("%v: storedTree doesn't match createdTree:\nstoredTree =  %v,\ncreatedTree = %v", test.desc, storedTree, createdTree)
+		if diff := pretty.Compare(storedTree, createdTree); diff != "" {
+			t.Errorf("%v: post-CreateTree diff (-stored +created):\n%v", test.desc, diff)
 		}
 	}
 }
@@ -151,7 +152,7 @@ func TestAdminServer_GetTree(t *testing.T) {
 
 	ctx := context.Background()
 	for _, test := range tests {
-		_, err = client.GetTree(ctx, &trillian.GetTreeRequest{TreeId: test.treeID})
+		_, err := client.GetTree(ctx, &trillian.GetTreeRequest{TreeId: test.treeID})
 		if grpc.Code(err) != test.wantCode {
 			t.Errorf("%v: GetTree() = (_, %v), wantCode = %v", test.desc, err, test.wantCode)
 		}
