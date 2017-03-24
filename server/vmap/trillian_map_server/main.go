@@ -58,7 +58,7 @@ func main() {
 	s := grpc.NewServer()
 	// No defer: server ownership is delegated to server.Main
 
-	var httpEndpoint = ""
+	httpEndpoint := ""
 	if *httpPortFlag >= 0 {
 		httpEndpoint = fmt.Sprintf("localhost:%v", *httpPortFlag)
 	}
