@@ -15,6 +15,7 @@
 package client
 
 import (
+	"bytes"
 	"context"
 	"testing"
 	"time"
@@ -31,6 +32,91 @@ const timeout = 100 * time.Millisecond
 
 func TestAddGetLeaf(t *testing.T) {
 	// TODO: Build a GetLeaf method and test a full get/set cycle.
+}
+
+func TestGetByIndex(t *testing.T) {
+	env, err := integration.NewLogEnv(context.Background(), 0, "TestGetByIndex")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer env.Close()
+	logID, err := env.CreateLog()
+	if err != nil {
+		t.Fatalf("Failed to create log: %v", err)
+	}
+
+	cli := trillian.NewTrillianLogClient(env.ClientConn)
+	client := New(logID, cli, testonly.Hasher, env.PublicKey)
+	// Add a few test leaves.
+	leafData := [][]byte{
+		[]byte("A"),
+		[]byte("B"),
+		[]byte("C"),
+	}
+
+	// TODO(gdbelvin): Replace with batch API.
+	// TODO(gdbelvin): Replace with AddSequencedLeaves API.
+	for _, l := range leafData {
+		ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(timeout))
+		defer cancel()
+		if err, want := client.AddLeaf(ctx, l), codes.DeadlineExceeded; grpc.Code(err) != want {
+			t.Fatalf("AddLeaf(%v): %v, want, %v", l, err, want)
+		}
+		env.Sequencer.OperationLoop() // Sequence the new leaves in-order.
+	}
+
+	for i, l := range leafData {
+		leaf, err := client.GetByIndex(context.Background(), int64(i))
+		if err != nil {
+			t.Errorf("Failed to GetByIndex(%v): %v", i, err)
+		}
+		if got, want := leaf.LeafValue, l; !bytes.Equal(got, want) {
+			t.Errorf("GetByIndex(%v) = %x, want %x", i, got, want)
+		}
+	}
+}
+
+func TestListByIndex(t *testing.T) {
+	env, err := integration.NewLogEnv(context.Background(), 0, "TestGetByIndex")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer env.Close()
+	logID, err := env.CreateLog()
+	if err != nil {
+		t.Fatalf("Failed to create log: %v", err)
+	}
+
+	cli := trillian.NewTrillianLogClient(env.ClientConn)
+	client := New(logID, cli, testonly.Hasher, env.PublicKey)
+	// Add a few test leaves.
+	leafData := [][]byte{
+		[]byte("A"),
+		[]byte("B"),
+		[]byte("C"),
+	}
+
+	// TODO(gdbelvin): Replace with batch API.
+	// TODO(gdbelvin): Replace with AddSequenedLeaves API.
+	for _, l := range leafData {
+		ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(timeout))
+		defer cancel()
+		if err, want := client.AddLeaf(ctx, l), codes.DeadlineExceeded; grpc.Code(err) != want {
+			t.Fatalf("AddLeaf(%v): %v, want, %v", l, err, want)
+		}
+		env.Sequencer.OperationLoop() // Sequence the new leaves in-order.
+	}
+
+	// Fetch leaves.
+	leaves, err := client.ListByIndex(context.Background(), 0, 3)
+	if err != nil {
+		t.Errorf("Failed to ListByIndex: %v", err)
+	}
+	for i, l := range leaves {
+		if got, want := l.LeafValue, leafData[i]; !bytes.Equal(got, want) {
+			t.Errorf("ListIndex()[%v] = %v, want %v", i, got, want)
+		}
+	}
 }
 
 func TestAddLeaf(t *testing.T) {
