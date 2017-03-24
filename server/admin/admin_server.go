@@ -38,6 +38,7 @@ func New(registry extension.Registry) *Server {
 
 // ListTrees implements trillian.TrillianAdminServer.ListTrees.
 func (s *Server) ListTrees(context.Context, *trillian.ListTreesRequest) (*trillian.ListTreesResponse, error) {
+	// TODO(codingllama): Don't forget to redact trees
 	return nil, errNotImplemented
 }
 
@@ -64,7 +65,7 @@ func (s *Server) getTreeImpl(ctx context.Context, request *trillian.GetTreeReque
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
-	return tree, nil
+	return redact(tree), nil
 }
 
 // CreateTree implements trillian.TrillianAdminServer.CreateTree.
@@ -89,15 +90,22 @@ func (s *Server) createTreeImpl(ctx context.Context, request *trillian.CreateTre
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
-	return tree, nil
+	return redact(tree), nil
 }
 
 // UpdateTree implements trillian.TrillianAdminServer.UpdateTree.
 func (s *Server) UpdateTree(context.Context, *trillian.UpdateTreeRequest) (*trillian.Tree, error) {
+	// TODO(codingllama): Don't forget to redact tree
 	return nil, errNotImplemented
 }
 
 // DeleteTree implements trillian.TrillianAdminServer.DeleteTree.
 func (s *Server) DeleteTree(context.Context, *trillian.DeleteTreeRequest) (*empty.Empty, error) {
 	return nil, errNotImplemented
+}
+
+// redact removes sensitive information from t. Returns t for convenience.
+func redact(t *trillian.Tree) *trillian.Tree {
+	t.PrivateKey = nil
+	return t
 }
