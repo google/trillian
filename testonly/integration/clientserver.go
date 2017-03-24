@@ -30,7 +30,8 @@ import (
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/storage/mysql"
-	"github.com/google/trillian/storage/testonly"
+	stestonly "github.com/google/trillian/storage/testonly"
+	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/util"
 	"google.golang.org/grpc"
 )
@@ -40,9 +41,9 @@ var (
 	batchSize        = 50
 	sleepBetweenRuns = 100 * time.Millisecond
 	timeSource       = util.SystemTimeSource{}
-	publicKeyPath    = relativeToPackage("../../testdata/log-rpc-server.pubkey.pem")
+	publicKeyPath    = testonly.RelativeToPackage("../../testdata/log-rpc-server.pubkey.pem")
 	privateKeyInfo   = &trillian.PEMKeyFile{
-		Path:     relativeToPackage("../../testdata/log-rpc-server.privkey.pem"),
+		Path:     testonly.RelativeToPackage("../../testdata/log-rpc-server.privkey.pem"),
 		Password: "towel",
 	}
 )
@@ -187,7 +188,7 @@ func (env *LogEnv) CreateLog() (int64, error) {
 		return 0, err
 	}
 
-	tree := testonly.LogTree
+	tree := stestonly.LogTree
 	tree.PrivateKey, err = ptypes.MarshalAny(privateKeyInfo)
 	if err != nil {
 		return 0, err

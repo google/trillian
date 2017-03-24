@@ -18,10 +18,9 @@ import (
 	"database/sql"
 	"fmt"
 	"io/ioutil"
-	"path"
-	"path/filepath"
-	"runtime"
 	"strings"
+
+	"github.com/google/trillian/testonly"
 )
 
 const (
@@ -58,7 +57,7 @@ func GetTestDB(testID string) (*sql.DB, error) {
 		return nil, err
 	}
 
-	createSQL, err := ioutil.ReadFile(relativeToPackage(createSQLFile))
+	createSQL, err := ioutil.ReadFile(testonly.RelativeToPackage(createSQLFile))
 	if err != nil {
 		return nil, err
 	}
@@ -71,22 +70,4 @@ func GetTestDB(testID string) (*sql.DB, error) {
 	}
 
 	return dbTest, nil
-}
-
-// relativeToPackage returns the input path p as an absolute path, resolved relative to this
-// package.
-// The working directory for Go tests is the dir of test file. Using "plain" relative paths in test
-// utilities is, therefore, brittle, as the directory structure may change depending on where the
-// tests are placed.
-func relativeToPackage(p string) string {
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		panic("cannot get caller information")
-	}
-
-	absPath, err := filepath.Abs(filepath.Join(path.Dir(file), p))
-	if err != nil {
-		panic(err)
-	}
-	return absPath
 }
