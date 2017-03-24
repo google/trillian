@@ -42,8 +42,8 @@ const (
 			DuplicatePolicy,
 			DisplayName,
 			Description,
-			CreateTime,
-			UpdateTime,
+			CreateTimeMillis,
+			UpdateTimeMillis,
 			PrivateKey
 		FROM Trees`
 	selectTreeByID = selectTrees + " WHERE TreeId = ?"
@@ -145,7 +145,8 @@ func readTree(row row) (*trillian.Tree, error) {
 	tree := &trillian.Tree{}
 
 	// Enums and Datetimes need an extra conversion step
-	var treeState, treeType, hashStrategy, hashAlgorithm, signatureAlgorithm, duplicatePolicy, createDatetime, updateDatetime string
+	var treeState, treeType, hashStrategy, hashAlgorithm, signatureAlgorithm, duplicatePolicy string
+	var createMillis, updateMillis int64
 	var displayName, description sql.NullString
 	var privateKey []byte
 	err := row.Scan(
@@ -158,8 +159,8 @@ func readTree(row row) (*trillian.Tree, error) {
 		&duplicatePolicy,
 		&displayName,
 		&description,
-		&createDatetime,
-		&updateDatetime,
+		&createMillis,
+		&updateMillis,
 		&privateKey,
 	)
 	if err != nil {
@@ -217,17 +218,8 @@ func readTree(row row) (*trillian.Tree, error) {
 			treeState, treeType, hashStrategy, hashAlgorithm, signatureAlgorithm, duplicatePolicy)
 	}
 
-	createTime, err := parseDatetime(createDatetime)
-	if err != nil {
-		return nil, err
-	}
-	tree.CreateTimeMillisSinceEpoch = toMillisSinceEpoch(createTime)
-
-	updateTime, err := parseDatetime(updateDatetime)
-	if err != nil {
-		return nil, err
-	}
-	tree.UpdateTimeMillisSinceEpoch = toMillisSinceEpoch(updateTime)
+	tree.CreateTimeMillisSinceEpoch = createMillis
+	tree.UpdateTimeMillisSinceEpoch = updateMillis
 
 	tree.PrivateKey = &any.Any{}
 	if err := proto.Unmarshal(privateKey, tree.PrivateKey); err != nil {
@@ -300,11 +292,12 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 		return nil, err
 	}
 
-	now := time.Now()
-	nowDatetime := toDatetime(now)
+	nowMillis := toMillisSinceEpoch(time.Now())
 
 	newTree := *tree
 	newTree.TreeId = id
+	newTree.CreateTimeMillisSinceEpoch = nowMillis
+	newTree.UpdateTimeMillisSinceEpoch = nowMillis
 
 	insertTreeStmt, err := t.tx.Prepare(`
 		INSERT INTO Trees(
@@ -317,8 +310,8 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 			DuplicatePolicy,
 			DisplayName,
 			Description,
-			CreateTime,
-			UpdateTime,
+			CreateTimeMillis,
+			UpdateTimeMillis,
 			PrivateKey)
 		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 	if err != nil {
@@ -354,8 +347,8 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 		duplicatePolicy,
 		newTree.DisplayName,
 		newTree.Description,
-		nowDatetime, /* CreateTime */
-		nowDatetime, /* UpdateTime */
+		newTree.CreateTimeMillisSinceEpoch,
+		newTree.UpdateTimeMillisSinceEpoch,
 		privateKey,
 	)
 	if err != nil {
@@ -365,17 +358,11 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 	// MySQL silently truncates data when running in non-strict mode.
 	// We shouldn't be using non-strict modes, but let's guard against it
 	// anyway.
-	storedTree, err := t.GetTree(ctx, newTree.TreeId)
-	if err != nil {
+	if _, err := t.GetTree(ctx, newTree.TreeId); err != nil {
 		// GetTree will fail for truncated enums (they get recorded as
 		// empty strings, which will not match any known value).
 		return nil, fmt.Errorf("enum truncated: %v", err)
 	}
-
-	// Use the timestamps that are stored in the database, in case MySQL
-	// did any rounding.
-	newTree.CreateTimeMillisSinceEpoch = storedTree.CreateTimeMillisSinceEpoch
-	newTree.UpdateTimeMillisSinceEpoch = storedTree.UpdateTimeMillisSinceEpoch
 
 	// TODO(codingllama): There's a strong disconnect between trillian.Tree and TreeControl. Are we OK with that?
 	insertControlStmt, err := t.tx.Prepare(`
@@ -414,12 +401,11 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 		return nil, err
 	}
 
-	now := time.Now()
-	tree.UpdateTimeMillisSinceEpoch = toMillisSinceEpoch(now)
+	tree.UpdateTimeMillisSinceEpoch = toMillisSinceEpoch(time.Now())
 
 	stmt, err := t.tx.Prepare(`
 		UPDATE Trees
-		SET TreeState = ?, DisplayName = ?, Description = ?, UpdateTime = ?
+		SET TreeState = ?, DisplayName = ?, Description = ?, UpdateTimeMillis = ?
 		WHERE TreeId = ?`)
 	if err != nil {
 		return nil, err
@@ -430,7 +416,7 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 		tree.TreeState.String(),
 		tree.DisplayName,
 		tree.Description,
-		toDatetime(now),
+		tree.UpdateTimeMillisSinceEpoch,
 		tree.TreeId); err != nil {
 		return nil, err
 	}
@@ -439,6 +425,5 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 }
 
 func toMillisSinceEpoch(t time.Time) int64 {
-	// Don't bother with UnixNano(), MySQL only stores second-precision
-	return t.Unix() * 1000
+	return t.UnixNano() / 1000000
 }
