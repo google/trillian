@@ -70,16 +70,17 @@ func NewFromPrivatePEM(pemEncodedKey, password string) (crypto.Signer, error) {
 		der = pwdDer
 	}
 
-	return parsePrivateKey(der)
+	return NewFromPrivateDER(der)
 }
 
-func parsePrivateKey(rawKey []byte) (crypto.Signer, error) {
-	key1, err1 := x509.ParsePKCS1PrivateKey(rawKey)
+// NewFromPrivateDER reads a DER-encoded private key.
+func NewFromPrivateDER(der []byte) (crypto.Signer, error) {
+	key1, err1 := x509.ParsePKCS1PrivateKey(der)
 	if err1 == nil {
 		return key1, nil
 	}
 
-	key2, err2 := x509.ParsePKCS8PrivateKey(rawKey)
+	key2, err2 := x509.ParsePKCS8PrivateKey(der)
 	if err2 == nil {
 		switch key2 := key2.(type) {
 		case *ecdsa.PrivateKey:
@@ -87,13 +88,13 @@ func parsePrivateKey(rawKey []byte) (crypto.Signer, error) {
 		case *rsa.PrivateKey:
 			return key2, nil
 		}
-		return nil, fmt.Errorf("got %T, want *{ecdsa,rsa}.PrivateKey", key2)
+		return nil, fmt.Errorf("unsupported private key type: %T", key2)
 	}
 
-	key3, err3 := x509.ParseECPrivateKey(rawKey)
+	key3, err3 := x509.ParseECPrivateKey(der)
 	if err3 == nil {
 		return key3, nil
 	}
 
-	return nil, fmt.Errorf("could not parse private key as PKCS1 (%v), PKCS8 (%v), or SEC1 (%v)", err1, err2, err3)
+	return nil, fmt.Errorf("could not parse DER private key as PKCS1 (%v), PKCS8 (%v), or SEC1 (%v)", err1, err2, err3)
 }
