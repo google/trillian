@@ -25,7 +25,7 @@ import (
 	"github.com/google/trillian"
 	spb "github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/storage"
-	testonly2 "github.com/google/trillian/testonly"
+	ttestonly "github.com/google/trillian/testonly"
 	"github.com/kylelemons/godebug/pretty"
 )
 
@@ -50,7 +50,7 @@ var (
 		DisplayName:        "Llamas Log",
 		Description:        "Registry of publicly-owned llamas",
 		PrivateKey: mustMarshalAny(&trillian.PEMKeyFile{
-			Path:     testonly2.RelativeToPackage("../../testdata/log-rpc-server.privkey.pem"),
+			Path:     ttestonly.RelativeToPackage("../../testdata/log-rpc-server.privkey.pem"),
 			Password: "towel",
 		}),
 	}
@@ -66,7 +66,7 @@ var (
 		DisplayName:        "Llamas Map",
 		Description:        "Key Transparency map for all your digital llama needs.",
 		PrivateKey: mustMarshalAny(&trillian.PEMKeyFile{
-			Path:     testonly2.RelativeToPackage("../../testdata/map-rpc-server.privkey.pem"),
+			Path:     ttestonly.RelativeToPackage("../../testdata/map-rpc-server.privkey.pem"),
 			Password: "dirk",
 		}),
 	}

@@ -30,7 +30,7 @@ import (
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/storage/mysql"
-	strtestonly "github.com/google/trillian/storage/testonly"
+	stestonly "github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/util"
 	"google.golang.org/grpc"
@@ -188,7 +188,7 @@ func (env *LogEnv) CreateLog() (int64, error) {
 		return 0, err
 	}
 
-	tree := strtestonly.LogTree
+	tree := stestonly.LogTree
 	tree.PrivateKey, err = ptypes.MarshalAny(privateKeyInfo)
 	if err != nil {
 		return 0, err
