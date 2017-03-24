@@ -18,11 +18,10 @@ import (
 	"context"
 	"database/sql"
 	"expvar"
+	"fmt"
 	"net"
 	"net/http"
 	"time"
-
-	"fmt"
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
