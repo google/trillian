@@ -17,6 +17,7 @@ package client
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -32,6 +33,21 @@ const timeout = 100 * time.Millisecond
 
 func TestAddGetLeaf(t *testing.T) {
 	// TODO: Build a GetLeaf method and test a full get/set cycle.
+}
+
+// addSequencedLeaves is a temporary stand-in function for tests until the real API gets built.
+func addSequencedLeaves(env *integration.LogEnv, client VerifyingLogClient, leaves [][]byte) error {
+	// TODO(gdbelvin): Replace with batch API.
+	// TODO(gdbelvin): Replace with AddSequencedLeaves API.
+	for _, l := range leaves {
+		ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(timeout))
+		defer cancel()
+		if err, want := client.AddLeaf(ctx, l), codes.DeadlineExceeded; grpc.Code(err) != want {
+			return fmt.Errorf("AddLeaf(%v): %v, want, %v", l, err, want)
+		}
+		env.Sequencer.OperationLoop() // Sequence the new leaves in-order.
+	}
+	return nil
 }
 
 func TestGetByIndex(t *testing.T) {
@@ -54,15 +70,8 @@ func TestGetByIndex(t *testing.T) {
 		[]byte("C"),
 	}
 
-	// TODO(gdbelvin): Replace with batch API.
-	// TODO(gdbelvin): Replace with AddSequencedLeaves API.
-	for _, l := range leafData {
-		ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(timeout))
-		defer cancel()
-		if err, want := client.AddLeaf(ctx, l), codes.DeadlineExceeded; grpc.Code(err) != want {
-			t.Fatalf("AddLeaf(%v): %v, want, %v", l, err, want)
-		}
-		env.Sequencer.OperationLoop() // Sequence the new leaves in-order.
+	if err := addSequencedLeaves(env, client, leafData); err != nil {
+		t.Errorf("Failed to add leaves: %v", err)
 	}
 
 	for i, l := range leafData {
@@ -96,15 +105,8 @@ func TestListByIndex(t *testing.T) {
 		[]byte("C"),
 	}
 
-	// TODO(gdbelvin): Replace with batch API.
-	// TODO(gdbelvin): Replace with AddSequenedLeaves API.
-	for _, l := range leafData {
-		ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(timeout))
-		defer cancel()
-		if err, want := client.AddLeaf(ctx, l), codes.DeadlineExceeded; grpc.Code(err) != want {
-			t.Fatalf("AddLeaf(%v): %v, want, %v", l, err, want)
-		}
-		env.Sequencer.OperationLoop() // Sequence the new leaves in-order.
+	if err := addSequencedLeaves(env, client, leafData); err != nil {
+		t.Errorf("Failed to add leaves: %v", err)
 	}
 
 	// Fetch leaves.
