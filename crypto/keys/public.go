@@ -47,12 +47,17 @@ func NewFromPublicPEM(pemEncodedKey string) (crypto.PublicKey, error) {
 		return nil, errors.New("extra data found after PEM key decoded")
 	}
 
-	parsedKey, err := x509.ParsePKIXPublicKey(publicBlock.Bytes)
+	return NewFromPublicDER(publicBlock.Bytes)
+}
+
+// NewFromPublicDER reads a DER-encoded public key.
+func NewFromPublicDER(der []byte) (crypto.PublicKey, error) {
+	key, err := x509.ParsePKIXPublicKey(der)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse public key: %v", err)
 	}
 
-	return parsedKey, nil
+	return key, nil
 }
 
 // SignatureAlgorithm returns the algorithm used for this public key.
