@@ -299,26 +299,20 @@ func (tester *AdminStorageTester) TestUpdateTree(t *testing.T) {
 		wantTree.TreeId = updatedTree.TreeId
 		wantTree.CreateTimeMillisSinceEpoch = updatedTree.CreateTimeMillisSinceEpoch
 		wantTree.UpdateTimeMillisSinceEpoch = updatedTree.UpdateTimeMillisSinceEpoch
-		if !reflect.DeepEqual(updatedTree, &wantTree) {
-			t.Errorf("%v: updatedTree doesn't match wantTree:\n"+
-				"got =  %v,\n"+
-				"want = %v", test.desc, updatedTree, &wantTree)
+		if diff := pretty.Compare(updatedTree, &wantTree); diff != "" {
+			t.Errorf("%v: updatedTree doesn't match wantTree:\n%s", test.desc, diff)
 		}
 
 		if storedTree, err := getTree(ctx, s, updatedTree.TreeId); err != nil {
 			t.Errorf(":%v: getTree() = (_, %v), want = (_, nil)", test.desc, err)
-		} else if !reflect.DeepEqual(storedTree, updatedTree) {
-			t.Errorf("%v: storedTree doesn't match updatedTree:\n"+
-				"got =  %v,\n"+
-				"want = %v", test.desc, storedTree, updatedTree)
+		} else if diff := pretty.Compare(storedTree, updatedTree); diff != "" {
+			t.Errorf("%v: storedTree doesn't match updatedTree:\n%s", test.desc, diff)
 		}
 
 		if unrelatedAfterTest, err := getTree(ctx, s, unrelatedTree.TreeId); err != nil {
 			t.Errorf("%v: getTree() = (_, %v), want = (_, nil)", test.desc, err)
-		} else if !reflect.DeepEqual(unrelatedAfterTest, unrelatedTree) {
-			t.Errorf("%v: unrelatedTree changed:\n"+
-				"got  = %v,\n"+
-				"want = %v", test.desc, unrelatedAfterTest, unrelatedTree)
+		} else if diff := pretty.Compare(unrelatedAfterTest, unrelatedTree); diff != "" {
+			t.Errorf("%v: unrelatedTree changed:\n%s", test.desc, diff)
 		}
 	}
 }
