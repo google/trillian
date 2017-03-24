@@ -21,8 +21,8 @@ CREATE TABLE IF NOT EXISTS Trees(
   DuplicatePolicy       ENUM('NOT_ALLOWED', 'ALLOWED') NOT NULL,
   DisplayName           VARCHAR(20),
   Description           VARCHAR(200),
-  CreateTime            DATETIME NOT NULL,
-  UpdateTime            DATETIME NOT NULL,
+  CreateTimeMillis      BIGINT NOT NULL,
+  UpdateTimeMillis      BIGINT NOT NULL,
   PrivateKey            BLOB NOT NULL,
   PRIMARY KEY(TreeId)
 );
