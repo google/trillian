@@ -74,11 +74,17 @@ func TestRun(t *testing.T) {
 	nonDefaultOpts.displayName = nonDefaultTree.DisplayName
 	nonDefaultOpts.description = nonDefaultTree.Description
 
+	emptyAddr := *validOpts
+	emptyAddr.addr = ""
+
 	invalidEnumOpts := *validOpts
 	invalidEnumOpts.treeType = "LLAMA!"
 
 	invalidKeyTypeOpts := *validOpts
 	invalidKeyTypeOpts.privateKeyType = "LLAMA!!"
+
+	emptyPEMPath := *validOpts
+	emptyPEMPath.pemKeyPath = ""
 
 	invalidPEMPath := *validOpts
 	invalidPEMPath.pemKeyPath = "/not/a/file"
@@ -110,6 +116,11 @@ func TestRun(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			desc:    "emptyAddr",
+			opts:    &emptyAddr,
+			wantErr: true,
+		},
+		{
 			desc:    "invalidEnumOpts",
 			opts:    &invalidEnumOpts,
 			wantErr: true,
@@ -117,6 +128,11 @@ func TestRun(t *testing.T) {
 		{
 			desc:    "invalidKeyTypeOpts",
 			opts:    &invalidKeyTypeOpts,
+			wantErr: true,
+		},
+		{
+			desc:    "emptyPEMPath",
+			opts:    &emptyPEMPath,
 			wantErr: true,
 		},
 		{

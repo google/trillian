@@ -71,6 +71,10 @@ type createOpts struct {
 }
 
 func createTree(ctx context.Context, opts *createOpts) (*trillian.Tree, error) {
+	if opts.addr == "" {
+		return nil, errors.New("empty --admin_server, please provide the Admin server host:port")
+	}
+
 	req, err := newRequest(opts)
 	if err != nil {
 		return nil, err
@@ -143,6 +147,9 @@ func newPK(opts *createOpts) (*any.Any, error) {
 	switch opts.privateKeyType {
 	case "PEMKeyFile":
 		path := opts.pemKeyPath
+		if path == "" {
+			return nil, errors.New("empty PEM path")
+		}
 		if _, err := os.Stat(path); err != nil {
 			return nil, fmt.Errorf("error reading PEM key file at %v: %v", path, err)
 		}
