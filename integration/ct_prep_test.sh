@@ -36,7 +36,7 @@ for ((i=0; i < RPC_SERVER_COUNT; i++)); do
   RPC_SERVERS="${RPC_SERVERS},localhost:${port}"
 
   echo "Starting Log RPC server on port ${port}"
-  ./trillian_log_server --port ${port} --export_metrics=false &
+  ./trillian_log_server --port ${port} --http_port=-1 &
   pid=$!
   RPC_SERVER_PIDS+=(${pid})
   waitForServerStartup ${port}

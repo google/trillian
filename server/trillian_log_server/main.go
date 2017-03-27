@@ -18,8 +18,8 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"net"
-	"time"
+
+	_ "net/http/pprof"
 
 	_ "github.com/go-sql-driver/mysql" // Load MySQL driver
 
@@ -28,61 +28,29 @@ import (
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/monitoring"
-	"github.com/google/trillian/monitoring/metric"
 	"github.com/google/trillian/server"
-	"github.com/google/trillian/server/admin"
 	"github.com/google/trillian/storage/mysql"
 	"github.com/google/trillian/util"
+	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
 )
 
 var (
 	mySQLURI            = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "Connection URI for MySQL database")
 	serverPortFlag      = flag.Int("port", 8090, "Port to serve log RPC requests on")
-	exportRPCMetrics    = flag.Bool("export_metrics", true, "If true starts HTTP server and exports stats")
-	httpPortFlag        = flag.Int("http_port", 8091, "Port to serve HTTP metrics on")
+	httpPortFlag        = flag.Int("http_port", 8091, "Port to serve HTTP metrics and REST requests on (negative means disabled)")
 	dumpMetricsInterval = flag.Duration("dump_metrics_interval", 0, "If greater than 0, how often to dump metrics to the logs.")
 )
 
-func startRPCServer(registry extension.Registry) (*grpc.Server, error) {
-	// Create and publish the RPC stats objects
-	statsInterceptor := monitoring.NewRPCStatsInterceptor(util.SystemTimeSource{}, "ct", "example")
-	statsInterceptor.Publish()
-
-	// Create the server, using the interceptor to record stats on the requests
-	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(statsInterceptor.Interceptor()))
-
-	logServer := server.NewTrillianLogRPCServer(registry, new(util.SystemTimeSource))
-	if err := logServer.IsHealthy(); err != nil {
-		return nil, err
-	}
-	trillian.RegisterTrillianLogServer(grpcServer, logServer)
-
-	adminServer := admin.New(registry)
-	trillian.RegisterTrillianAdminServer(grpcServer, adminServer)
-
-	reflection.Register(grpcServer)
-	return grpcServer, nil
-}
-
 func main() {
 	flag.Parse()
-	glog.CopyStandardLogTo("WARNING")
-	glog.Info("**** Log RPC Server Starting ****")
-
-	// Enable dumping of metrics to the log at regular interval,
-	// if requested.
-	if *dumpMetricsInterval > 0 {
-		go metric.DumpToLog(context.Background(), *dumpMetricsInterval)
-	}
 
 	// First make sure we can access the database, quit if not
 	db, err := mysql.OpenDB(*mySQLURI)
 	if err != nil {
-		glog.Exitf("Failed to open MySQL database: %v", err)
+		glog.Exitf("Failed to open database: %v", err)
 	}
-	defer db.Close()
+	// No defer: database ownership is delegated to server.Main
 
 	registry := extension.Registry{
 		AdminStorage:  mysql.NewAdminStorage(db),
@@ -90,38 +58,39 @@ func main() {
 		LogStorage:    mysql.NewLogStorage(db),
 	}
 
-	// Start HTTP server (optional)
-	if *exportRPCMetrics {
-		glog.Infof("Creating HTP server starting on port: %d", *httpPortFlag)
-		if err := util.StartHTTPServer(*httpPortFlag); err != nil {
-			glog.Exitf("Failed to start http server on port %d: %v", *httpPortFlag, err)
-		}
+	ts := util.SystemTimeSource{}
+	stats := monitoring.NewRPCStatsInterceptor(ts, "ct", "example")
+	stats.Publish()
+	s := grpc.NewServer(grpc.UnaryInterceptor(stats.Interceptor()))
+	// No defer: server ownership is delegated to server.Main
+
+	httpEndpoint := ""
+	if *httpPortFlag >= 0 {
+		httpEndpoint = fmt.Sprintf("localhost:%v", *httpPortFlag)
 	}
 
-	// Set up the listener for the server
-	// TODO(Martin2112): More flexible listen address configuration
-	glog.Infof("Creating RPC server starting on port: %d", *serverPortFlag)
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", *serverPortFlag))
-	if err != nil {
-		glog.Exitf("Failed to listen on the server port: %d, because: %v", *serverPortFlag, err)
+	m := server.Main{
+		RPCEndpoint:  fmt.Sprintf("localhost:%v", *serverPortFlag),
+		HTTPEndpoint: httpEndpoint,
+		DB:           db,
+		Registry:     registry,
+		Server:       s,
+		RegisterHandlerFn: func(context.Context, *runtime.ServeMux, string, []grpc.DialOption) error {
+			return nil
+		},
+		RegisterServerFn: func(s *grpc.Server, registry extension.Registry) error {
+			logServer := server.NewTrillianLogRPCServer(registry, ts)
+			if err := logServer.IsHealthy(); err != nil {
+				return err
+			}
+			trillian.RegisterTrillianLogServer(s, logServer)
+			return err
+		},
+		DumpMetricsInterval: *dumpMetricsInterval,
 	}
 
-	// Bring up the RPC server and then block until we get a signal to stop
-	rpcServer, err := startRPCServer(registry)
-	if err != nil {
-		glog.Exitf("Failed to start RPC server: %v", err)
+	ctx := context.Background()
+	if err := m.Run(ctx); err != nil {
+		glog.Exitf("Server exited with error: %v", err)
 	}
-	go util.AwaitSignal(func() {
-		// Bring down the RPC server, which will unblock main
-		rpcServer.Stop()
-	})
-
-	if err := rpcServer.Serve(lis); err != nil {
-		glog.Errorf("RPC server terminated on port %d: %v", *serverPortFlag, err)
-	}
-
-	// Give things a few seconds to tidy up
-	glog.Infof("Stopping server, about to exit")
-	glog.Flush()
-	time.Sleep(time.Second * 5)
 }
