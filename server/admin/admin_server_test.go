@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/extension"
@@ -121,42 +122,55 @@ func TestAdminServer_GetTree(t *testing.T) {
 	invalidTree.TreeState = trillian.TreeState_HARD_DELETED
 
 	tests := []struct {
-		desc              string
-		getErr, commitErr bool
+		desc string
+		// getErr is the error that will be returned by the mock AdminTX.GetTree() method.
+		getErr error
+		opts   testOptions
 	}{
 		{
 			desc: "success",
+			opts: testOptions{
+				shouldSnapshot: true,
+				shouldCommit:   true,
+			},
 		},
 		{
 			desc:   "unknownTree",
-			getErr: true,
+			getErr: errors.New("GetTree failed"),
+			opts: testOptions{
+				shouldSnapshot: true,
+			},
 		},
 		{
-			desc:      "commitError",
-			commitErr: true,
+			desc: "commitError",
+			opts: testOptions{
+				shouldSnapshot: true,
+				shouldCommit:   true,
+				commitErr:      errors.New("commit failed"),
+			},
 		},
 	}
 
 	ctx := context.Background()
 	for _, test := range tests {
-		setup := setupAdminStorage(ctrl, true /* snapshot */, !test.getErr /* shouldCommit */, test.commitErr)
+		setup := setupServer(ctrl, test.opts)
 		tx := setup.snapshotTX
 		s := setup.server
 
 		storedTree := *testonly.LogTree
 		storedTree.TreeId = 12345
-		if test.getErr {
-			tx.EXPECT().GetTree(ctx, storedTree.TreeId).Return(nil, errors.New("GetTree failed"))
+
+		if test.getErr != nil {
+			tx.EXPECT().GetTree(ctx, storedTree.TreeId).Return(nil, test.getErr)
 		} else {
 			tx.EXPECT().GetTree(ctx, storedTree.TreeId).Return(&storedTree, nil)
 		}
-		wantErr := test.getErr || test.commitErr
 
 		tree, err := s.GetTree(ctx, &trillian.GetTreeRequest{TreeId: storedTree.TreeId})
-		if hasErr := err != nil; hasErr != wantErr {
+		if gotErr, wantErr := err != nil, test.opts.wantErr(); gotErr != wantErr {
 			t.Errorf("%v: GetTree() = (_, %v), wantErr = %v", test.desc, err, wantErr)
 			continue
-		} else if hasErr {
+		} else if gotErr {
 			continue
 		}
 
@@ -176,52 +190,64 @@ func TestAdminServer_CreateTree(t *testing.T) {
 	invalidTree.TreeState = trillian.TreeState_HARD_DELETED
 
 	tests := []struct {
-		desc                 string
-		req                  *trillian.CreateTreeRequest
-		createErr, commitErr bool
+		desc string
+		req  *trillian.CreateTreeRequest
+		// createErr is the error that will be returned by the mock AdminTX.CreateTree() method.
+		createErr error
+		opts      testOptions
 	}{
 		{
 			desc: "validTree",
 			req:  &trillian.CreateTreeRequest{Tree: testonly.LogTree},
+			opts: testOptions{
+				shouldBeginTx: true,
+				shouldCommit:  true,
+			},
 		},
 		{
 			desc:      "invalidTree",
 			req:       &trillian.CreateTreeRequest{Tree: &invalidTree},
-			createErr: true,
+			createErr: errors.New("CreateTree failed"),
+			opts: testOptions{
+				shouldBeginTx: true,
+			},
 		},
 		{
-			desc:      "commitError",
-			req:       &trillian.CreateTreeRequest{Tree: testonly.LogTree},
-			commitErr: true,
+			desc: "commitError",
+			req:  &trillian.CreateTreeRequest{Tree: testonly.LogTree},
+			opts: testOptions{
+				shouldBeginTx: true,
+				shouldCommit:  true,
+				commitErr:     errors.New("commit error"),
+			},
 		},
 	}
 
 	ctx := context.Background()
 	for _, test := range tests {
-		setup := setupAdminStorage(ctrl, false /* snapshot */, !test.createErr /* shouldCommit */, test.commitErr)
+		setup := setupServer(ctrl, test.opts)
 		tx := setup.tx
 		s := setup.server
 
-		newTree := *test.req.Tree
-		newTree.TreeId = 12345
-		newTree.CreateTimeMillisSinceEpoch = 1
-		newTree.UpdateTimeMillisSinceEpoch = 1
-		if test.createErr {
-			tx.EXPECT().CreateTree(ctx, test.req.Tree).Return(nil, errors.New("CreateTree failed"))
-		} else {
-			tx.EXPECT().CreateTree(ctx, test.req.Tree).Return(&newTree, nil)
+		var newTree *trillian.Tree
+		if test.createErr == nil {
+			newTree = proto.Clone(test.req.Tree).(*trillian.Tree)
+			newTree.TreeId = 12345
+			newTree.CreateTimeMillisSinceEpoch = 1
+			newTree.UpdateTimeMillisSinceEpoch = 1
 		}
-		wantErr := test.createErr || test.commitErr
+
+		tx.EXPECT().CreateTree(ctx, test.req.Tree).Return(newTree, test.createErr)
 
 		tree, err := s.CreateTree(ctx, test.req)
-		if hasErr := err != nil; hasErr != wantErr {
+		if gotErr, wantErr := err != nil, test.opts.wantErr(); gotErr != wantErr {
 			t.Errorf("%v: CreateTree() = (_, %v), wantErr = %v", test.desc, err, wantErr)
 			continue
-		} else if hasErr {
+		} else if gotErr {
 			continue
 		}
 
-		wantTree := newTree
+		wantTree := *newTree
 		wantTree.PrivateKey = nil // redacted
 		if diff := pretty.Compare(tree, &wantTree); diff != "" {
 			t.Errorf("%v: post-CreateTree diff (-got +want):\n%v", test.desc, diff)
@@ -229,9 +255,9 @@ func TestAdminServer_CreateTree(t *testing.T) {
 	}
 }
 
-// adminTestSetup contains an operational Server and required dependencies.
-// It's created via setupAdminServer.
-type adminTestSetup struct {
+// testFixture contains an operational Server and required dependencies.
+// It's created via setupServer.
+type testFixture struct {
 	registry   extension.Registry
 	as         *storage.MockAdminStorage
 	tx         *storage.MockAdminTX
@@ -239,36 +265,46 @@ type adminTestSetup struct {
 	server     *Server
 }
 
-// setupAdminStorage configures storage mocks according to input parameters.
+type testOptions struct {
+	// shouldSnapshot indicates whether AdminStorage.Snapshot() is expected to be called.
+	shouldSnapshot bool
+	// shouldBeginTx indicates whether AdminStorage.Begin() is expected to be called.
+	shouldBeginTx bool
+	// shouldCommit indicates whether AdminTX.Commit() is expected to be called.
+	shouldCommit bool
+	// commitErr is the error that will be returned by the mock AdminTX.Commit() method.
+	commitErr error
+}
+
+// wantErr returns whether these test options indicate that an error is expected.
+func (o *testOptions) wantErr() bool {
+	return !o.shouldCommit || o.commitErr != nil
+}
+
+// setupServer configures a Server with mocks according to the input parameters.
 // Storage will be set to use either snapshots or regular TXs via snapshot parameter.
 // Whether the snapshot/TX is expected to be committed (and if it should error doing so) is
 // controlled via shouldCommit and commitErr parameters.
-func setupAdminStorage(ctrl *gomock.Controller, snapshot, shouldCommit, commitErr bool) adminTestSetup {
+func setupServer(ctrl *gomock.Controller, opts testOptions) testFixture {
 	as := storage.NewMockAdminStorage(ctrl)
 
 	var snapshotTX *storage.MockReadOnlyAdminTX
-	var tx *storage.MockAdminTX
-	if snapshot {
+	if opts.shouldSnapshot {
 		snapshotTX = storage.NewMockReadOnlyAdminTX(ctrl)
 		as.EXPECT().Snapshot(gomock.Any()).Return(snapshotTX, nil)
 		snapshotTX.EXPECT().Close().Return(nil)
-		if shouldCommit {
-			if commitErr {
-				snapshotTX.EXPECT().Commit().Return(errors.New("commit error"))
-			} else {
-				snapshotTX.EXPECT().Commit().Return(nil)
-			}
+		if opts.shouldCommit {
+			snapshotTX.EXPECT().Commit().Return(opts.commitErr)
 		}
-	} else {
+	}
+
+	var tx *storage.MockAdminTX
+	if opts.shouldBeginTx {
 		tx = storage.NewMockAdminTX(ctrl)
 		as.EXPECT().Begin(gomock.Any()).Return(tx, nil)
 		tx.EXPECT().Close().Return(nil)
-		if shouldCommit {
-			if commitErr {
-				tx.EXPECT().Commit().Return(errors.New("commit error"))
-			} else {
-				tx.EXPECT().Commit().Return(nil)
-			}
+		if opts.shouldCommit {
+			tx.EXPECT().Commit().Return(opts.commitErr)
 		}
 	}
 
@@ -279,5 +315,5 @@ func setupAdminStorage(ctrl *gomock.Controller, snapshot, shouldCommit, commitEr
 
 	s := &Server{registry}
 
-	return adminTestSetup{registry, as, tx, snapshotTX, s}
+	return testFixture{registry, as, tx, snapshotTX, s}
 }
