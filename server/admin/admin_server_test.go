@@ -20,6 +20,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/extension"
@@ -189,37 +190,54 @@ func TestAdminServer_CreateTree(t *testing.T) {
 	invalidTree := *testonly.LogTree
 	invalidTree.TreeState = trillian.TreeState_HARD_DELETED
 
+	nonExistentKeyTree := *testonly.LogTree
+	privateKey, err := ptypes.MarshalAny(&trillian.PEMKeyFile{Path: "non-existent.pem"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	nonExistentKeyTree.PrivateKey = privateKey
+
 	tests := []struct {
 		desc string
 		req  *trillian.CreateTreeRequest
+		// shouldCreate indicates whether AdminTX.CreateTree() is expected to be called.
+		shouldCreate bool
 		// createErr is the error that will be returned by the mock AdminTX.CreateTree() method.
 		createErr error
 		opts      testOptions
 	}{
 		{
-			desc: "validTree",
-			req:  &trillian.CreateTreeRequest{Tree: testonly.LogTree},
+			desc:         "validTree",
+			req:          &trillian.CreateTreeRequest{Tree: testonly.LogTree},
+			shouldCreate: true,
 			opts: testOptions{
 				shouldBeginTx: true,
 				shouldCommit:  true,
 			},
 		},
 		{
-			desc:      "invalidTree",
-			req:       &trillian.CreateTreeRequest{Tree: &invalidTree},
-			createErr: errors.New("CreateTree failed"),
+			desc:         "invalidTree",
+			req:          &trillian.CreateTreeRequest{Tree: &invalidTree},
+			shouldCreate: true,
+			createErr:    errors.New("CreateTree failed"),
 			opts: testOptions{
 				shouldBeginTx: true,
 			},
 		},
 		{
-			desc: "commitError",
-			req:  &trillian.CreateTreeRequest{Tree: testonly.LogTree},
+			desc:         "commitError",
+			req:          &trillian.CreateTreeRequest{Tree: testonly.LogTree},
+			shouldCreate: true,
 			opts: testOptions{
 				shouldBeginTx: true,
 				shouldCommit:  true,
 				commitErr:     errors.New("commit error"),
 			},
+		},
+		{
+			desc:      "nonExistentKey",
+			req:       &trillian.CreateTreeRequest{Tree: &nonExistentKeyTree},
+			createErr: errors.New("CreateTree failed"),
 		},
 	}
 
@@ -230,14 +248,16 @@ func TestAdminServer_CreateTree(t *testing.T) {
 		s := setup.server
 
 		var newTree *trillian.Tree
-		if test.createErr == nil {
-			newTree = proto.Clone(test.req.Tree).(*trillian.Tree)
-			newTree.TreeId = 12345
-			newTree.CreateTimeMillisSinceEpoch = 1
-			newTree.UpdateTimeMillisSinceEpoch = 1
-		}
+		if test.shouldCreate {
+			if test.createErr == nil {
+				newTree = proto.Clone(test.req.Tree).(*trillian.Tree)
+				newTree.TreeId = 12345
+				newTree.CreateTimeMillisSinceEpoch = 1
+				newTree.UpdateTimeMillisSinceEpoch = 1
+			}
 
-		tx.EXPECT().CreateTree(ctx, test.req.Tree).Return(newTree, test.createErr)
+			tx.EXPECT().CreateTree(ctx, test.req.Tree).Return(newTree, test.createErr)
+		}
 
 		tree, err := s.CreateTree(ctx, test.req)
 		if gotErr, wantErr := err != nil, test.opts.wantErr(); gotErr != wantErr {
