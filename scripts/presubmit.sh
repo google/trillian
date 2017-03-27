@@ -56,7 +56,12 @@ main() {
     shift 1
   done
 
-  local go_srcs="$(find . -name '*.go' | grep -v mock_ | grep -v .pb.go | grep -v .pb.gw.go | tr '\n' ' ')"
+  local go_srcs="$(find . -name '*.go' | \
+    grep -v mock_ | \
+    grep -v .pb.go | \
+    grep -v .pb.gw.go | \
+    grep -v _string.go | \
+    tr '\n' ' ')"
   local proto_srcs="$(find . -name '*.proto' | tr '\n' ' ')"
 
   if [[ "$fix" -eq 1 ]]; then
