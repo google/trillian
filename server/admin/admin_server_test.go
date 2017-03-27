@@ -252,6 +252,14 @@ func TestAdminServer_CreateTree(t *testing.T) {
 				signerFactory: ktestonly.NewKeyGeneratorWithErr(terrors.New(terrors.Unknown, "key generation failed")),
 			},
 		},
+		{
+			desc:      "invalid key",
+			req:       &trillian.CreateTreeRequest{Tree: testonly.LogTree},
+			createErr: errors.New("CreateTree failed"),
+			opts: testOptions{
+				signerFactory: ktestonly.NewSignerFactoryWithErr(terrors.New(terrors.InvalidArgument, "invalid key")),
+			},
+		},
 	}
 
 	ctx := context.Background()
