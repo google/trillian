@@ -21,6 +21,8 @@ import (
 	gocrypto "crypto"
 	"crypto/sha256"
 	"errors"
+	"fmt"
+	"sort"
 	"time"
 
 	"github.com/google/trillian"
@@ -87,6 +89,57 @@ func (c *LogClient) AddLeaf(ctx context.Context, data []byte) error {
 		return err
 	}
 }
+
+// GetByIndex returns a single leaf at the requested index.
+func (c *LogClient) GetByIndex(ctx context.Context, index int64) (*trillian.LogLeaf, error) {
+	resp, err := c.client.GetLeavesByIndex(ctx, &trillian.GetLeavesByIndexRequest{
+		LogId:     c.LogID,
+		LeafIndex: []int64{index},
+	})
+	if err != nil {
+		return nil, err
+	}
+	if got, want := len(resp.Leaves), 1; got != want {
+		return nil, fmt.Errorf("len(leaves): %v, want %v", got, want)
+	}
+	return resp.Leaves[0], nil
+}
+
+// ListByIndex returns the requested leaves by index.
+func (c *LogClient) ListByIndex(ctx context.Context, start, count int64) ([]*trillian.LogLeaf, error) {
+	indexes := make([]int64, count)
+	for i := range indexes {
+		indexes[i] = start + int64(i)
+	}
+
+	resp, err := c.client.GetLeavesByIndex(ctx,
+		&trillian.GetLeavesByIndexRequest{
+			LogId:     c.LogID,
+			LeafIndex: indexes,
+		})
+	if err != nil {
+		return nil, err
+	}
+	// Responses are not required to be in-order.
+	sort.Sort(byLeafIndex(resp.Leaves))
+	// Verify that we got back the requested leaves.
+	if got, want := len(resp.Leaves), len(indexes); got != want {
+		return nil, fmt.Errorf("len(Leaves): %v, want %v", got, want)
+	}
+	for i, l := range resp.Leaves {
+		if got, want := l.LeafIndex, indexes[i]; got != want {
+			return nil, fmt.Errorf("Leaves[%v].Index: %v, want %v", i, got, want)
+		}
+	}
+
+	return resp.Leaves, nil
+}
+
+type byLeafIndex []*trillian.LogLeaf
+
+func (ll byLeafIndex) Len() int           { return len(ll) }
+func (ll byLeafIndex) Swap(i, j int)      { ll[i], ll[j] = ll[j], ll[i] }
+func (ll byLeafIndex) Less(i, j int) bool { return ll[i].LeafIndex < ll[j].LeafIndex }
 
 // waitForRootUpdate repeatedly fetches the Root until the TreeSize changes
 // or until ctx times out.
