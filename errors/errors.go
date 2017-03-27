@@ -23,6 +23,9 @@ type Code uint32
 // https://github.com/grpc/grpc-go/blob/master/codes/codes.go for developer
 // convenience.
 const (
+	// OK is returned on success.
+	OK Code = 0
+
 	// Canceled indicates the operation was cancelled (typically by the caller).
 	Canceled Code = 1
 
@@ -164,12 +167,16 @@ func (e *trillianError) Code() Code {
 	return e.code
 }
 
-// ErrorCode returns the assigned Code if err is a TrillianError, Unknown
-// otherwise.
+// ErrorCode returns the assigned Code if err is a TrillianError.
+// If err is nil, OK is returned.
+// If err is not a TrillianError, Unknown is returned.
 func ErrorCode(err error) Code {
-	terr, ok := err.(TrillianError)
-	if ok {
-		return terr.Code()
+	if err == nil {
+		return OK
+	}
+
+	if err, ok := err.(TrillianError); ok {
+		return err.Code()
 	}
 	return Unknown
 }
