@@ -38,6 +38,14 @@ type SignerFactory interface {
 	NewSigner(context.Context, *trillian.Tree) (crypto.Signer, error)
 }
 
+// Generator generates a new private key for Trillian trees.
+type Generator interface {
+	// Generate creates a new private key for the given tree.
+	// The SignatureAlgorithm and PrivateKey fields of the tree control
+	// how this is done.
+	Generate(context.Context, *trillian.Tree) error
+}
+
 // NewFromPrivatePEMFile reads a PEM-encoded private key from a file.
 // The key may be protected by a password.
 func NewFromPrivatePEMFile(keyFile, keyPassword string) (crypto.Signer, error) {

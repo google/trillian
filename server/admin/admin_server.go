@@ -17,8 +17,10 @@ package admin
 import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto/keys"
+	"github.com/google/trillian/errors"
 	"github.com/google/trillian/extension"
-	"github.com/google/trillian/server/errors"
+	svrerrors "github.com/google/trillian/server/errors"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -46,7 +48,7 @@ func (s *Server) ListTrees(context.Context, *trillian.ListTreesRequest) (*trilli
 func (s *Server) GetTree(ctx context.Context, request *trillian.GetTreeRequest) (*trillian.Tree, error) {
 	tree, err := s.getTreeImpl(ctx, request)
 	if err != nil {
-		return nil, errors.WrapError(err)
+		return nil, svrerrors.WrapError(err)
 	}
 	return tree, nil
 }
@@ -72,12 +74,28 @@ func (s *Server) getTreeImpl(ctx context.Context, request *trillian.GetTreeReque
 func (s *Server) CreateTree(ctx context.Context, request *trillian.CreateTreeRequest) (*trillian.Tree, error) {
 	tree, err := s.createTreeImpl(ctx, request)
 	if err != nil {
-		return nil, errors.WrapError(err)
+		return nil, svrerrors.WrapError(err)
 	}
 	return tree, err
 }
 
 func (s *Server) createTreeImpl(ctx context.Context, request *trillian.CreateTreeRequest) (*trillian.Tree, error) {
+	// Test that the tree's private key exists. If it doesn't, generate it.
+	if _, err := s.registry.SignerFactory.NewSigner(ctx, request.GetTree()); err != nil {
+		if errors.ErrorCode(err) != errors.NotFound {
+			return nil, err
+		}
+
+		// Key not found - try to generate it.
+		keyGen, ok := s.registry.SignerFactory.(keys.Generator)
+		if !ok {
+			return nil, err
+		}
+		if err := keyGen.Generate(ctx, request.GetTree()); err != nil {
+			return nil, err
+		}
+	}
+
 	tx, err := s.registry.AdminStorage.Begin(ctx)
 	if err != nil {
 		return nil, err

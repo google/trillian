@@ -20,6 +20,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testonly"
@@ -101,7 +102,8 @@ func TestAdminServer_BeginError(t *testing.T) {
 		}
 
 		registry := extension.Registry{
-			AdminStorage: as,
+			AdminStorage:  as,
+			SignerFactory: keys.PEMSignerFactory{},
 		}
 
 		s := &Server{registry: registry}
@@ -271,7 +273,8 @@ func setupAdminStorage(ctrl *gomock.Controller, snapshot, shouldCommit, commitEr
 	}
 
 	registry := extension.Registry{
-		AdminStorage: as,
+		AdminStorage:  as,
+		SignerFactory: keys.PEMSignerFactory{},
 	}
 
 	s := &Server{registry}

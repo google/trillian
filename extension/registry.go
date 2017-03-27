@@ -30,5 +30,6 @@ type Registry struct {
 	// MapStorage is the storage implementation to use for persisting maps.
 	storage.MapStorage
 	// SignerFactory provides the keys used for generating signatures for each tree.
+	// This may also implement keys.Generator.
 	keys.SignerFactory
 }
