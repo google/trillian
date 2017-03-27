@@ -20,9 +20,10 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys"
+	ktestonly "github.com/google/trillian/crypto/keys/testonly"
+	terrors "github.com/google/trillian/errors"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testonly"
@@ -190,13 +191,6 @@ func TestAdminServer_CreateTree(t *testing.T) {
 	invalidTree := *testonly.LogTree
 	invalidTree.TreeState = trillian.TreeState_HARD_DELETED
 
-	nonExistentKeyTree := *testonly.LogTree
-	privateKey, err := ptypes.MarshalAny(&trillian.PEMKeyFile{Path: "non-existent.pem"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	nonExistentKeyTree.PrivateKey = privateKey
-
 	tests := []struct {
 		desc string
 		req  *trillian.CreateTreeRequest
@@ -235,9 +229,28 @@ func TestAdminServer_CreateTree(t *testing.T) {
 			},
 		},
 		{
-			desc:      "nonExistentKey",
-			req:       &trillian.CreateTreeRequest{Tree: &nonExistentKeyTree},
-			createErr: errors.New("CreateTree failed"),
+			desc: "non-existent key and SignerFactory does not implement keys.Generator",
+			req:  &trillian.CreateTreeRequest{Tree: testonly.LogTree},
+			opts: testOptions{
+				signerFactory: ktestonly.NewSignerFactoryWithErr(terrors.New(terrors.NotFound, "key not found")),
+			},
+		},
+		{
+			desc:         "non-existent key but SignerFactory implements keys.Generator",
+			req:          &trillian.CreateTreeRequest{Tree: testonly.LogTree},
+			shouldCreate: true,
+			opts: testOptions{
+				signerFactory: ktestonly.NewKeyGenerator(),
+				shouldBeginTx: true,
+				shouldCommit:  true,
+			},
+		},
+		{
+			desc: "key generation failure",
+			req:  &trillian.CreateTreeRequest{Tree: testonly.LogTree},
+			opts: testOptions{
+				signerFactory: ktestonly.NewKeyGeneratorWithErr(terrors.New(terrors.Unknown, "key generation failed")),
+			},
 		},
 	}
 
@@ -286,6 +299,8 @@ type testFixture struct {
 }
 
 type testOptions struct {
+	// signerFactory is the keys.SignerFactory to use. If nil, newSignerFactory() will be used.
+	signerFactory keys.SignerFactory
 	// shouldSnapshot indicates whether AdminStorage.Snapshot() is expected to be called.
 	shouldSnapshot bool
 	// shouldBeginTx indicates whether AdminStorage.Begin() is expected to be called.
@@ -328,9 +343,14 @@ func setupServer(ctrl *gomock.Controller, opts testOptions) testFixture {
 		}
 	}
 
+	signerFactory := opts.signerFactory
+	if signerFactory == nil {
+		signerFactory = ktestonly.NewSignerFactory()
+	}
+
 	registry := extension.Registry{
 		AdminStorage:  as,
-		SignerFactory: keys.PEMSignerFactory{},
+		SignerFactory: signerFactory,
 	}
 
 	s := &Server{registry}
