@@ -18,7 +18,6 @@ import (
 	"context"
 	"database/sql"
 	"expvar"
-	"fmt"
 	"net"
 	"net/http"
 	"time"
@@ -79,7 +78,7 @@ func (m *Main) Run(ctx context.Context) error {
 		go http.ListenAndServe(endpoint, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			switch {
 			case req.RequestURI == "/debug/vars":
-				expvarHandler(w, req)
+				expvar.Handler().ServeHTTP(w, req)
 			default:
 				mux.ServeHTTP(w, req)
 			}
@@ -104,20 +103,4 @@ func (m *Main) Run(ctx context.Context) error {
 	time.Sleep(time.Second * 5)
 
 	return nil
-}
-
-// TODO(codingllama): Replace expvarHandler with expvar.Handler() once we have go1.8
-// expvarHandler is copied from go1.8's expvar package.
-func expvarHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	fmt.Fprintf(w, "{\n")
-	first := true
-	expvar.Do(func(kv expvar.KeyValue) {
-		if !first {
-			fmt.Fprintf(w, ",\n")
-		}
-		first = false
-		fmt.Fprintf(w, "%q: %s", kv.Key, kv.Value)
-	})
-	fmt.Fprintf(w, "\n}\n")
 }
