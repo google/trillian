@@ -107,8 +107,12 @@ func (s SequencerManager) ExecutePass(logIDs []int64, logctx LogOperationManager
 					glog.Warningf("%v: Error trying to sequence batch for: %v", logID, err)
 					continue
 				}
-				d := time.Now().Sub(start).Seconds()
-				glog.Infof("%v: sequenced %d leaves in %.2f seconds (%.2f qps)", logID, leaves, d, float64(leaves)/d)
+				if leaves > 0 {
+					d := time.Now().Sub(start).Seconds()
+					glog.Infof("%v: sequenced %d leaves in %.2f seconds (%.2f qps)", logID, leaves, d, float64(leaves)/d)
+				} else {
+					glog.V(1).Infof("%v: no leaves to sequence", logID)
+				}
 
 				mu.Lock()
 				successCount++
