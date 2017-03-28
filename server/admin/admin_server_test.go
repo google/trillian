@@ -127,11 +127,11 @@ func TestAdminServer_GetTree(t *testing.T) {
 		desc string
 		// getErr is the error that will be returned by the mock AdminTX.GetTree() method.
 		getErr error
-		opts   testOptions
+		opts   setupOptions
 	}{
 		{
 			desc: "success",
-			opts: testOptions{
+			opts: setupOptions{
 				shouldSnapshot: true,
 				shouldCommit:   true,
 			},
@@ -139,13 +139,13 @@ func TestAdminServer_GetTree(t *testing.T) {
 		{
 			desc:   "unknownTree",
 			getErr: errors.New("GetTree failed"),
-			opts: testOptions{
+			opts: setupOptions{
 				shouldSnapshot: true,
 			},
 		},
 		{
 			desc: "commitError",
-			opts: testOptions{
+			opts: setupOptions{
 				shouldSnapshot: true,
 				shouldCommit:   true,
 				commitErr:      errors.New("commit failed"),
@@ -198,13 +198,13 @@ func TestAdminServer_CreateTree(t *testing.T) {
 		shouldCreate bool
 		// createErr is the error that will be returned by the mock AdminTX.CreateTree() method.
 		createErr error
-		opts      testOptions
+		opts      setupOptions
 	}{
 		{
 			desc:         "validTree",
 			req:          &trillian.CreateTreeRequest{Tree: stestonly.LogTree},
 			shouldCreate: true,
-			opts: testOptions{
+			opts: setupOptions{
 				shouldBeginTx: true,
 				shouldCommit:  true,
 			},
@@ -214,7 +214,7 @@ func TestAdminServer_CreateTree(t *testing.T) {
 			req:          &trillian.CreateTreeRequest{Tree: &invalidTree},
 			shouldCreate: true,
 			createErr:    errors.New("CreateTree failed"),
-			opts: testOptions{
+			opts: setupOptions{
 				shouldBeginTx: true,
 			},
 		},
@@ -222,7 +222,7 @@ func TestAdminServer_CreateTree(t *testing.T) {
 			desc:         "commitError",
 			req:          &trillian.CreateTreeRequest{Tree: stestonly.LogTree},
 			shouldCreate: true,
-			opts: testOptions{
+			opts: setupOptions{
 				shouldBeginTx: true,
 				shouldCommit:  true,
 				commitErr:     errors.New("commit error"),
@@ -231,19 +231,19 @@ func TestAdminServer_CreateTree(t *testing.T) {
 		{
 			desc: "non-existent key and SignerFactory does not implement keys.Generator",
 			req:  &trillian.CreateTreeRequest{Tree: stestonly.LogTree},
-			opts: testOptions{
 				signerFactory: func() keys.SignerFactory {
 					sf := keys.NewMockSignerFactory(ctrl)
 					sf.EXPECT().NewSigner(gomock.Any(), stestonly.LogTree).Return(nil, terrors.New(terrors.NotFound, "key not found"))
 					return sf
 				}(),
+			opts: setupOptions{
 			},
 		},
 		{
 			desc:         "non-existent key but SignerFactory implements keys.Generator",
 			req:          &trillian.CreateTreeRequest{Tree: stestonly.LogTree},
 			shouldCreate: true,
-			opts: testOptions{
+			opts: setupOptions{
 				signerFactory: func() keys.Generator {
 					keyGen := keys.NewMockGenerator(ctrl)
 					gomock.InOrder(
@@ -259,7 +259,7 @@ func TestAdminServer_CreateTree(t *testing.T) {
 		{
 			desc: "key generation failure",
 			req:  &trillian.CreateTreeRequest{Tree: stestonly.LogTree},
-			opts: testOptions{
+			opts: setupOptions{
 				signerFactory: func() keys.Generator {
 					keyGen := keys.NewMockGenerator(ctrl)
 					gomock.InOrder(
@@ -274,7 +274,7 @@ func TestAdminServer_CreateTree(t *testing.T) {
 			desc:      "invalid key",
 			req:       &trillian.CreateTreeRequest{Tree: stestonly.LogTree},
 			createErr: errors.New("CreateTree failed"),
-			opts: testOptions{
+			opts: setupOptions{
 				signerFactory: func() keys.SignerFactory {
 					sf := keys.NewMockSignerFactory(ctrl)
 					sf.EXPECT().NewSigner(gomock.Any(), stestonly.LogTree).Return(nil, terrors.New(terrors.InvalidArgument, "invalid key"))
@@ -334,7 +334,7 @@ type testFixture struct {
 	server     *Server
 }
 
-type testOptions struct {
+type setupOptions struct {
 	// signerFactory is the keys.SignerFactory to use. If nil, newSignerFactory() will be used.
 	signerFactory keys.SignerFactory
 	// shouldSnapshot indicates whether AdminStorage.Snapshot() is expected to be called.
@@ -348,7 +348,7 @@ type testOptions struct {
 }
 
 // wantErr returns whether these test options indicate that an error is expected.
-func (o *testOptions) wantErr() bool {
+func (o *setupOptions) wantErr() bool {
 	return !o.shouldCommit || o.commitErr != nil
 }
 
@@ -356,7 +356,7 @@ func (o *testOptions) wantErr() bool {
 // Storage will be set to use either snapshots or regular TXs via snapshot parameter.
 // Whether the snapshot/TX is expected to be committed (and if it should error doing so) is
 // controlled via shouldCommit and commitErr parameters.
-func setupServer(ctrl *gomock.Controller, opts testOptions) testFixture {
+func setupServer(ctrl *gomock.Controller, opts setupOptions) testFixture {
 	as := storage.NewMockAdminStorage(ctrl)
 
 	var snapshotTX *storage.MockReadOnlyAdminTX
