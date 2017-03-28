@@ -201,7 +201,7 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int) (i
 	// current one is too old. If there's work to be done then we'll be creating a root anyway.
 	if len(leaves) == 0 {
 		// We have nothing to integrate into the tree
-		glog.Infof("No leaves sequenced in this signing operation.")
+		glog.V(1).Infof("No leaves sequenced in this signing operation.")
 		return 0, tx.Commit()
 	}
 
