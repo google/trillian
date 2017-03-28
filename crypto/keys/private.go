@@ -33,7 +33,7 @@ import (
 // examples.
 type SignerFactory interface {
 	// NewSigner returns a signer for the given tree.
-	// The PrivateKey field of the tree controls how this is done.
+	// The tree.PrivateKey field must identify the private key that the signer will use.
 	NewSigner(context.Context, *trillian.Tree) (crypto.Signer, error)
 }
 
@@ -43,9 +43,10 @@ type Generator interface {
 	SignerFactory
 
 	// Generate creates a new private key for the given tree.
-	// The SignatureAlgorithm and PrivateKey fields of the tree control
-	// how this is done.
-	Generate(context.Context, *trillian.Tree) error
+	// The tree.PrivateKey field must not be set.
+	// The tree.SignatureAlgorithm field controls what algorithm is used for key generation.
+	// The updated tree, with its PrivateKey field appropriately set, is returned.
+	Generate(context.Context, *trillian.Tree) (*trillian.Tree, error)
 }
 
 // NewFromPrivatePEMFile reads a PEM-encoded private key from a file.

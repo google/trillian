@@ -31,10 +31,11 @@ func (_m *MockGenerator) EXPECT() *_MockGeneratorRecorder {
 	return _m.recorder
 }
 
-func (_m *MockGenerator) Generate(_param0 context.Context, _param1 *trillian.Tree) error {
+func (_m *MockGenerator) Generate(_param0 context.Context, _param1 *trillian.Tree) (*trillian.Tree, error) {
 	ret := _m.ctrl.Call(_m, "Generate", _param0, _param1)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret0, _ := ret[0].(*trillian.Tree)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 func (_mr *_MockGeneratorRecorder) Generate(arg0, arg1 interface{}) *gomock.Call {

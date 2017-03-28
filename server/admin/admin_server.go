@@ -80,28 +80,37 @@ func (s *Server) CreateTree(ctx context.Context, request *trillian.CreateTreeReq
 }
 
 func (s *Server) createTreeImpl(ctx context.Context, request *trillian.CreateTreeRequest) (*trillian.Tree, error) {
-	// Test that the tree's private key exists. If it doesn't, generate it.
-	if _, err := s.registry.SignerFactory.NewSigner(ctx, request.GetTree()); err != nil {
-		if errors.ErrorCode(err) != errors.NotFound {
-			return nil, err
-		}
+	tree := request.GetTree()
 
-		// Key not found - try to generate it.
+	if tree.GetPrivateKey() == nil {
 		keyGen, ok := s.registry.SignerFactory.(keys.Generator)
 		if !ok {
-			return nil, err
+			return nil, errors.New(errors.InvalidArgument, "tree.private_key must be set")
 		}
-		if err := keyGen.Generate(ctx, request.GetTree()); err != nil {
+
+		// Update the tree with a newly-generated private key.
+		var err error
+		tree, err = keyGen.Generate(ctx, tree)
+		if err != nil {
 			return nil, err
 		}
 	}
+
+	// Test that a signer can be obtained using the tree's PrivateKey.
+	_, err := s.registry.SignerFactory.NewSigner(ctx, tree)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO(robpercival): Should this call ListTrees and check that no existing tree has a matching PrivateKey?
+	// This would protect against forking a tree, but would slow down CreateTree.
 
 	tx, err := s.registry.AdminStorage.Begin(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Close()
-	tree, err := tx.CreateTree(ctx, request.GetTree())
+	tree, err = tx.CreateTree(ctx, tree)
 	if err != nil {
 		return nil, err
 	}
