@@ -45,5 +45,5 @@ func (f PEMSignerFactory) NewSigner(ctx context.Context, tree *trillian.Tree) (c
 		return NewFromPrivatePEMFile(privateKey.GetPath(), privateKey.GetPassword())
 	}
 
-	return nil, errors.Errorf(errors.Unimplemented, "unsupported PrivateKey type for tree %d: %T", tree.GetTreeId(), privateKey.Message)
+	return nil, errors.Errorf(errors.InvalidArgument, "unsupported PrivateKey type for tree %d: %T", tree.GetTreeId(), privateKey.Message)
 }

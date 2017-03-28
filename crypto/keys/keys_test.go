@@ -101,13 +101,13 @@ func TestLoadPrivateKeyAndSign(t *testing.T) {
 		{
 			name:        "Non-existent file",
 			keyPath:     "non-existent.pem",
-			wantLoadErr: errors.NotFound,
+			wantLoadErr: errors.FailedPrecondition,
 		},
 		{
 			name:        "ECDSA with wrong password",
 			keyPEM:      testonly.DemoPrivateKey,
 			keyPass:     testonly.DemoPrivateKeyPass + "foo",
-			wantLoadErr: errors.PermissionDenied,
+			wantLoadErr: errors.InvalidArgument,
 		},
 		{
 			name:   "ECDSA",
@@ -139,24 +139,17 @@ func TestLoadPrivateKeyAndSign(t *testing.T) {
 		switch {
 		case test.keyPEM != "":
 			k, err = NewFromPrivatePEM(test.keyPEM, test.keyPass)
-			if got, want := errors.ErrorCode(err), test.wantLoadErr; got != want {
-				t.Errorf("%s: NewFromPrivatePEM(_, _) = (_, %v: %v), want err.Code == %v", test.name, got, err, want)
-				continue
-			} else if got != errors.OK {
-				continue
-			}
-
 		case test.keyPath != "":
 			k, err = NewFromPrivatePEMFile(test.keyPath, test.keyPass)
-			if got, want := errors.ErrorCode(err), test.wantLoadErr; got != want {
-				t.Errorf("%s: NewFromPrivatePEMFile(_, _) = (_, %v: %v), want err.Code == %v", test.name, got, err, want)
-				continue
-			} else if got != errors.OK {
-				continue
-			}
-
 		default:
 			t.Errorf("%s: No PEM or file path set in test definition", test.name)
+			continue
+		}
+
+		if got, want := errors.ErrorCode(err), test.wantLoadErr; got != want {
+			t.Errorf("%s: NewFromPrivate...(_, _) = (_, %v: %v), want err.Code == %v", test.name, got, err, want)
+			continue
+		} else if got != errors.OK {
 			continue
 		}
 

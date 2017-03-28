@@ -22,7 +22,6 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"io/ioutil"
-	"os"
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/errors"
@@ -54,15 +53,12 @@ type Generator interface {
 func NewFromPrivatePEMFile(keyFile, keyPassword string) (crypto.Signer, error) {
 	pemData, err := ioutil.ReadFile(keyFile)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, errors.Errorf(errors.NotFound, "file does not exist: %q", keyFile)
-		}
-		return nil, errors.Errorf(errors.InvalidArgument, "failed to read private key from file %q: %v", keyFile, err)
+		return nil, errors.Errorf(errors.FailedPrecondition, "could not read private key from file %q: %v", keyFile, err)
 	}
 
 	k, err := NewFromPrivatePEM(string(pemData), keyPassword)
 	if err != nil {
-		return nil, errors.Errorf(errors.InvalidArgument, "failed to decode private key from file %q: %v", keyFile, err)
+		return nil, errors.Errorf(errors.ErrorCode(err), "could not decode private key from file %q: %v", keyFile, err)
 	}
 
 	return k, nil
@@ -81,14 +77,14 @@ func NewFromPrivatePEM(pemEncodedKey, password string) (crypto.Signer, error) {
 
 	der := block.Bytes
 	if password != "" {
-		pwdDer, err := x509.DecryptPEMBlock(block, []byte(password))
+		decryptedDER, err := x509.DecryptPEMBlock(block, []byte(password))
 		if err == x509.IncorrectPasswordError {
-			return nil, errors.New(errors.PermissionDenied, err.Error())
+			return nil, errors.New(errors.InvalidArgument, err.Error())
 		}
 		if err != nil {
 			return nil, err
 		}
-		der = pwdDer
+		der = decryptedDER
 	}
 
 	return NewFromPrivateDER(der)
