@@ -39,7 +39,10 @@ type SignerFactory interface {
 }
 
 // Generator generates a new private key for Trillian trees.
+// It is also a SignerFactory, i.e. it can create signers for trees that already have a key.
 type Generator interface {
+	SignerFactory
+
 	// Generate creates a new private key for the given tree.
 	// The SignatureAlgorithm and PrivateKey fields of the tree control
 	// how this is done.

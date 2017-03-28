@@ -78,18 +78,6 @@ var zeroDuration = 0 * time.Second
 
 const writeRev = int64(24)
 
-type signerFactory struct {
-	signers map[int64]crypto.Signer
-}
-
-func (f *signerFactory) NewSigner(ctx context.Context, tree *trillian.Tree) (crypto.Signer, error) {
-	signer := f.signers[tree.GetTreeId()]
-	if signer == nil {
-		return nil, fmt.Errorf("no signer for tree %v", tree.GetTreeId())
-	}
-	return signer, nil
-}
-
 // newSignerWithFixedSig returns a fake signer that always returns the specified signature.
 func newSignerWithFixedSig(sig *sigpb.DigitallySigned) (crypto.Signer, error) {
 	key, err := keys.NewFromPublicPEM(testonly.DemoPublicKey)
@@ -127,11 +115,6 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 	mockStorage := storage.NewMockLogStorage(mockCtrl)
 	mockTx := storage.NewMockLogTreeTX(mockCtrl)
 
-	signer, err := newSignerWithFixedSig(updatedRoot.Signature)
-	if err != nil {
-		t.Fatalf("Failed to create test signer (%v)", err)
-	}
-
 	mockStorage.EXPECT().BeginForTree(gomock.Any(), logID).Return(mockTx, nil)
 	mockTx.EXPECT().Commit().Return(nil)
 	mockTx.EXPECT().Close().Return(nil)
@@ -144,12 +127,13 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 	mockAdminTx.EXPECT().Commit().Return(nil)
 	mockAdminTx.EXPECT().Close().Return(nil)
 
+	signerFactory := keys.NewMockSignerFactory(mockCtrl)
+	signerFactory.EXPECT().NewSigner(gomock.Any(), stestonly.LogTree).Return(newSignerWithFixedSig(updatedRoot.Signature))
+
 	registry := extension.Registry{
-		AdminStorage: mockAdmin,
-		LogStorage:   mockStorage,
-		SignerFactory: &signerFactory{
-			signers: map[int64]crypto.Signer{logID: signer},
-		},
+		AdminStorage:  mockAdmin,
+		LogStorage:    mockStorage,
+		SignerFactory: signerFactory,
 	}
 
 	sm := NewSequencerManager(registry, zeroDuration)
@@ -166,11 +150,6 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 	mockAdminTx := storage.NewMockReadOnlyAdminTX(mockCtrl)
 	mockStorage := storage.NewMockLogStorage(mockCtrl)
 	mockTx := storage.NewMockLogTreeTX(mockCtrl)
-
-	signer, err := newSignerWithFixedSig(updatedRoot.Signature)
-	if err != nil {
-		t.Fatalf("Failed to create test signer (%v)", err)
-	}
 
 	// Set up enough mockery to be able to sequence. We don't test all the error paths
 	// through sequencer as other tests cover this
@@ -189,12 +168,13 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 	mockAdminTx.EXPECT().Commit().Return(nil)
 	mockAdminTx.EXPECT().Close().Return(nil)
 
+	signerFactory := keys.NewMockSignerFactory(mockCtrl)
+	signerFactory.EXPECT().NewSigner(gomock.Any(), stestonly.LogTree).Return(newSignerWithFixedSig(updatedRoot.Signature))
+
 	registry := extension.Registry{
-		AdminStorage: mockAdmin,
-		LogStorage:   mockStorage,
-		SignerFactory: &signerFactory{
-			signers: map[int64]crypto.Signer{logID: signer},
-		},
+		AdminStorage:  mockAdmin,
+		LogStorage:    mockStorage,
+		SignerFactory: signerFactory,
 	}
 
 	sm := NewSequencerManager(registry, zeroDuration)
@@ -212,11 +192,6 @@ func TestSequencerManagerGuardWindow(t *testing.T) {
 	mockStorage := storage.NewMockLogStorage(mockCtrl)
 	mockTx := storage.NewMockLogTreeTX(mockCtrl)
 
-	signer, err := newSignerWithFixedSig(updatedRoot.Signature)
-	if err != nil {
-		t.Fatalf("Failed to create test signer (%v)", err)
-	}
-
 	mockStorage.EXPECT().BeginForTree(gomock.Any(), logID).Return(mockTx, nil)
 	mockTx.EXPECT().Commit().Return(nil)
 	mockTx.EXPECT().Close().Return(nil)
@@ -230,12 +205,13 @@ func TestSequencerManagerGuardWindow(t *testing.T) {
 	mockAdminTx.EXPECT().Commit().Return(nil)
 	mockAdminTx.EXPECT().Close().Return(nil)
 
+	signerFactory := keys.NewMockSignerFactory(mockCtrl)
+	signerFactory.EXPECT().NewSigner(gomock.Any(), stestonly.LogTree).Return(newSignerWithFixedSig(updatedRoot.Signature))
+
 	registry := extension.Registry{
-		AdminStorage: mockAdmin,
-		LogStorage:   mockStorage,
-		SignerFactory: &signerFactory{
-			signers: map[int64]crypto.Signer{logID: signer},
-		},
+		AdminStorage:  mockAdmin,
+		LogStorage:    mockStorage,
+		SignerFactory: signerFactory,
 	}
 
 	sm := NewSequencerManager(registry, time.Second*5)
