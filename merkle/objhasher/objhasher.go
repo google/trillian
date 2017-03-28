@@ -21,7 +21,7 @@ import (
 )
 
 // ObjectHasher uses ObjectHash to compute leaf hashes.
-var ObjectHasher = objhasher{}
+var ObjectHasher = &objhasher{}
 
 // ObjectHash does not use `1` as any of its type prefixes,
 // preserving domain separation.
