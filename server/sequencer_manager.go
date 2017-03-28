@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/log"
 	"github.com/google/trillian/trees"
@@ -29,6 +30,7 @@ import (
 type SequencerManager struct {
 	guardWindow time.Duration
 	registry    extension.Registry
+	signers     map[int64]*crypto.Signer
 }
 
 // NewSequencerManager creates a new SequencerManager instance based on the provided KeyManager instance
@@ -37,6 +39,7 @@ func NewSequencerManager(registry extension.Registry, gw time.Duration) *Sequenc
 	return &SequencerManager{
 		guardWindow: gw,
 		registry:    registry,
+		signers:     make(map[int64]*crypto.Signer),
 	}
 }
 
@@ -65,9 +68,13 @@ func (s SequencerManager) ExecutePass(ctx context.Context, logID int64, info *Lo
 		return 0, fmt.Errorf("error getting hasher for log %v: %v", logID, err)
 	}
 
-	signer, err := trees.Signer(ctx, s.registry.SignerFactory, tree)
-	if err != nil {
-		return 0, fmt.Errorf("error getting signer for log %v: %v", logID, err)
+	signer := s.signers[logID]
+	if signer == nil {
+		signer, err = trees.Signer(ctx, s.registry.SignerFactory, tree)
+		if err != nil {
+			return 0, fmt.Errorf("error getting signer for log %v: %v", logID, err)
+		}
+		s.signers[logID] = signer
 	}
 
 	sequencer := log.NewSequencer(hasher, info.TimeSource, s.registry.LogStorage, signer)
