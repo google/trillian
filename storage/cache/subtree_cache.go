@@ -328,7 +328,7 @@ func (s *SubtreeCache) SetNodeHash(id storage.NodeID, h []byte, getSubtree GetSu
 		}
 	}
 	if c.Prefix == nil {
-		panic(fmt.Errorf("nil prefix for %v (key %v)", id.String(), prefixKey))
+		return fmt.Errorf("nil prefix for %v (key %v)", id.String(), prefixKey)
 	}
 	s.dirtyPrefixes[prefixKey] = true
 	// Determine whether we're being asked to store a leaf node, or an internal
@@ -465,25 +465,28 @@ func PopulateLogSubtreeNodes(treeHasher merkle.TreeHasher) storage.PopulateSubtr
 			if h == nil {
 				return fmt.Errorf("unexpectedly got nil for subtree leaf suffix %s", sfx)
 			}
-			seq := cmt.AddLeafHash(h, func(depth int, index int64, h []byte) {
-				if depth == logStrataDepth && index == 0 {
+			seq, err := cmt.AddLeafHash(h, func(depth int, index int64, h []byte) error {
+				if depth == 8 && index == 0 {
 					// no space for the root in the node cache
-					return
+					return nil
 				}
 				key, err := makeSuffixKey(logStrataDepth-depth, index<<uint(depth))
 				if err != nil {
 					// This can only happen if we somehow ended up outside of the subtree. For example
 					// if more leaves were added to the CMT than the fully populated count for the strata
 					// depth.
-					// TODO(al): Don't panic Mr. Mainwaring.
-					panic(err)
+					return fmt.Errorf("bad suffix key in log repop: %v", err)
 				}
 				// Don't put leaves into the internal map and only update if we're rebuilding internal
 				// nodes. If the subtree was saved with internal nodes then we don't touch the map.
 				if depth > 0 && len(st.Leaves) == maxLeaves {
 					st.InternalNodes[key] = h
 				}
+				return nil
 			})
+			if err != nil {
+				return err
+			}
 			if got, expected := seq, leafIndex; got != expected {
 				return fmt.Errorf("got seq of %d, but expected %d", got, expected)
 			}

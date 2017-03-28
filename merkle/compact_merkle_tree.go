@@ -95,7 +95,9 @@ func NewCompactMerkleTreeWithState(hasher TreeHasher, size int64, f GetNodeFunc,
 			}
 			size >>= 1
 		}
-		r.recalculateRoot(func(depth int, index int64, hash []byte) {})
+		r.recalculateRoot(func(depth int, index int64, hash []byte) error {
+			return nil
+		})
 	}
 	if !bytes.Equal(r.root, expectedRoot) {
 		log.Warningf("Corrupt state, expected root %s, got %s", hex.EncodeToString(expectedRoot[:]), hex.EncodeToString(r.root[:]))
@@ -136,11 +138,11 @@ func (c CompactMerkleTree) DumpNodes() {
 	}
 }
 
-type setNodeFunc func(depth int, index int64, hash []byte)
+type setNodeFunc func(depth int, index int64, hash []byte) error
 
-func (c *CompactMerkleTree) recalculateRoot(f setNodeFunc) {
+func (c *CompactMerkleTree) recalculateRoot(f setNodeFunc) error {
 	if c.size == 0 {
-		return
+		return nil
 	}
 
 	index := c.size
@@ -157,39 +159,48 @@ func (c *CompactMerkleTree) recalculateRoot(f setNodeFunc) {
 				first = false
 			} else {
 				newRoot = c.hasher.HashChildren(c.nodes[bit], newRoot)
-				f(bit+1, index, newRoot)
+				if err := f(bit+1, index, newRoot); err != nil {
+					return err
+				}
 			}
 		}
 		mask <<= 1
 	}
 	c.root = newRoot
+	return nil
 }
 
 // AddLeaf calculates the leafhash of |data| and appends it to the tree.
 // |f| is a callback which will be called multiple times with the full MerkleTree coordinates of nodes whose hash should be updated.
-func (c *CompactMerkleTree) AddLeaf(data []byte, f setNodeFunc) (int64, []byte) {
+func (c *CompactMerkleTree) AddLeaf(data []byte, f setNodeFunc) (int64, []byte, error) {
 	h := c.hasher.HashLeaf(data)
-	return c.AddLeafHash(h, f), h
+	seq, err := c.AddLeafHash(h, f)
+	if err != nil {
+		return 0, nil, err
+	}
+	return seq, h, err
 }
 
 // AddLeafHash adds the specified |leafHash| to the tree.
 // |f| is a callback which will be called multiple times with the full MerkleTree coordinates of nodes whose hash should be updated.
-func (c *CompactMerkleTree) AddLeafHash(leafHash []byte, f setNodeFunc) (assignedSeq int64) {
+func (c *CompactMerkleTree) AddLeafHash(leafHash []byte, f setNodeFunc) (int64, error) {
 	defer func() {
 		c.size++
 		// TODO(al): do this lazily
 		c.recalculateRoot(f)
 	}()
 
-	assignedSeq = c.size
+	assignedSeq := c.size
 	index := assignedSeq
 
-	f(0, index, leafHash)
+	if err := f(0, index, leafHash); err != nil {
+		return 0, err
+	}
 
 	if c.size == 0 {
 		// new tree
 		c.nodes = append(c.nodes, leafHash)
-		return
+		return assignedSeq, nil
 	}
 
 	// Initialize our running hash value to the leaf hash
@@ -204,14 +215,18 @@ func (c *CompactMerkleTree) AddLeafHash(leafHash []byte, f setNodeFunc) (assigne
 			// Don't re-write the leaf hash node (we've done it above already)
 			if bit > 0 {
 				// Store the leaf hash node
-				f(bit, index, hash)
+				if err := f(bit, index, hash); err != nil {
+					return 0, err
+				}
 			}
-			return
+			return assignedSeq, nil
 		}
 		// The bit is set so we have a node at that position in the nodes list so hash it with our running hash:
 		hash = c.hasher.HashChildren(c.nodes[bit], hash)
 		// Store the resulting parent hash.
-		f(bit+1, index, hash)
+		if err := f(bit+1, index, hash); err != nil {
+			return 0, err
+		}
 		// Now, clear this position in the nodes list as the hash it formerly contained will be propogated upwards.
 		c.nodes[bit] = nil
 		// Figure out if we're done:
@@ -219,20 +234,19 @@ func (c *CompactMerkleTree) AddLeafHash(leafHash []byte, f setNodeFunc) (assigne
 			// If we're extending the node list then add a new entry with our
 			// running hash, and we're done.
 			c.nodes = append(c.nodes, hash)
-			return
+			return assignedSeq, nil
 		} else if t&0x02 == 0 {
 			// If the node above us is unused at this tree size, then store our
 			// running hash there, and we're done.
 			c.nodes[bit+1] = hash
-			return
+			return assignedSeq, nil
 		}
 		// Otherwise, go around again.
 		bit++
 	}
 	// We should never get here, because that'd mean we had a running hash which
 	// we've not stored somewhere.
-	log.Fatal("AddLeaf failed.")
-	return
+	return 0, fmt.Errorf("AddLeaf failed running hash not cleared: h: %v seq: %d", leafHash, assignedSeq)
 }
 
 // Size returns the current size of the tree, that is, the number of leaves ever added to the tree.
