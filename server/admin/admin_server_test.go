@@ -362,21 +362,21 @@ func setupServer(ctrl *gomock.Controller, opts testOptions) testFixture {
 	var snapshotTX *storage.MockReadOnlyAdminTX
 	if opts.shouldSnapshot {
 		snapshotTX = storage.NewMockReadOnlyAdminTX(ctrl)
-		as.EXPECT().Snapshot(gomock.Any()).Return(snapshotTX, nil)
-		snapshotTX.EXPECT().Close().Return(nil)
+		prevCall := as.EXPECT().Snapshot(gomock.Any()).Return(opts.snapshotTX, nil)
 		if opts.shouldCommit {
-			snapshotTX.EXPECT().Commit().Return(opts.commitErr)
+			prevCall = opts.snapshotTX.EXPECT().Commit().Return(opts.commitErr).After(prevCall)
 		}
+		opts.snapshotTX.EXPECT().Close().Return(nil).After(prevCall)
 	}
 
 	var tx *storage.MockAdminTX
 	if opts.shouldBeginTx {
 		tx = storage.NewMockAdminTX(ctrl)
-		as.EXPECT().Begin(gomock.Any()).Return(tx, nil)
-		tx.EXPECT().Close().Return(nil)
+		prevCall := as.EXPECT().Begin(gomock.Any()).Return(opts.tx, nil)
 		if opts.shouldCommit {
-			tx.EXPECT().Commit().Return(opts.commitErr)
+			prevCall = opts.tx.EXPECT().Commit().Return(opts.commitErr).After(prevCall)
 		}
+		opts.tx.EXPECT().Close().Return(nil).After(prevCall)
 	}
 
 	registry := extension.Registry{
