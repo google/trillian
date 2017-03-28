@@ -176,7 +176,7 @@ func (c *CompactMerkleTree) AddLeaf(data []byte, f setNodeFunc) (int64, []byte, 
 	h := c.hasher.HashLeaf(data)
 	seq, err := c.AddLeafHash(h, f)
 	if err != nil {
-		return -1, nil, err
+		return 0, nil, err
 	}
 	return seq, h, err
 }
