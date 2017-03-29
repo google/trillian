@@ -13,7 +13,7 @@ RPC_PORT=$(pickUnusedPort)
 
 echo "Starting Map RPC server on port ${RPC_PORT}"
 pushd "${TRILLIAN_ROOT}" > /dev/null
-./trillian_map_server --port ${RPC_PORT} &
+./trillian_map_server --port ${RPC_PORT} -alsologtostderr &
 RPC_SERVER_PID=$!
 popd > /dev/null
 waitForServerStartup ${RPC_PORT}
