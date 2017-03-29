@@ -390,7 +390,7 @@ func checkInclusionProofTreeSizeOutOfRange(logID int64, client trillian.Trillian
 // proofs returned should match ones computed by the alternate Merkle Tree implementation, which differs
 // from what the log uses.
 func checkInclusionProofsAtIndex(index int64, logID int64, tree *merkle.InMemoryMerkleTree, client trillian.TrillianLogClient, params TestParameters) error {
-	// Get MerkleLeafHash to use in VerifyInclusionProof.
+	// Get LeafValue to compute MerkleLeafHash to use in VerifyInclusionProof.
 	ctx, cancel := getRPCDeadlineContext(params)
 	resp, err := client.GetLeavesByIndex(ctx, &trillian.GetLeavesByIndexRequest{
 		LogId:     logID,
@@ -430,7 +430,8 @@ func checkInclusionProofsAtIndex(index int64, logID int64, tree *merkle.InMemory
 		for _, n := range resp.Proof.ProofNode {
 			proof = append(proof, n.NodeHash)
 		}
-		if err := verifier.VerifyInclusionProof(index, treeSize, proof, root, leaf.MerkleLeafHash); err != nil {
+		merkleHash := testonly.Hasher.HashLeaf(leaf.LeafValue)
+		if err := verifier.VerifyInclusionProof(index, treeSize, proof, root, merkleHash); err != nil {
 			return err
 		}
 	}
