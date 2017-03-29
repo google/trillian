@@ -214,7 +214,7 @@ func (s *SubtreeCache) GetNodes(ids []storage.NodeID, getSubtrees GetSubtreesFun
 			func(n storage.NodeID) (*storagepb.SubtreeProto, error) {
 				// This should never happen - we should've already read all the data we
 				// need above, in Preload()
-				glog.Warning("Unexpectedly reading from within GetNodeHash()")
+				glog.Warningf("Unexpectedly reading from within GetNodeHash(): %v", n)
 				ret, err := getSubtrees([]storage.NodeID{n})
 				if err != nil || len(ret) == 0 {
 					return nil, err
