@@ -121,6 +121,66 @@ func TestListByIndex(t *testing.T) {
 	}
 }
 
+func TestVerifyInclusion(t *testing.T) {
+	env, err := integration.NewLogEnv(context.Background(), 0, "TestVerifyInclusion")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer env.Close()
+	logID, err := env.CreateLog()
+	if err != nil {
+		t.Fatalf("Failed to create log: %v", err)
+	}
+
+	cli := trillian.NewTrillianLogClient(env.ClientConn)
+	client := New(logID, cli, testonly.Hasher, env.PublicKey)
+	// Add a few test leaves.
+	leafData := [][]byte{
+		[]byte("A"),
+		[]byte("B"),
+	}
+
+	if err := addSequencedLeaves(env, client, leafData); err != nil {
+		t.Errorf("Failed to add leaves: %v", err)
+	}
+
+	for _, l := range leafData {
+		if err := client.VerifyInclusion(context.Background(), l); err != nil {
+			t.Errorf("VerifyInclusion(%s) = %v, want nil", l, err)
+		}
+	}
+}
+
+func TestVerifyInclusionAtIndex(t *testing.T) {
+	env, err := integration.NewLogEnv(context.Background(), 0, "TestVerifyInclusionAtIndex")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer env.Close()
+	logID, err := env.CreateLog()
+	if err != nil {
+		t.Fatalf("Failed to create log: %v", err)
+	}
+
+	cli := trillian.NewTrillianLogClient(env.ClientConn)
+	client := New(logID, cli, testonly.Hasher, env.PublicKey)
+	// Add a few test leaves.
+	leafData := [][]byte{
+		[]byte("A"),
+		[]byte("B"),
+	}
+
+	if err := addSequencedLeaves(env, client, leafData); err != nil {
+		t.Errorf("Failed to add leaves: %v", err)
+	}
+
+	for i, l := range leafData {
+		if err := client.VerifyInclusionAtIndex(context.Background(), l, int64(i)); err != nil {
+			t.Errorf("VerifyInclusion(%s) = %v, want nil", l, err)
+		}
+	}
+}
+
 func TestAddLeaf(t *testing.T) {
 	env, err := integration.NewLogEnv(context.Background(), 0, "TestAddLeaf")
 	if err != nil {
