@@ -53,10 +53,9 @@ message LogLeaf {
 }
 
 message Node {
-    // TODO(Martin2112): remove node_id and node_revision
-    bytes node_id = 1;
     bytes node_hash = 2;
-    int64 node_revision = 3;
+    // These fields were internal details of nodes that are no longer provided to clients
+    reserved 1, 3;
 }
 
 message Proof {

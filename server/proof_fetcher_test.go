@@ -37,7 +37,7 @@ type rehashTest struct {
 	output  trillian.Proof
 }
 
-// An arbitrary tree revision to be used in tests
+// An arbitrary tree revision to be used in tests.
 const testTreeRevision int64 = 3
 
 // Raw hashes for dummy storage nodes
@@ -47,21 +47,21 @@ var h3 = th.HashLeaf([]byte("Hash 3"))
 var h4 = th.HashLeaf([]byte("Hash 4"))
 var h5 = th.HashLeaf([]byte("Hash 5"))
 
-// And the dummy nodes themselves
+// And the dummy nodes themselves.
 var sn1 = storage.Node{NodeID: storage.NewNodeIDFromHash(h1), Hash: h1, NodeRevision: 11}
 var sn2 = storage.Node{NodeID: storage.NewNodeIDFromHash(h2), Hash: h2, NodeRevision: 22}
 var sn3 = storage.Node{NodeID: storage.NewNodeIDFromHash(h3), Hash: h3, NodeRevision: 33}
 var sn4 = storage.Node{NodeID: storage.NewNodeIDFromHash(h4), Hash: h4, NodeRevision: 44}
 var sn5 = storage.Node{NodeID: storage.NewNodeIDFromHash(h5), Hash: h5, NodeRevision: 55}
 
-// And the output proof nodes expected for them if they are passed through without rehashing
-var n1 = &trillian.Node{NodeHash: h1, NodeId: mustMarshalNodeID(sn1.NodeID), NodeRevision: sn1.NodeRevision}
-var n2 = &trillian.Node{NodeHash: h2, NodeId: mustMarshalNodeID(sn2.NodeID), NodeRevision: sn2.NodeRevision}
-var n3 = &trillian.Node{NodeHash: h3, NodeId: mustMarshalNodeID(sn3.NodeID), NodeRevision: sn3.NodeRevision}
-var n4 = &trillian.Node{NodeHash: h4, NodeId: mustMarshalNodeID(sn4.NodeID), NodeRevision: sn4.NodeRevision}
-var n5 = &trillian.Node{NodeHash: h5, NodeId: mustMarshalNodeID(sn5.NodeID), NodeRevision: sn5.NodeRevision}
+// And the output proof nodes expected for them.
+var n1 = &trillian.Node{NodeHash: h1}
+var n2 = &trillian.Node{NodeHash: h2}
+var n3 = &trillian.Node{NodeHash: h3}
+var n4 = &trillian.Node{NodeHash: h4}
+var n5 = &trillian.Node{NodeHash: h5}
 
-// Nodes containing composite hashes. They don't have node ids or revisions as they're recomputed
+// Nodes containing composite hashes.
 var n1n2 = &trillian.Node{NodeHash: th.HashChildren(h2, h1)}
 var n2n3 = &trillian.Node{NodeHash: th.HashChildren(h3, h2)}
 var n2n3n4 = &trillian.Node{NodeHash: th.HashChildren(h4, th.HashChildren(h3, h2))}

@@ -359,7 +359,7 @@ func TestQueueLeavesErrorMapped(t *testing.T) {
 		if err == nil {
 			if test.want != codes.OK {
 				// The operation should not have succeeded
-				t.Errorf("Did not propagate storage error to client")
+				t.Error("Did not propagate storage error to client")
 			}
 			continue
 		}
@@ -754,17 +754,11 @@ func TestGetProofByHash(t *testing.T) {
 		t.Fatalf("server response was not successful: %v", proofResponse)
 	}
 
-	nodeIDBytes1, err1 := proto.Marshal(nodeIdsInclusionSize7Index2[0].AsProto())
-	nodeIDBytes2, err2 := proto.Marshal(nodeIdsInclusionSize7Index2[1].AsProto())
-	nodeIDBytes3, err3 := proto.Marshal(nodeIdsInclusionSize7Index2[2].AsProto())
-	if err1 != nil || err2 != nil || err3 != nil {
-		t.Fatalf("failed to marshall test protos - should not happen: %v %v %v", err1, err2, err3)
-	}
-
 	expectedProof := trillian.Proof{LeafIndex: 2, ProofNode: []*trillian.Node{
-		{NodeId: nodeIDBytes1, NodeHash: []byte("nodehash0"), NodeRevision: 3},
-		{NodeId: nodeIDBytes2, NodeHash: []byte("nodehash1"), NodeRevision: 2},
-		{NodeId: nodeIDBytes3, NodeHash: []byte("nodehash2"), NodeRevision: 3}}}
+		{NodeHash: []byte("nodehash0")},
+		{NodeHash: []byte("nodehash1")},
+		{NodeHash: []byte("nodehash2")},
+	}}
 
 	if !proto.Equal(proofResponse.Proof[0], &expectedProof) {
 		t.Fatalf("expected proof: %v but got: %v", expectedProof, proofResponse.Proof[0])
@@ -902,17 +896,11 @@ func TestGetProofByIndex(t *testing.T) {
 		t.Fatalf("server response was not successful: %v", proofResponse)
 	}
 
-	nodeIDBytes1, err1 := proto.Marshal(nodeIdsInclusionSize7Index2[0].AsProto())
-	nodeIDBytes2, err2 := proto.Marshal(nodeIdsInclusionSize7Index2[1].AsProto())
-	nodeIDBytes3, err3 := proto.Marshal(nodeIdsInclusionSize7Index2[2].AsProto())
-	if err1 != nil || err2 != nil || err3 != nil {
-		t.Fatalf("failed to marshall test protos - should not happen: %v %v %v", err1, err2, err3)
-	}
-
 	expectedProof := trillian.Proof{LeafIndex: 2, ProofNode: []*trillian.Node{
-		{NodeId: nodeIDBytes1, NodeHash: []byte("nodehash0"), NodeRevision: 3},
-		{NodeId: nodeIDBytes2, NodeHash: []byte("nodehash1"), NodeRevision: 2},
-		{NodeId: nodeIDBytes3, NodeHash: []byte("nodehash2"), NodeRevision: 3}}}
+		{NodeHash: []byte("nodehash0")},
+		{NodeHash: []byte("nodehash1")},
+		{NodeHash: []byte("nodehash2")},
+	}}
 
 	if !proto.Equal(proofResponse.Proof, &expectedProof) {
 		t.Fatalf("expected proof: %v but got: %v", expectedProof, proofResponse.Proof)
@@ -1075,17 +1063,11 @@ func TestGetEntryAndProof(t *testing.T) {
 	}
 
 	// Check the proof is the one we expected
-	nodeIDBytes1, err1 := proto.Marshal(nodeIdsInclusionSize7Index2[0].AsProto())
-	nodeIDBytes2, err2 := proto.Marshal(nodeIdsInclusionSize7Index2[1].AsProto())
-	nodeIDBytes3, err3 := proto.Marshal(nodeIdsInclusionSize7Index2[2].AsProto())
-	if err1 != nil || err2 != nil || err3 != nil {
-		t.Fatalf("failed to marshall test protos - should not happen: %v %v %v", err1, err2, err3)
-	}
-
 	expectedProof := trillian.Proof{LeafIndex: 2, ProofNode: []*trillian.Node{
-		{NodeId: nodeIDBytes1, NodeHash: []byte("nodehash0"), NodeRevision: 3},
-		{NodeId: nodeIDBytes2, NodeHash: []byte("nodehash1"), NodeRevision: 2},
-		{NodeId: nodeIDBytes3, NodeHash: []byte("nodehash2"), NodeRevision: 3}}}
+		{NodeHash: []byte("nodehash0")},
+		{NodeHash: []byte("nodehash1")},
+		{NodeHash: []byte("nodehash2")},
+	}}
 
 	if !proto.Equal(response.Proof, &expectedProof) {
 		t.Fatalf("expected proof: %v but got: %v", expectedProof, response.Proof)
@@ -1295,15 +1277,10 @@ func TestGetConsistencyProof(t *testing.T) {
 	}
 
 	// Ensure we got the expected proof
-	nodeIDBytes, err := proto.Marshal(nodeIdsConsistencySize4ToSize7[0].AsProto())
-	if err != nil {
-		t.Fatalf("failed to marshall test proto - should not happen: %v ", err)
-	}
-
 	expectedProof := trillian.Proof{
 		LeafIndex: 0,
 		ProofNode: []*trillian.Node{
-			{NodeId: nodeIDBytes, NodeHash: []byte("nodehash"), NodeRevision: 3},
+			{NodeHash: []byte("nodehash")},
 		},
 	}
 	if !proto.Equal(response.Proof, &expectedProof) {
