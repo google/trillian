@@ -55,11 +55,11 @@ var sn4 = storage.Node{NodeID: storage.NewNodeIDFromHash(h4), Hash: h4, NodeRevi
 var sn5 = storage.Node{NodeID: storage.NewNodeIDFromHash(h5), Hash: h5, NodeRevision: 55}
 
 // And the output proof nodes expected for them if they are passed through without rehashing
-var n1 = &trillian.Node{NodeHash: h1, NodeId: mustMarshalNodeID(sn1.NodeID), NodeRevision: sn1.NodeRevision}
-var n2 = &trillian.Node{NodeHash: h2, NodeId: mustMarshalNodeID(sn2.NodeID), NodeRevision: sn2.NodeRevision}
-var n3 = &trillian.Node{NodeHash: h3, NodeId: mustMarshalNodeID(sn3.NodeID), NodeRevision: sn3.NodeRevision}
-var n4 = &trillian.Node{NodeHash: h4, NodeId: mustMarshalNodeID(sn4.NodeID), NodeRevision: sn4.NodeRevision}
-var n5 = &trillian.Node{NodeHash: h5, NodeId: mustMarshalNodeID(sn5.NodeID), NodeRevision: sn5.NodeRevision}
+var n1 = &trillian.Node{NodeHash: h1}
+var n2 = &trillian.Node{NodeHash: h2}
+var n3 = &trillian.Node{NodeHash: h3}
+var n4 = &trillian.Node{NodeHash: h4}
+var n5 = &trillian.Node{NodeHash: h5}
 
 // Nodes containing composite hashes. They don't have node ids or revisions as they're recomputed
 var n1n2 = &trillian.Node{NodeHash: th.HashChildren(h2, h1)}

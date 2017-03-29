@@ -17,7 +17,6 @@ package server
 import (
 	"fmt"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
@@ -86,11 +85,7 @@ func (r *rehasher) process(node storage.Node, fetch merkle.NodeFetch) {
 }
 
 func (r *rehasher) emitNode(node storage.Node) {
-	idBytes, err := proto.Marshal(node.NodeID.AsProto())
-	if err != nil {
-		r.proofError = err
-	}
-	r.proof = append(r.proof, &trillian.Node{NodeId: idBytes, NodeHash: node.Hash, NodeRevision: node.NodeRevision})
+	r.proof = append(r.proof, &trillian.Node{NodeHash: node.Hash})
 }
 
 func (r *rehasher) startRehashing(node storage.Node) {
