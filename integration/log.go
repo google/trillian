@@ -390,21 +390,6 @@ func checkInclusionProofTreeSizeOutOfRange(logID int64, client trillian.Trillian
 // proofs returned should match ones computed by the alternate Merkle Tree implementation, which differs
 // from what the log uses.
 func checkInclusionProofsAtIndex(index int64, logID int64, tree *merkle.InMemoryMerkleTree, client trillian.TrillianLogClient, params TestParameters) error {
-	// Get LeafValue to compute MerkleLeafHash to use in VerifyInclusionProof.
-	ctx, cancel := getRPCDeadlineContext(params)
-	resp, err := client.GetLeavesByIndex(ctx, &trillian.GetLeavesByIndexRequest{
-		LogId:     logID,
-		LeafIndex: []int64{index},
-	})
-	cancel()
-	if err != nil {
-		return err
-	}
-	if got, want := len(resp.Leaves), 1; got != want {
-		return fmt.Errorf("GetLeavesByIndex(%v): %v, want %v", index, got, want)
-	}
-	leaf := resp.Leaves[0]
-
 	for treeSize := int64(0); treeSize < min(params.leafCount, int64(2*params.sequencerBatchSize)); treeSize++ {
 		ctx, cancel := getRPCDeadlineContext(params)
 		resp, err := client.GetInclusionProof(ctx, &trillian.GetInclusionProofRequest{
@@ -430,8 +415,9 @@ func checkInclusionProofsAtIndex(index int64, logID int64, tree *merkle.InMemory
 		for _, n := range resp.Proof.ProofNode {
 			proof = append(proof, n.NodeHash)
 		}
-		merkleHash := testonly.Hasher.HashLeaf(leaf.LeafValue)
-		if err := verifier.VerifyInclusionProof(index, treeSize, proof, root, merkleHash); err != nil {
+		// Offset by 1 to make up for C++ / Go implementation differences.
+		merkleLeafHash := tree.LeafHash(index + 1)
+		if err := verifier.VerifyInclusionProof(index, treeSize, proof, root, merkleLeafHash); err != nil {
 			return err
 		}
 	}
@@ -487,7 +473,7 @@ func buildMemoryMerkleTree(leafMap map[int64]*trillian.LogLeaf, params TestParam
 
 	// We use the leafMap as we need to use the same order for the memory tree to get the same hash.
 	for l := params.startLeaf; l < params.leafCount; l++ {
-		compactTree.AddLeaf(leafMap[l].LeafValue, func(depth int, index int64, hash []byte) error {
+		compactTree.AddLeaf(leafMap[l].LeafValue, func(int, int64, []byte) error {
 			return nil
 		})
 		merkleTree.AddLeaf(leafMap[l].LeafValue)

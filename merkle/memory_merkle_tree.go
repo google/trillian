@@ -135,7 +135,8 @@ func NewInMemoryMerkleTree(hasher TreeHasher) *InMemoryMerkleTree {
 	return &mt
 }
 
-func (mt *InMemoryMerkleTree) leafHash(leaf int64) []byte {
+// LeafHash returns the hash of the requested leaf.
+func (mt *InMemoryMerkleTree) LeafHash(leaf int64) []byte {
 	if leaf == 0 || leaf > mt.LeafCount() {
 		return nil
 	}
