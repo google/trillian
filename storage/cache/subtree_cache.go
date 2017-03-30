@@ -173,7 +173,6 @@ func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc
 
 	// Figure out the set of subtrees we need:
 	want := make(map[string]*storage.NodeID)
-	wantK := make(map[string][]byte)
 	for _, id := range ids {
 		id := id
 		px, _ := s.splitNodeID(id)
@@ -183,7 +182,6 @@ func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc
 		id.PrefixLenBits = len(px) * depthQuantum
 		if !ok {
 			want[pxKey] = &id
-			wantK[pxKey] = px
 		}
 	}
 
@@ -205,16 +203,16 @@ func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc
 		s.populate(t)
 		s.subtrees[string(t.Prefix)] = t
 		delete(want, string(t.Prefix))
-		delete(wantK, string(t.Prefix))
 	}
 
 	// We might not have got all the subtrees we requested, if they don't already exist.
 	// Create empty subtrees for anything left over.
 	for _, id := range want {
-		px, _ := s.splitNodeID(*id)
-		glog.Warningf("Adding new empty tree for prefix: %s", wantK[string(px)])
+		prefixLen := id.PrefixLenBits / depthQuantum
+		px := id.Path[:prefixLen]
+		glog.Warningf("Adding new empty tree for prefix: %s %d", string(px), len(px))
 		t := s.newEmptySubtree(*id, px)
-		s.subtrees[string(wantK[string(px)])] = t
+		s.subtrees[string(px)] = t
 	}
 
 	return nil
