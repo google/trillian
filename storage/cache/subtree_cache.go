@@ -211,11 +211,12 @@ func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc
 	for _, id := range want {
 		prefixLen := id.PrefixLenBits / depthQuantum
 		px := id.Path[:prefixLen]
-		_, exists := s.subtrees[string(px)]
+		pxKey := string(px)
+		_, exists := s.subtrees[pxKey]
 		if exists {
 			return fmt.Errorf("preload tried to clobber existing subtree for: %v", *id)
 		}
-		s.subtrees[string(px)] = s.newEmptySubtree(*id, px)
+		s.subtrees[pxKey] = s.newEmptySubtree(*id, px)
 	}
 
 	return nil
