@@ -195,7 +195,6 @@ func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc
 		list = append(list, *v)
 	}
 	subtrees, err := getSubtrees(list)
-	glog.Warningf("Preload wanted these: [%v] and got: %d subtrees: %v", want, len(subtrees), err)
 	if err != nil {
 		return err
 	}
@@ -210,7 +209,6 @@ func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc
 	for _, id := range want {
 		prefixLen := id.PrefixLenBits / depthQuantum
 		px := id.Path[:prefixLen]
-		glog.Warningf("Adding new empty tree for prefix: %s %d", string(px), len(px))
 		t := s.newEmptySubtree(*id, px)
 		s.subtrees[string(px)] = t
 	}
@@ -221,12 +219,6 @@ func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc
 // GetNodes returns the requested nodes, calling the getSubtrees function if
 // they are not already cached.
 func (s *SubtreeCache) GetNodes(ids []storage.NodeID, getSubtrees GetSubtreesFunc) ([]storage.Node, error) {
-	idstr := ""
-	for _, id := range ids {
-		idstr = idstr + "(" + id.String() + ") "
-	}
-
-	glog.Warningf("GetNodes: preloading for: %v %s", ids, idstr)
 	if err := s.preload(ids, getSubtrees); err != nil {
 		return nil, err
 	}
@@ -238,7 +230,7 @@ func (s *SubtreeCache) GetNodes(ids []storage.NodeID, getSubtrees GetSubtreesFun
 			func(n storage.NodeID) (*storagepb.SubtreeProto, error) {
 				// This should never happen - we should've already read all the data we
 				// need above, in Preload()
-				glog.Warningf("Unexpectedly reading from within GetNodeHash(): %v (%s)", n, n.String())
+				glog.Warningf("Unexpectedly reading from within GetNodeHash(): %s", n.String())
 				ret, err := getSubtrees([]storage.NodeID{n})
 				if err != nil || len(ret) == 0 {
 					return nil, err
