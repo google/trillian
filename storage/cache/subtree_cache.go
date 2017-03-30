@@ -205,12 +205,19 @@ func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc
 	}
 
 	// We might not have got all the subtrees we requested, if they don't already exist.
-	// Create empty subtrees for anything left over.
+	// Create empty subtrees for anything left over. As an additional sanity check we refuse
+	// to overwrite anything already in the cache as we determined above that these subtrees
+	// should not exist in the subtree cache map.
 	for _, id := range want {
 		prefixLen := id.PrefixLenBits / depthQuantum
 		px := id.Path[:prefixLen]
 		t := s.newEmptySubtree(*id, px)
-		s.subtrees[string(px)] = t
+		_, ok := s.subtrees[string(px)]
+		if !ok {
+			s.subtrees[string(px)] = t
+		} else {
+			glog.Warningf("Preload tried to clobber existing subtree for: %v", *id)
+		}
 	}
 
 	return nil
