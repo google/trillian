@@ -67,9 +67,9 @@ func main() {
 
 	// Start HTTP server (optional)
 	if *exportRPCMetrics {
-		glog.Infof("Creating HTP server starting on port: %d", *httpPortFlag)
+		glog.Infof("Creating HTTP server starting on port: %d", *httpPortFlag)
 		if err := util.StartHTTPServer(*httpPortFlag); err != nil {
-			glog.Exitf("Failed to start http server on port %d: %v", *httpPortFlag, err)
+			glog.Exitf("Failed to start HTTP server on port %d: %v", *httpPortFlag, err)
 		}
 	}
 
