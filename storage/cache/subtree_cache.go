@@ -185,6 +185,11 @@ func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc
 		}
 	}
 
+	// There might be nothing to do so don't make a read request for zero subtrees if so
+	if len(want) == 0 {
+		return nil
+	}
+
 	list := make([]storage.NodeID, 0, len(want))
 	for _, v := range want {
 		list = append(list, *v)
@@ -196,7 +201,24 @@ func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc
 	for _, t := range subtrees {
 		s.populate(t)
 		s.subtrees[string(t.Prefix)] = t
+		delete(want, string(t.Prefix))
 	}
+
+	// We might not have got all the subtrees we requested, if they don't already exist.
+	// Create empty subtrees for anything left over. As an additional sanity check we refuse
+	// to overwrite anything already in the cache as we determined above that these subtrees
+	// should not exist in the subtree cache map.
+	for _, id := range want {
+		prefixLen := id.PrefixLenBits / depthQuantum
+		px := id.Path[:prefixLen]
+		pxKey := string(px)
+		_, exists := s.subtrees[pxKey]
+		if exists {
+			return fmt.Errorf("preload tried to clobber existing subtree for: %v", *id)
+		}
+		s.subtrees[pxKey] = s.newEmptySubtree(*id, px)
+	}
+
 	return nil
 }
 
@@ -214,13 +236,13 @@ func (s *SubtreeCache) GetNodes(ids []storage.NodeID, getSubtrees GetSubtreesFun
 			func(n storage.NodeID) (*storagepb.SubtreeProto, error) {
 				// This should never happen - we should've already read all the data we
 				// need above, in Preload()
-				glog.Warning("Unexpectedly reading from within GetNodeHash()")
+				glog.Warningf("Unexpectedly reading from within GetNodeHash(): %s", n.String())
 				ret, err := getSubtrees([]storage.NodeID{n})
 				if err != nil || len(ret) == 0 {
 					return nil, err
 				}
 				if n := len(ret); n > 1 {
-					return nil, fmt.Errorf("got %d trees, wanted 1", n)
+					return nil, fmt.Errorf("got %d trees, want: 1", n)
 				}
 				return ret[0], nil
 			})
@@ -259,18 +281,8 @@ func (s *SubtreeCache) getNodeHashUnderLock(id storage.NodeID, getSubtree GetSub
 		if err != nil {
 			return nil, err
 		}
-		sInfo := s.stratumInfoForPrefixLength(subID.PrefixLenBits)
 		if c == nil {
-			glog.V(1).Infof("Creating new empty subtree for %v, with depth %d", px, sInfo.depth)
-			// storage didn't have one for us, so we'll store an empty proto here
-			// incase we try to update it later on (we won't flush it back to
-			// storage unless it's been written to.)
-			c = &storagepb.SubtreeProto{
-				Prefix:        px,
-				Depth:         int32(sInfo.depth),
-				Leaves:        make(map[string][]byte),
-				InternalNodes: make(map[string][]byte),
-			}
+			c = s.newEmptySubtree(subID, px)
 		} else {
 			if err := s.populate(c); err != nil {
 				return nil, err
@@ -370,6 +382,20 @@ func (s *SubtreeCache) Flush(setSubtrees SetSubtreesFunc) error {
 		return nil
 	}
 	return setSubtrees(treesToWrite)
+}
+
+func (s *SubtreeCache) newEmptySubtree(id storage.NodeID, px []byte) *storagepb.SubtreeProto {
+	sInfo := s.stratumInfoForPrefixLength(id.PrefixLenBits)
+	glog.V(1).Infof("Creating new empty subtree for %v, with depth %d", px, sInfo.depth)
+	// storage didn't have one for us, so we'll store an empty proto here
+	// incase we try to update it later on (we won't flush it back to
+	// storage unless it's been written to.)
+	return &storagepb.SubtreeProto{
+		Prefix:        px,
+		Depth:         int32(sInfo.depth),
+		Leaves:        make(map[string][]byte),
+		InternalNodes: make(map[string][]byte),
+	}
 }
 
 // makeSuffixKey creates a suffix key for indexing into the subtree's Leaves and
