@@ -29,18 +29,11 @@ import (
 	"google.golang.org/grpc/codes"
 )
 
-func TestAdminServer_Unimplemented(t *testing.T) {
+func TestServer_Unimplemented(t *testing.T) {
 	tests := []struct {
 		desc string
 		fn   func(context.Context, *Server) error
 	}{
-		{
-			desc: "ListTrees",
-			fn: func(ctx context.Context, s *Server) error {
-				_, err := s.ListTrees(ctx, &trillian.ListTreesRequest{})
-				return err
-			},
-		},
 		{
 			desc: "UpdateTree",
 			fn: func(ctx context.Context, s *Server) error {
@@ -65,7 +58,7 @@ func TestAdminServer_Unimplemented(t *testing.T) {
 	}
 }
 
-func TestAdminServer_BeginError(t *testing.T) {
+func TestServer_BeginError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -74,6 +67,14 @@ func TestAdminServer_BeginError(t *testing.T) {
 		fn       func(context.Context, *Server) error
 		snapshot bool
 	}{
+		{
+			desc: "ListTrees",
+			fn: func(ctx context.Context, s *Server) error {
+				_, err := s.ListTrees(ctx, &trillian.ListTreesRequest{})
+				return err
+			},
+			snapshot: true,
+		},
 		{
 			desc: "GetTree",
 			fn: func(ctx context.Context, s *Server) error {
@@ -111,7 +112,86 @@ func TestAdminServer_BeginError(t *testing.T) {
 	}
 }
 
-func TestAdminServer_GetTree(t *testing.T) {
+func TestServer_ListTrees(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	tests := []struct {
+		desc string
+		// numTrees is the number of trees in storage. New trees are created as necessary
+		// and carried over to following tests.
+		numTrees           int
+		listErr, commitErr bool
+	}{
+		{desc: "empty"},
+		{desc: "listErr", listErr: true},
+		{desc: "commitErr", commitErr: true},
+		{desc: "oneTree", numTrees: 1},
+		{desc: "threeTrees", numTrees: 3},
+	}
+
+	ctx := context.Background()
+	nextTreeID := int64(17)
+	storedTrees := []*trillian.Tree{}
+	for _, test := range tests {
+		if l := len(storedTrees); l > test.numTrees {
+			t.Fatalf("%v: numTrees = %v, but we already have %v stored trees", test.desc, test.numTrees, l)
+		} else if l < test.numTrees {
+			for i := l; i < test.numTrees; i++ {
+				newTree := *testonly.LogTree
+				newTree.TreeId = nextTreeID
+				newTree.CreateTimeMillisSinceEpoch = nextTreeID + 1
+				newTree.UpdateTimeMillisSinceEpoch = nextTreeID + 2
+				nextTreeID++
+				storedTrees = append(storedTrees, &newTree)
+			}
+		}
+
+		setup := setupAdminStorage(
+			ctrl,
+			true,          /* snapshot */
+			!test.listErr, /* shouldCommit */
+			test.commitErr)
+		tx := setup.snapshotTX
+		s := setup.server
+
+		if test.listErr {
+			tx.EXPECT().ListTrees(ctx).Return(nil, errors.New("error listing trees"))
+		} else {
+			// Take a defensive copy, otherwise the server may end up changing our
+			// source-of-truth trees.
+			trees := deepCopy(storedTrees, func(*trillian.Tree) {})
+			tx.EXPECT().ListTrees(ctx).Return(trees, nil)
+		}
+
+		resp, err := s.ListTrees(ctx, &trillian.ListTreesRequest{})
+		if hasErr, wantErr := err != nil, test.listErr || test.commitErr; hasErr != wantErr {
+			t.Errorf("%v: ListTrees() = (_, %q), wantErr = %v", test.desc, err, wantErr)
+			continue
+		} else if hasErr {
+			continue
+		}
+
+		want := deepCopy(storedTrees, func(t *trillian.Tree) { t.PrivateKey = nil })
+		if diff := pretty.Compare(resp.Tree, want); diff != "" {
+			t.Errorf("%v: post-ListTrees diff:\n%v", test.desc, diff)
+		}
+	}
+}
+
+// deepCopy makes a deep copy of a slice, allowing for an optional redact function to run on every
+// element.
+func deepCopy(s []*trillian.Tree, f func(*trillian.Tree)) []*trillian.Tree {
+	otherS := make([]*trillian.Tree, 0, len(s))
+	for _, t := range s {
+		otherT := *t
+		f(&otherT)
+		otherS = append(otherS, &otherT)
+	}
+	return otherS
+}
+
+func TestServer_GetTree(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -166,7 +246,7 @@ func TestAdminServer_GetTree(t *testing.T) {
 	}
 }
 
-func TestAdminServer_CreateTree(t *testing.T) {
+func TestServer_CreateTree(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 

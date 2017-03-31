@@ -37,9 +37,32 @@ func New(registry extension.Registry) *Server {
 }
 
 // ListTrees implements trillian.TrillianAdminServer.ListTrees.
-func (s *Server) ListTrees(context.Context, *trillian.ListTreesRequest) (*trillian.ListTreesResponse, error) {
-	// TODO(codingllama): Don't forget to redact trees
-	return nil, errNotImplemented
+func (s *Server) ListTrees(ctx context.Context, req *trillian.ListTreesRequest) (*trillian.ListTreesResponse, error) {
+	trees, err := s.listTreeImpls(ctx, req)
+	if err != nil {
+		return nil, errors.WrapError(err)
+	}
+	return trees, nil
+}
+func (s *Server) listTreeImpls(ctx context.Context, request *trillian.ListTreesRequest) (*trillian.ListTreesResponse, error) {
+	tx, err := s.registry.AdminStorage.Snapshot(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Close()
+	// TODO(codingllama): This needs access control
+	trees, err := tx.ListTrees(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	for _, tree := range trees {
+		redact(tree)
+	}
+	return &trillian.ListTreesResponse{Tree: trees}, nil
 }
 
 // GetTree implements trillian.TrillianAdminServer.GetTree.
