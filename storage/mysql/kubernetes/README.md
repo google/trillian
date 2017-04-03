@@ -37,3 +37,4 @@ The following modifications have been made:
   - image/env.sh
   - image/push.sh
 - Added liveness and readiness probes to the Kubernetes config.
+- Moved usernames and passwords into [Secrets](https://kubernetes.io/docs/concepts/configuration/secret/).

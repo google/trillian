@@ -40,6 +40,19 @@ spec:
   selector:
     app: galera
 ---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mysql-credentials
+type: Opaque
+data:
+  # These values must be base64 encoded.
+  username: dGVzdA==
+  password: emFwaG9k
+  sst-username: c3N0
+  sst-password: c3N0
+  root-password: emFwaG9k
+---
 apiVersion: apps/v1beta1
 kind: StatefulSet
 metadata:
@@ -94,15 +107,30 @@ spec:
               # Connect to first replica to join cluster, as this is guaranteed to exist.
               value: gcomm://galera-0.galera
             - name: WSREP_SST_USER
-              value: sst
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-credentials
+                  key: sst-username
             - name: WSREP_SST_PASSWORD
-              value: sst
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-credentials
+                  key: sst-password
             - name: MYSQL_USER
-              value: test
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-credentials
+                  key: username
             - name: MYSQL_PASSWORD
-              value: zaphod
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-credentials
+                  key: password
             - name: MYSQL_ROOT_PASSWORD
-              value: zaphod
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-credentials
+                  key: root-password
             - name: MYSQL_DATABASE
               value: test
 
