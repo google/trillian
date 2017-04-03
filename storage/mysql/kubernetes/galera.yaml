@@ -1,0 +1,108 @@
+apiVersion: storage.k8s.io/v1beta1
+kind: StorageClass
+metadata:
+  name: fast
+provisioner: kubernetes.io/gce-pd
+parameters:
+  type: pd-ssd
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+  labels:
+    app: mysql
+spec:
+  ports:
+    - port: 3306
+      name: mysql
+  type: LoadBalancer
+  selector:
+    app: galera
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: galera
+  labels:
+    app: galera
+spec:
+  clusterIP: None
+  ports:
+    - port: 3306
+      name: mysql
+    - port: 4444
+      name: state-snapshot-transfer
+    - port: 4567
+      name: replication-traffic
+    - port: 4568
+      name: incremental-state-transfer
+  selector:
+    app: galera
+---
+apiVersion: apps/v1beta1
+kind: StatefulSet
+metadata:
+  name: galera
+spec:
+  serviceName: galera
+  replicas: 3
+  volumeClaimTemplates:
+    - metadata:
+        name: mysql-db
+        annotations:
+          volume.beta.kubernetes.io/storage-class: fast
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 100Gi
+  template:
+    metadata:
+      labels:
+        app: galera
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - resources:
+            limits:
+              cpu: 2
+          livenessProbe:
+            exec:
+              command: ["mysqladmin", "-u", "dummy", "ping"]
+            initialDelaySeconds: 30
+            timeoutSeconds: 5
+          readinessProbe:
+            exec:
+              command: ["mysql", "-h", "127.0.0.1", "-u", "dummy", "-e", "SELECT 1"]
+            initialDelaySeconds: 5
+            timeoutSeconds: 1
+          image: us.gcr.io/trillian-test/galera
+          imagePullPolicy: Always
+          name: mysql
+          ports:
+            - containerPort: 3306
+            - containerPort: 4444
+            - containerPort: 4567
+            - containerPort: 4568
+          volumeMounts:
+            - name: mysql-db
+              mountPath: /var/lib/mysql
+          env:
+            - name: WSREP_CLUSTER_ADDRESS
+              # Connect to first replica to join cluster, as this is guaranteed to exist.
+              value: gcomm://galera-0.galera
+            - name: WSREP_SST_USER
+              value: sst
+            - name: WSREP_SST_PASSWORD
+              value: sst
+            - name: MYSQL_USER
+              value: test
+            - name: MYSQL_PASSWORD
+              value: zaphod
+            - name: MYSQL_ROOT_PASSWORD
+              value: zaphod
+            - name: MYSQL_DATABASE
+              value: test
+
