@@ -117,12 +117,16 @@ Need stuff here.
 
 The node tree built for a log is a representation of a Merkle Tree, which starts out empty and grows
 as leaves are added. A Merkle Tree of a specific size is a fixed and well-defined shape.
-                     
-Leaves are never removed and a completely populated left subtree of the tree structure is never
-further mutated. 
 
-The log stores two hashes per leaf, a raw SHA256 hash of the leaf data used for deduplication and
-the Merkle Leaf Hash of the data, which becomes part of the tree.
+Leaves are never removed and a completely populated left subtree of the tree structure is never
+further mutated.
+
+The personality layer is responsible for deciding whether to accept duplicate leaves as it controls
+the leaf identity hash value. For example it could add a timestamp to the data it hashes so
+that duplicate leaf data always has a different leaf identity hash.
+
+The log stores two hashes per leaf, a raw SHA256 hash of the leaf data used for deduplication
+(by the personality layer) and the Merkle Leaf Hash of the data, which becomes part of the tree.
 
 ### Log NodeIDs / Tree Coordinates
 
@@ -159,9 +163,8 @@ does not match then log is corrupt and cannot be used.
 In the current RDBMS storage implementation log clients queue new leaves to the log, and a 
 `LeafData` record is created. Further writes to the Merkle Tree are coordinated by the sequencer,
 which adds leaves to the tree. The sequencer is responsible for ordering the leaves and creating
-the `SequencedLeafData` row linking the leaf and its sequence number. If there are duplicate leaves
-in the log then they share `LeafData` rows. Queued submissions that have not been sequenced are not
-accessible via the log APIs.
+the `SequencedLeafData` row linking the leaf and its sequence number. Queued submissions that have
+not been sequenced are not accessible via the log APIs.
 
 When leaves are added to the tree they are processed by a `merkle/compact_merkle_tree`, this causes a
 batched set of tree node updates to be applied. Each update is given its own revision number. The
