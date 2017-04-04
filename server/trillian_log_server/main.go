@@ -29,6 +29,7 @@ import (
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/server"
+	"github.com/google/trillian/server/interceptor"
 	"github.com/google/trillian/storage/mysql"
 	"github.com/google/trillian/util"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
@@ -61,7 +62,10 @@ func main() {
 	ts := util.SystemTimeSource{}
 	stats := monitoring.NewRPCStatsInterceptor(ts, "ct", "example")
 	stats.Publish()
-	s := grpc.NewServer(grpc.UnaryInterceptor(stats.Interceptor()))
+	ti := interceptor.TreeInterceptor{Admin: registry.AdminStorage}
+	s := grpc.NewServer(
+		grpc.UnaryInterceptor(interceptor.Combine(stats.Interceptor(), ti.UnaryInterceptor)),
+	)
 	// No defer: server ownership is delegated to server.Main
 
 	httpEndpoint := ""
