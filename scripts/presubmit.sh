@@ -8,9 +8,10 @@ set -eu
 
 check_deps() {
   local failed=0
-  check_cmd golint github.com/golang/lint/golint || failed=1
-  check_cmd misspell github.com/client9/misspell/cmd/misspell || failed=2
-  check_cmd gocyclo github.com/fzipp/gocyclo || failed=3
+  check_cmd golint github.com/golang/lint/golint || failed=10
+  check_cmd misspell github.com/client9/misspell/cmd/misspell || failed=11
+  check_cmd gocyclo github.com/fzipp/gocyclo || failed=12
+  check_cmd stringer golang.org/x/tools/cmd/stringer || failed=13
   return $failed
 }
 
@@ -50,7 +51,7 @@ main() {
         ;;
       *)
         usage
-        exit 4
+        exit 1
         ;;
     esac
     shift 1
@@ -90,13 +91,14 @@ main() {
   local nolicense="$(grep -L 'Apache License' ${go_srcs} ${proto_srcs})"
   if [[ "${nolicense}" ]]; then
     echo "Missing license header in: ${nolicense}"
-    exit 5
+    exit 2
   fi
 
   if [[ "${run_generate}" -eq 1 ]]; then
     echo 'running go generate'
     go generate -run="protoc" ./...
     go generate -run="mockgen" ./...
+    go generate -run="stringer" ./...
   fi
 
   if [[ "${run_build}" -eq 1 ]]; then
