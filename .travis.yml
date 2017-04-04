@@ -37,6 +37,7 @@ install:
   - go get -u github.com/golang/protobuf/protoc-gen-go
   - go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
   - go get -u github.com/kisielk/errcheck
+  - go get -u golang.org/x/tools/cmd/stringer
   - go install github.com/golang/{mock/mockgen,protobuf/protoc-gen-go}
 
 script:
@@ -46,7 +47,7 @@ script:
       # Check re-generation didn't change anything
       # Skip protoc-generated files (.pb.go) because protoc is not deterministic
       # when generating file descriptors.
-      status=$(git status --porcelain | grep -v .pb.go) || :
+      status=$(git status --porcelain | grep -v .pb.go | grep -v _string.go) || :
       if [[ -n ${status} ]]; then
         echo "Regenerated files differ from checked-in versions: ${status}"
         git status
