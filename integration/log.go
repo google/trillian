@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cenkalti/backoff"
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle"
@@ -206,10 +207,14 @@ func queueLeaves(client trillian.TrillianLogClient, params TestParameters) error
 			glog.Infof("Queueing %d leaves ...", len(leaves))
 
 			ctx, cancel := getRPCDeadlineContext(params)
-			_, err := client.QueueLeaves(ctx, &trillian.QueueLeavesRequest{
-				LogId:  params.treeID,
-				Leaves: leaves,
-			})
+			b := backoff.WithContext(backoff.NewExponentialBackOff(), ctx)
+			err := backoff.Retry(func() error {
+				_, err := client.QueueLeaves(ctx, &trillian.QueueLeavesRequest{
+					LogId:  params.treeID,
+					Leaves: leaves,
+				})
+				return err
+			}, b)
 			cancel()
 
 			if err != nil {
