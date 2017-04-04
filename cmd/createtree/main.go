@@ -53,7 +53,6 @@ var (
 	hashStrategy       = flag.String("hash_strategy", trillian.HashStrategy_RFC_6962.String(), "Hash strategy (aka preimage protection) of the new tree")
 	hashAlgorithm      = flag.String("hash_algorithm", sigpb.DigitallySigned_SHA256.String(), "Hash algorithm of the new tree")
 	signatureAlgorithm = flag.String("signature_algorithm", sigpb.DigitallySigned_RSA.String(), "Signature algorithm of the new tree")
-	duplicatePolicy    = flag.String("duplicate_policy", trillian.DuplicatePolicy_DUPLICATES_NOT_ALLOWED.String(), "Duplicate policy of the new tree")
 	displayName        = flag.String("display_name", "", "Display name of the new tree")
 	description        = flag.String("description", "", "Description of the new tree")
 
@@ -65,9 +64,9 @@ var (
 // createOpts contains all user-supplied options required to run the program.
 // It's meant to facilitate tests and focus flag reads to a single point.
 type createOpts struct {
-	addr                                                                                                      string
-	treeState, treeType, hashStrategy, hashAlgorithm, sigAlgorithm, duplicatePolicy, displayName, description string
-	privateKeyType, pemKeyPath, pemKeyPass                                                                    string
+	addr                                                                                     string
+	treeState, treeType, hashStrategy, hashAlgorithm, sigAlgorithm, displayName, description string
+	privateKeyType, pemKeyPath, pemKeyPass                                                   string
 }
 
 func createTree(ctx context.Context, opts *createOpts) (*trillian.Tree, error) {
@@ -119,11 +118,6 @@ func newRequest(opts *createOpts) (*trillian.CreateTreeRequest, error) {
 		return nil, fmt.Errorf("unknown SignatureAlgorithm: %v", opts.sigAlgorithm)
 	}
 
-	dp, ok := trillian.DuplicatePolicy_value[opts.duplicatePolicy]
-	if !ok {
-		return nil, fmt.Errorf("unknown DuplicatePolicy: %v", opts.duplicatePolicy)
-	}
-
 	pk, err := newPK(opts)
 	if err != nil {
 		return nil, err
@@ -135,7 +129,6 @@ func newRequest(opts *createOpts) (*trillian.CreateTreeRequest, error) {
 		HashStrategy:       trillian.HashStrategy(hs),
 		HashAlgorithm:      sigpb.DigitallySigned_HashAlgorithm(ha),
 		SignatureAlgorithm: sigpb.DigitallySigned_SignatureAlgorithm(sa),
-		DuplicatePolicy:    trillian.DuplicatePolicy(dp),
 		DisplayName:        opts.displayName,
 		Description:        opts.description,
 		PrivateKey:         pk,
@@ -169,18 +162,17 @@ func newPK(opts *createOpts) (*any.Any, error) {
 
 func newOptsFromFlags() *createOpts {
 	return &createOpts{
-		addr:            *adminServerAddr,
-		treeState:       *treeState,
-		treeType:        *treeType,
-		hashStrategy:    *hashStrategy,
-		hashAlgorithm:   *hashAlgorithm,
-		sigAlgorithm:    *signatureAlgorithm,
-		duplicatePolicy: *duplicatePolicy,
-		displayName:     *displayName,
-		description:     *description,
-		privateKeyType:  *privateKeyFormat,
-		pemKeyPath:      *pemKeyPath,
-		pemKeyPass:      *pemKeyPassword,
+		addr:           *adminServerAddr,
+		treeState:      *treeState,
+		treeType:       *treeType,
+		hashStrategy:   *hashStrategy,
+		hashAlgorithm:  *hashAlgorithm,
+		sigAlgorithm:   *signatureAlgorithm,
+		displayName:    *displayName,
+		description:    *description,
+		privateKeyType: *privateKeyFormat,
+		pemKeyPath:     *pemKeyPath,
+		pemKeyPass:     *pemKeyPassword,
 	}
 }
 

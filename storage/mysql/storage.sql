@@ -18,7 +18,6 @@ CREATE TABLE IF NOT EXISTS Trees(
   HashStrategy          ENUM('RFC_6962') NOT NULL,
   HashAlgorithm         ENUM('SHA256') NOT NULL,
   SignatureAlgorithm    ENUM('ECDSA', 'RSA') NOT NULL,
-  DuplicatePolicy       ENUM('NOT_ALLOWED', 'ALLOWED') NOT NULL,
   DisplayName           VARCHAR(20),
   Description           VARCHAR(200),
   CreateTimeMillis      BIGINT NOT NULL,

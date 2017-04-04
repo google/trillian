@@ -95,27 +95,6 @@ func checkLeafContents(leaf *trillian.LogLeaf, seq int64, rawHash, hash, data, e
 	}
 }
 
-// TODO(codingllama): Replace with a GetTree/UpdateTree sequence, when the latter is available.
-func updateDuplicatePolicy(db *sql.DB, treeID int64, duplicatePolicy trillian.DuplicatePolicy) error {
-	dbPolicy := ""
-	for k, v := range duplicatePolicyMap {
-		if v == duplicatePolicy {
-			dbPolicy = k
-			break
-		}
-	}
-	if dbPolicy == "" {
-		return fmt.Errorf("unknown DuplicatePolicy: %s", duplicatePolicy)
-	}
-	stmt, err := db.Prepare("UPDATE Trees SET DuplicatePolicy = ? WHERE TreeId = ?")
-	if err != nil {
-		return err
-	}
-	defer stmt.Close()
-	_, err = stmt.Exec(dbPolicy, treeID)
-	return err
-}
-
 func TestMySQLLogStorage_CheckDatabaseAccessible(t *testing.T) {
 	cleanTestDB(DB)
 	s := NewLogStorage(DB)
@@ -131,24 +110,18 @@ func TestBegin(t *testing.T) {
 	storage := NewLogStorage(DB)
 
 	tests := []struct {
-		logID           int64
-		err             string
-		duplicatePolicy trillian.DuplicatePolicy
-		writeRevision   int
+		logID         int64
+		err           string
+		writeRevision int
 	}{
 		{logID: -1, err: "failed to get tree row"},
-		{logID: logID1, duplicatePolicy: trillian.DuplicatePolicy_DUPLICATES_ALLOWED},
-		{logID: logID2, duplicatePolicy: trillian.DuplicatePolicy_DUPLICATES_NOT_ALLOWED},
+		// TODO(codingllama): Test other tree settings (type, hashes, signatures, etc)
+		{logID: logID1},
+		{logID: logID2},
 	}
 
 	ctx := context.Background()
 	for _, test := range tests {
-		if test.duplicatePolicy != trillian.DuplicatePolicy_UNKNOWN_DUPLICATE_POLICY {
-			if err := updateDuplicatePolicy(DB, test.logID, test.duplicatePolicy); err != nil {
-				t.Fatalf("cannot update DuplicatePolicy: %v", err)
-			}
-		}
-
 		tx, err := storage.BeginForTree(ctx, test.logID)
 		if hasError, wantError := err != nil, test.err != ""; hasError || wantError {
 			if hasError != wantError || (wantError && !strings.Contains(err.Error(), test.err)) {
@@ -158,10 +131,6 @@ func TestBegin(t *testing.T) {
 		}
 		defer tx.Close()
 
-		// TODO(codingllama): It would be better to test this via side effects of other public methods
-		if tx.(*logTreeTX).duplicatePolicy != test.duplicatePolicy {
-			t.Errorf("tx.allowDuplicates = %s, want = %s", tx.(*logTreeTX).duplicatePolicy, test.duplicatePolicy)
-		}
 		root, err := tx.LatestSignedLogRoot()
 		if err != nil {
 			t.Errorf("LatestSignedLogRoot() = (_, %v), want = (_, nil)", err)

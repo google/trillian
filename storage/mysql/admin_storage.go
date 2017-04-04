@@ -39,7 +39,6 @@ const (
 			HashStrategy,
 			HashAlgorithm,
 			SignatureAlgorithm,
-			DuplicatePolicy,
 			DisplayName,
 			Description,
 			CreateTimeMillis,
@@ -48,13 +47,6 @@ const (
 		FROM Trees`
 	selectTreeByID = selectTrees + " WHERE TreeId = ?"
 )
-
-// duplicatePolicyMap maps storage enums to trillian.DuplicatePolicy enums,
-// which differ slightly.
-var duplicatePolicyMap = map[string]trillian.DuplicatePolicy{
-	"NOT_ALLOWED": trillian.DuplicatePolicy_DUPLICATES_NOT_ALLOWED,
-	"ALLOWED":     trillian.DuplicatePolicy_DUPLICATES_ALLOWED,
-}
 
 // NewAdminStorage returns a MySQL storage.AdminStorage implementation backed by DB.
 func NewAdminStorage(db *sql.DB) storage.AdminStorage {
@@ -145,7 +137,7 @@ func readTree(row row) (*trillian.Tree, error) {
 	tree := &trillian.Tree{}
 
 	// Enums and Datetimes need an extra conversion step
-	var treeState, treeType, hashStrategy, hashAlgorithm, signatureAlgorithm, duplicatePolicy string
+	var treeState, treeType, hashStrategy, hashAlgorithm, signatureAlgorithm string
 	var createMillis, updateMillis int64
 	var displayName, description sql.NullString
 	var privateKey []byte
@@ -156,7 +148,6 @@ func readTree(row row) (*trillian.Tree, error) {
 		&hashStrategy,
 		&hashAlgorithm,
 		&signatureAlgorithm,
-		&duplicatePolicy,
 		&displayName,
 		&description,
 		&createMillis,
@@ -196,13 +187,6 @@ func readTree(row row) (*trillian.Tree, error) {
 	} else {
 		return nil, fmt.Errorf("unknown SignatureAlgorithm: %v", signatureAlgorithm)
 	}
-	// Slightly different from the ones above, as duplicatePolicyMap is a map we maintain.
-	// That's because DuplicatePolicy values don't exactly match storage enums.
-	if dp, ok := duplicatePolicyMap[duplicatePolicy]; ok {
-		tree.DuplicatePolicy = dp
-	} else {
-		return nil, fmt.Errorf("unknown DuplicatePolicy: %v", duplicatePolicy)
-	}
 
 	// Let's make sure we didn't mismatch any of the casts above
 	ok := tree.TreeState.String() == treeState
@@ -210,12 +194,11 @@ func readTree(row row) (*trillian.Tree, error) {
 	ok = ok && tree.HashStrategy.String() == hashStrategy
 	ok = ok && tree.HashAlgorithm.String() == hashAlgorithm
 	ok = ok && tree.SignatureAlgorithm.String() == signatureAlgorithm
-	ok = ok && tree.DuplicatePolicy == duplicatePolicyMap[duplicatePolicy]
 	if !ok {
 		return nil, fmt.Errorf(
-			"mismatched enum: tree = %v, enums = [%v, %v, %v, %v, %v, %v]",
+			"mismatched enum: tree = %v, enums = [%v, %v, %v, %v, %v]",
 			tree,
-			treeState, treeType, hashStrategy, hashAlgorithm, signatureAlgorithm, duplicatePolicy)
+			treeState, treeType, hashStrategy, hashAlgorithm, signatureAlgorithm)
 	}
 
 	tree.CreateTimeMillisSinceEpoch = createMillis
@@ -307,30 +290,16 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 			HashStrategy,
 			HashAlgorithm,
 			SignatureAlgorithm,
-			DuplicatePolicy,
 			DisplayName,
 			Description,
 			CreateTimeMillis,
 			UpdateTimeMillis,
 			PrivateKey)
-		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 	if err != nil {
 		return nil, err
 	}
 	defer insertTreeStmt.Close()
-
-	// DuplicatePolicy doesn't map exactly to the enum, search in the map
-	// instead.
-	duplicatePolicy := ""
-	for k, v := range duplicatePolicyMap {
-		if v == newTree.DuplicatePolicy {
-			duplicatePolicy = k
-			break
-		}
-	}
-	if duplicatePolicy == "" {
-		return nil, fmt.Errorf("unexpected DuplicatePolicy value: %v", newTree.DuplicatePolicy)
-	}
 
 	privateKey, err := proto.Marshal(newTree.PrivateKey)
 	if err != nil {
@@ -344,7 +313,6 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 		newTree.HashStrategy.String(),
 		newTree.HashAlgorithm.String(),
 		newTree.SignatureAlgorithm.String(),
-		duplicatePolicy,
 		newTree.DisplayName,
 		newTree.Description,
 		newTree.CreateTimeMillisSinceEpoch,

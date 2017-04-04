@@ -28,7 +28,6 @@ func TestValidateTreeForCreation(t *testing.T) {
 
 	valid2 := newTree()
 	valid2.TreeType = trillian.TreeType_MAP
-	valid2.DuplicatePolicy = trillian.DuplicatePolicy_DUPLICATES_ALLOWED
 
 	invalidState1 := newTree()
 	invalidState1.TreeState = trillian.TreeState_UNKNOWN_TREE_STATE
@@ -50,9 +49,6 @@ func TestValidateTreeForCreation(t *testing.T) {
 
 	invalidSignatureAlgorithm := newTree()
 	invalidSignatureAlgorithm.SignatureAlgorithm = sigpb.DigitallySigned_ANONYMOUS
-
-	invalidDuplicatePolicy := newTree()
-	invalidDuplicatePolicy.DuplicatePolicy = trillian.DuplicatePolicy_UNKNOWN_DUPLICATE_POLICY
 
 	invalidDisplayName := newTree()
 	invalidDisplayName.DisplayName = "A Very Long Display Name That Clearly Won't Fit But At Least Mentions Llamas Somewhere"
@@ -128,11 +124,6 @@ func TestValidateTreeForCreation(t *testing.T) {
 		{
 			desc:    "invalidSignatureAlgorithm",
 			tree:    invalidSignatureAlgorithm,
-			wantErr: true,
-		},
-		{
-			desc:    "invalidDuplicatePolicy",
-			tree:    invalidDuplicatePolicy,
 			wantErr: true,
 		},
 		{
@@ -227,13 +218,6 @@ func TestValidateTreeForUpdate(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			desc: "DuplicatePolicy",
-			updatefn: func(tree *trillian.Tree) {
-				tree.DuplicatePolicy = trillian.DuplicatePolicy_DUPLICATES_ALLOWED
-			},
-			wantErr: true,
-		},
-		{
 			desc: "CreateTime",
 			updatefn: func(tree *trillian.Tree) {
 				tree.CreateTimeMillisSinceEpoch++
@@ -292,7 +276,6 @@ func newTree() *trillian.Tree {
 		HashStrategy:       trillian.HashStrategy_RFC_6962,
 		HashAlgorithm:      sigpb.DigitallySigned_SHA256,
 		SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
-		DuplicatePolicy:    trillian.DuplicatePolicy_DUPLICATES_NOT_ALLOWED,
 		DisplayName:        "Llamas Log",
 		Description:        "Registry of publicly-owned llamas",
 		PrivateKey:         privateKey,
