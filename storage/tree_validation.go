@@ -44,8 +44,6 @@ func ValidateTreeForCreation(tree *trillian.Tree) error {
 		return errors.Errorf(errors.InvalidArgument, "invalid hash_algorithm: %s", tree.HashAlgorithm)
 	case tree.SignatureAlgorithm == sigpb.DigitallySigned_ANONYMOUS:
 		return errors.Errorf(errors.InvalidArgument, "invalid signature_algorithm: %s", tree.SignatureAlgorithm)
-	case tree.DuplicatePolicy == trillian.DuplicatePolicy_UNKNOWN_DUPLICATE_POLICY:
-		return errors.Errorf(errors.InvalidArgument, "invalid duplicate_policy: %s", tree.DuplicatePolicy)
 	case tree.PrivateKey == nil:
 		return errors.New(errors.InvalidArgument, "a private_key is required")
 	}
@@ -81,8 +79,6 @@ func ValidateTreeForUpdate(storedTree, newTree *trillian.Tree) error {
 		return errors.New(errors.InvalidArgument, "readonly field changed: hash_algorithm")
 	case storedTree.SignatureAlgorithm != newTree.SignatureAlgorithm:
 		return errors.New(errors.InvalidArgument, "readonly field changed: signature_algorithm")
-	case storedTree.DuplicatePolicy != newTree.DuplicatePolicy:
-		return errors.New(errors.InvalidArgument, "readonly field changed: duplicate_policy")
 	case storedTree.CreateTimeMillisSinceEpoch != newTree.CreateTimeMillisSinceEpoch:
 		return errors.New(errors.InvalidArgument, "readonly field changed: create_time")
 	case storedTree.UpdateTimeMillisSinceEpoch != newTree.UpdateTimeMillisSinceEpoch:

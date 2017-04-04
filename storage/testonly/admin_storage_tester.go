@@ -46,7 +46,6 @@ var (
 		HashStrategy:       trillian.HashStrategy_RFC_6962,
 		HashAlgorithm:      spb.DigitallySigned_SHA256,
 		SignatureAlgorithm: spb.DigitallySigned_ECDSA,
-		DuplicatePolicy:    trillian.DuplicatePolicy_DUPLICATES_NOT_ALLOWED,
 		DisplayName:        "Llamas Log",
 		Description:        "Registry of publicly-owned llamas",
 		PrivateKey: mustMarshalAny(&trillian.PEMKeyFile{
@@ -62,7 +61,6 @@ var (
 		HashStrategy:       trillian.HashStrategy_RFC_6962,
 		HashAlgorithm:      spb.DigitallySigned_SHA256,
 		SignatureAlgorithm: spb.DigitallySigned_ECDSA,
-		DuplicatePolicy:    trillian.DuplicatePolicy_DUPLICATES_ALLOWED,
 		DisplayName:        "Llamas Map",
 		Description:        "Key Transparency map for all your digital llama needs.",
 		PrivateKey: mustMarshalAny(&trillian.PEMKeyFile{

@@ -17,7 +17,6 @@ package mysql
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/binary"
@@ -38,15 +37,12 @@ import (
 )
 
 const (
-	getTreePropertiesSQL  = "SELECT DuplicatePolicy FROM Trees WHERE TreeId=?"
 	selectQueuedLeavesSQL = `SELECT LeafIdentityHash,MerkleLeafHash
 			FROM Unsequenced
 			WHERE TreeID=?
 			AND QueueTimestampNanos<=?
 			ORDER BY QueueTimestampNanos,LeafIdentityHash ASC LIMIT ?`
 	insertUnsequencedLeafSQL = `INSERT INTO LeafData(TreeId,LeafIdentityHash,LeafValue,ExtraData)
-			VALUES(?,?,?,?) ON DUPLICATE KEY UPDATE LeafIdentityHash=LeafIdentityHash`
-	insertUnsequencedLeafSQLNoDuplicates = `INSERT INTO LeafData(TreeId,LeafIdentityHash,LeafValue,ExtraData)
 			VALUES(?,?,?,?)`
 	insertUnsequencedEntrySQL = `INSERT INTO Unsequenced(TreeId,LeafIdentityHash,MerkleLeafHash,MessageId,QueueTimestampNanos)
 			VALUES(?,?,?,?,?)`
@@ -196,19 +192,15 @@ func (t *readOnlyLogTX) GetActiveLogIDsWithPendingWork() ([]int64, error) {
 }
 
 func (m *mySQLLogStorage) hasher(treeID int64) (merkle.TreeHasher, error) {
-	// TODO: read hash algorithm from storage.
+	// TODO(codingllama): read hash algorithm from storage.
 	return merkle.Factory(merkle.RFC6962SHA256Type)
 }
 
 func (m *mySQLLogStorage) beginInternal(ctx context.Context, treeID int64) (storage.LogTreeTX, error) {
-	// TODO(codingllama): Validate treeType
-	var duplicatePolicy string
-	if err := m.db.QueryRow(getTreePropertiesSQL, treeID).Scan(&duplicatePolicy); err != nil {
-		return nil, fmt.Errorf("failed to get tree row for treeID %v: %s", treeID, err)
-	}
-	policy, ok := duplicatePolicyMap[duplicatePolicy]
-	if !ok {
-		return nil, fmt.Errorf("unknown DuplicatePolicy: %v", duplicatePolicy)
+	// TODO(codingllama): Validate treeType, read configuration from storage
+	var num int
+	if err := m.db.QueryRow("SELECT 1 FROM Trees WHERE TreeId = ?", treeID).Scan(&num); err != nil {
+		return nil, fmt.Errorf("failed to get tree row for treeID %v: %v", treeID, err)
 	}
 
 	hasher, err := m.hasher(treeID)
@@ -222,9 +214,8 @@ func (m *mySQLLogStorage) beginInternal(ctx context.Context, treeID int64) (stor
 	}
 
 	ltx := &logTreeTX{
-		treeTX:          ttx,
-		ls:              m,
-		duplicatePolicy: policy,
+		treeTX: ttx,
+		ls:     m,
 	}
 
 	ltx.root, err = ltx.fetchLatestRoot()
@@ -251,9 +242,8 @@ func (m *mySQLLogStorage) SnapshotForTree(ctx context.Context, treeID int64) (st
 
 type logTreeTX struct {
 	treeTX
-	ls              *mySQLLogStorage
-	root            trillian.SignedLogRoot
-	duplicatePolicy trillian.DuplicatePolicy
+	ls   *mySQLLogStorage
+	root trillian.SignedLogRoot
 }
 
 func (t *logTreeTX) ReadRevision() int64 {
@@ -334,17 +324,6 @@ func (t *logTreeTX) QueueLeaves(leaves []*trillian.LogLeaf, queueTimestamp time.
 		}
 	}
 
-	// If the log does not allow duplicates we prevent the insert of such a leaf from
-	// succeeding. If duplicates are allowed multiple sequenced leaves will share the same
-	// leaf data in the database.
-	var insertSQL string
-
-	if t.duplicatePolicy == trillian.DuplicatePolicy_DUPLICATES_ALLOWED {
-		insertSQL = insertUnsequencedLeafSQL
-	} else {
-		insertSQL = insertUnsequencedLeafSQLNoDuplicates
-	}
-
 	// Insert in order of the hash values in the leaves, but track original position for return value.
 	orderedLeaves := make([]leafAndPosition, len(leaves))
 	for i, leaf := range leaves {
@@ -360,7 +339,7 @@ func (t *logTreeTX) QueueLeaves(leaves []*trillian.LogLeaf, queueTimestamp time.
 		// can suppress errors unrelated to key collisions. We don't use REPLACE because
 		// if there's ever a hash collision it will do the wrong thing and it also
 		// causes a DELETE / INSERT, which is undesirable.
-		_, err := t.tx.Exec(insertSQL, t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData)
+		_, err := t.tx.Exec(insertUnsequencedLeafSQL, t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData)
 		if isDuplicateErr(err) {
 			// Remember the duplicate leaf, using the requested leaf for now.
 			existingLeaves[leafPos.idx] = leaf
@@ -377,21 +356,6 @@ func (t *logTreeTX) QueueLeaves(leaves []*trillian.LogLeaf, queueTimestamp time.
 		// in the unsequenced queue, which should be short, but we'll still use a strong hash.
 		// TODO(alcutter): get this from somewhere else
 		hasher := sha256.New()
-
-		// We use a fixed zero message id if the log disallows duplicates otherwise a random one.
-		// the fixed id will collide if dups submitted when not allowed so the insert won't succeed
-		// and everything will get rolled back
-		messageIDBytes := make([]byte, 8)
-
-		if t.duplicatePolicy == trillian.DuplicatePolicy_DUPLICATES_ALLOWED {
-			_, err := rand.Read(messageIDBytes)
-			if err != nil {
-				glog.Warningf("Failed to get a random message id: %s", err)
-				return nil, err
-			}
-		}
-
-		hasher.Write(messageIDBytes)
 		binary.Write(hasher, binary.LittleEndian, t.treeID)
 		hasher.Write(leaf.LeafIdentityHash)
 		messageID := hasher.Sum(nil)

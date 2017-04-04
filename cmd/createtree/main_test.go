@@ -45,7 +45,6 @@ func TestRun(t *testing.T) {
 		HashStrategy:       trillian.HashStrategy_RFC_6962,
 		HashAlgorithm:      sigpb.DigitallySigned_SHA256,
 		SignatureAlgorithm: sigpb.DigitallySigned_RSA,
-		DuplicatePolicy:    trillian.DuplicatePolicy_DUPLICATES_NOT_ALLOWED,
 		PrivateKey:         anyKey,
 	}
 
@@ -63,14 +62,12 @@ func TestRun(t *testing.T) {
 	nonDefaultTree := *defaultTree
 	nonDefaultTree.TreeType = trillian.TreeType_MAP
 	nonDefaultTree.SignatureAlgorithm = sigpb.DigitallySigned_ECDSA
-	nonDefaultTree.DuplicatePolicy = trillian.DuplicatePolicy_DUPLICATES_ALLOWED
 	nonDefaultTree.DisplayName = "Llamas Map"
 	nonDefaultTree.Description = "For all your digital llama needs!"
 
 	nonDefaultOpts := *validOpts
 	nonDefaultOpts.treeType = nonDefaultTree.TreeType.String()
 	nonDefaultOpts.sigAlgorithm = nonDefaultTree.SignatureAlgorithm.String()
-	nonDefaultOpts.duplicatePolicy = nonDefaultTree.DuplicatePolicy.String()
 	nonDefaultOpts.displayName = nonDefaultTree.DisplayName
 	nonDefaultOpts.description = nonDefaultTree.Description
 
