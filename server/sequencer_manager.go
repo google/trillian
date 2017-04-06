@@ -50,11 +50,11 @@ func (s SequencerManager) Name() string {
 
 // ExecutePass performs sequencing for the specified set of Logs.
 func (s SequencerManager) ExecutePass(ctx context.Context, logIDs []int64, info *LogOperationInfo) {
-	if info.numSequencers == 0 {
-		glog.Warning("Called ExecutePass with numSequencers == 0, assuming 1")
-		info.numSequencers = 1
+	if info.numWorkers == 0 {
+		glog.Warning("Called ExecutePass with numWorkers == 0, assuming 1")
+		info.numWorkers = 1
 	}
-	glog.V(1).Infof("Beginning sequencing run for %v active log(s) using %d sequencers", len(logIDs), info.numSequencers)
+	glog.V(1).Infof("Beginning sequencing run for %v active log(s) using %d workers", len(logIDs), info.numWorkers)
 
 	startBatch := time.Now()
 
@@ -70,7 +70,7 @@ func (s SequencerManager) ExecutePass(ctx context.Context, logIDs []int64, info 
 	}
 	close(toSeq)
 
-	for i := 0; i < info.numSequencers; i++ {
+	for i := 0; i < info.numWorkers; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()

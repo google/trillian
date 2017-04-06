@@ -42,8 +42,8 @@ type LogOperationInfo struct {
 	sleepBetweenRuns time.Duration
 	// timeSource allows us to mock this in tests
 	timeSource util.TimeSource
-	// numSequencers is the number of sequencers to run in parallel.
-	numSequencers int
+	// numWorkers is the number of worker goroutines to run in parallel.
+	numWorkers int
 }
 
 // LogOperationManager controls scheduling activities for logs. At the moment it's very simple
@@ -57,14 +57,14 @@ type LogOperationManager struct {
 }
 
 // NewLogOperationManager creates a new LogOperationManager instance.
-func NewLogOperationManager(registry extension.Registry, batchSize, numSequencers int, sleepBetweenRuns time.Duration, timeSource util.TimeSource, logOperation LogOperation) *LogOperationManager {
+func NewLogOperationManager(registry extension.Registry, batchSize, numWorkers int, sleepBetweenRuns time.Duration, timeSource util.TimeSource, logOperation LogOperation) *LogOperationManager {
 	return &LogOperationManager{
 		info: LogOperationInfo{
 			registry:         registry,
 			batchSize:        batchSize,
 			sleepBetweenRuns: sleepBetweenRuns,
 			timeSource:       timeSource,
-			numSequencers:    numSequencers,
+			numWorkers:       numWorkers,
 		},
 		logOperation: logOperation,
 	}
