@@ -40,8 +40,6 @@ type LogOperationInfo struct {
 	batchSize int
 	// sleepBetweenRuns is the time to pause after all active logs have processed a batch
 	sleepBetweenRuns time.Duration
-	// oneShot is for use by tests only, it exits after one pass
-	oneShot bool
 	// timeSource allows us to mock this in tests
 	timeSource util.TimeSource
 	// numSequencers is the number of sequencers to run in parallel.
@@ -67,21 +65,6 @@ func NewLogOperationManager(registry extension.Registry, batchSize, numSequencer
 			sleepBetweenRuns: sleepBetweenRuns,
 			timeSource:       timeSource,
 			numSequencers:    numSequencers,
-		},
-		logOperation: logOperation,
-	}
-}
-
-// NewLogOperationManagerForTest creates a one-shot LogOperationManager instance, for use by tests only.
-func NewLogOperationManagerForTest(registry extension.Registry, batchSize int, sleepBetweenRuns time.Duration, timeSource util.TimeSource, logOperation LogOperation) *LogOperationManager {
-	return &LogOperationManager{
-		info: LogOperationInfo{
-			registry:         registry,
-			batchSize:        batchSize,
-			sleepBetweenRuns: sleepBetweenRuns,
-			timeSource:       timeSource,
-			oneShot:          true,
-			numSequencers:    5,
 		},
 		logOperation: logOperation,
 	}
@@ -137,7 +120,7 @@ func (l LogOperationManager) OperationLoop(ctx context.Context) {
 		glog.V(1).Infof("Log operation manager pass complete")
 
 		// We might want to bail out early when testing
-		if quit || l.info.oneShot {
+		if quit {
 			glog.Infof("Log operation manager shutting down")
 			return
 		}

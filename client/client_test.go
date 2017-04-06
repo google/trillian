@@ -45,14 +45,13 @@ func addSequencedLeaves(ctx context.Context, env *integration.LogEnv, client Ver
 		if err, want := client.AddLeaf(ctx, l), codes.DeadlineExceeded; grpc.Code(err) != want {
 			return fmt.Errorf("AddLeaf(%v): %v, want, %v", l, err, want)
 		}
-		env.Sequencer.OperationLoop(ctx) // Sequence the new leaves in-order.
 	}
 	return nil
 }
 
 func TestGetByIndex(t *testing.T) {
 	ctx := context.Background()
-	env, err := integration.NewLogEnv(ctx, 0, "TestGetByIndex")
+	env, err := integration.NewLogEnv(ctx, 1, "TestGetByIndex")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,7 +88,7 @@ func TestGetByIndex(t *testing.T) {
 
 func TestListByIndex(t *testing.T) {
 	ctx := context.Background()
-	env, err := integration.NewLogEnv(ctx, 0, "TestGetByIndex")
+	env, err := integration.NewLogEnv(ctx, 1, "TestGetByIndex")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -126,7 +125,7 @@ func TestListByIndex(t *testing.T) {
 
 func TestVerifyInclusion(t *testing.T) {
 	ctx := context.Background()
-	env, err := integration.NewLogEnv(ctx, 0, "TestVerifyInclusion")
+	env, err := integration.NewLogEnv(ctx, 1, "TestVerifyInclusion")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -144,7 +143,7 @@ func TestVerifyInclusion(t *testing.T) {
 		[]byte("B"),
 	}
 
-	if err := addSequencedLeaves(env, client, leafData); err != nil {
+	if err := addSequencedLeaves(ctx, env, client, leafData); err != nil {
 		t.Errorf("Failed to add leaves: %v", err)
 	}
 
@@ -157,7 +156,7 @@ func TestVerifyInclusion(t *testing.T) {
 
 func TestVerifyInclusionAtIndex(t *testing.T) {
 	ctx := context.Background()
-	env, err := integration.NewLogEnv(ctx, 0, "TestVerifyInclusionAtIndex")
+	env, err := integration.NewLogEnv(ctx, 1, "TestVerifyInclusionAtIndex")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -175,7 +174,7 @@ func TestVerifyInclusionAtIndex(t *testing.T) {
 		[]byte("B"),
 	}
 
-	if err := addSequencedLeaves(env, client, leafData); err != nil {
+	if err := addSequencedLeaves(ctx, env, client, leafData); err != nil {
 		t.Errorf("Failed to add leaves: %v", err)
 	}
 
@@ -188,7 +187,7 @@ func TestVerifyInclusionAtIndex(t *testing.T) {
 
 func TestAddLeaf(t *testing.T) {
 	ctx := context.Background()
-	env, err := integration.NewLogEnv(ctx, 0, "TestAddLeaf")
+	env, err := integration.NewLogEnv(ctx, 1, "TestAddLeaf")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -232,7 +231,6 @@ func TestAddLeaf(t *testing.T) {
 				continue
 			}
 		}
-		env.Sequencer.OperationLoop(ctx) // Sequence the new node.
 		err := client.AddLeaf(ctx, []byte(test.desc))
 		if got := err != nil; got != test.wantErr {
 			t.Errorf("AddLeaf(%v): %v, want error: %v", test.desc, err, test.wantErr)
@@ -242,7 +240,7 @@ func TestAddLeaf(t *testing.T) {
 
 func TestUpdateRoot(t *testing.T) {
 	ctx := context.Background()
-	env, err := integration.NewLogEnv(ctx, 0, "TestUpdateRoot")
+	env, err := integration.NewLogEnv(ctx, 1, "TestUpdateRoot")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -264,7 +262,6 @@ func TestUpdateRoot(t *testing.T) {
 		}
 	}
 
-	env.Sequencer.OperationLoop(ctx) // Sequence the new node.
 	if err := client.UpdateRoot(ctx); err != nil {
 		t.Error(err)
 	}

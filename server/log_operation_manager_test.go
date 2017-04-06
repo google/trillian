@@ -41,9 +41,9 @@ func TestLogOperationManagerSnapshotFails(t *testing.T) {
 	mockLogOp := NewMockLogOperation(ctrl)
 
 	ctx := util.NewLogContext(context.Background(), -1)
-	lom := NewLogOperationManagerForTest(registry, 50, time.Second, fakeTimeSource, mockLogOp)
+	lom := NewLogOperationManager(registry, 50, 1, time.Second, fakeTimeSource, mockLogOp)
 
-	lom.OperationLoop(ctx)
+	lom.OperationSingle(ctx)
 }
 
 func TestLogOperationManagerGetLogsFails(t *testing.T) {
@@ -63,9 +63,9 @@ func TestLogOperationManagerGetLogsFails(t *testing.T) {
 	mockLogOp := NewMockLogOperation(ctrl)
 
 	ctx := util.NewLogContext(context.Background(), -1)
-	lom := NewLogOperationManagerForTest(registry, 50, time.Second, fakeTimeSource, mockLogOp)
+	lom := NewLogOperationManager(registry, 50, 1, time.Second, fakeTimeSource, mockLogOp)
 
-	lom.OperationLoop(ctx)
+	lom.OperationSingle(ctx)
 }
 
 func TestLogOperationManagerCommitFails(t *testing.T) {
@@ -86,9 +86,9 @@ func TestLogOperationManagerCommitFails(t *testing.T) {
 	mockLogOp := NewMockLogOperation(ctrl)
 
 	ctx := util.NewLogContext(context.Background(), -1)
-	lom := NewLogOperationManagerForTest(registry, 50, time.Second, fakeTimeSource, mockLogOp)
+	lom := NewLogOperationManager(registry, 50, 1, time.Second, fakeTimeSource, mockLogOp)
 
-	lom.OperationLoop(ctx)
+	lom.OperationSingle(ctx)
 }
 
 type logOpInfoMatcher struct {
@@ -128,7 +128,7 @@ func TestLogOperationManagerPassesIDs(t *testing.T) {
 	mockLogOp := NewMockLogOperation(ctrl)
 	mockLogOp.EXPECT().ExecutePass(ctx, []int64{logID1, logID2}, logOpInfoMatcher{50})
 
-	lom := NewLogOperationManagerForTest(registry, 50, time.Second, fakeTimeSource, mockLogOp)
+	lom := NewLogOperationManager(registry, 50, 1, time.Second, fakeTimeSource, mockLogOp)
 
-	lom.OperationLoop(ctx)
+	lom.OperationSingle(ctx)
 }
