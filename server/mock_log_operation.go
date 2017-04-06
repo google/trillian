@@ -4,6 +4,7 @@
 package server
 
 import (
+	context "context"
 	gomock "github.com/golang/mock/gomock"
 )
 
@@ -28,12 +29,12 @@ func (_m *MockLogOperation) EXPECT() *_MockLogOperationRecorder {
 	return _m.recorder
 }
 
-func (_m *MockLogOperation) ExecutePass(_param0 []int64, _param1 LogOperationManagerContext) {
-	_m.ctrl.Call(_m, "ExecutePass", _param0, _param1)
+func (_m *MockLogOperation) ExecutePass(_param0 context.Context, _param1 []int64, _param2 LogOperationManagerContext) {
+	_m.ctrl.Call(_m, "ExecutePass", _param0, _param1, _param2)
 }
 
-func (_mr *_MockLogOperationRecorder) ExecutePass(arg0, arg1 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "ExecutePass", arg0, arg1)
+func (_mr *_MockLogOperationRecorder) ExecutePass(arg0, arg1, arg2 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "ExecutePass", arg0, arg1, arg2)
 }
 
 func (_m *MockLogOperation) Name() string {

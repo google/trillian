@@ -102,34 +102,24 @@ func NewLogEnv(ctx context.Context, numSequencers int, testID string) (*LogEnv, 
 	sequencerManager := server.NewSequencerManager(registry, sequencerWindow)
 	var wg sync.WaitGroup
 	var sequencerTask *server.LogOperationManager
-	var cancel context.CancelFunc
+	ctx, cancel := context.WithCancel(ctx)
 	if numSequencers == 0 {
 		// Test sequencer that needs manual triggering (with env.Sequencer.OperationLoop()).
-		//
-		// TODO(https://github.com/google/trillian/issues/419): if NewLogOperationManagerForTest()
-		// wasn't holding onto ctx after it returns, this code could be simplified to use a cancelable
-		// context for both code paths.
-		sequencerTask = server.NewLogOperationManagerForTest(ctx, registry,
-			batchSize, sleepBetweenRuns, timeSource, sequencerManager)
+		sequencerTask = server.NewLogOperationManagerForTest(registry, batchSize, sleepBetweenRuns, timeSource, sequencerManager)
 	} else {
 		// Start a live sequencer in a goroutine.
-		var ctx2 context.Context
-		ctx2, cancel = context.WithCancel(ctx)
-		sequencerTask = server.NewLogOperationManager(ctx2, registry,
-			batchSize, numSequencers, sleepBetweenRuns, timeSource, sequencerManager)
+		sequencerTask = server.NewLogOperationManager(registry, batchSize, numSequencers, sleepBetweenRuns, timeSource, sequencerManager)
 		wg.Add(1)
 		go func(wg *sync.WaitGroup, om *server.LogOperationManager) {
 			defer wg.Done()
-			om.OperationLoop()
+			om.OperationLoop(ctx)
 		}(&wg, sequencerTask)
 	}
 
 	// Listen and start server.
 	addr, lis, err := listen()
 	if err != nil {
-		if cancel != nil {
-			cancel()
-		}
+		cancel()
 		return nil, err
 	}
 	wg.Add(1)
@@ -141,17 +131,13 @@ func NewLogEnv(ctx context.Context, numSequencers int, testID string) (*LogEnv, 
 	// Connect to the server.
 	cc, err := grpc.Dial(addr, grpc.WithInsecure())
 	if err != nil {
-		if cancel != nil {
-			cancel()
-		}
+		cancel()
 		return nil, err
 	}
 
 	publicKey, err := keys.NewFromPublicPEMFile(publicKeyPath)
 	if err != nil {
-		if cancel != nil {
-			cancel()
-		}
+		cancel()
 		return nil, err
 	}
 
@@ -202,6 +188,6 @@ func (env *LogEnv) CreateLog() (int64, error) {
 		return 0, err
 	}
 	// Sign the first empty tree head.
-	env.Sequencer.OperationSingle()
+	env.Sequencer.OperationSingle(ctx)
 	return tree.TreeId, nil
 }

@@ -105,6 +105,7 @@ func newSignerWithFixedSig(sig *sigpb.DigitallySigned) (crypto.Signer, error) {
 }
 
 func TestSequencerManagerNothingToDo(t *testing.T) {
+	ctx := util.NewLogContext(context.Background(), -1)
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
@@ -114,10 +115,11 @@ func TestSequencerManagerNothingToDo(t *testing.T) {
 
 	sm := NewSequencerManager(registry, zeroDuration)
 
-	sm.ExecutePass([]int64{}, createTestContext(registry))
+	sm.ExecutePass(ctx, []int64{}, createTestContext(registry))
 }
 
 func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
+	ctx := util.NewLogContext(context.Background(), -1)
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
@@ -154,10 +156,11 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 
 	sm := NewSequencerManager(registry, zeroDuration)
 
-	sm.ExecutePass([]int64{logID}, createTestContext(registry))
+	sm.ExecutePass(ctx, []int64{logID}, createTestContext(registry))
 }
 
 func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
+	ctx := util.NewLogContext(context.Background(), -1)
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
@@ -199,10 +202,11 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 
 	sm := NewSequencerManager(registry, zeroDuration)
 
-	sm.ExecutePass([]int64{logID}, createTestContext(registry))
+	sm.ExecutePass(ctx, []int64{logID}, createTestContext(registry))
 }
 
 func TestSequencerManagerGuardWindow(t *testing.T) {
+	ctx := util.NewLogContext(context.Background(), -1)
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
@@ -240,14 +244,12 @@ func TestSequencerManagerGuardWindow(t *testing.T) {
 
 	sm := NewSequencerManager(registry, time.Second*5)
 
-	sm.ExecutePass([]int64{logID}, createTestContext(registry))
+	sm.ExecutePass(ctx, []int64{logID}, createTestContext(registry))
 }
 
 func createTestContext(registry extension.Registry) LogOperationManagerContext {
 	// Set sign interval to 100 years so it won't trigger a root expiry signing unless overridden
-	ctx := util.NewLogContext(context.Background(), -1)
 	return LogOperationManagerContext{
-		ctx:              ctx,
 		registry:         registry,
 		batchSize:        50,
 		sleepBetweenRuns: time.Second,
