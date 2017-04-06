@@ -253,7 +253,6 @@ func createTestInfo(registry extension.Registry) *LogOperationInfo {
 		registry:         registry,
 		batchSize:        50,
 		sleepBetweenRuns: time.Second,
-		oneShot:          true,
 		timeSource:       fakeTimeSource,
 	}
 }
