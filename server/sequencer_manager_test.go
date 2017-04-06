@@ -115,7 +115,7 @@ func TestSequencerManagerNothingToDo(t *testing.T) {
 
 	sm := NewSequencerManager(registry, zeroDuration)
 
-	sm.ExecutePass(ctx, []int64{}, createTestInfo(registry))
+	sm.ExecutePass(ctx, 0, createTestInfo(registry))
 }
 
 func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
@@ -156,7 +156,7 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 
 	sm := NewSequencerManager(registry, zeroDuration)
 
-	sm.ExecutePass(ctx, []int64{logID}, createTestInfo(registry))
+	sm.ExecutePass(ctx, logID, createTestInfo(registry))
 }
 
 func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
@@ -202,7 +202,7 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 
 	sm := NewSequencerManager(registry, zeroDuration)
 
-	sm.ExecutePass(ctx, []int64{logID}, createTestInfo(registry))
+	sm.ExecutePass(ctx, logID, createTestInfo(registry))
 }
 
 func TestSequencerManagerGuardWindow(t *testing.T) {
@@ -244,7 +244,7 @@ func TestSequencerManagerGuardWindow(t *testing.T) {
 
 	sm := NewSequencerManager(registry, time.Second*5)
 
-	sm.ExecutePass(ctx, []int64{logID}, createTestInfo(registry))
+	sm.ExecutePass(ctx, logID, createTestInfo(registry))
 }
 
 func createTestInfo(registry extension.Registry) *LogOperationInfo {

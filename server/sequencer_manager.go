@@ -17,15 +17,12 @@ package server
 import (
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/log"
 	"github.com/google/trillian/merkle"
-	"github.com/google/trillian/util"
 )
 
 // SequencerManager provides sequencing operations for a collection of Logs.
@@ -48,86 +45,30 @@ func (s SequencerManager) Name() string {
 	return "Sequencer"
 }
 
-// ExecutePass performs sequencing for the specified set of Logs.
-func (s SequencerManager) ExecutePass(ctx context.Context, logIDs []int64, info *LogOperationInfo) {
-	if info.numWorkers == 0 {
-		glog.Warning("Called ExecutePass with numWorkers == 0, assuming 1")
-		info.numWorkers = 1
-	}
-	glog.V(1).Infof("Beginning sequencing run for %v active log(s) using %d workers", len(logIDs), info.numWorkers)
+// ExecutePass performs sequencing for the specified Log.
+func (s SequencerManager) ExecutePass(ctx context.Context, logID int64, info *LogOperationInfo) (int, error) {
+	// TODO(Martin2112): Honor the sequencing enabled in log parameters, needs an API change
+	// so deferring it
 
-	startBatch := time.Now()
-
-	var mu sync.Mutex
-	successCount := 0
-	leavesAdded := 0
-
-	var wg sync.WaitGroup
-	toSeq := make(chan int64, len(logIDs))
-
-	for _, logID := range logIDs {
-		toSeq <- logID
-	}
-	close(toSeq)
-
-	for i := 0; i < info.numWorkers; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for {
-				logID, more := <-toSeq
-				if !more {
-					return
-				}
-
-				start := time.Now()
-
-				// TODO(Martin2112): Honor the sequencing enabled in log parameters, needs an API change
-				// so deferring it
-				ctx := util.NewLogContext(ctx, logID)
-
-				// TODO(Martin2112): Allow for different tree hashers to be used by different logs
-				hasher, err := merkle.Factory(merkle.RFC6962SHA256Type)
-				if err != nil {
-					glog.Errorf("Unknown hash strategy for log %d: %v", logID, err)
-					continue
-				}
-
-				signer, err := newSigner(ctx, s.registry, logID)
-				if err != nil {
-					glog.Errorf("Could not get signer for log %d: %v", logID, err)
-					continue
-				}
-
-				sequencer := log.NewSequencer(hasher, info.timeSource, s.registry.LogStorage, signer)
-				sequencer.SetGuardWindow(s.guardWindow)
-
-				leaves, err := sequencer.SequenceBatch(ctx, logID, info.batchSize)
-				if err != nil {
-					glog.Warningf("%v: Error trying to sequence batch for: %v", logID, err)
-					continue
-				}
-				if leaves > 0 {
-					d := time.Now().Sub(start).Seconds()
-					glog.Infof("%v: sequenced %d leaves in %.2f seconds (%.2f qps)", logID, leaves, d, float64(leaves)/d)
-				} else {
-					glog.V(1).Infof("%v: no leaves to sequence", logID)
-				}
-
-				mu.Lock()
-				successCount++
-				leavesAdded += leaves
-				mu.Unlock()
-			}
-		}()
+	// TODO(Martin2112): Allow for different tree hashers to be used by different logs
+	hasher, err := merkle.Factory(merkle.RFC6962SHA256Type)
+	if err != nil {
+		return 0, fmt.Errorf("failed to build hasher for log %d: %v", logID, err)
 	}
 
-	wg.Wait()
-	d := time.Now().Sub(startBatch).Seconds()
+	signer, err := newSigner(ctx, s.registry, logID)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get signer for log %d: %v", logID, err)
+	}
 
-	mu.Lock()
-	defer mu.Unlock()
-	glog.V(1).Infof("Sequencing group run completed in %.2f seconds: %v succeeded, %v failed, %v leaves integrated", d, successCount, len(logIDs)-successCount, leavesAdded)
+	sequencer := log.NewSequencer(hasher, info.timeSource, s.registry.LogStorage, signer)
+	sequencer.SetGuardWindow(s.guardWindow)
+
+	leaves, err := sequencer.SequenceBatch(ctx, logID, info.batchSize)
+	if err != nil {
+		return 0, fmt.Errorf("failed to sequence batch for %d:: %v", logID, err)
+	}
+	return leaves, nil
 }
 
 func newSigner(ctx context.Context, registry extension.Registry, logID int64) (*crypto.Signer, error) {

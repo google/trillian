@@ -126,7 +126,9 @@ func TestLogOperationManagerPassesIDs(t *testing.T) {
 	}
 
 	mockLogOp := NewMockLogOperation(ctrl)
-	mockLogOp.EXPECT().ExecutePass(ctx, []int64{logID1, logID2}, logOpInfoMatcher{50})
+	infoMatcher := logOpInfoMatcher{50}
+	mockLogOp.EXPECT().ExecutePass(gomock.Any(), logID1, infoMatcher)
+	mockLogOp.EXPECT().ExecutePass(gomock.Any(), logID2, infoMatcher)
 
 	lom := NewLogOperationManager(registry, 50, 1, time.Second, fakeTimeSource, mockLogOp)
 

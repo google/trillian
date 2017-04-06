@@ -17,6 +17,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/golang/glog"
@@ -24,16 +25,17 @@ import (
 	"github.com/google/trillian/util"
 )
 
-// LogOperation defines a task that operates on logs. Examples are scheduling, signing,
+// LogOperation defines a task that operates on a log. Examples are scheduling, signing,
 // consistency checking or cleanup.
 type LogOperation interface {
 	// Name returns the name of the task.
 	Name() string
-	// ExecutePass performs a single pass of processing on a set of logs.
-	ExecutePass(ctx context.Context, logIDs []int64, info *LogOperationInfo)
+	// ExecutePass performs a single pass of processing on a single log.  It returns
+	// a count of items processed (for logging) and an error.
+	ExecutePass(ctx context.Context, logID int64, info *LogOperationInfo) (int, error)
 }
 
-// LogOperationInfo bundles up information needed for running a LogOperation.
+// LogOperationInfo bundles up information needed for running a set of LogOperations.
 type LogOperationInfo struct {
 	// registry provides access to Trillian storage
 	registry extension.Registry
@@ -96,8 +98,61 @@ func (l LogOperationManager) getLogsAndExecutePass(ctx context.Context) error {
 		return err
 	}
 
-	// Process each active log once.
-	l.logOperation.ExecutePass(ctx, logIDs, &l.info)
+	numWorkers := l.info.numWorkers
+	if numWorkers == 0 {
+		glog.Warning("Executing a LogOperation pass with numWorkers == 0, assuming 1")
+		numWorkers = 1
+	}
+	glog.V(1).Infof("Beginning run for %v active log(s) using %d workers", len(logIDs), numWorkers)
+
+	var mu sync.Mutex
+	successCount := 0
+	itemCount := 0
+
+	// Build a channel of the logIDs that need to be processed.
+	toProcess := make(chan int64, len(logIDs))
+	for _, logID := range logIDs {
+		toProcess <- logID
+	}
+	close(toProcess)
+
+	// Set off a collection of worker goroutines to process the pending logIDs.
+	startBatch := time.Now()
+	var wg sync.WaitGroup
+	for i := 0; i < numWorkers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				logID, more := <-toProcess
+				if !more {
+					return
+				}
+
+				start := time.Now()
+				count, err := l.logOperation.ExecutePass(util.NewLogContext(ctx, logID), logID, &l.info)
+
+				if err == nil {
+					if count > 0 {
+						d := time.Now().Sub(start).Seconds()
+						glog.Infof("%v: processed %d items in %.2f seconds (%.2f qps)", logID, count, d, float64(count)/d)
+					} else {
+						glog.V(1).Infof("%v: no items to process", logID)
+					}
+					mu.Lock()
+					successCount++
+					itemCount += count
+					mu.Unlock()
+				}
+			}
+		}()
+	}
+
+	// Wait for the workers to consume all of the logIDs
+	wg.Wait()
+	d := time.Now().Sub(startBatch).Seconds()
+	glog.V(1).Infof("Group run completed in %.2f seconds: %v succeeded, %v failed, %v items processed", d, successCount, len(logIDs)-successCount, itemCount)
+
 	return nil
 
 }
