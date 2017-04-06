@@ -36,16 +36,16 @@ func TestAddGetLeaf(t *testing.T) {
 }
 
 // addSequencedLeaves is a temporary stand-in function for tests until the real API gets built.
-func addSequencedLeaves(env *integration.LogEnv, client VerifyingLogClient, leaves [][]byte) error {
+func addSequencedLeaves(ctx context.Context, env *integration.LogEnv, client VerifyingLogClient, leaves [][]byte) error {
 	// TODO(gdbelvin): Replace with batch API.
 	// TODO(gdbelvin): Replace with AddSequencedLeaves API.
 	for _, l := range leaves {
-		ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(timeout))
+		ctx, cancel := context.WithDeadline(ctx, time.Now().Add(timeout))
 		defer cancel()
 		if err, want := client.AddLeaf(ctx, l), codes.DeadlineExceeded; grpc.Code(err) != want {
 			return fmt.Errorf("AddLeaf(%v): %v, want, %v", l, err, want)
 		}
-		env.Sequencer.OperationLoop() // Sequence the new leaves in-order.
+		env.Sequencer.OperationLoop(ctx) // Sequence the new leaves in-order.
 	}
 	return nil
 }
@@ -71,7 +71,7 @@ func TestGetByIndex(t *testing.T) {
 		[]byte("C"),
 	}
 
-	if err := addSequencedLeaves(env, client, leafData); err != nil {
+	if err := addSequencedLeaves(ctx, env, client, leafData); err != nil {
 		t.Errorf("Failed to add leaves: %v", err)
 	}
 
@@ -108,7 +108,7 @@ func TestListByIndex(t *testing.T) {
 		[]byte("C"),
 	}
 
-	if err := addSequencedLeaves(env, client, leafData); err != nil {
+	if err := addSequencedLeaves(ctx, env, client, leafData); err != nil {
 		t.Errorf("Failed to add leaves: %v", err)
 	}
 
@@ -225,15 +225,15 @@ func TestAddLeaf(t *testing.T) {
 	} {
 		client := New(logID, test.client, testonly.Hasher, env.PublicKey)
 		{
-			ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(timeout))
+			ctx, cancel := context.WithDeadline(ctx, time.Now().Add(timeout))
 			defer cancel()
 			if err, want := client.AddLeaf(ctx, []byte(test.desc)), codes.DeadlineExceeded; grpc.Code(err) != want {
 				t.Errorf("AddLeaf(%v): %v, want, %v", test.desc, err, want)
 				continue
 			}
 		}
-		env.Sequencer.OperationLoop() // Sequence the new node.
-		err := client.AddLeaf(context.Background(), []byte(test.desc))
+		env.Sequencer.OperationLoop(ctx) // Sequence the new node.
+		err := client.AddLeaf(ctx, []byte(test.desc))
 		if got := err != nil; got != test.wantErr {
 			t.Errorf("AddLeaf(%v): %v, want error: %v", test.desc, err, test.wantErr)
 		}
@@ -257,15 +257,15 @@ func TestUpdateRoot(t *testing.T) {
 	before := client.Root().TreeSize
 
 	{
-		ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(timeout))
+		ctx, cancel := context.WithDeadline(ctx, time.Now().Add(timeout))
 		defer cancel()
 		if err, want := client.AddLeaf(ctx, []byte("foo")), codes.DeadlineExceeded; grpc.Code(err) != want {
 			t.Errorf("AddLeaf(): %v, want, %v", err, want)
 		}
 	}
 
-	env.Sequencer.OperationLoop() // Sequence the new node.
-	if err := client.UpdateRoot(context.Background()); err != nil {
+	env.Sequencer.OperationLoop(ctx) // Sequence the new node.
+	if err := client.UpdateRoot(ctx); err != nil {
 		t.Error(err)
 	}
 	if got, want := client.Root().TreeSize, before; got <= want {

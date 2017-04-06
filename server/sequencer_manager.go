@@ -49,7 +49,7 @@ func (s SequencerManager) Name() string {
 }
 
 // ExecutePass performs sequencing for the specified set of Logs.
-func (s SequencerManager) ExecutePass(logIDs []int64, logctx LogOperationManagerContext) {
+func (s SequencerManager) ExecutePass(ctx context.Context, logIDs []int64, logctx LogOperationManagerContext) {
 	if logctx.numSequencers == 0 {
 		glog.Warning("Called ExecutePass with numSequencers == 0, assuming 1")
 		logctx.numSequencers = 1
@@ -84,7 +84,7 @@ func (s SequencerManager) ExecutePass(logIDs []int64, logctx LogOperationManager
 
 				// TODO(Martin2112): Honor the sequencing enabled in log parameters, needs an API change
 				// so deferring it
-				ctx := util.NewLogContext(logctx.ctx, logID)
+				ctx := util.NewLogContext(ctx, logID)
 
 				// TODO(Martin2112): Allow for different tree hashers to be used by different logs
 				hasher, err := merkle.Factory(merkle.RFC6962SHA256Type)

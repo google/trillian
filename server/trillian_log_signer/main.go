@@ -80,8 +80,8 @@ func main() {
 	go util.AwaitSignal(cancel)
 
 	sequencerManager := server.NewSequencerManager(registry, *sequencerGuardWindowFlag)
-	sequencerTask := server.NewLogOperationManager(ctx, registry, *batchSizeFlag, *numSeqFlag, *sequencerSleepBetweenRunsFlag, util.SystemTimeSource{}, sequencerManager)
-	sequencerTask.OperationLoop()
+	sequencerTask := server.NewLogOperationManager(registry, *batchSizeFlag, *numSeqFlag, *sequencerSleepBetweenRunsFlag, util.SystemTimeSource{}, sequencerManager)
+	sequencerTask.OperationLoop(ctx)
 
 	// Give things a few seconds to tidy up
 	glog.Infof("Stopping server, about to exit")

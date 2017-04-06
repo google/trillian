@@ -41,9 +41,9 @@ func TestLogOperationManagerSnapshotFails(t *testing.T) {
 	mockLogOp := NewMockLogOperation(ctrl)
 
 	ctx := util.NewLogContext(context.Background(), -1)
-	lom := NewLogOperationManagerForTest(ctx, registry, 50, time.Second, fakeTimeSource, mockLogOp)
+	lom := NewLogOperationManagerForTest(registry, 50, time.Second, fakeTimeSource, mockLogOp)
 
-	lom.OperationLoop()
+	lom.OperationLoop(ctx)
 }
 
 func TestLogOperationManagerGetLogsFails(t *testing.T) {
@@ -63,9 +63,9 @@ func TestLogOperationManagerGetLogsFails(t *testing.T) {
 	mockLogOp := NewMockLogOperation(ctrl)
 
 	ctx := util.NewLogContext(context.Background(), -1)
-	lom := NewLogOperationManagerForTest(ctx, registry, 50, time.Second, fakeTimeSource, mockLogOp)
+	lom := NewLogOperationManagerForTest(registry, 50, time.Second, fakeTimeSource, mockLogOp)
 
-	lom.OperationLoop()
+	lom.OperationLoop(ctx)
 }
 
 func TestLogOperationManagerCommitFails(t *testing.T) {
@@ -86,9 +86,9 @@ func TestLogOperationManagerCommitFails(t *testing.T) {
 	mockLogOp := NewMockLogOperation(ctrl)
 
 	ctx := util.NewLogContext(context.Background(), -1)
-	lom := NewLogOperationManagerForTest(ctx, registry, 50, time.Second, fakeTimeSource, mockLogOp)
+	lom := NewLogOperationManagerForTest(registry, 50, time.Second, fakeTimeSource, mockLogOp)
 
-	lom.OperationLoop()
+	lom.OperationLoop(ctx)
 }
 
 type logOpMgrContextMatcher struct {
@@ -108,9 +108,9 @@ func (l logOpMgrContextMatcher) String() string {
 }
 
 func TestLogOperationManagerPassesIDs(t *testing.T) {
+	ctx := util.NewLogContext(context.Background(), -1)
 	logID1 := int64(451)
 	logID2 := int64(145)
-
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -126,10 +126,9 @@ func TestLogOperationManagerPassesIDs(t *testing.T) {
 	}
 
 	mockLogOp := NewMockLogOperation(ctrl)
-	mockLogOp.EXPECT().ExecutePass([]int64{logID1, logID2}, logOpMgrContextMatcher{50})
+	mockLogOp.EXPECT().ExecutePass(ctx, []int64{logID1, logID2}, logOpMgrContextMatcher{50})
 
-	ctx := util.NewLogContext(context.Background(), -1)
-	lom := NewLogOperationManagerForTest(ctx, registry, 50, time.Second, fakeTimeSource, mockLogOp)
+	lom := NewLogOperationManagerForTest(registry, 50, time.Second, fakeTimeSource, mockLogOp)
 
-	lom.OperationLoop()
+	lom.OperationLoop(ctx)
 }
