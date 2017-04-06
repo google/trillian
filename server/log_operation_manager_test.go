@@ -91,19 +91,19 @@ func TestLogOperationManagerCommitFails(t *testing.T) {
 	lom.OperationLoop(ctx)
 }
 
-type logOpMgrContextMatcher struct {
+type logOpInfoMatcher struct {
 	batchSize int
 }
 
-func (l logOpMgrContextMatcher) Matches(x interface{}) bool {
-	o, ok := x.(LogOperationManagerContext)
+func (l logOpInfoMatcher) Matches(x interface{}) bool {
+	o, ok := x.(*LogOperationInfo)
 	if !ok {
 		return false
 	}
 	return o.batchSize == l.batchSize
 }
 
-func (l logOpMgrContextMatcher) String() string {
+func (l logOpInfoMatcher) String() string {
 	return fmt.Sprintf("has batchSize %d", l.batchSize)
 }
 
@@ -126,7 +126,7 @@ func TestLogOperationManagerPassesIDs(t *testing.T) {
 	}
 
 	mockLogOp := NewMockLogOperation(ctrl)
-	mockLogOp.EXPECT().ExecutePass(ctx, []int64{logID1, logID2}, logOpMgrContextMatcher{50})
+	mockLogOp.EXPECT().ExecutePass(ctx, []int64{logID1, logID2}, logOpInfoMatcher{50})
 
 	lom := NewLogOperationManagerForTest(registry, 50, time.Second, fakeTimeSource, mockLogOp)
 

@@ -29,7 +29,7 @@ func (_m *MockLogOperation) EXPECT() *_MockLogOperationRecorder {
 	return _m.recorder
 }
 
-func (_m *MockLogOperation) ExecutePass(_param0 context.Context, _param1 []int64, _param2 LogOperationManagerContext) {
+func (_m *MockLogOperation) ExecutePass(_param0 context.Context, _param1 []int64, _param2 *LogOperationInfo) {
 	_m.ctrl.Call(_m, "ExecutePass", _param0, _param1, _param2)
 }
 

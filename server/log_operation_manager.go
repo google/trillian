@@ -29,11 +29,11 @@ type LogOperation interface {
 	// Name returns the name of the task.
 	Name() string
 	// ExecutePass performs a single pass of processing on a set of logs.
-	ExecutePass(ctx context.Context, logIDs []int64, context LogOperationManagerContext)
+	ExecutePass(ctx context.Context, logIDs []int64, info *LogOperationInfo)
 }
 
-// LogOperationManagerContext bundles up the values so testing can be made easier
-type LogOperationManagerContext struct {
+// LogOperationInfo bundles up information needed for running a LogOperation.
+type LogOperationInfo struct {
 	// registry provides access to Trillian storage
 	registry extension.Registry
 	// batchSize is the batch size to be passed to tasks run by this manager
@@ -53,7 +53,7 @@ type LogOperationManagerContext struct {
 // This is meant for embedding into the actual operation implementations and should not
 // be created separately.
 type LogOperationManager struct {
-	context LogOperationManagerContext
+	info LogOperationInfo
 	// logOperation is the task that gets run across active logs in the scheduling loop
 	logOperation LogOperation
 }
@@ -61,7 +61,7 @@ type LogOperationManager struct {
 // NewLogOperationManager creates a new LogOperationManager instance.
 func NewLogOperationManager(registry extension.Registry, batchSize, numSequencers int, sleepBetweenRuns time.Duration, timeSource util.TimeSource, logOperation LogOperation) *LogOperationManager {
 	return &LogOperationManager{
-		context: LogOperationManagerContext{
+		info: LogOperationInfo{
 			registry:         registry,
 			batchSize:        batchSize,
 			sleepBetweenRuns: sleepBetweenRuns,
@@ -75,7 +75,7 @@ func NewLogOperationManager(registry extension.Registry, batchSize, numSequencer
 // NewLogOperationManagerForTest creates a one-shot LogOperationManager instance, for use by tests only.
 func NewLogOperationManagerForTest(registry extension.Registry, batchSize int, sleepBetweenRuns time.Duration, timeSource util.TimeSource, logOperation LogOperation) *LogOperationManager {
 	return &LogOperationManager{
-		context: LogOperationManagerContext{
+		info: LogOperationInfo{
 			registry:         registry,
 			batchSize:        batchSize,
 			sleepBetweenRuns: sleepBetweenRuns,
@@ -88,7 +88,7 @@ func NewLogOperationManagerForTest(registry extension.Registry, batchSize int, s
 }
 
 func (l LogOperationManager) getLogsAndExecutePass(ctx context.Context) bool {
-	tx, err := l.context.registry.LogStorage.Snapshot(ctx)
+	tx, err := l.info.registry.LogStorage.Snapshot(ctx)
 	if err != nil {
 		glog.Warningf("Failed to get tx for run: %v", err)
 		return false
@@ -108,7 +108,7 @@ func (l LogOperationManager) getLogsAndExecutePass(ctx context.Context) bool {
 	}
 
 	// Process each active log once.
-	l.logOperation.ExecutePass(ctx, logIDs, l.context)
+	l.logOperation.ExecutePass(ctx, logIDs, &l.info)
 
 	// See if it's time to quit
 	select {
@@ -137,12 +137,12 @@ func (l LogOperationManager) OperationLoop(ctx context.Context) {
 		glog.V(1).Infof("Log operation manager pass complete")
 
 		// We might want to bail out early when testing
-		if quit || l.context.oneShot {
+		if quit || l.info.oneShot {
 			glog.Infof("Log operation manager shutting down")
 			return
 		}
 
 		// Wait for the configured time before going for another pass
-		time.Sleep(l.context.sleepBetweenRuns)
+		time.Sleep(l.info.sleepBetweenRuns)
 	}
 }

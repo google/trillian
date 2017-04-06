@@ -49,12 +49,12 @@ func (s SequencerManager) Name() string {
 }
 
 // ExecutePass performs sequencing for the specified set of Logs.
-func (s SequencerManager) ExecutePass(ctx context.Context, logIDs []int64, logctx LogOperationManagerContext) {
-	if logctx.numSequencers == 0 {
+func (s SequencerManager) ExecutePass(ctx context.Context, logIDs []int64, info *LogOperationInfo) {
+	if info.numSequencers == 0 {
 		glog.Warning("Called ExecutePass with numSequencers == 0, assuming 1")
-		logctx.numSequencers = 1
+		info.numSequencers = 1
 	}
-	glog.V(1).Infof("Beginning sequencing run for %v active log(s) using %d sequencers", len(logIDs), logctx.numSequencers)
+	glog.V(1).Infof("Beginning sequencing run for %v active log(s) using %d sequencers", len(logIDs), info.numSequencers)
 
 	startBatch := time.Now()
 
@@ -70,7 +70,7 @@ func (s SequencerManager) ExecutePass(ctx context.Context, logIDs []int64, logct
 	}
 	close(toSeq)
 
-	for i := 0; i < logctx.numSequencers; i++ {
+	for i := 0; i < info.numSequencers; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -99,10 +99,10 @@ func (s SequencerManager) ExecutePass(ctx context.Context, logIDs []int64, logct
 					continue
 				}
 
-				sequencer := log.NewSequencer(hasher, logctx.timeSource, s.registry.LogStorage, signer)
+				sequencer := log.NewSequencer(hasher, info.timeSource, s.registry.LogStorage, signer)
 				sequencer.SetGuardWindow(s.guardWindow)
 
-				leaves, err := sequencer.SequenceBatch(ctx, logID, logctx.batchSize)
+				leaves, err := sequencer.SequenceBatch(ctx, logID, info.batchSize)
 				if err != nil {
 					glog.Warningf("%v: Error trying to sequence batch for: %v", logID, err)
 					continue
