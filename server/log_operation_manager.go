@@ -16,6 +16,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/golang/glog"
@@ -70,41 +71,42 @@ func NewLogOperationManager(registry extension.Registry, batchSize, numWorkers i
 	}
 }
 
-func (l LogOperationManager) getLogsAndExecutePass(ctx context.Context) bool {
+// getLogIDs returns the current set of active log IDs.
+func (l LogOperationManager) getLogIDs(ctx context.Context) ([]int64, error) {
 	tx, err := l.info.registry.LogStorage.Snapshot(ctx)
 	if err != nil {
-		glog.Warningf("Failed to get tx for run: %v", err)
-		return false
+		return nil, fmt.Errorf("failed to get tx for retrieving logIDs: %v", err)
 	}
 	defer tx.Close()
 
-	// Inner loop is across all active logs, currently one at a time
 	logIDs, err := tx.GetActiveLogIDs()
 	if err != nil {
-		glog.Warningf("Failed to get log list for run: %v", err)
-		return false
+		return nil, fmt.Errorf("failed to get active logIDs: %v", err)
 	}
 
 	if err := tx.Commit(); err != nil {
-		glog.Warningf("Failed to commit getting logs: %v", err)
-		return false
+		return nil, fmt.Errorf("failed to commit getting logs: %v", err)
+	}
+	return logIDs, nil
+}
+
+func (l LogOperationManager) getLogsAndExecutePass(ctx context.Context) error {
+	logIDs, err := l.getLogIDs(ctx)
+	if err != nil {
+		return err
 	}
 
 	// Process each active log once.
 	l.logOperation.ExecutePass(ctx, logIDs, &l.info)
+	return nil
 
-	// See if it's time to quit
-	select {
-	case <-ctx.Done():
-		return true
-	default:
-	}
-	return false
 }
 
 // OperationSingle performs a single pass of the manager.
 func (l LogOperationManager) OperationSingle(ctx context.Context) {
-	l.getLogsAndExecutePass(ctx)
+	if err := l.getLogsAndExecutePass(ctx); err != nil {
+		glog.Errorf("failed to perform operation: %v", err)
+	}
 }
 
 // OperationLoop starts the manager working. It continues until told to exit.
@@ -115,14 +117,18 @@ func (l LogOperationManager) OperationLoop(ctx context.Context) {
 	// Outer loop, runs until terminated
 	for {
 		// TODO(alcutter): want a child context with deadline here?
-		quit := l.getLogsAndExecutePass(ctx)
+		if err := l.getLogsAndExecutePass(ctx); err != nil {
+			glog.Errorf("failed to execute operation on logs: %v", err)
+		}
 
 		glog.V(1).Infof("Log operation manager pass complete")
 
-		// We might want to bail out early when testing
-		if quit {
+		// See if it's time to quit
+		select {
+		case <-ctx.Done():
 			glog.Infof("Log operation manager shutting down")
 			return
+		default:
 		}
 
 		// Wait for the configured time before going for another pass
