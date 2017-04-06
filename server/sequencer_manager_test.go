@@ -115,7 +115,7 @@ func TestSequencerManagerNothingToDo(t *testing.T) {
 
 	sm := NewSequencerManager(registry, zeroDuration)
 
-	sm.ExecutePass(ctx, []int64{}, createTestContext(registry))
+	sm.ExecutePass(ctx, []int64{}, createTestInfo(registry))
 }
 
 func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
@@ -156,7 +156,7 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 
 	sm := NewSequencerManager(registry, zeroDuration)
 
-	sm.ExecutePass(ctx, []int64{logID}, createTestContext(registry))
+	sm.ExecutePass(ctx, []int64{logID}, createTestInfo(registry))
 }
 
 func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
@@ -202,7 +202,7 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 
 	sm := NewSequencerManager(registry, zeroDuration)
 
-	sm.ExecutePass(ctx, []int64{logID}, createTestContext(registry))
+	sm.ExecutePass(ctx, []int64{logID}, createTestInfo(registry))
 }
 
 func TestSequencerManagerGuardWindow(t *testing.T) {
@@ -244,12 +244,12 @@ func TestSequencerManagerGuardWindow(t *testing.T) {
 
 	sm := NewSequencerManager(registry, time.Second*5)
 
-	sm.ExecutePass(ctx, []int64{logID}, createTestContext(registry))
+	sm.ExecutePass(ctx, []int64{logID}, createTestInfo(registry))
 }
 
-func createTestContext(registry extension.Registry) LogOperationManagerContext {
+func createTestInfo(registry extension.Registry) *LogOperationInfo {
 	// Set sign interval to 100 years so it won't trigger a root expiry signing unless overridden
-	return LogOperationManagerContext{
+	return &LogOperationInfo{
 		registry:         registry,
 		batchSize:        50,
 		sleepBetweenRuns: time.Second,
