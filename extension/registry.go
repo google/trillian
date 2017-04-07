@@ -17,6 +17,7 @@ package extension
 import (
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/util"
 )
 
 // Registry defines all extension points available in Trillian.
@@ -31,4 +32,6 @@ type Registry struct {
 	storage.MapStorage
 	// SignerFactory provides the keys used for generating signatures for each tree.
 	keys.SignerFactory
+	// ElectionFactory provides MasterElection instances for each tree.
+	util.ElectionFactory
 }
