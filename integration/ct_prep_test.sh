@@ -68,7 +68,7 @@ waitForServerStartup ${LB_PORT}
 declare -a LOG_SIGNER_PIDS
 for ((i=0; i < LOG_SIGNER_COUNT; i++)); do
   echo "Starting Log signer"
-  ./trillian_log_signer --sequencer_sleep_between_runs="1s" --batch_size=500 --export_metrics=false --num_sequencers 2 &
+  ./trillian_log_signer --sequencer_interval="1s" --batch_size=500 --export_metrics=false --num_sequencers 2 &
   pid=$!
   LOG_SIGNER_PIDS+=(${pid})
 done

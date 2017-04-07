@@ -32,7 +32,7 @@ waitForServerStartup ${RPC_PORT}
 
 echo "Starting Log signer"
 pushd "${TRILLIAN_ROOT}" > /dev/null
-./trillian_log_signer --sequencer_sleep_between_runs="1s" --batch_size=100 --export_metrics=false &
+./trillian_log_signer --sequencer_interval="1s" --batch_size=100 --export_metrics=false &
 LOG_SIGNER_PID=$!
 TO_KILL+=(${LOG_SIGNER_PID})
 popd > /dev/null

@@ -41,8 +41,10 @@ type LogOperationInfo struct {
 	registry extension.Registry
 	// batchSize is the batch size to be passed to tasks run by this manager
 	batchSize int
-	// sleepBetweenRuns is the time to pause after all active logs have processed a batch
-	sleepBetweenRuns time.Duration
+	// runInterval is the time between starting batches of processing.  If a
+	// batch takes longer than this interval to complete, the next batch
+	// will start immediately.
+	runInterval time.Duration
 	// timeSource allows us to mock this in tests
 	timeSource util.TimeSource
 	// numWorkers is the number of worker goroutines to run in parallel.
@@ -60,14 +62,14 @@ type LogOperationManager struct {
 }
 
 // NewLogOperationManager creates a new LogOperationManager instance.
-func NewLogOperationManager(registry extension.Registry, batchSize, numWorkers int, sleepBetweenRuns time.Duration, timeSource util.TimeSource, logOperation LogOperation) *LogOperationManager {
+func NewLogOperationManager(registry extension.Registry, batchSize, numWorkers int, runInterval time.Duration, timeSource util.TimeSource, logOperation LogOperation) *LogOperationManager {
 	return &LogOperationManager{
 		info: LogOperationInfo{
-			registry:         registry,
-			batchSize:        batchSize,
-			sleepBetweenRuns: sleepBetweenRuns,
-			timeSource:       timeSource,
-			numWorkers:       numWorkers,
+			registry:    registry,
+			batchSize:   batchSize,
+			runInterval: runInterval,
+			timeSource:  timeSource,
+			numWorkers:  numWorkers,
 		},
 		logOperation: logOperation,
 	}
@@ -172,6 +174,7 @@ func (l LogOperationManager) OperationLoop(ctx context.Context) {
 	// Outer loop, runs until terminated
 	for {
 		// TODO(alcutter): want a child context with deadline here?
+		start := time.Now()
 		if err := l.getLogsAndExecutePass(ctx); err != nil {
 			glog.Errorf("failed to execute operation on logs: %v", err)
 		}
@@ -187,6 +190,13 @@ func (l LogOperationManager) OperationLoop(ctx context.Context) {
 		}
 
 		// Wait for the configured time before going for another pass
-		time.Sleep(l.info.sleepBetweenRuns)
+		duration := time.Now().Sub(start)
+		wait := l.info.runInterval - duration
+		if wait > 0 {
+			glog.V(1).Infof("Processing started at %v for %v; wait %v before next run", start, duration, wait)
+			time.Sleep(wait)
+		} else {
+			glog.V(1).Infof("Processing started at %v for %v; start next run immediately", start, duration)
+		}
 	}
 }

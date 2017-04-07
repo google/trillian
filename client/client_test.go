@@ -245,7 +245,7 @@ func TestUpdateRoot(t *testing.T) {
 		t.Fatalf("queueLeaf('foo'): %v, want nil", err)
 	}
 	// Wait long enough that the leaf should be included.
-	time.Sleep(2 * integration.SequencerSleepPeriod)
+	time.Sleep(2 * integration.SequencerInterval)
 
 	// UpdateRoot should see a change.
 	if err := client.UpdateRoot(ctx); err != nil {

@@ -31,14 +31,14 @@ import (
 )
 
 var (
-	mySQLURI                      = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "Connection URI for MySQL database")
-	exportRPCMetrics              = flag.Bool("export_metrics", true, "If true starts HTTP server and exports stats")
-	httpPortFlag                  = flag.Int("http_port", 8091, "Port to serve HTTP metrics on")
-	sequencerSleepBetweenRunsFlag = flag.Duration("sequencer_sleep_between_runs", time.Second*10, "Time to pause after each sequencing pass through all logs")
-	batchSizeFlag                 = flag.Int("batch_size", 50, "Max number of leaves to process per batch")
-	numSeqFlag                    = flag.Int("num_sequencers", 10, "Number of sequencers to run in parallel")
-	sequencerGuardWindowFlag      = flag.Duration("sequencer_guard_window", 0, "If set, the time elapsed before submitted leaves are eligible for sequencing")
-	dumpMetricsInterval           = flag.Duration("dump_metrics_interval", 0, "If greater than 0, how often to dump metrics to the logs.")
+	mySQLURI                 = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "Connection URI for MySQL database")
+	exportRPCMetrics         = flag.Bool("export_metrics", true, "If true starts HTTP server and exports stats")
+	httpPortFlag             = flag.Int("http_port", 8091, "Port to serve HTTP metrics on")
+	sequencerIntervalFlag    = flag.Duration("sequencer_interval", time.Second*10, "Time between each sequencing pass through all logs")
+	batchSizeFlag            = flag.Int("batch_size", 50, "Max number of leaves to process per batch")
+	numSeqFlag               = flag.Int("num_sequencers", 10, "Number of sequencer workers to run in parallel")
+	sequencerGuardWindowFlag = flag.Duration("sequencer_guard_window", 0, "If set, the time elapsed before submitted leaves are eligible for sequencing")
+	dumpMetricsInterval      = flag.Duration("dump_metrics_interval", 0, "If greater than 0, how often to dump metrics to the logs.")
 )
 
 func main() {
@@ -80,7 +80,7 @@ func main() {
 	go util.AwaitSignal(cancel)
 
 	sequencerManager := server.NewSequencerManager(registry, *sequencerGuardWindowFlag)
-	sequencerTask := server.NewLogOperationManager(registry, *batchSizeFlag, *numSeqFlag, *sequencerSleepBetweenRunsFlag, util.SystemTimeSource{}, sequencerManager)
+	sequencerTask := server.NewLogOperationManager(registry, *batchSizeFlag, *numSeqFlag, *sequencerIntervalFlag, util.SystemTimeSource{}, sequencerManager)
 	sequencerTask.OperationLoop(ctx)
 
 	// Give things a few seconds to tidy up
