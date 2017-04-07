@@ -21,15 +21,10 @@ import (
 	"testing"
 	"time"
 
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-
 	"github.com/google/trillian"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/testonly/integration"
 )
-
-const timeout = 100 * time.Millisecond
 
 func TestAddGetLeaf(t *testing.T) {
 	// TODO: Build a GetLeaf method and test a full get/set cycle.
@@ -40,10 +35,8 @@ func addSequencedLeaves(ctx context.Context, client VerifyingLogClient, leaves [
 	// TODO(gdbelvin): Replace with batch API.
 	// TODO(gdbelvin): Replace with AddSequencedLeaves API.
 	for _, l := range leaves {
-		ctx, cancel := context.WithDeadline(ctx, time.Now().Add(timeout))
-		defer cancel()
-		if err, want := client.AddLeaf(ctx, l), codes.DeadlineExceeded; grpc.Code(err) != want {
-			return fmt.Errorf("AddLeaf(%v): %v, want, %v", l, err, want)
+		if err := client.AddLeaf(ctx, l); err != nil {
+			return fmt.Errorf("AddLeaf(%x): %v, want nil", l, err)
 		}
 	}
 	return nil
@@ -223,14 +216,6 @@ func TestAddLeaf(t *testing.T) {
 		},
 	} {
 		client := New(logID, test.client, testonly.Hasher, env.PublicKey)
-		{
-			ctx, cancel := context.WithDeadline(ctx, time.Now().Add(timeout))
-			defer cancel()
-			if err, want := client.AddLeaf(ctx, []byte(test.desc)), codes.DeadlineExceeded; grpc.Code(err) != want {
-				t.Errorf("AddLeaf(%v): %v, want, %v", test.desc, err, want)
-				continue
-			}
-		}
 		err := client.AddLeaf(ctx, []byte(test.desc))
 		if got := err != nil; got != test.wantErr {
 			t.Errorf("AddLeaf(%v): %v, want error: %v", test.desc, err, test.wantErr)
@@ -254,14 +239,15 @@ func TestUpdateRoot(t *testing.T) {
 
 	before := client.Root().TreeSize
 
-	{
-		ctx, cancel := context.WithDeadline(ctx, time.Now().Add(timeout))
-		defer cancel()
-		if err, want := client.AddLeaf(ctx, []byte("foo")), codes.DeadlineExceeded; grpc.Code(err) != want {
-			t.Errorf("AddLeaf(): %v, want, %v", err, want)
-		}
+	// Add the leaf without polling for inclusion.
+	leaf := client.buildLeaf([]byte("foo"))
+	if err := client.queueLeaf(ctx, leaf); err != nil {
+		t.Fatalf("queueLeaf('foo'): %v, want nil", err)
 	}
+	// Wait long enough that the leaf should be included.
+	time.Sleep(2 * integration.SequencerSleepPeriod)
 
+	// UpdateRoot should see a change.
 	if err := client.UpdateRoot(ctx); err != nil {
 		t.Error(err)
 	}
