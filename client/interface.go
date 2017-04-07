@@ -26,13 +26,22 @@ type VerifyingLogClient interface {
 	// is available. If no proof is available within the ctx deadline, DeadlineExceeded
 	// is returned.
 	AddLeaf(ctx context.Context, data []byte) error
-	// GetByIndex returns a single leaf.
-	GetByIndex(ctx context.Context, index int64) (*trillian.LogLeaf, error)
-	// ListByIndex returns a contiguous range.
-	ListByIndex(ctx context.Context, start, count int64) ([]*trillian.LogLeaf, error)
+	// VerifyInclusion ensures that data has been included in the log
+	// via an inclusion proof.
+	VerifyInclusion(ctx context.Context, data []byte) error
+	// VerifyInclusionAtIndex ensures that data has been included in the log
+	// via in inclusion proof for a particular index.
+	VerifyInclusionAtIndex(ctx context.Context, data []byte, index int64) error
 	// UpdateRoot fetches and verifies the current SignedTreeRoot.
 	// It checks signatures as well as consistency proofs from the last-seen root.
 	UpdateRoot(ctx context.Context) error
 	// Root provides the last root obtained by UpdateRoot.
 	Root() trillian.SignedLogRoot
+
+	// The following methods do not perform cryptographic verification.
+
+	// GetByIndex returns a single leaf. Does not verify the leaf's inclusion proof.
+	GetByIndex(ctx context.Context, index int64) (*trillian.LogLeaf, error)
+	// ListByIndex returns a contiguous range. Does not verify the leaf's inclusion proof.
+	ListByIndex(ctx context.Context, start, count int64) ([]*trillian.LogLeaf, error)
 }

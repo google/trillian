@@ -217,6 +217,37 @@ func (c *LogClient) UpdateRoot(ctx context.Context) error {
 	return nil
 }
 
+// VerifyInclusion updates the log root and ensures that the given leaf data has been included in the log.
+func (c *LogClient) VerifyInclusion(ctx context.Context, data []byte) error {
+	leaf := c.buildLeaf(data)
+	if err := c.UpdateRoot(ctx); err != nil {
+		return fmt.Errorf("UpdateRoot(): %v", err)
+	}
+	return c.getInclusionProof(ctx, leaf.MerkleLeafHash, c.root.TreeSize)
+}
+
+// VerifyInclusionAtIndex updates the log root and ensures that the given leaf data has been included in the log at a particular index.
+func (c *LogClient) VerifyInclusionAtIndex(ctx context.Context, data []byte, index int64) error {
+	leaf := c.buildLeaf(data)
+	if err := c.UpdateRoot(ctx); err != nil {
+		return fmt.Errorf("UpdateRoot(): %v", err)
+	}
+	req := &trillian.GetInclusionProofRequest{
+		LogId:     c.LogID,
+		LeafIndex: index,
+		TreeSize:  c.root.TreeSize,
+	}
+	resp, err := c.client.GetInclusionProof(ctx, req)
+	if err != nil {
+		return err
+	}
+
+	v := merkle.NewLogVerifier(c.hasher)
+	return v.VerifyInclusionProof(req.LeafIndex, req.TreeSize,
+		convertProof(resp.Proof), c.root.RootHash,
+		leaf.MerkleLeafHash)
+}
+
 func (c *LogClient) getInclusionProof(ctx context.Context, leafHash []byte, treeSize int64) error {
 	req := &trillian.GetInclusionProofByHashRequest{
 		LogId:    c.LogID,
