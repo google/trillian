@@ -88,17 +88,17 @@ var (
 	dequeuedCounter = metric.NewCounter("mysql_dequeued_leaves")
 
 	// Latency breakdown for QueueLeaves
-	queueLeafTotal = metric.NewCounter("mysql_queue_leaf_total")
-	queueLeafLatency = metric.NewCounter("mysql_queue_latency_total")
-	queueLeafDups = metric.NewCounter("mysql_queue_leaf_duplicates")
-	queueLeafInsLeaf = metric.NewCounter("mysql_queue_latency_stage_leaf")
+	queueLeafTotal    = metric.NewCounter("mysql_queue_leaf_total")
+	queueLeafLatency  = metric.NewCounter("mysql_queue_latency_total")
+	queueLeafDups     = metric.NewCounter("mysql_queue_leaf_duplicates")
+	queueLeafInsLeaf  = metric.NewCounter("mysql_queue_latency_stage_leaf")
 	queueLeafInsUnseq = metric.NewCounter("mysql_queue_latency_stage_unseq")
 	queueLeafReadDups = metric.NewCounter("mysql_queue_latency_stage_read")
 	// Latency breakdown for DequeueLeaves
-	dequeueLeafTotal = metric.NewCounter("mysql_dequeue_leaf_total")
+	dequeueLeafTotal   = metric.NewCounter("mysql_dequeue_leaf_total")
 	dequeueLeafLatency = metric.NewCounter("mysql_dequeue_latency_total")
-	dequeueLeafSelect = metric.NewCounter("mysql_dequeue_latency_stage_select")
-	dequeueLeafDelete = metric.NewCounter("mysql_dequeue_latency_stage_delete")
+	dequeueLeafSelect  = metric.NewCounter("mysql_dequeue_latency_stage_select")
+	dequeueLeafDelete  = metric.NewCounter("mysql_dequeue_latency_stage_delete")
 )
 
 type mySQLLogStorage struct {
@@ -113,7 +113,7 @@ func NewLogStorage(db *sql.DB) storage.LogStorage {
 	return &mySQLLogStorage{
 		admin:            NewAdminStorage(db),
 		mySQLTreeStorage: newTreeStorage(db),
-		ts: util.SystemTimeSource{},
+		ts:               util.SystemTimeSource{},
 	}
 }
 
