@@ -326,15 +326,15 @@ small number of dedicated auditors to perform, rather than being done by each
 client.
 
 
-                                         |  Verifiable Log      |  Verifiable Map      |  Verifiable Log-Derived Map
------------------------------------------|----------------------|----------------------|----------------------------
-Prove inclusion of value                 |  Yes, efficiently    |  Yes, efficiently    |  Yes, efficiently
-Prove non-inclusion of value             |  Impractical         |  Yes, efficiently    |  Yes, efficiently
-Retrieve provable value for key          |  Impractical         |  Yes, efficiently    |  Yes, efficiently
-Retrieve provable current value for key  |  Impractical         |  No                  |  Yes, efficiently
-Prove append-only                        |  Yes, efficiently    |  No                  |  Yes, efficiently [1].
-Enumerate all entries                    |  Yes, by full audit  |  Yes, by full audit  |  Yes, by full audit
-Prove correct operation                  |  Yes, efficiently    |  No                  |  Yes, by full audit
-Enable detection of split-view           |  Yes, efficiently    |  Yes, efficiently    |  Yes, efficiently
+|                                          |  Verifiable Log        |  Verifiable Map        |  Verifiable Log-Derived Map |
+| ---------------------------------------- | ---------------------- | ---------------------- |---------------------------- |
+| Prove inclusion of value                 |  Yes, efficiently      |  Yes, efficiently      |  Yes, efficiently           |
+| Prove non-inclusion of value             |  Impractical           |  Yes, efficiently      |  Yes, efficiently           |
+| Retrieve provable value for key          |  Impractical           |  Yes, efficiently      |  Yes, efficiently           |
+| Retrieve provable current value for key  |  Impractical           |  No                    |  Yes, efficiently           |
+| Prove append-only                        |  Yes, efficiently      |  No                    |  Yes, efficiently [1].      |
+| Enumerate all entries                    |  Yes, by full audit    |  Yes, by full audit    |  Yes, by full audit         |
+| Prove correct operation                  |  Yes, efficiently      |  No                    |  Yes, by full audit         |
+| Enable detection of split-view           |  Yes, efficiently      |  Yes, efficiently      |  Yes, efficiently           |
 
 - [1] -- although full audit is required to verify complete correct operation
