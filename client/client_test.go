@@ -205,11 +205,11 @@ func TestAddLeaf(t *testing.T) {
 	}{
 		{
 			desc:   "success 1",
-			client: &MockLogClient{c: cli},
+			client: cli,
 		},
 		{
 			desc:   "success 2",
-			client: &MockLogClient{c: cli},
+			client: cli,
 		},
 		{
 			desc:    "invalid inclusion proof",
