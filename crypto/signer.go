@@ -31,8 +31,8 @@ var sigpbHashLookup = map[crypto.Hash]sigpb.DigitallySigned_HashAlgorithm{
 // Signer is responsible for signing log-related data and producing the appropriate
 // application specific signature objects.
 type Signer struct {
-	hash   crypto.Hash
-	signer crypto.Signer
+	Hash   crypto.Hash
+	Signer crypto.Signer
 }
 
 // NewSigner creates a new Signer wrapping up a hasher and a signer. For the moment
@@ -40,30 +40,30 @@ type Signer struct {
 // here.
 func NewSigner(signer crypto.Signer) *Signer {
 	return &Signer{
-		hash:   crypto.SHA256,
-		signer: signer,
+		Hash:   crypto.SHA256,
+		Signer: signer,
 	}
 }
 
 // Public returns the public key that can verify signatures produced by s.
 func (s *Signer) Public() crypto.PublicKey {
-	return s.signer.Public()
+	return s.Signer.Public()
 }
 
 // Sign obtains a signature after first hashing the input data.
 func (s *Signer) Sign(data []byte) (*sigpb.DigitallySigned, error) {
-	h := s.hash.New()
+	h := s.Hash.New()
 	h.Write(data)
 	digest := h.Sum(nil)
 
-	sig, err := s.signer.Sign(rand.Reader, digest, s.hash)
+	sig, err := s.Signer.Sign(rand.Reader, digest, s.Hash)
 	if err != nil {
 		return nil, err
 	}
 
 	return &sigpb.DigitallySigned{
 		SignatureAlgorithm: keys.SignatureAlgorithm(s.Public()),
-		HashAlgorithm:      sigpbHashLookup[s.hash],
+		HashAlgorithm:      sigpbHashLookup[s.Hash],
 		Signature:          sig,
 	}, nil
 }

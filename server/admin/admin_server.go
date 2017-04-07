@@ -93,6 +93,7 @@ func (s *Server) getTreeImpl(ctx context.Context, request *trillian.GetTreeReque
 
 // CreateTree implements trillian.TrillianAdminServer.CreateTree.
 func (s *Server) CreateTree(ctx context.Context, request *trillian.CreateTreeRequest) (*trillian.Tree, error) {
+	// TODO(codingllama): Add Hash / Signer validation to CreateTree, according to "trees" package methods?
 	tree, err := s.createTreeImpl(ctx, request)
 	if err != nil {
 		return nil, errors.WrapError(err)
