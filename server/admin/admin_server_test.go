@@ -174,7 +174,7 @@ func TestServer_ListTrees(t *testing.T) {
 
 		want := copyAndUpdate(storedTrees, func(t *trillian.Tree) { t.PrivateKey = nil })
 		if diff := pretty.Compare(resp.Tree, want); diff != "" {
-			t.Errorf("%v: post-ListTrees diff:\n%v", test.desc, diff)
+			t.Errorf("%v: post-ListTrees diff (-got +want):\n%v", test.desc, diff)
 		}
 	}
 }
