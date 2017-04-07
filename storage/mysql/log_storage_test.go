@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
-	"strings"
 	"testing"
 	"time"
 
@@ -103,75 +102,107 @@ func TestMySQLLogStorage_CheckDatabaseAccessible(t *testing.T) {
 	}
 }
 
-func TestBegin(t *testing.T) {
+func TestBeginSnapshot(t *testing.T) {
 	cleanTestDB(DB)
-	logID1 := createLogForTests(DB)
-	logID2 := createLogForTests(DB)
-	storage := NewLogStorage(DB)
+
+	frozenLogID := createLogForTests(DB)
+	if _, err := updateTree(DB, frozenLogID, func(tree *trillian.Tree) {
+		tree.TreeState = trillian.TreeState_FROZEN
+	}); err != nil {
+		t.Fatalf("Error updating frozen tree: %v", err)
+	}
+
+	activeLogID := createLogForTests(DB)
+	mapID := createMapForTests(DB)
 
 	tests := []struct {
-		logID         int64
-		err           string
-		writeRevision int
+		desc  string
+		logID int64
+		// "begin" and "snapshot" define which methods to test. Both may be specified for
+		// the same scenario.
+		begin, snapshot, wantErr bool
 	}{
-		{logID: -1, err: "failed to get tree row"},
-		// TODO(codingllama): Test other tree settings (type, hashes, signatures, etc)
-		{logID: logID1},
-		{logID: logID2},
+		{
+			desc:     "unknown",
+			logID:    -1,
+			begin:    true,
+			snapshot: true,
+			wantErr:  true,
+		},
+		{
+			desc:     "activeLog",
+			logID:    activeLogID,
+			begin:    true,
+			snapshot: true,
+		},
+		{
+			desc:    "frozenBegin",
+			logID:   frozenLogID,
+			begin:   true,
+			wantErr: true,
+		},
+		{
+			desc:     "frozenSnapshot",
+			logID:    frozenLogID,
+			snapshot: true,
+		},
+		{
+			desc:     "map",
+			logID:    mapID,
+			begin:    true,
+			snapshot: true,
+			wantErr:  true,
+		},
 	}
 
 	ctx := context.Background()
+	s := NewLogStorage(DB)
 	for _, test := range tests {
-		tx, err := storage.BeginForTree(ctx, test.logID)
-		if hasError, wantError := err != nil, test.err != ""; hasError || wantError {
-			if hasError != wantError || (wantError && !strings.Contains(err.Error(), test.err)) {
-				t.Errorf("Begin() = (_, '%v'), want = (_, '...%v...')", err, test.err)
-			}
+		if !test.begin && !test.snapshot {
+			t.Errorf("%v: test must specified at least one of test.begin or test.snapshot", test.desc)
 			continue
 		}
-		defer tx.Close()
 
-		root, err := tx.LatestSignedLogRoot()
-		if err != nil {
-			t.Errorf("LatestSignedLogRoot() = (_, %v), want = (_, nil)", err)
+		runTest := func(name string, fn func(context.Context, int64) (rootReaderLogTX, error)) {
+			tx, err := fn(ctx, test.logID)
+			if hasErr := err != nil; hasErr != test.wantErr {
+				t.Errorf("%v: %v() returned err = %q, wantErr = %v", test.desc, name, err, test.wantErr)
+				return
+			} else if hasErr {
+				return
+			}
+			defer tx.Close()
+			root, err := tx.LatestSignedLogRoot()
+			if err != nil {
+				t.Errorf("%v/%v: LatestSignedLogRoot() returned err = %v", test.desc, name, err)
+			}
+			if err := tx.Commit(); err != nil {
+				t.Errorf("%v/%v: Commit() returned err = %v", test.desc, name, err)
+			}
+
+			if tx, ok := tx.(storage.TreeTX); ok {
+				if got, want := tx.WriteRevision(), root.TreeRevision+1; got != want {
+					t.Errorf("%v: WriteRevision() = %v, want = %v", test.desc, got, want)
+				}
+			}
 		}
-		if got, want := tx.WriteRevision(), root.TreeRevision+1; got != want {
-			t.Errorf("WriteRevision() = %v, want = %v", got, want)
+
+		if test.begin {
+			runTest("BeginForTree", func(ctx context.Context, treeID int64) (rootReaderLogTX, error) {
+				return s.BeginForTree(ctx, treeID)
+			})
 		}
-		commit(tx, t)
+		if test.snapshot {
+			runTest("SnapshotForTree", func(ctx context.Context, treeID int64) (rootReaderLogTX, error) {
+				return s.SnapshotForTree(ctx, treeID)
+			})
+		}
 	}
 }
 
-func TestSnapshot(t *testing.T) {
-	cleanTestDB(DB)
-	logID := createLogForTests(DB)
-	s := NewLogStorage(DB)
-
-	tests := []struct {
-		logID int64
-		err   string
-	}{
-		{logID: -1, err: "failed to get tree row"},
-		{logID: logID},
-	}
-
-	ctx := context.Background()
-	for _, test := range tests {
-		tx, err := s.SnapshotForTree(ctx, test.logID)
-		if hasError, wantError := err != nil, test.err != ""; hasError || wantError {
-			if hasError != wantError || (wantError && !strings.Contains(err.Error(), test.err)) {
-				t.Errorf("Begin() = (_, '%v'), want = (_, '...%v...')", err, test.err)
-			}
-			continue
-		}
-		defer tx.Close()
-
-		// Do a read so we have something to commit on the snapshot
-		if _, err = tx.LatestSignedLogRoot(); err != nil {
-			t.Errorf("LatestSignedLogRoot() = (_, %v), want = (_, nil)", err)
-		}
-		commit(tx, t)
-	}
+type rootReaderLogTX interface {
+	storage.ReadOnlyTreeTX
+	storage.LogRootReader
 }
 
 func TestIsOpenCommitRollbackClosed(t *testing.T) {

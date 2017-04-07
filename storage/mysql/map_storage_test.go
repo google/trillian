@@ -32,62 +32,105 @@ func TestMySQLMapStorage_CheckDatabaseAccessible(t *testing.T) {
 	}
 }
 
-func TestMapBegin(t *testing.T) {
+func TestMapBeginSnapshot(t *testing.T) {
 	cleanTestDB(DB)
-	mapID := createMapForTests(DB)
-	storage := NewMapStorage(DB)
 
-	// TODO(codingllama): Add tree existence / type validation
+	frozenMapID := createMapForTests(DB)
+	updateTree(DB, frozenMapID, func(tree *trillian.Tree) {
+		tree.TreeState = trillian.TreeState_FROZEN
+	})
+
+	activeMapID := createMapForTests(DB)
+	logID := createLogForTests(DB)
+
 	tests := []struct {
+		desc  string
 		mapID int64
+		// "begin" and "snapshot" define which methods to test. Both may be specified for
+		// the same scenario.
+		begin, snapshot, wantErr bool
 	}{
-		{mapID: mapID},
+		{
+			desc:     "unknown",
+			mapID:    -1,
+			begin:    true,
+			snapshot: true,
+			wantErr:  true,
+		},
+		{
+			desc:     "activeMap",
+			mapID:    activeMapID,
+			begin:    true,
+			snapshot: true,
+		},
+		{
+			desc:    "frozenBegin",
+			mapID:   frozenMapID,
+			begin:   true,
+			wantErr: true,
+		},
+		{
+			desc:     "frozenSnapshot",
+			mapID:    frozenMapID,
+			snapshot: true,
+		},
+		{
+			desc:     "log",
+			mapID:    logID,
+			begin:    true,
+			snapshot: true,
+			wantErr:  true,
+		},
 	}
 
 	ctx := context.Background()
+	s := NewMapStorage(DB)
 	for _, test := range tests {
-		tx, err := storage.BeginForTree(ctx, test.mapID)
-		if err != nil {
-			t.Fatalf("Begin() = (_, %v), want = (_, nil)", err)
+		if !test.begin && !test.snapshot {
+			t.Errorf("%v: test must specified at least one of test.begin or test.snapshot", test.desc)
+			continue
 		}
-		defer tx.Close()
-		root, err := tx.LatestSignedMapRoot()
-		if err != nil {
-			t.Errorf("LatestSignedMapRoot() = (_, %v), want = (_, nil)", err)
+
+		runTest := func(name string, fn func(context.Context, int64) (rootReaderMapTX, error)) {
+			tx, err := fn(ctx, test.mapID)
+			if hasErr := err != nil; hasErr != test.wantErr {
+				t.Errorf("%v: %v() returned err = %q, wantErr = %v", test.desc, name, err, test.wantErr)
+				return
+			} else if hasErr {
+				return
+			}
+			defer tx.Close()
+			root, err := tx.LatestSignedMapRoot()
+			if err != nil {
+				t.Errorf("%v/%v: LatestSignedLogRoot() returned err = %v", test.desc, name, err)
+			}
+			if err := tx.Commit(); err != nil {
+				t.Errorf("%v/%v: Commit() returned err = %v", test.desc, name, err)
+			}
+
+			if tx, ok := tx.(storage.TreeTX); ok {
+				if got, want := tx.WriteRevision(), root.MapRevision+1; got != want {
+					t.Errorf("%v: WriteRevision() = %v, want = %v", test.desc, got, want)
+				}
+			}
 		}
-		if got, want := tx.WriteRevision(), root.MapRevision+1; got != want {
-			t.Errorf("WriteRevision() = %v, want = %v", got, want)
+
+		if test.begin {
+			runTest("BeginForTree", func(ctx context.Context, treeID int64) (rootReaderMapTX, error) {
+				return s.BeginForTree(ctx, treeID)
+			})
 		}
-		commit(tx, t)
+		if test.snapshot {
+			runTest("SnapshotForTree", func(ctx context.Context, treeID int64) (rootReaderMapTX, error) {
+				return s.SnapshotForTree(ctx, treeID)
+			})
+		}
 	}
 }
 
-func TestMapSnapshot(t *testing.T) {
-	cleanTestDB(DB)
-	mapID := createMapForTests(DB)
-	storage := NewMapStorage(DB)
-
-	// TODO(codingllama): Add tree existence / type validation
-	tests := []struct {
-		mapID int64
-	}{
-		{mapID: mapID},
-	}
-
-	ctx := context.Background()
-	for _, test := range tests {
-		tx, err := storage.SnapshotForTree(ctx, test.mapID)
-		if err != nil {
-			t.Fatalf("Snapshot() = (_, %v), want = (_, nil)", err)
-		}
-		defer tx.Close()
-		// Do a read so we have something to commit on the snapshot
-		_, err = tx.LatestSignedMapRoot()
-		if err != nil {
-			t.Errorf("LatestSignedMapRoot() = (_, %v), want = (_, nil)", err)
-		}
-		commit(tx, t)
-	}
+type rootReaderMapTX interface {
+	storage.ReadOnlyTreeTX
+	storage.MapRootReader
 }
 
 func TestMapRootUpdate(t *testing.T) {

@@ -272,6 +272,25 @@ func createTree(db *sql.DB, tree *trillian.Tree) (*trillian.Tree, error) {
 	return newTree, nil
 }
 
+// updateTree updates the specified tree using AdminStorage.
+func updateTree(db *sql.DB, treeID int64, updateFn func(*trillian.Tree)) (*trillian.Tree, error) {
+	s := NewAdminStorage(db)
+	ctx := context.Background()
+	tx, err := s.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Close()
+	tree, err := tx.UpdateTree(ctx, treeID, updateFn)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return tree, nil
+}
+
 // DB is the database used for tests. It's initialized and closed by TestMain().
 var DB *sql.DB
 
