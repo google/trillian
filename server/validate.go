@@ -23,56 +23,56 @@ import (
 
 func validateGetInclusionProofRequest(req *trillian.GetInclusionProofRequest) error {
 	if req.TreeSize <= 0 {
-		return grpc.Errorf(codes.InvalidArgument, "TreeSize: %v, want > 0", req.TreeSize)
+		return grpc.Errorf(codes.InvalidArgument, "GetInclusionProofRequest.TreeSize: %v, want > 0", req.TreeSize)
 	}
 	if req.LeafIndex < 0 {
-		return grpc.Errorf(codes.InvalidArgument, "LeafIndex: %v, want >= 0", req.LeafIndex)
+		return grpc.Errorf(codes.InvalidArgument, "GetInclusionProofRequest.LeafIndex: %v, want >= 0", req.LeafIndex)
 	}
 	if req.LeafIndex >= req.TreeSize {
-		return grpc.Errorf(codes.InvalidArgument, "LeafIndex: %v >= TreeSize: %v, want < ", req.LeafIndex, req.TreeSize)
+		return grpc.Errorf(codes.InvalidArgument, "GetInclusionProofRequest.LeafIndex: %v >= TreeSize: %v, want < ", req.LeafIndex, req.TreeSize)
 	}
 	return nil
 }
 
 func validateGetInclusionProofByHashRequest(req *trillian.GetInclusionProofByHashRequest) error {
 	if req.TreeSize <= 0 {
-		return grpc.Errorf(codes.InvalidArgument, "TreeSize: %v, want > 0", req.TreeSize)
+		return grpc.Errorf(codes.InvalidArgument, "GetInclusionProofByHashRequest.TreeSize: %v, want > 0", req.TreeSize)
 	}
 	if len(req.LeafHash) == 0 {
-		return grpc.Errorf(codes.InvalidArgument, "Empty Leafhash: %v", req.LeafHash)
+		return grpc.Errorf(codes.InvalidArgument, "GetInclusionProofByHashRequest.LeafHash empty")
 	}
 	return nil
 }
 
 func validateGetConsistencyProofRequest(req *trillian.GetConsistencyProofRequest) error {
 	if req.FirstTreeSize <= 0 {
-		return grpc.Errorf(codes.InvalidArgument, "FirstTreeSize: %v, want > 0", req.FirstTreeSize)
+		return grpc.Errorf(codes.InvalidArgument, "GetConsistencyProofRequest.FirstTreeSize: %v, want > 0", req.FirstTreeSize)
 	}
 	if req.SecondTreeSize <= 0 {
-		return grpc.Errorf(codes.InvalidArgument, "SecondTreeSize: %v, want > 0", req.SecondTreeSize)
+		return grpc.Errorf(codes.InvalidArgument, "GetConsistencyProofRequest.SecondTreeSize: %v, want > 0", req.SecondTreeSize)
 	}
 	if req.SecondTreeSize <= req.FirstTreeSize {
-		return grpc.Errorf(codes.InvalidArgument, "FirstTreeSize: %v < SecondTreeSize: %v, want > ", req.FirstTreeSize, req.SecondTreeSize)
+		return grpc.Errorf(codes.InvalidArgument, "GetConsistencyProofRequest.FirstTreeSize: %v < GetConsistencyProofRequest.SecondTreeSize: %v, want > ", req.FirstTreeSize, req.SecondTreeSize)
 	}
 	return nil
 }
 
 func validateGetEntryAndProofRequest(req *trillian.GetEntryAndProofRequest) error {
 	if req.TreeSize <= 0 {
-		return grpc.Errorf(codes.InvalidArgument, "TreeSize: %v, want > 0", req.TreeSize)
+		return grpc.Errorf(codes.InvalidArgument, "GetEntryAndProofRequest.TreeSize: %v, want > 0", req.TreeSize)
 	}
 	if req.LeafIndex < 0 {
-		return grpc.Errorf(codes.InvalidArgument, "LeafIndex: %v, want >= 0", req.LeafIndex)
+		return grpc.Errorf(codes.InvalidArgument, "GetEntryAndProofRequest.LeafIndex: %v, want >= 0", req.LeafIndex)
 	}
 	if req.LeafIndex >= req.TreeSize {
-		return grpc.Errorf(codes.InvalidArgument, "LeafIndex: %v >= TreeSize: %v, want < ", req.LeafIndex, req.TreeSize)
+		return grpc.Errorf(codes.InvalidArgument, "GetEntryAndProofRequest.LeafIndex: %v >= TreeSize: %v, want < ", req.LeafIndex, req.TreeSize)
 	}
 	return nil
 }
 
 func validateQueueLeavesRequest(req *trillian.QueueLeavesRequest) error {
 	if len(req.Leaves) == 0 {
-		return grpc.Errorf(codes.InvalidArgument, "len(leaves)=0, want > 0")
+		return grpc.Errorf(codes.InvalidArgument, "len(QueueLeavesRequest.Leaves)=0, want > 0")
 	}
 	return nil
 }
