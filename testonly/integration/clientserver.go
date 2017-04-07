@@ -37,12 +37,13 @@ import (
 )
 
 var (
-	sequencerWindow  = time.Duration(0)
-	batchSize        = 50
-	sleepBetweenRuns = 100 * time.Millisecond
-	timeSource       = util.SystemTimeSource{}
-	publicKeyPath    = testonly.RelativeToPackage("../../testdata/log-rpc-server.pubkey.pem")
-	privateKeyInfo   = &trillian.PEMKeyFile{
+	sequencerWindow = time.Duration(0)
+	batchSize       = 50
+	// SequencerSleepPeriod is the pause time between runs of the sequencer.
+	SequencerSleepPeriod = 100 * time.Millisecond
+	timeSource           = util.SystemTimeSource{}
+	publicKeyPath        = testonly.RelativeToPackage("../../testdata/log-rpc-server.pubkey.pem")
+	privateKeyInfo       = &trillian.PEMKeyFile{
 		Path:     testonly.RelativeToPackage("../../testdata/log-rpc-server.privkey.pem"),
 		Password: "towel",
 	}
@@ -105,10 +106,10 @@ func NewLogEnv(ctx context.Context, numSequencers int, testID string) (*LogEnv, 
 	ctx, cancel := context.WithCancel(ctx)
 	if numSequencers == 0 {
 		// Test sequencer that needs manual triggering (with env.Sequencer.OperationSingle(ctx)).
-		sequencerTask = server.NewLogOperationManager(registry, batchSize, 1, sleepBetweenRuns, timeSource, sequencerManager)
+		sequencerTask = server.NewLogOperationManager(registry, batchSize, 1, SequencerSleepPeriod, timeSource, sequencerManager)
 	} else {
 		// Start a live sequencer in a goroutine.
-		sequencerTask = server.NewLogOperationManager(registry, batchSize, numSequencers, sleepBetweenRuns, timeSource, sequencerManager)
+		sequencerTask = server.NewLogOperationManager(registry, batchSize, numSequencers, SequencerSleepPeriod, timeSource, sequencerManager)
 		wg.Add(1)
 		go func(wg *sync.WaitGroup, om *server.LogOperationManager) {
 			defer wg.Done()
