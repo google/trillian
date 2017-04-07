@@ -257,7 +257,7 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int) (i
 	}
 
 	st := s.timeSource.Now()
-	seqLatencyAssign.Add(time.Since(mtt))
+	seqLatencyAssign.Add(s.sinceNanos(mtt))
 
 	// We should still have the same number of leaves
 	if want, got := len(leaves), len(sequencedLeaves); want != got {
@@ -290,7 +290,7 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int) (i
 	}
 
 	nodet := s.timeSource.Now()
-	seqLatencyUpdateN(s.sinceNanos(uslt))
+	seqLatencyUpdateN.Add(s.sinceNanos(uslt))
 
 	// Create the log root ready for signing
 	newLogRoot := trillian.SignedLogRoot{
