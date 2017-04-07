@@ -36,7 +36,7 @@ func TestAddGetLeaf(t *testing.T) {
 }
 
 // addSequencedLeaves is a temporary stand-in function for tests until the real API gets built.
-func addSequencedLeaves(ctx context.Context, env *integration.LogEnv, client VerifyingLogClient, leaves [][]byte) error {
+func addSequencedLeaves(ctx context.Context, client VerifyingLogClient, leaves [][]byte) error {
 	// TODO(gdbelvin): Replace with batch API.
 	// TODO(gdbelvin): Replace with AddSequencedLeaves API.
 	for _, l := range leaves {
@@ -70,7 +70,7 @@ func TestGetByIndex(t *testing.T) {
 		[]byte("C"),
 	}
 
-	if err := addSequencedLeaves(ctx, env, client, leafData); err != nil {
+	if err := addSequencedLeaves(ctx, client, leafData); err != nil {
 		t.Errorf("Failed to add leaves: %v", err)
 	}
 
@@ -107,7 +107,7 @@ func TestListByIndex(t *testing.T) {
 		[]byte("C"),
 	}
 
-	if err := addSequencedLeaves(ctx, env, client, leafData); err != nil {
+	if err := addSequencedLeaves(ctx, client, leafData); err != nil {
 		t.Errorf("Failed to add leaves: %v", err)
 	}
 
@@ -143,7 +143,7 @@ func TestVerifyInclusion(t *testing.T) {
 		[]byte("B"),
 	}
 
-	if err := addSequencedLeaves(ctx, env, client, leafData); err != nil {
+	if err := addSequencedLeaves(ctx, client, leafData); err != nil {
 		t.Errorf("Failed to add leaves: %v", err)
 	}
 
@@ -174,7 +174,7 @@ func TestVerifyInclusionAtIndex(t *testing.T) {
 		[]byte("B"),
 	}
 
-	if err := addSequencedLeaves(ctx, env, client, leafData); err != nil {
+	if err := addSequencedLeaves(ctx, client, leafData); err != nil {
 		t.Errorf("Failed to add leaves: %v", err)
 	}
 
