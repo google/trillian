@@ -329,7 +329,7 @@ func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime tim
 		return nil, rows.Err()
 	}
 
-	dequeueLeafTotal.Add(len(leaves))
+	dequeueLeafTotal.Add(int64(len(leaves)))
 	dur := t.ls.sinceNanos(start)
 	dequeueLeafLatency.Add(dur)
 	dequeueLeafSelect.Add(dur)
