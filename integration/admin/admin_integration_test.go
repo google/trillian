@@ -185,9 +185,10 @@ func TestAdminServer_ListTrees(t *testing.T) {
 				} else {
 					tree = testonly.MapTree
 				}
-				resp, err := client.CreateTree(ctx, &trillian.CreateTreeRequest{Tree: tree})
+				req := &trillian.CreateTreeRequest{Tree: tree}
+				resp, err := client.CreateTree(ctx, req)
 				if err != nil {
-					t.Fatalf("%v: CreateTree() = (_, %q), want = (_, nil)", test.desc, err)
+					t.Fatalf("%v: CreateTree(_, %v) = (_, %q), want = (_, nil)", test.desc, req, err)
 				}
 				createdTrees = append(createdTrees, resp)
 			}

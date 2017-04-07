@@ -136,7 +136,7 @@ func TestServer_ListTrees(t *testing.T) {
 	for _, test := range tests {
 		if l := len(storedTrees); l > test.numTrees {
 			t.Fatalf("%v: numTrees = %v, but we already have %v stored trees", test.desc, test.numTrees, l)
-		} else if l < test.numTrees {
+		} else {
 			for i := l; i < test.numTrees; i++ {
 				newTree := *testonly.LogTree
 				newTree.TreeId = nextTreeID
@@ -160,7 +160,7 @@ func TestServer_ListTrees(t *testing.T) {
 		} else {
 			// Take a defensive copy, otherwise the server may end up changing our
 			// source-of-truth trees.
-			trees := deepCopy(storedTrees, func(*trillian.Tree) {})
+			trees := copyAndUpdate(storedTrees, func(*trillian.Tree) {})
 			tx.EXPECT().ListTrees(ctx).Return(trees, nil)
 		}
 
@@ -172,16 +172,16 @@ func TestServer_ListTrees(t *testing.T) {
 			continue
 		}
 
-		want := deepCopy(storedTrees, func(t *trillian.Tree) { t.PrivateKey = nil })
+		want := copyAndUpdate(storedTrees, func(t *trillian.Tree) { t.PrivateKey = nil })
 		if diff := pretty.Compare(resp.Tree, want); diff != "" {
 			t.Errorf("%v: post-ListTrees diff:\n%v", test.desc, diff)
 		}
 	}
 }
 
-// deepCopy makes a deep copy of a slice, allowing for an optional redact function to run on every
-// element.
-func deepCopy(s []*trillian.Tree, f func(*trillian.Tree)) []*trillian.Tree {
+// copyAndUpdate makes a deep copy of a slice, allowing for an optional redact function to run on
+// every element.
+func copyAndUpdate(s []*trillian.Tree, f func(*trillian.Tree)) []*trillian.Tree {
 	otherS := make([]*trillian.Tree, 0, len(s))
 	for _, t := range s {
 		otherT := *t
