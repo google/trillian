@@ -17,6 +17,7 @@ package admin
 import (
 	"context"
 	"net"
+	"sort"
 	"testing"
 
 	"github.com/google/trillian"
@@ -39,13 +40,6 @@ func TestAdminServer_Unimplemented(t *testing.T) {
 		desc string
 		fn   func(context.Context, trillian.TrillianAdminClient) error
 	}{
-		{
-			desc: "ListTrees",
-			fn: func(ctx context.Context, c trillian.TrillianAdminClient) error {
-				_, err := c.ListTrees(ctx, &trillian.ListTreesRequest{})
-				return err
-			},
-		},
 		{
 			desc: "UpdateTree",
 			fn: func(ctx context.Context, c trillian.TrillianAdminClient) error {
@@ -158,6 +152,74 @@ func TestAdminServer_GetTree(t *testing.T) {
 		}
 		// Success of GetTree is part of TestAdminServer_CreateTree, so it's not asserted here.
 	}
+}
+
+func TestAdminServer_ListTrees(t *testing.T) {
+	client, closeFn, err := setupAdminServer()
+	if err != nil {
+		t.Fatalf("setupAdminServer() failed: %v", err)
+	}
+	defer closeFn()
+
+	tests := []struct {
+		desc string
+		// numTrees is the number of trees in storage. New trees are created as necessary
+		// and carried over to following tests.
+		numTrees int
+	}{
+		{desc: "empty"},
+		{desc: "oneTree", numTrees: 1},
+		{desc: "threeTrees", numTrees: 3},
+	}
+
+	ctx := context.Background()
+	createdTrees := []*trillian.Tree{}
+	for _, test := range tests {
+		if l := len(createdTrees); l > test.numTrees {
+			t.Fatalf("%v: numTrees = %v, but we already have %v stored trees", test.desc, test.numTrees, l)
+		} else if l < test.numTrees {
+			for i := l; i < test.numTrees; i++ {
+				var tree *trillian.Tree
+				if i%2 == 0 {
+					tree = testonly.LogTree
+				} else {
+					tree = testonly.MapTree
+				}
+				req := &trillian.CreateTreeRequest{Tree: tree}
+				resp, err := client.CreateTree(ctx, req)
+				if err != nil {
+					t.Fatalf("%v: CreateTree(_, %v) = (_, %q), want = (_, nil)", test.desc, req, err)
+				}
+				createdTrees = append(createdTrees, resp)
+			}
+			sortByTreeID(createdTrees)
+		}
+
+		resp, err := client.ListTrees(ctx, &trillian.ListTreesRequest{})
+		if err != nil {
+			t.Errorf("%v: ListTrees() = (_, %q), want = (_, nil)", test.desc, err)
+			continue
+		}
+
+		got := resp.Tree
+		sortByTreeID(got)
+		if diff := pretty.Compare(got, createdTrees); diff != "" {
+			t.Errorf("%v: post-ListTrees diff:\n%v", test.desc, diff)
+		}
+
+		for _, tree := range resp.Tree {
+			if tree.PrivateKey != nil {
+				t.Errorf("%v: PrivateKey not redacted: %v", test.desc, tree)
+			}
+		}
+	}
+}
+
+func sortByTreeID(s []*trillian.Tree) {
+	less := func(i, j int) bool {
+		return s[i].TreeId < s[j].TreeId
+	}
+	sort.Slice(s, less)
 }
 
 // setupAdminServer prepares and starts an Admin Server, returning a client and
