@@ -217,7 +217,7 @@ func (c *LogClient) UpdateRoot(ctx context.Context) error {
 	return nil
 }
 
-// VerifyInclusion ensures that the given leaf data has been included in the log.
+// VerifyInclusion updates the log root and ensures that the given leaf data has been included in the log.
 func (c *LogClient) VerifyInclusion(ctx context.Context, data []byte) error {
 	leaf := c.buildLeaf(data)
 	if err := c.UpdateRoot(ctx); err != nil {
@@ -226,7 +226,7 @@ func (c *LogClient) VerifyInclusion(ctx context.Context, data []byte) error {
 	return c.getInclusionProof(ctx, leaf.MerkleLeafHash, c.root.TreeSize)
 }
 
-// VerifyInclusionAtIndex ensures that the given leaf data has been included in the log at a particular index.
+// VerifyInclusionAtIndex updates the log root and ensures that the given leaf data has been included in the log at a particular index.
 func (c *LogClient) VerifyInclusionAtIndex(ctx context.Context, data []byte, index int64) error {
 	leaf := c.buildLeaf(data)
 	if err := c.UpdateRoot(ctx); err != nil {
@@ -240,9 +240,6 @@ func (c *LogClient) VerifyInclusionAtIndex(ctx context.Context, data []byte, ind
 	resp, err := c.client.GetInclusionProof(ctx, req)
 	if err != nil {
 		return err
-	}
-	if len(resp.GetProof().ProofNode) < 1 {
-		return errors.New("no inclusion proof supplied")
 	}
 
 	v := merkle.NewLogVerifier(c.hasher)
