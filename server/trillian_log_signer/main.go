@@ -75,7 +75,6 @@ func main() {
 
 	// Start the sequencing loop, which will run until we terminate the process. This controls
 	// both sequencing and signing.
-	// TODO(Martin2112): Should respect read only mode and the flags in tree control etc
 	ctx, cancel := context.WithCancel(context.Background())
 	go util.AwaitSignal(cancel)
 

@@ -68,7 +68,12 @@ var n2n3n4 = &trillian.Node{NodeHash: th.HashChildren(h4, th.HashChildren(h3, h2
 var n4n5 = &trillian.Node{NodeHash: th.HashChildren(h5, h4)}
 
 func TestRehasher(t *testing.T) {
-	var rehashTests = []rehashTest{
+	hasher, err := merkle.Factory(merkle.RFC6962SHA256Type)
+	if err != nil {
+		t.Fatalf("Error getting hasher: %v", err)
+	}
+
+	rehashTests := []rehashTest{
 		{
 			desc:    "no rehash",
 			index:   126,
@@ -122,7 +127,7 @@ func TestRehasher(t *testing.T) {
 	}
 
 	for _, rehashTest := range rehashTests {
-		r := newRehasher()
+		r := &rehasher{th: hasher}
 		for i, node := range rehashTest.nodes {
 			r.process(node, rehashTest.fetches[i])
 		}
@@ -141,6 +146,11 @@ func TestRehasher(t *testing.T) {
 }
 
 func TestTree813FetchAll(t *testing.T) {
+	hasher, err := merkle.Factory(merkle.RFC6962SHA256Type)
+	if err != nil {
+		t.Fatalf("Error getting hasher: %v", err)
+	}
+
 	const ts int64 = 813
 
 	mt := treeAtSize(int(ts))
@@ -155,7 +165,7 @@ func TestTree813FetchAll(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		proof, err := fetchNodesAndBuildProof(r, testTreeRevision, int64(l), fetches)
+		proof, err := fetchNodesAndBuildProof(r, hasher, testTreeRevision, int64(l), fetches)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -179,6 +189,11 @@ func TestTree813FetchAll(t *testing.T) {
 }
 
 func TestTree32InclusionProofFetchAll(t *testing.T) {
+	hasher, err := merkle.Factory(merkle.RFC6962SHA256Type)
+	if err != nil {
+		t.Fatalf("Error getting hasher: %v", err)
+	}
+
 	for ts := 2; ts <= 32; ts++ {
 		mt := treeAtSize(ts)
 		r := testonly.NewMultiFakeNodeReaderFromLeaves([]testonly.LeafBatch{
@@ -192,7 +207,7 @@ func TestTree32InclusionProofFetchAll(t *testing.T) {
 					t.Fatal(err)
 				}
 
-				proof, err := fetchNodesAndBuildProof(r, testTreeRevision, int64(l), fetches)
+				proof, err := fetchNodesAndBuildProof(r, hasher, testTreeRevision, int64(l), fetches)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -215,6 +230,11 @@ func TestTree32InclusionProofFetchAll(t *testing.T) {
 }
 
 func TestTree32InclusionProofFetchMultiBatch(t *testing.T) {
+	hasher, err := merkle.Factory(merkle.RFC6962SHA256Type)
+	if err != nil {
+		t.Fatalf("Error getting hasher: %v", err)
+	}
+
 	mt := treeAtSize(32)
 	// The reader is built up with multiple batches, 4 batches x 8 leaves each
 	r := testonly.NewMultiFakeNodeReaderFromLeaves([]testonly.LeafBatch{
@@ -232,7 +252,7 @@ func TestTree32InclusionProofFetchMultiBatch(t *testing.T) {
 			}
 
 			// Use the highest tree revision that should be available from the node reader
-			proof, err := fetchNodesAndBuildProof(r, testTreeRevision+3, l, fetches)
+			proof, err := fetchNodesAndBuildProof(r, hasher, testTreeRevision+3, l, fetches)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -254,6 +274,11 @@ func TestTree32InclusionProofFetchMultiBatch(t *testing.T) {
 }
 
 func TestTree32ConsistencyProofFetchAll(t *testing.T) {
+	hasher, err := merkle.Factory(merkle.RFC6962SHA256Type)
+	if err != nil {
+		t.Fatalf("Error getting hasher: %v", err)
+	}
+
 	for ts := 2; ts <= 32; ts++ {
 		mt := treeAtSize(ts)
 		r := testonly.NewMultiFakeNodeReaderFromLeaves([]testonly.LeafBatch{
@@ -267,7 +292,7 @@ func TestTree32ConsistencyProofFetchAll(t *testing.T) {
 					t.Fatal(err)
 				}
 
-				proof, err := fetchNodesAndBuildProof(r, testTreeRevision, int64(s1), fetches)
+				proof, err := fetchNodesAndBuildProof(r, hasher, testTreeRevision, int64(s1), fetches)
 				if err != nil {
 					t.Fatal(err)
 				}

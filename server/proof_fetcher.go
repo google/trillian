@@ -27,13 +27,13 @@ import (
 // This includes rehashing where necessary to serve proofs for tree sizes between stored tree
 // revisions. This code only relies on the NodeReader interface so can be tested without
 // a complete storage implementation.
-func fetchNodesAndBuildProof(tx storage.NodeReader, treeRevision, leafIndex int64, proofNodeFetches []merkle.NodeFetch) (trillian.Proof, error) {
+func fetchNodesAndBuildProof(tx storage.NodeReader, th merkle.TreeHasher, treeRevision, leafIndex int64, proofNodeFetches []merkle.NodeFetch) (trillian.Proof, error) {
 	proofNodes, err := fetchNodes(tx, treeRevision, proofNodeFetches)
 	if err != nil {
 		return trillian.Proof{}, err
 	}
 
-	r := newRehasher()
+	r := &rehasher{th: th}
 	for i, node := range proofNodes {
 		r.process(node, proofNodeFetches[i])
 	}
@@ -48,18 +48,6 @@ type rehasher struct {
 	rehashNode storage.Node
 	proof      []*trillian.Node
 	proofError error
-}
-
-// init must be called before the rehasher is used or reused
-func newRehasher() *rehasher {
-	// TODO(Martin2112): Hasher must be selected based on log config.
-	hasher, err := merkle.Factory(merkle.RFC6962SHA256Type)
-	if err != nil {
-		panic("Unknown hash strategy")
-	}
-	return &rehasher{
-		th: hasher,
-	}
 }
 
 func (r *rehasher) process(node storage.Node, fetch merkle.NodeFetch) {
