@@ -105,7 +105,7 @@ func (cfg LogConfig) SetUpInstance(client trillian.TrillianLogClient, deadline t
 		return nil, fmt.Errorf("failed to load private key: %v", err)
 	}
 
-	signer := crypto.NewSigner(key)
+	signer := crypto.NewSHA256Signer(key)
 
 	// Create and register the handlers using the RPC client we just set up
 	ctx := NewLogContext(cfg.LogID, cfg.Prefix, roots, client, signer, deadline, new(util.SystemTimeSource))

@@ -55,7 +55,7 @@ func TestSigner(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to open test key")
 	}
-	signer := NewSigner(key)
+	signer := NewSHA256Signer(key)
 
 	pk, err := keys.NewFromPublicPEM(testonly.DemoPublicKey)
 	if err != nil {
@@ -96,7 +96,7 @@ func TestSignerFails(t *testing.T) {
 		t.Fatalf("Failed to load private key: %v", err)
 	}
 
-	_, err = NewSigner(testonly.NewSignerWithErr(key, errors.New("sign"))).Sign([]byte(message))
+	_, err = NewSHA256Signer(testonly.NewSignerWithErr(key, errors.New("sign"))).Sign([]byte(message))
 	if err == nil {
 		t.Fatalf("Ignored a signing error: %v", err)
 	}
@@ -115,7 +115,7 @@ func TestSignLogRootSignerFails(t *testing.T) {
 
 	s := testonly.NewSignerWithErr(key, errors.New("signfail"))
 	root := trillian.SignedLogRoot{TimestampNanos: 2267709, RootHash: []byte("Islington"), TreeSize: 2}
-	_, err = NewSigner(s).Sign(HashLogRoot(root))
+	_, err = NewSHA256Signer(s).Sign(HashLogRoot(root))
 
 	testonly.EnsureErrorContains(t, err, "signfail")
 }

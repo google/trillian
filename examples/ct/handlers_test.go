@@ -544,9 +544,9 @@ func TestGetSTH(t *testing.T) {
 		func() {
 			var signer *crypto.Signer
 			if test.signErr != nil {
-				signer = crypto.NewSigner(testonly.NewSignerWithErr(key, test.signErr))
+				signer = crypto.NewSHA256Signer(testonly.NewSignerWithErr(key, test.signErr))
 			} else {
-				signer = crypto.NewSigner(testonly.NewSignerWithFixedSig(key, fakeSignature))
+				signer = crypto.NewSHA256Signer(testonly.NewSignerWithFixedSig(key, fakeSignature))
 			}
 
 			info := setupTest(t, []string{cttestonly.CACertPEM}, signer)

@@ -35,10 +35,11 @@ type Signer struct {
 	Signer crypto.Signer
 }
 
-// NewSigner creates a new Signer wrapping up a hasher and a signer. For the moment
+// NewSHA256Signer creates a new Signer wrapping up a hasher and a signer. For the moment
 // we only support SHA256 hashing and either ECDSA or RSA signing but this is not enforced
 // here.
-func NewSigner(signer crypto.Signer) *Signer {
+// TODO(codingllama): Consider dropping NewSHA256Signer
+func NewSHA256Signer(signer crypto.Signer) *Signer {
 	return &Signer{
 		Hash:   crypto.SHA256,
 		Signer: signer,
