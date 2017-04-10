@@ -61,7 +61,7 @@ To build and run the Trillian code you need:
 
  - Go 1.7 or later.
  - [MySQL](https://www.mysql.com/) or [MariaDB](https://mariadb.org/) to provide
-   the data storage layer; see the [MySQL Setup](#mysql_setup) section.
+   the data storage layer; see the [MySQL Setup](#mysql-setup) section.
 
 Then use the standard Go tools to install other dependencies, build and run unit
 tests:
@@ -75,7 +75,7 @@ go test ./...
 ```
 
 The repository also includes multi-process integration tests, described in the
-[Integration Tests](#integration_tests) section below.
+[Integration Tests](#integration-tests) section below.
 
 ### MySQL Setup
 
