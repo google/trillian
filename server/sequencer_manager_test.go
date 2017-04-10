@@ -17,6 +17,7 @@ package server
 import (
 	"context"
 	"crypto"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -98,24 +99,10 @@ func newSignerWithFixedSig(sig *sigpb.DigitallySigned) (crypto.Signer, error) {
 	}
 
 	if keys.SignatureAlgorithm(key) != sig.GetSignatureAlgorithm() {
-		return nil, fmt.Errorf("signature algorithm does not match demo public key")
+		return nil, errors.New("signature algorithm does not match demo public key")
 	}
 
 	return testonly.NewSignerWithFixedSig(key, sig.Signature), nil
-}
-
-func TestSequencerManagerNothingToDo(t *testing.T) {
-	ctx := util.NewLogContext(context.Background(), -1)
-	mockCtrl := gomock.NewController(t)
-	defer mockCtrl.Finish()
-
-	registry := extension.Registry{
-		LogStorage: storage.NewMockLogStorage(mockCtrl),
-	}
-
-	sm := NewSequencerManager(registry, zeroDuration)
-
-	sm.ExecutePass(ctx, 0, createTestInfo(registry))
 }
 
 func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {

@@ -40,6 +40,7 @@ var hashTypes = map[string]TreeHasher{
 }
 
 // Factory supports fetching custom hashers based on tree types.
+// TODO(codingllama): Get rid of Factory and hashTypes. It's never used by production code.
 func Factory(hashType string) (TreeHasher, error) {
 	h, ok := hashTypes[hashType]
 	if !ok {
