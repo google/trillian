@@ -99,5 +99,5 @@ func newSigner(ctx context.Context, registry extension.Registry, logID int64) (*
 		return nil, err
 	}
 
-	return crypto.NewSigner(signer), nil
+	return crypto.NewSHA256Signer(signer), nil
 }

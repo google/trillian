@@ -68,7 +68,7 @@ func TestSignVerify(t *testing.T) {
 		msg := []byte("foo")
 		var signature *sigpb.DigitallySigned
 		if !test.skipSigning {
-			signature, err = NewSigner(key).Sign(msg)
+			signature, err = NewSHA256Signer(key).Sign(msg)
 			if err != nil {
 				t.Errorf("%s: Sign()=(_,%v), want (_,nil)", test.name, err)
 				continue

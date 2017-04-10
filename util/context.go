@@ -30,11 +30,13 @@ const (
 )
 
 // NewLogContext returns a new context instance that is scoped to a particular Log.
+// TODO(codingllama): Remove NewLogContext in favor of trees.NewContext
 func NewLogContext(ctx context.Context, logID int64) context.Context {
 	return context.WithValue(ctx, logIDKey, logID)
 }
 
 // NewMapContext returns a new context instance that is scoped to a particular Map.
+// TODO(codingllama): Remove NewMapContext in favor of trees.NewContext
 func NewMapContext(ctx context.Context, mapID int64) context.Context {
 	return context.WithValue(ctx, mapIDKey, mapID)
 }

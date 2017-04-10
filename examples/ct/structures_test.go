@@ -88,7 +88,7 @@ func setupSigner(fakeSig []byte) (*crypto.Signer, error) {
 		return nil, err
 	}
 
-	return crypto.NewSigner(testonly.NewSignerWithFixedSig(key, fakeSig)), nil
+	return crypto.NewSHA256Signer(testonly.NewSignerWithFixedSig(key, fakeSig)), nil
 }
 
 // Creates a dummy cert chain

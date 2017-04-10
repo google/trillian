@@ -237,7 +237,7 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) (testCont
 		}
 	}
 
-	signer := crypto.NewSigner(params.signer)
+	signer := crypto.NewSHA256Signer(params.signer)
 	sequencer := NewSequencer(testonly.Hasher, util.FakeTimeSource{FakeTime: fakeTimeForTest}, mockStorage, signer)
 
 	return testContext{mockTx: mockTx, mockStorage: mockStorage, signer: signer, sequencer: sequencer}, util.NewLogContext(context.Background(), params.logID)
