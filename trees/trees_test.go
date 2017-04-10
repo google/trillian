@@ -80,11 +80,12 @@ func TestGetTree(t *testing.T) {
 	hardDeletedTree.TreeState = trillian.TreeState_HARD_DELETED
 
 	tests := []struct {
-		desc                                 string
-		treeID                               int64
-		opts                                 GetOpts
-		ctxTree, storageTree, wantTree       *trillian.Tree
-		beginErr, getErr, commitErr, wantErr bool
+		desc                           string
+		treeID                         int64
+		opts                           GetOpts
+		ctxTree, storageTree, wantTree *trillian.Tree
+		beginErr, getErr, commitErr    error
+		wantErr                        bool
 	}{
 		{
 			desc:        "logTree",
@@ -161,21 +162,21 @@ func TestGetTree(t *testing.T) {
 			desc:     "beginErr",
 			treeID:   logTree.TreeId,
 			opts:     GetOpts{TreeType: trillian.TreeType_LOG},
-			beginErr: true,
+			beginErr: errors.New("begin err"),
 			wantErr:  true,
 		},
 		{
 			desc:    "getErr",
 			treeID:  logTree.TreeId,
 			opts:    GetOpts{TreeType: trillian.TreeType_LOG},
-			getErr:  true,
+			getErr:  errors.New("get err"),
 			wantErr: true,
 		},
 		{
 			desc:      "commitErr",
 			treeID:    logTree.TreeId,
 			opts:      GetOpts{TreeType: trillian.TreeType_LOG},
-			commitErr: true,
+			commitErr: errors.New("commit err"),
 			wantErr:   true,
 		},
 	}
@@ -186,23 +187,12 @@ func TestGetTree(t *testing.T) {
 	for _, test := range tests {
 		ctx := NewContext(context.Background(), test.ctxTree)
 
-		var beginErr, getErr, commitErr error
-		if test.beginErr {
-			beginErr = errors.New("begin error")
-		}
-		if test.getErr {
-			getErr = errors.New("get error")
-		}
-		if test.commitErr {
-			commitErr = errors.New("commit error")
-		}
-
 		admin := storage.NewMockAdminStorage(ctrl)
 		tx := storage.NewMockReadOnlyAdminTX(ctrl)
-		admin.EXPECT().Snapshot(ctx).MaxTimes(1).Return(tx, beginErr)
-		tx.EXPECT().GetTree(ctx, test.treeID).MaxTimes(1).Return(test.storageTree, getErr)
+		admin.EXPECT().Snapshot(ctx).MaxTimes(1).Return(tx, test.beginErr)
+		tx.EXPECT().GetTree(ctx, test.treeID).MaxTimes(1).Return(test.storageTree, test.getErr)
 		tx.EXPECT().Close().MaxTimes(1).Return(nil)
-		tx.EXPECT().Commit().MaxTimes(1).Return(commitErr)
+		tx.EXPECT().Commit().MaxTimes(1).Return(test.commitErr)
 
 		tree, err := GetTree(ctx, admin, test.treeID, test.opts)
 		if hasErr := err != nil; hasErr != test.wantErr {
@@ -221,28 +211,28 @@ func TestGetTree(t *testing.T) {
 
 func TestHash(t *testing.T) {
 	tests := []struct {
-		hash     sigpb.DigitallySigned_HashAlgorithm
+		hashAlgo sigpb.DigitallySigned_HashAlgorithm
 		wantHash crypto.Hash
 		wantErr  bool
 	}{
-		{hash: sigpb.DigitallySigned_NONE, wantErr: true},
-		{hash: sigpb.DigitallySigned_SHA256, wantHash: crypto.SHA256},
+		{hashAlgo: sigpb.DigitallySigned_NONE, wantErr: true},
+		{hashAlgo: sigpb.DigitallySigned_SHA256, wantHash: crypto.SHA256},
 	}
 
 	for _, test := range tests {
 		tree := *testonly.LogTree
-		tree.HashAlgorithm = test.hash
+		tree.HashAlgorithm = test.hashAlgo
 
 		hash, err := Hash(&tree)
 		if hasErr := err != nil; hasErr != test.wantErr {
-			t.Errorf("Hash(%s) = (_, %q), wantErr = %v", test.hash, err, test.wantErr)
+			t.Errorf("Hash(%s) = (_, %q), wantErr = %v", test.hashAlgo, err, test.wantErr)
 			continue
 		} else if hasErr {
 			continue
 		}
 
 		if hash != test.wantHash {
-			t.Errorf("Hash(%s) = (%v, nil), want = (%v, nil)", test.hash, hash, test.wantHash)
+			t.Errorf("Hash(%s) = (%v, nil), want = (%v, nil)", test.hashAlgo, hash, test.wantHash)
 		}
 	}
 }
@@ -300,7 +290,7 @@ func TestSigner(t *testing.T) {
 		desc             string
 		sigAlgo          sigpb.DigitallySigned_SignatureAlgorithm
 		signer           crypto.Signer
-		signerFactoryErr bool
+		signerFactoryErr error
 		wantErr          bool
 	}{
 		{
@@ -333,7 +323,7 @@ func TestSigner(t *testing.T) {
 		{
 			desc:             "signerFactoryErr",
 			sigAlgo:          sigpb.DigitallySigned_ECDSA,
-			signerFactoryErr: true,
+			signerFactoryErr: errors.New("signer factory error"),
 			wantErr:          true,
 		},
 	}
@@ -345,13 +335,8 @@ func TestSigner(t *testing.T) {
 		tree.HashStrategy = trillian.HashStrategy_RFC_6962
 		tree.SignatureAlgorithm = test.sigAlgo
 
-		var sfErr error
-		if test.signerFactoryErr {
-			sfErr = errors.New("signer factory error")
-		}
-
 		sf := keys.NewMockSignerFactory(ctrl)
-		sf.EXPECT().NewSigner(ctx, &tree).MaxTimes(1).Return(test.signer, sfErr)
+		sf.EXPECT().NewSigner(ctx, &tree).MaxTimes(1).Return(test.signer, test.signerFactoryErr)
 
 		signer, err := Signer(ctx, sf, &tree)
 		if hasErr := err != nil; hasErr != test.wantErr {

@@ -40,7 +40,8 @@ func NewContext(ctx context.Context, tree *trillian.Tree) context.Context {
 	return context.WithValue(ctx, treeKey{}, tree)
 }
 
-// FromContext returns the tree within ctx or false.
+// FromContext returns the tree within ctx if present, together with an indication of whether a
+// tree was present.
 func FromContext(ctx context.Context) (*trillian.Tree, bool) {
 	tree, ok := ctx.Value(treeKey{}).(*trillian.Tree)
 	return tree, ok && tree != nil
@@ -72,11 +73,11 @@ func GetTree(ctx context.Context, s storage.AdminStorage, treeID int64, opts Get
 
 	switch {
 	case opts.TreeType != trillian.TreeType_UNKNOWN_TREE_TYPE && tree.TreeType != opts.TreeType:
-		return nil, errors.Errorf(errors.InvalidArgument, "operation not allowed for %s-type trees", tree.TreeType)
+		return nil, errors.Errorf(errors.InvalidArgument, "operation not allowed for %s-type trees (wanted %s-type)", tree.TreeType, opts.TreeType)
 	case tree.TreeState == trillian.TreeState_FROZEN && !opts.Readonly:
 		return nil, errors.Errorf(errors.FailedPrecondition, "operation not allowed on %s trees", tree.TreeState)
 	case tree.TreeState == trillian.TreeState_SOFT_DELETED || tree.TreeState == trillian.TreeState_HARD_DELETED:
-		return nil, errors.Errorf(errors.NotFound, "unknown tree: %v", tree.TreeId)
+		return nil, errors.Errorf(errors.NotFound, "deleted tree: %v", tree.TreeId)
 	}
 
 	return tree, nil
@@ -108,7 +109,7 @@ func Hash(tree *trillian.Tree) (crypto.Hash, error) {
 	return crypto.SHA256, fmt.Errorf("unexpected hash algorithm: %s", tree.HashAlgorithm)
 }
 
-// Hasher returns the merkle.TreeHasher configured by the tree.
+// Hasher returns a merkle.TreeHasher of the kind configured for the tree.
 func Hasher(tree *trillian.Tree) (merkle.TreeHasher, error) {
 	hash, err := Hash(tree)
 	if err != nil {
@@ -122,7 +123,7 @@ func Hasher(tree *trillian.Tree) (merkle.TreeHasher, error) {
 	return nil, fmt.Errorf("unexpected hash strategy: %s", tree.HashStrategy)
 }
 
-// Signer returns the Trillian crypto.Signer configured by the tree.
+// Signer returns a Trillian crypto.Signer configured by the tree.
 func Signer(ctx context.Context, sf keys.SignerFactory, tree *trillian.Tree) (*tcrypto.Signer, error) {
 	if tree.SignatureAlgorithm == sigpb.DigitallySigned_ANONYMOUS {
 		return nil, fmt.Errorf("signature algorithm not supported: %s", tree.SignatureAlgorithm)
