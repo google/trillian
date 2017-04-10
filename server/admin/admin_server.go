@@ -17,8 +17,10 @@ package admin
 import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto/keys"
+	"github.com/google/trillian/errors"
 	"github.com/google/trillian/extension"
-	"github.com/google/trillian/server/errors"
+	svrerrors "github.com/google/trillian/server/errors"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -69,7 +71,7 @@ func (s *Server) listTreeImpls(ctx context.Context, request *trillian.ListTreesR
 func (s *Server) GetTree(ctx context.Context, request *trillian.GetTreeRequest) (*trillian.Tree, error) {
 	tree, err := s.getTreeImpl(ctx, request)
 	if err != nil {
-		return nil, errors.WrapError(err)
+		return nil, svrerrors.WrapError(err)
 	}
 	return tree, nil
 }
@@ -95,18 +97,43 @@ func (s *Server) getTreeImpl(ctx context.Context, request *trillian.GetTreeReque
 func (s *Server) CreateTree(ctx context.Context, request *trillian.CreateTreeRequest) (*trillian.Tree, error) {
 	tree, err := s.createTreeImpl(ctx, request)
 	if err != nil {
-		return nil, errors.WrapError(err)
+		return nil, svrerrors.WrapError(err)
 	}
 	return tree, err
 }
 
 func (s *Server) createTreeImpl(ctx context.Context, request *trillian.CreateTreeRequest) (*trillian.Tree, error) {
+	tree := request.GetTree()
+
+	if tree.GetPrivateKey() == nil {
+		keyGen, ok := s.registry.SignerFactory.(keys.Generator)
+		if !ok {
+			return nil, errors.New(errors.InvalidArgument, "tree.private_key must be set")
+		}
+
+		// Update the tree with a newly-generated private key.
+		var err error
+		tree, err = keyGen.Generate(ctx, tree)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Test that a signer can be obtained using the tree's PrivateKey.
+	_, err := s.registry.SignerFactory.NewSigner(ctx, tree)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO(robpercival): Should this call ListTrees and check that no existing tree has a matching PrivateKey?
+	// This would protect against forking a tree, but would slow down CreateTree.
+
 	tx, err := s.registry.AdminStorage.Begin(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Close()
-	tree, err := tx.CreateTree(ctx, request.GetTree())
+	tree, err = tx.CreateTree(ctx, tree)
 	if err != nil {
 		return nil, err
 	}

@@ -21,11 +21,10 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
-	"errors"
-	"fmt"
 	"io/ioutil"
 
 	"github.com/google/trillian"
+	"github.com/google/trillian/errors"
 )
 
 // SignerFactory creates signers for Trillian trees.
@@ -34,7 +33,20 @@ import (
 // examples.
 type SignerFactory interface {
 	// NewSigner returns a signer for the given tree.
+	// The tree.PrivateKey field must identify the private key that the signer will use.
 	NewSigner(context.Context, *trillian.Tree) (crypto.Signer, error)
+}
+
+// Generator generates a new private key for Trillian trees.
+// It is also a SignerFactory, i.e. it can create signers for trees that already have a key.
+type Generator interface {
+	SignerFactory
+
+	// Generate creates a new private key for the given tree.
+	// The tree.PrivateKey field must not be set.
+	// The tree.SignatureAlgorithm field controls what algorithm is used for key generation.
+	// The updated tree, with its PrivateKey field appropriately set, is returned.
+	Generate(context.Context, *trillian.Tree) (*trillian.Tree, error)
 }
 
 // NewFromPrivatePEMFile reads a PEM-encoded private key from a file.
@@ -42,12 +54,12 @@ type SignerFactory interface {
 func NewFromPrivatePEMFile(keyFile, keyPassword string) (crypto.Signer, error) {
 	pemData, err := ioutil.ReadFile(keyFile)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read private key from file %q: %v", keyFile, err)
+		return nil, errors.Errorf(errors.FailedPrecondition, "could not read private key from file %q: %v", keyFile, err)
 	}
 
 	k, err := NewFromPrivatePEM(string(pemData), keyPassword)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode private key from file %q: %v", keyFile, err)
+		return nil, errors.Errorf(errors.ErrorCode(err), "could not decode private key from file %q: %v", keyFile, err)
 	}
 
 	return k, nil
@@ -57,17 +69,23 @@ func NewFromPrivatePEMFile(keyFile, keyPassword string) (crypto.Signer, error) {
 // The key may be protected by a password.
 func NewFromPrivatePEM(pemEncodedKey, password string) (crypto.Signer, error) {
 	block, rest := pem.Decode([]byte(pemEncodedKey))
+	if block == nil {
+		return nil, errors.New(errors.InvalidArgument, "failed to decode PEM block")
+	}
 	if len(rest) > 0 {
-		return nil, errors.New("extra data found after PEM decoding")
+		return nil, errors.New(errors.InvalidArgument, "extra data found after PEM decoding")
 	}
 
 	der := block.Bytes
 	if password != "" {
-		pwdDer, err := x509.DecryptPEMBlock(block, []byte(password))
+		decryptedDER, err := x509.DecryptPEMBlock(block, []byte(password))
+		if err == x509.IncorrectPasswordError {
+			return nil, errors.New(errors.InvalidArgument, err.Error())
+		}
 		if err != nil {
 			return nil, err
 		}
-		der = pwdDer
+		der = decryptedDER
 	}
 
 	return NewFromPrivateDER(der)
@@ -88,7 +106,7 @@ func NewFromPrivateDER(der []byte) (crypto.Signer, error) {
 		case *rsa.PrivateKey:
 			return key2, nil
 		}
-		return nil, fmt.Errorf("unsupported private key type: %T", key2)
+		return nil, errors.Errorf(errors.InvalidArgument, "unsupported private key type: %T", key2)
 	}
 
 	key3, err3 := x509.ParseECPrivateKey(der)
@@ -96,5 +114,5 @@ func NewFromPrivateDER(der []byte) (crypto.Signer, error) {
 		return key3, nil
 	}
 
-	return nil, fmt.Errorf("could not parse DER private key as PKCS1 (%v), PKCS8 (%v), or SEC1 (%v)", err1, err2, err3)
+	return nil, errors.Errorf(errors.InvalidArgument, "could not parse DER private key as PKCS1 (%v), PKCS8 (%v), or SEC1 (%v)", err1, err2, err3)
 }

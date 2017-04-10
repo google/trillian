@@ -79,6 +79,8 @@ service TrillianAdmin {
   }
 
   // Creates a new tree.
+  // If the tree's private key does not exist, a new private key will be
+  // generated if possible.
   // System-generated fields are not required and will be ignored if present,
   // e.g.: tree_id, create_time and update_time.
   // Returns the created tree, with all system-generated fields assigned.

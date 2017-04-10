@@ -19,10 +19,14 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto/keys"
+	terrors "github.com/google/trillian/errors"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/storage"
-	"github.com/google/trillian/storage/testonly"
+	stestonly "github.com/google/trillian/storage/testonly"
+	"github.com/google/trillian/testonly"
 	"github.com/kylelemons/godebug/pretty"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -86,7 +90,7 @@ func TestServer_BeginError(t *testing.T) {
 		{
 			desc: "CreateTree",
 			fn: func(ctx context.Context, s *Server) error {
-				_, err := s.CreateTree(ctx, &trillian.CreateTreeRequest{Tree: testonly.LogTree})
+				_, err := s.CreateTree(ctx, &trillian.CreateTreeRequest{Tree: stestonly.LogTree})
 				return err
 			},
 		},
@@ -102,7 +106,8 @@ func TestServer_BeginError(t *testing.T) {
 		}
 
 		registry := extension.Registry{
-			AdminStorage: as,
+			AdminStorage:  as,
+			SignerFactory: keys.PEMSignerFactory{},
 		}
 
 		s := &Server{registry: registry}
@@ -195,46 +200,59 @@ func TestServer_GetTree(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	invalidTree := *testonly.LogTree
+	invalidTree := *stestonly.LogTree
 	invalidTree.TreeState = trillian.TreeState_HARD_DELETED
 
 	tests := []struct {
-		desc              string
-		getErr, commitErr bool
+		desc string
+		// getErr is the error that will be returned by the mock AdminTX.GetTree() method.
+		getErr error
+		opts   setupOptions
 	}{
 		{
 			desc: "success",
+			opts: setupOptions{
+				shouldSnapshot: true,
+				shouldCommit:   true,
+			},
 		},
 		{
 			desc:   "unknownTree",
-			getErr: true,
+			getErr: errors.New("GetTree failed"),
+			opts: setupOptions{
+				shouldSnapshot: true,
+			},
 		},
 		{
-			desc:      "commitError",
-			commitErr: true,
+			desc: "commitError",
+			opts: setupOptions{
+				shouldSnapshot: true,
+				shouldCommit:   true,
+				commitErr:      errors.New("commit failed"),
+			},
 		},
 	}
 
 	ctx := context.Background()
 	for _, test := range tests {
-		setup := setupAdminStorage(ctrl, true /* snapshot */, !test.getErr /* shouldCommit */, test.commitErr)
+		setup := setupServer(ctrl, test.opts)
 		tx := setup.snapshotTX
 		s := setup.server
 
-		storedTree := *testonly.LogTree
+		storedTree := *stestonly.LogTree
 		storedTree.TreeId = 12345
-		if test.getErr {
-			tx.EXPECT().GetTree(ctx, storedTree.TreeId).Return(nil, errors.New("GetTree failed"))
+
+		if test.getErr != nil {
+			tx.EXPECT().GetTree(ctx, storedTree.TreeId).Return(nil, test.getErr)
 		} else {
 			tx.EXPECT().GetTree(ctx, storedTree.TreeId).Return(&storedTree, nil)
 		}
-		wantErr := test.getErr || test.commitErr
 
 		tree, err := s.GetTree(ctx, &trillian.GetTreeRequest{TreeId: storedTree.TreeId})
-		if hasErr := err != nil; hasErr != wantErr {
+		if gotErr, wantErr := err != nil, test.opts.wantErr(); gotErr != wantErr {
 			t.Errorf("%v: GetTree() = (_, %v), wantErr = %v", test.desc, err, wantErr)
 			continue
-		} else if hasErr {
+		} else if gotErr {
 			continue
 		}
 
@@ -250,56 +268,136 @@ func TestServer_CreateTree(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	invalidTree := *testonly.LogTree
+	invalidTree := *stestonly.LogTree
 	invalidTree.TreeState = trillian.TreeState_HARD_DELETED
 
+	nilPrivateKeyTree := *stestonly.LogTree
+	nilPrivateKeyTree.PrivateKey = nil
+
+	demoPrivateKey, err := keys.NewFromPrivatePEM(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	tests := []struct {
-		desc                 string
-		req                  *trillian.CreateTreeRequest
-		createErr, commitErr bool
+		desc string
+		req  *trillian.CreateTreeRequest
+		// createTree is the tree that is expected to be passed to AdminTX.CreateTree().
+		// If nil, no call to AdminTX.CreateTree() is expected.
+		createTree *trillian.Tree
+		// createErr is the error that will be returned by the mock AdminTX.CreateTree() method.
+		createErr error
+		opts      setupOptions
 	}{
 		{
-			desc: "validTree",
-			req:  &trillian.CreateTreeRequest{Tree: testonly.LogTree},
+			desc:       "validTree",
+			req:        &trillian.CreateTreeRequest{Tree: stestonly.LogTree},
+			createTree: stestonly.LogTree,
+			opts: setupOptions{
+				shouldBeginTx: true,
+				shouldCommit:  true,
+			},
 		},
 		{
-			desc:      "invalidTree",
-			req:       &trillian.CreateTreeRequest{Tree: &invalidTree},
-			createErr: true,
+			desc:       "invalidTree",
+			req:        &trillian.CreateTreeRequest{Tree: &invalidTree},
+			createTree: &invalidTree,
+			createErr:  errors.New("CreateTree failed"),
+			opts: setupOptions{
+				shouldBeginTx: true,
+			},
 		},
 		{
-			desc:      "commitError",
-			req:       &trillian.CreateTreeRequest{Tree: testonly.LogTree},
-			commitErr: true,
+			desc:       "commitError",
+			req:        &trillian.CreateTreeRequest{Tree: stestonly.LogTree},
+			createTree: stestonly.LogTree,
+			opts: setupOptions{
+				shouldBeginTx: true,
+				shouldCommit:  true,
+				commitErr:     errors.New("commit error"),
+			},
+		},
+		{
+			desc: "nilPrivateKeyAndNoKeyGenerator",
+			req:  &trillian.CreateTreeRequest{Tree: &nilPrivateKeyTree},
+			opts: setupOptions{
+				signerFactory: keys.NewMockSignerFactory(ctrl),
+			},
+		},
+		{
+			desc:       "nilPrivateKeyAndKeyGenerator",
+			req:        &trillian.CreateTreeRequest{Tree: &nilPrivateKeyTree},
+			createTree: stestonly.LogTree,
+			opts: setupOptions{
+				signerFactory: func() keys.Generator {
+					keyGen := keys.NewMockGenerator(ctrl)
+					gomock.InOrder(
+						keyGen.EXPECT().Generate(gomock.Any(), &nilPrivateKeyTree).Return(stestonly.LogTree, nil),
+						keyGen.EXPECT().NewSigner(gomock.Any(), stestonly.LogTree).Return(demoPrivateKey, nil),
+					)
+					return keyGen
+				}(),
+				shouldBeginTx: true,
+				shouldCommit:  true,
+			},
+		},
+		{
+			desc: "keyGeneratorError",
+			req:  &trillian.CreateTreeRequest{Tree: &nilPrivateKeyTree},
+			opts: setupOptions{
+				signerFactory: func() keys.Generator {
+					keyGen := keys.NewMockGenerator(ctrl)
+					keyGen.EXPECT().Generate(gomock.Any(), &nilPrivateKeyTree).Return(nil, terrors.New(terrors.Unknown, "key generation failed"))
+					return keyGen
+				}(),
+			},
+		},
+		{
+			desc: "signerFactoryError",
+			req:  &trillian.CreateTreeRequest{Tree: stestonly.LogTree},
+			opts: setupOptions{
+				signerFactory: func() keys.SignerFactory {
+					sf := keys.NewMockSignerFactory(ctrl)
+					sf.EXPECT().NewSigner(gomock.Any(), stestonly.LogTree).Return(nil, terrors.New(terrors.InvalidArgument, "invalid key"))
+					return sf
+				}(),
+			},
 		},
 	}
 
 	ctx := context.Background()
 	for _, test := range tests {
-		setup := setupAdminStorage(ctrl, false /* snapshot */, !test.createErr /* shouldCommit */, test.commitErr)
+		if test.opts.signerFactory == nil {
+			signerFactory := keys.NewMockSignerFactory(ctrl)
+			signerFactory.EXPECT().NewSigner(gomock.Any(), gomock.Any()).Return(demoPrivateKey, nil)
+			test.opts.signerFactory = signerFactory
+		}
+
+		setup := setupServer(ctrl, test.opts)
 		tx := setup.tx
 		s := setup.server
 
-		newTree := *test.req.Tree
-		newTree.TreeId = 12345
-		newTree.CreateTimeMillisSinceEpoch = 1
-		newTree.UpdateTimeMillisSinceEpoch = 1
-		if test.createErr {
-			tx.EXPECT().CreateTree(ctx, test.req.Tree).Return(nil, errors.New("CreateTree failed"))
-		} else {
-			tx.EXPECT().CreateTree(ctx, test.req.Tree).Return(&newTree, nil)
+		var newTree *trillian.Tree
+		if test.createTree != nil {
+			if test.createErr == nil {
+				newTree = proto.Clone(test.req.Tree).(*trillian.Tree)
+				newTree.TreeId = 12345
+				newTree.CreateTimeMillisSinceEpoch = 1
+				newTree.UpdateTimeMillisSinceEpoch = 1
+			}
+
+			tx.EXPECT().CreateTree(ctx, test.createTree).Return(newTree, test.createErr)
 		}
-		wantErr := test.createErr || test.commitErr
 
 		tree, err := s.CreateTree(ctx, test.req)
-		if hasErr := err != nil; hasErr != wantErr {
+		if gotErr, wantErr := err != nil, test.opts.wantErr(); gotErr != wantErr {
 			t.Errorf("%v: CreateTree() = (_, %v), wantErr = %v", test.desc, err, wantErr)
 			continue
-		} else if hasErr {
+		} else if gotErr {
 			continue
 		}
 
-		wantTree := newTree
+		wantTree := *newTree
 		wantTree.PrivateKey = nil // redacted
 		if diff := pretty.Compare(tree, &wantTree); diff != "" {
 			t.Errorf("%v: post-CreateTree diff (-got +want):\n%v", test.desc, diff)
@@ -307,9 +405,9 @@ func TestServer_CreateTree(t *testing.T) {
 	}
 }
 
-// adminTestSetup contains an operational Server and required dependencies.
-// It's created via setupAdminServer.
-type adminTestSetup struct {
+// testFixture contains an operational Server and required dependencies.
+// It's created via setupServer.
+type testFixture struct {
 	registry   extension.Registry
 	as         *storage.MockAdminStorage
 	tx         *storage.MockAdminTX
@@ -317,44 +415,57 @@ type adminTestSetup struct {
 	server     *Server
 }
 
-// setupAdminStorage configures storage mocks according to input parameters.
+type setupOptions struct {
+	// signerFactory is the keys.SignerFactory to use. If nil, newSignerFactory() will be used.
+	signerFactory keys.SignerFactory
+	// shouldSnapshot indicates whether AdminStorage.Snapshot() is expected to be called.
+	shouldSnapshot bool
+	// shouldBeginTx indicates whether AdminStorage.Begin() is expected to be called.
+	shouldBeginTx bool
+	// shouldCommit indicates whether AdminTX.Commit() is expected to be called.
+	shouldCommit bool
+	// commitErr is the error that will be returned by the mock AdminTX.Commit() method.
+	commitErr error
+}
+
+// wantErr returns whether these test options indicate that an error is expected.
+func (o *setupOptions) wantErr() bool {
+	return !o.shouldCommit || o.commitErr != nil
+}
+
+// setupServer configures a Server with mocks according to the input parameters.
 // Storage will be set to use either snapshots or regular TXs via snapshot parameter.
 // Whether the snapshot/TX is expected to be committed (and if it should error doing so) is
 // controlled via shouldCommit and commitErr parameters.
-func setupAdminStorage(ctrl *gomock.Controller, snapshot, shouldCommit, commitErr bool) adminTestSetup {
+func setupServer(ctrl *gomock.Controller, opts setupOptions) testFixture {
 	as := storage.NewMockAdminStorage(ctrl)
 
 	var snapshotTX *storage.MockReadOnlyAdminTX
-	var tx *storage.MockAdminTX
-	if snapshot {
+	if opts.shouldSnapshot {
 		snapshotTX = storage.NewMockReadOnlyAdminTX(ctrl)
-		as.EXPECT().Snapshot(gomock.Any()).Return(snapshotTX, nil)
-		snapshotTX.EXPECT().Close().Return(nil)
-		if shouldCommit {
-			if commitErr {
-				snapshotTX.EXPECT().Commit().Return(errors.New("commit error"))
-			} else {
-				snapshotTX.EXPECT().Commit().Return(nil)
-			}
+		prevCall := as.EXPECT().Snapshot(gomock.Any()).Return(snapshotTX, nil)
+		if opts.shouldCommit {
+			prevCall = snapshotTX.EXPECT().Commit().Return(opts.commitErr).After(prevCall)
 		}
-	} else {
+		snapshotTX.EXPECT().Close().Return(nil).After(prevCall)
+	}
+
+	var tx *storage.MockAdminTX
+	if opts.shouldBeginTx {
 		tx = storage.NewMockAdminTX(ctrl)
-		as.EXPECT().Begin(gomock.Any()).Return(tx, nil)
-		tx.EXPECT().Close().Return(nil)
-		if shouldCommit {
-			if commitErr {
-				tx.EXPECT().Commit().Return(errors.New("commit error"))
-			} else {
-				tx.EXPECT().Commit().Return(nil)
-			}
+		prevCall := as.EXPECT().Begin(gomock.Any()).Return(tx, nil)
+		if opts.shouldCommit {
+			prevCall = tx.EXPECT().Commit().Return(opts.commitErr).After(prevCall)
 		}
+		tx.EXPECT().Close().Return(nil).After(prevCall)
 	}
 
 	registry := extension.Registry{
-		AdminStorage: as,
+		AdminStorage:  as,
+		SignerFactory: opts.signerFactory,
 	}
 
 	s := &Server{registry}
 
-	return adminTestSetup{registry, as, tx, snapshotTX, s}
+	return testFixture{registry, as, tx, snapshotTX, s}
 }

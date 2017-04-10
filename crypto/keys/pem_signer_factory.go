@@ -17,10 +17,10 @@ package keys
 import (
 	"context"
 	"crypto"
-	"fmt"
 
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
+	"github.com/google/trillian/errors"
 )
 
 // PEMSignerFactory loads PEM-encoded private keys.
@@ -32,12 +32,12 @@ type PEMSignerFactory struct{}
 // NewSigner returns a crypto.Signer for the given tree.
 func (f PEMSignerFactory) NewSigner(ctx context.Context, tree *trillian.Tree) (crypto.Signer, error) {
 	if tree.GetPrivateKey() == nil {
-		return nil, fmt.Errorf("tree %d has no PrivateKey", tree.GetTreeId())
+		return nil, errors.Errorf(errors.InvalidArgument, "tree %d has no PrivateKey", tree.GetTreeId())
 	}
 
 	var privateKey ptypes.DynamicAny
 	if err := ptypes.UnmarshalAny(tree.GetPrivateKey(), &privateKey); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal private key for tree %d: %v", tree.GetTreeId(), err)
+		return nil, errors.Errorf(errors.InvalidArgument, "failed to unmarshal private key for tree %d: %v", tree.GetTreeId(), err)
 	}
 
 	switch privateKey := privateKey.Message.(type) {
@@ -45,5 +45,5 @@ func (f PEMSignerFactory) NewSigner(ctx context.Context, tree *trillian.Tree) (c
 		return NewFromPrivatePEMFile(privateKey.GetPath(), privateKey.GetPassword())
 	}
 
-	return nil, fmt.Errorf("unsupported PrivateKey type for tree %d: %T", tree.GetTreeId(), privateKey.Message)
+	return nil, errors.Errorf(errors.InvalidArgument, "unsupported PrivateKey type for tree %d: %T", tree.GetTreeId(), privateKey.Message)
 }
