@@ -26,6 +26,7 @@ import (
 	"github.com/google/trillian"
 	spb "github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/merkle"
+	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/mysql"
 	"github.com/google/trillian/testonly"
@@ -46,12 +47,7 @@ func main() {
 
 	mapID := int64(1)
 	ms := mysql.NewMapStorage(db)
-
-	h, err := merkle.Factory(merkle.RFC6962SHA256Type)
-	if err != nil {
-		glog.Exitf("Could not find hasher: %v", err)
-	}
-	hasher := merkle.NewMapHasher(h)
+	hasher := merkle.NewMapHasher(rfc6962.Hasher)
 
 	testVecs := []struct {
 		batchSize       int

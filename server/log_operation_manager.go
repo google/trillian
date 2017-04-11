@@ -130,7 +130,7 @@ func (l LogOperationManager) getLogsAndExecutePass(ctx context.Context) error {
 				}
 
 				start := time.Now()
-				count, err := l.logOperation.ExecutePass(util.NewLogContext(ctx, logID), logID, &l.info)
+				count, err := l.logOperation.ExecutePass(ctx, logID, &l.info)
 
 				if err == nil {
 					if count > 0 {

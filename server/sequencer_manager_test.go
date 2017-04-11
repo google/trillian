@@ -106,7 +106,7 @@ func newSignerWithFixedSig(sig *sigpb.DigitallySigned) (crypto.Signer, error) {
 }
 
 func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
-	ctx := util.NewLogContext(context.Background(), -1)
+	ctx := context.Background()
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
@@ -147,7 +147,7 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 }
 
 func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
-	ctx := util.NewLogContext(context.Background(), -1)
+	ctx := context.Background()
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
@@ -193,7 +193,7 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 }
 
 func TestSequencerManagerGuardWindow(t *testing.T) {
-	ctx := util.NewLogContext(context.Background(), -1)
+	ctx := context.Background()
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 

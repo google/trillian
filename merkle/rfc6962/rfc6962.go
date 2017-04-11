@@ -22,6 +22,9 @@ const (
 	RFC6962NodeHashPrefix = 1
 )
 
+// Hasher is a SHA256 based TreeHasher.
+var Hasher = &TreeHasher{Hash: crypto.SHA256}
+
 // TreeHasher implements the RFC6962 tree hashing algorithm.
 type TreeHasher struct {
 	crypto.Hash

@@ -24,7 +24,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/storage"
-	"github.com/google/trillian/util"
 )
 
 func TestLogOperationManagerSnapshotFails(t *testing.T) {
@@ -40,7 +39,7 @@ func TestLogOperationManagerSnapshotFails(t *testing.T) {
 
 	mockLogOp := NewMockLogOperation(ctrl)
 
-	ctx := util.NewLogContext(context.Background(), -1)
+	ctx := context.Background()
 	lom := NewLogOperationManager(registry, 50, 1, time.Second, fakeTimeSource, mockLogOp)
 
 	lom.OperationSingle(ctx)
@@ -62,7 +61,7 @@ func TestLogOperationManagerGetLogsFails(t *testing.T) {
 
 	mockLogOp := NewMockLogOperation(ctrl)
 
-	ctx := util.NewLogContext(context.Background(), -1)
+	ctx := context.Background()
 	lom := NewLogOperationManager(registry, 50, 1, time.Second, fakeTimeSource, mockLogOp)
 
 	lom.OperationSingle(ctx)
@@ -85,7 +84,7 @@ func TestLogOperationManagerCommitFails(t *testing.T) {
 
 	mockLogOp := NewMockLogOperation(ctrl)
 
-	ctx := util.NewLogContext(context.Background(), -1)
+	ctx := context.Background()
 	lom := NewLogOperationManager(registry, 50, 1, time.Second, fakeTimeSource, mockLogOp)
 
 	lom.OperationSingle(ctx)
@@ -108,7 +107,7 @@ func (l logOpInfoMatcher) String() string {
 }
 
 func TestLogOperationManagerPassesIDs(t *testing.T) {
-	ctx := util.NewLogContext(context.Background(), -1)
+	ctx := context.Background()
 	logID1 := int64(451)
 	logID2 := int64(145)
 	ctrl := gomock.NewController(t)
