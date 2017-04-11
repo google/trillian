@@ -80,7 +80,14 @@ func main() {
 	go util.AwaitSignal(cancel)
 
 	sequencerManager := server.NewSequencerManager(registry, *sequencerGuardWindowFlag)
-	sequencerTask := server.NewLogOperationManager(registry, *batchSizeFlag, *numSeqFlag, *sequencerIntervalFlag, util.SystemTimeSource{}, sequencerManager)
+	info := server.LogOperationInfo{
+		Registry:    registry,
+		BatchSize:   *batchSizeFlag,
+		NumWorkers:  *numSeqFlag,
+		RunInterval: *sequencerIntervalFlag,
+		TimeSource:  util.SystemTimeSource{},
+	}
+	sequencerTask := server.NewLogOperationManager(info, sequencerManager)
 	sequencerTask.OperationLoop(ctx)
 
 	// Give things a few seconds to tidy up

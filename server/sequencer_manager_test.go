@@ -237,9 +237,9 @@ func TestSequencerManagerGuardWindow(t *testing.T) {
 func createTestInfo(registry extension.Registry) *LogOperationInfo {
 	// Set sign interval to 100 years so it won't trigger a root expiry signing unless overridden
 	return &LogOperationInfo{
-		registry:    registry,
-		batchSize:   50,
-		runInterval: time.Second,
-		timeSource:  fakeTimeSource,
+		Registry:    registry,
+		BatchSize:   50,
+		RunInterval: time.Second,
+		TimeSource:  fakeTimeSource,
 	}
 }

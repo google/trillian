@@ -70,10 +70,10 @@ func (s SequencerManager) ExecutePass(ctx context.Context, logID int64, info *Lo
 		return 0, fmt.Errorf("error getting signer for log %v: %v", logID, err)
 	}
 
-	sequencer := log.NewSequencer(hasher, info.timeSource, s.registry.LogStorage, signer)
+	sequencer := log.NewSequencer(hasher, info.TimeSource, s.registry.LogStorage, signer)
 	sequencer.SetGuardWindow(s.guardWindow)
 
-	leaves, err := sequencer.SequenceBatch(ctx, logID, info.batchSize)
+	leaves, err := sequencer.SequenceBatch(ctx, logID, info.BatchSize)
 	if err != nil {
 		return 0, fmt.Errorf("failed to sequence batch for %v: %v", logID, err)
 	}

@@ -40,7 +40,14 @@ func TestLogOperationManagerSnapshotFails(t *testing.T) {
 	mockLogOp := NewMockLogOperation(ctrl)
 
 	ctx := context.Background()
-	lom := NewLogOperationManager(registry, 50, 1, time.Second, fakeTimeSource, mockLogOp)
+	info := LogOperationInfo{
+		Registry:    registry,
+		BatchSize:   50,
+		NumWorkers:  1,
+		RunInterval: time.Second,
+		TimeSource:  fakeTimeSource,
+	}
+	lom := NewLogOperationManager(info, mockLogOp)
 
 	lom.OperationSingle(ctx)
 }
@@ -62,7 +69,14 @@ func TestLogOperationManagerGetLogsFails(t *testing.T) {
 	mockLogOp := NewMockLogOperation(ctrl)
 
 	ctx := context.Background()
-	lom := NewLogOperationManager(registry, 50, 1, time.Second, fakeTimeSource, mockLogOp)
+	info := LogOperationInfo{
+		Registry:    registry,
+		BatchSize:   50,
+		NumWorkers:  1,
+		RunInterval: time.Second,
+		TimeSource:  fakeTimeSource,
+	}
+	lom := NewLogOperationManager(info, mockLogOp)
 
 	lom.OperationSingle(ctx)
 }
@@ -85,13 +99,20 @@ func TestLogOperationManagerCommitFails(t *testing.T) {
 	mockLogOp := NewMockLogOperation(ctrl)
 
 	ctx := context.Background()
-	lom := NewLogOperationManager(registry, 50, 1, time.Second, fakeTimeSource, mockLogOp)
+	info := LogOperationInfo{
+		Registry:    registry,
+		BatchSize:   50,
+		NumWorkers:  1,
+		RunInterval: time.Second,
+		TimeSource:  fakeTimeSource,
+	}
+	lom := NewLogOperationManager(info, mockLogOp)
 
 	lom.OperationSingle(ctx)
 }
 
 type logOpInfoMatcher struct {
-	batchSize int
+	BatchSize int
 }
 
 func (l logOpInfoMatcher) Matches(x interface{}) bool {
@@ -99,11 +120,11 @@ func (l logOpInfoMatcher) Matches(x interface{}) bool {
 	if !ok {
 		return false
 	}
-	return o.batchSize == l.batchSize
+	return o.BatchSize == l.BatchSize
 }
 
 func (l logOpInfoMatcher) String() string {
-	return fmt.Sprintf("has batchSize %d", l.batchSize)
+	return fmt.Sprintf("has batchSize %d", l.BatchSize)
 }
 
 func TestLogOperationManagerPassesIDs(t *testing.T) {
@@ -129,7 +150,14 @@ func TestLogOperationManagerPassesIDs(t *testing.T) {
 	mockLogOp.EXPECT().ExecutePass(gomock.Any(), logID1, infoMatcher)
 	mockLogOp.EXPECT().ExecutePass(gomock.Any(), logID2, infoMatcher)
 
-	lom := NewLogOperationManager(registry, 50, 1, time.Second, fakeTimeSource, mockLogOp)
+	info := LogOperationInfo{
+		Registry:    registry,
+		BatchSize:   50,
+		NumWorkers:  1,
+		RunInterval: time.Second,
+		TimeSource:  fakeTimeSource,
+	}
+	lom := NewLogOperationManager(info, mockLogOp)
 
 	lom.OperationSingle(ctx)
 }

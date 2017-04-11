@@ -37,24 +37,28 @@ type LogOperation interface {
 
 // LogOperationInfo bundles up information needed for running a set of LogOperations.
 type LogOperationInfo struct {
-	// registry provides access to Trillian storage
-	registry extension.Registry
-	// batchSize is the batch size to be passed to tasks run by this manager
-	batchSize int
-	// runInterval is the time between starting batches of processing.  If a
+	// Registry provides access to Trillian storage.
+	Registry extension.Registry
+
+	// The following parameters are passed to individual LogOperations.
+
+	// BatchSize is the processing batch size to be passed to tasks run by this manager
+	BatchSize int
+	// TimeSource should be used by the LogOperation to allow mocking for tests.
+	TimeSource util.TimeSource
+
+	// The following parameters govern the overall scheduling of LogOperations
+	// by a LogOperationManager.
+
+	// RunInterval is the time between starting batches of processing.  If a
 	// batch takes longer than this interval to complete, the next batch
 	// will start immediately.
-	runInterval time.Duration
-	// timeSource allows us to mock this in tests
-	timeSource util.TimeSource
-	// numWorkers is the number of worker goroutines to run in parallel.
-	numWorkers int
+	RunInterval time.Duration
+	// NumWorkers is the number of worker goroutines to run in parallel.
+	NumWorkers int
 }
 
-// LogOperationManager controls scheduling activities for logs. At the moment it's very simple
-// with a single task running over active logs one at a time. This will be expanded later.
-// This is meant for embedding into the actual operation implementations and should not
-// be created separately.
+// LogOperationManager controls scheduling activities for logs.
 type LogOperationManager struct {
 	info LogOperationInfo
 	// logOperation is the task that gets run across active logs in the scheduling loop
@@ -62,22 +66,16 @@ type LogOperationManager struct {
 }
 
 // NewLogOperationManager creates a new LogOperationManager instance.
-func NewLogOperationManager(registry extension.Registry, batchSize, numWorkers int, runInterval time.Duration, timeSource util.TimeSource, logOperation LogOperation) *LogOperationManager {
+func NewLogOperationManager(info LogOperationInfo, logOperation LogOperation) *LogOperationManager {
 	return &LogOperationManager{
-		info: LogOperationInfo{
-			registry:    registry,
-			batchSize:   batchSize,
-			runInterval: runInterval,
-			timeSource:  timeSource,
-			numWorkers:  numWorkers,
-		},
+		info:         info,
 		logOperation: logOperation,
 	}
 }
 
 // getLogIDs returns the current set of active log IDs.
 func (l LogOperationManager) getLogIDs(ctx context.Context) ([]int64, error) {
-	tx, err := l.info.registry.LogStorage.Snapshot(ctx)
+	tx, err := l.info.Registry.LogStorage.Snapshot(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tx for retrieving logIDs: %v", err)
 	}
@@ -100,7 +98,7 @@ func (l LogOperationManager) getLogsAndExecutePass(ctx context.Context) error {
 		return err
 	}
 
-	numWorkers := l.info.numWorkers
+	numWorkers := l.info.NumWorkers
 	if numWorkers == 0 {
 		glog.Warning("Executing a LogOperation pass with numWorkers == 0, assuming 1")
 		numWorkers = 1
@@ -191,7 +189,7 @@ func (l LogOperationManager) OperationLoop(ctx context.Context) {
 
 		// Wait for the configured time before going for another pass
 		duration := time.Now().Sub(start)
-		wait := l.info.runInterval - duration
+		wait := l.info.RunInterval - duration
 		if wait > 0 {
 			glog.V(1).Infof("Processing started at %v for %v; wait %v before next run", start, duration, wait)
 			time.Sleep(wait)

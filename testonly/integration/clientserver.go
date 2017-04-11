@@ -104,8 +104,15 @@ func NewLogEnv(ctx context.Context, numSequencers int, testID string) (*LogEnv, 
 	var wg sync.WaitGroup
 	var sequencerTask *server.LogOperationManager
 	ctx, cancel := context.WithCancel(ctx)
+	info := server.LogOperationInfo{
+		Registry:    registry,
+		BatchSize:   batchSize,
+		NumWorkers:  numSequencers,
+		RunInterval: SequencerInterval,
+		TimeSource:  timeSource,
+	}
 	// Start a live sequencer in a goroutine.
-	sequencerTask = server.NewLogOperationManager(registry, batchSize, numSequencers, SequencerInterval, timeSource, sequencerManager)
+	sequencerTask = server.NewLogOperationManager(info, sequencerManager)
 	wg.Add(1)
 	go func(wg *sync.WaitGroup, om *server.LogOperationManager) {
 		defer wg.Done()
