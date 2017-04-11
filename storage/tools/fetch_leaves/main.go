@@ -22,11 +22,12 @@ import (
 	_ "github.com/go-sql-driver/mysql" // Load MySQL driver
 
 	log "github.com/golang/glog"
-	"github.com/google/trillian/storage/mysql"
+	"github.com/google/trillian/storage/coresql"
 )
 
 var (
-	mySQLURI           = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "Connection URI for MySQL database")
+	dbDriver           = flag.String("db_driver", "mysql", "Database driver name")
+	dbURI              = flag.String("db_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "Connection URI for database")
 	treeIDFlag         = flag.Int64("treeid", 3, "The tree id to use")
 	fetchLeavesFlag    = flag.Int("fetch_leaves", 1, "Number of entries to fetch")
 	startFetchFromFlag = flag.Int("start_fetch_at", 0, "The sequence number of the first leaf to fetch")
@@ -48,13 +49,13 @@ func main() {
 	flag.Parse()
 	validateFetchFlagsOrDie()
 
-	db, err := mysql.OpenDB(*mySQLURI)
+	wrap, err := coresql.OpenDB(*dbDriver, *dbURI)
 	if err != nil {
 		log.Exitf("Failed to open MySQL database: %v", err)
 	}
-	defer db.Close()
+	defer wrap.DB().Close()
 
-	storage := mysql.NewLogStorage(db)
+	storage := coresql.NewLogStorage(wrap)
 	ctx := context.Background()
 	tx, err := storage.SnapshotForTree(ctx, *treeIDFlag)
 	if err != nil {

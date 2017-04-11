@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mysql
+package coresql
 
 import (
 	"bytes"
@@ -32,8 +32,8 @@ import (
 	"github.com/google/trillian/monitoring/metric"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
-	"github.com/google/trillian/storage/coresql"
 	"github.com/google/trillian/trees"
+	"github.com/google/trillian/storage/wrapper"
 )
 
 var (
@@ -48,17 +48,17 @@ type mySQLLogStorage struct {
 	admin storage.AdminStorage
 }
 
-// NewLogStorage creates a storage.LogStorage instance for the specified MySQL URL.
+// NewLogStorage creates a mySQLLogStorage instance for the specified MySQL URL.
 // It assumes storage.AdminStorage is backed by the same MySQL database as well.
-func NewLogStorage(db *sql.DB) storage.LogStorage {
+func NewLogStorage(wrapper wrapper.DBWrapper) storage.LogStorage {
 	return &mySQLLogStorage{
-		admin:            NewAdminStorage(db),
-		mySQLTreeStorage: newTreeStorage(db),
+		admin:            NewAdminStorage(wrapper),
+		mySQLTreeStorage: newTreeStorage(wrapper),
 	}
 }
 
 func (m *mySQLLogStorage) CheckDatabaseAccessible(ctx context.Context) error {
-	return m.provider.CheckDatabaseAccessible(ctx, m.db)
+	return m.wrap.CheckDatabaseAccessible(ctx)
 }
 
 func getActiveLogIDsInternal(ctx context.Context, tx *sql.Tx, sql string) ([]int64, error) {
@@ -94,17 +94,21 @@ func getActiveLogIDsWithPendingWork(ctx context.Context, tx *sql.Tx) ([]int64, e
 
 // readOnlyLogTX implements storage.ReadOnlyLogTX
 type readOnlyLogTX struct {
-	tx *sql.Tx
-	p coresql.DBWrapper
+	tx   *sql.Tx
+	wrap wrapper.DBWrapper
 }
 
 func (m *mySQLLogStorage) Snapshot(ctx context.Context) (storage.ReadOnlyLogTX, error) {
+<<<<<<< HEAD:storage/mysql/log_storage.go
 	tx, err := m.db.BeginTx(ctx, nil /* opts */)
+=======
+	tx, err := m.wrap.DB().Begin()
+>>>>>>> Massive refactor to connect everything up again:storage/coresql/log_storage.go
 	if err != nil {
 		glog.Warningf("Could not start ReadOnlyLogTX: %s", err)
 		return nil, err
 	}
-	return &readOnlyLogTX{tx:tx, p:m.provider}, nil
+	return &readOnlyLogTX{tx:tx, wrap:m.wrap}, nil
 }
 
 func (t *readOnlyLogTX) Commit() error {
@@ -123,12 +127,34 @@ func (t *readOnlyLogTX) Close() error {
 	return nil
 }
 
+<<<<<<< HEAD:storage/mysql/log_storage.go
 func (t *readOnlyLogTX) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
 	return getActiveLogIDs(ctx, t.tx)
 }
 
 func (t *readOnlyLogTX) GetActiveLogIDsWithPendingWork(ctx context.Context) ([]int64, error) {
 	return getActiveLogIDsWithPendingWork(ctx, t.tx)
+=======
+// GetActiveLogIDs returns a list of the IDs of all configured logs
+func (t *readOnlyLogTX) GetActiveLogIDs() ([]int64, error) {
+	stmt, err := t.wrap.GetActiveLogsStmt(t.tx)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+	return getActiveLogIDsInternal(stmt)
+}
+
+// GetActiveLogIDsWithPendingWork returns a list of the IDs of all configured logs
+// that have queued unsequenced leaves that need to be integrated
+func (t *readOnlyLogTX) GetActiveLogIDsWithPendingWork() ([]int64, error) {
+	stmt, err := t.wrap.GetActiveLogsWithWorkStmt(t.tx)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+	return getActiveLogIDsInternal(stmt)
+>>>>>>> Massive refactor to connect everything up again:storage/coresql/log_storage.go
 }
 
 func (m *mySQLLogStorage) beginInternal(ctx context.Context, treeID int64, readonly bool) (storage.LogTreeTX, error) {
@@ -191,8 +217,13 @@ func (t *logTreeTX) WriteRevision() int64 {
 	return t.treeTX.writeRevision
 }
 
+<<<<<<< HEAD:storage/mysql/log_storage.go
 func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime time.Time) ([]*trillian.LogLeaf, error) {
 	stx, err := t.ls.provider.GetQueuedLeavesStmt(t.tx)
+=======
+func (t *logTreeTX) DequeueLeaves(limit int, cutoffTime time.Time) ([]*trillian.LogLeaf, error) {
+	stx, err := t.ls.wrap.GetQueuedLeavesStmt(t.tx)
+>>>>>>> Massive refactor to connect everything up again:storage/coresql/log_storage.go
 	if err != nil {
 		glog.Warningf("Failed to prepare dequeue select: %s", err)
 		return nil, err
@@ -270,12 +301,12 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 	existingCount := 0
 	existingLeaves := make([]*trillian.LogLeaf, len(leaves))
 
-	unseqEntryStmt, err := t.ls.provider.InsertUnsequencedEntryStmt(t.tx)
+	unseqEntryStmt, err := t.ls.wrap.InsertUnsequencedEntryStmt(t.tx)
 	if err != nil {
 		return nil, err
 	}
 	defer unseqEntryStmt.Close()
-	unseqLeafStmt, err := t.ls.provider.InsertUnsequencedLeafStmt(t.tx)
+	unseqLeafStmt, err := t.ls.wrap.InsertUnsequencedLeafStmt(t.tx)
 	if err != nil {
 		return nil, err
 	}
@@ -283,8 +314,13 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 
 	for i, leafPos := range orderedLeaves {
 		leaf := leafPos.leaf
+<<<<<<< HEAD:storage/mysql/log_storage.go
 		_, err := unseqLeafStmt.ExecContext(ctx, t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData)
 		if t.ls.provider.IsDuplicateErr(err) {
+=======
+		_, err := unseqLeafStmt.Exec(t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData)
+		if t.ls.wrap.IsDuplicateErr(err) {
+>>>>>>> Massive refactor to connect everything up again:storage/coresql/log_storage.go
 			// Remember the duplicate leaf, using the requested leaf for now.
 			existingLeaves[leafPos.idx] = leaf
 			existingCount++
@@ -361,7 +397,7 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 func (t *logTreeTX) GetSequencedLeafCount(ctx context.Context) (int64, error) {
 	var sequencedLeafCount int64
 
-	stmt, err := t.ls.provider.GetSequencedLeafCountStmt(t.tx)
+	stmt, err := t.ls.wrap.GetSequencedLeafCountStmt(t.tx)
 	if err != nil {
 		return 0, err
 	}
@@ -375,8 +411,13 @@ func (t *logTreeTX) GetSequencedLeafCount(ctx context.Context) (int64, error) {
 	return sequencedLeafCount, err
 }
 
+<<<<<<< HEAD:storage/mysql/log_storage.go
 func (t *logTreeTX) GetLeavesByIndex(ctx context.Context, leaves []int64) ([]*trillian.LogLeaf, error) {
 	stmt, err := t.ls.provider.GetLeavesByIndexStmt(t.tx, len(leaves))
+=======
+func (t *logTreeTX) GetLeavesByIndex(leaves []int64) ([]*trillian.LogLeaf, error) {
+	stmt, err := t.ls.wrap.GetLeavesByIndexStmt(t.tx, len(leaves))
+>>>>>>> Massive refactor to connect everything up again:storage/coresql/log_storage.go
 	if err != nil {
 		return nil, err
 	}
@@ -414,8 +455,13 @@ func (t *logTreeTX) GetLeavesByIndex(ctx context.Context, leaves []int64) ([]*tr
 	return ret, nil
 }
 
+<<<<<<< HEAD:storage/mysql/log_storage.go
 func (t *logTreeTX) GetLeavesByHash(ctx context.Context, leafHashes [][]byte, orderBySequence bool) ([]*trillian.LogLeaf, error) {
 	stmt, err := t.ls.provider.GetLeavesByMerkleHashStmt(t.tx, len(leafHashes), orderBySequence)
+=======
+func (t *logTreeTX) GetLeavesByHash(leafHashes [][]byte, orderBySequence bool) ([]*trillian.LogLeaf, error) {
+	stmt, err := t.ls.wrap.GetLeavesByMerkleHashStmt(t.tx, len(leafHashes), orderBySequence)
+>>>>>>> Massive refactor to connect everything up again:storage/coresql/log_storage.go
 	if err != nil {
 		return nil, err
 	}
@@ -426,8 +472,13 @@ func (t *logTreeTX) GetLeavesByHash(ctx context.Context, leafHashes [][]byte, or
 // getLeafDataByIdentityHash retrieves leaf data by LeafIdentityHash, returned
 // as a slice of LogLeaf objects for convenience.  However, note that the
 // returned LogLeaf objects will not have a valid MerkleLeafHash or LeafIndex.
+<<<<<<< HEAD:storage/mysql/log_storage.go
 func (t *logTreeTX) getLeafDataByIdentityHash(ctx context.Context, leafHashes [][]byte) ([]*trillian.LogLeaf, error) {
 	stmt, err := t.ls.provider.GetLeavesByLeafIdentityHashStmt(t.tx, len(leafHashes))
+=======
+func (t *logTreeTX) getLeafDataByIdentityHash(leafHashes [][]byte) ([]*trillian.LogLeaf, error) {
+	stmt, err := t.ls.wrap.GetLeavesByLeafIdentityHashStmt(t.tx, len(leafHashes))
+>>>>>>> Massive refactor to connect everything up again:storage/coresql/log_storage.go
 	if err != nil {
 		return nil, err
 	}
@@ -445,7 +496,7 @@ func (t *logTreeTX) fetchLatestRoot(ctx context.Context) (trillian.SignedLogRoot
 	var rootHash, rootSignatureBytes []byte
 	var rootSignature spb.DigitallySigned
 
-	stmt, err := t.ls.provider.GetLatestSignedLogRootStmt(t.tx)
+	stmt, err := t.ls.wrap.GetLatestSignedLogRootStmt(t.tx)
 	if err != nil {
 		return trillian.SignedLogRoot{}, nil
 	}
@@ -484,7 +535,7 @@ func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, root trillian.Signed
 		return err
 	}
 
-	stmt, err := t.ls.provider.InsertTreeHeadStmt(t.tx)
+	stmt, err := t.ls.wrap.InsertTreeHeadStmt(t.tx)
 	if err != nil {
 		return err
 	}
@@ -507,7 +558,7 @@ func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, root trillian.Signed
 func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf) error {
 	// TODO: In theory we can do this with CASE / WHEN in one SQL statement but it's more fiddly
 	// and can be implemented later if necessary
-	stmt, err := t.ls.provider.InsertSequencedLeafStmt(t.tx)
+	stmt, err := t.ls.wrap.InsertSequencedLeafStmt(t.tx)
 	if err != nil {
 		return err
 	}
@@ -539,7 +590,7 @@ func (t *logTreeTX) removeSequencedLeaves(ctx context.Context, leaves []*trillia
 	// Delete in order of the hash values in the leaves.
 	sort.Sort(byLeafIdentityHash(leaves))
 
-	stmt, err := t.ls.provider.DeleteUnsequencedStmt(t.tx, len(leaves))
+	stmt, err := t.ls.wrap.DeleteUnsequencedStmt(t.tx, len(leaves))
 	if err != nil {
 		glog.Warningf("Failed to get delete statement for sequenced work: %s", err)
 		return err
@@ -602,14 +653,34 @@ func (t *logTreeTX) getLeavesByHashInternal(ctx context.Context, leafHashes [][]
 }
 
 // GetActiveLogIDs returns a list of the IDs of all configured logs
+<<<<<<< HEAD:storage/mysql/log_storage.go
 func (t *logTreeTX) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
 	return getActiveLogIDs(ctx, t.tx)
+=======
+func (t *logTreeTX) GetActiveLogIDs() ([]int64, error) {
+	stmt, err := t.ls.wrap.GetActiveLogsStmt(t.tx)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+	return getActiveLogIDsInternal(stmt)
+>>>>>>> Massive refactor to connect everything up again:storage/coresql/log_storage.go
 }
 
 // GetActiveLogIDsWithPendingWork returns a list of the IDs of all configured logs
 // that have queued unsequenced leaves that need to be integrated
+<<<<<<< HEAD:storage/mysql/log_storage.go
 func (t *logTreeTX) GetActiveLogIDsWithPendingWork(ctx context.Context) ([]int64, error) {
 	return getActiveLogIDsWithPendingWork(ctx, t.tx)
+=======
+func (t *logTreeTX) GetActiveLogIDsWithPendingWork() ([]int64, error) {
+	stmt, err := t.ls.wrap.GetActiveLogsWithWorkStmt(t.tx)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+	return getActiveLogIDsInternal(stmt)
+>>>>>>> Massive refactor to connect everything up again:storage/coresql/log_storage.go
 }
 
 // byLeafIdentityHash allows sorting of leaves by their identity hash, so DB

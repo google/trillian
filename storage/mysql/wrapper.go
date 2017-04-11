@@ -23,7 +23,7 @@ import (
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/golang/glog"
-	"github.com/google/trillian/storage/coresql"
+	"github.com/google/trillian/storage/wrapper"
 )
 
 // These are all tree related queries
@@ -177,9 +177,8 @@ type mySQLWrapper struct {
 	statements     map[string]map[int]*sql.Stmt
 }
 
-// NewStatementProvider creates and returns a StatementPprovider appropriate for use with
-// MySQL.
-func NewWrapper(db *sql.DB) coresql.DBWrapper {
+// NewWrapper creates and returns a DBWrapper appropriate for use with MySQL.
+func NewWrapper(db *sql.DB) wrapper.DBWrapper {
 	return &mySQLWrapper{
 		db:         db,
 		statements: make(map[string]map[int]*sql.Stmt),
@@ -191,13 +190,13 @@ func (m *mySQLWrapper) DB() *sql.DB {
 }
 
 func (m *mySQLWrapper) GetSubtreeStmt(tx *sql.Tx, num int) (*sql.Stmt, error) {
-	return coresql.PrepInTx(tx, func() (stmt *sql.Stmt, err error) {
+	return wrapper.PrepInTx(tx, func() (stmt *sql.Stmt, err error) {
 		return m.getStmt(selectSubtreeSQL, num, "?", "?")
 	})
 }
 
 func (m *mySQLWrapper) SetSubtreeStmt(tx *sql.Tx, num int) (*sql.Stmt, error) {
-	return coresql.PrepInTx(tx, func() (stmt *sql.Stmt, err error) {
+	return wrapper.PrepInTx(tx, func() (stmt *sql.Stmt, err error) {
 		return m.getStmt(insertSubtreeMultiSQL, num, "VALUES(?, ?, ?, ?)", "(?, ?, ?, ?)")
 	})
 }
@@ -219,31 +218,31 @@ func (m *mySQLWrapper) GetActiveLogsWithWorkStmt(tx *sql.Tx) (*sql.Stmt, error) 
 }
 
 func (m *mySQLWrapper) GetLeavesByIndexStmt(tx *sql.Tx, num int) (*sql.Stmt, error) {
-	return coresql.PrepInTx(tx, func() (stmt *sql.Stmt, err error) {
+	return wrapper.PrepInTx(tx, func() (stmt *sql.Stmt, err error) {
 		return m.getStmt(selectLeavesByIndexSQL, num, "?", "?")
 	})
 }
 
 func (m *mySQLWrapper) GetLeavesByLeafIdentityHashStmt(tx *sql.Tx, num int) (*sql.Stmt, error) {
-	return coresql.PrepInTx(tx, func() (stmt *sql.Stmt, err error) {
+	return wrapper.PrepInTx(tx, func() (stmt *sql.Stmt, err error) {
 		return m.getStmt(selectLeavesByLeafIdentityHashSQL, num, "?", "?")
 	})
 }
 
 func (m *mySQLWrapper) DeleteUnsequencedStmt(tx *sql.Tx, num int) (*sql.Stmt, error) {
-	return coresql.PrepInTx(tx, func() (stmt *sql.Stmt, err error) {
+	return wrapper.PrepInTx(tx, func() (stmt *sql.Stmt, err error) {
 		return m.getStmt(deleteUnsequencedSQL, num, "?", "?")
 	})
 }
 
 func (m *mySQLWrapper) GetLeavesByMerkleHashStmt(tx *sql.Tx, num int, orderBySequence bool) (*sql.Stmt, error) {
 	if orderBySequence {
-		return coresql.PrepInTx(tx, func() (stmt *sql.Stmt, err error) {
+		return wrapper.PrepInTx(tx, func() (stmt *sql.Stmt, err error) {
 			return m.getStmt(selectLeavesByMerkleHashOrderedBySequenceSQL, num, "?", "?")
 		})
 	}
 
-	return coresql.PrepInTx(tx, func() (stmt *sql.Stmt, err error) {
+	return wrapper.PrepInTx(tx, func() (stmt *sql.Stmt, err error) {
 		return m.getStmt(selectLeavesByMerkleHashSQL, num, "?", "?")
 	})
 }
@@ -273,7 +272,7 @@ func (m *mySQLWrapper) GetSequencedLeafCountStmt(tx *sql.Tx) (*sql.Stmt, error) 
 }
 
 func (m *mySQLWrapper) GetMapLeafStmt(tx *sql.Tx, num int) (*sql.Stmt, error) {
-	return coresql.PrepInTx(tx, func() (stmt *sql.Stmt, err error) {
+	return wrapper.PrepInTx(tx, func() (stmt *sql.Stmt, err error) {
 		return m.getStmt(selectMapLeafSQL, num, "?", "?")
 	})
 }
@@ -364,8 +363,8 @@ func (m *mySQLWrapper) IsDuplicateErr(err error) bool {
 	return false
 }
 
-func (m *mySQLWrapper) OnOpenDB(db *sql.DB) error {
-	if _, err := db.Exec("SET sql_mode = 'STRICT_ALL_TABLES'"); err != nil {
+func (m *mySQLWrapper) OnOpenDB() error {
+	if _, err := m.db.Exec("SET sql_mode = 'STRICT_ALL_TABLES'"); err != nil {
 		glog.Warningf("Failed to set strict mode on mysql db: %s", err)
 		return err
 	}
@@ -373,7 +372,7 @@ func (m *mySQLWrapper) OnOpenDB(db *sql.DB) error {
 	return nil
 }
 
-func (m *mySQLWrapper) TreeRowExists(db *sql.DB, treeID int64) error {
+func (m *mySQLWrapper) TreeRowExists(treeID int64) error {
 	var num int
 	if err := m.db.QueryRow(selectTreeRowSQL, treeID).Scan(&num); err != nil {
 		return fmt.Errorf("failed to get tree row for treeID %v: %v", treeID, err)
@@ -381,9 +380,9 @@ func (m *mySQLWrapper) TreeRowExists(db *sql.DB, treeID int64) error {
 	return nil
 }
 
-func (m *mySQLWrapper) CheckDatabaseAccessible(ctx context.Context, db *sql.DB) error {
+func (m *mySQLWrapper) CheckDatabaseAccessible(ctx context.Context) error {
 	_ = ctx
-	stmt, err := db.Prepare("SELECT TreeId FROM Trees LIMIT 1")
+	stmt, err := m.DB().Prepare("SELECT TreeId FROM Trees LIMIT 1")
 	if err != nil {
 		return err
 	}

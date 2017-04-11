@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mysql
+package coresql
 
 import (
 	"context"
@@ -25,6 +25,7 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/trees"
+	"github.com/google/trillian/storage/wrapper"
 )
 
 var defaultMapStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 176}
@@ -34,17 +35,17 @@ type mySQLMapStorage struct {
 	admin storage.AdminStorage
 }
 
-// NewMapStorage creates a storage.MapStorage instance for the specified MySQL URL.
+// NewMapStorage creates a mySQLMapStorage instance for the specified MySQL URL.
 // It assumes storage.AdminStorage is backed by the same MySQL database as well.
-func NewMapStorage(db *sql.DB) storage.MapStorage {
+func NewMapStorage(wrap wrapper.DBWrapper) storage.MapStorage {
 	return &mySQLMapStorage{
-		admin:            NewAdminStorage(db),
-		mySQLTreeStorage: newTreeStorage(db),
+		admin:            NewAdminStorage(wrap),
+		mySQLTreeStorage: newTreeStorage(wrap),
 	}
 }
 
 func (m *mySQLMapStorage) CheckDatabaseAccessible(ctx context.Context) error {
-	return m.provider.CheckDatabaseAccessible(ctx, m.db)
+	return m.wrap.CheckDatabaseAccessible(ctx)
 }
 
 type readOnlyMapTX struct {
@@ -52,7 +53,7 @@ type readOnlyMapTX struct {
 }
 
 func (m *mySQLMapStorage) Snapshot(ctx context.Context) (storage.ReadOnlyMapTX, error) {
-	tx, err := m.db.BeginTx(ctx, nil /* opts */)
+	tx, err := m.wrap.DB().Begin()
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +145,7 @@ func (m *mapTreeTX) Set(ctx context.Context, keyHash []byte, value trillian.MapL
 		return nil
 	}
 
-	stmt, err := m.ts.provider.InsertMapLeafStmt(m.tx)
+	stmt, err := m.ts.wrap.InsertMapLeafStmt(m.tx)
 	if err != nil {
 		return err
 	}
@@ -157,7 +158,7 @@ func (m *mapTreeTX) Set(ctx context.Context, keyHash []byte, value trillian.MapL
 // MapLeaf indexes are overwritten rather than returning the MapLeaf proto provided in Set.
 // TODO: return a map[_something_]Mapleaf or []IndexValue to separate the index from the value.
 func (m *mapTreeTX) Get(ctx context.Context, revision int64, indexes [][]byte) ([]trillian.MapLeaf, error) {
-	stmt, err := m.ms.provider.GetMapLeafStmt(m.tx, len(indexes))
+	stmt, err := m.ms.wrap.GetMapLeafStmt(m.tx, len(indexes))
 	if err != nil {
 		return nil, err
 	}
@@ -215,7 +216,7 @@ func (m *mapTreeTX) LatestSignedMapRoot(ctx context.Context) (trillian.SignedMap
 	var mapperMetaBytes []byte
 	var mapperMeta *trillian.MapperMetadata
 
-	stmt, err := m.ms.provider.GetLatestMapRootStmt(m.tx)
+	stmt, err := m.ms.wrap.GetLatestMapRootStmt(m.tx)
 	if err != nil {
 		return trillian.SignedMapRoot{}, err
 	}
@@ -272,7 +273,7 @@ func (m *mapTreeTX) StoreSignedMapRoot(ctx context.Context, root trillian.Signed
 		}
 	}
 
-	stmt, err := m.ms.provider.InsertMapHeadStmt(m.tx)
+	stmt, err := m.ms.wrap.InsertMapHeadStmt(m.tx)
 	if err != nil {
 		return err
 	}

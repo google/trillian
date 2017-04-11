@@ -12,7 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package coresql
+// Package wrapper defines a wrapping mechanism for databases and decouples the logic
+// of accessing the database from the creation of statements in a specific SQL format.
+// It's strongly related to the coresql package but cannot be packaged with it because it's
+// then impossible to avoid import cycles.
+package wrapper
 
 import (
 	"database/sql"
@@ -63,10 +67,10 @@ type AdminStatementProvider interface {
 
 // CustomBehaviourProvider abstracts database specific features, for example error code checking
 type CustomBehaviourProvider interface {
-	CheckDatabaseAccessible(ctx context.Context, db *sql.DB) error
+	CheckDatabaseAccessible(ctx context.Context) error
 	IsDuplicateErr(err error) bool
-	TreeRowExists(db *sql.DB, treeID int64) error
-	OnOpenDB(db *sql.DB) error
+	TreeRowExists(treeID int64) error
+	OnOpenDB() error
 }
 
 // DBWrapper encapsulates a database and provides customized SQL statement objects for all types

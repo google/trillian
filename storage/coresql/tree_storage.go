@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mysql
+package coresql
 
 import (
 	"context"
@@ -23,43 +23,24 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
-	"github.com/google/trillian/storage/coresql"
 	"github.com/google/trillian/storage/storagepb"
+	"github.com/google/trillian/storage/wrapper"
 )
 
 // mySQLTreeStorage is shared between the mySQLLog- and (forthcoming) mySQLMap-
 // Storage implementations, and contains functionality which is common to both,
 type mySQLTreeStorage struct {
-	db       *sql.DB
-	provider coresql.DBWrapper
+	wrap wrapper.DBWrapper
 }
 
-// OpenDB opens a database connection for all MySQL-based storage implementations.
-func OpenDB(dbURL string) (*sql.DB, error) {
-	db, err := sql.Open("mysql", dbURL)
-	if err != nil {
-		// Don't log uri as it could contain credentials
-		glog.Warningf("Could not open MySQL database, check config: %s", err)
-		return nil, err
-	}
-
-	if _, err := db.ExecContext(context.TODO(), "SET sql_mode = 'STRICT_ALL_TABLES'"); err != nil {
-		glog.Warningf("Failed to set strict mode on mysql db: %s", err)
-		return nil, err
-	}
-
-	return db, nil
-}
-
-func newTreeStorage(db *sql.DB) *mySQLTreeStorage {
+func newTreeStorage(wrapper wrapper.DBWrapper) *mySQLTreeStorage {
 	return &mySQLTreeStorage{
-		db:       db,
-		provider: NewWrapper(db),
+		wrap: wrapper,
 	}
 }
 
 func (m *mySQLTreeStorage) beginTreeTx(ctx context.Context, treeID int64, hashSizeBytes int, strataDepths []int, populate storage.PopulateSubtreeFunc, prepare storage.PrepareSubtreeWriteFunc) (treeTX, error) {
-	t, err := m.db.BeginTx(ctx, nil /* opts */)
+	t, err := m.wrap.DB().Begin()
 	if err != nil {
 		glog.Warningf("Could not start tree TX: %s", err)
 		return treeTX{}, err
@@ -104,7 +85,7 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []
 		return nil, nil
 	}
 
-	stmt, err := t.ts.provider.GetSubtreeStmt(t.tx, len(nodeIDs))
+	stmt, err := t.ts.wrap.GetSubtreeStmt(t.tx, len(nodeIDs))
 	if err != nil {
 		return nil, err
 	}
@@ -192,7 +173,7 @@ func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.Subtre
 		args = append(args, t.writeRevision)
 	}
 
-	stmt, err := t.ts.provider.SetSubtreeStmt(t.tx, len(subtrees))
+	stmt, err := t.ts.wrap.SetSubtreeStmt(t.tx, len(subtrees))
 	if err != nil {
 		return err
 	}
@@ -239,7 +220,7 @@ func (t *treeTX) GetTreeRevisionIncludingSize(ctx context.Context, treeSize int6
 	}
 
 	var treeRevision, actualTreeSize int64
-	stmt, err := t.ts.provider.GetTreeRevisionIncludingSizeStmt(t.tx)
+	stmt, err := t.ts.wrap.GetTreeRevisionIncludingSizeStmt(t.tx)
 	if err != nil {
 		return 0, 0, err
 	}

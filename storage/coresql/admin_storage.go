@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mysql
+package coresql
 
 import (
 	"context"
@@ -28,7 +28,7 @@ import (
 	"github.com/google/trillian/crypto/keyspb"
 	spb "github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/storage"
-	"github.com/google/trillian/storage/coresql"
+	"github.com/google/trillian/storage/wrapper"
 )
 
 const (
@@ -36,14 +36,13 @@ const (
 )
 
 // NewAdminStorage returns a MySQL storage.AdminStorage implementation backed by DB.
-func NewAdminStorage(db *sql.DB) storage.AdminStorage {
-	return &mysqlAdminStorage{db:db}
+func NewAdminStorage(wrapper wrapper.DBWrapper) storage.AdminStorage {
+	return &mysqlAdminStorage{wrap: wrapper}
 }
 
 // mysqlAdminStorage implements storage.AdminStorage
 type mysqlAdminStorage struct {
-	db *sql.DB
-	provider coresql.DBWrapper
+	wrap wrapper.DBWrapper
 }
 
 func (s *mysqlAdminStorage) Snapshot(ctx context.Context) (storage.ReadOnlyAdminTX, error) {
@@ -51,7 +50,7 @@ func (s *mysqlAdminStorage) Snapshot(ctx context.Context) (storage.ReadOnlyAdmin
 }
 
 func (s *mysqlAdminStorage) Begin(ctx context.Context) (storage.AdminTX, error) {
-	tx, err := s.db.BeginTx(ctx, nil /* opts */)
+	tx, err := s.wrap.DB().Begin()
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +107,7 @@ func (t *adminTX) Close() error {
 }
 
 func (t *adminTX) GetTree(ctx context.Context, treeID int64) (*trillian.Tree, error) {
-	stmt, err := t.as.provider.GetTreeStmt(t.tx)
+	stmt, err := t.as.wrap.GetTreeStmt(t.tx)
 	if err != nil {
 		return nil, err
 	}
@@ -211,7 +210,7 @@ func setNullStringIfValid(src sql.NullString, dest *string) {
 }
 
 func (t *adminTX) ListTreeIDs(ctx context.Context) ([]int64, error) {
-	stmt, err := t.as.provider.GetTreeIDsStmt(t.tx)
+	stmt, err := t.as.wrap.GetTreeIDsStmt(t.tx)
 	if err != nil {
 		return nil, err
 	}
@@ -235,7 +234,7 @@ func (t *adminTX) ListTreeIDs(ctx context.Context) ([]int64, error) {
 }
 
 func (t *adminTX) ListTrees(ctx context.Context) ([]*trillian.Tree, error) {
-	stmt, err := t.as.provider.GetAllTreesStmt(t.tx)
+	stmt, err := t.as.wrap.GetAllTreesStmt(t.tx)
 	if err != nil {
 		return nil, err
 	}
@@ -276,7 +275,7 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 	newTree.CreateTimeMillisSinceEpoch = nowMillis
 	newTree.UpdateTimeMillisSinceEpoch = nowMillis
 
-	insertTreeStmt, err := t.as.provider.InsertTreeStmt(t.tx)
+	insertTreeStmt, err := t.as.wrap.InsertTreeStmt(t.tx)
 	if err != nil {
 		return nil, err
 	}
@@ -316,7 +315,7 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 	}
 
 	// TODO(codingllama): There's a strong disconnect between trillian.Tree and TreeControl. Are we OK with that?
-	insertControlStmt, err := t.as.provider.InsertTreeControlStmt(t.tx)
+	insertControlStmt, err := t.as.wrap.InsertTreeControlStmt(t.tx)
 	if err != nil {
 		return nil, err
 	}
@@ -352,7 +351,7 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 
 	tree.UpdateTimeMillisSinceEpoch = toMillisSinceEpoch(time.Now())
 
-	stmt, err := t.as.provider.UpdateTreeStmt(t.tx)
+	stmt, err := t.as.wrap.UpdateTreeStmt(t.tx)
 	if err != nil {
 		return nil, err
 	}

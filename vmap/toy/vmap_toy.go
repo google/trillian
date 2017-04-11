@@ -28,25 +28,28 @@ import (
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/storage"
-	"github.com/google/trillian/storage/mysql"
 	"github.com/google/trillian/testonly"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/google/trillian/storage/coresql"
 )
 
-var mySQLURIFlag = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "")
+var (
+	dbDriver = flag.String("db_driver", "mysql", "Database driver name")
+	dbURI    = flag.String("db_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "Connection URI for database")
+)
 
 func main() {
 	flag.Parse()
 	glog.Info("Starting...")
 
-	db, err := mysql.OpenDB(*mySQLURIFlag)
+	wrap, err := coresql.OpenDB(*dbDriver, *dbURI)
 	if err != nil {
 		glog.Exitf("Failed to open DB connection: %v", err)
 	}
 
 	mapID := int64(1)
-	ms := mysql.NewMapStorage(db)
+	ms := coresql.NewMapStorage(wrap)
 	hasher := merkle.NewMapHasher(rfc6962.Hasher)
 
 	testVecs := []struct {

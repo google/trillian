@@ -23,11 +23,12 @@ import (
 
 	log "github.com/golang/glog"
 	"github.com/google/trillian"
-	"github.com/google/trillian/storage/mysql"
+	"github.com/google/trillian/storage/coresql"
 )
 
 var (
-	mySQLURI            = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "Connection URI for MySQL database")
+	dbDriver            = flag.String("db_driver", "mysql", "Database driver name")
+	dbURI               = flag.String("db_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "Connection URI for database")
 	treeIDFlag          = flag.Int64("treeid", 3, "The tree id to use")
 	numInsertionsFlag   = flag.Int("num_insertions", 10, "Number of entries to insert in the tree")
 	startInsertFromFlag = flag.Int("start_from", 0, "The sequence number of the first inserted item")
@@ -54,13 +55,13 @@ func main() {
 	flag.Parse()
 	validateFlagsOrDie()
 
-	db, err := mysql.OpenDB(*mySQLURI)
+	wrap, err := coresql.OpenDB(*dbDriver, *dbURI)
 	if err != nil {
-		log.Exitf("Failed to open MySQL database: %v", err)
+		log.Exitf("Failed to open database: %v", err)
 	}
-	defer db.Close()
+	defer wrap.DB().Close()
 
-	storage := mysql.NewLogStorage(db)
+	storage := coresql.NewLogStorage(wrap)
 	ctx := context.Background()
 	tx, err := storage.BeginForTree(ctx, *treeIDFlag)
 	if err != nil {

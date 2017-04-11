@@ -28,14 +28,13 @@ import (
 	"github.com/google/trillian/monitoring/metric"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/server"
-	"github.com/google/trillian/storage/mysql"
+	"github.com/google/trillian/storage/coresql"
 	"github.com/google/trillian/util"
 	"github.com/google/trillian/util/etcd"
 	"golang.org/x/net/context"
 )
 
 var (
-	mySQLURI                 = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "Connection URI for MySQL database")
 	httpEndpoint             = flag.String("http_endpoint", "localhost:8091", "Endpoint for HTTP (host:port, empty means disabled)")
 	sequencerIntervalFlag    = flag.Duration("sequencer_interval", time.Second*10, "Time between each sequencing pass through all logs")
 	batchSizeFlag            = flag.Int("batch_size", 50, "Max number of leaves to process per batch")
@@ -45,11 +44,12 @@ var (
 	forceMaster              = flag.Bool("force_master", false, "If true, assume master for all logs")
 	etcdServers              = flag.String("etcd_servers", "localhost:2379", "A comma-separated list of etcd servers")
 	lockDir                  = flag.String("lock_file_path", "/test/multimaster", "etcd lock file directory path")
-
-	preElectionPause    = flag.Duration("pre_election_pause", 1*time.Second, "Maximum time to wait before starting elections")
-	masterCheckInterval = flag.Duration("master_check_interval", 5*time.Second, "Interval between checking mastership still held")
-	masterHoldInterval  = flag.Duration("master_hold_interval", 60*time.Second, "Minimum interval to hold mastership for")
-	resignOdds          = flag.Int("resign_odds", 10, "Chance of resigning mastership after each check, the N in 1-in-N")
+	preElectionPause         = flag.Duration("pre_election_pause", 1*time.Second, "Maximum time to wait before starting elections")
+	masterCheckInterval      = flag.Duration("master_check_interval", 5*time.Second, "Interval between checking mastership still held")
+	masterHoldInterval       = flag.Duration("master_hold_interval", 60*time.Second, "Minimum interval to hold mastership for")
+	resignOdds               = flag.Int("resign_odds", 10, "Chance of resigning mastership after each check, the N in 1-in-N")
+	dbDriver                 = flag.String("db_driver", "mysql", "Name of database driver to use (must be known to us)")
+	dbURI                    = flag.String("db_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "Connection URI for database")
 )
 
 func main() {
@@ -64,11 +64,11 @@ func main() {
 	}
 
 	// First make sure we can access the database, quit if not
-	db, err := mysql.OpenDB(*mySQLURI)
+	wrap, err := coresql.OpenDB(*dbDriver, *dbURI)
 	if err != nil {
 		glog.Exitf("Failed to open MySQL database: %v", err)
 	}
-	defer db.Close()
+	defer wrap.DB().Close()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go util.AwaitSignal(cancel)
@@ -84,9 +84,9 @@ func main() {
 	}
 
 	registry := extension.Registry{
-		AdminStorage:    mysql.NewAdminStorage(db),
+		AdminStorage:    coresql.NewAdminStorage(wrap),
 		SignerFactory:   keys.PEMSignerFactory{},
-		LogStorage:      mysql.NewLogStorage(db),
+		LogStorage:      coresql.NewLogStorage(wrap),
 		ElectionFactory: electionFactory,
 		QuotaManager:    quota.Noop(),
 	}

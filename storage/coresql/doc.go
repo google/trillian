@@ -15,8 +15,8 @@
 // Package coresql provides the basic functionality to implement our storage model on a relational
 // database using the sql package.
 //
-// It must be independent of specific databases. It must not contain raw SQL statements and must
-// not rely on specific types or functionality of a database. Among other things, this means that
-// database specific types or features (such as time related types) and error codes must not be
+// This code must be independent of specific databases. It must not contain raw SQL statements and
+// must not rely on specific types or functionality of a database. Among other things, this means
+// that database specific types or features (such as time related types) and error codes must not be
 // used.
 package coresql
