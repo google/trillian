@@ -118,6 +118,51 @@ const (
  AND t1.MapRevision=t2.maxrev`
 )
 
+// These are all admin related queries
+const (
+	selectTreeIDsSQL = "SELECT TreeId FROM Trees"
+	selectAllTreesSQL                    = `
+		SELECT
+			TreeId,
+			TreeState,
+			TreeType,
+			HashStrategy,
+			HashAlgorithm,
+			SignatureAlgorithm,
+			DisplayName,
+			Description,
+			CreateTimeMillis,
+			UpdateTimeMillis,
+			PrivateKey
+		FROM Trees`
+	selectTreeByIDSQL = selectAllTreesSQL + " WHERE TreeId = ?"
+	insertTreeSQL = `
+		INSERT INTO Trees(
+			TreeId,
+			TreeState,
+			TreeType,
+			HashStrategy,
+			HashAlgorithm,
+			SignatureAlgorithm,
+			DisplayName,
+			Description,
+			CreateTimeMillis,
+			UpdateTimeMillis,
+			PrivateKey)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	insertTreeControlSQL = `
+		INSERT INTO TreeControl(
+			TreeId,
+			SigningEnabled,
+			SequencingEnabled,
+			SequenceIntervalSeconds)
+		VALUES(?, ?, ?, ?)`
+	updateTreeSQL = `
+		UPDATE Trees
+		SET TreeState = ?, DisplayName = ?, Description = ?, UpdateTimeMillis = ?
+		WHERE TreeId = ?`
+)
+
 // Error code returned by MySQL driver when inserting a duplicate row
 const errNumDuplicate = 1062
 
@@ -239,6 +284,30 @@ func (m *mySQLStatementProvider) GetLatestMapRootStmt(tx *sql.Tx) (*sql.Stmt, er
 
 func (m *mySQLStatementProvider) InsertMapLeafStmt(tx *sql.Tx) (*sql.Stmt, error) {
 	return tx.Prepare(insertMapLeafSQL)
+}
+
+func (m *mySQLStatementProvider) GetAllTreesStmt(tx *sql.Tx) (*sql.Stmt, error) {
+	return tx.Prepare(selectAllTreesSQL)
+}
+
+func (m *mySQLStatementProvider) GetTreeStmt(tx *sql.Tx) (*sql.Stmt, error) {
+	return tx.Prepare(selectTreeByIDSQL)
+}
+
+func (m *mySQLStatementProvider) GetTreeIDsStmt(tx *sql.Tx) (*sql.Stmt, error) {
+	return tx.Prepare(selectTreeIDsSQL)
+}
+
+func (m *mySQLStatementProvider) InsertTreeStmt(tx *sql.Tx) (*sql.Stmt, error) {
+	return tx.Prepare(insertTreeSQL)
+}
+
+func (m *mySQLStatementProvider) InsertTreeControlStmt(tx *sql.Tx) (*sql.Stmt, error) {
+	return tx.Prepare(insertTreeControlSQL)
+}
+
+func (m *mySQLStatementProvider) UpdateTreeStmt(tx *sql.Tx) (*sql.Stmt, error) {
+	return tx.Prepare(updateTreeSQL)
 }
 
 // expandPlaceholderSQL expands an sql statement by adding a specified number of '?'

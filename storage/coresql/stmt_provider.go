@@ -51,6 +51,16 @@ type MapStatementProvider interface {
 	InsertMapLeafStmt(tx *sql.Tx) (*sql.Stmt, error)
 }
 
+// AdminStatementProvider provides SQL statement objects for administration
+type AdminStatementProvider interface {
+	GetTreeIDsStmt(tx *sql.Tx) (*sql.Stmt, error)
+	GetAllTreesStmt(tx *sql.Tx) (*sql.Stmt, error)
+	GetTreeStmt(tx *sql.Tx) (*sql.Stmt, error)
+	InsertTreeStmt(tx *sql.Tx) (*sql.Stmt, error)
+	InsertTreeControlStmt(tx *sql.Tx) (*sql.Stmt, error)
+	UpdateTreeStmt(tx *sql.Tx) (*sql.Stmt, error)
+}
+
 // CustomBehaviourProvider abstracts database specific features, for example error code checking
 type CustomBehaviourProvider interface {
 	CheckDatabaseAccessible(ctx context.Context, db *sql.DB) error
@@ -66,6 +76,7 @@ type StatementProvider interface {
 	TreeStatementProvider
 	LogStatementProvider
 	MapStatementProvider
+	AdminStatementProvider
 	CustomBehaviourProvider
 }
 

@@ -28,36 +28,22 @@ import (
 	"github.com/google/trillian/crypto/keyspb"
 	spb "github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/storage/coresql"
 )
 
 const (
 	defaultSequenceIntervalSeconds = 60
-	selectTrees                    = `
-		SELECT
-			TreeId,
-			TreeState,
-			TreeType,
-			HashStrategy,
-			HashAlgorithm,
-			SignatureAlgorithm,
-			DisplayName,
-			Description,
-			CreateTimeMillis,
-			UpdateTimeMillis,
-			PrivateKey,
-			PublicKey
-		FROM Trees`
-	selectTreeByID = selectTrees + " WHERE TreeId = ?"
 )
 
 // NewAdminStorage returns a MySQL storage.AdminStorage implementation backed by DB.
 func NewAdminStorage(db *sql.DB) storage.AdminStorage {
-	return &mysqlAdminStorage{db}
+	return &mysqlAdminStorage{db:db}
 }
 
 // mysqlAdminStorage implements storage.AdminStorage
 type mysqlAdminStorage struct {
 	db *sql.DB
+	provider coresql.StatementProvider
 }
 
 func (s *mysqlAdminStorage) Snapshot(ctx context.Context) (storage.ReadOnlyAdminTX, error) {
@@ -69,11 +55,12 @@ func (s *mysqlAdminStorage) Begin(ctx context.Context) (storage.AdminTX, error) 
 	if err != nil {
 		return nil, err
 	}
-	return &adminTX{tx: tx}, nil
+	return &adminTX{tx: tx, as: s}, nil
 }
 
 type adminTX struct {
 	tx *sql.Tx
+	as *mysqlAdminStorage
 
 	// mu guards *direct* reads/writes on closed, which happen only on
 	// Commit/Rollback/IsClosed/Close methods.
@@ -121,7 +108,7 @@ func (t *adminTX) Close() error {
 }
 
 func (t *adminTX) GetTree(ctx context.Context, treeID int64) (*trillian.Tree, error) {
-	stmt, err := t.tx.PrepareContext(ctx, selectTreeByID)
+	stmt, err := t.as.provider.GetTreeStmt(t.tx)
 	if err != nil {
 		return nil, err
 	}
@@ -224,7 +211,7 @@ func setNullStringIfValid(src sql.NullString, dest *string) {
 }
 
 func (t *adminTX) ListTreeIDs(ctx context.Context) ([]int64, error) {
-	stmt, err := t.tx.PrepareContext(ctx, "SELECT TreeId FROM Trees")
+	stmt, err := t.as.provider.GetTreeIDsStmt(t.tx)
 	if err != nil {
 		return nil, err
 	}
@@ -248,7 +235,7 @@ func (t *adminTX) ListTreeIDs(ctx context.Context) ([]int64, error) {
 }
 
 func (t *adminTX) ListTrees(ctx context.Context) ([]*trillian.Tree, error) {
-	stmt, err := t.tx.PrepareContext(ctx, selectTrees)
+	stmt, err := t.as.provider.GetAllTreesStmt(t.tx)
 	if err != nil {
 		return nil, err
 	}
@@ -289,22 +276,7 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 	newTree.CreateTimeMillisSinceEpoch = nowMillis
 	newTree.UpdateTimeMillisSinceEpoch = nowMillis
 
-	insertTreeStmt, err := t.tx.PrepareContext(
-		ctx,
-		`INSERT INTO Trees(
-			TreeId,
-			TreeState,
-			TreeType,
-			HashStrategy,
-			HashAlgorithm,
-			SignatureAlgorithm,
-			DisplayName,
-			Description,
-			CreateTimeMillis,
-			UpdateTimeMillis,
-			PrivateKey,
-			PublicKey)
-		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+	insertTreeStmt, err := t.as.provider.InsertTreeStmt(t.tx)
 	if err != nil {
 		return nil, err
 	}
@@ -344,14 +316,7 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 	}
 
 	// TODO(codingllama): There's a strong disconnect between trillian.Tree and TreeControl. Are we OK with that?
-	insertControlStmt, err := t.tx.PrepareContext(
-		ctx,
-		`INSERT INTO TreeControl(
-			TreeId,
-			SigningEnabled,
-			SequencingEnabled,
-			SequenceIntervalSeconds)
-		VALUES(?, ?, ?, ?)`)
+	insertControlStmt, err := t.as.provider.InsertTreeControlStmt(t.tx)
 	if err != nil {
 		return nil, err
 	}
@@ -387,11 +352,7 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 
 	tree.UpdateTimeMillisSinceEpoch = toMillisSinceEpoch(time.Now())
 
-	stmt, err := t.tx.PrepareContext(
-		ctx,
-		`UPDATE Trees
-		SET TreeState = ?, DisplayName = ?, Description = ?, UpdateTimeMillis = ?
-		WHERE TreeId = ?`)
+	stmt, err := t.as.provider.UpdateTreeStmt(t.tx)
 	if err != nil {
 		return nil, err
 	}
