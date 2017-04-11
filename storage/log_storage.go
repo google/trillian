@@ -119,6 +119,10 @@ type LeafReader interface {
 	// same hash but different sequence numbers. If orderBySequence is true then the returned data
 	// will be in ascending sequence number order.
 	GetLeavesByHash(ctx context.Context, leafHashes [][]byte, orderBySequence bool) ([]*trillian.LogLeaf, error)
+	// GetLeavesByLeafIdentityHash returns leaves by their identity hash. Note: This is for
+	// internal use only and is not part of the public API. The returned leaf objects may not
+	// be fully populated
+	GetLeafDataByIdentityHash(ctx context.Context, leafHashes [][]byte) ([]*trillian.LogLeaf, error)
 }
 
 // LogRootReader provides an interface for reading SignedLogRoots.

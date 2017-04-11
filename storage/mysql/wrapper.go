@@ -50,7 +50,7 @@ const (
 		 VALUES(?,?,?,?,?,?)`
 	selectActiveLogsSQL                = "SELECT TreeId from Trees where TreeType='LOG'"
 	selectActiveLogsWithUnsequencedSQL = "SELECT DISTINCT t.TreeId from Trees t INNER JOIN Unsequenced u WHERE TreeType='LOG' AND t.TreeId=u.TreeId"
-	selectTreeRowSQL = "SELECT 1 FROM Trees WHERE TreeId = ?"
+	selectTreeRowSQL                   = "SELECT 1 FROM Trees WHERE TreeId = ?"
 )
 
 // These are all log related queries
@@ -81,7 +81,7 @@ const (
 			WHERE TreeID=?
 			AND QueueTimestampNanos<=?
 			ORDER BY QueueTimestampNanos,LeafIdentityHash ASC LIMIT ?`
-	deleteUnsequencedSQL = "DELETE FROM Unsequenced WHERE LeafIdentityHash IN (<placeholder>) AND TreeId = ?"
+	deleteUnsequencedSQL         = "DELETE FROM Unsequenced WHERE LeafIdentityHash IN (<placeholder>) AND TreeId = ?"
 	selectLatestSignedLogRootSQL = `SELECT TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature
 			FROM TreeHead WHERE TreeId=?
 			ORDER BY TreeHeadTimestamp DESC LIMIT 1`
@@ -91,7 +91,7 @@ const (
 			VALUES(?,?,?,?)`
 	insertSequencedLeafSQL = `INSERT INTO SequencedLeafData(TreeId,LeafIdentityHash,MerkleLeafHash,SequenceNumber)
 			VALUES(?,?,?,?)`
-	selectSequencedLeafCountSQL  = "SELECT COUNT(*) FROM SequencedLeafData WHERE TreeId=?"
+	selectSequencedLeafCountSQL = "SELECT COUNT(*) FROM SequencedLeafData WHERE TreeId=?"
 )
 
 // These are all map related queries
@@ -120,8 +120,8 @@ const (
 
 // These are all admin related queries
 const (
-	selectTreeIDsSQL = "SELECT TreeId FROM Trees"
-	selectAllTreesSQL                    = `
+	selectTreeIDsSQL  = "SELECT TreeId FROM Trees"
+	selectAllTreesSQL = `
 		SELECT
 			TreeId,
 			TreeState,
@@ -136,7 +136,7 @@ const (
 			PrivateKey
 		FROM Trees`
 	selectTreeByIDSQL = selectAllTreesSQL + " WHERE TreeId = ?"
-	insertTreeSQL = `
+	insertTreeSQL     = `
 		INSERT INTO Trees(
 			TreeId,
 			TreeState,

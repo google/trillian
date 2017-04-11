@@ -24,6 +24,7 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/storage/coresql"
 	"github.com/google/trillian/storage/testonly"
 )
 
@@ -32,14 +33,14 @@ const selectTreeControlByID = "SELECT SigningEnabled, SequencingEnabled, Sequenc
 func TestMysqlAdminStorage(t *testing.T) {
 	tester := &testonly.AdminStorageTester{NewAdminStorage: func() storage.AdminStorage {
 		cleanTestDB(DB)
-		return NewAdminStorage(DB)
+		return coresql.NewAdminStorage(NewWrapper(DB))
 	}}
 	tester.RunAllTests(t)
 }
 
 func TestAdminTX_CreateTree_InitializesStorageStructures(t *testing.T) {
 	cleanTestDB(DB)
-	s := NewAdminStorage(DB)
+	s := coresql.NewAdminStorage(NewWrapper(DB))
 	ctx := context.Background()
 
 	tree, err := createTreeInternal(ctx, s, testonly.LogTree)
@@ -62,7 +63,7 @@ func TestAdminTX_CreateTree_InitializesStorageStructures(t *testing.T) {
 
 func TestAdminTX_TreeWithNulls(t *testing.T) {
 	cleanTestDB(DB)
-	s := NewAdminStorage(DB)
+	s := coresql.NewAdminStorage(NewWrapper(DB))
 	ctx := context.Background()
 
 	// Setup: create a tree and set all nullable columns to null.

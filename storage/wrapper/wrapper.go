@@ -19,8 +19,8 @@
 package wrapper
 
 import (
-	"database/sql"
 	"context"
+	"database/sql"
 )
 
 // TreeStatementProvider provides SQL statement objects for raw tree storage

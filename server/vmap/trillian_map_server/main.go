@@ -29,9 +29,9 @@ import (
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/server/interceptor"
 	"github.com/google/trillian/server/vmap"
+	"github.com/google/trillian/storage/coresql"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"google.golang.org/grpc"
-	"github.com/google/trillian/storage/coresql"
 )
 
 var (

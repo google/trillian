@@ -20,9 +20,6 @@ import (
 	_ "net/http/pprof"
 	"strings"
 	"time"
-
-	_ "github.com/go-sql-driver/mysql" // Load MySQL driver
-
 	"github.com/coreos/etcd/clientv3"
 	etcdnaming "github.com/coreos/etcd/clientv3/naming"
 	"github.com/golang/glog"
@@ -33,11 +30,11 @@ import (
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/server/interceptor"
+	"github.com/google/trillian/storage/coresql"
 	"github.com/google/trillian/util"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/naming"
-	"github.com/google/trillian/storage/coresql"
 )
 
 var (
