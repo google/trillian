@@ -49,8 +49,8 @@ func ValidateTreeForCreation(tree *trillian.Tree) error {
 	}
 
 	// Check that the private_key proto contains a valid serialized proto.
-	// TODO(robpercival): Could we attempt to produce an STH at this point,
-	// to verify that the key works?
+	// This is enough at this layer, as the CreateTree RPC checks whether actually creating the
+	// configured hashers / signers is possible given the current extension.Registry.
 	var privateKey ptypes.DynamicAny
 	if err := ptypes.UnmarshalAny(tree.PrivateKey, &privateKey); err != nil {
 		return errors.Errorf(errors.InvalidArgument, "invalid private_key: %v", err)

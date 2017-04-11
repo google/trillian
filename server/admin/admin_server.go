@@ -19,6 +19,7 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/server/errors"
+	"github.com/google/trillian/trees"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -93,7 +94,6 @@ func (s *Server) getTreeImpl(ctx context.Context, request *trillian.GetTreeReque
 
 // CreateTree implements trillian.TrillianAdminServer.CreateTree.
 func (s *Server) CreateTree(ctx context.Context, request *trillian.CreateTreeRequest) (*trillian.Tree, error) {
-	// TODO(codingllama): Add Hash / Signer validation to CreateTree, according to "trees" package methods?
 	tree, err := s.createTreeImpl(ctx, request)
 	if err != nil {
 		return nil, errors.WrapError(err)
@@ -102,19 +102,30 @@ func (s *Server) CreateTree(ctx context.Context, request *trillian.CreateTreeReq
 }
 
 func (s *Server) createTreeImpl(ctx context.Context, request *trillian.CreateTreeRequest) (*trillian.Tree, error) {
+	tree := request.GetTree()
+	if tree == nil {
+		return nil, grpc.Errorf(codes.InvalidArgument, "a tree is required")
+	}
+	if _, err := trees.Hasher(tree); err != nil {
+		return nil, grpc.Errorf(codes.InvalidArgument, "failed to create hasher for tree: %v", err.Error())
+	}
+	if _, err := trees.Signer(ctx, s.registry.SignerFactory, tree); err != nil {
+		return nil, grpc.Errorf(codes.InvalidArgument, "failed to create signer for tree: %v", err.Error())
+	}
+
 	tx, err := s.registry.AdminStorage.Begin(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Close()
-	tree, err := tx.CreateTree(ctx, request.GetTree())
+	newTree, err := tx.CreateTree(ctx, tree)
 	if err != nil {
 		return nil, err
 	}
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
-	return redact(tree), nil
+	return redact(newTree), nil
 }
 
 // UpdateTree implements trillian.TrillianAdminServer.UpdateTree.

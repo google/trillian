@@ -15,11 +15,17 @@
 package admin
 
 import (
+	"crypto"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"errors"
 	"testing"
 
 	"github.com/golang/mock/gomock"
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto/keys"
+	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testonly"
@@ -101,8 +107,13 @@ func TestServer_BeginError(t *testing.T) {
 			as.EXPECT().Begin(ctx).Return(nil, errors.New("begin error"))
 		}
 
+		// A bit unrealistic, but OK for the purpose of the test.
+		sf := keys.NewMockSignerFactory(ctrl)
+		sf.EXPECT().NewSigner(gomock.Any(), gomock.Any()).MaxTimes(1).Return(nil, nil)
+
 		registry := extension.Registry{
-			AdminStorage: as,
+			AdminStorage:  as,
+			SignerFactory: sf,
 		}
 
 		s := &Server{registry: registry}
@@ -147,10 +158,11 @@ func TestServer_ListTrees(t *testing.T) {
 			}
 		}
 
-		setup := setupAdminStorage(
+		setup := setupAdminServer(
 			ctrl,
-			true,          /* snapshot */
-			!test.listErr, /* shouldCommit */
+			nil,           // key
+			true,          // snapshot
+			!test.listErr, // shouldCommit
 			test.commitErr)
 		tx := setup.snapshotTX
 		s := setup.server
@@ -217,7 +229,7 @@ func TestServer_GetTree(t *testing.T) {
 
 	ctx := context.Background()
 	for _, test := range tests {
-		setup := setupAdminStorage(ctrl, true /* snapshot */, !test.getErr /* shouldCommit */, test.commitErr)
+		setup := setupAdminServer(ctrl, nil /* key */, true /* snapshot */, !test.getErr /* shouldCommit */, test.commitErr)
 		tx := setup.snapshotTX
 		s := setup.server
 
@@ -250,50 +262,96 @@ func TestServer_CreateTree(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
+	// PEM on the testonly trees is ECDSA, so let's use an ECDSA key for tests.
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("Error generating test key: %v", err)
+	}
+
 	invalidTree := *testonly.LogTree
 	invalidTree.TreeState = trillian.TreeState_HARD_DELETED
 
+	invalidHashAlgo := *testonly.LogTree
+	invalidHashAlgo.HashAlgorithm = sigpb.DigitallySigned_NONE
+
+	invalidHashStrategy := *testonly.LogTree
+	invalidHashStrategy.HashStrategy = trillian.HashStrategy_UNKNOWN_HASH_STRATEGY
+
+	invalidSignatureAlgo := *testonly.LogTree
+	invalidSignatureAlgo.SignatureAlgorithm = sigpb.DigitallySigned_ANONYMOUS
+
+	keySignatureMismatch := *testonly.LogTree
+	keySignatureMismatch.SignatureAlgorithm = sigpb.DigitallySigned_RSA
+
 	tests := []struct {
-		desc                 string
-		req                  *trillian.CreateTreeRequest
-		createErr, commitErr bool
+		desc                           string
+		req                            *trillian.CreateTreeRequest
+		createErr                      error
+		commitErr, wantErr, wantCommit bool
 	}{
 		{
-			desc: "validTree",
-			req:  &trillian.CreateTreeRequest{Tree: testonly.LogTree},
+			desc:       "validTree",
+			req:        &trillian.CreateTreeRequest{Tree: testonly.LogTree},
+			wantCommit: true,
 		},
 		{
-			desc:      "invalidTree",
+			desc:    "nilTree",
+			req:     &trillian.CreateTreeRequest{},
+			wantErr: true,
+		},
+		{
+			desc:    "invalidHashAlgo",
+			req:     &trillian.CreateTreeRequest{Tree: &invalidHashAlgo},
+			wantErr: true,
+		},
+		{
+			desc:    "invalidHashStrategy",
+			req:     &trillian.CreateTreeRequest{Tree: &invalidHashStrategy},
+			wantErr: true,
+		},
+		{
+			desc:    "invalidSignatureAlgo",
+			req:     &trillian.CreateTreeRequest{Tree: &invalidSignatureAlgo},
+			wantErr: true,
+		},
+		{
+			desc:    "keySignatureMismatch",
+			req:     &trillian.CreateTreeRequest{Tree: &keySignatureMismatch},
+			wantErr: true,
+		},
+		{
+			desc:      "createErr",
 			req:       &trillian.CreateTreeRequest{Tree: &invalidTree},
-			createErr: true,
+			createErr: errors.New("storage CreateTree failed"),
+			wantErr:   true,
 		},
 		{
-			desc:      "commitError",
-			req:       &trillian.CreateTreeRequest{Tree: testonly.LogTree},
-			commitErr: true,
+			desc:       "commitError",
+			req:        &trillian.CreateTreeRequest{Tree: testonly.LogTree},
+			commitErr:  true,
+			wantCommit: true,
+			wantErr:    true,
 		},
 	}
 
 	ctx := context.Background()
 	for _, test := range tests {
-		setup := setupAdminStorage(ctrl, false /* snapshot */, !test.createErr /* shouldCommit */, test.commitErr)
+		setup := setupAdminServer(ctrl, key, false /* snapshot */, test.wantCommit, test.commitErr)
 		tx := setup.tx
 		s := setup.server
 
-		newTree := *test.req.Tree
-		newTree.TreeId = 12345
-		newTree.CreateTimeMillisSinceEpoch = 1
-		newTree.UpdateTimeMillisSinceEpoch = 1
-		if test.createErr {
-			tx.EXPECT().CreateTree(ctx, test.req.Tree).Return(nil, errors.New("CreateTree failed"))
-		} else {
-			tx.EXPECT().CreateTree(ctx, test.req.Tree).Return(&newTree, nil)
+		var newTree trillian.Tree
+		if test.req.Tree != nil {
+			newTree = *test.req.Tree
+			newTree.TreeId = 12345
+			newTree.CreateTimeMillisSinceEpoch = 1
+			newTree.UpdateTimeMillisSinceEpoch = 1
+			tx.EXPECT().CreateTree(ctx, test.req.Tree).MaxTimes(1).Return(&newTree, test.createErr)
 		}
-		wantErr := test.createErr || test.commitErr
 
 		tree, err := s.CreateTree(ctx, test.req)
-		if hasErr := err != nil; hasErr != wantErr {
-			t.Errorf("%v: CreateTree() = (_, %v), wantErr = %v", test.desc, err, wantErr)
+		if hasErr := err != nil; hasErr != test.wantErr {
+			t.Errorf("%v: CreateTree() = (_, %q), wantErr = %v", test.desc, err, test.wantErr)
 			continue
 		} else if hasErr {
 			continue
@@ -317,19 +375,20 @@ type adminTestSetup struct {
 	server     *Server
 }
 
-// setupAdminStorage configures storage mocks according to input parameters.
+// setupAdminServer configures mocks according to input parameters.
+// SignerFactory will be set up to return the received key, if it's non-nil.
 // Storage will be set to use either snapshots or regular TXs via snapshot parameter.
 // Whether the snapshot/TX is expected to be committed (and if it should error doing so) is
 // controlled via shouldCommit and commitErr parameters.
-func setupAdminStorage(ctrl *gomock.Controller, snapshot, shouldCommit, commitErr bool) adminTestSetup {
+func setupAdminServer(ctrl *gomock.Controller, key crypto.Signer, snapshot, shouldCommit, commitErr bool) adminTestSetup {
 	as := storage.NewMockAdminStorage(ctrl)
 
 	var snapshotTX *storage.MockReadOnlyAdminTX
 	var tx *storage.MockAdminTX
 	if snapshot {
 		snapshotTX = storage.NewMockReadOnlyAdminTX(ctrl)
-		as.EXPECT().Snapshot(gomock.Any()).Return(snapshotTX, nil)
-		snapshotTX.EXPECT().Close().Return(nil)
+		as.EXPECT().Snapshot(gomock.Any()).MaxTimes(1).Return(snapshotTX, nil)
+		snapshotTX.EXPECT().Close().MaxTimes(1).Return(nil)
 		if shouldCommit {
 			if commitErr {
 				snapshotTX.EXPECT().Commit().Return(errors.New("commit error"))
@@ -339,8 +398,8 @@ func setupAdminStorage(ctrl *gomock.Controller, snapshot, shouldCommit, commitEr
 		}
 	} else {
 		tx = storage.NewMockAdminTX(ctrl)
-		as.EXPECT().Begin(gomock.Any()).Return(tx, nil)
-		tx.EXPECT().Close().Return(nil)
+		as.EXPECT().Begin(gomock.Any()).MaxTimes(1).Return(tx, nil)
+		tx.EXPECT().Close().MaxTimes(1).Return(nil)
 		if shouldCommit {
 			if commitErr {
 				tx.EXPECT().Commit().Return(errors.New("commit error"))
@@ -350,8 +409,14 @@ func setupAdminStorage(ctrl *gomock.Controller, snapshot, shouldCommit, commitEr
 		}
 	}
 
+	sf := keys.NewMockSignerFactory(ctrl)
+	if key != nil {
+		sf.EXPECT().NewSigner(gomock.Any(), gomock.Any()).MaxTimes(1).Return(key, nil)
+	}
+
 	registry := extension.Registry{
-		AdminStorage: as,
+		AdminStorage:  as,
+		SignerFactory: sf,
 	}
 
 	s := &Server{registry}
