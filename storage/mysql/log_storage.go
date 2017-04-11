@@ -88,12 +88,12 @@ var (
 )
 
 type mySQLLogStorage struct {
-	admin storage.AdminStorage
 	*mySQLTreeStorage
+	admin storage.AdminStorage
 }
 
 // NewLogStorage creates a storage.LogStorage instance for the specified MySQL URL.
-// It assumes storage.AdminStorage is backed by MySQL as well.
+// It assumes storage.AdminStorage is backed by the same MySQL database as well.
 func NewLogStorage(db *sql.DB) storage.LogStorage {
 	return &mySQLLogStorage{
 		admin:            NewAdminStorage(db),

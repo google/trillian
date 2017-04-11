@@ -78,7 +78,7 @@ func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.Qu
 	if err := validateQueueLeavesRequest(req); err != nil {
 		return nil, err
 	}
-	logID := req.GetLogId()
+	logID := req.LogId
 
 	tree, hasher, err := t.getTreeAndHasher(ctx, logID, false /* readonly */)
 	if err != nil {
@@ -130,7 +130,7 @@ func (t *TrillianLogRPCServer) GetInclusionProof(ctx context.Context, req *trill
 	if err := validateGetInclusionProofRequest(req); err != nil {
 		return nil, err
 	}
-	logID := req.GetLogId()
+	logID := req.LogId
 
 	tree, hasher, err := t.getTreeAndHasher(ctx, logID, true /* readonly */)
 	if err != nil {
@@ -170,7 +170,7 @@ func (t *TrillianLogRPCServer) GetInclusionProofByHash(ctx context.Context, req 
 	if err := validateGetInclusionProofByHashRequest(req); err != nil {
 		return nil, err
 	}
-	logID := req.GetLogId()
+	logID := req.LogId
 
 	tree, hasher, err := t.getTreeAndHasher(ctx, logID, true /* readonly */)
 	if err != nil {
@@ -228,7 +228,7 @@ func (t *TrillianLogRPCServer) GetConsistencyProof(ctx context.Context, req *tri
 	if err := validateGetConsistencyProofRequest(req); err != nil {
 		return nil, err
 	}
-	logID := req.GetLogId()
+	logID := req.LogId
 
 	tree, hasher, err := t.getTreeAndHasher(ctx, logID, true /* readonly */)
 	if err != nil {
@@ -357,7 +357,7 @@ func (t *TrillianLogRPCServer) GetEntryAndProof(ctx context.Context, req *trilli
 	if err := validateGetEntryAndProofRequest(req); err != nil {
 		return nil, err
 	}
-	logID := req.GetLogId()
+	logID := req.LogId
 
 	tree, hasher, err := t.getTreeAndHasher(ctx, logID, true /* readonly */)
 	if err != nil {
@@ -495,7 +495,8 @@ func (t *TrillianLogRPCServer) getTreeAndHasher(ctx context.Context, treeID int6
 	tree, err := trees.GetTree(
 		ctx,
 		t.registry.AdminStorage,
-		treeID, trees.GetOpts{TreeType: trillian.TreeType_LOG, Readonly: readonly})
+		treeID,
+		trees.GetOpts{TreeType: trillian.TreeType_LOG, Readonly: readonly})
 	if err != nil {
 		return nil, nil, err
 	}

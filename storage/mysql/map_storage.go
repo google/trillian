@@ -53,12 +53,12 @@ const (
 var defaultMapStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 176}
 
 type mySQLMapStorage struct {
-	admin storage.AdminStorage
 	*mySQLTreeStorage
+	admin storage.AdminStorage
 }
 
 // NewMapStorage creates a storage.MapStorage instance for the specified MySQL URL.
-// It assumes storage.AdminStorage is backed by MySQL as well.
+// It assumes storage.AdminStorage is backed by the same MySQL database as well.
 func NewMapStorage(db *sql.DB) storage.MapStorage {
 	return &mySQLMapStorage{
 		admin:            NewAdminStorage(db),

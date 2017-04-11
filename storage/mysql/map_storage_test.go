@@ -102,7 +102,7 @@ func TestMapBeginSnapshot(t *testing.T) {
 			defer tx.Close()
 			root, err := tx.LatestSignedMapRoot()
 			if err != nil {
-				t.Errorf("%v/%v: LatestSignedLogRoot() returned err = %v", test.desc, name, err)
+				t.Errorf("%v/%v: LatestSignedMapRoot() returned err = %v", test.desc, name, err)
 			}
 			if err := tx.Commit(); err != nil {
 				t.Errorf("%v/%v: Commit() returned err = %v", test.desc, name, err)

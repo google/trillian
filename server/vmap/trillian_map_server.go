@@ -48,7 +48,7 @@ func (t *TrillianMapServer) IsHealthy() error {
 
 // GetLeaves implements the GetLeaves RPC method.
 func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapLeavesRequest) (*trillian.GetMapLeavesResponse, error) {
-	mapID := req.GetMapId()
+	mapID := req.MapId
 
 	tree, hasher, err := t.getTreeAndHasher(ctx, mapID, true /* readonly */)
 	if err != nil {
@@ -107,7 +107,7 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 
 // SetLeaves implements the SetLeaves RPC method.
 func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapLeavesRequest) (*trillian.SetMapLeavesResponse, error) {
-	mapID := req.GetMapId()
+	mapID := req.MapId
 
 	tree, hasher, err := t.getTreeAndHasher(ctx, mapID, false /* readonly */)
 	if err != nil {
