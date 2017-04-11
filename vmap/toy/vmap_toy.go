@@ -32,6 +32,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/google/trillian/storage/coresql"
+	"github.com/google/trillian/storage/db"
 )
 
 var (
@@ -43,7 +44,7 @@ func main() {
 	flag.Parse()
 	glog.Info("Starting...")
 
-	wrap, err := coresql.OpenDB(*dbDriver, *dbURI)
+	wrap, err := db.OpenDB(*dbDriver, *dbURI)
 	if err != nil {
 		glog.Exitf("Failed to open DB connection: %v", err)
 	}

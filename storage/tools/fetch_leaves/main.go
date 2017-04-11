@@ -23,6 +23,7 @@ import (
 
 	log "github.com/golang/glog"
 	"github.com/google/trillian/storage/coresql"
+	"github.com/google/trillian/storage/db"
 )
 
 var (
@@ -49,7 +50,7 @@ func main() {
 	flag.Parse()
 	validateFetchFlagsOrDie()
 
-	wrap, err := coresql.OpenDB(*dbDriver, *dbURI)
+	wrap, err := db.OpenDB(*dbDriver, *dbURI)
 	if err != nil {
 		log.Exitf("Failed to open MySQL database: %v", err)
 	}

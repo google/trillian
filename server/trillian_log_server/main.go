@@ -31,6 +31,7 @@ import (
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/server/interceptor"
 	"github.com/google/trillian/storage/coresql"
+	"github.com/google/trillian/storage/db"
 	"github.com/google/trillian/util"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"google.golang.org/grpc"
@@ -52,7 +53,7 @@ func main() {
 	ctx := context.Background()
 
 	// First make sure we can access the database, quit if not
-	wrap, err := coresql.OpenDB(*dbDriver, *dbURI)
+	wrap, err := db.OpenDB(*dbDriver, *dbURI)
 	if err != nil {
 		glog.Exitf("Failed to open database: %v", err)
 	}

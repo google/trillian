@@ -24,6 +24,7 @@ import (
 	log "github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage/coresql"
+	"github.com/google/trillian/storage/db"
 )
 
 var (
@@ -55,7 +56,7 @@ func main() {
 	flag.Parse()
 	validateFlagsOrDie()
 
-	wrap, err := coresql.OpenDB(*dbDriver, *dbURI)
+	wrap, err := db.OpenDB(*dbDriver, *dbURI)
 	if err != nil {
 		log.Exitf("Failed to open database: %v", err)
 	}

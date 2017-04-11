@@ -31,6 +31,7 @@ import (
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/storage"
 	storageto "github.com/google/trillian/storage/testonly"
+	"github.com/google/trillian/storage/coresql"
 )
 
 func TestNodeRoundTrip(t *testing.T) {
@@ -38,7 +39,7 @@ func TestNodeRoundTrip(t *testing.T) {
 
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB)
+	s := coresql.NewLogStorage(NewWrapper(DB))
 
 	const writeRevision = int64(100)
 	nodesToStore := createSomeNodes()
@@ -50,7 +51,7 @@ func TestNodeRoundTrip(t *testing.T) {
 	{
 		tx := beginLogTx(s, logID, t)
 		defer tx.Close()
-		forceWriteRevision(writeRevision, tx)
+		//forceWriteRevision(writeRevision, tx)
 
 		// Need to read nodes before attempting to write
 		if _, err := tx.GetMerkleNodes(ctx, 99, nodeIDsToRead); err != nil {
@@ -86,7 +87,7 @@ func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB)
+	s := coresql.NewLogStorage(NewWrapper(DB))
 
 	const writeRevision = int64(100)
 	nodesToStore, err := createLogNodesForTreeAtSize(871, writeRevision)
@@ -101,7 +102,7 @@ func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 	{
 		tx := beginLogTx(s, logID, t)
 		defer tx.Close()
-		forceWriteRevision(writeRevision, tx)
+		//forceWriteRevision(writeRevision, tx)
 
 		// Need to read nodes before attempting to write
 		if _, err := tx.GetMerkleNodes(ctx, writeRevision-1, nodeIDsToRead); err != nil {
@@ -137,13 +138,13 @@ func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 	}
 }
 
-func forceWriteRevision(rev int64, tx storage.TreeTX) {
-	mtx, ok := tx.(*logTreeTX)
-	if !ok {
-		panic(nil)
-	}
-	mtx.treeTX.writeRevision = rev
-}
+//func forceWriteRevision(s storage.LogStorage, rev int64, tx storage.TreeTX) {
+//	mtx, ok := tx.(*logTreeTX)
+//	if !ok {
+//		panic(nil)
+//	}
+//	mtx.treeTX.writeRevision = rev
+//}
 
 func createSomeNodes() []storage.Node {
 	r := make([]storage.Node, 4)
@@ -259,7 +260,7 @@ func createLogForTests(db *sql.DB) int64 {
 
 // createTree creates the specified tree using AdminStorage.
 func createTree(db *sql.DB, tree *trillian.Tree) (*trillian.Tree, error) {
-	s := NewAdminStorage(db)
+	s := coresql.NewAdminStorage(NewWrapper(db))
 	ctx := context.Background()
 	tx, err := s.Begin(ctx)
 	if err != nil {
@@ -278,7 +279,7 @@ func createTree(db *sql.DB, tree *trillian.Tree) (*trillian.Tree, error) {
 
 // updateTree updates the specified tree using AdminStorage.
 func updateTree(db *sql.DB, treeID int64, updateFn func(*trillian.Tree)) (*trillian.Tree, error) {
-	s := NewAdminStorage(db)
+	s := coresql.NewAdminStorage(NewWrapper(db))
 	ctx := context.Background()
 	tx, err := s.Begin(ctx)
 	if err != nil {
@@ -293,6 +294,10 @@ func updateTree(db *sql.DB, treeID int64, updateFn func(*trillian.Tree)) (*trill
 		return nil, err
 	}
 	return tree, nil
+}
+
+func OpenDB(dbURL string) (*sql.DB, error) {
+	return sql.Open("mysql", dbURL)
 }
 
 // DB is the database used for tests. It's initialized and closed by TestMain().
