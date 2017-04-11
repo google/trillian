@@ -287,17 +287,30 @@ func TestMapSetGetMultipleRevisions(t *testing.T) {
 		{3, trillian.MapLeaf{Index: keyHash, LeafHash: []byte{3}, LeafValue: []byte{3}, ExtraData: []byte{3}}},
 	}
 
+	var revisions [4]int64
 	ctx := context.Background()
-	for _, tc := range tests {
+	for ic, tc := range tests {
 		func() {
 			// Write the current test case.
 			tx := beginMapTx(ctx, s, mapID, t)
+			revisions[ic] = tx.WriteRevision()
 			defer tx.Close()
 
-			mapTX := tx.(*mapTreeTX)
-			mapTX.treeTX.writeRevision = tc.rev
 			if err := tx.Set(ctx, keyHash, tc.leaf); err != nil {
 				t.Fatalf("Failed to set %v to %v: %v", keyHash, tc.leaf, err)
+			}
+			// The write revision in tx is derived from the root so write a new one to ensure we get a
+			// new revision next time through the loop.
+			smr := trillian.SignedMapRoot{
+				MapId:mapID,
+				MapRevision:tx.WriteRevision(),
+				Signature:&spb.DigitallySigned{},
+				Metadata:&trillian.MapperMetadata{},
+				RootHash:[]byte("aroothash"),
+				TimestampNanos:tx.WriteRevision(),
+			}
+			if err := tx.StoreSignedMapRoot(ctx, smr); err != nil {
+				t.Fatalf("Failed to store a map root: %d err:%v", tx.WriteRevision(), err)
 			}
 			if err := tx.Commit(); err != nil {
 				t.Fatalf("Failed to commit: %v", err)
@@ -308,22 +321,22 @@ func TestMapSetGetMultipleRevisions(t *testing.T) {
 			for i := int64(0); i < int64(len(tests)); i++ {
 				func() {
 					expectRev := i
-					if expectRev > tc.rev {
-						expectRev = tc.rev // For future revisions, expect the current value.
+					if expectRev > int64(ic) {
+						expectRev = int64(ic) // For future revisions, expect the current value.
 					}
 
 					tx2 := beginMapTx(ctx, s, mapID, t)
 					defer tx2.Close()
 
-					readValues, err := tx2.Get(ctx, i, [][]byte{keyHash})
+					readValues, err := tx2.Get(ctx, revisions[expectRev], [][]byte{keyHash})
 					if err != nil {
-						t.Fatalf("At i %d failed to get %v:  %v", i, keyHash, err)
+						t.Fatalf("At ic %d i %d failed to get %v:  %v", ic, i, keyHash, err)
 					}
 					if got, want := len(readValues), 1; got != want {
-						t.Fatalf("At i %d got %d values, expected %d", i, got, want)
+						t.Fatalf("At ic %d i %d got %d values, expected %d", ic, i, got, want)
 					}
 					if got, want := &readValues[0], &tests[expectRev].leaf; !proto.Equal(got, want) {
-						t.Fatalf("At i %d read back %v, but expected %v", i, got, want)
+						t.Fatalf("At ic %d i %d read back %v, but expected %v", ic, i, got, want)
 					}
 					commit(tx2, t)
 				}()

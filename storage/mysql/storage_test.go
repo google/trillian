@@ -41,7 +41,7 @@ func TestNodeRoundTrip(t *testing.T) {
 	logID := createLogForTests(DB)
 	s := coresql.NewLogStorage(NewWrapper(DB))
 
-	const writeRevision = int64(100)
+	var writeRevision int64
 	nodesToStore := createSomeNodes()
 	nodeIDsToRead := make([]storage.NodeID, len(nodesToStore))
 	for i := range nodesToStore {
@@ -50,11 +50,11 @@ func TestNodeRoundTrip(t *testing.T) {
 
 	{
 		tx := beginLogTx(s, logID, t)
+		writeRevision = tx.WriteRevision()
 		defer tx.Close()
-		//forceWriteRevision(writeRevision, tx)
 
 		// Need to read nodes before attempting to write
-		if _, err := tx.GetMerkleNodes(ctx, 99, nodeIDsToRead); err != nil {
+		if _, err := tx.GetMerkleNodes(ctx, writeRevision-1, nodeIDsToRead); err != nil {
 			t.Fatalf("Failed to read nodes: %s", err)
 		}
 		if err := tx.SetMerkleNodes(ctx, nodesToStore); err != nil {
@@ -69,7 +69,7 @@ func TestNodeRoundTrip(t *testing.T) {
 		tx := beginLogTx(s, logID, t)
 		defer tx.Close()
 
-		readNodes, err := tx.GetMerkleNodes(ctx, 100, nodeIDsToRead)
+		readNodes, err := tx.GetMerkleNodes(ctx, writeRevision, nodeIDsToRead)
 		if err != nil {
 			t.Fatalf("Failed to retrieve nodes: %s", err)
 		}
@@ -89,7 +89,7 @@ func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 	logID := createLogForTests(DB)
 	s := coresql.NewLogStorage(NewWrapper(DB))
 
-	const writeRevision = int64(100)
+	var writeRevision int64
 	nodesToStore, err := createLogNodesForTreeAtSize(871, writeRevision)
 	if err != nil {
 		t.Fatalf("failed to create test tree: %v", err)
@@ -101,8 +101,8 @@ func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 
 	{
 		tx := beginLogTx(s, logID, t)
+		writeRevision = tx.WriteRevision()
 		defer tx.Close()
-		//forceWriteRevision(writeRevision, tx)
 
 		// Need to read nodes before attempting to write
 		if _, err := tx.GetMerkleNodes(ctx, writeRevision-1, nodeIDsToRead); err != nil {
@@ -120,7 +120,7 @@ func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 		tx := beginLogTx(s, logID, t)
 		defer tx.Close()
 
-		readNodes, err := tx.GetMerkleNodes(ctx, 100, nodeIDsToRead)
+		readNodes, err := tx.GetMerkleNodes(ctx, writeRevision, nodeIDsToRead)
 		if err != nil {
 			t.Fatalf("Failed to retrieve nodes: %s", err)
 		}
