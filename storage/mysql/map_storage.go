@@ -27,29 +27,6 @@ import (
 	"github.com/google/trillian/trees"
 )
 
-const (
-	insertMapHeadSQL = `INSERT INTO MapHead(TreeId, MapHeadTimestamp, RootHash, MapRevision, RootSignature, MapperData)
-	VALUES(?, ?, ?, ?, ?, ?)`
-	selectLatestSignedMapRootSQL = `SELECT MapHeadTimestamp, RootHash, MapRevision, RootSignature, MapperData
-		 FROM MapHead WHERE TreeId=?
-		 ORDER BY MapHeadTimestamp DESC LIMIT 1`
-	insertMapLeafSQL = `INSERT INTO MapLeaf(TreeId, KeyHash, MapRevision, LeafValue) VALUES (?, ?, ?, ?)`
-	selectMapLeafSQL = `
- SELECT t1.KeyHash, t1.MapRevision, t1.LeafValue
- FROM MapLeaf t1
- INNER JOIN
- (
-	SELECT TreeId, KeyHash, MAX(MapRevision) as maxrev
-	FROM MapLeaf t0
-	WHERE t0.KeyHash IN (` + placeholderSQL + `) AND
-	      t0.TreeId = ? AND t0.MapRevision <= ?
-	GROUP BY t0.TreeId, t0.KeyHash
- ) t2
- ON t1.TreeId=t2.TreeId
- AND t1.KeyHash=t2.KeyHash
- AND t1.MapRevision=t2.maxrev`
-)
-
 var defaultMapStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 176}
 
 type mySQLMapStorage struct {
@@ -67,7 +44,7 @@ func NewMapStorage(db *sql.DB) storage.MapStorage {
 }
 
 func (m *mySQLMapStorage) CheckDatabaseAccessible(ctx context.Context) error {
-	return checkDatabaseAccessible(ctx, m.db)
+	return m.provider.CheckDatabaseAccessible(ctx, m.db)
 }
 
 type readOnlyMapTX struct {
@@ -167,7 +144,7 @@ func (m *mapTreeTX) Set(ctx context.Context, keyHash []byte, value trillian.MapL
 		return nil
 	}
 
-	stmt, err := m.tx.PrepareContext(ctx, insertMapLeafSQL)
+	stmt, err := m.ts.provider.InsertMapLeafStmt(m.tx)
 	if err != nil {
 		return err
 	}
@@ -180,12 +157,11 @@ func (m *mapTreeTX) Set(ctx context.Context, keyHash []byte, value trillian.MapL
 // MapLeaf indexes are overwritten rather than returning the MapLeaf proto provided in Set.
 // TODO: return a map[_something_]Mapleaf or []IndexValue to separate the index from the value.
 func (m *mapTreeTX) Get(ctx context.Context, revision int64, indexes [][]byte) ([]trillian.MapLeaf, error) {
-	stmt, err := m.ms.getStmt(ctx, selectMapLeafSQL, len(indexes), "?", "?")
+	stmt, err := m.ms.provider.GetMapLeafStmt(m.tx, len(indexes))
 	if err != nil {
 		return nil, err
 	}
-	stx := m.tx.StmtContext(ctx, stmt)
-	defer stx.Close()
+	defer stmt.Close()
 
 	args := make([]interface{}, 0, len(indexes)+2)
 	for _, index := range indexes {
@@ -196,7 +172,7 @@ func (m *mapTreeTX) Get(ctx context.Context, revision int64, indexes [][]byte) (
 
 	glog.Infof("args size %d", len(args))
 
-	rows, err := stx.QueryContext(ctx, args...)
+	rows, err := stmt.QueryContext(ctx, args...)
 	// It's possible there are no values for any of these keys yet
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -239,7 +215,7 @@ func (m *mapTreeTX) LatestSignedMapRoot(ctx context.Context) (trillian.SignedMap
 	var mapperMetaBytes []byte
 	var mapperMeta *trillian.MapperMetadata
 
-	stmt, err := m.tx.PrepareContext(ctx, selectLatestSignedMapRootSQL)
+	stmt, err := m.ms.provider.GetLatestMapRootStmt(m.tx)
 	if err != nil {
 		return trillian.SignedMapRoot{}, err
 	}
@@ -296,7 +272,7 @@ func (m *mapTreeTX) StoreSignedMapRoot(ctx context.Context, root trillian.Signed
 		}
 	}
 
-	stmt, err := m.tx.PrepareContext(ctx, insertMapHeadSQL)
+	stmt, err := m.ms.provider.InsertMapHeadStmt(m.tx)
 	if err != nil {
 		return err
 	}
