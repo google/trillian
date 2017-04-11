@@ -46,27 +46,32 @@ func TestMapBeginSnapshot(t *testing.T) {
 	tests := []struct {
 		desc  string
 		mapID int64
-		// "begin" and "snapshot" define which methods to test. Both may be specified for
-		// the same scenario.
-		begin, snapshot, wantErr bool
+		// snapshot defines whether BeginForTree or SnapshotForTree is used for the test.
+		snapshot, wantErr bool
 	}{
 		{
-			desc:     "unknown",
+			desc:    "unknownBegin",
+			mapID:   -1,
+			wantErr: true,
+		},
+		{
+			desc:     "unknownSnapshot",
 			mapID:    -1,
-			begin:    true,
 			snapshot: true,
 			wantErr:  true,
 		},
 		{
-			desc:     "activeMap",
+			desc:  "activeMapBegin",
+			mapID: activeMapID,
+		},
+		{
+			desc:     "activeMapSnapshot",
 			mapID:    activeMapID,
-			begin:    true,
 			snapshot: true,
 		},
 		{
 			desc:    "frozenBegin",
 			mapID:   frozenMapID,
-			begin:   true,
 			wantErr: true,
 		},
 		{
@@ -75,9 +80,13 @@ func TestMapBeginSnapshot(t *testing.T) {
 			snapshot: true,
 		},
 		{
-			desc:     "log",
+			desc:    "logBegin",
+			mapID:   logID,
+			wantErr: true,
+		},
+		{
+			desc:     "logSnapshot",
 			mapID:    logID,
-			begin:    true,
 			snapshot: true,
 			wantErr:  true,
 		},
@@ -86,45 +95,38 @@ func TestMapBeginSnapshot(t *testing.T) {
 	ctx := context.Background()
 	s := NewMapStorage(DB)
 	for _, test := range tests {
-		if !test.begin && !test.snapshot {
-			t.Errorf("%v: test must specified at least one of test.begin or test.snapshot", test.desc)
-			continue
-		}
+		func() {
+			var tx rootReaderMapTX
+			var err error
+			if test.snapshot {
+				tx, err = s.SnapshotForTree(ctx, test.mapID)
+			} else {
+				tx, err = s.BeginForTree(ctx, test.mapID)
+			}
 
-		runTest := func(name string, fn func(context.Context, int64) (rootReaderMapTX, error)) {
-			tx, err := fn(ctx, test.mapID)
 			if hasErr := err != nil; hasErr != test.wantErr {
-				t.Errorf("%v: %v() returned err = %q, wantErr = %v", test.desc, name, err, test.wantErr)
+				t.Errorf("%v: err = %q, wantErr = %v", test.desc, err, test.wantErr)
 				return
 			} else if hasErr {
 				return
 			}
 			defer tx.Close()
+
 			root, err := tx.LatestSignedMapRoot()
 			if err != nil {
-				t.Errorf("%v/%v: LatestSignedMapRoot() returned err = %v", test.desc, name, err)
+				t.Errorf("%v: LatestSignedMapRoot() returned err = %v", test.desc, err)
 			}
 			if err := tx.Commit(); err != nil {
-				t.Errorf("%v/%v: Commit() returned err = %v", test.desc, name, err)
+				t.Errorf("%v: Commit() returned err = %v", test.desc, err)
 			}
 
-			if tx, ok := tx.(storage.TreeTX); ok {
+			if !test.snapshot {
+				tx := tx.(storage.TreeTX)
 				if got, want := tx.WriteRevision(), root.MapRevision+1; got != want {
 					t.Errorf("%v: WriteRevision() = %v, want = %v", test.desc, got, want)
 				}
 			}
-		}
-
-		if test.begin {
-			runTest("BeginForTree", func(ctx context.Context, treeID int64) (rootReaderMapTX, error) {
-				return s.BeginForTree(ctx, treeID)
-			})
-		}
-		if test.snapshot {
-			runTest("SnapshotForTree", func(ctx context.Context, treeID int64) (rootReaderMapTX, error) {
-				return s.SnapshotForTree(ctx, treeID)
-			})
-		}
+		}()
 	}
 }
 

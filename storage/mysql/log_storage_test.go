@@ -118,27 +118,32 @@ func TestBeginSnapshot(t *testing.T) {
 	tests := []struct {
 		desc  string
 		logID int64
-		// "begin" and "snapshot" define which methods to test. Both may be specified for
-		// the same scenario.
-		begin, snapshot, wantErr bool
+		// snapshot defines whether BeginForTree or SnapshotForTree is used for the test.
+		snapshot, wantErr bool
 	}{
 		{
-			desc:     "unknown",
+			desc:    "unknownBegin",
+			logID:   -1,
+			wantErr: true,
+		},
+		{
+			desc:     "unknownSnapshot",
 			logID:    -1,
-			begin:    true,
 			snapshot: true,
 			wantErr:  true,
 		},
 		{
-			desc:     "activeLog",
+			desc:  "activeLogBegin",
+			logID: activeLogID,
+		},
+		{
+			desc:     "activeLogSnapshot",
 			logID:    activeLogID,
-			begin:    true,
 			snapshot: true,
 		},
 		{
 			desc:    "frozenBegin",
 			logID:   frozenLogID,
-			begin:   true,
 			wantErr: true,
 		},
 		{
@@ -147,9 +152,13 @@ func TestBeginSnapshot(t *testing.T) {
 			snapshot: true,
 		},
 		{
-			desc:     "map",
+			desc:    "mapBegin",
+			logID:   mapID,
+			wantErr: true,
+		},
+		{
+			desc:     "mapSnapshot",
 			logID:    mapID,
-			begin:    true,
 			snapshot: true,
 			wantErr:  true,
 		},
@@ -158,45 +167,38 @@ func TestBeginSnapshot(t *testing.T) {
 	ctx := context.Background()
 	s := NewLogStorage(DB)
 	for _, test := range tests {
-		if !test.begin && !test.snapshot {
-			t.Errorf("%v: test must specified at least one of test.begin or test.snapshot", test.desc)
-			continue
-		}
+		func() {
+			var tx rootReaderLogTX
+			var err error
+			if test.snapshot {
+				tx, err = s.SnapshotForTree(ctx, test.logID)
+			} else {
+				tx, err = s.BeginForTree(ctx, test.logID)
+			}
 
-		runTest := func(name string, fn func(context.Context, int64) (rootReaderLogTX, error)) {
-			tx, err := fn(ctx, test.logID)
 			if hasErr := err != nil; hasErr != test.wantErr {
-				t.Errorf("%v: %v() returned err = %q, wantErr = %v", test.desc, name, err, test.wantErr)
+				t.Errorf("%v: err = %q, wantErr = %v", test.desc, err, test.wantErr)
 				return
 			} else if hasErr {
 				return
 			}
 			defer tx.Close()
+
 			root, err := tx.LatestSignedLogRoot()
 			if err != nil {
-				t.Errorf("%v/%v: LatestSignedLogRoot() returned err = %v", test.desc, name, err)
+				t.Errorf("%v: LatestSignedLogRoot() returned err = %v", test.desc, err)
 			}
 			if err := tx.Commit(); err != nil {
-				t.Errorf("%v/%v: Commit() returned err = %v", test.desc, name, err)
+				t.Errorf("%v: Commit() returned err = %v", test.desc, err)
 			}
 
-			if tx, ok := tx.(storage.TreeTX); ok {
+			if !test.snapshot {
+				tx := tx.(storage.TreeTX)
 				if got, want := tx.WriteRevision(), root.TreeRevision+1; got != want {
 					t.Errorf("%v: WriteRevision() = %v, want = %v", test.desc, got, want)
 				}
 			}
-		}
-
-		if test.begin {
-			runTest("BeginForTree", func(ctx context.Context, treeID int64) (rootReaderLogTX, error) {
-				return s.BeginForTree(ctx, treeID)
-			})
-		}
-		if test.snapshot {
-			runTest("SnapshotForTree", func(ctx context.Context, treeID int64) (rootReaderLogTX, error) {
-				return s.SnapshotForTree(ctx, treeID)
-			})
-		}
+		}()
 	}
 }
 
