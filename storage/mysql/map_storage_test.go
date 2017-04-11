@@ -288,39 +288,46 @@ func TestMapSetGetMultipleRevisions(t *testing.T) {
 
 	ctx := context.Background()
 	for _, tc := range tests {
-		// Write the current test case.
-		tx := beginMapTx(ctx, s, mapID, t)
-		defer tx.Close()
-		mysqlMapTX := tx.(*mapTreeTX)
-		mysqlMapTX.treeTX.writeRevision = tc.rev
-		if err := tx.Set(keyHash, tc.leaf); err != nil {
-			t.Fatalf("Failed to set %v to %v: %v", keyHash, tc.leaf, err)
-		}
-		if err := tx.Commit(); err != nil {
-			t.Fatalf("Failed to commit: %v", err)
-		}
+		func() {
+			// Write the current test case.
+			tx := beginMapTx(ctx, s, mapID, t)
+			defer tx.Close()
 
-		// Read at a point in time in the future. Expect to get the latest value.
-		// Read at each point in the past. Expect to get that exact point in history.
-		for i := int64(0); i < int64(len(tests)); i++ {
-			expectRev := i
-			if expectRev > tc.rev {
-				expectRev = tc.rev // For future revisions, expect the current value.
+			mapTX := tx.(*mapTreeTX)
+			mapTX.treeTX.writeRevision = tc.rev
+			if err := tx.Set(keyHash, tc.leaf); err != nil {
+				t.Fatalf("Failed to set %v to %v: %v", keyHash, tc.leaf, err)
 			}
-			tx2 := beginMapTx(ctx, s, mapID, t)
-			defer tx2.Close()
-			readValues, err := tx2.Get(i, [][]byte{keyHash})
-			if err != nil {
-				t.Fatalf("At i %d failed to get %v:  %v", i, keyHash, err)
+			if err := tx.Commit(); err != nil {
+				t.Fatalf("Failed to commit: %v", err)
 			}
-			if got, want := len(readValues), 1; got != want {
-				t.Fatalf("At i %d got %d values, expected %d", i, got, want)
+
+			// Read at a point in time in the future. Expect to get the latest value.
+			// Read at each point in the past. Expect to get that exact point in history.
+			for i := int64(0); i < int64(len(tests)); i++ {
+				func() {
+					expectRev := i
+					if expectRev > tc.rev {
+						expectRev = tc.rev // For future revisions, expect the current value.
+					}
+
+					tx2 := beginMapTx(ctx, s, mapID, t)
+					defer tx2.Close()
+
+					readValues, err := tx2.Get(i, [][]byte{keyHash})
+					if err != nil {
+						t.Fatalf("At i %d failed to get %v:  %v", i, keyHash, err)
+					}
+					if got, want := len(readValues), 1; got != want {
+						t.Fatalf("At i %d got %d values, expected %d", i, got, want)
+					}
+					if got, want := &readValues[0], &tests[expectRev].leaf; !proto.Equal(got, want) {
+						t.Fatalf("At i %d read back %v, but expected %v", i, got, want)
+					}
+					commit(tx2, t)
+				}()
 			}
-			if got, want := &readValues[0], &tests[expectRev].leaf; !proto.Equal(got, want) {
-				t.Fatalf("At i %d read back %v, but expected %v", i, got, want)
-			}
-			commit(tx2, t)
-		}
+		}()
 	}
 }
 

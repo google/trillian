@@ -220,27 +220,29 @@ func TestIsOpenCommitRollbackClosed(t *testing.T) {
 		{close: true},
 	}
 	for _, test := range tests {
-		tx := beginLogTx(s, logID, t)
-		defer tx.Close()
-		if !tx.IsOpen() {
-			t.Errorf("Transaction should be open on creation, test: %v", test)
-		}
-		var err error
-		switch {
-		case test.commit:
-			err = tx.Commit()
-		case test.rollback:
-			err = tx.Rollback()
-		case test.close:
-			err = tx.Close()
-		}
-		if err != nil {
-			t.Errorf("Failed to commit/rollback/close: %v, test = %v", err, test)
-			continue
-		}
-		if tx.IsOpen() {
-			t.Errorf("Transaction should be closed after commit/rollback/close, test: %v", test)
-		}
+		func() {
+			tx := beginLogTx(s, logID, t)
+			defer tx.Close()
+			if !tx.IsOpen() {
+				t.Errorf("Transaction should be open on creation, test: %v", test)
+			}
+			var err error
+			switch {
+			case test.commit:
+				err = tx.Commit()
+			case test.rollback:
+				err = tx.Rollback()
+			case test.close:
+				err = tx.Close()
+			}
+			if err != nil {
+				t.Errorf("Failed to commit/rollback/close: %v, test = %v", err, test)
+				return
+			}
+			if tx.IsOpen() {
+				t.Errorf("Transaction should be closed after commit/rollback/close, test: %v", test)
+			}
+		}()
 	}
 }
 
@@ -276,32 +278,34 @@ func TestQueueDuplicateLeaf(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		tx := beginLogTx(s, logID, t)
-		defer tx.Close()
-		existing, err := tx.QueueLeaves(test.leaves, fakeQueueTime)
-		if err != nil {
-			t.Fatalf("Failed to queue leaves: %v", err)
-		}
-		commit(tx, t)
+		func() {
+			tx := beginLogTx(s, logID, t)
+			defer tx.Close()
+			existing, err := tx.QueueLeaves(test.leaves, fakeQueueTime)
+			if err != nil {
+				t.Fatalf("Failed to queue leaves: %v", err)
+			}
+			commit(tx, t)
 
-		if len(existing) != len(test.want) {
-			t.Errorf("|QueueLeaves()|=%d; want %d", len(existing), len(test.want))
-			continue
-		}
-		for i, want := range test.want {
-			got := existing[i]
-			if want == nil {
-				if got != nil {
-					t.Errorf("QueueLeaves()[%d]=%v; want nil", i, got)
+			if len(existing) != len(test.want) {
+				t.Errorf("|QueueLeaves()|=%d; want %d", len(existing), len(test.want))
+				return
+			}
+			for i, want := range test.want {
+				got := existing[i]
+				if want == nil {
+					if got != nil {
+						t.Errorf("QueueLeaves()[%d]=%v; want nil", i, got)
+					}
+					continue
 				}
-				continue
+				if got == nil {
+					t.Errorf("QueueLeaves()[%d]=nil; want non-nil", i)
+				} else if bytes.Compare(got.LeafIdentityHash, want.LeafIdentityHash) != 0 {
+					t.Errorf("QueueLeaves()[%d].LeafIdentityHash=%x; want %x", i, got.LeafIdentityHash, want.LeafIdentityHash)
+				}
 			}
-			if got == nil {
-				t.Errorf("QueueLeaves()[%d]=nil; want non-nil", i)
-			} else if bytes.Compare(got.LeafIdentityHash, want.LeafIdentityHash) != 0 {
-				t.Errorf("QueueLeaves()[%d].LeafIdentityHash=%x; want %x", i, got.LeafIdentityHash, want.LeafIdentityHash)
-			}
-		}
+		}()
 	}
 }
 
@@ -667,24 +671,26 @@ func TestGetLeafDataByIdentityHash(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		tx := beginLogTx(s, logID, t)
-		defer tx.Close()
+		func() {
+			tx := beginLogTx(s, logID, t)
+			defer tx.Close()
 
-		leaves, err := tx.(*logTreeTX).getLeafDataByIdentityHash(test.hashes)
-		if err != nil {
-			t.Errorf("getLeavesByIdentityHash(_) = (_,%v); want (_,nil)", err)
-			continue
-		}
-		commit(tx, t)
-		if len(leaves) != len(test.want) {
-			t.Errorf("getLeavesByIdentityHash(_) = (|%d|,nil); want (|%d|,nil)", len(leaves), len(test.want))
-			continue
-		}
-		for i, want := range test.want {
-			if !reflect.DeepEqual(leaves[i], want) {
-				t.Errorf("getLeavesByIdentityHash(_)[%d] = %+v; want %+v", i, leaves[i], want)
+			leaves, err := tx.(*logTreeTX).getLeafDataByIdentityHash(test.hashes)
+			if err != nil {
+				t.Errorf("getLeavesByIdentityHash(_) = (_,%v); want (_,nil)", err)
+				return
 			}
-		}
+			commit(tx, t)
+			if len(leaves) != len(test.want) {
+				t.Errorf("getLeavesByIdentityHash(_) = (|%d|,nil); want (|%d|,nil)", len(leaves), len(test.want))
+				return
+			}
+			for i, want := range test.want {
+				if !reflect.DeepEqual(leaves[i], want) {
+					t.Errorf("getLeavesByIdentityHash(_)[%d] = %+v; want %+v", i, leaves[i], want)
+				}
+			}
+		}()
 	}
 }
 
@@ -891,13 +897,15 @@ func runTestGetActiveLogIDsWithPendingWork(t *testing.T, test getActiveIDsTest) 
 	runTestGetActiveLogIDsInternal(t, test, logID1, nil)
 
 	for _, logID := range []int64{logID1, logID2, logID3} {
-		tx := beginLogTx(s, logID, t)
-		defer tx.Close()
-		leaves := createTestLeaves(leavesToInsert, 2)
-		if _, err := tx.QueueLeaves(leaves, fakeQueueTime); err != nil {
-			t.Fatalf("Failed to queue leaves for log %v: %v", logID, err)
-		}
-		commit(tx, t)
+		func() {
+			tx := beginLogTx(s, logID, t)
+			defer tx.Close()
+			leaves := createTestLeaves(leavesToInsert, 2)
+			if _, err := tx.QueueLeaves(leaves, fakeQueueTime); err != nil {
+				t.Fatalf("Failed to queue leaves for log %v: %v", logID, err)
+			}
+			commit(tx, t)
+		}()
 	}
 
 	wantIds := []int64{logID1, logID2, logID3}
