@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
-	"strings"
 	"testing"
 	"time"
 
@@ -103,75 +102,109 @@ func TestMySQLLogStorage_CheckDatabaseAccessible(t *testing.T) {
 	}
 }
 
-func TestBegin(t *testing.T) {
+func TestBeginSnapshot(t *testing.T) {
 	cleanTestDB(DB)
-	logID1 := createLogForTests(DB)
-	logID2 := createLogForTests(DB)
-	storage := NewLogStorage(DB)
+
+	frozenLogID := createLogForTests(DB)
+	if _, err := updateTree(DB, frozenLogID, func(tree *trillian.Tree) {
+		tree.TreeState = trillian.TreeState_FROZEN
+	}); err != nil {
+		t.Fatalf("Error updating frozen tree: %v", err)
+	}
+
+	activeLogID := createLogForTests(DB)
+	mapID := createMapForTests(DB)
 
 	tests := []struct {
-		logID         int64
-		err           string
-		writeRevision int
+		desc  string
+		logID int64
+		// snapshot defines whether BeginForTree or SnapshotForTree is used for the test.
+		snapshot, wantErr bool
 	}{
-		{logID: -1, err: "failed to get tree row"},
-		// TODO(codingllama): Test other tree settings (type, hashes, signatures, etc)
-		{logID: logID1},
-		{logID: logID2},
+		{
+			desc:    "unknownBegin",
+			logID:   -1,
+			wantErr: true,
+		},
+		{
+			desc:     "unknownSnapshot",
+			logID:    -1,
+			snapshot: true,
+			wantErr:  true,
+		},
+		{
+			desc:  "activeLogBegin",
+			logID: activeLogID,
+		},
+		{
+			desc:     "activeLogSnapshot",
+			logID:    activeLogID,
+			snapshot: true,
+		},
+		{
+			desc:    "frozenBegin",
+			logID:   frozenLogID,
+			wantErr: true,
+		},
+		{
+			desc:     "frozenSnapshot",
+			logID:    frozenLogID,
+			snapshot: true,
+		},
+		{
+			desc:    "mapBegin",
+			logID:   mapID,
+			wantErr: true,
+		},
+		{
+			desc:     "mapSnapshot",
+			logID:    mapID,
+			snapshot: true,
+			wantErr:  true,
+		},
 	}
 
 	ctx := context.Background()
+	s := NewLogStorage(DB)
 	for _, test := range tests {
-		tx, err := storage.BeginForTree(ctx, test.logID)
-		if hasError, wantError := err != nil, test.err != ""; hasError || wantError {
-			if hasError != wantError || (wantError && !strings.Contains(err.Error(), test.err)) {
-				t.Errorf("Begin() = (_, '%v'), want = (_, '...%v...')", err, test.err)
+		func() {
+			var tx rootReaderLogTX
+			var err error
+			if test.snapshot {
+				tx, err = s.SnapshotForTree(ctx, test.logID)
+			} else {
+				tx, err = s.BeginForTree(ctx, test.logID)
 			}
-			continue
-		}
-		defer tx.Close()
 
-		root, err := tx.LatestSignedLogRoot()
-		if err != nil {
-			t.Errorf("LatestSignedLogRoot() = (_, %v), want = (_, nil)", err)
-		}
-		if got, want := tx.WriteRevision(), root.TreeRevision+1; got != want {
-			t.Errorf("WriteRevision() = %v, want = %v", got, want)
-		}
-		commit(tx, t)
+			if hasErr := err != nil; hasErr != test.wantErr {
+				t.Errorf("%v: err = %q, wantErr = %v", test.desc, err, test.wantErr)
+				return
+			} else if hasErr {
+				return
+			}
+			defer tx.Close()
+
+			root, err := tx.LatestSignedLogRoot()
+			if err != nil {
+				t.Errorf("%v: LatestSignedLogRoot() returned err = %v", test.desc, err)
+			}
+			if err := tx.Commit(); err != nil {
+				t.Errorf("%v: Commit() returned err = %v", test.desc, err)
+			}
+
+			if !test.snapshot {
+				tx := tx.(storage.TreeTX)
+				if got, want := tx.WriteRevision(), root.TreeRevision+1; got != want {
+					t.Errorf("%v: WriteRevision() = %v, want = %v", test.desc, got, want)
+				}
+			}
+		}()
 	}
 }
 
-func TestSnapshot(t *testing.T) {
-	cleanTestDB(DB)
-	logID := createLogForTests(DB)
-	s := NewLogStorage(DB)
-
-	tests := []struct {
-		logID int64
-		err   string
-	}{
-		{logID: -1, err: "failed to get tree row"},
-		{logID: logID},
-	}
-
-	ctx := context.Background()
-	for _, test := range tests {
-		tx, err := s.SnapshotForTree(ctx, test.logID)
-		if hasError, wantError := err != nil, test.err != ""; hasError || wantError {
-			if hasError != wantError || (wantError && !strings.Contains(err.Error(), test.err)) {
-				t.Errorf("Begin() = (_, '%v'), want = (_, '...%v...')", err, test.err)
-			}
-			continue
-		}
-		defer tx.Close()
-
-		// Do a read so we have something to commit on the snapshot
-		if _, err = tx.LatestSignedLogRoot(); err != nil {
-			t.Errorf("LatestSignedLogRoot() = (_, %v), want = (_, nil)", err)
-		}
-		commit(tx, t)
-	}
+type rootReaderLogTX interface {
+	storage.ReadOnlyTreeTX
+	storage.LogRootReader
 }
 
 func TestIsOpenCommitRollbackClosed(t *testing.T) {
@@ -187,27 +220,29 @@ func TestIsOpenCommitRollbackClosed(t *testing.T) {
 		{close: true},
 	}
 	for _, test := range tests {
-		tx := beginLogTx(s, logID, t)
-		defer tx.Close()
-		if !tx.IsOpen() {
-			t.Errorf("Transaction should be open on creation, test: %v", test)
-		}
-		var err error
-		switch {
-		case test.commit:
-			err = tx.Commit()
-		case test.rollback:
-			err = tx.Rollback()
-		case test.close:
-			err = tx.Close()
-		}
-		if err != nil {
-			t.Errorf("Failed to commit/rollback/close: %v, test = %v", err, test)
-			continue
-		}
-		if tx.IsOpen() {
-			t.Errorf("Transaction should be closed after commit/rollback/close, test: %v", test)
-		}
+		func() {
+			tx := beginLogTx(s, logID, t)
+			defer tx.Close()
+			if !tx.IsOpen() {
+				t.Errorf("Transaction should be open on creation, test: %v", test)
+			}
+			var err error
+			switch {
+			case test.commit:
+				err = tx.Commit()
+			case test.rollback:
+				err = tx.Rollback()
+			case test.close:
+				err = tx.Close()
+			}
+			if err != nil {
+				t.Errorf("Failed to commit/rollback/close: %v, test = %v", err, test)
+				return
+			}
+			if tx.IsOpen() {
+				t.Errorf("Transaction should be closed after commit/rollback/close, test: %v", test)
+			}
+		}()
 	}
 }
 
@@ -243,32 +278,34 @@ func TestQueueDuplicateLeaf(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		tx := beginLogTx(s, logID, t)
-		defer tx.Close()
-		existing, err := tx.QueueLeaves(test.leaves, fakeQueueTime)
-		if err != nil {
-			t.Fatalf("Failed to queue leaves: %v", err)
-		}
-		commit(tx, t)
+		func() {
+			tx := beginLogTx(s, logID, t)
+			defer tx.Close()
+			existing, err := tx.QueueLeaves(test.leaves, fakeQueueTime)
+			if err != nil {
+				t.Fatalf("Failed to queue leaves: %v", err)
+			}
+			commit(tx, t)
 
-		if len(existing) != len(test.want) {
-			t.Errorf("|QueueLeaves()|=%d; want %d", len(existing), len(test.want))
-			continue
-		}
-		for i, want := range test.want {
-			got := existing[i]
-			if want == nil {
-				if got != nil {
-					t.Errorf("QueueLeaves()[%d]=%v; want nil", i, got)
+			if len(existing) != len(test.want) {
+				t.Errorf("|QueueLeaves()|=%d; want %d", len(existing), len(test.want))
+				return
+			}
+			for i, want := range test.want {
+				got := existing[i]
+				if want == nil {
+					if got != nil {
+						t.Errorf("QueueLeaves()[%d]=%v; want nil", i, got)
+					}
+					continue
 				}
-				continue
+				if got == nil {
+					t.Errorf("QueueLeaves()[%d]=nil; want non-nil", i)
+				} else if bytes.Compare(got.LeafIdentityHash, want.LeafIdentityHash) != 0 {
+					t.Errorf("QueueLeaves()[%d].LeafIdentityHash=%x; want %x", i, got.LeafIdentityHash, want.LeafIdentityHash)
+				}
 			}
-			if got == nil {
-				t.Errorf("QueueLeaves()[%d]=nil; want non-nil", i)
-			} else if bytes.Compare(got.LeafIdentityHash, want.LeafIdentityHash) != 0 {
-				t.Errorf("QueueLeaves()[%d].LeafIdentityHash=%x; want %x", i, got.LeafIdentityHash, want.LeafIdentityHash)
-			}
-		}
+		}()
 	}
 }
 
@@ -634,24 +671,26 @@ func TestGetLeafDataByIdentityHash(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		tx := beginLogTx(s, logID, t)
-		defer tx.Close()
+		func() {
+			tx := beginLogTx(s, logID, t)
+			defer tx.Close()
 
-		leaves, err := tx.(*logTreeTX).getLeafDataByIdentityHash(test.hashes)
-		if err != nil {
-			t.Errorf("getLeavesByIdentityHash(_) = (_,%v); want (_,nil)", err)
-			continue
-		}
-		commit(tx, t)
-		if len(leaves) != len(test.want) {
-			t.Errorf("getLeavesByIdentityHash(_) = (|%d|,nil); want (|%d|,nil)", len(leaves), len(test.want))
-			continue
-		}
-		for i, want := range test.want {
-			if !reflect.DeepEqual(leaves[i], want) {
-				t.Errorf("getLeavesByIdentityHash(_)[%d] = %+v; want %+v", i, leaves[i], want)
+			leaves, err := tx.(*logTreeTX).getLeafDataByIdentityHash(test.hashes)
+			if err != nil {
+				t.Errorf("getLeavesByIdentityHash(_) = (_,%v); want (_,nil)", err)
+				return
 			}
-		}
+			commit(tx, t)
+			if len(leaves) != len(test.want) {
+				t.Errorf("getLeavesByIdentityHash(_) = (|%d|,nil); want (|%d|,nil)", len(leaves), len(test.want))
+				return
+			}
+			for i, want := range test.want {
+				if !reflect.DeepEqual(leaves[i], want) {
+					t.Errorf("getLeavesByIdentityHash(_)[%d] = %+v; want %+v", i, leaves[i], want)
+				}
+			}
+		}()
 	}
 }
 
@@ -858,13 +897,15 @@ func runTestGetActiveLogIDsWithPendingWork(t *testing.T, test getActiveIDsTest) 
 	runTestGetActiveLogIDsInternal(t, test, logID1, nil)
 
 	for _, logID := range []int64{logID1, logID2, logID3} {
-		tx := beginLogTx(s, logID, t)
-		defer tx.Close()
-		leaves := createTestLeaves(leavesToInsert, 2)
-		if _, err := tx.QueueLeaves(leaves, fakeQueueTime); err != nil {
-			t.Fatalf("Failed to queue leaves for log %v: %v", logID, err)
-		}
-		commit(tx, t)
+		func() {
+			tx := beginLogTx(s, logID, t)
+			defer tx.Close()
+			leaves := createTestLeaves(leavesToInsert, 2)
+			if _, err := tx.QueueLeaves(leaves, fakeQueueTime); err != nil {
+				t.Fatalf("Failed to queue leaves for log %v: %v", logID, err)
+			}
+			commit(tx, t)
+		}()
 	}
 
 	wantIds := []int64{logID1, logID2, logID3}

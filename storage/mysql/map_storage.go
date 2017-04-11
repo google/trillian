@@ -22,9 +22,9 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 	spb "github.com/google/trillian/crypto/sigpb"
-	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
+	"github.com/google/trillian/trees"
 )
 
 const (
@@ -54,11 +54,14 @@ var defaultMapStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 176}
 
 type mySQLMapStorage struct {
 	*mySQLTreeStorage
+	admin storage.AdminStorage
 }
 
-// NewMapStorage creates a mySQLMapStorage instance for the specified MySQL URL.
+// NewMapStorage creates a storage.MapStorage instance for the specified MySQL URL.
+// It assumes storage.AdminStorage is backed by the same MySQL database as well.
 func NewMapStorage(db *sql.DB) storage.MapStorage {
 	return &mySQLMapStorage{
+		admin:            NewAdminStorage(db),
 		mySQLTreeStorage: newTreeStorage(db),
 	}
 }
@@ -95,14 +98,16 @@ func (t *readOnlyMapTX) Close() error {
 	return nil
 }
 
-func (m *mySQLMapStorage) hasher(treeID int64) (merkle.TreeHasher, error) {
-	// TODO: read hash algorithm from storage.
-	return merkle.Factory(merkle.RFC6962SHA256Type)
-}
-
-func (m *mySQLMapStorage) BeginForTree(ctx context.Context, treeID int64) (storage.MapTreeTX, error) {
-	// TODO(codingllama): Validate treeType, read hash algorithm from storage
-	hasher, err := m.hasher(treeID)
+func (m *mySQLMapStorage) begin(ctx context.Context, treeID int64, readonly bool) (storage.MapTreeTX, error) {
+	tree, err := trees.GetTree(
+		ctx,
+		m.admin,
+		treeID,
+		trees.GetOpts{TreeType: trillian.TreeType_MAP, Readonly: readonly})
+	if err != nil {
+		return nil, err
+	}
+	hasher, err := trees.Hasher(tree)
 	if err != nil {
 		return nil, err
 	}
@@ -126,8 +131,12 @@ func (m *mySQLMapStorage) BeginForTree(ctx context.Context, treeID int64) (stora
 	return mtx, nil
 }
 
+func (m *mySQLMapStorage) BeginForTree(ctx context.Context, treeID int64) (storage.MapTreeTX, error) {
+	return m.begin(ctx, treeID, false /* readonly */)
+}
+
 func (m *mySQLMapStorage) SnapshotForTree(ctx context.Context, treeID int64) (storage.ReadOnlyMapTreeTX, error) {
-	tx, err := m.BeginForTree(ctx, treeID)
+	tx, err := m.begin(ctx, treeID, true /* readonly */)
 	if err != nil {
 		return nil, err
 	}

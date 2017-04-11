@@ -19,10 +19,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/trillian/crypto"
+	"github.com/google/trillian"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/log"
-	"github.com/google/trillian/merkle"
+	"github.com/google/trillian/trees"
 )
 
 // SequencerManager provides sequencing operations for a collection of Logs.
@@ -50,15 +50,24 @@ func (s SequencerManager) ExecutePass(ctx context.Context, logID int64, info *Lo
 	// TODO(Martin2112): Honor the sequencing enabled in log parameters, needs an API change
 	// so deferring it
 
-	// TODO(Martin2112): Allow for different tree hashers to be used by different logs
-	hasher, err := merkle.Factory(merkle.RFC6962SHA256Type)
+	tree, err := trees.GetTree(
+		ctx,
+		s.registry.AdminStorage,
+		logID,
+		trees.GetOpts{TreeType: trillian.TreeType_LOG})
 	if err != nil {
-		return 0, fmt.Errorf("failed to build hasher for log %d: %v", logID, err)
+		return 0, fmt.Errorf("error retrieving log %v: %v", logID, err)
+	}
+	ctx = trees.NewContext(ctx, tree)
+
+	hasher, err := trees.Hasher(tree)
+	if err != nil {
+		return 0, fmt.Errorf("error getting hasher for log %v: %v", logID, err)
 	}
 
-	signer, err := newSigner(ctx, s.registry, logID)
+	signer, err := trees.Signer(ctx, s.registry.SignerFactory, tree)
 	if err != nil {
-		return 0, fmt.Errorf("failed to get signer for log %d: %v", logID, err)
+		return 0, fmt.Errorf("error getting signer for log %v: %v", logID, err)
 	}
 
 	sequencer := log.NewSequencer(hasher, info.timeSource, s.registry.LogStorage, signer)
@@ -66,38 +75,7 @@ func (s SequencerManager) ExecutePass(ctx context.Context, logID int64, info *Lo
 
 	leaves, err := sequencer.SequenceBatch(ctx, logID, info.batchSize)
 	if err != nil {
-		return 0, fmt.Errorf("failed to sequence batch for %d:: %v", logID, err)
+		return 0, fmt.Errorf("failed to sequence batch for %v: %v", logID, err)
 	}
 	return leaves, nil
-}
-
-func newSigner(ctx context.Context, registry extension.Registry, logID int64) (*crypto.Signer, error) {
-	if registry.AdminStorage == nil {
-		return nil, fmt.Errorf("no AdminStorage provided by registry")
-	}
-	if registry.SignerFactory == nil {
-		return nil, fmt.Errorf("no SignerFactory provided by registry")
-	}
-
-	snapshot, err := registry.AdminStorage.Snapshot(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer snapshot.Close()
-
-	tree, err := snapshot.GetTree(ctx, logID)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := snapshot.Commit(); err != nil {
-		return nil, err
-	}
-
-	signer, err := registry.SignerFactory.NewSigner(ctx, tree)
-	if err != nil {
-		return nil, err
-	}
-
-	return crypto.NewSHA256Signer(signer), nil
 }

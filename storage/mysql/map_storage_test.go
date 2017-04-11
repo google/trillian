@@ -32,62 +32,107 @@ func TestMySQLMapStorage_CheckDatabaseAccessible(t *testing.T) {
 	}
 }
 
-func TestMapBegin(t *testing.T) {
+func TestMapBeginSnapshot(t *testing.T) {
 	cleanTestDB(DB)
-	mapID := createMapForTests(DB)
-	storage := NewMapStorage(DB)
 
-	// TODO(codingllama): Add tree existence / type validation
+	frozenMapID := createMapForTests(DB)
+	updateTree(DB, frozenMapID, func(tree *trillian.Tree) {
+		tree.TreeState = trillian.TreeState_FROZEN
+	})
+
+	activeMapID := createMapForTests(DB)
+	logID := createLogForTests(DB)
+
 	tests := []struct {
+		desc  string
 		mapID int64
+		// snapshot defines whether BeginForTree or SnapshotForTree is used for the test.
+		snapshot, wantErr bool
 	}{
-		{mapID: mapID},
+		{
+			desc:    "unknownBegin",
+			mapID:   -1,
+			wantErr: true,
+		},
+		{
+			desc:     "unknownSnapshot",
+			mapID:    -1,
+			snapshot: true,
+			wantErr:  true,
+		},
+		{
+			desc:  "activeMapBegin",
+			mapID: activeMapID,
+		},
+		{
+			desc:     "activeMapSnapshot",
+			mapID:    activeMapID,
+			snapshot: true,
+		},
+		{
+			desc:    "frozenBegin",
+			mapID:   frozenMapID,
+			wantErr: true,
+		},
+		{
+			desc:     "frozenSnapshot",
+			mapID:    frozenMapID,
+			snapshot: true,
+		},
+		{
+			desc:    "logBegin",
+			mapID:   logID,
+			wantErr: true,
+		},
+		{
+			desc:     "logSnapshot",
+			mapID:    logID,
+			snapshot: true,
+			wantErr:  true,
+		},
 	}
 
 	ctx := context.Background()
+	s := NewMapStorage(DB)
 	for _, test := range tests {
-		tx, err := storage.BeginForTree(ctx, test.mapID)
-		if err != nil {
-			t.Fatalf("Begin() = (_, %v), want = (_, nil)", err)
-		}
-		defer tx.Close()
-		root, err := tx.LatestSignedMapRoot()
-		if err != nil {
-			t.Errorf("LatestSignedMapRoot() = (_, %v), want = (_, nil)", err)
-		}
-		if got, want := tx.WriteRevision(), root.MapRevision+1; got != want {
-			t.Errorf("WriteRevision() = %v, want = %v", got, want)
-		}
-		commit(tx, t)
+		func() {
+			var tx rootReaderMapTX
+			var err error
+			if test.snapshot {
+				tx, err = s.SnapshotForTree(ctx, test.mapID)
+			} else {
+				tx, err = s.BeginForTree(ctx, test.mapID)
+			}
+
+			if hasErr := err != nil; hasErr != test.wantErr {
+				t.Errorf("%v: err = %q, wantErr = %v", test.desc, err, test.wantErr)
+				return
+			} else if hasErr {
+				return
+			}
+			defer tx.Close()
+
+			root, err := tx.LatestSignedMapRoot()
+			if err != nil {
+				t.Errorf("%v: LatestSignedMapRoot() returned err = %v", test.desc, err)
+			}
+			if err := tx.Commit(); err != nil {
+				t.Errorf("%v: Commit() returned err = %v", test.desc, err)
+			}
+
+			if !test.snapshot {
+				tx := tx.(storage.TreeTX)
+				if got, want := tx.WriteRevision(), root.MapRevision+1; got != want {
+					t.Errorf("%v: WriteRevision() = %v, want = %v", test.desc, got, want)
+				}
+			}
+		}()
 	}
 }
 
-func TestMapSnapshot(t *testing.T) {
-	cleanTestDB(DB)
-	mapID := createMapForTests(DB)
-	storage := NewMapStorage(DB)
-
-	// TODO(codingllama): Add tree existence / type validation
-	tests := []struct {
-		mapID int64
-	}{
-		{mapID: mapID},
-	}
-
-	ctx := context.Background()
-	for _, test := range tests {
-		tx, err := storage.SnapshotForTree(ctx, test.mapID)
-		if err != nil {
-			t.Fatalf("Snapshot() = (_, %v), want = (_, nil)", err)
-		}
-		defer tx.Close()
-		// Do a read so we have something to commit on the snapshot
-		_, err = tx.LatestSignedMapRoot()
-		if err != nil {
-			t.Errorf("LatestSignedMapRoot() = (_, %v), want = (_, nil)", err)
-		}
-		commit(tx, t)
-	}
+type rootReaderMapTX interface {
+	storage.ReadOnlyTreeTX
+	storage.MapRootReader
 }
 
 func TestMapRootUpdate(t *testing.T) {
@@ -243,39 +288,46 @@ func TestMapSetGetMultipleRevisions(t *testing.T) {
 
 	ctx := context.Background()
 	for _, tc := range tests {
-		// Write the current test case.
-		tx := beginMapTx(ctx, s, mapID, t)
-		defer tx.Close()
-		mysqlMapTX := tx.(*mapTreeTX)
-		mysqlMapTX.treeTX.writeRevision = tc.rev
-		if err := tx.Set(keyHash, tc.leaf); err != nil {
-			t.Fatalf("Failed to set %v to %v: %v", keyHash, tc.leaf, err)
-		}
-		if err := tx.Commit(); err != nil {
-			t.Fatalf("Failed to commit: %v", err)
-		}
+		func() {
+			// Write the current test case.
+			tx := beginMapTx(ctx, s, mapID, t)
+			defer tx.Close()
 
-		// Read at a point in time in the future. Expect to get the latest value.
-		// Read at each point in the past. Expect to get that exact point in history.
-		for i := int64(0); i < int64(len(tests)); i++ {
-			expectRev := i
-			if expectRev > tc.rev {
-				expectRev = tc.rev // For future revisions, expect the current value.
+			mapTX := tx.(*mapTreeTX)
+			mapTX.treeTX.writeRevision = tc.rev
+			if err := tx.Set(keyHash, tc.leaf); err != nil {
+				t.Fatalf("Failed to set %v to %v: %v", keyHash, tc.leaf, err)
 			}
-			tx2 := beginMapTx(ctx, s, mapID, t)
-			defer tx2.Close()
-			readValues, err := tx2.Get(i, [][]byte{keyHash})
-			if err != nil {
-				t.Fatalf("At i %d failed to get %v:  %v", i, keyHash, err)
+			if err := tx.Commit(); err != nil {
+				t.Fatalf("Failed to commit: %v", err)
 			}
-			if got, want := len(readValues), 1; got != want {
-				t.Fatalf("At i %d got %d values, expected %d", i, got, want)
+
+			// Read at a point in time in the future. Expect to get the latest value.
+			// Read at each point in the past. Expect to get that exact point in history.
+			for i := int64(0); i < int64(len(tests)); i++ {
+				func() {
+					expectRev := i
+					if expectRev > tc.rev {
+						expectRev = tc.rev // For future revisions, expect the current value.
+					}
+
+					tx2 := beginMapTx(ctx, s, mapID, t)
+					defer tx2.Close()
+
+					readValues, err := tx2.Get(i, [][]byte{keyHash})
+					if err != nil {
+						t.Fatalf("At i %d failed to get %v:  %v", i, keyHash, err)
+					}
+					if got, want := len(readValues), 1; got != want {
+						t.Fatalf("At i %d got %d values, expected %d", i, got, want)
+					}
+					if got, want := &readValues[0], &tests[expectRev].leaf; !proto.Equal(got, want) {
+						t.Fatalf("At i %d read back %v, but expected %v", i, got, want)
+					}
+					commit(tx2, t)
+				}()
 			}
-			if got, want := &readValues[0], &tests[expectRev].leaf; !proto.Equal(got, want) {
-				t.Fatalf("At i %d read back %v, but expected %v", i, got, want)
-			}
-			commit(tx2, t)
-		}
+		}()
 	}
 }
 

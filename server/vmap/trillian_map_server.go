@@ -23,6 +23,7 @@ import (
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/trees"
 	"github.com/google/trillian/util"
 	"golang.org/x/net/context"
 )
@@ -45,31 +46,24 @@ func (t *TrillianMapServer) IsHealthy() error {
 	return t.registry.MapStorage.CheckDatabaseAccessible(context.Background())
 }
 
-func (t *TrillianMapServer) getHasherForMap(mapID int64) (merkle.MapHasher, error) {
-	// TODO(al): actually return tailored hashers.
-	h, err := merkle.Factory(merkle.RFC6962SHA256Type)
-	if err != nil {
-		return merkle.MapHasher{}, err
-	}
-	return merkle.NewMapHasher(h), nil
-}
-
 // GetLeaves implements the GetLeaves RPC method.
 func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapLeavesRequest) (*trillian.GetMapLeavesResponse, error) {
-	ctx = util.NewMapContext(ctx, req.MapId)
-	tx, err := t.registry.MapStorage.SnapshotForTree(ctx, req.MapId)
+	mapID := req.MapId
+
+	tree, hasher, err := t.getTreeAndHasher(ctx, mapID, true /* readonly */)
+	if err != nil {
+		return nil, err
+	}
+	ctx = trees.NewContext(ctx, tree)
+	ctx = util.NewMapContext(ctx, mapID)
+
+	tx, err := t.registry.MapStorage.SnapshotForTree(ctx, mapID)
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Close()
 
-	kh, err := t.getHasherForMap(req.MapId)
-	if err != nil {
-		return nil, err
-	}
-
 	var root *trillian.SignedMapRoot
-
 	if req.Revision < 0 {
 		// need to know the newest published revision
 		r, err := tx.LatestSignedMapRoot()
@@ -80,7 +74,7 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 		req.Revision = root.MapRevision
 	}
 
-	smtReader := merkle.NewSparseMerkleTreeReader(req.Revision, kh, tx)
+	smtReader := merkle.NewSparseMerkleTreeReader(req.Revision, hasher, tx)
 
 	leaves, err := tx.Get(req.Revision, req.Index)
 	if err != nil {
@@ -113,20 +107,22 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 
 // SetLeaves implements the SetLeaves RPC method.
 func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapLeavesRequest) (*trillian.SetMapLeavesResponse, error) {
-	ctx = util.NewMapContext(ctx, req.MapId)
+	mapID := req.MapId
+
+	tree, hasher, err := t.getTreeAndHasher(ctx, mapID, false /* readonly */)
+	if err != nil {
+		return nil, err
+	}
+	ctx = trees.NewContext(ctx, tree)
+	ctx = util.NewMapContext(ctx, mapID)
+
 	tx, err := t.registry.MapStorage.BeginForTree(ctx, req.MapId)
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Close()
 
-	hasher, err := t.getHasherForMap(req.MapId)
-	if err != nil {
-		return nil, err
-	}
-
 	glog.Infof("%s: Writing at revision %d", util.MapIDPrefix(ctx), tx.WriteRevision())
-
 	smtWriter, err := merkle.NewSparseMerkleTreeWriter(tx.WriteRevision(), hasher, func() (storage.TreeTX, error) {
 		return t.registry.MapStorage.BeginForTree(ctx, req.MapId)
 	})
@@ -200,4 +196,20 @@ func (t *TrillianMapServer) GetSignedMapRoot(ctx context.Context, req *trillian.
 	return &trillian.GetSignedMapRootResponse{
 		MapRoot: &r,
 	}, nil
+}
+
+func (t *TrillianMapServer) getTreeAndHasher(ctx context.Context, treeID int64, readonly bool) (*trillian.Tree, merkle.MapHasher, error) {
+	tree, err := trees.GetTree(
+		ctx,
+		t.registry.AdminStorage,
+		treeID,
+		trees.GetOpts{TreeType: trillian.TreeType_MAP, Readonly: readonly})
+	if err != nil {
+		return nil, merkle.MapHasher{}, err
+	}
+	th, err := trees.Hasher(tree)
+	if err != nil {
+		return nil, merkle.MapHasher{}, err
+	}
+	return tree, merkle.NewMapHasher(th), nil
 }

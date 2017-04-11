@@ -30,10 +30,10 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 	spb "github.com/google/trillian/crypto/sigpb"
-	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/monitoring/metric"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
+	"github.com/google/trillian/trees"
 )
 
 const (
@@ -89,11 +89,14 @@ var (
 
 type mySQLLogStorage struct {
 	*mySQLTreeStorage
+	admin storage.AdminStorage
 }
 
-// NewLogStorage creates a mySQLLogStorage instance for the specified MySQL URL.
+// NewLogStorage creates a storage.LogStorage instance for the specified MySQL URL.
+// It assumes storage.AdminStorage is backed by the same MySQL database as well.
 func NewLogStorage(db *sql.DB) storage.LogStorage {
 	return &mySQLLogStorage{
+		admin:            NewAdminStorage(db),
 		mySQLTreeStorage: newTreeStorage(db),
 	}
 }
@@ -191,19 +194,16 @@ func (t *readOnlyLogTX) GetActiveLogIDsWithPendingWork() ([]int64, error) {
 	return getActiveLogIDsWithPendingWork(t.tx)
 }
 
-func (m *mySQLLogStorage) hasher(treeID int64) (merkle.TreeHasher, error) {
-	// TODO(codingllama): read hash algorithm from storage.
-	return merkle.Factory(merkle.RFC6962SHA256Type)
-}
-
-func (m *mySQLLogStorage) beginInternal(ctx context.Context, treeID int64) (storage.LogTreeTX, error) {
-	// TODO(codingllama): Validate treeType, read configuration from storage
-	var num int
-	if err := m.db.QueryRow("SELECT 1 FROM Trees WHERE TreeId = ?", treeID).Scan(&num); err != nil {
-		return nil, fmt.Errorf("failed to get tree row for treeID %v: %v", treeID, err)
+func (m *mySQLLogStorage) beginInternal(ctx context.Context, treeID int64, readonly bool) (storage.LogTreeTX, error) {
+	tree, err := trees.GetTree(
+		ctx,
+		m.admin,
+		treeID,
+		trees.GetOpts{TreeType: trillian.TreeType_LOG, Readonly: readonly})
+	if err != nil {
+		return nil, err
 	}
-
-	hasher, err := m.hasher(treeID)
+	hasher, err := trees.Hasher(tree)
 	if err != nil {
 		return nil, err
 	}
@@ -229,11 +229,11 @@ func (m *mySQLLogStorage) beginInternal(ctx context.Context, treeID int64) (stor
 }
 
 func (m *mySQLLogStorage) BeginForTree(ctx context.Context, treeID int64) (storage.LogTreeTX, error) {
-	return m.beginInternal(ctx, treeID)
+	return m.beginInternal(ctx, treeID, false /* readonly */)
 }
 
 func (m *mySQLLogStorage) SnapshotForTree(ctx context.Context, treeID int64) (storage.ReadOnlyLogTreeTX, error) {
-	tx, err := m.beginInternal(ctx, treeID)
+	tx, err := m.beginInternal(ctx, treeID, true /* readonly */)
 	if err != nil {
 		return nil, err
 	}
