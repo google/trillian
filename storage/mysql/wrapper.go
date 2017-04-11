@@ -166,7 +166,7 @@ const (
 // Error code returned by MySQL driver when inserting a duplicate row
 const errNumDuplicate = 1062
 
-type mySQLStatementProvider struct {
+type mySQLWrapper struct {
 	// Statements managed by this provider are specific to this database.
 	db *sql.DB
 	// Must hold the mutex before manipulating the statement map. Sharing a lock because
@@ -179,60 +179,64 @@ type mySQLStatementProvider struct {
 
 // NewStatementProvider creates and returns a StatementPprovider appropriate for use with
 // MySQL.
-func NewStatementProvider(db *sql.DB) coresql.StatementProvider {
-	return &mySQLStatementProvider{
+func NewWrapper(db *sql.DB) coresql.DBWrapper {
+	return &mySQLWrapper{
 		db:         db,
 		statements: make(map[string]map[int]*sql.Stmt),
 	}
 }
 
-func (m *mySQLStatementProvider) GetSubtreeStmt(tx *sql.Tx, num int) (*sql.Stmt, error) {
+func (m *mySQLWrapper) DB() *sql.DB {
+	return m.db
+}
+
+func (m *mySQLWrapper) GetSubtreeStmt(tx *sql.Tx, num int) (*sql.Stmt, error) {
 	return coresql.PrepInTx(tx, func() (stmt *sql.Stmt, err error) {
 		return m.getStmt(selectSubtreeSQL, num, "?", "?")
 	})
 }
 
-func (m *mySQLStatementProvider) SetSubtreeStmt(tx *sql.Tx, num int) (*sql.Stmt, error) {
+func (m *mySQLWrapper) SetSubtreeStmt(tx *sql.Tx, num int) (*sql.Stmt, error) {
 	return coresql.PrepInTx(tx, func() (stmt *sql.Stmt, err error) {
 		return m.getStmt(insertSubtreeMultiSQL, num, "VALUES(?, ?, ?, ?)", "(?, ?, ?, ?)")
 	})
 }
 
-func (m *mySQLStatementProvider) GetTreeRevisionIncludingSizeStmt(tx *sql.Tx) (*sql.Stmt, error) {
+func (m *mySQLWrapper) GetTreeRevisionIncludingSizeStmt(tx *sql.Tx) (*sql.Stmt, error) {
 	return tx.Prepare(selectTreeRevisionAtSizeOrLargerSQL)
 }
 
-func (m *mySQLStatementProvider) InsertTreeHeadStmt(tx *sql.Tx) (*sql.Stmt, error) {
+func (m *mySQLWrapper) InsertTreeHeadStmt(tx *sql.Tx) (*sql.Stmt, error) {
 	return tx.Prepare(insertTreeHeadSQL)
 }
 
-func (m *mySQLStatementProvider) GetActiveLogsStmt(tx *sql.Tx) (*sql.Stmt, error) {
+func (m *mySQLWrapper) GetActiveLogsStmt(tx *sql.Tx) (*sql.Stmt, error) {
 	return tx.Prepare(selectActiveLogsSQL)
 }
 
-func (m *mySQLStatementProvider) GetActiveLogsWithWorkStmt(tx *sql.Tx) (*sql.Stmt, error) {
+func (m *mySQLWrapper) GetActiveLogsWithWorkStmt(tx *sql.Tx) (*sql.Stmt, error) {
 	return tx.Prepare(selectActiveLogsWithUnsequencedSQL)
 }
 
-func (m *mySQLStatementProvider) GetLeavesByIndexStmt(tx *sql.Tx, num int) (*sql.Stmt, error) {
+func (m *mySQLWrapper) GetLeavesByIndexStmt(tx *sql.Tx, num int) (*sql.Stmt, error) {
 	return coresql.PrepInTx(tx, func() (stmt *sql.Stmt, err error) {
 		return m.getStmt(selectLeavesByIndexSQL, num, "?", "?")
 	})
 }
 
-func (m *mySQLStatementProvider) GetLeavesByLeafIdentityHashStmt(tx *sql.Tx, num int) (*sql.Stmt, error) {
+func (m *mySQLWrapper) GetLeavesByLeafIdentityHashStmt(tx *sql.Tx, num int) (*sql.Stmt, error) {
 	return coresql.PrepInTx(tx, func() (stmt *sql.Stmt, err error) {
 		return m.getStmt(selectLeavesByLeafIdentityHashSQL, num, "?", "?")
 	})
 }
 
-func (m *mySQLStatementProvider) DeleteUnsequencedStmt(tx *sql.Tx, num int) (*sql.Stmt, error) {
+func (m *mySQLWrapper) DeleteUnsequencedStmt(tx *sql.Tx, num int) (*sql.Stmt, error) {
 	return coresql.PrepInTx(tx, func() (stmt *sql.Stmt, err error) {
 		return m.getStmt(deleteUnsequencedSQL, num, "?", "?")
 	})
 }
 
-func (m *mySQLStatementProvider) GetLeavesByMerkleHashStmt(tx *sql.Tx, num int, orderBySequence bool) (*sql.Stmt, error) {
+func (m *mySQLWrapper) GetLeavesByMerkleHashStmt(tx *sql.Tx, num int, orderBySequence bool) (*sql.Stmt, error) {
 	if orderBySequence {
 		return coresql.PrepInTx(tx, func() (stmt *sql.Stmt, err error) {
 			return m.getStmt(selectLeavesByMerkleHashOrderedBySequenceSQL, num, "?", "?")
@@ -244,69 +248,69 @@ func (m *mySQLStatementProvider) GetLeavesByMerkleHashStmt(tx *sql.Tx, num int, 
 	})
 }
 
-func (m *mySQLStatementProvider) GetLatestSignedLogRootStmt(tx *sql.Tx) (*sql.Stmt, error) {
+func (m *mySQLWrapper) GetLatestSignedLogRootStmt(tx *sql.Tx) (*sql.Stmt, error) {
 	return tx.Prepare(selectLatestSignedLogRootSQL)
 }
 
-func (m *mySQLStatementProvider) GetQueuedLeavesStmt(tx *sql.Tx) (*sql.Stmt, error) {
+func (m *mySQLWrapper) GetQueuedLeavesStmt(tx *sql.Tx) (*sql.Stmt, error) {
 	return tx.Prepare(selectQueuedLeavesSQL)
 }
 
-func (m *mySQLStatementProvider) InsertUnsequencedEntryStmt(tx *sql.Tx) (*sql.Stmt, error) {
+func (m *mySQLWrapper) InsertUnsequencedEntryStmt(tx *sql.Tx) (*sql.Stmt, error) {
 	return tx.Prepare(insertUnsequencedEntrySQL)
 }
 
-func (m *mySQLStatementProvider) InsertUnsequencedLeafStmt(tx *sql.Tx) (*sql.Stmt, error) {
+func (m *mySQLWrapper) InsertUnsequencedLeafStmt(tx *sql.Tx) (*sql.Stmt, error) {
 	return tx.Prepare(insertUnsequencedLeafSQL)
 }
 
-func (m *mySQLStatementProvider) InsertSequencedLeafStmt(tx *sql.Tx) (*sql.Stmt, error) {
+func (m *mySQLWrapper) InsertSequencedLeafStmt(tx *sql.Tx) (*sql.Stmt, error) {
 	return tx.Prepare(insertSequencedLeafSQL)
 }
 
-func (m *mySQLStatementProvider) GetSequencedLeafCountStmt(tx *sql.Tx) (*sql.Stmt, error) {
+func (m *mySQLWrapper) GetSequencedLeafCountStmt(tx *sql.Tx) (*sql.Stmt, error) {
 	return tx.Prepare(selectSequencedLeafCountSQL)
 }
 
-func (m *mySQLStatementProvider) GetMapLeafStmt(tx *sql.Tx, num int) (*sql.Stmt, error) {
+func (m *mySQLWrapper) GetMapLeafStmt(tx *sql.Tx, num int) (*sql.Stmt, error) {
 	return coresql.PrepInTx(tx, func() (stmt *sql.Stmt, err error) {
 		return m.getStmt(selectMapLeafSQL, num, "?", "?")
 	})
 }
 
-func (m *mySQLStatementProvider) InsertMapHeadStmt(tx *sql.Tx) (*sql.Stmt, error) {
+func (m *mySQLWrapper) InsertMapHeadStmt(tx *sql.Tx) (*sql.Stmt, error) {
 	return tx.Prepare(insertMapHeadSQL)
 }
 
-func (m *mySQLStatementProvider) GetLatestMapRootStmt(tx *sql.Tx) (*sql.Stmt, error) {
+func (m *mySQLWrapper) GetLatestMapRootStmt(tx *sql.Tx) (*sql.Stmt, error) {
 	return tx.Prepare(selectLatestSignedMapRootSQL)
 }
 
-func (m *mySQLStatementProvider) InsertMapLeafStmt(tx *sql.Tx) (*sql.Stmt, error) {
+func (m *mySQLWrapper) InsertMapLeafStmt(tx *sql.Tx) (*sql.Stmt, error) {
 	return tx.Prepare(insertMapLeafSQL)
 }
 
-func (m *mySQLStatementProvider) GetAllTreesStmt(tx *sql.Tx) (*sql.Stmt, error) {
+func (m *mySQLWrapper) GetAllTreesStmt(tx *sql.Tx) (*sql.Stmt, error) {
 	return tx.Prepare(selectAllTreesSQL)
 }
 
-func (m *mySQLStatementProvider) GetTreeStmt(tx *sql.Tx) (*sql.Stmt, error) {
+func (m *mySQLWrapper) GetTreeStmt(tx *sql.Tx) (*sql.Stmt, error) {
 	return tx.Prepare(selectTreeByIDSQL)
 }
 
-func (m *mySQLStatementProvider) GetTreeIDsStmt(tx *sql.Tx) (*sql.Stmt, error) {
+func (m *mySQLWrapper) GetTreeIDsStmt(tx *sql.Tx) (*sql.Stmt, error) {
 	return tx.Prepare(selectTreeIDsSQL)
 }
 
-func (m *mySQLStatementProvider) InsertTreeStmt(tx *sql.Tx) (*sql.Stmt, error) {
+func (m *mySQLWrapper) InsertTreeStmt(tx *sql.Tx) (*sql.Stmt, error) {
 	return tx.Prepare(insertTreeSQL)
 }
 
-func (m *mySQLStatementProvider) InsertTreeControlStmt(tx *sql.Tx) (*sql.Stmt, error) {
+func (m *mySQLWrapper) InsertTreeControlStmt(tx *sql.Tx) (*sql.Stmt, error) {
 	return tx.Prepare(insertTreeControlSQL)
 }
 
-func (m *mySQLStatementProvider) UpdateTreeStmt(tx *sql.Tx) (*sql.Stmt, error) {
+func (m *mySQLWrapper) UpdateTreeStmt(tx *sql.Tx) (*sql.Stmt, error) {
 	return tx.Prepare(updateTreeSQL)
 }
 
@@ -324,7 +328,7 @@ func expandPlaceholderSQL(sql string, num int, first, rest string) string {
 
 // getStmt creates and caches sql.Stmt structs based on the passed in statement
 // and number of bound arguments.
-func (m *mySQLStatementProvider) getStmt(statement string, num int, first, rest string) (*sql.Stmt, error) {
+func (m *mySQLWrapper) getStmt(statement string, num int, first, rest string) (*sql.Stmt, error) {
 	m.statementMutex.Lock()
 	defer m.statementMutex.Unlock()
 
@@ -350,7 +354,7 @@ func (m *mySQLStatementProvider) getStmt(statement string, num int, first, rest 
 	return s, nil
 }
 
-func (m *mySQLStatementProvider) IsDuplicateErr(err error) bool {
+func (m *mySQLWrapper) IsDuplicateErr(err error) bool {
 	if err != nil {
 		if mysqlErr, ok := err.(*mysql.MySQLError); ok && mysqlErr.Number == errNumDuplicate {
 			return true
@@ -360,7 +364,7 @@ func (m *mySQLStatementProvider) IsDuplicateErr(err error) bool {
 	return false
 }
 
-func (m *mySQLStatementProvider) OnOpenDB(db *sql.DB) error {
+func (m *mySQLWrapper) OnOpenDB(db *sql.DB) error {
 	if _, err := db.Exec("SET sql_mode = 'STRICT_ALL_TABLES'"); err != nil {
 		glog.Warningf("Failed to set strict mode on mysql db: %s", err)
 		return err
@@ -369,7 +373,7 @@ func (m *mySQLStatementProvider) OnOpenDB(db *sql.DB) error {
 	return nil
 }
 
-func (m *mySQLStatementProvider) TreeRowExists(db *sql.DB, treeID int64) error {
+func (m *mySQLWrapper) TreeRowExists(db *sql.DB, treeID int64) error {
 	var num int
 	if err := m.db.QueryRow(selectTreeRowSQL, treeID).Scan(&num); err != nil {
 		return fmt.Errorf("failed to get tree row for treeID %v: %v", treeID, err)
@@ -377,7 +381,7 @@ func (m *mySQLStatementProvider) TreeRowExists(db *sql.DB, treeID int64) error {
 	return nil
 }
 
-func (m *mySQLStatementProvider) CheckDatabaseAccessible(ctx context.Context, db *sql.DB) error {
+func (m *mySQLWrapper) CheckDatabaseAccessible(ctx context.Context, db *sql.DB) error {
 	_ = ctx
 	stmt, err := db.Prepare("SELECT TreeId FROM Trees LIMIT 1")
 	if err != nil {

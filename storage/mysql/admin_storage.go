@@ -43,7 +43,7 @@ func NewAdminStorage(db *sql.DB) storage.AdminStorage {
 // mysqlAdminStorage implements storage.AdminStorage
 type mysqlAdminStorage struct {
 	db *sql.DB
-	provider coresql.StatementProvider
+	provider coresql.DBWrapper
 }
 
 func (s *mysqlAdminStorage) Snapshot(ctx context.Context) (storage.ReadOnlyAdminTX, error) {

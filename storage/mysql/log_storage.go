@@ -95,7 +95,7 @@ func getActiveLogIDsWithPendingWork(ctx context.Context, tx *sql.Tx) ([]int64, e
 // readOnlyLogTX implements storage.ReadOnlyLogTX
 type readOnlyLogTX struct {
 	tx *sql.Tx
-	p coresql.StatementProvider
+	p coresql.DBWrapper
 }
 
 func (m *mySQLLogStorage) Snapshot(ctx context.Context) (storage.ReadOnlyLogTX, error) {

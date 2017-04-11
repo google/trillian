@@ -69,15 +69,17 @@ type CustomBehaviourProvider interface {
 	OnOpenDB(db *sql.DB) error
 }
 
-// StatementProvider provides SQL statement objects for all types of tree storage. Statements
-// returned by any of these providers belong to the caller transaction and must be closed
-// on completion of the work.
-type StatementProvider interface {
+// DBWrapper encapsulates a database and provides customized SQL statement objects for all types
+// of tree storage as well as abstracting some operations that differ between databases.
+// Statements returned by any of public functions belong to the caller transaction and must be
+// closed on completion of the work.
+type DBWrapper interface {
 	TreeStatementProvider
 	LogStatementProvider
 	MapStatementProvider
 	AdminStatementProvider
 	CustomBehaviourProvider
+	DB() *sql.DB
 }
 
 // GetStmtFunc is a function that creates and returns a pointer to a sql.Stmt and an error

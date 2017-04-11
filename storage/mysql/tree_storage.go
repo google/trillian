@@ -31,7 +31,7 @@ import (
 // Storage implementations, and contains functionality which is common to both,
 type mySQLTreeStorage struct {
 	db       *sql.DB
-	provider coresql.StatementProvider
+	provider coresql.DBWrapper
 }
 
 // OpenDB opens a database connection for all MySQL-based storage implementations.
@@ -54,7 +54,7 @@ func OpenDB(dbURL string) (*sql.DB, error) {
 func newTreeStorage(db *sql.DB) *mySQLTreeStorage {
 	return &mySQLTreeStorage{
 		db:       db,
-		provider: NewStatementProvider(db),
+		provider: NewWrapper(db),
 	}
 }
 
