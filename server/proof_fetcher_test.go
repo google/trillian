@@ -22,6 +22,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle"
+	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testonly"
 	trillian_testonly "github.com/google/trillian/testonly"
@@ -68,11 +69,7 @@ var n2n3n4 = &trillian.Node{NodeHash: th.HashChildren(h4, th.HashChildren(h3, h2
 var n4n5 = &trillian.Node{NodeHash: th.HashChildren(h5, h4)}
 
 func TestRehasher(t *testing.T) {
-	hasher, err := merkle.Factory(merkle.RFC6962SHA256Type)
-	if err != nil {
-		t.Fatalf("Error getting hasher: %v", err)
-	}
-
+	hasher := rfc6962.Hasher
 	rehashTests := []rehashTest{
 		{
 			desc:    "no rehash",
@@ -146,11 +143,7 @@ func TestRehasher(t *testing.T) {
 }
 
 func TestTree813FetchAll(t *testing.T) {
-	hasher, err := merkle.Factory(merkle.RFC6962SHA256Type)
-	if err != nil {
-		t.Fatalf("Error getting hasher: %v", err)
-	}
-
+	hasher := rfc6962.Hasher
 	const ts int64 = 813
 
 	mt := treeAtSize(int(ts))
@@ -189,11 +182,7 @@ func TestTree813FetchAll(t *testing.T) {
 }
 
 func TestTree32InclusionProofFetchAll(t *testing.T) {
-	hasher, err := merkle.Factory(merkle.RFC6962SHA256Type)
-	if err != nil {
-		t.Fatalf("Error getting hasher: %v", err)
-	}
-
+	hasher := rfc6962.Hasher
 	for ts := 2; ts <= 32; ts++ {
 		mt := treeAtSize(ts)
 		r := testonly.NewMultiFakeNodeReaderFromLeaves([]testonly.LeafBatch{
@@ -230,10 +219,7 @@ func TestTree32InclusionProofFetchAll(t *testing.T) {
 }
 
 func TestTree32InclusionProofFetchMultiBatch(t *testing.T) {
-	hasher, err := merkle.Factory(merkle.RFC6962SHA256Type)
-	if err != nil {
-		t.Fatalf("Error getting hasher: %v", err)
-	}
+	hasher := rfc6962.Hasher
 
 	mt := treeAtSize(32)
 	// The reader is built up with multiple batches, 4 batches x 8 leaves each
@@ -274,11 +260,7 @@ func TestTree32InclusionProofFetchMultiBatch(t *testing.T) {
 }
 
 func TestTree32ConsistencyProofFetchAll(t *testing.T) {
-	hasher, err := merkle.Factory(merkle.RFC6962SHA256Type)
-	if err != nil {
-		t.Fatalf("Error getting hasher: %v", err)
-	}
-
+	hasher := rfc6962.Hasher
 	for ts := 2; ts <= 32; ts++ {
 		mt := treeAtSize(ts)
 		r := testonly.NewMultiFakeNodeReaderFromLeaves([]testonly.LeafBatch{
