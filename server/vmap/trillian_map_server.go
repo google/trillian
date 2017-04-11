@@ -24,7 +24,6 @@ import (
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/trees"
-	"github.com/google/trillian/util"
 	"golang.org/x/net/context"
 )
 
@@ -55,7 +54,6 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 		return nil, err
 	}
 	ctx = trees.NewContext(ctx, tree)
-	ctx = util.NewMapContext(ctx, mapID)
 
 	tx, err := t.registry.MapStorage.SnapshotForTree(ctx, mapID)
 	if err != nil {
@@ -80,7 +78,7 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 	if err != nil {
 		return nil, err
 	}
-	glog.Infof("%s: wanted %d leaves, found %d", util.MapIDPrefix(ctx), len(req.Index), len(leaves))
+	glog.Infof("%v: wanted %v leaves, found %v", mapID, len(req.Index), len(leaves))
 
 	resp := &trillian.GetMapLeavesResponse{
 		MapLeafInclusion: make([]*trillian.MapLeafInclusion, len(leaves)),
@@ -114,7 +112,6 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		return nil, err
 	}
 	ctx = trees.NewContext(ctx, tree)
-	ctx = util.NewMapContext(ctx, mapID)
 
 	tx, err := t.registry.MapStorage.BeginForTree(ctx, req.MapId)
 	if err != nil {
@@ -122,7 +119,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 	}
 	defer tx.Close()
 
-	glog.Infof("%s: Writing at revision %d", util.MapIDPrefix(ctx), tx.WriteRevision())
+	glog.Infof("%v: Writing at revision %v", mapID, tx.WriteRevision())
 	smtWriter, err := merkle.NewSparseMerkleTreeWriter(tx.WriteRevision(), hasher, func() (storage.TreeTX, error) {
 		return t.registry.MapStorage.BeginForTree(ctx, req.MapId)
 	})
@@ -165,7 +162,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 	}
 
 	if err := tx.Commit(); err != nil {
-		glog.Warningf("%s: Commit failed for SetLeaves: %v", util.MapIDPrefix(ctx), err)
+		glog.Warningf("%v: Commit failed for SetLeaves: %v", mapID, err)
 		return nil, err
 	}
 
@@ -176,7 +173,6 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 
 // GetSignedMapRoot implements the GetSignedMapRoot RPC method.
 func (t *TrillianMapServer) GetSignedMapRoot(ctx context.Context, req *trillian.GetSignedMapRootRequest) (*trillian.GetSignedMapRootResponse, error) {
-	ctx = util.NewMapContext(ctx, req.MapId)
 	tx, err := t.registry.MapStorage.SnapshotForTree(ctx, req.MapId)
 	if err != nil {
 		return nil, err
@@ -189,7 +185,7 @@ func (t *TrillianMapServer) GetSignedMapRoot(ctx context.Context, req *trillian.
 	}
 
 	if err := tx.Commit(); err != nil {
-		glog.Warningf("%s: Commit failed for GetSignedMapRoot: %v", util.MapIDPrefix(ctx), err)
+		glog.Warningf("%v: Commit failed for GetSignedMapRoot: %v", req.MapId, err)
 		return nil, err
 	}
 
