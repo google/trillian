@@ -50,7 +50,7 @@ func (i *TreeInterceptor) UnaryInterceptor(ctx context.Context, req interface{},
 	return handler(ctx, req)
 }
 
-// rpcInfo contains information about an RPC, as extract from its request message.
+// rpcInfo contains information about an RPC, as extracted from its request message.
 type rpcInfo struct {
 	// doesNotHaveTree states whether the RPC is tied to a specific tree.
 	// Examples of RPCs without trees are CreateTree (no tree exists yet) and ListTrees
@@ -59,6 +59,7 @@ type rpcInfo struct {
 	// treeID is the tree ID tied to this RPC, if any.
 	treeID int64
 	// opts is the trees.GetOpts appropriate to this RPC (TreeType, readonly vs readwrite, etc).
+	// opts is not set if doesNotHaveTree is true.
 	opts trees.GetOpts
 }
 
@@ -71,7 +72,8 @@ func getRPCInfo(req interface{}) (*rpcInfo, error) {
 	case *trillian.GetTreeRequest:
 		return &rpcInfo{
 			treeID: req.GetTreeId(),
-			opts:   trees.GetOpts{Readonly: true}}, nil
+			opts:   trees.GetOpts{Readonly: true},
+		}, nil
 	case *trillian.DeleteTreeRequest:
 		return &rpcInfo{treeID: req.GetTreeId()}, nil
 	case *trillian.ListTreesRequest:
@@ -83,57 +85,70 @@ func getRPCInfo(req interface{}) (*rpcInfo, error) {
 	case *trillian.GetConsistencyProofRequest:
 		return &rpcInfo{
 			treeID: req.GetLogId(),
-			opts:   trees.GetOpts{TreeType: trillian.TreeType_LOG, Readonly: true}}, nil
+			opts:   trees.GetOpts{TreeType: trillian.TreeType_LOG, Readonly: true},
+		}, nil
 	case *trillian.GetEntryAndProofRequest:
 		return &rpcInfo{
 			treeID: req.GetLogId(),
-			opts:   trees.GetOpts{TreeType: trillian.TreeType_LOG, Readonly: true}}, nil
+			opts:   trees.GetOpts{TreeType: trillian.TreeType_LOG, Readonly: true},
+		}, nil
 	case *trillian.GetInclusionProofByHashRequest:
 		return &rpcInfo{
 			treeID: req.GetLogId(),
-			opts:   trees.GetOpts{TreeType: trillian.TreeType_LOG, Readonly: true}}, nil
+			opts:   trees.GetOpts{TreeType: trillian.TreeType_LOG, Readonly: true},
+		}, nil
 	case *trillian.GetInclusionProofRequest:
 		return &rpcInfo{
 			treeID: req.GetLogId(),
-			opts:   trees.GetOpts{TreeType: trillian.TreeType_LOG, Readonly: true}}, nil
+			opts:   trees.GetOpts{TreeType: trillian.TreeType_LOG, Readonly: true},
+		}, nil
 	case *trillian.GetLatestSignedLogRootRequest:
 		return &rpcInfo{
 			treeID: req.GetLogId(),
-			opts:   trees.GetOpts{TreeType: trillian.TreeType_LOG, Readonly: true}}, nil
+			opts:   trees.GetOpts{TreeType: trillian.TreeType_LOG, Readonly: true},
+		}, nil
 	case *trillian.GetLeavesByHashRequest:
 		return &rpcInfo{
 			treeID: req.GetLogId(),
-			opts:   trees.GetOpts{TreeType: trillian.TreeType_LOG, Readonly: true}}, nil
+			opts:   trees.GetOpts{TreeType: trillian.TreeType_LOG, Readonly: true},
+		}, nil
 	case *trillian.GetLeavesByIndexRequest:
 		return &rpcInfo{
 			treeID: req.GetLogId(),
-			opts:   trees.GetOpts{TreeType: trillian.TreeType_LOG, Readonly: true}}, nil
+			opts:   trees.GetOpts{TreeType: trillian.TreeType_LOG, Readonly: true},
+		}, nil
 	case *trillian.GetSequencedLeafCountRequest:
 		return &rpcInfo{
 			treeID: req.GetLogId(),
-			opts:   trees.GetOpts{TreeType: trillian.TreeType_LOG, Readonly: true}}, nil
+			opts:   trees.GetOpts{TreeType: trillian.TreeType_LOG, Readonly: true},
+		}, nil
 	case *trillian.QueueLeafRequest:
 		return &rpcInfo{
 			treeID: req.GetLogId(),
-			opts:   trees.GetOpts{TreeType: trillian.TreeType_LOG}}, nil
+			opts:   trees.GetOpts{TreeType: trillian.TreeType_LOG},
+		}, nil
 	case *trillian.QueueLeavesRequest:
 		return &rpcInfo{
 			treeID: req.GetLogId(),
-			opts:   trees.GetOpts{TreeType: trillian.TreeType_LOG}}, nil
+			opts:   trees.GetOpts{TreeType: trillian.TreeType_LOG},
+		}, nil
 
 	// TrillianMap
 	case *trillian.GetMapLeavesRequest:
 		return &rpcInfo{
 			treeID: req.GetMapId(),
-			opts:   trees.GetOpts{TreeType: trillian.TreeType_MAP, Readonly: true}}, nil
+			opts:   trees.GetOpts{TreeType: trillian.TreeType_MAP, Readonly: true},
+		}, nil
 	case *trillian.SetMapLeavesRequest:
 		return &rpcInfo{
 			treeID: req.GetMapId(),
-			opts:   trees.GetOpts{TreeType: trillian.TreeType_MAP}}, nil
+			opts:   trees.GetOpts{TreeType: trillian.TreeType_MAP},
+		}, nil
 	case *trillian.GetSignedMapRootRequest:
 		return &rpcInfo{
 			treeID: req.GetMapId(),
-			opts:   trees.GetOpts{TreeType: trillian.TreeType_MAP, Readonly: true}}, nil
+			opts:   trees.GetOpts{TreeType: trillian.TreeType_MAP, Readonly: true},
+		}, nil
 	}
 
 	return nil, errors.Errorf(errors.Internal, "request type not configured for interception: %T", req)
