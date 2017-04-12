@@ -23,8 +23,8 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
-	"github.com/google/trillian/storage/storagepb"
 	"github.com/google/trillian/storage/sql/coresql/wrapper"
+	"github.com/google/trillian/storage/storagepb"
 )
 
 // sqlTreeStorage is shared between the log and map storage implementations, and contains

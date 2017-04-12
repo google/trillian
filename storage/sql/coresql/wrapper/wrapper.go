@@ -72,7 +72,7 @@ type CustomBehaviourProvider interface {
 	TreeRowExists(treeID int64) error
 }
 
-// Lifecycle hooks allows implementations to add custom logic at various points in the
+// LifecycleHooks allows implementations to add custom logic at various points in the
 // database and transaction flow.
 type LifecycleHooks interface {
 	OnOpenDB() error

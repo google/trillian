@@ -32,8 +32,8 @@ import (
 	"github.com/google/trillian/monitoring/metric"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
-	"github.com/google/trillian/trees"
 	"github.com/google/trillian/storage/sql/coresql/wrapper"
+	"github.com/google/trillian/trees"
 )
 
 var (
@@ -52,7 +52,7 @@ type sqlLogStorage struct {
 // It assumes storage.AdminStorage is backed by the same MySQL database as well.
 func NewLogStorage(wrapper wrapper.DBWrapper) storage.LogStorage {
 	return &sqlLogStorage{
-		admin:            NewAdminStorage(wrapper),
+		admin:          NewAdminStorage(wrapper),
 		sqlTreeStorage: newTreeStorage(wrapper),
 	}
 }

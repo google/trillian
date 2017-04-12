@@ -15,7 +15,6 @@
 package mysql
 
 import (
-	"bytes"
 	"context"
 	"crypto"
 	"crypto/sha256"
@@ -30,8 +29,9 @@ import (
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/storage"
-	storageto "github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/storage/sql/coresql"
+	"github.com/google/trillian/storage/sql/coresql/testonly"
+	storageto "github.com/google/trillian/storage/testonly"
 )
 
 func TestNodeRoundTrip(t *testing.T) {
@@ -49,7 +49,7 @@ func TestNodeRoundTrip(t *testing.T) {
 	}
 
 	{
-		tx := beginLogTx(s, logID, t)
+		tx := testonly.BeginLogTx(s, logID, t)
 		writeRevision = tx.WriteRevision()
 		defer tx.Close()
 
@@ -66,17 +66,17 @@ func TestNodeRoundTrip(t *testing.T) {
 	}
 
 	{
-		tx := beginLogTx(s, logID, t)
+		tx := testonly.BeginLogTx(s, logID, t)
 		defer tx.Close()
 
 		readNodes, err := tx.GetMerkleNodes(ctx, writeRevision, nodeIDsToRead)
 		if err != nil {
 			t.Fatalf("Failed to retrieve nodes: %s", err)
 		}
-		if err := nodesAreEqual(readNodes, nodesToStore); err != nil {
+		if err := testonly.NodesAreEqual(readNodes, nodesToStore); err != nil {
 			t.Fatalf("Read back different nodes from the ones stored: %s", err)
 		}
-		commit(tx, t)
+		testonly.Commit(tx, t)
 	}
 }
 
@@ -100,7 +100,7 @@ func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 	}
 
 	{
-		tx := beginLogTx(s, logID, t)
+		tx := testonly.BeginLogTx(s, logID, t)
 		writeRevision = tx.WriteRevision()
 		defer tx.Close()
 
@@ -117,15 +117,15 @@ func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 	}
 
 	{
-		tx := beginLogTx(s, logID, t)
+		tx := testonly.BeginLogTx(s, logID, t)
 		defer tx.Close()
 
 		readNodes, err := tx.GetMerkleNodes(ctx, writeRevision, nodeIDsToRead)
 		if err != nil {
 			t.Fatalf("Failed to retrieve nodes: %s", err)
 		}
-		if err := nodesAreEqual(readNodes, nodesToStore); err != nil {
-			missing, extra := diffNodes(readNodes, nodesToStore)
+		if err := testonly.NodesAreEqual(readNodes, nodesToStore); err != nil {
+			missing, extra := testonly.DiffNodes(readNodes, nodesToStore)
 			for _, n := range missing {
 				t.Errorf("Missing: %s %s", n.NodeID.String(), n.NodeID.CoordString())
 			}
@@ -134,17 +134,9 @@ func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 			}
 			t.Fatalf("Read back different nodes from the ones stored: %s", err)
 		}
-		commit(tx, t)
+		testonly.Commit(tx, t)
 	}
 }
-
-//func forceWriteRevision(s storage.LogStorage, rev int64, tx storage.TreeTX) {
-//	mtx, ok := tx.(*logTreeTX)
-//	if !ok {
-//		panic(nil)
-//	}
-//	mtx.treeTX.writeRevision = rev
-//}
 
 func createSomeNodes() []storage.Node {
 	r := make([]storage.Node, 4)
@@ -185,42 +177,6 @@ func createLogNodesForTreeAtSize(ts, rev int64) ([]storage.Node, error) {
 	}
 
 	return nodes, nil
-}
-
-func nodesAreEqual(lhs []storage.Node, rhs []storage.Node) error {
-	if ls, rs := len(lhs), len(rhs); ls != rs {
-		return fmt.Errorf("different number of nodes, %d vs %d", ls, rs)
-	}
-	for i := range lhs {
-		if l, r := lhs[i].NodeID.String(), rhs[i].NodeID.String(); l != r {
-			return fmt.Errorf("NodeIDs are not the same,\nlhs = %v,\nrhs = %v", l, r)
-		}
-		if l, r := lhs[i].Hash, rhs[i].Hash; !bytes.Equal(l, r) {
-			return fmt.Errorf("Hashes are not the same for %s,\nlhs = %v,\nrhs = %v", lhs[i].NodeID.CoordString(), l, r)
-		}
-	}
-	return nil
-}
-
-func diffNodes(got, want []storage.Node) ([]storage.Node, []storage.Node) {
-	missing := []storage.Node{}
-	gotMap := make(map[string]storage.Node)
-	for _, n := range got {
-		gotMap[n.NodeID.String()] = n
-	}
-	for _, n := range want {
-		_, ok := gotMap[n.NodeID.String()]
-		if !ok {
-			missing = append(missing, n)
-		}
-		delete(gotMap, n.NodeID.String())
-	}
-	// Unpack the extra nodes to return both as slices
-	extra := make([]storage.Node, 0, len(gotMap))
-	for _, v := range gotMap {
-		extra = append(extra, v)
-	}
-	return missing, extra
 }
 
 func openTestDBOrDie() *sql.DB {

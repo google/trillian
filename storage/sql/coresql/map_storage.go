@@ -24,8 +24,8 @@ import (
 	spb "github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
-	"github.com/google/trillian/trees"
 	"github.com/google/trillian/storage/sql/coresql/wrapper"
+	"github.com/google/trillian/trees"
 )
 
 var defaultMapStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 176}
@@ -39,7 +39,7 @@ type sqlMapStorage struct {
 // It assumes storage.AdminStorage is backed by the same MySQL database as well.
 func NewMapStorage(wrap wrapper.DBWrapper) storage.MapStorage {
 	return &sqlMapStorage{
-		admin:            NewAdminStorage(wrap),
+		admin:          NewAdminStorage(wrap),
 		sqlTreeStorage: newTreeStorage(wrap),
 	}
 }

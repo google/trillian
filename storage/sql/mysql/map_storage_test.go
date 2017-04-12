@@ -23,6 +23,7 @@ import (
 	spb "github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/sql/coresql"
+	"github.com/google/trillian/storage/sql/coresql/testonly"
 )
 
 func TestMySQLMapStorage_CheckDatabaseAccessible(t *testing.T) {
@@ -179,7 +180,7 @@ func TestMapRootUpdate(t *testing.T) {
 	if !proto.Equal(&root2, &root3) {
 		t.Fatalf("Root round trip failed: <%v> and: <%v>", root, root2)
 	}
-	commit(tx, t)
+	testonly.Commit(tx, t)
 }
 
 var keyHash = []byte([]byte("A Key Hash"))
@@ -221,7 +222,7 @@ func TestMapSetGetRoundTrip(t *testing.T) {
 		if got, want := &readValues[0], &mapLeaf; !proto.Equal(got, want) {
 			t.Fatalf("Read back %v, but expected %v", got, want)
 		}
-		commit(tx, t)
+		testonly.Commit(tx, t)
 	}
 }
 
@@ -249,7 +250,7 @@ func TestMapSetSameKeyInSameRevisionFails(t *testing.T) {
 		if err := tx.Set(ctx, keyHash, mapLeaf); err == nil {
 			t.Fatalf("Unexpectedly succeeded in setting %v to %v", keyHash, mapLeaf)
 		}
-		commit(tx, t)
+		testonly.Commit(tx, t)
 	}
 }
 
@@ -268,7 +269,7 @@ func TestMapGetUnknownKey(t *testing.T) {
 	if got, want := len(readValues), 0; got != want {
 		t.Fatalf("Unexpectedly read %d values, expected %d", got, want)
 	}
-	commit(tx, t)
+	testonly.Commit(tx, t)
 }
 
 func TestMapSetGetMultipleRevisions(t *testing.T) {
@@ -299,12 +300,12 @@ func TestMapSetGetMultipleRevisions(t *testing.T) {
 			// The write revision in tx is derived from the root so write a new one to ensure we get a
 			// new revision next time through the loop.
 			smr := trillian.SignedMapRoot{
-				MapId:mapID,
-				MapRevision:tx.WriteRevision(),
-				Signature:&spb.DigitallySigned{},
-				Metadata:&trillian.MapperMetadata{},
-				RootHash:[]byte("aroothash"),
-				TimestampNanos:tx.WriteRevision(),
+				MapId:          mapID,
+				MapRevision:    tx.WriteRevision(),
+				Signature:      &spb.DigitallySigned{},
+				Metadata:       &trillian.MapperMetadata{},
+				RootHash:       []byte("aroothash"),
+				TimestampNanos: tx.WriteRevision(),
 			}
 			if err := tx.StoreSignedMapRoot(ctx, smr); err != nil {
 				t.Fatalf("Failed to store a map root: %d err:%v", tx.WriteRevision(), err)
@@ -335,7 +336,7 @@ func TestMapSetGetMultipleRevisions(t *testing.T) {
 					if got, want := &readValues[0], &tests[expectRev]; !proto.Equal(got, want) {
 						t.Fatalf("At ic %d i %d read back %v, but expected %v", ic, i, got, want)
 					}
-					commit(tx2, t)
+					testonly.Commit(tx2, t)
 				}()
 			}
 		}()
@@ -358,7 +359,7 @@ func TestLatestSignedMapRootNoneWritten(t *testing.T) {
 	if root.MapId != 0 || len(root.RootHash) != 0 || root.Signature != nil {
 		t.Fatalf("Read a root with contents when it should be empty: %v", root)
 	}
-	commit(tx, t)
+	testonly.Commit(tx, t)
 }
 
 func TestLatestSignedMapRoot(t *testing.T) {
@@ -394,7 +395,7 @@ func TestLatestSignedMapRoot(t *testing.T) {
 		if !proto.Equal(&root, &root2) {
 			t.Fatalf("Root round trip failed: <%#v> and: <%#v>", root, root2)
 		}
-		commit(tx2, t)
+		testonly.Commit(tx2, t)
 	}
 }
 
@@ -421,7 +422,7 @@ func TestDuplicateSignedMapRoot(t *testing.T) {
 	if err := tx.StoreSignedMapRoot(ctx, root); err == nil {
 		t.Fatal("Allowed duplicate signed map root")
 	}
-	commit(tx, t)
+	testonly.Commit(tx, t)
 }
 
 func TestReadOnlyMapTX_Rollback(t *testing.T) {

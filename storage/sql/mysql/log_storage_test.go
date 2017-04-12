@@ -28,6 +28,7 @@ import (
 	spb "github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/sql/coresql"
+	"github.com/google/trillian/storage/sql/coresql/testonly"
 	"github.com/kylelemons/godebug/pretty"
 )
 
@@ -68,28 +69,6 @@ func createFakeLeaf(ctx context.Context, db *sql.DB, logID int64, rawHash, hash,
 		ExtraData:        extraData,
 		LeafIndex:        seq,
 		LeafIdentityHash: rawHash,
-	}
-}
-
-func checkLeafContents(leaf *trillian.LogLeaf, seq int64, rawHash, hash, data, extraData []byte, t *testing.T) {
-	if got, want := leaf.MerkleLeafHash, hash; !bytes.Equal(got, want) {
-		t.Fatalf("Wrong leaf hash in returned leaf got\n%v\nwant:\n%v", got, want)
-	}
-
-	if got, want := leaf.LeafIdentityHash, rawHash; !bytes.Equal(got, want) {
-		t.Fatalf("Wrong raw leaf hash in returned leaf got\n%v\nwant:\n%v", got, want)
-	}
-
-	if got, want := seq, leaf.LeafIndex; got != want {
-		t.Fatalf("Bad sequence number in returned leaf got: %d, want:%d", got, want)
-	}
-
-	if got, want := leaf.LeafValue, data; !bytes.Equal(got, want) {
-		t.Fatalf("Unxpected data in returned leaf. got:\n%v\nwant:\n%v", got, want)
-	}
-
-	if got, want := leaf.ExtraData, extraData; !bytes.Equal(got, want) {
-		t.Fatalf("Unxpected data in returned leaf. got:\n%v\nwant:\n%v", got, want)
 	}
 }
 
@@ -220,7 +199,7 @@ func TestIsOpenCommitRollbackClosed(t *testing.T) {
 	}
 	for _, test := range tests {
 		func() {
-			tx := beginLogTx(s, logID, t)
+			tx := testonly.BeginLogTx(s, logID, t)
 			defer tx.Close()
 			if !tx.IsOpen() {
 				t.Errorf("Transaction should be open on creation, test: %v", test)
@@ -280,13 +259,13 @@ func TestQueueDuplicateLeaf(t *testing.T) {
 
 	for _, test := range tests {
 		func() {
-			tx := beginLogTx(s, logID, t)
+			tx := testonly.BeginLogTx(s, logID, t)
 			defer tx.Close()
 			existing, err := tx.QueueLeaves(ctx, test.leaves, fakeQueueTime)
 			if err != nil {
 				t.Fatalf("Failed to queue leaves: %v", err)
 			}
-			commit(tx, t)
+			testonly.Commit(tx, t)
 
 			if len(existing) != len(test.want) {
 				t.Errorf("|QueueLeaves()|=%d; want %d", len(existing), len(test.want))
@@ -317,14 +296,14 @@ func TestQueueLeaves(t *testing.T) {
 	logID := createLogForTests(DB)
 	s := coresql.NewLogStorage(NewWrapper(DB))
 
-	tx := beginLogTx(s, logID, t)
+	tx := testonly.BeginLogTx(s, logID, t)
 	defer tx.Close()
 
 	leaves := createTestLeaves(leavesToInsert, 20)
 	if _, err := tx.QueueLeaves(ctx, leaves, fakeQueueTime); err != nil {
 		t.Fatalf("Failed to queue leaves: %v", err)
 	}
-	commit(tx, t)
+	testonly.Commit(tx, t)
 
 	// Should see the leaves in the database. There is no API to read from the unsequenced data.
 	var count int
@@ -352,7 +331,7 @@ func TestDequeueLeavesNoneQueued(t *testing.T) {
 	logID := createLogForTests(DB)
 	s := coresql.NewLogStorage(NewWrapper(DB))
 
-	tx := beginLogTx(s, logID, t)
+	tx := testonly.BeginLogTx(s, logID, t)
 	defer tx.Close()
 
 	leaves, err := tx.DequeueLeaves(ctx, 999, fakeDequeueCutoffTime)
@@ -362,7 +341,7 @@ func TestDequeueLeavesNoneQueued(t *testing.T) {
 	if len(leaves) > 0 {
 		t.Fatalf("Expected nothing to be dequeued but we got %d leaves", len(leaves))
 	}
-	commit(tx, t)
+	testonly.Commit(tx, t)
 }
 
 func TestDequeueLeaves(t *testing.T) {
@@ -373,18 +352,18 @@ func TestDequeueLeaves(t *testing.T) {
 	s := coresql.NewLogStorage(NewWrapper(DB))
 
 	{
-		tx := beginLogTx(s, logID, t)
+		tx := testonly.BeginLogTx(s, logID, t)
 		defer tx.Close()
 		leaves := createTestLeaves(leavesToInsert, 20)
 		if _, err := tx.QueueLeaves(ctx, leaves, fakeDequeueCutoffTime); err != nil {
 			t.Fatalf("Failed to queue leaves: %v", err)
 		}
-		commit(tx, t)
+		testonly.Commit(tx, t)
 	}
 
 	{
 		// Now try to dequeue them
-		tx2 := beginLogTx(s, logID, t)
+		tx2 := testonly.BeginLogTx(s, logID, t)
 		defer tx2.Close()
 		leaves2, err := tx2.DequeueLeaves(ctx, 99, fakeDequeueCutoffTime)
 		if err != nil {
@@ -393,13 +372,13 @@ func TestDequeueLeaves(t *testing.T) {
 		if len(leaves2) != leavesToInsert {
 			t.Fatalf("Dequeued %d leaves but expected to get %d", len(leaves2), leavesToInsert)
 		}
-		ensureAllLeavesDistinct(leaves2, t)
-		commit(tx2, t)
+		testonly.EnsureAllLeavesDistinct(leaves2, t)
+		testonly.Commit(tx2, t)
 	}
 
 	{
 		// If we dequeue again then we should now get nothing
-		tx3 := beginLogTx(s, logID, t)
+		tx3 := testonly.BeginLogTx(s, logID, t)
 		defer tx3.Close()
 		leaves3, err := tx3.DequeueLeaves(ctx, 99, fakeDequeueCutoffTime)
 		if err != nil {
@@ -408,7 +387,7 @@ func TestDequeueLeaves(t *testing.T) {
 		if len(leaves3) != 0 {
 			t.Fatalf("Dequeued %d leaves but expected to get none", len(leaves3))
 		}
-		commit(tx3, t)
+		testonly.Commit(tx3, t)
 	}
 }
 
@@ -423,18 +402,18 @@ func TestDequeueLeavesTwoBatches(t *testing.T) {
 	leavesToDequeue2 := 2
 
 	{
-		tx := beginLogTx(s, logID, t)
+		tx := testonly.BeginLogTx(s, logID, t)
 		defer tx.Close()
 		leaves := createTestLeaves(leavesToInsert, 20)
 		if _, err := tx.QueueLeaves(ctx, leaves, fakeDequeueCutoffTime); err != nil {
 			t.Fatalf("Failed to queue leaves: %v", err)
 		}
-		commit(tx, t)
+		testonly.Commit(tx, t)
 	}
 
 	{
 		// Now try to dequeue some of them
-		tx2 := beginLogTx(s, logID, t)
+		tx2 := testonly.BeginLogTx(s, logID, t)
 		defer tx2.Close()
 		leaves2, err := tx2.DequeueLeaves(ctx, leavesToDequeue1, fakeDequeueCutoffTime)
 		if err != nil {
@@ -443,11 +422,11 @@ func TestDequeueLeavesTwoBatches(t *testing.T) {
 		if len(leaves2) != leavesToDequeue1 {
 			t.Fatalf("Dequeued %d leaves but expected to get %d", len(leaves2), leavesToInsert)
 		}
-		ensureAllLeavesDistinct(leaves2, t)
-		commit(tx2, t)
+		testonly.EnsureAllLeavesDistinct(leaves2, t)
+		testonly.Commit(tx2, t)
 
 		// Now try to dequeue the rest of them
-		tx3 := beginLogTx(s, logID, t)
+		tx3 := testonly.BeginLogTx(s, logID, t)
 		defer tx3.Close()
 		leaves3, err := tx3.DequeueLeaves(ctx, leavesToDequeue2, fakeDequeueCutoffTime)
 		if err != nil {
@@ -456,17 +435,17 @@ func TestDequeueLeavesTwoBatches(t *testing.T) {
 		if len(leaves3) != leavesToDequeue2 {
 			t.Fatalf("Dequeued %d leaves but expected to get %d", len(leaves3), leavesToDequeue2)
 		}
-		ensureAllLeavesDistinct(leaves3, t)
+		testonly.EnsureAllLeavesDistinct(leaves3, t)
 
 		// Plus the union of the leaf batches should all have distinct hashes
 		leaves4 := append(leaves2, leaves3...)
-		ensureAllLeavesDistinct(leaves4, t)
-		commit(tx3, t)
+		testonly.EnsureAllLeavesDistinct(leaves4, t)
+		testonly.Commit(tx3, t)
 	}
 
 	{
 		// If we dequeue again then we should now get nothing
-		tx4 := beginLogTx(s, logID, t)
+		tx4 := testonly.BeginLogTx(s, logID, t)
 		defer tx4.Close()
 		leaves5, err := tx4.DequeueLeaves(ctx, 99, fakeDequeueCutoffTime)
 		if err != nil {
@@ -475,7 +454,7 @@ func TestDequeueLeavesTwoBatches(t *testing.T) {
 		if len(leaves5) != 0 {
 			t.Fatalf("Dequeued %d leaves but expected to get none", len(leaves5))
 		}
-		commit(tx4, t)
+		testonly.Commit(tx4, t)
 	}
 }
 
@@ -490,18 +469,18 @@ func TestDequeueLeavesGuardInterval(t *testing.T) {
 	s := coresql.NewLogStorage(NewWrapper(DB))
 
 	{
-		tx := beginLogTx(s, logID, t)
+		tx := testonly.BeginLogTx(s, logID, t)
 		defer tx.Close()
 		leaves := createTestLeaves(leavesToInsert, 20)
 		if _, err := tx.QueueLeaves(ctx, leaves, fakeQueueTime); err != nil {
 			t.Fatalf("Failed to queue leaves: %v", err)
 		}
-		commit(tx, t)
+		testonly.Commit(tx, t)
 	}
 
 	{
 		// Now try to dequeue them using a cutoff that means we should get none
-		tx2 := beginLogTx(s, logID, t)
+		tx2 := testonly.BeginLogTx(s, logID, t)
 		defer tx2.Close()
 		leaves2, err := tx2.DequeueLeaves(ctx, 99, fakeQueueTime.Add(-time.Second))
 		if err != nil {
@@ -519,8 +498,8 @@ func TestDequeueLeavesGuardInterval(t *testing.T) {
 		if len(leaves2) != leavesToInsert {
 			t.Fatalf("Dequeued %d leaves but expected to get %d", len(leaves2), leavesToInsert)
 		}
-		ensureAllLeavesDistinct(leaves2, t)
-		commit(tx2, t)
+		testonly.EnsureAllLeavesDistinct(leaves2, t)
+		testonly.Commit(tx2, t)
 	}
 }
 
@@ -539,7 +518,7 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 	leaves2 := createTestLeaves(int64(batchSize), int64(batchSize))
 
 	{
-		tx := beginLogTx(s, logID, t)
+		tx := testonly.BeginLogTx(s, logID, t)
 		defer tx.Close()
 		if _, err := tx.QueueLeaves(ctx, leaves, fakeQueueTime); err != nil {
 			t.Fatalf("QueueLeaves(1st batch) = %v", err)
@@ -548,12 +527,12 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 		if _, err := tx.QueueLeaves(ctx, leaves2, fakeQueueTime.Add(-time.Second)); err != nil {
 			t.Fatalf("QueueLeaves(2nd batch) = %v", err)
 		}
-		commit(tx, t)
+		testonly.Commit(tx, t)
 	}
 
 	{
 		// Now try to dequeue two leaves and we should get the second batch
-		tx2 := beginLogTx(s, logID, t)
+		tx2 := testonly.BeginLogTx(s, logID, t)
 		defer tx2.Close()
 		dequeue1, err := tx2.DequeueLeaves(ctx, batchSize, fakeQueueTime)
 		if err != nil {
@@ -562,17 +541,17 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 		if got, want := len(dequeue1), batchSize; got != want {
 			t.Fatalf("Dequeue count mismatch (1st) got: %d, want: %d", got, want)
 		}
-		ensureAllLeavesDistinct(dequeue1, t)
+		testonly.EnsureAllLeavesDistinct(dequeue1, t)
 
 		// Ensure this is the second batch queued by comparing leaf hashes (must be distinct as
 		// the leaf data was).
-		if !leafInBatch(dequeue1[0], leaves2) || !leafInBatch(dequeue1[1], leaves2) {
+		if !testonly.LeafInBatch(dequeue1[0], leaves2) || !testonly.LeafInBatch(dequeue1[1], leaves2) {
 			t.Fatalf("Got leaf from wrong batch (1st dequeue): %v", dequeue1)
 		}
-		commit(tx2, t)
+		testonly.Commit(tx2, t)
 
 		// Try to dequeue again and we should get the batch that was queued first, though at a later time
-		tx3 := beginLogTx(s, logID, t)
+		tx3 := testonly.BeginLogTx(s, logID, t)
 		defer tx3.Close()
 		dequeue2, err := tx3.DequeueLeaves(ctx, batchSize, fakeQueueTime)
 		if err != nil {
@@ -581,13 +560,13 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 		if got, want := len(dequeue2), batchSize; got != want {
 			t.Fatalf("Dequeue count mismatch (2nd) got: %d, want: %d", got, want)
 		}
-		ensureAllLeavesDistinct(dequeue2, t)
+		testonly.EnsureAllLeavesDistinct(dequeue2, t)
 
 		// Ensure this is the first batch by comparing leaf hashes.
-		if !leafInBatch(dequeue2[0], leaves) || !leafInBatch(dequeue2[1], leaves) {
+		if !testonly.LeafInBatch(dequeue2[0], leaves) || !testonly.LeafInBatch(dequeue2[1], leaves) {
 			t.Fatalf("Got leaf from wrong batch (2nd dequeue): %v", dequeue2)
 		}
-		commit(tx3, t)
+		testonly.Commit(tx3, t)
 	}
 }
 
@@ -598,7 +577,7 @@ func TestGetLeavesByHashNotPresent(t *testing.T) {
 	logID := createLogForTests(DB)
 	s := coresql.NewLogStorage(NewWrapper(DB))
 
-	tx := beginLogTx(s, logID, t)
+	tx := testonly.BeginLogTx(s, logID, t)
 	defer tx.Close()
 
 	hashes := [][]byte{[]byte("thisdoesn'texist")}
@@ -609,7 +588,7 @@ func TestGetLeavesByHashNotPresent(t *testing.T) {
 	if len(leaves) != 0 {
 		t.Fatalf("Expected no leaves returned but got %d", len(leaves))
 	}
-	commit(tx, t)
+	testonly.Commit(tx, t)
 }
 
 func TestGetLeavesByIndexNotPresent(t *testing.T) {
@@ -619,13 +598,13 @@ func TestGetLeavesByIndexNotPresent(t *testing.T) {
 	logID := createLogForTests(DB)
 	s := coresql.NewLogStorage(NewWrapper(DB))
 
-	tx := beginLogTx(s, logID, t)
+	tx := testonly.BeginLogTx(s, logID, t)
 	defer tx.Close()
 
 	if _, err := tx.GetLeavesByIndex(ctx, []int64{99999}); err == nil {
 		t.Fatalf("Returned ok for leaf index when nothing inserted: %v", err)
 	}
-	commit(tx, t)
+	testonly.Commit(tx, t)
 }
 
 func TestGetLeavesByHash(t *testing.T) {
@@ -639,7 +618,7 @@ func TestGetLeavesByHash(t *testing.T) {
 	data := []byte("some data")
 	createFakeLeaf(ctx, DB, logID, dummyRawHash, dummyHash, data, someExtraData, sequenceNumber, t)
 
-	tx := beginLogTx(s, logID, t)
+	tx := testonly.BeginLogTx(s, logID, t)
 	defer tx.Close()
 
 	hashes := [][]byte{dummyHash}
@@ -650,8 +629,8 @@ func TestGetLeavesByHash(t *testing.T) {
 	if len(leaves) != 1 {
 		t.Fatalf("Got %d leaves but expected one", len(leaves))
 	}
-	checkLeafContents(leaves[0], sequenceNumber, dummyRawHash, dummyHash, data, someExtraData, t)
-	commit(tx, t)
+	testonly.CheckLeafContents(leaves[0], sequenceNumber, dummyRawHash, dummyHash, data, someExtraData, t)
+	testonly.Commit(tx, t)
 }
 
 func TestGetLeafDataByIdentityHash(t *testing.T) {
@@ -693,7 +672,7 @@ func TestGetLeafDataByIdentityHash(t *testing.T) {
 	}
 	for _, test := range tests {
 		func() {
-			tx := beginLogTx(s, logID, t)
+			tx := testonly.BeginLogTx(s, logID, t)
 			defer tx.Close()
 
 			leaves, err := tx.GetLeafDataByIdentityHash(ctx, test.hashes)
@@ -701,7 +680,7 @@ func TestGetLeafDataByIdentityHash(t *testing.T) {
 				t.Errorf("getLeavesByIdentityHash(_) = (_,%v); want (_,nil)", err)
 				return
 			}
-			commit(tx, t)
+			testonly.Commit(tx, t)
 			if len(leaves) != len(test.want) {
 				t.Errorf("getLeavesByIdentityHash(_) = (|%d|,nil); want (|%d|,nil)", len(leaves), len(test.want))
 				return
@@ -726,7 +705,7 @@ func TestGetLeavesByIndex(t *testing.T) {
 	data := []byte("some data")
 	createFakeLeaf(ctx, DB, logID, dummyRawHash, dummyHash, data, someExtraData, sequenceNumber, t)
 
-	tx := beginLogTx(s, logID, t)
+	tx := testonly.BeginLogTx(s, logID, t)
 	defer tx.Close()
 
 	leaves, err := tx.GetLeavesByIndex(ctx, []int64{sequenceNumber})
@@ -736,8 +715,8 @@ func TestGetLeavesByIndex(t *testing.T) {
 	if len(leaves) != 1 {
 		t.Fatalf("Got %d leaves but expected one", len(leaves))
 	}
-	checkLeafContents(leaves[0], sequenceNumber, dummyRawHash, dummyHash, data, someExtraData, t)
-	commit(tx, t)
+	testonly.CheckLeafContents(leaves[0], sequenceNumber, dummyRawHash, dummyHash, data, someExtraData, t)
+	testonly.Commit(tx, t)
 }
 
 func TestLatestSignedRootNoneWritten(t *testing.T) {
@@ -747,7 +726,7 @@ func TestLatestSignedRootNoneWritten(t *testing.T) {
 	logID := createLogForTests(DB)
 	s := coresql.NewLogStorage(NewWrapper(DB))
 
-	tx := beginLogTx(s, logID, t)
+	tx := testonly.BeginLogTx(s, logID, t)
 	defer tx.Close()
 
 	root, err := tx.LatestSignedLogRoot(ctx)
@@ -757,7 +736,7 @@ func TestLatestSignedRootNoneWritten(t *testing.T) {
 	if root.LogId != 0 || len(root.RootHash) != 0 || root.Signature != nil {
 		t.Fatalf("Read a root with contents when it should be empty: %v", root)
 	}
-	commit(tx, t)
+	testonly.Commit(tx, t)
 }
 
 func TestLatestSignedLogRoot(t *testing.T) {
@@ -767,7 +746,7 @@ func TestLatestSignedLogRoot(t *testing.T) {
 	logID := createLogForTests(DB)
 	s := coresql.NewLogStorage(NewWrapper(DB))
 
-	tx := beginLogTx(s, logID, t)
+	tx := testonly.BeginLogTx(s, logID, t)
 	defer tx.Close()
 
 	root := trillian.SignedLogRoot{
@@ -781,10 +760,10 @@ func TestLatestSignedLogRoot(t *testing.T) {
 	if err := tx.StoreSignedLogRoot(ctx, root); err != nil {
 		t.Fatalf("Failed to store signed root: %v", err)
 	}
-	commit(tx, t)
+	testonly.Commit(tx, t)
 
 	{
-		tx2 := beginLogTx(s, logID, t)
+		tx2 := testonly.BeginLogTx(s, logID, t)
 		defer tx2.Close()
 		root2, err := tx2.LatestSignedLogRoot(ctx)
 		if err != nil {
@@ -793,7 +772,7 @@ func TestLatestSignedLogRoot(t *testing.T) {
 		if !proto.Equal(&root, &root2) {
 			t.Fatalf("Root round trip failed: <%v> and: <%v>", root, root2)
 		}
-		commit(tx2, t)
+		testonly.Commit(tx2, t)
 	}
 }
 
@@ -804,7 +783,7 @@ func TestDuplicateSignedLogRoot(t *testing.T) {
 	logID := createLogForTests(DB)
 	s := coresql.NewLogStorage(NewWrapper(DB))
 
-	tx := beginLogTx(s, logID, t)
+	tx := testonly.BeginLogTx(s, logID, t)
 	defer tx.Close()
 
 	root := trillian.SignedLogRoot{
@@ -822,7 +801,7 @@ func TestDuplicateSignedLogRoot(t *testing.T) {
 	if err := tx.StoreSignedLogRoot(ctx, root); err == nil {
 		t.Fatal("Allowed duplicate signed root")
 	}
-	commit(tx, t)
+	testonly.Commit(tx, t)
 }
 
 func TestLogRootUpdate(t *testing.T) {
@@ -833,7 +812,7 @@ func TestLogRootUpdate(t *testing.T) {
 	logID := createLogForTests(DB)
 	s := coresql.NewLogStorage(NewWrapper(DB))
 
-	tx := beginLogTx(s, logID, t)
+	tx := testonly.BeginLogTx(s, logID, t)
 	defer tx.Close()
 	root := trillian.SignedLogRoot{
 		LogId:          logID,
@@ -857,9 +836,9 @@ func TestLogRootUpdate(t *testing.T) {
 	if err := tx.StoreSignedLogRoot(ctx, root2); err != nil {
 		t.Fatalf("Failed to store signed root: %v", err)
 	}
-	commit(tx, t)
+	testonly.Commit(tx, t)
 
-	tx2 := beginLogTx(s, logID, t)
+	tx2 := testonly.BeginLogTx(s, logID, t)
 	defer tx2.Close()
 	root3, err := tx2.LatestSignedLogRoot(ctx)
 	if err != nil {
@@ -868,7 +847,7 @@ func TestLogRootUpdate(t *testing.T) {
 	if !proto.Equal(&root2, &root3) {
 		t.Fatalf("Root round trip failed: <%v> and: <%v>", root, root2)
 	}
-	commit(tx2, t)
+	testonly.Commit(tx2, t)
 }
 
 // getActiveLogIDsFn creates a TX, calls the appropriate GetActiveLogIDs* function, commits the TX
@@ -929,13 +908,13 @@ func runTestGetActiveLogIDsWithPendingWork(ctx context.Context, t *testing.T, te
 
 	for _, logID := range []int64{logID1, logID2, logID3} {
 		func() {
-			tx := beginLogTx(s, logID, t)
+			tx := testonly.BeginLogTx(s, logID, t)
 			defer tx.Close()
 			leaves := createTestLeaves(leavesToInsert, 2)
 			if _, err := tx.QueueLeaves(ctx, leaves, fakeQueueTime); err != nil {
 				t.Fatalf("Failed to queue leaves for log %v: %v", logID, err)
 			}
-			commit(tx, t)
+			testonly.Commit(tx, t)
 		}()
 	}
 
@@ -1093,7 +1072,7 @@ func TestGetSequencedLeafCount(t *testing.T) {
 	}
 
 	// Read back the leaf counts from both trees
-	tx := beginLogTx(s, logID1, t)
+	tx := testonly.BeginLogTx(s, logID1, t)
 	defer tx.Close()
 	count1, err := tx.GetSequencedLeafCount(ctx)
 	if err != nil {
@@ -1102,9 +1081,9 @@ func TestGetSequencedLeafCount(t *testing.T) {
 	if want, got := int64(1), count1; want != got {
 		t.Fatalf("expected %d sequenced for logId but got %d", want, got)
 	}
-	commit(tx, t)
+	testonly.Commit(tx, t)
 
-	tx = beginLogTx(s, logID2, t)
+	tx = testonly.BeginLogTx(s, logID2, t)
 	defer tx.Close()
 	count2, err := tx.GetSequencedLeafCount(ctx)
 	if err != nil {
@@ -1113,21 +1092,7 @@ func TestGetSequencedLeafCount(t *testing.T) {
 	if want, got := int64(2), count2; want != got {
 		t.Fatalf("expected %d sequenced for logId2 but got %d", want, got)
 	}
-	commit(tx, t)
-}
-
-func ensureAllLeavesDistinct(leaves []*trillian.LogLeaf, t *testing.T) {
-	// All the leaf value hashes should be distinct because the leaves were created with distinct
-	// leaf data. If only we had maps with slices as keys or sets or pretty much any kind of usable
-	// data structures we could do this properly.
-	for i := range leaves {
-		for j := range leaves {
-			if i != j && bytes.Equal(leaves[i].LeafIdentityHash, leaves[j].LeafIdentityHash) {
-				t.Fatalf("Unexpectedly got a duplicate leaf hash: %v %v",
-					leaves[i].LeafIdentityHash, leaves[j].LeafIdentityHash)
-			}
-		}
-	}
+	testonly.Commit(tx, t)
 }
 
 // Creates some test leaves with predictable data
@@ -1149,33 +1114,4 @@ func createTestLeaves(n, startSeq int64) []*trillian.LogLeaf {
 	}
 
 	return leaves
-}
-
-// Convenience methods to avoid copying out "if err != nil { blah }" all over the place
-func beginLogTx(s storage.LogStorage, logID int64, t *testing.T) storage.LogTreeTX {
-	tx, err := s.BeginForTree(context.Background(), logID)
-	if err != nil {
-		t.Fatalf("Failed to begin log tx: %v", err)
-	}
-	return tx
-}
-
-type committableTX interface {
-	Commit() error
-}
-
-func commit(tx committableTX, t *testing.T) {
-	if err := tx.Commit(); err != nil {
-		t.Errorf("Failed to commit tx: %v", err)
-	}
-}
-
-func leafInBatch(leaf *trillian.LogLeaf, batch []*trillian.LogLeaf) bool {
-	for _, bl := range batch {
-		if bytes.Equal(bl.LeafIdentityHash, leaf.LeafIdentityHash) {
-			return true
-		}
-	}
-
-	return false
 }
