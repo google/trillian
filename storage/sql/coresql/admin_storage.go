@@ -35,21 +35,21 @@ const (
 	defaultSequenceIntervalSeconds = 60
 )
 
-// NewAdminStorage returns a MySQL storage.AdminStorage implementation backed by DB.
+// NewAdminStorage returns a SQL storage.AdminStorage implementation backed by DB.
 func NewAdminStorage(wrapper wrapper.DBWrapper) storage.AdminStorage {
-	return &mysqlAdminStorage{wrap: wrapper}
+	return &sqlAdminStorage{wrap: wrapper}
 }
 
-// mysqlAdminStorage implements storage.AdminStorage
-type mysqlAdminStorage struct {
+// sqlAdminStorage implements storage.AdminStorage
+type sqlAdminStorage struct {
 	wrap wrapper.DBWrapper
 }
 
-func (s *mysqlAdminStorage) Snapshot(ctx context.Context) (storage.ReadOnlyAdminTX, error) {
+func (s *sqlAdminStorage) Snapshot(ctx context.Context) (storage.ReadOnlyAdminTX, error) {
 	return s.Begin(ctx)
 }
 
-func (s *mysqlAdminStorage) Begin(ctx context.Context) (storage.AdminTX, error) {
+func (s *sqlAdminStorage) Begin(ctx context.Context) (storage.AdminTX, error) {
 	tx, err := s.wrap.DB().Begin()
 	if err != nil {
 		return nil, err
@@ -59,7 +59,7 @@ func (s *mysqlAdminStorage) Begin(ctx context.Context) (storage.AdminTX, error) 
 
 type adminTX struct {
 	tx *sql.Tx
-	as *mysqlAdminStorage
+	as *sqlAdminStorage
 
 	// mu guards *direct* reads/writes on closed, which happen only on
 	// Commit/Rollback/IsClosed/Close methods.

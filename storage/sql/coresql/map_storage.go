@@ -30,21 +30,21 @@ import (
 
 var defaultMapStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 176}
 
-type mySQLMapStorage struct {
-	*mySQLTreeStorage
+type sqlMapStorage struct {
+	*sqlTreeStorage
 	admin storage.AdminStorage
 }
 
-// NewMapStorage creates a mySQLMapStorage instance for the specified MySQL URL.
+// NewMapStorage creates a sqlMapStorage instance for the specified database wrapper.
 // It assumes storage.AdminStorage is backed by the same MySQL database as well.
 func NewMapStorage(wrap wrapper.DBWrapper) storage.MapStorage {
-	return &mySQLMapStorage{
+	return &sqlMapStorage{
 		admin:            NewAdminStorage(wrap),
-		mySQLTreeStorage: newTreeStorage(wrap),
+		sqlTreeStorage: newTreeStorage(wrap),
 	}
 }
 
-func (m *mySQLMapStorage) CheckDatabaseAccessible(ctx context.Context) error {
+func (m *sqlMapStorage) CheckDatabaseAccessible(ctx context.Context) error {
 	return m.wrap.CheckDatabaseAccessible(ctx)
 }
 
@@ -52,7 +52,7 @@ type readOnlyMapTX struct {
 	tx *sql.Tx
 }
 
-func (m *mySQLMapStorage) Snapshot(ctx context.Context) (storage.ReadOnlyMapTX, error) {
+func (m *sqlMapStorage) Snapshot(ctx context.Context) (storage.ReadOnlyMapTX, error) {
 	tx, err := m.wrap.DB().Begin()
 	if err != nil {
 		return nil, err
@@ -76,7 +76,7 @@ func (t *readOnlyMapTX) Close() error {
 	return nil
 }
 
-func (m *mySQLMapStorage) begin(ctx context.Context, treeID int64, readonly bool) (storage.MapTreeTX, error) {
+func (m *sqlMapStorage) begin(ctx context.Context, treeID int64, readonly bool) (storage.MapTreeTX, error) {
 	tree, err := trees.GetTree(
 		ctx,
 		m.admin,
@@ -109,11 +109,11 @@ func (m *mySQLMapStorage) begin(ctx context.Context, treeID int64, readonly bool
 	return mtx, nil
 }
 
-func (m *mySQLMapStorage) BeginForTree(ctx context.Context, treeID int64) (storage.MapTreeTX, error) {
+func (m *sqlMapStorage) BeginForTree(ctx context.Context, treeID int64) (storage.MapTreeTX, error) {
 	return m.begin(ctx, treeID, false /* readonly */)
 }
 
-func (m *mySQLMapStorage) SnapshotForTree(ctx context.Context, treeID int64) (storage.ReadOnlyMapTreeTX, error) {
+func (m *sqlMapStorage) SnapshotForTree(ctx context.Context, treeID int64) (storage.ReadOnlyMapTreeTX, error) {
 	tx, err := m.begin(ctx, treeID, true /* readonly */)
 	if err != nil {
 		return nil, err
@@ -123,7 +123,7 @@ func (m *mySQLMapStorage) SnapshotForTree(ctx context.Context, treeID int64) (st
 
 type mapTreeTX struct {
 	treeTX
-	ms   *mySQLMapStorage
+	ms   *sqlMapStorage
 	root trillian.SignedMapRoot
 }
 

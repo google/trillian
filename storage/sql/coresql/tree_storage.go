@@ -27,19 +27,19 @@ import (
 	"github.com/google/trillian/storage/sql/coresql/wrapper"
 )
 
-// mySQLTreeStorage is shared between the mySQLLog- and (forthcoming) mySQLMap-
-// Storage implementations, and contains functionality which is common to both,
-type mySQLTreeStorage struct {
+// sqlTreeStorage is shared between the log and map storage implementations, and contains
+// functionality which is common to both,
+type sqlTreeStorage struct {
 	wrap wrapper.DBWrapper
 }
 
-func newTreeStorage(wrapper wrapper.DBWrapper) *mySQLTreeStorage {
-	return &mySQLTreeStorage{
+func newTreeStorage(wrapper wrapper.DBWrapper) *sqlTreeStorage {
+	return &sqlTreeStorage{
 		wrap: wrapper,
 	}
 }
 
-func (m *mySQLTreeStorage) beginTreeTx(ctx context.Context, treeID int64, hashSizeBytes int, strataDepths []int, populate storage.PopulateSubtreeFunc, prepare storage.PrepareSubtreeWriteFunc) (treeTX, error) {
+func (m *sqlTreeStorage) beginTreeTx(ctx context.Context, treeID int64, hashSizeBytes int, strataDepths []int, populate storage.PopulateSubtreeFunc, prepare storage.PrepareSubtreeWriteFunc) (treeTX, error) {
 	t, err := m.wrap.DB().Begin()
 	if err != nil {
 		glog.Warningf("Could not start tree TX: %s", err)
@@ -58,7 +58,7 @@ func (m *mySQLTreeStorage) beginTreeTx(ctx context.Context, treeID int64, hashSi
 type treeTX struct {
 	closed        bool
 	tx            *sql.Tx
-	ts            *mySQLTreeStorage
+	ts            *sqlTreeStorage
 	treeID        int64
 	hashSizeBytes int
 	subtreeCache  cache.SubtreeCache

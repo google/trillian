@@ -43,21 +43,21 @@ var (
 	dequeuedCounter = metric.NewCounter("sql_dequeued_leaves")
 )
 
-type mySQLLogStorage struct {
-	*mySQLTreeStorage
+type sqlLogStorage struct {
+	*sqlTreeStorage
 	admin storage.AdminStorage
 }
 
-// NewLogStorage creates a mySQLLogStorage instance for the specified MySQL URL.
+// NewLogStorage creates a sqlLogStorage instance using the supplied database wrapper.
 // It assumes storage.AdminStorage is backed by the same MySQL database as well.
 func NewLogStorage(wrapper wrapper.DBWrapper) storage.LogStorage {
-	return &mySQLLogStorage{
+	return &sqlLogStorage{
 		admin:            NewAdminStorage(wrapper),
-		mySQLTreeStorage: newTreeStorage(wrapper),
+		sqlTreeStorage: newTreeStorage(wrapper),
 	}
 }
 
-func (m *mySQLLogStorage) CheckDatabaseAccessible(ctx context.Context) error {
+func (m *sqlLogStorage) CheckDatabaseAccessible(ctx context.Context) error {
 	return m.wrap.CheckDatabaseAccessible(ctx)
 }
 
@@ -98,7 +98,7 @@ type readOnlyLogTX struct {
 	wrap wrapper.DBWrapper
 }
 
-func (m *mySQLLogStorage) Snapshot(ctx context.Context) (storage.ReadOnlyLogTX, error) {
+func (m *sqlLogStorage) Snapshot(ctx context.Context) (storage.ReadOnlyLogTX, error) {
 	tx, err := m.wrap.DB().Begin()
 	if err != nil {
 		glog.Warningf("Could not start ReadOnlyLogTX: %s", err)
@@ -131,7 +131,7 @@ func (t *readOnlyLogTX) GetActiveLogIDsWithPendingWork(ctx context.Context) ([]i
 	return getActiveLogIDsWithPendingWork(ctx, t.wrap.GetActiveLogsWithWorkStmt())
 }
 
-func (m *mySQLLogStorage) beginInternal(ctx context.Context, treeID int64, readonly bool) (storage.LogTreeTX, error) {
+func (m *sqlLogStorage) beginInternal(ctx context.Context, treeID int64, readonly bool) (storage.LogTreeTX, error) {
 	tree, err := trees.GetTree(
 		ctx,
 		m.admin,
@@ -165,11 +165,11 @@ func (m *mySQLLogStorage) beginInternal(ctx context.Context, treeID int64, reado
 	return ltx, nil
 }
 
-func (m *mySQLLogStorage) BeginForTree(ctx context.Context, treeID int64) (storage.LogTreeTX, error) {
+func (m *sqlLogStorage) BeginForTree(ctx context.Context, treeID int64) (storage.LogTreeTX, error) {
 	return m.beginInternal(ctx, treeID, false /* readonly */)
 }
 
-func (m *mySQLLogStorage) SnapshotForTree(ctx context.Context, treeID int64) (storage.ReadOnlyLogTreeTX, error) {
+func (m *sqlLogStorage) SnapshotForTree(ctx context.Context, treeID int64) (storage.ReadOnlyLogTreeTX, error) {
 	tx, err := m.beginInternal(ctx, treeID, true /* readonly */)
 	if err != nil {
 		return nil, err
@@ -179,7 +179,7 @@ func (m *mySQLLogStorage) SnapshotForTree(ctx context.Context, treeID int64) (st
 
 type logTreeTX struct {
 	treeTX
-	ls   *mySQLLogStorage
+	ls   *sqlLogStorage
 	root trillian.SignedLogRoot
 }
 
