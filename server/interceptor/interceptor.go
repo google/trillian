@@ -19,11 +19,12 @@ import (
 	"strings"
 
 	"github.com/google/trillian"
-	"github.com/google/trillian/errors"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/trees"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // TreeInterceptor ensures that all requests pertaining a specific tree are of correct type and
@@ -45,6 +46,7 @@ func (i *TreeInterceptor) UnaryInterceptor(ctx context.Context, req interface{},
 
 	tree, err := trees.GetTree(ctx, i.Admin, rpcInfo.treeID, rpcInfo.opts)
 	if err != nil {
+		// TODO(codingllama): Wrap non-gRPC errors
 		return nil, err
 	}
 
@@ -68,6 +70,14 @@ type rpcInfo struct {
 // getRPCInfo returns the rpcInfo for the given request, or an error if the request is not mapped.
 // Full method is the full RPC method name, as acquired from grpc.UnaryServerInfo (e.g.,
 // /trillian.TrillianLog/GetInclusionProof).
+// RPCs are mapped using the following logic:
+// Tree IDs are acquired via one of the "Request" interfaces defined below (treeIDRequest,
+// logIDRequest, mapIDRequest, etc). Requests must implement to one of those.
+// Tree type is determined by the RPC service name: TrillianAdmin is unrestricted,
+// TrillianLog = LOG, TrillianMap = MAP.
+// Readonly status is determined by the RPC method name: if it starts with Get or List it's
+// considered readonly.
+// Finally, a few RPCs are hand-mapped as doesNotHaveTree, such as Create and ListTree.
 func getRPCInfo(req interface{}, fullMethod string) (*rpcInfo, error) {
 	// Whitelisted to skip tree validation
 	switch req.(type) {
@@ -88,7 +98,7 @@ func getRPCInfo(req interface{}, fullMethod string) (*rpcInfo, error) {
 	case mapIDRequest:
 		treeID = req.GetMapId()
 	default:
-		return nil, errors.Errorf(errors.Internal, "cannot retrieve treeID from request: %T", req)
+		return nil, status.Errorf(codes.Internal, "cannot retrieve treeID from request: %T", req)
 	}
 
 	serviceName, methodName, err := parseFullMethod(fullMethod)
@@ -105,7 +115,7 @@ func getRPCInfo(req interface{}, fullMethod string) (*rpcInfo, error) {
 	case "trillian.TrillianMap":
 		treeType = trillian.TreeType_MAP
 	default:
-		return nil, errors.Errorf(errors.Internal, "cannot determine treeType for request: %T", req)
+		return nil, status.Errorf(codes.Internal, "cannot determine treeType for request: %T", req)
 	}
 
 	readonly := strings.HasPrefix(methodName, "Get") || strings.HasPrefix(methodName, "List")
@@ -120,11 +130,11 @@ func getRPCInfo(req interface{}, fullMethod string) (*rpcInfo, error) {
 // slash in either of them.
 func parseFullMethod(fullMethod string) (string, string, error) {
 	if !strings.HasPrefix(fullMethod, "/") {
-		return "", "", errors.Errorf(errors.Internal, "fullMethod must begin with '/': %v", fullMethod)
+		return "", "", status.Errorf(codes.Internal, "fullMethod must begin with '/': %v", fullMethod)
 	}
 	tmp := strings.Split(fullMethod[1:], "/")
 	if len(tmp) != 2 {
-		return "", "", errors.Errorf(errors.Internal, "unexpected number of components in fullMethod (%v != 2): %v", len(tmp), fullMethod)
+		return "", "", status.Errorf(codes.Internal, "unexpected number of components in fullMethod (%v != 2): %v", len(tmp), fullMethod)
 	}
 	return tmp[0], tmp[1], nil
 }
