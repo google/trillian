@@ -19,7 +19,7 @@ import (
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/storage/sql/coresql"
-	"github.com/google/trillian/storage/mysql"
+	"github.com/google/trillian/storage/sql/mysql"
 )
 
 // NewRegistryForTests returns an extension.Registry for integration tests.

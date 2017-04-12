@@ -90,7 +90,7 @@ of MySQL running and configured
    --port=3306` connects OK)
  - not to require a password for the `root` user
 
-You can then set up the [expected tables](storage/mysql/storage.sql) in a
+You can then set up the [expected tables](storage/sql/mysql/storage.sql) in a
 `test` database like so:
 
 ```bash

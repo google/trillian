@@ -19,7 +19,7 @@ import (
 	"fmt"
 
 	"github.com/golang/glog"
-	"github.com/google/trillian/storage/mysql"
+	"github.com/google/trillian/storage/sql/mysql"
 	"github.com/google/trillian/storage/sql/coresql/wrapper"
 )
 
