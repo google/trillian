@@ -11,7 +11,7 @@ which have that domain in their subject/SAN fields.
 
 ```bash
 # Ensure you have your MySQL DB set up correctly, with tables created by the
-# contents of storage/mysql/storage.sql
+# contents of storage/sql/mysql/storage.sql
 yes | scripts/resetdb.sh
 
 go build ./server/vmap/trillian_map_server

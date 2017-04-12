@@ -26,7 +26,7 @@ import (
 
 const (
 	// createSQLFile is a relative path from the current package.
-	createSQLFile = "../../storage/mysql/storage.sql"
+	createSQLFile = "../../storage/sql/mysql/storage.sql"
 	mysqlRootURI  = "root@tcp(127.0.0.1:3306)/"
 )
 
