@@ -22,6 +22,7 @@ import (
 
 	"github.com/google/trillian"
 	sa "github.com/google/trillian/server/admin"
+	"github.com/google/trillian/server/interceptor"
 	"github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/testonly/integration"
 	"github.com/kylelemons/godebug/pretty"
@@ -36,6 +37,12 @@ func TestAdminServer_Unimplemented(t *testing.T) {
 	}
 	defer closeFn()
 
+	ctx := context.Background()
+	tree, err := client.CreateTree(ctx, &trillian.CreateTreeRequest{Tree: testonly.LogTree})
+	if err != nil {
+		t.Fatalf("CreateTree returned err = %v", err)
+	}
+
 	tests := []struct {
 		desc string
 		fn   func(context.Context, trillian.TrillianAdminClient) error
@@ -43,20 +50,18 @@ func TestAdminServer_Unimplemented(t *testing.T) {
 		{
 			desc: "UpdateTree",
 			fn: func(ctx context.Context, c trillian.TrillianAdminClient) error {
-				_, err := c.UpdateTree(ctx, &trillian.UpdateTreeRequest{})
+				_, err := c.UpdateTree(ctx, &trillian.UpdateTreeRequest{Tree: tree})
 				return err
 			},
 		},
 		{
 			desc: "DeleteTree",
 			fn: func(ctx context.Context, c trillian.TrillianAdminClient) error {
-				_, err := c.DeleteTree(ctx, &trillian.DeleteTreeRequest{})
+				_, err := c.DeleteTree(ctx, &trillian.DeleteTreeRequest{TreeId: tree.TreeId})
 				return err
 			},
 		},
 	}
-
-	ctx := context.Background()
 	for _, test := range tests {
 		if err := test.fn(ctx, client); grpc.Code(err) != codes.Unimplemented {
 			t.Errorf("%v: got = %v, want = %s", test.desc, err, codes.Unimplemented)
@@ -238,7 +243,8 @@ func setupAdminServer() (trillian.TrillianAdminClient, func(), error) {
 		return nil, nil, err
 	}
 
-	grpcServer := grpc.NewServer()
+	ti := &interceptor.TreeInterceptor{Admin: registry.AdminStorage}
+	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(interceptor.WrapErrors(ti.UnaryInterceptor)))
 	// grpcServer is stopped via returned func
 	server := sa.New(registry)
 	trillian.RegisterTrillianAdminServer(grpcServer, server)
