@@ -277,27 +277,24 @@ func TestMapSetGetMultipleRevisions(t *testing.T) {
 	mapID := createMapForTests(DB)
 	s := coresql.NewMapStorage(NewWrapper(DB))
 
-	tests := []struct {
-		rev  int64
-		leaf trillian.MapLeaf
-	}{
-		{0, trillian.MapLeaf{Index: keyHash, LeafHash: []byte{0}, LeafValue: []byte{0}, ExtraData: []byte{0}}},
-		{1, trillian.MapLeaf{Index: keyHash, LeafHash: []byte{1}, LeafValue: []byte{1}, ExtraData: []byte{1}}},
-		{2, trillian.MapLeaf{Index: keyHash, LeafHash: []byte{2}, LeafValue: []byte{2}, ExtraData: []byte{2}}},
-		{3, trillian.MapLeaf{Index: keyHash, LeafHash: []byte{3}, LeafValue: []byte{3}, ExtraData: []byte{3}}},
+	tests := []trillian.MapLeaf{
+		{Index: keyHash, LeafHash: []byte{0}, LeafValue: []byte{0}, ExtraData: []byte{0}},
+		{Index: keyHash, LeafHash: []byte{1}, LeafValue: []byte{1}, ExtraData: []byte{1}},
+		{Index: keyHash, LeafHash: []byte{2}, LeafValue: []byte{2}, ExtraData: []byte{2}},
+		{Index: keyHash, LeafHash: []byte{3}, LeafValue: []byte{3}, ExtraData: []byte{3}},
 	}
 
 	var revisions [4]int64
 	ctx := context.Background()
-	for ic, tc := range tests {
+	for ic, l := range tests {
 		func() {
 			// Write the current test case.
 			tx := beginMapTx(ctx, s, mapID, t)
 			revisions[ic] = tx.WriteRevision()
 			defer tx.Close()
 
-			if err := tx.Set(ctx, keyHash, tc.leaf); err != nil {
-				t.Fatalf("Failed to set %v to %v: %v", keyHash, tc.leaf, err)
+			if err := tx.Set(ctx, keyHash, l); err != nil {
+				t.Fatalf("Failed to set %v to %v: %v", keyHash, l, err)
 			}
 			// The write revision in tx is derived from the root so write a new one to ensure we get a
 			// new revision next time through the loop.
@@ -335,7 +332,7 @@ func TestMapSetGetMultipleRevisions(t *testing.T) {
 					if got, want := len(readValues), 1; got != want {
 						t.Fatalf("At ic %d i %d got %d values, expected %d", ic, i, got, want)
 					}
-					if got, want := &readValues[0], &tests[expectRev].leaf; !proto.Equal(got, want) {
+					if got, want := &readValues[0], &tests[expectRev]; !proto.Equal(got, want) {
 						t.Fatalf("At ic %d i %d read back %v, but expected %v", ic, i, got, want)
 					}
 					commit(tx2, t)
