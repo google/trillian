@@ -23,8 +23,8 @@ import (
 
 	log "github.com/golang/glog"
 	"github.com/google/trillian"
-	"github.com/google/trillian/storage/coresql"
-	"github.com/google/trillian/storage/db"
+	"github.com/google/trillian/storage/sql/coresql"
+	"github.com/google/trillian/storage/sql/coresql/db"
 )
 
 var (

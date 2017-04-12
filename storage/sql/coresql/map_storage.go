@@ -25,7 +25,7 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/trees"
-	"github.com/google/trillian/storage/wrapper"
+	"github.com/google/trillian/storage/sql/coresql/wrapper"
 )
 
 var defaultMapStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 176}

@@ -18,7 +18,7 @@ import (
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/quota"
-	"github.com/google/trillian/storage/coresql"
+	"github.com/google/trillian/storage/sql/coresql"
 	"github.com/google/trillian/storage/mysql"
 )
 

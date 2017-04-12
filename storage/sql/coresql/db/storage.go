@@ -20,7 +20,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/trillian/storage/mysql"
-	"github.com/google/trillian/storage/wrapper"
+	"github.com/google/trillian/storage/sql/coresql/wrapper"
 )
 
 // OpenDB opens, and creates a wrapper for, the SQL databases that we know about. The wrapper

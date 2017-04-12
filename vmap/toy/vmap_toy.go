@@ -31,8 +31,8 @@ import (
 	"github.com/google/trillian/testonly"
 
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/google/trillian/storage/coresql"
-	"github.com/google/trillian/storage/db"
+	"github.com/google/trillian/storage/sql/coresql"
+	"github.com/google/trillian/storage/sql/coresql/db"
 )
 
 var (

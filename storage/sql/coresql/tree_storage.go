@@ -24,7 +24,7 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/storage/storagepb"
-	"github.com/google/trillian/storage/wrapper"
+	"github.com/google/trillian/storage/sql/coresql/wrapper"
 )
 
 // mySQLTreeStorage is shared between the mySQLLog- and (forthcoming) mySQLMap-

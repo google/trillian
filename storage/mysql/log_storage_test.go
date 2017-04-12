@@ -22,14 +22,13 @@ import (
 	"fmt"
 	"testing"
 	"time"
-
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 	spb "github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/storage/sql/coresql"
 	"github.com/kylelemons/godebug/pretty"
-	"github.com/google/trillian/storage/coresql"
 )
 
 var allTables = []string{"Unsequenced", "TreeHead", "SequencedLeafData", "LeafData", "Subtree", "TreeControl", "Trees", "MapLeaf", "MapHead"}

@@ -22,7 +22,7 @@ import (
 	"github.com/google/trillian"
 	spb "github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/storage"
-	"github.com/google/trillian/storage/coresql"
+	"github.com/google/trillian/storage/sql/coresql"
 )
 
 func TestMySQLMapStorage_CheckDatabaseAccessible(t *testing.T) {

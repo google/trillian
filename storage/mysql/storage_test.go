@@ -31,7 +31,7 @@ import (
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/storage"
 	storageto "github.com/google/trillian/storage/testonly"
-	"github.com/google/trillian/storage/coresql"
+	"github.com/google/trillian/storage/sql/coresql"
 )
 
 func TestNodeRoundTrip(t *testing.T) {

@@ -23,7 +23,7 @@ import (
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/golang/glog"
-	"github.com/google/trillian/storage/wrapper"
+	"github.com/google/trillian/storage/sql/coresql/wrapper"
 )
 
 // These are all tree related queries
