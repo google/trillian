@@ -279,7 +279,7 @@ func (c *LogClient) getInclusionProof(ctx context.Context, leafHash []byte, tree
 }
 
 // convertProof returns a slice of neighbor nodes from a trillian Proof.
-// TODO(martin): adjust the public API to do this in the server before returing a proof.
+// TODO(martin): adjust the public API to do this in the server before returning a proof.
 func convertProof(proof *trillian.Proof) [][]byte {
 	neighbors := make([][]byte, len(proof.ProofNode))
 	for i, node := range proof.ProofNode {

@@ -109,14 +109,6 @@ func (r rootNodeMatcher) String() string {
 	return "is a single root node"
 }
 
-func getEmptyRootNode() storage.Node {
-	return storage.Node{
-		NodeID:       storage.NewEmptyNodeID(0),
-		Hash:         sparseEmptyRootHashB64,
-		NodeRevision: 0,
-	}
-}
-
 func randomBytes(t *testing.T, n int) []byte {
 	r := make([]byte, n)
 	g, err := rand.Read(r)

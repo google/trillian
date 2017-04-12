@@ -205,20 +205,6 @@ func (n *NodeID) Siblings() []NodeID {
 	return r
 }
 
-// AsProto returns the NodeIDProto equivalent of the given NodeID.
-func (n *NodeID) AsProto() *storagepb.NodeIDProto {
-	return &storagepb.NodeIDProto{Path: n.Path, PrefixLenBits: int32(n.PrefixLenBits)}
-}
-
-// NewNodeIDFromProto returns a new NodeID based on the given NodeIDProto instance.
-func NewNodeIDFromProto(p storagepb.NodeIDProto) *NodeID {
-	return &NodeID{
-		Path:          p.Path,
-		PrefixLenBits: int(p.PrefixLenBits),
-		PathLenBits:   len(p.Path) * 8,
-	}
-}
-
 // Equivalent return true iff the other represents the same path prefix as this NodeID.
 func (n *NodeID) Equivalent(other NodeID) bool {
 	return n.String() == other.String()

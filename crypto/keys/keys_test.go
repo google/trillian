@@ -24,6 +24,7 @@ import (
 	"math/big"
 	"testing"
 
+	"errors"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/testonly"
 )
@@ -70,7 +71,7 @@ func verifyECDSA(key *ecdsa.PublicKey, digest []byte, signature []byte) error {
 	}
 
 	if !ecdsa.Verify(key, digest, s.R, s.S) {
-		return fmt.Errorf("signature failed verification")
+		return errors.New("signature failed verification")
 	}
 
 	return nil

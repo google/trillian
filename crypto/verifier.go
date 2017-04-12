@@ -55,7 +55,7 @@ func Verify(pub crypto.PublicKey, data []byte, sig *sigpb.DigitallySigned) error
 	}
 
 	if keys.SignatureAlgorithm(pub) != sig.SignatureAlgorithm {
-		return fmt.Errorf("signature algorithm does not match public key")
+		return errors.New("signature algorithm does not match public key")
 	}
 
 	// Recompute digest

@@ -41,12 +41,6 @@ func (s subtreeHasPrefix) String() string {
 	return fmt.Sprintf("has prefix %v", s.expectedID)
 }
 
-// SubtreeHasPrefix returns a gomock matcher which returns true when it finds
-// a subtree whose prefix matches the one passed in.
-func SubtreeHasPrefix(n storage.NodeID) gomock.Matcher {
-	return subtreeHasPrefix{n}
-}
-
 type nodeIDEq struct {
 	expectedID storage.NodeID
 }

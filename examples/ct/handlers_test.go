@@ -1345,14 +1345,6 @@ func makeAddChainRequestInternal(t *testing.T, handler AppHandler, path string, 
 	return w
 }
 
-func bytesToLeaf(leafBytes []byte) (*ct.MerkleTreeLeaf, error) {
-	var treeLeaf ct.MerkleTreeLeaf
-	if _, err := tls.Unmarshal(leafBytes, &treeLeaf); err != nil {
-		return nil, err
-	}
-	return &treeLeaf, nil
-}
-
 func makeGetRootResponseForTest(stamp, treeSize int64, hash []byte) *trillian.GetLatestSignedLogRootResponse {
 	return &trillian.GetLatestSignedLogRootResponse{
 		SignedLogRoot: &trillian.SignedLogRoot{

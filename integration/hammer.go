@@ -437,7 +437,7 @@ func HammerCTLog(cfg HammerConfig) error {
 					fmt.Printf(" %s=%d/%d", ep, s.stats.HTTPRsps[ep][statusOK], s.stats.HTTPReq[ep])
 				}
 			}
-			fmt.Printf("\n")
+			fmt.Print("\n")
 		}
 	}
 

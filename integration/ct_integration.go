@@ -599,9 +599,9 @@ func (want *wantStats) check(cfg ctfe.LogConfig, servers string) error {
 		if err != nil {
 			return fmt.Errorf("failed to build GET request: %v", err)
 		}
-		client := new(http.Client)
+		c := new(http.Client)
 
-		httpRsp, err := ctxhttp.Do(ctx, client, httpReq)
+		httpRsp, err := ctxhttp.Do(ctx, c, httpReq)
 		if err != nil {
 			return fmt.Errorf("getting stats failed: %v", err)
 		}

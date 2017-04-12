@@ -311,7 +311,7 @@ func addChainInternal(ctx context.Context, c LogContext, w http.ResponseWriter, 
 		return http.StatusInternalServerError, fmt.Errorf("backend QueueLeaves request failed: %v", err)
 	}
 	if rsp == nil {
-		return http.StatusInternalServerError, fmt.Errorf("missing QueueLeaves response")
+		return http.StatusInternalServerError, errors.New("missing QueueLeaves response")
 	}
 	if len(rsp.QueuedLeaves) != 1 {
 		return http.StatusInternalServerError, fmt.Errorf("unexpected QueueLeaves response leaf count: %d", len(rsp.QueuedLeaves))
@@ -365,7 +365,7 @@ func getSTH(ctx context.Context, c LogContext, w http.ResponseWriter, r *http.Re
 	// Check over the response.
 	slr := rsp.GetSignedLogRoot()
 	if slr == nil {
-		return http.StatusInternalServerError, fmt.Errorf("no log root returned")
+		return http.StatusInternalServerError, errors.New("no log root returned")
 	}
 	glog.V(3).Infof("%s: GetSTH <= slr=%+v", c.LogPrefix, slr)
 	if treeSize := slr.TreeSize; treeSize < 0 {
@@ -495,7 +495,7 @@ func getProofByHash(ctx context.Context, c LogContext, w http.ResponseWriter, r 
 
 	// Additional sanity checks, none of the hashes in the returned path should be empty
 	if len(rsp.Proof) == 0 {
-		return http.StatusInternalServerError, fmt.Errorf("get-proof-by-hash: backend returned empty proof")
+		return http.StatusInternalServerError, errors.New("get-proof-by-hash: backend returned empty proof")
 	}
 	if !checkAuditPath(rsp.Proof[0].ProofNode) {
 		return http.StatusInternalServerError, fmt.Errorf("get-proof-by-hash: backend returned invalid proof: %v", rsp.Proof[0])

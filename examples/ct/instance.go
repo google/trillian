@@ -63,7 +63,7 @@ type AllStats struct {
 // filename, which should contain JSON encoded configuration data.
 func LogConfigFromFile(filename string) ([]LogConfig, error) {
 	if len(filename) == 0 {
-		return nil, fmt.Errorf("log config filename empty")
+		return nil, errors.New("log config filename empty")
 	}
 	cfgData, err := ioutil.ReadFile(filename)
 	if err != nil {

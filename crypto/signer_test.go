@@ -16,7 +16,6 @@ package crypto
 
 import (
 	"crypto"
-	"crypto/sha256"
 	"errors"
 	"testing"
 
@@ -28,13 +27,6 @@ import (
 )
 
 const message string = "testing"
-const result string = "echo"
-
-func messageHash() []byte {
-	h := sha256.New()
-	h.Write([]byte(message))
-	return h.Sum(nil)
-}
 
 type usesSHA256Hasher struct{}
 
@@ -53,13 +45,13 @@ func (i usesSHA256Hasher) String() string {
 func TestSigner(t *testing.T) {
 	key, err := keys.NewFromPrivatePEM(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
 	if err != nil {
-		t.Fatalf("Failed to open test key")
+		t.Fatal("Failed to open test key")
 	}
 	signer := NewSHA256Signer(key)
 
 	pk, err := keys.NewFromPublicPEM(testonly.DemoPublicKey)
 	if err != nil {
-		t.Fatalf("Failed to load public key")
+		t.Fatal("Failed to load public key")
 	}
 
 	for _, test := range []struct {

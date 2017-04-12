@@ -45,8 +45,8 @@ func GetTestDB(testID string) (*sql.DB, error) {
 		fmt.Sprintf("DROP DATABASE IF EXISTS %v;", dbName),
 		fmt.Sprintf("CREATE DATABASE %v;", dbName),
 	}
-	for _, sql := range resetSQL {
-		if _, err := dbRoot.Exec(sql); err != nil {
+	for _, sqlText := range resetSQL {
+		if _, err := dbRoot.Exec(sqlText); err != nil {
 			return nil, err
 		}
 	}
@@ -63,8 +63,8 @@ func GetTestDB(testID string) (*sql.DB, error) {
 	}
 	sqlSlice := strings.Split(string(createSQL), ";\n")
 	// Omit the last element of the slice, since it will be "".
-	for _, sql := range sqlSlice[:len(sqlSlice)-1] {
-		if _, err := dbTest.Exec(sql); err != nil {
+	for _, sqlText := range sqlSlice[:len(sqlSlice)-1] {
+		if _, err := dbTest.Exec(sqlText); err != nil {
 			return nil, err
 		}
 	}

@@ -31,6 +31,7 @@ import (
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/util"
 
+	"errors"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
@@ -51,7 +52,7 @@ type randomLoadBalancer []backendConn
 func newRandomLoadBalancer(serverCfg string) (*randomLoadBalancer, error) {
 	servers := strings.Split(serverCfg, ",")
 	if len(servers) == 0 || (len(servers) == 1 && servers[0] == "") {
-		return nil, fmt.Errorf("no backends specified")
+		return nil, errors.New("no backends specified")
 	}
 	lb := randomLoadBalancer(make([]backendConn, len(servers)))
 	for i, s := range servers {
@@ -65,6 +66,7 @@ func newRandomLoadBalancer(serverCfg string) (*randomLoadBalancer, error) {
 	return &lb, nil
 }
 
+// TODO(somebody): This function name collides with a builtin function and should be renamed
 func (lb randomLoadBalancer) close() {
 	for _, bc := range lb {
 		bc.conn.Close()
