@@ -163,18 +163,23 @@ type mapIDRequest interface {
 // invoked. This ensures that request-level variables, transmitted via contexts, behave properly.
 func Combine(interceptors ...grpc.UnaryServerInterceptor) grpc.UnaryServerInterceptor {
 	return func(initialCtx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-		// Save and forward the ctx passed by interceptors, otherwise we lose the data they add.
+		// Build a handler function that just updates the scope's ctx variable.
 		ctx := initialCtx
-		ctxHandler := func(innerCtx context.Context, req interface{}) (interface{}, error) {
+		ctxUpdater := func(innerCtx context.Context, req interface{}) (interface{}, error) {
 			ctx = innerCtx
 			return nil, nil
 		}
+
+		// Run each of the interceptors in order, using the ctxUpdater to accumulate changes
+		// to the context, and exit if any of the interceptors give an error.
 		for _, intercept := range interceptors {
-			_, err := intercept(ctx, req, info, ctxHandler)
+			_, err := intercept(ctx, req, info, ctxUpdater)
 			if err != nil {
 				return nil, err
 			}
 		}
+
+		// Run the real handler with the accumulated context.
 		return handler(ctx, req)
 	}
 }

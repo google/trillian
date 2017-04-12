@@ -106,8 +106,8 @@ func TestTreeInterceptor_UnaryInterceptor(t *testing.T) {
 			continue
 		}
 
-		if want := 1; handler.calls != want {
-			t.Errorf("%v: handler called %v times, want = %v", test.desc, handler.calls, want)
+		if !handler.called {
+			t.Errorf("%v: handler not called", test.desc)
 			continue
 		}
 		if handler.resp != resp {
@@ -131,41 +131,46 @@ func TestTreeInterceptor_UnaryInterceptor(t *testing.T) {
 
 func TestGetRPCInfo(t *testing.T) {
 	tests := []struct {
-		req                      interface{}
-		fullMethod               string
-		wantID                   int64
-		wantType                 trillian.TreeType
-		wantNoTree, wantReadonly bool
+		desc                              string
+		req                               interface{}
+		fullMethod                        string
+		wantID                            int64
+		wantType                          trillian.TreeType
+		wantNoTree, wantReadonly, wantErr bool
 	}{
-		// TrillianAdmin
 		{
+			desc:       "noTree1",
 			req:        &trillian.CreateTreeRequest{},
 			fullMethod: "/trillian.TrillianAdmin/CreateTree",
 			wantNoTree: true,
 		},
 		{
-			req:        &trillian.DeleteTreeRequest{TreeId: 10},
-			fullMethod: "/trillian.TrillianAdmin/DeleteTree",
-			wantID:     10,
+			desc:       "noTree2",
+			req:        &trillian.ListTreesRequest{},
+			fullMethod: "/trillian.TrillianAdmin/ListTrees",
+			wantNoTree: true,
 		},
 		{
+			desc:         "getAdminRequest",
 			req:          &trillian.GetTreeRequest{TreeId: 10},
 			fullMethod:   "/trillian.TrillianAdmin/GetTree",
 			wantID:       10,
 			wantReadonly: true,
 		},
 		{
-			req:        &trillian.ListTreesRequest{},
-			fullMethod: "/trillian.TrillianAdmin/ListTrees",
-			wantNoTree: true,
+			desc:       "rwTreeIDAdminRequest",
+			req:        &trillian.DeleteTreeRequest{TreeId: 10},
+			fullMethod: "/trillian.TrillianAdmin/DeleteTree",
+			wantID:     10,
 		},
 		{
+			desc:       "rwTreeAdminRequest",
 			req:        &trillian.UpdateTreeRequest{Tree: &trillian.Tree{TreeId: 10}},
 			fullMethod: "/trillian.TrillianAdmin/UpdateTree",
 			wantID:     10,
 		},
-		// TrillianLog
 		{
+			desc:         "getLogRequest",
 			req:          &trillian.GetConsistencyProofRequest{LogId: 20},
 			fullMethod:   "/trillian.TrillianLog/GetConsistencyProof",
 			wantID:       20,
@@ -173,102 +178,63 @@ func TestGetRPCInfo(t *testing.T) {
 			wantReadonly: true,
 		},
 		{
-			req:          &trillian.GetEntryAndProofRequest{LogId: 20},
-			fullMethod:   "/trillian.TrillianLog/GetEntryAndProof",
-			wantID:       20,
-			wantType:     trillian.TreeType_LOG,
-			wantReadonly: true,
-		},
-		{
-			req:          &trillian.GetInclusionProofByHashRequest{LogId: 20},
-			fullMethod:   "/trillian.TrillianLog/GetInclusionProofByHash",
-			wantID:       20,
-			wantType:     trillian.TreeType_LOG,
-			wantReadonly: true,
-		},
-		{
-			req:          &trillian.GetInclusionProofRequest{LogId: 20},
-			fullMethod:   "/trillian.TrillianLog/GetInclusionProof",
-			wantID:       20,
-			wantType:     trillian.TreeType_LOG,
-			wantReadonly: true,
-		},
-		{
-			req:          &trillian.GetLatestSignedLogRootRequest{LogId: 20},
-			fullMethod:   "/trillian.TrillianLog/GetLatestSignedLogRoot",
-			wantID:       20,
-			wantType:     trillian.TreeType_LOG,
-			wantReadonly: true,
-		},
-		{
-			req:          &trillian.GetLeavesByHashRequest{LogId: 20},
-			fullMethod:   "/trillian.TrillianLog/GetLeavesByHash",
-			wantID:       20,
-			wantType:     trillian.TreeType_LOG,
-			wantReadonly: true,
-		},
-		{
-			req:          &trillian.GetLeavesByIndexRequest{LogId: 20},
-			fullMethod:   "/trillian.TrillianLog/GetLeavesByIndex",
-			wantID:       20,
-			wantType:     trillian.TreeType_LOG,
-			wantReadonly: true,
-		},
-		{
-			req:          &trillian.GetSequencedLeafCountRequest{LogId: 20},
-			fullMethod:   "/trillian.TrillianLog/GetSequencedLeafCount",
-			wantID:       20,
-			wantType:     trillian.TreeType_LOG,
-			wantReadonly: true,
-		},
-		{
+			desc:       "rwLogRequest",
 			req:        &trillian.QueueLeafRequest{LogId: 20},
 			fullMethod: "/trillian.TrillianLog/QueueLeaf",
 			wantID:     20,
 			wantType:   trillian.TreeType_LOG,
 		},
 		{
-			req:        &trillian.QueueLeavesRequest{LogId: 20},
-			fullMethod: "/trillian.TrillianLog/QueueLeaves",
-			wantID:     20,
-			wantType:   trillian.TreeType_LOG,
-		},
-		// TrillianMap
-		{
+			desc:         "getMapRequest",
 			req:          &trillian.GetMapLeavesRequest{MapId: 30},
 			fullMethod:   "/trillian.TrillianMap/GetMapLeaves",
 			wantID:       30,
 			wantType:     trillian.TreeType_MAP,
 			wantReadonly: true,
-		}, {
-			req:          &trillian.GetSignedMapRootRequest{MapId: 30},
-			fullMethod:   "/trillian.TrillianMap/GetSignedMapRoot",
-			wantID:       30,
-			wantType:     trillian.TreeType_MAP,
-			wantReadonly: true,
 		},
 		{
+			desc:       "rwMapRequest",
 			req:        &trillian.SetMapLeavesRequest{MapId: 30},
 			fullMethod: "/trillian.TrillianMap/SetMapLeaves",
 			wantID:     30,
 			wantType:   trillian.TreeType_MAP,
 		},
+		{
+			desc:       "unknownRequestType",
+			req:        "not-a-request",
+			fullMethod: "/trillian.TrillianAdmin/GetTree",
+			wantErr:    true,
+		},
+		{
+			desc:       "malformedFullMethod",
+			req:        &trillian.GetTreeRequest{TreeId: 40},
+			fullMethod: "not-a-full-method",
+			wantErr:    true,
+		},
+		{
+			desc:       "unknownServiceName",
+			req:        &trillian.GetTreeRequest{TreeId: 40},
+			fullMethod: "/trillian.FooService/GetTree",
+			wantErr:    true,
+		},
 	}
 	for _, test := range tests {
 		info, err := getRPCInfo(test.req, test.fullMethod)
-		if err != nil {
-			t.Errorf("getRPCInfo(%T) return err = %v, want = nil", test.req, err)
+		if hasErr := err != nil; hasErr != test.wantErr {
+			t.Errorf("%v: getRPCInfo(%T) returned err = %v, wantErr = %v", test.desc, test.req, err, test.wantErr)
+			continue
+		} else if hasErr {
 			continue
 		}
 		if got, want := info.doesNotHaveTree, test.wantNoTree; got != want {
-			t.Errorf("%T: info.doesNotHaveTree = %v, want = %v", test.req, got, want)
+			t.Errorf("%v: info.doesNotHaveTree = %v, want = %v", test.desc, got, want)
 		}
 		if got, want := info.treeID, test.wantID; got != want {
-			t.Errorf("%T: info.treeID = %v, want = %v", test.req, got, want)
+			t.Errorf("%v: info.treeID = %v, want = %v", test.desc, got, want)
 		}
 		wantOpts := &trees.GetOpts{TreeType: test.wantType, Readonly: test.wantReadonly}
 		if diff := pretty.Compare(info.opts, wantOpts); diff != "" {
-			t.Errorf("%T: info.opts diff:\n%v", test.req, diff)
+			t.Errorf("%v: info.opts diff:\n%v", test.desc, diff)
 		}
 	}
 }
@@ -332,7 +298,7 @@ func TestCombine(t *testing.T) {
 
 		intercepts := []grpc.UnaryServerInterceptor{}
 		for _, i := range test.interceptors {
-			i.calls = 0
+			i.called = false
 			intercepts = append(intercepts, i.run)
 		}
 		intercept := Combine(intercepts...)
@@ -348,18 +314,14 @@ func TestCombine(t *testing.T) {
 		callsStopped := false
 		for _, i := range test.interceptors {
 			switch {
-			case i.calls == 0:
-				// No calls should have happened from here on
-				callsStopped = true
-			case i.calls == 1:
+			case i.called:
 				if callsStopped {
 					t.Errorf("%v: interceptor called out of order: %v", test.desc, i)
 				}
 				called++
-			case i.calls > 1:
-				// This shouldn't happen, it means different tests are interfering
-				// with each other.
-				t.Fatalf("%v: interceptor called too many times: %v", test.desc, i)
+			case !i.called:
+				// No calls should have happened from here on
+				callsStopped = true
 			}
 		}
 		if called != test.wantCalled {
@@ -379,9 +341,10 @@ func TestCombine(t *testing.T) {
 		// Chain the ctxs for all called interceptors and verify it got through to the
 		// handler.
 		wantCtx := ctx
-		for i := 0; i < test.wantCalled; i++ {
+		for _, i := range test.interceptors {
 			h := &fakeHandler{resp: "ok"}
-			_, err = test.interceptors[i].run(wantCtx, req, info, h.run)
+			i.called = false
+			_, err = i.run(wantCtx, req, info, h.run)
 			if err != nil {
 				t.Fatalf("%v: unexpected handler failure: %v", test.desc, err)
 			}
@@ -394,32 +357,38 @@ func TestCombine(t *testing.T) {
 }
 
 type fakeHandler struct {
-	calls int
-	resp  interface{}
-	err   error
+	called bool
+	resp   interface{}
+	err    error
 	// Attributes recorded by run calls
 	ctx context.Context
 	req interface{}
 }
 
-func (h *fakeHandler) run(ctx context.Context, req interface{}) (interface{}, error) {
-	h.calls++
-	h.ctx = ctx
-	h.req = req
-	return h.resp, h.err
+func (f *fakeHandler) run(ctx context.Context, req interface{}) (interface{}, error) {
+	if f.called {
+		panic("handler already called; either create a new handler or set called to false before reusing")
+	}
+	f.called = true
+	f.ctx = ctx
+	f.req = req
+	return f.resp, f.err
 }
 
 type fakeInterceptor struct {
-	key   interface{}
-	val   interface{}
-	calls int
-	err   error
+	key    interface{}
+	val    interface{}
+	called bool
+	err    error
 }
 
-func (i *fakeInterceptor) run(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	i.calls++
-	if i.err != nil {
-		return nil, i.err
+func (f *fakeInterceptor) run(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	if f.called {
+		panic("interceptor already called; either create a new interceptor or set called to false before reusing")
 	}
-	return handler(context.WithValue(ctx, i.key, i.val), req)
+	f.called = true
+	if f.err != nil {
+		return nil, f.err
+	}
+	return handler(context.WithValue(ctx, f.key, f.val), req)
 }
