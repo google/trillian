@@ -51,38 +51,45 @@ func TestTreeInterceptor_UnaryInterceptor(t *testing.T) {
 	tests := []struct {
 		desc       string
 		req        interface{}
+		fullMethod string
 		handlerErr error
 		wantErr    bool
 		wantTree   *trillian.Tree
 	}{
 		{
-			desc: "rpcWithoutTree",
-			req:  &trillian.CreateTreeRequest{},
+			desc:       "rpcWithoutTree",
+			req:        &trillian.CreateTreeRequest{},
+			fullMethod: "/trillian.TrillianAdmin/CreateTree",
 		},
 		{
-			desc:     "adminRPC",
-			req:      &trillian.GetTreeRequest{TreeId: logTree.TreeId},
-			wantTree: &logTree,
+			desc:       "adminRPC",
+			req:        &trillian.GetTreeRequest{TreeId: logTree.TreeId},
+			fullMethod: "/trillian.TrillianAdmin/GetTree",
+			wantTree:   &logTree,
 		},
 		{
-			desc:     "logRPC",
-			req:      &trillian.GetLatestSignedLogRootRequest{LogId: logTree.TreeId},
-			wantTree: &logTree,
+			desc:       "logRPC",
+			req:        &trillian.GetLatestSignedLogRootRequest{LogId: logTree.TreeId},
+			fullMethod: "/trillian.TrillianLog/GetLatestSignedLogRoot",
+			wantTree:   &logTree,
 		},
 		{
-			desc:     "mapRPC",
-			req:      &trillian.GetSignedMapRootRequest{MapId: mapTree.TreeId},
-			wantTree: &mapTree,
+			desc:       "mapRPC",
+			req:        &trillian.GetSignedMapRootRequest{MapId: mapTree.TreeId},
+			fullMethod: "/trillian.TrillianMap/GetSignedMapRoot",
+			wantTree:   &mapTree,
 		},
 		{
-			desc:    "unknownRequest",
-			req:     "not-a-request",
-			wantErr: true,
+			desc:       "unknownRequest",
+			req:        "not-a-request",
+			fullMethod: "/trillian.TrillianLog/UnmappedRequest",
+			wantErr:    true,
 		},
 		{
-			desc:    "unknownTree",
-			req:     &trillian.GetTreeRequest{TreeId: unknownTreeID},
-			wantErr: true,
+			desc:       "unknownTree",
+			req:        &trillian.GetTreeRequest{TreeId: unknownTreeID},
+			fullMethod: "/trillian.TrillianAdmin/GetTree",
+			wantErr:    true,
 		},
 	}
 
@@ -91,7 +98,7 @@ func TestTreeInterceptor_UnaryInterceptor(t *testing.T) {
 	for _, test := range tests {
 		handler := &fakeHandler{resp: "handler response", err: test.handlerErr}
 
-		resp, err := intercept.UnaryInterceptor(ctx, test.req, &grpc.UnaryServerInfo{}, handler.run)
+		resp, err := intercept.UnaryInterceptor(ctx, test.req, &grpc.UnaryServerInfo{FullMethod: test.fullMethod}, handler.run)
 		if hasErr := err != nil && err != test.handlerErr; hasErr != test.wantErr {
 			t.Errorf("%v: UnaryInterceptor() returned err = %q, wantErr = %v", test.desc, err, test.wantErr)
 			continue
@@ -124,36 +131,144 @@ func TestTreeInterceptor_UnaryInterceptor(t *testing.T) {
 
 func TestGetRPCInfo(t *testing.T) {
 	tests := []struct {
-		req interface{}
+		req                      interface{}
+		fullMethod               string
+		wantID                   int64
+		wantType                 trillian.TreeType
+		wantNoTree, wantReadonly bool
 	}{
-		// Please keep in alphabetical order
-		{req: &trillian.CreateTreeRequest{}},
-		{req: &trillian.DeleteTreeRequest{}},
-		{req: &trillian.GetConsistencyProofRequest{}},
-		{req: &trillian.GetEntryAndProofRequest{}},
-		{req: &trillian.GetInclusionProofByHashRequest{}},
-		{req: &trillian.GetInclusionProofRequest{}},
-		{req: &trillian.GetLatestSignedLogRootRequest{}},
-		{req: &trillian.GetLeavesByHashRequest{}},
-		{req: &trillian.GetLeavesByIndexRequest{}},
-		{req: &trillian.GetMapLeavesRequest{}},
-		{req: &trillian.GetSequencedLeafCountRequest{}},
-		{req: &trillian.GetSignedMapRootRequest{}},
-		{req: &trillian.GetTreeRequest{}},
-		{req: &trillian.ListTreesRequest{}},
-		{req: &trillian.QueueLeafRequest{}},
-		{req: &trillian.QueueLeavesRequest{}},
-		{req: &trillian.SetMapLeavesRequest{}},
-		{req: &trillian.UpdateTreeRequest{}},
+		// TrillianAdmin
+		{
+			req:        &trillian.CreateTreeRequest{},
+			fullMethod: "/trillian.TrillianAdmin/CreateTree",
+			wantNoTree: true,
+		},
+		{
+			req:        &trillian.DeleteTreeRequest{TreeId: 10},
+			fullMethod: "/trillian.TrillianAdmin/DeleteTree",
+			wantID:     10,
+		},
+		{
+			req:          &trillian.GetTreeRequest{TreeId: 10},
+			fullMethod:   "/trillian.TrillianAdmin/GetTree",
+			wantID:       10,
+			wantReadonly: true,
+		},
+		{
+			req:        &trillian.ListTreesRequest{},
+			fullMethod: "/trillian.TrillianAdmin/ListTrees",
+			wantNoTree: true,
+		},
+		{
+			req:        &trillian.UpdateTreeRequest{Tree: &trillian.Tree{TreeId: 10}},
+			fullMethod: "/trillian.TrillianAdmin/UpdateTree",
+			wantID:     10,
+		},
+		// TrillianLog
+		{
+			req:          &trillian.GetConsistencyProofRequest{LogId: 20},
+			fullMethod:   "/trillian.TrillianLog/GetConsistencyProof",
+			wantID:       20,
+			wantType:     trillian.TreeType_LOG,
+			wantReadonly: true,
+		},
+		{
+			req:          &trillian.GetEntryAndProofRequest{LogId: 20},
+			fullMethod:   "/trillian.TrillianLog/GetEntryAndProof",
+			wantID:       20,
+			wantType:     trillian.TreeType_LOG,
+			wantReadonly: true,
+		},
+		{
+			req:          &trillian.GetInclusionProofByHashRequest{LogId: 20},
+			fullMethod:   "/trillian.TrillianLog/GetInclusionProofByHash",
+			wantID:       20,
+			wantType:     trillian.TreeType_LOG,
+			wantReadonly: true,
+		},
+		{
+			req:          &trillian.GetInclusionProofRequest{LogId: 20},
+			fullMethod:   "/trillian.TrillianLog/GetInclusionProof",
+			wantID:       20,
+			wantType:     trillian.TreeType_LOG,
+			wantReadonly: true,
+		},
+		{
+			req:          &trillian.GetLatestSignedLogRootRequest{LogId: 20},
+			fullMethod:   "/trillian.TrillianLog/GetLatestSignedLogRoot",
+			wantID:       20,
+			wantType:     trillian.TreeType_LOG,
+			wantReadonly: true,
+		},
+		{
+			req:          &trillian.GetLeavesByHashRequest{LogId: 20},
+			fullMethod:   "/trillian.TrillianLog/GetLeavesByHash",
+			wantID:       20,
+			wantType:     trillian.TreeType_LOG,
+			wantReadonly: true,
+		},
+		{
+			req:          &trillian.GetLeavesByIndexRequest{LogId: 20},
+			fullMethod:   "/trillian.TrillianLog/GetLeavesByIndex",
+			wantID:       20,
+			wantType:     trillian.TreeType_LOG,
+			wantReadonly: true,
+		},
+		{
+			req:          &trillian.GetSequencedLeafCountRequest{LogId: 20},
+			fullMethod:   "/trillian.TrillianLog/GetSequencedLeafCount",
+			wantID:       20,
+			wantType:     trillian.TreeType_LOG,
+			wantReadonly: true,
+		},
+		{
+			req:        &trillian.QueueLeafRequest{LogId: 20},
+			fullMethod: "/trillian.TrillianLog/QueueLeaf",
+			wantID:     20,
+			wantType:   trillian.TreeType_LOG,
+		},
+		{
+			req:        &trillian.QueueLeavesRequest{LogId: 20},
+			fullMethod: "/trillian.TrillianLog/QueueLeaves",
+			wantID:     20,
+			wantType:   trillian.TreeType_LOG,
+		},
+		// TrillianMap
+		{
+			req:          &trillian.GetMapLeavesRequest{MapId: 30},
+			fullMethod:   "/trillian.TrillianMap/GetMapLeaves",
+			wantID:       30,
+			wantType:     trillian.TreeType_MAP,
+			wantReadonly: true,
+		}, {
+			req:          &trillian.GetSignedMapRootRequest{MapId: 30},
+			fullMethod:   "/trillian.TrillianMap/GetSignedMapRoot",
+			wantID:       30,
+			wantType:     trillian.TreeType_MAP,
+			wantReadonly: true,
+		},
+		{
+			req:        &trillian.SetMapLeavesRequest{MapId: 30},
+			fullMethod: "/trillian.TrillianMap/SetMapLeaves",
+			wantID:     30,
+			wantType:   trillian.TreeType_MAP,
+		},
 	}
 	for _, test := range tests {
-		// We don't care about specifics on the returned info here. There's little logic on
-		// getRPCInfo other than a hard-written mapping; testing for treeID/type/readonly
-		// is too close to a change detector test to be worth it.
-		// Testing that requests are mapped, OTOH, helps avoid regressions.
-		_, err := getRPCInfo(test.req)
+		info, err := getRPCInfo(test.req, test.fullMethod)
 		if err != nil {
-			t.Errorf("RPC not mapped: %T", err)
+			t.Errorf("getRPCInfo(%T) return err = %v, want = nil", test.req, err)
+			continue
+		}
+		if got, want := info.doesNotHaveTree, test.wantNoTree; got != want {
+			t.Errorf("%T: info.doesNotHaveTree = %v, want = %v", test.req, got, want)
+		}
+		if got, want := info.treeID, test.wantID; got != want {
+			t.Errorf("%T: info.treeID = %v, want = %v", test.req, got, want)
+		}
+		wantOpts := &trees.GetOpts{TreeType: test.wantType, Readonly: test.wantReadonly}
+		if diff := pretty.Compare(info.opts, wantOpts); diff != "" {
+			t.Errorf("%T: info.opts diff:\n%v", test.req, diff)
 		}
 	}
 }
