@@ -59,7 +59,7 @@ notice &ndash; including APIs, database schemas, and code layout.
 
 To build and run the Trillian code you need:
 
- - Go 1.7 or later.
+ - Go 1.8 or later.
  - [MySQL](https://www.mysql.com/) or [MariaDB](https://mariadb.org/) to provide
    the data storage layer; see the [MySQL Setup](#mysql-setup) section.
 
