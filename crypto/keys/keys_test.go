@@ -20,11 +20,11 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/asn1"
+	"errors"
 	"fmt"
 	"math/big"
 	"testing"
 
-	"errors"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/testonly"
 )
