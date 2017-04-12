@@ -65,7 +65,7 @@ var (
 		Description:        "Key Transparency map for all your digital llama needs.",
 		PrivateKey: mustMarshalAny(&trillian.PEMKeyFile{
 			Path:     ttestonly.RelativeToPackage("../../testdata/map-rpc-server.privkey.pem"),
-			Password: "dirk",
+			Password: "towel",
 		}),
 	}
 )
