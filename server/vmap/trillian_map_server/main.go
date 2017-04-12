@@ -28,6 +28,7 @@ import (
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/server"
+	"github.com/google/trillian/server/interceptor"
 	"github.com/google/trillian/server/vmap"
 	"github.com/google/trillian/storage/mysql"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
@@ -55,7 +56,8 @@ func main() {
 		MapStorage:    mysql.NewMapStorage(db),
 	}
 
-	s := grpc.NewServer()
+	ti := interceptor.TreeInterceptor{Admin: registry.AdminStorage}
+	s := grpc.NewServer(grpc.UnaryInterceptor(ti.UnaryInterceptor))
 	// No defer: server ownership is delegated to server.Main
 
 	httpEndpoint := ""
