@@ -27,23 +27,23 @@ import (
 )
 
 func TestMySQLMapStorage_CheckDatabaseAccessible(t *testing.T) {
-	cleanTestDB(DB)
-	s := coresql.NewMapStorage(NewWrapper(DB))
+	cleanTestDB(dbWrapper)
+	s := coresql.NewMapStorage(dbWrapper)
 	if err := s.CheckDatabaseAccessible(context.Background()); err != nil {
 		t.Errorf("CheckDatabaseAccessible() = %v, want = nil", err)
 	}
 }
 
 func TestMapBeginSnapshot(t *testing.T) {
-	cleanTestDB(DB)
+	cleanTestDB(dbWrapper)
 
-	frozenMapID := createMapForTests(DB)
-	updateTree(DB, frozenMapID, func(tree *trillian.Tree) {
+	frozenMapID := createMapForTests(dbWrapper)
+	updateTree(dbWrapper, frozenMapID, func(tree *trillian.Tree) {
 		tree.TreeState = trillian.TreeState_FROZEN
 	})
 
-	activeMapID := createMapForTests(DB)
-	logID := createLogForTests(DB)
+	activeMapID := createMapForTests(dbWrapper)
+	logID := createLogForTests(dbWrapper)
 
 	tests := []struct {
 		desc  string
@@ -95,7 +95,7 @@ func TestMapBeginSnapshot(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	s := coresql.NewMapStorage(NewWrapper(DB))
+	s := coresql.NewMapStorage(dbWrapper)
 	for _, test := range tests {
 		func() {
 			var tx rootReaderMapTX
@@ -139,9 +139,9 @@ type rootReaderMapTX interface {
 
 func TestMapRootUpdate(t *testing.T) {
 	// Write two roots for a map and make sure the one with the newest timestamp supersedes
-	cleanTestDB(DB)
-	mapID := createMapForTests(DB)
-	s := coresql.NewMapStorage(NewWrapper(DB))
+	cleanTestDB(dbWrapper)
+	mapID := createMapForTests(dbWrapper)
+	s := coresql.NewMapStorage(dbWrapper)
 
 	ctx := context.Background()
 	tx := beginMapTx(ctx, s, mapID, t)
@@ -192,9 +192,9 @@ var mapLeaf = trillian.MapLeaf{
 }
 
 func TestMapSetGetRoundTrip(t *testing.T) {
-	cleanTestDB(DB)
-	mapID := createMapForTests(DB)
-	s := coresql.NewMapStorage(NewWrapper(DB))
+	cleanTestDB(dbWrapper)
+	mapID := createMapForTests(dbWrapper)
+	s := coresql.NewMapStorage(dbWrapper)
 
 	readRev := int64(1)
 	ctx := context.Background()
@@ -227,9 +227,9 @@ func TestMapSetGetRoundTrip(t *testing.T) {
 }
 
 func TestMapSetSameKeyInSameRevisionFails(t *testing.T) {
-	cleanTestDB(DB)
-	mapID := createMapForTests(DB)
-	s := coresql.NewMapStorage(NewWrapper(DB))
+	cleanTestDB(dbWrapper)
+	mapID := createMapForTests(dbWrapper)
+	s := coresql.NewMapStorage(dbWrapper)
 
 	ctx := context.Background()
 
@@ -255,9 +255,9 @@ func TestMapSetSameKeyInSameRevisionFails(t *testing.T) {
 }
 
 func TestMapGetUnknownKey(t *testing.T) {
-	cleanTestDB(DB)
-	mapID := createMapForTests(DB)
-	s := coresql.NewMapStorage(NewWrapper(DB))
+	cleanTestDB(dbWrapper)
+	mapID := createMapForTests(dbWrapper)
+	s := coresql.NewMapStorage(dbWrapper)
 
 	ctx := context.Background()
 	tx := beginMapTx(ctx, s, mapID, t)
@@ -274,9 +274,9 @@ func TestMapGetUnknownKey(t *testing.T) {
 
 func TestMapSetGetMultipleRevisions(t *testing.T) {
 	// Write two roots for a map and make sure the one with the newest timestamp supersedes
-	cleanTestDB(DB)
-	mapID := createMapForTests(DB)
-	s := coresql.NewMapStorage(NewWrapper(DB))
+	cleanTestDB(dbWrapper)
+	mapID := createMapForTests(dbWrapper)
+	s := coresql.NewMapStorage(dbWrapper)
 
 	tests := []trillian.MapLeaf{
 		{Index: keyHash, LeafHash: []byte{0}, LeafValue: []byte{0}, ExtraData: []byte{0}},
@@ -344,9 +344,9 @@ func TestMapSetGetMultipleRevisions(t *testing.T) {
 }
 
 func TestLatestSignedMapRootNoneWritten(t *testing.T) {
-	cleanTestDB(DB)
-	mapID := createMapForTests(DB)
-	s := coresql.NewMapStorage(NewWrapper(DB))
+	cleanTestDB(dbWrapper)
+	mapID := createMapForTests(dbWrapper)
+	s := coresql.NewMapStorage(dbWrapper)
 
 	ctx := context.Background()
 	tx := beginMapTx(ctx, s, mapID, t)
@@ -363,9 +363,9 @@ func TestLatestSignedMapRootNoneWritten(t *testing.T) {
 }
 
 func TestLatestSignedMapRoot(t *testing.T) {
-	cleanTestDB(DB)
-	mapID := createMapForTests(DB)
-	s := coresql.NewMapStorage(NewWrapper(DB))
+	cleanTestDB(dbWrapper)
+	mapID := createMapForTests(dbWrapper)
+	s := coresql.NewMapStorage(dbWrapper)
 
 	ctx := context.Background()
 	tx := beginMapTx(ctx, s, mapID, t)
@@ -400,9 +400,9 @@ func TestLatestSignedMapRoot(t *testing.T) {
 }
 
 func TestDuplicateSignedMapRoot(t *testing.T) {
-	cleanTestDB(DB)
-	mapID := createMapForTests(DB)
-	s := coresql.NewMapStorage(NewWrapper(DB))
+	cleanTestDB(dbWrapper)
+	mapID := createMapForTests(dbWrapper)
+	s := coresql.NewMapStorage(dbWrapper)
 
 	ctx := context.Background()
 	tx := beginMapTx(ctx, s, mapID, t)
@@ -426,8 +426,8 @@ func TestDuplicateSignedMapRoot(t *testing.T) {
 }
 
 func TestReadOnlyMapTX_Rollback(t *testing.T) {
-	cleanTestDB(DB)
-	s := coresql.NewMapStorage(NewWrapper(DB))
+	cleanTestDB(dbWrapper)
+	s := coresql.NewMapStorage(dbWrapper)
 	tx, err := s.Snapshot(context.Background())
 	if err != nil {
 		t.Fatalf("Snapshot() = (_, %v), want = (_, nil)", err)

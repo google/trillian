@@ -32,14 +32,14 @@ import (
 	"github.com/google/trillian/storage/sql/coresql"
 	"github.com/google/trillian/storage/sql/coresql/testonly"
 	storageto "github.com/google/trillian/storage/testonly"
+	"github.com/google/trillian/storage/sql/coresql/wrapper"
 )
 
 func TestNodeRoundTrip(t *testing.T) {
 	ctx := context.Background()
-
-	cleanTestDB(DB)
-	logID := createLogForTests(DB)
-	s := coresql.NewLogStorage(NewWrapper(DB))
+	cleanTestDB(dbWrapper)
+	logID := createLogForTests(dbWrapper)
+	s := coresql.NewLogStorage(dbWrapper)
 
 	var writeRevision int64
 	nodesToStore := createSomeNodes()
@@ -84,10 +84,9 @@ func TestNodeRoundTrip(t *testing.T) {
 // cache gets exercised. Any tree size > 256 will do this.
 func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 	ctx := context.Background()
-
-	cleanTestDB(DB)
-	logID := createLogForTests(DB)
-	s := coresql.NewLogStorage(NewWrapper(DB))
+	cleanTestDB(dbWrapper)
+	logID := createLogForTests(dbWrapper)
+	s := coresql.NewLogStorage(dbWrapper)
 
 	var writeRevision int64
 	nodesToStore, err := createLogNodesForTreeAtSize(871, writeRevision)
@@ -188,17 +187,17 @@ func openTestDBOrDie() *sql.DB {
 }
 
 // cleanTestDB deletes all the entries in the database.
-func cleanTestDB(db *sql.DB) {
+func cleanTestDB(wrapper wrapper.DBWrapper) {
 	for _, table := range allTables {
-		if _, err := db.ExecContext(context.TODO(), fmt.Sprintf("DELETE FROM %s", table)); err != nil {
+		if _, err := wrapper.DB().ExecContext(context.TODO(), fmt.Sprintf("DELETE FROM %s", table)); err != nil {
 			panic(fmt.Errorf("Failed to delete rows in %s: %s", table, err))
 		}
 	}
 }
 
 // createMapForTests creates a map-type tree for tests. Returns the treeID of the new tree.
-func createMapForTests(db *sql.DB) int64 {
-	tree, err := createTree(db, storageto.MapTree)
+func createMapForTests(wrapper wrapper.DBWrapper) int64 {
+	tree, err := createTree(wrapper, storageto.MapTree)
 	if err != nil {
 		panic(fmt.Sprintf("Error creating map: %v", err))
 	}
@@ -206,8 +205,8 @@ func createMapForTests(db *sql.DB) int64 {
 }
 
 // createLogForTests creates a log-type tree for tests. Returns the treeID of the new tree.
-func createLogForTests(db *sql.DB) int64 {
-	tree, err := createTree(db, storageto.LogTree)
+func createLogForTests(wrapper wrapper.DBWrapper) int64 {
+	tree, err := createTree(wrapper, storageto.LogTree)
 	if err != nil {
 		panic(fmt.Sprintf("Error creating log: %v", err))
 	}
@@ -215,8 +214,8 @@ func createLogForTests(db *sql.DB) int64 {
 }
 
 // createTree creates the specified tree using AdminStorage.
-func createTree(db *sql.DB, tree *trillian.Tree) (*trillian.Tree, error) {
-	s := coresql.NewAdminStorage(NewWrapper(db))
+func createTree(wrapper wrapper.DBWrapper, tree *trillian.Tree) (*trillian.Tree, error) {
+	s := coresql.NewAdminStorage(wrapper)
 	ctx := context.Background()
 	tx, err := s.Begin(ctx)
 	if err != nil {
@@ -234,8 +233,8 @@ func createTree(db *sql.DB, tree *trillian.Tree) (*trillian.Tree, error) {
 }
 
 // updateTree updates the specified tree using AdminStorage.
-func updateTree(db *sql.DB, treeID int64, updateFn func(*trillian.Tree)) (*trillian.Tree, error) {
-	s := coresql.NewAdminStorage(NewWrapper(db))
+func updateTree(wrapper wrapper.DBWrapper, treeID int64, updateFn func(*trillian.Tree)) (*trillian.Tree, error) {
+	s := coresql.NewAdminStorage(wrapper)
 	ctx := context.Background()
 	tx, err := s.Begin(ctx)
 	if err != nil {
@@ -257,13 +256,13 @@ func OpenDB(dbURL string) (*sql.DB, error) {
 }
 
 // DB is the database used for tests. It's initialized and closed by TestMain().
-var DB *sql.DB
+var dbWrapper wrapper.DBWrapper
 
 func TestMain(m *testing.M) {
 	flag.Parse()
-	DB = openTestDBOrDie()
-	defer DB.Close()
-	cleanTestDB(DB)
+	dbWrapper = NewWrapper(openTestDBOrDie())
+	defer dbWrapper.DB().Close()
+	cleanTestDB(dbWrapper)
 	ec := m.Run()
 	os.Exit(ec)
 }
