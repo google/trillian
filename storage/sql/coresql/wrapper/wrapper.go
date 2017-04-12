@@ -23,14 +23,14 @@ import (
 	"database/sql"
 )
 
-// TreeStatementProvider provides SQL statement objects for raw tree storage
+// TreeStatementProvider provides SQL statement objects for raw tree storage.
 type TreeStatementProvider interface {
 	GetTreeRevisionIncludingSizeStmt(tx *sql.Tx) (*sql.Stmt, error)
 	GetSubtreeStmt(tx *sql.Tx, num int) (*sql.Stmt, error)
 	SetSubtreeStmt(tx *sql.Tx, num int) (*sql.Stmt, error)
 }
 
-// LogStatementProvider provides SQL statement objects for log storage
+// LogStatementProvider provides SQL statement objects for log storage.
 type LogStatementProvider interface {
 	GetActiveLogsStmt(tx *sql.Tx) (*sql.Stmt, error)
 	GetActiveLogsWithWorkStmt(tx *sql.Tx) (*sql.Stmt, error)
@@ -47,7 +47,7 @@ type LogStatementProvider interface {
 	GetSequencedLeafCountStmt(tx *sql.Tx) (*sql.Stmt, error)
 }
 
-// MapStatementProvider provides SQL statement objects for map storage
+// MapStatementProvider provides SQL statement objects for map storage.
 type MapStatementProvider interface {
 	GetMapLeafStmt(tx *sql.Tx, num int) (*sql.Stmt, error)
 	GetLatestMapRootStmt(tx *sql.Tx) (*sql.Stmt, error)
@@ -55,7 +55,7 @@ type MapStatementProvider interface {
 	InsertMapLeafStmt(tx *sql.Tx) (*sql.Stmt, error)
 }
 
-// AdminStatementProvider provides SQL statement objects for administration
+// AdminStatementProvider provides SQL statement objects for administration.
 type AdminStatementProvider interface {
 	GetTreeIDsStmt(tx *sql.Tx) (*sql.Stmt, error)
 	GetAllTreesStmt(tx *sql.Tx) (*sql.Stmt, error)
@@ -65,11 +65,16 @@ type AdminStatementProvider interface {
 	UpdateTreeStmt(tx *sql.Tx) (*sql.Stmt, error)
 }
 
-// CustomBehaviourProvider abstracts database specific features, for example error code checking
+// CustomBehaviourProvider abstracts database specific features, for example error code checking.
 type CustomBehaviourProvider interface {
 	CheckDatabaseAccessible(ctx context.Context) error
 	IsDuplicateErr(err error) bool
 	TreeRowExists(treeID int64) error
+}
+
+// Lifecycle hooks allows implementations to add custom logic at various points in the
+// database and transaction flow.
+type LifecycleHooks interface {
 	OnOpenDB() error
 }
 
@@ -82,11 +87,12 @@ type DBWrapper interface {
 	LogStatementProvider
 	MapStatementProvider
 	AdminStatementProvider
+	LifecycleHooks
 	CustomBehaviourProvider
 	DB() *sql.DB
 }
 
-// GetStmtFunc is a function that creates and returns a pointer to a sql.Stmt and an error
+// GetStmtFunc is a function that creates and returns a pointer to a sql.Stmt and an error.
 type GetStmtFunc func() (stmt *sql.Stmt, err error)
 
 // PrepInTx indirectly obtains a pointer to a SQL statement via a supplied function and if
