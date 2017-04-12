@@ -32,7 +32,7 @@ import (
 type LogConfig struct {
 	LogID           int64
 	Prefix          string
-	RootsPEMFile    string
+	RootsPEMFile    []string
 	PubKeyPEMFile   string
 	PrivKeyPEMFile  string
 	PrivKeyPassword string
@@ -95,8 +95,10 @@ func (cfg LogConfig) SetUpInstance(client trillian.TrillianLogClient, deadline t
 
 	// Load the trusted roots
 	roots := NewPEMCertPool()
-	if err := roots.AppendCertsFromPEMFile(cfg.RootsPEMFile); err != nil {
-		return nil, fmt.Errorf("failed to read trusted roots: %v", err)
+	for _, pemFile := range cfg.RootsPEMFile {
+		if err := roots.AppendCertsFromPEMFile(pemFile); err != nil {
+			return nil, fmt.Errorf("failed to read trusted roots: %v", err)
+		}
 	}
 
 	// Load the private key for this log.

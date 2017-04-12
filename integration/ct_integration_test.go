@@ -76,21 +76,21 @@ func TestInProcessCTIntegration(t *testing.T) {
 	cfgs := []*ct.LogConfig{
 		{
 			Prefix:          "athos",
-			RootsPEMFile:    rootsPEMFile,
+			RootsPEMFile:    []string{rootsPEMFile},
 			PubKeyPEMFile:   pubKeyPEMFile,
 			PrivKeyPEMFile:  privKeyPEMFile,
 			PrivKeyPassword: privKeyPassword,
 		},
 		{
 			Prefix:          "porthos",
-			RootsPEMFile:    rootsPEMFile,
+			RootsPEMFile:    []string{rootsPEMFile},
 			PubKeyPEMFile:   pubKeyPEMFile,
 			PrivKeyPEMFile:  privKeyPEMFile,
 			PrivKeyPassword: privKeyPassword,
 		},
 		{
 			Prefix:          "aramis",
-			RootsPEMFile:    rootsPEMFile,
+			RootsPEMFile:    []string{rootsPEMFile},
 			PubKeyPEMFile:   pubKeyPEMFile,
 			PrivKeyPEMFile:  privKeyPEMFile,
 			PrivKeyPassword: privKeyPassword,
