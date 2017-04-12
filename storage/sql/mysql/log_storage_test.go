@@ -83,15 +83,15 @@ func TestMySQLLogStorage_CheckDatabaseAccessible(t *testing.T) {
 func TestBeginSnapshot(t *testing.T) {
 	cleanTestDB(dbWrapper)
 
-	frozenLogID := createLogForTests(dbWrapper)
-	if _, err := updateTree(dbWrapper, frozenLogID, func(tree *trillian.Tree) {
+	frozenLogID := testonly.CreateLogForTest(dbWrapper)
+	if _, err := testonly.UpdateTreeForTest(dbWrapper, frozenLogID, func(tree *trillian.Tree) {
 		tree.TreeState = trillian.TreeState_FROZEN
 	}); err != nil {
 		t.Fatalf("Error updating frozen tree: %v", err)
 	}
 
-	activeLogID := createLogForTests(dbWrapper)
-	mapID := createMapForTests(dbWrapper)
+	activeLogID := testonly.CreateLogForTest(dbWrapper)
+	mapID := testonly.CreateMapForTest(dbWrapper)
 
 	tests := []struct {
 		desc  string
@@ -187,7 +187,7 @@ type rootReaderLogTX interface {
 
 func TestIsOpenCommitRollbackClosed(t *testing.T) {
 	cleanTestDB(dbWrapper)
-	logID := createLogForTests(dbWrapper)
+	logID := testonly.CreateLogForTest(dbWrapper)
 	s := coresql.NewLogStorage(dbWrapper)
 
 	tests := []struct {
@@ -227,7 +227,7 @@ func TestIsOpenCommitRollbackClosed(t *testing.T) {
 func TestQueueDuplicateLeaf(t *testing.T) {
 	ctx := context.Background()
 	cleanTestDB(dbWrapper)
-	logID := createLogForTests(dbWrapper)
+	logID := testonly.CreateLogForTest(dbWrapper)
 	s := coresql.NewLogStorage(dbWrapper)
 	count := 15
 	leaves := createTestLeaves(int64(count), 10)
@@ -291,7 +291,7 @@ func TestQueueDuplicateLeaf(t *testing.T) {
 func TestQueueLeaves(t *testing.T) {
 	ctx := context.Background()
 	cleanTestDB(dbWrapper)
-	logID := createLogForTests(dbWrapper)
+	logID := testonly.CreateLogForTest(dbWrapper)
 	s := coresql.NewLogStorage(dbWrapper)
 
 	tx := testonly.BeginLogTx(s, logID, t)
@@ -325,7 +325,7 @@ func TestQueueLeaves(t *testing.T) {
 func TestDequeueLeavesNoneQueued(t *testing.T) {
 	ctx := context.Background()
 	cleanTestDB(dbWrapper)
-	logID := createLogForTests(dbWrapper)
+	logID := testonly.CreateLogForTest(dbWrapper)
 	s := coresql.NewLogStorage(dbWrapper)
 
 	tx := testonly.BeginLogTx(s, logID, t)
@@ -344,7 +344,7 @@ func TestDequeueLeavesNoneQueued(t *testing.T) {
 func TestDequeueLeaves(t *testing.T) {
 	ctx := context.Background()
 	cleanTestDB(dbWrapper)
-	logID := createLogForTests(dbWrapper)
+	logID := testonly.CreateLogForTest(dbWrapper)
 	s := coresql.NewLogStorage(dbWrapper)
 
 	{
@@ -390,7 +390,7 @@ func TestDequeueLeaves(t *testing.T) {
 func TestDequeueLeavesTwoBatches(t *testing.T) {
 	ctx := context.Background()
 	cleanTestDB(dbWrapper)
-	logID := createLogForTests(dbWrapper)
+	logID := testonly.CreateLogForTest(dbWrapper)
 	s := coresql.NewLogStorage(dbWrapper)
 
 	leavesToDequeue1 := 3
@@ -459,7 +459,7 @@ func TestDequeueLeavesTwoBatches(t *testing.T) {
 func TestDequeueLeavesGuardInterval(t *testing.T) {
 	ctx := context.Background()
 	cleanTestDB(dbWrapper)
-	logID := createLogForTests(dbWrapper)
+	logID := testonly.CreateLogForTest(dbWrapper)
 	s := coresql.NewLogStorage(dbWrapper)
 
 	{
@@ -504,7 +504,7 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 	// transactions and make sure the returned leaves are respecting the time ordering of the
 	// queue.
 	cleanTestDB(dbWrapper)
-	logID := createLogForTests(dbWrapper)
+	logID := testonly.CreateLogForTest(dbWrapper)
 	s := coresql.NewLogStorage(dbWrapper)
 
 	batchSize := 2
@@ -567,7 +567,7 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 func TestGetLeavesByHashNotPresent(t *testing.T) {
 	ctx := context.Background()
 	cleanTestDB(dbWrapper)
-	logID := createLogForTests(dbWrapper)
+	logID := testonly.CreateLogForTest(dbWrapper)
 	s := coresql.NewLogStorage(dbWrapper)
 
 	tx := testonly.BeginLogTx(s, logID, t)
@@ -587,7 +587,7 @@ func TestGetLeavesByHashNotPresent(t *testing.T) {
 func TestGetLeavesByIndexNotPresent(t *testing.T) {
 	ctx := context.Background()
 	cleanTestDB(dbWrapper)
-	logID := createLogForTests(dbWrapper)
+	logID := testonly.CreateLogForTest(dbWrapper)
 	s := coresql.NewLogStorage(dbWrapper)
 
 	tx := testonly.BeginLogTx(s, logID, t)
@@ -604,7 +604,7 @@ func TestGetLeavesByHash(t *testing.T) {
 
 	// Create fake leaf as if it had been sequenced
 	cleanTestDB(dbWrapper)
-	logID := createLogForTests(dbWrapper)
+	logID := testonly.CreateLogForTest(dbWrapper)
 	s := coresql.NewLogStorage(dbWrapper)
 
 	data := []byte("some data")
@@ -630,7 +630,7 @@ func TestGetLeafDataByIdentityHash(t *testing.T) {
 
 	// Create fake leaf as if it had been sequenced
 	cleanTestDB(dbWrapper)
-	logID := createLogForTests(dbWrapper)
+	logID := testonly.CreateLogForTest(dbWrapper)
 	s := coresql.NewLogStorage(dbWrapper)
 	data := []byte("some data")
 	leaf := createFakeLeaf(ctx, dbWrapper.DB(), logID, dummyRawHash, dummyHash, data, someExtraData, sequenceNumber, t)
@@ -691,7 +691,7 @@ func TestGetLeavesByIndex(t *testing.T) {
 
 	// Create fake leaf as if it had been sequenced, read it back and check contents
 	cleanTestDB(dbWrapper)
-	logID := createLogForTests(dbWrapper)
+	logID := testonly.CreateLogForTest(dbWrapper)
 	s := coresql.NewLogStorage(dbWrapper)
 
 	data := []byte("some data")
@@ -713,7 +713,7 @@ func TestGetLeavesByIndex(t *testing.T) {
 func TestLatestSignedRootNoneWritten(t *testing.T) {
 	ctx := context.Background()
 	cleanTestDB(dbWrapper)
-	logID := createLogForTests(dbWrapper)
+	logID := testonly.CreateLogForTest(dbWrapper)
 	s := coresql.NewLogStorage(dbWrapper)
 
 	tx := testonly.BeginLogTx(s, logID, t)
@@ -732,7 +732,7 @@ func TestLatestSignedRootNoneWritten(t *testing.T) {
 func TestLatestSignedLogRoot(t *testing.T) {
 	ctx := context.Background()
 	cleanTestDB(dbWrapper)
-	logID := createLogForTests(dbWrapper)
+	logID := testonly.CreateLogForTest(dbWrapper)
 	s := coresql.NewLogStorage(dbWrapper)
 
 	tx := testonly.BeginLogTx(s, logID, t)
@@ -768,7 +768,7 @@ func TestLatestSignedLogRoot(t *testing.T) {
 func TestDuplicateSignedLogRoot(t *testing.T) {
 	ctx := context.Background()
 	cleanTestDB(dbWrapper)
-	logID := createLogForTests(dbWrapper)
+	logID := testonly.CreateLogForTest(dbWrapper)
 	s := coresql.NewLogStorage(dbWrapper)
 
 	tx := testonly.BeginLogTx(s, logID, t)
@@ -797,7 +797,7 @@ func TestLogRootUpdate(t *testing.T) {
 
 	// Write two roots for a log and make sure the one with the newest timestamp supersedes
 	cleanTestDB(dbWrapper)
-	logID := createLogForTests(dbWrapper)
+	logID := testonly.CreateLogForTest(dbWrapper)
 	s := coresql.NewLogStorage(dbWrapper)
 
 	tx := testonly.BeginLogTx(s, logID, t)
@@ -877,18 +877,18 @@ func runTestGetActiveLogIDsInternal(ctx context.Context, t *testing.T, test getA
 
 func runTestGetActiveLogIDs(ctx context.Context, t *testing.T, test getActiveIDsTest) {
 	cleanTestDB(dbWrapper)
-	logID1 := createLogForTests(dbWrapper)
-	logID2 := createLogForTests(dbWrapper)
-	logID3 := createLogForTests(dbWrapper)
+	logID1 := testonly.CreateLogForTest(dbWrapper)
+	logID2 := testonly.CreateLogForTest(dbWrapper)
+	logID3 := testonly.CreateLogForTest(dbWrapper)
 	wantIds := []int64{logID1, logID2, logID3}
 	runTestGetActiveLogIDsInternal(ctx, t, test, logID1, wantIds)
 }
 
 func runTestGetActiveLogIDsWithPendingWork(ctx context.Context, t *testing.T, test getActiveIDsTest) {
 	cleanTestDB(dbWrapper)
-	logID1 := createLogForTests(dbWrapper)
-	logID2 := createLogForTests(dbWrapper)
-	logID3 := createLogForTests(dbWrapper)
+	logID1 := testonly.CreateLogForTest(dbWrapper)
+	logID2 := testonly.CreateLogForTest(dbWrapper)
+	logID3 := testonly.CreateLogForTest(dbWrapper)
 	s := coresql.NewLogStorage(dbWrapper)
 
 	// Do a first run without any pending logs
@@ -1042,8 +1042,8 @@ func TestGetSequencedLeafCount(t *testing.T) {
 
 	// We'll create leaves for two different trees
 	cleanTestDB(dbWrapper)
-	logID1 := createLogForTests(dbWrapper)
-	logID2 := createLogForTests(dbWrapper)
+	logID1 := testonly.CreateLogForTest(dbWrapper)
+	logID2 := testonly.CreateLogForTest(dbWrapper)
 	s := coresql.NewLogStorage(dbWrapper)
 
 	{
