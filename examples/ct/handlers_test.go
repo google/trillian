@@ -53,7 +53,7 @@ var fakeTimeMillis = uint64(fakeTime.UnixNano() / millisPerNano)
 
 // The deadline should be the above bumped by 500ms
 var fakeDeadlineTime = time.Date(2016, 7, 22, 11, 01, 13, 500*1000*1000, time.UTC)
-var fakeTimeSource = util.FakeTimeSource{FakeTime: fakeTime}
+var fakeTimeSource = util.NewFakeTimeSource(fakeTime)
 
 const caCertB64 string = `MIIC0DCCAjmgAwIBAgIBADANBgkqhkiG9w0BAQUFADBVMQswCQYDVQQGEwJHQjEk
 MCIGA1UEChMbQ2VydGlmaWNhdGUgVHJhbnNwYXJlbmN5IENBMQ4wDAYDVQQIEwVX

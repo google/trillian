@@ -15,6 +15,7 @@
 package util
 
 import (
+	"sync"
 	"time"
 )
 
@@ -36,14 +37,28 @@ func (s SystemTimeSource) Now() time.Time {
 // FakeTimeSource provides a time that can be any arbitrarily set value for use in tests.
 // It should not be used in production code.
 type FakeTimeSource struct {
-	// FakeTime is the value that this fake time source will return. It is public so
-	// tests can manipulate it.
-	FakeTime time.Time
+	// fakeTime is the value that this fake time source will return.
+	mu       sync.Mutex
+	fakeTime time.Time
+}
+
+// NewFakeTimeSource creates a FakeTimeSource instance
+func NewFakeTimeSource(t time.Time) *FakeTimeSource {
+	return &FakeTimeSource{fakeTime: t}
 }
 
 // Now returns the time value this instance contains
-func (f FakeTimeSource) Now() time.Time {
-	return f.FakeTime
+func (f *FakeTimeSource) Now() time.Time {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.fakeTime
+}
+
+// Set gives the time that this instance will report
+func (f *FakeTimeSource) Set(t time.Time) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.fakeTime = t
 }
 
 // IncrementingFakeTimeSource takes a base time and several increments, which will be applied to
