@@ -67,7 +67,7 @@ func main() {
 	// First make sure we can access the database, quit if not
 	wrap, err := db.OpenDB(*dbDriver, *dbURI)
 	if err != nil {
-		glog.Exitf("Failed to open MySQL database: %v", err)
+		glog.Exitf("Failed to open database: %v", err)
 	}
 	defer wrap.DB().Close()
 

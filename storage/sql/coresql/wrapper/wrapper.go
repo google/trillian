@@ -70,6 +70,7 @@ type CustomBehaviourProvider interface {
 	CheckDatabaseAccessible(ctx context.Context) error
 	IsDuplicateErr(err error) bool
 	TreeRowExists(treeID int64) error
+	VariableArgsFirst() bool
 }
 
 // LifecycleHooks allows implementations to add custom logic at various points in the

@@ -391,3 +391,8 @@ func (m *mySQLWrapper) CheckDatabaseAccessible(ctx context.Context) error {
 	_, err = stmt.Exec()
 	return err
 }
+
+func (m *mySQLWrapper) VariableArgsFirst() bool {
+	// We want the variable arguments first as we don't have positional placeholders.
+	return true
+}

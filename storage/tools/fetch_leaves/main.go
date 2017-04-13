@@ -52,7 +52,7 @@ func main() {
 
 	wrap, err := db.OpenDB(*dbDriver, *dbURI)
 	if err != nil {
-		log.Exitf("Failed to open MySQL database: %v", err)
+		log.Exitf("Failed to open database: %v", err)
 	}
 	defer wrap.DB().Close()
 
