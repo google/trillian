@@ -57,7 +57,7 @@ func main() {
 	}
 
 	ti := interceptor.TreeInterceptor{Admin: registry.AdminStorage}
-	s := grpc.NewServer(grpc.UnaryInterceptor(ti.UnaryInterceptor))
+	s := grpc.NewServer(grpc.UnaryInterceptor(interceptor.WrapErrors(ti.UnaryInterceptor)))
 	// No defer: server ownership is delegated to server.Main
 
 	httpEndpoint := ""

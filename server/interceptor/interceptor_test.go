@@ -21,6 +21,8 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
+	terrors "github.com/google/trillian/errors"
+	serrors "github.com/google/trillian/server/errors"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/trees"
@@ -352,6 +354,38 @@ func TestCombine(t *testing.T) {
 		}
 		if diff := pretty.Compare(handler.ctx, wantCtx); diff != "" {
 			t.Errorf("%v: handler ctx diff:\n%v", test.desc, diff)
+		}
+	}
+}
+
+func TestWrapErrors(t *testing.T) {
+	badLlamaErr := terrors.Errorf(terrors.InvalidArgument, "Bad Llama")
+	tests := []struct {
+		desc         string
+		resp         interface{}
+		err, wantErr error
+	}{
+		{
+			desc: "success",
+			resp: "ok",
+		},
+		{
+			desc:    "error",
+			err:     badLlamaErr,
+			wantErr: serrors.WrapError(badLlamaErr),
+		},
+	}
+	ctx := context.Background()
+	for _, test := range tests {
+		i := func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+			return test.resp, test.err
+		}
+		resp, err := WrapErrors(i)(ctx, "req", &grpc.UnaryServerInfo{}, nil /* handler */)
+		if resp != test.resp {
+			t.Errorf("%v: resp = %v, want = %v", test.desc, resp, test.resp)
+		}
+		if diff := pretty.Compare(err, test.wantErr); diff != "" {
+			t.Errorf("%v: post-WrapErrors diff:\n%v", test.desc, diff)
 		}
 	}
 }

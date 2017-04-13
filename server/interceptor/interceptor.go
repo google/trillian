@@ -13,12 +13,14 @@
 // limitations under the License.
 
 // Package interceptor defines gRPC interceptors for Trillian.
+// TODO(codingllama): Split package into multiple files.
 package interceptor
 
 import (
 	"strings"
 
 	"github.com/google/trillian"
+	"github.com/google/trillian/server/errors"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/trees"
 	"golang.org/x/net/context"
@@ -46,7 +48,6 @@ func (i *TreeInterceptor) UnaryInterceptor(ctx context.Context, req interface{},
 
 	tree, err := trees.GetTree(ctx, i.Admin, rpcInfo.treeID, rpcInfo.opts)
 	if err != nil {
-		// TODO(codingllama): Wrap non-gRPC errors
 		return nil, err
 	}
 
@@ -161,6 +162,8 @@ type mapIDRequest interface {
 // Contexts are propagated between calls: the context of the first interceptor, as passed in to the
 // handler function, is used for the second interceptor call and so on, until the handler is
 // invoked. This ensures that request-level variables, transmitted via contexts, behave properly.
+// Note that, as a limitation of the chaining logic, handler output cannot be modified by any of
+// the interceptors supplied.
 func Combine(interceptors ...grpc.UnaryServerInterceptor) grpc.UnaryServerInterceptor {
 	return func(initialCtx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		// Build a handler function that just updates the scope's ctx variable.
@@ -181,5 +184,15 @@ func Combine(interceptors ...grpc.UnaryServerInterceptor) grpc.UnaryServerInterc
 
 		// Run the real handler with the accumulated context.
 		return handler(ctx, req)
+	}
+}
+
+// WrapErrors wraps the errors returned by the supplied interceptor using errors.WrapError.
+// If used in conjunction with Combine, it should be the last call in the chain, ie:
+// WrapErrors(Combine(i1, i2, ..., in)).
+func WrapErrors(i grpc.UnaryServerInterceptor) grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+		resp, err := i(ctx, req, info, handler)
+		return resp, errors.WrapError(err)
 	}
 }

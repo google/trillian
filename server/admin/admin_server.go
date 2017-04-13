@@ -18,7 +18,6 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/trillian"
 	"github.com/google/trillian/extension"
-	"github.com/google/trillian/server/errors"
 	"github.com/google/trillian/trees"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -39,13 +38,6 @@ func New(registry extension.Registry) *Server {
 
 // ListTrees implements trillian.TrillianAdminServer.ListTrees.
 func (s *Server) ListTrees(ctx context.Context, req *trillian.ListTreesRequest) (*trillian.ListTreesResponse, error) {
-	trees, err := s.listTreeImpls(ctx, req)
-	if err != nil {
-		return nil, errors.WrapError(err)
-	}
-	return trees, nil
-}
-func (s *Server) listTreeImpls(ctx context.Context, request *trillian.ListTreesRequest) (*trillian.ListTreesResponse, error) {
 	tx, err := s.registry.AdminStorage.Snapshot(ctx)
 	if err != nil {
 		return nil, err
@@ -68,14 +60,6 @@ func (s *Server) listTreeImpls(ctx context.Context, request *trillian.ListTreesR
 
 // GetTree implements trillian.TrillianAdminServer.GetTree.
 func (s *Server) GetTree(ctx context.Context, request *trillian.GetTreeRequest) (*trillian.Tree, error) {
-	tree, err := s.getTreeImpl(ctx, request)
-	if err != nil {
-		return nil, errors.WrapError(err)
-	}
-	return tree, nil
-}
-
-func (s *Server) getTreeImpl(ctx context.Context, request *trillian.GetTreeRequest) (*trillian.Tree, error) {
 	tx, err := s.registry.AdminStorage.Snapshot(ctx)
 	if err != nil {
 		return nil, err
@@ -94,14 +78,6 @@ func (s *Server) getTreeImpl(ctx context.Context, request *trillian.GetTreeReque
 
 // CreateTree implements trillian.TrillianAdminServer.CreateTree.
 func (s *Server) CreateTree(ctx context.Context, request *trillian.CreateTreeRequest) (*trillian.Tree, error) {
-	tree, err := s.createTreeImpl(ctx, request)
-	if err != nil {
-		return nil, errors.WrapError(err)
-	}
-	return tree, err
-}
-
-func (s *Server) createTreeImpl(ctx context.Context, request *trillian.CreateTreeRequest) (*trillian.Tree, error) {
 	tree := request.GetTree()
 	if tree == nil {
 		return nil, grpc.Errorf(codes.InvalidArgument, "a tree is required")
