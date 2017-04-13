@@ -21,11 +21,11 @@ import (
 	"github.com/google/trillian/server/errors"
 	"github.com/google/trillian/trees"
 	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
-var errNotImplemented = grpc.Errorf(codes.Unimplemented, "not implemented")
+var errNotImplemented = status.Errorf(codes.Unimplemented, "not implemented")
 
 // Server is an implementation of trillian.TrillianAdminServer.
 type Server struct {
@@ -104,13 +104,13 @@ func (s *Server) CreateTree(ctx context.Context, request *trillian.CreateTreeReq
 func (s *Server) createTreeImpl(ctx context.Context, request *trillian.CreateTreeRequest) (*trillian.Tree, error) {
 	tree := request.GetTree()
 	if tree == nil {
-		return nil, grpc.Errorf(codes.InvalidArgument, "a tree is required")
+		return nil, status.Errorf(codes.InvalidArgument, "a tree is required")
 	}
 	if _, err := trees.Hasher(tree); err != nil {
-		return nil, grpc.Errorf(codes.InvalidArgument, "failed to create hasher for tree: %v", err.Error())
+		return nil, status.Errorf(codes.InvalidArgument, "failed to create hasher for tree: %v", err.Error())
 	}
 	if _, err := trees.Signer(ctx, s.registry.SignerFactory, tree); err != nil {
-		return nil, grpc.Errorf(codes.InvalidArgument, "failed to create signer for tree: %v", err.Error())
+		return nil, status.Errorf(codes.InvalidArgument, "failed to create signer for tree: %v", err.Error())
 	}
 
 	tx, err := s.registry.AdminStorage.Begin(ctx)

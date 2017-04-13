@@ -31,8 +31,8 @@ import (
 	"github.com/google/trillian/storage/testonly"
 	"github.com/kylelemons/godebug/pretty"
 	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func TestServer_Unimplemented(t *testing.T) {
@@ -58,7 +58,8 @@ func TestServer_Unimplemented(t *testing.T) {
 	ctx := context.Background()
 	s := &Server{}
 	for _, test := range tests {
-		if err := test.fn(ctx, s); grpc.Code(err) != codes.Unimplemented {
+		err := test.fn(ctx, s)
+		if s, ok := status.FromError(err); !ok || s.Code() != codes.Unimplemented {
 			t.Errorf("%v: got = %v, want = %s", test.desc, err, codes.Unimplemented)
 		}
 	}

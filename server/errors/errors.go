@@ -18,8 +18,8 @@ import (
 	"database/sql"
 
 	te "github.com/google/trillian/errors"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // WrapError wraps err as a gRPC error if err is a TrillianError or a well-known
@@ -27,12 +27,12 @@ import (
 // unmodified.
 func WrapError(err error) error {
 	if err == sql.ErrNoRows {
-		return grpc.Errorf(codes.NotFound, err.Error())
+		return status.Errorf(codes.NotFound, err.Error())
 	}
 
 	switch err := err.(type) {
 	case te.TrillianError:
-		return grpc.Errorf(codes.Code(err.Code()), err.Error())
+		return status.Errorf(codes.Code(err.Code()), err.Error())
 	default:
 		// Nothing to do: if it's a gRPC error it's already correct, if not gRPC will assume
 		// codes.Unknown.
