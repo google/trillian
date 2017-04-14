@@ -146,13 +146,9 @@ func newPK(opts *createOpts) (*any.Any, error) {
 		if _, err := os.Stat(path); err != nil {
 			return nil, fmt.Errorf("error reading PEM key file at %v: %v", path, err)
 		}
-		pass := opts.pemKeyPass
-		if pass == "" {
-			return nil, errors.New("empty PEM key password")
-		}
 		pemKey := &trillian.PEMKeyFile{
 			Path:     path,
-			Password: pass,
+			Password: opts.pemKeyPass,
 		}
 		return ptypes.MarshalAny(pemKey)
 	default:
