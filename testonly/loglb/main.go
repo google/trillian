@@ -15,6 +15,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"math/rand"
@@ -30,8 +31,6 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/util"
-
-	"errors"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
@@ -66,7 +65,6 @@ func newRandomLoadBalancer(serverCfg string) (*randomLoadBalancer, error) {
 	return &lb, nil
 }
 
-// TODO(somebody): This function name collides with a builtin function and should be renamed
 func (lb randomLoadBalancer) close() {
 	for _, bc := range lb {
 		bc.conn.Close()

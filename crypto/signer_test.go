@@ -45,13 +45,13 @@ func (i usesSHA256Hasher) String() string {
 func TestSigner(t *testing.T) {
 	key, err := keys.NewFromPrivatePEM(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
 	if err != nil {
-		t.Fatal("Failed to open test key")
+		t.Fatalf("Failed to open test key, err=%v", err)
 	}
 	signer := NewSHA256Signer(key)
 
 	pk, err := keys.NewFromPublicPEM(testonly.DemoPublicKey)
 	if err != nil {
-		t.Fatal("Failed to load public key")
+		t.Fatalf("Failed to load public key, err=%v", err)
 	}
 
 	for _, test := range []struct {

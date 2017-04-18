@@ -44,7 +44,7 @@ func (s *Server) ListTrees(ctx context.Context, req *trillian.ListTreesRequest) 
 	}
 	defer tx.Close()
 	// TODO(codingllama): This needs access control
-	tl, err := tx.ListTrees(ctx)
+	resp, err := tx.ListTrees(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -52,10 +52,10 @@ func (s *Server) ListTrees(ctx context.Context, req *trillian.ListTreesRequest) 
 		return nil, err
 	}
 
-	for _, tree := range tl {
+	for _, tree := range resp {
 		redact(tree)
 	}
-	return &trillian.ListTreesResponse{Tree: tl}, nil
+	return &trillian.ListTreesResponse{Tree: resp}, nil
 }
 
 // GetTree implements trillian.TrillianAdminServer.GetTree.
