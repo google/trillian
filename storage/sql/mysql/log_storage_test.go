@@ -368,7 +368,9 @@ func TestDequeueLeaves(t *testing.T) {
 		if len(leaves2) != leavesToInsert {
 			t.Fatalf("Dequeued %d leaves but expected to get %d", len(leaves2), leavesToInsert)
 		}
-		testonly.EnsureAllLeavesDistinct(leaves2, t)
+		if err := testonly.EnsureAllLeavesDistinct(leaves2); err != nil {
+			t.Fatalf("Dup leaf: %v", err)
+		}
 		testonly.Commit(tx2, t)
 	}
 
@@ -417,7 +419,9 @@ func TestDequeueLeavesTwoBatches(t *testing.T) {
 		if len(leaves2) != leavesToDequeue1 {
 			t.Fatalf("Dequeued %d leaves but expected to get %d", len(leaves2), leavesToInsert)
 		}
-		testonly.EnsureAllLeavesDistinct(leaves2, t)
+		if err := testonly.EnsureAllLeavesDistinct(leaves2); err != nil {
+			t.Fatalf("Dup leaf: %v", err)
+		}
 		testonly.Commit(tx2, t)
 
 		// Now try to dequeue the rest of them
@@ -430,11 +434,15 @@ func TestDequeueLeavesTwoBatches(t *testing.T) {
 		if len(leaves3) != leavesToDequeue2 {
 			t.Fatalf("Dequeued %d leaves but expected to get %d", len(leaves3), leavesToDequeue2)
 		}
-		testonly.EnsureAllLeavesDistinct(leaves3, t)
+		if err := testonly.EnsureAllLeavesDistinct(leaves3); err != nil {
+			t.Fatalf("Dup leaf: %v", err)
+		}
 
 		// Plus the union of the leaf batches should all have distinct hashes
 		leaves4 := append(leaves2, leaves3...)
-		testonly.EnsureAllLeavesDistinct(leaves4, t)
+		if err := testonly.EnsureAllLeavesDistinct(leaves4); err != nil {
+			t.Fatalf("Dup leaf: %v", err)
+		}
 		testonly.Commit(tx3, t)
 	}
 
@@ -492,7 +500,9 @@ func TestDequeueLeavesGuardInterval(t *testing.T) {
 		if len(leaves2) != leavesToInsert {
 			t.Fatalf("Dequeued %d leaves but expected to get %d", len(leaves2), leavesToInsert)
 		}
-		testonly.EnsureAllLeavesDistinct(leaves2, t)
+		if err := testonly.EnsureAllLeavesDistinct(leaves2); err != nil {
+			t.Fatalf("Dup leaf: %v", err)
+		}
 		testonly.Commit(tx2, t)
 	}
 }
@@ -535,7 +545,9 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 		if got, want := len(dequeue1), batchSize; got != want {
 			t.Fatalf("Dequeue count mismatch (1st) got: %d, want: %d", got, want)
 		}
-		testonly.EnsureAllLeavesDistinct(dequeue1, t)
+		if err := testonly.EnsureAllLeavesDistinct(dequeue1); err != nil {
+			t.Fatalf("Dup leaf (dequeue1): %v", err)
+		}
 
 		// Ensure this is the second batch queued by comparing leaf hashes (must be distinct as
 		// the leaf data was).
@@ -554,7 +566,9 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 		if got, want := len(dequeue2), batchSize; got != want {
 			t.Fatalf("Dequeue count mismatch (2nd) got: %d, want: %d", got, want)
 		}
-		testonly.EnsureAllLeavesDistinct(dequeue2, t)
+		if err := testonly.EnsureAllLeavesDistinct(dequeue2); err != nil {
+			t.Fatalf("Dup leaf (dequeue2): %v", err)
+		}
 
 		// Ensure this is the first batch by comparing leaf hashes.
 		if !testonly.LeafInBatch(dequeue2[0], leaves) || !testonly.LeafInBatch(dequeue2[1], leaves) {
@@ -621,7 +635,10 @@ func TestGetLeavesByHash(t *testing.T) {
 	if len(leaves) != 1 {
 		t.Fatalf("Got %d leaves but expected one", len(leaves))
 	}
-	testonly.CheckLeafContents(leaves[0], sequenceNumber, dummyRawHash, dummyHash, data, someExtraData, t)
+	if err := testonly.CheckLeafContents(leaves[0], sequenceNumber, dummyRawHash, dummyHash, data, someExtraData); err != nil {
+		t.Fatalf("Leaf mismatch: %v", err)
+	}
+
 	testonly.Commit(tx, t)
 }
 
@@ -706,7 +723,9 @@ func TestGetLeavesByIndex(t *testing.T) {
 	if len(leaves) != 1 {
 		t.Fatalf("Got %d leaves but expected one", len(leaves))
 	}
-	testonly.CheckLeafContents(leaves[0], sequenceNumber, dummyRawHash, dummyHash, data, someExtraData, t)
+	if err := testonly.CheckLeafContents(leaves[0], sequenceNumber, dummyRawHash, dummyHash, data, someExtraData); err != nil {
+		t.Fatalf("Leaf mismatch: %v", err)
+	}
 	testonly.Commit(tx, t)
 }
 

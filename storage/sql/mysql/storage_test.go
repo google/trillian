@@ -121,7 +121,10 @@ func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 			t.Fatalf("Failed to retrieve nodes: %s", err)
 		}
 		if err := testonly.NodesAreEqual(readNodes, nodesToStore); err != nil {
-			missing, extra := testonly.DiffNodes(readNodes, nodesToStore)
+			missing, extra, err := testonly.DiffNodes(readNodes, nodesToStore)
+			if err != nil {
+				t.Fatalf("Failed to diff nodes: %v", err)
+			}
 			for _, n := range missing {
 				t.Errorf("Missing: %s %s", n.NodeID.String(), n.NodeID.CoordString())
 			}

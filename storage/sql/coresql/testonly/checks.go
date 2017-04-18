@@ -17,34 +17,35 @@ package testonly
 import (
 	"bytes"
 	"fmt"
-	"testing"
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
 )
 
-// CheckLeafContents compares two log leaves to see if they match. It fails a test with
-// a descriptive message if not.
-func CheckLeafContents(leaf *trillian.LogLeaf, seq int64, rawHash, hash, data, extraData []byte, t *testing.T) {
+// CheckLeafContents compares two log leaves to see if they match. Returns nil if they do
+// otherwise a descriptive error.
+func CheckLeafContents(leaf *trillian.LogLeaf, seq int64, rawHash, hash, data, extraData []byte) error {
 	if got, want := leaf.MerkleLeafHash, hash; !bytes.Equal(got, want) {
-		t.Fatalf("Wrong leaf hash in returned leaf got\n%v\nwant:\n%v", got, want)
+		return fmt.Errorf("wrong leaf hash in returned leaf got\n%v\nwant:\n%v", got, want)
 	}
 
 	if got, want := leaf.LeafIdentityHash, rawHash; !bytes.Equal(got, want) {
-		t.Fatalf("Wrong raw leaf hash in returned leaf got\n%v\nwant:\n%v", got, want)
+		return fmt.Errorf("Wrong raw leaf hash in returned leaf got\n%v\nwant:\n%v", got, want)
 	}
 
 	if got, want := seq, leaf.LeafIndex; got != want {
-		t.Fatalf("Bad sequence number in returned leaf got: %d, want:%d", got, want)
+		return fmt.Errorf("Bad sequence number in returned leaf got: %d, want:%d", got, want)
 	}
 
 	if got, want := leaf.LeafValue, data; !bytes.Equal(got, want) {
-		t.Fatalf("Unxpected data in returned leaf. got:\n%v\nwant:\n%v", got, want)
+		return fmt.Errorf("Unxpected data in returned leaf. got:\n%v\nwant:\n%v", got, want)
 	}
 
 	if got, want := leaf.ExtraData, extraData; !bytes.Equal(got, want) {
-		t.Fatalf("Unxpected data in returned leaf. got:\n%v\nwant:\n%v", got, want)
+		return fmt.Errorf("Unxpected data in returned leaf. got:\n%v\nwant:\n%v", got, want)
 	}
+
+	return nil
 }
 
 // LeafInBatch tests if a log leaf is contained in a slice of log leaves.
@@ -59,18 +60,19 @@ func LeafInBatch(leaf *trillian.LogLeaf, batch []*trillian.LogLeaf) bool {
 }
 
 // EnsureAllLeavesDistinct checks that the supplied leaves do not contain any duplicate
-// LeafIdentityHash Values.	All the leaf hashes should be distinct because the leaves were
-// created with distinct leaf data. If only we had maps with slices as keys or sets or pretty
-// much any kind of usable data structures we could do this properly.
-func EnsureAllLeavesDistinct(leaves []*trillian.LogLeaf, t *testing.T) {
+// LeafIdentityHash Values. All the leaf hashes should be distinct because the leaves were
+// created with distinct leaf data. Returns an error on the first duplicate hash found.
+func EnsureAllLeavesDistinct(leaves []*trillian.LogLeaf) error {
 	for i := range leaves {
 		for j := range leaves {
 			if i != j && bytes.Equal(leaves[i].LeafIdentityHash, leaves[j].LeafIdentityHash) {
-				t.Fatalf("Unexpectedly got a duplicate leaf hash: %v %v",
+				return fmt.Errorf("unexpectedly got a duplicate leaf hash: %v %v",
 					leaves[i].LeafIdentityHash, leaves[j].LeafIdentityHash)
 			}
 		}
 	}
+
+	return nil
 }
 
 // NodesAreEqual tests if two slices of storage nodes contain the same set of nodes.
@@ -80,23 +82,28 @@ func NodesAreEqual(lhs []storage.Node, rhs []storage.Node) error {
 	}
 	for i := range lhs {
 		if l, r := lhs[i].NodeID.String(), rhs[i].NodeID.String(); l != r {
-			return fmt.Errorf("NodeIDs are not the same,\nlhs = %v,\nrhs = %v", l, r)
+			return fmt.Errorf("node IDs are not the same,\nlhs = %v,\nrhs = %v", l, r)
 		}
 		if l, r := lhs[i].Hash, rhs[i].Hash; !bytes.Equal(l, r) {
-			return fmt.Errorf("Hashes are not the same for %s,\nlhs = %v,\nrhs = %v", lhs[i].NodeID.CoordString(), l, r)
+			return fmt.Errorf("hashes are not the same for %s,\nlhs = %v,\nrhs = %v", lhs[i].NodeID.CoordString(), l, r)
 		}
 	}
 	return nil
 }
 
-// DiffNodes compares two slices of storage nodes and returns slices containing extra and
-// missing nodes (if any). If the slices contain the same data both returned slices will
-// be empty.
-func DiffNodes(got, want []storage.Node) ([]storage.Node, []storage.Node) {
+// DiffNodes compares two slices of storage nodes and returns slices containing missing and
+// extra nodes (if any). If the slices contain the same data both returned slices will
+// be empty. Does not handle duplicate values, returns an error if it detects dups in the
+// supplied slices.
+func DiffNodes(got, want []storage.Node) ([]storage.Node, []storage.Node, error) {
 	missing := []storage.Node{}
-	gotMap := make(map[string]storage.Node)
-	for _, n := range got {
-		gotMap[n.NodeID.String()] = n
+	gotMap := makeNodeMap(got)
+	if got, want := len(gotMap), len(got); got != want {
+		return nil, nil, fmt.Errorf("dups in got slice. %d values but %d distinct values", got, want)
+	}
+	wantMap := makeNodeMap(want)
+	if got, want := len(wantMap), len(want); got != want {
+		return nil, nil, fmt.Errorf("dups in want slice. %d values but %d distinct values", got, want)
 	}
 	for _, n := range want {
 		_, ok := gotMap[n.NodeID.String()]
@@ -110,5 +117,13 @@ func DiffNodes(got, want []storage.Node) ([]storage.Node, []storage.Node) {
 	for _, v := range gotMap {
 		extra = append(extra, v)
 	}
-	return missing, extra
+	return missing, extra, nil
+}
+
+func makeNodeMap(nodes []storage.Node) map[string]storage.Node {
+	nodeMap := make(map[string]storage.Node)
+	for _, n := range nodes {
+		nodeMap[n.NodeID.String()] = n
+	}
+	return nodeMap
 }

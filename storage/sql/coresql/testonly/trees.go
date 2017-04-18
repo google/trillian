@@ -15,9 +15,9 @@
 package testonly
 
 import (
+	"context"
 	"fmt"
 
-	"context"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage/sql/coresql"
 	"github.com/google/trillian/storage/sql/coresql/wrapper"
