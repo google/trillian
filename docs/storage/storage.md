@@ -234,6 +234,8 @@ size of the tree and therefore the shape of the right hand path at that size.
 
 ## Map Storage
 
+NOTE: Initial outline documentation. A more complete documentation for maps will follow later.
+
 Maps are instances of a sparse Merkle tree where most of the nodes are not present. For more
 details on how this assists an implementation see the 
 [Revocation Transparency](https://github.com/google/trillian/blob/master/docs/RevocationTransparency.pdf) document.
