@@ -152,7 +152,7 @@ When log storage is intialized and its tree is not empty the existing state is l
 restore the tree state by reading intermediate hashes at each tree level. 
 
 As a crosscheck the root hash of the compact tree is compared against the current log root. If it
-does not match then log is corrupt and cannot be used.
+does not match then the log is corrupt and cannot be used.
 
 ### Writing Leaves and Sequencing
 
