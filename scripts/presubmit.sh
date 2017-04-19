@@ -62,8 +62,13 @@ main() {
     grep -v .pb.go | \
     grep -v .pb.gw.go | \
     grep -v _string.go | \
+    grep -v third_party/ | \
+    grep -v vendor/ | \
     tr '\n' ' ')"
-  local proto_srcs="$(find . -name '*.proto' | tr '\n' ' ')"
+  local proto_srcs="$(find . -name '*.proto' | \
+    grep -v third_party/ | \
+    grep -v vendor/ | \
+    tr '\n' ' ')"
 
   if [[ "$fix" -eq 1 ]]; then
     check_cmd goimports golang.org/x/tools/cmd/goimports
@@ -78,14 +83,14 @@ main() {
   printf '%s\n' ${go_srcs} | xargs -I'{}' golint --set_exit_status '{}'
 
   echo 'running go vet'
-  go vet ./...
+  printf '%s\n' ${go_srcs} | xargs -I'{}' go vet '{}'
 
   echo 'running gocyclo'
   # Do not fail on gocyclo tests, hence the "|| true".
   printf '%s\n' ${go_srcs} | xargs -I'{}' bash -c 'gocyclo -over 25 {} || true'
 
   echo 'running misspell'
-  misspell -error -i cancelled,CANCELLED -locale US .
+  printf '%s\n' ${go_srcs} | xargs -I'{}' misspell -error -i cancelled,CANCELLED -locale US '{}'
 
   echo 'checking license header'
   local nolicense="$(grep -L 'Apache License' ${go_srcs} ${proto_srcs})"
@@ -94,11 +99,15 @@ main() {
     exit 2
   fi
 
+  local go_dirs="$(go list ./... | \
+    grep -v /third_party/ | \
+    grep -v /vendor/)"
+
   if [[ "${run_generate}" -eq 1 ]]; then
     echo 'running go generate'
-    go generate -run="protoc" ./...
-    go generate -run="mockgen" ./...
-    go generate -run="stringer" ./...
+    go generate -run="protoc" ${go_dirs}
+    go generate -run="mockgen" ${go_dirs}
+    go generate -run="stringer" ${go_dirs}
   fi
 
   if [[ "${run_build}" -eq 1 ]]; then
@@ -108,10 +117,10 @@ main() {
     fi
 
     echo 'running go build'
-    go build ./...
+    go build ${go_dirs}
 
     echo 'running go test'
-    go test -cover ${goflags} ./...
+    go test -cover ${goflags} ${go_dirs}
   fi
 }
 
