@@ -45,6 +45,11 @@ var (
 	forceMaster              = flag.Bool("force_master", false, "If true, assume master for all logs")
 	etcdServers              = flag.String("etcd_servers", "localhost:2379", "A comma-separated list of etcd servers")
 	lockDir                  = flag.String("lock_file_path", "/test/multimaster", "etcd lock file directory path")
+
+	preElectionPause    = flag.Duration("pre_election_pause", 1*time.Second, "Maximum time to wait before starting elections")
+	masterCheckInterval = flag.Duration("master_check_interval", 5*time.Second, "Interval between checking mastership still held")
+	masterHoldInterval  = flag.Duration("master_hold_interval", 60*time.Second, "Minimum interval to hold mastership for")
+	resignOdds          = flag.Int("resign_odds", 10, "Chance of resigning mastership after each check, the N in 1-in-N")
 )
 
 func main() {
@@ -98,11 +103,15 @@ func main() {
 	// TODO(Martin2112): Should respect read only mode and the flags in tree control etc
 	sequencerManager := server.NewSequencerManager(registry, *sequencerGuardWindowFlag)
 	info := server.LogOperationInfo{
-		Registry:    registry,
-		BatchSize:   *batchSizeFlag,
-		NumWorkers:  *numSeqFlag,
-		RunInterval: *sequencerIntervalFlag,
-		TimeSource:  util.SystemTimeSource{},
+		Registry:            registry,
+		BatchSize:           *batchSizeFlag,
+		NumWorkers:          *numSeqFlag,
+		RunInterval:         *sequencerIntervalFlag,
+		TimeSource:          util.SystemTimeSource{},
+		PreElectionPause:    *preElectionPause,
+		MasterCheckInterval: *masterCheckInterval,
+		MasterHoldInterval:  *masterHoldInterval,
+		ResignOdds:          *resignOdds,
 	}
 	sequencerTask := server.NewLogOperationManager(info, sequencerManager)
 	sequencerTask.OperationLoop(ctx)
