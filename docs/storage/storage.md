@@ -152,7 +152,7 @@ When log storage is intialized and its tree is not empty the existing state is l
 restore the tree state by reading intermediate hashes at each tree level. 
 
 As a crosscheck the root hash of the compact tree is compared against the current log root. If it
-does not match then log is corrupt and cannot be used.
+does not match then the log is corrupt and cannot be used.
 
 ### Writing Leaves and Sequencing
 
@@ -212,7 +212,7 @@ at a version intermediate between two stored versions it can be necessary to rec
 on the rightmost path. This requires extra nodes to be fetched but is bounded by the depth of
 the tree so this never becomes unmanageable.
 
-Nodes node may have been overwritten in the second snapshot when a right hand sibling was added
+Nodes may have been overwritten in the second snapshot when a right hand sibling was added
 as a child. For an example of how this affects Merkle paths for proofs consider the state of the
 tree as it grows from size 7 to size 8 as shown in the following diagrams:
 
