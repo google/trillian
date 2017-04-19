@@ -16,6 +16,8 @@ package main
 
 import (
 	"flag"
+	"fmt"
+	"os"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql" // Load MySQL driver
@@ -27,6 +29,7 @@ import (
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/storage/mysql"
 	"github.com/google/trillian/util"
+	"github.com/google/trillian/util/etcd"
 	"golang.org/x/net/context"
 )
 
@@ -39,6 +42,9 @@ var (
 	numSeqFlag               = flag.Int("num_sequencers", 10, "Number of sequencer workers to run in parallel")
 	sequencerGuardWindowFlag = flag.Duration("sequencer_guard_window", 0, "If set, the time elapsed before submitted leaves are eligible for sequencing")
 	dumpMetricsInterval      = flag.Duration("dump_metrics_interval", 0, "If greater than 0, how often to dump metrics to the logs.")
+	forceMaster              = flag.Bool("force_master", false, "If true, assume master for all logs")
+	etcdServers              = flag.String("etcd_servers", "localhost:2379", "A comma-separated list of etcd servers")
+	lockDir                  = flag.String("lock_file_path", "/test/multimaster", "etcd lock file directory path")
 )
 
 func main() {
@@ -59,10 +65,24 @@ func main() {
 	}
 	defer db.Close()
 
+	ctx, cancel := context.WithCancel(context.Background())
+	go util.AwaitSignal(cancel)
+
+	hostname, _ := os.Hostname()
+	instanceID := fmt.Sprintf("%s.%d", hostname, os.Getpid())
+	var electionFactory util.ElectionFactory
+	if *forceMaster {
+		glog.Warning("**** Acting as master for all logs ****")
+		electionFactory = util.NoopElectionFactory{InstanceID: instanceID}
+	} else {
+		electionFactory = etcd.NewElectionFactory(instanceID, *etcdServers, *lockDir)
+	}
+
 	registry := extension.Registry{
-		AdminStorage:  mysql.NewAdminStorage(db),
-		SignerFactory: keys.PEMSignerFactory{},
-		LogStorage:    mysql.NewLogStorage(db),
+		AdminStorage:    mysql.NewAdminStorage(db),
+		SignerFactory:   keys.PEMSignerFactory{},
+		LogStorage:      mysql.NewLogStorage(db),
+		ElectionFactory: electionFactory,
 	}
 
 	// Start HTTP server (optional)
@@ -76,9 +96,6 @@ func main() {
 	// Start the sequencing loop, which will run until we terminate the process. This controls
 	// both sequencing and signing.
 	// TODO(Martin2112): Should respect read only mode and the flags in tree control etc
-	ctx, cancel := context.WithCancel(context.Background())
-	go util.AwaitSignal(cancel)
-
 	sequencerManager := server.NewSequencerManager(registry, *sequencerGuardWindowFlag)
 	info := server.LogOperationInfo{
 		Registry:    registry,
