@@ -25,6 +25,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian/storage/sql/coresql/wrapper"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/storage/storagepb"
 )
 
 // These are all tree related queries
@@ -190,12 +191,12 @@ func (m *mySQLWrapper) DB() *sql.DB {
 	return m.db
 }
 
-func (m *mySQLWrapper) GetSubtrees(tx *sql.Tx, treeID, treeRevision int64, nodeIDs []storage.NodeID) (*sql.Stmt, *sql.Rows, error) {
+func (m *mySQLWrapper) GetSubtrees(tx *sql.Tx, treeID, treeRevision int64, nodeIDs []storage.NodeID, scanFn func(*sql.Rows, int) ([]*storagepb.SubtreeProto, error)) ([]*storagepb.SubtreeProto, error) {
 	args := make([]interface{}, 0, len(nodeIDs)+3)
 	// populate args with nodeIDs, variable args first
 	for _, nodeID := range nodeIDs {
 		if nodeID.PrefixLenBits%8 != 0 {
-			return nil, nil, fmt.Errorf("invalid subtree ID - not multiple of 8: %d", nodeID.PrefixLenBits)
+			return nil, fmt.Errorf("invalid subtree ID - not multiple of 8: %d", nodeID.PrefixLenBits)
 		}
 
 		nodeIDBytes := nodeID.Path[:nodeID.PrefixLenBits/8]
@@ -207,14 +208,19 @@ func (m *mySQLWrapper) GetSubtrees(tx *sql.Tx, treeID, treeRevision int64, nodeI
 	stmt, err := wrapper.PrepInTx(tx, func() (stmt *sql.Stmt, err error) {
 		return m.getStmt(selectSubtreeSQL, len(nodeIDs), "?", "?")
 	})
+	if stmt != nil {
+		defer stmt.Close()
+	}
 	if err != nil {
-		if stmt != nil {
-			stmt.Close()
-		}
-		return nil, nil, err
+		return nil, err
 	}
 	rows, err := stmt.Query(args...)
-	return stmt, rows, err
+	if err != nil {
+		glog.Warningf("Failed to get merkle subtrees: %v", err)
+		return nil, err
+	}
+	defer rows.Close()
+	return scanFn(rows, len(nodeIDs))
 }
 
 func (m *mySQLWrapper) SetSubtreeStmt(tx *sql.Tx, num int) (*sql.Stmt, error) {

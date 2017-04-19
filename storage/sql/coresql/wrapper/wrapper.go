@@ -23,12 +23,13 @@ import (
 	"database/sql"
 
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/storage/storagepb"
 )
 
 // TreeStatementProvider provides SQL statement objects for raw tree storage.
 type TreeStatementProvider interface {
 	GetTreeRevisionIncludingSizeStmt(tx *sql.Tx) (*sql.Stmt, error)
-	GetSubtrees(tx *sql.Tx, treeID int64, treeRevision int64, nodeIDs []storage.NodeID) (*sql.Stmt, *sql.Rows, error)
+	GetSubtrees(tx *sql.Tx, treeID, treeRevision int64, nodeIDs []storage.NodeID, scanFn func(*sql.Rows, int) ([]*storagepb.SubtreeProto, error)) ([]*storagepb.SubtreeProto, error)
 	SetSubtreeStmt(tx *sql.Tx, num int) (*sql.Stmt, error)
 }
 

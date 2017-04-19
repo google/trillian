@@ -80,26 +80,14 @@ func (t *treeTX) getSubtree(ctx context.Context, treeRevision int64, nodeID stor
 	}
 }
 
-func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []storage.NodeID) ([]*storagepb.SubtreeProto, error) {
-	if len(nodeIDs) == 0 {
-		return nil, nil
-	}
-
-	stmt, rows, err := t.ts.wrap.GetSubtrees(t.tx, t.treeID, treeRevision, nodeIDs)
-	if err != nil {
-		glog.Warningf("Failed to get merkle subtrees: %v", err)
-		return nil, err
-	}
-	defer rows.Close()
-	defer stmt.Close()
-
+func subtreeScanFn(rows *sql.Rows, num int) ([]*storagepb.SubtreeProto, error) {
 	if rows.Err() != nil {
 		// Nothing from the DB
 		glog.Warningf("Nothing from DB: %s", rows.Err())
 		return nil, rows.Err()
 	}
 
-	ret := make([]*storagepb.SubtreeProto, 0, len(nodeIDs))
+	ret := make([]*storagepb.SubtreeProto, 0, num)
 	for rows.Next() {
 		var subtreeIDBytes []byte
 		var subtreeRev int64
@@ -119,9 +107,22 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []
 		ret = append(ret, &subtree)
 	}
 
+	return ret, nil
+}
+
+func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []storage.NodeID) ([]*storagepb.SubtreeProto, error) {
+	if len(nodeIDs) == 0 {
+		return nil, nil
+	}
+
+	subtrees, err := t.ts.wrap.GetSubtrees(t.tx, t.treeID, treeRevision, nodeIDs)
+	if err != nil {
+		glog.Warningf("Failed to get merkle subtrees: %v", err)
+		return nil, err
+	}
 	// The InternalNodes cache is possibly nil here, but the SubtreeCache (which called
 	// this method) will re-populate it.
-	return ret, nil
+	return subtrees, nil
 }
 
 func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.SubtreeProto) error {
