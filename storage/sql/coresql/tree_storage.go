@@ -85,18 +85,13 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []
 		return nil, nil
 	}
 
-	stmt, args, err := t.ts.wrap.GetSubtreeStmt(t.tx, t.treeID, treeRevision, nodeIDs)
-	if err != nil {
-		return nil, err
-	}
-	defer stmt.Close()
-
-	rows, err := stmt.QueryContext(ctx, args...)
+	stmt, rows, err := t.ts.wrap.GetSubtrees(t.tx, t.treeID, treeRevision, nodeIDs)
 	if err != nil {
 		glog.Warningf("Failed to get merkle subtrees: %v", err)
 		return nil, err
 	}
 	defer rows.Close()
+	defer stmt.Close()
 
 	if rows.Err() != nil {
 		// Nothing from the DB
@@ -105,9 +100,7 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []
 	}
 
 	ret := make([]*storagepb.SubtreeProto, 0, len(nodeIDs))
-
 	for rows.Next() {
-
 		var subtreeIDBytes []byte
 		var subtreeRev int64
 		var nodesRaw []byte

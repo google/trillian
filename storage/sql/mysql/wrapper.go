@@ -190,7 +190,7 @@ func (m *mySQLWrapper) DB() *sql.DB {
 	return m.db
 }
 
-func (m *mySQLWrapper) GetSubtreeStmt(tx *sql.Tx, treeID, treeRevision int64, nodeIDs []storage.NodeID) (*sql.Stmt, []interface{}, error) {
+func (m *mySQLWrapper) GetSubtrees(tx *sql.Tx, treeID, treeRevision int64, nodeIDs []storage.NodeID) (*sql.Stmt, *sql.Rows, error) {
 	args := make([]interface{}, 0, len(nodeIDs)+3)
 	// populate args with nodeIDs, variable args first
 	for _, nodeID := range nodeIDs {
@@ -199,15 +199,22 @@ func (m *mySQLWrapper) GetSubtreeStmt(tx *sql.Tx, treeID, treeRevision int64, no
 		}
 
 		nodeIDBytes := nodeID.Path[:nodeID.PrefixLenBits/8]
-
 		args = append(args, interface{}(nodeIDBytes))
 	}
 	args = append(args, interface{}(treeID))
 	args = append(args, interface{}(treeRevision))
 	args = append(args, interface{}(treeID))
-	return wrapper.PrepInTXWithArgs(tx, args, func() (stmt *sql.Stmt, err error) {
+	stmt, err := wrapper.PrepInTx(tx, func() (stmt *sql.Stmt, err error) {
 		return m.getStmt(selectSubtreeSQL, len(nodeIDs), "?", "?")
 	})
+	if err != nil {
+		if stmt != nil {
+			stmt.Close()
+		}
+		return nil, nil, err
+	}
+	rows, err := stmt.Query(args...)
+	return stmt, rows, err
 }
 
 func (m *mySQLWrapper) SetSubtreeStmt(tx *sql.Tx, num int) (*sql.Stmt, error) {

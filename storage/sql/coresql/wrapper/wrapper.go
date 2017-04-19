@@ -28,7 +28,7 @@ import (
 // TreeStatementProvider provides SQL statement objects for raw tree storage.
 type TreeStatementProvider interface {
 	GetTreeRevisionIncludingSizeStmt(tx *sql.Tx) (*sql.Stmt, error)
-	GetSubtreeStmt(tx *sql.Tx, treeID int64, treeRevision int64, nodeIDs []storage.NodeID) (*sql.Stmt, []interface{}, error)
+	GetSubtrees(tx *sql.Tx, treeID int64, treeRevision int64, nodeIDs []storage.NodeID) (*sql.Stmt, *sql.Rows, error)
 	SetSubtreeStmt(tx *sql.Tx, num int) (*sql.Stmt, error)
 }
 
@@ -106,12 +106,4 @@ func PrepInTx(tx *sql.Tx, fn GetStmtFunc) (*sql.Stmt, error) {
 		return nil, err
 	}
 	return tx.Stmt(stmt), nil
-}
-
-// PrepInTXWithArgs indirectly obtains a pointer to a SQL statement via a supplied function and if
-// this succeeds returns a prepared statement in the given transaction that is owned by the
-// caller using the supplied set of arguments.
-func PrepInTXWithArgs(tx *sql.Tx, args []interface{}, fn GetStmtFunc) (*sql.Stmt, []interface{}, error) {
-	stmt, err := PrepInTx(tx, fn)
-	return stmt, args, err
 }
