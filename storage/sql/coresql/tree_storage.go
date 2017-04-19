@@ -80,31 +80,34 @@ func (t *treeTX) getSubtree(ctx context.Context, treeRevision int64, nodeID stor
 	}
 }
 
-func subtreeScanFn(rows *sql.Rows, num int) ([]*storagepb.SubtreeProto, error) {
-	if rows.Err() != nil {
-		// Nothing from the DB
-		glog.Warningf("Nothing from DB: %s", rows.Err())
-		return nil, rows.Err()
-	}
-
+func subtreeScanFn(num int) (*[]*storagepb.SubtreeProto, func(*sql.Rows, int) error) {
 	ret := make([]*storagepb.SubtreeProto, 0, num)
-	for rows.Next() {
-		var subtreeIDBytes []byte
-		var subtreeRev int64
-		var nodesRaw []byte
-		if err := rows.Scan(&subtreeIDBytes, &subtreeRev, &nodesRaw); err != nil {
-			glog.Warningf("Failed to scan merkle subtree: %s", err)
-			return nil, err
+	return &ret, func(rows *sql.Rows, num int) error {
+		if rows.Err() != nil {
+			// Nothing from the DB
+			glog.Warningf("Nothing from DB: %s", rows.Err())
+			return rows.Err()
 		}
-		var subtree storagepb.SubtreeProto
-		if err := proto.Unmarshal(nodesRaw, &subtree); err != nil {
-			glog.Warningf("Failed to unmarshal SubtreeProto: %s", err)
-			return nil, err
+
+		for rows.Next() {
+			var subtreeIDBytes []byte
+			var subtreeRev int64
+			var nodesRaw []byte
+			if err := rows.Scan(&subtreeIDBytes, &subtreeRev, &nodesRaw); err != nil {
+				glog.Warningf("Failed to scan merkle subtree: %s", err)
+				return err
+			}
+			var subtree storagepb.SubtreeProto
+			if err := proto.Unmarshal(nodesRaw, &subtree); err != nil {
+				glog.Warningf("Failed to unmarshal SubtreeProto: %s", err)
+				return err
+			}
+			if subtree.Prefix == nil {
+				subtree.Prefix = []byte{}
+			}
+			ret = append(ret, &subtree)
 		}
-		if subtree.Prefix == nil {
-			subtree.Prefix = []byte{}
-		}
-		ret = append(ret, &subtree)
+		return nil
 	}
 
 	return ret, nil
@@ -115,14 +118,15 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []
 		return nil, nil
 	}
 
-	subtrees, err := t.ts.wrap.GetSubtrees(t.tx, t.treeID, treeRevision, nodeIDs)
+	subtrees, fn := subtreeScanFn(len(nodeIDs))
+	err := t.ts.wrap.GetSubtrees(t.tx, t.treeID, treeRevision, nodeIDs, fn)
 	if err != nil {
 		glog.Warningf("Failed to get merkle subtrees: %v", err)
 		return nil, err
 	}
 	// The InternalNodes cache is possibly nil here, but the SubtreeCache (which called
 	// this method) will re-populate it.
-	return subtrees, nil
+	return *subtrees, nil
 }
 
 func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.SubtreeProto) error {
