@@ -61,6 +61,7 @@ script:
         exit 1
       fi
   - ./integration/integration_test.sh
+  - set +e
 
 services: mysql
 
