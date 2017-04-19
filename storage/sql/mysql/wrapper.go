@@ -24,6 +24,7 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"github.com/golang/glog"
 	"github.com/google/trillian/storage/sql/coresql/wrapper"
+	"github.com/google/trillian/storage"
 )
 
 // These are all tree related queries
@@ -189,9 +190,23 @@ func (m *mySQLWrapper) DB() *sql.DB {
 	return m.db
 }
 
-func (m *mySQLWrapper) GetSubtreeStmt(tx *sql.Tx, num int) (*sql.Stmt, error) {
-	return wrapper.PrepInTx(tx, func() (stmt *sql.Stmt, err error) {
-		return m.getStmt(selectSubtreeSQL, num, "?", "?")
+func (m *mySQLWrapper) GetSubtreeStmt(tx *sql.Tx, treeID, treeRevision int64, nodeIDs []storage.NodeID) (*sql.Stmt, []interface{}, error) {
+	args := make([]interface{}, 0, len(nodeIDs)+3)
+	// populate args with nodeIDs, variable args first
+	for _, nodeID := range nodeIDs {
+		if nodeID.PrefixLenBits%8 != 0 {
+			return nil, nil, fmt.Errorf("invalid subtree ID - not multiple of 8: %d", nodeID.PrefixLenBits)
+		}
+
+		nodeIDBytes := nodeID.Path[:nodeID.PrefixLenBits/8]
+
+		args = append(args, interface{}(nodeIDBytes))
+	}
+	args = append(args, interface{}(treeID))
+	args = append(args, interface{}(treeRevision))
+	args = append(args, interface{}(treeID))
+	return wrapper.PrepInTXWithArgs(tx, args, func() (stmt *sql.Stmt, err error) {
+		return m.getStmt(selectSubtreeSQL, len(nodeIDs), "?", "?")
 	})
 }
 
@@ -390,9 +405,4 @@ func (m *mySQLWrapper) CheckDatabaseAccessible(ctx context.Context) error {
 
 	_, err = stmt.Exec()
 	return err
-}
-
-func (m *mySQLWrapper) VariableArgsFirst() bool {
-	// We want the variable arguments first as we don't have positional placeholders.
-	return true
 }

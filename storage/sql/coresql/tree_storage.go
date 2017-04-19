@@ -85,40 +85,15 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []
 		return nil, nil
 	}
 
-	stmt, err := t.ts.wrap.GetSubtreeStmt(t.tx, len(nodeIDs))
+	stmt, args, err := t.ts.wrap.GetSubtreeStmt(t.tx, t.treeID, treeRevision, nodeIDs)
 	if err != nil {
 		return nil, err
 	}
 	defer stmt.Close()
 
-	args := make([]interface{}, 0, len(nodeIDs)+3)
-
-	if !t.ts.wrap.VariableArgsFirst() {
-		args = append(args, interface{}(t.treeID))
-		args = append(args, interface{}(treeRevision))
-		args = append(args, interface{}(t.treeID))
-	}
-
-	// populate args with nodeIDs
-	for _, nodeID := range nodeIDs {
-		if nodeID.PrefixLenBits%8 != 0 {
-			return nil, fmt.Errorf("invalid subtree ID - not multiple of 8: %d", nodeID.PrefixLenBits)
-		}
-
-		nodeIDBytes := nodeID.Path[:nodeID.PrefixLenBits/8]
-
-		args = append(args, interface{}(nodeIDBytes))
-	}
-
-	if t.ts.wrap.VariableArgsFirst() {
-		args = append(args, interface{}(t.treeID))
-		args = append(args, interface{}(treeRevision))
-		args = append(args, interface{}(t.treeID))
-	}
-
 	rows, err := stmt.QueryContext(ctx, args...)
 	if err != nil {
-		glog.Warningf("Failed to get merkle subtrees: %s", err)
+		glog.Warningf("Failed to get merkle subtrees: %v", err)
 		return nil, err
 	}
 	defer rows.Close()
