@@ -22,10 +22,29 @@ go build ${GOFLAGS} ./examples/ct/ct_server/
 
 yes | "${SCRIPTS_DIR}"/resetdb.sh
 
-# Default to one RPC server and one HTTP server.
+# Default to one of everything.
 RPC_SERVER_COUNT=${1:-1}
 HTTP_SERVER_COUNT=${2:-1}
-LOG_SIGNER_COUNT=1
+LOG_SIGNER_COUNT=${3:-1}
+
+# Start a local etcd instance (if configured).
+if [[ -x "${ETCD_DIR}/etcd" ]]; then
+    ETCD_PORT=2379
+    ETCD_SERVER="localhost:${ETCD_PORT}"
+    echo "Starting local etcd server on ${ETCD_SERVER}"
+    ${ETCD_DIR}/etcd &
+    ETCD_PID=$!
+    ETCD_DB_DIR=default.etcd
+    set +e
+    waitForServerStartup ${ETCD_PORT}
+    set -e
+    SIGNER_ELECTION_OPTS="--etcd_servers=${ETCD_SERVER}"
+else
+    if  [[ ${LOG_SIGNER_COUNT} > 1 ]]; then
+        echo "*** Warning: running multiple signers with no etcd instance ***"
+    fi
+    SIGNER_ELECTION_OPTS="--force_master"
+fi
 
 # Start a set of Log RPC servers.
 pushd "${TRILLIAN_ROOT}" > /dev/null
@@ -62,13 +81,12 @@ LB_SERVER_PID=$!
 popd > /dev/null
 waitForServerStartup ${LB_PORT}
 
-# Start a single signer.
-# TODO(drysdale): update to run multiple signers once the Trillian open-source code includes
-# some kind of sequencer/signer mastership election.
+# Start a set of signers.
+pushd "${TRILLIAN_ROOT}" > /dev/null
 declare -a LOG_SIGNER_PIDS
 for ((i=0; i < LOG_SIGNER_COUNT; i++)); do
   echo "Starting Log signer"
-  ./trillian_log_signer --sequencer_interval="1s" --batch_size=500 --export_metrics=false --num_sequencers 2 &
+  ./trillian_log_signer "${SIGNER_ELECTION_OPTS}" --sequencer_interval="1s" --batch_size=500 --export_metrics=false --num_sequencers 2 &
   pid=$!
   LOG_SIGNER_PIDS+=(${pid})
 done
@@ -94,4 +112,4 @@ CT_PORTS="${CT_PORTS:1}"
 CT_SERVERS="${CT_SERVERS:1}"
 popd > /dev/null
 
-echo "Servers running; clean up with: kill ${HTTP_SERVER_PIDS[@]} ${LB_SERVER_PID} ${RPC_SERVER_PIDS[@]}; rm ${CT_CFG}"
+echo "Servers running; clean up with: kill ${HTTP_SERVER_PIDS[@]} ${LB_SERVER_PID} ${RPC_SERVER_PIDS[@]}; rm -rf ${CT_CFG} ${ETCD_DB_DIR}"

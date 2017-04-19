@@ -22,3 +22,7 @@ for pid in "${RPC_SERVER_PIDS[@]}"; do
     echo "Stopping Log RPC server (pid ${pid})"
     killPid ${pid}
 done
+if [[ "${ETCD_PID}" != "" ]]; then
+    echo "Stopping local etcd server (pid ${ETCD_PID})"
+    killPid ${ETCD_PID}
+fi

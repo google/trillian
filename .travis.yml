@@ -64,7 +64,7 @@ script:
         git diff
         exit 1
       fi
-  - ./integration/integration_test.sh
+  - ETCD_DIR="${GOPATH}/bin" ./integration/integration_test.sh
   - set +e
 
 services: mysql

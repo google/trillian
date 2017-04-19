@@ -72,7 +72,7 @@ onExit() {
   local file=""
   for file in "${TO_DELETE[@]}"; do
     echo "Deleting ${file} on exit"
-    rm ${file}
+    rm -rf ${file}
   done
 }
 
