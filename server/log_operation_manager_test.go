@@ -30,6 +30,16 @@ import (
 	"github.com/google/trillian/util"
 )
 
+func defaultLogOperationInfo(registry extension.Registry) LogOperationInfo {
+	return LogOperationInfo{
+		Registry:    registry,
+		BatchSize:   50,
+		NumWorkers:  1,
+		RunInterval: time.Second,
+		TimeSource:  fakeTimeSource,
+	}
+}
+
 func TestLogOperationManagerSnapshotFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -44,13 +54,7 @@ func TestLogOperationManagerSnapshotFails(t *testing.T) {
 	mockLogOp := NewMockLogOperation(ctrl)
 
 	ctx := context.Background()
-	info := LogOperationInfo{
-		Registry:    registry,
-		BatchSize:   50,
-		NumWorkers:  1,
-		RunInterval: time.Second,
-		TimeSource:  fakeTimeSource,
-	}
+	info := defaultLogOperationInfo(registry)
 	lom := NewLogOperationManager(info, mockLogOp)
 
 	lom.OperationSingle(ctx)
@@ -73,13 +77,7 @@ func TestLogOperationManagerGetLogsFails(t *testing.T) {
 	mockLogOp := NewMockLogOperation(ctrl)
 
 	ctx := context.Background()
-	info := LogOperationInfo{
-		Registry:    registry,
-		BatchSize:   50,
-		NumWorkers:  1,
-		RunInterval: time.Second,
-		TimeSource:  fakeTimeSource,
-	}
+	info := defaultLogOperationInfo(registry)
 	lom := NewLogOperationManager(info, mockLogOp)
 
 	lom.OperationSingle(ctx)
@@ -103,13 +101,7 @@ func TestLogOperationManagerCommitFails(t *testing.T) {
 	mockLogOp := NewMockLogOperation(ctrl)
 
 	ctx := context.Background()
-	info := LogOperationInfo{
-		Registry:    registry,
-		BatchSize:   50,
-		NumWorkers:  1,
-		RunInterval: time.Second,
-		TimeSource:  fakeTimeSource,
-	}
+	info := defaultLogOperationInfo(registry)
 	lom := NewLogOperationManager(info, mockLogOp)
 
 	lom.OperationSingle(ctx)
@@ -154,13 +146,7 @@ func TestLogOperationManagerPassesIDs(t *testing.T) {
 	mockLogOp.EXPECT().ExecutePass(gomock.Any(), logID1, infoMatcher)
 	mockLogOp.EXPECT().ExecutePass(gomock.Any(), logID2, infoMatcher)
 
-	info := LogOperationInfo{
-		Registry:    registry,
-		BatchSize:   50,
-		NumWorkers:  1,
-		RunInterval: time.Second,
-		TimeSource:  fakeTimeSource,
-	}
+	info := defaultLogOperationInfo(registry)
 	lom := NewLogOperationManager(info, mockLogOp)
 
 	lom.OperationSingle(ctx)
