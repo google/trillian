@@ -78,7 +78,10 @@ func (c *LogClient) AddLeaf(ctx context.Context, data []byte) error {
 	default:
 		err := status.Errorf(codes.NotFound, "Pre-loop condition")
 		for {
-			if s, ok := status.FromError(err); !ok || s.Code() != codes.NotFound || ctx.Err() != nil {
+			if ctx.Err() != nil {
+				break
+			}
+			if s, ok := status.FromError(err); !ok || s.Code() != codes.NotFound {
 				break
 			}
 
