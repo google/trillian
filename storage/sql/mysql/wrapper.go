@@ -222,14 +222,35 @@ func (m *mySQLWrapper) GetSubtrees(tx *sql.Tx, treeID, treeRevision int64, nodeI
 	return subtreeScanFn(rows, len(nodeIDs))
 }
 
-func (m *mySQLWrapper) SetSubtreeStmt(tx *sql.Tx, num int) (*sql.Stmt, error) {
-	return wrapper.PrepInTx(tx, func() (stmt *sql.Stmt, err error) {
-		return m.getStmt(insertSubtreeMultiSQL, num, "VALUES(?, ?, ?, ?)", "(?, ?, ?, ?)")
+func (m *mySQLWrapper) SetSubtrees(tx *sql.Tx, args []interface{}) error {
+	if len(args) % 4 != 0 {
+		return fmt.Errorf("args for SetSubtrees must be multiple of 4 but got: %d", len(args))
+	}
+	stmt, err := wrapper.PrepInTx(tx, func() (stmt *sql.Stmt, err error) {
+		return m.getStmt(insertSubtreeMultiSQL, len(args) / 4, "VALUES(?, ?, ?, ?)", "(?, ?, ?, ?)")
 	})
+	if stmt != nil {
+		defer stmt.Close()
+	}
+	if err != nil {
+		return err
+	}
+	_, err = stmt.Exec(args...)
+	return err
 }
 
-func (m *mySQLWrapper) GetTreeRevisionIncludingSizeStmt(tx *sql.Tx) (*sql.Stmt, error) {
-	return tx.Prepare(selectTreeRevisionAtSizeOrLargerSQL)
+func (m *mySQLWrapper) GetTreeRevisionIncludingSize(tx *sql.Tx, treeID, treeSize int64) (int64, int64, error) {
+	var treeRevision, actualTreeSize int64
+	stmt, err := tx.Prepare(selectTreeRevisionAtSizeOrLargerSQL)
+	if err != nil {
+		return 0, 0, err
+	}
+	defer stmt.Close()
+	err = stmt.QueryRow(treeID, treeSize).Scan(&treeRevision, &actualTreeSize)
+	if err != nil {
+		return 0, 0, err
+	}
+	return treeRevision, actualTreeSize, err
 }
 
 func (m *mySQLWrapper) InsertTreeHeadStmt(tx *sql.Tx) (*sql.Stmt, error) {

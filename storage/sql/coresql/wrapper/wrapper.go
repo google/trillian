@@ -25,11 +25,12 @@ import (
 	"github.com/google/trillian/storage"
 )
 
-// TreeStatementProvider provides SQL statement objects for raw tree storage.
-type TreeStatementProvider interface {
-	GetTreeRevisionIncludingSizeStmt(tx *sql.Tx) (*sql.Stmt, error)
+// TreeWrapper provides SQL wrapping for raw tree storage.
+type TreeWrapper interface {
+	GetTreeRevisionIncludingSize(tx *sql.Tx, treeID, treeSize int64) (int64, int64, error)
 	GetSubtrees(tx *sql.Tx, treeID, treeRevision int64, nodeIDs []storage.NodeID, subtreeScanFn func(*sql.Rows, int) error) error
-	SetSubtreeStmt(tx *sql.Tx, num int) (*sql.Stmt, error)
+	// SetSubtrees args should be a 4 tuple of (treeID, prefix, subtreeBytes, writeRevision) for each new subtree
+	SetSubtrees(tx *sql.Tx, args []interface{}) error
 }
 
 // LogStatementProvider provides SQL statement objects for log storage.
@@ -85,7 +86,7 @@ type LifecycleHooks interface {
 // Statements returned by any of public functions belong to the caller transaction and must be
 // closed on completion of the work.
 type DBWrapper interface {
-	TreeStatementProvider
+	TreeWrapper
 	LogStatementProvider
 	MapStatementProvider
 	AdminStatementProvider

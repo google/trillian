@@ -154,19 +154,11 @@ func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.Subtre
 		args = append(args, t.writeRevision)
 	}
 
-	stmt, err := t.ts.wrap.SetSubtreeStmt(t.tx, len(subtrees))
-	if err != nil {
-		return err
-	}
-	defer stmt.Close()
-
-	r, err := stmt.ExecContext(ctx, args...)
+	err := t.ts.wrap.SetSubtrees(t.tx, args)
 	if err != nil {
 		glog.Warningf("Failed to set merkle subtrees: %s", err)
-		return err
 	}
-	_, _ = r.RowsAffected()
-	return nil
+	return err
 }
 
 func checkResultOkAndRowCountIs(res sql.Result, err error, count int64) error {
@@ -200,14 +192,7 @@ func (t *treeTX) GetTreeRevisionIncludingSize(ctx context.Context, treeSize int6
 		return 0, 0, fmt.Errorf("invalid tree size: %d", treeSize)
 	}
 
-	var treeRevision, actualTreeSize int64
-	stmt, err := t.ts.wrap.GetTreeRevisionIncludingSizeStmt(t.tx)
-	if err != nil {
-		return 0, 0, err
-	}
-	defer stmt.Close()
-	err = stmt.QueryRowContext(ctx, t.treeID, treeSize).Scan(&treeRevision, &actualTreeSize)
-	return treeRevision, actualTreeSize, err
+	return t.ts.wrap.GetTreeRevisionIncludingSize(t.tx, t.treeID, treeSize)
 }
 
 // getSubtreesAtRev returns a GetSubtreesFunc which reads at the passed in rev.
