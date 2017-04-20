@@ -28,7 +28,7 @@ import (
 // TreeWrapper provides SQL wrapping for raw tree storage.
 type TreeWrapper interface {
 	GetTreeRevisionIncludingSize(tx *sql.Tx, treeID, treeSize int64) (int64, int64, error)
-	GetSubtrees(tx *sql.Tx, treeID, treeRevision int64, nodeIDs []storage.NodeID, subtreeScanFn func(*sql.Rows, int) error) error
+	GetSubtrees(tx *sql.Tx, treeID, treeRevision int64, nodeIDs []storage.NodeID, subtreeScanFn func(*sql.Rows) error) error
 	// SetSubtrees args should be a 4 tuple of (treeID, prefix, subtreeBytes, writeRevision) for each new subtree
 	SetSubtrees(tx *sql.Tx, args []interface{}) error
 }

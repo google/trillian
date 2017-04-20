@@ -134,7 +134,8 @@ const (
 			Description,
 			CreateTimeMillis,
 			UpdateTimeMillis,
-			PrivateKey
+			PrivateKey,
+			PublicKey
 		FROM Trees`
 	selectTreeByIDSQL = selectAllTreesSQL + " WHERE TreeId = ?"
 	insertTreeSQL     = `
@@ -149,8 +150,9 @@ const (
 			Description,
 			CreateTimeMillis,
 			UpdateTimeMillis,
-			PrivateKey)
-		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+			PrivateKey,
+			PublicKey)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	insertTreeControlSQL = `
 		INSERT INTO TreeControl(
 			TreeId,
@@ -190,7 +192,7 @@ func (m *mySQLWrapper) DB() *sql.DB {
 	return m.db
 }
 
-func (m *mySQLWrapper) GetSubtrees(tx *sql.Tx, treeID, treeRevision int64, nodeIDs []storage.NodeID, subtreeScanFn func(*sql.Rows, int) error) error {
+func (m *mySQLWrapper) GetSubtrees(tx *sql.Tx, treeID, treeRevision int64, nodeIDs []storage.NodeID, subtreeScanFn func(*sql.Rows) error) error {
 	args := make([]interface{}, 0, len(nodeIDs)+3)
 	// populate args with nodeIDs, variable args first
 	for _, nodeID := range nodeIDs {
@@ -219,7 +221,7 @@ func (m *mySQLWrapper) GetSubtrees(tx *sql.Tx, treeID, treeRevision int64, nodeI
 		return err
 	}
 	defer rows.Close()
-	return subtreeScanFn(rows, len(nodeIDs))
+	return subtreeScanFn(rows)
 }
 
 func (m *mySQLWrapper) SetSubtrees(tx *sql.Tx, args []interface{}) error {
@@ -436,6 +438,6 @@ func (m *mySQLWrapper) CheckDatabaseAccessible(ctx context.Context) error {
 	}
 	defer stmt.Close()
 
-	_, err = stmt.Exec()
+	_, err = stmt.ExecContext(ctx)
 	return err
 }

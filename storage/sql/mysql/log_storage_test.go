@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"testing"
 	"time"
+
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
@@ -878,7 +879,7 @@ func toIDsMap(ids []int64) map[int64]bool {
 // GetActiveLogIDsWithPendingWork) and check that the result matches wantIds.
 func runTestGetActiveLogIDsInternal(ctx context.Context, t *testing.T, test getActiveIDsTest, logID int64, wantIds []int64) {
 	s := coresql.NewLogStorage(dbWrapper)
-	logIDs, err := test.fn(s, context.Background(), logID)
+	logIDs, err := test.fn(ctx, s, logID)
 	if err != nil {
 		t.Errorf("%v = (_, %v), want = (_, nil)", test.name, err)
 		return

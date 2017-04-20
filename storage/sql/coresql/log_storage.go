@@ -84,12 +84,12 @@ func getActiveLogIDsInternal(ctx context.Context, stmt *sql.Stmt) ([]int64, erro
 	return logIDs, nil
 }
 
-func getActiveLogIDs(ctx context.Context, t *readOnlyLogTX) ([]int64, error) {
-	return getActiveLogIDsInternal(ctx, t.wrap.GetActiveLogsStmt())
+func getActiveLogIDs(ctx context.Context, stmt *sql.Stmt) ([]int64, error) {
+	return getActiveLogIDsInternal(ctx, stmt)
 }
 
-func getActiveLogIDsWithPendingWork(ctx context.Context, t *readOnlyLogTX) ([]int64, error) {
-	return getActiveLogIDsInternal(ctx, t.wrap.GetActiveLogsWithWorkStmt())
+func getActiveLogIDsWithPendingWork(ctx context.Context, stmt *sql.Stmt) ([]int64, error) {
+	return getActiveLogIDsInternal(ctx, stmt)
 }
 
 // readOnlyLogTX implements storage.ReadOnlyLogTX
@@ -99,7 +99,7 @@ type readOnlyLogTX struct {
 }
 
 func (m *sqlLogStorage) Snapshot(ctx context.Context) (storage.ReadOnlyLogTX, error) {
-	tx, err := m.wrap.DB().Begin()
+	tx, err := m.wrap.DB().BeginTx(ctx, nil)
 	if err != nil {
 		glog.Warningf("Could not start ReadOnlyLogTX: %s", err)
 		return nil, err
@@ -124,11 +124,21 @@ func (t *readOnlyLogTX) Close() error {
 }
 
 func (t *readOnlyLogTX) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
-	return getActiveLogIDs(ctx, t)
+	stmt, err := t.wrap.GetActiveLogsStmt(t.tx)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+	return getActiveLogIDs(ctx, stmt)
 }
 
 func (t *readOnlyLogTX) GetActiveLogIDsWithPendingWork(ctx context.Context) ([]int64, error) {
-	return getActiveLogIDsWithPendingWork(ctx, t.wrap.GetActiveLogsWithWorkStmt())
+	stmt, err := t.wrap.GetActiveLogsWithWorkStmt(t.tx)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+	return getActiveLogIDsWithPendingWork(ctx, stmt)
 }
 
 func (m *sqlLogStorage) beginInternal(ctx context.Context, treeID int64, readonly bool) (storage.LogTreeTX, error) {
@@ -603,13 +613,23 @@ func (t *logTreeTX) getLeavesByHashInternal(ctx context.Context, leafHashes [][]
 
 // GetActiveLogIDs returns a list of the IDs of all configured logs
 func (t *logTreeTX) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
-	return getActiveLogIDs(ctx, t.tx)
+	stmt, err := t.ts.wrap.GetActiveLogsStmt(t.tx)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+	return getActiveLogIDs(ctx, stmt)
 }
 
 // GetActiveLogIDsWithPendingWork returns a list of the IDs of all configured logs
 // that have queued unsequenced leaves that need to be integrated
 func (t *logTreeTX) GetActiveLogIDsWithPendingWork(ctx context.Context) ([]int64, error) {
-	return getActiveLogIDsWithPendingWork(ctx, t.tx)
+	stmt, err := t.ts.wrap.GetActiveLogsWithWorkStmt(t.tx)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+	return getActiveLogIDsWithPendingWork(ctx, stmt)
 }
 
 // byLeafIdentityHash allows sorting of leaves by their identity hash, so DB

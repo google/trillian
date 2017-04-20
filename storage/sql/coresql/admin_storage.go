@@ -50,7 +50,7 @@ func (s *sqlAdminStorage) Snapshot(ctx context.Context) (storage.ReadOnlyAdminTX
 }
 
 func (s *sqlAdminStorage) Begin(ctx context.Context) (storage.AdminTX, error) {
-	tx, err := s.wrap.DB().Begin()
+	tx, err := s.wrap.DB().BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
 	}

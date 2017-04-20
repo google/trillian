@@ -53,7 +53,7 @@ type readOnlyMapTX struct {
 }
 
 func (m *sqlMapStorage) Snapshot(ctx context.Context) (storage.ReadOnlyMapTX, error) {
-	tx, err := m.wrap.DB().Begin()
+	tx, err := m.wrap.DB().BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
 	}

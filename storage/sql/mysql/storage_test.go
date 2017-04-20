@@ -15,6 +15,7 @@
 package mysql
 
 import (
+	"context"
 	"crypto"
 	"crypto/sha256"
 	"database/sql"

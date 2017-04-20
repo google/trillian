@@ -40,7 +40,7 @@ func newTreeStorage(wrapper wrapper.DBWrapper) *sqlTreeStorage {
 }
 
 func (m *sqlTreeStorage) beginTreeTx(ctx context.Context, treeID int64, hashSizeBytes int, strataDepths []int, populate storage.PopulateSubtreeFunc, prepare storage.PrepareSubtreeWriteFunc) (treeTX, error) {
-	t, err := m.wrap.DB().Begin()
+	t, err := m.wrap.DB().BeginTx(ctx, nil)
 	if err != nil {
 		glog.Warningf("Could not start tree TX: %s", err)
 		return treeTX{}, err
@@ -80,9 +80,8 @@ func (t *treeTX) getSubtree(ctx context.Context, treeRevision int64, nodeID stor
 	}
 }
 
-func subtreeScanFn(num int) (*[]*storagepb.SubtreeProto, func(*sql.Rows, int) error) {
-	ret := make([]*storagepb.SubtreeProto, 0, num)
-	return &ret, func(rows *sql.Rows, num int) error {
+func subtreeScanFn(ret *[]*storagepb.SubtreeProto) (func(*sql.Rows) error) {
+	return func(rows *sql.Rows) error {
 		if rows.Err() != nil {
 			// Nothing from the DB
 			glog.Warningf("Nothing from DB: %s", rows.Err())
@@ -105,12 +104,10 @@ func subtreeScanFn(num int) (*[]*storagepb.SubtreeProto, func(*sql.Rows, int) er
 			if subtree.Prefix == nil {
 				subtree.Prefix = []byte{}
 			}
-			ret = append(ret, &subtree)
+			*ret = append(*ret, &subtree)
 		}
 		return nil
 	}
-
-	return ret, nil
 }
 
 func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []storage.NodeID) ([]*storagepb.SubtreeProto, error) {
@@ -118,7 +115,8 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []
 		return nil, nil
 	}
 
-	subtrees, fn := subtreeScanFn(len(nodeIDs))
+	subtrees := make([]*storagepb.SubtreeProto, 0, len(nodeIDs))
+	fn := subtreeScanFn(&subtrees)
 	err := t.ts.wrap.GetSubtrees(t.tx, t.treeID, treeRevision, nodeIDs, fn)
 	if err != nil {
 		glog.Warningf("Failed to get merkle subtrees: %v", err)
@@ -126,7 +124,7 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []
 	}
 	// The InternalNodes cache is possibly nil here, but the SubtreeCache (which called
 	// this method) will re-populate it.
-	return *subtrees, nil
+	return subtrees, nil
 }
 
 func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.SubtreeProto) error {
@@ -175,7 +173,7 @@ func checkResultOkAndRowCountIs(res sql.Result, err error, count int64) error {
 	}
 
 	if rowsAffected != count {
-		return fmt.Errorf("Expected %d row(s) to be affected but saw: %d", count,
+		return fmt.Errorf("expected %d row(s) to be affected but saw: %d", count,
 			rowsAffected)
 	}
 

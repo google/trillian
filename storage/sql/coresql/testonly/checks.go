@@ -30,19 +30,19 @@ func CheckLeafContents(leaf *trillian.LogLeaf, seq int64, rawHash, hash, data, e
 	}
 
 	if got, want := leaf.LeafIdentityHash, rawHash; !bytes.Equal(got, want) {
-		return fmt.Errorf("Wrong raw leaf hash in returned leaf got\n%v\nwant:\n%v", got, want)
+		return fmt.Errorf("wrong raw leaf hash in returned leaf got\n%v\nwant:\n%v", got, want)
 	}
 
 	if got, want := seq, leaf.LeafIndex; got != want {
-		return fmt.Errorf("Bad sequence number in returned leaf got: %d, want:%d", got, want)
+		return fmt.Errorf("bad sequence number in returned leaf got: %d, want:%d", got, want)
 	}
 
 	if got, want := leaf.LeafValue, data; !bytes.Equal(got, want) {
-		return fmt.Errorf("Unxpected data in returned leaf. got:\n%v\nwant:\n%v", got, want)
+		return fmt.Errorf("unxpected data in returned leaf. got:\n%v\nwant:\n%v", got, want)
 	}
 
 	if got, want := leaf.ExtraData, extraData; !bytes.Equal(got, want) {
-		return fmt.Errorf("Unxpected data in returned leaf. got:\n%v\nwant:\n%v", got, want)
+		return fmt.Errorf("unxpected data in returned leaf. got:\n%v\nwant:\n%v", got, want)
 	}
 
 	return nil
