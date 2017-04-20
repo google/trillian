@@ -29,8 +29,6 @@ import (
 	stestonly "github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/testonly"
 	"google.golang.org/genproto/googleapis/rpc/code"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
 )
 
 var (
@@ -318,63 +316,6 @@ func TestQueueLeaves(t *testing.T) {
 	}
 	if !reflect.DeepEqual(queueRequest0.Leaves[0], queuedLeaf.Leaf) {
 		t.Errorf("QueueLeaves()=%+v,nil; want %+v,nil", queuedLeaf, queueRequest0.Leaves)
-	}
-}
-
-func TestQueueLeavesErrorMapped(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	type errMapTest struct {
-		err  error
-		want codes.Code
-	}
-
-	tests := []errMapTest{
-		{
-			err:  storage.Error{ErrType: storage.DuplicateLeaf, Detail: "duplicate test"},
-			want: codes.Unknown,
-		},
-		{
-			err:  storage.Error{ErrType: -23, Detail: "negative type"},
-			want: codes.Unknown,
-		},
-		{
-			err:  storage.Error{ErrType: 999999999, Detail: "undefined type"},
-			want: codes.Unknown,
-		},
-		{
-			err:  errors.New("some other kind of error"),
-			want: codes.Unknown,
-		},
-	}
-
-	for _, test := range tests {
-		mockStorage := storage.NewMockLogStorage(ctrl)
-		mockTx := storage.NewMockLogTreeTX(ctrl)
-		mockStorage.EXPECT().BeginForTree(gomock.Any(), queueRequest0.LogId).Return(mockTx, nil)
-		mockTx.EXPECT().QueueLeaves([]*trillian.LogLeaf{leaf1}, fakeTime).Return(nil, test.err)
-		mockTx.EXPECT().Close().Return(nil)
-		mockTx.EXPECT().IsOpen().AnyTimes().Return(false)
-
-		registry := extension.Registry{
-			AdminStorage: mockAdminStorage(ctrl, queueRequest0.LogId),
-			LogStorage:   mockStorage,
-		}
-		server := NewTrillianLogRPCServer(registry, fakeTimeSource)
-
-		_, err := server.QueueLeaves(context.Background(), &queueRequest0)
-		if err == nil {
-			if test.want != codes.OK {
-				// The operation should not have succeeded
-				t.Error("Did not propagate storage error to client")
-			}
-			continue
-		}
-		// The error should have been mapped to the expected GRPC code
-		if got := grpc.Code(err); got != test.want {
-			t.Errorf("Got grpc code: %d (%q) for storage error %q, want: %d", got, err, test.err, test.want)
-		}
 	}
 }
 

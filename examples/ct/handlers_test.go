@@ -43,10 +43,8 @@ import (
 	"github.com/google/trillian/mockclient"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/util"
-	"google.golang.org/genproto/googleapis/rpc/code"
-	"google.golang.org/genproto/googleapis/rpc/status"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // Arbitrary time for use in tests
@@ -305,7 +303,7 @@ func TestAddChain(t *testing.T) {
 			chain:  []string{cttestonly.LeafSignedByFakeIntermediateCertPEM, cttestonly.FakeIntermediateCertPEM},
 			toSign: "1337d72a403b6539f58896decba416d5d4b3603bfa03e1f94bb9b4e898af897d",
 			want:   http.StatusInternalServerError,
-			err:    grpc.Errorf(codes.Internal, "error"),
+			err:    status.Errorf(codes.Internal, "error"),
 		},
 		{
 			descr:  "success-without-root",
@@ -352,7 +350,7 @@ func TestAddChain(t *testing.T) {
 			for i, leaf := range leaves {
 				queuedLeaves[i] = &trillian.QueuedLogLeaf{
 					Leaf:   leaf,
-					Status: &status.Status{Code: int32(code.Code_OK)},
+					Status: status.New(codes.OK, "ok").Proto(),
 				}
 			}
 			rsp := trillian.QueueLeavesResponse{QueuedLeaves: queuedLeaves}
@@ -409,7 +407,7 @@ func TestAddPrechain(t *testing.T) {
 			descr:  "backend-rpc-fail",
 			chain:  []string{cttestonly.PrecertPEMValid, cttestonly.CACertPEM},
 			toSign: "92ecae1a2dc67a6c5f9c96fa5cab4c2faf27c48505b696dad926f161b0ca675a",
-			err:    grpc.Errorf(codes.Internal, "error"),
+			err:    status.Errorf(codes.Internal, "error"),
 			want:   http.StatusInternalServerError,
 		},
 		{
@@ -457,7 +455,7 @@ func TestAddPrechain(t *testing.T) {
 			for i, leaf := range leaves {
 				queuedLeaves[i] = &trillian.QueuedLogLeaf{
 					Leaf:   leaf,
-					Status: &status.Status{Code: int32(code.Code_OK)},
+					Status: status.New(codes.OK, "ok").Proto(),
 				}
 			}
 			rsp := trillian.QueueLeavesResponse{QueuedLeaves: queuedLeaves}

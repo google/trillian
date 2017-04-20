@@ -30,8 +30,8 @@ import (
 	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/merkle"
 	"google.golang.org/genproto/googleapis/rpc/code"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // LogClient represents a client for a given Trillian log instance.
@@ -69,15 +69,22 @@ func (c *LogClient) AddLeaf(ctx context.Context, data []byte) error {
 
 	leaf := c.buildLeaf(data)
 	err := c.queueLeaf(ctx, leaf)
-	switch {
-	case grpc.Code(err) == codes.AlreadyExists:
+	switch s, ok := status.FromError(err); {
+	case ok && s.Code() == codes.AlreadyExists:
 		// If the leaf already exists, don't wait for an update.
 		return c.getInclusionProof(ctx, leaf.MerkleLeafHash, c.root.TreeSize)
 	case err != nil:
 		return err
 	default:
-		err := grpc.Errorf(codes.NotFound, "Pre-loop condition")
-		for i := 0; grpc.Code(err) == codes.NotFound && ctx.Err() == nil; i++ {
+		err := status.Errorf(codes.NotFound, "Pre-loop condition")
+		for {
+			if ctx.Err() != nil {
+				break
+			}
+			if s, ok := status.FromError(err); !ok || s.Code() != codes.NotFound {
+				break
+			}
+
 			// Wait for TreeSize to update.
 			if err := c.waitForRootUpdate(ctx); err != nil {
 				return err
@@ -159,7 +166,7 @@ func (c *LogClient) waitForRootUpdate(ctx context.Context) error {
 			return nil
 		}
 		if err := ctx.Err(); err != nil {
-			return grpc.Errorf(codes.DeadlineExceeded,
+			return status.Errorf(codes.DeadlineExceeded,
 				"%v. TreeSize: %v, want > %v. Tried %v times.",
 				err, c.root.TreeSize, startTreeSize, i+1)
 		}
@@ -303,7 +310,7 @@ func (c *LogClient) queueLeaf(ctx context.Context, leaf *trillian.LogLeaf) error
 	}
 	if rsp.QueuedLeaf.Status != nil && rsp.QueuedLeaf.Status.Code == int32(code.Code_ALREADY_EXISTS) {
 		// Convert this to AlreadyExists
-		return grpc.Errorf(codes.AlreadyExists, "leaf already exists")
+		return status.Errorf(codes.AlreadyExists, "leaf already exists")
 	}
 	return nil
 }

@@ -23,10 +23,8 @@ import (
 	"github.com/google/trillian/trees"
 	"github.com/google/trillian/util"
 	"golang.org/x/net/context"
-	"google.golang.org/genproto/googleapis/rpc/code"
-	"google.golang.org/genproto/googleapis/rpc/status"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // TODO: There is no access control in the server yet and clients could easily modify
@@ -65,10 +63,10 @@ func (t *TrillianLogRPCServer) QueueLeaf(ctx context.Context, req *trillian.Queu
 		return nil, err
 	}
 	if queueRsp == nil {
-		return nil, grpc.Errorf(codes.Internal, "missing response")
+		return nil, status.Errorf(codes.Internal, "missing response")
 	}
 	if len(queueRsp.QueuedLeaves) != 1 {
-		return nil, grpc.Errorf(codes.Internal, "unexpected count of leaves %d", len(queueRsp.QueuedLeaves))
+		return nil, status.Errorf(codes.Internal, "unexpected count of leaves %d", len(queueRsp.QueuedLeaves))
 	}
 	return &trillian.QueueLeafResponse{QueuedLeaf: queueRsp.QueuedLeaves[0]}, nil
 }
@@ -111,7 +109,7 @@ func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.Qu
 			// Append the existing leaf to the response.
 			queuedLeaf := trillian.QueuedLogLeaf{
 				Leaf:   existingLeaf,
-				Status: &status.Status{Code: int32(code.Code_ALREADY_EXISTS)},
+				Status: status.Newf(codes.AlreadyExists, "Leaf already exists: %v", existingLeaf.LeafIdentityHash).Proto(),
 			}
 			queuedLeaves = append(queuedLeaves, &queuedLeaf)
 		} else {
@@ -191,7 +189,7 @@ func (t *TrillianLogRPCServer) GetInclusionProofByHash(ctx context.Context, req 
 		return nil, err
 	}
 	if len(leaves) < 1 {
-		return nil, grpc.Errorf(codes.NotFound, "No leaves for hash: %x", req.LeafHash)
+		return nil, status.Errorf(codes.NotFound, "No leaves for hash: %x", req.LeafHash)
 	}
 
 	root, err := tx.LatestSignedLogRoot()
@@ -383,7 +381,7 @@ func (t *TrillianLogRPCServer) GetEntryAndProof(ctx context.Context, req *trilli
 	}
 
 	if len(leaves) != 1 {
-		return nil, grpc.Errorf(codes.Internal, "expected one leaf from storage but got: %d", len(leaves))
+		return nil, status.Errorf(codes.Internal, "expected one leaf from storage but got: %d", len(leaves))
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -459,7 +457,7 @@ func getInclusionProofForLeafIndex(tx storage.ReadOnlyLogTreeTX, hasher merkle.T
 // tree hash depending on the supplied fetch function
 func (t *TrillianLogRPCServer) getLeavesByHashInternal(ctx context.Context, desc string, req *trillian.GetLeavesByHashRequest, fetchFunc func(storage.ReadOnlyLogTreeTX, [][]byte, bool) ([]*trillian.LogLeaf, error)) (*trillian.GetLeavesByHashResponse, error) {
 	if len(req.LeafHash) == 0 || !validateLeafHashes(req.LeafHash) {
-		return nil, grpc.Errorf(codes.FailedPrecondition, "Invalid leaf hash")
+		return nil, status.Errorf(codes.FailedPrecondition, "Invalid leaf hash")
 	}
 
 	tx, err := t.prepareReadOnlyStorageTx(ctx, req.LogId)

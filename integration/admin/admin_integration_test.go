@@ -28,6 +28,7 @@ import (
 	"github.com/kylelemons/godebug/pretty"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func TestAdminServer_Unimplemented(t *testing.T) {
@@ -63,7 +64,8 @@ func TestAdminServer_Unimplemented(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		if err := test.fn(ctx, client); grpc.Code(err) != codes.Unimplemented {
+		err := test.fn(ctx, client)
+		if s, ok := status.FromError(err); !ok || s.Code() != codes.Unimplemented {
 			t.Errorf("%v: got = %v, want = %s", test.desc, err, codes.Unimplemented)
 		}
 	}
@@ -107,7 +109,7 @@ func TestAdminServer_CreateTree(t *testing.T) {
 	ctx := context.Background()
 	for _, test := range tests {
 		createdTree, err := client.CreateTree(ctx, test.req)
-		if grpc.Code(err) != test.wantCode {
+		if s, ok := status.FromError(err); !ok || s.Code() != test.wantCode {
 			t.Errorf("%v: CreateTree() = (_, %v), wantCode = %v", test.desc, err, test.wantCode)
 			continue
 		} else if err != nil {
@@ -152,7 +154,7 @@ func TestAdminServer_GetTree(t *testing.T) {
 	ctx := context.Background()
 	for _, test := range tests {
 		_, err := client.GetTree(ctx, &trillian.GetTreeRequest{TreeId: test.treeID})
-		if grpc.Code(err) != test.wantCode {
+		if s, ok := status.FromError(err); !ok || s.Code() != test.wantCode {
 			t.Errorf("%v: GetTree() = (_, %v), wantCode = %v", test.desc, err, test.wantCode)
 		}
 		// Success of GetTree is part of TestAdminServer_CreateTree, so it's not asserted here.

@@ -21,13 +21,13 @@ import (
 
 	te "github.com/google/trillian/errors"
 	"github.com/kylelemons/godebug/pretty"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func TestWrapError(t *testing.T) {
 	trillianErr := te.New(te.InvalidArgument, "invalid argument err")
-	grpcErr := grpc.Errorf(codes.NotFound, "not found err")
+	grpcErr := status.Errorf(codes.NotFound, "not found err")
 	err := errors.New("generic error")
 
 	tests := []struct {
@@ -36,7 +36,7 @@ func TestWrapError(t *testing.T) {
 	}{
 		{
 			err:     trillianErr,
-			wantErr: grpc.Errorf(codes.InvalidArgument, trillianErr.Error()),
+			wantErr: status.Errorf(codes.InvalidArgument, trillianErr.Error()),
 		},
 		{
 			err:     grpcErr,
@@ -48,7 +48,7 @@ func TestWrapError(t *testing.T) {
 		},
 		{
 			err:     sql.ErrNoRows,
-			wantErr: grpc.Errorf(codes.NotFound, sql.ErrNoRows.Error()),
+			wantErr: status.Errorf(codes.NotFound, sql.ErrNoRows.Error()),
 		},
 	}
 	for _, test := range tests {
