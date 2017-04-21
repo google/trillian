@@ -26,7 +26,6 @@ import (
 	"math/rand"
 	"net/http"
 	"path/filepath"
-	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -41,6 +40,7 @@ import (
 	"github.com/google/trillian/crypto/keys"
 	ctfe "github.com/google/trillian/examples/ct"
 	"github.com/google/trillian/testonly"
+	"github.com/kylelemons/godebug/pretty"
 	"golang.org/x/net/context/ctxhttp"
 )
 
@@ -267,8 +267,8 @@ func RunCTIntegrationForLog(cfg ctfe.LogConfig, servers, testdir string, mmd tim
 		gotHashes[sha256.Sum256(ts.X509Entry.Data)] = true
 		wantHashes[sha256.Sum256(chain[i+1][0].Data)] = true
 	}
-	if !reflect.DeepEqual(gotHashes, wantHashes) {
-		return fmt.Errorf("retrieved cert hashes don't match uploaded cert hashes")
+	if diff := pretty.Compare(gotHashes, wantHashes); diff != "" {
+		return fmt.Errorf("retrieved cert hashes don't match uploaded cert hashes, diff:\n%v", diff)
 	}
 	fmt.Printf("%s: Got entries [1:%d+1]\n", cfg.Prefix, count)
 	if err := stats.check(cfg, servers); err != nil {

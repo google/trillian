@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"reflect"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -26,6 +25,7 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/storagepb"
 	"github.com/google/trillian/testonly"
+	"github.com/kylelemons/godebug/pretty"
 )
 
 var splitTestVector = []struct {
@@ -306,8 +306,8 @@ func TestRepopulateLogSubtree(t *testing.T) {
 			if len(s.InternalNodes) != 0 {
 				t.Fatalf("(it %d) internal nodes should be empty but got: %v", numLeaves, s.InternalNodes)
 			}
-		} else if !reflect.DeepEqual(cmtStorage.InternalNodes, s.InternalNodes) {
-			t.Fatalf("(it %d) CMT internal nodes are\n%v, but sparse internal nodes are\n%v", numLeaves, cmtStorage.InternalNodes, s.InternalNodes)
+		} else if diff := pretty.Compare(cmtStorage.InternalNodes, s.InternalNodes); diff != "" {
+			t.Fatalf("(it %d) CMT/sparse internal nodes diff:\n%v", numLeaves, diff)
 		}
 	}
 }
@@ -318,8 +318,8 @@ func TestPrefixLengths(t *testing.T) {
 
 	c := NewSubtreeCache(strata, PopulateMapSubtreeNodes(testonly.Hasher), PrepareMapSubtreeWrite())
 
-	if got, want := c.stratumInfo, stratumInfo; !reflect.DeepEqual(got, want) {
-		t.Fatalf("Got prefixLengths of %v, expected %v", got, want)
+	if diff := pretty.Compare(c.stratumInfo, stratumInfo); diff != "" {
+		t.Fatalf("prefixLengths diff:\n%v", diff)
 	}
 }
 
@@ -340,8 +340,8 @@ func TestGetStratumInfo(t *testing.T) {
 		{156, stratumInfo{10, 176}},
 	}
 	for i, tv := range testVec {
-		if got, want := c.stratumInfoForPrefixLength(tv.depth), tv.info; !reflect.DeepEqual(got, want) {
-			t.Errorf("(test %d for depth %d) got %#v, expected %#v", i, tv.depth, got, want)
+		if diff := pretty.Compare(c.stratumInfoForPrefixLength(tv.depth), tv.info); diff != "" {
+			t.Errorf("(test %d for depth %d) diff:\n%v", i, tv.depth, diff)
 		}
 	}
 }

@@ -19,12 +19,12 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/testonly"
+	"github.com/kylelemons/godebug/pretty"
 )
 
 func checkUnusedNodesInvariant(c *CompactMerkleTree) error {
@@ -64,7 +64,7 @@ func checkUnusedNodesInvariant(c *CompactMerkleTree) error {
 func TestAddingLeaves(t *testing.T) {
 	inputs := testonly.MerkleTreeLeafTestInputs()
 	roots := testonly.MerkleTreeLeafTestRootHashes()
-	hasheses := testonly.CompactMerkleTreeLeafTestNodeHashes()
+	hashes := testonly.CompactMerkleTreeLeafTestNodeHashes()
 
 	// We test the "same" thing 3 different ways this is to ensure than any lazy
 	// update strategy being employed by the implementation doesn't affect the
@@ -92,8 +92,8 @@ func TestAddingLeaves(t *testing.T) {
 			if got, want := tree.CurrentRoot(), roots[i]; !bytes.Equal(got, want) {
 				t.Errorf("CurrentRoot()=%v, want %v", got, want)
 			}
-			if got, want := tree.Hashes(), hasheses[i]; !reflect.DeepEqual(got, want) {
-				t.Errorf("Hashes()=%v, want %v", got, want)
+			if diff := pretty.Compare(tree.Hashes(), hashes[i]); diff != "" {
+				t.Errorf("post-Hashes() diff:\n%v", diff)
 			}
 		}
 	}
@@ -115,8 +115,8 @@ func TestAddingLeaves(t *testing.T) {
 		if got, want := tree.CurrentRoot(), roots[7]; !bytes.Equal(got, want) {
 			t.Errorf("CurrentRoot()=%v, want %v", got, want)
 		}
-		if got, want := tree.Hashes(), hasheses[7]; !reflect.DeepEqual(got, want) {
-			t.Errorf("Hashes()=%v, want %v", got, want)
+		if diff := pretty.Compare(tree.Hashes(), hashes[7]); diff != "" {
+			t.Errorf("post-Hashes() diff:\n%v", diff)
 		}
 	}
 
@@ -137,8 +137,8 @@ func TestAddingLeaves(t *testing.T) {
 		if got, want := tree.CurrentRoot(), roots[2]; !bytes.Equal(got, want) {
 			t.Errorf("CurrentRoot()=%v, want %v", got, want)
 		}
-		if got, want := tree.Hashes(), hasheses[2]; !reflect.DeepEqual(got, want) {
-			t.Errorf("Hashes()=%v, want %v", got, want)
+		if diff := pretty.Compare(tree.Hashes(), hashes[2]); diff != "" {
+			t.Errorf("post-Hashes() diff:\n%v", diff)
 		}
 
 		for i := 3; i < 8; i++ {
@@ -155,8 +155,8 @@ func TestAddingLeaves(t *testing.T) {
 		if got, want := tree.CurrentRoot(), roots[7]; !bytes.Equal(got, want) {
 			t.Errorf("CurrentRoot()=%v, want %v", got, want)
 		}
-		if got, want := tree.Hashes(), hasheses[7]; !reflect.DeepEqual(got, want) {
-			t.Errorf("Hashes()=%v, want %v", got, want)
+		if diff := pretty.Compare(tree.Hashes(), hashes[7]); diff != "" {
+			t.Errorf("post-Hashes() diff:\n%v", diff)
 		}
 	}
 }

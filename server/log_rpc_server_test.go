@@ -17,7 +17,6 @@ package server
 import (
 	"context"
 	"errors"
-	"reflect"
 	"strings"
 	"testing"
 
@@ -28,6 +27,7 @@ import (
 	"github.com/google/trillian/storage"
 	stestonly "github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/testonly"
+	"github.com/kylelemons/godebug/pretty"
 	"google.golang.org/genproto/googleapis/rpc/code"
 )
 
@@ -292,8 +292,9 @@ func TestQueueLeaves(t *testing.T) {
 	if queuedLeaf.Status != nil && queuedLeaf.Status.Code != int32(code.Code_OK) {
 		t.Errorf("QueueLeaves().Status=%d,nil; want %d,nil", queuedLeaf.Status.Code, code.Code_OK)
 	}
-	if !reflect.DeepEqual(queueRequest0.Leaves[0], queuedLeaf.Leaf) {
-		t.Errorf("QueueLeaves()=%+v,nil; want %+v,nil", queuedLeaf, queueRequest0.Leaves)
+	if !proto.Equal(queueRequest0.Leaves[0], queuedLeaf.Leaf) {
+		diff := pretty.Compare(queueRequest0.Leaves[0], queuedLeaf.Leaf)
+		t.Errorf("post-QueueLeaves() diff:\n%v", diff)
 	}
 
 	// Repeating the operation gives ALREADY_EXISTS.
@@ -314,8 +315,9 @@ func TestQueueLeaves(t *testing.T) {
 	if queuedLeaf.Status == nil || queuedLeaf.Status.Code != int32(code.Code_ALREADY_EXISTS) {
 		t.Errorf("QueueLeaves().Status=%d,nil; want %d,nil", queuedLeaf.Status.Code, code.Code_ALREADY_EXISTS)
 	}
-	if !reflect.DeepEqual(queueRequest0.Leaves[0], queuedLeaf.Leaf) {
-		t.Errorf("QueueLeaves()=%+v,nil; want %+v,nil", queuedLeaf, queueRequest0.Leaves)
+	if !proto.Equal(queueRequest0.Leaves[0], queuedLeaf.Leaf) {
+		diff := pretty.Compare(queueRequest0.Leaves[0], queuedLeaf.Leaf)
+		t.Errorf("post-QueueLeaves() diff:\n%v", diff)
 	}
 }
 
