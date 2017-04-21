@@ -147,6 +147,9 @@ const (
 // TrillianError associates an error message with a failure code in order to
 // make error translation possible by other layers (e.g., TrillianError to
 // gRPC).
+//
+// TrillianErrors contain user-visible messages and codes, both of which should
+// be chosen from the perspective of the RPC caller.
 type TrillianError interface {
 	error
 
@@ -182,11 +185,19 @@ func ErrorCode(err error) Code {
 }
 
 // Errorf creates a TrillianError from the specified code and message.
+//
+// Note that errors created by this package are meant to be user-visible,
+// therefore both code and message should be chosen from the perspective of the
+// RPC caller.
 func Errorf(code Code, format string, a ...interface{}) error {
 	return &trillianError{code, fmt.Sprintf(format, a...)}
 }
 
 // New creates a TrillianError from the specified code and message.
+//
+// Note that errors created by this package are meant to be user-visible,
+// therefore both code and message should be chosen from the perspective of the
+// RPC caller.
 func New(code Code, msg string) error {
 	return &trillianError{code, msg}
 }
