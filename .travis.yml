@@ -45,6 +45,8 @@ install:
   - go get -u github.com/kisielk/errcheck
   - go get -u golang.org/x/tools/cmd/stringer
   - go install github.com/golang/{mock/mockgen,protobuf/protoc-gen-go}
+  # install vendored etcd binary
+  - go install ./vendor/github.com/coreos/etcd
 
 script:
   - set -e
