@@ -199,18 +199,32 @@ leaf index followed by formatting and marshaling the data to be returned to the 
 API requests for proofs involve more work but both inclusion and consistency proofs follow the 
 same pattern.
 
-The node revision number for the tree size involved is obtained from storage and will be used in
-the subsequent node fetch.
+Path calculations in the tree need to be based on a particular tree revision. It is possible to 
+use any tree revision that corresponds to a tree at least as large as the tree that the proof is
+for. We currently use the most recent tree revision number for all proof node calculation / 
+fetches. This is useful as we already have it available from when the transaction was initialized. 
 
-The tree path for the proof is calculated for a specified tree size using an algorithm based on the
+There is no guarantee that we have the exact tree size snapshot available for any particular
+request so we're already prepared to pay the cost of some hash recomputation, as described further
+below. In practice the impact of this should be minor, and will be amortized across all requests.
+The proof path is also limited to the portion of the tree that existed at the time of the
+requested tree, not the version we use to compute it.
+
+An example may help here. Suppose we want an inclusion proof for index 10 from the tree as it was
+at size 50. We use the latest tree revision, which corresponds to a size of 250,000,000. The
+path calculation cannot reference or recompute an internal node that did not exist at tree
+size 50 so the huge current tree size is irrelevant to serving this proof.
+
+The tree path for the proof is calculated for a tree size using an algorithm based on the
 reference implementation of RFC 6962. The output of this is an ordered slice of `NodeIDs` that must 
-be fetched from storage. After a successful read the hashes are extracted from the nodes and
-returned to the client.
+be fetched from storage and a set of flags indicating required hash recomputations. After a 
+successful read the hashes are extracted from the nodes, rehashed if necessary and returned to
+the client.
 
-Updates to the tree can be batched so not every version exists in storage. To serve proofs
-at a version intermediate between two stored versions it can be necessary to recompute hashes
-on the rightmost path. This requires extra nodes to be fetched but is bounded by the depth of
-the tree so this never becomes unmanageable.
+Recomputation is needed because we don't necessarily store snapshots on disk for every tree size. 
+To serve proofs at a version intermediate between two stored versions it can be necessary to
+recompute hashes on the rightmost path. This requires extra nodes to be fetched but is bounded
+by the depth of the tree so this never becomes unmanageable.
 
 Nodes may have been overwritten in the second snapshot when a right hand sibling was added
 as a child. For an example of how this affects Merkle paths for proofs consider the state of the
