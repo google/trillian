@@ -11,6 +11,7 @@ Trillian: General Transparency
      - [Integration Tests](#integration-tests)
  - [Working on the Code](#working-on-the-code)
      - [Rebuilding Generated Code](#rebuilding-generated-code)
+     - [Updating Vendor Code](#updating-vendor-code)
      - [Running Codebase Checks](#running-codebase-checks)
  - [Design](#design)
      - [Design Overview](#design-overview)
@@ -156,6 +157,35 @@ and run the following:
 
 ```bash
 go generate -x ./...  # hunts for //go:generate comments and runs them
+```
+
+### Updating Vendor Code
+
+The Trillian codebase includes a couple of external projects under the `vendor/`
+subdirectory, to ensure that builds use a fixed version (typically because the
+upstream repository does not guarantee back-compatibility between the tip
+`master` branch and the current stable release).  These external codebases are
+included as Git
+[subtrees](https://github.com/git/git/blob/master/contrib/subtree/git-subtree.txt).
+
+To update the code in one of these subtrees, perform steps like:
+
+```bash
+# Add master repo for upstream code as a Git remote.
+git remote add vendor-xyzzy https://github.com/orgname/xyzzy
+# Pull the updated code for the desired version tag from the remote, dropping history.
+# Trailing / in prefix is needed.
+git subtree pull --squash --prefix=vendor/github.com/orgname/xyzzy/ vendor-xyzzy vX.Y.Z
+```
+
+If new `vendor/` subtree is required, perform steps similar to:
+
+```bash
+# Add master repo for upstream code as a Git remote.
+git remote add vendor-xyzzy https://github.com/orgname/xyzzy
+# Pull the desired version of the code in, dropping history.
+# Trailing / in --prefix is needed.
+git subtree add --squash --prefix=vendor/github.com/orgname/xyzzy/ vendor-xyzzy vX.Y.Z
 ```
 
 ### Running Codebase Checks
