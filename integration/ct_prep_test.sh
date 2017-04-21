@@ -55,7 +55,7 @@ for ((i=0; i < RPC_SERVER_COUNT; i++)); do
   RPC_SERVERS="${RPC_SERVERS},localhost:${port}"
 
   echo "Starting Log RPC server on port ${port}"
-  ./trillian_log_server --port ${port} --http_port=-1 &
+  ./trillian_log_server --rpc_endpoint="localhost:${port}" --http_endpoint='' &
   pid=$!
   RPC_SERVER_PIDS+=(${pid})
   waitForServerStartup ${port}
@@ -86,7 +86,7 @@ pushd "${TRILLIAN_ROOT}" > /dev/null
 declare -a LOG_SIGNER_PIDS
 for ((i=0; i < LOG_SIGNER_COUNT; i++)); do
   echo "Starting Log signer"
-  ./trillian_log_signer "${SIGNER_ELECTION_OPTS}" --sequencer_interval="1s" --batch_size=500 --export_metrics=false --num_sequencers 2 &
+  ./trillian_log_signer "${SIGNER_ELECTION_OPTS}" --sequencer_interval="1s" --batch_size=500 --http_endpoint='' --num_sequencers 2 &
   pid=$!
   LOG_SIGNER_PIDS+=(${pid})
 done
