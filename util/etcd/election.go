@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package etcd holds an etcd-specific implementation of the
+// util.MasterElection interface.
 package etcd
 
 import (
