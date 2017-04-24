@@ -295,14 +295,6 @@ func TestTree32ConsistencyProofFetchAll(t *testing.T) {
 	}
 }
 
-func mustMarshalNodeID(nodeID storage.NodeID) []byte {
-	idBytes, err := proto.Marshal(nodeID.AsProto())
-	if err != nil {
-		panic(err)
-	}
-	return idBytes
-}
-
 func expandLeaves(n, m int) []string {
 	leaves := make([]string, 0, m-n+1)
 	for l := n; l <= m; l++ {

@@ -122,7 +122,7 @@ func (v LogVerifier) VerifyConsistencyProof(snapshot1, snapshot2 int64, root1, r
 			}
 		}
 		if len(proof) > 0 {
-			return fmt.Errorf("root1 and root2 match, but proof is non-empty")
+			return errors.New("root1 and root2 match, but proof is non-empty")
 		}
 		// proof ok.
 		return nil

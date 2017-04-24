@@ -20,6 +20,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/asn1"
+	"errors"
 	"fmt"
 	"math/big"
 	"testing"
@@ -70,7 +71,7 @@ func verifyECDSA(key *ecdsa.PublicKey, digest []byte, signature []byte) error {
 	}
 
 	if !ecdsa.Verify(key, digest, s.R, s.S) {
-		return fmt.Errorf("signature failed verification")
+		return errors.New("signature failed verification")
 	}
 
 	return nil

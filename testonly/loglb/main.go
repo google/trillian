@@ -15,6 +15,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"math/rand"
@@ -30,7 +31,6 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/util"
-
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
@@ -51,7 +51,7 @@ type randomLoadBalancer []backendConn
 func newRandomLoadBalancer(serverCfg string) (*randomLoadBalancer, error) {
 	servers := strings.Split(serverCfg, ",")
 	if len(servers) == 0 || (len(servers) == 1 && servers[0] == "") {
-		return nil, fmt.Errorf("no backends specified")
+		return nil, errors.New("no backends specified")
 	}
 	lb := randomLoadBalancer(make([]backendConn, len(servers)))
 	for i, s := range servers {
