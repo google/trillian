@@ -18,7 +18,6 @@ import (
 	"errors"
 	"net"
 	"testing"
-
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/trillian"
