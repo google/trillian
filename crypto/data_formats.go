@@ -20,22 +20,24 @@ import (
 
 	"github.com/benlaurie/objecthash/go/objecthash"
 	"github.com/google/trillian"
-)
+       )
 
 // This file contains struct specific mappings and data structures.
 // TODO(gdbelvin): remove data-structure specific operations.
 
 // Constants used as map keys when building input for ObjectHash. They must not be changed
 // as this will change the output of hashRoot()
+
 const (
 	mapKeyRootHash       string = "RootHash"
 	mapKeyTimestampNanos string = "TimestampNanos"
 	mapKeyTreeSize       string = "TreeSize"
-)
+       )
 
 // HashLogRoot hashes SignedLogRoot objects using ObjectHash with
 // "RootHash", "TimestampNanos", and "TreeSize", used as keys in
 // a map.
+
 func HashLogRoot(root trillian.SignedLogRoot) []byte {
 	// Pull out the fields we want to hash.
 	// Caution: use string format for int64 values as they can overflow when
