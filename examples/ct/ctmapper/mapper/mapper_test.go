@@ -15,12 +15,12 @@
 package main
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/google/certificate-transparency/go/x509"
 	"github.com/google/certificate-transparency/go/x509/pkix"
 	"github.com/google/trillian/examples/ct/ctmapper/ctmapperpb"
+	"github.com/kylelemons/godebug/pretty"
 )
 
 func TestUpdateDomainMap(t *testing.T) {
@@ -61,7 +61,7 @@ func TestUpdateDomainMap(t *testing.T) {
 		updateDomainMap(m, c, v.index, v.precert)
 	}
 
-	if !reflect.DeepEqual(m, expected) {
-		t.Fatalf("Built incorrect map:\n%#v\nexpected:\n%#v", m, expected)
+	if diff := pretty.Compare(m, expected); diff != "" {
+		t.Fatalf("Built incorrect map, diff:\n%v", diff)
 	}
 }

@@ -20,7 +20,6 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"fmt"
-	"reflect"
 	"sort"
 	"testing"
 	"time"
@@ -30,6 +29,7 @@ import (
 	"github.com/google/trillian"
 	spb "github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/storage"
+	"github.com/kylelemons/godebug/pretty"
 )
 
 var allTables = []string{"Unsequenced", "TreeHead", "SequencedLeafData", "LeafData", "Subtree", "TreeControl", "Trees", "MapLeaf", "MapHead"}
@@ -686,8 +686,9 @@ func TestGetLeafDataByIdentityHash(t *testing.T) {
 				return
 			}
 			for i, want := range test.want {
-				if !reflect.DeepEqual(leaves[i], want) {
-					t.Errorf("getLeavesByIdentityHash(_)[%d] = %+v; want %+v", i, leaves[i], want)
+				if !proto.Equal(leaves[i], want) {
+					diff := pretty.Compare(leaves[i], want)
+					t.Errorf("getLeavesByIdentityHash(_)[%d] diff:\n%v", i, diff)
 				}
 			}
 		}()
@@ -872,8 +873,9 @@ func runTestGetActiveLogIDsInternal(t *testing.T, test getActiveIDsTest, logID i
 		t.Errorf("%v: got %d IDs, want = %v", test.name, got, want)
 		return
 	}
-	if got, want := toIDsMap(logIDs), toIDsMap(wantIds); !reflect.DeepEqual(got, want) {
-		t.Errorf("%v = (%v, _), want = (%v, _)", test.name, got, want)
+	got, want := toIDsMap(logIDs), toIDsMap(wantIds)
+	if diff := pretty.Compare(got, want); diff != "" {
+		t.Errorf("%v: post-Get diff:\n%v", test.name, diff)
 	}
 }
 

@@ -15,7 +15,6 @@
 package ct
 
 import (
-	"reflect"
 	"testing"
 	"time"
 
@@ -24,6 +23,7 @@ import (
 	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/testonly"
+	"github.com/kylelemons/godebug/pretty"
 )
 
 var (
@@ -74,8 +74,8 @@ func TestSerializeLogEntry(t *testing.T) {
 			t.Error("trailing data after serialized log entry")
 		}
 
-		if !reflect.DeepEqual(logEntry, logEntry2) {
-			t.Fatalf("log entry mismatch after serialization roundtrip, %v != %v", logEntry, logEntry2)
+		if diff := pretty.Compare(logEntry, logEntry2); diff != "" {
+			t.Fatalf("log entry mismatch after serialization roundtrip, diff:\n%v", diff)
 		}
 	}
 }

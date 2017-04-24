@@ -26,7 +26,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -43,6 +42,7 @@ import (
 	"github.com/google/trillian/mockclient"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/util"
+	"github.com/kylelemons/godebug/pretty"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -982,8 +982,8 @@ func TestGetProofByHash(t *testing.T) {
 			t.Errorf("Failed to unmarshal json response %s: %v", w.Body.Bytes(), err)
 			continue
 		}
-		if !reflect.DeepEqual(resp, inclusionProof) {
-			t.Errorf("proofByHash(%q)=%+v; want %+v", test.req, resp, inclusionProof)
+		if diff := pretty.Compare(resp, inclusionProof); diff != "" {
+			t.Errorf("proofByHash(%q) diff:\n%v", test.req, diff)
 		}
 	}
 }
@@ -1113,8 +1113,8 @@ func TestGetSTHConsistency(t *testing.T) {
 			t.Errorf("Failed to unmarshal json response %s: %v", w.Body.Bytes(), err)
 			continue
 		}
-		if !reflect.DeepEqual(resp, consistencyProof) {
-			t.Errorf("getSTHConsistency(%q)=%+v; want %+v", test.req, resp, consistencyProof)
+		if diff := pretty.Compare(resp, consistencyProof); diff != "" {
+			t.Errorf("getSTHConsistency(%q) diff:\n%v", test.req, diff)
 		}
 	}
 }
@@ -1257,8 +1257,8 @@ func TestGetEntryAndProof(t *testing.T) {
 			ExtraData: []byte("extra"),
 			AuditPath: [][]byte{[]byte("abcdef"), []byte("ghijkl"), []byte("mnopqr")},
 		}
-		if !reflect.DeepEqual(resp, wantRsp) {
-			t.Errorf("getEntryAndProof(%q)=%+v; want %+v", test.req, resp, wantRsp)
+		if diff := pretty.Compare(resp, wantRsp); diff != "" {
+			t.Errorf("getEntryAndProof(%q) diff:\n%v", test.req, diff)
 		}
 	}
 }

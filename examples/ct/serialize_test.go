@@ -17,7 +17,6 @@ package ct
 import (
 	"bytes"
 	"crypto/sha256"
-	"reflect"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -26,6 +25,7 @@ import (
 	"github.com/google/certificate-transparency/go/tls"
 	"github.com/google/certificate-transparency/go/x509"
 	"github.com/google/trillian/examples/ct/testonly"
+	"github.com/kylelemons/godebug/pretty"
 )
 
 func TestBuildV1MerkleTreeLeafForCert(t *testing.T) {
@@ -64,8 +64,8 @@ func TestBuildV1MerkleTreeLeafForCert(t *testing.T) {
 		},
 	}
 
-	if !reflect.DeepEqual(*got, expected) {
-		t.Fatalf("Mismatched SCT (cert), got \n%v, expected \n%v", got, expected)
+	if diff := pretty.Compare(*got, expected); diff != "" {
+		t.Fatalf("Mismatched SCT (cert), diff:\n%v", diff)
 	}
 
 	// Additional checks that the MerkleTreeLeaf we built is correct
@@ -81,7 +81,7 @@ func TestBuildV1MerkleTreeLeafForCert(t *testing.T) {
 	if got, want := leaf.TimestampedEntry.Timestamp, got.Timestamp; got != want {
 		t.Fatalf("Entry / sct timestamp mismatch; got %v, expected %v", got, want)
 	}
-	if got, want := leaf.TimestampedEntry.X509Entry.Data, cert.Raw; !reflect.DeepEqual(got, want) {
+	if got, want := leaf.TimestampedEntry.X509Entry.Data, cert.Raw; !bytes.Equal(got, want) {
 		t.Fatalf("Cert bytes mismatch, got %x, expected %x", got, want)
 	}
 }
@@ -123,8 +123,8 @@ func TestSignV1SCTForPrecertificate(t *testing.T) {
 				Signature: tls.ECDSA},
 			Signature: fakeSignature}}
 
-	if !reflect.DeepEqual(*got, expected) {
-		t.Fatalf("Mismatched SCT (precert), got \n%v, expected \n%v", got, expected)
+	if diff := pretty.Compare(*got, expected); diff != "" {
+		t.Fatalf("Mismatched SCT (precert), diff:\n%v", diff)
 	}
 
 	// Additional checks that the MerkleTreeLeaf we built is correct
