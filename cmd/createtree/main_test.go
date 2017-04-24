@@ -158,9 +158,9 @@ func TestRun(t *testing.T) {
 		switch hasErr := err != nil; {
 		case hasErr != test.wantErr:
 			t.Errorf("%v: createTree() returned err = '%v', wantErr = %v", test.desc, err, test.wantErr)
-			return
+			continue
 		case hasErr:
-			return
+			continue
 		}
 
 		if diff := pretty.Compare(tree, test.wantTree); diff != "" {
