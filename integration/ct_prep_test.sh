@@ -54,7 +54,7 @@ for ((i=0; i < RPC_SERVER_COUNT; i++)); do
   RPC_PORTS="${RPC_PORTS} ${port}"
   RPC_SERVERS="${RPC_SERVERS},localhost:${port}"
 
-  echo "Starting Log RPC server on port ${port}"
+  echo "Starting Log RPC server on localhost:${port}"
   ./trillian_log_server --rpc_endpoint="localhost:${port}" --http_endpoint='' &
   pid=$!
   RPC_SERVER_PIDS+=(${pid})
@@ -99,7 +99,7 @@ for ((i=0; i < HTTP_SERVER_COUNT; i++)); do
   CT_PORTS="${CT_PORTS} ${port}"
   CT_SERVERS="${CT_SERVERS},localhost:${port}"
 
-  echo "Starting CT HTTP server on port ${port}"
+  echo "Starting CT HTTP server on localhost:${port}"
   ./ct_server --log_config=${CT_CFG} --log_rpc_server="localhost:${LB_PORT}" --port=${port} &
   pid=$!
   HTTP_SERVER_PIDS+=(${pid})

@@ -12,7 +12,7 @@ yes | "${SCRIPTS_DIR}"/resetdb.sh
 
 RPC_PORT=$(pickUnusedPort)
 
-echo "Starting Log RPC server on port ${RPC_PORT}"
+echo "Starting Log RPC server on localhost:${RPC_PORT}"
 pushd "${TRILLIAN_ROOT}" > /dev/null
 ./trillian_log_server --rpc_endpoint="localhost:${RPC_PORT}" --http_endpoint='' &
 RPC_SERVER_PID=$!
