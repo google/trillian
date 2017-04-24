@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -172,6 +172,7 @@ func TestRun(t *testing.T) {
 // fakeAdminServer that implements CreateTree. If err is nil, the CreateTree
 // input is echoed as the output, otherwise err is returned instead.
 // The remaining methods are not implemented.
+
 type fakeAdminServer struct {
 	err error
 }
@@ -180,6 +181,7 @@ type fakeAdminServer struct {
 // Returns the started server, the listener it's using for connection and a
 // close function that must be defer-called on the scope the server is meant to
 // stop.
+
 func startFakeServer() (*fakeAdminServer, net.Listener, func(), error) {
 	grpcServer := grpc.NewServer()
 	fakeServer := &fakeAdminServer{}
