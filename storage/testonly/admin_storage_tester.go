@@ -376,7 +376,9 @@ func getTree(ctx context.Context, s storage.AdminStorage, treeID int64) (*trilli
 // TestListTrees tests both ListTreeIDs and ListTrees.
 func (tester *AdminStorageTester) TestListTrees(t *testing.T) {
 	tests := []struct {
-		desc     string
+		desc string
+		// newTrees is the number of trees created before each test. The total of trees is
+		// cumulative between tests.
 		newTrees int
 	}{
 		{desc: "zero", newTrees: 0},
