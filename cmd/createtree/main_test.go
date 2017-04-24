@@ -26,7 +26,7 @@ import (
 	"github.com/kylelemons/godebug/pretty"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-)
+        )
 
 func TestRun(t *testing.T) {
 	pemKey := &trillian.PEMKeyFile{
@@ -172,6 +172,7 @@ func TestRun(t *testing.T) {
 // fakeAdminServer that implements CreateTree. If err is nil, the CreateTree
 // input is echoed as the output, otherwise err is returned instead.
 // The remaining methods are not implemented.
+
 type fakeAdminServer struct {
 	err error
 }
