@@ -157,7 +157,8 @@ func TestRun(t *testing.T) {
 		tree, err := createTree(ctx, test.opts)
 		switch hasErr := err != nil; {
 		case hasErr != test.wantErr:
-			t.Fatalf("%v: createTree() returned err = '%v', wantErr = %v", test.desc, err, test.wantErr)
+			t.Errorf("%v: createTree() returned err = '%v', wantErr = %v", test.desc, err, test.wantErr)
+			continue
 		case hasErr:
 			continue
 		}
