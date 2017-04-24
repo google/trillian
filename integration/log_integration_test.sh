@@ -12,9 +12,9 @@ yes | "${SCRIPTS_DIR}"/resetdb.sh
 
 RPC_PORT=$(pickUnusedPort)
 
-echo "Starting Log RPC server on port ${RPC_PORT}"
+echo "Starting Log RPC server on localhost:${RPC_PORT}"
 pushd "${TRILLIAN_ROOT}" > /dev/null
-./trillian_log_server --port ${RPC_PORT} &
+./trillian_log_server --rpc_endpoint="localhost:${RPC_PORT}" --http_endpoint='' &
 RPC_SERVER_PID=$!
 popd > /dev/null
 waitForServerStartup ${RPC_PORT}
@@ -32,7 +32,7 @@ waitForServerStartup ${RPC_PORT}
 
 echo "Starting Log signer"
 pushd "${TRILLIAN_ROOT}" > /dev/null
-./trillian_log_signer --sequencer_interval="1s" --batch_size=100 --export_metrics=false --force_master &
+./trillian_log_signer --sequencer_interval="1s" --batch_size=100 --http_endpoint='' --force_master &
 LOG_SIGNER_PID=$!
 TO_KILL+=(${LOG_SIGNER_PID})
 popd > /dev/null

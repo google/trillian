@@ -17,8 +17,6 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
-
 	_ "net/http/pprof"
 
 	_ "github.com/go-sql-driver/mysql" // Load MySQL driver
@@ -36,9 +34,9 @@ import (
 )
 
 var (
-	mySQLURI       = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "Connection URI for MySQL database")
-	serverPortFlag = flag.Int("port", 8090, "Port to serve log RPC requests on")
-	httpPortFlag   = flag.Int("http_port", 8091, "Port to serve HTTP metrics and REST requests on (negative means disabled)")
+	mySQLURI     = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "Connection URI for MySQL database")
+	rpcEndpoint  = flag.String("rpc_endpoint", "localhost:8090", "Endpoint for RPC requests (host:port)")
+	httpEndpoint = flag.String("http_endpoint", "localhost:8091", "Endpoint for HTTP metrics and REST requests on (host:port, empty means disabled)")
 )
 
 func main() {
@@ -60,14 +58,9 @@ func main() {
 	s := grpc.NewServer(grpc.UnaryInterceptor(interceptor.WrapErrors(ti.UnaryInterceptor)))
 	// No defer: server ownership is delegated to server.Main
 
-	httpEndpoint := ""
-	if *httpPortFlag >= 0 {
-		httpEndpoint = fmt.Sprintf("localhost:%v", *httpPortFlag)
-	}
-
 	m := server.Main{
-		RPCEndpoint:  fmt.Sprintf("localhost:%v", *serverPortFlag),
-		HTTPEndpoint: httpEndpoint,
+		RPCEndpoint:  *rpcEndpoint,
+		HTTPEndpoint: *httpEndpoint,
 		DB:           db,
 		Registry:     registry,
 		Server:       s,

@@ -11,9 +11,9 @@ yes | "${SCRIPTS_DIR}"/resetdb.sh
 
 RPC_PORT=$(pickUnusedPort)
 
-echo "Starting Map RPC server on port ${RPC_PORT}"
+echo "Starting Map RPC server on localhost:${RPC_PORT}"
 pushd "${TRILLIAN_ROOT}" > /dev/null
-./trillian_map_server --port ${RPC_PORT} &
+./trillian_map_server --rpc_endpoint="localhost:${RPC_PORT}" http_endpoint='' &
 RPC_SERVER_PID=$!
 popd > /dev/null
 waitForServerStartup ${RPC_PORT}

@@ -35,8 +35,7 @@ import (
 
 var (
 	mySQLURI                 = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "Connection URI for MySQL database")
-	exportRPCMetrics         = flag.Bool("export_metrics", true, "If true starts HTTP server and exports stats")
-	httpPortFlag             = flag.Int("http_port", 8091, "Port to serve HTTP metrics on")
+	httpEndpoint             = flag.String("http_endpoint", "localhost:8091", "Endpoint for HTTP (host:port, empty means disabled)")
 	sequencerIntervalFlag    = flag.Duration("sequencer_interval", time.Second*10, "Time between each sequencing pass through all logs")
 	batchSizeFlag            = flag.Int("batch_size", 50, "Max number of leaves to process per batch")
 	numSeqFlag               = flag.Int("num_sequencers", 10, "Number of sequencer workers to run in parallel")
@@ -91,10 +90,10 @@ func main() {
 	}
 
 	// Start HTTP server (optional)
-	if *exportRPCMetrics {
-		glog.Infof("Creating HTTP server starting on port: %d", *httpPortFlag)
-		if err := util.StartHTTPServer(*httpPortFlag); err != nil {
-			glog.Exitf("Failed to start HTTP server on port %d: %v", *httpPortFlag, err)
+	if *httpEndpoint != "" {
+		glog.Infof("Creating HTTP server starting on %v", *httpEndpoint)
+		if err := util.StartHTTPServer(*httpEndpoint); err != nil {
+			glog.Exitf("Failed to start HTTP server on %v: %v", *httpEndpoint, err)
 		}
 	}
 

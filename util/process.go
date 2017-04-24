@@ -15,7 +15,6 @@
 package util
 
 import (
-	"fmt"
 	"net"
 	"net/http"
 	"os"
@@ -25,9 +24,9 @@ import (
 	"github.com/golang/glog"
 )
 
-// StartHTTPServer starts an HTTP server on the given port.
-func StartHTTPServer(port int) error {
-	sock, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
+// StartHTTPServer starts an HTTP server on the given address.
+func StartHTTPServer(addr string) error {
+	sock, err := net.Listen("tcp", addr)
 	if err != nil {
 		return err
 	}
