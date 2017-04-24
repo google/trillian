@@ -138,11 +138,6 @@ func TestRun(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			desc:    "emptyPEMPass",
-			opts:    &emptyPEMPass,
-			wantErr: true,
-		},
-		{
 			desc:      "createErr",
 			opts:      validOpts,
 			createErr: errors.New("create tree failed"),
