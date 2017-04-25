@@ -33,6 +33,7 @@ main() {
 
   local fix=0
   local run_build=1
+  local run_linters=1
   local run_generate=1
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -45,6 +46,9 @@ main() {
         ;;
       --no-build)
         run_build=0
+        ;;
+      --no-linters)
+        run_linters=0
         ;;
       --no-generate)
         run_generate=0
@@ -79,24 +83,26 @@ main() {
     goimports -w ${go_srcs}
   fi
 
-  echo 'running golint'
-  printf '%s\n' ${go_srcs} | xargs -I'{}' golint --set_exit_status '{}'
+  if [[ "${run_linters}" -eq 1 ]]; then
+    echo 'running golint'
+    printf '%s\n' ${go_srcs} | xargs -I'{}' golint --set_exit_status '{}'
 
-  echo 'running go vet'
-  printf '%s\n' ${go_srcs} | xargs -I'{}' go vet '{}'
+    echo 'running go vet'
+    printf '%s\n' ${go_srcs} | xargs -I'{}' go vet '{}'
 
-  echo 'running gocyclo'
-  # Do not fail on gocyclo tests, hence the "|| true".
-  printf '%s\n' ${go_srcs} | xargs -I'{}' bash -c 'gocyclo -over 25 {} || true'
+    echo 'running gocyclo'
+    # Do not fail on gocyclo tests, hence the "|| true".
+    printf '%s\n' ${go_srcs} | xargs -I'{}' bash -c 'gocyclo -over 25 {} || true'
 
-  echo 'running misspell'
-  printf '%s\n' ${go_srcs} | xargs -I'{}' misspell -error -i cancelled,CANCELLED -locale US '{}'
+    echo 'running misspell'
+    printf '%s\n' ${go_srcs} | xargs -I'{}' misspell -error -i cancelled,CANCELLED -locale US '{}'
 
-  echo 'checking license header'
-  local nolicense="$(grep -L 'Apache License' ${go_srcs} ${proto_srcs})"
-  if [[ "${nolicense}" ]]; then
-    echo "Missing license header in: ${nolicense}"
-    exit 2
+    echo 'checking license header'
+    local nolicense="$(grep -L 'Apache License' ${go_srcs} ${proto_srcs})"
+    if [[ "${nolicense}" ]]; then
+      echo "Missing license header in: ${nolicense}"
+      exit 2
+    fi
   fi
 
   local go_dirs="$(go list ./... | \
