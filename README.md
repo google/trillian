@@ -64,15 +64,18 @@ To build and run the Trillian code you need:
  - [MySQL](https://www.mysql.com/) or [MariaDB](https://mariadb.org/) to provide
    the data storage layer; see the [MySQL Setup](#mysql-setup) section.
 
-Then use the standard Go tools to install other dependencies, build and run unit
-tests:
+Then use the standard Go tools to install other dependencies.
 
 ```bash
 go get github.com/google/trillian
 cd $GOPATH/src/github.com/google/trillian
 go get -t -u -v ./...
-go build ./...
-go test ./...
+```
+
+To build and run tests, use:
+
+```bash
+./scripts/presubmit.sh --no-generate --no-linters
 ```
 
 The repository also includes multi-process integration tests, described in the
