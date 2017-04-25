@@ -38,8 +38,11 @@ type SignerFactory interface {
 }
 
 // NewFromPrivatePEMFile reads a PEM-encoded private key from a file.
-// The key may be protected by a password.
+// The key must be protected by a password.
 func NewFromPrivatePEMFile(keyFile, keyPassword string) (crypto.Signer, error) {
+	if keyPassword == "" {
+		return nil, fmt.Errorf("empty password for PEM key file %q", keyFile)
+	}
 	pemData, err := ioutil.ReadFile(keyFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read private key from file %q: %v", keyFile, err)

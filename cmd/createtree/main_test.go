@@ -83,9 +83,6 @@ func TestRun(t *testing.T) {
 	emptyPEMPath := *validOpts
 	emptyPEMPath.pemKeyPath = ""
 
-	invalidPEMPath := *validOpts
-	invalidPEMPath.pemKeyPath = "/not/a/file"
-
 	emptyPEMPass := *validOpts
 	emptyPEMPass.pemKeyPass = ""
 
@@ -130,11 +127,6 @@ func TestRun(t *testing.T) {
 		{
 			desc:    "emptyPEMPath",
 			opts:    &emptyPEMPath,
-			wantErr: true,
-		},
-		{
-			desc:    "invalidPEMPath",
-			opts:    &invalidPEMPath,
 			wantErr: true,
 		},
 		{
