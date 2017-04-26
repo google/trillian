@@ -131,6 +131,10 @@ message Tree {
   // mutable. It should be mutable in the sense that the key can be migrated to
   // a different key management system, but the key itself should never change.
   google.protobuf.Any private_key = 12;
+
+  // Storage-specific settings.
+  // Varies according to the storage implementation backing Trillian.
+  google.protobuf.Any storage_settings = 13;
 }
 
 message SignedEntryTimestamp {
