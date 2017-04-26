@@ -103,9 +103,6 @@ spec:
             - name: mysql-db
               mountPath: /var/lib/mysql
           env:
-            - name: WSREP_CLUSTER_ADDRESS
-              # Connect to first replica to join cluster, as this is guaranteed to exist.
-              value: gcomm://galera-0.galera
             - name: WSREP_SST_USER
               valueFrom:
                 secretKeyRef:

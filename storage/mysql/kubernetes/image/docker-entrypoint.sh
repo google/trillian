@@ -121,10 +121,23 @@ if [ -n "$WSREP_NODE_ADDRESS" ]; then
   sed -i -e "s|^wsrep_node_address=.*$|wsrep_node_address=${WSREP_NODE_ADDRESS}|" /etc/mysql/conf.d/cluster.cnf
 fi
 
-# All but the first replica should be given the address of the first replca in
-# order to join the cluster. The first replica will boostrap the cluster.
-if [[ "$(hostname)" != *-0 ]]; then
-  sed -i -e "s|^wsrep_cluster_address=gcomm://|wsrep_cluster_address=${WSREP_CLUSTER_ADDRESS}|" /etc/mysql/conf.d/cluster.cnf
+# Set wsrep_cluster_address so that this node connects to all nodes that are
+# already setup (the Kubernetes StatefulSet attempts to start the nodes in
+# order). If this is the first node, it will bootstrap the cluster.
+if [[ "$(hostname)" =~ ^(.*)-([0-9]+)$ ]]; then
+  statefulset_name="${BASH_REMATCH[1]}"
+  replica_index=${BASH_REMATCH[2]}
+  domain="galera"
+  cluster_address="gcomm://"
+
+  for ((i=0; i < $replica_index; i++)); do
+    cluster_address+="${statefulset_name}-${i}.${domain},"
+  done
+
+  sed -i -e "s|^wsrep_cluster_address=gcomm://|wsrep_cluster_address=${cluster_address}|" /etc/mysql/conf.d/cluster.cnf
+else
+  echo >&2 'error: expected hostname to be of the form "foo-N"'
+  exit 1
 fi
 
 # Provide a random server ID for this replica.
