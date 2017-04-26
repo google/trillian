@@ -1,3 +1,5 @@
+:exclamation: **EXPERIMENTAL** :exclamation:
+
 # Usage #
 
 To run a Galera MySQL cluster on Google Cloud, install the
