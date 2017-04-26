@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-tag="us.gcr.io/trillian-test/galera"
+tag="us.gcr.io/trillian-test/galera:experimental"
 
 usage=$(cat <<EOF
 Usage: $(basename $0) [-t tag]

@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # Use this to test the image locally, by running:
-# docker run --envfile="env.sh" "us.gcr.io/trillian-test/galera:latest"
+# docker run --envfile="env.sh" "us.gcr.io/trillian-test/galera:experimental"
 
 WSREP_SST_USER=sst
 WSREP_SST_PASSWORD=sst
