@@ -73,9 +73,9 @@ type HammerConfig struct {
 	EPBias HammerBias
 	// Number of operations to perform.
 	Operations uint64
-	// MaxParallelAdds sets the upper limit for the number of parallel
+	// MaxParallelChains sets the upper limit for the number of parallel
 	// add-*-chain requests to make when the biasing model says to perfom an add.
-	MaxParallelAdds int
+	MaxParallelChains int
 }
 
 // HammerBias indicates the bias for selecting different log operations.
@@ -119,14 +119,24 @@ type pendingCerts struct {
 	certs [sctCount]*submittedCert
 }
 
+// tryAppendCert locks mu, checks whether it's possible to append the cert, and
+// appends it if so.
 func (pc *pendingCerts) tryAppendCert(now time.Time, mmd time.Duration, submitted *submittedCert) {
 	pc.mu.Lock()
 	defer pc.mu.Unlock()
 	if pc.canAppend(now, mmd) {
-		pc.appendCert(submitted)
+		which := 0
+		for ; which < sctCount; which++ {
+			if pc.certs[which] == nil {
+				break
+			}
+		}
+		pc.certs[which] = submitted
 	}
 }
 
+// canAppend checks whether a pending cert can be appended.
+// It must be called with mu locked.
 func (pc *pendingCerts) canAppend(now time.Time, mmd time.Duration) bool {
 	if pc.certs[sctCount-1] != nil {
 		return false // full already
@@ -146,19 +156,9 @@ func (pc *pendingCerts) canAppend(now time.Time, mmd time.Duration) bool {
 	return now.After(nextTime)
 }
 
-func (pc *pendingCerts) appendCert(submitted *submittedCert) {
-	// Require caller to have checked canAppend().
-	which := 0
-	for ; which < sctCount; which++ {
-		if pc.certs[which] == nil {
-			break
-		}
-	}
-	pc.certs[which] = submitted
-}
-
 // popIfMMDPassed returns the oldest submitted certificate (and removes it) if the
 // maximum merge delay has passed, i.e. it is expected to be integrated as of now.
+// This function locks mu.
 func (pc *pendingCerts) popIfMMDPassed(now time.Time) *submittedCert {
 	pc.mu.Lock()
 	defer pc.mu.Unlock()
@@ -222,13 +222,13 @@ func newHammerState(cfg *HammerConfig) (*hammerState, error) {
 }
 
 // addMultiple calls the passed in function a random number
-// (1 <= n < MaxParallelAdds) of times.
+// (1 <= n < MaxParallelChains) of times.
 // The first of any errors returned by calls to addOne will be returned by this function.
 func (s *hammerState) addMultiple(ctx context.Context, addOne func(context.Context) error) error {
 	var wg sync.WaitGroup
-	numAdds := rand.Intn(s.cfg.MaxParallelAdds) + 1
+	numAdds := rand.Intn(s.cfg.MaxParallelChains) + 1
 	errs := make(chan error, numAdds)
-	for i := 0; i < rand.Intn(s.cfg.MaxParallelAdds)+1; i++ {
+	for i := 0; i < numAdds; i++ {
 		wg.Add(1)
 		go func() {
 			if err := addOne(ctx); err != nil {
@@ -289,31 +289,29 @@ func (s *hammerState) addPreChain(ctx context.Context) error {
 		return fmt.Errorf("failed to add-pre-chain: %v", err)
 	}
 	glog.V(2).Infof("%s: Uploaded pre-cert, got SCT(time=%q)", s.cfg.LogCfg.Prefix, timeFromMS(sct.Timestamp))
-	if s.pending.canAppend(time.Now(), s.cfg.MMD) {
-		// Calculate leaf hash =  SHA256(0x00 | tls-encode(MerkleTreeLeaf))
-		submitted := submittedCert{precert: true, sct: sct}
-		leaf := ct.MerkleTreeLeaf{
-			Version:  ct.V1,
-			LeafType: ct.TimestampedEntryLeafType,
-			TimestampedEntry: &ct.TimestampedEntry{
-				Timestamp: sct.Timestamp,
-				EntryType: ct.PrecertLogEntryType,
-				PrecertEntry: &ct.PreCert{
-					IssuerKeyHash:  sha256.Sum256(s.cfg.CACert.RawSubjectPublicKeyInfo),
-					TBSCertificate: tbs,
-				},
-				Extensions: sct.Extensions,
+	// Calculate leaf hash =  SHA256(0x00 | tls-encode(MerkleTreeLeaf))
+	submitted := submittedCert{precert: true, sct: sct}
+	leaf := ct.MerkleTreeLeaf{
+		Version:  ct.V1,
+		LeafType: ct.TimestampedEntryLeafType,
+		TimestampedEntry: &ct.TimestampedEntry{
+			Timestamp: sct.Timestamp,
+			EntryType: ct.PrecertLogEntryType,
+			PrecertEntry: &ct.PreCert{
+				IssuerKeyHash:  sha256.Sum256(s.cfg.CACert.RawSubjectPublicKeyInfo),
+				TBSCertificate: tbs,
 			},
-		}
-		submitted.integrateBy = timeFromMS(sct.Timestamp).Add(s.cfg.MMD)
-		submitted.leafData, err = tls.Marshal(leaf)
-		if err != nil {
-			return fmt.Errorf("tls.Marshal(precertLeaf)=(nil,%v); want (_,nil)", err)
-		}
-		submitted.leafHash = sha256.Sum256(append([]byte{merkletree.LeafPrefix}, submitted.leafData...))
-		s.pending.appendCert(&submitted)
-		glog.V(3).Infof("%s: Uploaded pre-cert has leaf-hash %x", s.cfg.LogCfg.Prefix, submitted.leafHash)
+			Extensions: sct.Extensions,
+		},
 	}
+	submitted.integrateBy = timeFromMS(sct.Timestamp).Add(s.cfg.MMD)
+	submitted.leafData, err = tls.Marshal(leaf)
+	if err != nil {
+		return fmt.Errorf("tls.Marshal(precertLeaf)=(nil,%v); want (_,nil)", err)
+	}
+	submitted.leafHash = sha256.Sum256(append([]byte{merkletree.LeafPrefix}, submitted.leafData...))
+	s.pending.tryAppendCert(time.Now(), s.cfg.MMD, &submitted)
+	glog.V(3).Infof("%s: Uploaded pre-cert has leaf-hash %x", s.cfg.LogCfg.Prefix, submitted.leafHash)
 	return nil
 }
 
