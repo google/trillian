@@ -43,5 +43,5 @@ while getopts "ht:" opt; do
 done
 
 gcloud docker -- build -t "$tag" .
-gcloud docker -- push $tag"
+gcloud docker -- push "$tag"
 

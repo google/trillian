@@ -47,8 +47,6 @@ metadata:
 type: Opaque
 data:
   # These values must be base64 encoded.
-  username: dGVzdA==
-  password: emFwaG9k
   sst-username: c3N0
   sst-password: c3N0
   root-password: emFwaG9k
@@ -113,21 +111,9 @@ spec:
                 secretKeyRef:
                   name: mysql-credentials
                   key: sst-password
-            - name: MYSQL_USER
-              valueFrom:
-                secretKeyRef:
-                  name: mysql-credentials
-                  key: username
-            - name: MYSQL_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: mysql-credentials
-                  key: password
             - name: MYSQL_ROOT_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: mysql-credentials
                   key: root-password
-            - name: MYSQL_DATABASE
-              value: test
 
