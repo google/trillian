@@ -44,6 +44,7 @@ var (
 var (
 	addChainBias          = flag.Int("add_chain", 20, "Bias for add-chain operations")
 	addPreChainBias       = flag.Int("add_pre_chain", 20, "Bias for add-pre-chain operations")
+	maxChainsToAdd        = flag.Int("max_chains_to_add", 100, "Maximum number of chains to add in parallel (will always add at least 1 chain)")
 	getSTHBias            = flag.Int("get_sth", 2, "Bias for get-sth operations")
 	getSTHConsistencyBias = flag.Int("get_sth_consistency", 2, "Bias for get-sth-consistency operations")
 	getProofByHashBias    = flag.Int("get_proof_by_hash", 2, "Bias for get-proof-by-hash operations")
@@ -122,15 +123,16 @@ func main() {
 	for _, c := range cfg {
 		wg.Add(1)
 		cfg := integration.HammerConfig{
-			LogCfg:     c,
-			MMD:        *mmdFlag,
-			LeafChain:  leafChain,
-			LeafCert:   leafCert,
-			CACert:     caCert,
-			Signer:     signer,
-			Servers:    *httpServersFlag,
-			EPBias:     bias,
-			Operations: *operationsFlag,
+			LogCfg:          c,
+			MMD:             *mmdFlag,
+			LeafChain:       leafChain,
+			LeafCert:        leafCert,
+			CACert:          caCert,
+			Signer:          signer,
+			Servers:         *httpServersFlag,
+			EPBias:          bias,
+			Operations:      *operationsFlag,
+			MaxParallelAdds: *maxChainsToAdd,
 		}
 		go func(cfg integration.HammerConfig) {
 			defer wg.Done()
