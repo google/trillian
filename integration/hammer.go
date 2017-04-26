@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/golang/glog"
@@ -72,6 +73,9 @@ type HammerConfig struct {
 	EPBias HammerBias
 	// Number of operations to perform.
 	Operations uint64
+	// MaxParallelChains sets the upper limit for the number of parallel
+	// add-*-chain requests to make when the biasing model says to perfom an add.
+	MaxParallelChains int
 }
 
 // HammerBias indicates the bias for selecting different log operations.
@@ -110,45 +114,59 @@ type submittedCert struct {
 // most recent, but new entries are only appended when enough time has
 // passed since the last append, so the SCTs that get checked are spread
 // out across the MMD period.
-type pendingCerts [sctCount]*submittedCert
+type pendingCerts struct {
+	mu    sync.Mutex
+	certs [sctCount]*submittedCert
+}
 
+// tryAppendCert locks mu, checks whether it's possible to append the cert, and
+// appends it if so.
+func (pc *pendingCerts) tryAppendCert(now time.Time, mmd time.Duration, submitted *submittedCert) {
+	pc.mu.Lock()
+	defer pc.mu.Unlock()
+	if pc.canAppend(now, mmd) {
+		which := 0
+		for ; which < sctCount; which++ {
+			if pc.certs[which] == nil {
+				break
+			}
+		}
+		pc.certs[which] = submitted
+	}
+}
+
+// canAppend checks whether a pending cert can be appended.
+// It must be called with mu locked.
 func (pc *pendingCerts) canAppend(now time.Time, mmd time.Duration) bool {
-	if pc[sctCount-1] != nil {
+	if pc.certs[sctCount-1] != nil {
 		return false // full already
 	}
-	if pc[0] == nil {
+	if pc.certs[0] == nil {
 		return true // nothing yet
 	}
 	// Only allow append if enough time has passed, namely MMD/#savedSCTs.
 	last := sctCount - 1
 	for ; last >= 0; last-- {
-		if pc[last] != nil {
+		if pc.certs[last] != nil {
 			break
 		}
 	}
-	lastTime := timeFromMS(pc[last].sct.Timestamp)
+	lastTime := timeFromMS(pc.certs[last].sct.Timestamp)
 	nextTime := lastTime.Add(mmd / sctCount)
 	return now.After(nextTime)
 }
 
-func (pc *pendingCerts) appendCert(submitted *submittedCert) {
-	// Require caller to have checked canAppend().
-	which := 0
-	for ; which < sctCount; which++ {
-		if pc[which] == nil {
-			break
-		}
-	}
-	pc[which] = submitted
-}
-
 // popIfMMDPassed returns the oldest submitted certificate (and removes it) if the
 // maximum merge delay has passed, i.e. it is expected to be integrated as of now.
+// This function locks mu.
 func (pc *pendingCerts) popIfMMDPassed(now time.Time) *submittedCert {
-	if pc[0] == nil {
+	pc.mu.Lock()
+	defer pc.mu.Unlock()
+
+	if pc.certs[0] == nil {
 		return nil
 	}
-	submitted := pc[0]
+	submitted := pc.certs[0]
 	if !now.After(submitted.integrateBy) {
 		// Oldest cert not due to be integrated yet, so neither will any others.
 		return nil
@@ -156,9 +174,9 @@ func (pc *pendingCerts) popIfMMDPassed(now time.Time) *submittedCert {
 	// Can pop the oldest cert and shuffle the others along, which make room for
 	// another cert to be stored.
 	for i := 0; i < (sctCount - 1); i++ {
-		pc[i] = pc[i+1]
+		pc.certs[i] = pc.certs[i+1]
 	}
-	pc[sctCount-1] = nil
+	pc.certs[sctCount-1] = nil
 	return submitted
 }
 
@@ -203,6 +221,31 @@ func newHammerState(cfg *HammerConfig) (*hammerState, error) {
 	return &state, nil
 }
 
+// addMultiple calls the passed in function a random number
+// (1 <= n < MaxParallelChains) of times.
+// The first of any errors returned by calls to addOne will be returned by this function.
+func (s *hammerState) addMultiple(ctx context.Context, addOne func(context.Context) error) error {
+	var wg sync.WaitGroup
+	numAdds := rand.Intn(s.cfg.MaxParallelChains) + 1
+	errs := make(chan error, numAdds)
+	for i := 0; i < numAdds; i++ {
+		wg.Add(1)
+		go func() {
+			if err := addOne(ctx); err != nil {
+				errs <- err
+			}
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+	select {
+	case err := <-errs:
+		return err
+	default:
+	}
+	return nil
+}
+
 func (s *hammerState) addChain(ctx context.Context) error {
 	chain, err := makeCertChain(s.cfg.LeafChain, s.cfg.LeafCert, s.cfg.CACert, s.cfg.Signer)
 	if err != nil {
@@ -213,28 +256,26 @@ func (s *hammerState) addChain(ctx context.Context) error {
 		return fmt.Errorf("failed to add-chain: %v", err)
 	}
 	glog.V(2).Infof("%s: Uploaded cert, got SCT(time=%q)", s.cfg.LogCfg.Prefix, timeFromMS(sct.Timestamp))
-	if s.pending.canAppend(time.Now(), s.cfg.MMD) {
-		// Calculate leaf hash =  SHA256(0x00 | tls-encode(MerkleTreeLeaf))
-		submitted := submittedCert{precert: false, sct: sct}
-		leaf := ct.MerkleTreeLeaf{
-			Version:  ct.V1,
-			LeafType: ct.TimestampedEntryLeafType,
-			TimestampedEntry: &ct.TimestampedEntry{
-				Timestamp:  sct.Timestamp,
-				EntryType:  ct.X509LogEntryType,
-				X509Entry:  &(chain[0]),
-				Extensions: sct.Extensions,
-			},
-		}
-		submitted.integrateBy = timeFromMS(sct.Timestamp).Add(s.cfg.MMD)
-		submitted.leafData, err = tls.Marshal(leaf)
-		if err != nil {
-			return fmt.Errorf("failed to tls.Marshal leaf cert: %v", err)
-		}
-		submitted.leafHash = sha256.Sum256(append([]byte{merkletree.LeafPrefix}, submitted.leafData...))
-		s.pending.appendCert(&submitted)
-		glog.V(3).Infof("%s: Uploaded cert has leaf-hash %x", s.cfg.LogCfg.Prefix, submitted.leafHash)
+	// Calculate leaf hash =  SHA256(0x00 | tls-encode(MerkleTreeLeaf))
+	submitted := submittedCert{precert: false, sct: sct}
+	leaf := ct.MerkleTreeLeaf{
+		Version:  ct.V1,
+		LeafType: ct.TimestampedEntryLeafType,
+		TimestampedEntry: &ct.TimestampedEntry{
+			Timestamp:  sct.Timestamp,
+			EntryType:  ct.X509LogEntryType,
+			X509Entry:  &(chain[0]),
+			Extensions: sct.Extensions,
+		},
 	}
+	submitted.integrateBy = timeFromMS(sct.Timestamp).Add(s.cfg.MMD)
+	submitted.leafData, err = tls.Marshal(leaf)
+	if err != nil {
+		return fmt.Errorf("failed to tls.Marshal leaf cert: %v", err)
+	}
+	submitted.leafHash = sha256.Sum256(append([]byte{merkletree.LeafPrefix}, submitted.leafData...))
+	s.pending.tryAppendCert(time.Now(), s.cfg.MMD, &submitted)
+	glog.V(3).Infof("%s: Uploaded cert has leaf-hash %x", s.cfg.LogCfg.Prefix, submitted.leafHash)
 	return nil
 }
 
@@ -248,31 +289,29 @@ func (s *hammerState) addPreChain(ctx context.Context) error {
 		return fmt.Errorf("failed to add-pre-chain: %v", err)
 	}
 	glog.V(2).Infof("%s: Uploaded pre-cert, got SCT(time=%q)", s.cfg.LogCfg.Prefix, timeFromMS(sct.Timestamp))
-	if s.pending.canAppend(time.Now(), s.cfg.MMD) {
-		// Calculate leaf hash =  SHA256(0x00 | tls-encode(MerkleTreeLeaf))
-		submitted := submittedCert{precert: true, sct: sct}
-		leaf := ct.MerkleTreeLeaf{
-			Version:  ct.V1,
-			LeafType: ct.TimestampedEntryLeafType,
-			TimestampedEntry: &ct.TimestampedEntry{
-				Timestamp: sct.Timestamp,
-				EntryType: ct.PrecertLogEntryType,
-				PrecertEntry: &ct.PreCert{
-					IssuerKeyHash:  sha256.Sum256(s.cfg.CACert.RawSubjectPublicKeyInfo),
-					TBSCertificate: tbs,
-				},
-				Extensions: sct.Extensions,
+	// Calculate leaf hash =  SHA256(0x00 | tls-encode(MerkleTreeLeaf))
+	submitted := submittedCert{precert: true, sct: sct}
+	leaf := ct.MerkleTreeLeaf{
+		Version:  ct.V1,
+		LeafType: ct.TimestampedEntryLeafType,
+		TimestampedEntry: &ct.TimestampedEntry{
+			Timestamp: sct.Timestamp,
+			EntryType: ct.PrecertLogEntryType,
+			PrecertEntry: &ct.PreCert{
+				IssuerKeyHash:  sha256.Sum256(s.cfg.CACert.RawSubjectPublicKeyInfo),
+				TBSCertificate: tbs,
 			},
-		}
-		submitted.integrateBy = timeFromMS(sct.Timestamp).Add(s.cfg.MMD)
-		submitted.leafData, err = tls.Marshal(leaf)
-		if err != nil {
-			return fmt.Errorf("tls.Marshal(precertLeaf)=(nil,%v); want (_,nil)", err)
-		}
-		submitted.leafHash = sha256.Sum256(append([]byte{merkletree.LeafPrefix}, submitted.leafData...))
-		s.pending.appendCert(&submitted)
-		glog.V(3).Infof("%s: Uploaded pre-cert has leaf-hash %x", s.cfg.LogCfg.Prefix, submitted.leafHash)
+			Extensions: sct.Extensions,
+		},
 	}
+	submitted.integrateBy = timeFromMS(sct.Timestamp).Add(s.cfg.MMD)
+	submitted.leafData, err = tls.Marshal(leaf)
+	if err != nil {
+		return fmt.Errorf("tls.Marshal(precertLeaf)=(nil,%v); want (_,nil)", err)
+	}
+	submitted.leafHash = sha256.Sum256(append([]byte{merkletree.LeafPrefix}, submitted.leafData...))
+	s.pending.tryAppendCert(time.Now(), s.cfg.MMD, &submitted)
+	glog.V(3).Infof("%s: Uploaded pre-cert has leaf-hash %x", s.cfg.LogCfg.Prefix, submitted.leafHash)
 	return nil
 }
 
@@ -399,9 +438,9 @@ func HammerCTLog(cfg HammerConfig) error {
 		var err error
 		switch ep {
 		case ctfe.AddChainName:
-			err = s.addChain(ctx)
+			err = s.addMultiple(ctx, s.addChain)
 		case ctfe.AddPreChainName:
-			err = s.addPreChain(ctx)
+			err = s.addMultiple(ctx, s.addPreChain)
 		case ctfe.GetSTHName:
 			err = s.getSTH(ctx)
 		case ctfe.GetSTHConsistencyName:
