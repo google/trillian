@@ -15,6 +15,7 @@
 package backoff
 
 import (
+	"context"
 	"math"
 	"math/rand"
 	"time"
@@ -51,4 +52,19 @@ func (b *Backoff) Duration() time.Duration {
 // Reset sets the internal iteration count back to 0.
 func (b *Backoff) Reset() {
 	b.x = 0
+}
+
+// Retry calls a function until it succeeds or the context is done.
+// It will backoff if the function returns an error.
+// Once the context is done, retries will end and the most recent error will be returned.
+// Backoff is not reset by this function.
+func (b *Backoff) Retry(ctx context.Context, f func() error) error {
+	var err error
+	for ctx.Err() == nil {
+		if err = f(); err == nil {
+			break
+		}
+		time.Sleep(b.Duration())
+	}
+	return err
 }
