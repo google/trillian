@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/golang/protobuf/ptypes"
+	"github.com/golang/protobuf/ptypes/any"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/errors"
@@ -67,6 +68,17 @@ func TestValidateTreeForCreation(t *testing.T) {
 
 	nilKey := newTree()
 	nilKey.PrivateKey = nil
+
+	invalidSettings := newTree()
+	invalidSettings.StorageSettings = &any.Any{Value: []byte("foobar")}
+
+	// As long as settings is a valid proto, the type doesn't matter for this test.
+	settings, err := ptypes.MarshalAny(&trillian.PEMKeyFile{})
+	if err != nil {
+		t.Fatalf("Error marshaling proto: %v", err)
+	}
+	validSettings := newTree()
+	validSettings.StorageSettings = settings
 
 	tests := []struct {
 		desc    string
@@ -151,14 +163,23 @@ func TestValidateTreeForCreation(t *testing.T) {
 			tree:    nilKey,
 			wantErr: true,
 		},
+		{
+			desc:    "invalidSettings",
+			tree:    invalidSettings,
+			wantErr: true,
+		},
+		{
+			desc: "validSettings",
+			tree: validSettings,
+		},
 	}
-	for i, test := range tests {
+	for _, test := range tests {
 		err := ValidateTreeForCreation(test.tree)
 		switch hasErr := err != nil; {
 		case hasErr != test.wantErr:
-			t.Errorf("%v: ValidateTreeForCreation() = %v, wantErr = %v", i, err, test.wantErr)
+			t.Errorf("%v: ValidateTreeForCreation() = %v, wantErr = %v", test.desc, err, test.wantErr)
 		case hasErr && errors.ErrorCode(err) != errors.InvalidArgument:
-			t.Errorf("%v: ValidateTreeForCreation() = %v, wantCode = %v", i, err, errors.InvalidArgument)
+			t.Errorf("%v: ValidateTreeForCreation() = %v, wantCode = %v", test.desc, err, errors.InvalidArgument)
 		}
 	}
 }
@@ -180,6 +201,24 @@ func TestValidateTreeForUpdate(t *testing.T) {
 		{
 			desc:     "noop",
 			updatefn: func(tree *trillian.Tree) {},
+		},
+		{
+			desc: "validSettings",
+			updatefn: func(tree *trillian.Tree) {
+				// As long as settings is a valid proto, the type doesn't matter for this test.
+				settings, err := ptypes.MarshalAny(&trillian.PEMKeyFile{})
+				if err != nil {
+					t.Fatalf("Error marshaling proto: %v", err)
+				}
+				tree.StorageSettings = settings
+			},
+		},
+		{
+			desc: "invalidSettings",
+			updatefn: func(tree *trillian.Tree) {
+				tree.StorageSettings = &any.Any{Value: []byte("foobar")}
+			},
+			wantErr: true,
 		},
 		// Changes on readonly fields
 		{
