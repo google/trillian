@@ -36,81 +36,51 @@ if [ "${1:0:1}" = '-' ]; then
   set -- mysqld "$@"
 fi
 
-# The MySQL "data_dir", where the databases are stored.
+# The MySQL "datadir", where the databases are stored.
 readonly DATADIR="/var/lib/mysql"
-# Make sure that it exists and is owned by the MySQL user and group.
-mkdir -p "$DATADIR"
-chown -R mysql:mysql "$DATADIR"
 
-# If this is the first node, it may be necessary to initialize the database.
-# All other nodes will replicate this database.
-if [[ "$(hostname)" == *-0 ]]; then
-  # Check whether the "mysql" database exists. If it doesn't, MySQL can't have
-  # been initialized yet.
-  if [ ! -d "$DATADIR/mysql" ]; then
-    echo "No \"mysql\" database found in $DATADIR - initializing..."
-
-    if [ -z "$MYSQL_ROOT_PASSWORD" ]; then
-      echo >&2 'error: MYSQL_ROOT_PASSWORD not set'
-      exit 1
-    fi
-
-    # Create an SQL script that sets up users, permissions and databases.
-    INIT_SQL=$(mktemp)
-
-    # Create root user.
-    cat > "$INIT_SQL" <<-EOSQL
-DELETE FROM mysql.user ;
-CREATE USER 'root'@'%' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}' ;
-GRANT ALL ON *.* TO 'root'@'%' WITH GRANT OPTION ;
-EOSQL
-
-    # Create database.
-    if [ "$MYSQL_DATABASE" ]; then
-      echo "CREATE DATABASE IF NOT EXISTS \`$MYSQL_DATABASE\` ;" >> "$INIT_SQL"
-    fi
-
-    # Create a user. If a database was created, grant this user all permissions
-    # on it.
-    if [ "$MYSQL_USER" -a "$MYSQL_PASSWORD" ]; then
-      echo "CREATE USER '$MYSQL_USER'@'%' IDENTIFIED BY '$MYSQL_PASSWORD' ;" >> "$INIT_SQL"
-
-      if [ "$MYSQL_DATABASE" ]; then
-        echo "GRANT ALL ON \`$MYSQL_DATABASE\`.* TO '$MYSQL_USER'@'%' ;" >> "$INIT_SQL"
-      fi
-    fi
-
-    # Create a user with no password or permissions that can be used for things
-    # like health checks.
-    echo "CREATE USER 'dummy'@'localhost';" >> "$INIT_SQL"
-
-    # Set up a user for state transfer (SST), as required by Galera:
-    # http://galeracluster.com/documentation-webpages/statetransfer.html
-
-    WSREP_SST_USER=${WSREP_SST_USER:-"sst"}
-    if [ -z "$WSREP_SST_PASSWORD" ]; then
-      echo >&2 'error: WSREP_SST_PASSWORD is not set'
-      exit 1
-    fi
-
-    echo "CREATE USER '${WSREP_SST_USER}'@'localhost' IDENTIFIED BY '${WSREP_SST_PASSWORD}';" >> "$INIT_SQL"
-    echo "GRANT PROCESS, RELOAD, LOCK TABLES, REPLICATION CLIENT ON *.* TO '${WSREP_SST_USER}'@'localhost';" >> "$INIT_SQL"
-
-    echo 'FLUSH PRIVILEGES ;' >> "$INIT_SQL"
-
-    # Initialize MySQL using the script that was just assembled.
-    mysqld --initialize --datadir "$DATADIR" --init-file "$INIT_SQL" --ignore-db-dir="lost+found"
-    rm "$INIT_SQL"
-  fi
-fi
-
-WSREP_SST_USER=${WSREP_SST_USER:-"sst"}
-if [ -z "$WSREP_SST_PASSWORD" ]; then
-  echo >&2 'error: WSREP_SST_PASSWORD not set'
+if [ -z "$MYSQL_ROOT_PASSWORD" ]; then
+  echo >&2 'error: MYSQL_ROOT_PASSWORD not set'
   exit 1
 fi
 
-# Configure MySQL to use the Galera cluster.
+if [ -z "$WSREP_SST_USER" -o -z "$WSREP_SST_PASSWORD" ]; then
+  echo >&2 'error: WSREP_SST_USER or WSREP_SST_PASSWORD is not set'
+  exit 1
+fi
+
+# Make sure that the datadir exists and is owned by the MySQL user and group.
+mkdir -p "$DATADIR"
+chown -R mysql:mysql "$DATADIR"
+
+# If this is the first node, initialize the mysql database if it does not exist.
+# This database will be replicated to all other nodes via SST.
+if [[ "$(hostname)" == *-0 ]]; then
+  if [ ! -d "${DATADIR}/mysql" ]; then
+    mysqld --initialize --user=mysql --datadir "${DATADIR}" --ignore-db-dir "lost+found"
+  fi
+fi
+
+# This SQL script will be run when the server starts up.
+INIT_SQL=$(mktemp)
+chmod 0600 "${INIT_SQL}"
+
+# Create the following users:
+# - root user for administrative purposes.
+# - dummy user with no password or rights, for use by health checks.
+# - SST user for use by Galera to replicate database state between nodes.
+# TODO(robpercival): Restrict root access.
+cat > "$INIT_SQL" <<EOSQL
+DELETE FROM mysql.user;
+CREATE USER 'root'@'%' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}';
+GRANT ALL ON *.* TO 'root'@'%' WITH GRANT OPTION;
+
+CREATE USER 'dummy'@'localhost';
+
+CREATE USER '${WSREP_SST_USER}'@'localhost' IDENTIFIED BY '${WSREP_SST_PASSWORD}';
+GRANT PROCESS, RELOAD, LOCK TABLES, REPLICATION CLIENT ON *.* TO '${WSREP_SST_USER}'@'localhost';
+FLUSH PRIVILEGES;
+EOSQL
 
 # Provide the SST user and password.
 sed -i -e "s|^wsrep_sst_auth=.*$|wsrep_sst_auth=\"${WSREP_SST_USER}:${WSREP_SST_PASSWORD}\"|" /etc/mysql/conf.d/cluster.cnf
@@ -144,5 +114,6 @@ fi
 sed -i -e "s/^server\-id=.*$/server-id=${RANDOM}/" /etc/mysql/my.cnf
 
 # Finally, start MySQL, passing through any flags.
-exec "$@" --ignore-db-dir="lost+found"
+chown mysql:mysql "$INIT_SQL"
+exec "$@" --datadir "$DATADIR" --ignore-db-dir "lost+found" --init_file "$INIT_SQL"
 
