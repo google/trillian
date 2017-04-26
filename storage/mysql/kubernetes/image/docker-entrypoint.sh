@@ -113,7 +113,7 @@ fi
 # Configure MySQL to use the Galera cluster.
 
 # Provide the SST user and password.
-sed -i -e "s|^wsrep_sst_auth=sstuser:changethis|wsrep_sst_auth=${WSREP_SST_USER}:${WSREP_SST_PASSWORD}|" /etc/mysql/conf.d/cluster.cnf
+sed -i -e "s|^wsrep_sst_auth=.*$|wsrep_sst_auth=\"${WSREP_SST_USER}:${WSREP_SST_PASSWORD}\"|" /etc/mysql/conf.d/cluster.cnf
 
 # Provide the replica's own IP address.
 WSREP_NODE_ADDRESS=`ip addr show | grep -E '^[ ]*inet' | grep -m1 global | awk '{ print $2 }' | sed -e 's/\/.*//'`
