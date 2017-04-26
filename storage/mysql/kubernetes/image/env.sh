@@ -15,7 +15,6 @@
 # Use this to test the image locally, by running:
 # docker run --envfile="env.sh" "us.gcr.io/trillian-test/galera:latest"
 
-WSREP_CLUSTER_ADDRESS=gcomm://
 WSREP_SST_USER=sst
 WSREP_SST_PASSWORD=sst
 MYSQL_USER=test
