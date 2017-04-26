@@ -146,6 +146,98 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 	sm.ExecutePass(ctx, logID, createTestInfo(registry))
 }
 
+func TestSequencerManagerCachesSigners(t *testing.T) {
+	ctx := context.Background()
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	logID := stestonly.LogTree.GetTreeId()
+	mockAdmin := storage.NewMockAdminStorage(mockCtrl)
+	mockAdminTx := storage.NewMockReadOnlyAdminTX(mockCtrl)
+	mockStorage := storage.NewMockLogStorage(mockCtrl)
+	mockTx := storage.NewMockLogTreeTX(mockCtrl)
+
+	// Expect two sequencing passes.
+	for i := 0; i < 2; i++ {
+		gomock.InOrder(
+			mockAdmin.EXPECT().Snapshot(gomock.Any()).Return(mockAdminTx, nil),
+			mockAdminTx.EXPECT().GetTree(gomock.Any(), logID).Return(stestonly.LogTree, nil),
+			mockAdminTx.EXPECT().Commit().Return(nil),
+			mockAdminTx.EXPECT().Close().Return(nil),
+		)
+
+		gomock.InOrder(
+			mockStorage.EXPECT().BeginForTree(gomock.Any(), logID).Return(mockTx, nil),
+			mockTx.EXPECT().DequeueLeaves(50, fakeTime).Return([]*trillian.LogLeaf{}, nil),
+			mockTx.EXPECT().LatestSignedLogRoot().Return(testRoot0, nil),
+			mockTx.EXPECT().WriteRevision().AnyTimes().Return(writeRev),
+			mockTx.EXPECT().Commit().Return(nil),
+			mockTx.EXPECT().Close().Return(nil),
+		)
+	}
+
+	signer, err := newSignerWithFixedSig(updatedRoot.Signature)
+	if err != nil {
+		t.Fatalf("Failed to create test signer (%v)", err)
+	}
+
+	sf := signerFactory{
+		signers: map[int64]crypto.Signer{logID: signer},
+	}
+
+	registry := extension.Registry{
+		AdminStorage:  mockAdmin,
+		LogStorage:    mockStorage,
+		SignerFactory: &sf,
+	}
+
+	sm := NewSequencerManager(registry, zeroDuration)
+
+	// Execute two passes. A cached signer should be used for the 2nd pass.
+	if _, err := sm.ExecutePass(ctx, logID, createTestInfo(registry)); err != nil {
+		t.Fatal(err)
+	}
+
+	delete(sf.signers, logID)
+
+	if _, err := sm.ExecutePass(ctx, logID, createTestInfo(registry)); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// Test that sequencing is skipped if no signer is available.
+func TestSequencerManagerSingleLogNoSigner(t *testing.T) {
+	ctx := context.Background()
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	logID := stestonly.LogTree.GetTreeId()
+	mockAdmin := storage.NewMockAdminStorage(mockCtrl)
+	mockAdminTx := storage.NewMockReadOnlyAdminTX(mockCtrl)
+	mockStorage := storage.NewMockLogStorage(mockCtrl)
+
+	gomock.InOrder(
+		mockAdmin.EXPECT().Snapshot(gomock.Any()).Return(mockAdminTx, nil),
+		mockAdminTx.EXPECT().GetTree(gomock.Any(), logID).Return(stestonly.LogTree, nil),
+		mockAdminTx.EXPECT().Commit().Return(nil),
+		mockAdminTx.EXPECT().Close().Return(nil),
+	)
+
+	registry := extension.Registry{
+		AdminStorage: mockAdmin,
+		LogStorage:   mockStorage,
+		SignerFactory: &signerFactory{
+			// No signers provided, so that an error is returned.
+			signers: map[int64]crypto.Signer{},
+		},
+	}
+
+	sm := NewSequencerManager(registry, zeroDuration)
+	if _, err := sm.ExecutePass(ctx, logID, createTestInfo(registry)); err == nil {
+		t.Fatalf("ExecutePass() = (_, nil), want err")
+	}
+}
+
 func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 	ctx := context.Background()
 	mockCtrl := gomock.NewController(t)

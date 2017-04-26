@@ -17,9 +17,11 @@ package server
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/log"
 	"github.com/google/trillian/trees"
@@ -27,8 +29,10 @@ import (
 
 // SequencerManager provides sequencing operations for a collection of Logs.
 type SequencerManager struct {
-	guardWindow time.Duration
-	registry    extension.Registry
+	guardWindow  time.Duration
+	registry     extension.Registry
+	signers      map[int64]*crypto.Signer
+	signersMutex sync.Mutex
 }
 
 // NewSequencerManager creates a new SequencerManager instance based on the provided KeyManager instance
@@ -37,16 +41,17 @@ func NewSequencerManager(registry extension.Registry, gw time.Duration) *Sequenc
 	return &SequencerManager{
 		guardWindow: gw,
 		registry:    registry,
+		signers:     make(map[int64]*crypto.Signer),
 	}
 }
 
 // Name returns the name of the object.
-func (s SequencerManager) Name() string {
+func (s *SequencerManager) Name() string {
 	return "Sequencer"
 }
 
 // ExecutePass performs sequencing for the specified Log.
-func (s SequencerManager) ExecutePass(ctx context.Context, logID int64, info *LogOperationInfo) (int, error) {
+func (s *SequencerManager) ExecutePass(ctx context.Context, logID int64, info *LogOperationInfo) (int, error) {
 	// TODO(Martin2112): Honor the sequencing enabled in log parameters, needs an API change
 	// so deferring it
 
@@ -65,7 +70,7 @@ func (s SequencerManager) ExecutePass(ctx context.Context, logID int64, info *Lo
 		return 0, fmt.Errorf("error getting hasher for log %v: %v", logID, err)
 	}
 
-	signer, err := trees.Signer(ctx, s.registry.SignerFactory, tree)
+	signer, err := s.getSigner(ctx, tree)
 	if err != nil {
 		return 0, fmt.Errorf("error getting signer for log %v: %v", logID, err)
 	}
@@ -78,4 +83,23 @@ func (s SequencerManager) ExecutePass(ctx context.Context, logID int64, info *Lo
 		return 0, fmt.Errorf("failed to sequence batch for %v: %v", logID, err)
 	}
 	return leaves, nil
+}
+
+// getSigner returns a signer for the given tree.
+// Signers are cached, so only one will be created per tree.
+func (s *SequencerManager) getSigner(ctx context.Context, tree *trillian.Tree) (*crypto.Signer, error) {
+	s.signersMutex.Lock()
+	defer s.signersMutex.Unlock()
+
+	if signer, ok := s.signers[tree.GetTreeId()]; ok {
+		return signer, nil
+	}
+
+	signer, err := trees.Signer(ctx, s.registry.SignerFactory, tree)
+	if err != nil {
+		return nil, err
+	}
+
+	s.signers[tree.GetTreeId()] = signer
+	return signer, nil
 }
