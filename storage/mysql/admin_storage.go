@@ -404,7 +404,7 @@ func toMillisSinceEpoch(t time.Time) int64 {
 
 func validateStorageSettings(tree *trillian.Tree) error {
 	if tree.StorageSettings != nil {
-		return fmt.Errorf("storage_settings not supported, but found %v", tree.StorageSettings)
+		return fmt.Errorf("storage_settings not supported, but got %v", tree.StorageSettings)
 	}
 	return nil
 }
