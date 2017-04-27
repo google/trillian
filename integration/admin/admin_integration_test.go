@@ -20,12 +20,14 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/gogo/protobuf/proto"
 	"github.com/google/trillian"
 	sa "github.com/google/trillian/server/admin"
 	"github.com/google/trillian/server/interceptor"
 	"github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/testonly/integration"
 	"github.com/kylelemons/godebug/pretty"
+	"google.golang.org/genproto/protobuf/field_mask"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -48,13 +50,6 @@ func TestAdminServer_Unimplemented(t *testing.T) {
 		desc string
 		fn   func(context.Context, trillian.TrillianAdminClient) error
 	}{
-		{
-			desc: "UpdateTree",
-			fn: func(ctx context.Context, c trillian.TrillianAdminClient) error {
-				_, err := c.UpdateTree(ctx, &trillian.UpdateTreeRequest{Tree: tree})
-				return err
-			},
-		},
 		{
 			desc: "DeleteTree",
 			fn: func(ctx context.Context, c trillian.TrillianAdminClient) error {
@@ -123,6 +118,104 @@ func TestAdminServer_CreateTree(t *testing.T) {
 		}
 		if diff := pretty.Compare(storedTree, createdTree); diff != "" {
 			t.Errorf("%v: post-CreateTree diff (-stored +created):\n%v", test.desc, diff)
+		}
+	}
+}
+
+func TestAdminServer_UpdateTree(t *testing.T) {
+	client, closeFn, err := setupAdminServer()
+	if err != nil {
+		t.Fatalf("setupAdminServer() failed: %v", err)
+	}
+	defer closeFn()
+
+	baseTree := *testonly.LogTree
+
+	// successTree specifies changes in all rw fields
+	successTree := &trillian.Tree{
+		TreeState:   trillian.TreeState_FROZEN,
+		DisplayName: "Brand New Tree Name",
+		Description: "Brand New Tree Desc",
+	}
+	successMask := &field_mask.FieldMask{Paths: []string{"tree_state", "display_name", "description"}}
+
+	successWant := baseTree
+	successWant.TreeState = successTree.TreeState
+	successWant.DisplayName = successTree.DisplayName
+	successWant.Description = successTree.Description
+	successWant.PrivateKey = nil // redacted on responses
+
+	tests := []struct {
+		desc                 string
+		createTree, wantTree *trillian.Tree
+		req                  *trillian.UpdateTreeRequest
+		wantCode             codes.Code
+	}{
+		{
+			desc:       "success",
+			createTree: &baseTree,
+			wantTree:   &successWant,
+			req:        &trillian.UpdateTreeRequest{Tree: successTree, UpdateMask: successMask},
+		},
+		{
+			desc: "notFound",
+			req: &trillian.UpdateTreeRequest{
+				Tree:       &trillian.Tree{TreeId: 12345, DisplayName: "New Name"},
+				UpdateMask: &field_mask.FieldMask{Paths: []string{"display_name"}},
+			},
+			wantCode: codes.NotFound,
+		},
+		{
+			desc:       "readonlyField",
+			createTree: &baseTree,
+			req: &trillian.UpdateTreeRequest{
+				Tree:       successTree,
+				UpdateMask: &field_mask.FieldMask{Paths: []string{"tree_type"}},
+			},
+			wantCode: codes.InvalidArgument,
+		},
+		{
+			desc:       "invalidUpdate",
+			createTree: &baseTree,
+			req: &trillian.UpdateTreeRequest{
+				Tree:       &trillian.Tree{}, // tree_state = UNKNOWN_TREE_STATE
+				UpdateMask: &field_mask.FieldMask{Paths: []string{"tree_state"}},
+			},
+			wantCode: codes.InvalidArgument,
+		},
+	}
+
+	ctx := context.Background()
+	for _, test := range tests {
+		if test.createTree != nil {
+			tree, err := client.CreateTree(ctx, &trillian.CreateTreeRequest{Tree: test.createTree})
+			if err != nil {
+				t.Errorf("%v: CreateTree() returned err = %v", test.desc, err)
+				continue
+			}
+			test.req.Tree.TreeId = tree.TreeId
+		}
+
+		tree, err := client.UpdateTree(ctx, test.req)
+		if s, ok := status.FromError(err); !ok || s.Code() != test.wantCode {
+			t.Errorf("%v: UpdateTree() returned err = %q, wantCode = %v", test.desc, err, test.wantCode)
+			continue
+		} else if err != nil {
+			continue
+		}
+
+		if tree.CreateTimeMillisSinceEpoch > tree.UpdateTimeMillisSinceEpoch {
+			t.Errorf("%v: CreateTime > UpdateTime (%v > %v)", test.desc, tree.CreateTimeMillisSinceEpoch, tree.UpdateTimeMillisSinceEpoch)
+		}
+
+		// Copy storage-generated fields to the expected tree
+		want := *test.wantTree
+		want.TreeId = tree.TreeId
+		want.CreateTimeMillisSinceEpoch = tree.CreateTimeMillisSinceEpoch
+		want.UpdateTimeMillisSinceEpoch = tree.UpdateTimeMillisSinceEpoch
+		if !proto.Equal(tree, &want) {
+			diff := pretty.Compare(tree, &want)
+			t.Errorf("%v: post-UpdateTree diff:\n%v", test.desc, diff)
 		}
 	}
 }

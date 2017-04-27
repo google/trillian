@@ -15,11 +15,13 @@
 package admin
 
 import (
+	"github.com/golang/glog"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/trillian"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/trees"
 	"golang.org/x/net/context"
+	"google.golang.org/genproto/protobuf/field_mask"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -60,17 +62,9 @@ func (s *Server) ListTrees(ctx context.Context, req *trillian.ListTreesRequest) 
 
 // GetTree implements trillian.TrillianAdminServer.GetTree.
 func (s *Server) GetTree(ctx context.Context, request *trillian.GetTreeRequest) (*trillian.Tree, error) {
-	tx, err := s.registry.AdminStorage.Snapshot(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Close()
 	// TODO(codingllama): This needs access control
-	tree, err := tx.GetTree(ctx, request.GetTreeId())
+	tree, err := trees.GetTree(ctx, s.registry.AdminStorage, request.GetTreeId(), trees.GetOpts{Readonly: true})
 	if err != nil {
-		return nil, err
-	}
-	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
 	return redact(tree), nil
@@ -105,9 +99,56 @@ func (s *Server) CreateTree(ctx context.Context, request *trillian.CreateTreeReq
 }
 
 // UpdateTree implements trillian.TrillianAdminServer.UpdateTree.
-func (s *Server) UpdateTree(context.Context, *trillian.UpdateTreeRequest) (*trillian.Tree, error) {
-	// TODO(codingllama): Don't forget to redact tree
-	return nil, errNotImplemented
+func (s *Server) UpdateTree(ctx context.Context, req *trillian.UpdateTreeRequest) (*trillian.Tree, error) {
+	tree := req.GetTree()
+	mask := req.GetUpdateMask()
+	if tree == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "a tree is required")
+	}
+	// Apply the mask to a couple of empty trees just to check that the paths are correct.
+	if err := applyUpdateMask(&trillian.Tree{}, &trillian.Tree{}, mask); err != nil {
+		return nil, err
+	}
+
+	tx, err := s.registry.AdminStorage.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Close()
+	updatedTree, err := tx.UpdateTree(ctx, tree.TreeId, func(other *trillian.Tree) {
+		if err := applyUpdateMask(tree, other, mask); err != nil {
+			// Should never happen (famous last words).
+			glog.Errorf("Error applying mask on tree update: %v", err)
+		}
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return redact(updatedTree), nil
+}
+
+func applyUpdateMask(from, to *trillian.Tree, mask *field_mask.FieldMask) error {
+	if mask == nil || len(mask.Paths) == 0 {
+		return status.Errorf(codes.InvalidArgument, "an update_mask is required")
+	}
+	for _, path := range mask.Paths {
+		switch path {
+		case "tree_state":
+			to.TreeState = from.TreeState
+		case "display_name":
+			to.DisplayName = from.DisplayName
+		case "description":
+			to.Description = from.Description
+		case "storage_settings":
+			to.StorageSettings = from.StorageSettings
+		default:
+			return status.Errorf(codes.InvalidArgument, "invalid update_mask path: %q", path)
+		}
+	}
+	return nil
 }
 
 // DeleteTree implements trillian.TrillianAdminServer.DeleteTree.
