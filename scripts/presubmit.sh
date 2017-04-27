@@ -25,7 +25,7 @@ check_cmd() {
 }
 
 usage() {
-  echo "$0 [--fix] [--no-build] [--no-generate]"
+  echo "$0 [--fix] [--no-build] [--no-linters] [--no-generate]"
 }
 
 main() {

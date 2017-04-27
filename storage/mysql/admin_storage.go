@@ -269,6 +269,9 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 	if err := storage.ValidateTreeForCreation(tree); err != nil {
 		return nil, err
 	}
+	if err := validateStorageSettings(tree); err != nil {
+		return nil, err
+	}
 
 	id, err := storage.NewTreeID()
 	if err != nil {
@@ -368,6 +371,9 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 	if err := storage.ValidateTreeForUpdate(&beforeUpdate, tree); err != nil {
 		return nil, err
 	}
+	if err := validateStorageSettings(tree); err != nil {
+		return nil, err
+	}
 
 	tree.UpdateTimeMillisSinceEpoch = toMillisSinceEpoch(time.Now())
 
@@ -394,4 +400,11 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 
 func toMillisSinceEpoch(t time.Time) int64 {
 	return t.UnixNano() / 1000000
+}
+
+func validateStorageSettings(tree *trillian.Tree) error {
+	if tree.StorageSettings != nil {
+		return fmt.Errorf("storage_settings not supported, but got %v", tree.StorageSettings)
+	}
+	return nil
 }

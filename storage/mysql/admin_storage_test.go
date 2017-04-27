@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testonly"
@@ -135,6 +136,50 @@ func TestAdminTX_TreeWithNulls(t *testing.T) {
 	}
 }
 
+func TestAdminTX_StorageSettingsNotSupported(t *testing.T) {
+	cleanTestDB(DB)
+	s := NewAdminStorage(DB)
+	ctx := context.Background()
+
+	settings, err := ptypes.MarshalAny(&trillian.PEMKeyFile{})
+	if err != nil {
+		t.Fatalf("Error marshaling proto: %v", err)
+	}
+
+	tests := []struct {
+		desc string
+		// fn attempts to either create or update a tree with a non-nil, valid Any proto
+		// on Tree.StorageSettings. It's expected to return an error.
+		fn func(storage.AdminStorage) error
+	}{
+		{
+			desc: "CreateTree",
+			fn: func(s storage.AdminStorage) error {
+				tree := *testonly.LogTree
+				tree.StorageSettings = settings
+				_, err := createTreeInternal(ctx, s, &tree)
+				return err
+			},
+		},
+		{
+			desc: "UpdateTree",
+			fn: func(s storage.AdminStorage) error {
+				tree, err := createTreeInternal(ctx, s, testonly.LogTree)
+				if err != nil {
+					t.Fatalf("CreateTree() failed with err = %v", err)
+				}
+				_, err = updateTreeInternal(ctx, s, tree.TreeId, func(tree *trillian.Tree) { tree.StorageSettings = settings })
+				return err
+			},
+		},
+	}
+	for _, test := range tests {
+		if err := test.fn(s); err == nil {
+			t.Errorf("%v: err = nil, want non-nil", test.desc)
+		}
+	}
+}
+
 func createTreeInternal(ctx context.Context, s storage.AdminStorage, tree *trillian.Tree) (*trillian.Tree, error) {
 	tx, err := s.Begin(ctx)
 	if err != nil {
@@ -142,6 +187,22 @@ func createTreeInternal(ctx context.Context, s storage.AdminStorage, tree *trill
 	}
 	defer tx.Close()
 	newTree, err := tx.CreateTree(ctx, tree)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return newTree, nil
+}
+
+func updateTreeInternal(ctx context.Context, s storage.AdminStorage, treeID int64, fn func(*trillian.Tree)) (*trillian.Tree, error) {
+	tx, err := s.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Close()
+	newTree, err := tx.UpdateTree(ctx, treeID, fn)
 	if err != nil {
 		return nil, err
 	}

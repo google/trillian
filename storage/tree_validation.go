@@ -98,5 +98,15 @@ func validateMutableTreeFields(tree *trillian.Tree) error {
 	case len(tree.Description) > maxDescriptionLength:
 		return errors.Errorf(errors.InvalidArgument, "description too big, max length is %v: %v", maxDescriptionLength, tree.Description)
 	}
+
+	// Implementations may vary, so let's assume storage_settings is mutable.
+	// Other than checking that it's a valid Any there isn't much to do at this layer, though.
+	if tree.StorageSettings != nil {
+		var settings ptypes.DynamicAny
+		if err := ptypes.UnmarshalAny(tree.StorageSettings, &settings); err != nil {
+			return errors.Errorf(errors.InvalidArgument, "invalid storage_settings: %v", err)
+		}
+	}
+
 	return nil
 }
