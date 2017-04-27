@@ -33,9 +33,11 @@ type LogConfig struct {
 	LogID           int64
 	Prefix          string
 	RootsPEMFile    []string
-	PubKeyPEMFile   string
 	PrivKeyPEMFile  string
 	PrivKeyPassword string
+	// The public key is included for the convenience of test tools (and obviously should
+	// match the private key above); it is not used by the CT personality.
+	PubKeyPEMFile string
 }
 
 var (
@@ -85,9 +87,6 @@ func (cfg LogConfig) SetUpInstance(client trillian.TrillianLogClient, deadline t
 	// Check config validity.
 	if len(cfg.RootsPEMFile) == 0 {
 		return nil, errors.New("need to specify RootsPEMFile")
-	}
-	if len(cfg.PubKeyPEMFile) == 0 {
-		return nil, errors.New("need to specify PubKeyPEMFile")
 	}
 	if len(cfg.PrivKeyPEMFile) == 0 {
 		return nil, errors.New("need to specify PrivKeyPEMFile")
