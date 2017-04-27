@@ -335,10 +335,6 @@ func (t *logTreeTX) QueueLeaves(leaves []*trillian.LogLeaf, queueTimestamp time.
 
 	for i, leafPos := range orderedLeaves {
 		leaf := leafPos.leaf
-		// Create the unsequenced leaf data entry. We don't use INSERT IGNORE because this
-		// can suppress errors unrelated to key collisions. We don't use REPLACE because
-		// if there's ever a hash collision it will do the wrong thing and it also
-		// causes a DELETE / INSERT, which is undesirable.
 		_, err := t.tx.Exec(insertUnsequencedLeafSQL, t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData)
 		if isDuplicateErr(err) {
 			// Remember the duplicate leaf, using the requested leaf for now.
