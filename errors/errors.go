@@ -148,8 +148,8 @@ const (
 // make error translation possible by other layers (e.g., TrillianError to
 // gRPC).
 //
-// TrillianErrors contain user-visible messages and codes, both of which should
-// be chosen from the perspective of the RPC caller.
+// TrillianError instances contain user-visible messages and codes, both of
+// which should be chosen from the perspective of the RPC caller.
 type TrillianError interface {
 	error
 
