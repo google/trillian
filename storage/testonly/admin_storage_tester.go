@@ -159,6 +159,8 @@ func (tester *AdminStorageTester) TestCreateTree(t *testing.T) {
 			wantTree.TreeId = newTree.TreeId
 			wantTree.CreateTimeMillisSinceEpoch = createTimeMillis
 			wantTree.UpdateTimeMillisSinceEpoch = updateTimeMillis
+			// Ignore storage_settings changes (OK to vary between implementations)
+			wantTree.StorageSettings = newTree.StorageSettings
 			if !proto.Equal(newTree, &wantTree) {
 				diff := pretty.Compare(newTree, &wantTree)
 				t.Errorf("%v: post-CreateTree diff:\n%v", test.desc, diff)
@@ -302,6 +304,8 @@ func (tester *AdminStorageTester) TestUpdateTree(t *testing.T) {
 		wantTree.TreeId = updatedTree.TreeId
 		wantTree.CreateTimeMillisSinceEpoch = updatedTree.CreateTimeMillisSinceEpoch
 		wantTree.UpdateTimeMillisSinceEpoch = updatedTree.UpdateTimeMillisSinceEpoch
+		// Ignore storage_settings changes (OK to vary between implementations)
+		wantTree.StorageSettings = updatedTree.StorageSettings
 		if !proto.Equal(updatedTree, &wantTree) {
 			diff := pretty.Compare(updatedTree, &wantTree)
 			t.Errorf("%v: updatedTree doesn't match wantTree:\n%s", test.desc, diff)
