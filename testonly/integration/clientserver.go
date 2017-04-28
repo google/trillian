@@ -27,6 +27,7 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys"
+	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/storage/mysql"
@@ -43,7 +44,7 @@ var (
 	SequencerInterval = 100 * time.Millisecond
 	timeSource        = util.SystemTimeSource{}
 	publicKeyPath     = testonly.RelativeToPackage("../../testdata/log-rpc-server.pubkey.pem")
-	privateKeyInfo    = &trillian.PEMKeyFile{
+	privateKeyInfo    = &keyspb.PEMKeyFile{
 		Path:     testonly.RelativeToPackage("../../testdata/log-rpc-server.privkey.pem"),
 		Password: "towel",
 	}

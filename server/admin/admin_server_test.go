@@ -28,6 +28,7 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys"
+	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/storage"
@@ -282,7 +283,7 @@ func TestServer_CreateTree(t *testing.T) {
 
 	// Need to change the public key to correspond with the private key generated above.
 	validTree := *testonly.LogTree
-	validTree.PublicKey = &trillian.PublicKey{
+	validTree.PublicKey = &keyspb.PublicKey{
 		Der: publicKeyDER,
 	}
 
@@ -396,7 +397,7 @@ func TestServer_CreateTree(t *testing.T) {
 		wantTree.CreateTimeMillisSinceEpoch = 1
 		wantTree.UpdateTimeMillisSinceEpoch = 1
 		wantTree.PrivateKey = nil // redacted
-		wantTree.PublicKey = &trillian.PublicKey{Der: publicKeyDER}
+		wantTree.PublicKey = &keyspb.PublicKey{Der: publicKeyDER}
 		if diff := pretty.Compare(tree, &wantTree); diff != "" {
 			t.Errorf("%v: post-CreateTree diff (-got +want):\n%v", test.desc, diff)
 		}
@@ -413,7 +414,7 @@ func TestServer_UpdateTree(t *testing.T) {
 	existingTree.UpdateTimeMillisSinceEpoch = 10
 
 	// Any valid proto works here, the type doesn't matter for this test.
-	settings, err := ptypes.MarshalAny(&trillian.PEMKeyFile{})
+	settings, err := ptypes.MarshalAny(&keyspb.PEMKeyFile{})
 	if err != nil {
 		t.Fatalf("Error marshaling proto: %v", err)
 	}
