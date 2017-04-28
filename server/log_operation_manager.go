@@ -209,7 +209,7 @@ func (l *LogOperationManager) getLogIDs(ctx context.Context) ([]int64, error) {
 	}
 	defer tx.Close()
 
-	logIDs, err := tx.GetActiveLogIDs()
+	logIDs, err := tx.GetActiveLogIDs(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get active logIDs: %v", err)
 	}

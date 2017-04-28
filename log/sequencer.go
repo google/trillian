@@ -177,14 +177,14 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int) (i
 
 	// Very recent leaves inside the guard window will not be available for sequencing
 	guardCutoffTime := s.timeSource.Now().Add(-s.sequencerGuardWindow)
-	leaves, err := tx.DequeueLeaves(limit, guardCutoffTime)
+	leaves, err := tx.DequeueLeaves(ctx, limit, guardCutoffTime)
 	if err != nil {
 		glog.Warningf("%v: Sequencer failed to dequeue leaves: %v", logID, err)
 		return 0, err
 	}
 
 	// Get the latest known root from storage
-	currentRoot, err := tx.LatestSignedLogRoot()
+	currentRoot, err := tx.LatestSignedLogRoot(ctx)
 	if err != nil {
 		glog.Warningf("%v: Sequencer failed to get latest root: %v", logID, err)
 		return 0, err
@@ -231,7 +231,7 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int) (i
 	}
 
 	// Write the new sequence numbers to the leaves in the DB
-	if err := tx.UpdateSequencedLeaves(sequencedLeaves); err != nil {
+	if err := tx.UpdateSequencedLeaves(ctx, sequencedLeaves); err != nil {
 		glog.Warningf("%v: Sequencer failed to update sequenced leaves: %v", logID, err)
 		return 0, err
 	}
@@ -270,7 +270,7 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int) (i
 
 	newLogRoot.Signature = signature
 
-	if err := tx.StoreSignedLogRoot(newLogRoot); err != nil {
+	if err := tx.StoreSignedLogRoot(ctx, newLogRoot); err != nil {
 		glog.Warningf("%v: failed to write updated tree root: %v", logID, err)
 		return 0, err
 	}
@@ -294,7 +294,7 @@ func (s Sequencer) SignRoot(ctx context.Context, logID int64) error {
 	defer tx.Close()
 
 	// Get the latest known root from storage
-	currentRoot, err := tx.LatestSignedLogRoot()
+	currentRoot, err := tx.LatestSignedLogRoot(ctx)
 	if err != nil {
 		glog.Warningf("%v: signer failed to get latest root: %v", logID, err)
 		return err
@@ -325,7 +325,7 @@ func (s Sequencer) SignRoot(ctx context.Context, logID int64) error {
 	newLogRoot.Signature = signature
 
 	// Store the new root and we're done
-	if err := tx.StoreSignedLogRoot(newLogRoot); err != nil {
+	if err := tx.StoreSignedLogRoot(ctx, newLogRoot); err != nil {
 		glog.Warningf("%v: signer failed to write updated root: %v", logID, err)
 		return err
 	}

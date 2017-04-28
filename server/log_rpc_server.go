@@ -94,7 +94,7 @@ func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.Qu
 	}
 	defer tx.Close()
 
-	existingLeaves, err := tx.QueueLeaves(req.Leaves, t.timeSource.Now())
+	existingLeaves, err := tx.QueueLeaves(ctx, req.Leaves, t.timeSource.Now())
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +143,7 @@ func (t *TrillianLogRPCServer) GetInclusionProof(ctx context.Context, req *trill
 	}
 	defer tx.Close()
 
-	root, err := tx.LatestSignedLogRoot()
+	root, err := tx.LatestSignedLogRoot(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -184,7 +184,7 @@ func (t *TrillianLogRPCServer) GetInclusionProofByHash(ctx context.Context, req 
 
 	// Find the leaf index of the supplied hash
 	leafHashes := [][]byte{req.LeafHash}
-	leaves, err := tx.GetLeavesByHash(leafHashes, req.OrderBySequence)
+	leaves, err := tx.GetLeavesByHash(ctx, leafHashes, req.OrderBySequence)
 	if err != nil {
 		return nil, err
 	}
@@ -192,7 +192,7 @@ func (t *TrillianLogRPCServer) GetInclusionProofByHash(ctx context.Context, req 
 		return nil, status.Errorf(codes.NotFound, "No leaves for hash: %x", req.LeafHash)
 	}
 
-	root, err := tx.LatestSignedLogRoot()
+	root, err := tx.LatestSignedLogRoot(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -237,7 +237,7 @@ func (t *TrillianLogRPCServer) GetConsistencyProof(ctx context.Context, req *tri
 	}
 	defer tx.Close()
 
-	root, err := tx.LatestSignedLogRoot()
+	root, err := tx.LatestSignedLogRoot(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -271,7 +271,7 @@ func (t *TrillianLogRPCServer) GetLatestSignedLogRoot(ctx context.Context, req *
 	}
 	defer tx.Close()
 
-	signedRoot, err := tx.LatestSignedLogRoot()
+	signedRoot, err := tx.LatestSignedLogRoot(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -292,7 +292,7 @@ func (t *TrillianLogRPCServer) GetSequencedLeafCount(ctx context.Context, req *t
 	}
 	defer tx.Close()
 
-	leafCount, err := tx.GetSequencedLeafCount()
+	leafCount, err := tx.GetSequencedLeafCount(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -319,7 +319,7 @@ func (t *TrillianLogRPCServer) GetLeavesByIndex(ctx context.Context, req *trilli
 	}
 	defer tx.Close()
 
-	leaves, err := tx.GetLeavesByIndex(req.LeafIndex)
+	leaves, err := tx.GetLeavesByIndex(ctx, req.LeafIndex)
 	if err != nil {
 		return nil, err
 	}
@@ -338,7 +338,7 @@ func (t *TrillianLogRPCServer) GetLeavesByIndex(ctx context.Context, req *trilli
 // entries so this may return more results than the number of hashes in the request.
 func (t *TrillianLogRPCServer) GetLeavesByHash(ctx context.Context, req *trillian.GetLeavesByHashRequest) (*trillian.GetLeavesByHashResponse, error) {
 	return t.getLeavesByHashInternal(ctx, "GetLeavesByHash", req, func(tx storage.ReadOnlyLogTreeTX, hashes [][]byte, sequenceOrder bool) ([]*trillian.LogLeaf, error) {
-		return tx.GetLeavesByHash(hashes, sequenceOrder)
+		return tx.GetLeavesByHash(ctx, hashes, sequenceOrder)
 	})
 }
 
@@ -364,7 +364,7 @@ func (t *TrillianLogRPCServer) GetEntryAndProof(ctx context.Context, req *trilli
 	}
 	defer tx.Close()
 
-	root, err := tx.LatestSignedLogRoot()
+	root, err := tx.LatestSignedLogRoot(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -375,7 +375,7 @@ func (t *TrillianLogRPCServer) GetEntryAndProof(ctx context.Context, req *trilli
 	}
 
 	// We also need the leaf entry
-	leaves, err := tx.GetLeavesByIndex([]int64{req.LeafIndex})
+	leaves, err := tx.GetLeavesByIndex(ctx, []int64{req.LeafIndex})
 	if err != nil {
 		return nil, err
 	}

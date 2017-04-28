@@ -85,7 +85,7 @@ func main() {
 		leaves = append(leaves, leaf)
 
 		if len(leaves) >= *queueBatchSizeFlag {
-			_, err := tx.QueueLeaves(leaves, time.Now())
+			_, err := tx.QueueLeaves(ctx, leaves, time.Now())
 			leaves = leaves[:0] // starting new batch
 
 			if err != nil {
@@ -96,7 +96,7 @@ func main() {
 
 	// There might be some leaves left over that didn't get queued yet
 	if len(leaves) > 0 {
-		if _, err := tx.QueueLeaves(leaves, time.Now()); err != nil {
+		if _, err := tx.QueueLeaves(ctx, leaves, time.Now()); err != nil {
 			panic(err)
 		}
 	}

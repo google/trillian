@@ -210,18 +210,18 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) (testCont
 
 	if !params.skipDequeue {
 		if params.overrideDequeueTime != nil {
-			mockTx.EXPECT().DequeueLeaves(params.dequeueLimit, *params.overrideDequeueTime).Return(params.dequeuedLeaves, params.dequeuedError)
+			mockTx.EXPECT().DequeueLeaves(gomock.Any(), params.dequeueLimit, *params.overrideDequeueTime).Return(params.dequeuedLeaves, params.dequeuedError)
 		} else {
-			mockTx.EXPECT().DequeueLeaves(params.dequeueLimit, fakeTimeForTest).Return(params.dequeuedLeaves, params.dequeuedError)
+			mockTx.EXPECT().DequeueLeaves(gomock.Any(), params.dequeueLimit, fakeTimeForTest).Return(params.dequeuedLeaves, params.dequeuedError)
 		}
 	}
 
 	if params.latestSignedRoot != nil {
-		mockTx.EXPECT().LatestSignedLogRoot().Return(*params.latestSignedRoot, params.latestSignedRootError)
+		mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(*params.latestSignedRoot, params.latestSignedRootError)
 	}
 
 	if params.updatedLeaves != nil {
-		mockTx.EXPECT().UpdateSequencedLeaves(*params.updatedLeaves).Return(params.updatedLeavesError)
+		mockTx.EXPECT().UpdateSequencedLeaves(gomock.Any(), *params.updatedLeaves).Return(params.updatedLeavesError)
 	}
 
 	if params.merkleNodesSet != nil {
@@ -230,10 +230,10 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) (testCont
 
 	if !params.skipStoreSignedRoot {
 		if params.storeSignedRoot != nil {
-			mockTx.EXPECT().StoreSignedLogRoot(*params.storeSignedRoot).Return(params.storeSignedRootError)
+			mockTx.EXPECT().StoreSignedLogRoot(gomock.Any(), *params.storeSignedRoot).Return(params.storeSignedRootError)
 		} else {
 			// At the moment if we're going to fail the operation we accept any root
-			mockTx.EXPECT().StoreSignedLogRoot(gomock.Any()).Return(params.storeSignedRootError)
+			mockTx.EXPECT().StoreSignedLogRoot(gomock.Any(), gomock.Any()).Return(params.storeSignedRootError)
 		}
 	}
 
