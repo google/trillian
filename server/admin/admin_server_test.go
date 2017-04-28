@@ -22,7 +22,9 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/gogo/protobuf/proto"
 	"github.com/golang/mock/gomock"
+	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/sigpb"
@@ -31,6 +33,7 @@ import (
 	"github.com/google/trillian/storage/testonly"
 	"github.com/kylelemons/godebug/pretty"
 	"golang.org/x/net/context"
+	"google.golang.org/genproto/protobuf/field_mask"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -40,13 +43,6 @@ func TestServer_Unimplemented(t *testing.T) {
 		desc string
 		fn   func(context.Context, *Server) error
 	}{
-		{
-			desc: "UpdateTree",
-			fn: func(ctx context.Context, s *Server) error {
-				_, err := s.UpdateTree(ctx, &trillian.UpdateTreeRequest{})
-				return err
-			},
-		},
 		{
 			desc: "DeleteTree",
 			fn: func(ctx context.Context, s *Server) error {
@@ -362,6 +358,125 @@ func TestServer_CreateTree(t *testing.T) {
 		wantTree.PrivateKey = nil // redacted
 		if diff := pretty.Compare(tree, &wantTree); diff != "" {
 			t.Errorf("%v: post-CreateTree diff (-got +want):\n%v", test.desc, diff)
+		}
+	}
+}
+
+func TestServer_UpdateTree(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	existingTree := *testonly.LogTree
+	existingTree.TreeId = 12345
+	existingTree.CreateTimeMillisSinceEpoch = 10
+	existingTree.UpdateTimeMillisSinceEpoch = 10
+
+	// Any valid proto works here, the type doesn't matter for this test.
+	settings, err := ptypes.MarshalAny(&trillian.PEMKeyFile{})
+	if err != nil {
+		t.Fatalf("Error marshaling proto: %v", err)
+	}
+
+	// successTree specifies changes in all rw fields
+	successTree := &trillian.Tree{
+		TreeState:       trillian.TreeState_FROZEN,
+		DisplayName:     "Brand New Tree Name",
+		Description:     "Brand New Tree Desc",
+		StorageSettings: settings,
+	}
+	successMask := &field_mask.FieldMask{Paths: []string{"tree_state", "display_name", "description", "storage_settings"}}
+
+	successWant := existingTree
+	successWant.TreeState = successTree.TreeState
+	successWant.DisplayName = successTree.DisplayName
+	successWant.Description = successTree.Description
+	successWant.StorageSettings = successTree.StorageSettings
+	successWant.PrivateKey = nil // redacted on responses
+
+	tests := []struct {
+		desc                           string
+		req                            *trillian.UpdateTreeRequest
+		currentTree, wantTree          *trillian.Tree
+		updateErr                      error
+		commitErr, wantErr, wantCommit bool
+	}{
+		{
+			desc:        "success",
+			req:         &trillian.UpdateTreeRequest{Tree: successTree, UpdateMask: successMask},
+			currentTree: &existingTree,
+			wantTree:    &successWant,
+			wantCommit:  true,
+		},
+		{
+			desc:    "nilTree",
+			req:     &trillian.UpdateTreeRequest{},
+			wantErr: true,
+		},
+		{
+			desc:        "nilUpdateMask",
+			req:         &trillian.UpdateTreeRequest{Tree: successTree},
+			currentTree: &existingTree,
+			wantErr:     true,
+		},
+		{
+			desc:        "emptyUpdateMask",
+			req:         &trillian.UpdateTreeRequest{Tree: successTree, UpdateMask: &field_mask.FieldMask{}},
+			currentTree: &existingTree,
+			wantErr:     true,
+		},
+		{
+			desc: "readonlyField",
+			req: &trillian.UpdateTreeRequest{
+				Tree:       successTree,
+				UpdateMask: &field_mask.FieldMask{Paths: []string{"tree_id"}},
+			},
+			currentTree: &existingTree,
+			wantErr:     true,
+		},
+		{
+			desc:        "updateErr",
+			req:         &trillian.UpdateTreeRequest{Tree: successTree, UpdateMask: successMask},
+			updateErr:   errors.New("error updating tree"),
+			currentTree: &existingTree,
+			wantErr:     true,
+		},
+		{
+			desc:        "commitErr",
+			req:         &trillian.UpdateTreeRequest{Tree: successTree, UpdateMask: successMask},
+			currentTree: &existingTree,
+			commitErr:   true,
+			wantErr:     true,
+			wantCommit:  true,
+		},
+	}
+
+	ctx := context.Background()
+	for _, test := range tests {
+		setup := setupAdminServer(ctrl, nil /* key */, false /* snapshot */, test.wantCommit, test.commitErr)
+		tx := setup.tx
+		s := setup.server
+
+		if test.req.Tree != nil {
+			tx.EXPECT().UpdateTree(ctx, test.req.Tree.TreeId, gomock.Any()).MaxTimes(1).Return(test.currentTree, test.updateErr)
+		}
+
+		tree, err := s.UpdateTree(ctx, test.req)
+		if hasErr := err != nil; hasErr != test.wantErr {
+			t.Errorf("%v: UpdateTree() returned err = %q, wantErr = %v", test.desc, err, test.wantErr)
+			continue
+		} else if hasErr {
+			continue
+		}
+
+		// This step should be done by the storage layer, but since we're mocking it we have
+		// to trigger it ourselves. Ideally the mock would do it on UpdateTree.
+		if err := applyUpdateMask(test.req.Tree, tree, test.req.UpdateMask); err != nil {
+			t.Errorf("%v: applyUpdateMask returned err = %v", test.desc, err)
+			continue
+		}
+		if !proto.Equal(tree, test.wantTree) {
+			diff := pretty.Compare(tree, test.wantTree)
+			t.Errorf("%v: post-UpdateTree diff:\n%v", test.desc, diff)
 		}
 	}
 }
