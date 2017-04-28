@@ -112,7 +112,7 @@ func TestMapBeginSnapshot(t *testing.T) {
 			}
 			defer tx.Close()
 
-			root, err := tx.LatestSignedMapRoot()
+			root, err := tx.LatestSignedMapRoot(ctx)
 			if err != nil {
 				t.Errorf("%v: LatestSignedMapRoot() returned err = %v", test.desc, err)
 			}
@@ -152,7 +152,7 @@ func TestMapRootUpdate(t *testing.T) {
 		RootHash:       []byte(dummyHash),
 		Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
 	}
-	if err := tx.StoreSignedMapRoot(root); err != nil {
+	if err := tx.StoreSignedMapRoot(ctx, root); err != nil {
 		t.Fatalf("Failed to store signed map root: %v", err)
 	}
 	root2 := trillian.SignedMapRoot{
@@ -162,7 +162,7 @@ func TestMapRootUpdate(t *testing.T) {
 		RootHash:       []byte(dummyHash),
 		Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
 	}
-	if err := tx.StoreSignedMapRoot(root2); err != nil {
+	if err := tx.StoreSignedMapRoot(ctx, root2); err != nil {
 		t.Fatalf("Failed to store signed map root: %v", err)
 	}
 	if err := tx.Commit(); err != nil {
@@ -171,7 +171,7 @@ func TestMapRootUpdate(t *testing.T) {
 
 	tx = beginMapTx(ctx, s, mapID, t)
 	defer tx.Close()
-	root3, err := tx.LatestSignedMapRoot()
+	root3, err := tx.LatestSignedMapRoot(ctx)
 	if err != nil {
 		t.Fatalf("Failed to read back new map root: %v", err)
 	}
@@ -199,7 +199,7 @@ func TestMapSetGetRoundTrip(t *testing.T) {
 	{
 		tx := beginMapTx(ctx, s, mapID, t)
 		defer tx.Close()
-		if err := tx.Set(keyHash, mapLeaf); err != nil {
+		if err := tx.Set(ctx, keyHash, mapLeaf); err != nil {
 			t.Fatalf("Failed to set %v to %v: %v", keyHash, mapLeaf, err)
 		}
 		if err := tx.Commit(); err != nil {
@@ -210,7 +210,7 @@ func TestMapSetGetRoundTrip(t *testing.T) {
 	{
 		tx := beginMapTx(ctx, s, mapID, t)
 		defer tx.Close()
-		readValues, err := tx.Get(readRev, [][]byte{keyHash})
+		readValues, err := tx.Get(ctx, readRev, [][]byte{keyHash})
 		if err != nil {
 			t.Fatalf("Failed to get %v:  %v", keyHash, err)
 		}
@@ -234,7 +234,7 @@ func TestMapSetSameKeyInSameRevisionFails(t *testing.T) {
 	{
 		tx := beginMapTx(ctx, s, mapID, t)
 		defer tx.Close()
-		if err := tx.Set(keyHash, mapLeaf); err != nil {
+		if err := tx.Set(ctx, keyHash, mapLeaf); err != nil {
 			t.Fatalf("Failed to set %v to %v: %v", keyHash, mapLeaf, err)
 		}
 		if err := tx.Commit(); err != nil {
@@ -245,7 +245,7 @@ func TestMapSetSameKeyInSameRevisionFails(t *testing.T) {
 	{
 		tx := beginMapTx(ctx, s, mapID, t)
 		defer tx.Close()
-		if err := tx.Set(keyHash, mapLeaf); err == nil {
+		if err := tx.Set(ctx, keyHash, mapLeaf); err == nil {
 			t.Fatalf("Unexpectedly succeeded in setting %v to %v", keyHash, mapLeaf)
 		}
 		commit(tx, t)
@@ -260,7 +260,7 @@ func TestMapGetUnknownKey(t *testing.T) {
 	ctx := context.Background()
 	tx := beginMapTx(ctx, s, mapID, t)
 	defer tx.Close()
-	readValues, err := tx.Get(1, [][]byte{[]byte("This doesn't exist.")})
+	readValues, err := tx.Get(ctx, 1, [][]byte{[]byte("This doesn't exist.")})
 	if err != nil {
 		t.Fatalf("Read returned error %v", err)
 	}
@@ -295,7 +295,7 @@ func TestMapSetGetMultipleRevisions(t *testing.T) {
 
 			mapTX := tx.(*mapTreeTX)
 			mapTX.treeTX.writeRevision = tc.rev
-			if err := tx.Set(keyHash, tc.leaf); err != nil {
+			if err := tx.Set(ctx, keyHash, tc.leaf); err != nil {
 				t.Fatalf("Failed to set %v to %v: %v", keyHash, tc.leaf, err)
 			}
 			if err := tx.Commit(); err != nil {
@@ -314,7 +314,7 @@ func TestMapSetGetMultipleRevisions(t *testing.T) {
 					tx2 := beginMapTx(ctx, s, mapID, t)
 					defer tx2.Close()
 
-					readValues, err := tx2.Get(i, [][]byte{keyHash})
+					readValues, err := tx2.Get(ctx, i, [][]byte{keyHash})
 					if err != nil {
 						t.Fatalf("At i %d failed to get %v:  %v", i, keyHash, err)
 					}
@@ -340,7 +340,7 @@ func TestLatestSignedMapRootNoneWritten(t *testing.T) {
 	tx := beginMapTx(ctx, s, mapID, t)
 	defer tx.Close()
 
-	root, err := tx.LatestSignedMapRoot()
+	root, err := tx.LatestSignedMapRoot(ctx)
 	if err != nil {
 		t.Fatalf("Failed to read an empty map root: %v", err)
 	}
@@ -366,7 +366,7 @@ func TestLatestSignedMapRoot(t *testing.T) {
 		RootHash:       []byte(dummyHash),
 		Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
 	}
-	if err := tx.StoreSignedMapRoot(root); err != nil {
+	if err := tx.StoreSignedMapRoot(ctx, root); err != nil {
 		t.Fatalf("Failed to store signed root: %v", err)
 	}
 	if err := tx.Commit(); err != nil {
@@ -376,7 +376,7 @@ func TestLatestSignedMapRoot(t *testing.T) {
 	{
 		tx2 := beginMapTx(ctx, s, mapID, t)
 		defer tx2.Close()
-		root2, err := tx2.LatestSignedMapRoot()
+		root2, err := tx2.LatestSignedMapRoot(ctx)
 		if err != nil {
 			t.Fatalf("Failed to read back new map root: %v", err)
 		}
@@ -403,11 +403,11 @@ func TestDuplicateSignedMapRoot(t *testing.T) {
 		RootHash:       []byte(dummyHash),
 		Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
 	}
-	if err := tx.StoreSignedMapRoot(root); err != nil {
+	if err := tx.StoreSignedMapRoot(ctx, root); err != nil {
 		t.Fatalf("Failed to store signed map root: %v", err)
 	}
 	// Shouldn't be able to do it again
-	if err := tx.StoreSignedMapRoot(root); err == nil {
+	if err := tx.StoreSignedMapRoot(ctx, root); err == nil {
 		t.Fatal("Allowed duplicate signed map root")
 	}
 	commit(tx, t)

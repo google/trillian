@@ -122,7 +122,7 @@ func (m *mySQLMapStorage) begin(ctx context.Context, treeID int64, readonly bool
 		ms:     m,
 	}
 
-	mtx.root, err = mtx.LatestSignedMapRoot()
+	mtx.root, err = mtx.LatestSignedMapRoot(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +157,7 @@ func (m *mapTreeTX) WriteRevision() int64 {
 	return m.treeTX.writeRevision
 }
 
-func (m *mapTreeTX) Set(keyHash []byte, value trillian.MapLeaf) error {
+func (m *mapTreeTX) Set(ctx context.Context, keyHash []byte, value trillian.MapLeaf) error {
 	// TODO(al): consider storing some sort of value which represents the group of keys being set in this Tx.
 	//           That way, if this attempt partially fails (i.e. because some subset of the in-the-future Merkle
 	//           nodes do get written), we can enforce that future map update attempts are a complete replay of
@@ -167,24 +167,24 @@ func (m *mapTreeTX) Set(keyHash []byte, value trillian.MapLeaf) error {
 		return nil
 	}
 
-	stmt, err := m.tx.PrepareContext(context.TODO(), insertMapLeafSQL)
+	stmt, err := m.tx.PrepareContext(ctx, insertMapLeafSQL)
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
 
-	_, err = stmt.ExecContext(context.TODO(), m.treeID, keyHash, m.writeRevision, flatValue)
+	_, err = stmt.ExecContext(ctx, m.treeID, keyHash, m.writeRevision, flatValue)
 	return err
 }
 
 // MapLeaf indexes are overwritten rather than returning the MapLeaf proto provided in Set.
 // TODO: return a map[_something_]Mapleaf or []IndexValue to separate the index from the value.
-func (m *mapTreeTX) Get(revision int64, indexes [][]byte) ([]trillian.MapLeaf, error) {
+func (m *mapTreeTX) Get(ctx context.Context, revision int64, indexes [][]byte) ([]trillian.MapLeaf, error) {
 	stmt, err := m.ms.getStmt(selectMapLeafSQL, len(indexes), "?", "?")
 	if err != nil {
 		return nil, err
 	}
-	stx := m.tx.StmtContext(context.TODO(), stmt)
+	stx := m.tx.StmtContext(ctx, stmt)
 	defer stx.Close()
 
 	args := make([]interface{}, 0, len(indexes)+2)
@@ -196,7 +196,7 @@ func (m *mapTreeTX) Get(revision int64, indexes [][]byte) ([]trillian.MapLeaf, e
 
 	glog.Infof("args size %d", len(args))
 
-	rows, err := stx.QueryContext(context.TODO(), args...)
+	rows, err := stx.QueryContext(ctx, args...)
 	// It's possible there are no values for any of these keys yet
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -232,20 +232,20 @@ func (m *mapTreeTX) Get(revision int64, indexes [][]byte) ([]trillian.MapLeaf, e
 	return ret, nil
 }
 
-func (m *mapTreeTX) LatestSignedMapRoot() (trillian.SignedMapRoot, error) {
+func (m *mapTreeTX) LatestSignedMapRoot(ctx context.Context) (trillian.SignedMapRoot, error) {
 	var timestamp, mapRevision int64
 	var rootHash, rootSignatureBytes []byte
 	var rootSignature spb.DigitallySigned
 	var mapperMetaBytes []byte
 	var mapperMeta *trillian.MapperMetadata
 
-	stmt, err := m.tx.PrepareContext(context.TODO(), selectLatestSignedMapRootSQL)
+	stmt, err := m.tx.PrepareContext(ctx, selectLatestSignedMapRootSQL)
 	if err != nil {
 		return trillian.SignedMapRoot{}, err
 	}
 	defer stmt.Close()
 
-	err = stmt.QueryRowContext(context.TODO(), m.treeID).Scan(
+	err = stmt.QueryRowContext(ctx, m.treeID).Scan(
 		&timestamp, &rootHash, &mapRevision, &rootSignatureBytes, &mapperMetaBytes)
 
 	// It's possible there are no roots for this tree yet
@@ -279,7 +279,7 @@ func (m *mapTreeTX) LatestSignedMapRoot() (trillian.SignedMapRoot, error) {
 	return ret, nil
 }
 
-func (m *mapTreeTX) StoreSignedMapRoot(root trillian.SignedMapRoot) error {
+func (m *mapTreeTX) StoreSignedMapRoot(ctx context.Context, root trillian.SignedMapRoot) error {
 	signatureBytes, err := proto.Marshal(root.Signature)
 	if err != nil {
 		glog.Warningf("Failed to marshal root signature: %v %v", root.Signature, err)
@@ -296,14 +296,14 @@ func (m *mapTreeTX) StoreSignedMapRoot(root trillian.SignedMapRoot) error {
 		}
 	}
 
-	stmt, err := m.tx.PrepareContext(context.TODO(), insertMapHeadSQL)
+	stmt, err := m.tx.PrepareContext(ctx, insertMapHeadSQL)
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
 
 	// TODO(al): store transactionLogHead too
-	res, err := stmt.ExecContext(context.TODO(), m.treeID, root.TimestampNanos, root.RootHash, root.MapRevision, signatureBytes, mapperMetaBytes)
+	res, err := stmt.ExecContext(ctx, m.treeID, root.TimestampNanos, root.RootHash, root.MapRevision, signatureBytes, mapperMetaBytes)
 
 	if err != nil {
 		glog.Warningf("Failed to store signed map root: %s", err)

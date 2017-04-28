@@ -113,7 +113,7 @@ func main() {
 		}
 		glog.Infof("CalculateRoot (%d), root: %s", x, base64.StdEncoding.EncodeToString(root))
 
-		if err := tx.StoreSignedMapRoot(trillian.SignedMapRoot{
+		if err := tx.StoreSignedMapRoot(ctx, trillian.SignedMapRoot{
 			TimestampNanos: time.Now().UnixNano(),
 			RootHash:       root,
 			MapId:          mapID,
