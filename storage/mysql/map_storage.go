@@ -75,7 +75,7 @@ type readOnlyMapTX struct {
 }
 
 func (m *mySQLMapStorage) Snapshot(ctx context.Context) (storage.ReadOnlyMapTX, error) {
-	tx, err := m.db.Begin()
+	tx, err := m.db.BeginTx(ctx, nil /* opts */)
 	if err != nil {
 		return nil, err
 	}
@@ -167,13 +167,13 @@ func (m *mapTreeTX) Set(keyHash []byte, value trillian.MapLeaf) error {
 		return nil
 	}
 
-	stmt, err := m.tx.Prepare(insertMapLeafSQL)
+	stmt, err := m.tx.PrepareContext(context.TODO(), insertMapLeafSQL)
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
 
-	_, err = stmt.Exec(m.treeID, keyHash, m.writeRevision, flatValue)
+	_, err = stmt.ExecContext(context.TODO(), m.treeID, keyHash, m.writeRevision, flatValue)
 	return err
 }
 
@@ -184,7 +184,7 @@ func (m *mapTreeTX) Get(revision int64, indexes [][]byte) ([]trillian.MapLeaf, e
 	if err != nil {
 		return nil, err
 	}
-	stx := m.tx.Stmt(stmt)
+	stx := m.tx.StmtContext(context.TODO(), stmt)
 	defer stx.Close()
 
 	args := make([]interface{}, 0, len(indexes)+2)
@@ -196,7 +196,7 @@ func (m *mapTreeTX) Get(revision int64, indexes [][]byte) ([]trillian.MapLeaf, e
 
 	glog.Infof("args size %d", len(args))
 
-	rows, err := stx.Query(args...)
+	rows, err := stx.QueryContext(context.TODO(), args...)
 	// It's possible there are no values for any of these keys yet
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -239,13 +239,13 @@ func (m *mapTreeTX) LatestSignedMapRoot() (trillian.SignedMapRoot, error) {
 	var mapperMetaBytes []byte
 	var mapperMeta *trillian.MapperMetadata
 
-	stmt, err := m.tx.Prepare(selectLatestSignedMapRootSQL)
+	stmt, err := m.tx.PrepareContext(context.TODO(), selectLatestSignedMapRootSQL)
 	if err != nil {
 		return trillian.SignedMapRoot{}, err
 	}
 	defer stmt.Close()
 
-	err = stmt.QueryRow(m.treeID).Scan(
+	err = stmt.QueryRowContext(context.TODO(), m.treeID).Scan(
 		&timestamp, &rootHash, &mapRevision, &rootSignatureBytes, &mapperMetaBytes)
 
 	// It's possible there are no roots for this tree yet
@@ -296,14 +296,14 @@ func (m *mapTreeTX) StoreSignedMapRoot(root trillian.SignedMapRoot) error {
 		}
 	}
 
-	stmt, err := m.tx.Prepare(insertMapHeadSQL)
+	stmt, err := m.tx.PrepareContext(context.TODO(), insertMapHeadSQL)
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
 
 	// TODO(al): store transactionLogHead too
-	res, err := stmt.Exec(m.treeID, root.TimestampNanos, root.RootHash, root.MapRevision, signatureBytes, mapperMetaBytes)
+	res, err := stmt.ExecContext(context.TODO(), m.treeID, root.TimestampNanos, root.RootHash, root.MapRevision, signatureBytes, mapperMetaBytes)
 
 	if err != nil {
 		glog.Warningf("Failed to store signed map root: %s", err)

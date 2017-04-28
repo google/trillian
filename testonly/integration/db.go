@@ -15,6 +15,7 @@
 package integration
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"io/ioutil"
@@ -46,7 +47,7 @@ func GetTestDB(testID string) (*sql.DB, error) {
 		fmt.Sprintf("CREATE DATABASE %v;", dbName),
 	}
 	for _, sqlText := range resetSQL {
-		if _, err := dbRoot.Exec(sqlText); err != nil {
+		if _, err := dbRoot.ExecContext(context.TODO(), sqlText); err != nil {
 			return nil, err
 		}
 	}
@@ -64,7 +65,7 @@ func GetTestDB(testID string) (*sql.DB, error) {
 	sqlSlice := strings.Split(string(createSQL), ";\n")
 	// Omit the last element of the slice, since it will be "".
 	for _, sqlText := range sqlSlice[:len(sqlSlice)-1] {
-		if _, err := dbTest.Exec(sqlText); err != nil {
+		if _, err := dbTest.ExecContext(context.TODO(), sqlText); err != nil {
 			return nil, err
 		}
 	}

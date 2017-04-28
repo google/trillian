@@ -63,7 +63,7 @@ func (s *mysqlAdminStorage) Snapshot(ctx context.Context) (storage.ReadOnlyAdmin
 }
 
 func (s *mysqlAdminStorage) Begin(ctx context.Context) (storage.AdminTX, error) {
-	tx, err := s.db.Begin()
+	tx, err := s.db.BeginTx(ctx, nil /* opts */)
 	if err != nil {
 		return nil, err
 	}
@@ -119,12 +119,12 @@ func (t *adminTX) Close() error {
 }
 
 func (t *adminTX) GetTree(ctx context.Context, treeID int64) (*trillian.Tree, error) {
-	stmt, err := t.tx.Prepare(selectTreeByID)
+	stmt, err := t.tx.PrepareContext(ctx, selectTreeByID)
 	if err != nil {
 		return nil, err
 	}
 	defer stmt.Close()
-	return readTree(stmt.QueryRow(treeID))
+	return readTree(stmt.QueryRowContext(ctx, treeID))
 }
 
 // There's no common interface between sql.Row and sql.Rows(!), so we have to
@@ -220,13 +220,13 @@ func setNullStringIfValid(src sql.NullString, dest *string) {
 }
 
 func (t *adminTX) ListTreeIDs(ctx context.Context) ([]int64, error) {
-	stmt, err := t.tx.Prepare("SELECT TreeId FROM Trees")
+	stmt, err := t.tx.PrepareContext(ctx, "SELECT TreeId FROM Trees")
 	if err != nil {
 		return nil, err
 	}
 	defer stmt.Close()
 
-	rows, err := stmt.Query()
+	rows, err := stmt.QueryContext(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -244,12 +244,12 @@ func (t *adminTX) ListTreeIDs(ctx context.Context) ([]int64, error) {
 }
 
 func (t *adminTX) ListTrees(ctx context.Context) ([]*trillian.Tree, error) {
-	stmt, err := t.tx.Prepare(selectTrees)
+	stmt, err := t.tx.PrepareContext(ctx, selectTrees)
 	if err != nil {
 		return nil, err
 	}
 	defer stmt.Close()
-	rows, err := stmt.Query()
+	rows, err := stmt.QueryContext(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -285,8 +285,9 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 	newTree.CreateTimeMillisSinceEpoch = nowMillis
 	newTree.UpdateTimeMillisSinceEpoch = nowMillis
 
-	insertTreeStmt, err := t.tx.Prepare(`
-		INSERT INTO Trees(
+	insertTreeStmt, err := t.tx.PrepareContext(
+		ctx,
+		`INSERT INTO Trees(
 			TreeId,
 			TreeState,
 			TreeType,
@@ -309,7 +310,8 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 		return nil, fmt.Errorf("could not marshal PrivateKey: %v", err)
 	}
 
-	_, err = insertTreeStmt.Exec(
+	_, err = insertTreeStmt.ExecContext(
+		ctx,
 		newTree.TreeId,
 		newTree.TreeState.String(),
 		newTree.TreeType.String(),
@@ -336,8 +338,9 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 	}
 
 	// TODO(codingllama): There's a strong disconnect between trillian.Tree and TreeControl. Are we OK with that?
-	insertControlStmt, err := t.tx.Prepare(`
-		INSERT INTO TreeControl(
+	insertControlStmt, err := t.tx.PrepareContext(
+		ctx,
+		`INSERT INTO TreeControl(
 			TreeId,
 			SigningEnabled,
 			SequencingEnabled,
@@ -347,7 +350,8 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 		return nil, err
 	}
 	defer insertControlStmt.Close()
-	_, err = insertControlStmt.Exec(
+	_, err = insertControlStmt.ExecContext(
+		ctx,
 		newTree.TreeId,
 		true, /* SigningEnabled */
 		true, /* SequencingEnabled */
@@ -377,8 +381,9 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 
 	tree.UpdateTimeMillisSinceEpoch = toMillisSinceEpoch(time.Now())
 
-	stmt, err := t.tx.Prepare(`
-		UPDATE Trees
+	stmt, err := t.tx.PrepareContext(
+		ctx,
+		`UPDATE Trees
 		SET TreeState = ?, DisplayName = ?, Description = ?, UpdateTimeMillis = ?
 		WHERE TreeId = ?`)
 	if err != nil {
@@ -386,7 +391,8 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 	}
 	defer stmt.Close()
 
-	if _, err = stmt.Exec(
+	if _, err = stmt.ExecContext(
+		ctx,
 		tree.TreeState.String(),
 		tree.DisplayName,
 		tree.Description,

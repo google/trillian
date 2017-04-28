@@ -75,7 +75,7 @@ func OpenDB(dbURL string) (*sql.DB, error) {
 		return nil, err
 	}
 
-	if _, err := db.Exec("SET sql_mode = 'STRICT_ALL_TABLES'"); err != nil {
+	if _, err := db.ExecContext(context.TODO(), "SET sql_mode = 'STRICT_ALL_TABLES'"); err != nil {
 		glog.Warningf("Failed to set strict mode on mysql db: %s", err)
 		return nil, err
 	}
@@ -120,7 +120,7 @@ func (m *mySQLTreeStorage) getStmt(statement string, num int, first, rest string
 		m.statements[statement] = make(map[int]*sql.Stmt)
 	}
 
-	s, err := m.db.Prepare(expandPlaceholderSQL(statement, num, first, rest))
+	s, err := m.db.PrepareContext(context.TODO(), expandPlaceholderSQL(statement, num, first, rest))
 
 	if err != nil {
 		glog.Warningf("Failed to prepare statement %d: %s", num, err)
@@ -141,8 +141,7 @@ func (m *mySQLTreeStorage) setSubtreeStmt(num int) (*sql.Stmt, error) {
 }
 
 func (m *mySQLTreeStorage) beginTreeTx(ctx context.Context, treeID int64, hashSizeBytes int, strataDepths []int, populate storage.PopulateSubtreeFunc, prepare storage.PrepareSubtreeWriteFunc) (treeTX, error) {
-	// TODO(alcutter): use BeginTX(ctx) when we move to Go 1.8
-	t, err := m.db.Begin()
+	t, err := m.db.BeginTx(ctx, nil /* opts */)
 	if err != nil {
 		glog.Warningf("Could not start tree TX: %s", err)
 		return treeTX{}, err
@@ -191,7 +190,7 @@ func (t *treeTX) getSubtrees(treeRevision int64, nodeIDs []storage.NodeID) ([]*s
 	if err != nil {
 		return nil, err
 	}
-	stx := t.tx.Stmt(tmpl)
+	stx := t.tx.StmtContext(context.TODO(), tmpl)
 	defer stx.Close()
 
 	args := make([]interface{}, 0, len(nodeIDs)+3)
@@ -211,7 +210,7 @@ func (t *treeTX) getSubtrees(treeRevision int64, nodeIDs []storage.NodeID) ([]*s
 	args = append(args, interface{}(treeRevision))
 	args = append(args, interface{}(t.treeID))
 
-	rows, err := stx.Query(args...)
+	rows, err := stx.QueryContext(context.TODO(), args...)
 	if err != nil {
 		glog.Warningf("Failed to get merkle subtrees: %s", err)
 		return nil, err
@@ -280,10 +279,10 @@ func (t *treeTX) storeSubtrees(subtrees []*storagepb.SubtreeProto) error {
 	if err != nil {
 		return err
 	}
-	stx := t.tx.Stmt(tmpl)
+	stx := t.tx.StmtContext(context.TODO(), tmpl)
 	defer stx.Close()
 
-	r, err := stx.Exec(args...)
+	r, err := stx.ExecContext(context.TODO(), args...)
 	if err != nil {
 		glog.Warningf("Failed to set merkle subtrees: %s", err)
 		return err
@@ -324,7 +323,7 @@ func (t *treeTX) GetTreeRevisionIncludingSize(treeSize int64) (int64, int64, err
 	}
 
 	var treeRevision, actualTreeSize int64
-	err := t.tx.QueryRow(selectTreeRevisionAtSizeOrLargerSQL, t.treeID, treeSize).Scan(&treeRevision, &actualTreeSize)
+	err := t.tx.QueryRowContext(context.TODO(), selectTreeRevisionAtSizeOrLargerSQL, t.treeID, treeSize).Scan(&treeRevision, &actualTreeSize)
 
 	return treeRevision, actualTreeSize, err
 }
@@ -396,14 +395,11 @@ func (t *treeTX) IsOpen() bool {
 }
 
 func checkDatabaseAccessible(ctx context.Context, db *sql.DB) error {
-	_ = ctx
-
-	stmt, err := db.Prepare("SELECT TreeId FROM Trees LIMIT 1")
+	stmt, err := db.PrepareContext(ctx, "SELECT TreeId FROM Trees LIMIT 1")
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
-
-	_, err = stmt.Exec()
+	_, err = stmt.ExecContext(ctx)
 	return err
 }

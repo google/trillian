@@ -49,7 +49,7 @@ func TestAdminTX_CreateTree_InitializesStorageStructures(t *testing.T) {
 	// Check if TreeControl is correctly written.
 	var signingEnabled, sequencingEnabled bool
 	var sequenceIntervalSeconds int
-	if err := DB.QueryRow(selectTreeControlByID, tree.TreeId).Scan(&signingEnabled, &sequencingEnabled, &sequenceIntervalSeconds); err != nil {
+	if err := DB.QueryRowContext(ctx, selectTreeControlByID, tree.TreeId).Scan(&signingEnabled, &sequencingEnabled, &sequenceIntervalSeconds); err != nil {
 		t.Fatalf("Failed to read TreeControl: %v", err)
 	}
 	// We don't mind about specific values, defaults change, but let's check
@@ -71,7 +71,7 @@ func TestAdminTX_TreeWithNulls(t *testing.T) {
 	if err != nil {
 		t.Fatalf("createTree() failed: %v", err)
 	}
-	if err := setNulls(DB, tree.TreeId); err != nil {
+	if err := setNulls(ctx, DB, tree.TreeId); err != nil {
 		t.Fatalf("setNulls() = %v, want = nil", err)
 	}
 
@@ -212,12 +212,12 @@ func updateTreeInternal(ctx context.Context, s storage.AdminStorage, treeID int6
 	return newTree, nil
 }
 
-func setNulls(db *sql.DB, treeID int64) error {
-	stmt, err := db.Prepare("UPDATE Trees SET DisplayName = NULL, Description = NULL WHERE TreeId = ?")
+func setNulls(ctx context.Context, db *sql.DB, treeID int64) error {
+	stmt, err := db.PrepareContext(ctx, "UPDATE Trees SET DisplayName = NULL, Description = NULL WHERE TreeId = ?")
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
-	_, err = stmt.Exec(treeID)
+	_, err = stmt.ExecContext(ctx, treeID)
 	return err
 }
