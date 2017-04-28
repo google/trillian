@@ -177,7 +177,8 @@ func (c *LogClient) UpdateRoot(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if resp.SignedLogRoot.TreeSize == c.root.TreeSize &&
+	if c.root.TreeSize > 0 &&
+		resp.SignedLogRoot.TreeSize == c.root.TreeSize &&
 		bytes.Equal(resp.SignedLogRoot.RootHash, c.root.RootHash) {
 		// Tree has not been updated.
 		return nil

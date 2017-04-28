@@ -239,6 +239,14 @@ func TestUpdateRoot(t *testing.T) {
 
 	before := client.Root().TreeSize
 
+	// UpdateRoot should succeed with no change.
+	if err := client.UpdateRoot(ctx); err != nil {
+		t.Error(err)
+	}
+	if got, want := client.Root().TreeSize, before; got != want {
+		t.Errorf("Tree size changed unexpectedly: %v, want %v", got, want)
+	}
+
 	// Add the leaf without polling for inclusion.
 	leaf := client.buildLeaf([]byte("foo"))
 	if err := client.queueLeaf(ctx, leaf); err != nil {
