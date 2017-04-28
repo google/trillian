@@ -36,15 +36,19 @@ import (
 type LogClient struct {
 	LogID  int64
 	client trillian.TrillianLogClient
-	*LogVerifier
+	*logVerifier
 }
 
 // New returns a new LogClient.
 func New(logID int64, client trillian.TrillianLogClient, hasher merkle.TreeHasher, pubKey crypto.PublicKey) *LogClient {
 	return &LogClient{
-		LogID:       logID,
-		client:      client,
-		LogVerifier: NewLogVerifier(hasher, pubKey),
+		LogID:  logID,
+		client: client,
+		logVerifier: &logVerifier{
+			hasher: hasher,
+			pubKey: pubKey,
+			v:      merkle.NewLogVerifier(hasher),
+		},
 	}
 }
 
@@ -56,7 +60,7 @@ func (c *LogClient) AddLeaf(ctx context.Context, data []byte) error {
 		return err
 	}
 
-	leaf := c.LogVerifier.buildLeaf(data)
+	leaf := c.logVerifier.buildLeaf(data)
 	err := c.queueLeaf(ctx, leaf)
 	switch s, ok := status.FromError(err); {
 	case ok && s.Code() == codes.AlreadyExists:
@@ -194,7 +198,7 @@ func (c *LogClient) UpdateRoot(ctx context.Context) error {
 	}
 
 	// Verify root update.
-	if err := c.LogVerifier.UpdateRoot(resp, consistency); err != nil {
+	if err := c.logVerifier.UpdateRoot(resp, consistency); err != nil {
 		return err
 	}
 	return nil
@@ -202,7 +206,7 @@ func (c *LogClient) UpdateRoot(ctx context.Context) error {
 
 // VerifyInclusion updates the log root and ensures that the given leaf data has been included in the log.
 func (c *LogClient) VerifyInclusion(ctx context.Context, data []byte) error {
-	leaf := c.LogVerifier.buildLeaf(data)
+	leaf := c.logVerifier.buildLeaf(data)
 	if err := c.UpdateRoot(ctx); err != nil {
 		return fmt.Errorf("UpdateRoot(): %v", err)
 	}
@@ -223,7 +227,7 @@ func (c *LogClient) VerifyInclusionAtIndex(ctx context.Context, data []byte, ind
 	if err != nil {
 		return err
 	}
-	return c.LogVerifier.VerifyInclusionAtIndex(data, index, resp)
+	return c.logVerifier.VerifyInclusionAtIndex(data, index, resp)
 }
 
 func (c *LogClient) getInclusionProof(ctx context.Context, leafHash []byte, treeSize int64) error {
@@ -240,7 +244,7 @@ func (c *LogClient) getInclusionProof(ctx context.Context, leafHash []byte, tree
 		return errors.New("no inclusion proof supplied")
 	}
 	for _, proof := range resp.Proof {
-		if err := c.LogVerifier.VerifyInclusionByHash(leafHash, proof); err != nil {
+		if err := c.logVerifier.VerifyInclusionByHash(leafHash, proof); err != nil {
 			return err
 		}
 	}

@@ -45,3 +45,19 @@ type VerifyingLogClient interface {
 	// ListByIndex returns a contiguous range. Does not verify the leaf's inclusion proof.
 	ListByIndex(ctx context.Context, start, count int64) ([]*trillian.LogLeaf, error)
 }
+
+// LogVerifier verifies responses from a Trillian Log.
+type LogVerifier interface {
+	// Root provides the last root obtained by UpdateRoot.
+	Root() trillian.SignedLogRoot
+	// UpdateRoot applies a GetLatestSignedLogRootResponse to Root(), if valid.
+	// consistency may be nil if Root().TreeSize is zero.
+	UpdateRoot(resp *trillian.GetLatestSignedLogRootResponse,
+		consistency *trillian.GetConsistencyProofResponse) error
+	// VerifyInclusionAtIndex verifies that the inclusion proof for data at index matches
+	// the currently trusted root. The inclusion proof must be requested for Root().TreeSize.
+	VerifyInclusionAtIndex(data []byte, leafIndex int64,
+		resp *trillian.GetInclusionProofResponse) error
+	// VerifyInclusionByHash verifies the inclusion proof for data
+	VerifyInclusionByHash(leafHash []byte, proof *trillian.Proof) error
+}
