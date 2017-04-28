@@ -24,6 +24,7 @@ import (
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/storagepb"
+	stestonly "github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/testonly"
 	"github.com/kylelemons/godebug/pretty"
 )
@@ -89,7 +90,7 @@ func TestCacheFillOnlyReadsSubtrees(t *testing.T) {
 	for b := 0; b < nodeID.PrefixLenBits; b += defaultLogStrata[si] {
 		e := nodeID
 		e.PrefixLenBits = b
-		m.EXPECT().GetSubtree(testonly.NodeIDEq(e)).Return(&storagepb.SubtreeProto{
+		m.EXPECT().GetSubtree(stestonly.NodeIDEq(e)).Return(&storagepb.SubtreeProto{
 			Prefix: e.Path,
 		}, nil)
 		si++
@@ -125,7 +126,7 @@ func TestCacheGetNodesReadsSubtrees(t *testing.T) {
 		// strata that'll be everything except the last byte), so modify the prefix
 		// length here accoringly:
 		nodeID.PrefixLenBits -= 8
-		m.EXPECT().GetSubtree(testonly.NodeIDEq(nodeID)).Return(&storagepb.SubtreeProto{
+		m.EXPECT().GetSubtree(stestonly.NodeIDEq(nodeID)).Return(&storagepb.SubtreeProto{
 			Prefix: nodeID.Path[:len(nodeID.Path)-1],
 		}, nil)
 	}
@@ -176,7 +177,7 @@ func TestCacheFlush(t *testing.T) {
 		//e := nodeID
 		e.PrefixLenBits = b
 		expectedSetIDs[e.String()] = "expected"
-		m.EXPECT().GetSubtree(testonly.NodeIDEq(e)).Do(func(n storage.NodeID) {
+		m.EXPECT().GetSubtree(stestonly.NodeIDEq(e)).Do(func(n storage.NodeID) {
 			t.Logf("read %v", n)
 		}).Return((*storagepb.SubtreeProto)(nil), nil)
 	}
