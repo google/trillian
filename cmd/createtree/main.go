@@ -41,6 +41,7 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/crypto/sigpb"
 	"google.golang.org/grpc"
 )
@@ -145,7 +146,7 @@ func newPK(opts *createOpts) (*any.Any, error) {
 		if opts.pemKeyPass == "" {
 			return nil, fmt.Errorf("empty password for PEM key file %q", opts.pemKeyPath)
 		}
-		pemKey := &trillian.PEMKeyFile{
+		pemKey := &keyspb.PEMKeyFile{
 			Path:     opts.pemKeyPath,
 			Password: opts.pemKeyPass,
 		}

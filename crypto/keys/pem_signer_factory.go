@@ -21,6 +21,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto/keyspb"
 )
 
 // PEMSignerFactory loads PEM-encoded private keys.
@@ -41,7 +42,7 @@ func (f PEMSignerFactory) NewSigner(ctx context.Context, tree *trillian.Tree) (c
 	}
 
 	switch privateKey := privateKey.Message.(type) {
-	case *trillian.PEMKeyFile:
+	case *keyspb.PEMKeyFile:
 		return NewFromPrivatePEMFile(privateKey.GetPath(), privateKey.GetPassword())
 	}
 

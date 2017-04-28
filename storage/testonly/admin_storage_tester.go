@@ -25,6 +25,7 @@ import (
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys"
+	"github.com/google/trillian/crypto/keyspb"
 	spb "github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/storage"
 	ttestonly "github.com/google/trillian/testonly"
@@ -65,11 +66,11 @@ var (
 		SignatureAlgorithm: spb.DigitallySigned_ECDSA,
 		DisplayName:        "Llamas Log",
 		Description:        "Registry of publicly-owned llamas",
-		PrivateKey: mustMarshalAny(&trillian.PEMKeyFile{
+		PrivateKey: mustMarshalAny(&keyspb.PEMKeyFile{
 			Path:     ttestonly.RelativeToPackage("../../testdata/log-rpc-server.privkey.pem"),
 			Password: "towel",
 		}),
-		PublicKey: &trillian.PublicKey{
+		PublicKey: &keyspb.PublicKey{
 			Der: loadPublicPEMFileAsDER("../../testdata/log-rpc-server.pubkey.pem"),
 		},
 	}
@@ -83,11 +84,11 @@ var (
 		SignatureAlgorithm: spb.DigitallySigned_ECDSA,
 		DisplayName:        "Llamas Map",
 		Description:        "Key Transparency map for all your digital llama needs.",
-		PrivateKey: mustMarshalAny(&trillian.PEMKeyFile{
+		PrivateKey: mustMarshalAny(&keyspb.PEMKeyFile{
 			Path:     ttestonly.RelativeToPackage("../../testdata/map-rpc-server.privkey.pem"),
 			Password: "towel",
 		}),
-		PublicKey: &trillian.PublicKey{
+		PublicKey: &keyspb.PublicKey{
 			Der: loadPublicPEMFileAsDER("../../testdata/map-rpc-server.pubkey.pem"),
 		},
 	}

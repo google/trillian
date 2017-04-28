@@ -54,8 +54,6 @@ It has these top-level messages:
 	SignedLogRoot
 	MapperMetadata
 	SignedMapRoot
-	PEMKeyFile
-	PublicKey
 */
 package trillian
 

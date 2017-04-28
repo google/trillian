@@ -21,6 +21,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/trees"
 	"golang.org/x/net/context"
@@ -99,7 +100,7 @@ func (s *Server) CreateTree(ctx context.Context, request *trillian.CreateTreeReq
 	}
 	// If no public key was provided, use the DER that we just marshaled.
 	if tree.PublicKey == nil {
-		tree.PublicKey = &trillian.PublicKey{Der: publicKeyDER}
+		tree.PublicKey = &keyspb.PublicKey{Der: publicKeyDER}
 	}
 
 	tx, err := s.registry.AdminStorage.Begin(ctx)

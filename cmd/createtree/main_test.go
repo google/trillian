@@ -22,6 +22,7 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/kylelemons/godebug/pretty"
 	"golang.org/x/net/context"
@@ -29,7 +30,7 @@ import (
 )
 
 func TestRun(t *testing.T) {
-	pemKey := &trillian.PEMKeyFile{
+	pemKey := &keyspb.PEMKeyFile{
 		Path:     "../../testdata/log-rpc-server.privkey.pem",
 		Password: "towel",
 	}

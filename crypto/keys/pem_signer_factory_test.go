@@ -25,6 +25,7 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto/keyspb"
 )
 
 func marshalAny(pb proto.Message) *any.Any {
@@ -44,7 +45,7 @@ func TestPEMSignerFactoryNewSigner(t *testing.T) {
 		{
 			name: "PEMKeyFile",
 			tree: &trillian.Tree{
-				PrivateKey: marshalAny(&trillian.PEMKeyFile{
+				PrivateKey: marshalAny(&keyspb.PEMKeyFile{
 					Path:     "../../testdata/log-rpc-server.privkey.pem",
 					Password: "towel",
 				}),
@@ -53,7 +54,7 @@ func TestPEMSignerFactoryNewSigner(t *testing.T) {
 		{
 			name: "PemKeyFile with non-existent file",
 			tree: &trillian.Tree{
-				PrivateKey: marshalAny(&trillian.PEMKeyFile{
+				PrivateKey: marshalAny(&keyspb.PEMKeyFile{
 					Path: "non-existent.pem",
 				}),
 			},
@@ -62,7 +63,7 @@ func TestPEMSignerFactoryNewSigner(t *testing.T) {
 		{
 			name: "PemKeyFile with wrong password",
 			tree: &trillian.Tree{
-				PrivateKey: marshalAny(&trillian.PEMKeyFile{
+				PrivateKey: marshalAny(&keyspb.PEMKeyFile{
 					Path:     "../../testdata/log-rpc-server.privkey.pem",
 					Password: "wrong-password",
 				}),
@@ -72,7 +73,7 @@ func TestPEMSignerFactoryNewSigner(t *testing.T) {
 		{
 			name: "PemKeyFile with missing password",
 			tree: &trillian.Tree{
-				PrivateKey: marshalAny(&trillian.PEMKeyFile{
+				PrivateKey: marshalAny(&keyspb.PEMKeyFile{
 					Path: "../../testdata/log-rpc-server.privkey.pem",
 				}),
 			},

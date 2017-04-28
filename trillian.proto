@@ -16,6 +16,7 @@ syntax = "proto3";
 
 package trillian;
 
+import "github.com/google/trillian/crypto/keyspb/keyspb.proto";
 import "github.com/google/trillian/crypto/sigpb/sigpb.proto";
 import "google/protobuf/any.proto";
 
@@ -138,7 +139,7 @@ message Tree {
 
   // The public key used for verifying tree heads and entry timestamps.
   // Readonly.
-  PublicKey public_key = 14;
+  keyspb.PublicKey public_key = 14;
 }
 
 message SignedEntryTimestamp {
@@ -179,17 +180,3 @@ message SignedMapRoot {
   int64 map_revision = 6;
 }
 
-// PEMKeyFile identifies a private key stored in a PEM-encoded file.
-message PEMKeyFile {
-  // File path of the private key.
-  string path = 1;
-  // Password for decrypting the private key.
-  // If empty, indicates that the private key is not encrypted.
-  string password = 2;
-}
-
-// PublicKey is a public key, used for verifying signatures.
-message PublicKey {
-  // The key in DER-encoded PKIX format.
-  bytes der = 1;
-}

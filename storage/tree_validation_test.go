@@ -21,6 +21,7 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/errors"
 	"github.com/google/trillian/testonly"
@@ -81,7 +82,7 @@ func TestValidateTreeForCreation(t *testing.T) {
 	invalidSettings.StorageSettings = &any.Any{Value: []byte("foobar")}
 
 	// As long as settings is a valid proto, the type doesn't matter for this test.
-	settings, err := ptypes.MarshalAny(&trillian.PEMKeyFile{})
+	settings, err := ptypes.MarshalAny(&keyspb.PEMKeyFile{})
 	if err != nil {
 		t.Fatalf("Error marshaling proto: %v", err)
 	}
@@ -224,7 +225,7 @@ func TestValidateTreeForUpdate(t *testing.T) {
 			desc: "validSettings",
 			updatefn: func(tree *trillian.Tree) {
 				// As long as settings is a valid proto, the type doesn't matter for this test.
-				settings, err := ptypes.MarshalAny(&trillian.PEMKeyFile{})
+				settings, err := ptypes.MarshalAny(&keyspb.PEMKeyFile{})
 				if err != nil {
 					t.Fatalf("Error marshaling proto: %v", err)
 				}
@@ -291,7 +292,7 @@ func TestValidateTreeForUpdate(t *testing.T) {
 		{
 			desc: "PrivateKey",
 			updatefn: func(tree *trillian.Tree) {
-				key, err := ptypes.MarshalAny(&trillian.PEMKeyFile{
+				key, err := ptypes.MarshalAny(&keyspb.PEMKeyFile{
 					Path: "different.pem",
 				})
 				if err != nil {
@@ -319,7 +320,7 @@ func TestValidateTreeForUpdate(t *testing.T) {
 
 // newTree returns a valid tree for tests.
 func newTree() *trillian.Tree {
-	privateKey, err := ptypes.MarshalAny(&trillian.PEMKeyFile{
+	privateKey, err := ptypes.MarshalAny(&keyspb.PEMKeyFile{
 		Path:     "foo.pem",
 		Password: "password123",
 	})
@@ -341,6 +342,6 @@ func newTree() *trillian.Tree {
 		DisplayName:        "Llamas Log",
 		Description:        "Registry of publicly-owned llamas",
 		PrivateKey:         privateKey,
-		PublicKey:          &trillian.PublicKey{Der: publicKeyPEM.Bytes},
+		PublicKey:          &keyspb.PublicKey{Der: publicKeyPEM.Bytes},
 	}
 }

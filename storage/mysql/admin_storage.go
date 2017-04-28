@@ -25,6 +25,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto/keyspb"
 	spb "github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/storage"
 )
@@ -210,7 +211,7 @@ func readTree(row row) (*trillian.Tree, error) {
 	if err := proto.Unmarshal(privateKey, tree.PrivateKey); err != nil {
 		return nil, fmt.Errorf("could not unmarshal PrivateKey: %v", err)
 	}
-	tree.PublicKey = &trillian.PublicKey{Der: publicKey}
+	tree.PublicKey = &keyspb.PublicKey{Der: publicKey}
 
 	return tree, nil
 }
