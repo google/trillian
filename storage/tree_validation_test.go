@@ -15,6 +15,7 @@
 package storage
 
 import (
+	"encoding/pem"
 	"testing"
 
 	"github.com/golang/protobuf/ptypes"
@@ -22,6 +23,7 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/errors"
+	"github.com/google/trillian/testonly"
 )
 
 func TestValidateTreeForCreation(t *testing.T) {
@@ -60,14 +62,20 @@ func TestValidateTreeForCreation(t *testing.T) {
 		A Very Long Description That Clearly Won't Fit, Also Mentions Llamas, For Some Reason Has Only Capitalized Words And Keeps Repeating Itself.
 		`
 
-	unsupportedKey := newTree()
-	unsupportedKey.PrivateKey.TypeUrl = "urn://unknown-type"
+	unsupportedPrivateKey := newTree()
+	unsupportedPrivateKey.PrivateKey.TypeUrl = "urn://unknown-type"
 
-	invalidKey := newTree()
-	invalidKey.PrivateKey.Value = []byte("foobar")
+	invalidPrivateKey := newTree()
+	invalidPrivateKey.PrivateKey.Value = []byte("foobar")
 
-	nilKey := newTree()
-	nilKey.PrivateKey = nil
+	nilPrivateKey := newTree()
+	nilPrivateKey.PrivateKey = nil
+
+	invalidPublicKey := newTree()
+	invalidPublicKey.PublicKey.Der = []byte("foobar")
+
+	nilPublicKey := newTree()
+	nilPublicKey.PublicKey = nil
 
 	invalidSettings := newTree()
 	invalidSettings.StorageSettings = &any.Any{Value: []byte("foobar")}
@@ -149,18 +157,28 @@ func TestValidateTreeForCreation(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			desc:    "unsupportedKey",
-			tree:    unsupportedKey,
+			desc:    "unsupportedPrivateKey",
+			tree:    unsupportedPrivateKey,
 			wantErr: true,
 		},
 		{
-			desc:    "invalidKey",
-			tree:    invalidKey,
+			desc:    "invalidPrivateKey",
+			tree:    invalidPrivateKey,
 			wantErr: true,
 		},
 		{
-			desc:    "nilKey",
-			tree:    nilKey,
+			desc:    "nilPrivateKey",
+			tree:    nilPrivateKey,
+			wantErr: true,
+		},
+		{
+			desc:    "invalidPublicKey",
+			tree:    invalidPublicKey,
+			wantErr: true,
+		},
+		{
+			desc:    "nilPublicKey",
+			tree:    nilPublicKey,
 			wantErr: true,
 		},
 		{
@@ -309,6 +327,11 @@ func newTree() *trillian.Tree {
 		panic(err)
 	}
 
+	publicKeyPEM, _ := pem.Decode([]byte(testonly.DemoPublicKey))
+	if publicKeyPEM == nil {
+		panic("could not decode public key PEM")
+	}
+
 	return &trillian.Tree{
 		TreeState:          trillian.TreeState_ACTIVE,
 		TreeType:           trillian.TreeType_LOG,
@@ -318,5 +341,6 @@ func newTree() *trillian.Tree {
 		DisplayName:        "Llamas Log",
 		Description:        "Registry of publicly-owned llamas",
 		PrivateKey:         privateKey,
+		PublicKey:          &trillian.PublicKey{Der: publicKeyPEM.Bytes},
 	}
 }

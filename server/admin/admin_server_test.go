@@ -19,6 +19,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/x509"
 	"errors"
 	"testing"
 
@@ -65,6 +66,23 @@ func TestServer_BeginError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
+	// PEM on the testonly trees is ECDSA, so let's use an ECDSA key for tests.
+	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("Error generating test key: %v", err)
+	}
+
+	publicKeyDER, err := x509.MarshalPKIXPublicKey(privateKey.Public())
+	if err != nil {
+		t.Fatalf("Error marshaling public key: %v", err)
+	}
+
+	// Need to change the public key to correspond with the private key generated above.
+	validTree := *testonly.LogTree
+	validTree.PublicKey = &trillian.PublicKey{
+		Der: publicKeyDER,
+	}
+
 	tests := []struct {
 		desc     string
 		fn       func(context.Context, *Server) error
@@ -89,7 +107,7 @@ func TestServer_BeginError(t *testing.T) {
 		{
 			desc: "CreateTree",
 			fn: func(ctx context.Context, s *Server) error {
-				_, err := s.CreateTree(ctx, &trillian.CreateTreeRequest{Tree: testonly.LogTree})
+				_, err := s.CreateTree(ctx, &trillian.CreateTreeRequest{Tree: &validTree})
 				return err
 			},
 		},
@@ -104,9 +122,8 @@ func TestServer_BeginError(t *testing.T) {
 			as.EXPECT().Begin(ctx).Return(nil, errors.New("begin error"))
 		}
 
-		// A bit unrealistic, but OK for the purpose of the test.
 		sf := keys.NewMockSignerFactory(ctrl)
-		sf.EXPECT().NewSigner(gomock.Any(), gomock.Any()).MaxTimes(1).Return(nil, nil)
+		sf.EXPECT().NewSigner(gomock.Any(), gomock.Any()).MaxTimes(1).Return(privateKey, nil)
 
 		registry := extension.Registry{
 			AdminStorage:  as,
@@ -260,24 +277,35 @@ func TestServer_CreateTree(t *testing.T) {
 	defer ctrl.Finish()
 
 	// PEM on the testonly trees is ECDSA, so let's use an ECDSA key for tests.
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		t.Fatalf("Error generating test key: %v", err)
 	}
 
-	invalidTree := *testonly.LogTree
+	publicKeyDER, err := x509.MarshalPKIXPublicKey(privateKey.Public())
+	if err != nil {
+		t.Fatalf("Error marshaling public key: %v", err)
+	}
+
+	// Need to change the public key to correspond with the private key generated above.
+	validTree := *testonly.LogTree
+	validTree.PublicKey = &trillian.PublicKey{
+		Der: publicKeyDER,
+	}
+
+	invalidTree := validTree
 	invalidTree.TreeState = trillian.TreeState_HARD_DELETED
 
-	invalidHashAlgo := *testonly.LogTree
+	invalidHashAlgo := validTree
 	invalidHashAlgo.HashAlgorithm = sigpb.DigitallySigned_NONE
 
-	invalidHashStrategy := *testonly.LogTree
+	invalidHashStrategy := validTree
 	invalidHashStrategy.HashStrategy = trillian.HashStrategy_UNKNOWN_HASH_STRATEGY
 
-	invalidSignatureAlgo := *testonly.LogTree
+	invalidSignatureAlgo := validTree
 	invalidSignatureAlgo.SignatureAlgorithm = sigpb.DigitallySigned_ANONYMOUS
 
-	keySignatureMismatch := *testonly.LogTree
+	keySignatureMismatch := validTree
 	keySignatureMismatch.SignatureAlgorithm = sigpb.DigitallySigned_RSA
 
 	tests := []struct {
@@ -288,7 +316,7 @@ func TestServer_CreateTree(t *testing.T) {
 	}{
 		{
 			desc:       "validTree",
-			req:        &trillian.CreateTreeRequest{Tree: testonly.LogTree},
+			req:        &trillian.CreateTreeRequest{Tree: &validTree},
 			wantCommit: true,
 		},
 		{
@@ -324,7 +352,7 @@ func TestServer_CreateTree(t *testing.T) {
 		},
 		{
 			desc:       "commitError",
-			req:        &trillian.CreateTreeRequest{Tree: testonly.LogTree},
+			req:        &trillian.CreateTreeRequest{Tree: &validTree},
 			commitErr:  true,
 			wantCommit: true,
 			wantErr:    true,
@@ -333,7 +361,7 @@ func TestServer_CreateTree(t *testing.T) {
 
 	ctx := context.Background()
 	for _, test := range tests {
-		setup := setupAdminServer(ctrl, key, false /* snapshot */, test.wantCommit, test.commitErr)
+		setup := setupAdminServer(ctrl, privateKey, false /* snapshot */, test.wantCommit, test.commitErr)
 		tx := setup.tx
 		s := setup.server
 

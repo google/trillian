@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS Trees(
   CreateTimeMillis      BIGINT NOT NULL,
   UpdateTimeMillis      BIGINT NOT NULL,
   PrivateKey            BLOB NOT NULL,
+  PublicKey             BLOB NOT NULL,
   PRIMARY KEY(TreeId)
 );
 

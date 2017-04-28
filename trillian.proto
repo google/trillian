@@ -135,6 +135,10 @@ message Tree {
   // Storage-specific settings.
   // Varies according to the storage implementation backing Trillian.
   google.protobuf.Any storage_settings = 13;
+
+  // The public key used for verifying tree heads and entry timestamps.
+  // Readonly.
+  PublicKey public_key = 14;
 }
 
 message SignedEntryTimestamp {
@@ -182,4 +186,10 @@ message PEMKeyFile {
   // Password for decrypting the private key.
   // If empty, indicates that the private key is not encrypted.
   string password = 2;
+}
+
+// PublicKey is a public key, used for verifying signatures.
+message PublicKey {
+  // The key in DER-encoded PKIX format.
+  bytes der = 1;
 }

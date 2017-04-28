@@ -16,6 +16,7 @@ package testonly
 
 import (
 	"context"
+	"crypto/x509"
 	"fmt"
 	"testing"
 
@@ -23,6 +24,7 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto/keys"
 	spb "github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/storage"
 	ttestonly "github.com/google/trillian/testonly"
@@ -36,6 +38,21 @@ func mustMarshalAny(pb proto.Message) *any.Any {
 		panic(err)
 	}
 	return value
+}
+
+// loadPublicPEMFileAsDER reads a public key from a PEM file and returns the key in DER encoding.
+// If an error occurs, it panics.
+func loadPublicPEMFileAsDER(path string) []byte {
+	key, err := keys.NewFromPublicPEMFile(ttestonly.RelativeToPackage(path))
+	if err != nil {
+		panic(err)
+	}
+
+	der, err := x509.MarshalPKIXPublicKey(key)
+	if err != nil {
+		panic(err)
+	}
+	return der
 }
 
 var (
@@ -52,6 +69,9 @@ var (
 			Path:     ttestonly.RelativeToPackage("../../testdata/log-rpc-server.privkey.pem"),
 			Password: "towel",
 		}),
+		PublicKey: &trillian.PublicKey{
+			Der: loadPublicPEMFileAsDER("../../testdata/log-rpc-server.pubkey.pem"),
+		},
 	}
 
 	// MapTree is a valid, MAP-type trillian.Tree for tests.
@@ -67,6 +87,9 @@ var (
 			Path:     ttestonly.RelativeToPackage("../../testdata/map-rpc-server.privkey.pem"),
 			Password: "towel",
 		}),
+		PublicKey: &trillian.PublicKey{
+			Der: loadPublicPEMFileAsDER("../../testdata/map-rpc-server.pubkey.pem"),
+		},
 	}
 )
 
