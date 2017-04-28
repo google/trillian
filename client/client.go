@@ -193,7 +193,7 @@ func (c *LogClient) UpdateRoot(ctx context.Context) error {
 		}
 	}
 
-	// Verify Consistency proof.
+	// Verify root update.
 	if err := c.LogVerifier.UpdateRoot(resp, consistency); err != nil {
 		return err
 	}

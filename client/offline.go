@@ -47,6 +47,7 @@ func (c *LogVerifier) Root() trillian.SignedLogRoot {
 }
 
 // UpdateRoot applies a GetLatestSignedLogRootResponse to Root(), if valid.
+// consistency may be nil if Root().TreeSize is zero.
 func (c *LogVerifier) UpdateRoot(resp *trillian.GetLatestSignedLogRootResponse,
 	consistency *trillian.GetConsistencyProofResponse) error {
 	str := resp.SignedLogRoot
@@ -63,7 +64,7 @@ func (c *LogVerifier) UpdateRoot(resp *trillian.GetLatestSignedLogRootResponse,
 		if err := c.v.VerifyConsistencyProof(
 			c.root.TreeSize, str.TreeSize,
 			c.root.RootHash, str.RootHash,
-			convertProof(consistency.GetProof())); err != nil {
+			proofNodeHashes(consistency.GetProof())); err != nil {
 			return err
 		}
 	}
@@ -71,19 +72,19 @@ func (c *LogVerifier) UpdateRoot(resp *trillian.GetLatestSignedLogRootResponse,
 	return nil
 }
 
-// VerifyInclusionAtIndex verifies that the inclusion proof for data at index matches the currently trusted root.
+// VerifyInclusionAtIndex verifies that the inclusion proof for data at index matches
+// the currently trusted root. The inclusion proof must be requested for Root().TreeSize.
 func (c *LogVerifier) VerifyInclusionAtIndex(data []byte, leafIndex int64, resp *trillian.GetInclusionProofResponse) error {
 	leaf := c.buildLeaf(data)
-	// XXX: c.root.TreeSize used to be req.TreeSize.
 	return c.v.VerifyInclusionProof(leafIndex, c.root.TreeSize,
-		convertProof(resp.Proof), c.root.RootHash,
+		proofNodeHashes(resp.Proof), c.root.RootHash,
 		leaf.MerkleLeafHash)
 
 }
 
 // VerifyInclusionByHash verifies the inclusion proof for data with Tril
 func (c *LogVerifier) VerifyInclusionByHash(leafHash []byte, proof *trillian.Proof) error {
-	neighbors := convertProof(proof)
+	neighbors := proofNodeHashes(proof)
 	return c.v.VerifyInclusionProof(proof.LeafIndex, c.root.TreeSize, neighbors,
 		c.root.RootHash, leafHash)
 }
@@ -97,9 +98,9 @@ func (c *LogVerifier) buildLeaf(data []byte) *trillian.LogLeaf {
 	}
 }
 
-// convertProof returns a slice of neighbor nodes from a trillian Proof.
-// TODO(martin): adjust the public API to do this in the server before returning a proof.
-func convertProof(proof *trillian.Proof) [][]byte {
+// proofNodeHashes returns a slice of neighbor nodes from a trillian Proof.
+// TODO(Martin2112): adjust the public API to do this in the server before returning a proof.
+func proofNodeHashes(proof *trillian.Proof) [][]byte {
 	if proof == nil {
 		return [][]byte{}
 	}
