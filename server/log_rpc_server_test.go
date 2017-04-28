@@ -69,11 +69,11 @@ var (
 	getConsistencyProofRequest7  = trillian.GetConsistencyProofRequest{LogId: logID1, FirstTreeSize: 4, SecondTreeSize: 7}
 
 	nodeIdsInclusionSize7Index2 = []storage.NodeID{
-		testonly.MustCreateNodeIDForTreeCoords(0, 3, 64),
-		testonly.MustCreateNodeIDForTreeCoords(1, 0, 64),
-		testonly.MustCreateNodeIDForTreeCoords(2, 1, 64)}
+		stestonly.MustCreateNodeIDForTreeCoords(0, 3, 64),
+		stestonly.MustCreateNodeIDForTreeCoords(1, 0, 64),
+		stestonly.MustCreateNodeIDForTreeCoords(2, 1, 64)}
 
-	nodeIdsConsistencySize4ToSize7 = []storage.NodeID{testonly.MustCreateNodeIDForTreeCoords(2, 1, 64)}
+	nodeIdsConsistencySize4ToSize7 = []storage.NodeID{stestonly.MustCreateNodeIDForTreeCoords(2, 1, 64)}
 )
 
 func TestGetLeavesByIndexInvalidIndexRejected(t *testing.T) {
@@ -645,7 +645,7 @@ func TestGetProofByHashWrongNodeReturned(t *testing.T) {
 	mockTx.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
 	mockTx.EXPECT().GetLeavesByHash([][]byte{[]byte("ahash")}, false).Return([]*trillian.LogLeaf{{LeafIndex: 2}}, nil)
 	// We set this up so one of the returned nodes has the wrong ID
-	mockTx.EXPECT().GetMerkleNodes(revision1, nodeIdsInclusionSize7Index2).Return([]storage.Node{{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3}, {NodeID: testonly.MustCreateNodeIDForTreeCoords(4, 5, 64), NodeRevision: 2}, {NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3}}, nil)
+	mockTx.EXPECT().GetMerkleNodes(revision1, nodeIdsInclusionSize7Index2).Return([]storage.Node{{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3}, {NodeID: stestonly.MustCreateNodeIDForTreeCoords(4, 5, 64), NodeRevision: 2}, {NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3}}, nil)
 	mockTx.EXPECT().Close().Return(nil)
 
 	registry := extension.Registry{
@@ -792,7 +792,7 @@ func TestGetProofByIndexWrongNodeReturned(t *testing.T) {
 	// We set this up so one of the returned nodes has the wrong ID
 	mockTx.EXPECT().LatestSignedLogRoot().Return(signedRoot1, nil)
 	mockTx.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
-	mockTx.EXPECT().GetMerkleNodes(revision1, nodeIdsInclusionSize7Index2).Return([]storage.Node{{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3}, {NodeID: testonly.MustCreateNodeIDForTreeCoords(4, 5, 64), NodeRevision: 2}, {NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3}}, nil)
+	mockTx.EXPECT().GetMerkleNodes(revision1, nodeIdsInclusionSize7Index2).Return([]storage.Node{{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3}, {NodeID: stestonly.MustCreateNodeIDForTreeCoords(4, 5, 64), NodeRevision: 2}, {NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3}}, nil)
 	mockTx.EXPECT().Close().Return(nil)
 
 	registry := extension.Registry{
@@ -1189,7 +1189,7 @@ func TestGetConsistencyProofGetNodesReturnsWrongNode(t *testing.T) {
 	mockTx.EXPECT().LatestSignedLogRoot().Return(signedRoot1, nil)
 	mockTx.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
 	// Return an unexpected node that wasn't requested
-	mockTx.EXPECT().GetMerkleNodes(revision1, nodeIdsConsistencySize4ToSize7).Return([]storage.Node{{NodeID: testonly.MustCreateNodeIDForTreeCoords(1, 2, 64), NodeRevision: 3}}, nil)
+	mockTx.EXPECT().GetMerkleNodes(revision1, nodeIdsConsistencySize4ToSize7).Return([]storage.Node{{NodeID: stestonly.MustCreateNodeIDForTreeCoords(1, 2, 64), NodeRevision: 3}}, nil)
 	mockTx.EXPECT().Close().Return(nil)
 
 	registry := extension.Registry{
@@ -1212,7 +1212,7 @@ func TestGetConsistencyProofCommitFails(t *testing.T) {
 		func(t *storage.MockLogTreeTX) {
 			t.EXPECT().LatestSignedLogRoot().Return(signedRoot1, nil)
 			t.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
-			t.EXPECT().GetMerkleNodes(revision1, nodeIdsConsistencySize4ToSize7).Return([]storage.Node{{NodeID: testonly.MustCreateNodeIDForTreeCoords(2, 1, 64), NodeRevision: 3}}, nil)
+			t.EXPECT().GetMerkleNodes(revision1, nodeIdsConsistencySize4ToSize7).Return([]storage.Node{{NodeID: stestonly.MustCreateNodeIDForTreeCoords(2, 1, 64), NodeRevision: 3}}, nil)
 		},
 		func(s *TrillianLogRPCServer) error {
 			_, err := s.GetConsistencyProof(context.Background(), &getConsistencyProofRequest7)
@@ -1232,7 +1232,7 @@ func TestGetConsistencyProof(t *testing.T) {
 
 	mockTx.EXPECT().LatestSignedLogRoot().Return(signedRoot1, nil)
 	mockTx.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
-	mockTx.EXPECT().GetMerkleNodes(revision1, nodeIdsConsistencySize4ToSize7).Return([]storage.Node{{NodeID: testonly.MustCreateNodeIDForTreeCoords(2, 1, 64), NodeRevision: 3, Hash: []byte("nodehash")}}, nil)
+	mockTx.EXPECT().GetMerkleNodes(revision1, nodeIdsConsistencySize4ToSize7).Return([]storage.Node{{NodeID: stestonly.MustCreateNodeIDForTreeCoords(2, 1, 64), NodeRevision: 3, Hash: []byte("nodehash")}}, nil)
 	mockTx.EXPECT().Commit().Return(nil)
 	mockTx.EXPECT().Close().Return(nil)
 

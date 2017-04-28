@@ -28,6 +28,7 @@ import (
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/storage"
+	stestonly "github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/util"
 )
@@ -225,7 +226,7 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) (testCont
 	}
 
 	if params.merkleNodesSet != nil {
-		mockTx.EXPECT().SetMerkleNodes(testonly.NodeSet(*params.merkleNodesSet)).Return(params.merkleNodesSetError)
+		mockTx.EXPECT().SetMerkleNodes(stestonly.NodeSet(*params.merkleNodesSet)).Return(params.merkleNodesSetError)
 	}
 
 	if !params.skipStoreSignedRoot {
