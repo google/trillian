@@ -64,7 +64,7 @@ const (
 	getEntryAndProofParamTreeSize = "tree_size"
 )
 
-// Max number of entries we allow in a get-entries request
+// MaxGetEntriesAllowed is the number of entries we allow in a get-entries request
 var MaxGetEntriesAllowed int64 = 50
 
 // EntrypointName identifies a CT entrypoint as defined in section 4 of RFC 6962.
