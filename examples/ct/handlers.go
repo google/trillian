@@ -798,7 +798,7 @@ func parseGetEntriesRange(r *http.Request, maxRange int64) (int64, int64, error)
 
 	count := end - start + 1
 	if count > maxRange {
-		return 0, 0, fmt.Errorf("requesting %d entries but we only allow up to %d", count, maxRange)
+		end = start + maxRange - 1
 	}
 
 	return start, end, nil
