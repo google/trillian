@@ -36,9 +36,15 @@ var serverPortFlag = flag.Int("port", 6962, "Port to serve CT log requests on")
 var rpcBackendFlag = flag.String("log_rpc_server", "localhost:8090", "Backend Log RPC server to use")
 var rpcDeadlineFlag = flag.Duration("rpc_deadline", time.Second*10, "Deadline for backend RPC requests")
 var logConfigFlag = flag.String("log_config", "", "File holding log config in JSON")
+var maxGetEntriesFlag = flag.Int64("maxGetEntriesAllowed", 0, "Max number of entries we allow in a get-entries request (default 50)")
 
 func main() {
 	flag.Parse()
+
+	if *maxGetEntriesFlag > 0 {
+		ct.MaxGetEntriesAllowed = *maxGetEntriesFlag
+	}
+
 	// Get log config from file before we start.
 	cfg, err := ct.LogConfigFromFile(*logConfigFlag)
 	if err != nil {
