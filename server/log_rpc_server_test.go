@@ -712,11 +712,14 @@ func TestGetProofByHash(t *testing.T) {
 		t.Fatalf("server response was not successful: %v", proofResponse)
 	}
 
-	expectedProof := trillian.Proof{LeafIndex: 2, ProofNode: []*trillian.Node{
-		{NodeHash: []byte("nodehash0")},
-		{NodeHash: []byte("nodehash1")},
-		{NodeHash: []byte("nodehash2")},
-	}}
+	expectedProof := trillian.Proof{
+		LeafIndex: 2,
+		Hashes: [][]byte{
+			[]byte("nodehash0"),
+			[]byte("nodehash1"),
+			[]byte("nodehash2"),
+		},
+	}
 
 	if !proto.Equal(proofResponse.Proof[0], &expectedProof) {
 		t.Fatalf("expected proof: %v but got: %v", expectedProof, proofResponse.Proof[0])
@@ -857,11 +860,14 @@ func TestGetProofByIndex(t *testing.T) {
 		t.Fatalf("server response was not successful: %v", proofResponse)
 	}
 
-	expectedProof := trillian.Proof{LeafIndex: 2, ProofNode: []*trillian.Node{
-		{NodeHash: []byte("nodehash0")},
-		{NodeHash: []byte("nodehash1")},
-		{NodeHash: []byte("nodehash2")},
-	}}
+	expectedProof := trillian.Proof{
+		LeafIndex: 2,
+		Hashes: [][]byte{
+			[]byte("nodehash0"),
+			[]byte("nodehash1"),
+			[]byte("nodehash2"),
+		},
+	}
 
 	if !proto.Equal(proofResponse.Proof, &expectedProof) {
 		t.Fatalf("expected proof: %v but got: %v", expectedProof, proofResponse.Proof)
@@ -1030,11 +1036,14 @@ func TestGetEntryAndProof(t *testing.T) {
 	}
 
 	// Check the proof is the one we expected
-	expectedProof := trillian.Proof{LeafIndex: 2, ProofNode: []*trillian.Node{
-		{NodeHash: []byte("nodehash0")},
-		{NodeHash: []byte("nodehash1")},
-		{NodeHash: []byte("nodehash2")},
-	}}
+	expectedProof := trillian.Proof{
+		LeafIndex: 2,
+		Hashes: [][]byte{
+			[]byte("nodehash0"),
+			[]byte("nodehash1"),
+			[]byte("nodehash2"),
+		},
+	}
 
 	if !proto.Equal(response.Proof, &expectedProof) {
 		t.Fatalf("expected proof: %v but got: %v", expectedProof, response.Proof)
@@ -1250,9 +1259,7 @@ func TestGetConsistencyProof(t *testing.T) {
 	// Ensure we got the expected proof
 	expectedProof := trillian.Proof{
 		LeafIndex: 0,
-		ProofNode: []*trillian.Node{
-			{NodeHash: []byte("nodehash")},
-		},
+		Hashes:    [][]byte{[]byte("nodehash")},
 	}
 	if !proto.Equal(response.Proof, &expectedProof) {
 		t.Fatalf("expected proof: %v but got: %v", expectedProof, response.Proof)

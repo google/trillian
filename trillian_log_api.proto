@@ -52,15 +52,10 @@ message LogLeaf {
     bytes leaf_identity_hash = 5;
 }
 
-message Node {
-    bytes node_hash = 2;
-    // These fields were internal details of nodes that are no longer provided to clients
-    reserved 1, 3;
-}
-
 message Proof {
     int64 leaf_index = 1;
-    repeated Node proof_node = 2;
+    reserved 2; // This field contained internal node details that are no longer provided to clients.
+    repeated bytes hashes = 3;
 }
 
 // QueuedLogLeaf represents a log leaf that has been queued for inclusion; it may
