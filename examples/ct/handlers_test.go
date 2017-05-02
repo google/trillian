@@ -767,20 +767,65 @@ func TestGetEntries(t *testing.T) {
 
 func TestGetEntriesRanges(t *testing.T) {
 	var tests = []struct {
-		start int64
-		end   int64
-		want  int
-		desc  string
-		rpc   bool
+		desc   string
+		start  int64
+		end    int64
+		rpcEnd int64 // same as end if zero
+		want   int
+		rpc    bool
 	}{
-		{-1, 0, http.StatusBadRequest, "-ve start value not allowed", false},
-		{0, -1, http.StatusBadRequest, "-ve end value not allowed", false},
-		{20, 10, http.StatusBadRequest, "invalid range end>start", false},
-		{3000, -50, http.StatusBadRequest, "invalid range, -ve end", false},
-		{10, 20, http.StatusInternalServerError, "valid range", true},
-		{10, 10, http.StatusInternalServerError, "valid range, one entry", true},
-		{10, 9, http.StatusBadRequest, "invalid range, edge case", false},
-		{1000, 50000, http.StatusBadRequest, "range too large to be accepted", false},
+		{
+			desc:  "-ve start value not allowed",
+			start: -1,
+			end:   0,
+			want:  http.StatusBadRequest,
+		},
+		{
+			desc:  "-ve end value not allowed",
+			start: 0,
+			end:   -1,
+			want:  http.StatusBadRequest,
+		},
+		{
+			desc:  "invalid range end>start",
+			start: 20,
+			end:   10,
+			want:  http.StatusBadRequest,
+		},
+		{
+			desc:  "invalid range, -ve end",
+			start: 3000,
+			end:   -50,
+			want:  http.StatusBadRequest,
+		},
+		{
+			desc:  "valid range",
+			start: 10,
+			end:   20,
+			want:  http.StatusInternalServerError,
+			rpc:   true,
+		},
+		{
+			desc:  "valid range, one entry",
+			start: 10,
+			end:   10,
+			want:  http.StatusInternalServerError,
+			rpc:   true,
+		},
+		{
+			desc:  "invalid range, edge case",
+			start: 10,
+			end:   9,
+			want:  http.StatusBadRequest,
+		},
+		{
+			desc:   "range too large, truncated",
+			start:  1000,
+			end:    50000,
+			rpcEnd: 1000 + MaxGetEntriesAllowed - 1,
+			want:   http.StatusInternalServerError,
+			rpc:    true,
+		},
 	}
 
 	info := setupTest(t, nil, nil)
@@ -792,7 +837,11 @@ func TestGetEntriesRanges(t *testing.T) {
 	// it to fail with a specific error.
 	for _, test := range tests {
 		if test.rpc {
-			info.client.EXPECT().GetLeavesByIndex(deadlineMatcher(), &trillian.GetLeavesByIndexRequest{LogId: 0x42, LeafIndex: buildIndicesForRange(test.start, test.end)}).Return(nil, errors.New("RPCMADE"))
+			end := test.rpcEnd
+			if end == 0 {
+				end = test.end
+			}
+			info.client.EXPECT().GetLeavesByIndex(deadlineMatcher(), &trillian.GetLeavesByIndexRequest{LogId: 0x42, LeafIndex: buildIndicesForRange(test.start, end)}).Return(nil, errors.New("RPCMADE"))
 		}
 
 		path := fmt.Sprintf("/ct/v1/get-entries?start=%d&end=%d", test.start, test.end)
