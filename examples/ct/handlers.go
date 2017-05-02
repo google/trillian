@@ -46,8 +46,6 @@ const (
 	contentTypeJSON string = "application/json"
 	// The name of the JSON response map key in get-roots responses
 	jsonMapKeyCertificates string = "certificates"
-	// Max number of entries we allow in a get-entries request
-	maxGetEntriesAllowed int64 = 50
 	// The name of the get-entries start parameter
 	getEntriesParamStart = "start"
 	// The name of the get-entries end parameter
@@ -65,6 +63,9 @@ const (
 	// The name of the get-entry-and-proof tree size parameter
 	getEntryAndProofParamTreeSize = "tree_size"
 )
+
+// MaxGetEntriesAllowed is the number of entries we allow in a get-entries request
+var MaxGetEntriesAllowed int64 = 50
 
 // EntrypointName identifies a CT entrypoint as defined in section 4 of RFC 6962.
 type EntrypointName string
@@ -524,7 +525,7 @@ func getEntries(ctx context.Context, c LogContext, w http.ResponseWriter, r *htt
 	// The first job is to parse the params and make sure they're sensible. We just make
 	// sure the range is valid. We don't do an extra roundtrip to get the current tree
 	// size and prefer to let the backend handle this case
-	start, end, err := parseGetEntriesRange(r, maxGetEntriesAllowed)
+	start, end, err := parseGetEntriesRange(r, MaxGetEntriesAllowed)
 	if err != nil {
 		return http.StatusBadRequest, fmt.Errorf("bad range on get-entries request: %v", err)
 	}
