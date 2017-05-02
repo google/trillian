@@ -15,7 +15,6 @@
 package admin
 
 import (
-	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -26,6 +25,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/ptypes"
+	"github.com/golang/protobuf/ptypes/any"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/keyspb"
@@ -168,7 +168,7 @@ func TestServer_ListTrees(t *testing.T) {
 
 		setup := setupAdminServer(
 			ctrl,
-			nil,           // key
+			nil,           // SignerFactory
 			true,          // snapshot
 			!test.listErr, // shouldCommit
 			test.commitErr)
@@ -237,7 +237,7 @@ func TestServer_GetTree(t *testing.T) {
 
 	ctx := context.Background()
 	for _, test := range tests {
-		setup := setupAdminServer(ctrl, nil /* key */, true /* snapshot */, !test.getErr /* shouldCommit */, test.commitErr)
+		setup := setupAdminServer(ctrl, nil /* SignerFactory */, true /* snapshot */, !test.getErr /* shouldCommit */, test.commitErr)
 		tx := setup.snapshotTX
 		s := setup.server
 
@@ -292,6 +292,12 @@ func TestServer_CreateTree(t *testing.T) {
 	omittedPublicKey := validTree
 	omittedPublicKey.PublicKey = nil
 
+	omittedPrivateKey := validTree
+	omittedPrivateKey.PrivateKey = nil
+
+	omittedKeys := omittedPublicKey
+	omittedKeys.PrivateKey = nil
+
 	invalidTree := validTree
 	invalidTree.TreeState = trillian.TreeState_HARD_DELETED
 
@@ -326,6 +332,41 @@ func TestServer_CreateTree(t *testing.T) {
 		{
 			desc:    "mismatchedPublicKey",
 			req:     &trillian.CreateTreeRequest{Tree: &mismatchedPublicKey},
+			wantErr: true,
+		},
+		{
+			desc:    "omittedPrivateKey",
+			req:     &trillian.CreateTreeRequest{Tree: &omittedPrivateKey},
+			wantErr: true,
+		},
+		{
+			desc: "privateKeySpec",
+			req: &trillian.CreateTreeRequest{
+				Tree: &omittedKeys,
+				KeySpec: &keyspb.Specification{
+					Params: &keyspb.Specification_EcdsaParams{},
+				},
+			},
+			wantCommit: true,
+		},
+		{
+			desc: "privateKeySpecandPrivateKeyProvided",
+			req: &trillian.CreateTreeRequest{
+				Tree: &validTree,
+				KeySpec: &keyspb.Specification{
+					Params: &keyspb.Specification_EcdsaParams{},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			desc: "privateKeySpecAndPublicKeyProvided",
+			req: &trillian.CreateTreeRequest{
+				Tree: &omittedPrivateKey,
+				KeySpec: &keyspb.Specification{
+					Params: &keyspb.Specification_EcdsaParams{},
+				},
+			},
 			wantErr: true,
 		},
 		{
@@ -370,7 +411,25 @@ func TestServer_CreateTree(t *testing.T) {
 
 	ctx := context.Background()
 	for _, test := range tests {
-		setup := setupAdminServer(ctrl, privateKey, false /* snapshot */, test.wantCommit, test.commitErr)
+		sf := keys.NewMockSignerFactory(ctrl)
+		if test.req.GetKeySpec() != nil {
+			if test.req.Tree.GetPrivateKey() != nil || test.req.Tree.GetPublicKey() != nil {
+				sf.EXPECT().Generate(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, errors.New("tree already has a key"))
+			} else {
+				keyProto, err := marshalECPrivateKeyAsAnyProto(privateKey)
+				if err != nil {
+					t.Errorf("%v: failed to marshal key for SignerFactory.Generate() expectation: %v", test.desc, err)
+					continue
+				}
+
+				sf.EXPECT().Generate(gomock.Any(), gomock.Any(), gomock.Any()).Return(keyProto, nil)
+				sf.EXPECT().NewSigner(gomock.Any(), gomock.Any()).Return(privateKey, nil)
+			}
+		} else if test.req.Tree.GetPrivateKey() != nil {
+			sf.EXPECT().NewSigner(gomock.Any(), test.req.Tree).MaxTimes(1).Return(privateKey, nil)
+		}
+
+		setup := setupAdminServer(ctrl, sf, false /* snapshot */, test.wantCommit, test.commitErr)
 		tx := setup.tx
 		s := setup.server
 
@@ -402,6 +461,17 @@ func TestServer_CreateTree(t *testing.T) {
 			t.Errorf("%v: post-CreateTree diff (-got +want):\n%v", test.desc, diff)
 		}
 	}
+}
+
+func marshalECPrivateKeyAsAnyProto(key *ecdsa.PrivateKey) (*any.Any, error) {
+	der, err := x509.MarshalECPrivateKey(key)
+	if err != nil {
+		return nil, err
+	}
+
+	return ptypes.MarshalAny(&keyspb.PrivateKey{
+		Der: der,
+	})
 }
 
 func TestServer_UpdateTree(t *testing.T) {
@@ -494,7 +564,7 @@ func TestServer_UpdateTree(t *testing.T) {
 
 	ctx := context.Background()
 	for _, test := range tests {
-		setup := setupAdminServer(ctrl, nil /* key */, false /* snapshot */, test.wantCommit, test.commitErr)
+		setup := setupAdminServer(ctrl, nil /* SignerFactory */, false /* snapshot */, test.wantCommit, test.commitErr)
 		tx := setup.tx
 		s := setup.server
 
@@ -534,11 +604,10 @@ type adminTestSetup struct {
 }
 
 // setupAdminServer configures mocks according to input parameters.
-// SignerFactory will be set up to return the received key, if it's non-nil.
 // Storage will be set to use either snapshots or regular TXs via snapshot parameter.
 // Whether the snapshot/TX is expected to be committed (and if it should error doing so) is
 // controlled via shouldCommit and commitErr parameters.
-func setupAdminServer(ctrl *gomock.Controller, key crypto.Signer, snapshot, shouldCommit, commitErr bool) adminTestSetup {
+func setupAdminServer(ctrl *gomock.Controller, sf keys.SignerFactory, snapshot, shouldCommit, commitErr bool) adminTestSetup {
 	as := storage.NewMockAdminStorage(ctrl)
 
 	var snapshotTX *storage.MockReadOnlyAdminTX
@@ -565,11 +634,6 @@ func setupAdminServer(ctrl *gomock.Controller, key crypto.Signer, snapshot, shou
 				tx.EXPECT().Commit().Return(nil)
 			}
 		}
-	}
-
-	sf := keys.NewMockSignerFactory(ctrl)
-	if key != nil {
-		sf.EXPECT().NewSigner(gomock.Any(), gomock.Any()).MaxTimes(1).Return(key, nil)
 	}
 
 	registry := extension.Registry{

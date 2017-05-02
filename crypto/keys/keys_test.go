@@ -25,6 +25,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/testonly"
 )
@@ -141,7 +142,7 @@ func TestLoadPrivateKeyAndSign(t *testing.T) {
 			k, err = NewFromPrivatePEM(test.keyPEM, test.keyPass)
 			switch gotErr := err != nil; {
 			case gotErr != test.wantLoadErr:
-				t.Errorf("%s: NewFromPrivatePEM(_, _) = (%v, %v), want err? %t", test.name, k, err, test.wantLoadErr)
+				t.Errorf("%v: NewFromPrivatePEM() = (%v, %v), want err? %v", test.name, k, err, test.wantLoadErr)
 				continue
 			case gotErr:
 				continue
@@ -151,20 +152,20 @@ func TestLoadPrivateKeyAndSign(t *testing.T) {
 			k, err = NewFromPrivatePEMFile(test.keyPath, test.keyPass)
 			switch gotErr := err != nil; {
 			case gotErr != test.wantLoadErr:
-				t.Errorf("%s: NewFromPrivatePEMFile(_, _) = (%v, %v), want err? %t", test.name, k, err, test.wantLoadErr)
+				t.Errorf("%v: NewFromPrivatePEMFile() = (%v, %v), want err? %v", test.name, k, err, test.wantLoadErr)
 				continue
 			case gotErr:
 				continue
 			}
 
 		default:
-			t.Errorf("%s: No PEM or file path set in test definition", test.name)
+			t.Errorf("%v: No PEM or file path set in test definition", test.name)
 			continue
 		}
 
 		signature, err := k.Sign(rand.Reader, digest, hasher)
 		if err != nil {
-			t.Errorf("%s: failed to sign: %v", test.name, err)
+			t.Errorf("%v: failed to sign: %v", test.name, err)
 			continue
 		}
 
@@ -172,14 +173,14 @@ func TestLoadPrivateKeyAndSign(t *testing.T) {
 		switch publicKey := k.Public().(type) {
 		case *ecdsa.PublicKey:
 			if err := verifyECDSA(publicKey, digest, signature); err != nil {
-				t.Errorf("%s: %v", test.name, err)
+				t.Errorf("%v: %v", test.name, err)
 			}
 		case *rsa.PublicKey:
 			if err := rsa.VerifyPKCS1v15(publicKey, hasher, digest, signature); err != nil {
-				t.Errorf("%s: %v", test.name, err)
+				t.Errorf("%v: %v", test.name, err)
 			}
 		default:
-			t.Errorf("%s: Unsupported public key type: %T", test.name, publicKey)
+			t.Errorf("%v: Unsupported public key type: %T", test.name, publicKey)
 		}
 
 	}
@@ -211,12 +212,115 @@ func TestSignatureAlgorithm(t *testing.T) {
 	for _, test := range tests {
 		key, err := NewFromPublicPEM(test.keyPEM)
 		if err != nil {
-			t.Errorf("%s: Failed to load key: %v", test.name, err)
+			t.Errorf("%v: Failed to load key: %v", test.name, err)
 			continue
 		}
 
 		if got := SignatureAlgorithm(key); got != test.want {
-			t.Errorf("%s: SignatureAlgorithm(%v) = %v, want %v", test.name, key, got, test.want)
+			t.Errorf("%v: SignatureAlgorithm(%v) = %v, want %v", test.name, key, got, test.want)
+		}
+	}
+}
+
+func TestGenerateKey(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		keygen  *keyspb.Specification
+		wantErr bool
+	}{
+		{
+			name: "ECDSA with default params",
+			keygen: &keyspb.Specification{
+				Params: &keyspb.Specification_EcdsaParams{},
+			},
+		},
+		{
+			name: "ECDSA with explicit params",
+			keygen: &keyspb.Specification{
+				Params: &keyspb.Specification_EcdsaParams{
+					EcdsaParams: &keyspb.Specification_ECDSA{
+						Curve: keyspb.Specification_ECDSA_P521,
+					},
+				},
+			},
+		},
+		{
+			name: "RSA with default params",
+			keygen: &keyspb.Specification{
+				Params: &keyspb.Specification_RsaParams{},
+			},
+		},
+		{
+			name: "RSA with explicit params",
+			keygen: &keyspb.Specification{
+				Params: &keyspb.Specification_RsaParams{
+					RsaParams: &keyspb.Specification_RSA{
+						Bits: 4096,
+					},
+				},
+			},
+		},
+		{
+			name: "RSA with negative key size",
+			keygen: &keyspb.Specification{
+				Params: &keyspb.Specification_RsaParams{
+					RsaParams: &keyspb.Specification_RSA{
+						Bits: -4096,
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "RSA with insufficient key size",
+			keygen: &keyspb.Specification{
+				Params: &keyspb.Specification_RsaParams{
+					RsaParams: &keyspb.Specification_RSA{
+						Bits: MinRsaKeySizeInBits - 1,
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name:    "No params",
+			keygen:  &keyspb.Specification{},
+			wantErr: true,
+		},
+	} {
+		key, err := NewFromSpec(test.keygen)
+		if gotErr := err != nil; gotErr != test.wantErr {
+			t.Errorf("%v: NewFromSpecification() = (_, %v), want err? %v", test.name, err, test.wantErr)
+			continue
+		} else if gotErr {
+			continue
+		}
+
+		switch params := test.keygen.Params.(type) {
+		case *keyspb.Specification_EcdsaParams:
+			switch key := key.(type) {
+			case *ecdsa.PrivateKey:
+				wantCurve := curveFromParams(params.EcdsaParams)
+				if wantCurve.Params().Name != key.Params().Name {
+					t.Errorf("%v: NewFromSpecification() => ECDSA key on %v curve, want %v curve", test.name, key.Params().Name, wantCurve.Params().Name)
+				}
+			default:
+				t.Errorf("%v: NewFromSpecification() = (%T, nil), want *ecdsa.PrivateKey", test.name, key)
+			}
+		case *keyspb.Specification_RsaParams:
+			switch key := key.(type) {
+			case *rsa.PrivateKey:
+				wantBits := defaultRsaKeySizeInBits
+				if params.RsaParams.GetBits() != 0 {
+					wantBits = int(params.RsaParams.GetBits())
+				}
+
+				if got, want := key.N.BitLen(), wantBits; got != want {
+					t.Errorf("%v: NewFromSpecification() => %v-bit RSA key, want %v-bit", test.name, got, want)
+				}
+			default:
+				t.Errorf("%v: NewFromSpecification() = (%T, nil), want *rsa.PrivateKey", test.name, key)
+			}
 		}
 	}
 }

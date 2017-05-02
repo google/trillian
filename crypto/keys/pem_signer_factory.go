@@ -17,17 +17,22 @@ package keys
 import (
 	"context"
 	"crypto"
+	"crypto/ecdsa"
+	"crypto/rsa"
+	"crypto/x509"
 	"fmt"
 
 	"github.com/golang/protobuf/ptypes"
+	"github.com/golang/protobuf/ptypes/any"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keyspb"
 )
 
-// PEMSignerFactory loads PEM-encoded private keys.
-// It only supports trees whose PrivateKey field is a trillian.PEMKeyFile.
+// PEMSignerFactory handles PEM-encoded private keys.
+// It supports trees whose PrivateKey field is a:
+// - keyspb.PEMKeyFile
+// - keyspb.PrivateKey
 // It implements keys.SignerFactory.
-// TODO(robpercival): Should this cache loaded private keys? The SequenceManager will request a signer for each batch of leaves it sequences.
 type PEMSignerFactory struct{}
 
 // NewSigner returns a crypto.Signer for the given tree.
@@ -44,7 +49,47 @@ func (f PEMSignerFactory) NewSigner(ctx context.Context, tree *trillian.Tree) (c
 	switch privateKey := privateKey.Message.(type) {
 	case *keyspb.PEMKeyFile:
 		return NewFromPrivatePEMFile(privateKey.GetPath(), privateKey.GetPassword())
+	case *keyspb.PrivateKey:
+		return NewFromPrivateDER(privateKey.GetDer())
 	}
 
 	return nil, fmt.Errorf("unsupported PrivateKey type for tree %d: %T", tree.GetTreeId(), privateKey.Message)
+}
+
+// Generate creates a new private key for a tree based on a key specification.
+// It returns a proto that can be used as the value of tree.PrivateKey.
+func (f PEMSignerFactory) Generate(ctx context.Context, tree *trillian.Tree, spec *keyspb.Specification) (*any.Any, error) {
+	if tree.PrivateKey != nil {
+		return nil, fmt.Errorf("tree already has a private key")
+	}
+
+	key, err := NewFromSpec(spec)
+	if err != nil {
+		return nil, fmt.Errorf("error generating key: %v", err)
+	}
+
+	if SignatureAlgorithm(key.Public()) != tree.GetSignatureAlgorithm() {
+		return nil, fmt.Errorf("Specification produces %T, but tree.SignatureAlgorithm = %v", key, tree.GetSignatureAlgorithm())
+	}
+
+	return marshalPrivateKey(key)
+}
+
+func marshalPrivateKey(key crypto.Signer) (*any.Any, error) {
+	var privateKeyDER []byte
+	var err error
+
+	switch key := key.(type) {
+	case *ecdsa.PrivateKey:
+		privateKeyDER, err = x509.MarshalECPrivateKey(key)
+	case *rsa.PrivateKey:
+		privateKeyDER = x509.MarshalPKCS1PrivateKey(key)
+	default:
+		return nil, fmt.Errorf("unsupported key type: %T", key)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling private key as DER: %v", err)
+	}
+
+	return ptypes.MarshalAny(&keyspb.PrivateKey{Der: privateKeyDER})
 }
