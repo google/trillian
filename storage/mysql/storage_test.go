@@ -229,7 +229,7 @@ func openTestDBOrDie() *sql.DB {
 // cleanTestDB deletes all the entries in the database.
 func cleanTestDB(db *sql.DB) {
 	for _, table := range allTables {
-		if _, err := db.Exec(fmt.Sprintf("DELETE FROM %s", table)); err != nil {
+		if _, err := db.ExecContext(context.TODO(), fmt.Sprintf("DELETE FROM %s", table)); err != nil {
 			panic(fmt.Errorf("Failed to delete rows in %s: %s", table, err))
 		}
 	}

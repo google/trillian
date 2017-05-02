@@ -125,8 +125,8 @@ func (m *mySQLLogStorage) getDeleteUnsequencedStmt(num int) (*sql.Stmt, error) {
 	return m.getStmt(deleteUnsequencedSQL, num, "?", "?")
 }
 
-func getActiveLogIDsInternal(tx *sql.Tx, sql string) ([]int64, error) {
-	rows, err := tx.Query(sql)
+func getActiveLogIDsInternal(ctx context.Context, tx *sql.Tx, sql string) ([]int64, error) {
+	rows, err := tx.QueryContext(ctx, sql)
 	if err != nil {
 		return nil, err
 	}
@@ -148,12 +148,12 @@ func getActiveLogIDsInternal(tx *sql.Tx, sql string) ([]int64, error) {
 	return logIDs, nil
 }
 
-func getActiveLogIDs(tx *sql.Tx) ([]int64, error) {
-	return getActiveLogIDsInternal(tx, selectActiveLogsSQL)
+func getActiveLogIDs(ctx context.Context, tx *sql.Tx) ([]int64, error) {
+	return getActiveLogIDsInternal(ctx, tx, selectActiveLogsSQL)
 }
 
-func getActiveLogIDsWithPendingWork(tx *sql.Tx) ([]int64, error) {
-	return getActiveLogIDsInternal(tx, selectActiveLogsWithUnsequencedSQL)
+func getActiveLogIDsWithPendingWork(ctx context.Context, tx *sql.Tx) ([]int64, error) {
+	return getActiveLogIDsInternal(ctx, tx, selectActiveLogsWithUnsequencedSQL)
 }
 
 // readOnlyLogTX implements storage.ReadOnlyLogTX
@@ -162,7 +162,7 @@ type readOnlyLogTX struct {
 }
 
 func (m *mySQLLogStorage) Snapshot(ctx context.Context) (storage.ReadOnlyLogTX, error) {
-	tx, err := m.db.Begin()
+	tx, err := m.db.BeginTx(ctx, nil /* opts */)
 	if err != nil {
 		glog.Warningf("Could not start ReadOnlyLogTX: %s", err)
 		return nil, err
@@ -186,12 +186,12 @@ func (t *readOnlyLogTX) Close() error {
 	return nil
 }
 
-func (t *readOnlyLogTX) GetActiveLogIDs() ([]int64, error) {
-	return getActiveLogIDs(t.tx)
+func (t *readOnlyLogTX) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
+	return getActiveLogIDs(ctx, t.tx)
 }
 
-func (t *readOnlyLogTX) GetActiveLogIDsWithPendingWork() ([]int64, error) {
-	return getActiveLogIDsWithPendingWork(t.tx)
+func (t *readOnlyLogTX) GetActiveLogIDsWithPendingWork(ctx context.Context) ([]int64, error) {
+	return getActiveLogIDsWithPendingWork(ctx, t.tx)
 }
 
 func (m *mySQLLogStorage) beginInternal(ctx context.Context, treeID int64, readonly bool) (storage.LogTreeTX, error) {
@@ -218,7 +218,7 @@ func (m *mySQLLogStorage) beginInternal(ctx context.Context, treeID int64, reado
 		ls:     m,
 	}
 
-	ltx.root, err = ltx.fetchLatestRoot()
+	ltx.root, err = ltx.fetchLatestRoot(ctx)
 	if err != nil {
 		ttx.Rollback()
 		return nil, err
@@ -254,8 +254,8 @@ func (t *logTreeTX) WriteRevision() int64 {
 	return t.treeTX.writeRevision
 }
 
-func (t *logTreeTX) DequeueLeaves(limit int, cutoffTime time.Time) ([]*trillian.LogLeaf, error) {
-	stx, err := t.tx.Prepare(selectQueuedLeavesSQL)
+func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime time.Time) ([]*trillian.LogLeaf, error) {
+	stx, err := t.tx.PrepareContext(ctx, selectQueuedLeavesSQL)
 
 	if err != nil {
 		glog.Warningf("Failed to prepare dequeue select: %s", err)
@@ -263,7 +263,7 @@ func (t *logTreeTX) DequeueLeaves(limit int, cutoffTime time.Time) ([]*trillian.
 	}
 
 	leaves := make([]*trillian.LogLeaf, 0, limit)
-	rows, err := stx.Query(t.treeID, cutoffTime.UnixNano(), limit)
+	rows, err := stx.QueryContext(ctx, t.treeID, cutoffTime.UnixNano(), limit)
 
 	if err != nil {
 		glog.Warningf("Failed to select rows for work: %s", err)
@@ -304,7 +304,7 @@ func (t *logTreeTX) DequeueLeaves(limit int, cutoffTime time.Time) ([]*trillian.
 	// The convention is that if leaf processing succeeds (by committing this tx)
 	// then the unsequenced entries for them are removed
 	if len(leaves) > 0 {
-		err = t.removeSequencedLeaves(leaves)
+		err = t.removeSequencedLeaves(ctx, leaves)
 	}
 
 	if err != nil {
@@ -316,7 +316,7 @@ func (t *logTreeTX) DequeueLeaves(limit int, cutoffTime time.Time) ([]*trillian.
 	return leaves, nil
 }
 
-func (t *logTreeTX) QueueLeaves(leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.LogLeaf, error) {
+func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.LogLeaf, error) {
 	// Don't accept batches if any of the leaves are invalid.
 	for _, leaf := range leaves {
 		if len(leaf.LeafIdentityHash) != t.hashSizeBytes {
@@ -335,7 +335,7 @@ func (t *logTreeTX) QueueLeaves(leaves []*trillian.LogLeaf, queueTimestamp time.
 
 	for i, leafPos := range orderedLeaves {
 		leaf := leafPos.leaf
-		_, err := t.tx.Exec(insertUnsequencedLeafSQL, t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData)
+		_, err := t.tx.ExecContext(ctx, insertUnsequencedLeafSQL, t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData)
 		if isDuplicateErr(err) {
 			// Remember the duplicate leaf, using the requested leaf for now.
 			existingLeaves[leafPos.idx] = leaf
@@ -356,8 +356,14 @@ func (t *logTreeTX) QueueLeaves(leaves []*trillian.LogLeaf, queueTimestamp time.
 		hasher.Write(leaf.LeafIdentityHash)
 		messageID := hasher.Sum(nil)
 
-		_, err = t.tx.Exec(insertUnsequencedEntrySQL,
-			t.treeID, leaf.LeafIdentityHash, leaf.MerkleLeafHash, messageID, queueTimestamp.UnixNano())
+		_, err = t.tx.ExecContext(
+			ctx,
+			insertUnsequencedEntrySQL,
+			t.treeID,
+			leaf.LeafIdentityHash,
+			leaf.MerkleLeafHash,
+			messageID,
+			queueTimestamp.UnixNano())
 		if err != nil {
 			glog.Warningf("Error inserting into Unsequenced: %s", err)
 			return nil, fmt.Errorf("Unsequenced: %v", err)
@@ -375,7 +381,7 @@ func (t *logTreeTX) QueueLeaves(leaves []*trillian.LogLeaf, queueTimestamp time.
 			toRetrieve = append(toRetrieve, existing.LeafIdentityHash)
 		}
 	}
-	results, err := t.getLeafDataByIdentityHash(toRetrieve)
+	results, err := t.getLeafDataByIdentityHash(ctx, toRetrieve)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve existing leaves: %v", err)
 	}
@@ -405,10 +411,10 @@ func (t *logTreeTX) QueueLeaves(leaves []*trillian.LogLeaf, queueTimestamp time.
 	return existingLeaves, nil
 }
 
-func (t *logTreeTX) GetSequencedLeafCount() (int64, error) {
+func (t *logTreeTX) GetSequencedLeafCount(ctx context.Context) (int64, error) {
 	var sequencedLeafCount int64
 
-	err := t.tx.QueryRow(selectSequencedLeafCountSQL, t.treeID).Scan(&sequencedLeafCount)
+	err := t.tx.QueryRowContext(ctx, selectSequencedLeafCountSQL, t.treeID).Scan(&sequencedLeafCount)
 
 	if err != nil {
 		glog.Warningf("Error getting sequenced leaf count: %s", err)
@@ -417,18 +423,18 @@ func (t *logTreeTX) GetSequencedLeafCount() (int64, error) {
 	return sequencedLeafCount, err
 }
 
-func (t *logTreeTX) GetLeavesByIndex(leaves []int64) ([]*trillian.LogLeaf, error) {
+func (t *logTreeTX) GetLeavesByIndex(ctx context.Context, leaves []int64) ([]*trillian.LogLeaf, error) {
 	tmpl, err := t.ls.getLeavesByIndexStmt(len(leaves))
 	if err != nil {
 		return nil, err
 	}
-	stx := t.tx.Stmt(tmpl)
+	stx := t.tx.StmtContext(ctx, tmpl)
 	var args []interface{}
 	for _, nodeID := range leaves {
 		args = append(args, interface{}(int64(nodeID)))
 	}
 	args = append(args, interface{}(t.treeID))
-	rows, err := stx.Query(args...)
+	rows, err := stx.QueryContext(ctx, args...)
 	if err != nil {
 		glog.Warningf("Failed to get leaves by idx: %s", err)
 		return nil, err
@@ -456,38 +462,38 @@ func (t *logTreeTX) GetLeavesByIndex(leaves []int64) ([]*trillian.LogLeaf, error
 	return ret, nil
 }
 
-func (t *logTreeTX) GetLeavesByHash(leafHashes [][]byte, orderBySequence bool) ([]*trillian.LogLeaf, error) {
+func (t *logTreeTX) GetLeavesByHash(ctx context.Context, leafHashes [][]byte, orderBySequence bool) ([]*trillian.LogLeaf, error) {
 	tmpl, err := t.ls.getLeavesByMerkleHashStmt(len(leafHashes), orderBySequence)
 	if err != nil {
 		return nil, err
 	}
 
-	return t.getLeavesByHashInternal(leafHashes, tmpl, "merkle")
+	return t.getLeavesByHashInternal(ctx, leafHashes, tmpl, "merkle")
 }
 
 // getLeafDataByIdentityHash retrieves leaf data by LeafIdentityHash, returned
 // as a slice of LogLeaf objects for convenience.  However, note that the
 // returned LogLeaf objects will not have a valid MerkleLeafHash or LeafIndex.
-func (t *logTreeTX) getLeafDataByIdentityHash(leafHashes [][]byte) ([]*trillian.LogLeaf, error) {
+func (t *logTreeTX) getLeafDataByIdentityHash(ctx context.Context, leafHashes [][]byte) ([]*trillian.LogLeaf, error) {
 	tmpl, err := t.ls.getLeavesByLeafIdentityHashStmt(len(leafHashes))
 	if err != nil {
 		return nil, err
 	}
-	return t.getLeavesByHashInternal(leafHashes, tmpl, "leaf-identity")
+	return t.getLeavesByHashInternal(ctx, leafHashes, tmpl, "leaf-identity")
 }
 
-func (t *logTreeTX) LatestSignedLogRoot() (trillian.SignedLogRoot, error) {
+func (t *logTreeTX) LatestSignedLogRoot(ctx context.Context) (trillian.SignedLogRoot, error) {
 	return t.root, nil
 }
 
 // fetchLatestRoot reads the latest SignedLogRoot from the DB and returns it.
-func (t *logTreeTX) fetchLatestRoot() (trillian.SignedLogRoot, error) {
+func (t *logTreeTX) fetchLatestRoot(ctx context.Context) (trillian.SignedLogRoot, error) {
 	var timestamp, treeSize, treeRevision int64
 	var rootHash, rootSignatureBytes []byte
 	var rootSignature spb.DigitallySigned
 
-	err := t.tx.QueryRow(
-		selectLatestSignedLogRootSQL, t.treeID).Scan(
+	err := t.tx.QueryRowContext(
+		ctx, selectLatestSignedLogRootSQL, t.treeID).Scan(
 		&timestamp, &treeSize, &rootHash, &treeRevision, &rootSignatureBytes)
 
 	// It's possible there are no roots for this tree yet
@@ -512,7 +518,7 @@ func (t *logTreeTX) fetchLatestRoot() (trillian.SignedLogRoot, error) {
 	}, nil
 }
 
-func (t *logTreeTX) StoreSignedLogRoot(root trillian.SignedLogRoot) error {
+func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, root trillian.SignedLogRoot) error {
 	signatureBytes, err := proto.Marshal(root.Signature)
 
 	if err != nil {
@@ -520,9 +526,15 @@ func (t *logTreeTX) StoreSignedLogRoot(root trillian.SignedLogRoot) error {
 		return err
 	}
 
-	res, err := t.tx.Exec(insertTreeHeadSQL, t.treeID, root.TimestampNanos, root.TreeSize,
-		root.RootHash, root.TreeRevision, signatureBytes)
-
+	res, err := t.tx.ExecContext(
+		ctx,
+		insertTreeHeadSQL,
+		t.treeID,
+		root.TimestampNanos,
+		root.TreeSize,
+		root.RootHash,
+		root.TreeRevision,
+		signatureBytes)
 	if err != nil {
 		glog.Warningf("Failed to store signed root: %s", err)
 	}
@@ -530,7 +542,7 @@ func (t *logTreeTX) StoreSignedLogRoot(root trillian.SignedLogRoot) error {
 	return checkResultOkAndRowCountIs(res, err, 1)
 }
 
-func (t *logTreeTX) UpdateSequencedLeaves(leaves []*trillian.LogLeaf) error {
+func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf) error {
 	// TODO: In theory we can do this with CASE / WHEN in one SQL statement but it's more fiddly
 	// and can be implemented later if necessary
 	for _, leaf := range leaves {
@@ -539,9 +551,13 @@ func (t *logTreeTX) UpdateSequencedLeaves(leaves []*trillian.LogLeaf) error {
 			return errors.New("Sequenced leaf has incorrect hash size")
 		}
 
-		_, err := t.tx.Exec(insertSequencedLeafSQL, t.treeID, leaf.LeafIdentityHash, leaf.MerkleLeafHash,
+		_, err := t.tx.ExecContext(
+			ctx,
+			insertSequencedLeafSQL,
+			t.treeID,
+			leaf.LeafIdentityHash,
+			leaf.MerkleLeafHash,
 			leaf.LeafIndex)
-
 		if err != nil {
 			glog.Warningf("Failed to update sequenced leaves: %s", err)
 			return err
@@ -553,7 +569,7 @@ func (t *logTreeTX) UpdateSequencedLeaves(leaves []*trillian.LogLeaf) error {
 
 // removeSequencedLeaves removes the passed in leaves slice (which may be
 // modified as part of the operation).
-func (t *logTreeTX) removeSequencedLeaves(leaves []*trillian.LogLeaf) error {
+func (t *logTreeTX) removeSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf) error {
 	// Delete in order of the hash values in the leaves.
 	sort.Sort(byLeafIdentityHash(leaves))
 
@@ -562,13 +578,13 @@ func (t *logTreeTX) removeSequencedLeaves(leaves []*trillian.LogLeaf) error {
 		glog.Warningf("Failed to get delete statement for sequenced work: %s", err)
 		return err
 	}
-	stx := t.tx.Stmt(tmpl)
+	stx := t.tx.StmtContext(ctx, tmpl)
 	var args []interface{}
 	for _, leaf := range leaves {
 		args = append(args, interface{}(leaf.LeafIdentityHash))
 	}
 	args = append(args, interface{}(t.treeID))
-	result, err := stx.Exec(args...)
+	result, err := stx.ExecContext(ctx, args...)
 
 	if err != nil {
 		// Error is handled by checkResultOkAndRowCountIs() below
@@ -584,14 +600,14 @@ func (t *logTreeTX) removeSequencedLeaves(leaves []*trillian.LogLeaf) error {
 	return nil
 }
 
-func (t *logTreeTX) getLeavesByHashInternal(leafHashes [][]byte, tmpl *sql.Stmt, desc string) ([]*trillian.LogLeaf, error) {
-	stx := t.tx.Stmt(tmpl)
+func (t *logTreeTX) getLeavesByHashInternal(ctx context.Context, leafHashes [][]byte, tmpl *sql.Stmt, desc string) ([]*trillian.LogLeaf, error) {
+	stx := t.tx.StmtContext(ctx, tmpl)
 	var args []interface{}
 	for _, hash := range leafHashes {
 		args = append(args, interface{}([]byte(hash)))
 	}
 	args = append(args, interface{}(t.treeID))
-	rows, err := stx.Query(args...)
+	rows, err := stx.QueryContext(ctx, args...)
 	if err != nil {
 		glog.Warningf("Query() %s hash = %v", desc, err)
 		return nil, err
@@ -620,14 +636,14 @@ func (t *logTreeTX) getLeavesByHashInternal(leafHashes [][]byte, tmpl *sql.Stmt,
 }
 
 // GetActiveLogIDs returns a list of the IDs of all configured logs
-func (t *logTreeTX) GetActiveLogIDs() ([]int64, error) {
-	return getActiveLogIDs(t.tx)
+func (t *logTreeTX) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
+	return getActiveLogIDs(ctx, t.tx)
 }
 
 // GetActiveLogIDsWithPendingWork returns a list of the IDs of all configured logs
 // that have queued unsequenced leaves that need to be integrated
-func (t *logTreeTX) GetActiveLogIDsWithPendingWork() ([]int64, error) {
-	return getActiveLogIDsWithPendingWork(t.tx)
+func (t *logTreeTX) GetActiveLogIDsWithPendingWork(ctx context.Context) ([]int64, error) {
+	return getActiveLogIDsWithPendingWork(ctx, t.tx)
 }
 
 // byLeafIdentityHash allows sorting of leaves by their identity hash, so DB

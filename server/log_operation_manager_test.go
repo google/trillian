@@ -65,7 +65,7 @@ func TestLogOperationManagerGetLogsFails(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockTx := storage.NewMockReadOnlyLogTX(ctrl)
-	mockTx.EXPECT().GetActiveLogIDs().Return(nil, errors.New("getactivelogs"))
+	mockTx.EXPECT().GetActiveLogIDs(gomock.Any()).Return(nil, errors.New("getactivelogs"))
 	mockTx.EXPECT().Close().Return(nil)
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockStorage.EXPECT().Snapshot(gomock.Any()).Return(mockTx, nil)
@@ -88,7 +88,7 @@ func TestLogOperationManagerCommitFails(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockTx := storage.NewMockReadOnlyLogTX(ctrl)
-	mockTx.EXPECT().GetActiveLogIDs().Return([]int64{}, nil)
+	mockTx.EXPECT().GetActiveLogIDs(gomock.Any()).Return([]int64{}, nil)
 	mockTx.EXPECT().Commit().Return(errors.New("commit"))
 	mockTx.EXPECT().Close().Return(nil)
 	mockStorage := storage.NewMockLogStorage(ctrl)
@@ -131,7 +131,7 @@ func TestLogOperationManagerPassesIDs(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockTx := storage.NewMockReadOnlyLogTX(ctrl)
-	mockTx.EXPECT().GetActiveLogIDs().Return([]int64{logID1, logID2}, nil)
+	mockTx.EXPECT().GetActiveLogIDs(gomock.Any()).Return([]int64{logID1, logID2}, nil)
 	mockTx.EXPECT().Commit().AnyTimes().Return(nil)
 	mockTx.EXPECT().Close().AnyTimes().Return(nil)
 	mockStorage := storage.NewMockLogStorage(ctrl)

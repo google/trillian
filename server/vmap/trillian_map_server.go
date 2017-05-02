@@ -64,7 +64,7 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 	var root *trillian.SignedMapRoot
 	if req.Revision < 0 {
 		// need to know the newest published revision
-		r, err := tx.LatestSignedMapRoot()
+		r, err := tx.LatestSignedMapRoot(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -74,7 +74,7 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 
 	smtReader := merkle.NewSparseMerkleTreeReader(req.Revision, hasher, tx)
 
-	leaves, err := tx.Get(req.Revision, req.Index)
+	leaves, err := tx.Get(ctx, req.Revision, req.Index)
 	if err != nil {
 		return nil, err
 	}
@@ -132,7 +132,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		// TODO(gbelvin) use LeafHash rather than computing here.
 		l.LeafHash = hasher.HashLeaf(l.LeafValue)
 
-		if err = tx.Set(l.Index, *l); err != nil {
+		if err = tx.Set(ctx, l.Index, *l); err != nil {
 			return nil, err
 		}
 		if err = smtWriter.SetLeaves([]merkle.HashKeyValue{
@@ -157,7 +157,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 	}
 
 	// TODO(al): need an smtWriter.Rollback() or similar I think.
-	if err = tx.StoreSignedMapRoot(newRoot); err != nil {
+	if err = tx.StoreSignedMapRoot(ctx, newRoot); err != nil {
 		return nil, err
 	}
 
@@ -179,7 +179,7 @@ func (t *TrillianMapServer) GetSignedMapRoot(ctx context.Context, req *trillian.
 	}
 	defer tx.Close()
 
-	r, err := tx.LatestSignedMapRoot()
+	r, err := tx.LatestSignedMapRoot(ctx)
 	if err != nil {
 		return nil, err
 	}
