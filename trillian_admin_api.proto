@@ -21,6 +21,7 @@ option java_outer_classname = "TrillianApiProto";
 package trillian;
 
 import "trillian.proto";
+import "github.com/google/trillian/crypto/keyspb/keyspb.proto";
 import "google/api/annotations.proto";
 import "google/protobuf/field_mask.proto";
 import "google/protobuf/empty.proto";
@@ -47,6 +48,10 @@ message GetTreeRequest {
 message CreateTreeRequest {
   // Tree to be created. See Tree and CreateTree for more details.
   Tree tree = 1;
+
+  // Describes how the tree's private key should be generated.
+  // Only needs to be set if tree.private_key is not set.
+  keyspb.Specification key_spec = 2;
 }
 
 // UpdateTree request.

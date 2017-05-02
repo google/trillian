@@ -83,6 +83,22 @@ func (s *Server) CreateTree(ctx context.Context, request *trillian.CreateTreeReq
 	if _, err := trees.Hasher(tree); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "failed to create hasher for tree: %v", err.Error())
 	}
+
+	// If a key specification was provided, generate a new key.
+	if request.KeySpec != nil {
+		// This will fail if the tree already has a private key.
+		key, err := s.registry.SignerFactory.Generate(ctx, tree, request.KeySpec)
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "failed to generate private key: %v", err.Error())
+		}
+		tree.PrivateKey = key
+	}
+
+	if tree.PrivateKey == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "tree.private_key or key_spec is required")
+	}
+
+	// Check that the tree.PrivateKey is valid by trying to get a signer.
 	signer, err := trees.Signer(ctx, s.registry.SignerFactory, tree)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "failed to create signer for tree: %v", err.Error())
@@ -94,10 +110,12 @@ func (s *Server) CreateTree(ctx context.Context, request *trillian.CreateTreeReq
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "failed to marshal public key: %v", err.Error())
 	}
+
 	// If a public key was provided, check that it matches the one we derived. If it doesn't, this indicates a mistake by the caller.
 	if tree.PublicKey != nil && !bytes.Equal(tree.PublicKey.Der, publicKeyDER) {
 		return nil, status.Error(codes.InvalidArgument, "the public and private keys are not a pair")
 	}
+
 	// If no public key was provided, use the DER that we just marshaled.
 	if tree.PublicKey == nil {
 		tree.PublicKey = &keyspb.PublicKey{Der: publicKeyDER}

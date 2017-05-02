@@ -9,7 +9,9 @@ It is generated from these files:
 	keyspb.proto
 
 It has these top-level messages:
+	Specification
 	PEMKeyFile
+	PrivateKey
 	PublicKey
 */
 package keyspb
@@ -29,6 +31,199 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
+// The supported elliptic curves.
+type Specification_ECDSA_Curve int32
+
+const (
+	Specification_ECDSA_DEFAULT_CURVE Specification_ECDSA_Curve = 0
+	Specification_ECDSA_P256          Specification_ECDSA_Curve = 1
+	Specification_ECDSA_P384          Specification_ECDSA_Curve = 2
+	Specification_ECDSA_P521          Specification_ECDSA_Curve = 3
+)
+
+var Specification_ECDSA_Curve_name = map[int32]string{
+	0: "DEFAULT_CURVE",
+	1: "P256",
+	2: "P384",
+	3: "P521",
+}
+var Specification_ECDSA_Curve_value = map[string]int32{
+	"DEFAULT_CURVE": 0,
+	"P256":          1,
+	"P384":          2,
+	"P521":          3,
+}
+
+func (x Specification_ECDSA_Curve) String() string {
+	return proto.EnumName(Specification_ECDSA_Curve_name, int32(x))
+}
+func (Specification_ECDSA_Curve) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptor0, []int{0, 0, 0}
+}
+
+// Specification for a private key.
+type Specification struct {
+	// The type of parameters provided determines the algorithm used for the key.
+	//
+	// Types that are valid to be assigned to Params:
+	//	*Specification_EcdsaParams
+	//	*Specification_RsaParams
+	Params isSpecification_Params `protobuf_oneof:"params"`
+}
+
+func (m *Specification) Reset()                    { *m = Specification{} }
+func (m *Specification) String() string            { return proto.CompactTextString(m) }
+func (*Specification) ProtoMessage()               {}
+func (*Specification) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{0} }
+
+type isSpecification_Params interface {
+	isSpecification_Params()
+}
+
+type Specification_EcdsaParams struct {
+	EcdsaParams *Specification_ECDSA `protobuf:"bytes,1,opt,name=ecdsa_params,json=ecdsaParams,oneof"`
+}
+type Specification_RsaParams struct {
+	RsaParams *Specification_RSA `protobuf:"bytes,2,opt,name=rsa_params,json=rsaParams,oneof"`
+}
+
+func (*Specification_EcdsaParams) isSpecification_Params() {}
+func (*Specification_RsaParams) isSpecification_Params()   {}
+
+func (m *Specification) GetParams() isSpecification_Params {
+	if m != nil {
+		return m.Params
+	}
+	return nil
+}
+
+func (m *Specification) GetEcdsaParams() *Specification_ECDSA {
+	if x, ok := m.GetParams().(*Specification_EcdsaParams); ok {
+		return x.EcdsaParams
+	}
+	return nil
+}
+
+func (m *Specification) GetRsaParams() *Specification_RSA {
+	if x, ok := m.GetParams().(*Specification_RsaParams); ok {
+		return x.RsaParams
+	}
+	return nil
+}
+
+// XXX_OneofFuncs is for the internal use of the proto package.
+func (*Specification) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
+	return _Specification_OneofMarshaler, _Specification_OneofUnmarshaler, _Specification_OneofSizer, []interface{}{
+		(*Specification_EcdsaParams)(nil),
+		(*Specification_RsaParams)(nil),
+	}
+}
+
+func _Specification_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
+	m := msg.(*Specification)
+	// params
+	switch x := m.Params.(type) {
+	case *Specification_EcdsaParams:
+		b.EncodeVarint(1<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.EcdsaParams); err != nil {
+			return err
+		}
+	case *Specification_RsaParams:
+		b.EncodeVarint(2<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.RsaParams); err != nil {
+			return err
+		}
+	case nil:
+	default:
+		return fmt.Errorf("Specification.Params has unexpected type %T", x)
+	}
+	return nil
+}
+
+func _Specification_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
+	m := msg.(*Specification)
+	switch tag {
+	case 1: // params.ecdsa_params
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(Specification_ECDSA)
+		err := b.DecodeMessage(msg)
+		m.Params = &Specification_EcdsaParams{msg}
+		return true, err
+	case 2: // params.rsa_params
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(Specification_RSA)
+		err := b.DecodeMessage(msg)
+		m.Params = &Specification_RsaParams{msg}
+		return true, err
+	default:
+		return false, nil
+	}
+}
+
+func _Specification_OneofSizer(msg proto.Message) (n int) {
+	m := msg.(*Specification)
+	// params
+	switch x := m.Params.(type) {
+	case *Specification_EcdsaParams:
+		s := proto.Size(x.EcdsaParams)
+		n += proto.SizeVarint(1<<3 | proto.WireBytes)
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case *Specification_RsaParams:
+		s := proto.Size(x.RsaParams)
+		n += proto.SizeVarint(2<<3 | proto.WireBytes)
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case nil:
+	default:
+		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
+	}
+	return n
+}
+
+// / ECDSA defines parameters for an ECDSA key.
+type Specification_ECDSA struct {
+	// The elliptic curve to use.
+	// Optional. If not set, the default curve will be used.
+	Curve Specification_ECDSA_Curve `protobuf:"varint,1,opt,name=curve,enum=keyspb.Specification_ECDSA_Curve" json:"curve,omitempty"`
+}
+
+func (m *Specification_ECDSA) Reset()                    { *m = Specification_ECDSA{} }
+func (m *Specification_ECDSA) String() string            { return proto.CompactTextString(m) }
+func (*Specification_ECDSA) ProtoMessage()               {}
+func (*Specification_ECDSA) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{0, 0} }
+
+func (m *Specification_ECDSA) GetCurve() Specification_ECDSA_Curve {
+	if m != nil {
+		return m.Curve
+	}
+	return Specification_ECDSA_DEFAULT_CURVE
+}
+
+// RSA defines parameters for an RSA key.
+type Specification_RSA struct {
+	// Size of the keys in bits. Must be sufficiently large to allow two primes
+	// to be generated.
+	// Optional. If not set, the key size will be chosen by Trillian.
+	Bits int32 `protobuf:"varint,1,opt,name=bits" json:"bits,omitempty"`
+}
+
+func (m *Specification_RSA) Reset()                    { *m = Specification_RSA{} }
+func (m *Specification_RSA) String() string            { return proto.CompactTextString(m) }
+func (*Specification_RSA) ProtoMessage()               {}
+func (*Specification_RSA) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{0, 1} }
+
+func (m *Specification_RSA) GetBits() int32 {
+	if m != nil {
+		return m.Bits
+	}
+	return 0
+}
+
 // PEMKeyFile identifies a private key stored in a PEM-encoded file.
 type PEMKeyFile struct {
 	// File path of the private key.
@@ -41,7 +236,7 @@ type PEMKeyFile struct {
 func (m *PEMKeyFile) Reset()                    { *m = PEMKeyFile{} }
 func (m *PEMKeyFile) String() string            { return proto.CompactTextString(m) }
 func (*PEMKeyFile) ProtoMessage()               {}
-func (*PEMKeyFile) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{0} }
+func (*PEMKeyFile) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{1} }
 
 func (m *PEMKeyFile) GetPath() string {
 	if m != nil {
@@ -57,16 +252,35 @@ func (m *PEMKeyFile) GetPassword() string {
 	return ""
 }
 
+// PrivateKey is a private key, used for generating signatures.
+type PrivateKey struct {
+	// The key in DER-encoded form.
+	// The specific format (e.g. PKCS8) is not specified.
+	Der []byte `protobuf:"bytes,1,opt,name=der,proto3" json:"der,omitempty"`
+}
+
+func (m *PrivateKey) Reset()                    { *m = PrivateKey{} }
+func (m *PrivateKey) String() string            { return proto.CompactTextString(m) }
+func (*PrivateKey) ProtoMessage()               {}
+func (*PrivateKey) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{2} }
+
+func (m *PrivateKey) GetDer() []byte {
+	if m != nil {
+		return m.Der
+	}
+	return nil
+}
+
 // PublicKey is a public key, used for verifying signatures.
 type PublicKey struct {
-	// The key in DER-encoded PKIX format.
+	// The key in DER-encoded PKIX form.
 	Der []byte `protobuf:"bytes,1,opt,name=der,proto3" json:"der,omitempty"`
 }
 
 func (m *PublicKey) Reset()                    { *m = PublicKey{} }
 func (m *PublicKey) String() string            { return proto.CompactTextString(m) }
 func (*PublicKey) ProtoMessage()               {}
-func (*PublicKey) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{1} }
+func (*PublicKey) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{3} }
 
 func (m *PublicKey) GetDer() []byte {
 	if m != nil {
@@ -76,20 +290,37 @@ func (m *PublicKey) GetDer() []byte {
 }
 
 func init() {
+	proto.RegisterType((*Specification)(nil), "keyspb.Specification")
+	proto.RegisterType((*Specification_ECDSA)(nil), "keyspb.Specification.ECDSA")
+	proto.RegisterType((*Specification_RSA)(nil), "keyspb.Specification.RSA")
 	proto.RegisterType((*PEMKeyFile)(nil), "keyspb.PEMKeyFile")
+	proto.RegisterType((*PrivateKey)(nil), "keyspb.PrivateKey")
 	proto.RegisterType((*PublicKey)(nil), "keyspb.PublicKey")
+	proto.RegisterEnum("keyspb.Specification_ECDSA_Curve", Specification_ECDSA_Curve_name, Specification_ECDSA_Curve_value)
 }
 
 func init() { proto.RegisterFile("keyspb.proto", fileDescriptor0) }
 
 var fileDescriptor0 = []byte{
-	// 121 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0xe2, 0xe2, 0xc9, 0x4e, 0xad, 0x2c,
-	0x2e, 0x48, 0xd2, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x62, 0x83, 0xf0, 0x94, 0x6c, 0xb8, 0xb8,
-	0x02, 0x5c, 0x7d, 0xbd, 0x53, 0x2b, 0xdd, 0x32, 0x73, 0x52, 0x85, 0x84, 0xb8, 0x58, 0x0a, 0x12,
-	0x4b, 0x32, 0x24, 0x18, 0x15, 0x18, 0x35, 0x38, 0x83, 0xc0, 0x6c, 0x21, 0x29, 0x2e, 0x8e, 0x82,
-	0xc4, 0xe2, 0xe2, 0xf2, 0xfc, 0xa2, 0x14, 0x09, 0x26, 0xb0, 0x38, 0x9c, 0xaf, 0x24, 0xcb, 0xc5,
-	0x19, 0x50, 0x9a, 0x94, 0x93, 0x99, 0xec, 0x9d, 0x5a, 0x29, 0x24, 0xc0, 0xc5, 0x9c, 0x92, 0x5a,
-	0x04, 0xd6, 0xcb, 0x13, 0x04, 0x62, 0x26, 0xb1, 0x81, 0xed, 0x32, 0x06, 0x04, 0x00, 0x00, 0xff,
-	0xff, 0xf6, 0xa6, 0x63, 0x12, 0x7b, 0x00, 0x00, 0x00,
+	// 306 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0x7c, 0x91, 0x4d, 0x4b, 0xf3, 0x40,
+	0x14, 0x85, 0xfb, 0x95, 0xd2, 0xdc, 0xa6, 0x2f, 0x79, 0x67, 0x65, 0x23, 0x8a, 0x66, 0xe5, 0x2a,
+	0x60, 0x6a, 0xb5, 0x88, 0x0b, 0x63, 0x9a, 0x22, 0x54, 0x21, 0x4c, 0xac, 0xdb, 0x32, 0x49, 0x46,
+	0x1c, 0xac, 0x66, 0x98, 0xa4, 0x95, 0xf8, 0xa3, 0xfc, 0x8d, 0x92, 0x1b, 0x3f, 0x10, 0x8a, 0xbb,
+	0x73, 0xc8, 0xf3, 0xe4, 0x72, 0x18, 0x30, 0x9e, 0x78, 0x99, 0xcb, 0xd8, 0x91, 0x2a, 0x2b, 0x32,
+	0xd2, 0xad, 0x9b, 0xfd, 0xde, 0x82, 0x41, 0x24, 0x79, 0x22, 0x1e, 0x44, 0xc2, 0x0a, 0x91, 0xbd,
+	0x90, 0x4b, 0x30, 0x78, 0x92, 0xe6, 0x6c, 0x29, 0x99, 0x62, 0xcf, 0xf9, 0x4e, 0xf3, 0xa0, 0x79,
+	0xd4, 0x77, 0x77, 0x9d, 0x4f, 0xfd, 0x17, 0xec, 0x04, 0xfe, 0x34, 0xf2, 0xae, 0x1b, 0xb4, 0x8f,
+	0x4a, 0x88, 0x06, 0x39, 0x07, 0x50, 0x3f, 0x7e, 0x0b, 0xfd, 0xe1, 0x76, 0x9f, 0xa2, 0xad, 0xab,
+	0x2f, 0xd7, 0x7a, 0x03, 0x0d, 0xff, 0x49, 0xce, 0x40, 0x4b, 0xd6, 0x6a, 0xc3, 0xf1, 0xfe, 0x3f,
+	0xf7, 0xf0, 0x8f, 0xfb, 0x8e, 0x5f, 0x81, 0xb4, 0xe6, 0xed, 0x09, 0x68, 0xd8, 0xc9, 0x7f, 0x18,
+	0x4c, 0x83, 0x99, 0xb7, 0xb8, 0xb9, 0x5b, 0xfa, 0x0b, 0x7a, 0x1f, 0x98, 0x0d, 0xd2, 0x83, 0x4e,
+	0xe8, 0x8e, 0x4f, 0xcd, 0x26, 0xa6, 0xd1, 0xe4, 0xc4, 0x6c, 0x61, 0x1a, 0xbb, 0xc7, 0x66, 0xdb,
+	0x1a, 0x42, 0x9b, 0x46, 0x1e, 0x21, 0xd0, 0x89, 0x45, 0x51, 0x0f, 0xd7, 0x28, 0xe6, 0xab, 0x1e,
+	0x74, 0xeb, 0x39, 0xf6, 0x05, 0x40, 0x18, 0xdc, 0xce, 0x79, 0x39, 0x13, 0x2b, 0x5e, 0xb1, 0x92,
+	0x15, 0x8f, 0xc8, 0xea, 0x14, 0x33, 0xb1, 0xa0, 0x27, 0x59, 0x9e, 0xbf, 0x66, 0x2a, 0xc5, 0xf1,
+	0x3a, 0xfd, 0xee, 0xf6, 0x3e, 0x40, 0xa8, 0xc4, 0x86, 0x15, 0x7c, 0xce, 0x4b, 0x62, 0x42, 0x3b,
+	0xe5, 0x0a, 0x65, 0x83, 0x56, 0xd1, 0xde, 0x03, 0x3d, 0x5c, 0xc7, 0x2b, 0x91, 0x6c, 0xfd, 0x1c,
+	0x77, 0xf1, 0xf1, 0x46, 0x1f, 0x01, 0x00, 0x00, 0xff, 0xff, 0xe5, 0x2f, 0xfe, 0x86, 0xcc, 0x01,
+	0x00, 0x00,
 }

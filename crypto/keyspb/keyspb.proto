@@ -16,18 +16,60 @@ syntax = "proto3";
 
 package keyspb;
 
+// Specification for a private key.
+message Specification {
+  /// ECDSA defines parameters for an ECDSA key.
+  message ECDSA {
+    // The supported elliptic curves.
+    enum Curve {
+      DEFAULT_CURVE = 0;  // Curve will be chosen by Trillian.
+      P256 = 1;
+      P384 = 2;
+      P521 = 3;
+    }
+
+    // The elliptic curve to use.
+    // Optional. If not set, the default curve will be used.
+    Curve curve = 1;
+  }
+
+  // RSA defines parameters for an RSA key.
+  message RSA {
+    // Size of the keys in bits. Must be sufficiently large to allow two primes
+    // to be generated.
+    // Optional. If not set, the key size will be chosen by Trillian.
+    int32 bits = 1;
+  }
+
+  // The type of parameters provided determines the algorithm used for the key.
+  oneof params {
+    // The parameters for an ECDSA key.
+    ECDSA ecdsa_params = 1;
+
+    // The parameters for an RSA key.
+    RSA rsa_params = 2;
+  }
+}
+
 // PEMKeyFile identifies a private key stored in a PEM-encoded file.
 message PEMKeyFile {
   // File path of the private key.
   string path = 1;
+
   // Password for decrypting the private key.
   // If empty, indicates that the private key is not encrypted.
   string password = 2;
 }
 
-// PublicKey is a public key, used for verifying signatures.
-message PublicKey {
-  // The key in DER-encoded PKIX format.
+// PrivateKey is a private key, used for generating signatures.
+message PrivateKey {
+  // The key in DER-encoded form.
+  // The specific format (e.g. PKCS8) is not specified.
   bytes der = 1;
 }
 
+// PublicKey is a public key, used for verifying signatures.
+message PublicKey {
+  // The key in DER-encoded PKIX form.
+  bytes der = 1;
+}

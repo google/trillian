@@ -7,7 +7,9 @@ import (
 	context "context"
 	crypto "crypto"
 	gomock "github.com/golang/mock/gomock"
+	any "github.com/golang/protobuf/ptypes/any"
 	trillian "github.com/google/trillian"
+	keyspb "github.com/google/trillian/crypto/keyspb"
 )
 
 // Mock of SignerFactory interface
@@ -29,6 +31,17 @@ func NewMockSignerFactory(ctrl *gomock.Controller) *MockSignerFactory {
 
 func (_m *MockSignerFactory) EXPECT() *_MockSignerFactoryRecorder {
 	return _m.recorder
+}
+
+func (_m *MockSignerFactory) Generate(_param0 context.Context, _param1 *trillian.Tree, _param2 *keyspb.Specification) (*any.Any, error) {
+	ret := _m.ctrl.Call(_m, "Generate", _param0, _param1, _param2)
+	ret0, _ := ret[0].(*any.Any)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+func (_mr *_MockSignerFactoryRecorder) Generate(arg0, arg1, arg2 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "Generate", arg0, arg1, arg2)
 }
 
 func (_m *MockSignerFactory) NewSigner(_param0 context.Context, _param1 *trillian.Tree) (crypto.Signer, error) {
