@@ -27,7 +27,6 @@ import (
 type logVerifier struct {
 	hasher merkle.TreeHasher
 	pubKey crypto.PublicKey
-	root   trillian.SignedLogRoot
 	v      merkle.LogVerifier
 }
 
@@ -40,51 +39,42 @@ func NewLogVerifier(hasher merkle.TreeHasher, pubKey crypto.PublicKey) LogVerifi
 	}
 }
 
-// Root returns the last valid root seen by UpdateRoot.
-// Returns an empty SignedLogRoot if UpdateRoot has not been called.
-func (c *logVerifier) Root() trillian.SignedLogRoot {
-	return c.root
-}
-
-// UpdateRoot applies a GetLatestSignedLogRootResponse to Root(), if valid.
-// consistency may be nil if Root().TreeSize is zero.
-func (c *logVerifier) UpdateRoot(resp *trillian.GetLatestSignedLogRootResponse,
-	consistency *trillian.GetConsistencyProofResponse) error {
-	str := resp.SignedLogRoot
+// VerifyRoot verifies that a resp is a valid append-only operation from trusted.
+// If trusted.TreeSize is zero, an append-only proof is not needed.
+func (c *logVerifier) VerifyRoot(trusted, newRoot *trillian.SignedLogRoot,
+	consistency [][]byte) error {
 
 	// Verify SignedLogRoot signature.
-	hash := tcrypto.HashLogRoot(*str)
-	if err := tcrypto.Verify(c.pubKey, hash, str.Signature); err != nil {
+	hash := tcrypto.HashLogRoot(*newRoot)
+	if err := tcrypto.Verify(c.pubKey, hash, newRoot.Signature); err != nil {
 		return err
 	}
 
 	// Implicitly trust the first root we get.
-	if c.root.TreeSize != 0 {
+	if trusted.TreeSize != 0 {
 		// Verify consistency proof.
 		if err := c.v.VerifyConsistencyProof(
-			c.root.TreeSize, str.TreeSize,
-			c.root.RootHash, str.RootHash,
-			consistency.GetProof().GetHashes()); err != nil {
+			trusted.TreeSize, newRoot.TreeSize,
+			trusted.RootHash, newRoot.RootHash,
+			consistency); err != nil {
 			return err
 		}
 	}
-	c.root = *str
 	return nil
 }
 
 // VerifyInclusionAtIndex verifies that the inclusion proof for data at index matches
 // the currently trusted root. The inclusion proof must be requested for Root().TreeSize.
-func (c *logVerifier) VerifyInclusionAtIndex(data []byte, leafIndex int64, resp *trillian.GetInclusionProofResponse) error {
+func (c *logVerifier) VerifyInclusionAtIndex(trusted *trillian.SignedLogRoot, data []byte, leafIndex int64, proof [][]byte) error {
 	leaf := c.buildLeaf(data)
-	return c.v.VerifyInclusionProof(leafIndex, c.root.TreeSize,
-		resp.Proof.Hashes, c.root.RootHash, leaf.MerkleLeafHash)
-
+	return c.v.VerifyInclusionProof(leafIndex, trusted.TreeSize,
+		proof, trusted.RootHash, leaf.MerkleLeafHash)
 }
 
 // VerifyInclusionByHash verifies the inclusion proof for data
-func (c *logVerifier) VerifyInclusionByHash(leafHash []byte, proof *trillian.Proof) error {
-	return c.v.VerifyInclusionProof(proof.LeafIndex, c.root.TreeSize, proof.Hashes,
-		c.root.RootHash, leafHash)
+func (c *logVerifier) VerifyInclusionByHash(trusted *trillian.SignedLogRoot, leafHash []byte, proof *trillian.Proof) error {
+	return c.v.VerifyInclusionProof(proof.LeafIndex, trusted.TreeSize, proof.Hashes,
+		trusted.RootHash, leafHash)
 }
 
 func (c *logVerifier) buildLeaf(data []byte) *trillian.LogLeaf {
