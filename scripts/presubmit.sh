@@ -66,11 +66,9 @@ main() {
     grep -v .pb.go | \
     grep -v .pb.gw.go | \
     grep -v _string.go | \
-    grep -v third_party/ | \
     grep -v vendor/ | \
     tr '\n' ' ')"
   local proto_srcs="$(find . -name '*.proto' | \
-    grep -v third_party/ | \
     grep -v vendor/ | \
     tr '\n' ' ')"
 
@@ -106,7 +104,6 @@ main() {
   fi
 
   local go_dirs="$(go list ./... | \
-    grep -v /third_party/ | \
     grep -v /vendor/)"
 
   if [[ "${run_generate}" -eq 1 ]]; then
