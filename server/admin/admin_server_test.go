@@ -72,16 +72,9 @@ func TestServer_BeginError(t *testing.T) {
 		t.Fatalf("Error generating test key: %v", err)
 	}
 
-	publicKeyDER, err := x509.MarshalPKIXPublicKey(privateKey.Public())
-	if err != nil {
-		t.Fatalf("Error marshaling public key: %v", err)
-	}
-
-	// Need to change the public key to correspond with the private key generated above.
+	// Need to remove the public key, as it won't correspond to the privateKey that was just generated.
 	validTree := *testonly.LogTree
-	validTree.PublicKey = &trillian.PublicKey{
-		Der: publicKeyDER,
-	}
+	validTree.PublicKey = nil
 
 	tests := []struct {
 		desc     string
@@ -293,6 +286,11 @@ func TestServer_CreateTree(t *testing.T) {
 		Der: publicKeyDER,
 	}
 
+	mismatchedPublicKey := *testonly.LogTree
+
+	omittedPublicKey := validTree
+	omittedPublicKey.PublicKey = nil
+
 	invalidTree := validTree
 	invalidTree.TreeState = trillian.TreeState_HARD_DELETED
 
@@ -323,6 +321,16 @@ func TestServer_CreateTree(t *testing.T) {
 			desc:    "nilTree",
 			req:     &trillian.CreateTreeRequest{},
 			wantErr: true,
+		},
+		{
+			desc:    "mismatchedPublicKey",
+			req:     &trillian.CreateTreeRequest{Tree: &mismatchedPublicKey},
+			wantErr: true,
+		},
+		{
+			desc:       "omittedPublicKey",
+			req:        &trillian.CreateTreeRequest{Tree: &omittedPublicKey},
+			wantCommit: true,
 		},
 		{
 			desc:    "invalidHashAlgo",
@@ -365,13 +373,14 @@ func TestServer_CreateTree(t *testing.T) {
 		tx := setup.tx
 		s := setup.server
 
-		var newTree trillian.Tree
 		if test.req.Tree != nil {
-			newTree = *test.req.Tree
-			newTree.TreeId = 12345
-			newTree.CreateTimeMillisSinceEpoch = 1
-			newTree.UpdateTimeMillisSinceEpoch = 1
-			tx.EXPECT().CreateTree(ctx, test.req.Tree).MaxTimes(1).Return(&newTree, test.createErr)
+			var newTree trillian.Tree
+			tx.EXPECT().CreateTree(ctx, gomock.Any()).MaxTimes(1).Do(func(ctx context.Context, tree *trillian.Tree) {
+				newTree = *tree
+				newTree.TreeId = 12345
+				newTree.CreateTimeMillisSinceEpoch = 1
+				newTree.UpdateTimeMillisSinceEpoch = 1
+			}).Return(&newTree, test.createErr)
 		}
 
 		tree, err := s.CreateTree(ctx, test.req)
@@ -382,8 +391,12 @@ func TestServer_CreateTree(t *testing.T) {
 			continue
 		}
 
-		wantTree := newTree
+		wantTree := *test.req.Tree
+		wantTree.TreeId = 12345
+		wantTree.CreateTimeMillisSinceEpoch = 1
+		wantTree.UpdateTimeMillisSinceEpoch = 1
 		wantTree.PrivateKey = nil // redacted
+		wantTree.PublicKey = &trillian.PublicKey{publicKeyDER}
 		if diff := pretty.Compare(tree, &wantTree); diff != "" {
 			t.Errorf("%v: post-CreateTree diff (-got +want):\n%v", test.desc, diff)
 		}
