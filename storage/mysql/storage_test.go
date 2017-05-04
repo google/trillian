@@ -34,6 +34,8 @@ import (
 )
 
 func TestNodeRoundTrip(t *testing.T) {
+	ctx := context.Background()
+
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
 	s := NewLogStorage(DB)
@@ -51,10 +53,10 @@ func TestNodeRoundTrip(t *testing.T) {
 		forceWriteRevision(writeRevision, tx)
 
 		// Need to read nodes before attempting to write
-		if _, err := tx.GetMerkleNodes(99, nodeIDsToRead); err != nil {
+		if _, err := tx.GetMerkleNodes(ctx, 99, nodeIDsToRead); err != nil {
 			t.Fatalf("Failed to read nodes: %s", err)
 		}
-		if err := tx.SetMerkleNodes(nodesToStore); err != nil {
+		if err := tx.SetMerkleNodes(ctx, nodesToStore); err != nil {
 			t.Fatalf("Failed to store nodes: %s", err)
 		}
 		if err := tx.Commit(); err != nil {
@@ -66,7 +68,7 @@ func TestNodeRoundTrip(t *testing.T) {
 		tx := beginLogTx(s, logID, t)
 		defer tx.Close()
 
-		readNodes, err := tx.GetMerkleNodes(100, nodeIDsToRead)
+		readNodes, err := tx.GetMerkleNodes(ctx, 100, nodeIDsToRead)
 		if err != nil {
 			t.Fatalf("Failed to retrieve nodes: %s", err)
 		}
@@ -80,6 +82,8 @@ func TestNodeRoundTrip(t *testing.T) {
 // This test ensures that node writes cross subtree boundaries so this edge case in the subtree
 // cache gets exercised. Any tree size > 256 will do this.
 func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
+	ctx := context.Background()
+
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
 	s := NewLogStorage(DB)
@@ -100,10 +104,10 @@ func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 		forceWriteRevision(writeRevision, tx)
 
 		// Need to read nodes before attempting to write
-		if _, err := tx.GetMerkleNodes(writeRevision-1, nodeIDsToRead); err != nil {
+		if _, err := tx.GetMerkleNodes(ctx, writeRevision-1, nodeIDsToRead); err != nil {
 			t.Fatalf("Failed to read nodes: %s", err)
 		}
-		if err := tx.SetMerkleNodes(nodesToStore); err != nil {
+		if err := tx.SetMerkleNodes(ctx, nodesToStore); err != nil {
 			t.Fatalf("Failed to store nodes: %s", err)
 		}
 		if err := tx.Commit(); err != nil {
@@ -115,7 +119,7 @@ func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 		tx := beginLogTx(s, logID, t)
 		defer tx.Close()
 
-		readNodes, err := tx.GetMerkleNodes(100, nodeIDsToRead)
+		readNodes, err := tx.GetMerkleNodes(ctx, 100, nodeIDsToRead)
 		if err != nil {
 			t.Fatalf("Failed to retrieve nodes: %s", err)
 		}

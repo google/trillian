@@ -16,6 +16,7 @@ package testonly
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 
 	"github.com/golang/glog"
@@ -196,7 +197,7 @@ func (m MultiFakeNodeReader) GetTreeRevisionIncludingSize(treeSize int64) (int64
 }
 
 // GetMerkleNodes implements the corresponding NodeReader API.
-func (m MultiFakeNodeReader) GetMerkleNodes(treeRevision int64, NodeIDs []storage.NodeID) ([]storage.Node, error) {
+func (m MultiFakeNodeReader) GetMerkleNodes(ctx context.Context, treeRevision int64, NodeIDs []storage.NodeID) ([]storage.Node, error) {
 	// Find the correct reader for the supplied tree revision. This must be done for each node
 	// as earlier revisions may still be relevant
 	nodes := make([]storage.Node, 0, len(NodeIDs))

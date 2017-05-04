@@ -15,6 +15,7 @@
 package server
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/google/trillian"
@@ -105,7 +106,7 @@ func fetchNodes(tx storage.NodeReader, treeRevision int64, fetches []merkle.Node
 		proofNodeIDs = append(proofNodeIDs, fetch.NodeID)
 	}
 
-	proofNodes, err := tx.GetMerkleNodes(treeRevision, proofNodeIDs)
+	proofNodes, err := tx.GetMerkleNodes(context.TODO(), treeRevision, proofNodeIDs)
 	if err != nil {
 		return nil, err
 	}

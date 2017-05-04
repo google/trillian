@@ -16,6 +16,7 @@ package merkle
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"math/big"
@@ -239,7 +240,7 @@ func (s *subtreeWriter) buildSubtree() {
 	root, err := hs2.HStar2Nodes(s.subtreeDepth, treeDepthOffset, leaves,
 		func(depth int, index *big.Int) ([]byte, error) {
 			nodeID := nodeIDFromAddress(addressSize, s.prefix, index, depth)
-			nodes, err := s.tx.GetMerkleNodes(s.treeRevision, []storage.NodeID{nodeID})
+			nodes, err := s.tx.GetMerkleNodes(context.TODO(), s.treeRevision, []storage.NodeID{nodeID})
 			if err != nil {
 				return nil, err
 			}
@@ -275,7 +276,7 @@ func (s *subtreeWriter) buildSubtree() {
 	}
 
 	// write nodes back to storage
-	if err := s.tx.SetMerkleNodes(nodesToStore); err != nil {
+	if err := s.tx.SetMerkleNodes(context.TODO(), nodesToStore); err != nil {
 		s.root <- rootHashOrError{nil, err}
 		return
 	}
@@ -363,7 +364,7 @@ func NewSparseMerkleTreeWriter(rev int64, h MapHasher, newTX newTXFunc) (*Sparse
 // revision, or ErrNoSuchRevision if the requested revision doesn't exist.
 func (s SparseMerkleTreeReader) RootAtRevision(rev int64) ([]byte, error) {
 	rootNodeID := storage.NewEmptyNodeID(256)
-	nodes, err := s.tx.GetMerkleNodes(rev, []storage.NodeID{rootNodeID})
+	nodes, err := s.tx.GetMerkleNodes(context.TODO(), rev, []storage.NodeID{rootNodeID})
 	if err != nil {
 		return nil, err
 	}
@@ -390,7 +391,7 @@ func (s SparseMerkleTreeReader) RootAtRevision(rev int64) ([]byte, error) {
 func (s SparseMerkleTreeReader) InclusionProof(rev int64, index []byte) ([][]byte, error) {
 	nid := storage.NewNodeIDFromHash(index)
 	sibs := nid.Siblings()
-	nodes, err := s.tx.GetMerkleNodes(rev, sibs)
+	nodes, err := s.tx.GetMerkleNodes(context.TODO(), rev, sibs)
 	if err != nil {
 		return nil, err
 	}

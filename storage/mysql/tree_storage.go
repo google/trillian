@@ -336,11 +336,11 @@ func (t *treeTX) getSubtreesAtRev(rev int64) cache.GetSubtreesFunc {
 }
 
 // GetMerkleNodes returns the requests nodes at (or below) the passed in treeRevision.
-func (t *treeTX) GetMerkleNodes(treeRevision int64, nodeIDs []storage.NodeID) ([]storage.Node, error) {
+func (t *treeTX) GetMerkleNodes(ctx context.Context, treeRevision int64, nodeIDs []storage.NodeID) ([]storage.Node, error) {
 	return t.subtreeCache.GetNodes(nodeIDs, t.getSubtreesAtRev(treeRevision))
 }
 
-func (t *treeTX) SetMerkleNodes(nodes []storage.Node) error {
+func (t *treeTX) SetMerkleNodes(ctx context.Context, nodes []storage.Node) error {
 	for _, n := range nodes {
 		err := t.subtreeCache.SetNodeHash(n.NodeID, n.Hash,
 			func(nID storage.NodeID) (*storagepb.SubtreeProto, error) {
