@@ -65,7 +65,7 @@ type rootHashOrError struct {
 // and dropped in.
 type Subtree interface {
 	// SetLeaf sets a single leaf hash for integration into a sparse Merkle tree.
-	SetLeaf(index []byte, hash []byte) error
+	SetLeaf(ctx context.Context, index []byte, hash []byte) error
 
 	// CalculateRoot instructs the subtree worker to start calculating the root
 	// hash of its tree.  It is an error to call SetLeaf() after calling this
@@ -78,7 +78,7 @@ type Subtree interface {
 }
 
 // getSubtreeFunc is essentially a factory method for getting child subtrees.
-type getSubtreeFunc func(prefix []byte) (Subtree, error)
+type getSubtreeFunc func(ctx context.Context, prefix []byte) (Subtree, error)
 
 // subtreeWriter knows how to calculate and store nodes for a subtree.
 type subtreeWriter struct {
@@ -113,7 +113,7 @@ type subtreeWriter struct {
 
 // getOrCreateChildSubtree returns, or creates and returns, a subtree for the
 // specified childPrefix.
-func (s *subtreeWriter) getOrCreateChildSubtree(childPrefix []byte) (Subtree, error) {
+func (s *subtreeWriter) getOrCreateChildSubtree(ctx context.Context, childPrefix []byte) (Subtree, error) {
 	// TODO(al): figure out we actually need these copies and remove them if not.
 	//           If we do then tidy up with a copyBytes helper.
 	cp := append(make([]byte, 0, len(childPrefix)), childPrefix...)
@@ -124,7 +124,7 @@ func (s *subtreeWriter) getOrCreateChildSubtree(childPrefix []byte) (Subtree, er
 	subtree := s.children[childPrefixStr]
 	var err error
 	if subtree == nil {
-		subtree, err = s.getSubtree(cp)
+		subtree, err = s.getSubtree(ctx, cp)
 		if err != nil {
 			return nil, err
 		}
@@ -150,7 +150,7 @@ func (s *subtreeWriter) getOrCreateChildSubtree(childPrefix []byte) (Subtree, er
 
 // SetLeaf sets a single leaf hash for incorporation into the sparse Merkle
 // tree.
-func (s *subtreeWriter) SetLeaf(index []byte, hash []byte) error {
+func (s *subtreeWriter) SetLeaf(ctx context.Context, index []byte, hash []byte) error {
 	indexLen := len(index) * 8
 
 	switch {
@@ -159,12 +159,12 @@ func (s *subtreeWriter) SetLeaf(index []byte, hash []byte) error {
 
 	case indexLen > s.subtreeDepth:
 		childPrefix := index[:s.subtreeDepth/8]
-		subtree, err := s.getOrCreateChildSubtree(childPrefix)
+		subtree, err := s.getOrCreateChildSubtree(ctx, childPrefix)
 		if err != nil {
 			return err
 		}
 
-		return subtree.SetLeaf(index[s.subtreeDepth/8:], hash)
+		return subtree.SetLeaf(ctx, index[s.subtreeDepth/8:], hash)
 
 	case indexLen == s.subtreeDepth:
 		s.leafQueue <- func() (*indexAndHash, error) { return &indexAndHash{index: index, hash: hash}, nil }
@@ -210,7 +210,7 @@ func nodeIDFromAddress(size int, prefix []byte, index *big.Int, depth int) stora
 // buildSubtree is the worker function which calculates the root hash.
 // The root chan will have had exactly one entry placed in it, and have been
 // subsequently closed when this method exits.
-func (s *subtreeWriter) buildSubtree() {
+func (s *subtreeWriter) buildSubtree(ctx context.Context) {
 	defer close(s.root)
 	defer s.tx.Close()
 
@@ -240,7 +240,7 @@ func (s *subtreeWriter) buildSubtree() {
 	root, err := hs2.HStar2Nodes(s.subtreeDepth, treeDepthOffset, leaves,
 		func(depth int, index *big.Int) ([]byte, error) {
 			nodeID := nodeIDFromAddress(addressSize, s.prefix, index, depth)
-			nodes, err := s.tx.GetMerkleNodes(context.TODO(), s.treeRevision, []storage.NodeID{nodeID})
+			nodes, err := s.tx.GetMerkleNodes(ctx, s.treeRevision, []storage.NodeID{nodeID})
 			if err != nil {
 				return nil, err
 			}
@@ -276,7 +276,7 @@ func (s *subtreeWriter) buildSubtree() {
 	}
 
 	// write nodes back to storage
-	if err := s.tx.SetMerkleNodes(context.TODO(), nodesToStore); err != nil {
+	if err := s.tx.SetMerkleNodes(ctx, nodesToStore); err != nil {
 		s.root <- rootHashOrError{nil, err}
 		return
 	}
@@ -316,7 +316,7 @@ func leafQueueSize(depths []int) int {
 }
 
 // newLocalSubtreeWriter creates a new local go-routine based subtree worker.
-func newLocalSubtreeWriter(rev int64, prefix []byte, depths []int, newTX newTXFunc, h TreeHasher) (Subtree, error) {
+func newLocalSubtreeWriter(ctx context.Context, rev int64, prefix []byte, depths []int, newTX newTXFunc, h TreeHasher) (Subtree, error) {
 	tx, err := newTX()
 	if err != nil {
 		return nil, err
@@ -331,25 +331,25 @@ func newLocalSubtreeWriter(rev int64, prefix []byte, depths []int, newTX newTXFu
 		children:     make(map[string]Subtree),
 		tx:           tx,
 		treeHasher:   h,
-		getSubtree: func(p []byte) (Subtree, error) {
+		getSubtree: func(ctx context.Context, p []byte) (Subtree, error) {
 			myPrefix := bytes.Join([][]byte{prefix, p}, []byte{})
-			return newLocalSubtreeWriter(rev, myPrefix, depths[1:], newTX, h)
+			return newLocalSubtreeWriter(ctx, rev, myPrefix, depths[1:], newTX, h)
 		},
 	}
 
 	// TODO(al): probably shouldn't be spawning go routines willy-nilly like
 	// this, but it'll do for now.
-	go tree.buildSubtree()
+	go tree.buildSubtree(ctx)
 	return &tree, nil
 }
 
 // NewSparseMerkleTreeWriter returns a new SparseMerkleTreeWriter, which will
 // write data back into the tree at the specified revision, using the passed
 // in MapHasher to calculate/verify tree hashes, storing via tx.
-func NewSparseMerkleTreeWriter(rev int64, h MapHasher, newTX newTXFunc) (*SparseMerkleTreeWriter, error) {
+func NewSparseMerkleTreeWriter(ctx context.Context, rev int64, h MapHasher, newTX newTXFunc) (*SparseMerkleTreeWriter, error) {
 	// TODO(al): allow the tree layering sizes to be customisable somehow.
 	const topSubtreeSize = 8 // must be a multiple of 8 for now.
-	tree, err := newLocalSubtreeWriter(rev, []byte{}, []int{topSubtreeSize, h.Size()*8 - topSubtreeSize}, newTX, h.TreeHasher)
+	tree, err := newLocalSubtreeWriter(ctx, rev, []byte{}, []int{topSubtreeSize, h.Size()*8 - topSubtreeSize}, newTX, h.TreeHasher)
 	if err != nil {
 		return nil, err
 	}
@@ -362,9 +362,9 @@ func NewSparseMerkleTreeWriter(rev int64, h MapHasher, newTX newTXFunc) (*Sparse
 
 // RootAtRevision returns the sparse Merkle tree root hash at the specified
 // revision, or ErrNoSuchRevision if the requested revision doesn't exist.
-func (s SparseMerkleTreeReader) RootAtRevision(rev int64) ([]byte, error) {
+func (s SparseMerkleTreeReader) RootAtRevision(ctx context.Context, rev int64) ([]byte, error) {
 	rootNodeID := storage.NewEmptyNodeID(256)
-	nodes, err := s.tx.GetMerkleNodes(context.TODO(), rev, []storage.NodeID{rootNodeID})
+	nodes, err := s.tx.GetMerkleNodes(ctx, rev, []storage.NodeID{rootNodeID})
 	if err != nil {
 		return nil, err
 	}
@@ -388,10 +388,10 @@ func (s SparseMerkleTreeReader) RootAtRevision(rev int64) ([]byte, error) {
 // InclusionProof returns an inclusion (or non-inclusion) proof for the
 // specified key at the specified revision.
 // If the revision does not exist it will return ErrNoSuchRevision error.
-func (s SparseMerkleTreeReader) InclusionProof(rev int64, index []byte) ([][]byte, error) {
+func (s SparseMerkleTreeReader) InclusionProof(ctx context.Context, rev int64, index []byte) ([][]byte, error) {
 	nid := storage.NewNodeIDFromHash(index)
 	sibs := nid.Siblings()
-	nodes, err := s.tx.GetMerkleNodes(context.TODO(), rev, sibs)
+	nodes, err := s.tx.GetMerkleNodes(ctx, rev, sibs)
 	if err != nil {
 		return nil, err
 	}
@@ -426,9 +426,9 @@ func (s SparseMerkleTreeReader) InclusionProof(rev int64, index []byte) ([][]byt
 }
 
 // SetLeaves adds a batch of leaves to the in-flight tree update.
-func (s *SparseMerkleTreeWriter) SetLeaves(leaves []HashKeyValue) error {
+func (s *SparseMerkleTreeWriter) SetLeaves(ctx context.Context, leaves []HashKeyValue) error {
 	for _, l := range leaves {
-		if err := s.tree.SetLeaf(l.HashedKey, l.HashedValue); err != nil {
+		if err := s.tree.SetLeaf(ctx, l.HashedKey, l.HashedValue); err != nil {
 			return err
 		}
 	}

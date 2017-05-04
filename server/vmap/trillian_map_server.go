@@ -84,7 +84,7 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 		MapLeafInclusion: make([]*trillian.MapLeafInclusion, len(leaves)),
 	}
 	for i, leaf := range leaves {
-		proof, err := smtReader.InclusionProof(req.Revision, leaf.Index)
+		proof, err := smtReader.InclusionProof(ctx, req.Revision, leaf.Index)
 		if err != nil {
 			return nil, err
 		}
@@ -120,9 +120,12 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 	defer tx.Close()
 
 	glog.Infof("%v: Writing at revision %v", mapID, tx.WriteRevision())
-	smtWriter, err := merkle.NewSparseMerkleTreeWriter(tx.WriteRevision(), hasher, func() (storage.TreeTX, error) {
-		return t.registry.MapStorage.BeginForTree(ctx, req.MapId)
-	})
+	smtWriter, err := merkle.NewSparseMerkleTreeWriter(
+		ctx,
+		tx.WriteRevision(),
+		hasher, func() (storage.TreeTX, error) {
+			return t.registry.MapStorage.BeginForTree(ctx, req.MapId)
+		})
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +138,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		if err = tx.Set(ctx, l.Index, *l); err != nil {
 			return nil, err
 		}
-		if err = smtWriter.SetLeaves([]merkle.HashKeyValue{
+		if err = smtWriter.SetLeaves(ctx, []merkle.HashKeyValue{
 			{
 				HashedKey:   l.Index,
 				HashedValue: l.LeafHash,
