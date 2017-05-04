@@ -410,13 +410,9 @@ func checkInclusionProofsAtIndex(index int64, logID int64, tree *merkle.InMemory
 		// Verify inclusion proof.
 		root := tree.RootAtSnapshot(treeSize).Hash()
 		verifier := merkle.NewLogVerifier(testonly.Hasher)
-		proof := make([][]byte, 0, len(resp.Proof.ProofNode))
-		for _, n := range resp.Proof.ProofNode {
-			proof = append(proof, n.NodeHash)
-		}
 		// Offset by 1 to make up for C++ / Go implementation differences.
 		merkleLeafHash := tree.LeafHash(index + 1)
-		if err := verifier.VerifyInclusionProof(index, treeSize, proof, root, merkleLeafHash); err != nil {
+		if err := verifier.VerifyInclusionProof(index, treeSize, resp.Proof.Hashes, root, merkleLeafHash); err != nil {
 			return err
 		}
 	}
@@ -442,13 +438,9 @@ func checkConsistencyProof(consistParams consistencyProofParams, treeID int64, t
 	verifier := merkle.NewLogVerifier(testonly.Hasher)
 	root1 := tree.RootAtSnapshot(req.FirstTreeSize).Hash()
 	root2 := tree.RootAtSnapshot(req.SecondTreeSize).Hash()
-	proof := make([][]byte, 0, len(resp.Proof.ProofNode))
-	for _, n := range resp.Proof.ProofNode {
-		proof = append(proof, n.NodeHash)
-	}
 	if err := verifier.VerifyConsistencyProof(
 		req.FirstTreeSize, req.SecondTreeSize,
-		root1, root2, proof); err != nil {
+		root1, root2, resp.Proof.Hashes); err != nil {
 		return err
 	}
 	return nil

@@ -64,7 +64,7 @@ func (c *logVerifier) UpdateRoot(resp *trillian.GetLatestSignedLogRootResponse,
 		if err := c.v.VerifyConsistencyProof(
 			c.root.TreeSize, str.TreeSize,
 			c.root.RootHash, str.RootHash,
-			proofNodeHashes(consistency.GetProof())); err != nil {
+			consistency.GetProof().GetHashes()); err != nil {
 			return err
 		}
 	}
@@ -77,15 +77,13 @@ func (c *logVerifier) UpdateRoot(resp *trillian.GetLatestSignedLogRootResponse,
 func (c *logVerifier) VerifyInclusionAtIndex(data []byte, leafIndex int64, resp *trillian.GetInclusionProofResponse) error {
 	leaf := c.buildLeaf(data)
 	return c.v.VerifyInclusionProof(leafIndex, c.root.TreeSize,
-		proofNodeHashes(resp.Proof), c.root.RootHash,
-		leaf.MerkleLeafHash)
+		resp.Proof.Hashes, c.root.RootHash, leaf.MerkleLeafHash)
 
 }
 
 // VerifyInclusionByHash verifies the inclusion proof for data
 func (c *logVerifier) VerifyInclusionByHash(leafHash []byte, proof *trillian.Proof) error {
-	neighbors := proofNodeHashes(proof)
-	return c.v.VerifyInclusionProof(proof.LeafIndex, c.root.TreeSize, neighbors,
+	return c.v.VerifyInclusionProof(proof.LeafIndex, c.root.TreeSize, proof.Hashes,
 		c.root.RootHash, leafHash)
 }
 
@@ -96,17 +94,4 @@ func (c *logVerifier) buildLeaf(data []byte) *trillian.LogLeaf {
 		MerkleLeafHash:   c.hasher.HashLeaf(data),
 		LeafIdentityHash: hash[:],
 	}
-}
-
-// proofNodeHashes returns a slice of neighbor nodes from a trillian Proof.
-// TODO(Martin2112): adjust the public API to do this in the server before returning a proof.
-func proofNodeHashes(proof *trillian.Proof) [][]byte {
-	if proof == nil {
-		return [][]byte{}
-	}
-	neighbors := make([][]byte, len(proof.ProofNode))
-	for i, node := range proof.ProofNode {
-		neighbors[i] = node.NodeHash
-	}
-	return neighbors
 }

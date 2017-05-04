@@ -948,18 +948,16 @@ func TestGetProofByHash(t *testing.T) {
 					{
 						LeafIndex: 2,
 						// Proof to match inclusionProof above.
-						ProofNode: []*trillian.Node{
-							{NodeHash: []byte("abcdef")},
-							{NodeHash: []byte("ghijkl")},
-							{NodeHash: []byte("mnopqr")},
+						Hashes: [][]byte{
+							[]byte("abcdef"),
+							[]byte("ghijkl"),
+							[]byte("mnopqr"),
 						},
 					},
 					// Second proof ignored.
 					{
 						LeafIndex: 2,
-						ProofNode: []*trillian.Node{
-							{NodeHash: []byte("ghijkl")},
-						},
+						Hashes:    [][]byte{[]byte("ghijkl")},
 					},
 				},
 			},
@@ -971,10 +969,10 @@ func TestGetProofByHash(t *testing.T) {
 				Proof: []*trillian.Proof{
 					{
 						LeafIndex: 2,
-						ProofNode: []*trillian.Node{
-							{NodeHash: []byte("abcdef")},
-							{NodeHash: []byte{}}, // missing hash
-							{NodeHash: []byte("ghijkl")},
+						Hashes: [][]byte{
+							[]byte("abcdef"),
+							[]byte{}, // missing hash
+							[]byte("ghijkl"),
 						},
 					},
 				},
@@ -989,10 +987,10 @@ func TestGetProofByHash(t *testing.T) {
 					{
 						LeafIndex: 2,
 						// Proof to match inclusionProof above.
-						ProofNode: []*trillian.Node{
-							{NodeHash: []byte("abcdef")},
-							{NodeHash: []byte("ghijkl")},
-							{NodeHash: []byte("mnopqr")},
+						Hashes: [][]byte{
+							[]byte("abcdef"),
+							[]byte("ghijkl"),
+							[]byte("mnopqr"),
 						},
 					},
 				},
@@ -1104,10 +1102,10 @@ func TestGetSTHConsistency(t *testing.T) {
 			rpcRsp: &trillian.GetConsistencyProofResponse{
 				Proof: &trillian.Proof{
 					LeafIndex: 2,
-					ProofNode: []*trillian.Node{
-						{NodeHash: []byte("abcdef")},
-						{NodeHash: []byte{}}, // invalid
-						{NodeHash: []byte("ghijkl")},
+					Hashes: [][]byte{
+						[]byte("abcdef"),
+						[]byte{}, // invalid
+						[]byte("ghijkl"),
 					},
 				},
 			},
@@ -1120,10 +1118,10 @@ func TestGetSTHConsistency(t *testing.T) {
 				Proof: &trillian.Proof{
 					LeafIndex: 2,
 					// Proof to match consistencyProof above.
-					ProofNode: []*trillian.Node{
-						{NodeHash: []byte("abcdef")},
-						{NodeHash: []byte("ghijkl")},
-						{NodeHash: []byte("mnopqr")},
+					Hashes: [][]byte{
+						[]byte("abcdef"),
+						[]byte("ghijkl"),
+						[]byte("mnopqr"),
 					},
 				},
 			},
@@ -1249,10 +1247,10 @@ func TestGetEntryAndProof(t *testing.T) {
 			rpcRsp: &trillian.GetEntryAndProofResponse{
 				Proof: &trillian.Proof{
 					LeafIndex: 2,
-					ProofNode: []*trillian.Node{
-						{NodeHash: []byte("abcdef")},
-						{NodeHash: []byte("ghijkl")},
-						{NodeHash: []byte("mnopqr")},
+					Hashes: [][]byte{
+						[]byte("abcdef"),
+						[]byte("ghijkl"),
+						[]byte("mnopqr"),
 					},
 				},
 				// To match merkleLeaf above.

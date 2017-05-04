@@ -55,19 +55,6 @@ var sn3 = storage.Node{NodeID: storage.NewNodeIDFromHash(h3), Hash: h3, NodeRevi
 var sn4 = storage.Node{NodeID: storage.NewNodeIDFromHash(h4), Hash: h4, NodeRevision: 44}
 var sn5 = storage.Node{NodeID: storage.NewNodeIDFromHash(h5), Hash: h5, NodeRevision: 55}
 
-// And the output proof nodes expected for them.
-var n1 = &trillian.Node{NodeHash: h1}
-var n2 = &trillian.Node{NodeHash: h2}
-var n3 = &trillian.Node{NodeHash: h3}
-var n4 = &trillian.Node{NodeHash: h4}
-var n5 = &trillian.Node{NodeHash: h5}
-
-// Nodes containing composite hashes.
-var n1n2 = &trillian.Node{NodeHash: th.HashChildren(h2, h1)}
-var n2n3 = &trillian.Node{NodeHash: th.HashChildren(h3, h2)}
-var n2n3n4 = &trillian.Node{NodeHash: th.HashChildren(h4, th.HashChildren(h3, h2))}
-var n4n5 = &trillian.Node{NodeHash: th.HashChildren(h5, h4)}
-
 func TestRehasher(t *testing.T) {
 	hasher := rfc6962.Hasher
 	rehashTests := []rehashTest{
@@ -78,7 +65,7 @@ func TestRehasher(t *testing.T) {
 			fetches: []merkle.NodeFetch{{Rehash: false}, {Rehash: false}, {Rehash: false}},
 			output: trillian.Proof{
 				LeafIndex: 126,
-				ProofNode: []*trillian.Node{n1, n2, n3},
+				Hashes:    [][]byte{h1, h2, h3},
 			},
 		},
 		{
@@ -88,7 +75,7 @@ func TestRehasher(t *testing.T) {
 			fetches: []merkle.NodeFetch{{Rehash: false}, {Rehash: true}, {Rehash: true}, {Rehash: false}, {Rehash: false}},
 			output: trillian.Proof{
 				LeafIndex: 999,
-				ProofNode: []*trillian.Node{n1, n2n3, n4, n5},
+				Hashes:    [][]byte{h1, th.HashChildren(h3, h2), h4, h5},
 			},
 		},
 		{
@@ -98,7 +85,7 @@ func TestRehasher(t *testing.T) {
 			fetches: []merkle.NodeFetch{{Rehash: false}, {Rehash: true}, {Rehash: true}},
 			output: trillian.Proof{
 				LeafIndex: 11,
-				ProofNode: []*trillian.Node{n1, n2n3},
+				Hashes:    [][]byte{h1, th.HashChildren(h3, h2)},
 			},
 		},
 		{
@@ -108,7 +95,7 @@ func TestRehasher(t *testing.T) {
 			fetches: []merkle.NodeFetch{{Rehash: false}, {Rehash: true}, {Rehash: true}, {Rehash: true}, {Rehash: false}},
 			output: trillian.Proof{
 				LeafIndex: 23,
-				ProofNode: []*trillian.Node{n1, n2n3n4, n5},
+				Hashes:    [][]byte{h1, th.HashChildren(h4, th.HashChildren(h3, h2)), h5},
 			},
 		},
 		{
@@ -118,7 +105,7 @@ func TestRehasher(t *testing.T) {
 			fetches: []merkle.NodeFetch{{Rehash: true}, {Rehash: true}, {Rehash: false}, {Rehash: true}, {Rehash: true}},
 			output: trillian.Proof{
 				LeafIndex: 45,
-				ProofNode: []*trillian.Node{n1n2, n3, n4n5},
+				Hashes:    [][]byte{th.HashChildren(h2, h1), h3, th.HashChildren(h5, h4)},
 			},
 		},
 	}
@@ -166,16 +153,16 @@ func TestTree813FetchAll(t *testing.T) {
 		// We use +1 here because of the 1 based leaf indexing of this implementation
 		refProof := mt.PathToRootAtSnapshot(l+1, ts)
 
-		if got, want := len(proof.ProofNode), len(refProof); got != want {
+		if got, want := len(proof.Hashes), len(refProof); got != want {
 			for i, f := range fetches {
 				t.Errorf("Fetch: %d => %s", i, f.NodeID.CoordString())
 			}
 			t.Fatalf("(%d, %d): got proof len: %d, want: %d: %v\n%v", ts, l, got, want, fetches, refProof)
 		}
 
-		for i := 0; i < len(proof.ProofNode); i++ {
-			if got, want := hex.EncodeToString(proof.ProofNode[i].NodeHash), hex.EncodeToString(refProof[i].Value.Hash()); got != want {
-				t.Fatalf("(%d, %d): %d got proof node: %s, want: %s l:%d fetches: %v", ts, l, i, got, want, len(proof.ProofNode), fetches)
+		for i := 0; i < len(proof.Hashes); i++ {
+			if got, want := hex.EncodeToString(proof.Hashes[i]), hex.EncodeToString(refProof[i].Value.Hash()); got != want {
+				t.Fatalf("(%d, %d): %d got proof node: %s, want: %s l:%d fetches: %v", ts, l, i, got, want, len(proof.Hashes), fetches)
 			}
 		}
 	}
@@ -204,13 +191,13 @@ func TestTree32InclusionProofFetchAll(t *testing.T) {
 				// We use +1 here because of the 1 based leaf indexing of this implementation
 				refProof := mt.PathToRootAtSnapshot(l+1, s)
 
-				if got, want := len(proof.ProofNode), len(refProof); got != want {
+				if got, want := len(proof.Hashes), len(refProof); got != want {
 					t.Fatalf("(%d, %d, %d): got proof len: %d, want: %d: %v\n%v", ts, s, l, got, want, fetches, refProof)
 				}
 
-				for i := 0; i < len(proof.ProofNode); i++ {
-					if got, want := hex.EncodeToString(proof.ProofNode[i].NodeHash), hex.EncodeToString(refProof[i].Value.Hash()); got != want {
-						t.Fatalf("(%d, %d, %d): %d got proof node: %s, want: %s l:%d fetches: %v", ts, s, l, i, got, want, len(proof.ProofNode), fetches)
+				for i := 0; i < len(proof.Hashes); i++ {
+					if got, want := hex.EncodeToString(proof.Hashes[i]), hex.EncodeToString(refProof[i].Value.Hash()); got != want {
+						t.Fatalf("(%d, %d, %d): %d got proof node: %s, want: %s l:%d fetches: %v", ts, s, l, i, got, want, len(proof.Hashes), fetches)
 					}
 				}
 			}
@@ -246,13 +233,13 @@ func TestTree32InclusionProofFetchMultiBatch(t *testing.T) {
 			// We use +1 here because of the 1 based leaf indexing of this implementation
 			refProof := mt.PathToRootAtSnapshot(l+1, s)
 
-			if got, want := len(proof.ProofNode), len(refProof); got != want {
+			if got, want := len(proof.Hashes), len(refProof); got != want {
 				t.Fatalf("(%d, %d, %d): got proof len: %d, want: %d: %v\n%v", 32, s, l, got, want, fetches, refProof)
 			}
 
-			for i := 0; i < len(proof.ProofNode); i++ {
-				if got, want := hex.EncodeToString(proof.ProofNode[i].NodeHash), hex.EncodeToString(refProof[i].Value.Hash()); got != want {
-					t.Fatalf("(%d, %d, %d): %d got proof node: %s, want: %s l:%d fetches: %v", 32, s, l, i, got, want, len(proof.ProofNode), fetches)
+			for i := 0; i < len(proof.Hashes); i++ {
+				if got, want := hex.EncodeToString(proof.Hashes[i]), hex.EncodeToString(refProof[i].Value.Hash()); got != want {
+					t.Fatalf("(%d, %d, %d): %d got proof node: %s, want: %s l:%d fetches: %v", 32, s, l, i, got, want, len(proof.Hashes), fetches)
 				}
 			}
 		}
@@ -281,13 +268,13 @@ func TestTree32ConsistencyProofFetchAll(t *testing.T) {
 
 				refProof := mt.SnapshotConsistency(s1, s2)
 
-				if got, want := len(proof.ProofNode), len(refProof); got != want {
+				if got, want := len(proof.Hashes), len(refProof); got != want {
 					t.Fatalf("(%d, %d, %d): got proof len: %d, want: %d: %v\n%v", ts, s1, s2, got, want, fetches, refProof)
 				}
 
-				for i := 0; i < len(proof.ProofNode); i++ {
-					if got, want := hex.EncodeToString(proof.ProofNode[i].NodeHash), hex.EncodeToString(refProof[i].Value.Hash()); got != want {
-						t.Fatalf("(%d, %d, %d): %d got proof node: %s, want: %s l:%d fetches: %v", ts, s1, s2, i, got, want, len(proof.ProofNode), fetches)
+				for i := 0; i < len(proof.Hashes); i++ {
+					if got, want := hex.EncodeToString(proof.Hashes[i]), hex.EncodeToString(refProof[i].Value.Hash()); got != want {
+						t.Fatalf("(%d, %d, %d): %d got proof node: %s, want: %s l:%d fetches: %v", ts, s1, s2, i, got, want, len(proof.Hashes), fetches)
 					}
 				}
 			}

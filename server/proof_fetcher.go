@@ -46,7 +46,7 @@ type rehasher struct {
 	th         merkle.TreeHasher
 	rehashing  bool
 	rehashNode storage.Node
-	proof      []*trillian.Node
+	proof      [][]byte
 	proofError error
 }
 
@@ -73,7 +73,7 @@ func (r *rehasher) process(node storage.Node, fetch merkle.NodeFetch) {
 }
 
 func (r *rehasher) emitNode(node storage.Node) {
-	r.proof = append(r.proof, &trillian.Node{NodeHash: node.Hash})
+	r.proof = append(r.proof, node.Hash)
 }
 
 func (r *rehasher) startRehashing(node storage.Node) {
@@ -83,14 +83,17 @@ func (r *rehasher) startRehashing(node storage.Node) {
 
 func (r *rehasher) endRehashing() {
 	if r.rehashing {
-		r.proof = append(r.proof, &trillian.Node{NodeHash: r.rehashNode.Hash})
+		r.proof = append(r.proof, r.rehashNode.Hash)
 		r.rehashing = false
 	}
 }
 
 func (r *rehasher) rehashedProof(leafIndex int64) (trillian.Proof, error) {
 	r.endRehashing()
-	return trillian.Proof{LeafIndex: leafIndex, ProofNode: r.proof}, r.proofError
+	return trillian.Proof{
+		LeafIndex: leafIndex,
+		Hashes:    r.proof,
+	}, r.proofError
 }
 
 // fetchNodes extracts the NodeIDs from a list of NodeFetch structs and passes them

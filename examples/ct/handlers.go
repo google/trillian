@@ -435,12 +435,12 @@ func getSTHConsistency(ctx context.Context, c LogContext, w http.ResponseWriter,
 		}
 
 		// Additional sanity checks, none of the hashes in the returned path should be empty
-		if !checkAuditPath(rsp.Proof.ProofNode) {
+		if !checkAuditPath(rsp.Proof.Hashes) {
 			return http.StatusInternalServerError, fmt.Errorf("backend returned invalid proof: %v", rsp.Proof)
 		}
 
 		// We got a valid response from the server. Marshal it as JSON and return it to the client
-		jsonRsp.Consistency = auditPathFromProto(rsp.Proof.ProofNode)
+		jsonRsp.Consistency = rsp.Proof.Hashes
 	} else {
 		glog.V(2).Infof("%s: GetSTHConsistency(%d, %d) starts from 0 so return empty proof", c.LogPrefix, first, second)
 	}
@@ -498,12 +498,15 @@ func getProofByHash(ctx context.Context, c LogContext, w http.ResponseWriter, r 
 	if len(rsp.Proof) == 0 {
 		return http.StatusInternalServerError, errors.New("get-proof-by-hash: backend returned empty proof")
 	}
-	if !checkAuditPath(rsp.Proof[0].ProofNode) {
+	if !checkAuditPath(rsp.Proof[0].Hashes) {
 		return http.StatusInternalServerError, fmt.Errorf("get-proof-by-hash: backend returned invalid proof: %v", rsp.Proof[0])
 	}
 
 	// All checks complete, marshal and return the response
-	proofRsp := ct.GetProofByHashResponse{LeafIndex: rsp.Proof[0].LeafIndex, AuditPath: auditPathFromProto(rsp.Proof[0].ProofNode)}
+	proofRsp := ct.GetProofByHashResponse{
+		LeafIndex: rsp.Proof[0].LeafIndex,
+		AuditPath: rsp.Proof[0].Hashes,
+	}
 
 	w.Header().Set(contentTypeHeader, contentTypeJSON)
 	jsonData, err := json.Marshal(&proofRsp)
@@ -607,7 +610,7 @@ func getEntryAndProof(ctx context.Context, c LogContext, w http.ResponseWriter, 
 	}
 
 	// Apply some checks that we got reasonable data from the backend
-	if rsp.Proof == nil || rsp.Leaf == nil || len(rsp.Proof.ProofNode) == 0 || len(rsp.Leaf.LeafValue) == 0 {
+	if rsp.Proof == nil || rsp.Leaf == nil || len(rsp.Proof.Hashes) == 0 || len(rsp.Leaf.LeafValue) == 0 {
 		return http.StatusInternalServerError, fmt.Errorf("got RPC bad response, possible extra info: %v", rsp)
 	}
 
@@ -615,7 +618,7 @@ func getEntryAndProof(ctx context.Context, c LogContext, w http.ResponseWriter, 
 	jsonRsp := ct.GetEntryAndProofResponse{
 		LeafInput: rsp.Leaf.LeafValue,
 		ExtraData: rsp.Leaf.ExtraData,
-		AuditPath: auditPathFromProto(rsp.Proof.ProofNode),
+		AuditPath: rsp.Proof.Hashes,
 	}
 
 	w.Header().Set(contentTypeHeader, contentTypeJSON)
@@ -924,21 +927,11 @@ func marshalGetEntriesResponse(c LogContext, rsp *trillian.GetLeavesByIndexRespo
 // All the hashes should be non zero length.
 // TODO(Martin2112): should maybe check they are all the same length and all the expected
 // length of the hashes used in the RFC.
-func checkAuditPath(path []*trillian.Node) bool {
+func checkAuditPath(path [][]byte) bool {
 	for _, node := range path {
-		if len(node.NodeHash) == 0 {
+		if len(node) == 0 {
 			return false
 		}
 	}
 	return true
-}
-
-// auditPathFromProto converts the path from proof proto to a format we can return in the JSON
-// response
-func auditPathFromProto(path []*trillian.Node) [][]byte {
-	result := make([][]byte, 0, len(path))
-	for _, node := range path {
-		result = append(result, node.NodeHash)
-	}
-	return result
 }
