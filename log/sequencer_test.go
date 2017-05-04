@@ -281,12 +281,49 @@ func TestSequenceWithNothingQueued(t *testing.T) {
 	c, ctx := createTestContext(ctrl, params)
 
 	leaves, err := c.sequencer.SequenceBatch(ctx, params.logID, 1)
-	if leaves != 0 {
-		t.Fatalf("Unexpectedly sequenced %d leaves on error", leaves)
+	if leaves != 0 || err != nil {
+		t.Errorf("SequenceBatch()=(%v,%v); want (0,nil)", leaves, err)
+	}
+}
+
+func TestSequenceWithNothingQueuedNewRoot(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	signer, err := newSignerWithFixedSig(expectedSignedRoot16.Signature)
+	if err != nil {
+		t.Fatalf("Failed to create test signer (%v)", err)
 	}
 
-	if err != nil {
-		t.Error("Expected nil return with no work pending in queue")
+	noLeaves := []*trillian.LogLeaf{}
+	noNodes := []storage.Node{}
+	params := testParameters{
+		logID:            154035,
+		dequeueLimit:     1,
+		shouldCommit:     true,
+		latestSignedRoot: &testRoot16,
+		dequeuedLeaves:   []*trillian.LogLeaf{},
+		writeRevision:    testRoot16.TreeRevision + 1,
+		updatedLeaves:    &noLeaves,
+		merkleNodesSet:   &noNodes,
+		signer:           signer,
+		storeSignedRoot: &trillian.SignedLogRoot{
+			TimestampNanos: fakeTimeForTest.UnixNano(),
+			TreeSize:       16,
+			TreeRevision:   6,
+			RootHash:       []byte{},
+			Signature: &sigpb.DigitallySigned{
+				SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
+				HashAlgorithm:      sigpb.DigitallySigned_SHA256,
+				Signature:          []byte("signed"),
+			},
+		},
+	}
+	c, ctx := createTestContext(ctrl, params)
+	c.sequencer.SetMaxRootDurationInterval(1 * time.Millisecond)
+
+	leaves, err := c.sequencer.SequenceBatch(ctx, params.logID, 1)
+	if leaves != 0 || err != nil {
+		t.Errorf("SequenceBatch()=(%v,%v); want (0,nil)", leaves, err)
 	}
 }
 
@@ -311,12 +348,8 @@ func TestGuardWindowPassthrough(t *testing.T) {
 	c.sequencer.SetGuardWindow(guardInterval)
 
 	leaves, err := c.sequencer.SequenceBatch(ctx, params.logID, 1)
-	if leaves != 0 {
-		t.Fatalf("Expected no leaves sequenced when in guard interval but got: %d", leaves)
-	}
-
-	if err != nil {
-		t.Errorf("Expected nil return with all queued work inside guard interval but got: %v", err)
+	if leaves != 0 || err != nil {
+		t.Errorf("SequenceBatch()=(%v,%v); want (0,nil)", leaves, err)
 	}
 }
 

@@ -144,6 +144,10 @@ message Tree {
   // The public key used for verifying tree heads and entry timestamps.
   // Readonly.
   keyspb.PublicKey public_key = 14;
+
+  // Interval after which a new signed root is produced even if there have been
+  // no submission.  If zero, this behavior is disabled.
+  int64 max_root_duration_millis = 15;
 }
 
 message SignedEntryTimestamp {

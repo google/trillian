@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS Trees(
   Description           VARCHAR(200),
   CreateTimeMillis      BIGINT NOT NULL,
   UpdateTimeMillis      BIGINT NOT NULL,
+  MaxRootDurationMillis BIGINT NOT NULL,
   PrivateKey            MEDIUMBLOB NOT NULL,
   PublicKey             MEDIUMBLOB NOT NULL,
   PRIMARY KEY(TreeId)
@@ -150,4 +151,3 @@ CREATE TABLE IF NOT EXISTS MapHead(
   UNIQUE INDEX TreeRevisionIdx(TreeId, MapRevision),
   FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE
 );
-

@@ -168,6 +168,9 @@ type Tree struct {
 	// The public key used for verifying tree heads and entry timestamps.
 	// Readonly.
 	PublicKey *keyspb.PublicKey `protobuf:"bytes,14,opt,name=public_key,json=publicKey" json:"public_key,omitempty"`
+	// Interval after which a new signed root is produced even if there have been
+	// no submission.  If zero, this behavior is disabled.
+	MaxRootDurationMillis int64 `protobuf:"varint,15,opt,name=max_root_duration_millis,json=maxRootDurationMillis" json:"max_root_duration_millis,omitempty"`
 }
 
 func (m *Tree) Reset()                    { *m = Tree{} }
@@ -264,6 +267,13 @@ func (m *Tree) GetPublicKey() *keyspb.PublicKey {
 		return m.PublicKey
 	}
 	return nil
+}
+
+func (m *Tree) GetMaxRootDurationMillis() int64 {
+	if m != nil {
+		return m.MaxRootDurationMillis
+	}
+	return 0
 }
 
 type SignedEntryTimestamp struct {

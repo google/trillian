@@ -73,6 +73,7 @@ var (
 		PublicKey: &keyspb.PublicKey{
 			Der: loadPublicPEMFileAsDER("../../testdata/log-rpc-server.pubkey.pem"),
 		},
+		MaxRootDurationMillis: 0,
 	}
 
 	// MapTree is a valid, MAP-type trillian.Tree for tests.
@@ -91,6 +92,7 @@ var (
 		PublicKey: &keyspb.PublicKey{
 			Der: loadPublicPEMFileAsDER("../../testdata/map-rpc-server.pubkey.pem"),
 		},
+		MaxRootDurationMillis: 0,
 	}
 )
 

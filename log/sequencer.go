@@ -47,6 +47,9 @@ type Sequencer struct {
 	// sequencerGuardWindow is used to ensure entries newer than the guard window will not be
 	// sequenced until they fall outside it. By default there is no guard window.
 	sequencerGuardWindow time.Duration
+	// maxRootDurationInterval is used to ensure that a new signed log root is generated after a while,
+	// even if no entries have been added to the log.  Zero duration disables this behavior.
+	maxRootDurationInterval time.Duration
 }
 
 // maxTreeDepth sets an upper limit on the size of Log trees.
@@ -69,6 +72,13 @@ func NewSequencer(hasher merkle.TreeHasher, timeSource util.TimeSource, logStora
 // being eligible for sequencing. The default is a zero interval.
 func (s *Sequencer) SetGuardWindow(sequencerGuardWindow time.Duration) {
 	s.sequencerGuardWindow = sequencerGuardWindow
+}
+
+// SetMaxRootDurationInterval changes the interval after which a log root is generated regardless of
+// whether entries have been added to the log. The default is a zero interval, which
+// disables the behavior.
+func (s *Sequencer) SetMaxRootDurationInterval(interval time.Duration) {
+	s.maxRootDurationInterval = interval
 }
 
 // TODO: This currently doesn't use the batch api for fetching the required nodes. This
@@ -197,12 +207,17 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int) (i
 		return 0, s.SignRoot(ctx, logID)
 	}
 
-	// There might be no work to be done. But we possibly still need to create an STH if the
+	// There might be no work to be done. But we possibly still need to create an signed root if the
 	// current one is too old. If there's work to be done then we'll be creating a root anyway.
 	if len(leaves) == 0 {
-		// We have nothing to integrate into the tree
-		glog.V(1).Infof("No leaves sequenced in this signing operation.")
-		return 0, tx.Commit()
+		nowNanos := s.timeSource.Now().UnixNano()
+		interval := time.Duration(nowNanos - currentRoot.TimestampNanos)
+		if s.maxRootDurationInterval == 0 || interval < s.maxRootDurationInterval {
+			// We have nothing to integrate into the tree
+			glog.V(1).Infof("No leaves sequenced in this signing operation.")
+			return 0, tx.Commit()
+		}
+		glog.Infof("Force new root generation as %v since last root", interval)
 	}
 
 	merkleTree, err := s.initMerkleTreeFromStorage(ctx, currentRoot, tx)
