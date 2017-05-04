@@ -17,9 +17,7 @@ package mysql
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"database/sql"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"sort"
@@ -37,24 +35,25 @@ import (
 )
 
 const (
-	selectQueuedLeavesSQL = `SELECT LeafIdentityHash,MerkleLeafHash
+	// If this statement ORDER BY clause is changed refer to the comment in removeSequencedLeaves
+	selectQueuedLeavesSQL = `SELECT LeafIdentityHash,MerkleLeafHash,QueueTimestampNanos
 			FROM Unsequenced
 			WHERE TreeID=?
 			AND QueueTimestampNanos<=?
 			ORDER BY QueueTimestampNanos,LeafIdentityHash ASC LIMIT ?`
 	insertUnsequencedLeafSQL = `INSERT INTO LeafData(TreeId,LeafIdentityHash,LeafValue,ExtraData)
 			VALUES(?,?,?,?)`
-	insertUnsequencedEntrySQL = `INSERT INTO Unsequenced(TreeId,LeafIdentityHash,MerkleLeafHash,MessageId,QueueTimestampNanos)
-			VALUES(?,?,?,?,?)`
+	insertUnsequencedEntrySQL = `INSERT INTO Unsequenced(TreeId,LeafIdentityHash,MerkleLeafHash,QueueTimestampNanos)
+			VALUES(?,?,?,?)`
 	insertSequencedLeafSQL = `INSERT INTO SequencedLeafData(TreeId,LeafIdentityHash,MerkleLeafHash,SequenceNumber)
 			VALUES(?,?,?,?)`
 	selectSequencedLeafCountSQL  = "SELECT COUNT(*) FROM SequencedLeafData WHERE TreeId=?"
 	selectLatestSignedLogRootSQL = `SELECT TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature
 			FROM TreeHead WHERE TreeId=?
 			ORDER BY TreeHeadTimestamp DESC LIMIT 1`
+	deleteUnsequencedSQL = "DELETE FROM Unsequenced WHERE TreeId = ? AND QueueTimestampNanos=? AND LeafIdentityHash=?"
 
 	// These statements need to be expanded to provide the correct number of parameter placeholders.
-	deleteUnsequencedSQL   = "DELETE FROM Unsequenced WHERE LeafIdentityHash IN (<placeholder>) AND TreeId = ?"
 	selectLeavesByIndexSQL = `SELECT s.MerkleLeafHash,l.LeafIdentityHash,l.LeafValue,s.SequenceNumber,l.ExtraData
 			FROM LeafData l,SequencedLeafData s
 			WHERE l.LeafIdentityHash = s.LeafIdentityHash
@@ -254,6 +253,12 @@ func (t *logTreeTX) WriteRevision() int64 {
 	return t.treeTX.writeRevision
 }
 
+// dequeuedLeaf is used internally and ocntains some data that is not part of the client API
+type dequeuedLeaf struct {
+	queueTimestampNanos int64
+	leafIdentityHash []byte
+}
+
 func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime time.Time) ([]*trillian.LogLeaf, error) {
 	stx, err := t.tx.PrepareContext(ctx, selectQueuedLeavesSQL)
 
@@ -263,6 +268,7 @@ func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime tim
 	}
 
 	leaves := make([]*trillian.LogLeaf, 0, limit)
+	dql := make([]*dequeuedLeaf, 0, limit)
 	rows, err := stx.QueryContext(ctx, t.treeID, cutoffTime.UnixNano(), limit)
 
 	if err != nil {
@@ -275,8 +281,9 @@ func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime tim
 	for rows.Next() {
 		var leafIDHash []byte
 		var merkleHash []byte
+		var queueTimeNanos int64
 
-		err := rows.Scan(&leafIDHash, &merkleHash)
+		err := rows.Scan(&leafIDHash, &merkleHash, &queueTimeNanos)
 
 		if err != nil {
 			glog.Warningf("Error scanning work rows: %s", err)
@@ -295,6 +302,7 @@ func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime tim
 			MerkleLeafHash:   merkleHash,
 		}
 		leaves = append(leaves, leaf)
+		dql = append(dql, &dequeuedLeaf{queueTimestampNanos: queueTimeNanos, leafIdentityHash: leafIDHash})
 	}
 
 	if rows.Err() != nil {
@@ -304,7 +312,7 @@ func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime tim
 	// The convention is that if leaf processing succeeds (by committing this tx)
 	// then the unsequenced entries for them are removed
 	if len(leaves) > 0 {
-		err = t.removeSequencedLeaves(ctx, leaves)
+		err = t.removeSequencedLeaves(ctx, dql)
 	}
 
 	if err != nil {
@@ -348,21 +356,12 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 		}
 
 		// Create the work queue entry
-		// Message ids only need to guard against duplicates for the time that entries are
-		// in the unsequenced queue, which should be short, but we'll still use a strong hash.
-		// TODO(alcutter): get this from somewhere else
-		hasher := sha256.New()
-		binary.Write(hasher, binary.LittleEndian, t.treeID)
-		hasher.Write(leaf.LeafIdentityHash)
-		messageID := hasher.Sum(nil)
-
 		_, err = t.tx.ExecContext(
 			ctx,
 			insertUnsequencedEntrySQL,
 			t.treeID,
 			leaf.LeafIdentityHash,
 			leaf.MerkleLeafHash,
-			messageID,
 			queueTimestamp.UnixNano())
 		if err != nil {
 			glog.Warningf("Error inserting into Unsequenced: %s", err)
@@ -569,32 +568,21 @@ func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillia
 
 // removeSequencedLeaves removes the passed in leaves slice (which may be
 // modified as part of the operation).
-func (t *logTreeTX) removeSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf) error {
-	// Delete in order of the hash values in the leaves.
-	sort.Sort(byLeafIdentityHash(leaves))
-
-	tmpl, err := t.ls.getDeleteUnsequencedStmt(ctx, len(leaves))
+func (t *logTreeTX) removeSequencedLeaves(ctx context.Context, leaves []*dequeuedLeaf) error {
+	// Don't need to resort because the query ordered by leaf hash. If that changes because
+	// the query is expensive then the sort will need to be done here.
+	tmpl, err := t.ls.getDeleteUnsequencedStmt(len(leaves))
 	if err != nil {
 		glog.Warningf("Failed to get delete statement for sequenced work: %s", err)
 		return err
 	}
 	stx := t.tx.StmtContext(ctx, tmpl)
-	var args []interface{}
-	for _, leaf := range leaves {
-		args = append(args, interface{}(leaf.LeafIdentityHash))
-	}
-	args = append(args, interface{}(t.treeID))
-	result, err := stx.ExecContext(ctx, args...)
-
-	if err != nil {
-		// Error is handled by checkResultOkAndRowCountIs() below
-		glog.Warningf("Failed to delete sequenced work: %s", err)
-	}
-
-	err = checkResultOkAndRowCountIs(result, err, int64(len(leaves)))
-
-	if err != nil {
-		return err
+	for _, dql := range leaves {
+		result, err := stx.ExecContext(ctx, t.treeID, dql.queueTimestampNanos, dql.leafIdentityHash)
+		err = checkResultOkAndRowCountIs(result, err, int64(1))
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
