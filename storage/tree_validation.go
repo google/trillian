@@ -15,6 +15,8 @@
 package storage
 
 import (
+	"crypto/x509"
+
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/sigpb"
@@ -46,6 +48,8 @@ func ValidateTreeForCreation(tree *trillian.Tree) error {
 		return errors.Errorf(errors.InvalidArgument, "invalid signature_algorithm: %s", tree.SignatureAlgorithm)
 	case tree.PrivateKey == nil:
 		return errors.New(errors.InvalidArgument, "a private_key is required")
+	case tree.PublicKey == nil:
+		return errors.New(errors.InvalidArgument, "a public_key is required")
 	}
 
 	// Check that the private_key proto contains a valid serialized proto.
@@ -54,6 +58,11 @@ func ValidateTreeForCreation(tree *trillian.Tree) error {
 	var privateKey ptypes.DynamicAny
 	if err := ptypes.UnmarshalAny(tree.PrivateKey, &privateKey); err != nil {
 		return errors.Errorf(errors.InvalidArgument, "invalid private_key: %v", err)
+	}
+
+	// Check that the public_key proto contains a valid DER-encoded public key.
+	if _, err := x509.ParsePKIXPublicKey(tree.PublicKey.GetDer()); err != nil {
+		return errors.Errorf(errors.InvalidArgument, "invalid public_key: %v", err)
 	}
 
 	return validateMutableTreeFields(tree)
@@ -85,6 +94,8 @@ func ValidateTreeForUpdate(storedTree, newTree *trillian.Tree) error {
 		return errors.New(errors.InvalidArgument, "readonly field changed: update_time")
 	case storedTree.PrivateKey != newTree.PrivateKey:
 		return errors.New(errors.InvalidArgument, "readonly field changed: private_key")
+	case storedTree.PublicKey != newTree.PublicKey:
+		return errors.New(errors.InvalidArgument, "readonly field changed: public_key")
 	}
 	return validateMutableTreeFields(newTree)
 }

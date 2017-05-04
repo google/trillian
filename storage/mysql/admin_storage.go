@@ -43,7 +43,8 @@ const (
 			Description,
 			CreateTimeMillis,
 			UpdateTimeMillis,
-			PrivateKey
+			PrivateKey,
+			PublicKey
 		FROM Trees`
 	selectTreeByID = selectTrees + " WHERE TreeId = ?"
 )
@@ -140,7 +141,7 @@ func readTree(row row) (*trillian.Tree, error) {
 	var treeState, treeType, hashStrategy, hashAlgorithm, signatureAlgorithm string
 	var createMillis, updateMillis int64
 	var displayName, description sql.NullString
-	var privateKey []byte
+	var privateKey, publicKey []byte
 	err := row.Scan(
 		&tree.TreeId,
 		&treeState,
@@ -153,6 +154,7 @@ func readTree(row row) (*trillian.Tree, error) {
 		&createMillis,
 		&updateMillis,
 		&privateKey,
+		&publicKey,
 	)
 	if err != nil {
 		return nil, err
@@ -208,6 +210,7 @@ func readTree(row row) (*trillian.Tree, error) {
 	if err := proto.Unmarshal(privateKey, tree.PrivateKey); err != nil {
 		return nil, fmt.Errorf("could not unmarshal PrivateKey: %v", err)
 	}
+	tree.PublicKey = &trillian.PublicKey{Der: publicKey}
 
 	return tree, nil
 }
@@ -298,8 +301,9 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 			Description,
 			CreateTimeMillis,
 			UpdateTimeMillis,
-			PrivateKey)
-		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+			PrivateKey,
+			PublicKey)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 	if err != nil {
 		return nil, err
 	}
@@ -323,6 +327,7 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 		newTree.CreateTimeMillisSinceEpoch,
 		newTree.UpdateTimeMillisSinceEpoch,
 		privateKey,
+		newTree.PublicKey.GetDer(),
 	)
 	if err != nil {
 		return nil, err
