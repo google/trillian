@@ -18,9 +18,13 @@ import (
 	"context"
 	"flag"
 	_ "net/http/pprof"
+	"strings"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql" // Load MySQL driver
 
+	"github.com/coreos/etcd/clientv3"
+	etcdnaming "github.com/coreos/etcd/clientv3/naming"
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys"
@@ -32,6 +36,7 @@ import (
 	"github.com/google/trillian/util"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/naming"
 )
 
 var (
@@ -39,10 +44,13 @@ var (
 	rpcEndpoint         = flag.String("rpc_endpoint", "localhost:8090", "Endpoint for RPC requests (host:port)")
 	httpEndpoint        = flag.String("http_endpoint", "localhost:8091", "Endpoint for HTTP metrics and REST requests on (host:port, empty means disabled)")
 	dumpMetricsInterval = flag.Duration("dump_metrics_interval", 0, "If greater than 0, how often to dump metrics to the logs.")
+	etcdServers         = flag.String("etcd_servers", "", "A comma-separated list of etcd servers; no etcd registration if empty")
+	etcdService         = flag.String("etcd_service", "trillian-log", "Service name to announce ourselves under")
 )
 
 func main() {
 	flag.Parse()
+	ctx := context.Background()
 
 	// First make sure we can access the database, quit if not
 	db, err := mysql.OpenDB(*mySQLURI)
@@ -50,6 +58,22 @@ func main() {
 		glog.Exitf("Failed to open database: %v", err)
 	}
 	// No defer: database ownership is delegated to server.Main
+
+	if len(*etcdServers) > 0 {
+		// Announce ourselves to etcd if so configured.
+		cfg := clientv3.Config{Endpoints: strings.Split(*etcdServers, ","), DialTimeout: 5 * time.Second}
+		client, err := clientv3.New(cfg)
+		if err != nil {
+			glog.Exitf("Failed to connect to etcd at %v: %v", *etcdServers, err)
+		}
+		res := etcdnaming.GRPCResolver{Client: client}
+
+		update := naming.Update{Op: naming.Add, Addr: *rpcEndpoint}
+		res.Update(ctx, *etcdService, update)
+		glog.Infof("Announcing our presence to %v with %+v", *etcdService, update)
+		bye := naming.Update{Op: naming.Delete, Addr: *rpcEndpoint}
+		defer res.Update(ctx, *etcdService, bye)
+	}
 
 	registry := extension.Registry{
 		AdminStorage:  mysql.NewAdminStorage(db),
@@ -85,7 +109,6 @@ func main() {
 		DumpMetricsInterval: *dumpMetricsInterval,
 	}
 
-	ctx := context.Background()
 	if err := m.Run(ctx); err != nil {
 		glog.Exitf("Server exited with error: %v", err)
 	}
