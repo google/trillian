@@ -338,7 +338,7 @@ func setupAdminServer() (trillian.TrillianAdminClient, func(), error) {
 		return nil, nil, err
 	}
 
-	ti := &interceptor.TreeInterceptor{Admin: registry.AdminStorage}
+	ti := &interceptor.TrillianInterceptor{Admin: registry.AdminStorage}
 	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(interceptor.WrapErrors(ti.UnaryInterceptor)))
 	// grpcServer is stopped via returned func
 	server := sa.New(registry)

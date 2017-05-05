@@ -54,7 +54,7 @@ func main() {
 		MapStorage:    mysql.NewMapStorage(db),
 	}
 
-	ti := interceptor.TreeInterceptor{Admin: registry.AdminStorage}
+	ti := interceptor.TrillianInterceptor{Admin: registry.AdminStorage}
 	s := grpc.NewServer(grpc.UnaryInterceptor(interceptor.WrapErrors(ti.UnaryInterceptor)))
 	// No defer: server ownership is delegated to server.Main
 

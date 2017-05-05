@@ -84,7 +84,7 @@ func main() {
 	ts := util.SystemTimeSource{}
 	stats := monitoring.NewRPCStatsInterceptor(ts, "ct", "example")
 	stats.Publish()
-	ti := interceptor.TreeInterceptor{Admin: registry.AdminStorage}
+	ti := interceptor.TrillianInterceptor{Admin: registry.AdminStorage}
 	s := grpc.NewServer(
 		grpc.UnaryInterceptor(interceptor.WrapErrors(interceptor.Combine(stats.Interceptor(), ti.UnaryInterceptor))))
 	// No defer: server ownership is delegated to server.Main
