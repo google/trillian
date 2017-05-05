@@ -39,8 +39,8 @@ func NewLogVerifier(hasher merkle.TreeHasher, pubKey crypto.PublicKey) LogVerifi
 	}
 }
 
-// VerifyRoot verifies that a resp is a valid append-only operation from trusted.
-// If trusted.TreeSize is zero, an append-only proof is not needed.
+// VerifyRoot verifies that newRoot is a valid append-only operation from trusted.
+// If trusted.TreeSize is zero, a consistency proof is not needed.
 func (c *logVerifier) VerifyRoot(trusted, newRoot *trillian.SignedLogRoot,
 	consistency [][]byte) error {
 
