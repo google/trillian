@@ -37,6 +37,7 @@ type LogClient struct {
 	LogID  int64
 	client trillian.TrillianLogClient
 	*logVerifier
+	root trillian.SignedLogRoot
 }
 
 // New returns a new LogClient.
@@ -50,6 +51,12 @@ func New(logID int64, client trillian.TrillianLogClient, hasher merkle.TreeHashe
 			v:      merkle.NewLogVerifier(hasher),
 		},
 	}
+}
+
+// Root returns the last valid root seen by UpdateRoot.
+// Returns an empty SignedLogRoot if UpdateRoot has not been called.
+func (c *LogClient) Root() trillian.SignedLogRoot {
+	return c.root
 }
 
 // AddLeaf adds leaf to the append only log.
@@ -199,9 +206,11 @@ func (c *LogClient) UpdateRoot(ctx context.Context) error {
 	}
 
 	// Verify root update.
-	if err := c.logVerifier.UpdateRoot(resp, consistency); err != nil {
+	if err := c.logVerifier.VerifyRoot(&c.root, resp.SignedLogRoot,
+		consistency.GetProof().GetHashes()); err != nil {
 		return err
 	}
+	c.root = *resp.SignedLogRoot
 	return nil
 }
 
@@ -228,7 +237,7 @@ func (c *LogClient) VerifyInclusionAtIndex(ctx context.Context, data []byte, ind
 	if err != nil {
 		return err
 	}
-	return c.logVerifier.VerifyInclusionAtIndex(data, index, resp)
+	return c.logVerifier.VerifyInclusionAtIndex(&c.root, data, index, resp.Proof.Hashes)
 }
 
 func (c *LogClient) getInclusionProof(ctx context.Context, leafHash []byte, treeSize int64) error {
@@ -245,7 +254,7 @@ func (c *LogClient) getInclusionProof(ctx context.Context, leafHash []byte, tree
 		return errors.New("no inclusion proof supplied")
 	}
 	for _, proof := range resp.Proof {
-		if err := c.logVerifier.VerifyInclusionByHash(leafHash, proof); err != nil {
+		if err := c.logVerifier.VerifyInclusionByHash(&c.root, leafHash, proof); err != nil {
 			return err
 		}
 	}
