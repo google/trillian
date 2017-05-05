@@ -47,7 +47,8 @@ install:
   # install vendored protoc-gen-grpc-gateway binary
   - go install ./vendor/github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
   # install vendored etcd binary
-  - go install ./vendor/github.com/coreos/etcd
+  - go install ./vendor/github.com/coreos/etcd/cmd/etcd
+  - go install ./vendor/github.com/coreos/etcd/cmd/etcdctl
 
 script:
   - set -e
