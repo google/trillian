@@ -971,7 +971,7 @@ func TestGetProofByHash(t *testing.T) {
 						LeafIndex: 2,
 						Hashes: [][]byte{
 							[]byte("abcdef"),
-							[]byte{}, // missing hash
+							{}, // missing hash
 							[]byte("ghijkl"),
 						},
 					},
@@ -1104,7 +1104,7 @@ func TestGetSTHConsistency(t *testing.T) {
 					LeafIndex: 2,
 					Hashes: [][]byte{
 						[]byte("abcdef"),
-						[]byte{}, // invalid
+						{}, // invalid
 						[]byte("ghijkl"),
 					},
 				},
