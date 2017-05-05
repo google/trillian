@@ -13,7 +13,6 @@ HTTP_SERVER_COUNT=${3:-1}
 # Cleanup for the Trillian components
 TO_DELETE="${TO_DELETE} ${ETCD_DB_DIR}"
 TO_KILL+=(${LOG_SIGNER_PIDS[@]})
-TO_KILL+=(${LB_SERVER_PID})
 TO_KILL+=(${RPC_SERVER_PIDS[@]})
 TO_KILL+=(${ETCD_PID})
 

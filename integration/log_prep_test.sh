@@ -3,10 +3,8 @@
 # This script should be loaded with ". integration/log_prep_test.sh",
 # and it will populate:
 #  - RPC_SERVERS     : list of RPC addresses (comma separated)
-#  - LB_PORT         : port for RPC load balancer
 #  - RPC_SERVER_PIDS : bash array of RPC server pids
 #  - LOG_SIGNER_PIDS : bash array of signer pids
-#  - LB_SERVER_PID   : RPC load balancer pid
 #  - ETCD_PID        : etcd pid
 set -e
 INTEGRATION_DIR="$( cd "$( dirname "$0" )" && pwd )"
@@ -15,7 +13,6 @@ INTEGRATION_DIR="$( cd "$( dirname "$0" )" && pwd )"
 echo "Building Trillian log code"
 go build ${GOFLAGS} ./server/trillian_log_server/
 go build ${GOFLAGS} ./server/trillian_log_signer/
-go build ${GOFLAGS} ./testonly/loglb
 
 yes | "${SCRIPTS_DIR}"/resetdb.sh
 
@@ -63,16 +60,6 @@ done
 RPC_SERVERS="${RPC_SERVERS:1}"
 popd > /dev/null
 
-# Start a toy gRPC load balancer.  It randomly sprays RPCs across the
-# backends.
-LB_PORT=$(pickUnusedPort)
-pushd "${TRILLIAN_ROOT}" > /dev/null
-echo "Starting Log RPC load balancer ${LB_PORT} -> ${RPC_SERVERS}"
-./loglb --backends ${RPC_SERVERS} --port ${LB_PORT} &
-LB_SERVER_PID=$!
-popd > /dev/null
-waitForServerStartup ${LB_PORT}
-
 # Start a set of signers.
 pushd "${TRILLIAN_ROOT}" > /dev/null
 declare -a LOG_SIGNER_PIDS
@@ -83,4 +70,4 @@ for ((i=0; i < LOG_SIGNER_COUNT; i++)); do
   LOG_SIGNER_PIDS+=(${pid})
 done
 
-echo "Servers running; clean up with: kill ${LB_SERVER_PID} ${RPC_SERVER_PIDS[@]} ${LOG_SIGNER_PIDS[@]} ${ETCD_PID}; rm -rf ${ETCD_DB_DIR}"
+echo "Servers running; clean up with: kill ${RPC_SERVER_PIDS[@]} ${LOG_SIGNER_PIDS[@]} ${ETCD_PID}; rm -rf ${ETCD_DB_DIR}"
