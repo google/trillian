@@ -22,7 +22,7 @@ echo "Building CT personality code"
 go build ${GOFLAGS} ./examples/ct/ct_server/
 
 echo "Provisioning logs for CT"
-. "${INTEGRATION_DIR}"/ct_config.sh "${ADMIN_SERVER}"
+. "${INTEGRATION_DIR}"/ct_config.sh "${RPC_SERVER_1}"
 
 echo "Launching CT personalities"
 pushd "${TRILLIAN_ROOT}" > /dev/null
@@ -32,7 +32,7 @@ for ((i=0; i < HTTP_SERVER_COUNT; i++)); do
   CT_SERVERS="${CT_SERVERS},localhost:${port}"
 
   echo "Starting CT HTTP server on localhost:${port}"
-  ./ct_server --log_config=${CT_CFG} --log_rpc_server="${RPC_SERVERS}" --port=${port} &
+  ./ct_server ${ETCD_OPTS} --log_config="${CT_CFG}" --log_rpc_server="${RPC_SERVERS}" --port=${port} &
   pid=$!
   CT_SERVER_PIDS+=(${pid})
 

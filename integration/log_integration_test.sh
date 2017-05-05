@@ -16,7 +16,7 @@ TO_KILL+=(${ETCD_PID})
 echo "Provision log"
 go build ${GOFLAGS} ./cmd/createtree/
 TEST_TREE_ID=$(./createtree \
-  --admin_server="${RPC_SERVERS}" \
+  --admin_server="${RPC_SERVER_1}" \
   --pem_key_path=testdata/log-rpc-server.privkey.pem \
   --pem_key_password=towel \
   --signature_algorithm=ECDSA)
@@ -25,7 +25,7 @@ echo "Created tree ${TEST_TREE_ID}"
 echo "Running test"
 pushd "${INTEGRATION_DIR}"
 set +e
-go test -run ".*LiveLog.*" --timeout=5m ./ --treeid ${TEST_TREE_ID} --log_rpc_server="${RPC_SERVERS}"
+go test -run ".*LiveLog.*" --timeout=5m ./ --treeid ${TEST_TREE_ID} --log_rpc_server="${RPC_SERVER_1}"
 RESULT=$?
 set -e
 popd
