@@ -12,26 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package quota defines Trillian's Quota Management service.
-//
-// The objective of the quota service is to protect Trillian from traffic peaks, rejecting requests
-// that may put servers out of capacity or indirectly cause MMDs (maximum merge delays) to be
-// missed.
-//
-// Each Trillian request, be it either a read or write request, requires certain tokens to be
-// allowed to continue. Tokens exist at multiple layers: per-user, per-tree and global tokens.
-// For example, a TrillianLog.QueueLeaves request consumes a Write token from User, Tree and Global
-// quotas. If any of those quotas is out of tokens, the request is denied with a ResourceExhausted
-// error code.
-//
-// Tokens are replenished according to each implementation. For example, User tokens may replenish
-// over time, whereas {Write, Tree} tokens may replenish as sequencing happens. Implementations are
-// free to ignore (effectively whitelisting) certain specs of tokens (e.g., only support Global and
-// ignore User and Tree tokens).
-//
-// Quota users are defined according to each implementation. Note that quota users don't need to
-// match authentication/authorization users; implementations are allowed their own representation of
-// users.
 package quota
 
 import (
