@@ -20,23 +20,30 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 
 	"time"
 
+	"github.com/coreos/etcd/clientv3"
+	etcdnaming "github.com/coreos/etcd/clientv3/naming"
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/examples/ct"
 	"github.com/google/trillian/util"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/naming"
 )
 
 // Global flags that affect all log instances.
-var serverHostFlag = flag.String("host", "localhost", "Address to serve CT log requests on")
-var serverPortFlag = flag.Int("port", 6962, "Port to serve CT log requests on")
-var rpcBackendFlag = flag.String("log_rpc_server", "localhost:8090", "Backend Log RPC servers to use, comma separated")
-var rpcDeadlineFlag = flag.Duration("rpc_deadline", time.Second*10, "Deadline for backend RPC requests")
-var logConfigFlag = flag.String("log_config", "", "File holding log config in JSON")
-var maxGetEntriesFlag = flag.Int64("maxGetEntriesAllowed", 0, "Max number of entries we allow in a get-entries request (default 50)")
+var (
+	serverHostFlag    = flag.String("host", "localhost", "Address to serve CT log requests on")
+	serverPortFlag    = flag.Int("port", 6962, "Port to serve CT log requests on")
+	rpcBackendFlag    = flag.String("log_rpc_server", "localhost:8090", "Backend specification; comma-separated list or etcd service name (if --etcd_servers specified)")
+	rpcDeadlineFlag   = flag.Duration("rpc_deadline", time.Second*10, "Deadline for backend RPC requests")
+	logConfigFlag     = flag.String("log_config", "", "File holding log config in JSON")
+	maxGetEntriesFlag = flag.Int64("maxGetEntriesAllowed", 0, "Max number of entries we allow in a get-entries request (default 50)")
+	etcdServers       = flag.String("etcd_servers", "", "A comma-separated list of etcd servers")
+)
 
 func main() {
 	flag.Parse()
@@ -57,7 +64,19 @@ func main() {
 	// TODO(Martin2112): Support TLS and other stuff for RPC client and http server, this is just to
 	// get started. Uses a blocking connection so we don't start serving before we're connected
 	// to backend.
-	var res util.FixedBackendResolver
+	var res naming.Resolver
+	if len(*etcdServers) > 0 {
+		// Use etcd to provide endpoint resolution.
+		cfg := clientv3.Config{Endpoints: strings.Split(*etcdServers, ","), DialTimeout: 5 * time.Second}
+		client, err := clientv3.New(cfg)
+		if err != nil {
+			glog.Exitf("Failed to connect to etcd at %v: %v", *etcdServers, err)
+		}
+		res = &etcdnaming.GRPCResolver{Client: client}
+	} else {
+		// Use a fixed endpoint resolution that just returns the addresses configured on the command line.
+		res = util.FixedBackendResolver{}
+	}
 	bal := grpc.RoundRobin(res)
 	conn, err := grpc.Dial(*rpcBackendFlag, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithBalancer(bal))
 	if err != nil {
