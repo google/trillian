@@ -32,7 +32,7 @@ for ((i=0; i < HTTP_SERVER_COUNT; i++)); do
   CT_SERVERS="${CT_SERVERS},localhost:${port}"
 
   echo "Starting CT HTTP server on localhost:${port}"
-  ./ct_server --log_config=${CT_CFG} --log_rpc_server="localhost:${LB_PORT}" --port=${port} &
+  ./ct_server --log_config=${CT_CFG} --log_rpc_server="${RPC_SERVERS}" --port=${port} &
   pid=$!
   CT_SERVER_PIDS+=(${pid})
 
@@ -43,4 +43,4 @@ done
 CT_SERVERS="${CT_SERVERS:1}"
 popd > /dev/null
 
-echo "Servers running; clean up with: kill ${CT_SERVER_PIDS[@]} ${LB_SERVER_PID} ${RPC_SERVER_PIDS[@]} ${LOG_SIGNER_PIDS[@]} ${ETCD_PID}; rm -rf ${CT_CFG} ${ETCD_DB_DIR}"
+echo "Servers running; clean up with: kill ${CT_SERVER_PIDS[@]} ${RPC_SERVER_PIDS[@]} ${LOG_SIGNER_PIDS[@]} ${ETCD_PID}; rm -rf ${CT_CFG} ${ETCD_DB_DIR}"
