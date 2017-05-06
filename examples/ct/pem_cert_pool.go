@@ -32,7 +32,7 @@ const pemCertificateBlockType string = "CERTIFICATE"
 // certs into the pool. CertPool ignores errors if at least one cert loads correctly but
 // PEMCertPool requires all certs to load.
 type PEMCertPool struct {
-	// maps from sha-1 to certificate, used for dup detection
+	// maps from sha-256 to certificate, used for dup detection
 	fingerprintToCertMap map[[sha256.Size]byte]x509.Certificate
 	rawCerts             []*x509.Certificate
 	certPool             *x509.CertPool
