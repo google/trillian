@@ -396,7 +396,7 @@ func TestServer_CreateTree(t *testing.T) {
 		wantTree.CreateTimeMillisSinceEpoch = 1
 		wantTree.UpdateTimeMillisSinceEpoch = 1
 		wantTree.PrivateKey = nil // redacted
-		wantTree.PublicKey = &trillian.PublicKey{publicKeyDER}
+		wantTree.PublicKey = &trillian.PublicKey{Der: publicKeyDER}
 		if diff := pretty.Compare(tree, &wantTree); diff != "" {
 			t.Errorf("%v: post-CreateTree diff (-got +want):\n%v", test.desc, diff)
 		}
