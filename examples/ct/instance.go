@@ -38,6 +38,7 @@ type LogConfig struct {
 	// The public key is included for the convenience of test tools (and obviously should
 	// match the private key above); it is not used by the CT personality.
 	PubKeyPEMFile string
+	RejectExpired bool
 }
 
 var (
@@ -83,7 +84,7 @@ func LogConfigFromFile(filename string) ([]LogConfig, error) {
 
 // SetUpInstance sets up a log instance that uses the specified client to communicate
 // with the Trillian RPC back end.
-func (cfg LogConfig) SetUpInstance(client trillian.TrillianLogClient, deadline time.Duration) (*PathHandlers, error) {
+func (cfg LogConfig) SetUpInstance(client trillian.TrillianLogClient, deadline time.Duration, rejectExpired bool) (*PathHandlers, error) {
 	// Check config validity.
 	if len(cfg.RootsPEMFile) == 0 {
 		return nil, errors.New("need to specify RootsPEMFile")
@@ -109,7 +110,7 @@ func (cfg LogConfig) SetUpInstance(client trillian.TrillianLogClient, deadline t
 	signer := crypto.NewSHA256Signer(key)
 
 	// Create and register the handlers using the RPC client we just set up
-	ctx := NewLogContext(cfg.LogID, cfg.Prefix, roots, client, signer, deadline, new(util.SystemTimeSource))
+	ctx := NewLogContext(cfg.LogID, cfg.Prefix, roots, client, signer, deadline, new(util.SystemTimeSource), rejectExpired)
 	logVars.Set(cfg.Prefix, ctx.exp.vars)
 
 	handlers := ctx.Handlers(cfg.Prefix)

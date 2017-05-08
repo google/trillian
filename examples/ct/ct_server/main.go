@@ -86,7 +86,7 @@ func main() {
 	client := trillian.NewTrillianLogClient(conn)
 
 	for _, c := range cfg {
-		handlers, err := c.SetUpInstance(client, *rpcDeadlineFlag)
+		handlers, err := c.SetUpInstance(client, *rpcDeadlineFlag, c.RejectExpired)
 		if err != nil {
 			glog.Exitf("Failed to set up log instance for %+v: %v", cfg, err)
 		}
