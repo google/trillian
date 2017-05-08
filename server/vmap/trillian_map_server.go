@@ -119,7 +119,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 	}
 	defer tx.Close()
 
-	glog.Infof("%v: Writing at revision %v", mapID, tx.WriteRevision())
+	glog.V(2).Infof("%v: Writing at revision %v", mapID, tx.WriteRevision())
 	smtWriter, err := merkle.NewSparseMerkleTreeWriter(
 		ctx,
 		tx.WriteRevision(),

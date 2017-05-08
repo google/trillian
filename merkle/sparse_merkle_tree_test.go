@@ -147,7 +147,7 @@ func TestRootAtRevision(t *testing.T) {
 	r, tx := getSparseMerkleTreeReaderWithMockTX(mockCtrl, 100)
 	node := getRandomRootNode(t, 14)
 	tx.EXPECT().Commit().AnyTimes().Return(nil)
-	tx.EXPECT().GetMerkleNodes(gomock.Any(), int64(23), rootNodeMatcher{}).Return([]storage.Node{node}, nil)
+	tx.EXPECT().GetMerkleNodes(ctx, int64(23), rootNodeMatcher{}).Return([]storage.Node{node}, nil)
 	root, err := r.RootAtRevision(ctx, 23)
 	if err != nil {
 		t.Fatalf("Failed when calling RootAtRevision(23): %v", err)
@@ -165,7 +165,7 @@ func TestRootAtUnknownRevision(t *testing.T) {
 
 	r, tx := getSparseMerkleTreeReaderWithMockTX(mockCtrl, 100)
 	tx.EXPECT().Commit().AnyTimes().Return(nil)
-	tx.EXPECT().GetMerkleNodes(gomock.Any(), int64(23), rootNodeMatcher{}).Return([]storage.Node{}, nil)
+	tx.EXPECT().GetMerkleNodes(ctx, int64(23), rootNodeMatcher{}).Return([]storage.Node{}, nil)
 	_, err := r.RootAtRevision(ctx, 23)
 	if err != ErrNoSuchRevision {
 		t.Fatalf("Attempt to retrieve root an non-existent revision did not result in ErrNoSuchRevision: %v", err)
@@ -181,7 +181,7 @@ func TestRootAtRevisionHasMultipleRoots(t *testing.T) {
 	r, tx := getSparseMerkleTreeReaderWithMockTX(mockCtrl, 100)
 	n1, n2 := getRandomRootNode(t, 14), getRandomRootNode(t, 15)
 	tx.EXPECT().Commit().AnyTimes().Return(nil)
-	tx.EXPECT().GetMerkleNodes(gomock.Any(), int64(23), rootNodeMatcher{}).Return([]storage.Node{n1, n2}, nil)
+	tx.EXPECT().GetMerkleNodes(ctx, int64(23), rootNodeMatcher{}).Return([]storage.Node{n1, n2}, nil)
 	_, err := r.RootAtRevision(ctx, 23)
 	if err == nil || err == ErrNoSuchRevision {
 		t.Fatalf("Attempt to retrieve root an non-existent revision did not result in error: %v", err)
@@ -200,7 +200,7 @@ func TestRootAtRevisionCatchesFutureRevision(t *testing.T) {
 	// returned by the storage layer.
 	n1 := getRandomRootNode(t, rev+1)
 	tx.EXPECT().Commit().AnyTimes().Return(nil)
-	tx.EXPECT().GetMerkleNodes(gomock.Any(), int64(rev), rootNodeMatcher{}).Return([]storage.Node{n1}, nil)
+	tx.EXPECT().GetMerkleNodes(ctx, int64(rev), rootNodeMatcher{}).Return([]storage.Node{n1}, nil)
 	_, err := r.RootAtRevision(ctx, rev)
 	if err == nil || err == ErrNoSuchRevision {
 		t.Fatalf("Attempt to retrieve root with corrupt node did not result in error: %v", err)
@@ -218,7 +218,7 @@ func TestRootAtRevisionCatchesNonRootNode(t *testing.T) {
 	// Sanity checking in RootAtRevision should catch this node being incorrectly
 	// returned by the storage layer.
 	n1 := getRandomNonRootNode(t, rev)
-	tx.EXPECT().GetMerkleNodes(gomock.Any(), int64(rev), rootNodeMatcher{}).Return([]storage.Node{n1}, nil)
+	tx.EXPECT().GetMerkleNodes(ctx, int64(rev), rootNodeMatcher{}).Return([]storage.Node{n1}, nil)
 	_, err := r.RootAtRevision(ctx, rev)
 	if err == nil || err == ErrNoSuchRevision {
 		t.Fatalf("Attempt to retrieve root with corrupt node did not result in error: %v", err)
@@ -234,7 +234,7 @@ func TestInclusionProofForNullEntryInEmptyTree(t *testing.T) {
 	const rev = 100
 	r, tx := getSparseMerkleTreeReaderWithMockTX(mockCtrl, rev)
 	tx.EXPECT().Commit().AnyTimes().Return(nil)
-	tx.EXPECT().GetMerkleNodes(gomock.Any(), int64(rev), gomock.Any()).Return([]storage.Node{}, nil)
+	tx.EXPECT().GetMerkleNodes(ctx, int64(rev), gomock.Any()).Return([]storage.Node{}, nil)
 	const key = "SomeArbitraryKey"
 	proof, err := r.InclusionProof(ctx, rev, testonly.HashKey(key))
 	if err != nil {
@@ -267,7 +267,7 @@ func TestInclusionProofGetsIncorrectNode(t *testing.T) {
 		const rev = 100
 		r, tx := getSparseMerkleTreeReaderWithMockTX(mockCtrl, rev)
 		tx.EXPECT().Commit().AnyTimes().Return(nil)
-		tx.EXPECT().GetMerkleNodes(gomock.Any(), int64(rev), gomock.Any()).Return([]storage.Node{testNode}, nil)
+		tx.EXPECT().GetMerkleNodes(ctx, int64(rev), gomock.Any()).Return([]storage.Node{testNode}, nil)
 		const key = "SomeArbitraryKey"
 		index := testonly.HashKey(key)
 		proof, err := r.InclusionProof(ctx, rev, index)
@@ -289,7 +289,7 @@ func TestInclusionProofPassesThroughStorageError(t *testing.T) {
 	const rev = 100
 	r, tx := getSparseMerkleTreeReaderWithMockTX(mockCtrl, rev)
 	e := errors.New("boo")
-	tx.EXPECT().GetMerkleNodes(gomock.Any(), int64(rev), gomock.Any()).Return([]storage.Node{}, e)
+	tx.EXPECT().GetMerkleNodes(ctx, int64(rev), gomock.Any()).Return([]storage.Node{}, e)
 	_, err := r.InclusionProof(ctx, rev, testonly.HashKey("Whatever"))
 	if err != e {
 		t.Fatalf("InclusionProof() should've returned an error '%v', but got '%v'", e, err)
@@ -318,7 +318,7 @@ func TestInclusionProofGetsTooManyNodes(t *testing.T) {
 	nodes[256] = getRandomNonRootNode(t, 42)
 
 	tx.EXPECT().Commit().AnyTimes().Return(nil)
-	tx.EXPECT().GetMerkleNodes(gomock.Any(), int64(rev), gomock.Any()).AnyTimes().Return(nodes, nil)
+	tx.EXPECT().GetMerkleNodes(ctx, int64(rev), gomock.Any()).AnyTimes().Return(nodes, nil)
 	_, err := r.InclusionProof(ctx, rev, testonly.HashKey(key))
 	if err == nil {
 		t.Fatal("InclusionProof() should've returned an error due to extra unused node")
@@ -346,8 +346,8 @@ func testSparseTreeCalculatedRoot(ctx context.Context, t *testing.T, vec sparseT
 
 	tx.EXPECT().Commit().AnyTimes().Return(nil)
 	tx.EXPECT().Close().AnyTimes().Return(nil)
-	tx.EXPECT().GetMerkleNodes(gomock.Any(), int64(rev), gomock.Any()).AnyTimes().Return([]storage.Node{}, nil)
-	tx.EXPECT().SetMerkleNodes(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
+	tx.EXPECT().GetMerkleNodes(ctx, int64(rev), gomock.Any()).AnyTimes().Return([]storage.Node{}, nil)
+	tx.EXPECT().SetMerkleNodes(ctx, gomock.Any()).AnyTimes().Return(nil)
 
 	testSparseTreeCalculatedRootWithWriter(ctx, t, rev, vec, w)
 }
@@ -455,7 +455,7 @@ func testSparseTreeFetches(ctx context.Context, t *testing.T, vec sparseTestVect
 
 	// Now, set up a mock call for GetMerkleNodes for the nodeIDs in the map
 	// we've just created:
-	tx.EXPECT().GetMerkleNodes(gomock.Any(), int64(rev), nodeIDFuncMatcher{func(ids []storage.NodeID) bool {
+	tx.EXPECT().GetMerkleNodes(ctx, int64(rev), nodeIDFuncMatcher{func(ids []storage.NodeID) bool {
 		if len(ids) == 0 {
 			return false
 		}
@@ -471,7 +471,7 @@ func testSparseTreeFetches(ctx context.Context, t *testing.T, vec sparseTestVect
 	// it'll panic() with an unhelpful message on the first unexpected nodeID, so
 	// rather than doing that we'll make a note of all the unexpected IDs here
 	// instead, and we can then print them out later on.
-	tx.EXPECT().GetMerkleNodes(gomock.Any(), int64(rev), gomock.Any()).AnyTimes().Do(
+	tx.EXPECT().GetMerkleNodes(ctx, int64(rev), gomock.Any()).AnyTimes().Do(
 		func(rev int64, a []storage.NodeID) {
 			if a == nil {
 				return
@@ -500,7 +500,7 @@ func testSparseTreeFetches(ctx context.Context, t *testing.T, vec sparseTestVect
 		writeMutex.Unlock()
 	}
 
-	tx.EXPECT().SetMerkleNodes(gomock.Any(), gomock.Any()).AnyTimes().Do(
+	tx.EXPECT().SetMerkleNodes(ctx, gomock.Any()).AnyTimes().Do(
 		func(_ context.Context, a []storage.Node) {
 			writeMutex.Lock()
 			defer writeMutex.Unlock()
@@ -584,8 +584,8 @@ func DISABLEDTestSparseMerkleTreeWriterBigBatch(t *testing.T) {
 
 	tx.EXPECT().Close().AnyTimes().Return(nil)
 	tx.EXPECT().Commit().AnyTimes().Return(nil)
-	tx.EXPECT().GetMerkleNodes(gomock.Any(), int64(rev), gomock.Any()).AnyTimes().Return([]storage.Node{}, nil)
-	tx.EXPECT().SetMerkleNodes(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
+	tx.EXPECT().GetMerkleNodes(ctx, int64(rev), gomock.Any()).AnyTimes().Return([]storage.Node{}, nil)
+	tx.EXPECT().SetMerkleNodes(ctx, gomock.Any()).AnyTimes().Return(nil)
 
 	const batchSize = 1024
 	const numBatches = 4
