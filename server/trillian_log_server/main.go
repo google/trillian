@@ -30,6 +30,7 @@ import (
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/monitoring"
+	"github.com/google/trillian/quota"
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/server/interceptor"
 	"github.com/google/trillian/storage/mysql"
@@ -79,12 +80,16 @@ func main() {
 		AdminStorage:  mysql.NewAdminStorage(db),
 		SignerFactory: keys.PEMSignerFactory{},
 		LogStorage:    mysql.NewLogStorage(db),
+		QuotaManager:  quota.Noop(),
 	}
 
 	ts := util.SystemTimeSource{}
 	stats := monitoring.NewRPCStatsInterceptor(ts, "ct", "example")
 	stats.Publish()
-	ti := interceptor.TrillianInterceptor{Admin: registry.AdminStorage}
+	ti := &interceptor.TrillianInterceptor{
+		Admin:        registry.AdminStorage,
+		QuotaManager: registry.QuotaManager,
+	}
 	s := grpc.NewServer(
 		grpc.UnaryInterceptor(interceptor.WrapErrors(interceptor.Combine(stats.Interceptor(), ti.UnaryInterceptor))))
 	// No defer: server ownership is delegated to server.Main

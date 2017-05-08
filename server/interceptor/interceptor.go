@@ -40,10 +40,6 @@ type TrillianInterceptor struct {
 
 // UnaryInterceptor executes the TrillianInterceptor logic for unary RPCs.
 func (i *TrillianInterceptor) UnaryInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	// TODO(codingllama): Plumb quota.Manager from the Registry.
-	if i.QuotaManager == nil {
-		i.QuotaManager = quota.Noop()
-	}
 	quotaUser := i.QuotaManager.GetUser(ctx, req)
 
 	rpcInfo, err := getRPCInfo(req, info.FullMethod, quotaUser)
