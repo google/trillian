@@ -15,6 +15,7 @@
 package server
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/google/trillian"
@@ -27,8 +28,8 @@ import (
 // This includes rehashing where necessary to serve proofs for tree sizes between stored tree
 // revisions. This code only relies on the NodeReader interface so can be tested without
 // a complete storage implementation.
-func fetchNodesAndBuildProof(tx storage.NodeReader, th merkle.TreeHasher, treeRevision, leafIndex int64, proofNodeFetches []merkle.NodeFetch) (trillian.Proof, error) {
-	proofNodes, err := fetchNodes(tx, treeRevision, proofNodeFetches)
+func fetchNodesAndBuildProof(ctx context.Context, tx storage.NodeReader, th merkle.TreeHasher, treeRevision, leafIndex int64, proofNodeFetches []merkle.NodeFetch) (trillian.Proof, error) {
+	proofNodes, err := fetchNodes(ctx, tx, treeRevision, proofNodeFetches)
 	if err != nil {
 		return trillian.Proof{}, err
 	}
@@ -98,14 +99,14 @@ func (r *rehasher) rehashedProof(leafIndex int64) (trillian.Proof, error) {
 
 // fetchNodes extracts the NodeIDs from a list of NodeFetch structs and passes them
 // to storage, returning the result after some additional validation checks.
-func fetchNodes(tx storage.NodeReader, treeRevision int64, fetches []merkle.NodeFetch) ([]storage.Node, error) {
+func fetchNodes(ctx context.Context, tx storage.NodeReader, treeRevision int64, fetches []merkle.NodeFetch) ([]storage.Node, error) {
 	proofNodeIDs := make([]storage.NodeID, 0, len(fetches))
 
 	for _, fetch := range fetches {
 		proofNodeIDs = append(proofNodeIDs, fetch.NodeID)
 	}
 
-	proofNodes, err := tx.GetMerkleNodes(treeRevision, proofNodeIDs)
+	proofNodes, err := tx.GetMerkleNodes(ctx, treeRevision, proofNodeIDs)
 	if err != nil {
 		return nil, err
 	}

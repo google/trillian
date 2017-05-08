@@ -226,7 +226,7 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) (testCont
 	}
 
 	if params.merkleNodesSet != nil {
-		mockTx.EXPECT().SetMerkleNodes(stestonly.NodeSet(*params.merkleNodesSet)).Return(params.merkleNodesSetError)
+		mockTx.EXPECT().SetMerkleNodes(gomock.Any(), stestonly.NodeSet(*params.merkleNodesSet)).Return(params.merkleNodesSetError)
 	}
 
 	if !params.skipStoreSignedRoot {

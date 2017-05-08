@@ -15,6 +15,7 @@
 package server
 
 import (
+	"context"
 	"encoding/hex"
 	"fmt"
 	"testing"
@@ -130,6 +131,7 @@ func TestRehasher(t *testing.T) {
 }
 
 func TestTree813FetchAll(t *testing.T) {
+	ctx := context.Background()
 	hasher := rfc6962.Hasher
 	const ts int64 = 813
 
@@ -145,7 +147,7 @@ func TestTree813FetchAll(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		proof, err := fetchNodesAndBuildProof(r, hasher, testTreeRevision, int64(l), fetches)
+		proof, err := fetchNodesAndBuildProof(ctx, r, hasher, testTreeRevision, int64(l), fetches)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -169,6 +171,7 @@ func TestTree813FetchAll(t *testing.T) {
 }
 
 func TestTree32InclusionProofFetchAll(t *testing.T) {
+	ctx := context.Background()
 	hasher := rfc6962.Hasher
 	for ts := 2; ts <= 32; ts++ {
 		mt := treeAtSize(ts)
@@ -183,7 +186,7 @@ func TestTree32InclusionProofFetchAll(t *testing.T) {
 					t.Fatal(err)
 				}
 
-				proof, err := fetchNodesAndBuildProof(r, hasher, testTreeRevision, int64(l), fetches)
+				proof, err := fetchNodesAndBuildProof(ctx, r, hasher, testTreeRevision, int64(l), fetches)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -206,6 +209,7 @@ func TestTree32InclusionProofFetchAll(t *testing.T) {
 }
 
 func TestTree32InclusionProofFetchMultiBatch(t *testing.T) {
+	ctx := context.Background()
 	hasher := rfc6962.Hasher
 
 	mt := treeAtSize(32)
@@ -225,7 +229,7 @@ func TestTree32InclusionProofFetchMultiBatch(t *testing.T) {
 			}
 
 			// Use the highest tree revision that should be available from the node reader
-			proof, err := fetchNodesAndBuildProof(r, hasher, testTreeRevision+3, l, fetches)
+			proof, err := fetchNodesAndBuildProof(ctx, r, hasher, testTreeRevision+3, l, fetches)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -247,6 +251,7 @@ func TestTree32InclusionProofFetchMultiBatch(t *testing.T) {
 }
 
 func TestTree32ConsistencyProofFetchAll(t *testing.T) {
+	ctx := context.Background()
 	hasher := rfc6962.Hasher
 	for ts := 2; ts <= 32; ts++ {
 		mt := treeAtSize(ts)
@@ -261,7 +266,7 @@ func TestTree32ConsistencyProofFetchAll(t *testing.T) {
 					t.Fatal(err)
 				}
 
-				proof, err := fetchNodesAndBuildProof(r, hasher, testTreeRevision, int64(s1), fetches)
+				proof, err := fetchNodesAndBuildProof(ctx, r, hasher, testTreeRevision, int64(s1), fetches)
 				if err != nil {
 					t.Fatal(err)
 				}

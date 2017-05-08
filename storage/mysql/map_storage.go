@@ -180,7 +180,7 @@ func (m *mapTreeTX) Set(ctx context.Context, keyHash []byte, value trillian.MapL
 // MapLeaf indexes are overwritten rather than returning the MapLeaf proto provided in Set.
 // TODO: return a map[_something_]Mapleaf or []IndexValue to separate the index from the value.
 func (m *mapTreeTX) Get(ctx context.Context, revision int64, indexes [][]byte) ([]trillian.MapLeaf, error) {
-	stmt, err := m.ms.getStmt(selectMapLeafSQL, len(indexes), "?", "?")
+	stmt, err := m.ms.getStmt(ctx, selectMapLeafSQL, len(indexes), "?", "?")
 	if err != nil {
 		return nil, err
 	}

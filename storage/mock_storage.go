@@ -329,15 +329,15 @@ func (_mr *_MockLogTreeTXRecorder) GetLeavesByIndex(arg0, arg1 interface{}) *gom
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetLeavesByIndex", arg0, arg1)
 }
 
-func (_m *MockLogTreeTX) GetMerkleNodes(_param0 int64, _param1 []NodeID) ([]Node, error) {
-	ret := _m.ctrl.Call(_m, "GetMerkleNodes", _param0, _param1)
+func (_m *MockLogTreeTX) GetMerkleNodes(_param0 context.Context, _param1 int64, _param2 []NodeID) ([]Node, error) {
+	ret := _m.ctrl.Call(_m, "GetMerkleNodes", _param0, _param1, _param2)
 	ret0, _ := ret[0].([]Node)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-func (_mr *_MockLogTreeTXRecorder) GetMerkleNodes(arg0, arg1 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetMerkleNodes", arg0, arg1)
+func (_mr *_MockLogTreeTXRecorder) GetMerkleNodes(arg0, arg1, arg2 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetMerkleNodes", arg0, arg1, arg2)
 }
 
 func (_m *MockLogTreeTX) GetSequencedLeafCount(_param0 context.Context) (int64, error) {
@@ -403,14 +403,14 @@ func (_mr *_MockLogTreeTXRecorder) Rollback() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Rollback")
 }
 
-func (_m *MockLogTreeTX) SetMerkleNodes(_param0 []Node) error {
-	ret := _m.ctrl.Call(_m, "SetMerkleNodes", _param0)
+func (_m *MockLogTreeTX) SetMerkleNodes(_param0 context.Context, _param1 []Node) error {
+	ret := _m.ctrl.Call(_m, "SetMerkleNodes", _param0, _param1)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockLogTreeTXRecorder) SetMerkleNodes(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "SetMerkleNodes", arg0)
+func (_mr *_MockLogTreeTXRecorder) SetMerkleNodes(arg0, arg1 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "SetMerkleNodes", arg0, arg1)
 }
 
 func (_m *MockLogTreeTX) StoreSignedLogRoot(_param0 context.Context, _param1 trillian.SignedLogRoot) error {
@@ -559,15 +559,15 @@ func (_mr *_MockMapTreeTXRecorder) Get(arg0, arg1, arg2 interface{}) *gomock.Cal
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Get", arg0, arg1, arg2)
 }
 
-func (_m *MockMapTreeTX) GetMerkleNodes(_param0 int64, _param1 []NodeID) ([]Node, error) {
-	ret := _m.ctrl.Call(_m, "GetMerkleNodes", _param0, _param1)
+func (_m *MockMapTreeTX) GetMerkleNodes(_param0 context.Context, _param1 int64, _param2 []NodeID) ([]Node, error) {
+	ret := _m.ctrl.Call(_m, "GetMerkleNodes", _param0, _param1, _param2)
 	ret0, _ := ret[0].([]Node)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-func (_mr *_MockMapTreeTXRecorder) GetMerkleNodes(arg0, arg1 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetMerkleNodes", arg0, arg1)
+func (_mr *_MockMapTreeTXRecorder) GetMerkleNodes(arg0, arg1, arg2 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetMerkleNodes", arg0, arg1, arg2)
 }
 
 func (_m *MockMapTreeTX) IsOpen() bool {
@@ -621,14 +621,14 @@ func (_mr *_MockMapTreeTXRecorder) Set(arg0, arg1, arg2 interface{}) *gomock.Cal
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Set", arg0, arg1, arg2)
 }
 
-func (_m *MockMapTreeTX) SetMerkleNodes(_param0 []Node) error {
-	ret := _m.ctrl.Call(_m, "SetMerkleNodes", _param0)
+func (_m *MockMapTreeTX) SetMerkleNodes(_param0 context.Context, _param1 []Node) error {
+	ret := _m.ctrl.Call(_m, "SetMerkleNodes", _param0, _param1)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockMapTreeTXRecorder) SetMerkleNodes(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "SetMerkleNodes", arg0)
+func (_mr *_MockMapTreeTXRecorder) SetMerkleNodes(arg0, arg1 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "SetMerkleNodes", arg0, arg1)
 }
 
 func (_m *MockMapTreeTX) StoreSignedMapRoot(_param0 context.Context, _param1 trillian.SignedMapRoot) error {
@@ -881,15 +881,15 @@ func (_mr *_MockReadOnlyLogTreeTXRecorder) GetLeavesByIndex(arg0, arg1 interface
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetLeavesByIndex", arg0, arg1)
 }
 
-func (_m *MockReadOnlyLogTreeTX) GetMerkleNodes(_param0 int64, _param1 []NodeID) ([]Node, error) {
-	ret := _m.ctrl.Call(_m, "GetMerkleNodes", _param0, _param1)
+func (_m *MockReadOnlyLogTreeTX) GetMerkleNodes(_param0 context.Context, _param1 int64, _param2 []NodeID) ([]Node, error) {
+	ret := _m.ctrl.Call(_m, "GetMerkleNodes", _param0, _param1, _param2)
 	ret0, _ := ret[0].([]Node)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-func (_mr *_MockReadOnlyLogTreeTXRecorder) GetMerkleNodes(arg0, arg1 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetMerkleNodes", arg0, arg1)
+func (_mr *_MockReadOnlyLogTreeTXRecorder) GetMerkleNodes(arg0, arg1, arg2 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetMerkleNodes", arg0, arg1, arg2)
 }
 
 func (_m *MockReadOnlyLogTreeTX) GetSequencedLeafCount(_param0 context.Context) (int64, error) {
@@ -996,15 +996,15 @@ func (_mr *_MockReadOnlyMapTreeTXRecorder) Get(arg0, arg1, arg2 interface{}) *go
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Get", arg0, arg1, arg2)
 }
 
-func (_m *MockReadOnlyMapTreeTX) GetMerkleNodes(_param0 int64, _param1 []NodeID) ([]Node, error) {
-	ret := _m.ctrl.Call(_m, "GetMerkleNodes", _param0, _param1)
+func (_m *MockReadOnlyMapTreeTX) GetMerkleNodes(_param0 context.Context, _param1 int64, _param2 []NodeID) ([]Node, error) {
+	ret := _m.ctrl.Call(_m, "GetMerkleNodes", _param0, _param1, _param2)
 	ret0, _ := ret[0].([]Node)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-func (_mr *_MockReadOnlyMapTreeTXRecorder) GetMerkleNodes(arg0, arg1 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetMerkleNodes", arg0, arg1)
+func (_mr *_MockReadOnlyMapTreeTXRecorder) GetMerkleNodes(arg0, arg1, arg2 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetMerkleNodes", arg0, arg1, arg2)
 }
 
 func (_m *MockReadOnlyMapTreeTX) IsOpen() bool {

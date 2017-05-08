@@ -80,7 +80,7 @@ func (s Sequencer) buildMerkleTreeFromStorageAtRoot(ctx context.Context, root tr
 			glog.Warningf("%v: Failed to create nodeID: %v", root.LogId, err)
 			return nil, err
 		}
-		nodes, err := tx.GetMerkleNodes(root.TreeRevision, []storage.NodeID{nodeID})
+		nodes, err := tx.GetMerkleNodes(ctx, root.TreeRevision, []storage.NodeID{nodeID})
 
 		if err != nil {
 			glog.Warningf("%v: Failed to get Merkle nodes: %v", root.LogId, err)
@@ -247,7 +247,7 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int) (i
 	}
 
 	// Now insert or update the nodes affected by the above, at the new tree version
-	if err := tx.SetMerkleNodes(targetNodes); err != nil {
+	if err := tx.SetMerkleNodes(ctx, targetNodes); err != nil {
 		glog.Warningf("%v: Sequencer failed to set Merkle nodes: %v", logID, err)
 		return 0, err
 	}

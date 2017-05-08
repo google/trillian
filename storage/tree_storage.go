@@ -59,17 +59,17 @@ type TreeTX interface {
 // DatabaseChecker performs connectivity checks on the database.
 type DatabaseChecker interface {
 	// CheckDatabaseAccessible returns nil if the database is accessible, error otherwise.
-	CheckDatabaseAccessible(ctx context.Context) error
+	CheckDatabaseAccessible(context.Context) error
 }
 
 // NodeReader provides a read-only interface into the stored tree nodes.
 type NodeReader interface {
 	// GetMerkleNodes looks up the set of nodes identified by ids, at treeRevision, and returns them.
-	GetMerkleNodes(treeRevision int64, ids []NodeID) ([]Node, error)
+	GetMerkleNodes(ctx context.Context, treeRevision int64, ids []NodeID) ([]Node, error)
 }
 
 // NodeWriter provides a write interface into the stored tree nodes.
 type NodeWriter interface {
 	// SetMerkleNodes stores the provided nodes, at the transaction's writeRevision.
-	SetMerkleNodes(nodes []Node) error
+	SetMerkleNodes(ctx context.Context, nodes []Node) error
 }

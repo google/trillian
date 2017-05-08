@@ -84,7 +84,10 @@ func main() {
 			glog.Exitf("Failed to Begin() a new tx: %v", err)
 		}
 		defer tx.Close()
-		w, err := merkle.NewSparseMerkleTreeWriter(tx.WriteRevision(), hasher,
+		w, err := merkle.NewSparseMerkleTreeWriter(
+			ctx,
+			tx.WriteRevision(),
+			hasher,
 			func() (storage.TreeTX, error) {
 				return ms.BeginForTree(ctx, mapID)
 			})
@@ -101,7 +104,7 @@ func main() {
 		glog.Infof("Created %d k/v pairs...", len(h))
 
 		glog.Info("SetLeaves...")
-		if err := w.SetLeaves(h); err != nil {
+		if err := w.SetLeaves(ctx, h); err != nil {
 			glog.Exitf("Failed to batch %d: %v", x, err)
 		}
 		glog.Info("SetLeaves done.")
