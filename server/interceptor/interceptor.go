@@ -31,7 +31,7 @@ import (
 
 // TrillianInterceptor checks that:
 // * Requests addressing a tree have the correct tree type and tree state;
-// * Requests are properly authenticated / authorized (NOT YET DONE); and
+// * TODO(codingllama): Requests are properly authenticated / authorized ; and
 // * Requests are rate limited appropriately.
 type TrillianInterceptor struct {
 	Admin        storage.AdminStorage
@@ -126,17 +126,22 @@ func getRPCInfo(req interface{}, fullMethod, quotaUser string) (*rpcInfo, error)
 
 	readonly := strings.HasPrefix(methodName, "Get") || strings.HasPrefix(methodName, "List")
 
-	var kind quota.Kind
-	if readonly {
-		kind = quota.Read
-	} else {
+	kind := quota.Read
+	if !readonly {
 		kind = quota.Write
 	}
 	var specs []quota.Spec
 	if treeID == 0 {
-		specs = userAndGlobal(kind, quotaUser)
+		specs = []quota.Spec{
+			{Group: quota.User, Kind: kind, User: quotaUser},
+			{Group: quota.Global, Kind: kind},
+		}
 	} else {
-		specs = userTreeAndGlobal(kind, quotaUser, treeID)
+		specs = []quota.Spec{
+			{Group: quota.User, Kind: kind, User: quotaUser},
+			{Group: quota.Tree, Kind: kind, TreeID: treeID},
+			{Group: quota.Global, Kind: kind},
+		}
 	}
 
 	return &rpcInfo{
@@ -157,21 +162,6 @@ func parseFullMethod(fullMethod string) (string, string, error) {
 		return "", "", status.Errorf(codes.Internal, "unexpected number of components in fullMethod (%v != 2): %v", len(tmp), fullMethod)
 	}
 	return tmp[0], tmp[1], nil
-}
-
-func userAndGlobal(kind quota.Kind, user string) []quota.Spec {
-	return []quota.Spec{
-		{Group: quota.User, Kind: kind, User: user},
-		{Group: quota.Global, Kind: kind},
-	}
-}
-
-func userTreeAndGlobal(kind quota.Kind, user string, treeID int64) []quota.Spec {
-	return []quota.Spec{
-		{Group: quota.User, Kind: kind, User: user},
-		{Group: quota.Tree, Kind: kind, TreeID: treeID},
-		{Group: quota.Global, Kind: kind},
-	}
 }
 
 type treeIDRequest interface {

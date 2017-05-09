@@ -35,6 +35,6 @@ type Registry struct {
 	keys.SignerFactory
 	// ElectionFactory provides MasterElection instances for each tree.
 	util.ElectionFactory
-	// QuotaManager provides rate liming capabilities for Trillian.
+	// QuotaManager provides rate limiting capabilities for Trillian.
 	QuotaManager quota.Manager
 }
