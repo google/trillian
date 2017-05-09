@@ -13,13 +13,13 @@
 // limitations under the License.
 
 // Package interceptor defines gRPC interceptors for Trillian.
-// TODO(codingllama): Split package into multiple files.
 package interceptor
 
 import (
 	"strings"
 
 	"github.com/google/trillian"
+	"github.com/google/trillian/quota"
 	"github.com/google/trillian/server/errors"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/trees"
@@ -29,43 +29,52 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// TreeInterceptor ensures that all requests pertaining a specific tree are of correct type and
-// respect the current tree state (frozen, deleted, etc).
-type TreeInterceptor struct {
-	Admin storage.AdminStorage
+// TrillianInterceptor checks that:
+// * Requests addressing a tree have the correct tree type and tree state;
+// * TODO(codingllama): Requests are properly authenticated / authorized ; and
+// * Requests are rate limited appropriately.
+type TrillianInterceptor struct {
+	Admin        storage.AdminStorage
+	QuotaManager quota.Manager
 }
 
-// UnaryInterceptor executes the TreeInterceptor logic for unary RPCs.
-func (i *TreeInterceptor) UnaryInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	rpcInfo, err := getRPCInfo(req, info.FullMethod)
+// UnaryInterceptor executes the TrillianInterceptor logic for unary RPCs.
+func (i *TrillianInterceptor) UnaryInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	quotaUser := i.QuotaManager.GetUser(ctx, req)
+
+	rpcInfo, err := getRPCInfo(req, info.FullMethod, quotaUser)
 	if err != nil {
 		return nil, err
 	}
 
-	if rpcInfo.doesNotHaveTree {
-		return handler(ctx, req)
+	if rpcInfo.treeID != 0 {
+		tree, err := trees.GetTree(ctx, i.Admin, rpcInfo.treeID, rpcInfo.opts)
+		if err != nil {
+			return nil, err
+		}
+		ctx = trees.NewContext(ctx, tree)
+
+		// TODO(codingllama): Add auth interception
 	}
 
-	tree, err := trees.GetTree(ctx, i.Admin, rpcInfo.treeID, rpcInfo.opts)
-	if err != nil {
-		return nil, err
+	if err := i.QuotaManager.GetTokens(ctx, 1 /* numTokens */, rpcInfo.specs); err != nil {
+		return nil, status.Errorf(codes.ResourceExhausted, "quota exhausted: %v", err)
 	}
 
-	ctx = trees.NewContext(ctx, tree)
 	return handler(ctx, req)
 }
 
 // rpcInfo contains information about an RPC, as extracted from its request message.
 type rpcInfo struct {
-	// doesNotHaveTree states whether the RPC is tied to a specific tree.
-	// Examples of RPCs without trees are CreateTree (no tree exists yet) and ListTrees
-	// (zero to many trees returned).
-	doesNotHaveTree bool
-	// treeID is the tree ID tied to this RPC, if any.
+	// treeID is the tree ID tied to this RPC, if any (zero means no tree).
 	treeID int64
+
 	// opts is the trees.GetOpts appropriate to this RPC (TreeType, readonly vs readwrite, etc).
 	// opts is not set if doesNotHaveTree is true.
 	opts trees.GetOpts
+
+	// specs contains the quota specifications for this RPC.
+	specs []quota.Spec
 }
 
 // getRPCInfo returns the rpcInfo for the given request, or an error if the request is not mapped.
@@ -79,17 +88,13 @@ type rpcInfo struct {
 // Readonly status is determined by the RPC method name: if it starts with Get or List it's
 // considered readonly.
 // Finally, a few RPCs are hand-mapped as doesNotHaveTree, such as Create and ListTree.
-func getRPCInfo(req interface{}, fullMethod string) (*rpcInfo, error) {
-	// Whitelisted to skip tree validation
-	switch req.(type) {
-	case *trillian.CreateTreeRequest:
-		return &rpcInfo{doesNotHaveTree: true}, nil
-	case *trillian.ListTreesRequest:
-		return &rpcInfo{doesNotHaveTree: true}, nil
-	}
-
+func getRPCInfo(req interface{}, fullMethod, quotaUser string) (*rpcInfo, error) {
 	var treeID int64
 	switch req := req.(type) {
+	case *trillian.CreateTreeRequest:
+		// OK, tree is being created
+	case *trillian.ListTreesRequest:
+		// OK, no single tree ID (potentially many trees)
 	case treeIDRequest:
 		treeID = req.GetTreeId()
 	case treeRequest:
@@ -121,9 +126,28 @@ func getRPCInfo(req interface{}, fullMethod string) (*rpcInfo, error) {
 
 	readonly := strings.HasPrefix(methodName, "Get") || strings.HasPrefix(methodName, "List")
 
+	kind := quota.Read
+	if !readonly {
+		kind = quota.Write
+	}
+	var specs []quota.Spec
+	if treeID == 0 {
+		specs = []quota.Spec{
+			{Group: quota.User, Kind: kind, User: quotaUser},
+			{Group: quota.Global, Kind: kind},
+		}
+	} else {
+		specs = []quota.Spec{
+			{Group: quota.User, Kind: kind, User: quotaUser},
+			{Group: quota.Tree, Kind: kind, TreeID: treeID},
+			{Group: quota.Global, Kind: kind},
+		}
+	}
+
 	return &rpcInfo{
 		treeID: treeID,
 		opts:   trees.GetOpts{TreeType: treeType, Readonly: readonly},
+		specs:  specs,
 	}, nil
 }
 

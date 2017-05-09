@@ -14,5 +14,6 @@
 
 package quota
 
-//go:generate stringer -type=Group
-//go:generate stringer -type=Kind
+//go:generate mockgen --destination=mock_quota.go -package=quota -self_package=github.com/google/trillian/quota github.com/google/trillian/quota Manager
+//go:generate stringer -type=Group quota.go
+//go:generate stringer -type=Kind quota.go

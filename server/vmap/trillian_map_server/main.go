@@ -25,6 +25,7 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/extension"
+	"github.com/google/trillian/quota"
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/server/interceptor"
 	"github.com/google/trillian/server/vmap"
@@ -52,9 +53,13 @@ func main() {
 		AdminStorage:  mysql.NewAdminStorage(db),
 		SignerFactory: keys.PEMSignerFactory{},
 		MapStorage:    mysql.NewMapStorage(db),
+		QuotaManager:  quota.Noop(),
 	}
 
-	ti := interceptor.TreeInterceptor{Admin: registry.AdminStorage}
+	ti := &interceptor.TrillianInterceptor{
+		Admin:        registry.AdminStorage,
+		QuotaManager: registry.QuotaManager,
+	}
 	s := grpc.NewServer(grpc.UnaryInterceptor(interceptor.WrapErrors(ti.UnaryInterceptor)))
 	// No defer: server ownership is delegated to server.Main
 

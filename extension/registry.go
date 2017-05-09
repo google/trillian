@@ -16,6 +16,7 @@ package extension
 
 import (
 	"github.com/google/trillian/crypto/keys"
+	"github.com/google/trillian/quota"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util"
 )
@@ -34,4 +35,6 @@ type Registry struct {
 	keys.SignerFactory
 	// ElectionFactory provides MasterElection instances for each tree.
 	util.ElectionFactory
+	// QuotaManager provides rate limiting capabilities for Trillian.
+	QuotaManager quota.Manager
 }

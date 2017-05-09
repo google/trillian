@@ -22,6 +22,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 	terrors "github.com/google/trillian/errors"
+	"github.com/google/trillian/quota"
 	serrors "github.com/google/trillian/server/errors"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testonly"
@@ -29,9 +30,11 @@ import (
 	"github.com/kylelemons/godebug/pretty"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
-func TestTreeInterceptor_UnaryInterceptor(t *testing.T) {
+func TestTrillianInterceptor_TreeInterception(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -96,7 +99,7 @@ func TestTreeInterceptor_UnaryInterceptor(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	intercept := TreeInterceptor{Admin: admin}
+	intercept := TrillianInterceptor{Admin: admin, QuotaManager: quota.Noop()}
 	for _, test := range tests {
 		handler := &fakeHandler{resp: "handler response", err: test.handlerErr}
 
@@ -131,26 +134,118 @@ func TestTreeInterceptor_UnaryInterceptor(t *testing.T) {
 	}
 }
 
-func TestGetRPCInfo(t *testing.T) {
+func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	logTree := *testonly.LogTree
+	logTree.TreeId = 10
+
+	admin := storage.NewMockAdminStorage(ctrl)
+	adminTX := storage.NewMockReadOnlyAdminTX(ctrl)
+	admin.EXPECT().Snapshot(gomock.Any()).AnyTimes().Return(adminTX, nil)
+	adminTX.EXPECT().GetTree(gomock.Any(), logTree.TreeId).AnyTimes().Return(&logTree, nil)
+	adminTX.EXPECT().Close().AnyTimes().Return(nil)
+	adminTX.EXPECT().Commit().AnyTimes().Return(nil)
+
+	user := "llama"
 	tests := []struct {
-		desc                              string
-		req                               interface{}
-		fullMethod                        string
-		wantID                            int64
-		wantType                          trillian.TreeType
-		wantNoTree, wantReadonly, wantErr bool
+		desc         string
+		req          interface{}
+		fullMethod   string
+		spec         []quota.Spec
+		getTokensErr error
+		wantCode     codes.Code
 	}{
 		{
-			desc:       "noTree1",
-			req:        &trillian.CreateTreeRequest{},
+			desc:       "createTree",
+			req:        &trillian.CreateTreeRequest{Tree: testonly.LogTree},
 			fullMethod: "/trillian.TrillianAdmin/CreateTree",
-			wantNoTree: true,
+			spec: []quota.Spec{
+				{Group: quota.User, Kind: quota.Write, User: user},
+				{Group: quota.Global, Kind: quota.Write},
+			},
 		},
 		{
-			desc:       "noTree2",
+			desc:       "listTrees",
 			req:        &trillian.ListTreesRequest{},
 			fullMethod: "/trillian.TrillianAdmin/ListTrees",
-			wantNoTree: true,
+			spec: []quota.Spec{
+				{Group: quota.User, Kind: quota.Read, User: user},
+				{Group: quota.Global, Kind: quota.Read},
+			},
+		},
+		{
+			desc:       "readonlyWithTree",
+			req:        &trillian.GetLatestSignedLogRootRequest{LogId: logTree.TreeId},
+			fullMethod: "/trillian.TrillianLog/GetLatestSignedLogRoot",
+			spec: []quota.Spec{
+				{Group: quota.User, Kind: quota.Read, User: user},
+				{Group: quota.Tree, Kind: quota.Read, TreeID: logTree.TreeId},
+				{Group: quota.Global, Kind: quota.Read},
+			},
+		},
+		{
+			desc:       "rwWithTree",
+			req:        &trillian.QueueLeafRequest{LogId: logTree.TreeId},
+			fullMethod: "/trillian.TrillianLog/QueueLeaf",
+			spec: []quota.Spec{
+				{Group: quota.User, Kind: quota.Write, User: user},
+				{Group: quota.Tree, Kind: quota.Write, TreeID: logTree.TreeId},
+				{Group: quota.Global, Kind: quota.Write},
+			},
+		},
+		{
+			desc:       "quotaError",
+			req:        &trillian.GetLatestSignedLogRootRequest{LogId: logTree.TreeId},
+			fullMethod: "/trillian.TrillianLog/GetLatestSignedLogRoot",
+			spec: []quota.Spec{
+				{Group: quota.User, Kind: quota.Read, User: user},
+				{Group: quota.Tree, Kind: quota.Read, TreeID: logTree.TreeId},
+				{Group: quota.Global, Kind: quota.Read},
+			},
+			getTokensErr: errors.New("not enough tokens"),
+			wantCode:     codes.ResourceExhausted,
+		},
+	}
+
+	ctx := context.Background()
+	for _, test := range tests {
+		qm := quota.NewMockManager(ctrl)
+		qm.EXPECT().GetUser(gomock.Any(), test.req).Return(user)
+		qm.EXPECT().GetTokens(gomock.Any(), 1 /* numTokens */, test.spec).Return(test.getTokensErr)
+
+		handler := &fakeHandler{resp: "ok"}
+		intercept := &TrillianInterceptor{Admin: admin, QuotaManager: qm}
+
+		// resp and handler assertions are done by TestTrillianInterceptor_TreeInterception,
+		// we're only concerned with the quota logic here.
+		_, err := intercept.UnaryInterceptor(ctx, test.req, &grpc.UnaryServerInfo{FullMethod: test.fullMethod}, handler.run)
+		if s, ok := status.FromError(err); !ok || s.Code() != test.wantCode {
+			t.Errorf("%v: UnaryInterceptor() returned err = %q, wantCode = %v", test.desc, err, test.wantCode)
+		}
+	}
+}
+
+func TestGetRPCInfo(t *testing.T) {
+	tests := []struct {
+		desc                  string
+		req                   interface{}
+		fullMethod            string
+		wantID                int64
+		wantType              trillian.TreeType
+		wantReadonly, wantErr bool
+	}{
+		{
+			desc:       "createTree",
+			req:        &trillian.CreateTreeRequest{},
+			fullMethod: "/trillian.TrillianAdmin/CreateTree",
+		},
+		{
+			desc:         "listTrees",
+			req:          &trillian.ListTreesRequest{},
+			fullMethod:   "/trillian.TrillianAdmin/ListTrees",
+			wantReadonly: true,
 		},
 		{
 			desc:         "getAdminRequest",
@@ -221,15 +316,13 @@ func TestGetRPCInfo(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		info, err := getRPCInfo(test.req, test.fullMethod)
+		// TODO(codingllama): Use correct quota user
+		info, err := getRPCInfo(test.req, test.fullMethod, "guest")
 		if hasErr := err != nil; hasErr != test.wantErr {
 			t.Errorf("%v: getRPCInfo(%T) returned err = %v, wantErr = %v", test.desc, test.req, err, test.wantErr)
 			continue
 		} else if hasErr {
 			continue
-		}
-		if got, want := info.doesNotHaveTree, test.wantNoTree; got != want {
-			t.Errorf("%v: info.doesNotHaveTree = %v, want = %v", test.desc, got, want)
 		}
 		if got, want := info.treeID, test.wantID; got != want {
 			t.Errorf("%v: info.treeID = %v, want = %v", test.desc, got, want)
