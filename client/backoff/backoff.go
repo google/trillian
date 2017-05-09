@@ -59,12 +59,23 @@ func (b *Backoff) Reset() {
 // Once the context is done, retries will end and the most recent error will be returned.
 // Backoff is not reset by this function.
 func (b *Backoff) Retry(ctx context.Context, f func() error) error {
-	var err error
-	for ctx.Err() == nil {
-		if err = f(); err == nil {
-			break
-		}
-		time.Sleep(b.Duration())
+	// If the context is already done, don't make any attempts to call f.
+	if ctx.Err() != nil {
+		return ctx.Err()
 	}
-	return err
+
+	// Try calling f until it doesn't return an error or ctx is done.
+	for {
+		err := f()
+		if err == nil {
+			return err
+		}
+
+		select {
+		case <-time.After(b.Duration()):
+			continue
+		case <-ctx.Done():
+			return err
+		}
+	}
 }
