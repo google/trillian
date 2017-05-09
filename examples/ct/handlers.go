@@ -157,6 +157,8 @@ type LogContext struct {
 	urlPrefix string
 	// trustedRoots is a pool of certificates that defines the roots the CT log will accept
 	trustedRoots *PEMCertPool
+	// rejectExpired indicates whether certificate validity period should be used during chain verification
+	rejectExpired bool
 	// rpcClient is the client used to communicate with the trillian backend
 	rpcClient trillian.TrillianLogClient
 	// signer signs objects
@@ -174,11 +176,10 @@ type LogContext struct {
 		allRsps *expvar.Map // http.rc => expvar.Int  (as "http-all-rsps")
 		rsps    *expvar.Map // entrypoint => expvar.Map[http.rc => expvar.Int]  (as "http-rsps")
 	}
-	rejectExpired bool
 }
 
 // NewLogContext creates a new instance of LogContext.
-func NewLogContext(logID int64, prefix string, trustedRoots *PEMCertPool, rpcClient trillian.TrillianLogClient, signer *crypto.Signer, rpcDeadline time.Duration, timeSource util.TimeSource, rejectExpired bool) *LogContext {
+func NewLogContext(logID int64, prefix string, trustedRoots *PEMCertPool, rejectExpired bool, rpcClient trillian.TrillianLogClient, signer *crypto.Signer, rpcDeadline time.Duration, timeSource util.TimeSource) *LogContext {
 	ctx := &LogContext{
 		logID:         logID,
 		urlPrefix:     prefix,

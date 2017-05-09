@@ -65,7 +65,7 @@ func NewCTLogEnv(ctx context.Context, cfgs []*ct.LogConfig, numSequencers int, t
 		defer env.pendingTasks.Done()
 		client := trillian.NewTrillianLogClient(env.ClientConn)
 		for _, cfg := range cfgs {
-			handlers, err := cfg.SetUpInstance(client, 10*time.Second, cfg.RejectExpired)
+			handlers, err := cfg.SetUpInstance(client, 10*time.Second)
 			if err != nil {
 				glog.Fatalf("Failed to set up log instance for %+v: %v", cfg, err)
 			}
