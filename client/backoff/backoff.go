@@ -67,15 +67,15 @@ func (b *Backoff) Retry(ctx context.Context, f func() error) error {
 	// Try calling f until it doesn't return an error or ctx is done.
 	for {
 		err := f()
-		if err == nil {
-			return err
+		if err != nil {
+			select {
+			case <-time.After(b.Duration()):
+				continue
+			case <-ctx.Done():
+				return err
+			}
 		}
 
-		select {
-		case <-time.After(b.Duration()):
-			continue
-		case <-ctx.Done():
-			return err
-		}
+		return nil
 	}
 }
