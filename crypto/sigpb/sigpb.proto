@@ -14,6 +14,8 @@
 
 syntax = "proto3";
 
+option go_package = "github.com/google/trillian/crypto/sigpb";
+
 package sigpb;
 
 // Protocol buffer encoding of the TLS DigitallySigned type, from RFC 5246 §4.7.
