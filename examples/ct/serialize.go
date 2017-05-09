@@ -19,9 +19,9 @@ import (
 	"errors"
 	"fmt"
 
-	ct "github.com/google/certificate-transparency/go"
-	"github.com/google/certificate-transparency/go/tls"
-	"github.com/google/certificate-transparency/go/x509"
+	ct "github.com/google/certificate-transparency-go"
+	"github.com/google/certificate-transparency-go/tls"
+	"github.com/google/certificate-transparency-go/x509"
 	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/crypto/keys"
 )

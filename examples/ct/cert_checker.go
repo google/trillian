@@ -19,8 +19,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/google/certificate-transparency/go/asn1"
-	"github.com/google/certificate-transparency/go/x509"
+	"github.com/google/certificate-transparency-go/asn1"
+	"github.com/google/certificate-transparency-go/x509"
 )
 
 // OID of the non-critical extension used to mark pre-certificates, defined in RFC 6962

@@ -18,8 +18,8 @@ import (
 	"testing"
 	"time"
 
-	ct "github.com/google/certificate-transparency/go"
-	"github.com/google/certificate-transparency/go/tls"
+	ct "github.com/google/certificate-transparency-go"
+	"github.com/google/certificate-transparency-go/tls"
 	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/testonly"

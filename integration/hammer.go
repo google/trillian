@@ -28,12 +28,12 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	ct "github.com/google/certificate-transparency/go"
-	"github.com/google/certificate-transparency/go/client"
-	"github.com/google/certificate-transparency/go/jsonclient"
-	"github.com/google/certificate-transparency/go/merkletree"
-	"github.com/google/certificate-transparency/go/tls"
-	"github.com/google/certificate-transparency/go/x509"
+	ct "github.com/google/certificate-transparency-go"
+	"github.com/google/certificate-transparency-go/client"
+	"github.com/google/certificate-transparency-go/jsonclient"
+	"github.com/google/certificate-transparency-go/merkletree"
+	"github.com/google/certificate-transparency-go/tls"
+	"github.com/google/certificate-transparency-go/x509"
 	ctfe "github.com/google/trillian/examples/ct"
 )
 
