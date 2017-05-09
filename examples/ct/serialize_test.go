@@ -20,10 +20,10 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	ct "github.com/google/certificate-transparency/go"
-	"github.com/google/certificate-transparency/go/fixchain"
-	"github.com/google/certificate-transparency/go/tls"
-	"github.com/google/certificate-transparency/go/x509"
+	ct "github.com/google/certificate-transparency-go"
+	"github.com/google/certificate-transparency-go/fixchain"
+	"github.com/google/certificate-transparency-go/tls"
+	"github.com/google/certificate-transparency-go/x509"
 	"github.com/google/trillian/examples/ct/testonly"
 	"github.com/kylelemons/godebug/pretty"
 )

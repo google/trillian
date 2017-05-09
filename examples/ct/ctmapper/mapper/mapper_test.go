@@ -17,8 +17,8 @@ package main
 import (
 	"testing"
 
-	"github.com/google/certificate-transparency/go/x509"
-	"github.com/google/certificate-transparency/go/x509/pkix"
+	"github.com/google/certificate-transparency-go/x509"
+	"github.com/google/certificate-transparency-go/x509/pkix"
 	"github.com/google/trillian/examples/ct/ctmapper/ctmapperpb"
 	"github.com/kylelemons/godebug/pretty"
 )

@@ -17,7 +17,7 @@ package testonly
 import (
 	"encoding/pem"
 
-	ct "github.com/google/certificate-transparency/go"
+	ct "github.com/google/certificate-transparency-go"
 )
 
 // CertsFromPEM loads X.509 certificates from the provided PEM-encoded data.
