@@ -371,6 +371,7 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 	}
 
 	if existingCount == 0 {
+		queuedCounter.Add(int64(len(leaves)))
 		return existingLeaves, nil
 	}
 
@@ -407,7 +408,6 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 	}
 
 	queuedCounter.Add(int64(len(leaves)))
-
 	return existingLeaves, nil
 }
 
