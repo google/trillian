@@ -111,7 +111,7 @@ func setupTest(t *testing.T, pemRoots []string, signer *crypto.Signer) handlerTe
 	}
 
 	info.client = mockclient.NewMockTrillianLogClient(info.mockCtrl)
-	info.c = *NewLogContext(0x42, "test", info.roots, info.client, signer, time.Millisecond*500, fakeTimeSource)
+	info.c = *NewLogContext(0x42, "test", info.roots, false, info.client, signer, time.Millisecond*500, fakeTimeSource)
 
 	for _, pemRoot := range pemRoots {
 		if !info.roots.AppendCertsFromPEM([]byte(pemRoot)) {

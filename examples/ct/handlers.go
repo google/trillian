@@ -157,6 +157,8 @@ type LogContext struct {
 	urlPrefix string
 	// trustedRoots is a pool of certificates that defines the roots the CT log will accept
 	trustedRoots *PEMCertPool
+	// rejectExpired indicates whether certificate validity period should be used during chain verification
+	rejectExpired bool
 	// rpcClient is the client used to communicate with the trillian backend
 	rpcClient trillian.TrillianLogClient
 	// signer signs objects
@@ -177,16 +179,17 @@ type LogContext struct {
 }
 
 // NewLogContext creates a new instance of LogContext.
-func NewLogContext(logID int64, prefix string, trustedRoots *PEMCertPool, rpcClient trillian.TrillianLogClient, signer *crypto.Signer, rpcDeadline time.Duration, timeSource util.TimeSource) *LogContext {
+func NewLogContext(logID int64, prefix string, trustedRoots *PEMCertPool, rejectExpired bool, rpcClient trillian.TrillianLogClient, signer *crypto.Signer, rpcDeadline time.Duration, timeSource util.TimeSource) *LogContext {
 	ctx := &LogContext{
-		logID:        logID,
-		urlPrefix:    prefix,
-		LogPrefix:    fmt.Sprintf("%s{%d}", prefix, logID),
-		trustedRoots: trustedRoots,
-		rpcClient:    rpcClient,
-		signer:       signer,
-		rpcDeadline:  rpcDeadline,
-		TimeSource:   timeSource,
+		logID:         logID,
+		urlPrefix:     prefix,
+		LogPrefix:     fmt.Sprintf("%s{%d}", prefix, logID),
+		trustedRoots:  trustedRoots,
+		rpcClient:     rpcClient,
+		signer:        signer,
+		rpcDeadline:   rpcDeadline,
+		TimeSource:    timeSource,
+		rejectExpired: rejectExpired,
 	}
 
 	// Initialize all the exported variables.
@@ -654,7 +657,7 @@ func getRPCDeadlineTime(c LogContext) time.Time {
 // by fixchain (called by this code) plus the ones here to make sure that it is compliant.
 func verifyAddChain(c LogContext, req ct.AddChainRequest, w http.ResponseWriter, expectingPrecert bool) ([]*x509.Certificate, error) {
 	// We already checked that the chain is not empty so can move on to verification
-	validPath, err := ValidateChain(req.Chain, *c.trustedRoots)
+	validPath, err := ValidateChain(req.Chain, *c.trustedRoots, c.rejectExpired)
 	if err != nil {
 		// We rejected it because the cert failed checks or we could not find a path to a root etc.
 		// Lots of possible causes for errors
