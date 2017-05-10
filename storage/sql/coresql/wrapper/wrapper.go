@@ -27,32 +27,32 @@ import (
 
 // TreeWrapper provides SQL wrapping for raw tree storage.
 type TreeWrapper interface {
-	GetTreeRevisionIncludingSize(tx *sql.Tx, treeID, treeSize int64) (int64, int64, error)
-	GetSubtrees(tx *sql.Tx, treeID, treeRevision int64, nodeIDs []storage.NodeID, subtreeScanFn func(*sql.Rows) error) error
+	GetTreeRevisionIncludingSize(ctx context.Context, tx *sql.Tx, treeID, treeSize int64) (int64, int64, error)
+	GetSubtrees(ctx context.Context, tx *sql.Tx, treeID, treeRevision int64, nodeIDs []storage.NodeID, subtreeScanFn func(*sql.Rows) error) error
 	// SetSubtrees args should be a 4 tuple of (treeID, prefix, subtreeBytes, writeRevision) for each new subtree
-	SetSubtrees(tx *sql.Tx, args []interface{}) error
+	SetSubtrees(ctx context.Context, tx *sql.Tx, args []interface{}) error
 }
 
 // LogStatementProvider provides SQL statement objects for log storage.
 type LogStatementProvider interface {
 	GetActiveLogsStmt(tx *sql.Tx) (*sql.Stmt, error)
 	GetActiveLogsWithWorkStmt(tx *sql.Tx) (*sql.Stmt, error)
-	DeleteUnsequencedStmt(tx *sql.Tx, num int) (*sql.Stmt, error)
-	GetLeavesByIndexStmt(tx *sql.Tx, num int) (*sql.Stmt, error)
-	GetLeavesByMerkleHashStmt(tx *sql.Tx, num int, orderBySequence bool) (*sql.Stmt, error)
-	GetLeavesByLeafIdentityHashStmt(tx *sql.Tx, num int) (*sql.Stmt, error)
+	DeleteUnsequencedStmt(ctx context.Context, tx *sql.Tx, num int) (*sql.Stmt, error)
+	GetLeavesByIndexStmt(ctx context.Context, tx *sql.Tx, num int) (*sql.Stmt, error)
+	GetLeavesByMerkleHashStmt(ctx context.Context, tx *sql.Tx, num int, orderBySequence bool) (*sql.Stmt, error)
+	GetLeavesByLeafIdentityHashStmt(ctx context.Context, tx *sql.Tx, num int) (*sql.Stmt, error)
 	InsertTreeHeadStmt(tx *sql.Tx) (*sql.Stmt, error)
 	GetLatestSignedLogRootStmt(tx *sql.Tx) (*sql.Stmt, error)
 	GetQueuedLeavesStmt(tx *sql.Tx) (*sql.Stmt, error)
 	InsertUnsequencedEntryStmt(tx *sql.Tx) (*sql.Stmt, error)
 	InsertUnsequencedLeafStmt(tx *sql.Tx) (*sql.Stmt, error)
-	InsertSequencedLeafStmt(tx *sql.Tx) (*sql.Stmt, error)
+	InsertSequencedLeafStmt(ctx context.Context, tx *sql.Tx) (*sql.Stmt, error)
 	GetSequencedLeafCountStmt(tx *sql.Tx) (*sql.Stmt, error)
 }
 
 // MapStatementProvider provides SQL statement objects for map storage.
 type MapStatementProvider interface {
-	GetMapLeafStmt(tx *sql.Tx, num int) (*sql.Stmt, error)
+	GetMapLeafStmt(ctx context.Context, tx *sql.Tx, num int) (*sql.Stmt, error)
 	GetLatestMapRootStmt(tx *sql.Tx) (*sql.Stmt, error)
 	InsertMapHeadStmt(tx *sql.Tx) (*sql.Stmt, error)
 	InsertMapLeafStmt(tx *sql.Tx) (*sql.Stmt, error)
@@ -78,7 +78,7 @@ type CustomBehaviourProvider interface {
 // LifecycleHooks allows implementations to add custom logic at various points in the
 // database and transaction flow.
 type LifecycleHooks interface {
-	OnOpenDB() error
+	OnOpenDB(ctx context.Context) error
 }
 
 // DBWrapper encapsulates a database and provides customized SQL statement objects for all types
@@ -101,10 +101,10 @@ type GetStmtFunc func() (stmt *sql.Stmt, err error)
 // PrepInTx indirectly obtains a pointer to a SQL statement via a supplied function and if
 // this succeeds returns a prepared statement in the given transaction that is owned by the
 // caller.
-func PrepInTx(tx *sql.Tx, fn GetStmtFunc) (*sql.Stmt, error) {
+func PrepInTx(ctx context.Context, tx *sql.Tx, fn GetStmtFunc) (*sql.Stmt, error) {
 	stmt, err := fn()
 	if err != nil {
 		return nil, err
 	}
-	return tx.Stmt(stmt), nil
+	return tx.StmtContext(ctx, stmt), nil
 }

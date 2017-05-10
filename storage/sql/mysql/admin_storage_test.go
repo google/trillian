@@ -31,17 +31,18 @@ import (
 const selectTreeControlByID = "SELECT SigningEnabled, SequencingEnabled, SequenceIntervalSeconds FROM TreeControl WHERE TreeId = ?"
 
 func TestMysqlAdminStorage(t *testing.T) {
+	ctx := context.Background()
 	tester := &testonly.AdminStorageTester{NewAdminStorage: func() storage.AdminStorage {
-		cleanTestDB(dbWrapper)
+		cleanTestDB(ctx, dbWrapper)
 		return coresql.NewAdminStorage(dbWrapper)
 	}}
 	tester.RunAllTests(t)
 }
 
 func TestAdminTX_CreateTree_InitializesStorageStructures(t *testing.T) {
-	cleanTestDB(dbWrapper)
-	s := coresql.NewAdminStorage(dbWrapper)
 	ctx := context.Background()
+	cleanTestDB(ctx, dbWrapper)
+	s := coresql.NewAdminStorage(dbWrapper)
 
 	tree, err := createTreeInternal(ctx, s, testonly.LogTree)
 	if err != nil {
@@ -62,9 +63,9 @@ func TestAdminTX_CreateTree_InitializesStorageStructures(t *testing.T) {
 }
 
 func TestAdminTX_TreeWithNulls(t *testing.T) {
-	cleanTestDB(dbWrapper)
-	s := coresql.NewAdminStorage(dbWrapper)
 	ctx := context.Background()
+	cleanTestDB(ctx, dbWrapper)
+	s := coresql.NewAdminStorage(dbWrapper)
 
 	// Setup: create a tree and set all nullable columns to null.
 	// Some columns have to be manually updated, as it's not possible to set
@@ -139,9 +140,9 @@ func TestAdminTX_TreeWithNulls(t *testing.T) {
 }
 
 func TestAdminTX_StorageSettingsNotSupported(t *testing.T) {
-	cleanTestDB(dbWrapper)
-	s := coresql.NewAdminStorage(dbWrapper)
 	ctx := context.Background()
+	cleanTestDB(ctx, dbWrapper)
+	s := coresql.NewAdminStorage(dbWrapper)
 
 	settings, err := ptypes.MarshalAny(&keyspb.PEMKeyFile{})
 	if err != nil {

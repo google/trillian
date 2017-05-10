@@ -192,7 +192,7 @@ func (m *mySQLWrapper) DB() *sql.DB {
 	return m.db
 }
 
-func (m *mySQLWrapper) GetSubtrees(tx *sql.Tx, treeID, treeRevision int64, nodeIDs []storage.NodeID, subtreeScanFn func(*sql.Rows) error) error {
+func (m *mySQLWrapper) GetSubtrees(ctx context.Context, tx *sql.Tx, treeID, treeRevision int64, nodeIDs []storage.NodeID, subtreeScanFn func(*sql.Rows) error) error {
 	args := make([]interface{}, 0, len(nodeIDs)+3)
 	// populate args with nodeIDs, variable args first
 	for _, nodeID := range nodeIDs {
@@ -206,7 +206,7 @@ func (m *mySQLWrapper) GetSubtrees(tx *sql.Tx, treeID, treeRevision int64, nodeI
 	args = append(args, interface{}(treeID))
 	args = append(args, interface{}(treeRevision))
 	args = append(args, interface{}(treeID))
-	stmt, err := wrapper.PrepInTx(tx, func() (stmt *sql.Stmt, err error) {
+	stmt, err := wrapper.PrepInTx(ctx, tx, func() (stmt *sql.Stmt, err error) {
 		return m.getStmt(selectSubtreeSQL, len(nodeIDs), "?", "?")
 	})
 	if stmt != nil {
@@ -215,7 +215,7 @@ func (m *mySQLWrapper) GetSubtrees(tx *sql.Tx, treeID, treeRevision int64, nodeI
 	if err != nil {
 		return err
 	}
-	rows, err := stmt.Query(args...)
+	rows, err := stmt.QueryContext(ctx, args...)
 	if err != nil {
 		glog.Warningf("Failed to get merkle subtrees: %v", err)
 		return err
@@ -224,11 +224,11 @@ func (m *mySQLWrapper) GetSubtrees(tx *sql.Tx, treeID, treeRevision int64, nodeI
 	return subtreeScanFn(rows)
 }
 
-func (m *mySQLWrapper) SetSubtrees(tx *sql.Tx, args []interface{}) error {
+func (m *mySQLWrapper) SetSubtrees(ctx context.Context, tx *sql.Tx, args []interface{}) error {
 	if len(args) % 4 != 0 {
 		return fmt.Errorf("args for SetSubtrees must be multiple of 4 but got: %d", len(args))
 	}
-	stmt, err := wrapper.PrepInTx(tx, func() (stmt *sql.Stmt, err error) {
+	stmt, err := wrapper.PrepInTx(ctx, tx, func() (stmt *sql.Stmt, err error) {
 		return m.getStmt(insertSubtreeMultiSQL, len(args) / 4, "VALUES(?, ?, ?, ?)", "(?, ?, ?, ?)")
 	})
 	if stmt != nil {
@@ -237,18 +237,18 @@ func (m *mySQLWrapper) SetSubtrees(tx *sql.Tx, args []interface{}) error {
 	if err != nil {
 		return err
 	}
-	_, err = stmt.Exec(args...)
+	_, err = stmt.ExecContext(ctx, args...)
 	return err
 }
 
-func (m *mySQLWrapper) GetTreeRevisionIncludingSize(tx *sql.Tx, treeID, treeSize int64) (int64, int64, error) {
+func (m *mySQLWrapper) GetTreeRevisionIncludingSize(ctx context.Context, tx *sql.Tx, treeID, treeSize int64) (int64, int64, error) {
 	var treeRevision, actualTreeSize int64
-	stmt, err := tx.Prepare(selectTreeRevisionAtSizeOrLargerSQL)
+	stmt, err := tx.PrepareContext(ctx, selectTreeRevisionAtSizeOrLargerSQL)
 	if err != nil {
 		return 0, 0, err
 	}
 	defer stmt.Close()
-	err = stmt.QueryRow(treeID, treeSize).Scan(&treeRevision, &actualTreeSize)
+	err = stmt.QueryRowContext(ctx, treeID, treeSize).Scan(&treeRevision, &actualTreeSize)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -267,32 +267,32 @@ func (m *mySQLWrapper) GetActiveLogsWithWorkStmt(tx *sql.Tx) (*sql.Stmt, error) 
 	return tx.Prepare(selectActiveLogsWithUnsequencedSQL)
 }
 
-func (m *mySQLWrapper) GetLeavesByIndexStmt(tx *sql.Tx, num int) (*sql.Stmt, error) {
-	return wrapper.PrepInTx(tx, func() (stmt *sql.Stmt, err error) {
+func (m *mySQLWrapper) GetLeavesByIndexStmt(ctx context.Context, tx *sql.Tx, num int) (*sql.Stmt, error) {
+	return wrapper.PrepInTx(ctx, tx, func() (stmt *sql.Stmt, err error) {
 		return m.getStmt(selectLeavesByIndexSQL, num, "?", "?")
 	})
 }
 
-func (m *mySQLWrapper) GetLeavesByLeafIdentityHashStmt(tx *sql.Tx, num int) (*sql.Stmt, error) {
-	return wrapper.PrepInTx(tx, func() (stmt *sql.Stmt, err error) {
+func (m *mySQLWrapper) GetLeavesByLeafIdentityHashStmt(ctx context.Context, tx *sql.Tx, num int) (*sql.Stmt, error) {
+	return wrapper.PrepInTx(ctx, tx, func() (stmt *sql.Stmt, err error) {
 		return m.getStmt(selectLeavesByLeafIdentityHashSQL, num, "?", "?")
 	})
 }
 
-func (m *mySQLWrapper) DeleteUnsequencedStmt(tx *sql.Tx, num int) (*sql.Stmt, error) {
-	return wrapper.PrepInTx(tx, func() (stmt *sql.Stmt, err error) {
+func (m *mySQLWrapper) DeleteUnsequencedStmt(ctx context.Context, tx *sql.Tx, num int) (*sql.Stmt, error) {
+	return wrapper.PrepInTx(ctx, tx, func() (stmt *sql.Stmt, err error) {
 		return m.getStmt(deleteUnsequencedSQL, num, "?", "?")
 	})
 }
 
-func (m *mySQLWrapper) GetLeavesByMerkleHashStmt(tx *sql.Tx, num int, orderBySequence bool) (*sql.Stmt, error) {
+func (m *mySQLWrapper) GetLeavesByMerkleHashStmt(ctx context.Context, tx *sql.Tx, num int, orderBySequence bool) (*sql.Stmt, error) {
 	if orderBySequence {
-		return wrapper.PrepInTx(tx, func() (stmt *sql.Stmt, err error) {
+		return wrapper.PrepInTx(ctx, tx, func() (stmt *sql.Stmt, err error) {
 			return m.getStmt(selectLeavesByMerkleHashOrderedBySequenceSQL, num, "?", "?")
 		})
 	}
 
-	return wrapper.PrepInTx(tx, func() (stmt *sql.Stmt, err error) {
+	return wrapper.PrepInTx(ctx, tx, func() (stmt *sql.Stmt, err error) {
 		return m.getStmt(selectLeavesByMerkleHashSQL, num, "?", "?")
 	})
 }
@@ -313,16 +313,16 @@ func (m *mySQLWrapper) InsertUnsequencedLeafStmt(tx *sql.Tx) (*sql.Stmt, error) 
 	return tx.Prepare(insertUnsequencedLeafSQL)
 }
 
-func (m *mySQLWrapper) InsertSequencedLeafStmt(tx *sql.Tx) (*sql.Stmt, error) {
-	return tx.Prepare(insertSequencedLeafSQL)
+func (m *mySQLWrapper) InsertSequencedLeafStmt(ctx context.Context, tx *sql.Tx) (*sql.Stmt, error) {
+	return tx.PrepareContext(ctx, insertSequencedLeafSQL)
 }
 
 func (m *mySQLWrapper) GetSequencedLeafCountStmt(tx *sql.Tx) (*sql.Stmt, error) {
 	return tx.Prepare(selectSequencedLeafCountSQL)
 }
 
-func (m *mySQLWrapper) GetMapLeafStmt(tx *sql.Tx, num int) (*sql.Stmt, error) {
-	return wrapper.PrepInTx(tx, func() (stmt *sql.Stmt, err error) {
+func (m *mySQLWrapper) GetMapLeafStmt(ctx context.Context, tx *sql.Tx, num int) (*sql.Stmt, error) {
+	return wrapper.PrepInTx(ctx, tx, func() (stmt *sql.Stmt, err error) {
 		return m.getStmt(selectMapLeafSQL, num, "?", "?")
 	})
 }
@@ -413,8 +413,8 @@ func (m *mySQLWrapper) IsDuplicateErr(err error) bool {
 	return false
 }
 
-func (m *mySQLWrapper) OnOpenDB() error {
-	if _, err := m.db.Exec("SET sql_mode = 'STRICT_ALL_TABLES'"); err != nil {
+func (m *mySQLWrapper) OnOpenDB(ctx context.Context) error {
+	if _, err := m.db.ExecContext(ctx, "SET sql_mode = 'STRICT_ALL_TABLES'"); err != nil {
 		glog.Warningf("Failed to set strict mode on mysql db: %s", err)
 		return err
 	}
@@ -432,7 +432,7 @@ func (m *mySQLWrapper) TreeRowExists(treeID int64) error {
 
 func (m *mySQLWrapper) CheckDatabaseAccessible(ctx context.Context) error {
 	_ = ctx
-	stmt, err := m.DB().Prepare("SELECT TreeId FROM Trees LIMIT 1")
+	stmt, err := m.DB().PrepareContext(ctx, "SELECT TreeId FROM Trees LIMIT 1")
 	if err != nil {
 		return err
 	}

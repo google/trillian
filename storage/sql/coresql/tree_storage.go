@@ -117,7 +117,7 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []
 
 	subtrees := make([]*storagepb.SubtreeProto, 0, len(nodeIDs))
 	fn := subtreeScanFn(&subtrees)
-	err := t.ts.wrap.GetSubtrees(t.tx, t.treeID, treeRevision, nodeIDs, fn)
+	err := t.ts.wrap.GetSubtrees(ctx, t.tx, t.treeID, treeRevision, nodeIDs, fn)
 	if err != nil {
 		glog.Warningf("Failed to get merkle subtrees: %v", err)
 		return nil, err
@@ -152,7 +152,7 @@ func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.Subtre
 		args = append(args, t.writeRevision)
 	}
 
-	err := t.ts.wrap.SetSubtrees(t.tx, args)
+	err := t.ts.wrap.SetSubtrees(ctx, t.tx, args)
 	if err != nil {
 		glog.Warningf("Failed to set merkle subtrees: %s", err)
 	}
@@ -190,7 +190,7 @@ func (t *treeTX) GetTreeRevisionIncludingSize(ctx context.Context, treeSize int6
 		return 0, 0, fmt.Errorf("invalid tree size: %d", treeSize)
 	}
 
-	return t.ts.wrap.GetTreeRevisionIncludingSize(t.tx, t.treeID, treeSize)
+	return t.ts.wrap.GetTreeRevisionIncludingSize(ctx, t.tx, t.treeID, treeSize)
 }
 
 // getSubtreesAtRev returns a GetSubtreesFunc which reads at the passed in rev.

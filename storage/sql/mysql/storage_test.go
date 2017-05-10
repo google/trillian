@@ -35,7 +35,7 @@ import (
 
 func TestNodeRoundTrip(t *testing.T) {
 	ctx := context.Background()
-	cleanTestDB(dbWrapper)
+	cleanTestDB(ctx, dbWrapper)
 	logID := testonly.CreateLogForTest(dbWrapper)
 	s := coresql.NewLogStorage(dbWrapper)
 
@@ -82,7 +82,7 @@ func TestNodeRoundTrip(t *testing.T) {
 // cache gets exercised. Any tree size > 256 will do this.
 func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 	ctx := context.Background()
-	cleanTestDB(dbWrapper)
+	cleanTestDB(ctx, dbWrapper)
 	logID := testonly.CreateLogForTest(dbWrapper)
 	s := coresql.NewLogStorage(dbWrapper)
 
@@ -188,9 +188,9 @@ func openTestDBOrDie() *sql.DB {
 }
 
 // cleanTestDB deletes all the entries in the database.
-func cleanTestDB(wrapper wrapper.DBWrapper) {
+func cleanTestDB(ctx context.Context, wrapper wrapper.DBWrapper) {
 	for _, table := range allTables {
-		if _, err := wrapper.DB().ExecContext(context.TODO(), fmt.Sprintf("DELETE FROM %s", table)); err != nil {
+		if _, err := wrapper.DB().ExecContext(ctx, fmt.Sprintf("DELETE FROM %s", table)); err != nil {
 			panic(fmt.Errorf("Failed to delete rows in %s: %s", table, err))
 		}
 	}
@@ -207,7 +207,7 @@ func TestMain(m *testing.M) {
 	flag.Parse()
 	dbWrapper = NewWrapper(openTestDBOrDie())
 	defer dbWrapper.DB().Close()
-	cleanTestDB(dbWrapper)
+	cleanTestDB(context.Background(), dbWrapper)
 	ec := m.Run()
 	os.Exit(ec)
 }

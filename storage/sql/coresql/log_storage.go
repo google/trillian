@@ -386,7 +386,7 @@ func (t *logTreeTX) GetSequencedLeafCount(ctx context.Context) (int64, error) {
 }
 
 func (t *logTreeTX) GetLeavesByIndex(ctx context.Context, leaves []int64) ([]*trillian.LogLeaf, error) {
-	stmt, err := t.ls.wrap.GetLeavesByIndexStmt(t.tx, len(leaves))
+	stmt, err := t.ls.wrap.GetLeavesByIndexStmt(ctx, t.tx, len(leaves))
 	if err != nil {
 		return nil, err
 	}
@@ -425,7 +425,7 @@ func (t *logTreeTX) GetLeavesByIndex(ctx context.Context, leaves []int64) ([]*tr
 }
 
 func (t *logTreeTX) GetLeavesByHash(ctx context.Context, leafHashes [][]byte, orderBySequence bool) ([]*trillian.LogLeaf, error) {
-	stmt, err := t.ls.wrap.GetLeavesByMerkleHashStmt(t.tx, len(leafHashes), orderBySequence)
+	stmt, err := t.ls.wrap.GetLeavesByMerkleHashStmt(ctx, t.tx, len(leafHashes), orderBySequence)
 	if err != nil {
 		return nil, err
 	}
@@ -437,7 +437,7 @@ func (t *logTreeTX) GetLeavesByHash(ctx context.Context, leafHashes [][]byte, or
 // as a slice of LogLeaf objects for convenience.  However, note that the
 // returned LogLeaf objects will not have a valid MerkleLeafHash or LeafIndex.
 func (t *logTreeTX) GetLeafDataByIdentityHash(ctx context.Context, leafHashes [][]byte) ([]*trillian.LogLeaf, error) {
-	stmt, err := t.ls.wrap.GetLeavesByLeafIdentityHashStmt(t.tx, len(leafHashes))
+	stmt, err := t.ls.wrap.GetLeavesByLeafIdentityHashStmt(ctx, t.tx, len(leafHashes))
 	if err != nil {
 		return nil, err
 	}
@@ -517,7 +517,7 @@ func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, root trillian.Signed
 func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf) error {
 	// TODO: In theory we can do this with CASE / WHEN in one SQL statement but it's more fiddly
 	// and can be implemented later if necessary
-	stmt, err := t.ls.wrap.InsertSequencedLeafStmt(t.tx)
+	stmt, err := t.ls.wrap.InsertSequencedLeafStmt(ctx, t.tx)
 	if err != nil {
 		return err
 	}
@@ -549,7 +549,7 @@ func (t *logTreeTX) removeSequencedLeaves(ctx context.Context, leaves []*trillia
 	// Delete in order of the hash values in the leaves.
 	sort.Sort(byLeafIdentityHash(leaves))
 
-	stmt, err := t.ls.wrap.DeleteUnsequencedStmt(t.tx, len(leaves))
+	stmt, err := t.ls.wrap.DeleteUnsequencedStmt(ctx, t.tx, len(leaves))
 	if err != nil {
 		glog.Warningf("Failed to get delete statement for sequenced work: %s", err)
 		return err
