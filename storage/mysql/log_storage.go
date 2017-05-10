@@ -253,7 +253,7 @@ func (t *logTreeTX) WriteRevision() int64 {
 	return t.treeTX.writeRevision
 }
 
-// dequeuedLeaf is used internally and ocntains some data that is not part of the client API
+// dequeuedLeaf is used internally and contains some data that is not part of the client API
 type dequeuedLeaf struct {
 	queueTimestampNanos int64
 	leafIdentityHash []byte
@@ -569,7 +569,7 @@ func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillia
 // removeSequencedLeaves removes the passed in leaves slice (which may be
 // modified as part of the operation).
 func (t *logTreeTX) removeSequencedLeaves(ctx context.Context, leaves []*dequeuedLeaf) error {
-	// Don't need to resort because the query ordered by leaf hash. If that changes because
+	// Don't need to re-sort because the query ordered by leaf hash. If that changes because
 	// the query is expensive then the sort will need to be done here.
 	tmpl, err := t.ls.getDeleteUnsequencedStmt(len(leaves))
 	if err != nil {
