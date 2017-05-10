@@ -571,7 +571,7 @@ func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillia
 func (t *logTreeTX) removeSequencedLeaves(ctx context.Context, leaves []*dequeuedLeaf) error {
 	// Don't need to re-sort because the query ordered by leaf hash. If that changes because
 	// the query is expensive then the sort will need to be done here.
-	tmpl, err := t.ls.getDeleteUnsequencedStmt(len(leaves))
+	tmpl, err := t.ls.getDeleteUnsequencedStmt(ctx, len(leaves))
 	if err != nil {
 		glog.Warningf("Failed to get delete statement for sequenced work: %s", err)
 		return err
