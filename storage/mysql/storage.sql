@@ -22,8 +22,8 @@ CREATE TABLE IF NOT EXISTS Trees(
   Description           VARCHAR(200),
   CreateTimeMillis      BIGINT NOT NULL,
   UpdateTimeMillis      BIGINT NOT NULL,
-  PrivateKey            BLOB NOT NULL,
-  PublicKey             BLOB NOT NULL,
+  PrivateKey            MEDIUMBLOB NOT NULL,
+  PublicKey             MEDIUMBLOB NOT NULL,
   PRIMARY KEY(TreeId)
 );
 
@@ -80,10 +80,10 @@ CREATE TABLE IF NOT EXISTS LeafData(
   LeafIdentityHash     VARBINARY(255) NOT NULL,
   -- This is the data stored in the leaf for example in CT it contains a DER encoded
   -- X.509 certificate but is application dependent
-  LeafValue            BLOB NOT NULL,
+  LeafValue            LONGBLOB NOT NULL,
   -- This is extra data that the application can associate with the leaf should it wish to.
   -- This data is not included in signing and hashing.
-  ExtraData            BLOB,
+  ExtraData            LONGBLOB,
   PRIMARY KEY(TreeId, LeafIdentityHash),
   FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE
 );
@@ -137,7 +137,7 @@ CREATE TABLE IF NOT EXISTS MapLeaf(
   -- MapRevision is stored negated to invert ordering in the primary key index
   -- st. more recent revisions come first.
   MapRevision           BIGINT NOT NULL,
-  LeafValue             BLOB NOT NULL,
+  LeafValue             LONGBLOB NOT NULL,
   PRIMARY KEY(TreeId, KeyHash, MapRevision),
   FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE
 );
@@ -149,7 +149,7 @@ CREATE TABLE IF NOT EXISTS MapHead(
   RootHash             VARBINARY(255) NOT NULL,
   MapRevision          BIGINT,
   RootSignature        VARBINARY(255) NOT NULL,
-  MapperData           BLOB,
+  MapperData           MEDIUMBLOB,
   PRIMARY KEY(TreeId, MapHeadTimestamp),
   UNIQUE INDEX TreeRevisionIdx(TreeId, MapRevision),
   FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE
