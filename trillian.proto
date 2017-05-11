@@ -14,6 +14,10 @@
 
 syntax = "proto3";
 
+option java_multiple_files = true;
+option java_package = "com.google.trillian.proto";
+option java_outer_classname = "TrillianProto";
+
 package trillian;
 
 import "github.com/google/trillian/crypto/keyspb/keyspb.proto";
