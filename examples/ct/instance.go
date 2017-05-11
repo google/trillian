@@ -22,6 +22,7 @@ import (
 	"io/ioutil"
 	"time"
 
+	"github.com/google/certificate-transparency-go/x509"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/crypto/keys"
@@ -39,6 +40,7 @@ type LogConfig struct {
 	// match the private key above); it is not used by the CT personality.
 	PubKeyPEMFile string
 	RejectExpired bool
+	ExtKeyUsages  []string
 }
 
 var (
@@ -82,6 +84,21 @@ func LogConfigFromFile(filename string) ([]LogConfig, error) {
 	return cfg, nil
 }
 
+var stringToKeyUsage = map[string]x509.ExtKeyUsage{
+	"Any":                        x509.ExtKeyUsageAny,
+	"ServerAuth":                 x509.ExtKeyUsageServerAuth,
+	"ClientAuth":                 x509.ExtKeyUsageClientAuth,
+	"CodeSigning":                x509.ExtKeyUsageCodeSigning,
+	"EmailProtection":            x509.ExtKeyUsageEmailProtection,
+	"IPSECEndSystem":             x509.ExtKeyUsageIPSECEndSystem,
+	"IPSECTunnel":                x509.ExtKeyUsageIPSECTunnel,
+	"IPSECUser":                  x509.ExtKeyUsageIPSECUser,
+	"TimeStamping":               x509.ExtKeyUsageTimeStamping,
+	"OCSPSigning":                x509.ExtKeyUsageOCSPSigning,
+	"MicrosoftServerGatedCrypto": x509.ExtKeyUsageMicrosoftServerGatedCrypto,
+	"NetscapeServerGatedCrypto":  x509.ExtKeyUsageNetscapeServerGatedCrypto,
+}
+
 // SetUpInstance sets up a log instance that uses the specified client to communicate
 // with the Trillian RPC back end.
 func (cfg LogConfig) SetUpInstance(client trillian.TrillianLogClient, deadline time.Duration) (*PathHandlers, error) {
@@ -106,11 +123,23 @@ func (cfg LogConfig) SetUpInstance(client trillian.TrillianLogClient, deadline t
 	if err != nil {
 		return nil, fmt.Errorf("failed to load private key: %v", err)
 	}
-
 	signer := crypto.NewSHA256Signer(key)
 
+	var keyUsages []x509.ExtKeyUsage
+	if len(cfg.ExtKeyUsages) > 0 {
+		for _, kuStr := range cfg.ExtKeyUsages {
+			if ku, present := stringToKeyUsage[kuStr]; present {
+				keyUsages = append(keyUsages, ku)
+			} else {
+				return nil, fmt.Errorf("unknown extended key usage: %s", kuStr)
+			}
+		}
+	} else {
+		keyUsages = []x509.ExtKeyUsage{x509.ExtKeyUsageAny}
+	}
+
 	// Create and register the handlers using the RPC client we just set up
-	ctx := NewLogContext(cfg.LogID, cfg.Prefix, roots, cfg.RejectExpired, client, signer, deadline, new(util.SystemTimeSource))
+	ctx := NewLogContext(cfg.LogID, cfg.Prefix, roots, cfg.RejectExpired, keyUsages, client, signer, deadline, new(util.SystemTimeSource))
 	logVars.Set(cfg.Prefix, ctx.exp.vars)
 
 	handlers := ctx.Handlers(cfg.Prefix)
