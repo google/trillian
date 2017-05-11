@@ -30,7 +30,8 @@ import (
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/server"
-	"github.com/google/trillian/storage/mysql"
+	"github.com/google/trillian/storage/sql/coresql"
+	"github.com/google/trillian/storage/sql/mysql"
 	stestonly "github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/util"
@@ -90,9 +91,9 @@ func NewLogEnv(ctx context.Context, numSequencers int, testID string) (*LogEnv, 
 	}
 
 	registry := extension.Registry{
-		AdminStorage:  mysql.NewAdminStorage(db),
+		AdminStorage:  coresql.NewAdminStorage(mysql.NewWrapper(db)),
 		SignerFactory: keys.PEMSignerFactory{},
-		LogStorage:    mysql.NewLogStorage(db),
+		LogStorage:    coresql.NewLogStorage(mysql.NewWrapper(db)),
 	}
 
 	// Create Log Server.

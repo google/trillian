@@ -22,26 +22,28 @@ import (
 	"github.com/google/trillian"
 	spb "github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/storage/sql/coresql"
+	"github.com/google/trillian/storage/sql/coresql/testonly"
 )
 
 func TestMySQLMapStorage_CheckDatabaseAccessible(t *testing.T) {
-	cleanTestDB(DB)
-	s := NewMapStorage(DB)
+	cleanTestDB(context.Background(), dbWrapper)
+	s := coresql.NewMapStorage(dbWrapper)
 	if err := s.CheckDatabaseAccessible(context.Background()); err != nil {
 		t.Errorf("CheckDatabaseAccessible() = %v, want = nil", err)
 	}
 }
 
 func TestMapBeginSnapshot(t *testing.T) {
-	cleanTestDB(DB)
+	cleanTestDB(context.Background(), dbWrapper)
 
-	frozenMapID := createMapForTests(DB)
-	updateTree(DB, frozenMapID, func(tree *trillian.Tree) {
+	frozenMapID := testonly.CreateMapForTest(dbWrapper)
+	testonly.UpdateTreeForTest(dbWrapper, frozenMapID, func(tree *trillian.Tree) {
 		tree.TreeState = trillian.TreeState_FROZEN
 	})
 
-	activeMapID := createMapForTests(DB)
-	logID := createLogForTests(DB)
+	activeMapID := testonly.CreateMapForTest(dbWrapper)
+	logID := testonly.CreateLogForTest(dbWrapper)
 
 	tests := []struct {
 		desc  string
@@ -93,7 +95,7 @@ func TestMapBeginSnapshot(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	s := NewMapStorage(DB)
+	s := coresql.NewMapStorage(dbWrapper)
 	for _, test := range tests {
 		func() {
 			var tx rootReaderMapTX
@@ -137,11 +139,11 @@ type rootReaderMapTX interface {
 
 func TestMapRootUpdate(t *testing.T) {
 	// Write two roots for a map and make sure the one with the newest timestamp supersedes
-	cleanTestDB(DB)
-	mapID := createMapForTests(DB)
-	s := NewMapStorage(DB)
-
 	ctx := context.Background()
+	cleanTestDB(ctx, dbWrapper)
+	mapID := testonly.CreateMapForTest(dbWrapper)
+	s := coresql.NewMapStorage(dbWrapper)
+
 	tx := beginMapTx(ctx, s, mapID, t)
 	defer tx.Close()
 
@@ -178,7 +180,7 @@ func TestMapRootUpdate(t *testing.T) {
 	if !proto.Equal(&root2, &root3) {
 		t.Fatalf("Root round trip failed: <%v> and: <%v>", root, root2)
 	}
-	commit(tx, t)
+	testonly.Commit(tx, t)
 }
 
 var keyHash = []byte([]byte("A Key Hash"))
@@ -190,12 +192,12 @@ var mapLeaf = trillian.MapLeaf{
 }
 
 func TestMapSetGetRoundTrip(t *testing.T) {
-	cleanTestDB(DB)
-	mapID := createMapForTests(DB)
-	s := NewMapStorage(DB)
+	ctx := context.Background()
+	cleanTestDB(ctx, dbWrapper)
+	mapID := testonly.CreateMapForTest(dbWrapper)
+	s := coresql.NewMapStorage(dbWrapper)
 
 	readRev := int64(1)
-	ctx := context.Background()
 	{
 		tx := beginMapTx(ctx, s, mapID, t)
 		defer tx.Close()
@@ -220,16 +222,15 @@ func TestMapSetGetRoundTrip(t *testing.T) {
 		if got, want := &readValues[0], &mapLeaf; !proto.Equal(got, want) {
 			t.Fatalf("Read back %v, but expected %v", got, want)
 		}
-		commit(tx, t)
+		testonly.Commit(tx, t)
 	}
 }
 
 func TestMapSetSameKeyInSameRevisionFails(t *testing.T) {
-	cleanTestDB(DB)
-	mapID := createMapForTests(DB)
-	s := NewMapStorage(DB)
-
 	ctx := context.Background()
+	cleanTestDB(ctx, dbWrapper)
+	mapID := testonly.CreateMapForTest(dbWrapper)
+	s := coresql.NewMapStorage(dbWrapper)
 
 	{
 		tx := beginMapTx(ctx, s, mapID, t)
@@ -248,16 +249,16 @@ func TestMapSetSameKeyInSameRevisionFails(t *testing.T) {
 		if err := tx.Set(ctx, keyHash, mapLeaf); err == nil {
 			t.Fatalf("Unexpectedly succeeded in setting %v to %v", keyHash, mapLeaf)
 		}
-		commit(tx, t)
+		testonly.Commit(tx, t)
 	}
 }
 
 func TestMapGetUnknownKey(t *testing.T) {
-	cleanTestDB(DB)
-	mapID := createMapForTests(DB)
-	s := NewMapStorage(DB)
-
 	ctx := context.Background()
+	cleanTestDB(ctx, dbWrapper)
+	mapID := testonly.CreateMapForTest(dbWrapper)
+	s := coresql.NewMapStorage(dbWrapper)
+
 	tx := beginMapTx(ctx, s, mapID, t)
 	defer tx.Close()
 	readValues, err := tx.Get(ctx, 1, [][]byte{[]byte("This doesn't exist.")})
@@ -267,36 +268,46 @@ func TestMapGetUnknownKey(t *testing.T) {
 	if got, want := len(readValues), 0; got != want {
 		t.Fatalf("Unexpectedly read %d values, expected %d", got, want)
 	}
-	commit(tx, t)
+	testonly.Commit(tx, t)
 }
 
 func TestMapSetGetMultipleRevisions(t *testing.T) {
 	// Write two roots for a map and make sure the one with the newest timestamp supersedes
-	cleanTestDB(DB)
-	mapID := createMapForTests(DB)
-	s := NewMapStorage(DB)
+	ctx := context.Background()
+	cleanTestDB(ctx, dbWrapper)
+	mapID := testonly.CreateMapForTest(dbWrapper)
+	s := coresql.NewMapStorage(dbWrapper)
 
-	tests := []struct {
-		rev  int64
-		leaf trillian.MapLeaf
-	}{
-		{0, trillian.MapLeaf{Index: keyHash, LeafHash: []byte{0}, LeafValue: []byte{0}, ExtraData: []byte{0}}},
-		{1, trillian.MapLeaf{Index: keyHash, LeafHash: []byte{1}, LeafValue: []byte{1}, ExtraData: []byte{1}}},
-		{2, trillian.MapLeaf{Index: keyHash, LeafHash: []byte{2}, LeafValue: []byte{2}, ExtraData: []byte{2}}},
-		{3, trillian.MapLeaf{Index: keyHash, LeafHash: []byte{3}, LeafValue: []byte{3}, ExtraData: []byte{3}}},
+	tests := []trillian.MapLeaf{
+		{Index: keyHash, LeafHash: []byte{0}, LeafValue: []byte{0}, ExtraData: []byte{0}},
+		{Index: keyHash, LeafHash: []byte{1}, LeafValue: []byte{1}, ExtraData: []byte{1}},
+		{Index: keyHash, LeafHash: []byte{2}, LeafValue: []byte{2}, ExtraData: []byte{2}},
+		{Index: keyHash, LeafHash: []byte{3}, LeafValue: []byte{3}, ExtraData: []byte{3}},
 	}
 
-	ctx := context.Background()
-	for _, tc := range tests {
+	var revisions [4]int64
+	for ic, l := range tests {
 		func() {
 			// Write the current test case.
 			tx := beginMapTx(ctx, s, mapID, t)
+			revisions[ic] = tx.WriteRevision()
 			defer tx.Close()
 
-			mapTX := tx.(*mapTreeTX)
-			mapTX.treeTX.writeRevision = tc.rev
-			if err := tx.Set(ctx, keyHash, tc.leaf); err != nil {
-				t.Fatalf("Failed to set %v to %v: %v", keyHash, tc.leaf, err)
+			if err := tx.Set(ctx, keyHash, l); err != nil {
+				t.Fatalf("Failed to set %v to %v: %v", keyHash, l, err)
+			}
+			// The write revision in tx is derived from the root so write a new one to ensure we get a
+			// new revision next time through the loop.
+			smr := trillian.SignedMapRoot{
+				MapId:          mapID,
+				MapRevision:    tx.WriteRevision(),
+				Signature:      &spb.DigitallySigned{},
+				Metadata:       &trillian.MapperMetadata{},
+				RootHash:       []byte("aroothash"),
+				TimestampNanos: tx.WriteRevision(),
+			}
+			if err := tx.StoreSignedMapRoot(ctx, smr); err != nil {
+				t.Fatalf("Failed to store a map root: %d err:%v", tx.WriteRevision(), err)
 			}
 			if err := tx.Commit(); err != nil {
 				t.Fatalf("Failed to commit: %v", err)
@@ -307,24 +318,24 @@ func TestMapSetGetMultipleRevisions(t *testing.T) {
 			for i := int64(0); i < int64(len(tests)); i++ {
 				func() {
 					expectRev := i
-					if expectRev > tc.rev {
-						expectRev = tc.rev // For future revisions, expect the current value.
+					if expectRev > int64(ic) {
+						expectRev = int64(ic) // For future revisions, expect the current value.
 					}
 
 					tx2 := beginMapTx(ctx, s, mapID, t)
 					defer tx2.Close()
 
-					readValues, err := tx2.Get(ctx, i, [][]byte{keyHash})
+					readValues, err := tx2.Get(ctx, revisions[expectRev], [][]byte{keyHash})
 					if err != nil {
-						t.Fatalf("At i %d failed to get %v:  %v", i, keyHash, err)
+						t.Fatalf("At ic %d i %d failed to get %v:  %v", ic, i, keyHash, err)
 					}
 					if got, want := len(readValues), 1; got != want {
-						t.Fatalf("At i %d got %d values, expected %d", i, got, want)
+						t.Fatalf("At ic %d i %d got %d values, expected %d", ic, i, got, want)
 					}
-					if got, want := &readValues[0], &tests[expectRev].leaf; !proto.Equal(got, want) {
-						t.Fatalf("At i %d read back %v, but expected %v", i, got, want)
+					if got, want := &readValues[0], &tests[expectRev]; !proto.Equal(got, want) {
+						t.Fatalf("At ic %d i %d read back %v, but expected %v", ic, i, got, want)
 					}
-					commit(tx2, t)
+					testonly.Commit(tx2, t)
 				}()
 			}
 		}()
@@ -332,11 +343,11 @@ func TestMapSetGetMultipleRevisions(t *testing.T) {
 }
 
 func TestLatestSignedMapRootNoneWritten(t *testing.T) {
-	cleanTestDB(DB)
-	mapID := createMapForTests(DB)
-	s := NewMapStorage(DB)
-
 	ctx := context.Background()
+	cleanTestDB(ctx, dbWrapper)
+	mapID := testonly.CreateMapForTest(dbWrapper)
+	s := coresql.NewMapStorage(dbWrapper)
+
 	tx := beginMapTx(ctx, s, mapID, t)
 	defer tx.Close()
 
@@ -347,15 +358,15 @@ func TestLatestSignedMapRootNoneWritten(t *testing.T) {
 	if root.MapId != 0 || len(root.RootHash) != 0 || root.Signature != nil {
 		t.Fatalf("Read a root with contents when it should be empty: %v", root)
 	}
-	commit(tx, t)
+	testonly.Commit(tx, t)
 }
 
 func TestLatestSignedMapRoot(t *testing.T) {
-	cleanTestDB(DB)
-	mapID := createMapForTests(DB)
-	s := NewMapStorage(DB)
-
 	ctx := context.Background()
+	cleanTestDB(ctx, dbWrapper)
+	mapID := testonly.CreateMapForTest(dbWrapper)
+	s := coresql.NewMapStorage(dbWrapper)
+
 	tx := beginMapTx(ctx, s, mapID, t)
 	defer tx.Close()
 
@@ -383,16 +394,16 @@ func TestLatestSignedMapRoot(t *testing.T) {
 		if !proto.Equal(&root, &root2) {
 			t.Fatalf("Root round trip failed: <%#v> and: <%#v>", root, root2)
 		}
-		commit(tx2, t)
+		testonly.Commit(tx2, t)
 	}
 }
 
 func TestDuplicateSignedMapRoot(t *testing.T) {
-	cleanTestDB(DB)
-	mapID := createMapForTests(DB)
-	s := NewMapStorage(DB)
-
 	ctx := context.Background()
+	cleanTestDB(ctx, dbWrapper)
+	mapID := testonly.CreateMapForTest(dbWrapper)
+	s := coresql.NewMapStorage(dbWrapper)
+
 	tx := beginMapTx(ctx, s, mapID, t)
 	defer tx.Close()
 
@@ -410,12 +421,12 @@ func TestDuplicateSignedMapRoot(t *testing.T) {
 	if err := tx.StoreSignedMapRoot(ctx, root); err == nil {
 		t.Fatal("Allowed duplicate signed map root")
 	}
-	commit(tx, t)
+	testonly.Commit(tx, t)
 }
 
 func TestReadOnlyMapTX_Rollback(t *testing.T) {
-	cleanTestDB(DB)
-	s := NewMapStorage(DB)
+	cleanTestDB(context.Background(), dbWrapper)
+	s := coresql.NewMapStorage(dbWrapper)
 	tx, err := s.Snapshot(context.Background())
 	if err != nil {
 		t.Fatalf("Snapshot() = (_, %v), want = (_, nil)", err)

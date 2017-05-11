@@ -24,23 +24,25 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/storage/sql/coresql"
 	"github.com/google/trillian/storage/testonly"
 )
 
 const selectTreeControlByID = "SELECT SigningEnabled, SequencingEnabled, SequenceIntervalSeconds FROM TreeControl WHERE TreeId = ?"
 
 func TestMysqlAdminStorage(t *testing.T) {
+	ctx := context.Background()
 	tester := &testonly.AdminStorageTester{NewAdminStorage: func() storage.AdminStorage {
-		cleanTestDB(DB)
-		return NewAdminStorage(DB)
+		cleanTestDB(ctx, dbWrapper)
+		return coresql.NewAdminStorage(dbWrapper)
 	}}
 	tester.RunAllTests(t)
 }
 
 func TestAdminTX_CreateTree_InitializesStorageStructures(t *testing.T) {
-	cleanTestDB(DB)
-	s := NewAdminStorage(DB)
 	ctx := context.Background()
+	cleanTestDB(ctx, dbWrapper)
+	s := coresql.NewAdminStorage(dbWrapper)
 
 	tree, err := createTreeInternal(ctx, s, testonly.LogTree)
 	if err != nil {
@@ -50,7 +52,7 @@ func TestAdminTX_CreateTree_InitializesStorageStructures(t *testing.T) {
 	// Check if TreeControl is correctly written.
 	var signingEnabled, sequencingEnabled bool
 	var sequenceIntervalSeconds int
-	if err := DB.QueryRowContext(ctx, selectTreeControlByID, tree.TreeId).Scan(&signingEnabled, &sequencingEnabled, &sequenceIntervalSeconds); err != nil {
+	if err := dbWrapper.DB().QueryRowContext(ctx, selectTreeControlByID, tree.TreeId).Scan(&signingEnabled, &sequencingEnabled, &sequenceIntervalSeconds); err != nil {
 		t.Fatalf("Failed to read TreeControl: %v", err)
 	}
 	// We don't mind about specific values, defaults change, but let's check
@@ -61,9 +63,9 @@ func TestAdminTX_CreateTree_InitializesStorageStructures(t *testing.T) {
 }
 
 func TestAdminTX_TreeWithNulls(t *testing.T) {
-	cleanTestDB(DB)
-	s := NewAdminStorage(DB)
 	ctx := context.Background()
+	cleanTestDB(ctx, dbWrapper)
+	s := coresql.NewAdminStorage(dbWrapper)
 
 	// Setup: create a tree and set all nullable columns to null.
 	// Some columns have to be manually updated, as it's not possible to set
@@ -72,7 +74,7 @@ func TestAdminTX_TreeWithNulls(t *testing.T) {
 	if err != nil {
 		t.Fatalf("createTree() failed: %v", err)
 	}
-	if err := setNulls(ctx, DB, tree.TreeId); err != nil {
+	if err := setNulls(ctx, dbWrapper.DB(), tree.TreeId); err != nil {
 		t.Fatalf("setNulls() = %v, want = nil", err)
 	}
 
@@ -138,9 +140,9 @@ func TestAdminTX_TreeWithNulls(t *testing.T) {
 }
 
 func TestAdminTX_StorageSettingsNotSupported(t *testing.T) {
-	cleanTestDB(DB)
-	s := NewAdminStorage(DB)
 	ctx := context.Background()
+	cleanTestDB(ctx, dbWrapper)
+	s := coresql.NewAdminStorage(dbWrapper)
 
 	settings, err := ptypes.MarshalAny(&keyspb.PEMKeyFile{})
 	if err != nil {
