@@ -176,13 +176,21 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 
 // GetSignedMapRoot implements the GetSignedMapRoot RPC method.
 func (t *TrillianMapServer) GetSignedMapRoot(ctx context.Context, req *trillian.GetSignedMapRootRequest) (*trillian.GetSignedMapRootResponse, error) {
+	var r trillian.SignedMapRoot
+	var err error
+
 	tx, err := t.registry.MapStorage.SnapshotForTree(ctx, req.MapId)
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Close()
 
-	r, err := tx.LatestSignedMapRoot(ctx)
+	// If req.Revision is not zero, return the associated SignedMapRoot
+	if req.Revision == 0 {
+		r, err = tx.LatestSignedMapRoot(ctx)
+	} else {
+		r, err = tx.GetSignedMapRoot(ctx, req.Revision)
+	}
 	if err != nil {
 		return nil, err
 	}

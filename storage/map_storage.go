@@ -98,6 +98,9 @@ type Getter interface {
 
 // MapRootReader provides access to the map roots.
 type MapRootReader interface {
+	// GetSignedMapRoot returns the SignedMapRoot associated with the
+	// specified revision.
+	GetSignedMapRoot(ctx context.Context, revision int64) (trillian.SignedMapRoot, error)
 	// LatestSignedMapRoot returns the most recently created SignedMapRoot.
 	LatestSignedMapRoot(ctx context.Context) (trillian.SignedMapRoot, error)
 }

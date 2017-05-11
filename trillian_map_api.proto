@@ -63,6 +63,7 @@ message SetMapLeavesResponse {
 
 message GetSignedMapRootRequest {
   int64 map_id = 1;
+  int64 revision = 2;
 }
 
 message GetSignedMapRootResponse {
