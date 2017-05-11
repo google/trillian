@@ -14,11 +14,14 @@
 
 syntax = "proto3";
 
+option java_multiple_files = true;
+option java_package = "com.google.trillian.proto";
+option java_outer_classname = "TrillianProto";
+
 package trillian;
 
 import "github.com/google/trillian/crypto/sigpb/sigpb.proto";
 import "google/protobuf/any.proto";
-option java_outer_classname = "TrillianProto";
 
 // What goes in here?
 // Things which are exposed through the public trillian APIs.
