@@ -118,7 +118,6 @@ CREATE TABLE IF NOT EXISTS Unsequenced(
   -- This is a MerkleLeafHash as defined by the treehasher that the log uses. For example for
   -- CT this hash will include the leaf prefix byte as well as the leaf data.
   MerkleLeafHash       VARBINARY(255) NOT NULL,
-  -- SHA256("queueId"|TreeId|leafValueHash)
   QueueTimestampNanos  BIGINT NOT NULL,
   PRIMARY KEY (TreeId, QueueTimestampNanos, LeafIdentityHash)
 );

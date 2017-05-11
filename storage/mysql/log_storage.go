@@ -51,7 +51,7 @@ const (
 	selectLatestSignedLogRootSQL = `SELECT TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature
 			FROM TreeHead WHERE TreeId=?
 			ORDER BY TreeHeadTimestamp DESC LIMIT 1`
-	deleteUnsequencedSQL = "DELETE FROM Unsequenced WHERE TreeId = ? AND QueueTimestampNanos=? AND LeafIdentityHash=?"
+	deleteUnsequencedSQL = "DELETE FROM Unsequenced WHERE TreeId=? AND QueueTimestampNanos=? AND LeafIdentityHash=?"
 
 	// These statements need to be expanded to provide the correct number of parameter placeholders.
 	selectLeavesByIndexSQL = `SELECT s.MerkleLeafHash,l.LeafIdentityHash,l.LeafValue,s.SequenceNumber,l.ExtraData
@@ -118,10 +118,6 @@ func (m *mySQLLogStorage) getLeavesByMerkleHashStmt(ctx context.Context, num int
 
 func (m *mySQLLogStorage) getLeavesByLeafIdentityHashStmt(ctx context.Context, num int) (*sql.Stmt, error) {
 	return m.getStmt(ctx, selectLeavesByLeafIdentityHashSQL, num, "?", "?")
-}
-
-func (m *mySQLLogStorage) getDeleteUnsequencedStmt(ctx context.Context, num int) (*sql.Stmt, error) {
-	return m.getStmt(ctx, deleteUnsequencedSQL, num, "?", "?")
 }
 
 func getActiveLogIDsInternal(ctx context.Context, tx *sql.Tx, sql string) ([]int64, error) {
@@ -253,10 +249,10 @@ func (t *logTreeTX) WriteRevision() int64 {
 	return t.treeTX.writeRevision
 }
 
-// dequeuedLeaf is used internally and contains some data that is not part of the client API
+// dequeuedLeaf is used internally and contains some data that is not part of the client API.
 type dequeuedLeaf struct {
 	queueTimestampNanos int64
-	leafIdentityHash []byte
+	leafIdentityHash    []byte
 }
 
 func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime time.Time) ([]*trillian.LogLeaf, error) {
@@ -333,6 +329,8 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 	}
 
 	// Insert in order of the hash values in the leaves, but track original position for return value.
+	// This is to make the order that row locks are acquired deterministic and helps to reduce
+	// the chance of deadlocks.
 	orderedLeaves := make([]leafAndPosition, len(leaves))
 	for i, leaf := range leaves {
 		orderedLeaves[i] = leafAndPosition{leaf: leaf, idx: i}
@@ -570,13 +568,13 @@ func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillia
 // modified as part of the operation).
 func (t *logTreeTX) removeSequencedLeaves(ctx context.Context, leaves []*dequeuedLeaf) error {
 	// Don't need to re-sort because the query ordered by leaf hash. If that changes because
-	// the query is expensive then the sort will need to be done here.
-	tmpl, err := t.ls.getDeleteUnsequencedStmt(ctx, len(leaves))
+	// the query is expensive then the sort will need to be done here. See comment in
+	// QueueLeaves.
+	stx, err := t.tx.PrepareContext(ctx, deleteUnsequencedSQL)
 	if err != nil {
-		glog.Warningf("Failed to get delete statement for sequenced work: %s", err)
+		glog.Warningf("Failed to prep delete statement for sequenced work: %v", err)
 		return err
 	}
-	stx := t.tx.StmtContext(ctx, tmpl)
 	for _, dql := range leaves {
 		result, err := stx.ExecContext(ctx, t.treeID, dql.queueTimestampNanos, dql.leafIdentityHash)
 		err = checkResultOkAndRowCountIs(result, err, int64(1))
