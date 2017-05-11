@@ -63,6 +63,10 @@ message SetMapLeavesResponse {
 
 message GetSignedMapRootRequest {
   int64 map_id = 1;
+}
+
+message GetSignedMapRootByRevisionRequest {
+  int64 map_id = 1;
   int64 revision = 2;
 }
 
@@ -76,4 +80,5 @@ service TrillianMap {
   rpc GetLeaves(GetMapLeavesRequest) returns(GetMapLeavesResponse) {}
   rpc SetLeaves(SetMapLeavesRequest) returns(SetMapLeavesResponse) {}
   rpc GetSignedMapRoot(GetSignedMapRootRequest) returns(GetSignedMapRootResponse) {}
+  rpc GetSignedMapRootByRevision(GetSignedMapRootByRevisionRequest) returns(GetSignedMapRootResponse) {}
 }
