@@ -23,6 +23,12 @@ import (
 	"github.com/google/trillian/quota"
 )
 
+const (
+	// DefaultMaxUnsequenced is a suggested value for MaxUnsequencedRows.
+	// Note that this is a Global/Write quota suggestion, so it applies across trees.
+	DefaultMaxUnsequenced = 500000 // About 2h of non-stop signing at 70QPS.
+)
+
 // QuotaManager is a MySQL-based quota.Manager implementation.
 //
 // It has two working modes: one queries the information schema for the number of Unsequenced rows,
