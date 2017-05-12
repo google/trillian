@@ -112,7 +112,7 @@ their local database state up-to-date with the master.
 #### Local DB storage
 
 This does not *need* to be transactional, because writes should be idempotent,
-but the implementation of the Trillian storage driver must buffer *all*,
+but the implementation of the Trillian storage driver must buffer *all*
 writes and only attempt to apply them to the local storage when `Commit` is
 called.
 
@@ -259,7 +259,7 @@ type splitTX struct {
 
 Starts a Trillian transaction, this will do:
    1. the read of `currentSTH`, `treeRevision`, and `sthOffset` from the DB
-   1. verification of that against it's corresponding entry in Kafka
+   1. verification of that against its corresponding entry in Kafka
 
 and return a `LogTX` struct containing these values as unexported fields.
 **The HBase LogTX struct will buffer all writes locally until `Commit` is
