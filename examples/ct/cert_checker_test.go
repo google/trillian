@@ -94,7 +94,7 @@ func TestCertCheckerInvalidChainAccepted(t *testing.T) {
 		t.Fatal("failed to load fake root")
 	}
 
-	_, err := ValidateChain(jsonChain, *trustedRoots, false, []x509.ExtKeyUsage{x509.ExtKeyUsageAny})
+	_, err := ValidateChain(jsonChain, CertValidationOpts{trustedRoots, false, []x509.ExtKeyUsage{x509.ExtKeyUsageAny}})
 	if err == nil {
 		t.Fatal("verification accepted an invalid chain (missing intermediate)")
 	}
@@ -110,7 +110,7 @@ func TestCertCheckerInvalidChainRejectedOrdering(t *testing.T) {
 		t.Fatal("failed to load fake root")
 	}
 
-	_, err := ValidateChain(jsonChain, *trustedRoots, false, []x509.ExtKeyUsage{x509.ExtKeyUsageAny})
+	_, err := ValidateChain(jsonChain, CertValidationOpts{trustedRoots, false, []x509.ExtKeyUsage{x509.ExtKeyUsageAny}})
 
 	if err == nil {
 		t.Fatal("verification accepted an invalid chain (ordering)")
@@ -127,7 +127,7 @@ func TestCertCheckerInvalidChainRejectedBadChain(t *testing.T) {
 		t.Fatal("failed to load fake root")
 	}
 
-	_, err := ValidateChain(jsonChain, *trustedRoots, false, []x509.ExtKeyUsage{x509.ExtKeyUsageAny})
+	_, err := ValidateChain(jsonChain, CertValidationOpts{trustedRoots, false, []x509.ExtKeyUsage{x509.ExtKeyUsageAny}})
 
 	if err == nil {
 		t.Fatal("verification accepted an invalid chain (unrelated)")
@@ -145,7 +145,7 @@ func TestCertCheckerInvalidChainRejectedBadChainUnrelatedAppended(t *testing.T) 
 		t.Fatal("failed to load fake root")
 	}
 
-	_, err := ValidateChain(jsonChain, *trustedRoots, false, []x509.ExtKeyUsage{x509.ExtKeyUsageAny})
+	_, err := ValidateChain(jsonChain, CertValidationOpts{trustedRoots, false, []x509.ExtKeyUsage{x509.ExtKeyUsageAny}})
 
 	if err == nil {
 		t.Fatal("verification accepted an invalid chain (unrelated at end)")
@@ -162,7 +162,7 @@ func TestCertCheckerValidChainAccepted(t *testing.T) {
 		t.Fatal("failed to load fake root")
 	}
 
-	validPath, err := ValidateChain(jsonChain, *trustedRoots, false, []x509.ExtKeyUsage{x509.ExtKeyUsageAny})
+	validPath, err := ValidateChain(jsonChain, CertValidationOpts{trustedRoots, false, []x509.ExtKeyUsage{x509.ExtKeyUsageAny}})
 
 	if err != nil {
 		t.Fatalf("unexpected error verifying valid chain %v", err)

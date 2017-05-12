@@ -144,6 +144,16 @@ func (a AppHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// CertValidationOpts contains various parameters for certificate chain validation
+type CertValidationOpts struct {
+	// trustedRoots is a pool of certificates that defines the roots the CT log will accept
+	trustedRoots *PEMCertPool
+	// rejectExpired indicates whether certificate validity period should be used during chain verification
+	rejectExpired bool
+	// extKeyUsages contains the list of EKUs to use during chain verification
+	extKeyUsages []x509.ExtKeyUsage
+}
+
 // LogContext holds information for a specific log instance.
 type LogContext struct {
 	// LogPrefix is a pre-formatted string identifying the log for diagnostics
@@ -155,12 +165,8 @@ type LogContext struct {
 	logID int64
 	// urlPrefix is the prefix for URLs for this log
 	urlPrefix string
-	// trustedRoots is a pool of certificates that defines the roots the CT log will accept
-	trustedRoots *PEMCertPool
-	// rejectExpired indicates whether certificate validity period should be used during chain verification
-	rejectExpired bool
-	// extKeyUsages contains the list of EKUs to use during chain verification
-	extKeyUsages []x509.ExtKeyUsage
+	// validationOpts contains the certificate chain validation parameters
+	validationOpts CertValidationOpts
 	// rpcClient is the client used to communicate with the trillian backend
 	rpcClient trillian.TrillianLogClient
 	// signer signs objects
@@ -183,16 +189,18 @@ type LogContext struct {
 // NewLogContext creates a new instance of LogContext.
 func NewLogContext(logID int64, prefix string, trustedRoots *PEMCertPool, rejectExpired bool, extKeyUsages []x509.ExtKeyUsage, rpcClient trillian.TrillianLogClient, signer *crypto.Signer, rpcDeadline time.Duration, timeSource util.TimeSource) *LogContext {
 	ctx := &LogContext{
-		logID:         logID,
-		urlPrefix:     prefix,
-		LogPrefix:     fmt.Sprintf("%s{%d}", prefix, logID),
-		trustedRoots:  trustedRoots,
-		rpcClient:     rpcClient,
-		signer:        signer,
-		rpcDeadline:   rpcDeadline,
-		TimeSource:    timeSource,
-		rejectExpired: rejectExpired,
-		extKeyUsages:  extKeyUsages,
+		logID:       logID,
+		urlPrefix:   prefix,
+		LogPrefix:   fmt.Sprintf("%s{%d}", prefix, logID),
+		rpcClient:   rpcClient,
+		signer:      signer,
+		rpcDeadline: rpcDeadline,
+		TimeSource:  timeSource,
+		validationOpts: CertValidationOpts{
+			trustedRoots:  trustedRoots,
+			rejectExpired: rejectExpired,
+			extKeyUsages:  extKeyUsages,
+		},
 	}
 
 	// Initialize all the exported variables.
@@ -583,8 +591,8 @@ func getEntries(ctx context.Context, c LogContext, w http.ResponseWriter, r *htt
 
 func getRoots(ctx context.Context, c LogContext, w http.ResponseWriter, r *http.Request) (int, error) {
 	// Pull out the raw certificates from the parsed versions
-	rawCerts := make([][]byte, 0, len(c.trustedRoots.RawCertificates()))
-	for _, cert := range c.trustedRoots.RawCertificates() {
+	rawCerts := make([][]byte, 0, len(c.validationOpts.trustedRoots.RawCertificates()))
+	for _, cert := range c.validationOpts.trustedRoots.RawCertificates() {
 		rawCerts = append(rawCerts, cert.Raw)
 	}
 
@@ -660,7 +668,7 @@ func getRPCDeadlineTime(c LogContext) time.Time {
 // by fixchain (called by this code) plus the ones here to make sure that it is compliant.
 func verifyAddChain(c LogContext, req ct.AddChainRequest, w http.ResponseWriter, expectingPrecert bool) ([]*x509.Certificate, error) {
 	// We already checked that the chain is not empty so can move on to verification
-	validPath, err := ValidateChain(req.Chain, *c.trustedRoots, c.rejectExpired, c.extKeyUsages)
+	validPath, err := ValidateChain(req.Chain, c.validationOpts)
 	if err != nil {
 		// We rejected it because the cert failed checks or we could not find a path to a root etc.
 		// Lots of possible causes for errors

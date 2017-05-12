@@ -51,7 +51,7 @@ func IsPrecertificate(cert *x509.Certificate) (bool, error) {
 // end entity certificate in the chain to a trusted root cert, possibly using the intermediates
 // supplied in the chain. Then applies the RFC requirement that the path must involve all
 // the submitted chain in the order of submission.
-func ValidateChain(rawChain [][]byte, trustedRoots PEMCertPool, rejectExpired bool, extKeyUsages []x509.ExtKeyUsage) ([]*x509.Certificate, error) {
+func ValidateChain(rawChain [][]byte, validationOpts CertValidationOpts) ([]*x509.Certificate, error) {
 	// First make sure the certs parse as X.509
 	chain := make([]*x509.Certificate, 0, len(rawChain))
 	intermediatePool := NewPEMCertPool()
@@ -73,13 +73,12 @@ func ValidateChain(rawChain [][]byte, trustedRoots PEMCertPool, rejectExpired bo
 		}
 	}
 
-	// We can now do the verify
-	// TODO(Martin2112): Check this is the correct key usage value to use
+	// We can now do the verification
 	verifyOpts := x509.VerifyOptions{
-		Roots:             trustedRoots.CertPool(),
+		Roots:             validationOpts.trustedRoots.CertPool(),
 		Intermediates:     intermediatePool.CertPool(),
-		DisableTimeChecks: !rejectExpired,
-		KeyUsages:         extKeyUsages,
+		DisableTimeChecks: !validationOpts.rejectExpired,
+		KeyUsages:         validationOpts.extKeyUsages,
 	}
 
 	// We don't want failures from Verify due to unknown critical extensions,
