@@ -570,6 +570,17 @@ func (_mr *_MockMapTreeTXRecorder) GetMerkleNodes(arg0, arg1, arg2 interface{}) 
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetMerkleNodes", arg0, arg1, arg2)
 }
 
+func (_m *MockMapTreeTX) GetSignedMapRoot(_param0 context.Context, _param1 int64) (trillian.SignedMapRoot, error) {
+	ret := _m.ctrl.Call(_m, "GetSignedMapRoot", _param0, _param1)
+	ret0, _ := ret[0].(trillian.SignedMapRoot)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+func (_mr *_MockMapTreeTXRecorder) GetSignedMapRoot(arg0, arg1 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetSignedMapRoot", arg0, arg1)
+}
+
 func (_m *MockMapTreeTX) IsOpen() bool {
 	ret := _m.ctrl.Call(_m, "IsOpen")
 	ret0, _ := ret[0].(bool)
@@ -1005,6 +1016,17 @@ func (_m *MockReadOnlyMapTreeTX) GetMerkleNodes(_param0 context.Context, _param1
 
 func (_mr *_MockReadOnlyMapTreeTXRecorder) GetMerkleNodes(arg0, arg1, arg2 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetMerkleNodes", arg0, arg1, arg2)
+}
+
+func (_m *MockReadOnlyMapTreeTX) GetSignedMapRoot(_param0 context.Context, _param1 int64) (trillian.SignedMapRoot, error) {
+	ret := _m.ctrl.Call(_m, "GetSignedMapRoot", _param0, _param1)
+	ret0, _ := ret[0].(trillian.SignedMapRoot)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+func (_mr *_MockReadOnlyMapTreeTXRecorder) GetSignedMapRoot(arg0, arg1 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetSignedMapRoot", arg0, arg1)
 }
 
 func (_m *MockReadOnlyMapTreeTX) IsOpen() bool {

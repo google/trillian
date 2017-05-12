@@ -375,6 +375,22 @@ func (_mr *_MockTrillianMapClientRecorder) GetSignedMapRoot(arg0, arg1 interface
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetSignedMapRoot", _s...)
 }
 
+func (_m *MockTrillianMapClient) GetSignedMapRootByRevision(_param0 context.Context, _param1 *trillian.GetSignedMapRootByRevisionRequest, _param2 ...grpc.CallOption) (*trillian.GetSignedMapRootResponse, error) {
+	_s := []interface{}{_param0, _param1}
+	for _, _x := range _param2 {
+		_s = append(_s, _x)
+	}
+	ret := _m.ctrl.Call(_m, "GetSignedMapRootByRevision", _s...)
+	ret0, _ := ret[0].(*trillian.GetSignedMapRootResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+func (_mr *_MockTrillianMapClientRecorder) GetSignedMapRootByRevision(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	_s := append([]interface{}{arg0, arg1}, arg2...)
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetSignedMapRootByRevision", _s...)
+}
+
 func (_m *MockTrillianMapClient) SetLeaves(_param0 context.Context, _param1 *trillian.SetMapLeavesRequest, _param2 ...grpc.CallOption) (*trillian.SetMapLeavesResponse, error) {
 	_s := []interface{}{_param0, _param1}
 	for _, _x := range _param2 {
@@ -432,6 +448,17 @@ func (_m *MockTrillianMapServer) GetSignedMapRoot(_param0 context.Context, _para
 
 func (_mr *_MockTrillianMapServerRecorder) GetSignedMapRoot(arg0, arg1 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetSignedMapRoot", arg0, arg1)
+}
+
+func (_m *MockTrillianMapServer) GetSignedMapRootByRevision(_param0 context.Context, _param1 *trillian.GetSignedMapRootByRevisionRequest) (*trillian.GetSignedMapRootResponse, error) {
+	ret := _m.ctrl.Call(_m, "GetSignedMapRootByRevision", _param0, _param1)
+	ret0, _ := ret[0].(*trillian.GetSignedMapRootResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+func (_mr *_MockTrillianMapServerRecorder) GetSignedMapRootByRevision(arg0, arg1 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetSignedMapRootByRevision", arg0, arg1)
 }
 
 func (_m *MockTrillianMapServer) SetLeaves(_param0 context.Context, _param1 *trillian.SetMapLeavesRequest) (*trillian.SetMapLeavesResponse, error) {

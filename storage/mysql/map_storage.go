@@ -33,6 +33,8 @@ const (
 	selectLatestSignedMapRootSQL = `SELECT MapHeadTimestamp, RootHash, MapRevision, RootSignature, MapperData
 		 FROM MapHead WHERE TreeId=?
 		 ORDER BY MapHeadTimestamp DESC LIMIT 1`
+	selectGetSignedMapRootSQL = `SELECT MapHeadTimestamp, RootHash, MapRevision, RootSignature, MapperData
+		 FROM MapHead WHERE TreeId=? AND MapRevision=?`
 	insertMapLeafSQL = `INSERT INTO MapLeaf(TreeId, KeyHash, MapRevision, LeafValue) VALUES (?, ?, ?, ?)`
 	selectMapLeafSQL = `
  SELECT t1.KeyHash, t1.MapRevision, t1.LeafValue
@@ -232,12 +234,29 @@ func (m *mapTreeTX) Get(ctx context.Context, revision int64, indexes [][]byte) (
 	return ret, nil
 }
 
+func (m *mapTreeTX) GetSignedMapRoot(ctx context.Context, revision int64) (trillian.SignedMapRoot, error) {
+	var timestamp, mapRevision int64
+	var rootHash, rootSignatureBytes []byte
+	var mapperMetaBytes []byte
+
+	stmt, err := m.tx.PrepareContext(ctx, selectGetSignedMapRootSQL)
+	if err != nil {
+		return trillian.SignedMapRoot{}, err
+	}
+	defer stmt.Close()
+
+	err = stmt.QueryRowContext(ctx, m.treeID, revision).Scan(
+		&timestamp, &rootHash, &mapRevision, &rootSignatureBytes, &mapperMetaBytes)
+	if err != nil {
+		return trillian.SignedMapRoot{}, err
+	}
+	return m.signedMapRoot(timestamp, mapRevision, rootHash, rootSignatureBytes, mapperMetaBytes)
+}
+
 func (m *mapTreeTX) LatestSignedMapRoot(ctx context.Context) (trillian.SignedMapRoot, error) {
 	var timestamp, mapRevision int64
 	var rootHash, rootSignatureBytes []byte
-	var rootSignature spb.DigitallySigned
 	var mapperMetaBytes []byte
-	var mapperMeta *trillian.MapperMetadata
 
 	stmt, err := m.tx.PrepareContext(ctx, selectLatestSignedMapRootSQL)
 	if err != nil {
@@ -252,8 +271,14 @@ func (m *mapTreeTX) LatestSignedMapRoot(ctx context.Context) (trillian.SignedMap
 	if err == sql.ErrNoRows {
 		return trillian.SignedMapRoot{}, nil
 	}
+	return m.signedMapRoot(timestamp, mapRevision, rootHash, rootSignatureBytes, mapperMetaBytes)
+}
 
-	err = proto.Unmarshal(rootSignatureBytes, &rootSignature)
+func (m *mapTreeTX) signedMapRoot(timestamp, mapRevision int64, rootHash, rootSignatureBytes, mapperMetaBytes []byte) (trillian.SignedMapRoot, error) {
+	var rootSignature spb.DigitallySigned
+	var mapperMeta *trillian.MapperMetadata
+
+	err := proto.Unmarshal(rootSignatureBytes, &rootSignature)
 	if err != nil {
 		glog.Warningf("Failed to unmarshal root signature: %v", err)
 		return trillian.SignedMapRoot{}, err

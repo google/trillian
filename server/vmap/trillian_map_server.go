@@ -197,6 +197,30 @@ func (t *TrillianMapServer) GetSignedMapRoot(ctx context.Context, req *trillian.
 	}, nil
 }
 
+// GetSignedMapRootByRevision implements the GetSignedMapRootByRevision RPC
+// method.
+func (t *TrillianMapServer) GetSignedMapRootByRevision(ctx context.Context, req *trillian.GetSignedMapRootByRevisionRequest) (*trillian.GetSignedMapRootResponse, error) {
+	tx, err := t.registry.MapStorage.SnapshotForTree(ctx, req.MapId)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Close()
+
+	r, err := tx.GetSignedMapRoot(ctx, req.Revision)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		glog.Warningf("%v: Commit failed for GetSignedMapRootByRevision: %v", req.MapId, err)
+		return nil, err
+	}
+
+	return &trillian.GetSignedMapRootResponse{
+		MapRoot: &r,
+	}, nil
+}
+
 func (t *TrillianMapServer) getTreeAndHasher(ctx context.Context, treeID int64, readonly bool) (*trillian.Tree, merkle.MapHasher, error) {
 	tree, err := trees.GetTree(
 		ctx,

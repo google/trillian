@@ -16,6 +16,7 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
 	"testing"
 
 	"github.com/golang/protobuf/proto"
@@ -331,6 +332,25 @@ func TestMapSetGetMultipleRevisions(t *testing.T) {
 	}
 }
 
+func TestGetSignedMapRootNotExist(t *testing.T) {
+	cleanTestDB(DB)
+	mapID := createMapForTests(DB)
+	s := NewMapStorage(DB)
+
+	ctx := context.Background()
+	tx := beginMapTx(ctx, s, mapID, t)
+	defer tx.Close()
+
+	root, err := tx.GetSignedMapRoot(ctx, 10)
+	if got, want := err, sql.ErrNoRows; got != want {
+		t.Fatalf("GetSignedMapRoot: %v, want %v", got, want)
+	}
+	if root.MapId != 0 || len(root.RootHash) != 0 || root.Signature != nil {
+		t.Fatalf("Read a root with contents when it should be empty: %v", root)
+	}
+	commit(tx, t)
+}
+
 func TestLatestSignedMapRootNoneWritten(t *testing.T) {
 	cleanTestDB(DB)
 	mapID := createMapForTests(DB)
@@ -348,6 +368,44 @@ func TestLatestSignedMapRootNoneWritten(t *testing.T) {
 		t.Fatalf("Read a root with contents when it should be empty: %v", root)
 	}
 	commit(tx, t)
+}
+
+func TestGetSignedMapRoot(t *testing.T) {
+	cleanTestDB(DB)
+	mapID := createMapForTests(DB)
+	s := NewMapStorage(DB)
+
+	ctx := context.Background()
+	tx := beginMapTx(ctx, s, mapID, t)
+	defer tx.Close()
+
+	revision := int64(5)
+	root := trillian.SignedMapRoot{
+		MapId:          mapID,
+		TimestampNanos: 98765,
+		MapRevision:    revision,
+		RootHash:       []byte(dummyHash),
+		Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
+	}
+	if err := tx.StoreSignedMapRoot(ctx, root); err != nil {
+		t.Fatalf("Failed to store signed root: %v", err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("Failed to commit new map root: %v", err)
+	}
+
+	{
+		tx2 := beginMapTx(ctx, s, mapID, t)
+		defer tx2.Close()
+		root2, err := tx2.GetSignedMapRoot(ctx, revision)
+		if err != nil {
+			t.Fatalf("Failed to get back new map root: %v", err)
+		}
+		if !proto.Equal(&root, &root2) {
+			t.Fatalf("Getting root round trip failed: <%#v> and: <%#v>", root, root2)
+		}
+		commit(tx2, t)
+	}
 }
 
 func TestLatestSignedMapRoot(t *testing.T) {
