@@ -69,7 +69,11 @@ before committing the tree update to the local database.
 Since the commit log forms the source of truth for the log entry ordering and
 committed STHs, everything else can be derived from that. This means that
 updates to the serving HBase DBs can be made to be idempotent, which means that
-the transactional requirements of Trillian's LogStorage APIs can be relaxed.
+the transactional requirements of Trillian's LogStorage APIs can be relaxed:
+writes to local storage can be buffered and flushed at `Commit` time, and the
+only constraint on the implementation is that the final new/updated STH must
+only be written to the local storage iff all other buffered writes have been
+successfully flushed.
 
 The addition of this style of storage implementation requires that Trillian
 does not guarantee the perfect deduplication of entries, even though it may be
@@ -163,7 +167,7 @@ func SignerRun() {
       if nextSTH.expectedOffset != nextOffset {
         // Someone's been writing STHs when they weren't supposed to be, skip
         // this one until we find another which is in-sync.
-        glog.Warning("skipping invalid STH")
+        glog.Warning("skipping unexpected STH")
         continue
       }
       if nextSTH.timestamp < ourSTH.timestamp || nextSTH.tree_size < ourSTH.tree_size {
