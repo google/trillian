@@ -43,6 +43,7 @@ import (
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/google/trillian"
 	"github.com/google/trillian/cmd"
+	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/crypto/sigpb"
 	"google.golang.org/grpc"
@@ -59,7 +60,7 @@ var (
 	displayName        = flag.String("display_name", "", "Display name of the new tree")
 	description        = flag.String("description", "", "Description of the new tree")
 
-	privateKeyFormat = flag.String("private_key_format", "PEMKeyFile", "Type of private key to be used")
+	privateKeyFormat = flag.String("private_key_format", "PrivateKey", "Type of private key to be used")
 	pemKeyPath       = flag.String("pem_key_path", "", "Path to the private key PEM file")
 	pemKeyPassword   = flag.String("pem_key_password", "", "Password of the private key PEM file")
 
@@ -145,7 +146,7 @@ func newPK(opts *createOpts) (*any.Any, error) {
 	switch opts.privateKeyType {
 	case "PEMKeyFile":
 		if opts.pemKeyPath == "" {
-			return nil, errors.New("empty PEM path")
+			return nil, errors.New("empty pem_key_path")
 		}
 		if opts.pemKeyPass == "" {
 			return nil, fmt.Errorf("empty password for PEM key file %q", opts.pemKeyPath)
@@ -155,6 +156,20 @@ func newPK(opts *createOpts) (*any.Any, error) {
 			Password: opts.pemKeyPass,
 		}
 		return ptypes.MarshalAny(pemKey)
+	case "PrivateKey":
+		if opts.pemKeyPath == "" {
+			return nil, errors.New("empty pem_key_path")
+		}
+		pemSigner, err := keys.NewFromPrivatePEMFile(
+			opts.pemKeyPath, opts.pemKeyPass)
+		if err != nil {
+			return nil, err
+		}
+		der, err := keys.MarshalPrivateKey(pemSigner)
+		if err != nil {
+			return nil, err
+		}
+		return ptypes.MarshalAny(&keyspb.PrivateKey{Der: der})
 	default:
 		return nil, fmt.Errorf("unknown private key type: %v", opts.privateKeyType)
 	}

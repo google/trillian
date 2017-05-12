@@ -19,9 +19,12 @@ import (
 	"net"
 	"testing"
 
+	"github.com/gogo/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
+	"github.com/golang/protobuf/ptypes/any"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/kylelemons/godebug/pretty"
@@ -29,14 +32,23 @@ import (
 	"google.golang.org/grpc"
 )
 
-func TestRun(t *testing.T) {
-	pemKey := &keyspb.PEMKeyFile{
-		Path:     "../../testdata/log-rpc-server.privkey.pem",
-		Password: "towel",
-	}
-	anyKey, err := ptypes.MarshalAny(pemKey)
+func marshalAny(p proto.Message) *any.Any {
+	anyKey, err := ptypes.MarshalAny(p)
 	if err != nil {
-		t.Fatalf("Can't marshall pemKey: %v", err)
+		panic(err)
+	}
+	return anyKey
+}
+
+func TestRun(t *testing.T) {
+	pemPath, pemPassword := "../../testdata/log-rpc-server.privkey.pem", "towel"
+	pemSigner, err := keys.NewFromPrivatePEMFile(pemPath, pemPassword)
+	if err != nil {
+		t.Fatalf("NewFromPrivatPEM(): %v", err)
+	}
+	pemDer, err := keys.MarshalPrivateKey(pemSigner)
+	if err != nil {
+		t.Fatalf("MashalPrivateKey(): %v", err)
 	}
 
 	// defaultTree reflects all flag defaults with the addition of a valid pk
@@ -46,7 +58,7 @@ func TestRun(t *testing.T) {
 		HashStrategy:       trillian.HashStrategy_RFC_6962,
 		HashAlgorithm:      sigpb.DigitallySigned_SHA256,
 		SignatureAlgorithm: sigpb.DigitallySigned_RSA,
-		PrivateKey:         anyKey,
+		PrivateKey:         marshalAny(&keyspb.PrivateKey{Der: pemDer}),
 	}
 
 	server, lis, stopFn, err := startFakeServer()
@@ -57,8 +69,8 @@ func TestRun(t *testing.T) {
 
 	validOpts := newOptsFromFlags()
 	validOpts.addr = lis.Addr().String()
-	validOpts.pemKeyPath = pemKey.Path
-	validOpts.pemKeyPass = pemKey.Password
+	validOpts.pemKeyPath = pemPath
+	validOpts.pemKeyPass = pemPassword
 
 	nonDefaultTree := *defaultTree
 	nonDefaultTree.TreeType = trillian.TreeType_MAP
@@ -86,6 +98,9 @@ func TestRun(t *testing.T) {
 
 	emptyPEMPass := *validOpts
 	emptyPEMPass.pemKeyPass = ""
+
+	pemKeyOpts := *validOpts
+	pemKeyOpts.privateKeyType = "PEMKeyFile"
 
 	tests := []struct {
 		desc      string
@@ -134,6 +149,22 @@ func TestRun(t *testing.T) {
 			desc:    "emptyPEMPass",
 			opts:    &emptyPEMPass,
 			wantErr: true,
+		},
+		{
+			desc:    "PEMKeyFile",
+			opts:    &pemKeyOpts,
+			wantErr: false,
+			wantTree: &trillian.Tree{
+				TreeState:          trillian.TreeState_ACTIVE,
+				TreeType:           trillian.TreeType_LOG,
+				HashStrategy:       trillian.HashStrategy_RFC_6962,
+				HashAlgorithm:      sigpb.DigitallySigned_SHA256,
+				SignatureAlgorithm: sigpb.DigitallySigned_RSA,
+				PrivateKey: marshalAny(&keyspb.PEMKeyFile{
+					Path:     pemPath,
+					Password: pemPassword,
+				}),
+			},
 		},
 		{
 			desc:      "createErr",
