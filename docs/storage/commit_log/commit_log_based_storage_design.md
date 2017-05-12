@@ -4,11 +4,7 @@
 
 *Authors: al@google.com, drysdale@google.com, filippo@cloudflare.com*
 
-*Last Updated: 2017-05-11*
-
-
-[TOC]
-
+*Last Updated: 2017-05-12*
 
 ## Objective
 
@@ -28,20 +24,20 @@ Apache HBase instances for the serving databases, since this is what Cloudflare
 has operational experience in running, but other distributed commit-log and
 database engines may be available.
 
-Having Trillian support a commit-log based storage system too will ensure
+Having Trillian support a commit-log based storage system will also ensure
 Trillian doesn't inadvertently tie itself exclusively to strong globally
 consistent storage.
 
 ## Background
 
-Trillian currently supports two storage technologies, mysql and Spanner, which
+Trillian currently supports two storage technologies, MySQL and Spanner, which
 provide strong global consistency.
 
 The design presented here requires:
 
 *   A durable, ordered, and immutable commit log.
 *   A "local" storage mechanism which can support the operations required by
-    the Trillian log_storage API.
+    the Trillian {tree,log}_storage API.
 
 
 
@@ -57,8 +53,8 @@ The `STHs` topic is a list of all STHs for a given log.
 Kafka topics are configured never to expire entries (this is a supported mode),
 and Kafka is known to scale to multiple terabytes within a single partition.
 
-HBase instances are one-per-cluster, built from the contents of the Kafka
-topics, and, consequently, are essentially disposable.
+HBase instances are assumed to be one-per-cluster, built from the contents of
+the Kafka topics, and, consequently, are essentially disposable.
 
 Queued leaves are sent by the Trillian frontends to the Kafka `Leaves` topic.
 Since Kafka topics are append-only and immutable, this effectively sequences
@@ -90,18 +86,17 @@ the Kafka topic sequencing to be the definitive source of log sequence
 information.
 
 Log frontends may attempt to de-duplicate incoming leaves by consulting the
-local storage DB using the identity hash, but this will always be a "best
-effort" affair, so the Trillian APIs must not assume that duplicates are
-impossible, even though in practice, when using other storage
-implementations, they may well be so currently.
+local storage DB using the identity hash (and/or e.g. using a per-instance LRU
+cache, but this will always be a "best effort" affair, so the Trillian APIs
+must not assume that duplicates are impossible, even though in practice, when
+using other storage implementations, they may well be so currently.
 
 #### Master election
 
 Multiple sequencers may be running to provide resilience, if this is the case
 there must be a mechanism for choosing a single master instance among the
-running sequencers.
-
-The Trillian repo provides an etcd-backed implementation of this already.
+running sequencers. The Trillian repo provides an etcd-backed implementation
+of this already.
 
 A sequencer must only participate/remain the master if its local database state
 is at least as new at the latest message in the Kafka `STHs` topic.
@@ -114,8 +109,12 @@ their local database state up-to-date with the master.
 
 This does not *need* to be transactional, because writes should be idempotent,
 but the implementation of the Trillian storage driver must buffer *all*,
-writes and only attempt to apply them to the DB instance when `Commit` is
+writes and only attempt to apply them to the local storage when `Commit` is
 called.
+
+The write of an updated STH to local storage needs slightly special attention,
+in that it must be the last thing written by `Commit`, and must only be written
+if all other buffered writes succeeded.
 
 In the case of a partial commit failure, or crash of the signer, the next
 sequencing cycle should find that identical writes are re-attempted due to the
@@ -197,7 +196,7 @@ func SignerRun() {
       return
     }
     newSTH.sthOffset = actualOffset
-    StoreSTHInDB(newSTH)
+    tx.BufferNewSTHForDB(newSTH)
     tx.Commit() // flush writes
   } else {
     // There is an STH one ahead of us that we're not caught up with yet.
@@ -216,9 +215,9 @@ func SignerRun() {
     for b := range batch {
       db.Put("<treeID>/leaves/<b.offset>", b.contents)
     }
-    UpdateMerkleTreeAndStoreNodes(batch, treeRevision+1)
+    tx.UpdateMerkleTreeAndBufferNodes(batch, treeRevision+1)
     nextSTH.sthOffset = lastOffset
-    StoreSTHInDB(nextSTH)
+    tx.BufferNewSTHForDB(nextSTH)
     tx.Commit() // flush writes
     // We may still not be caught up, but that's for the next time around.
   }
@@ -299,6 +298,8 @@ func (ls *CQComboStorage) Begin() (LogTX, error) {
 Calls to this method ignore `limit` and `cutoff` when there exist newer STHs in
 the Kafka queue (because we're following someone else's footsteps), and return
 the `batch` of leaves outlined above.
+
+*TODO(al): should this API be reworked?*
 
 ```golang
 func (tx *splitTX) DequeueLeaves() (..., error) {
