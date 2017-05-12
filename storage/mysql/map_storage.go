@@ -34,8 +34,7 @@ const (
 		 FROM MapHead WHERE TreeId=?
 		 ORDER BY MapHeadTimestamp DESC LIMIT 1`
 	selectGetSignedMapRootSQL = `SELECT MapHeadTimestamp, RootHash, MapRevision, RootSignature, MapperData
-		 FROM MapHead WHERE TreeId=? AND MapRevision=?
-		 ORDER BY MapHeadTimestamp DESC LIMIT 1`
+		 FROM MapHead WHERE TreeId=? AND MapRevision=?`
 	insertMapLeafSQL = `INSERT INTO MapLeaf(TreeId, KeyHash, MapRevision, LeafValue) VALUES (?, ?, ?, ?)`
 	selectMapLeafSQL = `
  SELECT t1.KeyHash, t1.MapRevision, t1.LeafValue
