@@ -101,6 +101,7 @@ var stringToKeyUsage = map[string]x509.ExtKeyUsage{
 
 // SetUpInstance sets up a log instance that uses the specified client to communicate
 // with the Trillian RPC back end.
+// TODO(daviddrysdale): add unit tests
 func (cfg LogConfig) SetUpInstance(client trillian.TrillianLogClient, deadline time.Duration) (*PathHandlers, error) {
 	// Check config validity.
 	if len(cfg.RootsPEMFile) == 0 {
