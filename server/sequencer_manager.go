@@ -76,10 +76,8 @@ func (s *SequencerManager) ExecutePass(ctx context.Context, logID int64, info *L
 	}
 
 	sequencer := log.NewSequencer(hasher, info.TimeSource, s.registry.LogStorage, signer)
-	sequencer.SetGuardWindow(s.guardWindow)
-	sequencer.SetMaxRootDurationInterval(time.Duration(tree.MaxRootDurationMillis * int64(time.Millisecond)))
 
-	leaves, err := sequencer.SequenceBatch(ctx, logID, info.BatchSize)
+	leaves, err := sequencer.SequenceBatch(ctx, logID, info.BatchSize, s.guardWindow, time.Duration(tree.MaxRootDurationMillis*int64(time.Millisecond)))
 	if err != nil {
 		return 0, fmt.Errorf("failed to sequence batch for %v: %v", logID, err)
 	}
