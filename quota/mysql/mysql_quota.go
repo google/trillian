@@ -27,6 +27,14 @@ const (
 	// DefaultMaxUnsequenced is a suggested value for MaxUnsequencedRows.
 	// Note that this is a Global/Write quota suggestion, so it applies across trees.
 	DefaultMaxUnsequenced = 500000 // About 2h of non-stop signing at 70QPS.
+
+	countFromInformationSchemaQuery = `
+		SELECT table_rows
+		FROM information_schema.tables
+		WHERE table_schema = schema()
+			AND table_name = ?
+			AND table_type = ?`
+	countFromUnsequencedQuery = "SELECT COUNT(*) FROM Unsequenced"
 )
 
 // QuotaManager is a MySQL-based quota.Manager implementation.
@@ -114,15 +122,7 @@ func (m *QuotaManager) countUnsequenced(ctx context.Context) (int, error) {
 func countFromInformationSchema(ctx context.Context, db *sql.DB) (int, error) {
 	// information_schema.tables doesn't have an explicit PK, so let's play it safe and ensure
 	// the cursor returns a single row.
-	rows, err := db.QueryContext(
-		ctx,
-		`SELECT table_rows
-			FROM information_schema.tables
-			WHERE table_schema = schema()
-				AND table_name = ?
-				AND table_type = ?`,
-		"Unsequenced",
-		"BASE TABLE")
+	rows, err := db.QueryContext(ctx, countFromInformationSchemaQuery, "Unsequenced", "BASE TABLE")
 	if err != nil {
 		return -1, err
 	}
@@ -142,7 +142,7 @@ func countFromInformationSchema(ctx context.Context, db *sql.DB) (int, error) {
 
 func countFromTable(ctx context.Context, db *sql.DB) (int, error) {
 	var count int
-	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM Unsequenced").Scan(&count); err != nil {
+	if err := db.QueryRowContext(ctx, countFromUnsequencedQuery).Scan(&count); err != nil {
 		return -1, err
 	}
 	return count, nil
