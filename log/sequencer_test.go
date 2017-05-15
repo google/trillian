@@ -19,6 +19,7 @@ import (
 	gocrypto "crypto"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -45,6 +46,8 @@ var (
 	}
 )
 
+var fakeTimeForTest = fakeTime()
+
 // RootHash can't be nil because that's how the sequencer currently detects that there was no stored tree head.
 var testRoot16 = trillian.SignedLogRoot{
 	TreeSize:       16,
@@ -62,7 +65,6 @@ var updatedNodes = []storage.Node{
 		Hash:   testonly.MustDecodeBase64("R57DrKTGuZdjCNXjv6InGrm4rABLOn9yWpdHmYOoLwU="), NodeRevision: 6},
 }
 
-var fakeTimeForTest = fakeTime()
 var expectedSignedRoot = trillian.SignedLogRoot{
 	RootHash:       []byte{71, 158, 195, 172, 164, 198, 185, 151, 99, 8, 213, 227, 191, 162, 39, 26, 185, 184, 172, 0, 75, 58, 127, 114, 90, 151, 71, 153, 131, 168, 47, 5},
 	TimestampNanos: fakeTimeForTest.UnixNano(),
@@ -259,517 +261,408 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) (testCont
 // Tests for sequencer. Currently relies on having a database set up. This might change in future
 // as it would be better if it was not tied to a specific storage mechanism.
 
-func TestBeginTXFails(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	params := testParameters{
-		logID:               154035,
-		beginFails:          true,
-		skipDequeue:         true,
-		skipStoreSignedRoot: true,
-	}
-	c, ctx := createTestContext(ctrl, params)
-
-	leaves, err := c.sequencer.SequenceBatch(ctx, params.logID, 1, 0, 0)
-	if leaves != 0 {
-		t.Fatalf("Unexpectedly sequenced %d leaves on error", leaves)
-	}
-	testonly.EnsureErrorContains(t, err, "TX")
-}
-
-func TestSequenceWithNothingQueued(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	params := testParameters{
-		logID:               154035,
-		dequeueLimit:        1,
-		shouldCommit:        true,
-		latestSignedRoot:    &testRoot16,
-		dequeuedLeaves:      []*trillian.LogLeaf{},
-		skipStoreSignedRoot: true,
-	}
-	c, ctx := createTestContext(ctrl, params)
-
-	leaves, err := c.sequencer.SequenceBatch(ctx, params.logID, 1, 0, 0)
-	if leaves != 0 {
-		t.Fatalf("Unexpectedly sequenced %d leaves on error", leaves)
-	}
-
-	if err != nil {
-		t.Error("Expected nil return with no work pending in queue")
-	}
-}
-
-func TestSequenceWithNothingQueuedNewRoot(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	signer, err := newSignerWithFixedSig(expectedSignedRoot16.Signature)
+func TestSequenceBatch(t *testing.T) {
+	signer1, err := newSignerWithFixedSig(expectedSignedRoot.Signature)
 	if err != nil {
 		t.Fatalf("Failed to create test signer (%v)", err)
 	}
-
-	noLeaves := []*trillian.LogLeaf{}
-	noNodes := []storage.Node{}
-	params := testParameters{
-		logID:            154035,
-		dequeueLimit:     1,
-		shouldCommit:     true,
-		latestSignedRoot: &testRoot16,
-		dequeuedLeaves:   []*trillian.LogLeaf{},
-		writeRevision:    testRoot16.TreeRevision + 1,
-		updatedLeaves:    &noLeaves,
-		merkleNodesSet:   &noNodes,
-		signer:           signer,
-		storeSignedRoot: &trillian.SignedLogRoot{
-			TimestampNanos: fakeTimeForTest.UnixNano(),
-			TreeSize:       16,
-			TreeRevision:   6,
-			RootHash:       []byte{},
-			Signature: &sigpb.DigitallySigned{
-				SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
-				HashAlgorithm:      sigpb.DigitallySigned_SHA256,
-				Signature:          []byte("signed"),
-			},
-		},
+	signer16, err := newSignerWithFixedSig(expectedSignedRoot16.Signature)
+	if err != nil {
+		t.Fatalf("Failed to create test signer (%v)", err)
 	}
-	c, ctx := createTestContext(ctrl, params)
-
-	leaves, err := c.sequencer.SequenceBatch(ctx, params.logID, 1, 0, 1*time.Millisecond)
-	if leaves != 0 || err != nil {
-		t.Errorf("SequenceBatch()=(%v,%v); want (0,nil)", leaves, err)
+	signerErr, err := newSignerWithErr(errors.New("signerfailed"))
+	if err != nil {
+		t.Fatalf("Failed to create test signer (%v)", err)
 	}
-}
-
-// Tests that the guard interval is being passed to storage correctly. Actual operation of the
-// window is tested by storage tests.
-func TestGuardWindowPassthrough(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
+	leaves16 := []*trillian.LogLeaf{testLeaf16}
 	guardWindow := time.Second * 10
 	expectedCutoffTime := fakeTimeForTest.Add(-guardWindow)
-	params := testParameters{
-		logID:               154035,
-		dequeueLimit:        1,
-		shouldCommit:        true,
-		latestSignedRoot:    &testRoot16,
-		dequeuedLeaves:      []*trillian.LogLeaf{},
-		skipStoreSignedRoot: true,
-		overrideDequeueTime: &expectedCutoffTime,
+	noLeaves := []*trillian.LogLeaf{}
+	noNodes := []storage.Node{}
+	newRoot16 := trillian.SignedLogRoot{
+		TimestampNanos: fakeTimeForTest.UnixNano(),
+		TreeSize:       16,
+		TreeRevision:   6,
+		RootHash:       []byte{},
+		Signature: &sigpb.DigitallySigned{
+			SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
+			HashAlgorithm:      sigpb.DigitallySigned_SHA256,
+			Signature:          []byte("signed"),
+		},
 	}
-	c, ctx := createTestContext(ctrl, params)
-
-	leaves, err := c.sequencer.SequenceBatch(ctx, params.logID, 1, guardWindow, 0)
-	if leaves != 0 {
-		t.Fatalf("Expected no leaves sequenced when in guard interval but got: %d", leaves)
-	}
-
-	if err != nil {
-		t.Errorf("Expected nil return with all queued work inside guard interval but got: %v", err)
-	}
-}
-
-func TestDequeueError(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	params := testParameters{
-		logID:               154035,
-		dequeueLimit:        1,
-		dequeuedError:       errors.New("dequeue"),
-		skipStoreSignedRoot: true,
-	}
-	c, ctx := createTestContext(ctrl, params)
-
-	leafCount, err := c.sequencer.SequenceBatch(ctx, params.logID, 1, 0, 0)
-	testonly.EnsureErrorContains(t, err, "dequeue")
-	if leafCount != 0 {
-		t.Fatalf("Unexpectedly sequenced %d leaves on error", leafCount)
-	}
-}
-
-func TestLatestRootError(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	leaves := []*trillian.LogLeaf{getLeaf42()}
-	params := testParameters{
-		logID:                 154035,
-		dequeueLimit:          1,
-		dequeuedLeaves:        leaves,
-		latestSignedRoot:      &testRoot16,
-		latestSignedRootError: errors.New("root"),
-		skipStoreSignedRoot:   true,
-	}
-	c, ctx := createTestContext(ctrl, params)
-
-	leafCount, err := c.sequencer.SequenceBatch(ctx, params.logID, 1, 0, 0)
-	if leafCount != 0 {
-		t.Fatalf("Unexpectedly sequenced %d leaves on error", leafCount)
-	}
-	testonly.EnsureErrorContains(t, err, "root")
-}
-
-func TestUpdateSequencedLeavesError(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	leaves := []*trillian.LogLeaf{getLeaf42()}
-	updatedLeaves := []*trillian.LogLeaf{testLeaf16}
-	params := testParameters{
-		logID:               154035,
-		writeRevision:       testRoot16.TreeRevision + 1,
-		dequeueLimit:        1,
-		dequeuedLeaves:      leaves,
-		latestSignedRoot:    &testRoot16,
-		updatedLeaves:       &updatedLeaves,
-		updatedLeavesError:  errors.New("unsequenced"),
-		skipStoreSignedRoot: true,
-	}
-	c, ctx := createTestContext(ctrl, params)
-
-	leafCount, err := c.sequencer.SequenceBatch(ctx, params.logID, 1, 0, 0)
-	if leafCount != 0 {
-		t.Fatalf("Unexpectedly sequenced %d leaves on error", leafCount)
-	}
-	testonly.EnsureErrorContains(t, err, "unsequenced")
-}
-
-func TestSetMerkleNodesError(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	leaves := []*trillian.LogLeaf{getLeaf42()}
-	updatedLeaves := []*trillian.LogLeaf{testLeaf16}
-	params := testParameters{
-		logID:               154035,
-		writeRevision:       testRoot16.TreeRevision + 1,
-		dequeueLimit:        1,
-		dequeuedLeaves:      leaves,
-		latestSignedRoot:    &testRoot16,
-		updatedLeaves:       &updatedLeaves,
-		merkleNodesSet:      &updatedNodes,
-		merkleNodesSetError: errors.New("setmerklenodes"),
-		skipStoreSignedRoot: true,
-	}
-	c, ctx := createTestContext(ctrl, params)
-
-	leafCount, err := c.sequencer.SequenceBatch(ctx, params.logID, 1, 0, 0)
-	if leafCount != 0 {
-		t.Fatalf("Unexpectedly sequenced %d leaves on error", leafCount)
-	}
-	testonly.EnsureErrorContains(t, err, "setmerklenodes")
-}
-
-func TestStoreSignedRootError(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	leaves := []*trillian.LogLeaf{getLeaf42()}
-	updatedLeaves := []*trillian.LogLeaf{testLeaf16}
-
-	signer, err := newSignerWithFixedSig(expectedSignedRoot16.Signature)
-	if err != nil {
-		t.Fatalf("Failed to create test signer (%v)", err)
-	}
-
-	params := testParameters{
-		logID:                154035,
-		writeRevision:        testRoot16.TreeRevision + 1,
-		dequeueLimit:         1,
-		dequeuedLeaves:       leaves,
-		latestSignedRoot:     &testRoot16,
-		updatedLeaves:        &updatedLeaves,
-		merkleNodesSet:       &updatedNodes,
-		storeSignedRoot:      nil,
-		storeSignedRootError: errors.New("storesignedroot"),
-		signer:               signer,
-	}
-	c, ctx := createTestContext(ctrl, params)
-
-	leafCount, err := c.sequencer.SequenceBatch(ctx, params.logID, 1, 0, 0)
-	if leafCount != 0 {
-		t.Fatalf("Unexpectedly sequenced %d leaves on error", leafCount)
-	}
-	testonly.EnsureErrorContains(t, err, "storesignedroot")
-}
-
-func TestStoreSignedRootSignerFails(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	leaves := []*trillian.LogLeaf{getLeaf42()}
-	updatedLeaves := []*trillian.LogLeaf{testLeaf16}
-
-	signer, err := newSignerWithErr(errors.New("signerfailed"))
-	if err != nil {
-		t.Fatalf("Failed to create test signer (%v)", err)
-	}
-
-	params := testParameters{
-		logID:               154035,
-		writeRevision:       testRoot16.TreeRevision + 1,
-		dequeueLimit:        1,
-		dequeuedLeaves:      leaves,
-		latestSignedRoot:    &testRoot16,
-		updatedLeaves:       &updatedLeaves,
-		merkleNodesSet:      &updatedNodes,
-		storeSignedRoot:     nil,
-		signer:              signer,
-		skipStoreSignedRoot: true,
-	}
-	c, ctx := createTestContext(ctrl, params)
-
-	leafCount, err := c.sequencer.SequenceBatch(ctx, params.logID, 1, 0, 0)
-	if leafCount != 0 {
-		t.Fatalf("Unexpectedly sequenced %d leaves on error", leafCount)
-	}
-	testonly.EnsureErrorContains(t, err, "signerfailed")
-}
-
-func TestCommitFails(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	leaves := []*trillian.LogLeaf{getLeaf42()}
-	updatedLeaves := []*trillian.LogLeaf{testLeaf16}
-
-	signer, err := newSignerWithFixedSig(expectedSignedRoot16.Signature)
-	if err != nil {
-		t.Fatalf("Failed to create test signer (%v)", err)
-	}
-
-	params := testParameters{
-		logID:            154035,
-		writeRevision:    testRoot16.TreeRevision + 1,
-		dequeueLimit:     1,
-		shouldCommit:     true,
-		commitFails:      true,
-		commitError:      errors.New("commit"),
-		dequeuedLeaves:   leaves,
-		latestSignedRoot: &testRoot16,
-		updatedLeaves:    &updatedLeaves,
-		merkleNodesSet:   &updatedNodes,
-		storeSignedRoot:  nil,
-		signer:           signer,
-	}
-	c, ctx := createTestContext(ctrl, params)
-
-	leafCount, err := c.sequencer.SequenceBatch(ctx, params.logID, 1, 0, 0)
-	if leafCount != 0 {
-		t.Fatalf("Unexpectedly sequenced %d leaves on error", leafCount)
-	}
-	testonly.EnsureErrorContains(t, err, "commit")
-}
-
-// TODO: We used a perfect tree size so this isn't testing code that loads the compact Merkle
-// tree. This will be done later as it's planned to refactor it anyway.
-func TestSequenceBatch(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	leaves := []*trillian.LogLeaf{getLeaf42()}
-	updatedLeaves := []*trillian.LogLeaf{testLeaf16}
-
-	signer, err := newSignerWithFixedSig(expectedSignedRoot.Signature)
-	if err != nil {
-		t.Fatalf("Failed to create test signer (%v)", err)
-	}
-
-	treeID := int64(154035)
-	wantLeafCount := 1
-
 	specs := []quota.Spec{
-		{Group: quota.Tree, Kind: quota.Read, TreeID: treeID},
-		{Group: quota.Tree, Kind: quota.Write, TreeID: treeID},
+		{Group: quota.Tree, Kind: quota.Read, TreeID: 154035},
+		{Group: quota.Tree, Kind: quota.Write, TreeID: 154035},
 		{Group: quota.Global, Kind: quota.Read},
 		{Group: quota.Global, Kind: quota.Write},
 	}
-	qm := quota.NewMockManager(ctrl)
-	qm.EXPECT().PutTokens(gomock.Any(), wantLeafCount, specs).Return(nil)
 
-	params := testParameters{
-		logID:            treeID,
-		writeRevision:    testRoot16.TreeRevision + 1,
-		dequeueLimit:     1,
-		shouldCommit:     true,
-		dequeuedLeaves:   leaves,
-		latestSignedRoot: &testRoot16,
-		updatedLeaves:    &updatedLeaves,
-		merkleNodesSet:   &updatedNodes,
-		storeSignedRoot:  &expectedSignedRoot,
-		signer:           signer,
-		qm:               qm,
+	var tests = []struct {
+		desc            string
+		params          testParameters
+		guardWindow     time.Duration
+		maxRootDuration time.Duration
+		wantCount       int
+		errStr          string
+	}{
+		{
+			desc: "begin-tx-fails",
+			params: testParameters{
+				logID:               154035,
+				beginFails:          true,
+				skipDequeue:         true,
+				skipStoreSignedRoot: true,
+			},
+			errStr: "TX",
+		},
+		{
+			desc: "nothing-queued-no-max",
+			params: testParameters{
+				logID:               154035,
+				dequeueLimit:        1,
+				shouldCommit:        true,
+				latestSignedRoot:    &testRoot16,
+				dequeuedLeaves:      noLeaves,
+				skipStoreSignedRoot: true,
+			},
+			wantCount: 0,
+		},
+		{
+			desc: "nothing-queued-within-max",
+			params: testParameters{
+				logID:               154035,
+				dequeueLimit:        1,
+				shouldCommit:        true,
+				latestSignedRoot:    &testRoot16,
+				dequeuedLeaves:      noLeaves,
+				skipStoreSignedRoot: true,
+			},
+			maxRootDuration: 15 * time.Millisecond,
+			wantCount:       0,
+		},
+		{
+			desc: "nothing-queued-after-max",
+			params: testParameters{
+				logID:            154035,
+				dequeueLimit:     1,
+				shouldCommit:     true,
+				latestSignedRoot: &testRoot16,
+				dequeuedLeaves:   noLeaves,
+				writeRevision:    testRoot16.TreeRevision + 1,
+				updatedLeaves:    &noLeaves,
+				merkleNodesSet:   &noNodes,
+				signer:           signer16,
+				storeSignedRoot:  &newRoot16,
+			},
+			maxRootDuration: 9 * time.Millisecond,
+			wantCount:       0,
+		},
+		{
+			desc: "nothing-queued-on-max",
+			params: testParameters{
+				logID:            154035,
+				dequeueLimit:     1,
+				shouldCommit:     true,
+				latestSignedRoot: &testRoot16,
+				dequeuedLeaves:   noLeaves,
+				writeRevision:    testRoot16.TreeRevision + 1,
+				updatedLeaves:    &noLeaves,
+				merkleNodesSet:   &noNodes,
+				signer:           signer16,
+				storeSignedRoot:  &newRoot16,
+			},
+			maxRootDuration: 10 * time.Millisecond,
+			wantCount:       0,
+		},
+		{
+			// Tests that the guard interval is being passed to storage correctly.
+			// Actual operation of the window is tested by storage tests.
+			desc: "guard-interval",
+			params: testParameters{
+				logID:               154035,
+				dequeueLimit:        1,
+				shouldCommit:        true,
+				latestSignedRoot:    &testRoot16,
+				dequeuedLeaves:      []*trillian.LogLeaf{},
+				skipStoreSignedRoot: true,
+				overrideDequeueTime: &expectedCutoffTime,
+			},
+			guardWindow: guardWindow,
+		},
+		{
+			desc: "dequeue-fails",
+			params: testParameters{
+				logID:               154035,
+				dequeueLimit:        1,
+				dequeuedError:       errors.New("dequeue"),
+				skipStoreSignedRoot: true,
+			},
+			errStr: "dequeue",
+		},
+		{
+			desc: "get-signed-root-fails",
+			params: testParameters{
+				logID:                 154035,
+				dequeueLimit:          1,
+				dequeuedLeaves:        []*trillian.LogLeaf{getLeaf42()},
+				latestSignedRoot:      &testRoot16,
+				latestSignedRootError: errors.New("root"),
+				skipStoreSignedRoot:   true,
+			},
+			errStr: "root",
+		},
+		{
+			desc: "update-seq-leaves-fails",
+			params: testParameters{
+				logID:               154035,
+				writeRevision:       testRoot16.TreeRevision + 1,
+				dequeueLimit:        1,
+				dequeuedLeaves:      []*trillian.LogLeaf{getLeaf42()},
+				latestSignedRoot:    &testRoot16,
+				updatedLeaves:       &leaves16,
+				updatedLeavesError:  errors.New("unsequenced"),
+				skipStoreSignedRoot: true,
+			},
+			errStr: "unsequenced",
+		},
+		{
+			desc: "set-merkle-nodes-fails",
+			params: testParameters{
+				logID:               154035,
+				writeRevision:       testRoot16.TreeRevision + 1,
+				dequeueLimit:        1,
+				dequeuedLeaves:      []*trillian.LogLeaf{getLeaf42()},
+				latestSignedRoot:    &testRoot16,
+				updatedLeaves:       &leaves16,
+				merkleNodesSet:      &updatedNodes,
+				merkleNodesSetError: errors.New("setmerklenodes"),
+				skipStoreSignedRoot: true,
+			},
+			errStr: "setmerklenodes",
+		},
+		{
+			desc: "store-root-fails",
+			params: testParameters{
+				logID:                154035,
+				writeRevision:        testRoot16.TreeRevision + 1,
+				dequeueLimit:         1,
+				dequeuedLeaves:       []*trillian.LogLeaf{getLeaf42()},
+				latestSignedRoot:     &testRoot16,
+				updatedLeaves:        &leaves16,
+				merkleNodesSet:       &updatedNodes,
+				storeSignedRoot:      nil,
+				storeSignedRootError: errors.New("storesignedroot"),
+				signer:               signer16,
+			},
+			errStr: "storesignedroot",
+		},
+		{
+			desc: "signer-fails",
+			params: testParameters{
+				logID:               154035,
+				writeRevision:       testRoot16.TreeRevision + 1,
+				dequeueLimit:        1,
+				dequeuedLeaves:      []*trillian.LogLeaf{getLeaf42()},
+				latestSignedRoot:    &testRoot16,
+				updatedLeaves:       &leaves16,
+				merkleNodesSet:      &updatedNodes,
+				storeSignedRoot:     nil,
+				signer:              signerErr,
+				skipStoreSignedRoot: true,
+			},
+			errStr: "signerfailed",
+		},
+		{
+			desc: "commit-fails",
+			params: testParameters{
+				logID:            154035,
+				writeRevision:    testRoot16.TreeRevision + 1,
+				dequeueLimit:     1,
+				shouldCommit:     true,
+				commitFails:      true,
+				commitError:      errors.New("commit"),
+				dequeuedLeaves:   []*trillian.LogLeaf{getLeaf42()},
+				latestSignedRoot: &testRoot16,
+				updatedLeaves:    &leaves16,
+				merkleNodesSet:   &updatedNodes,
+				storeSignedRoot:  nil,
+				signer:           signer16,
+			},
+			errStr: "commit",
+		},
+		{
+			// TODO: We used a perfect tree size so this isn't testing code that loads the compact Merkle
+			// tree. This will be done later as it's planned to refactor it anyway.
+			desc: "sequence-leaf-16",
+			params: testParameters{
+				logID:            154035,
+				writeRevision:    testRoot16.TreeRevision + 1,
+				dequeueLimit:     1,
+				shouldCommit:     true,
+				dequeuedLeaves:   []*trillian.LogLeaf{getLeaf42()},
+				latestSignedRoot: &testRoot16,
+				updatedLeaves:    &leaves16,
+				merkleNodesSet:   &updatedNodes,
+				storeSignedRoot:  &expectedSignedRoot,
+				signer:           signer1,
+			},
+			wantCount: 1,
+		},
 	}
-	c, ctx := createTestContext(ctrl, params)
 
-	leafCount, err := c.sequencer.SequenceBatch(ctx, params.logID, 1, 0, 0)
-	if err != nil {
-		t.Fatalf("Expected sequencing to succeed, but got err: %v", err)
+	for _, test := range tests {
+		func() {
+			ctrl := gomock.NewController(t)
+			if test.wantCount > 0 {
+				qm := quota.NewMockManager(ctrl)
+				qm.EXPECT().PutTokens(gomock.Any(), test.wantCount, specs).Return(nil)
+				test.params.qm = qm
+			}
+			defer ctrl.Finish()
+			c, ctx := createTestContext(ctrl, test.params)
+
+			got, err := c.sequencer.SequenceBatch(ctx, test.params.logID, 1, test.guardWindow, test.maxRootDuration)
+			if err != nil {
+				if test.errStr == "" {
+					t.Errorf("SequenceBatch(%+v)=%v,%v; want _,nil", test.params, got, err)
+				} else if !strings.Contains(err.Error(), test.errStr) || got != 0 {
+					t.Errorf("SequenceBatch(%+v)=%v,%v; want 0, error with %q", test.params, got, err, test.errStr)
+				}
+				return
+			}
+			if got != test.wantCount {
+				t.Errorf("SequenceBatch(%+v)=%v,nil; want %v,nil", test.params, got, test.wantCount)
+			}
+		}()
 	}
-	if got, want := leafCount, wantLeafCount; got != want {
-		t.Fatalf("Sequenced %d leaf, expected %d", got, want)
-	}
-}
-
-func TestSignBeginTxFails(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	params := testParameters{
-		logID:               154035,
-		beginFails:          true,
-		skipDequeue:         true,
-		skipStoreSignedRoot: true,
-	}
-	c, ctx := createTestContext(ctrl, params)
-
-	err := c.sequencer.SignRoot(ctx, params.logID)
-	testonly.EnsureErrorContains(t, err, "TX")
-}
-
-func TestSignLatestRootFails(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	params := testParameters{
-		logID:                 154035,
-		writeRevision:         testRoot16.TreeRevision + 1,
-		dequeueLimit:          1,
-		latestSignedRoot:      &testRoot16,
-		latestSignedRootError: errors.New("root"),
-		skipDequeue:           true,
-		skipStoreSignedRoot:   true,
-	}
-	c, ctx := createTestContext(ctrl, params)
-
-	err := c.sequencer.SignRoot(ctx, params.logID)
-	testonly.EnsureErrorContains(t, err, "root")
-}
-
-func TestSignRootSignerFails(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	signer, err := newSignerWithErr(errors.New("signerfailed"))
-	if err != nil {
-		t.Fatalf("Failed to create test signer (%v)", err)
-	}
-
-	params := testParameters{
-		logID:               154035,
-		writeRevision:       testRoot16.TreeRevision + 1,
-		dequeueLimit:        1,
-		latestSignedRoot:    &testRoot16,
-		storeSignedRoot:     nil,
-		signer:              signer,
-		skipDequeue:         true,
-		skipStoreSignedRoot: true,
-	}
-	c, ctx := createTestContext(ctrl, params)
-
-	err = c.sequencer.SignRoot(ctx, params.logID)
-	testonly.EnsureErrorContains(t, err, "signer")
-}
-
-func TestSignRootStoreSignedRootFails(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	signer, err := newSignerWithFixedSig(expectedSignedRoot16.Signature)
-	if err != nil {
-		t.Fatalf("Failed to create test signer (%v)", err)
-	}
-
-	params := testParameters{
-		logID:                154035,
-		writeRevision:        testRoot16.TreeRevision + 1,
-		latestSignedRoot:     &testRoot16,
-		storeSignedRoot:      nil,
-		storeSignedRootError: errors.New("storesignedroot"),
-		signer:               signer,
-		skipDequeue:          true,
-	}
-	c, ctx := createTestContext(ctrl, params)
-
-	err = c.sequencer.SignRoot(ctx, params.logID)
-	testonly.EnsureErrorContains(t, err, "storesignedroot")
-}
-
-func TestSignRootCommitFails(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	signer, err := newSignerWithFixedSig(expectedSignedRoot16.Signature)
-	if err != nil {
-		t.Fatalf("Failed to create test signer (%v)", err)
-	}
-
-	params := testParameters{
-		logID:            154035,
-		writeRevision:    testRoot16.TreeRevision + 1,
-		shouldCommit:     true,
-		commitFails:      true,
-		commitError:      errors.New("commit"),
-		latestSignedRoot: &testRoot16,
-		storeSignedRoot:  nil,
-		signer:           signer,
-		skipDequeue:      true,
-	}
-	c, ctx := createTestContext(ctrl, params)
-
-	err = c.sequencer.SignRoot(ctx, params.logID)
-	testonly.EnsureErrorContains(t, err, "commit")
 }
 
 func TestSignRoot(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	signer, err := newSignerWithFixedSig(expectedSignedRoot16.Signature)
+	signer0, err := newSignerWithFixedSig(expectedSignedRoot0.Signature)
 	if err != nil {
 		t.Fatalf("Failed to create test signer (%v)", err)
 	}
-
-	params := testParameters{
-		logID:            154035,
-		writeRevision:    testRoot16.TreeRevision + 1,
-		latestSignedRoot: &testRoot16,
-		storeSignedRoot:  &expectedSignedRoot16,
-		signer:           signer,
-		shouldCommit:     true,
-		skipDequeue:      true,
-	}
-	c, ctx := createTestContext(ctrl, params)
-
-	if err := c.sequencer.SignRoot(ctx, params.logID); err != nil {
-		t.Fatalf("Expected signing to succeed, but got err: %v", err)
-	}
-}
-
-func TestSignRootNoExistingRoot(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	signer, err := newSignerWithFixedSig(expectedSignedRoot0.Signature)
+	signer16, err := newSignerWithFixedSig(expectedSignedRoot16.Signature)
 	if err != nil {
 		t.Fatalf("Failed to create test signer (%v)", err)
 	}
-
-	params := testParameters{
-		logID:            154035,
-		writeRevision:    testRoot16.TreeRevision + 1,
-		latestSignedRoot: &trillian.SignedLogRoot{},
-		storeSignedRoot:  &expectedSignedRoot0,
-		signer:           signer,
-		shouldCommit:     true,
-		skipDequeue:      true,
+	signerErr, err := newSignerWithErr(errors.New("signerfailed"))
+	if err != nil {
+		t.Fatalf("Failed to create test signer (%v)", err)
 	}
-	c, ctx := createTestContext(ctrl, params)
+	var tests = []struct {
+		desc   string
+		params testParameters
+		errStr string
+	}{
+		{
+			desc: "begin-tx-fails",
+			params: testParameters{
+				logID:               154035,
+				beginFails:          true,
+				skipDequeue:         true,
+				skipStoreSignedRoot: true,
+			},
+			errStr: "TX",
+		},
+		{
+			desc: "sign-latest-root-fails",
+			params: testParameters{
+				logID:                 154035,
+				writeRevision:         testRoot16.TreeRevision + 1,
+				dequeueLimit:          1,
+				latestSignedRoot:      &testRoot16,
+				latestSignedRootError: errors.New("root"),
+				skipDequeue:           true,
+				skipStoreSignedRoot:   true,
+			},
+			errStr: "root",
+		},
+		{
+			desc: "signer-fails",
+			params: testParameters{
+				logID:               154035,
+				writeRevision:       testRoot16.TreeRevision + 1,
+				dequeueLimit:        1,
+				latestSignedRoot:    &testRoot16,
+				storeSignedRoot:     nil,
+				signer:              signerErr,
+				skipDequeue:         true,
+				skipStoreSignedRoot: true,
+			},
+			errStr: "signer",
+		},
+		{
+			desc: "store-root-fail",
+			params: testParameters{
+				logID:                154035,
+				writeRevision:        testRoot16.TreeRevision + 1,
+				latestSignedRoot:     &testRoot16,
+				storeSignedRoot:      nil,
+				storeSignedRootError: errors.New("storesignedroot"),
+				signer:               signer16,
+				skipDequeue:          true,
+			},
+			errStr: "storesignedroot",
+		},
+		{
+			desc: "root-commit-fail",
+			params: testParameters{
+				logID:            154035,
+				writeRevision:    testRoot16.TreeRevision + 1,
+				shouldCommit:     true,
+				commitFails:      true,
+				commitError:      errors.New("commit"),
+				latestSignedRoot: &testRoot16,
+				storeSignedRoot:  nil,
+				signer:           signer16,
+				skipDequeue:      true,
+			},
+			errStr: "commit",
+		},
+		{
+			desc: "existing-root",
+			params: testParameters{
+				logID:            154035,
+				writeRevision:    testRoot16.TreeRevision + 1,
+				latestSignedRoot: &testRoot16,
+				storeSignedRoot:  &expectedSignedRoot16,
+				signer:           signer16,
+				shouldCommit:     true,
+				skipDequeue:      true,
+			},
+		},
+		{
+			desc: "no-existing-root",
+			params: testParameters{
+				logID:            154035,
+				writeRevision:    testRoot16.TreeRevision + 1,
+				latestSignedRoot: &trillian.SignedLogRoot{},
+				storeSignedRoot:  &expectedSignedRoot0,
+				signer:           signer0,
+				shouldCommit:     true,
+				skipDequeue:      true,
+			},
+		},
+	}
 
-	if err := c.sequencer.SignRoot(ctx, params.logID); err != nil {
-		t.Fatalf("Expected signing to succeed, but got err: %v", err)
+	for _, test := range tests {
+		func() {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			c, ctx := createTestContext(ctrl, test.params)
+			err := c.sequencer.SignRoot(ctx, test.params.logID)
+			if test.errStr != "" {
+				if err == nil {
+					t.Errorf("SignRoot(%+v)=nil; want error with %q", test.params, test.errStr)
+				} else if !strings.Contains(err.Error(), test.errStr) {
+					t.Errorf("SignRoot(%+v)=%v; want error with %q", test.params, err, test.errStr)
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("SignRoot(%+v)=%v; want nil", test.params, err)
+			}
+		}()
 	}
 }
