@@ -271,7 +271,7 @@ func TestBeginTXFails(t *testing.T) {
 	}
 	c, ctx := createTestContext(ctrl, params)
 
-	leaves, err := c.sequencer.SequenceBatch(ctx, params.logID, 1)
+	leaves, err := c.sequencer.SequenceBatch(ctx, params.logID, 1, 0, 0)
 	if leaves != 0 {
 		t.Fatalf("Unexpectedly sequenced %d leaves on error", leaves)
 	}
@@ -292,7 +292,7 @@ func TestSequenceWithNothingQueued(t *testing.T) {
 	}
 	c, ctx := createTestContext(ctrl, params)
 
-	leaves, err := c.sequencer.SequenceBatch(ctx, params.logID, 1)
+	leaves, err := c.sequencer.SequenceBatch(ctx, params.logID, 1, 0, 0)
 	if leaves != 0 {
 		t.Fatalf("Unexpectedly sequenced %d leaves on error", leaves)
 	}
@@ -335,9 +335,8 @@ func TestSequenceWithNothingQueuedNewRoot(t *testing.T) {
 		},
 	}
 	c, ctx := createTestContext(ctrl, params)
-	c.sequencer.SetMaxRootDurationInterval(1 * time.Millisecond)
 
-	leaves, err := c.sequencer.SequenceBatch(ctx, params.logID, 1)
+	leaves, err := c.sequencer.SequenceBatch(ctx, params.logID, 1, 0, 1*time.Millisecond)
 	if leaves != 0 || err != nil {
 		t.Errorf("SequenceBatch()=(%v,%v); want (0,nil)", leaves, err)
 	}
@@ -349,8 +348,8 @@ func TestGuardWindowPassthrough(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	guardInterval := time.Second * 10
-	expectedCutoffTime := fakeTimeForTest.Add(-guardInterval)
+	guardWindow := time.Second * 10
+	expectedCutoffTime := fakeTimeForTest.Add(-guardWindow)
 	params := testParameters{
 		logID:               154035,
 		dequeueLimit:        1,
@@ -361,9 +360,8 @@ func TestGuardWindowPassthrough(t *testing.T) {
 		overrideDequeueTime: &expectedCutoffTime,
 	}
 	c, ctx := createTestContext(ctrl, params)
-	c.sequencer.SetGuardWindow(guardInterval)
 
-	leaves, err := c.sequencer.SequenceBatch(ctx, params.logID, 1)
+	leaves, err := c.sequencer.SequenceBatch(ctx, params.logID, 1, guardWindow, 0)
 	if leaves != 0 {
 		t.Fatalf("Expected no leaves sequenced when in guard interval but got: %d", leaves)
 	}
@@ -385,7 +383,7 @@ func TestDequeueError(t *testing.T) {
 	}
 	c, ctx := createTestContext(ctrl, params)
 
-	leafCount, err := c.sequencer.SequenceBatch(ctx, params.logID, 1)
+	leafCount, err := c.sequencer.SequenceBatch(ctx, params.logID, 1, 0, 0)
 	testonly.EnsureErrorContains(t, err, "dequeue")
 	if leafCount != 0 {
 		t.Fatalf("Unexpectedly sequenced %d leaves on error", leafCount)
@@ -407,7 +405,7 @@ func TestLatestRootError(t *testing.T) {
 	}
 	c, ctx := createTestContext(ctrl, params)
 
-	leafCount, err := c.sequencer.SequenceBatch(ctx, params.logID, 1)
+	leafCount, err := c.sequencer.SequenceBatch(ctx, params.logID, 1, 0, 0)
 	if leafCount != 0 {
 		t.Fatalf("Unexpectedly sequenced %d leaves on error", leafCount)
 	}
@@ -432,7 +430,7 @@ func TestUpdateSequencedLeavesError(t *testing.T) {
 	}
 	c, ctx := createTestContext(ctrl, params)
 
-	leafCount, err := c.sequencer.SequenceBatch(ctx, params.logID, 1)
+	leafCount, err := c.sequencer.SequenceBatch(ctx, params.logID, 1, 0, 0)
 	if leafCount != 0 {
 		t.Fatalf("Unexpectedly sequenced %d leaves on error", leafCount)
 	}
@@ -458,7 +456,7 @@ func TestSetMerkleNodesError(t *testing.T) {
 	}
 	c, ctx := createTestContext(ctrl, params)
 
-	leafCount, err := c.sequencer.SequenceBatch(ctx, params.logID, 1)
+	leafCount, err := c.sequencer.SequenceBatch(ctx, params.logID, 1, 0, 0)
 	if leafCount != 0 {
 		t.Fatalf("Unexpectedly sequenced %d leaves on error", leafCount)
 	}
@@ -491,7 +489,7 @@ func TestStoreSignedRootError(t *testing.T) {
 	}
 	c, ctx := createTestContext(ctrl, params)
 
-	leafCount, err := c.sequencer.SequenceBatch(ctx, params.logID, 1)
+	leafCount, err := c.sequencer.SequenceBatch(ctx, params.logID, 1, 0, 0)
 	if leafCount != 0 {
 		t.Fatalf("Unexpectedly sequenced %d leaves on error", leafCount)
 	}
@@ -524,7 +522,7 @@ func TestStoreSignedRootSignerFails(t *testing.T) {
 	}
 	c, ctx := createTestContext(ctrl, params)
 
-	leafCount, err := c.sequencer.SequenceBatch(ctx, params.logID, 1)
+	leafCount, err := c.sequencer.SequenceBatch(ctx, params.logID, 1, 0, 0)
 	if leafCount != 0 {
 		t.Fatalf("Unexpectedly sequenced %d leaves on error", leafCount)
 	}
@@ -559,7 +557,7 @@ func TestCommitFails(t *testing.T) {
 	}
 	c, ctx := createTestContext(ctrl, params)
 
-	leafCount, err := c.sequencer.SequenceBatch(ctx, params.logID, 1)
+	leafCount, err := c.sequencer.SequenceBatch(ctx, params.logID, 1, 0, 0)
 	if leafCount != 0 {
 		t.Fatalf("Unexpectedly sequenced %d leaves on error", leafCount)
 	}
@@ -607,7 +605,7 @@ func TestSequenceBatch(t *testing.T) {
 	}
 	c, ctx := createTestContext(ctrl, params)
 
-	leafCount, err := c.sequencer.SequenceBatch(ctx, params.logID, 1)
+	leafCount, err := c.sequencer.SequenceBatch(ctx, params.logID, 1, 0, 0)
 	if err != nil {
 		t.Fatalf("Expected sequencing to succeed, but got err: %v", err)
 	}
