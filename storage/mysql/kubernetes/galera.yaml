@@ -86,8 +86,6 @@ spec:
           readinessProbe:
             exec:
               command: ["mysql", "-h", "127.0.0.1", "-u", "dummy", "-e", "SELECT 1"]
-            initialDelaySeconds: 5
-            timeoutSeconds: 1
           image: us.gcr.io/trillian-test/galera:experimental
           imagePullPolicy: Always
           name: mysql
