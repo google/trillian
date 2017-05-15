@@ -22,8 +22,10 @@ RUN groupadd -r mysql && useradd -r -g mysql mysql
 ENV MYSQL_VERSION 5.7
 ENV TERM linux
 
-RUN apt-get update
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y perl --no-install-recommends && rm -rf /var/lib/apt/lists/*
+# Install perl.
+# Install dig, for discovering IP addresses of other Galera nodes.
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y dnsutils perl --no-install-recommends
+RUN rm -rf /var/lib/apt/lists/*
 
 RUN apt-key adv --keyserver keys.gnupg.net --recv-keys 1C4CBDCDCD2EFD2A 9334A25F8507EFA5
 

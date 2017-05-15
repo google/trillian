@@ -91,24 +91,20 @@ if [ -n "$WSREP_NODE_ADDRESS" ]; then
   sed -i -e "s|^wsrep_node_address=.*$|wsrep_node_address=${WSREP_NODE_ADDRESS}|" /etc/mysql/conf.d/cluster.cnf
 fi
 
-# Set wsrep_cluster_address so that this node connects to all nodes that are
-# already setup (the Kubernetes StatefulSet attempts to start the nodes in
-# order). If this is the first node, it will bootstrap the cluster.
-if [[ "$(hostname)" =~ ^(.*)-([0-9]+)$ ]]; then
-  statefulset_name="${BASH_REMATCH[1]}"
-  replica_index=${BASH_REMATCH[2]}
-  domain="galera"
-  cluster_address="gcomm://"
+cluster_address="gcomm://"
 
-  for ((i=0; i < $replica_index; i++)); do
-    cluster_address+="${statefulset_name}-${i}.${domain},"
-  done
+# Lookup "galera" in Kubernetes DNS. This should return the IP addresses of
+# any running Galera nodes. If none are running, this node should bootstrap the
+# cluster.
+for ip in $(dig +short +search galera); do
+  # Do a reverse DNS lookup of the IP so the hostname can be used instead.
+  # This makes it easier to identify nodes in the Galera logs.
+  hostname=$(dig +short +search -x "${ip}")
+  cluster_address+="${hostname},"
+done
 
-  sed -i -e "s|^wsrep_cluster_address=gcomm://|wsrep_cluster_address=${cluster_address}|" /etc/mysql/conf.d/cluster.cnf
-else
-  echo >&2 'error: expected hostname to be of the form "foo-N"'
-  exit 1
-fi
+echo "Galera cluster address: ${cluster_address}"
+sed -i -e "s|^wsrep_cluster_address=gcomm://.*$|wsrep_cluster_address=${cluster_address}|" /etc/mysql/conf.d/cluster.cnf
 
 # Provide a random server ID for this replica.
 sed -i -e "s/^server\-id=.*$/server-id=${RANDOM}/" /etc/mysql/my.cnf
