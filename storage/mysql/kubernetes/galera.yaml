@@ -83,11 +83,6 @@ spec:
         - resources:
             limits:
               cpu: 2
-          livenessProbe:
-            exec:
-              command: ["mysqladmin", "-u", "dummy", "ping"]
-            initialDelaySeconds: 30
-            timeoutSeconds: 5
           readinessProbe:
             exec:
               command: ["mysql", "-h", "127.0.0.1", "-u", "dummy", "-e", "SELECT 1"]
