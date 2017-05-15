@@ -7,6 +7,7 @@
 /trillian_log_server
 /trillian_log_signer
 /trillian_map_server
+/commit_log
 *.iml
 *.swo
 *.swp
