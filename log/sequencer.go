@@ -81,14 +81,6 @@ type Sequencer struct {
 	logStorage storage.LogStorage
 	signer     *crypto.Signer
 	qm         quota.Manager
-
-	// These parameters could theoretically be adjusted during operation
-	// sequencerGuardWindow is used to ensure entries newer than the guard window will not be
-	// sequenced until they fall outside it. By default there is no guard window.
-	sequencerGuardWindow time.Duration
-	// maxRootDurationInterval is used to ensure that a new signed log root is generated after a while,
-	// even if no entries have been added to the log.  Zero duration disables this behavior.
-	maxRootDurationInterval time.Duration
 }
 
 // maxTreeDepth sets an upper limit on the size of Log trees.
@@ -115,19 +107,6 @@ func NewSequencer(
 		signer:     signer,
 		qm:         qm,
 	}
-}
-
-// SetGuardWindow changes the interval that must elapse between leaves being queued and them
-// being eligible for sequencing. The default is a zero interval.
-func (s *Sequencer) SetGuardWindow(sequencerGuardWindow time.Duration) {
-	s.sequencerGuardWindow = sequencerGuardWindow
-}
-
-// SetMaxRootDurationInterval changes the interval after which a log root is generated regardless of
-// whether entries have been added to the log. The default is a zero interval, which
-// disables the behavior.
-func (s *Sequencer) SetMaxRootDurationInterval(interval time.Duration) {
-	s.maxRootDurationInterval = interval
 }
 
 // TODO: This currently doesn't use the batch api for fetching the required nodes. This
@@ -226,7 +205,7 @@ func (s Sequencer) createRootSignature(ctx context.Context, root trillian.Signed
 // TODO(Martin2112): Can possibly improve by deferring a function that attempts to rollback,
 // which will fail if the tx was committed. Should only do this if we can hide the details of
 // the underlying storage transactions and it doesn't create other problems.
-func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int) (int, error) {
+func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int, guardWindow, maxRootDurationInterval time.Duration) (int, error) {
 	start := s.timeSource.Now()
 	stageStart := start
 	label := strconv.FormatInt(logID, 10)
@@ -240,7 +219,7 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int) (i
 	defer seqLatency.Observe(s.sinceMillis(start), label)
 
 	// Very recent leaves inside the guard window will not be available for sequencing
-	guardCutoffTime := s.timeSource.Now().Add(-s.sequencerGuardWindow)
+	guardCutoffTime := s.timeSource.Now().Add(-guardWindow)
 	leaves, err := tx.DequeueLeaves(ctx, limit, guardCutoffTime)
 	if err != nil {
 		glog.Warningf("%v: Sequencer failed to dequeue leaves: %v", logID, err)
@@ -277,7 +256,7 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int) (i
 	if len(leaves) == 0 {
 		nowNanos := s.timeSource.Now().UnixNano()
 		interval := time.Duration(nowNanos - currentRoot.TimestampNanos)
-		if s.maxRootDurationInterval == 0 || interval < s.maxRootDurationInterval {
+		if maxRootDurationInterval == 0 || interval < maxRootDurationInterval {
 			// We have nothing to integrate into the tree
 			glog.V(1).Infof("No leaves sequenced in this signing operation.")
 			return 0, tx.Commit()
