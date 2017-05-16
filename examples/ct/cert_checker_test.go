@@ -23,153 +23,133 @@ import (
 	"github.com/google/trillian/examples/ct/testonly"
 )
 
-func TestIsPrecertificate(t *testing.T) {
-	cert := pemToCert(t, testonly.PrecertPEMValid)
-
-	isPrecert, err := IsPrecertificate(cert)
-	if err != nil {
-		t.Fatalf("Unexpected error from precert check %v", err)
-	}
-	if !isPrecert {
-		t.Fatal("Valid precert not recognized")
-	}
-
-	// Wipe all the extensions and try again
+func wipeExtensions(cert *x509.Certificate) *x509.Certificate {
 	cert.Extensions = cert.Extensions[:0]
-	isPrecert, err = IsPrecertificate(cert)
+	return cert
+}
 
-	if err != nil {
-		t.Fatalf("Unexpected error from precert check %v", err)
+func makePoisonNonCritical(cert *x509.Certificate) *x509.Certificate {
+	// Invalid as a pre-cert because poison extension needs to be marked as critical.
+	cert.Extensions = []pkix.Extension{{Id: ctPoisonExtensionOID, Critical: false, Value: asn1NullBytes}}
+	return cert
+}
+
+func makePoisonNonNull(cert *x509.Certificate) *x509.Certificate {
+	// Invalid as a pre-cert because poison extension is not ASN.1 NULL value.
+	cert.Extensions = []pkix.Extension{{Id: ctPoisonExtensionOID, Critical: false, Value: []byte{0x42, 0x42, 0x42}}}
+	return cert
+}
+
+func TestIsPrecertificate(t *testing.T) {
+	var tests = []struct {
+		desc        string
+		cert        *x509.Certificate
+		wantPrecert bool
+		wantErr     bool
+	}{
+		{
+			desc:        "valid-precert",
+			cert:        pemToCert(t, testonly.PrecertPEMValid),
+			wantPrecert: true,
+		},
+		{
+			desc:        "valid-cert",
+			cert:        pemToCert(t, testonly.CACertPEM),
+			wantPrecert: false,
+		},
+		{
+			desc:        "remove-exts-from-precert",
+			cert:        wipeExtensions(pemToCert(t, testonly.PrecertPEMValid)),
+			wantPrecert: false,
+		},
+		{
+			desc:        "poison-non-critical",
+			cert:        makePoisonNonCritical(pemToCert(t, testonly.PrecertPEMValid)),
+			wantPrecert: false,
+			wantErr:     true,
+		},
+		{
+			desc:        "poison-non-null",
+			cert:        makePoisonNonNull(pemToCert(t, testonly.PrecertPEMValid)),
+			wantPrecert: false,
+			wantErr:     true,
+		},
 	}
-	if isPrecert {
-		t.Fatal("Non precert misclassified")
+
+	for _, test := range tests {
+		gotPrecert, err := IsPrecertificate(test.cert)
+		if err != nil {
+			if !test.wantErr {
+				t.Errorf("IsPrecertificate(%v)=%v,%v; want %v,nil", test.desc, gotPrecert, err, test.wantPrecert)
+			}
+			continue
+		}
+		if test.wantErr {
+			t.Errorf("IsPrecertificate(%v)=%v,%v; want _,%v", test.desc, gotPrecert, err, test.wantErr)
+		}
+		if gotPrecert != test.wantPrecert {
+			t.Errorf("IsPrecertificate(%v)=%v,%v; want %v,nil", test.desc, gotPrecert, err, test.wantPrecert)
+		}
 	}
 }
 
-func TestIsPrecertificateNormalCert(t *testing.T) {
-	cert := pemToCert(t, testonly.CACertPEM)
-
-	isPrecert, err := IsPrecertificate(cert)
-
-	if err != nil {
-		t.Fatalf("Unexpected error from precert check %v", err)
-	}
-	if isPrecert {
-		t.Fatal("Non precert misclassified")
-	}
-}
-
-func TestIsPrecertificateInvalidNonCriticalExtension(t *testing.T) {
-	cert := pemToCert(t, testonly.PrecertPEMValid)
-	// Invalid because it's not marked as critical
-	ext := pkix.Extension{Id: ctPoisonExtensionOID, Critical: false, Value: asn1NullBytes}
-
-	cert.Extensions = []pkix.Extension{ext}
-	_, err := IsPrecertificate(cert)
-	if err == nil {
-		t.Fatal("incorrectly accepted non critical CT extension")
-	}
-}
-
-func TestIsPrecertificateInvalidBytesInExtension(t *testing.T) {
-	cert := pemToCert(t, testonly.PrecertPEMValid)
-	// Invalid because it's not asn.1 null
-	ext := pkix.Extension{Id: ctPoisonExtensionOID, Critical: false, Value: []byte{0x42, 0x42, 0x42}}
-
-	cert.Extensions = []pkix.Extension{ext}
-	_, err := IsPrecertificate(cert)
-
-	if err == nil {
-		t.Fatal("incorrectly accepted invalid CT extension")
-	}
-}
-
-func TestCertCheckerInvalidChainAccepted(t *testing.T) {
-	// This shouldn't validate as it's missing the intermediate cert
-	chainPem := []string{testonly.LeafSignedByFakeIntermediateCertPEM}
-	jsonChain := pemsToDERChain(t, chainPem)
-	trustedRoots := NewPEMCertPool()
-
-	if !trustedRoots.AppendCertsFromPEM([]byte(testonly.FakeCACertPEM)) {
+func TestValidateChain(t *testing.T) {
+	fakeCARoots := NewPEMCertPool()
+	if !fakeCARoots.AppendCertsFromPEM([]byte(testonly.FakeCACertPEM)) {
 		t.Fatal("failed to load fake root")
 	}
-
-	_, err := ValidateChain(jsonChain, CertValidationOpts{trustedRoots, false, []x509.ExtKeyUsage{x509.ExtKeyUsageAny}})
-	if err == nil {
-		t.Fatal("verification accepted an invalid chain (missing intermediate)")
-	}
-}
-
-func TestCertCheckerInvalidChainRejectedOrdering(t *testing.T) {
-	// This chain shouldn't validate because the order of presentation is wrong
-	chainPem := []string{testonly.FakeIntermediateCertPEM, testonly.LeafSignedByFakeIntermediateCertPEM}
-	jsonChain := pemsToDERChain(t, chainPem)
-	trustedRoots := NewPEMCertPool()
-
-	if !trustedRoots.AppendCertsFromPEM([]byte(testonly.FakeCACertPEM)) {
-		t.Fatal("failed to load fake root")
+	validateOpts := CertValidationOpts{
+		trustedRoots:  fakeCARoots,
+		rejectExpired: false,
+		extKeyUsages:  []x509.ExtKeyUsage{x509.ExtKeyUsageAny},
 	}
 
-	_, err := ValidateChain(jsonChain, CertValidationOpts{trustedRoots, false, []x509.ExtKeyUsage{x509.ExtKeyUsageAny}})
-
-	if err == nil {
-		t.Fatal("verification accepted an invalid chain (ordering)")
+	var tests = []struct {
+		desc        string
+		chain       [][]byte
+		wantErr     bool
+		wantPathLen int
+	}{
+		{
+			desc:    "missing-intermediate-cert",
+			chain:   pemsToDERChain(t, []string{testonly.LeafSignedByFakeIntermediateCertPEM}),
+			wantErr: true,
+		},
+		{
+			desc:    "wrong-cert-order",
+			chain:   pemsToDERChain(t, []string{testonly.FakeIntermediateCertPEM, testonly.LeafSignedByFakeIntermediateCertPEM}),
+			wantErr: true,
+		},
+		{
+			desc:    "unrelated-cert-in-chain",
+			chain:   pemsToDERChain(t, []string{testonly.FakeIntermediateCertPEM, testonly.TestCertPEM}),
+			wantErr: true,
+		},
+		{
+			desc:    "unrelated-cert-after-chain",
+			chain:   pemsToDERChain(t, []string{testonly.LeafSignedByFakeIntermediateCertPEM, testonly.FakeIntermediateCertPEM, testonly.TestCertPEM}),
+			wantErr: true,
+		},
+		{
+			desc:        "valid-chain",
+			chain:       pemsToDERChain(t, []string{testonly.LeafSignedByFakeIntermediateCertPEM, testonly.FakeIntermediateCertPEM}),
+			wantPathLen: 3,
+		},
 	}
-}
-
-func TestCertCheckerInvalidChainRejectedBadChain(t *testing.T) {
-	// This chain shouldn't validate because the chain contains unrelated certs
-	chainPem := []string{testonly.FakeIntermediateCertPEM, testonly.TestCertPEM}
-	jsonChain := pemsToDERChain(t, chainPem)
-	trustedRoots := NewPEMCertPool()
-
-	if !trustedRoots.AppendCertsFromPEM([]byte(testonly.FakeCACertPEM)) {
-		t.Fatal("failed to load fake root")
-	}
-
-	_, err := ValidateChain(jsonChain, CertValidationOpts{trustedRoots, false, []x509.ExtKeyUsage{x509.ExtKeyUsageAny}})
-
-	if err == nil {
-		t.Fatal("verification accepted an invalid chain (unrelated)")
-	}
-}
-
-func TestCertCheckerInvalidChainRejectedBadChainUnrelatedAppended(t *testing.T) {
-	// This chain shouldn't validate because the otherwise valid chain contains an unrelated cert
-	// at the end
-	chainPem := []string{testonly.LeafSignedByFakeIntermediateCertPEM, testonly.FakeIntermediateCertPEM, testonly.TestCertPEM}
-	jsonChain := pemsToDERChain(t, chainPem)
-	trustedRoots := NewPEMCertPool()
-
-	if !trustedRoots.AppendCertsFromPEM([]byte(testonly.FakeCACertPEM)) {
-		t.Fatal("failed to load fake root")
-	}
-
-	_, err := ValidateChain(jsonChain, CertValidationOpts{trustedRoots, false, []x509.ExtKeyUsage{x509.ExtKeyUsageAny}})
-
-	if err == nil {
-		t.Fatal("verification accepted an invalid chain (unrelated at end)")
-	}
-}
-
-func TestCertCheckerValidChainAccepted(t *testing.T) {
-	// This chain should validate up to the fake root CA
-	chainPem := []string{testonly.LeafSignedByFakeIntermediateCertPEM, testonly.FakeIntermediateCertPEM}
-	jsonChain := pemsToDERChain(t, chainPem)
-	trustedRoots := NewPEMCertPool()
-
-	if !trustedRoots.AppendCertsFromPEM([]byte(testonly.FakeCACertPEM)) {
-		t.Fatal("failed to load fake root")
-	}
-
-	validPath, err := ValidateChain(jsonChain, CertValidationOpts{trustedRoots, false, []x509.ExtKeyUsage{x509.ExtKeyUsageAny}})
-
-	if err != nil {
-		t.Fatalf("unexpected error verifying valid chain %v", err)
-	}
-	// Expect leaf/intermediate/root.
-	if got, want := len(validPath), 3; got != want {
-		t.Fatalf(" got path of len %d, but expected length %d", got, want)
+	for _, test := range tests {
+		gotPath, err := ValidateChain(test.chain, validateOpts)
+		if err != nil {
+			if !test.wantErr {
+				t.Errorf("ValidateChain(%v)=%v,%v; want _,nil", test.desc, gotPath, err)
+			}
+			continue
+		}
+		if test.wantErr {
+			t.Errorf("ValidateChain(%v)=%v,%v; want _,non-nil", test.desc, gotPath, err)
+		}
+		if len(gotPath) != test.wantPathLen {
+			t.Errorf("|ValidateChain(%v)|=%d; want %d", test.desc, len(gotPath), test.wantPathLen)
+		}
 	}
 }
 
@@ -186,17 +166,14 @@ func pemsToDERChain(t *testing.T, pemCerts []string) [][]byte {
 
 func pemToCert(t *testing.T, pemData string) *x509.Certificate {
 	bytes, rest := pem.Decode([]byte(pemData))
-
 	if len(rest) > 0 {
 		t.Fatalf("Extra data after PEM: %v", rest)
 		return nil
 	}
 
 	cert, err := x509.ParseCertificate(bytes.Bytes)
-
 	if err != nil {
 		_, ok := err.(x509.NonFatalErrors)
-
 		if !ok {
 			t.Fatal(err)
 			return nil
