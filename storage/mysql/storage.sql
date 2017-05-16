@@ -111,6 +111,9 @@ CREATE TABLE IF NOT EXISTS SequencedLeafData(
 
 CREATE TABLE IF NOT EXISTS Unsequenced(
   TreeId               BIGINT NOT NULL,
+  -- The bucket field is to allow the use of time based ring bucketed schemes if desired. If
+  -- unused this should be set to zero for all entries.
+  Bucket               INTEGER NOT NULL,
   -- This is a personality specific hash of some subset of the leaf data.
   -- It's only purpose is to allow Trillian to identify duplicate entries in
   -- the context of the personality.
@@ -119,7 +122,7 @@ CREATE TABLE IF NOT EXISTS Unsequenced(
   -- CT this hash will include the leaf prefix byte as well as the leaf data.
   MerkleLeafHash       VARBINARY(255) NOT NULL,
   QueueTimestampNanos  BIGINT NOT NULL,
-  PRIMARY KEY (TreeId, QueueTimestampNanos, LeafIdentityHash)
+  PRIMARY KEY (TreeId, Bucket, QueueTimestampNanos, LeafIdentityHash)
 );
 
 
