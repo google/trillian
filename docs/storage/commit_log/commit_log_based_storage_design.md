@@ -16,13 +16,16 @@ from the commit log to serve queries.
 This design allows for:
 
 *   flexibility in scaling Trillian deployments,
-*   easier recovery from corrupt/failed database deployments since operators
-can simply delete it and allow it to rebuild itself from the commit log.
+*   easier recovery from corrupt/failed database deployments since in many
+    cases operators can simply delete the failed DB instance and allow it to be
+    rebuilt from the commit log, while the remaining instances continue to
+    serve.
 
 Initially, this will be built using Apache Kafka for the commit log, with
-Apache HBase instances for the serving databases, since this is what Cloudflare
-has operational experience in running, but other distributed commit-log and
-database engines may be available.
+datacentre-local Apache HBase instances for the serving databases, since this
+is what Cloudflare has operational experience in running, but other distributed
+commit-log and database engines may be available - this model should also work
+with instance-local database implementations such as RocksDB etc. too.
 
 Having Trillian support a commit-log based storage system will also ensure
 Trillian doesn't inadvertently tie itself exclusively to strong globally
@@ -59,12 +62,11 @@ the Kafka topics, and, consequently, are essentially disposable.
 Queued leaves are sent by the Trillian frontends to the Kafka `Leaves` topic.
 Since Kafka topics are append-only and immutable, this effectively sequences
 the entries in the queue.
-The current master sequencer consumes the `Leaves` topic, uses the Kafka sequence
-number of each dequeued leaf as its Trillian Log sequence number, and adds it to
-the local Merkle tree ensuring the sequence numbers match.
-
-When a new tree head is created, the sequencer writes this to the STHs topic
-before committing the tree update to the local database.
+The signer nodes track the leaves and STHs topics to bring their local database
+instances up-to-date.  The current master signer will additionally incorporate
+new entries in the leaves topic into its tree, ensuring the Kafka offset number
+of each leaf matches its position in the Merkle tree, then generate a new
+STH which it publishes to the STH topic before updating its local database.
 
 Since the commit log forms the source of truth for the log entry ordering and
 committed STHs, everything else can be derived from that. This means that
