@@ -65,19 +65,22 @@ fi
 INIT_SQL=$(mktemp)
 chmod 0600 "${INIT_SQL}"
 
-# Create the following users:
+# Create/alter the following users:
 # - root user for administrative purposes.
 # - dummy user with no password or rights, for use by health checks.
 # - SST user for use by Galera to replicate database state between nodes.
 # TODO(robpercival): Restrict root access.
 cat > "$INIT_SQL" <<EOSQL
-DELETE FROM mysql.user;
-CREATE USER 'root'@'%' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}';
+DROP USER IF EXISTS 'root'@'localhost';
+ALTER USER IF EXISTS 'root'@'%' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}';
+CREATE USER IF NOT EXISTS 'root'@'%' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}';
 GRANT ALL ON *.* TO 'root'@'%' WITH GRANT OPTION;
 
-CREATE USER 'dummy'@'localhost';
+CREATE USER IF NOT EXISTS 'dummy'@'localhost';
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'dummy'@'localhost';
 
-CREATE USER '${WSREP_SST_USER}'@'localhost' IDENTIFIED BY '${WSREP_SST_PASSWORD}';
+ALTER USER IF EXISTS '${WSREP_SST_USER}'@'localhost' IDENTIFIED BY '${WSREP_SST_PASSWORD}';
+CREATE USER IF NOT EXISTS '${WSREP_SST_USER}'@'localhost' IDENTIFIED BY '${WSREP_SST_PASSWORD}';
 GRANT PROCESS, RELOAD, LOCK TABLES, REPLICATION CLIENT ON *.* TO '${WSREP_SST_USER}'@'localhost';
 FLUSH PRIVILEGES;
 EOSQL
