@@ -23,6 +23,8 @@ import (
 	"github.com/google/trillian/examples/ct/testonly"
 )
 
+var testValidationOpts = CertValidationOpts{trustedRoots, false, []x509.ExtKeyUsage{x509.ExtKeyUsageAny}}
+
 func TestIsPrecertificate(t *testing.T) {
 	cert := pemToCert(t, testonly.PrecertPEMValid)
 
@@ -94,8 +96,7 @@ func TestCertCheckerInvalidChainAccepted(t *testing.T) {
 		t.Fatal("failed to load fake root")
 	}
 
-	_, err := ValidateChain(jsonChain, *trustedRoots, false)
-
+	_, err := ValidateChain(jsonChain, testValidationOpts)
 	if err == nil {
 		t.Fatal("verification accepted an invalid chain (missing intermediate)")
 	}
@@ -111,7 +112,7 @@ func TestCertCheckerInvalidChainRejectedOrdering(t *testing.T) {
 		t.Fatal("failed to load fake root")
 	}
 
-	_, err := ValidateChain(jsonChain, *trustedRoots, false)
+	_, err := ValidateChain(jsonChain, testValidationOpts)
 
 	if err == nil {
 		t.Fatal("verification accepted an invalid chain (ordering)")
@@ -128,7 +129,7 @@ func TestCertCheckerInvalidChainRejectedBadChain(t *testing.T) {
 		t.Fatal("failed to load fake root")
 	}
 
-	_, err := ValidateChain(jsonChain, *trustedRoots, false)
+	_, err := ValidateChain(jsonChain, testValidationOpts)
 
 	if err == nil {
 		t.Fatal("verification accepted an invalid chain (unrelated)")
@@ -146,7 +147,7 @@ func TestCertCheckerInvalidChainRejectedBadChainUnrelatedAppended(t *testing.T) 
 		t.Fatal("failed to load fake root")
 	}
 
-	_, err := ValidateChain(jsonChain, *trustedRoots, false)
+	_, err := ValidateChain(jsonChain, testValidationOpts)
 
 	if err == nil {
 		t.Fatal("verification accepted an invalid chain (unrelated at end)")
@@ -163,7 +164,7 @@ func TestCertCheckerValidChainAccepted(t *testing.T) {
 		t.Fatal("failed to load fake root")
 	}
 
-	validPath, err := ValidateChain(jsonChain, *trustedRoots, false)
+	validPath, err := ValidateChain(jsonChain, testValidationOpts)
 
 	if err != nil {
 		t.Fatalf("unexpected error verifying valid chain %v", err)
