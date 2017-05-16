@@ -21,7 +21,8 @@ RUN go get -v ./server/vmap/trillian_map_server
 ENTRYPOINT /go/bin/trillian_map_server \
 	--mysql_uri="${DB_USER}:${DB_PASSWORD}@tcp(${DB_HOST})/${DB_DATABASE}" \
 	--rpc_endpoint="$HOST:$RPC_PORT" \
-	--http_endpoint="$HOST:$HTTP_PORT" 
+	--http_endpoint="$HOST:$HTTP_PORT" \ 
+	--alsologtostderr \
 
 EXPOSE $HTTP_PORT
 
