@@ -14,4 +14,4 @@
 
 package keyspb
 
-//go:generate protoc -I=. --go_out=:. keyspb.proto
+//go:generate protoc -I=. --go_out=:$GOOUT/src keyspb.proto

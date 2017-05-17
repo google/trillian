@@ -22,7 +22,7 @@ option go_package = "github.com/google/trillian";
 package trillian;
 
 import "trillian.proto";
-import "github.com/google/trillian/crypto/keyspb/keyspb.proto";
+import "crypto/keyspb/keyspb.proto";
 import "google/api/annotations.proto";
 import "google/protobuf/field_mask.proto";
 import "google/protobuf/empty.proto";

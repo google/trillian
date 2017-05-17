@@ -14,4 +14,4 @@
 
 package sigpb
 
-//go:generate protoc -I=. --go_out=:. sigpb.proto
+//go:generate protoc -I=. --go_out=:$GOPATH/src sigpb.proto

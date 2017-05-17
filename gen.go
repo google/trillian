@@ -14,5 +14,5 @@
 
 package trillian
 
-//go:generate protoc -I=. -I=$GOPATH/src -I=$GOPATH/src/github.com/googleapis/googleapis --go_out=plugins=grpc:. trillian_log_api.proto trillian_map_api.proto trillian_admin_api.proto trillian.proto
-//go:generate protoc -I=. -I=$GOPATH/src -I=$GOPATH/src/github.com/google/trillian/vendor/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis -I=$GOPATH/src/github.com/googleapis/googleapis/ --grpc-gateway_out=logtostderr=true:. trillian_log_api.proto trillian_map_api.proto trillian_admin_api.proto trillian.proto
+//go:generate protoc -I=. -I=$GOPATH/src -I=$GOPATH/src/github.com/googleapis/googleapis --go_out=plugins=grpc:$GOPATH/src trillian_log_api.proto trillian_map_api.proto trillian_admin_api.proto trillian.proto
+//go:generate protoc -I=. -I=$GOPATH/src -I=$GOPATH/src/github.com/google/trillian/vendor/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis -I=$GOPATH/src/github.com/googleapis/googleapis/ --grpc-gateway_out=logtostderr=true:$GOPATH/src trillian_log_api.proto trillian_map_api.proto trillian_admin_api.proto trillian.proto
