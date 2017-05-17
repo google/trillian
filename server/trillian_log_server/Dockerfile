@@ -11,7 +11,7 @@ ENV HOST=0.0.0.0 \
 
 ENV DUMP_METRICS 0s
 
-ADD . /go/src/github.com/google/trillian
+ADD . /go/src/github.com/google/trillian 
 WORKDIR /go/src/github.com/google/trillian 
 
 RUN go get -v ./server/trillian_log_server
@@ -20,7 +20,8 @@ ENTRYPOINT /go/bin/trillian_log_server \
 	--mysql_uri="${DB_USER}:${DB_PASSWORD}@tcp(${DB_HOST})/${DB_DATABASE}" \
 	--rpc_endpoint="$HOST:$RPC_PORT" \
 	--http_endpoint="$HOST:$HTTP_PORT" \
-	--dump_metrics_interval="$DUMP_METRICS"
+	--dump_metrics_interval="$DUMP_METRICS" \ 
+	--alsologtostderr 
 
 EXPOSE $RPC_PORT
 EXPOSE $HTTP_PORT
