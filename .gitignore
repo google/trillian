@@ -12,3 +12,4 @@
 *.swp
 *~
 default.etcd
+vendor/*/
