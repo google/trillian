@@ -95,6 +95,22 @@ func NewLogEnv(ctx context.Context, numSequencers int, testID string) (*LogEnv, 
 		LogStorage:    mysql.NewLogStorage(db),
 	}
 
+	ret, err := NewLogEnvWithRegistry(ctx, numSequencers, testID, registry)
+	if err != nil {
+		return nil, err
+	}
+	ret.DB = db
+	return ret, nil
+}
+
+// NewLogEnvWithRegistry uses the passed in Registry to create a log server,
+// and client. The numSequencers parameter indicates how many sequencers to
+// run in parallel; if numSequencers is zero a manually-controlled test
+// sequencer is used.
+// testID should be unique to each unittest package so as to allow parallel
+// tests.
+func NewLogEnvWithRegistry(ctx context.Context, numSequencers int, testID string, registry extension.Registry) (*LogEnv, error) {
+
 	// Create Log Server.
 	grpcServer := grpc.NewServer()
 	logServer := server.NewTrillianLogRPCServer(registry, timeSource)
@@ -151,7 +167,6 @@ func NewLogEnv(ctx context.Context, numSequencers int, testID string) (*LogEnv, 
 		grpcServer:      grpcServer,
 		logServer:       logServer,
 		ClientConn:      cc,
-		DB:              db,
 		PublicKey:       publicKey,
 		LogOperation:    sequencerManager,
 		Sequencer:       sequencerTask,
@@ -167,7 +182,9 @@ func (env *LogEnv) Close() {
 	env.ClientConn.Close()
 	env.grpcServer.GracefulStop()
 	env.pendingTasks.Wait()
-	env.DB.Close()
+	if env.DB != nil {
+		env.DB.Close()
+	}
 }
 
 // CreateLog creates a log and signs the first empty tree head.

@@ -21,6 +21,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math/rand"
 	"strings"
 	"time"
 
@@ -39,6 +40,7 @@ type TestParameters struct {
 	awaitSequencing     bool
 	startLeaf           int64
 	leafCount           int64
+	uniqueLeaves        int64
 	queueBatchSize      int
 	sequencerBatchSize  int
 	readBatchSize       int64
@@ -58,6 +60,7 @@ func DefaultTestParameters(treeID int64) TestParameters {
 		awaitSequencing:     true,
 		startLeaf:           0,
 		leafCount:           1000,
+		uniqueLeaves:        1000,
 		queueBatchSize:      50,
 		sequencerBatchSize:  100,
 		readBatchSize:       50,
@@ -102,9 +105,11 @@ func RunLogIntegration(client trillian.TrillianLogClient, params TestParameters)
 		}
 	}
 
+	var leafCounts map[string]int
+	var err error
 	if params.queueLeaves {
 		glog.Infof("Queueing %d leaves to log server ...", params.leafCount)
-		if err := queueLeaves(client, params); err != nil {
+		if leafCounts, err = queueLeaves(client, params); err != nil {
 			return fmt.Errorf("failed to queue leaves: %v", err)
 		}
 	}
@@ -119,7 +124,7 @@ func RunLogIntegration(client trillian.TrillianLogClient, params TestParameters)
 
 	// Step 3 - Use get entries to read back what was written, check leaves are correct
 	glog.Infof("Reading back leaves from log ...")
-	leafMap, err := readbackLogEntries(params.treeID, client, params)
+	leafMap, err := readbackLogEntries(params.treeID, client, params, leafCounts)
 
 	if err != nil {
 		return fmt.Errorf("could not read back log entries: %v", err)
@@ -157,6 +162,8 @@ func RunLogIntegration(client trillian.TrillianLogClient, params TestParameters)
 		}
 	}
 
+	// TODO(al): test some inclusion proofs by Merkle hash too.
+
 	// Step 6 - Test some consistency proofs
 	glog.Info("Testing consistency proofs")
 
@@ -185,12 +192,16 @@ func RunLogIntegration(client trillian.TrillianLogClient, params TestParameters)
 	return nil
 }
 
-func queueLeaves(client trillian.TrillianLogClient, params TestParameters) error {
+func queueLeaves(client trillian.TrillianLogClient, params TestParameters) (map[string]int, error) {
+	if params.uniqueLeaves == 0 {
+		params.uniqueLeaves = params.leafCount
+	}
+
 	leaves := []*trillian.LogLeaf{}
 
-	for l := int64(0); l < params.leafCount; l++ {
-		// Leaf data based on the sequence number so we can check the hashes
-		leafNumber := params.startLeaf + l
+	uniqueLeaves := make([]*trillian.LogLeaf, 0, params.uniqueLeaves)
+	for i := int64(0); i < params.uniqueLeaves; i++ {
+		leafNumber := params.startLeaf + i
 
 		data := []byte(fmt.Sprintf("%sLeaf %d", params.customLeafPrefix, leafNumber))
 		idHash := sha256.Sum256(data)
@@ -200,10 +211,25 @@ func queueLeaves(client trillian.TrillianLogClient, params TestParameters) error
 			LeafValue:        data,
 			ExtraData:        []byte(fmt.Sprintf("%sExtra %d", params.customLeafPrefix, leafNumber)),
 		}
+
+		uniqueLeaves = append(uniqueLeaves, leaf)
+	}
+
+	// We'll shuffle the sent leaves around a bit to see if that breaks things,
+	// but record and log the seed we use so we can reproduce failures.
+	seed := time.Now().UnixNano()
+	rand.Seed(seed)
+	perm := rand.Perm(int(params.leafCount))
+	glog.Infof("Queueing %d leaves total, built from %d unique leaves, using permutation seed %d", params.leafCount, len(uniqueLeaves), seed)
+
+	counts := make(map[string]int)
+	for l := int64(0); l < params.leafCount; l++ {
+		leaf := uniqueLeaves[int64(perm[l])%params.uniqueLeaves]
 		leaves = append(leaves, leaf)
+		counts[string(leaf.LeafValue)]++
 
 		if len(leaves) >= params.queueBatchSize || (l+1) == params.leafCount {
-			glog.Infof("Queueing %d leaves ...", len(leaves))
+			glog.Infof("Queueing %d leaves...", len(leaves))
 
 			ctx, cancel := getRPCDeadlineContext(params)
 			b := &backoff.Backoff{
@@ -223,13 +249,13 @@ func queueLeaves(client trillian.TrillianLogClient, params TestParameters) error
 			cancel()
 
 			if err != nil {
-				return err
+				return nil, err
 			}
 			leaves = leaves[:0] // starting new batch
 		}
 	}
 
-	return nil
+	return counts, nil
 }
 
 func waitForSequencing(treeID int64, client trillian.TrillianLogClient, params TestParameters) error {
@@ -261,17 +287,19 @@ func waitForSequencing(treeID int64, client trillian.TrillianLogClient, params T
 	return errors.New("wait time expired")
 }
 
-func readbackLogEntries(logID int64, client trillian.TrillianLogClient, params TestParameters) (map[int64]*trillian.LogLeaf, error) {
+func readbackLogEntries(logID int64, client trillian.TrillianLogClient, params TestParameters, expect map[string]int) (map[int64]*trillian.LogLeaf, error) {
+	// Take a copy of the expect map, since we'll be modifying it:
+	expect = func(m map[string]int) map[string]int {
+		r := make(map[string]int)
+		for k, v := range m {
+			r[k] = v
+		}
+		return r
+	}(expect)
+
 	currentLeaf := int64(0)
 	leafMap := make(map[int64]*trillian.LogLeaf)
-
-	// Build a map of all the leaf data we expect to have seen when we've read all the leaves.
-	// Have to work with strings because slices can't be map keys. Sigh.
-	leafDataPresenceMap := make(map[string]bool)
-
-	for l := int64(0); l < params.leafCount; l++ {
-		leafDataPresenceMap[fmt.Sprintf("%sLeaf %d", params.customLeafPrefix, l+params.startLeaf)] = true
-	}
+	glog.Infof("Expecting %d unique leaves", len(expect))
 
 	for currentLeaf < params.leafCount {
 		// We have to allow for the last batch potentially being a short one
@@ -302,20 +330,13 @@ func readbackLogEntries(logID int64, client trillian.TrillianLogClient, params T
 			// Check for duplicate leaf index in response data - should not happen
 			leaf := response.Leaves[l]
 
-			if _, ok := leafMap[leaf.LeafIndex]; ok {
-				return nil, fmt.Errorf("got duplicate leaf sequence number: %d", leaf.LeafIndex)
-			}
+			lk := string(leaf.LeafValue)
+			expect[lk]--
 
+			if expect[lk] == 0 {
+				delete(expect, lk)
+			}
 			leafMap[leaf.LeafIndex] = leaf
-
-			// Test for having seen duplicate leaf data - it should all be distinct
-			_, ok := leafDataPresenceMap[string(leaf.LeafValue)]
-
-			if !ok {
-				return nil, fmt.Errorf("leaf data duplicated for leaf: %v", leaf)
-			}
-
-			delete(leafDataPresenceMap, string(leaf.LeafValue))
 
 			hash := testonly.Hasher.HashLeaf(leaf.LeafValue)
 
@@ -334,8 +355,8 @@ func readbackLogEntries(logID int64, client trillian.TrillianLogClient, params T
 	}
 
 	// By this point we expect to have seen all the leaves so there should be nothing in the map
-	if len(leafDataPresenceMap) != 0 {
-		return nil, fmt.Errorf("missing leaves from data read back: %v", leafDataPresenceMap)
+	if len(expect) != 0 {
+		return nil, fmt.Errorf("incorrect leaves read back (+missing, -extra): %v", expect)
 	}
 
 	return leafMap, nil
