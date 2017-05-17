@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2017 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,158 +12,144 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mysql
+package memory
 
 import (
+	"container/list"
 	"context"
-	"database/sql"
 	"fmt"
 	"strings"
 	"sync"
 
 	"github.com/golang/glog"
-	"github.com/golang/protobuf/proto"
+	"github.com/google/btree"
+	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/storage/storagepb"
 )
 
-// These statements are fixed
-const (
-	insertSubtreeMultiSQL = `INSERT INTO Subtree(TreeId, SubtreeId, Nodes, SubtreeRevision) ` + placeholderSQL
-	insertTreeHeadSQL     = `INSERT INTO TreeHead(TreeId,TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature)
-		 VALUES(?,?,?,?,?,?)`
-	selectTreeRevisionAtSizeOrLargerSQL = "SELECT TreeRevision,TreeSize FROM TreeHead WHERE TreeId=? AND TreeSize>=? ORDER BY TreeRevision LIMIT 1"
-	selectActiveLogsSQL                 = "SELECT TreeId from Trees where TreeType='LOG'"
-	selectActiveLogsWithUnsequencedSQL  = "SELECT DISTINCT t.TreeId from Trees t INNER JOIN Unsequenced u WHERE TreeType='LOG' AND t.TreeId=u.TreeId"
+const degree = 8
 
-	selectSubtreeSQL = `
- SELECT x.SubtreeId, x.MaxRevision, Subtree.Nodes
- FROM (
- 	SELECT n.SubtreeId, max(n.SubtreeRevision) AS MaxRevision
-	FROM Subtree n
-	WHERE n.SubtreeId IN (` + placeholderSQL + `) AND
-	 n.TreeId = ? AND n.SubtreeRevision <= ?
-	GROUP BY n.SubtreeId
- ) AS x
- INNER JOIN Subtree 
- ON Subtree.SubtreeId = x.SubtreeId 
- AND Subtree.SubtreeRevision = x.MaxRevision 
- AND Subtree.TreeId = ?`
-	placeholderSQL = "<placeholder>"
-)
+func subtreeKey(treeID, rev int64, nodeID storage.NodeID) btree.Item {
+	return &kv{k: fmt.Sprintf("/%d/subtree/%s/%d", treeID, nodeID.String(), rev)}
+}
 
-// mySQLTreeStorage is shared between the mySQLLog- and (forthcoming) mySQLMap-
+// tree stores all data for a given treeID
+type tree struct {
+	mu    sync.RWMutex
+	store *btree.BTree
+	// currentSTH is the timestamp of the current STH.
+	currentSTH int64
+	meta       *trillian.Tree
+}
+
+func (t *tree) Lock() {
+	t.mu.Lock()
+}
+
+func (t *tree) Unlock() {
+	t.mu.Unlock()
+}
+
+func (t *tree) RLock() {
+	t.mu.RLock()
+}
+
+func (t *tree) RUnlock() {
+	t.mu.RUnlock()
+}
+
+// Dump ascends the tree, logging the items contained.
+func Dump(t *btree.BTree) {
+	t.Ascend(func(i btree.Item) bool {
+		glog.Infof("%#v", i)
+		return true
+	})
+}
+
+// memoryTreeStorage is shared between the memoryLog and (forthcoming) memoryMap-
 // Storage implementations, and contains functionality which is common to both,
-type mySQLTreeStorage struct {
-	db *sql.DB
-
-	// Must hold the mutex before manipulating the statement map. Sharing a lock because
-	// it only needs to be held while the statements are built, not while they execute and
-	// this will be a short time. These maps are from the number of placeholder '?'
-	// in the query to the statement that should be used.
-	statementMutex sync.Mutex
-	statements     map[string]map[int]*sql.Stmt
+type memoryTreeStorage struct {
+	mu    sync.RWMutex
+	trees map[int64]*tree
 }
 
-// OpenDB opens a database connection for all MySQL-based storage implementations.
-func OpenDB(dbURL string) (*sql.DB, error) {
-	db, err := sql.Open("mysql", dbURL)
-	if err != nil {
-		// Don't log uri as it could contain credentials
-		glog.Warningf("Could not open MySQL database, check config: %s", err)
-		return nil, err
-	}
-
-	if _, err := db.ExecContext(context.TODO(), "SET sql_mode = 'STRICT_ALL_TABLES'"); err != nil {
-		glog.Warningf("Failed to set strict mode on mysql db: %s", err)
-		return nil, err
-	}
-
-	return db, nil
-}
-
-func newTreeStorage(db *sql.DB) *mySQLTreeStorage {
-	return &mySQLTreeStorage{
-		db:         db,
-		statements: make(map[string]map[int]*sql.Stmt),
+func newTreeStorage() *memoryTreeStorage {
+	return &memoryTreeStorage{
+		trees: make(map[int64]*tree),
 	}
 }
 
-// expandPlaceholderSQL expands an sql statement by adding a specified number of '?'
-// placeholder slots. At most one placeholder will be expanded.
-func expandPlaceholderSQL(sql string, num int, first, rest string) string {
-	if num <= 0 {
-		panic(fmt.Errorf("Trying to expand SQL placeholder with <= 0 parameters: %s", sql))
-	}
-
-	parameters := first + strings.Repeat(","+rest, num-1)
-
-	return strings.Replace(sql, placeholderSQL, parameters, 1)
+// getTree returns the tree associated with id, or nil if no such tree exists.
+func (m *memoryTreeStorage) getTree(id int64) *tree {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.trees[id]
 }
 
-// getStmt creates and caches sql.Stmt structs based on the passed in statement
-// and number of bound arguments.
-// TODO(al,martin): consider pulling this all out as a separate unit for reuse
-// elsewhere.
-func (m *mySQLTreeStorage) getStmt(ctx context.Context, statement string, num int, first, rest string) (*sql.Stmt, error) {
-	m.statementMutex.Lock()
-	defer m.statementMutex.Unlock()
+// kv is a simple key->value type which implements btree's Item interface.
+type kv struct {
+	k string
+	v interface{}
+}
 
-	if m.statements[statement] != nil {
-		if m.statements[statement][num] != nil {
-			// TODO(al,martin): we'll possibly need to expire Stmts from the cache,
-			// e.g. when DB connections break etc.
-			return m.statements[statement][num], nil
-		}
+// Less than by k's string key
+func (a kv) Less(b btree.Item) bool {
+	return strings.Compare(a.k, b.(*kv).k) < 0
+}
+
+// newTree creates and initializes a tree struct.
+func newTree(t trillian.Tree) *tree {
+	ret := &tree{
+		store: btree.New(degree),
+		meta:  &t,
+	}
+	k := unseqKey(t.TreeId)
+	k.(*kv).v = list.New()
+	ret.store.ReplaceOrInsert(k)
+
+	k = hashToSeqKey(t.TreeId)
+	k.(*kv).v = make(map[string][]int64)
+	ret.store.ReplaceOrInsert(k)
+
+	return ret
+}
+
+func (m *memoryTreeStorage) beginTreeTX(ctx context.Context, readonly bool, treeID int64, hashSizeBytes int, strataDepths []int, populate storage.PopulateSubtreeFunc, prepare storage.PrepareSubtreeWriteFunc) (treeTX, error) {
+	tree := m.getTree(treeID)
+	// Lock the tree for the duration of the TX.
+	// It will be unlocked by a call to Commit or Rollback.
+	var unlock func()
+	if readonly {
+		tree.RLock()
+		unlock = tree.RUnlock
 	} else {
-		m.statements[statement] = make(map[int]*sql.Stmt)
-	}
-
-	s, err := m.db.PrepareContext(ctx, expandPlaceholderSQL(statement, num, first, rest))
-
-	if err != nil {
-		glog.Warningf("Failed to prepare statement %d: %s", num, err)
-		return nil, err
-	}
-
-	m.statements[statement][num] = s
-
-	return s, nil
-}
-
-func (m *mySQLTreeStorage) getSubtreeStmt(ctx context.Context, num int) (*sql.Stmt, error) {
-	return m.getStmt(ctx, selectSubtreeSQL, num, "?", "?")
-}
-
-func (m *mySQLTreeStorage) setSubtreeStmt(ctx context.Context, num int) (*sql.Stmt, error) {
-	return m.getStmt(ctx, insertSubtreeMultiSQL, num, "VALUES(?, ?, ?, ?)", "(?, ?, ?, ?)")
-}
-
-func (m *mySQLTreeStorage) beginTreeTx(ctx context.Context, treeID int64, hashSizeBytes int, strataDepths []int, populate storage.PopulateSubtreeFunc, prepare storage.PrepareSubtreeWriteFunc) (treeTX, error) {
-	t, err := m.db.BeginTx(ctx, nil /* opts */)
-	if err != nil {
-		glog.Warningf("Could not start tree TX: %s", err)
-		return treeTX{}, err
+		tree.Lock()
+		unlock = tree.Unlock
 	}
 	return treeTX{
-		tx:            t,
 		ts:            m,
+		tx:            tree.store.Clone(),
+		tree:          tree,
 		treeID:        treeID,
 		hashSizeBytes: hashSizeBytes,
 		subtreeCache:  cache.NewSubtreeCache(strataDepths, populate, prepare),
 		writeRevision: -1,
+		unlock:        unlock,
 	}, nil
 }
 
 type treeTX struct {
 	closed        bool
-	tx            *sql.Tx
-	ts            *mySQLTreeStorage
+	tx            *btree.BTree
+	ts            *memoryTreeStorage
+	tree          *tree
 	treeID        int64
 	hashSizeBytes int
 	subtreeCache  cache.SubtreeCache
 	writeRevision int64
+	unlock        func()
 }
 
 func (t *treeTX) getSubtree(ctx context.Context, treeRevision int64, nodeID storage.NodeID) (*storagepb.SubtreeProto, error) {
@@ -186,63 +172,22 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []
 		return nil, nil
 	}
 
-	tmpl, err := t.ts.getSubtreeStmt(ctx, len(nodeIDs))
-	if err != nil {
-		return nil, err
-	}
-	stx := t.tx.StmtContext(ctx, tmpl)
-	defer stx.Close()
+	ret := make([]*storagepb.SubtreeProto, 0, len(nodeIDs))
 
-	args := make([]interface{}, 0, len(nodeIDs)+3)
-
-	// populate args with nodeIDs
 	for _, nodeID := range nodeIDs {
 		if nodeID.PrefixLenBits%8 != 0 {
 			return nil, fmt.Errorf("invalid subtree ID - not multiple of 8: %d", nodeID.PrefixLenBits)
 		}
 
-		nodeIDBytes := nodeID.Path[:nodeID.PrefixLenBits/8]
-
-		args = append(args, interface{}(nodeIDBytes))
-	}
-
-	args = append(args, interface{}(t.treeID))
-	args = append(args, interface{}(treeRevision))
-	args = append(args, interface{}(t.treeID))
-
-	rows, err := stx.QueryContext(ctx, args...)
-	if err != nil {
-		glog.Warningf("Failed to get merkle subtrees: %s", err)
-		return nil, err
-	}
-	defer rows.Close()
-
-	if rows.Err() != nil {
-		// Nothing from the DB
-		glog.Warningf("Nothing from DB: %s", rows.Err())
-		return nil, rows.Err()
-	}
-
-	ret := make([]*storagepb.SubtreeProto, 0, len(nodeIDs))
-
-	for rows.Next() {
-
-		var subtreeIDBytes []byte
-		var subtreeRev int64
-		var nodesRaw []byte
-		if err := rows.Scan(&subtreeIDBytes, &subtreeRev, &nodesRaw); err != nil {
-			glog.Warningf("Failed to scan merkle subtree: %s", err)
-			return nil, err
+		// Look for a nodeID at or below treeRevision:
+		for r := treeRevision; r >= 0; r-- {
+			s := t.tx.Get(subtreeKey(t.treeID, r, nodeID))
+			if s == nil {
+				continue
+			}
+			ret = append(ret, s.(*kv).v.(*storagepb.SubtreeProto))
+			break
 		}
-		var subtree storagepb.SubtreeProto
-		if err := proto.Unmarshal(nodesRaw, &subtree); err != nil {
-			glog.Warningf("Failed to unmarshal SubtreeProto: %s", err)
-			return nil, err
-		}
-		if subtree.Prefix == nil {
-			subtree.Prefix = []byte{}
-		}
-		ret = append(ret, &subtree)
 	}
 
 	// The InternalNodes cache is possibly nil here, but the SubtreeCache (which called
@@ -256,76 +201,16 @@ func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.Subtre
 		return nil
 	}
 
-	// TODO(al): probably need to be able to batch this in the case where we have
-	// a really large number of subtrees to store.
-	args := make([]interface{}, 0, len(subtrees))
-
 	for _, s := range subtrees {
 		s := s
 		if s.Prefix == nil {
 			panic(fmt.Errorf("nil prefix on %v", s))
 		}
-		subtreeBytes, err := proto.Marshal(s)
-		if err != nil {
-			return err
-		}
-		args = append(args, t.treeID)
-		args = append(args, s.Prefix)
-		args = append(args, subtreeBytes)
-		args = append(args, t.writeRevision)
+		k := subtreeKey(t.treeID, t.writeRevision, storage.NewNodeIDFromHash(s.Prefix))
+		k.(*kv).v = s
+		t.tx.ReplaceOrInsert(k)
 	}
-
-	tmpl, err := t.ts.setSubtreeStmt(ctx, len(subtrees))
-	if err != nil {
-		return err
-	}
-	stx := t.tx.StmtContext(ctx, tmpl)
-	defer stx.Close()
-
-	r, err := stx.ExecContext(ctx, args...)
-	if err != nil {
-		glog.Warningf("Failed to set merkle subtrees: %s", err)
-		return err
-	}
-	_, _ = r.RowsAffected()
 	return nil
-}
-
-func checkResultOkAndRowCountIs(res sql.Result, err error, count int64) error {
-	// The Exec() might have just failed
-	if err != nil {
-		return err
-	}
-
-	// Otherwise we have to look at the result of the operation
-	rowsAffected, rowsError := res.RowsAffected()
-
-	if rowsError != nil {
-		return rowsError
-	}
-
-	if rowsAffected != count {
-		return fmt.Errorf("Expected %d row(s) to be affected but saw: %d", count,
-			rowsAffected)
-	}
-
-	return nil
-}
-
-// GetTreeRevisionAtSize returns the max node version for a tree at a particular size.
-// It is an error to request tree sizes larger than the currently published tree size.
-// For an inexact tree size this implementation always returns the next largest revision if an
-// exact one does not exist but it isn't required to do so.
-func (t *treeTX) GetTreeRevisionIncludingSize(ctx context.Context, treeSize int64) (int64, int64, error) {
-	// Negative size is not sensible and a zero sized tree has no nodes so no revisions
-	if treeSize <= 0 {
-		return 0, 0, fmt.Errorf("invalid tree size: %d", treeSize)
-	}
-
-	var treeRevision, actualTreeSize int64
-	err := t.tx.QueryRowContext(ctx, selectTreeRevisionAtSizeOrLargerSQL, t.treeID, treeSize).Scan(&treeRevision, &actualTreeSize)
-
-	return treeRevision, actualTreeSize, err
 }
 
 // getSubtreesAtRev returns a GetSubtreesFunc which reads at the passed in rev.
@@ -354,6 +239,8 @@ func (t *treeTX) SetMerkleNodes(ctx context.Context, nodes []storage.Node) error
 }
 
 func (t *treeTX) Commit() error {
+	defer t.unlock()
+
 	if t.writeRevision > -1 {
 		if err := t.subtreeCache.Flush(func(st []*storagepb.SubtreeProto) error {
 			return t.storeSubtrees(context.TODO(), st)
@@ -363,19 +250,15 @@ func (t *treeTX) Commit() error {
 		}
 	}
 	t.closed = true
-	if err := t.tx.Commit(); err != nil {
-		glog.Warningf("TX commit error: %s", err)
-		return err
-	}
+	// update the shared view of the tree post TX:
+	t.tree.store = t.tx
 	return nil
 }
 
 func (t *treeTX) Rollback() error {
+	defer t.unlock()
+
 	t.closed = true
-	if err := t.tx.Rollback(); err != nil {
-		glog.Warningf("TX rollback error: %s", err)
-		return err
-	}
 	return nil
 }
 
@@ -392,14 +275,4 @@ func (t *treeTX) Close() error {
 
 func (t *treeTX) IsOpen() bool {
 	return !t.closed
-}
-
-func checkDatabaseAccessible(ctx context.Context, db *sql.DB) error {
-	stmt, err := db.PrepareContext(ctx, "SELECT TreeId FROM Trees LIMIT 1")
-	if err != nil {
-		return err
-	}
-	defer stmt.Close()
-	_, err = stmt.ExecContext(ctx)
-	return err
 }
