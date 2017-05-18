@@ -24,6 +24,7 @@ for i in $(seq ${num_logs}); do
   # TODO(daviddrysdale): Consider using distinct keys for each log
   tree_id=$(./createtree \
     --admin_server="${ADMIN_SERVER}" \
+    --max_root_duration=12h \
     --pem_key_path=testdata/log-rpc-server.privkey.pem \
     --pem_key_password=towel \
     --signature_algorithm=ECDSA)

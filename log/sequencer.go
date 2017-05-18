@@ -42,11 +42,6 @@ type Sequencer struct {
 	timeSource util.TimeSource
 	logStorage storage.LogStorage
 	signer     *crypto.Signer
-
-	// These parameters could theoretically be adjusted during operation
-	// sequencerGuardWindow is used to ensure entries newer than the guard window will not be
-	// sequenced until they fall outside it. By default there is no guard window.
-	sequencerGuardWindow time.Duration
 }
 
 // maxTreeDepth sets an upper limit on the size of Log trees.
@@ -63,12 +58,6 @@ func NewSequencer(hasher merkle.TreeHasher, timeSource util.TimeSource, logStora
 		logStorage: logStorage,
 		signer:     signer,
 	}
-}
-
-// SetGuardWindow changes the interval that must elapse between leaves being queued and them
-// being eligible for sequencing. The default is a zero interval.
-func (s *Sequencer) SetGuardWindow(sequencerGuardWindow time.Duration) {
-	s.sequencerGuardWindow = sequencerGuardWindow
 }
 
 // TODO: This currently doesn't use the batch api for fetching the required nodes. This
@@ -167,7 +156,7 @@ func (s Sequencer) createRootSignature(ctx context.Context, root trillian.Signed
 // TODO(Martin2112): Can possibly improve by deferring a function that attempts to rollback,
 // which will fail if the tx was committed. Should only do this if we can hide the details of
 // the underlying storage transactions and it doesn't create other problems.
-func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int) (int, error) {
+func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int, guardWindow, maxRootDurationInterval time.Duration) (int, error) {
 	tx, err := s.logStorage.BeginForTree(ctx, logID)
 	if err != nil {
 		glog.Warningf("%v: Sequencer failed to start tx: %v", logID, err)
@@ -176,7 +165,7 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int) (i
 	defer tx.Close()
 
 	// Very recent leaves inside the guard window will not be available for sequencing
-	guardCutoffTime := s.timeSource.Now().Add(-s.sequencerGuardWindow)
+	guardCutoffTime := s.timeSource.Now().Add(-guardWindow)
 	leaves, err := tx.DequeueLeaves(ctx, limit, guardCutoffTime)
 	if err != nil {
 		glog.Warningf("%v: Sequencer failed to dequeue leaves: %v", logID, err)
@@ -197,12 +186,17 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int) (i
 		return 0, s.SignRoot(ctx, logID)
 	}
 
-	// There might be no work to be done. But we possibly still need to create an STH if the
+	// There might be no work to be done. But we possibly still need to create an signed root if the
 	// current one is too old. If there's work to be done then we'll be creating a root anyway.
 	if len(leaves) == 0 {
-		// We have nothing to integrate into the tree
-		glog.V(1).Infof("No leaves sequenced in this signing operation.")
-		return 0, tx.Commit()
+		nowNanos := s.timeSource.Now().UnixNano()
+		interval := time.Duration(nowNanos - currentRoot.TimestampNanos)
+		if maxRootDurationInterval == 0 || interval < maxRootDurationInterval {
+			// We have nothing to integrate into the tree
+			glog.V(1).Infof("No leaves sequenced in this signing operation.")
+			return 0, tx.Commit()
+		}
+		glog.Infof("Force new root generation as %v since last root", interval)
 	}
 
 	merkleTree, err := s.initMerkleTreeFromStorage(ctx, currentRoot, tx)

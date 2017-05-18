@@ -37,6 +37,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
@@ -56,6 +57,7 @@ var (
 	signatureAlgorithm = flag.String("signature_algorithm", sigpb.DigitallySigned_RSA.String(), "Signature algorithm of the new tree")
 	displayName        = flag.String("display_name", "", "Display name of the new tree")
 	description        = flag.String("description", "", "Description of the new tree")
+	maxRootDuration    = flag.Duration("max_root_duration", 0, "Interval after which a new signed root is produced despite no submissions; zero means never")
 
 	privateKeyFormat = flag.String("private_key_format", "PEMKeyFile", "Type of private key to be used")
 	pemKeyPath       = flag.String("pem_key_path", "", "Path to the private key PEM file")
@@ -67,6 +69,7 @@ var (
 type createOpts struct {
 	addr                                                                                     string
 	treeState, treeType, hashStrategy, hashAlgorithm, sigAlgorithm, displayName, description string
+	maxRootDuration                                                                          time.Duration
 	privateKeyType, pemKeyPath, pemKeyPass                                                   string
 }
 
@@ -125,14 +128,15 @@ func newRequest(opts *createOpts) (*trillian.CreateTreeRequest, error) {
 	}
 
 	tree := &trillian.Tree{
-		TreeState:          trillian.TreeState(ts),
-		TreeType:           trillian.TreeType(tt),
-		HashStrategy:       trillian.HashStrategy(hs),
-		HashAlgorithm:      sigpb.DigitallySigned_HashAlgorithm(ha),
-		SignatureAlgorithm: sigpb.DigitallySigned_SignatureAlgorithm(sa),
-		DisplayName:        opts.displayName,
-		Description:        opts.description,
-		PrivateKey:         pk,
+		TreeState:             trillian.TreeState(ts),
+		TreeType:              trillian.TreeType(tt),
+		HashStrategy:          trillian.HashStrategy(hs),
+		HashAlgorithm:         sigpb.DigitallySigned_HashAlgorithm(ha),
+		SignatureAlgorithm:    sigpb.DigitallySigned_SignatureAlgorithm(sa),
+		DisplayName:           opts.displayName,
+		Description:           opts.description,
+		PrivateKey:            pk,
+		MaxRootDurationMillis: opts.maxRootDuration.Nanoseconds() / int64(time.Millisecond),
 	}
 	return &trillian.CreateTreeRequest{Tree: tree}, nil
 }
@@ -158,17 +162,18 @@ func newPK(opts *createOpts) (*any.Any, error) {
 
 func newOptsFromFlags() *createOpts {
 	return &createOpts{
-		addr:           *adminServerAddr,
-		treeState:      *treeState,
-		treeType:       *treeType,
-		hashStrategy:   *hashStrategy,
-		hashAlgorithm:  *hashAlgorithm,
-		sigAlgorithm:   *signatureAlgorithm,
-		displayName:    *displayName,
-		description:    *description,
-		privateKeyType: *privateKeyFormat,
-		pemKeyPath:     *pemKeyPath,
-		pemKeyPass:     *pemKeyPassword,
+		addr:            *adminServerAddr,
+		treeState:       *treeState,
+		treeType:        *treeType,
+		hashStrategy:    *hashStrategy,
+		hashAlgorithm:   *hashAlgorithm,
+		sigAlgorithm:    *signatureAlgorithm,
+		displayName:     *displayName,
+		description:     *description,
+		maxRootDuration: *maxRootDuration,
+		privateKeyType:  *privateKeyFormat,
+		pemKeyPath:      *pemKeyPath,
+		pemKeyPass:      *pemKeyPassword,
 	}
 }
 

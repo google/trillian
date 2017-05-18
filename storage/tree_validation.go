@@ -108,6 +108,8 @@ func validateMutableTreeFields(tree *trillian.Tree) error {
 		return errors.Errorf(errors.InvalidArgument, "display_name too big, max length is %v: %v", maxDisplayNameLength, tree.DisplayName)
 	case len(tree.Description) > maxDescriptionLength:
 		return errors.Errorf(errors.InvalidArgument, "description too big, max length is %v: %v", maxDescriptionLength, tree.Description)
+	case tree.MaxRootDurationMillis < 0:
+		return errors.Errorf(errors.InvalidArgument, "max_root_duration negative: %v", tree.MaxRootDurationMillis)
 	}
 
 	// Implementations may vary, so let's assume storage_settings is mutable.

@@ -89,6 +89,9 @@ func TestValidateTreeForCreation(t *testing.T) {
 	validSettings := newTree()
 	validSettings.StorageSettings = settings
 
+	invalidRootDuration := newTree()
+	invalidRootDuration.MaxRootDurationMillis = -1
+
 	tests := []struct {
 		desc    string
 		tree    *trillian.Tree
@@ -191,6 +194,11 @@ func TestValidateTreeForCreation(t *testing.T) {
 			desc: "validSettings",
 			tree: validSettings,
 		},
+		{
+			desc:    "invalidRootDuration",
+			tree:    invalidRootDuration,
+			wantErr: true,
+		},
 	}
 	for _, test := range tests {
 		err := ValidateTreeForCreation(test.tree)
@@ -236,6 +244,19 @@ func TestValidateTreeForUpdate(t *testing.T) {
 			desc: "invalidSettings",
 			updatefn: func(tree *trillian.Tree) {
 				tree.StorageSettings = &any.Any{Value: []byte("foobar")}
+			},
+			wantErr: true,
+		},
+		{
+			desc: "validRootDuration",
+			updatefn: func(tree *trillian.Tree) {
+				tree.MaxRootDurationMillis = 200
+			},
+		},
+		{
+			desc: "invalidRootDuration",
+			updatefn: func(tree *trillian.Tree) {
+				tree.MaxRootDurationMillis = -200
 			},
 			wantErr: true,
 		},
@@ -334,14 +355,15 @@ func newTree() *trillian.Tree {
 	}
 
 	return &trillian.Tree{
-		TreeState:          trillian.TreeState_ACTIVE,
-		TreeType:           trillian.TreeType_LOG,
-		HashStrategy:       trillian.HashStrategy_RFC_6962,
-		HashAlgorithm:      sigpb.DigitallySigned_SHA256,
-		SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
-		DisplayName:        "Llamas Log",
-		Description:        "Registry of publicly-owned llamas",
-		PrivateKey:         privateKey,
-		PublicKey:          &keyspb.PublicKey{Der: publicKeyPEM.Bytes},
+		TreeState:             trillian.TreeState_ACTIVE,
+		TreeType:              trillian.TreeType_LOG,
+		HashStrategy:          trillian.HashStrategy_RFC_6962,
+		HashAlgorithm:         sigpb.DigitallySigned_SHA256,
+		SignatureAlgorithm:    sigpb.DigitallySigned_ECDSA,
+		DisplayName:           "Llamas Log",
+		Description:           "Registry of publicly-owned llamas",
+		PrivateKey:            privateKey,
+		PublicKey:             &keyspb.PublicKey{Der: publicKeyPEM.Bytes},
+		MaxRootDurationMillis: 1000,
 	}
 }
