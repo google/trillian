@@ -14,9 +14,9 @@ Trillian Server Keys
 Files of the form `*-server.privkey.pem` hold private keys for Trillian servers, with the corresponding public keys
 stored in `*-server.pubkey.pem`.  The following sets of files are available:
 
- - `ct-http-server`: CT Log personality; password `towel`.
+ - `ct-http-server`: CT Log personality; password `dirk`.
  - `log-rpc-server`: Log RPC server; password `towel`.
- - `map-rpc-server`: Map RPC server; password `dirk`.
+ - `map-rpc-server`: Map RPC server; password `towel`.
 
 
 X.509 Certificates

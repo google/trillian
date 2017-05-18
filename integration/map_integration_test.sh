@@ -1,51 +1,44 @@
 #!/bin/bash
 set -e
 INTEGRATION_DIR="$( cd "$( dirname "$0" )" && pwd )"
-. "${INTEGRATION_DIR}"/common.sh
+. "${INTEGRATION_DIR}"/functions.sh
 
 echo "Building code"
-go build ${GOFLAGS} ./cmd/createtree/
-go build ${GOFLAGS} ./server/vmap/trillian_map_server/
+go build ${GOFLAGS} github.com/google/trillian/cmd/createtree/
+go build ${GOFLAGS} github.com/google/trillian/server/vmap/trillian_map_server/
 
-yes | "${SCRIPTS_DIR}"/resetdb.sh
+yes | "${GOPATH}"/src/github.com/google/trillian/scripts/resetdb.sh
 
-RPC_PORT=$(pickUnusedPort)
+RPC_PORT=$(pick_unused_port)
 
 echo "Starting Map RPC server on localhost:${RPC_PORT}"
-pushd "${TRILLIAN_ROOT}" > /dev/null
 ./trillian_map_server --rpc_endpoint="localhost:${RPC_PORT}" http_endpoint='' &
 RPC_SERVER_PID=$!
-popd > /dev/null
-waitForServerStartup ${RPC_PORT}
+wait_for_server_startup ${RPC_PORT}
+TO_KILL+=(${RPC_SERVER_PID})
 
+echo "Provision map"
 TEST_TREE_ID=$(./createtree \
   --admin_server="localhost:${RPC_PORT}" \
   --tree_type=MAP \
-  --pem_key_path=testdata/log-rpc-server.privkey.pem \
+  --pem_key_path=${GOPATH}/src/github.com/google/trillian/testdata/map-rpc-server.privkey.pem \
   --pem_key_password=towel \
   --signature_algorithm=ECDSA)
 echo "Created tree ${TEST_TREE_ID}"
 
-# Ensure we kill the RPC server once we're done.
-TO_KILL+=(${RPC_SERVER_PID})
-waitForServerStartup ${RPC_PORT}
-
-# Run the test(s):
+echo "Running test"
 cd "${INTEGRATION_DIR}"
 set +e
 go test -run ".*LiveMap.*" --timeout=5m ./ --map_id ${TEST_TREE_ID} --map_rpc_server="localhost:${RPC_PORT}"
 RESULT=$?
 set -e
 
-echo "Stopping MAP RPC server (pid ${RPC_SERVER_PID})"
-killPid ${RPC_SERVER_PID}
+echo "Stopping Map RPC server (pid ${RPC_SERVER_PID})"
+kill_pid ${RPC_SERVER_PID}
 TO_KILL=()
 
 if [ $RESULT != 0 ]; then
     sleep 1
-    if [ "$TMPDIR" == "" ]; then
-        TMPDIR=/tmp
-    fi
     echo "Server log:"
     echo "--------------------"
     cat "${TMPDIR}"/trillian_map_server.INFO
