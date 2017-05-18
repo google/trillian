@@ -1,15 +1,16 @@
 #!/bin/bash
 set -e
 INTEGRATION_DIR="$( cd "$( dirname "$0" )" && pwd )"
-. "${INTEGRATION_DIR}"/common.sh
+. "${INTEGRATION_DIR}"/functions.sh
+. "${INTEGRATION_DIR}"/ct_functions.sh
 
 # Default to one of everything.
 RPC_SERVER_COUNT=${1:-1}
 LOG_SIGNER_COUNT=${2:-1}
 HTTP_SERVER_COUNT=${3:-1}
 
-go build ./integration/ct_hammer
-. "${INTEGRATION_DIR}"/ct_prep_test.sh "${RPC_SERVER_COUNT}" "${LOG_SIGNER_COUNT}" "${HTTP_SERVER_COUNT}"
+go build github.com/google/trillian/integration/ct_hammer
+ct_prep_test "${RPC_SERVER_COUNT}" "${LOG_SIGNER_COUNT}" "${HTTP_SERVER_COUNT}"
 
 # Cleanup for the Trillian components
 TO_DELETE="${TO_DELETE} ${ETCD_DB_DIR}"
@@ -23,11 +24,11 @@ TO_KILL+=(${CT_SERVER_PIDS[@]})
 
 echo "Running test(s)"
 set +e
-./ct_hammer --log_config "${CT_CFG}" --ct_http_servers=${CT_SERVERS} --testdata_dir=${TESTDATA} --mmd=30s
+./ct_hammer --log_config "${CT_CFG}" --ct_http_servers=${CT_SERVERS} --mmd=30s --testdata_dir=${GOPATH}/src/github.com/google/trillian/testdata
 RESULT=$?
 set -e
 
-. "${INTEGRATION_DIR}"/ct_stop_test.sh
+ct_stop_test
 TO_KILL=()
 
 exit $RESULT
