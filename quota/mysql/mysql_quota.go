@@ -37,6 +37,12 @@ const (
 	countFromUnsequencedQuery = "SELECT COUNT(*) FROM Unsequenced"
 )
 
+var (
+	// ErrTooManyUnsequencedRows is returned when tokens are requested but Unsequenced has grown
+	// beyond the configured limit.
+	ErrTooManyUnsequencedRows = errors.New("too many unsequenced rows")
+)
+
 // QuotaManager is a MySQL-based quota.Manager implementation.
 //
 // It has two working modes: one queries the information schema for the number of Unsequenced rows,
@@ -73,7 +79,7 @@ func (m *QuotaManager) GetTokens(ctx context.Context, numTokens int, specs []quo
 			return err
 		}
 		if count+numTokens > m.MaxUnsequencedRows {
-			return errors.New("too many unsequenced rows")
+			return ErrTooManyUnsequencedRows
 		}
 	}
 	return nil
@@ -124,18 +130,18 @@ func countFromInformationSchema(ctx context.Context, db *sql.DB) (int, error) {
 	// the cursor returns a single row.
 	rows, err := db.QueryContext(ctx, countFromInformationSchemaQuery, "Unsequenced", "BASE TABLE")
 	if err != nil {
-		return -1, err
+		return 0, err
 	}
 	defer rows.Close()
 	if !rows.Next() {
-		return -1, errors.New("cursor has no rows after information_schema query")
+		return 0, errors.New("cursor has no rows after information_schema query")
 	}
 	var count int
 	if err := rows.Scan(&count); err != nil {
-		return -1, err
+		return 0, err
 	}
 	if rows.Next() {
-		return -1, errors.New("too many rows returned from information_schema query")
+		return 0, errors.New("too many rows returned from information_schema query")
 	}
 	return count, nil
 }
@@ -143,7 +149,7 @@ func countFromInformationSchema(ctx context.Context, db *sql.DB) (int, error) {
 func countFromTable(ctx context.Context, db *sql.DB) (int, error) {
 	var count int
 	if err := db.QueryRowContext(ctx, countFromUnsequencedQuery).Scan(&count); err != nil {
-		return -1, err
+		return 0, err
 	}
 	return count, nil
 }

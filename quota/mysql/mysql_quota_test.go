@@ -104,7 +104,7 @@ func TestQuotaManager_GetTokens(t *testing.T) {
 		// See TestQuotaManager_GetTokens_InformationSchema for information schema tests.
 		qm := &mysqlq.QuotaManager{DB: db, MaxUnsequencedRows: test.maxUnsequencedRows, UseSelectCount: true}
 		err := qm.GetTokens(ctx, test.numTokens, test.specs)
-		if hasErr := err != nil; hasErr != test.wantErr {
+		if hasErr := err == mysqlq.ErrTooManyUnsequencedRows; hasErr != test.wantErr {
 			t.Errorf("%v: GetTokens() returned err = %q, wantErr = %v", test.desc, err, test.wantErr)
 		}
 	}
@@ -141,8 +141,8 @@ func TestQuotaManager_GetTokens_InformationSchema(t *testing.T) {
 		qm := &mysqlq.QuotaManager{DB: db, MaxUnsequencedRows: maxUnsequenced, UseSelectCount: test.useSelectCount}
 
 		// All GetTokens() calls where leaves < maxUnsequenced should succeed:
-		// information_schema may be outdated, but it should still point to a valid point in
-		// the past.
+		// information_schema may be outdated, but it should refer to a valid point in the
+		// past.
 		for i := 0; i < maxUnsequenced-1; i++ {
 			if err := queueLeaves(ctx, db, tree, i /* firstID */, 1 /* num */); err != nil {
 				t.Fatalf("%v: queueLeaves() returned err = %v", desc, err)
@@ -168,7 +168,7 @@ func TestQuotaManager_GetTokens_InformationSchema(t *testing.T) {
 				stop = true
 			default:
 				// An error means that GetTokens is working correctly
-				stop = qm.GetTokens(ctx, 1 /* numTokens */, globalWriteSpec) != nil
+				stop = qm.GetTokens(ctx, 1 /* numTokens */, globalWriteSpec) == mysqlq.ErrTooManyUnsequencedRows
 			}
 		}
 	}
@@ -269,7 +269,7 @@ func allSpecs(ctx context.Context, qm quota.Manager, treeID int64) []quota.Spec 
 func countUnsequenced(ctx context.Context, db *sql.DB) (int, error) {
 	var count int
 	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM Unsequenced").Scan(&count); err != nil {
-		return -1, err
+		return 0, err
 	}
 	return count, nil
 }
