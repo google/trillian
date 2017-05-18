@@ -11,6 +11,8 @@ go:
 env:
   - GOFLAGS=
   - GOFLAGS=-race
+  - GOFLAGS=      WITH_ETCD=true
+  - GOFLAGS=-race WITH_ETCD=true
 
 matrix:
   fast_finish: true
@@ -65,8 +67,11 @@ script:
         git diff
         exit 1
       fi
+  - |
+      if [[ "${WITH_ETCD}" == "true" ]]; then
+        export ETCD_DIR="${GOPATH}/bin"
+      fi
   - ./integration/integration_test.sh
-  - ETCD_DIR="${GOPATH}/bin" ./integration/integration_test.sh
   - set +e
 
 services: mysql
