@@ -30,7 +30,7 @@ import (
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/monitoring"
-	"github.com/google/trillian/quota"
+	mysqlq "github.com/google/trillian/quota/mysql"
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/server/interceptor"
 	"github.com/google/trillian/storage/mysql"
@@ -47,6 +47,7 @@ var (
 	dumpMetricsInterval = flag.Duration("dump_metrics_interval", 0, "If greater than 0, how often to dump metrics to the logs.")
 	etcdServers         = flag.String("etcd_servers", "", "A comma-separated list of etcd servers; no etcd registration if empty")
 	etcdService         = flag.String("etcd_service", "trillian-log", "Service name to announce ourselves under")
+	maxUnsequencedRows  = flag.Int("max_unsequenced_rows", mysqlq.DefaultMaxUnsequenced, "Max number of unsequenced rows before rate limiting kicks in")
 )
 
 func main() {
@@ -80,7 +81,7 @@ func main() {
 		AdminStorage:  mysql.NewAdminStorage(db),
 		SignerFactory: keys.PEMSignerFactory{},
 		LogStorage:    mysql.NewLogStorage(db),
-		QuotaManager:  quota.Noop(),
+		QuotaManager:  &mysqlq.QuotaManager{DB: db, MaxUnsequencedRows: *maxUnsequencedRows},
 	}
 
 	ts := util.SystemTimeSource{}

@@ -25,7 +25,7 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/extension"
-	"github.com/google/trillian/quota"
+	mysqlq "github.com/google/trillian/quota/mysql"
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/server/interceptor"
 	"github.com/google/trillian/server/vmap"
@@ -35,9 +35,10 @@ import (
 )
 
 var (
-	mySQLURI     = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "Connection URI for MySQL database")
-	rpcEndpoint  = flag.String("rpc_endpoint", "localhost:8090", "Endpoint for RPC requests (host:port)")
-	httpEndpoint = flag.String("http_endpoint", "localhost:8091", "Endpoint for HTTP metrics and REST requests on (host:port, empty means disabled)")
+	mySQLURI           = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "Connection URI for MySQL database")
+	rpcEndpoint        = flag.String("rpc_endpoint", "localhost:8090", "Endpoint for RPC requests (host:port)")
+	httpEndpoint       = flag.String("http_endpoint", "localhost:8091", "Endpoint for HTTP metrics and REST requests on (host:port, empty means disabled)")
+	maxUnsequencedRows = flag.Int("max_unsequenced_rows", mysqlq.DefaultMaxUnsequenced, "Max number of unsequenced rows before rate limiting kicks in")
 )
 
 func main() {
@@ -53,7 +54,7 @@ func main() {
 		AdminStorage:  mysql.NewAdminStorage(db),
 		SignerFactory: keys.PEMSignerFactory{},
 		MapStorage:    mysql.NewMapStorage(db),
-		QuotaManager:  quota.Noop(),
+		QuotaManager:  &mysqlq.QuotaManager{DB: db, MaxUnsequencedRows: *maxUnsequencedRows},
 	}
 
 	ti := &interceptor.TrillianInterceptor{
