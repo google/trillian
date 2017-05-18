@@ -44,7 +44,7 @@ var (
 var (
 	addChainBias          = flag.Int("add_chain", 20, "Bias for add-chain operations")
 	addPreChainBias       = flag.Int("add_pre_chain", 20, "Bias for add-pre-chain operations")
-	maxParallelChains     = flag.Int("max_parallel_chains", 100, "Maximum number of chains to add in parallel (will always add at least 1 chain)")
+	maxParallelChains     = flag.Int("max_parallel_chains", 5, "Maximum number of chains to add in parallel (will always add at least 1 chain)")
 	getSTHBias            = flag.Int("get_sth", 2, "Bias for get-sth operations")
 	getSTHConsistencyBias = flag.Int("get_sth_consistency", 2, "Bias for get-sth-consistency operations")
 	getProofByHashBias    = flag.Int("get_proof_by_hash", 2, "Bias for get-proof-by-hash operations")
