@@ -158,23 +158,23 @@ func SignerRun() {
   }
 
   // Look to see if anyone else has already stored data just ahead of our STH.
-  nextOffset := dbSTH.stdOffset
+  nextOffset := dbSTH.sthOffset
   nextSTH := nil
   for {
-      nextOffset++
-      nextSTH = kafka.Read("STHs/<treeID>", nextOffset)
-      if nextSTH == nil {
-        break
-      }
-      if nextSTH.expectedOffset != nextOffset {
-        // Someone's been writing STHs when they weren't supposed to be, skip
-        // this one until we find another which is in-sync.
-        glog.Warning("skipping unexpected STH")
-        continue
-      }
-      if nextSTH.timestamp < ourSTH.timestamp || nextSTH.tree_size < ourSTH.tree_size {
-        glog.Fatal("should not happen - earlier STH with later offset")
-        return
+    nextOffset++
+    nextSTH = kafka.Read("STHs/<treeID>", nextOffset)
+    if nextSTH == nil {
+      break
+    }
+    if nextSTH.expectedOffset != nextOffset {
+      // Someone's been writing STHs when they weren't supposed to be, skip
+      // this one until we find another which is in-sync.
+      glog.Warning("skipping unexpected STH")
+      continue
+    }
+    if nextSTH.timestamp < ourSTH.timestamp || nextSTH.tree_size < ourSTH.tree_size {
+      glog.Fatal("should not happen - earlier STH with later offset")
+      return
     }
   }
 
@@ -206,23 +206,19 @@ func SignerRun() {
     tx.Commit() // flush writes
   } else {
     // There is an STH one ahead of us that we're not caught up with yet.
-    for {
-      nextOffset++
-      nextSTH = kafka.Read("STHs/<treeID>", nextOffset)
-      if nextSTH.timestamp < ourSTH.timestamp || nextSTH.tree_size < ourSTH.tree_size {
-        glog.Errorf("should not happen - earlier STH with later offset")
-        return
-      }
-    }
     // Read the leaves between what we have in our DB, and that STH...
     leafRange := InclusiveExclusive(dbSTH.tree_size, nextSTH.tree_size)
     batch := kafka.Read("Leaves", leafRange)
-    // ... and store it in our local DB
+    // ... and store them in our local DB
     for b := range batch {
       db.Put("<treeID>/leaves/<b.offset>", b.contents)
     }
-    tx.UpdateMerkleTreeAndBufferNodes(batch, treeRevision+1)
-    nextSTH.sthOffset = lastOffset
+    newRoot := tx.UpdateMerkleTreeAndBufferNodes(batch, treeRevision+1)
+    if newRoot != nextSTH.root {
+      glog.Warning("calculated root hash != expected root hash, corrupt DB?")
+      tx.Abort()
+      return
+    }
     tx.BufferNewSTHForDB(nextSTH)
     tx.Commit() // flush writes
     // We may still not be caught up, but that's for the next time around.
