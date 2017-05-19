@@ -12,21 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package election
+package simelection
 
 import "sync"
 
-// Election is a (flawed) simulated mastership election.
+// Election is a (flawed) simulated mastership election, which can
+// be made to report multiple masters at the same time.
 type Election struct {
-	mu     sync.RWMutex
-	master []string
+	mu      sync.RWMutex
+	masters []string
 }
 
 // IsMaster indicates whether the given name is master.
 func (e *Election) IsMaster(who string) bool {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
-	for _, m := range e.master {
+	for _, m := range e.masters {
 		if m == who {
 			return true
 		}
@@ -39,19 +40,19 @@ func (e *Election) IsMaster(who string) bool {
 func (e *Election) Masters() []string {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
-	return e.master
+	return e.masters
 }
 
 // SetMaster sets a single master.
 func (e *Election) SetMaster(who string) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	e.master = []string{who}
+	e.masters = []string{who}
 }
 
 // SetMasters sets multiple masters.
 func (e *Election) SetMasters(who []string) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	e.master = who
+	e.masters = who
 }

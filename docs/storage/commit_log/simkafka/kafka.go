@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package kafka
+package simkafka
 
 import (
 	"fmt"
@@ -74,7 +74,7 @@ func ReadLast(which string) (string, int) {
 
 // ReadMultiple reads values for a topic, starting at the given offset, up to the
 // given maximum number of results.
-func ReadMultiple(which string, offset int, max int) []string {
+func ReadMultiple(which string, offset, max int) []string {
 	mu.RLock()
 	defer mu.RUnlock()
 	topic, ok := topics[which]

@@ -20,8 +20,8 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/google/trillian/docs/storage/commit_log/election"
-	"github.com/google/trillian/docs/storage/commit_log/kafka"
+	"github.com/google/trillian/docs/storage/commit_log/simelection"
+	"github.com/google/trillian/docs/storage/commit_log/simkafka"
 )
 
 var batchSize = flag.Int("batch_size", 5, "Maximum leaves to sign in one run")
@@ -30,14 +30,14 @@ var pessimizeInterval = flag.Duration("signer_pessimize", 10*time.Millisecond, "
 // Signer is a simulated signer instance.
 type Signer struct {
 	Name      string
-	election  *election.Election
+	election  *simelection.Election
 	epoch     int64
 	dbSTHInfo STHInfo
 	db        FakeDatabase
 }
 
 // New creates a simulated signer that uses the provided election.
-func New(name string, election *election.Election, epoch int64) *Signer {
+func New(name string, election *simelection.Election, epoch int64) *Signer {
 	return &Signer{
 		Name:     name,
 		election: election,
@@ -80,7 +80,7 @@ func (s *Signer) Run() {
 
 	// Sanity check that the STH table has what we already know.
 	if dbSTHInfo.sth.TreeSize > 0 {
-		ourSTH := sthFromString(kafka.Read("STHs/<treeID>", dbSTHInfo.sthOffset))
+		ourSTH := sthFromString(simkafka.Read("STHs/<treeID>", dbSTHInfo.sthOffset))
 		if ourSTH == nil {
 			glog.Errorf("%s: local DB has data ahead of STHs topic!!", s.Name)
 			return
@@ -103,7 +103,7 @@ func (s *Signer) Run() {
 	var nextSTH *STH
 	for {
 		nextOffset++
-		nextSTH = sthFromString(kafka.Read("STHs/<treeID>", nextOffset))
+		nextSTH = sthFromString(simkafka.Read("STHs/<treeID>", nextOffset))
 		if nextSTH != nil && nextSTH.Offset != nextOffset {
 			// Ignore this one
 			glog.V(2).Infof("%s: ignoring inconsistent STH %s at offset %d", s.Name, nextSTH.String(), nextOffset)
@@ -121,7 +121,7 @@ func (s *Signer) Run() {
 		}
 		// ... and we're the master. Move the STHs topic along to encompass any unincorporated leaves.
 		offset := dbSTHInfo.sth.TreeSize
-		batch := kafka.ReadMultiple("Leaves/<treeID>", offset, *batchSize)
+		batch := simkafka.ReadMultiple("Leaves/<treeID>", offset, *batchSize)
 		glog.V(2).Infof("%s: nothing at next offset %d and we are master, so read %d more leaves", s.Name, nextOffset, len(batch))
 		if len(batch) == 0 {
 			glog.V(2).Infof("%s: nothing to do", s.Name)
@@ -136,7 +136,7 @@ func (s *Signer) Run() {
 			},
 			treeRevision: dbSTHInfo.treeRevision + 1,
 		}
-		newSTHInfo.sthOffset = kafka.Append("STHs/<treeID>", newSTHInfo.sth.String())
+		newSTHInfo.sthOffset = simkafka.Append("STHs/<treeID>", newSTHInfo.sth.String())
 		if newSTHInfo.sthOffset != nextOffset {
 			// The STH didn't get stored at the offset we expected, presumable because someone else got there first
 			glog.Warningf("%s: stored new STH %s at offset %d, which is unexpected; give up", s.Name, newSTHInfo.sth.String(), newSTHInfo.sthOffset)
@@ -156,7 +156,7 @@ func (s *Signer) Run() {
 		// Read the leaves between what we have in our DB, and that STH...
 		count := nextSTH.TreeSize - dbSTHInfo.sth.TreeSize
 		glog.V(2).Infof("%s: our DB is %d leaves behind the next STH at %s, so update it", s.Name, count, nextSTH.String())
-		batch := kafka.ReadMultiple("Leaves/<treeID>", dbSTHInfo.sth.TreeSize, count)
+		batch := simkafka.ReadMultiple("Leaves/<treeID>", dbSTHInfo.sth.TreeSize, count)
 		if len(batch) != count {
 			glog.Errorf("%s: expected to read leaves [%d, %d) but only got %d!!", s.Name, dbSTHInfo.sth.TreeSize, dbSTHInfo.sth.TreeSize+count, len(batch))
 			return

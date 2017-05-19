@@ -12,6 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// The commit_log binary runs a simulation of the design for a commit-log
+// based signer, with a simulated Kafka-like interface and a simulated
+// master election package (which can be triggered to incorrectly report
+// multiple masters), and with the core algorithm in the signer code.
+// glog.Warning is used throughout for unexpected-but-recoverable situations,
+// whereas glog.Error is used for any situation that would indicate data
+// corruption.
 package main
 
 import (
@@ -21,9 +28,9 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/google/trillian/docs/storage/commit_log/election"
-	"github.com/google/trillian/docs/storage/commit_log/kafka"
 	"github.com/google/trillian/docs/storage/commit_log/signer"
+	"github.com/google/trillian/docs/storage/commit_log/simelection"
+	"github.com/google/trillian/docs/storage/commit_log/simkafka"
 )
 
 var (
@@ -35,29 +42,13 @@ var (
 	leafTogglePercent   = flag.Int("leaf_toggle", 10, "Percent chance of toggling leaf generation")
 )
 
+var names = []string{"one", "two", "three", "four", "five", "six", "seven", "eight", "nine"}
+
 func signerName(i int) string {
-	switch i {
-	case 0:
-		return "one"
-	case 1:
-		return "two"
-	case 2:
-		return "three"
-	case 3:
-		return "four"
-	case 4:
-		return "five"
-	case 5:
-		return "six"
-	case 6:
-		return "seven"
-	case 7:
-		return "eight"
-	case 8:
-		return "nine"
-	default:
-		return fmt.Sprintf("signer%d", i)
+	if i < len(names) {
+		return names[i]
 	}
+	return fmt.Sprintf("signer%d", i)
 }
 
 func increment(s string) string {
@@ -88,14 +79,14 @@ func main() {
 		for {
 			time.Sleep(*leafInterval)
 			if generateLeaves {
-				kafka.Append("Leaves/<treeID>", nextLeaf)
+				simkafka.Append("Leaves/<treeID>", nextLeaf)
 				nextLeaf = increment(nextLeaf)
 			}
 		}
 	}()
 
 	// Run a few signers forever
-	election := election.Election{}
+	election := simelection.Election{}
 	signers := []*signer.Signer{}
 	for ii := 0; ii < *signerCount; ii++ {
 		signers = append(signers, signer.New(signerName(ii), &election, epochMillis))
@@ -137,7 +128,7 @@ func main() {
 		time.Sleep(*eventInterval)
 
 		// Show current status
-		output := kafka.Status()
+		output := simkafka.Status()
 		for _, s := range signers {
 			output += s.String()
 		}
