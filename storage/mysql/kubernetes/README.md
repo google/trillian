@@ -21,6 +21,12 @@ kubectl proxy
 This dashboard will also show the external IP of the cluster on the
 "Services" page, on the row for the "mysql" service.
 
+Once the cluster has been provisioned, prepare the database for use by Trillian
+by running:
+```shell
+$GOPATH/src/github.com/google/trillian/storage/mysql/kubernetes/resetdb.sh
+```
+
 ### Firewall
 
 By default, the load balancer that exposes the MySQL service will only accept
