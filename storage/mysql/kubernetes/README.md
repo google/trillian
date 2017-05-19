@@ -8,13 +8,13 @@ To run a Galera MySQL cluster on Google Cloud, install the
 [Cloud SDK](https://cloud.google.com/sdk/) and configure it for your project.
 [Provision a Container cluster](https://cloud.google.com/container-engine/docs/clusters/operations),
 then run the following command:
-```
-kubectl apply -f galera.yaml
+```shell
+kubectl apply -f $GOPATH/src/github.com/google/trillian/storage/mysql/kubernetes
 ```
 
 This will start the Galera cluster. You can monitor provisoning of this cluster
 by visiting http://127.0.0.1:8001/ui/ after running:
-```
+```shell
 kubectl proxy
 ```
 
@@ -54,5 +54,5 @@ The following modifications have been made:
 - Added some utility scripts:
   - image/env.sh
   - image/push.sh
-- Added liveness and readiness probes to the Kubernetes config.
+- Added readiness probes to the Kubernetes config.
 - Moved usernames and passwords into [Secrets](https://kubernetes.io/docs/concepts/configuration/secret/).
