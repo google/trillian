@@ -20,13 +20,14 @@
 // an integration test which ensures that the Trillian Log is able to correctly
 // handle a tree which contains duplicate leaves.
 //
-// The storage implementation is based on a BTree, which provide an ordered
+// The storage implementation is based on a BTree, which provides an ordered
 // key-value space which can be used to store arbitrary items, as well as
 // scan ranges of keys in order.
 //
 // The implementation does provide transaction-like semantics for the
-// LogStorage interface, although conflict is avoided by each writa-transaction
-// exclusively locking the tree until it's committed or rolled-back.
+// LogStorage interface, although conflict is avoided by each writable
+// transaction exclusively locking the tree until it's committed or
+// rolled-back.
 //
 // Currently, the Admin Storage does not honor transactional semantics.
 package memory

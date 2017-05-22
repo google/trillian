@@ -116,7 +116,7 @@ func newTree(t trillian.Tree) *tree {
 	return ret
 }
 
-func (m *memoryTreeStorage) beginTreeTX(ctx context.Context, readonly bool, treeID int64, hashSizeBytes int, strataDepths []int, populate storage.PopulateSubtreeFunc, prepare storage.PrepareSubtreeWriteFunc) (treeTX, error) {
+func (m *memoryTreeStorage) beginTreeTX(ctx context.Context, readonly bool, treeID int64, hashSizeBytes int, cache cache.SubtreeCache) (treeTX, error) {
 	tree := m.getTree(treeID)
 	// Lock the tree for the duration of the TX.
 	// It will be unlocked by a call to Commit or Rollback.
@@ -134,7 +134,7 @@ func (m *memoryTreeStorage) beginTreeTX(ctx context.Context, readonly bool, tree
 		tree:          tree,
 		treeID:        treeID,
 		hashSizeBytes: hashSizeBytes,
-		subtreeCache:  cache.NewSubtreeCache(strataDepths, populate, prepare),
+		subtreeCache:  cache,
 		writeRevision: -1,
 		unlock:        unlock,
 	}, nil

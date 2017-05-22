@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/google/btree"
@@ -103,7 +104,7 @@ func (t *readOnlyLogTX) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
 }
 
 func (t *readOnlyLogTX) GetActiveLogIDsWithPendingWork(ctx context.Context) ([]int64, error) {
-	// just retusn all trees for now
+	// just return all trees for now
 	return t.GetActiveLogIDs(ctx)
 }
 
@@ -121,7 +122,8 @@ func (m *memoryLogStorage) beginInternal(ctx context.Context, treeID int64, read
 		return nil, err
 	}
 
-	ttx, err := m.memoryTreeStorage.beginTreeTX(ctx, readonly, treeID, hasher.Size(), defaultLogStrata, cache.PopulateLogSubtreeNodes(hasher), cache.PrepareLogSubtreeWrite())
+	stCache := cache.NewSubtreeCache(defaultLogStrata, cache.PopulateLogSubtreeNodes(hasher), cache.PrepareLogSubtreeWrite())
+	ttx, err := m.memoryTreeStorage.beginTreeTX(ctx, readonly, treeID, hasher.Size(), stCache)
 	if err != nil {
 		return nil, err
 	}
@@ -200,7 +202,7 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 func (t *logTreeTX) GetSequencedLeafCount(ctx context.Context) (int64, error) {
 	var sequencedLeafCount int64
 
-	t.tx.DescendRange(seqLeafKey(t.treeID, 9223372036854775807), seqLeafKey(t.treeID, 0), func(i btree.Item) bool {
+	t.tx.DescendRange(seqLeafKey(t.treeID, math.MaxInt64), seqLeafKey(t.treeID, 0), func(i btree.Item) bool {
 		sequencedLeafCount = i.(*kv).v.(*trillian.LogLeaf).LeafIndex + 1
 		return false
 	})

@@ -48,7 +48,7 @@ func (s *memoryAdminStorage) Begin(ctx context.Context) (storage.AdminTX, error)
 
 type adminTX struct {
 	ms *memoryTreeStorage
-	// mu guards *direct* reads/writes on closed, which happen only on
+	// mu guards reads/writes on closed, which happen only on
 	// Commit/Rollback/IsClosed/Close methods.
 	// We don't check closed on *all* methods (apart from the ones above),
 	// as we trust tx to keep tabs on its state (and consequently fail to do
