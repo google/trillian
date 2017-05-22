@@ -4,17 +4,17 @@ set -e
 
 usage() {
   echo "$0 [--force] [--verbose] ..."
-  echo "accepts envars:"
+  echo "accepts environment variables:"
   echo " - DB_NAME"
   echo " - DB_USER"
   echo " - DB_PASSWORD"
 }
 
 collect_vars() {
-  # set unset envars to defaults
+  # set unset environment variables to defaults
   [ -z ${DB_USER+x} ] && DB_USER="root"
   [ -z ${DB_NAME+x} ] && DB_NAME="test"
-  # format reused supplied envas
+  # format reused supplied environment variables
   FLAGS=""
   [ -z ${DB_PASSWORD+x} ] || FLAGS="${FLAGS} -p$DB_PASSWORD"
 
@@ -38,8 +38,8 @@ main() {
   if [[ ${VERBOSE} = 'true' ]]
   then
     echo "-- using DB_USER: ${DB_USER}"
-    echo "-- Warning: about to destroy and reset database '${DB_NAME}'."
   fi
+  echo "Warning: about to destroy and reset database '${DB_NAME}'"
 
   [[ ${FORCE} = true ]] || read -p "Are you sure? " -n 1 -r
 
@@ -47,10 +47,10 @@ main() {
   then
       # A command line supplied -u will override the first argument.
       echo "Resetting DB..."
-      mysql -u $DB_USER $FLAGS -e "DROP DATABASE IF EXISTS ${DB_NAME};"
-      mysql -u $DB_USER $FLAGS -e "CREATE DATABASE ${DB_NAME};"
-      mysql -u $DB_USER $FLAGS -e "GRANT ALL ON ${DB_NAME}.* TO '${DB_NAME}'@'localhost' IDENTIFIED BY 'zaphod';"
-      mysql -u $DB_USER $FLAGS -D ${DB_NAME} < ${GOPATH}/src/github.com/google/trillian/storage/mysql/storage.sql
+      mysql $FLAGS -u $DB_USER -e "DROP DATABASE IF EXISTS ${DB_NAME};"
+      mysql $FLAGS -u $DB_USER -e "CREATE DATABASE ${DB_NAME};"
+      mysql $FLAGS -u $DB_USER -e "GRANT ALL ON ${DB_NAME}.* TO '${DB_NAME}'@'localhost' IDENTIFIED BY 'zaphod';"
+      mysql $FLAGS -u $DB_USER -D ${DB_NAME} < ${GOPATH}/src/github.com/google/trillian/storage/mysql/storage.sql
       echo "Reset Complete"
   fi
 }
