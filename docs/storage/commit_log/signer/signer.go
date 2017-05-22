@@ -104,10 +104,16 @@ func (s *Signer) Run() {
 	for {
 		nextOffset++
 		nextSTH = sthFromString(simkafka.Read("STHs/<treeID>", nextOffset))
+		if nextSTH == nil {
+			break
+		}
 		if nextSTH != nil && nextSTH.Offset != nextOffset {
-			// Ignore this one
 			glog.V(2).Infof("%s: ignoring inconsistent STH %s at offset %d", s.Name, nextSTH.String(), nextOffset)
 			continue
+		}
+		if nextSTH.TimeStamp < dbSTHInfo.sth.TimeStamp || nextSTH.TreeSize < dbSTHInfo.sth.TreeSize {
+			glog.Errorf("%s: next STH %s has earlier timestamp than in local DB (%s)!!", s.Name, nextSTH.String(), dbSTHInfo.sth)
+			return
 		}
 		break
 	}
@@ -149,10 +155,6 @@ func (s *Signer) Run() {
 		s.StoreSTHInfo(newSTHInfo)
 	} else {
 		// There is an STH one ahead of us that we're not caught up with yet.
-		if nextSTH.TimeStamp < dbSTHInfo.sth.TimeStamp || nextSTH.TreeSize < dbSTHInfo.sth.TreeSize {
-			glog.Errorf("%s: next STH %s has earlier timestamp than in local DB (%s)!!", s.Name, nextSTH.String(), dbSTHInfo.sth)
-			return
-		}
 		// Read the leaves between what we have in our DB, and that STH...
 		count := nextSTH.TreeSize - dbSTHInfo.sth.TreeSize
 		glog.V(2).Infof("%s: our DB is %d leaves behind the next STH at %s, so update it", s.Name, count, nextSTH.String())
