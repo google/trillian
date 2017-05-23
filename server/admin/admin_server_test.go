@@ -314,6 +314,9 @@ func TestServer_CreateTree(t *testing.T) {
 	keySignatureMismatch := validTree
 	keySignatureMismatch.SignatureAlgorithm = sigpb.DigitallySigned_RSA
 
+	negRootDuration := validTree
+	negRootDuration.MaxRootDurationMillis = -1
+
 	tests := []struct {
 		desc                           string
 		req                            *trillian.CreateTreeRequest
@@ -338,6 +341,11 @@ func TestServer_CreateTree(t *testing.T) {
 		{
 			desc:    "omittedPrivateKey",
 			req:     &trillian.CreateTreeRequest{Tree: &omittedPrivateKey},
+			wantErr: true,
+		},
+		{
+			desc:    "negativeMaxRootDuration",
+			req:     &trillian.CreateTreeRequest{Tree: &negRootDuration},
 			wantErr: true,
 		},
 		{
@@ -477,7 +485,7 @@ func TestServer_CreateTree(t *testing.T) {
 		reqCopy := proto.Clone(test.req).(*trillian.CreateTreeRequest)
 		tree, err := s.CreateTree(ctx, reqCopy)
 		if hasErr := err != nil; hasErr != test.wantErr {
-			t.Errorf("%v: CreateTree() = (_, %q), wantErr = %v", test.desc, err, test.wantErr)
+			t.Errorf("%v: CreateTree() = (_, %v), wantErr = %v", test.desc, err, test.wantErr)
 			continue
 		} else if hasErr {
 			continue
@@ -514,6 +522,7 @@ func TestServer_UpdateTree(t *testing.T) {
 	existingTree.TreeId = 12345
 	existingTree.CreateTimeMillisSinceEpoch = 10
 	existingTree.UpdateTimeMillisSinceEpoch = 10
+	existingTree.MaxRootDurationMillis = 1
 
 	// Any valid proto works here, the type doesn't matter for this test.
 	settings, err := ptypes.MarshalAny(&keyspb.PEMKeyFile{})
@@ -523,12 +532,13 @@ func TestServer_UpdateTree(t *testing.T) {
 
 	// successTree specifies changes in all rw fields
 	successTree := &trillian.Tree{
-		TreeState:       trillian.TreeState_FROZEN,
-		DisplayName:     "Brand New Tree Name",
-		Description:     "Brand New Tree Desc",
-		StorageSettings: settings,
+		TreeState:             trillian.TreeState_FROZEN,
+		DisplayName:           "Brand New Tree Name",
+		Description:           "Brand New Tree Desc",
+		StorageSettings:       settings,
+		MaxRootDurationMillis: 2,
 	}
-	successMask := &field_mask.FieldMask{Paths: []string{"tree_state", "display_name", "description", "storage_settings"}}
+	successMask := &field_mask.FieldMask{Paths: []string{"tree_state", "display_name", "description", "storage_settings", "max_root_duration_millis"}}
 
 	successWant := existingTree
 	successWant.TreeState = successTree.TreeState
@@ -536,6 +546,7 @@ func TestServer_UpdateTree(t *testing.T) {
 	successWant.Description = successTree.Description
 	successWant.StorageSettings = successTree.StorageSettings
 	successWant.PrivateKey = nil // redacted on responses
+	successWant.MaxRootDurationMillis = successTree.MaxRootDurationMillis
 
 	tests := []struct {
 		desc                           string

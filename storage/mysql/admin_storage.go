@@ -46,7 +46,8 @@ const (
 			CreateTimeMillis,
 			UpdateTimeMillis,
 			PrivateKey,
-			PublicKey
+			PublicKey,
+			MaxRootDurationMillis
 		FROM Trees`
 	selectTreeByID = selectTrees + " WHERE TreeId = ?"
 )
@@ -156,7 +157,7 @@ func readTree(row row) (*trillian.Tree, error) {
 
 	// Enums and Datetimes need an extra conversion step
 	var treeState, treeType, hashStrategy, hashAlgorithm, signatureAlgorithm string
-	var createMillis, updateMillis int64
+	var createMillis, updateMillis, maxRootDurationMillis int64
 	var displayName, description sql.NullString
 	var privateKey, publicKey []byte
 	err := row.Scan(
@@ -172,6 +173,7 @@ func readTree(row row) (*trillian.Tree, error) {
 		&updateMillis,
 		&privateKey,
 		&publicKey,
+		&maxRootDurationMillis,
 	)
 	if err != nil {
 		return nil, err
@@ -222,6 +224,7 @@ func readTree(row row) (*trillian.Tree, error) {
 
 	tree.CreateTimeMillisSinceEpoch = createMillis
 	tree.UpdateTimeMillisSinceEpoch = updateMillis
+	tree.MaxRootDurationMillis = maxRootDurationMillis
 
 	tree.PrivateKey = &any.Any{}
 	if err := proto.Unmarshal(privateKey, tree.PrivateKey); err != nil {
@@ -319,8 +322,9 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 			CreateTimeMillis,
 			UpdateTimeMillis,
 			PrivateKey,
-			PublicKey)
-		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+			PublicKey,
+			MaxRootDurationMillis)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 	if err != nil {
 		return nil, err
 	}
@@ -345,6 +349,7 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 		newTree.UpdateTimeMillisSinceEpoch,
 		privateKey,
 		newTree.PublicKey.GetDer(),
+		newTree.MaxRootDurationMillis,
 	)
 	if err != nil {
 		return nil, err
@@ -406,7 +411,7 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 	stmt, err := t.tx.PrepareContext(
 		ctx,
 		`UPDATE Trees
-		SET TreeState = ?, DisplayName = ?, Description = ?, UpdateTimeMillis = ?
+		SET TreeState = ?, DisplayName = ?, Description = ?, UpdateTimeMillis = ?, MaxRootDurationMillis = ?
 		WHERE TreeId = ?`)
 	if err != nil {
 		return nil, err
@@ -419,6 +424,7 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 		tree.DisplayName,
 		tree.Description,
 		tree.UpdateTimeMillisSinceEpoch,
+		tree.MaxRootDurationMillis,
 		tree.TreeId); err != nil {
 		return nil, err
 	}

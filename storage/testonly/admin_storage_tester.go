@@ -88,6 +88,7 @@ var (
 		PublicKey: &keyspb.PublicKey{
 			Der: publicPEMToDER(ttestonly.DemoPublicKey),
 		},
+		MaxRootDurationMillis: 0,
 	}
 
 	// MapTree is a valid, MAP-type trillian.Tree for tests.
@@ -105,6 +106,7 @@ var (
 		PublicKey: &keyspb.PublicKey{
 			Der: publicPEMToDER(ttestonly.DemoPublicKey),
 		},
+		MaxRootDurationMillis: 0,
 	}
 )
 
