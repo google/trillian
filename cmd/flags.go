@@ -15,10 +15,11 @@
 package cmd
 
 import (
+	"errors"
 	"flag"
 	"io/ioutil"
 
-	"github.com/mattn/go-shellwords"
+	"bitbucket.org/creachadair/shell"
 )
 
 // ParseFlagFile parses a set of flags from a file at the provided
@@ -31,11 +32,9 @@ func ParseFlagFile(path string) error {
 		return err
 	}
 
-	p := shellwords.NewParser()
-	p.ParseEnv = true
-	args, err := p.Parse(string(file))
-	if err != nil {
-		return err
+	args, valid := shell.Split(string(file))
+	if !valid {
+		return errors.New("flag file contains unclosed quotations")
 	}
 
 	err = flag.CommandLine.Parse(args)
