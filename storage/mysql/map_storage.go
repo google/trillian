@@ -114,7 +114,8 @@ func (m *mySQLMapStorage) begin(ctx context.Context, treeID int64, readonly bool
 		return nil, err
 	}
 
-	ttx, err := m.beginTreeTx(ctx, treeID, hasher.Size(), defaultMapStrata, cache.PopulateMapSubtreeNodes(hasher), cache.PrepareMapSubtreeWrite())
+	stCache := cache.NewSubtreeCache(defaultMapStrata, cache.PopulateMapSubtreeNodes(hasher), cache.PrepareMapSubtreeWrite())
+	ttx, err := m.beginTreeTx(ctx, treeID, hasher.Size(), stCache)
 	if err != nil {
 		return nil, err
 	}
