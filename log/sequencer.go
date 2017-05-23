@@ -68,6 +68,9 @@ func createMetrics(mf monitoring.MetricFactory) {
 	seqCommitLatency = mf.NewHistogram("sequencer_latency_commit", "Latency of commit part of sequencer batch operation in ms", logIDLabel)
 }
 
+// TODO(daviddrysdale): Make this configurable
+var maxRootDurationInterval = 12 * time.Hour
+
 // TODO(Martin2112): Add admin support for safely changing params like guard window during operation
 // TODO(Martin2112): Add support for enabling and controlling sequencing as part of admin API
 
@@ -262,12 +265,17 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int) (i
 		return 0, s.SignRoot(ctx, logID)
 	}
 
-	// There might be no work to be done. But we possibly still need to create an STH if the
+	// There might be no work to be done. But we possibly still need to create an signed root if the
 	// current one is too old. If there's work to be done then we'll be creating a root anyway.
 	if len(leaves) == 0 {
-		// We have nothing to integrate into the tree
-		glog.V(1).Infof("No leaves sequenced in this signing operation.")
-		return 0, tx.Commit()
+		nowNanos := s.timeSource.Now().UnixNano()
+		interval := time.Duration(nowNanos - currentRoot.TimestampNanos)
+		if maxRootDurationInterval == 0 || interval < maxRootDurationInterval {
+			// We have nothing to integrate into the tree
+			glog.V(1).Infof("No leaves sequenced in this signing operation.")
+			return 0, tx.Commit()
+		}
+		glog.Infof("Force new root generation as %v since last root", interval)
 	}
 
 	merkleTree, err := s.initMerkleTreeFromStorage(ctx, currentRoot, tx)
