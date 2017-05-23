@@ -46,7 +46,12 @@ var (
 )
 
 // RootHash can't be nil because that's how the sequencer currently detects that there was no stored tree head.
-var testRoot16 = trillian.SignedLogRoot{TreeSize: 16, TreeRevision: 5, RootHash: []byte{}}
+var testRoot16 = trillian.SignedLogRoot{
+	TreeSize:       16,
+	TreeRevision:   5,
+	RootHash:       []byte{},
+	TimestampNanos: fakeTimeForTest.Add(-10 * time.Millisecond).UnixNano(),
+}
 
 // These will be accepted in either order because of custom sorting in the mock
 var updatedNodes = []storage.Node{
@@ -295,6 +300,49 @@ func TestSequenceWithNothingQueued(t *testing.T) {
 	if err != nil {
 		t.Error("Expected nil return with no work pending in queue")
 	}
+}
+
+func TestSequenceWithNothingQueuedNewRoot(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	signer, err := newSignerWithFixedSig(expectedSignedRoot16.Signature)
+	if err != nil {
+		t.Fatalf("Failed to create test signer (%v)", err)
+	}
+
+	noLeaves := []*trillian.LogLeaf{}
+	noNodes := []storage.Node{}
+	params := testParameters{
+		logID:            154035,
+		dequeueLimit:     1,
+		shouldCommit:     true,
+		latestSignedRoot: &testRoot16,
+		dequeuedLeaves:   []*trillian.LogLeaf{},
+		writeRevision:    testRoot16.TreeRevision + 1,
+		updatedLeaves:    &noLeaves,
+		merkleNodesSet:   &noNodes,
+		signer:           signer,
+		storeSignedRoot: &trillian.SignedLogRoot{
+			TimestampNanos: fakeTimeForTest.UnixNano(),
+			TreeSize:       16,
+			TreeRevision:   6,
+			RootHash:       []byte{},
+			Signature: &sigpb.DigitallySigned{
+				SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
+				HashAlgorithm:      sigpb.DigitallySigned_SHA256,
+				Signature:          []byte("signed"),
+			},
+		},
+	}
+	c, ctx := createTestContext(ctrl, params)
+	saved := maxRootDurationInterval
+	maxRootDurationInterval = 1 * time.Millisecond
+
+	leaves, err := c.sequencer.SequenceBatch(ctx, params.logID, 1)
+	if leaves != 0 || err != nil {
+		t.Errorf("SequenceBatch()=(%v,%v); want (0,nil)", leaves, err)
+	}
+	maxRootDurationInterval = saved
 }
 
 // Tests that the guard interval is being passed to storage correctly. Actual operation of the
