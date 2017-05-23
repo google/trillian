@@ -192,10 +192,6 @@ func getActiveLogIDs(ctx context.Context, tx *sql.Tx) ([]int64, error) {
 	return getActiveLogIDsInternal(ctx, tx, selectActiveLogsSQL)
 }
 
-func getActiveLogIDsWithPendingWork(ctx context.Context, tx *sql.Tx) ([]int64, error) {
-	return getActiveLogIDsInternal(ctx, tx, selectActiveLogsWithUnsequencedSQL)
-}
-
 // readOnlyLogTX implements storage.ReadOnlyLogTX
 type readOnlyLogTX struct {
 	tx *sql.Tx
@@ -228,10 +224,6 @@ func (t *readOnlyLogTX) Close() error {
 
 func (t *readOnlyLogTX) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
 	return getActiveLogIDs(ctx, t.tx)
-}
-
-func (t *readOnlyLogTX) GetActiveLogIDsWithPendingWork(ctx context.Context) ([]int64, error) {
-	return getActiveLogIDsWithPendingWork(ctx, t.tx)
 }
 
 func (m *mySQLLogStorage) beginInternal(ctx context.Context, treeID int64, readonly bool) (storage.LogTreeTX, error) {
@@ -694,12 +686,6 @@ func (t *logTreeTX) getLeavesByHashInternal(ctx context.Context, leafHashes [][]
 // GetActiveLogIDs returns a list of the IDs of all configured logs
 func (t *logTreeTX) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
 	return getActiveLogIDs(ctx, t.tx)
-}
-
-// GetActiveLogIDsWithPendingWork returns a list of the IDs of all configured logs
-// that have queued unsequenced leaves that need to be integrated
-func (t *logTreeTX) GetActiveLogIDsWithPendingWork(ctx context.Context) ([]int64, error) {
-	return getActiveLogIDsWithPendingWork(ctx, t.tx)
 }
 
 // byLeafIdentityHash allows sorting of leaves by their identity hash, so DB

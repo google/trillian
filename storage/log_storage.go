@@ -137,7 +137,4 @@ type LogRootWriter interface {
 type LogMetadata interface {
 	// GetActiveLogs returns a list of the IDs of all the logs that are configured in storage
 	GetActiveLogIDs(ctx context.Context) ([]int64, error)
-	// GetActiveLogIDsWithPendingWork returns a list of IDs of logs that have
-	// pending queued leaves that need to be integrated into the log.
-	GetActiveLogIDsWithPendingWork(ctx context.Context) ([]int64, error)
 }

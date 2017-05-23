@@ -122,11 +122,6 @@ func (t *readOnlyLogTX) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
 	return ret, nil
 }
 
-func (t *readOnlyLogTX) GetActiveLogIDsWithPendingWork(ctx context.Context) ([]int64, error) {
-	// just return all trees for now
-	return t.GetActiveLogIDs(ctx)
-}
-
 func (m *memoryLogStorage) beginInternal(ctx context.Context, treeID int64, readonly bool) (storage.LogTreeTX, error) {
 	once.Do(func() {
 		createMetrics(m.metricFactory)
@@ -343,13 +338,6 @@ func (t *logTreeTX) getActiveLogIDs(ctx context.Context) ([]int64, error) {
 
 // GetActiveLogIDs returns a list of the IDs of all configured logs
 func (t *logTreeTX) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
-	return t.getActiveLogIDs(ctx)
-}
-
-// GetActiveLogIDsWithPendingWork returns a list of the IDs of all configured logs
-// that have queued unsequenced leaves that need to be integrated
-func (t *logTreeTX) GetActiveLogIDsWithPendingWork(ctx context.Context) ([]int64, error) {
-	// TODO(alcutter): only return trees with work to do
 	return t.getActiveLogIDs(ctx)
 }
 

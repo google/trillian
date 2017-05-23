@@ -890,8 +890,8 @@ func toIDsMap(ids []int64) map[int64]bool {
 	return idsMap
 }
 
-// runTestGetActiveLogIDsInternal calls test.fn (which is either GetActiveLogIDs or
-// GetActiveLogIDsWithPendingWork) and check that the result matches wantIds.
+// runTestGetActiveLogIDsInternal calls test.fn (which involves either Begin or
+// Snapshot) and check that the result matches wantIds.
 func runTestGetActiveLogIDsInternal(ctx context.Context, t *testing.T, test getActiveIDsTest, logID int64, wantIds []int64) {
 	s := NewLogStorage(DB, nil)
 
@@ -916,32 +916,6 @@ func runTestGetActiveLogIDs(ctx context.Context, t *testing.T, test getActiveIDs
 	logID1 := createLogForTests(DB)
 	logID2 := createLogForTests(DB)
 	logID3 := createLogForTests(DB)
-	wantIds := []int64{logID1, logID2, logID3}
-	runTestGetActiveLogIDsInternal(ctx, t, test, logID1, wantIds)
-}
-
-func runTestGetActiveLogIDsWithPendingWork(ctx context.Context, t *testing.T, test getActiveIDsTest) {
-	cleanTestDB(DB)
-	logID1 := createLogForTests(DB)
-	logID2 := createLogForTests(DB)
-	logID3 := createLogForTests(DB)
-	s := NewLogStorage(DB, nil)
-
-	// Do a first run without any pending logs
-	runTestGetActiveLogIDsInternal(ctx, t, test, logID1, nil)
-
-	for _, logID := range []int64{logID1, logID2, logID3} {
-		func() {
-			tx := beginLogTx(s, logID, t)
-			defer tx.Close()
-			leaves := createTestLeaves(leavesToInsert, 2)
-			if _, err := tx.QueueLeaves(ctx, leaves, fakeQueueTime); err != nil {
-				t.Fatalf("Failed to queue leaves for log %v: %v", logID, err)
-			}
-			commit(tx, t)
-		}()
-	}
-
 	wantIds := []int64{logID1, logID2, logID3}
 	runTestGetActiveLogIDsInternal(ctx, t, test, logID1, wantIds)
 }
@@ -1011,48 +985,6 @@ func TestGetActiveLogIDsEmpty(t *testing.T) {
 
 	if err := tx.Commit(); err != nil {
 		t.Fatalf("Commit() = %v, want = nil", err)
-	}
-}
-
-func TestGetActiveLogIDsWithPendingWork(t *testing.T) {
-	getActiveIDsBegin := func(ctx context.Context, s storage.LogStorage, logID int64) ([]int64, error) {
-		tx, err := s.BeginForTree(ctx, logID)
-		if err != nil {
-			return nil, err
-		}
-		defer tx.Close()
-		ids, err := tx.GetActiveLogIDsWithPendingWork(ctx)
-		if err != nil {
-			return nil, err
-		}
-		if err := tx.Commit(); err != nil {
-			return nil, err
-		}
-		return ids, nil
-	}
-	getActiveIDsSnapshot := func(ctx context.Context, s storage.LogStorage, logID int64) ([]int64, error) {
-		tx, err := s.Snapshot(ctx)
-		if err != nil {
-			return nil, err
-		}
-		defer tx.Close()
-		ids, err := tx.GetActiveLogIDsWithPendingWork(ctx)
-		if err != nil {
-			return nil, err
-		}
-		if err := tx.Commit(); err != nil {
-			return nil, err
-		}
-		return ids, nil
-	}
-
-	tests := []getActiveIDsTest{
-		{name: "getActiveIDsBegin", fn: getActiveIDsBegin},
-		{name: "getActiveIDsSnapshot", fn: getActiveIDsSnapshot},
-	}
-	ctx := context.Background()
-	for _, test := range tests {
-		runTestGetActiveLogIDsWithPendingWork(ctx, t, test)
 	}
 }
 
