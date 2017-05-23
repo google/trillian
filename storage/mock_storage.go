@@ -354,19 +354,6 @@ func (_mr *MockLogTreeTXMockRecorder) GetActiveLogIDs(arg0 interface{}) *gomock.
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetActiveLogIDs", arg0)
 }
 
-// GetActiveLogIDsWithPendingWork mocks base method
-func (_m *MockLogTreeTX) GetActiveLogIDsWithPendingWork(_param0 context.Context) ([]int64, error) {
-	ret := _m.ctrl.Call(_m, "GetActiveLogIDsWithPendingWork", _param0)
-	ret0, _ := ret[0].([]int64)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetActiveLogIDsWithPendingWork indicates an expected call of GetActiveLogIDsWithPendingWork
-func (_mr *MockLogTreeTXMockRecorder) GetActiveLogIDsWithPendingWork(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetActiveLogIDsWithPendingWork", arg0)
-}
-
 // GetLeavesByHash mocks base method
 func (_m *MockLogTreeTX) GetLeavesByHash(_param0 context.Context, _param1 [][]byte, _param2 bool) ([]*trillian.LogLeaf, error) {
 	ret := _m.ctrl.Call(_m, "GetLeavesByHash", _param0, _param1, _param2)
@@ -954,19 +941,6 @@ func (_m *MockReadOnlyLogTX) GetActiveLogIDs(_param0 context.Context) ([]int64, 
 // GetActiveLogIDs indicates an expected call of GetActiveLogIDs
 func (_mr *MockReadOnlyLogTXMockRecorder) GetActiveLogIDs(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetActiveLogIDs", arg0)
-}
-
-// GetActiveLogIDsWithPendingWork mocks base method
-func (_m *MockReadOnlyLogTX) GetActiveLogIDsWithPendingWork(_param0 context.Context) ([]int64, error) {
-	ret := _m.ctrl.Call(_m, "GetActiveLogIDsWithPendingWork", _param0)
-	ret0, _ := ret[0].([]int64)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetActiveLogIDsWithPendingWork indicates an expected call of GetActiveLogIDsWithPendingWork
-func (_mr *MockReadOnlyLogTXMockRecorder) GetActiveLogIDsWithPendingWork(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetActiveLogIDsWithPendingWork", arg0)
 }
 
 // Rollback mocks base method
