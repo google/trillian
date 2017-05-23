@@ -68,6 +68,16 @@ func (b *Backoff) Retry(ctx context.Context, f func() error) error {
 	for {
 		err := f()
 		if err != nil {
+			// If the context has errored, return immediately.
+			// Can't just wait for Done() in this case, because
+			// this can race with the backoff, resulting in more
+			// calls to f() than expected.
+			if ctx.Err() != nil {
+				return err
+			}
+
+			// Otherwise, wait for the backoff duration or until
+			// the context is done, whichever comes first.
 			select {
 			case <-time.After(b.Duration()):
 				continue
