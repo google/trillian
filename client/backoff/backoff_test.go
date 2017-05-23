@@ -51,8 +51,8 @@ func TestBackoff(t *testing.T) {
 
 func TestJitter(t *testing.T) {
 	b := Backoff{
-		Min:    time.Duration(1) * time.Second,
-		Max:    time.Duration(100) * time.Second,
+		Min:    1 * time.Second,
+		Max:    100 * time.Second,
 		Factor: 2,
 		Jitter: true,
 	}
@@ -62,11 +62,11 @@ func TestJitter(t *testing.T) {
 		min   time.Duration
 		max   time.Duration
 	}{
-		{b, 1, time.Duration(1) * time.Second, time.Duration(2) * time.Second},
-		{b, 2, time.Duration(2) * time.Second, time.Duration(4) * time.Second},
-		{b, 3, time.Duration(4) * time.Second, time.Duration(8) * time.Second},
-		{b, 4, time.Duration(8) * time.Second, time.Duration(16) * time.Second},
-		{b, 8, time.Duration(100) * time.Second, time.Duration(200) * time.Second},
+		{b, 1, 1 * time.Second, 2 * time.Second},
+		{b, 2, 2 * time.Second, 4 * time.Second},
+		{b, 3, 4 * time.Second, 8 * time.Second},
+		{b, 4, 8 * time.Second, 16 * time.Second},
+		{b, 8, 100 * time.Second, 200 * time.Second},
 	} {
 		test.b.Reset()
 		var got1 time.Duration
@@ -92,8 +92,8 @@ func TestJitter(t *testing.T) {
 
 func TestRetry(t *testing.T) {
 	b := Backoff{
-		Min:    time.Duration(50) * time.Millisecond,
-		Max:    time.Duration(200) * time.Millisecond,
+		Min:    50 * time.Millisecond,
+		Max:    200 * time.Millisecond,
 		Factor: 2,
 	}
 
