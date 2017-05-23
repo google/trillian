@@ -17,7 +17,9 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	_ "net/http/pprof"
+	"os"
 	"strings"
 	"time"
 
@@ -27,6 +29,7 @@ import (
 	etcdnaming "github.com/coreos/etcd/clientv3/naming"
 	"github.com/golang/glog"
 	"github.com/google/trillian"
+	"github.com/google/trillian/cmd"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/monitoring"
@@ -48,10 +51,20 @@ var (
 	etcdServers         = flag.String("etcd_servers", "", "A comma-separated list of etcd servers; no etcd registration if empty")
 	etcdService         = flag.String("etcd_service", "trillian-log", "Service name to announce ourselves under")
 	maxUnsequencedRows  = flag.Int("max_unsequenced_rows", mysqlq.DefaultMaxUnsequenced, "Max number of unsequenced rows before rate limiting kicks in")
+
+	configFile = flag.String("config", "", "Config file containing flags, file contents can be overridden by command line flags")
 )
 
 func main() {
 	flag.Parse()
+
+	if *configFile != "" {
+		if err := cmd.ParseFlagFile(*configFile); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to parse %v: %v\n", *configFile, err)
+			os.Exit(1)
+		}
+	}
+
 	ctx := context.Background()
 
 	// First make sure we can access the database, quit if not

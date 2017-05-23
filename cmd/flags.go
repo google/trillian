@@ -3,8 +3,6 @@ package cmd
 import (
 	"flag"
 	"io/ioutil"
-
-	"github.com/mattn/go-shellwords"
 )
 
 func ParseFlagFile(path string) error {
@@ -20,5 +18,13 @@ func ParseFlagFile(path string) error {
 		return err
 	}
 
-	return flag.CommandLine.Parse(args)
+	err = flag.CommandLine.Parse(args)
+	if err != nil {
+		return err
+	}
+
+	// Call flag.Parse() again so that command line flags
+	// can override flags provided in the provided flag file.
+	flag.Parse()
+	return nil
 }

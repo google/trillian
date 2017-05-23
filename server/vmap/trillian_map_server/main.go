@@ -17,12 +17,15 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	_ "net/http/pprof"
+	"os"
 
 	_ "github.com/go-sql-driver/mysql" // Load MySQL driver
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
+	"github.com/google/trillian/cmd"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/extension"
 	mysqlq "github.com/google/trillian/quota/mysql"
@@ -39,10 +42,19 @@ var (
 	rpcEndpoint        = flag.String("rpc_endpoint", "localhost:8090", "Endpoint for RPC requests (host:port)")
 	httpEndpoint       = flag.String("http_endpoint", "localhost:8091", "Endpoint for HTTP metrics and REST requests on (host:port, empty means disabled)")
 	maxUnsequencedRows = flag.Int("max_unsequenced_rows", mysqlq.DefaultMaxUnsequenced, "Max number of unsequenced rows before rate limiting kicks in")
+
+	configFile = flag.String("config", "", "Config file containing flags, file contents can be overridden by command line flags")
 )
 
 func main() {
 	flag.Parse()
+
+	if *configFile != "" {
+		if err := cmd.ParseFlagFile(*configFile); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to parse %v: %v\n", *configFile, err)
+			os.Exit(1)
+		}
+	}
 
 	db, err := mysql.OpenDB(*mySQLURI)
 	if err != nil {

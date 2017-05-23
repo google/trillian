@@ -23,6 +23,7 @@ import (
 	_ "github.com/go-sql-driver/mysql" // Load MySQL driver
 
 	"github.com/golang/glog"
+	"github.com/google/trillian/cmd"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/monitoring/metric"
@@ -50,10 +51,20 @@ var (
 	masterCheckInterval = flag.Duration("master_check_interval", 5*time.Second, "Interval between checking mastership still held")
 	masterHoldInterval  = flag.Duration("master_hold_interval", 60*time.Second, "Minimum interval to hold mastership for")
 	resignOdds          = flag.Int("resign_odds", 10, "Chance of resigning mastership after each check, the N in 1-in-N")
+
+	configFile = flag.String("config", "", "Config file containing flags, file contents can be overridden by command line flags")
 )
 
 func main() {
 	flag.Parse()
+
+	if *configFile != "" {
+		if err := cmd.ParseFlagFile(*configFile); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to parse %v: %v\n", *configFile, err)
+			os.Exit(1)
+		}
+	}
+
 	glog.CopyStandardLogTo("WARNING")
 	glog.Info("**** Log Signer Starting ****")
 

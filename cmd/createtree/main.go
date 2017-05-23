@@ -48,7 +48,6 @@ import (
 )
 
 var (
-	configFile      = flag.String("config", "", "Config file containing flags")
 	adminServerAddr = flag.String("admin_server", "", "Address of the gRPC Trillian Admin Server (host:port)")
 
 	treeState          = flag.String("tree_state", trillian.TreeState_ACTIVE.String(), "State of the new tree")
@@ -62,6 +61,8 @@ var (
 	privateKeyFormat = flag.String("private_key_format", "PEMKeyFile", "Type of private key to be used")
 	pemKeyPath       = flag.String("pem_key_path", "", "Path to the private key PEM file")
 	pemKeyPassword   = flag.String("pem_key_password", "", "Password of the private key PEM file")
+
+	configFile = flag.String("config", "", "Config file containing flags, file contents can be overridden by command line flags")
 )
 
 // createOpts contains all user-supplied options required to run the program.
@@ -178,19 +179,10 @@ func main() {
 	flag.Parse()
 
 	if *configFile != "" {
-		if flag.NFlag() != 1 {
-			fmt.Printf("No other flags can be provided when --config is set")
-			os.Exit(1)
-		}
-
 		if err := cmd.ParseFlagFile(*configFile); err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to parse %v: %v\n", *configFile, err)
 			os.Exit(1)
 		}
-
-		// Alternative to printing error if more than just "--config" flag is provided:
-		// let command-line flags take precedent by re-parsing from the command-line.
-		// flag.Parse()
 	}
 
 	ctx := context.Background()
