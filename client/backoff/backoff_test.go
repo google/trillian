@@ -92,8 +92,8 @@ func TestJitter(t *testing.T) {
 
 func TestRetry(t *testing.T) {
 	b := Backoff{
-		Min:    time.Duration(1),
-		Max:    time.Duration(100),
+		Min:    time.Duration(50) * time.Millisecond,
+		Max:    time.Duration(200) * time.Millisecond,
 		Factor: 2,
 	}
 
