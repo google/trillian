@@ -18,6 +18,7 @@ import (
 	"errors"
 	"flag"
 	"io/ioutil"
+	"os"
 
 	"bitbucket.org/creachadair/shell"
 )
@@ -32,7 +33,10 @@ func ParseFlagFile(path string) error {
 		return err
 	}
 
-	args, valid := shell.Split(string(file))
+	// Expand any environment variables in the file
+	flagsString := os.ExpandEnv(string(file))
+
+	args, valid := shell.Split(flagsString)
 	if !valid {
 		return errors.New("flag file contains unclosed quotations")
 	}
