@@ -89,8 +89,7 @@ main() {
     printf '%s\n' ${go_srcs} | xargs -I'{}' go vet '{}'
 
     echo 'running gocyclo'
-    # Do not fail on gocyclo tests, hence the "|| true".
-    printf '%s\n' ${go_srcs} | xargs -I'{}' bash -c 'gocyclo -over 25 {} || true'
+    printf '%s\n' ${go_srcs} | xargs -I'{}' bash -c 'gocyclo -over 25 {}'
 
     echo 'running misspell'
     printf '%s\n' ${go_srcs} | xargs -I'{}' misspell -error -i cancelled,CANCELLED -locale US '{}'
