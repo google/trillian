@@ -14,7 +14,6 @@ WORKDIR /go/src/github.com/google/trillian
 
 RUN go get ./server/vmap/trillian_map_server
 
-# Run the outyet command by default when the container starts.
 ENTRYPOINT /go/bin/trillian_map_server \
 	--mysql_uri="${DB_USER}:${DB_PASSWORD}@tcp(${DB_HOST})/${DB_DATABASE}" \
 	--rpc_endpoint="$HOST:$RPC_PORT" \

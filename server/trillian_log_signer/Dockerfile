@@ -16,7 +16,7 @@ ENV SEQUENCER_GUARD_WINDOW=0s \
 ADD . /go/src/github.com/google/trillian
 WORKDIR /go/src/github.com/google/trillian 
 
-RUN go get -v ./server/trillian_log_signer
+RUN go get ./server/trillian_log_signer
 
 # Run the outyet command by default when the container starts.
 ENTRYPOINT /go/bin/trillian_log_signer \
@@ -24,7 +24,8 @@ ENTRYPOINT /go/bin/trillian_log_signer \
 	--http_endpoint="$HOST:$HTTP_PORT" \
 	--dump_metrics_interval="$DUMP_METRICS" \
 	--sequencer_guard_window="$SEQUENCER_GUARD_WINDOW" \
-	--force_master="$FORCE_MASTER"
+	--force_master="$FORCE_MASTER" \
+	--alsologtostderr
 
 EXPOSE $HTTP_PORT
 
