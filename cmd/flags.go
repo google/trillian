@@ -17,6 +17,8 @@ package cmd
 import (
 	"flag"
 	"io/ioutil"
+
+	"github.com/mattn/go-shellwords"
 )
 
 // ParseFlagFile parses a set of flags from a file at the provided
