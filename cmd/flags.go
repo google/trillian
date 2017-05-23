@@ -5,6 +5,10 @@ import (
 	"io/ioutil"
 )
 
+// ParseFlagFile parses a set of flags from a file at the provided
+// path. Re-calls flag.Parse() after parsing the flags in the file
+// so that flags provided on the command line take precedence over
+// flags provided in the file.
 func ParseFlagFile(path string) error {
 	file, err := ioutil.ReadFile(path)
 	if err != nil {
