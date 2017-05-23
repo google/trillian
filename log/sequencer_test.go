@@ -335,14 +335,12 @@ func TestSequenceWithNothingQueuedNewRoot(t *testing.T) {
 		},
 	}
 	c, ctx := createTestContext(ctrl, params)
-	saved := maxRootDurationInterval
-	maxRootDurationInterval = 1 * time.Millisecond
+	c.sequencer.SetMaxRootDurationInterval(1 * time.Millisecond)
 
 	leaves, err := c.sequencer.SequenceBatch(ctx, params.logID, 1)
 	if leaves != 0 || err != nil {
 		t.Errorf("SequenceBatch()=(%v,%v); want (0,nil)", leaves, err)
 	}
-	maxRootDurationInterval = saved
 }
 
 // Tests that the guard interval is being passed to storage correctly. Actual operation of the
