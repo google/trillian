@@ -23,6 +23,26 @@ import (
 	"bitbucket.org/creachadair/shell"
 )
 
+func parseFlags(file string) error {
+	args, valid := shell.Split(file)
+	if !valid {
+		return errors.New("flag file contains unclosed quotations")
+	}
+	// Expand any environment variables in the args
+	for i := range args {
+		args[i] = os.ExpandEnv(args[i])
+	}
+
+	if err := flag.CommandLine.Parse(args); err != nil {
+		return err
+	}
+
+	// Call flag.Parse() again so that command line flags
+	// can override flags provided in the provided flag file.
+	flag.Parse()
+	return nil
+}
+
 // ParseFlagFile parses a set of flags from a file at the provided
 // path. Re-calls flag.Parse() after parsing the flags in the file
 // so that flags provided on the command line take precedence over
@@ -32,22 +52,5 @@ func ParseFlagFile(path string) error {
 	if err != nil {
 		return err
 	}
-
-	// Expand any environment variables in the file
-	flagsString := os.ExpandEnv(string(file))
-
-	args, valid := shell.Split(flagsString)
-	if !valid {
-		return errors.New("flag file contains unclosed quotations")
-	}
-
-	err = flag.CommandLine.Parse(args)
-	if err != nil {
-		return err
-	}
-
-	// Call flag.Parse() again so that command line flags
-	// can override flags provided in the provided flag file.
-	flag.Parse()
-	return nil
+	return parseFlags(string(file))
 }
