@@ -60,8 +60,7 @@ func main() {
 
 	if *configFile != "" {
 		if err := cmd.ParseFlagFile(*configFile); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to parse %v: %v\n", *configFile, err)
-			os.Exit(1)
+			glog.Exitf("Failed to load flags from config file %q: %s", *configFile, err)
 		}
 	}
 
