@@ -28,6 +28,7 @@ func TestParseFlags(t *testing.T) {
 	flag.CommandLine.Init(os.Args[0], flag.ContinueOnError)
 
 	tests := []struct {
+		name        string
 		contents    string
 		env         map[string]string
 		cliArgs     []string
@@ -36,69 +37,73 @@ func TestParseFlags(t *testing.T) {
 		expectedB   string
 	}{
 		{
+			name:      "two flags per line",
 			contents:  "-a one -b two",
 			expectedA: "one",
 			expectedB: "two",
 		},
 		{
+			name:      "one flag per line",
 			contents:  "-a one\n-b two",
 			expectedA: "one",
 			expectedB: "two",
 		},
 		{
+			name:      "one flag per line, with line continuation",
 			contents:  "-a one \\\n-b two",
 			expectedA: "one",
 			expectedB: "two",
 		},
 		{
+			name:      "one flag in file, one flag on command-line",
 			contents:  "-a one",
 			cliArgs:   []string{"-b", "two"},
 			expectedA: "one",
 			expectedB: "two",
 		},
 		{
+			name:      "two flags, one overridden by command-line",
 			contents:  "-a one\n-b two",
 			cliArgs:   []string{"-b", "three"},
 			expectedA: "one",
 			expectedB: "three",
 		},
 		{
+			name:      "two flags, one using an environment variable",
 			contents:  "-a one\n-b $TEST_VAR",
 			env:       map[string]string{"TEST_VAR": "from env"},
 			expectedA: "one",
 			expectedB: "from env",
 		},
 		{
+			name:        "three flags, one undefined",
 			contents:    "-a one -b two -c three",
 			expectedErr: "flag provided but not defined: -c",
 		},
 	}
 
-	initalArgs := os.Args[:]
+	initialArgs := os.Args[:]
 	for _, tc := range tests {
 		a, b = "", ""
-		os.Args = initalArgs[:]
-		if len(tc.cliArgs) > 0 {
-			os.Args = append(os.Args, tc.cliArgs...)
-		}
+		os.Args = append(initialArgs, tc.cliArgs...)
 		for k, v := range tc.env {
 			if err := os.Setenv(k, v); err != nil {
-				t.Errorf("os.SetEnv failed: %s", err)
+				t.Errorf("%v: os.SetEnv(%q, %q) = %q", tc.name, k, v, err)
 			}
 		}
-		err := parseFlags(tc.contents)
-		if err != nil {
-			if err.Error() == tc.expectedErr {
-				continue
+
+		if err := parseFlags(tc.contents); err != nil {
+			if err.Error() != tc.expectedErr {
+				t.Errorf("%v: parseFlags() = %q, want %q", tc.name, err, tc.expectedErr)
 			}
-			t.Errorf("parseFlags failed: wanted: %q, got: %q", tc.expectedErr, err)
 			continue
 		}
+
 		if tc.expectedA != a {
-			t.Errorf("flag 'a' not properly set: wanted: %q, got %q", tc.expectedA, a)
+			t.Errorf("%v: flag 'a' not properly set: got %q, want %q", tc.name, a, tc.expectedA)
 		}
 		if tc.expectedB != b {
-			t.Errorf("flag 'b' not properly set: wanted: %q, got %q", tc.expectedB, b)
+			t.Errorf("%v: flag 'b' not properly set: got %q, want %q", tc.name, b, tc.expectedB)
 		}
 	}
 }
