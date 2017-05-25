@@ -18,6 +18,7 @@ import (
 	"errors"
 	"net"
 	"testing"
+	"time"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
@@ -63,6 +64,7 @@ func TestRun(t *testing.T) {
 		HashAlgorithm:      sigpb.DigitallySigned_SHA256,
 		SignatureAlgorithm: sigpb.DigitallySigned_RSA,
 		PrivateKey:         anyPrivKey,
+		MaxRootDuration:    ptypes.DurationProto(0 * time.Millisecond),
 	}
 
 	server, lis, stopFn, err := startFakeServer()

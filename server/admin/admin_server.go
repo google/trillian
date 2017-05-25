@@ -143,7 +143,11 @@ func (s *Server) CreateTree(ctx context.Context, request *trillian.CreateTreeReq
 		tree.PublicKey = &keyspb.PublicKey{Der: publicKeyDER}
 	}
 
-	if tree.MaxRootDurationMillis < 0 {
+	duration, err := ptypes.Duration(tree.MaxRootDuration)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "failed to convert max root duration")
+	}
+	if duration < 0 {
 		return nil, status.Error(codes.InvalidArgument, "the max root duration must be >= 0")
 	}
 
@@ -208,8 +212,8 @@ func applyUpdateMask(from, to *trillian.Tree, mask *field_mask.FieldMask) error 
 			to.Description = from.Description
 		case "storage_settings":
 			to.StorageSettings = from.StorageSettings
-		case "max_root_duration_millis":
-			to.MaxRootDurationMillis = from.MaxRootDurationMillis
+		case "max_root_duration":
+			to.MaxRootDuration = from.MaxRootDuration
 		default:
 			return status.Errorf(codes.InvalidArgument, "invalid update_mask path: %q", path)
 		}

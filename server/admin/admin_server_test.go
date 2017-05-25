@@ -22,6 +22,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
@@ -153,6 +154,7 @@ func TestServer_ListTrees(t *testing.T) {
 	ctx := context.Background()
 	nextTreeID := int64(17)
 	storedTrees := []*trillian.Tree{}
+	nowPB, _ := ptypes.TimestampProto(time.Now())
 	for _, test := range tests {
 		if l := len(storedTrees); l > test.numTrees {
 			t.Fatalf("%v: numTrees = %v, but we already have %v stored trees", test.desc, test.numTrees, l)
@@ -160,8 +162,8 @@ func TestServer_ListTrees(t *testing.T) {
 			for i := l; i < test.numTrees; i++ {
 				newTree := *testonly.LogTree
 				newTree.TreeId = nextTreeID
-				newTree.CreateTimeMillisSinceEpoch = nextTreeID + 1
-				newTree.UpdateTimeMillisSinceEpoch = nextTreeID + 2
+				newTree.CreateTime = nowPB
+				newTree.UpdateTime = nowPB
 				nextTreeID++
 				storedTrees = append(storedTrees, &newTree)
 			}
@@ -315,7 +317,10 @@ func TestServer_CreateTree(t *testing.T) {
 	keySignatureMismatch.SignatureAlgorithm = sigpb.DigitallySigned_RSA
 
 	negRootDuration := validTree
-	negRootDuration.MaxRootDurationMillis = -1
+	negRootDuration.MaxRootDuration = ptypes.DurationProto(-1 * time.Millisecond)
+
+	malformedRootDuration := validTree
+	malformedRootDuration.MaxRootDuration = nil
 
 	tests := []struct {
 		desc                           string
@@ -346,6 +351,11 @@ func TestServer_CreateTree(t *testing.T) {
 		{
 			desc:    "negativeMaxRootDuration",
 			req:     &trillian.CreateTreeRequest{Tree: &negRootDuration},
+			wantErr: true,
+		},
+		{
+			desc:    "malformedMaxRootDuration",
+			req:     &trillian.CreateTreeRequest{Tree: &malformedRootDuration},
 			wantErr: true,
 		},
 		{
@@ -470,14 +480,15 @@ func TestServer_CreateTree(t *testing.T) {
 		setup := setupAdminServer(ctrl, sf, false /* snapshot */, test.wantCommit, test.commitErr)
 		tx := setup.tx
 		s := setup.server
+		nowPB, _ := ptypes.TimestampProto(time.Now())
 
 		if test.req.Tree != nil {
 			var newTree trillian.Tree
 			tx.EXPECT().CreateTree(ctx, gomock.Any()).MaxTimes(1).Do(func(ctx context.Context, tree *trillian.Tree) {
 				newTree = *tree
 				newTree.TreeId = 12345
-				newTree.CreateTimeMillisSinceEpoch = 1
-				newTree.UpdateTimeMillisSinceEpoch = 1
+				newTree.CreateTime = nowPB
+				newTree.UpdateTime = nowPB
 			}).Return(&newTree, test.createErr)
 		}
 
@@ -493,8 +504,8 @@ func TestServer_CreateTree(t *testing.T) {
 
 		wantTree := *test.req.Tree
 		wantTree.TreeId = 12345
-		wantTree.CreateTimeMillisSinceEpoch = 1
-		wantTree.UpdateTimeMillisSinceEpoch = 1
+		wantTree.CreateTime = nowPB
+		wantTree.UpdateTime = nowPB
 		wantTree.PrivateKey = nil // redacted
 		wantTree.PublicKey = &keyspb.PublicKey{Der: publicKeyDER}
 		if diff := pretty.Compare(tree, &wantTree); diff != "" {
@@ -518,11 +529,12 @@ func TestServer_UpdateTree(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
+	nowPB, _ := ptypes.TimestampProto(time.Now())
 	existingTree := *testonly.LogTree
 	existingTree.TreeId = 12345
-	existingTree.CreateTimeMillisSinceEpoch = 10
-	existingTree.UpdateTimeMillisSinceEpoch = 10
-	existingTree.MaxRootDurationMillis = 1
+	existingTree.CreateTime = nowPB
+	existingTree.UpdateTime = nowPB
+	existingTree.MaxRootDuration = ptypes.DurationProto(1 * time.Nanosecond)
 
 	// Any valid proto works here, the type doesn't matter for this test.
 	settings, err := ptypes.MarshalAny(&keyspb.PEMKeyFile{})
@@ -532,13 +544,13 @@ func TestServer_UpdateTree(t *testing.T) {
 
 	// successTree specifies changes in all rw fields
 	successTree := &trillian.Tree{
-		TreeState:             trillian.TreeState_FROZEN,
-		DisplayName:           "Brand New Tree Name",
-		Description:           "Brand New Tree Desc",
-		StorageSettings:       settings,
-		MaxRootDurationMillis: 2,
+		TreeState:       trillian.TreeState_FROZEN,
+		DisplayName:     "Brand New Tree Name",
+		Description:     "Brand New Tree Desc",
+		StorageSettings: settings,
+		MaxRootDuration: ptypes.DurationProto(2 * time.Nanosecond),
 	}
-	successMask := &field_mask.FieldMask{Paths: []string{"tree_state", "display_name", "description", "storage_settings", "max_root_duration_millis"}}
+	successMask := &field_mask.FieldMask{Paths: []string{"tree_state", "display_name", "description", "storage_settings", "max_root_duration"}}
 
 	successWant := existingTree
 	successWant.TreeState = successTree.TreeState
@@ -546,7 +558,7 @@ func TestServer_UpdateTree(t *testing.T) {
 	successWant.Description = successTree.Description
 	successWant.StorageSettings = successTree.StorageSettings
 	successWant.PrivateKey = nil // redacted on responses
-	successWant.MaxRootDurationMillis = successTree.MaxRootDurationMillis
+	successWant.MaxRootDuration = successTree.MaxRootDuration
 
 	tests := []struct {
 		desc                           string

@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/golang/glog"
+	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
 )
@@ -143,12 +144,18 @@ func (t *adminTX) CreateTree(ctx context.Context, tr *trillian.Tree) (*trillian.
 		return nil, err
 	}
 
-	nowMillis := toMillisSinceEpoch(time.Now())
+	now := time.Now()
 
 	meta := *tr
 	meta.TreeId = id
-	meta.CreateTimeMillisSinceEpoch = nowMillis
-	meta.UpdateTimeMillisSinceEpoch = nowMillis
+	meta.CreateTime, err = ptypes.TimestampProto(now)
+	if err != nil {
+		return nil, err
+	}
+	meta.UpdateTime, err = ptypes.TimestampProto(now)
+	if err != nil {
+		return nil, err
+	}
 
 	t.ms.mu.Lock()
 	defer t.ms.mu.Unlock()
@@ -174,12 +181,12 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 		return nil, err
 	}
 
-	tree.UpdateTimeMillisSinceEpoch = toMillisSinceEpoch(time.Now())
+	var err error
+	tree.UpdateTime, err = ptypes.TimestampProto(time.Now())
+	if err != nil {
+		return nil, err
+	}
 	return tree, nil
-}
-
-func toMillisSinceEpoch(t time.Time) int64 {
-	return t.UnixNano() / 1000000
 }
 
 func validateStorageSettings(tree *trillian.Tree) error {

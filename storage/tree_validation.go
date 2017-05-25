@@ -88,9 +88,9 @@ func ValidateTreeForUpdate(storedTree, newTree *trillian.Tree) error {
 		return errors.New(errors.InvalidArgument, "readonly field changed: hash_algorithm")
 	case storedTree.SignatureAlgorithm != newTree.SignatureAlgorithm:
 		return errors.New(errors.InvalidArgument, "readonly field changed: signature_algorithm")
-	case storedTree.CreateTimeMillisSinceEpoch != newTree.CreateTimeMillisSinceEpoch:
+	case storedTree.CreateTime != newTree.CreateTime:
 		return errors.New(errors.InvalidArgument, "readonly field changed: create_time")
-	case storedTree.UpdateTimeMillisSinceEpoch != newTree.UpdateTimeMillisSinceEpoch:
+	case storedTree.UpdateTime != newTree.UpdateTime:
 		return errors.New(errors.InvalidArgument, "readonly field changed: update_time")
 	case storedTree.PrivateKey != newTree.PrivateKey:
 		return errors.New(errors.InvalidArgument, "readonly field changed: private_key")
@@ -108,8 +108,11 @@ func validateMutableTreeFields(tree *trillian.Tree) error {
 		return errors.Errorf(errors.InvalidArgument, "display_name too big, max length is %v: %v", maxDisplayNameLength, tree.DisplayName)
 	case len(tree.Description) > maxDescriptionLength:
 		return errors.Errorf(errors.InvalidArgument, "description too big, max length is %v: %v", maxDescriptionLength, tree.Description)
-	case tree.MaxRootDurationMillis < 0:
-		return errors.Errorf(errors.InvalidArgument, "max_root_duration negative: %v", tree.MaxRootDurationMillis)
+	}
+	if duration, err := ptypes.Duration(tree.MaxRootDuration); err != nil {
+		return errors.Errorf(errors.InvalidArgument, "max_root_duration malformed: %v", tree.MaxRootDuration)
+	} else if duration < 0 {
+		return errors.Errorf(errors.InvalidArgument, "max_root_duration negative: %v", tree.MaxRootDuration)
 	}
 
 	// Implementations may vary, so let's assume storage_settings is mutable.
