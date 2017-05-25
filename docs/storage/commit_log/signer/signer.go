@@ -108,7 +108,7 @@ func (s *Signer) Run() {
 		if nextSTH == nil {
 			break
 		}
-		if nextSTH != nil && nextSTH.Offset != nextOffset {
+		if nextSTH.Offset != nextOffset {
 			glog.V(2).Infof("%s: ignoring inconsistent STH %s at offset %d", s.Name, nextSTH.String(), nextOffset)
 			continue
 		}
