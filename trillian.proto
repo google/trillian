@@ -22,7 +22,7 @@ package trillian;
 
 import "github.com/google/trillian/crypto/keyspb/keyspb.proto";
 import "github.com/google/trillian/crypto/sigpb/sigpb.proto";
-import "google/protobuf/any.proto";
+import "github.com/golang/protobuf/ptypes/any/any.proto";
 
 // What goes in here?
 // Things which are exposed through the public trillian APIs.
