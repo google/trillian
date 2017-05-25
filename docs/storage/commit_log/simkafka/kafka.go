@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package simkafka is a toy simulation of a Kafka commit log.
 package simkafka
 
 import (
 	"fmt"
 	"sync"
 )
-
-// Toy simulation of Kafka commit log.
 
 type commitLog []string
 
