@@ -47,7 +47,7 @@ func seqLeafKey(treeID, seq int64) btree.Item {
 }
 
 func hashToSeqKey(treeID int64) btree.Item {
-	return &kv{k: fmt.Sprintf("/%d/h2s")}
+	return &kv{k: fmt.Sprintf("/%d/h2s", treeID)}
 }
 
 func sthKey(treeID, timestamp int64) btree.Item {
