@@ -23,6 +23,8 @@ package trillian;
 import "github.com/google/trillian/crypto/keyspb/keyspb.proto";
 import "github.com/google/trillian/crypto/sigpb/sigpb.proto";
 import "google/protobuf/any.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
 
 // What goes in here?
 // Things which are exposed through the public trillian APIs.
@@ -118,14 +120,8 @@ message Tree {
   // Optional.
   string description = 9;
 
-  // Timestamp of tree creation.
-  // Readonly.
-  // TODO(codingllama): Migrate public APIs to google.protobuf.Timestamp.
-  int64 create_time_millis_since_epoch = 10;
-
-  // Timestamp of last tree update.
-  // Readonly (automatically assigned on updates).
-  int64 update_time_millis_since_epoch = 11;
+  reserved 10;  // create_time_millis_since_epoch (removed)
+  reserved 11;  // update_time_millis_since_epoch (removed)
 
   // Identifies the private key used for signing tree heads and entry
   // timestamps.
@@ -147,7 +143,15 @@ message Tree {
 
   // Interval after which a new signed root is produced even if there have been
   // no submission.  If zero, this behavior is disabled.
-  int64 max_root_duration_millis = 15;
+  google.protobuf.Duration max_root_duration = 15;
+
+  // Time of tree creation.
+  // Readonly.
+  google.protobuf.Timestamp create_time = 16;
+
+  // Time of last tree update.
+  // Readonly (automatically assigned on updates).
+  google.protobuf.Timestamp update_time = 17;
 }
 
 message SignedEntryTimestamp {
@@ -187,4 +191,3 @@ message SignedMapRoot {
   int64 map_id = 5;
   int64 map_revision = 6;
 }
-

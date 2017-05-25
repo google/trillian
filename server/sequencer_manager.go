@@ -20,6 +20,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/golang/glog"
+	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/extension"
@@ -77,7 +79,12 @@ func (s *SequencerManager) ExecutePass(ctx context.Context, logID int64, info *L
 
 	sequencer := log.NewSequencer(hasher, info.TimeSource, s.registry.LogStorage, signer, s.registry.MetricFactory, s.registry.QuotaManager)
 
-	leaves, err := sequencer.SequenceBatch(ctx, logID, info.BatchSize, s.guardWindow, time.Duration(tree.MaxRootDurationMillis*int64(time.Millisecond)))
+	maxRootDuration, err := ptypes.Duration(tree.MaxRootDuration)
+	if err != nil {
+		glog.Warning("failed to parse tree.MaxRootDuration, using zero")
+		maxRootDuration = 0
+	}
+	leaves, err := sequencer.SequenceBatch(ctx, logID, info.BatchSize, s.guardWindow, maxRootDuration)
 	if err != nil {
 		return 0, fmt.Errorf("failed to sequence batch for %v: %v", logID, err)
 	}

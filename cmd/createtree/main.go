@@ -133,15 +133,15 @@ func newRequest(opts *createOpts) (*trillian.CreateTreeRequest, error) {
 	}
 
 	tree := &trillian.Tree{
-		TreeState:             trillian.TreeState(ts),
-		TreeType:              trillian.TreeType(tt),
-		HashStrategy:          trillian.HashStrategy(hs),
-		HashAlgorithm:         sigpb.DigitallySigned_HashAlgorithm(ha),
-		SignatureAlgorithm:    sigpb.DigitallySigned_SignatureAlgorithm(sa),
-		DisplayName:           opts.displayName,
-		Description:           opts.description,
-		PrivateKey:            pk,
-		MaxRootDurationMillis: opts.maxRootDuration.Nanoseconds() / int64(time.Millisecond),
+		TreeState:          trillian.TreeState(ts),
+		TreeType:           trillian.TreeType(tt),
+		HashStrategy:       trillian.HashStrategy(hs),
+		HashAlgorithm:      sigpb.DigitallySigned_HashAlgorithm(ha),
+		SignatureAlgorithm: sigpb.DigitallySigned_SignatureAlgorithm(sa),
+		DisplayName:        opts.displayName,
+		Description:        opts.description,
+		PrivateKey:         pk,
+		MaxRootDuration:    ptypes.DurationProto(opts.maxRootDuration),
 	}
 	return &trillian.CreateTreeRequest{Tree: tree}, nil
 }

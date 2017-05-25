@@ -18,7 +18,9 @@ import (
 	"context"
 	"crypto/x509"
 	"fmt"
+	"reflect"
 	"testing"
+	"time"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
@@ -88,7 +90,7 @@ var (
 		PublicKey: &keyspb.PublicKey{
 			Der: publicPEMToDER(ttestonly.DemoPublicKey),
 		},
-		MaxRootDurationMillis: 0,
+		MaxRootDuration: ptypes.DurationProto(0 * time.Millisecond),
 	}
 
 	// MapTree is a valid, MAP-type trillian.Tree for tests.
@@ -106,7 +108,7 @@ var (
 		PublicKey: &keyspb.PublicKey{
 			Der: publicPEMToDER(ttestonly.DemoPublicKey),
 		},
-		MaxRootDurationMillis: 0,
+		MaxRootDuration: ptypes.DurationProto(0 * time.Millisecond),
 	}
 )
 
@@ -182,23 +184,24 @@ func (tester *AdminStorageTester) TestCreateTree(t *testing.T) {
 				// Tested above
 				return
 			}
-			createTimeMillis := newTree.CreateTimeMillisSinceEpoch
-			updateTimeMillis := newTree.UpdateTimeMillisSinceEpoch
+			createTime := newTree.CreateTime
+			updateTime := newTree.UpdateTime
+			if _, err := ptypes.Timestamp(createTime); err != nil {
+				t.Errorf("%v: CreateTime malformed after creation: %v", test.desc, newTree)
+				return
+			}
 			switch {
 			case newTree.TreeId == 0:
 				t.Errorf("%v: TreeID not returned from creation: %v", test.desc, newTree)
 				return
-			case createTimeMillis <= 0:
-				t.Errorf("%v: CreateTime not returned from creation: %v", test.desc, newTree)
-				return
-			case createTimeMillis != updateTimeMillis:
+			case !reflect.DeepEqual(createTime, updateTime):
 				t.Errorf("%v: CreateTime != UpdateTime: %v", test.desc, newTree)
 				return
 			}
 			wantTree := *test.tree
 			wantTree.TreeId = newTree.TreeId
-			wantTree.CreateTimeMillisSinceEpoch = createTimeMillis
-			wantTree.UpdateTimeMillisSinceEpoch = updateTimeMillis
+			wantTree.CreateTime = createTime
+			wantTree.UpdateTime = updateTime
 			// Ignore storage_settings changes (OK to vary between implementations)
 			wantTree.StorageSettings = newTree.StorageSettings
 			if !proto.Equal(newTree, &wantTree) {
@@ -333,17 +336,25 @@ func (tester *AdminStorageTester) TestUpdateTree(t *testing.T) {
 		if createdTree.TreeId != updatedTree.TreeId {
 			t.Errorf("%v: TreeId = %v, want = %v", test.desc, updatedTree.TreeId, createdTree.TreeId)
 		}
-		if createdTree.CreateTimeMillisSinceEpoch != updatedTree.CreateTimeMillisSinceEpoch {
-			t.Errorf("%v: CreateTime = %v, want = %v", test.desc, updatedTree.CreateTimeMillisSinceEpoch, createdTree.CreateTimeMillisSinceEpoch)
+		if !reflect.DeepEqual(createdTree.CreateTime, updatedTree.CreateTime) {
+			t.Errorf("%v: CreateTime = %v, want = %v", test.desc, updatedTree.CreateTime, createdTree.CreateTime)
 		}
-		if createdTree.UpdateTimeMillisSinceEpoch > updatedTree.UpdateTimeMillisSinceEpoch {
-			t.Errorf("%v: UpdateTime = %v, want >= %v", test.desc, updatedTree.UpdateTimeMillisSinceEpoch, createdTree.UpdateTimeMillisSinceEpoch)
+		createUpdateTime, err := ptypes.Timestamp(createdTree.UpdateTime)
+		if err != nil {
+			t.Errorf("%v: createdTree.UpdateTime malformed: %v", test.desc, err)
+		}
+		updatedUpdateTime, err := ptypes.Timestamp(updatedTree.UpdateTime)
+		if err != nil {
+			t.Errorf("%v: updatedTree.UpdateTime malformed: %v", test.desc, err)
+		}
+		if createUpdateTime.After(updatedUpdateTime) {
+			t.Errorf("%v: UpdateTime = %v, want >= %v", test.desc, updatedTree.UpdateTime, createdTree.UpdateTime)
 		}
 		// Copy storage-generated values to want before comparing
 		wantTree := *test.want
 		wantTree.TreeId = updatedTree.TreeId
-		wantTree.CreateTimeMillisSinceEpoch = updatedTree.CreateTimeMillisSinceEpoch
-		wantTree.UpdateTimeMillisSinceEpoch = updatedTree.UpdateTimeMillisSinceEpoch
+		wantTree.CreateTime = updatedTree.CreateTime
+		wantTree.UpdateTime = updatedTree.UpdateTime
 		// Ignore storage_settings changes (OK to vary between implementations)
 		wantTree.StorageSettings = updatedTree.StorageSettings
 		if !proto.Equal(updatedTree, &wantTree) {

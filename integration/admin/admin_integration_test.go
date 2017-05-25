@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	sa "github.com/google/trillian/server/admin"
 	"github.com/google/trillian/server/interceptor"
@@ -204,15 +205,23 @@ func TestAdminServer_UpdateTree(t *testing.T) {
 			continue
 		}
 
-		if tree.CreateTimeMillisSinceEpoch > tree.UpdateTimeMillisSinceEpoch {
-			t.Errorf("%v: CreateTime > UpdateTime (%v > %v)", test.desc, tree.CreateTimeMillisSinceEpoch, tree.UpdateTimeMillisSinceEpoch)
+		created, err := ptypes.Timestamp(tree.CreateTime)
+		if err != nil {
+			t.Errorf("%v: failed to convert timestamp: %v", test.desc, err)
+		}
+		updated, err := ptypes.Timestamp(tree.UpdateTime)
+		if err != nil {
+			t.Errorf("%v: failed to convert timestamp: %v", test.desc, err)
+		}
+		if created.After(updated) {
+			t.Errorf("%v: CreateTime > UpdateTime (%v > %v)", test.desc, tree.CreateTime, tree.UpdateTime)
 		}
 
 		// Copy storage-generated fields to the expected tree
 		want := *test.wantTree
 		want.TreeId = tree.TreeId
-		want.CreateTimeMillisSinceEpoch = tree.CreateTimeMillisSinceEpoch
-		want.UpdateTimeMillisSinceEpoch = tree.UpdateTimeMillisSinceEpoch
+		want.CreateTime = tree.CreateTime
+		want.UpdateTime = tree.UpdateTime
 		if !proto.Equal(tree, &want) {
 			diff := pretty.Compare(tree, &want)
 			t.Errorf("%v: post-UpdateTree diff:\n%v", test.desc, diff)

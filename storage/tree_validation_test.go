@@ -17,6 +17,7 @@ package storage
 import (
 	"encoding/pem"
 	"testing"
+	"time"
 
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
@@ -90,7 +91,7 @@ func TestValidateTreeForCreation(t *testing.T) {
 	validSettings.StorageSettings = settings
 
 	invalidRootDuration := newTree()
-	invalidRootDuration.MaxRootDurationMillis = -1
+	invalidRootDuration.MaxRootDuration = ptypes.DurationProto(-1 * time.Second)
 
 	tests := []struct {
 		desc    string
@@ -250,13 +251,13 @@ func TestValidateTreeForUpdate(t *testing.T) {
 		{
 			desc: "validRootDuration",
 			updatefn: func(tree *trillian.Tree) {
-				tree.MaxRootDurationMillis = 200
+				tree.MaxRootDuration = ptypes.DurationProto(200 * time.Millisecond)
 			},
 		},
 		{
 			desc: "invalidRootDuration",
 			updatefn: func(tree *trillian.Tree) {
-				tree.MaxRootDurationMillis = -200
+				tree.MaxRootDuration = ptypes.DurationProto(-200 * time.Millisecond)
 			},
 			wantErr: true,
 		},
@@ -299,14 +300,14 @@ func TestValidateTreeForUpdate(t *testing.T) {
 		{
 			desc: "CreateTime",
 			updatefn: func(tree *trillian.Tree) {
-				tree.CreateTimeMillisSinceEpoch++
+				tree.CreateTime, _ = ptypes.TimestampProto(time.Now())
 			},
 			wantErr: true,
 		},
 		{
 			desc: "UpdateTime",
 			updatefn: func(tree *trillian.Tree) {
-				tree.UpdateTimeMillisSinceEpoch++
+				tree.UpdateTime, _ = ptypes.TimestampProto(time.Now())
 			},
 			wantErr: true,
 		},
@@ -355,15 +356,15 @@ func newTree() *trillian.Tree {
 	}
 
 	return &trillian.Tree{
-		TreeState:             trillian.TreeState_ACTIVE,
-		TreeType:              trillian.TreeType_LOG,
-		HashStrategy:          trillian.HashStrategy_RFC_6962,
-		HashAlgorithm:         sigpb.DigitallySigned_SHA256,
-		SignatureAlgorithm:    sigpb.DigitallySigned_ECDSA,
-		DisplayName:           "Llamas Log",
-		Description:           "Registry of publicly-owned llamas",
-		PrivateKey:            privateKey,
-		PublicKey:             &keyspb.PublicKey{Der: publicKeyPEM.Bytes},
-		MaxRootDurationMillis: 1000,
+		TreeState:          trillian.TreeState_ACTIVE,
+		TreeType:           trillian.TreeType_LOG,
+		HashStrategy:       trillian.HashStrategy_RFC_6962,
+		HashAlgorithm:      sigpb.DigitallySigned_SHA256,
+		SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
+		DisplayName:        "Llamas Log",
+		Description:        "Registry of publicly-owned llamas",
+		PrivateKey:         privateKey,
+		PublicKey:          &keyspb.PublicKey{Der: publicKeyPEM.Bytes},
+		MaxRootDuration:    ptypes.DurationProto(1000 * time.Millisecond),
 	}
 }

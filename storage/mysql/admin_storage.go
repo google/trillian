@@ -23,6 +23,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keyspb"
@@ -222,9 +223,15 @@ func readTree(row row) (*trillian.Tree, error) {
 			treeState, treeType, hashStrategy, hashAlgorithm, signatureAlgorithm)
 	}
 
-	tree.CreateTimeMillisSinceEpoch = createMillis
-	tree.UpdateTimeMillisSinceEpoch = updateMillis
-	tree.MaxRootDurationMillis = maxRootDurationMillis
+	tree.CreateTime, err = ptypes.TimestampProto(fromMillisSinceEpoch(createMillis))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse create time: %v", err)
+	}
+	tree.UpdateTime, err = ptypes.TimestampProto(fromMillisSinceEpoch(updateMillis))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse update time: %v", err)
+	}
+	tree.MaxRootDuration = ptypes.DurationProto(time.Duration(maxRootDurationMillis * int64(time.Millisecond)))
 
 	tree.PrivateKey = &any.Any{}
 	if err := proto.Unmarshal(privateKey, tree.PrivateKey); err != nil {
@@ -301,12 +308,24 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 		return nil, err
 	}
 
+	// Use the time truncated-to-millis throughout, as that's what's stored.
 	nowMillis := toMillisSinceEpoch(time.Now())
+	now := fromMillisSinceEpoch(nowMillis)
 
 	newTree := *tree
 	newTree.TreeId = id
-	newTree.CreateTimeMillisSinceEpoch = nowMillis
-	newTree.UpdateTimeMillisSinceEpoch = nowMillis
+	newTree.CreateTime, err = ptypes.TimestampProto(now)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build create time: %v", err)
+	}
+	newTree.UpdateTime, err = ptypes.TimestampProto(now)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build update time: %v", err)
+	}
+	rootDuration, err := ptypes.Duration(newTree.MaxRootDuration)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse MaxRootDuration: %v", err)
+	}
 
 	insertTreeStmt, err := t.tx.PrepareContext(
 		ctx,
@@ -345,11 +364,11 @@ func (t *adminTX) CreateTree(ctx context.Context, tree *trillian.Tree) (*trillia
 		newTree.SignatureAlgorithm.String(),
 		newTree.DisplayName,
 		newTree.Description,
-		newTree.CreateTimeMillisSinceEpoch,
-		newTree.UpdateTimeMillisSinceEpoch,
+		nowMillis,
+		nowMillis,
 		privateKey,
 		newTree.PublicKey.GetDer(),
-		newTree.MaxRootDurationMillis,
+		rootDuration/time.Millisecond,
 	)
 	if err != nil {
 		return nil, err
@@ -406,7 +425,17 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 		return nil, err
 	}
 
-	tree.UpdateTimeMillisSinceEpoch = toMillisSinceEpoch(time.Now())
+	// Use the time truncated-to-millis throughout, as that's what's stored.
+	nowMillis := toMillisSinceEpoch(time.Now())
+	now := fromMillisSinceEpoch(nowMillis)
+	tree.UpdateTime, err = ptypes.TimestampProto(now)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build update time: %v", err)
+	}
+	rootDuration, err := ptypes.Duration(tree.MaxRootDuration)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse MaxRootDuration: %v", err)
+	}
 
 	stmt, err := t.tx.PrepareContext(
 		ctx,
@@ -423,8 +452,8 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 		tree.TreeState.String(),
 		tree.DisplayName,
 		tree.Description,
-		tree.UpdateTimeMillisSinceEpoch,
-		tree.MaxRootDurationMillis,
+		nowMillis,
+		rootDuration/time.Millisecond,
 		tree.TreeId); err != nil {
 		return nil, err
 	}
@@ -434,6 +463,12 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 
 func toMillisSinceEpoch(t time.Time) int64 {
 	return t.UnixNano() / 1000000
+}
+
+func fromMillisSinceEpoch(ts int64) time.Time {
+	secs := int64(ts / 1000)
+	msecs := int64(ts % 1000)
+	return time.Unix(secs, msecs*1000000)
 }
 
 func validateStorageSettings(tree *trillian.Tree) error {
