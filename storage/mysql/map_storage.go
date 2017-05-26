@@ -179,9 +179,14 @@ func (m *mapTreeTX) Set(ctx context.Context, keyHash []byte, value trillian.MapL
 	return err
 }
 
-// MapLeaf indexes are overwritten rather than returning the MapLeaf proto provided in Set.
-// TODO: return a map[_something_]Mapleaf or []IndexValue to separate the index from the value.
+// Get returns a list of map leaves indicated by indexes.
+// If an index is not found, no corresponding entry is returned.
+// Each MapLeaf.Index is overwritten with the index the leaf was found at.
 func (m *mapTreeTX) Get(ctx context.Context, revision int64, indexes [][]byte) ([]trillian.MapLeaf, error) {
+	// If no indexes are requested, return an empty set.
+	if len(indexes) == 0 {
+		return []trillian.MapLeaf{}, nil
+	}
 	stmt, err := m.ms.getStmt(ctx, selectMapLeafSQL, len(indexes), "?", "?")
 	if err != nil {
 		return nil, err
@@ -195,8 +200,6 @@ func (m *mapTreeTX) Get(ctx context.Context, revision int64, indexes [][]byte) (
 	}
 	args = append(args, m.treeID)
 	args = append(args, revision)
-
-	glog.Infof("args size %d", len(args))
 
 	rows, err := stx.QueryContext(ctx, args...)
 	// It's possible there are no values for any of these keys yet
@@ -230,7 +233,6 @@ func (m *mapTreeTX) Get(ctx context.Context, revision int64, indexes [][]byte) (
 		ret = append(ret, mapLeaf)
 		nr++
 	}
-	glog.Infof("%d rows, %d empty", nr, er)
 	return ret, nil
 }
 

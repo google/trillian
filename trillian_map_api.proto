@@ -77,6 +77,8 @@ message GetSignedMapRootResponse {
 // TrillianMap defines a service which provides access to a Verifiable Map as
 // defined in the Verifiable Data Structures paper.
 service TrillianMap {
+  // GetLeaves returns an inclusion proof for each index requested.
+  // For indexes that do not exist, the inclusion proof will use nil for the empty leaf value.
   rpc GetLeaves(GetMapLeavesRequest) returns(GetMapLeavesResponse) {}
   rpc SetLeaves(SetMapLeavesRequest) returns(SetMapLeavesResponse) {}
   rpc GetSignedMapRoot(GetSignedMapRootRequest) returns(GetSignedMapRootResponse) {}
