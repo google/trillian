@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package integration provides test-only code for performing integrated
+// tests of Trillian functionality.
 package integration
 
 import (

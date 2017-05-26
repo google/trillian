@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package extension provides an extension mechanism for Trillian code to access
+// fork-specific functionality.
 package extension
 
 import (

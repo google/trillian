@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// The log_client binary retrieves leaves from a log.
 package main
 
 import (

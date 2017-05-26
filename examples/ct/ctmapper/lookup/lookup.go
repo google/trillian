@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// The lookup binary looks up a specific ID in a map.
 package main
 
 import (

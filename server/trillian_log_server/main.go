@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// The trillian_log_server binary runs the Trillian log server, and also
+// provides an admin server.
 package main
 
 import (

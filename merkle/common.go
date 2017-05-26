@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package merkle provides Merkle tree manipulation functions.
 package merkle
 
 // parent returns the index of the parent node in the parent level of the tree.
