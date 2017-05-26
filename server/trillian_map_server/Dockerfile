@@ -12,7 +12,7 @@ ENV HOST=0.0.0.0 \
 ADD . /go/src/github.com/google/trillian
 WORKDIR /go/src/github.com/google/trillian 
 
-RUN go get ./server/vmap/trillian_map_server
+RUN go get ./server/trillian_map_server
 
 ENTRYPOINT /go/bin/trillian_map_server \
 	--mysql_uri="${DB_USER}:${DB_PASSWORD}@tcp(${DB_HOST})/${DB_DATABASE}" \

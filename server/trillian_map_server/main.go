@@ -29,7 +29,6 @@ import (
 	mysqlq "github.com/google/trillian/quota/mysql"
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/server/interceptor"
-	"github.com/google/trillian/server/vmap"
 	"github.com/google/trillian/storage/mysql"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"google.golang.org/grpc"
@@ -83,7 +82,7 @@ func main() {
 			return nil
 		},
 		RegisterServerFn: func(s *grpc.Server, registry extension.Registry) error {
-			mapServer := vmap.NewTrillianMapServer(registry)
+			mapServer := server.NewTrillianMapServer(registry)
 			if err := mapServer.IsHealthy(); err != nil {
 				return err
 			}

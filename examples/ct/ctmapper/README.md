@@ -14,7 +14,7 @@ which have that domain in their subject/SAN fields.
 # contents of storage/mysql/storage.sql
 yes | scripts/resetdb.sh
 
-go build ./server/vmap/trillian_map_server
+go build ./server/trillian_map_server
 go build ./examples/ct/ctmapper/mapper
 go build ./examples/ct/ctmapper/lookup
 
