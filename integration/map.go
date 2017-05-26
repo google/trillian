@@ -116,8 +116,37 @@ func RunMapIntegration(ctx context.Context, mapID int64, client trillian.Trillia
 			}
 			leafHash := h.HashLeaf(leaf.LeafValue)
 			if err := merkle.VerifyMapInclusionProof(leaf.Index, leafHash, latestRoot.RootHash, incl.Inclusion, h); err != nil {
-				return fmt.Errorf("inclusion proof failed to verify for key %s: %v", incl.Leaf.Index, err)
+				return fmt.Errorf("verifyMapInclusionProof(%x): %v", leaf.Index, err)
 			}
+		}
+	}
+	if err := testForNonExistentLeaf(ctx, mapID, client, latestRoot); err != nil {
+		return err
+	}
+	return nil
+}
+
+// Ensure that a query for a leaf that does not exist results in a valid inclusion proof.
+func testForNonExistentLeaf(ctx context.Context, mapID int64,
+	client trillian.TrillianMapClient, latestRoot trillian.SignedMapRoot) error {
+	h := merkle.NewMapHasher(testonly.Hasher)
+	index1 := []byte("doesnotexist....................")
+	r, err := client.GetLeaves(ctx, &trillian.GetMapLeavesRequest{
+		MapId:    mapID,
+		Revision: latestRoot.MapRevision,
+		Index:    [][]byte{index1},
+	})
+	if err != nil {
+		return fmt.Errorf("GetLeaves(%s): %v", index1, err)
+	}
+	for _, incl := range r.MapLeafInclusion {
+		leaf := incl.Leaf
+		if got, want := len(leaf.LeafValue), 0; got != want {
+			return fmt.Errorf("len(GetLeaves(%s).LeafValue): %v, want, %v", index1, got, want)
+		}
+		leafHash := h.HashLeaf(leaf.LeafValue)
+		if err := merkle.VerifyMapInclusionProof(leaf.Index, leafHash, latestRoot.RootHash, incl.Inclusion, h); err != nil {
+			return fmt.Errorf("VerifyMapInclusionProof(%x): %v", leaf.Index, err)
 		}
 	}
 	return nil
