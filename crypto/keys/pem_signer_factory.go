@@ -18,10 +18,24 @@ import (
 	"context"
 	"crypto"
 	"fmt"
+	"sync"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian/crypto/keyspb"
 )
+
+var (
+	pkcs11Module string
+	pMu          sync.Mutex
+)
+
+// SetPKCS11Module should be called before creating a PEMSignerFactory
+// if the tree is expected to contain a PKCS#11 key
+func SetPKCS11Module(modulePath string) {
+	pMu.Lock()
+	defer pMu.Unlock()
+	pkcs11Module = modulePath
+}
 
 // PEMSignerFactory handles PEM-encoded private keys.
 // It implements keys.SignerFactory.
@@ -37,6 +51,8 @@ func (f PEMSignerFactory) NewSigner(ctx context.Context, pb proto.Message) (cryp
 		return NewFromPrivatePEMFile(privateKey.GetPath(), privateKey.GetPassword())
 	case *keyspb.PrivateKey:
 		return NewFromPrivateDER(privateKey.GetDer())
+	case *keyspb.PKCS11Config:
+		return NewFromPKCS11Config(pkcs11Module, privateKey)
 	}
 
 	return nil, fmt.Errorf("unsupported private key protobuf type: %T", pb)

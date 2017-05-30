@@ -12,6 +12,7 @@ It has these top-level messages:
 	PEMKeyFile
 	PrivateKey
 	PublicKey
+	PKCS11Config
 */
 package keyspb
 
@@ -288,6 +289,42 @@ func (m *PublicKey) GetDer() []byte {
 	return nil
 }
 
+// PKCS11Config identifies a private key accessed using PKCS #11.
+type PKCS11Config struct {
+	// The label of the PKCS#11 token.
+	TokenLabel string `protobuf:"bytes,1,opt,name=token_label,json=tokenLabel" json:"token_label,omitempty"`
+	// The PIN for the specific token.
+	Pin string `protobuf:"bytes,2,opt,name=pin" json:"pin,omitempty"`
+	// The label of the private key to use.
+	PrivateKeyLabel string `protobuf:"bytes,3,opt,name=private_key_label,json=privateKeyLabel" json:"private_key_label,omitempty"`
+}
+
+func (m *PKCS11Config) Reset()                    { *m = PKCS11Config{} }
+func (m *PKCS11Config) String() string            { return proto.CompactTextString(m) }
+func (*PKCS11Config) ProtoMessage()               {}
+func (*PKCS11Config) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{4} }
+
+func (m *PKCS11Config) GetTokenLabel() string {
+	if m != nil {
+		return m.TokenLabel
+	}
+	return ""
+}
+
+func (m *PKCS11Config) GetPin() string {
+	if m != nil {
+		return m.Pin
+	}
+	return ""
+}
+
+func (m *PKCS11Config) GetPrivateKeyLabel() string {
+	if m != nil {
+		return m.PrivateKeyLabel
+	}
+	return ""
+}
+
 func init() {
 	proto.RegisterType((*Specification)(nil), "keyspb.Specification")
 	proto.RegisterType((*Specification_ECDSA)(nil), "keyspb.Specification.ECDSA")
@@ -295,6 +332,7 @@ func init() {
 	proto.RegisterType((*PEMKeyFile)(nil), "keyspb.PEMKeyFile")
 	proto.RegisterType((*PrivateKey)(nil), "keyspb.PrivateKey")
 	proto.RegisterType((*PublicKey)(nil), "keyspb.PublicKey")
+	proto.RegisterType((*PKCS11Config)(nil), "keyspb.PKCS11Config")
 	proto.RegisterEnum("keyspb.Specification_ECDSA_Curve", Specification_ECDSA_Curve_name, Specification_ECDSA_Curve_value)
 }
 

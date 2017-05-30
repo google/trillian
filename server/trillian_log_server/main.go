@@ -49,6 +49,8 @@ var (
 	etcdHTTPService    = flag.String("etcd_http_service", "trillian-logserver-http", "Service name to announce our HTTP endpoint under")
 	maxUnsequencedRows = flag.Int("max_unsequenced_rows", mysqlq.DefaultMaxUnsequenced, "Max number of unsequenced rows before rate limiting kicks in")
 
+	pkcs11ModulePath = flag.String("pkcs11_module_path", "", "Path to the PKCS#11 module to use for keys that use the PKCS#11 interface")
+
 	configFile = flag.String("config", "", "Config file containing flags, file contents can be overridden by command line flags")
 )
 
@@ -83,6 +85,11 @@ func main() {
 	}
 
 	mf := prometheus.MetricFactory{}
+
+	if *pkcs11ModulePath != "" {
+		keys.SetPKCS11Module(*pkcs11ModulePath)
+	}
+
 	registry := extension.Registry{
 		AdminStorage:  mysql.NewAdminStorage(db),
 		SignerFactory: keys.PEMSignerFactory{},
