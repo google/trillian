@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// The queue_leaves binary queues a number of leaves for a log from a given
+// start point with predictable hashes.  If anything fails it panics, leaving
+// storage untouched
 package main
 
 import (
@@ -48,8 +51,6 @@ func validateFlagsOrDie() {
 	}
 }
 
-// Queues a number of leaves for a log from a given start point with predictable hashes.
-// If anything fails it panics, leaving storage untouched
 func main() {
 	flag.Parse()
 	validateFlagsOrDie()

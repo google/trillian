@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package rfc6962 provides hashing functionality according to RFC6962.
 package rfc6962
 
 import "crypto"

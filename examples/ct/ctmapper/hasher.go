@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package ctmapper maps from a verifiable log to verifiable map.
 package ctmapper
 
 import "crypto/sha256"

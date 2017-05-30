@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package mysql provides a MySQL-based storage layer implementation.
 package mysql
 
 import (
