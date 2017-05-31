@@ -73,7 +73,7 @@ func (m *mySQLMapStorage) CheckDatabaseAccessible(ctx context.Context) error {
 }
 
 type readOnlyMapTX struct {
-	tx *sql.Tx
+	*sql.Tx
 }
 
 func (m *mySQLMapStorage) Snapshot(ctx context.Context) (storage.ReadOnlyMapTX, error) {
@@ -82,14 +82,6 @@ func (m *mySQLMapStorage) Snapshot(ctx context.Context) (storage.ReadOnlyMapTX, 
 		return nil, err
 	}
 	return &readOnlyMapTX{tx}, nil
-}
-
-func (t *readOnlyMapTX) Commit() error {
-	return t.tx.Commit()
-}
-
-func (t *readOnlyMapTX) Rollback() error {
-	return t.tx.Rollback()
 }
 
 func (t *readOnlyMapTX) Close() error {
@@ -138,11 +130,7 @@ func (m *mySQLMapStorage) BeginForTree(ctx context.Context, treeID int64) (stora
 }
 
 func (m *mySQLMapStorage) SnapshotForTree(ctx context.Context, treeID int64) (storage.ReadOnlyMapTreeTX, error) {
-	tx, err := m.begin(ctx, treeID, true /* readonly */)
-	if err != nil {
-		return nil, err
-	}
-	return tx.(storage.ReadOnlyMapTreeTX), nil
+	return m.begin(ctx, treeID, true /* readonly */)
 }
 
 type mapTreeTX struct {

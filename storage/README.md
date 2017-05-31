@@ -11,8 +11,8 @@ shared `TreeStorage` model which can store arbitrary nodes in a tree.
 Anyone poking around in here should be aware that there are some subtle
 wrinkles introduced by the fact that Log trees grow upwards (i.e. the Log
 considers nodes at level 0 to be the leaves), and in contrast the Map considers
-the leaves to be at level 255 (and the root at 0), this is based on the HStar2
-algorithm.
+the leaves to be at level 255 (and the root at 0), this is based on the [HStar2
+algorithm](https://www.links.org/files/RevocationTransparency.pdf).
 
 ## TreeStorage
 
@@ -35,15 +35,15 @@ subtree as a single unit.  Within these subtrees, only the (subtree-relative)
 "leaf" nodes are actually written to disk, the internal structure of the
 subtrees is re-calculated when the subtree is read from disk.
 
-Doing this compaction saves a considerable about of on-disk space, and at least
+Doing this compaction saves a considerable amout of on-disk space, and at least
 for the MySQL storage implementation, results in a ~20% speed increase.
 
 ### History
 
 Updates to the tree storage are performed in a batched fashion (i.e. some unit
-of update which provides for a self-consistent view of the tree - e.g.:
+of update which provides a self-consistent view of the tree - e.g.:
   * *n* `append leaf` operations along with internal node updates for the
-    LogStorage, and tagged with
+    LogStorage, and tagged with their sequence number.
   * *n* `set value` operations along with internal node updates for the
     MapStorage.
 
