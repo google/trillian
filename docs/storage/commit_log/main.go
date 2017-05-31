@@ -56,14 +56,14 @@ func increment(s string) string {
 		return "A"
 	}
 	offset := len(s) - 1
-	rune := s[offset]
+	char := s[offset]
 	var prefix string
 	if len(s) > 1 {
 		prefix = s[0:offset]
 	}
-	if rune < 'Z' {
-		rune++
-		return string(append([]byte(prefix), rune))
+	if char < 'Z' {
+		char++
+		return string(append([]byte(prefix), char))
 	}
 	return string(append([]byte(increment(prefix)), 'A'))
 }

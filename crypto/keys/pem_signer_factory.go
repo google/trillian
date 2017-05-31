@@ -60,7 +60,7 @@ func (f PEMSignerFactory) NewSigner(ctx context.Context, tree *trillian.Tree) (c
 // It returns a proto that can be used as the value of tree.PrivateKey.
 func (f PEMSignerFactory) Generate(ctx context.Context, tree *trillian.Tree, spec *keyspb.Specification) (*any.Any, error) {
 	if tree.PrivateKey != nil {
-		return nil, fmt.Errorf("tree already has a private key")
+		return nil, fmt.Errorf("tree already has a private key: %v", tree.TreeId)
 	}
 
 	key, err := NewFromSpec(spec)
@@ -69,7 +69,7 @@ func (f PEMSignerFactory) Generate(ctx context.Context, tree *trillian.Tree, spe
 	}
 
 	if SignatureAlgorithm(key.Public()) != tree.GetSignatureAlgorithm() {
-		return nil, fmt.Errorf("Specification produces %T, but tree.SignatureAlgorithm = %v", key, tree.GetSignatureAlgorithm())
+		return nil, fmt.Errorf("specification produces %T, but tree.SignatureAlgorithm = %v", key, tree.GetSignatureAlgorithm())
 	}
 
 	return marshalPrivateKey(key)
