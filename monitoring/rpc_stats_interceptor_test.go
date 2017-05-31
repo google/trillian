@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package monitoring
+package monitoring_test
 
 import (
 	"errors"
-	"expvar"
 	"fmt"
 	"testing"
 	"time"
 
+	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/util"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -30,170 +30,151 @@ import (
 var fakeTime = time.Date(2016, 10, 3, 12, 38, 27, 36, time.UTC)
 
 type recordingUnaryHandler struct {
-	called bool
-	ctx    context.Context
-	req    interface{}
-	resp   interface{}
-	err    error
+	// ctx and req are recorded on invocation
+	ctx context.Context
+	req interface{}
+	// rsp and err are returned on invocation
+	rsp interface{}
+	err error
 }
 
 func (r recordingUnaryHandler) handler() grpc.UnaryHandler {
 	return func(ctx context.Context, req interface{}) (interface{}, error) {
 		r.ctx = ctx
 		r.req = req
-
-		return r.resp, r.err
+		return r.rsp, r.err
 	}
 }
 
-type singleRequestTestCase struct {
-	name       string
-	method     string
-	handler    recordingUnaryHandler
-	timeSource util.IncrementingFakeTimeSource
-	panics     bool
-}
-
-// This is an OK request with 500ms latency
-var okRequest500 = singleRequestTestCase{name: "ok request", method: "getmethod", handler: recordingUnaryHandler{req: "OK", err: nil}, timeSource: util.IncrementingFakeTimeSource{BaseTime: fakeTime, Increments: []time.Duration{0, time.Millisecond * 500}}}
-
-// This is an errored request with 3000ms latency
-var errorRequest3000 = singleRequestTestCase{name: "error request", method: "setmethod", handler: recordingUnaryHandler{err: errors.New("bang")}, timeSource: util.IncrementingFakeTimeSource{BaseTime: fakeTime, Increments: []time.Duration{0, time.Millisecond * 3000}}}
-
-// This request panics with 1500ms latency
-var panicRequest1500 = singleRequestTestCase{name: "panic request", method: "getmethod", panics: true, handler: recordingUnaryHandler{req: "OK", err: nil}, timeSource: util.IncrementingFakeTimeSource{BaseTime: fakeTime, Increments: []time.Duration{0, time.Millisecond * 1500}}}
-
-var singleRequestTestCases = []singleRequestTestCase{okRequest500, errorRequest3000, panicRequest1500}
-
 func TestSingleRequests(t *testing.T) {
-	for _, req := range singleRequestTestCases {
-		req.execute(t)
+	var tests = []struct {
+		name       string
+		method     string
+		handler    recordingUnaryHandler
+		timeSource util.IncrementingFakeTimeSource
+	}{
+		// This is an OK request with 500ms latency
+		{
+			name:    "ok_request",
+			method:  "getmethod",
+			handler: recordingUnaryHandler{req: "OK", err: nil},
+			timeSource: util.IncrementingFakeTimeSource{
+				BaseTime:   fakeTime,
+				Increments: []time.Duration{0, time.Millisecond * 500},
+			},
+		},
+		// This is an errored request with 3000ms latency
+		{
+			name:    "error_request",
+			method:  "setmethod",
+			handler: recordingUnaryHandler{err: errors.New("bang")},
+			timeSource: util.IncrementingFakeTimeSource{
+				BaseTime:   fakeTime,
+				Increments: []time.Duration{0, time.Millisecond * 3000},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		prefix := fmt.Sprintf("test_%s", test.name)
+		stats := monitoring.NewRPCStatsInterceptor(&test.timeSource, prefix, monitoring.InertMetricFactory{})
+		i := stats.Interceptor()
+
+		// Invoke the test handler wrapped by the interceptor.
+		got, err := i(context.Background(), "wibble", &grpc.UnaryServerInfo{FullMethod: test.method}, test.handler.handler())
+
+		// Check the interceptor passed through the results.
+		if got != test.handler.rsp || (err != nil) != (test.handler.err != nil) {
+			t.Errorf("interceptor(%s)=%v,%v; want %v,%v", test.name, got, err, test.handler.rsp, test.handler.err)
+		}
+
+		// Now check the resulting state of the metrics.
+		if got, want := stats.ReqCount.Value(test.method), 1.0; got != want {
+			t.Errorf("stats.ReqCount=%v; want %v", got, want)
+		}
+		wantLatency := float64(test.timeSource.Increments[1].Nanoseconds() / int64(time.Millisecond))
+		wantErrors := 0.0
+		wantSuccess := 0.0
+		if test.handler.err == nil {
+			wantSuccess = 1.0
+		} else {
+			wantErrors = 1.0
+		}
+		if got := stats.ReqSuccessCount.Value(test.method); got != wantSuccess {
+			t.Errorf("stats.ReqSuccessCount=%v; want %v", got, wantSuccess)
+		}
+		if got := stats.ReqErrorCount.Value(test.method); got != wantErrors {
+			t.Errorf("stats.ReqErrorCount=%v; want %v", got, wantSuccess)
+		}
+
+		if gotCount, gotSum := stats.ReqSuccessLatency.Info(test.method); gotCount != uint64(wantSuccess) {
+			t.Errorf("stats.ReqSuccessLatency.Count=%v; want %v", gotCount, wantSuccess)
+		} else if gotSum != wantLatency*wantSuccess {
+			t.Errorf("stats.ReqSuccessLatency.Sum=%v; want %v", gotSum, wantLatency*wantSuccess)
+		}
+		if gotCount, gotSum := stats.ReqErrorLatency.Info(test.method); gotCount != uint64(wantErrors) {
+			t.Errorf("stats.ReqErrorLatency.Count=%v; want %v", gotCount, wantErrors)
+		} else if gotSum != wantLatency*wantErrors {
+			t.Errorf("stats.ReqErrorLatency.Sum=%v; want %v", gotSum, wantLatency*wantErrors)
+		}
 	}
 }
 
 func TestMultipleOKRequestsTotalLatency(t *testing.T) {
 	// We're going to make 3 requests so set up the time source appropriately
-	ts := util.IncrementingFakeTimeSource{BaseTime: fakeTime, Increments: []time.Duration{0, time.Millisecond * 500, 0, time.Millisecond * 2000, 0, time.Millisecond * 1337}}
-	handler := recordingUnaryHandler{resp: "OK", err: nil}
-	stats := NewRPCStatsInterceptor(&ts, "test", "test")
+	ts := util.IncrementingFakeTimeSource{
+		BaseTime: fakeTime,
+		Increments: []time.Duration{
+			0,
+			time.Millisecond * 500,
+			0,
+			time.Millisecond * 2000,
+			0,
+			time.Millisecond * 1337,
+		},
+	}
+	handler := recordingUnaryHandler{rsp: "OK", err: nil}
+	stats := monitoring.NewRPCStatsInterceptor(&ts, "test_multi_ok", monitoring.InertMetricFactory{})
 	i := stats.Interceptor()
 
 	for r := 0; r < 3; r++ {
-		resp, err := i(context.Background(), "wibble", &grpc.UnaryServerInfo{FullMethod: "testmethod"}, handler.handler())
-		if resp != "OK" || err != nil {
-			t.Fatal("request handler returned an error unexpectedly")
+		rsp, err := i(context.Background(), "wibble", &grpc.UnaryServerInfo{FullMethod: "testmethod"}, handler.handler())
+		if rsp != "OK" || err != nil {
+			t.Fatalf("interceptor()=%v,%v; want 'OK',nil", rsp, err)
 		}
 	}
-
-	if want, got := "3837", stats.handlerRequestSucceededLatencyMap.Get("testmethod").String(); want != got {
-		t.Fatalf("wanted total latency: %s but got: %s", want, got)
-
-	}
-	if !testMapSizeIs(stats.handlerRequestFailedLatencyMap, 0) {
-		t.Fatal("incorrectly recorded success latency on errors")
+	count, sum := stats.ReqSuccessLatency.Info("testmethod")
+	if wantCount, wantSum := uint64(3), 3837.0; count != wantCount || sum != wantSum {
+		t.Errorf("stats.ReqSuccessLatency.Info=%v,%v; want %v,%v", count, sum, wantCount, wantSum)
 	}
 }
 
 func TestMultipleErrorRequestsTotalLatency(t *testing.T) {
 	// We're going to make 3 requests so set up the time source appropriately
-	ts := util.IncrementingFakeTimeSource{BaseTime: fakeTime, Increments: []time.Duration{0, time.Millisecond * 427, 0, time.Millisecond * 1066, 0, time.Millisecond * 1123}}
-	handler := recordingUnaryHandler{resp: "", err: errors.New("bang")}
-	stats := NewRPCStatsInterceptor(&ts, "test", "test")
+	ts := util.IncrementingFakeTimeSource{
+		BaseTime: fakeTime,
+		Increments: []time.Duration{
+			0,
+			time.Millisecond * 427,
+			0,
+			time.Millisecond * 1066,
+			0,
+			time.Millisecond * 1123,
+		},
+	}
+	handler := recordingUnaryHandler{rsp: "", err: errors.New("bang")}
+	stats := monitoring.NewRPCStatsInterceptor(&ts, "test_multi_err", monitoring.InertMetricFactory{})
 	i := stats.Interceptor()
 
 	for r := 0; r < 3; r++ {
 		_, err := i(context.Background(), "wibble", &grpc.UnaryServerInfo{FullMethod: "testmethod"}, handler.handler())
 		if err == nil {
-			t.Fatal("request handler did not return an error unexpectedly")
+			t.Fatalf("interceptor()=_,%v; want _,'bang'", err)
 		}
 	}
 
-	if want, got := "2616", stats.handlerRequestFailedLatencyMap.Get("testmethod").String(); want != got {
-		t.Fatalf("wanted total latency: %s but got: %s", want, got)
+	count, sum := stats.ReqErrorLatency.Info("testmethod")
+	if wantCount, wantSum := uint64(3), 2616.0; count != wantCount || sum != wantSum {
+		t.Errorf("stats.ReqSuccessLatency.Info=%v,%v; want %v,%v", count, sum, wantCount, wantSum)
 	}
-
-	if !testMapSizeIs(stats.handlerRequestSucceededLatencyMap, 0) {
-		t.Fatal("incorrectly recorded success latency on errors")
-	}
-}
-
-func (s singleRequestTestCase) execute(t *testing.T) {
-	stats := NewRPCStatsInterceptor(&s.timeSource, "test", "test")
-	i := stats.Interceptor()
-	resp, err := i(context.Background(), "wibble", &grpc.UnaryServerInfo{FullMethod: s.method}, s.handler.handler())
-
-	// These checks are the that the stats interceptor called the handler and correctly forwarded the
-	// result and error returned by the wrapped request handler
-	if got, want := s.handler.resp, resp; got != want {
-		t.Fatalf("%s: Got result: %v but wanted: %v", s.name, got, want)
-	}
-
-	if (err != nil && s.handler.err == nil) || (err == nil && s.handler.err != nil) {
-		t.Fatalf("%s: Error status was incorrect: %v got %v", s.name, s.handler.err, err)
-	}
-
-	// Now check the resulting state of the stats maps
-
-	// Because we only made a single request there should only be one recorded (with either success or
-	// failure depending on the error status and the other maps should count zero for the method
-	if stats.handlerRequestCountMap.Get(s.method).String() != "1" {
-		t.Fatalf("%s: Expected one request for method but got: %v", s.name, stats.handlerRequestCountMap.Get(s.method))
-	}
-
-	expectedTotalLatency := s.timeSource.Increments[1].Nanoseconds() / nanosToMillisDivisor
-
-	var expectOneMap *expvar.Map
-	var expectZeroMap *expvar.Map
-	var expectLatencyMap *expvar.Map
-	var expectNoLatencyMap *expvar.Map
-	var logComment string
-
-	if err == nil {
-		// Request should have been a success
-		expectOneMap = stats.handlerRequestSucceededCountMap
-		expectZeroMap = stats.handlerRequestErrorCountMap
-		expectLatencyMap = stats.handlerRequestSucceededLatencyMap
-		expectNoLatencyMap = stats.handlerRequestFailedLatencyMap
-		logComment = "ok"
-	} else {
-		// Request should be recorded as failed
-		expectOneMap = stats.handlerRequestErrorCountMap
-		expectZeroMap = stats.handlerRequestSucceededCountMap
-		expectLatencyMap = stats.handlerRequestFailedLatencyMap
-		expectNoLatencyMap = stats.handlerRequestSucceededLatencyMap
-		logComment = "error"
-	}
-
-	// There should only be one key in the expected map and request count map
-	if !testMapSizeIs(expectOneMap, 1) || !testMapSizeIs(expectZeroMap, 0) || !testMapSizeIs(stats.handlerRequestCountMap, 1) {
-		t.Fatalf("%s: Map key counts are incorrect", s.name)
-	}
-
-	if !testMapSizeIs(expectLatencyMap, 1) || !testMapSizeIs(expectNoLatencyMap, 0) {
-		t.Fatalf("%s: Latency map key counts are incorrect", s.name)
-	}
-
-	if expectOneMap.Get(s.method).String() != "1" {
-		t.Fatalf("%s: Expected one %s request for method but got: %v", s.name, logComment, expectOneMap.Get(s.method))
-	}
-
-	if expectZeroMap.Get(s.method) != nil {
-		t.Fatalf("%s: Expected zero %s request for method but got: %v", s.name, logComment, expectZeroMap.Get(s.method))
-	}
-
-	if expectLatencyMap.Get(s.method).String() != fmt.Sprintf("%d", expectedTotalLatency) {
-		t.Fatalf("%s: Expected %s latency: %v but got: %v", s.name, logComment, expectedTotalLatency, expectLatencyMap.Get(s.method))
-	}
-	if expectNoLatencyMap.Get(s.method) != nil {
-		t.Fatalf("%s: Expected %s latency: nil but got: %v", s.name, logComment, expectNoLatencyMap.Get(s.method))
-	}
-}
-
-func testMapSizeIs(mapVar *expvar.Map, expectedSize int) bool {
-	keys := 0
-	mapVar.Do(func(expvar.KeyValue) {
-		keys++
-	})
-
-	return keys == expectedSize
 }
