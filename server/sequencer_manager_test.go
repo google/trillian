@@ -204,7 +204,7 @@ func TestSequencerManagerSingleLogNoSigner(t *testing.T) {
 
 	sm := NewSequencerManager(registry, zeroDuration)
 	if _, err := sm.ExecutePass(ctx, logID, createTestInfo(registry)); err == nil {
-		t.Fatalf("ExecutePass() = (_, nil), want err")
+		t.Fatal("ExecutePass() = (_, nil), want err")
 	}
 }
 
