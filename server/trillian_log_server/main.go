@@ -45,13 +45,12 @@ import (
 )
 
 var (
-	mySQLURI            = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "Connection URI for MySQL database")
-	rpcEndpoint         = flag.String("rpc_endpoint", "localhost:8090", "Endpoint for RPC requests (host:port)")
-	httpEndpoint        = flag.String("http_endpoint", "localhost:8091", "Endpoint for HTTP metrics and REST requests on (host:port, empty means disabled)")
-	dumpMetricsInterval = flag.Duration("dump_metrics_interval", 0, "If greater than 0, how often to dump metrics to the logs.")
-	etcdServers         = flag.String("etcd_servers", "", "A comma-separated list of etcd servers; no etcd registration if empty")
-	etcdService         = flag.String("etcd_service", "trillian-log", "Service name to announce ourselves under")
-	maxUnsequencedRows  = flag.Int("max_unsequenced_rows", mysqlq.DefaultMaxUnsequenced, "Max number of unsequenced rows before rate limiting kicks in")
+	mySQLURI           = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "Connection URI for MySQL database")
+	rpcEndpoint        = flag.String("rpc_endpoint", "localhost:8090", "Endpoint for RPC requests (host:port)")
+	httpEndpoint       = flag.String("http_endpoint", "localhost:8091", "Endpoint for HTTP metrics and REST requests on (host:port, empty means disabled)")
+	etcdServers        = flag.String("etcd_servers", "", "A comma-separated list of etcd servers; no etcd registration if empty")
+	etcdService        = flag.String("etcd_service", "trillian-log", "Service name to announce ourselves under")
+	maxUnsequencedRows = flag.Int("max_unsequenced_rows", mysqlq.DefaultMaxUnsequenced, "Max number of unsequenced rows before rate limiting kicks in")
 
 	configFile = flag.String("config", "", "Config file containing flags, file contents can be overridden by command line flags")
 )
@@ -126,7 +125,6 @@ func main() {
 			trillian.RegisterTrillianLogServer(s, logServer)
 			return err
 		},
-		DumpMetricsInterval: *dumpMetricsInterval,
 	}
 
 	if err := m.Run(ctx); err != nil {

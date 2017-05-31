@@ -27,7 +27,6 @@ import (
 	"github.com/google/trillian/cmd"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/extension"
-	"github.com/google/trillian/monitoring/metric"
 	"github.com/google/trillian/monitoring/prometheus"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/server"
@@ -44,7 +43,6 @@ var (
 	batchSizeFlag            = flag.Int("batch_size", 50, "Max number of leaves to process per batch")
 	numSeqFlag               = flag.Int("num_sequencers", 10, "Number of sequencer workers to run in parallel")
 	sequencerGuardWindowFlag = flag.Duration("sequencer_guard_window", 0, "If set, the time elapsed before submitted leaves are eligible for sequencing")
-	dumpMetricsInterval      = flag.Duration("dump_metrics_interval", 0, "If greater than 0, how often to dump metrics to the logs.")
 	forceMaster              = flag.Bool("force_master", false, "If true, assume master for all logs")
 	etcdServers              = flag.String("etcd_servers", "localhost:2379", "A comma-separated list of etcd servers")
 	lockDir                  = flag.String("lock_file_path", "/test/multimaster", "etcd lock file directory path")
@@ -68,12 +66,6 @@ func main() {
 
 	glog.CopyStandardLogTo("WARNING")
 	glog.Info("**** Log Signer Starting ****")
-
-	// Enable dumping of metrics to the log at regular interval,
-	// if requested.
-	if *dumpMetricsInterval > 0 {
-		go metric.DumpToLog(context.Background(), *dumpMetricsInterval)
-	}
 
 	// First make sure we can access the database, quit if not
 	db, err := mysql.OpenDB(*mySQLURI)

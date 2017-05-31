@@ -25,7 +25,6 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/extension"
-	"github.com/google/trillian/monitoring/metric"
 	"github.com/google/trillian/server/admin"
 	"github.com/google/trillian/util"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
@@ -44,8 +43,7 @@ type Main struct {
 	// RegisterHandlerFn is called to register REST-proxy handlers.
 	RegisterHandlerFn func(context.Context, *runtime.ServeMux, string, []grpc.DialOption) error
 	// RegisterServerFn is called to register RPC servers.
-	RegisterServerFn    func(*grpc.Server, extension.Registry) error
-	DumpMetricsInterval time.Duration
+	RegisterServerFn func(*grpc.Server, extension.Registry) error
 }
 
 // Run starts the configured server. Blocks until the server exits.
@@ -54,10 +52,6 @@ func (m *Main) Run(ctx context.Context) error {
 
 	defer m.Server.GracefulStop()
 	defer m.DB.Close()
-
-	if m.DumpMetricsInterval > 0 {
-		go metric.DumpToLog(ctx, m.DumpMetricsInterval)
-	}
 
 	if err := m.RegisterServerFn(m.Server, m.Registry); err != nil {
 		return err
@@ -75,6 +69,7 @@ func (m *Main) Run(ctx context.Context) error {
 			return err
 		}
 		glog.Infof("HTTP server starting on %v", endpoint)
+
 		go http.ListenAndServe(endpoint, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			switch {
 			case req.RequestURI == "/debug/vars":
