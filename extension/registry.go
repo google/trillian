@@ -18,6 +18,7 @@ package extension
 
 import (
 	"github.com/google/trillian/crypto/keys"
+	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util"
@@ -39,4 +40,6 @@ type Registry struct {
 	util.ElectionFactory
 	// QuotaManager provides rate limiting capabilities for Trillian.
 	QuotaManager quota.Manager
+	// MetricFactory provides metrics for monitoring.
+	monitoring.MetricFactory
 }
