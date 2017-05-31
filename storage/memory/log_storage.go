@@ -21,22 +21,37 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strconv"
+	"sync"
 	"time"
 
 	"github.com/google/btree"
 	"github.com/google/trillian"
-	"github.com/google/trillian/monitoring/metric"
+	"github.com/google/trillian/monitoring"
+	"github.com/google/trillian/monitoring/prometheus"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/trees"
 )
 
+const logIDLabel = "logid"
+
 var (
 	defaultLogStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8}
 
-	queuedCounter   = metric.NewCounter("mem_queued_leaves")
-	dequeuedCounter = metric.NewCounter("mem_dequeued_leaves")
+	once            sync.Once
+	queuedCounter   monitoring.Counter
+	dequeuedCounter monitoring.Counter
 )
+
+func createMetrics(mf monitoring.MetricFactory) {
+	queuedCounter = mf.NewCounter("mem_queued_leaves", "Number of leaves queued", logIDLabel)
+	dequeuedCounter = mf.NewCounter("mem_dequeued_leaves", "Number of leaves dequeued", logIDLabel)
+}
+
+func labelForTX(t *logTreeTX) string {
+	return strconv.FormatInt(t.treeID, 10)
+}
 
 func unseqKey(treeID int64) btree.Item {
 	return &kv{k: fmt.Sprintf("/%d/unseq", treeID)}
@@ -109,6 +124,10 @@ func (t *readOnlyLogTX) GetActiveLogIDsWithPendingWork(ctx context.Context) ([]i
 }
 
 func (m *memoryLogStorage) beginInternal(ctx context.Context, treeID int64, readonly bool) (storage.LogTreeTX, error) {
+	once.Do(func() {
+		// TODO(drysdale): this should come from the registry rather than hard-coding use of Prometheus
+		createMetrics(prometheus.MetricFactory{})
+	})
 	tree, err := trees.GetTree(
 		ctx,
 		m.admin,
@@ -180,6 +199,7 @@ func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime tim
 		e = e.Next()
 	}
 
+	dequeuedCounter.Add(float64(len(leaves)), labelForTX(t))
 	return leaves, nil
 }
 
@@ -190,6 +210,7 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 			return nil, fmt.Errorf("queued leaf must have a leaf ID hash of length %d", t.hashSizeBytes)
 		}
 	}
+	queuedCounter.Add(float64(len(leaves)), labelForTX(t))
 	// No deduping in this storage!
 	k := unseqKey(t.treeID)
 	q := t.tx.Get(k).(*kv).v.(*list.List)
