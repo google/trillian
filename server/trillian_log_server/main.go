@@ -98,8 +98,7 @@ func main() {
 	}
 
 	ts := util.SystemTimeSource{}
-	stats := monitoring.NewRPCStatsInterceptor(ts, "ct", "example")
-	stats.Publish()
+	stats := monitoring.NewRPCStatsInterceptor(ts, "log", registry.MetricFactory)
 	ti := &interceptor.TrillianInterceptor{
 		Admin:        registry.AdminStorage,
 		QuotaManager: registry.QuotaManager,

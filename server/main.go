@@ -17,7 +17,6 @@ package server
 import (
 	"context"
 	"database/sql"
-	"expvar"
 	"net"
 	"net/http"
 	"time"
@@ -72,8 +71,6 @@ func (m *Main) Run(ctx context.Context) error {
 
 		go http.ListenAndServe(endpoint, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			switch {
-			case req.RequestURI == "/debug/vars":
-				expvar.Handler().ServeHTTP(w, req)
 			default:
 				mux.ServeHTTP(w, req)
 			}
