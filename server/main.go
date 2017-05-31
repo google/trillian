@@ -27,6 +27,7 @@ import (
 	"github.com/google/trillian/server/admin"
 	"github.com/google/trillian/util"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
@@ -71,6 +72,8 @@ func (m *Main) Run(ctx context.Context) error {
 
 		go http.ListenAndServe(endpoint, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			switch {
+			case req.RequestURI == "/metrics":
+				promhttp.Handler().ServeHTTP(w, req)
 			default:
 				mux.ServeHTTP(w, req)
 			}

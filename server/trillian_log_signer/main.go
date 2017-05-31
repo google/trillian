@@ -18,10 +18,12 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql" // Load MySQL driver
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/golang/glog"
 	"github.com/google/trillian/cmd"
@@ -99,6 +101,7 @@ func main() {
 	// Start HTTP server (optional)
 	if *httpEndpoint != "" {
 		glog.Infof("Creating HTTP server starting on %v", *httpEndpoint)
+		http.Handle("/metrics", promhttp.Handler())
 		if err := util.StartHTTPServer(*httpEndpoint); err != nil {
 			glog.Exitf("Failed to start HTTP server on %v: %v", *httpEndpoint, err)
 		}
