@@ -44,9 +44,13 @@ wait_for_server_startup() {
 
 # pick_unused_port selects an apparently unused port.
 pick_unused_port() {
+  local avoid=${1:-0}
   local base=6962
   local port
   for (( port = "${base}" ; port <= 61000 ; port++ )); do
+    if [[ $port == $avoid ]]; then
+      continue
+    fi
     if ! lsof -i :$port > /dev/null; then
       echo $port
       break
@@ -123,9 +127,10 @@ log_prep_test() {
   for ((i=0; i < rpc_server_count; i++)); do
     port=$(pick_unused_port)
     RPC_SERVERS="${RPC_SERVERS},localhost:${port}"
+    http=$(pick_unused_port ${port})
 
-    echo "Starting Log RPC server on localhost:${port}"
-    ./trillian_log_server ${ETCD_OPTS} --rpc_endpoint="localhost:${port}" --http_endpoint='' &
+    echo "Starting Log RPC server on localhost:${port}, HTTP on localhost:${http}"
+    ./trillian_log_server ${ETCD_OPTS} --rpc_endpoint="localhost:${port}" --http_endpoint="localhost:${http}" &
     pid=$!
     RPC_SERVER_PIDS+=(${pid})
     wait_for_server_startup ${port}
@@ -145,8 +150,9 @@ log_prep_test() {
 
   # Start a set of signers.
   for ((i=0; i < log_signer_count; i++)); do
-    echo "Starting Log signer"
-    ./trillian_log_signer ${ETCD_OPTS} ${signer_election_opts} --sequencer_interval="1s" --batch_size=500 --http_endpoint='' --num_sequencers 2 &
+    http=$(pick_unused_port)
+    echo "Starting Log signer, HTTP on localhost:${http}"
+    ./trillian_log_signer ${ETCD_OPTS} ${signer_election_opts} --sequencer_interval="1s" --batch_size=500 --http_endpoint="localhost:${http}" --num_sequencers 2 &
     pid=$!
     LOG_SIGNER_PIDS+=(${pid})
   done
