@@ -19,6 +19,7 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/merkle"
+	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/trees"
 	"github.com/google/trillian/util"
@@ -35,15 +36,25 @@ const proofMaxBitLen = 64
 
 // TrillianLogRPCServer implements the RPC API defined in the proto
 type TrillianLogRPCServer struct {
-	registry   extension.Registry
-	timeSource util.TimeSource
+	registry    extension.Registry
+	timeSource  util.TimeSource
+	leafCounter monitoring.Counter
 }
 
 // NewTrillianLogRPCServer creates a new RPC server backed by a LogStorageProvider.
 func NewTrillianLogRPCServer(registry extension.Registry, timeSource util.TimeSource) *TrillianLogRPCServer {
+	mf := registry.MetricFactory
+	if mf == nil {
+		mf = monitoring.InertMetricFactory{}
+	}
 	return &TrillianLogRPCServer{
 		registry:   registry,
 		timeSource: timeSource,
+		leafCounter: mf.NewCounter(
+			"queued_leaves",
+			"Number of leaves requested to be queued",
+			"status",
+		),
 	}
 }
 
@@ -112,10 +123,12 @@ func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.Qu
 				Status: status.Newf(codes.AlreadyExists, "Leaf already exists: %v", existingLeaf.LeafIdentityHash).Proto(),
 			}
 			queuedLeaves = append(queuedLeaves, &queuedLeaf)
+			t.leafCounter.Inc("existing")
 		} else {
 			// Return the leaf from the request if it is new.
 			queuedLeaf := trillian.QueuedLogLeaf{Leaf: req.Leaves[i]}
 			queuedLeaves = append(queuedLeaves, &queuedLeaf)
+			t.leafCounter.Inc("new")
 		}
 	}
 	return &trillian.QueueLeavesResponse{QueuedLeaves: queuedLeaves}, nil
