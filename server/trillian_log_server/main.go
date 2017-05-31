@@ -33,6 +33,7 @@ import (
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/monitoring"
+	"github.com/google/trillian/monitoring/prometheus"
 	mysqlq "github.com/google/trillian/quota/mysql"
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/server/interceptor"
@@ -94,6 +95,7 @@ func main() {
 		SignerFactory: keys.PEMSignerFactory{},
 		LogStorage:    mysql.NewLogStorage(db),
 		QuotaManager:  &mysqlq.QuotaManager{DB: db, MaxUnsequencedRows: *maxUnsequencedRows},
+		MetricFactory: prometheus.MetricFactory{},
 	}
 
 	ts := util.SystemTimeSource{}
