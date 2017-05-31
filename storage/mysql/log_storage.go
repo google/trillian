@@ -204,7 +204,8 @@ func (m *mySQLLogStorage) beginInternal(ctx context.Context, treeID int64, reado
 		return nil, err
 	}
 
-	ttx, err := m.beginTreeTx(ctx, treeID, hasher.Size(), defaultLogStrata, cache.PopulateLogSubtreeNodes(hasher), cache.PrepareLogSubtreeWrite())
+	stCache := cache.NewSubtreeCache(defaultLogStrata, cache.PopulateLogSubtreeNodes(hasher), cache.PrepareLogSubtreeWrite())
+	ttx, err := m.beginTreeTx(ctx, treeID, hasher.Size(), stCache)
 	if err != nil {
 		return nil, err
 	}
