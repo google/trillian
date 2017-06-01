@@ -33,9 +33,6 @@ import (
 
 var (
 	defaultLogStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8}
-
-	queuedCounter   = metric.NewCounter("mem_queued_leaves")
-	dequeuedCounter = metric.NewCounter("mem_dequeued_leaves")
 )
 
 func unseqKey(treeID int64) btree.Item {
