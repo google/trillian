@@ -25,6 +25,7 @@ import (
 
 	"github.com/google/btree"
 	"github.com/google/trillian"
+	"github.com/google/trillian/monitoring/metric"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/trees"
@@ -32,6 +33,9 @@ import (
 
 var (
 	defaultLogStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8}
+
+	queuedCounter   = metric.NewCounter("mem_queued_leaves")
+	dequeuedCounter = metric.NewCounter("mem_dequeued_leaves")
 )
 
 func unseqKey(treeID int64) btree.Item {
