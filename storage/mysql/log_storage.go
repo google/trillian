@@ -32,6 +32,7 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/trees"
+	"github.com/google/trillian/util"
 )
 
 const (
@@ -85,11 +86,25 @@ var (
 
 	queuedCounter   = metric.NewCounter("mysql_queued_leaves")
 	dequeuedCounter = metric.NewCounter("mysql_dequeued_leaves")
+
+	// Latency breakdown for QueueLeaves
+	queueLeafTotal    = metric.NewCounter("mysql_queue_leaf_total")
+	queueLeafLatency  = metric.NewCounter("mysql_queue_latency_total")
+	queueLeafDups     = metric.NewCounter("mysql_queue_leaf_duplicates")
+	queueLeafInsLeaf  = metric.NewCounter("mysql_queue_latency_stage_leaf")
+	queueLeafInsUnseq = metric.NewCounter("mysql_queue_latency_stage_unseq")
+	queueLeafReadDups = metric.NewCounter("mysql_queue_latency_stage_read")
+	// Latency breakdown for DequeueLeaves
+	dequeueLeafTotal   = metric.NewCounter("mysql_dequeue_leaf_total")
+	dequeueLeafLatency = metric.NewCounter("mysql_dequeue_latency_total")
+	dequeueLeafSelect  = metric.NewCounter("mysql_dequeue_latency_stage_select")
+	dequeueLeafDelete  = metric.NewCounter("mysql_dequeue_latency_stage_delete")
 )
 
 type mySQLLogStorage struct {
 	*mySQLTreeStorage
 	admin storage.AdminStorage
+	ts util.TimeSource
 }
 
 // NewLogStorage creates a storage.LogStorage instance for the specified MySQL URL.
@@ -98,6 +113,7 @@ func NewLogStorage(db *sql.DB) storage.LogStorage {
 	return &mySQLLogStorage{
 		admin:            NewAdminStorage(db),
 		mySQLTreeStorage: newTreeStorage(db),
+		ts:               util.SystemTimeSource{},
 	}
 }
 
@@ -237,6 +253,12 @@ func (m *mySQLLogStorage) SnapshotForTree(ctx context.Context, treeID int64) (st
 	return tx.(storage.ReadOnlyLogTreeTX), err
 }
 
+// sinceNanos() returns the time in nanoseconds since a particular time, according to
+// the TimeSource used by this log storage.
+func (m *mySQLLogStorage) sinceNanos(when time.Time) int64 {
+	return m.ts.Now().Sub(when).Nanoseconds()
+}
+
 type logTreeTX struct {
 	treeTX
 	ls   *mySQLLogStorage
@@ -258,6 +280,7 @@ type dequeuedLeaf struct {
 }
 
 func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime time.Time) ([]*trillian.LogLeaf, error) {
+	start := t.ls.ts.Now()
 	stx, err := t.tx.PrepareContext(ctx, selectQueuedLeavesSQL)
 
 	if err != nil {
@@ -307,10 +330,19 @@ func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime tim
 		return nil, rows.Err()
 	}
 
+	dequeueLeafTotal.Add(int64(len(leaves)))
+	dur := t.ls.sinceNanos(start)
+	dequeueLeafLatency.Add(dur)
+	dequeueLeafSelect.Add(dur)
+
 	// The convention is that if leaf processing succeeds (by committing this tx)
 	// then the unsequenced entries for them are removed
 	if len(leaves) > 0 {
+		start := t.ls.ts.Now()
 		err = t.removeSequencedLeaves(ctx, dql)
+		dur := t.ls.sinceNanos(start)
+		dequeueLeafLatency.Add(dur)
+		dequeueLeafDelete.Add(dur)
 	}
 
 	if err != nil {
@@ -342,9 +374,15 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 	existingLeaves := make([]*trillian.LogLeaf, len(leaves))
 
 	for i, leafPos := range orderedLeaves {
+		queueLeafTotal.Add(1)
 		leaf := leafPos.leaf
+		start := t.ls.ts.Now()
 		_, err := t.tx.ExecContext(ctx, insertUnsequencedLeafSQL, t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData)
+		dur := t.ls.sinceNanos(start)
+		queueLeafInsLeaf.Add(dur)
+		queueLeafLatency.Add(dur)
 		if isDuplicateErr(err) {
+			queueLeafDups.Add(1)
 			// Remember the duplicate leaf, using the requested leaf for now.
 			existingLeaves[leafPos.idx] = leaf
 			existingCount++
@@ -356,6 +394,7 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 		}
 
 		// Create the work queue entry
+		start = t.ls.ts.Now()
 		_, err = t.tx.ExecContext(
 			ctx,
 			insertUnsequencedEntrySQL,
@@ -363,6 +402,9 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 			leaf.LeafIdentityHash,
 			leaf.MerkleLeafHash,
 			queueTimestamp.UnixNano())
+		dur = t.ls.sinceNanos(start)
+		queueLeafInsUnseq.Add(dur)
+		queueLeafLatency.Add(dur)
 		if err != nil {
 			glog.Warningf("Error inserting into Unsequenced: %s", err)
 			return nil, fmt.Errorf("Unsequenced: %v", err)
@@ -381,7 +423,11 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 			toRetrieve = append(toRetrieve, existing.LeafIdentityHash)
 		}
 	}
+	start := t.ls.ts.Now()
 	results, err := t.getLeafDataByIdentityHash(ctx, toRetrieve)
+	dur := t.ls.sinceNanos(start)
+	queueLeafReadDups.Add(dur)
+	queueLeafLatency.Add(dur)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve existing leaves: %v", err)
 	}
