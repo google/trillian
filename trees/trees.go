@@ -134,7 +134,7 @@ func Signer(ctx context.Context, sf keys.SignerFactory, tree *trillian.Tree) (*t
 		return nil, err
 	}
 
-	signer, err := sf.NewSigner(ctx, tree)
+	signer, err := sf.NewSigner(ctx, tree.PrivateKey)
 	if err != nil {
 		return nil, err
 	}

@@ -31,17 +31,15 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keyspb"
-	"github.com/google/trillian/crypto/sigpb"
 )
 
 // NewSignerTest is a test case to be run by TestNewSigner().
 type NewSignerTest struct {
 	// Name describes the test.
 	Name string
-	// Tree is passed to SignerFactory.NewSigner().
-	Tree *trillian.Tree
+	// KeyProto is marshaled as a protobuf "Any" and passed to SignerFactory.NewSigner().
+	KeyProto proto.Message
 	// WantErr should be true if SignerFactory.NewSigner() is expected to return an error.
 	WantErr bool
 }
@@ -65,22 +63,20 @@ func (tester *SignerFactoryTester) RunAllTests(t *testing.T) {
 func (tester *SignerFactoryTester) TestNewSigner(t *testing.T) {
 	for _, test := range append(tester.NewSignerTests, []NewSignerTest{
 		{
-			Name: "Unsupported PrivateKey type",
-			Tree: &trillian.Tree{
-				PrivateKey: mustMarshalAny(&empty.Empty{}),
-			},
-			WantErr: true,
-		},
-		{
-			Name:    "No PrivateKey",
-			Tree:    &trillian.Tree{},
-			WantErr: true,
+			Name:     "Unsupported protobuf message type",
+			KeyProto: &empty.Empty{},
+			WantErr:  true,
 		},
 	}...) {
-		signer, err := tester.NewSignerFactory().NewSigner(context.Background(), test.Tree)
+		anyKeyProto, err := ptypes.MarshalAny(test.KeyProto)
+		if err != nil {
+			t.Errorf("%v: Could not marshal test.KeyProto as protobuf Any: %v", test.Name, err)
+		}
+
+		signer, err := tester.NewSignerFactory().NewSigner(context.Background(), anyKeyProto)
 		switch gotErr := err != nil; {
 		case gotErr != test.WantErr:
-			t.Errorf("%v: Signer(_, %v) = (%v, %v), want err? %v", test.Name, test.Tree, signer, err, test.WantErr)
+			t.Errorf("%v: Signer() = (%v, %v), want err? %v", test.Name, signer, err, test.WantErr)
 			continue
 		case gotErr:
 			continue
@@ -91,7 +87,7 @@ func (tester *SignerFactoryTester) TestNewSigner(t *testing.T) {
 		digest := sha256.Sum256([]byte("test"))
 		signature, err := signer.Sign(rand.Reader, digest[:], hasher)
 		if err != nil {
-			t.Errorf("%v: Signer(_, %v).Sign() = (_, %v), want err? false", test.Name, test.Tree, err)
+			t.Errorf("%v: Signer().Sign() = (_, %v), want (_, nil)", test.Name, err)
 		}
 
 		if err := verify(signer.Public(), digest[:], signature, hasher, hasher); err != nil {
@@ -105,7 +101,6 @@ func (tester *SignerFactoryTester) TestGenerate(t *testing.T) {
 	for _, test := range []struct {
 		Name    string
 		KeySpec *keyspb.Specification
-		Tree    *trillian.Tree
 		WantErr bool
 	}{
 		{
@@ -115,9 +110,6 @@ func (tester *SignerFactoryTester) TestGenerate(t *testing.T) {
 					RsaParams: &keyspb.Specification_RSA{},
 				},
 			},
-			Tree: &trillian.Tree{
-				SignatureAlgorithm: sigpb.DigitallySigned_RSA,
-			},
 		},
 		{
 			Name: "ECDSA",
@@ -126,39 +118,6 @@ func (tester *SignerFactoryTester) TestGenerate(t *testing.T) {
 					EcdsaParams: &keyspb.Specification_ECDSA{},
 				},
 			},
-			Tree: &trillian.Tree{
-				SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
-			},
-		},
-		{
-			Name: "Tree already has a PrivateKey",
-			KeySpec: &keyspb.Specification{
-				Params: &keyspb.Specification_EcdsaParams{
-					EcdsaParams: &keyspb.Specification_ECDSA{},
-				},
-			},
-			Tree: &trillian.Tree{
-				PrivateKey: mustMarshalAny(&keyspb.PEMKeyFile{
-					Path: "non-existent.pem",
-				}),
-				PublicKey: &keyspb.PublicKey{
-					Der: []byte("foo"),
-				},
-				SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
-			},
-			WantErr: true,
-		},
-		{
-			Name: "Mismatched Specification.Params and tree.SignatureAlgorithm",
-			KeySpec: &keyspb.Specification{
-				Params: &keyspb.Specification_EcdsaParams{
-					EcdsaParams: &keyspb.Specification_ECDSA{},
-				},
-			},
-			Tree: &trillian.Tree{
-				SignatureAlgorithm: sigpb.DigitallySigned_RSA,
-			},
-			WantErr: true,
 		},
 		{
 			Name: "RSA with insufficient key size",
@@ -169,16 +128,13 @@ func (tester *SignerFactoryTester) TestGenerate(t *testing.T) {
 					},
 				},
 			},
-			Tree: &trillian.Tree{
-				SignatureAlgorithm: sigpb.DigitallySigned_RSA,
-			},
 			WantErr: true,
 		},
 	} {
 		ctx := context.Background()
 		sf := tester.NewSignerFactory()
 
-		key, err := sf.Generate(ctx, test.Tree, test.KeySpec)
+		key, err := sf.Generate(ctx, test.KeySpec)
 		if gotErr := err != nil; gotErr != test.WantErr {
 			t.Errorf("%v: Generate() = (_, %v), want err? %v", test.Name, err, test.WantErr)
 			continue
@@ -186,12 +142,9 @@ func (tester *SignerFactoryTester) TestGenerate(t *testing.T) {
 			continue
 		}
 
-		newTree := *test.Tree
-		newTree.PrivateKey = key
-
-		signer, err := sf.NewSigner(ctx, &newTree)
+		signer, err := sf.NewSigner(ctx, key)
 		if err != nil {
-			t.Errorf("%v: NewSigner(_, %v) = (_, %v), want (_, nil)", test.Name, newTree, err)
+			t.Errorf("%v: NewSigner() = (_, %v), want (_, nil)", test.Name, err)
 			continue
 		}
 
