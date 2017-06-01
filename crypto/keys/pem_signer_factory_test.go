@@ -17,7 +17,6 @@ package keys
 import (
 	"testing"
 
-	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keyspb"
 )
 
@@ -27,38 +26,30 @@ func TestPEMSignerFactory(t *testing.T) {
 		NewSignerTests: []NewSignerTest{
 			{
 				Name: "PEMKeyFile",
-				Tree: &trillian.Tree{
-					PrivateKey: mustMarshalAny(&keyspb.PEMKeyFile{
-						Path:     "../../testdata/log-rpc-server.privkey.pem",
-						Password: "towel",
-					}),
+				KeyProto: &keyspb.PEMKeyFile{
+					Path:     "../../testdata/log-rpc-server.privkey.pem",
+					Password: "towel",
 				},
 			},
 			{
 				Name: "PemKeyFile with non-existent file",
-				Tree: &trillian.Tree{
-					PrivateKey: mustMarshalAny(&keyspb.PEMKeyFile{
-						Path: "non-existent.pem",
-					}),
+				KeyProto: &keyspb.PEMKeyFile{
+					Path: "non-existent.pem",
 				},
 				WantErr: true,
 			},
 			{
 				Name: "PemKeyFile with wrong password",
-				Tree: &trillian.Tree{
-					PrivateKey: mustMarshalAny(&keyspb.PEMKeyFile{
-						Path:     "../../testdata/log-rpc-server.privkey.pem",
-						Password: "wrong-password",
-					}),
+				KeyProto: &keyspb.PEMKeyFile{
+					Path:     "../../testdata/log-rpc-server.privkey.pem",
+					Password: "wrong-password",
 				},
 				WantErr: true,
 			},
 			{
 				Name: "PemKeyFile with missing password",
-				Tree: &trillian.Tree{
-					PrivateKey: mustMarshalAny(&keyspb.PEMKeyFile{
-						Path: "../../testdata/log-rpc-server.privkey.pem",
-					}),
+				KeyProto: &keyspb.PEMKeyFile{
+					Path: "../../testdata/log-rpc-server.privkey.pem",
 				},
 				WantErr: true,
 			},
