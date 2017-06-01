@@ -25,8 +25,6 @@ import (
 	"github.com/google/trillian/storage"
 )
 
-const defaultSequenceIntervalSeconds = 60
-
 // NewAdminStorage returns a storage.AdminStorage implementation backed by
 // memoryTreeStorage.
 func NewAdminStorage(ms storage.LogStorage) storage.AdminStorage {
