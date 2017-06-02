@@ -20,13 +20,9 @@ import (
 	"context"
 	"flag"
 	_ "net/http/pprof"
-	"strings"
-	"time"
 
 	_ "github.com/go-sql-driver/mysql" // Load MySQL driver
 
-	"github.com/coreos/etcd/clientv3"
-	etcdnaming "github.com/coreos/etcd/clientv3/naming"
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/cmd"
@@ -41,7 +37,6 @@ import (
 	"github.com/google/trillian/util"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/naming"
 )
 
 var (
@@ -49,7 +44,8 @@ var (
 	rpcEndpoint        = flag.String("rpc_endpoint", "localhost:8090", "Endpoint for RPC requests (host:port)")
 	httpEndpoint       = flag.String("http_endpoint", "localhost:8091", "Endpoint for HTTP metrics and REST requests on (host:port, empty means disabled)")
 	etcdServers        = flag.String("etcd_servers", "", "A comma-separated list of etcd servers; no etcd registration if empty")
-	etcdService        = flag.String("etcd_service", "trillian-log", "Service name to announce ourselves under")
+	etcdService        = flag.String("etcd_service", "trillian-logserver", "Service name to announce ourselves under")
+	etcdHTTPService    = flag.String("etcd_http_service", "trillian-logserver-http", "Service name to announce our HTTP endpoint under")
 	maxUnsequencedRows = flag.Int("max_unsequenced_rows", mysqlq.DefaultMaxUnsequenced, "Max number of unsequenced rows before rate limiting kicks in")
 
 	configFile = flag.String("config", "", "Config file containing flags, file contents can be overridden by command line flags")
@@ -73,20 +69,16 @@ func main() {
 	}
 	// No defer: database ownership is delegated to server.Main
 
-	if len(*etcdServers) > 0 {
-		// Announce ourselves to etcd if so configured.
-		cfg := clientv3.Config{Endpoints: strings.Split(*etcdServers, ","), DialTimeout: 5 * time.Second}
-		client, err := clientv3.New(cfg)
-		if err != nil {
-			glog.Exitf("Failed to connect to etcd at %v: %v", *etcdServers, err)
+	// Announce our endpoints to etcd if so configured.
+	unannounce := server.AnnounceSelf(ctx, *etcdServers, *etcdService, *rpcEndpoint)
+	if unannounce != nil {
+		defer unannounce()
+	}
+	if *httpEndpoint != "" {
+		unannounceHTTP := server.AnnounceSelf(ctx, *etcdServers, *etcdHTTPService, *httpEndpoint)
+		if unannounceHTTP != nil {
+			defer unannounceHTTP()
 		}
-		res := etcdnaming.GRPCResolver{Client: client}
-
-		update := naming.Update{Op: naming.Add, Addr: *rpcEndpoint}
-		res.Update(ctx, *etcdService, update)
-		glog.Infof("Announcing our presence to %v with %+v", *etcdService, update)
-		bye := naming.Update{Op: naming.Delete, Addr: *rpcEndpoint}
-		defer res.Update(ctx, *etcdService, bye)
 	}
 
 	registry := extension.Registry{
