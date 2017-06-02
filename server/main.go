@@ -19,8 +19,11 @@ import (
 	"database/sql"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
+	"github.com/coreos/etcd/clientv3"
+	etcdnaming "github.com/coreos/etcd/clientv3/naming"
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/extension"
@@ -29,6 +32,7 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/naming"
 	"google.golang.org/grpc/reflection"
 )
 
@@ -98,4 +102,28 @@ func (m *Main) Run(ctx context.Context) error {
 	time.Sleep(time.Second * 5)
 
 	return nil
+}
+
+// AnnounceSelf announces this binary's presence to etcd.  Returns a function that
+// should be called on process exit.
+func AnnounceSelf(ctx context.Context, etcdServers, etcdService, endpoint string) func() {
+	if len(etcdServers) == 0 {
+		return nil
+	}
+	cfg := clientv3.Config{Endpoints: strings.Split(etcdServers, ","), DialTimeout: 5 * time.Second}
+	client, err := clientv3.New(cfg)
+	if err != nil {
+		glog.Exitf("Failed to connect to etcd at %v: %v", etcdServers, err)
+	}
+	res := etcdnaming.GRPCResolver{Client: client}
+
+	update := naming.Update{Op: naming.Add, Addr: endpoint}
+	res.Update(ctx, etcdService, update)
+	glog.Infof("Announcing our presence in %v with %+v", etcdService, update)
+
+	bye := naming.Update{Op: naming.Delete, Addr: endpoint}
+	return func() {
+		glog.Infof("Removing our presence in %v with %+v", etcdService, update)
+		res.Update(ctx, etcdService, bye)
+	}
 }

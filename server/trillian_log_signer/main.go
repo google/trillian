@@ -23,8 +23,6 @@ import (
 	"time"
 
 	_ "github.com/go-sql-driver/mysql" // Load MySQL driver
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-
 	"github.com/golang/glog"
 	"github.com/google/trillian/cmd"
 	"github.com/google/trillian/crypto/keys"
@@ -35,6 +33,7 @@ import (
 	"github.com/google/trillian/storage/mysql"
 	"github.com/google/trillian/util"
 	"github.com/google/trillian/util/etcd"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"golang.org/x/net/context"
 )
 
@@ -46,7 +45,8 @@ var (
 	numSeqFlag               = flag.Int("num_sequencers", 10, "Number of sequencer workers to run in parallel")
 	sequencerGuardWindowFlag = flag.Duration("sequencer_guard_window", 0, "If set, the time elapsed before submitted leaves are eligible for sequencing")
 	forceMaster              = flag.Bool("force_master", false, "If true, assume master for all logs")
-	etcdServers              = flag.String("etcd_servers", "localhost:2379", "A comma-separated list of etcd servers")
+	etcdServers              = flag.String("etcd_servers", "", "A comma-separated list of etcd servers")
+	etcdHTTPService          = flag.String("etcd_http_service", "trillian-logsigner-http", "Service name to announce our HTTP endpoint under")
 	lockDir                  = flag.String("lock_file_path", "/test/multimaster", "etcd lock file directory path")
 
 	preElectionPause    = flag.Duration("pre_election_pause", 1*time.Second, "Maximum time to wait before starting elections")
@@ -100,6 +100,12 @@ func main() {
 
 	// Start HTTP server (optional)
 	if *httpEndpoint != "" {
+		// Announce our endpoint to etcd if so configured.
+		unannounceHTTP := server.AnnounceSelf(ctx, *etcdServers, *etcdHTTPService, *httpEndpoint)
+		if unannounceHTTP != nil {
+			defer unannounceHTTP()
+		}
+
 		glog.Infof("Creating HTTP server starting on %v", *httpEndpoint)
 		http.Handle("/metrics", promhttp.Handler())
 		if err := util.StartHTTPServer(*httpEndpoint); err != nil {
