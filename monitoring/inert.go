@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+
+	"github.com/golang/glog"
 )
 
 // InertMetricFactory creates inert metrics for testing.
@@ -69,7 +71,11 @@ func (m *InertFloat) Dec(labelVals ...string) {
 func (m *InertFloat) Add(val float64, labelVals ...string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	key := keyForLabels(labelVals, m.labelCount)
+	key, err := keyForLabels(labelVals, m.labelCount)
+	if err != nil {
+		glog.Error(err.Error())
+		return
+	}
 	m.vals[key] += val
 }
 
@@ -77,7 +83,11 @@ func (m *InertFloat) Add(val float64, labelVals ...string) {
 func (m *InertFloat) Set(val float64, labelVals ...string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	key := keyForLabels(labelVals, m.labelCount)
+	key, err := keyForLabels(labelVals, m.labelCount)
+	if err != nil {
+		glog.Error(err.Error())
+		return
+	}
 	m.vals[key] = val
 }
 
@@ -85,7 +95,11 @@ func (m *InertFloat) Set(val float64, labelVals ...string) {
 func (m *InertFloat) Value(labelVals ...string) float64 {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	key := keyForLabels(labelVals, m.labelCount)
+	key, err := keyForLabels(labelVals, m.labelCount)
+	if err != nil {
+		glog.Error(err.Error())
+		return 0.0
+	}
 	return m.vals[key]
 }
 
@@ -101,7 +115,11 @@ type InertDistribution struct {
 func (m *InertDistribution) Observe(val float64, labelVals ...string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	key := keyForLabels(labelVals, m.labelCount)
+	key, err := keyForLabels(labelVals, m.labelCount)
+	if err != nil {
+		glog.Error(err.Error())
+		return
+	}
 	m.counts[key]++
 	m.sums[key] += val
 }
@@ -110,13 +128,17 @@ func (m *InertDistribution) Observe(val float64, labelVals ...string) {
 func (m *InertDistribution) Info(labelVals ...string) (uint64, float64) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	key := keyForLabels(labelVals, m.labelCount)
+	key, err := keyForLabels(labelVals, m.labelCount)
+	if err != nil {
+		glog.Error(err.Error())
+		return 0, 0.0
+	}
 	return m.counts[key], m.sums[key]
 }
 
-func keyForLabels(labelVals []string, count int) string {
+func keyForLabels(labelVals []string, count int) (string, error) {
 	if len(labelVals) != count {
-		panic(fmt.Sprintf("invalid label count %d; want %d", len(labelVals), count))
+		return "", fmt.Errorf("invalid label count %d; want %d", len(labelVals), count)
 	}
-	return strings.Join(labelVals, "|")
+	return strings.Join(labelVals, "|"), nil
 }
