@@ -103,8 +103,13 @@ type Counter struct {
 
 // Inc adds 1 to a counter.
 func (m *Counter) Inc(labelVals ...string) {
+	labels, err := labelsFor(m.labelNames, labelVals)
+	if err != nil {
+		glog.Error(err.Error())
+		return
+	}
 	if m.vec != nil {
-		m.vec.With(labelsFor(m.labelNames, labelVals)).Inc()
+		m.vec.With(labels).Inc()
 	} else {
 		m.single.Inc()
 	}
@@ -112,8 +117,13 @@ func (m *Counter) Inc(labelVals ...string) {
 
 // Add adds the given amount to a counter.
 func (m *Counter) Add(val float64, labelVals ...string) {
+	labels, err := labelsFor(m.labelNames, labelVals)
+	if err != nil {
+		glog.Error(err.Error())
+		return
+	}
 	if m.vec != nil {
-		m.vec.With(labelsFor(m.labelNames, labelVals)).Add(val)
+		m.vec.With(labels).Add(val)
 	} else {
 		m.single.Add(val)
 	}
@@ -121,9 +131,14 @@ func (m *Counter) Add(val float64, labelVals ...string) {
 
 // Value returns the current amount of a counter.
 func (m *Counter) Value(labelVals ...string) float64 {
+	labels, err := labelsFor(m.labelNames, labelVals)
+	if err != nil {
+		glog.Error(err.Error())
+		return 0.0
+	}
 	var metric prometheus.Metric
 	if m.vec != nil {
-		metric = m.vec.With(labelsFor(m.labelNames, labelVals))
+		metric = m.vec.With(labels)
 	} else {
 		metric = m.single
 	}
@@ -148,8 +163,13 @@ type Gauge struct {
 
 // Inc adds 1 to a gauge.
 func (m *Gauge) Inc(labelVals ...string) {
+	labels, err := labelsFor(m.labelNames, labelVals)
+	if err != nil {
+		glog.Error(err.Error())
+		return
+	}
 	if m.vec != nil {
-		m.vec.With(labelsFor(m.labelNames, labelVals)).Inc()
+		m.vec.With(labels).Inc()
 	} else {
 		m.single.Inc()
 	}
@@ -157,8 +177,13 @@ func (m *Gauge) Inc(labelVals ...string) {
 
 // Dec subtracts 1 from a gauge.
 func (m *Gauge) Dec(labelVals ...string) {
+	labels, err := labelsFor(m.labelNames, labelVals)
+	if err != nil {
+		glog.Error(err.Error())
+		return
+	}
 	if m.vec != nil {
-		m.vec.With(labelsFor(m.labelNames, labelVals)).Dec()
+		m.vec.With(labels).Dec()
 	} else {
 		m.single.Dec()
 	}
@@ -166,8 +191,13 @@ func (m *Gauge) Dec(labelVals ...string) {
 
 // Add adds given value to a gauge.
 func (m *Gauge) Add(val float64, labelVals ...string) {
+	labels, err := labelsFor(m.labelNames, labelVals)
+	if err != nil {
+		glog.Error(err.Error())
+		return
+	}
 	if m.vec != nil {
-		m.vec.With(labelsFor(m.labelNames, labelVals)).Add(val)
+		m.vec.With(labels).Add(val)
 	} else {
 		m.single.Add(val)
 	}
@@ -175,8 +205,13 @@ func (m *Gauge) Add(val float64, labelVals ...string) {
 
 // Set sets the value of a gauge.
 func (m *Gauge) Set(val float64, labelVals ...string) {
+	labels, err := labelsFor(m.labelNames, labelVals)
+	if err != nil {
+		glog.Error(err.Error())
+		return
+	}
 	if m.vec != nil {
-		m.vec.With(labelsFor(m.labelNames, labelVals)).Set(val)
+		m.vec.With(labels).Set(val)
 	} else {
 		m.single.Set(val)
 	}
@@ -184,9 +219,14 @@ func (m *Gauge) Set(val float64, labelVals ...string) {
 
 // Value returns the current amount of a gauge.
 func (m *Gauge) Value(labelVals ...string) float64 {
+	labels, err := labelsFor(m.labelNames, labelVals)
+	if err != nil {
+		glog.Error(err.Error())
+		return 0.0
+	}
 	var metric prometheus.Metric
 	if m.vec != nil {
-		metric = m.vec.With(labelsFor(m.labelNames, labelVals))
+		metric = m.vec.With(labels)
 	} else {
 		metric = m.single
 	}
@@ -211,8 +251,13 @@ type Histogram struct {
 
 // Observe adds a single observation to the histogram.
 func (m *Histogram) Observe(val float64, labelVals ...string) {
+	labels, err := labelsFor(m.labelNames, labelVals)
+	if err != nil {
+		glog.Error(err.Error())
+		return
+	}
 	if m.vec != nil {
-		m.vec.With(labelsFor(m.labelNames, labelVals)).Observe(val)
+		m.vec.With(labels).Observe(val)
 	} else {
 		m.single.Observe(val)
 	}
@@ -220,9 +265,14 @@ func (m *Histogram) Observe(val float64, labelVals ...string) {
 
 // Info returns the count and sum of observations for the histogram.
 func (m *Histogram) Info(labelVals ...string) (uint64, float64) {
+	labels, err := labelsFor(m.labelNames, labelVals)
+	if err != nil {
+		glog.Error(err.Error())
+		return 0, 0.0
+	}
 	var metric prometheus.Metric
 	if m.vec != nil {
-		metric = m.vec.MetricVec.With(labelsFor(m.labelNames, labelVals)).(prometheus.Metric)
+		metric = m.vec.MetricVec.With(labels).(prometheus.Metric)
 	} else {
 		metric = m.single
 	}
@@ -239,13 +289,16 @@ func (m *Histogram) Info(labelVals ...string) (uint64, float64) {
 	return histVal.GetSampleCount(), histVal.GetSampleSum()
 }
 
-func labelsFor(names, values []string) prometheus.Labels {
+func labelsFor(names, values []string) (prometheus.Labels, error) {
 	if len(names) != len(values) {
-		panic(fmt.Sprintf("got %d (%v) values for %d labels (%v)", len(values), values, len(names), names))
+		return nil, fmt.Errorf("got %d (%v) values for %d labels (%v)", len(values), values, len(names), names)
+	}
+	if len(names) == 0 {
+		return nil, nil
 	}
 	labels := make(prometheus.Labels)
 	for i, name := range names {
 		labels[name] = values[i]
 	}
-	return labels
+	return labels, nil
 }
