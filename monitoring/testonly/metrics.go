@@ -91,8 +91,16 @@ func TestGauge(t *testing.T, factory monitoring.MetricFactory) {
 		if got, want := gauge.Value(test.labelVals...), 1.0; got != want {
 			t.Errorf("Gauge(test_%s)[%v].Value()=%v; want %v", test.name, test.labelVals, got, want)
 		}
+		gauge.Dec(test.labelVals...)
+		if got, want := gauge.Value(test.labelVals...), 0.0; got != want {
+			t.Errorf("Gauge(test_%s)[%v].Value()=%v; want %v", test.name, test.labelVals, got, want)
+		}
 		gauge.Add(2.5, test.labelVals...)
-		if got, want := gauge.Value(test.labelVals...), 3.5; got != want {
+		if got, want := gauge.Value(test.labelVals...), 2.5; got != want {
+			t.Errorf("Gauge(test_%s)[%v].Value()=%v; want %v", test.name, test.labelVals, got, want)
+		}
+		gauge.Set(42.0, test.labelVals...)
+		if got, want := gauge.Value(test.labelVals...), 42.0; got != want {
 			t.Errorf("Gauge(test_%s)[%v].Value()=%v; want %v", test.name, test.labelVals, got, want)
 		}
 	}
