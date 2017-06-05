@@ -24,8 +24,8 @@ func TestCounter(t *testing.T) {
 	testonly.TestCounter(t, MetricFactory{Prefix: "TestCounter"})
 }
 func TestGauge(t *testing.T) {
-	testonly.TestCounter(t, MetricFactory{Prefix: "TestGauge"})
+	testonly.TestGauge(t, MetricFactory{Prefix: "TestGauge"})
 }
 func TestHistogram(t *testing.T) {
-	testonly.TestCounter(t, MetricFactory{Prefix: "TestHistogram"})
+	testonly.TestHistogram(t, MetricFactory{Prefix: "TestHistogram"})
 }
