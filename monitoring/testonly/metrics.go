@@ -56,6 +56,13 @@ func TestCounter(t *testing.T, factory monitoring.MetricFactory) {
 		if got, want := counter.Value(test.labelVals...), 3.5; got != want {
 			t.Errorf("Counter(test_%s)[%v].Value()=%v; want %v", test.name, test.labelVals, got, want)
 		}
+		// Use an invalid number of labels.
+		libels := append(test.labelVals, "bogus")
+		counter.Add(10.0, libels...)
+		counter.Inc(libels...)
+		if got, want := counter.Value(libels...), 0.0; got != want {
+			t.Errorf("Counter(test_%s)[%v].Value()=%v; want %v", test.name, test.labelVals, got, want)
+		}
 	}
 }
 
@@ -103,6 +110,16 @@ func TestGauge(t *testing.T, factory monitoring.MetricFactory) {
 		if got, want := gauge.Value(test.labelVals...), 42.0; got != want {
 			t.Errorf("Gauge(test_%s)[%v].Value()=%v; want %v", test.name, test.labelVals, got, want)
 		}
+		// Use an invalid number of labels.
+		libels := append(test.labelVals, "bogus")
+		gauge.Add(10.0, libels...)
+		gauge.Inc(libels...)
+		gauge.Dec(libels...)
+		gauge.Set(120.0, libels...)
+		// Ask for an invalid number of labels.
+		if got, want := gauge.Value(libels...), 0.0; got != want {
+			t.Errorf("Counter(test_%s)[%v].Value()=%v; want %v", test.name, test.labelVals, got, want)
+		}
 	}
 }
 
@@ -140,6 +157,15 @@ func TestHistogram(t *testing.T, factory monitoring.MetricFactory) {
 		histogram.Observe(3.0, test.labelVals...)
 		gotCount, gotSum = histogram.Info(test.labelVals...)
 		if wantCount, wantSum := uint64(3), 6.0; gotCount != wantCount || gotSum != wantSum {
+			t.Errorf("Gauge(test_%s)[%v].Value()=%v,%v; want %v,%v", test.name, test.labelVals, gotCount, gotSum, wantCount, wantSum)
+		}
+
+		// Use an invalid number of labels.
+		libels := append(test.labelVals, "bogus")
+		histogram.Observe(100.0, libels...)
+		histogram.Observe(200.0, libels...)
+		gotCount, gotSum = histogram.Info(libels...)
+		if wantCount, wantSum := uint64(0), 0.0; gotCount != wantCount || gotSum != wantSum {
 			t.Errorf("Gauge(test_%s)[%v].Value()=%v,%v; want %v,%v", test.name, test.labelVals, gotCount, gotSum, wantCount, wantSum)
 		}
 	}
