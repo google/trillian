@@ -217,7 +217,7 @@ func mustMarshalAny(pb proto.Message) *any.Any {
 	return a
 }
 
-// Verify checks that sig is a valid signature for a digest (hash of some data).
+// verify checks that sig is a valid signature for a digest (hash of some data).
 // A private key will have been used to generate the signature;
 // the corresponding public key must be provided in order to verify the signature.
 // Hasher must identify the hash algorithm that was used to produce digest.

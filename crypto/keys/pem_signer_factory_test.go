@@ -21,49 +21,49 @@ import (
 	"github.com/google/trillian/crypto/keyspb"
 )
 
-var tester = SignerFactoryTester{
-	NewSignerFactory: func() SignerFactory { return PEMSignerFactory{} },
-	NewSignerTests: []NewSignerTest{
-		{
-			Name: "PEMKeyFile",
-			Tree: &trillian.Tree{
-				PrivateKey: mustMarshalAny(&keyspb.PEMKeyFile{
-					Path:     "../../testdata/log-rpc-server.privkey.pem",
-					Password: "towel",
-				}),
-			},
-		},
-		{
-			Name: "PemKeyFile with non-existent file",
-			Tree: &trillian.Tree{
-				PrivateKey: mustMarshalAny(&keyspb.PEMKeyFile{
-					Path: "non-existent.pem",
-				}),
-			},
-			WantErr: true,
-		},
-		{
-			Name: "PemKeyFile with wrong password",
-			Tree: &trillian.Tree{
-				PrivateKey: mustMarshalAny(&keyspb.PEMKeyFile{
-					Path:     "../../testdata/log-rpc-server.privkey.pem",
-					Password: "wrong-password",
-				}),
-			},
-			WantErr: true,
-		},
-		{
-			Name: "PemKeyFile with missing password",
-			Tree: &trillian.Tree{
-				PrivateKey: mustMarshalAny(&keyspb.PEMKeyFile{
-					Path: "../../testdata/log-rpc-server.privkey.pem",
-				}),
-			},
-			WantErr: true,
-		},
-	},
-}
-
 func TestPEMSignerFactory(t *testing.T) {
+	tester := SignerFactoryTester{
+		NewSignerFactory: func() SignerFactory { return PEMSignerFactory{} },
+		NewSignerTests: []NewSignerTest{
+			{
+				Name: "PEMKeyFile",
+				Tree: &trillian.Tree{
+					PrivateKey: mustMarshalAny(&keyspb.PEMKeyFile{
+						Path:     "../../testdata/log-rpc-server.privkey.pem",
+						Password: "towel",
+					}),
+				},
+			},
+			{
+				Name: "PemKeyFile with non-existent file",
+				Tree: &trillian.Tree{
+					PrivateKey: mustMarshalAny(&keyspb.PEMKeyFile{
+						Path: "non-existent.pem",
+					}),
+				},
+				WantErr: true,
+			},
+			{
+				Name: "PemKeyFile with wrong password",
+				Tree: &trillian.Tree{
+					PrivateKey: mustMarshalAny(&keyspb.PEMKeyFile{
+						Path:     "../../testdata/log-rpc-server.privkey.pem",
+						Password: "wrong-password",
+					}),
+				},
+				WantErr: true,
+			},
+			{
+				Name: "PemKeyFile with missing password",
+				Tree: &trillian.Tree{
+					PrivateKey: mustMarshalAny(&keyspb.PEMKeyFile{
+						Path: "../../testdata/log-rpc-server.privkey.pem",
+					}),
+				},
+				WantErr: true,
+			},
+		},
+	}
+
 	tester.RunAllTests(t)
 }
