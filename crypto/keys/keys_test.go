@@ -19,10 +19,6 @@ import (
 	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/rsa"
-	"encoding/asn1"
-	"errors"
-	"fmt"
-	"math/big"
 	"testing"
 
 	"github.com/google/trillian/crypto/keyspb"
@@ -59,24 +55,6 @@ NHcCAQEEIHG5m/q2sUSa4P8pRZgYt3K0ESFSKp1qp15VjJhpLle4oAoGCCqGSM49AwEHoUQDQgAEvuyn
 -----END PRIVATE KEY-----
 `
 )
-
-func verifyECDSA(key *ecdsa.PublicKey, digest []byte, signature []byte) error {
-	// s is the decoded signature.
-	var s struct {
-		R, S *big.Int
-	}
-
-	_, err := asn1.Unmarshal(signature, &s)
-	if err != nil {
-		return fmt.Errorf("failed to unmarshal signature as ASN.1: %v", err)
-	}
-
-	if !ecdsa.Verify(key, digest, s.R, s.S) {
-		return errors.New("signature failed verification")
-	}
-
-	return nil
-}
 
 func TestLoadPrivateKeyAndSign(t *testing.T) {
 	hasher := crypto.SHA256
@@ -170,17 +148,8 @@ func TestLoadPrivateKeyAndSign(t *testing.T) {
 		}
 
 		// Do a round trip by verifying the signature using the public key.
-		switch publicKey := k.Public().(type) {
-		case *ecdsa.PublicKey:
-			if err := verifyECDSA(publicKey, digest, signature); err != nil {
-				t.Errorf("%v: %v", test.name, err)
-			}
-		case *rsa.PublicKey:
-			if err := rsa.VerifyPKCS1v15(publicKey, hasher, digest, signature); err != nil {
-				t.Errorf("%v: %v", test.name, err)
-			}
-		default:
-			t.Errorf("%v: Unsupported public key type: %T", test.name, publicKey)
+		if err := verify(k.Public(), digest, signature, hasher, hasher); err != nil {
+			t.Errorf("%v: %v", test.name, err)
 		}
 
 	}
