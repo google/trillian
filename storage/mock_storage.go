@@ -42,6 +42,16 @@ func (_mr *_MockAdminStorageRecorder) Begin(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Begin", arg0)
 }
 
+func (_m *MockAdminStorage) CheckDatabaseAccessible(_param0 context.Context) error {
+	ret := _m.ctrl.Call(_m, "CheckDatabaseAccessible", _param0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+func (_mr *_MockAdminStorageRecorder) CheckDatabaseAccessible(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "CheckDatabaseAccessible", arg0)
+}
+
 func (_m *MockAdminStorage) Snapshot(_param0 context.Context) (ReadOnlyAdminTX, error) {
 	ret := _m.ctrl.Call(_m, "Snapshot", _param0)
 	ret0, _ := ret[0].(ReadOnlyAdminTX)
