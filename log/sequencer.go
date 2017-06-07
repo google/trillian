@@ -26,8 +26,22 @@ import (
 	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/merkle"
+	"github.com/google/trillian/monitoring/metric"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util"
+)
+
+var (
+	seqLatencyTotal   = metric.NewCounter("sequencing_latency_total")
+	seqBatches        = metric.NewCounter("sequencing_batches_total")
+	seqLatencyDequeue = metric.NewCounter("sequencing_latency_stage_dequeue")
+	seqLatencyGetRoot = metric.NewCounter("sequencing_latency_stage_get_root")
+	seqLatencyMerkle  = metric.NewCounter("sequencing_latency_stage_merkle_init")
+	seqLatencyAssign  = metric.NewCounter("sequencing_latency_stage_assign")
+	seqLatencyUpdateL = metric.NewCounter("sequencing_latency_stage_update_leaves")
+	seqLatencyUpdateN = metric.NewCounter("sequencing_latency_stage_update_nodes")
+	seqLatencySetRoot = metric.NewCounter("sequencing_latency_stage_set_root")
+	seqLatencyCommit  = metric.NewCounter("sequencing_latency_stage_commit")
 )
 
 // TODO(Martin2112): Add admin support for safely changing params like guard window during operation
@@ -168,6 +182,7 @@ func (s Sequencer) createRootSignature(ctx context.Context, root trillian.Signed
 // which will fail if the tx was committed. Should only do this if we can hide the details of
 // the underlying storage transactions and it doesn't create other problems.
 func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int) (int, error) {
+	start := s.timeSource.Now()
 	tx, err := s.logStorage.BeginForTree(ctx, logID)
 	if err != nil {
 		glog.Warningf("%v: Sequencer failed to start tx: %v", logID, err)
@@ -183,12 +198,25 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int) (i
 		return 0, err
 	}
 
+	// Beyond this point we always consider that we've handled a batch and we'll record
+	// total latency when we're done
+	defer seqBatches.Add(1)
+	defer func() {
+		seqLatencyTotal.Add(s.sinceNanos(start))
+	}()
+
+	dqt := s.timeSource.Now()
+	seqLatencyDequeue.Add(s.sinceNanos(start))
+
 	// Get the latest known root from storage
 	currentRoot, err := tx.LatestSignedLogRoot(ctx)
 	if err != nil {
 		glog.Warningf("%v: Sequencer failed to get latest root: %v", logID, err)
 		return 0, err
 	}
+
+	rt := s.timeSource.Now()
+	seqLatencyGetRoot.Add(s.sinceNanos(dqt))
 
 	// TODO(al): Have a better detection mechanism for there being no stored root.
 	// TODO(mhs): Might be better to create empty root in provisioning API when it exists
@@ -217,6 +245,9 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int) (i
 		return 0, err
 	}
 
+	mtt := s.timeSource.Now()
+	seqLatencyMerkle.Add(s.sinceNanos(rt))
+
 	// We've done all the reads, can now do the updates.
 	// TODO: This relies on us being the only process updating the map, which isn't enforced yet
 	// though the schema should now prevent multiple STHs being inserted with the same revision
@@ -232,6 +263,9 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int) (i
 		return 0, err
 	}
 
+	st := s.timeSource.Now()
+	seqLatencyAssign.Add(s.sinceNanos(mtt))
+
 	// We should still have the same number of leaves
 	if want, got := len(leaves), len(sequencedLeaves); want != got {
 		return 0, fmt.Errorf("%v: wanted: %v leaves after sequencing but we got: %v", logID, want, got)
@@ -242,6 +276,9 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int) (i
 		glog.Warningf("%v: Sequencer failed to update sequenced leaves: %v", logID, err)
 		return 0, err
 	}
+
+	uslt := s.timeSource.Now()
+	seqLatencyUpdateL.Add(s.sinceNanos(st))
 
 	// Build objects for the nodes to be updated. Because we deduped via the map each
 	// node can only be created / updated once in each tree revision and they cannot
@@ -258,6 +295,9 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int) (i
 		glog.Warningf("%v: Sequencer failed to set Merkle nodes: %v", logID, err)
 		return 0, err
 	}
+
+	nodet := s.timeSource.Now()
+	seqLatencyUpdateN.Add(s.sinceNanos(uslt))
 
 	// Create the log root ready for signing
 	newLogRoot := trillian.SignedLogRoot{
@@ -282,11 +322,15 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int) (i
 		return 0, err
 	}
 
+	ssrt := s.timeSource.Now()
+	seqLatencySetRoot.Add(s.sinceNanos(nodet))
+
 	// The batch is now fully sequenced and we're done
 	if err := tx.Commit(); err != nil {
 		return 0, err
 	}
 
+	seqLatencyCommit.Add(s.sinceNanos(ssrt))
 	glog.Infof("%v: sequenced %v leaves, size %v, tree-revision %v", logID, len(leaves), newLogRoot.TreeSize, newLogRoot.TreeRevision)
 	return len(leaves), nil
 }
@@ -339,4 +383,10 @@ func (s Sequencer) SignRoot(ctx context.Context, logID int64) error {
 	glog.V(2).Infof("%v: new signed root, size %v, tree-revision %v", logID, newLogRoot.TreeSize, newLogRoot.TreeRevision)
 
 	return tx.Commit()
+}
+
+// sinceNanos() returns the time in nanoseconds since a particular time, according to
+// the TimeSource used by this sequencer.
+func (s *Sequencer) sinceNanos(when time.Time) int64 {
+	return s.timeSource.Now().Sub(when).Nanoseconds()
 }
