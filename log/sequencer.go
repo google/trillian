@@ -19,6 +19,7 @@ package log
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/golang/glog"
@@ -26,9 +27,20 @@ import (
 	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/merkle"
+	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util"
 )
+
+var (
+	once       sync.Once
+)
+
+func createMetrics(mf monitoring.MetricFactory) {
+	if mf == nil {
+		mf = monitoring.InertMetricFactory{}
+	}
+}
 
 // TODO(Martin2112): Add admin support for safely changing params like guard window during operation
 // TODO(Martin2112): Add support for enabling and controlling sequencing as part of admin API
@@ -56,7 +68,10 @@ type Sequencer struct {
 const maxTreeDepth = 64
 
 // NewSequencer creates a new Sequencer instance for the specified inputs.
-func NewSequencer(hasher merkle.TreeHasher, timeSource util.TimeSource, logStorage storage.LogStorage, signer *crypto.Signer) *Sequencer {
+func NewSequencer(hasher merkle.TreeHasher, timeSource util.TimeSource, logStorage storage.LogStorage, signer *crypto.Signer, mf monitoring.MetricFactory) *Sequencer {
+	once.Do(func() {
+		createMetrics(mf)
+	})
 	return &Sequencer{
 		hasher:     hasher,
 		timeSource: timeSource,
