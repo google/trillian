@@ -29,7 +29,6 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
-	"github.com/golang/protobuf/ptypes/any"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/trillian/crypto/keyspb"
 )
@@ -160,14 +159,6 @@ func (tester *SignerFactoryTester) TestGenerate(t *testing.T) {
 			}
 		}
 	}
-}
-
-func mustMarshalAny(pb proto.Message) *any.Any {
-	a, err := ptypes.MarshalAny(pb)
-	if err != nil {
-		panic(err)
-	}
-	return a
 }
 
 // verify checks that sig is a valid signature for a digest (hash of some data).

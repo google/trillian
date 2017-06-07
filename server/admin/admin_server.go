@@ -19,6 +19,7 @@ import (
 	"crypto/x509"
 
 	"github.com/golang/glog"
+	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys"
@@ -98,7 +99,11 @@ func (s *Server) CreateTree(ctx context.Context, request *trillian.CreateTreeReq
 		if err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "failed to generate private key: %v", err.Error())
 		}
-		tree.PrivateKey = key
+
+		tree.PrivateKey, err = ptypes.MarshalAny(key)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to marshal private key: %v", err.Error())
+		}
 	}
 
 	if tree.PrivateKey == nil {
