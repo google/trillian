@@ -67,30 +67,46 @@ func (tester *SignerFactoryTester) TestNewSigner(t *testing.T) {
 			WantErr:  true,
 		},
 	}...) {
+		sf := tester.NewSignerFactory()
+
 		anyKeyProto, err := ptypes.MarshalAny(test.KeyProto)
 		if err != nil {
 			t.Errorf("%v: Could not marshal test.KeyProto as protobuf Any: %v", test.Name, err)
 		}
 
-		signer, err := tester.NewSignerFactory().NewSigner(context.Background(), anyKeyProto)
-		switch gotErr := err != nil; {
-		case gotErr != test.WantErr:
-			t.Errorf("%v: Signer() = (%v, %v), want err? %v", test.Name, signer, err, test.WantErr)
-			continue
-		case gotErr:
-			continue
-		}
+		for _, subtest := range []struct {
+			desc     string
+			keyProto proto.Message
+		}{
+			{
+				desc:     "unmodified",
+				keyProto: test.KeyProto,
+			},
+			{
+				desc:     "marshaled as protobuf Any",
+				keyProto: anyKeyProto,
+			},
+		} {
+			signer, err := sf.NewSigner(context.Background(), subtest.keyProto)
+			switch gotErr := err != nil; {
+			case gotErr != test.WantErr:
+				t.Errorf("%v (%v): Signer() = (%v, %v), want err? %v", test.Name, subtest.desc, signer, err, test.WantErr)
+				continue
+			case gotErr:
+				continue
+			}
 
-		// Check that the returned signer can produce signatures successfully.
-		hasher := crypto.SHA256
-		digest := sha256.Sum256([]byte("test"))
-		signature, err := signer.Sign(rand.Reader, digest[:], hasher)
-		if err != nil {
-			t.Errorf("%v: Signer().Sign() = (_, %v), want (_, nil)", test.Name, err)
-		}
+			// Check that the returned signer can produce signatures successfully.
+			hasher := crypto.SHA256
+			digest := sha256.Sum256([]byte("test"))
+			signature, err := signer.Sign(rand.Reader, digest[:], hasher)
+			if err != nil {
+				t.Errorf("%v (%v): Signer().Sign() = (_, %v), want (_, nil)", test.Name, subtest.desc, err)
+			}
 
-		if err := verify(signer.Public(), digest[:], signature, hasher, hasher); err != nil {
-			t.Errorf("%v: %v", test.Name, err)
+			if err := verify(signer.Public(), digest[:], signature, hasher, hasher); err != nil {
+				t.Errorf("%v (%v): %v", test.Name, subtest.desc, err)
+			}
 		}
 	}
 }
