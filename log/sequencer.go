@@ -38,6 +38,7 @@ const logIDLabel = "logid"
 var (
 	once                   sync.Once
 	seqBatches             monitoring.Counter
+	seqTreeSize            monitoring.Gauge
 	seqLatency             monitoring.Histogram
 	seqDequeueLatency      monitoring.Histogram
 	seqGetRootLatency      monitoring.Histogram
@@ -54,6 +55,7 @@ func createMetrics(mf monitoring.MetricFactory) {
 		mf = monitoring.InertMetricFactory{}
 	}
 	seqBatches = mf.NewCounter("sequencer_batches", "Number of sequencer batch operations", logIDLabel)
+	seqTreeSize = mf.NewGauge("sequencer_tree_size", "Size of Merkle tree", logIDLabel)
 	seqLatency = mf.NewHistogram("sequencer_latency", "Latency of sequencer batch operation in ms", logIDLabel)
 	seqDequeueLatency = mf.NewHistogram("sequencer_latency_dequeue", "Latency of dequeue-leaves part of sequencer batch operation in ms", logIDLabel)
 	seqGetRootLatency = mf.NewHistogram("sequencer_latency_get_root", "Latency of get-root part of sequencer batch operation in ms", logIDLabel)
@@ -322,6 +324,7 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int) (i
 		LogId:          currentRoot.LogId,
 		TreeRevision:   newVersion,
 	}
+	seqTreeSize.Set(float64(merkleTree.Size()), label)
 
 	// Hash and sign the root, update it with the signature
 	signature, err := s.createRootSignature(ctx, newLogRoot)
