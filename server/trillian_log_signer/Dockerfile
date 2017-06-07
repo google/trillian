@@ -9,7 +9,6 @@ ENV HOST=0.0.0.0 \
     HTTP_PORT=8091
 
 ENV SEQUENCER_GUARD_WINDOW=0s \
-    DUMP_METRICS=0s \
     FORCE_MASTER=true
 
 
@@ -22,7 +21,6 @@ RUN go get ./server/trillian_log_signer
 ENTRYPOINT /go/bin/trillian_log_signer \
 	--mysql_uri="${DB_USER}:${DB_PASSWORD}@tcp(${DB_HOST})/${DB_DATABASE}" \
 	--http_endpoint="$HOST:$HTTP_PORT" \
-	--dump_metrics_interval="$DUMP_METRICS" \
 	--sequencer_guard_window="$SEQUENCER_GUARD_WINDOW" \
 	--force_master="$FORCE_MASTER" \
 	--alsologtostderr
