@@ -6,8 +6,8 @@ package keys
 import (
 	context "context"
 	crypto "crypto"
+	proto "github.com/gogo/protobuf/proto"
 	gomock "github.com/golang/mock/gomock"
-	any "github.com/golang/protobuf/ptypes/any"
 	keyspb "github.com/google/trillian/crypto/keyspb"
 )
 
@@ -32,9 +32,9 @@ func (_m *MockSignerFactory) EXPECT() *_MockSignerFactoryRecorder {
 	return _m.recorder
 }
 
-func (_m *MockSignerFactory) Generate(_param0 context.Context, _param1 *keyspb.Specification) (*any.Any, error) {
+func (_m *MockSignerFactory) Generate(_param0 context.Context, _param1 *keyspb.Specification) (proto.Message, error) {
 	ret := _m.ctrl.Call(_m, "Generate", _param0, _param1)
-	ret0, _ := ret[0].(*any.Any)
+	ret0, _ := ret[0].(proto.Message)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -43,7 +43,7 @@ func (_mr *_MockSignerFactoryRecorder) Generate(arg0, arg1 interface{}) *gomock.
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Generate", arg0, arg1)
 }
 
-func (_m *MockSignerFactory) NewSigner(_param0 context.Context, _param1 *any.Any) (crypto.Signer, error) {
+func (_m *MockSignerFactory) NewSigner(_param0 context.Context, _param1 proto.Message) (crypto.Signer, error) {
 	ret := _m.ctrl.Call(_m, "NewSigner", _param0, _param1)
 	ret0, _ := ret[0].(crypto.Signer)
 	ret1, _ := ret[1].(error)

@@ -27,7 +27,7 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/golang/protobuf/ptypes/any"
+	"github.com/gogo/protobuf/proto"
 	"github.com/google/trillian/crypto/keyspb"
 )
 
@@ -43,11 +43,11 @@ const MinRsaKeySizeInBits = 2048
 // examples.
 type SignerFactory interface {
 	// NewSigner uses the information in the provided protobuf message to obtain and return a crypto.Signer.
-	NewSigner(context.Context, *any.Any) (crypto.Signer, error)
+	NewSigner(context.Context, proto.Message) (crypto.Signer, error)
 
 	// Generate creates a new private key based on a key specification.
 	// It returns a proto that can be used as the value of tree.PrivateKey.
-	Generate(context.Context, *keyspb.Specification) (*any.Any, error)
+	Generate(context.Context, *keyspb.Specification) (proto.Message, error)
 }
 
 // NewFromPrivatePEMFile reads a PEM-encoded private key from a file.

@@ -440,14 +440,15 @@ func TestServer_CreateTree(t *testing.T) {
 				continue
 			}
 
-			keyProto, err := ptypes.MarshalAny(&keyspb.PrivateKey{Der: keyDER})
+			keyProto := &keyspb.PrivateKey{Der: keyDER}
+			marshaledKeyProto, err := ptypes.MarshalAny(keyProto)
 			if err != nil {
 				t.Errorf("%v: failed to marshal test private key as proto: %v", test.desc, err)
 				continue
 			}
 
 			sf.EXPECT().Generate(gomock.Any(), test.req.GetKeySpec()).Return(keyProto, nil)
-			sf.EXPECT().NewSigner(gomock.Any(), keyProto).Return(privateKey, nil)
+			sf.EXPECT().NewSigner(gomock.Any(), marshaledKeyProto).Return(privateKey, nil)
 
 			publicKeyDER, err = x509.MarshalPKIXPublicKey(privateKey.Public())
 			if err != nil {
