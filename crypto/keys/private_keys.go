@@ -27,7 +27,7 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/gogo/protobuf/proto"
+	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian/crypto/keyspb"
 )
 

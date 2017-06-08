@@ -20,7 +20,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/gogo/protobuf/proto"
+	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 	sa "github.com/google/trillian/server/admin"
 	"github.com/google/trillian/server/interceptor"
