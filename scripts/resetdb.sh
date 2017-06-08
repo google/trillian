@@ -45,7 +45,6 @@ main() {
 
   if [ -z ${REPLY+x} ] || [[ $REPLY =~ ^[Yy]$ ]]
   then
-      # A command line supplied -u will override the first argument.
       echo "Resetting DB..."
       mysql $FLAGS -u $DB_USER -e "DROP DATABASE IF EXISTS ${DB_NAME};"
       mysql $FLAGS -u $DB_USER -e "CREATE DATABASE ${DB_NAME};"
