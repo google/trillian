@@ -6,8 +6,8 @@ package keys
 import (
 	context "context"
 	crypto "crypto"
-	proto "github.com/gogo/protobuf/proto"
 	gomock "github.com/golang/mock/gomock"
+	proto "github.com/golang/protobuf/proto"
 	keyspb "github.com/google/trillian/crypto/keyspb"
 )
 
