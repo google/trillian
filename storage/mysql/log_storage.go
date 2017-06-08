@@ -31,7 +31,6 @@ import (
 	"github.com/google/trillian"
 	spb "github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/monitoring"
-	"github.com/google/trillian/monitoring/prometheus"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/trees"
@@ -129,15 +128,20 @@ func observeAsMillis(hist monitoring.Histogram, duration time.Duration, label st
 
 type mySQLLogStorage struct {
 	*mySQLTreeStorage
-	admin storage.AdminStorage
+	admin         storage.AdminStorage
+	metricFactory monitoring.MetricFactory
 }
 
 // NewLogStorage creates a storage.LogStorage instance for the specified MySQL URL.
 // It assumes storage.AdminStorage is backed by the same MySQL database as well.
-func NewLogStorage(db *sql.DB) storage.LogStorage {
+func NewLogStorage(db *sql.DB, mf monitoring.MetricFactory) storage.LogStorage {
+	if mf == nil {
+		mf = monitoring.InertMetricFactory{}
+	}
 	return &mySQLLogStorage{
 		admin:            NewAdminStorage(db),
 		mySQLTreeStorage: newTreeStorage(db),
+		metricFactory:    mf,
 	}
 }
 
@@ -232,8 +236,7 @@ func (t *readOnlyLogTX) GetActiveLogIDsWithPendingWork(ctx context.Context) ([]i
 
 func (m *mySQLLogStorage) beginInternal(ctx context.Context, treeID int64, readonly bool) (storage.LogTreeTX, error) {
 	once.Do(func() {
-		// TODO(drysdale): this should come from the registry rather than hard-coding use of Prometheus
-		createMetrics(prometheus.MetricFactory{})
+		createMetrics(m.metricFactory)
 	})
 	tree, err := trees.GetTree(
 		ctx,

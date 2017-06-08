@@ -28,7 +28,6 @@ import (
 	"github.com/google/btree"
 	"github.com/google/trillian"
 	"github.com/google/trillian/monitoring"
-	"github.com/google/trillian/monitoring/prometheus"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/trees"
@@ -71,13 +70,18 @@ func sthKey(treeID, timestamp int64) btree.Item {
 
 type memoryLogStorage struct {
 	*memoryTreeStorage
-	admin storage.AdminStorage
+	admin         storage.AdminStorage
+	metricFactory monitoring.MetricFactory
 }
 
 // NewLogStorage creates an in-memory LogStorage instance.
-func NewLogStorage() storage.LogStorage {
+func NewLogStorage(mf monitoring.MetricFactory) storage.LogStorage {
+	if mf == nil {
+		mf = monitoring.InertMetricFactory{}
+	}
 	ret := &memoryLogStorage{
 		memoryTreeStorage: newTreeStorage(),
+		metricFactory:     mf,
 	}
 	ret.admin = NewAdminStorage(ret)
 	return ret
@@ -125,8 +129,7 @@ func (t *readOnlyLogTX) GetActiveLogIDsWithPendingWork(ctx context.Context) ([]i
 
 func (m *memoryLogStorage) beginInternal(ctx context.Context, treeID int64, readonly bool) (storage.LogTreeTX, error) {
 	once.Do(func() {
-		// TODO(drysdale): this should come from the registry rather than hard-coding use of Prometheus
-		createMetrics(prometheus.MetricFactory{})
+		createMetrics(m.metricFactory)
 	})
 	tree, err := trees.GetTree(
 		ctx,
