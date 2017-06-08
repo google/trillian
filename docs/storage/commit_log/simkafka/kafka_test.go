@@ -57,7 +57,7 @@ func TestRead(t *testing.T) {
 		t.Errorf("Read(%q, %d)=%v; want ''", topic, offset, got)
 	}
 	if got := ReadMultiple(topic, offset, 1); got != nil {
-		t.Errorf("ReadMultiple(%q, %d, 1)=%v; want ''", topic, got, offset)
+		t.Errorf("ReadMultiple(%q, %d, 1)=%v; want ''", topic, offset, got)
 	}
 }
 
