@@ -19,11 +19,13 @@ import (
 	"fmt"
 	"math/rand"
 	"reflect"
+	"strconv"
 	"sync"
 	"time"
 
 	"github.com/golang/glog"
 	"github.com/google/trillian/extension"
+	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/util"
 )
 
@@ -31,7 +33,22 @@ const (
 	minPreElectionPause    = 10 * time.Millisecond
 	minMasterCheckInterval = 50 * time.Millisecond
 	minMasterHoldInterval  = 10 * time.Second
+	logIDLabel             = "logid"
 )
+
+var (
+	once         sync.Once
+	resignations monitoring.Counter
+	isMaster     monitoring.Gauge
+)
+
+func createMetrics(mf monitoring.MetricFactory) {
+	if mf == nil {
+		mf = monitoring.InertMetricFactory{}
+	}
+	resignations = mf.NewCounter("master_resignations", "Number of mastership resignations", logIDLabel)
+	isMaster = mf.NewGauge("is_master", "Whether this instance is master (0/1)", logIDLabel)
+}
 
 // LogOperation defines a task that operates on a log. Examples are scheduling, signing,
 // consistency checking or cleanup.
@@ -88,6 +105,7 @@ type electionRunner struct {
 
 func (er *electionRunner) Run(ctx context.Context) {
 	defer er.wg.Done()
+	label := strconv.FormatInt(er.logID, 10)
 
 	// Pause for a random interval so that if multiple instances start at the same
 	// time there is less of a thundering herd.
@@ -112,6 +130,7 @@ func (er *electionRunner) Run(ctx context.Context) {
 		}
 		glog.V(1).Infof("%d: Now, I am the master", er.logID)
 		er.tracker.Set(er.logID, true)
+		isMaster.Set(1.0, label)
 		masterSince := time.Now()
 
 		// While-master loop
@@ -131,12 +150,15 @@ func (er *electionRunner) Run(ctx context.Context) {
 			if !master {
 				glog.Errorf("%d: no longer the master!", er.logID)
 				er.tracker.Set(er.logID, false)
+				isMaster.Set(0.0, label)
 				break
 			}
 			if er.shouldResign(masterSince) {
 				glog.Infof("%d: deliberately resigning mastership", er.logID)
+				resignations.Inc(label)
 				if err := er.election.ResignAndRestart(ctx); err == nil {
 					er.tracker.Set(er.logID, false)
+					isMaster.Set(0.0, label)
 					break
 				}
 				glog.Errorf("%d: failed to resign mastership", er.logID)
@@ -194,6 +216,9 @@ func fixupElectionInfo(info LogOperationInfo) LogOperationInfo {
 
 // NewLogOperationManager creates a new LogOperationManager instance.
 func NewLogOperationManager(info LogOperationInfo, logOperation LogOperation) *LogOperationManager {
+	once.Do(func() {
+		createMetrics(info.Registry.MetricFactory)
+	})
 	return &LogOperationManager{
 		info:           fixupElectionInfo(info),
 		logOperation:   logOperation,
