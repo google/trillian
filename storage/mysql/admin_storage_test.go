@@ -181,6 +181,27 @@ func TestAdminTX_StorageSettingsNotSupported(t *testing.T) {
 	}
 }
 
+func TestCheckDatabaseAccessible_Fails(t *testing.T) {
+	// Pass in a closed database to provoke a failure.
+	db := openTestDBOrDie()
+	cleanTestDB(db)
+	s := NewAdminStorage(db)
+	db.Close()
+	ctx := context.Background()
+	if err := s.CheckDatabaseAccessible(ctx); err == nil {
+		t.Error("TestCheckDatabaseAccessible_Fails got: nil, want: err")
+	}
+}
+
+func TestCheckDatabaseAccessible_OK(t *testing.T) {
+	cleanTestDB(DB)
+	s := NewAdminStorage(DB)
+	ctx := context.Background()
+	if err := s.CheckDatabaseAccessible(ctx); err != nil {
+		t.Errorf("TestCheckDatabaseAccessible_OK got: %v, want: nil", err)
+	}
+}
+
 func createTreeInternal(ctx context.Context, s storage.AdminStorage, tree *trillian.Tree) (*trillian.Tree, error) {
 	tx, err := s.Begin(ctx)
 	if err != nil {

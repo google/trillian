@@ -65,6 +65,10 @@ type AdminStorage interface {
 	// A transaction must be explicitly committed before the data read by it
 	// is considered consistent.
 	Begin(ctx context.Context) (AdminTX, error)
+
+	// CheckDatabaseAccessible checks whether we are able to connect to / open the
+	// underlying storage.
+	CheckDatabaseAccessible(ctx context.Context) error
 }
 
 // AdminReader provides a read-only interface for tree data.
