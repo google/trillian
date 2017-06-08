@@ -1,4 +1,4 @@
-sudo: false
+sudo: true
 language: go
 
 os:
@@ -13,6 +13,7 @@ env:
   - GOFLAGS=-race
   - GOFLAGS=      WITH_ETCD=true
   - GOFLAGS=-race WITH_ETCD=true
+  - GOFLAGS=      WITH_PKCS11=true
 
 matrix:
   fast_finish: true
@@ -20,6 +21,7 @@ matrix:
     - os: osx
 
 install:
+  -  if [[ "${WITH_PKCS11}" == "true" ]]; then sudo apt-get install softhsm2 ; fi
   - |
     if [ ! -d $HOME/gopath/src/github.com/google ]; then
       mkdir -p $HOME/gopath/src/github.com/google

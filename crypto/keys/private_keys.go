@@ -175,5 +175,9 @@ func NewFromPKCS11Config(modulePath string, config *keyspb.PKCS11Config) (crypto
 	if modulePath == "" {
 		return nil, errors.New("No PKCS#11 module path set, cannot create signer")
 	}
-	return pkcs11key.New(modulePath, config.TokenLabel, config.Pin, config.PrivateKeyLabel)
+	pubKey, err := NewFromPublicPEM(config.GetPublicKey())
+	if err != nil {
+		return nil, err
+	}
+	return pkcs11key.New(modulePath, config.GetTokenLabel(), config.GetPin(), pubKey)
 }

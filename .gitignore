@@ -14,3 +14,5 @@
 *.swp
 *~
 default.etcd
+testdata/softhsm2.conf
+testdata/softhsm2-tokens

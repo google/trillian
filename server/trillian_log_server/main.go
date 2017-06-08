@@ -86,14 +86,15 @@ func main() {
 
 	mf := prometheus.MetricFactory{}
 
+	sf := &keys.PEMSignerFactory{}
 	if *pkcs11ModulePath != "" {
-		keys.SetPKCS11Module(*pkcs11ModulePath)
+		sf.SetPKCS11Module(*pkcs11ModulePath)
 	}
 
 	registry := extension.Registry{
 		AdminStorage:  mysql.NewAdminStorage(db),
-		SignerFactory: keys.PEMSignerFactory{},
 		LogStorage:    mysql.NewLogStorage(db, mf),
+		SignerFactory: sf,
 		QuotaManager:  &mysqlq.QuotaManager{DB: db, MaxUnsequencedRows: *maxUnsequencedRows},
 		MetricFactory: mf,
 	}

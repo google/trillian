@@ -190,10 +190,14 @@ func newPK(opts *createOpts) (*any.Any, error) {
 		if err = json.Unmarshal(configBytes, &config); err != nil {
 			return nil, err
 		}
+		pubKeyBytes, err := ioutil.ReadFile(config.PublicKeyPath)
+		if err != nil {
+			return nil, err
+		}
 		return ptypes.MarshalAny(&keyspb.PKCS11Config{
-			TokenLabel:      config.TokenLabel,
-			Pin:             config.PIN,
-			PrivateKeyLabel: config.PrivateKeyLabel,
+			TokenLabel: config.TokenLabel,
+			Pin:        config.PIN,
+			PublicKey:  string(pubKeyBytes),
 		})
 	default:
 		return nil, fmt.Errorf("unknown private key type: %v", opts.privateKeyType)

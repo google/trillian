@@ -95,9 +95,9 @@ func NewLogEnv(ctx context.Context, numSequencers int, testID string) (*LogEnv, 
 
 	registry := extension.Registry{
 		AdminStorage:  mysql.NewAdminStorage(db),
-		SignerFactory: keys.PEMSignerFactory{},
 		LogStorage:    mysql.NewLogStorage(db, nil),
 		QuotaManager:  quota.Noop(),
+		SignerFactory: &keys.PEMSignerFactory{},
 	}
 
 	ret, err := NewLogEnvWithRegistry(ctx, numSequencers, testID, registry)

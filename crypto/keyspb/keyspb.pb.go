@@ -295,8 +295,8 @@ type PKCS11Config struct {
 	TokenLabel string `protobuf:"bytes,1,opt,name=token_label,json=tokenLabel" json:"token_label,omitempty"`
 	// The PIN for the specific token.
 	Pin string `protobuf:"bytes,2,opt,name=pin" json:"pin,omitempty"`
-	// The label of the private key to use.
-	PrivateKeyLabel string `protobuf:"bytes,3,opt,name=private_key_label,json=privateKeyLabel" json:"private_key_label,omitempty"`
+	// The PEM public key assosciated with the private key to be used.
+	PublicKey string `protobuf:"bytes,3,opt,name=public_key,json=publicKey" json:"public_key,omitempty"`
 }
 
 func (m *PKCS11Config) Reset()                    { *m = PKCS11Config{} }
@@ -318,9 +318,9 @@ func (m *PKCS11Config) GetPin() string {
 	return ""
 }
 
-func (m *PKCS11Config) GetPrivateKeyLabel() string {
+func (m *PKCS11Config) GetPublicKey() string {
 	if m != nil {
-		return m.PrivateKeyLabel
+		return m.PublicKey
 	}
 	return ""
 }

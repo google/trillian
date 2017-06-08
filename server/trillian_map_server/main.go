@@ -64,7 +64,7 @@ func main() {
 
 	registry := extension.Registry{
 		AdminStorage:  mysql.NewAdminStorage(db),
-		SignerFactory: keys.PEMSignerFactory{},
+		SignerFactory: &keys.PEMSignerFactory{},
 		MapStorage:    mysql.NewMapStorage(db),
 		QuotaManager:  &mysqlq.QuotaManager{DB: db, MaxUnsequencedRows: *maxUnsequencedRows},
 		MetricFactory: prometheus.MetricFactory{},

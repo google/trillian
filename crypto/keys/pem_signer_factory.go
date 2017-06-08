@@ -21,38 +21,38 @@ import (
 	"sync"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes"
+	"github.com/golang/protobuf/ptypes/any"
 	"github.com/google/trillian/crypto/keyspb"
 )
 
-var (
-	pkcs11Module string
-	pMu          sync.Mutex
-)
-
-// SetPKCS11Module should be called before creating a PEMSignerFactory
-// if the tree is expected to contain a PKCS#11 key
-func SetPKCS11Module(modulePath string) {
-	pMu.Lock()
-	defer pMu.Unlock()
-	pkcs11Module = modulePath
-}
-
 // PEMSignerFactory handles PEM-encoded private keys.
 // It implements keys.SignerFactory.
-type PEMSignerFactory struct{}
+type PEMSignerFactory struct {
+	pkcs11Module string
+	pMu          sync.Mutex
+}
 
 // NewSigner uses the information in pb to return a crypto.Signer.
 // pb must be one of the following types:
 // - keyspb.PEMKeyFile
 // - keyspb.PrivateKey
-func (f PEMSignerFactory) NewSigner(ctx context.Context, pb proto.Message) (crypto.Signer, error) {
+func (f *PEMSignerFactory) NewSigner(ctx context.Context, pb proto.Message) (crypto.Signer, error) {
+	if anyPB, ok := pb.(*any.Any); ok {
+		var unmarshaledPB ptypes.DynamicAny
+		if err := ptypes.UnmarshalAny(anyPB, &unmarshaledPB); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal private key protobuf: %v", err)
+		}
+		pb = unmarshaledPB.Message
+	}
+
 	switch privateKey := pb.(type) {
 	case *keyspb.PEMKeyFile:
 		return NewFromPrivatePEMFile(privateKey.GetPath(), privateKey.GetPassword())
 	case *keyspb.PrivateKey:
 		return NewFromPrivateDER(privateKey.GetDer())
 	case *keyspb.PKCS11Config:
-		return NewFromPKCS11Config(pkcs11Module, privateKey)
+		return NewFromPKCS11Config(f.pkcs11Module, privateKey)
 	}
 
 	return nil, fmt.Errorf("unsupported private key protobuf type: %T", pb)
@@ -60,7 +60,7 @@ func (f PEMSignerFactory) NewSigner(ctx context.Context, pb proto.Message) (cryp
 
 // Generate creates a new private key based on a key specification.
 // It returns a proto that can be passed to NewSigner() to get a crypto.Signer.
-func (f PEMSignerFactory) Generate(ctx context.Context, spec *keyspb.Specification) (proto.Message, error) {
+func (f *PEMSignerFactory) Generate(ctx context.Context, spec *keyspb.Specification) (proto.Message, error) {
 	key, err := NewFromSpec(spec)
 	if err != nil {
 		return nil, fmt.Errorf("error generating key: %v", err)
@@ -72,4 +72,12 @@ func (f PEMSignerFactory) Generate(ctx context.Context, spec *keyspb.Specificati
 	}
 
 	return &keyspb.PrivateKey{Der: der}, nil
+}
+
+// SetPKCS11Module should be called before creating a PEMSignerFactory
+// if the tree is expected to contain a PKCS#11 key
+func (f *PEMSignerFactory) SetPKCS11Module(modulePath string) {
+	f.pMu.Lock()
+	defer f.pMu.Unlock()
+	f.pkcs11Module = modulePath
 }
