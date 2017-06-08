@@ -81,12 +81,13 @@ func main() {
 		}
 	}
 
+	mf := prometheus.MetricFactory{}
 	registry := extension.Registry{
 		AdminStorage:  mysql.NewAdminStorage(db),
 		SignerFactory: keys.PEMSignerFactory{},
-		LogStorage:    mysql.NewLogStorage(db),
+		LogStorage:    mysql.NewLogStorage(db, mf),
 		QuotaManager:  &mysqlq.QuotaManager{DB: db, MaxUnsequencedRows: *maxUnsequencedRows},
-		MetricFactory: prometheus.MetricFactory{},
+		MetricFactory: mf,
 	}
 
 	ts := util.SystemTimeSource{}

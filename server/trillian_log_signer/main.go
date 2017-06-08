@@ -89,13 +89,14 @@ func main() {
 		electionFactory = etcd.NewElectionFactory(instanceID, *etcdServers, *lockDir)
 	}
 
+	mf := prometheus.MetricFactory{}
 	registry := extension.Registry{
 		AdminStorage:    mysql.NewAdminStorage(db),
 		SignerFactory:   keys.PEMSignerFactory{},
-		LogStorage:      mysql.NewLogStorage(db),
+		LogStorage:      mysql.NewLogStorage(db, mf),
 		ElectionFactory: electionFactory,
 		QuotaManager:    quota.Noop(),
-		MetricFactory:   prometheus.MetricFactory{},
+		MetricFactory:   mf,
 	}
 
 	// Start HTTP server (optional)

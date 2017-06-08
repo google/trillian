@@ -314,7 +314,7 @@ func queueLeaves(ctx context.Context, db *sql.DB, tree *trillian.Tree, firstID, 
 		})
 	}
 
-	ls := mysql.NewLogStorage(db)
+	ls := mysql.NewLogStorage(db, nil)
 	tx, err := ls.BeginForTree(ctx, tree.TreeId)
 	if err != nil {
 		return err
