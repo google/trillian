@@ -38,6 +38,7 @@ const (
 
 var (
 	once         sync.Once
+	knownLogs    monitoring.Gauge
 	resignations monitoring.Counter
 	isMaster     monitoring.Gauge
 )
@@ -46,6 +47,7 @@ func createMetrics(mf monitoring.MetricFactory) {
 	if mf == nil {
 		mf = monitoring.InertMetricFactory{}
 	}
+	knownLogs = mf.NewGauge("known_logs", "Set to 1 for known logs (whether this instance is master or not)", logIDLabel)
 	resignations = mf.NewCounter("master_resignations", "Number of mastership resignations", logIDLabel)
 	isMaster = mf.NewGauge("is_master", "Whether this instance is master (0/1)", logIDLabel)
 }
@@ -256,6 +258,7 @@ func (l *LogOperationManager) masterFor(ctx context.Context, allIDs []int64) ([]
 
 	// Synchronize the set of configured log IDs with those we are tracking mastership for.
 	for _, logID := range allIDs {
+		knownLogs.Set(1.0, strconv.FormatInt(logID, 10))
 		if l.electionRunner[logID] != nil {
 			continue
 		}
