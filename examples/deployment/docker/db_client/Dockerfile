@@ -12,4 +12,6 @@ ENV DB_USER=test \
     DB_PASSWORD=zaphod \
     DB_DATABASE=test
 
+RUN ./examples/deployment/scripts/download-wait-for-it.sh
+
 CMD [ 'mysql' ]
