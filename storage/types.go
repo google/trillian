@@ -63,11 +63,7 @@ type NodeID struct {
 
 // bytesForBits returns the number of bytes required to store numBits bits.
 func bytesForBits(numBits int) int {
-	numBytes := numBits / 8
-	if numBits%8 != 0 {
-		numBytes++
-	}
-	return numBytes
+	return (numBits + 7) >> 3
 }
 
 // NewNodeIDFromHash creates a new NodeID for the given Hash.

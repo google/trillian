@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// The trillian_map_client binary performs a trivial map operation.
 package main
 
 import (

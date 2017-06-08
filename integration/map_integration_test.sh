@@ -5,7 +5,7 @@ INTEGRATION_DIR="$( cd "$( dirname "$0" )" && pwd )"
 
 echo "Building code"
 go build ${GOFLAGS} github.com/google/trillian/cmd/createtree/
-go build ${GOFLAGS} github.com/google/trillian/server/vmap/trillian_map_server/
+go build ${GOFLAGS} github.com/google/trillian/server/trillian_map_server/
 
 yes | "${GOPATH}"/src/github.com/google/trillian/scripts/resetdb.sh
 

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package server holds code for core Trillian servers.
 package server
 
 //go:generate mockgen -self_package github.com/google/trillian/server -package server -destination mock_log_operation.go github.com/google/trillian/server LogOperation

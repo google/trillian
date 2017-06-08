@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2017 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,6 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mockclient
+package signer
 
-//go:generate mockgen -self_package github.com/google/trillian/mockclient -package mockclient -destination mock_log_client.go github.com/google/trillian TrillianLogClient,TrillianLogServer,TrillianMapClient,TrillianMapServer
+import (
+	"reflect"
+	"testing"
+)
+
+func TestSTH(t *testing.T) {
+	sth := STH{TreeSize: 12, TimeStamp: 100}
+	enc := sth.String()
+	if got, want := enc, `{"sz":12,"tm":100,"off":0}`; got != want {
+		t.Errorf("sth.String=%q; want %q", got, want)
+	}
+	dec := sthFromString(enc)
+	if !reflect.DeepEqual(dec, &sth) {
+		t.Errorf("sthFromString(%q)=%+v; want %+v", enc, *dec, sth)
+	}
+}

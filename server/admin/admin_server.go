@@ -19,8 +19,10 @@ import (
 	"crypto/x509"
 
 	"github.com/golang/glog"
+	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/trees"
@@ -86,12 +88,22 @@ func (s *Server) CreateTree(ctx context.Context, request *trillian.CreateTreeReq
 
 	// If a key specification was provided, generate a new key.
 	if request.KeySpec != nil {
-		// This will fail if the tree already has a private key.
-		key, err := s.registry.SignerFactory.Generate(ctx, tree, request.KeySpec)
+		if tree.PrivateKey != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "the tree.private_key and key_spec fields are mutually exclusive")
+		}
+		if tree.PublicKey != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "the tree.public_key and key_spec fields are mutually exclusive")
+		}
+
+		key, err := s.registry.SignerFactory.Generate(ctx, request.KeySpec)
 		if err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "failed to generate private key: %v", err.Error())
 		}
-		tree.PrivateKey = key
+
+		tree.PrivateKey, err = ptypes.MarshalAny(key)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to marshal private key: %v", err.Error())
+		}
 	}
 
 	if tree.PrivateKey == nil {
@@ -102,6 +114,10 @@ func (s *Server) CreateTree(ctx context.Context, request *trillian.CreateTreeReq
 	signer, err := trees.Signer(ctx, s.registry.SignerFactory, tree)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "failed to create signer for tree: %v", err.Error())
+	}
+
+	if treeSigAlgo, keySigAlgo := tree.GetSignatureAlgorithm(), keys.SignatureAlgorithm(signer.Public()); treeSigAlgo != keySigAlgo {
+		return nil, status.Errorf(codes.InvalidArgument, "tree.signature_algorithm = %v, but SignatureAlgorithm(tree.private_key) = %v", treeSigAlgo, keySigAlgo)
 	}
 
 	// Derive the public key that corresponds to the private key for this tree.

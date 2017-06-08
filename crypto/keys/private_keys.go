@@ -27,8 +27,7 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/golang/protobuf/ptypes/any"
-	"github.com/google/trillian"
+	"github.com/gogo/protobuf/proto"
 	"github.com/google/trillian/crypto/keyspb"
 )
 
@@ -43,14 +42,12 @@ const MinRsaKeySizeInBits = 2048
 // or sending network requests to a remote key management service, to give a few
 // examples.
 type SignerFactory interface {
-	// NewSigner returns a signer for the given tree.
-	// It consults Tree.PrivateKey to determine how to retrieve the key.
-	NewSigner(context.Context, *trillian.Tree) (crypto.Signer, error)
+	// NewSigner uses the information in the provided protobuf message to obtain and return a crypto.Signer.
+	NewSigner(context.Context, proto.Message) (crypto.Signer, error)
 
-	// Generate creates a new private key for a tree based on a key specification.
+	// Generate creates a new private key based on a key specification.
 	// It returns a proto that can be used as the value of tree.PrivateKey.
-	// If tree.PrivateKey or tree.PublicKey is already set, it returns an error.
-	Generate(context.Context, *trillian.Tree, *keyspb.Specification) (*any.Any, error)
+	Generate(context.Context, *keyspb.Specification) (proto.Message, error)
 }
 
 // NewFromPrivatePEMFile reads a PEM-encoded private key from a file.
@@ -158,4 +155,16 @@ func curveFromParams(params *keyspb.Specification_ECDSA) elliptic.Curve {
 		return elliptic.P521()
 	}
 	return nil
+}
+
+// MarshalPrivateKey serializes an RSA or ECDSA private key as DER.
+func MarshalPrivateKey(key crypto.Signer) ([]byte, error) {
+	switch key := key.(type) {
+	case *ecdsa.PrivateKey:
+		return x509.MarshalECPrivateKey(key)
+	case *rsa.PrivateKey:
+		return x509.MarshalPKCS1PrivateKey(key), nil
+	}
+
+	return nil, fmt.Errorf("unsupported key type: %T", key)
 }

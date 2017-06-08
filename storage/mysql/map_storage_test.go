@@ -253,22 +253,30 @@ func TestMapSetSameKeyInSameRevisionFails(t *testing.T) {
 	}
 }
 
-func TestMapGetUnknownKey(t *testing.T) {
+func TestMapGet0Results(t *testing.T) {
 	cleanTestDB(DB)
 	mapID := createMapForTests(DB)
 	s := NewMapStorage(DB)
 
 	ctx := context.Background()
-	tx := beginMapTx(ctx, s, mapID, t)
-	defer tx.Close()
-	readValues, err := tx.Get(ctx, 1, [][]byte{[]byte("This doesn't exist.")})
-	if err != nil {
-		t.Fatalf("Read returned error %v", err)
+	for _, tc := range []struct {
+		index [][]byte
+	}{
+		{index: nil}, //empty list.
+		{index: [][]byte{[]byte("This doesn't exist.")}},
+	} {
+		tx := beginMapTx(ctx, s, mapID, t)
+		defer tx.Close()
+		defer commit(tx, t)
+		readValues, err := tx.Get(ctx, 1, tc.index)
+		if err != nil {
+			t.Errorf("tx.Get(%s): %v", tc.index, err)
+			continue
+		}
+		if got, want := len(readValues), 0; got != want {
+			t.Errorf("len(tx.Get(%s)): %d, want %d", tc.index, got, want)
+		}
 	}
-	if got, want := len(readValues), 0; got != want {
-		t.Fatalf("Unexpectedly read %d values, expected %d", got, want)
-	}
-	commit(tx, t)
 }
 
 func TestMapSetGetMultipleRevisions(t *testing.T) {

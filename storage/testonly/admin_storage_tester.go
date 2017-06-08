@@ -32,7 +32,7 @@ import (
 	"github.com/kylelemons/godebug/pretty"
 )
 
-// mustMarshal panics if ptypes.MarshalAny fails.
+// mustMarshalAny panics if ptypes.MarshalAny fails.
 func mustMarshalAny(pb proto.Message) *any.Any {
 	value, err := ptypes.MarshalAny(pb)
 	if err != nil {

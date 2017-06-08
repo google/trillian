@@ -161,13 +161,13 @@ func TestAddingLeaves(t *testing.T) {
 	}
 }
 
-func failingGetNodeFunc(depth int, index int64) ([]byte, error) {
+func failingGetNodeFunc(int, int64) ([]byte, error) {
 	return []byte{}, errors.New("bang")
 }
 
 // This returns something that won't result in a valid root hash match, doesn't really
 // matter what it is but it must be correct length for an SHA256 hash as if it was real
-func fixedHashGetNodeFunc(depth int, index int64) ([]byte, error) {
+func fixedHashGetNodeFunc(int, int64) ([]byte, error) {
 	return []byte("12345678901234567890123456789012"), nil
 }
 

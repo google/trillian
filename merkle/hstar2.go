@@ -34,7 +34,7 @@ type HStar2LeafHash struct {
 	LeafHash []byte
 }
 
-// HStar2 is a recursive implementation for calulating the root hash of a sparse
+// HStar2 is a recursive implementation for calculating the root hash of a sparse
 // Merkle tree.
 type HStar2 struct {
 	hasher          TreeHasher

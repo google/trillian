@@ -73,7 +73,7 @@ func (m *mySQLMapStorage) CheckDatabaseAccessible(ctx context.Context) error {
 }
 
 type readOnlyMapTX struct {
-	tx *sql.Tx
+	*sql.Tx
 }
 
 func (m *mySQLMapStorage) Snapshot(ctx context.Context) (storage.ReadOnlyMapTX, error) {
@@ -82,14 +82,6 @@ func (m *mySQLMapStorage) Snapshot(ctx context.Context) (storage.ReadOnlyMapTX, 
 		return nil, err
 	}
 	return &readOnlyMapTX{tx}, nil
-}
-
-func (t *readOnlyMapTX) Commit() error {
-	return t.tx.Commit()
-}
-
-func (t *readOnlyMapTX) Rollback() error {
-	return t.tx.Rollback()
 }
 
 func (t *readOnlyMapTX) Close() error {
@@ -114,7 +106,8 @@ func (m *mySQLMapStorage) begin(ctx context.Context, treeID int64, readonly bool
 		return nil, err
 	}
 
-	ttx, err := m.beginTreeTx(ctx, treeID, hasher.Size(), defaultMapStrata, cache.PopulateMapSubtreeNodes(hasher), cache.PrepareMapSubtreeWrite())
+	stCache := cache.NewSubtreeCache(defaultMapStrata, cache.PopulateMapSubtreeNodes(hasher), cache.PrepareMapSubtreeWrite())
+	ttx, err := m.beginTreeTx(ctx, treeID, hasher.Size(), stCache)
 	if err != nil {
 		return nil, err
 	}
@@ -138,11 +131,7 @@ func (m *mySQLMapStorage) BeginForTree(ctx context.Context, treeID int64) (stora
 }
 
 func (m *mySQLMapStorage) SnapshotForTree(ctx context.Context, treeID int64) (storage.ReadOnlyMapTreeTX, error) {
-	tx, err := m.begin(ctx, treeID, true /* readonly */)
-	if err != nil {
-		return nil, err
-	}
-	return tx.(storage.ReadOnlyMapTreeTX), nil
+	return m.begin(ctx, treeID, true /* readonly */)
 }
 
 type mapTreeTX struct {
@@ -179,9 +168,14 @@ func (m *mapTreeTX) Set(ctx context.Context, keyHash []byte, value trillian.MapL
 	return err
 }
 
-// MapLeaf indexes are overwritten rather than returning the MapLeaf proto provided in Set.
-// TODO: return a map[_something_]Mapleaf or []IndexValue to separate the index from the value.
+// Get returns a list of map leaves indicated by indexes.
+// If an index is not found, no corresponding entry is returned.
+// Each MapLeaf.Index is overwritten with the index the leaf was found at.
 func (m *mapTreeTX) Get(ctx context.Context, revision int64, indexes [][]byte) ([]trillian.MapLeaf, error) {
+	// If no indexes are requested, return an empty set.
+	if len(indexes) == 0 {
+		return []trillian.MapLeaf{}, nil
+	}
 	stmt, err := m.ms.getStmt(ctx, selectMapLeafSQL, len(indexes), "?", "?")
 	if err != nil {
 		return nil, err
@@ -195,8 +189,6 @@ func (m *mapTreeTX) Get(ctx context.Context, revision int64, indexes [][]byte) (
 	}
 	args = append(args, m.treeID)
 	args = append(args, revision)
-
-	glog.Infof("args size %d", len(args))
 
 	rows, err := stx.QueryContext(ctx, args...)
 	// It's possible there are no values for any of these keys yet
@@ -230,7 +222,6 @@ func (m *mapTreeTX) Get(ctx context.Context, revision int64, indexes [][]byte) (
 		ret = append(ret, mapLeaf)
 		nr++
 	}
-	glog.Infof("%d rows, %d empty", nr, er)
 	return ret, nil
 }
 

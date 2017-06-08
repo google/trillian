@@ -44,9 +44,13 @@ wait_for_server_startup() {
 
 # pick_unused_port selects an apparently unused port.
 pick_unused_port() {
+  local avoid=${1:-0}
   local base=6962
   local port
   for (( port = "${base}" ; port <= 61000 ; port++ )); do
+    if [[ $port == $avoid ]]; then
+      continue
+    fi
     if ! lsof -i :$port > /dev/null; then
       echo $port
       break
@@ -111,21 +115,24 @@ log_prep_test() {
     ETCD_OPTS="--etcd_servers=${etcd_server}"
     ETCD_DB_DIR=default.etcd
     wait_for_server_startup ${etcd_port}
-    local signer_election_opts=
+    local logserver_opts="--etcd_http_service=trillian-logserver-http --etcd_service=trillian-logserver"
+    local logsigner_opts="--etcd_http_service=trillian-logsigner-http"
   else
     if  [[ ${log_signer_count} > 1 ]]; then
       echo "*** Warning: running multiple signers with no etcd instance ***"
     fi
-    local signer_election_opts="--force_master"
+    local logserver_opts=
+    local logsigner_opts="--force_master"
   fi
 
   # Start a set of Log RPC servers.
   for ((i=0; i < rpc_server_count; i++)); do
     port=$(pick_unused_port)
     RPC_SERVERS="${RPC_SERVERS},localhost:${port}"
+    http=$(pick_unused_port ${port})
 
-    echo "Starting Log RPC server on localhost:${port}"
-    ./trillian_log_server ${ETCD_OPTS} --rpc_endpoint="localhost:${port}" --http_endpoint='' &
+    echo "Starting Log RPC server on localhost:${port}, HTTP on localhost:${http}"
+    ./trillian_log_server ${ETCD_OPTS} ${logserver_opts} --rpc_endpoint="localhost:${port}" --http_endpoint="localhost:${http}" &
     pid=$!
     RPC_SERVER_PIDS+=(${pid})
     wait_for_server_startup ${port}
@@ -137,19 +144,24 @@ log_prep_test() {
   done
   RPC_SERVERS="${RPC_SERVERS:1}"
 
-  if [[ ! -z "${ETCD_OPTS}" ]]; then
-    RPC_SERVERS="trillian-log"
-    echo "Registered log servers @${RPC_SERVERS}/"
-    ETCDCTL_API=3 etcdctl get ${RPC_SERVERS} --prefix
-  fi
-
   # Start a set of signers.
   for ((i=0; i < log_signer_count; i++)); do
-    echo "Starting Log signer"
-    ./trillian_log_signer ${ETCD_OPTS} ${signer_election_opts} --sequencer_interval="1s" --batch_size=500 --http_endpoint='' --num_sequencers 2 &
+    http=$(pick_unused_port)
+    echo "Starting Log signer, HTTP on localhost:${http}"
+    ./trillian_log_signer ${ETCD_OPTS} ${logsigner_opts} --sequencer_interval="1s" --batch_size=500 --http_endpoint="localhost:${http}" --num_sequencers 2 &
     pid=$!
     LOG_SIGNER_PIDS+=(${pid})
+    wait_for_server_startup ${http}
   done
+
+  if [[ ! -z "${ETCD_OPTS}" ]]; then
+    RPC_SERVERS="trillian-logserver"
+    echo "Registered log servers @${RPC_SERVERS}/"
+    ETCDCTL_API=3 etcdctl get ${RPC_SERVERS}/ --prefix
+    echo "Registered HTTP endpoints"
+    ETCDCTL_API=3 etcdctl get trillian-logserver-http/ --prefix
+    ETCDCTL_API=3 etcdctl get trillian-logsigner-http/ --prefix
+  fi
 }
 
 # log_stop_tests closes down a set of running processes for a log test.

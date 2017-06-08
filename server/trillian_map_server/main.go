@@ -23,12 +23,12 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
+	"github.com/google/trillian/cmd"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/extension"
 	mysqlq "github.com/google/trillian/quota/mysql"
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/server/interceptor"
-	"github.com/google/trillian/server/vmap"
 	"github.com/google/trillian/storage/mysql"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"google.golang.org/grpc"
@@ -39,10 +39,18 @@ var (
 	rpcEndpoint        = flag.String("rpc_endpoint", "localhost:8090", "Endpoint for RPC requests (host:port)")
 	httpEndpoint       = flag.String("http_endpoint", "localhost:8091", "Endpoint for HTTP metrics and REST requests on (host:port, empty means disabled)")
 	maxUnsequencedRows = flag.Int("max_unsequenced_rows", mysqlq.DefaultMaxUnsequenced, "Max number of unsequenced rows before rate limiting kicks in")
+
+	configFile = flag.String("config", "", "Config file containing flags, file contents can be overridden by command line flags")
 )
 
 func main() {
 	flag.Parse()
+
+	if *configFile != "" {
+		if err := cmd.ParseFlagFile(*configFile); err != nil {
+			glog.Exitf("Failed to load flags from config file %q: %s", *configFile, err)
+		}
+	}
 
 	db, err := mysql.OpenDB(*mySQLURI)
 	if err != nil {
@@ -74,7 +82,7 @@ func main() {
 			return nil
 		},
 		RegisterServerFn: func(s *grpc.Server, registry extension.Registry) error {
-			mapServer := vmap.NewTrillianMapServer(registry)
+			mapServer := server.NewTrillianMapServer(registry)
 			if err := mapServer.IsHealthy(); err != nil {
 				return err
 			}

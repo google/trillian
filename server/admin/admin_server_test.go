@@ -15,6 +15,7 @@
 package admin
 
 import (
+	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -22,8 +23,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/gogo/protobuf/proto"
 	"github.com/golang/mock/gomock"
+	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/google/trillian"
@@ -271,21 +272,21 @@ func TestServer_CreateTree(t *testing.T) {
 	defer ctrl.Finish()
 
 	// PEM on the testonly trees is ECDSA, so let's use an ECDSA key for tests.
-	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	var defaultPrivateKey crypto.Signer
+	var err error
+	defaultPrivateKey, err = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		t.Fatalf("Error generating test key: %v", err)
 	}
 
-	publicKeyDER, err := x509.MarshalPKIXPublicKey(privateKey.Public())
+	defaultPublicKeyDER, err := x509.MarshalPKIXPublicKey(defaultPrivateKey.Public())
 	if err != nil {
 		t.Fatalf("Error marshaling public key: %v", err)
 	}
 
 	// Need to change the public key to correspond with the private key generated above.
 	validTree := *testonly.LogTree
-	validTree.PublicKey = &keyspb.PublicKey{
-		Der: publicKeyDER,
-	}
+	validTree.PublicKey = &keyspb.PublicKey{Der: defaultPublicKeyDER}
 
 	mismatchedPublicKey := *testonly.LogTree
 
@@ -350,6 +351,17 @@ func TestServer_CreateTree(t *testing.T) {
 			wantCommit: true,
 		},
 		{
+			// Tree specifies ECDSA signatures, but key specification provides RSA parameters.
+			desc: "privateKeySpecWithMismatchedAlgorithm",
+			req: &trillian.CreateTreeRequest{
+				Tree: &omittedKeys,
+				KeySpec: &keyspb.Specification{
+					Params: &keyspb.Specification_RsaParams{},
+				},
+			},
+			wantErr: true,
+		},
+		{
 			desc: "privateKeySpecandPrivateKeyProvided",
 			req: &trillian.CreateTreeRequest{
 				Tree: &validTree,
@@ -412,21 +424,39 @@ func TestServer_CreateTree(t *testing.T) {
 	ctx := context.Background()
 	for _, test := range tests {
 		sf := keys.NewMockSignerFactory(ctrl)
-		if test.req.GetKeySpec() != nil {
-			if test.req.Tree.GetPrivateKey() != nil || test.req.Tree.GetPublicKey() != nil {
-				sf.EXPECT().Generate(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, errors.New("tree already has a key"))
-			} else {
-				keyProto, err := marshalECPrivateKeyAsAnyProto(privateKey)
-				if err != nil {
-					t.Errorf("%v: failed to marshal key for SignerFactory.Generate() expectation: %v", test.desc, err)
-					continue
-				}
+		privateKey := defaultPrivateKey
+		publicKeyDER := defaultPublicKeyDER
 
-				sf.EXPECT().Generate(gomock.Any(), gomock.Any(), gomock.Any()).Return(keyProto, nil)
-				sf.EXPECT().NewSigner(gomock.Any(), gomock.Any()).Return(privateKey, nil)
+		if test.req.GetKeySpec() != nil && test.req.Tree.GetPrivateKey() == nil && test.req.Tree.GetPublicKey() == nil {
+			privateKey, err = keys.NewFromSpec(test.req.GetKeySpec())
+			if err != nil {
+				t.Errorf("%v: failed to generate test private key: %v", test.desc, err)
+				continue
+			}
+
+			keyDER, err := keys.MarshalPrivateKey(privateKey)
+			if err != nil {
+				t.Errorf("%v: failed to marshal test private key as DER: %v", test.desc, err)
+				continue
+			}
+
+			keyProto := &keyspb.PrivateKey{Der: keyDER}
+			marshaledKeyProto, err := ptypes.MarshalAny(keyProto)
+			if err != nil {
+				t.Errorf("%v: failed to marshal test private key as proto: %v", test.desc, err)
+				continue
+			}
+
+			sf.EXPECT().Generate(gomock.Any(), test.req.GetKeySpec()).Return(keyProto, nil)
+			sf.EXPECT().NewSigner(gomock.Any(), marshaledKeyProto).Return(privateKey, nil)
+
+			publicKeyDER, err = x509.MarshalPKIXPublicKey(privateKey.Public())
+			if err != nil {
+				t.Errorf("%v: failed to marshal test public key as DER: %v", test.desc, err)
+				continue
 			}
 		} else if test.req.Tree.GetPrivateKey() != nil {
-			sf.EXPECT().NewSigner(gomock.Any(), test.req.Tree).MaxTimes(1).Return(privateKey, nil)
+			sf.EXPECT().NewSigner(gomock.Any(), test.req.Tree.GetPrivateKey()).MaxTimes(1).Return(privateKey, nil)
 		}
 
 		setup := setupAdminServer(ctrl, sf, false /* snapshot */, test.wantCommit, test.commitErr)
@@ -443,7 +473,9 @@ func TestServer_CreateTree(t *testing.T) {
 			}).Return(&newTree, test.createErr)
 		}
 
-		tree, err := s.CreateTree(ctx, test.req)
+		// Copy test.req so that any changes CreateTree makes don't affect the original, which may be shared between tests.
+		reqCopy := proto.Clone(test.req).(*trillian.CreateTreeRequest)
+		tree, err := s.CreateTree(ctx, reqCopy)
 		if hasErr := err != nil; hasErr != test.wantErr {
 			t.Errorf("%v: CreateTree() = (_, %q), wantErr = %v", test.desc, err, test.wantErr)
 			continue

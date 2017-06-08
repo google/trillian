@@ -312,19 +312,21 @@ func (l *LogOperationManager) getLogsAndExecutePass(ctx context.Context) error {
 
 				start := time.Now()
 				count, err := l.logOperation.ExecutePass(ctx, logID, &l.info)
-
-				if err == nil {
-					if count > 0 {
-						d := time.Now().Sub(start).Seconds()
-						glog.Infof("%v: processed %d items in %.2f seconds (%.2f qps)", logID, count, d, float64(count)/d)
-					} else {
-						glog.V(1).Infof("%v: no items to process", logID)
-					}
-					mu.Lock()
-					successCount++
-					itemCount += count
-					mu.Unlock()
+				if err != nil {
+					glog.Warningf("ExecutePass(%v) failed: %v", logID, err)
+					continue
 				}
+
+				if count > 0 {
+					d := time.Now().Sub(start).Seconds()
+					glog.Infof("%v: processed %d items in %.2f seconds (%.2f qps)", logID, count, d, float64(count)/d)
+				} else {
+					glog.V(1).Infof("%v: no items to process", logID)
+				}
+				mu.Lock()
+				successCount++
+				itemCount += count
+				mu.Unlock()
 			}
 		}()
 	}
@@ -332,10 +334,9 @@ func (l *LogOperationManager) getLogsAndExecutePass(ctx context.Context) error {
 	// Wait for the workers to consume all of the logIDs
 	wg.Wait()
 	d := time.Now().Sub(startBatch).Seconds()
-	glog.V(1).Infof("Group run completed in %.2f seconds: %v succeeded, %v failed, %v items processed", d, successCount, len(logIDs)-successCount, itemCount)
+	glog.Infof("Group run completed in %.2f seconds: %v succeeded, %v failed, %v items processed", d, successCount, len(logIDs)-successCount, itemCount)
 
 	return nil
-
 }
 
 // OperationSingle performs a single pass of the manager.

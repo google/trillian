@@ -227,7 +227,7 @@ func (c *CompactMerkleTree) AddLeafHash(leafHash []byte, f setNodeFunc) (int64, 
 		if err := f(bit+1, index, hash); err != nil {
 			return 0, err
 		}
-		// Now, clear this position in the nodes list as the hash it formerly contained will be propogated upwards.
+		// Now, clear this position in the nodes list as the hash it formerly contained will be propagated upwards.
 		c.nodes[bit] = nil
 		// Figure out if we're done:
 		if bit+1 >= len(c.nodes) {

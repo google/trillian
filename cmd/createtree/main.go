@@ -38,9 +38,11 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/golang/glog"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/google/trillian"
+	"github.com/google/trillian/cmd"
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/crypto/sigpb"
 	"google.golang.org/grpc"
@@ -60,6 +62,8 @@ var (
 	privateKeyFormat = flag.String("private_key_format", "PEMKeyFile", "Type of private key to be used")
 	pemKeyPath       = flag.String("pem_key_path", "", "Path to the private key PEM file")
 	pemKeyPassword   = flag.String("pem_key_password", "", "Password of the private key PEM file")
+
+	configFile = flag.String("config", "", "Config file containing flags, file contents can be overridden by command line flags")
 )
 
 // createOpts contains all user-supplied options required to run the program.
@@ -174,6 +178,12 @@ func newOptsFromFlags() *createOpts {
 
 func main() {
 	flag.Parse()
+
+	if *configFile != "" {
+		if err := cmd.ParseFlagFile(*configFile); err != nil {
+			glog.Exitf("Failed to load flags from config file %q: %s", *configFile, err)
+		}
+	}
 
 	ctx := context.Background()
 	tree, err := createTree(ctx, newOptsFromFlags())
