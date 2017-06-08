@@ -45,6 +45,7 @@ func New(registry extension.Registry) *Server {
 }
 
 // IsHealthy returns nil if the server is healthy, error otherwise.
+// TODO(Martin2112): This method (and the one in the log server) should probably have ctx as a param
 func (s *Server) IsHealthy() error {
 	return s.registry.AdminStorage.CheckDatabaseAccessible(context.Background())
 }
