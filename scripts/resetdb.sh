@@ -7,6 +7,6 @@ then
     mysql -u root "$@" -e 'DROP DATABASE IF EXISTS test;'
     mysql -u root "$@" -e 'CREATE DATABASE test;'
     mysql -u root "$@" -e "GRANT ALL ON test.* TO 'test'@'localhost' IDENTIFIED BY 'zaphod';"
-    mysql -u root "$@" -D test < ${GOPATH}/src/github.com/google/trillian/storage/mysql/storage.sql
+    mysql -u root "$@" -D test < $(go env GOPATH)/src/github.com/google/trillian/storage/mysql/storage.sql
 fi
 echo
