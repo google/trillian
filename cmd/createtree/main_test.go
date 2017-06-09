@@ -50,6 +50,10 @@ func TestRun(t *testing.T) {
 	if err != nil {
 		t.Fatalf("MashalPrivateKey(): %v", err)
 	}
+	anyPrivKey, err := ptypes.MarshalAny(&keyspb.PrivateKey{Der: pemDer})
+	if err != nil {
+		t.Fatalf("MarshalAny(%v): %v", pemDer, err)
+	}
 
 	// defaultTree reflects all flag defaults with the addition of a valid pk
 	defaultTree := &trillian.Tree{
@@ -58,7 +62,7 @@ func TestRun(t *testing.T) {
 		HashStrategy:       trillian.HashStrategy_RFC_6962,
 		HashAlgorithm:      sigpb.DigitallySigned_SHA256,
 		SignatureAlgorithm: sigpb.DigitallySigned_RSA,
-		PrivateKey:         marshalAny(&keyspb.PrivateKey{Der: pemDer}),
+		PrivateKey:         anyPrivKey,
 	}
 
 	server, lis, stopFn, err := startFakeServer()
@@ -101,7 +105,14 @@ func TestRun(t *testing.T) {
 
 	pemKeyOpts := *validOpts
 	pemKeyOpts.privateKeyType = "PEMKeyFile"
-
+	pemKeyTree := *defaultTree
+	pemKeyTree.PrivateKey, err = ptypes.MarshalAny(&keyspb.PEMKeyFile{
+		Path:     pemPath,
+		Password: pemPassword,
+	})
+	if err != nil {
+		t.Fatalf("MarshalAny(PEMKeyFile): %v", err)
+	}
 	tests := []struct {
 		desc      string
 		opts      *createOpts
@@ -109,69 +120,16 @@ func TestRun(t *testing.T) {
 		wantErr   bool
 		wantTree  *trillian.Tree
 	}{
-		{
-			desc:     "validOpts",
-			opts:     validOpts,
-			wantTree: defaultTree,
-		},
-		{
-			desc:     "nonDefaultOpts",
-			opts:     &nonDefaultOpts,
-			wantTree: &nonDefaultTree,
-		},
-		{
-			// No mandatory opts provided
-			desc:    "defaultOptsOnly",
-			opts:    newOptsFromFlags(),
-			wantErr: true,
-		},
-		{
-			desc:    "emptyAddr",
-			opts:    &emptyAddr,
-			wantErr: true,
-		},
-		{
-			desc:    "invalidEnumOpts",
-			opts:    &invalidEnumOpts,
-			wantErr: true,
-		},
-		{
-			desc:    "invalidKeyTypeOpts",
-			opts:    &invalidKeyTypeOpts,
-			wantErr: true,
-		},
-		{
-			desc:    "emptyPEMPath",
-			opts:    &emptyPEMPath,
-			wantErr: true,
-		},
-		{
-			desc:    "emptyPEMPass",
-			opts:    &emptyPEMPass,
-			wantErr: true,
-		},
-		{
-			desc:    "PEMKeyFile",
-			opts:    &pemKeyOpts,
-			wantErr: false,
-			wantTree: &trillian.Tree{
-				TreeState:          trillian.TreeState_ACTIVE,
-				TreeType:           trillian.TreeType_LOG,
-				HashStrategy:       trillian.HashStrategy_RFC_6962,
-				HashAlgorithm:      sigpb.DigitallySigned_SHA256,
-				SignatureAlgorithm: sigpb.DigitallySigned_RSA,
-				PrivateKey: marshalAny(&keyspb.PEMKeyFile{
-					Path:     pemPath,
-					Password: pemPassword,
-				}),
-			},
-		},
-		{
-			desc:      "createErr",
-			opts:      validOpts,
-			createErr: errors.New("create tree failed"),
-			wantErr:   true,
-		},
+		{desc: "validOpts", opts: validOpts, wantTree: defaultTree},
+		{desc: "nonDefaultOpts", opts: &nonDefaultOpts, wantTree: &nonDefaultTree},
+		{desc: "defaultOptsOnly", opts: newOptsFromFlags(), wantErr: true}, // No mandatory opts provided
+		{desc: "emptyAddr", opts: &emptyAddr, wantErr: true},
+		{desc: "invalidEnumOpts", opts: &invalidEnumOpts, wantErr: true},
+		{desc: "invalidKeyTypeOpts", opts: &invalidKeyTypeOpts, wantErr: true},
+		{desc: "emptyPEMPath", opts: &emptyPEMPath, wantErr: true},
+		{desc: "emptyPEMPass", opts: &emptyPEMPass, wantErr: true},
+		{desc: "PEMKeyFile", opts: &pemKeyOpts, wantErr: false, wantTree: &pemKeyTree},
+		{desc: "createErr", opts: validOpts, createErr: errors.New("create tree failed"), wantErr: true},
 	}
 
 	ctx := context.Background()
