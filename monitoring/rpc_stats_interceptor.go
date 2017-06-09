@@ -24,15 +24,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-const (
-	reqCountName          = "rpc_requests_total"
-	reqSuccessCountName   = "rpc_success_total"
-	reqSuccessLatencyName = "rpc_success_latency_ms"
-	reqErrorCountName     = "rpc_errors_total"
-	reqErrorLatencyName   = "rpc_errors_latency_ms"
-	methodName            = "method"
-)
-
 // RPCStatsInterceptor provides a gRPC interceptor that records statistics about the RPCs passing through it.
 type RPCStatsInterceptor struct {
 	prefix            string
@@ -50,11 +41,11 @@ func NewRPCStatsInterceptor(timeSource util.TimeSource, prefix string, mf Metric
 	interceptor := RPCStatsInterceptor{
 		prefix:            prefix,
 		timeSource:        timeSource,
-		ReqCount:          mf.NewCounter(prefixedName(prefix, reqCountName), "Number of requests", methodName),
-		ReqSuccessCount:   mf.NewCounter(prefixedName(prefix, reqSuccessCountName), "Number of successful requests", methodName),
-		ReqSuccessLatency: mf.NewHistogram(prefixedName(prefix, reqSuccessLatencyName), "Latency of successful requests", methodName),
-		ReqErrorCount:     mf.NewCounter(prefixedName(prefix, reqErrorCountName), "Number of errored requests", methodName),
-		ReqErrorLatency:   mf.NewHistogram(prefixedName(prefix, reqErrorLatencyName), "Latency of errored requests", methodName),
+		ReqCount:          mf.NewCounter(prefixedName(prefix, "rpc_requests"), "Number of requests", "method"),
+		ReqSuccessCount:   mf.NewCounter(prefixedName(prefix, "rpc_success"), "Number of successful requests", "method"),
+		ReqSuccessLatency: mf.NewHistogram(prefixedName(prefix, "rpc_success_latency"), "Latency of successful requests in ms", "method"),
+		ReqErrorCount:     mf.NewCounter(prefixedName(prefix, "rpc_errors"), "Number of errored requests", "method"),
+		ReqErrorLatency:   mf.NewHistogram(prefixedName(prefix, "rpc_error_latency"), "Latency of errored requests in ms", "method"),
 	}
 	return &interceptor
 }
