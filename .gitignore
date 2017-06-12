@@ -13,3 +13,4 @@
 *.swp
 *~
 default.etcd
+integration/ct-??????
