@@ -2,6 +2,7 @@
 /createtree
 /ct_hammer
 /ct_server
+/etcdiscover
 /loglb
 /protoc
 /trillian_log_server
