@@ -23,6 +23,12 @@ spec:
   sessionAffinity: ClientIP
   selector:
     app: galera
+  # Only connections from 10.0.0.0/8 will be accepted.
+  # To allow connections from elsewhere, replace 10.0.0.0/8 with the appropriate
+  # CIDR IP range(s). To allow connections from any IP address, delete the
+  # loadBalancerSourceRanges field.
+  loadBalancerSourceRanges:
+    - 10.0.0.0/8
 ---
 apiVersion: v1
 kind: Service
