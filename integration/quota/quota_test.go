@@ -123,7 +123,7 @@ func setupLogServer(maxUnsequenced int) (trillian.TrillianAdminClient, trillian.
 	trillian.RegisterTrillianAdminServer(s, admin.New(registry))
 	trillian.RegisterTrillianLogServer(s, server.NewTrillianLogRPCServer(registry, util.SystemTimeSource{}))
 
-	lis, err = net.Listen("tcp", ":0")
+	lis, err = net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		closeFn()
 		return nil, nil, nil, err

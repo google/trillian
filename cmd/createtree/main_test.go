@@ -169,7 +169,7 @@ func startFakeServer() (*fakeAdminServer, net.Listener, func(), error) {
 	fakeServer := &fakeAdminServer{}
 	trillian.RegisterTrillianAdminServer(grpcServer, fakeServer)
 
-	lis, err := net.Listen("tcp", "")
+	lis, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		return nil, nil, nil, err
 	}

@@ -71,7 +71,7 @@ type LogEnv struct {
 
 // listen opens a random high numbered port for listening.
 func listen() (string, net.Listener, error) {
-	lis, err := net.Listen("tcp", ":0")
+	lis, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		return "", nil, err
 	}
