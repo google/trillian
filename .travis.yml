@@ -1,4 +1,4 @@
-sudo: true
+sudo: false
 language: go
 
 os:
@@ -20,8 +20,14 @@ matrix:
   allow_failures:
     - os: osx
 
+addons:
+  apt:
+    sources:
+      - debian-sid
+    packages:
+      - softhsm2
+
 install:
-  -  if [[ "${WITH_PKCS11}" == "true" ]]; then sudo apt-get install softhsm2 ; fi
   - |
     if [ ! -d $HOME/gopath/src/github.com/google ]; then
       mkdir -p $HOME/gopath/src/github.com/google
