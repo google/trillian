@@ -451,7 +451,7 @@ func TestCombine(t *testing.T) {
 	}
 }
 
-func TestWrapErrors(t *testing.T) {
+func TestErrorWrapper(t *testing.T) {
 	badLlamaErr := terrors.Errorf(terrors.InvalidArgument, "Bad Llama")
 	tests := []struct {
 		desc         string
@@ -470,10 +470,8 @@ func TestWrapErrors(t *testing.T) {
 	}
 	ctx := context.Background()
 	for _, test := range tests {
-		i := func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-			return test.resp, test.err
-		}
-		resp, err := WrapErrors(i)(ctx, "req", &grpc.UnaryServerInfo{}, nil /* handler */)
+		handler := fakeHandler{resp: test.resp, err: test.err}
+		resp, err := ErrorWrapper(ctx, "req", &grpc.UnaryServerInfo{}, handler.run)
 		if resp != test.resp {
 			t.Errorf("%v: resp = %v, want = %v", test.desc, resp, test.resp)
 		}

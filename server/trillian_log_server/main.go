@@ -96,8 +96,8 @@ func main() {
 		Admin:        registry.AdminStorage,
 		QuotaManager: registry.QuotaManager,
 	}
-	s := grpc.NewServer(
-		grpc.UnaryInterceptor(interceptor.WrapErrors(interceptor.Combine(stats.Interceptor(), ti.UnaryInterceptor))))
+	netInterceptor := interceptor.Combine(stats.Interceptor(), interceptor.ErrorWrapper, ti.UnaryInterceptor)
+	s := grpc.NewServer(grpc.UnaryInterceptor(netInterceptor))
 	// No defer: server ownership is delegated to server.Main
 
 	m := server.Main{

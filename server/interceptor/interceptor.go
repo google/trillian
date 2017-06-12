@@ -180,43 +180,23 @@ type mapIDRequest interface {
 	GetMapId() int64
 }
 
-// Combine combines multiple unary interceptors. Interceptors are executed in the supplied order.
-// If an interceptor fails (non-nil error), processing will stop and the error will be returned.
-// If all interceptors succeed the handler will be called.
-// Contexts are propagated between calls: the context of the first interceptor, as passed in to the
-// handler function, is used for the second interceptor call and so on, until the handler is
-// invoked. This ensures that request-level variables, transmitted via contexts, behave properly.
-// Note that, as a limitation of the chaining logic, handler output cannot be modified by any of
-// the interceptors supplied.
+// Combine combines unary interceptors.
+// They are nested in order, so interceptor[0] calls on to (and sees the result of) interceptor[1], etc.
 func Combine(interceptors ...grpc.UnaryServerInterceptor) grpc.UnaryServerInterceptor {
-	return func(initialCtx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-		// Build a handler function that just updates the scope's ctx variable.
-		ctx := initialCtx
-		ctxUpdater := func(innerCtx context.Context, req interface{}) (interface{}, error) {
-			ctx = innerCtx
-			return nil, nil
-		}
-
-		// Run each of the interceptors in order, using the ctxUpdater to accumulate changes
-		// to the context, and exit if any of the interceptors give an error.
-		for _, intercept := range interceptors {
-			_, err := intercept(ctx, req, info, ctxUpdater)
-			if err != nil {
-				return nil, err
+	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+		for i := len(interceptors) - 1; i >= 0; i-- {
+			interceptor := interceptors[i]
+			baseHandler := handler
+			handler = func(ctx context.Context, req interface{}) (interface{}, error) {
+				return interceptor(ctx, req, info, baseHandler)
 			}
 		}
-
-		// Run the real handler with the accumulated context.
 		return handler(ctx, req)
 	}
 }
 
-// WrapErrors wraps the errors returned by the supplied interceptor using errors.WrapError.
-// If used in conjunction with Combine, it should be the last call in the chain, ie:
-// WrapErrors(Combine(i1, i2, ..., in)).
-func WrapErrors(i grpc.UnaryServerInterceptor) grpc.UnaryServerInterceptor {
-	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-		resp, err := i(ctx, req, info, handler)
-		return resp, errors.WrapError(err)
-	}
+// ErrorWrapper is a grpc.UnaryServerInterceptor that wraps the errors emitted by the underlying handler.
+func ErrorWrapper(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	rsp, err := handler(ctx, req)
+	return rsp, errors.WrapError(err)
 }
