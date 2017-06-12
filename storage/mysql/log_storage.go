@@ -596,7 +596,7 @@ func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, root trillian.Signed
 		root.TreeRevision,
 		signatureBytes)
 	if err != nil {
-		glog.Warningf("Failed to store signed root: %s", err)
+		glog.Warningf("Failed to store signed root : %s", err)
 	}
 
 	return checkResultOkAndRowCountIs(res, err, 1)

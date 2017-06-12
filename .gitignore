@@ -14,5 +14,5 @@
 *.swp
 *~
 default.etcd
-testdata/softhsm2.conf
-testdata/softhsm2-tokens
+testdata/softhsm.conf
+softhsm-slot0.db

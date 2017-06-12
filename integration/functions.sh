@@ -127,8 +127,8 @@ log_prep_test() {
   fi
 
   if [[ "${WITH_PKCS11}" == "true" ]]; then
-    export SOFTHSM2_CONF=testdata/softhsm2.conf
-    local pkcs11_opts="--pkcs11_module_path ${PKCS11_MODULE:-/usr/lib/x86_64-linux-gnu/softhsm/libsofthsm2.so}"
+    export SOFTHSM_CONF=${PWD}/testdata/softhsm.conf
+    local pkcs11_opts="--pkcs11_module_path ${PKCS11_MODULE:-/usr/local/lib/libsofthsm.so}"
   fi
 
   # Start a set of Log RPC servers.
