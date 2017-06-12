@@ -1,13 +1,15 @@
 :exclamation: **EXPERIMENTAL** :exclamation:
 
-# Usage #
+# MySQL on Kubernetes
+
+## Usage
 
 To run a Galera MySQL cluster on Google Cloud, install the
 [Cloud SDK](https://cloud.google.com/sdk/) and configure it for your project.
 [Provision a Container cluster](https://cloud.google.com/container-engine/docs/clusters/operations),
 then run the following command:
 ```
-kubectl start -f galera.yaml
+kubectl apply -f galera.yaml
 ```
 
 This will start the Galera cluster. You can monitor provisoning of this cluster
@@ -19,7 +21,15 @@ kubectl proxy
 This dashboard will also show the external IP of the cluster on the
 "Services" page, on the row for the "mysql" service.
 
-# Derivation #
+### Firewall
+
+By default, the load balancer that exposes the MySQL service will only accept
+connections from 10.0.0.0/8. To allow connections from a wider range of IP
+addresses, change the CIDR IP ranges specified under the
+`loadBalancerSourceRanges` field in galera.yaml, then run `kubectl apply -f
+galera.yaml`.
+
+## Derivation
 
 Based on
 [the mysql-galera example from the Kubernetes GitHub repository](https://github.com/kubernetes/kubernetes/tree/v1.5.4/examples/storage/mysql-galera),
