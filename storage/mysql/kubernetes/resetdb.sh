@@ -1,4 +1,6 @@
-#!/bin/bash
+#!/bin/bash -e
+
+readonly TRILLIAN_PATH=$(go list -f '{{.Dir}}' github.com/google/trillian)
 
 # Pick a random port between 2000 - 34767. Will fail if unlucky and the port is in use.
 readonly port=$((${RANDOM} + 2000))
@@ -15,8 +17,7 @@ user=root
 password="$(kubectl get secrets mysql-credentials --template '{{index .data "root-password"}}' | base64 -d)"
 EOF
 
-"${GOPATH}/src/github.com/google/trillian/scripts/resetdb.sh" \
-  --defaults-extra-file="${options_file}"
+"${TRILLIAN_PATH}/scripts/resetdb.sh" --defaults-extra-file="${options_file}"
 
 rm "${options_file}"
 
