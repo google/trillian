@@ -19,6 +19,8 @@ package log
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"sync"
 	"time"
 
 	"github.com/golang/glog"
@@ -26,9 +28,45 @@ import (
 	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/merkle"
+	"github.com/google/trillian/monitoring"
+	"github.com/google/trillian/quota"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util"
 )
+
+const logIDLabel = "logid"
+
+var (
+	once                   sync.Once
+	seqBatches             monitoring.Counter
+	seqTreeSize            monitoring.Gauge
+	seqLatency             monitoring.Histogram
+	seqDequeueLatency      monitoring.Histogram
+	seqGetRootLatency      monitoring.Histogram
+	seqInitTreeLatency     monitoring.Histogram
+	seqWriteTreeLatency    monitoring.Histogram
+	seqUpdateLeavesLatency monitoring.Histogram
+	seqSetNodesLatency     monitoring.Histogram
+	seqStoreRootLatency    monitoring.Histogram
+	seqCommitLatency       monitoring.Histogram
+)
+
+func createMetrics(mf monitoring.MetricFactory) {
+	if mf == nil {
+		mf = monitoring.InertMetricFactory{}
+	}
+	seqBatches = mf.NewCounter("sequencer_batches", "Number of sequencer batch operations", logIDLabel)
+	seqTreeSize = mf.NewGauge("sequencer_tree_size", "Size of Merkle tree", logIDLabel)
+	seqLatency = mf.NewHistogram("sequencer_latency", "Latency of sequencer batch operation in ms", logIDLabel)
+	seqDequeueLatency = mf.NewHistogram("sequencer_latency_dequeue", "Latency of dequeue-leaves part of sequencer batch operation in ms", logIDLabel)
+	seqGetRootLatency = mf.NewHistogram("sequencer_latency_get_root", "Latency of get-root part of sequencer batch operation in ms", logIDLabel)
+	seqInitTreeLatency = mf.NewHistogram("sequencer_latency_init_tree", "Latency of init-tree part of sequencer batch operation in ms", logIDLabel)
+	seqWriteTreeLatency = mf.NewHistogram("sequencer_latency_write_tree", "Latency of write-tree part of sequencer batch operation in ms", logIDLabel)
+	seqUpdateLeavesLatency = mf.NewHistogram("sequencer_latency_update_leaves", "Latency of update-leaves part of sequencer batch operation in ms", logIDLabel)
+	seqSetNodesLatency = mf.NewHistogram("sequencer_latency_set_nodes", "Latency of set-nodes part of sequencer batch operation in ms", logIDLabel)
+	seqStoreRootLatency = mf.NewHistogram("sequencer_latency_store_root", "Latency of store-root part of sequencer batch operation in ms", logIDLabel)
+	seqCommitLatency = mf.NewHistogram("sequencer_latency_commit", "Latency of commit part of sequencer batch operation in ms", logIDLabel)
+}
 
 // TODO(Martin2112): Add admin support for safely changing params like guard window during operation
 // TODO(Martin2112): Add support for enabling and controlling sequencing as part of admin API
@@ -42,6 +80,7 @@ type Sequencer struct {
 	timeSource util.TimeSource
 	logStorage storage.LogStorage
 	signer     *crypto.Signer
+	qm         quota.Manager
 
 	// These parameters could theoretically be adjusted during operation
 	// sequencerGuardWindow is used to ensure entries newer than the guard window will not be
@@ -56,12 +95,22 @@ type Sequencer struct {
 const maxTreeDepth = 64
 
 // NewSequencer creates a new Sequencer instance for the specified inputs.
-func NewSequencer(hasher merkle.TreeHasher, timeSource util.TimeSource, logStorage storage.LogStorage, signer *crypto.Signer) *Sequencer {
+func NewSequencer(
+	hasher merkle.TreeHasher,
+	timeSource util.TimeSource,
+	logStorage storage.LogStorage,
+	signer *crypto.Signer,
+	mf monitoring.MetricFactory,
+	qm quota.Manager) *Sequencer {
+	once.Do(func() {
+		createMetrics(mf)
+	})
 	return &Sequencer{
 		hasher:     hasher,
 		timeSource: timeSource,
 		logStorage: logStorage,
 		signer:     signer,
+		qm:         qm,
 	}
 }
 
@@ -168,12 +217,17 @@ func (s Sequencer) createRootSignature(ctx context.Context, root trillian.Signed
 // which will fail if the tx was committed. Should only do this if we can hide the details of
 // the underlying storage transactions and it doesn't create other problems.
 func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int) (int, error) {
+	start := s.timeSource.Now()
+	stageStart := start
+	label := strconv.FormatInt(logID, 10)
 	tx, err := s.logStorage.BeginForTree(ctx, logID)
 	if err != nil {
 		glog.Warningf("%v: Sequencer failed to start tx: %v", logID, err)
 		return 0, err
 	}
 	defer tx.Close()
+	defer seqBatches.Inc(label)
+	defer seqLatency.Observe(s.sinceMillis(start), label)
 
 	// Very recent leaves inside the guard window will not be available for sequencing
 	guardCutoffTime := s.timeSource.Now().Add(-s.sequencerGuardWindow)
@@ -182,6 +236,8 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int) (i
 		glog.Warningf("%v: Sequencer failed to dequeue leaves: %v", logID, err)
 		return 0, err
 	}
+	seqDequeueLatency.Observe(s.sinceMillis(stageStart), label)
+	stageStart = s.timeSource.Now()
 
 	// Get the latest known root from storage
 	currentRoot, err := tx.LatestSignedLogRoot(ctx)
@@ -189,6 +245,8 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int) (i
 		glog.Warningf("%v: Sequencer failed to get latest root: %v", logID, err)
 		return 0, err
 	}
+	seqGetRootLatency.Observe(s.sinceMillis(stageStart), label)
+	stageStart = s.timeSource.Now()
 
 	// TODO(al): Have a better detection mechanism for there being no stored root.
 	// TODO(mhs): Might be better to create empty root in provisioning API when it exists
@@ -216,6 +274,8 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int) (i
 	if err != nil {
 		return 0, err
 	}
+	seqInitTreeLatency.Observe(s.sinceMillis(stageStart), label)
+	stageStart = s.timeSource.Now()
 
 	// We've done all the reads, can now do the updates.
 	// TODO: This relies on us being the only process updating the map, which isn't enforced yet
@@ -231,6 +291,8 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int) (i
 	if err != nil {
 		return 0, err
 	}
+	seqWriteTreeLatency.Observe(s.sinceMillis(stageStart), label)
+	stageStart = s.timeSource.Now()
 
 	// We should still have the same number of leaves
 	if want, got := len(leaves), len(sequencedLeaves); want != got {
@@ -242,6 +304,8 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int) (i
 		glog.Warningf("%v: Sequencer failed to update sequenced leaves: %v", logID, err)
 		return 0, err
 	}
+	seqUpdateLeavesLatency.Observe(s.sinceMillis(stageStart), label)
+	stageStart = s.timeSource.Now()
 
 	// Build objects for the nodes to be updated. Because we deduped via the map each
 	// node can only be created / updated once in each tree revision and they cannot
@@ -258,6 +322,8 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int) (i
 		glog.Warningf("%v: Sequencer failed to set Merkle nodes: %v", logID, err)
 		return 0, err
 	}
+	seqSetNodesLatency.Observe(s.sinceMillis(stageStart), label)
+	stageStart = s.timeSource.Now()
 
 	// Create the log root ready for signing
 	newLogRoot := trillian.SignedLogRoot{
@@ -267,6 +333,7 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int) (i
 		LogId:          currentRoot.LogId,
 		TreeRevision:   newVersion,
 	}
+	seqTreeSize.Set(float64(merkleTree.Size()), label)
 
 	// Hash and sign the root, update it with the signature
 	signature, err := s.createRootSignature(ctx, newLogRoot)
@@ -281,10 +348,28 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int) (i
 		glog.Warningf("%v: failed to write updated tree root: %v", logID, err)
 		return 0, err
 	}
+	seqStoreRootLatency.Observe(s.sinceMillis(stageStart), label)
+	stageStart = s.timeSource.Now()
 
 	// The batch is now fully sequenced and we're done
 	if err := tx.Commit(); err != nil {
 		return 0, err
+	}
+	seqCommitLatency.Observe(s.sinceMillis(stageStart), label)
+
+	// Let quota.Manager know about newly-sequenced entries.
+	// All possibly influenced quotas are replenished: {Tree/Global, Read/Write}.
+	// Implementations are tasked with filtering quotas that shouldn't be replenished.
+	// TODO(codingllama): Consider adding a source-aware replenish method
+	// (eg, qm.Replenish(ctx, tokens, specs, quota.SequencerSource)), so there's no ambiguity as to
+	// where the tokens come from.
+	if err := s.qm.PutTokens(ctx, len(leaves), []quota.Spec{
+		{Group: quota.Tree, Kind: quota.Read, TreeID: logID},
+		{Group: quota.Tree, Kind: quota.Write, TreeID: logID},
+		{Group: quota.Global, Kind: quota.Read},
+		{Group: quota.Global, Kind: quota.Write},
+	}); err != nil {
+		glog.Warningf("Failed to replenish tokens for tree %v: %v", logID, err)
 	}
 
 	glog.Infof("%v: sequenced %v leaves, size %v, tree-revision %v", logID, len(leaves), newLogRoot.TreeSize, newLogRoot.TreeRevision)
@@ -339,4 +424,10 @@ func (s Sequencer) SignRoot(ctx context.Context, logID int64) error {
 	glog.V(2).Infof("%v: new signed root, size %v, tree-revision %v", logID, newLogRoot.TreeSize, newLogRoot.TreeRevision)
 
 	return tx.Commit()
+}
+
+// sinceMillis() returns the time in milliseconds since a particular time, according to
+// the TimeSource used by this sequencer.
+func (s *Sequencer) sinceMillis(start time.Time) float64 {
+	return float64(s.timeSource.Now().Sub(start) / time.Millisecond)
 }

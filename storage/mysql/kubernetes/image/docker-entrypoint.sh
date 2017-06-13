@@ -23,9 +23,6 @@
 # initialized, creates the database according to the following environment
 # variables:
 # - $MYSQL_ROOT_PASSWORD
-# - $MYSQL_DATABASE
-# - $MYSQL_USER
-# - $MYSQL_PASSWORD
 # - $WSREP_SST_USER
 # - $WSREP_SST_PASSWORD
 # 2. Configures MySQL for the Galera cluster.

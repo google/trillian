@@ -44,6 +44,12 @@ func New(registry extension.Registry) *Server {
 	return &Server{registry}
 }
 
+// IsHealthy returns nil if the server is healthy, error otherwise.
+// TODO(Martin2112): This method (and the one in the log server) should probably have ctx as a param
+func (s *Server) IsHealthy() error {
+	return s.registry.AdminStorage.CheckDatabaseAccessible(context.Background())
+}
+
 // ListTrees implements trillian.TrillianAdminServer.ListTrees.
 func (s *Server) ListTrees(ctx context.Context, req *trillian.ListTreesRequest) (*trillian.ListTreesResponse, error) {
 	tx, err := s.registry.AdminStorage.Snapshot(ctx)

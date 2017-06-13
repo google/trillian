@@ -26,6 +26,7 @@ import (
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/extension"
+	"github.com/google/trillian/quota"
 	"github.com/google/trillian/storage"
 	stestonly "github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/testonly"
@@ -122,6 +123,7 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 		AdminStorage:  mockAdmin,
 		LogStorage:    mockStorage,
 		SignerFactory: mockSf,
+		QuotaManager:  quota.Noop(),
 	}
 
 	sm := NewSequencerManager(registry, zeroDuration)
@@ -144,6 +146,7 @@ func TestSequencerManagerCachesSigners(t *testing.T) {
 		AdminStorage:  mockAdmin,
 		LogStorage:    mockStorage,
 		SignerFactory: mockSf,
+		QuotaManager:  quota.Noop(),
 	}
 	sm := NewSequencerManager(registry, zeroDuration)
 
@@ -200,6 +203,7 @@ func TestSequencerManagerSingleLogNoSigner(t *testing.T) {
 		AdminStorage:  mockAdmin,
 		LogStorage:    mockStorage,
 		SignerFactory: mockSf,
+		QuotaManager:  quota.Noop(),
 	}
 
 	sm := NewSequencerManager(registry, zeroDuration)
@@ -243,6 +247,7 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 		AdminStorage:  mockAdmin,
 		LogStorage:    mockStorage,
 		SignerFactory: mockSf,
+		QuotaManager:  quota.Noop(),
 	}
 
 	sm := NewSequencerManager(registry, zeroDuration)
@@ -280,6 +285,7 @@ func TestSequencerManagerGuardWindow(t *testing.T) {
 		AdminStorage:  mockAdmin,
 		LogStorage:    mockStorage,
 		SignerFactory: mockSf,
+		QuotaManager:  quota.Noop(),
 	}
 
 	sm := NewSequencerManager(registry, time.Second*5)

@@ -81,12 +81,13 @@ func main() {
 		}
 	}
 
+	mf := prometheus.MetricFactory{}
 	registry := extension.Registry{
 		AdminStorage:  mysql.NewAdminStorage(db),
 		SignerFactory: keys.PEMSignerFactory{},
-		LogStorage:    mysql.NewLogStorage(db),
+		LogStorage:    mysql.NewLogStorage(db, mf),
 		QuotaManager:  &mysqlq.QuotaManager{DB: db, MaxUnsequencedRows: *maxUnsequencedRows},
-		MetricFactory: prometheus.MetricFactory{},
+		MetricFactory: mf,
 	}
 
 	ts := util.SystemTimeSource{}
@@ -95,8 +96,8 @@ func main() {
 		Admin:        registry.AdminStorage,
 		QuotaManager: registry.QuotaManager,
 	}
-	s := grpc.NewServer(
-		grpc.UnaryInterceptor(interceptor.WrapErrors(interceptor.Combine(stats.Interceptor(), ti.UnaryInterceptor))))
+	netInterceptor := interceptor.Combine(stats.Interceptor(), interceptor.ErrorWrapper, ti.UnaryInterceptor)
+	s := grpc.NewServer(grpc.UnaryInterceptor(netInterceptor))
 	// No defer: server ownership is delegated to server.Main
 
 	m := server.Main{

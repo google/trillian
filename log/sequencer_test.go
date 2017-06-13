@@ -27,6 +27,7 @@ import (
 	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/sigpb"
+	"github.com/google/trillian/quota"
 	"github.com/google/trillian/storage"
 	stestonly "github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/testonly"
@@ -136,6 +137,9 @@ type testParameters struct {
 	writeRevision int64
 
 	overrideDequeueTime *time.Time
+
+	// qm is the quota.Manager to be used. If nil, quota.Noop() is used instead.
+	qm quota.Manager
 }
 
 // Tests get their own mock context so they can be run in parallel safely
@@ -239,8 +243,11 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) (testCont
 	}
 
 	signer := crypto.NewSHA256Signer(params.signer)
-	sequencer := NewSequencer(testonly.Hasher, util.NewFakeTimeSource(fakeTimeForTest), mockStorage, signer)
-
+	qm := params.qm
+	if qm == nil {
+		qm = quota.Noop()
+	}
+	sequencer := NewSequencer(testonly.Hasher, util.NewFakeTimeSource(fakeTimeForTest), mockStorage, signer, nil, qm)
 	return testContext{mockTx: mockTx, mockStorage: mockStorage, signer: signer, sequencer: sequencer}, context.Background()
 }
 
@@ -527,8 +534,20 @@ func TestSequenceBatch(t *testing.T) {
 		t.Fatalf("Failed to create test signer (%v)", err)
 	}
 
+	treeID := int64(154035)
+	wantLeafCount := 1
+
+	specs := []quota.Spec{
+		{Group: quota.Tree, Kind: quota.Read, TreeID: treeID},
+		{Group: quota.Tree, Kind: quota.Write, TreeID: treeID},
+		{Group: quota.Global, Kind: quota.Read},
+		{Group: quota.Global, Kind: quota.Write},
+	}
+	qm := quota.NewMockManager(ctrl)
+	qm.EXPECT().PutTokens(gomock.Any(), wantLeafCount, specs).Return(nil)
+
 	params := testParameters{
-		logID:            154035,
+		logID:            treeID,
 		writeRevision:    testRoot16.TreeRevision + 1,
 		dequeueLimit:     1,
 		shouldCommit:     true,
@@ -538,6 +557,7 @@ func TestSequenceBatch(t *testing.T) {
 		merkleNodesSet:   &updatedNodes,
 		storeSignedRoot:  &expectedSignedRoot,
 		signer:           signer,
+		qm:               qm,
 	}
 	c, ctx := createTestContext(ctrl, params)
 
@@ -545,7 +565,7 @@ func TestSequenceBatch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Expected sequencing to succeed, but got err: %v", err)
 	}
-	if got, want := leafCount, 1; got != want {
+	if got, want := leafCount, wantLeafCount; got != want {
 		t.Fatalf("Sequenced %d leaf, expected %d", got, want)
 	}
 }

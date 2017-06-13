@@ -31,6 +31,7 @@ import (
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/extension"
+	"github.com/google/trillian/quota"
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/storage/mysql"
 	stestonly "github.com/google/trillian/storage/testonly"
@@ -94,7 +95,8 @@ func NewLogEnv(ctx context.Context, numSequencers int, testID string) (*LogEnv, 
 	registry := extension.Registry{
 		AdminStorage:  mysql.NewAdminStorage(db),
 		SignerFactory: keys.PEMSignerFactory{},
-		LogStorage:    mysql.NewLogStorage(db),
+		LogStorage:    mysql.NewLogStorage(db, nil),
+		QuotaManager:  quota.Noop(),
 	}
 
 	ret, err := NewLogEnvWithRegistry(ctx, numSequencers, testID, registry)

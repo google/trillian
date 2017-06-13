@@ -44,6 +44,10 @@ func (s *memoryAdminStorage) Begin(ctx context.Context) (storage.AdminTX, error)
 	return &adminTX{ms: s.ms}, nil
 }
 
+func (s *memoryAdminStorage) CheckDatabaseAccessible(ctx context.Context) error {
+	return nil
+}
+
 type adminTX struct {
 	ms *memoryTreeStorage
 	// mu guards reads/writes on closed, which happen only on

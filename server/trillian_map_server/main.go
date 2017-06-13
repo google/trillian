@@ -26,10 +26,13 @@ import (
 	"github.com/google/trillian/cmd"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/extension"
+	"github.com/google/trillian/monitoring"
+	"github.com/google/trillian/monitoring/prometheus"
 	mysqlq "github.com/google/trillian/quota/mysql"
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/server/interceptor"
 	"github.com/google/trillian/storage/mysql"
+	"github.com/google/trillian/util"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"google.golang.org/grpc"
 )
@@ -63,13 +66,17 @@ func main() {
 		SignerFactory: keys.PEMSignerFactory{},
 		MapStorage:    mysql.NewMapStorage(db),
 		QuotaManager:  &mysqlq.QuotaManager{DB: db, MaxUnsequencedRows: *maxUnsequencedRows},
+		MetricFactory: prometheus.MetricFactory{},
 	}
 
+	ts := util.SystemTimeSource{}
+	stats := monitoring.NewRPCStatsInterceptor(ts, "map", registry.MetricFactory)
 	ti := &interceptor.TrillianInterceptor{
 		Admin:        registry.AdminStorage,
 		QuotaManager: registry.QuotaManager,
 	}
-	s := grpc.NewServer(grpc.UnaryInterceptor(interceptor.WrapErrors(ti.UnaryInterceptor)))
+	netInterceptor := interceptor.Combine(stats.Interceptor(), interceptor.ErrorWrapper, ti.UnaryInterceptor)
+	s := grpc.NewServer(grpc.UnaryInterceptor(netInterceptor))
 	// No defer: server ownership is delegated to server.Main
 
 	m := server.Main{

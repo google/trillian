@@ -33,6 +33,8 @@ collect_vars() {
 
 main() {
   collect_vars "$@"
+  
+  readonly TRILLIAN_PATH=$(go list -f '{{.Dir}}' github.com/google/trillian)
 
   # what we're about to do
   if [[ ${VERBOSE} = 'true' ]]
@@ -49,7 +51,7 @@ main() {
       mysql $FLAGS -u $DB_USER -e "DROP DATABASE IF EXISTS ${DB_NAME};"
       mysql $FLAGS -u $DB_USER -e "CREATE DATABASE ${DB_NAME};"
       mysql $FLAGS -u $DB_USER -e "GRANT ALL ON ${DB_NAME}.* TO '${DB_NAME}'@'localhost' IDENTIFIED BY 'zaphod';"
-      mysql $FLAGS -u $DB_USER -D ${DB_NAME} < ${GOPATH}/src/github.com/google/trillian/storage/mysql/storage.sql
+      mysql $FLAGS -u $DB_USER -D ${DB_NAME} < ${TRILLIAN_PATH}/storage/mysql/storage.sql
       echo "Reset Complete"
   fi
 }

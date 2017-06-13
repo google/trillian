@@ -72,6 +72,10 @@ func (s *mysqlAdminStorage) Begin(ctx context.Context) (storage.AdminTX, error) 
 	return &adminTX{tx: tx}, nil
 }
 
+func (s *mysqlAdminStorage) CheckDatabaseAccessible(ctx context.Context) error {
+	return checkDatabaseAccessible(ctx, s.db)
+}
+
 type adminTX struct {
 	tx *sql.Tx
 

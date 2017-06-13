@@ -1,25 +1,41 @@
 :exclamation: **EXPERIMENTAL** :exclamation:
 
-# Usage #
+# MySQL on Kubernetes
+
+## Usage
 
 To run a Galera MySQL cluster on Google Cloud, install the
 [Cloud SDK](https://cloud.google.com/sdk/) and configure it for your project.
 [Provision a Container cluster](https://cloud.google.com/container-engine/docs/clusters/operations),
 then run the following command:
-```
-kubectl start -f galera.yaml
+```shell
+kubectl apply -f $GOPATH/src/github.com/google/trillian/storage/mysql/kubernetes
 ```
 
 This will start the Galera cluster. You can monitor provisoning of this cluster
 by visiting http://127.0.0.1:8001/ui/ after running:
-```
+```shell
 kubectl proxy
 ```
 
 This dashboard will also show the external IP of the cluster on the
 "Services" page, on the row for the "mysql" service.
 
-# Derivation #
+Once the cluster has been provisioned, prepare the database for use by Trillian
+by running:
+```shell
+$GOPATH/src/github.com/google/trillian/storage/mysql/kubernetes/resetdb.sh
+```
+
+### Firewall
+
+By default, the load balancer that exposes the MySQL service will only accept
+connections from 10.0.0.0/8. To allow connections from a wider range of IP
+addresses, change the CIDR IP ranges specified under the
+`loadBalancerSourceRanges` field in galera.yaml, then run `kubectl apply -f
+galera.yaml`.
+
+## Derivation
 
 Based on
 [the mysql-galera example from the Kubernetes GitHub repository](https://github.com/kubernetes/kubernetes/tree/v1.5.4/examples/storage/mysql-galera),
@@ -38,5 +54,5 @@ The following modifications have been made:
 - Added some utility scripts:
   - image/env.sh
   - image/push.sh
-- Added liveness and readiness probes to the Kubernetes config.
+- Added readiness probes to the Kubernetes config.
 - Moved usernames and passwords into [Secrets](https://kubernetes.io/docs/concepts/configuration/secret/).

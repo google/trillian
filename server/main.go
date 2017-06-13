@@ -123,7 +123,8 @@ func AnnounceSelf(ctx context.Context, etcdServers, etcdService, endpoint string
 
 	bye := naming.Update{Op: naming.Delete, Addr: endpoint}
 	return func() {
-		glog.Infof("Removing our presence in %v with %+v", etcdService, update)
-		res.Update(ctx, etcdService, bye)
+		// Use a background context because the original context may have been cancelled.
+		glog.Infof("Removing our presence in %v with %+v", etcdService, bye)
+		res.Update(context.Background(), etcdService, bye)
 	}
 }

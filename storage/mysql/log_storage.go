@@ -31,7 +31,6 @@ import (
 	"github.com/google/trillian"
 	spb "github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/monitoring"
-	"github.com/google/trillian/monitoring/prometheus"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/trees"
@@ -88,31 +87,61 @@ const (
 var (
 	defaultLogStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8}
 
-	once            sync.Once
-	queuedCounter   monitoring.Counter
-	dequeuedCounter monitoring.Counter
+	once             sync.Once
+	queuedCounter    monitoring.Counter
+	queuedDupCounter monitoring.Counter
+	dequeuedCounter  monitoring.Counter
+
+	queueLatency            monitoring.Histogram
+	queueInsertLatency      monitoring.Histogram
+	queueReadLatency        monitoring.Histogram
+	queueInsertLeafLatency  monitoring.Histogram
+	queueInsertEntryLatency monitoring.Histogram
+	dequeueLatency          monitoring.Histogram
+	dequeueSelectLatency    monitoring.Histogram
+	dequeueRemoveLatency    monitoring.Histogram
 )
 
 func createMetrics(mf monitoring.MetricFactory) {
 	queuedCounter = mf.NewCounter("mysql_queued_leaves", "Number of leaves queued", logIDLabel)
+	queuedDupCounter = mf.NewCounter("mysql_queued_dup_leaves", "Number of duplicate leaves queued", logIDLabel)
 	dequeuedCounter = mf.NewCounter("mysql_dequeued_leaves", "Number of leaves dequeued", logIDLabel)
+
+	queueLatency = mf.NewHistogram("mysql_queue_leaves_latency", "Latency of queue leaves operation in ms", logIDLabel)
+	queueInsertLatency = mf.NewHistogram("mysql_queue_leaves_latency_insert", "Latency of insertion part of queue leaves operation in ms", logIDLabel)
+	queueReadLatency = mf.NewHistogram("mysql_queue_leaves_latency_read_dups", "Latency of read-duplicates part of queue leaves operation in ms", logIDLabel)
+	queueInsertLeafLatency = mf.NewHistogram("mysql_queue_leaf_latency_leaf", "Latency of insert-leaf part of queue (single) leaf operation in ms", logIDLabel)
+	queueInsertEntryLatency = mf.NewHistogram("mysql_queue_leaf_latency_entry", "Latency of insert-entry part of queue (single) leaf operation in ms", logIDLabel)
+
+	dequeueLatency = mf.NewHistogram("mysql_dequeue_leaves_latency", "Latency of dequeue leaves operation in ms", logIDLabel)
+	dequeueSelectLatency = mf.NewHistogram("mysql_dequeue_leaves_latency_select", "Latency of selection part of dequeue leaves operation in ms", logIDLabel)
+	dequeueRemoveLatency = mf.NewHistogram("mysql_dequeue_leaves_latency_remove", "Latency of removal part of dequeue leaves operation in ms", logIDLabel)
 }
 
 func labelForTX(t *logTreeTX) string {
 	return strconv.FormatInt(t.treeID, 10)
 }
 
+func observeAsMillis(hist monitoring.Histogram, duration time.Duration, label string) {
+	hist.Observe(float64(duration/time.Millisecond), label)
+}
+
 type mySQLLogStorage struct {
 	*mySQLTreeStorage
-	admin storage.AdminStorage
+	admin         storage.AdminStorage
+	metricFactory monitoring.MetricFactory
 }
 
 // NewLogStorage creates a storage.LogStorage instance for the specified MySQL URL.
 // It assumes storage.AdminStorage is backed by the same MySQL database as well.
-func NewLogStorage(db *sql.DB) storage.LogStorage {
+func NewLogStorage(db *sql.DB, mf monitoring.MetricFactory) storage.LogStorage {
+	if mf == nil {
+		mf = monitoring.InertMetricFactory{}
+	}
 	return &mySQLLogStorage{
 		admin:            NewAdminStorage(db),
 		mySQLTreeStorage: newTreeStorage(db),
+		metricFactory:    mf,
 	}
 }
 
@@ -207,8 +236,7 @@ func (t *readOnlyLogTX) GetActiveLogIDsWithPendingWork(ctx context.Context) ([]i
 
 func (m *mySQLLogStorage) beginInternal(ctx context.Context, treeID int64, readonly bool) (storage.LogTreeTX, error) {
 	once.Do(func() {
-		// TODO(drysdale): this should come from the registry rather than hard-coding use of Prometheus
-		createMetrics(prometheus.MetricFactory{})
+		createMetrics(m.metricFactory)
 	})
 	tree, err := trees.GetTree(
 		ctx,
@@ -277,6 +305,7 @@ type dequeuedLeaf struct {
 }
 
 func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime time.Time) ([]*trillian.LogLeaf, error) {
+	start := time.Now()
 	stx, err := t.tx.PrepareContext(ctx, selectQueuedLeavesSQL)
 
 	if err != nil {
@@ -325,6 +354,9 @@ func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime tim
 	if rows.Err() != nil {
 		return nil, rows.Err()
 	}
+	label := labelForTX(t)
+	selectDuration := time.Now().Sub(start)
+	observeAsMillis(dequeueSelectLatency, selectDuration, label)
 
 	// The convention is that if leaf processing succeeds (by committing this tx)
 	// then the unsequenced entries for them are removed
@@ -336,7 +368,11 @@ func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime tim
 		return nil, err
 	}
 
-	dequeuedCounter.Add(float64(len(leaves)), labelForTX(t))
+	totalDuration := time.Now().Sub(start)
+	removeDuration := totalDuration - selectDuration
+	observeAsMillis(dequeueRemoveLatency, removeDuration, label)
+	observeAsMillis(dequeueLatency, totalDuration, label)
+	dequeuedCounter.Add(float64(len(leaves)), label)
 
 	return leaves, nil
 }
@@ -348,6 +384,8 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 			return nil, fmt.Errorf("queued leaf must have a leaf ID hash of length %d", t.hashSizeBytes)
 		}
 	}
+	start := time.Now()
+	label := labelForTX(t)
 
 	// Insert in order of the hash values in the leaves, but track original position for return value.
 	// This is to make the order that row locks are acquired deterministic and helps to reduce
@@ -361,12 +399,16 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 	existingLeaves := make([]*trillian.LogLeaf, len(leaves))
 
 	for i, leafPos := range orderedLeaves {
+		leafStart := time.Now()
 		leaf := leafPos.leaf
 		_, err := t.tx.ExecContext(ctx, insertUnsequencedLeafSQL, t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData)
+		insertDuration := time.Now().Sub(leafStart)
+		observeAsMillis(queueInsertLeafLatency, insertDuration, label)
 		if isDuplicateErr(err) {
 			// Remember the duplicate leaf, using the requested leaf for now.
 			existingLeaves[leafPos.idx] = leaf
 			existingCount++
+			queuedDupCounter.Inc(label)
 			continue
 		}
 		if err != nil {
@@ -386,8 +428,12 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 			glog.Warningf("Error inserting into Unsequenced: %s", err)
 			return nil, fmt.Errorf("Unsequenced: %v", err)
 		}
+		leafDuration := time.Now().Sub(leafStart)
+		observeAsMillis(queueInsertEntryLatency, (leafDuration - insertDuration), label)
 	}
-	queuedCounter.Add(float64(len(leaves)), labelForTX(t))
+	insertDuration := time.Now().Sub(start)
+	observeAsMillis(queueInsertLatency, insertDuration, label)
+	queuedCounter.Add(float64(len(leaves)), label)
 
 	if existingCount == 0 {
 		return existingLeaves, nil
@@ -424,6 +470,10 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 			return nil, fmt.Errorf("failed to find existing leaf for hash %x", requested.LeafIdentityHash)
 		}
 	}
+	totalDuration := time.Now().Sub(start)
+	readDuration := totalDuration - insertDuration
+	observeAsMillis(queueReadLatency, readDuration, label)
+	observeAsMillis(queueLatency, totalDuration, label)
 
 	return existingLeaves, nil
 }

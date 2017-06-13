@@ -20,7 +20,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/gogo/protobuf/proto"
+	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 	sa "github.com/google/trillian/server/admin"
 	"github.com/google/trillian/server/interceptor"
@@ -342,7 +342,8 @@ func setupAdminServer() (trillian.TrillianAdminClient, func(), error) {
 		Admin:        registry.AdminStorage,
 		QuotaManager: registry.QuotaManager,
 	}
-	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(interceptor.WrapErrors(ti.UnaryInterceptor)))
+	netInterceptor := interceptor.Combine(interceptor.ErrorWrapper, ti.UnaryInterceptor)
+	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(netInterceptor))
 	// grpcServer is stopped via returned func
 	server := sa.New(registry)
 	trillian.RegisterTrillianAdminServer(grpcServer, server)

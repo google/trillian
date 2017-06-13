@@ -118,7 +118,8 @@ func setupLogServer(maxUnsequenced int) (trillian.TrillianAdminClient, trillian.
 		Admin:        registry.AdminStorage,
 		QuotaManager: registry.QuotaManager,
 	}
-	s = grpc.NewServer(grpc.UnaryInterceptor(interceptor.WrapErrors(intercept.UnaryInterceptor)))
+	netInterceptor := interceptor.Combine(interceptor.ErrorWrapper, intercept.UnaryInterceptor)
+	s = grpc.NewServer(grpc.UnaryInterceptor(netInterceptor))
 	trillian.RegisterTrillianAdminServer(s, admin.New(registry))
 	trillian.RegisterTrillianLogServer(s, server.NewTrillianLogRPCServer(registry, util.SystemTimeSource{}))
 
