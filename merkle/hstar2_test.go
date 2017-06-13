@@ -16,12 +16,14 @@ package merkle
 
 import (
 	"bytes"
+	"crypto"
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
 	"math/big"
 	"testing"
 
+	"github.com/google/trillian/merkle/hstar2"
 	"github.com/google/trillian/testonly"
 )
 
@@ -48,7 +50,7 @@ func createHStar2Leaves(th TreeHasher, values map[string]string) []HStar2LeafHas
 }
 
 func TestHStar2EmptyRootKAT(t *testing.T) {
-	s := NewHStar2(testonly.Hasher)
+	s := NewHStar2(hstar2.New(crypto.SHA256))
 	root, err := s.HStar2Root(s.hasher.Size()*8, []HStar2LeafHash{})
 	if err != nil {
 		t.Fatalf("Failed to calculate root: %v", err)
@@ -71,7 +73,7 @@ var simpleTestVector = []struct {
 }
 
 func TestHStar2SimpleDataSetKAT(t *testing.T) {
-	s := NewHStar2(testonly.Hasher)
+	s := NewHStar2(hstar2.New(crypto.SHA256))
 
 	m := make(map[string]string)
 	for i, x := range simpleTestVector {
@@ -95,7 +97,7 @@ func TestHStar2GetSet(t *testing.T) {
 	cache := make(map[string][]byte)
 
 	for i, x := range simpleTestVector {
-		s := NewHStar2(testonly.Hasher)
+		s := NewHStar2(hstar2.New(crypto.SHA256))
 		m := make(map[string]string)
 		m[x.k] = x.v
 		values := createHStar2Leaves(testonly.Hasher, m)
@@ -123,7 +125,7 @@ func TestHStar2GetSet(t *testing.T) {
 // Checks that we calculate the same empty root hash as a 256-level tree has
 // when calculating top subtrees using an appropriate offset.
 func TestHStar2OffsetEmptyRootKAT(t *testing.T) {
-	s := NewHStar2(testonly.Hasher)
+	s := NewHStar2(hstar2.New(crypto.SHA256))
 
 	for size := 1; size < 255; size++ {
 		root, err := s.HStar2Nodes(size, s.hasher.Size()*8-size, []HStar2LeafHash{},
@@ -132,8 +134,8 @@ func TestHStar2OffsetEmptyRootKAT(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to calculate root %v", err)
 		}
-		if expected, got := sparseEmptyRootHashB64, root; !bytes.Equal(expected, got) {
-			t.Fatalf("Expected root:\n%v\nGot:\n%v", base64.StdEncoding.EncodeToString(expected), base64.StdEncoding.EncodeToString(got))
+		if got, want := root, sparseEmptyRootHashB64; !bytes.Equal(got, want) {
+			t.Fatalf("Got root:\n%x, want:\n%x", got, want)
 		}
 	}
 }
@@ -143,7 +145,7 @@ func TestHStar2OffsetEmptyRootKAT(t *testing.T) {
 // 256-prefixSize, and can be passed in as leaves to top-subtree calculation.
 func rootsForTrimmedKeys(t *testing.T, prefixSize int, lh []HStar2LeafHash) []HStar2LeafHash {
 	var ret []HStar2LeafHash
-	s := NewHStar2(testonly.Hasher)
+	s := NewHStar2(hstar2.New(crypto.SHA256))
 	for i := range lh {
 		prefix := new(big.Int).Rsh(lh[i].Index, uint(s.hasher.Size()*8-prefixSize))
 		b := lh[i].Index.Bytes()
@@ -165,7 +167,7 @@ func rootsForTrimmedKeys(t *testing.T, prefixSize int, lh []HStar2LeafHash) []HS
 // (single top subtree of size n, and multipl bottom subtrees of size 256-n)
 // still arrives at the same Known Answers for root hash.
 func TestHStar2OffsetRootKAT(t *testing.T) {
-	s := NewHStar2(testonly.Hasher)
+	s := NewHStar2(hstar2.New(crypto.SHA256))
 
 	m := make(map[string]string)
 
@@ -191,7 +193,7 @@ func TestHStar2OffsetRootKAT(t *testing.T) {
 }
 
 func TestHStar2NegativeTreeLevelOffset(t *testing.T) {
-	s := NewHStar2(testonly.Hasher)
+	s := NewHStar2(hstar2.New(crypto.SHA256))
 
 	_, err := s.HStar2Nodes(32, -1, []HStar2LeafHash{},
 		func(int, *big.Int) ([]byte, error) { return nil, nil },

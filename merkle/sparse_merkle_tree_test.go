@@ -17,6 +17,7 @@ package merkle
 import (
 	"bytes"
 	"context"
+	"crypto"
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
@@ -31,6 +32,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/golang/mock/gomock"
+	"github.com/google/trillian/merkle/hstar2"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/testonly"
 )
@@ -82,13 +84,15 @@ func newTX(tx storage.MapTreeTX) func() (storage.TreeTX, error) {
 
 func getSparseMerkleTreeReaderWithMockTX(ctrl *gomock.Controller, rev int64) (*SparseMerkleTreeReader, *storage.MockMapTreeTX) {
 	tx := storage.NewMockMapTreeTX(ctrl)
-	return NewSparseMerkleTreeReader(rev, NewMapHasher(testonly.Hasher), tx), tx
+	hasher := hstar2.New(crypto.SHA256)
+	return NewSparseMerkleTreeReader(rev, hasher, tx), tx
 }
 
 func getSparseMerkleTreeWriterWithMockTX(ctx context.Context, ctrl *gomock.Controller, rev int64) (*SparseMerkleTreeWriter, *storage.MockMapTreeTX) {
 	tx := storage.NewMockMapTreeTX(ctrl)
 	tx.EXPECT().WriteRevision().AnyTimes().Return(rev)
-	tree, err := NewSparseMerkleTreeWriter(ctx, rev, NewMapHasher(testonly.Hasher), newTX(tx))
+	hasher := hstar2.New(crypto.SHA256)
+	tree, err := NewSparseMerkleTreeWriter(ctx, rev, hasher, newTX(tx))
 	if err != nil {
 		panic(err)
 	}

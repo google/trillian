@@ -15,13 +15,15 @@
 package merkle
 
 import (
+	"crypto"
 	"testing"
 
+	"github.com/google/trillian/merkle/hstar2"
 	"github.com/google/trillian/testonly"
 )
 
 func TestVerifyMap(t *testing.T) {
-	h := NewMapHasher(testonly.Hasher)
+	h := hstar2.New(crypto.SHA256)
 	tv := mapInclusionTestVector[0]
 
 	// Copy the bad proof so we don't mess up the good proof.

@@ -37,16 +37,14 @@ type HStar2LeafHash struct {
 // HStar2 is a recursive implementation for calculating the root hash of a sparse
 // Merkle tree.
 type HStar2 struct {
-	hasher          TreeHasher
-	hStarEmptyCache [][]byte
+	hasher MapHasher
 }
 
 // NewHStar2 creates a new HStar2 tree calculator based on the passed in
 // TreeHasher.
-func NewHStar2(treeHasher TreeHasher) HStar2 {
+func NewHStar2(h MapHasher) HStar2 {
 	return HStar2{
-		hasher:          treeHasher,
-		hStarEmptyCache: [][]byte{treeHasher.HashLeaf([]byte(""))},
+		hasher: h,
 	}
 }
 
@@ -55,8 +53,11 @@ func NewHStar2(treeHasher TreeHasher) HStar2 {
 func (s *HStar2) HStar2Root(n int, values []HStar2LeafHash) ([]byte, error) {
 	by(indexLess).Sort(values)
 	offset := big.NewInt(0)
+	fullDepth := s.hasher.Size() * 8
 	return s.hStar2b(n, values, offset,
-		func(depth int, index *big.Int) ([]byte, error) { return s.hStarEmpty(depth) },
+		func(depth int, index *big.Int) ([]byte, error) {
+			return s.hasher.HashEmpty(fullDepth - depth), nil
+		},
 		func(int, *big.Int, []byte) error { return nil })
 }
 
@@ -83,6 +84,7 @@ func (s *HStar2) HStar2Nodes(treeDepth, treeLevelOffset int, values []HStar2Leaf
 	if treeLevelOffset < 0 {
 		return nil, ErrNegativeTreeLevelOffset
 	}
+	fullDepth := s.hasher.Size() * 8
 	by(indexLess).Sort(values)
 	offset := big.NewInt(0)
 	return s.hStar2b(treeDepth, values, offset,
@@ -97,31 +99,11 @@ func (s *HStar2) HStar2Nodes(treeDepth, treeLevelOffset int, values []HStar2Leaf
 				return h, nil
 			}
 			// otherwise just return the null hash for this level
-			return s.hStarEmpty(depth + treeLevelOffset)
+			return s.hasher.HashEmpty(fullDepth - depth - treeLevelOffset), nil
 		},
 		func(depth int, index *big.Int, hash []byte) error {
 			return set(treeDepth-depth, index, hash)
 		})
-}
-
-// hStarEmpty calculates (and caches) the "null-hash" for the requested tree
-// level.
-func (s *HStar2) hStarEmpty(n int) ([]byte, error) {
-	if len(s.hStarEmptyCache) <= n {
-		emptyRoot, err := s.hStarEmpty(n - 1)
-		if err != nil {
-			return nil, err
-		}
-		h := s.hasher.HashChildren(emptyRoot, emptyRoot)
-		if len(s.hStarEmptyCache) != n {
-			return nil, fmt.Errorf("cache wrong size - expected %d, but cache contains %d entries", n, len(s.hStarEmptyCache))
-		}
-		s.hStarEmptyCache = append(s.hStarEmptyCache, h)
-	}
-	if n >= len(s.hStarEmptyCache) {
-		return nil, fmt.Errorf("cache too small - want level %d, but cache only contains %d entries", n, len(s.hStarEmptyCache))
-	}
-	return s.hStarEmptyCache[n], nil
 }
 
 var (

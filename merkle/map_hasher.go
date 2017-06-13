@@ -14,27 +14,18 @@
 
 package merkle
 
-// MapHasher is a specialised TreeHasher which also knows about the set of
-// "null" hashes for the unused sections of a SparseMerkleTree.
-type MapHasher struct {
-	TreeHasher
-	nullHashes [][]byte
-}
-
-// NewMapHasher creates a new MapHasher based on the passed in hash function.
-func NewMapHasher(th TreeHasher) MapHasher {
-	return MapHasher{
-		TreeHasher: th,
-		nullHashes: createNullHashes(th),
-	}
-}
-
-func createNullHashes(th TreeHasher) [][]byte {
-	numEntries := th.Size() * 8
-	r := make([][]byte, numEntries, numEntries)
-	r[numEntries-1] = th.HashLeaf([]byte{})
-	for i := numEntries - 2; i >= 0; i-- {
-		r[i] = th.HashChildren(r[i+1], r[i+1])
-	}
-	return r
+// MapHasher computes hashes for leafs, empty branches, and intermediate nodes for
+// a SparseMerkleTree.
+type MapHasher interface {
+	// HashEmpty returns the hash of an empty branch at a given depth.
+	// A depth of 0 indictes the root of an empty tree.
+	// A depth of Size*8 + 1 indicates an empty leaf.
+	HashEmpty(depth int) []byte
+	// HashLeaf computes the hash of a leaf that exists.
+	HashLeaf(leaf []byte) []byte
+	// HashChildren computes interior nodes.
+	// TODO(gbelvin) rename to HashInterior.
+	HashChildren(l, r []byte) []byte
+	// TODO(gbelvin): Replace Size() with BitLength().
+	Size() int
 }
