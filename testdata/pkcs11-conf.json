@@ -1,5 +1,5 @@
 {
-    "module": "/usr/local/lib/libsofthsm.so",
+    "module": "/usr/lib/libsofthsm.so",
     "tokenLabel": "log",
     "pin": "1234",
     "publicKeyPath": "testdata/log-rpc-server-pkcs11.pub.pem"
