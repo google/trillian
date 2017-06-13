@@ -29,6 +29,7 @@ import (
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/monitoring"
+	"github.com/google/trillian/quota"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util"
 )
@@ -79,6 +80,7 @@ type Sequencer struct {
 	timeSource util.TimeSource
 	logStorage storage.LogStorage
 	signer     *crypto.Signer
+	qm         quota.Manager
 
 	// These parameters could theoretically be adjusted during operation
 	// sequencerGuardWindow is used to ensure entries newer than the guard window will not be
@@ -93,7 +95,13 @@ type Sequencer struct {
 const maxTreeDepth = 64
 
 // NewSequencer creates a new Sequencer instance for the specified inputs.
-func NewSequencer(hasher merkle.TreeHasher, timeSource util.TimeSource, logStorage storage.LogStorage, signer *crypto.Signer, mf monitoring.MetricFactory) *Sequencer {
+func NewSequencer(
+	hasher merkle.TreeHasher,
+	timeSource util.TimeSource,
+	logStorage storage.LogStorage,
+	signer *crypto.Signer,
+	mf monitoring.MetricFactory,
+	qm quota.Manager) *Sequencer {
 	once.Do(func() {
 		createMetrics(mf)
 	})
@@ -102,6 +110,7 @@ func NewSequencer(hasher merkle.TreeHasher, timeSource util.TimeSource, logStora
 		timeSource: timeSource,
 		logStorage: logStorage,
 		signer:     signer,
+		qm:         qm,
 	}
 }
 
@@ -347,6 +356,21 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int) (i
 		return 0, err
 	}
 	seqCommitLatency.Observe(s.sinceMillis(stageStart), label)
+
+	// Let quota.Manager know about newly-sequenced entries.
+	// All possibly influenced quotas are replenished: {Tree/Global, Read/Write}.
+	// Implementations are tasked with filtering quotas that shouldn't be replenished.
+	// TODO(codingllama): Consider adding a source-aware replenish method
+	// (eg, qm.Replenish(ctx, tokens, specs, quota.SequencerSource)), so there's no ambiguity as to
+	// where the tokens come from.
+	if err := s.qm.PutTokens(ctx, len(leaves), []quota.Spec{
+		{Group: quota.Tree, Kind: quota.Read, TreeID: logID},
+		{Group: quota.Tree, Kind: quota.Write, TreeID: logID},
+		{Group: quota.Global, Kind: quota.Read},
+		{Group: quota.Global, Kind: quota.Write},
+	}); err != nil {
+		glog.Warningf("Failed to replenish tokens for tree %v: %v", logID, err)
+	}
 
 	glog.Infof("%v: sequenced %v leaves, size %v, tree-revision %v", logID, len(leaves), newLogRoot.TreeSize, newLogRoot.TreeRevision)
 	return len(leaves), nil
