@@ -14,6 +14,7 @@ RPC_SERVERS=''
 ETCD_OPTS=''
 ETCD_PID=''
 ETCD_DB_DIR=''
+readonly TRILLIAN_PATH=$(go list -f '{{.Dir}}' github.com/google/trillian)
 
 # run_test runs the given test with additional output messages.
 run_test() {
@@ -103,7 +104,7 @@ log_prep_test() {
   go build ${GOFLAGS} github.com/google/trillian/server/trillian_log_signer/
 
   # Wipe the test database
-  yes | "${GOPATH}"/src/github.com/google/trillian/scripts/resetdb.sh
+  yes | "${TRILLIAN_PATH}/scripts/resetdb.sh"
 
   # Start a local etcd instance (if configured).
   if [[ -x "${ETCD_DIR}/etcd" ]]; then
