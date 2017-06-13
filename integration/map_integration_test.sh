@@ -7,7 +7,7 @@ echo "Building code"
 go build ${GOFLAGS} github.com/google/trillian/cmd/createtree/
 go build ${GOFLAGS} github.com/google/trillian/server/trillian_map_server/
 
-yes | "${GOPATH}"/src/github.com/google/trillian/scripts/resetdb.sh
+yes | "${TRILLIAN_PATH}/scripts/resetdb.sh"
 
 RPC_PORT=$(pick_unused_port)
 
@@ -21,7 +21,7 @@ echo "Provision map"
 TEST_TREE_ID=$(./createtree \
   --admin_server="localhost:${RPC_PORT}" \
   --tree_type=MAP \
-  --pem_key_path=${GOPATH}/src/github.com/google/trillian/testdata/map-rpc-server.privkey.pem \
+  --pem_key_path=${TRILLIAN_PATH}/testdata/map-rpc-server.privkey.pem \
   --pem_key_password=towel \
   --signature_algorithm=ECDSA)
 echo "Created tree ${TEST_TREE_ID}"
