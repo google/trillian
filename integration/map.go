@@ -81,7 +81,6 @@ func RunMapIntegration(ctx context.Context, mapID int64, client trillian.Trillia
 	if got, want := r.MapRoot.MapRevision, int64(numBatches); got != want {
 		return fmt.Errorf("got SMH with revision %d, want %d", got, want)
 	}
-	// TODO(gbelvin) replace expected root test with proper inclusion tests.
 	latestRoot = *r.MapRoot
 
 	// Check values
@@ -94,7 +93,7 @@ func RunMapIntegration(ctx context.Context, mapID int64, client trillian.Trillia
 	for i := 0; i < numBatches; i++ {
 		getReq := &trillian.GetMapLeavesRequest{
 			MapId:    mapID,
-			Revision: latestRoot.MapRevision,
+			Revision: -1,
 			Index:    randIndexes[i*batchSize : (i+1)*batchSize],
 		}
 
@@ -104,6 +103,9 @@ func RunMapIntegration(ctx context.Context, mapID int64, client trillian.Trillia
 		}
 		if got, want := len(r.MapLeafInclusion), len(getReq.Index); got != want {
 			return fmt.Errorf("got %d values, want %d", got, want)
+		}
+		if got, want := r.GetMapRoot().GetMapRevision(), int64(numBatches); got != want {
+			return fmt.Errorf("got SMH with revision %d, want %d", got, want)
 		}
 		for _, incl := range r.MapLeafInclusion {
 			leaf := incl.Leaf
@@ -115,7 +117,7 @@ func RunMapIntegration(ctx context.Context, mapID int64, client trillian.Trillia
 				return fmt.Errorf("got value %s, want %s", got, want)
 			}
 			leafHash := h.HashLeaf(leaf.LeafValue)
-			if err := merkle.VerifyMapInclusionProof(leaf.Index, leafHash, latestRoot.RootHash, incl.Inclusion, h); err != nil {
+			if err := merkle.VerifyMapInclusionProof(leaf.Index, leafHash, r.GetMapRoot().GetRootHash(), incl.Inclusion, h); err != nil {
 				return fmt.Errorf("verifyMapInclusionProof(%x): %v", leaf.Index, err)
 			}
 		}
