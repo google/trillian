@@ -41,15 +41,31 @@ func mustMarshalAny(pb proto.Message) *any.Any {
 	return value
 }
 
-// loadPublicPEMFileAsDER reads a public key from a PEM file and returns the key in DER encoding.
+// publicPEMToDER reads a PEM-encoded public key and returns it in DER encoding.
 // If an error occurs, it panics.
-func loadPublicPEMFileAsDER(path string) []byte {
-	key, err := keys.NewFromPublicPEMFile(ttestonly.RelativeToPackage(path))
+func publicPEMToDER(pem string) []byte {
+	key, err := keys.NewFromPublicPEM(pem)
 	if err != nil {
 		panic(err)
 	}
 
 	der, err := x509.MarshalPKIXPublicKey(key)
+	if err != nil {
+		panic(err)
+	}
+	return der
+}
+
+// privatePEMToDER reads a PEM-encoded private key and returns it in DER encoding.
+// The PEM must be encrypted, and the password must be provided in order to decrypt it.
+// If an error occurs, it panics.
+func privatePEMToDER(pem, password string) []byte {
+	key, err := keys.NewFromPrivatePEM(pem, password)
+	if err != nil {
+		panic(err)
+	}
+
+	der, err := keys.MarshalPrivateKey(key)
 	if err != nil {
 		panic(err)
 	}
@@ -66,12 +82,11 @@ var (
 		SignatureAlgorithm: spb.DigitallySigned_ECDSA,
 		DisplayName:        "Llamas Log",
 		Description:        "Registry of publicly-owned llamas",
-		PrivateKey: mustMarshalAny(&keyspb.PEMKeyFile{
-			Path:     ttestonly.RelativeToPackage("../../testdata/log-rpc-server.privkey.pem"),
-			Password: "towel",
+		PrivateKey: mustMarshalAny(&keyspb.PrivateKey{
+			Der: privatePEMToDER(ttestonly.DemoPrivateKey, ttestonly.DemoPrivateKeyPass),
 		}),
 		PublicKey: &keyspb.PublicKey{
-			Der: loadPublicPEMFileAsDER("../../testdata/log-rpc-server.pubkey.pem"),
+			Der: publicPEMToDER(ttestonly.DemoPublicKey),
 		},
 	}
 
@@ -84,12 +99,11 @@ var (
 		SignatureAlgorithm: spb.DigitallySigned_ECDSA,
 		DisplayName:        "Llamas Map",
 		Description:        "Key Transparency map for all your digital llama needs.",
-		PrivateKey: mustMarshalAny(&keyspb.PEMKeyFile{
-			Path:     ttestonly.RelativeToPackage("../../testdata/map-rpc-server.privkey.pem"),
-			Password: "towel",
+		PrivateKey: mustMarshalAny(&keyspb.PrivateKey{
+			Der: privatePEMToDER(ttestonly.DemoPrivateKey, ttestonly.DemoPrivateKeyPass),
 		}),
 		PublicKey: &keyspb.PublicKey{
-			Der: loadPublicPEMFileAsDER("../../testdata/map-rpc-server.pubkey.pem"),
+			Der: publicPEMToDER(ttestonly.DemoPublicKey),
 		},
 	}
 )
