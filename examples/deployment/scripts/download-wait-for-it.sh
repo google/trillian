@@ -10,5 +10,4 @@ download() {
 }
 
 download
-echo "ffe253ce564df22adbcf9c799e251ca0  wait-for-it.sh" > file.md5
-md5sum -c file.md5
+sha256sum --check <( echo "c238c56e2a81b3c97375571eb4f58a0e75cdb4cd957f5802f733ac50621e776a wait-for-it.sh" )

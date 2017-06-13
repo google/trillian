@@ -54,27 +54,11 @@ With a pair of AWS keys [accessible to Terraform](https://www.terraform.io/docs/
 ```shell
 # Set a random password
 export TF_VAR_DB_PASSWORD="$(openssl rand -hex 16)"
-
+export TF_VAR_ingress_cidr="0.0.0.0/0"
 # Create Resources
-terraform plan aws/
-terraform apply aws/
+cd examples/deployment/aws/
 
-
-
-# Set Variables
-HOST=...
-
-# Seed the DB
-docker run --rm -it \
-  -e DB_USER=$DB_USER \
-  -e DB_PASSWORD=$DB_PASSWORD \
-  trillian-db-client ./scripts/resetdb.sh --verbose --force -h ${HOST}
-
-# Launch Trillian Locally
-docker run --name trillian \
-  -p 8091:8091 \
-  -e DB_USER=$DB_USER \
-  -e DB_PASSWORD=$DB_PASSWORD \
-  -e DB_HOST=$HOST:3306
-  trillian-server
+# Review and Apply Changes
+terraform plan
+terraform apply
 ```

@@ -34,7 +34,7 @@ resource "aws_rds_cluster_instance" "cluster_instances" {
 
 resource "aws_security_group" "trillian_db" {
   name        = "trillian-db"
-  description = "Allow MySQL from Trillian and Development IP"
+  description = "Allow MySQL from Trillian and Development CIDR"
 
   ingress {
     from_port   = 3306
@@ -83,11 +83,11 @@ data "aws_ami" "trillian" {
 
 resource "aws_security_group" "trillian" {
   name        = "trillian"
-  description = "Expose Rest and TPC endpoint to local cidr"
+  description = "Expose Rest, TPC and SSH endpoint to local cidr"
 
   ingress {
-    from_port   = 0
-    to_port     = 65535
+    from_port   = 8090
+    to_port     = 8091
     protocol    = "tcp"
     cidr_blocks = ["${var.ingress_cidr}"]
   }
