@@ -23,6 +23,7 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/extension"
+	"github.com/google/trillian/quota"
 	"github.com/google/trillian/storage/memory"
 	"github.com/google/trillian/testonly/integration"
 	"google.golang.org/grpc"
@@ -112,6 +113,7 @@ func TestInProcessLogIntegrationDuplicateLeaves(t *testing.T) {
 		AdminStorage:  memory.NewAdminStorage(ms),
 		SignerFactory: keys.PEMSignerFactory{},
 		LogStorage:    ms,
+		QuotaManager:  quota.Noop(),
 	}
 
 	env, err := integration.NewLogEnvWithRegistry(ctx, numSequencers, "TestInProcessLogIntegrationDuplicateLeaves", reggie)
