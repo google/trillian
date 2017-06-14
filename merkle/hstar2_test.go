@@ -167,7 +167,6 @@ func rootsForTrimmedKeys(t *testing.T, prefixSize int, lh []HStar2LeafHash) []HS
 // still arrives at the same Known Answers for root hash.
 func TestHStar2OffsetRootKAT(t *testing.T) {
 	s := NewHStar2(maphasher.Default)
-
 	m := make(map[string]string)
 
 	for i, x := range simpleTestVector {

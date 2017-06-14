@@ -32,6 +32,7 @@ var DefaultHasher = New(crypto.SHA256)
 // RFCHasher implements the RFC6962 tree hashing algorithm.
 type RFCHasher struct {
 	crypto.Hash
+	nullHashes [][]byte
 }
 
 // New creates a new merkle.TreeHasher on the passed in hash function.
