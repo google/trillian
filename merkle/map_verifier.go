@@ -51,7 +51,7 @@ func VerifyMapInclusionProof(index, leafHash, expectedRoot []byte, proof [][]byt
 		proofIsRightHandElement := nID.Bit(bit) == 0
 		pElement := proof[bit]
 		if len(pElement) == 0 {
-			pElement = h.HashEmpty(hBits - bit)
+			pElement = h.HashEmpty(bit)
 		}
 		if got, want := len(pElement)*8, hBits; got != want {
 			return fmt.Errorf("invalid proof: element has length %d, want %d", got, want)

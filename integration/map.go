@@ -24,6 +24,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle"
+	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/testonly"
 )
 
@@ -85,7 +86,7 @@ func RunMapIntegration(ctx context.Context, mapID int64, client trillian.Trillia
 
 	// Check values
 	// Mix up the ordering of requests
-	h := merkle.NewMapHasher(testonly.Hasher)
+	h := rfc6962.DefaultHasher
 	randIndexes := make([][]byte, len(tests))
 	for i, r := range rand.Perm(len(tests)) {
 		randIndexes[i] = tests[r].Index
@@ -131,7 +132,7 @@ func RunMapIntegration(ctx context.Context, mapID int64, client trillian.Trillia
 // Ensure that a query for a leaf that does not exist results in a valid inclusion proof.
 func testForNonExistentLeaf(ctx context.Context, mapID int64,
 	client trillian.TrillianMapClient, latestRoot trillian.SignedMapRoot) error {
-	h := merkle.NewMapHasher(testonly.Hasher)
+	h := rfc6962.DefaultHasher
 	index1 := []byte("doesnotexist....................")
 	r, err := client.GetLeaves(ctx, &trillian.GetMapLeavesRequest{
 		MapId:    mapID,

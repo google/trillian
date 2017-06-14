@@ -238,7 +238,7 @@ func TestHash(t *testing.T) {
 }
 
 func TestHasher(t *testing.T) {
-	tests := []struct {
+	for _, test := range []struct {
 		strategy   trillian.HashStrategy
 		wantHasher merkle.TreeHasher
 		wantErr    bool
@@ -249,11 +249,9 @@ func TestHasher(t *testing.T) {
 		},
 		{
 			strategy:   trillian.HashStrategy_RFC_6962,
-			wantHasher: rfc6962.TreeHasher{Hash: crypto.SHA256},
+			wantHasher: rfc6962.New(crypto.SHA256),
 		},
-	}
-
-	for _, test := range tests {
+	} {
 		tree := *testonly.LogTree
 		tree.HashAlgorithm = sigpb.DigitallySigned_SHA256
 		tree.HashStrategy = test.strategy
@@ -266,8 +264,8 @@ func TestHasher(t *testing.T) {
 			continue
 		}
 
-		if hasher != test.wantHasher {
-			t.Errorf("Hasher(%s) = (%v, nil), want = (%v, nil)", test.strategy, hasher, test.wantHasher)
+		if got, want := hasher.Size(), test.wantHasher.Size(); got != want {
+			t.Errorf("Hasher(%s) = (%v, nil), want = (%v, nil)", test.strategy, got, want)
 		}
 	}
 }

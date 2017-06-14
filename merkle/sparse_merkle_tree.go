@@ -106,7 +106,7 @@ type subtreeWriter struct {
 	tx           storage.TreeTX
 	treeRevision int64
 
-	hasher MapHasher
+	treeHasher TreeHasher
 
 	getSubtree getSubtreeFunc
 }
@@ -234,8 +234,8 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context) {
 	}
 
 	// calculate new root, and intermediate nodes:
-	hs2 := NewHStar2(s.hasher)
-	treeDepthOffset := (s.hasher.Size()-len(s.prefix))*8 - s.subtreeDepth
+	hs2 := NewHStar2(s.treeHasher)
+	treeDepthOffset := (s.treeHasher.Size()-len(s.prefix))*8 - s.subtreeDepth
 	addressSize := len(s.prefix) + s.subtreeDepth/8
 	root, err := hs2.HStar2Nodes(s.subtreeDepth, treeDepthOffset, leaves,
 		func(depth int, index *big.Int) ([]byte, error) {
@@ -316,7 +316,7 @@ func leafQueueSize(depths []int) int {
 }
 
 // newLocalSubtreeWriter creates a new local go-routine based subtree worker.
-func newLocalSubtreeWriter(ctx context.Context, rev int64, prefix []byte, depths []int, newTX newTXFunc, h MapHasher) (Subtree, error) {
+func newLocalSubtreeWriter(ctx context.Context, rev int64, prefix []byte, depths []int, newTX newTXFunc, h TreeHasher) (Subtree, error) {
 	tx, err := newTX()
 	if err != nil {
 		return nil, err
@@ -330,7 +330,7 @@ func newLocalSubtreeWriter(ctx context.Context, rev int64, prefix []byte, depths
 		root:         make(chan rootHashOrError, 1),
 		children:     make(map[string]Subtree),
 		tx:           tx,
-		hasher:       h,
+		treeHasher:   h,
 		getSubtree: func(ctx context.Context, p []byte) (Subtree, error) {
 			myPrefix := bytes.Join([][]byte{prefix, p}, []byte{})
 			return newLocalSubtreeWriter(ctx, rev, myPrefix, depths[1:], newTX, h)

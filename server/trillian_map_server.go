@@ -266,11 +266,11 @@ func (t *TrillianMapServer) getTreeAndHasher(ctx context.Context, treeID int64, 
 		treeID,
 		trees.GetOpts{TreeType: trillian.TreeType_MAP, Readonly: readonly})
 	if err != nil {
-		return nil, merkle.MapHasher{}, err
+		return nil, nil, err
 	}
 	th, err := trees.Hasher(tree)
 	if err != nil {
-		return nil, merkle.MapHasher{}, err
+		return nil, nil, err
 	}
-	return tree, merkle.NewMapHasher(th), nil
+	return tree, th, nil
 }

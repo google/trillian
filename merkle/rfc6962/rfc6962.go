@@ -15,7 +15,10 @@
 // Package rfc6962 provides hashing functionality according to RFC6962.
 package rfc6962
 
-import "crypto"
+import (
+	"crypto"
+	"fmt"
+)
 
 // Domain separation prefixes
 const (
@@ -23,22 +26,45 @@ const (
 	RFC6962NodeHashPrefix = 1
 )
 
-// Hasher is a SHA256 based TreeHasher.
-var Hasher = &TreeHasher{Hash: crypto.SHA256}
+// DefaultHasher is a SHA256 based TreeHasher.
+var DefaultHasher = New(crypto.SHA256)
 
 // TreeHasher implements the RFC6962 tree hashing algorithm.
+// Empty branches within the tree are plain interior nodes e1 = H(e0, e0) etc.
 type TreeHasher struct {
 	crypto.Hash
+	nullHashes [][]byte
 }
 
-// HashEmpty returns the hash of an empty element for the tree
-func (t TreeHasher) HashEmpty() []byte {
+// New creates a new TreeHasher on the passed in hash function.
+func New(h crypto.Hash) *TreeHasher {
+	m := &TreeHasher{Hash: h}
+	m.nullHashes = m.createNullHashes()
+	return m
+}
+
+// String returns a string representation for debugging.
+func (t *TreeHasher) String() string {
+	return fmt.Sprintf("rfc6962Hash{%v}", t.Hash)
+}
+
+// EmptyRoot returns a special case for an empty tree.
+func (t *TreeHasher) EmptyRoot() []byte {
 	return t.New().Sum(nil)
+}
+
+// HashEmpty returns the hash of an empty branch at a given depth.
+// A depth of 0 indictes the hash of an empty leaf.
+func (t *TreeHasher) HashEmpty(depth int) []byte {
+	if depth < 0 || depth >= len(t.nullHashes) {
+		panic(fmt.Sprintf("HashEmpty(%v) out of bounds", depth))
+	}
+	return t.nullHashes[depth]
 }
 
 // HashLeaf returns the Merkle tree leaf hash of the data passed in through leaf.
 // The data in leaf is prefixed by the LeafHashPrefix.
-func (t TreeHasher) HashLeaf(leaf []byte) []byte {
+func (t *TreeHasher) HashLeaf(leaf []byte) []byte {
 	h := t.New()
 	h.Write([]byte{RFC6962LeafHashPrefix})
 	h.Write(leaf)
@@ -47,10 +73,24 @@ func (t TreeHasher) HashLeaf(leaf []byte) []byte {
 
 // HashChildren returns the inner Merkle tree node hash of the the two child nodes l and r.
 // The hashed structure is NodeHashPrefix||l||r.
-func (t TreeHasher) HashChildren(l, r []byte) []byte {
+func (t *TreeHasher) HashChildren(l, r []byte) []byte {
 	h := t.New()
 	h.Write([]byte{RFC6962NodeHashPrefix})
 	h.Write(l)
 	h.Write(r)
 	return h.Sum(nil)
+}
+
+// createNullHashes returns a list of empty hashes starting with the hash of an empty
+// tree, all the way down to the hash of an empty leaf.
+func (t *TreeHasher) createNullHashes() [][]byte {
+	// Leaves are stored at depth 0. Root is at Size()*8.
+	// There are Size()*8 edges, and Size()*8 + 1 nodes in the tree.
+	nodes := t.Size()*8 + 1
+	r := make([][]byte, nodes, nodes)
+	r[0] = t.HashLeaf(nil)
+	for i := 1; i < nodes; i++ {
+		r[i] = t.HashChildren(r[i-1], r[i-1])
+	}
+	return r
 }

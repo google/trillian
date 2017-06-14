@@ -37,14 +37,14 @@ type HStar2LeafHash struct {
 // HStar2 is a recursive implementation for calculating the root hash of a sparse
 // Merkle tree.
 type HStar2 struct {
-	hasher MapHasher
+	hasher TreeHasher
 }
 
 // NewHStar2 creates a new HStar2 tree calculator based on the passed in
 // TreeHasher.
-func NewHStar2(h MapHasher) HStar2 {
+func NewHStar2(treeHasher TreeHasher) HStar2 {
 	return HStar2{
-		hasher: h,
+		hasher: treeHasher,
 	}
 }
 
@@ -53,10 +53,9 @@ func NewHStar2(h MapHasher) HStar2 {
 func (s *HStar2) HStar2Root(n int, values []HStar2LeafHash) ([]byte, error) {
 	by(indexLess).Sort(values)
 	offset := big.NewInt(0)
-	fullDepth := s.hasher.Size() * 8
 	return s.hStar2b(n, values, offset,
 		func(depth int, index *big.Int) ([]byte, error) {
-			return s.hasher.HashEmpty(fullDepth - depth), nil
+			return s.hasher.HashEmpty(depth), nil
 		},
 		func(int, *big.Int, []byte) error { return nil })
 }
@@ -84,7 +83,6 @@ func (s *HStar2) HStar2Nodes(treeDepth, treeLevelOffset int, values []HStar2Leaf
 	if treeLevelOffset < 0 {
 		return nil, ErrNegativeTreeLevelOffset
 	}
-	fullDepth := s.hasher.Size() * 8
 	by(indexLess).Sort(values)
 	offset := big.NewInt(0)
 	return s.hStar2b(treeDepth, values, offset,
@@ -99,7 +97,7 @@ func (s *HStar2) HStar2Nodes(treeDepth, treeLevelOffset int, values []HStar2Leaf
 				return h, nil
 			}
 			// otherwise just return the null hash for this level
-			return s.hasher.HashEmpty(fullDepth - depth - treeLevelOffset), nil
+			return s.hasher.HashEmpty(depth + treeLevelOffset), nil
 		},
 		func(depth int, index *big.Int, hash []byte) error {
 			return set(treeDepth-depth, index, hash)

@@ -50,16 +50,16 @@ func TestLeafHash(t *testing.T) {
 
 func TestHashEmpty(t *testing.T) {
 	h := ObjectHasher
-	rfc := rfc6962.TreeHasher{Hash: crypto.SHA256}
+	rfc := rfc6962.New(crypto.SHA256)
 
-	if got, want := h.HashEmpty(), rfc.HashEmpty(); !bytes.Equal(got, want) {
+	if got, want := h.HashEmpty(0), rfc.HashEmpty(0); !bytes.Equal(got, want) {
 		t.Errorf("HashEmpty():\n%x, want\n%x", got, want)
 	}
 }
 
 func TestHashChildren(t *testing.T) {
 	h := ObjectHasher
-	rfc := rfc6962.TreeHasher{Hash: crypto.SHA256}
+	rfc := rfc6962.New(crypto.SHA256)
 
 	for _, tc := range []struct {
 		r, l []byte

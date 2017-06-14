@@ -169,7 +169,7 @@ func downToPowerOfTwo(i int64) int64 {
 // Reference implementation of Merkle hash, for cross-checking.
 func referenceMerkleTreeHash(inputs [][]byte, treehasher TreeHasher) []byte {
 	if len(inputs) == 0 {
-		return treehasher.HashEmpty()
+		return treehasher.EmptyRoot()
 	}
 
 	if len(inputs) == 1 {
@@ -417,7 +417,7 @@ func TestMerkleTreeRootFuzz(t *testing.T) {
 			h2 := referenceMerkleTreeHash(data[:snapshot], mt.hasher)
 
 			if bytes.Compare(h1, h2) != 0 {
-				t.Errorf("Mismatched hash: %v, %v", h1, h2)
+				t.Errorf("Mismatched hash: %x, %x", h1, h2)
 			}
 		}
 	}

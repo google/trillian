@@ -118,7 +118,7 @@ func Hasher(tree *trillian.Tree) (merkle.TreeHasher, error) {
 
 	switch tree.HashStrategy {
 	case trillian.HashStrategy_RFC_6962:
-		return rfc6962.TreeHasher{Hash: hash}, nil
+		return rfc6962.New(hash), nil
 	}
 	return nil, fmt.Errorf("unexpected hash strategy: %s", tree.HashStrategy)
 }
