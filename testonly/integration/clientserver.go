@@ -20,7 +20,6 @@ import (
 	"context"
 	"crypto"
 	"database/sql"
-	"encoding/base64"
 	"net"
 	"sync"
 	"time"
@@ -36,6 +35,7 @@ import (
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/storage/mysql"
 	stestonly "github.com/google/trillian/storage/testonly"
+	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/util"
 	"google.golang.org/grpc"
 )
@@ -46,23 +46,23 @@ var (
 	// SequencerInterval is the time between runs of the sequencer.
 	SequencerInterval = 100 * time.Millisecond
 	timeSource        = util.SystemTimeSource{}
-	publicKey         = `
------BEGIN PUBLIC KEY-----
-MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEywnWicNEQ8bn3GXcGpA+tiU4VL70
-Ws9xezgQPrg96YGsFrF6KYG68iqyHDlQ+4FWuKfGKXHn3ooVtB/pfawb5Q==
------END PUBLIC KEY-----
-`
-	privateKeyInfo = &keyspb.PrivateKey{
-		Der: mustBase64Decode("MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg6LBB6TlODyiur5/P5E5rSpphaBk+UVXETmoklq8zMfehRANCAATLCdaJw0RDxufcZdwakD62JThUvvRaz3F7OBA+uD3pgawWsXopgbryKrIcOVD7gVa4p8YpcefeihW0H+l9rBvl"),
+	publicKey         = testonly.DemoPublicKey
+	privateKeyInfo    = &keyspb.PrivateKey{
+		Der: privatePEMToDER(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass),
 	}
 )
 
-func mustBase64Decode(b64 string) []byte {
-	d, err := base64.StdEncoding.DecodeString(b64)
+func privatePEMToDER(pem, password string) []byte {
+	key, err := keys.NewFromPrivatePEM(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
 	if err != nil {
 		panic(err)
 	}
-	return d
+
+	der, err := keys.MarshalPrivateKey(key)
+	if err != nil {
+		panic(err)
+	}
+	return der
 }
 
 // LogEnv is a test environment that contains both a log server and a connection to it.
