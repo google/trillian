@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto"
 	"database/sql"
+	"encoding/base64"
 	"net"
 	"sync"
 	"time"
@@ -35,7 +36,6 @@ import (
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/storage/mysql"
 	stestonly "github.com/google/trillian/storage/testonly"
-	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/util"
 	"google.golang.org/grpc"
 )
@@ -52,11 +52,18 @@ MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEywnWicNEQ8bn3GXcGpA+tiU4VL70
 Ws9xezgQPrg96YGsFrF6KYG68iqyHDlQ+4FWuKfGKXHn3ooVtB/pfawb5Q==
 -----END PUBLIC KEY-----
 `
-	privateKeyInfo = &keyspb.PEMKeyFile{
-		Path:     testonly.RelativeToPackage("../../testdata/log-rpc-server.privkey.pem"),
-		Password: "towel",
+	privateKeyInfo = &keyspb.PrivateKey{
+		Der: mustBase64Decode("MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg6LBB6TlODyiur5/P5E5rSpphaBk+UVXETmoklq8zMfehRANCAATLCdaJw0RDxufcZdwakD62JThUvvRaz3F7OBA+uD3pgawWsXopgbryKrIcOVD7gVa4p8YpcefeihW0H+l9rBvl"),
 	}
 )
+
+func mustBase64Decode(b64 string) []byte {
+	d, err := base64.StdEncoding.DecodeString(b64)
+	if err != nil {
+		panic(err)
+	}
+	return d
+}
 
 // LogEnv is a test environment that contains both a log server and a connection to it.
 type LogEnv struct {
