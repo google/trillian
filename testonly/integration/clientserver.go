@@ -46,8 +46,13 @@ var (
 	// SequencerInterval is the time between runs of the sequencer.
 	SequencerInterval = 100 * time.Millisecond
 	timeSource        = util.SystemTimeSource{}
-	publicKeyPath     = testonly.RelativeToPackage("../../testdata/log-rpc-server.pubkey.pem")
-	privateKeyInfo    = &keyspb.PEMKeyFile{
+	publicKey         = `
+-----BEGIN PUBLIC KEY-----
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEywnWicNEQ8bn3GXcGpA+tiU4VL70
+Ws9xezgQPrg96YGsFrF6KYG68iqyHDlQ+4FWuKfGKXHn3ooVtB/pfawb5Q==
+-----END PUBLIC KEY-----
+`
+	privateKeyInfo = &keyspb.PEMKeyFile{
 		Path:     testonly.RelativeToPackage("../../testdata/log-rpc-server.privkey.pem"),
 		Password: "towel",
 	}
@@ -159,7 +164,7 @@ func NewLogEnvWithRegistry(ctx context.Context, numSequencers int, testID string
 		return nil, err
 	}
 
-	publicKey, err := keys.NewFromPublicPEMFile(publicKeyPath)
+	publicKey, err := keys.NewFromPublicPEM(publicKey)
 	if err != nil {
 		cancel()
 		return nil, err
