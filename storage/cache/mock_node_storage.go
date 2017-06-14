@@ -9,27 +9,30 @@ import (
 	storagepb "github.com/google/trillian/storage/storagepb"
 )
 
-// Mock of NodeStorage interface
+// MockNodeStorage is a mock of NodeStorage interface
 type MockNodeStorage struct {
 	ctrl     *gomock.Controller
-	recorder *_MockNodeStorageRecorder
+	recorder *MockNodeStorageMockRecorder
 }
 
-// Recorder for MockNodeStorage (not exported)
-type _MockNodeStorageRecorder struct {
+// MockNodeStorageMockRecorder is the mock recorder for MockNodeStorage
+type MockNodeStorageMockRecorder struct {
 	mock *MockNodeStorage
 }
 
+// NewMockNodeStorage creates a new mock instance
 func NewMockNodeStorage(ctrl *gomock.Controller) *MockNodeStorage {
 	mock := &MockNodeStorage{ctrl: ctrl}
-	mock.recorder = &_MockNodeStorageRecorder{mock}
+	mock.recorder = &MockNodeStorageMockRecorder{mock}
 	return mock
 }
 
-func (_m *MockNodeStorage) EXPECT() *_MockNodeStorageRecorder {
+// EXPECT returns an object that allows the caller to indicate expected use
+func (_m *MockNodeStorage) EXPECT() *MockNodeStorageMockRecorder {
 	return _m.recorder
 }
 
+// GetSubtree mocks base method
 func (_m *MockNodeStorage) GetSubtree(_param0 storage.NodeID) (*storagepb.SubtreeProto, error) {
 	ret := _m.ctrl.Call(_m, "GetSubtree", _param0)
 	ret0, _ := ret[0].(*storagepb.SubtreeProto)
@@ -37,16 +40,19 @@ func (_m *MockNodeStorage) GetSubtree(_param0 storage.NodeID) (*storagepb.Subtre
 	return ret0, ret1
 }
 
-func (_mr *_MockNodeStorageRecorder) GetSubtree(arg0 interface{}) *gomock.Call {
+// GetSubtree indicates an expected call of GetSubtree
+func (_mr *MockNodeStorageMockRecorder) GetSubtree(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetSubtree", arg0)
 }
 
+// SetSubtrees mocks base method
 func (_m *MockNodeStorage) SetSubtrees(_param0 []*storagepb.SubtreeProto) error {
 	ret := _m.ctrl.Call(_m, "SetSubtrees", _param0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockNodeStorageRecorder) SetSubtrees(arg0 interface{}) *gomock.Call {
+// SetSubtrees indicates an expected call of SetSubtrees
+func (_mr *MockNodeStorageMockRecorder) SetSubtrees(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "SetSubtrees", arg0)
 }

@@ -10,27 +10,30 @@ import (
 	time "time"
 )
 
-// Mock of AdminStorage interface
+// MockAdminStorage is a mock of AdminStorage interface
 type MockAdminStorage struct {
 	ctrl     *gomock.Controller
-	recorder *_MockAdminStorageRecorder
+	recorder *MockAdminStorageMockRecorder
 }
 
-// Recorder for MockAdminStorage (not exported)
-type _MockAdminStorageRecorder struct {
+// MockAdminStorageMockRecorder is the mock recorder for MockAdminStorage
+type MockAdminStorageMockRecorder struct {
 	mock *MockAdminStorage
 }
 
+// NewMockAdminStorage creates a new mock instance
 func NewMockAdminStorage(ctrl *gomock.Controller) *MockAdminStorage {
 	mock := &MockAdminStorage{ctrl: ctrl}
-	mock.recorder = &_MockAdminStorageRecorder{mock}
+	mock.recorder = &MockAdminStorageMockRecorder{mock}
 	return mock
 }
 
-func (_m *MockAdminStorage) EXPECT() *_MockAdminStorageRecorder {
+// EXPECT returns an object that allows the caller to indicate expected use
+func (_m *MockAdminStorage) EXPECT() *MockAdminStorageMockRecorder {
 	return _m.recorder
 }
 
+// Begin mocks base method
 func (_m *MockAdminStorage) Begin(_param0 context.Context) (AdminTX, error) {
 	ret := _m.ctrl.Call(_m, "Begin", _param0)
 	ret0, _ := ret[0].(AdminTX)
@@ -38,20 +41,24 @@ func (_m *MockAdminStorage) Begin(_param0 context.Context) (AdminTX, error) {
 	return ret0, ret1
 }
 
-func (_mr *_MockAdminStorageRecorder) Begin(arg0 interface{}) *gomock.Call {
+// Begin indicates an expected call of Begin
+func (_mr *MockAdminStorageMockRecorder) Begin(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Begin", arg0)
 }
 
+// CheckDatabaseAccessible mocks base method
 func (_m *MockAdminStorage) CheckDatabaseAccessible(_param0 context.Context) error {
 	ret := _m.ctrl.Call(_m, "CheckDatabaseAccessible", _param0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockAdminStorageRecorder) CheckDatabaseAccessible(arg0 interface{}) *gomock.Call {
+// CheckDatabaseAccessible indicates an expected call of CheckDatabaseAccessible
+func (_mr *MockAdminStorageMockRecorder) CheckDatabaseAccessible(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "CheckDatabaseAccessible", arg0)
 }
 
+// Snapshot mocks base method
 func (_m *MockAdminStorage) Snapshot(_param0 context.Context) (ReadOnlyAdminTX, error) {
 	ret := _m.ctrl.Call(_m, "Snapshot", _param0)
 	ret0, _ := ret[0].(ReadOnlyAdminTX)
@@ -59,51 +66,59 @@ func (_m *MockAdminStorage) Snapshot(_param0 context.Context) (ReadOnlyAdminTX, 
 	return ret0, ret1
 }
 
-func (_mr *_MockAdminStorageRecorder) Snapshot(arg0 interface{}) *gomock.Call {
+// Snapshot indicates an expected call of Snapshot
+func (_mr *MockAdminStorageMockRecorder) Snapshot(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Snapshot", arg0)
 }
 
-// Mock of AdminTX interface
+// MockAdminTX is a mock of AdminTX interface
 type MockAdminTX struct {
 	ctrl     *gomock.Controller
-	recorder *_MockAdminTXRecorder
+	recorder *MockAdminTXMockRecorder
 }
 
-// Recorder for MockAdminTX (not exported)
-type _MockAdminTXRecorder struct {
+// MockAdminTXMockRecorder is the mock recorder for MockAdminTX
+type MockAdminTXMockRecorder struct {
 	mock *MockAdminTX
 }
 
+// NewMockAdminTX creates a new mock instance
 func NewMockAdminTX(ctrl *gomock.Controller) *MockAdminTX {
 	mock := &MockAdminTX{ctrl: ctrl}
-	mock.recorder = &_MockAdminTXRecorder{mock}
+	mock.recorder = &MockAdminTXMockRecorder{mock}
 	return mock
 }
 
-func (_m *MockAdminTX) EXPECT() *_MockAdminTXRecorder {
+// EXPECT returns an object that allows the caller to indicate expected use
+func (_m *MockAdminTX) EXPECT() *MockAdminTXMockRecorder {
 	return _m.recorder
 }
 
+// Close mocks base method
 func (_m *MockAdminTX) Close() error {
 	ret := _m.ctrl.Call(_m, "Close")
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockAdminTXRecorder) Close() *gomock.Call {
+// Close indicates an expected call of Close
+func (_mr *MockAdminTXMockRecorder) Close() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Close")
 }
 
+// Commit mocks base method
 func (_m *MockAdminTX) Commit() error {
 	ret := _m.ctrl.Call(_m, "Commit")
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockAdminTXRecorder) Commit() *gomock.Call {
+// Commit indicates an expected call of Commit
+func (_mr *MockAdminTXMockRecorder) Commit() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Commit")
 }
 
+// CreateTree mocks base method
 func (_m *MockAdminTX) CreateTree(_param0 context.Context, _param1 *trillian.Tree) (*trillian.Tree, error) {
 	ret := _m.ctrl.Call(_m, "CreateTree", _param0, _param1)
 	ret0, _ := ret[0].(*trillian.Tree)
@@ -111,10 +126,12 @@ func (_m *MockAdminTX) CreateTree(_param0 context.Context, _param1 *trillian.Tre
 	return ret0, ret1
 }
 
-func (_mr *_MockAdminTXRecorder) CreateTree(arg0, arg1 interface{}) *gomock.Call {
+// CreateTree indicates an expected call of CreateTree
+func (_mr *MockAdminTXMockRecorder) CreateTree(arg0, arg1 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "CreateTree", arg0, arg1)
 }
 
+// GetTree mocks base method
 func (_m *MockAdminTX) GetTree(_param0 context.Context, _param1 int64) (*trillian.Tree, error) {
 	ret := _m.ctrl.Call(_m, "GetTree", _param0, _param1)
 	ret0, _ := ret[0].(*trillian.Tree)
@@ -122,20 +139,24 @@ func (_m *MockAdminTX) GetTree(_param0 context.Context, _param1 int64) (*trillia
 	return ret0, ret1
 }
 
-func (_mr *_MockAdminTXRecorder) GetTree(arg0, arg1 interface{}) *gomock.Call {
+// GetTree indicates an expected call of GetTree
+func (_mr *MockAdminTXMockRecorder) GetTree(arg0, arg1 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetTree", arg0, arg1)
 }
 
+// IsClosed mocks base method
 func (_m *MockAdminTX) IsClosed() bool {
 	ret := _m.ctrl.Call(_m, "IsClosed")
 	ret0, _ := ret[0].(bool)
 	return ret0
 }
 
-func (_mr *_MockAdminTXRecorder) IsClosed() *gomock.Call {
+// IsClosed indicates an expected call of IsClosed
+func (_mr *MockAdminTXMockRecorder) IsClosed() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "IsClosed")
 }
 
+// ListTreeIDs mocks base method
 func (_m *MockAdminTX) ListTreeIDs(_param0 context.Context) ([]int64, error) {
 	ret := _m.ctrl.Call(_m, "ListTreeIDs", _param0)
 	ret0, _ := ret[0].([]int64)
@@ -143,10 +164,12 @@ func (_m *MockAdminTX) ListTreeIDs(_param0 context.Context) ([]int64, error) {
 	return ret0, ret1
 }
 
-func (_mr *_MockAdminTXRecorder) ListTreeIDs(arg0 interface{}) *gomock.Call {
+// ListTreeIDs indicates an expected call of ListTreeIDs
+func (_mr *MockAdminTXMockRecorder) ListTreeIDs(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "ListTreeIDs", arg0)
 }
 
+// ListTrees mocks base method
 func (_m *MockAdminTX) ListTrees(_param0 context.Context) ([]*trillian.Tree, error) {
 	ret := _m.ctrl.Call(_m, "ListTrees", _param0)
 	ret0, _ := ret[0].([]*trillian.Tree)
@@ -154,20 +177,24 @@ func (_m *MockAdminTX) ListTrees(_param0 context.Context) ([]*trillian.Tree, err
 	return ret0, ret1
 }
 
-func (_mr *_MockAdminTXRecorder) ListTrees(arg0 interface{}) *gomock.Call {
+// ListTrees indicates an expected call of ListTrees
+func (_mr *MockAdminTXMockRecorder) ListTrees(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "ListTrees", arg0)
 }
 
+// Rollback mocks base method
 func (_m *MockAdminTX) Rollback() error {
 	ret := _m.ctrl.Call(_m, "Rollback")
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockAdminTXRecorder) Rollback() *gomock.Call {
+// Rollback indicates an expected call of Rollback
+func (_mr *MockAdminTXMockRecorder) Rollback() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Rollback")
 }
 
+// UpdateTree mocks base method
 func (_m *MockAdminTX) UpdateTree(_param0 context.Context, _param1 int64, _param2 func(*trillian.Tree)) (*trillian.Tree, error) {
 	ret := _m.ctrl.Call(_m, "UpdateTree", _param0, _param1, _param2)
 	ret0, _ := ret[0].(*trillian.Tree)
@@ -175,31 +202,35 @@ func (_m *MockAdminTX) UpdateTree(_param0 context.Context, _param1 int64, _param
 	return ret0, ret1
 }
 
-func (_mr *_MockAdminTXRecorder) UpdateTree(arg0, arg1, arg2 interface{}) *gomock.Call {
+// UpdateTree indicates an expected call of UpdateTree
+func (_mr *MockAdminTXMockRecorder) UpdateTree(arg0, arg1, arg2 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "UpdateTree", arg0, arg1, arg2)
 }
 
-// Mock of LogStorage interface
+// MockLogStorage is a mock of LogStorage interface
 type MockLogStorage struct {
 	ctrl     *gomock.Controller
-	recorder *_MockLogStorageRecorder
+	recorder *MockLogStorageMockRecorder
 }
 
-// Recorder for MockLogStorage (not exported)
-type _MockLogStorageRecorder struct {
+// MockLogStorageMockRecorder is the mock recorder for MockLogStorage
+type MockLogStorageMockRecorder struct {
 	mock *MockLogStorage
 }
 
+// NewMockLogStorage creates a new mock instance
 func NewMockLogStorage(ctrl *gomock.Controller) *MockLogStorage {
 	mock := &MockLogStorage{ctrl: ctrl}
-	mock.recorder = &_MockLogStorageRecorder{mock}
+	mock.recorder = &MockLogStorageMockRecorder{mock}
 	return mock
 }
 
-func (_m *MockLogStorage) EXPECT() *_MockLogStorageRecorder {
+// EXPECT returns an object that allows the caller to indicate expected use
+func (_m *MockLogStorage) EXPECT() *MockLogStorageMockRecorder {
 	return _m.recorder
 }
 
+// BeginForTree mocks base method
 func (_m *MockLogStorage) BeginForTree(_param0 context.Context, _param1 int64) (LogTreeTX, error) {
 	ret := _m.ctrl.Call(_m, "BeginForTree", _param0, _param1)
 	ret0, _ := ret[0].(LogTreeTX)
@@ -207,20 +238,24 @@ func (_m *MockLogStorage) BeginForTree(_param0 context.Context, _param1 int64) (
 	return ret0, ret1
 }
 
-func (_mr *_MockLogStorageRecorder) BeginForTree(arg0, arg1 interface{}) *gomock.Call {
+// BeginForTree indicates an expected call of BeginForTree
+func (_mr *MockLogStorageMockRecorder) BeginForTree(arg0, arg1 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "BeginForTree", arg0, arg1)
 }
 
+// CheckDatabaseAccessible mocks base method
 func (_m *MockLogStorage) CheckDatabaseAccessible(_param0 context.Context) error {
 	ret := _m.ctrl.Call(_m, "CheckDatabaseAccessible", _param0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockLogStorageRecorder) CheckDatabaseAccessible(arg0 interface{}) *gomock.Call {
+// CheckDatabaseAccessible indicates an expected call of CheckDatabaseAccessible
+func (_mr *MockLogStorageMockRecorder) CheckDatabaseAccessible(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "CheckDatabaseAccessible", arg0)
 }
 
+// Snapshot mocks base method
 func (_m *MockLogStorage) Snapshot(_param0 context.Context) (ReadOnlyLogTX, error) {
 	ret := _m.ctrl.Call(_m, "Snapshot", _param0)
 	ret0, _ := ret[0].(ReadOnlyLogTX)
@@ -228,10 +263,12 @@ func (_m *MockLogStorage) Snapshot(_param0 context.Context) (ReadOnlyLogTX, erro
 	return ret0, ret1
 }
 
-func (_mr *_MockLogStorageRecorder) Snapshot(arg0 interface{}) *gomock.Call {
+// Snapshot indicates an expected call of Snapshot
+func (_mr *MockLogStorageMockRecorder) Snapshot(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Snapshot", arg0)
 }
 
+// SnapshotForTree mocks base method
 func (_m *MockLogStorage) SnapshotForTree(_param0 context.Context, _param1 int64) (ReadOnlyLogTreeTX, error) {
 	ret := _m.ctrl.Call(_m, "SnapshotForTree", _param0, _param1)
 	ret0, _ := ret[0].(ReadOnlyLogTreeTX)
@@ -239,51 +276,59 @@ func (_m *MockLogStorage) SnapshotForTree(_param0 context.Context, _param1 int64
 	return ret0, ret1
 }
 
-func (_mr *_MockLogStorageRecorder) SnapshotForTree(arg0, arg1 interface{}) *gomock.Call {
+// SnapshotForTree indicates an expected call of SnapshotForTree
+func (_mr *MockLogStorageMockRecorder) SnapshotForTree(arg0, arg1 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "SnapshotForTree", arg0, arg1)
 }
 
-// Mock of LogTreeTX interface
+// MockLogTreeTX is a mock of LogTreeTX interface
 type MockLogTreeTX struct {
 	ctrl     *gomock.Controller
-	recorder *_MockLogTreeTXRecorder
+	recorder *MockLogTreeTXMockRecorder
 }
 
-// Recorder for MockLogTreeTX (not exported)
-type _MockLogTreeTXRecorder struct {
+// MockLogTreeTXMockRecorder is the mock recorder for MockLogTreeTX
+type MockLogTreeTXMockRecorder struct {
 	mock *MockLogTreeTX
 }
 
+// NewMockLogTreeTX creates a new mock instance
 func NewMockLogTreeTX(ctrl *gomock.Controller) *MockLogTreeTX {
 	mock := &MockLogTreeTX{ctrl: ctrl}
-	mock.recorder = &_MockLogTreeTXRecorder{mock}
+	mock.recorder = &MockLogTreeTXMockRecorder{mock}
 	return mock
 }
 
-func (_m *MockLogTreeTX) EXPECT() *_MockLogTreeTXRecorder {
+// EXPECT returns an object that allows the caller to indicate expected use
+func (_m *MockLogTreeTX) EXPECT() *MockLogTreeTXMockRecorder {
 	return _m.recorder
 }
 
+// Close mocks base method
 func (_m *MockLogTreeTX) Close() error {
 	ret := _m.ctrl.Call(_m, "Close")
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockLogTreeTXRecorder) Close() *gomock.Call {
+// Close indicates an expected call of Close
+func (_mr *MockLogTreeTXMockRecorder) Close() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Close")
 }
 
+// Commit mocks base method
 func (_m *MockLogTreeTX) Commit() error {
 	ret := _m.ctrl.Call(_m, "Commit")
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockLogTreeTXRecorder) Commit() *gomock.Call {
+// Commit indicates an expected call of Commit
+func (_mr *MockLogTreeTXMockRecorder) Commit() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Commit")
 }
 
+// DequeueLeaves mocks base method
 func (_m *MockLogTreeTX) DequeueLeaves(_param0 context.Context, _param1 int, _param2 time.Time) ([]*trillian.LogLeaf, error) {
 	ret := _m.ctrl.Call(_m, "DequeueLeaves", _param0, _param1, _param2)
 	ret0, _ := ret[0].([]*trillian.LogLeaf)
@@ -291,10 +336,12 @@ func (_m *MockLogTreeTX) DequeueLeaves(_param0 context.Context, _param1 int, _pa
 	return ret0, ret1
 }
 
-func (_mr *_MockLogTreeTXRecorder) DequeueLeaves(arg0, arg1, arg2 interface{}) *gomock.Call {
+// DequeueLeaves indicates an expected call of DequeueLeaves
+func (_mr *MockLogTreeTXMockRecorder) DequeueLeaves(arg0, arg1, arg2 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "DequeueLeaves", arg0, arg1, arg2)
 }
 
+// GetActiveLogIDs mocks base method
 func (_m *MockLogTreeTX) GetActiveLogIDs(_param0 context.Context) ([]int64, error) {
 	ret := _m.ctrl.Call(_m, "GetActiveLogIDs", _param0)
 	ret0, _ := ret[0].([]int64)
@@ -302,10 +349,12 @@ func (_m *MockLogTreeTX) GetActiveLogIDs(_param0 context.Context) ([]int64, erro
 	return ret0, ret1
 }
 
-func (_mr *_MockLogTreeTXRecorder) GetActiveLogIDs(arg0 interface{}) *gomock.Call {
+// GetActiveLogIDs indicates an expected call of GetActiveLogIDs
+func (_mr *MockLogTreeTXMockRecorder) GetActiveLogIDs(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetActiveLogIDs", arg0)
 }
 
+// GetActiveLogIDsWithPendingWork mocks base method
 func (_m *MockLogTreeTX) GetActiveLogIDsWithPendingWork(_param0 context.Context) ([]int64, error) {
 	ret := _m.ctrl.Call(_m, "GetActiveLogIDsWithPendingWork", _param0)
 	ret0, _ := ret[0].([]int64)
@@ -313,10 +362,12 @@ func (_m *MockLogTreeTX) GetActiveLogIDsWithPendingWork(_param0 context.Context)
 	return ret0, ret1
 }
 
-func (_mr *_MockLogTreeTXRecorder) GetActiveLogIDsWithPendingWork(arg0 interface{}) *gomock.Call {
+// GetActiveLogIDsWithPendingWork indicates an expected call of GetActiveLogIDsWithPendingWork
+func (_mr *MockLogTreeTXMockRecorder) GetActiveLogIDsWithPendingWork(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetActiveLogIDsWithPendingWork", arg0)
 }
 
+// GetLeavesByHash mocks base method
 func (_m *MockLogTreeTX) GetLeavesByHash(_param0 context.Context, _param1 [][]byte, _param2 bool) ([]*trillian.LogLeaf, error) {
 	ret := _m.ctrl.Call(_m, "GetLeavesByHash", _param0, _param1, _param2)
 	ret0, _ := ret[0].([]*trillian.LogLeaf)
@@ -324,10 +375,12 @@ func (_m *MockLogTreeTX) GetLeavesByHash(_param0 context.Context, _param1 [][]by
 	return ret0, ret1
 }
 
-func (_mr *_MockLogTreeTXRecorder) GetLeavesByHash(arg0, arg1, arg2 interface{}) *gomock.Call {
+// GetLeavesByHash indicates an expected call of GetLeavesByHash
+func (_mr *MockLogTreeTXMockRecorder) GetLeavesByHash(arg0, arg1, arg2 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetLeavesByHash", arg0, arg1, arg2)
 }
 
+// GetLeavesByIndex mocks base method
 func (_m *MockLogTreeTX) GetLeavesByIndex(_param0 context.Context, _param1 []int64) ([]*trillian.LogLeaf, error) {
 	ret := _m.ctrl.Call(_m, "GetLeavesByIndex", _param0, _param1)
 	ret0, _ := ret[0].([]*trillian.LogLeaf)
@@ -335,10 +388,12 @@ func (_m *MockLogTreeTX) GetLeavesByIndex(_param0 context.Context, _param1 []int
 	return ret0, ret1
 }
 
-func (_mr *_MockLogTreeTXRecorder) GetLeavesByIndex(arg0, arg1 interface{}) *gomock.Call {
+// GetLeavesByIndex indicates an expected call of GetLeavesByIndex
+func (_mr *MockLogTreeTXMockRecorder) GetLeavesByIndex(arg0, arg1 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetLeavesByIndex", arg0, arg1)
 }
 
+// GetMerkleNodes mocks base method
 func (_m *MockLogTreeTX) GetMerkleNodes(_param0 context.Context, _param1 int64, _param2 []NodeID) ([]Node, error) {
 	ret := _m.ctrl.Call(_m, "GetMerkleNodes", _param0, _param1, _param2)
 	ret0, _ := ret[0].([]Node)
@@ -346,10 +401,12 @@ func (_m *MockLogTreeTX) GetMerkleNodes(_param0 context.Context, _param1 int64, 
 	return ret0, ret1
 }
 
-func (_mr *_MockLogTreeTXRecorder) GetMerkleNodes(arg0, arg1, arg2 interface{}) *gomock.Call {
+// GetMerkleNodes indicates an expected call of GetMerkleNodes
+func (_mr *MockLogTreeTXMockRecorder) GetMerkleNodes(arg0, arg1, arg2 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetMerkleNodes", arg0, arg1, arg2)
 }
 
+// GetSequencedLeafCount mocks base method
 func (_m *MockLogTreeTX) GetSequencedLeafCount(_param0 context.Context) (int64, error) {
 	ret := _m.ctrl.Call(_m, "GetSequencedLeafCount", _param0)
 	ret0, _ := ret[0].(int64)
@@ -357,20 +414,24 @@ func (_m *MockLogTreeTX) GetSequencedLeafCount(_param0 context.Context) (int64, 
 	return ret0, ret1
 }
 
-func (_mr *_MockLogTreeTXRecorder) GetSequencedLeafCount(arg0 interface{}) *gomock.Call {
+// GetSequencedLeafCount indicates an expected call of GetSequencedLeafCount
+func (_mr *MockLogTreeTXMockRecorder) GetSequencedLeafCount(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetSequencedLeafCount", arg0)
 }
 
+// IsOpen mocks base method
 func (_m *MockLogTreeTX) IsOpen() bool {
 	ret := _m.ctrl.Call(_m, "IsOpen")
 	ret0, _ := ret[0].(bool)
 	return ret0
 }
 
-func (_mr *_MockLogTreeTXRecorder) IsOpen() *gomock.Call {
+// IsOpen indicates an expected call of IsOpen
+func (_mr *MockLogTreeTXMockRecorder) IsOpen() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "IsOpen")
 }
 
+// LatestSignedLogRoot mocks base method
 func (_m *MockLogTreeTX) LatestSignedLogRoot(_param0 context.Context) (trillian.SignedLogRoot, error) {
 	ret := _m.ctrl.Call(_m, "LatestSignedLogRoot", _param0)
 	ret0, _ := ret[0].(trillian.SignedLogRoot)
@@ -378,10 +439,12 @@ func (_m *MockLogTreeTX) LatestSignedLogRoot(_param0 context.Context) (trillian.
 	return ret0, ret1
 }
 
-func (_mr *_MockLogTreeTXRecorder) LatestSignedLogRoot(arg0 interface{}) *gomock.Call {
+// LatestSignedLogRoot indicates an expected call of LatestSignedLogRoot
+func (_mr *MockLogTreeTXMockRecorder) LatestSignedLogRoot(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "LatestSignedLogRoot", arg0)
 }
 
+// QueueLeaves mocks base method
 func (_m *MockLogTreeTX) QueueLeaves(_param0 context.Context, _param1 []*trillian.LogLeaf, _param2 time.Time) ([]*trillian.LogLeaf, error) {
 	ret := _m.ctrl.Call(_m, "QueueLeaves", _param0, _param1, _param2)
 	ret0, _ := ret[0].([]*trillian.LogLeaf)
@@ -389,91 +452,107 @@ func (_m *MockLogTreeTX) QueueLeaves(_param0 context.Context, _param1 []*trillia
 	return ret0, ret1
 }
 
-func (_mr *_MockLogTreeTXRecorder) QueueLeaves(arg0, arg1, arg2 interface{}) *gomock.Call {
+// QueueLeaves indicates an expected call of QueueLeaves
+func (_mr *MockLogTreeTXMockRecorder) QueueLeaves(arg0, arg1, arg2 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "QueueLeaves", arg0, arg1, arg2)
 }
 
+// ReadRevision mocks base method
 func (_m *MockLogTreeTX) ReadRevision() int64 {
 	ret := _m.ctrl.Call(_m, "ReadRevision")
 	ret0, _ := ret[0].(int64)
 	return ret0
 }
 
-func (_mr *_MockLogTreeTXRecorder) ReadRevision() *gomock.Call {
+// ReadRevision indicates an expected call of ReadRevision
+func (_mr *MockLogTreeTXMockRecorder) ReadRevision() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "ReadRevision")
 }
 
+// Rollback mocks base method
 func (_m *MockLogTreeTX) Rollback() error {
 	ret := _m.ctrl.Call(_m, "Rollback")
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockLogTreeTXRecorder) Rollback() *gomock.Call {
+// Rollback indicates an expected call of Rollback
+func (_mr *MockLogTreeTXMockRecorder) Rollback() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Rollback")
 }
 
+// SetMerkleNodes mocks base method
 func (_m *MockLogTreeTX) SetMerkleNodes(_param0 context.Context, _param1 []Node) error {
 	ret := _m.ctrl.Call(_m, "SetMerkleNodes", _param0, _param1)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockLogTreeTXRecorder) SetMerkleNodes(arg0, arg1 interface{}) *gomock.Call {
+// SetMerkleNodes indicates an expected call of SetMerkleNodes
+func (_mr *MockLogTreeTXMockRecorder) SetMerkleNodes(arg0, arg1 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "SetMerkleNodes", arg0, arg1)
 }
 
+// StoreSignedLogRoot mocks base method
 func (_m *MockLogTreeTX) StoreSignedLogRoot(_param0 context.Context, _param1 trillian.SignedLogRoot) error {
 	ret := _m.ctrl.Call(_m, "StoreSignedLogRoot", _param0, _param1)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockLogTreeTXRecorder) StoreSignedLogRoot(arg0, arg1 interface{}) *gomock.Call {
+// StoreSignedLogRoot indicates an expected call of StoreSignedLogRoot
+func (_mr *MockLogTreeTXMockRecorder) StoreSignedLogRoot(arg0, arg1 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "StoreSignedLogRoot", arg0, arg1)
 }
 
+// UpdateSequencedLeaves mocks base method
 func (_m *MockLogTreeTX) UpdateSequencedLeaves(_param0 context.Context, _param1 []*trillian.LogLeaf) error {
 	ret := _m.ctrl.Call(_m, "UpdateSequencedLeaves", _param0, _param1)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockLogTreeTXRecorder) UpdateSequencedLeaves(arg0, arg1 interface{}) *gomock.Call {
+// UpdateSequencedLeaves indicates an expected call of UpdateSequencedLeaves
+func (_mr *MockLogTreeTXMockRecorder) UpdateSequencedLeaves(arg0, arg1 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "UpdateSequencedLeaves", arg0, arg1)
 }
 
+// WriteRevision mocks base method
 func (_m *MockLogTreeTX) WriteRevision() int64 {
 	ret := _m.ctrl.Call(_m, "WriteRevision")
 	ret0, _ := ret[0].(int64)
 	return ret0
 }
 
-func (_mr *_MockLogTreeTXRecorder) WriteRevision() *gomock.Call {
+// WriteRevision indicates an expected call of WriteRevision
+func (_mr *MockLogTreeTXMockRecorder) WriteRevision() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "WriteRevision")
 }
 
-// Mock of MapStorage interface
+// MockMapStorage is a mock of MapStorage interface
 type MockMapStorage struct {
 	ctrl     *gomock.Controller
-	recorder *_MockMapStorageRecorder
+	recorder *MockMapStorageMockRecorder
 }
 
-// Recorder for MockMapStorage (not exported)
-type _MockMapStorageRecorder struct {
+// MockMapStorageMockRecorder is the mock recorder for MockMapStorage
+type MockMapStorageMockRecorder struct {
 	mock *MockMapStorage
 }
 
+// NewMockMapStorage creates a new mock instance
 func NewMockMapStorage(ctrl *gomock.Controller) *MockMapStorage {
 	mock := &MockMapStorage{ctrl: ctrl}
-	mock.recorder = &_MockMapStorageRecorder{mock}
+	mock.recorder = &MockMapStorageMockRecorder{mock}
 	return mock
 }
 
-func (_m *MockMapStorage) EXPECT() *_MockMapStorageRecorder {
+// EXPECT returns an object that allows the caller to indicate expected use
+func (_m *MockMapStorage) EXPECT() *MockMapStorageMockRecorder {
 	return _m.recorder
 }
 
+// BeginForTree mocks base method
 func (_m *MockMapStorage) BeginForTree(_param0 context.Context, _param1 int64) (MapTreeTX, error) {
 	ret := _m.ctrl.Call(_m, "BeginForTree", _param0, _param1)
 	ret0, _ := ret[0].(MapTreeTX)
@@ -481,20 +560,24 @@ func (_m *MockMapStorage) BeginForTree(_param0 context.Context, _param1 int64) (
 	return ret0, ret1
 }
 
-func (_mr *_MockMapStorageRecorder) BeginForTree(arg0, arg1 interface{}) *gomock.Call {
+// BeginForTree indicates an expected call of BeginForTree
+func (_mr *MockMapStorageMockRecorder) BeginForTree(arg0, arg1 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "BeginForTree", arg0, arg1)
 }
 
+// CheckDatabaseAccessible mocks base method
 func (_m *MockMapStorage) CheckDatabaseAccessible(_param0 context.Context) error {
 	ret := _m.ctrl.Call(_m, "CheckDatabaseAccessible", _param0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockMapStorageRecorder) CheckDatabaseAccessible(arg0 interface{}) *gomock.Call {
+// CheckDatabaseAccessible indicates an expected call of CheckDatabaseAccessible
+func (_mr *MockMapStorageMockRecorder) CheckDatabaseAccessible(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "CheckDatabaseAccessible", arg0)
 }
 
+// Snapshot mocks base method
 func (_m *MockMapStorage) Snapshot(_param0 context.Context) (ReadOnlyMapTX, error) {
 	ret := _m.ctrl.Call(_m, "Snapshot", _param0)
 	ret0, _ := ret[0].(ReadOnlyMapTX)
@@ -502,10 +585,12 @@ func (_m *MockMapStorage) Snapshot(_param0 context.Context) (ReadOnlyMapTX, erro
 	return ret0, ret1
 }
 
-func (_mr *_MockMapStorageRecorder) Snapshot(arg0 interface{}) *gomock.Call {
+// Snapshot indicates an expected call of Snapshot
+func (_mr *MockMapStorageMockRecorder) Snapshot(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Snapshot", arg0)
 }
 
+// SnapshotForTree mocks base method
 func (_m *MockMapStorage) SnapshotForTree(_param0 context.Context, _param1 int64) (ReadOnlyMapTreeTX, error) {
 	ret := _m.ctrl.Call(_m, "SnapshotForTree", _param0, _param1)
 	ret0, _ := ret[0].(ReadOnlyMapTreeTX)
@@ -513,51 +598,59 @@ func (_m *MockMapStorage) SnapshotForTree(_param0 context.Context, _param1 int64
 	return ret0, ret1
 }
 
-func (_mr *_MockMapStorageRecorder) SnapshotForTree(arg0, arg1 interface{}) *gomock.Call {
+// SnapshotForTree indicates an expected call of SnapshotForTree
+func (_mr *MockMapStorageMockRecorder) SnapshotForTree(arg0, arg1 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "SnapshotForTree", arg0, arg1)
 }
 
-// Mock of MapTreeTX interface
+// MockMapTreeTX is a mock of MapTreeTX interface
 type MockMapTreeTX struct {
 	ctrl     *gomock.Controller
-	recorder *_MockMapTreeTXRecorder
+	recorder *MockMapTreeTXMockRecorder
 }
 
-// Recorder for MockMapTreeTX (not exported)
-type _MockMapTreeTXRecorder struct {
+// MockMapTreeTXMockRecorder is the mock recorder for MockMapTreeTX
+type MockMapTreeTXMockRecorder struct {
 	mock *MockMapTreeTX
 }
 
+// NewMockMapTreeTX creates a new mock instance
 func NewMockMapTreeTX(ctrl *gomock.Controller) *MockMapTreeTX {
 	mock := &MockMapTreeTX{ctrl: ctrl}
-	mock.recorder = &_MockMapTreeTXRecorder{mock}
+	mock.recorder = &MockMapTreeTXMockRecorder{mock}
 	return mock
 }
 
-func (_m *MockMapTreeTX) EXPECT() *_MockMapTreeTXRecorder {
+// EXPECT returns an object that allows the caller to indicate expected use
+func (_m *MockMapTreeTX) EXPECT() *MockMapTreeTXMockRecorder {
 	return _m.recorder
 }
 
+// Close mocks base method
 func (_m *MockMapTreeTX) Close() error {
 	ret := _m.ctrl.Call(_m, "Close")
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockMapTreeTXRecorder) Close() *gomock.Call {
+// Close indicates an expected call of Close
+func (_mr *MockMapTreeTXMockRecorder) Close() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Close")
 }
 
+// Commit mocks base method
 func (_m *MockMapTreeTX) Commit() error {
 	ret := _m.ctrl.Call(_m, "Commit")
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockMapTreeTXRecorder) Commit() *gomock.Call {
+// Commit indicates an expected call of Commit
+func (_mr *MockMapTreeTXMockRecorder) Commit() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Commit")
 }
 
+// Get mocks base method
 func (_m *MockMapTreeTX) Get(_param0 context.Context, _param1 int64, _param2 [][]byte) ([]trillian.MapLeaf, error) {
 	ret := _m.ctrl.Call(_m, "Get", _param0, _param1, _param2)
 	ret0, _ := ret[0].([]trillian.MapLeaf)
@@ -565,10 +658,12 @@ func (_m *MockMapTreeTX) Get(_param0 context.Context, _param1 int64, _param2 [][
 	return ret0, ret1
 }
 
-func (_mr *_MockMapTreeTXRecorder) Get(arg0, arg1, arg2 interface{}) *gomock.Call {
+// Get indicates an expected call of Get
+func (_mr *MockMapTreeTXMockRecorder) Get(arg0, arg1, arg2 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Get", arg0, arg1, arg2)
 }
 
+// GetMerkleNodes mocks base method
 func (_m *MockMapTreeTX) GetMerkleNodes(_param0 context.Context, _param1 int64, _param2 []NodeID) ([]Node, error) {
 	ret := _m.ctrl.Call(_m, "GetMerkleNodes", _param0, _param1, _param2)
 	ret0, _ := ret[0].([]Node)
@@ -576,10 +671,12 @@ func (_m *MockMapTreeTX) GetMerkleNodes(_param0 context.Context, _param1 int64, 
 	return ret0, ret1
 }
 
-func (_mr *_MockMapTreeTXRecorder) GetMerkleNodes(arg0, arg1, arg2 interface{}) *gomock.Call {
+// GetMerkleNodes indicates an expected call of GetMerkleNodes
+func (_mr *MockMapTreeTXMockRecorder) GetMerkleNodes(arg0, arg1, arg2 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetMerkleNodes", arg0, arg1, arg2)
 }
 
+// GetSignedMapRoot mocks base method
 func (_m *MockMapTreeTX) GetSignedMapRoot(_param0 context.Context, _param1 int64) (trillian.SignedMapRoot, error) {
 	ret := _m.ctrl.Call(_m, "GetSignedMapRoot", _param0, _param1)
 	ret0, _ := ret[0].(trillian.SignedMapRoot)
@@ -587,20 +684,24 @@ func (_m *MockMapTreeTX) GetSignedMapRoot(_param0 context.Context, _param1 int64
 	return ret0, ret1
 }
 
-func (_mr *_MockMapTreeTXRecorder) GetSignedMapRoot(arg0, arg1 interface{}) *gomock.Call {
+// GetSignedMapRoot indicates an expected call of GetSignedMapRoot
+func (_mr *MockMapTreeTXMockRecorder) GetSignedMapRoot(arg0, arg1 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetSignedMapRoot", arg0, arg1)
 }
 
+// IsOpen mocks base method
 func (_m *MockMapTreeTX) IsOpen() bool {
 	ret := _m.ctrl.Call(_m, "IsOpen")
 	ret0, _ := ret[0].(bool)
 	return ret0
 }
 
-func (_mr *_MockMapTreeTXRecorder) IsOpen() *gomock.Call {
+// IsOpen indicates an expected call of IsOpen
+func (_mr *MockMapTreeTXMockRecorder) IsOpen() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "IsOpen")
 }
 
+// LatestSignedMapRoot mocks base method
 func (_m *MockMapTreeTX) LatestSignedMapRoot(_param0 context.Context) (trillian.SignedMapRoot, error) {
 	ret := _m.ctrl.Call(_m, "LatestSignedMapRoot", _param0)
 	ret0, _ := ret[0].(trillian.SignedMapRoot)
@@ -608,111 +709,131 @@ func (_m *MockMapTreeTX) LatestSignedMapRoot(_param0 context.Context) (trillian.
 	return ret0, ret1
 }
 
-func (_mr *_MockMapTreeTXRecorder) LatestSignedMapRoot(arg0 interface{}) *gomock.Call {
+// LatestSignedMapRoot indicates an expected call of LatestSignedMapRoot
+func (_mr *MockMapTreeTXMockRecorder) LatestSignedMapRoot(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "LatestSignedMapRoot", arg0)
 }
 
+// ReadRevision mocks base method
 func (_m *MockMapTreeTX) ReadRevision() int64 {
 	ret := _m.ctrl.Call(_m, "ReadRevision")
 	ret0, _ := ret[0].(int64)
 	return ret0
 }
 
-func (_mr *_MockMapTreeTXRecorder) ReadRevision() *gomock.Call {
+// ReadRevision indicates an expected call of ReadRevision
+func (_mr *MockMapTreeTXMockRecorder) ReadRevision() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "ReadRevision")
 }
 
+// Rollback mocks base method
 func (_m *MockMapTreeTX) Rollback() error {
 	ret := _m.ctrl.Call(_m, "Rollback")
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockMapTreeTXRecorder) Rollback() *gomock.Call {
+// Rollback indicates an expected call of Rollback
+func (_mr *MockMapTreeTXMockRecorder) Rollback() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Rollback")
 }
 
+// Set mocks base method
 func (_m *MockMapTreeTX) Set(_param0 context.Context, _param1 []byte, _param2 trillian.MapLeaf) error {
 	ret := _m.ctrl.Call(_m, "Set", _param0, _param1, _param2)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockMapTreeTXRecorder) Set(arg0, arg1, arg2 interface{}) *gomock.Call {
+// Set indicates an expected call of Set
+func (_mr *MockMapTreeTXMockRecorder) Set(arg0, arg1, arg2 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Set", arg0, arg1, arg2)
 }
 
+// SetMerkleNodes mocks base method
 func (_m *MockMapTreeTX) SetMerkleNodes(_param0 context.Context, _param1 []Node) error {
 	ret := _m.ctrl.Call(_m, "SetMerkleNodes", _param0, _param1)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockMapTreeTXRecorder) SetMerkleNodes(arg0, arg1 interface{}) *gomock.Call {
+// SetMerkleNodes indicates an expected call of SetMerkleNodes
+func (_mr *MockMapTreeTXMockRecorder) SetMerkleNodes(arg0, arg1 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "SetMerkleNodes", arg0, arg1)
 }
 
+// StoreSignedMapRoot mocks base method
 func (_m *MockMapTreeTX) StoreSignedMapRoot(_param0 context.Context, _param1 trillian.SignedMapRoot) error {
 	ret := _m.ctrl.Call(_m, "StoreSignedMapRoot", _param0, _param1)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockMapTreeTXRecorder) StoreSignedMapRoot(arg0, arg1 interface{}) *gomock.Call {
+// StoreSignedMapRoot indicates an expected call of StoreSignedMapRoot
+func (_mr *MockMapTreeTXMockRecorder) StoreSignedMapRoot(arg0, arg1 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "StoreSignedMapRoot", arg0, arg1)
 }
 
+// WriteRevision mocks base method
 func (_m *MockMapTreeTX) WriteRevision() int64 {
 	ret := _m.ctrl.Call(_m, "WriteRevision")
 	ret0, _ := ret[0].(int64)
 	return ret0
 }
 
-func (_mr *_MockMapTreeTXRecorder) WriteRevision() *gomock.Call {
+// WriteRevision indicates an expected call of WriteRevision
+func (_mr *MockMapTreeTXMockRecorder) WriteRevision() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "WriteRevision")
 }
 
-// Mock of ReadOnlyAdminTX interface
+// MockReadOnlyAdminTX is a mock of ReadOnlyAdminTX interface
 type MockReadOnlyAdminTX struct {
 	ctrl     *gomock.Controller
-	recorder *_MockReadOnlyAdminTXRecorder
+	recorder *MockReadOnlyAdminTXMockRecorder
 }
 
-// Recorder for MockReadOnlyAdminTX (not exported)
-type _MockReadOnlyAdminTXRecorder struct {
+// MockReadOnlyAdminTXMockRecorder is the mock recorder for MockReadOnlyAdminTX
+type MockReadOnlyAdminTXMockRecorder struct {
 	mock *MockReadOnlyAdminTX
 }
 
+// NewMockReadOnlyAdminTX creates a new mock instance
 func NewMockReadOnlyAdminTX(ctrl *gomock.Controller) *MockReadOnlyAdminTX {
 	mock := &MockReadOnlyAdminTX{ctrl: ctrl}
-	mock.recorder = &_MockReadOnlyAdminTXRecorder{mock}
+	mock.recorder = &MockReadOnlyAdminTXMockRecorder{mock}
 	return mock
 }
 
-func (_m *MockReadOnlyAdminTX) EXPECT() *_MockReadOnlyAdminTXRecorder {
+// EXPECT returns an object that allows the caller to indicate expected use
+func (_m *MockReadOnlyAdminTX) EXPECT() *MockReadOnlyAdminTXMockRecorder {
 	return _m.recorder
 }
 
+// Close mocks base method
 func (_m *MockReadOnlyAdminTX) Close() error {
 	ret := _m.ctrl.Call(_m, "Close")
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockReadOnlyAdminTXRecorder) Close() *gomock.Call {
+// Close indicates an expected call of Close
+func (_mr *MockReadOnlyAdminTXMockRecorder) Close() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Close")
 }
 
+// Commit mocks base method
 func (_m *MockReadOnlyAdminTX) Commit() error {
 	ret := _m.ctrl.Call(_m, "Commit")
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockReadOnlyAdminTXRecorder) Commit() *gomock.Call {
+// Commit indicates an expected call of Commit
+func (_mr *MockReadOnlyAdminTXMockRecorder) Commit() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Commit")
 }
 
+// GetTree mocks base method
 func (_m *MockReadOnlyAdminTX) GetTree(_param0 context.Context, _param1 int64) (*trillian.Tree, error) {
 	ret := _m.ctrl.Call(_m, "GetTree", _param0, _param1)
 	ret0, _ := ret[0].(*trillian.Tree)
@@ -720,20 +841,24 @@ func (_m *MockReadOnlyAdminTX) GetTree(_param0 context.Context, _param1 int64) (
 	return ret0, ret1
 }
 
-func (_mr *_MockReadOnlyAdminTXRecorder) GetTree(arg0, arg1 interface{}) *gomock.Call {
+// GetTree indicates an expected call of GetTree
+func (_mr *MockReadOnlyAdminTXMockRecorder) GetTree(arg0, arg1 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetTree", arg0, arg1)
 }
 
+// IsClosed mocks base method
 func (_m *MockReadOnlyAdminTX) IsClosed() bool {
 	ret := _m.ctrl.Call(_m, "IsClosed")
 	ret0, _ := ret[0].(bool)
 	return ret0
 }
 
-func (_mr *_MockReadOnlyAdminTXRecorder) IsClosed() *gomock.Call {
+// IsClosed indicates an expected call of IsClosed
+func (_mr *MockReadOnlyAdminTXMockRecorder) IsClosed() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "IsClosed")
 }
 
+// ListTreeIDs mocks base method
 func (_m *MockReadOnlyAdminTX) ListTreeIDs(_param0 context.Context) ([]int64, error) {
 	ret := _m.ctrl.Call(_m, "ListTreeIDs", _param0)
 	ret0, _ := ret[0].([]int64)
@@ -741,10 +866,12 @@ func (_m *MockReadOnlyAdminTX) ListTreeIDs(_param0 context.Context) ([]int64, er
 	return ret0, ret1
 }
 
-func (_mr *_MockReadOnlyAdminTXRecorder) ListTreeIDs(arg0 interface{}) *gomock.Call {
+// ListTreeIDs indicates an expected call of ListTreeIDs
+func (_mr *MockReadOnlyAdminTXMockRecorder) ListTreeIDs(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "ListTreeIDs", arg0)
 }
 
+// ListTrees mocks base method
 func (_m *MockReadOnlyAdminTX) ListTrees(_param0 context.Context) ([]*trillian.Tree, error) {
 	ret := _m.ctrl.Call(_m, "ListTrees", _param0)
 	ret0, _ := ret[0].([]*trillian.Tree)
@@ -752,61 +879,71 @@ func (_m *MockReadOnlyAdminTX) ListTrees(_param0 context.Context) ([]*trillian.T
 	return ret0, ret1
 }
 
-func (_mr *_MockReadOnlyAdminTXRecorder) ListTrees(arg0 interface{}) *gomock.Call {
+// ListTrees indicates an expected call of ListTrees
+func (_mr *MockReadOnlyAdminTXMockRecorder) ListTrees(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "ListTrees", arg0)
 }
 
+// Rollback mocks base method
 func (_m *MockReadOnlyAdminTX) Rollback() error {
 	ret := _m.ctrl.Call(_m, "Rollback")
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockReadOnlyAdminTXRecorder) Rollback() *gomock.Call {
+// Rollback indicates an expected call of Rollback
+func (_mr *MockReadOnlyAdminTXMockRecorder) Rollback() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Rollback")
 }
 
-// Mock of ReadOnlyLogTX interface
+// MockReadOnlyLogTX is a mock of ReadOnlyLogTX interface
 type MockReadOnlyLogTX struct {
 	ctrl     *gomock.Controller
-	recorder *_MockReadOnlyLogTXRecorder
+	recorder *MockReadOnlyLogTXMockRecorder
 }
 
-// Recorder for MockReadOnlyLogTX (not exported)
-type _MockReadOnlyLogTXRecorder struct {
+// MockReadOnlyLogTXMockRecorder is the mock recorder for MockReadOnlyLogTX
+type MockReadOnlyLogTXMockRecorder struct {
 	mock *MockReadOnlyLogTX
 }
 
+// NewMockReadOnlyLogTX creates a new mock instance
 func NewMockReadOnlyLogTX(ctrl *gomock.Controller) *MockReadOnlyLogTX {
 	mock := &MockReadOnlyLogTX{ctrl: ctrl}
-	mock.recorder = &_MockReadOnlyLogTXRecorder{mock}
+	mock.recorder = &MockReadOnlyLogTXMockRecorder{mock}
 	return mock
 }
 
-func (_m *MockReadOnlyLogTX) EXPECT() *_MockReadOnlyLogTXRecorder {
+// EXPECT returns an object that allows the caller to indicate expected use
+func (_m *MockReadOnlyLogTX) EXPECT() *MockReadOnlyLogTXMockRecorder {
 	return _m.recorder
 }
 
+// Close mocks base method
 func (_m *MockReadOnlyLogTX) Close() error {
 	ret := _m.ctrl.Call(_m, "Close")
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockReadOnlyLogTXRecorder) Close() *gomock.Call {
+// Close indicates an expected call of Close
+func (_mr *MockReadOnlyLogTXMockRecorder) Close() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Close")
 }
 
+// Commit mocks base method
 func (_m *MockReadOnlyLogTX) Commit() error {
 	ret := _m.ctrl.Call(_m, "Commit")
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockReadOnlyLogTXRecorder) Commit() *gomock.Call {
+// Commit indicates an expected call of Commit
+func (_mr *MockReadOnlyLogTXMockRecorder) Commit() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Commit")
 }
 
+// GetActiveLogIDs mocks base method
 func (_m *MockReadOnlyLogTX) GetActiveLogIDs(_param0 context.Context) ([]int64, error) {
 	ret := _m.ctrl.Call(_m, "GetActiveLogIDs", _param0)
 	ret0, _ := ret[0].([]int64)
@@ -814,10 +951,12 @@ func (_m *MockReadOnlyLogTX) GetActiveLogIDs(_param0 context.Context) ([]int64, 
 	return ret0, ret1
 }
 
-func (_mr *_MockReadOnlyLogTXRecorder) GetActiveLogIDs(arg0 interface{}) *gomock.Call {
+// GetActiveLogIDs indicates an expected call of GetActiveLogIDs
+func (_mr *MockReadOnlyLogTXMockRecorder) GetActiveLogIDs(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetActiveLogIDs", arg0)
 }
 
+// GetActiveLogIDsWithPendingWork mocks base method
 func (_m *MockReadOnlyLogTX) GetActiveLogIDsWithPendingWork(_param0 context.Context) ([]int64, error) {
 	ret := _m.ctrl.Call(_m, "GetActiveLogIDsWithPendingWork", _param0)
 	ret0, _ := ret[0].([]int64)
@@ -825,61 +964,71 @@ func (_m *MockReadOnlyLogTX) GetActiveLogIDsWithPendingWork(_param0 context.Cont
 	return ret0, ret1
 }
 
-func (_mr *_MockReadOnlyLogTXRecorder) GetActiveLogIDsWithPendingWork(arg0 interface{}) *gomock.Call {
+// GetActiveLogIDsWithPendingWork indicates an expected call of GetActiveLogIDsWithPendingWork
+func (_mr *MockReadOnlyLogTXMockRecorder) GetActiveLogIDsWithPendingWork(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetActiveLogIDsWithPendingWork", arg0)
 }
 
+// Rollback mocks base method
 func (_m *MockReadOnlyLogTX) Rollback() error {
 	ret := _m.ctrl.Call(_m, "Rollback")
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockReadOnlyLogTXRecorder) Rollback() *gomock.Call {
+// Rollback indicates an expected call of Rollback
+func (_mr *MockReadOnlyLogTXMockRecorder) Rollback() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Rollback")
 }
 
-// Mock of ReadOnlyLogTreeTX interface
+// MockReadOnlyLogTreeTX is a mock of ReadOnlyLogTreeTX interface
 type MockReadOnlyLogTreeTX struct {
 	ctrl     *gomock.Controller
-	recorder *_MockReadOnlyLogTreeTXRecorder
+	recorder *MockReadOnlyLogTreeTXMockRecorder
 }
 
-// Recorder for MockReadOnlyLogTreeTX (not exported)
-type _MockReadOnlyLogTreeTXRecorder struct {
+// MockReadOnlyLogTreeTXMockRecorder is the mock recorder for MockReadOnlyLogTreeTX
+type MockReadOnlyLogTreeTXMockRecorder struct {
 	mock *MockReadOnlyLogTreeTX
 }
 
+// NewMockReadOnlyLogTreeTX creates a new mock instance
 func NewMockReadOnlyLogTreeTX(ctrl *gomock.Controller) *MockReadOnlyLogTreeTX {
 	mock := &MockReadOnlyLogTreeTX{ctrl: ctrl}
-	mock.recorder = &_MockReadOnlyLogTreeTXRecorder{mock}
+	mock.recorder = &MockReadOnlyLogTreeTXMockRecorder{mock}
 	return mock
 }
 
-func (_m *MockReadOnlyLogTreeTX) EXPECT() *_MockReadOnlyLogTreeTXRecorder {
+// EXPECT returns an object that allows the caller to indicate expected use
+func (_m *MockReadOnlyLogTreeTX) EXPECT() *MockReadOnlyLogTreeTXMockRecorder {
 	return _m.recorder
 }
 
+// Close mocks base method
 func (_m *MockReadOnlyLogTreeTX) Close() error {
 	ret := _m.ctrl.Call(_m, "Close")
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockReadOnlyLogTreeTXRecorder) Close() *gomock.Call {
+// Close indicates an expected call of Close
+func (_mr *MockReadOnlyLogTreeTXMockRecorder) Close() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Close")
 }
 
+// Commit mocks base method
 func (_m *MockReadOnlyLogTreeTX) Commit() error {
 	ret := _m.ctrl.Call(_m, "Commit")
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockReadOnlyLogTreeTXRecorder) Commit() *gomock.Call {
+// Commit indicates an expected call of Commit
+func (_mr *MockReadOnlyLogTreeTXMockRecorder) Commit() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Commit")
 }
 
+// GetLeavesByHash mocks base method
 func (_m *MockReadOnlyLogTreeTX) GetLeavesByHash(_param0 context.Context, _param1 [][]byte, _param2 bool) ([]*trillian.LogLeaf, error) {
 	ret := _m.ctrl.Call(_m, "GetLeavesByHash", _param0, _param1, _param2)
 	ret0, _ := ret[0].([]*trillian.LogLeaf)
@@ -887,10 +1036,12 @@ func (_m *MockReadOnlyLogTreeTX) GetLeavesByHash(_param0 context.Context, _param
 	return ret0, ret1
 }
 
-func (_mr *_MockReadOnlyLogTreeTXRecorder) GetLeavesByHash(arg0, arg1, arg2 interface{}) *gomock.Call {
+// GetLeavesByHash indicates an expected call of GetLeavesByHash
+func (_mr *MockReadOnlyLogTreeTXMockRecorder) GetLeavesByHash(arg0, arg1, arg2 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetLeavesByHash", arg0, arg1, arg2)
 }
 
+// GetLeavesByIndex mocks base method
 func (_m *MockReadOnlyLogTreeTX) GetLeavesByIndex(_param0 context.Context, _param1 []int64) ([]*trillian.LogLeaf, error) {
 	ret := _m.ctrl.Call(_m, "GetLeavesByIndex", _param0, _param1)
 	ret0, _ := ret[0].([]*trillian.LogLeaf)
@@ -898,10 +1049,12 @@ func (_m *MockReadOnlyLogTreeTX) GetLeavesByIndex(_param0 context.Context, _para
 	return ret0, ret1
 }
 
-func (_mr *_MockReadOnlyLogTreeTXRecorder) GetLeavesByIndex(arg0, arg1 interface{}) *gomock.Call {
+// GetLeavesByIndex indicates an expected call of GetLeavesByIndex
+func (_mr *MockReadOnlyLogTreeTXMockRecorder) GetLeavesByIndex(arg0, arg1 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetLeavesByIndex", arg0, arg1)
 }
 
+// GetMerkleNodes mocks base method
 func (_m *MockReadOnlyLogTreeTX) GetMerkleNodes(_param0 context.Context, _param1 int64, _param2 []NodeID) ([]Node, error) {
 	ret := _m.ctrl.Call(_m, "GetMerkleNodes", _param0, _param1, _param2)
 	ret0, _ := ret[0].([]Node)
@@ -909,10 +1062,12 @@ func (_m *MockReadOnlyLogTreeTX) GetMerkleNodes(_param0 context.Context, _param1
 	return ret0, ret1
 }
 
-func (_mr *_MockReadOnlyLogTreeTXRecorder) GetMerkleNodes(arg0, arg1, arg2 interface{}) *gomock.Call {
+// GetMerkleNodes indicates an expected call of GetMerkleNodes
+func (_mr *MockReadOnlyLogTreeTXMockRecorder) GetMerkleNodes(arg0, arg1, arg2 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetMerkleNodes", arg0, arg1, arg2)
 }
 
+// GetSequencedLeafCount mocks base method
 func (_m *MockReadOnlyLogTreeTX) GetSequencedLeafCount(_param0 context.Context) (int64, error) {
 	ret := _m.ctrl.Call(_m, "GetSequencedLeafCount", _param0)
 	ret0, _ := ret[0].(int64)
@@ -920,20 +1075,24 @@ func (_m *MockReadOnlyLogTreeTX) GetSequencedLeafCount(_param0 context.Context) 
 	return ret0, ret1
 }
 
-func (_mr *_MockReadOnlyLogTreeTXRecorder) GetSequencedLeafCount(arg0 interface{}) *gomock.Call {
+// GetSequencedLeafCount indicates an expected call of GetSequencedLeafCount
+func (_mr *MockReadOnlyLogTreeTXMockRecorder) GetSequencedLeafCount(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetSequencedLeafCount", arg0)
 }
 
+// IsOpen mocks base method
 func (_m *MockReadOnlyLogTreeTX) IsOpen() bool {
 	ret := _m.ctrl.Call(_m, "IsOpen")
 	ret0, _ := ret[0].(bool)
 	return ret0
 }
 
-func (_mr *_MockReadOnlyLogTreeTXRecorder) IsOpen() *gomock.Call {
+// IsOpen indicates an expected call of IsOpen
+func (_mr *MockReadOnlyLogTreeTXMockRecorder) IsOpen() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "IsOpen")
 }
 
+// LatestSignedLogRoot mocks base method
 func (_m *MockReadOnlyLogTreeTX) LatestSignedLogRoot(_param0 context.Context) (trillian.SignedLogRoot, error) {
 	ret := _m.ctrl.Call(_m, "LatestSignedLogRoot", _param0)
 	ret0, _ := ret[0].(trillian.SignedLogRoot)
@@ -941,71 +1100,83 @@ func (_m *MockReadOnlyLogTreeTX) LatestSignedLogRoot(_param0 context.Context) (t
 	return ret0, ret1
 }
 
-func (_mr *_MockReadOnlyLogTreeTXRecorder) LatestSignedLogRoot(arg0 interface{}) *gomock.Call {
+// LatestSignedLogRoot indicates an expected call of LatestSignedLogRoot
+func (_mr *MockReadOnlyLogTreeTXMockRecorder) LatestSignedLogRoot(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "LatestSignedLogRoot", arg0)
 }
 
+// ReadRevision mocks base method
 func (_m *MockReadOnlyLogTreeTX) ReadRevision() int64 {
 	ret := _m.ctrl.Call(_m, "ReadRevision")
 	ret0, _ := ret[0].(int64)
 	return ret0
 }
 
-func (_mr *_MockReadOnlyLogTreeTXRecorder) ReadRevision() *gomock.Call {
+// ReadRevision indicates an expected call of ReadRevision
+func (_mr *MockReadOnlyLogTreeTXMockRecorder) ReadRevision() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "ReadRevision")
 }
 
+// Rollback mocks base method
 func (_m *MockReadOnlyLogTreeTX) Rollback() error {
 	ret := _m.ctrl.Call(_m, "Rollback")
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockReadOnlyLogTreeTXRecorder) Rollback() *gomock.Call {
+// Rollback indicates an expected call of Rollback
+func (_mr *MockReadOnlyLogTreeTXMockRecorder) Rollback() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Rollback")
 }
 
-// Mock of ReadOnlyMapTreeTX interface
+// MockReadOnlyMapTreeTX is a mock of ReadOnlyMapTreeTX interface
 type MockReadOnlyMapTreeTX struct {
 	ctrl     *gomock.Controller
-	recorder *_MockReadOnlyMapTreeTXRecorder
+	recorder *MockReadOnlyMapTreeTXMockRecorder
 }
 
-// Recorder for MockReadOnlyMapTreeTX (not exported)
-type _MockReadOnlyMapTreeTXRecorder struct {
+// MockReadOnlyMapTreeTXMockRecorder is the mock recorder for MockReadOnlyMapTreeTX
+type MockReadOnlyMapTreeTXMockRecorder struct {
 	mock *MockReadOnlyMapTreeTX
 }
 
+// NewMockReadOnlyMapTreeTX creates a new mock instance
 func NewMockReadOnlyMapTreeTX(ctrl *gomock.Controller) *MockReadOnlyMapTreeTX {
 	mock := &MockReadOnlyMapTreeTX{ctrl: ctrl}
-	mock.recorder = &_MockReadOnlyMapTreeTXRecorder{mock}
+	mock.recorder = &MockReadOnlyMapTreeTXMockRecorder{mock}
 	return mock
 }
 
-func (_m *MockReadOnlyMapTreeTX) EXPECT() *_MockReadOnlyMapTreeTXRecorder {
+// EXPECT returns an object that allows the caller to indicate expected use
+func (_m *MockReadOnlyMapTreeTX) EXPECT() *MockReadOnlyMapTreeTXMockRecorder {
 	return _m.recorder
 }
 
+// Close mocks base method
 func (_m *MockReadOnlyMapTreeTX) Close() error {
 	ret := _m.ctrl.Call(_m, "Close")
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockReadOnlyMapTreeTXRecorder) Close() *gomock.Call {
+// Close indicates an expected call of Close
+func (_mr *MockReadOnlyMapTreeTXMockRecorder) Close() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Close")
 }
 
+// Commit mocks base method
 func (_m *MockReadOnlyMapTreeTX) Commit() error {
 	ret := _m.ctrl.Call(_m, "Commit")
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockReadOnlyMapTreeTXRecorder) Commit() *gomock.Call {
+// Commit indicates an expected call of Commit
+func (_mr *MockReadOnlyMapTreeTXMockRecorder) Commit() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Commit")
 }
 
+// Get mocks base method
 func (_m *MockReadOnlyMapTreeTX) Get(_param0 context.Context, _param1 int64, _param2 [][]byte) ([]trillian.MapLeaf, error) {
 	ret := _m.ctrl.Call(_m, "Get", _param0, _param1, _param2)
 	ret0, _ := ret[0].([]trillian.MapLeaf)
@@ -1013,10 +1184,12 @@ func (_m *MockReadOnlyMapTreeTX) Get(_param0 context.Context, _param1 int64, _pa
 	return ret0, ret1
 }
 
-func (_mr *_MockReadOnlyMapTreeTXRecorder) Get(arg0, arg1, arg2 interface{}) *gomock.Call {
+// Get indicates an expected call of Get
+func (_mr *MockReadOnlyMapTreeTXMockRecorder) Get(arg0, arg1, arg2 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Get", arg0, arg1, arg2)
 }
 
+// GetMerkleNodes mocks base method
 func (_m *MockReadOnlyMapTreeTX) GetMerkleNodes(_param0 context.Context, _param1 int64, _param2 []NodeID) ([]Node, error) {
 	ret := _m.ctrl.Call(_m, "GetMerkleNodes", _param0, _param1, _param2)
 	ret0, _ := ret[0].([]Node)
@@ -1024,10 +1197,12 @@ func (_m *MockReadOnlyMapTreeTX) GetMerkleNodes(_param0 context.Context, _param1
 	return ret0, ret1
 }
 
-func (_mr *_MockReadOnlyMapTreeTXRecorder) GetMerkleNodes(arg0, arg1, arg2 interface{}) *gomock.Call {
+// GetMerkleNodes indicates an expected call of GetMerkleNodes
+func (_mr *MockReadOnlyMapTreeTXMockRecorder) GetMerkleNodes(arg0, arg1, arg2 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetMerkleNodes", arg0, arg1, arg2)
 }
 
+// GetSignedMapRoot mocks base method
 func (_m *MockReadOnlyMapTreeTX) GetSignedMapRoot(_param0 context.Context, _param1 int64) (trillian.SignedMapRoot, error) {
 	ret := _m.ctrl.Call(_m, "GetSignedMapRoot", _param0, _param1)
 	ret0, _ := ret[0].(trillian.SignedMapRoot)
@@ -1035,20 +1210,24 @@ func (_m *MockReadOnlyMapTreeTX) GetSignedMapRoot(_param0 context.Context, _para
 	return ret0, ret1
 }
 
-func (_mr *_MockReadOnlyMapTreeTXRecorder) GetSignedMapRoot(arg0, arg1 interface{}) *gomock.Call {
+// GetSignedMapRoot indicates an expected call of GetSignedMapRoot
+func (_mr *MockReadOnlyMapTreeTXMockRecorder) GetSignedMapRoot(arg0, arg1 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetSignedMapRoot", arg0, arg1)
 }
 
+// IsOpen mocks base method
 func (_m *MockReadOnlyMapTreeTX) IsOpen() bool {
 	ret := _m.ctrl.Call(_m, "IsOpen")
 	ret0, _ := ret[0].(bool)
 	return ret0
 }
 
-func (_mr *_MockReadOnlyMapTreeTXRecorder) IsOpen() *gomock.Call {
+// IsOpen indicates an expected call of IsOpen
+func (_mr *MockReadOnlyMapTreeTXMockRecorder) IsOpen() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "IsOpen")
 }
 
+// LatestSignedMapRoot mocks base method
 func (_m *MockReadOnlyMapTreeTX) LatestSignedMapRoot(_param0 context.Context) (trillian.SignedMapRoot, error) {
 	ret := _m.ctrl.Call(_m, "LatestSignedMapRoot", _param0)
 	ret0, _ := ret[0].(trillian.SignedMapRoot)
@@ -1056,26 +1235,31 @@ func (_m *MockReadOnlyMapTreeTX) LatestSignedMapRoot(_param0 context.Context) (t
 	return ret0, ret1
 }
 
-func (_mr *_MockReadOnlyMapTreeTXRecorder) LatestSignedMapRoot(arg0 interface{}) *gomock.Call {
+// LatestSignedMapRoot indicates an expected call of LatestSignedMapRoot
+func (_mr *MockReadOnlyMapTreeTXMockRecorder) LatestSignedMapRoot(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "LatestSignedMapRoot", arg0)
 }
 
+// ReadRevision mocks base method
 func (_m *MockReadOnlyMapTreeTX) ReadRevision() int64 {
 	ret := _m.ctrl.Call(_m, "ReadRevision")
 	ret0, _ := ret[0].(int64)
 	return ret0
 }
 
-func (_mr *_MockReadOnlyMapTreeTXRecorder) ReadRevision() *gomock.Call {
+// ReadRevision indicates an expected call of ReadRevision
+func (_mr *MockReadOnlyMapTreeTXMockRecorder) ReadRevision() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "ReadRevision")
 }
 
+// Rollback mocks base method
 func (_m *MockReadOnlyMapTreeTX) Rollback() error {
 	ret := _m.ctrl.Call(_m, "Rollback")
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-func (_mr *_MockReadOnlyMapTreeTXRecorder) Rollback() *gomock.Call {
+// Rollback indicates an expected call of Rollback
+func (_mr *MockReadOnlyMapTreeTXMockRecorder) Rollback() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Rollback")
 }
