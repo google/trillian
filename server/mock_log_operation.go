@@ -8,27 +8,30 @@ import (
 	gomock "github.com/golang/mock/gomock"
 )
 
-// Mock of LogOperation interface
+// MockLogOperation is a mock of LogOperation interface
 type MockLogOperation struct {
 	ctrl     *gomock.Controller
-	recorder *_MockLogOperationRecorder
+	recorder *MockLogOperationMockRecorder
 }
 
-// Recorder for MockLogOperation (not exported)
-type _MockLogOperationRecorder struct {
+// MockLogOperationMockRecorder is the mock recorder for MockLogOperation
+type MockLogOperationMockRecorder struct {
 	mock *MockLogOperation
 }
 
+// NewMockLogOperation creates a new mock instance
 func NewMockLogOperation(ctrl *gomock.Controller) *MockLogOperation {
 	mock := &MockLogOperation{ctrl: ctrl}
-	mock.recorder = &_MockLogOperationRecorder{mock}
+	mock.recorder = &MockLogOperationMockRecorder{mock}
 	return mock
 }
 
-func (_m *MockLogOperation) EXPECT() *_MockLogOperationRecorder {
+// EXPECT returns an object that allows the caller to indicate expected use
+func (_m *MockLogOperation) EXPECT() *MockLogOperationMockRecorder {
 	return _m.recorder
 }
 
+// ExecutePass mocks base method
 func (_m *MockLogOperation) ExecutePass(_param0 context.Context, _param1 int64, _param2 *LogOperationInfo) (int, error) {
 	ret := _m.ctrl.Call(_m, "ExecutePass", _param0, _param1, _param2)
 	ret0, _ := ret[0].(int)
@@ -36,16 +39,19 @@ func (_m *MockLogOperation) ExecutePass(_param0 context.Context, _param1 int64, 
 	return ret0, ret1
 }
 
-func (_mr *_MockLogOperationRecorder) ExecutePass(arg0, arg1, arg2 interface{}) *gomock.Call {
+// ExecutePass indicates an expected call of ExecutePass
+func (_mr *MockLogOperationMockRecorder) ExecutePass(arg0, arg1, arg2 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "ExecutePass", arg0, arg1, arg2)
 }
 
+// Name mocks base method
 func (_m *MockLogOperation) Name() string {
 	ret := _m.ctrl.Call(_m, "Name")
 	ret0, _ := ret[0].(string)
 	return ret0
 }
 
-func (_mr *_MockLogOperationRecorder) Name() *gomock.Call {
+// Name indicates an expected call of Name
+func (_mr *MockLogOperationMockRecorder) Name() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Name")
 }

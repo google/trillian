@@ -11,27 +11,30 @@ import (
 	keyspb "github.com/google/trillian/crypto/keyspb"
 )
 
-// Mock of SignerFactory interface
+// MockSignerFactory is a mock of SignerFactory interface
 type MockSignerFactory struct {
 	ctrl     *gomock.Controller
-	recorder *_MockSignerFactoryRecorder
+	recorder *MockSignerFactoryMockRecorder
 }
 
-// Recorder for MockSignerFactory (not exported)
-type _MockSignerFactoryRecorder struct {
+// MockSignerFactoryMockRecorder is the mock recorder for MockSignerFactory
+type MockSignerFactoryMockRecorder struct {
 	mock *MockSignerFactory
 }
 
+// NewMockSignerFactory creates a new mock instance
 func NewMockSignerFactory(ctrl *gomock.Controller) *MockSignerFactory {
 	mock := &MockSignerFactory{ctrl: ctrl}
-	mock.recorder = &_MockSignerFactoryRecorder{mock}
+	mock.recorder = &MockSignerFactoryMockRecorder{mock}
 	return mock
 }
 
-func (_m *MockSignerFactory) EXPECT() *_MockSignerFactoryRecorder {
+// EXPECT returns an object that allows the caller to indicate expected use
+func (_m *MockSignerFactory) EXPECT() *MockSignerFactoryMockRecorder {
 	return _m.recorder
 }
 
+// Generate mocks base method
 func (_m *MockSignerFactory) Generate(_param0 context.Context, _param1 *keyspb.Specification) (proto.Message, error) {
 	ret := _m.ctrl.Call(_m, "Generate", _param0, _param1)
 	ret0, _ := ret[0].(proto.Message)
@@ -39,10 +42,12 @@ func (_m *MockSignerFactory) Generate(_param0 context.Context, _param1 *keyspb.S
 	return ret0, ret1
 }
 
-func (_mr *_MockSignerFactoryRecorder) Generate(arg0, arg1 interface{}) *gomock.Call {
+// Generate indicates an expected call of Generate
+func (_mr *MockSignerFactoryMockRecorder) Generate(arg0, arg1 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Generate", arg0, arg1)
 }
 
+// NewSigner mocks base method
 func (_m *MockSignerFactory) NewSigner(_param0 context.Context, _param1 proto.Message) (crypto.Signer, error) {
 	ret := _m.ctrl.Call(_m, "NewSigner", _param0, _param1)
 	ret0, _ := ret[0].(crypto.Signer)
@@ -50,6 +55,7 @@ func (_m *MockSignerFactory) NewSigner(_param0 context.Context, _param1 proto.Me
 	return ret0, ret1
 }
 
-func (_mr *_MockSignerFactoryRecorder) NewSigner(arg0, arg1 interface{}) *gomock.Call {
+// NewSigner indicates an expected call of NewSigner
+func (_mr *MockSignerFactoryMockRecorder) NewSigner(arg0, arg1 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "NewSigner", arg0, arg1)
 }
