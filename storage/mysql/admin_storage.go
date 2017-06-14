@@ -27,6 +27,7 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keyspb"
 	spb "github.com/google/trillian/crypto/sigpb"
+	"github.com/google/trillian/errors"
 	"github.com/google/trillian/storage"
 )
 
@@ -130,7 +131,18 @@ func (t *adminTX) GetTree(ctx context.Context, treeID int64) (*trillian.Tree, er
 		return nil, err
 	}
 	defer stmt.Close()
-	return readTree(stmt.QueryRowContext(ctx, treeID))
+
+	// GetTree is an entry point for most RPCs, let's provide somewhat nicer error messages.
+	tree, err := readTree(stmt.QueryRowContext(ctx, treeID))
+	switch {
+	case err == sql.ErrNoRows:
+		// ErrNoRows doesn't provide useful information, so we don't forward it.
+		return nil, errors.Errorf(errors.NotFound, "tree %v not found", treeID)
+	case err != nil:
+		return nil, fmt.Errorf("error reading tree %v: %v", treeID, err)
+	}
+
+	return tree, nil
 }
 
 // There's no common interface between sql.Row and sql.Rows(!), so we have to
