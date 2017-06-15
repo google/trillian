@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/google/trillian/testonly"
+	"github.com/google/trillian/merkle/rfc6962"
 )
 
 type logProofTestVector struct {
@@ -297,7 +297,7 @@ func verifierConsistencyCheck(v *LogVerifier, snapshot1, snapshot2 int64, root1,
 }
 
 func TestVerifyInclusionProof(t *testing.T) {
-	v := NewLogVerifier(testonly.Hasher)
+	v := NewLogVerifier(rfc6962.DefaultHasher)
 	path := [][]byte{}
 	// Various invalid paths
 	if err := v.VerifyInclusionProof(0, 0, path, []byte{}, []byte{1}); err == nil {
@@ -333,7 +333,7 @@ func TestVerifyInclusionProof(t *testing.T) {
 		for j := int64(0); j < inclusionProofs[i].proofLength; j++ {
 			proof = append(proof, inclusionProofs[i].proof[j].h)
 		}
-		leafHash := testonly.Hasher.HashLeaf(leaves[inclusionProofs[i].leaf-1].h)
+		leafHash := rfc6962.DefaultHasher.HashLeaf(leaves[inclusionProofs[i].leaf-1].h)
 		err := verifierCheck(&v, inclusionProofs[i].leaf-1, inclusionProofs[i].snapshot, proof,
 			roots[inclusionProofs[i].snapshot-1].h, leafHash)
 		if err != nil {
@@ -344,7 +344,7 @@ func TestVerifyInclusionProof(t *testing.T) {
 }
 
 func TestVerifyConsistencyProof(t *testing.T) {
-	v := NewLogVerifier(testonly.Hasher)
+	v := NewLogVerifier(rfc6962.DefaultHasher)
 
 	proof := [][]byte{}
 	root1 := []byte("don't care")
