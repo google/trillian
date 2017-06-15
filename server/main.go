@@ -117,14 +117,23 @@ func AnnounceSelf(ctx context.Context, etcdServers, etcdService, endpoint string
 	}
 	res := etcdnaming.GRPCResolver{Client: client}
 
+	// Get a lease so our entry self-destructs.
+	leaseRsp, err := client.Grant(ctx, 30)
+	if err != nil {
+		glog.Exitf("Failed to get lease from etcd: %v", err)
+	}
+	client.KeepAlive(ctx, leaseRsp.ID)
+
 	update := naming.Update{Op: naming.Add, Addr: endpoint}
-	res.Update(ctx, etcdService, update)
+	res.Update(ctx, etcdService, update, clientv3.WithLease(leaseRsp.ID))
 	glog.Infof("Announcing our presence in %v with %+v", etcdService, update)
 
 	bye := naming.Update{Op: naming.Delete, Addr: endpoint}
 	return func() {
 		// Use a background context because the original context may have been cancelled.
 		glog.Infof("Removing our presence in %v with %+v", etcdService, bye)
-		res.Update(context.Background(), etcdService, bye)
+		ctx := context.Background()
+		res.Update(ctx, etcdService, bye)
+		client.Revoke(ctx, leaseRsp.ID)
 	}
 }
