@@ -74,8 +74,8 @@ func (f *PEMSignerFactory) Generate(ctx context.Context, spec *keyspb.Specificat
 	return &keyspb.PrivateKey{Der: der}, nil
 }
 
-// SetPKCS11Module should be called before creating a PEMSignerFactory
-// if the tree is expected to contain a PKCS#11 key
+// SetPKCS11Module sets the path to the PKCS#11 module required to load
+// PKCS#11 keys
 func (f *PEMSignerFactory) SetPKCS11Module(modulePath string) {
 	f.pMu.Lock()
 	defer f.pMu.Unlock()
