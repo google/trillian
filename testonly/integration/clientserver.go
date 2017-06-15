@@ -29,7 +29,9 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys"
+	ktestonly "github.com/google/trillian/crypto/keys/testonly"
 	"github.com/google/trillian/crypto/keyspb"
+
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/server"
@@ -48,22 +50,9 @@ var (
 	timeSource        = util.SystemTimeSource{}
 	publicKey         = testonly.DemoPublicKey
 	privateKeyInfo    = &keyspb.PrivateKey{
-		Der: privatePEMToDER(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass),
+		Der: ktestonly.MustMarshalPrivatePEMToDER(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass),
 	}
 )
-
-func privatePEMToDER(pem, password string) []byte {
-	key, err := keys.NewFromPrivatePEM(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
-	if err != nil {
-		panic(err)
-	}
-
-	der, err := keys.MarshalPrivateKey(key)
-	if err != nil {
-		panic(err)
-	}
-	return der
-}
 
 // LogEnv is a test environment that contains both a log server and a connection to it.
 type LogEnv struct {
