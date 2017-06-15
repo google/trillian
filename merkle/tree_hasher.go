@@ -30,9 +30,3 @@ type TreeHasher interface {
 	// TODO(gbelvin): Replace Size() with BitLength().
 	Size() int
 }
-
-// MapHasher provides the hash functions needed to compute sparse merkle trees of a static height.
-// TODO(gbelvin) remove.
-type MapHasher interface {
-	TreeHasher
-}

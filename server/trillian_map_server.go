@@ -259,7 +259,7 @@ func (t *TrillianMapServer) GetSignedMapRootByRevision(ctx context.Context, req 
 	}, nil
 }
 
-func (t *TrillianMapServer) getTreeAndHasher(ctx context.Context, treeID int64, readonly bool) (*trillian.Tree, merkle.MapHasher, error) {
+func (t *TrillianMapServer) getTreeAndHasher(ctx context.Context, treeID int64, readonly bool) (*trillian.Tree, merkle.TreeHasher, error) {
 	tree, err := trees.GetTree(
 		ctx,
 		t.registry.AdminStorage,

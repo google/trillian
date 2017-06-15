@@ -28,7 +28,7 @@ import (
 // append-only logs, but adds support for nil/"default" proof nodes.
 //
 // Returns nil on a successful verification, and an error otherwise.
-func VerifyMapInclusionProof(index, leafHash, expectedRoot []byte, proof [][]byte, h MapHasher) error {
+func VerifyMapInclusionProof(index, leafHash, expectedRoot []byte, proof [][]byte, h TreeHasher) error {
 	hBits := h.Size() * 8
 
 	if got, want := len(proof), hBits; got != want {
