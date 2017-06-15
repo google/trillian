@@ -20,7 +20,7 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"github.com/google/trillian/merkle/rfc6962"
+	"github.com/google/trillian/merkle/maphasher"
 )
 
 func TestLeafHash(t *testing.T) {
@@ -50,7 +50,7 @@ func TestLeafHash(t *testing.T) {
 
 func TestHashEmpty(t *testing.T) {
 	h := ObjectHasher
-	rfc := rfc6962.New(crypto.SHA256)
+	rfc := maphasher.New(crypto.SHA256)
 
 	if got, want := h.HashEmpty(0), rfc.HashEmpty(0); !bytes.Equal(got, want) {
 		t.Errorf("HashEmpty():\n%x, want\n%x", got, want)
@@ -59,7 +59,7 @@ func TestHashEmpty(t *testing.T) {
 
 func TestHashChildren(t *testing.T) {
 	h := ObjectHasher
-	rfc := rfc6962.New(crypto.SHA256)
+	rfc := maphasher.New(crypto.SHA256)
 
 	for _, tc := range []struct {
 		r, l []byte

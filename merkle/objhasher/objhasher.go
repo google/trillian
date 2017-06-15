@@ -17,15 +17,16 @@ package objhasher
 
 import (
 	"crypto"
+
 	"github.com/benlaurie/objecthash/go/objecthash"
 	"github.com/google/trillian/merkle"
-	"github.com/google/trillian/merkle/rfc6962"
+	"github.com/google/trillian/merkle/maphasher"
 )
 
 // ObjectHasher uses ObjectHash to compute leaf hashes.
 var ObjectHasher merkle.TreeHasher = &objhasher{
 	// Use SHA256 to match ObjectHash.
-	TreeHasher: rfc6962.New(crypto.SHA256),
+	TreeHasher: maphasher.New(crypto.SHA256),
 }
 
 // ObjectHash does not use `1` as any of its type prefixes,
