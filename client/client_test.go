@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/google/trillian"
-	"github.com/google/trillian/testonly"
+	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/testonly/integration"
 )
 
@@ -55,7 +55,7 @@ func TestGetByIndex(t *testing.T) {
 	}
 
 	cli := trillian.NewTrillianLogClient(env.ClientConn)
-	client := New(logID, cli, testonly.Hasher, env.PublicKey)
+	client := New(logID, cli, rfc6962.DefaultHasher, env.PublicKey)
 	// Add a few test leaves.
 	leafData := [][]byte{
 		[]byte("A"),
@@ -92,7 +92,7 @@ func TestListByIndex(t *testing.T) {
 	}
 
 	cli := trillian.NewTrillianLogClient(env.ClientConn)
-	client := New(logID, cli, testonly.Hasher, env.PublicKey)
+	client := New(logID, cli, rfc6962.DefaultHasher, env.PublicKey)
 	// Add a few test leaves.
 	leafData := [][]byte{
 		[]byte("A"),
@@ -129,7 +129,7 @@ func TestVerifyInclusion(t *testing.T) {
 	}
 
 	cli := trillian.NewTrillianLogClient(env.ClientConn)
-	client := New(logID, cli, testonly.Hasher, env.PublicKey)
+	client := New(logID, cli, rfc6962.DefaultHasher, env.PublicKey)
 	// Add a few test leaves.
 	leafData := [][]byte{
 		[]byte("A"),
@@ -160,7 +160,7 @@ func TestVerifyInclusionAtIndex(t *testing.T) {
 	}
 
 	cli := trillian.NewTrillianLogClient(env.ClientConn)
-	client := New(logID, cli, testonly.Hasher, env.PublicKey)
+	client := New(logID, cli, rfc6962.DefaultHasher, env.PublicKey)
 	// Add a few test leaves.
 	leafData := [][]byte{
 		[]byte("A"),
@@ -215,7 +215,7 @@ func TestAddLeaf(t *testing.T) {
 			wantErr: true,
 		},
 	} {
-		client := New(logID, test.client, testonly.Hasher, env.PublicKey)
+		client := New(logID, test.client, rfc6962.DefaultHasher, env.PublicKey)
 		err := client.AddLeaf(ctx, []byte(test.desc))
 		if got := err != nil; got != test.wantErr {
 			t.Errorf("AddLeaf(%v): %v, want error: %v", test.desc, err, test.wantErr)
@@ -235,7 +235,7 @@ func TestUpdateRoot(t *testing.T) {
 		t.Fatalf("Failed to create log: %v", err)
 	}
 	cli := trillian.NewTrillianLogClient(env.ClientConn)
-	client := New(logID, cli, testonly.Hasher, env.PublicKey)
+	client := New(logID, cli, rfc6962.DefaultHasher, env.PublicKey)
 
 	before := client.Root().TreeSize
 

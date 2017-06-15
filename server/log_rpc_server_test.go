@@ -24,15 +24,15 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 	"github.com/google/trillian/extension"
+	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/storage"
 	stestonly "github.com/google/trillian/storage/testonly"
-	"github.com/google/trillian/testonly"
 	"github.com/kylelemons/godebug/pretty"
 	"google.golang.org/genproto/googleapis/rpc/code"
 )
 
 var (
-	th                 = testonly.Hasher
+	th                 = rfc6962.DefaultHasher
 	logID1             = int64(1)
 	logID2             = int64(2)
 	leaf0Request       = trillian.GetLeavesByIndexRequest{LogId: logID1, LeafIndex: []int64{0}}

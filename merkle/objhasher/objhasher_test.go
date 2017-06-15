@@ -16,7 +16,6 @@ package objhasher
 
 import (
 	"bytes"
-	"crypto"
 	"encoding/hex"
 	"testing"
 
@@ -62,7 +61,7 @@ func TestHashChildren(t *testing.T) {
 			r: []byte("a"), l: []byte("b"),
 		},
 	} {
-		if got, want := ObjectHasher.HashChildren(tc.r, tc.l), mapHasher.Default.HashChildren(tc.r, tc.l); !bytes.Equal(got, want) {
+		if got, want := ObjectHasher.HashChildren(tc.r, tc.l), maphasher.Default.HashChildren(tc.r, tc.l); !bytes.Equal(got, want) {
 			t.Errorf("HashChildren(%x, %x):\n%x, want\n%x", tc.r, tc.l, got, want)
 		}
 	}

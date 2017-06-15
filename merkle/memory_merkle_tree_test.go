@@ -22,7 +22,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/google/trillian/testonly"
+	"github.com/google/trillian/merkle/rfc6962"
 )
 
 // Note test inputs came from the values used by the C++ code. The original
@@ -120,7 +120,7 @@ func decodeHexStringOrPanic(hs string) []byte {
 }
 
 func makeEmptyTree() *InMemoryMerkleTree {
-	return NewInMemoryMerkleTree(testonly.Hasher)
+	return NewInMemoryMerkleTree(rfc6962.DefaultHasher)
 }
 
 func makeFuzzTestData() [][]byte {

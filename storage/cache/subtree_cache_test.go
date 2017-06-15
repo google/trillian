@@ -23,10 +23,10 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/maphasher"
+	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/storagepb"
 	stestonly "github.com/google/trillian/storage/testonly"
-	"github.com/google/trillian/testonly"
 	"github.com/kylelemons/godebug/pretty"
 )
 
@@ -165,7 +165,6 @@ func TestCacheFlush(t *testing.T) {
 
 	m := NewMockNodeStorage(mockCtrl)
 	c := NewSubtreeCache(defaultMapStrata, PopulateMapSubtreeNodes(maphasher.Default), PrepareMapSubtreeWrite())
-
 	h := "0123456789abcdef0123456789abcdef"
 	nodeID := storage.NewNodeIDFromHash([]byte(h))
 	expectedSetIDs := make(map[string]string)
@@ -249,8 +248,8 @@ func TestSuffixSerializeFormat(t *testing.T) {
 }
 
 func TestRepopulateLogSubtree(t *testing.T) {
-	populateTheThing := PopulateLogSubtreeNodes(testonly.Hasher)
-	cmt := merkle.NewCompactMerkleTree(testonly.Hasher)
+	populateTheThing := PopulateLogSubtreeNodes(rfc6962.DefaultHasher)
+	cmt := merkle.NewCompactMerkleTree(rfc6962.DefaultHasher)
 	cmtStorage := storagepb.SubtreeProto{
 		Leaves:        make(map[string][]byte),
 		InternalNodes: make(map[string][]byte),
@@ -260,13 +259,13 @@ func TestRepopulateLogSubtree(t *testing.T) {
 		Leaves: make(map[string][]byte),
 		Depth:  int32(defaultLogStrata[0]),
 	}
-	c := NewSubtreeCache(defaultLogStrata, PopulateLogSubtreeNodes(testonly.Hasher), PrepareLogSubtreeWrite())
+	c := NewSubtreeCache(defaultLogStrata, PopulateLogSubtreeNodes(rfc6962.DefaultHasher), PrepareLogSubtreeWrite())
 	for numLeaves := int64(1); numLeaves <= 256; numLeaves++ {
 		// clear internal nodes
 		s.InternalNodes = make(map[string][]byte)
 
 		leaf := []byte(fmt.Sprintf("this is leaf %d", numLeaves))
-		leafHash := testonly.Hasher.HashLeaf(leaf)
+		leafHash := rfc6962.DefaultHasher.HashLeaf(leaf)
 		_, err := cmt.AddLeafHash(leafHash, func(depth int, index int64, h []byte) error {
 			n, err := storage.NewNodeIDForTreeCoords(int64(depth), index, 8)
 			if err != nil {

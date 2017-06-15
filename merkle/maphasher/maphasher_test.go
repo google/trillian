@@ -58,7 +58,7 @@ func TestHStar2Equivilance(t *testing.T) {
 
 // Old hstar2 empty cache algorithm.
 type hstar struct {
-	hasher          merkle.MapHasher
+	hasher          merkle.TreeHasher
 	hStarEmptyCache [][]byte
 }
 
