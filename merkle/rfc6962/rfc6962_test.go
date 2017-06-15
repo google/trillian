@@ -43,7 +43,7 @@ func TestEmptyRoot(t *testing.T) {
 }
 
 // Compares the old HStar2 empty branch algorithm to the new.
-func TestHStar2Equivilance(t *testing.T) {
+func TestHStar2Equivalence(t *testing.T) {
 	m := New(crypto.SHA256)
 	star := hstar{
 		hasher:          m,

@@ -14,9 +14,9 @@
 
 package merkle
 
-// TreeHasher computes generic merkle trees.
+// TreeHasher provides the hash functions needed to compute both chron and sparse merkle trees.
 type TreeHasher interface {
-	// EmptyRoot returns a special case for the root of an empty tree.
+	// EmptyRoot supports returning a special case for the root of an empty tree.
 	EmptyRoot() []byte
 	// HashEmpty returns the hash of an empty branch at a given depth.
 	// A height of 0 indicates an empty leaf. The maximum height is Size*8.
@@ -31,7 +31,8 @@ type TreeHasher interface {
 	Size() int
 }
 
-// MapHasher computes sparse merkle trees of a static height.
+// MapHasher provides the hash functions needed to compute sparse merkle trees of a static height.
+// TODO(gbelvin) remove.
 type MapHasher interface {
 	TreeHasher
 }
