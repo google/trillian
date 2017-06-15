@@ -16,7 +16,6 @@ package testonly
 
 import (
 	"context"
-	"crypto/x509"
 	"fmt"
 	"reflect"
 	"testing"
@@ -26,7 +25,7 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto/keys"
+	ktestonly "github.com/google/trillian/crypto/keys/testonly"
 	"github.com/google/trillian/crypto/keyspb"
 	spb "github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/storage"
@@ -43,37 +42,6 @@ func mustMarshalAny(pb proto.Message) *any.Any {
 	return value
 }
 
-// publicPEMToDER reads a PEM-encoded public key and returns it in DER encoding.
-// If an error occurs, it panics.
-func publicPEMToDER(pem string) []byte {
-	key, err := keys.NewFromPublicPEM(pem)
-	if err != nil {
-		panic(err)
-	}
-
-	der, err := x509.MarshalPKIXPublicKey(key)
-	if err != nil {
-		panic(err)
-	}
-	return der
-}
-
-// privatePEMToDER reads a PEM-encoded private key and returns it in DER encoding.
-// The PEM must be encrypted, and the password must be provided in order to decrypt it.
-// If an error occurs, it panics.
-func privatePEMToDER(pem, password string) []byte {
-	key, err := keys.NewFromPrivatePEM(pem, password)
-	if err != nil {
-		panic(err)
-	}
-
-	der, err := keys.MarshalPrivateKey(key)
-	if err != nil {
-		panic(err)
-	}
-	return der
-}
-
 var (
 	// LogTree is a valid, LOG-type trillian.Tree for tests.
 	LogTree = &trillian.Tree{
@@ -85,10 +53,10 @@ var (
 		DisplayName:        "Llamas Log",
 		Description:        "Registry of publicly-owned llamas",
 		PrivateKey: mustMarshalAny(&keyspb.PrivateKey{
-			Der: privatePEMToDER(ttestonly.DemoPrivateKey, ttestonly.DemoPrivateKeyPass),
+			Der: ktestonly.MustMarshalPrivatePEMToDER(ttestonly.DemoPrivateKey, ttestonly.DemoPrivateKeyPass),
 		}),
 		PublicKey: &keyspb.PublicKey{
-			Der: publicPEMToDER(ttestonly.DemoPublicKey),
+			Der: ktestonly.MustMarshalPublicPEMToDER(ttestonly.DemoPublicKey),
 		},
 		MaxRootDuration: ptypes.DurationProto(0 * time.Millisecond),
 	}
@@ -103,10 +71,10 @@ var (
 		DisplayName:        "Llamas Map",
 		Description:        "Key Transparency map for all your digital llama needs.",
 		PrivateKey: mustMarshalAny(&keyspb.PrivateKey{
-			Der: privatePEMToDER(ttestonly.DemoPrivateKey, ttestonly.DemoPrivateKeyPass),
+			Der: ktestonly.MustMarshalPrivatePEMToDER(ttestonly.DemoPrivateKey, ttestonly.DemoPrivateKeyPass),
 		}),
 		PublicKey: &keyspb.PublicKey{
-			Der: publicPEMToDER(ttestonly.DemoPublicKey),
+			Der: ktestonly.MustMarshalPublicPEMToDER(ttestonly.DemoPublicKey),
 		},
 		MaxRootDuration: ptypes.DurationProto(0 * time.Millisecond),
 	}
