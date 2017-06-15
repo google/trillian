@@ -46,12 +46,24 @@ var (
 	// SequencerInterval is the time between runs of the sequencer.
 	SequencerInterval = 100 * time.Millisecond
 	timeSource        = util.SystemTimeSource{}
-	publicKeyPath     = testonly.RelativeToPackage("../../testdata/log-rpc-server.pubkey.pem")
-	privateKeyInfo    = &keyspb.PEMKeyFile{
-		Path:     testonly.RelativeToPackage("../../testdata/log-rpc-server.privkey.pem"),
-		Password: "towel",
+	publicKey         = testonly.DemoPublicKey
+	privateKeyInfo    = &keyspb.PrivateKey{
+		Der: privatePEMToDER(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass),
 	}
 )
+
+func privatePEMToDER(pem, password string) []byte {
+	key, err := keys.NewFromPrivatePEM(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
+	if err != nil {
+		panic(err)
+	}
+
+	der, err := keys.MarshalPrivateKey(key)
+	if err != nil {
+		panic(err)
+	}
+	return der
+}
 
 // LogEnv is a test environment that contains both a log server and a connection to it.
 type LogEnv struct {
@@ -159,7 +171,7 @@ func NewLogEnvWithRegistry(ctx context.Context, numSequencers int, testID string
 		return nil, err
 	}
 
-	publicKey, err := keys.NewFromPublicPEMFile(publicKeyPath)
+	publicKey, err := keys.NewFromPublicPEM(publicKey)
 	if err != nil {
 		cancel()
 		return nil, err
