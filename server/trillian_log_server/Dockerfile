@@ -1,4 +1,4 @@
-FROM golang
+FROM golang:1.8
 
 ENV DB_USER=test \
     DB_PASSWORD=zaphod \

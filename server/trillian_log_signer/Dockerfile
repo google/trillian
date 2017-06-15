@@ -1,4 +1,4 @@
-FROM golang
+FROM golang:1.8
 
 ENV DB_USER=test \
     DB_PASSWORD=zaphod \
@@ -10,7 +10,6 @@ ENV HOST=0.0.0.0 \
 
 ENV SEQUENCER_GUARD_WINDOW=0s \
     FORCE_MASTER=true
-
 
 ADD . /go/src/github.com/google/trillian
 WORKDIR /go/src/github.com/google/trillian 
