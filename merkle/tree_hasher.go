@@ -14,7 +14,7 @@
 
 package merkle
 
-// TreeHasher provides the hash functions needed to compute both chron and sparse merkle trees.
+// TreeHasher provides the hash functions needed to compute both log and sparse merkle trees.
 type TreeHasher interface {
 	// EmptyRoot supports returning a special case for the root of an empty tree.
 	EmptyRoot() []byte
