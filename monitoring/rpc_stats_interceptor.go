@@ -55,9 +55,9 @@ func prefixedName(prefix, name string) string {
 }
 
 func (r *RPCStatsInterceptor) recordFailureLatency(labels []string, startTime time.Time) {
-	latency := r.timeSource.Now().Sub(startTime)
+	latency := r.timeSource.Now().Sub(startTime).Seconds()
 	r.ReqErrorCount.Inc(labels...)
-	r.ReqErrorLatency.Observe(float64(latency/time.Millisecond), labels...)
+	r.ReqErrorLatency.Observe(latency, labels...)
 }
 
 // Interceptor returns a UnaryServerInterceptor that can be registered with an RPC server and
@@ -85,9 +85,9 @@ func (r *RPCStatsInterceptor) Interceptor() grpc.UnaryServerInterceptor {
 		if err != nil {
 			r.recordFailureLatency(labels, startTime)
 		} else {
-			latency := r.timeSource.Now().Sub(startTime)
+			latency := r.timeSource.Now().Sub(startTime).Seconds()
 			r.ReqSuccessCount.Inc(labels...)
-			r.ReqSuccessLatency.Observe(float64(latency/time.Millisecond), labels...)
+			r.ReqSuccessLatency.Observe(latency, labels...)
 		}
 
 		// Pass the result of the handler invocation back
