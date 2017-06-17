@@ -35,7 +35,7 @@ var sparseEmptyRootHashB64 = testonly.MustDecodeBase64("xmifEIEqCYCXbZUz2Dh1KCFm
 // passing into a the HStar2 sparse Merkle tree implementation.
 // The map keys will be SHA256 hashed before being added to the returned
 // structs.
-func createHStar2Leaves(th TreeHasher, values map[string]string) []HStar2LeafHash {
+func createHStar2Leaves(th MapHasher, values map[string]string) []HStar2LeafHash {
 	r := []HStar2LeafHash{}
 	for k := range values {
 		khash := sha256.Sum256([]byte(k))

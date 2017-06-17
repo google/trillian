@@ -110,8 +110,8 @@ func Hash(tree *trillian.Tree) (crypto.Hash, error) {
 	return crypto.SHA256, fmt.Errorf("unexpected hash algorithm: %s", tree.HashAlgorithm)
 }
 
-// Hasher returns a merkle.TreeHasher of the kind configured for the tree.
-func Hasher(tree *trillian.Tree) (merkle.TreeHasher, error) {
+// LogHasher returns a merkle.LogHasher of the kind configured fore the tree.
+func LogHasher(tree *trillian.Tree) (merkle.LogHasher, error) {
 	hash, err := Hash(tree)
 	if err != nil {
 		return nil, err
@@ -121,7 +121,19 @@ func Hasher(tree *trillian.Tree) (merkle.TreeHasher, error) {
 	case trillian.HashStrategy_RFC_6962:
 		return rfc6962.New(hash), nil
 	case trillian.HashStrategy_MAP_HASHER:
-		return maphasher.New(hash), nil
+		return nil, fmt.Errorf("Cannot use map hash strategy: %s in log", tree.HashStrategy)
+	default:
+		return nil, fmt.Errorf("unexpected hash strategy: %s", tree.HashStrategy)
+	}
+}
+
+// MapHasher returns a merkle.MapHasher of the kind configured fore the tree.
+func MapHasher(tree *trillian.Tree) (merkle.MapHasher, error) {
+	switch tree.HashStrategy {
+	case trillian.HashStrategy_RFC_6962:
+		return nil, fmt.Errorf("Cannot use log hash strategy: %s in map", tree.HashStrategy)
+	case trillian.HashStrategy_MAP_HASHER:
+		return maphasher.Default, nil
 	default:
 		return nil, fmt.Errorf("unexpected hash strategy: %s", tree.HashStrategy)
 	}

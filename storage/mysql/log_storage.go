@@ -238,7 +238,7 @@ func (m *mySQLLogStorage) beginInternal(ctx context.Context, treeID int64, reado
 	if err != nil {
 		return nil, err
 	}
-	hasher, err := trees.Hasher(tree)
+	hasher, err := trees.LogHasher(tree)
 	if err != nil {
 		return nil, err
 	}

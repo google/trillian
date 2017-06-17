@@ -26,7 +26,7 @@ const (
 	RFC6962NodeHashPrefix = 1
 )
 
-// DefaultHasher is a SHA256 based TreeHasher.
+// DefaultHasher is a SHA256 based LogHasher.
 var DefaultHasher = New(crypto.SHA256)
 
 // RFCHasher implements the RFC6962 tree hashing algorithm.
@@ -34,7 +34,7 @@ type RFCHasher struct {
 	crypto.Hash
 }
 
-// New creates a new merkle.TreeHasher on the passed in hash function.
+// New creates a new merkle.LogHasher on the passed in hash function.
 func New(h crypto.Hash) *RFCHasher {
 	return &RFCHasher{Hash: h}
 }
@@ -42,12 +42,6 @@ func New(h crypto.Hash) *RFCHasher {
 // EmptyRoot returns a special case for an empty tree.
 func (t *RFCHasher) EmptyRoot() []byte {
 	return t.New().Sum(nil)
-}
-
-// HashEmpty returns the hash of an empty branch at a given depth.
-// A depth of 0 indictes the hash of an empty leaf.
-func (t *RFCHasher) HashEmpty(depth int) []byte {
-	panic("HashEmpty() is not implemented for rfc6962 hasher")
 }
 
 // HashLeaf returns the Merkle tree leaf hash of the data passed in through leaf.

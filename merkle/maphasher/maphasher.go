@@ -26,7 +26,7 @@ const (
 	nodeHashPrefix = 1
 )
 
-// Default is a SHA256 based TreeHasher for maps.
+// Default is a SHA256 based MapHasher for maps.
 var Default = New(crypto.SHA256)
 
 // MapHasher implements a sparse merkel tree hashing algorithm. For testing only.
@@ -37,7 +37,7 @@ type MapHasher struct {
 	nullHashes [][]byte
 }
 
-// New creates a new merkle.TreeHasher using the passed in hash function.
+// New creates a new merkle.MapHasher using the passed in hash function.
 func New(h crypto.Hash) *MapHasher {
 	m := &MapHasher{Hash: h}
 	m.nullHashes = m.createNullHashes()
@@ -47,11 +47,6 @@ func New(h crypto.Hash) *MapHasher {
 // String returns a string representation for debugging.
 func (m *MapHasher) String() string {
 	return fmt.Sprintf("MapHasher{%v}", m.Hash)
-}
-
-// EmptyRoot returns the root of an empty tree.
-func (m *MapHasher) EmptyRoot() []byte {
-	return m.HashEmpty(m.Size() * 8)
 }
 
 // HashEmpty returns the hash of an empty branch at a given depth.

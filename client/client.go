@@ -41,7 +41,7 @@ type LogClient struct {
 }
 
 // New returns a new LogClient.
-func New(logID int64, client trillian.TrillianLogClient, hasher merkle.TreeHasher, pubKey crypto.PublicKey) *LogClient {
+func New(logID int64, client trillian.TrillianLogClient, hasher merkle.LogHasher, pubKey crypto.PublicKey) *LogClient {
 	return &LogClient{
 		LogID:  logID,
 		client: client,

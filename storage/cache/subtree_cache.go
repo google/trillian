@@ -415,7 +415,7 @@ func makeSuffixKey(depth int, index int64) (string, error) {
 // subtree Leaves map.
 //
 // This uses HStar2 to repopulate internal nodes.
-func PopulateMapSubtreeNodes(treeHasher merkle.TreeHasher) storage.PopulateSubtreeFunc {
+func PopulateMapSubtreeNodes(treeHasher merkle.MapHasher) storage.PopulateSubtreeFunc {
 	return func(st *storagepb.SubtreeProto) error {
 		st.InternalNodes = make(map[string][]byte)
 		rootID := storage.NewNodeIDFromHash(st.Prefix)
@@ -464,7 +464,7 @@ func PopulateMapSubtreeNodes(treeHasher merkle.TreeHasher) storage.PopulateSubtr
 // handle imperfect (but left-hand dense) subtrees. Note that we only rebuild internal
 // nodes when the subtree is fully populated. For an explanation of why see the comments
 // below for PrepareLogSubtreeWrite.
-func PopulateLogSubtreeNodes(treeHasher merkle.TreeHasher) storage.PopulateSubtreeFunc {
+func PopulateLogSubtreeNodes(treeHasher merkle.LogHasher) storage.PopulateSubtreeFunc {
 	return func(st *storagepb.SubtreeProto) error {
 		cmt := merkle.NewCompactMerkleTree(treeHasher)
 		if st.Depth < 1 {

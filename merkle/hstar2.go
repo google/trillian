@@ -37,12 +37,11 @@ type HStar2LeafHash struct {
 // HStar2 is a recursive implementation for calculating the root hash of a sparse
 // Merkle tree.
 type HStar2 struct {
-	hasher TreeHasher
+	hasher MapHasher
 }
 
-// NewHStar2 creates a new HStar2 tree calculator based on the passed in
-// TreeHasher.
-func NewHStar2(treeHasher TreeHasher) HStar2 {
+// NewHStar2 creates a new HStar2 tree calculator based on the passed in MapHasher.
+func NewHStar2(treeHasher MapHasher) HStar2 {
 	return HStar2{
 		hasher: treeHasher,
 	}

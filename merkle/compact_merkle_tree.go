@@ -36,7 +36,7 @@ func (r RootHashMismatchError) Error() string {
 // CompactMerkleTree is a compact Merkle tree representation.
 // Uses log(n) nodes to represent the current on-disk tree.
 type CompactMerkleTree struct {
-	hasher TreeHasher
+	hasher LogHasher
 	root   []byte
 	// the list of "dangling" left-hand nodes, NOTE: index 0 is the leaf, not the root.
 	nodes [][]byte
@@ -66,7 +66,7 @@ type GetNodeFunc func(depth int, index int64) ([]byte, error)
 // |f| will be called a number of times with the co-ordinates of internal MerkleTree nodes whose hash values are
 // required to initialize the internal state of the CompactMerkleTree.  |expectedRoot| is the known-good tree root
 // of the tree at |size|, and is used to verify the correct initial state of the CompactMerkleTree after initialisation.
-func NewCompactMerkleTreeWithState(hasher TreeHasher, size int64, f GetNodeFunc, expectedRoot []byte) (*CompactMerkleTree, error) {
+func NewCompactMerkleTreeWithState(hasher LogHasher, size int64, f GetNodeFunc, expectedRoot []byte) (*CompactMerkleTree, error) {
 	sizeBits := bitLen(size)
 
 	r := CompactMerkleTree{
@@ -108,7 +108,7 @@ func NewCompactMerkleTreeWithState(hasher TreeHasher, size int64, f GetNodeFunc,
 }
 
 // NewCompactMerkleTree creates a new CompactMerkleTree with size zero. This always succeeds.
-func NewCompactMerkleTree(hasher TreeHasher) *CompactMerkleTree {
+func NewCompactMerkleTree(hasher LogHasher) *CompactMerkleTree {
 	r := CompactMerkleTree{
 		hasher: hasher,
 		root:   hasher.EmptyRoot(),

@@ -88,8 +88,17 @@ func (s *Server) CreateTree(ctx context.Context, request *trillian.CreateTreeReq
 	if tree == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "a tree is required")
 	}
-	if _, err := trees.Hasher(tree); err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "failed to create hasher for tree: %v", err.Error())
+	switch tree.TreeType {
+	case trillian.TreeType_LOG:
+		if _, err := trees.LogHasher(tree); err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "failed to create hasher for tree: %v", err.Error())
+		}
+	case trillian.TreeType_MAP:
+		if _, err := trees.MapHasher(tree); err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "failed to create hasher for tree: %v", err.Error())
+		}
+	default:
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tree type: %v", tree.TreeType)
 	}
 
 	// If a key specification was provided, generate a new key.

@@ -25,13 +25,13 @@ import (
 
 // logVerifier contains state needed to verify output from Trillian Logs.
 type logVerifier struct {
-	hasher merkle.TreeHasher
+	hasher merkle.LogHasher
 	pubKey crypto.PublicKey
 	v      merkle.LogVerifier
 }
 
 // NewLogVerifier returns an object that can verify output from Trillian Logs.
-func NewLogVerifier(hasher merkle.TreeHasher, pubKey crypto.PublicKey) LogVerifier {
+func NewLogVerifier(hasher merkle.LogHasher, pubKey crypto.PublicKey) LogVerifier {
 	return &logVerifier{
 		hasher: hasher,
 		pubKey: pubKey,

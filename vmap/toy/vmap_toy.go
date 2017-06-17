@@ -26,7 +26,7 @@ import (
 	"github.com/google/trillian"
 	spb "github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/merkle"
-	"github.com/google/trillian/merkle/rfc6962"
+	"github.com/google/trillian/merkle/maphasher"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/mysql"
 	"github.com/google/trillian/testonly"
@@ -47,7 +47,7 @@ func main() {
 
 	mapID := int64(1)
 	ms := mysql.NewMapStorage(db)
-	hasher := rfc6962.DefaultHasher
+	hasher := maphasher.Default
 
 	testVecs := []struct {
 		batchSize       int

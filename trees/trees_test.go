@@ -31,6 +31,7 @@ import (
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/merkle"
+	"github.com/google/trillian/merkle/maphasher"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testonly"
@@ -237,26 +238,49 @@ func TestHash(t *testing.T) {
 	}
 }
 
-func TestHasher(t *testing.T) {
+func TestLogHasher(t *testing.T) {
 	for _, test := range []struct {
 		strategy   trillian.HashStrategy
-		wantHasher merkle.TreeHasher
+		wantHasher merkle.LogHasher
 		wantErr    bool
 	}{
-		{
-			strategy: trillian.HashStrategy_UNKNOWN_HASH_STRATEGY,
-			wantErr:  true,
-		},
-		{
-			strategy:   trillian.HashStrategy_RFC_6962,
-			wantHasher: rfc6962.New(crypto.SHA256),
-		},
+		{strategy: trillian.HashStrategy_UNKNOWN_HASH_STRATEGY, wantErr: true},
+		{strategy: trillian.HashStrategy_MAP_HASHER, wantErr: true},
+		{strategy: trillian.HashStrategy_RFC_6962, wantHasher: rfc6962.New(crypto.SHA256)},
 	} {
 		tree := *testonly.LogTree
 		tree.HashAlgorithm = sigpb.DigitallySigned_SHA256
 		tree.HashStrategy = test.strategy
 
-		hasher, err := Hasher(&tree)
+		hasher, err := LogHasher(&tree)
+		if hasErr := err != nil; hasErr != test.wantErr {
+			t.Errorf("Hasher(%s) = (_, %q), wantErr = %v", test.strategy, err, test.wantErr)
+			continue
+		} else if hasErr {
+			continue
+		}
+
+		if got, want := hasher.Size(), test.wantHasher.Size(); got != want {
+			t.Errorf("Hasher(%s) = (%v, nil), want = (%v, nil)", test.strategy, got, want)
+		}
+	}
+}
+
+func TestMapHasher(t *testing.T) {
+	for _, test := range []struct {
+		strategy   trillian.HashStrategy
+		wantHasher merkle.MapHasher
+		wantErr    bool
+	}{
+		{strategy: trillian.HashStrategy_UNKNOWN_HASH_STRATEGY, wantErr: true},
+		{strategy: trillian.HashStrategy_RFC_6962, wantErr: true},
+		{strategy: trillian.HashStrategy_MAP_HASHER, wantHasher: maphasher.Default},
+	} {
+		tree := *testonly.LogTree
+		tree.HashAlgorithm = sigpb.DigitallySigned_SHA256
+		tree.HashStrategy = test.strategy
+
+		hasher, err := MapHasher(&tree)
 		if hasErr := err != nil; hasErr != test.wantErr {
 			t.Errorf("Hasher(%s) = (_, %q), wantErr = %v", test.strategy, err, test.wantErr)
 			continue
