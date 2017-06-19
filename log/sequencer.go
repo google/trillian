@@ -49,6 +49,7 @@ var (
 	seqSetNodesLatency     monitoring.Histogram
 	seqStoreRootLatency    monitoring.Histogram
 	seqCommitLatency       monitoring.Histogram
+	seqCounter             monitoring.Counter
 )
 
 func createMetrics(mf monitoring.MetricFactory) {
@@ -66,6 +67,7 @@ func createMetrics(mf monitoring.MetricFactory) {
 	seqSetNodesLatency = mf.NewHistogram("sequencer_latency_set_nodes", "Latency of set-nodes part of sequencer batch operation in ms", logIDLabel)
 	seqStoreRootLatency = mf.NewHistogram("sequencer_latency_store_root", "Latency of store-root part of sequencer batch operation in ms", logIDLabel)
 	seqCommitLatency = mf.NewHistogram("sequencer_latency_commit", "Latency of commit part of sequencer batch operation in ms", logIDLabel)
+        seqCounter = mf.NewCounter("sequencer_sequenced", "Number of leaves sequenced", logIDLabel)
 }
 
 // TODO(Martin2112): Add admin support for safely changing params like guard window during operation
@@ -366,6 +368,7 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int, gu
 		glog.Warningf("Failed to replenish tokens for tree %v: %v", logID, err)
 	}
 
+	seqCounter.Add(float64(len(leaves)), label)
 	glog.Infof("%v: sequenced %v leaves, size %v, tree-revision %v", logID, len(leaves), newLogRoot.TreeSize, newLogRoot.TreeRevision)
 	return len(leaves), nil
 }
