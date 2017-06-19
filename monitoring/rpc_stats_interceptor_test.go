@@ -144,7 +144,7 @@ func TestMultipleOKRequestsTotalLatency(t *testing.T) {
 		}
 	}
 	count, sum := stats.ReqSuccessLatency.Info("testmethod")
-	if wantCount, wantSum := uint64(3), 3.8369999999999997; count != wantCount || sum != wantSum {
+	if wantCount, wantSum := uint64(3), time.Duration(3837*time.Millisecond).Seconds(); count != wantCount || sum != wantSum {
 		t.Errorf("stats.ReqSuccessLatency.Info=%v,%v; want %v,%v", count, sum, wantCount, wantSum)
 	}
 }

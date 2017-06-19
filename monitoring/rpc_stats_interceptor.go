@@ -43,9 +43,9 @@ func NewRPCStatsInterceptor(timeSource util.TimeSource, prefix string, mf Metric
 		timeSource:        timeSource,
 		ReqCount:          mf.NewCounter(prefixedName(prefix, "rpc_requests"), "Number of requests", "method"),
 		ReqSuccessCount:   mf.NewCounter(prefixedName(prefix, "rpc_success"), "Number of successful requests", "method"),
-		ReqSuccessLatency: mf.NewHistogram(prefixedName(prefix, "rpc_success_latency"), "Latency of successful requests in ms", "method"),
+		ReqSuccessLatency: mf.NewHistogram(prefixedName(prefix, "rpc_success_latency"), "Latency of successful requests in seconds", "method"),
 		ReqErrorCount:     mf.NewCounter(prefixedName(prefix, "rpc_errors"), "Number of errored requests", "method"),
-		ReqErrorLatency:   mf.NewHistogram(prefixedName(prefix, "rpc_error_latency"), "Latency of errored requests in ms", "method"),
+		ReqErrorLatency:   mf.NewHistogram(prefixedName(prefix, "rpc_error_latency"), "Latency of errored requests in seconds", "method"),
 	}
 	return &interceptor
 }
