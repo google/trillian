@@ -216,7 +216,7 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int, gu
 	}
 	defer tx.Close()
 	defer seqBatches.Inc(label)
-	defer seqLatency.Observe(s.sinceMillis(start), label)
+	defer func() { seqLatency.Observe(s.sinceMillis(start), label) }()
 
 	// Very recent leaves inside the guard window will not be available for sequencing
 	guardCutoffTime := s.timeSource.Now().Add(-guardWindow)
