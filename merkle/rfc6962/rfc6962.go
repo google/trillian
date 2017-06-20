@@ -29,24 +29,24 @@ const (
 // DefaultHasher is a SHA256 based LogHasher.
 var DefaultHasher = New(crypto.SHA256)
 
-// RFCHasher implements the RFC6962 tree hashing algorithm.
-type RFCHasher struct {
+// Hasher implements the RFC6962 tree hashing algorithm.
+type Hasher struct {
 	crypto.Hash
 }
 
-// New creates a new merkle.LogHasher on the passed in hash function.
-func New(h crypto.Hash) *RFCHasher {
-	return &RFCHasher{Hash: h}
+// New creates a new Hashers.LogHasher on the passed in hash function.
+func New(h crypto.Hash) *Hasher {
+	return &Hasher{Hash: h}
 }
 
 // EmptyRoot returns a special case for an empty tree.
-func (t *RFCHasher) EmptyRoot() []byte {
+func (t *Hasher) EmptyRoot() []byte {
 	return t.New().Sum(nil)
 }
 
 // HashLeaf returns the Merkle tree leaf hash of the data passed in through leaf.
 // The data in leaf is prefixed by the LeafHashPrefix.
-func (t *RFCHasher) HashLeaf(leaf []byte) []byte {
+func (t *Hasher) HashLeaf(leaf []byte) []byte {
 	h := t.New()
 	h.Write([]byte{RFC6962LeafHashPrefix})
 	h.Write(leaf)
@@ -55,7 +55,7 @@ func (t *RFCHasher) HashLeaf(leaf []byte) []byte {
 
 // HashChildren returns the inner Merkle tree node hash of the the two child nodes l and r.
 // The hashed structure is NodeHashPrefix||l||r.
-func (t *RFCHasher) HashChildren(l, r []byte) []byte {
+func (t *Hasher) HashChildren(l, r []byte) []byte {
 	h := t.New()
 	h.Write([]byte{RFC6962NodeHashPrefix})
 	h.Write(l)

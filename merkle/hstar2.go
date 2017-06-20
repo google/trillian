@@ -41,9 +41,9 @@ type HStar2 struct {
 }
 
 // NewHStar2 creates a new HStar2 tree calculator based on the passed in MapHasher.
-func NewHStar2(treeHasher MapHasher) HStar2 {
+func NewHStar2(hasher MapHasher) HStar2 {
 	return HStar2{
-		hasher: treeHasher,
+		hasher: hasher,
 	}
 }
 

@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS Trees(
   TreeId                BIGINT NOT NULL,
   TreeState             ENUM('ACTIVE', 'FROZEN', 'SOFT_DELETED', 'HARD_DELETED') NOT NULL,
   TreeType              ENUM('LOG', 'MAP') NOT NULL,
-  HashStrategy          ENUM('RFC_6962', 'MAP_HASHER') NOT NULL,
+  HashStrategy          ENUM('RFC_6962', 'TEST_MAP_HASHER') NOT NULL,
   HashAlgorithm         ENUM('SHA256') NOT NULL,
   SignatureAlgorithm    ENUM('ECDSA', 'RSA') NOT NULL,
   DisplayName           VARCHAR(20),

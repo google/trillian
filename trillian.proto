@@ -41,9 +41,9 @@ enum HashStrategy {
   RFC_6962 = 1;
 
   // Sparse Merkle Tree strategy:  leaf hash prefix = 0x00, node prefix = 0x01,
-  // empty branch is resursivily computed from empty leaf nodes. 
+  // empty branch is recursively computed from empty leaf nodes. 
   // NOT secure in a multi tree environment. For testing only.
-  MAP_HASHER = 2;
+  TEST_MAP_HASHER = 2;
 }
 
 // State of the tree.

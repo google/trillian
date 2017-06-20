@@ -16,29 +16,9 @@
 package objhasher
 
 import (
-	"crypto"
-
 	"github.com/benlaurie/objecthash/go/objecthash"
 	"github.com/google/trillian/merkle"
-	"github.com/google/trillian/merkle/maphasher"
-	"github.com/google/trillian/merkle/rfc6962"
 )
-
-// ObjectMapHasher uses ObjectHash to compute leaf hashes in a sparse merkle tree.
-var ObjectMapHasher merkle.MapHasher = &objmaphasher{
-	// Use SHA256 to match ObjectHash.
-	MapHasher: maphasher.New(crypto.SHA256),
-}
-
-// ObjectLogHasher uses ObjectHash to compute leaf hashes in a dense merkle tree.
-var ObjectLogHasher merkle.LogHasher = &objloghasher{
-	// Use SHA256 to match ObjectHash.
-	LogHasher: rfc6962.New(crypto.SHA256),
-}
-
-// ObjectHash does not use `1` as any of its type prefixes,
-// preserving domain separation.
-const nodeHashPrefix = 1
 
 type objmaphasher struct {
 	merkle.MapHasher
@@ -48,8 +28,28 @@ type objloghasher struct {
 	merkle.LogHasher
 }
 
+// NewMapHasher returns a new ObjectHasher based on the passed in MapHasher
+func NewMapHasher(baseHasher merkle.MapHasher) merkle.MapHasher {
+	return &objmaphasher{
+		MapHasher: baseHasher,
+	}
+}
+
+// NewLogHasher returns a new ObjectHasher based on the passed in MapHasher
+func NewLogHasher(baseHasher merkle.LogHasher) merkle.LogHasher {
+	return &objloghasher{
+		LogHasher: baseHasher,
+	}
+}
+
 // HashLeaf returns the object hash of leaf, which must be a JSON object.
 func (o *objloghasher) HashLeaf(leaf []byte) []byte {
+	hash := objecthash.CommonJSONHash(string(leaf))
+	return hash[:]
+}
+
+// HashLeaf returns the object hash of leaf, which must be a JSON object.
+func (o *objmaphasher) HashLeaf(leaf []byte) []byte {
 	hash := objecthash.CommonJSONHash(string(leaf))
 	return hash[:]
 }

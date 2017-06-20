@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2017 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,10 +37,10 @@ type MapHasher struct {
 	nullHashes [][]byte
 }
 
-// New creates a new merkle.MapHasher using the passed in hash function.
+// New creates a new merkel.MapHasher using the passed in hash function.
 func New(h crypto.Hash) *MapHasher {
 	m := &MapHasher{Hash: h}
-	m.nullHashes = m.createNullHashes()
+	m.initNullHashes()
 	return m
 }
 
@@ -60,7 +60,7 @@ func (m *MapHasher) HashEmpty(depth int) []byte {
 }
 
 // HashLeaf returns the Merkle tree leaf hash of the data passed in through leaf.
-// The data in leaf is prefixed by the LeafHashPrefix.
+// The hashed structure is leafHashPrefix||leaf.
 func (m *MapHasher) HashLeaf(leaf []byte) []byte {
 	h := m.New()
 	h.Write([]byte{leafHashPrefix})
@@ -68,7 +68,7 @@ func (m *MapHasher) HashLeaf(leaf []byte) []byte {
 	return h.Sum(nil)
 }
 
-// HashChildren returns the inner Merkle tree node hash of the the two child nodes l and r.
+// HashChildren returns the internal Merkle tree node hash of the the two child nodes l and r.
 // The hashed structure is NodeHashPrefix||l||r.
 func (m *MapHasher) HashChildren(l, r []byte) []byte {
 	h := m.New()
@@ -78,11 +78,11 @@ func (m *MapHasher) HashChildren(l, r []byte) []byte {
 	return h.Sum(nil)
 }
 
-// createNullHashes returns a cache of empty hashes, one for each height in the sparse tree,
+// initNullHashes sets the cache of empty hashes, one for each level in the sparse tree,
 // starting with the hash of an empty leaf, all the way up to the root hash of an empty tree.
 // These empty branches are not stored on disk in a sparse tree. They are computed since their
 // values are well-known.
-func (m *MapHasher) createNullHashes() [][]byte {
+func (m *MapHasher) initNullHashes() {
 	// Leaves are stored at depth 0. Root is at Size()*8.
 	// There are Size()*8 edges, and Size()*8 + 1 nodes in the tree.
 	nodes := m.Size()*8 + 1
@@ -91,5 +91,5 @@ func (m *MapHasher) createNullHashes() [][]byte {
 	for i := 1; i < nodes; i++ {
 		r[i] = m.HashChildren(r[i-1], r[i-1])
 	}
-	return r
+	m.nullHashes = r
 }

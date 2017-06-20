@@ -245,7 +245,7 @@ func TestLogHasher(t *testing.T) {
 		wantErr    bool
 	}{
 		{strategy: trillian.HashStrategy_UNKNOWN_HASH_STRATEGY, wantErr: true},
-		{strategy: trillian.HashStrategy_MAP_HASHER, wantErr: true},
+		{strategy: trillian.HashStrategy_TEST_MAP_HASHER, wantErr: true},
 		{strategy: trillian.HashStrategy_RFC_6962, wantHasher: rfc6962.New(crypto.SHA256)},
 	} {
 		tree := *testonly.LogTree
@@ -274,7 +274,7 @@ func TestMapHasher(t *testing.T) {
 	}{
 		{strategy: trillian.HashStrategy_UNKNOWN_HASH_STRATEGY, wantErr: true},
 		{strategy: trillian.HashStrategy_RFC_6962, wantErr: true},
-		{strategy: trillian.HashStrategy_MAP_HASHER, wantHasher: maphasher.Default},
+		{strategy: trillian.HashStrategy_TEST_MAP_HASHER, wantHasher: maphasher.Default},
 	} {
 		tree := *testonly.LogTree
 		tree.HashAlgorithm = sigpb.DigitallySigned_SHA256
