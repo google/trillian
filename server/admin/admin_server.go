@@ -152,14 +152,6 @@ func (s *Server) CreateTree(ctx context.Context, request *trillian.CreateTreeReq
 		tree.PublicKey = &keyspb.PublicKey{Der: publicKeyDER}
 	}
 
-	duration, err := ptypes.Duration(tree.MaxRootDuration)
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, "failed to convert max root duration")
-	}
-	if duration < 0 {
-		return nil, status.Error(codes.InvalidArgument, "the max root duration must be >= 0")
-	}
-
 	tx, err := s.registry.AdminStorage.Begin(ctx)
 	if err != nil {
 		return nil, err

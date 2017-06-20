@@ -316,12 +316,6 @@ func TestServer_CreateTree(t *testing.T) {
 	keySignatureMismatch := validTree
 	keySignatureMismatch.SignatureAlgorithm = sigpb.DigitallySigned_RSA
 
-	negRootDuration := validTree
-	negRootDuration.MaxRootDuration = ptypes.DurationProto(-1 * time.Millisecond)
-
-	malformedRootDuration := validTree
-	malformedRootDuration.MaxRootDuration = nil
-
 	tests := []struct {
 		desc                           string
 		req                            *trillian.CreateTreeRequest
@@ -346,16 +340,6 @@ func TestServer_CreateTree(t *testing.T) {
 		{
 			desc:    "omittedPrivateKey",
 			req:     &trillian.CreateTreeRequest{Tree: &omittedPrivateKey},
-			wantErr: true,
-		},
-		{
-			desc:    "negativeMaxRootDuration",
-			req:     &trillian.CreateTreeRequest{Tree: &negRootDuration},
-			wantErr: true,
-		},
-		{
-			desc:    "malformedMaxRootDuration",
-			req:     &trillian.CreateTreeRequest{Tree: &malformedRootDuration},
 			wantErr: true,
 		},
 		{
