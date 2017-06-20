@@ -17,8 +17,6 @@ package interceptor
 
 import (
 	"fmt"
-	"strings"
-
 	"github.com/google/trillian"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/server/errors"
@@ -109,24 +107,10 @@ func getRPCInfo(req interface{}, quotaUser string) (*rpcInfo, error) {
 		return nil, status.Errorf(codes.Internal, "cannot retrieve treeID from request: %T", req)
 	}
 
-	var treeType trillian.TreeType
-	switch {
-	case isAdminRPC(req):
-		treeType = trillian.TreeType_UNKNOWN_TREE_TYPE // unrestricted
-	case isLogRPC(req):
-		treeType = trillian.TreeType_LOG
-	case isMapRPC(req):
-		treeType = trillian.TreeType_MAP
-	default:
-		return nil, status.Errorf(codes.Internal, "unmapped request type: %T", req)
+	treeType, readonly, err := getRequestInfo(req)
+	if err != nil {
+		return nil, err
 	}
-
-	reqType := fmt.Sprintf("%T", req)
-	if !strings.HasPrefix(reqType, requestTypePrefix) {
-		return nil, status.Errorf(codes.Internal, "unexpected request type prefix: %v", reqType)
-	}
-	reqType = reqType[len(requestTypePrefix):]
-	readonly := strings.HasPrefix(reqType, "Get") || strings.HasPrefix(reqType, "List")
 
 	kind := quota.Read
 	if !readonly {
@@ -153,50 +137,69 @@ func getRPCInfo(req interface{}, quotaUser string) (*rpcInfo, error) {
 	}, nil
 }
 
-func isAdminRPC(req interface{}) bool {
-	switch req.(type) {
-	// Please keep in alphabetical order
-	case *trillian.CreateTreeRequest:
-	case *trillian.DeleteTreeRequest:
-	case *trillian.GetTreeRequest:
-	case *trillian.ListTreesRequest:
-	case *trillian.UpdateTreeRequest:
-	default:
-		return false
+func getRequestInfo(req interface{}) (trillian.TreeType, bool, error) {
+	if ok, readonly := getAdminRequestInfo(req); ok {
+		return trillian.TreeType_UNKNOWN_TREE_TYPE, readonly, nil
 	}
-	return true
+	if ok, readonly := getLogRequestInfo(req); ok {
+		return trillian.TreeType_LOG, readonly, nil
+	}
+	if ok, readonly := getMapRequestInfo(req); ok {
+		return trillian.TreeType_MAP, readonly, nil
+	}
+	return trillian.TreeType_UNKNOWN_TREE_TYPE, false, fmt.Errorf("unmapped request type: %T", req)
 }
 
-func isLogRPC(req interface{}) bool {
+func getAdminRequestInfo(req interface{}) (bool, bool) {
+	isAdmin := true
+	readonly := false
 	switch req.(type) {
-	// Please keep in alphabetical order
-	case *trillian.GetConsistencyProofRequest:
-	case *trillian.GetEntryAndProofRequest:
-	case *trillian.GetInclusionProofByHashRequest:
-	case *trillian.GetInclusionProofRequest:
-	case *trillian.GetLatestSignedLogRootRequest:
-	case *trillian.GetLeavesByHashRequest:
-	case *trillian.GetLeavesByIndexRequest:
-	case *trillian.GetSequencedLeafCountRequest:
-	case *trillian.QueueLeafRequest:
-	case *trillian.QueueLeavesRequest:
+	case *trillian.CreateTreeRequest,
+		*trillian.DeleteTreeRequest,
+		*trillian.UpdateTreeRequest:
+	case *trillian.GetTreeRequest,
+		*trillian.ListTreesRequest:
+		readonly = true
 	default:
-		return false
+		isAdmin = false
 	}
-	return true
+	return isAdmin, readonly
 }
 
-func isMapRPC(req interface{}) bool {
+func getLogRequestInfo(req interface{}) (bool, bool) {
+	isLog := true
+	readonly := false
 	switch req.(type) {
-	// Please keep in alphabetical order
-	case *trillian.GetMapLeavesRequest:
-	case *trillian.GetSignedMapRootByRevisionRequest:
-	case *trillian.GetSignedMapRootRequest:
+	case *trillian.GetConsistencyProofRequest,
+		*trillian.GetEntryAndProofRequest,
+		*trillian.GetInclusionProofByHashRequest,
+		*trillian.GetInclusionProofRequest,
+		*trillian.GetLatestSignedLogRootRequest,
+		*trillian.GetLeavesByHashRequest,
+		*trillian.GetLeavesByIndexRequest,
+		*trillian.GetSequencedLeafCountRequest:
+		readonly = true
+	case *trillian.QueueLeafRequest,
+		*trillian.QueueLeavesRequest:
+	default:
+		isLog = false
+	}
+	return isLog, readonly
+}
+
+func getMapRequestInfo(req interface{}) (bool, bool) {
+	isMap := true
+	readonly := false
+	switch req.(type) {
+	case *trillian.GetMapLeavesRequest,
+		*trillian.GetSignedMapRootByRevisionRequest,
+		*trillian.GetSignedMapRootRequest:
+		readonly = true
 	case *trillian.SetMapLeavesRequest:
 	default:
-		return false
+		isMap = false
 	}
-	return true
+	return isMap, readonly
 }
 
 type treeIDRequest interface {
