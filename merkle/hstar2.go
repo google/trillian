@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"math/big"
 	"sort"
+
+	"github.com/google/trillian/merkle/hashers"
 )
 
 var (
@@ -37,11 +39,11 @@ type HStar2LeafHash struct {
 // HStar2 is a recursive implementation for calculating the root hash of a sparse
 // Merkle tree.
 type HStar2 struct {
-	hasher MapHasher
+	hasher hashers.MapHasher
 }
 
 // NewHStar2 creates a new HStar2 tree calculator based on the passed in MapHasher.
-func NewHStar2(hasher MapHasher) HStar2 {
+func NewHStar2(hasher hashers.MapHasher) HStar2 {
 	return HStar2{
 		hasher: hasher,
 	}

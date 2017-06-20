@@ -20,6 +20,7 @@ import (
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle"
+	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/storage"
 )
 
@@ -28,7 +29,7 @@ import (
 // This includes rehashing where necessary to serve proofs for tree sizes between stored tree
 // revisions. This code only relies on the NodeReader interface so can be tested without
 // a complete storage implementation.
-func fetchNodesAndBuildProof(ctx context.Context, tx storage.NodeReader, th merkle.LogHasher, treeRevision, leafIndex int64, proofNodeFetches []merkle.NodeFetch) (trillian.Proof, error) {
+func fetchNodesAndBuildProof(ctx context.Context, tx storage.NodeReader, th hashers.LogHasher, treeRevision, leafIndex int64, proofNodeFetches []merkle.NodeFetch) (trillian.Proof, error) {
 	proofNodes, err := fetchNodes(ctx, tx, treeRevision, proofNodeFetches)
 	if err != nil {
 		return trillian.Proof{}, err
@@ -44,7 +45,7 @@ func fetchNodesAndBuildProof(ctx context.Context, tx storage.NodeReader, th merk
 
 // rehasher bundles the rehashing logic into a simple state machine
 type rehasher struct {
-	th         merkle.LogHasher
+	th         hashers.LogHasher
 	rehashing  bool
 	rehashNode storage.Node
 	proof      [][]byte

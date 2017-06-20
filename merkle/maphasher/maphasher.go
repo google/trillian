@@ -18,7 +18,14 @@ package maphasher
 import (
 	"crypto"
 	"fmt"
+
+	"github.com/google/trillian"
+	"github.com/google/trillian/merkle/hashers"
 )
+
+func init() {
+	hashers.RegisterMapHasher(trillian.HashStrategy_TEST_MAP_HASHER, Default)
+}
 
 // Domain separation prefixes
 const (
@@ -38,7 +45,7 @@ type MapHasher struct {
 }
 
 // New creates a new merkel.MapHasher using the passed in hash function.
-func New(h crypto.Hash) *MapHasher {
+func New(h crypto.Hash) hashers.MapHasher {
 	m := &MapHasher{Hash: h}
 	m.initNullHashes()
 	return m

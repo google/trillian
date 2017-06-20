@@ -22,6 +22,7 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/testonly"
 )
 
@@ -167,7 +168,7 @@ func downToPowerOfTwo(i int64) int64 {
 }
 
 // Reference implementation of Merkle hash, for cross-checking.
-func referenceMerkleTreeHash(inputs [][]byte, treehasher LogHasher) []byte {
+func referenceMerkleTreeHash(inputs [][]byte, treehasher hashers.LogHasher) []byte {
 	if len(inputs) == 0 {
 		return treehasher.EmptyRoot()
 	}
@@ -186,7 +187,7 @@ func referenceMerkleTreeHash(inputs [][]byte, treehasher LogHasher) []byte {
 
 // Reference implementation of Merkle paths. Path from leaf to root,
 // excluding the leaf and root themselves.
-func referenceMerklePath(inputs [][]byte, leaf int64, treehasher LogHasher) [][]byte {
+func referenceMerklePath(inputs [][]byte, leaf int64, treehasher hashers.LogHasher) [][]byte {
 	var path [][]byte
 
 	inputLen := int64(len(inputs))
@@ -218,7 +219,7 @@ func referenceMerklePath(inputs [][]byte, leaf int64, treehasher LogHasher) [][]
 // Reference implementation of snapshot consistency.
 // Call with haveRoot1 = true.
 func referenceSnapshotConsistency(inputs [][]byte, snapshot2 int64,
-	snapshot1 int64, treehasher LogHasher, haveRoot1 bool) [][]byte {
+	snapshot1 int64, treehasher hashers.LogHasher, haveRoot1 bool) [][]byte {
 
 	var proof [][]byte
 

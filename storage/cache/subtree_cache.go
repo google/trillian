@@ -23,6 +23,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/trillian/merkle"
+	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/storagepb"
 )
@@ -415,7 +416,7 @@ func makeSuffixKey(depth int, index int64) (string, error) {
 // subtree Leaves map.
 //
 // This uses HStar2 to repopulate internal nodes.
-func PopulateMapSubtreeNodes(treeHasher merkle.MapHasher) storage.PopulateSubtreeFunc {
+func PopulateMapSubtreeNodes(hasher hashers.MapHasher) storage.PopulateSubtreeFunc {
 	return func(st *storagepb.SubtreeProto) error {
 		st.InternalNodes = make(map[string][]byte)
 		rootID := storage.NewNodeIDFromHash(st.Prefix)
@@ -433,8 +434,8 @@ func PopulateMapSubtreeNodes(treeHasher merkle.MapHasher) storage.PopulateSubtre
 				Index:    big.NewInt(int64(k[1])),
 			})
 		}
-		hs2 := merkle.NewHStar2(treeHasher)
-		fullTreeDepth := treeHasher.Size() * 8
+		hs2 := merkle.NewHStar2(hasher)
+		fullTreeDepth := hasher.Size() * 8
 		offset := fullTreeDepth - rootID.PrefixLenBits - int(st.Depth)
 		root, err := hs2.HStar2Nodes(int(st.Depth), offset, leaves,
 			func(depth int, index *big.Int) ([]byte, error) {
@@ -464,9 +465,9 @@ func PopulateMapSubtreeNodes(treeHasher merkle.MapHasher) storage.PopulateSubtre
 // handle imperfect (but left-hand dense) subtrees. Note that we only rebuild internal
 // nodes when the subtree is fully populated. For an explanation of why see the comments
 // below for PrepareLogSubtreeWrite.
-func PopulateLogSubtreeNodes(treeHasher merkle.LogHasher) storage.PopulateSubtreeFunc {
+func PopulateLogSubtreeNodes(hasher hashers.LogHasher) storage.PopulateSubtreeFunc {
 	return func(st *storagepb.SubtreeProto) error {
-		cmt := merkle.NewCompactMerkleTree(treeHasher)
+		cmt := merkle.NewCompactMerkleTree(hasher)
 		if st.Depth < 1 {
 			return fmt.Errorf("populate log subtree with invalid depth: %d", st.Depth)
 		}

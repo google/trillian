@@ -22,6 +22,7 @@ import (
 	"math/big"
 	"sync"
 
+	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/storage"
 )
 
@@ -33,7 +34,7 @@ import (
 // to provide proofs etc.
 type SparseMerkleTreeReader struct {
 	tx           storage.ReadOnlyTreeTX
-	hasher       MapHasher
+	hasher       hashers.MapHasher
 	treeRevision int64
 }
 
@@ -42,7 +43,7 @@ type newTXFunc func() (storage.TreeTX, error)
 // SparseMerkleTreeWriter knows how to store/update a stored sparse Merkle tree
 // via a TreeStorage transaction.
 type SparseMerkleTreeWriter struct {
-	hasher       MapHasher
+	hasher       hashers.MapHasher
 	treeRevision int64
 	tree         Subtree
 }
@@ -106,7 +107,7 @@ type subtreeWriter struct {
 	tx           storage.TreeTX
 	treeRevision int64
 
-	treeHasher MapHasher
+	treeHasher hashers.MapHasher
 
 	getSubtree getSubtreeFunc
 }
@@ -298,7 +299,7 @@ var (
 // NewSparseMerkleTreeReader returns a new SparseMerkleTreeReader, reading at
 // the specified tree revision, using the passed in MapHasher for calculating
 // and verifying tree hashes read via tx.
-func NewSparseMerkleTreeReader(rev int64, h MapHasher, tx storage.ReadOnlyTreeTX) *SparseMerkleTreeReader {
+func NewSparseMerkleTreeReader(rev int64, h hashers.MapHasher, tx storage.ReadOnlyTreeTX) *SparseMerkleTreeReader {
 	return &SparseMerkleTreeReader{
 		tx:           tx,
 		hasher:       h,
@@ -316,7 +317,7 @@ func leafQueueSize(depths []int) int {
 }
 
 // newLocalSubtreeWriter creates a new local go-routine based subtree worker.
-func newLocalSubtreeWriter(ctx context.Context, rev int64, prefix []byte, depths []int, newTX newTXFunc, h MapHasher) (Subtree, error) {
+func newLocalSubtreeWriter(ctx context.Context, rev int64, prefix []byte, depths []int, newTX newTXFunc, h hashers.MapHasher) (Subtree, error) {
 	tx, err := newTX()
 	if err != nil {
 		return nil, err
@@ -346,7 +347,7 @@ func newLocalSubtreeWriter(ctx context.Context, rev int64, prefix []byte, depths
 // NewSparseMerkleTreeWriter returns a new SparseMerkleTreeWriter, which will
 // write data back into the tree at the specified revision, using the passed
 // in MapHasher to calculate/verify tree hashes, storing via tx.
-func NewSparseMerkleTreeWriter(ctx context.Context, rev int64, h MapHasher, newTX newTXFunc) (*SparseMerkleTreeWriter, error) {
+func NewSparseMerkleTreeWriter(ctx context.Context, rev int64, h hashers.MapHasher, newTX newTXFunc) (*SparseMerkleTreeWriter, error) {
 	// TODO(al): allow the tree layering sizes to be customisable somehow.
 	const topSubtreeSize = 8 // must be a multiple of 8 for now.
 	tree, err := newLocalSubtreeWriter(ctx, rev, []byte{}, []int{topSubtreeSize, h.Size()*8 - topSubtreeSize}, newTX, h)

@@ -26,6 +26,7 @@ import (
 	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/log"
+	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/trees"
 )
 
@@ -67,7 +68,7 @@ func (s *SequencerManager) ExecutePass(ctx context.Context, logID int64, info *L
 	}
 	ctx = trees.NewContext(ctx, tree)
 
-	hasher, err := trees.LogHasher(tree)
+	hasher, err := hashers.NewLogHasher(tree.HashStrategy)
 	if err != nil {
 		return 0, fmt.Errorf("error getting hasher for log %v: %v", logID, err)
 	}
