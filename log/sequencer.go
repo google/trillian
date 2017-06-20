@@ -58,16 +58,16 @@ func createMetrics(mf monitoring.MetricFactory) {
 	}
 	seqBatches = mf.NewCounter("sequencer_batches", "Number of sequencer batch operations", logIDLabel)
 	seqTreeSize = mf.NewGauge("sequencer_tree_size", "Size of Merkle tree", logIDLabel)
-	seqLatency = mf.NewHistogram("sequencer_latency", "Latency of sequencer batch operation in ms", logIDLabel)
-	seqDequeueLatency = mf.NewHistogram("sequencer_latency_dequeue", "Latency of dequeue-leaves part of sequencer batch operation in ms", logIDLabel)
-	seqGetRootLatency = mf.NewHistogram("sequencer_latency_get_root", "Latency of get-root part of sequencer batch operation in ms", logIDLabel)
-	seqInitTreeLatency = mf.NewHistogram("sequencer_latency_init_tree", "Latency of init-tree part of sequencer batch operation in ms", logIDLabel)
-	seqWriteTreeLatency = mf.NewHistogram("sequencer_latency_write_tree", "Latency of write-tree part of sequencer batch operation in ms", logIDLabel)
-	seqUpdateLeavesLatency = mf.NewHistogram("sequencer_latency_update_leaves", "Latency of update-leaves part of sequencer batch operation in ms", logIDLabel)
-	seqSetNodesLatency = mf.NewHistogram("sequencer_latency_set_nodes", "Latency of set-nodes part of sequencer batch operation in ms", logIDLabel)
-	seqStoreRootLatency = mf.NewHistogram("sequencer_latency_store_root", "Latency of store-root part of sequencer batch operation in ms", logIDLabel)
-	seqCommitLatency = mf.NewHistogram("sequencer_latency_commit", "Latency of commit part of sequencer batch operation in ms", logIDLabel)
-        seqCounter = mf.NewCounter("sequencer_sequenced", "Number of leaves sequenced", logIDLabel)
+	seqLatency = mf.NewHistogram("sequencer_latency", "Latency of sequencer batch operation in seconds", logIDLabel)
+	seqDequeueLatency = mf.NewHistogram("sequencer_latency_dequeue", "Latency of dequeue-leaves part of sequencer batch operation in seconds", logIDLabel)
+	seqGetRootLatency = mf.NewHistogram("sequencer_latency_get_root", "Latency of get-root part of sequencer batch operation in seconds", logIDLabel)
+	seqInitTreeLatency = mf.NewHistogram("sequencer_latency_init_tree", "Latency of init-tree part of sequencer batch operation in seconds", logIDLabel)
+	seqWriteTreeLatency = mf.NewHistogram("sequencer_latency_write_tree", "Latency of write-tree part of sequencer batch operation in seconds", logIDLabel)
+	seqUpdateLeavesLatency = mf.NewHistogram("sequencer_latency_update_leaves", "Latency of update-leaves part of sequencer batch operation in seconds", logIDLabel)
+	seqSetNodesLatency = mf.NewHistogram("sequencer_latency_set_nodes", "Latency of set-nodes part of sequencer batch operation in seconds", logIDLabel)
+	seqStoreRootLatency = mf.NewHistogram("sequencer_latency_store_root", "Latency of store-root part of sequencer batch operation in seconds", logIDLabel)
+	seqCommitLatency = mf.NewHistogram("sequencer_latency_commit", "Latency of commit part of sequencer batch operation in seconds", logIDLabel)
+	seqCounter = mf.NewCounter("sequencer_sequenced", "Number of leaves sequenced", logIDLabel)
 }
 
 // TODO(Martin2112): Add admin support for safely changing params like guard window during operation
@@ -218,7 +218,7 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int, gu
 	}
 	defer tx.Close()
 	defer seqBatches.Inc(label)
-	defer func() { seqLatency.Observe(s.sinceMillis(start), label) }()
+	defer func() { seqLatency.Observe(s.since(start), label) }()
 
 	// Very recent leaves inside the guard window will not be available for sequencing
 	guardCutoffTime := s.timeSource.Now().Add(-guardWindow)
@@ -227,7 +227,7 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int, gu
 		glog.Warningf("%v: Sequencer failed to dequeue leaves: %v", logID, err)
 		return 0, err
 	}
-	seqDequeueLatency.Observe(s.sinceMillis(stageStart), label)
+	seqDequeueLatency.Observe(s.since(stageStart), label)
 	stageStart = s.timeSource.Now()
 
 	// Get the latest known root from storage
@@ -236,7 +236,7 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int, gu
 		glog.Warningf("%v: Sequencer failed to get latest root: %v", logID, err)
 		return 0, err
 	}
-	seqGetRootLatency.Observe(s.sinceMillis(stageStart), label)
+	seqGetRootLatency.Observe(s.since(stageStart), label)
 	stageStart = s.timeSource.Now()
 
 	// TODO(al): Have a better detection mechanism for there being no stored root.
@@ -270,7 +270,7 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int, gu
 	if err != nil {
 		return 0, err
 	}
-	seqInitTreeLatency.Observe(s.sinceMillis(stageStart), label)
+	seqInitTreeLatency.Observe(s.since(stageStart), label)
 	stageStart = s.timeSource.Now()
 
 	// We've done all the reads, can now do the updates.
@@ -287,7 +287,7 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int, gu
 	if err != nil {
 		return 0, err
 	}
-	seqWriteTreeLatency.Observe(s.sinceMillis(stageStart), label)
+	seqWriteTreeLatency.Observe(s.since(stageStart), label)
 	stageStart = s.timeSource.Now()
 
 	// We should still have the same number of leaves
@@ -300,7 +300,7 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int, gu
 		glog.Warningf("%v: Sequencer failed to update sequenced leaves: %v", logID, err)
 		return 0, err
 	}
-	seqUpdateLeavesLatency.Observe(s.sinceMillis(stageStart), label)
+	seqUpdateLeavesLatency.Observe(s.since(stageStart), label)
 	stageStart = s.timeSource.Now()
 
 	// Build objects for the nodes to be updated. Because we deduped via the map each
@@ -318,7 +318,7 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int, gu
 		glog.Warningf("%v: Sequencer failed to set Merkle nodes: %v", logID, err)
 		return 0, err
 	}
-	seqSetNodesLatency.Observe(s.sinceMillis(stageStart), label)
+	seqSetNodesLatency.Observe(s.since(stageStart), label)
 	stageStart = s.timeSource.Now()
 
 	// Create the log root ready for signing
@@ -344,14 +344,14 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int, gu
 		glog.Warningf("%v: failed to write updated tree root: %v", logID, err)
 		return 0, err
 	}
-	seqStoreRootLatency.Observe(s.sinceMillis(stageStart), label)
+	seqStoreRootLatency.Observe(s.since(stageStart), label)
 	stageStart = s.timeSource.Now()
 
 	// The batch is now fully sequenced and we're done
 	if err := tx.Commit(); err != nil {
 		return 0, err
 	}
-	seqCommitLatency.Observe(s.sinceMillis(stageStart), label)
+	seqCommitLatency.Observe(s.since(stageStart), label)
 
 	// Let quota.Manager know about newly-sequenced entries.
 	// All possibly influenced quotas are replenished: {Tree/Global, Read/Write}.
@@ -423,8 +423,8 @@ func (s Sequencer) SignRoot(ctx context.Context, logID int64) error {
 	return tx.Commit()
 }
 
-// sinceMillis() returns the time in milliseconds since a particular time, according to
+// since() returns the time in seconds since a particular time, according to
 // the TimeSource used by this sequencer.
-func (s *Sequencer) sinceMillis(start time.Time) float64 {
-	return float64(s.timeSource.Now().Sub(start) / time.Millisecond)
+func (s *Sequencer) since(start time.Time) float64 {
+	return s.timeSource.Now().Sub(start).Seconds()
 }

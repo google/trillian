@@ -92,7 +92,7 @@ func TestSingleRequests(t *testing.T) {
 		if got, want := stats.ReqCount.Value(test.method), 1.0; got != want {
 			t.Errorf("stats.ReqCount=%v; want %v", got, want)
 		}
-		wantLatency := float64(test.timeSource.Increments[1].Nanoseconds() / int64(time.Millisecond))
+		wantLatency := test.timeSource.Increments[1].Seconds()
 		wantErrors := 0.0
 		wantSuccess := 0.0
 		if test.handler.err == nil {
@@ -144,7 +144,7 @@ func TestMultipleOKRequestsTotalLatency(t *testing.T) {
 		}
 	}
 	count, sum := stats.ReqSuccessLatency.Info("testmethod")
-	if wantCount, wantSum := uint64(3), 3837.0; count != wantCount || sum != wantSum {
+	if wantCount, wantSum := uint64(3), time.Duration(3837*time.Millisecond).Seconds(); count != wantCount || sum != wantSum {
 		t.Errorf("stats.ReqSuccessLatency.Info=%v,%v; want %v,%v", count, sum, wantCount, wantSum)
 	}
 }
@@ -174,7 +174,7 @@ func TestMultipleErrorRequestsTotalLatency(t *testing.T) {
 	}
 
 	count, sum := stats.ReqErrorLatency.Info("testmethod")
-	if wantCount, wantSum := uint64(3), 2616.0; count != wantCount || sum != wantSum {
+	if wantCount, wantSum := uint64(3), 2.6160; count != wantCount || sum != wantSum {
 		t.Errorf("stats.ReqSuccessLatency.Info=%v,%v; want %v,%v", count, sum, wantCount, wantSum)
 	}
 }
