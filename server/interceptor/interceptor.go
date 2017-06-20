@@ -47,7 +47,7 @@ type TrillianInterceptor struct {
 // UnaryInterceptor executes the TrillianInterceptor logic for unary RPCs.
 func (i *TrillianInterceptor) UnaryInterceptor(ctx context.Context, req interface{}, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 	// IMPORTANT: Do not rely on grpc.UnaryServerInfo in this filter. It makes life a lot harder
-	// when adapting the code to our internal branch.
+	// when adapting the code to other environments.
 
 	quotaUser := i.QuotaManager.GetUser(ctx, req)
 	rpcInfo, err := getRPCInfo(req, quotaUser)
