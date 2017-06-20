@@ -106,7 +106,7 @@ type subtreeWriter struct {
 	tx           storage.TreeTX
 	treeRevision int64
 
-	treeHasher TreeHasher
+	treeHasher MapHasher
 
 	getSubtree getSubtreeFunc
 }
@@ -316,7 +316,7 @@ func leafQueueSize(depths []int) int {
 }
 
 // newLocalSubtreeWriter creates a new local go-routine based subtree worker.
-func newLocalSubtreeWriter(ctx context.Context, rev int64, prefix []byte, depths []int, newTX newTXFunc, h TreeHasher) (Subtree, error) {
+func newLocalSubtreeWriter(ctx context.Context, rev int64, prefix []byte, depths []int, newTX newTXFunc, h MapHasher) (Subtree, error) {
 	tx, err := newTX()
 	if err != nil {
 		return nil, err
@@ -349,7 +349,7 @@ func newLocalSubtreeWriter(ctx context.Context, rev int64, prefix []byte, depths
 func NewSparseMerkleTreeWriter(ctx context.Context, rev int64, h MapHasher, newTX newTXFunc) (*SparseMerkleTreeWriter, error) {
 	// TODO(al): allow the tree layering sizes to be customisable somehow.
 	const topSubtreeSize = 8 // must be a multiple of 8 for now.
-	tree, err := newLocalSubtreeWriter(ctx, rev, []byte{}, []int{topSubtreeSize, h.Size()*8 - topSubtreeSize}, newTX, h.TreeHasher)
+	tree, err := newLocalSubtreeWriter(ctx, rev, []byte{}, []int{topSubtreeSize, h.Size()*8 - topSubtreeSize}, newTX, h)
 	if err != nil {
 		return nil, err
 	}

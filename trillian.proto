@@ -39,6 +39,11 @@ enum HashStrategy {
   // Certificate Transparency strategy: leaf hash prefix = 0x00, node prefix =
   // 0x01, empty hash is digest([]byte{}), as defined in the specification.
   RFC_6962 = 1;
+
+  // Sparse Merkle Tree strategy:  leaf hash prefix = 0x00, node prefix = 0x01,
+  // empty branch is recursively computed from empty leaf nodes. 
+  // NOT secure in a multi tree environment. For testing only.
+  TEST_MAP_HASHER = 2;
 }
 
 // State of the tree.

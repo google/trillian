@@ -76,7 +76,7 @@ func TestAddingLeaves(t *testing.T) {
 			t.Errorf("Size()=%d, want %d", got, want)
 		}
 		if got, want := tree.CurrentRoot(), testonly.EmptyMerkleTreeRootHash(); !bytes.Equal(got, want) {
-			t.Errorf("CurrentRoot()=%v, want %v", got, want)
+			t.Errorf("CurrentRoot()=%x, want %x", got, want)
 		}
 
 		for i := 0; i < 8; i++ {

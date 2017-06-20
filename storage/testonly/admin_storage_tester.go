@@ -65,7 +65,7 @@ var (
 	MapTree = &trillian.Tree{
 		TreeState:          trillian.TreeState_ACTIVE,
 		TreeType:           trillian.TreeType_MAP,
-		HashStrategy:       trillian.HashStrategy_RFC_6962,
+		HashStrategy:       trillian.HashStrategy_TEST_MAP_HASHER,
 		HashAlgorithm:      spb.DigitallySigned_SHA256,
 		SignatureAlgorithm: spb.DigitallySigned_ECDSA,
 		DisplayName:        "Llamas Map",

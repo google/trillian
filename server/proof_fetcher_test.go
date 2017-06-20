@@ -26,7 +26,6 @@ import (
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testonly"
-	trillian_testonly "github.com/google/trillian/testonly"
 )
 
 // rehashTest encapsulates one test case for the rehasher in isolation. Input data like the storage
@@ -57,7 +56,7 @@ var sn4 = storage.Node{NodeID: storage.NewNodeIDFromHash(h4), Hash: h4, NodeRevi
 var sn5 = storage.Node{NodeID: storage.NewNodeIDFromHash(h5), Hash: h5, NodeRevision: 55}
 
 func TestRehasher(t *testing.T) {
-	hasher := rfc6962.Hasher
+	hasher := rfc6962.DefaultHasher
 	rehashTests := []rehashTest{
 		{
 			desc:    "no rehash",
@@ -132,7 +131,7 @@ func TestRehasher(t *testing.T) {
 
 func TestTree813FetchAll(t *testing.T) {
 	ctx := context.Background()
-	hasher := rfc6962.Hasher
+	hasher := rfc6962.DefaultHasher
 	const ts int64 = 813
 
 	mt := treeAtSize(int(ts))
@@ -172,7 +171,7 @@ func TestTree813FetchAll(t *testing.T) {
 
 func TestTree32InclusionProofFetchAll(t *testing.T) {
 	ctx := context.Background()
-	hasher := rfc6962.Hasher
+	hasher := rfc6962.DefaultHasher
 	for ts := 2; ts <= 32; ts++ {
 		mt := treeAtSize(ts)
 		r := testonly.NewMultiFakeNodeReaderFromLeaves([]testonly.LeafBatch{
@@ -210,7 +209,7 @@ func TestTree32InclusionProofFetchAll(t *testing.T) {
 
 func TestTree32InclusionProofFetchMultiBatch(t *testing.T) {
 	ctx := context.Background()
-	hasher := rfc6962.Hasher
+	hasher := rfc6962.DefaultHasher
 
 	mt := treeAtSize(32)
 	// The reader is built up with multiple batches, 4 batches x 8 leaves each
@@ -252,7 +251,7 @@ func TestTree32InclusionProofFetchMultiBatch(t *testing.T) {
 
 func TestTree32ConsistencyProofFetchAll(t *testing.T) {
 	ctx := context.Background()
-	hasher := rfc6962.Hasher
+	hasher := rfc6962.DefaultHasher
 	for ts := 2; ts <= 32; ts++ {
 		mt := treeAtSize(ts)
 		r := testonly.NewMultiFakeNodeReaderFromLeaves([]testonly.LeafBatch{
@@ -303,7 +302,7 @@ func expectedRootAtSize(mt *merkle.InMemoryMerkleTree) []byte {
 
 func treeAtSize(n int) *merkle.InMemoryMerkleTree {
 	leaves := expandLeaves(0, n-1)
-	mt := merkle.NewInMemoryMerkleTree(trillian_testonly.Hasher)
+	mt := merkle.NewInMemoryMerkleTree(rfc6962.DefaultHasher)
 	for _, leaf := range leaves {
 		mt.AddLeaf([]byte(leaf))
 	}

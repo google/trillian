@@ -31,6 +31,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/golang/mock/gomock"
+	"github.com/google/trillian/merkle/maphasher"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/testonly"
 )
@@ -82,13 +83,13 @@ func newTX(tx storage.MapTreeTX) func() (storage.TreeTX, error) {
 
 func getSparseMerkleTreeReaderWithMockTX(ctrl *gomock.Controller, rev int64) (*SparseMerkleTreeReader, *storage.MockMapTreeTX) {
 	tx := storage.NewMockMapTreeTX(ctrl)
-	return NewSparseMerkleTreeReader(rev, NewMapHasher(testonly.Hasher), tx), tx
+	return NewSparseMerkleTreeReader(rev, maphasher.Default, tx), tx
 }
 
 func getSparseMerkleTreeWriterWithMockTX(ctx context.Context, ctrl *gomock.Controller, rev int64) (*SparseMerkleTreeWriter, *storage.MockMapTreeTX) {
 	tx := storage.NewMockMapTreeTX(ctrl)
 	tx.EXPECT().WriteRevision().AnyTimes().Return(rev)
-	tree, err := NewSparseMerkleTreeWriter(ctx, rev, NewMapHasher(testonly.Hasher), newTX(tx))
+	tree, err := NewSparseMerkleTreeWriter(ctx, rev, maphasher.Default, newTX(tx))
 	if err != nil {
 		panic(err)
 	}

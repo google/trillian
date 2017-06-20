@@ -17,11 +17,11 @@ package merkle
 import (
 	"bytes"
 	"crypto/sha256"
-	"encoding/base64"
 	"fmt"
 	"math/big"
 	"testing"
 
+	"github.com/google/trillian/merkle/maphasher"
 	"github.com/google/trillian/testonly"
 )
 
@@ -34,11 +34,11 @@ var sparseEmptyRootHashB64 = testonly.MustDecodeBase64("xmifEIEqCYCXbZUz2Dh1KCFm
 // passing into a the HStar2 sparse Merkle tree implementation.
 // The map keys will be SHA256 hashed before being added to the returned
 // structs.
-func createHStar2Leaves(th TreeHasher, values map[string]string) []HStar2LeafHash {
+func createHStar2Leaves(hasher MapHasher, values map[string]string) []HStar2LeafHash {
 	r := []HStar2LeafHash{}
 	for k := range values {
 		khash := sha256.Sum256([]byte(k))
-		vhash := th.HashLeaf([]byte(values[k]))
+		vhash := hasher.HashLeaf([]byte(values[k]))
 		r = append(r, HStar2LeafHash{
 			Index:    new(big.Int).SetBytes(khash[:]),
 			LeafHash: vhash[:],
@@ -48,7 +48,7 @@ func createHStar2Leaves(th TreeHasher, values map[string]string) []HStar2LeafHas
 }
 
 func TestHStar2EmptyRootKAT(t *testing.T) {
-	s := NewHStar2(testonly.Hasher)
+	s := NewHStar2(maphasher.Default)
 	root, err := s.HStar2Root(s.hasher.Size()*8, []HStar2LeafHash{})
 	if err != nil {
 		t.Fatalf("Failed to calculate root: %v", err)
@@ -71,18 +71,19 @@ var simpleTestVector = []struct {
 }
 
 func TestHStar2SimpleDataSetKAT(t *testing.T) {
-	s := NewHStar2(testonly.Hasher)
+	s := NewHStar2(maphasher.Default)
 
 	m := make(map[string]string)
 	for i, x := range simpleTestVector {
 		m[x.k] = x.v
-		values := createHStar2Leaves(testonly.Hasher, m)
+		values := createHStar2Leaves(maphasher.Default, m)
 		root, err := s.HStar2Root(s.hasher.Size()*8, values)
 		if err != nil {
-			t.Fatalf("Failed to calculate root at iteration %d: %v", i, err)
+			t.Errorf("Failed to calculate root at iteration %d: %v", i, err)
+			continue
 		}
-		if expected, got := x.root, root; !bytes.Equal(expected, got) {
-			t.Fatalf("Expected root:\n%v\nGot:\n%v", base64.StdEncoding.EncodeToString(expected), base64.StdEncoding.EncodeToString(got))
+		if got, want := root, x.root; !bytes.Equal(got, want) {
+			t.Errorf("Root: \n%x, want:\n%x", got, want)
 		}
 	}
 }
@@ -95,10 +96,10 @@ func TestHStar2GetSet(t *testing.T) {
 	cache := make(map[string][]byte)
 
 	for i, x := range simpleTestVector {
-		s := NewHStar2(testonly.Hasher)
+		s := NewHStar2(maphasher.Default)
 		m := make(map[string]string)
 		m[x.k] = x.v
-		values := createHStar2Leaves(testonly.Hasher, m)
+		values := createHStar2Leaves(maphasher.Default, m)
 		// ensure we're going incrementally, one leaf at a time.
 		if len(values) != 1 {
 			t.Fatalf("Should only have 1 leaf per run, got %d", len(values))
@@ -112,10 +113,11 @@ func TestHStar2GetSet(t *testing.T) {
 				return nil
 			})
 		if err != nil {
-			t.Fatalf("Failed to calculate root at iteration %d: %v", i, err)
+			t.Errorf("Failed to calculate root at iteration %d: %v", i, err)
+			continue
 		}
-		if expected, got := x.root, root; !bytes.Equal(expected, got) {
-			t.Fatalf("Expected root:\n%v\nGot:\n%v", base64.StdEncoding.EncodeToString(expected), base64.StdEncoding.EncodeToString(got))
+		if got, want := root, x.root; !bytes.Equal(got, want) {
+			t.Errorf("Root:\n%x\n, want:\n%x", got, want)
 		}
 	}
 }
@@ -123,7 +125,7 @@ func TestHStar2GetSet(t *testing.T) {
 // Checks that we calculate the same empty root hash as a 256-level tree has
 // when calculating top subtrees using an appropriate offset.
 func TestHStar2OffsetEmptyRootKAT(t *testing.T) {
-	s := NewHStar2(testonly.Hasher)
+	s := NewHStar2(maphasher.Default)
 
 	for size := 1; size < 255; size++ {
 		root, err := s.HStar2Nodes(size, s.hasher.Size()*8-size, []HStar2LeafHash{},
@@ -132,8 +134,8 @@ func TestHStar2OffsetEmptyRootKAT(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to calculate root %v", err)
 		}
-		if expected, got := sparseEmptyRootHashB64, root; !bytes.Equal(expected, got) {
-			t.Fatalf("Expected root:\n%v\nGot:\n%v", base64.StdEncoding.EncodeToString(expected), base64.StdEncoding.EncodeToString(got))
+		if got, want := root, sparseEmptyRootHashB64; !bytes.Equal(got, want) {
+			t.Fatalf("Got root:\n%x, want:\n%x", got, want)
 		}
 	}
 }
@@ -143,7 +145,7 @@ func TestHStar2OffsetEmptyRootKAT(t *testing.T) {
 // 256-prefixSize, and can be passed in as leaves to top-subtree calculation.
 func rootsForTrimmedKeys(t *testing.T, prefixSize int, lh []HStar2LeafHash) []HStar2LeafHash {
 	var ret []HStar2LeafHash
-	s := NewHStar2(testonly.Hasher)
+	s := NewHStar2(maphasher.Default)
 	for i := range lh {
 		prefix := new(big.Int).Rsh(lh[i].Index, uint(s.hasher.Size()*8-prefixSize))
 		b := lh[i].Index.Bytes()
@@ -165,7 +167,7 @@ func rootsForTrimmedKeys(t *testing.T, prefixSize int, lh []HStar2LeafHash) []HS
 // (single top subtree of size n, and multipl bottom subtrees of size 256-n)
 // still arrives at the same Known Answers for root hash.
 func TestHStar2OffsetRootKAT(t *testing.T) {
-	s := NewHStar2(testonly.Hasher)
+	s := NewHStar2(maphasher.Default)
 
 	m := make(map[string]string)
 
@@ -175,28 +177,29 @@ func TestHStar2OffsetRootKAT(t *testing.T) {
 		// requirement.
 		for size := 24; size < 256; size += 8 {
 			m[x.k] = x.v
-			intermediates := rootsForTrimmedKeys(t, size, createHStar2Leaves(testonly.Hasher, m))
+			intermediates := rootsForTrimmedKeys(t, size, createHStar2Leaves(maphasher.Default, m))
 
 			root, err := s.HStar2Nodes(size, s.hasher.Size()*8-size, intermediates,
 				func(int, *big.Int) ([]byte, error) { return nil, nil },
 				func(int, *big.Int, []byte) error { return nil })
 			if err != nil {
-				t.Fatalf("Failed to calculate root at iteration %d: %v", i, err)
+				t.Errorf("Failed to calculate root at iteration %d: %v", i, err)
+				continue
 			}
-			if expected, got := x.root, root; !bytes.Equal(expected, got) {
-				t.Fatalf("Expected root:\n%v\nGot:\n%v", base64.StdEncoding.EncodeToString(expected), base64.StdEncoding.EncodeToString(got))
+			if got, want := root, x.root; !bytes.Equal(got, want) {
+				t.Errorf("Root:\n%x\n, want:\n%x", got, want)
 			}
 		}
 	}
 }
 
 func TestHStar2NegativeTreeLevelOffset(t *testing.T) {
-	s := NewHStar2(testonly.Hasher)
+	s := NewHStar2(maphasher.Default)
 
 	_, err := s.HStar2Nodes(32, -1, []HStar2LeafHash{},
 		func(int, *big.Int) ([]byte, error) { return nil, nil },
 		func(int, *big.Int, []byte) error { return nil })
-	if expected, got := ErrNegativeTreeLevelOffset, err; expected != got {
-		t.Fatalf("expected %v, but got %v", expected, got)
+	if got, want := err, ErrNegativeTreeLevelOffset; got != want {
+		t.Fatalf("Hstar2Nodes(): %v, want %v", got, want)
 	}
 }

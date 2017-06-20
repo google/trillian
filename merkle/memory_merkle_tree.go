@@ -99,7 +99,7 @@ type InMemoryMerkleTree struct {
 	tree            [][]TreeEntry
 	leavesProcessed int64
 	levelCount      int64
-	hasher          TreeHasher
+	hasher          LogHasher
 }
 
 // isPowerOfTwoPlusOne tests whether a number is (2^x)-1 for some x. From MerkleTreeMath in C++
@@ -125,7 +125,7 @@ func sibling(leaf int64) int64 {
 }
 
 // NewInMemoryMerkleTree creates a new empty Merkle Tree using the specified Hasher
-func NewInMemoryMerkleTree(hasher TreeHasher) *InMemoryMerkleTree {
+func NewInMemoryMerkleTree(hasher LogHasher) *InMemoryMerkleTree {
 	mt := InMemoryMerkleTree{}
 
 	mt.hasher = hasher
@@ -270,7 +270,7 @@ func (mt *InMemoryMerkleTree) CurrentRoot() TreeEntry {
 // (i.e., the tree is not large enough).
 func (mt *InMemoryMerkleTree) RootAtSnapshot(snapshot int64) TreeEntry {
 	if snapshot == 0 {
-		return TreeEntry{mt.hasher.HashEmpty()}
+		return TreeEntry{mt.hasher.EmptyRoot()}
 	}
 
 	// Snapshot index bigger than tree, this is not the TreeEntry you're looking for
@@ -289,7 +289,7 @@ func (mt *InMemoryMerkleTree) RootAtSnapshot(snapshot int64) TreeEntry {
 // updateToSnapshot updates the tree to a given snapshot (if necessary), returns the root.
 func (mt *InMemoryMerkleTree) updateToSnapshot(snapshot int64) TreeEntry {
 	if snapshot == 0 {
-		return TreeEntry{mt.hasher.HashEmpty()}
+		return TreeEntry{mt.hasher.EmptyRoot()}
 	}
 
 	if snapshot == 1 {

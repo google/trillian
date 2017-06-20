@@ -23,6 +23,7 @@ TEST_TREE_ID=$(./createtree \
   --tree_type=MAP \
   --pem_key_path=${TRILLIAN_PATH}/testdata/map-rpc-server.privkey.pem \
   --pem_key_password=towel \
+  --hash_strategy=TEST_MAP_HASHER \
   --signature_algorithm=ECDSA)
 echo "Created tree ${TEST_TREE_ID}"
 

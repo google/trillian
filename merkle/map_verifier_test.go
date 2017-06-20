@@ -17,11 +17,12 @@ package merkle
 import (
 	"testing"
 
+	"github.com/google/trillian/merkle/maphasher"
 	"github.com/google/trillian/testonly"
 )
 
 func TestVerifyMap(t *testing.T) {
-	h := NewMapHasher(testonly.Hasher)
+	h := maphasher.Default
 	tv := mapInclusionTestVector[0]
 
 	// Copy the bad proof so we don't mess up the good proof.

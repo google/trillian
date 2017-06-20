@@ -14,11 +14,31 @@
 
 package merkle
 
-// TreeHasher is the interface that the previous tree hasher struct implemented.
-type TreeHasher interface {
-	HashEmpty() []byte
+// LogHasher provides the hash functions needed to compute dense merkele trees.
+type LogHasher interface {
+	// EmptyRoot supports returning a special case for the root of an empty tree.
+	EmptyRoot() []byte
+	// HashLeaf computes the hash of a leaf that exists.
 	HashLeaf(leaf []byte) []byte
+	// HashChildren computes interior nodes.
 	HashChildren(l, r []byte) []byte
+	// Size is the number of bits in the underlying hash function.
+	// TODO(gbelvin): Replace Size() with BitLength().
+	Size() int
+}
+
+// MapHasher provides the hash functions needed to compute sparse merkle trees.
+// TODO(gbelvin): Update interface to match #670
+type MapHasher interface {
+	// HashEmpty returns the hash of an empty branch at a given depth.
+	// A height of 0 indicates an empty leaf. The maximum height is Size*8.
+	HashEmpty(height int) []byte
+	// HashLeaf computes the hash of a leaf that exists.
+	HashLeaf(leaf []byte) []byte
+	// HashChildren computes interior nodes.
+	HashChildren(l, r []byte) []byte
+	// Size is the number of bits in the underlying hash function.
+	// It is also the height of the merkle tree.
 	// TODO(gbelvin): Replace Size() with BitLength().
 	Size() int
 }

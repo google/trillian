@@ -16,42 +16,40 @@
 package objhasher
 
 import (
-	"crypto/sha256" // Use SHA256 to match ObjectHash.
-
 	"github.com/benlaurie/objecthash/go/objecthash"
+	"github.com/google/trillian/merkle"
 )
 
-// ObjectHasher uses ObjectHash to compute leaf hashes.
-var ObjectHasher = &objhasher{}
+type objmaphasher struct {
+	merkle.MapHasher
+}
 
-// ObjectHash does not use `1` as any of its type prefixes,
-// preserving domain separation.
-const nodeHashPrefix = 1
+type objloghasher struct {
+	merkle.LogHasher
+}
 
-type objhasher struct{}
+// NewMapHasher returns a new ObjectHasher based on the passed in MapHasher
+func NewMapHasher(baseHasher merkle.MapHasher) merkle.MapHasher {
+	return &objmaphasher{
+		MapHasher: baseHasher,
+	}
+}
 
-// HashEmpty returns the hash of an empty element for the tree
-func (o *objhasher) HashEmpty() []byte {
-	return sha256.New().Sum(nil)
+// NewLogHasher returns a new ObjectHasher based on the passed in MapHasher
+func NewLogHasher(baseHasher merkle.LogHasher) merkle.LogHasher {
+	return &objloghasher{
+		LogHasher: baseHasher,
+	}
 }
 
 // HashLeaf returns the object hash of leaf, which must be a JSON object.
-func (o *objhasher) HashLeaf(leaf []byte) []byte {
+func (o *objloghasher) HashLeaf(leaf []byte) []byte {
 	hash := objecthash.CommonJSONHash(string(leaf))
 	return hash[:]
 }
 
-// HashChildren returns the inner Merkle tree node hash of the the two child nodes l and r.
-// The hashed structure is NodeHashPrefix||l||r.
-func (o *objhasher) HashChildren(l, r []byte) []byte {
-	h := sha256.New()
-	h.Write([]byte{nodeHashPrefix})
-	h.Write(l)
-	h.Write(r)
-	return h.Sum(nil)
-}
-
-// Size returns the number of bytes in the hash output.
-func (o *objhasher) Size() int {
-	return sha256.Size
+// HashLeaf returns the object hash of leaf, which must be a JSON object.
+func (o *objmaphasher) HashLeaf(leaf []byte) []byte {
+	hash := objecthash.CommonJSONHash(string(leaf))
+	return hash[:]
 }
