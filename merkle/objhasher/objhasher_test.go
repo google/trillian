@@ -16,11 +16,10 @@ package objhasher
 
 import (
 	"bytes"
-	"crypto"
 	"encoding/hex"
 	"testing"
 
-	"github.com/google/trillian/merkle/rfc6962"
+	"github.com/google/trillian/merkle/maphasher"
 )
 
 func TestLeafHash(t *testing.T) {
@@ -49,18 +48,12 @@ func TestLeafHash(t *testing.T) {
 }
 
 func TestHashEmpty(t *testing.T) {
-	h := ObjectHasher
-	rfc := rfc6962.TreeHasher{Hash: crypto.SHA256}
-
-	if got, want := h.HashEmpty(), rfc.HashEmpty(); !bytes.Equal(got, want) {
+	if got, want := ObjectHasher.HashEmpty(0), maphasher.Default.HashEmpty(0); !bytes.Equal(got, want) {
 		t.Errorf("HashEmpty():\n%x, want\n%x", got, want)
 	}
 }
 
 func TestHashChildren(t *testing.T) {
-	h := ObjectHasher
-	rfc := rfc6962.TreeHasher{Hash: crypto.SHA256}
-
 	for _, tc := range []struct {
 		r, l []byte
 	}{
@@ -68,7 +61,7 @@ func TestHashChildren(t *testing.T) {
 			r: []byte("a"), l: []byte("b"),
 		},
 	} {
-		if got, want := h.HashChildren(tc.r, tc.l), rfc.HashChildren(tc.r, tc.l); !bytes.Equal(got, want) {
+		if got, want := ObjectHasher.HashChildren(tc.r, tc.l), maphasher.Default.HashChildren(tc.r, tc.l); !bytes.Equal(got, want) {
 			t.Errorf("HashChildren(%x, %x):\n%x, want\n%x", tc.r, tc.l, got, want)
 		}
 	}

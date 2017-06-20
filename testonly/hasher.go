@@ -18,15 +18,8 @@ package testonly
 // personality.
 
 import (
-	"crypto"
 	"crypto/sha256"
-
-	"github.com/google/trillian/merkle/rfc6962"
 )
-
-// Hasher is the default hasher for tests.
-// TODO: Make this a custom algorithm to decouple hashing from coded defaults.
-var Hasher = rfc6962.TreeHasher{Hash: crypto.SHA256}
 
 // HashKey converts a map key into a map index using SHA256.
 // This preserves tests that precomputed indexes based on SHA256.

@@ -28,17 +28,17 @@ import (
 // append-only logs, but adds support for nil/"default" proof nodes.
 //
 // Returns nil on a successful verification, and an error otherwise.
-func VerifyMapInclusionProof(index, leafHash, expectedRoot []byte, proof [][]byte, h MapHasher) error {
+func VerifyMapInclusionProof(index, leafHash, expectedRoot []byte, proof [][]byte, h TreeHasher) error {
 	hBits := h.Size() * 8
 
 	if got, want := len(proof), hBits; got != want {
-		return fmt.Errorf("invalid proof length %d, expected %d", got, want)
+		return fmt.Errorf("invalid proof length %d, want %d", got, want)
 	}
 	if got, want := len(index)*8, hBits; got != want {
-		return fmt.Errorf("invalid index length %d, expected %d", got, want)
+		return fmt.Errorf("invalid index length %d, want %d", got, want)
 	}
 	if got, want := len(leafHash)*8, hBits; got != want {
-		return fmt.Errorf("invalid leafHash length %d, expected %d", got, want)
+		return fmt.Errorf("invalid leafHash length %d, want %d", got, want)
 	}
 
 	// TODO(al): Remove this dep on storage, since clients will want to use this code.
@@ -51,10 +51,10 @@ func VerifyMapInclusionProof(index, leafHash, expectedRoot []byte, proof [][]byt
 		proofIsRightHandElement := nID.Bit(bit) == 0
 		pElement := proof[bit]
 		if len(pElement) == 0 {
-			pElement = h.nullHashes[hBits-1-bit]
+			pElement = h.HashEmpty(bit)
 		}
 		if got, want := len(pElement)*8, hBits; got != want {
-			return fmt.Errorf("invalid proof: element has length %d, expected %d", got, want)
+			return fmt.Errorf("invalid proof: element has length %d, want %d", got, want)
 		}
 		if proofIsRightHandElement {
 			runningHash = h.HashChildren(runningHash, pElement)
@@ -64,7 +64,7 @@ func VerifyMapInclusionProof(index, leafHash, expectedRoot []byte, proof [][]byt
 	}
 
 	if got, want := runningHash, expectedRoot; !bytes.Equal(got, want) {
-		return fmt.Errorf("invalid proof; calculated roothash %v but expected %v", got, want)
+		return fmt.Errorf("invalid proof: calculated roothash \n%x, want \n%x", got, want)
 	}
 	return nil
 }

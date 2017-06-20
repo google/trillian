@@ -28,6 +28,7 @@ import (
 	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/sigpb"
+	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/storage"
 	stestonly "github.com/google/trillian/storage/testonly"
@@ -39,7 +40,7 @@ var (
 	// These can be shared between tests as they're never modified
 	testLeaf16Data = []byte("testdataforleaf")
 	testLeaf16     = &trillian.LogLeaf{
-		MerkleLeafHash: testonly.Hasher.HashLeaf(testLeaf16Data),
+		MerkleLeafHash: rfc6962.DefaultHasher.HashLeaf(testLeaf16Data),
 		LeafValue:      testLeaf16Data,
 		ExtraData:      nil,
 		LeafIndex:      16,
@@ -160,7 +161,7 @@ type testContext struct {
 // This gets modified so tests need their own copies
 func getLeaf42() *trillian.LogLeaf {
 	return &trillian.LogLeaf{
-		MerkleLeafHash: testonly.Hasher.HashLeaf(testLeaf16Data),
+		MerkleLeafHash: rfc6962.DefaultHasher.HashLeaf(testLeaf16Data),
 		LeafValue:      testLeaf16Data,
 		ExtraData:      nil,
 		LeafIndex:      42,
@@ -254,7 +255,7 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) (testCont
 	if qm == nil {
 		qm = quota.Noop()
 	}
-	sequencer := NewSequencer(testonly.Hasher, util.NewFakeTimeSource(fakeTimeForTest), mockStorage, signer, nil, qm)
+	sequencer := NewSequencer(rfc6962.DefaultHasher, util.NewFakeTimeSource(fakeTimeForTest), mockStorage, signer, nil, qm)
 	return testContext{mockTx: mockTx, mockStorage: mockStorage, signer: signer, sequencer: sequencer}, context.Background()
 }
 

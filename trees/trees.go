@@ -28,6 +28,7 @@ import (
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/errors"
 	"github.com/google/trillian/merkle"
+	"github.com/google/trillian/merkle/maphasher"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/storage"
 	"golang.org/x/net/context"
@@ -118,9 +119,12 @@ func Hasher(tree *trillian.Tree) (merkle.TreeHasher, error) {
 
 	switch tree.HashStrategy {
 	case trillian.HashStrategy_RFC_6962:
-		return rfc6962.TreeHasher{Hash: hash}, nil
+		return rfc6962.New(hash), nil
+	case trillian.HashStrategy_MAP_HASHER:
+		return maphasher.New(hash), nil
+	default:
+		return nil, fmt.Errorf("unexpected hash strategy: %s", tree.HashStrategy)
 	}
-	return nil, fmt.Errorf("unexpected hash strategy: %s", tree.HashStrategy)
 }
 
 // Signer returns a Trillian crypto.Signer configured by the tree.

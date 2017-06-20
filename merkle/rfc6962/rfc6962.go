@@ -15,7 +15,10 @@
 // Package rfc6962 provides hashing functionality according to RFC6962.
 package rfc6962
 
-import "crypto"
+import (
+	"crypto"
+	_ "crypto/sha256" // SHA256 is the default algorithm.
+)
 
 // Domain separation prefixes
 const (
@@ -23,22 +26,34 @@ const (
 	RFC6962NodeHashPrefix = 1
 )
 
-// Hasher is a SHA256 based TreeHasher.
-var Hasher = &TreeHasher{Hash: crypto.SHA256}
+// DefaultHasher is a SHA256 based TreeHasher.
+var DefaultHasher = New(crypto.SHA256)
 
-// TreeHasher implements the RFC6962 tree hashing algorithm.
-type TreeHasher struct {
+// RFCHasher implements the RFC6962 tree hashing algorithm.
+type RFCHasher struct {
 	crypto.Hash
+	nullHashes [][]byte
 }
 
-// HashEmpty returns the hash of an empty element for the tree
-func (t TreeHasher) HashEmpty() []byte {
+// New creates a new merkle.TreeHasher on the passed in hash function.
+func New(h crypto.Hash) *RFCHasher {
+	return &RFCHasher{Hash: h}
+}
+
+// EmptyRoot returns a special case for an empty tree.
+func (t *RFCHasher) EmptyRoot() []byte {
 	return t.New().Sum(nil)
+}
+
+// HashEmpty returns the hash of an empty branch at a given depth.
+// A depth of 0 indictes the hash of an empty leaf.
+func (t *RFCHasher) HashEmpty(depth int) []byte {
+	panic("HashEmpty() is not implemented for rfc6962 hasher")
 }
 
 // HashLeaf returns the Merkle tree leaf hash of the data passed in through leaf.
 // The data in leaf is prefixed by the LeafHashPrefix.
-func (t TreeHasher) HashLeaf(leaf []byte) []byte {
+func (t *RFCHasher) HashLeaf(leaf []byte) []byte {
 	h := t.New()
 	h.Write([]byte{RFC6962LeafHashPrefix})
 	h.Write(leaf)
@@ -47,7 +62,7 @@ func (t TreeHasher) HashLeaf(leaf []byte) []byte {
 
 // HashChildren returns the inner Merkle tree node hash of the the two child nodes l and r.
 // The hashed structure is NodeHashPrefix||l||r.
-func (t TreeHasher) HashChildren(l, r []byte) []byte {
+func (t *RFCHasher) HashChildren(l, r []byte) []byte {
 	h := t.New()
 	h.Write([]byte{RFC6962NodeHashPrefix})
 	h.Write(l)

@@ -72,7 +72,7 @@ func NewCompactMerkleTreeWithState(hasher TreeHasher, size int64, f GetNodeFunc,
 	r := CompactMerkleTree{
 		hasher: hasher,
 		nodes:  make([][]byte, sizeBits),
-		root:   hasher.HashEmpty(),
+		root:   hasher.EmptyRoot(),
 		size:   size,
 	}
 
@@ -111,7 +111,7 @@ func NewCompactMerkleTreeWithState(hasher TreeHasher, size int64, f GetNodeFunc,
 func NewCompactMerkleTree(hasher TreeHasher) *CompactMerkleTree {
 	r := CompactMerkleTree{
 		hasher: hasher,
-		root:   hasher.HashEmpty(),
+		root:   hasher.EmptyRoot(),
 		nodes:  make([][]byte, 0),
 		size:   0,
 	}

@@ -419,7 +419,6 @@ func PopulateMapSubtreeNodes(treeHasher merkle.TreeHasher) storage.PopulateSubtr
 	return func(st *storagepb.SubtreeProto) error {
 		st.InternalNodes = make(map[string][]byte)
 		rootID := storage.NewNodeIDFromHash(st.Prefix)
-		fullTreeDepth := treeHasher.Size() * depthQuantum
 		leaves := make([]merkle.HStar2LeafHash, 0, len(st.Leaves))
 		for k64, v := range st.Leaves {
 			k, err := base64.StdEncoding.DecodeString(k64)
@@ -435,6 +434,7 @@ func PopulateMapSubtreeNodes(treeHasher merkle.TreeHasher) storage.PopulateSubtr
 			})
 		}
 		hs2 := merkle.NewHStar2(treeHasher)
+		fullTreeDepth := treeHasher.Size() * 8
 		offset := fullTreeDepth - rootID.PrefixLenBits - int(st.Depth)
 		root, err := hs2.HStar2Nodes(int(st.Depth), offset, leaves,
 			func(depth int, index *big.Int) ([]byte, error) {

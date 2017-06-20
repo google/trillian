@@ -26,6 +26,7 @@ import (
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/extension"
+	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/storage"
 	stestonly "github.com/google/trillian/storage/testonly"
@@ -40,7 +41,7 @@ var fakeTimeSource = util.NewFakeTimeSource(fakeTime)
 // We use a size zero tree for testing, Merkle tree state restore is tested elsewhere
 var testLogID1 = int64(1)
 var testLeaf0 = &trillian.LogLeaf{
-	MerkleLeafHash: testonly.Hasher.HashLeaf([]byte{}),
+	MerkleLeafHash: rfc6962.DefaultHasher.HashLeaf([]byte{}),
 	LeafValue:      nil,
 	ExtraData:      nil,
 	LeafIndex:      0,

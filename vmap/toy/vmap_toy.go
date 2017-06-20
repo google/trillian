@@ -47,7 +47,7 @@ func main() {
 
 	mapID := int64(1)
 	ms := mysql.NewMapStorage(db)
-	hasher := merkle.NewMapHasher(rfc6962.Hasher)
+	hasher := rfc6962.DefaultHasher
 
 	testVecs := []struct {
 		batchSize       int
@@ -99,7 +99,7 @@ func main() {
 		h := make([]merkle.HashKeyValue, batchSize)
 		for y := 0; y < batchSize; y++ {
 			h[y].HashedKey = testonly.HashKey(fmt.Sprintf("key-%d-%d", x, y))
-			h[y].HashedValue = hasher.TreeHasher.HashLeaf([]byte(fmt.Sprintf("value-%d-%d", x, y)))
+			h[y].HashedValue = hasher.HashLeaf([]byte(fmt.Sprintf("value-%d-%d", x, y)))
 		}
 		glog.Infof("Created %d k/v pairs...", len(h))
 
