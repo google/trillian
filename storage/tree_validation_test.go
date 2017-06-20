@@ -90,6 +90,9 @@ func TestValidateTreeForCreation(t *testing.T) {
 	validSettings := newTree()
 	validSettings.StorageSettings = settings
 
+	nilRootDuration := newTree()
+	nilRootDuration.MaxRootDuration = nil
+
 	invalidRootDuration := newTree()
 	invalidRootDuration.MaxRootDuration = ptypes.DurationProto(-1 * time.Second)
 
@@ -194,6 +197,11 @@ func TestValidateTreeForCreation(t *testing.T) {
 		{
 			desc: "validSettings",
 			tree: validSettings,
+		},
+		{
+			desc:    "nilRootDuration",
+			tree:    nilRootDuration,
+			wantErr: true,
 		},
 		{
 			desc:    "invalidRootDuration",
