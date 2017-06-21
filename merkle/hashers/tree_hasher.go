@@ -50,7 +50,7 @@ type MapHasher interface {
 }
 
 var (
-	maxHashers = trillian.HashStrategy(maxKey(trillian.HashStrategy_name))
+	maxHashers = maxKey(trillian.HashStrategy_name) + 1
 	logHashers = make([]LogHasher, maxHashers)
 	mapHashers = make([]MapHasher, maxHashers)
 )

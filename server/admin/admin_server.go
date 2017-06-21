@@ -26,6 +26,7 @@ import (
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/merkle/hashers"
+	_ "github.com/google/trillian/merkle/rfc6962" // Make hashers available
 	"github.com/google/trillian/trees"
 	"golang.org/x/net/context"
 	"google.golang.org/genproto/protobuf/field_mask"
