@@ -50,14 +50,24 @@ type MapHasher interface {
 }
 
 var (
-	maxHashers = trillian.HashStrategy(len(trillian.HashStrategy_value))
+	maxHashers = trillian.HashStrategy(maxKey(trillian.HashStrategy_name))
 	logHashers = make([]LogHasher, maxHashers)
 	mapHashers = make([]MapHasher, maxHashers)
 )
 
+func maxKey(m map[int32]string) int32 {
+	var max int32
+	for k := range m {
+		if k > max {
+			max = k
+		}
+	}
+	return max
+}
+
 // RegisterLogHasher registers a hasher for use.
 func RegisterLogHasher(h trillian.HashStrategy, f LogHasher) {
-	if h < 0 || h >= maxHashers {
+	if h == trillian.HashStrategy_UNKNOWN_HASH_STRATEGY {
 		panic(fmt.Sprintf("RegisterLogHasher(%v) of unknown hasher", h))
 	}
 	logHashers[h] = f
@@ -65,7 +75,7 @@ func RegisterLogHasher(h trillian.HashStrategy, f LogHasher) {
 
 // RegisterMapHasher registers a hasher for use.
 func RegisterMapHasher(h trillian.HashStrategy, f MapHasher) {
-	if h < 0 || h >= maxHashers {
+	if h == trillian.HashStrategy_UNKNOWN_HASH_STRATEGY {
 		panic(fmt.Sprintf("RegisterMapHasher(%v) of unknown hasher", h))
 	}
 	mapHashers[h] = f
@@ -73,22 +83,18 @@ func RegisterMapHasher(h trillian.HashStrategy, f MapHasher) {
 
 // NewLogHasher returns a LogHasher
 func NewLogHasher(h trillian.HashStrategy) (LogHasher, error) {
-	if h >= 0 || h < maxHashers {
-		h := logHashers[h]
-		if h != nil {
-			return h, nil
-		}
+	f := logHashers[h]
+	if f != nil {
+		return f, nil
 	}
 	return nil, fmt.Errorf("NewLogHasher(%v) is unknown hasher", h)
 }
 
 // NewMapHasher returns a MapHasher
 func NewMapHasher(h trillian.HashStrategy) (MapHasher, error) {
-	if h >= 0 || h < maxHashers {
-		h := mapHashers[h]
-		if h != nil {
-			return h, nil
-		}
+	f := mapHashers[h]
+	if f != nil {
+		return f, nil
 	}
 	return nil, fmt.Errorf("NewMapHasher(%v) is unknown hasher", h)
 }
