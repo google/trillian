@@ -16,7 +16,7 @@
 package interceptor
 
 import (
-	"strings"
+	"fmt"
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/quota"
@@ -39,10 +39,12 @@ type TrillianInterceptor struct {
 }
 
 // UnaryInterceptor executes the TrillianInterceptor logic for unary RPCs.
-func (i *TrillianInterceptor) UnaryInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	quotaUser := i.QuotaManager.GetUser(ctx, req)
+func (i *TrillianInterceptor) UnaryInterceptor(ctx context.Context, req interface{}, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	// IMPORTANT: Do not rely on grpc.UnaryServerInfo in this filter. It makes life a lot harder
+	// when adapting the code to other environments.
 
-	rpcInfo, err := getRPCInfo(req, info.FullMethod, quotaUser)
+	quotaUser := i.QuotaManager.GetUser(ctx, req)
+	rpcInfo, err := getRPCInfo(req, quotaUser)
 	if err != nil {
 		return nil, err
 	}
@@ -78,17 +80,11 @@ type rpcInfo struct {
 }
 
 // getRPCInfo returns the rpcInfo for the given request, or an error if the request is not mapped.
-// Full method is the full RPC method name, as acquired from grpc.UnaryServerInfo (e.g.,
-// /trillian.TrillianLog/GetInclusionProof).
 // RPCs are mapped using the following logic:
-// Tree IDs are acquired via one of the "Request" interfaces defined below (treeIDRequest,
+// treeID is acquired via one of the "Request" interfaces defined below (treeIDRequest,
 // logIDRequest, mapIDRequest, etc). Requests must implement to one of those.
-// Tree type is determined by the RPC service name: TrillianAdmin is unrestricted,
-// TrillianLog = LOG, TrillianMap = MAP.
-// Readonly status is determined by the RPC method name: if it starts with Get or List it's
-// considered readonly.
-// Finally, a few RPCs are hand-mapped as doesNotHaveTree, such as Create and ListTree.
-func getRPCInfo(req interface{}, fullMethod, quotaUser string) (*rpcInfo, error) {
+// TreeType and Readonly are determined based on the request type.
+func getRPCInfo(req interface{}, quotaUser string) (*rpcInfo, error) {
 	var treeID int64
 	switch req := req.(type) {
 	case *trillian.CreateTreeRequest:
@@ -107,24 +103,10 @@ func getRPCInfo(req interface{}, fullMethod, quotaUser string) (*rpcInfo, error)
 		return nil, status.Errorf(codes.Internal, "cannot retrieve treeID from request: %T", req)
 	}
 
-	serviceName, methodName, err := parseFullMethod(fullMethod)
+	treeType, readonly, err := getRequestInfo(req)
 	if err != nil {
 		return nil, err
 	}
-
-	var treeType trillian.TreeType
-	switch serviceName {
-	case "trillian.TrillianAdmin":
-		treeType = trillian.TreeType_UNKNOWN_TREE_TYPE // unrestricted
-	case "trillian.TrillianLog":
-		treeType = trillian.TreeType_LOG
-	case "trillian.TrillianMap":
-		treeType = trillian.TreeType_MAP
-	default:
-		return nil, status.Errorf(codes.Internal, "cannot determine treeType for request: %T", req)
-	}
-
-	readonly := strings.HasPrefix(methodName, "Get") || strings.HasPrefix(methodName, "List")
 
 	kind := quota.Read
 	if !readonly {
@@ -151,17 +133,69 @@ func getRPCInfo(req interface{}, fullMethod, quotaUser string) (*rpcInfo, error)
 	}, nil
 }
 
-// parseFullMethod returns the service and method names as separate strings, without a trailing
-// slash in either of them.
-func parseFullMethod(fullMethod string) (string, string, error) {
-	if !strings.HasPrefix(fullMethod, "/") {
-		return "", "", status.Errorf(codes.Internal, "fullMethod must begin with '/': %v", fullMethod)
+func getRequestInfo(req interface{}) (trillian.TreeType, bool, error) {
+	if ok, readonly := getAdminRequestInfo(req); ok {
+		return trillian.TreeType_UNKNOWN_TREE_TYPE, readonly, nil
 	}
-	tmp := strings.Split(fullMethod[1:], "/")
-	if len(tmp) != 2 {
-		return "", "", status.Errorf(codes.Internal, "unexpected number of components in fullMethod (%v != 2): %v", len(tmp), fullMethod)
+	if ok, readonly := getLogRequestInfo(req); ok {
+		return trillian.TreeType_LOG, readonly, nil
 	}
-	return tmp[0], tmp[1], nil
+	if ok, readonly := getMapRequestInfo(req); ok {
+		return trillian.TreeType_MAP, readonly, nil
+	}
+	return trillian.TreeType_UNKNOWN_TREE_TYPE, false, fmt.Errorf("unmapped request type: %T", req)
+}
+
+func getAdminRequestInfo(req interface{}) (bool, bool) {
+	isAdmin := true
+	readonly := false
+	switch req.(type) {
+	case *trillian.GetTreeRequest,
+		*trillian.ListTreesRequest:
+		readonly = true
+	case *trillian.CreateTreeRequest,
+		*trillian.DeleteTreeRequest,
+		*trillian.UpdateTreeRequest:
+	default:
+		isAdmin = false
+	}
+	return isAdmin, readonly
+}
+
+func getLogRequestInfo(req interface{}) (bool, bool) {
+	isLog := true
+	readonly := false
+	switch req.(type) {
+	case *trillian.GetConsistencyProofRequest,
+		*trillian.GetEntryAndProofRequest,
+		*trillian.GetInclusionProofByHashRequest,
+		*trillian.GetInclusionProofRequest,
+		*trillian.GetLatestSignedLogRootRequest,
+		*trillian.GetLeavesByHashRequest,
+		*trillian.GetLeavesByIndexRequest,
+		*trillian.GetSequencedLeafCountRequest:
+		readonly = true
+	case *trillian.QueueLeafRequest,
+		*trillian.QueueLeavesRequest:
+	default:
+		isLog = false
+	}
+	return isLog, readonly
+}
+
+func getMapRequestInfo(req interface{}) (bool, bool) {
+	isMap := true
+	readonly := false
+	switch req.(type) {
+	case *trillian.GetMapLeavesRequest,
+		*trillian.GetSignedMapRootByRevisionRequest,
+		*trillian.GetSignedMapRootRequest:
+		readonly = true
+	case *trillian.SetMapLeavesRequest:
+	default:
+		isMap = false
+	}
+	return isMap, readonly
 }
 
 type treeIDRequest interface {
