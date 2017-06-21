@@ -17,6 +17,7 @@ package interceptor
 
 import (
 	"fmt"
+
 	"github.com/google/trillian"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/server/errors"
@@ -26,11 +27,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-)
-
-const (
-	// requestTypePrefix is the expected prefix for all request protos.
-	requestTypePrefix = "*trillian."
 )
 
 // TrillianInterceptor checks that:
@@ -154,12 +150,12 @@ func getAdminRequestInfo(req interface{}) (bool, bool) {
 	isAdmin := true
 	readonly := false
 	switch req.(type) {
-	case *trillian.CreateTreeRequest,
-		*trillian.DeleteTreeRequest,
-		*trillian.UpdateTreeRequest:
 	case *trillian.GetTreeRequest,
 		*trillian.ListTreesRequest:
 		readonly = true
+	case *trillian.CreateTreeRequest,
+		*trillian.DeleteTreeRequest,
+		*trillian.UpdateTreeRequest:
 	default:
 		isAdmin = false
 	}
