@@ -61,6 +61,8 @@ main() {
     shift 1
   done
 
+  local go_dirs="$(go list ./... | \
+    grep -v /vendor/)"
   local go_srcs="$(find . -name '*.go' | \
     grep -v mock_ | \
     grep -v .pb.go | \
@@ -79,6 +81,19 @@ main() {
     gofmt -s -w ${go_srcs}
     echo 'running goimports'
     goimports -w ${go_srcs}
+  fi
+
+  if [[ "${run_build}" -eq 1 ]]; then
+    local goflags=''
+    if [[ "${GOFLAGS:+x}" ]]; then
+      goflags="${GOFLAGS}"
+    fi
+
+    echo 'running go build'
+    go build ${go_dirs}
+
+    echo 'running go test'
+    go test -cover ${goflags} ${go_dirs}
   fi
 
   if [[ "${run_linters}" -eq 1 ]]; then
@@ -102,9 +117,6 @@ main() {
     fi
   fi
 
-  local go_dirs="$(go list ./... | \
-    grep -v /vendor/)"
-
   if [[ "${run_generate}" -eq 1 ]]; then
     echo 'running go generate'
     go generate -run="protoc" ${go_dirs}
@@ -112,18 +124,6 @@ main() {
     go generate -run="stringer" ${go_dirs}
   fi
 
-  if [[ "${run_build}" -eq 1 ]]; then
-    local goflags=''
-    if [[ "${GOFLAGS:+x}" ]]; then
-      goflags="${GOFLAGS}"
-    fi
-
-    echo 'running go build'
-    go build ${go_dirs}
-
-    echo 'running go test'
-    go test -cover ${goflags} ${go_dirs}
-  fi
 }
 
 main "$@"
