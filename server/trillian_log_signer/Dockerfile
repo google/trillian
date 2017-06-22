@@ -8,8 +8,11 @@ ENV DB_USER=test \
 ENV HOST=0.0.0.0 \
     HTTP_PORT=8091
 
-ENV SEQUENCER_GUARD_WINDOW=0s \
-    FORCE_MASTER=true
+ENV SEQUENCER_GUARD_WINDOW=0s
+ENV FORCE_MASTER=true
+ENV SEQUENCER_INTERVAL=10s
+ENV NUM_SEQ_FLAG=10
+ENV BATCH_SIZE=50
 
 
 ADD . /go/src/github.com/google/trillian
@@ -22,6 +25,9 @@ ENTRYPOINT /go/bin/trillian_log_signer \
 	--mysql_uri="${DB_USER}:${DB_PASSWORD}@tcp(${DB_HOST})/${DB_DATABASE}" \
 	--http_endpoint="$HOST:$HTTP_PORT" \
 	--sequencer_guard_window="$SEQUENCER_GUARD_WINDOW" \
+	--sequencerIntervalFlag="$SEQUENCER_INTERVAL" \
+	--numSeqFlag="$NUM_SEQ_FLAG" \
+	--batchSizeFlag="$BATCH_SIZE" \
 	--force_master="$FORCE_MASTER" \
 	--alsologtostderr
 
