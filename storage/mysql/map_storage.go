@@ -102,7 +102,7 @@ func (m *mySQLMapStorage) begin(ctx context.Context, treeID int64, readonly bool
 	if err != nil {
 		return nil, err
 	}
-	hasher, err := hashers.NewMapHasher(tree.HashStrategy)
+	hasher, err := hashers.MapHasher(tree.HashStrategy)
 	if err != nil {
 		return nil, err
 	}

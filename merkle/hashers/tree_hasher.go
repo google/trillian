@@ -81,20 +81,20 @@ func RegisterMapHasher(h trillian.HashStrategy, f MapHasher) {
 	mapHashers[h] = f
 }
 
-// NewLogHasher returns a LogHasher
-func NewLogHasher(h trillian.HashStrategy) (LogHasher, error) {
+// LogHasher returns a LogHasher
+func LogHasher(h trillian.HashStrategy) (LogHasher, error) {
 	f := logHashers[h]
 	if f != nil {
 		return f, nil
 	}
-	return nil, fmt.Errorf("NewLogHasher(%v) is unknown hasher", h)
+	return nil, fmt.Errorf("LogHasher(%v) is unknown hasher", h)
 }
 
-// NewMapHasher returns a MapHasher
-func NewMapHasher(h trillian.HashStrategy) (MapHasher, error) {
+// MapHasher returns a MapHasher
+func MapHasher(h trillian.HashStrategy) (MapHasher, error) {
 	f := mapHashers[h]
 	if f != nil {
 		return f, nil
 	}
-	return nil, fmt.Errorf("NewMapHasher(%v) is unknown hasher", h)
+	return nil, fmt.Errorf("MapHasher(%v) is unknown hasher", h)
 }
