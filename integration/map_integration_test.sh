@@ -30,7 +30,7 @@ echo "Created tree ${TEST_TREE_ID}"
 echo "Running test"
 cd "${INTEGRATION_DIR}"
 set +e
-go test -run ".*LiveMap.*" --timeout=5m ./ --map_id ${TEST_TREE_ID} --map_rpc_server="localhost:${RPC_PORT}"
+go test -run ".*LiveMap.*" --timeout=5m ./ --map_id ${TEST_TREE_ID} --map_rpc_server="localhost:${RPC_PORT}" --pubkey=${TRILLIAN_PATH}/testdata/map-rpc-server.pubkey.pem
 RESULT=$?
 set -e
 

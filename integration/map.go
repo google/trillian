@@ -17,19 +17,21 @@ package integration
 import (
 	"bytes"
 	"context"
+	"crypto"
 	"encoding/hex"
 	"fmt"
 	"math/rand"
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
+	tcrypto "github.com/google/trillian/crypto"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/maphasher"
 	"github.com/google/trillian/testonly"
 )
 
 // RunMapIntegration runs a map integration test using the given map ID and client.
-func RunMapIntegration(ctx context.Context, mapID int64, client trillian.TrillianMapClient) error {
+func RunMapIntegration(ctx context.Context, mapID int64, pubKey crypto.PublicKey, client trillian.TrillianMapClient) error {
 	{
 		// Ensure we're starting with an empty map
 		r, err := client.GetSignedMapRoot(ctx, &trillian.GetSignedMapRootRequest{MapId: mapID})
@@ -107,6 +109,14 @@ func RunMapIntegration(ctx context.Context, mapID int64, client trillian.Trillia
 		}
 		if got, want := r.GetMapRoot().GetMapRevision(), int64(numBatches); got != want {
 			return fmt.Errorf("got SMH with revision %d, want %d", got, want)
+		}
+		// SignedMapRoot contains its own signature. To verify, we need to create a local
+		// copy of the object and return the object to the state it was in when signed
+		// by removing the signature from the object.
+		smr := *r.GetMapRoot()
+		smr.Signature = nil // Remove the signature from the object to be verified.
+		if tcrypto.VerifyObject(pubKey, smr, r.GetMapRoot().GetSignature()) != nil {
+			return fmt.Errorf("VerifyObject(SMR): %v", err)
 		}
 		for _, incl := range r.MapLeafInclusion {
 			leaf := incl.Leaf

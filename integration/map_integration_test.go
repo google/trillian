@@ -20,11 +20,15 @@ import (
 	"testing"
 
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto/keys"
 	"google.golang.org/grpc"
 )
 
-var server = flag.String("map_rpc_server", "localhost:8091", "Server address:port")
-var mapID = flag.Int64("map_id", -1, "Trillian MapID to use for test")
+var (
+	server     = flag.String("map_rpc_server", "localhost:8091", "Server address:port")
+	mapID      = flag.Int64("map_id", -1, "Trillian MapID to use for test")
+	pubKeyPath = flag.String("pubkey", "", "Path to public PEM key for map")
+)
 
 func getClient() (*grpc.ClientConn, trillian.TrillianMapClient, error) {
 	conn, err := grpc.Dial(*server, grpc.WithInsecure())
@@ -39,6 +43,10 @@ func TestLiveMapIntegration(t *testing.T) {
 	if *mapID == -1 {
 		t.Skip("Map integration test skipped as no map ID provided")
 	}
+	pubKey, err := keys.NewFromPublicPEMFile(*pubKeyPath)
+	if err != nil {
+		t.Fatalf("No public key provided")
+	}
 
 	conn, client, err := getClient()
 	if err != nil {
@@ -46,7 +54,7 @@ func TestLiveMapIntegration(t *testing.T) {
 	}
 	defer conn.Close()
 	ctx := context.Background()
-	if err := RunMapIntegration(ctx, *mapID, client); err != nil {
+	if err := RunMapIntegration(ctx, *mapID, pubKey, client); err != nil {
 		t.Fatalf("Test failed: %v", err)
 	}
 }
