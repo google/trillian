@@ -143,11 +143,11 @@ type Tree struct {
 	HashStrategy HashStrategy `protobuf:"varint,4,opt,name=hash_strategy,json=hashStrategy,enum=trillian.HashStrategy" json:"hash_strategy,omitempty"`
 	// Hash algorithm to be used by the tree.
 	// Readonly.
-	// TODO(gdbelvin): Deprecate.
+	// TODO(gdbelvin): Deprecate in favor of signature_cipher_suite and hash_strategy.
 	HashAlgorithm sigpb.DigitallySigned_HashAlgorithm `protobuf:"varint,5,opt,name=hash_algorithm,json=hashAlgorithm,enum=sigpb.DigitallySigned_HashAlgorithm" json:"hash_algorithm,omitempty"`
 	// Signature algorithm to be used by the tree.
 	// Readonly.
-	// TODO(gdbelvin): Deprecate.
+	// TODO(gdbelvin): Deprecate in favor of signature_cipher_suite.
 	SignatureAlgorithm sigpb.DigitallySigned_SignatureAlgorithm `protobuf:"varint,6,opt,name=signature_algorithm,json=signatureAlgorithm,enum=sigpb.DigitallySigned_SignatureAlgorithm" json:"signature_algorithm,omitempty"`
 	// Signature cipher suite specifies the algorithms used to generate signatures.
 	SignatureCipherSuite sigpb.DigitallySigned_SignatureCipherSuite `protobuf:"varint,18,opt,name=signature_cipher_suite,json=signatureCipherSuite,enum=sigpb.DigitallySigned_SignatureCipherSuite" json:"signature_cipher_suite,omitempty"`

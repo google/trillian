@@ -113,14 +113,9 @@ func Hash(tree *trillian.Tree) (crypto.Hash, error) {
 // LogHasher returns a merkle.LogHasher of the kind configured fore the tree.
 // TODO(gbelvin): Create merkle tree registration.
 func LogHasher(tree *trillian.Tree) (merkle.LogHasher, error) {
-	hash, err := Hash(tree)
-	if err != nil {
-		return nil, err
-	}
-
 	switch tree.HashStrategy {
 	case trillian.HashStrategy_RFC6962_SHA256:
-		return rfc6962.New(hash), nil
+		return rfc6962.New(crypto.SHA256), nil
 	case trillian.HashStrategy_TEST_MAP_HASHER:
 		return nil, fmt.Errorf("Cannot use map hash strategy: %s in log", tree.HashStrategy)
 	default:

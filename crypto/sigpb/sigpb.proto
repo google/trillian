@@ -55,13 +55,13 @@ message DigitallySigned {
   }
 
   // hash_algorithm contains the hash algorithm used.
-  // TODO(gdbelvin): deprecate
+  // TODO(gdbelvin): deprecate in favor of cipher_suite.
   HashAlgorithm hash_algorithm = 1;
   // sig_algorithm contains the signing algorithm used.
-  // TODO(gdbelvin): deprecate 
+  // TODO(gdbelvin): deprecate in favor of cipher_suite.
   SignatureAlgorithm signature_algorithm = 2;
   // cipher_suite contains the combination of ciphers used for this signature.
-  SignatureCipherSuite cipher_suite = 4;
+  SignatureCipherSuite signature_cipher_suite = 4;
   // signature contains the object signature.
   bytes signature = 3;
 }

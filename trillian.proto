@@ -109,12 +109,12 @@ message Tree {
 
   // Hash algorithm to be used by the tree.
   // Readonly.
-  // TODO(gdbelvin): Deprecate.
+  // TODO(gdbelvin): Deprecate in favor of signature_cipher_suite and hash_strategy.
   sigpb.DigitallySigned.HashAlgorithm hash_algorithm = 5;
 
   // Signature algorithm to be used by the tree.
   // Readonly.
-  // TODO(gdbelvin): Deprecate.
+  // TODO(gdbelvin): Deprecate in favor of signature_cipher_suite.
   sigpb.DigitallySigned.SignatureAlgorithm signature_algorithm = 6;
 
   // Signature cipher suite specifies the algorithms used to generate signatures.
