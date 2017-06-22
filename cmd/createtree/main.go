@@ -55,7 +55,7 @@ var (
 
 	treeState          = flag.String("tree_state", trillian.TreeState_ACTIVE.String(), "State of the new tree")
 	treeType           = flag.String("tree_type", trillian.TreeType_LOG.String(), "Type of the new tree")
-	hashStrategy       = flag.String("hash_strategy", trillian.HashStrategy_RFC_6962.String(), "Hash strategy (aka preimage protection) of the new tree")
+	hashStrategy       = flag.String("hash_strategy", trillian.HashStrategy_RFC6962_SHA256.String(), "Hash strategy (aka preimage protection) of the new tree")
 	hashAlgorithm      = flag.String("hash_algorithm", sigpb.DigitallySigned_SHA256.String(), "Hash algorithm of the new tree")
 	signatureAlgorithm = flag.String("signature_algorithm", sigpb.DigitallySigned_RSA.String(), "Signature algorithm of the new tree")
 	displayName        = flag.String("display_name", "", "Display name of the new tree")

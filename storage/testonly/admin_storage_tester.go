@@ -47,7 +47,7 @@ var (
 	LogTree = &trillian.Tree{
 		TreeState:          trillian.TreeState_ACTIVE,
 		TreeType:           trillian.TreeType_LOG,
-		HashStrategy:       trillian.HashStrategy_RFC_6962,
+		HashStrategy:       trillian.HashStrategy_RFC6962_SHA256,
 		HashAlgorithm:      spb.DigitallySigned_SHA256,
 		SignatureAlgorithm: spb.DigitallySigned_ECDSA,
 		DisplayName:        "Llamas Log",

@@ -38,7 +38,7 @@ enum HashStrategy {
 
   // Certificate Transparency strategy: leaf hash prefix = 0x00, node prefix =
   // 0x01, empty hash is digest([]byte{}), as defined in the specification.
-  RFC_6962 = 1;
+  RFC6962_SHA256 = 1;
 
   // Sparse Merkle Tree strategy:  leaf hash prefix = 0x00, node prefix = 0x01,
   // empty branch is recursively computed from empty leaf nodes. 
@@ -109,11 +109,16 @@ message Tree {
 
   // Hash algorithm to be used by the tree.
   // Readonly.
+  // TODO(gdbelvin): Deprecate.
   sigpb.DigitallySigned.HashAlgorithm hash_algorithm = 5;
 
   // Signature algorithm to be used by the tree.
   // Readonly.
+  // TODO(gdbelvin): Deprecate.
   sigpb.DigitallySigned.SignatureAlgorithm signature_algorithm = 6;
+
+  // Signature cipher suite specifies the algorithms used to generate signatures.
+  sigpb.DigitallySigned.SignatureCipherSuite signature_cipher_suite = 18;
 
   reserved 7;  // DuplicatePolicy (removed)
 

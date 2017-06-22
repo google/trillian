@@ -246,7 +246,7 @@ func TestLogHasher(t *testing.T) {
 	}{
 		{strategy: trillian.HashStrategy_UNKNOWN_HASH_STRATEGY, wantErr: true},
 		{strategy: trillian.HashStrategy_TEST_MAP_HASHER, wantErr: true},
-		{strategy: trillian.HashStrategy_RFC_6962, wantHasher: rfc6962.New(crypto.SHA256)},
+		{strategy: trillian.HashStrategy_RFC6962_SHA256, wantHasher: rfc6962.New(crypto.SHA256)},
 	} {
 		tree := *testonly.LogTree
 		tree.HashAlgorithm = sigpb.DigitallySigned_SHA256
@@ -273,7 +273,7 @@ func TestMapHasher(t *testing.T) {
 		wantErr    bool
 	}{
 		{strategy: trillian.HashStrategy_UNKNOWN_HASH_STRATEGY, wantErr: true},
-		{strategy: trillian.HashStrategy_RFC_6962, wantErr: true},
+		{strategy: trillian.HashStrategy_RFC6962_SHA256, wantErr: true},
 		{strategy: trillian.HashStrategy_TEST_MAP_HASHER, wantHasher: maphasher.Default},
 	} {
 		tree := *testonly.LogTree
@@ -354,7 +354,7 @@ func TestSigner(t *testing.T) {
 	for _, test := range tests {
 		tree := *testonly.LogTree
 		tree.HashAlgorithm = sigpb.DigitallySigned_SHA256
-		tree.HashStrategy = trillian.HashStrategy_RFC_6962
+		tree.HashStrategy = trillian.HashStrategy_RFC6962_SHA256
 		tree.SignatureAlgorithm = test.sigAlgo
 
 		sf := keys.NewMockSignerFactory(ctrl)
