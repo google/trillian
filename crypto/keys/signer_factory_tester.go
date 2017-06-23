@@ -65,6 +65,10 @@ func (tester *SignerFactoryTester) TestNewSigner(t *testing.T) {
 			KeyProto: &empty.Empty{},
 			WantErr:  true,
 		},
+		{
+			Name:    "Nil KeyProto",
+			WantErr: true,
+		},
 	}...) {
 		signer, err := tester.NewSignerFactory().NewSigner(context.Background(), test.KeyProto)
 		switch gotErr := err != nil; {
@@ -121,6 +125,10 @@ func (tester *SignerFactoryTester) TestGenerate(t *testing.T) {
 					},
 				},
 			},
+			WantErr: true,
+		},
+		{
+			Name:    "Nil KeySpec",
 			WantErr: true,
 		},
 	} {
