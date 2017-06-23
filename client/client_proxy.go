@@ -17,6 +17,7 @@ package client
 import (
 	"math/rand"
 
+	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -39,7 +40,7 @@ func (c *MockLogClient) QueueLeaves(ctx context.Context, in *trillian.QueueLeave
 	return c.c.QueueLeaves(ctx, in)
 }
 
-// GetInclusionProof forwards requests and modifies the response.
+// GetInclusionProof forwards requests and optionally corrupts the response.
 func (c *MockLogClient) GetInclusionProof(ctx context.Context, in *trillian.GetInclusionProofRequest, opts ...grpc.CallOption) (*trillian.GetInclusionProofResponse, error) {
 	resp, err := c.c.GetInclusionProof(ctx, in)
 	if c.mGetInclusionProof {
@@ -50,27 +51,41 @@ func (c *MockLogClient) GetInclusionProof(ctx context.Context, in *trillian.GetI
 	return resp, err
 }
 
-// GetInclusionProofByHash forwards requests.
+// GetInclusionProofByHash forwards requests and optionaly corrupts responses.
 func (c *MockLogClient) GetInclusionProofByHash(ctx context.Context, in *trillian.GetInclusionProofByHashRequest, opts ...grpc.CallOption) (*trillian.GetInclusionProofByHashResponse, error) {
 	resp, err := c.c.GetInclusionProofByHash(ctx, in)
+	if err != nil {
+		return nil, err
+	}
 	if c.mGetInclusionProof {
 		h := rand.Intn(len(resp.Proof))
+		if len(resp.Proof[h].Hashes) == 0 {
+			glog.Warningf("Inclusion proof not modified because treesize = 0")
+			return resp, nil
+		}
 		i := rand.Intn(len(resp.Proof[h].Hashes))
 		j := rand.Intn(len(resp.Proof[h].Hashes[i]))
 		resp.Proof[h].Hashes[i][j] ^= 4
 	}
-	return resp, err
+	return resp, nil
 }
 
-// GetConsistencyProof forwards requests and modifies responses.
+// GetConsistencyProof forwards requests and optionally corrupts responses.
 func (c *MockLogClient) GetConsistencyProof(ctx context.Context, in *trillian.GetConsistencyProofRequest, opts ...grpc.CallOption) (*trillian.GetConsistencyProofResponse, error) {
 	resp, err := c.c.GetConsistencyProof(ctx, in)
+	if err != nil {
+		return nil, err
+	}
 	if c.mGetConsistencyProof {
+		if len(resp.Proof.Hashes) == 0 {
+			glog.Warningf("Consistency proof not modified because len(Hashes) = 0")
+			return resp, nil
+		}
 		i := rand.Intn(len(resp.Proof.Hashes))
 		j := rand.Intn(len(resp.Proof.Hashes[i]))
 		resp.Proof.Hashes[i][j] ^= 4
 	}
-	return resp, err
+	return resp, nil
 }
 
 // GetLatestSignedLogRoot forwards requests.

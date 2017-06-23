@@ -17,12 +17,10 @@ package client
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"testing"
-	"time"
 
 	"github.com/google/trillian"
-	"github.com/google/trillian/testonly"
+	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/testonly/integration"
 )
 
@@ -31,12 +29,16 @@ func TestAddGetLeaf(t *testing.T) {
 }
 
 // addSequencedLeaves is a temporary stand-in function for tests until the real API gets built.
-func addSequencedLeaves(ctx context.Context, client VerifyingLogClient, leaves [][]byte) error {
+func addSequencedLeaves(ctx context.Context, env *integration.LogEnv, client *LogClient, leaves [][]byte) error {
 	// TODO(gdbelvin): Replace with batch API.
 	// TODO(gdbelvin): Replace with AddSequencedLeaves API.
 	for _, l := range leaves {
-		if err := client.AddLeaf(ctx, l); err != nil {
-			return fmt.Errorf("AddLeaf(%x): %v, want nil", l, err)
+		if err := client.QueueLeaf(ctx, l); err != nil {
+			return err
+		}
+		env.Sequencer.OperationSingle(ctx)
+		if err := client.WaitForInclusion(ctx, l); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -55,7 +57,7 @@ func TestGetByIndex(t *testing.T) {
 	}
 
 	cli := trillian.NewTrillianLogClient(env.ClientConn)
-	client := New(logID, cli, testonly.Hasher, env.PublicKey)
+	client := New(logID, cli, rfc6962.DefaultHasher, env.PublicKey)
 	// Add a few test leaves.
 	leafData := [][]byte{
 		[]byte("A"),
@@ -63,7 +65,7 @@ func TestGetByIndex(t *testing.T) {
 		[]byte("C"),
 	}
 
-	if err := addSequencedLeaves(ctx, client, leafData); err != nil {
+	if err := addSequencedLeaves(ctx, env, client, leafData); err != nil {
 		t.Errorf("Failed to add leaves: %v", err)
 	}
 
@@ -92,7 +94,7 @@ func TestListByIndex(t *testing.T) {
 	}
 
 	cli := trillian.NewTrillianLogClient(env.ClientConn)
-	client := New(logID, cli, testonly.Hasher, env.PublicKey)
+	client := New(logID, cli, rfc6962.DefaultHasher, env.PublicKey)
 	// Add a few test leaves.
 	leafData := [][]byte{
 		[]byte("A"),
@@ -100,7 +102,7 @@ func TestListByIndex(t *testing.T) {
 		[]byte("C"),
 	}
 
-	if err := addSequencedLeaves(ctx, client, leafData); err != nil {
+	if err := addSequencedLeaves(ctx, env, client, leafData); err != nil {
 		t.Errorf("Failed to add leaves: %v", err)
 	}
 
@@ -129,14 +131,14 @@ func TestVerifyInclusion(t *testing.T) {
 	}
 
 	cli := trillian.NewTrillianLogClient(env.ClientConn)
-	client := New(logID, cli, testonly.Hasher, env.PublicKey)
+	client := New(logID, cli, rfc6962.DefaultHasher, env.PublicKey)
 	// Add a few test leaves.
 	leafData := [][]byte{
 		[]byte("A"),
 		[]byte("B"),
 	}
 
-	if err := addSequencedLeaves(ctx, client, leafData); err != nil {
+	if err := addSequencedLeaves(ctx, env, client, leafData); err != nil {
 		t.Errorf("Failed to add leaves: %v", err)
 	}
 
@@ -160,14 +162,14 @@ func TestVerifyInclusionAtIndex(t *testing.T) {
 	}
 
 	cli := trillian.NewTrillianLogClient(env.ClientConn)
-	client := New(logID, cli, testonly.Hasher, env.PublicKey)
+	client := New(logID, cli, rfc6962.DefaultHasher, env.PublicKey)
 	// Add a few test leaves.
 	leafData := [][]byte{
 		[]byte("A"),
 		[]byte("B"),
 	}
 
-	if err := addSequencedLeaves(ctx, client, leafData); err != nil {
+	if err := addSequencedLeaves(ctx, env, client, leafData); err != nil {
 		t.Errorf("Failed to add leaves: %v", err)
 	}
 
@@ -178,9 +180,9 @@ func TestVerifyInclusionAtIndex(t *testing.T) {
 	}
 }
 
-func TestAddLeaf(t *testing.T) {
+func TestWaitForInclusion(t *testing.T) {
 	ctx := context.Background()
-	env, err := integration.NewLogEnv(ctx, 1, "TestAddLeaf")
+	env, err := integration.NewLogEnv(ctx, 0, "TestWaitForInclusion")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -193,32 +195,22 @@ func TestAddLeaf(t *testing.T) {
 	cli := trillian.NewTrillianLogClient(env.ClientConn)
 	for _, test := range []struct {
 		desc    string
+		leaf    []byte
 		client  trillian.TrillianLogClient
 		wantErr bool
 	}{
-		{
-			desc:   "success 1",
-			client: cli,
-		},
-		{
-			desc:   "success 2",
-			client: cli,
-		},
-		{
-			desc:    "invalid inclusion proof",
-			client:  &MockLogClient{c: cli, mGetInclusionProof: true},
-			wantErr: true,
-		},
-		{
-			desc:    "invalid consistency proof",
-			client:  &MockLogClient{c: cli, mGetConsistencyProof: true},
-			wantErr: true,
-		},
+		{desc: "First leaf", leaf: []byte("A"), client: cli},
+		{desc: "Make TreeSize > 1", leaf: []byte("B"), client: cli},
+		{desc: "invalid inclusion proof", leaf: []byte("A"), client: &MockLogClient{c: cli, mGetInclusionProof: true}, wantErr: true},
 	} {
-		client := New(logID, test.client, testonly.Hasher, env.PublicKey)
-		err := client.AddLeaf(ctx, []byte(test.desc))
+		client := New(logID, test.client, rfc6962.DefaultHasher, env.PublicKey)
+		if err := client.QueueLeaf(ctx, test.leaf); err != nil {
+			t.Fatalf("QueueLeaf(%v): %v", test.desc, err)
+		}
+		env.Sequencer.OperationSingle(ctx)
+		err := client.WaitForInclusion(ctx, test.leaf)
 		if got := err != nil; got != test.wantErr {
-			t.Errorf("AddLeaf(%v): %v, want error: %v", test.desc, err, test.wantErr)
+			t.Errorf("WaitForInclusion(%v): %v, want error: %v", test.desc, err, test.wantErr)
 		}
 	}
 }
@@ -235,7 +227,7 @@ func TestUpdateRoot(t *testing.T) {
 		t.Fatalf("Failed to create log: %v", err)
 	}
 	cli := trillian.NewTrillianLogClient(env.ClientConn)
-	client := New(logID, cli, testonly.Hasher, env.PublicKey)
+	client := New(logID, cli, rfc6962.DefaultHasher, env.PublicKey)
 
 	before := client.Root().TreeSize
 
@@ -247,17 +239,16 @@ func TestUpdateRoot(t *testing.T) {
 		t.Errorf("Tree size changed unexpectedly: %v, want %v", got, want)
 	}
 
-	// Add the leaf without polling for inclusion.
-	leaf := client.buildLeaf([]byte("foo"))
-	if err := client.queueLeaf(ctx, leaf); err != nil {
-		t.Fatalf("queueLeaf('foo'): %v, want nil", err)
+	data := []byte("foo")
+	if err := client.QueueLeaf(ctx, data); err != nil {
+		t.Fatalf("QueueLeaf(%s): %v, want nil", data, err)
 	}
-	// Wait long enough that the leaf should be included.
-	time.Sleep(2 * integration.SequencerInterval)
+
+	env.Sequencer.OperationSingle(ctx)
 
 	// UpdateRoot should see a change.
 	if err := client.UpdateRoot(ctx); err != nil {
-		t.Error(err)
+		t.Errorf("UpdateRoot(): %v", err)
 	}
 	if got, want := client.Root().TreeSize, before; got <= want {
 		t.Errorf("Tree size after add Leaf: %v, want > %v", got, want)
