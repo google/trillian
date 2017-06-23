@@ -15,10 +15,10 @@
 package server
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/google/trillian"
-	spb "github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/storage"
@@ -187,15 +187,26 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 	}
 
 	rootHash, err := smtWriter.CalculateRoot()
+	if err != nil {
+		return nil, fmt.Errorf("CalculateRoot(): %v", err)
+	}
 	newRoot := trillian.SignedMapRoot{
 		TimestampNanos: time.Now().UnixNano(),
 		RootHash:       rootHash,
 		MapId:          req.MapId,
 		MapRevision:    tx.WriteRevision(),
 		Metadata:       req.MapperData,
-		// TODO(al): Actually sign stuff, etc!
-		Signature: &spb.DigitallySigned{},
 	}
+	// Sign the root.
+	signer, err := trees.Signer(ctx, t.registry.SignerFactory, tree)
+	if err != nil {
+		return nil, fmt.Errorf("trees.Signer(): %v", err)
+	}
+	sig, err := signer.SignObject(newRoot)
+	if err != nil {
+		return nil, fmt.Errorf("SignObject(): %v", err)
+	}
+	newRoot.Signature = sig
 
 	// TODO(al): need an smtWriter.Rollback() or similar I think.
 	if err = tx.StoreSignedMapRoot(ctx, newRoot); err != nil {
