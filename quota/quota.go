@@ -33,7 +33,7 @@ const (
 	// Tree is the tree-wide token scope.
 	Tree
 
-	// User it the per-user token scope.
+	// User is the per-user token scope.
 	// Users are defined according to each implementation.
 	User
 )
