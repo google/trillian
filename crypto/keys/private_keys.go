@@ -37,16 +37,16 @@ const defaultRsaKeySizeInBits = 2048
 // MinRsaKeySizeInBits is the smallest RSA key that this package will generate.
 const MinRsaKeySizeInBits = 2048
 
-// SignerFactory creates signers for Trillian trees.
-// A signers may be created by loading a private key, interfacing with a HSM,
-// or sending network requests to a remote key management service, to give a few
-// examples.
+// SignerFactory gets and creates cryptographic signers.
+// This may be done by loading a key from a file, interfacing with a HSM, or
+// sending requests to a remote key management service, to give a few examples.
 type SignerFactory interface {
 	// NewSigner uses the information in the provided protobuf message to obtain and return a crypto.Signer.
 	NewSigner(context.Context, proto.Message) (crypto.Signer, error)
 
 	// Generate creates a new private key based on a key specification.
-	// It returns a proto that can be used as the value of tree.PrivateKey.
+	// It returns a proto that describes how to access that key.
+	// This proto can be passed to NewSigner() to get a crypto.Signer.
 	Generate(context.Context, *keyspb.Specification) (proto.Message, error)
 }
 
