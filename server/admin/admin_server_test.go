@@ -455,6 +455,7 @@ func TestServer_CreateTree(t *testing.T) {
 			var keyProto ptypes.DynamicAny
 			if err := ptypes.UnmarshalAny(test.req.Tree.GetPrivateKey(), &keyProto); err != nil {
 				t.Errorf("%v: failed to unmarshal test.req.Tree.PrivateKey: %v", test.desc, err)
+				continue
 			}
 
 			sf.EXPECT().NewSigner(gomock.Any(), keyProto.Message).MaxTimes(1).Return(privateKey, nil)
