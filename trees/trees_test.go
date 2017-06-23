@@ -26,6 +26,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	tcrypto "github.com/google/trillian/crypto"
 	"github.com/google/trillian/crypto/keys"
@@ -357,8 +358,13 @@ func TestSigner(t *testing.T) {
 		tree.HashStrategy = trillian.HashStrategy_RFC6962_SHA256
 		tree.SignatureAlgorithm = test.sigAlgo
 
+		var keyProto ptypes.DynamicAny
+		if err := ptypes.UnmarshalAny(tree.PrivateKey, &keyProto); err != nil {
+			t.Errorf("%v: failed to unmarshal tree.PrivateKey: %v", test.desc, err)
+		}
+
 		sf := keys.NewMockSignerFactory(ctrl)
-		sf.EXPECT().NewSigner(ctx, tree.PrivateKey).MaxTimes(1).Return(test.signer, test.signerFactoryErr)
+		sf.EXPECT().NewSigner(ctx, keyProto.Message).MaxTimes(1).Return(test.signer, test.signerFactoryErr)
 
 		signer, err := Signer(ctx, sf, &tree)
 		if hasErr := err != nil; hasErr != test.wantErr {

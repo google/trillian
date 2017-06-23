@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
+	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/sigpb"
@@ -105,7 +106,12 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 	mockTx := storage.NewMockLogTreeTX(mockCtrl)
 	mockSf := keys.NewMockSignerFactory(mockCtrl)
 
-	mockSf.EXPECT().NewSigner(gomock.Any(), stestonly.LogTree.PrivateKey).Return(newSignerWithFixedSig(updatedRoot.Signature))
+	var keyProto ptypes.DynamicAny
+	if err := ptypes.UnmarshalAny(stestonly.LogTree.PrivateKey, &keyProto); err != nil {
+		t.Errorf("Failed to unmarshal stestonly.LogTree.PrivateKey: %v", err)
+	}
+
+	mockSf.EXPECT().NewSigner(gomock.Any(), keyProto.Message).Return(newSignerWithFixedSig(updatedRoot.Signature))
 
 	mockStorage.EXPECT().BeginForTree(gomock.Any(), logID).Return(mockTx, nil)
 	mockTx.EXPECT().Commit().Return(nil)
@@ -150,9 +156,14 @@ func TestSequencerManagerCachesSigners(t *testing.T) {
 	}
 	sm := NewSequencerManager(registry, zeroDuration)
 
+	var keyProto ptypes.DynamicAny
+	if err := ptypes.UnmarshalAny(stestonly.LogTree.PrivateKey, &keyProto); err != nil {
+		t.Errorf("Failed to unmarshal stestonly.LogTree.PrivateKey: %v", err)
+	}
+
 	// Expect only one call to SignerFactory.NewSigner, as the returned signer should be cached by SequencerManager
 	// and re-used for the second sequencing pass.
-	mockSf.EXPECT().NewSigner(gomock.Any(), stestonly.LogTree.PrivateKey).Return(newSignerWithFixedSig(updatedRoot.Signature))
+	mockSf.EXPECT().NewSigner(gomock.Any(), keyProto.Message).Return(newSignerWithFixedSig(updatedRoot.Signature))
 
 	// Expect two sequencing passes.
 	for i := 0; i < 2; i++ {
@@ -190,7 +201,12 @@ func TestSequencerManagerSingleLogNoSigner(t *testing.T) {
 	mockStorage := storage.NewMockLogStorage(mockCtrl)
 	mockSf := keys.NewMockSignerFactory(mockCtrl)
 
-	mockSf.EXPECT().NewSigner(gomock.Any(), stestonly.LogTree.PrivateKey).Return(nil, errors.New("no signer for this tree"))
+	var keyProto ptypes.DynamicAny
+	if err := ptypes.UnmarshalAny(stestonly.LogTree.PrivateKey, &keyProto); err != nil {
+		t.Errorf("Failed to unmarshal stestonly.LogTree.PrivateKey: %v", err)
+	}
+
+	mockSf.EXPECT().NewSigner(gomock.Any(), keyProto.Message).Return(nil, errors.New("no signer for this tree"))
 
 	gomock.InOrder(
 		mockAdmin.EXPECT().Snapshot(gomock.Any()).Return(mockAdminTx, nil),
@@ -224,7 +240,12 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 	mockTx := storage.NewMockLogTreeTX(mockCtrl)
 	mockSf := keys.NewMockSignerFactory(mockCtrl)
 
-	mockSf.EXPECT().NewSigner(gomock.Any(), stestonly.LogTree.PrivateKey).Return(newSignerWithFixedSig(updatedRoot.Signature))
+	var keyProto ptypes.DynamicAny
+	if err := ptypes.UnmarshalAny(stestonly.LogTree.PrivateKey, &keyProto); err != nil {
+		t.Errorf("Failed to unmarshal stestonly.LogTree.PrivateKey: %v", err)
+	}
+
+	mockSf.EXPECT().NewSigner(gomock.Any(), keyProto.Message).Return(newSignerWithFixedSig(updatedRoot.Signature))
 
 	// Set up enough mockery to be able to sequence. We don't test all the error paths
 	// through sequencer as other tests cover this
@@ -266,7 +287,12 @@ func TestSequencerManagerGuardWindow(t *testing.T) {
 	mockTx := storage.NewMockLogTreeTX(mockCtrl)
 	mockSf := keys.NewMockSignerFactory(mockCtrl)
 
-	mockSf.EXPECT().NewSigner(gomock.Any(), stestonly.LogTree.PrivateKey).Return(newSignerWithFixedSig(updatedRoot.Signature))
+	var keyProto ptypes.DynamicAny
+	if err := ptypes.UnmarshalAny(stestonly.LogTree.PrivateKey, &keyProto); err != nil {
+		t.Errorf("Failed to unmarshal stestonly.LogTree.PrivateKey: %v", err)
+	}
+
+	mockSf.EXPECT().NewSigner(gomock.Any(), keyProto.Message).Return(newSignerWithFixedSig(updatedRoot.Signature))
 
 	mockStorage.EXPECT().BeginForTree(gomock.Any(), logID).Return(mockTx, nil)
 	mockTx.EXPECT().Commit().Return(nil)
