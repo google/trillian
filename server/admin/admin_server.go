@@ -92,11 +92,11 @@ func (s *Server) CreateTree(ctx context.Context, request *trillian.CreateTreeReq
 	}
 	switch tree.TreeType {
 	case trillian.TreeType_LOG:
-		if _, err := hashers.LogHasher(tree.HashStrategy); err != nil {
+		if _, err := hashers.GetLogHasher(tree.HashStrategy); err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "failed to create hasher for tree: %v", err.Error())
 		}
 	case trillian.TreeType_MAP:
-		if _, err := hashers.MapHasher(tree.HashStrategy); err != nil {
+		if _, err := hashers.GetMapHasher(tree.HashStrategy); err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "failed to create hasher for tree: %v", err.Error())
 		}
 	default:

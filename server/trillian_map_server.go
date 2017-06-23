@@ -280,7 +280,7 @@ func (t *TrillianMapServer) getTreeAndHasher(ctx context.Context, treeID int64, 
 	if err != nil {
 		return nil, nil, err
 	}
-	th, err := hashers.MapHasher(tree.HashStrategy)
+	th, err := hashers.GetMapHasher(tree.HashStrategy)
 	if err != nil {
 		return nil, nil, err
 	}

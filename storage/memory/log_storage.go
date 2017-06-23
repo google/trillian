@@ -135,7 +135,7 @@ func (m *memoryLogStorage) beginInternal(ctx context.Context, treeID int64, read
 	if err != nil {
 		return nil, err
 	}
-	hasher, err := hashers.LogHasher(tree.HashStrategy)
+	hasher, err := hashers.GetLogHasher(tree.HashStrategy)
 	if err != nil {
 		return nil, err
 	}

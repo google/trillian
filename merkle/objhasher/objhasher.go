@@ -28,15 +28,15 @@ type objloghasher struct {
 	hashers.LogHasher
 }
 
-// NewMapHasher returns a new ObjectHasher based on the passed in MapHasher
-func NewMapHasher(baseHasher hashers.MapHasher) hashers.MapHasher {
+// GetMapHasher returns a new ObjectHasher based on the passed in MapHasher
+func GetMapHasher(baseHasher hashers.MapHasher) hashers.MapHasher {
 	return &objmaphasher{
 		MapHasher: baseHasher,
 	}
 }
 
-// NewLogHasher returns a new ObjectHasher based on the passed in MapHasher
-func NewLogHasher(baseHasher hashers.LogHasher) hashers.LogHasher {
+// GetLogHasher returns a new ObjectHasher based on the passed in MapHasher
+func GetLogHasher(baseHasher hashers.LogHasher) hashers.LogHasher {
 	return &objloghasher{
 		LogHasher: baseHasher,
 	}
