@@ -209,22 +209,22 @@ func (c *LogClient) WaitForInclusion(ctx context.Context, data []byte) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
-			err := c.getInclusionProof(ctx, leaf.MerkleLeafHash, c.root.TreeSize)
-			s, ok := status.FromError(err)
-			if !ok {
+		}
+		err := c.getInclusionProof(ctx, leaf.MerkleLeafHash, c.root.TreeSize)
+		s, ok := status.FromError(err)
+		if !ok {
+			return err
+		}
+		switch s.Code() {
+		case codes.OK:
+			return nil
+		case codes.NotFound:
+			// Wait for TreeSize to update.
+			if err := c.waitForRootUpdate(ctx); err != nil {
 				return err
 			}
-			switch s.Code() {
-			case codes.OK:
-				return nil
-			case codes.NotFound:
-				// Wait for TreeSize to update.
-				if err := c.waitForRootUpdate(ctx); err != nil {
-					return err
-				}
-			default:
-				return err
-			}
+		default:
+			return err
 		}
 	}
 }

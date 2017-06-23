@@ -59,13 +59,13 @@ func (c *MockLogClient) GetInclusionProofByHash(ctx context.Context, in *trillia
 	}
 	if c.mGetInclusionProof {
 		h := rand.Intn(len(resp.Proof))
-		if len(resp.GetProof()[h].Hashes) == 0 {
+		if len(resp.Proof[h].Hashes) == 0 {
 			glog.Warningf("Inclusion proof not modified because treesize = 0")
 			return resp, nil
 		}
 		i := rand.Intn(len(resp.Proof[h].Hashes))
 		j := rand.Intn(len(resp.Proof[h].Hashes[i]))
-		resp.GetProof()[h].Hashes[i][j] ^= 4
+		resp.Proof[h].Hashes[i][j] ^= 4
 	}
 	return resp, nil
 }
@@ -77,7 +77,7 @@ func (c *MockLogClient) GetConsistencyProof(ctx context.Context, in *trillian.Ge
 		return nil, err
 	}
 	if c.mGetConsistencyProof {
-		if len(resp.GetProof().Hashes) == 0 {
+		if len(resp.Proof.Hashes) == 0 {
 			glog.Warningf("Consistency proof not modified because len(Hashes) = 0")
 			return resp, nil
 		}
