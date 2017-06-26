@@ -31,12 +31,6 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-const (
-	// indexSize is the number of bytes all indexes should be.
-	// TODO(gdbelvin): specify the index length in the tree specification.
-	indexSize = 32
-)
-
 // TODO(codingllama): There is no access control in the server yet and clients could easily modify
 // any tree.
 
@@ -95,7 +89,7 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 	found := 0
 	for _, index := range req.Index {
 		// TODO(gdbelvin): specify the index length in the tree specification.
-		if got, want := len(index), indexSize; got != want {
+		if got, want := len(index), hasher.Size(); got != want {
 			return nil, status.Errorf(codes.InvalidArgument,
 				"index len(%x): %v, want %v", index, got, want)
 		}
@@ -168,7 +162,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 	}
 
 	for _, l := range req.Leaves {
-		if got, want := len(l.Index), indexSize; got != want {
+		if got, want := len(l.Index), hasher.Size(); got != want {
 			return nil, status.Errorf(codes.InvalidArgument,
 				"len(%x): %v, want %v", l.Index, got, want)
 		}
