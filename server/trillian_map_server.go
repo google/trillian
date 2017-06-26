@@ -158,6 +158,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 	glog.V(2).Infof("%v: Writing at revision %v", mapID, tx.WriteRevision())
 	smtWriter, err := merkle.NewSparseMerkleTreeWriter(
 		ctx,
+		req.MapId,
 		tx.WriteRevision(),
 		hasher, func() (storage.TreeTX, error) {
 			return t.registry.MapStorage.BeginForTree(ctx, req.MapId)
@@ -171,8 +172,8 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 			return nil, status.Errorf(codes.InvalidArgument,
 				"len(%x): %v, want %v", l.Index, got, want)
 		}
-		// TODO(gbelvin) use LeafHash rather than computing here.
-		l.LeafHash = hasher.HashLeaf(l.LeafValue)
+		// TODO(gbelvin) use LeafHash rather than computing here. #423
+		l.LeafHash = hasher.HashLeaf(mapID, l.Index, hasher.BitLen(), l.LeafValue)
 
 		if err = tx.Set(ctx, l.Index, *l); err != nil {
 			return nil, err

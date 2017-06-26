@@ -20,6 +20,7 @@ import (
 	_ "net/http/pprof"
 
 	_ "github.com/go-sql-driver/mysql"              // Load MySQL driver
+	_ "github.com/google/trillian/merkle/coniks"    // Make hashers available
 	_ "github.com/google/trillian/merkle/maphasher" // Make hashers available
 
 	"github.com/golang/glog"

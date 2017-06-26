@@ -50,8 +50,8 @@ func TestVerifyMap(t *testing.T) {
 		{"excess proof", tv.Key, tv.Value, tv.ExpectedRoot, make([][]byte, h.Size()*8+1), false},
 	} {
 		index := testonly.HashKey(test.key)
-		leafHash := h.HashLeaf(test.leaf)
-		err := VerifyMapInclusionProof(index, leafHash, test.root, test.proof, h)
+		leafHash := h.HashLeaf(treeID, index, h.BitLen(), test.leaf)
+		err := VerifyMapInclusionProof(treeID, index, leafHash, test.root, test.proof, h)
 		if got := err == nil; got != test.want {
 			t.Errorf("%v: VerifyMapInclusionProof(): %v, want %v", test.desc, err, test.want)
 		}

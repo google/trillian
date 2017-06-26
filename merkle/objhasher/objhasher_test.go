@@ -24,6 +24,8 @@ import (
 	"github.com/google/trillian/merkle/rfc6962"
 )
 
+const treeID = int64(0)
+
 func TestLeafHash(t *testing.T) {
 	h := NewLogHasher(rfc6962.New(crypto.SHA256))
 
@@ -53,7 +55,7 @@ func TestHashEmpty(t *testing.T) {
 	h := NewMapHasher(maphasher.New(crypto.SHA256))
 	rfc := maphasher.New(crypto.SHA256)
 
-	if got, want := h.HashEmpty(0), rfc.HashEmpty(0); !bytes.Equal(got, want) {
+	if got, want := h.HashEmpty(treeID, nil, 0), rfc.HashEmpty(treeID, nil, 0); !bytes.Equal(got, want) {
 		t.Errorf("HashEmpty():\n%x, want\n%x", got, want)
 	}
 }

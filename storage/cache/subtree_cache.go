@@ -416,7 +416,7 @@ func makeSuffixKey(depth int, index int64) (string, error) {
 // subtree Leaves map.
 //
 // This uses HStar2 to repopulate internal nodes.
-func PopulateMapSubtreeNodes(hasher hashers.MapHasher) storage.PopulateSubtreeFunc {
+func PopulateMapSubtreeNodes(treeID int64, hasher hashers.MapHasher) storage.PopulateSubtreeFunc {
 	return func(st *storagepb.SubtreeProto) error {
 		st.InternalNodes = make(map[string][]byte)
 		rootID := storage.NewNodeIDFromHash(st.Prefix)
@@ -434,9 +434,8 @@ func PopulateMapSubtreeNodes(hasher hashers.MapHasher) storage.PopulateSubtreeFu
 				Index:    big.NewInt(int64(k[1])),
 			})
 		}
-		hs2 := merkle.NewHStar2(hasher)
-		fullTreeDepth := hasher.Size() * 8
-		offset := fullTreeDepth - rootID.PrefixLenBits - int(st.Depth)
+		hs2 := merkle.NewHStar2(treeID, hasher)
+		offset := hasher.BitLen() - rootID.PrefixLenBits - int(st.Depth)
 		root, err := hs2.HStar2Nodes(int(st.Depth), offset, leaves,
 			func(depth int, index *big.Int) ([]byte, error) {
 				return nil, nil

@@ -27,6 +27,7 @@ const (
 	// This was taken from the C++ SparseMerkleTree tests in
 	// github.com/google/certificate-transparency.
 	emptyMapRootB64 = "xmifEIEqCYCXbZUz2Dh1KCFmFZVn7DUVVxbBQTr1PWo="
+	treeID          = int64(0)
 )
 
 func TestEmptyRoot(t *testing.T) {
@@ -35,8 +36,7 @@ func TestEmptyRoot(t *testing.T) {
 		t.Fatalf("couldn't decode empty root base64 constant.")
 	}
 	mh := New(crypto.SHA256)
-	rootLevel := mh.Size() * 8
-	if got, want := mh.HashEmpty(rootLevel), emptyRoot; !bytes.Equal(got, want) {
+	if got, want := mh.HashEmpty(treeID, nil, mh.BitLen()), emptyRoot; !bytes.Equal(got, want) {
 		t.Fatalf("HashEmpty(0): %x, want %x", got, want)
 	}
 }
@@ -46,11 +46,11 @@ func TestHStar2Equivalence(t *testing.T) {
 	m := New(crypto.SHA256)
 	star := hstar{
 		hasher:          m,
-		hStarEmptyCache: [][]byte{m.HashLeaf([]byte(""))},
+		hStarEmptyCache: [][]byte{m.HashLeaf(treeID, nil, m.BitLen(), []byte(""))},
 	}
 	fullDepth := m.Size() * 8
 	for i := 0; i < fullDepth; i++ {
-		if got, want := m.HashEmpty(i), star.hStarEmpty(i); !bytes.Equal(got, want) {
+		if got, want := m.HashEmpty(treeID, nil, i), star.hStarEmpty(i); !bytes.Equal(got, want) {
 			t.Errorf("HashEmpty(%v): \n%x, want: \n%x", i, got, want)
 		}
 	}
