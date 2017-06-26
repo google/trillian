@@ -16,9 +16,17 @@
 package objhasher
 
 import (
+	"crypto"
+
 	"github.com/benlaurie/objecthash/go/objecthash"
+	"github.com/google/trillian"
 	"github.com/google/trillian/merkle/hashers"
+	"github.com/google/trillian/merkle/rfc6962"
 )
+
+func init() {
+	hashers.RegisterLogHasher(trillian.HashStrategy_OBJECT_RFC6962_SHA256, NewLogHasher(rfc6962.New(crypto.SHA256)))
+}
 
 type objmaphasher struct {
 	hashers.MapHasher
