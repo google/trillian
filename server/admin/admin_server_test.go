@@ -443,14 +443,8 @@ func TestServer_CreateTree(t *testing.T) {
 			}
 
 			keyProto := &keyspb.PrivateKey{Der: keyDER}
-			marshaledKeyProto, err := ptypes.MarshalAny(keyProto)
-			if err != nil {
-				t.Errorf("%v: failed to marshal test private key as proto: %v", test.desc, err)
-				continue
-			}
-
 			sf.EXPECT().Generate(gomock.Any(), test.req.GetKeySpec()).Return(keyProto, nil)
-			sf.EXPECT().NewSigner(gomock.Any(), marshaledKeyProto).Return(privateKey, nil)
+			sf.EXPECT().NewSigner(gomock.Any(), keyProto).Return(privateKey, nil)
 
 			publicKeyDER, err = x509.MarshalPKIXPublicKey(privateKey.Public())
 			if err != nil {
@@ -458,7 +452,13 @@ func TestServer_CreateTree(t *testing.T) {
 				continue
 			}
 		} else if test.req.Tree.GetPrivateKey() != nil {
-			sf.EXPECT().NewSigner(gomock.Any(), test.req.Tree.GetPrivateKey()).MaxTimes(1).Return(privateKey, nil)
+			var keyProto ptypes.DynamicAny
+			if err := ptypes.UnmarshalAny(test.req.Tree.GetPrivateKey(), &keyProto); err != nil {
+				t.Errorf("%v: failed to unmarshal test.req.Tree.PrivateKey: %v", test.desc, err)
+				continue
+			}
+
+			sf.EXPECT().NewSigner(gomock.Any(), keyProto.Message).MaxTimes(1).Return(privateKey, nil)
 		}
 
 		setup := setupAdminServer(ctrl, sf, false /* snapshot */, test.wantCommit, test.commitErr)

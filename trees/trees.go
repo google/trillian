@@ -22,6 +22,7 @@ import (
 	"crypto/rsa"
 	"fmt"
 
+	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	tcrypto "github.com/google/trillian/crypto"
 	"github.com/google/trillian/crypto/keys"
@@ -118,7 +119,12 @@ func Signer(ctx context.Context, sf keys.SignerFactory, tree *trillian.Tree) (*t
 		return nil, err
 	}
 
-	signer, err := sf.NewSigner(ctx, tree.PrivateKey)
+	var keyProto ptypes.DynamicAny
+	if err := ptypes.UnmarshalAny(tree.PrivateKey, &keyProto); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal tree.PrivateKey: %v", err)
+	}
+
+	signer, err := sf.NewSigner(ctx, keyProto.Message)
 	if err != nil {
 		return nil, err
 	}
