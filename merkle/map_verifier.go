@@ -17,9 +17,9 @@ package merkle
 import (
 	"bytes"
 	"fmt"
+	"math/big"
 
 	"github.com/google/trillian/merkle/hashers"
-	"github.com/google/trillian/storage"
 )
 
 // VerifyMapInclusionProof verifies that the passed in expectedRoot can be
@@ -30,34 +30,29 @@ import (
 //
 // Returns nil on a successful verification, and an error otherwise.
 func VerifyMapInclusionProof(treeID int64, index, leafHash, expectedRoot []byte, proof [][]byte, h hashers.MapHasher) error {
-	hBits := h.Size() * 8
-
-	if got, want := len(proof), hBits; got != want {
-		return fmt.Errorf("proof len: %d, want %d", got, want)
-	}
-	if got, want := len(index)*8, hBits; got != want {
+	if got, want := len(index)*8, h.BitLen(); got != want {
 		return fmt.Errorf("index len: %d, want %d", got, want)
 	}
-	if got, want := len(leafHash)*8, hBits; got != want {
-		return fmt.Errorf("leafHash len: %d, want %d", got, want)
+	if got, want := len(proof), h.BitLen(); got != want {
+		return fmt.Errorf("proof len: %d, want %d", got, want)
 	}
-
-	// TODO(al): Remove this dep on storage, since clients will want to use this code.
-	nID := storage.NewNodeIDFromHash(index)
+	for i, element := range proof {
+		if got, wanta, wantb := len(element), 0, h.Size(); got != wanta && got != wantb {
+			return fmt.Errorf("proof[%d] len: %d, want %d or %d", i, got, wanta, wantb)
+		}
+	}
 
 	runningHash := make([]byte, len(leafHash))
 	copy(runningHash, leafHash)
 
-	for bit := 0; bit < hBits; bit++ {
-		proofIsRightHandElement := nID.Bit(bit) == 0
-		pElement := proof[bit]
+	fmtString := fmt.Sprintf("%%0%db", h.BitLen())
+	bits := fmt.Sprintf(fmtString, new(big.Int).SetBytes(index))
+	for height, bit := range reverse(bits) {
+		pElement := proof[height]
 		if len(pElement) == 0 {
-			pElement = h.HashEmpty(treeID, index, bit)
+			pElement = h.HashEmpty(treeID, index, height)
 		}
-		if got, want := len(pElement)*8, hBits; got != want {
-			return fmt.Errorf("invalid proof: element has length %d, want %d", got, want)
-		}
-		if proofIsRightHandElement {
+		if bit == '0' {
 			runningHash = h.HashChildren(runningHash, pElement)
 		} else {
 			runningHash = h.HashChildren(pElement, runningHash)
@@ -68,4 +63,13 @@ func VerifyMapInclusionProof(treeID int64, index, leafHash, expectedRoot []byte,
 		return fmt.Errorf("calculated root: %x, want \n%x", got, want)
 	}
 	return nil
+}
+
+// reverse returns its argument string reversed rune-wise left to right.
+func reverse(s string) string {
+	r := []rune(s)
+	for i, j := 0, len(r)-1; i < len(r)/2; i, j = i+1, j-1 {
+		r[i], r[j] = r[j], r[i]
+	}
+	return string(r)
 }
