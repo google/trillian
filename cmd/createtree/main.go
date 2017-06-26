@@ -57,7 +57,7 @@ var (
 	treeType           = flag.String("tree_type", trillian.TreeType_LOG.String(), "Type of the new tree")
 	hashStrategy       = flag.String("hash_strategy", trillian.HashStrategy_RFC6962_SHA256.String(), "Hash strategy (aka preimage protection) of the new tree")
 	hashAlgorithm      = flag.String("hash_algorithm", sigpb.DigitallySigned_SHA256.String(), "Hash algorithm of the new tree")
-	signatureAlgorithm = flag.String("signature_algorithm", sigpb.DigitallySigned_RSA.String(), "Signature algorithm of the new tree")
+	signatureAlgorithm = flag.String("signature_algorithm", sigpb.DigitallySigned_ECDSA.String(), "Signature algorithm of the new tree")
 	displayName        = flag.String("display_name", "", "Display name of the new tree")
 	description        = flag.String("description", "", "Description of the new tree")
 	maxRootDuration    = flag.Duration("max_root_duration", 0, "Interval after which a new signed root is produced despite no submissions; zero means never")
