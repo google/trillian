@@ -28,7 +28,7 @@ import (
 	ktestonly "github.com/google/trillian/crypto/keys/testonly"
 	"github.com/google/trillian/crypto/keyspb"
 	spb "github.com/google/trillian/crypto/sigpb"
-	_ "github.com/google/trillian/merkle/maphasher" // TESET_MAP_HASHER
+	_ "github.com/google/trillian/merkle/maphasher" // TEST_MAP_HASHER
 	"github.com/google/trillian/storage"
 	ttestonly "github.com/google/trillian/testonly"
 	"github.com/kylelemons/godebug/pretty"

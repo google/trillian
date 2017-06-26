@@ -503,7 +503,7 @@ func (t *TrillianLogRPCServer) getTreeAndHasher(ctx context.Context, treeID int6
 	if err != nil {
 		return nil, nil, err
 	}
-	hasher, err := hashers.GetLogHasher(tree.HashStrategy)
+	hasher, err := hashers.NewLogHasher(tree.HashStrategy)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -68,7 +68,7 @@ func (s *SequencerManager) ExecutePass(ctx context.Context, logID int64, info *L
 	}
 	ctx = trees.NewContext(ctx, tree)
 
-	hasher, err := hashers.GetLogHasher(tree.HashStrategy)
+	hasher, err := hashers.NewLogHasher(tree.HashStrategy)
 	if err != nil {
 		return 0, fmt.Errorf("error getting hasher for log %v: %v", logID, err)
 	}
