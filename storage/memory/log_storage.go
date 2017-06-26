@@ -27,6 +27,7 @@ import (
 
 	"github.com/google/btree"
 	"github.com/google/trillian"
+	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
@@ -134,7 +135,7 @@ func (m *memoryLogStorage) beginInternal(ctx context.Context, treeID int64, read
 	if err != nil {
 		return nil, err
 	}
-	hasher, err := trees.LogHasher(tree)
+	hasher, err := hashers.NewLogHasher(tree.HashStrategy)
 	if err != nil {
 		return nil, err
 	}

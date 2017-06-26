@@ -22,6 +22,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 	spb "github.com/google/trillian/crypto/sigpb"
+	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/trees"
@@ -101,7 +102,7 @@ func (m *mySQLMapStorage) begin(ctx context.Context, treeID int64, readonly bool
 	if err != nil {
 		return nil, err
 	}
-	hasher, err := trees.MapHasher(tree)
+	hasher, err := hashers.NewMapHasher(tree.HashStrategy)
 	if err != nil {
 		return nil, err
 	}

@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	log "github.com/golang/glog"
+	"github.com/google/trillian/merkle/hashers"
 )
 
 // RootHashMismatchError indicates a unexpected root hash value.
@@ -36,7 +37,7 @@ func (r RootHashMismatchError) Error() string {
 // CompactMerkleTree is a compact Merkle tree representation.
 // Uses log(n) nodes to represent the current on-disk tree.
 type CompactMerkleTree struct {
-	hasher LogHasher
+	hasher hashers.LogHasher
 	root   []byte
 	// the list of "dangling" left-hand nodes, NOTE: index 0 is the leaf, not the root.
 	nodes [][]byte
@@ -66,7 +67,7 @@ type GetNodeFunc func(depth int, index int64) ([]byte, error)
 // |f| will be called a number of times with the co-ordinates of internal MerkleTree nodes whose hash values are
 // required to initialize the internal state of the CompactMerkleTree.  |expectedRoot| is the known-good tree root
 // of the tree at |size|, and is used to verify the correct initial state of the CompactMerkleTree after initialisation.
-func NewCompactMerkleTreeWithState(hasher LogHasher, size int64, f GetNodeFunc, expectedRoot []byte) (*CompactMerkleTree, error) {
+func NewCompactMerkleTreeWithState(hasher hashers.LogHasher, size int64, f GetNodeFunc, expectedRoot []byte) (*CompactMerkleTree, error) {
 	sizeBits := bitLen(size)
 
 	r := CompactMerkleTree{
@@ -108,7 +109,7 @@ func NewCompactMerkleTreeWithState(hasher LogHasher, size int64, f GetNodeFunc, 
 }
 
 // NewCompactMerkleTree creates a new CompactMerkleTree with size zero. This always succeeds.
-func NewCompactMerkleTree(hasher LogHasher) *CompactMerkleTree {
+func NewCompactMerkleTree(hasher hashers.LogHasher) *CompactMerkleTree {
 	r := CompactMerkleTree{
 		hasher: hasher,
 		root:   hasher.EmptyRoot(),

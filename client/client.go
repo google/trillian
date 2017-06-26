@@ -27,6 +27,7 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/client/backoff"
 	"github.com/google/trillian/merkle"
+	"github.com/google/trillian/merkle/hashers"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -40,7 +41,7 @@ type LogClient struct {
 }
 
 // New returns a new LogClient.
-func New(logID int64, client trillian.TrillianLogClient, hasher merkle.LogHasher, pubKey crypto.PublicKey) *LogClient {
+func New(logID int64, client trillian.TrillianLogClient, hasher hashers.LogHasher, pubKey crypto.PublicKey) *LogClient {
 	return &LogClient{
 		LogID:  logID,
 		client: client,

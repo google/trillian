@@ -25,6 +25,8 @@ import (
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/extension"
+	"github.com/google/trillian/merkle/hashers"
+	_ "github.com/google/trillian/merkle/rfc6962" // Make hashers available
 	"github.com/google/trillian/trees"
 	"golang.org/x/net/context"
 	"google.golang.org/genproto/protobuf/field_mask"
@@ -90,11 +92,11 @@ func (s *Server) CreateTree(ctx context.Context, request *trillian.CreateTreeReq
 	}
 	switch tree.TreeType {
 	case trillian.TreeType_LOG:
-		if _, err := trees.LogHasher(tree); err != nil {
+		if _, err := hashers.NewLogHasher(tree.HashStrategy); err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "failed to create hasher for tree: %v", err.Error())
 		}
 	case trillian.TreeType_MAP:
-		if _, err := trees.MapHasher(tree); err != nil {
+		if _, err := hashers.NewMapHasher(tree.HashStrategy); err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "failed to create hasher for tree: %v", err.Error())
 		}
 	default:

@@ -17,26 +17,26 @@ package objhasher
 
 import (
 	"github.com/benlaurie/objecthash/go/objecthash"
-	"github.com/google/trillian/merkle"
+	"github.com/google/trillian/merkle/hashers"
 )
 
 type objmaphasher struct {
-	merkle.MapHasher
+	hashers.MapHasher
 }
 
 type objloghasher struct {
-	merkle.LogHasher
+	hashers.LogHasher
 }
 
 // NewMapHasher returns a new ObjectHasher based on the passed in MapHasher
-func NewMapHasher(baseHasher merkle.MapHasher) merkle.MapHasher {
+func NewMapHasher(baseHasher hashers.MapHasher) hashers.MapHasher {
 	return &objmaphasher{
 		MapHasher: baseHasher,
 	}
 }
 
 // NewLogHasher returns a new ObjectHasher based on the passed in MapHasher
-func NewLogHasher(baseHasher merkle.LogHasher) merkle.LogHasher {
+func NewLogHasher(baseHasher hashers.LogHasher) hashers.LogHasher {
 	return &objloghasher{
 		LogHasher: baseHasher,
 	}

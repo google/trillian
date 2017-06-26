@@ -21,6 +21,7 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/merkle"
+	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/trees"
 
@@ -270,7 +271,7 @@ func (t *TrillianMapServer) GetSignedMapRootByRevision(ctx context.Context, req 
 	}, nil
 }
 
-func (t *TrillianMapServer) getTreeAndHasher(ctx context.Context, treeID int64, readonly bool) (*trillian.Tree, merkle.MapHasher, error) {
+func (t *TrillianMapServer) getTreeAndHasher(ctx context.Context, treeID int64, readonly bool) (*trillian.Tree, hashers.MapHasher, error) {
 	tree, err := trees.GetTree(
 		ctx,
 		t.registry.AdminStorage,
@@ -279,7 +280,7 @@ func (t *TrillianMapServer) getTreeAndHasher(ctx context.Context, treeID int64, 
 	if err != nil {
 		return nil, nil, err
 	}
-	th, err := trees.MapHasher(tree)
+	th, err := hashers.NewMapHasher(tree.HashStrategy)
 	if err != nil {
 		return nil, nil, err
 	}

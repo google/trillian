@@ -18,6 +18,8 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+
+	"github.com/google/trillian/merkle/hashers"
 )
 
 // RootMismatchError occurs when an inclusion proof fails.
@@ -32,11 +34,11 @@ func (e RootMismatchError) Error() string {
 
 // LogVerifier verifies inclusion and consistency proofs for append only logs.
 type LogVerifier struct {
-	hasher LogHasher
+	hasher hashers.LogHasher
 }
 
 // NewLogVerifier returns a new LogVerifier for a tree.
-func NewLogVerifier(hasher LogHasher) LogVerifier {
+func NewLogVerifier(hasher hashers.LogHasher) LogVerifier {
 	return LogVerifier{
 		hasher: hasher,
 	}

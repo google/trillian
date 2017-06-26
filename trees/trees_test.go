@@ -30,9 +30,6 @@ import (
 	tcrypto "github.com/google/trillian/crypto"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/sigpb"
-	"github.com/google/trillian/merkle"
-	"github.com/google/trillian/merkle/maphasher"
-	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testonly"
 	"github.com/kylelemons/godebug/pretty"
@@ -234,62 +231,6 @@ func TestHash(t *testing.T) {
 
 		if hash != test.wantHash {
 			t.Errorf("Hash(%s) = (%v, nil), want = (%v, nil)", test.hashAlgo, hash, test.wantHash)
-		}
-	}
-}
-
-func TestLogHasher(t *testing.T) {
-	for _, test := range []struct {
-		strategy   trillian.HashStrategy
-		wantHasher merkle.LogHasher
-		wantErr    bool
-	}{
-		{strategy: trillian.HashStrategy_UNKNOWN_HASH_STRATEGY, wantErr: true},
-		{strategy: trillian.HashStrategy_TEST_MAP_HASHER, wantErr: true},
-		{strategy: trillian.HashStrategy_RFC6962_SHA256, wantHasher: rfc6962.New(crypto.SHA256)},
-	} {
-		tree := *testonly.LogTree
-		tree.HashAlgorithm = sigpb.DigitallySigned_SHA256
-		tree.HashStrategy = test.strategy
-
-		hasher, err := LogHasher(&tree)
-		if hasErr := err != nil; hasErr != test.wantErr {
-			t.Errorf("Hasher(%s) = (_, %q), wantErr = %v", test.strategy, err, test.wantErr)
-			continue
-		} else if hasErr {
-			continue
-		}
-
-		if got, want := hasher.Size(), test.wantHasher.Size(); got != want {
-			t.Errorf("Hasher(%s) = (%v, nil), want = (%v, nil)", test.strategy, got, want)
-		}
-	}
-}
-
-func TestMapHasher(t *testing.T) {
-	for _, test := range []struct {
-		strategy   trillian.HashStrategy
-		wantHasher merkle.MapHasher
-		wantErr    bool
-	}{
-		{strategy: trillian.HashStrategy_UNKNOWN_HASH_STRATEGY, wantErr: true},
-		{strategy: trillian.HashStrategy_RFC6962_SHA256, wantErr: true},
-		{strategy: trillian.HashStrategy_TEST_MAP_HASHER, wantHasher: maphasher.Default},
-	} {
-		tree := *testonly.LogTree
-		tree.HashAlgorithm = sigpb.DigitallySigned_SHA256
-		tree.HashStrategy = test.strategy
-
-		hasher, err := MapHasher(&tree)
-		if hasErr := err != nil; hasErr != test.wantErr {
-			t.Errorf("Hasher(%s) = (_, %q), wantErr = %v", test.strategy, err, test.wantErr)
-			continue
-		} else if hasErr {
-			continue
-		}
-
-		if got, want := hasher.Size(), test.wantHasher.Size(); got != want {
-			t.Errorf("Hasher(%s) = (%v, nil), want = (%v, nil)", test.strategy, got, want)
 		}
 	}
 }

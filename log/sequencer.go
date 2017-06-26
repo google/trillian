@@ -28,6 +28,7 @@ import (
 	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/merkle"
+	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/storage"
@@ -78,7 +79,7 @@ func createMetrics(mf monitoring.MetricFactory) {
 // There is no strong ordering guarantee but in general entries will be processed
 // in order of submission to the log.
 type Sequencer struct {
-	hasher     merkle.LogHasher
+	hasher     hashers.LogHasher
 	timeSource util.TimeSource
 	logStorage storage.LogStorage
 	signer     *crypto.Signer
@@ -93,7 +94,7 @@ const maxTreeDepth = 64
 
 // NewSequencer creates a new Sequencer instance for the specified inputs.
 func NewSequencer(
-	hasher merkle.LogHasher,
+	hasher hashers.LogHasher,
 	timeSource util.TimeSource,
 	logStorage storage.LogStorage,
 	signer *crypto.Signer,

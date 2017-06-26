@@ -21,17 +21,18 @@ import (
 	"github.com/google/trillian"
 	tcrypto "github.com/google/trillian/crypto"
 	"github.com/google/trillian/merkle"
+	"github.com/google/trillian/merkle/hashers"
 )
 
 // logVerifier contains state needed to verify output from Trillian Logs.
 type logVerifier struct {
-	hasher merkle.LogHasher
+	hasher hashers.LogHasher
 	pubKey crypto.PublicKey
 	v      merkle.LogVerifier
 }
 
 // NewLogVerifier returns an object that can verify output from Trillian Logs.
-func NewLogVerifier(hasher merkle.LogHasher, pubKey crypto.PublicKey) LogVerifier {
+func NewLogVerifier(hasher hashers.LogHasher, pubKey crypto.PublicKey) LogVerifier {
 	return &logVerifier{
 		hasher: hasher,
 		pubKey: pubKey,

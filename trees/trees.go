@@ -27,9 +27,6 @@ import (
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/errors"
-	"github.com/google/trillian/merkle"
-	"github.com/google/trillian/merkle/maphasher"
-	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/storage"
 	"golang.org/x/net/context"
 )
@@ -108,32 +105,6 @@ func Hash(tree *trillian.Tree) (crypto.Hash, error) {
 	}
 	// There's no nil-like value for crypto.Hash, something has to be returned.
 	return crypto.SHA256, fmt.Errorf("unexpected hash algorithm: %s", tree.HashAlgorithm)
-}
-
-// LogHasher returns a merkle.LogHasher of the kind configured fore the tree.
-// TODO(gbelvin): Create merkle tree registration.
-func LogHasher(tree *trillian.Tree) (merkle.LogHasher, error) {
-	switch tree.HashStrategy {
-	case trillian.HashStrategy_RFC6962_SHA256:
-		return rfc6962.New(crypto.SHA256), nil
-	case trillian.HashStrategy_TEST_MAP_HASHER:
-		return nil, fmt.Errorf("Cannot use map hash strategy: %s in log", tree.HashStrategy)
-	default:
-		return nil, fmt.Errorf("unexpected hash strategy: %s", tree.HashStrategy)
-	}
-}
-
-// MapHasher returns a merkle.MapHasher of the kind configured fore the tree.
-// TODO(gbelvin): Create merkle tree registration.
-func MapHasher(tree *trillian.Tree) (merkle.MapHasher, error) {
-	switch tree.HashStrategy {
-	case trillian.HashStrategy_RFC6962_SHA256:
-		return nil, fmt.Errorf("Cannot use log hash strategy: %s in map", tree.HashStrategy)
-	case trillian.HashStrategy_TEST_MAP_HASHER:
-		return maphasher.Default, nil
-	default:
-		return nil, fmt.Errorf("unexpected hash strategy: %s", tree.HashStrategy)
-	}
 }
 
 // Signer returns a Trillian crypto.Signer configured by the tree.
