@@ -25,7 +25,7 @@ import (
 )
 
 func init() {
-	hashers.RegisterLogHasher(trillian.HashStrategy_OBJECT_RFC962_SHA256, NewLogHasher(rfc6962.New(crypto.SHA256)))
+	hashers.RegisterLogHasher(trillian.HashStrategy_OBJECT_RFC6962_SHA256, NewLogHasher(rfc6962.New(crypto.SHA256)))
 }
 
 type objmaphasher struct {
