@@ -86,10 +86,10 @@ func getSparseMerkleTreeReaderWithMockTX(ctrl *gomock.Controller, rev int64) (*S
 	return NewSparseMerkleTreeReader(rev, maphasher.Default, tx), tx
 }
 
-func getSparseMerkleTreeWriterWithMockTX(ctx context.Context, ctrl *gomock.Controller, rev int64) (*SparseMerkleTreeWriter, *storage.MockMapTreeTX) {
+func getSparseMerkleTreeWriterWithMockTX(ctx context.Context, ctrl *gomock.Controller, treeID, rev int64) (*SparseMerkleTreeWriter, *storage.MockMapTreeTX) {
 	tx := storage.NewMockMapTreeTX(ctrl)
 	tx.EXPECT().WriteRevision().AnyTimes().Return(rev)
-	tree, err := NewSparseMerkleTreeWriter(ctx, rev, maphasher.Default, newTX(tx))
+	tree, err := NewSparseMerkleTreeWriter(ctx, treeID, rev, maphasher.Default, newTX(tx))
 	if err != nil {
 		panic(err)
 	}
@@ -343,7 +343,7 @@ func testSparseTreeCalculatedRoot(ctx context.Context, t *testing.T, vec sparseT
 	defer mockCtrl.Finish()
 
 	const rev = 100
-	w, tx := getSparseMerkleTreeWriterWithMockTX(ctx, mockCtrl, rev)
+	w, tx := getSparseMerkleTreeWriterWithMockTX(ctx, mockCtrl, treeID, rev)
 
 	tx.EXPECT().Commit().AnyTimes().Return(nil)
 	tx.EXPECT().Close().AnyTimes().Return(nil)
@@ -356,7 +356,11 @@ func testSparseTreeCalculatedRoot(ctx context.Context, t *testing.T, vec sparseT
 func testSparseTreeCalculatedRootWithWriter(ctx context.Context, t *testing.T, rev int64, vec sparseTestVector, w *SparseMerkleTreeWriter) {
 	var leaves []HashKeyValue
 	for _, kv := range vec.kv {
-		leaves = append(leaves, HashKeyValue{testonly.HashKey(kv.k), w.hasher.HashLeaf([]byte(kv.v))})
+		index := testonly.HashKey(kv.k)
+		leaves = append(leaves, HashKeyValue{
+			HashedKey:   index,
+			HashedValue: w.hasher.HashLeaf(treeID, index, w.hasher.BitLen(), []byte(kv.v)),
+		})
 	}
 
 	if err := w.SetLeaves(ctx, leaves); err != nil {
@@ -410,7 +414,7 @@ func testSparseTreeFetches(ctx context.Context, t *testing.T, vec sparseTestVect
 	defer mockCtrl.Finish()
 
 	const rev = 100
-	w, tx := getSparseMerkleTreeWriterWithMockTX(ctx, mockCtrl, rev)
+	w, tx := getSparseMerkleTreeWriterWithMockTX(ctx, mockCtrl, treeID, rev)
 	tx.EXPECT().Commit().AnyTimes().Return(nil)
 	tx.EXPECT().Close().AnyTimes().Return(nil)
 
@@ -573,7 +577,8 @@ func TestSparseMerkleTreeWriterFetchesMultipleLeaves(t *testing.T) {
 	testSparseTreeFetches(context.Background(), t, vec)
 }
 
-func DISABLEDTestSparseMerkleTreeWriterBigBatch(t *testing.T) {
+func TestSparseMerkleTreeWriterBigBatch(t *testing.T) {
+	t.Skip("Disabled: BigBatch takes too long")
 	ctx := context.Background()
 
 	mockCtrl := gomock.NewController(t)
@@ -581,7 +586,7 @@ func DISABLEDTestSparseMerkleTreeWriterBigBatch(t *testing.T) {
 
 	defer maybeProfileCPU(t)()
 	const rev = 100
-	w, tx := getSparseMerkleTreeWriterWithMockTX(ctx, mockCtrl, rev)
+	w, tx := getSparseMerkleTreeWriterWithMockTX(ctx, mockCtrl, treeID, rev)
 
 	tx.EXPECT().Close().AnyTimes().Return(nil)
 	tx.EXPECT().Commit().AnyTimes().Return(nil)
@@ -593,8 +598,9 @@ func DISABLEDTestSparseMerkleTreeWriterBigBatch(t *testing.T) {
 	for x := 0; x < numBatches; x++ {
 		h := make([]HashKeyValue, batchSize)
 		for y := 0; y < batchSize; y++ {
-			h[y].HashedKey = testonly.HashKey(fmt.Sprintf("key-%d-%d", x, y))
-			h[y].HashedValue = w.hasher.HashLeaf([]byte(fmt.Sprintf("value-%d-%d", x, y)))
+			index := testonly.HashKey(fmt.Sprintf("key-%d-%d", x, y))
+			h[y].HashedKey = index
+			h[y].HashedValue = w.hasher.HashLeaf(treeID, index, w.hasher.BitLen(), []byte(fmt.Sprintf("value-%d-%d", x, y)))
 		}
 		if err := w.SetLeaves(ctx, h); err != nil {
 			t.Fatalf("Failed to batch %d: %v", x, err)

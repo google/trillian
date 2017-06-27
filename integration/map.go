@@ -30,6 +30,8 @@ import (
 	"github.com/google/trillian/testonly"
 )
 
+const treeID = int64(0)
+
 // RunMapIntegration runs a map integration test using the given map ID and client.
 func RunMapIntegration(ctx context.Context, mapID int64, pubKey crypto.PublicKey, client trillian.TrillianMapClient) error {
 	{
@@ -127,8 +129,8 @@ func RunMapIntegration(ctx context.Context, mapID int64, pubKey crypto.PublicKey
 			if got, want := leaf.LeafValue, ev.LeafValue; !bytes.Equal(got, want) {
 				return fmt.Errorf("got value %s, want %s", got, want)
 			}
-			leafHash := h.HashLeaf(leaf.LeafValue)
-			if err := merkle.VerifyMapInclusionProof(leaf.Index, leafHash, r.GetMapRoot().GetRootHash(), incl.Inclusion, h); err != nil {
+			leafHash := h.HashLeaf(treeID, leaf.Index, h.BitLen(), leaf.LeafValue)
+			if err := merkle.VerifyMapInclusionProof(treeID, leaf.Index, leafHash, r.GetMapRoot().GetRootHash(), incl.Inclusion, h); err != nil {
 				return fmt.Errorf("verifyMapInclusionProof(%x): %v", leaf.Index, err)
 			}
 		}
@@ -157,8 +159,8 @@ func testForNonExistentLeaf(ctx context.Context, mapID int64,
 		if got, want := len(leaf.LeafValue), 0; got != want {
 			return fmt.Errorf("len(GetLeaves(%s).LeafValue): %v, want, %v", index1, got, want)
 		}
-		leafHash := h.HashLeaf(leaf.LeafValue)
-		if err := merkle.VerifyMapInclusionProof(leaf.Index, leafHash, latestRoot.RootHash, incl.Inclusion, h); err != nil {
+		leafHash := h.HashLeaf(treeID, leaf.Index, h.BitLen(), leaf.LeafValue)
+		if err := merkle.VerifyMapInclusionProof(treeID, leaf.Index, leafHash, latestRoot.RootHash, incl.Inclusion, h); err != nil {
 			return fmt.Errorf("VerifyMapInclusionProof(%x): %v", leaf.Index, err)
 		}
 	}

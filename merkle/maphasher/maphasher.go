@@ -59,16 +59,16 @@ func (m *MapHasher) String() string {
 // HashEmpty returns the hash of an empty branch at a given depth.
 // A depth of 0 indicates the hash of an empty leaf.
 // Empty branches within the tree are plain interior nodes e1 = H(e0, e0) etc.
-func (m *MapHasher) HashEmpty(depth int) []byte {
-	if depth < 0 || depth >= len(m.nullHashes) {
-		panic(fmt.Sprintf("HashEmpty(%v) out of bounds", depth))
+func (m *MapHasher) HashEmpty(treeID int64, index []byte, height int) []byte {
+	if height < 0 || height >= len(m.nullHashes) {
+		panic(fmt.Sprintf("HashEmpty(%v) out of bounds", height))
 	}
-	return m.nullHashes[depth]
+	return m.nullHashes[height]
 }
 
 // HashLeaf returns the Merkle tree leaf hash of the data passed in through leaf.
 // The hashed structure is leafHashPrefix||leaf.
-func (m *MapHasher) HashLeaf(leaf []byte) []byte {
+func (m *MapHasher) HashLeaf(treeID int64, index []byte, height int, leaf []byte) []byte {
 	h := m.New()
 	h.Write([]byte{leafHashPrefix})
 	h.Write(leaf)
@@ -85,6 +85,11 @@ func (m *MapHasher) HashChildren(l, r []byte) []byte {
 	return h.Sum(nil)
 }
 
+// BitLen returns the number of bits in the hash function.
+func (m *MapHasher) BitLen() int {
+	return m.Size() * 8
+}
+
 // initNullHashes sets the cache of empty hashes, one for each level in the sparse tree,
 // starting with the hash of an empty leaf, all the way up to the root hash of an empty tree.
 // These empty branches are not stored on disk in a sparse tree. They are computed since their
@@ -94,7 +99,7 @@ func (m *MapHasher) initNullHashes() {
 	// There are Size()*8 edges, and Size()*8 + 1 nodes in the tree.
 	nodes := m.Size()*8 + 1
 	r := make([][]byte, nodes, nodes)
-	r[0] = m.HashLeaf(nil)
+	r[0] = m.HashLeaf(0, nil, m.Size()*8, nil)
 	for i := 1; i < nodes; i++ {
 		r[i] = m.HashChildren(r[i-1], r[i-1])
 	}

@@ -29,17 +29,17 @@ import (
 // append-only logs, but adds support for nil/"default" proof nodes.
 //
 // Returns nil on a successful verification, and an error otherwise.
-func VerifyMapInclusionProof(index, leafHash, expectedRoot []byte, proof [][]byte, h hashers.MapHasher) error {
+func VerifyMapInclusionProof(treeID int64, index, leafHash, expectedRoot []byte, proof [][]byte, h hashers.MapHasher) error {
 	hBits := h.Size() * 8
 
 	if got, want := len(proof), hBits; got != want {
-		return fmt.Errorf("invalid proof length %d, want %d", got, want)
+		return fmt.Errorf("proof len: %d, want %d", got, want)
 	}
 	if got, want := len(index)*8, hBits; got != want {
-		return fmt.Errorf("invalid index length %d, want %d", got, want)
+		return fmt.Errorf("index len: %d, want %d", got, want)
 	}
 	if got, want := len(leafHash)*8, hBits; got != want {
-		return fmt.Errorf("invalid leafHash length %d, want %d", got, want)
+		return fmt.Errorf("leafHash len: %d, want %d", got, want)
 	}
 
 	// TODO(al): Remove this dep on storage, since clients will want to use this code.
@@ -52,7 +52,7 @@ func VerifyMapInclusionProof(index, leafHash, expectedRoot []byte, proof [][]byt
 		proofIsRightHandElement := nID.Bit(bit) == 0
 		pElement := proof[bit]
 		if len(pElement) == 0 {
-			pElement = h.HashEmpty(bit)
+			pElement = h.HashEmpty(treeID, index, bit)
 		}
 		if got, want := len(pElement)*8, hBits; got != want {
 			return fmt.Errorf("invalid proof: element has length %d, want %d", got, want)
@@ -65,7 +65,7 @@ func VerifyMapInclusionProof(index, leafHash, expectedRoot []byte, proof [][]byt
 	}
 
 	if got, want := runningHash, expectedRoot; !bytes.Equal(got, want) {
-		return fmt.Errorf("invalid proof: calculated roothash \n%x, want \n%x", got, want)
+		return fmt.Errorf("calculated root: %x, want \n%x", got, want)
 	}
 	return nil
 }

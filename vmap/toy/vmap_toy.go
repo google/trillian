@@ -86,6 +86,7 @@ func main() {
 		defer tx.Close()
 		w, err := merkle.NewSparseMerkleTreeWriter(
 			ctx,
+			mapID,
 			tx.WriteRevision(),
 			hasher,
 			func() (storage.TreeTX, error) {
@@ -98,8 +99,9 @@ func main() {
 		glog.Infof("Starting batch %d...", x)
 		h := make([]merkle.HashKeyValue, batchSize)
 		for y := 0; y < batchSize; y++ {
-			h[y].HashedKey = testonly.HashKey(fmt.Sprintf("key-%d-%d", x, y))
-			h[y].HashedValue = hasher.HashLeaf([]byte(fmt.Sprintf("value-%d-%d", x, y)))
+			index := testonly.HashKey(fmt.Sprintf("key-%d-%d", x, y))
+			h[y].HashedKey = index
+			h[y].HashedValue = hasher.HashLeaf(mapID, index, hasher.BitLen(), []byte(fmt.Sprintf("value-%d-%d", x, y)))
 		}
 		glog.Infof("Created %d k/v pairs...", len(h))
 

@@ -83,6 +83,7 @@ type getSubtreeFunc func(ctx context.Context, prefix []byte) (Subtree, error)
 
 // subtreeWriter knows how to calculate and store nodes for a subtree.
 type subtreeWriter struct {
+	treeID int64
 	// prefix is the path to the root of this subtree in the full tree.
 	// i.e. all paths/indices under this tree share the same prefix.
 	prefix []byte
@@ -235,7 +236,7 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context) {
 	}
 
 	// calculate new root, and intermediate nodes:
-	hs2 := NewHStar2(s.treeHasher)
+	hs2 := NewHStar2(s.treeID, s.treeHasher)
 	treeDepthOffset := (s.treeHasher.Size()-len(s.prefix))*8 - s.subtreeDepth
 	addressSize := len(s.prefix) + s.subtreeDepth/8
 	root, err := hs2.HStar2Nodes(s.subtreeDepth, treeDepthOffset, leaves,
@@ -317,12 +318,13 @@ func leafQueueSize(depths []int) int {
 }
 
 // newLocalSubtreeWriter creates a new local go-routine based subtree worker.
-func newLocalSubtreeWriter(ctx context.Context, rev int64, prefix []byte, depths []int, newTX newTXFunc, h hashers.MapHasher) (Subtree, error) {
+func newLocalSubtreeWriter(ctx context.Context, treeID, rev int64, prefix []byte, depths []int, newTX newTXFunc, h hashers.MapHasher) (Subtree, error) {
 	tx, err := newTX()
 	if err != nil {
 		return nil, err
 	}
 	tree := subtreeWriter{
+		treeID:       treeID,
 		treeRevision: rev,
 		// TODO(al): figure out if we actually need these copies and remove it not.
 		prefix:       append(make([]byte, 0, len(prefix)), prefix...),
@@ -334,7 +336,7 @@ func newLocalSubtreeWriter(ctx context.Context, rev int64, prefix []byte, depths
 		treeHasher:   h,
 		getSubtree: func(ctx context.Context, p []byte) (Subtree, error) {
 			myPrefix := bytes.Join([][]byte{prefix, p}, []byte{})
-			return newLocalSubtreeWriter(ctx, rev, myPrefix, depths[1:], newTX, h)
+			return newLocalSubtreeWriter(ctx, treeID, rev, myPrefix, depths[1:], newTX, h)
 		},
 	}
 
@@ -347,10 +349,10 @@ func newLocalSubtreeWriter(ctx context.Context, rev int64, prefix []byte, depths
 // NewSparseMerkleTreeWriter returns a new SparseMerkleTreeWriter, which will
 // write data back into the tree at the specified revision, using the passed
 // in MapHasher to calculate/verify tree hashes, storing via tx.
-func NewSparseMerkleTreeWriter(ctx context.Context, rev int64, h hashers.MapHasher, newTX newTXFunc) (*SparseMerkleTreeWriter, error) {
+func NewSparseMerkleTreeWriter(ctx context.Context, treeID, rev int64, h hashers.MapHasher, newTX newTXFunc) (*SparseMerkleTreeWriter, error) {
 	// TODO(al): allow the tree layering sizes to be customisable somehow.
 	const topSubtreeSize = 8 // must be a multiple of 8 for now.
-	tree, err := newLocalSubtreeWriter(ctx, rev, []byte{}, []int{topSubtreeSize, h.Size()*8 - topSubtreeSize}, newTX, h)
+	tree, err := newLocalSubtreeWriter(ctx, treeID, rev, []byte{}, []int{topSubtreeSize, h.Size()*8 - topSubtreeSize}, newTX, h)
 	if err != nil {
 		return nil, err
 	}

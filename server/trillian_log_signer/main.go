@@ -27,6 +27,8 @@ import (
 	"github.com/google/trillian/cmd"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/extension"
+	_ "github.com/google/trillian/merkle/objhasher" // Load hashers
+	_ "github.com/google/trillian/merkle/rfc6962"   // Load hashers
 	"github.com/google/trillian/monitoring/prometheus"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/server"
