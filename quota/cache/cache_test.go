@@ -144,6 +144,7 @@ func TestCachedManager_GetTokens_EvictsCache(t *testing.T) {
 	mock.EXPECT().GetTokens(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
 
 	ctx := context.Background()
+	maxEntries := 100
 	qm := NewCachedManager(mock, batchSize, maxEntries)
 
 	originalNow := now
@@ -167,20 +168,24 @@ func TestCachedManager_GetTokens_EvictsCache(t *testing.T) {
 	firstTree := int64(10)
 	tree := firstTree
 	for i := 0; i < maxEntries-2; i++ {
-		if err := qm.GetTokens(ctx, tokens, specForTree(tree)); err != nil {
+		if err := qm.GetTokens(ctx, tokens, treeSpecs(tree)); err != nil {
 			t.Fatalf("GetTokens() returned err = %v (i = %v)", err, i)
 		}
 		tree++
 	}
 
-	// All entries added now must cause eviction of the oldest entries
-	evicts := 5
-	for i := 0; i < evicts; i++ {
-		mock.EXPECT().PutTokens(ctx, batchSize, specForTree(firstTree+int64(i))).Return(nil)
-		if err := qm.GetTokens(ctx, tokens, specForTree(tree)); err != nil {
+	// All entries added from now on must cause eviction of the oldest entries.
+	// Evict trees in pairs to exercise the inner evict loop.
+	evicts := 20
+	for i := 0; i < evicts; i += 2 {
+		mock.EXPECT().PutTokens(ctx, batchSize, treeSpecs(firstTree+int64(i))).Return(nil)
+		mock.EXPECT().PutTokens(ctx, batchSize, treeSpecs(firstTree+int64(i+1))).Return(nil)
+
+		specs := []quota.Spec{treeSpec(tree), treeSpec(tree + 1)}
+		tree += 2
+		if err := qm.GetTokens(ctx, tokens, specs); err != nil {
 			t.Fatalf("GetTokens() returned err = %v (i = %v)", err, i)
 		}
-		tree++
 	}
 
 	waitChan := make(chan bool, 1)
@@ -212,6 +217,10 @@ func TestManager_GetTokensErrors(t *testing.T) {
 	}
 }
 
-func specForTree(treeID int64) []quota.Spec {
-	return []quota.Spec{{Group: quota.Tree, Kind: quota.Write, TreeID: treeID}}
+func treeSpecs(treeID int64) []quota.Spec {
+	return []quota.Spec{treeSpec(treeID)}
+}
+
+func treeSpec(treeID int64) quota.Spec {
+	return quota.Spec{Group: quota.Tree, Kind: quota.Write, TreeID: treeID}
 }

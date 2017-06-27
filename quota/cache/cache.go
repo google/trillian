@@ -154,7 +154,8 @@ func (m *manager) evict(ctx context.Context) {
 	sort.Sort(buckets)
 
 	wg := sync.WaitGroup{}
-	for i := 0; i < len(m.cache)-m.maxEntries; i++ {
+	evicts := len(m.cache) - m.maxEntries
+	for i := 0; i < evicts; i++ {
 		b := buckets[i]
 		glog.Infof("Too many tokens cached, returning least recently used (%v tokens for %+v)", b.tokens, b.spec)
 		delete(m.cache, b.spec)
