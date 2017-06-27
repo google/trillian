@@ -58,7 +58,7 @@ func (s *HStar2) HStar2Root(n int, values []HStar2LeafHash) ([]byte, error) {
 	offset := big.NewInt(0)
 	return s.hStar2b(n, values, offset,
 		func(depth int, index *big.Int) ([]byte, error) {
-			return s.hasher.HashEmpty(s.treeID, index.Bytes(), depth), nil
+			return s.hasher.HashEmpty(s.treeID, PaddedBytes(index, s.hasher.Size()), depth), nil
 		},
 		func(int, *big.Int, []byte) error { return nil })
 }
@@ -100,7 +100,7 @@ func (s *HStar2) HStar2Nodes(treeDepth, treeLevelOffset int, values []HStar2Leaf
 				return h, nil
 			}
 			// otherwise just return the null hash for this level
-			return s.hasher.HashEmpty(s.treeID, index.Bytes(), depth+treeLevelOffset), nil
+			return s.hasher.HashEmpty(s.treeID, PaddedBytes(index, s.hasher.Size()), depth+treeLevelOffset), nil
 		},
 		func(depth int, index *big.Int, hash []byte) error {
 			return set(treeDepth-depth, index, hash)
@@ -123,13 +123,12 @@ func (s *HStar2) hStar2b(n int, values []HStar2LeafHash, offset *big.Int, get Sp
 		}
 		return values[0].LeafHash, nil
 	}
-
-	split := new(big.Int).Lsh(smtOne, uint(n-1))
-	split.Add(split, offset)
 	if len(values) == 0 {
 		return get(n, offset)
 	}
 
+	split := new(big.Int).Lsh(smtOne, uint(n-1))
+	split.Add(split, offset)
 	i := sort.Search(len(values), func(i int) bool { return values[i].Index.Cmp(split) >= 0 })
 	lhs, err := s.hStar2b(n-1, values[:i], offset, get, set)
 	if err != nil {
@@ -177,4 +176,14 @@ func (s *valueSorter) Less(i, j int) bool {
 
 func indexLess(a, b *HStar2LeafHash) bool {
 	return a.Index.Cmp(b.Index) < 0
+}
+
+// PaddedBytes takes a big.Int and returns it's value, left padded with zeros.
+// e.g. 1 -> 0000000000000000000000000000000000000001
+func PaddedBytes(i *big.Int, size int) []byte {
+	b := i.Bytes()
+	ret := make([]byte, size)
+	padBytes := len(ret) - len(b)
+	copy(ret[padBytes:], b)
+	return ret
 }

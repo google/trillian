@@ -16,6 +16,7 @@ package merkle
 
 import (
 	"bytes"
+	"encoding/hex"
 	"fmt"
 	"math/big"
 	"testing"
@@ -96,17 +97,18 @@ func TestHStar2GetSet(t *testing.T) {
 	// Node cache is shared between tree builds and in effect plays the role of
 	// the TreeStorage layer.
 	cache := make(map[string][]byte)
+	hasher := maphasher.Default
 
 	for i, x := range simpleTestVector {
-		s := NewHStar2(treeID, maphasher.Default)
+		s := NewHStar2(treeID, hasher)
 		m := make(map[string]string)
 		m[x.k] = x.v
-		values := createHStar2Leaves(treeID, maphasher.Default, m)
+		values := createHStar2Leaves(treeID, hasher, m)
 		// ensure we're going incrementally, one leaf at a time.
 		if len(values) != 1 {
 			t.Fatalf("Should only have 1 leaf per run, got %d", len(values))
 		}
-		root, err := s.HStar2Nodes(s.hasher.Size()*8, 0, values,
+		root, err := s.HStar2Nodes(s.hasher.BitLen(), 0, values,
 			func(depth int, index *big.Int) ([]byte, error) {
 				return cache[fmt.Sprintf("%x/%d", index, depth)], nil
 			},
@@ -119,7 +121,7 @@ func TestHStar2GetSet(t *testing.T) {
 			continue
 		}
 		if got, want := root, x.root; !bytes.Equal(got, want) {
-			t.Errorf("Root:\n%x\n, want:\n%x", got, want)
+			t.Errorf("Root:\n%x, want:\n%x", got, want)
 		}
 	}
 }
@@ -204,4 +206,26 @@ func TestHStar2NegativeTreeLevelOffset(t *testing.T) {
 	if got, want := err, ErrNegativeTreeLevelOffset; got != want {
 		t.Fatalf("Hstar2Nodes(): %v, want %v", got, want)
 	}
+}
+
+func TestPaddedBytes(t *testing.T) {
+	size := 160 / 8
+	for _, tc := range []struct {
+		i    int64
+		want []byte
+	}{
+		{i: 1, want: h2b("0000000000000000000000000000000000000001")},
+	} {
+		bigInt := new(big.Int).SetInt64(tc.i)
+		if got, want := PaddedBytes(bigInt, size), tc.want; !bytes.Equal(got, want) {
+			t.Errorf("PaddedBytes(%d): %x, want %x", tc.i, got, want)
+		}
+	}
+}
+func h2b(h string) []byte {
+	b, err := hex.DecodeString(h)
+	if err != nil {
+		panic("invalid hex string")
+	}
+	return b
 }
