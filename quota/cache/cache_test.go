@@ -27,8 +27,8 @@ import (
 )
 
 const (
-	batchSize  = 20
-	maxEntries = 10
+	minBatchSize = 20
+	maxEntries   = 10
 )
 
 var (
@@ -47,7 +47,7 @@ func TestCachedManager_GetUser(t *testing.T) {
 	mock := quota.NewMockManager(ctrl)
 	mock.EXPECT().GetUser(ctx, nil).Return(want)
 
-	qm := NewCachedManager(mock, batchSize, maxEntries)
+	qm := NewCachedManager(mock, minBatchSize, maxEntries)
 	if got := qm.GetUser(ctx, nil /* req */); got != want {
 		t.Errorf("GetUser() = %v, want = %v", got, want)
 	}
@@ -80,7 +80,7 @@ func TestCachedManager_PeekTokens(t *testing.T) {
 		mock := quota.NewMockManager(ctrl)
 		mock.EXPECT().PeekTokens(ctx, specs).Return(test.wantTokens, test.wantErr)
 
-		qm := NewCachedManager(mock, batchSize, maxEntries)
+		qm := NewCachedManager(mock, minBatchSize, maxEntries)
 		tokens, err := qm.PeekTokens(ctx, specs)
 		if diff := pretty.Compare(tokens, test.wantTokens); diff != "" {
 			t.Errorf("%v: post-PeekTokens() diff (-got +want):\n%v", test.desc, diff)
@@ -100,7 +100,7 @@ func TestCachedManager_DelegatedMethods(t *testing.T) {
 	tokens := 5
 	for _, want := range []error{nil, errors.New("llama ate all tokens")} {
 		mock := quota.NewMockManager(ctrl)
-		qm := NewCachedManager(mock, batchSize, maxEntries)
+		qm := NewCachedManager(mock, minBatchSize, maxEntries)
 
 		mock.EXPECT().PutTokens(ctx, tokens, specs).Return(want)
 		if err := qm.PutTokens(ctx, tokens, specs); err != want {
@@ -121,14 +121,14 @@ func TestCachedManager_GetTokens_CachesTokens(t *testing.T) {
 	ctx := context.Background()
 	tokens := 3
 	mock := quota.NewMockManager(ctrl)
-	mock.EXPECT().GetTokens(ctx, matchers.AtLeast(batchSize), specs).Times(2).Return(nil)
+	mock.EXPECT().GetTokens(ctx, matchers.AtLeast(minBatchSize), specs).Times(2).Return(nil)
 
-	qm := NewCachedManager(mock, batchSize, maxEntries)
+	qm := NewCachedManager(mock, minBatchSize, maxEntries)
 
-	// Quota requests happen in tokens+batchSize steps, so that batchSize tokens get cached after
-	// the the request is satisfied.
+	// Quota requests happen in tokens+minBatchSize steps, so that minBatchSize tokens get cached
+	// after the the request is satisfied.
 	// Therefore, the call pattern below is satisfied by just 2 underlying GetTokens() calls.
-	calls := []int{tokens, batchSize, tokens, batchSize / 2, batchSize / 2}
+	calls := []int{tokens, minBatchSize, tokens, minBatchSize / 2, minBatchSize / 2}
 	for i, call := range calls {
 		if err := qm.GetTokens(ctx, call, specs); err != nil {
 			t.Fatalf("GetTokens() returned err = %v (call #%v)", err, i+1)
@@ -145,7 +145,7 @@ func TestCachedManager_GetTokens_EvictsCache(t *testing.T) {
 
 	ctx := context.Background()
 	maxEntries := 100
-	qm := NewCachedManager(mock, batchSize, maxEntries)
+	qm := NewCachedManager(mock, minBatchSize, maxEntries)
 
 	originalNow := now
 	defer func() { now = originalNow }()
@@ -178,8 +178,8 @@ func TestCachedManager_GetTokens_EvictsCache(t *testing.T) {
 	// Evict trees in pairs to exercise the inner evict loop.
 	evicts := 20
 	for i := 0; i < evicts; i += 2 {
-		mock.EXPECT().PutTokens(ctx, batchSize, treeSpecs(firstTree+int64(i))).Return(nil)
-		mock.EXPECT().PutTokens(ctx, batchSize, treeSpecs(firstTree+int64(i+1))).Return(nil)
+		mock.EXPECT().PutTokens(ctx, minBatchSize, treeSpecs(firstTree+int64(i))).Return(nil)
+		mock.EXPECT().PutTokens(ctx, minBatchSize, treeSpecs(firstTree+int64(i+1))).Return(nil)
 
 		specs := []quota.Spec{treeSpec(tree), treeSpec(tree + 1)}
 		tree += 2
@@ -211,7 +211,7 @@ func TestManager_GetTokensErrors(t *testing.T) {
 	mock := quota.NewMockManager(ctrl)
 	mock.EXPECT().GetTokens(ctx, gomock.Any(), specs).Return(want)
 
-	qm := NewCachedManager(mock, batchSize, maxEntries)
+	qm := NewCachedManager(mock, minBatchSize, maxEntries)
 	if err := qm.GetTokens(ctx, 5 /* numTokens */, specs); err != want {
 		t.Errorf("GetTokens() returned err = %#v, want = %#v", err, want)
 	}

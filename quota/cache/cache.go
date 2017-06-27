@@ -29,8 +29,8 @@ import (
 var now = time.Now
 
 type manager struct {
-	qm                    quota.Manager
-	batchSize, maxEntries int
+	qm                       quota.Manager
+	minBatchSize, maxEntries int
 
 	// mu guards cache
 	mu    sync.Mutex
@@ -47,18 +47,18 @@ type bucket struct {
 
 // NewCachedManager wraps a quota.Manager with an implementation that caches tokens locally.
 //
-// batchSize determines the minimum number of tokens requested from qm for each GetTokens() request.
-// More tokens may be requested in order to fulfill the present request.
+// minBatchSize determines the minimum number of tokens requested from qm for each GetTokens()
+// request.
 //
 // maxEntries determines the maximum number of cache entries, apart from global quotas. The oldest
 // entries are evicted as necessary, their tokens replenished via PutTokens() to avoid excessive
 // leakage.
-func NewCachedManager(qm quota.Manager, batchSize, maxEntries int) quota.Manager {
+func NewCachedManager(qm quota.Manager, minBatchSize, maxEntries int) quota.Manager {
 	return &manager{
-		qm:         qm,
-		batchSize:  batchSize,
-		maxEntries: maxEntries,
-		cache:      make(map[quota.Spec]*bucket),
+		qm:           qm,
+		minBatchSize: minBatchSize,
+		maxEntries:   maxEntries,
+		cache:        make(map[quota.Spec]*bucket),
 	}
 }
 
@@ -102,9 +102,10 @@ func (m *manager) GetTokens(ctx context.Context, numTokens int, specs []quota.Sp
 			}()
 		}()
 
-		// A more accurate count would be numTokens+m.batchSize-bucket.tokens, but that might force
-		// us to make a GetTokens call for each spec. A single call is likely to be more efficient.
-		tokens := numTokens + m.batchSize
+		// A more accurate count would be numTokens+m.minBatchSize-bucket.tokens, but that might
+		// force us to make a GetTokens call for each spec. A single call is likely to be more
+		// efficient.
+		tokens := numTokens + m.minBatchSize
 		if err := m.qm.GetTokens(ctx, tokens, specsToRefill); err != nil {
 			return err
 		}
