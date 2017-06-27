@@ -21,6 +21,16 @@ import (
 )
 
 func TestDefaultSignerFactory(t *testing.T) {
+	key, err := NewFromPrivatePEMFile("../../testdata/log-rpc-server.privkey.pem", "towel")
+	if err != nil {
+		t.Fatalf("Failed to load private key: %v", err)
+	}
+
+	keyDER, err := MarshalPrivateKey(key)
+	if err != nil {
+		t.Fatalf("Failed to marshal private key to DER: %v", err)
+	}
+
 	tester := SignerFactoryTester{
 		NewSignerFactory: func() SignerFactory { return &DefaultSignerFactory{} },
 		NewSignerTests: []NewSignerTest{
@@ -53,6 +63,26 @@ func TestDefaultSignerFactory(t *testing.T) {
 				},
 				WantErr: true,
 			},
+			{
+				Name: "PrivateKey",
+				KeyProto: &keyspb.PrivateKey{
+					Der: keyDER,
+				},
+			},
+			{
+				Name: "PrivateKey with invalid DER",
+				KeyProto: &keyspb.PrivateKey{
+					Der: []byte("foobar"),
+				},
+				WantErr: true,
+			},
+			{
+				Name:     "PrivateKey with missing DER",
+				KeyProto: &keyspb.PrivateKey{},
+				WantErr:  true,
+			},
+			// PKCS11Config support is tested by integration/log_integration.sh
+			// (when $WITH_PKCS11 == "true").
 		},
 	}
 
