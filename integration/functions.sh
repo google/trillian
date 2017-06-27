@@ -94,6 +94,8 @@ kill_pid() {
 # If the ETCD_DIR var points to a valid etcd, also populates:
 #  - ETCD_PID        : etcd pid
 #  - ETCD_DB_DIR     : location of etcd database
+# If WITH_PKCS11 is set, also populates:
+#  - SOFTHSM_CONF    : location of the SoftHSM configuration file
 log_prep_test() {
   # Default to one of each.
   local rpc_server_count=${1:-1}
@@ -127,7 +129,7 @@ log_prep_test() {
   fi
 
   if [[ "${WITH_PKCS11}" == "true" ]]; then
-    export SOFTHSM_CONF=${PWD}/testdata/softhsm.conf
+    export SOFTHSM_CONF=${TMPDIR}/softhsm.conf
     local pkcs11_opts="--pkcs11_module_path ${PKCS11_MODULE:-/usr/lib/libsofthsm.so}"
   fi
 

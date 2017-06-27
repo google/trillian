@@ -14,5 +14,3 @@
 *.swp
 *~
 default.etcd
-testdata/softhsm.conf
-softhsm-slot0.db

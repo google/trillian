@@ -177,7 +177,7 @@ func NewFromPKCS11Config(modulePath string, config *keyspb.PKCS11Config) (crypto
 	}
 	pubKey, err := NewFromPublicPEM(config.GetPublicKey())
 	if err != nil {
-		return nil, fmt.Errorf("Failed to load public key from %q: %s", config.GetPublicKey(), err)
+		return nil, fmt.Errorf("failed to load public key from %q: %s", config.GetPublicKey(), err)
 	}
 	return pkcs11key.New(modulePath, config.GetTokenLabel(), config.GetPin(), pubKey)
 }
