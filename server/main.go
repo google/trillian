@@ -72,6 +72,12 @@ func (m *Main) Run(ctx context.Context) error {
 		if err := trillian.RegisterTrillianAdminHandlerFromEndpoint(ctx, mux, m.RPCEndpoint, opts); err != nil {
 			return err
 		}
+		if err := trillian.RegisterTrillianLogHandlerFromEndpoint(ctx, mux, m.RPCEndpoint, opts); err != nil {
+			return err
+		}
+		if err := trillian.RegisterTrillianMapHandlerFromEndpoint(ctx, mux, m.RPCEndpoint, opts); err != nil {
+			return err
+		}
 		glog.Infof("HTTP server starting on %v", endpoint)
 
 		go http.ListenAndServe(endpoint, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {

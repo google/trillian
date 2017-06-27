@@ -336,8 +336,7 @@ type SignedLogRoot struct {
 	TimestampNanos int64  `protobuf:"varint,1,opt,name=timestamp_nanos,json=timestampNanos" json:"timestamp_nanos,omitempty"`
 	RootHash       []byte `protobuf:"bytes,2,opt,name=root_hash,json=rootHash,proto3" json:"root_hash,omitempty"`
 	// TreeSize is the number of entries in the tree.
-	TreeSize int64 `protobuf:"varint,3,opt,name=tree_size,json=treeSize" json:"tree_size,omitempty"`
-	// TODO(al): define serialized format for the signature scheme.
+	TreeSize     int64                  `protobuf:"varint,3,opt,name=tree_size,json=treeSize" json:"tree_size,omitempty"`
 	Signature    *sigpb.DigitallySigned `protobuf:"bytes,4,opt,name=signature" json:"signature,omitempty"`
 	LogId        int64                  `protobuf:"varint,5,opt,name=log_id,json=logId" json:"log_id,omitempty"`
 	TreeRevision int64                  `protobuf:"varint,6,opt,name=tree_revision,json=treeRevision" json:"tree_revision,omitempty"`

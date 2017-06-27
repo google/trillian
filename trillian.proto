@@ -179,9 +179,8 @@ message SignedLogRoot {
   // epoch nanoseconds, good until 2500ish
   int64 timestamp_nanos = 1;
   bytes root_hash = 2;
-	// TreeSize is the number of entries in the tree.
+  // TreeSize is the number of entries in the tree.
   int64 tree_size = 3;
-	// TODO(al): define serialized format for the signature scheme.
   sigpb.DigitallySigned signature = 4;
 
   int64 log_id = 5;

@@ -22,6 +22,7 @@ package trillian;
 
 import "trillian.proto";
 import "google/rpc/status.proto";
+import "google/api/annotations.proto";
 
 message LogLeaf {
     // merkle_leaf_hash is over leaf data and optional extra_data.
@@ -182,23 +183,42 @@ service TrillianLog {
 
     // No direct equivalent at the storage level
     rpc GetInclusionProof (GetInclusionProofRequest) returns (GetInclusionProofResponse) {
+      option (google.api.http) = {
+        get: "/v1beta1/log/{log_id}/size/{tree_size}/inclusion/index/{leaf_index}"
+      };
     }
     rpc GetInclusionProofByHash (GetInclusionProofByHashRequest) returns (GetInclusionProofByHashResponse) {
+      // Enable when grpc-ecosystem/grpc-gateway#423 is resolved. Bytes is not currently supported as a URL parameter.
+      // option (google.api.http) = {
+      //   get: "/v1beta1/log/{log_id}/size/{tree_size}/inclusion/hash/{leaf_hash}"
+      // };
     }
     rpc GetConsistencyProof (GetConsistencyProofRequest) returns (GetConsistencyProofResponse) {
+      option (google.api.http) = {
+        get: "/v1beta1/log/{log_id}/size/{first_tree_size}/consistency/{second_tree_size}"
+      };
     }
 
     // Corresponds to the LogRootReader API
     rpc GetLatestSignedLogRoot (GetLatestSignedLogRootRequest) returns (GetLatestSignedLogRootResponse) {
+      option (google.api.http) = {
+        get: "/v1beta1/log/{log_id}/root"
+      };
     }
 
     // Corresponds to the LeafReader API
     rpc GetSequencedLeafCount (GetSequencedLeafCountRequest) returns (GetSequencedLeafCountResponse) {
+      option (google.api.http) = {
+        get: "/v1beta1/log/{log_id}/sequenced"
+      };
     }
     rpc GetLeavesByIndex (GetLeavesByIndexRequest) returns (GetLeavesByIndexResponse) {
     }
     rpc GetLeavesByHash (GetLeavesByHashRequest) returns (GetLeavesByHashResponse) {
     }
     rpc GetEntryAndProof (GetEntryAndProofRequest) returns (GetEntryAndProofResponse) {
+      option (google.api.http) = {
+        get: "/v1beta1/log/{log_id}/size/{tree_size}/entry/{leaf_index}"
+      };
     }
 }

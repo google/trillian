@@ -21,6 +21,7 @@ option java_outer_classname = "TrillianMapApiProto";
 package trillian;
 
 import "trillian.proto";
+import "google/api/annotations.proto";
 
 // MapLeaf represents the data behind Map leaves.
 message MapLeaf {
@@ -81,6 +82,14 @@ service TrillianMap {
   // For indexes that do not exist, the inclusion proof will use nil for the empty leaf value.
   rpc GetLeaves(GetMapLeavesRequest) returns(GetMapLeavesResponse) {}
   rpc SetLeaves(SetMapLeavesRequest) returns(SetMapLeavesResponse) {}
-  rpc GetSignedMapRoot(GetSignedMapRootRequest) returns(GetSignedMapRootResponse) {}
-  rpc GetSignedMapRootByRevision(GetSignedMapRootByRevisionRequest) returns(GetSignedMapRootResponse) {}
+  rpc GetSignedMapRoot(GetSignedMapRootRequest) returns(GetSignedMapRootResponse) {
+      option (google.api.http) = {
+        get: "/v1beta1/map/{map_id}/root"
+      };
+  }
+  rpc GetSignedMapRootByRevision(GetSignedMapRootByRevisionRequest) returns(GetSignedMapRootResponse) {
+      option (google.api.http) = {
+        get: "/v1beta1/map/{map_id}/root/{revision}"
+      };
+  }
 }
