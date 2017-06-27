@@ -22,6 +22,7 @@ package trillian;
 
 import "trillian.proto";
 import "google/rpc/status.proto";
+import "google/api/annotations.proto";
 
 message LogLeaf {
     // merkle_leaf_hash is over leaf data and optional extra_data.
@@ -175,30 +176,58 @@ message GetEntryAndProofResponse {
 // Clients cannot directly modify the log data via this API.
 service TrillianLog {
     // QueueLeaf adds a single leaf to the queue.
-    rpc QueueLeaf (QueueLeafRequest) returns (QueueLeafResponse) {}
-    // Corresponds to the LeafQueuer API
-    rpc QueueLeaves (QueueLeavesRequest) returns (QueueLeavesResponse) {
+    rpc QueueLeaf (QueueLeafRequest) returns (QueueLeafResponse) {
+      option (google.api.http) = {
+        post: "/v1beta1/logs/{log_id}/leaves"
+        body: "*"
+      };
     }
 
     // No direct equivalent at the storage level
     rpc GetInclusionProof (GetInclusionProofRequest) returns (GetInclusionProofResponse) {
+      option (google.api.http) = {
+        get: "/v1beta1/logs/{log_id}/leaves/{leaf_index}:inclusion_proof"
+      };
     }
     rpc GetInclusionProofByHash (GetInclusionProofByHashRequest) returns (GetInclusionProofByHashResponse) {
+       option (google.api.http) = {
+        get: "/v1beta1/logs/{log_id}/leaves:inclusion_by_hash"
+       };
     }
     rpc GetConsistencyProof (GetConsistencyProofRequest) returns (GetConsistencyProofResponse) {
+      option (google.api.http) = {
+        get: "/v1beta1/logs/{log_id}:consistency_proof"
+      };
     }
 
     // Corresponds to the LogRootReader API
     rpc GetLatestSignedLogRoot (GetLatestSignedLogRootRequest) returns (GetLatestSignedLogRootResponse) {
+      option (google.api.http) = {
+        get: "/v1beta1/logs/{log_id}/roots:latest"
+      };
     }
 
     // Corresponds to the LeafReader API
     rpc GetSequencedLeafCount (GetSequencedLeafCountRequest) returns (GetSequencedLeafCountResponse) {
+      option (google.api.http) = {
+        get: "/v1beta1/logs/{log_id}/leaves:sequenced_count"
+      };
+    }
+    rpc GetEntryAndProof (GetEntryAndProofRequest) returns (GetEntryAndProofResponse) {
+      option (google.api.http) = {
+        get: "/v1beta1/logs/{log_id}/leaves/{leaf_index}"
+      };
+    }
+
+    //
+    // Batch APIS
+    //
+
+    // Corresponds to the LeafQueuer API
+    rpc QueueLeaves (QueueLeavesRequest) returns (QueueLeavesResponse) {
     }
     rpc GetLeavesByIndex (GetLeavesByIndexRequest) returns (GetLeavesByIndexResponse) {
     }
     rpc GetLeavesByHash (GetLeavesByHashRequest) returns (GetLeavesByHashResponse) {
-    }
-    rpc GetEntryAndProof (GetEntryAndProofRequest) returns (GetEntryAndProofResponse) {
     }
 }
