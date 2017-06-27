@@ -84,12 +84,12 @@ service TrillianMap {
   rpc SetLeaves(SetMapLeavesRequest) returns(SetMapLeavesResponse) {}
   rpc GetSignedMapRoot(GetSignedMapRootRequest) returns(GetSignedMapRootResponse) {
       option (google.api.http) = {
-        get: "/v1beta1/map/{map_id}/root"
+        get: "/v1beta1/maps/{map_id}/roots:latest"
       };
   }
   rpc GetSignedMapRootByRevision(GetSignedMapRootByRevisionRequest) returns(GetSignedMapRootResponse) {
       option (google.api.http) = {
-        get: "/v1beta1/map/{map_id}/root/{revision}"
+        get: "/v1beta1/maps/{map_id}/roots/{revision}"
       };
   }
 }

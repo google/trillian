@@ -27,6 +27,41 @@ var _ io.Reader
 var _ = runtime.String
 var _ = utilities.NewDoubleArray
 
+func request_TrillianLog_QueueLeaf_0(ctx context.Context, marshaler runtime.Marshaler, client TrillianLogClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq QueueLeafRequest
+	var metadata runtime.ServerMetadata
+
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil {
+		return nil, metadata, grpc.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	var (
+		val string
+		ok  bool
+		err error
+		_   = err
+	)
+
+	val, ok = pathParams["log_id"]
+	if !ok {
+		return nil, metadata, grpc.Errorf(codes.InvalidArgument, "missing parameter %s", "log_id")
+	}
+
+	protoReq.LogId, err = runtime.Int64(val)
+
+	if err != nil {
+		return nil, metadata, err
+	}
+
+	msg, err := client.QueueLeaf(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+
+}
+
+var (
+	filter_TrillianLog_GetInclusionProof_0 = &utilities.DoubleArray{Encoding: map[string]int{"log_id": 0, "leaf_index": 1}, Base: []int{1, 1, 2, 0, 0}, Check: []int{0, 1, 1, 2, 3}}
+)
+
 func request_TrillianLog_GetInclusionProof_0(ctx context.Context, marshaler runtime.Marshaler, client TrillianLogClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq GetInclusionProofRequest
 	var metadata runtime.ServerMetadata
@@ -49,17 +84,6 @@ func request_TrillianLog_GetInclusionProof_0(ctx context.Context, marshaler runt
 		return nil, metadata, err
 	}
 
-	val, ok = pathParams["tree_size"]
-	if !ok {
-		return nil, metadata, grpc.Errorf(codes.InvalidArgument, "missing parameter %s", "tree_size")
-	}
-
-	protoReq.TreeSize, err = runtime.Int64(val)
-
-	if err != nil {
-		return nil, metadata, err
-	}
-
 	val, ok = pathParams["leaf_index"]
 	if !ok {
 		return nil, metadata, grpc.Errorf(codes.InvalidArgument, "missing parameter %s", "leaf_index")
@@ -71,10 +95,53 @@ func request_TrillianLog_GetInclusionProof_0(ctx context.Context, marshaler runt
 		return nil, metadata, err
 	}
 
+	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_TrillianLog_GetInclusionProof_0); err != nil {
+		return nil, metadata, grpc.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
 	msg, err := client.GetInclusionProof(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
 
 }
+
+var (
+	filter_TrillianLog_GetInclusionProofByHash_0 = &utilities.DoubleArray{Encoding: map[string]int{"log_id": 0}, Base: []int{1, 1, 0}, Check: []int{0, 1, 2}}
+)
+
+func request_TrillianLog_GetInclusionProofByHash_0(ctx context.Context, marshaler runtime.Marshaler, client TrillianLogClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq GetInclusionProofByHashRequest
+	var metadata runtime.ServerMetadata
+
+	var (
+		val string
+		ok  bool
+		err error
+		_   = err
+	)
+
+	val, ok = pathParams["log_id"]
+	if !ok {
+		return nil, metadata, grpc.Errorf(codes.InvalidArgument, "missing parameter %s", "log_id")
+	}
+
+	protoReq.LogId, err = runtime.Int64(val)
+
+	if err != nil {
+		return nil, metadata, err
+	}
+
+	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_TrillianLog_GetInclusionProofByHash_0); err != nil {
+		return nil, metadata, grpc.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	msg, err := client.GetInclusionProofByHash(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+
+}
+
+var (
+	filter_TrillianLog_GetConsistencyProof_0 = &utilities.DoubleArray{Encoding: map[string]int{"log_id": 0}, Base: []int{1, 1, 0}, Check: []int{0, 1, 2}}
+)
 
 func request_TrillianLog_GetConsistencyProof_0(ctx context.Context, marshaler runtime.Marshaler, client TrillianLogClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq GetConsistencyProofRequest
@@ -98,26 +165,8 @@ func request_TrillianLog_GetConsistencyProof_0(ctx context.Context, marshaler ru
 		return nil, metadata, err
 	}
 
-	val, ok = pathParams["first_tree_size"]
-	if !ok {
-		return nil, metadata, grpc.Errorf(codes.InvalidArgument, "missing parameter %s", "first_tree_size")
-	}
-
-	protoReq.FirstTreeSize, err = runtime.Int64(val)
-
-	if err != nil {
-		return nil, metadata, err
-	}
-
-	val, ok = pathParams["second_tree_size"]
-	if !ok {
-		return nil, metadata, grpc.Errorf(codes.InvalidArgument, "missing parameter %s", "second_tree_size")
-	}
-
-	protoReq.SecondTreeSize, err = runtime.Int64(val)
-
-	if err != nil {
-		return nil, metadata, err
+	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_TrillianLog_GetConsistencyProof_0); err != nil {
+		return nil, metadata, grpc.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
 	msg, err := client.GetConsistencyProof(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
@@ -179,6 +228,10 @@ func request_TrillianLog_GetSequencedLeafCount_0(ctx context.Context, marshaler 
 
 }
 
+var (
+	filter_TrillianLog_GetEntryAndProof_0 = &utilities.DoubleArray{Encoding: map[string]int{"log_id": 0, "leaf_index": 1}, Base: []int{1, 1, 2, 0, 0}, Check: []int{0, 1, 1, 2, 3}}
+)
+
 func request_TrillianLog_GetEntryAndProof_0(ctx context.Context, marshaler runtime.Marshaler, client TrillianLogClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq GetEntryAndProofRequest
 	var metadata runtime.ServerMetadata
@@ -201,17 +254,6 @@ func request_TrillianLog_GetEntryAndProof_0(ctx context.Context, marshaler runti
 		return nil, metadata, err
 	}
 
-	val, ok = pathParams["tree_size"]
-	if !ok {
-		return nil, metadata, grpc.Errorf(codes.InvalidArgument, "missing parameter %s", "tree_size")
-	}
-
-	protoReq.TreeSize, err = runtime.Int64(val)
-
-	if err != nil {
-		return nil, metadata, err
-	}
-
 	val, ok = pathParams["leaf_index"]
 	if !ok {
 		return nil, metadata, grpc.Errorf(codes.InvalidArgument, "missing parameter %s", "leaf_index")
@@ -221,6 +263,10 @@ func request_TrillianLog_GetEntryAndProof_0(ctx context.Context, marshaler runti
 
 	if err != nil {
 		return nil, metadata, err
+	}
+
+	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_TrillianLog_GetEntryAndProof_0); err != nil {
+		return nil, metadata, grpc.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
 	msg, err := client.GetEntryAndProof(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
@@ -258,6 +304,34 @@ func RegisterTrillianLogHandlerFromEndpoint(ctx context.Context, mux *runtime.Se
 func RegisterTrillianLogHandler(ctx context.Context, mux *runtime.ServeMux, conn *grpc.ClientConn) error {
 	client := NewTrillianLogClient(conn)
 
+	mux.Handle("POST", pattern_TrillianLog_QueueLeaf_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		if cn, ok := w.(http.CloseNotifier); ok {
+			go func(done <-chan struct{}, closed <-chan bool) {
+				select {
+				case <-done:
+				case <-closed:
+					cancel()
+				}
+			}(ctx.Done(), cn.CloseNotify())
+		}
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		rctx, err := runtime.AnnotateContext(ctx, req)
+		if err != nil {
+			runtime.HTTPError(ctx, outboundMarshaler, w, req, err)
+		}
+		resp, md, err := request_TrillianLog_QueueLeaf_0(rctx, inboundMarshaler, client, req, pathParams)
+		ctx = runtime.NewServerMetadataContext(ctx, md)
+		if err != nil {
+			runtime.HTTPError(ctx, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_TrillianLog_QueueLeaf_0(ctx, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
 	mux.Handle("GET", pattern_TrillianLog_GetInclusionProof_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
@@ -283,6 +357,34 @@ func RegisterTrillianLogHandler(ctx context.Context, mux *runtime.ServeMux, conn
 		}
 
 		forward_TrillianLog_GetInclusionProof_0(ctx, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
+	mux.Handle("GET", pattern_TrillianLog_GetInclusionProofByHash_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		if cn, ok := w.(http.CloseNotifier); ok {
+			go func(done <-chan struct{}, closed <-chan bool) {
+				select {
+				case <-done:
+				case <-closed:
+					cancel()
+				}
+			}(ctx.Done(), cn.CloseNotify())
+		}
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		rctx, err := runtime.AnnotateContext(ctx, req)
+		if err != nil {
+			runtime.HTTPError(ctx, outboundMarshaler, w, req, err)
+		}
+		resp, md, err := request_TrillianLog_GetInclusionProofByHash_0(rctx, inboundMarshaler, client, req, pathParams)
+		ctx = runtime.NewServerMetadataContext(ctx, md)
+		if err != nil {
+			runtime.HTTPError(ctx, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_TrillianLog_GetInclusionProofByHash_0(ctx, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -402,19 +504,27 @@ func RegisterTrillianLogHandler(ctx context.Context, mux *runtime.ServeMux, conn
 }
 
 var (
-	pattern_TrillianLog_GetInclusionProof_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 2, 6, 1, 0, 4, 1, 5, 7}, []string{"v1beta1", "log", "log_id", "size", "tree_size", "inclusion", "index", "leaf_index"}, ""))
+	pattern_TrillianLog_QueueLeaf_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3}, []string{"v1beta1", "logs", "log_id", "leaves"}, ""))
 
-	pattern_TrillianLog_GetConsistencyProof_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 1, 0, 4, 1, 5, 6}, []string{"v1beta1", "log", "log_id", "size", "first_tree_size", "consistency", "second_tree_size"}, ""))
+	pattern_TrillianLog_GetInclusionProof_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"v1beta1", "logs", "log_id", "leaves", "leaf_index"}, "inclusion_proof"))
 
-	pattern_TrillianLog_GetLatestSignedLogRoot_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3}, []string{"v1beta1", "log", "log_id", "root"}, ""))
+	pattern_TrillianLog_GetInclusionProofByHash_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3}, []string{"v1beta1", "logs", "log_id", "leaves"}, "inclusion_by_hash"))
 
-	pattern_TrillianLog_GetSequencedLeafCount_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3}, []string{"v1beta1", "log", "log_id", "sequenced"}, ""))
+	pattern_TrillianLog_GetConsistencyProof_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2}, []string{"v1beta1", "logs", "log_id"}, "consistency_proof"))
 
-	pattern_TrillianLog_GetEntryAndProof_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 1, 0, 4, 1, 5, 6}, []string{"v1beta1", "log", "log_id", "size", "tree_size", "entry", "leaf_index"}, ""))
+	pattern_TrillianLog_GetLatestSignedLogRoot_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3}, []string{"v1beta1", "logs", "log_id", "roots"}, "latest"))
+
+	pattern_TrillianLog_GetSequencedLeafCount_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3}, []string{"v1beta1", "logs", "log_id", "leaves"}, "sequenced_count"))
+
+	pattern_TrillianLog_GetEntryAndProof_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"v1beta1", "logs", "log_id", "leaves", "leaf_index"}, ""))
 )
 
 var (
+	forward_TrillianLog_QueueLeaf_0 = runtime.ForwardResponseMessage
+
 	forward_TrillianLog_GetInclusionProof_0 = runtime.ForwardResponseMessage
+
+	forward_TrillianLog_GetInclusionProofByHash_0 = runtime.ForwardResponseMessage
 
 	forward_TrillianLog_GetConsistencyProof_0 = runtime.ForwardResponseMessage
 

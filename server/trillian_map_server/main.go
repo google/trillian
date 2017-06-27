@@ -15,7 +15,6 @@
 package main
 
 import (
-	"context"
 	"flag"
 	_ "net/http/pprof"
 
@@ -34,7 +33,7 @@ import (
 	"github.com/google/trillian/server/interceptor"
 	"github.com/google/trillian/storage/mysql"
 	"github.com/google/trillian/util"
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
 
@@ -81,14 +80,12 @@ func main() {
 	// No defer: server ownership is delegated to server.Main
 
 	m := server.Main{
-		RPCEndpoint:  *rpcEndpoint,
-		HTTPEndpoint: *httpEndpoint,
-		DB:           db,
-		Registry:     registry,
-		Server:       s,
-		RegisterHandlerFn: func(context.Context, *runtime.ServeMux, string, []grpc.DialOption) error {
-			return nil
-		},
+		RPCEndpoint:       *rpcEndpoint,
+		HTTPEndpoint:      *httpEndpoint,
+		DB:                db,
+		Registry:          registry,
+		Server:            s,
+		RegisterHandlerFn: trillian.RegisterTrillianMapHandlerFromEndpoint,
 		RegisterServerFn: func(s *grpc.Server, registry extension.Registry) error {
 			mapServer := server.NewTrillianMapServer(registry)
 			if err := mapServer.IsHealthy(); err != nil {

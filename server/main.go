@@ -15,7 +15,6 @@
 package server
 
 import (
-	"context"
 	"database/sql"
 	"net"
 	"net/http"
@@ -31,6 +30,7 @@ import (
 	"github.com/google/trillian/util"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/naming"
 	"google.golang.org/grpc/reflection"
@@ -70,12 +70,6 @@ func (m *Main) Run(ctx context.Context) error {
 			return err
 		}
 		if err := trillian.RegisterTrillianAdminHandlerFromEndpoint(ctx, mux, m.RPCEndpoint, opts); err != nil {
-			return err
-		}
-		if err := trillian.RegisterTrillianLogHandlerFromEndpoint(ctx, mux, m.RPCEndpoint, opts); err != nil {
-			return err
-		}
-		if err := trillian.RegisterTrillianMapHandlerFromEndpoint(ctx, mux, m.RPCEndpoint, opts); err != nil {
 			return err
 		}
 		glog.Infof("HTTP server starting on %v", endpoint)
