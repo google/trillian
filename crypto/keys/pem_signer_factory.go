@@ -21,8 +21,6 @@ import (
 	"sync"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/ptypes"
-	"github.com/golang/protobuf/ptypes/any"
 	"github.com/google/trillian/crypto/keyspb"
 )
 
@@ -38,14 +36,6 @@ type PEMSignerFactory struct {
 // - keyspb.PEMKeyFile
 // - keyspb.PrivateKey
 func (f *PEMSignerFactory) NewSigner(ctx context.Context, pb proto.Message) (crypto.Signer, error) {
-	if anyPB, ok := pb.(*any.Any); ok {
-		var unmarshaledPB ptypes.DynamicAny
-		if err := ptypes.UnmarshalAny(anyPB, &unmarshaledPB); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal private key protobuf: %v", err)
-		}
-		pb = unmarshaledPB.Message
-	}
-
 	switch privateKey := pb.(type) {
 	case *keyspb.PEMKeyFile:
 		return NewFromPrivatePEMFile(privateKey.GetPath(), privateKey.GetPassword())
