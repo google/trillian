@@ -74,6 +74,9 @@ func NewFromPrivatePEMFile(keyFile, keyPassword string) (crypto.Signer, error) {
 // The key may be protected by a password.
 func NewFromPrivatePEM(pemEncodedKey, password string) (crypto.Signer, error) {
 	block, rest := pem.Decode([]byte(pemEncodedKey))
+	if block == nil {
+		return nil, errors.New("invalid PEM")
+	}
 	if len(rest) > 0 {
 		return nil, errors.New("extra data found after PEM decoding")
 	}
@@ -82,7 +85,7 @@ func NewFromPrivatePEM(pemEncodedKey, password string) (crypto.Signer, error) {
 	if password != "" {
 		pwdDer, err := x509.DecryptPEMBlock(block, []byte(password))
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to decrypt PEM: %v", err)
 		}
 		der = pwdDer
 	}
