@@ -71,7 +71,7 @@ type LogEnv struct {
 
 // listen opens a random high numbered port for listening.
 func listen() (string, net.Listener, error) {
-	lis, err := net.Listen("tcp", ":0")
+	lis, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		return "", nil, err
 	}
@@ -95,9 +95,9 @@ func NewLogEnv(ctx context.Context, numSequencers int, testID string) (*LogEnv, 
 
 	registry := extension.Registry{
 		AdminStorage:  mysql.NewAdminStorage(db),
-		SignerFactory: keys.PEMSignerFactory{},
 		LogStorage:    mysql.NewLogStorage(db, nil),
 		QuotaManager:  quota.Noop(),
+		SignerFactory: &keys.PEMSignerFactory{},
 	}
 
 	ret, err := NewLogEnvWithRegistry(ctx, numSequencers, testID, registry)

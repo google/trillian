@@ -33,9 +33,11 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"time"
 
@@ -47,6 +49,7 @@ import (
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/crypto/sigpb"
+	"github.com/letsencrypt/pkcs11key"
 	"google.golang.org/grpc"
 )
 
@@ -62,9 +65,10 @@ var (
 	description        = flag.String("description", "", "Description of the new tree")
 	maxRootDuration    = flag.Duration("max_root_duration", 0, "Interval after which a new signed root is produced despite no submissions; zero means never")
 
-	privateKeyFormat = flag.String("private_key_format", "PrivateKey", "Type of private key to be used")
+	privateKeyFormat = flag.String("private_key_format", "PrivateKey", "Type of private key to be used (PrivateKey, PEMKeyFile, or PKCS11ConfigFile)")
 	pemKeyPath       = flag.String("pem_key_path", "", "Path to the private key PEM file")
 	pemKeyPassword   = flag.String("pem_key_password", "", "Password of the private key PEM file")
+	pkcs11ConfigPath = flag.String("pkcs11_config_path", "", "Path to the PKCS #11 key configuration file")
 
 	configFile = flag.String("config", "", "Config file containing flags, file contents can be overridden by command line flags")
 )
@@ -75,7 +79,7 @@ type createOpts struct {
 	addr                                                                                     string
 	treeState, treeType, hashStrategy, hashAlgorithm, sigAlgorithm, displayName, description string
 	maxRootDuration                                                                          time.Duration
-	privateKeyType, pemKeyPath, pemKeyPass                                                   string
+	privateKeyType, pemKeyPath, pemKeyPass, pkcs11ConfigPath                                 string
 }
 
 func createTree(ctx context.Context, opts *createOpts) (*trillian.Tree, error) {
@@ -132,7 +136,7 @@ func newRequest(opts *createOpts) (*trillian.CreateTreeRequest, error) {
 		return nil, err
 	}
 
-	tree := &trillian.Tree{
+	ctr := &trillian.CreateTreeRequest{Tree: &trillian.Tree{
 		TreeState:          trillian.TreeState(ts),
 		TreeType:           trillian.TreeType(tt),
 		HashStrategy:       trillian.HashStrategy(hs),
@@ -142,8 +146,8 @@ func newRequest(opts *createOpts) (*trillian.CreateTreeRequest, error) {
 		Description:        opts.description,
 		PrivateKey:         pk,
 		MaxRootDuration:    ptypes.DurationProto(opts.maxRootDuration),
-	}
-	return &trillian.CreateTreeRequest{Tree: tree}, nil
+	}}
+	return ctr, nil
 }
 
 func newPK(opts *createOpts) (*any.Any, error) {
@@ -174,6 +178,27 @@ func newPK(opts *createOpts) (*any.Any, error) {
 			return nil, err
 		}
 		return ptypes.MarshalAny(&keyspb.PrivateKey{Der: der})
+	case "PKCS11ConfigFile":
+		if opts.pkcs11ConfigPath == "" {
+			return nil, errors.New("empty PKCS11 config file path")
+		}
+		configBytes, err := ioutil.ReadFile(opts.pkcs11ConfigPath)
+		if err != nil {
+			return nil, err
+		}
+		var config pkcs11key.Config
+		if err = json.Unmarshal(configBytes, &config); err != nil {
+			return nil, err
+		}
+		pubKeyBytes, err := ioutil.ReadFile(config.PublicKeyPath)
+		if err != nil {
+			return nil, err
+		}
+		return ptypes.MarshalAny(&keyspb.PKCS11Config{
+			TokenLabel: config.TokenLabel,
+			Pin:        config.PIN,
+			PublicKey:  string(pubKeyBytes),
+		})
 	default:
 		return nil, fmt.Errorf("unknown private key type: %v", opts.privateKeyType)
 	}
@@ -181,18 +206,19 @@ func newPK(opts *createOpts) (*any.Any, error) {
 
 func newOptsFromFlags() *createOpts {
 	return &createOpts{
-		addr:            *adminServerAddr,
-		treeState:       *treeState,
-		treeType:        *treeType,
-		hashStrategy:    *hashStrategy,
-		hashAlgorithm:   *hashAlgorithm,
-		sigAlgorithm:    *signatureAlgorithm,
-		displayName:     *displayName,
-		description:     *description,
-		maxRootDuration: *maxRootDuration,
-		privateKeyType:  *privateKeyFormat,
-		pemKeyPath:      *pemKeyPath,
-		pemKeyPass:      *pemKeyPassword,
+		addr:             *adminServerAddr,
+		treeState:        *treeState,
+		treeType:         *treeType,
+		hashStrategy:     *hashStrategy,
+		hashAlgorithm:    *hashAlgorithm,
+		sigAlgorithm:     *signatureAlgorithm,
+		displayName:      *displayName,
+		description:      *description,
+		maxRootDuration:  *maxRootDuration,
+		privateKeyType:   *privateKeyFormat,
+		pemKeyPath:       *pemKeyPath,
+		pemKeyPass:       *pemKeyPassword,
+		pkcs11ConfigPath: *pkcs11ConfigPath,
 	}
 }
 

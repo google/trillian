@@ -111,7 +111,7 @@ func TestInProcessLogIntegrationDuplicateLeaves(t *testing.T) {
 
 	reggie := extension.Registry{
 		AdminStorage:  memory.NewAdminStorage(ms),
-		SignerFactory: keys.PEMSignerFactory{},
+		SignerFactory: &keys.PEMSignerFactory{},
 		LogStorage:    ms,
 		QuotaManager:  quota.Noop(),
 	}

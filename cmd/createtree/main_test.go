@@ -17,6 +17,7 @@ package main
 import (
 	"errors"
 	"net"
+	"os"
 	"testing"
 	"time"
 
@@ -42,7 +43,12 @@ func marshalAny(p proto.Message) *any.Any {
 }
 
 func TestRun(t *testing.T) {
-	pemPath, pemPassword := "../../testdata/log-rpc-server.privkey.pem", "towel"
+	err := os.Chdir("../..")
+	if err != nil {
+		t.Fatalf("Unable to change working directory to ../..: %s", err)
+	}
+
+	pemPath, pemPassword := "testdata/log-rpc-server.privkey.pem", "towel"
 	pemSigner, err := keys.NewFromPrivatePEMFile(pemPath, pemPassword)
 	if err != nil {
 		t.Fatalf("NewFromPrivatPEM(): %v", err)
@@ -115,6 +121,29 @@ func TestRun(t *testing.T) {
 	if err != nil {
 		t.Fatalf("MarshalAny(PEMKeyFile): %v", err)
 	}
+
+	pkcs11Opts := *validOpts
+	pkcs11Opts.privateKeyType = "PKCS11ConfigFile"
+	pkcs11Opts.pkcs11ConfigPath = "testdata/pkcs11-conf.json"
+	pkcs11Tree := *defaultTree
+	pkcs11Tree.PrivateKey, err = ptypes.MarshalAny(&keyspb.PKCS11Config{
+		TokenLabel: "log",
+		Pin:        "1234",
+		PublicKey: `-----BEGIN PUBLIC KEY-----
+MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC7/tWwqUXZJaNfnpvnqiaeNMkn
+hKusCsyAidrHxvuL+t54XFCHJwsB3wIlQZ4mMwb8mC/KRYhCqECBEoCAf/b0m3j/
+ASuEPLyYOrz/aEs3wP02IZQLGmihmjMk7T/ouNCuX7y1fTjX3GeVQ06U/EePwZFC
+xToc6NWBri0N3VVsswIDAQAB
+-----END PUBLIC KEY-----
+`,
+	})
+	if err != nil {
+		t.Fatalf("MarshalAny(PKCS11Config): %v", err)
+	}
+
+	emptyPKCS11Path := *validOpts
+	emptyPKCS11Path.privateKeyType = "PKCS11ConfigFile"
+
 	tests := []struct {
 		desc      string
 		opts      *createOpts
@@ -132,6 +161,8 @@ func TestRun(t *testing.T) {
 		{desc: "emptyPEMPass", opts: &emptyPEMPass, wantErr: true},
 		{desc: "PEMKeyFile", opts: &pemKeyOpts, wantErr: false, wantTree: &pemKeyTree},
 		{desc: "createErr", opts: validOpts, createErr: errors.New("create tree failed"), wantErr: true},
+		{desc: "PKCS11Config", opts: &pkcs11Opts, wantErr: false, wantTree: &pkcs11Tree},
+		{desc: "emptyPKCS11Path", opts: &emptyPKCS11Path, wantErr: true},
 	}
 
 	ctx := context.Background()
@@ -169,7 +200,7 @@ func startFakeServer() (*fakeAdminServer, net.Listener, func(), error) {
 	fakeServer := &fakeAdminServer{}
 	trillian.RegisterTrillianAdminServer(grpcServer, fakeServer)
 
-	lis, err := net.Listen("tcp", "")
+	lis, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		return nil, nil, nil, err
 	}

@@ -73,3 +73,13 @@ message PublicKey {
   // The key in DER-encoded PKIX form.
   bytes der = 1;
 }
+
+// PKCS11Config identifies a private key accessed using PKCS #11.
+message PKCS11Config {
+  // The label of the PKCS#11 token.
+  string token_label = 1;
+  // The PIN for the specific token.
+  string pin = 2;
+  // The PEM public key assosciated with the private key to be used.
+  string public_key = 3;
+}

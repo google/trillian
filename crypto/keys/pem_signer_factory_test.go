@@ -22,7 +22,7 @@ import (
 
 func TestPEMSignerFactory(t *testing.T) {
 	tester := SignerFactoryTester{
-		NewSignerFactory: func() SignerFactory { return PEMSignerFactory{} },
+		NewSignerFactory: func() SignerFactory { return &PEMSignerFactory{} },
 		NewSignerTests: []NewSignerTest{
 			{
 				Name: "PEMKeyFile",

@@ -12,14 +12,20 @@ TO_KILL+=(${LOG_SIGNER_PIDS[@]})
 TO_KILL+=(${RPC_SERVER_PIDS[@]})
 TO_KILL+=(${ETCD_PID})
 
+if [[ "${WITH_PKCS11}" == "true" ]]; then
+  echo 0:${TMPDIR}/softhsm-slot0.db > ${SOFTHSM_CONF}
+  softhsm --slot 0 --init-token --label log --pin 1234 --so-pin 5678
+  softhsm --slot 0 --import testdata/log-rpc-server-pkcs11.privkey.pem --label log_key --pin 1234 --id BEEF
+  KEY_ARGS="--private_key_format PKCS11ConfigFile --pkcs11_config_path testdata/pkcs11-conf.json --signature_algorithm=RSA"
+else
+  KEY_ARGS="--pem_key_path=testdata/log-rpc-server.privkey.pem --pem_key_password=towel --signature_algorithm=ECDSA"
+fi
+
 echo "Provision log"
 go build ${GOFLAGS} github.com/google/trillian/cmd/createtree/
 TEST_TREE_ID=$(./createtree \
   --admin_server="${RPC_SERVER_1}" \
-  --pem_key_path=testdata/log-rpc-server.privkey.pem \
-  --pem_key_path=${GOPATH}/src/github.com/google/trillian/testdata/log-rpc-server.privkey.pem \
-  --pem_key_password=towel \
-  --signature_algorithm=ECDSA)
+  ${KEY_ARGS})
 echo "Created tree ${TEST_TREE_ID}"
 
 echo "Running test"

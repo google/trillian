@@ -94,6 +94,8 @@ kill_pid() {
 # If the ETCD_DIR var points to a valid etcd, also populates:
 #  - ETCD_PID        : etcd pid
 #  - ETCD_DB_DIR     : location of etcd database
+# If WITH_PKCS11 is set, also populates:
+#  - SOFTHSM_CONF    : location of the SoftHSM configuration file
 log_prep_test() {
   # Default to one of each.
   local rpc_server_count=${1:-1}
@@ -126,6 +128,11 @@ log_prep_test() {
     local logsigner_opts="--force_master"
   fi
 
+  if [[ "${WITH_PKCS11}" == "true" ]]; then
+    export SOFTHSM_CONF=${TMPDIR}/softhsm.conf
+    local pkcs11_opts="--pkcs11_module_path ${PKCS11_MODULE:-/usr/lib/libsofthsm.so}"
+  fi
+
   # Start a set of Log RPC servers.
   for ((i=0; i < rpc_server_count; i++)); do
     port=$(pick_unused_port)
@@ -133,7 +140,7 @@ log_prep_test() {
     http=$(pick_unused_port ${port})
 
     echo "Starting Log RPC server on localhost:${port}, HTTP on localhost:${http}"
-    ./trillian_log_server ${ETCD_OPTS} ${logserver_opts} --rpc_endpoint="localhost:${port}" --http_endpoint="localhost:${http}" &
+    ./trillian_log_server ${ETCD_OPTS} ${pkcs11_opts} ${logserver_opts} --rpc_endpoint="localhost:${port}" --http_endpoint="localhost:${http}" &
     pid=$!
     RPC_SERVER_PIDS+=(${pid})
     wait_for_server_startup ${port}
@@ -149,7 +156,7 @@ log_prep_test() {
   for ((i=0; i < log_signer_count; i++)); do
     http=$(pick_unused_port)
     echo "Starting Log signer, HTTP on localhost:${http}"
-    ./trillian_log_signer ${ETCD_OPTS} ${logsigner_opts} --sequencer_interval="1s" --batch_size=500 --http_endpoint="localhost:${http}" --num_sequencers 2 &
+    ./trillian_log_signer ${ETCD_OPTS} ${pkcs11_opts} ${logsigner_opts} --sequencer_interval="1s" --batch_size=500 --http_endpoint="localhost:${http}" --num_sequencers 2 &
     pid=$!
     LOG_SIGNER_PIDS+=(${pid})
     wait_for_server_startup ${http}
