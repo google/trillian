@@ -24,18 +24,17 @@ import (
 	"github.com/google/trillian/crypto/keyspb"
 )
 
-// PEMSignerFactory handles PEM-encoded private keys.
+// DefaultSignerFactory produces a crypto.Signer from a protobuf message describing a key.
+// It can also generate new private keys.
 // It implements keys.SignerFactory.
-type PEMSignerFactory struct {
+type DefaultSignerFactory struct {
 	pkcs11Module string
 	pMu          sync.Mutex
 }
 
 // NewSigner uses the information in pb to return a crypto.Signer.
-// pb must be one of the following types:
-// - keyspb.PEMKeyFile
-// - keyspb.PrivateKey
-func (f *PEMSignerFactory) NewSigner(ctx context.Context, pb proto.Message) (crypto.Signer, error) {
+// pb must be a keyspb.PEMKeyFile, keyspb.PrivateKey or keyspb.PKCS11Config.
+func (f *DefaultSignerFactory) NewSigner(ctx context.Context, pb proto.Message) (crypto.Signer, error) {
 	switch privateKey := pb.(type) {
 	case *keyspb.PEMKeyFile:
 		return NewFromPrivatePEMFile(privateKey.GetPath(), privateKey.GetPassword())
@@ -50,7 +49,7 @@ func (f *PEMSignerFactory) NewSigner(ctx context.Context, pb proto.Message) (cry
 
 // Generate creates a new private key based on a key specification.
 // It returns a proto that can be passed to NewSigner() to get a crypto.Signer.
-func (f *PEMSignerFactory) Generate(ctx context.Context, spec *keyspb.Specification) (proto.Message, error) {
+func (f *DefaultSignerFactory) Generate(ctx context.Context, spec *keyspb.Specification) (proto.Message, error) {
 	key, err := NewFromSpec(spec)
 	if err != nil {
 		return nil, fmt.Errorf("error generating key: %v", err)
@@ -64,9 +63,8 @@ func (f *PEMSignerFactory) Generate(ctx context.Context, spec *keyspb.Specificat
 	return &keyspb.PrivateKey{Der: der}, nil
 }
 
-// SetPKCS11Module sets the path to the PKCS#11 module required to load
-// PKCS#11 keys
-func (f *PEMSignerFactory) SetPKCS11Module(modulePath string) {
+// SetPKCS11Module sets the PKCS#11 module used to load PKCS#11 keys.
+func (f *DefaultSignerFactory) SetPKCS11Module(modulePath string) {
 	f.pMu.Lock()
 	defer f.pMu.Unlock()
 	f.pkcs11Module = modulePath

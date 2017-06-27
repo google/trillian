@@ -20,9 +20,9 @@ import (
 	"github.com/google/trillian/crypto/keyspb"
 )
 
-func TestPEMSignerFactory(t *testing.T) {
+func TestDefaultSignerFactory(t *testing.T) {
 	tester := SignerFactoryTester{
-		NewSignerFactory: func() SignerFactory { return &PEMSignerFactory{} },
+		NewSignerFactory: func() SignerFactory { return &DefaultSignerFactory{} },
 		NewSignerTests: []NewSignerTest{
 			{
 				Name: "PEMKeyFile",

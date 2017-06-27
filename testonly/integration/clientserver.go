@@ -97,7 +97,7 @@ func NewLogEnv(ctx context.Context, numSequencers int, testID string) (*LogEnv, 
 		AdminStorage:  mysql.NewAdminStorage(db),
 		LogStorage:    mysql.NewLogStorage(db, nil),
 		QuotaManager:  quota.Noop(),
-		SignerFactory: &keys.PEMSignerFactory{},
+		SignerFactory: &keys.DefaultSignerFactory{},
 	}
 
 	ret, err := NewLogEnvWithRegistry(ctx, numSequencers, testID, registry)
