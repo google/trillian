@@ -95,7 +95,7 @@ func main() {
 
 	mf := prometheus.MetricFactory{}
 
-	sf := &keys.PEMSignerFactory{}
+	sf := &keys.DefaultSignerFactory{}
 	if *pkcs11ModulePath != "" {
 		sf.SetPKCS11Module(*pkcs11ModulePath)
 	}
