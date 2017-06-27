@@ -48,7 +48,7 @@ type bucket struct {
 // NewCachedManager wraps a quota.Manager with an implementation that caches tokens locally.
 //
 // batchSize determines the minimum number of tokens requested from qm for each GetTokens() request.
-// More tokens than batchSize may be requested in order to fulfill the present request.
+// More tokens may be requested in order to fulfill the present request.
 //
 // maxEntries determines the maximum number of cache entries, apart from global quotas. The oldest
 // entries are evicted as necessary, their tokens replenished via PutTokens() to avoid excessive
@@ -124,7 +124,7 @@ func (m *manager) GetTokens(ctx context.Context, numTokens int, specs []quota.Sp
 		bucket, ok := m.cache[spec]
 		// Sanity check
 		if !ok || bucket.tokens < 0 || bucket.tokens < numTokens {
-			glog.Warningf("Bucket invariants failed for spec %+v: ok = %v, bucket = %+v", spec, ok, bucket)
+			glog.Errorf("Bucket invariants failed for spec %+v: ok = %v, bucket = %+v", spec, ok, bucket)
 			return nil // Something is wrong with the implementation, let requests go through.
 		}
 		bucket.tokens -= numTokens
@@ -156,7 +156,7 @@ func (m *manager) evict(ctx context.Context) {
 	wg := sync.WaitGroup{}
 	for i := 0; i < len(m.cache)-m.maxEntries; i++ {
 		b := buckets[i]
-		glog.Infof("Evicting bucket for spec %+v (%v tokens held)", b.spec, b.tokens)
+		glog.Infof("Too many tokens cached, returning least recently used (%v tokens for %+v)", b.tokens, b.spec)
 		delete(m.cache, b.spec)
 
 		// goroutines must not access the cache, the lock is released before they complete.

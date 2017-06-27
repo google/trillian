@@ -22,6 +22,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/google/trillian/quota"
+	"github.com/google/trillian/testonly/matchers"
 	"github.com/kylelemons/godebug/pretty"
 )
 
@@ -85,7 +86,7 @@ func TestCachedManager_PeekTokens(t *testing.T) {
 			t.Errorf("%v: post-PeekTokens() diff (-got +want):\n%v", test.desc, diff)
 		}
 		if err != test.wantErr {
-			t.Errorf("%v: PeekTokens() returned err = %v, want = %v", test.desc, err, test.wantErr)
+			t.Errorf("%v: PeekTokens() returned err = %#v, want = %#v", test.desc, err, test.wantErr)
 		}
 	}
 }
@@ -103,12 +104,12 @@ func TestCachedManager_DelegatedMethods(t *testing.T) {
 
 		mock.EXPECT().PutTokens(ctx, tokens, specs).Return(want)
 		if err := qm.PutTokens(ctx, tokens, specs); err != want {
-			t.Errorf("PutTokens() returned err = %v, want = %v", err, want)
+			t.Errorf("PutTokens() returned err = %#v, want = %#v", err, want)
 		}
 
 		mock.EXPECT().ResetQuota(ctx, specs).Return(want)
 		if err := qm.ResetQuota(ctx, specs); err != want {
-			t.Errorf("ResetQuota() returned err = %v, want = %v", err, want)
+			t.Errorf("ResetQuota() returned err = %#v, want = %#v", err, want)
 		}
 	}
 }
@@ -120,7 +121,7 @@ func TestCachedManager_GetTokens_CachesTokens(t *testing.T) {
 	ctx := context.Background()
 	tokens := 3
 	mock := quota.NewMockManager(ctrl)
-	mock.EXPECT().GetTokens(ctx, tokens+batchSize, specs).Times(2).Return(nil)
+	mock.EXPECT().GetTokens(ctx, matchers.AtLeast(batchSize), specs).Times(2).Return(nil)
 
 	qm := NewCachedManager(mock, batchSize, maxEntries)
 
@@ -182,7 +183,18 @@ func TestCachedManager_GetTokens_EvictsCache(t *testing.T) {
 		tree++
 	}
 
-	qm.(*manager).wait()
+	waitChan := make(chan bool, 1)
+	go func() {
+		qm.(*manager).wait()
+		waitChan <- true
+	}()
+
+	select {
+	case <-waitChan:
+		// OK, test exited cleanly
+	case <-time.After(5 * time.Second):
+		t.Errorf("Timed out waiting for qm.wait(), failing test")
+	}
 }
 
 func TestManager_GetTokensErrors(t *testing.T) {
@@ -196,7 +208,7 @@ func TestManager_GetTokensErrors(t *testing.T) {
 
 	qm := NewCachedManager(mock, batchSize, maxEntries)
 	if err := qm.GetTokens(ctx, 5 /* numTokens */, specs); err != want {
-		t.Errorf("GetTokens() returned err = %v, want = %v", err, want)
+		t.Errorf("GetTokens() returned err = %#v, want = %#v", err, want)
 	}
 }
 
