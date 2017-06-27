@@ -211,13 +211,15 @@ func TestHStar2NegativeTreeLevelOffset(t *testing.T) {
 func TestPaddedBytes(t *testing.T) {
 	size := 160 / 8
 	for _, tc := range []struct {
-		i    int64
+		i    *big.Int
 		want []byte
 	}{
-		{i: 1, want: h2b("0000000000000000000000000000000000000001")},
+		{i: big.NewInt(0), want: h2b("0000000000000000000000000000000000000000")},
+		{i: big.NewInt(1), want: h2b("0000000000000000000000000000000000000001")},
+		{i: new(big.Int).SetBytes(h2b("00FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0F")), want: h2b("00FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0F")},
+		{i: new(big.Int).SetBytes(h2b("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0F")), want: h2b("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0F")},
 	} {
-		bigInt := new(big.Int).SetInt64(tc.i)
-		if got, want := PaddedBytes(bigInt, size), tc.want; !bytes.Equal(got, want) {
+		if got, want := PaddedBytes(tc.i, size), tc.want; !bytes.Equal(got, want) {
 			t.Errorf("PaddedBytes(%d): %x, want %x", tc.i, got, want)
 		}
 	}

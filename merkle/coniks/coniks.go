@@ -94,15 +94,14 @@ func (m *hasher) BitLen() int {
 	return m.Size() * 8
 }
 
-// leftmask contains bitmasks indexed such that the left x bits are set.
-// 0 is special cased to 0xFF since 8 mod 8 is 0.
-var leftmask = map[int]byte{
-	0: 0xFF, 1: 0x80, 2: 0xC0, 3: 0xE0,
-	4: 0xF0, 5: 0xF8, 6: 0xFC, 7: 0xFE,
-}
+// leftmask contains bitmasks indexed such that the left x bits are set. It is
+// indexed by byte position from 0-7 0 is special cased to 0xFF since 8 mod 8
+// is 0. leftmask is only used to mask the last byte.
+var leftmask = [8]byte{0xFF, 0x80, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC, 0xFE}
 
 // maskIndex returns index with only the left depth bits set.
 // index must be of size m.Size() and 0 <= depth <= m.BitLen().
+// e.g.
 func (m *hasher) maskIndex(index []byte, depth int) []byte {
 	if got, want := len(index), m.Size(); got != want {
 		panic(fmt.Sprintf("index len: %d, want %d", got, want))
