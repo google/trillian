@@ -32,6 +32,9 @@ func TestBit(t *testing.T) {
 		{index: h2b("000b"), i: 3, want: 1},
 		{index: h2b("0001"), i: 0, want: 1},
 		{index: h2b("8000"), i: 15, want: 1},
+		{index: h2b("0000000000000001"), i: 0, want: 1},
+		{index: h2b("0000000000010000"), i: 16, want: 1},
+		{index: h2b("8000000000000000"), i: 63, want: 1},
 	} {
 		if got, want := bit(tc.index, tc.i), tc.want; got != want {
 			t.Errorf("bit(%x, %d): %v, want %v", tc.index, tc.i, got, want)

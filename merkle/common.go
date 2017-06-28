@@ -26,6 +26,7 @@ func isRightChild(leafIndex int64) bool {
 }
 
 // bit returns the i'th bit of index from the right.
+// eg. bit(0x80000000, 31) -> 1
 func bit(index []byte, i int) uint {
 	IndexBits := len(index) * 8
 	bIndex := (IndexBits - i - 1) / 8
