@@ -29,7 +29,7 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/client/backoff"
 	"github.com/google/trillian/merkle"
-	"github.com/google/trillian/testonly"
+	"github.com/google/trillian/merkle/rfc6962"
 )
 
 // TestParameters bundles up all the settings for a test run
@@ -338,7 +338,7 @@ func readbackLogEntries(logID int64, client trillian.TrillianLogClient, params T
 			}
 			leafMap[leaf.LeafIndex] = leaf
 
-			hash := testonly.Hasher.HashLeaf(leaf.LeafValue)
+			hash := rfc6962.DefaultHasher.HashLeaf(leaf.LeafValue)
 
 			if got, want := hex.EncodeToString(hash), hex.EncodeToString(leaf.MerkleLeafHash); got != want {
 				return nil, fmt.Errorf("leaf %d hash mismatch expected got: %s want: %s", leaf.LeafIndex, got, want)
@@ -441,7 +441,7 @@ func checkInclusionProofsAtIndex(index int64, logID int64, tree *merkle.InMemory
 
 		// Verify inclusion proof.
 		root := tree.RootAtSnapshot(treeSize).Hash()
-		verifier := merkle.NewLogVerifier(testonly.Hasher)
+		verifier := merkle.NewLogVerifier(rfc6962.DefaultHasher)
 		// Offset by 1 to make up for C++ / Go implementation differences.
 		merkleLeafHash := tree.LeafHash(index + 1)
 		if err := verifier.VerifyInclusionProof(index, treeSize, resp.Proof.Hashes, root, merkleLeafHash); err != nil {
@@ -467,7 +467,7 @@ func checkConsistencyProof(consistParams consistencyProofParams, treeID int64, t
 		return fmt.Errorf("GetConsistencyProof(%v) = %v %v", consistParams, err, resp)
 	}
 
-	verifier := merkle.NewLogVerifier(testonly.Hasher)
+	verifier := merkle.NewLogVerifier(rfc6962.DefaultHasher)
 	root1 := tree.RootAtSnapshot(req.FirstTreeSize).Hash()
 	root2 := tree.RootAtSnapshot(req.SecondTreeSize).Hash()
 	if err := verifier.VerifyConsistencyProof(
@@ -491,8 +491,8 @@ func makeGetLeavesByIndexRequest(logID int64, startLeaf, numLeaves int64) *trill
 func buildMemoryMerkleTree(leafMap map[int64]*trillian.LogLeaf, params TestParameters) (*merkle.InMemoryMerkleTree, error) {
 	// Build the same tree with two different Merkle implementations as an additional check. We don't
 	// just rely on the compact tree as the server uses the same code so bugs could be masked
-	compactTree := merkle.NewCompactMerkleTree(testonly.Hasher)
-	merkleTree := merkle.NewInMemoryMerkleTree(testonly.Hasher)
+	compactTree := merkle.NewCompactMerkleTree(rfc6962.DefaultHasher)
+	merkleTree := merkle.NewInMemoryMerkleTree(rfc6962.DefaultHasher)
 
 	// We use the leafMap as we need to use the same order for the memory tree to get the same hash.
 	for l := params.startLeaf; l < params.leafCount; l++ {
