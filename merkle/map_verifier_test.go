@@ -21,21 +21,6 @@ import (
 	"github.com/google/trillian/testonly"
 )
 
-func TestReverse(t *testing.T) {
-
-	for _, tc := range []struct {
-		s, want string
-	}{
-		{s: "abc", want: "cba"},
-		{s: "1234", want: "4321"},
-		{s: "", want: ""},
-	} {
-		if got, want := reverse(tc.s), tc.want; got != want {
-			t.Errorf("reverse(%v): %v, want %v", tc.s, got, want)
-		}
-	}
-}
-
 func TestVerifyMap(t *testing.T) {
 	h := maphasher.Default
 	tv := mapInclusionTestVector[0]
