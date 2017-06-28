@@ -17,7 +17,6 @@ package merkle
 import (
 	"bytes"
 	"fmt"
-	"math/big"
 
 	"github.com/google/trillian/merkle/hashers"
 )
@@ -45,14 +44,13 @@ func VerifyMapInclusionProof(treeID int64, index, leafHash, expectedRoot []byte,
 	runningHash := make([]byte, len(leafHash))
 	copy(runningHash, leafHash)
 
-	fmtString := fmt.Sprintf("%%0%db", h.BitLen())
-	bits := fmt.Sprintf(fmtString, new(big.Int).SetBytes(index))
-	for height, bit := range reverse(bits) {
+	for height := 0; height < h.BitLen(); height++ {
+		proofIsRightHandElement := bit(index, height) == 0
 		pElement := proof[height]
 		if len(pElement) == 0 {
 			pElement = h.HashEmpty(treeID, index, height)
 		}
-		if bit == '0' {
+		if proofIsRightHandElement {
 			runningHash = h.HashChildren(runningHash, pElement)
 		} else {
 			runningHash = h.HashChildren(pElement, runningHash)

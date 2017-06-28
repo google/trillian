@@ -12,22 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package merkle provides Merkle tree manipulation functions.
 package merkle
 
-// parent returns the index of the parent node in the parent level of the tree.
-func parent(leafIndex int64) int64 {
-	return leafIndex >> 1
-}
+import (
+	"testing"
+)
 
-// isRightChild returns true if the node is a right child.
-func isRightChild(leafIndex int64) bool {
-	return leafIndex&1 == 1
-}
-
-// bit returns the i'th bit of index from the right.
-func bit(index []byte, i int) uint {
-	IndexBits := len(index) * 8
-	bIndex := (IndexBits - i - 1) / 8
-	return uint((index[bIndex] >> uint(i%8)) & 0x01)
+func TestBit(t *testing.T) {
+	for _, tc := range []struct {
+		index []byte
+		i     int
+		want  uint
+	}{
+		{index: h2b("00"), i: 0, want: 0},
+		{index: h2b("00"), i: 7, want: 0},
+		{index: h2b("000b"), i: 0, want: 1},
+		{index: h2b("000b"), i: 1, want: 1},
+		{index: h2b("000b"), i: 2, want: 0},
+		{index: h2b("000b"), i: 3, want: 1},
+		{index: h2b("0001"), i: 0, want: 1},
+		{index: h2b("8000"), i: 15, want: 1},
+	} {
+		if got, want := bit(tc.index, tc.i), tc.want; got != want {
+			t.Errorf("bit(%x, %d): %v, want %v", tc.index, tc.i, got, want)
+		}
+	}
 }
