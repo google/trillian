@@ -44,11 +44,11 @@ func VerifyMapInclusionProof(treeID int64, index, leafHash, expectedRoot []byte,
 	runningHash := make([]byte, len(leafHash))
 	copy(runningHash, leafHash)
 
-	for height := 0; height < h.BitLen(); height++ {
-		proofIsRightHandElement := bit(index, height) == 0
-		pElement := proof[height]
+	for level := 0; level < h.BitLen(); level++ {
+		proofIsRightHandElement := bit(index, level) == 0
+		pElement := proof[level]
 		if len(pElement) == 0 {
-			pElement = h.HashEmpty(treeID, index, height)
+			pElement = h.HashEmpty(treeID, index, level)
 		}
 		if proofIsRightHandElement {
 			runningHash = h.HashChildren(runningHash, pElement)
