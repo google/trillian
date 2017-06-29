@@ -32,6 +32,7 @@ import (
 	"github.com/google/trillian/storage"
 	stestonly "github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/testonly"
+	"github.com/google/trillian/testonly/matchers"
 	"github.com/google/trillian/util"
 )
 
@@ -112,7 +113,7 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 		t.Fatalf("Failed to unmarshal stestonly.LogTree.PrivateKey: %v", err)
 	}
 
-	mockSf.EXPECT().NewSigner(gomock.Any(), keyProto.Message).Return(newSignerWithFixedSig(updatedRoot.Signature))
+	mockSf.EXPECT().NewSigner(gomock.Any(), matchers.ProtoEqual(keyProto.Message)).Return(newSignerWithFixedSig(updatedRoot.Signature))
 
 	mockStorage.EXPECT().BeginForTree(gomock.Any(), logID).Return(mockTx, nil)
 	mockTx.EXPECT().Commit().Return(nil)
@@ -164,7 +165,7 @@ func TestSequencerManagerCachesSigners(t *testing.T) {
 
 	// Expect only one call to SignerFactory.NewSigner, as the returned signer should be cached by SequencerManager
 	// and re-used for the second sequencing pass.
-	mockSf.EXPECT().NewSigner(gomock.Any(), keyProto.Message).Return(newSignerWithFixedSig(updatedRoot.Signature))
+	mockSf.EXPECT().NewSigner(gomock.Any(), matchers.ProtoEqual(keyProto.Message)).Return(newSignerWithFixedSig(updatedRoot.Signature))
 
 	// Expect two sequencing passes.
 	for i := 0; i < 2; i++ {
@@ -241,7 +242,7 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 		t.Fatalf("Failed to unmarshal stestonly.LogTree.PrivateKey: %v", err)
 	}
 
-	mockSf.EXPECT().NewSigner(gomock.Any(), keyProto.Message).Return(newSignerWithFixedSig(updatedRoot.Signature))
+	mockSf.EXPECT().NewSigner(gomock.Any(), matchers.ProtoEqual(keyProto.Message)).Return(newSignerWithFixedSig(updatedRoot.Signature))
 
 	// Set up enough mockery to be able to sequence. We don't test all the error paths
 	// through sequencer as other tests cover this
@@ -288,7 +289,7 @@ func TestSequencerManagerGuardWindow(t *testing.T) {
 		t.Fatalf("Failed to unmarshal stestonly.LogTree.PrivateKey: %v", err)
 	}
 
-	mockSf.EXPECT().NewSigner(gomock.Any(), keyProto.Message).Return(newSignerWithFixedSig(updatedRoot.Signature))
+	mockSf.EXPECT().NewSigner(gomock.Any(), matchers.ProtoEqual(keyProto.Message)).Return(newSignerWithFixedSig(updatedRoot.Signature))
 
 	mockStorage.EXPECT().BeginForTree(gomock.Any(), logID).Return(mockTx, nil)
 	mockTx.EXPECT().Commit().Return(nil)

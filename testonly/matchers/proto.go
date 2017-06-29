@@ -12,31 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package matchers contains additional gomock matchers.
 package matchers
 
 import (
 	"fmt"
 
+	"github.com/gogo/protobuf/proto"
 	"github.com/golang/mock/gomock"
 )
 
-// AtLeast returns a matcher that requires a number >= n.
-func AtLeast(n int) gomock.Matcher {
-	return &atLeastMatcher{n}
+type protoEqual struct {
+	msg proto.Message
 }
 
-type atLeastMatcher struct {
-	num int
+func ProtoEqual(m proto.Message) gomock.Matcher {
+	return &protoEqual{msg: m}
 }
 
-func (m atLeastMatcher) Matches(x interface{}) bool {
-	if x, ok := x.(int); ok {
-		return x >= m.num
+func (r *protoEqual) Matches(msg interface{}) bool {
+	m, ok := msg.(proto.Message)
+	if !ok {
+		return false
 	}
-	return false
+	return proto.Equal(m, r.msg)
 }
 
-func (m atLeastMatcher) String() string {
-	return fmt.Sprintf("at least %v", m.num)
+func (r *protoEqual) String() string {
+	return fmt.Sprintf("is %s", r.msg)
 }

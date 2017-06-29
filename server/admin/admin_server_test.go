@@ -35,6 +35,7 @@ import (
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testonly"
+	"github.com/google/trillian/testonly/matchers"
 	"github.com/kylelemons/godebug/pretty"
 	"golang.org/x/net/context"
 	"google.golang.org/genproto/protobuf/field_mask"
@@ -429,7 +430,9 @@ func TestServer_CreateTree(t *testing.T) {
 		privateKey := defaultPrivateKey
 		publicKeyDER := defaultPublicKeyDER
 
-		if test.req.GetKeySpec() != nil && test.req.Tree.GetPrivateKey() == nil && test.req.Tree.GetPublicKey() == nil {
+		if test.req.GetKeySpec() != nil &&
+			test.req.Tree.GetPrivateKey() == nil &&
+			test.req.Tree.GetPublicKey() == nil {
 			privateKey, err = keys.NewFromSpec(test.req.GetKeySpec())
 			if err != nil {
 				t.Errorf("%v: failed to generate test private key: %v", test.desc, err)
@@ -444,7 +447,7 @@ func TestServer_CreateTree(t *testing.T) {
 
 			keyProto := &keyspb.PrivateKey{Der: keyDER}
 			sf.EXPECT().Generate(gomock.Any(), test.req.GetKeySpec()).Return(keyProto, nil)
-			sf.EXPECT().NewSigner(gomock.Any(), keyProto).Return(privateKey, nil)
+			sf.EXPECT().NewSigner(gomock.Any(), matchers.ProtoEqual(keyProto)).Return(privateKey, nil)
 
 			publicKeyDER, err = x509.MarshalPKIXPublicKey(privateKey.Public())
 			if err != nil {
@@ -458,7 +461,7 @@ func TestServer_CreateTree(t *testing.T) {
 				continue
 			}
 
-			sf.EXPECT().NewSigner(gomock.Any(), keyProto.Message).MaxTimes(1).Return(privateKey, nil)
+			sf.EXPECT().NewSigner(gomock.Any(), matchers.ProtoEqual(keyProto.Message)).MaxTimes(1).Return(privateKey, nil)
 		}
 
 		setup := setupAdminServer(ctrl, sf, false /* snapshot */, test.wantCommit, test.commitErr)
