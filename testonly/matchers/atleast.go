@@ -21,13 +21,13 @@ import (
 	"github.com/golang/mock/gomock"
 )
 
-type atLeastMatcher struct {
-	num int
-}
-
 // AtLeast returns a matcher that requires a number >= n.
 func AtLeast(n int) gomock.Matcher {
 	return &atLeastMatcher{n}
+}
+
+type atLeastMatcher struct {
+	num int
 }
 
 func (m atLeastMatcher) Matches(x interface{}) bool {

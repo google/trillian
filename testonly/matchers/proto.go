@@ -25,18 +25,19 @@ type protoEqual struct {
 	msg proto.Message
 }
 
+// ProtoEqual returns a matcher that compares protobuf messages.
 func ProtoEqual(m proto.Message) gomock.Matcher {
-	return &protoEqual{msg: m}
+	return protoEqual{msg: m}
 }
 
-func (r *protoEqual) Matches(msg interface{}) bool {
+func (pe protoEqual) Matches(msg interface{}) bool {
 	m, ok := msg.(proto.Message)
 	if !ok {
 		return false
 	}
-	return proto.Equal(m, r.msg)
+	return proto.Equal(m, pe.msg)
 }
 
-func (r *protoEqual) String() string {
-	return fmt.Sprintf("is %s", r.msg)
+func (pe protoEqual) String() string {
+	return fmt.Sprintf("is equal to %s", pe.msg)
 }
