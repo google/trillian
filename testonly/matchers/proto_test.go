@@ -17,7 +17,7 @@ package matchers
 import (
 	"testing"
 
-	"github.com/gogo/protobuf/proto"
+	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 )
 
@@ -31,7 +31,7 @@ func TestProtoEquals(t *testing.T) {
 		{a: &trillian.SignedLogRoot{}, b: &trillian.SignedLogRoot{RootHash: []byte{0x01}}, equal: false},
 	} {
 		if got, want := ProtoEqual(tc.a).Matches(tc.b), tc.equal; got != want {
-			t.Errorf("ProtoEqual(%s).Matches(%s): %v, want %v", tc.a, tc.b, got, want)
+			t.Errorf("ProtoEqual(%s).Matches(%s) = %v, want %v", tc.a, tc.b, got, want)
 		}
 	}
 }
