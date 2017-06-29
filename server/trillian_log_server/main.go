@@ -51,7 +51,11 @@ import (
 )
 
 var (
-	mySQLURI           = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "Connection URI for MySQL database")
+	mySQLURI = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "Connection URI for MySQL database")
+	// MySQL supports 151 connections by default (https://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html#sysvar_max_connections).
+	// Default to a maximum of ~1/2 of this, because other Trillian binaries will also need to make connections.
+	mySQLMaxConns = flag.Int("mysql_max_conns", 75, "Maximum number of connections that may be made to the MySQL database")
+
 	rpcEndpoint        = flag.String("rpc_endpoint", "localhost:8090", "Endpoint for RPC requests (host:port)")
 	httpEndpoint       = flag.String("http_endpoint", "localhost:8091", "Endpoint for HTTP metrics and REST requests on (host:port, empty means disabled)")
 	etcdServers        = flag.String("etcd_servers", "", "A comma-separated list of etcd servers; no etcd registration if empty")
@@ -80,6 +84,9 @@ func main() {
 		glog.Exitf("Failed to open database: %v", err)
 	}
 	// No defer: database ownership is delegated to server.Main
+
+	// Limit the number of connections to the MySQL database, to avoid a "too many connections" error under heavy load.
+	db.SetMaxOpenConns(*mySQLMaxConns)
 
 	// Announce our endpoints to etcd if so configured.
 	unannounce := server.AnnounceSelf(ctx, *etcdServers, *etcdService, *rpcEndpoint)
