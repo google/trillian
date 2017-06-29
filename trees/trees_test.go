@@ -33,6 +33,7 @@ import (
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testonly"
+	"github.com/google/trillian/testonly/matchers"
 	"github.com/kylelemons/godebug/pretty"
 )
 
@@ -305,7 +306,7 @@ func TestSigner(t *testing.T) {
 		}
 
 		sf := keys.NewMockSignerFactory(ctrl)
-		sf.EXPECT().NewSigner(ctx, keyProto.Message).MaxTimes(1).Return(test.signer, test.signerFactoryErr)
+		sf.EXPECT().NewSigner(ctx, matchers.ProtoEqual(keyProto.Message)).MaxTimes(1).Return(test.signer, test.signerFactoryErr)
 
 		signer, err := Signer(ctx, sf, &tree)
 		if hasErr := err != nil; hasErr != test.wantErr {
