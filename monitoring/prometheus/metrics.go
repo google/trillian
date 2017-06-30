@@ -272,7 +272,7 @@ func (m *Histogram) Info(labelVals ...string) (uint64, float64) {
 	}
 	var metric prometheus.Metric
 	if m.vec != nil {
-		metric = m.vec.MetricVec.With(labels).(prometheus.Metric)
+		metric = m.vec.With(labels).(prometheus.Metric)
 	} else {
 		metric = m.single
 	}
