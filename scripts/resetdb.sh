@@ -14,9 +14,8 @@ collect_vars() {
   # set unset environment variables to defaults
   [ -z ${DB_USER+x} ] && DB_USER="root"
   [ -z ${DB_NAME+x} ] && DB_NAME="test"
-  # format reused supplied environment variables
+  # set defaults
   FLAGS=""
-  [ -z ${DB_PASSWORD+x} ] || FLAGS="${FLAGS} -p$DB_PASSWORD"
 
   # handle flags
   FORCE=false
@@ -29,6 +28,12 @@ collect_vars() {
     esac
     shift 1
   done
+
+  # Optionally print flags (before appending password)
+  [[ ${VERBOSE} = 'true' ]] && echo "- Using MySQL Flags: ${FLAGS}"
+
+  # append password if supplied
+  [ -z ${DB_PASSWORD+x} ] || FLAGS="${FLAGS} -p'${DB_PASSWORD}'"
 }
 
 main() {
@@ -48,10 +53,10 @@ main() {
   if [ -z ${REPLY+x} ] || [[ $REPLY =~ ^[Yy]$ ]]
   then
       echo "Resetting DB..."
-      mysql -u $DB_USER $FLAGS -e "DROP DATABASE IF EXISTS ${DB_NAME};"
-      mysql -u $DB_USER $FLAGS -e "CREATE DATABASE ${DB_NAME};"
-      mysql -u $DB_USER $FLAGS -e "GRANT ALL ON ${DB_NAME}.* TO '${DB_NAME}'@'localhost' IDENTIFIED BY 'zaphod';"
-      mysql -u $DB_USER $FLAGS -D ${DB_NAME} < ${TRILLIAN_PATH}/storage/mysql/storage.sql
+      mysql -u $FLAGS $DB_USER -e "DROP DATABASE IF EXISTS ${DB_NAME};"
+      mysql -u $FLAGS $DB_USER -e "CREATE DATABASE ${DB_NAME};"
+      mysql -u $FLAGS $DB_USER -e "GRANT ALL ON ${DB_NAME}.* TO '${DB_NAME}'@'localhost' IDENTIFIED BY 'zaphod';"
+      mysql -u $FLAGS $DB_USER -D ${DB_NAME} < ${TRILLIAN_PATH}/storage/mysql/storage.sql
       echo "Reset Complete"
   fi
 }

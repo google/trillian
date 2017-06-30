@@ -1,4 +1,4 @@
-variable "ingress_cidr" {
+variable "WHITELIST_CIDR" {
   description="Your IP block to whitelist access from"
 }
 variable "DB_PASSWORD" { }
@@ -40,7 +40,7 @@ resource "aws_security_group" "trillian_db" {
     from_port   = 3306
     to_port     = 3306
     protocol    = "tcp"
-    cidr_blocks = ["${var.ingress_cidr}"]
+    cidr_blocks = ["${var.WHITELIST_CIDR}"]
   }
 
   ingress {
@@ -89,13 +89,13 @@ resource "aws_security_group" "trillian" {
     from_port   = 8090
     to_port     = 8091
     protocol    = "tcp"
-    cidr_blocks = ["${var.ingress_cidr}"]
+    cidr_blocks = ["${var.WHITELIST_CIDR}"]
   }
   ingress {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["${var.ingress_cidr}"]
+    cidr_blocks = ["${var.WHITELIST_CIDR}"]
   }
 
   egress {
@@ -128,15 +128,11 @@ yum install -y git mysql
 curl -o /tmp/go.tar.gz https://storage.googleapis.com/golang/go1.8.3.linux-amd64.tar.gz
 tar -C /usr/local -xzf /tmp/go.tar.gz
 export PATH=$PATH:/usr/local/go/bin
-
 mkdir -p /go
 export GOPATH=/go
 
 # Install Trillian
-mkdir -p /go/src/github.com/google/trillian
-git clone https://github.com/google/trillian.git /go/src/github.com/google/trillian
-cd /go/src/github.com/google/trillian
-go get ./server/trillian_map_server
+go get github.com/google/trillian/server/trillian_log_server
 
 # Setup the DB
 cd /go/src/github.com/google/trillian
@@ -149,8 +145,8 @@ export DB_DATABASE=test
 # Startup the Server
 RPC_PORT=8090
 HTTP_PORT=8091
-/go/bin/trillian_map_server \
-	--mysql_uri="$DB_USER:$DB_PASSWORD@tcp($DB_HOST:3306)/$DB_DATABASE" \
+/go/bin/trillian_log_server \
+	--mysql_uri="${DB_USER}:${DB_PASSWORD}@tcp(${DB_HOST})/${DB_DATABASE}" \
 	--rpc_endpoint="$HOST:$RPC_PORT" \
 	--http_endpoint="$HOST:$HTTP_PORT" \
 	--alsologtostderr
