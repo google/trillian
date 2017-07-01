@@ -68,7 +68,8 @@ func TestCreateTree(t *testing.T) {
 
 	runTest(t, []*testCase{
 		{
-			desc:     "validOpts",
+			desc: "validOpts",
+			// runTest sets mandatory options, so no need to provide a setFlags func.
 			wantTree: defaultTree,
 		},
 		{
@@ -82,7 +83,8 @@ func TestCreateTree(t *testing.T) {
 			wantTree: &nonDefaultTree,
 		},
 		{
-			desc:     "defaultOptsOnly",
+			desc: "mandatoryOptsNotSet",
+			// Undo the flags set by runTest, so that mandatory options are no longer set.
 			setFlags: resetFlags,
 			wantErr:  true,
 		},
@@ -154,6 +156,7 @@ func runTest(t *testing.T, tests []*testCase) {
 	}
 }
 
+// resetFlags sets all flags to their default values.
 func resetFlags() {
 	flag.Visit(func(f *flag.Flag) {
 		f.Value.Set(f.DefValue)

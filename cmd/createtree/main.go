@@ -30,22 +30,19 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"strings"
 
 	"github.com/golang/glog"
+	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/google/trillian"
 	"github.com/google/trillian/cmd"
-	"github.com/google/trillian/crypto/keys/der"
-	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/crypto/sigpb"
-	"github.com/letsencrypt/pkcs11key"
 	"google.golang.org/grpc"
 )
 
@@ -60,14 +57,12 @@ var (
 	displayName        = flag.String("display_name", "", "Display name of the new tree")
 	description        = flag.String("description", "", "Description of the new tree")
 	maxRootDuration    = flag.Duration("max_root_duration", 0, "Interval after which a new signed root is produced despite no submissions; zero means never")
-
-	privateKeyFormat = flag.String("private_key_format", "", "Type of protobuf message to send the key as (PrivateKey, PEMKeyFile, or PKCS11ConfigFile). If empty, a key will be generated for you by Trillian.")
-	pemKeyPath       = flag.String("pem_key_path", "", "Path to the private key PEM file")
-	pemKeyPassword   = flag.String("pem_key_password", "", "Password of the private key PEM file")
-	pkcs11ConfigPath = flag.String("pkcs11_config_path", "", "Path to the PKCS #11 key configuration file")
+	privateKeyFormat   = flag.String("private_key_format", "", "Type of protobuf message to send the key as (PrivateKey, PEMKeyFile, or PKCS11ConfigFile). If empty, a key will be generated for you by Trillian.")
 
 	configFile = flag.String("config", "", "Config file containing flags, file contents can be overridden by command line flags")
 )
+
+var keyHandlers = make(map[string]func() (proto.Message, error))
 
 func createTree(ctx context.Context) (*trillian.Tree, error) {
 	if *adminServerAddr == "" {
@@ -136,14 +131,6 @@ func newRequest() (*trillian.CreateTreeRequest, error) {
 		}
 		ctr.Tree.PrivateKey = pk
 	} else {
-		// Cannot continue if options specifying a key were provided but
-		// privateKeyType is not set, as there's no way to know what protobuf
-		// message type was intended.
-		if *pemKeyPath != "" || *pemKeyPassword != "" || *pkcs11ConfigPath != "" {
-			return nil, errors.New("must specify private key format")
-		}
-
-		// If no key flags were provided at all, get Trillian to generate a key.
 		ctr.KeySpec = &keyspb.Specification{}
 
 		switch sigpb.DigitallySigned_SignatureAlgorithm(sa) {
@@ -163,58 +150,24 @@ func newRequest() (*trillian.CreateTreeRequest, error) {
 	return ctr, nil
 }
 
-func newPK(keyFormat string) (*any.Any, error) {
-	switch keyFormat {
-	case "PEMKeyFile":
-		if *pemKeyPath == "" {
-			return nil, errors.New("empty pem_key_path")
-		}
-		if *pemKeyPassword == "" {
-			return nil, fmt.Errorf("empty password for PEM key file %q", *pemKeyPath)
-		}
-		pemKey := &keyspb.PEMKeyFile{
-			Path:     *pemKeyPath,
-			Password: *pemKeyPassword,
-		}
-		return ptypes.MarshalAny(pemKey)
-	case "PrivateKey":
-		if *pemKeyPath == "" {
-			return nil, errors.New("empty pem_key_path")
-		}
-		pemSigner, err := pem.ReadPrivateKeyFile(
-			*pemKeyPath, *pemKeyPassword)
+func newPK(format string) (*any.Any, error) {
+	if handler, ok := keyHandlers[format]; ok {
+		pb, err := handler()
 		if err != nil {
 			return nil, err
 		}
-		keyDER, err := der.MarshalPrivateKey(pemSigner)
-		if err != nil {
-			return nil, err
-		}
-		return ptypes.MarshalAny(&keyspb.PrivateKey{Der: keyDER})
-	case "PKCS11ConfigFile":
-		if *pkcs11ConfigPath == "" {
-			return nil, errors.New("empty PKCS11 config file path")
-		}
-		configBytes, err := ioutil.ReadFile(*pkcs11ConfigPath)
-		if err != nil {
-			return nil, err
-		}
-		var config pkcs11key.Config
-		if err = json.Unmarshal(configBytes, &config); err != nil {
-			return nil, err
-		}
-		pubKeyBytes, err := ioutil.ReadFile(config.PublicKeyPath)
-		if err != nil {
-			return nil, err
-		}
-		return ptypes.MarshalAny(&keyspb.PKCS11Config{
-			TokenLabel: config.TokenLabel,
-			Pin:        config.PIN,
-			PublicKey:  string(pubKeyBytes),
-		})
-	default:
-		return nil, fmt.Errorf("unknown private key type: %v", keyFormat)
+		return ptypes.MarshalAny(pb)
 	}
+
+	return nil, fmt.Errorf("private key format must be one of: %s", strings.Join(keyFormats(), ", "))
+}
+
+func keyFormats() []string {
+	formats := make([]string, 0, len(keyHandlers))
+	for format := range keyHandlers {
+		formats = append(formats, format)
+	}
+	return formats
 }
 
 func main() {

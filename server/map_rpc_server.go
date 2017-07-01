@@ -200,7 +200,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		Metadata:       req.MapperData,
 	}
 	// Sign the root.
-	signer, err := trees.Signer(ctx, t.registry.SignerFactory, tree)
+	signer, err := trees.Signer(ctx, tree)
 	if err != nil {
 		return nil, fmt.Errorf("trees.Signer(): %v", err)
 	}

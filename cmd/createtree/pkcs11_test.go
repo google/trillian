@@ -1,3 +1,5 @@
+// +build pkcs11
+
 // Copyright 2017 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -43,7 +45,7 @@ xToc6NWBri0N3VVsswIDAQAB
 
 	runTest(t, []*testCase{
 		{
-			desc: "PKCS11Config",
+			desc: "PKCS11ConfigFile",
 			setFlags: func() {
 				*privateKeyFormat = "PKCS11ConfigFile"
 				*pkcs11ConfigPath = "testdata/pkcs11-conf.json"

@@ -37,7 +37,7 @@ func TestWithPEMKeyFile(t *testing.T) {
 			setFlags: func() {
 				*privateKeyFormat = "PEMKeyFile"
 				*pemKeyPath = ""
-				*pemKeyPassword = pemPassword
+				*pemKeyPass = pemPassword
 			},
 			wantErr: true,
 		},
@@ -46,7 +46,7 @@ func TestWithPEMKeyFile(t *testing.T) {
 			setFlags: func() {
 				*privateKeyFormat = "PEMKeyFile"
 				*pemKeyPath = pemPath
-				*pemKeyPassword = ""
+				*pemKeyPass = ""
 			},
 			wantErr: true,
 		},
@@ -55,7 +55,7 @@ func TestWithPEMKeyFile(t *testing.T) {
 			setFlags: func() {
 				*privateKeyFormat = "PEMKeyFile"
 				*pemKeyPath = pemPath
-				*pemKeyPassword = pemPassword
+				*pemKeyPass = pemPassword
 			},
 			wantTree: &wantTree,
 		},
@@ -86,7 +86,7 @@ func TestWithPrivateKey(t *testing.T) {
 			setFlags: func() {
 				*privateKeyFormat = "PrivateKey"
 				*pemKeyPath = ""
-				*pemKeyPassword = pemPassword
+				*pemKeyPass = pemPassword
 			},
 			wantErr: true,
 		},
@@ -95,7 +95,7 @@ func TestWithPrivateKey(t *testing.T) {
 			setFlags: func() {
 				*privateKeyFormat = "PrivateKey"
 				*pemKeyPath = pemPath
-				*pemKeyPassword = ""
+				*pemKeyPass = ""
 			},
 			wantErr: true,
 		},
@@ -104,7 +104,7 @@ func TestWithPrivateKey(t *testing.T) {
 			setFlags: func() {
 				*privateKeyFormat = "PrivateKey"
 				*pemKeyPath = pemPath
-				*pemKeyPassword = pemPassword
+				*pemKeyPass = pemPassword
 			},
 			wantTree: &wantTree,
 		},

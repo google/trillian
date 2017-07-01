@@ -34,12 +34,13 @@ type Registry struct {
 	storage.LogStorage
 	// MapStorage is the storage implementation to use for persisting maps.
 	storage.MapStorage
-	// SignerFactory provides the keys used for generating signatures for each tree.
-	keys.SignerFactory
 	// ElectionFactory provides MasterElection instances for each tree.
 	util.ElectionFactory
 	// QuotaManager provides rate limiting capabilities for Trillian.
 	QuotaManager quota.Manager
 	// MetricFactory provides metrics for monitoring.
 	monitoring.MetricFactory
+	// NewKeyProto creates a new private key based on a key specification.
+	// It returns a proto that can be passed to a keys.ProtoHandler to get a crypto.Signer.
+	NewKeyProto keys.ProtoGenerator
 }

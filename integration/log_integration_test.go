@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto/keys"
+	_ "github.com/google/trillian/crypto/keys/der/proto" // Register PrivateKey ProtoHandler
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/storage/memory"
@@ -110,10 +110,9 @@ func TestInProcessLogIntegrationDuplicateLeaves(t *testing.T) {
 	ms := memory.NewLogStorage(nil)
 
 	reggie := extension.Registry{
-		AdminStorage:  memory.NewAdminStorage(ms),
-		SignerFactory: &keys.DefaultSignerFactory{},
-		LogStorage:    ms,
-		QuotaManager:  quota.Noop(),
+		AdminStorage: memory.NewAdminStorage(ms),
+		LogStorage:   ms,
+		QuotaManager: quota.Noop(),
 	}
 
 	env, err := integration.NewLogEnvWithRegistry(ctx, numSequencers, "TestInProcessLogIntegrationDuplicateLeaves", reggie)

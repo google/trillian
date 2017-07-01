@@ -15,6 +15,7 @@
 package keys
 
 import (
+	"context"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
@@ -22,6 +23,7 @@ import (
 	"crypto/rsa"
 	"fmt"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian/crypto/keyspb"
 )
 
@@ -32,6 +34,10 @@ const (
 	// MinRsaKeySizeInBits is the smallest RSA key that this package will generate.
 	MinRsaKeySizeInBits = 2048
 )
+
+// ProtoGenerator creates a new private key based on a key specification.
+// It returns a proto that can be passed to a ProtoHandler to get a crypto.Signer.
+type ProtoGenerator func(context.Context, *keyspb.Specification) (proto.Message, error)
 
 // NewFromSpec generates a new private key based on a key specification.
 // If an RSA key is specified, the key size must be at least MinRsaKeySizeInBits.

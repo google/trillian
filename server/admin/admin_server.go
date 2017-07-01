@@ -21,7 +21,6 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/merkle/hashers"
@@ -110,13 +109,16 @@ func (s *Server) CreateTree(ctx context.Context, request *trillian.CreateTreeReq
 		if tree.PublicKey != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "the tree.public_key and key_spec fields are mutually exclusive")
 		}
+		if s.registry.NewKeyProto == nil {
+			return nil, status.Errorf(codes.FailedPrecondition, "key generation is not enabled")
+		}
 
-		key, err := s.registry.SignerFactory.Generate(ctx, request.KeySpec)
+		keyProto, err := s.registry.NewKeyProto(ctx, request.KeySpec)
 		if err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "failed to generate private key: %v", err.Error())
 		}
 
-		tree.PrivateKey, err = ptypes.MarshalAny(key)
+		tree.PrivateKey, err = ptypes.MarshalAny(keyProto)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to marshal private key: %v", err.Error())
 		}
@@ -127,13 +129,9 @@ func (s *Server) CreateTree(ctx context.Context, request *trillian.CreateTreeReq
 	}
 
 	// Check that the tree.PrivateKey is valid by trying to get a signer.
-	signer, err := trees.Signer(ctx, s.registry.SignerFactory, tree)
+	signer, err := trees.Signer(ctx, tree)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "failed to create signer for tree: %v", err.Error())
-	}
-
-	if treeSigAlgo, keySigAlgo := tree.GetSignatureAlgorithm(), crypto.SignatureAlgorithm(signer.Public()); treeSigAlgo != keySigAlgo {
-		return nil, status.Errorf(codes.InvalidArgument, "tree.signature_algorithm = %v, but SignatureAlgorithm(tree.private_key) = %v", treeSigAlgo, keySigAlgo)
 	}
 
 	// Derive the public key that corresponds to the private key for this tree.
