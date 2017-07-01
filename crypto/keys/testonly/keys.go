@@ -28,11 +28,11 @@ func MustMarshalPublicPEMToDER(pem string) []byte {
 		panic(err)
 	}
 
-	der, err := x509.MarshalPKIXPublicKey(key)
+	keyDER, err := x509.MarshalPKIXPublicKey(key)
 	if err != nil {
 		panic(err)
 	}
-	return der
+	return keyDER
 }
 
 // MustMarshalPrivatePEMToDER decrypts a PEM-encoded private key and returns it in DER encoding.
@@ -43,9 +43,9 @@ func MustMarshalPrivatePEMToDER(pem, password string) []byte {
 		panic(err)
 	}
 
-	der, err := keys.MarshalPrivateKey(key)
+	keyDER, err := keys.MarshalPrivateKey(key)
 	if err != nil {
 		panic(err)
 	}
-	return der
+	return keyDER
 }

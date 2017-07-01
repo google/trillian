@@ -24,6 +24,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
+	tcrypto "github.com/google/trillian/crypto"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/extension"
@@ -89,7 +90,7 @@ func newSignerWithFixedSig(sig *sigpb.DigitallySigned) (crypto.Signer, error) {
 		return nil, err
 	}
 
-	if keys.SignatureAlgorithm(key) != sig.GetSignatureAlgorithm() {
+	if tcrypto.SignatureAlgorithm(key) != sig.GetSignatureAlgorithm() {
 		return nil, errors.New("signature algorithm does not match demo public key")
 	}
 
