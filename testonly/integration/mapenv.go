@@ -18,8 +18,9 @@ import (
 	"context"
 	"database/sql"
 
+	_ "github.com/google/trillian/crypto/keys/der/proto" // Register PrivateKey ProtoHandler
+
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/server"
@@ -66,10 +67,9 @@ func NewMapEnv(ctx context.Context, testID string) (*MapEnv, error) {
 	}
 
 	registry := extension.Registry{
-		AdminStorage:  mysql.NewAdminStorage(db),
-		MapStorage:    mysql.NewMapStorage(db),
-		QuotaManager:  quota.Noop(),
-		SignerFactory: &keys.DefaultSignerFactory{},
+		AdminStorage: mysql.NewAdminStorage(db),
+		MapStorage:   mysql.NewMapStorage(db),
+		QuotaManager: quota.Noop(),
 	}
 
 	ret, err := NewMapEnvWithRegistry(ctx, testID, registry)

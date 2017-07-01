@@ -9,12 +9,12 @@ go:
   - 1.8
 
 env:
-  - GOFLAGS=
-  - GOFLAGS=-race
-  - GOFLAGS=      WITH_ETCD=true
-  - GOFLAGS=-race WITH_ETCD=true
-  - GOFLAGS=      WITH_PKCS11=true
-  - GOFLAGS=-race WITH_PKCS11=true
+  - GOFLAGS=''
+  - GOFLAGS='-race'
+  - GOFLAGS=''                    WITH_ETCD=true
+  - GOFLAGS='-race'               WITH_ETCD=true
+  - GOFLAGS='--tags pkcs11'       WITH_PKCS11=true
+  - GOFLAGS='-race --tags pkcs11' WITH_PKCS11=true
 
 matrix:
   fast_finish: true
@@ -43,7 +43,7 @@ install:
   - export PATH=$(pwd)/../protoc/bin:$PATH
   # googleapis is not Go code, but it's required for .pb.go regeneration because of API dependencies.
   - git clone https://github.com/googleapis/googleapis.git $GOPATH/src/github.com/googleapis/googleapis
-  - go get -d -t ./...
+  - go get ${GOFLAGS} -d -t ./...
   - if [[ $TRAVIS_OS_NAME == "osx" ]]; then brew update > /dev/null && brew install mariadb && mysql.server start; fi
   - go get -u github.com/client9/misspell/cmd/misspell
   - go get -u github.com/fzipp/gocyclo

@@ -1,5 +1,3 @@
-// +build pkcs11
-
 // Copyright 2017 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,11 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package pkcs11
-
-import "testing"
-
-func TestPkcs11(t *testing.T) {
-	// PKCS11Config support is tested by integration/log_integration.sh (when $WITH_PKCS11 == "true").
-	t.Skip("Only integration testing is implemented for PKCS#11")
-}
+// Package proto registers a PKCS#11 keys.ProtoHandler using keys.RegisterHandler.
+// This handler will use a keyspb.PKCS11Config protobuf message to get a crypto.Signer.
+package proto

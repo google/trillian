@@ -17,12 +17,20 @@
 package main
 
 import (
+	"context"
 	"flag"
 
+	// Register key ProtoHandlers
+	_ "github.com/google/trillian/crypto/keys/der/proto"
+	_ "github.com/google/trillian/crypto/keys/pem/proto"
+	_ "github.com/google/trillian/crypto/keys/pkcs11/proto"
+	"github.com/google/trillian/crypto/keyspb"
+
 	"github.com/golang/glog"
+	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 	"github.com/google/trillian/cmd"
-	"github.com/google/trillian/crypto/keys"
+	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/monitoring/prometheus"
@@ -30,7 +38,6 @@ import (
 	"github.com/google/trillian/server/interceptor"
 	"github.com/google/trillian/storage/mysql"
 	"github.com/google/trillian/util"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 
 	_ "net/http/pprof" // Register pprof HTTP handlers
@@ -51,8 +58,6 @@ var (
 	etcdHTTPService    = flag.String("etcd_http_service", "trillian-logserver-http", "Service name to announce our HTTP endpoint under")
 	maxUnsequencedRows = flag.Int("max_unsequenced_rows", mysqlq.DefaultMaxUnsequenced, "Max number of unsequenced rows before rate limiting kicks in")
 	quotaDryRun        = flag.Bool("quota_dry_run", false, "If true no requests are blocked due to lack of tokens")
-
-	pkcs11ModulePath = flag.String("pkcs11_module_path", "", "Path to the PKCS#11 module to use for keys that use the PKCS#11 interface")
 
 	configFile = flag.String("config", "", "Config file containing flags, file contents can be overridden by command line flags")
 )
@@ -88,17 +93,15 @@ func main() {
 	}
 
 	mf := prometheus.MetricFactory{}
-	sf := &keys.DefaultSignerFactory{}
-	if *pkcs11ModulePath != "" {
-		sf.SetPKCS11Module(*pkcs11ModulePath)
-	}
 
 	registry := extension.Registry{
 		AdminStorage:  mysql.NewAdminStorage(db),
 		LogStorage:    mysql.NewLogStorage(db, mf),
-		SignerFactory: sf,
 		QuotaManager:  &mysqlq.QuotaManager{DB: db, MaxUnsequencedRows: *maxUnsequencedRows},
 		MetricFactory: mf,
+		NewKeyProto: func(ctx context.Context, spec *keyspb.Specification) (proto.Message, error) {
+			return der.NewProtoFromSpec(spec)
+		},
 	}
 
 	ts := util.SystemTimeSource{}

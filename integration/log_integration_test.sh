@@ -31,7 +31,7 @@ echo "Created tree ${TEST_TREE_ID}"
 echo "Running test"
 pushd "${INTEGRATION_DIR}"
 set +e
-go test -run ".*LiveLog.*" --timeout=5m ./ --treeid ${TEST_TREE_ID} --log_rpc_server="${RPC_SERVER_1}"
+go test ${GOFLAGS} -run ".*LiveLog.*" --timeout=5m ./ --treeid ${TEST_TREE_ID} --log_rpc_server="${RPC_SERVER_1}"
 RESULT=$?
 set -e
 popd

@@ -12,86 +12,170 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package der
+package der_test
 
 import (
 	"bytes"
-	"encoding/pem"
+	"encoding/base64"
 	"testing"
 
-	"github.com/google/trillian/testonly"
+	. "github.com/google/trillian/crypto/keys/der"
+	"github.com/google/trillian/crypto/keys/testonly"
+	"github.com/google/trillian/crypto/keyspb"
 )
 
-func mustMarshalPublicPEMToDER(keyPEM string) []byte {
-	block, rest := pem.Decode([]byte(keyPEM))
-	if block == nil {
-		panic("empty pem block")
+const (
+	// ECDSA private key in DER format, base64-encoded.
+	privKeyBase64 = "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgS81mfpvtTmaINn+gtrYXn4XpxxgE655GLSKsA3hhjHmhRANCAASwBWDdgHS04V/cN0LZgc8vZaK4I1HWLLCoaOO27Z0B1aS1aqBE7g1Oo8ldSCBJAvee866kcHhZkVniPdCG2ZZG"
+	// ECDSA public key in DER format, base64-encoded.
+	pubKeyBase64 = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEsAVg3YB0tOFf3DdC2YHPL2WiuCNR1iywqGjjtu2dAdWktWqgRO4NTqPJXUggSQL3nvOupHB4WZFZ4j3QhtmWRg=="
+)
+
+func TestFromProto(t *testing.T) {
+	keyDER, err := base64.StdEncoding.DecodeString(privKeyBase64)
+	if err != nil {
+		t.Fatalf("Could not decode test key: %v", err)
 	}
-	if len(rest) > 0 {
-		panic("more than one pem block")
+
+	for _, test := range []struct {
+		desc     string
+		keyProto *keyspb.PrivateKey
+		wantErr  bool
+	}{
+		{
+			desc: "PrivateKey",
+			keyProto: &keyspb.PrivateKey{
+				Der: keyDER,
+			},
+		},
+		{
+			desc: "PrivateKey with invalid DER",
+			keyProto: &keyspb.PrivateKey{
+				Der: []byte("foobar"),
+			},
+			wantErr: true,
+		},
+		{
+			desc:     "PrivateKey with missing DER",
+			keyProto: &keyspb.PrivateKey{},
+			wantErr:  true,
+		},
+	} {
+		signer, err := FromProto(test.keyProto)
+		if gotErr := err != nil; gotErr != test.wantErr {
+			t.Errorf("%v: FromProto(%#v) = (_, %q), want (_, nil)", test.desc, test.keyProto, err)
+			continue
+		} else if gotErr {
+			continue
+		}
+
+		// Check that the returned signer can produce signatures successfully.
+		if err := testonly.SignAndVerify(signer, signer.Public()); err != nil {
+			t.Errorf("%v: SignAndVerify() = %q, want nil", test.desc, err)
+		}
 	}
-	return block.Bytes
+}
+
+func TestNewProtoFromSpec(t *testing.T) {
+	for _, test := range []struct {
+		desc    string
+		keySpec *keyspb.Specification
+		wantErr bool
+	}{
+		{
+			desc: "ECDSA",
+			keySpec: &keyspb.Specification{
+				Params: &keyspb.Specification_EcdsaParams{},
+			},
+		},
+		{
+			desc: "RSA",
+			keySpec: &keyspb.Specification{
+				Params: &keyspb.Specification_RsaParams{},
+			},
+		},
+		{
+			desc:    "No params",
+			keySpec: &keyspb.Specification{},
+			wantErr: true,
+		},
+		{
+			desc:    "Nil KeySpec",
+			wantErr: true,
+		},
+	} {
+		pb, err := NewProtoFromSpec(test.keySpec)
+		if gotErr := err != nil; gotErr != test.wantErr {
+			t.Errorf("%v: NewProtoFromSpec() = (_, %q), want err? %v", test.desc, err, test.wantErr)
+			continue
+		} else if gotErr {
+			continue
+		}
+
+		// Get the key out of the proto, check that it matches the spec and test that it works.
+		key, err := FromProto(pb)
+		if err != nil {
+			t.Errorf("%v: FromProto(%#v) = (_, %q), want (_, nil)", test.desc, pb, err)
+		}
+
+		if err := testonly.CheckKeyMatchesSpec(key, test.keySpec); err != nil {
+			t.Errorf("%v: CheckKeyMatchesSpec() => %v", test.desc, err)
+		}
+
+		if err := testonly.SignAndVerify(key, key.Public()); err != nil {
+			t.Errorf("%v: SignAndVerify() = %q, want nil", test.desc, err)
+		}
+	}
 }
 
 func TestMarshalUnmarshalPublicKey(t *testing.T) {
-	for _, tc := range []struct {
-		pubPEM string
-	}{
-		{pubPEM: testonly.DemoPublicKey},
-	} {
-		pubDER := mustMarshalPublicPEMToDER(tc.pubPEM)
-		pubKey, err := UnmarshalPublicKey(pubDER)
-		if err != nil {
-			t.Errorf("UnmarshalPublicKey(%v): %v", pubDER, err)
-			continue
-		}
+	keyDER, err := base64.StdEncoding.DecodeString(pubKeyBase64)
+	if err != nil {
+		t.Fatalf("Could not decode test key: %v", err)
+	}
 
-		pubDER2, err := MarshalPublicKey(pubKey)
-		if err != nil {
-			t.Errorf("MarshalPublicKey2(%v): %v", pubKey, err)
-			continue
-		}
+	key, err := UnmarshalPublicKey(keyDER)
+	if err != nil {
+		t.Fatalf("UnmarshalPublicKey(%v): %v", keyDER, err)
+	}
 
-		if got, want := pubDER2, pubDER; !bytes.Equal(got, want) {
-			t.Errorf("MarshalPublicKey(): %x, want %x", got, want)
-		}
+	keyDER2, err := MarshalPublicKey(key)
+	if err != nil {
+		t.Fatalf("MarshalPublicKey(%v): %v", key, err)
+	}
+
+	if got, want := keyDER2, keyDER; !bytes.Equal(got, want) {
+		t.Errorf("MarshalPublicKey(): %x, want %x", got, want)
 	}
 }
 
 func TestFromToPublicProto(t *testing.T) {
-	for _, tc := range []struct {
-		pubPEM string
-	}{
-		{pubPEM: testonly.DemoPublicKey},
-	} {
-		pubDER := mustMarshalPublicPEMToDER(tc.pubPEM)
-		pubKey, err := UnmarshalPublicKey(pubDER)
-		if err != nil {
-			t.Errorf("UnmarshalPublicKey(%v): %v", pubDER, err)
-			continue
-		}
+	keyDER, err := base64.StdEncoding.DecodeString(pubKeyBase64)
+	if err != nil {
+		t.Fatalf("Could not decode test key: %v", err)
+	}
 
-		pubProto, err := ToPublicProto(pubKey)
-		if err != nil {
-			t.Errorf("ToPublicProto(%v): %v", pubKey, err)
-			continue
-		}
+	key, err := UnmarshalPublicKey(keyDER)
+	if err != nil {
+		t.Fatalf("UnmarshalPublicKey(%v): %v", keyDER, err)
+	}
 
-		pubKey2, err := FromPublicProto(pubProto)
-		if err != nil {
-			t.Errorf("FromPublicProto(%v): %v", pubKey, err)
-			continue
-		}
+	keyProto, err := ToPublicProto(key)
+	if err != nil {
+		t.Fatalf("ToPublicProto(%v): %v", key, err)
+	}
 
-		pubDER2, err := MarshalPublicKey(pubKey2)
-		if err != nil {
-			t.Errorf("MarshalPublicKey2(%v): %v", pubKey, err)
-			continue
-		}
+	key2, err := FromPublicProto(keyProto)
+	if err != nil {
+		t.Fatalf("FromPublicProto(%v): %v", keyProto, err)
+	}
 
-		if got, want := pubDER2, pubDER; !bytes.Equal(got, want) {
-			t.Errorf("MarshalPublicKey(): %x, want %x", got, want)
-		}
+	keyDER2, err := MarshalPublicKey(key2)
+	if err != nil {
+		t.Fatalf("MarshalPublicKey(%v): %v", key2, err)
+	}
 
+	if got, want := keyDER2, keyDER; !bytes.Equal(got, want) {
+		t.Errorf("MarshalPublicKey(): %x, want %x", got, want)
 	}
 }

@@ -1,3 +1,5 @@
+// +build pkcs11
+
 // Copyright 2017 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,6 +14,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package keys
+package proto
 
-//go:generate mockgen -self_package github.com/google/trillian/crypto/keys -package keys -destination mock_keys.go github.com/google/trillian/crypto/keys SignerFactory
+import "testing"
+
+func TestProtoHandler(t *testing.T) {
+	// PKCS11Config support is tested by integration/log_integration.sh (when $WITH_PKCS11 == "true").
+	t.Skip("Only integration testing is implemented for PKCS#11")
+}

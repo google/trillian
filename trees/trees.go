@@ -107,7 +107,7 @@ func Hash(tree *trillian.Tree) (crypto.Hash, error) {
 }
 
 // Signer returns a Trillian crypto.Signer configured by the tree.
-func Signer(ctx context.Context, sf keys.SignerFactory, tree *trillian.Tree) (*tcrypto.Signer, error) {
+func Signer(ctx context.Context, tree *trillian.Tree) (*tcrypto.Signer, error) {
 	if tree.SignatureAlgorithm == sigpb.DigitallySigned_ANONYMOUS {
 		return nil, fmt.Errorf("signature algorithm not supported: %s", tree.SignatureAlgorithm)
 	}
@@ -122,7 +122,7 @@ func Signer(ctx context.Context, sf keys.SignerFactory, tree *trillian.Tree) (*t
 		return nil, fmt.Errorf("failed to unmarshal tree.PrivateKey: %v", err)
 	}
 
-	signer, err := sf.NewSigner(ctx, keyProto.Message)
+	signer, err := keys.NewSigner(ctx, keyProto.Message)
 	if err != nil {
 		return nil, err
 	}

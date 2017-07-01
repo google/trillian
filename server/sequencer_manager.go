@@ -102,7 +102,7 @@ func (s *SequencerManager) getSigner(ctx context.Context, tree *trillian.Tree) (
 		return signer, nil
 	}
 
-	signer, err := trees.Signer(ctx, s.registry.SignerFactory, tree)
+	signer, err := trees.Signer(ctx, tree)
 	if err != nil {
 		return nil, err
 	}

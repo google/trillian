@@ -19,7 +19,7 @@ TO_KILL+=(${RPC_SERVER_PID})
 echo "Running test"
 cd "${INTEGRATION_DIR}"
 set +e
-go test --timeout=5m ./maptest  --map_rpc_server="localhost:${RPC_PORT}" 
+go test ${GOFLAGS} --timeout=5m ./maptest  --map_rpc_server="localhost:${RPC_PORT}" 
 RESULT=$?
 set -e
 

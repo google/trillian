@@ -24,11 +24,11 @@ import (
 	"sync"
 	"time"
 
-	_ "github.com/go-sql-driver/mysql" // Load MySQL driver
+	_ "github.com/go-sql-driver/mysql"                   // Load MySQL driver
+	_ "github.com/google/trillian/crypto/keys/der/proto" // Register PrivateKey ProtoHandler
 
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/keys/pem"
 	ktestonly "github.com/google/trillian/crypto/keys/testonly"
 	"github.com/google/trillian/crypto/keyspb"
@@ -81,10 +81,9 @@ func NewLogEnv(ctx context.Context, numSequencers int, testID string) (*LogEnv, 
 	}
 
 	registry := extension.Registry{
-		AdminStorage:  mysql.NewAdminStorage(db),
-		LogStorage:    mysql.NewLogStorage(db, nil),
-		QuotaManager:  quota.Noop(),
-		SignerFactory: &keys.DefaultSignerFactory{},
+		AdminStorage: mysql.NewAdminStorage(db),
+		LogStorage:   mysql.NewLogStorage(db, nil),
+		QuotaManager: quota.Noop(),
 	}
 
 	ret, err := NewLogEnvWithRegistry(ctx, numSequencers, testID, registry)

@@ -15,7 +15,6 @@
 package integration
 
 import (
-	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/extension"
 	mysqlq "github.com/google/trillian/quota/mysql"
 	"github.com/google/trillian/storage/mysql"
@@ -30,10 +29,9 @@ func NewRegistryForTests(testID string) (extension.Registry, error) {
 	}
 
 	return extension.Registry{
-		AdminStorage:  mysql.NewAdminStorage(db),
-		LogStorage:    mysql.NewLogStorage(db, nil),
-		SignerFactory: &keys.DefaultSignerFactory{},
-		MapStorage:    mysql.NewMapStorage(db),
-		QuotaManager:  &mysqlq.QuotaManager{DB: db, MaxUnsequencedRows: mysqlq.DefaultMaxUnsequenced},
+		AdminStorage: mysql.NewAdminStorage(db),
+		LogStorage:   mysql.NewLogStorage(db, nil),
+		MapStorage:   mysql.NewMapStorage(db),
+		QuotaManager: &mysqlq.QuotaManager{DB: db, MaxUnsequencedRows: mysqlq.DefaultMaxUnsequenced},
 	}, nil
 }
