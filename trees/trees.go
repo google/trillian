@@ -127,7 +127,7 @@ func Signer(ctx context.Context, sf keys.SignerFactory, tree *trillian.Tree) (*t
 		return nil, err
 	}
 
-	if keys.SignatureAlgorithm(signer.Public()) != tree.SignatureAlgorithm {
+	if tcrypto.SignatureAlgorithm(signer.Public()) != tree.SignatureAlgorithm {
 		return nil, fmt.Errorf("%s signature not supported by signer of type %T", tree.SignatureAlgorithm, signer)
 	}
 

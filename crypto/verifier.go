@@ -25,7 +25,6 @@ import (
 	"math/big"
 
 	"github.com/benlaurie/objecthash/go/objecthash"
-	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/sigpb"
 )
 
@@ -54,7 +53,7 @@ func Verify(pub crypto.PublicKey, data []byte, sig *sigpb.DigitallySigned) error
 		return errors.New("signature is nil")
 	}
 
-	if got, want := sig.SignatureAlgorithm, keys.SignatureAlgorithm(pub); got != want {
+	if got, want := sig.SignatureAlgorithm, SignatureAlgorithm(pub); got != want {
 		return fmt.Errorf("signature algorithm does not match public key, got:%v, want:%v", got, want)
 	}
 

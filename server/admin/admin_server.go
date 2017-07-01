@@ -22,7 +22,7 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto/keys"
+	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/merkle/hashers"
@@ -133,7 +133,7 @@ func (s *Server) CreateTree(ctx context.Context, request *trillian.CreateTreeReq
 		return nil, status.Errorf(codes.InvalidArgument, "failed to create signer for tree: %v", err.Error())
 	}
 
-	if treeSigAlgo, keySigAlgo := tree.GetSignatureAlgorithm(), keys.SignatureAlgorithm(signer.Public()); treeSigAlgo != keySigAlgo {
+	if treeSigAlgo, keySigAlgo := tree.GetSignatureAlgorithm(), crypto.SignatureAlgorithm(signer.Public()); treeSigAlgo != keySigAlgo {
 		return nil, status.Errorf(codes.InvalidArgument, "tree.signature_algorithm = %v, but SignatureAlgorithm(tree.private_key) = %v", treeSigAlgo, keySigAlgo)
 	}
 

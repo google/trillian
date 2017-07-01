@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 
 	"github.com/benlaurie/objecthash/go/objecthash"
-	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/sigpb"
 )
 
@@ -61,7 +60,7 @@ func (s *Signer) Sign(data []byte) (*sigpb.DigitallySigned, error) {
 	}
 
 	return &sigpb.DigitallySigned{
-		SignatureAlgorithm: keys.SignatureAlgorithm(s.Public()),
+		SignatureAlgorithm: SignatureAlgorithm(s.Public()),
 		HashAlgorithm:      sigpbHashLookup[s.Hash],
 		Signature:          sig,
 	}, nil

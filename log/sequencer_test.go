@@ -184,7 +184,7 @@ func newSignerWithFixedSig(sig *sigpb.DigitallySigned) (gocrypto.Signer, error) 
 		return nil, err
 	}
 
-	if got, want := sig.GetSignatureAlgorithm(), keys.SignatureAlgorithm(key); got != want {
+	if got, want := sig.GetSignatureAlgorithm(), crypto.SignatureAlgorithm(key); got != want {
 		return nil, fmt.Errorf("signature algorithm (%v) does not match key (%v)", got, want)
 	}
 
