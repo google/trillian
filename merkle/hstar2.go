@@ -54,7 +54,7 @@ func NewHStar2(treeID int64, hasher hashers.MapHasher) HStar2 {
 // HStar2Root calculates the root of a sparse Merkle tree of depth n which contains
 // the given set of non-null leaves.
 func (s *HStar2) HStar2Root(n int, values []HStar2LeafHash) ([]byte, error) {
-	by(indexLess).Sort(values)
+	sort.Sort(ByIndex{values})
 	offset := big.NewInt(0)
 	return s.hStar2b(n, values, offset,
 		func(depth int, index *big.Int) ([]byte, error) {
@@ -86,7 +86,7 @@ func (s *HStar2) HStar2Nodes(treeDepth, treeLevelOffset int, values []HStar2Leaf
 	if treeLevelOffset < 0 {
 		return nil, ErrNegativeTreeLevelOffset
 	}
-	by(indexLess).Sort(values)
+	sort.Sort(ByIndex{values})
 	offset := big.NewInt(0)
 	return s.hStar2b(treeDepth, values, offset,
 		func(depth int, index *big.Int) ([]byte, error) {
@@ -119,7 +119,7 @@ func (s *HStar2) hStar2b(n int, values []HStar2LeafHash, offset *big.Int, get Sp
 		case len(values) == 0:
 			return get(n, offset)
 		case len(values) != 1:
-			return nil, fmt.Errorf("expected 1 value remaining, but found %d", len(values))
+			return nil, fmt.Errorf("hStar2b base case: len(values): %d, want 1", len(values))
 		}
 		return values[0].LeafHash, nil
 	}
@@ -147,36 +147,20 @@ func (s *HStar2) hStar2b(n int, values []HStar2LeafHash, offset *big.Int, get Sp
 
 // HStar2LeafHash sorting boilerplate below.
 
-type by func(a, b *HStar2LeafHash) bool
+// Leaves is a slice of HStar2LeafHash
+type Leaves []HStar2LeafHash
 
-func (by by) Sort(values []HStar2LeafHash) {
-	s := &valueSorter{
-		values: values,
-		by:     by,
-	}
-	sort.Sort(s)
-}
+// Len returns the number of leaves.
+func (s Leaves) Len() int { return len(s) }
 
-type valueSorter struct {
-	values []HStar2LeafHash
-	by     func(a, b *HStar2LeafHash) bool
-}
+// Swap swaps two leaf locations.
+func (s Leaves) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 
-func (s *valueSorter) Len() int {
-	return len(s.values)
-}
+// ByIndex implements sort.Interface by providing Less and using Len and Swap methods from the embedded Leaves value.
+type ByIndex struct{ Leaves }
 
-func (s *valueSorter) Swap(i, j int) {
-	s.values[i], s.values[j] = s.values[j], s.values[i]
-}
-
-func (s *valueSorter) Less(i, j int) bool {
-	return s.by(&s.values[i], &s.values[j])
-}
-
-func indexLess(a, b *HStar2LeafHash) bool {
-	return a.Index.Cmp(b.Index) < 0
-}
+// Less returns true if i.Index < j.Index
+func (s ByIndex) Less(i, j int) bool { return s.Leaves[i].Index.Cmp(s.Leaves[j].Index) < 0 }
 
 // PaddedBytes takes a big.Int and returns it's value, left padded with zeros.
 // e.g. 1 -> 0000000000000000000000000000000000000001
