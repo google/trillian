@@ -16,6 +16,7 @@ package merkle
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"math/big"
@@ -31,7 +32,7 @@ const treeID = int64(0)
 // This root was calculated with the C++/Python sparse Merkle tree code in the
 // github.com/google/certificate-transparency repo.
 // TODO(alcutter): replace with hash-dependent computation. How is this computed?
-var sparseEmptyRootHashB64 = testonly.MustDecodeBase64("xmifEIEqCYCXbZUz2Dh1KCFmFZVn7DUVVxbBQTr1PWo=")
+var sparseEmptyRootHashB64 = b64("xmifEIEqCYCXbZUz2Dh1KCFmFZVn7DUVVxbBQTr1PWo=")
 
 // createHStar2Leaves builds a list of HStar2LeafHash structs suitable for
 // passing into a the HStar2 sparse Merkle tree implementation.
@@ -52,7 +53,7 @@ func createHStar2Leaves(treeID int64, hasher hashers.MapHasher, values map[strin
 
 func TestHStar2EmptyRootKAT(t *testing.T) {
 	s := NewHStar2(treeID, maphasher.Default)
-	root, err := s.HStar2Root(s.hasher.Size()*8, []HStar2LeafHash{})
+	root, err := s.HStar2Root(s.hasher.BitLen(), []HStar2LeafHash{})
 	if err != nil {
 		t.Fatalf("Failed to calculate root: %v", err)
 	}
@@ -65,12 +66,13 @@ func TestHStar2EmptyRootKAT(t *testing.T) {
 // rootB64 is the incremental root after adding the corresponding k/v pair, and
 // all k/v pairs which come before it.
 var simpleTestVector = []struct {
-	k, v string
+	k    string
+	v    string
 	root []byte
 }{
-	{"a", "0", testonly.MustDecodeBase64("nP1psZp1bu3jrY5Yv89rI+w5ywe9lLqI2qZi5ibTSF0=")},
-	{"b", "1", testonly.MustDecodeBase64("EJ1Rw6DQT9bDn2Zbn7u+9/j799PSdqT9gfBymS9MBZY=")},
-	{"a", "2", testonly.MustDecodeBase64("2rAZz4HJAMJqJ5c8ClS4wEzTP71GTdjMZMe1rKWPA5o=")},
+	{"a", "0", b64("nP1psZp1bu3jrY5Yv89rI+w5ywe9lLqI2qZi5ibTSF0=")},
+	{"b", "1", b64("EJ1Rw6DQT9bDn2Zbn7u+9/j799PSdqT9gfBymS9MBZY=")},
+	{"a", "2", b64("2rAZz4HJAMJqJ5c8ClS4wEzTP71GTdjMZMe1rKWPA5o=")},
 }
 
 func TestHStar2SimpleDataSetKAT(t *testing.T) {
@@ -80,7 +82,7 @@ func TestHStar2SimpleDataSetKAT(t *testing.T) {
 	for i, x := range simpleTestVector {
 		m[x.k] = x.v
 		values := createHStar2Leaves(treeID, maphasher.Default, m)
-		root, err := s.HStar2Root(s.hasher.Size()*8, values)
+		root, err := s.HStar2Root(s.hasher.BitLen(), values)
 		if err != nil {
 			t.Errorf("Failed to calculate root at iteration %d: %v", i, err)
 			continue
@@ -132,7 +134,7 @@ func TestHStar2OffsetEmptyRootKAT(t *testing.T) {
 	s := NewHStar2(treeID, maphasher.Default)
 
 	for size := 1; size < 255; size++ {
-		root, err := s.HStar2Nodes(size, s.hasher.Size()*8-size, []HStar2LeafHash{},
+		root, err := s.HStar2Nodes(size, s.hasher.BitLen()-size, []HStar2LeafHash{},
 			func(int, *big.Int) ([]byte, error) { return nil, nil },
 			func(int, *big.Int, []byte) error { return nil })
 		if err != nil {
@@ -151,14 +153,14 @@ func rootsForTrimmedKeys(t *testing.T, prefixSize int, lh []HStar2LeafHash) []HS
 	var ret []HStar2LeafHash
 	s := NewHStar2(treeID, maphasher.Default)
 	for i := range lh {
-		prefix := new(big.Int).Rsh(lh[i].Index, uint(s.hasher.Size()*8-prefixSize))
+		prefix := new(big.Int).Rsh(lh[i].Index, uint(s.hasher.BitLen()-prefixSize))
 		b := lh[i].Index.Bytes()
 		// ensure we've got any chopped of leading zero bytes
 		for len(b) < 32 {
 			b = append([]byte{0}, b...)
 		}
 		lh[i].Index.SetBytes(b[prefixSize/8:])
-		root, err := s.HStar2Root(s.hasher.Size()*8-prefixSize, []HStar2LeafHash{lh[i]})
+		root, err := s.HStar2Root(s.hasher.BitLen()-prefixSize, []HStar2LeafHash{lh[i]})
 		if err != nil {
 			t.Fatalf("Failed to calculate root %v", err)
 		}
@@ -183,7 +185,7 @@ func TestHStar2OffsetRootKAT(t *testing.T) {
 			m[x.k] = x.v
 			intermediates := rootsForTrimmedKeys(t, size, createHStar2Leaves(treeID, maphasher.Default, m))
 
-			root, err := s.HStar2Nodes(size, s.hasher.Size()*8-size, intermediates,
+			root, err := s.HStar2Nodes(size, s.hasher.BitLen()-size, intermediates,
 				func(int, *big.Int) ([]byte, error) { return nil, nil },
 				func(int, *big.Int, []byte) error { return nil })
 			if err != nil {
@@ -224,6 +226,17 @@ func TestPaddedBytes(t *testing.T) {
 		}
 	}
 }
+
+// b64 converts a base64 string into []byte.
+func b64(b64 string) []byte {
+	b, err := base64.StdEncoding.DecodeString(b64)
+	if err != nil {
+		panic("invalid base64 string")
+	}
+	return b
+}
+
+// h2b converts a hex string into []byte.
 func h2b(h string) []byte {
 	b, err := hex.DecodeString(h)
 	if err != nil {
