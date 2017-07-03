@@ -29,17 +29,17 @@ import (
 
 const treeID = int64(0)
 
-// This root was calculated with the C++/Python sparse Merkle tree code in the
-// github.com/google/certificate-transparency repo.
-// TODO(alcutter): replace with hash-dependent computation. How is this computed?
-var sparseEmptyRootHashB64 = b64("xmifEIEqCYCXbZUz2Dh1KCFmFZVn7DUVVxbBQTr1PWo=")
-
 // Some known answers for incrementally adding index/value pairs to a sparse tree.
 // rootB64 is the incremental root after adding the corresponding i/v pair, and
 // all i/v pairs which come before it.
+//
+// Values were calculated with the C++/Python sparse Merkle tree code in the
+// github.com/google/certificate-transparency repo.
+// TODO(alcutter): replace with hash-dependent computation. How is this computed?
 var simpleTestVector = []struct {
 	index, value, root []byte
 }{
+	{nil, nil, b64("xmifEIEqCYCXbZUz2Dh1KCFmFZVn7DUVVxbBQTr1PWo=")}, // Empty tree.
 	{testonly.HashKey("a"), []byte("0"), b64("nP1psZp1bu3jrY5Yv89rI+w5ywe9lLqI2qZi5ibTSF0=")},
 	{testonly.HashKey("b"), []byte("1"), b64("EJ1Rw6DQT9bDn2Zbn7u+9/j799PSdqT9gfBymS9MBZY=")},
 	{testonly.HashKey("a"), []byte("2"), b64("2rAZz4HJAMJqJ5c8ClS4wEzTP71GTdjMZMe1rKWPA5o=")},
@@ -69,17 +69,6 @@ func createHStar2Leaves(treeID int64, hasher hashers.MapHasher, iv ...[]byte) []
 		r = append(r, v)
 	}
 	return r
-}
-
-func TestHStar2EmptyRootKAT(t *testing.T) {
-	s := NewHStar2(treeID, maphasher.Default)
-	root, err := s.HStar2Root(s.hasher.BitLen(), []HStar2LeafHash{})
-	if err != nil {
-		t.Fatalf("Failed to calculate root: %v", err)
-	}
-	if got, want := root, sparseEmptyRootHashB64; !bytes.Equal(got, want) {
-		t.Fatalf("Expected empty root. Got: \n%x\nWant:\n%x", got, want)
-	}
 }
 
 func TestHStar2SimpleDataSetKAT(t *testing.T) {
@@ -129,24 +118,6 @@ func TestHStar2GetSet(t *testing.T) {
 		}
 		if got, want := root, x.root; !bytes.Equal(got, want) {
 			t.Errorf("Root:\n%x, want:\n%x", got, want)
-		}
-	}
-}
-
-// Checks that we calculate the same empty root hash as a 256-level tree has
-// when calculating top subtrees using an appropriate offset.
-func TestHStar2OffsetEmptyRootKAT(t *testing.T) {
-	s := NewHStar2(treeID, maphasher.Default)
-
-	for size := 1; size < 255; size++ {
-		root, err := s.HStar2Nodes(size, s.hasher.BitLen()-size, []HStar2LeafHash{},
-			func(int, *big.Int) ([]byte, error) { return nil, nil },
-			func(int, *big.Int, []byte) error { return nil })
-		if err != nil {
-			t.Fatalf("Failed to calculate root %v", err)
-		}
-		if got, want := root, sparseEmptyRootHashB64; !bytes.Equal(got, want) {
-			t.Fatalf("Got root:\n%x, want:\n%x", got, want)
 		}
 	}
 }
