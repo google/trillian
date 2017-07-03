@@ -26,6 +26,8 @@ import (
 var (
 	// ErrNegativeTreeLevelOffset indicates a negative level was specified.
 	ErrNegativeTreeLevelOffset = errors.New("treeLevelOffset cannot be negative")
+	smtOne                     = big.NewInt(1)
+	smtZero                    = big.NewInt(0)
 )
 
 // HStar2LeafHash represents a leaf for the HStar2 sparse Merkle tree
@@ -55,8 +57,7 @@ func NewHStar2(treeID int64, hasher hashers.MapHasher) HStar2 {
 // the given set of non-null leaves.
 func (s *HStar2) HStar2Root(n int, values []HStar2LeafHash) ([]byte, error) {
 	sort.Sort(ByIndex{values})
-	offset := big.NewInt(0)
-	return s.hStar2b(n, values, offset,
+	return s.hStar2b(n, values, smtZero,
 		func(depth int, index *big.Int) ([]byte, error) {
 			return s.hasher.HashEmpty(s.treeID, PaddedBytes(index, s.hasher.Size()), depth), nil
 		},
@@ -70,9 +71,9 @@ type SparseGetNodeFunc func(depth int, index *big.Int) ([]byte, error)
 type SparseSetNodeFunc func(depth int, index *big.Int, hash []byte) error
 
 // HStar2Nodes calculates the root hash of a pre-existing sparse Merkle tree
-// plus the extra values passed in.
-// It uses the get and set functions to fetch and store updated internal node
-// values.
+// plus the extra values passed in.  Get and set are used to fetch and store
+// internal node values. Values must not contain multiple leaves for the same
+// index.
 //
 // The treeLevelOffset argument is used when the tree to be calculated is part
 // of a larger tree. It identifes the level in the larger tree at which the
@@ -87,8 +88,7 @@ func (s *HStar2) HStar2Nodes(treeDepth, treeLevelOffset int, values []HStar2Leaf
 		return nil, ErrNegativeTreeLevelOffset
 	}
 	sort.Sort(ByIndex{values})
-	offset := big.NewInt(0)
-	return s.hStar2b(treeDepth, values, offset,
+	return s.hStar2b(treeDepth, values, smtZero,
 		func(depth int, index *big.Int) ([]byte, error) {
 			// if we've got a function for getting existing node values, try it:
 			h, err := get(treeDepth-depth, index)
@@ -106,10 +106,6 @@ func (s *HStar2) HStar2Nodes(treeDepth, treeLevelOffset int, values []HStar2Leaf
 			return set(treeDepth-depth, index, hash)
 		})
 }
-
-var (
-	smtOne = big.NewInt(1)
-)
 
 // hStar2b is the recursive implementation for calculating a sparse Merkle tree
 // root value.
