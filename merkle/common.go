@@ -32,3 +32,13 @@ func bit(index []byte, i int) uint {
 	bIndex := (IndexBits - i - 1) / 8
 	return uint((index[bIndex] >> uint(i%8)) & 0x01)
 }
+
+// flipBit returns index with the i'th bit from the right flipped.
+func flipBit(index []byte, i int) []byte {
+	r := make([]byte, len(index))
+	copy(r, index)
+	IndexBits := len(index) * 8
+	bIndex := (IndexBits - i - 1) / 8
+	r[bIndex] ^= 1 << uint(i%8)
+	return r
+}
