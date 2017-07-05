@@ -55,8 +55,7 @@ func populateMapSubtreeNodes(treeID int64, hasher hashers.MapHasher) storage.Pop
 			})
 		}
 		hs2 := merkle.NewHStar2(treeID, hasher)
-		offset := hasher.BitLen() - rootID.PrefixLenBits - int(st.Depth)
-		root, err := hs2.HStar2Nodes(int(st.Depth), offset, leaves,
+		root, err := hs2.HStar2Nodes(st.Prefix, rootID.PrefixLenBits, int(st.Depth), leaves,
 			func(depth int, index *big.Int) ([]byte, error) {
 				return nil, nil
 			},

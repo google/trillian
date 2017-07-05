@@ -17,7 +17,6 @@ package merkle
 import (
 	"errors"
 	"fmt"
-	"log"
 	"math/big"
 	"sort"
 
@@ -68,18 +67,17 @@ type SparseGetNodeFunc func(depth int, index *big.Int) ([]byte, error)
 // SparseSetNodeFunc should store the passed node hash, associating it with the address.
 type SparseSetNodeFunc func(depth int, index *big.Int, hash []byte) error
 
-// HStar2Nodes calculates the root hash of a pre-existing sparse Merkle tree (SMT).
-// HStar2Nodes can also calculate the root nodes of subtrees inside a SMT.
-// Get and set are used to fetch and store internal node values.
-// Values must not contain multiple leaves for the same index.
+// HStar2Nodes calculates the root hash of a pre-existing sparse Merkle tree
+// plus the extra values passed in.  Get and set are used to fetch and store
+// internal node values. Values must not contain multiple leaves for the same
+// index.
 //
 // prefix is the location of this subtree within the larger tree. Root is at nil.
 // subtreeDepth is the number of levels in this subtree.
-// The height of the whole tree is assumed to be hasher.BitLen()
 func (s *HStar2) HStar2Nodes(prefix []byte, subtreeDepth int, values []HStar2LeafHash,
 	get SparseGetNodeFunc, set SparseSetNodeFunc) ([]byte, error) {
 	if glog.V(3) {
-		glog.Infof("HStar2Nodes(%x, %v, %v, %v)", prefix, depth, subtreeDepth, len(values))
+		glog.Infof("HStar2Nodes(%x, %v, %v)", prefix, subtreeDepth, len(values))
 		for _, v := range values {
 			glog.Infof("  %x: %x", v.Index.Bytes(), v.LeafHash)
 		}
@@ -98,7 +96,6 @@ func (s *HStar2) HStar2Nodes(prefix []byte, subtreeDepth int, values []HStar2Lea
 // hStar2b computes a sparse Merkle tree root value recursively.
 func (s *HStar2) hStar2b(depth, maxDepth int, values []HStar2LeafHash, offset *big.Int,
 	get SparseGetNodeFunc, set SparseSetNodeFunc) ([]byte, error) {
-	log.Printf("hStar2b(%3v, %3v, %2d values, %x)", depth, maxDepth, len(values), offset.Bytes())
 	if depth == maxDepth {
 		switch {
 		case len(values) == 0:
@@ -113,7 +110,7 @@ func (s *HStar2) hStar2b(depth, maxDepth int, values []HStar2LeafHash, offset *b
 		return s.get(offset, depth, get)
 	}
 
-	bitsLeft := maxDepth - depth
+	bitsLeft := s.hasher.BitLen() - depth
 	split := new(big.Int).Lsh(smtOne, uint(bitsLeft-1))
 	split.Add(split, offset)
 	i := sort.Search(len(values), func(i int) bool { return values[i].Index.Cmp(split) >= 0 })
@@ -144,7 +141,8 @@ func (s *HStar2) get(index *big.Int, depth int, getter SparseGetNodeFunc) ([]byt
 		}
 	}
 	height := s.hasher.BitLen() - depth
-	return s.hasher.HashEmpty(s.treeID, PaddedBytes(index, s.hasher.Size()), height), nil
+	indexBytes := PaddedBytes(index, s.hasher.Size())
+	return s.hasher.HashEmpty(s.treeID, indexBytes, height), nil
 }
 
 // set attempts to use setter if it not nil.

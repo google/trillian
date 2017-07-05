@@ -231,6 +231,13 @@ func TestInclusion(t *testing.T) {
 				{Index: h2b("0000000000000000000000000000000000000000000000000000000000000002"), LeafValue: []byte("C")},
 			},
 		},
+		{
+			desc:         "CONIKS",
+			HashStrategy: trillian.HashStrategy_CONIKS_SHA512_256,
+			leaves: []*trillian.MapLeaf{
+				{Index: h2b("4100000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("A")},
+			},
+		},
 	} {
 		tree, hasher, err := newTreeWithHasher(ctx, env, tc.HashStrategy)
 		if err != nil {

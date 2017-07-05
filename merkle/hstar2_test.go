@@ -130,7 +130,8 @@ func TestHStar2GetSet(t *testing.T) {
 // 256-prefixSize, and can be passed in as leaves to top-subtree calculation.
 func rootsForTrimmedKeys(t *testing.T, prefixSize int, lh []HStar2LeafHash) []HStar2LeafHash {
 	var ret []HStar2LeafHash
-	s := NewHStar2(treeID, maphasher.Default)
+	hasher := maphasher.Default
+	s := NewHStar2(treeID, hasher)
 	for i := range lh {
 		subtreeDepth := s.hasher.BitLen() - prefixSize
 		prefix := lh[i].Index.Bytes()
@@ -143,7 +144,13 @@ func rootsForTrimmedKeys(t *testing.T, prefixSize int, lh []HStar2LeafHash) []HS
 		if err != nil {
 			t.Fatalf("Failed to calculate root %v", err)
 		}
-		ret = append(ret, HStar2LeafHash{new(big.Int).SetBytes(prefix), root})
+
+		index := new(big.Int).SetBytes(prefix)
+		index = index.Lsh(index, uint(hasher.BitLen()-prefixSize))
+		ret = append(ret, HStar2LeafHash{
+			Index:    index,
+			LeafHash: root,
+		})
 	}
 	return ret
 }
