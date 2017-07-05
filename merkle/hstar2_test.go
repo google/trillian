@@ -87,7 +87,7 @@ func TestHStar2SimpleDataSetKAT(t *testing.T) {
 			continue
 		}
 		if got, want := root, x.root; !bytes.Equal(got, want) {
-			t.Errorf("Root: \n%x, want:\n%x", got, want)
+			t.Errorf("Root: %x, want: %x", got, want)
 		}
 	}
 }
@@ -107,7 +107,7 @@ func TestHStar2GetSet(t *testing.T) {
 		if len(values) != 1 {
 			t.Fatalf("Should only have 1 leaf per run, got %d", len(values))
 		}
-		root, err := s.HStar2Nodes(s.hasher.BitLen(), 0, values,
+		root, err := s.HStar2Nodes(nil, s.hasher.BitLen(), values,
 			func(depth int, index *big.Int) ([]byte, error) {
 				return cache[fmt.Sprintf("%x/%d", index, depth)], nil
 			},
@@ -120,7 +120,7 @@ func TestHStar2GetSet(t *testing.T) {
 			continue
 		}
 		if got, want := root, x.root; !bytes.Equal(got, want) {
-			t.Errorf("Root:\n%x, want:\n%x", got, want)
+			t.Errorf("Root: %x, want: %x", got, want)
 		}
 	}
 }
@@ -132,18 +132,18 @@ func rootsForTrimmedKeys(t *testing.T, prefixSize int, lh []HStar2LeafHash) []HS
 	var ret []HStar2LeafHash
 	s := NewHStar2(treeID, maphasher.Default)
 	for i := range lh {
-		prefix := new(big.Int).Rsh(lh[i].Index, uint(s.hasher.BitLen()-prefixSize))
-		b := lh[i].Index.Bytes()
-		// ensure we've got any chopped of leading zero bytes
-		for len(b) < 32 {
-			b = append([]byte{0}, b...)
+		subtreeDepth := s.hasher.BitLen() - prefixSize
+		prefix := lh[i].Index.Bytes()
+		// ensure we've got any chopped off leading zero bytes
+		for len(prefix) < 32 {
+			prefix = append([]byte{0}, prefix...)
 		}
-		lh[i].Index.SetBytes(b[prefixSize/8:])
-		root, err := s.HStar2Root(s.hasher.BitLen()-prefixSize, []HStar2LeafHash{lh[i]})
+		prefix = prefix[:prefixSize/8] // We only want the first prefixSize bytes.
+		root, err := s.HStar2Nodes(prefix, subtreeDepth, []HStar2LeafHash{lh[i]}, nil, nil)
 		if err != nil {
 			t.Fatalf("Failed to calculate root %v", err)
 		}
-		ret = append(ret, HStar2LeafHash{prefix, root})
+		ret = append(ret, HStar2LeafHash{new(big.Int).SetBytes(prefix), root})
 	}
 	return ret
 }
@@ -163,15 +163,13 @@ func TestHStar2OffsetRootKAT(t *testing.T) {
 			leaves := createHStar2Leaves(treeID, maphasher.Default, iv...)
 			intermediates := rootsForTrimmedKeys(t, size, leaves)
 
-			root, err := s.HStar2Nodes(size, s.hasher.BitLen()-size, intermediates,
-				func(int, *big.Int) ([]byte, error) { return nil, nil },
-				func(int, *big.Int, []byte) error { return nil })
+			root, err := s.HStar2Nodes(nil, size, intermediates, nil, nil)
 			if err != nil {
 				t.Errorf("Failed to calculate root at iteration %d: %v", i, err)
 				continue
 			}
 			if got, want := root, x.root; !bytes.Equal(got, want) {
-				t.Errorf("Root: %x, want: %x", got, want)
+				t.Errorf("HStar2Nodes(i: %v, size:%v): %x, want: %x", i, size, got, want)
 			}
 		}
 	}
@@ -180,7 +178,7 @@ func TestHStar2OffsetRootKAT(t *testing.T) {
 func TestHStar2NegativeTreeLevelOffset(t *testing.T) {
 	s := NewHStar2(treeID, maphasher.Default)
 
-	_, err := s.HStar2Nodes(32, -1, []HStar2LeafHash{},
+	_, err := s.HStar2Nodes(make([]byte, 31), 9, []HStar2LeafHash{},
 		func(int, *big.Int) ([]byte, error) { return nil, nil },
 		func(int, *big.Int, []byte) error { return nil })
 	if got, want := err, ErrNegativeTreeLevelOffset; got != want {

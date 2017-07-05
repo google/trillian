@@ -330,6 +330,11 @@ func (n *NodeID) Equivalent(other NodeID) bool {
 	return n.String() == other.String()
 }
 
+// Equal returns true iff a and b have the same string representation.
+func Equal(a, b *NodeID) bool {
+	return a.String() == b.String()
+}
+
 // PopulateSubtreeFunc is a function which knows how to re-populate a subtree
 // from just its leaf nodes.
 type PopulateSubtreeFunc func(*storagepb.SubtreeProto) error

@@ -369,8 +369,8 @@ func testSparseTreeCalculatedRootWithWriter(ctx context.Context, t *testing.T, r
 	if err != nil {
 		t.Fatalf("Failed to commit map changes: %v", err)
 	}
-	if expected, got := vec.expectedRoot, root; !bytes.Equal(expected, got) {
-		t.Errorf("Expected root:\n%s, but got root:\n%s", base64.StdEncoding.EncodeToString(expected), base64.StdEncoding.EncodeToString(got))
+	if got, want := root, vec.expectedRoot; !bytes.Equal(got, want) {
+		t.Errorf("got root: %x, want %x", got, want)
 	}
 }
 
