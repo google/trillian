@@ -48,7 +48,7 @@ func VerifyMapInclusionProof(treeID int64, index, leafHash, expectedRoot []byte,
 		proofIsRightHandElement := bit(index, level) == 0
 		pElement := proof[level]
 		if len(pElement) == 0 {
-			neighborIndex := flipBit(index, level)
+			neighborIndex := Neighbor(index, level)
 			pElement = h.HashEmpty(treeID, neighborIndex, level)
 		}
 		if proofIsRightHandElement {
