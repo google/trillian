@@ -49,11 +49,6 @@ func TestSigner(t *testing.T) {
 	}
 	signer := NewSHA256Signer(key)
 
-	pk, err := pem.UnmarshalPublicKey(testonly.DemoPublicKey)
-	if err != nil {
-		t.Fatalf("Failed to load public key, err=%v", err)
-	}
-
 	for _, test := range []struct {
 		message []byte
 	}{
@@ -73,7 +68,7 @@ func TestSigner(t *testing.T) {
 			t.Errorf("Sig alg incorrect, got %v expected %v", got, want)
 		}
 		// Check that the signature is correct
-		if err := Verify(pk, test.message, sig); err != nil {
+		if err := Verify(key.Public(), test.message, sig); err != nil {
 			t.Errorf("Verify(%v) failed: %v", test.message, err)
 		}
 	}
