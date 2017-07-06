@@ -18,6 +18,7 @@ package maphasher
 import (
 	"crypto"
 	"fmt"
+	"log"
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle/hashers"
@@ -63,6 +64,8 @@ func (m *MapHasher) HashEmpty(treeID int64, index []byte, height int) []byte {
 	if height < 0 || height >= len(m.nullHashes) {
 		panic(fmt.Sprintf("HashEmpty(%v) out of bounds", height))
 	}
+	depth := m.BitLen() - height
+	log.Printf("HashEmpty(%x, %d): %x", index, depth, m.nullHashes[height])
 	return m.nullHashes[height]
 }
 
@@ -72,7 +75,10 @@ func (m *MapHasher) HashLeaf(treeID int64, index []byte, height int, leaf []byte
 	h := m.New()
 	h.Write([]byte{leafHashPrefix})
 	h.Write(leaf)
-	return h.Sum(nil)
+	r := h.Sum(nil)
+	depth := m.BitLen() - height
+	log.Printf("HashEmpty(%x, %d): %x", index, depth, r)
+	return r
 }
 
 // HashChildren returns the internal Merkle tree node hash of the the two child nodes l and r.
@@ -82,7 +88,9 @@ func (m *MapHasher) HashChildren(l, r []byte) []byte {
 	h.Write([]byte{nodeHashPrefix})
 	h.Write(l)
 	h.Write(r)
-	return h.Sum(nil)
+	p := h.Sum(nil)
+	log.Printf("HashChildren(%x, %x): %x", l, r, p)
+	return p
 }
 
 // BitLen returns the number of bits in the hash function.

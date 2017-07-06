@@ -16,11 +16,14 @@
 package coniks
 
 import (
+	"bytes"
 	"crypto"
 	"encoding/binary"
 	"fmt"
+	"log"
 
 	"github.com/google/trillian"
+	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/hashers"
 )
 
@@ -61,9 +64,14 @@ func (m *hasher) HashEmpty(treeID int64, index []byte, height int) []byte {
 	h := m.New()
 	h.Write(emptyIdentifier)
 	binary.Write(h, binary.BigEndian, uint64(treeID))
-	h.Write(m.maskIndex(index, depth))
+	h.Write(index)
 	binary.Write(h, binary.BigEndian, uint32(depth))
-	return h.Sum(nil)
+	r := h.Sum(nil)
+	log.Printf("HashEmpty(%x, %d): %x", index, depth, r)
+	if got, want := index, merkle.MaskIndex(index, depth); !bytes.Equal(got, want) {
+		panic(fmt.Sprintf("HashEmpty called with index: %x, want %x", got, want))
+	}
+	return r
 }
 
 // HashLeaf calculate the merkle tree leaf value:
@@ -74,10 +82,15 @@ func (m *hasher) HashLeaf(treeID int64, index []byte, height int, leaf []byte) [
 	h := m.New()
 	h.Write(leafIdentifier)
 	binary.Write(h, binary.BigEndian, uint64(treeID))
-	h.Write(m.maskIndex(index, depth))
+	h.Write(index)
 	binary.Write(h, binary.BigEndian, uint32(depth))
 	h.Write(leaf)
-	return h.Sum(nil)
+	p := h.Sum(nil)
+	log.Printf("HashLeaf(%x, %d, %s): %x", index, depth, leaf, p)
+	if got, want := index, merkle.MaskIndex(index, depth); !bytes.Equal(got, want) {
+		panic(fmt.Sprintf("HashLeaf called with index: %x, want %x", got, want))
+	}
+	return p
 }
 
 // HashChildren returns the internal Merkle tree node hash of the the two child nodes l and r.
@@ -86,38 +99,12 @@ func (m *hasher) HashChildren(l, r []byte) []byte {
 	h := m.New()
 	h.Write(l)
 	h.Write(r)
-	return h.Sum(nil)
+	p := h.Sum(nil)
+	log.Printf("HashChildren(%x, %x): %x", l, r, p)
+	return p
 }
 
 // BitLen returns the number of bits in the hash function.
 func (m *hasher) BitLen() int {
 	return m.Size() * 8
-}
-
-// leftmask contains bitmasks indexed such that the left x bits are set. It is
-// indexed by byte position from 0-7 0 is special cased to 0xFF since 8 mod 8
-// is 0. leftmask is only used to mask the last byte.
-var leftmask = [8]byte{0xFF, 0x80, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC, 0xFE}
-
-// maskIndex returns index with only the left depth bits set.
-// index must be of size m.Size() and 0 <= depth <= m.BitLen().
-// e.g.
-func (m *hasher) maskIndex(index []byte, depth int) []byte {
-	if got, want := len(index), m.Size(); got != want {
-		panic(fmt.Sprintf("index len: %d, want %d", got, want))
-	}
-	if got, want := depth, m.BitLen(); got < 0 || got > want {
-		panic(fmt.Sprintf("depth: %d, want <= %d && > 0", got, want))
-	}
-
-	// Create an empty index Size() bytes long.
-	ret := make([]byte, m.Size())
-	if depth > 0 {
-		// Copy the first depthBytes.
-		depthBytes := (depth + 7) >> 3
-		copy(ret, index[:depthBytes])
-		// Mask off unwanted bits in the last byte.
-		ret[depthBytes-1] = ret[depthBytes-1] & leftmask[depth%8]
-	}
-	return ret
 }
