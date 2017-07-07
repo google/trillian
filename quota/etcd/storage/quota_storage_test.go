@@ -249,6 +249,8 @@ func TestQuotaStorage_UpdateConfigsErrors(t *testing.T) {
 		},
 	}
 
+	duplicateNames := &storagepb.Configs{Configs: []*storagepb.Config{globalRead, globalWrite, globalWrite}}
+
 	tests := []struct {
 		desc   string
 		update func(*storagepb.Configs)
@@ -265,6 +267,7 @@ func TestQuotaStorage_UpdateConfigsErrors(t *testing.T) {
 		{desc: "invalidTimeBasedTokens", update: updater(invalidTimeBasedTokens)},
 		{desc: "zeroReplenishInterval", update: updater(zeroReplenishInterval)},
 		{desc: "invalidReplenishInterval", update: updater(invalidReplenishInterval)},
+		{desc: "duplicateNames", update: updater(duplicateNames)},
 	}
 
 	ctx := context.Background()

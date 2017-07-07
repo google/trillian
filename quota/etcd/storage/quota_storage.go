@@ -147,6 +147,7 @@ func (qs *QuotaStorage) UpdateConfigs(ctx context.Context, reset bool, update fu
 }
 
 func validate(cfgs *storagepb.Configs) error {
+	names := make(map[string]bool)
 	for i, cfg := range cfgs.Configs {
 		switch n := cfg.Name; {
 		case n == "":
@@ -173,6 +174,10 @@ func validate(cfgs *storagepb.Configs) error {
 		default:
 			return fmt.Errorf("unsupported replenishment strategy (Configs[%v].ReplenishmentStrategy = %T)", i, s)
 		}
+		if names[cfg.Name] {
+			return fmt.Errorf("duplicate config name found at Configs[%v].Name", i)
+		}
+		names[cfg.Name] = true
 	}
 	return nil
 }
