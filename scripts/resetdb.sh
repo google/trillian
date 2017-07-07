@@ -45,7 +45,8 @@ main() {
   # what we're about to do
   echo "Warning: about to destroy and reset database '${DB_NAME}'"
 
-  [[ ${FORCE} = true ]] || read -p "Are you sure? " -n 1 -r
+  [[ ${FORCE} = true ]] || read -p "Are you sure? [Y/N]: " -n 1 -r
+  echo # Print newline following the above prompt
 
   if [ -z ${REPLY+x} ] || [[ $REPLY =~ ^[Yy]$ ]]
   then
