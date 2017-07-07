@@ -39,10 +39,10 @@ const treeID = int64(0)
 var simpleTestVector = []struct {
 	index, value, root []byte
 }{
-	{nil, nil, b64("xmifEIEqCYCXbZUz2Dh1KCFmFZVn7DUVVxbBQTr1PWo=")}, // Empty tree.
-	{testonly.HashKey("a"), []byte("0"), b64("nP1psZp1bu3jrY5Yv89rI+w5ywe9lLqI2qZi5ibTSF0=")},
-	{testonly.HashKey("b"), []byte("1"), b64("EJ1Rw6DQT9bDn2Zbn7u+9/j799PSdqT9gfBymS9MBZY=")},
-	{testonly.HashKey("a"), []byte("2"), b64("2rAZz4HJAMJqJ5c8ClS4wEzTP71GTdjMZMe1rKWPA5o=")},
+	{nil, nil, deB64("xmifEIEqCYCXbZUz2Dh1KCFmFZVn7DUVVxbBQTr1PWo=")}, // Empty tree.
+	{testonly.HashKey("a"), []byte("0"), deB64("nP1psZp1bu3jrY5Yv89rI+w5ywe9lLqI2qZi5ibTSF0=")},
+	{testonly.HashKey("b"), []byte("1"), deB64("EJ1Rw6DQT9bDn2Zbn7u+9/j799PSdqT9gfBymS9MBZY=")},
+	{testonly.HashKey("a"), []byte("2"), deB64("2rAZz4HJAMJqJ5c8ClS4wEzTP71GTdjMZMe1rKWPA5o=")},
 }
 
 // createHStar2Leaves returns a []HStar2LeafHash formed by the mapping of index, value ...
@@ -202,8 +202,8 @@ func TestPaddedBytes(t *testing.T) {
 	}
 }
 
-// b64 converts a base64 string into []byte.
-func b64(b64 string) []byte {
+// deB64 converts a base64 string into []byte.
+func deB64(b64 string) []byte {
 	b, err := base64.StdEncoding.DecodeString(b64)
 	if err != nil {
 		panic("invalid base64 string")
