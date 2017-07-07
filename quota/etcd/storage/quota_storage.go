@@ -28,6 +28,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/quota/etcd/storagepb"
+	"github.com/google/trillian/util"
 )
 
 const (
@@ -35,8 +36,7 @@ const (
 )
 
 var (
-	// timeNow is used in place of time.Now, so it may be replaced by tests.
-	timeNow = time.Now
+	timeSource util.TimeSource = &util.SystemTimeSource{}
 
 	globalPattern *regexp.Regexp
 	treesPattern  *regexp.Regexp
@@ -107,7 +107,7 @@ func (qs *QuotaStorage) UpdateConfigs(ctx context.Context, reset bool, update fu
 			s.Put(configsKey, string(pb))
 		}
 
-		now := timeNow()
+		now := timeSource.Now()
 		for _, cfg := range updated.Configs {
 			// Make no distinction between enabled and disabled configs here. Get/Peek/Put are
 			// prepared to handle it, and recording the bucket as if it were enabled allows us to
@@ -206,7 +206,7 @@ func (qs *QuotaStorage) Get(ctx context.Context, names []string, tokens int64) e
 }
 
 func (qs *QuotaStorage) mod(ctx context.Context, names []string, add int64) error {
-	now := timeNow()
+	now := timeSource.Now()
 	return qs.forNames(ctx, names, defaultMode, func(s concurrency.STM, name string, cfg *storagepb.Config) error {
 		_, err := modBucket(s, cfg, now, add)
 		return err
@@ -217,7 +217,7 @@ func (qs *QuotaStorage) mod(ctx context.Context, names []string, add int64) erro
 // Unknown or disabled quotas are considered infinite and returned as having quota.MaxTokens tokens,
 // therefore all requested names are guaranteed to be in the resulting map
 func (qs *QuotaStorage) Peek(ctx context.Context, names []string) (map[string]int64, error) {
-	now := timeNow()
+	now := timeSource.Now()
 	tokens := make(map[string]int64)
 	err := qs.forNames(ctx, names, emitInfinite, func(s concurrency.STM, name string, cfg *storagepb.Config) error {
 		var err error
@@ -246,7 +246,7 @@ func (qs *QuotaStorage) Put(ctx context.Context, names []string, tokens int64) e
 // Reset resets the named quotas to their maximum number of tokens.
 // Unknown or disabled quotas are considered infinite and ignored.
 func (qs *QuotaStorage) Reset(ctx context.Context, names []string) error {
-	now := timeNow()
+	now := timeSource.Now()
 	return qs.forNames(ctx, names, defaultMode, func(s concurrency.STM, name string, cfg *storagepb.Config) error {
 		bucket := &storagepb.Bucket{
 			Tokens: cfg.MaxTokens,

@@ -26,6 +26,7 @@ import (
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/quota/etcd/storagepb"
 	"github.com/google/trillian/testonly/integration/etcd"
+	"github.com/google/trillian/util"
 	"github.com/kylelemons/godebug/pretty"
 )
 
@@ -69,6 +70,8 @@ var (
 	globalWrite = cfgs.Configs[1]
 	userRead    = cfgs.Configs[2]
 
+	fixedTimeSource = util.NewFakeTimeSource(time.Now())
+
 	// client is an etcd client.
 	// Initialized by TestMain().
 	client *clientv3.Client
@@ -86,7 +89,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestQuotaStorage_UpdateConfigs(t *testing.T) {
-	defer setupTimeNow(&time.Time{})()
+	defer setupTimeSource(fixedTimeSource)()
 
 	empty := &storagepb.Configs{}
 
@@ -296,7 +299,7 @@ func TestQuotaStorage_UpdateConfigsErrors(t *testing.T) {
 }
 
 func TestQuotaStorage_DeletedConfig(t *testing.T) {
-	defer setupTimeNow(&time.Time{})()
+	defer setupTimeSource(fixedTimeSource)()
 
 	ctx := context.Background()
 	qs := &QuotaStorage{Client: client}
@@ -335,7 +338,7 @@ func TestQuotaStorage_DeletedConfig(t *testing.T) {
 }
 
 func TestQuotaStorage_DisabledConfig(t *testing.T) {
-	defer setupTimeNow(&time.Time{})()
+	defer setupTimeSource(fixedTimeSource)()
 
 	ctx := context.Background()
 	qs := &QuotaStorage{Client: client}
@@ -376,8 +379,8 @@ func TestQuotaStorage_DisabledConfig(t *testing.T) {
 }
 
 func TestQuotaStorage_Get(t *testing.T) {
-	var now time.Time
-	defer setupTimeNow(&now)()
+	fakeTime := util.NewFakeTimeSource(time.Now())
+	setupTimeSource(fakeTime)
 
 	tests := []struct {
 		desc                      string
@@ -456,7 +459,7 @@ func TestQuotaStorage_Get(t *testing.T) {
 			continue
 		}
 
-		now = now.Add(test.nowIncrement)
+		fakeTime.Set(fakeTime.Now().Add(test.nowIncrement))
 		if err := qs.Get(ctx, test.names, test.tokens); err != nil {
 			t.Errorf("%v: Get() returned err = %v", test.desc, err)
 			continue
@@ -500,8 +503,8 @@ func TestQuotaStorage_GetErrors(t *testing.T) {
 }
 
 func TestQuotaStorage_Peek(t *testing.T) {
-	var now time.Time
-	defer setupTimeNow(&now)()
+	fakeTime := util.NewFakeTimeSource(time.Now())
+	defer setupTimeSource(fakeTime)()
 
 	tests := []struct {
 		desc                      string
@@ -542,7 +545,7 @@ func TestQuotaStorage_Peek(t *testing.T) {
 			continue
 		}
 
-		now = now.Add(test.nowIncrement)
+		fakeTime.Set(fakeTime.Now().Add(test.nowIncrement))
 		if err := peekAndDiff(ctx, qs, test.wantTokens); err != nil {
 			t.Errorf("%v: %v", test.desc, err)
 		}
@@ -550,8 +553,8 @@ func TestQuotaStorage_Peek(t *testing.T) {
 }
 
 func TestQuotaStorage_Put(t *testing.T) {
-	var now time.Time
-	defer setupTimeNow(&now)()
+	fakeTime := util.NewFakeTimeSource(time.Now())
+	defer setupTimeSource(fakeTime)()
 
 	tests := []struct {
 		desc                      string
@@ -630,7 +633,7 @@ func TestQuotaStorage_Put(t *testing.T) {
 			t.Errorf("%v: Put() returned err = %v", test.desc, err)
 		}
 
-		now = now.Add(test.nowIncrement)
+		fakeTime.Set(fakeTime.Now().Add(test.nowIncrement))
 		if err := peekAndDiff(ctx, qs, test.wantTokens); err != nil {
 			t.Errorf("%v: %v", test.desc, err)
 		}
@@ -660,7 +663,7 @@ func TestQuotaStorage_PutErrors(t *testing.T) {
 }
 
 func TestQuotaStorage_Reset(t *testing.T) {
-	defer setupTimeNow(&time.Time{})()
+	defer setupTimeSource(fixedTimeSource)()
 
 	tests := []struct {
 		desc                      string
@@ -806,20 +809,13 @@ func peekAndDiff(ctx context.Context, qs *QuotaStorage, want map[string]int64) e
 	return nil
 }
 
-// setupTimeNow prepares timeNow for tests, by making it return "now".
-// "Now" will be set to an arbitrary, non-zero value as a consequence of calling this function.
-// A cleanup function that restores timeNow to its initial value is returned and should be
+// setupTimeSource prepares timeSource for tests.
+// A cleanup function that restores timeSource to its initial value is returned and should be
 // defer-called.
-func setupTimeNow(now *time.Time) func() {
-	previousNow := timeNow
-	cleanup := func() { timeNow = previousNow }
-
-	// Start from an arbitrary, non-zero time. Using the "zero" time is bad because UnixNano() is
-	// undefined for it.
-	*now = time.Now()
-	timeNow = func() time.Time { return *now }
-
-	return cleanup
+func setupTimeSource(ts util.TimeSource) func() {
+	prevTimeSource := timeSource
+	timeSource = ts
+	return func() { timeSource = prevTimeSource }
 }
 
 // setupTokens resets cfgs and gets tokens from each quota in order to make them match
