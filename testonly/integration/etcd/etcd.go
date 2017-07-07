@@ -28,8 +28,14 @@ import (
 	"github.com/coreos/etcd/embed"
 )
 
-// MaxEtcdStartAttempts is the max number of start attempts made before it fails.
-const MaxEtcdStartAttempts = 3
+const (
+
+	// MaxEtcdStartAttempts is the max number of start attempts made before it fails.
+	MaxEtcdStartAttempts = 3
+
+	defaultTimeout = 5 * time.Second
+	tempDirPrefix  = "etcdquota-test-"
+)
 
 // StartEtcd returns a started, ready to use embedded etcd, along with a client and a cleanup
 // function (that must be defer-called). There's no need to defer-close etcd of client, cleanup
@@ -38,7 +44,7 @@ const MaxEtcdStartAttempts = 3
 // A temp directory and random ports are used to setup etcd.
 func StartEtcd() (e *embed.Etcd, c *clientv3.Client, cleanup func(), err error) {
 	var dir string
-	dir, err = ioutil.TempDir("", "etcdquota-test-")
+	dir, err = ioutil.TempDir("", tempDirPrefix)
 	if err != nil {
 		return
 	}
@@ -66,22 +72,22 @@ func StartEtcd() (e *embed.Etcd, c *clientv3.Client, cleanup func(), err error) 
 	}
 	if e == nil {
 		cleanup()
-		err = fmt.Errorf("failed to start etcd: too many attempts")
+		err = errors.New("failed to start etcd: too many attempts")
 		return
 	}
 
 	select {
 	case <-e.Server.ReadyNotify():
 		// OK
-	case <-time.After(5 * time.Second):
+	case <-time.After(defaultTimeout):
 		cleanup()
-		err = errors.New("timed out waiting for etcd")
+		err = errors.New("timed out waiting for etcd to start")
 		return
 	}
 
 	c, err = clientv3.New(clientv3.Config{
 		Endpoints:   []string{e.Config().LCUrls[0].String()},
-		DialTimeout: 5 * time.Second,
+		DialTimeout: defaultTimeout,
 	})
 	if err != nil {
 		cleanup()

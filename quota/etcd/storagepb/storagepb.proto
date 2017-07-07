@@ -48,7 +48,7 @@ message Config {
     // Quota is enabled.
     ENABLED = 1;
 
-    // Quota is disabled (considered infite).
+    // Quota is disabled (considered infinite).
     DISABLED = 2;
   }
 

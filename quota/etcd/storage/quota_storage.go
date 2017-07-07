@@ -91,7 +91,7 @@ func (qs *QuotaStorage) UpdateConfigs(ctx context.Context, reset bool, update fu
 
 		// ... but let's sanity check that the configs match, just in case.
 		if !proto.Equal(previous, updated) {
-			return errors.New("verification failed: previous != updated")
+			return errors.New("verification failed: previous quota config != updated")
 		}
 
 		update(updated)
@@ -126,7 +126,7 @@ func (qs *QuotaStorage) UpdateConfigs(ctx context.Context, reset bool, update fu
 			case prev == nil || prev.State == storagepb.Config_DISABLED || reset: // new bucket
 				bucket := &storagepb.Bucket{
 					Tokens: cfg.MaxTokens,
-					LastReplenishMillisSinceEpoch: now.UnixNano() / 1000000,
+					LastReplenishMillisSinceEpoch: now.UnixNano() / 1e6,
 				}
 				pb, err := proto.Marshal(bucket)
 				if err != nil {
@@ -245,7 +245,7 @@ func (qs *QuotaStorage) Reset(ctx context.Context, names []string) error {
 	return qs.forNames(ctx, names, defaultMode, func(s concurrency.STM, name string, cfg *storagepb.Config) error {
 		bucket := &storagepb.Bucket{
 			Tokens: cfg.MaxTokens,
-			LastReplenishMillisSinceEpoch: now.UnixNano() / 1000000,
+			LastReplenishMillisSinceEpoch: now.UnixNano() / 1e6,
 		}
 		pb, err := proto.Marshal(bucket)
 		if err != nil {
@@ -321,6 +321,8 @@ func getConfigs(s concurrency.STM) (*storagepb.Configs, error) {
 	cfgs := &storagepb.Configs{}
 	val := s.Get(configsKey)
 	if val == "" {
+		// Empty value means no config was explicitly created yet.
+		// Use the default (empty) configs in this case.
 		return cfgs, nil
 	}
 	if err := proto.Unmarshal([]byte(val), cfgs); err != nil {
@@ -339,43 +341,42 @@ func modBucket(s concurrency.STM, cfg *storagepb.Config, now time.Time, add int6
 	key := bucketKey(cfg)
 
 	val := s.Get(key)
-	bucket := &storagepb.Bucket{}
-	if err := proto.Unmarshal([]byte(val), bucket); err != nil {
+	prevBucket := storagepb.Bucket{}
+	if err := proto.Unmarshal([]byte(val), &prevBucket); err != nil {
 		return 0, fmt.Errorf("error unmarshaling %v: %v", key, err)
 	}
+	newBucket := prevBucket
 
-	replenish := false
-	tb, ok := cfg.ReplenishmentStrategy.(*storagepb.Config_TimeBased)
-	if ok && now.Unix() >= bucket.LastReplenishMillisSinceEpoch/1000+tb.TimeBased.ReplenishIntervalSeconds {
-		bucket.Tokens += tb.TimeBased.TokensToReplenish
-		if bucket.Tokens > cfg.MaxTokens {
-			bucket.Tokens = cfg.MaxTokens
+	if tb := cfg.GetTimeBased(); tb != nil {
+		if now.Unix() >= newBucket.LastReplenishMillisSinceEpoch/1e3+tb.ReplenishIntervalSeconds {
+			newBucket.Tokens += tb.TokensToReplenish
+			if newBucket.Tokens > cfg.MaxTokens {
+				newBucket.Tokens = cfg.MaxTokens
+			}
+			newBucket.LastReplenishMillisSinceEpoch = now.UnixNano() / 1e6
 		}
-		bucket.LastReplenishMillisSinceEpoch = now.UnixNano() / 1000000
-		replenish = true
+		if add > 0 {
+			add = 0 // Do not replenish time-based quotas
+		}
 	}
 
-	if ok && add > 0 {
-		add = 0 // Do not replenish time-based quotas
+	newBucket.Tokens += add
+	if newBucket.Tokens < 0 {
+		return 0, fmt.Errorf("insufficient tokens on %v (%v vs %v)", key, prevBucket.Tokens, -add)
 	}
-	before := bucket.Tokens
-	bucket.Tokens += add
-	if bucket.Tokens < 0 {
-		return 0, fmt.Errorf("insufficient tokens on %v (%v vs %v)", key, before, -add)
-	}
-	if bucket.Tokens > cfg.MaxTokens {
-		bucket.Tokens = cfg.MaxTokens
+	if newBucket.Tokens > cfg.MaxTokens {
+		newBucket.Tokens = cfg.MaxTokens
 	}
 
-	if replenish || before != bucket.Tokens {
-		pb, err := proto.Marshal(bucket)
+	if !proto.Equal(&prevBucket, &newBucket) {
+		pb, err := proto.Marshal(&newBucket)
 		if err != nil {
 			return 0, err
 		}
 		s.Put(key, string(pb))
 	}
 
-	return bucket.Tokens, nil
+	return newBucket.Tokens, nil
 }
 
 func bucketKey(cfg *storagepb.Config) string {
