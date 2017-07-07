@@ -28,6 +28,8 @@ collect_vars() {
     shift 1
   done
 
+  FLAGS+=(-u "${DB_USER}")
+
   # Optionally print flags (before appending password)
   [[ ${VERBOSE} = 'true' ]] && echo "- Using MySQL Flags: ${FLAGS[@]}"
 
@@ -41,10 +43,6 @@ main() {
   readonly TRILLIAN_PATH=$(go list -f '{{.Dir}}' github.com/google/trillian)
 
   # what we're about to do
-  if [[ ${VERBOSE} = 'true' ]]
-  then
-    echo "-- using DB_USER: ${DB_USER}"
-  fi
   echo "Warning: about to destroy and reset database '${DB_NAME}'"
 
   [[ ${FORCE} = true ]] || read -p "Are you sure? " -n 1 -r
@@ -52,10 +50,10 @@ main() {
   if [ -z ${REPLY+x} ] || [[ $REPLY =~ ^[Yy]$ ]]
   then
       echo "Resetting DB..."
-      mysql "${FLAGS[@]}" -u $DB_USER -e "DROP DATABASE IF EXISTS ${DB_NAME};"
-      mysql "${FLAGS[@]}" -u $DB_USER -e "CREATE DATABASE ${DB_NAME};"
-      mysql "${FLAGS[@]}" -u $DB_USER -e "GRANT ALL ON ${DB_NAME}.* TO '${DB_NAME}'@'localhost' IDENTIFIED BY 'zaphod';"
-      mysql "${FLAGS[@]}" -u $DB_USER -D ${DB_NAME} < ${TRILLIAN_PATH}/storage/mysql/storage.sql
+      mysql "${FLAGS[@]}" -e "DROP DATABASE IF EXISTS ${DB_NAME};"
+      mysql "${FLAGS[@]}" -e "CREATE DATABASE ${DB_NAME};"
+      mysql "${FLAGS[@]}" -e "GRANT ALL ON ${DB_NAME}.* TO '${DB_NAME}'@'localhost' IDENTIFIED BY 'zaphod';"
+      mysql "${FLAGS[@]}" -D ${DB_NAME} < ${TRILLIAN_PATH}/storage/mysql/storage.sql
       echo "Reset Complete"
   fi
 }
