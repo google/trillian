@@ -166,7 +166,7 @@ func (c *LogClient) UpdateRoot(ctx context.Context) error {
 	}
 	// Fetch a consistency proof if this isn't the first root we've seen.
 	var consistency *trillian.GetConsistencyProofResponse
-	if c.root.TreeSize != 0 {
+	if c.root.TreeSize > 0 {
 		// Get consistency proof.
 		consistency, err = c.client.GetConsistencyProof(ctx,
 			&trillian.GetConsistencyProofRequest{
@@ -178,13 +178,14 @@ func (c *LogClient) UpdateRoot(ctx context.Context) error {
 			return err
 		}
 	}
-
-	// Verify root update.
-	if err := c.logVerifier.VerifyRoot(&c.root, resp.SignedLogRoot,
-		consistency.GetProof().GetHashes()); err != nil {
-		return err
+	// Verify root update if the tree / the latest signed log root isn't empty.
+	if resp.GetSignedLogRoot().GetTreeSize() > 0 {
+		if err := c.logVerifier.VerifyRoot(&c.root, resp.GetSignedLogRoot(),
+			consistency.GetProof().GetHashes()); err != nil {
+			return err
+		}
+		c.root = *resp.SignedLogRoot
 	}
-	c.root = *resp.SignedLogRoot
 	return nil
 }
 
