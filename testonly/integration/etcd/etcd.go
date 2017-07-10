@@ -18,7 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"math/rand"
+	"net"
 	"net/url"
 	"os"
 	"strings"
@@ -96,12 +96,21 @@ func StartEtcd() (e *embed.Etcd, c *clientv3.Client, cleanup func(), err error) 
 }
 
 func tryStartEtcd(dir string) (*embed.Etcd, error) {
-	p1 := 1000 + rand.Intn(4000) // Pick a port in (1000,5000]. The interval is arbitrary.
-	p2 := 1000 + rand.Intn(4000)
+	p1, err := net.Listen("tcp", ":0")
+	if err != nil {
+		return nil, err
+	}
+	p1.Close()
+
+	p2, err := net.Listen("tcp", ":0")
+	if err != nil {
+		return nil, err
+	}
+	p2.Close()
 
 	// OK to ignore err, it'll error below if parsing fails
-	clientURL, _ := url.Parse(fmt.Sprintf("http://localhost:%v", p1))
-	peerURL, _ := url.Parse(fmt.Sprintf("http://localhost:%v", p2))
+	clientURL, _ := url.Parse("http://" + p1.Addr().String())
+	peerURL, _ := url.Parse("http://" + p2.Addr().String())
 
 	cfg := embed.NewConfig()
 	cfg.Dir = dir

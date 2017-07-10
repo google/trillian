@@ -70,7 +70,7 @@ type QuotaStorage struct {
 // The update function allows for mask-based updates and ensures a single-transaction
 // read-modify-write operation.
 // If reset is true, all specified configs will be set to their max number of tokens. If false,
-// existing quotas won't be modified, unless the max number of tokens is downgraded, in which case
+// existing quotas won't be modified, unless the max number of tokens is lowered, in which case
 // the new ceiling is enforced.
 // Newly created quotas are always set to max tokens, regardless of the reset parameter.
 func (qs *QuotaStorage) UpdateConfigs(ctx context.Context, reset bool, update func(*storagepb.Configs)) (*storagepb.Configs, error) {
@@ -86,8 +86,11 @@ func (qs *QuotaStorage) UpdateConfigs(ctx context.Context, reset bool, update fu
 		}
 		// Take a deep copy of "previous". It's pointers all the way down, so it's easier to just
 		// unmarshal it again. STM has the key we just read and it should be exactly the same as
-		// previous, so it's ok to ignore the error...
-		updated, _ = getConfigs(s)
+		// previous...
+		updated, err = getConfigs(s)
+		if err != nil {
+			return err
+		}
 
 		// ... but let's sanity check that the configs match, just in case.
 		if !proto.Equal(previous, updated) {
@@ -111,7 +114,7 @@ func (qs *QuotaStorage) UpdateConfigs(ctx context.Context, reset bool, update fu
 		for _, cfg := range updated.Configs {
 			// Make no distinction between enabled and disabled configs here. Get/Peek/Put are
 			// prepared to handle it, and recording the bucket as if it were enabled allows us to
-			// take advantage of the already-existing reset and downgrade logic.
+			// take advantage of the already-existing reset and lowering logic.
 			key := bucketKey(cfg)
 
 			var prev *storagepb.Config
@@ -133,7 +136,7 @@ func (qs *QuotaStorage) UpdateConfigs(ctx context.Context, reset bool, update fu
 					return err
 				}
 				s.Put(key, string(pb))
-			case prev != nil && cfg.MaxTokens < prev.MaxTokens: // downgraded bucket
+			case prev != nil && cfg.MaxTokens < prev.MaxTokens: // lowered bucket
 				// modBucket will coerce tokens to cfg.MaxTokens, if necessary
 				if _, err := modBucket(s, cfg, now, 0 /* add */); err != nil {
 					return err
@@ -338,7 +341,7 @@ func getConfigs(s concurrency.STM) (*storagepb.Configs, error) {
 
 // modBucket adds "add" tokens to the specified quota. Add may be negative or zero.
 // Time-based quotas that are due replenishment will be replenished before the add operation. Quotas
-// that are above ceiling (eg, due to a config downgrade) will also be constrained to the
+// that are above ceiling (eg, due to lowered max tokens) will also be constrained to the
 // appropriate ceiling. As a consequence, calls with add = 0 are still useful for peeking and the
 // explained side-effects.
 // modBucket returns the current token count for cfg.
