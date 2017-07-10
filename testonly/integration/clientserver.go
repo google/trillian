@@ -31,10 +31,10 @@ import (
 	"github.com/google/trillian/crypto/keys"
 	ktestonly "github.com/google/trillian/crypto/keys/testonly"
 	"github.com/google/trillian/crypto/keyspb"
-
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/server"
+	"github.com/google/trillian/server/interceptor"
 	"github.com/google/trillian/storage/mysql"
 	stestonly "github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/testonly"
@@ -115,9 +115,8 @@ func NewLogEnv(ctx context.Context, numSequencers int, testID string) (*LogEnv, 
 // testID should be unique to each unittest package so as to allow parallel
 // tests.
 func NewLogEnvWithRegistry(ctx context.Context, numSequencers int, testID string, registry extension.Registry) (*LogEnv, error) {
-
 	// Create Log Server.
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(interceptor.ErrorWrapper))
 	logServer := server.NewTrillianLogRPCServer(registry, timeSource)
 	trillian.RegisterTrillianLogServer(grpcServer, logServer)
 
