@@ -18,8 +18,6 @@ package trees
 
 import (
 	"crypto"
-	"crypto/ecdsa"
-	"crypto/rsa"
 	"fmt"
 
 	"github.com/golang/protobuf/ptypes"
@@ -129,19 +127,9 @@ func Signer(ctx context.Context, sf keys.SignerFactory, tree *trillian.Tree) (*t
 		return nil, err
 	}
 
-	var ok bool
-	switch signer.(type) {
-	case *ecdsa.PrivateKey:
-		ok = tree.SignatureAlgorithm == sigpb.DigitallySigned_ECDSA
-	case *rsa.PrivateKey:
-		ok = tree.SignatureAlgorithm == sigpb.DigitallySigned_RSA
-	default:
-		// TODO(codingllama): Make SignatureAlgorithm / key matching part of the SignerFactory contract?
-		// We don't know about custom signers, so let it pass
-		ok = true
+	if keys.SignatureAlgorithm(signer.Public()) != tree.SignatureAlgorithm {
+		return nil, fmt.Errorf("%s signature not supported by signer of type %T", tree.SignatureAlgorithm, signer)
 	}
-	if !ok {
-		return nil, fmt.Errorf("%s signature not supported by key of type %T", tree.SignatureAlgorithm, signer)
-	}
+
 	return &tcrypto.Signer{Hash: hash, Signer: signer}, nil
 }
