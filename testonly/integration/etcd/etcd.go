@@ -96,13 +96,13 @@ func StartEtcd() (e *embed.Etcd, c *clientv3.Client, cleanup func(), err error) 
 }
 
 func tryStartEtcd(dir string) (*embed.Etcd, error) {
-	p1, err := net.Listen("tcp", ":0")
+	p1, err := net.Listen("tcp", "localhost:0")
 	if err != nil {
 		return nil, err
 	}
 	p1.Close()
 
-	p2, err := net.Listen("tcp", ":0")
+	p2, err := net.Listen("tcp", "localhost:0")
 	if err != nil {
 		return nil, err
 	}
