@@ -1,0 +1,86 @@
+// Copyright 2017 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+// Package storagepb contains definitions for quota storage protos, which are recorded in etcd.
+package storagepb;
+
+// Data contained in a quota bucket.
+// Stored at each each quota's zero bucket. For example,
+// quotas/global/read/0 or quotas/trees/$id/read/0.
+message Bucket {
+
+  // Number of tokens left in the bucket.
+  int64 tokens = 1;
+
+  // Timestamp of the last time the bucket got replenished.
+  int64 last_replenish_millis_since_epoch = 2;
+}
+
+// Configuration for all quotas.
+// Stored at quotas/configs.
+message Configs {
+
+  // Known quota configurations.
+  repeated Config configs = 1;
+}
+
+// Configuration of a quota.
+message Config {
+
+  // Possible states of a quota configuration.
+  enum State {
+    // Unknown quota state. Invalid.
+    UNKNOWN_CONFIG_STATE = 0;
+
+    // Quota is enabled.
+    ENABLED = 1;
+
+    // Quota is disabled (considered infinite).
+    DISABLED = 2;
+  }
+
+  // Name of the config, eg, “quotas/trees/1234/read/config”.
+  string name = 1;
+
+  // State of the config.
+  State state = 2;
+
+  // Max number of tokens available for the config.
+  int64 max_tokens = 3;
+
+  // Replenishment strategy used by the config.
+  oneof replenishment_strategy {
+
+    // Sequencing-based replenishment settings.
+    SequencingBasedStrategy sequencing_based = 4;
+
+    // Time-based replenishment settings.
+    TimeBasedStrategy time_based = 5;
+  }
+}
+
+// Sequencing-based replenishment strategy settings.
+message SequencingBasedStrategy {}
+
+// Time-based replenishment strategy settings.
+message TimeBasedStrategy {
+
+  // Number of tokens to replenish at every replenish_interval_seconds.
+  int64 tokens_to_replenish = 1;
+
+  // Interval at which tokens_to_replenish get replenished.
+  int64 replenish_interval_seconds = 2;
+}
