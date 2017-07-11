@@ -46,10 +46,12 @@ import (
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/log"
+	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/storage/memory"
 	"github.com/google/trillian/storage/storagepb"
 	"github.com/google/trillian/util"
@@ -58,12 +60,13 @@ import (
 const recordIOMagic int32 = 0x3ed7230a
 
 var (
-	treeSizeFlag       = flag.Int("tree_size", 871, "The number of leaves to be added to the tree")
-	batchSizeFlag      = flag.Int("batch_size", 50, "The batch size for sequencing")
-	leafDataFormatFlag = flag.String("leaf_format", "Leaf %d", "The format string for leaf data")
-	latestRevisionFlag = flag.Bool("latest_revision", true, "If true outputs only the latest revision per subtree")
-	summaryFlag        = flag.Bool("summary", false, "If true outputs a brief summary per subtree, false dumps the whole proto")
-	recordIOFlag       = flag.Bool("recordio", false, "If true outputs in recordio format")
+	treeSizeFlag        = flag.Int("tree_size", 871, "The number of leaves to be added to the tree")
+	batchSizeFlag       = flag.Int("batch_size", 50, "The batch size for sequencing")
+	leafDataFormatFlag  = flag.String("leaf_format", "Leaf %d", "The format string for leaf data")
+	latestRevisionFlag  = flag.Bool("latest_revision", true, "If true outputs only the latest revision per subtree")
+	summaryFlag         = flag.Bool("summary", false, "If true outputs a brief summary per subtree, false dumps the whole proto")
+	recordIOFlag        = flag.Bool("recordio", false, "If true outputs in recordio format")
+	rebuildInternalFlag = flag.Bool("rebuild", true, "If true rebuilds internal nodes + root hash from leaves")
 )
 
 type treeandrev struct {
@@ -73,11 +76,12 @@ type treeandrev struct {
 }
 
 func summarizeProto(s *storagepb.SubtreeProto) string {
-	return fmt.Sprintf("p: %-32s d: %d lc: %3d ic: %3d\n",
+	return fmt.Sprintf("p: %-20s d: %d lc: %3d ic: %3d rh:%s\n",
 		hex.EncodeToString(s.Prefix),
 		s.Depth,
 		len(s.Leaves),
-		s.InternalNodeCount)
+		s.InternalNodeCount,
+		hex.EncodeToString(s.RootHash))
 }
 
 func fullProto(s *storagepb.SubtreeProto) string {
@@ -252,6 +256,23 @@ func main() {
 		sequence(tree.TreeId, seq, left)
 	}
 
+	// Read the latest STH back
+	tx, err := ls.BeginForTree(context.TODO(), tree.TreeId)
+	if err != nil {
+		glog.Fatalf("BeginForTree got: %v, want: nil", err)
+	}
+
+	sth, err := tx.LatestSignedLogRoot(context.TODO())
+	if err != nil {
+		glog.Fatalf("LatestSignedLogRoot: %v", err)
+	}
+
+	glog.Infof("STH at size %d has hash %s", sth.TreeSize, hex.EncodeToString(sth.RootHash))
+
+	if err := tx.Commit(); err != nil {
+		glog.Fatalf("TX commit: %v", err)
+	}
+
 	// All leaves are now sequenced into the tree. The current state is what we need.
 	glog.Info("Producing output")
 
@@ -268,6 +289,12 @@ func main() {
 		}
 		fmt.Print(buf.String())
 	}
+
+	hasher, err := hashers.NewLogHasher(trillian.HashStrategy_RFC6962_SHA256)
+	if err != nil {
+		glog.Fatalf("Failed to create a log hasher: %v", err)
+	}
+	repopFunc := cache.PopulateLogSubtreeNodes(hasher)
 
 	if *latestRevisionFlag {
 		vMap := make(map[string]treeandrev)
@@ -295,10 +322,16 @@ func main() {
 
 		// The map should now contain the latest revisions per subtree
 		for _, v := range vMap {
+			if *rebuildInternalFlag {
+				repopFunc(v.subtree)
+			}
 			fmt.Print(of(v.subtree))
 		}
 	} else {
 		memory.DumpSubtrees(ls, tree.TreeId, func(k string, v *storagepb.SubtreeProto) {
+			if *rebuildInternalFlag {
+				repopFunc(v)
+			}
 			fmt.Print(of(v))
 		})
 	}
