@@ -60,14 +60,6 @@ func (t *tree) RUnlock() {
 	t.mu.RUnlock()
 }
 
-// Dump ascends the tree, logging the items contained.
-func Dump(t *btree.BTree) {
-	t.Ascend(func(i btree.Item) bool {
-		glog.Infof("%#v", i)
-		return true
-	})
-}
-
 // memoryTreeStorage is shared between the memoryLog and (forthcoming) memoryMap-
 // Storage implementations, and contains functionality which is common to both,
 type memoryTreeStorage struct {
