@@ -17,28 +17,27 @@ package integration
 import (
 	"context"
 	"database/sql"
-	"sync"
 
-	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/server"
+	"github.com/google/trillian/server/admin"
 	"github.com/google/trillian/storage/mysql"
-	stestonly "github.com/google/trillian/storage/testonly"
+
 	"google.golang.org/grpc"
 )
 
 // MapEnv is a map server and connected client.
 type MapEnv struct {
-	registry     extension.Registry
-	pendingTasks *sync.WaitGroup
-	grpcServer   *grpc.Server
-	mapServer    *server.TrillianMapServer
-	ClientConn   *grpc.ClientConn
-	DB           *sql.DB
-	Tree         *trillian.Tree
+	registry  extension.Registry
+	mapServer *server.TrillianMapServer
+
+	// Objects that need .Close(), in order of creation.
+	DB         *sql.DB
+	grpcServer *grpc.Server
+	ClientConn *grpc.ClientConn
 }
 
 // NewMapEnv creates a fresh DB, map server, and client.
@@ -57,6 +56,7 @@ func NewMapEnv(ctx context.Context, testID string) (*MapEnv, error) {
 
 	ret, err := NewMapEnvWithRegistry(ctx, testID, registry)
 	if err != nil {
+		db.Close()
 		return nil, err
 	}
 	ret.DB = db
@@ -67,29 +67,29 @@ func NewMapEnv(ctx context.Context, testID string) (*MapEnv, error) {
 // client.  testID should be unique to each unittest package so as to allow
 // parallel tests.
 func NewMapEnvWithRegistry(ctx context.Context, testID string, registry extension.Registry) (*MapEnv, error) {
+	addr, lis, err := listen()
+	if err != nil {
+		return nil, err
+	}
 
 	// Create Map Server.
 	grpcServer := grpc.NewServer()
 	mapServer := server.NewTrillianMapServer(registry)
 	trillian.RegisterTrillianMapServer(grpcServer, mapServer)
-
-	// Listen and start server.
-	addr, lis, err := listen()
-	if err != nil {
-		return nil, err
-	}
+	trillian.RegisterTrillianAdminServer(grpcServer, admin.New(registry))
 	go grpcServer.Serve(lis)
 
 	// Connect to the server.
 	cc, err := grpc.Dial(addr, grpc.WithInsecure())
 	if err != nil {
+		grpcServer.Stop()
 		return nil, err
 	}
 
 	return &MapEnv{
 		registry:   registry,
-		grpcServer: grpcServer,
 		mapServer:  mapServer,
+		grpcServer: grpcServer,
 		ClientConn: cc,
 	}, nil
 }
@@ -101,29 +101,4 @@ func (env *MapEnv) Close() {
 	if env.DB != nil {
 		env.DB.Close()
 	}
-}
-
-// CreateMap creates a map and signs the first empty tree head.
-func (env *MapEnv) CreateMap(hashStrategy trillian.HashStrategy) (*trillian.Tree, error) {
-	ctx := context.Background()
-	tx, err := env.registry.AdminStorage.Begin(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	tree := stestonly.MapTree
-	tree.HashStrategy = hashStrategy
-	tree.PrivateKey, err = ptypes.MarshalAny(privateKeyInfo)
-	if err != nil {
-		return nil, err
-	}
-
-	tree, err = tx.CreateTree(ctx, tree)
-	if err != nil {
-		return nil, err
-	}
-	if err := tx.Commit(); err != nil {
-		return nil, err
-	}
-	return tree, nil
 }

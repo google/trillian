@@ -22,11 +22,14 @@ import (
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle"
-	_ "github.com/google/trillian/merkle/coniks" // Register
 	"github.com/google/trillian/merkle/hashers"
-	_ "github.com/google/trillian/merkle/maphasher" // Register
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/testonly/integration"
+
+	stestonly "github.com/google/trillian/storage/testonly"
+
+	_ "github.com/google/trillian/merkle/coniks"    // Register hasher
+	_ "github.com/google/trillian/merkle/maphasher" // Register hasher
 )
 
 // createHashKV returns a []*trillian.MapLeaf formed by the mapping of index, value ...
@@ -36,6 +39,9 @@ func createMapLeaves(iv ...[]byte) []*trillian.MapLeaf {
 		panic(fmt.Sprintf("integration: createMapLeaves got odd number of iv pairs: %v", len(iv)))
 	}
 	r := []*trillian.MapLeaf{}
+	// Create a new MapLeaf for each pair of index / value pairs.
+	// Save the even items off to the side as index.
+	// Create new MapLeaves on the odd items (the value).
 	var index []byte
 	for i, b := range iv {
 		if i%2 == 0 {
@@ -58,21 +64,32 @@ func TestInclusionWithEnv(t *testing.T) {
 	}
 	defer env.Close()
 	for _, tc := range []struct {
+		desc string
 		trillian.HashStrategy
-		index []byte
-		value []byte
+		index, value []byte
 	}{
-		{trillian.HashStrategy_TEST_MAP_HASHER, testonly.TransparentHash("A"), []byte("A")},
+		{
+			desc:         "maphasher",
+			HashStrategy: trillian.HashStrategy_TEST_MAP_HASHER,
+			index:        testonly.TransparentHash("A"),
+			value:        []byte("A"),
+		},
 	} {
-		tree, err := env.CreateMap(tc.HashStrategy)
+		treeParams := stestonly.MapTree
+		treeParams.HashStrategy = tc.HashStrategy
+		adminClient := trillian.NewTrillianAdminClient(env.ClientConn)
+		tree, err := adminClient.CreateTree(ctx, &trillian.CreateTreeRequest{
+			Tree: treeParams,
+		})
 		if err != nil {
-			t.Errorf("CreateMap(): %v", err)
+			t.Errorf("%v: CreateTree(): %v", tc.desc, err)
 			continue
 		}
+
 		mapID := tree.TreeId
 		hasher, err := hashers.NewMapHasher(tree.HashStrategy)
 		if err != nil {
-			t.Errorf("NewMapHasher(): %v", err)
+			t.Errorf("%v: NewMapHasher(): %v", tc.desc, err)
 			continue
 		}
 		client := trillian.NewTrillianMapClient(env.ClientConn)
@@ -82,7 +99,7 @@ func TestInclusionWithEnv(t *testing.T) {
 			MapId:  mapID,
 			Leaves: leaves,
 		}); err != nil {
-			t.Errorf("SetLeaves(): %v", err)
+			t.Errorf("%v: SetLeaves(): %v", tc.desc, err)
 			continue
 		}
 
@@ -96,7 +113,7 @@ func TestInclusionWithEnv(t *testing.T) {
 			Revision: -1,
 		})
 		if err != nil {
-			t.Errorf("GetLeaves(): %v", err)
+			t.Errorf("%v: GetLeaves(): %v", tc.desc, err)
 			continue
 		}
 
@@ -107,7 +124,7 @@ func TestInclusionWithEnv(t *testing.T) {
 			proof := m.GetInclusion()
 			if err := merkle.VerifyMapInclusionProof(mapID, index,
 				leafHash, rootHash, proof, hasher); err != nil {
-				t.Errorf("VerifyMapInclusionProof(): %v", err)
+				t.Errorf("%v: VerifyMapInclusionProof(): %v", tc.desc, err)
 			}
 		}
 	}

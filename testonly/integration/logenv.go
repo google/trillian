@@ -69,20 +69,6 @@ type LogEnv struct {
 	PublicKey crypto.PublicKey
 }
 
-// listen opens a random high numbered port for listening.
-func listen() (string, net.Listener, error) {
-	lis, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		return "", nil, err
-	}
-	_, port, err := net.SplitHostPort(lis.Addr().String())
-	if err != nil {
-		return "", nil, err
-	}
-	addr := "localhost:" + port
-	return addr, lis, nil
-}
-
 // NewLogEnv creates a fresh DB, log server, and client. The numSequencers parameter
 // indicates how many sequencers to run in parallel; if numSequencers is zero a
 // manually-controlled test sequencer is used.
