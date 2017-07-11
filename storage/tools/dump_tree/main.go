@@ -22,14 +22,20 @@ import (
 	"context"
 	"crypto"
 	"crypto/sha256"
+	"crypto/x509"
 	"flag"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/golang/glog"
+	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/google/trillian"
 	tc "github.com/google/trillian/crypto"
+	"github.com/google/trillian/crypto/keys"
+	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/log"
 	"github.com/google/trillian/merkle/rfc6962"
@@ -39,17 +45,20 @@ import (
 	"github.com/google/trillian/storage/memory"
 	"github.com/google/trillian/storage/storagepb"
 	"github.com/google/trillian/util"
-	"github.com/google/trillian/crypto/keyspb"
-	"github.com/google/trillian/crypto/keys"
-	"github.com/golang/protobuf/ptypes"
-	"crypto/x509"
 )
 
 var (
 	treeSizeFlag       = flag.Int("tree_size", 871, "The number of leaves to be added to the tree")
 	batchSizeFlag      = flag.Int("batch_size", 50, "The batch size for sequencing")
 	leafDataFormatFlag = flag.String("leaf_format", "Leaf %d", "The format string for leaf data")
+	latestRevisionFlag = flag.Bool("latest_revision", true, "If true outputs only the latest revision per subtree")
 )
+
+type treeandrev struct {
+	fullKey  string
+	subtree  *storagepb.SubtreeProto
+	revision int
+}
 
 // This is a copy of the logserver private key from the testdata directory
 var logPrivKeyPEM string = `
@@ -111,7 +120,6 @@ func getPublicKey(pem string) []byte {
 	}
 	return der
 }
-
 
 func createTree(as storage.AdminStorage) (*trillian.Tree, crypto.Signer) {
 	atx, err := as.Begin(context.TODO())
@@ -195,7 +203,42 @@ func main() {
 	}
 
 	// All leaves are now sequenced into the tree. The current state is what we need.
-	memory.DumpSubtrees(ls, tree.TreeId, func(k string, v *storagepb.SubtreeProto) {
-		fmt.Printf("%s: %s\n", k, v.String())
-	})
+	glog.Info("Producing output")
+
+	if *latestRevisionFlag {
+		vMap := make(map[string]treeandrev)
+
+		memory.DumpSubtrees(ls, tree.TreeId, func(k string, v *storagepb.SubtreeProto) {
+			// Relies on the btree key space for subtrees being /tree_id/subtree/<id>/<revision>
+			pieces := strings.Split(k, "/")
+			if got, want := len(pieces), 5; got != want {
+				glog.Fatalf("Wrong no of Btree subtree key segments. Got: %d, want: %d", got, want)
+			}
+
+			e := vMap[pieces[3]]
+			rev, err := strconv.Atoi(pieces[4])
+			if err != nil {
+				glog.Fatalf("Bad subtree key: %$", k)
+			}
+
+			if rev > e.revision {
+				vMap[pieces[3]] = treeandrev{
+					fullKey:  k,
+					subtree:  v,
+					revision: rev,
+				}
+			}
+		})
+
+		// The map should now contain the latest revisions per subtree
+		for _, v := range vMap {
+			fmt.Printf("%s: %s\n", v.fullKey, v.subtree.String())
+		}
+
+	} else {
+		memory.DumpSubtrees(ls, tree.TreeId, func(k string, v *storagepb.SubtreeProto) {
+			fmt.Printf("%s: %s\n", k, v.String())
+		})
+	}
+
 }
