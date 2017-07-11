@@ -16,7 +16,6 @@ package integration
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"testing"
 
@@ -28,8 +27,8 @@ import (
 
 	stestonly "github.com/google/trillian/storage/testonly"
 
-	_ "github.com/google/trillian/merkle/coniks"    // Register hasher
-	_ "github.com/google/trillian/merkle/maphasher" // Register hasher
+	_ "github.com/google/trillian/merkle/coniks"
+	_ "github.com/google/trillian/merkle/maphasher"
 )
 
 // createHashKV returns a []*trillian.MapLeaf formed by the mapping of index, value ...
@@ -39,18 +38,10 @@ func createMapLeaves(iv ...[]byte) []*trillian.MapLeaf {
 		panic(fmt.Sprintf("integration: createMapLeaves got odd number of iv pairs: %v", len(iv)))
 	}
 	r := []*trillian.MapLeaf{}
-	// Create a new MapLeaf for each pair of index / value pairs.
-	// Save the even items off to the side as index.
-	// Create new MapLeaves on the odd items (the value).
-	var index []byte
-	for i, b := range iv {
-		if i%2 == 0 {
-			index = b
-			continue
-		}
+	for i := 0; i < len(iv); i += 2 {
 		r = append(r, &trillian.MapLeaf{
-			Index:     index,
-			LeafValue: b,
+			Index:     iv[i],
+			LeafValue: iv[i+1],
 		})
 	}
 	return r
@@ -77,8 +68,7 @@ func TestInclusionWithEnv(t *testing.T) {
 	} {
 		treeParams := stestonly.MapTree
 		treeParams.HashStrategy = tc.HashStrategy
-		adminClient := trillian.NewTrillianAdminClient(env.ClientConn)
-		tree, err := adminClient.CreateTree(ctx, &trillian.CreateTreeRequest{
+		tree, err := env.AdminClient.CreateTree(ctx, &trillian.CreateTreeRequest{
 			Tree: treeParams,
 		})
 		if err != nil {
@@ -92,7 +82,7 @@ func TestInclusionWithEnv(t *testing.T) {
 			t.Errorf("%v: NewMapHasher(): %v", tc.desc, err)
 			continue
 		}
-		client := trillian.NewTrillianMapClient(env.ClientConn)
+		client := env.MapClient
 		leaves := createMapLeaves(tc.index, tc.value)
 
 		if _, err := client.SetLeaves(ctx, &trillian.SetMapLeavesRequest{
@@ -128,13 +118,4 @@ func TestInclusionWithEnv(t *testing.T) {
 			}
 		}
 	}
-}
-
-// h2b converts a hex string into []byte.
-func h2b(h string) []byte {
-	b, err := hex.DecodeString(h)
-	if err != nil {
-		panic("invalid hex string")
-	}
-	return b
 }

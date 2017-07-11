@@ -34,10 +34,14 @@ type MapEnv struct {
 	registry  extension.Registry
 	mapServer *server.TrillianMapServer
 
-	// Objects that need .Close(), in order of creation.
+	// Objects that need Close(), in order of creation.
 	DB         *sql.DB
 	grpcServer *grpc.Server
-	ClientConn *grpc.ClientConn
+	clientConn *grpc.ClientConn
+
+	// Public fields
+	MapClient   trillian.TrillianMapClient
+	AdminClient trillian.TrillianAdminClient
 }
 
 // NewMapEnv creates a fresh DB, map server, and client.
@@ -87,16 +91,18 @@ func NewMapEnvWithRegistry(ctx context.Context, testID string, registry extensio
 	}
 
 	return &MapEnv{
-		registry:   registry,
-		mapServer:  mapServer,
-		grpcServer: grpcServer,
-		ClientConn: cc,
+		registry:    registry,
+		mapServer:   mapServer,
+		grpcServer:  grpcServer,
+		clientConn:  cc,
+		MapClient:   trillian.NewTrillianMapClient(cc),
+		AdminClient: trillian.NewTrillianAdminClient(cc),
 	}, nil
 }
 
 // Close shuts down the server.
 func (env *MapEnv) Close() {
-	env.ClientConn.Close()
+	env.clientConn.Close()
 	env.grpcServer.GracefulStop()
 	if env.DB != nil {
 		env.DB.Close()
