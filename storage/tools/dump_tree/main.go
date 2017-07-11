@@ -23,12 +23,14 @@ import (
 	"crypto"
 	"crypto/sha256"
 	"crypto/x509"
+	"encoding/hex"
 	"flag"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/gogo/protobuf/proto"
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
@@ -45,7 +47,6 @@ import (
 	"github.com/google/trillian/storage/memory"
 	"github.com/google/trillian/storage/storagepb"
 	"github.com/google/trillian/util"
-	"encoding/hex"
 )
 
 var (
@@ -67,11 +68,11 @@ func summarizeProto(s *storagepb.SubtreeProto) string {
 		hex.EncodeToString(s.Prefix),
 		s.Depth,
 		len(s.Leaves),
-	  s.InternalNodeCount)
+		s.InternalNodeCount)
 }
 
 func fullProto(s *storagepb.SubtreeProto) string {
-	return s.String()
+	return proto.MarshalTextString(s)
 }
 
 // This is a copy of the logserver private key from the testdata directory
@@ -180,6 +181,7 @@ func main() {
 		nil,
 		quota.Noop())
 
+	// Create the initial tree head at size 0, which is required.
 	sequence(tree.TreeId, seq, 0)
 
 	glog.Info("Queuing work")
@@ -250,12 +252,12 @@ func main() {
 
 		// The map should now contain the latest revisions per subtree
 		for _, v := range vMap {
-			fmt.Printf("%s: %s\n", v.fullKey, of(v.subtree))
+			fmt.Printf("%s\n", of(v.subtree))
 		}
 
 	} else {
 		memory.DumpSubtrees(ls, tree.TreeId, func(k string, v *storagepb.SubtreeProto) {
-			fmt.Printf("%s: %s\n", k, of(v))
+			fmt.Printf("%s\n", of(v))
 		})
 	}
 }
