@@ -34,7 +34,7 @@ func (s subtreeHasPrefix) Matches(x interface{}) bool {
 		return false
 	}
 	subID := storage.NewNodeIDFromHash(st.Prefix)
-	return subID.Equivalent(s.expectedID)
+	return storage.Equal(&subID, &s.expectedID)
 }
 
 func (s subtreeHasPrefix) String() string {
@@ -50,7 +50,7 @@ func (m nodeIDEq) Matches(x interface{}) bool {
 	if !ok {
 		return false
 	}
-	return n.Equivalent(m.expectedID)
+	return storage.Equal(&n, &m.expectedID)
 }
 
 func (m nodeIDEq) String() string {

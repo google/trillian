@@ -471,9 +471,8 @@ func TestNodeEquivalent(t *testing.T) {
 			want: true,
 		},
 	} {
-		if got, want := tc.n1.Equivalent(tc.n2), tc.want; got != want {
-			t.Errorf("Equivalent(%v, %v): %v, want %v",
-				tc.n1, tc.n2, got, want)
+		if got, want := Equal(&tc.n1, &tc.n2), tc.want; got != want {
+			t.Errorf("Equal(%v, %v): %v, want %v", tc.n1, tc.n2, got, want)
 		}
 	}
 }

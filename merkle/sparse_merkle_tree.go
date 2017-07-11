@@ -370,7 +370,7 @@ func (s SparseMerkleTreeReader) RootAtRevision(ctx context.Context, rev int64) (
 		return nil, fmt.Errorf("expected 1 node, but got %d", len(nodes))
 	}
 	// Sanity check the nodeID
-	if !nodes[0].NodeID.Equivalent(rootNodeID) {
+	if !storage.Equal(&nodes[0].NodeID, &rootNodeID) {
 		return nil, fmt.Errorf("unexpected node returned with ID: %v", nodes[0].NodeID)
 	}
 	// Sanity check the revision
