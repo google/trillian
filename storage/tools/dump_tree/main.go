@@ -45,6 +45,7 @@ import (
 	"github.com/google/trillian/storage/memory"
 	"github.com/google/trillian/storage/storagepb"
 	"github.com/google/trillian/util"
+	"encoding/hex"
 )
 
 var (
@@ -52,12 +53,25 @@ var (
 	batchSizeFlag      = flag.Int("batch_size", 50, "The batch size for sequencing")
 	leafDataFormatFlag = flag.String("leaf_format", "Leaf %d", "The format string for leaf data")
 	latestRevisionFlag = flag.Bool("latest_revision", true, "If true outputs only the latest revision per subtree")
+	summaryFlag        = flag.Bool("summary", false, "If true outputs a brief summary per subtree, false dumps the whole proto")
 )
 
 type treeandrev struct {
 	fullKey  string
 	subtree  *storagepb.SubtreeProto
 	revision int
+}
+
+func summarizeProto(s *storagepb.SubtreeProto) string {
+	return fmt.Sprintf("p: %s d: %d lc: %d ic: %d",
+		hex.EncodeToString(s.Prefix),
+		s.Depth,
+		len(s.Leaves),
+	  s.InternalNodeCount)
+}
+
+func fullProto(s *storagepb.SubtreeProto) string {
+	return s.String()
 }
 
 // This is a copy of the logserver private key from the testdata directory
@@ -205,9 +219,13 @@ func main() {
 	// All leaves are now sequenced into the tree. The current state is what we need.
 	glog.Info("Producing output")
 
+	of := fullProto
+	if *summaryFlag {
+		of = summarizeProto
+	}
+
 	if *latestRevisionFlag {
 		vMap := make(map[string]treeandrev)
-
 		memory.DumpSubtrees(ls, tree.TreeId, func(k string, v *storagepb.SubtreeProto) {
 			// Relies on the btree key space for subtrees being /tree_id/subtree/<id>/<revision>
 			pieces := strings.Split(k, "/")
@@ -232,13 +250,12 @@ func main() {
 
 		// The map should now contain the latest revisions per subtree
 		for _, v := range vMap {
-			fmt.Printf("%s: %s\n", v.fullKey, v.subtree.String())
+			fmt.Printf("%s: %s\n", v.fullKey, of(v.subtree))
 		}
 
 	} else {
 		memory.DumpSubtrees(ls, tree.TreeId, func(k string, v *storagepb.SubtreeProto) {
-			fmt.Printf("%s: %s\n", k, v.String())
+			fmt.Printf("%s: %s\n", k, of(v))
 		})
 	}
-
 }
