@@ -51,11 +51,11 @@ func TestRun(t *testing.T) {
 	pemPath, pemPassword := "testdata/log-rpc-server.privkey.pem", "towel"
 	pemSigner, err := keys.NewFromPrivatePEMFile(pemPath, pemPassword)
 	if err != nil {
-		t.Fatalf("NewFromPrivatPEM(): %v", err)
+		t.Fatalf("NewFromPrivatePEM(): %v", err)
 	}
 	pemDer, err := keys.MarshalPrivateKey(pemSigner)
 	if err != nil {
-		t.Fatalf("MashalPrivateKey(): %v", err)
+		t.Fatalf("MarshalPrivateKey(): %v", err)
 	}
 	anyPrivKey, err := ptypes.MarshalAny(&keyspb.PrivateKey{Der: pemDer})
 	if err != nil {
