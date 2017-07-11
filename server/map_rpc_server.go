@@ -57,13 +57,13 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 
 	tree, hasher, err := t.getTreeAndHasher(ctx, mapID, true /* readonly */)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not get map %v: %v", mapID, err)
 	}
 	ctx = trees.NewContext(ctx, tree)
 
 	tx, err := t.registry.MapStorage.SnapshotForTree(ctx, mapID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not create database snapshot: %v", err)
 	}
 	defer tx.Close()
 
@@ -72,13 +72,13 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 		// need to know the newest published revision
 		r, err := tx.LatestSignedMapRoot(ctx)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("could not fetch the latest SignedMapRoot: %v", err)
 		}
 		root = &r
 	} else {
 		r, err := tx.GetSignedMapRoot(ctx, req.Revision)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("could not fetch SignedMapRoot %v: %v", req.Revision, err)
 		}
 		root = &r
 	}
@@ -96,7 +96,7 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 		// Fetch the leaf if it exists.
 		leaves, err := tx.Get(ctx, root.MapRevision, [][]byte{index})
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("could not fetch leaf %x: %v", index, err)
 		}
 		var leaf *trillian.MapLeaf
 		if len(leaves) == 1 {
@@ -113,7 +113,7 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 		// Fetch the proof regardless of whether the leaf exists.
 		proof, err := smtReader.InclusionProof(ctx, root.MapRevision, index)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("could not get inclusion proof for leaf %x: %v", index, err)
 		}
 
 		inclusions = append(inclusions, &trillian.MapLeafInclusion{
@@ -124,7 +124,7 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 	glog.Infof("%v: wanted %v leaves, found %v", mapID, len(req.Index), found)
 
 	if err := tx.Commit(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not commit db transaction: %v", err)
 	}
 
 	return &trillian.GetMapLeavesResponse{
