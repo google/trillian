@@ -16,13 +16,19 @@
 // log tree of a particular size using known leaf data and then dumps out the resulting
 // SubTree protos for examination and debugging. It does not require any actual storage
 // to be configured.
+//
+// The format for recordio output is as defined in:
+// https://github.com/google/or-tools/blob/master/ortools/base/recordio.h
+// This program always outputs uncompressed records.
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto"
 	"crypto/sha256"
 	"crypto/x509"
+	"encoding/binary"
 	"encoding/hex"
 	"flag"
 	"fmt"
@@ -49,12 +55,15 @@ import (
 	"github.com/google/trillian/util"
 )
 
+const recordIOMagic int32 = 0x3ed7230a
+
 var (
 	treeSizeFlag       = flag.Int("tree_size", 871, "The number of leaves to be added to the tree")
 	batchSizeFlag      = flag.Int("batch_size", 50, "The batch size for sequencing")
 	leafDataFormatFlag = flag.String("leaf_format", "Leaf %d", "The format string for leaf data")
 	latestRevisionFlag = flag.Bool("latest_revision", true, "If true outputs only the latest revision per subtree")
 	summaryFlag        = flag.Bool("summary", false, "If true outputs a brief summary per subtree, false dumps the whole proto")
+	recordIOFlag       = flag.Bool("recordio", false, "If true outputs in recordio format")
 )
 
 type treeandrev struct {
@@ -64,7 +73,7 @@ type treeandrev struct {
 }
 
 func summarizeProto(s *storagepb.SubtreeProto) string {
-	return fmt.Sprintf("p: %s d: %d lc: %d ic: %d",
+	return fmt.Sprintf("p: %s d: %d lc: %d ic: %d\n",
 		hex.EncodeToString(s.Prefix),
 		s.Depth,
 		len(s.Leaves),
@@ -72,7 +81,28 @@ func summarizeProto(s *storagepb.SubtreeProto) string {
 }
 
 func fullProto(s *storagepb.SubtreeProto) string {
-	return proto.MarshalTextString(s)
+	return fmt.Sprintf("%s\n", proto.MarshalTextString(s))
+}
+
+func recordIOProto(s *storagepb.SubtreeProto) string {
+	buf := new(bytes.Buffer)
+	data, err := proto.Marshal(s)
+	if err != nil {
+		glog.Fatalf("Failed to marshal subtree proto: %v", err)
+	}
+	dataLen := int64(len(data))
+	err = binary.Write(buf, binary.BigEndian, dataLen)
+	if err != nil {
+		glog.Fatalf("binary.Write failed: %v", err)
+	}
+	var compLen int64 = 0
+	err = binary.Write(buf, binary.BigEndian, compLen)
+	if err != nil {
+		glog.Fatalf("binary.Write failed: %v", err)
+	}
+	buf.Write(data)
+
+	return buf.String()
 }
 
 // This is a copy of the logserver private key from the testdata directory
@@ -169,6 +199,10 @@ func createTree(as storage.AdminStorage) (*trillian.Tree, crypto.Signer) {
 func main() {
 	flag.Parse()
 
+	if *summaryFlag && *recordIOFlag {
+		glog.Fatal("-summary and -recordio are mutually exclusive flags")
+	}
+
 	glog.Info("Initializing memory log storage")
 	ls := memory.NewLogStorage(monitoring.InertMetricFactory{})
 	as := memory.NewAdminStorage(ls)
@@ -225,6 +259,15 @@ func main() {
 	if *summaryFlag {
 		of = summarizeProto
 	}
+	if *recordIOFlag {
+		of = recordIOProto
+		buf := new(bytes.Buffer)
+		err := binary.Write(buf, binary.BigEndian, recordIOMagic)
+		if err != nil {
+			glog.Fatalf("binary.Write failed: %v", err)
+		}
+		fmt.Print(buf.String())
+	}
 
 	if *latestRevisionFlag {
 		vMap := make(map[string]treeandrev)
@@ -252,12 +295,11 @@ func main() {
 
 		// The map should now contain the latest revisions per subtree
 		for _, v := range vMap {
-			fmt.Printf("%s\n", of(v.subtree))
+			fmt.Print(of(v.subtree))
 		}
-
 	} else {
 		memory.DumpSubtrees(ls, tree.TreeId, func(k string, v *storagepb.SubtreeProto) {
-			fmt.Printf("%s\n", of(v))
+			fmt.Print(of(v))
 		})
 	}
 }
