@@ -326,7 +326,6 @@ func TestSequenceBatch(t *testing.T) {
 				dequeuedLeaves:      noLeaves,
 				skipStoreSignedRoot: true,
 			},
-			wantCount: 0,
 		},
 		{
 			desc: "nothing-queued-within-max",
@@ -339,7 +338,6 @@ func TestSequenceBatch(t *testing.T) {
 				skipStoreSignedRoot: true,
 			},
 			maxRootDuration: 15 * time.Millisecond,
-			wantCount:       0,
 		},
 		{
 			desc: "nothing-queued-after-max",
@@ -356,7 +354,6 @@ func TestSequenceBatch(t *testing.T) {
 				storeSignedRoot:  &newRoot16,
 			},
 			maxRootDuration: 9 * time.Millisecond,
-			wantCount:       0,
 		},
 		{
 			desc: "nothing-queued-on-max",
@@ -373,7 +370,6 @@ func TestSequenceBatch(t *testing.T) {
 				storeSignedRoot:  &newRoot16,
 			},
 			maxRootDuration: 10 * time.Millisecond,
-			wantCount:       0,
 		},
 		{
 			// Tests that the guard interval is being passed to storage correctly.
@@ -514,12 +510,13 @@ func TestSequenceBatch(t *testing.T) {
 	for _, test := range tests {
 		func() {
 			ctrl := gomock.NewController(t)
-			if test.wantCount > 0 {
-				qm := quota.NewMockManager(ctrl)
-				qm.EXPECT().PutTokens(gomock.Any(), test.wantCount, specs).Return(nil)
-				test.params.qm = qm
-			}
 			defer ctrl.Finish()
+
+			qm := quota.NewMockManager(ctrl)
+			test.params.qm = qm
+			if test.wantCount > 0 {
+				qm.EXPECT().PutTokens(gomock.Any(), test.wantCount, specs).Return(nil)
+			}
 			c, ctx := createTestContext(ctrl, test.params)
 
 			got, err := c.sequencer.SequenceBatch(ctx, test.params.logID, 1, test.guardWindow, test.maxRootDuration)
@@ -533,6 +530,120 @@ func TestSequenceBatch(t *testing.T) {
 			}
 			if got != test.wantCount {
 				t.Errorf("SequenceBatch(%+v)=%v,nil; want %v,nil", test.params, got, test.wantCount)
+			}
+		}()
+	}
+}
+
+func TestSequenceBatch_PutTokens(t *testing.T) {
+	cryptoSigner, err := newSignerWithFixedSig(expectedSignedRoot.Signature)
+	if err != nil {
+		t.Fatalf("Failed to create test signer (%v)", err)
+	}
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	// Needed to create a signer
+	hasher := rfc6962.DefaultHasher
+	ts := util.NewFakeTimeSource(fakeTimeForTest)
+	signer := crypto.NewSHA256Signer(cryptoSigner)
+
+	// Needed for SequenceBatch calls
+	const treeID int64 = 1234
+	const limit = 1000
+	const guardWindow = 10 * time.Second
+	const maxRootDuration = 1 * time.Hour
+
+	// Expected PutTokens specs
+	specs := []quota.Spec{
+		{Group: quota.Tree, Kind: quota.Read, TreeID: treeID},
+		{Group: quota.Tree, Kind: quota.Write, TreeID: treeID},
+		{Group: quota.Global, Kind: quota.Read},
+		{Group: quota.Global, Kind: quota.Write},
+	}
+
+	oneHundredLeaves := make([]*trillian.LogLeaf, 100)
+	for i := range oneHundredLeaves {
+		oneHundredLeaves[i] = &trillian.LogLeaf{
+			LeafValue: []byte(fmt.Sprintf("leaf-%v", i)),
+		}
+	}
+
+	tests := []struct {
+		desc                   string
+		leaves                 []*trillian.LogLeaf
+		quotaFactor            float64
+		wantLeaves, wantTokens int
+	}{
+		{desc: "noLeaves"},
+		{
+			desc:       "singleLeaf",
+			leaves:     []*trillian.LogLeaf{getLeaf42()},
+			wantLeaves: 1,
+			wantTokens: 1,
+		},
+		{
+			desc:        "badFactor",
+			leaves:      oneHundredLeaves,
+			quotaFactor: 0.7, // factor <1 is normalized to 1
+			wantLeaves:  100,
+			wantTokens:  100,
+		},
+		{
+			desc:        "factorOne",
+			leaves:      oneHundredLeaves,
+			quotaFactor: 1,
+			wantLeaves:  100,
+			wantTokens:  100,
+		},
+		{
+			desc:        "10%-factor",
+			leaves:      oneHundredLeaves,
+			quotaFactor: 1.1,
+			wantLeaves:  100,
+			wantTokens:  110,
+		},
+	}
+
+	any := gomock.Any()
+	ctx := context.Background()
+	for _, test := range tests {
+		func() {
+			if test.quotaFactor != 0 {
+				defer func(qf float64) {
+					QuotaIncreaseFactor = qf
+				}(QuotaIncreaseFactor)
+				QuotaIncreaseFactor = test.quotaFactor
+			}
+
+			// Correctness of operation is tested elsewhere. The focus here is the interaction
+			// between Sequencer and quota.Manager.
+			logTX := storage.NewMockLogTreeTX(ctrl)
+			logTX.EXPECT().DequeueLeaves(any, any, any).Return(test.leaves, nil)
+			logTX.EXPECT().LatestSignedLogRoot(any).Return(testRoot16, nil)
+			logTX.EXPECT().WriteRevision().AnyTimes().Return(testRoot16.TreeRevision + 1)
+			logTX.EXPECT().UpdateSequencedLeaves(any, any).AnyTimes().Return(nil)
+			logTX.EXPECT().SetMerkleNodes(any, any).AnyTimes().Return(nil)
+			logTX.EXPECT().StoreSignedLogRoot(any, any).AnyTimes().Return(nil)
+			logTX.EXPECT().Commit().Return(nil)
+			logTX.EXPECT().Close().Return(nil)
+			logStorage := storage.NewMockLogStorage(ctrl)
+			logStorage.EXPECT().BeginForTree(any, any).Return(logTX, nil)
+
+			qm := quota.NewMockManager(ctrl)
+			if test.wantTokens > 0 {
+				qm.EXPECT().PutTokens(any, test.wantTokens, specs)
+			}
+
+			sequencer := NewSequencer(hasher, ts, logStorage, signer, nil /* mf */, qm)
+			leaves, err := sequencer.SequenceBatch(ctx, treeID, limit, guardWindow, maxRootDuration)
+			if err != nil {
+				t.Errorf("%v: SequenceBatch() returned err = %v", test.desc, err)
+				return
+			}
+			if leaves != test.wantLeaves {
+				t.Errorf("%v: SequenceBatch() returned %v leaves, want = %v", test.desc, leaves, test.wantLeaves)
 			}
 		}()
 	}
