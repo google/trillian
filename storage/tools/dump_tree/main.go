@@ -73,7 +73,7 @@ type treeandrev struct {
 }
 
 func summarizeProto(s *storagepb.SubtreeProto) string {
-	return fmt.Sprintf("p: %s d: %d lc: %d ic: %d\n",
+	return fmt.Sprintf("p: %-32s d: %d lc: %3d ic: %3d\n",
 		hex.EncodeToString(s.Prefix),
 		s.Depth,
 		len(s.Leaves),
@@ -95,7 +95,7 @@ func recordIOProto(s *storagepb.SubtreeProto) string {
 	if err != nil {
 		glog.Fatalf("binary.Write failed: %v", err)
 	}
-	var compLen int64 = 0
+	var compLen int64
 	err = binary.Write(buf, binary.BigEndian, compLen)
 	if err != nil {
 		glog.Fatalf("binary.Write failed: %v", err)
@@ -106,7 +106,7 @@ func recordIOProto(s *storagepb.SubtreeProto) string {
 }
 
 // This is a copy of the logserver private key from the testdata directory
-var logPrivKeyPEM string = `
+var logPrivKeyPEM = `
 -----BEGIN EC PRIVATE KEY-----
 Proc-Type: 4,ENCRYPTED
 DEK-Info: DES-CBC,D95ECC664FF4BDEC
@@ -117,7 +117,7 @@ S9+/31whWcH/FLeLJx4cBzvhgCtfquwA+s5ojeLYYsk=
 -----END EC PRIVATE KEY-----`
 
 // And the corresponding public key
-var logPubKeyPEM string = `
+var logPubKeyPEM = `
 -----BEGIN PUBLIC KEY-----
 MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEywnWicNEQ8bn3GXcGpA+tiU4VL70
 Ws9xezgQPrg96YGsFrF6KYG68iqyHDlQ+4FWuKfGKXHn3ooVtB/pfawb5Q==
@@ -281,7 +281,7 @@ func main() {
 			e := vMap[pieces[3]]
 			rev, err := strconv.Atoi(pieces[4])
 			if err != nil {
-				glog.Fatalf("Bad subtree key: %$", k)
+				glog.Fatalf("Bad subtree key: %v", k)
 			}
 
 			if rev > e.revision {
