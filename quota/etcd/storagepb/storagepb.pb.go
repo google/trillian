@@ -42,7 +42,7 @@ const (
 	Config_UNKNOWN_CONFIG_STATE Config_State = 0
 	// Quota is enabled.
 	Config_ENABLED Config_State = 1
-	// Quota is disabled (considered infite).
+	// Quota is disabled (considered infinite).
 	Config_DISABLED Config_State = 2
 )
 
