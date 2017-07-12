@@ -67,6 +67,7 @@ var (
 	leafDataFormatFlag  = flag.String("leaf_format", "Leaf %d", "The format string for leaf data")
 	latestRevisionFlag  = flag.Bool("latest_revision", true, "If true outputs only the latest revision per subtree")
 	summaryFlag         = flag.Bool("summary", false, "If true outputs a brief summary per subtree, false dumps the whole proto")
+	hexKeysFlag         = flag.Bool("hex_keys", false, "If true shows proto keys as hex rather than base64")
 	leafHashesFlag      = flag.Bool("leaf_hashes", false, "If true the summary output includes leaf hashes")
 	recordIOFlag        = flag.Bool("recordio", false, "If true outputs in recordio format")
 	rebuildInternalFlag = flag.Bool("rebuild", true, "If true rebuilds internal nodes + root hash from leaves")
@@ -357,12 +358,18 @@ func main() {
 			if *rebuildInternalFlag {
 				repopFunc(v.subtree)
 			}
+			if *hexKeysFlag {
+				hexKeys(v.subtree)
+			}
 			fmt.Print(of(v.subtree))
 		}
 	} else {
 		memory.DumpSubtrees(ls, tree.TreeId, func(k string, v *storagepb.SubtreeProto) {
 			if *rebuildInternalFlag {
 				repopFunc(v)
+			}
+			if *hexKeysFlag {
+				hexKeys(v)
 			}
 			fmt.Print(of(v))
 		})
@@ -427,4 +434,24 @@ func dumpLeaves(ls storage.LogStorage, treeID int64, ts int) {
 		}
 		fmt.Printf("%6d:%s\n", l, leaves[0].LeafValue)
 	}
+}
+
+func hexMap(in map[string][]byte) map[string][]byte {
+	m := make(map[string][]byte)
+
+	for k, v := range in {
+		glog.Infof("Leaf: %v %v", k, v)
+		unb64, err := base64.StdEncoding.DecodeString(k)
+		if err != nil {
+			glog.Fatalf("Could not decode key as base 64: %s %v", k, err)
+		}
+		m[hex.EncodeToString(unb64)] = v
+	}
+
+	return m
+}
+
+func hexKeys(s *storagepb.SubtreeProto) {
+	s.Leaves = hexMap(s.Leaves)
+	s.InternalNodes = hexMap(s.InternalNodes)
 }
