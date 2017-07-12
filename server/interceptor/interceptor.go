@@ -59,8 +59,10 @@ func (i *TrillianInterceptor) UnaryInterceptor(ctx context.Context, req interfac
 		// TODO(codingllama): Add auth interception
 	}
 
-	if err := i.QuotaManager.GetTokens(ctx, 1 /* numTokens */, rpcInfo.specs); err != nil {
-		return nil, status.Errorf(codes.ResourceExhausted, "quota exhausted: %v", err)
+	if rpcInfo.tokens > 0 {
+		if err := i.QuotaManager.GetTokens(ctx, rpcInfo.tokens, rpcInfo.specs); err != nil {
+			return nil, status.Errorf(codes.ResourceExhausted, "quota exhausted: %v", err)
+		}
 	}
 
 	return handler(ctx, req)
@@ -77,6 +79,9 @@ type rpcInfo struct {
 
 	// specs contains the quota specifications for this RPC.
 	specs []quota.Spec
+
+	// tokens is number of quota tokens consumed by this request.
+	tokens int
 }
 
 // getRPCInfo returns the rpcInfo for the given request, or an error if the request is not mapped.
@@ -126,29 +131,38 @@ func getRPCInfo(req interface{}, quotaUser string) (*rpcInfo, error) {
 		}
 	}
 
+	tokens := 1
+	switch req := req.(type) {
+	case logLeavesRequest:
+		tokens = len(req.GetLeaves())
+	case mapLeavesRequest:
+		tokens = len(req.GetLeaves())
+	}
+
 	return &rpcInfo{
 		treeID: treeID,
 		opts:   trees.GetOpts{TreeType: treeType, Readonly: readonly},
 		specs:  specs,
+		tokens: tokens,
 	}, nil
 }
 
 func getRequestInfo(req interface{}) (trillian.TreeType, bool, error) {
-	if ok, readonly := getAdminRequestInfo(req); ok {
+	if readonly, ok := getAdminRequestInfo(req); ok {
 		return trillian.TreeType_UNKNOWN_TREE_TYPE, readonly, nil
 	}
-	if ok, readonly := getLogRequestInfo(req); ok {
+	if readonly, ok := getLogRequestInfo(req); ok {
 		return trillian.TreeType_LOG, readonly, nil
 	}
-	if ok, readonly := getMapRequestInfo(req); ok {
+	if readonly, ok := getMapRequestInfo(req); ok {
 		return trillian.TreeType_MAP, readonly, nil
 	}
 	return trillian.TreeType_UNKNOWN_TREE_TYPE, false, fmt.Errorf("unmapped request type: %T", req)
 }
 
 func getAdminRequestInfo(req interface{}) (bool, bool) {
-	isAdmin := true
 	readonly := false
+	ok := true
 	switch req.(type) {
 	case *trillian.GetTreeRequest,
 		*trillian.ListTreesRequest:
@@ -157,14 +171,14 @@ func getAdminRequestInfo(req interface{}) (bool, bool) {
 		*trillian.DeleteTreeRequest,
 		*trillian.UpdateTreeRequest:
 	default:
-		isAdmin = false
+		ok = false
 	}
-	return isAdmin, readonly
+	return readonly, ok
 }
 
 func getLogRequestInfo(req interface{}) (bool, bool) {
-	isLog := true
 	readonly := false
+	ok := true
 	switch req.(type) {
 	case *trillian.GetConsistencyProofRequest,
 		*trillian.GetEntryAndProofRequest,
@@ -178,14 +192,14 @@ func getLogRequestInfo(req interface{}) (bool, bool) {
 	case *trillian.QueueLeafRequest,
 		*trillian.QueueLeavesRequest:
 	default:
-		isLog = false
+		ok = false
 	}
-	return isLog, readonly
+	return readonly, ok
 }
 
 func getMapRequestInfo(req interface{}) (bool, bool) {
-	isMap := true
 	readonly := false
+	ok := true
 	switch req.(type) {
 	case *trillian.GetMapLeavesRequest,
 		*trillian.GetSignedMapRootByRevisionRequest,
@@ -193,9 +207,9 @@ func getMapRequestInfo(req interface{}) (bool, bool) {
 		readonly = true
 	case *trillian.SetMapLeavesRequest:
 	default:
-		isMap = false
+		ok = false
 	}
-	return isMap, readonly
+	return readonly, ok
 }
 
 type treeIDRequest interface {
@@ -212,6 +226,14 @@ type logIDRequest interface {
 
 type mapIDRequest interface {
 	GetMapId() int64
+}
+
+type logLeavesRequest interface {
+	GetLeaves() []*trillian.LogLeaf
+}
+
+type mapLeavesRequest interface {
+	GetLeaves() []*trillian.MapLeaf
 }
 
 // Combine combines unary interceptors.
