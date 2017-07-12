@@ -341,7 +341,7 @@ func (l *LogOperationManager) getLogsAndExecutePass(ctx context.Context) error {
 				start := time.Now()
 				count, err := l.logOperation.ExecutePass(ctx, logID, &l.info)
 				if err != nil {
-					glog.Warningf("ExecutePass(%v) failed: %v", logID, err)
+					glog.Errorf("ExecutePass(%v) failed: %v", logID, err)
 					continue
 				}
 
