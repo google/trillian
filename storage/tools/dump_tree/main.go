@@ -71,6 +71,7 @@ var (
 	recordIOFlag        = flag.Bool("recordio", false, "If true outputs in recordio format")
 	rebuildInternalFlag = flag.Bool("rebuild", true, "If true rebuilds internal nodes + root hash from leaves")
 	traverseFlag        = flag.Bool("traverse", false, "If true dumps a tree traversal via coord space, else raw subtrees")
+	dumpLeavesFlag      = flag.Bool("dump_leaves", false, "If true dumps the leaf data from the tree via the API")
 )
 
 type treeandrev struct {
@@ -302,6 +303,11 @@ func main() {
 		return
 	}
 
+	if *dumpLeavesFlag {
+		dumpLeaves(ls, tree.TreeId, *treeSizeFlag)
+		return
+	}
+
 	of := fullProto
 	if *summaryFlag {
 		of = summarizeProto
@@ -400,5 +406,25 @@ func traverseTreeStorage(ls storage.LogStorage, treeID int64, ts int, rev int64)
 		nodesAtLevel = nodesAtLevel >> 1
 		level++
 		fmt.Println()
+	}
+}
+
+func dumpLeaves(ls storage.LogStorage, treeID int64, ts int) {
+	tx, err := ls.SnapshotForTree(context.TODO(), treeID)
+	if err != nil {
+		glog.Fatalf("SnapshotForTree: %v", err)
+	}
+	defer func() {
+		if err := tx.Commit(); err != nil {
+			glog.Fatalf("TX Commit(): %v", err)
+		}
+	}()
+
+	for l := int64(0); l < int64(ts); l++ {
+		leaves, err := tx.GetLeavesByIndex(context.TODO(), []int64{l})
+		if err != nil {
+			glog.Fatalf("GetLeavesByIndex for index %d: %v", l, err)
+		}
+		fmt.Printf("%6d:%s\n", l, leaves[0].LeafValue)
 	}
 }
