@@ -22,13 +22,11 @@ import (
 	"os"
 	"time"
 
-	_ "github.com/go-sql-driver/mysql" // Load MySQL driver
 	"github.com/golang/glog"
 	"github.com/google/trillian/cmd"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/extension"
-	_ "github.com/google/trillian/merkle/objhasher" // Load hashers
-	_ "github.com/google/trillian/merkle/rfc6962"   // Load hashers
+	"github.com/google/trillian/log"
 	"github.com/google/trillian/monitoring/prometheus"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/server"
@@ -37,6 +35,10 @@ import (
 	"github.com/google/trillian/util/etcd"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"golang.org/x/net/context"
+
+	_ "github.com/go-sql-driver/mysql"              // Load MySQL driver
+	_ "github.com/google/trillian/merkle/objhasher" // Load hashers
+	_ "github.com/google/trillian/merkle/rfc6962"   // Load hashers
 )
 
 var (
@@ -50,6 +52,8 @@ var (
 	etcdServers              = flag.String("etcd_servers", "", "A comma-separated list of etcd servers")
 	etcdHTTPService          = flag.String("etcd_http_service", "trillian-logsigner-http", "Service name to announce our HTTP endpoint under")
 	lockDir                  = flag.String("lock_file_path", "/test/multimaster", "etcd lock file directory path")
+	quotaIncreaseFactor      = flag.Float64("quota_increase_factor", log.QuotaIncreaseFactor,
+		"Increase factor for tokens replenished by sequencing-based quotas (1 means a 1:1 relationship between sequenced leaves and replenished tokens).")
 
 	preElectionPause    = flag.Duration("pre_election_pause", 1*time.Second, "Maximum time to wait before starting elections")
 	masterCheckInterval = flag.Duration("master_check_interval", 5*time.Second, "Interval between checking mastership still held")
@@ -127,6 +131,7 @@ func main() {
 	// Start the sequencing loop, which will run until we terminate the process. This controls
 	// both sequencing and signing.
 	// TODO(Martin2112): Should respect read only mode and the flags in tree control etc
+	log.QuotaIncreaseFactor = *quotaIncreaseFactor
 	sequencerManager := server.NewSequencerManager(registry, *sequencerGuardWindowFlag)
 	info := server.LogOperationInfo{
 		Registry:            registry,
