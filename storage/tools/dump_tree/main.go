@@ -70,6 +70,7 @@ var (
 	leafHashesFlag      = flag.Bool("leaf_hashes", false, "If true the summary output includes leaf hashes")
 	recordIOFlag        = flag.Bool("recordio", false, "If true outputs in recordio format")
 	rebuildInternalFlag = flag.Bool("rebuild", true, "If true rebuilds internal nodes + root hash from leaves")
+	traverseFlag        = flag.Bool("traverse", false, "If true dumps a tree traversal via coord space, else raw subtrees")
 )
 
 type treeandrev struct {
@@ -266,10 +267,12 @@ func main() {
 	}
 	glog.Info("Finished queueing")
 
-	// There might be a leftover batch
-	if left := *treeSizeFlag % *batchSizeFlag; left != 0 {
-		sequence(tree.TreeId, seq, left)
+	// Handle anything left over
+	left := *treeSizeFlag % *batchSizeFlag;
+	if left == 0 {
+		left = *batchSizeFlag
 	}
+	sequence(tree.TreeId, seq, left)
 
 	// Read the latest STH back
 	tx, err := ls.BeginForTree(context.TODO(), tree.TreeId)
@@ -282,7 +285,10 @@ func main() {
 		glog.Fatalf("LatestSignedLogRoot: %v", err)
 	}
 
-	glog.Infof("STH at size %d has hash %s", sth.TreeSize, hex.EncodeToString(sth.RootHash))
+	glog.Infof("STH at size %d has hash %s@%d",
+		sth.TreeSize,
+		hex.EncodeToString(sth.RootHash),
+		sth.TreeRevision)
 
 	if err := tx.Commit(); err != nil {
 		glog.Fatalf("TX commit: %v", err)
@@ -290,6 +296,11 @@ func main() {
 
 	// All leaves are now sequenced into the tree. The current state is what we need.
 	glog.Info("Producing output")
+
+	if *traverseFlag {
+		traverseTreeStorage(ls, tree.TreeId, *treeSizeFlag, sth.TreeRevision)
+		return
+	}
 
 	of := fullProto
 	if *summaryFlag {
@@ -349,5 +360,45 @@ func main() {
 			}
 			fmt.Print(of(v))
 		})
+	}
+}
+
+func traverseTreeStorage(ls storage.LogStorage, treeID int64, ts int, rev int64) {
+	level := int64(0);
+	nodesAtLevel := int64(ts)
+
+	tx, err := ls.SnapshotForTree(context.TODO(), treeID)
+	if err != nil {
+		glog.Fatalf("SnapshotForTree: %v", err)
+	}
+	defer func() {
+		if err := tx.Commit(); err != nil {
+			glog.Fatalf("TX Commit(): %v", err)
+		}
+	}()
+
+	for nodesAtLevel > 0 {
+		for node := int64(0); node < nodesAtLevel; node++ {
+			// We're going to request one node at a time, which would normally be slow but we have
+			// the tree in RAM so it's not a real problem.
+			nodeID, err := storage.NewNodeIDForTreeCoords(level, node, 64)
+			if err != nil {
+				glog.Fatalf("NewNodeIDForTreeCoords: (%d, %d): got: %v, want: nil", level, node, err)
+			}
+
+			nodes, err := tx.GetMerkleNodes(context.TODO(), rev, []storage.NodeID{nodeID})
+			if err != nil {
+				glog.Fatalf("GetMerkleNodes: %s: %v", nodeID.CoordString(), err)
+			}
+			if len(nodes) != 1 {
+				glog.Fatalf("GetMerkleNodes: %s: want 1 node got: %v", nodeID.CoordString(), nodes)
+			}
+
+			fmt.Printf("%6d %6d -> %s\n", level, node, hex.EncodeToString(nodes[0].Hash))
+		}
+
+		nodesAtLevel = nodesAtLevel >> 1
+		level++
+		fmt.Println()
 	}
 }
