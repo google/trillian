@@ -28,6 +28,7 @@ import (
 	"crypto"
 	"crypto/sha256"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
 	"flag"
@@ -57,6 +58,7 @@ import (
 	"github.com/google/trillian/util"
 )
 
+// A 32 bit magic number that is written at the start of record io files to identify the format.
 const recordIOMagic int32 = 0x3ed7230a
 
 var (
@@ -65,6 +67,7 @@ var (
 	leafDataFormatFlag  = flag.String("leaf_format", "Leaf %d", "The format string for leaf data")
 	latestRevisionFlag  = flag.Bool("latest_revision", true, "If true outputs only the latest revision per subtree")
 	summaryFlag         = flag.Bool("summary", false, "If true outputs a brief summary per subtree, false dumps the whole proto")
+	leafHashesFlag      = flag.Bool("leaf_hashes", false, "If true the summary output includes leaf hashes")
 	recordIOFlag        = flag.Bool("recordio", false, "If true outputs in recordio format")
 	rebuildInternalFlag = flag.Bool("rebuild", true, "If true rebuilds internal nodes + root hash from leaves")
 )
@@ -76,12 +79,24 @@ type treeandrev struct {
 }
 
 func summarizeProto(s *storagepb.SubtreeProto) string {
-	return fmt.Sprintf("p: %-20s d: %d lc: %3d ic: %3d rh:%s\n",
+	summary := fmt.Sprintf("p: %-20s d: %d lc: %3d ic: %3d rh:%s\n",
 		hex.EncodeToString(s.Prefix),
 		s.Depth,
 		len(s.Leaves),
 		s.InternalNodeCount,
 		hex.EncodeToString(s.RootHash))
+
+	if *leafHashesFlag {
+		for prefix, hash := range s.Leaves {
+			dp, err := base64.StdEncoding.DecodeString(prefix)
+			if err != nil {
+				glog.Fatalf("Failed to decode leaf prefix: %v", err)
+			}
+			summary += fmt.Sprintf("%s -> %s\n", hex.EncodeToString(dp), hex.EncodeToString(hash))
+		}
+	}
+
+	return summary
 }
 
 func fullProto(s *storagepb.SubtreeProto) string {
