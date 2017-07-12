@@ -59,7 +59,7 @@ func (i *TrillianInterceptor) UnaryInterceptor(ctx context.Context, req interfac
 		// TODO(codingllama): Add auth interception
 	}
 
-	if rpcInfo.tokens > 0 {
+	if len(rpcInfo.specs) > 0 && rpcInfo.tokens > 0 {
 		if err := i.QuotaManager.GetTokens(ctx, rpcInfo.tokens, rpcInfo.specs); err != nil {
 			return nil, status.Errorf(codes.ResourceExhausted, "quota exhausted: %v", err)
 		}
@@ -118,12 +118,18 @@ func getRPCInfo(req interface{}, quotaUser string) (*rpcInfo, error) {
 		kind = quota.Write
 	}
 	var specs []quota.Spec
-	if treeID == 0 {
+	switch {
+	case treeType == trillian.TreeType_UNKNOWN_TREE_TYPE:
+		// Don't impose quota on Admin requests.
+		// Sequencing-based replenishment is not tied in any way to Admin, so charging tokens for it
+		// leads to direct leakage.
+		// Admin is meant to be internal and unlikely to be a source of high QPS, in any case.
+	case treeID == 0:
 		specs = []quota.Spec{
 			{Group: quota.User, Kind: kind, User: quotaUser},
 			{Group: quota.Global, Kind: kind},
 		}
-	} else {
+	default:
 		specs = []quota.Spec{
 			{Group: quota.User, Kind: kind, User: quotaUser},
 			{Group: quota.Tree, Kind: kind, TreeID: treeID},
