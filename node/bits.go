@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cache
+package node
 
 import (
 	"fmt"
 )
 
-// prefix returns the first prefixBits of index, with the trailing bits masked off.
+// Prefix returns the first prefixBits of index, with the trailing bits masked off.
 // eg. prefix(0xFFFF, 16, 9): 0xFF80
-func prefix(index []byte, depth, prefixBits int) []byte {
+func Prefix(index []byte, depth, prefixBits int) []byte {
 	if got, want := prefixBits, depth; got > want {
 		panic(fmt.Sprintf("cache: prefix(_, %v, %v): want %v <= %v", got, want, got, want))
 	}
@@ -42,10 +42,10 @@ func prefix(index []byte, depth, prefixBits int) []byte {
 	return r
 }
 
-// suffix returns the bits from prefixBits + 1 through the end of index
+// Suffix returns the bits from prefixBits + 1 through the end of index
 // with the unwanted high bits masked off.
 // eg. suffix(0xFFFF, 16, 7): 0x7F
-func suffix(index []byte, depth, suffixBits int) []byte {
+func Suffix(index []byte, depth, suffixBits int) []byte {
 	if got, want := suffixBits, depth; got > want {
 		panic(fmt.Sprintf("cache: suffix(_, %v, %v): want %v <= %v", got, want, got, want))
 	}
@@ -72,11 +72,11 @@ func suffix(index []byte, depth, suffixBits int) []byte {
 	return r
 }
 
-// splitIndex returns prefix and suffix
-func splitIndex(index []byte, depth, prefixBits int) ([]byte, []byte) {
+// SplitIndex returns prefix and suffix
+func SplitIndex(index []byte, depth, prefixBits int) ([]byte, []byte) {
 	suffixBits := depth - prefixBits
 
-	pfx := prefix(index, depth, prefixBits)
-	sfx := suffix(index, depth, suffixBits)
+	pfx := Prefix(index, depth, prefixBits)
+	sfx := Suffix(index, depth, suffixBits)
 	return pfx, sfx
 }

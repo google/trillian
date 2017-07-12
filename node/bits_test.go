@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cache
+package node
 
 import (
 	"bytes"
@@ -44,8 +44,8 @@ func TestPrefix(t *testing.T) {
 		{index: h2b("000102030405060708090A0B0C0D0E0F10111213"), depth: 160, bits: 159, want: h2b("000102030405060708090A0B0C0D0E0F10111212")},
 		{index: h2b("000102030405060708090A0B0C0D0E0F10111213"), depth: 160, bits: 160, want: h2b("000102030405060708090A0B0C0D0E0F10111213")},
 	} {
-		if got, want := prefix(tc.index, tc.depth, tc.bits), tc.want; !bytes.Equal(got, want) {
-			t.Errorf("prefix(%x, %v, %v): %x, want %x", tc.index, tc.depth, tc.bits, got, want)
+		if got, want := Prefix(tc.index, tc.depth, tc.bits), tc.want; !bytes.Equal(got, want) {
+			t.Errorf("Prefix(%x, %v, %v): %x, want %x", tc.index, tc.depth, tc.bits, got, want)
 		}
 	}
 }
@@ -82,8 +82,8 @@ func TestSuffix(t *testing.T) {
 		{index: h2b("123456ff"), depth: 25, bits: 1, want: h2b("80")}, // 25: 1-111 1111
 		{index: h2b("123456ff"), depth: 29, bits: 5, want: h2b("f8")},
 	} {
-		if got, want := suffix(tc.index, tc.depth, tc.bits), tc.want; !bytes.Equal(got, want) {
-			t.Errorf("suffix(%x, %v, %v): %x, want %x", tc.index, tc.depth, tc.bits, got, want)
+		if got, want := Suffix(tc.index, tc.depth, tc.bits), tc.want; !bytes.Equal(got, want) {
+			t.Errorf("Suffix(%x, %v, %v): %x, want %x", tc.index, tc.depth, tc.bits, got, want)
 		}
 	}
 }
