@@ -239,7 +239,7 @@ func main() {
 	sequenceLeaves(ls, seq, tree.TreeId)
 
 	// Handle anything left over
-	left := *treeSizeFlag % *batchSizeFlag;
+	left := *treeSizeFlag % *batchSizeFlag
 	if left == 0 {
 		left = *batchSizeFlag
 	}
@@ -284,12 +284,7 @@ func main() {
 	}
 	if *recordIOFlag {
 		of = recordIOProto
-		buf := new(bytes.Buffer)
-		err := binary.Write(buf, binary.BigEndian, recordIOMagic)
-		if err != nil {
-			glog.Fatalf("binary.Write failed: %v", err)
-		}
-		fmt.Print(buf.String())
+		recordIOHdr()
 	}
 
 	hasher, err := hashers.NewLogHasher(trillian.HashStrategy_RFC6962_SHA256)
@@ -299,9 +294,9 @@ func main() {
 	repopFunc := cache.PopulateLogSubtreeNodes(hasher)
 
 	if *latestRevisionFlag {
-		latestRevisions(ls, tree.TreeId, repopFunc, of);
+		latestRevisions(ls, tree.TreeId, repopFunc, of)
 	} else {
-		allRevisions(ls, tree.TreeId, repopFunc, of);
+		allRevisions(ls, tree.TreeId, repopFunc, of)
 	}
 }
 
@@ -391,7 +386,6 @@ func sequenceLeaves(ls storage.LogStorage, seq *log.Sequencer, treeID int64) {
 }
 
 func traverseTreeStorage(ls storage.LogStorage, treeID int64, ts int, rev int64) {
-	level := int64(0);
 	nodesAtLevel := int64(ts)
 
 	tx, err := ls.SnapshotForTree(context.TODO(), treeID)
@@ -404,7 +398,21 @@ func traverseTreeStorage(ls storage.LogStorage, treeID int64, ts int, rev int64)
 		}
 	}()
 
-	for nodesAtLevel > 0 {
+	levels := int64(0)
+	n := nodesAtLevel
+	for n > 0 {
+		levels++
+		n = n >> 1
+	}
+
+	// Because of the way we store subtrees omitting internal RHS nodes with one sibling there
+	// is an extra level stored for trees that don't have a number of leaves that is a power
+	// of 2. We account for this here and in the loop below.
+	if !isPerfectTree(int64(ts)) {
+		levels++
+	}
+
+	for level := int64(0); level < levels; level++ {
 		for node := int64(0); node < nodesAtLevel; node++ {
 			// We're going to request one node at a time, which would normally be slow but we have
 			// the tree in RAM so it's not a real problem.
@@ -425,8 +433,11 @@ func traverseTreeStorage(ls storage.LogStorage, treeID int64, ts int, rev int64)
 		}
 
 		nodesAtLevel = nodesAtLevel >> 1
-		level++
 		fmt.Println()
+		// This handles the extra level in non-perfect trees
+		if nodesAtLevel == 0 {
+			nodesAtLevel = 1
+		}
 	}
 }
 
@@ -437,14 +448,14 @@ func dumpLeaves(ls storage.LogStorage, treeID int64, ts int) {
 	}
 	defer func() {
 		if err := tx.Commit(); err != nil {
-			glog.Fatalf("TX Commit(): %v", err)
+			glog.Fatalf("TX Commit(): got: %v", err)
 		}
 	}()
 
 	for l := int64(0); l < int64(ts); l++ {
 		leaves, err := tx.GetLeavesByIndex(context.TODO(), []int64{l})
 		if err != nil {
-			glog.Fatalf("GetLeavesByIndex for index %d: %v", l, err)
+			glog.Fatalf("GetLeavesByIndex for index %d got: %v", l, err)
 		}
 		fmt.Printf("%6d:%s\n", l, leaves[0].LeafValue)
 	}
@@ -454,10 +465,9 @@ func hexMap(in map[string][]byte) map[string][]byte {
 	m := make(map[string][]byte)
 
 	for k, v := range in {
-		glog.Infof("Leaf: %v %v", k, v)
 		unb64, err := base64.StdEncoding.DecodeString(k)
 		if err != nil {
-			glog.Fatalf("Could not decode key as base 64: %s %v", k, err)
+			glog.Fatalf("Could not decode key as base 64: %s got: %v", k, err)
 		}
 		m[hex.EncodeToString(unb64)] = v
 	}
@@ -468,4 +478,17 @@ func hexMap(in map[string][]byte) map[string][]byte {
 func hexKeys(s *storagepb.SubtreeProto) {
 	s.Leaves = hexMap(s.Leaves)
 	s.InternalNodes = hexMap(s.InternalNodes)
+}
+
+func isPerfectTree(x int64) bool {
+	return x != 0 && (x&(x-1) == 0)
+}
+
+func recordIOHdr() {
+	buf := new(bytes.Buffer)
+	err := binary.Write(buf, binary.BigEndian, recordIOMagic)
+	if err != nil {
+		glog.Fatalf("binary.Write failed: %v", err)
+	}
+	fmt.Print(buf.String())
 }
