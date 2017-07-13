@@ -80,6 +80,7 @@ func (i *TrillianInterceptor) NewProcessor() RequestProcessor {
 
 type trillianProcessor struct {
 	parent *TrillianInterceptor
+	info   *rpcInfo
 }
 
 func (tp *trillianProcessor) Before(ctx context.Context, req interface{}) (context.Context, error) {
@@ -88,6 +89,7 @@ func (tp *trillianProcessor) Before(ctx context.Context, req interface{}) (conte
 	if err != nil {
 		return ctx, err
 	}
+	tp.info = info
 
 	if info.treeID != 0 {
 		tree, err := trees.GetTree(ctx, tp.parent.Admin, info.treeID, info.opts)
@@ -110,7 +112,42 @@ func (tp *trillianProcessor) Before(ctx context.Context, req interface{}) (conte
 	return ctx, nil
 }
 
-func (tp *trillianProcessor) After(ctx context.Context, resp interface{}, handlerErr error) {}
+func (tp *trillianProcessor) After(ctx context.Context, resp interface{}, handlerErr error) {
+	// Decide if we have to replenish tokens. There are a few situations that require tokens to be
+	// replenished:
+	// * Invalid requests (a bad request shouldn't spend sequencing-based tokens, as it won't cause
+	//   a corresponding sequencing to happen)
+	// * Requests that filter out duplicates (eg, QueueLeaf and QueueLeaves, for the same reason
+	//   above: duplicates aren't queued for sequencing)
+	tokens := 0
+	if handlerErr != nil {
+		// Return the tokens spent by invalid requests
+		tokens = tp.info.tokens
+	} else {
+		switch resp := resp.(type) {
+		case *trillian.QueueLeafResponse:
+			if !isLeafOK(resp.GetQueuedLeaf()) {
+				tokens = 1
+			}
+		case *trillian.QueueLeavesResponse:
+			for _, leaf := range resp.GetQueuedLeaves() {
+				if !isLeafOK(leaf) {
+					tokens++
+				}
+			}
+		}
+	}
+	if tokens > 0 && len(tp.info.specs) > 0 {
+		if err := tp.parent.QuotaManager.PutTokens(ctx, tokens, tp.info.specs); err != nil {
+			glog.Warningf("Failed to replenish %v tokens: %v", tokens, err)
+		}
+	}
+}
+
+func isLeafOK(leaf *trillian.QueuedLogLeaf) bool {
+	// Be biased in favor of OK, as that matches TrillianLogRPCServer's behavior.
+	return leaf == nil || leaf.Status == nil || leaf.Status.Code == int32(codes.OK)
+}
 
 // rpcInfo contains information about an RPC, as extracted from its request message.
 type rpcInfo struct {

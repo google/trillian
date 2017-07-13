@@ -272,6 +272,141 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 	}
 }
 
+func TestTrillianInterceptor_QuotaInterception_ReturnsTokens(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	logTree := *testonly.LogTree
+	logTree.TreeId = 10
+
+	admin := storage.NewMockAdminStorage(ctrl)
+	adminTX := storage.NewMockReadOnlyAdminTX(ctrl)
+	admin.EXPECT().Snapshot(gomock.Any()).AnyTimes().Return(adminTX, nil)
+	adminTX.EXPECT().GetTree(gomock.Any(), logTree.TreeId).AnyTimes().Return(&logTree, nil)
+	adminTX.EXPECT().Close().AnyTimes().Return(nil)
+	adminTX.EXPECT().Commit().AnyTimes().Return(nil)
+
+	user := "llama"
+	tests := []struct {
+		desc                         string
+		req, resp                    interface{}
+		specs                        []quota.Spec
+		handlerErr                   error
+		wantGetTokens, wantPutTokens int
+	}{
+		{
+			desc: "badRequest",
+			req:  &trillian.GetLatestSignedLogRootRequest{LogId: logTree.TreeId},
+			specs: []quota.Spec{
+				{Group: quota.User, Kind: quota.Read, User: user},
+				{Group: quota.Tree, Kind: quota.Read, TreeID: logTree.TreeId},
+				{Group: quota.Global, Kind: quota.Read},
+			},
+			handlerErr:    errors.New("bad request"),
+			wantGetTokens: 1,
+			wantPutTokens: 1,
+		},
+		{
+			desc: "newLeaf",
+			req:  &trillian.QueueLeafRequest{LogId: logTree.TreeId, Leaf: &trillian.LogLeaf{}},
+			resp: &trillian.QueueLeafResponse{QueuedLeaf: &trillian.QueuedLogLeaf{}},
+			specs: []quota.Spec{
+				{Group: quota.User, Kind: quota.Write, User: user},
+				{Group: quota.Tree, Kind: quota.Write, TreeID: logTree.TreeId},
+				{Group: quota.Global, Kind: quota.Write},
+			},
+			wantGetTokens: 1,
+		},
+		{
+			desc: "duplicateLeaf",
+			req:  &trillian.QueueLeafRequest{LogId: logTree.TreeId},
+			resp: &trillian.QueueLeafResponse{
+				QueuedLeaf: &trillian.QueuedLogLeaf{
+					Status: status.New(codes.AlreadyExists, "duplicate leaf").Proto(),
+				},
+			},
+			specs: []quota.Spec{
+				{Group: quota.User, Kind: quota.Write, User: user},
+				{Group: quota.Tree, Kind: quota.Write, TreeID: logTree.TreeId},
+				{Group: quota.Global, Kind: quota.Write},
+			},
+			wantGetTokens: 1,
+			wantPutTokens: 1,
+		},
+		{
+			desc: "newLeaves",
+			req: &trillian.QueueLeavesRequest{
+				LogId:  logTree.TreeId,
+				Leaves: []*trillian.LogLeaf{{}, {}, {}},
+			},
+			resp: &trillian.QueueLeavesResponse{
+				QueuedLeaves: []*trillian.QueuedLogLeaf{{}, {}, {}}, // No explicit Status means OK
+			},
+			specs: []quota.Spec{
+				{Group: quota.User, Kind: quota.Write, User: user},
+				{Group: quota.Tree, Kind: quota.Write, TreeID: logTree.TreeId},
+				{Group: quota.Global, Kind: quota.Write},
+			},
+			wantGetTokens: 3,
+		},
+		{
+			desc: "duplicateLeaves",
+			req: &trillian.QueueLeavesRequest{
+				LogId:  logTree.TreeId,
+				Leaves: []*trillian.LogLeaf{{}, {}, {}},
+			},
+			resp: &trillian.QueueLeavesResponse{
+				QueuedLeaves: []*trillian.QueuedLogLeaf{
+					{Status: status.New(codes.AlreadyExists, "duplicate leaf").Proto()},
+					{Status: status.New(codes.AlreadyExists, "duplicate leaf").Proto()},
+					{},
+				},
+			},
+			specs: []quota.Spec{
+				{Group: quota.User, Kind: quota.Write, User: user},
+				{Group: quota.Tree, Kind: quota.Write, TreeID: logTree.TreeId},
+				{Group: quota.Global, Kind: quota.Write},
+			},
+			wantGetTokens: 3,
+			wantPutTokens: 2,
+		},
+		{
+			desc: "badQueueLeavesRequest",
+			req: &trillian.QueueLeavesRequest{
+				LogId:  logTree.TreeId,
+				Leaves: []*trillian.LogLeaf{{}, {}, {}},
+			},
+			specs: []quota.Spec{
+				{Group: quota.User, Kind: quota.Write, User: user},
+				{Group: quota.Tree, Kind: quota.Write, TreeID: logTree.TreeId},
+				{Group: quota.Global, Kind: quota.Write},
+			},
+			handlerErr:    errors.New("bad request"),
+			wantGetTokens: 3,
+			wantPutTokens: 3,
+		},
+	}
+
+	ctx := context.Background()
+	for _, test := range tests {
+		qm := quota.NewMockManager(ctrl)
+		qm.EXPECT().GetUser(gomock.Any(), test.req).MaxTimes(1).Return(user)
+		if test.wantGetTokens > 0 {
+			qm.EXPECT().GetTokens(gomock.Any(), test.wantGetTokens, test.specs).Return(nil)
+		}
+		if test.wantPutTokens > 0 {
+			qm.EXPECT().PutTokens(gomock.Any(), test.wantPutTokens, test.specs).Return(nil)
+		}
+
+		handler := &fakeHandler{resp: test.resp, err: test.handlerErr}
+		intercept := &TrillianInterceptor{Admin: admin, QuotaManager: qm}
+
+		if _, err := intercept.UnaryInterceptor(ctx, test.req, &grpc.UnaryServerInfo{}, handler.run); err != test.handlerErr {
+			t.Errorf("%v: UnaryInterceptor() returned err = [%v], want = [%v]", test.desc, err, test.handlerErr)
+		}
+	}
+}
+
 func TestGetRPCInfo(t *testing.T) {
 	tests := []struct {
 		desc                  string
