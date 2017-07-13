@@ -30,6 +30,21 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// RequestProcessor encapsulates the logic to intercept a request, split into separate stages:
+// before and after the handler is invoked.
+type RequestProcessor interface {
+
+	// Before implements all interceptor logic that happens before the handler is called.
+	// It returns a (potentially) modified context that's passed forward to the handler (and After),
+	// plus an error, in case the request should be interrupted before the handler is invoked.
+	Before(ctx context.Context, req interface{}) (context.Context, error)
+
+	// After implements all interceptor logic that happens after the handler is invoked.
+	// Before must be invoked prior to After and the same RequestProcessor instance must to be used
+	// to process a given request.
+	After(ctx context.Context, resp interface{}, handlerErr error)
+}
+
 // TrillianInterceptor checks that:
 // * Requests addressing a tree have the correct tree type and tree state;
 // * TODO(codingllama): Requests are properly authenticated / authorized ; and
@@ -45,36 +60,57 @@ type TrillianInterceptor struct {
 
 // UnaryInterceptor executes the TrillianInterceptor logic for unary RPCs.
 func (i *TrillianInterceptor) UnaryInterceptor(ctx context.Context, req interface{}, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	// IMPORTANT: Do not rely on grpc.UnaryServerInfo in this filter. It makes life a lot harder
-	// when adapting the code to other environments.
-
-	quotaUser := i.QuotaManager.GetUser(ctx, req)
-	rpcInfo, err := getRPCInfo(req, quotaUser)
+	// Implement UnaryInterceptor using a RequestProcessor, so we 1. exercise it and 2. make it
+	// easier to port this logic to non-gRPC implementations.
+	rp := i.NewProcessor()
+	var err error
+	ctx, err = rp.Before(ctx, req)
 	if err != nil {
 		return nil, err
 	}
+	resp, err := handler(ctx, req)
+	rp.After(ctx, resp, err)
+	return resp, err
+}
 
-	if rpcInfo.treeID != 0 {
-		tree, err := trees.GetTree(ctx, i.Admin, rpcInfo.treeID, rpcInfo.opts)
+// NewProcessor returns a RequestProcessor for the TrillianInterceptor logic.
+func (i *TrillianInterceptor) NewProcessor() RequestProcessor {
+	return &trillianProcessor{parent: i}
+}
+
+type trillianProcessor struct {
+	parent *TrillianInterceptor
+}
+
+func (tp *trillianProcessor) Before(ctx context.Context, req interface{}) (context.Context, error) {
+	quotaUser := tp.parent.QuotaManager.GetUser(ctx, req)
+	info, err := getRPCInfo(req, quotaUser)
+	if err != nil {
+		return ctx, err
+	}
+
+	if info.treeID != 0 {
+		tree, err := trees.GetTree(ctx, tp.parent.Admin, info.treeID, info.opts)
 		if err != nil {
-			return nil, err
+			return ctx, err
 		}
 		ctx = trees.NewContext(ctx, tree)
-
 		// TODO(codingllama): Add auth interception
 	}
 
-	if len(rpcInfo.specs) > 0 && rpcInfo.tokens > 0 {
-		if err := i.QuotaManager.GetTokens(ctx, rpcInfo.tokens, rpcInfo.specs); err != nil {
-			if !i.QuotaDryRun {
-				return nil, status.Errorf(codes.ResourceExhausted, "quota exhausted: %v", err)
+	if len(info.specs) > 0 && info.tokens > 0 {
+		if err := tp.parent.QuotaManager.GetTokens(ctx, info.tokens, info.specs); err != nil {
+			if !tp.parent.QuotaDryRun {
+				return ctx, status.Errorf(codes.ResourceExhausted, "quota exhausted: %v", err)
 			}
 			glog.Warningf("(QuotaDryRun) Request %+v not denied due to dry run mode: %v", req, err)
 		}
 	}
 
-	return handler(ctx, req)
+	return ctx, nil
 }
+
+func (tp *trillianProcessor) After(ctx context.Context, resp interface{}, handlerErr error) {}
 
 // rpcInfo contains information about an RPC, as extracted from its request message.
 type rpcInfo struct {
