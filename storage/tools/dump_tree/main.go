@@ -220,10 +220,7 @@ func createTree(as storage.AdminStorage) (*trillian.Tree, crypto.Signer) {
 
 func main() {
 	flag.Parse()
-
-	if *summaryFlag && *recordIOFlag {
-		glog.Fatal("-summary and -recordio are mutually exclusive flags")
-	}
+	validateFlagsOrDie()
 
 	glog.Info("Initializing memory log storage")
 	ls := memory.NewLogStorage(monitoring.InertMetricFactory{})
@@ -237,37 +234,9 @@ func main() {
 		nil,
 		quota.Noop())
 
-	// Create the initial tree head at size 0, which is required.
+	// Create the initial tree head at size 0, which is required. And then sequence the leaves.
 	sequence(tree.TreeId, seq, 0)
-
-	glog.Info("Queuing work")
-	for l := 0; l < *treeSizeFlag; l++ {
-		glog.V(1).Infof("Queuing leaf %d", l)
-
-		leafData := []byte(fmt.Sprintf(*leafDataFormatFlag, l))
-		tx, err := ls.BeginForTree(context.TODO(), tree.TreeId)
-		if err != nil {
-			glog.Fatalf("BeginForTree got: %v, want: nil", err)
-		}
-
-		hash := sha256.Sum256(leafData)
-		lh := []byte(hash[:])
-		leaf := trillian.LogLeaf{LeafValue: leafData, LeafIdentityHash: lh, MerkleLeafHash: lh}
-		leaves := []*trillian.LogLeaf{&leaf}
-
-		if _, err := tx.QueueLeaves(context.TODO(), leaves, time.Now()); err != nil {
-			glog.Fatalf("QueueLeaves got: %v, want: nil", err)
-		}
-
-		if err := tx.Commit(); err != nil {
-			glog.Fatalf("Queueleaves TX commit: %v", err)
-		}
-
-		if l > 0 && l%*batchSizeFlag == 0 {
-			sequence(tree.TreeId, seq, *batchSizeFlag)
-		}
-	}
-	glog.Info("Finished queueing")
+	sequenceLeaves(ls, seq, tree.TreeId)
 
 	// Handle anything left over
 	left := *treeSizeFlag % *batchSizeFlag;
@@ -330,50 +299,95 @@ func main() {
 	repopFunc := cache.PopulateLogSubtreeNodes(hasher)
 
 	if *latestRevisionFlag {
-		vMap := make(map[string]treeandrev)
-		memory.DumpSubtrees(ls, tree.TreeId, func(k string, v *storagepb.SubtreeProto) {
-			// Relies on the btree key space for subtrees being /tree_id/subtree/<id>/<revision>
-			pieces := strings.Split(k, "/")
-			if got, want := len(pieces), 5; got != want {
-				glog.Fatalf("Wrong no of Btree subtree key segments. Got: %d, want: %d", got, want)
-			}
-
-			e := vMap[pieces[3]]
-			rev, err := strconv.Atoi(pieces[4])
-			if err != nil {
-				glog.Fatalf("Bad subtree key: %v", k)
-			}
-
-			if rev > e.revision {
-				vMap[pieces[3]] = treeandrev{
-					fullKey:  k,
-					subtree:  v,
-					revision: rev,
-				}
-			}
-		})
-
-		// The map should now contain the latest revisions per subtree
-		for _, v := range vMap {
-			if *rebuildInternalFlag {
-				repopFunc(v.subtree)
-			}
-			if *hexKeysFlag {
-				hexKeys(v.subtree)
-			}
-			fmt.Print(of(v.subtree))
-		}
+		latestRevisions(ls, tree.TreeId, repopFunc, of);
 	} else {
-		memory.DumpSubtrees(ls, tree.TreeId, func(k string, v *storagepb.SubtreeProto) {
-			if *rebuildInternalFlag {
-				repopFunc(v)
-			}
-			if *hexKeysFlag {
-				hexKeys(v)
-			}
-			fmt.Print(of(v))
-		})
+		allRevisions(ls, tree.TreeId, repopFunc, of);
 	}
+}
+
+func allRevisions(ls storage.LogStorage, treeID int64, repopFunc storage.PopulateSubtreeFunc, of func(*storagepb.SubtreeProto) string) {
+	memory.DumpSubtrees(ls, treeID, func(k string, v *storagepb.SubtreeProto) {
+		if *rebuildInternalFlag {
+			repopFunc(v)
+		}
+		if *hexKeysFlag {
+			hexKeys(v)
+		}
+		fmt.Print(of(v))
+	})
+}
+
+func latestRevisions(ls storage.LogStorage, treeID int64, repopFunc storage.PopulateSubtreeFunc, of func(*storagepb.SubtreeProto) string) {
+	vMap := make(map[string]treeandrev)
+	memory.DumpSubtrees(ls, treeID, func(k string, v *storagepb.SubtreeProto) {
+		// Relies on the btree key space for subtrees being /tree_id/subtree/<id>/<revision>
+		pieces := strings.Split(k, "/")
+		if got, want := len(pieces), 5; got != want {
+			glog.Fatalf("Wrong no of Btree subtree key segments. Got: %d, want: %d", got, want)
+		}
+
+		e := vMap[pieces[3]]
+		rev, err := strconv.Atoi(pieces[4])
+		if err != nil {
+			glog.Fatalf("Bad subtree key: %v", k)
+		}
+
+		if rev > e.revision {
+			vMap[pieces[3]] = treeandrev{
+				fullKey:  k,
+				subtree:  v,
+				revision: rev,
+			}
+		}
+	})
+
+	// The map should now contain the latest revisions per subtree
+	for _, v := range vMap {
+		if *rebuildInternalFlag {
+			repopFunc(v.subtree)
+		}
+		if *hexKeysFlag {
+			hexKeys(v.subtree)
+		}
+		fmt.Print(of(v.subtree))
+	}
+}
+
+func validateFlagsOrDie() {
+	if *summaryFlag && *recordIOFlag {
+		glog.Fatal("-summary and -recordio are mutually exclusive flags")
+	}
+}
+
+func sequenceLeaves(ls storage.LogStorage, seq *log.Sequencer, treeID int64) {
+	glog.Info("Queuing work")
+	for l := 0; l < *treeSizeFlag; l++ {
+		glog.V(1).Infof("Queuing leaf %d", l)
+
+		leafData := []byte(fmt.Sprintf(*leafDataFormatFlag, l))
+		tx, err := ls.BeginForTree(context.TODO(), treeID)
+		if err != nil {
+			glog.Fatalf("BeginForTree got: %v, want: nil", err)
+		}
+
+		hash := sha256.Sum256(leafData)
+		lh := []byte(hash[:])
+		leaf := trillian.LogLeaf{LeafValue: leafData, LeafIdentityHash: lh, MerkleLeafHash: lh}
+		leaves := []*trillian.LogLeaf{&leaf}
+
+		if _, err := tx.QueueLeaves(context.TODO(), leaves, time.Now()); err != nil {
+			glog.Fatalf("QueueLeaves got: %v, want: nil", err)
+		}
+
+		if err := tx.Commit(); err != nil {
+			glog.Fatalf("Queueleaves TX commit: %v", err)
+		}
+
+		if l > 0 && l%*batchSizeFlag == 0 {
+			sequence(treeID, seq, *batchSizeFlag)
+		}
+	}
+	glog.Info("Finished queueing")
 }
 
 func traverseTreeStorage(ls storage.LogStorage, treeID int64, ts int, rev int64) {
