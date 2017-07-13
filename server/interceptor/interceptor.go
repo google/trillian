@@ -18,6 +18,7 @@ package interceptor
 import (
 	"fmt"
 
+	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/server/errors"
@@ -36,6 +37,10 @@ import (
 type TrillianInterceptor struct {
 	Admin        storage.AdminStorage
 	QuotaManager quota.Manager
+
+	// QuotaDryRun controls whether lack of tokens actually blocks requests (if set to true, no
+	// requests are blocked by lack of tokens).
+	QuotaDryRun bool
 }
 
 // UnaryInterceptor executes the TrillianInterceptor logic for unary RPCs.
@@ -61,7 +66,10 @@ func (i *TrillianInterceptor) UnaryInterceptor(ctx context.Context, req interfac
 
 	if len(rpcInfo.specs) > 0 && rpcInfo.tokens > 0 {
 		if err := i.QuotaManager.GetTokens(ctx, rpcInfo.tokens, rpcInfo.specs); err != nil {
-			return nil, status.Errorf(codes.ResourceExhausted, "quota exhausted: %v", err)
+			if !i.QuotaDryRun {
+				return nil, status.Errorf(codes.ResourceExhausted, "quota exhausted: %v", err)
+			}
+			glog.Warningf("(QuotaDryRun) Request %+v not denied due to dry run mode: %v", req, err)
 		}
 	}
 

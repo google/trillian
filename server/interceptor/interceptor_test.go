@@ -148,6 +148,7 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 	user := "llama"
 	tests := []struct {
 		desc         string
+		dryRun       bool
 		req          interface{}
 		specs        []quota.Spec
 		getTokensErr error
@@ -205,6 +206,18 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 			wantTokens:   1,
 		},
 		{
+			desc:   "quotaError-dryRun",
+			dryRun: true,
+			req:    &trillian.GetLatestSignedLogRootRequest{LogId: logTree.TreeId},
+			specs: []quota.Spec{
+				{Group: quota.User, Kind: quota.Read, User: user},
+				{Group: quota.Tree, Kind: quota.Read, TreeID: logTree.TreeId},
+				{Group: quota.Global, Kind: quota.Read},
+			},
+			getTokensErr: errors.New("not enough tokens"),
+			wantTokens:   1,
+		},
+		{
 			desc: "multiTokens-logLeavesRequest",
 			req: &trillian.QueueLeavesRequest{
 				LogId:  logTree.TreeId,
@@ -248,7 +261,7 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 		}
 
 		handler := &fakeHandler{resp: "ok"}
-		intercept := &TrillianInterceptor{Admin: admin, QuotaManager: qm}
+		intercept := &TrillianInterceptor{Admin: admin, QuotaManager: qm, QuotaDryRun: test.dryRun}
 
 		// resp and handler assertions are done by TestTrillianInterceptor_TreeInterception,
 		// we're only concerned with the quota logic here.
