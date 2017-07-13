@@ -27,6 +27,7 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/storage/storagepb"
+	"github.com/golang/protobuf/proto"
 )
 
 const degree = 8
@@ -185,7 +186,10 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []
 			if s == nil {
 				continue
 			}
-			ret = append(ret, s.(*kv).v.(*storagepb.SubtreeProto))
+			// Return a copy of the proto to protect against the caller modifying the stored one.
+			p := s.(*kv).v.(*storagepb.SubtreeProto)
+			v := proto.Clone(p).(*storagepb.SubtreeProto)
+			ret = append(ret, v)
 			break
 		}
 	}
