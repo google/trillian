@@ -14,8 +14,30 @@
 
 package node
 
-// Node represents a location in a merkle tree.
+// Node represents a location in a merkle tree, formed by a path and a depth.
+// The root of a tree is indicated by depth 0.
+// Leaves are stored at depth == len(path)*8
 type Node struct {
-	path  []byte // Fixed size path equal to hasher.Size(). TODO: can logs be a fixed size?
-	depth int    // Number of significant bits in path, starting from MSB.
+	// Path is left-aligned. Nodes with depths that are not multiples of 8
+	// will have unused bits in the least significant bit positions.
+	path []byte
+
+	// Number of significant bits in path, starting from MSB.
+	// Depth 0 means the root node, a path "" of length zero bits.
+	depth int
+}
+
+// PathBits returns the maximum number of bits in path, including ignored bits.
+// PathBits currently returns multiples of 8.
+// For maps, this is the height of the full tree.
+// For logs, this is the height of the current tree.
+func (n *Node) PathBits() int {
+	return len(n.path) * 8
+}
+
+// PrefixBits returns the number of bits from path that form the prefix.
+// PrefixBits is computed deterministically from depth.
+func (n *Node) PrefixBits() int {
+	panic("unimplemented")
+	return -1
 }
