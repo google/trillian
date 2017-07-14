@@ -89,7 +89,7 @@ var (
 	dumpLeavesFlag      = flag.Bool("dump_leaves", false, "If true dumps the leaf data from the tree via the API")
 )
 
-type treeandrev struct {
+type treeAndRev struct {
 	fullKey  string
 	subtree  *storagepb.SubtreeProto
 	revision int
@@ -127,15 +127,14 @@ func recordIOProto(s *storagepb.SubtreeProto) string {
 		glog.Fatalf("Failed to marshal subtree proto: %v", err)
 	}
 	dataLen := int64(len(data))
-	err = binary.Write(buf, binary.BigEndian, dataLen)
-	if err != nil {
+	if err = binary.Write(buf, binary.BigEndian, dataLen); err != nil {
 		glog.Fatalf("binary.Write failed: %v", err)
 	}
 	var compLen int64
-	err = binary.Write(buf, binary.BigEndian, compLen)
-	if err != nil {
+	if err = binary.Write(buf, binary.BigEndian, compLen); err != nil {
 		glog.Fatalf("binary.Write failed: %v", err)
 	}
+	// buffer.Write() always returns a nil error
 	buf.Write(data)
 
 	return buf.String()
@@ -161,10 +160,10 @@ Ws9xezgQPrg96YGsFrF6KYG68iqyHDlQ+4FWuKfGKXHn3ooVtB/pfawb5Q==
 
 func sequence(treeID int64, seq *log.Sequencer, count int) {
 	glog.Infof("Sequencing batch of size %d", count)
-	sequenced, err := seq.SequenceBatch(context.TODO(), treeID, *batchSizeFlag, time.Microsecond, 24*time.Hour)
+	sequenced, err := seq.SequenceBatch(context.TODO(), treeID, *batchSizeFlag, 0, 24*time.Hour)
 
 	if err != nil {
-		glog.Fatalf("SequenceBatch got: %v, want: nil", err)
+		glog.Fatalf("SequenceBatch got: %v, want: no err", err)
 	}
 
 	if got, want := sequenced, count; got != want {
@@ -252,17 +251,10 @@ func main() {
 	sequence(tree.TreeId, seq, 0)
 	sequenceLeaves(ls, seq, tree.TreeId)
 
-	// Handle anything left over
-	left := *treeSizeFlag % *batchSizeFlag
-	if left == 0 {
-		left = *batchSizeFlag
-	}
-	sequence(tree.TreeId, seq, left)
-
 	// Read the latest STH back
 	tx, err := ls.BeginForTree(context.TODO(), tree.TreeId)
 	if err != nil {
-		glog.Fatalf("BeginForTree got: %v, want: nil", err)
+		glog.Fatalf("BeginForTree got: %v, want: no err", err)
 	}
 
 	sth, err := tx.LatestSignedLogRoot(context.TODO())
@@ -327,7 +319,8 @@ func allRevisions(ls storage.LogStorage, treeID int64, repopFunc storage.Populat
 }
 
 func latestRevisions(ls storage.LogStorage, treeID int64, repopFunc storage.PopulateSubtreeFunc, of func(*storagepb.SubtreeProto) string) {
-	vMap := make(map[string]treeandrev)
+	// vMap maps subtree prefixes (as strings) to the corresponding subtree proto and its revision
+	vMap := make(map[string]treeAndRev)
 	memory.DumpSubtrees(ls, treeID, func(k string, v *storagepb.SubtreeProto) {
 		// Relies on the btree key space for subtrees being /tree_id/subtree/<id>/<revision>
 		pieces := strings.Split(k, "/")
@@ -335,14 +328,15 @@ func latestRevisions(ls storage.LogStorage, treeID int64, repopFunc storage.Popu
 			glog.Fatalf("Wrong no of Btree subtree key segments. Got: %d, want: %d", got, want)
 		}
 
-		e := vMap[pieces[3]]
+		subID := pieces[3]
+		subtree := vMap[subID]
 		rev, err := strconv.Atoi(pieces[4])
 		if err != nil {
 			glog.Fatalf("Bad subtree key: %v", k)
 		}
 
-		if rev > e.revision {
-			vMap[pieces[3]] = treeandrev{
+		if rev > subtree.revision {
+			vMap[subID] = treeAndRev{
 				fullKey:  k,
 				subtree:  v,
 				revision: rev,
@@ -376,7 +370,7 @@ func sequenceLeaves(ls storage.LogStorage, seq *log.Sequencer, treeID int64) {
 		leafData := []byte(fmt.Sprintf(*leafDataFormatFlag, l))
 		tx, err := ls.BeginForTree(context.TODO(), treeID)
 		if err != nil {
-			glog.Fatalf("BeginForTree got: %v, want: nil", err)
+			glog.Fatalf("BeginForTree got: %v, want: no err", err)
 		}
 
 		hash := sha256.Sum256(leafData)
@@ -385,7 +379,7 @@ func sequenceLeaves(ls storage.LogStorage, seq *log.Sequencer, treeID int64) {
 		leaves := []*trillian.LogLeaf{&leaf}
 
 		if _, err := tx.QueueLeaves(context.TODO(), leaves, time.Now()); err != nil {
-			glog.Fatalf("QueueLeaves got: %v, want: nil", err)
+			glog.Fatalf("QueueLeaves got: %v, want: no err", err)
 		}
 
 		if err := tx.Commit(); err != nil {
@@ -397,6 +391,13 @@ func sequenceLeaves(ls storage.LogStorage, seq *log.Sequencer, treeID int64) {
 		}
 	}
 	glog.Info("Finished queueing")
+	// Handle anything left over
+	left := *treeSizeFlag % *batchSizeFlag
+	if left == 0 {
+		left = *batchSizeFlag
+	}
+	sequence(treeID, seq, left)
+	glog.Info("Finished sequencing")
 }
 
 func traverseTreeStorage(ls storage.LogStorage, treeID int64, ts int, rev int64) {
@@ -432,7 +433,7 @@ func traverseTreeStorage(ls storage.LogStorage, treeID int64, ts int, rev int64)
 			// the tree in RAM so it's not a real problem.
 			nodeID, err := storage.NewNodeIDForTreeCoords(level, node, 64)
 			if err != nil {
-				glog.Fatalf("NewNodeIDForTreeCoords: (%d, %d): got: %v, want: nil", level, node, err)
+				glog.Fatalf("NewNodeIDForTreeCoords: (%d, %d): got: %v, want: no err", level, node, err)
 			}
 
 			nodes, err := tx.GetMerkleNodes(context.TODO(), rev, []storage.NodeID{nodeID})
