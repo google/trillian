@@ -48,6 +48,7 @@ var (
 	etcdService        = flag.String("etcd_service", "trillian-logserver", "Service name to announce ourselves under")
 	etcdHTTPService    = flag.String("etcd_http_service", "trillian-logserver-http", "Service name to announce our HTTP endpoint under")
 	maxUnsequencedRows = flag.Int("max_unsequenced_rows", mysqlq.DefaultMaxUnsequenced, "Max number of unsequenced rows before rate limiting kicks in")
+	quotaDryRun        = flag.Bool("quota_dry_run", false, "If true no requests are blocked due to lack of tokens")
 
 	pkcs11ModulePath = flag.String("pkcs11_module_path", "", "Path to the PKCS#11 module to use for keys that use the PKCS#11 interface")
 
@@ -104,6 +105,7 @@ func main() {
 	ti := &interceptor.TrillianInterceptor{
 		Admin:        registry.AdminStorage,
 		QuotaManager: registry.QuotaManager,
+		QuotaDryRun:  *quotaDryRun,
 	}
 	netInterceptor := interceptor.Combine(stats.Interceptor(), interceptor.ErrorWrapper, ti.UnaryInterceptor)
 	s := grpc.NewServer(grpc.UnaryInterceptor(netInterceptor))

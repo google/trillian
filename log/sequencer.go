@@ -51,7 +51,25 @@ var (
 	seqStoreRootLatency    monitoring.Histogram
 	seqCommitLatency       monitoring.Histogram
 	seqCounter             monitoring.Counter
+
+	// QuotaIncreaseFactor is the multiplier used for the number of tokens added back to
+	// sequencing-based quotas. The resulting PutTokens call is equivalent to
+	// "PutTokens(_, numLeaves * QuotaIncreaseFactor, _)".
+	// A factor >1 adds resilience to token leakage, on the risk of a system that's overly
+	// optimistic in face of true token shortages. The higher the factor, the higher the quota
+	// "optimism" is. A factor that's too high (say, >1.5) is likely a sign that the quota
+	// configuration should be changed instead.
+	// A factor <1 WILL lead to token shortages, therefore it'll be normalized to 1.
+	QuotaIncreaseFactor = 1.1
 )
+
+func quotaIncreaseFactor() float64 {
+	if QuotaIncreaseFactor < 1 {
+		QuotaIncreaseFactor = 1
+		return 1
+	}
+	return QuotaIncreaseFactor
+}
 
 func createMetrics(mf monitoring.MetricFactory) {
 	if mf == nil {
@@ -256,7 +274,8 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int, gu
 
 	// There might be no work to be done. But we possibly still need to create an signed root if the
 	// current one is too old. If there's work to be done then we'll be creating a root anyway.
-	if len(leaves) == 0 {
+	numLeaves := len(leaves)
+	if numLeaves == 0 {
 		nowNanos := s.timeSource.Now().UnixNano()
 		interval := time.Duration(nowNanos - currentRoot.TimestampNanos)
 		if maxRootDurationInterval == 0 || interval < maxRootDurationInterval {
@@ -292,8 +311,8 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int, gu
 	stageStart = s.timeSource.Now()
 
 	// We should still have the same number of leaves
-	if want, got := len(leaves), len(sequencedLeaves); want != got {
-		return 0, fmt.Errorf("%v: wanted: %v leaves after sequencing but we got: %v", logID, want, got)
+	if want := len(sequencedLeaves); numLeaves != want {
+		return 0, fmt.Errorf("%v: wanted: %v leaves after sequencing but we got: %v", logID, want, numLeaves)
 	}
 
 	// Write the new sequence numbers to the leaves in the DB
@@ -360,18 +379,22 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int, gu
 	// TODO(codingllama): Consider adding a source-aware replenish method
 	// (eg, qm.Replenish(ctx, tokens, specs, quota.SequencerSource)), so there's no ambiguity as to
 	// where the tokens come from.
-	if err := s.qm.PutTokens(ctx, len(leaves), []quota.Spec{
-		{Group: quota.Tree, Kind: quota.Read, TreeID: logID},
-		{Group: quota.Tree, Kind: quota.Write, TreeID: logID},
-		{Group: quota.Global, Kind: quota.Read},
-		{Group: quota.Global, Kind: quota.Write},
-	}); err != nil {
-		glog.Warningf("Failed to replenish tokens for tree %v: %v", logID, err)
+	if numLeaves > 0 {
+		tokens := int(float64(numLeaves) * quotaIncreaseFactor())
+		glog.V(2).Infof("Replenishing %v tokens for tree %v (numLeaves = %v)", tokens, logID, leaves)
+		if err := s.qm.PutTokens(ctx, tokens, []quota.Spec{
+			{Group: quota.Tree, Kind: quota.Read, TreeID: logID},
+			{Group: quota.Tree, Kind: quota.Write, TreeID: logID},
+			{Group: quota.Global, Kind: quota.Read},
+			{Group: quota.Global, Kind: quota.Write},
+		}); err != nil {
+			glog.Warningf("Failed to replenish %v tokens for tree %v: %v", tokens, logID, err)
+		}
 	}
 
-	seqCounter.Add(float64(len(leaves)), label)
-	glog.Infof("%v: sequenced %v leaves, size %v, tree-revision %v", logID, len(leaves), newLogRoot.TreeSize, newLogRoot.TreeRevision)
-	return len(leaves), nil
+	seqCounter.Add(float64(numLeaves), label)
+	glog.Infof("%v: sequenced %v leaves, size %v, tree-revision %v", logID, numLeaves, newLogRoot.TreeSize, newLogRoot.TreeRevision)
+	return numLeaves, nil
 }
 
 // SignRoot wraps up all the operations for creating a new log signed root.

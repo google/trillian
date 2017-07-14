@@ -43,6 +43,7 @@ var (
 	rpcEndpoint        = flag.String("rpc_endpoint", "localhost:8090", "Endpoint for RPC requests (host:port)")
 	httpEndpoint       = flag.String("http_endpoint", "localhost:8091", "Endpoint for HTTP metrics and REST requests on (host:port, empty means disabled)")
 	maxUnsequencedRows = flag.Int("max_unsequenced_rows", mysqlq.DefaultMaxUnsequenced, "Max number of unsequenced rows before rate limiting kicks in")
+	quotaDryRun        = flag.Bool("quota_dry_run", false, "If true no requests are blocked due to lack of tokens")
 
 	configFile = flag.String("config", "", "Config file containing flags, file contents can be overridden by command line flags")
 )
@@ -75,6 +76,7 @@ func main() {
 	ti := &interceptor.TrillianInterceptor{
 		Admin:        registry.AdminStorage,
 		QuotaManager: registry.QuotaManager,
+		QuotaDryRun:  *quotaDryRun,
 	}
 	netInterceptor := interceptor.Combine(stats.Interceptor(), interceptor.ErrorWrapper, ti.UnaryInterceptor)
 	s := grpc.NewServer(grpc.UnaryInterceptor(netInterceptor))
