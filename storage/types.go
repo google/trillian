@@ -60,7 +60,12 @@ type NodeID struct {
 	// e.g. if Path contains two bytes, and PrefixLenBits is 9, then the 8 bits
 	// in Path[0] are included, along with the lowest bit of Path[1]
 	PrefixLenBits int
-	PathLenBits   int
+}
+
+// PathLenBits returns the number of bits available to store the path.
+// This is 8 * len(path).
+func (n NodeID) PathLenBits() int {
+	return len(n.Path) * 8
 }
 
 // bytesForBits returns the number of bytes required to store numBits bits.
@@ -72,7 +77,6 @@ func bytesForBits(numBits int) int {
 func NewNodeIDFromHash(h []byte) NodeID {
 	return NodeID{
 		Path:          h,
-		PathLenBits:   len(h) * 8,
 		PrefixLenBits: len(h) * 8,
 	}
 }
@@ -80,10 +84,12 @@ func NewNodeIDFromHash(h []byte) NodeID {
 // NewEmptyNodeID creates a new zero-length NodeID with sufficient underlying
 // capacity to store a maximum of maxLenBits.
 func NewEmptyNodeID(maxLenBits int) NodeID {
+	if got, want := maxLenBits%8, 0; got != want {
+		panic(fmt.Sprintf("storeage: NewEmptyNodeID() maxLenBits mod 8: %v, want %v", got, want))
+	}
 	return NodeID{
-		Path:          make([]byte, bytesForBits(maxLenBits)),
+		Path:          make([]byte, maxLenBits/8),
 		PrefixLenBits: 0,
-		PathLenBits:   maxLenBits,
 	}
 }
 
@@ -178,7 +184,6 @@ func NewNodeIDWithPrefix(prefix uint64, prefixLenBits, nodeIDLenBits, maxLenBits
 	p := NodeID{
 		Path:          make([]byte, maxLenBytes),
 		PrefixLenBits: nodeIDLenBits,
-		PathLenBits:   maxLenBits,
 	}
 
 	bit := maxLenBits - prefixLenBits
@@ -212,7 +217,9 @@ func bitLen(x int64) int {
 // NodeID will be zero padded on the right by depth places.
 func NewNodeIDForTreeCoords(depth int64, index int64, maxPathBits int) (NodeID, error) {
 	bl := bitLen(index)
-	if index < 0 || depth < 0 || bl > int(maxPathBits-int(depth)) {
+	if index < 0 || depth < 0 ||
+		bl > int(maxPathBits-int(depth)) ||
+		maxPathBits%8 != 0 {
 		return NodeID{}, fmt.Errorf("depth/index combination out of range: depth=%d index=%d", depth, index)
 	}
 	// This node is effectively a prefix of the subtree underneath (for non-leaf
@@ -233,7 +240,7 @@ func NewNodeIDForTreeCoords(depth int64, index int64, maxPathBits int) (NodeID, 
 func (n *NodeID) SetBit(i int, b uint) {
 	// TODO(al): investigate whether having lookup tables for these might be
 	// faster.
-	bIndex := (n.PathLenBits - i - 1) / 8
+	bIndex := (n.PathLenBits() - i - 1) / 8
 	if b == 0 {
 		n.Path[bIndex] &= ^(1 << uint(i%8))
 	} else {
@@ -243,10 +250,10 @@ func (n *NodeID) SetBit(i int, b uint) {
 
 // Bit returns 1 if the ith bit is true, and false otherwise.
 func (n *NodeID) Bit(i int) uint {
-	if got, want := i, n.PathLenBits-1; got > want {
-		panic(fmt.Sprintf("storage: Bit(%v) > (PathLenBits -1): %v", got, want))
+	if got, want := i, n.PathLenBits()-1; got > want {
+		panic(fmt.Sprintf("storage: Bit(%v) > (PathLenBits() -1): %v", got, want))
 	}
-	bIndex := (n.PathLenBits - i - 1) / 8
+	bIndex := (n.PathLenBits() - i - 1) / 8
 	return uint((n.Path[bIndex] >> uint(i%8)) & 0x01)
 }
 
@@ -254,8 +261,8 @@ func (n *NodeID) Bit(i int) uint {
 // The left-most bit is the MSB (i.e. nearer the root of the tree).
 func (n *NodeID) String() string {
 	var r bytes.Buffer
-	limit := n.PathLenBits - n.PrefixLenBits
-	for i := n.PathLenBits - 1; i >= limit; i-- {
+	limit := n.PathLenBits() - n.PrefixLenBits
+	for i := n.PathLenBits() - 1; i >= limit; i-- {
 		r.WriteRune(rune('0' + n.Bit(i)))
 	}
 	return r.String()
@@ -265,7 +272,7 @@ func (n *NodeID) String() string {
 // tree coordinate. Using this on a NodeID for a sparse Merkle tree will give incorrect
 // results. Intended for debugging purposes, the format could change.
 func (n *NodeID) CoordString() string {
-	d := uint64(n.PathLenBits - n.PrefixLenBits)
+	d := uint64(n.PathLenBits() - n.PrefixLenBits)
 	i := uint64(0)
 	for _, p := range n.Path {
 		i = (i << uint64(8)) + uint64(p)
@@ -279,11 +286,10 @@ func (n *NodeID) Siblings() []NodeID {
 	r := make([]NodeID, n.PrefixLenBits, n.PrefixLenBits)
 	l := n.PrefixLenBits
 	// Index of the bit to twiddle:
-	bi := n.PathLenBits - n.PrefixLenBits
+	bi := n.PathLenBits() - n.PrefixLenBits
 	for i := 0; i < len(r); i++ {
 		r[i].PrefixLenBits = l - i
 		r[i].Path = make([]byte, len(n.Path))
-		r[i].PathLenBits = n.PathLenBits
 		copy(r[i].Path, n.Path)
 		r[i].SetBit(bi, n.Bit(bi)^1)
 		bi++
