@@ -921,21 +921,6 @@ func runTestGetActiveLogIDs(ctx context.Context, t *testing.T, test getActiveIDs
 }
 
 func TestGetActiveLogIDs(t *testing.T) {
-	getActiveIDsBegin := func(ctx context.Context, s storage.LogStorage, logID int64) ([]int64, error) {
-		tx, err := s.BeginForTree(ctx, logID)
-		if err != nil {
-			return nil, err
-		}
-		defer tx.Close()
-		ids, err := tx.GetActiveLogIDs(ctx)
-		if err != nil {
-			return nil, err
-		}
-		if err := tx.Commit(); err != nil {
-			return nil, err
-		}
-		return ids, nil
-	}
 	getActiveIDsSnapshot := func(ctx context.Context, s storage.LogStorage, logID int64) ([]int64, error) {
 		tx, err := s.Snapshot(ctx)
 		if err != nil {
@@ -952,15 +937,9 @@ func TestGetActiveLogIDs(t *testing.T) {
 		return ids, nil
 	}
 
-	tests := []getActiveIDsTest{
-		{name: "getActiveIDsBegin", fn: getActiveIDsBegin},
-		{name: "getActiveIDsSnapshot", fn: getActiveIDsSnapshot},
-	}
-
+	test := getActiveIDsTest{name: "getActiveIDsSnapshot", fn: getActiveIDsSnapshot}
 	ctx := context.Background()
-	for _, test := range tests {
-		runTestGetActiveLogIDs(ctx, t, test)
-	}
+	runTestGetActiveLogIDs(ctx, t, test)
 }
 
 func TestGetActiveLogIDsEmpty(t *testing.T) {

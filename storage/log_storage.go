@@ -57,7 +57,6 @@ type LogTreeTX interface {
 	LeafReader
 	LeafQueuer
 	LeafDequeuer
-	LogMetadata
 }
 
 // ReadOnlyLogStorage represents a narrowed read-only view into a LogStorage.
