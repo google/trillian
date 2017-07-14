@@ -26,12 +26,12 @@ import (
 
 func TestVerifyRootErrors(t *testing.T) {
 	// Test setup
-	key, err := pem.NewFromPrivatePEM(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
+	key, err := pem.UnmarshalPrivateKey(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
 	if err != nil {
 		t.Fatalf("Failed to open test key, err=%v", err)
 	}
 	signer := tcrypto.NewSHA256Signer(key)
-	pk, err := pem.NewFromPublicPEM(testonly.DemoPublicKey)
+	pk, err := pem.UnmarshalPublicKey(testonly.DemoPublicKey)
 	if err != nil {
 		t.Fatalf("Failed to load public key, err=%v", err)
 	}

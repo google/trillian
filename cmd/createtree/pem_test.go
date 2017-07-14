@@ -65,7 +65,7 @@ func TestWithPEMKeyFile(t *testing.T) {
 func TestWithPrivateKey(t *testing.T) {
 	pemPath, pemPassword := "../../testdata/log-rpc-server.privkey.pem", "towel"
 
-	key, err := pem.NewFromPrivatePEMFile(pemPath, pemPassword)
+	key, err := pem.ReadPrivateKeyFile(pemPath, pemPassword)
 	if err != nil {
 		t.Fatalf("Error reading test private key file: %v", err)
 	}

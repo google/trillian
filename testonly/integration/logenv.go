@@ -146,7 +146,7 @@ func NewLogEnvWithRegistry(ctx context.Context, numSequencers int, testID string
 		return nil, err
 	}
 
-	publicKey, err := pem.NewFromPublicPEM(publicKey)
+	publicKey, err := pem.UnmarshalPublicKey(publicKey)
 	if err != nil {
 		cancel()
 		return nil, err

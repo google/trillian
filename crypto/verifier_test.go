@@ -59,7 +59,7 @@ func TestSignVerify(t *testing.T) {
 		},
 	} {
 
-		key, err := pem.NewFromPrivatePEM(test.pem, test.password)
+		key, err := pem.UnmarshalPrivateKey(test.pem, test.password)
 		if err != nil {
 			t.Errorf("%s: LoadPrivateKey(_, %q)=%v, want nil", test.name, test.password, err)
 			continue
@@ -84,7 +84,7 @@ func TestSignVerify(t *testing.T) {
 }
 
 func TestSignVerifyObject(t *testing.T) {
-	key, err := pem.NewFromPrivatePEM(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
+	key, err := pem.UnmarshalPrivateKey(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
 	if err != nil {
 		t.Fatalf("Failed to open test key, err=%v", err)
 	}

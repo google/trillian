@@ -179,7 +179,7 @@ func fakeTime() time.Time {
 }
 
 func newSignerWithFixedSig(sig *sigpb.DigitallySigned) (gocrypto.Signer, error) {
-	key, err := pem.NewFromPublicPEM(testonly.DemoPublicKey)
+	key, err := pem.UnmarshalPublicKey(testonly.DemoPublicKey)
 	if err != nil {
 		return nil, err
 	}
@@ -192,7 +192,7 @@ func newSignerWithFixedSig(sig *sigpb.DigitallySigned) (gocrypto.Signer, error) 
 }
 
 func newSignerWithErr(signErr error) (gocrypto.Signer, error) {
-	key, err := pem.NewFromPublicPEM(testonly.DemoPublicKey)
+	key, err := pem.UnmarshalPublicKey(testonly.DemoPublicKey)
 	if err != nil {
 		return nil, err
 	}
