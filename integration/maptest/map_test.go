@@ -23,7 +23,7 @@ import (
 	"testing"
 
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto/keys"
+	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/testonly"
@@ -165,7 +165,7 @@ func TestLeafHistory(t *testing.T) {
 				t.Errorf("%v: newTreeWithHasher(%v): %v", tc.desc, hashStrategy, err)
 				continue
 			}
-			pubKey, err := keys.NewFromPublicDER(tree.GetPublicKey().GetDer())
+			pubKey, err := der.NewFromPublicDER(tree.GetPublicKey().GetDer())
 			if err != nil {
 				t.Errorf("%v: NewFromPublicDER(%v): %v", tc.desc, hashStrategy, err)
 				continue
@@ -249,7 +249,7 @@ func TestInclusion(t *testing.T) {
 				t.Errorf("%v: newTreeWithHasher(%v): %v", tc.desc, hashStrategy, err)
 				continue
 			}
-			pubKey, err := keys.NewFromPublicDER(tree.GetPublicKey().GetDer())
+			pubKey, err := der.NewFromPublicDER(tree.GetPublicKey().GetDer())
 			if err != nil {
 				t.Errorf("%v: NewFromPublicDER(%v): %v", tc.desc, hashStrategy, err)
 				continue
@@ -332,7 +332,7 @@ func TestInclusionBatch(t *testing.T) {
 func RunMapBatchTest(ctx context.Context, env *integration.MapEnv, tree *trillian.Tree,
 	batchSize, numBatches int) error {
 	// Parse variables from tree
-	pubKey, err := keys.NewFromPublicDER(tree.GetPublicKey().GetDer())
+	pubKey, err := der.NewFromPublicDER(tree.GetPublicKey().GetDer())
 	if err != nil {
 		return err
 	}

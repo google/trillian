@@ -19,19 +19,19 @@ import (
 
 	"github.com/google/trillian"
 	tcrypto "github.com/google/trillian/crypto"
-	"github.com/google/trillian/crypto/keys"
+	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/testonly"
 )
 
 func TestVerifyRootErrors(t *testing.T) {
 	// Test setup
-	key, err := keys.NewFromPrivatePEM(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
+	key, err := pem.NewFromPrivatePEM(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
 	if err != nil {
 		t.Fatalf("Failed to open test key, err=%v", err)
 	}
 	signer := tcrypto.NewSHA256Signer(key)
-	pk, err := keys.NewFromPublicPEM(testonly.DemoPublicKey)
+	pk, err := pem.NewFromPublicPEM(testonly.DemoPublicKey)
 	if err != nil {
 		t.Fatalf("Failed to load public key, err=%v", err)
 	}

@@ -41,7 +41,8 @@ import (
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/google/trillian"
 	"github.com/google/trillian/cmd"
-	"github.com/google/trillian/crypto/keys"
+	"github.com/google/trillian/crypto/keys/der"
+	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/letsencrypt/pkcs11key"
@@ -180,16 +181,16 @@ func newPK(keyFormat string) (*any.Any, error) {
 		if *pemKeyPath == "" {
 			return nil, errors.New("empty pem_key_path")
 		}
-		pemSigner, err := keys.NewFromPrivatePEMFile(
+		pemSigner, err := pem.NewFromPrivatePEMFile(
 			*pemKeyPath, *pemKeyPassword)
 		if err != nil {
 			return nil, err
 		}
-		der, err := keys.MarshalPrivateKey(pemSigner)
+		keyDER, err := der.MarshalPrivateKey(pemSigner)
 		if err != nil {
 			return nil, err
 		}
-		return ptypes.MarshalAny(&keyspb.PrivateKey{Der: der})
+		return ptypes.MarshalAny(&keyspb.PrivateKey{Der: keyDER})
 	case "PKCS11ConfigFile":
 		if *pkcs11ConfigPath == "" {
 			return nil, errors.New("empty PKCS11 config file path")

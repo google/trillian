@@ -17,7 +17,7 @@ package crypto
 import (
 	"testing"
 
-	"github.com/google/trillian/crypto/keys"
+	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/crypto/sigpb"
 )
 
@@ -62,7 +62,7 @@ func TestSignatureAlgorithm(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		key, err := keys.NewFromPublicPEM(test.keyPEM)
+		key, err := pem.NewFromPublicPEM(test.keyPEM)
 		if err != nil {
 			t.Errorf("%v: Failed to load key: %v", test.name, err)
 			continue

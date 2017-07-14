@@ -12,15 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package keys
+package keys_test
 
 import (
-	"crypto"
-	"crypto/ecdsa"
-	"crypto/rsa"
-	"fmt"
 	"testing"
 
+	. "github.com/google/trillian/crypto/keys"
+	"github.com/google/trillian/crypto/keys/testonly"
 	"github.com/google/trillian/crypto/keyspb"
 )
 
@@ -102,47 +100,8 @@ func TestNewFromSpec(t *testing.T) {
 			continue
 		}
 
-		if err := checkKeyMatchesSpec(key, test.keySpec); err != nil {
-			t.Errorf("%v: checkKeyMatchesSpec(): %v", test.desc, err)
+		if err := testonly.CheckKeyMatchesSpec(key, test.keySpec); err != nil {
+			t.Errorf("%v: CheckKeyMatchesSpec(): %v", test.desc, err)
 		}
 	}
-}
-
-func checkKeyMatchesSpec(key crypto.PrivateKey, spec *keyspb.Specification) error {
-	switch params := spec.Params.(type) {
-	case *keyspb.Specification_EcdsaParams:
-		if key, ok := key.(*ecdsa.PrivateKey); ok {
-			return checkEcdsaKeyMatchesParams(key, params.EcdsaParams)
-		}
-		return fmt.Errorf("%T, want *ecdsa.PrivateKey", key)
-	case *keyspb.Specification_RsaParams:
-		if key, ok := key.(*rsa.PrivateKey); ok {
-			return checkRsaKeyMatchesParams(key, params.RsaParams)
-		}
-		return fmt.Errorf("%T, want *rsa.PrivateKey", key)
-	}
-
-	return fmt.Errorf("%T is not a supported keyspb.Specification.Params type", spec.Params)
-}
-
-func checkEcdsaKeyMatchesParams(key *ecdsa.PrivateKey, params *keyspb.Specification_ECDSA) error {
-	wantCurve := curveFromParams(params)
-	if wantCurve.Params().Name != key.Params().Name {
-		return fmt.Errorf("ECDSA key on %v curve, want %v curve", key.Params().Name, wantCurve.Params().Name)
-	}
-
-	return nil
-}
-
-func checkRsaKeyMatchesParams(key *rsa.PrivateKey, params *keyspb.Specification_RSA) error {
-	wantBits := defaultRsaKeySizeInBits
-	if params.GetBits() != 0 {
-		wantBits = int(params.GetBits())
-	}
-
-	if got, want := key.N.BitLen(), wantBits; got != want {
-		return fmt.Errorf("%v-bit RSA key, want %v-bit", got, want)
-	}
-
-	return nil
 }

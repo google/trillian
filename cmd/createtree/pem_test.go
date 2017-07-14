@@ -17,7 +17,8 @@ package main
 import (
 	"testing"
 
-	"github.com/google/trillian/crypto/keys"
+	"github.com/google/trillian/crypto/keys/der"
+	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/crypto/keyspb"
 )
 
@@ -64,12 +65,12 @@ func TestWithPEMKeyFile(t *testing.T) {
 func TestWithPrivateKey(t *testing.T) {
 	pemPath, pemPassword := "../../testdata/log-rpc-server.privkey.pem", "towel"
 
-	key, err := keys.NewFromPrivatePEMFile(pemPath, pemPassword)
+	key, err := pem.NewFromPrivatePEMFile(pemPath, pemPassword)
 	if err != nil {
 		t.Fatalf("Error reading test private key file: %v", err)
 	}
 
-	keyDER, err := keys.MarshalPrivateKey(key)
+	keyDER, err := der.MarshalPrivateKey(key)
 	if err != nil {
 		t.Fatalf("Error marshaling test private key to DER: %v", err)
 	}

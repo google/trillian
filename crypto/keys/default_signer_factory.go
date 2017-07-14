@@ -21,6 +21,9 @@ import (
 	"sync"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/google/trillian/crypto/keys/der"
+	"github.com/google/trillian/crypto/keys/pem"
+	"github.com/google/trillian/crypto/keys/pkcs11"
 	"github.com/google/trillian/crypto/keyspb"
 )
 
@@ -50,11 +53,11 @@ type DefaultSignerFactory struct {
 func (f *DefaultSignerFactory) NewSigner(ctx context.Context, pb proto.Message) (crypto.Signer, error) {
 	switch privateKey := pb.(type) {
 	case *keyspb.PEMKeyFile:
-		return NewFromPrivatePEMFile(privateKey.GetPath(), privateKey.GetPassword())
+		return pem.NewFromPrivatePEMFile(privateKey.GetPath(), privateKey.GetPassword())
 	case *keyspb.PrivateKey:
-		return NewFromPrivateDER(privateKey.GetDer())
+		return der.NewFromPrivateDER(privateKey.GetDer())
 	case *keyspb.PKCS11Config:
-		return NewFromPKCS11Config(f.pkcs11Module, privateKey)
+		return pkcs11.NewFromPKCS11Config(f.pkcs11Module, privateKey)
 	}
 
 	return nil, fmt.Errorf("unsupported private key protobuf type: %T", pb)
@@ -68,12 +71,12 @@ func (f *DefaultSignerFactory) Generate(ctx context.Context, spec *keyspb.Specif
 		return nil, fmt.Errorf("error generating key: %v", err)
 	}
 
-	der, err := MarshalPrivateKey(key)
+	keyDER, err := der.MarshalPrivateKey(key)
 	if err != nil {
 		return nil, fmt.Errorf("error marshaling private key as DER: %v", err)
 	}
 
-	return &keyspb.PrivateKey{Der: der}, nil
+	return &keyspb.PrivateKey{Der: keyDER}, nil
 }
 
 // SetPKCS11Module sets the PKCS#11 module used to load PKCS#11 keys.

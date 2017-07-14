@@ -12,45 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package keys
+package der
 
 import (
-	"context"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/rsa"
 	"crypto/x509"
 	"fmt"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian/crypto/keyspb"
 )
 
 // NewFromPrivateKeyProto takes a PrivateKey protobuf message and returns the private key contained within.
-// It can be used as a ProtoHandler and passed to SignerFactory.AddHandler().
-func NewFromPrivateKeyProto(ctx context.Context, pb proto.Message) (crypto.Signer, error) {
-	if k, ok := pb.(*keyspb.PrivateKey); ok {
-		return NewFromPrivateDER(k.GetDer())
-	}
-	return nil, fmt.Errorf("der: got %T, want *keyspb.PrivateKey", pb)
-}
-
-// NewPrivateKeyProtoFromSpec creates a new private key based on a key specification.
-// It returns a PrivateKey protobuf message that contains the private key.
-// This protobuf message can be passed to SignerFactory.NewSigner() to get a crypto.Signer,
-// if a compatible handler is installed (see AddHandler()).
-func NewPrivateKeyProtoFromSpec(ctx context.Context, spec *keyspb.Specification) (proto.Message, error) {
-	key, err := NewFromSpec(spec)
-	if err != nil {
-		return nil, fmt.Errorf("der: error generating key: %v", err)
-	}
-
-	der, err := MarshalPrivateKey(key)
-	if err != nil {
-		return nil, fmt.Errorf("der: error marshaling private key: %v", err)
-	}
-
-	return &keyspb.PrivateKey{Der: der}, nil
+func NewFromPrivateKeyProto(pb *keyspb.PrivateKey) (crypto.Signer, error) {
+	return NewFromPrivateDER(pb.GetDer())
 }
 
 // NewFromPrivateDER reads a DER-encoded private key.

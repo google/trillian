@@ -26,7 +26,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
-	"github.com/google/trillian/crypto/keys"
+	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/quota"
@@ -179,7 +179,7 @@ func fakeTime() time.Time {
 }
 
 func newSignerWithFixedSig(sig *sigpb.DigitallySigned) (gocrypto.Signer, error) {
-	key, err := keys.NewFromPublicPEM(testonly.DemoPublicKey)
+	key, err := pem.NewFromPublicPEM(testonly.DemoPublicKey)
 	if err != nil {
 		return nil, err
 	}
@@ -192,7 +192,7 @@ func newSignerWithFixedSig(sig *sigpb.DigitallySigned) (gocrypto.Signer, error) 
 }
 
 func newSignerWithErr(signErr error) (gocrypto.Signer, error) {
-	key, err := keys.NewFromPublicPEM(testonly.DemoPublicKey)
+	key, err := pem.NewFromPublicPEM(testonly.DemoPublicKey)
 	if err != nil {
 		return nil, err
 	}

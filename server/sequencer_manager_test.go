@@ -26,6 +26,7 @@ import (
 	"github.com/google/trillian"
 	tcrypto "github.com/google/trillian/crypto"
 	"github.com/google/trillian/crypto/keys"
+	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/merkle/rfc6962"
@@ -85,7 +86,7 @@ const writeRev = int64(24)
 
 // newSignerWithFixedSig returns a fake signer that always returns the specified signature.
 func newSignerWithFixedSig(sig *sigpb.DigitallySigned) (crypto.Signer, error) {
-	key, err := keys.NewFromPublicPEM(testonly.DemoPublicKey)
+	key, err := pem.NewFromPublicPEM(testonly.DemoPublicKey)
 	if err != nil {
 		return nil, err
 	}

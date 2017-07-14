@@ -15,15 +15,27 @@
 package testonly
 
 import (
+	"crypto"
+	"crypto/ecdsa"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/x509"
+	"encoding/asn1"
+	"errors"
+	"fmt"
+	"math/big"
 
 	"github.com/google/trillian/crypto/keys"
+	"github.com/google/trillian/crypto/keys/der"
+	"github.com/google/trillian/crypto/keys/pem"
+	"github.com/google/trillian/crypto/keyspb"
 )
 
 // MustMarshalPublicPEMToDER reads a PEM-encoded public key and returns it in DER encoding.
 // If an error occurs, it panics.
-func MustMarshalPublicPEMToDER(pem string) []byte {
-	key, err := keys.NewFromPublicPEM(pem)
+func MustMarshalPublicPEMToDER(keyPEM string) []byte {
+	key, err := pem.NewFromPublicPEM(keyPEM)
 	if err != nil {
 		panic(err)
 	}
@@ -37,15 +49,102 @@ func MustMarshalPublicPEMToDER(pem string) []byte {
 
 // MustMarshalPrivatePEMToDER decrypts a PEM-encoded private key and returns it in DER encoding.
 // If an error occurs, it panics.
-func MustMarshalPrivatePEMToDER(pem, password string) []byte {
-	key, err := keys.NewFromPrivatePEM(pem, password)
+func MustMarshalPrivatePEMToDER(keyPEM, password string) []byte {
+	key, err := pem.NewFromPrivatePEM(keyPEM, password)
 	if err != nil {
 		panic(err)
 	}
 
-	keyDER, err := keys.MarshalPrivateKey(key)
+	keyDER, err := der.MarshalPrivateKey(key)
 	if err != nil {
 		panic(err)
 	}
 	return keyDER
+}
+
+// SignAndVerify exercises a signer by using it to generate a signature, and
+// then verifies that this signature is correct.
+func SignAndVerify(signer crypto.Signer, pubKey crypto.PublicKey) error {
+	hasher := crypto.SHA256
+	digest := sha256.Sum256([]byte("test"))
+	signature, err := signer.Sign(rand.Reader, digest[:], hasher)
+	if err != nil {
+		return err
+	}
+
+	switch pubKey := pubKey.(type) {
+	case *ecdsa.PublicKey:
+		return verifyECDSA(pubKey, digest[:], signature)
+	case *rsa.PublicKey:
+		return verifyRSA(pubKey, digest[:], signature, hasher, hasher)
+	default:
+		return fmt.Errorf("unknown public key type: %T", pubKey)
+	}
+}
+
+func verifyECDSA(pubKey *ecdsa.PublicKey, digest, sig []byte) error {
+	var ecdsaSig struct {
+		R, S *big.Int
+	}
+
+	rest, err := asn1.Unmarshal(sig, &ecdsaSig)
+	if err != nil {
+		return err
+	}
+	if len(rest) != 0 {
+		return fmt.Errorf("ECDSA signature %v bytes longer than expected", len(rest))
+	}
+
+	if !ecdsa.Verify(pubKey, digest, ecdsaSig.R, ecdsaSig.S) {
+		return errors.New("ECDSA signature failed verification")
+	}
+	return nil
+}
+
+func verifyRSA(pubKey *rsa.PublicKey, digest, sig []byte, hasher crypto.Hash, opts crypto.SignerOpts) error {
+	if pssOpts, ok := opts.(*rsa.PSSOptions); ok {
+		return rsa.VerifyPSS(pubKey, hasher, digest, sig, pssOpts)
+	}
+	return rsa.VerifyPKCS1v15(pubKey, hasher, digest, sig)
+}
+
+// CheckKeyMatchesSpec verifies that the key conforms to the specification.
+// If it does not, an error is returned.
+func CheckKeyMatchesSpec(key crypto.PrivateKey, spec *keyspb.Specification) error {
+	switch params := spec.Params.(type) {
+	case *keyspb.Specification_EcdsaParams:
+		if key, ok := key.(*ecdsa.PrivateKey); ok {
+			return checkEcdsaKeyMatchesParams(key, params.EcdsaParams)
+		}
+		return fmt.Errorf("%T, want *ecdsa.PrivateKey", key)
+	case *keyspb.Specification_RsaParams:
+		if key, ok := key.(*rsa.PrivateKey); ok {
+			return checkRsaKeyMatchesParams(key, params.RsaParams)
+		}
+		return fmt.Errorf("%T, want *rsa.PrivateKey", key)
+	}
+
+	return fmt.Errorf("%T is not a supported keyspb.Specification.Params type", spec.Params)
+}
+
+func checkEcdsaKeyMatchesParams(key *ecdsa.PrivateKey, params *keyspb.Specification_ECDSA) error {
+	wantCurve := keys.ECDSACurveFromParams(params)
+	if wantCurve.Params().Name != key.Params().Name {
+		return fmt.Errorf("ECDSA key on %v curve, want %v curve", key.Params().Name, wantCurve.Params().Name)
+	}
+
+	return nil
+}
+
+func checkRsaKeyMatchesParams(key *rsa.PrivateKey, params *keyspb.Specification_RSA) error {
+	wantBits := keys.DefaultRsaKeySizeInBits
+	if params.GetBits() != 0 {
+		wantBits = int(params.GetBits())
+	}
+
+	if got, want := key.N.BitLen(), wantBits; got != want {
+		return fmt.Errorf("%v-bit RSA key, want %v-bit", got, want)
+	}
+
+	return nil
 }

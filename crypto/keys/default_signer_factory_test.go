@@ -17,16 +17,18 @@ package keys
 import (
 	"testing"
 
+	"github.com/google/trillian/crypto/keys/der"
+	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/crypto/keyspb"
 )
 
 func TestDefaultSignerFactory(t *testing.T) {
-	key, err := NewFromPrivatePEMFile("../../testdata/log-rpc-server.privkey.pem", "towel")
+	key, err := pem.NewFromPrivatePEMFile("../../testdata/log-rpc-server.privkey.pem", "towel")
 	if err != nil {
 		t.Fatalf("Failed to load private key: %v", err)
 	}
 
-	keyDER, err := MarshalPrivateKey(key)
+	keyDER, err := der.MarshalPrivateKey(key)
 	if err != nil {
 		t.Fatalf("Failed to marshal private key to DER: %v", err)
 	}

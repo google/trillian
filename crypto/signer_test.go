@@ -21,7 +21,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto/keys"
+	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/testonly"
 )
@@ -43,13 +43,13 @@ func (i usesSHA256Hasher) String() string {
 }
 
 func TestSigner(t *testing.T) {
-	key, err := keys.NewFromPrivatePEM(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
+	key, err := pem.NewFromPrivatePEM(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
 	if err != nil {
 		t.Fatalf("Failed to open test key, err=%v", err)
 	}
 	signer := NewSHA256Signer(key)
 
-	pk, err := keys.NewFromPublicPEM(testonly.DemoPublicKey)
+	pk, err := pem.NewFromPublicPEM(testonly.DemoPublicKey)
 	if err != nil {
 		t.Fatalf("Failed to load public key, err=%v", err)
 	}
@@ -83,7 +83,7 @@ func TestSignerFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	key, err := keys.NewFromPrivatePEM(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
+	key, err := pem.NewFromPrivatePEM(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
 	if err != nil {
 		t.Fatalf("Failed to load private key: %v", err)
 	}
@@ -100,7 +100,7 @@ func TestSignLogRootSignerFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	key, err := keys.NewFromPrivatePEM(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
+	key, err := pem.NewFromPrivatePEM(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
 	if err != nil {
 		t.Fatalf("Failed to load public key: %v", err)
 	}

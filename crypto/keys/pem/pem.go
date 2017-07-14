@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package keys
+package pem
 
 import (
-	"context"
 	"crypto"
 	"crypto/x509"
 	"encoding/pem"
@@ -23,17 +22,13 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/golang/protobuf/proto"
+	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/crypto/keyspb"
 )
 
 // NewFromPEMKeyFileProto takes a PEMKeyFile protobuf message and loads the private key it specifies.
-// It can be used as a ProtoHandler and passed to SignerFactory.AddHandler().
-func NewFromPEMKeyFileProto(ctx context.Context, pb proto.Message) (crypto.Signer, error) {
-	if f, ok := pb.(*keyspb.PEMKeyFile); ok {
-		return NewFromPrivatePEMFile(f.GetPath(), f.GetPassword())
-	}
-	return nil, fmt.Errorf("pemfile: got %T, want *keyspb.PEMKeyFile", pb)
+func NewFromPEMKeyFileProto(pb *keyspb.PEMKeyFile) (crypto.Signer, error) {
+	return NewFromPrivatePEMFile(pb.GetPath(), pb.GetPassword())
 }
 
 // NewFromPrivatePEMFile reads a PEM-encoded private key from a file.
@@ -86,7 +81,7 @@ func NewFromPrivatePEM(keyPEM, password string) (crypto.Signer, error) {
 		keyDER = pwdDer
 	}
 
-	return NewFromPrivateDER(keyDER)
+	return der.NewFromPrivateDER(keyDER)
 }
 
 // NewFromPublicPEM reads a PEM-encoded public key from a string.
@@ -99,5 +94,5 @@ func NewFromPublicPEM(keyPEM string) (crypto.PublicKey, error) {
 		return nil, errors.New("pemfile: extra data found after first PEM block")
 	}
 
-	return NewFromPublicDER(block.Bytes)
+	return der.NewFromPublicDER(block.Bytes)
 }
