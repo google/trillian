@@ -113,12 +113,12 @@ func (tp *trillianProcessor) Before(ctx context.Context, req interface{}) (conte
 }
 
 func (tp *trillianProcessor) After(ctx context.Context, resp interface{}, handlerErr error) {
-	// Decide if we have to replenish tokens. There are a few situations that require tokens to be
-	// replenished:
-	// * Invalid requests (a bad request shouldn't spend sequencing-based tokens, as it won't cause
-	//   a corresponding sequencing to happen)
-	// * Requests that filter out duplicates (eg, QueueLeaf and QueueLeaves, for the same reason
-	//   above: duplicates aren't queued for sequencing)
+	// Decide if we have to replenish tokens. There are a few situations that require tokens to
+	// be replenished:
+	// * Invalid requests (a bad request shouldn't spend sequencing-based tokens, as it won't
+	//   cause a corresponding sequencing to happen)
+	// * Requests that filter out duplicates (e.g., QueueLeaf and QueueLeaves, for the same
+	//   reason as above: duplicates aren't queued for sequencing)
 	tokens := 0
 	if handlerErr != nil {
 		// Return the tokens spent by invalid requests
