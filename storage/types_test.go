@@ -47,7 +47,7 @@ func TestNewNodeIDWithPrefix(t *testing.T) {
 		{
 			input:    h26("345678"),
 			inputLen: 15,
-			pathLen:  15,
+			pathLen:  16,
 			maxLen:   24,
 			want:     h2b("acf000"), // top 15 bits of 0x345678 are: 0101 0110 0111 1000
 		},
@@ -112,10 +112,9 @@ func TestSetBit(t *testing.T) {
 			want: h2b("0000000008000000"),
 		},
 		{
-			n: NewNodeIDWithPrefix(h26(""), 0, 63, 64),
-			i: 26, b: 1,
-			// TODO(gdbelvin): The correct output: h2b("0000000008000000")
-			want: h2b("0000000004000000"),
+			n: NewNodeIDWithPrefix(h26(""), 0, 56, 64),
+			i: 0, b: 1,
+			want: h2b("0000000000000001"),
 		},
 		{
 			n: NewNodeIDWithPrefix(h26(""), 0, 64, 64),
@@ -142,19 +141,16 @@ func TestBit(t *testing.T) {
 			want: "1001001001001001",
 		},
 		{
-			n: NewNodeIDWithPrefix(h26("0055"), 16, 16, 24),
-			// TODO(gdbelvin): correct output: want: "0000000001010101",
-			want: "0101010100000000",
+			n:    NewNodeIDWithPrefix(h26("0055"), 16, 16, 24),
+			want: "000000000101010100000000",
 		},
 		{
-			n: NewNodeIDWithPrefix(h26("f2"), 7, 7, 24),
-			// TODO(gdbelvin): correct output: want: "1111001",
-			want: "00000000",
+			n:    NewNodeIDWithPrefix(h26("f2"), 8, 0, 24),
+			want: "111100100000000000000000",
 		},
 		{
-			n: NewNodeIDWithPrefix(h26("f2"), 1, 1, 24),
-			// TODO(gdbelvin): correct output: want: "1",
-			want: "0",
+			n:    NewNodeIDWithPrefix(h26("01"), 1, 8, 24),
+			want: "100000000000000000000000",
 		},
 	} {
 		for i, c := range tc.want {
@@ -184,25 +180,20 @@ func TestString(t *testing.T) {
 			want: "00010010001101000101011001111000",
 		},
 		{
-			n: NewNodeIDWithPrefix(h26("345678"), 15, 15, 24),
-			// fmt is left paddded, we want 15 bits from the left and no more.
-			// want: fmt.Sprintf("%015b", 0x3456>>1),
-			// TODO(gdbelvin) which one is correct?
-			want: fmt.Sprintf("%015b", 0x345678&0x7fff),
+			n:    NewNodeIDWithPrefix(h26("345678"), 15, 16, 24),
+			want: fmt.Sprintf("%016b", (0x345678<<1)&0xfffd),
 		},
 		{
-			n: NewNodeIDWithPrefix(h26("f2"), 7, 7, 24),
-			// TODO(gdbelvin): correct output: want: "1111001",
-			want: "1110010",
+			n:    NewNodeIDWithPrefix(h26("1234"), 15, 16, 16),
+			want: "0010010001101000",
+		},
+		{
+			n:    NewNodeIDWithPrefix(h26("f2"), 8, 8, 24),
+			want: "11110010",
 		},
 		{
 			n:    NewNodeIDWithPrefix(h26("1234"), 16, 16, 16),
 			want: "0001001000110100",
-		},
-		{
-			n: NewNodeIDWithPrefix(h26("1234"), 15, 16, 16),
-			// TODO(gdbelvin): correct output: want: "0001001000110100",
-			want: "0010010001101000",
 		},
 	} {
 		if got, want := tc.n.String(), tc.want; got != want {
@@ -285,7 +276,7 @@ func TestNodeEquivalent(t *testing.T) {
 		{
 			// Different IDLen
 			n1:   NewNodeIDWithPrefix(h26("1234"), l, l, l),
-			n2:   NewNodeIDWithPrefix(h26("1234"), l, l+1, l+1),
+			n2:   NewNodeIDWithPrefix(h26("1234"), l, l+8, l+8),
 			want: false,
 		},
 		{
