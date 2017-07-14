@@ -16,9 +16,9 @@ package storage
 
 import (
 	"bytes"
-	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"strconv"
 	"testing"
 )
 
@@ -31,7 +31,7 @@ func TestNewNodeIDWithPrefix(t *testing.T) {
 		want     []byte
 	}{
 		{
-			input:    h26(""),
+			input:    h26("00"),
 			inputLen: 0,
 			pathLen:  0,
 			maxLen:   64,
@@ -107,17 +107,17 @@ func TestSetBit(t *testing.T) {
 		want []byte
 	}{
 		{
-			n: NewNodeIDWithPrefix(h26(""), 0, 64, 64),
+			n: NewNodeIDWithPrefix(h26("00"), 0, 64, 64),
 			i: 27, b: 1,
 			want: h2b("0000000008000000"),
 		},
 		{
-			n: NewNodeIDWithPrefix(h26(""), 0, 56, 64),
+			n: NewNodeIDWithPrefix(h26("00"), 0, 56, 64),
 			i: 0, b: 1,
 			want: h2b("0000000000000001"),
 		},
 		{
-			n: NewNodeIDWithPrefix(h26(""), 0, 64, 64),
+			n: NewNodeIDWithPrefix(h26("00"), 0, 64, 64),
 			i: 27, b: 0,
 			want: h2b("0000000000000000"),
 		},
@@ -317,18 +317,10 @@ func TestCoordString(t *testing.T) {
 
 // h26 converts a hex string into an uint64.
 func h26(h string) uint64 {
-	b := make([]byte, 8)
-	s, err := hex.DecodeString(h)
+	i, err := strconv.ParseUint(h, 16, 64)
 	if err != nil {
-		panic("invalid hex string")
+		panic(err)
 	}
-	// put the hex string in the lower bytes of b.
-	offset := 8 - len(s)
-	copy(b[offset:], s)
-
-	// interpret b as a big endian integer.
-	var i uint64
-	binary.Read(bytes.NewBuffer(b), binary.BigEndian, &i)
 	return i
 }
 
