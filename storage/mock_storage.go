@@ -930,6 +930,19 @@ func (_mr *MockReadOnlyLogTXMockRecorder) GetActiveLogIDs(arg0 interface{}) *gom
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetActiveLogIDs", arg0)
 }
 
+// GetUnsequencedCounts mocks base method
+func (_m *MockReadOnlyLogTX) GetUnsequencedCounts(_param0 context.Context) (map[int64]int64, error) {
+	ret := _m.ctrl.Call(_m, "GetUnsequencedCounts", _param0)
+	ret0, _ := ret[0].(map[int64]int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetUnsequencedCounts indicates an expected call of GetUnsequencedCounts
+func (_mr *MockReadOnlyLogTXMockRecorder) GetUnsequencedCounts(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetUnsequencedCounts", arg0)
+}
+
 // Rollback mocks base method
 func (_m *MockReadOnlyLogTX) Rollback() error {
 	ret := _m.ctrl.Call(_m, "Rollback")
