@@ -95,6 +95,7 @@ type treeAndRev struct {
 	revision int
 }
 
+// summarizeProto is an output formatter function that produces a single line summary.
 func summarizeProto(s *storagepb.SubtreeProto) string {
 	summary := fmt.Sprintf("p: %-20s d: %d lc: %3d ic: %3d rh:%s\n",
 		hex.EncodeToString(s.Prefix),
@@ -116,10 +117,12 @@ func summarizeProto(s *storagepb.SubtreeProto) string {
 	return summary
 }
 
+// fullProto is an output formatter function that produces a single line in proto text format.
 func fullProto(s *storagepb.SubtreeProto) string {
 	return fmt.Sprintf("%s\n", proto.MarshalTextString(s))
 }
 
+// recordIOProto is an output formatter that produces binary recordio format
 func recordIOProto(s *storagepb.SubtreeProto) string {
 	buf := new(bytes.Buffer)
 	data, err := proto.Marshal(s)
@@ -284,12 +287,12 @@ func main() {
 		return
 	}
 
-	of := fullProto
+	formatter := fullProto
 	if *summaryFlag {
-		of = summarizeProto
+		formatter = summarizeProto
 	}
 	if *recordIOFlag {
-		of = recordIOProto
+		formatter = recordIOProto
 		recordIOHdr()
 	}
 
@@ -300,9 +303,9 @@ func main() {
 	repopFunc := cache.PopulateLogSubtreeNodes(hasher)
 
 	if *latestRevisionFlag {
-		latestRevisions(ls, tree.TreeId, repopFunc, of)
+		latestRevisions(ls, tree.TreeId, repopFunc, formatter)
 	} else {
-		allRevisions(ls, tree.TreeId, repopFunc, of)
+		allRevisions(ls, tree.TreeId, repopFunc, formatter)
 	}
 }
 
