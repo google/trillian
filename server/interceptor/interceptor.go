@@ -138,6 +138,10 @@ func (tp *trillianProcessor) After(ctx context.Context, resp interface{}, handle
 		}
 	}
 	if tokens > 0 && len(tp.info.specs) > 0 {
+		// TODO(codingllama): If PutTokens turns out to be unreliable we can still leak tokens. In
+		// this case, we may want to keep tabs on how many tokens we failed to replenish and bundle
+		// them up in the next PutTokens call (possibly as a QuotaManager decorator, or internally
+		// in its impl).
 		if err := tp.parent.QuotaManager.PutTokens(ctx, tokens, tp.info.specs); err != nil {
 			glog.Warningf("Failed to replenish %v tokens: %v", tokens, err)
 		}
