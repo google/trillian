@@ -101,6 +101,7 @@ func (tp *trillianProcessor) Before(ctx context.Context, req interface{}) (conte
 	}
 
 	if len(info.specs) > 0 && info.tokens > 0 {
+		quota.Metrics.IncAcquired(info.tokens, info.specs)
 		if err := tp.parent.QuotaManager.GetTokens(ctx, info.tokens, info.specs); err != nil {
 			if !tp.parent.QuotaDryRun {
 				return ctx, status.Errorf(codes.ResourceExhausted, "quota exhausted: %v", err)
@@ -145,6 +146,7 @@ func (tp *trillianProcessor) After(ctx context.Context, resp interface{}, handle
 		if err := tp.parent.QuotaManager.PutTokens(ctx, tokens, tp.info.specs); err != nil {
 			glog.Warningf("Failed to replenish %v tokens: %v", tokens, err)
 		}
+		quota.Metrics.IncReturned(tokens, tp.info.specs)
 	}
 }
 
