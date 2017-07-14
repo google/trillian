@@ -341,19 +341,6 @@ func (_mr *MockLogTreeTXMockRecorder) DequeueLeaves(arg0, arg1, arg2 interface{}
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "DequeueLeaves", arg0, arg1, arg2)
 }
 
-// GetActiveLogIDs mocks base method
-func (_m *MockLogTreeTX) GetActiveLogIDs(_param0 context.Context) ([]int64, error) {
-	ret := _m.ctrl.Call(_m, "GetActiveLogIDs", _param0)
-	ret0, _ := ret[0].([]int64)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetActiveLogIDs indicates an expected call of GetActiveLogIDs
-func (_mr *MockLogTreeTXMockRecorder) GetActiveLogIDs(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetActiveLogIDs", arg0)
-}
-
 // GetLeavesByHash mocks base method
 func (_m *MockLogTreeTX) GetLeavesByHash(_param0 context.Context, _param1 [][]byte, _param2 bool) ([]*trillian.LogLeaf, error) {
 	ret := _m.ctrl.Call(_m, "GetLeavesByHash", _param0, _param1, _param2)

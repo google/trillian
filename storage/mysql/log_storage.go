@@ -684,11 +684,6 @@ func (t *logTreeTX) getLeavesByHashInternal(ctx context.Context, leafHashes [][]
 	return ret, nil
 }
 
-// GetActiveLogIDs returns a list of the IDs of all configured logs
-func (t *logTreeTX) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
-	return getActiveLogIDs(ctx, t.tx)
-}
-
 // byLeafIdentityHash allows sorting of leaves by their identity hash, so DB
 // operations always happen in a consistent order.
 type byLeafIdentityHash []*trillian.LogLeaf
