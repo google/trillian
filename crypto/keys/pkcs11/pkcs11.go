@@ -12,25 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package keys
+package pkcs11
 
 import (
 	"crypto"
 	"errors"
 	"fmt"
 
+	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/letsencrypt/pkcs11key"
 )
 
-// NewFromPKCS11Config returns a crypto.Signer that uses a PKCS#11 interface.
-func NewFromPKCS11Config(modulePath string, config *keyspb.PKCS11Config) (crypto.Signer, error) {
+// FromConfig returns a crypto.Signer that uses a PKCS#11 interface.
+func FromConfig(modulePath string, config *keyspb.PKCS11Config) (crypto.Signer, error) {
 	if modulePath == "" {
 		return nil, errors.New("pkcs11: No module path")
 	}
 
 	pubKeyPEM := config.GetPublicKey()
-	pubKey, err := NewFromPublicPEM(pubKeyPEM)
+	pubKey, err := pem.NewFromPublicPEM(pubKeyPEM)
 	if err != nil {
 		return nil, fmt.Errorf("pkcs11: error loading public key from %q: %v", pubKeyPEM, err)
 	}

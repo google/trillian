@@ -12,20 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package keys
+package pem_test
 
 import (
 	"crypto"
-	"crypto/ecdsa"
-	"crypto/rand"
-	"crypto/rsa"
-	"crypto/sha256"
-	"encoding/asn1"
-	"errors"
-	"fmt"
-	"math/big"
 	"testing"
 
+	. "github.com/google/trillian/crypto/keys/pem"
+	ktestonly "github.com/google/trillian/crypto/keys/testonly"
 	"github.com/google/trillian/testonly"
 )
 
@@ -74,7 +68,7 @@ func TestLoadPrivateKeyAndSign(t *testing.T) {
 		},
 		{
 			desc:    "ECDSA from file with password",
-			keyPath: "../../testdata/log-rpc-server.privkey.pem",
+			keyPath: "../../../testdata/log-rpc-server.privkey.pem",
 			keyPass: "towel",
 		},
 		{
@@ -142,54 +136,8 @@ func TestLoadPrivateKeyAndSign(t *testing.T) {
 		}
 
 		// Check the key by creating a signature and verifying it.
-		if err := signAndVerify(k, k.Public()); err != nil {
-			t.Errorf("%v: %v", test.desc, err)
+		if err := ktestonly.SignAndVerify(k, k.Public()); err != nil {
+			t.Errorf("%v: SignAndVerify() = %q, want nil", test.desc, err)
 		}
 	}
-}
-
-// signAndVerify exercises a signer by using it to generate a signature, and
-// then verifies that this signature is correct.
-func signAndVerify(signer crypto.Signer, pubKey crypto.PublicKey) error {
-	hasher := crypto.SHA256
-	digest := sha256.Sum256([]byte("test"))
-	signature, err := signer.Sign(rand.Reader, digest[:], hasher)
-	if err != nil {
-		return err
-	}
-
-	switch pubKey := pubKey.(type) {
-	case *ecdsa.PublicKey:
-		return verifyECDSA(pubKey, digest[:], signature)
-	case *rsa.PublicKey:
-		return verifyRSA(pubKey, digest[:], signature, hasher, hasher)
-	default:
-		return fmt.Errorf("unknown public key type: %T", pubKey)
-	}
-}
-
-func verifyECDSA(pubKey *ecdsa.PublicKey, digest, sig []byte) error {
-	var ecdsaSig struct {
-		R, S *big.Int
-	}
-
-	rest, err := asn1.Unmarshal(sig, &ecdsaSig)
-	if err != nil {
-		return err
-	}
-	if len(rest) != 0 {
-		return fmt.Errorf("ECDSA signature %v bytes longer than expected", len(rest))
-	}
-
-	if !ecdsa.Verify(pubKey, digest, ecdsaSig.R, ecdsaSig.S) {
-		return errors.New("ECDSA signature failed verification")
-	}
-	return nil
-}
-
-func verifyRSA(pubKey *rsa.PublicKey, digest, sig []byte, hasher crypto.Hash, opts crypto.SignerOpts) error {
-	if pssOpts, ok := opts.(*rsa.PSSOptions); ok {
-		return rsa.VerifyPSS(pubKey, hasher, digest, sig, pssOpts)
-	}
-	return rsa.VerifyPKCS1v15(pubKey, hasher, digest, sig)
 }

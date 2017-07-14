@@ -29,6 +29,7 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys"
+	"github.com/google/trillian/crypto/keys/pem"
 	ktestonly "github.com/google/trillian/crypto/keys/testonly"
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/extension"
@@ -145,7 +146,7 @@ func NewLogEnvWithRegistry(ctx context.Context, numSequencers int, testID string
 		return nil, err
 	}
 
-	publicKey, err := keys.NewFromPublicPEM(publicKey)
+	publicKey, err := pem.NewFromPublicPEM(publicKey)
 	if err != nil {
 		cancel()
 		return nil, err

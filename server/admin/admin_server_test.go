@@ -30,6 +30,7 @@ import (
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys"
+	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/extension"
@@ -439,7 +440,7 @@ func TestServer_CreateTree(t *testing.T) {
 				continue
 			}
 
-			keyDER, err := keys.MarshalPrivateKey(privateKey)
+			keyDER, err := der.MarshalPrivateKey(privateKey)
 			if err != nil {
 				t.Errorf("%v: failed to marshal test private key as DER: %v", test.desc, err)
 				continue

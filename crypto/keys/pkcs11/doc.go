@@ -12,11 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package keys
-
-import "testing"
-
-func TestPkcs11(t *testing.T) {
-	// PKCS11Config support is tested by integration/log_integration.sh (when $WITH_PKCS11 == "true").
-	t.Skip("Only integration testing is implemented for PKCS#11")
-}
+// Package pkcs11 provides access to private keys using a PKCS#11 interface.
+package pkcs11
