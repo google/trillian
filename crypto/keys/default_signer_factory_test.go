@@ -23,7 +23,7 @@ import (
 )
 
 func TestDefaultSignerFactory(t *testing.T) {
-	key, err := pem.NewFromPrivatePEMFile("../../testdata/log-rpc-server.privkey.pem", "towel")
+	key, err := pem.ReadPrivateKeyFile("../../testdata/log-rpc-server.privkey.pem", "towel")
 	if err != nil {
 		t.Fatalf("Failed to load private key: %v", err)
 	}

@@ -86,7 +86,7 @@ const writeRev = int64(24)
 
 // newSignerWithFixedSig returns a fake signer that always returns the specified signature.
 func newSignerWithFixedSig(sig *sigpb.DigitallySigned) (crypto.Signer, error) {
-	key, err := pem.NewFromPublicPEM(testonly.DemoPublicKey)
+	key, err := pem.UnmarshalPublicKey(testonly.DemoPublicKey)
 	if err != nil {
 		return nil, err
 	}

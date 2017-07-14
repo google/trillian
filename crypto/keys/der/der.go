@@ -24,13 +24,13 @@ import (
 	"github.com/google/trillian/crypto/keyspb"
 )
 
-// NewFromPrivateKeyProto takes a PrivateKey protobuf message and returns the private key contained within.
-func NewFromPrivateKeyProto(pb *keyspb.PrivateKey) (crypto.Signer, error) {
-	return NewFromPrivateDER(pb.GetDer())
+// FromProto takes a PrivateKey protobuf message and returns the private key contained within.
+func FromProto(pb *keyspb.PrivateKey) (crypto.Signer, error) {
+	return UnmarshalPrivateKey(pb.GetDer())
 }
 
-// NewFromPrivateDER reads a DER-encoded private key.
-func NewFromPrivateDER(keyDER []byte) (crypto.Signer, error) {
+// UnmarshalPrivateKey reads a DER-encoded private key.
+func UnmarshalPrivateKey(keyDER []byte) (crypto.Signer, error) {
 	key1, err1 := x509.ParseECPrivateKey(keyDER)
 	if err1 == nil {
 		return key1, nil
@@ -55,8 +55,8 @@ func NewFromPrivateDER(keyDER []byte) (crypto.Signer, error) {
 	return nil, fmt.Errorf("der: could not parse private key as SEC1 (%v), PKCS8 (%v) or PKCS1 (%v)", err1, err2, err3)
 }
 
-// NewFromPublicDER reads a DER-encoded public key.
-func NewFromPublicDER(keyDER []byte) (crypto.PublicKey, error) {
+// UnmarshalPublicKey reads a DER-encoded public key.
+func UnmarshalPublicKey(keyDER []byte) (crypto.PublicKey, error) {
 	key, err := x509.ParsePKIXPublicKey(keyDER)
 	if err != nil {
 		return nil, fmt.Errorf("der: could not parse public key as PKIX (%v)", err)

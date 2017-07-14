@@ -144,9 +144,9 @@ func sequence(treeID int64, seq *log.Sequencer, count, batchSize int) {
 }
 
 func getPrivateKey(pemPath, pemPassword string) (*any.Any, crypto.Signer) {
-	pemSigner, err := pem.NewFromPrivatePEM(pemPath, pemPassword)
+	pemSigner, err := pem.UnmarshalPrivateKey(pemPath, pemPassword)
 	if err != nil {
-		glog.Fatalf("NewFromPrivatePEM(): %v", err)
+		glog.Fatalf("UnmarshalPrivateKey(): %v", err)
 	}
 	pemDer, err := der.MarshalPrivateKey(pemSigner)
 	if err != nil {
@@ -161,7 +161,7 @@ func getPrivateKey(pemPath, pemPassword string) (*any.Any, crypto.Signer) {
 }
 
 func getPublicKey(keyPEM string) []byte {
-	key, err := pem.NewFromPublicPEM(keyPEM)
+	key, err := pem.UnmarshalPublicKey(keyPEM)
 	if err != nil {
 		panic(err)
 	}

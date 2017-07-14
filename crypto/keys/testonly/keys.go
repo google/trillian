@@ -35,7 +35,7 @@ import (
 // MustMarshalPublicPEMToDER reads a PEM-encoded public key and returns it in DER encoding.
 // If an error occurs, it panics.
 func MustMarshalPublicPEMToDER(keyPEM string) []byte {
-	key, err := pem.NewFromPublicPEM(keyPEM)
+	key, err := pem.UnmarshalPublicKey(keyPEM)
 	if err != nil {
 		panic(err)
 	}
@@ -50,7 +50,7 @@ func MustMarshalPublicPEMToDER(keyPEM string) []byte {
 // MustMarshalPrivatePEMToDER decrypts a PEM-encoded private key and returns it in DER encoding.
 // If an error occurs, it panics.
 func MustMarshalPrivatePEMToDER(keyPEM, password string) []byte {
-	key, err := pem.NewFromPrivatePEM(keyPEM, password)
+	key, err := pem.UnmarshalPrivateKey(keyPEM, password)
 	if err != nil {
 		panic(err)
 	}

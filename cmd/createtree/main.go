@@ -181,7 +181,7 @@ func newPK(keyFormat string) (*any.Any, error) {
 		if *pemKeyPath == "" {
 			return nil, errors.New("empty pem_key_path")
 		}
-		pemSigner, err := pem.NewFromPrivatePEMFile(
+		pemSigner, err := pem.ReadPrivateKeyFile(
 			*pemKeyPath, *pemKeyPassword)
 		if err != nil {
 			return nil, err

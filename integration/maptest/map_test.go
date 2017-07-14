@@ -165,9 +165,9 @@ func TestLeafHistory(t *testing.T) {
 				t.Errorf("%v: newTreeWithHasher(%v): %v", tc.desc, hashStrategy, err)
 				continue
 			}
-			pubKey, err := der.NewFromPublicDER(tree.GetPublicKey().GetDer())
+			pubKey, err := der.UnmarshalPublicKey(tree.GetPublicKey().GetDer())
 			if err != nil {
-				t.Errorf("%v: NewFromPublicDER(%v): %v", tc.desc, hashStrategy, err)
+				t.Errorf("%v: UnmarshalPublicKey(%v): %v", tc.desc, hashStrategy, err)
 				continue
 			}
 
@@ -249,9 +249,9 @@ func TestInclusion(t *testing.T) {
 				t.Errorf("%v: newTreeWithHasher(%v): %v", tc.desc, hashStrategy, err)
 				continue
 			}
-			pubKey, err := der.NewFromPublicDER(tree.GetPublicKey().GetDer())
+			pubKey, err := der.UnmarshalPublicKey(tree.GetPublicKey().GetDer())
 			if err != nil {
-				t.Errorf("%v: NewFromPublicDER(%v): %v", tc.desc, hashStrategy, err)
+				t.Errorf("%v: UnmarshalPublicKey(%v): %v", tc.desc, hashStrategy, err)
 				continue
 			}
 
@@ -332,7 +332,7 @@ func TestInclusionBatch(t *testing.T) {
 func RunMapBatchTest(ctx context.Context, env *integration.MapEnv, tree *trillian.Tree,
 	batchSize, numBatches int) error {
 	// Parse variables from tree
-	pubKey, err := der.NewFromPublicDER(tree.GetPublicKey().GetDer())
+	pubKey, err := der.UnmarshalPublicKey(tree.GetPublicKey().GetDer())
 	if err != nil {
 		return err
 	}

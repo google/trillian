@@ -62,7 +62,7 @@ func TestSignatureAlgorithm(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		key, err := pem.NewFromPublicPEM(test.keyPEM)
+		key, err := pem.UnmarshalPublicKey(test.keyPEM)
 		if err != nil {
 			t.Errorf("%v: Failed to load key: %v", test.name, err)
 			continue

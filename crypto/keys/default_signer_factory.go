@@ -53,11 +53,11 @@ type DefaultSignerFactory struct {
 func (f *DefaultSignerFactory) NewSigner(ctx context.Context, pb proto.Message) (crypto.Signer, error) {
 	switch privateKey := pb.(type) {
 	case *keyspb.PEMKeyFile:
-		return pem.NewFromPrivatePEMFile(privateKey.GetPath(), privateKey.GetPassword())
+		return pem.ReadPrivateKeyFile(privateKey.GetPath(), privateKey.GetPassword())
 	case *keyspb.PrivateKey:
-		return der.NewFromPrivateDER(privateKey.GetDer())
+		return der.UnmarshalPrivateKey(privateKey.GetDer())
 	case *keyspb.PKCS11Config:
-		return pkcs11.NewFromPKCS11Config(f.pkcs11Module, privateKey)
+		return pkcs11.FromConfig(f.pkcs11Module, privateKey)
 	}
 
 	return nil, fmt.Errorf("unsupported private key protobuf type: %T", pb)
