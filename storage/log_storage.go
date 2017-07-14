@@ -136,4 +136,8 @@ type LogRootWriter interface {
 type LogMetadata interface {
 	// GetActiveLogs returns a list of the IDs of all the logs that are configured in storage
 	GetActiveLogIDs(ctx context.Context) ([]int64, error)
+
+	// GetUnsequencedCounts returns a map of the number of unsequenced entries
+	// by log ID.
+	GetUnsequencedCounts(ctx context.Context) (map[int64]int64, error)
 }
