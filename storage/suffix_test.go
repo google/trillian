@@ -115,7 +115,7 @@ func TestSuffixSerialize(t *testing.T) {
 		s    Suffix
 		want string
 	}{
-		// Prexisting format. This test vector must NOT change or existing data will be inaccessable.
+		// Prexisting format. This test vector must NOT change or existing data will be inaccessible.
 		{s: Suffix{5, []byte{0xae}}, want: "Ba4="},
 	} {
 		if got, want := tc.s.Serialize(), tc.want; got != want {

@@ -146,6 +146,26 @@ func TestNewNodeIDWithPrefix(t *testing.T) {
 	}
 }
 
+var nodeIDForTreeCoordsVec = []struct {
+	depth      int64
+	index      int64
+	maxBits    int
+	shouldFail bool
+	expected   string
+}{
+	{0, 0x00, 8, false, "00000000"},
+	{0, 0x01, 8, false, "00000001"},
+	{0, 0x01, 15, false, "000000000000001"},
+	{1, 0x01, 8, false, "0000001"},
+	{2, 0x04, 8, false, "000100"},
+	{8, 0x01, 16, false, "00000001"},
+	{8, 0x01, 9, false, "1"},
+	{0, 0x80, 8, false, "10000000"},
+	{0, 0x01, 64, false, "0000000000000000000000000000000000000000000000000000000000000001"},
+	{63, 0x01, 64, false, "1"},
+	{63, 0x02, 64, true, "index of 0x02 is too large for given depth"},
+}
+
 func TestNewNodeIDForTreeCoords(t *testing.T) {
 	for _, v := range []struct {
 		height     int64

@@ -126,12 +126,22 @@ func NewNodeIDFromPrefix(prefix []byte, depth int, index int64, subDepth, totalD
 }
 
 // NewNodeIDFromRelativeBigInt returns a NodeID given by a prefix and a subtree index.
-func NewNodeIDFromRelativeBigInt(prefix []byte, subDepth int, subIndex *big.Int, totalDepth int) NodeID {
-	if got, want := subIndex.BitLen(), 64; got > want {
-		panic(fmt.Sprintf("storage NewNodeFromRelativeBigInt(): subIndex.BitLen():  %v, want <= %v", got, want))
-	}
+// depth is the number of significant bits in subIndex, counting from the MSB.
+// subIndex is the path from the root of the subtree to the desired node, and continuing down to the bottom of the subtree.
+// subIndex = horizontal index << height.
+func NewNodeIDFromRelativeBigInt(prefix []byte, depth int, subIndex *big.Int, totalDepth int) NodeID {
+	// Put prefix in the MSB bits of path.
+	path := make([]byte, totalDepth/8)
+	copy(path, prefix)
 
-	return NewNodeIDFromPrefix(prefix, subDepth, subIndex.Int64(), subDepth, totalDepth)
+	// Copy subIndex into path.
+	copy(path[len(prefix):], subIndex.Bytes())
+
+	return NodeID{
+		Path:          path,
+		PrefixLenBits: len(prefix)*8 + depth,
+		PathLenBits:   len(path) * 8,
+	}
 }
 
 // NewNodeIDFromBigInt returns a NodeID of a big.Int with no prefix.
