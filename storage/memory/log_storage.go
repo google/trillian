@@ -53,18 +53,27 @@ func labelForTX(t *logTreeTX) string {
 	return strconv.FormatInt(t.treeID, 10)
 }
 
+// unseqKey formats a key for use in a tree's BTree store.
+// The associated Item value will be a list of unsequenced entries.
 func unseqKey(treeID int64) btree.Item {
 	return &kv{k: fmt.Sprintf("/%d/unseq", treeID)}
 }
 
+// seqLeafKey formats a key for use in a tree's BTree store.
+// The associated Item value will be the leaf at the given sequence number.
 func seqLeafKey(treeID, seq int64) btree.Item {
 	return &kv{k: fmt.Sprintf("/%d/seq/%020d", treeID, seq)}
 }
 
+// hashToSeqKey formats a key for use in a tree's BTree store.
+// The associated Item value will be the sequence number for the leaf with
+// the given hash.
 func hashToSeqKey(treeID int64) btree.Item {
 	return &kv{k: fmt.Sprintf("/%d/h2s", treeID)}
 }
 
+// sthKey formats a key for use in a tree's BTree store.
+// The associated Item value will be the STH with the given timestamp.
 func sthKey(treeID, timestamp int64) btree.Item {
 	return &kv{k: fmt.Sprintf("/%d/sth/%020d", treeID, timestamp)}
 }
@@ -348,8 +357,8 @@ func (t *readOnlyLogTX) GetUnsequencedCounts(ctx context.Context) (map[int64]int
 
 	ret := make(map[int64]int64)
 	for id, tree := range t.ms.trees {
-		tree.mu.RLock()
-		defer tree.mu.RUnlock()
+		tree.RLock()
+		defer tree.RUnlock()
 
 		k := unseqKey(id)
 		q := tree.store.Get(k).(*kv).v.(*list.List)

@@ -139,5 +139,8 @@ type LogMetadata interface {
 
 	// GetUnsequencedCounts returns a map of the number of unsequenced entries
 	// by log ID.
+	//
+	// This call is likely to be VERY expensive and take a long time to complete.
+	// Consider carefully whether you really need to call it!
 	GetUnsequencedCounts(ctx context.Context) (map[int64]int64, error)
 }

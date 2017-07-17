@@ -977,20 +977,21 @@ func TestGetUnsequencedCounts(t *testing.T) {
 	s := NewLogStorage(DB, nil)
 
 	ctx := context.Background()
-	expectedCount := int64(0)
+	expectedCount := make(map[int64]int64)
 
 	for i := int64(1); i < 10; i++ {
 		// Put some leaves in the queue of each of the logs
-		for _, logID := range logIDs {
+		for j, logID := range logIDs {
 			tx := beginLogTx(s, logID, t)
 			defer tx.Close()
-			leaves := createTestLeaves(i, expectedCount)
+			numToAdd := i + int64(j)
+			leaves := createTestLeaves(numToAdd, expectedCount[logID])
 			if _, err := tx.QueueLeaves(ctx, leaves, fakeDequeueCutoffTime); err != nil {
 				t.Fatalf("Failed to queue leaves: %v", err)
 			}
 			commit(tx, t)
+			expectedCount[logID] += numToAdd
 		}
-		expectedCount += i
 
 		// Now check what we get back from GetUnsequencedCounts matches
 		tx, err := s.Snapshot(context.Background())
@@ -998,17 +999,12 @@ func TestGetUnsequencedCounts(t *testing.T) {
 			t.Fatalf("Snapshot() = (_, %v), want no error", err)
 		}
 
-		counts, err := tx.GetUnsequencedCounts(ctx)
+		got, err := tx.GetUnsequencedCounts(ctx)
 		if err != nil {
-			t.Fatalf("GetUnsequencedCounts() = %v, want no error", err)
+			t.Errorf("GetUnsequencedCounts() = %v, want no error", err)
 		}
-		if got, want := len(counts), numLogs; got != want {
-			t.Fatalf("GetUnsequencedCounts returns map with %d entries, want %d", got, want)
-		}
-		for id, c := range counts {
-			if got, want := c, expectedCount; got != want {
-				t.Fatalf("GetUnsequencedCounts: LogID %v has %d unsequenced, want %d", id, got, want)
-			}
+		if diff := pretty.Compare(expectedCount, got); diff != "" {
+			t.Errorf("GetUnsequencedCounts() = diff -want +got: %s", diff)
 		}
 	}
 }
