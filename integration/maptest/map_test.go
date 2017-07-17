@@ -16,6 +16,7 @@ package integration
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"testing"
 
@@ -47,7 +48,36 @@ func createMapLeaves(iv ...[]byte) []*trillian.MapLeaf {
 	return r
 }
 
-func TestInclusionWithEnv(t *testing.T) {
+// makeBatchIndexValues produces n random i/v pairs
+func makeBatchIndexValues(batch, n int) [][]byte {
+	iv := make([][]byte, 0, n*2)
+	for i := 0; i < n; i++ {
+		index := testonly.HashKey(fmt.Sprintf("batch-%d-key-%d", batch, i))
+		value := []byte(fmt.Sprintf("batch-%d-value-%d", batch, i))
+		iv = append(iv, index, value)
+	}
+	return iv
+}
+
+// newTreeWithHasher is a test setup helper for creating new trees with a given hasher.
+func newTreeWithHasher(ctx context.Context, env *integration.MapEnv, hashStrategy trillian.HashStrategy) (*trillian.Tree, hashers.MapHasher, error) {
+	treeParams := stestonly.MapTree
+	treeParams.HashStrategy = hashStrategy
+	tree, err := env.AdminClient.CreateTree(ctx, &trillian.CreateTreeRequest{
+		Tree: treeParams,
+	})
+	if err != nil {
+		return nil, nil, nil
+	}
+
+	hasher, err := hashers.NewMapHasher(tree.HashStrategy)
+	if err != nil {
+		return nil, nil, nil
+	}
+	return tree, hasher, nil
+}
+
+func TestInclusion(t *testing.T) {
 	ctx := context.Background()
 	env, err := integration.NewMapEnv(ctx, "TestInclusionWithEnv")
 	if err != nil {
@@ -57,33 +87,32 @@ func TestInclusionWithEnv(t *testing.T) {
 	for _, tc := range []struct {
 		desc string
 		trillian.HashStrategy
-		index, value []byte
+		iv [][]byte
 	}{
 		{
-			desc:         "maphasher",
+			desc:         "maphasher single",
 			HashStrategy: trillian.HashStrategy_TEST_MAP_HASHER,
-			index:        testonly.TransparentHash("A"),
-			value:        []byte("A"),
+			iv: [][]byte{
+				testonly.TransparentHash("A"), []byte("A"),
+			},
+		},
+		{
+			desc:         "maphasher multi",
+			HashStrategy: trillian.HashStrategy_TEST_MAP_HASHER,
+			iv: [][]byte{
+				testonly.TransparentHash("A"), []byte("A"),
+				testonly.TransparentHash("B"), []byte("B"),
+				testonly.TransparentHash("C"), []byte("C"),
+			},
 		},
 	} {
-		treeParams := stestonly.MapTree
-		treeParams.HashStrategy = tc.HashStrategy
-		tree, err := env.AdminClient.CreateTree(ctx, &trillian.CreateTreeRequest{
-			Tree: treeParams,
-		})
+		tree, hasher, err := newTreeWithHasher(ctx, env, tc.HashStrategy)
 		if err != nil {
-			t.Errorf("%v: CreateTree(): %v", tc.desc, err)
-			continue
+			t.Errorf("%v: newTreeWithHasher(%v): %v", tc.desc, tc.HashStrategy, err)
 		}
-
 		mapID := tree.TreeId
-		hasher, err := hashers.NewMapHasher(tree.HashStrategy)
-		if err != nil {
-			t.Errorf("%v: NewMapHasher(): %v", tc.desc, err)
-			continue
-		}
 		client := env.MapClient
-		leaves := createMapLeaves(tc.index, tc.value)
+		leaves := createMapLeaves(tc.iv...)
 
 		if _, err := client.SetLeaves(ctx, &trillian.SetMapLeavesRequest{
 			MapId:  mapID,
@@ -115,6 +144,164 @@ func TestInclusionWithEnv(t *testing.T) {
 			if err := merkle.VerifyMapInclusionProof(mapID, index,
 				leafHash, rootHash, proof, hasher); err != nil {
 				t.Errorf("%v: VerifyMapInclusionProof(): %v", tc.desc, err)
+			}
+		}
+	}
+}
+
+func TestInclusionLarge(t *testing.T) {
+	// Don't run tests with the larger numbers of leaves in short mode.
+	ShortCutoff := 150
+
+	ctx := context.Background()
+	env, err := integration.NewMapEnv(ctx, "TestInclusionWithEnv")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer env.Close()
+	for _, tc := range []struct {
+		desc string
+		trillian.HashStrategy
+		N int
+	}{
+		{
+			desc:         "maphasher 100",
+			HashStrategy: trillian.HashStrategy_TEST_MAP_HASHER,
+			N:            100,
+		},
+		{
+			desc:         "maphasher 500",
+			HashStrategy: trillian.HashStrategy_TEST_MAP_HASHER,
+			N:            500,
+		},
+		{
+			desc:         "maphasher 2000",
+			HashStrategy: trillian.HashStrategy_TEST_MAP_HASHER,
+			N:            2000,
+		},
+	} {
+		if testing.Short() && tc.N > ShortCutoff {
+			continue
+		}
+		tree, hasher, err := newTreeWithHasher(ctx, env, tc.HashStrategy)
+		if err != nil {
+			t.Errorf("%v: newTreeWithHasher(%v): %v", tc.desc, tc.HashStrategy, err)
+		}
+		mapID := tree.TreeId
+		client := env.MapClient
+		leaves := createMapLeaves(makeBatchIndexValues(0, tc.N)...)
+
+		if _, err := client.SetLeaves(ctx, &trillian.SetMapLeavesRequest{
+			MapId:  mapID,
+			Leaves: leaves,
+		}); err != nil {
+			t.Errorf("%v: SetLeaves(): %v", tc.desc, err)
+			continue
+		}
+
+		indexes := [][]byte{}
+		for _, l := range leaves {
+			indexes = append(indexes, l.Index)
+		}
+		getResp, err := client.GetLeaves(ctx, &trillian.GetMapLeavesRequest{
+			MapId:    mapID,
+			Index:    indexes,
+			Revision: -1,
+		})
+		if err != nil {
+			t.Errorf("%v: GetLeaves(): %v", tc.desc, err)
+			continue
+		}
+
+		rootHash := getResp.GetMapRoot().GetRootHash()
+		for _, m := range getResp.GetMapLeafInclusion() {
+			index := m.GetLeaf().GetIndex()
+			leafHash := m.GetLeaf().GetLeafHash()
+			proof := m.GetInclusion()
+			if err := merkle.VerifyMapInclusionProof(mapID, index,
+				leafHash, rootHash, proof, hasher); err != nil {
+				t.Errorf("%v: VerifyMapInclusionProof(): %v", tc.desc, err)
+			}
+		}
+	}
+}
+
+func TestInclusionBatch(t *testing.T) {
+	ctx := context.Background()
+	env, err := integration.NewMapEnv(ctx, "TestInclusionWithEnv")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer env.Close()
+TestCase:
+	for _, tc := range []struct {
+		desc string
+		trillian.HashStrategy
+		batchSize, numBatches int
+	}{
+		{
+			desc:         "maphasher batch",
+			HashStrategy: trillian.HashStrategy_TEST_MAP_HASHER,
+			batchSize:    64,
+			numBatches:   32,
+		},
+	} {
+		tree, hasher, err := newTreeWithHasher(ctx, env, tc.HashStrategy)
+		if err != nil {
+			t.Errorf("%v: newTreeWithHasher(%v): %v", tc.desc, tc.HashStrategy, err)
+		}
+		mapID := tree.TreeId
+		client := env.MapClient
+
+		leafBatch := make([][]*trillian.MapLeaf, tc.numBatches)
+		leafMap := make(map[string]*trillian.MapLeaf)
+		for i := range leafBatch {
+			leafBatch[i] = createMapLeaves(makeBatchIndexValues(i, tc.batchSize)...)
+			for _, l := range leafBatch[i] {
+				leafMap[hex.EncodeToString(l.Index)] = l
+			}
+		}
+
+		for _, b := range leafBatch {
+			if _, err := client.SetLeaves(ctx, &trillian.SetMapLeavesRequest{
+				MapId:  mapID,
+				Leaves: b,
+			}); err != nil {
+				t.Errorf("%v: SetLeaves(): %v", tc.desc, err)
+				continue TestCase
+			}
+		}
+
+		// Shuffle the indexes. Map access is randomized.
+		indexBatch := make([][][]byte, 0, tc.numBatches)
+		i := 0
+		for _, v := range leafMap {
+			if i%tc.batchSize == 0 {
+				indexBatch = append(indexBatch, make([][]byte, tc.batchSize))
+			}
+			indexBatch[i/tc.batchSize][i%tc.batchSize] = v.Index
+			i++
+		}
+		for _, indexes := range indexBatch {
+			getResp, err := client.GetLeaves(ctx, &trillian.GetMapLeavesRequest{
+				MapId:    mapID,
+				Index:    indexes,
+				Revision: -1,
+			})
+			if err != nil {
+				t.Errorf("%v: GetLeaves(): %v", tc.desc, err)
+				continue TestCase
+			}
+
+			rootHash := getResp.GetMapRoot().GetRootHash()
+			for _, m := range getResp.GetMapLeafInclusion() {
+				index := m.GetLeaf().GetIndex()
+				leafHash := m.GetLeaf().GetLeafHash()
+				proof := m.GetInclusion()
+				if err := merkle.VerifyMapInclusionProof(mapID, index,
+					leafHash, rootHash, proof, hasher); err != nil {
+					t.Errorf("%v: VerifyMapInclusionProof(): %v", tc.desc, err)
+				}
 			}
 		}
 	}
