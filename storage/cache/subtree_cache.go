@@ -82,22 +82,6 @@ type SubtreeCache struct {
 	prepare storage.PrepareSubtreeWriteFunc
 }
 
-// Suffix represents the tail of a NodeID, indexing into the Subtree which
-// corresponds to the prefix of the NodeID.
-type Suffix struct {
-	// bits is the number of bits in the node ID suffix.
-	bits byte
-	// path is the suffix itself.
-	path []byte
-}
-
-func (s Suffix) serialize() string {
-	r := make([]byte, 1, 1+(len(s.path)))
-	r[0] = s.bits
-	r = append(r, s.path...)
-	return base64.StdEncoding.EncodeToString(r)
-}
-
 // NewSubtreeCache returns a newly intialised cache ready for use.
 // populateSubtree is a function which knows how to populate a subtree's
 // internal nodes given its leaves, and will be called for each subtree loaded
@@ -306,10 +290,11 @@ func (s *SubtreeCache) getNodeHashUnderLock(id storage.NodeID, getSubtree GetSub
 	// have a fixed depth if the suffix has the same number of significant bits as the
 	// subtree depth then this is a leaf. For example if the subtree is depth 8 its leaves
 	// have 8 significant suffix bits.
-	if int32(sx.bits) == c.Depth {
-		nh = c.Leaves[sx.serialize()]
+	sfxKey := sx.Serialize()
+	if int32(sx.Bits) == c.Depth {
+		nh = c.Leaves[sfxKey]
 	} else {
-		nh = c.InternalNodes[sx.serialize()]
+		nh = c.InternalNodes[sfxKey]
 	}
 	if nh == nil {
 		return nil, nil
@@ -346,10 +331,11 @@ func (s *SubtreeCache) SetNodeHash(id storage.NodeID, h []byte, getSubtree GetSu
 	s.dirtyPrefixes[prefixKey] = true
 	// Determine whether we're being asked to store a leaf node, or an internal
 	// node, and store it accordingly.
-	if int32(sx.bits) == c.Depth {
-		c.Leaves[sx.serialize()] = h
+	sfxKey := sx.Serialize()
+	if int32(sx.Bits) == c.Depth {
+		c.Leaves[sfxKey] = h
 	} else {
-		c.InternalNodes[sx.serialize()] = h
+		c.InternalNodes[sfxKey] = h
 	}
 	return nil
 }
@@ -397,19 +383,6 @@ func (s *SubtreeCache) newEmptySubtree(id storage.NodeID, px []byte) *storagepb.
 		Leaves:        make(map[string][]byte),
 		InternalNodes: make(map[string][]byte),
 	}
-}
-
-// makeSuffixKey creates a suffix key for indexing into the subtree's Leaves and
-// InternalNodes maps.
-func makeSuffixKey(depth int, index int64) (string, error) {
-	if depth < 0 {
-		return "", fmt.Errorf("invalid negative depth of %d", depth)
-	}
-	if index < 0 {
-		return "", fmt.Errorf("invalid negative index %d", index)
-	}
-	sfx := Suffix{byte(depth), []byte{byte(index)}}
-	return sfx.serialize(), nil
 }
 
 // PopulateMapSubtreeNodes re-creates Map subtree's InternalNodes from the
