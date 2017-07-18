@@ -53,18 +53,27 @@ func labelForTX(t *logTreeTX) string {
 	return strconv.FormatInt(t.treeID, 10)
 }
 
+// unseqKey formats a key for use in a tree's BTree store.
+// The associated Item value will be a list of unsequenced entries.
 func unseqKey(treeID int64) btree.Item {
 	return &kv{k: fmt.Sprintf("/%d/unseq", treeID)}
 }
 
+// seqLeafKey formats a key for use in a tree's BTree store.
+// The associated Item value will be the leaf at the given sequence number.
 func seqLeafKey(treeID, seq int64) btree.Item {
 	return &kv{k: fmt.Sprintf("/%d/seq/%020d", treeID, seq)}
 }
 
+// hashToSeqKey formats a key for use in a tree's BTree store.
+// The associated Item value will be the sequence number for the leaf with
+// the given hash.
 func hashToSeqKey(treeID int64) btree.Item {
 	return &kv{k: fmt.Sprintf("/%d/h2s", treeID)}
 }
 
+// sthKey formats a key for use in a tree's BTree store.
+// The associated Item value will be the STH with the given timestamp.
 func sthKey(treeID, timestamp int64) btree.Item {
 	return &kv{k: fmt.Sprintf("/%d/sth/%020d", treeID, timestamp)}
 }
@@ -340,6 +349,22 @@ func (t *logTreeTX) getActiveLogIDs(ctx context.Context) ([]int64, error) {
 // GetActiveLogIDs returns a list of the IDs of all configured logs
 func (t *logTreeTX) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
 	return t.getActiveLogIDs(ctx)
+}
+
+func (t *readOnlyLogTX) GetUnsequencedCounts(ctx context.Context) (storage.CountByLogID, error) {
+	t.ms.mu.RLock()
+	defer t.ms.mu.RUnlock()
+
+	ret := make(map[int64]int64)
+	for id, tree := range t.ms.trees {
+		tree.RLock()
+		defer tree.RUnlock() // OK to hold until method returns.
+
+		k := unseqKey(id)
+		queue := tree.store.Get(k).(*kv).v.(*list.List)
+		ret[id] = int64(queue.Len())
+	}
+	return ret, nil
 }
 
 // byLeafIdentityHash allows sorting of leaves by their identity hash, so DB

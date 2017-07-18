@@ -32,13 +32,29 @@ import (
 
 const degree = 8
 
+// unseqKey formats a key for use in a tree's BTree store.
+// The associated Item value will be the stubtreeProto with the given nodeID
+// prefix.
 func subtreeKey(treeID, rev int64, nodeID storage.NodeID) btree.Item {
 	return &kv{k: fmt.Sprintf("/%d/subtree/%s/%d", treeID, nodeID.String(), rev)}
 }
 
 // tree stores all data for a given treeID
 type tree struct {
-	mu    sync.RWMutex
+	// mu protects access to all tree members.
+	mu sync.RWMutex
+	// store is a key-value representation of a Trillian tree storage.
+	// The keyspace is partitioned off into various prefixes for the different
+	// 'tables' of things stored in there.
+	// e.g. subtree protos are stored with a key returned by subtreeKey() above.
+	//
+	// Other prefixes are used by Log/Map Storage.
+	//
+	// See the various key formatting functions for details of what is stored
+	// under the formatted keys.
+	//
+	// store uses a BTree so that we can have a defined ordering over things
+	// (such as sequenced leaves), while still accessing by key.
 	store *btree.BTree
 	// currentSTH is the timestamp of the current STH.
 	currentSTH int64
@@ -64,6 +80,7 @@ func (t *tree) RUnlock() {
 // memoryTreeStorage is shared between the memoryLog and (forthcoming) memoryMap-
 // Storage implementations, and contains functionality which is common to both,
 type memoryTreeStorage struct {
+	// mu only protects access to the trees map.
 	mu    sync.RWMutex
 	trees map[int64]*tree
 }

@@ -967,6 +967,49 @@ func TestGetActiveLogIDsEmpty(t *testing.T) {
 	}
 }
 
+func TestGetUnsequencedCounts(t *testing.T) {
+	numLogs := 4
+	cleanTestDB(DB)
+	logIDs := make([]int64, 0, numLogs)
+	for i := 0; i < numLogs; i++ {
+		logIDs = append(logIDs, createLogForTests(DB))
+	}
+	s := NewLogStorage(DB, nil)
+
+	ctx := context.Background()
+	expectedCount := make(map[int64]int64)
+
+	for i := int64(1); i < 10; i++ {
+		// Put some leaves in the queue of each of the logs
+		for j, logID := range logIDs {
+			tx := beginLogTx(s, logID, t)
+			defer tx.Close()
+			numToAdd := i + int64(j)
+			leaves := createTestLeaves(numToAdd, expectedCount[logID])
+			if _, err := tx.QueueLeaves(ctx, leaves, fakeDequeueCutoffTime); err != nil {
+				t.Fatalf("Failed to queue leaves: %v", err)
+			}
+			commit(tx, t)
+			expectedCount[logID] += numToAdd
+		}
+
+		// Now check what we get back from GetUnsequencedCounts matches
+		tx, err := s.Snapshot(ctx)
+		if err != nil {
+			t.Fatalf("Snapshot() = (_, %v), want no error", err)
+		}
+		defer tx.Close()
+
+		got, err := tx.GetUnsequencedCounts(ctx)
+		if err != nil {
+			t.Errorf("GetUnsequencedCounts() = %v, want no error", err)
+		}
+		if diff := pretty.Compare(expectedCount, got); diff != "" {
+			t.Errorf("GetUnsequencedCounts() = diff -want +got:\n%s", diff)
+		}
+	}
+}
+
 func TestReadOnlyLogTX_Rollback(t *testing.T) {
 	ctx := context.Background()
 	cleanTestDB(DB)

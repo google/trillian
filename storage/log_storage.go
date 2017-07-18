@@ -132,8 +132,18 @@ type LogRootWriter interface {
 	StoreSignedLogRoot(ctx context.Context, root trillian.SignedLogRoot) error
 }
 
+// CountByLogID is a map of total number of items keyed by log ID.
+type CountByLogID map[int64]int64
+
 // LogMetadata provides access to information about the logs in storage
 type LogMetadata interface {
 	// GetActiveLogs returns a list of the IDs of all the logs that are configured in storage
 	GetActiveLogIDs(ctx context.Context) ([]int64, error)
+
+	// GetUnsequencedCounts returns a map of the number of unsequenced entries
+	// by log ID.
+	//
+	// This call is likely to be VERY expensive and take a long time to complete.
+	// Consider carefully whether you really need to call it!
+	GetUnsequencedCounts(ctx context.Context) (CountByLogID, error)
 }
