@@ -17,11 +17,10 @@ package integration
 import (
 	"bytes"
 	"context"
+	"crypto"
 	"encoding/hex"
 	"fmt"
-	"math/rand"
 
-	"github.com/golang/glog"
 	"github.com/google/trillian"
 	tcrypto "github.com/google/trillian/crypto"
 	"github.com/google/trillian/crypto/keys"
@@ -31,36 +30,71 @@ import (
 	"github.com/google/trillian/testonly/integration"
 )
 
-// createHashKV returns a []*trillian.MapLeaf formed by the mapping of index, value ...
-// createHashKV panics if len(iv) is odd. Duplicate i/v pairs get over written.
-func createMapLeaves(iv ...[]byte) []*trillian.MapLeaf {
-	if len(iv)%2 != 0 {
-		panic(fmt.Sprintf("integration: createMapLeaves got odd number of iv pairs: %v", len(iv)))
-	}
-	r := []*trillian.MapLeaf{}
-	for i := 0; i < len(iv); i += 2 {
-		r = append(r, &trillian.MapLeaf{
-			Index:     iv[i],
-			LeafValue: iv[i+1],
+// createBatchLeaves produces n random i/v pairs
+func createBatchLeaves(batch, n int) []*trillian.MapLeaf {
+	leaves := make([]*trillian.MapLeaf, 0, n)
+	for i := 0; i < n; i++ {
+		leaves = append(leaves, &trillian.MapLeaf{
+			Index:     testonly.HashKey(fmt.Sprintf("batch-%d-key-%d", batch, i)),
+			LeafValue: []byte(fmt.Sprintf("batch-%d-value-%d", batch, i)),
 		})
 	}
-	return r
+	return leaves
 }
 
-// makeBatchIndexValues produces n random i/v pairs
-func makeBatchIndexValues(batch, n int) [][]byte {
-	iv := make([][]byte, 0, n*2)
-	for i := 0; i < n; i++ {
-		index := testonly.HashKey(fmt.Sprintf("batch-%d-key-%d", batch, i))
-		value := []byte(fmt.Sprintf("batch-%d-value-%d", batch, i))
-		iv = append(iv, index, value)
+func isEmptyMap(ctx context.Context, env *integration.MapEnv, tree *trillian.Tree) error {
+	r, err := env.MapClient.GetSignedMapRoot(ctx, &trillian.GetSignedMapRootRequest{
+		MapId: tree.TreeId,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to get empty map head: %v", err)
 	}
-	return iv
+
+	if got, want := r.GetMapRoot().GetMapRevision(), int64(0); got != want {
+		return fmt.Errorf("got SMH with revision %d, want %d", got, want)
+	}
+	return nil
 }
 
-// RunMapIntegration runs a map integration test using the given map ID and client.
-func RunMapIntegration(ctx context.Context, env *integration.MapEnv, tree *trillian.Tree) error {
-	treeID := tree.TreeId
+func verifyGetMapLeavesResponse(getResp *trillian.GetMapLeavesResponse, indexes [][]byte,
+	wantRevision int64, pubKey crypto.PublicKey, hasher hashers.MapHasher, treeID int64) error {
+	if got, want := len(getResp.MapLeafInclusion), len(indexes); got != want {
+		return fmt.Errorf("got %d values, want %d", got, want)
+	}
+	if got, want := getResp.GetMapRoot().GetMapRevision(), wantRevision; got != want {
+		return fmt.Errorf("got SMH with revision %d, want %d", got, want)
+	}
+
+	// SignedMapRoot contains its own signature. To verify, we need to create a local
+	// copy of the object and return the object to the state it was in when signed
+	// by removing the signature from the object.
+	smr := *getResp.GetMapRoot()
+	smr.Signature = nil // Remove the signature from the object to be verified.
+	if err := tcrypto.VerifyObject(pubKey, smr, getResp.GetMapRoot().GetSignature()); err != nil {
+		return fmt.Errorf("VerifyObject(SMR): %v", err)
+	}
+	rootHash := getResp.GetMapRoot().GetRootHash()
+	for _, incl := range getResp.MapLeafInclusion {
+		leaf := incl.GetLeaf().GetLeafValue()
+		index := incl.GetLeaf().GetIndex()
+		leafHash := incl.GetLeaf().GetLeafHash()
+		proof := incl.GetInclusion()
+
+		if got, want := leafHash, hasher.HashLeaf(treeID, index, hasher.BitLen(), leaf); !bytes.Equal(got, want) {
+			return fmt.Errorf("HashLeaf(%s): %x, want %x", leaf, got, want)
+		}
+		if err := merkle.VerifyMapInclusionProof(treeID, index,
+			leafHash, rootHash, proof, hasher); err != nil {
+			return fmt.Errorf("verifyMapInclusionProof(%x): %v", index, err)
+		}
+	}
+	return nil
+}
+
+// RunMapBatchTest runs a map integration test using the given tree and client.
+func RunMapBatchTest(ctx context.Context, env *integration.MapEnv, tree *trillian.Tree,
+	batchSize, numBatches int) error {
+	// Parse variables from tree
 	pubKey, err := keys.NewFromPublicDER(tree.GetPublicKey().GetDer())
 	if err != nil {
 		return err
@@ -69,48 +103,36 @@ func RunMapIntegration(ctx context.Context, env *integration.MapEnv, tree *trill
 	if err != nil {
 		return err
 	}
-	client := env.MapClient
 
-	{
-		// Ensure we're starting with an empty map
-		r, err := client.GetSignedMapRoot(ctx, &trillian.GetSignedMapRootRequest{MapId: treeID})
-		if err != nil {
-			return fmt.Errorf("failed to get empty map head: %v", err)
-		}
-
-		if got, want := r.MapRoot.MapRevision, int64(0); got != want {
-			return fmt.Errorf("got SMH with revision %d, want %d", got, want)
-		}
+	// Ensure we're starting with an empty map
+	if err := isEmptyMap(ctx, env, tree); err != nil {
+		return err
 	}
 
-	// Generate tests.
-	const batchSize = 64
-	const numBatches = 32
-	tests := createMapLeaves(makeBatchIndexValues(0, batchSize*numBatches)...)
-	lookup := make(map[string]*trillian.MapLeaf)
-	for i, t := range tests {
-		lookup[hex.EncodeToString(t.Index)] = tests[i]
+	// Generate leaves.
+	leafBatch := make([][]*trillian.MapLeaf, numBatches)
+	leafMap := make(map[string]*trillian.MapLeaf)
+	for i := range leafBatch {
+		leafBatch[i] = createBatchLeaves(i, batchSize)
+		for _, l := range leafBatch[i] {
+			leafMap[hex.EncodeToString(l.Index)] = l
+		}
 	}
 
 	// Write some data in batches
-	for x := 0; x < numBatches; x++ {
-		glog.Infof("Starting batch %d...", x)
-
-		req := &trillian.SetMapLeavesRequest{
-			MapId:  treeID,
-			Leaves: tests[x*batchSize : (x+1)*batchSize],
+	for _, b := range leafBatch {
+		if _, err := env.MapClient.SetLeaves(ctx, &trillian.SetMapLeavesRequest{
+			MapId:  tree.TreeId,
+			Leaves: b,
+		}); err != nil {
+			return fmt.Errorf("SetLeaves(): %v", err)
 		}
-
-		_, err := client.SetLeaves(ctx, req)
-		if err != nil {
-			return fmt.Errorf("failed to write batch %d: %v", x, err)
-		}
-		glog.Infof("Set %d k/v pairs", len(req.Leaves))
 	}
 
 	// Check your head
-	var latestRoot trillian.SignedMapRoot
-	r, err := client.GetSignedMapRoot(ctx, &trillian.GetSignedMapRootRequest{MapId: treeID})
+	r, err := env.MapClient.GetSignedMapRoot(ctx, &trillian.GetSignedMapRootRequest{
+		MapId: tree.TreeId,
+	})
 	if err != nil {
 		return fmt.Errorf("failed to get map head: %v", err)
 	}
@@ -118,88 +140,45 @@ func RunMapIntegration(ctx context.Context, env *integration.MapEnv, tree *trill
 	if got, want := r.MapRoot.MapRevision, int64(numBatches); got != want {
 		return fmt.Errorf("got SMH with revision %d, want %d", got, want)
 	}
-	latestRoot = *r.MapRoot
 
-	// Check values
-	// Mix up the ordering of requests
-	randIndexes := make([][]byte, len(tests))
-	for i, r := range rand.Perm(len(tests)) {
-		randIndexes[i] = tests[r].Index
+	// Shuffle the indexes. Map access is randomized.
+	indexBatch := make([][][]byte, 0, numBatches)
+	i := 0
+	for _, v := range leafMap {
+		if i%batchSize == 0 {
+			indexBatch = append(indexBatch, make([][]byte, 0, batchSize))
+		}
+		batchIndex := i / batchSize
+		indexBatch[batchIndex] = append(indexBatch[batchIndex], v.Index)
+		i++
 	}
-	for i := 0; i < numBatches; i++ {
-		getReq := &trillian.GetMapLeavesRequest{
-			MapId:    treeID,
+
+	for _, indexes := range indexBatch {
+		getResp, err := env.MapClient.GetLeaves(ctx, &trillian.GetMapLeavesRequest{
+			MapId:    tree.TreeId,
+			Index:    indexes,
 			Revision: -1,
-			Index:    randIndexes[i*batchSize : (i+1)*batchSize],
-		}
-
-		r, err := client.GetLeaves(ctx, getReq)
+		})
 		if err != nil {
-			return fmt.Errorf("failed to get values: %v", err)
+			return fmt.Errorf("GetLeaves(): %v", err)
 		}
-		if got, want := len(r.MapLeafInclusion), len(getReq.Index); got != want {
-			return fmt.Errorf("got %d values, want %d", got, want)
-		}
-		if got, want := r.GetMapRoot().GetMapRevision(), int64(numBatches); got != want {
-			return fmt.Errorf("got SMH with revision %d, want %d", got, want)
-		}
-		// SignedMapRoot contains its own signature. To verify, we need to create a local
-		// copy of the object and return the object to the state it was in when signed
-		// by removing the signature from the object.
-		smr := *r.GetMapRoot()
-		smr.Signature = nil // Remove the signature from the object to be verified.
-		if tcrypto.VerifyObject(pubKey, smr, r.GetMapRoot().GetSignature()) != nil {
-			return fmt.Errorf("VerifyObject(SMR): %v", err)
-		}
-		rootHash := r.GetMapRoot().GetRootHash()
-		for _, incl := range r.MapLeafInclusion {
-			leaf := incl.GetLeaf().GetLeafValue()
-			index := incl.GetLeaf().GetIndex()
-			leafHash := incl.GetLeaf().GetLeafHash()
-			proof := incl.GetInclusion()
 
-			ev, ok := lookup[hex.EncodeToString(index)]
+		if err := verifyGetMapLeavesResponse(getResp, indexes, int64(numBatches),
+			pubKey, hasher, tree.TreeId); err != nil {
+			return err
+		}
+
+		// Verify leaf contents
+		for _, incl := range getResp.MapLeafInclusion {
+			index := incl.GetLeaf().GetIndex()
+			leaf := incl.GetLeaf().GetLeafValue()
+			ev, ok := leafMap[hex.EncodeToString(index)]
 			if !ok {
 				return fmt.Errorf("unexpected key returned: %s", index)
 			}
 			if got, want := leaf, ev.LeafValue; !bytes.Equal(got, want) {
 				return fmt.Errorf("got value %s, want %s", got, want)
 			}
-			if got, want := hasher.HashLeaf(treeID, index, hasher.BitLen(), leaf), leafHash; !bytes.Equal(got, want) {
-				return fmt.Errorf("HashLeaf(%s): %x, want %x", leaf, got, want)
-			}
-			if err := merkle.VerifyMapInclusionProof(treeID, index,
-				leafHash, rootHash, proof, hasher); err != nil {
-				return fmt.Errorf("verifyMapInclusionProof(%x): %v", index, err)
-			}
-		}
-	}
-	if err := testForNonExistentLeaf(ctx, treeID, hasher, client, latestRoot); err != nil {
-		return err
-	}
-	return nil
-}
-
-// Ensure that a query for a leaf that does not exist results in a valid inclusion proof.
-func testForNonExistentLeaf(ctx context.Context, treeID int64, hasher hashers.MapHasher,
-	client trillian.TrillianMapClient, latestRoot trillian.SignedMapRoot) error {
-	index1 := []byte("doesnotexist....................")
-	r, err := client.GetLeaves(ctx, &trillian.GetMapLeavesRequest{
-		MapId:    treeID,
-		Revision: latestRoot.MapRevision,
-		Index:    [][]byte{index1},
-	})
-	if err != nil {
-		return fmt.Errorf("GetLeaves(%s): %v", index1, err)
-	}
-	for _, incl := range r.MapLeafInclusion {
-		leaf := incl.Leaf
-		if got, want := len(leaf.LeafValue), 0; got != want {
-			return fmt.Errorf("len(GetLeaves(%s).LeafValue): %v, want, %v", index1, got, want)
-		}
-		leafHash := hasher.HashLeaf(treeID, leaf.Index, hasher.BitLen(), leaf.LeafValue)
-		if err := merkle.VerifyMapInclusionProof(treeID, leaf.Index, leafHash, latestRoot.RootHash, incl.Inclusion, hasher); err != nil {
-			return fmt.Errorf("VerifyMapInclusionProof(%x): %v", leaf.Index, err)
 		}
 	}
 	return nil

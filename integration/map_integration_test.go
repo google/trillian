@@ -57,21 +57,18 @@ func newPublicKeyFromFile(keyFile string) (*keyspb.PublicKey, error) {
 
 // newTreeFromFlags interprets the commandline flags as a trillian.Tree configuration.
 func newTreeFromFlags() (*trillian.Tree, error) {
-	treeParams := stestonly.MapTree // Use sensible defaults.
 
-	if *mapID == -1 {
-		return nil, fmt.Errorf("Map integration test skipped as no map ID provided")
-	}
 	pubKey, err := newPublicKeyFromFile(*pubKeyPath)
 	if err != nil {
-		return nil, fmt.Errorf("No public key provided")
+		return nil, fmt.Errorf("no public key provided: %v", err)
 	}
 
 	strategy, ok := trillian.HashStrategy_value[*hashStrategy]
 	if !ok {
-		return nil, fmt.Errorf("Invalid hash strategy %s", *hashStrategy)
+		return nil, fmt.Errorf("invalid hash strategy %s", *hashStrategy)
 	}
 
+	treeParams := stestonly.MapTree // Use sensible defaults.
 	treeParams.TreeId = *mapID
 	treeParams.PublicKey = pubKey
 	treeParams.HashStrategy = trillian.HashStrategy(strategy)
@@ -80,20 +77,23 @@ func newTreeFromFlags() (*trillian.Tree, error) {
 
 func TestLiveMapIntegration(t *testing.T) {
 	flag.Parse()
+	if *mapID == -1 {
+		t.Skip("map integration test skipped as no map ID provided")
+	}
 
 	tree, err := newTreeFromFlags()
 	if err != nil {
-		t.Skip(err)
+		t.Fatalf("error parsing command-line flags: %v", err)
 	}
 
 	env, err := integration.NewMapEnvFromConn(*server)
 	if err != nil {
-		t.Fatalf("Failed to get map client: %v", err)
+		t.Fatalf("failed to get map client: %v", err)
 	}
 	defer env.Close()
 
 	ctx := context.Background()
-	if err := RunMapIntegration(ctx, env, tree); err != nil {
-		t.Fatalf("Test failed: %v", err)
+	if err := RunMapBatchTest(ctx, env, tree, 64, 32); err != nil {
+		t.Fatalf("test failed: %v", err)
 	}
 }
