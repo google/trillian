@@ -685,7 +685,7 @@ func (t *logTreeTX) getLeavesByHashInternal(ctx context.Context, leafHashes [][]
 	return ret, nil
 }
 
-func (t *readOnlyLogTX) GetUnsequencedCounts(ctx context.Context) (map[int64]int64, error) {
+func (t *readOnlyLogTX) GetUnsequencedCounts(ctx context.Context) (storage.CountByLogID, error) {
 	stx, err := t.tx.PrepareContext(ctx, selectUnsequencedLeafCountSQL)
 	if err != nil {
 		glog.Warningf("Failed to prep unsequenced leaf count statement: %v", err)
