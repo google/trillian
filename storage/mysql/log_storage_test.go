@@ -994,17 +994,18 @@ func TestGetUnsequencedCounts(t *testing.T) {
 		}
 
 		// Now check what we get back from GetUnsequencedCounts matches
-		tx, err := s.Snapshot(context.Background())
+		tx, err := s.Snapshot(ctx)
 		if err != nil {
 			t.Fatalf("Snapshot() = (_, %v), want no error", err)
 		}
+		defer tx.Close()
 
 		got, err := tx.GetUnsequencedCounts(ctx)
 		if err != nil {
 			t.Errorf("GetUnsequencedCounts() = %v, want no error", err)
 		}
 		if diff := pretty.Compare(expectedCount, got); diff != "" {
-			t.Errorf("GetUnsequencedCounts() = diff -want +got: %s", diff)
+			t.Errorf("GetUnsequencedCounts() = diff -want +got:\n%s", diff)
 		}
 	}
 }
