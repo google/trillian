@@ -931,9 +931,9 @@ func (_mr *MockReadOnlyLogTXMockRecorder) GetActiveLogIDs(arg0 interface{}) *gom
 }
 
 // GetUnsequencedCounts mocks base method
-func (_m *MockReadOnlyLogTX) GetUnsequencedCounts(_param0 context.Context) (map[int64]int64, error) {
+func (_m *MockReadOnlyLogTX) GetUnsequencedCounts(_param0 context.Context) (CountByLogID, error) {
 	ret := _m.ctrl.Call(_m, "GetUnsequencedCounts", _param0)
-	ret0, _ := ret[0].(map[int64]int64)
+	ret0, _ := ret[0].(CountByLogID)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
