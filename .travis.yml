@@ -20,6 +20,11 @@ matrix:
   fast_finish: true
   allow_failures:
     - os: osx
+  exclude:
+    - os: osx
+      env: GOFLAGS=      WITH_PKCS11=true
+    - os: osx
+      env: GOFLAGS=-race WITH_PKCS11=true
 
 install:
   - if [[ "${WITH_PKCS11}" == "true" ]]; then sudo apt-get install softhsm ; fi
