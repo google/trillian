@@ -121,84 +121,6 @@ func TestInclusion(t *testing.T) {
 	}
 }
 
-func TestInclusionLarge(t *testing.T) {
-	t.Skip("This test causes db connection starvation: Too many connections")
-	// Don't run tests with the larger numbers of leaves in short mode.
-	ShortCutoff := 150
-
-	ctx := context.Background()
-	env, err := integration.NewMapEnv(ctx, "TestInclusionLarge")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer env.Close()
-	for _, tc := range []struct {
-		desc string
-		trillian.HashStrategy
-		N int
-	}{
-		{
-			desc:         "maphasher 100",
-			HashStrategy: trillian.HashStrategy_TEST_MAP_HASHER,
-			N:            100,
-		},
-		{
-			desc:         "maphasher 500",
-			HashStrategy: trillian.HashStrategy_TEST_MAP_HASHER,
-			N:            500,
-		},
-		{
-			desc:         "maphasher 2000",
-			HashStrategy: trillian.HashStrategy_TEST_MAP_HASHER,
-			N:            2000,
-		},
-	} {
-		if testing.Short() && tc.N > ShortCutoff {
-			continue
-		}
-		tree, hasher, err := newTreeWithHasher(ctx, env, tc.HashStrategy)
-		if err != nil {
-			t.Errorf("%v: newTreeWithHasher(%v): %v", tc.desc, tc.HashStrategy, err)
-		}
-		mapID := tree.TreeId
-		client := env.MapClient
-		leaves := createMapLeaves(makeBatchIndexValues(0, tc.N)...)
-
-		if _, err := client.SetLeaves(ctx, &trillian.SetMapLeavesRequest{
-			MapId:  mapID,
-			Leaves: leaves,
-		}); err != nil {
-			t.Errorf("%v: SetLeaves(): %v", tc.desc, err)
-			continue
-		}
-
-		indexes := [][]byte{}
-		for _, l := range leaves {
-			indexes = append(indexes, l.Index)
-		}
-		getResp, err := client.GetLeaves(ctx, &trillian.GetMapLeavesRequest{
-			MapId:    mapID,
-			Index:    indexes,
-			Revision: -1,
-		})
-		if err != nil {
-			t.Errorf("%v: GetLeaves(): %v", tc.desc, err)
-			continue
-		}
-
-		rootHash := getResp.GetMapRoot().GetRootHash()
-		for _, m := range getResp.GetMapLeafInclusion() {
-			index := m.GetLeaf().GetIndex()
-			leafHash := m.GetLeaf().GetLeafHash()
-			proof := m.GetInclusion()
-			if err := merkle.VerifyMapInclusionProof(mapID, index,
-				leafHash, rootHash, proof, hasher); err != nil {
-				t.Errorf("%v: VerifyMapInclusionProof(): %v", tc.desc, err)
-			}
-		}
-	}
-}
-
 func TestInclusionBatch(t *testing.T) {
 	ctx := context.Background()
 	env, err := integration.NewMapEnv(ctx, "TestInclusionBatch")
@@ -215,8 +137,7 @@ TestCase:
 		{
 			desc:         "maphasher batch",
 			HashStrategy: trillian.HashStrategy_TEST_MAP_HASHER,
-			batchSize:    64,
-			numBatches:   32,
+			batchSize:    64, numBatches: 32,
 		},
 	} {
 		tree, hasher, err := newTreeWithHasher(ctx, env, tc.HashStrategy)
