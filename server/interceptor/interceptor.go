@@ -113,6 +113,11 @@ func (tp *trillianProcessor) Before(ctx context.Context, req interface{}) (conte
 }
 
 func (tp *trillianProcessor) After(ctx context.Context, resp interface{}, handlerErr error) {
+	if tp.info == nil {
+		glog.Warningf("After called with nil rpcInfo, resp = [%+v], handlerErr = [%v]", resp, handlerErr)
+		return
+	}
+
 	// Decide if we have to replenish tokens. There are a few situations that require tokens to
 	// be replenished:
 	// * Invalid requests (a bad request shouldn't spend sequencing-based tokens, as it won't
