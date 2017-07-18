@@ -18,6 +18,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"encoding/base64"
 	"fmt"
 	"strings"
 	"sync"
@@ -183,6 +184,7 @@ func (t *treeTX) getSubtree(ctx context.Context, treeRevision int64, nodeID stor
 }
 
 func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []storage.NodeID) ([]*storagepb.SubtreeProto, error) {
+	glog.V(4).Infof("getSubtrees(")
 	if len(nodeIDs) == 0 {
 		return nil, nil
 	}
@@ -203,6 +205,7 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []
 		}
 
 		nodeIDBytes := nodeID.Path[:nodeID.PrefixLenBits/8]
+		glog.V(4).Infof("  nodeID: %x", nodeIDBytes)
 
 		args = append(args, interface{}(nodeIDBytes))
 	}
@@ -244,6 +247,15 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []
 			subtree.Prefix = []byte{}
 		}
 		ret = append(ret, &subtree)
+
+		if glog.V(4) {
+			glog.Infof("  subtree: NID: %x, prefix: %x, depth: %d",
+				subtreeIDBytes, subtree.Prefix, subtree.Depth)
+			for k, v := range subtree.Leaves {
+				b, _ := base64.StdEncoding.DecodeString(k)
+				glog.Infof("     %s: %x", b, v)
+			}
+		}
 	}
 
 	// The InternalNodes cache is possibly nil here, but the SubtreeCache (which called
@@ -252,6 +264,16 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []
 }
 
 func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.SubtreeProto) error {
+	if glog.V(4) {
+		glog.Infof("storeSubtrees(")
+		for _, s := range subtrees {
+			glog.V(4).Infof("  prefix: %x, depth: %d", s.Prefix, s.Depth)
+			for k, v := range s.Leaves {
+				b, _ := base64.StdEncoding.DecodeString(k)
+				glog.V(4).Infof("     %x: %x", b, v)
+			}
+		}
+	}
 	if len(subtrees) == 0 {
 		glog.Warning("attempted to store 0 subtrees...")
 		return nil

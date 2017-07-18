@@ -34,7 +34,6 @@ type LogHasher interface {
 }
 
 // MapHasher provides the hash functions needed to compute sparse merkle trees.
-// TODO(gbelvin): Update interface to match #670
 type MapHasher interface {
 	// HashEmpty returns the hash of an empty branch at a given depth.
 	// A height of 0 indicates an empty leaf. The maximum height is Size*8.
@@ -44,11 +43,11 @@ type MapHasher interface {
 	HashLeaf(treeID int64, index []byte, height int, leaf []byte) []byte
 	// HashChildren computes interior nodes.
 	HashChildren(l, r []byte) []byte
-	// Size is the number of bits in the underlying hash function.
-	// It is also the height of the merkle tree.
+	// Size is the number of bytes in the underlying hash function.
 	// TODO(gbelvin): Replace Size() with BitLength().
 	Size() int
 	// BitLen returns the number of bits in the underlying hash function.
+	// It is also the height of the merkle tree.
 	BitLen() int
 }
 

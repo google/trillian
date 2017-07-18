@@ -20,6 +20,7 @@ import (
 	"encoding/binary"
 	"fmt"
 
+	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle/hashers"
 )
@@ -63,7 +64,9 @@ func (m *hasher) HashEmpty(treeID int64, index []byte, height int) []byte {
 	binary.Write(h, binary.BigEndian, uint64(treeID))
 	h.Write(m.maskIndex(index, depth))
 	binary.Write(h, binary.BigEndian, uint32(depth))
-	return h.Sum(nil)
+	r := h.Sum(nil)
+	glog.V(5).Infof("HashEmpty(%x, %d): %x", index, depth, r)
+	return r
 }
 
 // HashLeaf calculate the merkle tree leaf value:
@@ -77,7 +80,9 @@ func (m *hasher) HashLeaf(treeID int64, index []byte, height int, leaf []byte) [
 	h.Write(m.maskIndex(index, depth))
 	binary.Write(h, binary.BigEndian, uint32(depth))
 	h.Write(leaf)
-	return h.Sum(nil)
+	p := h.Sum(nil)
+	glog.V(5).Infof("HashLeaf(%x, %d, %s): %x", index, depth, leaf, p)
+	return p
 }
 
 // HashChildren returns the internal Merkle tree node hash of the the two child nodes l and r.
@@ -86,7 +91,9 @@ func (m *hasher) HashChildren(l, r []byte) []byte {
 	h := m.New()
 	h.Write(l)
 	h.Write(r)
-	return h.Sum(nil)
+	p := h.Sum(nil)
+	glog.V(5).Infof("HashChildren(%x, %x): %x", l, r, p)
+	return p
 }
 
 // BitLen returns the number of bits in the hash function.
