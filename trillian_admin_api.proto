@@ -17,11 +17,12 @@ syntax = "proto3";
 option java_multiple_files = true;
 option java_package = "com.google.trillian.proto";
 option java_outer_classname = "TrillianAdminApiProto";
+option go_package = "github.com/google/trillian";
 
 package trillian;
 
 import "trillian.proto";
-import "github.com/google/trillian/crypto/keyspb/keyspb.proto";
+import "crypto/keyspb/keyspb.proto";
 import "google/api/annotations.proto";
 import "google/protobuf/field_mask.proto";
 import "google/protobuf/empty.proto";

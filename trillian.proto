@@ -17,11 +17,12 @@ syntax = "proto3";
 option java_multiple_files = true;
 option java_package = "com.google.trillian.proto";
 option java_outer_classname = "TrillianProto";
+option go_package = "github.com/google/trillian";
 
 package trillian;
 
-import "github.com/google/trillian/crypto/keyspb/keyspb.proto";
-import "github.com/google/trillian/crypto/sigpb/sigpb.proto";
+import "crypto/keyspb/keyspb.proto";
+import "crypto/sigpb/sigpb.proto";
 import "google/protobuf/any.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
