@@ -158,12 +158,21 @@ func TestInclusion(t *testing.T) {
 		tree, hasher, err := newTreeWithHasher(ctx, env, tc.HashStrategy)
 		if err != nil {
 			t.Errorf("%v: newTreeWithHasher(%v): %v", tc.desc, tc.HashStrategy, err)
+			continue
+		}
+		pubKey, err := keys.NewFromPublicDER(tree.GetPublicKey().GetDer())
+		if err != nil {
+			t.Errorf("%v: NewFromPublicDER(%v): %v", tc.desc, tc.HashStrategy, err)
+			continue
 		}
 
 		leaves := createMapLeaves(tc.iv...)
 		if _, err := env.MapClient.SetLeaves(ctx, &trillian.SetMapLeavesRequest{
 			MapId:  tree.TreeId,
 			Leaves: leaves,
+			MapperData: &trillian.MapperMetadata{
+				HighestFullyCompletedSeq: 0xcafe,
+			},
 		}); err != nil {
 			t.Errorf("%v: SetLeaves(): %v", tc.desc, err)
 			continue
@@ -183,15 +192,9 @@ func TestInclusion(t *testing.T) {
 			continue
 		}
 
-		rootHash := getResp.GetMapRoot().GetRootHash()
-		for _, m := range getResp.GetMapLeafInclusion() {
-			index := m.GetLeaf().GetIndex()
-			leafHash := m.GetLeaf().GetLeafHash()
-			proof := m.GetInclusion()
-			if err := merkle.VerifyMapInclusionProof(tree.TreeId, index,
-				leafHash, rootHash, proof, hasher); err != nil {
-				t.Errorf("%v: VerifyMapInclusionProof(%x): %v", tc.desc, index, err)
-			}
+		if err := verifyGetMapLeavesResponse(getResp, indexes, 1,
+			pubKey, hasher, tree.TreeId); err != nil {
+			t.Errorf("%v: verifyGetMapLeavesResponse(): %v", tc.desc, err)
 		}
 	}
 }
