@@ -87,6 +87,7 @@ func main() {
 	}
 
 	mf := prometheus.MetricFactory{}
+	interceptor.InitMetrics(mf)
 	quota.InitMetrics(mf)
 
 	sf := &keys.DefaultSignerFactory{}

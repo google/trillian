@@ -71,6 +71,7 @@ func main() {
 		QuotaManager:  &mysqlq.QuotaManager{DB: db, MaxUnsequencedRows: *maxUnsequencedRows},
 		MetricFactory: prometheus.MetricFactory{},
 	}
+	interceptor.InitMetrics(registry.MetricFactory)
 	quota.InitMetrics(registry.MetricFactory)
 
 	ts := util.SystemTimeSource{}
