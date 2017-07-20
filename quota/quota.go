@@ -69,16 +69,16 @@ type Spec struct {
 	User string
 }
 
-// Name returns a textual representation of the Spec. Names are constant and may be relied not to
-// change in the future.
+// Name returns a textual representation of the Spec. Names are constant and may be relied upon to
+// not change in the future.
 //
 // Names are created as follows:
 // * Global quotas are mapped to "global/read" or "global/write"
 // * Tree quotas are mapped to "trees/$TreeID/$Kind". E.g., "trees/10/read".
 // * User quotas are mapped to "users/$User/$Kind". E.g., "trees/10/read".
 func (s Spec) Name() string {
-	group := strings.ToLower(s.Group.String())
-	kind := strings.ToLower(s.Kind.String())
+	group := strings.ToLower(fmt.Sprint(s.Group))
+	kind := strings.ToLower(fmt.Sprint(s.Kind))
 	if s.Group == Global {
 		return fmt.Sprintf("%v/%v", group, kind)
 	}

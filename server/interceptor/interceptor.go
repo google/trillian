@@ -20,7 +20,6 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
-	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/server/errors"
 	"github.com/google/trillian/storage"
@@ -30,32 +29,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
-
-const (
-	badInfoLabel            = "bad-info"
-	badTreeLabel            = "bad-tree"
-	insufficientTokensLabel = "insufficient-tokens"
-)
-
-var (
-	requestCounter       monitoring.Counter
-	requestDeniedCounter monitoring.Counter
-)
-
-// InitMetrics initializes the metrics on the interceptor package.
-func InitMetrics(mf monitoring.MetricFactory) {
-	requestCounter = mf.NewCounter("interceptor_request_count", "Total number of intercepted requests")
-	requestDeniedCounter = mf.NewCounter(
-		"interceptor_request_denied_count",
-		"Number of requests by denied, labeled according to the reason for denial",
-		badInfoLabel, badTreeLabel, insufficientTokensLabel)
-}
-
-func increment(c monitoring.Counter, labels ...string) {
-	if c != nil {
-		c.Inc(labels...)
-	}
-}
 
 // RequestProcessor encapsulates the logic to intercept a request, split into separate stages:
 // before and after the handler is invoked.
@@ -111,12 +84,12 @@ type trillianProcessor struct {
 }
 
 func (tp *trillianProcessor) Before(ctx context.Context, req interface{}) (context.Context, error) {
-	increment(requestCounter)
+	incRequestCounter()
 
 	quotaUser := tp.parent.QuotaManager.GetUser(ctx, req)
 	info, err := getRPCInfo(req, quotaUser)
 	if err != nil {
-		increment(requestDeniedCounter, badInfoLabel)
+		incRequestDeniedCounter(badInfoReason, 0, quotaUser)
 		return ctx, err
 	}
 	tp.info = info
@@ -124,7 +97,7 @@ func (tp *trillianProcessor) Before(ctx context.Context, req interface{}) (conte
 	if info.treeID != 0 {
 		tree, err := trees.GetTree(ctx, tp.parent.Admin, info.treeID, info.opts)
 		if err != nil {
-			increment(requestDeniedCounter, badTreeLabel)
+			incRequestDeniedCounter(badTreeReason, info.treeID, quotaUser)
 			return ctx, err
 		}
 		ctx = trees.NewContext(ctx, tree)
@@ -135,7 +108,7 @@ func (tp *trillianProcessor) Before(ctx context.Context, req interface{}) (conte
 		quota.Metrics.IncAcquired(info.tokens, info.specs)
 		if err := tp.parent.QuotaManager.GetTokens(ctx, info.tokens, info.specs); err != nil {
 			if !tp.parent.QuotaDryRun {
-				increment(requestDeniedCounter, insufficientTokensLabel)
+				incRequestDeniedCounter(insufficientTokensReason, info.treeID, quotaUser)
 				return ctx, status.Errorf(codes.ResourceExhausted, "quota exhausted: %v", err)
 			}
 			glog.Warningf("(QuotaDryRun) Request %+v not denied due to dry run mode: %v", req, err)
