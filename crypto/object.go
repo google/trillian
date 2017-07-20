@@ -19,7 +19,17 @@ import (
 	"encoding/json"
 
 	"github.com/benlaurie/objecthash/go/objecthash"
+	"github.com/gogo/protobuf/jsonpb"
 	"github.com/google/trillian/crypto/sigpb"
+)
+
+var (
+	marshaler = jsonpb.Marshaler{
+	//		OrigName:     true,
+	}
+	unmarshaler = jsonpb.Unmarshaler{
+		AllowUnknownFields: false,
+	}
 )
 
 // SignObject signs the requested object using ObjectHash.
