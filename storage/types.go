@@ -86,7 +86,13 @@ func NewEmptyNodeID(maxLenBits int) NodeID {
 }
 
 // NewNodeIDWithPrefix creates a new NodeID of nodeIDLen bits with the prefixLen MSBs set to prefix.
+// NewNodeIDWithPrefix places the lower prefixLenBits of prefix in the most significant bits of path.
+// Path will have enough bytes to hold maxLenBits
+//
 func NewNodeIDWithPrefix(prefix uint64, prefixLenBits, nodeIDLenBits, maxLenBits int) NodeID {
+	if got, want := nodeIDLenBits%8, 0; got != want {
+		panic(fmt.Sprintf("nodeIDLenBits mod 8: %v, want %v", got, want))
+	}
 	maxLenBytes := bytesForBits(maxLenBits)
 	p := NodeID{
 		Path:          make([]byte, maxLenBytes),
@@ -156,6 +162,9 @@ func (n *NodeID) SetBit(i int, b uint) {
 
 // Bit returns 1 if the ith bit is true, and false otherwise.
 func (n *NodeID) Bit(i int) uint {
+	if got, want := i, n.PathLenBits-1; got > want {
+		panic(fmt.Sprintf("storage: Bit(%v) > (PathLenBits -1): %v", got, want))
+	}
 	bIndex := (n.PathLenBits - i - 1) / 8
 	return uint((n.Path[bIndex] >> uint(i%8)) & 0x01)
 }

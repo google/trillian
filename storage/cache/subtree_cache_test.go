@@ -16,8 +16,11 @@ package cache
 
 import (
 	"bytes"
+	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"math/big"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -30,29 +33,6 @@ import (
 	"github.com/kylelemons/godebug/pretty"
 )
 
-var splitTestVector = []struct {
-	inPath        []byte
-	inPathLenBits int
-	outPrefix     []byte
-	outSuffixBits int
-	outSuffix     []byte
-}{
-	{[]byte{0x12, 0x34, 0x56, 0x7f}, 32, []byte{0x12, 0x34, 0x56}, 8, []byte{0x7f}},
-	{[]byte{0x12, 0x34, 0x56, 0xff}, 29, []byte{0x12, 0x34, 0x56}, 5, []byte{0xf8}},
-	{[]byte{0x12, 0x34, 0x56, 0xff}, 25, []byte{0x12, 0x34, 0x56}, 1, []byte{0x80}},
-	{[]byte{0x12, 0x34, 0x56, 0x78}, 16, []byte{0x12}, 8, []byte{0x34}},
-	{[]byte{0x12, 0x34, 0x56, 0x78}, 9, []byte{0x12}, 1, []byte{0x00}},
-	{[]byte{0x12, 0x34, 0x56, 0x78}, 8, []byte{}, 8, []byte{0x12}},
-	{[]byte{0x12, 0x34, 0x56, 0x78}, 7, []byte{}, 7, []byte{0x12}},
-	{[]byte{0x12, 0x34, 0x56, 0x78}, 0, []byte{}, 0, []byte{0}},
-	{[]byte{0x70}, 2, []byte{}, 2, []byte{0x40}},
-	{[]byte{0x70}, 3, []byte{}, 3, []byte{0x60}},
-	{[]byte{0x70}, 4, []byte{}, 4, []byte{0x70}},
-	{[]byte{0x70}, 5, []byte{}, 5, []byte{0x70}},
-	{[]byte{0x00, 0x03}, 16, []byte{0x00}, 8, []byte{0x03}},
-	{[]byte{0x00, 0x03}, 15, []byte{0x00}, 7, []byte{0x02}},
-}
-
 var defaultLogStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8}
 var defaultMapStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 176}
 
@@ -60,7 +40,28 @@ const treeID = int64(0)
 
 func TestSplitNodeID(t *testing.T) {
 	c := NewSubtreeCache(defaultMapStrata, PopulateMapSubtreeNodes(treeID, maphasher.Default), PrepareMapSubtreeWrite())
-	for i, v := range splitTestVector {
+	for i, v := range []struct {
+		inPath        []byte
+		inPathLenBits int
+		outPrefix     []byte
+		outSuffixBits int
+		outSuffix     []byte
+	}{
+		{[]byte{0x12, 0x34, 0x56, 0x7f}, 32, []byte{0x12, 0x34, 0x56}, 8, []byte{0x7f}},
+		{[]byte{0x12, 0x34, 0x56, 0xff}, 29, []byte{0x12, 0x34, 0x56}, 5, []byte{0xf8}},
+		{[]byte{0x12, 0x34, 0x56, 0xff}, 25, []byte{0x12, 0x34, 0x56}, 1, []byte{0x80}},
+		{[]byte{0x12, 0x34, 0x56, 0x78}, 16, []byte{0x12}, 8, []byte{0x34}},
+		{[]byte{0x12, 0x34, 0x56, 0x78}, 9, []byte{0x12}, 1, []byte{0x00}},
+		{[]byte{0x12, 0x34, 0x56, 0x78}, 8, []byte{}, 8, []byte{0x12}},
+		{[]byte{0x12, 0x34, 0x56, 0x78}, 7, []byte{}, 7, []byte{0x12}},
+		{[]byte{0x12, 0x34, 0x56, 0x78}, 0, []byte{}, 0, []byte{0}},
+		{[]byte{0x70}, 2, []byte{}, 2, []byte{0x40}},
+		{[]byte{0x70}, 3, []byte{}, 3, []byte{0x60}},
+		{[]byte{0x70}, 4, []byte{}, 4, []byte{0x70}},
+		{[]byte{0x70}, 5, []byte{}, 5, []byte{0x70}},
+		{[]byte{0x00, 0x03}, 16, []byte{0x00}, 8, []byte{0x03}},
+		{[]byte{0x00, 0x03}, 15, []byte{0x00}, 7, []byte{0x02}},
+	} {
 		n := storage.NewNodeIDFromHash(v.inPath)
 		n.PrefixLenBits = v.inPathLenBits
 
@@ -243,6 +244,48 @@ func TestCacheFlush(t *testing.T) {
 	}
 }
 
+func TestSuffixKey(t *testing.T) {
+	for _, tc := range []struct {
+		depth   int
+		index   int64
+		want    []byte
+		wantErr bool
+	}{
+		{depth: 0, index: 0x00, want: h2b("0000"), wantErr: false},
+		{depth: 8, index: 0x00, want: h2b("0800"), wantErr: false},
+		// TODO(gdbelvin): want: "0fabcd"?
+		{depth: 8, index: 0xabcd, want: h2b("08cd"), wantErr: false},
+		// TODO(gdbelvin): want "0240"
+		{
+			depth:   2,
+			index:   new(big.Int).SetBytes(h2b("4000000000000000000000000000000000000000000000000000000000000000")).Int64(),
+			want:    h2b("0200"),
+			wantErr: false,
+		},
+		{depth: 15, index: 0xab, want: h2b("0fab"), wantErr: false},
+		{depth: 16, index: 0x00, want: h2b("1000"), wantErr: false},
+	} {
+		suffixKey, err := makeSuffixKey(tc.depth, tc.index)
+		if got, want := err != nil, tc.wantErr; got != want {
+			t.Errorf("makeSuffixKey(%v, %v): %v, want err: %v",
+				tc.depth, tc.index, err, want)
+			continue
+		}
+		if err != nil {
+			continue
+		}
+		b, err := base64.StdEncoding.DecodeString(suffixKey)
+		if err != nil {
+			t.Errorf("DecodeString(%v): %v", suffixKey, err)
+			continue
+		}
+		if got, want := b, tc.want; !bytes.Equal(got, want) {
+			t.Errorf("makeSuffixKey(%v, %x): %x, want %x",
+				tc.depth, tc.index, got, want)
+		}
+	}
+}
+
 func TestSuffixSerializeFormat(t *testing.T) {
 	s := Suffix{5, []byte{0xae}}
 	if got, want := s.serialize(), "Ba4="; got != want {
@@ -348,4 +391,13 @@ func TestGetStratumInfo(t *testing.T) {
 			t.Errorf("(test %d for depth %d) diff:\n%v", i, tv.depth, diff)
 		}
 	}
+}
+
+// h2b converts a hex string into []byte.
+func h2b(h string) []byte {
+	b, err := hex.DecodeString(h)
+	if err != nil {
+		panic("invalid hex string")
+	}
+	return b
 }
