@@ -17,5 +17,5 @@ package monitoring
 const (
 	// TreeIDLabel is the monitoring label used to represent a tree ID.
 	// TODO(codingllama): Consider using TreeIDLabel in place of log ID.
-	TreeIDLabel = "tree-id"
+	TreeIDLabel = "tree_id"
 )

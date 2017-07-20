@@ -21,9 +21,9 @@ import (
 )
 
 const (
-	badInfoReason            = "bad-info"
-	badTreeReason            = "bad-tree"
-	insufficientTokensReason = "insufficient-tokens"
+	badInfoReason            = "bad_info"
+	badTreeReason            = "bad_tree"
+	insufficientTokensReason = "insufficient_tokens"
 )
 
 var (
@@ -37,7 +37,7 @@ func InitMetrics(mf monitoring.MetricFactory) {
 	requestDeniedCounter = mf.NewCounter(
 		"interceptor_request_denied_count",
 		"Number of requests by denied, labeled according to the reason for denial",
-		"reason", monitoring.TreeIDLabel, "quota-user")
+		"reason", monitoring.TreeIDLabel, "quota_user")
 }
 
 func incRequestCounter() {
