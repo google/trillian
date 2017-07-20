@@ -54,7 +54,7 @@ func TestSuffixKeyEquals(t *testing.T) {
 
 		nodeID := NewNodeIDFromPrefix(tc.prefix, logStrataDepth, tc.leafIndex, logStrataDepth, maxLogDepth)
 		_, sfxB := nodeID.Split(len(tc.prefix), logStrataDepth)
-		sfxBKey := sfxB.Serialize()
+		sfxBKey := sfxB.String()
 		sfxBBytes, err := base64.StdEncoding.DecodeString(sfxBKey)
 		if err != nil {
 			t.Errorf("splitNodeID(%v): _, %v", nodeID, err)
@@ -118,7 +118,7 @@ func TestSuffixSerialize(t *testing.T) {
 		// Prexisting format. This test vector must NOT change or existing data will be inaccessible.
 		{s: Suffix{5, []byte{0xae}}, want: "Ba4="},
 	} {
-		if got, want := tc.s.Serialize(), tc.want; got != want {
+		if got, want := tc.s.String(), tc.want; got != want {
 			t.Errorf("%v.serialize(): %v, want %v", tc.s, got, want)
 		}
 	}

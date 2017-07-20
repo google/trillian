@@ -278,7 +278,7 @@ func (s *SubtreeCache) getNodeHashUnderLock(id storage.NodeID, getSubtree GetSub
 	// have a fixed depth if the suffix has the same number of significant bits as the
 	// subtree depth then this is a leaf. For example if the subtree is depth 8 its leaves
 	// have 8 significant suffix bits.
-	sfxKey := sx.Serialize()
+	sfxKey := sx.String()
 	if int32(sx.Bits) == c.Depth {
 		nh = c.Leaves[sfxKey]
 	} else {
@@ -319,7 +319,7 @@ func (s *SubtreeCache) SetNodeHash(id storage.NodeID, h []byte, getSubtree GetSu
 	s.dirtyPrefixes[prefixKey] = true
 	// Determine whether we're being asked to store a leaf node, or an internal
 	// node, and store it accordingly.
-	sfxKey := sx.Serialize()
+	sfxKey := sx.String()
 	if int32(sx.Bits) == c.Depth {
 		c.Leaves[sfxKey] = h
 	} else {
@@ -404,7 +404,7 @@ func PopulateMapSubtreeNodes(treeID int64, hasher hashers.MapHasher) storage.Pop
 			func(depth int, index *big.Int, h []byte) error {
 				nodeID := storage.NewNodeIDFromRelativeBigInt(st.Prefix, depth, index, hasher.BitLen())
 				_, sfx := nodeID.Split(len(st.Prefix), int(st.Depth))
-				sfxKey := sfx.Serialize()
+				sfxKey := sfx.String()
 				st.InternalNodes[sfxKey] = h
 				return nil
 			})
@@ -444,7 +444,7 @@ func PopulateLogSubtreeNodes(hasher hashers.LogHasher) storage.PopulateSubtreeFu
 		for leafIndex := int64(0); leafIndex < int64(len(st.Leaves)); leafIndex++ {
 			nodeID := storage.NewNodeIDFromPrefix(st.Prefix, logStrataDepth, leafIndex, logStrataDepth, maxLogDepth)
 			_, sfx := nodeID.Split(len(st.Prefix), int(st.Depth))
-			sfxKey := sfx.Serialize()
+			sfxKey := sfx.String()
 			h := st.Leaves[sfxKey]
 			if h == nil {
 				return fmt.Errorf("unexpectedly got nil for subtree leaf suffix %s", sfx)
@@ -458,7 +458,7 @@ func PopulateLogSubtreeNodes(hasher hashers.LogHasher) storage.PopulateSubtreeFu
 				subDepth := logStrataDepth - height
 				nodeID := storage.NewNodeIDFromPrefix(st.Prefix, subDepth, index, logStrataDepth, maxLogDepth)
 				_, sfx := nodeID.Split(len(st.Prefix), int(st.Depth))
-				sfxKey := sfx.Serialize()
+				sfxKey := sfx.String()
 				// Don't put leaves into the internal map and only update if we're rebuilding internal
 				// nodes. If the subtree was saved with internal nodes then we don't touch the map.
 				if height > 0 && len(st.Leaves) == maxLeaves {

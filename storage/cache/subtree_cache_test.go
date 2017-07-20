@@ -271,7 +271,7 @@ func TestRepopulateLogSubtree(t *testing.T) {
 			// Don't store leaves or the subtree root in InternalNodes
 			if depth > 0 && depth < 8 {
 				_, sfx := c.splitNodeID(n)
-				cmtStorage.InternalNodes[sfx.Serialize()] = h
+				cmtStorage.InternalNodes[sfx.String()] = h
 			}
 			return nil
 		})
@@ -281,7 +281,7 @@ func TestRepopulateLogSubtree(t *testing.T) {
 
 		nodeID := storage.NewNodeIDFromPrefix(s.Prefix, logStrataDepth, numLeaves-1, logStrataDepth, maxLogDepth)
 		_, sfx := nodeID.Split(len(s.Prefix), int(s.Depth))
-		sfxKey := sfx.Serialize()
+		sfxKey := sfx.String()
 		s.Leaves[sfxKey] = leafHash
 		if numLeaves == 1<<uint(defaultLogStrata[0]) {
 			s.InternalNodeCount = uint32(len(cmtStorage.InternalNodes))

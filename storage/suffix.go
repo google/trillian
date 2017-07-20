@@ -19,8 +19,8 @@ import (
 	"fmt"
 )
 
-// Suffix represents the tail of a NodeID, indexing into the Subtree which
-// corresponds to the prefix of the NodeID.
+// Suffix represents the tail of a NodeID. It is the path within the subtree.
+// The portion of the path that extends beyond the subtree is not part of this suffix.
 type Suffix struct {
 	// bits is the number of bits in the node ID suffix.
 	// TODO(gdbelvin): make bits an integer.
@@ -29,9 +29,9 @@ type Suffix struct {
 	Path []byte
 }
 
-// Serialize returns a base64 encoding of a byte array with the following format:
+// String returns a base64 encoding of a byte array with the following format:
 // [ 1 byte for depth || path bytes ]
-func (s Suffix) Serialize() string {
+func (s Suffix) String() string {
 	r := make([]byte, 1, 1+(len(s.Path)))
 	r[0] = s.Bits
 	r = append(r, s.Path...)
@@ -49,5 +49,5 @@ func makeSuffixKey(depth int, index int64) (string, error) {
 		return "", fmt.Errorf("invalid negative index %d", index)
 	}
 	sfx := Suffix{byte(depth), []byte{byte(index)}}
-	return sfx.Serialize(), nil
+	return sfx.String(), nil
 }
