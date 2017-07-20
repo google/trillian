@@ -18,14 +18,16 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/golang/glog"
-	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
-	spb "github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/trees"
+
+	"github.com/golang/glog"
+	"github.com/golang/protobuf/proto"
+
+	spb "github.com/google/trillian/crypto/sigpb"
 )
 
 const (

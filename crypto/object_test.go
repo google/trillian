@@ -18,10 +18,11 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/gogo/protobuf/proto"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/testonly"
+
+	"github.com/golang/protobuf/proto"
 	"github.com/kylelemons/godebug/pretty"
 )
 
@@ -31,9 +32,7 @@ func toFromBytes(obj proto.Message) (proto.Message, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(b) == 0 {
-		return nil, nil
-	}
+
 	obj2 := obj
 	obj2.Reset()
 	if err := proto.Unmarshal(b, obj2); err != nil {
@@ -48,9 +47,6 @@ func toFromJSON(obj proto.Message) (proto.Message, error) {
 	b := new(bytes.Buffer)
 	if err := marshaler.Marshal(b, obj); err != nil {
 		return nil, err
-	}
-	if len(b.Bytes()) == 0 {
-		return nil, nil
 	}
 
 	obj2 := obj
@@ -68,14 +64,9 @@ func TestSignVerifyProto(t *testing.T) {
 	}
 	signer := NewSHA256Signer(key)
 
-	type subfield struct {
-		c int
-	}
-
 	for _, tc := range []struct {
 		obj proto.Message
 	}{
-
 		{&trillian.MapperMetadata{}},
 		{&trillian.MapperMetadata{HighestFullyCompletedSeq: 0}},
 		{&trillian.MapperMetadata{HighestFullyCompletedSeq: 1}},
