@@ -29,7 +29,8 @@ type Suffix struct {
 	Path []byte
 }
 
-// String returns a base64 encoding of a byte array with the following format:
+// String returns a string that represents Suffix.
+// This is a base64 encoding of the following format:
 // [ 1 byte for depth || path bytes ]
 func (s Suffix) String() string {
 	r := make([]byte, 1, 1+(len(s.Path)))

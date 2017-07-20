@@ -73,6 +73,9 @@ func TestSplit(t *testing.T) {
 		{h2b("0003"), 15, 1, 8, h2b("00"), 7, h2b("02")},
 		{h2b("0001000000000000"), 8, 1, 8, h2b("00"), 8, h2b("01")},
 		{h2b("0100000000000000"), 8, 0, 8, h2b(""), 8, h2b("01")},
+		// Map subtree scenarios
+		{h2b("0100000000000000"), 8, 0, 16, h2b(""), 8, h2b("0100")},
+		{h2b("0100000000000000"), 8, 0, 32, h2b(""), 8, h2b("01000000")},
 	} {
 		n := NewNodeIDFromHash(tc.inPath)
 		n.PrefixLenBits = tc.inPathLenBits
