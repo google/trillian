@@ -276,7 +276,7 @@ func (m *mapTreeTX) signedMapRoot(timestamp, mapRevision int64, rootHash, rootSi
 		return trillian.SignedMapRoot{}, err
 	}
 
-	if mapperMetaBytes != nil && len(mapperMetaBytes) != 0 {
+	if mapperMetaBytes != nil {
 		mapperMeta = &trillian.MapperMetadata{}
 		if err := proto.Unmarshal(mapperMetaBytes, mapperMeta); err != nil {
 			glog.Warningf("Failed to unmarshal Metadata; %v", err)
