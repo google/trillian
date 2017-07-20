@@ -220,7 +220,7 @@ func NewNodeIDForTreeCoords(depth int64, index int64, maxPathBits int) (NodeID, 
 	if index < 0 || depth < 0 ||
 		bl > int(maxPathBits-int(depth)) ||
 		maxPathBits%8 != 0 {
-		return NodeID{}, fmt.Errorf("depth/index combination out of range: depth=%d index=%d", depth, index)
+		return NodeID{}, fmt.Errorf("depth/index combination out of range: depth=%d index=%d maxPathBits=%v", depth, index, maxPathBits)
 	}
 	// This node is effectively a prefix of the subtree underneath (for non-leaf
 	// depths), so we shift the index accordingly.
