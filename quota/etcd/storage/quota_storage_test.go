@@ -254,6 +254,19 @@ func TestQuotaStorage_UpdateConfigsErrors(t *testing.T) {
 
 	duplicateNames := &storagepb.Configs{Configs: []*storagepb.Config{globalRead, globalWrite, globalWrite}}
 
+	sequencingBasedUserQuota := &storagepb.Configs{
+		Configs: []*storagepb.Config{
+			{
+				Name:      userRead.Name,
+				State:     userRead.State,
+				MaxTokens: userRead.MaxTokens,
+				ReplenishmentStrategy: &storagepb.Config_SequencingBased{
+					SequencingBased: &storagepb.SequencingBasedStrategy{},
+				},
+			},
+		},
+	}
+
 	tests := []struct {
 		desc   string
 		update func(*storagepb.Configs)
@@ -271,6 +284,7 @@ func TestQuotaStorage_UpdateConfigsErrors(t *testing.T) {
 		{desc: "zeroReplenishInterval", update: updater(zeroReplenishInterval)},
 		{desc: "invalidReplenishInterval", update: updater(invalidReplenishInterval)},
 		{desc: "duplicateNames", update: updater(duplicateNames)},
+		{desc: "sequencingBasedUserQuota", update: updater(sequencingBasedUserQuota)},
 	}
 
 	ctx := context.Background()
@@ -283,7 +297,8 @@ func TestQuotaStorage_UpdateConfigsErrors(t *testing.T) {
 
 	for _, test := range tests {
 		if _, err := qs.UpdateConfigs(ctx, false /* reset */, test.update); err == nil {
-			t.Errorf("%v: UpdateConfigs() returned err = nil, want non-nil", test.desc)
+			// Fatal because the config has been changed, which will break all following tests.
+			t.Fatalf("%v: UpdateConfigs() returned err = nil, want non-nil", test.desc)
 		}
 
 		stored, err := qs.Configs(ctx)
@@ -293,7 +308,7 @@ func TestQuotaStorage_UpdateConfigsErrors(t *testing.T) {
 		}
 		if got := stored; !proto.Equal(got, want) {
 			diff := pretty.Compare(got, want)
-			t.Errorf("%v: post-Configs() diff (-got +want)\n%v", test.desc, diff)
+			t.Fatalf("%v: post-Configs() diff (-got +want)\n%v", test.desc, diff)
 		}
 	}
 }

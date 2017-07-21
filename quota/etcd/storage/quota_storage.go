@@ -166,7 +166,9 @@ func validate(cfgs *storagepb.Configs) error {
 		}
 		switch s := cfg.ReplenishmentStrategy.(type) {
 		case *storagepb.Config_SequencingBased:
-			// OK, no settings to check
+			if usersPattern.MatchString(cfg.Name) {
+				return fmt.Errorf("user quotas cannot use sequencing-based replenishment (Configs[%v].ReplenishmentStrategy)", i)
+			}
 		case *storagepb.Config_TimeBased:
 			if t := s.TimeBased.TokensToReplenish; t <= 0 {
 				return fmt.Errorf("time based tokens must be > 0 (Configs[%v].TimeBased.TokensToReplenish = %v)", i, t)
