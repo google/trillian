@@ -6,6 +6,7 @@ package server
 import (
 	context "context"
 	gomock "github.com/golang/mock/gomock"
+	reflect "reflect"
 )
 
 // MockLogOperation is a mock of LogOperation interface
@@ -41,7 +42,7 @@ func (_m *MockLogOperation) ExecutePass(_param0 context.Context, _param1 int64, 
 
 // ExecutePass indicates an expected call of ExecutePass
 func (_mr *MockLogOperationMockRecorder) ExecutePass(arg0, arg1, arg2 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "ExecutePass", arg0, arg1, arg2)
+	return _mr.mock.ctrl.RecordCallWithMethodType(_mr.mock, "ExecutePass", reflect.TypeOf((*MockLogOperation)(nil).ExecutePass), arg0, arg1, arg2)
 }
 
 // Name mocks base method
@@ -53,5 +54,5 @@ func (_m *MockLogOperation) Name() string {
 
 // Name indicates an expected call of Name
 func (_mr *MockLogOperationMockRecorder) Name() *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "Name")
+	return _mr.mock.ctrl.RecordCallWithMethodType(_mr.mock, "Name", reflect.TypeOf((*MockLogOperation)(nil).Name))
 }

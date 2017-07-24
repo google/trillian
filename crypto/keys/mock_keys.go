@@ -9,6 +9,7 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	proto "github.com/golang/protobuf/proto"
 	keyspb "github.com/google/trillian/crypto/keyspb"
+	reflect "reflect"
 )
 
 // MockSignerFactory is a mock of SignerFactory interface
@@ -44,7 +45,7 @@ func (_m *MockSignerFactory) Generate(_param0 context.Context, _param1 *keyspb.S
 
 // Generate indicates an expected call of Generate
 func (_mr *MockSignerFactoryMockRecorder) Generate(arg0, arg1 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "Generate", arg0, arg1)
+	return _mr.mock.ctrl.RecordCallWithMethodType(_mr.mock, "Generate", reflect.TypeOf((*MockSignerFactory)(nil).Generate), arg0, arg1)
 }
 
 // NewSigner mocks base method
@@ -57,5 +58,5 @@ func (_m *MockSignerFactory) NewSigner(_param0 context.Context, _param1 proto.Me
 
 // NewSigner indicates an expected call of NewSigner
 func (_mr *MockSignerFactoryMockRecorder) NewSigner(arg0, arg1 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "NewSigner", arg0, arg1)
+	return _mr.mock.ctrl.RecordCallWithMethodType(_mr.mock, "NewSigner", reflect.TypeOf((*MockSignerFactory)(nil).NewSigner), arg0, arg1)
 }

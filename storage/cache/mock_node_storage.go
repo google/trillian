@@ -7,6 +7,7 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	storage "github.com/google/trillian/storage"
 	storagepb "github.com/google/trillian/storage/storagepb"
+	reflect "reflect"
 )
 
 // MockNodeStorage is a mock of NodeStorage interface
@@ -42,7 +43,7 @@ func (_m *MockNodeStorage) GetSubtree(_param0 storage.NodeID) (*storagepb.Subtre
 
 // GetSubtree indicates an expected call of GetSubtree
 func (_mr *MockNodeStorageMockRecorder) GetSubtree(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetSubtree", arg0)
+	return _mr.mock.ctrl.RecordCallWithMethodType(_mr.mock, "GetSubtree", reflect.TypeOf((*MockNodeStorage)(nil).GetSubtree), arg0)
 }
 
 // SetSubtrees mocks base method
@@ -54,5 +55,5 @@ func (_m *MockNodeStorage) SetSubtrees(_param0 []*storagepb.SubtreeProto) error 
 
 // SetSubtrees indicates an expected call of SetSubtrees
 func (_mr *MockNodeStorageMockRecorder) SetSubtrees(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "SetSubtrees", arg0)
+	return _mr.mock.ctrl.RecordCallWithMethodType(_mr.mock, "SetSubtrees", reflect.TypeOf((*MockNodeStorage)(nil).SetSubtrees), arg0)
 }
