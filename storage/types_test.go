@@ -18,9 +18,144 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"math/big"
 	"strconv"
 	"testing"
 )
+
+func TestNewNodeIDFromBigInt(t *testing.T) {
+	for _, tc := range []struct {
+		depth      int
+		index      *big.Int
+		totalDepth int
+		wantPath   []byte
+		wantDepth  int
+	}{
+		{256, new(big.Int).SetBytes(h2b("00")), 256, h2b("0000000000000000000000000000000000000000000000000000000000000000"), 256},
+		{256, new(big.Int).SetBytes(h2b("01")), 256, h2b("0000000000000000000000000000000000000000000000000000000000000001"), 256},
+		{8, new(big.Int).SetBytes(h2b("4100000000000000000000000000000000000000000000000000000000000000")), 256,
+			h2b("4100000000000000000000000000000000000000000000000000000000000000"), 8},
+	} {
+		n := NewNodeIDFromBigInt(tc.depth, tc.index, tc.totalDepth)
+		if got, want := n.Path, tc.wantPath; !bytes.Equal(got, want) {
+			t.Errorf("NewNodeIDFromBigInt(%v, %x, %v): %x, want %x",
+				tc.depth, tc.index.Bytes(), tc.totalDepth, got, want)
+		}
+		if got, want := n.PrefixLenBits, tc.wantDepth; got != want {
+			t.Errorf("NewNodeIDFromBigInt(%v, %x, %v): depth %v, want %v",
+				tc.depth, tc.index.Bytes(), tc.totalDepth, got, want)
+		}
+	}
+}
+
+func TestSplit(t *testing.T) {
+	for _, tc := range []struct {
+		inPath                 []byte
+		inPathLenBits          int
+		splitBytes, suffixBits int
+		outPrefix              []byte
+		outSuffixBits          int
+		outSuffix              []byte
+	}{
+		{h2b("1234567f"), 32, 3, 8, h2b("123456"), 8, h2b("7f")},
+		{h2b("123456ff"), 29, 3, 8, h2b("123456"), 5, h2b("f8")},
+		{h2b("123456ff"), 25, 3, 8, h2b("123456"), 1, h2b("80")},
+		{h2b("12345678"), 16, 1, 8, h2b("12"), 8, h2b("34")},
+		{h2b("12345678"), 9, 1, 8, h2b("12"), 1, h2b("00")},
+		{h2b("12345678"), 8, 0, 8, h2b(""), 8, h2b("12")},
+		{h2b("12345678"), 7, 0, 8, h2b(""), 7, h2b("12")},
+		{h2b("12345678"), 0, 0, 8, h2b(""), 0, h2b("00")},
+		{h2b("70"), 2, 0, 8, h2b(""), 2, h2b("40")},
+		{h2b("70"), 3, 0, 8, h2b(""), 3, h2b("60")},
+		{h2b("70"), 4, 0, 8, h2b(""), 4, h2b("70")},
+		{h2b("70"), 5, 0, 8, h2b(""), 5, h2b("70")},
+		{h2b("0003"), 16, 1, 8, h2b("00"), 8, h2b("03")},
+		{h2b("0003"), 15, 1, 8, h2b("00"), 7, h2b("02")},
+		{h2b("0001000000000000"), 8, 1, 8, h2b("00"), 8, h2b("01")},
+		{h2b("0100000000000000"), 8, 0, 8, h2b(""), 8, h2b("01")},
+		// Map subtree scenarios
+		{h2b("0100000000000000"), 8, 0, 16, h2b(""), 8, h2b("0100")},
+		{h2b("0100000000000000"), 8, 0, 32, h2b(""), 8, h2b("01000000")},
+	} {
+		n := NewNodeIDFromHash(tc.inPath)
+		n.PrefixLenBits = tc.inPathLenBits
+
+		p, s := n.Split(tc.splitBytes, tc.suffixBits)
+		if got, want := p, tc.outPrefix; !bytes.Equal(got, want) {
+			t.Errorf("%x.Split(%v, %v): prefix %x, want %x",
+				tc.inPath, tc.splitBytes, tc.suffixBits, got, want)
+			continue
+		}
+		if got, want := int(s.Bits), tc.outSuffixBits; got != want {
+			t.Errorf("%x.Split(%v, %v): suffix.Bits %v, want %d",
+				tc.inPath, tc.splitBytes, tc.suffixBits, got, want)
+			continue
+		}
+		if got, want := s.Path, tc.outSuffix; !bytes.Equal(got, want) {
+			t.Errorf("%x.Split(%v, %v).Path: %x, want %x",
+				tc.inPath, tc.splitBytes, tc.suffixBits, got, want)
+		}
+	}
+}
+
+func TestNewNodeIDFromRelativeBigInt(t *testing.T) {
+	for _, tc := range []struct {
+		prefix     []byte
+		depth      int
+		index      int64
+		subDepth   int
+		totalDepth int
+		wantPath   []byte
+		wantDepth  int
+	}{
+		{prefix: h2b(""), depth: 8, index: 0, subDepth: 8, totalDepth: 64, wantPath: h2b("0000000000000000"), wantDepth: 8},
+		{prefix: h2b(""), depth: 8, index: 1, subDepth: 8, totalDepth: 64, wantPath: h2b("0100000000000000"), wantDepth: 8},
+		{prefix: h2b("00"), depth: 7, index: 1, subDepth: 8, totalDepth: 64, wantPath: h2b("0001000000000000"), wantDepth: 15},
+		{prefix: h2b("00"), depth: 8, index: 1, subDepth: 8, totalDepth: 64, wantPath: h2b("0001000000000000"), wantDepth: 16},
+		{prefix: h2b("00"), depth: 16, index: 257, subDepth: 16, totalDepth: 64, wantPath: h2b("0001010000000000"), wantDepth: 24},
+		{prefix: h2b("12345678"), depth: 8, index: 1, subDepth: 8, totalDepth: 64, wantPath: h2b("1234567801000000"), wantDepth: 40},
+	} {
+		i := big.NewInt(tc.index)
+		n := NewNodeIDFromRelativeBigInt(tc.prefix, tc.depth, i, tc.totalDepth)
+		if got, want := n.Path, tc.wantPath; !bytes.Equal(got, want) {
+			t.Errorf("NewNodeIDFromRelativeBigInt(%x, %v, %v, %v, %v).Path: %x, want %x",
+				tc.prefix, tc.depth, tc.index, tc.subDepth, tc.totalDepth, got, want)
+		}
+		if got, want := n.PrefixLenBits, tc.wantDepth; got != want {
+			t.Errorf("NewNodeIDFromRelativeBigInt(%x, %v, %v, %v, %v).Depth: %v, want %v",
+				tc.prefix, tc.depth, tc.index, tc.subDepth, tc.totalDepth, got, want)
+		}
+	}
+}
+
+func TestNewNodeIDFromPrefix(t *testing.T) {
+	for _, tc := range []struct {
+		prefix     []byte
+		depth      int
+		index      int64
+		subDepth   int
+		totalDepth int
+		wantPath   []byte
+		wantDepth  int
+	}{
+		{prefix: h2b(""), depth: 8, index: 0, subDepth: 8, totalDepth: 64, wantPath: h2b("0000000000000000"), wantDepth: 8},
+		{prefix: h2b(""), depth: 8, index: 1, subDepth: 8, totalDepth: 64, wantPath: h2b("0100000000000000"), wantDepth: 8},
+		{prefix: h2b("00"), depth: 7, index: 1, subDepth: 8, totalDepth: 64, wantPath: h2b("0002000000000000"), wantDepth: 15},
+		{prefix: h2b("00"), depth: 8, index: 1, subDepth: 8, totalDepth: 64, wantPath: h2b("0001000000000000"), wantDepth: 16},
+		{prefix: h2b("00"), depth: 16, index: 257, subDepth: 16, totalDepth: 64, wantPath: h2b("0001010000000000"), wantDepth: 24},
+		{prefix: h2b("12345678"), depth: 8, index: 1, subDepth: 8, totalDepth: 64, wantPath: h2b("1234567801000000"), wantDepth: 40},
+	} {
+		n := NewNodeIDFromPrefix(tc.prefix, tc.depth, tc.index, tc.subDepth, tc.totalDepth)
+		if got, want := n.Path, tc.wantPath; !bytes.Equal(got, want) {
+			t.Errorf("NewNodeIDFromPrefix(%x, %v, %v, %v, %v).Path: %x, want %x",
+				tc.prefix, tc.depth, tc.index, tc.subDepth, tc.totalDepth, got, want)
+		}
+		if got, want := n.PrefixLenBits, tc.wantDepth; got != want {
+			t.Errorf("NewNodeIDFromPrefix(%x, %v, %v, %v, %v).Depth: %v, want %v",
+				tc.prefix, tc.depth, tc.index, tc.subDepth, tc.totalDepth, got, want)
+		}
+	}
+}
 
 func TestNewNodeIDWithPrefix(t *testing.T) {
 	for _, tc := range []struct {
@@ -30,27 +165,10 @@ func TestNewNodeIDWithPrefix(t *testing.T) {
 		maxLen   int
 		want     []byte
 	}{
-		{
-			input:    h26("00"),
-			inputLen: 0,
-			pathLen:  0,
-			maxLen:   64,
-			want:     h2b("0000000000000000"),
-		},
-		{
-			input:    h26("12345678"),
-			inputLen: 32,
-			pathLen:  32,
-			maxLen:   64,
-			want:     h2b("1234567800000000"),
-		},
-		{
-			input:    h26("345678"),
-			inputLen: 15,
-			pathLen:  16,
-			maxLen:   24,
-			want:     h2b("acf000"), // top 15 bits of 0x345678 are: 0101 0110 0111 1000
-		},
+		{input: h26("00"), inputLen: 0, pathLen: 0, maxLen: 64, want: h2b("0000000000000000")},
+		{input: h26("12345678"), inputLen: 32, pathLen: 32, maxLen: 64, want: h2b("1234567800000000")},
+		// top 15 bits of 0x345678 are: 0101 0110 0111 1000
+		{input: h26("345678"), inputLen: 15, pathLen: 16, maxLen: 24, want: h2b("acf000")},
 	} {
 		n := NewNodeIDWithPrefix(tc.input, tc.inputLen, tc.pathLen, tc.maxLen)
 		if got, want := n.Path, tc.want; !bytes.Equal(got, want) {
@@ -58,7 +176,26 @@ func TestNewNodeIDWithPrefix(t *testing.T) {
 				tc.input, tc.inputLen, tc.pathLen, tc.maxLen, got, want)
 		}
 	}
+}
 
+var nodeIDForTreeCoordsVec = []struct {
+	depth      int64
+	index      int64
+	maxBits    int
+	shouldFail bool
+	expected   string
+}{
+	{0, 0x00, 8, false, "00000000"},
+	{0, 0x01, 8, false, "00000001"},
+	{0, 0x01, 15, false, "000000000000001"},
+	{1, 0x01, 8, false, "0000001"},
+	{2, 0x04, 8, false, "000100"},
+	{8, 0x01, 16, false, "00000001"},
+	{8, 0x01, 9, false, "1"},
+	{0, 0x80, 8, false, "10000000"},
+	{0, 0x01, 64, false, "0000000000000000000000000000000000000000000000000000000000000001"},
+	{63, 0x01, 64, false, "1"},
+	{63, 0x02, 64, true, "index of 0x02 is too large for given depth"},
 }
 
 func TestNewNodeIDForTreeCoords(t *testing.T) {

@@ -16,7 +16,9 @@ package storage
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
+	"math/big"
 
 	"github.com/google/trillian/storage/storagepb"
 )
@@ -82,6 +84,85 @@ func NewEmptyNodeID(maxLenBits int) NodeID {
 		Path:          make([]byte, bytesForBits(maxLenBits)),
 		PrefixLenBits: 0,
 		PathLenBits:   maxLenBits,
+	}
+}
+
+// NewNodeIDFromPrefix returns a nodeID for a particular node within a subtree.
+// Prefix is the prefix of the subtree.
+// depth is the depth of index from the root of the subtree.
+// index is the horizontal location of the subtree leaf.
+// subDepth is the total number of levels in the subtree.
+// totalDepth is the number of levels in the whole tree.
+func NewNodeIDFromPrefix(prefix []byte, depth int, index int64, subDepth, totalDepth int) NodeID {
+	if got, want := totalDepth%8, 0; got != want || got < want {
+		panic(fmt.Sprintf("storage NewNodeFromPrefix(): totalDepth mod 8: %v, want %v", got, want))
+	}
+	if got, want := subDepth%8, 0; got != want || got < want {
+		panic(fmt.Sprintf("storage NewNodeFromPrefix(): subDepth mod 8: %v, want %v", got, want))
+	}
+	if got, want := depth, 0; got < want {
+		panic(fmt.Sprintf("storage NewNodeFromPrefix(): depth: %v, want >= %v", got, want))
+	}
+
+	// Put prefix in the MSB bits of path.
+	path := make([]byte, totalDepth/8)
+	copy(path, prefix)
+
+	// Convert index into absolute coordinates for subtree.
+	height := subDepth - depth
+	subIndex := index << uint(height) // index is the horizontal index at the given height.
+
+	// Copy subDepth/8 bytes of subIndex into path.
+	subPath := new(bytes.Buffer)
+	binary.Write(subPath, binary.BigEndian, uint64(subIndex))
+	unusedHighBytes := 64/8 - subDepth/8
+	copy(path[len(prefix):], subPath.Bytes()[unusedHighBytes:])
+
+	return NodeID{
+		Path:          path,
+		PrefixLenBits: len(prefix)*8 + depth,
+		PathLenBits:   len(path) * 8,
+	}
+}
+
+// NewNodeIDFromRelativeBigInt returns a NodeID given by a prefix and a subtree index.
+// depth is the number of significant bits in subIndex, counting from the MSB.
+// subIndex is the path from the root of the subtree to the desired node, and continuing down to the bottom of the subtree.
+// subIndex = horizontal index << height.
+func NewNodeIDFromRelativeBigInt(prefix []byte, depth int, subIndex *big.Int, totalDepth int) NodeID {
+	// Put prefix in the MSB bits of path.
+	path := make([]byte, totalDepth/8)
+	copy(path, prefix)
+
+	// Copy subIndex into path.
+	copy(path[len(prefix):], subIndex.Bytes())
+
+	return NodeID{
+		Path:          path,
+		PrefixLenBits: len(prefix)*8 + depth,
+		PathLenBits:   len(path) * 8,
+	}
+}
+
+// NewNodeIDFromBigInt returns a NodeID of a big.Int with no prefix.
+// index contains the path's least significant bits.
+// depth indicates the number of bits from the most significant bit to treat as part of the path.
+func NewNodeIDFromBigInt(depth int, index *big.Int, totalDepth int) NodeID {
+	if got, want := totalDepth%8, 0; got != want || got < want {
+		panic(fmt.Sprintf("storage NewNodeFromBitInt(): totalDepth mod 8: %v, want %v", got, want))
+	}
+
+	// Put index in the LSB bits of path.
+	path := make([]byte, totalDepth/8)
+	unusedHighBytes := len(path) - len(index.Bytes())
+	copy(path[unusedHighBytes:], index.Bytes())
+
+	// TODO(gdbelvin): consider masking off insignificant bits past depth.
+
+	return NodeID{
+		Path:          path,
+		PrefixLenBits: depth,
+		PathLenBits:   len(path) * 8,
 	}
 }
 
@@ -208,6 +289,25 @@ func (n *NodeID) Siblings() []NodeID {
 		bi++
 	}
 	return r
+}
+
+// Split splits a NodeID into a prefix and a suffix at prefixSplit
+func (n *NodeID) Split(prefixBytes, suffixBits int) ([]byte, Suffix) {
+	if n.PrefixLenBits == 0 {
+		return []byte{}, Suffix{Bits: 0, Path: []byte{0}}
+	}
+	a := make([]byte, len(n.Path))
+	copy(a, n.Path)
+
+	sfx := Suffix{
+		Bits: byte((n.PrefixLenBits-1)%suffixBits) + 1,
+		Path: a[prefixBytes : prefixBytes+suffixBits/8],
+	}
+	maskIndex := int((sfx.Bits - 1) / 8)
+	maskLowBits := (sfx.Bits-1)%8 + 1
+	sfx.Path[maskIndex] &= ((0x01 << maskLowBits) - 1) << uint(8-maskLowBits)
+
+	return a[:prefixBytes], sfx
 }
 
 // Equivalent return true iff the other represents the same path prefix as this NodeID.

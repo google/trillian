@@ -16,21 +16,21 @@ package cache
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"math/big"
 	"testing"
 
-	"github.com/golang/mock/gomock"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/maphasher"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/storagepb"
-	stestonly "github.com/google/trillian/storage/testonly"
+
+	"github.com/golang/mock/gomock"
 	"github.com/kylelemons/godebug/pretty"
+
+	stestonly "github.com/google/trillian/storage/testonly"
 )
 
 var defaultLogStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8}
@@ -40,7 +40,7 @@ const treeID = int64(0)
 
 func TestSplitNodeID(t *testing.T) {
 	c := NewSubtreeCache(defaultMapStrata, PopulateMapSubtreeNodes(treeID, maphasher.Default), PrepareMapSubtreeWrite())
-	for i, v := range []struct {
+	for _, tc := range []struct {
 		inPath        []byte
 		inPathLenBits int
 		outPrefix     []byte
@@ -62,20 +62,20 @@ func TestSplitNodeID(t *testing.T) {
 		{[]byte{0x00, 0x03}, 16, []byte{0x00}, 8, []byte{0x03}},
 		{[]byte{0x00, 0x03}, 15, []byte{0x00}, 7, []byte{0x02}},
 	} {
-		n := storage.NewNodeIDFromHash(v.inPath)
-		n.PrefixLenBits = v.inPathLenBits
+		n := storage.NewNodeIDFromHash(tc.inPath)
+		n.PrefixLenBits = tc.inPathLenBits
 
 		p, s := c.splitNodeID(n)
-		if expected, got := v.outPrefix, p; !bytes.Equal(expected, got) {
-			t.Fatalf("(test %d) Expected prefix %x, got %x", i, expected, got)
+		if got, want := p, tc.outPrefix; !bytes.Equal(got, want) {
+			t.Errorf("splitNodeID(%v): prefix %x, want %x", n, got, want)
+			continue
 		}
-
-		if expected, got := v.outSuffixBits, int(s.bits); expected != got {
-			t.Fatalf("(test %d) Expected suffix num bits %d, got %d", i, expected, got)
+		if got, want := int(s.Bits), tc.outSuffixBits; got != want {
+			t.Errorf("splitNodeID(%v): suffix.Bits %v, want %v", n, got, want)
+			continue
 		}
-
-		if expected, got := v.outSuffix, s.path; !bytes.Equal(expected, got) {
-			t.Fatalf("(test %d) Expected suffix path of %x, got %x", i, expected, got)
+		if got, want := s.Path, tc.outSuffix; !bytes.Equal(got, want) {
+			t.Errorf("splitNodeID(%v): suffix.Path %x, want %x", n, got, want)
 		}
 	}
 }
@@ -244,55 +244,6 @@ func TestCacheFlush(t *testing.T) {
 	}
 }
 
-func TestSuffixKey(t *testing.T) {
-	for _, tc := range []struct {
-		depth   int
-		index   int64
-		want    []byte
-		wantErr bool
-	}{
-		{depth: 0, index: 0x00, want: h2b("0000"), wantErr: false},
-		{depth: 8, index: 0x00, want: h2b("0800"), wantErr: false},
-		// TODO(gdbelvin): want: "0fabcd"?
-		{depth: 8, index: 0xabcd, want: h2b("08cd"), wantErr: false},
-		// TODO(gdbelvin): want "0240"
-		{
-			depth:   2,
-			index:   new(big.Int).SetBytes(h2b("4000000000000000000000000000000000000000000000000000000000000000")).Int64(),
-			want:    h2b("0200"),
-			wantErr: false,
-		},
-		{depth: 15, index: 0xab, want: h2b("0fab"), wantErr: false},
-		{depth: 16, index: 0x00, want: h2b("1000"), wantErr: false},
-	} {
-		suffixKey, err := makeSuffixKey(tc.depth, tc.index)
-		if got, want := err != nil, tc.wantErr; got != want {
-			t.Errorf("makeSuffixKey(%v, %v): %v, want err: %v",
-				tc.depth, tc.index, err, want)
-			continue
-		}
-		if err != nil {
-			continue
-		}
-		b, err := base64.StdEncoding.DecodeString(suffixKey)
-		if err != nil {
-			t.Errorf("DecodeString(%v): %v", suffixKey, err)
-			continue
-		}
-		if got, want := b, tc.want; !bytes.Equal(got, want) {
-			t.Errorf("makeSuffixKey(%v, %x): %x, want %x",
-				tc.depth, tc.index, got, want)
-		}
-	}
-}
-
-func TestSuffixSerializeFormat(t *testing.T) {
-	s := Suffix{5, []byte{0xae}}
-	if got, want := s.serialize(), "Ba4="; got != want {
-		t.Fatalf("Got serialized suffix of %s, expected %s", got, want)
-	}
-}
-
 func TestRepopulateLogSubtree(t *testing.T) {
 	populateTheThing := PopulateLogSubtreeNodes(rfc6962.DefaultHasher)
 	cmt := merkle.NewCompactMerkleTree(rfc6962.DefaultHasher)
@@ -320,7 +271,7 @@ func TestRepopulateLogSubtree(t *testing.T) {
 			// Don't store leaves or the subtree root in InternalNodes
 			if depth > 0 && depth < 8 {
 				_, sfx := c.splitNodeID(n)
-				cmtStorage.InternalNodes[sfx.serialize()] = h
+				cmtStorage.InternalNodes[sfx.String()] = h
 			}
 			return nil
 		})
@@ -328,17 +279,16 @@ func TestRepopulateLogSubtree(t *testing.T) {
 			t.Fatalf("merkle tree update failed: %v", err)
 		}
 
-		sfx, err := makeSuffixKey(8, numLeaves-1)
-		if err != nil {
-			t.Fatalf("failed to create suffix key: %v", err)
-		}
-		s.Leaves[sfx] = leafHash
+		nodeID := storage.NewNodeIDFromPrefix(s.Prefix, logStrataDepth, numLeaves-1, logStrataDepth, maxLogDepth)
+		_, sfx := nodeID.Split(len(s.Prefix), int(s.Depth))
+		sfxKey := sfx.String()
+		s.Leaves[sfxKey] = leafHash
 		if numLeaves == 1<<uint(defaultLogStrata[0]) {
 			s.InternalNodeCount = uint32(len(cmtStorage.InternalNodes))
 		} else {
 			s.InternalNodeCount = 0
 		}
-		cmtStorage.Leaves[sfx] = leafHash
+		cmtStorage.Leaves[sfxKey] = leafHash
 
 		if err := populateTheThing(&s); err != nil {
 			t.Fatalf("failed populate subtree: %v", err)
