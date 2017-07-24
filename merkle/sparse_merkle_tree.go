@@ -192,23 +192,6 @@ func (s *subtreeWriter) RootHash() ([]byte, error) {
 	return r.hash, r.err
 }
 
-func nodeIDFromAddress(size int, prefix []byte, index *big.Int, depth int) storage.NodeID {
-	switch {
-	case depth < 0:
-		panic(fmt.Errorf("logic error: cannot have depth (%d) < 0", depth))
-	case depth == 0:
-		return storage.NewEmptyNodeID(size * 8)
-	}
-	ib := index.Bytes()
-	t := make([]byte, size)
-
-	copy(t, prefix)
-	copy(t[size-len(ib):], ib)
-	n := storage.NewNodeIDFromHash(t)
-	n.PrefixLenBits = len(prefix)*8 + depth
-	return n
-}
-
 // buildSubtree is the worker function which calculates the root hash.
 // The root chan will have had exactly one entry placed in it, and have been
 // subsequently closed when this method exits.
@@ -238,10 +221,10 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context) {
 	// calculate new root, and intermediate nodes:
 	hs2 := NewHStar2(s.treeID, s.treeHasher)
 	treeDepthOffset := (s.treeHasher.Size()-len(s.prefix))*8 - s.subtreeDepth
-	addressSize := len(s.prefix) + s.subtreeDepth/8
+	totalDepth := len(s.prefix)*8 + s.subtreeDepth
 	root, err := hs2.HStar2Nodes(s.subtreeDepth, treeDepthOffset, leaves,
 		func(depth int, index *big.Int) ([]byte, error) {
-			nodeID := nodeIDFromAddress(addressSize, s.prefix, index, depth)
+			nodeID := storage.NewNodeIDFromRelativeBigInt(s.prefix, depth, index, totalDepth)
 			nodes, err := s.tx.GetMerkleNodes(ctx, s.treeRevision, []storage.NodeID{nodeID})
 			if err != nil {
 				return nil, err
@@ -263,10 +246,10 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context) {
 			if depth == 0 && len(s.prefix) > 0 {
 				return nil
 			}
-			nID := nodeIDFromAddress(addressSize, s.prefix, index, depth)
+			nodeID := storage.NewNodeIDFromRelativeBigInt(s.prefix, depth, index, totalDepth)
 			nodesToStore = append(nodesToStore,
 				storage.Node{
-					NodeID:       nID,
+					NodeID:       nodeID,
 					Hash:         h,
 					NodeRevision: s.treeRevision,
 				})

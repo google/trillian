@@ -22,7 +22,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"math/big"
 	"os"
 	"runtime/pprof"
 	"strings"
@@ -620,33 +619,4 @@ func TestSparseMerkleTreeWriterBigBatch(t *testing.T) {
 		t.Errorf("Expected root %s, got root: %s", base64.StdEncoding.EncodeToString(expected), base64.StdEncoding.EncodeToString(got))
 	}
 	maybeProfileMemory(t)
-}
-
-func bigIntFromString(dec string) *big.Int {
-	r, ok := new(big.Int).SetString(dec, 10)
-	if !ok {
-		panic(fmt.Errorf("Couldn't parse %s as base10", dec))
-	}
-	return r
-}
-
-func TestNodeIDFromAddress(t *testing.T) {
-	testVec := []struct {
-		size           int
-		prefix         []byte
-		index          *big.Int
-		depth          int
-		expectedString string
-	}{
-		{1, []byte{}, big.NewInt(0xaa), 8, "10101010"},
-		{3, []byte{0x12}, big.NewInt(0xaaaa), 16, "000100101010101010101010"},
-		{2, []byte{0x12}, big.NewInt(0x05), 8, "0001001000000101"},
-		{32, []byte{0xd1}, bigIntFromString("1180198625301186407651343252449371352369139634241136100932791642269679616"), 16, "110100010000000010101011"},
-	}
-	for i, vec := range testVec {
-		nID := nodeIDFromAddress(vec.size, vec.prefix, vec.index, vec.depth)
-		if expected, got := vec.expectedString, nID.String(); expected != got {
-			t.Errorf("(test %d) expected %s, got %s (path: %x)", i, expected, got, nID.Path)
-		}
-	}
 }
