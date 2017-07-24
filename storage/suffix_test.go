@@ -17,6 +17,7 @@ package storage
 import (
 	"bytes"
 	"encoding/base64"
+	"fmt"
 	"math/big"
 	"testing"
 )
@@ -24,8 +25,11 @@ import (
 const (
 	logStrataDepth = 8
 	maxLogDepth    = 64
+	// TODO(gdbelvin): remove these constants in favor of the real ones in
+	// storage/cache when merkle no longer depends on storage.NodeID
 )
 
+// TestSuffixKeyEquals ensures that NodeID.Split produces the same output as makeSuffixKey for the Log's use cases.
 func TestSuffixKeyEquals(t *testing.T) {
 	for _, tc := range []struct {
 		prefix    []byte
@@ -68,6 +72,7 @@ func TestSuffixKeyEquals(t *testing.T) {
 	}
 }
 
+// TestSuffixKey documents the behavior of makeSuffixKey
 func TestSuffixKey(t *testing.T) {
 	for _, tc := range []struct {
 		depth   int
@@ -77,17 +82,17 @@ func TestSuffixKey(t *testing.T) {
 	}{
 		{depth: 0, index: 0x00, want: h2b("0000"), wantErr: false},
 		{depth: 8, index: 0x00, want: h2b("0800"), wantErr: false},
-		// TODO(gdbelvin): want: "0fabcd"?
+		{depth: 15, index: 0xab, want: h2b("0fab"), wantErr: false},
+
+		// Map cases which produce incorrect output from makeSuffixKey.
+		{depth: 16, index: 0x00, want: h2b("1000"), wantErr: false},
 		{depth: 8, index: 0xabcd, want: h2b("08cd"), wantErr: false},
-		// TODO(gdbelvin): want "0240"
 		{
 			depth:   2,
 			index:   new(big.Int).SetBytes(h2b("4000000000000000000000000000000000000000000000000000000000000000")).Int64(),
 			want:    h2b("0200"),
 			wantErr: false,
 		},
-		{depth: 15, index: 0xab, want: h2b("0fab"), wantErr: false},
-		{depth: 16, index: 0x00, want: h2b("1000"), wantErr: false},
 	} {
 		suffixKey, err := makeSuffixKey(tc.depth, tc.index)
 		if got, want := err != nil, tc.wantErr; got != want {
@@ -108,6 +113,20 @@ func TestSuffixKey(t *testing.T) {
 				tc.depth, tc.index, got, want)
 		}
 	}
+}
+
+// makeSuffixKey creates a suffix key for indexing into the subtree's Leaves and InternalNodes maps.
+// This function documents existing log storage behavior. Any new code that emits Sufix objects must
+// produce the exact same outputs as this function would for Logs.
+func makeSuffixKey(depth int, index int64) (string, error) {
+	if depth < 0 {
+		return "", fmt.Errorf("invalid negative depth of %d", depth)
+	}
+	if index < 0 {
+		return "", fmt.Errorf("invalid negative index %d", index)
+	}
+	sfx := Suffix{byte(depth), []byte{byte(index)}}
+	return sfx.String(), nil
 }
 
 func TestSuffixSerialize(t *testing.T) {

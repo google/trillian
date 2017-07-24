@@ -16,7 +16,6 @@ package storage
 
 import (
 	"encoding/base64"
-	"fmt"
 )
 
 // Suffix represents the tail of a NodeID. It is the path within the subtree.
@@ -37,18 +36,4 @@ func (s Suffix) String() string {
 	r[0] = s.Bits
 	r = append(r, s.Path...)
 	return base64.StdEncoding.EncodeToString(r)
-}
-
-// makeSuffixKey creates a suffix key for indexing into the subtree's Leaves and
-// InternalNodes maps.
-// TODO(gdbelvin): deprecate in favor of nodeID.Split()
-func makeSuffixKey(depth int, index int64) (string, error) {
-	if depth < 0 {
-		return "", fmt.Errorf("invalid negative depth of %d", depth)
-	}
-	if index < 0 {
-		return "", fmt.Errorf("invalid negative index %d", index)
-	}
-	sfx := Suffix{byte(depth), []byte{byte(index)}}
-	return sfx.String(), nil
 }
