@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package merkle
+package node
 
 import (
 	"testing"
 )
 
-func TestBit(t *testing.T) {
+func TestRightBit(t *testing.T) {
 	for _, tc := range []struct {
 		index []byte
 		i     int
@@ -36,7 +36,8 @@ func TestBit(t *testing.T) {
 		{index: h2b("0000000000010000"), i: 16, want: 1},
 		{index: h2b("8000000000000000"), i: 63, want: 1},
 	} {
-		if got, want := bit(tc.index, tc.i), tc.want; got != want {
+		n := New(tc.index)
+		if got, want := n.RightBit(tc.i), tc.want; got != want {
 			t.Errorf("bit(%x, %d): %v, want %v", tc.index, tc.i, got, want)
 		}
 	}
@@ -60,8 +61,8 @@ func TestFlipBit(t *testing.T) {
 		{index: h2b("0000000000010000"), i: 16, want: h2b("0000000000000000")},
 		{index: h2b("8000000000000000"), i: 63, want: h2b("0000000000000000")},
 	} {
-		if got, want := flipBit(tc.index, tc.i), tc.want; !bytes.Equal(got, want) {
-			t.Errorf("flipBit(%x, %d): %x, want %x", tc.index, tc.i, got, want)
+		if got, want := New(tc.index).FlipRightBit(tc.i), New(tc.want); !Equal(got, want) {
+			t.Errorf("FlipRightBit(%x, %d): %x, want %x", tc.index, tc.i, got, want)
 		}
 	}
 }
@@ -90,7 +91,12 @@ func TestMaskIndex(t *testing.T) {
 		{index: h2b("000102030405060708090A0B0C0D0E0F10111213"), depth: 159, want: h2b("000102030405060708090A0B0C0D0E0F10111212")},
 		{index: h2b("000102030405060708090A0B0C0D0E0F10111213"), depth: 160, want: h2b("000102030405060708090A0B0C0D0E0F10111213")},
 	} {
-		if got, want := MaskIndex(tc.index, tc.depth), tc.want; !bytes.Equal(got, want) {
+		n := New(tc.index)
+		want := &Node{
+			path:  tc.want,
+			depth: tc.depth,
+		}
+		if got := n.MaskLeft(tc.depth); !Equal(got, want) {
 			t.Errorf("maskIndex(%x, %v): %x, want %x", tc.index, tc.depth, got, want)
 		}
 	}
