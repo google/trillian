@@ -18,7 +18,9 @@ package crypto
 import (
 	"crypto"
 	"crypto/rand"
+	"encoding/json"
 
+	"github.com/benlaurie/objecthash/go/objecthash"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/sigpb"
 )
@@ -63,4 +65,14 @@ func (s *Signer) Sign(data []byte) (*sigpb.DigitallySigned, error) {
 		HashAlgorithm:      sigpbHashLookup[s.Hash],
 		Signature:          sig,
 	}, nil
+}
+
+// SignObject signs the requested object using ObjectHash.
+func (s *Signer) SignObject(obj interface{}) (*sigpb.DigitallySigned, error) {
+	j, err := json.Marshal(obj)
+	if err != nil {
+		return nil, err
+	}
+	hash := objecthash.CommonJSONHash(string(j))
+	return s.Sign(hash[:])
 }

@@ -17,6 +17,7 @@ package crypto
 import (
 	"testing"
 
+	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/testonly"
@@ -78,6 +79,62 @@ func TestSignVerify(t *testing.T) {
 		err = Verify(key.Public(), msg, signature)
 		if gotErr := err != nil; gotErr != test.wantVerifyErr {
 			t.Errorf("%s: Verify(,,)=%v, want err? %t", test.name, err, test.wantVerifyErr)
+		}
+	}
+}
+
+func TestSignVerifyObject(t *testing.T) {
+	key, err := keys.NewFromPrivatePEM(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
+	if err != nil {
+		t.Fatalf("Failed to open test key, err=%v", err)
+	}
+	signer := NewSHA256Signer(key)
+
+	type subfield struct {
+		c int
+	}
+
+	for _, tc := range []struct {
+		obj interface{}
+	}{
+		{&trillian.MapperMetadata{}},
+		{&trillian.MapperMetadata{HighestFullyCompletedSeq: 0}},
+		{&trillian.MapperMetadata{HighestFullyCompletedSeq: 1}},
+
+		{&trillian.SignedMapRoot{}},
+		{&trillian.SignedMapRoot{
+			MapId: 0xcafe,
+		}},
+		{&trillian.SignedMapRoot{
+			Metadata: &trillian.MapperMetadata{},
+		}},
+		{&trillian.SignedMapRoot{
+			Metadata: &trillian.MapperMetadata{
+				HighestFullyCompletedSeq: 0,
+			},
+		}},
+		{&trillian.SignedMapRoot{
+			Metadata: &trillian.MapperMetadata{
+				HighestFullyCompletedSeq: 1,
+			},
+		}},
+		{struct{ a string }{a: "foo"}},
+		{struct {
+			a int
+			b *subfield
+		}{a: 1, b: &subfield{c: 0}}},
+		{struct {
+			a int
+			b *subfield
+		}{a: 1, b: nil}},
+	} {
+		sig, err := signer.SignObject(tc.obj)
+		if err != nil {
+			t.Errorf("SignObject(%#v): %v", tc.obj, err)
+			continue
+		}
+		if err := VerifyObject(key.Public(), tc.obj, sig); err != nil {
+			t.Errorf("SignObject(%#v): %v", tc.obj, err)
 		}
 	}
 }
