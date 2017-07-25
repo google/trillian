@@ -16,7 +16,6 @@ package node
 
 import (
 	"bytes"
-	"encoding/hex"
 	"testing"
 )
 
@@ -86,13 +85,4 @@ func TestSuffix(t *testing.T) {
 			t.Errorf("Suffix(%x, %v, %v): %x, want %x", tc.index, tc.depth, tc.bits, got, want)
 		}
 	}
-}
-
-// h2b converts a hex string into []byte.
-func h2b(h string) []byte {
-	b, err := hex.DecodeString(h)
-	if err != nil {
-		panic("invalid hex string")
-	}
-	return b
 }

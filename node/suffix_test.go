@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package storage
+package node
 
 import (
 	"bytes"
@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"math/big"
 	"testing"
+
+	"github.com/google/trillian/storage/storagepb"
 )
 
 const (
@@ -56,9 +58,13 @@ func TestSuffixKeyEquals(t *testing.T) {
 			continue
 		}
 
-		nodeID := NewNodeIDFromPrefix(tc.prefix, logStrataDepth, tc.leafIndex, logStrataDepth, maxLogDepth)
+		st := &storagepb.SubtreeProto{
+			Prefix: tc.prefix,
+			Depth:  logStrataDepth,
+		}
+		nodeID := NewFromSubtree(st, int(st.Depth), tc.leafIndex, maxLogDepth)
 		_, sfxB := nodeID.Split(len(tc.prefix), logStrataDepth)
-		sfxBKey := sfxB.String()
+		sfxBKey := sfxB.SubtreeKey()
 		sfxBBytes, err := base64.StdEncoding.DecodeString(sfxBKey)
 		if err != nil {
 			t.Errorf("splitNodeID(%v): _, %v", nodeID, err)
@@ -66,7 +72,7 @@ func TestSuffixKeyEquals(t *testing.T) {
 		}
 
 		if got, want := sfxBBytes, tc.want; !bytes.Equal(got, want) {
-			t.Errorf("[%x, %v].splitNodeID(%v, %v): %v.Serialize(): %x, want %x", nodeID.Path, nodeID.PrefixLenBits, len(tc.prefix), logStrataDepth, sfxB, got, want)
+			t.Errorf("[%v].Split(%v, %v): %v.Serialize(): %x, want %x", nodeID, len(tc.prefix), logStrataDepth, sfxB, got, want)
 			continue
 		}
 	}
@@ -125,20 +131,20 @@ func makeSuffixKey(depth int, index int64) (string, error) {
 	if index < 0 {
 		return "", fmt.Errorf("invalid negative index %d", index)
 	}
-	sfx := Suffix{byte(depth), []byte{byte(index)}}
-	return sfx.String(), nil
+	sfx := Node{depth, []byte{byte(index)}}
+	return sfx.SubtreeKey(), nil
 }
 
 func TestSuffixSerialize(t *testing.T) {
 	for _, tc := range []struct {
-		s    Suffix
+		n    Node
 		want string
 	}{
 		// Prexisting format. This test vector must NOT change or existing data will be inaccessible.
-		{s: Suffix{5, []byte{0xae}}, want: "Ba4="},
+		{n: Node{5, []byte{0xae}}, want: "Ba4="},
 	} {
-		if got, want := tc.s.String(), tc.want; got != want {
-			t.Errorf("%v.serialize(): %v, want %v", tc.s, got, want)
+		if got, want := tc.n.SubtreeKey(), tc.want; got != want {
+			t.Errorf("%v.serialize(): %v, want %v", tc.n, got, want)
 		}
 	}
 }

@@ -24,6 +24,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/hashers"
+	"github.com/google/trillian/node"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/storagepb"
 )
@@ -442,7 +443,7 @@ func PopulateLogSubtreeNodes(hasher hashers.LogHasher) storage.PopulateSubtreeFu
 
 		// We need to update the subtree root hash regardless of whether it's fully populated
 		for leafIndex := int64(0); leafIndex < int64(len(st.Leaves)); leafIndex++ {
-			nodeID := storage.NewNodeIDFromPrefix(st.Prefix, logStrataDepth, leafIndex, logStrataDepth, maxLogDepth)
+			nodeID := node.NewFromSubtree(st, st.Depth, leafIndex, maxLogDepth)
 			_, sfx := nodeID.Split(len(st.Prefix), int(st.Depth))
 			sfxKey := sfx.String()
 			h := st.Leaves[sfxKey]
@@ -456,7 +457,7 @@ func PopulateLogSubtreeNodes(hasher hashers.LogHasher) storage.PopulateSubtreeFu
 				}
 
 				subDepth := logStrataDepth - height
-				nodeID := storage.NewNodeIDFromPrefix(st.Prefix, subDepth, index, logStrataDepth, maxLogDepth)
+				nodeID := node.NewFromSubtree(st, st.Depth, index, maxLogDepth)
 				_, sfx := nodeID.Split(len(st.Prefix), int(st.Depth))
 				sfxKey := sfx.String()
 				// Don't put leaves into the internal map and only update if we're rebuilding internal

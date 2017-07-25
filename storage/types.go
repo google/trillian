@@ -16,10 +16,10 @@ package storage
 
 import (
 	"bytes"
-	"encoding/binary"
 	"fmt"
 	"math/big"
 
+	"github.com/google/trillian/node"
 	"github.com/google/trillian/storage/storagepb"
 )
 
@@ -43,127 +43,14 @@ func (s Error) Error() string {
 
 // Node represents a single node in a Merkle tree.
 type Node struct {
-	NodeID       NodeID
+	NodeID       node.Node
 	Hash         []byte
 	NodeRevision int64
-}
-
-// NodeID uniquely identifies a Node within a versioned MerkleTree.
-type NodeID struct {
-	// path is effectively a BigEndian bit set, with path[0] being the MSB
-	// (identifying the root child), and successive bits identifying the lower
-	// level children down to the leaf.
-	Path []byte
-	// PrefixLenBits is the number of MSB in Path which are considered part of
-	// this NodeID.
-	//
-	// e.g. if Path contains two bytes, and PrefixLenBits is 9, then the 8 bits
-	// in Path[0] are included, along with the lowest bit of Path[1]
-	PrefixLenBits int
-	PathLenBits   int
 }
 
 // bytesForBits returns the number of bytes required to store numBits bits.
 func bytesForBits(numBits int) int {
 	return (numBits + 7) >> 3
-}
-
-// NewNodeIDFromHash creates a new NodeID for the given Hash.
-func NewNodeIDFromHash(h []byte) NodeID {
-	return NodeID{
-		Path:          h,
-		PathLenBits:   len(h) * 8,
-		PrefixLenBits: len(h) * 8,
-	}
-}
-
-// NewEmptyNodeID creates a new zero-length NodeID with sufficient underlying
-// capacity to store a maximum of maxLenBits.
-func NewEmptyNodeID(maxLenBits int) NodeID {
-	return NodeID{
-		Path:          make([]byte, bytesForBits(maxLenBits)),
-		PrefixLenBits: 0,
-		PathLenBits:   maxLenBits,
-	}
-}
-
-// NewNodeIDFromPrefix returns a nodeID for a particular node within a subtree.
-// Prefix is the prefix of the subtree.
-// depth is the depth of index from the root of the subtree.
-// index is the horizontal location of the subtree leaf.
-// subDepth is the total number of levels in the subtree.
-// totalDepth is the number of levels in the whole tree.
-func NewNodeIDFromPrefix(prefix []byte, depth int, index int64, subDepth, totalDepth int) NodeID {
-	if got, want := totalDepth%8, 0; got != want || got < want {
-		panic(fmt.Sprintf("storage NewNodeFromPrefix(): totalDepth mod 8: %v, want %v", got, want))
-	}
-	if got, want := subDepth%8, 0; got != want || got < want {
-		panic(fmt.Sprintf("storage NewNodeFromPrefix(): subDepth mod 8: %v, want %v", got, want))
-	}
-	if got, want := depth, 0; got < want {
-		panic(fmt.Sprintf("storage NewNodeFromPrefix(): depth: %v, want >= %v", got, want))
-	}
-
-	// Put prefix in the MSB bits of path.
-	path := make([]byte, totalDepth/8)
-	copy(path, prefix)
-
-	// Convert index into absolute coordinates for subtree.
-	height := subDepth - depth
-	subIndex := index << uint(height) // index is the horizontal index at the given height.
-
-	// Copy subDepth/8 bytes of subIndex into path.
-	subPath := new(bytes.Buffer)
-	binary.Write(subPath, binary.BigEndian, uint64(subIndex))
-	unusedHighBytes := 64/8 - subDepth/8
-	copy(path[len(prefix):], subPath.Bytes()[unusedHighBytes:])
-
-	return NodeID{
-		Path:          path,
-		PrefixLenBits: len(prefix)*8 + depth,
-		PathLenBits:   len(path) * 8,
-	}
-}
-
-// NewNodeIDFromRelativeBigInt returns a NodeID given by a prefix and a subtree index.
-// depth is the number of significant bits in subIndex, counting from the MSB.
-// subIndex is the path from the root of the subtree to the desired node, and continuing down to the bottom of the subtree.
-// subIndex = horizontal index << height.
-func NewNodeIDFromRelativeBigInt(prefix []byte, depth int, subIndex *big.Int, totalDepth int) NodeID {
-	// Put prefix in the MSB bits of path.
-	path := make([]byte, totalDepth/8)
-	copy(path, prefix)
-
-	// Copy subIndex into path.
-	copy(path[len(prefix):], subIndex.Bytes())
-
-	return NodeID{
-		Path:          path,
-		PrefixLenBits: len(prefix)*8 + depth,
-		PathLenBits:   len(path) * 8,
-	}
-}
-
-// NewNodeIDFromBigInt returns a NodeID of a big.Int with no prefix.
-// index contains the path's least significant bits.
-// depth indicates the number of bits from the most significant bit to treat as part of the path.
-func NewNodeIDFromBigInt(depth int, index *big.Int, totalDepth int) NodeID {
-	if got, want := totalDepth%8, 0; got != want || got < want {
-		panic(fmt.Sprintf("storage NewNodeFromBitInt(): totalDepth mod 8: %v, want %v", got, want))
-	}
-
-	// Put index in the LSB bits of path.
-	path := make([]byte, totalDepth/8)
-	unusedHighBytes := len(path) - len(index.Bytes())
-	copy(path[unusedHighBytes:], index.Bytes())
-
-	// TODO(gdbelvin): consider masking off insignificant bits past depth.
-
-	return NodeID{
-		Path:          path,
-		PrefixLenBits: depth,
-		PathLenBits:   len(path) * 8,
-	}
 }
 
 // NewNodeIDWithPrefix creates a new NodeID of nodeIDLen bits with the prefixLen MSBs set to prefix.
@@ -190,43 +77,6 @@ func NewNodeIDWithPrefix(prefix uint64, prefixLenBits, nodeIDLenBits, maxLenBits
 		prefix >>= 1
 	}
 	return p
-}
-
-func bitLen(x int64) int {
-	r := 0
-	for x > 0 {
-		r++
-		x >>= 1
-	}
-	return r
-}
-
-// NewNodeIDForTreeCoords creates a new NodeID for a Tree node with a specified depth and
-// index.
-// This method is used exclusively by the Log, and, since the Log model grows upwards from the
-// leaves, we modify the provided coords accordingly.
-//
-// depth is the Merkle tree level: 0 = leaves, and increases upwards towards the root.
-//
-// index is the horizontal index into the tree at level depth, so the returned
-// NodeID will be zero padded on the right by depth places.
-func NewNodeIDForTreeCoords(depth int64, index int64, maxPathBits int) (NodeID, error) {
-	bl := bitLen(index)
-	if index < 0 || depth < 0 || bl > int(maxPathBits-int(depth)) {
-		return NodeID{}, fmt.Errorf("depth/index combination out of range: depth=%d index=%d", depth, index)
-	}
-	// This node is effectively a prefix of the subtree underneath (for non-leaf
-	// depths), so we shift the index accordingly.
-	uidx := uint64(index) << uint(depth)
-	r := NewEmptyNodeID(maxPathBits)
-	for i := len(r.Path) - 1; uidx > 0 && i >= 0; i-- {
-		r.Path[i] = byte(uidx & 0xff)
-		uidx >>= 8
-	}
-	// In the storage model nodes closer to the leaves have longer nodeIDs, so
-	// we "reverse" depth here:
-	r.PrefixLenBits = int(maxPathBits - int(depth))
-	return r, nil
 }
 
 // SetBit sets the ith bit to true if b is non-zero, and false otherwise.
@@ -259,60 +109,6 @@ func (n *NodeID) String() string {
 		r.WriteRune(rune('0' + n.Bit(i)))
 	}
 	return r.String()
-}
-
-// CoordString returns a string representation assuming that the NodeID represents a
-// tree coordinate. Using this on a NodeID for a sparse Merkle tree will give incorrect
-// results. Intended for debugging purposes, the format could change.
-func (n *NodeID) CoordString() string {
-	d := uint64(n.PathLenBits - n.PrefixLenBits)
-	i := uint64(0)
-	for _, p := range n.Path {
-		i = (i << uint64(8)) + uint64(p)
-	}
-
-	return fmt.Sprintf("[d:%d, i:%d]", d, i>>d)
-}
-
-// Siblings returns the siblings of the given node.
-func (n *NodeID) Siblings() []NodeID {
-	r := make([]NodeID, n.PrefixLenBits, n.PrefixLenBits)
-	l := n.PrefixLenBits
-	// Index of the bit to twiddle:
-	bi := n.PathLenBits - n.PrefixLenBits
-	for i := 0; i < len(r); i++ {
-		r[i].PrefixLenBits = l - i
-		r[i].Path = make([]byte, len(n.Path))
-		r[i].PathLenBits = n.PathLenBits
-		copy(r[i].Path, n.Path)
-		r[i].SetBit(bi, n.Bit(bi)^1)
-		bi++
-	}
-	return r
-}
-
-// Split splits a NodeID into a prefix and a suffix at prefixSplit
-func (n *NodeID) Split(prefixBytes, suffixBits int) ([]byte, Suffix) {
-	if n.PrefixLenBits == 0 {
-		return []byte{}, Suffix{Bits: 0, Path: []byte{0}}
-	}
-	a := make([]byte, len(n.Path))
-	copy(a, n.Path)
-
-	sfx := Suffix{
-		Bits: byte((n.PrefixLenBits-1)%suffixBits) + 1,
-		Path: a[prefixBytes : prefixBytes+suffixBits/8],
-	}
-	maskIndex := int((sfx.Bits - 1) / 8)
-	maskLowBits := (sfx.Bits-1)%8 + 1
-	sfx.Path[maskIndex] &= ((0x01 << maskLowBits) - 1) << uint(8-maskLowBits)
-
-	return a[:prefixBytes], sfx
-}
-
-// Equivalent return true iff the other represents the same path prefix as this NodeID.
-func (n *NodeID) Equivalent(other NodeID) bool {
-	return n.String() == other.String()
 }
 
 // PopulateSubtreeFunc is a function which knows how to re-populate a subtree
