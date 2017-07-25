@@ -42,3 +42,27 @@ func flipBit(index []byte, i int) []byte {
 	r[bIndex] ^= 1 << uint(i%8)
 	return r
 }
+
+// Neighbor returns index with only the left i bits set and the i'th bit flipped.
+func Neighbor(index []byte, i int) []byte {
+	r := flipBit(index, i)
+	return MaskIndex(r, len(index)*8-i)
+}
+
+// leftmask contains bitmasks indexed such that the left x bits are set. It is
+// indexed by byte position from 0-7 0 is special cased to 0xFF since 8 mod 8
+// is 0. leftmask is only used to mask the last byte.
+var leftmask = [8]byte{0xFF, 0x80, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC, 0xFE}
+
+// MaskIndex returns index with only the left depth bits set.
+func MaskIndex(index []byte, depth int) []byte {
+	r := make([]byte, len(index))
+	if depth > 0 {
+		// Copy the first depthBytes.
+		depthBytes := (depth + 7) >> 3
+		copy(r, index[:depthBytes])
+		// Mask off unwanted bits in the last byte.
+		r[depthBytes-1] = r[depthBytes-1] & leftmask[depth%8]
+	}
+	return r
+}

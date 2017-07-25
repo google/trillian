@@ -142,6 +142,7 @@ func (s *HStar2) get(index *big.Int, depth int, getter SparseGetNodeFunc) ([]byt
 	}
 	height := s.hasher.BitLen() - depth
 	indexBytes := PaddedBytes(index, s.hasher.Size())
+	indexBytes = MaskIndex(indexBytes, depth)
 	return s.hasher.HashEmpty(s.treeID, indexBytes, height), nil
 }
 

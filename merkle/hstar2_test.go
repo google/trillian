@@ -178,16 +178,16 @@ func TestHStar2OffsetRootKAT(t *testing.T) {
 			if got, want := root, x.root; !bytes.Equal(got, want) {
 				t.Errorf("HStar2Nodes(i: %v, size:%v): %x, want: %x", i, size, got, want)
 			}
+			break
 		}
+		break
 	}
 }
 
 func TestHStar2NegativeTreeLevelOffset(t *testing.T) {
 	s := NewHStar2(treeID, maphasher.Default)
 
-	_, err := s.HStar2Nodes(make([]byte, 31), 9, []HStar2LeafHash{},
-		func(int, *big.Int) ([]byte, error) { return nil, nil },
-		func(int, *big.Int, []byte) error { return nil })
+	_, err := s.HStar2Nodes(make([]byte, 31), 9, []HStar2LeafHash{}, nil, nil)
 	if got, want := err, ErrNegativeTreeLevelOffset; got != want {
 		t.Fatalf("Hstar2Nodes(): %v, want %v", got, want)
 	}
