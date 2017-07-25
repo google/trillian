@@ -24,16 +24,6 @@ import (
 	"github.com/google/trillian/storage/storagepb"
 )
 
-const (
-	// MaxLogDepth is the maximum number of levels a log is allowed to have.
-	// This corresponds to the use of int64 to indicate leaf indexes.
-	MaxLogDepth = 64
-)
-
-//
-// Transition Plan
-//
-
 //
 // Differences between Log and Map paths
 // - Both are constant sized byte slices.
@@ -54,6 +44,10 @@ type Node struct {
 
 	// Path is left-aligned. Nodes with depths that are not multiples of 8
 	// will have unused bits in the least significant bit positions.
+
+	//
+	// We want to ensure that the bits of path that are not significant are set to 0.
+	// We want to ensure that no one can modify path or depth
 	path []byte
 }
 
@@ -64,15 +58,6 @@ func New(index []byte) *Node {
 	return &Node{
 		path:  index,
 		depth: len(index) * 8,
-	}
-}
-
-// NewFromRaw returns a new Node with exactly the params
-// len(path)*8 should >= depth
-func NewFromRaw(depth int, path []byte) *Node {
-	return &Node{
-		path:  path,
-		depth: depth,
 	}
 }
 
@@ -147,14 +132,14 @@ func NewFromBig(depth int, index *big.Int, totalDepth int) *Node {
 // height is the number of levels above the leaves.  0 = leaves.
 // index is the horizontal index into the tree at level depth, so the returned
 // NodeID will be zero padded on the right by height places.
-func NewFromTreeCoords(height int, index int64) *Node {
+func NewFromTreeCoords(height int, index int64, maxDepth int) *Node {
 	absIndex := index << uint(height)
 	b := new(bytes.Buffer)
 	binary.Write(b, binary.BigEndian, uint64(absIndex))
 
 	return &Node{
 		path:  b.Bytes(),
-		depth: MaxLogDepth - height,
+		depth: maxDepth - height,
 	}
 }
 
@@ -200,12 +185,34 @@ func (n *Node) SubtreeKey() string {
 	return base64.StdEncoding.EncodeToString(r)
 }
 
+// PrefixKey returns a string that represents a subtree prefix.
+// This is simply string(path), which is valid because Go strings
+// are byte strings.
+func (n *Node) PrefixKey() string {
+	return string(n.path)
+}
+
+// Key returns a string that can be used to index this node in a map.
+func (n *Node) Key() string {
+	return n.DebugString()
+}
+
+// DebugString prints an easy to read representation of Node.
+func (n *Node) DebugString() string {
+	return fmt.Sprintf("[d:%v %x]", n.depth, n.path)
+}
+
 // PathBits returns the maximum number of bits in path, including ignored bits.
 // PathBits returns multiples of 8.
 // For maps, this is the height of the full tree.
 // For logs, this is the height of the current tree. XXX: what does that mean?
 func (n *Node) PathBits() int {
 	return len(n.path) * 8
+}
+
+// Depth returns the number of bits from the MSB at which this node is located.
+func (n *Node) Depth() int {
+	return n.depth
 }
 
 // LeftBit returns the ith bit from MSB.
@@ -252,12 +259,19 @@ func (n *Node) MaskLeft(depth int) *Node {
 	return n
 }
 
+// Neighbor sets this node to be it's own neighbor.
+func (n *Node) Neighbor() *Node {
+	height := n.PathBits() - n.depth
+	n.FlipRightBit(height)
+	return n
+}
+
 // Siblings returns the neighbors of this node, starting in order from LSB to MSB.
 func (n *Node) Siblings() []*Node {
 	nbrs := make([]*Node, n.depth)
 	for height := range nbrs {
 		depth := n.PathBits() - height
-		nbrs[height] = n.Copy().FlipRightBit(height).MaskLeft(depth)
+		nbrs[height] = n.Copy().MaskLeft(depth).Neighbor()
 	}
 	return nbrs
 }

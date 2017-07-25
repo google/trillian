@@ -23,10 +23,12 @@ import (
 	"testing"
 
 	"github.com/google/trillian/merkle/rfc6962"
-	"github.com/google/trillian/storage"
+	"github.com/google/trillian/node"
 	"github.com/google/trillian/testonly"
 	"github.com/kylelemons/godebug/pretty"
 )
+
+const maxLogDepth = 64
 
 func checkUnusedNodesInvariant(c *CompactMerkleTree) error {
 	// The structure of this invariant check mirrors the structure in
@@ -191,12 +193,8 @@ func TestLoadingTreeFailsBadRootHash(t *testing.T) {
 	}
 }
 
-func nodeKey(d int, i int64) (string, error) {
-	n, err := storage.NewNodeIDForTreeCoords(int64(d), i, 64)
-	if err != nil {
-		return "", err
-	}
-	return n.String(), nil
+func nodeKey(d int, i int64) string {
+	return node.NewFromTreeCoords(d, i, maxLogDepth).Key()
 }
 
 func TestCompactVsFullTree(t *testing.T) {
@@ -208,10 +206,7 @@ func TestCompactVsFullTree(t *testing.T) {
 			rfc6962.DefaultHasher,
 			imt.LeafCount(),
 			func(depth int, index int64) ([]byte, error) {
-				k, err := nodeKey(depth, index)
-				if err != nil {
-					t.Errorf("failed to create nodeID: %v", err)
-				}
+				k := nodeKey(depth, index)
 				h := nodes[k]
 				return h, nil
 			}, imt.CurrentRoot().Hash())
@@ -229,10 +224,7 @@ func TestCompactVsFullTree(t *testing.T) {
 
 		cSeq, cHash, err := cmt.AddLeaf(newLeaf,
 			func(depth int, index int64, hash []byte) error {
-				k, err := nodeKey(depth, index)
-				if err != nil {
-					return fmt.Errorf("failed to create nodeID: %v", err)
-				}
+				k := nodeKey(depth, index)
 				nodes[k] = hash
 				return nil
 			})

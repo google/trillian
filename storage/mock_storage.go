@@ -7,6 +7,7 @@ import (
 	context "context"
 	gomock "github.com/golang/mock/gomock"
 	trillian "github.com/google/trillian"
+	node "github.com/google/trillian/node"
 	time "time"
 )
 
@@ -368,7 +369,7 @@ func (_mr *MockLogTreeTXMockRecorder) GetLeavesByIndex(arg0, arg1 interface{}) *
 }
 
 // GetMerkleNodes mocks base method
-func (_m *MockLogTreeTX) GetMerkleNodes(_param0 context.Context, _param1 int64, _param2 []NodeID) ([]Node, error) {
+func (_m *MockLogTreeTX) GetMerkleNodes(_param0 context.Context, _param1 int64, _param2 []*node.Node) ([]Node, error) {
 	ret := _m.ctrl.Call(_m, "GetMerkleNodes", _param0, _param1, _param2)
 	ret0, _ := ret[0].([]Node)
 	ret1, _ := ret[1].(error)
@@ -638,7 +639,7 @@ func (_mr *MockMapTreeTXMockRecorder) Get(arg0, arg1, arg2 interface{}) *gomock.
 }
 
 // GetMerkleNodes mocks base method
-func (_m *MockMapTreeTX) GetMerkleNodes(_param0 context.Context, _param1 int64, _param2 []NodeID) ([]Node, error) {
+func (_m *MockMapTreeTX) GetMerkleNodes(_param0 context.Context, _param1 int64, _param2 []*node.Node) ([]Node, error) {
 	ret := _m.ctrl.Call(_m, "GetMerkleNodes", _param0, _param1, _param2)
 	ret0, _ := ret[0].([]Node)
 	ret1, _ := ret[1].(error)
@@ -1029,7 +1030,7 @@ func (_mr *MockReadOnlyLogTreeTXMockRecorder) GetLeavesByIndex(arg0, arg1 interf
 }
 
 // GetMerkleNodes mocks base method
-func (_m *MockReadOnlyLogTreeTX) GetMerkleNodes(_param0 context.Context, _param1 int64, _param2 []NodeID) ([]Node, error) {
+func (_m *MockReadOnlyLogTreeTX) GetMerkleNodes(_param0 context.Context, _param1 int64, _param2 []*node.Node) ([]Node, error) {
 	ret := _m.ctrl.Call(_m, "GetMerkleNodes", _param0, _param1, _param2)
 	ret0, _ := ret[0].([]Node)
 	ret1, _ := ret[1].(error)
@@ -1164,7 +1165,7 @@ func (_mr *MockReadOnlyMapTreeTXMockRecorder) Get(arg0, arg1, arg2 interface{}) 
 }
 
 // GetMerkleNodes mocks base method
-func (_m *MockReadOnlyMapTreeTX) GetMerkleNodes(_param0 context.Context, _param1 int64, _param2 []NodeID) ([]Node, error) {
+func (_m *MockReadOnlyMapTreeTX) GetMerkleNodes(_param0 context.Context, _param1 int64, _param2 []*node.Node) ([]Node, error) {
 	ret := _m.ctrl.Call(_m, "GetMerkleNodes", _param0, _param1, _param2)
 	ret0, _ := ret[0].([]Node)
 	ret1, _ := ret[1].(error)

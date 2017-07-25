@@ -30,17 +30,17 @@ import (
 )
 
 // GetSubtreeFunc describes a function which can return a Subtree from storage.
-type GetSubtreeFunc func(id storage.NodeID) (*storagepb.SubtreeProto, error)
+type GetSubtreeFunc func(id *node.Node) (*storagepb.SubtreeProto, error)
 
 // GetSubtreesFunc describes a function which can return a number of Subtrees from storage.
-type GetSubtreesFunc func(ids []storage.NodeID) ([]*storagepb.SubtreeProto, error)
+type GetSubtreesFunc func(ids []*node.Node) ([]*storagepb.SubtreeProto, error)
 
 // SetSubtreesFunc describes a function which can store a collection of Subtrees into storage.
 type SetSubtreesFunc func(s []*storagepb.SubtreeProto) error
 
 // stratumInfo represents a single stratum across the tree.
 // It it used inside the SubtreeCache to determine which Subtree prefix should
-// be used for a given NodeID.
+// be used for a given Node.
 // Currently, the strata must have depths which are multiples of 8.
 type stratumInfo struct {
 	// prefixBytes is the number of prefix bytes above this stratum.
@@ -62,6 +62,12 @@ const (
 	// maxLogDepth is the number of bits in a log path.
 	maxLogDepth = 64
 )
+
+// PrefixKey returns the prefix key for a subtree.
+// This must match node.PrefixKey
+func PrefixKey(st *storagepb.SubtreeProto) string {
+	return string(st.Prefix)
+}
 
 // SubtreeCache provides a caching access to Subtree storage. Currently there are assumptions
 // in the code that all subtrees are multiple of 8 in depth and that log subtrees are always
@@ -133,29 +139,28 @@ func (s *SubtreeCache) stratumInfoForPrefixLength(numBits int) stratumInfo {
 
 // splitNodeID breaks a NodeID out into its prefix and suffix parts.
 // unless ID is 0 bits long, Suffix must always contain at least one bit.
-func (s *SubtreeCache) splitNodeID(id storage.NodeID) ([]byte, storage.Suffix) {
-	sInfo := s.stratumInfoForPrefixLength(id.PrefixLenBits - 1)
-	return id.Split(sInfo.prefixBytes, sInfo.depth)
+func (s *SubtreeCache) splitNodeID(n *node.Node) ([]byte, storage.Suffix) {
+	sInfo := s.stratumInfoForPrefixLength(n.Depth() - 1)
+	return n.Split(sInfo.prefixBytes, sInfo.depth)
 }
 
 // preload calculates the set of subtrees required to know the hashes of the
 // passed in node IDs, uses getSubtrees to retrieve them, and finally populates
 // the cache structures with the data.
-func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc) error {
+func (s *SubtreeCache) preload(ids []*node.Node, getSubtrees GetSubtreesFunc) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
 	// Figure out the set of subtrees we need:
-	want := make(map[string]*storage.NodeID)
+	want := make(map[string]*node.Node)
 	for _, id := range ids {
 		id := id
 		px, _ := s.splitNodeID(id)
-		pxKey := string(px)
-		_, ok := s.subtrees[pxKey]
+		_, ok := s.subtrees[px.PrefixKey()]
 		// TODO(al): fix for non-uniform strata
 		id.PrefixLenBits = len(px) * depthQuantum
 		if !ok {
-			want[pxKey] = &id
+			want[px.PrefixKey()] = &id
 		}
 	}
 
@@ -164,7 +169,7 @@ func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc
 		return nil
 	}
 
-	list := make([]storage.NodeID, 0, len(want))
+	list := make([]*node.Node, 0, len(want))
 	for _, v := range want {
 		list = append(list, *v)
 	}
@@ -174,8 +179,8 @@ func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc
 	}
 	for _, t := range subtrees {
 		s.populate(t)
-		s.subtrees[string(t.Prefix)] = t
-		delete(want, string(t.Prefix))
+		s.subtrees[PrefixKey(t)] = t
+		delete(want, PrefixKey(t))
 	}
 
 	// We might not have got all the subtrees we requested, if they don't already exist.
@@ -185,7 +190,7 @@ func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc
 	for _, id := range want {
 		prefixLen := id.PrefixLenBits / depthQuantum
 		px := id.Path[:prefixLen]
-		pxKey := string(px)
+		pxKey := node.New(px).PrefixKey()
 		_, exists := s.subtrees[pxKey]
 		if exists {
 			return fmt.Errorf("preload tried to clobber existing subtree for: %v", *id)
@@ -198,7 +203,7 @@ func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc
 
 // GetNodes returns the requested nodes, calling the getSubtrees function if
 // they are not already cached.
-func (s *SubtreeCache) GetNodes(ids []storage.NodeID, getSubtrees GetSubtreesFunc) ([]storage.Node, error) {
+func (s *SubtreeCache) GetNodes(ids []*node.Node, getSubtrees GetSubtreesFunc) ([]storage.Node, error) {
 	if err := s.preload(ids, getSubtrees); err != nil {
 		return nil, err
 	}
@@ -207,7 +212,7 @@ func (s *SubtreeCache) GetNodes(ids []storage.NodeID, getSubtrees GetSubtreesFun
 	for _, id := range ids {
 		h, err := s.GetNodeHash(
 			id,
-			func(n storage.NodeID) (*storagepb.SubtreeProto, error) {
+			func(n *node.Node) (*storagepb.SubtreeProto, error) {
 				// This should never happen - we should've already read all the data we
 				// need above, in Preload()
 				glog.Warningf("Unexpectedly reading from within GetNodeHash(): %s", n.String())
@@ -279,7 +284,7 @@ func (s *SubtreeCache) getNodeHashUnderLock(id storage.NodeID, getSubtree GetSub
 	// have a fixed depth if the suffix has the same number of significant bits as the
 	// subtree depth then this is a leaf. For example if the subtree is depth 8 its leaves
 	// have 8 significant suffix bits.
-	sfxKey := sx.String()
+	sfxKey := sx.SubtreeKey()
 	if int32(sx.Bits) == c.Depth {
 		nh = c.Leaves[sfxKey]
 	} else {
@@ -292,7 +297,7 @@ func (s *SubtreeCache) getNodeHashUnderLock(id storage.NodeID, getSubtree GetSub
 }
 
 // SetNodeHash sets a node hash in the cache.
-func (s *SubtreeCache) SetNodeHash(id storage.NodeID, h []byte, getSubtree GetSubtreeFunc) error {
+func (s *SubtreeCache) SetNodeHash(id *node.Node, h []byte, getSubtree GetSubtreeFunc) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	px, sx := s.splitNodeID(id)
@@ -302,7 +307,7 @@ func (s *SubtreeCache) SetNodeHash(id storage.NodeID, h []byte, getSubtree GetSu
 		// TODO(al): This is ok, IFF *all* leaves in the subtree are being set,
 		// verify that this is the case when it happens.
 		// For now, just read from storage if we don't already have it.
-		glog.V(1).Infof("attempting to write to unread subtree for %v, reading now", id.String())
+		glog.V(1).Infof("attempting to write to unread subtree for %v, reading now", px.DebugString())
 		// We hold the lock so can call this directly:
 		_, err := s.getNodeHashUnderLock(id, getSubtree)
 		if err != nil {
@@ -311,7 +316,7 @@ func (s *SubtreeCache) SetNodeHash(id storage.NodeID, h []byte, getSubtree GetSu
 		// There must be a subtree present in the cache now, even if storage didn't have anything for us.
 		c = s.subtrees[prefixKey]
 		if c == nil {
-			return fmt.Errorf("internal error, subtree cache for %v is nil after a read attempt", id.String())
+			return fmt.Errorf("internal error, subtree cache for %v is nil after a read attempt", id.DebugString())
 		}
 	}
 	if c.Prefix == nil {

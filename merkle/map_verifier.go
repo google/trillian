@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	"github.com/google/trillian/merkle/hashers"
+	"github.com/google/trillian/node"
 )
 
 // VerifyMapInclusionProof verifies that the passed in expectedRoot can be

@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/google/trillian/storage"
+	"github.com/google/trillian/node"
 )
 
 type bitLenTestData struct {
@@ -358,10 +358,9 @@ func TestConsistencySucceedsUpToTreeSize(t *testing.T) {
 	}
 }
 
-func MustCreateNodeFetchForTreeCoords(depth, index int64, maxPathBits int, rehash bool) NodeFetch {
-	n, err := storage.NewNodeIDForTreeCoords(depth, index, maxPathBits)
-	if err != nil {
-		panic(err)
+func MustCreateNodeFetchForTreeCoords(depth int, index int64, maxPathBits int, rehash bool) NodeFetch {
+	return NodeFetch{
+		NodeID: node.NewFromTreeCoords(depth, index, maxPathBits),
+		Rehash: rehash,
 	}
-	return NodeFetch{NodeID: n, Rehash: rehash}
 }

@@ -16,6 +16,8 @@ package storage
 
 import (
 	"context"
+
+	"github.com/google/trillian/node"
 )
 
 // ReadOnlyTreeTX represents a read-only transaction on a TreeStorage.
@@ -65,7 +67,7 @@ type DatabaseChecker interface {
 // NodeReader provides a read-only interface into the stored tree nodes.
 type NodeReader interface {
 	// GetMerkleNodes looks up the set of nodes identified by ids, at treeRevision, and returns them.
-	GetMerkleNodes(ctx context.Context, treeRevision int64, ids []NodeID) ([]Node, error)
+	GetMerkleNodes(ctx context.Context, treeRevision int64, ids []*node.Node) ([]Node, error)
 }
 
 // NodeWriter provides a write interface into the stored tree nodes.

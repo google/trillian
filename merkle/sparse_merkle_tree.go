@@ -23,6 +23,7 @@ import (
 	"sync"
 
 	"github.com/google/trillian/merkle/hashers"
+	"github.com/google/trillian/node"
 	"github.com/google/trillian/storage"
 )
 
@@ -211,7 +212,7 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context) {
 		leaves = append(leaves, HStar2LeafHash{Index: new(big.Int).SetBytes(ih.index), LeafHash: ih.hash})
 		nodesToStore = append(nodesToStore,
 			storage.Node{
-				NodeID:       storage.NewNodeIDFromHash(bytes.Join([][]byte{s.prefix, ih.index}, []byte{})),
+				NodeID:       node.New(bytes.Join([][]byte{s.prefix, ih.index}, []byte{})),
 				Hash:         ih.hash,
 				NodeRevision: s.treeRevision,
 			})
@@ -224,19 +225,19 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context) {
 	totalDepth := len(s.prefix)*8 + s.subtreeDepth
 	root, err := hs2.HStar2Nodes(s.subtreeDepth, treeDepthOffset, leaves,
 		func(depth int, index *big.Int) ([]byte, error) {
-			nodeID := storage.NewNodeIDFromRelativeBigInt(s.prefix, depth, index, totalDepth)
-			nodes, err := s.tx.GetMerkleNodes(ctx, s.treeRevision, []storage.NodeID{nodeID})
+			nodeID := node.NewFromSubtreeBig(s.prefix, depth, index, totalDepth)
+			nodes, err := s.tx.GetMerkleNodes(ctx, s.treeRevision, []*node.Node{nodeID})
 			if err != nil {
 				return nil, err
 			}
 			if len(nodes) == 0 {
 				return nil, nil
 			}
-			if expected, got := nodeID, nodes[0].NodeID; !expected.Equivalent(got) {
-				return nil, fmt.Errorf("expected node ID %s from storage, but got %s", expected.String(), got.String())
+			if got, want := nodes[0].NodeID, nodeID; !node.Equal(got, want) {
+				return nil, fmt.Errorf("got node ID %v from storage, want %v", got, want)
 			}
-			if expected, got := s.treeRevision, nodes[0].NodeRevision; got > expected {
-				return nil, fmt.Errorf("expected node revision <= %d, but got %d", expected, got)
+			if got, want := nodes[0].NodeRevision, s.treeRevision; got > want {
+				return nil, fmt.Errorf("node revision: %v, want >= %v", got, want)
 			}
 			return nodes[0].Hash, nil
 		},
@@ -246,7 +247,7 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context) {
 			if depth == 0 && len(s.prefix) > 0 {
 				return nil
 			}
-			nodeID := storage.NewNodeIDFromRelativeBigInt(s.prefix, depth, index, totalDepth)
+			nodeID := node.NewFromSubtreeBig(s.prefix, depth, index, totalDepth)
 			nodesToStore = append(nodesToStore,
 				storage.Node{
 					NodeID:       nodeID,
@@ -349,8 +350,9 @@ func NewSparseMerkleTreeWriter(ctx context.Context, treeID, rev int64, h hashers
 // RootAtRevision returns the sparse Merkle tree root hash at the specified
 // revision, or ErrNoSuchRevision if the requested revision doesn't exist.
 func (s SparseMerkleTreeReader) RootAtRevision(ctx context.Context, rev int64) ([]byte, error) {
-	rootNodeID := storage.NewEmptyNodeID(256)
-	nodes, err := s.tx.GetMerkleNodes(ctx, rev, []storage.NodeID{rootNodeID})
+	// TODO(gdbelvin): Use hasher to set path length.
+	rootNodeID := node.New(make([]byte, 32)).MaskLeft(0)
+	nodes, err := s.tx.GetMerkleNodes(ctx, rev, []*node.Node{rootNodeID})
 	if err != nil {
 		return nil, err
 	}
@@ -361,12 +363,12 @@ func (s SparseMerkleTreeReader) RootAtRevision(ctx context.Context, rev int64) (
 		return nil, fmt.Errorf("expected 1 node, but got %d", len(nodes))
 	}
 	// Sanity check the nodeID
-	if !nodes[0].NodeID.Equivalent(rootNodeID) {
-		return nil, fmt.Errorf("unexpected node returned with ID: %v", nodes[0].NodeID)
+	if got, want := nodes[0].NodeID, rootNodeID; !node.Equal(got, want) {
+		return nil, fmt.Errorf("got node: %v, want %v", got, want)
 	}
 	// Sanity check the revision
-	if nodes[0].NodeRevision > rev {
-		return nil, fmt.Errorf("unexpected node revision returned: %d > %d", nodes[0].NodeRevision, rev)
+	if got, want := nodes[0].NodeRevision, rev; got > want {
+		return nil, fmt.Errorf("got node revision: %v, want <= %d", got, want)
 	}
 	return nodes[0].Hash, nil
 }
@@ -375,7 +377,7 @@ func (s SparseMerkleTreeReader) RootAtRevision(ctx context.Context, rev int64) (
 // specified key at the specified revision.
 // If the revision does not exist it will return ErrNoSuchRevision error.
 func (s SparseMerkleTreeReader) InclusionProof(ctx context.Context, rev int64, index []byte) ([][]byte, error) {
-	nid := storage.NewNodeIDFromHash(index)
+	nid := node.New(index)
 	sibs := nid.Siblings()
 	nodes, err := s.tx.GetMerkleNodes(ctx, rev, sibs)
 	if err != nil {
@@ -385,7 +387,7 @@ func (s SparseMerkleTreeReader) InclusionProof(ctx context.Context, rev int64, i
 	nodeMap := make(map[string]*storage.Node)
 	for _, n := range nodes {
 		n := n // need this or we'll end up with the same node hash repeated in the map
-		nodeMap[n.NodeID.String()] = &n
+		nodeMap[n.NodeID.Key()] = &n
 	}
 
 	// We're building a full proof from a combination of whichever nodes we got
@@ -394,14 +396,14 @@ func (s SparseMerkleTreeReader) InclusionProof(ctx context.Context, rev int64, i
 	// For each proof element:
 	for i := 0; i < len(r); i++ {
 		proofID := sibs[i]
-		pNode := nodeMap[proofID.String()]
+		pNode := nodeMap[proofID.Key()]
 		if pNode == nil {
 			// we have no node for this level from storage, so the client will use
 			// the null hash.
 			continue
 		}
 		r[i] = pNode.Hash
-		delete(nodeMap, proofID.String())
+		delete(nodeMap, proofID.Key())
 	}
 
 	// Make sure we used up all the returned nodes, otherwise something's gone wrong.

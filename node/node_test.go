@@ -22,6 +22,15 @@ import (
 	"github.com/google/trillian/storage/storagepb"
 )
 
+// NewFromRaw returns a new Node with exactly the params
+// len(path)*8 should >= depth
+func NewFromRaw(depth int, path []byte) *Node {
+	return &Node{
+		path:  path,
+		depth: depth,
+	}
+}
+
 func TestSplit(t *testing.T) {
 	for _, tc := range []struct {
 		inPath                 []byte
@@ -39,7 +48,7 @@ func TestSplit(t *testing.T) {
 		{h2b("12345678"), 9, 1, 8, h2b("12"), 1, h2b("00")},
 		{h2b("12345678"), 8, 0, 8, h2b(""), 8, h2b("12")},
 		{h2b("12345678"), 7, 0, 8, h2b(""), 7, h2b("12")},
-		{h2b("12345678"), 0, 0, 8, h2b(""), 0, h2b("00")},
+		{h2b("12345678"), 0, 0, 8, h2b(""), 0, h2b("")},
 		{h2b("70"), 2, 0, 8, h2b(""), 2, h2b("40")},
 		{h2b("70"), 3, 0, 8, h2b(""), 3, h2b("60")},
 		{h2b("70"), 4, 0, 8, h2b(""), 4, h2b("70")},
@@ -76,7 +85,7 @@ func TestNewNodeIDForTreeCoords(t *testing.T) {
 		{1, 0x01, NewFromRaw(63, h2b("0000000000000002"))},
 		{63, 0x01, NewFromRaw(1, h2b("8000000000000000"))},
 	} {
-		if got, want := NewFromTreeCoords(tc.height, tc.index), tc.want; !Equal(got, want) {
+		if got, want := NewFromTreeCoords(tc.height, tc.index, 64), tc.want; !Equal(got, want) {
 			t.Errorf("NewFromTreeCoords(%d, %x): %v, want: %v", tc.height, tc.index, got, want)
 		}
 	}
@@ -106,6 +115,30 @@ func TestNewFromSubtree(t *testing.T) {
 			NewFromRaw(tc.wantDepth, tc.wantPath); !Equal(got, want) {
 			t.Errorf("NewFromSubtree(%x, %v, %v, %v, %v) %v, want %v",
 				tc.prefix, tc.depth, tc.index, tc.subDepth, tc.totalDepth, got, want)
+		}
+	}
+}
+
+func TestNewFromSubtreeBig(t *testing.T) {
+	for _, tc := range []struct {
+		prefix     []byte
+		depth      int
+		index      int64
+		totalDepth int
+		wantPath   []byte
+		wantDepth  int
+	}{
+		{prefix: h2b(""), depth: 8, index: 0, totalDepth: 64, wantPath: h2b("0000000000000000"), wantDepth: 8},
+		{prefix: h2b(""), depth: 8, index: 1, totalDepth: 64, wantPath: h2b("0100000000000000"), wantDepth: 8},
+		{prefix: h2b("00"), depth: 7, index: 2, totalDepth: 64, wantPath: h2b("0002000000000000"), wantDepth: 15},
+		{prefix: h2b("00"), depth: 8, index: 1, totalDepth: 64, wantPath: h2b("0001000000000000"), wantDepth: 16},
+		{prefix: h2b("00"), depth: 16, index: 257, totalDepth: 64, wantPath: h2b("0001010000000000"), wantDepth: 24},
+		{prefix: h2b("12345678"), depth: 8, index: 1, totalDepth: 64, wantPath: h2b("1234567801000000"), wantDepth: 40},
+	} {
+		if got, want := NewFromSubtreeBig(tc.prefix, tc.depth, big.NewInt(tc.index), tc.totalDepth),
+			New(tc.wantPath).MaskLeft(tc.wantDepth); !Equal(got, want) {
+			t.Errorf("NewFromSubtreeBig(%x, %v, %v, %v): %v, want %v",
+				tc.prefix, tc.depth, tc.index, tc.totalDepth, got, want)
 		}
 	}
 }
