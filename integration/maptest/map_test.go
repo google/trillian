@@ -36,23 +36,7 @@ import (
 	_ "github.com/google/trillian/merkle/maphasher"
 )
 
-// createHashKV returns a []*trillian.MapLeaf formed by the mapping of index, value ...
-// createHashKV panics if len(iv) is odd. Duplicate i/v pairs get over written.
-func createMapLeaves(iv ...[]byte) []*trillian.MapLeaf {
-	if len(iv)%2 != 0 {
-		panic(fmt.Sprintf("integration: createMapLeaves got odd number of iv pairs: %v", len(iv)))
-	}
-	r := []*trillian.MapLeaf{}
-	for i := 0; i < len(iv); i += 2 {
-		r = append(r, &trillian.MapLeaf{
-			Index:     iv[i],
-			LeafValue: iv[i+1],
-		})
-	}
-	return r
-}
-
-// createBatchLeaves produces n random i/v pairs
+// createBatchLeaves produces n unique map leaves.
 func createBatchLeaves(batch, n int) []*trillian.MapLeaf {
 	leaves := make([]*trillian.MapLeaf, 0, n)
 	for i := 0; i < n; i++ {
@@ -107,7 +91,7 @@ func verifyGetMapLeavesResponse(getResp *trillian.GetMapLeavesResponse, indexes 
 		}
 		if err := merkle.VerifyMapInclusionProof(treeID, index,
 			leafHash, rootHash, proof, hasher); err != nil {
-			return fmt.Errorf("verifyMapInclusionProof(%x): %v", index, err)
+			return fmt.Errorf("VerifyMapInclusionProof(%x): %v", index, err)
 		}
 	}
 	return nil
@@ -136,22 +120,22 @@ func TestInclusion(t *testing.T) {
 	for _, tc := range []struct {
 		desc         string
 		HashStrategy trillian.HashStrategy
-		iv           [][]byte
+		leaves       []*trillian.MapLeaf
 	}{
 		{
 			desc:         "maphasher single",
 			HashStrategy: trillian.HashStrategy_TEST_MAP_HASHER,
-			iv: [][]byte{
-				testonly.TransparentHash("A"), []byte("A"),
+			leaves: []*trillian.MapLeaf{
+				{Index: testonly.TransparentHash("A"), LeafValue: []byte("A")},
 			},
 		},
 		{
 			desc:         "maphasher multi",
 			HashStrategy: trillian.HashStrategy_TEST_MAP_HASHER,
-			iv: [][]byte{
-				testonly.TransparentHash("A"), []byte("A"),
-				testonly.TransparentHash("B"), []byte("B"),
-				testonly.TransparentHash("C"), []byte("C"),
+			leaves: []*trillian.MapLeaf{
+				{Index: testonly.TransparentHash("A"), LeafValue: []byte("A")},
+				{Index: testonly.TransparentHash("B"), LeafValue: []byte("B")},
+				{Index: testonly.TransparentHash("C"), LeafValue: []byte("C")},
 			},
 		},
 	} {
@@ -166,10 +150,9 @@ func TestInclusion(t *testing.T) {
 			continue
 		}
 
-		leaves := createMapLeaves(tc.iv...)
 		if _, err := env.MapClient.SetLeaves(ctx, &trillian.SetMapLeavesRequest{
 			MapId:  tree.TreeId,
-			Leaves: leaves,
+			Leaves: tc.leaves,
 			MapperData: &trillian.MapperMetadata{
 				HighestFullyCompletedSeq: 0xcafe,
 			},
@@ -179,7 +162,7 @@ func TestInclusion(t *testing.T) {
 		}
 
 		indexes := [][]byte{}
-		for _, l := range leaves {
+		for _, l := range tc.leaves {
 			indexes = append(indexes, l.Index)
 		}
 		getResp, err := env.MapClient.GetLeaves(ctx, &trillian.GetMapLeavesRequest{
@@ -195,6 +178,7 @@ func TestInclusion(t *testing.T) {
 		if err := verifyGetMapLeavesResponse(getResp, indexes, 1,
 			pubKey, hasher, tree.TreeId); err != nil {
 			t.Errorf("%v: verifyGetMapLeavesResponse(): %v", tc.desc, err)
+			continue
 		}
 	}
 }
@@ -323,14 +307,14 @@ func TestNonExistentLeaf(t *testing.T) {
 	for _, tc := range []struct {
 		desc         string
 		HashStrategy trillian.HashStrategy
-		setIV        [][]byte
+		leaves       []*trillian.MapLeaf
 		getIndex     []byte
 	}{
 		{
 			desc:         "maphasher batch",
 			HashStrategy: trillian.HashStrategy_TEST_MAP_HASHER,
-			setIV: [][]byte{
-				testonly.TransparentHash("A"), []byte("A"),
+			leaves: []*trillian.MapLeaf{
+				{Index: testonly.TransparentHash("A"), LeafValue: []byte("A")},
 			},
 			getIndex: []byte("doesnotexist...................."),
 		},
@@ -343,7 +327,7 @@ func TestNonExistentLeaf(t *testing.T) {
 
 		if _, err := env.MapClient.SetLeaves(ctx, &trillian.SetMapLeavesRequest{
 			MapId:  tree.TreeId,
-			Leaves: createMapLeaves(tc.setIV...),
+			Leaves: tc.leaves,
 		}); err != nil {
 			t.Errorf("%v: SetLeaves(): %v", tc.desc, err)
 			continue

@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2017 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,6 +14,6 @@
 
 package maptest
 
-// DoNothing gives the go compiler something to do.
+// doNothing gives the go compiler something to do.
 // Otherwise, this package returns "no buildable Go source files" during 'go build'
-func DoNothing() {}
+func doNothing() {}
