@@ -409,7 +409,7 @@ func TestTrillianInterceptor_QuotaInterception_ReturnsTokens(t *testing.T) {
 }
 
 // TestTrillianInterceptor_BeforeAfter tests a few Before/After interactions that are
-// difficult/impossible to get unless the methods are called separately (ie, not via
+// difficult/impossible to get unless the methods are called separately (i.e., not via
 // UnaryInterceptor()).
 func TestTrillianInterceptor_BeforeAfter(t *testing.T) {
 	ctrl := gomock.NewController(t)
