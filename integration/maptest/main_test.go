@@ -39,14 +39,15 @@ func TestMain(m *testing.M) {
 			log.Fatalf("NewMapEnv(): %v", err)
 		}
 		env = mapEnv
+		defer env.Close()
 	} else {
 		mapEnv, err := integration.NewMapEnvFromConn(*server)
 		if err != nil {
 			log.Fatalf("failed to get map client: %v", err)
 		}
 		env = mapEnv
+		defer env.Close()
 	}
 
-	defer env.Close()
 	os.Exit(m.Run())
 }
