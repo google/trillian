@@ -33,14 +33,12 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"strings"
 
 	"github.com/golang/glog"
-	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
-	"github.com/golang/protobuf/ptypes/any"
 	"github.com/google/trillian"
 	"github.com/google/trillian/cmd"
+	"github.com/google/trillian/cmd/createtree/keys"
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/crypto/sigpb"
 	"google.golang.org/grpc"
@@ -61,8 +59,6 @@ var (
 
 	configFile = flag.String("config", "", "Config file containing flags, file contents can be overridden by command line flags")
 )
-
-var keyHandlers = make(map[string]func() (proto.Message, error))
 
 func createTree(ctx context.Context) (*trillian.Tree, error) {
 	if *adminServerAddr == "" {
@@ -125,7 +121,7 @@ func newRequest() (*trillian.CreateTreeRequest, error) {
 	}}
 
 	if *privateKeyFormat != "" {
-		pk, err := newPK(*privateKeyFormat)
+		pk, err := keys.New(*privateKeyFormat)
 		if err != nil {
 			return nil, err
 		}
@@ -148,26 +144,6 @@ func newRequest() (*trillian.CreateTreeRequest, error) {
 	}
 
 	return ctr, nil
-}
-
-func newPK(format string) (*any.Any, error) {
-	if handler, ok := keyHandlers[format]; ok {
-		pb, err := handler()
-		if err != nil {
-			return nil, err
-		}
-		return ptypes.MarshalAny(pb)
-	}
-
-	return nil, fmt.Errorf("private key format must be one of: %s", strings.Join(keyFormats(), ", "))
-}
-
-func keyFormats() []string {
-	formats := make([]string, 0, len(keyHandlers))
-	for format := range keyHandlers {
-		formats = append(formats, format)
-	}
-	return formats
 }
 
 func main() {

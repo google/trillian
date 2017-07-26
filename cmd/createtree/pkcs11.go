@@ -24,6 +24,7 @@ import (
 	"io/ioutil"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/google/trillian/cmd/createtree/keys"
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/letsencrypt/pkcs11key"
 )
@@ -31,7 +32,7 @@ import (
 var pkcs11ConfigPath = flag.String("pkcs11_config_path", "", "Path to the PKCS #11 key configuration file")
 
 func init() {
-	keyHandlers["PKCS11ConfigFile"] = pkcs11ConfigProtoFromFlags
+	keys.RegisterType("PKCS11ConfigFile", pkcs11ConfigProtoFromFlags)
 }
 
 func pkcs11ConfigProtoFromFlags() (proto.Message, error) {
