@@ -310,6 +310,19 @@ func (s *SubtreeCache) SetNodeHash(id storage.NodeID, h []byte, getSubtree GetSu
 	px, sx := s.splitNodeID(id)
 	prefixKey := string(px)
 	c := s.subtrees[prefixKey]
+	if nh == nil {
+		return nil, nil
+	}
+	return nh, nil
+}
+
+// SetNodeHash sets a node hash in the cache.
+func (s *SubtreeCache) SetNodeHash(id storage.NodeID, h []byte, getSubtree GetSubtreeFunc) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	px, sx := s.splitNodeID(id)
+	prefixKey := string(px)
+	c := s.subtrees[prefixKey]
 	if c == nil {
 		// TODO(al): This is ok, IFF *all* leaves in the subtree are being set,
 		// verify that this is the case when it happens.
@@ -381,7 +394,7 @@ func (s *SubtreeCache) Flush(setSubtrees SetSubtreesFunc) error {
 
 func (s *SubtreeCache) newEmptySubtree(id storage.NodeID, px []byte) *storagepb.SubtreeProto {
 	sInfo := s.stratumInfoForPrefixLength(id.PrefixLenBits)
-	glog.V(1).Infof("Creating new empty subtree for %v, with depth %d", px, sInfo.depth)
+	glog.V(1).Infof("Creating new empty subtree for %x, with depth %d", px, sInfo.depth)
 	// storage didn't have one for us, so we'll store an empty proto here
 	// incase we try to update it later on (we won't flush it back to
 	// storage unless it's been written to.)
@@ -422,7 +435,7 @@ func PopulateMapSubtreeNodes(treeID int64, hasher hashers.MapHasher) storage.Pop
 				return nil, nil
 			},
 			func(depth int, index *big.Int, h []byte) error {
-				nodeID := storage.NewNodeIDFromRelativeBigInt(st.Prefix, depth, index, hasher.BitLen())
+				nodeID := storage.NewNodeIDFromRelativeBigInt(st, depth, index, hasher.BitLen())
 				_, sfx := nodeID.Split(len(st.Prefix), int(st.Depth))
 				sfxKey := sfx.String()
 				if glog.V(4) {

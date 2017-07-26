@@ -21,6 +21,8 @@ import (
 	"math/big"
 	"strconv"
 	"testing"
+
+	"github.com/google/trillian/storage/storagepb"
 )
 
 func TestNewNodeIDFromBigInt(t *testing.T) {
@@ -71,29 +73,30 @@ func TestSplit(t *testing.T) {
 		{h2b("70"), 5, 0, 8, h2b(""), 5, h2b("70")},
 		{h2b("0003"), 16, 1, 8, h2b("00"), 8, h2b("03")},
 		{h2b("0003"), 15, 1, 8, h2b("00"), 7, h2b("02")},
-		{h2b("0001000000000000"), 8, 1, 8, h2b("00"), 8, h2b("01")},
+		{h2b("0001000000000000"), 8, 1, 8, h2b("00"), 0, h2b("")},
 		{h2b("0100000000000000"), 8, 0, 8, h2b(""), 8, h2b("01")},
 		// Map subtree scenarios
-		{h2b("0100000000000000"), 8, 0, 16, h2b(""), 8, h2b("0100")},
-		{h2b("0100000000000000"), 8, 0, 32, h2b(""), 8, h2b("01000000")},
+		{h2b("0100000000000000"), 16, 0, 16, h2b(""), 16, h2b("0100")},
+		{h2b("0100000000000000"), 32, 0, 32, h2b(""), 32, h2b("01000000")},
+		{h2b("0000000000000000000000000000000000000000000000000000000000000001"), 256, 10, 176, h2b("00000000000000000000"), 176, h2b("00000000000000000000000000000000000000000001")},
 	} {
 		n := NewNodeIDFromHash(tc.inPath)
 		n.PrefixLenBits = tc.inPathLenBits
 
 		p, s := n.Split(tc.splitBytes, tc.suffixBits)
 		if got, want := p, tc.outPrefix; !bytes.Equal(got, want) {
-			t.Errorf("%x.Split(%v, %v): prefix %x, want %x",
-				tc.inPath, tc.splitBytes, tc.suffixBits, got, want)
+			t.Errorf("%d, %x.Split(%v, %v): prefix %x, want %x",
+				tc.inPathLenBits, tc.inPath, tc.splitBytes, tc.suffixBits, got, want)
 			continue
 		}
 		if got, want := int(s.Bits), tc.outSuffixBits; got != want {
-			t.Errorf("%x.Split(%v, %v): suffix.Bits %v, want %d",
-				tc.inPath, tc.splitBytes, tc.suffixBits, got, want)
+			t.Errorf("%d, %x.Split(%v, %v): suffix.Bits %v, want %d",
+				tc.inPathLenBits, tc.inPath, tc.splitBytes, tc.suffixBits, got, want)
 			continue
 		}
 		if got, want := s.Path, tc.outSuffix; !bytes.Equal(got, want) {
-			t.Errorf("%x.Split(%v, %v).Path: %x, want %x",
-				tc.inPath, tc.splitBytes, tc.suffixBits, got, want)
+			t.Errorf("%d, %x.Split(%v, %v).Path: %x, want %x",
+				tc.inPathLenBits, tc.inPath, tc.splitBytes, tc.suffixBits, got, want)
 		}
 	}
 }
@@ -101,22 +104,28 @@ func TestSplit(t *testing.T) {
 func TestNewNodeIDFromRelativeBigInt(t *testing.T) {
 	for _, tc := range []struct {
 		prefix     []byte
+		subDepth   int
 		depth      int
 		index      int64
-		subDepth   int
 		totalDepth int
 		wantPath   []byte
 		wantDepth  int
 	}{
-		{prefix: h2b(""), depth: 8, index: 0, subDepth: 8, totalDepth: 64, wantPath: h2b("0000000000000000"), wantDepth: 8},
-		{prefix: h2b(""), depth: 8, index: 1, subDepth: 8, totalDepth: 64, wantPath: h2b("0100000000000000"), wantDepth: 8},
-		{prefix: h2b("00"), depth: 7, index: 1, subDepth: 8, totalDepth: 64, wantPath: h2b("0001000000000000"), wantDepth: 15},
-		{prefix: h2b("00"), depth: 8, index: 1, subDepth: 8, totalDepth: 64, wantPath: h2b("0001000000000000"), wantDepth: 16},
-		{prefix: h2b("00"), depth: 16, index: 257, subDepth: 16, totalDepth: 64, wantPath: h2b("0001010000000000"), wantDepth: 24},
-		{prefix: h2b("12345678"), depth: 8, index: 1, subDepth: 8, totalDepth: 64, wantPath: h2b("1234567801000000"), wantDepth: 40},
+		{prefix: h2b(""), subDepth: 8, depth: 8, index: 0, totalDepth: 64, wantPath: h2b("0000000000000000"), wantDepth: 8},
+		{prefix: h2b(""), subDepth: 8, depth: 8, index: 1, totalDepth: 64, wantPath: h2b("0100000000000000"), wantDepth: 8},
+		{prefix: h2b("00"), subDepth: 8, depth: 7, index: 1, totalDepth: 64, wantPath: h2b("0001000000000000"), wantDepth: 15},
+		{prefix: h2b("00"), subDepth: 8, depth: 8, index: 1, totalDepth: 64, wantPath: h2b("0001000000000000"), wantDepth: 16},
+		{prefix: h2b("00"), subDepth: 16, depth: 16, index: 257, totalDepth: 64, wantPath: h2b("0001010000000000"), wantDepth: 24},
+		{prefix: h2b("12345678"), subDepth: 8, depth: 8, index: 1, totalDepth: 64, wantPath: h2b("1234567801000000"), wantDepth: 40},
+		{prefix: h2b("00"), subDepth: 248, depth: 247, index: 1, totalDepth: 256, wantPath: h2b("0000000000000000000000000000000000000000000000000000000000000001"), wantDepth: 255},
+		{prefix: h2b("00000000000000000000"), subDepth: 176, depth: 176, index: 1, totalDepth: 256, wantPath: h2b("0000000000000000000000000000000000000000000000000000000000000001"), wantDepth: 256},
 	} {
 		i := big.NewInt(tc.index)
-		n := NewNodeIDFromRelativeBigInt(tc.prefix, tc.depth, i, tc.totalDepth)
+		st := &storagepb.SubtreeProto{
+			Prefix: tc.prefix,
+			Depth:  int32(tc.subDepth),
+		}
+		n := NewNodeIDFromRelativeBigInt(st, tc.depth, i, tc.totalDepth)
 		if got, want := n.Path, tc.wantPath; !bytes.Equal(got, want) {
 			t.Errorf("NewNodeIDFromRelativeBigInt(%x, %v, %v, %v, %v).Path: %x, want %x",
 				tc.prefix, tc.depth, tc.index, tc.subDepth, tc.totalDepth, got, want)

@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/golang/glog"
 	"github.com/google/trillian/storage/storagepb"
 )
 
@@ -129,21 +130,27 @@ func NewNodeIDFromPrefix(prefix []byte, depth int, index int64, subDepth, totalD
 	}
 }
 
-// NewNodeIDFromRelativeBigInt returns a NodeID given by a prefix and a subtree index.
-// depth is the number of significant bits in subIndex, counting from the MSB.
+// NewNodeIDFromRelativeBigInt returns a NodeID given by a subtree and a subtree index.
+// height is the number of levels up from the bottom of the subtree
 // subIndex is the path from the root of the subtree to the desired node, and continuing down to the bottom of the subtree.
 // subIndex = horizontal index << height.
-func NewNodeIDFromRelativeBigInt(prefix []byte, depth int, subIndex *big.Int, totalDepth int) NodeID {
+func NewNodeIDFromRelativeBigInt(st *storagepb.SubtreeProto, depth int, subIndex *big.Int, totalDepth int) NodeID {
 	// Put prefix in the MSB bits of path.
 	path := make([]byte, totalDepth/8)
-	copy(path, prefix)
+	copy(path, st.Prefix)
 
-	// Copy subIndex into path.
-	copy(path[len(prefix):], subIndex.Bytes())
+	// Copy subIndex into subPath, right justified.
+	subPath := make([]byte, st.Depth/8)
+	unusedSubBytes := len(subPath) - len(subIndex.Bytes())
+	copy(subPath[unusedSubBytes:], subIndex.Bytes())
 
+	copy(path[len(st.Prefix):], subPath)
+
+	glog.V(5).Infof("NewNodeIDFromRelativeBigInt({%x, %v}, %v, %x, %v): %v, %x",
+		st.Prefix, st.Depth, depth, subIndex.Bytes(), totalDepth, len(st.Prefix)*8+depth, path)
 	return NodeID{
 		Path:          path,
-		PrefixLenBits: len(prefix)*8 + depth,
+		PrefixLenBits: len(st.Prefix)*8 + depth,
 	}
 }
 
@@ -293,6 +300,13 @@ func (n *NodeID) Siblings() []NodeID {
 	return r
 }
 
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
 // Split splits a NodeID into a prefix and a suffix at prefixSplit
 func (n *NodeID) Split(prefixBytes, suffixBits int) ([]byte, Suffix) {
 	if n.PrefixLenBits == 0 {
@@ -301,13 +315,17 @@ func (n *NodeID) Split(prefixBytes, suffixBits int) ([]byte, Suffix) {
 	a := make([]byte, len(n.Path))
 	copy(a, n.Path)
 
+	bits := min(n.PrefixLenBits-prefixBytes*8, suffixBits)
+	suffixBytes := (bits + 7) / 8
 	sfx := Suffix{
-		Bits: byte((n.PrefixLenBits-1)%suffixBits) + 1,
-		Path: a[prefixBytes : prefixBytes+suffixBits/8],
+		Bits: byte(bits),
+		Path: a[prefixBytes : prefixBytes+suffixBytes],
 	}
-	maskIndex := int((sfx.Bits - 1) / 8)
-	maskLowBits := (sfx.Bits-1)%8 + 1
-	sfx.Path[maskIndex] &= ((0x01 << maskLowBits) - 1) << uint(8-maskLowBits)
+	if bits > 0 {
+		maskIndex := (bits - 1) / 8
+		maskLowBits := (sfx.Bits-1)%8 + 1
+		sfx.Path[maskIndex] &= ((0x01 << maskLowBits) - 1) << uint(8-maskLowBits)
+	}
 
 	return a[:prefixBytes], sfx
 }
