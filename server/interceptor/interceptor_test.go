@@ -21,9 +21,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
-	terrors "github.com/google/trillian/errors"
 	"github.com/google/trillian/quota"
-	serrors "github.com/google/trillian/server/errors"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/trees"
@@ -32,6 +30,9 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	terrors "github.com/google/trillian/errors"
+	serrors "github.com/google/trillian/server/errors"
 )
 
 func TestTrillianInterceptor_TreeInterception(t *testing.T) {
@@ -404,6 +405,62 @@ func TestTrillianInterceptor_QuotaInterception_ReturnsTokens(t *testing.T) {
 		if _, err := intercept.UnaryInterceptor(ctx, test.req, &grpc.UnaryServerInfo{}, handler.run); err != test.handlerErr {
 			t.Errorf("%v: UnaryInterceptor() returned err = [%v], want = [%v]", test.desc, err, test.handlerErr)
 		}
+	}
+}
+
+// TestTrillianInterceptor_BeforeAfter tests a few Before/After interactions that are
+// difficult/impossible to get unless the methods are called separately (i.e., not via
+// UnaryInterceptor()).
+func TestTrillianInterceptor_BeforeAfter(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	logTree := *testonly.LogTree
+	logTree.TreeId = 10
+
+	admin := storage.NewMockAdminStorage(ctrl)
+	adminTX := storage.NewMockReadOnlyAdminTX(ctrl)
+	admin.EXPECT().Snapshot(gomock.Any()).AnyTimes().Return(adminTX, nil)
+	adminTX.EXPECT().GetTree(gomock.Any(), logTree.TreeId).AnyTimes().Return(&logTree, nil)
+	adminTX.EXPECT().Close().AnyTimes().Return(nil)
+	adminTX.EXPECT().Commit().AnyTimes().Return(nil)
+
+	qm := quota.Noop()
+
+	tests := []struct {
+		desc          string
+		req, resp     interface{}
+		handlerErr    error
+		wantBeforeErr bool
+	}{
+		{
+			desc: "success",
+			req:  &trillian.CreateTreeRequest{},
+			resp: &trillian.Tree{},
+		},
+		{
+			desc:          "badRequest",
+			req:           "bad",
+			resp:          nil,
+			handlerErr:    errors.New("bad"),
+			wantBeforeErr: true,
+		},
+	}
+
+	ctx := context.Background()
+	for _, test := range tests {
+		intercept := &TrillianInterceptor{Admin: admin, QuotaManager: qm}
+		p := intercept.NewProcessor()
+
+		_, err := p.Before(ctx, test.req)
+		if gotErr := err != nil; gotErr != test.wantBeforeErr {
+			t.Errorf("%v: Before() returned err = %v, wantErr = %v", test.desc, err, test.wantBeforeErr)
+			continue
+		}
+
+		// Other TrillianInterceptor tests assert After side-effects more in-depth, silently
+		// returning is good enough here.
+		p.After(ctx, test.resp, test.handlerErr)
 	}
 }
 
