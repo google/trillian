@@ -20,6 +20,7 @@ import (
 	"math/big"
 	"sort"
 
+	"github.com/golang/glog"
 	"github.com/google/trillian/merkle/hashers"
 )
 
@@ -84,6 +85,12 @@ type SparseSetNodeFunc func(depth int, index *big.Int, hash []byte) error
 // levels of a 256-level tree).  To do this, you'd set treeDepth=8, and
 // treeLevelOffset=248 (256-8).
 func (s *HStar2) HStar2Nodes(treeDepth, treeLevelOffset int, values []HStar2LeafHash, get SparseGetNodeFunc, set SparseSetNodeFunc) ([]byte, error) {
+	if glog.V(3) {
+		glog.Infof("HStar2Nodes(%v, %v, %v)", treeDepth, treeLevelOffset, len(values))
+		for _, v := range values {
+			glog.Infof("  %x: %x", v.Index.Bytes(), v.LeafHash)
+		}
+	}
 	if treeLevelOffset < 0 {
 		return nil, ErrNegativeTreeLevelOffset
 	}

@@ -253,7 +253,7 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []
 				subtreeIDBytes, subtree.Prefix, subtree.Depth)
 			for k, v := range subtree.Leaves {
 				b, _ := base64.StdEncoding.DecodeString(k)
-				glog.Infof("     %s: %x", b, v)
+				glog.Infof("     %x: %x", b, v)
 			}
 		}
 	}

@@ -292,7 +292,7 @@ func (s *SubtreeCache) getNodeHashUnderLock(id storage.NodeID, getSubtree GetSub
 	}
 	if glog.V(4) {
 		b, _ := base64.StdEncoding.DecodeString(sfxKey)
-		glog.Infof("getNodeHashUnderLock(%s | %x): %x", prefixKey, b, nh)
+		glog.Infof("getNodeHashUnderLock(%x | %x): %x", prefixKey, b, nh)
 	}
 	if nh == nil {
 		return nil, nil
@@ -421,7 +421,7 @@ func PopulateMapSubtreeNodes(treeID int64, hasher hashers.MapHasher) storage.Pop
 				sfxKey := sfx.String()
 				if glog.V(4) {
 					b, _ := base64.StdEncoding.DecodeString(sfxKey)
-					glog.Infof("PopulateMapSubtreeNodes.Get(%x, %d) suffix: %x: %x", index.Bytes(), depth, b, h)
+					glog.Infof("PopulateMapSubtreeNodes.Set(%x, %d) suffix: %x: %x", index.Bytes(), depth, b, h)
 				}
 				st.InternalNodes[sfxKey] = h
 				return nil
