@@ -310,19 +310,6 @@ func (s *SubtreeCache) SetNodeHash(id storage.NodeID, h []byte, getSubtree GetSu
 	px, sx := s.splitNodeID(id)
 	prefixKey := string(px)
 	c := s.subtrees[prefixKey]
-	if nh == nil {
-		return nil, nil
-	}
-	return nh, nil
-}
-
-// SetNodeHash sets a node hash in the cache.
-func (s *SubtreeCache) SetNodeHash(id storage.NodeID, h []byte, getSubtree GetSubtreeFunc) error {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	px, sx := s.splitNodeID(id)
-	prefixKey := string(px)
-	c := s.subtrees[prefixKey]
 	if c == nil {
 		// TODO(al): This is ok, IFF *all* leaves in the subtree are being set,
 		// verify that this is the case when it happens.
@@ -425,7 +412,7 @@ func PopulateMapSubtreeNodes(treeID int64, hasher hashers.MapHasher) storage.Pop
 			}
 			leaves = append(leaves, merkle.HStar2LeafHash{
 				LeafHash: v,
-				Index:    big.NewInt(int64(k[1])),
+				Index:    new(big.Int).SetBytes(k[1:]),
 			})
 		}
 		hs2 := merkle.NewHStar2(treeID, hasher)

@@ -230,7 +230,7 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context) {
 	}
 	root, err := hs2.HStar2Nodes(s.subtreeDepth, treeDepthOffset, leaves,
 		func(height int, index *big.Int) ([]byte, error) {
-			nodeID := storage.NewNodeIDFromRelativeBigInt(s.prefix, height, index, totalDepth)
+			nodeID := storage.NewNodeIDFromRelativeBigInt(st, height, index, totalDepth)
 			glog.V(4).Infof("buildSubtree.get(%x, %d) nid: %x, %v",
 				index.Bytes(), height, nodeID.Path, nodeID.PrefixLenBits)
 			nodes, err := s.tx.GetMerkleNodes(ctx, s.treeRevision, []storage.NodeID{nodeID})
@@ -254,7 +254,7 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context) {
 			if height == 0 && len(s.prefix) > 0 {
 				return nil
 			}
-			nodeID := storage.NewNodeIDFromRelativeBigInt(s.prefix, height, index, totalDepth)
+			nodeID := storage.NewNodeIDFromRelativeBigInt(st, height, index, totalDepth)
 			glog.V(4).Infof("buildSubtree.set(%x, %v) nid: %x, %v : %x",
 				index.Bytes(), height, nodeID.Path, nodeID.PrefixLenBits, h)
 			nodesToStore = append(nodesToStore,
