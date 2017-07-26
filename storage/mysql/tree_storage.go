@@ -252,7 +252,10 @@ func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []
 			glog.Infof("  subtree: NID: %x, prefix: %x, depth: %d",
 				subtreeIDBytes, subtree.Prefix, subtree.Depth)
 			for k, v := range subtree.Leaves {
-				b, _ := base64.StdEncoding.DecodeString(k)
+				b, err := base64.StdEncoding.DecodeString(k)
+				if err != nil {
+					glog.Errorf("base64.DecodeString(%v): %v", k, err)
+				}
 				glog.Infof("     %x: %x", b, v)
 			}
 		}
@@ -267,10 +270,13 @@ func (t *treeTX) storeSubtrees(ctx context.Context, subtrees []*storagepb.Subtre
 	if glog.V(4) {
 		glog.Infof("storeSubtrees(")
 		for _, s := range subtrees {
-			glog.V(4).Infof("  prefix: %x, depth: %d", s.Prefix, s.Depth)
+			glog.Infof("  prefix: %x, depth: %d", s.Prefix, s.Depth)
 			for k, v := range s.Leaves {
-				b, _ := base64.StdEncoding.DecodeString(k)
-				glog.V(4).Infof("     %x: %x", b, v)
+				b, err := base64.StdEncoding.DecodeString(k)
+				if err != nil {
+					glog.Errorf("base64.DecodeString(%v): %v", k, err)
+				}
+				glog.Infof("     %x: %x", b, v)
 			}
 		}
 	}

@@ -251,7 +251,7 @@ func (s *SubtreeCache) getNodeHashUnderLock(id storage.NodeID, getSubtree GetSub
 	prefixKey := string(px)
 	c := s.subtrees[prefixKey]
 	if c == nil {
-		glog.Warningf("Cache miss for %x so we'll try to fetch from storage", prefixKey)
+		glog.Infof("Cache miss for %x so we'll try to fetch from storage", prefixKey)
 		// Cache miss, so we'll try to fetch from storage.
 		subID := id
 		subID.PrefixLenBits = len(px) * depthQuantum // this won't work if depthQuantum changes
@@ -291,7 +291,10 @@ func (s *SubtreeCache) getNodeHashUnderLock(id storage.NodeID, getSubtree GetSub
 		nh = c.InternalNodes[sfxKey]
 	}
 	if glog.V(4) {
-		b, _ := base64.StdEncoding.DecodeString(sfxKey)
+		b, err := base64.StdEncoding.DecodeString(sfxKey)
+		if err != nil {
+			glog.Errorf("base64.DecodeString(%v): %v", sfxKey, err)
+		}
 		glog.Infof("getNodeHashUnderLock(%x | %x): %x", prefixKey, b, nh)
 	}
 	if nh == nil {
@@ -336,7 +339,10 @@ func (s *SubtreeCache) SetNodeHash(id storage.NodeID, h []byte, getSubtree GetSu
 		c.InternalNodes[sfxKey] = h
 	}
 	if glog.V(4) {
-		b, _ := base64.StdEncoding.DecodeString(sfxKey)
+		b, err := base64.StdEncoding.DecodeString(sfxKey)
+		if err != nil {
+			glog.Errorf("base64.DecodeString(%v): %v", sfxKey, err)
+		}
 		glog.Infof("SetNodeHash(pfx: %s, sfx: %x): %x", prefixKey, b, h)
 	}
 	return nil
@@ -420,7 +426,10 @@ func PopulateMapSubtreeNodes(treeID int64, hasher hashers.MapHasher) storage.Pop
 				_, sfx := nodeID.Split(len(st.Prefix), int(st.Depth))
 				sfxKey := sfx.String()
 				if glog.V(4) {
-					b, _ := base64.StdEncoding.DecodeString(sfxKey)
+					b, err := base64.StdEncoding.DecodeString(sfxKey)
+					if err != nil {
+						glog.Errorf("base64.DecodeString(%v): %v", sfxKey, err)
+					}
 					glog.Infof("PopulateMapSubtreeNodes.Set(%x, %d) suffix: %x: %x", index.Bytes(), depth, b, h)
 				}
 				st.InternalNodes[sfxKey] = h

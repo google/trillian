@@ -77,7 +77,7 @@ func (m *MapHasher) HashLeaf(treeID int64, index []byte, height int, leaf []byte
 	h.Write(leaf)
 	r := h.Sum(nil)
 	depth := m.BitLen() - height
-	glog.V(5).Infof("HashEmpty(%x, %d): %x", index, depth, r)
+	glog.V(5).Infof("HashLeaf(%x, %d): %x", index, depth, r)
 	return r
 }
 
