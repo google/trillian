@@ -35,8 +35,6 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
-	"os"
-	"time"
 
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/ptypes"
@@ -70,26 +68,17 @@ var (
 	configFile = flag.String("config", "", "Config file containing flags, file contents can be overridden by command line flags")
 )
 
-// createOpts contains all user-supplied options required to run the program.
-// It's meant to facilitate tests and focus flag reads to a single point.
-type createOpts struct {
-	addr                                                                                     string
-	treeState, treeType, hashStrategy, hashAlgorithm, sigAlgorithm, displayName, description string
-	maxRootDuration                                                                          time.Duration
-	privateKeyType, pemKeyPath, pemKeyPass, pkcs11ConfigPath                                 string
-}
-
-func createTree(ctx context.Context, opts *createOpts) (*trillian.Tree, error) {
-	if opts.addr == "" {
+func createTree(ctx context.Context) (*trillian.Tree, error) {
+	if *adminServerAddr == "" {
 		return nil, errors.New("empty --admin_server, please provide the Admin server host:port")
 	}
 
-	req, err := newRequest(opts)
+	req, err := newRequest()
 	if err != nil {
 		return nil, err
 	}
 
-	conn, err := grpc.Dial(opts.addr, grpc.WithInsecure())
+	conn, err := grpc.Dial(*adminServerAddr, grpc.WithInsecure())
 	if err != nil {
 		return nil, err
 	}
@@ -102,30 +91,30 @@ func createTree(ctx context.Context, opts *createOpts) (*trillian.Tree, error) {
 	return tree, nil
 }
 
-func newRequest(opts *createOpts) (*trillian.CreateTreeRequest, error) {
-	ts, ok := trillian.TreeState_value[opts.treeState]
+func newRequest() (*trillian.CreateTreeRequest, error) {
+	ts, ok := trillian.TreeState_value[*treeState]
 	if !ok {
-		return nil, fmt.Errorf("unknown TreeState: %v", opts.treeState)
+		return nil, fmt.Errorf("unknown TreeState: %v", *treeState)
 	}
 
-	tt, ok := trillian.TreeType_value[opts.treeType]
+	tt, ok := trillian.TreeType_value[*treeType]
 	if !ok {
-		return nil, fmt.Errorf("unknown TreeType: %v", opts.treeType)
+		return nil, fmt.Errorf("unknown TreeType: %v", *treeType)
 	}
 
-	hs, ok := trillian.HashStrategy_value[opts.hashStrategy]
+	hs, ok := trillian.HashStrategy_value[*hashStrategy]
 	if !ok {
-		return nil, fmt.Errorf("unknown HashStrategy: %v", opts.hashStrategy)
+		return nil, fmt.Errorf("unknown HashStrategy: %v", *hashStrategy)
 	}
 
-	ha, ok := sigpb.DigitallySigned_HashAlgorithm_value[opts.hashAlgorithm]
+	ha, ok := sigpb.DigitallySigned_HashAlgorithm_value[*hashAlgorithm]
 	if !ok {
-		return nil, fmt.Errorf("unknown HashAlgorithm: %v", opts.hashAlgorithm)
+		return nil, fmt.Errorf("unknown HashAlgorithm: %v", *hashAlgorithm)
 	}
 
-	sa, ok := sigpb.DigitallySigned_SignatureAlgorithm_value[opts.sigAlgorithm]
+	sa, ok := sigpb.DigitallySigned_SignatureAlgorithm_value[*signatureAlgorithm]
 	if !ok {
-		return nil, fmt.Errorf("unknown SignatureAlgorithm: %v", opts.sigAlgorithm)
+		return nil, fmt.Errorf("unknown SignatureAlgorithm: %v", *signatureAlgorithm)
 	}
 
 	ctr := &trillian.CreateTreeRequest{Tree: &trillian.Tree{
@@ -134,13 +123,13 @@ func newRequest(opts *createOpts) (*trillian.CreateTreeRequest, error) {
 		HashStrategy:       trillian.HashStrategy(hs),
 		HashAlgorithm:      sigpb.DigitallySigned_HashAlgorithm(ha),
 		SignatureAlgorithm: sigpb.DigitallySigned_SignatureAlgorithm(sa),
-		DisplayName:        opts.displayName,
-		Description:        opts.description,
-		MaxRootDuration:    ptypes.DurationProto(opts.maxRootDuration),
+		DisplayName:        *displayName,
+		Description:        *description,
+		MaxRootDuration:    ptypes.DurationProto(*maxRootDuration),
 	}}
 
-	if opts.privateKeyType != "" {
-		pk, err := newPK(opts)
+	if *privateKeyFormat != "" {
+		pk, err := newPK(*privateKeyFormat)
 		if err != nil {
 			return nil, err
 		}
@@ -149,7 +138,7 @@ func newRequest(opts *createOpts) (*trillian.CreateTreeRequest, error) {
 		// Cannot continue if options specifying a key were provided but
 		// privateKeyType is not set, as there's no way to know what protobuf
 		// message type was intended.
-		if opts.pemKeyPath != "" || opts.pemKeyPass != "" || opts.pkcs11ConfigPath != "" {
+		if *pemKeyPath != "" || *pemKeyPassword != "" || *pkcs11ConfigPath != "" {
 			return nil, errors.New("must specify private key format")
 		}
 
@@ -173,26 +162,26 @@ func newRequest(opts *createOpts) (*trillian.CreateTreeRequest, error) {
 	return ctr, nil
 }
 
-func newPK(opts *createOpts) (*any.Any, error) {
-	switch opts.privateKeyType {
+func newPK(keyFormat string) (*any.Any, error) {
+	switch keyFormat {
 	case "PEMKeyFile":
-		if opts.pemKeyPath == "" {
+		if *pemKeyPath == "" {
 			return nil, errors.New("empty pem_key_path")
 		}
-		if opts.pemKeyPass == "" {
-			return nil, fmt.Errorf("empty password for PEM key file %q", opts.pemKeyPath)
+		if *pemKeyPassword == "" {
+			return nil, fmt.Errorf("empty password for PEM key file %q", *pemKeyPath)
 		}
 		pemKey := &keyspb.PEMKeyFile{
-			Path:     opts.pemKeyPath,
-			Password: opts.pemKeyPass,
+			Path:     *pemKeyPath,
+			Password: *pemKeyPassword,
 		}
 		return ptypes.MarshalAny(pemKey)
 	case "PrivateKey":
-		if opts.pemKeyPath == "" {
+		if *pemKeyPath == "" {
 			return nil, errors.New("empty pem_key_path")
 		}
 		pemSigner, err := keys.NewFromPrivatePEMFile(
-			opts.pemKeyPath, opts.pemKeyPass)
+			*pemKeyPath, *pemKeyPassword)
 		if err != nil {
 			return nil, err
 		}
@@ -202,10 +191,10 @@ func newPK(opts *createOpts) (*any.Any, error) {
 		}
 		return ptypes.MarshalAny(&keyspb.PrivateKey{Der: der})
 	case "PKCS11ConfigFile":
-		if opts.pkcs11ConfigPath == "" {
+		if *pkcs11ConfigPath == "" {
 			return nil, errors.New("empty PKCS11 config file path")
 		}
-		configBytes, err := ioutil.ReadFile(opts.pkcs11ConfigPath)
+		configBytes, err := ioutil.ReadFile(*pkcs11ConfigPath)
 		if err != nil {
 			return nil, err
 		}
@@ -223,25 +212,7 @@ func newPK(opts *createOpts) (*any.Any, error) {
 			PublicKey:  string(pubKeyBytes),
 		})
 	default:
-		return nil, fmt.Errorf("unknown private key type: %v", opts.privateKeyType)
-	}
-}
-
-func newOptsFromFlags() *createOpts {
-	return &createOpts{
-		addr:             *adminServerAddr,
-		treeState:        *treeState,
-		treeType:         *treeType,
-		hashStrategy:     *hashStrategy,
-		hashAlgorithm:    *hashAlgorithm,
-		sigAlgorithm:     *signatureAlgorithm,
-		displayName:      *displayName,
-		description:      *description,
-		maxRootDuration:  *maxRootDuration,
-		privateKeyType:   *privateKeyFormat,
-		pemKeyPath:       *pemKeyPath,
-		pemKeyPass:       *pemKeyPassword,
-		pkcs11ConfigPath: *pkcs11ConfigPath,
+		return nil, fmt.Errorf("unknown private key type: %v", keyFormat)
 	}
 }
 
@@ -255,10 +226,9 @@ func main() {
 	}
 
 	ctx := context.Background()
-	tree, err := createTree(ctx, newOptsFromFlags())
+	tree, err := createTree(ctx)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to create tree: %v\n", err)
-		os.Exit(1)
+		glog.Exitf("Failed to create tree: %v", err)
 	}
 
 	// DO NOT change the output format, scripts are meant to depend on it.
