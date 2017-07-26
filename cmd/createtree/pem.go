@@ -20,6 +20,7 @@ import (
 	"fmt"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/google/trillian/cmd/createtree/keys"
 	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/crypto/keyspb"
@@ -31,8 +32,8 @@ var (
 )
 
 func init() {
-	keyHandlers["PEMKeyFile"] = pemKeyFileProtoFromFlags
-	keyHandlers["PrivateKey"] = privateKeyProtoFromFlags
+	keys.RegisterType("PEMKeyFile", pemKeyFileProtoFromFlags)
+	keys.RegisterType("PrivateKey", privateKeyProtoFromFlags)
 }
 
 func pemKeyFileProtoFromFlags() (proto.Message, error) {
