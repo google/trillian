@@ -15,10 +15,8 @@
 package integration
 
 import (
-	"bytes"
 	"context"
 	"flag"
-	"os/exec"
 	"testing"
 	"time"
 
@@ -45,22 +43,6 @@ var waitForSequencingFlag = flag.Duration("wait_for_sequencing", time.Second*60,
 var waitBetweenQueueChecksFlag = flag.Duration("queue_poll_wait", time.Second*5, "How frequently to check the queue while waiting")
 var rpcRequestDeadlineFlag = flag.Duration("rpc_deadline", time.Second*10, "Deadline to use for all RPC requests")
 var customLeafPrefixFlag = flag.String("custom_leaf_prefix", "", "Prefix string added to all queued leaves")
-
-// TestDBFormatNoChange ensures that the prefix, suffix, and protos stored in the database do not change.
-// This test compares the output from dump_tree against a previously saved output.
-func TestDBFormatNoChange(t *testing.T) {
-
-	cmd := exec.Command("sh", "-c", "go run ../storage/tools/dump_tree/main.go | diff - ../testdata/dump_tree_output")
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	err := cmd.Run()
-	if err != nil {
-		t.Fatalf("dump_tree: %v\n%v", err, out.String())
-	}
-	if got, want := out.String(), ""; got != want {
-		t.Errorf("diff $(dump_tree) testdata/dump_tree_output: \n%v", got)
-	}
-}
 
 func TestLiveLogIntegration(t *testing.T) {
 	flag.Parse()
