@@ -343,7 +343,7 @@ func (s *SubtreeCache) SetNodeHash(id storage.NodeID, h []byte, getSubtree GetSu
 		if err != nil {
 			glog.Errorf("base64.DecodeString(%v): %v", sfxKey, err)
 		}
-		glog.Infof("SetNodeHash(pfx: %s, sfx: %x): %x", prefixKey, b, h)
+		glog.Infof("SetNodeHash(pfx: %x, sfx: %x): %x", prefixKey, b, h)
 	}
 	return nil
 }
@@ -408,10 +408,12 @@ func PopulateMapSubtreeNodes(treeID int64, hasher hashers.MapHasher) storage.Pop
 			}
 			// TODO(gdbelvin): test against subtree depth.
 			if sfx.Bits%depthQuantum != 0 {
-				return fmt.Errorf("unexpected non-leaf suffix found: %x", k)
+				return fmt.Errorf("unexpected non-leaf suffix found: %x", sfx.Bits)
 			}
 			index := new(big.Int).SetBytes(sfx.Path)
-			index = index.Lsh(index, uint(hasher.BitLen()-len(index.Bytes())))
+
+			treeOffset := hasher.BitLen() - (len(st.Prefix)*8 + int(st.Depth))
+			index = index.Lsh(index, uint(treeOffset))
 			leaves = append(leaves, merkle.HStar2LeafHash{
 				Index:    index,
 				LeafHash: v,
@@ -420,7 +422,7 @@ func PopulateMapSubtreeNodes(treeID int64, hasher hashers.MapHasher) storage.Pop
 		hs2 := merkle.NewHStar2(treeID, hasher)
 		root, err := hs2.HStar2Nodes(st.Prefix, int(st.Depth), leaves, nil,
 			func(depth int, index *big.Int, h []byte) error {
-				if depth == 0 {
+				if depth == len(st.Prefix)*8 {
 					// no space for the root in the node cache
 					return nil
 				}

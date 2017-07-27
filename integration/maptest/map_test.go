@@ -95,7 +95,6 @@ func verifyGetMapLeavesResponse(getResp *trillian.GetMapLeavesResponse, indexes 
 			leafHash, rootHash, proof, hasher); err != nil {
 			return fmt.Errorf("VerifyMapInclusionProof(%x): %v", index, err)
 		}
-		break
 	}
 	return nil
 }
@@ -126,39 +125,42 @@ func TestInclusion(t *testing.T) {
 		leaves       []*trillian.MapLeaf
 	}{
 		/*
-				{
-					desc:         "maphasher single",
-					HashStrategy: trillian.HashStrategy_TEST_MAP_HASHER,
-					leaves: []*trillian.MapLeaf{
-						{Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("A")},
-					},
-				},
-				{
-					desc:         "maphasher multi",
-					HashStrategy: trillian.HashStrategy_TEST_MAP_HASHER,
-					leaves: []*trillian.MapLeaf{
-						{Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("A")},
-						{Index: h2b("0000000000000000000000000000000000000000000000000000000000000001"), LeafValue: []byte("B")},
-						{Index: h2b("0000000000000000000000000000000000000000000000000000000000000002"), LeafValue: []byte("C")},
-					},
-				},
 			{
-				desc:         "CONIKS single",
-				HashStrategy: trillian.HashStrategy_CONIKS_SHA512_256,
+				desc:         "maphasher single",
+				HashStrategy: trillian.HashStrategy_TEST_MAP_HASHER,
 				leaves: []*trillian.MapLeaf{
 					{Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("A")},
 				},
 			},
+			{
+				desc:         "maphasher multi",
+				HashStrategy: trillian.HashStrategy_TEST_MAP_HASHER,
+				leaves: []*trillian.MapLeaf{
+					{Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("A")},
+					{Index: h2b("0000000000000000000000000000000000000000000000000000000000000001"), LeafValue: []byte("B")},
+					{Index: h2b("0000000000000000000000000000000000000000000000000000000000000002"), LeafValue: []byte("C")},
+				},
+			},
 		*/
 		{
-			desc:         "CONIKS multi",
+			desc:         "CONIKS single",
 			HashStrategy: trillian.HashStrategy_CONIKS_SHA512_256,
 			leaves: []*trillian.MapLeaf{
-				{Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("A")},
-				{Index: h2b("0000000000000000000000000000000000000000000000000000000000000001"), LeafValue: []byte("B")},
-				{Index: h2b("0000000000000000000000000000000000000000000000000000000000000002"), LeafValue: []byte("C")},
+				//{Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("A")},
+				{Index: h2b("0000000000000180000000000000000000000000000000000000000000000000"), LeafValue: []byte("Z")},
 			},
 		},
+		/*
+			{
+				desc:         "CONIKS multi",
+				HashStrategy: trillian.HashStrategy_CONIKS_SHA512_256,
+				leaves: []*trillian.MapLeaf{
+					{Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("A")},
+					{Index: h2b("0000000000000000000000000000000000000000000000000000000000000001"), LeafValue: []byte("B")},
+					{Index: h2b("0000000000000000000000000000000000000000000000000000000000000002"), LeafValue: []byte("C")},
+				},
+			},
+		*/
 	} {
 		tree, hasher, err := newTreeWithHasher(ctx, env, tc.HashStrategy)
 		if err != nil {
@@ -211,10 +213,11 @@ func TestInclusionBatch(t *testing.T) {
 		HashStrategy          trillian.HashStrategy
 		batchSize, numBatches int
 	}{
+
 		{
 			desc:         "maphasher batch",
 			HashStrategy: trillian.HashStrategy_TEST_MAP_HASHER,
-			batchSize:    64, numBatches: 32,
+			batchSize:    1, numBatches: 1,
 		},
 		// TODO(gdbelvin): investigate batches of size > 150.
 		// We are currently getting DB connection starvation: Too many connections.
@@ -225,7 +228,7 @@ func TestInclusionBatch(t *testing.T) {
 		}
 
 		if err := RunMapBatchTest(ctx, env, tree, tc.batchSize, tc.numBatches); err != nil {
-			t.Errorf("%v: %v", tc.desc, err)
+			t.Errorf("BatchSize: %v, Batches: %v: %v", tc.batchSize, tc.numBatches, err)
 		}
 	}
 }
