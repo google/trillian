@@ -93,7 +93,7 @@ main() {
     go build ${go_dirs}
 
     echo 'running go test'
-    go test -cover -timeout=1m ${goflags} ${go_dirs}
+    go test -cover -timeout=5m ${goflags} ${go_dirs}
   fi
 
   if [[ "${run_linters}" -eq 1 ]]; then

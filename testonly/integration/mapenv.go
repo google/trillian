@@ -44,6 +44,20 @@ type MapEnv struct {
 	AdminClient trillian.TrillianAdminClient
 }
 
+// NewMapEnvFromConn connects to a map server.
+func NewMapEnvFromConn(addr string) (*MapEnv, error) {
+	cc, err := grpc.Dial(addr, grpc.WithInsecure())
+	if err != nil {
+		return nil, err
+	}
+
+	return &MapEnv{
+		clientConn:  cc,
+		MapClient:   trillian.NewTrillianMapClient(cc),
+		AdminClient: trillian.NewTrillianAdminClient(cc),
+	}, nil
+}
+
 // NewMapEnv creates a fresh DB, map server, and client.
 func NewMapEnv(ctx context.Context, testID string) (*MapEnv, error) {
 	db, err := GetTestDB(testID)
@@ -102,8 +116,12 @@ func NewMapEnvWithRegistry(ctx context.Context, testID string, registry extensio
 
 // Close shuts down the server.
 func (env *MapEnv) Close() {
-	env.clientConn.Close()
-	env.grpcServer.GracefulStop()
+	if env.clientConn != nil {
+		env.clientConn.Close()
+	}
+	if env.grpcServer != nil {
+		env.grpcServer.GracefulStop()
+	}
 	if env.DB != nil {
 		env.DB.Close()
 	}
