@@ -422,6 +422,10 @@ func PopulateMapSubtreeNodes(treeID int64, hasher hashers.MapHasher) storage.Pop
 				return nil, nil
 			},
 			func(depth int, index *big.Int, h []byte) error {
+				if depth == 0 {
+					// no space for the root in the node cache
+					return nil
+				}
 				nodeID := storage.NewNodeIDFromRelativeBigInt(st, depth, index, hasher.BitLen())
 				_, sfx := nodeID.Split(len(st.Prefix), int(st.Depth))
 				sfxKey := sfx.String()

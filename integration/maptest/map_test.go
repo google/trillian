@@ -126,7 +126,7 @@ func TestInclusion(t *testing.T) {
 			desc:         "maphasher single",
 			HashStrategy: trillian.HashStrategy_TEST_MAP_HASHER,
 			leaves: []*trillian.MapLeaf{
-				{Index: testonly.TransparentHash("A"), LeafValue: []byte("A")},
+				{Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("A")},
 			},
 		},
 		{
@@ -184,7 +184,6 @@ func TestInclusion(t *testing.T) {
 }
 
 func TestInclusionBatch(t *testing.T) {
-	t.Skip("Skipping due to map root hash computation errors. Fix coming")
 	ctx := context.Background()
 	for _, tc := range []struct {
 		desc                  string
