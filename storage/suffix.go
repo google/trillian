@@ -37,3 +37,16 @@ func (s Suffix) String() string {
 	r = append(r, s.Path...)
 	return base64.StdEncoding.EncodeToString(r)
 }
+
+// ParseSuffix converts a suffix string back into a Suffix.
+func ParseSuffix(s string) (Suffix, error) {
+	b, err := base64.StdEncoding.DecodeString(s)
+	if err != nil {
+		return Suffix{}, err
+	}
+
+	return Suffix{
+		Bits: byte(b[0]),
+		Path: b[1:],
+	}, nil
+}
