@@ -41,13 +41,13 @@ func populateMapSubtreeNodes(treeID int64, hasher hashers.MapHasher) storage.Pop
 		st.InternalNodes = make(map[string][]byte)
 		leaves := make([]merkle.HStar2LeafHash, 0, len(st.Leaves))
 		for k64, v := range st.Leaves {
-			k, err := base64.StdEncoding.DecodeString(k64)
+			sfx, err := storage.ParseSuffix(k64)
 			if err != nil {
 				return err
 			}
 			// TODO(gdbelvin): test against subtree depth.
 			if sfx.Bits%depthQuantum != 0 {
-				return fmt.Errorf("unexpected non-leaf suffix found: %x", k)
+				return fmt.Errorf("unexpected non-leaf suffix found: %x", sfx.Bits)
 			}
 			index := new(big.Int).SetBytes(sfx.Path)
 			index = index.Lsh(index, uint(hasher.BitLen()-len(index.Bytes())))
@@ -59,7 +59,8 @@ func populateMapSubtreeNodes(treeID int64, hasher hashers.MapHasher) storage.Pop
 		hs2 := merkle.NewHStar2(treeID, hasher)
 		root, err := hs2.HStar2Nodes(st.Prefix, int(st.Depth), leaves, nil,
 			func(depth int, index *big.Int, h []byte) error {
-				if depth == 0 && len(st.Prefix) > 0 {
+				//if depth == 0 && len(st.Prefix) > 0 {
+				if depth == len(st.Prefix)*8 {
 					// no space for the root in the node cache
 					return nil
 				}

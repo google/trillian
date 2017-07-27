@@ -340,7 +340,7 @@ func (s *SubtreeCache) SetNodeHash(id storage.NodeID, h []byte, getSubtree GetSu
 		if err != nil {
 			glog.Errorf("base64.DecodeString(%v): %v", sfxKey, err)
 		}
-		glog.Infof("SetNodeHash(pfx: %s, sfx: %x): %x", prefixKey, b, h)
+		glog.Infof("SetNodeHash(pfx: %x, sfx: %x): %x", prefixKey, b, h)
 	}
 	return nil
 }
