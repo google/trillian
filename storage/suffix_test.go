@@ -29,6 +29,33 @@ const (
 	// storage/cache when merkle no longer depends on storage.NodeID
 )
 
+func TestParseSuffix(t *testing.T) {
+	for _, tc := range []struct {
+		prefix    []byte
+		leafIndex int64
+		want      []byte
+	}{
+		{h2b(""), 1, h2b("0801")},
+		{h2b("00"), 1, h2b("0801")},
+	} {
+		nodeID := NewNodeIDFromPrefix(tc.prefix, logStrataDepth, tc.leafIndex, logStrataDepth, maxLogDepth)
+		_, sfx := nodeID.Split(len(tc.prefix), logStrataDepth)
+		sfxKey := sfx.String()
+
+		sfxP, err := ParseSuffix(sfxKey)
+		if err != nil {
+			t.Errorf("ParseSuffix(%s): %v", sfxKey, err)
+			continue
+		}
+		if got, want := sfx.Bits, sfxP.Bits; got != want {
+			t.Errorf("ParseSuffix(%s).Bits: %v, want %v", sfxKey, got, want)
+		}
+		if got, want := sfx.Path, sfxP.Path; !bytes.Equal(got, want) {
+			t.Errorf("ParseSuffix(%s).Bits: %x, want %x", sfxKey, got, want)
+		}
+	}
+}
+
 // TestSuffixKeyEquals ensures that NodeID.Split produces the same output as makeSuffixKey for the Log's use cases.
 func TestSuffixKeyEquals(t *testing.T) {
 	for _, tc := range []struct {
