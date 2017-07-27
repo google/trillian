@@ -224,7 +224,7 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context) {
 	totalDepth := len(s.prefix)*8 + s.subtreeDepth
 	root, err := hs2.HStar2Nodes(s.subtreeDepth, treeDepthOffset, leaves,
 		func(height int, index *big.Int) ([]byte, error) {
-			nodeID := storage.NewNodeIDFromRelativeBigInt(st, height, index, totalDepth)
+			nodeID := storage.NewNodeIDFromRelativeBigInt(s.prefix, height, index, totalDepth)
 			nodes, err := s.tx.GetMerkleNodes(ctx, s.treeRevision, []storage.NodeID{nodeID})
 			if err != nil {
 				return nil, err
@@ -240,13 +240,13 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context) {
 			}
 			return nodes[0].Hash, nil
 		},
-		func(depth int, index *big.Int, h []byte) error {
+		func(height int, index *big.Int, h []byte) error {
 			// Don't store the root node of the subtree - that's part of the parent
 			// tree.
-			if depth == 0 && len(s.prefix) > 0 {
+			if height == 0 && len(s.prefix) > 0 {
 				return nil
 			}
-			nodeID := storage.NewNodeIDFromRelativeBigInt(st, height, index, totalDepth)
+			nodeID := storage.NewNodeIDFromRelativeBigInt(s.prefix, height, index, totalDepth)
 			nodesToStore = append(nodesToStore,
 				storage.Node{
 					NodeID:       nodeID,
