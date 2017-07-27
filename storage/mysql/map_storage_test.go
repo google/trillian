@@ -23,6 +23,7 @@ import (
 	"github.com/google/trillian"
 	spb "github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/storage"
+	"github.com/kylelemons/godebug/pretty"
 )
 
 func TestMySQLMapStorage_CheckDatabaseAccessible(t *testing.T) {
@@ -137,49 +138,83 @@ type rootReaderMapTX interface {
 }
 
 func TestMapRootUpdate(t *testing.T) {
-	// Write two roots for a map and make sure the one with the newest timestamp supersedes
 	cleanTestDB(DB)
 	mapID := createMapForTests(DB)
 	s := NewMapStorage(DB)
 
 	ctx := context.Background()
-	tx := beginMapTx(ctx, s, mapID, t)
-	defer tx.Close()
 
-	root := trillian.SignedMapRoot{
-		MapId:          mapID,
-		TimestampNanos: 98765,
-		MapRevision:    5,
-		RootHash:       []byte(dummyHash),
-		Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
+	for _, tc := range []struct {
+		desc string
+		root trillian.SignedMapRoot
+	}{
+		{
+			desc: "Initial root",
+			root: trillian.SignedMapRoot{
+				MapId:          mapID,
+				TimestampNanos: 98765,
+				MapRevision:    5,
+				RootHash:       []byte(dummyHash),
+				Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
+			}},
+		{
+			desc: "Root update",
+			root: trillian.SignedMapRoot{
+				MapId:          mapID,
+				TimestampNanos: 98766,
+				MapRevision:    6,
+				RootHash:       []byte(dummyHash),
+				Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
+			}},
+		{
+			desc: "Root with default MapperMetadata",
+			root: trillian.SignedMapRoot{
+				MapId:          mapID,
+				TimestampNanos: 98768,
+				MapRevision:    7,
+				RootHash:       []byte(dummyHash),
+				Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
+				Metadata: &trillian.MapperMetadata{
+					HighestFullyCompletedSeq: 0,
+				},
+			}},
+		{
+			desc: "Root with non-default MapperMetadata",
+			root: trillian.SignedMapRoot{
+				MapId:          mapID,
+				TimestampNanos: 98769,
+				MapRevision:    8,
+				RootHash:       []byte(dummyHash),
+				Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
+				Metadata: &trillian.MapperMetadata{
+					HighestFullyCompletedSeq: 1,
+				},
+			}},
+	} {
+		{
+			tx := beginMapTx(ctx, s, mapID, t)
+			defer tx.Close()
+			if err := tx.StoreSignedMapRoot(ctx, tc.root); err != nil {
+				t.Fatalf("%v: Failed to store signed map root: %v", tc.desc, err)
+			}
+			if err := tx.Commit(); err != nil {
+				t.Fatalf("%v: Failed to commit new map roots: %v", tc.desc, err)
+			}
+		}
+		{
+			tx := beginMapTx(ctx, s, mapID, t)
+			defer tx.Close()
+			root, err := tx.LatestSignedMapRoot(ctx)
+			if err != nil {
+				t.Fatalf("%v: Failed to read back new map root: %v", tc.desc, err)
+			}
+			if got, want := &root, &tc.root; !proto.Equal(got, want) {
+				t.Fatalf("%v: LatestSignedMapRoot(): %v, diff(-got, +want) \n%v", tc.desc,
+					pretty.Sprint(got), pretty.Compare(got, want))
+			}
+			commit(tx, t)
+		}
 	}
-	if err := tx.StoreSignedMapRoot(ctx, root); err != nil {
-		t.Fatalf("Failed to store signed map root: %v", err)
-	}
-	root2 := trillian.SignedMapRoot{
-		MapId:          mapID,
-		TimestampNanos: 98766,
-		MapRevision:    6,
-		RootHash:       []byte(dummyHash),
-		Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
-	}
-	if err := tx.StoreSignedMapRoot(ctx, root2); err != nil {
-		t.Fatalf("Failed to store signed map root: %v", err)
-	}
-	if err := tx.Commit(); err != nil {
-		t.Fatalf("Failed to commit new map roots: %v", err)
-	}
-
-	tx = beginMapTx(ctx, s, mapID, t)
-	defer tx.Close()
-	root3, err := tx.LatestSignedMapRoot(ctx)
-	if err != nil {
-		t.Fatalf("Failed to read back new map root: %v", err)
-	}
-	if !proto.Equal(&root2, &root3) {
-		t.Fatalf("Root round trip failed: <%v> and: <%v>", root, root2)
-	}
-	commit(tx, t)
 }
 
 var keyHash = []byte([]byte("A Key Hash"))

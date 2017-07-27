@@ -18,14 +18,16 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/golang/glog"
-	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
-	spb "github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/trees"
+
+	"github.com/golang/glog"
+	"github.com/golang/protobuf/proto"
+
+	spb "github.com/google/trillian/crypto/sigpb"
 )
 
 const (
@@ -276,7 +278,7 @@ func (m *mapTreeTX) signedMapRoot(timestamp, mapRevision int64, rootHash, rootSi
 		return trillian.SignedMapRoot{}, err
 	}
 
-	if mapperMetaBytes != nil && len(mapperMetaBytes) != 0 {
+	if mapperMetaBytes != nil {
 		mapperMeta = &trillian.MapperMetadata{}
 		if err := proto.Unmarshal(mapperMetaBytes, mapperMeta); err != nil {
 			glog.Warningf("Failed to unmarshal Metadata; %v", err)
