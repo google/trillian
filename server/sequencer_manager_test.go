@@ -64,15 +64,7 @@ var testRoot0 = trillian.SignedLogRoot{
 		SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
 	},
 }
-var updatedNodes0 = []storage.Node{
-	{
-		NodeID: storage.NodeID{
-			Path:          []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
-			PrefixLenBits: 64,
-		},
-		Hash:         testonly.MustDecodeBase64("bjQLnP+zepicpUTmu3gKLHiQHT+zNzh2hRGjBhevoB0="),
-		NodeRevision: 1},
-}
+var updatedNodes0 = []storage.Node{{NodeID: storage.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, PrefixLenBits: 64}, Hash: testonly.MustDecodeBase64("bjQLnP+zepicpUTmu3gKLHiQHT+zNzh2hRGjBhevoB0="), NodeRevision: 1}}
 var updatedRoot = trillian.SignedLogRoot{
 	LogId:          testLogID1,
 	TimestampNanos: fakeTime.UnixNano(),
