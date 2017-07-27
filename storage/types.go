@@ -140,11 +140,9 @@ func NewNodeIDFromRelativeBigInt(st *storagepb.SubtreeProto, depth int, subIndex
 	copy(path, st.Prefix)
 
 	// Copy subIndex into subPath, right justified.
-	subPath := make([]byte, st.Depth/8)
+	subPath := path[len(st.Prefix) : len(st.Prefix)+int(st.Depth)/8]
 	unusedSubBytes := len(subPath) - len(subIndex.Bytes())
 	copy(subPath[unusedSubBytes:], subIndex.Bytes())
-
-	copy(path[len(st.Prefix):], subPath)
 
 	glog.V(5).Infof("NewNodeIDFromRelativeBigInt({%x, %v}, %v, %x, %v): %v, %x",
 		st.Prefix, st.Depth, depth, subIndex.Bytes(), totalDepth, len(st.Prefix)*8+depth, path)
@@ -300,13 +298,6 @@ func (n *NodeID) Siblings() []NodeID {
 	return r
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
 // Split splits a NodeID into a prefix and a suffix at prefixSplit
 func (n *NodeID) Split(prefixBytes, suffixBits int) ([]byte, Suffix) {
 	if n.PrefixLenBits == 0 {
@@ -315,17 +306,21 @@ func (n *NodeID) Split(prefixBytes, suffixBits int) ([]byte, Suffix) {
 	a := make([]byte, len(n.Path))
 	copy(a, n.Path)
 
-	bits := min(n.PrefixLenBits-prefixBytes*8, suffixBits)
+	bits := n.PrefixLenBits - prefixBytes*8
+	if bits > suffixBits {
+		panic(fmt.Sprintf("storage Split: %x(n.PrefixLenBits: %v - prefixBytes: %v *8) > %v", n.Path, n.PrefixLenBits, prefixBytes, suffixBits))
+	}
+	if bits == 0 {
+		panic(fmt.Sprintf("storage Split: %x(n.PrefixLenBits: %v - prefixBytes: %v *8) == 0", n.Path, n.PrefixLenBits, prefixBytes))
+	}
 	suffixBytes := (bits + 7) / 8
 	sfx := Suffix{
 		Bits: byte(bits),
 		Path: a[prefixBytes : prefixBytes+suffixBytes],
 	}
-	if bits > 0 {
-		maskIndex := (bits - 1) / 8
-		maskLowBits := (sfx.Bits-1)%8 + 1
-		sfx.Path[maskIndex] &= ((0x01 << maskLowBits) - 1) << uint(8-maskLowBits)
-	}
+	maskIndex := (bits - 1) / 8
+	maskLowBits := (sfx.Bits-1)%8 + 1
+	sfx.Path[maskIndex] &= ((0x01 << maskLowBits) - 1) << uint(8-maskLowBits)
 
 	return a[:prefixBytes], sfx
 }

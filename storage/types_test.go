@@ -73,7 +73,7 @@ func TestSplit(t *testing.T) {
 		{h2b("70"), 5, 0, 8, h2b(""), 5, h2b("70")},
 		{h2b("0003"), 16, 1, 8, h2b("00"), 8, h2b("03")},
 		{h2b("0003"), 15, 1, 8, h2b("00"), 7, h2b("02")},
-		{h2b("0001000000000000"), 8, 1, 8, h2b("00"), 0, h2b("")},
+		{h2b("0001000000000000"), 16, 1, 8, h2b("00"), 8, h2b("01")},
 		{h2b("0100000000000000"), 8, 0, 8, h2b(""), 8, h2b("01")},
 		// Map subtree scenarios
 		{h2b("0100000000000000"), 16, 0, 16, h2b(""), 16, h2b("0100")},
@@ -104,19 +104,20 @@ func TestSplit(t *testing.T) {
 func TestNewNodeIDFromRelativeBigInt(t *testing.T) {
 	for _, tc := range []struct {
 		prefix     []byte
-		subDepth   int
 		depth      int
 		index      int64
+		subDepth   int
 		totalDepth int
 		wantPath   []byte
 		wantDepth  int
 	}{
-		{prefix: h2b(""), subDepth: 8, depth: 8, index: 0, totalDepth: 64, wantPath: h2b("0000000000000000"), wantDepth: 8},
-		{prefix: h2b(""), subDepth: 8, depth: 8, index: 1, totalDepth: 64, wantPath: h2b("0100000000000000"), wantDepth: 8},
-		{prefix: h2b("00"), subDepth: 8, depth: 7, index: 1, totalDepth: 64, wantPath: h2b("0001000000000000"), wantDepth: 15},
-		{prefix: h2b("00"), subDepth: 8, depth: 8, index: 1, totalDepth: 64, wantPath: h2b("0001000000000000"), wantDepth: 16},
-		{prefix: h2b("00"), subDepth: 16, depth: 16, index: 257, totalDepth: 64, wantPath: h2b("0001010000000000"), wantDepth: 24},
-		{prefix: h2b("12345678"), subDepth: 8, depth: 8, index: 1, totalDepth: 64, wantPath: h2b("1234567801000000"), wantDepth: 40},
+		{prefix: h2b(""), depth: 8, index: 0, subDepth: 8, totalDepth: 64, wantPath: h2b("0000000000000000"), wantDepth: 8},
+		{prefix: h2b(""), depth: 8, index: 1, subDepth: 8, totalDepth: 64, wantPath: h2b("0100000000000000"), wantDepth: 8},
+		{prefix: h2b("00"), depth: 7, index: 1, subDepth: 8, totalDepth: 64, wantPath: h2b("0001000000000000"), wantDepth: 15},
+		{prefix: h2b("00"), depth: 8, index: 1, subDepth: 8, totalDepth: 64, wantPath: h2b("0001000000000000"), wantDepth: 16},
+		{prefix: h2b("00"), depth: 16, index: 257, subDepth: 16, totalDepth: 64, wantPath: h2b("0001010000000000"), wantDepth: 24},
+		{prefix: h2b("12345678"), depth: 8, index: 1, subDepth: 8, totalDepth: 64, wantPath: h2b("1234567801000000"), wantDepth: 40},
+
 		{prefix: h2b("00"), subDepth: 248, depth: 247, index: 1, totalDepth: 256, wantPath: h2b("0000000000000000000000000000000000000000000000000000000000000001"), wantDepth: 255},
 		{prefix: h2b("00000000000000000000"), subDepth: 176, depth: 176, index: 1, totalDepth: 256, wantPath: h2b("0000000000000000000000000000000000000000000000000000000000000001"), wantDepth: 256},
 	} {

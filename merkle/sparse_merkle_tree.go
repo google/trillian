@@ -224,6 +224,7 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context) {
 	hs2 := NewHStar2(s.treeID, s.treeHasher)
 	treeDepthOffset := (s.treeHasher.Size()-len(s.prefix))*8 - s.subtreeDepth
 	totalDepth := len(s.prefix)*8 + s.subtreeDepth
+	// TODO(gdbelvin): remove SubtreeProto when we remove NewNodeIDFromRelative*
 	st := &storagepb.SubtreeProto{
 		Prefix: s.prefix,
 		Depth:  int32(s.subtreeDepth),
