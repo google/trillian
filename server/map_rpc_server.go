@@ -106,7 +106,7 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 			leaf = &trillian.MapLeaf{
 				Index:     index,
 				LeafValue: nil,
-				LeafHash:  hasher.HashLeaf(mapID, index, hasher.BitLen(), nil),
+				LeafHash:  hasher.HashLeaf(mapID, index, 0, nil),
 			}
 		}
 

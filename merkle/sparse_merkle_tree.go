@@ -19,7 +19,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"math/big"
 	"sync"
 
@@ -387,20 +386,16 @@ func (s SparseMerkleTreeReader) RootAtRevision(ctx context.Context, rev int64) (
 func (s SparseMerkleTreeReader) InclusionProof(ctx context.Context, rev int64, index []byte) ([][]byte, error) {
 	nid := storage.NewNodeIDFromHash(index)
 	sibs := nid.Siblings()
-	log.Printf("Siblings: ")
-	for _, s := range sibs {
-		log.Printf("   %x", s.Path)
-	}
 	nodes, err := s.tx.GetMerkleNodes(ctx, rev, sibs)
 	if err != nil {
 		return nil, err
 	}
 
 	nodeMap := make(map[string]*storage.Node)
-	log.Printf("Got Nodes: ")
+	glog.Infof("Got Nodes: ")
 	for _, n := range nodes {
 		n := n // need this or we'll end up with the same node hash repeated in the map
-		log.Printf("   %x, %d: %x", n.NodeID.Path, len(n.NodeID.String()), n.Hash)
+		glog.Infof("   %x, %d: %x", n.NodeID.Path, len(n.NodeID.String()), n.Hash)
 		nodeMap[n.NodeID.String()] = &n
 	}
 

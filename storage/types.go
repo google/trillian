@@ -298,6 +298,12 @@ func (n *NodeID) Siblings() []NodeID {
 		}
 		bi++
 	}
+	if glog.V(5) {
+		glog.Infof("[%d, %x].Siblings():", n.PrefixLenBits, n.Path)
+		for _, s := range r {
+			glog.Infof("   %x", s.Path)
+		}
+	}
 	return r
 }
 
