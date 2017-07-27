@@ -21,8 +21,6 @@ import (
 	"math/big"
 	"strconv"
 	"testing"
-
-	"github.com/google/trillian/storage/storagepb"
 )
 
 func TestNewNodeIDFromBigInt(t *testing.T) {
@@ -122,11 +120,7 @@ func TestNewNodeIDFromRelativeBigInt(t *testing.T) {
 		{prefix: h2b("00000000000000000000"), subDepth: 176, depth: 176, index: 1, totalDepth: 256, wantPath: h2b("0000000000000000000000000000000000000000000000000000000000000001"), wantDepth: 256},
 	} {
 		i := big.NewInt(tc.index)
-		st := &storagepb.SubtreeProto{
-			Prefix: tc.prefix,
-			Depth:  int32(tc.subDepth),
-		}
-		n := NewNodeIDFromRelativeBigInt(st, tc.depth, i, tc.totalDepth)
+		n := NewNodeIDFromRelativeBigInt(tc.prefix, tc.subDepth, tc.depth, i, tc.totalDepth)
 		if got, want := n.Path, tc.wantPath; !bytes.Equal(got, want) {
 			t.Errorf("NewNodeIDFromRelativeBigInt(%x, %v, %v, %v, %v).Path: %x, want %x",
 				tc.prefix, tc.depth, tc.index, tc.subDepth, tc.totalDepth, got, want)

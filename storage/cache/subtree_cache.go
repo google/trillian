@@ -426,7 +426,7 @@ func PopulateMapSubtreeNodes(treeID int64, hasher hashers.MapHasher) storage.Pop
 					// no space for the root in the node cache
 					return nil
 				}
-				nodeID := storage.NewNodeIDFromRelativeBigInt(st, depth, index, hasher.BitLen())
+				nodeID := storage.NewNodeIDFromRelativeBigInt(st.Prefix, int(st.Depth), depth, index, hasher.BitLen())
 				_, sfx := nodeID.Split(len(st.Prefix), int(st.Depth))
 				sfxKey := sfx.String()
 				if glog.V(4) {
