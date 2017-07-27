@@ -65,7 +65,7 @@ var (
 	description        = flag.String("description", "", "Description of the new tree")
 	maxRootDuration    = flag.Duration("max_root_duration", 0, "Interval after which a new signed root is produced despite no submissions; zero means never")
 
-	privateKeyFormat = flag.String("private_key_format", "PrivateKey", "Type of private key to be used (PrivateKey, PEMKeyFile, or PKCS11ConfigFile)")
+	privateKeyFormat = flag.String("private_key_format", "", "Type of protobuf message to send the key as (PrivateKey, PEMKeyFile, or PKCS11ConfigFile). If empty, a key will be generated for you by Trillian.")
 	pemKeyPath       = flag.String("pem_key_path", "", "Path to the private key PEM file")
 	pemKeyPassword   = flag.String("pem_key_password", "", "Password of the private key PEM file")
 	pkcs11ConfigPath = flag.String("pkcs11_config_path", "", "Path to the PKCS #11 key configuration file")
@@ -131,11 +131,6 @@ func newRequest(opts *createOpts) (*trillian.CreateTreeRequest, error) {
 		return nil, fmt.Errorf("unknown SignatureAlgorithm: %v", opts.sigAlgorithm)
 	}
 
-	pk, err := newPK(opts)
-	if err != nil {
-		return nil, err
-	}
-
 	ctr := &trillian.CreateTreeRequest{Tree: &trillian.Tree{
 		TreeState:          trillian.TreeState(ts),
 		TreeType:           trillian.TreeType(tt),
@@ -144,9 +139,31 @@ func newRequest(opts *createOpts) (*trillian.CreateTreeRequest, error) {
 		SignatureAlgorithm: sigpb.DigitallySigned_SignatureAlgorithm(sa),
 		DisplayName:        opts.displayName,
 		Description:        opts.description,
-		PrivateKey:         pk,
 		MaxRootDuration:    ptypes.DurationProto(opts.maxRootDuration),
 	}}
+
+	if opts.privateKeyType != "" {
+		pk, err := newPK(opts)
+		if err != nil {
+			return nil, err
+		}
+		ctr.Tree.PrivateKey = pk
+	} else {
+		// Cannot continue if options specifying a key were provided but
+		// privateKeyType is not set, as there's no way to know what protobuf
+		// message type was intended.
+		if opts.pemKeyPath != "" || opts.pemKeyPass != "" || opts.pkcs11ConfigPath != "" {
+			return nil, errors.New("must specify private key format")
+		}
+
+		// If no key flags were provided at all, get Trillian to generate a key.
+		ctr.KeySpec = &keyspb.Specification{
+			Params: &keyspb.Specification_EcdsaParams{
+				EcdsaParams: &keyspb.Specification_ECDSA{},
+			},
+		}
+	}
+
 	return ctr, nil
 }
 
