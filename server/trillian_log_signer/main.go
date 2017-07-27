@@ -22,11 +22,6 @@ import (
 	"os"
 	"time"
 
-	// Register key ProtoHandlers
-	_ "github.com/google/trillian/crypto/keys/der/proto"
-	_ "github.com/google/trillian/crypto/keys/pem/proto"
-	_ "github.com/google/trillian/crypto/keys/pkcs11/proto"
-
 	"github.com/golang/glog"
 	"github.com/google/trillian/cmd"
 	"github.com/google/trillian/extension"
@@ -40,9 +35,15 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"golang.org/x/net/context"
 
-	_ "github.com/go-sql-driver/mysql"              // Load MySQL driver
-	_ "github.com/google/trillian/merkle/objhasher" // Load hashers
-	_ "github.com/google/trillian/merkle/rfc6962"   // Load hashers
+	// Load MySQL driver
+	_ "github.com/go-sql-driver/mysql"
+	// Register key ProtoHandlers
+	_ "github.com/google/trillian/crypto/keys/der/proto"
+	_ "github.com/google/trillian/crypto/keys/pem/proto"
+	_ "github.com/google/trillian/crypto/keys/pkcs11/proto"
+	// Load hashers
+	_ "github.com/google/trillian/merkle/objhasher"
+	_ "github.com/google/trillian/merkle/rfc6962"
 )
 
 var (
