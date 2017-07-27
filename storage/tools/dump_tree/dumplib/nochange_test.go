@@ -37,4 +37,7 @@ func TestDBFormatNoChange(t *testing.T) {
 			t.Errorf("dump_tree line %3v %v, want %v", i, got, want)
 		}
 	}
+	if got, want := len(savedS), len(outS); got != want {
+		t.Errorf("dump_tree %v lines, want %v", got, want)
+	}
 }

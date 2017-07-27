@@ -25,6 +25,7 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -256,13 +257,15 @@ func Main(treeSize, batchSize int, leafFormat string, latestRevision, summary, h
 		return dumpLeaves(ls, tree.TreeId, treeSize)
 	}
 
-	formatter := fullProto
-	if summary {
+	var formatter func(*storagepb.SubtreeProto) string
+	switch {
+	case summary:
 		formatter = summarizeProto
-	}
-	if recordIO {
+	case recordIO:
 		formatter = recordIOProto
 		recordIOHdr()
+	default:
+		formatter = fullProto
 	}
 
 	hasher, err := hashers.NewLogHasher(trillian.HashStrategy_RFC6962_SHA256)
@@ -277,8 +280,7 @@ func Main(treeSize, batchSize int, leafFormat string, latestRevision, summary, h
 	return allRevisions(ls, tree.TreeId, repopFunc, formatter, rebuild, hexKeys)
 }
 
-func allRevisions(ls storage.LogStorage, treeID int64, repopFunc storage.PopulateSubtreeFunc, of func(*storagepb.SubtreeProto) string,
-	rebuildInternal, hexKeysFlag bool) string {
+func allRevisions(ls storage.LogStorage, treeID int64, repopFunc storage.PopulateSubtreeFunc, of func(*storagepb.SubtreeProto) string, rebuildInternal, hexKeysFlag bool) string {
 	out := new(bytes.Buffer)
 	memory.DumpSubtrees(ls, treeID, func(k string, v *storagepb.SubtreeProto) {
 		if rebuildInternal {
@@ -292,8 +294,7 @@ func allRevisions(ls storage.LogStorage, treeID int64, repopFunc storage.Populat
 	return out.String()
 }
 
-func latestRevisions(ls storage.LogStorage, treeID int64, repopFunc storage.PopulateSubtreeFunc, of func(*storagepb.SubtreeProto) string,
-	rebuildInternal, hexKeysFlag bool) string {
+func latestRevisions(ls storage.LogStorage, treeID int64, repopFunc storage.PopulateSubtreeFunc, of func(*storagepb.SubtreeProto) string, rebuildInternal, hexKeysFlag bool) string {
 	out := new(bytes.Buffer)
 	// vMap maps subtree prefixes (as strings) to the corresponding subtree proto and its revision
 	vMap := make(map[string]treeAndRev)
@@ -320,8 +321,16 @@ func latestRevisions(ls storage.LogStorage, treeID int64, repopFunc storage.Popu
 		}
 	})
 
+	// Store the keys in sorted order
+	var keys []string
+	for k := range vMap {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
 	// The map should now contain the latest revisions per subtree
-	for _, v := range vMap {
+	for _, k := range keys {
+		v := vMap[k]
 		if rebuildInternal {
 			repopFunc(v.subtree)
 		}
