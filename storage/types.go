@@ -127,7 +127,6 @@ func NewNodeIDFromPrefix(prefix []byte, depth int, index int64, subDepth, totalD
 	return NodeID{
 		Path:          path,
 		PrefixLenBits: len(prefix)*8 + depth,
-		PathLenBits:   len(path) * 8,
 	}
 }
 
@@ -146,7 +145,6 @@ func NewNodeIDFromRelativeBigInt(prefix []byte, depth int, subIndex *big.Int, to
 	return NodeID{
 		Path:          path,
 		PrefixLenBits: len(prefix)*8 + depth,
-		PathLenBits:   len(path) * 8,
 	}
 }
 
@@ -168,7 +166,6 @@ func NewNodeIDFromBigInt(depth int, index *big.Int, totalDepth int) NodeID {
 	return NodeID{
 		Path:          path,
 		PrefixLenBits: depth,
-		PathLenBits:   len(path) * 8,
 	}
 }
 
