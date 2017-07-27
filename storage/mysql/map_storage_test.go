@@ -209,7 +209,7 @@ func TestMapRootUpdate(t *testing.T) {
 				t.Fatalf("%v: Failed to read back new map root: %v", tc.desc, err)
 			}
 			if got, want := &root, &tc.root; !proto.Equal(got, want) {
-				t.Fatalf("%v: LatestSignedMapRoot(): %v, diff(-got, +want) %v", tc.desc,
+				t.Fatalf("%v: LatestSignedMapRoot(): %v, diff(-got, +want) \n%v", tc.desc,
 					pretty.Sprint(got), pretty.Compare(got, want))
 			}
 			commit(tx, t)
