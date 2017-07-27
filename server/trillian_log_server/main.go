@@ -20,17 +20,12 @@ import (
 	"context"
 	"flag"
 
-	// Register key ProtoHandlers
-	_ "github.com/google/trillian/crypto/keys/der/proto"
-	_ "github.com/google/trillian/crypto/keys/pem/proto"
-	_ "github.com/google/trillian/crypto/keys/pkcs11/proto"
-	"github.com/google/trillian/crypto/keyspb"
-
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 	"github.com/google/trillian/cmd"
 	"github.com/google/trillian/crypto/keys/der"
+	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/monitoring/prometheus"
@@ -40,13 +35,19 @@ import (
 	"github.com/google/trillian/util"
 	"google.golang.org/grpc"
 
-	_ "net/http/pprof" // Register pprof HTTP handlers
-
-	_ "github.com/go-sql-driver/mysql"              // Load MySQL driver
-	_ "github.com/google/trillian/merkle/objhasher" // Load hashers
-	_ "github.com/google/trillian/merkle/rfc6962"   // Load hashers
-
 	mysqlq "github.com/google/trillian/quota/mysql"
+
+	// Register pprof HTTP handlers
+	_ "net/http/pprof"
+	// Load MySQL driver
+	_ "github.com/go-sql-driver/mysql"
+	// Register key ProtoHandlers
+	_ "github.com/google/trillian/crypto/keys/der/proto"
+	_ "github.com/google/trillian/crypto/keys/pem/proto"
+	_ "github.com/google/trillian/crypto/keys/pkcs11/proto"
+	// Load hashers
+	_ "github.com/google/trillian/merkle/objhasher"
+	_ "github.com/google/trillian/merkle/rfc6962"
 )
 
 var (

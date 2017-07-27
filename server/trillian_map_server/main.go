@@ -35,16 +35,17 @@ import (
 
 	mysqlq "github.com/google/trillian/quota/mysql"
 
-	_ "net/http/pprof" // Register pprof HTTP handlers
-
-	_ "github.com/go-sql-driver/mysql"              // Load MySQL driver
-	_ "github.com/google/trillian/merkle/coniks"    // Make hashers available
-	_ "github.com/google/trillian/merkle/maphasher" // Make hashers available
-
+	// Register pprof HTTP handlers
+	_ "net/http/pprof"
+	// Load MySQL driver
+	_ "github.com/go-sql-driver/mysql"
 	// Register key ProtoHandlers
 	_ "github.com/google/trillian/crypto/keys/der/proto"
 	_ "github.com/google/trillian/crypto/keys/pem/proto"
 	_ "github.com/google/trillian/crypto/keys/pkcs11/proto"
+	// Load hashers
+	_ "github.com/google/trillian/merkle/coniks"
+	_ "github.com/google/trillian/merkle/maphasher"
 )
 
 var (
