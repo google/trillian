@@ -36,6 +36,8 @@ import (
 	_ "github.com/google/trillian/merkle/maphasher"
 )
 
+var h2b = testonly.MustHexDecode
+
 // createBatchLeaves produces n unique map leaves.
 func createBatchLeaves(batch, n int) []*trillian.MapLeaf {
 	leaves := make([]*trillian.MapLeaf, 0, n)
@@ -364,13 +366,4 @@ func TestNonExistentLeaf(t *testing.T) {
 			}
 		}
 	}
-}
-
-// h2b converts a hex string into []byte.
-func h2b(h string) []byte {
-	b, err := hex.DecodeString(h)
-	if err != nil {
-		panic("invalid hex string")
-	}
-	return b
 }
