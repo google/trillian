@@ -23,7 +23,6 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
-	"flag"
 	"fmt"
 	"sort"
 	"strconv"
@@ -203,12 +202,18 @@ func createTree(as storage.AdminStorage) (*trillian.Tree, crypto.Signer) {
 	return t, cSigner
 }
 
-// Main runs the dump_tree tool
-func Main(treeSize, batchSize int, leafFormat string, latestRevision, summary, hexKeys, leafHashes, recordIO, rebuild, traverse, dumpLeavesFlag bool) string {
-	flag.Parse()
-	validateFlagsOrDie(summary, recordIO)
+// Args are the commandline arguments one can pass to Main
+type Args struct {
+	TreeSize, BatchSize                                                                   int
+	LeafFormat                                                                            string
+	LatestRevision, Summary, HexKeys, LeafHashes, RecordIO, Rebuild, Traverse, DumpLeaves bool
+}
 
-	leafHashesFlag = leafHashes
+// Main runs the dump_tree tool
+func Main(args Args) string {
+	validateFlagsOrDie(args.Summary, args.RecordIO)
+
+	leafHashesFlag = args.LeafHashes
 
 	glog.Info("Initializing memory log storage")
 	ls := memory.NewLogStorage(monitoring.InertMetricFactory{})
@@ -223,8 +228,8 @@ func Main(treeSize, batchSize int, leafFormat string, latestRevision, summary, h
 		quota.Noop())
 
 	// Create the initial tree head at size 0, which is required. And then sequence the leaves.
-	sequence(tree.TreeId, seq, 0, batchSize)
-	sequenceLeaves(ls, seq, tree.TreeId, treeSize, batchSize, leafFormat)
+	sequence(tree.TreeId, seq, 0, args.BatchSize)
+	sequenceLeaves(ls, seq, tree.TreeId, args.TreeSize, args.BatchSize, args.LeafFormat)
 
 	// Read the latest STH back
 	tx, err := ls.BeginForTree(context.TODO(), tree.TreeId)
@@ -249,19 +254,19 @@ func Main(treeSize, batchSize int, leafFormat string, latestRevision, summary, h
 	// All leaves are now sequenced into the tree. The current state is what we need.
 	glog.Info("Producing output")
 
-	if traverse {
-		return traverseTreeStorage(ls, tree.TreeId, treeSize, sth.TreeRevision)
+	if args.Traverse {
+		return traverseTreeStorage(ls, tree.TreeId, args.TreeSize, sth.TreeRevision)
 	}
 
-	if dumpLeavesFlag {
-		return dumpLeaves(ls, tree.TreeId, treeSize)
+	if args.DumpLeaves {
+		return dumpLeaves(ls, tree.TreeId, args.TreeSize)
 	}
 
 	var formatter func(*storagepb.SubtreeProto) string
 	switch {
-	case summary:
+	case args.Summary:
 		formatter = summarizeProto
-	case recordIO:
+	case args.RecordIO:
 		formatter = recordIOProto
 		recordIOHdr()
 	default:
@@ -274,10 +279,10 @@ func Main(treeSize, batchSize int, leafFormat string, latestRevision, summary, h
 	}
 	repopFunc := cache.PopulateLogSubtreeNodes(hasher)
 
-	if latestRevision {
-		return latestRevisions(ls, tree.TreeId, repopFunc, formatter, rebuild, hexKeys)
+	if args.LatestRevision {
+		return latestRevisions(ls, tree.TreeId, repopFunc, formatter, args.Rebuild, args.HexKeys)
 	}
-	return allRevisions(ls, tree.TreeId, repopFunc, formatter, rebuild, hexKeys)
+	return allRevisions(ls, tree.TreeId, repopFunc, formatter, args.Rebuild, args.HexKeys)
 }
 
 func allRevisions(ls storage.LogStorage, treeID int64, repopFunc storage.PopulateSubtreeFunc, of func(*storagepb.SubtreeProto) string, rebuildInternal, hexKeysFlag bool) string {

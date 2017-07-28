@@ -60,8 +60,9 @@ var (
 func main() {
 	flag.Parse()
 
-	log.Printf(dumplib.Main(*treeSizeFlag, *batchSizeFlag,
-		*leafDataFormatFlag, *latestRevisionFlag, *summaryFlag, *hexKeysFlag,
-		*leafHashesFlag, *recordIOFlag, *rebuildInternalFlag, *traverseFlag,
-		*dumpLeavesFlag))
+	log.Printf(dumplib.Main(dumplib.Args{
+		*treeSizeFlag, *batchSizeFlag,
+		*leafDataFormatFlag,
+		*latestRevisionFlag, *summaryFlag, *hexKeysFlag, *leafHashesFlag, *recordIOFlag, *rebuildInternalFlag, *traverseFlag, *dumpLeavesFlag,
+	}))
 }
