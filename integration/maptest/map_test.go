@@ -36,12 +36,14 @@ import (
 	_ "github.com/google/trillian/merkle/maphasher"
 )
 
+var h2b = testonly.MustHexDecode
+
 // createBatchLeaves produces n unique map leaves.
 func createBatchLeaves(batch, n int) []*trillian.MapLeaf {
 	leaves := make([]*trillian.MapLeaf, 0, n)
 	for i := 0; i < n; i++ {
 		leaves = append(leaves, &trillian.MapLeaf{
-			Index:     testonly.HashKey(fmt.Sprintf("batch-%d-key-%d", batch, i)),
+			Index:     testonly.TransparentHash(fmt.Sprintf("batch-%d-key-%d", batch, i)),
 			LeafValue: []byte(fmt.Sprintf("batch-%d-value-%d", batch, i)),
 		})
 	}
@@ -126,16 +128,16 @@ func TestInclusion(t *testing.T) {
 			desc:         "maphasher single",
 			HashStrategy: trillian.HashStrategy_TEST_MAP_HASHER,
 			leaves: []*trillian.MapLeaf{
-				{Index: testonly.TransparentHash("A"), LeafValue: []byte("A")},
+				{Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("A")},
 			},
 		},
 		{
 			desc:         "maphasher multi",
 			HashStrategy: trillian.HashStrategy_TEST_MAP_HASHER,
 			leaves: []*trillian.MapLeaf{
-				{Index: testonly.TransparentHash("A"), LeafValue: []byte("A")},
-				{Index: testonly.TransparentHash("B"), LeafValue: []byte("B")},
-				{Index: testonly.TransparentHash("C"), LeafValue: []byte("C")},
+				{Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("A")},
+				{Index: h2b("0000000000000000000000000000000000000000000000000000000000000001"), LeafValue: []byte("B")},
+				{Index: h2b("0000000000000000000000000000000000000000000000000000000000000002"), LeafValue: []byte("C")},
 			},
 		},
 	} {
@@ -184,7 +186,6 @@ func TestInclusion(t *testing.T) {
 }
 
 func TestInclusionBatch(t *testing.T) {
-	t.Skip("Skipping due to map root hash computation errors. Fix coming")
 	ctx := context.Background()
 	for _, tc := range []struct {
 		desc                  string
@@ -272,7 +273,7 @@ func RunMapBatchTest(ctx context.Context, env *integration.MapEnv, tree *trillia
 		i++
 	}
 
-	for _, indexes := range indexBatch {
+	for i, indexes := range indexBatch {
 		getResp, err := env.MapClient.GetLeaves(ctx, &trillian.GetMapLeavesRequest{
 			MapId:    tree.TreeId,
 			Index:    indexes,
@@ -284,7 +285,7 @@ func RunMapBatchTest(ctx context.Context, env *integration.MapEnv, tree *trillia
 
 		if err := verifyGetMapLeavesResponse(getResp, indexes, int64(numBatches),
 			pubKey, hasher, tree.TreeId); err != nil {
-			return err
+			return fmt.Errorf("batch %v: verifyGetMapLeavesResponse(): %v", i, err)
 		}
 
 		// Verify leaf contents

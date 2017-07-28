@@ -381,7 +381,7 @@ func (s *SubtreeCache) Flush(setSubtrees SetSubtreesFunc) error {
 
 func (s *SubtreeCache) newEmptySubtree(id storage.NodeID, px []byte) *storagepb.SubtreeProto {
 	sInfo := s.stratumInfoForPrefixLength(id.PrefixLenBits)
-	glog.V(1).Infof("Creating new empty subtree for %v, with depth %d", px, sInfo.depth)
+	glog.V(1).Infof("Creating new empty subtree for %x, with depth %d", px, sInfo.depth)
 	// storage didn't have one for us, so we'll store an empty proto here
 	// incase we try to update it later on (we won't flush it back to
 	// storage unless it's been written to.)
@@ -412,7 +412,7 @@ func PopulateMapSubtreeNodes(treeID int64, hasher hashers.MapHasher) storage.Pop
 			}
 			leaves = append(leaves, merkle.HStar2LeafHash{
 				LeafHash: v,
-				Index:    big.NewInt(int64(k[1])),
+				Index:    new(big.Int).SetBytes(k[1:]),
 			})
 		}
 		hs2 := merkle.NewHStar2(treeID, hasher)
@@ -422,7 +422,11 @@ func PopulateMapSubtreeNodes(treeID int64, hasher hashers.MapHasher) storage.Pop
 				return nil, nil
 			},
 			func(depth int, index *big.Int, h []byte) error {
-				nodeID := storage.NewNodeIDFromRelativeBigInt(st.Prefix, depth, index, hasher.BitLen())
+				if depth == 0 {
+					// no space for the root in the node cache
+					return nil
+				}
+				nodeID := storage.NewNodeIDFromRelativeBigInt(st.Prefix, int(st.Depth), depth, index, hasher.BitLen())
 				_, sfx := nodeID.Split(len(st.Prefix), int(st.Depth))
 				sfxKey := sfx.String()
 				if glog.V(4) {
