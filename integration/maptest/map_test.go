@@ -177,7 +177,7 @@ func TestInclusion(t *testing.T) {
 
 		if err := verifyGetMapLeavesResponse(getResp, indexes, 1,
 			pubKey, hasher, tree.TreeId); err != nil {
-			t.Errorf("%v: %v", tc.desc, err)
+			t.Errorf("%v: verifyGetMapLeavesResponse(): %v", tc.desc, err)
 			continue
 		}
 	}
@@ -283,7 +283,7 @@ func RunMapBatchTest(ctx context.Context, env *integration.MapEnv, tree *trillia
 
 		if err := verifyGetMapLeavesResponse(getResp, indexes, int64(numBatches),
 			pubKey, hasher, tree.TreeId); err != nil {
-			return fmt.Errorf("batch: %v,  %v", i, err)
+			return fmt.Errorf("batch %v: verifyGetMapLeavesResponse(): %v", i, err)
 		}
 
 		// Verify leaf contents

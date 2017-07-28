@@ -313,7 +313,7 @@ func (n *NodeID) Split(prefixBytes, suffixBits int) ([]byte, Suffix) {
 	if bits == 0 {
 		panic(fmt.Sprintf("storage Split: %x(n.PrefixLenBits: %v - prefixBytes: %v *8) == 0", n.Path, n.PrefixLenBits, prefixBytes))
 	}
-	suffixBytes := (bits + 7) / 8
+	suffixBytes := bytesForBits(bits)
 	sfx := Suffix{
 		Bits: byte(bits),
 		Path: a[prefixBytes : prefixBytes+suffixBytes],
