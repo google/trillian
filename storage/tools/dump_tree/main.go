@@ -60,9 +60,17 @@ var (
 func main() {
 	flag.Parse()
 
-	fmt.Print(dumplib.Main(dumplib.Args{
-		*treeSizeFlag, *batchSizeFlag,
-		*leafDataFormatFlag,
-		*latestRevisionFlag, *summaryFlag, *hexKeysFlag, *leafHashesFlag, *recordIOFlag, *rebuildInternalFlag, *traverseFlag, *dumpLeavesFlag,
+	fmt.Print(dumplib.Main(dumplib.Options{
+		TreeSize:       *treeSizeFlag,
+		BatchSize:      *batchSizeFlag,
+		LeafFormat:     *leafDataFormatFlag,
+		LatestRevision: *latestRevisionFlag,
+		Summary:        *summaryFlag,
+		HexKeys:        *hexKeysFlag,
+		LeafHashes:     *leafHashesFlag,
+		RecordIO:       *recordIOFlag,
+		Rebuild:        *rebuildInternalFlag,
+		Traverse:       *traverseFlag,
+		DumpLeaves:     *dumpLeavesFlag,
 	}))
 }

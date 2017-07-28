@@ -26,12 +26,12 @@ func TestDBFormatNoChange(t *testing.T) {
 	for _, tc := range []struct {
 		desc string
 		file string
-		args Args
+		opts Options
 	}{
 		{
 			desc: "tree_size: 96",
 			file: "../../../../testdata/dump_tree_output_96",
-			args: Args{
+			opts: Options{
 				96, 50,
 				"Leaf %d",
 				true, false, false, false, false, true, false, false,
@@ -40,7 +40,7 @@ func TestDBFormatNoChange(t *testing.T) {
 		{
 			desc: "tree_size: 871",
 			file: "../../../../testdata/dump_tree_output_871",
-			args: Args{
+			opts: Options{
 				871, 50,
 				"Leaf %d",
 				true, false, false, false, false, true, false, false,
@@ -49,7 +49,7 @@ func TestDBFormatNoChange(t *testing.T) {
 		{
 			desc: "tree_size: 1000",
 			file: "../../../../testdata/dump_tree_output_1000",
-			args: Args{
+			opts: Options{
 				1000, 50,
 				"Leaf %d",
 				true, false, false, false, false, true, false, false,
@@ -58,14 +58,14 @@ func TestDBFormatNoChange(t *testing.T) {
 		{
 			desc: "tree_size: 1024",
 			file: "../../../../testdata/dump_tree_output_1024",
-			args: Args{
+			opts: Options{
 				1024, 50,
 				"Leaf %d",
 				true, false, false, false, false, true, false, false,
 			},
 		},
 	} {
-		out := Main(tc.args)
+		out := Main(tc.opts)
 		saved, err := ioutil.ReadFile(tc.file)
 		if err != nil {
 			t.Fatalf("ReadFile(%v): %v", tc.file, err)

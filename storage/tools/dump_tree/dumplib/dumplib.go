@@ -202,15 +202,16 @@ func createTree(as storage.AdminStorage) (*trillian.Tree, crypto.Signer) {
 	return t, cSigner
 }
 
-// Args are the commandline arguments one can pass to Main
-type Args struct {
-	TreeSize, BatchSize                                                                   int
-	LeafFormat                                                                            string
-	LatestRevision, Summary, HexKeys, LeafHashes, RecordIO, Rebuild, Traverse, DumpLeaves bool
+// Options are the commandline arguments one can pass to Main
+type Options struct {
+	TreeSize, BatchSize                          int
+	LeafFormat                                   string
+	LatestRevision, Summary, HexKeys, LeafHashes bool
+	RecordIO, Rebuild, Traverse, DumpLeaves      bool
 }
 
 // Main runs the dump_tree tool
-func Main(args Args) string {
+func Main(args Options) string {
 	validateFlagsOrDie(args.Summary, args.RecordIO)
 
 	leafHashesFlag = args.LeafHashes
