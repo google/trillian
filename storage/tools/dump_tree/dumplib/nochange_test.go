@@ -23,21 +23,63 @@ import (
 // TestDBFormatNoChange ensures that the prefix, suffix, and protos stored in the database do not change.
 // This test compares the output from dump_tree against a previously saved output.
 func TestDBFormatNoChange(t *testing.T) {
-	savedFile := "../../../../testdata/dump_tree_output"
-	out := Main(871, 50, "Leaf %d", true, false, false, false, false, true, false, false)
-	saved, err := ioutil.ReadFile(savedFile)
-	if err != nil {
-		t.Fatalf("ReadFile(%v): %v", savedFile, err)
-	}
-
-	savedS := strings.Split(string(saved), "\n")
-	outS := strings.Split(out, "\n")
-	for i := range savedS {
-		if got, want := savedS[i], outS[i]; got != want {
-			t.Errorf("dump_tree line %3v %v, want %v", i, got, want)
+	for _, tc := range []struct {
+		desc string
+		file string
+		args Args
+	}{
+		{
+			desc: "tree_size: 96",
+			file: "../../../../testdata/dump_tree_output_96",
+			args: Args{
+				96, 50,
+				"Leaf %d",
+				true, false, false, false, false, true, false, false,
+			},
+		},
+		{
+			desc: "tree_size: 871",
+			file: "../../../../testdata/dump_tree_output_871",
+			args: Args{
+				871, 50,
+				"Leaf %d",
+				true, false, false, false, false, true, false, false,
+			},
+		},
+		{
+			desc: "tree_size: 1000",
+			file: "../../../../testdata/dump_tree_output_1000",
+			args: Args{
+				1000, 50,
+				"Leaf %d",
+				true, false, false, false, false, true, false, false,
+			},
+		},
+		{
+			desc: "tree_size: 1024",
+			file: "../../../../testdata/dump_tree_output_1024",
+			args: Args{
+				1024, 50,
+				"Leaf %d",
+				true, false, false, false, false, true, false, false,
+			},
+		},
+	} {
+		out := Main(tc.args)
+		saved, err := ioutil.ReadFile(tc.file)
+		if err != nil {
+			t.Fatalf("ReadFile(%v): %v", tc.file, err)
 		}
-	}
-	if got, want := len(savedS), len(outS); got != want {
-		t.Errorf("dump_tree %v lines, want %v", got, want)
+
+		savedS := strings.Split(string(saved), "\n")
+		outS := strings.Split(out, "\n")
+		for i := range savedS {
+			if got, want := savedS[i], outS[i]; got != want {
+				t.Errorf("%v dump_tree line %3v %v, want %v", tc.desc, i, got, want)
+			}
+		}
+		if got, want := len(savedS), len(outS); got != want {
+			t.Errorf("%v dump_tree %v lines, want %v", tc.desc, got, want)
+		}
 	}
 }

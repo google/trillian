@@ -38,7 +38,7 @@ package main
 
 import (
 	"flag"
-	"log"
+	"fmt"
 
 	"github.com/google/trillian/storage/tools/dump_tree/dumplib"
 )
@@ -60,7 +60,7 @@ var (
 func main() {
 	flag.Parse()
 
-	log.Printf(dumplib.Main(dumplib.Args{
+	fmt.Print(dumplib.Main(dumplib.Args{
 		*treeSizeFlag, *batchSizeFlag,
 		*leafDataFormatFlag,
 		*latestRevisionFlag, *summaryFlag, *hexKeysFlag, *leafHashesFlag, *recordIOFlag, *rebuildInternalFlag, *traverseFlag, *dumpLeavesFlag,
