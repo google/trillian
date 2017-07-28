@@ -88,7 +88,6 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 	inclusions := make([]*trillian.MapLeafInclusion, 0, len(req.Index))
 	found := 0
 	for _, index := range req.Index {
-		// TODO(gdbelvin): specify the index length in the tree specification.
 		if got, want := len(index), hasher.Size(); got != want {
 			return nil, status.Errorf(codes.InvalidArgument,
 				"index len(%x): %v, want %v", index, got, want)

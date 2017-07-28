@@ -361,7 +361,7 @@ func TestNonExistentLeaf(t *testing.T) {
 			}
 			if err := merkle.VerifyMapInclusionProof(tree.TreeId, index,
 				leafHash, rootHash, proof, hasher); err != nil {
-				t.Errorf("verifyMapInclusionProof(%x): %v", index, err)
+				t.Errorf("%v: VerifyMapInclusionProof(%x): %v", tc.desc, index, err)
 			}
 		}
 	}

@@ -198,6 +198,11 @@ func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc
 // GetNodes returns the requested nodes, calling the getSubtrees function if
 // they are not already cached.
 func (s *SubtreeCache) GetNodes(ids []storage.NodeID, getSubtrees GetSubtreesFunc) ([]storage.Node, error) {
+	if glog.V(4) {
+		for _, n := range ids {
+			glog.Infof("cache: GetNodes(%x, %d", n.Path, n.PrefixLenBits)
+		}
+	}
 	if err := s.preload(ids, getSubtrees); err != nil {
 		return nil, err
 	}
@@ -246,6 +251,7 @@ func (s *SubtreeCache) getNodeHashUnderLock(id storage.NodeID, getSubtree GetSub
 	prefixKey := string(px)
 	c := s.subtrees[prefixKey]
 	if c == nil {
+		glog.Infof("Cache miss for %x so we'll try to fetch from storage", prefixKey)
 		// Cache miss, so we'll try to fetch from storage.
 		subID := id
 		subID.PrefixLenBits = len(px) * depthQuantum // this won't work if depthQuantum changes
@@ -283,6 +289,13 @@ func (s *SubtreeCache) getNodeHashUnderLock(id storage.NodeID, getSubtree GetSub
 		nh = c.Leaves[sfxKey]
 	} else {
 		nh = c.InternalNodes[sfxKey]
+	}
+	if glog.V(4) {
+		b, err := base64.StdEncoding.DecodeString(sfxKey)
+		if err != nil {
+			glog.Errorf("base64.DecodeString(%v): %v", sfxKey, err)
+		}
+		glog.Infof("getNodeHashUnderLock(%x | %x): %x", prefixKey, b, nh)
 	}
 	if nh == nil {
 		return nil, nil
@@ -324,6 +337,13 @@ func (s *SubtreeCache) SetNodeHash(id storage.NodeID, h []byte, getSubtree GetSu
 		c.Leaves[sfxKey] = h
 	} else {
 		c.InternalNodes[sfxKey] = h
+	}
+	if glog.V(4) {
+		b, err := base64.StdEncoding.DecodeString(sfxKey)
+		if err != nil {
+			glog.Errorf("base64.DecodeString(%v): %v", sfxKey, err)
+		}
+		glog.Infof("SetNodeHash(pfx: %s, sfx: %x): %x", prefixKey, b, h)
 	}
 	return nil
 }
@@ -405,6 +425,13 @@ func PopulateMapSubtreeNodes(treeID int64, hasher hashers.MapHasher) storage.Pop
 				nodeID := storage.NewNodeIDFromRelativeBigInt(st.Prefix, depth, index, hasher.BitLen())
 				_, sfx := nodeID.Split(len(st.Prefix), int(st.Depth))
 				sfxKey := sfx.String()
+				if glog.V(4) {
+					b, err := base64.StdEncoding.DecodeString(sfxKey)
+					if err != nil {
+						glog.Errorf("base64.DecodeString(%v): %v", sfxKey, err)
+					}
+					glog.Infof("PopulateMapSubtreeNodes.Set(%x, %d) suffix: %x: %x", index.Bytes(), depth, b, h)
+				}
 				st.InternalNodes[sfxKey] = h
 				return nil
 			})
