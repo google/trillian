@@ -22,13 +22,14 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/trillian/merkle/hashers"
+	"github.com/google/trillian/storage"
 )
 
 var (
-	// ErrNegativeTreeLevelOffset indicates a negative level was specified.
-	ErrNegativeTreeLevelOffset = errors.New("treeLevelOffset cannot be negative")
-	smtOne                     = big.NewInt(1)
-	smtZero                    = big.NewInt(0)
+	// ErrSubtreeOverrun indicates that a subtree exceeds the maximum tree depth.
+	ErrSubtreeOverrun = errors.New("subtree with prefix exceeds maximum tree size")
+	smtOne            = big.NewInt(1)
+	smtZero           = big.NewInt(0)
 )
 
 // HStar2LeafHash represents a leaf for the HStar2 sparse Merkle tree
@@ -85,11 +86,10 @@ func (s *HStar2) HStar2Nodes(prefix []byte, subtreeDepth int, values []HStar2Lea
 	depth := len(prefix) * 8
 	totalDepth := depth + subtreeDepth
 	if totalDepth > s.hasher.BitLen() {
-		return nil, ErrNegativeTreeLevelOffset
+		return nil, ErrSubtreeOverrun
 	}
 	sort.Sort(ByIndex{values})
-	offset := new(big.Int).SetBytes(prefix)
-	offset = offset.Lsh(offset, uint(s.hasher.BitLen()-depth)) // shift prefix into place.
+	offset := storage.NewNodeIDFromPrefixSuffix(prefix, storage.Suffix{}, s.hasher.BitLen()).BigInt()
 	return s.hStar2b(depth, totalDepth, values, offset, get, set)
 }
 
@@ -140,10 +140,10 @@ func (s *HStar2) get(index *big.Int, depth int, getter SparseGetNodeFunc) ([]byt
 			return h, nil
 		}
 	}
+	// TODO(gdbelvin): Hashers should accept depth as their main argument.
 	height := s.hasher.BitLen() - depth
-	indexBytes := PaddedBytes(index, s.hasher.Size())
-	indexBytes = MaskIndex(indexBytes, depth)
-	return s.hasher.HashEmpty(s.treeID, indexBytes, height), nil
+	nodeID := storage.NewNodeIDFromBigInt(index.BitLen(), index, s.hasher.BitLen())
+	return s.hasher.HashEmpty(s.treeID, nodeID.Path, height), nil
 }
 
 // set attempts to use setter if it not nil.
@@ -170,13 +170,3 @@ type ByIndex struct{ Leaves }
 
 // Less returns true if i.Index < j.Index
 func (s ByIndex) Less(i, j int) bool { return s.Leaves[i].Index.Cmp(s.Leaves[j].Index) < 0 }
-
-// PaddedBytes takes a big.Int and returns it's value, left padded with zeros.
-// e.g. 1 -> 0000000000000000000000000000000000000001
-func PaddedBytes(i *big.Int, size int) []byte {
-	b := i.Bytes()
-	ret := make([]byte, size)
-	padBytes := len(ret) - len(b)
-	copy(ret[padBytes:], b)
-	return ret
-}

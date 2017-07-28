@@ -211,15 +211,15 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context) {
 			s.root <- rootHashOrError{hash: nil, err: err}
 			return
 		}
-		index := new(big.Int).SetBytes(ih.index)
-		index = index.Lsh(index, uint(s.hasher.BitLen()-len(ih.index)*8))
+		nodeID := storage.NewNodeIDFromPrefixSuffix(ih.index, storage.Suffix{}, s.hasher.BitLen())
+
 		leaves = append(leaves, HStar2LeafHash{
-			Index:    index,
+			Index:    nodeID.BigInt(),
 			LeafHash: ih.hash,
 		})
 		nodesToStore = append(nodesToStore,
 			storage.Node{
-				NodeID:       storage.NewNodeIDFromHash(ih.index),
+				NodeID:       nodeID,
 				Hash:         ih.hash,
 				NodeRevision: s.treeRevision,
 			})
@@ -392,10 +392,8 @@ func (s SparseMerkleTreeReader) InclusionProof(ctx context.Context, rev int64, i
 	}
 
 	nodeMap := make(map[string]*storage.Node)
-	glog.Infof("Got Nodes: ")
 	for _, n := range nodes {
 		n := n // need this or we'll end up with the same node hash repeated in the map
-		glog.Infof("   %x, %d: %x", n.NodeID.Path, len(n.NodeID.String()), n.Hash)
 		nodeMap[n.NodeID.String()] = &n
 	}
 
