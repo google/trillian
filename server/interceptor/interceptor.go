@@ -105,14 +105,15 @@ func (tp *trillianProcessor) Before(ctx context.Context, req interface{}) (conte
 	}
 
 	if len(info.specs) > 0 && info.tokens > 0 {
-		quota.Metrics.IncAcquired(info.tokens, info.specs)
-		if err := tp.parent.QuotaManager.GetTokens(ctx, info.tokens, info.specs); err != nil {
+		err := tp.parent.QuotaManager.GetTokens(ctx, info.tokens, info.specs)
+		if err != nil {
 			if !tp.parent.QuotaDryRun {
 				incRequestDeniedCounter(insufficientTokensReason, info.treeID, quotaUser)
 				return ctx, status.Errorf(codes.ResourceExhausted, "quota exhausted: %v", err)
 			}
 			glog.Warningf("(QuotaDryRun) Request %+v not denied due to dry run mode: %v", req, err)
 		}
+		quota.Metrics.IncAcquired(info.tokens, info.specs, err != nil)
 	}
 	return ctx, nil
 }
@@ -147,10 +148,11 @@ func (tp *trillianProcessor) After(ctx context.Context, resp interface{}, handle
 		// this case, we may want to keep tabs on how many tokens we failed to replenish and bundle
 		// them up in the next PutTokens call (possibly as a QuotaManager decorator, or internally
 		// in its impl).
-		if err := tp.parent.QuotaManager.PutTokens(ctx, tokens, tp.info.specs); err != nil {
+		err := tp.parent.QuotaManager.PutTokens(ctx, tokens, tp.info.specs)
+		if err != nil {
 			glog.Warningf("Failed to replenish %v tokens: %v", tokens, err)
 		}
-		quota.Metrics.IncReturned(tokens, tp.info.specs)
+		quota.Metrics.IncReturned(tokens, tp.info.specs, err != nil)
 	}
 }
 

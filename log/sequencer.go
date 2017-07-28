@@ -388,10 +388,11 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int, gu
 			{Group: quota.Global, Kind: quota.Write},
 		}
 		glog.V(2).Infof("Replenishing %v tokens for tree %v (numLeaves = %v)", tokens, logID, leaves)
-		if err := s.qm.PutTokens(ctx, tokens, specs); err != nil {
+		err := s.qm.PutTokens(ctx, tokens, specs)
+		if err != nil {
 			glog.Warningf("Failed to replenish %v tokens for tree %v: %v", tokens, logID, err)
 		}
-		quota.Metrics.IncReplenished(tokens, specs)
+		quota.Metrics.IncReplenished(tokens, specs, err != nil)
 	}
 
 	seqCounter.Add(float64(numLeaves), label)
