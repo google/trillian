@@ -130,28 +130,6 @@ func NewNodeIDFromPrefix(prefix []byte, depth int, index int64, subDepth, totalD
 	}
 }
 
-// NewNodeIDFromRelativeBigInt returns a NodeID given by a subtree and a subtree index.
-// depth is the number of levels down from the top of the subtree
-// subIndex is the path from the root of the subtree to the desired node, and continuing down to the bottom of the subtree.
-// subIndex = horizontal index << height.
-func NewNodeIDFromRelativeBigInt(prefix []byte, subtreeDepth, depth int, subIndex *big.Int, totalDepth int) NodeID {
-	// Put prefix in the MSB bits of path.
-	path := make([]byte, totalDepth/8)
-	copy(path, prefix)
-
-	// Copy subIndex into subPath, right justified.
-	subPath := path[len(prefix) : len(prefix)+subtreeDepth/8]
-	unusedSubBytes := len(subPath) - len(subIndex.Bytes())
-	copy(subPath[unusedSubBytes:], subIndex.Bytes())
-
-	glog.V(5).Infof("NewNodeIDFromRelativeBigInt({%x, %v}, %v, %x, %v): %v, %x",
-		prefix, subtreeDepth, depth, subIndex.Bytes(), totalDepth, len(prefix)*8+depth, path)
-	return NodeID{
-		Path:          path,
-		PrefixLenBits: len(prefix)*8 + depth,
-	}
-}
-
 // NewNodeIDFromBigInt returns a NodeID of a big.Int with no prefix.
 // index contains the path's least significant bits.
 // depth indicates the number of bits from the most significant bit to treat as part of the path.

@@ -116,39 +116,6 @@ func TestSplit(t *testing.T) {
 	}
 }
 
-func TestNewNodeIDFromRelativeBigInt(t *testing.T) {
-	for _, tc := range []struct {
-		prefix     []byte
-		depth      int
-		index      int64
-		subDepth   int
-		totalDepth int
-		wantPath   []byte
-		wantDepth  int
-	}{
-		{prefix: h2b(""), depth: 8, index: 0, subDepth: 8, totalDepth: 64, wantPath: h2b("0000000000000000"), wantDepth: 8},
-		{prefix: h2b(""), depth: 8, index: 1, subDepth: 8, totalDepth: 64, wantPath: h2b("0100000000000000"), wantDepth: 8},
-		{prefix: h2b("00"), depth: 7, index: 1, subDepth: 8, totalDepth: 64, wantPath: h2b("0001000000000000"), wantDepth: 15},
-		{prefix: h2b("00"), depth: 8, index: 1, subDepth: 8, totalDepth: 64, wantPath: h2b("0001000000000000"), wantDepth: 16},
-		{prefix: h2b("00"), depth: 16, index: 257, subDepth: 16, totalDepth: 64, wantPath: h2b("0001010000000000"), wantDepth: 24},
-		{prefix: h2b("12345678"), depth: 8, index: 1, subDepth: 8, totalDepth: 64, wantPath: h2b("1234567801000000"), wantDepth: 40},
-
-		{prefix: h2b("00"), subDepth: 248, depth: 247, index: 1, totalDepth: 256, wantPath: h2b("0000000000000000000000000000000000000000000000000000000000000001"), wantDepth: 255},
-		{prefix: h2b("00000000000000000000"), subDepth: 176, depth: 176, index: 1, totalDepth: 256, wantPath: h2b("0000000000000000000000000000000000000000000000000000000000000001"), wantDepth: 256},
-	} {
-		i := big.NewInt(tc.index)
-		n := NewNodeIDFromRelativeBigInt(tc.prefix, tc.subDepth, tc.depth, i, tc.totalDepth)
-		if got, want := n.Path, tc.wantPath; !bytes.Equal(got, want) {
-			t.Errorf("NewNodeIDFromRelativeBigInt(%x, %v, %v, %v, %v).Path: %x, want %x",
-				tc.prefix, tc.depth, tc.index, tc.subDepth, tc.totalDepth, got, want)
-		}
-		if got, want := n.PrefixLenBits, tc.wantDepth; got != want {
-			t.Errorf("NewNodeIDFromRelativeBigInt(%x, %v, %v, %v, %v).Depth: %v, want %v",
-				tc.prefix, tc.depth, tc.index, tc.subDepth, tc.totalDepth, got, want)
-		}
-	}
-}
-
 func TestNewNodeIDFromPrefix(t *testing.T) {
 	for _, tc := range []struct {
 		prefix     []byte
