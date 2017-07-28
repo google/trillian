@@ -166,11 +166,18 @@ func NewNodeIDFromBigInt(depth int, index *big.Int, totalDepth int) NodeID {
 	copy(path[unusedHighBytes:], index.Bytes())
 
 	// TODO(gdbelvin): consider masking off insignificant bits past depth.
+	glog.V(5).Infof("NewNodeIDFromBigInt(%v, %x, %v): %v, %x",
+		depth, index.Bytes(), totalDepth, depth, path)
 
 	return NodeID{
 		Path:          path,
 		PrefixLenBits: depth,
 	}
+}
+
+// BigInt returns the big.Int for this node.
+func (n NodeID) BigInt() *big.Int {
+	return new(big.Int).SetBytes(n.Path)
 }
 
 // NewNodeIDWithPrefix creates a new NodeID of nodeIDLen bits with the prefixLen MSBs set to prefix.
@@ -335,6 +342,18 @@ func (n *NodeID) Siblings() []NodeID {
 		sibs[height] = *(n.Copy().MaskLeft(depth).Neighbor())
 	}
 	return sibs
+}
+
+// NewNodeIDFromPrefixSuffix undoes Split() and returns the NodeID.
+func NewNodeIDFromPrefixSuffix(prefix []byte, suffix Suffix, maxPathBits int) NodeID {
+	path := make([]byte, maxPathBits/8)
+	copy(path, prefix)
+	copy(path[len(prefix):], suffix.Path)
+
+	return NodeID{
+		Path:          path,
+		PrefixLenBits: len(prefix)*8 + int(suffix.Bits),
+	}
 }
 
 // Split splits a NodeID into a prefix and a suffix at prefixSplit
