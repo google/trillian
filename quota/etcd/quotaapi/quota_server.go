@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package quotapi provides a Quota admin server implementation.
+// Package quotaapi provides a Quota admin server implementation.
 package quotaapi
 
 import (
