@@ -17,18 +17,12 @@ package coniks
 import (
 	"bytes"
 	"crypto"
-	"encoding/hex"
 	"testing"
+
+	"github.com/google/trillian/testonly"
 )
 
-// h2b converts a hex string into a bytes string
-func h2b(h string) []byte {
-	b, err := hex.DecodeString(h)
-	if err != nil {
-		panic("invalid hex string")
-	}
-	return b
-}
+var h2b = testonly.MustHexDecode
 
 func TestVectors(t *testing.T) {
 	for _, tc := range []struct {
