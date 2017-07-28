@@ -437,14 +437,10 @@ func testSparseTreeFetches(ctx context.Context, t *testing.T, vec sparseTestVect
 				id := sibs[j].String()
 				pathNode := nodeID.String()[:len(id)]
 				if _, ok := reads[pathNode]; ok {
-					// we're modifying both children of a
-					// node because two keys are
-					// intersecting, since both will be
-					// recalculated neither will be read
-					// from storage so we remove the
-					// previously set expectation for this
-					// node's sibling, and skip adding one
-					// for this node:
+					// we're modifying both children of a node because two keys are
+					// intersecting, since both will be recalculated neither will be read
+					// from storage so we remove the previously set expectation for this
+					// node's sibling, and skip adding one for this node:
 					delete(reads, pathNode)
 					continue
 				}

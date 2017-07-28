@@ -303,7 +303,7 @@ func TestInclusionBatch(t *testing.T) {
 		{
 			desc:         "maphasher batch",
 			HashStrategy: trillian.HashStrategy_TEST_MAP_HASHER,
-			batchSize:    1, numBatches: 1,
+			batchSize:    64, numBatches: 32,
 		},
 		// TODO(gdbelvin): investigate batches of size > 150.
 		// We are currently getting DB connection starvation: Too many connections.

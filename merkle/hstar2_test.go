@@ -22,6 +22,7 @@ import (
 
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/merkle/maphasher"
+	"github.com/google/trillian/storage"
 	"github.com/google/trillian/testonly"
 )
 
@@ -145,10 +146,8 @@ func rootsForTrimmedKeys(t *testing.T, prefixSize int, lh []HStar2LeafHash) []HS
 			t.Fatalf("Failed to calculate root %v", err)
 		}
 
-		index := new(big.Int).SetBytes(prefix)
-		index = index.Lsh(index, uint(hasher.BitLen()-prefixSize))
 		ret = append(ret, HStar2LeafHash{
-			Index:    index,
+			Index:    storage.NewNodeIDFromPrefixSuffix(prefix, storage.Suffix{}, hasher.BitLen()).BigInt(),
 			LeafHash: root,
 		})
 	}
@@ -178,9 +177,7 @@ func TestHStar2OffsetRootKAT(t *testing.T) {
 			if got, want := root, x.root; !bytes.Equal(got, want) {
 				t.Errorf("HStar2Nodes(i: %v, size:%v): %x, want: %x", i, size, got, want)
 			}
-			break
 		}
-		break
 	}
 }
 
@@ -188,24 +185,7 @@ func TestHStar2NegativeTreeLevelOffset(t *testing.T) {
 	s := NewHStar2(treeID, maphasher.Default)
 
 	_, err := s.HStar2Nodes(make([]byte, 31), 9, []HStar2LeafHash{}, nil, nil)
-	if got, want := err, ErrNegativeTreeLevelOffset; got != want {
+	if got, want := err, ErrSubtreeOverrun; got != want {
 		t.Fatalf("Hstar2Nodes(): %v, want %v", got, want)
-	}
-}
-
-func TestPaddedBytes(t *testing.T) {
-	size := 160 / 8
-	for _, tc := range []struct {
-		i    *big.Int
-		want []byte
-	}{
-		{i: big.NewInt(0), want: h2b("0000000000000000000000000000000000000000")},
-		{i: big.NewInt(1), want: h2b("0000000000000000000000000000000000000001")},
-		{i: new(big.Int).SetBytes(h2b("00FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0F")), want: h2b("00FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0F")},
-		{i: new(big.Int).SetBytes(h2b("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0F")), want: h2b("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0F")},
-	} {
-		if got, want := PaddedBytes(tc.i, size), tc.want; !bytes.Equal(got, want) {
-			t.Errorf("PaddedBytes(%d): %x, want %x", tc.i, got, want)
-		}
 	}
 }
