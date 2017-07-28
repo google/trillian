@@ -381,15 +381,18 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int, gu
 	// where the tokens come from.
 	if numLeaves > 0 {
 		tokens := int(float64(numLeaves) * quotaIncreaseFactor())
-		glog.V(2).Infof("Replenishing %v tokens for tree %v (numLeaves = %v)", tokens, logID, leaves)
-		if err := s.qm.PutTokens(ctx, tokens, []quota.Spec{
+		specs := []quota.Spec{
 			{Group: quota.Tree, Kind: quota.Read, TreeID: logID},
 			{Group: quota.Tree, Kind: quota.Write, TreeID: logID},
 			{Group: quota.Global, Kind: quota.Read},
 			{Group: quota.Global, Kind: quota.Write},
-		}); err != nil {
+		}
+		glog.V(2).Infof("Replenishing %v tokens for tree %v (numLeaves = %v)", tokens, logID, leaves)
+		err := s.qm.PutTokens(ctx, tokens, specs)
+		if err != nil {
 			glog.Warningf("Failed to replenish %v tokens for tree %v: %v", tokens, logID, err)
 		}
+		quota.Metrics.IncReplenished(tokens, specs, err != nil)
 	}
 
 	seqCounter.Add(float64(numLeaves), label)

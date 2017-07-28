@@ -31,6 +31,7 @@ import (
 	_ "github.com/google/trillian/merkle/rfc6962"   // Load hashers
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/monitoring/prometheus"
+	"github.com/google/trillian/quota"
 	mysqlq "github.com/google/trillian/quota/mysql"
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/server/interceptor"
@@ -86,6 +87,8 @@ func main() {
 	}
 
 	mf := prometheus.MetricFactory{}
+	interceptor.InitMetrics(mf)
+	quota.InitMetrics(mf)
 
 	sf := &keys.DefaultSignerFactory{}
 	if *pkcs11ModulePath != "" {

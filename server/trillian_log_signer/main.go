@@ -98,6 +98,7 @@ func main() {
 	}
 
 	mf := prometheus.MetricFactory{}
+	quota.InitMetrics(mf)
 
 	sf := &keys.DefaultSignerFactory{}
 	if *pkcs11ModulePath != "" {

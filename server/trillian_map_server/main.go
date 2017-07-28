@@ -29,6 +29,7 @@ import (
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/monitoring/prometheus"
+	"github.com/google/trillian/quota"
 	mysqlq "github.com/google/trillian/quota/mysql"
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/server/interceptor"
@@ -70,6 +71,8 @@ func main() {
 		QuotaManager:  &mysqlq.QuotaManager{DB: db, MaxUnsequencedRows: *maxUnsequencedRows},
 		MetricFactory: prometheus.MetricFactory{},
 	}
+	interceptor.InitMetrics(registry.MetricFactory)
+	quota.InitMetrics(registry.MetricFactory)
 
 	ts := util.SystemTimeSource{}
 	stats := monitoring.NewRPCStatsInterceptor(ts, "map", registry.MetricFactory)

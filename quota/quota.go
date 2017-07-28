@@ -16,6 +16,8 @@ package quota
 
 import (
 	"context"
+	"fmt"
+	"strings"
 )
 
 // MaxTokens is the maximum number of available tokens a quota may have.
@@ -65,6 +67,34 @@ type Spec struct {
 	// User identifies the user for specs of the User group.
 	// Not used for other specs.
 	User string
+}
+
+// Name returns a textual representation of the Spec. Names are constant and may be relied upon to
+// not change in the future.
+//
+// Names are created as follows:
+// * Global quotas are mapped to "global/read" or "global/write"
+// * Tree quotas are mapped to "trees/$TreeID/$Kind". E.g., "trees/10/read".
+// * User quotas are mapped to "users/$User/$Kind". E.g., "trees/10/read".
+func (s Spec) Name() string {
+	group := strings.ToLower(fmt.Sprint(s.Group))
+	kind := strings.ToLower(fmt.Sprint(s.Kind))
+	if s.Group == Global {
+		return fmt.Sprintf("%v/%v", group, kind)
+	}
+	var user string
+	switch s.Group {
+	case Tree:
+		user = fmt.Sprint(s.TreeID)
+	case User:
+		user = s.User
+	}
+	return fmt.Sprintf("%vs/%v/%v", group, user, kind)
+}
+
+// String returns a description of Spec.
+func (s Spec) String() string {
+	return s.Name()
 }
 
 // Manager is the component responsible for the management of tokens.
