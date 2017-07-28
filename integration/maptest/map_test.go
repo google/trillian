@@ -124,43 +124,38 @@ func TestInclusion(t *testing.T) {
 		HashStrategy trillian.HashStrategy
 		leaves       []*trillian.MapLeaf
 	}{
-		/*
-			{
-				desc:         "maphasher single",
-				HashStrategy: trillian.HashStrategy_TEST_MAP_HASHER,
-				leaves: []*trillian.MapLeaf{
-					{Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("A")},
-				},
-			},
-			{
-				desc:         "maphasher multi",
-				HashStrategy: trillian.HashStrategy_TEST_MAP_HASHER,
-				leaves: []*trillian.MapLeaf{
-					{Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("A")},
-					{Index: h2b("0000000000000000000000000000000000000000000000000000000000000001"), LeafValue: []byte("B")},
-					{Index: h2b("0000000000000000000000000000000000000000000000000000000000000002"), LeafValue: []byte("C")},
-				},
-			},
-		*/
 		{
-			desc:         "CONIKS single",
+			desc:         "maphasher single",
+			HashStrategy: trillian.HashStrategy_TEST_MAP_HASHER,
+			leaves: []*trillian.MapLeaf{
+				{Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("A")},
+			},
+		},
+		{
+			desc:         "maphasher multi",
+			HashStrategy: trillian.HashStrategy_TEST_MAP_HASHER,
+			leaves: []*trillian.MapLeaf{
+				{Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("A")},
+				{Index: h2b("0000000000000000000000000000000000000000000000000000000000000001"), LeafValue: []byte("B")},
+				{Index: h2b("0000000000000000000000000000000000000000000000000000000000000002"), LeafValue: []byte("C")},
+			},
+		},
+		{
+			desc:         "CONIKS across subtrees",
 			HashStrategy: trillian.HashStrategy_CONIKS_SHA512_256,
 			leaves: []*trillian.MapLeaf{
-				//{Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("A")},
 				{Index: h2b("0000000000000180000000000000000000000000000000000000000000000000"), LeafValue: []byte("Z")},
 			},
 		},
-		/*
-			{
-				desc:         "CONIKS multi",
-				HashStrategy: trillian.HashStrategy_CONIKS_SHA512_256,
-				leaves: []*trillian.MapLeaf{
-					{Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("A")},
-					{Index: h2b("0000000000000000000000000000000000000000000000000000000000000001"), LeafValue: []byte("B")},
-					{Index: h2b("0000000000000000000000000000000000000000000000000000000000000002"), LeafValue: []byte("C")},
-				},
+		{
+			desc:         "CONIKS multi",
+			HashStrategy: trillian.HashStrategy_CONIKS_SHA512_256,
+			leaves: []*trillian.MapLeaf{
+				{Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("A")},
+				{Index: h2b("0000000000000000000000000000000000000000000000000000000000000001"), LeafValue: []byte("B")},
+				{Index: h2b("0000000000000000000000000000000000000000000000000000000000000002"), LeafValue: []byte("C")},
 			},
-		*/
+		},
 	} {
 		tree, hasher, err := newTreeWithHasher(ctx, env, tc.HashStrategy)
 		if err != nil {
