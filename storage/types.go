@@ -62,8 +62,7 @@ type NodeID struct {
 	PrefixLenBits int
 }
 
-// PathLenBits returns the number of bits available to store the path.
-// This is 8 * len(path).
+// PathLenBits returns 8 * len(path).
 func (n NodeID) PathLenBits() int {
 	return len(n.Path) * 8
 }
