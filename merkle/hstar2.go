@@ -22,7 +22,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/trillian/merkle/hashers"
-	"github.com/google/trillian/storage"
+	"github.com/google/trillian/node"
 )
 
 var (
@@ -89,7 +89,7 @@ func (s *HStar2) HStar2Nodes(prefix []byte, subtreeDepth int, values []HStar2Lea
 		return nil, ErrSubtreeOverrun
 	}
 	sort.Sort(ByIndex{values})
-	offset := storage.NewNodeIDFromPrefixSuffix(prefix, storage.Suffix{}, s.hasher.BitLen()).BigInt()
+	offset := node.NewNodeIDFromPrefixSuffix(prefix, node.Suffix{}, s.hasher.BitLen()).BigInt()
 	return s.hStar2b(depth, totalDepth, values, offset, get, set)
 }
 

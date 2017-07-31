@@ -42,6 +42,7 @@ import (
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/monitoring"
+	"github.com/google/trillian/node"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
@@ -422,12 +423,12 @@ func traverseTreeStorage(ls storage.LogStorage, treeID int64, ts int, rev int64)
 	}
 
 	for level := int64(0); level < levels; level++ {
-		for node := int64(0); node < nodesAtLevel; node++ {
+		for index := int64(0); index < nodesAtLevel; index++ {
 			// We're going to request one node at a time, which would normally be slow but we have
 			// the tree in RAM so it's not a real problem.
-			nodeID, err := storage.NewNodeIDForTreeCoords(level, node, 64)
+			nodeID, err := node.NewNodeIDForTreeCoords(level, index, 64)
 			if err != nil {
-				glog.Fatalf("NewNodeIDForTreeCoords: (%d, %d): got: %v, want: no err", level, node, err)
+				glog.Fatalf("NewNodeIDForTreeCoords: (%d, %d): got: %v, want: no err", level, index, err)
 			}
 
 			nodes, err := tx.GetMerkleNodes(context.TODO(), rev, []node.NodeID{nodeID})
@@ -438,7 +439,7 @@ func traverseTreeStorage(ls storage.LogStorage, treeID int64, ts int, rev int64)
 				glog.Fatalf("GetMerkleNodes: %s: want 1 node got: %v", nodeID.CoordString(), nodes)
 			}
 
-			fmt.Fprintf(out, "%6d %6d -> %s\n", level, node, hex.EncodeToString(nodes[0].Hash))
+			fmt.Fprintf(out, "%6d %6d -> %s\n", level, index, hex.EncodeToString(nodes[0].Hash))
 		}
 
 		nodesAtLevel = nodesAtLevel >> 1

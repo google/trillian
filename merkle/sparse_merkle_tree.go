@@ -211,7 +211,7 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context) {
 			s.root <- rootHashOrError{hash: nil, err: err}
 			return
 		}
-		nodeID := storage.NewNodeIDFromPrefixSuffix(ih.index, storage.Suffix{}, s.hasher.BitLen())
+		nodeID := node.NewNodeIDFromPrefixSuffix(ih.index, node.Suffix{}, s.hasher.BitLen())
 
 		leaves = append(leaves, HStar2LeafHash{
 			Index:    nodeID.BigInt(),
@@ -358,7 +358,7 @@ func NewSparseMerkleTreeWriter(ctx context.Context, treeID, rev int64, h hashers
 // RootAtRevision returns the sparse Merkle tree root hash at the specified
 // revision, or ErrNoSuchRevision if the requested revision doesn't exist.
 func (s SparseMerkleTreeReader) RootAtRevision(ctx context.Context, rev int64) ([]byte, error) {
-	rootNodeID := storage.NewEmptyNodeID(256)
+	rootNodeID := node.NewEmptyNodeID(256)
 	nodes, err := s.tx.GetMerkleNodes(ctx, rev, []node.NodeID{rootNodeID})
 	if err != nil {
 		return nil, err

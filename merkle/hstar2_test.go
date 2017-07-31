@@ -147,7 +147,7 @@ func rootsForTrimmedKeys(t *testing.T, prefixSize int, lh []HStar2LeafHash) []HS
 		}
 
 		ret = append(ret, HStar2LeafHash{
-			Index:    storage.NewNodeIDFromPrefixSuffix(prefix, storage.Suffix{}, hasher.BitLen()).BigInt(),
+			Index:    node.NewNodeIDFromPrefixSuffix(prefix, node.Suffix{}, hasher.BitLen()).BigInt(),
 			LeafHash: root,
 		})
 	}

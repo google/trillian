@@ -106,20 +106,20 @@ func snapshotConsistency(snapshot1, snapshot2, treeSize int64, maxBitLen int) ([
 	glog.V(vLevel).Infof("snapshotConsistency: %d -> %d", snapshot1, snapshot2)
 
 	level := 0
-	node := snapshot1 - 1
+	index := snapshot1 - 1
 
 	// Compute the (compressed) path to the root of snapshot2.
 	// Everything left of 'node' is equal in both trees; no need to record.
-	for (node & 1) != 0 {
-		glog.V(vvLevel).Infof("Move up: l:%d n:%d", level, node)
-		node >>= 1
+	for (index & 1) != 0 {
+		glog.V(vvLevel).Infof("Move up: l:%d n:%d", level, index)
+		index >>= 1
 		level++
 	}
 
-	if node != 0 {
-		glog.V(vvLevel).Infof("Not root snapshot1: %d", node)
-		// Not at the root of snapshot 1, record the node
-		n, err := storage.NewNodeIDForTreeCoords(int64(level), node, maxBitLen)
+	if index != 0 {
+		glog.V(vvLevel).Infof("Not root snapshot1: %d", index)
+		// Not at the root of snapshot 1, record the index
+		n, err := node.NewNodeIDForTreeCoords(int64(level), index, maxBitLen)
 		if err != nil {
 			return nil, err
 		}
@@ -127,15 +127,15 @@ func snapshotConsistency(snapshot1, snapshot2, treeSize int64, maxBitLen int) ([
 	}
 
 	// Now append the path from this node to the root of snapshot2.
-	p, err := pathFromNodeToRootAtSnapshot(node, level, snapshot2, treeSize, maxBitLen)
+	p, err := pathFromNodeToRootAtSnapshot(index, level, snapshot2, treeSize, maxBitLen)
 	if err != nil {
 		return nil, err
 	}
 	return append(proof, p...), nil
 }
 
-func pathFromNodeToRootAtSnapshot(node int64, level int, snapshot, treeSize int64, maxBitLen int) ([]NodeFetch, error) {
-	glog.V(vLevel).Infof("pathFromNodeToRootAtSnapshot(%d, %d, %d, %d, %d)", node, level, snapshot, treeSize, maxBitLen)
+func pathFromNodeToRootAtSnapshot(index int64, level int, snapshot, treeSize int64, maxBitLen int) ([]NodeFetch, error) {
+	glog.V(vLevel).Infof("pathFromNodeToRootAtSnapshot(%d, %d, %d, %d, %d)", index, level, snapshot, treeSize, maxBitLen)
 	proof := make([]NodeFetch, 0, bitLen(snapshot)+1)
 
 	if snapshot == 0 {
@@ -147,7 +147,7 @@ func pathFromNodeToRootAtSnapshot(node int64, level int, snapshot, treeSize int6
 
 	// Move up, recording the sibling of the current node at each level.
 	for lastNode != 0 {
-		sibling := node ^ 1
+		sibling := index ^ 1
 		if sibling < lastNode {
 			// The sibling is not the last node of the level in the snapshot tree
 			glog.V(vvLevel).Infof("Not last: S:%d L:%d", sibling, level)
@@ -166,7 +166,7 @@ func pathFromNodeToRootAtSnapshot(node int64, level int, snapshot, treeSize int6
 				// No recomputation required as we're using the tree in its current state
 				// Account for non existent nodes - these can only be the rightmost node at an
 				// intermediate (non leaf) level in the tree so will always be a right sibling.
-				n, err := siblingIDSkipLevels(snapshot, lastNode, level, node, maxBitLen)
+				n, err := siblingIDSkipLevels(snapshot, lastNode, level, index, maxBitLen)
 				if err != nil {
 					return nil, err
 				}
@@ -191,7 +191,7 @@ func pathFromNodeToRootAtSnapshot(node int64, level int, snapshot, treeSize int6
 		}
 
 		// Sibling > lastNode so does not exist, move up
-		node >>= 1
+		index >>= 1
 		lastNode >>= 1
 		level++
 	}
@@ -435,7 +435,7 @@ func checkRecomputation(fetches []NodeFetch) error {
 // siblingIDSkipLevels creates a new NodeID for the supplied node, accounting for levels skipped
 // in storage. Note that it returns an ID for the node sibling so care should be taken to pass the
 // correct value for the node parameter.
-func siblingIDSkipLevels(snapshot, lastNode int64, level int, node int64, maxBitLen int) (node.NodeID, error) {
-	l, sibling := skipMissingLevels(snapshot, lastNode, level, node)
-	return storage.NewNodeIDForTreeCoords(int64(l), sibling, maxBitLen)
+func siblingIDSkipLevels(snapshot, lastNode int64, level int, index int64, maxBitLen int) (node.NodeID, error) {
+	l, sibling := skipMissingLevels(snapshot, lastNode, level, index)
+	return node.NewNodeIDForTreeCoords(int64(l), sibling, maxBitLen)
 }
