@@ -68,12 +68,12 @@ var (
 	getConsistencyProofRequest25 = trillian.GetConsistencyProofRequest{LogId: logID1, FirstTreeSize: 10, SecondTreeSize: 25}
 	getConsistencyProofRequest7  = trillian.GetConsistencyProofRequest{LogId: logID1, FirstTreeSize: 4, SecondTreeSize: 7}
 
-	nodeIdsInclusionSize7Index2 = []storage.NodeID{
+	nodeIdsInclusionSize7Index2 = []node.NodeID{
 		stestonly.MustCreateNodeIDForTreeCoords(0, 3, 64),
 		stestonly.MustCreateNodeIDForTreeCoords(1, 0, 64),
 		stestonly.MustCreateNodeIDForTreeCoords(2, 1, 64)}
 
-	nodeIdsConsistencySize4ToSize7 = []storage.NodeID{stestonly.MustCreateNodeIDForTreeCoords(2, 1, 64)}
+	nodeIdsConsistencySize4ToSize7 = []node.NodeID{stestonly.MustCreateNodeIDForTreeCoords(2, 1, 64)}
 )
 
 func TestGetLeavesByIndexInvalidIndexRejected(t *testing.T) {

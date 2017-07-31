@@ -430,7 +430,7 @@ func traverseTreeStorage(ls storage.LogStorage, treeID int64, ts int, rev int64)
 				glog.Fatalf("NewNodeIDForTreeCoords: (%d, %d): got: %v, want: no err", level, node, err)
 			}
 
-			nodes, err := tx.GetMerkleNodes(context.TODO(), rev, []storage.NodeID{nodeID})
+			nodes, err := tx.GetMerkleNodes(context.TODO(), rev, []node.NodeID{nodeID})
 			if err != nil {
 				glog.Fatalf("GetMerkleNodes: %s: %v", nodeID.CoordString(), err)
 			}

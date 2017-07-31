@@ -101,7 +101,7 @@ func (r *rehasher) rehashedProof(leafIndex int64) (trillian.Proof, error) {
 // fetchNodes extracts the NodeIDs from a list of NodeFetch structs and passes them
 // to storage, returning the result after some additional validation checks.
 func fetchNodes(ctx context.Context, tx storage.NodeReader, treeRevision int64, fetches []merkle.NodeFetch) ([]storage.Node, error) {
-	proofNodeIDs := make([]storage.NodeID, 0, len(fetches))
+	proofNodeIDs := make([]node.NodeID, 0, len(fetches))
 
 	for _, fetch := range fetches {
 		proofNodeIDs = append(proofNodeIDs, fetch.NodeID)

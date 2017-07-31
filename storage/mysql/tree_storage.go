@@ -168,8 +168,8 @@ type treeTX struct {
 	writeRevision int64
 }
 
-func (t *treeTX) getSubtree(ctx context.Context, treeRevision int64, nodeID storage.NodeID) (*storagepb.SubtreeProto, error) {
-	s, err := t.getSubtrees(ctx, treeRevision, []storage.NodeID{nodeID})
+func (t *treeTX) getSubtree(ctx context.Context, treeRevision int64, nodeID node.NodeID) (*storagepb.SubtreeProto, error) {
+	s, err := t.getSubtrees(ctx, treeRevision, []node.NodeID{nodeID})
 	if err != nil {
 		return nil, err
 	}
@@ -183,7 +183,7 @@ func (t *treeTX) getSubtree(ctx context.Context, treeRevision int64, nodeID stor
 	}
 }
 
-func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []storage.NodeID) ([]*storagepb.SubtreeProto, error) {
+func (t *treeTX) getSubtrees(ctx context.Context, treeRevision int64, nodeIDs []node.NodeID) ([]*storagepb.SubtreeProto, error) {
 	glog.V(4).Infof("getSubtrees(")
 	if len(nodeIDs) == 0 {
 		return nil, nil
@@ -359,20 +359,20 @@ func (t *treeTX) GetTreeRevisionIncludingSize(ctx context.Context, treeSize int6
 
 // getSubtreesAtRev returns a GetSubtreesFunc which reads at the passed in rev.
 func (t *treeTX) getSubtreesAtRev(ctx context.Context, rev int64) cache.GetSubtreesFunc {
-	return func(ids []storage.NodeID) ([]*storagepb.SubtreeProto, error) {
+	return func(ids []node.NodeID) ([]*storagepb.SubtreeProto, error) {
 		return t.getSubtrees(ctx, rev, ids)
 	}
 }
 
 // GetMerkleNodes returns the requests nodes at (or below) the passed in treeRevision.
-func (t *treeTX) GetMerkleNodes(ctx context.Context, treeRevision int64, nodeIDs []storage.NodeID) ([]storage.Node, error) {
+func (t *treeTX) GetMerkleNodes(ctx context.Context, treeRevision int64, nodeIDs []node.NodeID) ([]storage.Node, error) {
 	return t.subtreeCache.GetNodes(nodeIDs, t.getSubtreesAtRev(ctx, treeRevision))
 }
 
 func (t *treeTX) SetMerkleNodes(ctx context.Context, nodes []storage.Node) error {
 	for _, n := range nodes {
 		err := t.subtreeCache.SetNodeHash(n.NodeID, n.Hash,
-			func(nID storage.NodeID) (*storagepb.SubtreeProto, error) {
+			func(nID node.NodeID) (*storagepb.SubtreeProto, error) {
 				return t.getSubtree(ctx, t.writeRevision, nID)
 			})
 		if err != nil {

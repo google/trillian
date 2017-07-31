@@ -25,7 +25,7 @@ import (
 )
 
 type subtreeHasPrefix struct {
-	expectedID storage.NodeID
+	expectedID node.NodeID
 }
 
 func (s subtreeHasPrefix) Matches(x interface{}) bool {
@@ -42,11 +42,11 @@ func (s subtreeHasPrefix) String() string {
 }
 
 type nodeIDEq struct {
-	expectedID storage.NodeID
+	expectedID node.NodeID
 }
 
 func (m nodeIDEq) Matches(x interface{}) bool {
-	n, ok := x.(storage.NodeID)
+	n, ok := x.(node.NodeID)
 	if !ok {
 		return false
 	}
@@ -58,7 +58,7 @@ func (m nodeIDEq) String() string {
 }
 
 // NodeIDEq returns a matcher that expects the specified NodeID.
-func NodeIDEq(n storage.NodeID) gomock.Matcher {
+func NodeIDEq(n node.NodeID) gomock.Matcher {
 	return nodeIDEq{n}
 }
 

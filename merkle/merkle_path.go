@@ -30,7 +30,7 @@ const vvLevel = 4
 // NodeFetch bundles a nodeID with additional information on how to use the node to construct the
 // correct proof.
 type NodeFetch struct {
-	NodeID storage.NodeID
+	NodeID node.NodeID
 	Rehash bool
 }
 
@@ -435,7 +435,7 @@ func checkRecomputation(fetches []NodeFetch) error {
 // siblingIDSkipLevels creates a new NodeID for the supplied node, accounting for levels skipped
 // in storage. Note that it returns an ID for the node sibling so care should be taken to pass the
 // correct value for the node parameter.
-func siblingIDSkipLevels(snapshot, lastNode int64, level int, node int64, maxBitLen int) (storage.NodeID, error) {
+func siblingIDSkipLevels(snapshot, lastNode int64, level int, node int64, maxBitLen int) (node.NodeID, error) {
 	l, sibling := skipMissingLevels(snapshot, lastNode, level, node)
 	return storage.NewNodeIDForTreeCoords(int64(l), sibling, maxBitLen)
 }

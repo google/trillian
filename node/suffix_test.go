@@ -26,7 +26,7 @@ const (
 	logStrataDepth = 8
 	maxLogDepth    = 64
 	// TODO(gdbelvin): remove these constants in favor of the real ones in
-	// storage/cache when merkle no longer depends on storage.NodeID
+	// storage/cache when merkle no longer depends on node.NodeID
 )
 
 func TestParseSuffix(t *testing.T) {

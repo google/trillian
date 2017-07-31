@@ -24,6 +24,6 @@ import (
 
 // NodeStorage provides an interface for storing and retrieving subtrees.
 type NodeStorage interface {
-	GetSubtree(n storage.NodeID) (*storagepb.SubtreeProto, error)
+	GetSubtree(n node.NodeID) (*storagepb.SubtreeProto, error)
 	SetSubtrees(s []*storagepb.SubtreeProto) error
 }

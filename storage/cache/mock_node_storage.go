@@ -34,7 +34,7 @@ func (_m *MockNodeStorage) EXPECT() *MockNodeStorageMockRecorder {
 }
 
 // GetSubtree mocks base method
-func (_m *MockNodeStorage) GetSubtree(_param0 storage.NodeID) (*storagepb.SubtreeProto, error) {
+func (_m *MockNodeStorage) GetSubtree(_param0 node.NodeID) (*storagepb.SubtreeProto, error) {
 	ret := _m.ctrl.Call(_m, "GetSubtree", _param0)
 	ret0, _ := ret[0].(*storagepb.SubtreeProto)
 	ret1, _ := ret[1].(error)

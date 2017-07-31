@@ -29,10 +29,10 @@ import (
 )
 
 // GetSubtreeFunc describes a function which can return a Subtree from storage.
-type GetSubtreeFunc func(id storage.NodeID) (*storagepb.SubtreeProto, error)
+type GetSubtreeFunc func(id node.NodeID) (*storagepb.SubtreeProto, error)
 
 // GetSubtreesFunc describes a function which can return a number of Subtrees from storage.
-type GetSubtreesFunc func(ids []storage.NodeID) ([]*storagepb.SubtreeProto, error)
+type GetSubtreesFunc func(ids []node.NodeID) ([]*storagepb.SubtreeProto, error)
 
 // SetSubtreesFunc describes a function which can store a collection of Subtrees into storage.
 type SetSubtreesFunc func(s []*storagepb.SubtreeProto) error
@@ -132,7 +132,7 @@ func (s *SubtreeCache) stratumInfoForPrefixLength(numBits int) stratumInfo {
 
 // splitNodeID breaks a NodeID out into its prefix and suffix parts.
 // unless ID is 0 bits long, Suffix must always contain at least one bit.
-func (s *SubtreeCache) splitNodeID(id storage.NodeID) ([]byte, storage.Suffix) {
+func (s *SubtreeCache) splitNodeID(id node.NodeID) ([]byte, storage.Suffix) {
 	sInfo := s.stratumInfoForPrefixLength(id.PrefixLenBits - 1)
 	return id.Split(sInfo.prefixBytes, sInfo.depth)
 }
@@ -140,12 +140,12 @@ func (s *SubtreeCache) splitNodeID(id storage.NodeID) ([]byte, storage.Suffix) {
 // preload calculates the set of subtrees required to know the hashes of the
 // passed in node IDs, uses getSubtrees to retrieve them, and finally populates
 // the cache structures with the data.
-func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc) error {
+func (s *SubtreeCache) preload(ids []node.NodeID, getSubtrees GetSubtreesFunc) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
 	// Figure out the set of subtrees we need:
-	want := make(map[string]*storage.NodeID)
+	want := make(map[string]*node.NodeID)
 	for _, id := range ids {
 		id := id
 		px, _ := s.splitNodeID(id)
@@ -163,7 +163,7 @@ func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc
 		return nil
 	}
 
-	list := make([]storage.NodeID, 0, len(want))
+	list := make([]node.NodeID, 0, len(want))
 	for _, v := range want {
 		list = append(list, *v)
 	}
@@ -197,7 +197,7 @@ func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc
 
 // GetNodes returns the requested nodes, calling the getSubtrees function if
 // they are not already cached.
-func (s *SubtreeCache) GetNodes(ids []storage.NodeID, getSubtrees GetSubtreesFunc) ([]storage.Node, error) {
+func (s *SubtreeCache) GetNodes(ids []node.NodeID, getSubtrees GetSubtreesFunc) ([]storage.Node, error) {
 	if glog.V(4) {
 		for _, n := range ids {
 			glog.Infof("cache: GetNodes(%x, %d", n.Path, n.PrefixLenBits)
@@ -211,11 +211,11 @@ func (s *SubtreeCache) GetNodes(ids []storage.NodeID, getSubtrees GetSubtreesFun
 	for _, id := range ids {
 		h, err := s.GetNodeHash(
 			id,
-			func(n storage.NodeID) (*storagepb.SubtreeProto, error) {
+			func(n node.NodeID) (*storagepb.SubtreeProto, error) {
 				// This should never happen - we should've already read all the data we
 				// need above, in Preload()
 				glog.Warningf("Unexpectedly reading from within GetNodeHash(): %s", n.String())
-				ret, err := getSubtrees([]storage.NodeID{n})
+				ret, err := getSubtrees([]node.NodeID{n})
 				if err != nil || len(ret) == 0 {
 					return nil, err
 				}
@@ -239,14 +239,14 @@ func (s *SubtreeCache) GetNodes(ids []storage.NodeID, getSubtrees GetSubtreesFun
 }
 
 // GetNodeHash returns a single node hash from the cache.
-func (s *SubtreeCache) GetNodeHash(id storage.NodeID, getSubtree GetSubtreeFunc) ([]byte, error) {
+func (s *SubtreeCache) GetNodeHash(id node.NodeID, getSubtree GetSubtreeFunc) ([]byte, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	return s.getNodeHashUnderLock(id, getSubtree)
 }
 
 // getNodeHashUnderLock must be called with s.mutex locked.
-func (s *SubtreeCache) getNodeHashUnderLock(id storage.NodeID, getSubtree GetSubtreeFunc) ([]byte, error) {
+func (s *SubtreeCache) getNodeHashUnderLock(id node.NodeID, getSubtree GetSubtreeFunc) ([]byte, error) {
 	px, sx := s.splitNodeID(id)
 	prefixKey := string(px)
 	c := s.subtrees[prefixKey]
@@ -304,7 +304,7 @@ func (s *SubtreeCache) getNodeHashUnderLock(id storage.NodeID, getSubtree GetSub
 }
 
 // SetNodeHash sets a node hash in the cache.
-func (s *SubtreeCache) SetNodeHash(id storage.NodeID, h []byte, getSubtree GetSubtreeFunc) error {
+func (s *SubtreeCache) SetNodeHash(id node.NodeID, h []byte, getSubtree GetSubtreeFunc) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	px, sx := s.splitNodeID(id)
@@ -379,7 +379,7 @@ func (s *SubtreeCache) Flush(setSubtrees SetSubtreesFunc) error {
 	return setSubtrees(treesToWrite)
 }
 
-func (s *SubtreeCache) newEmptySubtree(id storage.NodeID, px []byte) *storagepb.SubtreeProto {
+func (s *SubtreeCache) newEmptySubtree(id node.NodeID, px []byte) *storagepb.SubtreeProto {
 	sInfo := s.stratumInfoForPrefixLength(id.PrefixLenBits)
 	glog.V(1).Infof("Creating new empty subtree for %x, with depth %d", px, sInfo.depth)
 	// storage didn't have one for us, so we'll store an empty proto here
@@ -402,7 +402,7 @@ func PopulateMapSubtreeNodes(treeID int64, hasher hashers.MapHasher) storage.Pop
 		st.InternalNodes = make(map[string][]byte)
 		leaves := make([]merkle.HStar2LeafHash, 0, len(st.Leaves))
 		for k64, v := range st.Leaves {
-			sfx, err := storage.ParseSuffix(k64)
+			sfx, err := node.ParseSuffix(k64)
 			if err != nil {
 				return err
 			}

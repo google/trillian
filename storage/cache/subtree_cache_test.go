@@ -119,10 +119,10 @@ func TestCacheGetNodesReadsSubtrees(t *testing.T) {
 	m := NewMockNodeStorage(mockCtrl)
 	c := NewSubtreeCache(defaultLogStrata, PopulateMapSubtreeNodes(treeID, maphasher.Default), PrepareMapSubtreeWrite())
 
-	nodeIDs := []storage.NodeID{
-		storage.NewNodeIDFromHash([]byte("1234")),
-		storage.NewNodeIDFromHash([]byte("4567")),
-		storage.NewNodeIDFromHash([]byte("89ab")),
+	nodeIDs := []node.NodeID{
+		node.NewNodeIDFromHash([]byte("1234")),
+		node.NewNodeIDFromHash([]byte("4567")),
+		node.NewNodeIDFromHash([]byte("89ab")),
 	}
 
 	// Set up the expected reads:
@@ -143,7 +143,7 @@ func TestCacheGetNodesReadsSubtrees(t *testing.T) {
 		nodeIDs,
 		// Glue function to convert a call requesting multiple subtrees into a
 		// sequence of calls to our mock storage:
-		func(ids []storage.NodeID) ([]*storagepb.SubtreeProto, error) {
+		func(ids []node.NodeID) ([]*storagepb.SubtreeProto, error) {
 			ret := make([]*storagepb.SubtreeProto, 0)
 			for _, i := range ids {
 				r, err := m.GetSubtree(i)
@@ -161,7 +161,7 @@ func TestCacheGetNodesReadsSubtrees(t *testing.T) {
 	}
 }
 
-func noFetch(storage.NodeID) (*storagepb.SubtreeProto, error) {
+func noFetch(node.NodeID) (*storagepb.SubtreeProto, error) {
 	return nil, errors.New("not supposed to read anything")
 }
 
@@ -184,7 +184,7 @@ func TestCacheFlush(t *testing.T) {
 		//e := nodeID
 		e.PrefixLenBits = b
 		expectedSetIDs[e.String()] = "expected"
-		m.EXPECT().GetSubtree(stestonly.NodeIDEq(e)).Do(func(n storage.NodeID) {
+		m.EXPECT().GetSubtree(stestonly.NodeIDEq(e)).Do(func(n node.NodeID) {
 			t.Logf("read %v", n)
 		}).Return((*storagepb.SubtreeProto)(nil), nil)
 	}

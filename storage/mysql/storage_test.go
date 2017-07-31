@@ -42,7 +42,7 @@ func TestNodeRoundTrip(t *testing.T) {
 
 	const writeRevision = int64(100)
 	nodesToStore := createSomeNodes()
-	nodeIDsToRead := make([]storage.NodeID, len(nodesToStore))
+	nodeIDsToRead := make([]node.NodeID, len(nodesToStore))
 	for i := range nodesToStore {
 		nodeIDsToRead[i] = nodesToStore[i].NodeID
 	}
@@ -93,7 +93,7 @@ func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create test tree: %v", err)
 	}
-	nodeIDsToRead := make([]storage.NodeID, len(nodesToStore))
+	nodeIDsToRead := make([]node.NodeID, len(nodesToStore))
 	for i := range nodesToStore {
 		nodeIDsToRead[i] = nodesToStore[i].NodeID
 	}

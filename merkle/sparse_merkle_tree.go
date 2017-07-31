@@ -232,7 +232,7 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context) {
 			nodeID := storage.NewNodeIDFromBigInt(depth, index, s.hasher.BitLen())
 			glog.V(4).Infof("buildSubtree.get(%x, %d) nid: %x, %v",
 				index.Bytes(), depth, nodeID.Path, nodeID.PrefixLenBits)
-			nodes, err := s.tx.GetMerkleNodes(ctx, s.treeRevision, []storage.NodeID{nodeID})
+			nodes, err := s.tx.GetMerkleNodes(ctx, s.treeRevision, []node.NodeID{nodeID})
 			if err != nil {
 				return nil, err
 			}
@@ -359,7 +359,7 @@ func NewSparseMerkleTreeWriter(ctx context.Context, treeID, rev int64, h hashers
 // revision, or ErrNoSuchRevision if the requested revision doesn't exist.
 func (s SparseMerkleTreeReader) RootAtRevision(ctx context.Context, rev int64) ([]byte, error) {
 	rootNodeID := storage.NewEmptyNodeID(256)
-	nodes, err := s.tx.GetMerkleNodes(ctx, rev, []storage.NodeID{rootNodeID})
+	nodes, err := s.tx.GetMerkleNodes(ctx, rev, []node.NodeID{rootNodeID})
 	if err != nil {
 		return nil, err
 	}

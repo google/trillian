@@ -139,7 +139,7 @@ func (s Sequencer) buildMerkleTreeFromStorageAtRoot(ctx context.Context, root tr
 			glog.Warningf("%v: Failed to create nodeID: %v", root.LogId, err)
 			return nil, err
 		}
-		nodes, err := tx.GetMerkleNodes(ctx, root.TreeRevision, []storage.NodeID{nodeID})
+		nodes, err := tx.GetMerkleNodes(ctx, root.TreeRevision, []node.NodeID{nodeID})
 
 		if err != nil {
 			glog.Warningf("%v: Failed to get Merkle nodes: %v", root.LogId, err)
