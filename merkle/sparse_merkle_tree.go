@@ -24,6 +24,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/trillian/merkle/hashers"
+	"github.com/google/trillian/node"
 	"github.com/google/trillian/storage"
 )
 
@@ -56,6 +57,7 @@ type indexAndHash struct {
 
 // rootHashOrError represents a (sub-)tree root hash, or an error which
 // prevented the calculation from completing.
+// TODO(gdbelvin): represent an empty subtree with a nil hash?
 type rootHashOrError struct {
 	hash []byte
 	err  error
@@ -109,7 +111,7 @@ type subtreeWriter struct {
 	tx           storage.TreeTX
 	treeRevision int64
 
-	treeHasher hashers.MapHasher
+	hasher hashers.MapHasher
 
 	getSubtree getSubtreeFunc
 }
@@ -151,30 +153,31 @@ func (s *subtreeWriter) getOrCreateChildSubtree(ctx context.Context, childPrefix
 	return subtree, nil
 }
 
-// SetLeaf sets a single leaf hash for incorporation into the sparse Merkle
-// tree.
+// SetLeaf sets a single leaf hash for incorporation into the sparse Merkle tree.
+// index is the full path of the leaf, starting from the root (not the subtree's root).
 func (s *subtreeWriter) SetLeaf(ctx context.Context, index []byte, hash []byte) error {
-	indexLen := len(index) * 8
+	depth := len(index) * 8
+	absSubtreeDepth := len(s.prefix)*8 + s.subtreeDepth
 
 	switch {
-	case indexLen < s.subtreeDepth:
-		return fmt.Errorf("index length %d is < our depth %d", indexLen, s.subtreeDepth)
+	case depth < absSubtreeDepth:
+		return fmt.Errorf("depth: %d, want >= %d", depth, absSubtreeDepth)
 
-	case indexLen > s.subtreeDepth:
-		childPrefix := index[:s.subtreeDepth/8]
+	case depth > absSubtreeDepth:
+		childPrefix := index[:absSubtreeDepth/8]
 		subtree, err := s.getOrCreateChildSubtree(ctx, childPrefix)
 		if err != nil {
 			return err
 		}
 
-		return subtree.SetLeaf(ctx, index[s.subtreeDepth/8:], hash)
+		return subtree.SetLeaf(ctx, index, hash)
 
-	case indexLen == s.subtreeDepth:
-		s.leafQueue <- func() (*indexAndHash, error) { return &indexAndHash{index: index, hash: hash}, nil }
+	default: // depth == absSubtreeDepth:
+		s.leafQueue <- func() (*indexAndHash, error) {
+			return &indexAndHash{index: index, hash: hash}, nil
+		}
 		return nil
 	}
-
-	return fmt.Errorf("internal logic error in SetLeaf. index length: %d, subtreeDepth: %d", indexLen, s.subtreeDepth)
 }
 
 // CalculateRoot initiates the process of calculating the subtree root.
@@ -209,49 +212,51 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context) {
 			s.root <- rootHashOrError{hash: nil, err: err}
 			return
 		}
-		leaves = append(leaves, HStar2LeafHash{Index: new(big.Int).SetBytes(ih.index), LeafHash: ih.hash})
+		nodeID := node.NewNodeIDFromPrefixSuffix(ih.index, node.Suffix{}, s.hasher.BitLen())
+
+		leaves = append(leaves, HStar2LeafHash{
+			Index:    nodeID.BigInt(),
+			LeafHash: ih.hash,
+		})
 		nodesToStore = append(nodesToStore,
 			storage.Node{
-				NodeID:       storage.NewNodeIDFromHash(bytes.Join([][]byte{s.prefix, ih.index}, []byte{})),
+				NodeID:       nodeID,
 				Hash:         ih.hash,
 				NodeRevision: s.treeRevision,
 			})
-
 	}
 
 	// calculate new root, and intermediate nodes:
-	hs2 := NewHStar2(s.treeID, s.treeHasher)
-	treeDepthOffset := (s.treeHasher.Size()-len(s.prefix))*8 - s.subtreeDepth
-	totalDepth := len(s.prefix)*8 + s.subtreeDepth
-	root, err := hs2.HStar2Nodes(s.subtreeDepth, treeDepthOffset, leaves,
-		func(height int, index *big.Int) ([]byte, error) {
-			nodeID := storage.NewNodeIDFromRelativeBigInt(s.prefix, s.subtreeDepth, height, index, totalDepth)
+	hs2 := NewHStar2(s.treeID, s.hasher)
+	root, err := hs2.HStar2Nodes(s.prefix, s.subtreeDepth, leaves,
+		func(depth int, index *big.Int) ([]byte, error) {
+			nodeID := storage.NewNodeIDFromBigInt(depth, index, s.hasher.BitLen())
 			glog.V(4).Infof("buildSubtree.get(%x, %d) nid: %x, %v",
-				index.Bytes(), height, nodeID.Path, nodeID.PrefixLenBits)
-			nodes, err := s.tx.GetMerkleNodes(ctx, s.treeRevision, []storage.NodeID{nodeID})
+				index.Bytes(), depth, nodeID.Path, nodeID.PrefixLenBits)
+			nodes, err := s.tx.GetMerkleNodes(ctx, s.treeRevision, []node.NodeID{nodeID})
 			if err != nil {
 				return nil, err
 			}
 			if len(nodes) == 0 {
 				return nil, nil
 			}
-			if expected, got := nodeID, nodes[0].NodeID; !expected.Equivalent(got) {
-				return nil, fmt.Errorf("expected node ID %s from storage, but got %s", expected.String(), got.String())
+			if got, want := nodes[0].NodeID, nodeID; !got.Equivalent(want) {
+				return nil, fmt.Errorf("got node %s from storage, want %s", got, want)
 			}
-			if expected, got := s.treeRevision, nodes[0].NodeRevision; got > expected {
-				return nil, fmt.Errorf("expected node revision <= %d, but got %d", expected, got)
+			if got, want := nodes[0].NodeRevision, s.treeRevision; got > want {
+				return nil, fmt.Errorf("got node revision %d, want <= %d", got, want)
 			}
 			return nodes[0].Hash, nil
 		},
-		func(height int, index *big.Int, h []byte) error {
+		func(depth int, index *big.Int, h []byte) error {
 			// Don't store the root node of the subtree - that's part of the parent
 			// tree.
-			if height == 0 && len(s.prefix) > 0 {
+			if depth == len(s.prefix)*8 && len(s.prefix) > 0 {
 				return nil
 			}
-			nodeID := storage.NewNodeIDFromRelativeBigInt(s.prefix, s.subtreeDepth, height, index, totalDepth)
+			nodeID := storage.NewNodeIDFromBigInt(depth, index, s.hasher.BitLen())
 			glog.V(4).Infof("buildSubtree.set(%x, %v) nid: %x, %v : %x",
-				index.Bytes(), height, nodeID.Path, nodeID.PrefixLenBits, h)
+				index.Bytes(), depth, nodeID.Path, nodeID.PrefixLenBits, h)
 			nodesToStore = append(nodesToStore,
 				storage.Node{
 					NodeID:       nodeID,
@@ -321,7 +326,7 @@ func newLocalSubtreeWriter(ctx context.Context, treeID, rev int64, prefix []byte
 		root:         make(chan rootHashOrError, 1),
 		children:     make(map[string]Subtree),
 		tx:           tx,
-		treeHasher:   h,
+		hasher:       h,
 		getSubtree: func(ctx context.Context, p []byte) (Subtree, error) {
 			myPrefix := bytes.Join([][]byte{prefix, p}, []byte{})
 			return newLocalSubtreeWriter(ctx, treeID, rev, myPrefix, depths[1:], newTX, h)
@@ -354,8 +359,8 @@ func NewSparseMerkleTreeWriter(ctx context.Context, treeID, rev int64, h hashers
 // RootAtRevision returns the sparse Merkle tree root hash at the specified
 // revision, or ErrNoSuchRevision if the requested revision doesn't exist.
 func (s SparseMerkleTreeReader) RootAtRevision(ctx context.Context, rev int64) ([]byte, error) {
-	rootNodeID := storage.NewEmptyNodeID(256)
-	nodes, err := s.tx.GetMerkleNodes(ctx, rev, []storage.NodeID{rootNodeID})
+	rootNodeID := node.NewEmptyNodeID(256)
+	nodes, err := s.tx.GetMerkleNodes(ctx, rev, []node.NodeID{rootNodeID})
 	if err != nil {
 		return nil, err
 	}

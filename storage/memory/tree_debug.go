@@ -17,6 +17,7 @@ package memory
 import (
 	"github.com/golang/glog"
 	"github.com/google/btree"
+	"github.com/google/trillian/node"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/storagepb"
 )
@@ -38,7 +39,7 @@ func Dump(t *btree.BTree) {
 func DumpSubtrees(ls storage.LogStorage, treeID int64, callback func(string, *storagepb.SubtreeProto)) {
 	m := ls.(*memoryLogStorage)
 	tree := m.trees[treeID]
-	pi := subtreeKey(treeID, 0, storage.NewEmptyNodeID(64))
+	pi := subtreeKey(treeID, 0, node.NewEmptyNodeID(64))
 
 	tree.store.AscendGreaterOrEqual(pi, func(bi btree.Item) bool {
 		i := bi.(*kv)

@@ -29,6 +29,7 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/rfc6962"
+	"github.com/google/trillian/node"
 	"github.com/google/trillian/storage"
 	storageto "github.com/google/trillian/storage/testonly"
 )
@@ -42,7 +43,7 @@ func TestNodeRoundTrip(t *testing.T) {
 
 	const writeRevision = int64(100)
 	nodesToStore := createSomeNodes()
-	nodeIDsToRead := make([]storage.NodeID, len(nodesToStore))
+	nodeIDsToRead := make([]node.NodeID, len(nodesToStore))
 	for i := range nodesToStore {
 		nodeIDsToRead[i] = nodesToStore[i].NodeID
 	}
@@ -93,7 +94,7 @@ func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create test tree: %v", err)
 	}
-	nodeIDsToRead := make([]storage.NodeID, len(nodesToStore))
+	nodeIDsToRead := make([]node.NodeID, len(nodesToStore))
 	for i := range nodesToStore {
 		nodeIDsToRead[i] = nodesToStore[i].NodeID
 	}

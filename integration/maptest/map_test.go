@@ -88,7 +88,7 @@ func verifyGetMapLeavesResponse(getResp *trillian.GetMapLeavesResponse, indexes 
 		leafHash := incl.GetLeaf().GetLeafHash()
 		proof := incl.GetInclusion()
 
-		if got, want := leafHash, hasher.HashLeaf(treeID, index, hasher.BitLen(), leaf); !bytes.Equal(got, want) {
+		if got, want := leafHash, hasher.HashLeaf(treeID, index, 0, leaf); !bytes.Equal(got, want) {
 			return fmt.Errorf("HashLeaf(%s): %x, want %x", leaf, got, want)
 		}
 		if err := merkle.VerifyMapInclusionProof(treeID, index,
@@ -134,6 +134,22 @@ func TestInclusion(t *testing.T) {
 		{
 			desc:         "maphasher multi",
 			HashStrategy: trillian.HashStrategy_TEST_MAP_HASHER,
+			leaves: []*trillian.MapLeaf{
+				{Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("A")},
+				{Index: h2b("0000000000000000000000000000000000000000000000000000000000000001"), LeafValue: []byte("B")},
+				{Index: h2b("0000000000000000000000000000000000000000000000000000000000000002"), LeafValue: []byte("C")},
+			},
+		},
+		{
+			desc:         "CONIKS across subtrees",
+			HashStrategy: trillian.HashStrategy_CONIKS_SHA512_256,
+			leaves: []*trillian.MapLeaf{
+				{Index: h2b("0000000000000180000000000000000000000000000000000000000000000000"), LeafValue: []byte("Z")},
+			},
+		},
+		{
+			desc:         "CONIKS multi",
+			HashStrategy: trillian.HashStrategy_CONIKS_SHA512_256,
 			leaves: []*trillian.MapLeaf{
 				{Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("A")},
 				{Index: h2b("0000000000000000000000000000000000000000000000000000000000000001"), LeafValue: []byte("B")},
@@ -192,6 +208,7 @@ func TestInclusionBatch(t *testing.T) {
 		HashStrategy          trillian.HashStrategy
 		batchSize, numBatches int
 	}{
+
 		{
 			desc:         "maphasher batch",
 			HashStrategy: trillian.HashStrategy_TEST_MAP_HASHER,
@@ -206,7 +223,7 @@ func TestInclusionBatch(t *testing.T) {
 		}
 
 		if err := RunMapBatchTest(ctx, env, tree, tc.batchSize, tc.numBatches); err != nil {
-			t.Errorf("%v: %v", tc.desc, err)
+			t.Errorf("BatchSize: %v, Batches: %v: %v", tc.batchSize, tc.numBatches, err)
 		}
 	}
 }
@@ -356,8 +373,7 @@ func TestNonExistentLeaf(t *testing.T) {
 				t.Errorf("len(leaf): %v, want, %v", got, want)
 			}
 
-			if got, want := leafHash,
-				hasher.HashLeaf(tree.TreeId, index, hasher.BitLen(), leaf); !bytes.Equal(got, want) {
+			if got, want := leafHash, hasher.HashLeaf(tree.TreeId, index, 0, leaf); !bytes.Equal(got, want) {
 				t.Errorf("HashLeaf(%s): %x, want %x", leaf, got, want)
 			}
 			if err := merkle.VerifyMapInclusionProof(tree.TreeId, index,

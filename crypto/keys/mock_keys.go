@@ -6,10 +6,11 @@ package keys
 import (
 	context "context"
 	crypto "crypto"
+	reflect "reflect"
+
 	gomock "github.com/golang/mock/gomock"
 	proto "github.com/golang/protobuf/proto"
 	keyspb "github.com/google/trillian/crypto/keyspb"
-	reflect "reflect"
 )
 
 // MockSignerFactory is a mock of SignerFactory interface

@@ -30,6 +30,7 @@ import (
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/monitoring"
+	"github.com/google/trillian/node"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util"
@@ -139,7 +140,7 @@ func (s Sequencer) buildMerkleTreeFromStorageAtRoot(ctx context.Context, root tr
 			glog.Warningf("%v: Failed to create nodeID: %v", root.LogId, err)
 			return nil, err
 		}
-		nodes, err := tx.GetMerkleNodes(ctx, root.TreeRevision, []storage.NodeID{nodeID})
+		nodes, err := tx.GetMerkleNodes(ctx, root.TreeRevision, []node.NodeID{nodeID})
 
 		if err != nil {
 			glog.Warningf("%v: Failed to get Merkle nodes: %v", root.LogId, err)
