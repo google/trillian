@@ -322,11 +322,7 @@ func TestConfigName(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		got, err := configName(test.spec)
-		switch {
-		case err != nil:
-			t.Errorf("configName(%+v) returned err = %v", test.spec, err)
-		case got != test.want:
+		if got := configName(test.spec); got != test.want {
 			t.Errorf("configName(%+v) = %v, want = %v", test.spec, got, test.want)
 		}
 	}
@@ -369,11 +365,7 @@ type quotaDiffer struct {
 }
 
 func newQuotaDiffer(qs *storage.QuotaStorage, specs []quota.Spec) *quotaDiffer {
-	names, err := configNames(specs)
-	if err != nil {
-		panic(fmt.Sprintf("configNames(): %v", err))
-	}
-	return &quotaDiffer{qs: qs, names: names}
+	return &quotaDiffer{qs: qs, names: configNames(specs)}
 }
 
 func (d *quotaDiffer) snapshot(ctx context.Context) error {
