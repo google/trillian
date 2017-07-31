@@ -16,8 +16,6 @@ package merkle
 
 import (
 	"bytes"
-	"encoding/base64"
-	"encoding/hex"
 	"fmt"
 	"math/big"
 	"testing"
@@ -28,6 +26,11 @@ import (
 )
 
 const treeID = int64(0)
+
+var (
+	h2b   = testonly.MustHexDecode
+	deB64 = testonly.MustDecodeBase64
+)
 
 // Some known answers for incrementally adding index/value pairs to a sparse tree.
 // rootB64 is the incremental root after adding the corresponding i/v pair, and
@@ -200,22 +203,4 @@ func TestPaddedBytes(t *testing.T) {
 			t.Errorf("PaddedBytes(%d): %x, want %x", tc.i, got, want)
 		}
 	}
-}
-
-// deB64 converts a base64 string into []byte.
-func deB64(b64 string) []byte {
-	b, err := base64.StdEncoding.DecodeString(b64)
-	if err != nil {
-		panic("invalid base64 string")
-	}
-	return b
-}
-
-// h2b converts a hex string into []byte.
-func h2b(h string) []byte {
-	b, err := hex.DecodeString(h)
-	if err != nil {
-		panic("invalid hex string")
-	}
-	return b
 }

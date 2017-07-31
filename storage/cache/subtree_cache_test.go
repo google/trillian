@@ -16,7 +16,6 @@ package cache
 
 import (
 	"bytes"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"testing"
@@ -26,6 +25,7 @@ import (
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/storagepb"
+	"github.com/google/trillian/testonly"
 
 	"github.com/golang/mock/gomock"
 	"github.com/kylelemons/godebug/pretty"
@@ -33,8 +33,11 @@ import (
 	stestonly "github.com/google/trillian/storage/testonly"
 )
 
-var defaultLogStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8}
-var defaultMapStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 176}
+var (
+	defaultLogStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8}
+	defaultMapStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 176}
+	h2b              = testonly.MustHexDecode
+)
 
 const treeID = int64(0)
 
@@ -341,13 +344,4 @@ func TestGetStratumInfo(t *testing.T) {
 			t.Errorf("(test %d for depth %d) diff:\n%v", i, tv.depth, diff)
 		}
 	}
-}
-
-// h2b converts a hex string into []byte.
-func h2b(h string) []byte {
-	b, err := hex.DecodeString(h)
-	if err != nil {
-		panic("invalid hex string")
-	}
-	return b
 }

@@ -16,12 +16,15 @@ package storage
 
 import (
 	"bytes"
-	"encoding/hex"
 	"fmt"
 	"math/big"
 	"strconv"
 	"testing"
+
+	"github.com/google/trillian/testonly"
 )
+
+var h2b = testonly.MustHexDecode
 
 func TestNewNodeIDFromBigInt(t *testing.T) {
 	for _, tc := range []struct {
@@ -461,13 +464,4 @@ func h26(h string) uint64 {
 		panic(err)
 	}
 	return i
-}
-
-// h2b converts a hex string into []byte.
-func h2b(h string) []byte {
-	b, err := hex.DecodeString(h)
-	if err != nil {
-		panic("invalid hex string")
-	}
-	return b
 }
