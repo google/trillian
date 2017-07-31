@@ -24,6 +24,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/hashers"
+	"github.com/google/trillian/node"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/storagepb"
 )

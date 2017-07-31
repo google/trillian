@@ -18,7 +18,7 @@ package cache
 //go:generate mockgen -self_package github.com/google/trillian/storage/cache -package cache -imports github.com/google/trillian/storage/storagepb -destination mock_node_storage.go github.com/google/trillian/storage/cache NodeStorage
 
 import (
-	"github.com/google/trillian/storage"
+	"github.com/google/trillian/node"
 	"github.com/google/trillian/storage/storagepb"
 )
 

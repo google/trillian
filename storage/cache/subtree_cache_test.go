@@ -23,6 +23,7 @@ import (
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/maphasher"
 	"github.com/google/trillian/merkle/rfc6962"
+	"github.com/google/trillian/node"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/storagepb"
 	"github.com/google/trillian/testonly"

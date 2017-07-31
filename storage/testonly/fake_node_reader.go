@@ -22,6 +22,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/rfc6962"
+	"github.com/google/trillian/node"
 	"github.com/google/trillian/storage"
 )
 

@@ -31,6 +31,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/golang/mock/gomock"
 	"github.com/google/trillian/merkle/maphasher"
+	"github.com/google/trillian/node"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/testonly"
 )

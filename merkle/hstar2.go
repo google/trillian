@@ -23,6 +23,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/node"
+	"github.com/google/trillian/storage"
 )
 
 var (

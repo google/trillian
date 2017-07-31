@@ -22,7 +22,7 @@ import (
 
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/merkle/maphasher"
-	"github.com/google/trillian/storage"
+	"github.com/google/trillian/node"
 	"github.com/google/trillian/testonly"
 )
 

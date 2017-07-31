@@ -17,6 +17,7 @@ package memory
 import (
 	"github.com/golang/glog"
 	"github.com/google/btree"
+	"github.com/google/trillian/node"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/storagepb"
 )

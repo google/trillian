@@ -28,6 +28,7 @@ import (
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/merkle/rfc6962"
+	"github.com/google/trillian/node"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/storage"
 	stestonly "github.com/google/trillian/storage/testonly"

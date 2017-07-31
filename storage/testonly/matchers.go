@@ -20,6 +20,7 @@ import (
 	"sort"
 
 	"github.com/golang/mock/gomock"
+	"github.com/google/trillian/node"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/storagepb"
 )

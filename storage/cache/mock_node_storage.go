@@ -4,10 +4,11 @@
 package cache
 
 import (
-	gomock "github.com/golang/mock/gomock"
-	storage "github.com/google/trillian/storage"
-	storagepb "github.com/google/trillian/storage/storagepb"
 	reflect "reflect"
+
+	gomock "github.com/golang/mock/gomock"
+	"github.com/google/trillian/node"
+	storagepb "github.com/google/trillian/storage/storagepb"
 )
 
 // MockNodeStorage is a mock of NodeStorage interface

@@ -5,10 +5,11 @@ package storage
 
 import (
 	context "context"
-	gomock "github.com/golang/mock/gomock"
-	trillian "github.com/google/trillian"
 	reflect "reflect"
 	time "time"
+
+	gomock "github.com/golang/mock/gomock"
+	trillian "github.com/google/trillian"
 )
 
 // MockAdminStorage is a mock of AdminStorage interface

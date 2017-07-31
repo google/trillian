@@ -15,9 +15,7 @@
 // Package testonly holds test-specific code for Trillian storage layers.
 package testonly
 
-import (
-	"github.com/google/trillian/storage"
-)
+import "github.com/google/trillian/node"
 
 // MustCreateNodeIDForTreeCoords creates a NodeID for the given position in the tree.
 func MustCreateNodeIDForTreeCoords(depth, index int64, maxPathBits int) node.NodeID {

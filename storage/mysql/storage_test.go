@@ -29,6 +29,7 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/rfc6962"
+	"github.com/google/trillian/node"
 	"github.com/google/trillian/storage"
 	storageto "github.com/google/trillian/storage/testonly"
 )

@@ -20,6 +20,7 @@ import (
 
 	"github.com/golang/glog"
 	terr "github.com/google/trillian/errors"
+	"github.com/google/trillian/node"
 	"github.com/google/trillian/storage"
 )
 
