@@ -25,6 +25,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// TODO(codingllama): Remove after methods are implemented
 func TestServer_Unimplemented(t *testing.T) {
 	client, cleanup, err := startServer()
 	if err != nil {
