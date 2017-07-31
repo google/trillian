@@ -298,16 +298,28 @@ func TestInclusionBatch(t *testing.T) {
 		desc                  string
 		HashStrategy          trillian.HashStrategy
 		batchSize, numBatches int
+		large                 bool
 	}{
 
+		{
+			desc:         "maphasher short batch",
+			HashStrategy: trillian.HashStrategy_TEST_MAP_HASHER,
+			batchSize:    10, numBatches: 10,
+			large: false,
+		},
 		{
 			desc:         "maphasher batch",
 			HashStrategy: trillian.HashStrategy_TEST_MAP_HASHER,
 			batchSize:    64, numBatches: 32,
+			large: true,
 		},
 		// TODO(gdbelvin): investigate batches of size > 150.
 		// We are currently getting DB connection starvation: Too many connections.
 	} {
+		if testing.Short() && tc.large {
+			t.Logf("testing.Short() is true. Skipping %v", tc.desc)
+			continue
+		}
 		tree, _, err := newTreeWithHasher(ctx, env, tc.HashStrategy)
 		if err != nil {
 			t.Errorf("%v: newTreeWithHasher(%v): %v", tc.desc, tc.HashStrategy, err)
