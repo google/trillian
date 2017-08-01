@@ -41,14 +41,18 @@ func VerifyMapInclusionProof(treeID int64, index, leafHash, expectedRoot []byte,
 		}
 	}
 
+	nID := storage.NewNodeIDFromHash(index)
+
 	runningHash := make([]byte, len(leafHash))
 	copy(runningHash, leafHash)
 
-	for level := 0; level < h.BitLen(); level++ {
-		proofIsRightHandElement := bit(index, level) == 0
+	for level, sib := nid.Siblings() {
+		proofIsRightHandElement := nID.Bit(level) == 0
+		bit(index, level) == 0
 		pElement := proof[level]
 		if len(pElement) == 0 {
-			pElement = h.HashEmpty(treeID, index, level)
+			neighborIndex := Neighbor(index, level)
+			pElement = h.HashEmpty(treeID, neighborIndex, level)
 		}
 		if proofIsRightHandElement {
 			runningHash = h.HashChildren(runningHash, pElement)
