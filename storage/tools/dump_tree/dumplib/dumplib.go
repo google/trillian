@@ -278,7 +278,7 @@ func Main(args Options) string {
 	if err != nil {
 		glog.Fatalf("Failed to create a log hasher: %v", err)
 	}
-	repopFunc := cache.PopulateLogSubtreeNodes(hasher)
+	repopFunc := cache.LogPopulateFunc(hasher)
 
 	if args.LatestRevision {
 		return latestRevisions(ls, tree.TreeId, repopFunc, formatter, args.Rebuild, args.HexKeys)
@@ -328,14 +328,14 @@ func latestRevisions(ls storage.LogStorage, treeID int64, repopFunc storage.Popu
 	})
 
 	// Store the keys in sorted order
-	var keys []string
+	var sKeys []string
 	for k := range vMap {
-		keys = append(keys, k)
+		sKeys = append(sKeys, k)
 	}
-	sort.Strings(keys)
+	sort.Strings(sKeys)
 
 	// The map should now contain the latest revisions per subtree
-	for _, k := range keys {
+	for _, k := range sKeys {
 		v := vMap[k]
 		if rebuildInternal {
 			repopFunc(v.subtree)
