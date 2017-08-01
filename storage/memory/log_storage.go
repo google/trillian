@@ -149,7 +149,7 @@ func (m *memoryLogStorage) beginInternal(ctx context.Context, treeID int64, read
 		return nil, err
 	}
 
-	stCache := cache.NewSubtreeCache(defaultLogStrata, cache.PopulateLogSubtreeNodes(hasher), cache.PrepareLogSubtreeWrite())
+	stCache := cache.NewLogSubtreeCache(defaultLogStrata, hasher)
 	ttx, err := m.memoryTreeStorage.beginTreeTX(ctx, readonly, treeID, hasher.Size(), stCache)
 	if err != nil {
 		return nil, err
