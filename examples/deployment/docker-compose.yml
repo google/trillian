@@ -1,0 +1,28 @@
+version: '3'
+services:
+  mysql:
+    image: mysql:8
+    environment:
+      - MYSQL_ROOT_PASSWORD=$DB_PASSWORD
+  trillian-db-seed:
+    build:
+      context: ../..
+      dockerfile: ./examples/deployment/docker/db_client/Dockerfile
+    environment:
+      - DB_USER=root
+      - DB_PASSWORD=$DB_PASSWORD
+    command: ./wait-for-it.sh -t 0 mysql:3306 -- ./scripts/resetdb.sh --verbose --force -h mysql
+  trillian-server:
+    build:
+      context: ../..
+      dockerfile: examples/deployment/docker/log_server/Dockerfile
+    restart: always # retry while mysql is starting up
+    ports:
+      - "8090:8090"
+      - "8091:8091"
+    depends_on:
+      - mysql
+    environment:
+      - DB_USER=root
+      - DB_PASSWORD=$DB_PASSWORD
+      - DB_HOST=mysql:3306

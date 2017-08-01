@@ -4,11 +4,6 @@
 -- Tree stuff here
 -- ---------------------------------------------
 
--- Enable strict mode, so invalid data on inserts/updates is treated as error
--- instead of warning.
--- https://dev.mysql.com/doc/refman/5.7/en/sql-mode.html#sql-mode-strict
-SET GLOBAL sql_mode = 'STRICT_ALL_TABLES';
-
 -- Tree parameters should not be changed after creation. Doing so can
 -- render the data in the tree unusable or inconsistent.
 CREATE TABLE IF NOT EXISTS Trees(

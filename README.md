@@ -95,8 +95,10 @@ You can then set up the [expected tables](storage/mysql/storage.sql) in a
 
 ```bash
 ./scripts/resetdb.sh
-Completely wipe and reset database 'test'.
+Warning: about to destroy and reset database 'test'
 Are you sure? y
+> Resetting DB...
+> Reset Complete
 ```
 
 ### Integration Tests

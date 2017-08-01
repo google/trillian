@@ -15,3 +15,5 @@
 *.swp
 *~
 default.etcd
+*.tfstate
+*.tfstate.backup
