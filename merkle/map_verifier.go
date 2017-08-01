@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	"github.com/google/trillian/merkle/hashers"
+	"github.com/google/trillian/storage"
 )
 
 // VerifyMapInclusionProof verifies that the passed in expectedRoot can be
@@ -46,13 +47,11 @@ func VerifyMapInclusionProof(treeID int64, index, leafHash, expectedRoot []byte,
 	runningHash := make([]byte, len(leafHash))
 	copy(runningHash, leafHash)
 
-	for level, sib := nid.Siblings() {
+	for level, sib := range nID.Siblings() {
 		proofIsRightHandElement := nID.Bit(level) == 0
-		bit(index, level) == 0
 		pElement := proof[level]
 		if len(pElement) == 0 {
-			neighborIndex := Neighbor(index, level)
-			pElement = h.HashEmpty(treeID, neighborIndex, level)
+			pElement = h.HashEmpty(treeID, sib.Path, level)
 		}
 		if proofIsRightHandElement {
 			runningHash = h.HashChildren(runningHash, pElement)

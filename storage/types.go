@@ -313,22 +313,28 @@ func (n *NodeID) MaskLeft(depth int) *NodeID {
 		// Mask off unwanted bits in the last byte.
 		r[depthBytes-1] = r[depthBytes-1] & leftmask[depth%8]
 	}
+	if depth < n.PrefixLenBits {
+		n.PrefixLenBits = depth
+	}
 	n.Path = r
+	return n
+}
+
+// Neighbor sets this node to be it's own neighbor.
+func (n *NodeID) Neighbor() *NodeID {
+	height := n.PathLenBits() - n.PrefixLenBits
+	n.FlipRightBit(height)
 	return n
 }
 
 // Siblings returns the siblings of the given node.
 func (n *NodeID) Siblings() []NodeID {
-	r := make([]NodeID, n.PrefixLenBits)
-	// Index of the bit to twiddle:
-	bi := n.PathLenBits() - n.PrefixLenBits
-	for i := 0; i < len(r); i++ {
-		r[i] = *n.Copy()
-		r[i].FlipRightBit(bi)
-		r[i].PrefixLenBits = n.PrefixLenBits - i
-		bi++
+	sibs := make([]NodeID, n.PrefixLenBits)
+	for height := range sibs {
+		depth := n.PathLenBits() - height
+		sibs[height] = *(n.Copy().MaskLeft(depth).Neighbor())
 	}
-	return r
+	return sibs
 }
 
 // Split splits a NodeID into a prefix and a suffix at prefixSplit
