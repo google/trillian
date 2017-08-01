@@ -18,12 +18,9 @@ import (
 	"bytes"
 	"encoding/base64"
 	"fmt"
-	"math/big"
 	"sync"
 
 	"github.com/golang/glog"
-	"github.com/google/trillian/merkle"
-	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/storagepb"
 )
