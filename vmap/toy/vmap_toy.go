@@ -101,7 +101,7 @@ func main() {
 		for y := 0; y < batchSize; y++ {
 			index := testonly.HashKey(fmt.Sprintf("key-%d-%d", x, y))
 			h[y].HashedKey = index
-			h[y].HashedValue = hasher.HashLeaf(mapID, index, hasher.BitLen(), []byte(fmt.Sprintf("value-%d-%d", x, y)))
+			h[y].HashedValue = hasher.HashLeaf(mapID, index, []byte(fmt.Sprintf("value-%d-%d", x, y)))
 		}
 		glog.Infof("Created %d k/v pairs...", len(h))
 

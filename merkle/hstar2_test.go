@@ -63,7 +63,7 @@ func createHStar2Leaves(treeID int64, hasher hashers.MapHasher, iv ...[]byte) []
 		}
 		m[fmt.Sprintf("%x", index)] = HStar2LeafHash{
 			Index:    new(big.Int).SetBytes(index),
-			LeafHash: hasher.HashLeaf(treeID, index, hasher.BitLen(), b),
+			LeafHash: hasher.HashLeaf(treeID, index, b),
 		}
 	}
 

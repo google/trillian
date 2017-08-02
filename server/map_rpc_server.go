@@ -106,7 +106,7 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 			leaf = &trillian.MapLeaf{
 				Index:     index,
 				LeafValue: nil,
-				LeafHash:  hasher.HashLeaf(mapID, index, hasher.BitLen(), nil),
+				LeafHash:  hasher.HashLeaf(mapID, index, nil),
 			}
 		}
 
@@ -167,7 +167,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 				"len(%x): %v, want %v", l.Index, got, want)
 		}
 		// TODO(gbelvin) use LeafHash rather than computing here. #423
-		l.LeafHash = hasher.HashLeaf(mapID, l.Index, hasher.BitLen(), l.LeafValue)
+		l.LeafHash = hasher.HashLeaf(mapID, l.Index, l.LeafValue)
 
 		if err = tx.Set(ctx, l.Index, *l); err != nil {
 			return nil, err

@@ -57,7 +57,7 @@ func (o *objloghasher) HashLeaf(leaf []byte) []byte {
 }
 
 // HashLeaf returns the object hash of leaf, which must be a JSON object.
-func (o *objmaphasher) HashLeaf(treeID int64, index []byte, height int, leaf []byte) []byte {
+func (o *objmaphasher) HashLeaf(treeID int64, index []byte, leaf []byte) []byte {
 	hash := objecthash.CommonJSONHash(string(leaf))
 	return hash[:]
 }

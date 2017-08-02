@@ -88,7 +88,7 @@ func verifyGetMapLeavesResponse(getResp *trillian.GetMapLeavesResponse, indexes 
 		leafHash := incl.GetLeaf().GetLeafHash()
 		proof := incl.GetInclusion()
 
-		if got, want := leafHash, hasher.HashLeaf(treeID, index, hasher.BitLen(), leaf); !bytes.Equal(got, want) {
+		if got, want := leafHash, hasher.HashLeaf(treeID, index, leaf); !bytes.Equal(got, want) {
 			return fmt.Errorf("HashLeaf(%s): %x, want %x", leaf, got, want)
 		}
 		if err := merkle.VerifyMapInclusionProof(treeID, index,
@@ -356,8 +356,7 @@ func TestNonExistentLeaf(t *testing.T) {
 				t.Errorf("len(leaf): %v, want, %v", got, want)
 			}
 
-			if got, want := leafHash,
-				hasher.HashLeaf(tree.TreeId, index, hasher.BitLen(), leaf); !bytes.Equal(got, want) {
+			if got, want := leafHash, hasher.HashLeaf(tree.TreeId, index, leaf); !bytes.Equal(got, want) {
 				t.Errorf("HashLeaf(%s): %x, want %x", leaf, got, want)
 			}
 			if err := merkle.VerifyMapInclusionProof(tree.TreeId, index,

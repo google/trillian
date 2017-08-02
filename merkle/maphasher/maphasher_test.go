@@ -46,7 +46,7 @@ func TestHStar2Equivalence(t *testing.T) {
 	m := New(crypto.SHA256)
 	star := hstar{
 		hasher:          m,
-		hStarEmptyCache: [][]byte{m.HashLeaf(treeID, nil, m.BitLen(), []byte(""))},
+		hStarEmptyCache: [][]byte{m.HashLeaf(treeID, nil, []byte(""))},
 	}
 	fullDepth := m.Size() * 8
 	for i := 0; i < fullDepth; i++ {
