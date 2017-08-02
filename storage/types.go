@@ -320,7 +320,7 @@ func (n *NodeID) MaskLeft(depth int) *NodeID {
 	return n
 }
 
-// Neighbor sets this node to be it's own neighbor.
+// Neighbor returns the same node with the bit at PrefixLenBits flipped.
 func (n *NodeID) Neighbor() *NodeID {
 	height := n.PathLenBits() - n.PrefixLenBits
 	n.FlipRightBit(height)
@@ -331,7 +331,7 @@ func (n *NodeID) Neighbor() *NodeID {
 func (n *NodeID) Siblings() []NodeID {
 	sibs := make([]NodeID, n.PrefixLenBits)
 	for height := range sibs {
-		depth := n.PathLenBits() - height
+		depth := n.PrefixLenBits - height
 		sibs[height] = *(n.Copy().MaskLeft(depth).Neighbor())
 	}
 	return sibs
