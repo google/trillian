@@ -166,6 +166,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 			return nil, status.Errorf(codes.InvalidArgument,
 				"len(%x): %v, want %v", l.Index, got, want)
 		}
+		// TODO(gbelvin) use LeafHash rather than computing here. #423
 		l.LeafHash = hasher.HashLeaf(mapID, l.Index, l.LeafValue)
 
 		if err = tx.Set(ctx, l.Index, *l); err != nil {
