@@ -93,7 +93,7 @@ func TestMapHasherTestVectors(t *testing.T) {
 		{"short proof", tv.Index, tv.Value, tv.ExpectedRoot, [][]byte{[]byte("shorty")}, false},
 		{"excess proof", tv.Index, tv.Value, tv.ExpectedRoot, make([][]byte, h.Size()*8+1), false},
 	} {
-		leafHash := h.HashLeaf(treeID, tc.index, h.BitLen(), tc.leaf)
+		leafHash := h.HashLeaf(treeID, tc.index, tc.leaf)
 		err := VerifyMapInclusionProof(treeID, tc.index, leafHash, tc.root, tc.proof, h)
 		if got := err == nil; got != tc.want {
 			t.Errorf("%v: VerifyMapInclusionProof(): %v, want %v", tc.desc, err, tc.want)

@@ -40,7 +40,7 @@ type MapHasher interface {
 	// TODO(gbelvin) fully define index.
 	HashEmpty(treeID int64, index []byte, height int) []byte
 	// HashLeaf computes the hash of a leaf that exists.
-	HashLeaf(treeID int64, index []byte, height int, leaf []byte) []byte
+	HashLeaf(treeID int64, index []byte, leaf []byte) []byte
 	// HashChildren computes interior nodes.
 	HashChildren(l, r []byte) []byte
 	// Size is the number of bytes in the underlying hash function.

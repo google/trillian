@@ -71,9 +71,8 @@ func (m *hasher) HashEmpty(treeID int64, index []byte, height int) []byte {
 
 // HashLeaf calculate the merkle tree leaf value:
 // H(Identifier || treeID || depth || index || dataHash)
-func (m *hasher) HashLeaf(treeID int64, index []byte, height int, leaf []byte) []byte {
-	depth := m.BitLen() - height
-
+func (m *hasher) HashLeaf(treeID int64, index []byte, leaf []byte) []byte {
+	depth := m.BitLen()
 	h := m.New()
 	h.Write(leafIdentifier)
 	binary.Write(h, binary.BigEndian, uint64(treeID))

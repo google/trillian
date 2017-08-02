@@ -358,7 +358,7 @@ func testSparseTreeCalculatedRootWithWriter(ctx context.Context, t *testing.T, r
 		index := testonly.HashKey(kv.k)
 		leaves = append(leaves, HashKeyValue{
 			HashedKey:   index,
-			HashedValue: w.hasher.HashLeaf(treeID, index, w.hasher.BitLen(), []byte(kv.v)),
+			HashedValue: w.hasher.HashLeaf(treeID, index, []byte(kv.v)),
 		})
 	}
 
@@ -599,7 +599,7 @@ func TestSparseMerkleTreeWriterBigBatch(t *testing.T) {
 		for y := 0; y < batchSize; y++ {
 			index := testonly.HashKey(fmt.Sprintf("key-%d-%d", x, y))
 			h[y].HashedKey = index
-			h[y].HashedValue = w.hasher.HashLeaf(treeID, index, w.hasher.BitLen(), []byte(fmt.Sprintf("value-%d-%d", x, y)))
+			h[y].HashedValue = w.hasher.HashLeaf(treeID, index, []byte(fmt.Sprintf("value-%d-%d", x, y)))
 		}
 		if err := w.SetLeaves(ctx, h); err != nil {
 			t.Fatalf("Failed to batch %d: %v", x, err)
