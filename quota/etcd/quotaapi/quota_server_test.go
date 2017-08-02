@@ -20,6 +20,8 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"sort"
+	"strings"
 	"sync"
 	"testing"
 
@@ -49,10 +51,33 @@ var (
 			SequencingBased: &quotapb.SequencingBasedStrategy{},
 		},
 	}
+	globalRead = copyWithName(globalWrite, "quotas/global/read/config")
+	tree1Read  = copyWithName(globalWrite, "quotas/trees/1/read/config")
+	tree1Write = copyWithName(globalWrite, "quotas/trees/1/write/config")
+	tree2Read  = copyWithName(globalWrite, "quotas/trees/2/read/config")
+	tree2Write = copyWithName(globalWrite, "quotas/trees/2/write/config")
+	userRead   = &quotapb.Config{
+		Name:      "quotas/users/llama/read/config",
+		State:     quotapb.Config_ENABLED,
+		MaxTokens: 100,
+		ReplenishmentStrategy: &quotapb.Config_TimeBased{
+			TimeBased: &quotapb.TimeBasedStrategy{
+				TokensToReplenish:        10000,
+				ReplenishIntervalSeconds: 100,
+			},
+		},
+	}
+	userWrite = copyWithName(userRead, "quotas/users/llama/write/config")
 
 	etcdClient  *clientv3.Client
 	quotaClient quotapb.QuotaClient
 )
+
+func copyWithName(c *quotapb.Config, name string) *quotapb.Config {
+	cp := *c
+	cp.Name = name
+	return &cp
+}
 
 func TestMain(m *testing.M) {
 	_, ec, stopEtcd, err := etcd.StartEtcd()
@@ -74,41 +99,6 @@ func TestMain(m *testing.M) {
 	stopServer()
 	stopEtcd()
 	os.Exit(exitCode)
-}
-
-// TODO(codingllama): Remove after methods are implemented
-func TestServer_Unimplemented(t *testing.T) {
-	tests := []struct {
-		desc string
-		fn   func(context.Context, quotapb.QuotaClient) error
-	}{
-		{
-			desc: "DeleteConfig",
-			fn: func(ctx context.Context, client quotapb.QuotaClient) error {
-				_, err := client.DeleteConfig(ctx, &quotapb.DeleteConfigRequest{})
-				return err
-			},
-		},
-		{
-			desc: "ListConfig",
-			fn: func(ctx context.Context, client quotapb.QuotaClient) error {
-				_, err := client.ListConfigs(ctx, &quotapb.ListConfigsRequest{})
-				return err
-			},
-		},
-	}
-
-	ctx := context.Background()
-	want := codes.Unimplemented
-	for _, test := range tests {
-		err := test.fn(ctx, quotaClient)
-		switch s, ok := status.FromError(err); {
-		case !ok:
-			t.Errorf("%v() returned a non-gRPC error: %v", test.desc, err)
-		case s.Code() != want:
-			t.Errorf("%v() returned err = %v, wantCode = %s", test.desc, err, want)
-		}
-	}
 }
 
 func TestServer_CreateConfig(t *testing.T) {
@@ -388,24 +378,8 @@ func TestServer_UpdateConfig_Race(t *testing.T) {
 		t.Fatalf("reset() returned err = %v", err)
 	}
 
-	// Quotas we'll use for the test, one of each type
-	globalRead := *globalWrite
-	globalRead.Name = "quotas/global/read/config"
-	treeRead := *globalWrite
-	treeRead.Name = "quotas/trees/1/read/config"
-	treeWrite := *globalWrite
-	treeWrite.Name = "quotas/trees/1/write/config"
-	userRead := *globalWrite
-	userRead.Name = "quotas/users/llama/read/config"
-	userRead.ReplenishmentStrategy = &quotapb.Config_TimeBased{
-		TimeBased: &quotapb.TimeBasedStrategy{
-			TokensToReplenish:        userRead.MaxTokens,
-			ReplenishIntervalSeconds: 100,
-		},
-	}
-	userWrite := userRead
-	userWrite.Name = "quotas/users/llama/write/config"
-	configs := []*quotapb.Config{&globalRead, globalWrite, &treeRead, &treeWrite, &userRead, &userWrite}
+	// Quotas we'll use for the test, a few of each type
+	configs := []*quotapb.Config{globalRead, globalWrite, tree1Read, tree1Write, userRead, userWrite}
 
 	// Create the configs we'll use for the test concurrently.
 	// If we get any errors a msg is sent to createErrs; that's a sign to stop
@@ -514,7 +488,30 @@ func runUpsertTest(ctx context.Context, test upsertTest, rpc upsertRPC, rpcName 
 	case !proto.Equal(stored, test.wantCfg):
 		return fmt.Errorf("%v: post-GetConfig() diff:\n%v", test.desc, pretty.Compare(stored, test.wantCfg))
 	}
+
 	return nil
+}
+
+func TestServer_DeleteConfigErrors(t *testing.T) {
+	tests := []struct {
+		desc     string
+		req      *quotapb.DeleteConfigRequest
+		wantCode codes.Code
+	}{
+		{
+			desc:     "unimplemented",
+			req:      &quotapb.DeleteConfigRequest{Name: globalWriteName},
+			wantCode: codes.Unimplemented,
+		},
+	}
+
+	ctx := context.Background()
+	for _, test := range tests {
+		_, err := quotaClient.DeleteConfig(ctx, test.req)
+		if s, ok := status.FromError(err); !ok || s.Code() != test.wantCode {
+			t.Errorf("%v: DeleteConfig() returned err = %v, wantCode = %s", test.desc, err, test.wantCode)
+		}
+	}
 }
 
 func TestServer_GetConfigErrors(t *testing.T) {
@@ -550,6 +547,127 @@ func TestServer_GetConfigErrors(t *testing.T) {
 		_, err := quotaClient.GetConfig(ctx, test.req)
 		if s, ok := status.FromError(err); !ok || s.Code() != test.wantCode {
 			t.Errorf("%v: GetConfig() returned err = %v, wantCode = %s", test.desc, err, test.wantCode)
+		}
+	}
+}
+
+func TestServer_ListConfigs(t *testing.T) {
+	ctx := context.Background()
+	if err := reset(ctx); err != nil {
+		t.Fatalf("reset() returned err = %v", err)
+	}
+
+	// Test listing with an empty config first, so we can work with a fixed list of configs from
+	// here on
+	resp, err := quotaClient.ListConfigs(ctx, &quotapb.ListConfigsRequest{})
+	switch {
+	case err != nil:
+		t.Errorf("empty: ListConfigs() returned err = %v", err)
+	case len(resp.Configs) != 0:
+		t.Errorf("empty: ListConfigs() returned >0 results: %v", err)
+	}
+
+	configs := []*quotapb.Config{
+		globalRead, globalWrite,
+		tree1Read, tree1Write,
+		tree2Read, tree2Write,
+		userRead, userWrite,
+	}
+	for _, cfg := range configs {
+		if _, err := quotaClient.CreateConfig(ctx, &quotapb.CreateConfigRequest{
+			Name:   cfg.Name,
+			Config: cfg,
+		}); err != nil {
+			t.Fatalf("%q: CreateConfig() returned err = %v", cfg.Name, err)
+		}
+	}
+
+	basicGlobalRead := &quotapb.Config{Name: globalRead.Name}
+	basicGlobalWrite := &quotapb.Config{Name: globalWriteName}
+	basicTree1Read := &quotapb.Config{Name: tree1Read.Name}
+	basicTree1Write := &quotapb.Config{Name: tree1Write.Name}
+	basicTree2Read := &quotapb.Config{Name: tree2Read.Name}
+	basicTree2Write := &quotapb.Config{Name: tree2Write.Name}
+	basicUserRead := &quotapb.Config{Name: userRead.Name}
+	basicUserWrite := &quotapb.Config{Name: userWrite.Name}
+
+	tests := []struct {
+		desc     string
+		req      *quotapb.ListConfigsRequest
+		wantCfgs []*quotapb.Config
+	}{
+		{
+			desc: "allBasicView",
+			req:  &quotapb.ListConfigsRequest{},
+			wantCfgs: []*quotapb.Config{
+				basicGlobalWrite, basicGlobalRead,
+				basicTree1Read, basicTree1Write,
+				basicTree2Read, basicTree2Write,
+				basicUserRead, basicUserWrite,
+			},
+		},
+		{
+			desc:     "allFullView",
+			req:      &quotapb.ListConfigsRequest{View: quotapb.ListConfigsRequest_FULL},
+			wantCfgs: configs,
+		},
+		{
+			desc:     "allTrees",
+			req:      &quotapb.ListConfigsRequest{Names: []string{"quotas/trees/-/-/config"}},
+			wantCfgs: []*quotapb.Config{basicTree1Read, basicTree1Write, basicTree2Read, basicTree2Write},
+		},
+		{
+			desc:     "allUsers",
+			req:      &quotapb.ListConfigsRequest{Names: []string{"quotas/users/-/-/config"}},
+			wantCfgs: []*quotapb.Config{basicUserRead, basicUserWrite},
+		},
+		{
+			desc: "unknowns",
+			req: &quotapb.ListConfigsRequest{
+				Names: []string{
+					"quotas/trees/99997/read/config",
+					"quotas/trees/99998/write/config",
+					"quotas/trees/99999/-/config",
+					"quotas/users/unknown/-/config",
+				},
+			},
+		},
+	}
+	for _, test := range tests {
+		resp, err := quotaClient.ListConfigs(ctx, test.req)
+		if err != nil {
+			t.Errorf("%v: ListConfigs() returned err = %v", test.desc, err)
+			continue
+		}
+
+		got := resp.Configs
+		want := resp.Configs
+		sort.Slice(got, func(i, j int) bool { return strings.Compare(got[i].Name, got[j].Name) == -1 })
+		sort.Slice(want, func(i, j int) bool { return strings.Compare(want[i].Name, want[j].Name) == -1 })
+		if diff := pretty.Compare(got, want); diff != "" {
+			t.Errorf("%v: post-ListConfigs() diff (-got +want):\n:%v", test.desc, diff)
+		}
+	}
+}
+
+func TestServer_ListConfigsErrors(t *testing.T) {
+	tests := []struct {
+		desc     string
+		req      *quotapb.ListConfigsRequest
+		wantCode codes.Code
+	}{
+		{
+			desc:     "badNameFilter",
+			req:      &quotapb.ListConfigsRequest{Names: []string{"bad/quota/name"}},
+			wantCode: codes.InvalidArgument,
+		},
+	}
+
+	ctx := context.Background()
+	for _, test := range tests {
+		_, err := quotaClient.ListConfigs(ctx, test.req)
+		if s, ok := status.FromError(err); !ok || s.Code() != test.wantCode {
+			t.Errorf("%v: ListConfigs() returned err = %v, wantCode = %s", test.desc, err, test.wantCode)
 		}
 	}
 }

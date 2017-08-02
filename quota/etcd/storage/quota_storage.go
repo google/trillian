@@ -394,5 +394,6 @@ func bucketKey(cfg *storagepb.Config) string {
 }
 
 func isNameValid(name string) bool {
+	// TODO(codingllama): treeID passing %d doesn't mean it fits on an int64
 	return globalPattern.MatchString(name) || treesPattern.MatchString(name) || usersPattern.MatchString(name)
 }

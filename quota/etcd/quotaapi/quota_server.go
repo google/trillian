@@ -27,8 +27,6 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-var errNotImplemented = status.Error(codes.Unimplemented, "not implemented")
-
 // Server is a quotapb.QuotaServer implementation backed by etcd.
 type Server struct {
 	qs *storage.QuotaStorage
@@ -67,7 +65,7 @@ func (s *Server) CreateConfig(ctx context.Context, req *quotapb.CreateConfigRequ
 
 // DeleteConfig implements quotapb.QuotaServer.DeleteConfig.
 func (s *Server) DeleteConfig(ctx context.Context, req *quotapb.DeleteConfigRequest) (*empty.Empty, error) {
-	return nil, errNotImplemented
+	return nil, status.Error(codes.Unimplemented, "not implemented")
 }
 
 // GetConfig implements quotapb.QuotaServer.GetConfig.
@@ -95,7 +93,47 @@ func getConfig(name string, cfgs *storagepb.Configs, code codes.Code) (*quotapb.
 
 // ListConfigs implements quotapb.QuotaServer.ListConfigs.
 func (s *Server) ListConfigs(ctx context.Context, req *quotapb.ListConfigsRequest) (*quotapb.ListConfigsResponse, error) {
-	return nil, errNotImplemented
+	nfs := make([]nameFilter, 0, len(req.Names))
+	for _, name := range req.Names {
+		nf, err := newNameFilter(name)
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
+		nfs = append(nfs, nf)
+	}
+
+	cfgs, err := s.qs.Configs(ctx)
+	if err != nil {
+		return nil, err
+	}
+	resp := &quotapb.ListConfigsResponse{}
+	for _, cfg := range cfgs.Configs {
+		if listMatches(nfs, cfg) {
+			resp.Configs = append(resp.Configs, listView(req.View, cfg))
+		}
+	}
+	return resp, nil
+}
+
+func listMatches(nfs []nameFilter, cfg *storagepb.Config) bool {
+	if len(nfs) == 0 {
+		return true // Match all
+	}
+	for _, nf := range nfs {
+		if nf.matches(cfg.Name) {
+			return true
+		}
+	}
+	return false
+}
+
+func listView(view quotapb.ListConfigsRequest_ListView, src *storagepb.Config) *quotapb.Config {
+	switch view {
+	case quotapb.ListConfigsRequest_BASIC:
+		return &quotapb.Config{Name: src.Name}
+	default:
+		return convertToAPI(src)
+	}
 }
 
 // UpdateConfig implements quotapb.QuotaServer.UpdateConfig.
