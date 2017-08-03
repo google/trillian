@@ -62,7 +62,7 @@ func (s *Server) CreateConfig(ctx context.Context, req *quotapb.CreateConfigRequ
 	case err != nil:
 		return nil, err
 	}
-	return getConfig(req.Name, updated, configRequired)
+	return getConfig(req.Name, updated, codes.Internal)
 }
 
 // DeleteConfig implements quotapb.QuotaServer.DeleteConfig.
@@ -80,28 +80,15 @@ func (s *Server) GetConfig(ctx context.Context, req *quotapb.GetConfigRequest) (
 	if err != nil {
 		return nil, err
 	}
-	return getConfig(req.Name, cfgs, configOptional)
+	return getConfig(req.Name, cfgs, codes.NotFound)
 }
 
-type getConfigMode int
-
-const (
-	configRequired getConfigMode = iota
-	configOptional
-)
-
 // getConfig finds the Config named "name" on "cfgs", converts it to API and returns it.
-// "mode" defines the returned error if the config can't be found: configRequired returns Internal,
-// configOptional returns NotFound.
-func getConfig(name string, cfgs *storagepb.Configs, mode getConfigMode) (*quotapb.Config, error) {
+// If the config cannot be found an error with code "code" is returned.
+func getConfig(name string, cfgs *storagepb.Configs, code codes.Code) (*quotapb.Config, error) {
 	cfg, ok := findByName(name, cfgs)
 	if !ok {
-		if mode == configRequired {
-			// configRequired means we strongly expect the config to be present in cfgs (e.g., it
-			// was just created or updated). If it's not found an Internal error is in order.
-			return nil, status.Errorf(codes.Internal, "required config %q not found", name)
-		}
-		return nil, status.Errorf(codes.NotFound, "%q not found", name)
+		return nil, status.Errorf(code, "%q not found", name)
 	}
 	return convertToAPI(cfg), nil
 }
@@ -147,7 +134,7 @@ func (s *Server) UpdateConfig(ctx context.Context, req *quotapb.UpdateConfigRequ
 	case err != nil:
 		return nil, err
 	}
-	return getConfig(req.Name, updated, configRequired)
+	return getConfig(req.Name, updated, codes.Internal)
 }
 
 func findByName(name string, cfgs *storagepb.Configs) (*storagepb.Config, bool) {
