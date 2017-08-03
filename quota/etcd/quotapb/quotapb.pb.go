@@ -413,7 +413,7 @@ type UpdateConfigRequest struct {
 	// Fields modified by the update request.
 	// For example: "state" or "max_tokens".
 	UpdateMask *google_protobuf2.FieldMask `protobuf:"bytes,3,opt,name=update_mask,json=updateMask" json:"update_mask,omitempty"`
-	// If true the updated quota is reset, regardless of the updates's contents.
+	// If true the updated quota is reset, regardless of the update's contents.
 	// A reset quota is replenished to its maximum number of tokens.
 	ResetQuota bool `protobuf:"varint,4,opt,name=reset_quota,json=resetQuota" json:"reset_quota,omitempty"`
 }

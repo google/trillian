@@ -134,7 +134,7 @@ message UpdateConfigRequest {
   // For example: "state" or "max_tokens".
   google.protobuf.FieldMask update_mask = 3;
 
-  // If true the updated quota is reset, regardless of the updates's contents.
+  // If true the updated quota is reset, regardless of the update's contents.
   // A reset quota is replenished to its maximum number of tokens.
   bool reset_quota = 4;
 }

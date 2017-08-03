@@ -29,7 +29,7 @@ import (
 
 var errNotImplemented = status.Error(codes.Unimplemented, "not implemented")
 
-// Server is a quotapb.QuotaServer implementation.
+// Server is a quotapb.QuotaServer implementation backed by etcd.
 type Server struct {
 	qs *storage.QuotaStorage
 }
@@ -51,8 +51,7 @@ func (s *Server) CreateConfig(ctx context.Context, req *quotapb.CreateConfigRequ
 
 	var alreadyExists bool
 	updated, err := s.qs.UpdateConfigs(ctx, false /* reset */, func(cfgs *storagepb.Configs) {
-		_, alreadyExists = findByName(req.Name, cfgs)
-		if alreadyExists {
+		if _, alreadyExists = findByName(req.Name, cfgs); alreadyExists {
 			return
 		}
 		cfgs.Configs = append(cfgs.Configs, convertToStorage(req.Config))
@@ -63,7 +62,7 @@ func (s *Server) CreateConfig(ctx context.Context, req *quotapb.CreateConfigRequ
 	case err != nil:
 		return nil, err
 	}
-	return replyFromConfigs(req.Name, updated)
+	return getConfig(req.Name, updated, configRequired)
 }
 
 // DeleteConfig implements quotapb.QuotaServer.DeleteConfig.
@@ -81,9 +80,28 @@ func (s *Server) GetConfig(ctx context.Context, req *quotapb.GetConfigRequest) (
 	if err != nil {
 		return nil, err
 	}
-	cfg, ok := findByName(req.Name, cfgs)
+	return getConfig(req.Name, cfgs, configOptional)
+}
+
+type getConfigMode int
+
+const (
+	configRequired getConfigMode = iota
+	configOptional
+)
+
+// getConfig finds the Config named "name" on "cfgs", converts it to API and returns it.
+// "mode" defines the returned error if the config can't be found: configRequired returns Internal,
+// configOptional returns NotFound.
+func getConfig(name string, cfgs *storagepb.Configs, mode getConfigMode) (*quotapb.Config, error) {
+	cfg, ok := findByName(name, cfgs)
 	if !ok {
-		return nil, status.Errorf(codes.NotFound, "%q not found", req.Name)
+		if mode == configRequired {
+			// configRequired means we strongly expect the config to be present in cfgs (e.g., it
+			// was just created or updated). If it's not found an Internal error is in order.
+			return nil, status.Errorf(codes.Internal, "required config %q not found", name)
+		}
+		return nil, status.Errorf(codes.NotFound, "%q not found", name)
 	}
 	return convertToAPI(cfg), nil
 }
@@ -129,7 +147,7 @@ func (s *Server) UpdateConfig(ctx context.Context, req *quotapb.UpdateConfigRequ
 	case err != nil:
 		return nil, err
 	}
-	return replyFromConfigs(req.Name, updated)
+	return getConfig(req.Name, updated, configRequired)
 }
 
 func findByName(name string, cfgs *storagepb.Configs) (*storagepb.Config, bool) {
@@ -139,14 +157,4 @@ func findByName(name string, cfgs *storagepb.Configs) (*storagepb.Config, bool) 
 		}
 	}
 	return nil, false
-}
-
-func replyFromConfigs(name string, cfgs *storagepb.Configs) (*quotapb.Config, error) {
-	cfg, ok := findByName(name, cfgs)
-	if !ok {
-		// May happen if we experience concurrent (and conflicting) requests, but unlikely in
-		// practice.
-		return nil, status.Errorf(codes.Internal, "cannot find %q for response", name)
-	}
-	return convertToAPI(cfg), nil
 }

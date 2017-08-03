@@ -30,13 +30,6 @@ const (
 )
 
 var (
-	validPaths = map[string]bool{
-		statePath:           true,
-		maxTokensPath:       true,
-		sequencingBasedPath: true,
-		timeBasedPath:       true,
-	}
-
 	commonMask          = &field_mask.FieldMask{Paths: []string{statePath, maxTokensPath}}
 	sequencingBasedMask = &field_mask.FieldMask{Paths: append(commonMask.Paths, sequencingBasedPath)}
 	timeBasedMask       = &field_mask.FieldMask{Paths: append(commonMask.Paths, timeBasedPath)}
@@ -52,18 +45,20 @@ func validateMask(mask *field_mask.FieldMask) error {
 	sequencingBasedFound := false
 	timeBasedFound := false
 	for _, path := range mask.Paths {
-		switch {
-		case path == sequencingBasedPath:
+		switch path {
+		case statePath, maxTokensPath:
+			// OK
+		case sequencingBasedPath:
 			if timeBasedFound {
 				return errBothReplenishmentStrategies
 			}
 			sequencingBasedFound = true
-		case path == timeBasedPath:
+		case timeBasedPath:
 			if sequencingBasedFound {
 				return errBothReplenishmentStrategies
 			}
 			timeBasedFound = true
-		case !validPaths[path]:
+		default:
 			return fmt.Errorf("invalid field path for Config: %q", path)
 		}
 	}
