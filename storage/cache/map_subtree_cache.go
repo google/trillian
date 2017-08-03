@@ -61,7 +61,7 @@ func populateMapSubtreeNodes(treeID int64, hasher hashers.MapHasher) storage.Pop
 				return nil, nil
 			},
 			func(depth int, index *big.Int, h []byte) error {
-				if depth == 0 {
+				if depth == 0 && len(st.Prefix) > 0 {
 					// no space for the root in the node cache
 					return nil
 				}
