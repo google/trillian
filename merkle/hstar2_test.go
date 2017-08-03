@@ -136,7 +136,7 @@ func rootsForTrimmedKeys(t *testing.T, prefixSize int, lh []HStar2LeafHash) []HS
 	for i := range lh {
 		subtreeDepth := s.hasher.BitLen() - prefixSize
 		prefix := lh[i].Index.Bytes()
-		// ensure we've got any chopped off leading zero bytes
+		// Left pad prefix with zeros back out to 32 bytes.
 		for len(prefix) < 32 {
 			prefix = append([]byte{0}, prefix...)
 		}
