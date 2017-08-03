@@ -249,7 +249,7 @@ func (n *NodeID) SetBit(i int, b uint) {
 	}
 }
 
-// Bit returns 1 if the ith bit is true, and false otherwise.
+// Bit returns 1 if the ith bit from the right is true, and false otherwise.
 func (n *NodeID) Bit(i int) uint {
 	if got, want := i, n.PathLenBits()-1; got > want {
 		panic(fmt.Sprintf("storage: Bit(%v) > (PathLenBits() -1): %v", got, want))
@@ -282,20 +282,59 @@ func (n *NodeID) CoordString() string {
 	return fmt.Sprintf("[d:%d, i:%d]", d, i>>d)
 }
 
+// Copy returns a duplicate of NodeID
+func (n *NodeID) Copy() *NodeID {
+	p := make([]byte, len(n.Path))
+	copy(p, n.Path)
+	return &NodeID{
+		Path:          p,
+		PrefixLenBits: n.PrefixLenBits,
+	}
+}
+
+// FlipRightBit flips the ith bit from LSB
+func (n *NodeID) FlipRightBit(i int) *NodeID {
+	n.SetBit(i, n.Bit(i)^1)
+	return n
+}
+
+// leftmask contains bitmasks indexed such that the left x bits are set. It is
+// indexed by byte position from 0-7 0 is special cased to 0xFF since 8 mod 8
+// is 0. leftmask is only used to mask the last byte.
+var leftmask = [8]byte{0xFF, 0x80, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC, 0xFE}
+
+// MaskLeft returns NodeID with only the left n bits set
+func (n *NodeID) MaskLeft(depth int) *NodeID {
+	r := make([]byte, len(n.Path))
+	if depth > 0 {
+		// Copy the first depthBytes.
+		depthBytes := bytesForBits(depth)
+		copy(r, n.Path[:depthBytes])
+		// Mask off unwanted bits in the last byte.
+		r[depthBytes-1] = r[depthBytes-1] & leftmask[depth%8]
+	}
+	if depth < n.PrefixLenBits {
+		n.PrefixLenBits = depth
+	}
+	n.Path = r
+	return n
+}
+
+// Neighbor returns the same node with the bit at PrefixLenBits flipped.
+func (n *NodeID) Neighbor() *NodeID {
+	height := n.PathLenBits() - n.PrefixLenBits
+	n.FlipRightBit(height)
+	return n
+}
+
 // Siblings returns the siblings of the given node.
 func (n *NodeID) Siblings() []NodeID {
-	r := make([]NodeID, n.PrefixLenBits, n.PrefixLenBits)
-	l := n.PrefixLenBits
-	// Index of the bit to twiddle:
-	bi := n.PathLenBits() - n.PrefixLenBits
-	for i := 0; i < len(r); i++ {
-		r[i].PrefixLenBits = l - i
-		r[i].Path = make([]byte, len(n.Path))
-		copy(r[i].Path, n.Path)
-		r[i].SetBit(bi, n.Bit(bi)^1)
-		bi++
+	sibs := make([]NodeID, n.PrefixLenBits)
+	for height := range sibs {
+		depth := n.PrefixLenBits - height
+		sibs[height] = *(n.Copy().MaskLeft(depth).Neighbor())
 	}
-	return r
+	return sibs
 }
 
 // Split splits a NodeID into a prefix and a suffix at prefixSplit
