@@ -58,8 +58,7 @@ func populateMapSubtreeNodes(treeID int64, hasher hashers.MapHasher) storage.Pop
 		hs2 := merkle.NewHStar2(treeID, hasher)
 		root, err := hs2.HStar2Nodes(st.Prefix, int(st.Depth), leaves, nil,
 			func(depth int, index *big.Int, h []byte) error {
-				//if depth == 0 && len(st.Prefix) > 0 {
-				if depth == len(st.Prefix)*8 {
+				if depth == len(st.Prefix)*8 && len(st.Prefix) > 0 {
 					// no space for the root in the node cache
 					return nil
 				}
