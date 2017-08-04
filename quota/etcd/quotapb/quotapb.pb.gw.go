@@ -113,18 +113,18 @@ func request_Quota_GetConfig_0(ctx context.Context, marshaler runtime.Marshaler,
 }
 
 var (
-	filter_Quota_ListConfig_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
+	filter_Quota_ListConfigs_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
 )
 
-func request_Quota_ListConfig_0(ctx context.Context, marshaler runtime.Marshaler, client QuotaClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq ListConfigRequest
+func request_Quota_ListConfigs_0(ctx context.Context, marshaler runtime.Marshaler, client QuotaClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq ListConfigsRequest
 	var metadata runtime.ServerMetadata
 
-	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_Quota_ListConfig_0); err != nil {
+	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_Quota_ListConfigs_0); err != nil {
 		return nil, metadata, grpc.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
-	msg, err := client.ListConfig(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	msg, err := client.ListConfigs(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
 
 }
@@ -274,7 +274,7 @@ func RegisterQuotaHandler(ctx context.Context, mux *runtime.ServeMux, conn *grpc
 
 	})
 
-	mux.Handle("GET", pattern_Quota_ListConfig_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("GET", pattern_Quota_ListConfigs_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
 		if cn, ok := w.(http.CloseNotifier); ok {
@@ -291,14 +291,14 @@ func RegisterQuotaHandler(ctx context.Context, mux *runtime.ServeMux, conn *grpc
 		if err != nil {
 			runtime.HTTPError(ctx, outboundMarshaler, w, req, err)
 		}
-		resp, md, err := request_Quota_ListConfig_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_Quota_ListConfigs_0(rctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_Quota_ListConfig_0(ctx, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_Quota_ListConfigs_0(ctx, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -340,7 +340,7 @@ var (
 
 	pattern_Quota_GetConfig_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 3, 0, 2, 2, 4, 3, 5, 3}, []string{"v1beta1", "quotas", "config", "name"}, ""))
 
-	pattern_Quota_ListConfig_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1beta1", "quotas"}, ""))
+	pattern_Quota_ListConfigs_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1beta1", "quotas"}, ""))
 
 	pattern_Quota_UpdateConfig_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 3, 0, 2, 2, 4, 3, 5, 3}, []string{"v1beta1", "quotas", "config", "name"}, ""))
 )
@@ -352,7 +352,7 @@ var (
 
 	forward_Quota_GetConfig_0 = runtime.ForwardResponseMessage
 
-	forward_Quota_ListConfig_0 = runtime.ForwardResponseMessage
+	forward_Quota_ListConfigs_0 = runtime.ForwardResponseMessage
 
 	forward_Quota_UpdateConfig_0 = runtime.ForwardResponseMessage
 )
