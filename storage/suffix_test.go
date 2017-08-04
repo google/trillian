@@ -29,6 +29,66 @@ const (
 	// storage/cache when merkle no longer depends on storage.NodeID
 )
 
+//h2b6 takes a hex string and emits a base64 string
+func h2b6(h string) string {
+	return base64.StdEncoding.EncodeToString(h2b(h))
+}
+
+func TestParseSuffix(t *testing.T) {
+	for _, tc := range []struct {
+		suffix   string
+		wantBits byte
+		wantPath []byte
+		wantErr  bool
+	}{
+		{h2b6("0100"), 1, h2b("00"), false},
+		{h2b6("0801"), 8, h2b("01"), false},
+		{"----", 1, h2b("00"), true},
+	} {
+		sfx, err := ParseSuffix(tc.suffix)
+		if got, want := err != nil, tc.wantErr; got != want {
+			t.Errorf("ParseSuffix(%s): %v, wantErr: %v", tc.suffix, err, want)
+			continue
+		}
+		if err != nil {
+			continue
+		}
+		if got, want := sfx.Bits, tc.wantBits; got != want {
+			t.Errorf("ParseSuffix(%s).Bits: %v, want %v", tc.suffix, got, want)
+		}
+		if got, want := sfx.Path, tc.wantPath; !bytes.Equal(got, want) {
+			t.Errorf("ParseSuffix(%s).Path: %x, want %x", tc.suffix, got, want)
+		}
+	}
+}
+
+func TestSplitParseSuffixRoundtrip(t *testing.T) {
+	for _, tc := range []struct {
+		prefix    []byte
+		leafIndex int64
+		want      []byte
+	}{
+		{h2b(""), 1, h2b("0801")},
+		{h2b("00"), 1, h2b("0801")},
+	} {
+		nodeID := NewNodeIDFromPrefix(tc.prefix, logStrataDepth, tc.leafIndex, logStrataDepth, maxLogDepth)
+		_, sfx := nodeID.Split(len(tc.prefix), logStrataDepth)
+		sfxKey := sfx.String()
+
+		sfxP, err := ParseSuffix(sfxKey)
+		if err != nil {
+			t.Errorf("ParseSuffix(%s): %v", sfxKey, err)
+			continue
+		}
+		if got, want := sfx.Bits, sfxP.Bits; got != want {
+			t.Errorf("ParseSuffix(%s).Bits: %v, want %v", sfxKey, got, want)
+		}
+		if got, want := sfx.Path, sfxP.Path; !bytes.Equal(got, want) {
+			t.Errorf("ParseSuffix(%s).Path: %x, want %x", sfxKey, got, want)
+		}
+	}
+}
+
 // TestSuffixKeyEquals ensures that NodeID.Split produces the same output as makeSuffixKey for the Log's use cases.
 func TestSuffixKeyEquals(t *testing.T) {
 	for _, tc := range []struct {

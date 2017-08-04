@@ -231,6 +231,23 @@ func TestInclusion(t *testing.T) {
 				{Index: h2b("0000000000000000000000000000000000000000000000000000000000000002"), LeafValue: []byte("C")},
 			},
 		},
+		{
+			desc:         "CONIKS across subtrees",
+			HashStrategy: trillian.HashStrategy_CONIKS_SHA512_256,
+			leaves: []*trillian.MapLeaf{
+				{Index: h2b("0000000000000180000000000000000000000000000000000000000000000000"), LeafValue: []byte("Z")},
+			},
+		},
+		{
+			desc:         "CONIKS multi",
+			HashStrategy: trillian.HashStrategy_CONIKS_SHA512_256,
+			leaves: []*trillian.MapLeaf{
+				{Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("A")},
+				{Index: h2b("0000000000000000000000000000000000000000000000000000000000000001"), LeafValue: []byte("B")},
+				{Index: h2b("0000000000000000000000000000000000000000000000000000000000000002"), LeafValue: []byte("C")},
+				{Index: h2b("0000000000000000000000000000000000000000000000000000000000000003"), LeafValue: nil},
+			},
+		},
 	} {
 		tree, hasher, err := newTreeWithHasher(ctx, env, tc.HashStrategy)
 		if err != nil {
@@ -282,22 +299,35 @@ func TestInclusionBatch(t *testing.T) {
 		desc                  string
 		HashStrategy          trillian.HashStrategy
 		batchSize, numBatches int
+		large                 bool
 	}{
+
+		{
+			desc:         "maphasher short batch",
+			HashStrategy: trillian.HashStrategy_TEST_MAP_HASHER,
+			batchSize:    10, numBatches: 10,
+			large: false,
+		},
 		{
 			desc:         "maphasher batch",
 			HashStrategy: trillian.HashStrategy_TEST_MAP_HASHER,
 			batchSize:    64, numBatches: 32,
+			large: true,
 		},
 		// TODO(gdbelvin): investigate batches of size > 150.
 		// We are currently getting DB connection starvation: Too many connections.
 	} {
+		if testing.Short() && tc.large {
+			t.Logf("testing.Short() is true. Skipping %v", tc.desc)
+			continue
+		}
 		tree, _, err := newTreeWithHasher(ctx, env, tc.HashStrategy)
 		if err != nil {
 			t.Errorf("%v: newTreeWithHasher(%v): %v", tc.desc, tc.HashStrategy, err)
 		}
 
 		if err := RunMapBatchTest(ctx, env, tree, tc.batchSize, tc.numBatches); err != nil {
-			t.Errorf("%v: %v", tc.desc, err)
+			t.Errorf("BatchSize: %v, Batches: %v: %v", tc.batchSize, tc.numBatches, err)
 		}
 	}
 }
