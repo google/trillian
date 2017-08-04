@@ -361,9 +361,9 @@ func (n *NodeID) Split(prefixBytes, suffixBits int) ([]byte, Suffix) {
 	return a[:prefixBytes], sfx
 }
 
-// Equivalent return true iff the other represents the same path prefix as this NodeID.
-func (n *NodeID) Equivalent(other NodeID) bool {
-	return n.String() == other.String()
+// Equal returns true iff a and b have the same string representation.
+func Equal(a, b *NodeID) bool {
+	return a.String() == b.String()
 }
 
 // PopulateSubtreeFunc is a function which knows how to re-populate a subtree
