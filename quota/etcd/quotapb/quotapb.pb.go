@@ -99,6 +99,24 @@ func (ListConfigsRequest_ListView) EnumDescriptor() ([]byte, []int) {
 }
 
 // Configuration of a quota.
+//
+// Quotas contain a certain number of tokens that get applied to their
+// corresponding entities. Global quotas apply to all operations, tree and user
+// quotas to certain trees and users, respectivelly.
+//
+// Performing an operation costs a certain number of tokens (usually one). Once
+// a quota has no more tokens available, requests that would subtract from it
+// are denied with a resource_exhausted error.
+//
+// Tokens may be replenished in two different ways: either by passage of time or
+// sequencing progress. Time-based replenishment adds a fixed amount of tokens
+// after a certain interval. Sequencing-based adds a token for each leaf
+// processed by the sequencer. Sequencing-based replenishment may only be used
+// with global and tree quotas.
+//
+// A quota may be disabled or removed at any time. The effect is the same: a
+// disabled or non-existing quota is considered infinite by the quota system.
+// (Disabling is handy if you plan to re-enable a quota later on.)
 type Config struct {
 	// Name of the config, eg, “quotas/trees/1234/read/config”.
 	// Readonly.
@@ -403,7 +421,23 @@ func (m *ListConfigsResponse) GetConfigs() []*Config {
 	return nil
 }
 
-// UpdateConfig request.
+// Updates a quota config according to the update_mask provided.
+//
+// Some config changes will cause the current number of tokens to be updated, as
+// listed below:
+//
+// * If max_tokens is reduced and the current number of tokens is greater than
+//   the new max_tokens, the current number of tokens is reduced to max_tokens.
+//   This happens so the quota is immediately conformant to the new
+//   configuration.
+//
+// * A state transition from disabled to enabled causes the quota to be fully
+//   replenished. This happens so the re-enabled quota will enter in action in a
+//   known, predicatable state.
+//
+// A "full replenish", also called "reset", may be forced via the reset_quota
+// parameter, regardless of any other changes. For convenience, reset only
+// requests (name and reset_quota = true) are allowed.
 type UpdateConfigRequest struct {
 	// Name of the config to update.
 	Name string `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
