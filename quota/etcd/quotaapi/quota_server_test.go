@@ -421,7 +421,7 @@ func TestServer_UpdateConfig_Race(t *testing.T) {
 				Name:   cfg.Name,
 				Config: cfg,
 			}); err != nil {
-				t.Errorf("CreateConfig() returned err = %v", err)
+				t.Errorf("%v: CreateConfig() returned err = %v", cfg.Name, err)
 				createErrs <- true
 			}
 		}()
@@ -438,31 +438,30 @@ func TestServer_UpdateConfig_Race(t *testing.T) {
 	for _, cfg := range configs {
 		for num := 0; num < routinesPerConfig; num++ {
 			wg.Add(1)
-			go func(num int, cfg *quotapb.Config) {
+			go func(num int, want quotapb.Config) {
 				defer wg.Done()
-				baseTokens := rand.Intn(routinesPerConfig * 100)
+				baseTokens := 1 + rand.Intn(routinesPerConfig*100)
 				reset := num%2 == 0
-				want := *cfg
 				for i := 0; i < updatesPerRoutine; i++ {
 					tokens := int64(baseTokens + i)
 					got, err := quotaClient.UpdateConfig(ctx, &quotapb.UpdateConfigRequest{
-						Name:       cfg.Name,
+						Name:       want.Name,
 						Config:     &quotapb.Config{MaxTokens: tokens},
 						UpdateMask: &field_mask.FieldMask{Paths: []string{"max_tokens"}},
 						ResetQuota: reset,
 					})
 					if err != nil {
-						t.Errorf("%v/%v: UpdateConfig() returned err = %v", cfg.Name, num, err)
+						t.Errorf("%v: UpdateConfig() returned err = %v", want.Name, err)
 						continue
 					}
 
 					want.MaxTokens = tokens
 					if !proto.Equal(got, &want) {
 						diff := pretty.Compare(got, &want)
-						t.Errorf("%v/%v: post-UpdateConfig() diff (-got +want):\n%v", cfg.Name, num, diff)
+						t.Errorf("%v: post-UpdateConfig() diff (-got +want):\n%v", want.Name, diff)
 					}
 				}
-			}(num, cfg)
+			}(num, *cfg)
 		}
 	}
 	wg.Wait()
