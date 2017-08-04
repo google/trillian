@@ -24,7 +24,7 @@ import "google/protobuf/field_mask.proto";
 //
 // Quotas contain a certain number of tokens that get applied to their
 // corresponding entities. Global quotas apply to all operations, tree and user
-// quotas to certain trees and users, respectivelly.
+// quotas to certain trees and users, respectively.
 //
 // Performing an operation costs a certain number of tokens (usually one). Once
 // a quota has no more tokens available, requests that would subtract from it
@@ -151,7 +151,7 @@ message ListConfigsResponse {
 //
 // * A state transition from disabled to enabled causes the quota to be fully
 //   replenished. This happens so the re-enabled quota will enter in action in a
-//   known, predicatable state.
+//   known, predictable state.
 //
 // A "full replenish", also called "reset", may be forced via the reset_quota
 // parameter, regardless of any other changes. For convenience, reset only
