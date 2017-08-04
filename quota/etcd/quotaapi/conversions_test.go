@@ -113,13 +113,14 @@ func TestValidateMask(t *testing.T) {
 }
 
 func TestApplyMask(t *testing.T) {
-	srcSequencingConfig := *apiSequencingConfig
-	destSequencingConfig := *storageTimeConfig // mismatched to test overwrite
-	destSequencingConfig.Name = srcSequencingConfig.Name
+	// destSequencingConfig must match apiSequencingConfig after the test
+	// name is manually copied, as it's a readonly field.
+	destSequencingConfig := *storageTimeConfig
+	destSequencingConfig.Name = apiSequencingConfig.Name
 
-	srcTimeConfig := *apiTimeConfig
-	destTimeConfig := *storageSequencingConfig // mismatched to test overwrite
-	destTimeConfig.Name = srcTimeConfig.Name
+	// destTimeConfig must match apiTimeConfig after the test
+	destTimeConfig := *storageSequencingConfig
+	destTimeConfig.Name = apiTimeConfig.Name
 
 	destClearSequencing := *storageSequencingConfig
 	wantClearSequencing := destClearSequencing
@@ -147,14 +148,14 @@ func TestApplyMask(t *testing.T) {
 		},
 		{
 			desc: "sequencingBasedOverwrite",
-			src:  &srcSequencingConfig,
+			src:  apiSequencingConfig,
 			dest: &destSequencingConfig,
 			mask: sequencingBasedMask,
 			want: storageSequencingConfig,
 		},
 		{
 			desc: "timeBasedOverwrite",
-			src:  &srcTimeConfig,
+			src:  apiTimeConfig,
 			dest: &destTimeConfig,
 			mask: timeBasedMask,
 			want: storageTimeConfig,
@@ -182,7 +183,7 @@ func TestApplyMask(t *testing.T) {
 	}
 }
 
-func TestConvert_ApiAndStorage(t *testing.T) {
+func TestConvert_APIAndStorage(t *testing.T) {
 	tests := []struct {
 		desc    string
 		api     *quotapb.Config

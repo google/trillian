@@ -375,6 +375,8 @@ func TestServer_UpdateConfig_ResetQuota(t *testing.T) {
 	}
 }
 
+// TODO(codingllama): Test updates under race conditions
+
 // upsertTest represents either a CreateConfig or UpdateConfig test.
 type upsertTest struct {
 	desc string
@@ -409,7 +411,7 @@ func runUpsertTest(ctx context.Context, test upsertTest, rpc upsertRPC, rpcName 
 	cfg, err := rpc(ctx, test.req)
 	switch s, ok := status.FromError(err); {
 	case !ok || s.Code() != test.wantCode:
-		return fmt.Errorf(" %v: %v() returned err = %v, wantCode = %s", test.desc, rpcName, err, test.wantCode)
+		return fmt.Errorf("%v: %v() returned err = %v, wantCode = %s", test.desc, rpcName, err, test.wantCode)
 	case test.wantCode == codes.OK && !proto.Equal(cfg, test.wantCfg):
 		return fmt.Errorf("%v: post-%v() diff:\n%v", test.desc, rpcName, pretty.Compare(cfg, test.wantCfg))
 	case test.wantCfg == nil:

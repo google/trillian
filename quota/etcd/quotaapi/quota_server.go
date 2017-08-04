@@ -100,33 +100,33 @@ func (s *Server) ListConfigs(ctx context.Context, req *quotapb.ListConfigsReques
 
 // UpdateConfig implements quotapb.QuotaServer.UpdateConfig.
 func (s *Server) UpdateConfig(ctx context.Context, req *quotapb.UpdateConfigRequest) (*quotapb.Config, error) {
-	hasConfig := req.Config != nil
-	hasMask := req.UpdateMask != nil && len(req.UpdateMask.Paths) > 0
+	cfg, mask := req.Config, req.UpdateMask
+	hasConfig := cfg != nil
+	hasMask := mask != nil && len(mask.Paths) > 0
 	switch {
 	case req.Name == "":
 		return nil, status.Errorf(codes.InvalidArgument, "name must be specified")
 	case req.ResetQuota && !hasConfig && !hasMask:
 		// For convenience, reset-only requests are allowed.
-		// Let's "fix" the request so we don't panic later on.
-		req.Config = &quotapb.Config{}
-		req.UpdateMask = &field_mask.FieldMask{}
+		cfg = &quotapb.Config{}
+		mask = &field_mask.FieldMask{}
 	case !hasConfig:
 		return nil, status.Errorf(codes.InvalidArgument, "config must be specified")
 	case !hasMask:
 		return nil, status.Errorf(codes.InvalidArgument, "update_mask must be specified")
 	}
-	if err := validateMask(req.UpdateMask); err != nil {
+	if err := validateMask(mask); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid update_mask: %v", err)
 	}
 
 	var notFound bool
 	updated, err := s.qs.UpdateConfigs(ctx, req.ResetQuota, func(cfgs *storagepb.Configs) {
-		cfg, ok := findByName(req.Name, cfgs)
+		existingCfg, ok := findByName(req.Name, cfgs)
 		if !ok {
 			notFound = true
 			return
 		}
-		applyMask(req.Config, cfg, req.UpdateMask)
+		applyMask(cfg, existingCfg, mask)
 	})
 	switch {
 	case notFound:
