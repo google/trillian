@@ -17,8 +17,10 @@ package quotaapi
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"net"
 	"os"
+	"sync"
 	"testing"
 
 	"github.com/coreos/etcd/clientv3"
@@ -375,7 +377,95 @@ func TestServer_UpdateConfig_ResetQuota(t *testing.T) {
 	}
 }
 
-// TODO(codingllama): Test updates under race conditions
+func TestServer_UpdateConfig_Race(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping race test due to short mode")
+		return
+	}
+
+	ctx := context.Background()
+	if err := reset(ctx); err != nil {
+		t.Fatalf("reset() returned err = %v", err)
+	}
+
+	// Quotas we'll use for the test, one of each type
+	globalRead := *globalWrite
+	globalRead.Name = "quotas/global/read/config"
+	treeRead := *globalWrite
+	treeRead.Name = "quotas/trees/1/read/config"
+	treeWrite := *globalWrite
+	treeWrite.Name = "quotas/trees/1/write/config"
+	userRead := *globalWrite
+	userRead.Name = "quotas/users/llama/read/config"
+	userRead.ReplenishmentStrategy = &quotapb.Config_TimeBased{
+		TimeBased: &quotapb.TimeBasedStrategy{
+			TokensToReplenish:        userRead.MaxTokens,
+			ReplenishIntervalSeconds: 100,
+		},
+	}
+	userWrite := userRead
+	userWrite.Name = "quotas/users/llama/write/config"
+	configs := []*quotapb.Config{&globalRead, globalWrite, &treeRead, &treeWrite, &userRead, &userWrite}
+
+	// Create the configs we'll use for the test concurrently.
+	// If we get any errors a msg is sent to createErrs; that's a sign to stop
+	// the test *after* all spawned goroutines have exited.
+	createErrs := make(chan bool, len(configs))
+	wg := sync.WaitGroup{}
+	for _, cfg := range configs {
+		cfg := cfg
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if _, err := quotaClient.CreateConfig(ctx, &quotapb.CreateConfigRequest{
+				Name:   cfg.Name,
+				Config: cfg,
+			}); err != nil {
+				t.Errorf("%v: CreateConfig() returned err = %v", cfg.Name, err)
+				createErrs <- true
+			}
+		}()
+	}
+	wg.Wait()
+	select {
+	case <-createErrs:
+		return
+	default:
+	}
+
+	const routinesPerConfig = 4
+	const updatesPerRoutine = 100
+	for _, cfg := range configs {
+		for num := 0; num < routinesPerConfig; num++ {
+			wg.Add(1)
+			go func(num int, want quotapb.Config) {
+				defer wg.Done()
+				baseTokens := 1 + rand.Intn(routinesPerConfig*100)
+				reset := num%2 == 0
+				for i := 0; i < updatesPerRoutine; i++ {
+					tokens := int64(baseTokens + i)
+					got, err := quotaClient.UpdateConfig(ctx, &quotapb.UpdateConfigRequest{
+						Name:       want.Name,
+						Config:     &quotapb.Config{MaxTokens: tokens},
+						UpdateMask: &field_mask.FieldMask{Paths: []string{"max_tokens"}},
+						ResetQuota: reset,
+					})
+					if err != nil {
+						t.Errorf("%v: UpdateConfig() returned err = %v", want.Name, err)
+						continue
+					}
+
+					want.MaxTokens = tokens
+					if !proto.Equal(got, &want) {
+						diff := pretty.Compare(got, &want)
+						t.Errorf("%v: post-UpdateConfig() diff (-got +want):\n%v", want.Name, diff)
+					}
+				}
+			}(num, *cfg)
+		}
+	}
+	wg.Wait()
+}
 
 // upsertTest represents either a CreateConfig or UpdateConfig test.
 type upsertTest struct {
