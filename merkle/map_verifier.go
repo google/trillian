@@ -29,7 +29,7 @@ import (
 // append-only logs, but adds support for nil/"default" proof nodes.
 //
 // Returns nil on a successful verification, and an error otherwise.
-func VerifyMapInclusionProof(treeID int64, index, leafHash, expectedRoot []byte, proof [][]byte, h hashers.MapHasher) error {
+func VerifyMapInclusionProof(treeID int64, index, leaf, expectedRoot []byte, proof [][]byte, h hashers.MapHasher) error {
 	if got, want := len(index)*8, h.BitLen(); got != want {
 		return fmt.Errorf("index len: %d, want %d", got, want)
 	}
@@ -42,22 +42,43 @@ func VerifyMapInclusionProof(treeID int64, index, leafHash, expectedRoot []byte,
 		}
 	}
 
+	var runningHash []byte
+	if len(leaf) != 0 {
+		runningHash = h.HashLeaf(treeID, index, leaf)
+	}
+
 	nID := storage.NewNodeIDFromHash(index)
+	for height, sib := range nID.Siblings() {
+		pElement := proof[height]
 
-	runningHash := make([]byte, len(leafHash))
-	copy(runningHash, leafHash)
-
-	for level, sib := range nID.Siblings() {
-		proofIsRightHandElement := nID.Bit(level) == 0
-		pElement := proof[level]
-		if len(pElement) == 0 {
-			pElement = h.HashEmpty(treeID, sib.Path, level)
+		// Since HashChildren(e0, e0) is not always equal to the empty
+		// value at level 1, we need to maintain an empty marker along
+		// the proof path until the first non-empty element.
+		if len(runningHash) == 0 && len(pElement) == 0 {
+			continue
 		}
+		// When we reach a level that has a neighbor, we compute the empty value
+		// for the branch that we are on before combining it with the neighbor.
+		if len(runningHash) == 0 && len(pElement) != 0 {
+			depth := nID.PrefixLenBits - height
+			emptyBranch := nID.Copy().MaskLeft(depth)
+			runningHash = h.HashEmpty(treeID, emptyBranch.Path, height)
+		}
+
+		if len(runningHash) != 0 && len(pElement) == 0 {
+			pElement = h.HashEmpty(treeID, sib.Path, height)
+		}
+		proofIsRightHandElement := nID.Bit(height) == 0
 		if proofIsRightHandElement {
 			runningHash = h.HashChildren(runningHash, pElement)
 		} else {
 			runningHash = h.HashChildren(pElement, runningHash)
 		}
+	}
+	if len(runningHash) == 0 {
+		depth := 0
+		emptyBranch := nID.Copy().MaskLeft(depth)
+		runningHash = h.HashEmpty(treeID, emptyBranch.Path, h.BitLen())
 	}
 
 	if got, want := runningHash, expectedRoot; !bytes.Equal(got, want) {
