@@ -42,9 +42,9 @@ func HashLogRoot(root trillian.SignedLogRoot) []byte {
 	// JSON encoded otherwise (it uses floats). We want to be sure that people
 	// using JSON to verify hashes can build the exact same input to ObjectHash.
 	rootMap := map[string]string{
-		mapKeyRootHash:       base64.StdEncoding.EncodeToString(root.RootHash),
-		mapKeyTimestampNanos: strconv.FormatInt(root.TimestampNanos, 10),
-		mapKeyTreeSize:       strconv.FormatInt(root.TreeSize, 10)}
+		mapKeyRootHash:       base64.StdEncoding.EncodeToString(root.GetRootHash()),
+		mapKeyTimestampNanos: strconv.FormatInt(root.GetTimestampNanos(), 10),
+		mapKeyTreeSize:       strconv.FormatInt(root.GetTreeSize(), 10)}
 
 	hash := objecthash.ObjectHash(rootMap)
 	return hash[:]
