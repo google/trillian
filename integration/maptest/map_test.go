@@ -131,7 +131,7 @@ func TestLeafHistory(t *testing.T) {
 	}{
 		{
 			desc:         "single leaf update",
-			HashStrategy: []trillian.HashStrategy{trillian.HashStrategy_CONIKS_SHA512_256},
+			HashStrategy: []trillian.HashStrategy{trillian.HashStrategy_TEST_MAP_HASHER, trillian.HashStrategy_CONIKS_SHA512_256},
 			set: [][]*trillian.MapLeaf{
 				{}, // Advance revision without changing anything.
 				{
