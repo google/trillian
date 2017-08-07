@@ -17,10 +17,10 @@ package client
 import (
 	"bytes"
 	"context"
-	tcrypto "github.com/google/trillian/crypto"
 	"testing"
 
 	"github.com/google/trillian"
+	tcrypto "github.com/google/trillian/crypto"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/testonly"
