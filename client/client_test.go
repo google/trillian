@@ -17,10 +17,13 @@ package client
 import (
 	"bytes"
 	"context"
+	tcrypto "github.com/google/trillian/crypto"
 	"testing"
 
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/merkle/rfc6962"
+	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/testonly/integration"
 )
 
@@ -252,5 +255,44 @@ func TestUpdateRoot(t *testing.T) {
 	}
 	if got, want := client.Root().TreeSize, before; got <= want {
 		t.Errorf("Tree size after add Leaf: %v, want > %v", got, want)
+	}
+}
+
+func TestVerifyRootReturnsErrWhenNewRootIsNil(t *testing.T) {
+	logVerifier := NewLogVerifier(nil, nil)
+
+	// This also makes sure that no nil pointer dereference errors occur (as this would cause a panic).
+	if err := logVerifier.VerifyRoot(nil, nil, nil); err == nil {
+		t.Error("Expected an error when verifying a nil tree root, but got nil")
+	}
+}
+
+func TestVerifyRootPassesWhenTrustedIsNil(t *testing.T) {
+	// First, create a fake root with a valid signature.
+	newRoot := trillian.SignedLogRoot{0, nil, 0, nil, 0, 0}
+
+	key, err := keys.NewFromPrivatePEM(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
+	if err != nil {
+		t.Fatalf("Failed to open test key, err=%v", err)
+	}
+	signer := tcrypto.NewSHA256Signer(key)
+	pk, err := keys.NewFromPublicPEM(testonly.DemoPublicKey)
+	if err != nil {
+		t.Fatalf("Failed to load public key, err=%v", err)
+	}
+
+	hash := tcrypto.HashLogRoot(newRoot)
+	signature, err := signer.Sign(hash)
+	if err != nil {
+		t.Fatal("Failed to create test signature")
+	}
+	newRoot.Signature = signature
+
+	logVerifier := NewLogVerifier(rfc6962.DefaultHasher, pk)
+	// This also makes sure that no nil pointer dereference errors occur (as this would cause a panic).
+	if err := logVerifier.VerifyRoot(nil, &newRoot, nil); err != nil {
+		// The verification should pass as trusted is nil and no proof is provided, so we trust the first
+		// root we get.
+		t.Errorf("VerifyRoot threw an unexpected error: %v", err)
 	}
 }

@@ -18,11 +18,11 @@ import (
 	"crypto"
 	"crypto/sha256"
 
+	"fmt"
 	"github.com/google/trillian"
 	tcrypto "github.com/google/trillian/crypto"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/hashers"
-	"fmt"
 )
 
 // logVerifier contains state needed to verify output from Trillian Logs.
@@ -47,13 +47,12 @@ func (c *logVerifier) VerifyRoot(trusted, newRoot *trillian.SignedLogRoot,
 	consistency [][]byte) error {
 
 	// Verify SignedLogRoot signature.
-	if (newRoot == nil){
-		return fmt.Errorf("VerifyRoot() error: newRoot == nil.")
-	}else {
-		hash := tcrypto.HashLogRoot(*newRoot)
-		if err := tcrypto.Verify(c.pubKey, hash, newRoot.GetSignature()); err != nil {
-			return err
-		}
+	if newRoot == nil {
+		return fmt.Errorf("verifyRoot() error: newRoot == nil")
+	}
+	hash := tcrypto.HashLogRoot(*newRoot)
+	if err := tcrypto.Verify(c.pubKey, hash, newRoot.GetSignature()); err != nil {
+		return err
 	}
 
 	// Implicitly trust the first root we get.
