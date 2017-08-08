@@ -24,12 +24,15 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/go-sql-driver/mysql"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
-	spb "github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/storage/testonly"
 	"github.com/kylelemons/godebug/pretty"
+
+	spb "github.com/google/trillian/crypto/sigpb"
+
+	_ "github.com/go-sql-driver/mysql"
 )
 
 var allTables = []string{"Unsequenced", "TreeHead", "SequencedLeafData", "LeafData", "Subtree", "TreeControl", "Trees", "MapLeaf", "MapHead"}
@@ -873,73 +876,63 @@ func TestLogRootUpdate(t *testing.T) {
 	commit(tx2, t)
 }
 
-// getActiveLogIDsFn creates a TX, calls the appropriate GetActiveLogIDs* function, commits the TX
-// and returns the results.
-type getActiveLogIDsFn func(context.Context, storage.LogStorage, int64) ([]int64, error)
-
-type getActiveIDsTest struct {
-	name string
-	fn   getActiveLogIDsFn
-}
-
-func toIDsMap(ids []int64) map[int64]bool {
-	idsMap := make(map[int64]bool)
-	for _, logID := range ids {
-		idsMap[logID] = true
-	}
-	return idsMap
-}
-
-// runTestGetActiveLogIDsInternal calls test.fn (which involves either Begin or
-// Snapshot) and check that the result matches wantIds.
-func runTestGetActiveLogIDsInternal(ctx context.Context, t *testing.T, test getActiveIDsTest, logID int64, wantIds []int64) {
-	s := NewLogStorage(DB, nil)
-
-	logIDs, err := test.fn(ctx, s, logID)
-	if err != nil {
-		t.Errorf("%v = (_, %v), want = (_, nil)", test.name, err)
-		return
-	}
-
-	if got, want := len(logIDs), len(wantIds); got != want {
-		t.Errorf("%v: got %d IDs, want = %v", test.name, got, want)
-		return
-	}
-	got, want := toIDsMap(logIDs), toIDsMap(wantIds)
-	if diff := pretty.Compare(got, want); diff != "" {
-		t.Errorf("%v: post-Get diff:\n%v", test.name, diff)
-	}
-}
-
-func runTestGetActiveLogIDs(ctx context.Context, t *testing.T, test getActiveIDsTest) {
-	cleanTestDB(DB)
-	logID1 := createLogForTests(DB)
-	logID2 := createLogForTests(DB)
-	logID3 := createLogForTests(DB)
-	wantIds := []int64{logID1, logID2, logID3}
-	runTestGetActiveLogIDsInternal(ctx, t, test, logID1, wantIds)
-}
-
 func TestGetActiveLogIDs(t *testing.T) {
-	getActiveIDsSnapshot := func(ctx context.Context, s storage.LogStorage, logID int64) ([]int64, error) {
-		tx, err := s.Snapshot(ctx)
+	ctx := context.Background()
+
+	cleanTestDB(DB)
+	admin := NewAdminStorage(DB)
+
+	// Create a few test trees
+	log1 := *testonly.LogTree
+	log2 := *testonly.LogTree
+	frozenLog := *testonly.LogTree
+	softDeletedLog := *testonly.LogTree
+	hardDeletedLog := *testonly.LogTree
+	map1 := *testonly.MapTree
+	map2 := *testonly.MapTree
+	for _, tree := range []*trillian.Tree{&log1, &log2, &frozenLog, &softDeletedLog, &hardDeletedLog, &map1, &map2} {
+		newTree, err := createTreeInternal(ctx, admin, tree)
 		if err != nil {
-			return nil, err
+			t.Fatalf("createTreeInternal(%+v) returned err = %v", tree, err)
 		}
-		defer tx.Close()
-		ids, err := tx.GetActiveLogIDs(ctx)
-		if err != nil {
-			return nil, err
-		}
-		if err := tx.Commit(); err != nil {
-			return nil, err
-		}
-		return ids, nil
+		*tree = *newTree
 	}
 
-	test := getActiveIDsTest{name: "getActiveIDsSnapshot", fn: getActiveIDsSnapshot}
-	ctx := context.Background()
-	runTestGetActiveLogIDs(ctx, t, test)
+	// FROZEN, SOFT_ and HARD_DELETED are not valid initial states, so we have to update to them
+	// separately.
+	frozenLog.TreeState = trillian.TreeState_FROZEN
+	softDeletedLog.TreeState = trillian.TreeState_SOFT_DELETED
+	hardDeletedLog.TreeState = trillian.TreeState_HARD_DELETED
+	for _, tree := range []*trillian.Tree{&frozenLog, &softDeletedLog, &hardDeletedLog} {
+		updatedTree, err := updateTreeInternal(ctx, admin, tree.TreeId, func(t *trillian.Tree) {
+			t.TreeState = tree.TreeState
+		})
+		if err != nil {
+			t.Fatalf("updateTreeInternal(%+v) returned err = %v", tree, err)
+		}
+		*tree = *updatedTree
+	}
+
+	s := NewLogStorage(DB, nil)
+	tx, err := s.Snapshot(ctx)
+	if err != nil {
+		t.Fatalf("Snapshot() returns err = %v", err)
+	}
+	defer tx.Close()
+	got, err := tx.GetActiveLogIDs(ctx)
+	if err != nil {
+		t.Fatalf("GetActiveLogIDs() returns err = %v", err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Errorf("Commit() returned err = %v", err)
+	}
+
+	want := []int64{log1.TreeId, log2.TreeId}
+	sort.Slice(got, func(i, j int) bool { return got[i] < got[j] })
+	sort.Slice(want, func(i, j int) bool { return want[i] < want[j] })
+	if diff := pretty.Compare(got, want); diff != "" {
+		t.Errorf("post-GetActiveLogIDs diff (-got +want):\n%v", diff)
+	}
 }
 
 func TestGetActiveLogIDsEmpty(t *testing.T) {
@@ -953,17 +946,16 @@ func TestGetActiveLogIDsEmpty(t *testing.T) {
 		t.Fatalf("Snapshot() = (_, %v), want = (_, nil)", err)
 	}
 	defer tx.Close()
-
-	activeIDs, err := tx.GetActiveLogIDs(ctx)
+	ids, err := tx.GetActiveLogIDs(ctx)
 	if err != nil {
 		t.Fatalf("GetActiveLogIDs() = (_, %v), want = (_, nil)", err)
 	}
-	if got, want := len(activeIDs), 0; got != want {
-		t.Errorf("GetActiveLogIDs(): got %v IDs, want = %v", got, want)
+	if err := tx.Commit(); err != nil {
+		t.Errorf("Commit() = %v, want = nil", err)
 	}
 
-	if err := tx.Commit(); err != nil {
-		t.Fatalf("Commit() = %v, want = nil", err)
+	if got, want := len(ids), 0; got != want {
+		t.Errorf("GetActiveLogIDs(): got %v IDs, want = %v", got, want)
 	}
 }
 

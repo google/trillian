@@ -29,12 +29,13 @@ import (
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
-	spb "github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/trees"
+
+	spb "github.com/google/trillian/crypto/sigpb"
 )
 
 const (
@@ -167,33 +168,6 @@ func (m *mySQLLogStorage) getLeavesByLeafIdentityHashStmt(ctx context.Context, n
 	return m.getStmt(ctx, selectLeavesByLeafIdentityHashSQL, num, "?", "?")
 }
 
-func getActiveLogIDsInternal(ctx context.Context, tx *sql.Tx, sql string) ([]int64, error) {
-	rows, err := tx.QueryContext(ctx, sql)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	logIDs := make([]int64, 0)
-	for rows.Next() {
-		var treeID int64
-		if err := rows.Scan(&treeID); err != nil {
-			return nil, err
-		}
-		logIDs = append(logIDs, treeID)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return logIDs, nil
-}
-
-func getActiveLogIDs(ctx context.Context, tx *sql.Tx) ([]int64, error) {
-	return getActiveLogIDsInternal(ctx, tx, selectActiveLogsSQL)
-}
-
 // readOnlyLogTX implements storage.ReadOnlyLogTX
 type readOnlyLogTX struct {
 	tx *sql.Tx
@@ -225,7 +199,21 @@ func (t *readOnlyLogTX) Close() error {
 }
 
 func (t *readOnlyLogTX) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
-	return getActiveLogIDs(ctx, t.tx)
+	rows, err := t.tx.QueryContext(
+		ctx, selectTreeIDByTypeAndStateSQL, trillian.TreeType_LOG.String(), trillian.TreeState_ACTIVE.String())
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	ids := []int64{}
+	for rows.Next() {
+		var treeID int64
+		if err := rows.Scan(&treeID); err != nil {
+			return nil, err
+		}
+		ids = append(ids, treeID)
+	}
+	return ids, rows.Err()
 }
 
 func (m *mySQLLogStorage) beginInternal(ctx context.Context, treeID int64, readonly bool) (storage.LogTreeTX, error) {
