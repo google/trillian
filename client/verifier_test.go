@@ -22,6 +22,7 @@ import (
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/testonly"
+	"strings"
 )
 
 func TestVerifyRootErrors(t *testing.T) {
@@ -48,7 +49,6 @@ func TestVerifyRootErrors(t *testing.T) {
 	tests := []struct {
 		desc             string
 		trusted, newRoot *trillian.SignedLogRoot
-		expectError      bool
 	}{
 		{desc: "newRootNil", trusted: &signedRoot, newRoot: nil},
 		{desc: "trustedNil", trusted: nil, newRoot: &signedRoot},
@@ -61,4 +61,39 @@ func TestVerifyRootErrors(t *testing.T) {
 			t.Errorf("%v: VerifyRoot() error expected, but got nil", test.desc)
 		}
 	}
+}
+
+func TestVerifyInclusionAtIndexErrors(t *testing.T) {
+	logVerifier := NewLogVerifier(nil, nil)
+	err := logVerifier.VerifyInclusionAtIndex(nil, nil, 1, nil)
+	if err == nil {
+		t.Errorf("VerifyInclusionAtIndex() error expected, but none was thrown")
+	}
+	if !strings.Contains(err.Error(), "trusted == nil"){
+		t.Errorf("VerifyInclusionAtIndex() throws wrong error when trusted == nil: %v", err)
+	}
+}
+
+func TestVerifyInclusionByHashErrors(t *testing.T) {
+	tests := []struct {
+		desc             string
+		trusted *trillian.SignedLogRoot
+		proof *trillian.Proof
+		errorDesc string
+	}{
+		{desc: "trustedNil", trusted: nil, proof: &trillian.Proof{}, errorDesc: "trusted == nil"},
+		{desc: "proofNil", trusted: &trillian.SignedLogRoot{}, proof: nil, errorDesc: "proof == nil"},
+	}
+	for _, test := range tests {
+
+		logVerifier := NewLogVerifier(nil, nil)
+		err := logVerifier.VerifyInclusionByHash(test.trusted, nil, test.proof)
+		if err == nil {
+			t.Errorf("%v: VerifyInclusionByHash() error expected, but none was thrown", test.desc)
+		}
+		if !strings.Contains(err.Error(), test.errorDesc){
+			t.Errorf("%v: VerifyInclusionByHash() error expected to contain %v, but got: %v", test.desc, test.errorDesc, err)
+		}
+	}
+
 }
