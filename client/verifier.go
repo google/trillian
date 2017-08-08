@@ -17,8 +17,8 @@ package client
 import (
 	"crypto"
 	"crypto/sha256"
-
 	"fmt"
+
 	"github.com/google/trillian"
 	tcrypto "github.com/google/trillian/crypto"
 	"github.com/google/trillian/merkle"
@@ -46,21 +46,25 @@ func NewLogVerifier(hasher hashers.LogHasher, pubKey crypto.PublicKey) LogVerifi
 func (c *logVerifier) VerifyRoot(trusted, newRoot *trillian.SignedLogRoot,
 	consistency [][]byte) error {
 
-	// Verify SignedLogRoot signature.
-	if newRoot == nil {
-		return fmt.Errorf("verifyRoot() error: newRoot == nil")
+	if trusted == nil {
+		return fmt.Errorf("VerifyRoot() error: trusted == nil")
 	}
+	if newRoot == nil {
+		return fmt.Errorf("VerifyRoot() error: newRoot == nil")
+	}
+
+	// Verify SignedLogRoot signature.
 	hash := tcrypto.HashLogRoot(*newRoot)
 	if err := tcrypto.Verify(c.pubKey, hash, newRoot.GetSignature()); err != nil {
 		return err
 	}
 
 	// Implicitly trust the first root we get.
-	if trusted.GetTreeSize() != 0 {
+	if trusted.TreeSize != 0 {
 		// Verify consistency proof.
 		if err := c.v.VerifyConsistencyProof(
-			trusted.GetTreeSize(), newRoot.GetTreeSize(),
-			trusted.GetRootHash(), newRoot.GetRootHash(),
+			trusted.TreeSize, newRoot.TreeSize,
+			trusted.RootHash, newRoot.RootHash,
 			consistency); err != nil {
 			return err
 		}
