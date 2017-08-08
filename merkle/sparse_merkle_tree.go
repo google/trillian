@@ -240,7 +240,7 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context) {
 				return nil, nil
 			}
 			if got, want := nodes[0].NodeID, nodeID; !got.Equivalent(want) {
-				return nil, fmt.Errorf("got node %s from storage, want %s", got, want)
+				return nil, fmt.Errorf("got node %v from storage, want %v", got, want)
 			}
 			if got, want := nodes[0].NodeRevision, s.treeRevision; got > want {
 				return nil, fmt.Errorf("got node revision %d, want <= %d", got, want)

@@ -133,15 +133,15 @@ func TestLeafHistory(t *testing.T) {
 			desc:         "single leaf update",
 			HashStrategy: trillian.HashStrategy_TEST_MAP_HASHER,
 			batches: [][]*trillian.MapLeaf{
-				[]*trillian.MapLeaf{}, // Advance revision without changing anything.
-				[]*trillian.MapLeaf{
+				{}, // Advance revision without changing anything.
+				{
 					{Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("A")},
 				},
-				[]*trillian.MapLeaf{}, // Advance revision without changing anything.
-				[]*trillian.MapLeaf{
+				{}, // Advance revision without changing anything.
+				{
 					{Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("B")},
 				},
-				[]*trillian.MapLeaf{
+				{
 					{Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("C")},
 				},
 			},
