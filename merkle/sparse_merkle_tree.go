@@ -101,7 +101,7 @@ type subtreeWriter struct {
 	// has been calculated.
 	root chan rootHashOrError
 
-	// childMutex protexts access to children.
+	// childMutex protects access to children.
 	childMutex sync.RWMutex
 
 	// children is a map of child-subtrees by stringified prefix.
