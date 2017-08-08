@@ -20,7 +20,7 @@ import (
 	"github.com/google/trillian"
 )
 
-// LogHasher provides the hash functions needed to compute dense merkele trees.
+// LogHasher provides the hash functions needed to compute dense merkle trees.
 type LogHasher interface {
 	// EmptyRoot supports returning a special case for the root of an empty tree.
 	EmptyRoot() []byte
