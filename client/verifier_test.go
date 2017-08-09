@@ -17,8 +17,6 @@ package client
 import (
 	"testing"
 
-	"strings"
-
 	"github.com/google/trillian"
 	tcrypto "github.com/google/trillian/crypto"
 	"github.com/google/trillian/crypto/keys"
@@ -38,7 +36,7 @@ func TestVerifyRootErrors(t *testing.T) {
 		t.Fatalf("Failed to load public key, err=%v", err)
 	}
 
-	signedRoot := trillian.SignedLogRoot{0, nil, 0, nil, 0, 0}
+	signedRoot := trillian.SignedLogRoot{}
 	hash := tcrypto.HashLogRoot(signedRoot)
 	signature, err := signer.Sign(hash)
 	if err != nil {
@@ -68,33 +66,25 @@ func TestVerifyInclusionAtIndexErrors(t *testing.T) {
 	logVerifier := NewLogVerifier(nil, nil)
 	err := logVerifier.VerifyInclusionAtIndex(nil, nil, 1, nil)
 	if err == nil {
-		t.Errorf("VerifyInclusionAtIndex() error expected, but none was thrown")
-	}
-	if !strings.Contains(err.Error(), "trusted == nil") {
-		t.Errorf("VerifyInclusionAtIndex() throws wrong error when trusted == nil: %v", err)
+		t.Errorf("VerifyInclusionAtIndex() error expected, but got nil")
 	}
 }
 
 func TestVerifyInclusionByHashErrors(t *testing.T) {
 	tests := []struct {
-		desc      string
-		trusted   *trillian.SignedLogRoot
-		proof     *trillian.Proof
-		errorDesc string
+		desc    string
+		trusted *trillian.SignedLogRoot
+		proof   *trillian.Proof
 	}{
-		{desc: "trustedNil", trusted: nil, proof: &trillian.Proof{}, errorDesc: "trusted == nil"},
-		{desc: "proofNil", trusted: &trillian.SignedLogRoot{}, proof: nil, errorDesc: "proof == nil"},
+		{desc: "trustedNil", trusted: nil, proof: &trillian.Proof{}},
+		{desc: "proofNil", trusted: &trillian.SignedLogRoot{}, proof: nil},
 	}
 	for _, test := range tests {
 
 		logVerifier := NewLogVerifier(nil, nil)
 		err := logVerifier.VerifyInclusionByHash(test.trusted, nil, test.proof)
 		if err == nil {
-			t.Errorf("%v: VerifyInclusionByHash() error expected, but none was thrown", test.desc)
-		}
-		if !strings.Contains(err.Error(), test.errorDesc) {
-			t.Errorf("%v: VerifyInclusionByHash() error expected to contain %v, but got: %v", test.desc, test.errorDesc, err)
+			t.Errorf("%v: VerifyInclusionByHash() error expected, but got nil", test.desc)
 		}
 	}
-
 }
