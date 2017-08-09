@@ -232,7 +232,10 @@ func (s *fakeAdminServer) CreateTree(ctx context.Context, req *trillian.CreateTr
 		return nil, s.err
 	}
 	resp := *req.Tree
-	if req.KeySpec != nil && s.generatedKey != nil {
+	if req.KeySpec != nil {
+		if s.generatedKey == nil {
+			panic("fakeAdminServer.generatedKey == nil but CreateTreeRequest requests generated key")
+		}
 		resp.PrivateKey = s.generatedKey
 	}
 	return &resp, nil
