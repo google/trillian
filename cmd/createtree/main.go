@@ -16,10 +16,7 @@
 // command.
 //
 // Example usage:
-// $ ./createtree \
-//     --admin_server=host:port \
-//     --pem_key_path=/path/to/pem/file \
-//     --pem_key_password=mypassword
+// $ ./createtree --admin_server=host:port
 //
 // The command outputs the tree ID of the created tree to stdout, or an error to
 // stderr in case of failure. The output is minimal to allow for easy usage in

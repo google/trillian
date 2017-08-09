@@ -25,8 +25,6 @@ go build ./examples/ct/ctmapper/lookup
 go build ./cmd/createtree/
 tree_id=$(./createtree \
     --admin_server=localhost:8090 \
-    --pem_key_path=testdata/log-rpc-server.privkey.pem \
-    --pem_key_password=towel \
     --signature_algorithm=ECDSA)
 ./mapper \
     -source http://ct.googleapis.com/pilot \
