@@ -68,46 +68,87 @@ func TestNewNameFilter(t *testing.T) {
 
 func TestNameFilter_Matches(t *testing.T) {
 	tests := []struct {
-		nf, name string
-		want     bool
+		nf                     string
+		wantMatch, wantNoMatch []string
 	}{
-		// literal matches
-		{nf: "quotas/global/read/config", name: "quotas/global/read/config", want: true},
-		{nf: "quotas/global/read/config", name: "quotas/global/write/config", want: false},
-		{nf: "quotas/global/write/config", name: "quotas/global/write/config", want: true},
-		{nf: "quotas/trees/1/read/config", name: "quotas/trees/1/read/config", want: true},
-		{nf: "quotas/trees/1/read/config", name: "quotas/trees/2/read/config", want: false},
-		{nf: "quotas/trees/1/write/config", name: "quotas/trees/1/write/config", want: true},
-		{nf: "quotas/users/llama/read/config", name: "quotas/users/llama/read/config", want: true},
-		{nf: "quotas/users/llama/read/config", name: "quotas/users/alpaca/read/config", want: false},
-		{nf: "quotas/users/llama/write/config", name: "quotas/users/llama/write/config", want: true},
-
-		{nf: "quotas/global/-/config", name: "quotas/global/read/config", want: true},
-		{nf: "quotas/global/-/config", name: "quotas/global/write/config", want: true},
-
-		{nf: "quotas/trees/12345/-/config", name: "quotas/global/read/config", want: false},
-		{nf: "quotas/trees/12345/-/config", name: "quotas/trees/1/read/config", want: false},
-		{nf: "quotas/trees/12345/-/config", name: "quotas/trees/1/write/config", want: false},
-		{nf: "quotas/trees/12345/-/config", name: "quotas/trees/12345/read/config", want: true},
-		{nf: "quotas/trees/12345/-/config", name: "quotas/trees/12345/write/config", want: true},
-		{nf: "quotas/trees/12345/-/config", name: "quotas/users/12345/read/config", want: false},
-
-		{nf: "quotas/trees/-/-/config", name: "quotas/global/read/config", want: false},
-		{nf: "quotas/trees/-/-/config", name: "quotas/trees/1/read/config", want: true},
-		{nf: "quotas/trees/-/-/config", name: "quotas/trees/1/write/config", want: true},
-		{nf: "quotas/trees/-/-/config", name: "quotas/trees/12345/read/config", want: true},
-		{nf: "quotas/trees/-/-/config", name: "quotas/trees/12345/write/config", want: true},
-		{nf: "quotas/trees/-/-/config", name: "quotas/users/12345/read/config", want: false},
-
-		{nf: "quotas/users/-/-/config", name: "quotas/trees/12345/read/config", want: false},
-		{nf: "quotas/users/-/-/config", name: "quotas/users/llama/read/config", want: true},
-		{nf: "quotas/users/-/-/config", name: "quotas/users/llama/write/config", want: true},
-
-		{nf: "quotas/-/-/-/config", name: "quotas/global/read/config", want: false},
-		{nf: "quotas/-/-/-/config", name: "quotas/trees/12345/read/config", want: true},
-		{nf: "quotas/-/-/-/config", name: "quotas/trees/12345/write/config", want: true},
-		{nf: "quotas/-/-/-/config", name: "quotas/users/llama/read/config", want: true},
-		{nf: "quotas/-/-/-/config", name: "quotas/users/llama/write/config", want: true},
+		{
+			nf:          "quotas/global/read/config",
+			wantMatch:   []string{"quotas/global/read/config"},
+			wantNoMatch: []string{"quotas/global/write/config"},
+		},
+		{
+			nf:        "quotas/global/write/config",
+			wantMatch: []string{"quotas/global/write/config"},
+		},
+		{
+			nf:          "quotas/trees/1/read/config",
+			wantMatch:   []string{"quotas/trees/1/read/config"},
+			wantNoMatch: []string{"quotas/trees/2/read/config"},
+		},
+		{
+			nf:        "quotas/trees/1/write/config",
+			wantMatch: []string{"quotas/trees/1/write/config"},
+		},
+		{
+			nf:          "quotas/users/llama/read/config",
+			wantMatch:   []string{"quotas/users/llama/read/config"},
+			wantNoMatch: []string{"quotas/users/alpaca/read/config"},
+		},
+		{
+			nf:        "quotas/users/llama/write/config",
+			wantMatch: []string{"quotas/users/llama/write/config"},
+		},
+		{
+			nf: "quotas/global/-/config",
+			wantMatch: []string{
+				"quotas/global/read/config",
+				"quotas/global/write/config",
+			},
+		},
+		{
+			nf: "quotas/trees/12345/-/config",
+			wantMatch: []string{
+				"quotas/trees/12345/read/config",
+				"quotas/trees/12345/write/config",
+			},
+			wantNoMatch: []string{
+				"quotas/global/read/config",
+				"quotas/trees/1/read/config",
+				"quotas/trees/1/write/config",
+				"quotas/users/12345/read/config",
+			},
+		},
+		{
+			nf: "quotas/trees/-/-/config",
+			wantMatch: []string{
+				"quotas/trees/1/read/config",
+				"quotas/trees/1/write/config",
+				"quotas/trees/12345/read/config",
+				"quotas/trees/12345/write/config",
+			},
+			wantNoMatch: []string{
+				"quotas/global/read/config",
+				"quotas/users/12345/read/config",
+			},
+		},
+		{
+			nf: "quotas/users/-/-/config",
+			wantMatch: []string{
+				"quotas/users/llama/read/config",
+				"quotas/users/llama/write/config",
+			},
+			wantNoMatch: []string{"quotas/trees/12345/read/config"},
+		},
+		{
+			nf: "quotas/-/-/-/config",
+			wantMatch: []string{
+				"quotas/trees/12345/read/config",
+				"quotas/trees/12345/write/config",
+				"quotas/users/llama/read/config",
+				"quotas/users/llama/write/config",
+			},
+			wantNoMatch: []string{"quotas/global/read/config"},
+		},
 	}
 	for _, test := range tests {
 		nf, err := newNameFilter(test.nf)
@@ -115,8 +156,14 @@ func TestNameFilter_Matches(t *testing.T) {
 			t.Errorf("newNameFilter(%q) returned err = %v", test.nf, err)
 			continue
 		}
-		if got := nf.matches(test.name); got != test.want {
-			t.Errorf("newNameFilter(%q).matches(%q) = %v, want = %v", test.nf, test.name, got, test.want)
+		run := func(names []string, want bool) {
+			for _, name := range names {
+				if got := nf.matches(name); got != want {
+					t.Errorf("newNameFilter(%q).matches(%q) = %v, want = %v", test.nf, name, got, want)
+				}
+			}
 		}
+		run(test.wantMatch, true)
+		run(test.wantNoMatch, false)
 	}
 }
