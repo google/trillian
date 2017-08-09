@@ -600,7 +600,7 @@ func TestServer_ListConfigs(t *testing.T) {
 			desc: "allBasicView",
 			req:  &quotapb.ListConfigsRequest{},
 			wantCfgs: []*quotapb.Config{
-				basicGlobalWrite, basicGlobalRead,
+				basicGlobalRead, basicGlobalWrite,
 				basicTree1Read, basicTree1Write,
 				basicTree2Read, basicTree2Write,
 				basicUserRead, basicUserWrite,
@@ -639,15 +639,24 @@ func TestServer_ListConfigs(t *testing.T) {
 			t.Errorf("%v: ListConfigs() returned err = %v", test.desc, err)
 			continue
 		}
-
-		got := resp.Configs
-		want := resp.Configs
-		sort.Slice(got, func(i, j int) bool { return strings.Compare(got[i].Name, got[j].Name) == -1 })
-		sort.Slice(want, func(i, j int) bool { return strings.Compare(want[i].Name, want[j].Name) == -1 })
-		if diff := pretty.Compare(got, want); diff != "" {
-			t.Errorf("%v: post-ListConfigs() diff (-got +want):\n:%v", test.desc, diff)
+		if err := sortAndCompare(resp.Configs, test.wantCfgs); err != nil {
+			t.Errorf("%v: post-ListConfigs() %v", test.desc, err)
 		}
 	}
+}
+
+func sortAndCompare(got, want []*quotapb.Config) error {
+	sort.Slice(got, func(i, j int) bool { return strings.Compare(got[i].Name, got[j].Name) == -1 })
+	sort.Slice(want, func(i, j int) bool { return strings.Compare(want[i].Name, want[j].Name) == -1 })
+	if len(got) != len(want) {
+		return fmt.Errorf("got %v configs, want %v", len(got), len(want))
+	}
+	for i, cfg := range want {
+		if !proto.Equal(got[i], cfg) {
+			return fmt.Errorf("diff (-got +want):\n%v", pretty.Compare(got, want))
+		}
+	}
+	return nil
 }
 
 func TestServer_ListConfigsErrors(t *testing.T) {
