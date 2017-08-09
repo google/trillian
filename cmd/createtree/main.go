@@ -154,10 +154,19 @@ func newRequest(opts *createOpts) (*trillian.CreateTreeRequest, error) {
 		}
 
 		// If no key flags were provided at all, get Trillian to generate a key.
-		ctr.KeySpec = &keyspb.Specification{
-			Params: &keyspb.Specification_EcdsaParams{
+		ctr.KeySpec = &keyspb.Specification{}
+
+		switch sigpb.DigitallySigned_SignatureAlgorithm(sa) {
+		case sigpb.DigitallySigned_ECDSA:
+			ctr.KeySpec.Params = &keyspb.Specification_EcdsaParams{
 				EcdsaParams: &keyspb.Specification_ECDSA{},
-			},
+			}
+		case sigpb.DigitallySigned_RSA:
+			ctr.KeySpec.Params = &keyspb.Specification_RsaParams{
+				RsaParams: &keyspb.Specification_RSA{},
+			}
+		default:
+			return nil, fmt.Errorf("unsupported signature algorithm: %v", sa)
 		}
 	}
 

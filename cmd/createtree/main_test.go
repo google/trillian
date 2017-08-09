@@ -16,6 +16,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"os"
 	"testing"
@@ -236,6 +237,20 @@ func (s *fakeAdminServer) CreateTree(ctx context.Context, req *trillian.CreateTr
 		if s.generatedKey == nil {
 			panic("fakeAdminServer.generatedKey == nil but CreateTreeRequest requests generated key")
 		}
+
+		var keySigAlgo sigpb.DigitallySigned_SignatureAlgorithm
+		switch req.KeySpec.Params.(type) {
+		case *keyspb.Specification_EcdsaParams:
+			keySigAlgo = sigpb.DigitallySigned_ECDSA
+		case *keyspb.Specification_RsaParams:
+			keySigAlgo = sigpb.DigitallySigned_RSA
+		default:
+			return nil, fmt.Errorf("got unsupported type of key_spec.params: %T", req.KeySpec.Params)
+		}
+		if treeSigAlgo := req.Tree.GetSignatureAlgorithm(); treeSigAlgo != keySigAlgo {
+			return nil, fmt.Errorf("got tree.SignatureAlgorithm = %v but key_spec.Params of type %T", treeSigAlgo, req.KeySpec.Params)
+		}
+
 		resp.PrivateKey = s.generatedKey
 	}
 	return &resp, nil
