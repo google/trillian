@@ -17,12 +17,13 @@ package client
 import (
 	"testing"
 
+	"strings"
+
 	"github.com/google/trillian"
 	tcrypto "github.com/google/trillian/crypto"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/testonly"
-	"strings"
 )
 
 func TestVerifyRootErrors(t *testing.T) {
@@ -69,16 +70,16 @@ func TestVerifyInclusionAtIndexErrors(t *testing.T) {
 	if err == nil {
 		t.Errorf("VerifyInclusionAtIndex() error expected, but none was thrown")
 	}
-	if !strings.Contains(err.Error(), "trusted == nil"){
+	if !strings.Contains(err.Error(), "trusted == nil") {
 		t.Errorf("VerifyInclusionAtIndex() throws wrong error when trusted == nil: %v", err)
 	}
 }
 
 func TestVerifyInclusionByHashErrors(t *testing.T) {
 	tests := []struct {
-		desc             string
-		trusted *trillian.SignedLogRoot
-		proof *trillian.Proof
+		desc      string
+		trusted   *trillian.SignedLogRoot
+		proof     *trillian.Proof
 		errorDesc string
 	}{
 		{desc: "trustedNil", trusted: nil, proof: &trillian.Proof{}, errorDesc: "trusted == nil"},
@@ -91,7 +92,7 @@ func TestVerifyInclusionByHashErrors(t *testing.T) {
 		if err == nil {
 			t.Errorf("%v: VerifyInclusionByHash() error expected, but none was thrown", test.desc)
 		}
-		if !strings.Contains(err.Error(), test.errorDesc){
+		if !strings.Contains(err.Error(), test.errorDesc) {
 			t.Errorf("%v: VerifyInclusionByHash() error expected to contain %v, but got: %v", test.desc, test.errorDesc, err)
 		}
 	}
