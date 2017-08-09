@@ -55,6 +55,8 @@ func TestNewNameFilter(t *testing.T) {
 		{name: "quotas/global/read/bad", wantErr: true},
 		{name: "bad/trees/1/read/config", wantErr: true},
 		{name: "quotas/trees/1/read/bad", wantErr: true},
+		{name: "bogus/quotas/trees/1/read/config", wantErr: true},
+		{name: "quotas/trees/1/read/config/trailingbogus", wantErr: true},
 	}
 	for _, test := range tests {
 		_, err := newNameFilter(test.name)
@@ -114,7 +116,7 @@ func TestNameFilter_Matches(t *testing.T) {
 			continue
 		}
 		if got := nf.matches(test.name); got != test.want {
-			t.Errorf("%v: matches(%q) = %v, want = %v", test.nf, test.name, got, test.want)
+			t.Errorf("newNameFilter(%q).matches(%q) = %v, want = %v", test.nf, test.name, got, test.want)
 		}
 	}
 }

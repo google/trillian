@@ -23,7 +23,7 @@ import (
 
 const (
 	collectionTrees = "trees"
-	pathWildcard    = "-"
+	wildcard        = "-"
 )
 
 var (
@@ -43,17 +43,24 @@ var (
 
 func init() {
 	var err error
-	globalRE, err = regexp.Compile("quotas/global/(-|read|write)/config")
+	globalRE, err = regexp.Compile("^quotas/global/(-|read|write)/config$")
 	if err != nil {
 		panic(fmt.Sprintf("globalRE: %v", err))
 	}
-	treesUsersRE, err = regexp.Compile("quotas/(-|trees|users)/(-|[^/]+)/(-|read|write)/config")
+	treesUsersRE, err = regexp.Compile("^quotas/(-|trees|users)/[^/]+/(-|read|write)/config$")
 	if err != nil {
 		panic(fmt.Sprintf("treesUsersRE: %v", err))
 	}
 }
 
 // nameFilter represents a config name filter, as used by ListConfigs.
+//
+// A name filter is internally represented as the segments of the name, ie, the result of
+// strings.Split(name, "/").
+//
+// A few examples are:
+// * ["quotas", "global", "read", "configs"]
+// * ["quotas", "trees", "12345", "write", "config"]
 type nameFilter []string
 
 func newNameFilter(name string) (nameFilter, error) {
@@ -64,28 +71,36 @@ func newNameFilter(name string) (nameFilter, error) {
 	nf := strings.Split(string(name), "/")
 
 	// Guard against some ambiguous / incorrect wildcards that the regexes won't protect against
-	switch collection, id := nf[1], nf[2]; {
-	case collection == collectionTrees && id != pathWildcard: // treeID must be an int64
+	switch collection := nf[1]; collection {
+	case collectionTrees:
+		id := nf[2]
+		if id == wildcard {
+			break
+		}
+		// treeID must be an int64
 		if _, err := strconv.ParseInt(id, 10, 64); err != nil {
 			return nil, fmt.Errorf("invalid name filter: %q, ID %q is not a valid 64-bit integer", name, id)
 		}
-	case collection == pathWildcard && id != pathWildcard:
-		return nil, fmt.Errorf("invalid name filter: %q, ambiguous ID %q received", name, id)
+	case wildcard:
+		id := nf[2]
+		if id != wildcard {
+			return nil, fmt.Errorf("invalid name filter: %q, ambiguous ID %q received", name, id)
+		}
 	}
 	return nf, nil
 }
 
 func (nf nameFilter) matches(path string) bool {
-	paths := strings.Split(path, "/")
+	segments := strings.Split(path, "/")
 
 	l := len(nf)
-	if l != len(paths) {
+	if l != len(segments) {
 		return false
 	}
 
 	// Skip first and last tokens (they're always "quotas" and "config").
 	for i := 1; i < l-1; i++ {
-		if nf[i] != pathWildcard && nf[i] != paths[i] {
+		if nf[i] != wildcard && nf[i] != segments[i] {
 			return false
 		}
 	}
