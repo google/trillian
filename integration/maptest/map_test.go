@@ -92,7 +92,7 @@ func verifyGetMapLeavesResponse(getResp *trillian.GetMapLeavesResponse, indexes 
 			return fmt.Errorf("HashLeaf(%s): %x, want %x", leaf, got, want)
 		}
 		if err := merkle.VerifyMapInclusionProof(treeID, index,
-			leafHash, rootHash, proof, hasher); err != nil {
+			leaf, rootHash, proof, hasher); err != nil {
 			return fmt.Errorf("VerifyMapInclusionProof(%x): %v", index, err)
 		}
 	}
@@ -121,8 +121,8 @@ func TestLeafHistory(t *testing.T) {
 	ctx := context.Background()
 	for _, tc := range []struct {
 		desc         string
-		HashStrategy trillian.HashStrategy
-		batches      [][]*trillian.MapLeaf
+		HashStrategy []trillian.HashStrategy
+		set          [][]*trillian.MapLeaf
 		get          []struct {
 			revision  int64
 			Index     []byte
@@ -131,8 +131,8 @@ func TestLeafHistory(t *testing.T) {
 	}{
 		{
 			desc:         "single leaf update",
-			HashStrategy: trillian.HashStrategy_TEST_MAP_HASHER,
-			batches: [][]*trillian.MapLeaf{
+			HashStrategy: []trillian.HashStrategy{trillian.HashStrategy_TEST_MAP_HASHER, trillian.HashStrategy_CONIKS_SHA512_256},
+			set: [][]*trillian.MapLeaf{
 				{}, // Advance revision without changing anything.
 				{
 					{Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("A")},
@@ -150,59 +150,62 @@ func TestLeafHistory(t *testing.T) {
 				Index     []byte
 				LeafValue []byte
 			}{
-				{revision: 1, Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: nil},
-				{revision: 2, Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("A")},
+				{revision: 1, Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: nil},         // Empty to empty root.
+				{revision: 2, Index: []byte("doesnotexist...................."), LeafValue: nil},                                      // Empty to first root, through empty branch.
+				{revision: 2, Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("A")}, // Value to first root.
 				{revision: 3, Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("A")},
 				{revision: 4, Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("B")},
 				{revision: 5, Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("C")},
 			},
 		},
 	} {
-		tree, hasher, err := newTreeWithHasher(ctx, env, tc.HashStrategy)
-		if err != nil {
-			t.Errorf("%v: newTreeWithHasher(%v): %v", tc.desc, tc.HashStrategy, err)
-			continue
-		}
-		pubKey, err := keys.NewFromPublicDER(tree.GetPublicKey().GetDer())
-		if err != nil {
-			t.Errorf("%v: NewFromPublicDER(%v): %v", tc.desc, tc.HashStrategy, err)
-			continue
-		}
-
-		for _, batch := range tc.batches {
-			setResp, err := env.MapClient.SetLeaves(ctx, &trillian.SetMapLeavesRequest{
-				MapId:  tree.TreeId,
-				Leaves: batch,
-			})
+		for _, hashStrategy := range tc.HashStrategy {
+			tree, hasher, err := newTreeWithHasher(ctx, env, hashStrategy)
 			if err != nil {
-				t.Errorf("%v: SetLeaves(): %v", tc.desc, err)
+				t.Errorf("%v: newTreeWithHasher(%v): %v", tc.desc, hashStrategy, err)
 				continue
 			}
-			t.Logf("Rev: %v Set(): %x", setResp.GetMapRoot().GetMapRevision(), setResp.GetMapRoot().GetRootHash())
-		}
-
-		for _, batch := range tc.get {
-			indexes := [][]byte{batch.Index}
-			getResp, err := env.MapClient.GetLeaves(ctx, &trillian.GetMapLeavesRequest{
-				MapId:    tree.TreeId,
-				Index:    indexes,
-				Revision: batch.revision,
-			})
+			pubKey, err := keys.NewFromPublicDER(tree.GetPublicKey().GetDer())
 			if err != nil {
-				t.Errorf("%v: GetLeaves(): %v", tc.desc, err)
-				continue
-			}
-			t.Logf("Rev: %v Get(): %x", getResp.GetMapRoot().GetMapRevision(), getResp.GetMapRoot().GetRootHash())
-
-			if got, want := getResp.MapLeafInclusion[0].GetLeaf().GetLeafValue(), batch.LeafValue; !bytes.Equal(got, want) {
-				t.Errorf("GetLeaves(rev: %v).LeafValue: %s, want %s", batch.revision, got, want)
+				t.Errorf("%v: NewFromPublicDER(%v): %v", tc.desc, hashStrategy, err)
 				continue
 			}
 
-			if err := verifyGetMapLeavesResponse(getResp, indexes, batch.revision,
-				pubKey, hasher, tree.TreeId); err != nil {
-				t.Errorf("%v: verifyGetMapLeavesResponse(rev %v): %v", tc.desc, batch.revision, err)
-				continue
+			for _, batch := range tc.set {
+				setResp, err := env.MapClient.SetLeaves(ctx, &trillian.SetMapLeavesRequest{
+					MapId:  tree.TreeId,
+					Leaves: batch,
+				})
+				if err != nil {
+					t.Errorf("%v: SetLeaves(): %v", tc.desc, err)
+					continue
+				}
+				t.Logf("Rev: %v Set(): %x", setResp.GetMapRoot().GetMapRevision(), setResp.GetMapRoot().GetRootHash())
+			}
+
+			for _, batch := range tc.get {
+				indexes := [][]byte{batch.Index}
+				getResp, err := env.MapClient.GetLeaves(ctx, &trillian.GetMapLeavesRequest{
+					MapId:    tree.TreeId,
+					Index:    indexes,
+					Revision: batch.revision,
+				})
+				if err != nil {
+					t.Errorf("%v: GetLeaves(): %v", tc.desc, err)
+					continue
+				}
+				t.Logf("Rev: %v Get(): %x", getResp.GetMapRoot().GetMapRevision(), getResp.GetMapRoot().GetRootHash())
+
+				if got, want := getResp.MapLeafInclusion[0].GetLeaf().GetLeafValue(), batch.LeafValue; !bytes.Equal(got, want) {
+					t.Errorf("GetLeaves(rev: %v).LeafValue: %s, want %s", batch.revision, got, want)
+					continue
+				}
+
+				if err := verifyGetMapLeavesResponse(getResp, indexes, batch.revision,
+					pubKey, hasher, tree.TreeId); err != nil {
+					t.Errorf("%v: verifyGetMapLeavesResponse(rev %v): %v", tc.desc, batch.revision, err)
+					continue
+				}
 			}
 		}
 	}
@@ -212,35 +215,19 @@ func TestInclusion(t *testing.T) {
 	ctx := context.Background()
 	for _, tc := range []struct {
 		desc         string
-		HashStrategy trillian.HashStrategy
+		HashStrategy []trillian.HashStrategy
 		leaves       []*trillian.MapLeaf
 	}{
 		{
-			desc:         "maphasher single",
-			HashStrategy: trillian.HashStrategy_TEST_MAP_HASHER,
+			desc:         "single",
+			HashStrategy: []trillian.HashStrategy{trillian.HashStrategy_TEST_MAP_HASHER, trillian.HashStrategy_CONIKS_SHA512_256},
 			leaves: []*trillian.MapLeaf{
 				{Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("A")},
 			},
 		},
 		{
-			desc:         "maphasher multi",
-			HashStrategy: trillian.HashStrategy_TEST_MAP_HASHER,
-			leaves: []*trillian.MapLeaf{
-				{Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("A")},
-				{Index: h2b("0000000000000000000000000000000000000000000000000000000000000001"), LeafValue: []byte("B")},
-				{Index: h2b("0000000000000000000000000000000000000000000000000000000000000002"), LeafValue: []byte("C")},
-			},
-		},
-		{
-			desc:         "CONIKS across subtrees",
-			HashStrategy: trillian.HashStrategy_CONIKS_SHA512_256,
-			leaves: []*trillian.MapLeaf{
-				{Index: h2b("0000000000000180000000000000000000000000000000000000000000000000"), LeafValue: []byte("Z")},
-			},
-		},
-		{
-			desc:         "CONIKS multi",
-			HashStrategy: trillian.HashStrategy_CONIKS_SHA512_256,
+			desc:         "multi",
+			HashStrategy: []trillian.HashStrategy{trillian.HashStrategy_TEST_MAP_HASHER, trillian.HashStrategy_CONIKS_SHA512_256},
 			leaves: []*trillian.MapLeaf{
 				{Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("A")},
 				{Index: h2b("0000000000000000000000000000000000000000000000000000000000000001"), LeafValue: []byte("B")},
@@ -248,47 +235,56 @@ func TestInclusion(t *testing.T) {
 				{Index: h2b("0000000000000000000000000000000000000000000000000000000000000003"), LeafValue: nil},
 			},
 		},
-	} {
-		tree, hasher, err := newTreeWithHasher(ctx, env, tc.HashStrategy)
-		if err != nil {
-			t.Errorf("%v: newTreeWithHasher(%v): %v", tc.desc, tc.HashStrategy, err)
-			continue
-		}
-		pubKey, err := keys.NewFromPublicDER(tree.GetPublicKey().GetDer())
-		if err != nil {
-			t.Errorf("%v: NewFromPublicDER(%v): %v", tc.desc, tc.HashStrategy, err)
-			continue
-		}
-
-		if _, err := env.MapClient.SetLeaves(ctx, &trillian.SetMapLeavesRequest{
-			MapId:  tree.TreeId,
-			Leaves: tc.leaves,
-			MapperData: &trillian.MapperMetadata{
-				HighestFullyCompletedSeq: 0xcafe,
+		{
+			desc:         "across subtrees",
+			HashStrategy: []trillian.HashStrategy{trillian.HashStrategy_TEST_MAP_HASHER, trillian.HashStrategy_CONIKS_SHA512_256},
+			leaves: []*trillian.MapLeaf{
+				{Index: h2b("0000000000000180000000000000000000000000000000000000000000000000"), LeafValue: []byte("Z")},
 			},
-		}); err != nil {
-			t.Errorf("%v: SetLeaves(): %v", tc.desc, err)
-			continue
-		}
+		},
+	} {
+		for _, hashStrategy := range tc.HashStrategy {
+			tree, hasher, err := newTreeWithHasher(ctx, env, hashStrategy)
+			if err != nil {
+				t.Errorf("%v: newTreeWithHasher(%v): %v", tc.desc, hashStrategy, err)
+				continue
+			}
+			pubKey, err := keys.NewFromPublicDER(tree.GetPublicKey().GetDer())
+			if err != nil {
+				t.Errorf("%v: NewFromPublicDER(%v): %v", tc.desc, hashStrategy, err)
+				continue
+			}
 
-		indexes := [][]byte{}
-		for _, l := range tc.leaves {
-			indexes = append(indexes, l.Index)
-		}
-		getResp, err := env.MapClient.GetLeaves(ctx, &trillian.GetMapLeavesRequest{
-			MapId:    tree.TreeId,
-			Index:    indexes,
-			Revision: -1,
-		})
-		if err != nil {
-			t.Errorf("%v: GetLeaves(): %v", tc.desc, err)
-			continue
-		}
+			if _, err := env.MapClient.SetLeaves(ctx, &trillian.SetMapLeavesRequest{
+				MapId:  tree.TreeId,
+				Leaves: tc.leaves,
+				MapperData: &trillian.MapperMetadata{
+					HighestFullyCompletedSeq: 0xcafe,
+				},
+			}); err != nil {
+				t.Errorf("%v: SetLeaves(): %v", tc.desc, err)
+				continue
+			}
 
-		if err := verifyGetMapLeavesResponse(getResp, indexes, 1,
-			pubKey, hasher, tree.TreeId); err != nil {
-			t.Errorf("%v: verifyGetMapLeavesResponse(): %v", tc.desc, err)
-			continue
+			indexes := [][]byte{}
+			for _, l := range tc.leaves {
+				indexes = append(indexes, l.Index)
+			}
+			getResp, err := env.MapClient.GetLeaves(ctx, &trillian.GetMapLeavesRequest{
+				MapId:    tree.TreeId,
+				Index:    indexes,
+				Revision: -1,
+			})
+			if err != nil {
+				t.Errorf("%v: GetLeaves(): %v", tc.desc, err)
+				continue
+			}
+
+			if err := verifyGetMapLeavesResponse(getResp, indexes, 1,
+				pubKey, hasher, tree.TreeId); err != nil {
+				t.Errorf("%v: verifyGetMapLeavesResponse(): %v", tc.desc, err)
+				continue
+			}
 		}
 	}
 }
@@ -423,67 +419,4 @@ func RunMapBatchTest(ctx context.Context, env *integration.MapEnv, tree *trillia
 		}
 	}
 	return nil
-}
-
-func TestNonExistentLeaf(t *testing.T) {
-	ctx := context.Background()
-	for _, tc := range []struct {
-		desc         string
-		HashStrategy trillian.HashStrategy
-		leaves       []*trillian.MapLeaf
-		getIndex     []byte
-	}{
-		{
-			desc:         "maphasher batch",
-			HashStrategy: trillian.HashStrategy_TEST_MAP_HASHER,
-			leaves: []*trillian.MapLeaf{
-				{Index: testonly.TransparentHash("A"), LeafValue: []byte("A")},
-			},
-			getIndex: []byte("doesnotexist...................."),
-		},
-	} {
-		tree, hasher, err := newTreeWithHasher(ctx, env, tc.HashStrategy)
-		if err != nil {
-			t.Errorf("%v: newTreeWithHasher(%v): %v", tc.desc, tc.HashStrategy, err)
-			continue
-		}
-
-		if _, err := env.MapClient.SetLeaves(ctx, &trillian.SetMapLeavesRequest{
-			MapId:  tree.TreeId,
-			Leaves: tc.leaves,
-		}); err != nil {
-			t.Errorf("%v: SetLeaves(): %v", tc.desc, err)
-			continue
-		}
-
-		r, err := env.MapClient.GetLeaves(ctx, &trillian.GetMapLeavesRequest{
-			MapId:    tree.TreeId,
-			Revision: -1,
-			Index:    [][]byte{tc.getIndex},
-		})
-		if err != nil {
-			t.Errorf("GetLeaves(): %v", err)
-			continue
-		}
-
-		rootHash := r.GetMapRoot().GetRootHash()
-		for _, incl := range r.MapLeafInclusion {
-			leaf := incl.GetLeaf().GetLeafValue()
-			index := incl.GetLeaf().GetIndex()
-			leafHash := incl.GetLeaf().GetLeafHash()
-			proof := incl.GetInclusion()
-
-			if got, want := len(leaf), 0; got != want {
-				t.Errorf("len(leaf): %v, want, %v", got, want)
-			}
-
-			if got, want := leafHash, hasher.HashLeaf(tree.TreeId, index, leaf); !bytes.Equal(got, want) {
-				t.Errorf("HashLeaf(%s): %x, want %x", leaf, got, want)
-			}
-			if err := merkle.VerifyMapInclusionProof(tree.TreeId, index,
-				leafHash, rootHash, proof, hasher); err != nil {
-				t.Errorf("%v: VerifyMapInclusionProof(%x): %v", tc.desc, index, err)
-			}
-		}
-	}
 }

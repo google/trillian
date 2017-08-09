@@ -166,6 +166,12 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 			return nil, status.Errorf(codes.InvalidArgument,
 				"len(%x): %v, want %v", l.Index, got, want)
 		}
+		if l.LeafValue == nil {
+			// Leaves are empty by default. Do not allow clients to store
+			// empty leaf values as this messes up the calculation of empty
+			// branches.
+			continue
+		}
 		// TODO(gbelvin) use LeafHash rather than computing here. #423
 		l.LeafHash = hasher.HashLeaf(mapID, l.Index, l.LeafValue)
 
