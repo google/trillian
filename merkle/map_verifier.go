@@ -51,9 +51,11 @@ func VerifyMapInclusionProof(treeID int64, index, leaf, expectedRoot []byte, pro
 	for height, sib := range nID.Siblings() {
 		pElement := proof[height]
 
-		// Since HashChildren(e0, e0) is not always equal to the empty
-		// value at level 1, we need to maintain an empty marker along
-		// the proof path until the first non-empty element.
+		// Since empty values are tied to a location and a level,
+		// HashEmpty(leve1) != HashChildren(E0, E0).
+		// Therefore we need to maintain an empty marker along the
+		// proof path until the first non-empty element so we can call
+		// HashEmpty once at the top of the empty branch.
 		if len(runningHash) == 0 && len(pElement) == 0 {
 			continue
 		}

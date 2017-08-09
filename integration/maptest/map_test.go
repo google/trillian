@@ -150,9 +150,9 @@ func TestLeafHistory(t *testing.T) {
 				Index     []byte
 				LeafValue []byte
 			}{
-				{revision: 1, Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: nil}, // Empty to empty root.
-				{revision: 2, Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("A")},
-				{revision: 2, Index: []byte("doesnotexist...................."), LeafValue: nil}, // Empty to first root.
+				{revision: 1, Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: nil},         // Empty to empty root.
+				{revision: 2, Index: []byte("doesnotexist...................."), LeafValue: nil},                                      // Empty to first root, through empty branch.
+				{revision: 2, Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("A")}, // Value to first root.
 				{revision: 3, Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("A")},
 				{revision: 4, Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("B")},
 				{revision: 5, Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("C")},
