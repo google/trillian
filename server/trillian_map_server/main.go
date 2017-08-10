@@ -16,11 +16,6 @@ package main
 
 import (
 	"flag"
-	_ "net/http/pprof"
-
-	_ "github.com/go-sql-driver/mysql"              // Load MySQL driver
-	_ "github.com/google/trillian/merkle/coniks"    // Make hashers available
-	_ "github.com/google/trillian/merkle/maphasher" // Make hashers available
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
@@ -29,14 +24,20 @@ import (
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/monitoring/prometheus"
-	"github.com/google/trillian/quota"
-	mysqlq "github.com/google/trillian/quota/mysql"
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/server/interceptor"
 	"github.com/google/trillian/storage/mysql"
 	"github.com/google/trillian/util"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+
+	mysqlq "github.com/google/trillian/quota/mysql"
+
+	_ "net/http/pprof"
+
+	_ "github.com/go-sql-driver/mysql"              // Load MySQL driver
+	_ "github.com/google/trillian/merkle/coniks"    // Make hashers available
+	_ "github.com/google/trillian/merkle/maphasher" // Make hashers available
 )
 
 var (
@@ -71,16 +72,11 @@ func main() {
 		QuotaManager:  &mysqlq.QuotaManager{DB: db, MaxUnsequencedRows: *maxUnsequencedRows},
 		MetricFactory: prometheus.MetricFactory{},
 	}
-	interceptor.InitMetrics(registry.MetricFactory)
-	quota.InitMetrics(registry.MetricFactory)
 
 	ts := util.SystemTimeSource{}
 	stats := monitoring.NewRPCStatsInterceptor(ts, "map", registry.MetricFactory)
-	ti := &interceptor.TrillianInterceptor{
-		Admin:        registry.AdminStorage,
-		QuotaManager: registry.QuotaManager,
-		QuotaDryRun:  *quotaDryRun,
-	}
+	ti := interceptor.New(
+		registry.AdminStorage, registry.QuotaManager, *quotaDryRun, registry.MetricFactory)
 	netInterceptor := interceptor.Combine(stats.Interceptor(), interceptor.ErrorWrapper, ti.UnaryInterceptor)
 	s := grpc.NewServer(grpc.UnaryInterceptor(netInterceptor))
 	// No defer: server ownership is delegated to server.Main

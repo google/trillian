@@ -114,10 +114,8 @@ func setupLogServer(maxUnsequenced int) (trillian.TrillianAdminClient, trillian.
 	}
 	qm.MaxUnsequencedRows = maxUnsequenced
 
-	intercept := &interceptor.TrillianInterceptor{
-		Admin:        registry.AdminStorage,
-		QuotaManager: registry.QuotaManager,
-	}
+	intercept := interceptor.New(
+		registry.AdminStorage, registry.QuotaManager, false /* quotaDryRun */, registry.MetricFactory)
 	netInterceptor := interceptor.Combine(interceptor.ErrorWrapper, intercept.UnaryInterceptor)
 	s = grpc.NewServer(grpc.UnaryInterceptor(netInterceptor))
 	trillian.RegisterTrillianAdminServer(s, admin.New(registry))

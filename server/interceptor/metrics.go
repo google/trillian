@@ -16,8 +16,10 @@ package interceptor
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/google/trillian/monitoring"
+	"github.com/google/trillian/quota"
 )
 
 const (
@@ -29,25 +31,28 @@ const (
 var (
 	requestCounter       monitoring.Counter
 	requestDeniedCounter monitoring.Counter
+
+	metricsOnce = sync.Once{}
 )
 
-// InitMetrics initializes the metrics on the interceptor package.
-func InitMetrics(mf monitoring.MetricFactory) {
-	requestCounter = mf.NewCounter("interceptor_request_count", "Total number of intercepted requests")
-	requestDeniedCounter = mf.NewCounter(
-		"interceptor_request_denied_count",
-		"Number of requests by denied, labeled according to the reason for denial",
-		"reason", monitoring.TreeIDLabel, "quota_user")
+func initMetrics(mf monitoring.MetricFactory) {
+	metricsOnce.Do(func() {
+		if mf == nil {
+			mf = monitoring.InertMetricFactory{}
+		}
+		quota.InitMetrics(mf)
+		requestCounter = mf.NewCounter("interceptor_request_count", "Total number of intercepted requests")
+		requestDeniedCounter = mf.NewCounter(
+			"interceptor_request_denied_count",
+			"Number of requests by denied, labeled according to the reason for denial",
+			"reason", monitoring.TreeIDLabel, "quota_user")
+	})
 }
 
 func incRequestCounter() {
-	if requestCounter != nil {
-		requestCounter.Inc()
-	}
+	requestCounter.Inc()
 }
 
 func incRequestDeniedCounter(reason string, treeID int64, quotaUser string) {
-	if requestDeniedCounter != nil {
-		requestDeniedCounter.Inc(reason, fmt.Sprint(treeID), quotaUser)
-	}
+	requestDeniedCounter.Inc(reason, fmt.Sprint(treeID), quotaUser)
 }

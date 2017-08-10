@@ -93,7 +93,7 @@ func TestTrillianInterceptor_TreeInterception(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	intercept := TrillianInterceptor{Admin: admin, QuotaManager: quota.Noop()}
+	intercept := New(admin, quota.Noop(), false /* quotaDryRun */, nil /* mf */)
 	for _, test := range tests {
 		handler := &fakeHandler{resp: "handler response", err: test.handlerErr}
 
@@ -262,7 +262,7 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 		}
 
 		handler := &fakeHandler{resp: "ok"}
-		intercept := &TrillianInterceptor{Admin: admin, QuotaManager: qm, QuotaDryRun: test.dryRun}
+		intercept := New(admin, qm, test.dryRun, nil /* mf */)
 
 		// resp and handler assertions are done by TestTrillianInterceptor_TreeInterception,
 		// we're only concerned with the quota logic here.
@@ -400,7 +400,7 @@ func TestTrillianInterceptor_QuotaInterception_ReturnsTokens(t *testing.T) {
 		}
 
 		handler := &fakeHandler{resp: test.resp, err: test.handlerErr}
-		intercept := &TrillianInterceptor{Admin: admin, QuotaManager: qm}
+		intercept := New(admin, qm, false /* quotaDryRun */, nil /* mf */)
 
 		if _, err := intercept.UnaryInterceptor(ctx, test.req, &grpc.UnaryServerInfo{}, handler.run); err != test.handlerErr {
 			t.Errorf("%v: UnaryInterceptor() returned err = [%v], want = [%v]", test.desc, err, test.handlerErr)
@@ -449,7 +449,7 @@ func TestTrillianInterceptor_BeforeAfter(t *testing.T) {
 
 	ctx := context.Background()
 	for _, test := range tests {
-		intercept := &TrillianInterceptor{Admin: admin, QuotaManager: qm}
+		intercept := New(admin, qm, false /* quotaDryRun */, nil /* mf */)
 		p := intercept.NewProcessor()
 
 		_, err := p.Before(ctx, test.req)

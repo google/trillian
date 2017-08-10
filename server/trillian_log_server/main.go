@@ -18,27 +18,28 @@ package main
 
 import (
 	"flag"
-	_ "net/http/pprof"
-
-	_ "github.com/go-sql-driver/mysql" // Load MySQL driver
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/cmd"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/extension"
-	_ "github.com/google/trillian/merkle/objhasher" // Load hashers
-	_ "github.com/google/trillian/merkle/rfc6962"   // Load hashers
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/monitoring/prometheus"
-	"github.com/google/trillian/quota"
-	mysqlq "github.com/google/trillian/quota/mysql"
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/server/interceptor"
 	"github.com/google/trillian/storage/mysql"
 	"github.com/google/trillian/util"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+
+	_ "net/http/pprof"
+
+	_ "github.com/go-sql-driver/mysql"              // Load MySQL driver
+	_ "github.com/google/trillian/merkle/objhasher" // Load hashers
+	_ "github.com/google/trillian/merkle/rfc6962"   // Load hashers
+
+	mysqlq "github.com/google/trillian/quota/mysql"
 )
 
 var (
@@ -87,9 +88,6 @@ func main() {
 	}
 
 	mf := prometheus.MetricFactory{}
-	interceptor.InitMetrics(mf)
-	quota.InitMetrics(mf)
-
 	sf := &keys.DefaultSignerFactory{}
 	if *pkcs11ModulePath != "" {
 		sf.SetPKCS11Module(*pkcs11ModulePath)
@@ -105,11 +103,8 @@ func main() {
 
 	ts := util.SystemTimeSource{}
 	stats := monitoring.NewRPCStatsInterceptor(ts, "log", registry.MetricFactory)
-	ti := &interceptor.TrillianInterceptor{
-		Admin:        registry.AdminStorage,
-		QuotaManager: registry.QuotaManager,
-		QuotaDryRun:  *quotaDryRun,
-	}
+	ti := interceptor.New(
+		registry.AdminStorage, registry.QuotaManager, *quotaDryRun, registry.MetricFactory)
 	netInterceptor := interceptor.Combine(stats.Interceptor(), interceptor.ErrorWrapper, ti.UnaryInterceptor)
 	s := grpc.NewServer(grpc.UnaryInterceptor(netInterceptor))
 	// No defer: server ownership is delegated to server.Main
