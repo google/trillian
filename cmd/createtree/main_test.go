@@ -15,10 +15,9 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"flag"
-	"fmt"
-	"net"
 	"testing"
 	"time"
 
@@ -27,12 +26,10 @@ import (
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto/keyspb"
+	"github.com/google/trillian/cmd/createtree/testonly"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/util/flagsaver"
 	"github.com/kylelemons/godebug/pretty"
-	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 )
 
 // defaultTree reflects all flag defaults with the addition of a valid private key.
@@ -112,13 +109,23 @@ func TestCreateTree(t *testing.T) {
 	})
 }
 
+// runTest executes the createtree command against a fake TrillianAdminServer
+// for each of the provided tests, and checks that the tree in the request is
+// as expected, or an expected error occurs.
+// Prior to each test case, it:
+// 1. Resets all flags to their original values.
+// 2. Sets the adminServerAddr flag to point to the fake server.
+// 3. Calls the test's setFlags func (if provided) to allow it to change flags specific to the test.
 func runTest(t *testing.T, tests []*testCase) {
-	server, lis, stopFn, err := startFakeServer()
+	server := &testonly.FakeAdminServer{
+		GeneratedKey: defaultTree.PrivateKey,
+	}
+
+	lis, stopFakeServer, err := testonly.StartFakeAdminServer(server)
 	if err != nil {
 		t.Fatalf("Error starting fake server: %v", err)
 	}
-	defer stopFn()
-	server.generatedKey = defaultTree.PrivateKey
+	defer stopFakeServer()
 
 	ctx := context.Background()
 	for _, test := range tests {
@@ -129,7 +136,7 @@ func runTest(t *testing.T, tests []*testCase) {
 				test.setFlags()
 			}
 
-			server.err = test.createErr
+			server.Err = test.createErr
 
 			tree, err := createTree(ctx)
 			switch hasErr := err != nil; {
@@ -151,84 +158,4 @@ func resetFlags() {
 	flag.Visit(func(f *flag.Flag) {
 		f.Value.Set(f.DefValue)
 	})
-}
-
-// fakeAdminServer that implements CreateTree.
-// If err is not nil, it will be returned in response to CreateTree requests.
-// If generatedKey is not nil, and a request has a KeySpec set, the response
-// will contain generatedKey.
-// The response to a CreateTree request will otherwise contain an identical copy
-// of the tree sent in the request.
-// The remaining methods are not implemented.
-type fakeAdminServer struct {
-	err          error
-	generatedKey *any.Any
-}
-
-// startFakeServer starts a fakeAdminServer on a random port.
-// Returns the started server, the listener it's using for connection and a
-// close function that must be defer-called on the scope the server is meant to
-// stop.
-func startFakeServer() (*fakeAdminServer, net.Listener, func(), error) {
-	grpcServer := grpc.NewServer()
-	fakeServer := &fakeAdminServer{}
-	trillian.RegisterTrillianAdminServer(grpcServer, fakeServer)
-
-	lis, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	go grpcServer.Serve(lis)
-
-	stopFn := func() {
-		grpcServer.Stop()
-		lis.Close()
-	}
-	return fakeServer, lis, stopFn, nil
-}
-
-func (s *fakeAdminServer) CreateTree(ctx context.Context, req *trillian.CreateTreeRequest) (*trillian.Tree, error) {
-	if s.err != nil {
-		return nil, s.err
-	}
-	resp := *req.Tree
-	if req.KeySpec != nil {
-		if s.generatedKey == nil {
-			panic("fakeAdminServer.generatedKey == nil but CreateTreeRequest requests generated key")
-		}
-
-		var keySigAlgo sigpb.DigitallySigned_SignatureAlgorithm
-		switch req.KeySpec.Params.(type) {
-		case *keyspb.Specification_EcdsaParams:
-			keySigAlgo = sigpb.DigitallySigned_ECDSA
-		case *keyspb.Specification_RsaParams:
-			keySigAlgo = sigpb.DigitallySigned_RSA
-		default:
-			return nil, fmt.Errorf("got unsupported type of key_spec.params: %T", req.KeySpec.Params)
-		}
-		if treeSigAlgo := req.Tree.GetSignatureAlgorithm(); treeSigAlgo != keySigAlgo {
-			return nil, fmt.Errorf("got tree.SignatureAlgorithm = %v but key_spec.Params of type %T", treeSigAlgo, req.KeySpec.Params)
-		}
-
-		resp.PrivateKey = s.generatedKey
-	}
-	return &resp, nil
-}
-
-var errUnimplemented = errors.New("unimplemented")
-
-func (s *fakeAdminServer) ListTrees(context.Context, *trillian.ListTreesRequest) (*trillian.ListTreesResponse, error) {
-	return nil, errUnimplemented
-}
-
-func (s *fakeAdminServer) GetTree(context.Context, *trillian.GetTreeRequest) (*trillian.Tree, error) {
-	return nil, errUnimplemented
-}
-
-func (s *fakeAdminServer) UpdateTree(context.Context, *trillian.UpdateTreeRequest) (*trillian.Tree, error) {
-	return nil, errUnimplemented
-}
-
-func (s *fakeAdminServer) DeleteTree(context.Context, *trillian.DeleteTreeRequest) (*empty.Empty, error) {
-	return nil, errUnimplemented
 }
