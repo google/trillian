@@ -17,6 +17,7 @@ package client
 import (
 	"crypto"
 	"crypto/sha256"
+	"fmt"
 
 	"github.com/google/trillian"
 	tcrypto "github.com/google/trillian/crypto"
@@ -45,6 +46,13 @@ func NewLogVerifier(hasher hashers.LogHasher, pubKey crypto.PublicKey) LogVerifi
 func (c *logVerifier) VerifyRoot(trusted, newRoot *trillian.SignedLogRoot,
 	consistency [][]byte) error {
 
+	if trusted == nil {
+		return fmt.Errorf("VerifyRoot() error: trusted == nil")
+	}
+	if newRoot == nil {
+		return fmt.Errorf("VerifyRoot() error: newRoot == nil")
+	}
+
 	// Verify SignedLogRoot signature.
 	hash := tcrypto.HashLogRoot(*newRoot)
 	if err := tcrypto.Verify(c.pubKey, hash, newRoot.Signature); err != nil {
@@ -67,6 +75,10 @@ func (c *logVerifier) VerifyRoot(trusted, newRoot *trillian.SignedLogRoot,
 // VerifyInclusionAtIndex verifies that the inclusion proof for data at index matches
 // the currently trusted root. The inclusion proof must be requested for Root().TreeSize.
 func (c *logVerifier) VerifyInclusionAtIndex(trusted *trillian.SignedLogRoot, data []byte, leafIndex int64, proof [][]byte) error {
+	if trusted == nil {
+		return fmt.Errorf("VerifyInclusionAtIndex() error: trusted == nil")
+	}
+
 	leaf := c.buildLeaf(data)
 	return c.v.VerifyInclusionProof(leafIndex, trusted.TreeSize,
 		proof, trusted.RootHash, leaf.MerkleLeafHash)
@@ -74,6 +86,13 @@ func (c *logVerifier) VerifyInclusionAtIndex(trusted *trillian.SignedLogRoot, da
 
 // VerifyInclusionByHash verifies the inclusion proof for data
 func (c *logVerifier) VerifyInclusionByHash(trusted *trillian.SignedLogRoot, leafHash []byte, proof *trillian.Proof) error {
+	if trusted == nil {
+		return fmt.Errorf("VerifyInclusionByHash() error: trusted == nil")
+	}
+	if proof == nil {
+		return fmt.Errorf("VerifyInclusionByHash() error: proof == nil")
+	}
+
 	return c.v.VerifyInclusionProof(proof.LeafIndex, trusted.TreeSize, proof.Hashes,
 		trusted.RootHash, leafHash)
 }
