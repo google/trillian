@@ -38,7 +38,7 @@ var defaultTree = &trillian.Tree{
 	TreeType:           trillian.TreeType_LOG,
 	HashStrategy:       trillian.HashStrategy_RFC6962_SHA256,
 	HashAlgorithm:      sigpb.DigitallySigned_SHA256,
-	SignatureAlgorithm: sigpb.DigitallySigned_RSA,
+	SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
 	PrivateKey:         mustMarshalAny(&empty.Empty{}),
 	MaxRootDuration:    ptypes.DurationProto(0 * time.Millisecond),
 }
@@ -62,7 +62,7 @@ func mustMarshalAny(p proto.Message) *any.Any {
 func TestCreateTree(t *testing.T) {
 	nonDefaultTree := *defaultTree
 	nonDefaultTree.TreeType = trillian.TreeType_MAP
-	nonDefaultTree.SignatureAlgorithm = sigpb.DigitallySigned_ECDSA
+	nonDefaultTree.SignatureAlgorithm = sigpb.DigitallySigned_RSA
 	nonDefaultTree.DisplayName = "Llamas Map"
 	nonDefaultTree.Description = "For all your digital llama needs!"
 
