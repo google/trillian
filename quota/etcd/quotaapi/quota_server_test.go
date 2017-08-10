@@ -550,7 +550,7 @@ func TestServer_DeleteConfig(t *testing.T) {
 		}
 
 		if _, err := quotaClient.DeleteConfig(ctx, test.req); err != nil {
-			t.Errorf("%v: DeleteConfig() returned err = %v", test.desc, err)
+			t.Errorf("%v: DeleteConfig(%q) returned err = %v", test.desc, test.req.Name, err)
 			continue
 		}
 
