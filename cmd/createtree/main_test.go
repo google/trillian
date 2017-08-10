@@ -16,12 +16,13 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"os"
 	"testing"
 	"time"
 
-	"github.com/gogo/protobuf/proto"
+	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/golang/protobuf/ptypes/empty"
@@ -78,11 +79,10 @@ func TestRun(t *testing.T) {
 		t.Fatalf("Error starting fake server: %v", err)
 	}
 	defer stopFn()
+	server.generatedKey = anyPrivKey
 
 	validOpts := newOptsFromFlags()
 	validOpts.addr = lis.Addr().String()
-	validOpts.pemKeyPath = pemPath
-	validOpts.pemKeyPass = pemPassword
 
 	nonDefaultTree := *defaultTree
 	nonDefaultTree.TreeType = trillian.TreeType_MAP
@@ -102,16 +102,24 @@ func TestRun(t *testing.T) {
 	invalidEnumOpts := *validOpts
 	invalidEnumOpts.treeType = "LLAMA!"
 
-	invalidKeyTypeOpts := *validOpts
+	privateKeyOpts := *validOpts
+	privateKeyOpts.privateKeyType = "PrivateKey"
+	privateKeyOpts.pemKeyPath = pemPath
+	privateKeyOpts.pemKeyPass = pemPassword
+
+	emptyKeyTypeOpts := privateKeyOpts
+	emptyKeyTypeOpts.privateKeyType = ""
+
+	invalidKeyTypeOpts := privateKeyOpts
 	invalidKeyTypeOpts.privateKeyType = "LLAMA!!"
 
-	emptyPEMPath := *validOpts
+	emptyPEMPath := privateKeyOpts
 	emptyPEMPath.pemKeyPath = ""
 
-	emptyPEMPass := *validOpts
+	emptyPEMPass := privateKeyOpts
 	emptyPEMPass.pemKeyPass = ""
 
-	pemKeyOpts := *validOpts
+	pemKeyOpts := privateKeyOpts
 	pemKeyOpts.privateKeyType = "PEMKeyFile"
 	pemKeyTree := *defaultTree
 	pemKeyTree.PrivateKey, err = ptypes.MarshalAny(&keyspb.PEMKeyFile{
@@ -141,8 +149,8 @@ xToc6NWBri0N3VVsswIDAQAB
 		t.Fatalf("MarshalAny(PKCS11Config): %v", err)
 	}
 
-	emptyPKCS11Path := *validOpts
-	emptyPKCS11Path.privateKeyType = "PKCS11ConfigFile"
+	emptyPKCS11Path := pkcs11Opts
+	emptyPKCS11Path.pkcs11ConfigPath = ""
 
 	tests := []struct {
 		desc      string
@@ -156,12 +164,14 @@ xToc6NWBri0N3VVsswIDAQAB
 		{desc: "defaultOptsOnly", opts: newOptsFromFlags(), wantErr: true}, // No mandatory opts provided
 		{desc: "emptyAddr", opts: &emptyAddr, wantErr: true},
 		{desc: "invalidEnumOpts", opts: &invalidEnumOpts, wantErr: true},
+		{desc: "emptyKeyTypeOpts", opts: &emptyKeyTypeOpts, wantErr: true},
 		{desc: "invalidKeyTypeOpts", opts: &invalidKeyTypeOpts, wantErr: true},
 		{desc: "emptyPEMPath", opts: &emptyPEMPath, wantErr: true},
 		{desc: "emptyPEMPass", opts: &emptyPEMPass, wantErr: true},
-		{desc: "PEMKeyFile", opts: &pemKeyOpts, wantErr: false, wantTree: &pemKeyTree},
+		{desc: "PrivateKey", opts: &privateKeyOpts, wantTree: defaultTree},
+		{desc: "PEMKeyFile", opts: &pemKeyOpts, wantTree: &pemKeyTree},
 		{desc: "createErr", opts: validOpts, createErr: errors.New("create tree failed"), wantErr: true},
-		{desc: "PKCS11Config", opts: &pkcs11Opts, wantErr: false, wantTree: &pkcs11Tree},
+		{desc: "PKCS11Config", opts: &pkcs11Opts, wantTree: &pkcs11Tree},
 		{desc: "emptyPKCS11Path", opts: &emptyPKCS11Path, wantErr: true},
 	}
 
@@ -178,17 +188,22 @@ xToc6NWBri0N3VVsswIDAQAB
 			continue
 		}
 
-		if diff := pretty.Compare(tree, test.wantTree); diff != "" {
-			t.Errorf("%v: post-createTree diff:\n%v", test.desc, diff)
+		if !proto.Equal(tree, test.wantTree) {
+			t.Errorf("%v: post-createTree diff -got +want:\n%v", test.desc, pretty.Compare(tree, test.wantTree))
 		}
 	}
 }
 
-// fakeAdminServer that implements CreateTree. If err is nil, the CreateTree
-// input is echoed as the output, otherwise err is returned instead.
+// fakeAdminServer that implements CreateTree.
+// If err is not nil, it will be returned in response to CreateTree requests.
+// If generatedKey is not nil, and a request has a KeySpec set, the response
+// will contain generatedKey.
+// The response to a CreateTree request will otherwise contain an identical copy
+// of the tree sent in the request.
 // The remaining methods are not implemented.
 type fakeAdminServer struct {
-	err error
+	err          error
+	generatedKey *any.Any
 }
 
 // startFakeServer starts a fakeAdminServer on a random port.
@@ -218,6 +233,26 @@ func (s *fakeAdminServer) CreateTree(ctx context.Context, req *trillian.CreateTr
 		return nil, s.err
 	}
 	resp := *req.Tree
+	if req.KeySpec != nil {
+		if s.generatedKey == nil {
+			panic("fakeAdminServer.generatedKey == nil but CreateTreeRequest requests generated key")
+		}
+
+		var keySigAlgo sigpb.DigitallySigned_SignatureAlgorithm
+		switch req.KeySpec.Params.(type) {
+		case *keyspb.Specification_EcdsaParams:
+			keySigAlgo = sigpb.DigitallySigned_ECDSA
+		case *keyspb.Specification_RsaParams:
+			keySigAlgo = sigpb.DigitallySigned_RSA
+		default:
+			return nil, fmt.Errorf("got unsupported type of key_spec.params: %T", req.KeySpec.Params)
+		}
+		if treeSigAlgo := req.Tree.GetSignatureAlgorithm(); treeSigAlgo != keySigAlgo {
+			return nil, fmt.Errorf("got tree.SignatureAlgorithm = %v but key_spec.Params of type %T", treeSigAlgo, req.KeySpec.Params)
+		}
+
+		resp.PrivateKey = s.generatedKey
+	}
 	return &resp, nil
 }
 
