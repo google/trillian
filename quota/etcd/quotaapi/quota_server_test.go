@@ -492,6 +492,81 @@ func runUpsertTest(ctx context.Context, test upsertTest, rpc upsertRPC, rpcName 
 	return nil
 }
 
+func TestServer_DeleteConfig(t *testing.T) {
+	tests := []struct {
+		desc                 string
+		createCfgs, wantCfgs []*quotapb.Config
+		req                  *quotapb.DeleteConfigRequest
+	}{
+		{
+			desc: "success",
+			createCfgs: []*quotapb.Config{
+				globalRead, globalWrite,
+				tree1Read, tree1Write,
+				tree2Read, tree2Write,
+				userRead, userWrite,
+			},
+			wantCfgs: []*quotapb.Config{
+				globalRead, globalWrite,
+				tree1Write,
+				tree2Read, tree2Write,
+				userRead, userWrite,
+			},
+			req: &quotapb.DeleteConfigRequest{Name: tree1Read.Name},
+		},
+		{
+			desc:       "lastConfig",
+			createCfgs: []*quotapb.Config{tree1Read},
+			req:        &quotapb.DeleteConfigRequest{Name: tree1Read.Name},
+		},
+		{
+			desc:       "global",
+			createCfgs: []*quotapb.Config{globalRead, globalWrite},
+			wantCfgs:   []*quotapb.Config{globalRead},
+			req:        &quotapb.DeleteConfigRequest{Name: globalWriteName},
+		},
+		{
+			desc:       "user",
+			createCfgs: []*quotapb.Config{userRead, userWrite},
+			wantCfgs:   []*quotapb.Config{userWrite},
+			req:        &quotapb.DeleteConfigRequest{Name: userRead.Name},
+		},
+	}
+
+	ctx := context.Background()
+	for _, test := range tests {
+		if err := reset(ctx); err != nil {
+			t.Errorf("%v: reset() returned err = %v", test.desc, err)
+			continue
+		}
+
+		for _, cfg := range test.createCfgs {
+			if _, err := quotaClient.CreateConfig(ctx, &quotapb.CreateConfigRequest{
+				Name:   cfg.Name,
+				Config: cfg,
+			}); err != nil {
+				t.Fatalf("%v: CreateConfig(%q) returned err = %v", test.desc, cfg.Name, err)
+			}
+		}
+
+		if _, err := quotaClient.DeleteConfig(ctx, test.req); err != nil {
+			t.Errorf("%v: DeleteConfig(%q) returned err = %v", test.desc, test.req.Name, err)
+			continue
+		}
+
+		resp, err := quotaClient.ListConfigs(ctx, &quotapb.ListConfigsRequest{
+			View: quotapb.ListConfigsRequest_FULL,
+		})
+		if err != nil {
+			t.Errorf("%v: ListConfigs() returned err = %v", test.desc, err)
+			continue
+		}
+		if err := sortAndCompare(resp.Configs, test.wantCfgs); err != nil {
+			t.Errorf("%v: post-DeleteConfig() %v", test.desc, err)
+		}
+	}
+}
+
 func TestServer_DeleteConfigErrors(t *testing.T) {
 	tests := []struct {
 		desc     string
@@ -499,9 +574,20 @@ func TestServer_DeleteConfigErrors(t *testing.T) {
 		wantCode codes.Code
 	}{
 		{
-			desc:     "unimplemented",
+			desc:     "emptyName",
+			req:      &quotapb.DeleteConfigRequest{},
+			wantCode: codes.InvalidArgument,
+		},
+		{
+			desc: "badName",
+			req:  &quotapb.DeleteConfigRequest{Name: "bad/quota/name"},
+			// TODO(codingllama): Validate names on Delete and surface the appropriate errors
+			wantCode: codes.NotFound,
+		},
+		{
+			desc:     "unknown",
 			req:      &quotapb.DeleteConfigRequest{Name: globalWriteName},
-			wantCode: codes.Unimplemented,
+			wantCode: codes.NotFound,
 		},
 	}
 

@@ -65,7 +65,24 @@ func (s *Server) CreateConfig(ctx context.Context, req *quotapb.CreateConfigRequ
 
 // DeleteConfig implements quotapb.QuotaServer.DeleteConfig.
 func (s *Server) DeleteConfig(ctx context.Context, req *quotapb.DeleteConfigRequest) (*empty.Empty, error) {
-	return nil, status.Error(codes.Unimplemented, "not implemented")
+	if req.Name == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "name is required")
+	}
+
+	notFound := false
+	_, err := s.qs.UpdateConfigs(ctx, false /* reset */, func(cfgs *storagepb.Configs) {
+		for i, cfg := range cfgs.Configs {
+			if cfg.Name == req.Name {
+				cfgs.Configs = append(cfgs.Configs[:i], cfgs.Configs[i+1:]...)
+				return
+			}
+		}
+		notFound = true
+	})
+	if notFound {
+		return nil, status.Errorf(codes.NotFound, "%q not found", req.Name)
+	}
+	return &empty.Empty{}, err
 }
 
 // GetConfig implements quotapb.QuotaServer.GetConfig.
