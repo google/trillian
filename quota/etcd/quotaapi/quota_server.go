@@ -39,11 +39,11 @@ func NewServer(client *clientv3.Client) *Server {
 
 // CreateConfig implements quotapb.QuotaServer.CreateConfig.
 func (s *Server) CreateConfig(ctx context.Context, req *quotapb.CreateConfigRequest) (*quotapb.Config, error) {
-	switch {
-	case req.Name == "":
-		return nil, status.Errorf(codes.InvalidArgument, "name is required")
-	case req.Config == nil:
+	if req.Config == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "config is required")
+	}
+	if err := validateName(req.Name); err != nil {
+		return nil, err
 	}
 	req.Config.Name = req.Name
 
@@ -65,8 +65,8 @@ func (s *Server) CreateConfig(ctx context.Context, req *quotapb.CreateConfigRequ
 
 // DeleteConfig implements quotapb.QuotaServer.DeleteConfig.
 func (s *Server) DeleteConfig(ctx context.Context, req *quotapb.DeleteConfigRequest) (*empty.Empty, error) {
-	if req.Name == "" {
-		return nil, status.Errorf(codes.InvalidArgument, "name is required")
+	if err := validateName(req.Name); err != nil {
+		return nil, err
 	}
 
 	notFound := false
@@ -87,8 +87,8 @@ func (s *Server) DeleteConfig(ctx context.Context, req *quotapb.DeleteConfigRequ
 
 // GetConfig implements quotapb.QuotaServer.GetConfig.
 func (s *Server) GetConfig(ctx context.Context, req *quotapb.GetConfigRequest) (*quotapb.Config, error) {
-	if req.Name == "" {
-		return nil, status.Errorf(codes.InvalidArgument, "name is required")
+	if err := validateName(req.Name); err != nil {
+		return nil, err
 	}
 
 	cfgs, err := s.qs.Configs(ctx)
@@ -159,8 +159,6 @@ func (s *Server) UpdateConfig(ctx context.Context, req *quotapb.UpdateConfigRequ
 	hasConfig := cfg != nil
 	hasMask := mask != nil && len(mask.Paths) > 0
 	switch {
-	case req.Name == "":
-		return nil, status.Errorf(codes.InvalidArgument, "name must be specified")
 	case req.ResetQuota && !hasConfig && !hasMask:
 		// For convenience, reset-only requests are allowed.
 		cfg = &quotapb.Config{}
@@ -169,6 +167,9 @@ func (s *Server) UpdateConfig(ctx context.Context, req *quotapb.UpdateConfigRequ
 		return nil, status.Errorf(codes.InvalidArgument, "config must be specified")
 	case !hasMask:
 		return nil, status.Errorf(codes.InvalidArgument, "update_mask must be specified")
+	}
+	if err := validateName(req.Name); err != nil {
+		return nil, err
 	}
 	if err := validateMask(mask); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid update_mask: %v", err)
@@ -199,4 +200,14 @@ func findByName(name string, cfgs *storagepb.Configs) (*storagepb.Config, bool) 
 		}
 	}
 	return nil, false
+}
+
+func validateName(name string) error {
+	switch {
+	case name == "":
+		return status.Errorf(codes.InvalidArgument, "name is required")
+	case !storage.IsNameValid(name):
+		return status.Errorf(codes.InvalidArgument, "invalid name: %q", name)
+	}
+	return nil
 }
