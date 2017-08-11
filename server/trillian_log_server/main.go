@@ -33,7 +33,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 
-	_ "net/http/pprof"
+	_ "net/http/pprof" // Register pprof HTTP handlers
 
 	_ "github.com/go-sql-driver/mysql"              // Load MySQL driver
 	_ "github.com/google/trillian/merkle/objhasher" // Load hashers
