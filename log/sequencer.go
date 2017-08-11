@@ -75,6 +75,7 @@ func createMetrics(mf monitoring.MetricFactory) {
 	if mf == nil {
 		mf = monitoring.InertMetricFactory{}
 	}
+	quota.InitMetrics(mf)
 	seqBatches = mf.NewCounter("sequencer_batches", "Number of sequencer batch operations", logIDLabel)
 	seqTreeSize = mf.NewGauge("sequencer_tree_size", "Size of Merkle tree", logIDLabel)
 	seqLatency = mf.NewHistogram("sequencer_latency", "Latency of sequencer batch operation in seconds", logIDLabel)

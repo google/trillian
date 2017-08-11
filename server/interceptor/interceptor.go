@@ -17,9 +17,11 @@ package interceptor
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
+	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/server/errors"
 	"github.com/google/trillian/storage"
@@ -28,6 +30,18 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+)
+
+const (
+	badInfoReason            = "bad_info"
+	badTreeReason            = "bad_tree"
+	insufficientTokensReason = "insufficient_tokens"
+)
+
+var (
+	requestCounter       monitoring.Counter
+	requestDeniedCounter monitoring.Counter
+	metricsOnce          = sync.Once{}
 )
 
 // RequestProcessor encapsulates the logic to intercept a request, split into separate stages:
@@ -50,12 +64,38 @@ type RequestProcessor interface {
 // * TODO(codingllama): Requests are properly authenticated / authorized ; and
 // * Requests are rate limited appropriately.
 type TrillianInterceptor struct {
-	Admin        storage.AdminStorage
-	QuotaManager quota.Manager
+	admin storage.AdminStorage
+	qm    quota.Manager
 
-	// QuotaDryRun controls whether lack of tokens actually blocks requests (if set to true, no
+	// quotaDryRun controls whether lack of tokens actually blocks requests (if set to true, no
 	// requests are blocked by lack of tokens).
-	QuotaDryRun bool
+	quotaDryRun bool
+}
+
+// New returns a new TrillianInterceptor instance.
+func New(admin storage.AdminStorage, qm quota.Manager, quotaDryRun bool, mf monitoring.MetricFactory) *TrillianInterceptor {
+	metricsOnce.Do(func() { initMetrics(mf) })
+	return &TrillianInterceptor{
+		admin:       admin,
+		qm:          qm,
+		quotaDryRun: quotaDryRun,
+	}
+}
+
+func initMetrics(mf monitoring.MetricFactory) {
+	if mf == nil {
+		mf = monitoring.InertMetricFactory{}
+	}
+	quota.InitMetrics(mf)
+	requestCounter = mf.NewCounter("interceptor_request_count", "Total number of intercepted requests")
+	requestDeniedCounter = mf.NewCounter(
+		"interceptor_request_denied_count",
+		"Number of requests by denied, labeled according to the reason for denial",
+		"reason", monitoring.TreeIDLabel, "quota_user")
+}
+
+func incRequestDeniedCounter(reason string, treeID int64, quotaUser string) {
+	requestDeniedCounter.Inc(reason, fmt.Sprint(treeID), quotaUser)
 }
 
 // UnaryInterceptor executes the TrillianInterceptor logic for unary RPCs.
@@ -84,9 +124,9 @@ type trillianProcessor struct {
 }
 
 func (tp *trillianProcessor) Before(ctx context.Context, req interface{}) (context.Context, error) {
-	incRequestCounter()
+	requestCounter.Inc()
 
-	quotaUser := tp.parent.QuotaManager.GetUser(ctx, req)
+	quotaUser := tp.parent.qm.GetUser(ctx, req)
 	info, err := getRPCInfo(req, quotaUser)
 	if err != nil {
 		incRequestDeniedCounter(badInfoReason, 0, quotaUser)
@@ -95,7 +135,7 @@ func (tp *trillianProcessor) Before(ctx context.Context, req interface{}) (conte
 	tp.info = info
 
 	if info.treeID != 0 {
-		tree, err := trees.GetTree(ctx, tp.parent.Admin, info.treeID, info.opts)
+		tree, err := trees.GetTree(ctx, tp.parent.admin, info.treeID, info.opts)
 		if err != nil {
 			incRequestDeniedCounter(badTreeReason, info.treeID, quotaUser)
 			return ctx, err
@@ -105,13 +145,13 @@ func (tp *trillianProcessor) Before(ctx context.Context, req interface{}) (conte
 	}
 
 	if len(info.specs) > 0 && info.tokens > 0 {
-		err := tp.parent.QuotaManager.GetTokens(ctx, info.tokens, info.specs)
+		err := tp.parent.qm.GetTokens(ctx, info.tokens, info.specs)
 		if err != nil {
-			if !tp.parent.QuotaDryRun {
+			if !tp.parent.quotaDryRun {
 				incRequestDeniedCounter(insufficientTokensReason, info.treeID, quotaUser)
 				return ctx, status.Errorf(codes.ResourceExhausted, "quota exhausted: %v", err)
 			}
-			glog.Warningf("(QuotaDryRun) Request %+v not denied due to dry run mode: %v", req, err)
+			glog.Warningf("(quotaDryRun) Request %+v not denied due to dry run mode: %v", req, err)
 		}
 		quota.Metrics.IncAcquired(info.tokens, info.specs, err != nil)
 	}
@@ -153,7 +193,7 @@ func (tp *trillianProcessor) After(ctx context.Context, resp interface{}, handle
 		// this case, we may want to keep tabs on how many tokens we failed to replenish and bundle
 		// them up in the next PutTokens call (possibly as a QuotaManager decorator, or internally
 		// in its impl).
-		err := tp.parent.QuotaManager.PutTokens(ctx, tokens, tp.info.specs)
+		err := tp.parent.qm.PutTokens(ctx, tokens, tp.info.specs)
 		if err != nil {
 			glog.Warningf("Failed to replenish %v tokens: %v", tokens, err)
 		}

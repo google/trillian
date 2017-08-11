@@ -347,10 +347,8 @@ func setupAdminServer() (trillian.TrillianAdminClient, func(), error) {
 		return nil, nil, err
 	}
 
-	ti := &interceptor.TrillianInterceptor{
-		Admin:        registry.AdminStorage,
-		QuotaManager: registry.QuotaManager,
-	}
+	ti := interceptor.New(
+		registry.AdminStorage, registry.QuotaManager, false /* quotaDryRun */, registry.MetricFactory)
 	netInterceptor := interceptor.Combine(interceptor.ErrorWrapper, ti.UnaryInterceptor)
 	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(netInterceptor))
 	// grpcServer is stopped via returned func
