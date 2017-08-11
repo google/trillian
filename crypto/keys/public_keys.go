@@ -61,7 +61,7 @@ func NewFromPublicDER(der []byte) (crypto.PublicKey, error) {
 }
 
 // SignatureAlgorithm returns the algorithm used for this public key.
-// Only ECDSA and RSA keys are supported. Other key types will return sigpb.DigitallySigned_UNKNOWN.
+// Only ECDSA and RSA keys are supported. Other key types will return sigpb.DigitallySigned_ANONYMOUS.
 func SignatureAlgorithm(k crypto.PublicKey) sigpb.DigitallySigned_SignatureAlgorithm {
 	switch k.(type) {
 	case *ecdsa.PublicKey:
