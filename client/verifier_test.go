@@ -65,7 +65,7 @@ func TestVerifyRootErrors(t *testing.T) {
 func TestVerifyInclusionAtIndexErrors(t *testing.T) {
 	logVerifier := NewLogVerifier(nil, nil)
 	// An error is expected because the first parameter (trusted) is nil
-	err := logVerifier.VerifyInclusionAtIndex(nil, []byte{0,0,0}, 1, [][]byte{[]byte{0,0}})
+	err := logVerifier.VerifyInclusionAtIndex(nil, []byte{0, 0, 0}, 1, [][]byte{{0, 0}})
 	if err == nil {
 		t.Errorf("VerifyInclusionAtIndex() error expected, but got nil")
 	}

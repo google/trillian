@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/go-sql-driver/mysql"
@@ -90,36 +89,19 @@ const (
 var (
 	defaultLogStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8}
 
-	once             sync.Once
-	queuedCounter    monitoring.Counter
-	queuedDupCounter monitoring.Counter
-	dequeuedCounter  monitoring.Counter
+	queuedCounter    = monitoring.MF().NewCounter("mysql_queued_leaves", "Number of leaves queued", logIDLabel)
+	queuedDupCounter = monitoring.MF().NewCounter("mysql_queued_dup_leaves", "Number of duplicate leaves queued", logIDLabel)
+	dequeuedCounter  = monitoring.MF().NewCounter("mysql_dequeued_leaves", "Number of leaves dequeued", logIDLabel)
 
-	queueLatency            monitoring.Histogram
-	queueInsertLatency      monitoring.Histogram
-	queueReadLatency        monitoring.Histogram
-	queueInsertLeafLatency  monitoring.Histogram
-	queueInsertEntryLatency monitoring.Histogram
-	dequeueLatency          monitoring.Histogram
-	dequeueSelectLatency    monitoring.Histogram
-	dequeueRemoveLatency    monitoring.Histogram
+	queueLatency            = monitoring.MF().NewHistogram("mysql_queue_leaves_latency", "Latency of queue leaves operation in seconds", logIDLabel)
+	queueInsertLatency      = monitoring.MF().NewHistogram("mysql_queue_leaves_latency_insert", "Latency of insertion part of queue leaves operation in seconds", logIDLabel)
+	queueReadLatency        = monitoring.MF().NewHistogram("mysql_queue_leaves_latency_read_dups", "Latency of read-duplicates part of queue leaves operation in seconds", logIDLabel)
+	queueInsertLeafLatency  = monitoring.MF().NewHistogram("mysql_queue_leaf_latency_leaf", "Latency of insert-leaf part of queue (single) leaf operation in seconds", logIDLabel)
+	queueInsertEntryLatency = monitoring.MF().NewHistogram("mysql_queue_leaf_latency_entry", "Latency of insert-entry part of queue (single) leaf operation in seconds", logIDLabel)
+	dequeueLatency          = monitoring.MF().NewHistogram("mysql_dequeue_leaves_latency", "Latency of dequeue leaves operation in seconds", logIDLabel)
+	dequeueSelectLatency    = monitoring.MF().NewHistogram("mysql_dequeue_leaves_latency_select", "Latency of selection part of dequeue leaves operation in seconds", logIDLabel)
+	dequeueRemoveLatency    = monitoring.MF().NewHistogram("mysql_dequeue_leaves_latency_remove", "Latency of removal part of dequeue leaves operation in seconds", logIDLabel)
 )
-
-func createMetrics(mf monitoring.MetricFactory) {
-	queuedCounter = mf.NewCounter("mysql_queued_leaves", "Number of leaves queued", logIDLabel)
-	queuedDupCounter = mf.NewCounter("mysql_queued_dup_leaves", "Number of duplicate leaves queued", logIDLabel)
-	dequeuedCounter = mf.NewCounter("mysql_dequeued_leaves", "Number of leaves dequeued", logIDLabel)
-
-	queueLatency = mf.NewHistogram("mysql_queue_leaves_latency", "Latency of queue leaves operation in seconds", logIDLabel)
-	queueInsertLatency = mf.NewHistogram("mysql_queue_leaves_latency_insert", "Latency of insertion part of queue leaves operation in seconds", logIDLabel)
-	queueReadLatency = mf.NewHistogram("mysql_queue_leaves_latency_read_dups", "Latency of read-duplicates part of queue leaves operation in seconds", logIDLabel)
-	queueInsertLeafLatency = mf.NewHistogram("mysql_queue_leaf_latency_leaf", "Latency of insert-leaf part of queue (single) leaf operation in seconds", logIDLabel)
-	queueInsertEntryLatency = mf.NewHistogram("mysql_queue_leaf_latency_entry", "Latency of insert-entry part of queue (single) leaf operation in seconds", logIDLabel)
-
-	dequeueLatency = mf.NewHistogram("mysql_dequeue_leaves_latency", "Latency of dequeue leaves operation in seconds", logIDLabel)
-	dequeueSelectLatency = mf.NewHistogram("mysql_dequeue_leaves_latency_select", "Latency of selection part of dequeue leaves operation in seconds", logIDLabel)
-	dequeueRemoveLatency = mf.NewHistogram("mysql_dequeue_leaves_latency_remove", "Latency of removal part of dequeue leaves operation in seconds", logIDLabel)
-}
 
 func labelForTX(t *logTreeTX) string {
 	return strconv.FormatInt(t.treeID, 10)
@@ -131,20 +113,15 @@ func observe(hist monitoring.Histogram, duration time.Duration, label string) {
 
 type mySQLLogStorage struct {
 	*mySQLTreeStorage
-	admin         storage.AdminStorage
-	metricFactory monitoring.MetricFactory
+	admin storage.AdminStorage
 }
 
 // NewLogStorage creates a storage.LogStorage instance for the specified MySQL URL.
 // It assumes storage.AdminStorage is backed by the same MySQL database as well.
-func NewLogStorage(db *sql.DB, mf monitoring.MetricFactory) storage.LogStorage {
-	if mf == nil {
-		mf = monitoring.InertMetricFactory{}
-	}
+func NewLogStorage(db *sql.DB) storage.LogStorage {
 	return &mySQLLogStorage{
 		admin:            NewAdminStorage(db),
 		mySQLTreeStorage: newTreeStorage(db),
-		metricFactory:    mf,
 	}
 }
 
@@ -217,9 +194,6 @@ func (t *readOnlyLogTX) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
 }
 
 func (m *mySQLLogStorage) beginInternal(ctx context.Context, treeID int64, readonly bool) (storage.LogTreeTX, error) {
-	once.Do(func() {
-		createMetrics(m.metricFactory)
-	})
 	tree, err := trees.GetTree(
 		ctx,
 		m.admin,

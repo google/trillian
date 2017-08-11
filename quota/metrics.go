@@ -16,7 +16,6 @@ package quota
 
 import (
 	"fmt"
-	"sync"
 
 	"github.com/google/trillian/monitoring"
 )
@@ -29,8 +28,11 @@ var (
 	// record their interactions with quotas.
 	// The quota implementation is encouraged to define its own metrics to monitor its internal
 	// state.
-	Metrics     = &m{}
-	metricsOnce = sync.Once{}
+	Metrics = &m{
+		AcquiredTokens:    monitoring.MF().NewCounter("quota_acquired_tokens", "Number of acquired quota tokens", "spec", "success"),
+		ReturnedTokens:    monitoring.MF().NewCounter("quota_returned_tokens", "Number of quota tokens returned due to overcharging (bad requests, duplicates, etc)", "spec", "success"),
+		ReplenishedTokens: monitoring.MF().NewCounter("quota_replenished_tokens", "Number of quota tokens replenished due to sequencer progress", "spec", "success"),
+	}
 )
 
 type m struct {
@@ -61,14 +63,4 @@ func (m *m) add(c monitoring.Counter, tokens int, specs []Spec, success bool) {
 	for _, spec := range specs {
 		c.Add(float64(tokens), spec.Name(), fmt.Sprint(success))
 	}
-}
-
-// InitMetrics initializes Metrics using mf to create the monitoring objects.
-// May be called multiple times. If so, the first call is the one that counts.
-func InitMetrics(mf monitoring.MetricFactory) {
-	metricsOnce.Do(func() {
-		Metrics.AcquiredTokens = mf.NewCounter("quota_acquired_tokens", "Number of acquired quota tokens", "spec", "success")
-		Metrics.ReturnedTokens = mf.NewCounter("quota_returned_tokens", "Number of quota tokens returned due to overcharging (bad requests, duplicates, etc)", "spec", "success")
-		Metrics.ReplenishedTokens = mf.NewCounter("quota_replenished_tokens", "Number of quota tokens replenished due to sequencer progress", "spec", "success")
-	})
 }

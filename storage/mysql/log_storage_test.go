@@ -99,7 +99,7 @@ func checkLeafContents(leaf *trillian.LogLeaf, seq int64, rawHash, hash, data, e
 
 func TestMySQLLogStorage_CheckDatabaseAccessible(t *testing.T) {
 	cleanTestDB(DB)
-	s := NewLogStorage(DB, nil)
+	s := NewLogStorage(DB)
 	if err := s.CheckDatabaseAccessible(context.Background()); err != nil {
 		t.Errorf("CheckDatabaseAccessible() = %v, want = nil", err)
 	}
@@ -168,7 +168,7 @@ func TestBeginSnapshot(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	s := NewLogStorage(DB, nil)
+	s := NewLogStorage(DB)
 	for _, test := range tests {
 		func() {
 			var tx rootReaderLogTX
@@ -213,7 +213,7 @@ type rootReaderLogTX interface {
 func TestIsOpenCommitRollbackClosed(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB, nil)
+	s := NewLogStorage(DB)
 
 	tests := []struct {
 		commit, rollback, close bool
@@ -254,7 +254,7 @@ func TestQueueDuplicateLeaf(t *testing.T) {
 
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB, nil)
+	s := NewLogStorage(DB)
 	count := 15
 	leaves := createTestLeaves(int64(count), 10)
 	leaves2 := createTestLeaves(int64(count), 12)
@@ -319,7 +319,7 @@ func TestQueueLeaves(t *testing.T) {
 
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB, nil)
+	s := NewLogStorage(DB)
 
 	tx := beginLogTx(s, logID, t)
 	defer tx.Close()
@@ -354,7 +354,7 @@ func TestDequeueLeavesNoneQueued(t *testing.T) {
 
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB, nil)
+	s := NewLogStorage(DB)
 
 	tx := beginLogTx(s, logID, t)
 	defer tx.Close()
@@ -374,7 +374,7 @@ func TestDequeueLeaves(t *testing.T) {
 
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB, nil)
+	s := NewLogStorage(DB)
 
 	{
 		tx := beginLogTx(s, logID, t)
@@ -421,7 +421,7 @@ func TestDequeueLeavesTwoBatches(t *testing.T) {
 
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB, nil)
+	s := NewLogStorage(DB)
 
 	leavesToDequeue1 := 3
 	leavesToDequeue2 := 2
@@ -491,7 +491,7 @@ func TestDequeueLeavesGuardInterval(t *testing.T) {
 
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB, nil)
+	s := NewLogStorage(DB)
 
 	{
 		tx := beginLogTx(s, logID, t)
@@ -536,7 +536,7 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 	// queue.
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB, nil)
+	s := NewLogStorage(DB)
 
 	batchSize := 2
 	leaves := createTestLeaves(int64(batchSize), 0)
@@ -600,7 +600,7 @@ func TestGetLeavesByHashNotPresent(t *testing.T) {
 
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB, nil)
+	s := NewLogStorage(DB)
 
 	tx := beginLogTx(s, logID, t)
 	defer tx.Close()
@@ -621,7 +621,7 @@ func TestGetLeavesByIndexNotPresent(t *testing.T) {
 
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB, nil)
+	s := NewLogStorage(DB)
 
 	tx := beginLogTx(s, logID, t)
 	defer tx.Close()
@@ -638,7 +638,7 @@ func TestGetLeavesByHash(t *testing.T) {
 	// Create fake leaf as if it had been sequenced
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB, nil)
+	s := NewLogStorage(DB)
 
 	data := []byte("some data")
 	createFakeLeaf(ctx, DB, logID, dummyRawHash, dummyHash, data, someExtraData, sequenceNumber, t)
@@ -664,7 +664,7 @@ func TestGetLeafDataByIdentityHash(t *testing.T) {
 	// Create fake leaf as if it had been sequenced
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB, nil)
+	s := NewLogStorage(DB)
 	data := []byte("some data")
 	leaf := createFakeLeaf(ctx, DB, logID, dummyRawHash, dummyHash, data, someExtraData, sequenceNumber, t)
 	leaf.LeafIndex = -1
@@ -726,7 +726,7 @@ func TestGetLeavesByIndex(t *testing.T) {
 	// Create fake leaf as if it had been sequenced, read it back and check contents
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB, nil)
+	s := NewLogStorage(DB)
 
 	data := []byte("some data")
 	createFakeLeaf(ctx, DB, logID, dummyRawHash, dummyHash, data, someExtraData, sequenceNumber, t)
@@ -750,7 +750,7 @@ func TestLatestSignedRootNoneWritten(t *testing.T) {
 
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB, nil)
+	s := NewLogStorage(DB)
 
 	tx := beginLogTx(s, logID, t)
 	defer tx.Close()
@@ -770,7 +770,7 @@ func TestLatestSignedLogRoot(t *testing.T) {
 
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB, nil)
+	s := NewLogStorage(DB)
 
 	tx := beginLogTx(s, logID, t)
 	defer tx.Close()
@@ -807,7 +807,7 @@ func TestDuplicateSignedLogRoot(t *testing.T) {
 
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB, nil)
+	s := NewLogStorage(DB)
 
 	tx := beginLogTx(s, logID, t)
 	defer tx.Close()
@@ -836,7 +836,7 @@ func TestLogRootUpdate(t *testing.T) {
 	// Write two roots for a log and make sure the one with the newest timestamp supersedes
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB, nil)
+	s := NewLogStorage(DB)
 
 	tx := beginLogTx(s, logID, t)
 	defer tx.Close()
@@ -913,7 +913,7 @@ func TestGetActiveLogIDs(t *testing.T) {
 		*tree = *updatedTree
 	}
 
-	s := NewLogStorage(DB, nil)
+	s := NewLogStorage(DB)
 	tx, err := s.Snapshot(ctx)
 	if err != nil {
 		t.Fatalf("Snapshot() returns err = %v", err)
@@ -939,7 +939,7 @@ func TestGetActiveLogIDsEmpty(t *testing.T) {
 	ctx := context.Background()
 
 	cleanTestDB(DB)
-	s := NewLogStorage(DB, nil)
+	s := NewLogStorage(DB)
 
 	tx, err := s.Snapshot(context.Background())
 	if err != nil {
@@ -966,7 +966,7 @@ func TestGetUnsequencedCounts(t *testing.T) {
 	for i := 0; i < numLogs; i++ {
 		logIDs = append(logIDs, createLogForTests(DB))
 	}
-	s := NewLogStorage(DB, nil)
+	s := NewLogStorage(DB)
 
 	ctx := context.Background()
 	expectedCount := make(map[int64]int64)
@@ -1005,7 +1005,7 @@ func TestGetUnsequencedCounts(t *testing.T) {
 func TestReadOnlyLogTX_Rollback(t *testing.T) {
 	ctx := context.Background()
 	cleanTestDB(DB)
-	s := NewLogStorage(DB, nil)
+	s := NewLogStorage(DB)
 	tx, err := s.Snapshot(ctx)
 	if err != nil {
 		t.Fatalf("Snapshot() = (_, %v), want = (_, nil)", err)
@@ -1027,7 +1027,7 @@ func TestGetSequencedLeafCount(t *testing.T) {
 	cleanTestDB(DB)
 	logID1 := createLogForTests(DB)
 	logID2 := createLogForTests(DB)
-	s := NewLogStorage(DB, nil)
+	s := NewLogStorage(DB)
 
 	{
 		// Create fake leaf as if it had been sequenced

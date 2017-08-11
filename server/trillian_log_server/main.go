@@ -88,6 +88,8 @@ func main() {
 	}
 
 	mf := prometheus.MetricFactory{}
+	monitoring.SetMF(mf)
+
 	sf := &keys.DefaultSignerFactory{}
 	if *pkcs11ModulePath != "" {
 		sf.SetPKCS11Module(*pkcs11ModulePath)
@@ -95,16 +97,14 @@ func main() {
 
 	registry := extension.Registry{
 		AdminStorage:  mysql.NewAdminStorage(db),
-		LogStorage:    mysql.NewLogStorage(db, mf),
+		LogStorage:    mysql.NewLogStorage(db),
 		SignerFactory: sf,
 		QuotaManager:  &mysqlq.QuotaManager{DB: db, MaxUnsequencedRows: *maxUnsequencedRows},
-		MetricFactory: mf,
 	}
 
 	ts := util.SystemTimeSource{}
-	stats := monitoring.NewRPCStatsInterceptor(ts, "log", registry.MetricFactory)
-	ti := interceptor.New(
-		registry.AdminStorage, registry.QuotaManager, *quotaDryRun, registry.MetricFactory)
+	stats := monitoring.NewRPCStatsInterceptor(ts, "log", mf)
+	ti := interceptor.New(registry.AdminStorage, registry.QuotaManager, *quotaDryRun)
 	netInterceptor := interceptor.Combine(stats.Interceptor(), interceptor.ErrorWrapper, ti.UnaryInterceptor)
 	s := grpc.NewServer(grpc.UnaryInterceptor(netInterceptor))
 	// No defer: server ownership is delegated to server.Main

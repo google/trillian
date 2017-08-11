@@ -37,20 +37,10 @@ const (
 )
 
 var (
-	once         sync.Once
-	knownLogs    monitoring.Gauge
-	resignations monitoring.Counter
-	isMaster     monitoring.Gauge
+	knownLogs    = monitoring.MF().NewGauge("known_logs", "Set to 1 for known logs (whether this instance is master or not)", logIDLabel)
+	resignations = monitoring.MF().NewCounter("master_resignations", "Number of mastership resignations", logIDLabel)
+	isMaster     = monitoring.MF().NewGauge("is_master", "Whether this instance is master (0/1)", logIDLabel)
 )
-
-func createMetrics(mf monitoring.MetricFactory) {
-	if mf == nil {
-		mf = monitoring.InertMetricFactory{}
-	}
-	knownLogs = mf.NewGauge("known_logs", "Set to 1 for known logs (whether this instance is master or not)", logIDLabel)
-	resignations = mf.NewCounter("master_resignations", "Number of mastership resignations", logIDLabel)
-	isMaster = mf.NewGauge("is_master", "Whether this instance is master (0/1)", logIDLabel)
-}
 
 // LogOperation defines a task that operates on a log. Examples are scheduling, signing,
 // consistency checking or cleanup.
@@ -218,9 +208,6 @@ func fixupElectionInfo(info LogOperationInfo) LogOperationInfo {
 
 // NewLogOperationManager creates a new LogOperationManager instance.
 func NewLogOperationManager(info LogOperationInfo, logOperation LogOperation) *LogOperationManager {
-	once.Do(func() {
-		createMetrics(info.Registry.MetricFactory)
-	})
 	return &LogOperationManager{
 		info:           fixupElectionInfo(info),
 		logOperation:   logOperation,

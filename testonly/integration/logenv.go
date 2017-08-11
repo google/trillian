@@ -81,7 +81,7 @@ func NewLogEnv(ctx context.Context, numSequencers int, testID string) (*LogEnv, 
 
 	registry := extension.Registry{
 		AdminStorage:  mysql.NewAdminStorage(db),
-		LogStorage:    mysql.NewLogStorage(db, nil),
+		LogStorage:    mysql.NewLogStorage(db),
 		QuotaManager:  quota.Noop(),
 		SignerFactory: &keys.DefaultSignerFactory{},
 	}

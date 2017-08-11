@@ -27,6 +27,7 @@ import (
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/log"
+	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/monitoring/prometheus"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/server"
@@ -98,6 +99,8 @@ func main() {
 	}
 
 	mf := prometheus.MetricFactory{}
+	monitoring.SetMF(mf)
+
 	sf := &keys.DefaultSignerFactory{}
 	if *pkcs11ModulePath != "" {
 		sf.SetPKCS11Module(*pkcs11ModulePath)
@@ -105,11 +108,10 @@ func main() {
 
 	registry := extension.Registry{
 		AdminStorage:    mysql.NewAdminStorage(db),
-		LogStorage:      mysql.NewLogStorage(db, mf),
+		LogStorage:      mysql.NewLogStorage(db),
 		SignerFactory:   sf,
 		ElectionFactory: electionFactory,
 		QuotaManager:    quota.Noop(),
-		MetricFactory:   mf,
 	}
 
 	// Start HTTP server (optional)

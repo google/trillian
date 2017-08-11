@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/golang/glog"
@@ -38,19 +37,18 @@ import (
 const logIDLabel = "logid"
 
 var (
-	once                   sync.Once
-	seqBatches             monitoring.Counter
-	seqTreeSize            monitoring.Gauge
-	seqLatency             monitoring.Histogram
-	seqDequeueLatency      monitoring.Histogram
-	seqGetRootLatency      monitoring.Histogram
-	seqInitTreeLatency     monitoring.Histogram
-	seqWriteTreeLatency    monitoring.Histogram
-	seqUpdateLeavesLatency monitoring.Histogram
-	seqSetNodesLatency     monitoring.Histogram
-	seqStoreRootLatency    monitoring.Histogram
-	seqCommitLatency       monitoring.Histogram
-	seqCounter             monitoring.Counter
+	seqBatches             = monitoring.MF().NewCounter("sequencer_batches", "Number of sequencer batch operations", logIDLabel)
+	seqTreeSize            = monitoring.MF().NewGauge("sequencer_tree_size", "Size of Merkle tree", logIDLabel)
+	seqLatency             = monitoring.MF().NewHistogram("sequencer_latency", "Latency of sequencer batch operation in seconds", logIDLabel)
+	seqDequeueLatency      = monitoring.MF().NewHistogram("sequencer_latency_dequeue", "Latency of dequeue-leaves part of sequencer batch operation in seconds", logIDLabel)
+	seqGetRootLatency      = monitoring.MF().NewHistogram("sequencer_latency_get_root", "Latency of get-root part of sequencer batch operation in seconds", logIDLabel)
+	seqInitTreeLatency     = monitoring.MF().NewHistogram("sequencer_latency_init_tree", "Latency of init-tree part of sequencer batch operation in seconds", logIDLabel)
+	seqWriteTreeLatency    = monitoring.MF().NewHistogram("sequencer_latency_write_tree", "Latency of write-tree part of sequencer batch operation in seconds", logIDLabel)
+	seqUpdateLeavesLatency = monitoring.MF().NewHistogram("sequencer_latency_update_leaves", "Latency of update-leaves part of sequencer batch operation in seconds", logIDLabel)
+	seqSetNodesLatency     = monitoring.MF().NewHistogram("sequencer_latency_set_nodes", "Latency of set-nodes part of sequencer batch operation in seconds", logIDLabel)
+	seqStoreRootLatency    = monitoring.MF().NewHistogram("sequencer_latency_store_root", "Latency of store-root part of sequencer batch operation in seconds", logIDLabel)
+	seqCommitLatency       = monitoring.MF().NewHistogram("sequencer_latency_commit", "Latency of commit part of sequencer batch operation in seconds", logIDLabel)
+	seqCounter             = monitoring.MF().NewCounter("sequencer_sequenced", "Number of leaves sequenced", logIDLabel)
 
 	// QuotaIncreaseFactor is the multiplier used for the number of tokens added back to
 	// sequencing-based quotas. The resulting PutTokens call is equivalent to
@@ -69,25 +67,6 @@ func quotaIncreaseFactor() float64 {
 		return 1
 	}
 	return QuotaIncreaseFactor
-}
-
-func createMetrics(mf monitoring.MetricFactory) {
-	if mf == nil {
-		mf = monitoring.InertMetricFactory{}
-	}
-	quota.InitMetrics(mf)
-	seqBatches = mf.NewCounter("sequencer_batches", "Number of sequencer batch operations", logIDLabel)
-	seqTreeSize = mf.NewGauge("sequencer_tree_size", "Size of Merkle tree", logIDLabel)
-	seqLatency = mf.NewHistogram("sequencer_latency", "Latency of sequencer batch operation in seconds", logIDLabel)
-	seqDequeueLatency = mf.NewHistogram("sequencer_latency_dequeue", "Latency of dequeue-leaves part of sequencer batch operation in seconds", logIDLabel)
-	seqGetRootLatency = mf.NewHistogram("sequencer_latency_get_root", "Latency of get-root part of sequencer batch operation in seconds", logIDLabel)
-	seqInitTreeLatency = mf.NewHistogram("sequencer_latency_init_tree", "Latency of init-tree part of sequencer batch operation in seconds", logIDLabel)
-	seqWriteTreeLatency = mf.NewHistogram("sequencer_latency_write_tree", "Latency of write-tree part of sequencer batch operation in seconds", logIDLabel)
-	seqUpdateLeavesLatency = mf.NewHistogram("sequencer_latency_update_leaves", "Latency of update-leaves part of sequencer batch operation in seconds", logIDLabel)
-	seqSetNodesLatency = mf.NewHistogram("sequencer_latency_set_nodes", "Latency of set-nodes part of sequencer batch operation in seconds", logIDLabel)
-	seqStoreRootLatency = mf.NewHistogram("sequencer_latency_store_root", "Latency of store-root part of sequencer batch operation in seconds", logIDLabel)
-	seqCommitLatency = mf.NewHistogram("sequencer_latency_commit", "Latency of commit part of sequencer batch operation in seconds", logIDLabel)
-	seqCounter = mf.NewCounter("sequencer_sequenced", "Number of leaves sequenced", logIDLabel)
 }
 
 // TODO(Martin2112): Add admin support for safely changing params like guard window during operation
@@ -117,11 +96,7 @@ func NewSequencer(
 	timeSource util.TimeSource,
 	logStorage storage.LogStorage,
 	signer *crypto.Signer,
-	mf monitoring.MetricFactory,
 	qm quota.Manager) *Sequencer {
-	once.Do(func() {
-		createMetrics(mf)
-	})
 	return &Sequencer{
 		hasher:     hasher,
 		timeSource: timeSource,
