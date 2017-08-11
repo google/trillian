@@ -95,7 +95,7 @@ func NewFromPrivatePEM(pemEncodedKey, password string) (crypto.Signer, error) {
 
 // NewFromPrivateDER reads a DER-encoded private key.
 func NewFromPrivateDER(der []byte) (crypto.Signer, error) {
-	key1, err1 := x509.ParsePKCS1PrivateKey(der)
+	key1, err1 := x509.ParseECPrivateKey(der)
 	if err1 == nil {
 		return key1, nil
 	}
@@ -111,12 +111,12 @@ func NewFromPrivateDER(der []byte) (crypto.Signer, error) {
 		return nil, fmt.Errorf("unsupported private key type: %T", key2)
 	}
 
-	key3, err3 := x509.ParseECPrivateKey(der)
+	key3, err3 := x509.ParsePKCS1PrivateKey(der)
 	if err3 == nil {
 		return key3, nil
 	}
 
-	return nil, fmt.Errorf("could not parse DER private key as PKCS1 (%v), PKCS8 (%v), or SEC1 (%v)", err1, err2, err3)
+	return nil, fmt.Errorf("could not parse DER private key as SEC1 (%v), PKCS8 (%v), or PKCS1 (%v)", err1, err2, err3)
 }
 
 // NewFromSpec generates a new private key based on a key specification.
