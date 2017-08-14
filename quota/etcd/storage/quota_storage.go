@@ -17,15 +17,17 @@ package storage
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"regexp"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/coreos/etcd/clientv3"
 	"github.com/coreos/etcd/clientv3/concurrency"
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
+	"github.com/google/trillian/errors"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/quota/etcd/storagepb"
 	"github.com/google/trillian/util"
@@ -45,18 +47,34 @@ var (
 
 func init() {
 	var err error
-	globalPattern, err = regexp.Compile("quotas/global/(read|write)/config")
+	globalPattern, err = regexp.Compile("^quotas/global/(read|write)/config$")
 	if err != nil {
 		glog.Fatalf("bad global pattern: %v", err)
 	}
-	treesPattern, err = regexp.Compile("quotas/trees/\\d+/(read|write)/config")
+	treesPattern, err = regexp.Compile("^quotas/trees/\\d+/(read|write)/config$")
 	if err != nil {
 		glog.Fatalf("bad trees pattern: %v", err)
 	}
-	usersPattern, err = regexp.Compile("quotas/users/[^/]+/(read|write)/config")
+	usersPattern, err = regexp.Compile("^quotas/users/[^/]+/(read|write)/config$")
 	if err != nil {
 		glog.Fatalf("bad users pattern: %v", err)
 	}
+}
+
+// IsNameValid returns true if name is a valid quota name.
+func IsNameValid(name string) bool {
+	switch {
+	case globalPattern.MatchString(name):
+		return true
+	case usersPattern.MatchString(name):
+		return true
+	case treesPattern.MatchString(name):
+		// Tree ID must fit on an int64
+		id := strings.Split(name, "/")[2]
+		_, err := strconv.ParseInt(id, 10, 64)
+		return err == nil
+	}
+	return false
 }
 
 // QuotaStorage is the interface between the etcd-based quota implementations (quota.Manager and
@@ -75,7 +93,7 @@ type QuotaStorage struct {
 // Newly created quotas are always set to max tokens, regardless of the reset parameter.
 func (qs *QuotaStorage) UpdateConfigs(ctx context.Context, reset bool, update func(*storagepb.Configs)) (*storagepb.Configs, error) {
 	if update == nil {
-		return nil, errors.New("update function required")
+		return nil, errors.New(errors.Internal, "update function required")
 	}
 
 	var updated *storagepb.Configs
@@ -94,7 +112,7 @@ func (qs *QuotaStorage) UpdateConfigs(ctx context.Context, reset bool, update fu
 
 		// ... but let's sanity check that the configs match, just in case.
 		if !proto.Equal(previous, updated) {
-			return errors.New("verification failed: previous quota config != updated")
+			return errors.New(errors.Internal, "verification failed: previous quota config != updated")
 		}
 
 		update(updated)
@@ -154,33 +172,33 @@ func validate(cfgs *storagepb.Configs) error {
 	for i, cfg := range cfgs.Configs {
 		switch n := cfg.Name; {
 		case n == "":
-			return fmt.Errorf("config name is required (Configs[%v].Name is empty)", i)
-		case !isNameValid(cfg.Name):
-			return fmt.Errorf("config name malformed (Configs[%v].Name = %q)", i, n)
+			return errors.Errorf(errors.InvalidArgument, "config name is required (Configs[%v].Name is empty)", i)
+		case !IsNameValid(cfg.Name):
+			return errors.Errorf(errors.InvalidArgument, "config name malformed (Configs[%v].Name = %q)", i, n)
 		}
 		if s := cfg.State; s == storagepb.Config_UNKNOWN_CONFIG_STATE {
-			return fmt.Errorf("config state invalid (Configs[%v].State = %s)", i, s)
+			return errors.Errorf(errors.InvalidArgument, "config state invalid (Configs[%v].State = %s)", i, s)
 		}
 		if t := cfg.MaxTokens; t <= 0 {
-			return fmt.Errorf("config max tokens must be > 0 (Configs[%v].MaxTokens = %v)", i, t)
+			return errors.Errorf(errors.InvalidArgument, "config max tokens must be > 0 (Configs[%v].MaxTokens = %v)", i, t)
 		}
 		switch s := cfg.ReplenishmentStrategy.(type) {
 		case *storagepb.Config_SequencingBased:
 			if usersPattern.MatchString(cfg.Name) {
-				return fmt.Errorf("user quotas cannot use sequencing-based replenishment (Configs[%v].ReplenishmentStrategy)", i)
+				return errors.Errorf(errors.InvalidArgument, "user quotas cannot use sequencing-based replenishment (Configs[%v].ReplenishmentStrategy)", i)
 			}
 		case *storagepb.Config_TimeBased:
 			if t := s.TimeBased.TokensToReplenish; t <= 0 {
-				return fmt.Errorf("time based tokens must be > 0 (Configs[%v].TimeBased.TokensToReplenish = %v)", i, t)
+				return errors.Errorf(errors.InvalidArgument, "time based tokens must be > 0 (Configs[%v].TimeBased.TokensToReplenish = %v)", i, t)
 			}
 			if r := s.TimeBased.ReplenishIntervalSeconds; r <= 0 {
-				return fmt.Errorf("time based replenish interval must be > 0 (Configs[%v].TimeBased.ReplenishIntervalSeconds = %v)", i, r)
+				return errors.Errorf(errors.InvalidArgument, "time based replenish interval must be > 0 (Configs[%v].TimeBased.ReplenishIntervalSeconds = %v)", i, r)
 			}
 		default:
-			return fmt.Errorf("unsupported replenishment strategy (Configs[%v].ReplenishmentStrategy = %T)", i, s)
+			return errors.Errorf(errors.InvalidArgument, "unsupported replenishment strategy (Configs[%v].ReplenishmentStrategy = %T)", i, s)
 		}
 		if names[cfg.Name] {
-			return fmt.Errorf("duplicate config name found at Configs[%v].Name", i)
+			return errors.Errorf(errors.InvalidArgument, "duplicate config name found at Configs[%v].Name", i)
 		}
 		names[cfg.Name] = true
 	}
@@ -285,7 +303,7 @@ const (
 // Names are validated and de-duped automatically.
 func (qs *QuotaStorage) forNames(ctx context.Context, names []string, mode forNamesMode, fn func(concurrency.STM, string, *storagepb.Config) error) error {
 	for _, name := range names {
-		if !isNameValid(name) {
+		if !IsNameValid(name) {
 			return fmt.Errorf("invalid name: %q", name)
 		}
 	}
@@ -391,9 +409,4 @@ func modBucket(s concurrency.STM, cfg *storagepb.Config, now time.Time, add int6
 
 func bucketKey(cfg *storagepb.Config) string {
 	return fmt.Sprintf("%v/0", cfg.Name)
-}
-
-func isNameValid(name string) bool {
-	// TODO(codingllama): treeID passing %d doesn't mean it fits on an int64
-	return globalPattern.MatchString(name) || treesPattern.MatchString(name) || usersPattern.MatchString(name)
 }

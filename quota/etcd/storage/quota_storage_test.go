@@ -88,6 +88,31 @@ func TestMain(m *testing.M) {
 	os.Exit(exitCode)
 }
 
+func TestIsNameValid(t *testing.T) {
+	tests := []struct {
+		name string
+		want bool
+	}{
+		{name: "quotas/global/read/config", want: true},
+		{name: "quotas/global/write/config", want: true},
+		{name: "quotas/trees/12356/read/config", want: true},
+		{name: "quotas/users/llama/write/config", want: true},
+
+		{name: "bad/quota/name"},
+		{name: "badprefix/quotas/global/read/config"},
+		{name: "quotas/global/read/config/badsuffix"},
+		{name: "quotas/bad/read/config"},
+		{name: "quotas/global/bad/config"},
+		{name: "quotas/trees/bad/read/config"},
+		{name: "quotas/trees/11111111111111111111/read/config"}, // ID > MaxInt64
+	}
+	for _, test := range tests {
+		if got := IsNameValid(test.name); got != test.want {
+			t.Errorf("IsNameValid(%q) = %v, want = %v", test.name, got, test.want)
+		}
+	}
+}
+
 func TestQuotaStorage_UpdateConfigs(t *testing.T) {
 	defer setupTimeSource(fixedTimeSource)()
 
@@ -529,12 +554,12 @@ func TestQuotaStorage_Peek(t *testing.T) {
 	}{
 		{
 			desc:  "success",
-			names: []string{globalRead.Name, globalWrite.Name, userRead.Name, "quotas/users/llama/write/configs"},
+			names: []string{globalRead.Name, globalWrite.Name, userRead.Name, "quotas/users/llama/write/config"},
 			wantTokens: map[string]int64{
-				globalRead.Name:                    quotaMaxTokens, // disabled
-				globalWrite.Name:                   globalWrite.MaxTokens,
-				userRead.Name:                      userRead.MaxTokens,
-				"quotas/users/llama/write/configs": quotaMaxTokens, // unknown
+				globalRead.Name:                   quotaMaxTokens, // disabled
+				globalWrite.Name:                  globalWrite.MaxTokens,
+				userRead.Name:                     userRead.MaxTokens,
+				"quotas/users/llama/write/config": quotaMaxTokens, // unknown
 			},
 		},
 		{
@@ -728,9 +753,9 @@ func TestQuotaStorage_Reset(t *testing.T) {
 		},
 		{
 			desc:  "unknownQuota",
-			names: []string{"quotas/users/llama/write/configs"},
+			names: []string{"quotas/users/llama/write/config"},
 			wantTokens: map[string]int64{
-				"quotas/users/llama/write/configs": quotaMaxTokens,
+				"quotas/users/llama/write/config": quotaMaxTokens,
 			},
 		},
 	}

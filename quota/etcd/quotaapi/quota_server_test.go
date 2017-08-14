@@ -30,6 +30,7 @@ import (
 	"github.com/google/trillian/quota/etcd/quotapb"
 	"github.com/google/trillian/quota/etcd/storage"
 	"github.com/google/trillian/quota/etcd/storagepb"
+	"github.com/google/trillian/server/interceptor"
 	"github.com/google/trillian/testonly/integration/etcd"
 	"github.com/kylelemons/godebug/pretty"
 	"google.golang.org/genproto/protobuf/field_mask"
@@ -148,8 +149,7 @@ func TestServer_CreateConfig(t *testing.T) {
 				Name:   "quotas/global/read/config",
 				Config: &invalidConfig,
 			},
-			// TODO(codingllama): Surface the appropriate error codes from storage
-			wantCode: codes.Unknown,
+			wantCode: codes.InvalidArgument,
 		},
 	}
 
@@ -234,8 +234,7 @@ func TestServer_UpdateConfig(t *testing.T) {
 				Config:     &quotapb.Config{}, // State == UNKNOWN
 				UpdateMask: &field_mask.FieldMask{Paths: []string{"state"}},
 			},
-			// TODO(codingllama): Surface the appropriate error codes from storage
-			wantCode: codes.Unknown,
+			wantCode: codes.InvalidArgument,
 			wantCfg:  globalWrite,
 		},
 		{
@@ -579,10 +578,9 @@ func TestServer_DeleteConfigErrors(t *testing.T) {
 			wantCode: codes.InvalidArgument,
 		},
 		{
-			desc: "badName",
-			req:  &quotapb.DeleteConfigRequest{Name: "bad/quota/name"},
-			// TODO(codingllama): Validate names on Delete and surface the appropriate errors
-			wantCode: codes.NotFound,
+			desc:     "badName",
+			req:      &quotapb.DeleteConfigRequest{Name: "bad/quota/name"},
+			wantCode: codes.InvalidArgument,
 		},
 		{
 			desc:     "unknown",
@@ -617,10 +615,9 @@ func TestServer_GetConfigErrors(t *testing.T) {
 			wantCode: codes.InvalidArgument,
 		},
 		{
-			desc: "badName",
-			req:  &quotapb.GetConfigRequest{Name: "not/a/config/name"},
-			// TODO(codingllama): Validate names on Get/List and surface the appropriate errors
-			wantCode: codes.NotFound,
+			desc:     "badName",
+			req:      &quotapb.GetConfigRequest{Name: "not/a/config/name"},
+			wantCode: codes.InvalidArgument,
 		},
 		{
 			desc:     "notFound",
@@ -797,7 +794,7 @@ func startServer(etcdClient *clientv3.Client) (quotapb.QuotaClient, func(), erro
 		return nil, nil, err
 	}
 
-	s = grpc.NewServer()
+	s = grpc.NewServer(grpc.UnaryInterceptor(interceptor.ErrorWrapper))
 	quotapb.RegisterQuotaServer(s, NewServer(etcdClient))
 	go s.Serve(lis)
 
