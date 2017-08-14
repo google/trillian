@@ -65,18 +65,19 @@ func main() {
 	}
 	// No defer: database ownership is delegated to server.Main
 
+	mf := prometheus.MetricFactory{}
+	monitoring.SetMF(mf)
+
 	registry := extension.Registry{
 		AdminStorage:  mysql.NewAdminStorage(db),
 		SignerFactory: &keys.DefaultSignerFactory{},
 		MapStorage:    mysql.NewMapStorage(db),
 		QuotaManager:  &mysqlq.QuotaManager{DB: db, MaxUnsequencedRows: *maxUnsequencedRows},
-		MetricFactory: prometheus.MetricFactory{},
 	}
 
 	ts := util.SystemTimeSource{}
-	stats := monitoring.NewRPCStatsInterceptor(ts, "map", registry.MetricFactory)
-	ti := interceptor.New(
-		registry.AdminStorage, registry.QuotaManager, *quotaDryRun, registry.MetricFactory)
+	stats := monitoring.NewRPCStatsInterceptor(ts, "map", mf)
+	ti := interceptor.New(registry.AdminStorage, registry.QuotaManager, *quotaDryRun)
 	netInterceptor := interceptor.Combine(stats.Interceptor(), interceptor.ErrorWrapper, ti.UnaryInterceptor)
 	s := grpc.NewServer(grpc.UnaryInterceptor(netInterceptor))
 	// No defer: server ownership is delegated to server.Main

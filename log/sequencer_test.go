@@ -255,7 +255,7 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) (testCont
 	if qm == nil {
 		qm = quota.Noop()
 	}
-	sequencer := NewSequencer(rfc6962.DefaultHasher, util.NewFakeTimeSource(fakeTimeForTest), mockStorage, signer, nil, qm)
+	sequencer := NewSequencer(rfc6962.DefaultHasher, util.NewFakeTimeSource(fakeTimeForTest), mockStorage, signer, qm)
 	return testContext{mockTx: mockTx, mockStorage: mockStorage, signer: signer, sequencer: sequencer}, context.Background()
 }
 
@@ -636,7 +636,7 @@ func TestSequenceBatch_PutTokens(t *testing.T) {
 				qm.EXPECT().PutTokens(any, test.wantTokens, specs)
 			}
 
-			sequencer := NewSequencer(hasher, ts, logStorage, signer, nil /* mf */, qm)
+			sequencer := NewSequencer(hasher, ts, logStorage, signer, qm)
 			leaves, err := sequencer.SequenceBatch(ctx, treeID, limit, guardWindow, maxRootDuration)
 			if err != nil {
 				t.Errorf("%v: SequenceBatch() returned err = %v", test.desc, err)

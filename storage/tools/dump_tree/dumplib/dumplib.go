@@ -34,20 +34,20 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/google/trillian"
-	tc "github.com/google/trillian/crypto"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/log"
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/merkle/rfc6962"
-	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/storage/memory"
 	"github.com/google/trillian/storage/storagepb"
 	"github.com/google/trillian/util"
+
+	tc "github.com/google/trillian/crypto"
 )
 
 var (
@@ -217,7 +217,7 @@ func Main(args Options) string {
 	leafHashesFlag = args.LeafHashes
 
 	glog.Info("Initializing memory log storage")
-	ls := memory.NewLogStorage(monitoring.InertMetricFactory{})
+	ls := memory.NewLogStorage()
 	as := memory.NewAdminStorage(ls)
 	tree, cSigner := createTree(as)
 
@@ -225,7 +225,6 @@ func Main(args Options) string {
 		util.SystemTimeSource{},
 		ls,
 		&tc.Signer{Signer: cSigner, Hash: crypto.SHA256},
-		nil,
 		quota.Noop())
 
 	// Create the initial tree head at size 0, which is required. And then sequence the leaves.

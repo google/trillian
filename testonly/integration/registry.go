@@ -31,7 +31,7 @@ func NewRegistryForTests(testID string) (extension.Registry, error) {
 
 	return extension.Registry{
 		AdminStorage:  mysql.NewAdminStorage(db),
-		LogStorage:    mysql.NewLogStorage(db, nil),
+		LogStorage:    mysql.NewLogStorage(db),
 		SignerFactory: &keys.DefaultSignerFactory{},
 		MapStorage:    mysql.NewMapStorage(db),
 		QuotaManager:  &mysqlq.QuotaManager{DB: db, MaxUnsequencedRows: mysqlq.DefaultMaxUnsequenced},

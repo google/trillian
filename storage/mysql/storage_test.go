@@ -38,7 +38,7 @@ func TestNodeRoundTrip(t *testing.T) {
 
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB, nil)
+	s := NewLogStorage(DB)
 
 	const writeRevision = int64(100)
 	nodesToStore := createSomeNodes()
@@ -86,7 +86,7 @@ func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	s := NewLogStorage(DB, nil)
+	s := NewLogStorage(DB)
 
 	const writeRevision = int64(100)
 	nodesToStore, err := createLogNodesForTreeAtSize(871, writeRevision)

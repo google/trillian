@@ -61,7 +61,7 @@ func main() {
 	}
 	defer db.Close()
 
-	storage := mysql.NewLogStorage(db, nil)
+	storage := mysql.NewLogStorage(db)
 	ctx := context.Background()
 	tx, err := storage.BeginForTree(ctx, *treeIDFlag)
 	if err != nil {

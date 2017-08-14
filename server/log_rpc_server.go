@@ -35,27 +35,21 @@ import (
 // Pass this as a fixed value to proof calculations. It's used as the max depth of the tree
 const proofMaxBitLen = 64
 
+var (
+	leafCounter = monitoring.MF().NewCounter("queued_leaves", "Number of leaves requested to be queued", "status")
+)
+
 // TrillianLogRPCServer implements the RPC API defined in the proto
 type TrillianLogRPCServer struct {
-	registry    extension.Registry
-	timeSource  util.TimeSource
-	leafCounter monitoring.Counter
+	registry   extension.Registry
+	timeSource util.TimeSource
 }
 
 // NewTrillianLogRPCServer creates a new RPC server backed by a LogStorageProvider.
 func NewTrillianLogRPCServer(registry extension.Registry, timeSource util.TimeSource) *TrillianLogRPCServer {
-	mf := registry.MetricFactory
-	if mf == nil {
-		mf = monitoring.InertMetricFactory{}
-	}
 	return &TrillianLogRPCServer{
 		registry:   registry,
 		timeSource: timeSource,
-		leafCounter: mf.NewCounter(
-			"queued_leaves",
-			"Number of leaves requested to be queued",
-			"status",
-		),
 	}
 }
 
@@ -124,12 +118,12 @@ func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.Qu
 				Status: status.Newf(codes.AlreadyExists, "Leaf already exists: %v", existingLeaf.LeafIdentityHash).Proto(),
 			}
 			queuedLeaves = append(queuedLeaves, &queuedLeaf)
-			t.leafCounter.Inc("existing")
+			leafCounter.Inc("existing")
 		} else {
 			// Return the leaf from the request if it is new.
 			queuedLeaf := trillian.QueuedLogLeaf{Leaf: req.Leaves[i]}
 			queuedLeaves = append(queuedLeaves, &queuedLeaf)
-			t.leafCounter.Inc("new")
+			leafCounter.Inc("new")
 		}
 	}
 	return &trillian.QueueLeavesResponse{QueuedLeaves: queuedLeaves}, nil

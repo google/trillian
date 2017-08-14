@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"math"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/google/btree"
@@ -39,15 +38,9 @@ const logIDLabel = "logid"
 var (
 	defaultLogStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8}
 
-	once            sync.Once
-	queuedCounter   monitoring.Counter
-	dequeuedCounter monitoring.Counter
+	queuedCounter   = monitoring.MF().NewCounter("mem_queued_leaves", "Number of leaves queued", logIDLabel)
+	dequeuedCounter = monitoring.MF().NewCounter("mem_dequeued_leaves", "Number of leaves dequeued", logIDLabel)
 )
-
-func createMetrics(mf monitoring.MetricFactory) {
-	queuedCounter = mf.NewCounter("mem_queued_leaves", "Number of leaves queued", logIDLabel)
-	dequeuedCounter = mf.NewCounter("mem_dequeued_leaves", "Number of leaves dequeued", logIDLabel)
-}
 
 func labelForTX(t *logTreeTX) string {
 	return strconv.FormatInt(t.treeID, 10)
@@ -80,18 +73,13 @@ func sthKey(treeID, timestamp int64) btree.Item {
 
 type memoryLogStorage struct {
 	*memoryTreeStorage
-	admin         storage.AdminStorage
-	metricFactory monitoring.MetricFactory
+	admin storage.AdminStorage
 }
 
 // NewLogStorage creates an in-memory LogStorage instance.
-func NewLogStorage(mf monitoring.MetricFactory) storage.LogStorage {
-	if mf == nil {
-		mf = monitoring.InertMetricFactory{}
-	}
+func NewLogStorage() storage.LogStorage {
 	ret := &memoryLogStorage{
 		memoryTreeStorage: newTreeStorage(),
-		metricFactory:     mf,
 	}
 	ret.admin = NewAdminStorage(ret)
 	return ret
@@ -133,9 +121,6 @@ func (t *readOnlyLogTX) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
 }
 
 func (m *memoryLogStorage) beginInternal(ctx context.Context, treeID int64, readonly bool) (storage.LogTreeTX, error) {
-	once.Do(func() {
-		createMetrics(m.metricFactory)
-	})
 	tree, err := trees.GetTree(
 		ctx,
 		m.admin,

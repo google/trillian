@@ -17,7 +17,6 @@ package interceptor
 
 import (
 	"fmt"
-	"sync"
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
@@ -39,9 +38,11 @@ const (
 )
 
 var (
-	requestCounter       monitoring.Counter
-	requestDeniedCounter monitoring.Counter
-	metricsOnce          = sync.Once{}
+	requestCounter       = monitoring.MF().NewCounter("interceptor_request_count", "Total number of intercepted requests")
+	requestDeniedCounter = monitoring.MF().NewCounter(
+		"interceptor_request_denied_count",
+		"Number of requests by denied, labeled according to the reason for denial",
+		"reason", monitoring.TreeIDLabel, "quota_user")
 )
 
 // RequestProcessor encapsulates the logic to intercept a request, split into separate stages:
@@ -73,25 +74,12 @@ type TrillianInterceptor struct {
 }
 
 // New returns a new TrillianInterceptor instance.
-func New(admin storage.AdminStorage, qm quota.Manager, quotaDryRun bool, mf monitoring.MetricFactory) *TrillianInterceptor {
-	metricsOnce.Do(func() { initMetrics(mf) })
+func New(admin storage.AdminStorage, qm quota.Manager, quotaDryRun bool) *TrillianInterceptor {
 	return &TrillianInterceptor{
 		admin:       admin,
 		qm:          qm,
 		quotaDryRun: quotaDryRun,
 	}
-}
-
-func initMetrics(mf monitoring.MetricFactory) {
-	if mf == nil {
-		mf = monitoring.InertMetricFactory{}
-	}
-	quota.InitMetrics(mf)
-	requestCounter = mf.NewCounter("interceptor_request_count", "Total number of intercepted requests")
-	requestDeniedCounter = mf.NewCounter(
-		"interceptor_request_denied_count",
-		"Number of requests by denied, labeled according to the reason for denial",
-		"reason", monitoring.TreeIDLabel, "quota_user")
 }
 
 func incRequestDeniedCounter(reason string, treeID int64, quotaUser string) {
