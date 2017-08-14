@@ -554,12 +554,12 @@ func TestQuotaStorage_Peek(t *testing.T) {
 	}{
 		{
 			desc:  "success",
-			names: []string{globalRead.Name, globalWrite.Name, userRead.Name, "quotas/users/llama/write/configs"},
+			names: []string{globalRead.Name, globalWrite.Name, userRead.Name, "quotas/users/llama/write/config"},
 			wantTokens: map[string]int64{
-				globalRead.Name:                    quotaMaxTokens, // disabled
-				globalWrite.Name:                   globalWrite.MaxTokens,
-				userRead.Name:                      userRead.MaxTokens,
-				"quotas/users/llama/write/configs": quotaMaxTokens, // unknown
+				globalRead.Name:                   quotaMaxTokens, // disabled
+				globalWrite.Name:                  globalWrite.MaxTokens,
+				userRead.Name:                     userRead.MaxTokens,
+				"quotas/users/llama/write/config": quotaMaxTokens, // unknown
 			},
 		},
 		{
@@ -753,9 +753,9 @@ func TestQuotaStorage_Reset(t *testing.T) {
 		},
 		{
 			desc:  "unknownQuota",
-			names: []string{"quotas/users/llama/write/configs"},
+			names: []string{"quotas/users/llama/write/config"},
 			wantTokens: map[string]int64{
-				"quotas/users/llama/write/configs": quotaMaxTokens,
+				"quotas/users/llama/write/config": quotaMaxTokens,
 			},
 		},
 	}
