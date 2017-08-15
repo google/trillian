@@ -24,7 +24,6 @@ import (
 	"encoding/asn1"
 	"errors"
 	"fmt"
-	"log"
 	"math/big"
 
 	"github.com/google/trillian/crypto/keys"
@@ -45,7 +44,6 @@ func MustMarshalPublicPEMToDER(keyPEM string) []byte {
 	if err != nil {
 		panic(err)
 	}
-	log.Printf("keyDER: %#v", keyDER)
 	return keyDER
 }
 

@@ -22,7 +22,7 @@ import (
 	"github.com/google/trillian/testonly"
 )
 
-func MustMarshalPublicPEMToDER(keyPEM string) []byte {
+func mustMarshalPublicPEMToDER(keyPEM string) []byte {
 	block, rest := pem.Decode([]byte(keyPEM))
 	if block == nil {
 		panic("empty pem block")
@@ -39,7 +39,7 @@ func TestMarshalUnmarshalPublicKey(t *testing.T) {
 	}{
 		{pubPEM: testonly.DemoPublicKey},
 	} {
-		pubDER := MustMarshalPublicPEMToDER(tc.pubPEM)
+		pubDER := mustMarshalPublicPEMToDER(tc.pubPEM)
 		pubKey, err := UnmarshalPublicKey(pubDER)
 		if err != nil {
 			t.Errorf("UnmarshalPublicKey(%v): %v", pubDER, err)
@@ -64,7 +64,7 @@ func TestFromToPublicProto(t *testing.T) {
 	}{
 		{pubPEM: testonly.DemoPublicKey},
 	} {
-		pubDER := MustMarshalPublicPEMToDER(tc.pubPEM)
+		pubDER := mustMarshalPublicPEMToDER(tc.pubPEM)
 		pubKey, err := UnmarshalPublicKey(pubDER)
 		if err != nil {
 			t.Errorf("UnmarshalPublicKey(%v): %v", pubDER, err)

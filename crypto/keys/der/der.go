@@ -80,7 +80,7 @@ func UnmarshalPublicKey(keyDER []byte) (crypto.PublicKey, error) {
 	return key, nil
 }
 
-// MarshalPublicKey outputs a DER-encoded public key.
+// MarshalPublicKey serializes an RSA or ECDSA public key as DER.
 func MarshalPublicKey(pubKey crypto.PublicKey) ([]byte, error) {
 	der, err := x509.MarshalPKIXPublicKey(pubKey)
 	if err != nil {
