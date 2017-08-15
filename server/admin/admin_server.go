@@ -16,14 +16,13 @@ package admin
 
 import (
 	"bytes"
-	"crypto/x509"
 
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
-	"github.com/google/trillian/crypto/keyspb"
+	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/merkle/hashers"
 	_ "github.com/google/trillian/merkle/rfc6962" // Make hashers available
@@ -139,19 +138,19 @@ func (s *Server) CreateTree(ctx context.Context, request *trillian.CreateTreeReq
 
 	// Derive the public key that corresponds to the private key for this tree.
 	// The caller may have provided the public key, but for safety we shouldn't rely on it being correct.
-	publicKeyDER, err := x509.MarshalPKIXPublicKey(signer.Public())
+	publicKey, err := der.ToPublicProto(signer.Public())
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "failed to marshal public key: %v", err.Error())
 	}
 
 	// If a public key was provided, check that it matches the one we derived. If it doesn't, this indicates a mistake by the caller.
-	if tree.PublicKey != nil && !bytes.Equal(tree.PublicKey.Der, publicKeyDER) {
+	if tree.PublicKey != nil && !bytes.Equal(tree.PublicKey.Der, publicKey.Der) {
 		return nil, status.Error(codes.InvalidArgument, "the public and private keys are not a pair")
 	}
 
 	// If no public key was provided, use the DER that we just marshaled.
 	if tree.PublicKey == nil {
-		tree.PublicKey = &keyspb.PublicKey{Der: publicKeyDER}
+		tree.PublicKey = publicKey
 	}
 
 	tx, err := s.registry.AdminStorage.Begin(ctx)
