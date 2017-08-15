@@ -29,9 +29,19 @@ func FromProto(pb *keyspb.PrivateKey) (crypto.Signer, error) {
 	return UnmarshalPrivateKey(pb.GetDer())
 }
 
-// FromPublicProto takes a PublicKey protobuf message and returns the public key contained within.
+// FromPublicProto takes a PublicKey protobuf message and returns the public
+// key contained within.
 func FromPublicProto(pb *keyspb.PublicKey) (crypto.PublicKey, error) {
 	return UnmarshalPublicKey(pb.GetDer())
+}
+
+// ToPublicProto returns a keyspb.PublicKey
+func ToPublicProto(pubKey crypto.PublicKey) (*keyspb.PublicKey, error) {
+	keyDER, err := MarshalPublicKey(pubKey)
+	if err != nil {
+		return nil, err
+	}
+	return &keyspb.PublicKey{Der: keyDER}, nil
 }
 
 // UnmarshalPrivateKey reads a DER-encoded private key.
@@ -68,6 +78,16 @@ func UnmarshalPublicKey(keyDER []byte) (crypto.PublicKey, error) {
 	}
 
 	return key, nil
+}
+
+// MarshalPublicKey outputs a DER-encoded public key.
+func MarshalPublicKey(pubKey crypto.PublicKey) ([]byte, error) {
+	der, err := x509.MarshalPKIXPublicKey(pubKey)
+	if err != nil {
+		return nil, fmt.Errorf("der: could not marshal public key as PKIX (%v)", err)
+	}
+
+	return der, nil
 }
 
 // MarshalPrivateKey serializes an RSA or ECDSA private key as DER.
