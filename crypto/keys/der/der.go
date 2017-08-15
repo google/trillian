@@ -35,7 +35,7 @@ func FromPublicProto(pb *keyspb.PublicKey) (crypto.PublicKey, error) {
 	return UnmarshalPublicKey(pb.GetDer())
 }
 
-// ToPublicProto returns a keyspb.PublicKey
+// ToPublicProto returns a keyspb.PublicKey that contains pubKey in DER encoding.
 func ToPublicProto(pubKey crypto.PublicKey) (*keyspb.PublicKey, error) {
 	keyDER, err := MarshalPublicKey(pubKey)
 	if err != nil {
