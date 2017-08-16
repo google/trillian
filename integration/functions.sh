@@ -19,16 +19,16 @@ readonly TRILLIAN_PATH=$(go list -f '{{.Dir}}' github.com/google/trillian)
 # run_test runs the given test with additional output messages.
 run_test() {
   local name=$1
-  local script=$2
+  shift
   echo "=== RUN   ${name}"
-  "${script}" "$3" "$4" "$5" "$6" "$7" "$8"
+  "$@"
   rc=$?
   if [ $rc -ne 0 ]; then
     echo "--- FAIL: ${name}"
-    return $rc
+  else
+    echo "--- PASS: ${name}"
   fi
-  echo "--- PASS: ${name}"
-  return 0
+  return $rc
 }
 
 # wait_for_server_startup pauses until there is a response on the given port.
