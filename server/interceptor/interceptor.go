@@ -87,7 +87,10 @@ func initMetrics(mf monitoring.MetricFactory) {
 		mf = monitoring.InertMetricFactory{}
 	}
 	quota.InitMetrics(mf)
-	requestCounter = mf.NewCounter("interceptor_request_count", "Total number of intercepted requests")
+	requestCounter = mf.NewCounter(
+		"interceptor_request_count",
+		"Total number of intercepted requests",
+		monitoring.TreeIDLabel)
 	requestDeniedCounter = mf.NewCounter(
 		"interceptor_request_denied_count",
 		"Number of requests by denied, labeled according to the reason for denial",
@@ -124,7 +127,13 @@ type trillianProcessor struct {
 }
 
 func (tp *trillianProcessor) Before(ctx context.Context, req interface{}) (context.Context, error) {
-	requestCounter.Inc()
+	defer func() {
+		var treeID int64
+		if tp.info != nil {
+			treeID = tp.info.treeID
+		}
+		requestCounter.Inc(fmt.Sprint(treeID))
+	}()
 
 	quotaUser := tp.parent.qm.GetUser(ctx, req)
 	info, err := getRPCInfo(req, quotaUser)
