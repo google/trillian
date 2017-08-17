@@ -49,8 +49,8 @@ import (
 var (
 	mySQLURI = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "Connection URI for MySQL database")
 	// MySQL supports 151 connections by default (https://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html#sysvar_max_connections).
-	// Default to a maximum of ~1/2 of this, because other Trillian binaries will also need to make connections.
-	mySQLMaxConns = flag.Int("mysql_max_conns", 75, "Maximum number of connections that may be made to the MySQL database")
+	// Default to a maximum of ~1/3 of this, because other Trillian binaries will also need to make connections.
+	mySQLMaxConns = flag.Int("mysql_max_conns", 50, "Maximum number of connections that may be made to the MySQL database")
 
 	httpEndpoint             = flag.String("http_endpoint", "localhost:8091", "Endpoint for HTTP (host:port, empty means disabled)")
 	sequencerIntervalFlag    = flag.Duration("sequencer_interval", time.Second*10, "Time between each sequencing pass through all logs")

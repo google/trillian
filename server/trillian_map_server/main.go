@@ -51,8 +51,8 @@ import (
 var (
 	mySQLURI = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "Connection URI for MySQL database")
 	// MySQL supports 151 connections by default (https://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html#sysvar_max_connections).
-	// Default to a maximum of ~1/2 of this, because other Trillian binaries will also need to make connections.
-	mySQLMaxConns = flag.Int("mysql_max_conns", 75, "Maximum number of connections that may be made to the MySQL database")
+	// Default to a maximum of ~1/3 of this, because other Trillian binaries will also need to make connections.
+	mySQLMaxConns = flag.Int("mysql_max_conns", 50, "Maximum number of connections that may be made to the MySQL database")
 
 	rpcEndpoint        = flag.String("rpc_endpoint", "localhost:8090", "Endpoint for RPC requests (host:port)")
 	httpEndpoint       = flag.String("http_endpoint", "localhost:8091", "Endpoint for HTTP metrics and REST requests on (host:port, empty means disabled)")
