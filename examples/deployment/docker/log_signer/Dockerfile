@@ -18,7 +18,6 @@ ENV SEQUENCER_GUARD_WINDOW=0s \
 ADD . /go/src/github.com/google/trillian
 WORKDIR /go/src/github.com/google/trillian
 
-RUN apt-get update && apt-get install -y libtool libltdl-dev
 RUN go get ./server/trillian_log_signer
 
 # Run the outyet command by default when the container starts.
