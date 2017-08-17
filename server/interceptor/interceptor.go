@@ -153,7 +153,7 @@ func (tp *trillianProcessor) Before(ctx context.Context, req interface{}) (conte
 			}
 			glog.Warningf("(quotaDryRun) Request %+v not denied due to dry run mode: %v", req, err)
 		}
-		quota.Metrics.IncAcquired(info.tokens, info.specs, err != nil)
+		quota.Metrics.IncAcquired(info.tokens, info.specs, err == nil)
 	}
 	return ctx, nil
 }
@@ -197,7 +197,7 @@ func (tp *trillianProcessor) After(ctx context.Context, resp interface{}, handle
 		if err != nil {
 			glog.Warningf("Failed to replenish %v tokens: %v", tokens, err)
 		}
-		quota.Metrics.IncReturned(tokens, tp.info.specs, err != nil)
+		quota.Metrics.IncReturned(tokens, tp.info.specs, err == nil)
 	}
 }
 

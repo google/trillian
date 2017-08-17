@@ -393,7 +393,7 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int, gu
 		if err != nil {
 			glog.Warningf("Failed to replenish %v tokens for tree %v: %v", tokens, logID, err)
 		}
-		quota.Metrics.IncReplenished(tokens, specs, err != nil)
+		quota.Metrics.IncReplenished(tokens, specs, err == nil)
 	}
 
 	seqCounter.Add(float64(numLeaves), label)
