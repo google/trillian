@@ -977,7 +977,7 @@ func (as *authStore) isValidSimpleToken(token string, ctx context.Context) bool 
 }
 
 func (as *authStore) AuthInfoFromCtx(ctx context.Context) (*AuthInfo, error) {
-	md, ok := metadata.FromContext(ctx)
+	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		return nil, nil
 	}
