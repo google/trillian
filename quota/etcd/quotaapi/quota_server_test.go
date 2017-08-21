@@ -26,7 +26,7 @@ import (
 	"testing"
 
 	"github.com/coreos/etcd/clientv3"
-	"github.com/gogo/protobuf/proto"
+	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian/quota/etcd/quotapb"
 	"github.com/google/trillian/quota/etcd/storage"
 	"github.com/google/trillian/quota/etcd/storagepb"
