@@ -93,7 +93,7 @@ main() {
     go build ${goflags} ${go_dirs}
 
     echo 'running go test'
-    go test -cover -timeout=5m -short ${goflags} ${go_dirs}
+    go test -coverprofile=coverage.txt -covermode=atomic -timeout=5m -short ${goflags} ${go_dirs}
   fi
 
   if [[ "${run_linters}" -eq 1 ]]; then
