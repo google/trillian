@@ -15,6 +15,7 @@ env:
   - GOFLAGS='-race'               WITH_ETCD=true
   - GOFLAGS='--tags pkcs11'       WITH_PKCS11=true
   - GOFLAGS='-race --tags pkcs11' WITH_PKCS11=true
+  - GOFLAGS='-coverprofile=coverage.txt -covermode=atomic'
 
 matrix:
   fast_finish: true
@@ -87,7 +88,6 @@ script:
   - cd $HOME/gopath/src/github.com/google/certificate-transparency-go
   - ./trillian/integration/integration_test.sh
   - set +e
-  - go test -coverprofile=coverage.txt -covermode=atomic
 
 services: mysql
 
