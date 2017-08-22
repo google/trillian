@@ -70,7 +70,7 @@ script:
       # Check re-generation didn't change anything
       # Skip protoc-generated files (.pb.go) because protoc is not deterministic
       # when generating file descriptors.
-      status=$(git status --porcelain | grep -v .pb.go | grep -v _string.go) || :
+      status=$(git status --porcelain | grep -v .pb.go | grep -v _string.go | grep -v coverage.txt) || :
       if [[ -n ${status} ]]; then
         echo "Regenerated files differ from checked-in versions: ${status}"
         git status
