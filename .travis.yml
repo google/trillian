@@ -90,3 +90,6 @@ services: mysql
 
 before_script:
   - yes | ./scripts/resetdb.sh
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
