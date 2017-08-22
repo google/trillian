@@ -17,7 +17,7 @@ package quotaapi
 import (
 	"testing"
 
-	"github.com/gogo/protobuf/proto"
+	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian/quota/etcd/quotapb"
 	"github.com/google/trillian/quota/etcd/storagepb"
 	"github.com/kylelemons/godebug/pretty"
