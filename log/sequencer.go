@@ -294,9 +294,8 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int, gu
 	seqInitTreeLatency.Observe(s.since(stageStart), label)
 	stageStart = s.timeSource.Now()
 
-	// We've done all the reads, can now do the updates.
-	// TODO: This relies on us being the only process updating the map, which isn't enforced yet
-	// though the schema should now prevent multiple STHs being inserted with the same revision
+	// We've done all the reads, can now do the updates in the same transaction.
+	// The schema should prevent multiple STHs being inserted with the same revision
 	// number so it should not be possible for colliding updates to commit.
 	newVersion := tx.WriteRevision()
 	if got, want := newVersion, currentRoot.TreeRevision+int64(1); got != want {
