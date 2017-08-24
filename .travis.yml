@@ -92,4 +92,5 @@ before_script:
   - yes | ./scripts/resetdb.sh
 
 after_success:
+  - cp /tmp/coverage.txt .
   - bash <(curl -s https://codecov.io/bash)
