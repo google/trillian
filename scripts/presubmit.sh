@@ -102,6 +102,7 @@ main() {
         rm profile.out
       fi
     done
+    cp coverage.txt /tmp
   fi
 
   if [[ "${run_linters}" -eq 1 ]]; then
