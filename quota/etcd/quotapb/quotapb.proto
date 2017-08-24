@@ -74,7 +74,9 @@ message Config {
 }
 
 // Sequencing-based replenishment strategy settings.
-// Only global and tree quotas may use sequencing-based replenishment.
+//
+// Only global/write and trees/write quotas may use sequencing-based
+// replenishment.
 message SequencingBasedStrategy {}
 
 // Time-based replenishment strategy settings.
