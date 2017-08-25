@@ -87,17 +87,25 @@ func main() {
 	}
 	defer db.Close()
 
+	client, err := etcd.NewClient(*etcdServers)
+	if err != nil {
+		glog.Exitf("Failed to connect to etcd at %v: %v", etcdServers, err)
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	go util.AwaitSignal(cancel)
 
 	hostname, _ := os.Hostname()
 	instanceID := fmt.Sprintf("%s.%d", hostname, os.Getpid())
 	var electionFactory util.ElectionFactory
-	if *forceMaster {
+	switch {
+	case *forceMaster:
 		glog.Warning("**** Acting as master for all logs ****")
 		electionFactory = util.NoopElectionFactory{InstanceID: instanceID}
-	} else {
-		electionFactory = etcd.NewElectionFactory(instanceID, *etcdServers, *lockDir)
+	case client != nil:
+		electionFactory = etcd.NewElectionFactory(instanceID, client, *lockDir)
+	default:
+		glog.Exit("Either --force_master or --etcd_servers must be supplied")
 	}
 
 	mf := prometheus.MetricFactory{}
@@ -113,10 +121,8 @@ func main() {
 	// Start HTTP server (optional)
 	if *httpEndpoint != "" {
 		// Announce our endpoint to etcd if so configured.
-		unannounceHTTP := server.AnnounceSelf(ctx, *etcdServers, *etcdHTTPService, *httpEndpoint)
-		if unannounceHTTP != nil {
-			defer unannounceHTTP()
-		}
+		unannounceHTTP := server.AnnounceSelf(ctx, client, *etcdHTTPService, *httpEndpoint)
+		defer unannounceHTTP()
 
 		glog.Infof("Creating HTTP server starting on %v", *httpEndpoint)
 		http.Handle("/metrics", promhttp.Handler())

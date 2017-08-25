@@ -33,6 +33,7 @@ import (
 	"github.com/google/trillian/server/interceptor"
 	"github.com/google/trillian/storage/mysql"
 	"github.com/google/trillian/util"
+	"github.com/google/trillian/util/etcd"
 	"google.golang.org/grpc"
 
 	mysqlq "github.com/google/trillian/quota/mysql"
@@ -81,16 +82,17 @@ func main() {
 	}
 	// No defer: database ownership is delegated to server.Main
 
-	// Announce our endpoints to etcd if so configured.
-	unannounce := server.AnnounceSelf(ctx, *etcdServers, *etcdService, *rpcEndpoint)
-	if unannounce != nil {
-		defer unannounce()
+	client, err := etcd.NewClient(*etcdServers)
+	if err != nil {
+		glog.Exitf("Failed to connect to etcd at %v: %v", etcdServers, err)
 	}
+
+	// Announce our endpoints to etcd if so configured.
+	unannounce := server.AnnounceSelf(ctx, client, *etcdService, *rpcEndpoint)
+	defer unannounce()
 	if *httpEndpoint != "" {
-		unannounceHTTP := server.AnnounceSelf(ctx, *etcdServers, *etcdHTTPService, *httpEndpoint)
-		if unannounceHTTP != nil {
-			defer unannounceHTTP()
-		}
+		unannounceHTTP := server.AnnounceSelf(ctx, client, *etcdHTTPService, *httpEndpoint)
+		defer unannounceHTTP()
 	}
 
 	mf := prometheus.MetricFactory{}
