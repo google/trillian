@@ -1,4 +1,12 @@
+*.iml
+*.swo
+*.swp
+*.tfstate
+*.tfstate.backup
+*~
 /.idea
+/commit_log
+/coverage.txt
 /createtree
 /ct_hammer
 /ct_server
@@ -9,11 +17,4 @@
 /trillian_log_server
 /trillian_log_signer
 /trillian_map_server
-/commit_log
-*.iml
-*.swo
-*.swp
-*~
 default.etcd
-*.tfstate
-*.tfstate.backup

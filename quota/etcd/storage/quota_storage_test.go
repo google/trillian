@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -41,8 +42,11 @@ var (
 				Name:      "quotas/global/read/config",
 				State:     storagepb.Config_DISABLED,
 				MaxTokens: 1,
-				ReplenishmentStrategy: &storagepb.Config_SequencingBased{
-					SequencingBased: &storagepb.SequencingBasedStrategy{},
+				ReplenishmentStrategy: &storagepb.Config_TimeBased{
+					TimeBased: &storagepb.TimeBasedStrategy{
+						ReplenishIntervalSeconds: 100,
+						TokensToReplenish:        10000,
+					},
 				},
 			},
 			{
@@ -224,28 +228,30 @@ func TestQuotaStorage_UpdateConfigs(t *testing.T) {
 }
 
 func TestQuotaStorage_UpdateConfigsErrors(t *testing.T) {
-	emptyName := deepCopy(cfgs)
+	globalWriteCfgs := &storagepb.Configs{Configs: []*storagepb.Config{globalWrite}}
+
+	emptyName := deepCopy(globalWriteCfgs)
 	emptyName.Configs[0].Name = ""
 
-	invalidName1 := deepCopy(cfgs)
+	invalidName1 := deepCopy(globalWriteCfgs)
 	invalidName1.Configs[0].Name = "invalid"
 
-	invalidName2 := deepCopy(cfgs)
+	invalidName2 := deepCopy(globalWriteCfgs)
 	invalidName2.Configs[0].Name = "quotas/tree/1234/write" // should be "trees", plural
 
-	unknownState := deepCopy(cfgs)
+	unknownState := deepCopy(globalWriteCfgs)
 	unknownState.Configs[0].State = storagepb.Config_UNKNOWN_CONFIG_STATE
 
-	zeroMaxTokens := deepCopy(cfgs)
+	zeroMaxTokens := deepCopy(globalWriteCfgs)
 	zeroMaxTokens.Configs[0].MaxTokens = 0
 
-	invalidMaxTokens := deepCopy(cfgs)
+	invalidMaxTokens := deepCopy(globalWriteCfgs)
 	invalidMaxTokens.Configs[0].MaxTokens = -1
 
-	noReplenishmentStrategy := deepCopy(cfgs)
+	noReplenishmentStrategy := deepCopy(globalWriteCfgs)
 	noReplenishmentStrategy.Configs[0].ReplenishmentStrategy = nil
 
-	zeroTimeBasedTokens := deepCopy(cfgs)
+	zeroTimeBasedTokens := deepCopy(globalWriteCfgs)
 	zeroTimeBasedTokens.Configs[0].ReplenishmentStrategy = &storagepb.Config_TimeBased{
 		TimeBased: &storagepb.TimeBasedStrategy{
 			TokensToReplenish:        0,
@@ -253,7 +259,7 @@ func TestQuotaStorage_UpdateConfigsErrors(t *testing.T) {
 		},
 	}
 
-	invalidTimeBasedTokens := deepCopy(cfgs)
+	invalidTimeBasedTokens := deepCopy(globalWriteCfgs)
 	invalidTimeBasedTokens.Configs[0].ReplenishmentStrategy = &storagepb.Config_TimeBased{
 		TimeBased: &storagepb.TimeBasedStrategy{
 			TokensToReplenish:        -1,
@@ -261,7 +267,7 @@ func TestQuotaStorage_UpdateConfigsErrors(t *testing.T) {
 		},
 	}
 
-	zeroReplenishInterval := deepCopy(cfgs)
+	zeroReplenishInterval := deepCopy(globalWriteCfgs)
 	zeroReplenishInterval.Configs[0].ReplenishmentStrategy = &storagepb.Config_TimeBased{
 		TimeBased: &storagepb.TimeBasedStrategy{
 			TokensToReplenish:        1,
@@ -269,7 +275,7 @@ func TestQuotaStorage_UpdateConfigsErrors(t *testing.T) {
 		},
 	}
 
-	invalidReplenishInterval := deepCopy(cfgs)
+	invalidReplenishInterval := deepCopy(globalWriteCfgs)
 	invalidReplenishInterval.Configs[0].ReplenishmentStrategy = &storagepb.Config_TimeBased{
 		TimeBased: &storagepb.TimeBasedStrategy{
 			TokensToReplenish:        1,
@@ -279,37 +285,107 @@ func TestQuotaStorage_UpdateConfigsErrors(t *testing.T) {
 
 	duplicateNames := &storagepb.Configs{Configs: []*storagepb.Config{globalRead, globalWrite, globalWrite}}
 
+	sequencingBasedStrategy := &storagepb.Config_SequencingBased{SequencingBased: &storagepb.SequencingBasedStrategy{}}
 	sequencingBasedUserQuota := &storagepb.Configs{
 		Configs: []*storagepb.Config{
 			{
-				Name:      userRead.Name,
-				State:     userRead.State,
-				MaxTokens: userRead.MaxTokens,
-				ReplenishmentStrategy: &storagepb.Config_SequencingBased{
-					SequencingBased: &storagepb.SequencingBasedStrategy{},
-				},
+				Name:                  userRead.Name,
+				State:                 userRead.State,
+				MaxTokens:             userRead.MaxTokens,
+				ReplenishmentStrategy: sequencingBasedStrategy,
 			},
 		},
 	}
 
+	sequencingBasedReadQuota1 := deepCopy(globalWriteCfgs)
+	sequencingBasedReadQuota1.Configs[0].Name = globalRead.Name
+	sequencingBasedReadQuota1.Configs[0].ReplenishmentStrategy = sequencingBasedStrategy
+
+	sequencingBasedReadQuota2 := deepCopy(globalWriteCfgs)
+	sequencingBasedReadQuota2.Configs[0].Name = "quotas/trees/1234/read/config"
+	sequencingBasedReadQuota2.Configs[0].ReplenishmentStrategy = sequencingBasedStrategy
+
 	tests := []struct {
-		desc   string
-		update func(*storagepb.Configs)
+		desc    string
+		update  func(*storagepb.Configs)
+		wantErr string
 	}{
-		{desc: "nil"},
-		{desc: "emptyName", update: updater(emptyName)},
-		{desc: "invalidName1", update: updater(invalidName1)},
-		{desc: "invalidName2", update: updater(invalidName2)},
-		{desc: "unknownState", update: updater(unknownState)},
-		{desc: "zeroMaxTokens", update: updater(zeroMaxTokens)},
-		{desc: "invalidMaxTokens", update: updater(invalidMaxTokens)},
-		{desc: "noReplenishmentStrategy", update: updater(noReplenishmentStrategy)},
-		{desc: "zeroTimeBasedTokens", update: updater(zeroTimeBasedTokens)},
-		{desc: "invalidTimeBasedTokens", update: updater(invalidTimeBasedTokens)},
-		{desc: "zeroReplenishInterval", update: updater(zeroReplenishInterval)},
-		{desc: "invalidReplenishInterval", update: updater(invalidReplenishInterval)},
-		{desc: "duplicateNames", update: updater(duplicateNames)},
-		{desc: "sequencingBasedUserQuota", update: updater(sequencingBasedUserQuota)},
+		{desc: "nil", wantErr: "function required"},
+		{
+			desc:    "emptyName",
+			update:  updater(emptyName),
+			wantErr: "name is required",
+		},
+		{
+			desc:    "invalidName1",
+			update:  updater(invalidName1),
+			wantErr: "name malformed",
+		},
+		{
+			desc:    "invalidName2",
+			update:  updater(invalidName2),
+			wantErr: "name malformed",
+		},
+		{
+			desc:    "unknownState",
+			update:  updater(unknownState),
+			wantErr: "state invalid",
+		},
+		{
+			desc:    "zeroMaxTokens",
+			update:  updater(zeroMaxTokens),
+			wantErr: "max tokens must be > 0",
+		},
+		{
+			desc:    "invalidMaxTokens",
+			update:  updater(invalidMaxTokens),
+			wantErr: "max tokens must be > 0",
+		},
+		{
+			desc:    "noReplenishmentStrategy",
+			update:  updater(noReplenishmentStrategy),
+			wantErr: "unsupported replenishment strategy",
+		},
+		{
+			desc:    "zeroTimeBasedTokens",
+			update:  updater(zeroTimeBasedTokens),
+			wantErr: "time based tokens must be > 0",
+		},
+		{
+			desc:    "invalidTimeBasedTokens",
+			update:  updater(invalidTimeBasedTokens),
+			wantErr: "time based tokens must be > 0",
+		},
+		{
+			desc:    "zeroReplenishInterval",
+			update:  updater(zeroReplenishInterval),
+			wantErr: "replenish interval must be > 0",
+		},
+		{
+			desc:    "invalidReplenishInterval",
+			update:  updater(invalidReplenishInterval),
+			wantErr: "replenish interval must be > 0",
+		},
+		{
+			desc:    "duplicateNames",
+			update:  updater(duplicateNames),
+			wantErr: "duplicate config name",
+		},
+		{
+			desc:    "sequencingBasedUserQuota",
+			update:  updater(sequencingBasedUserQuota),
+			wantErr: "cannot use sequencing-based replenishment",
+		},
+		{
+			desc:    "sequencingBasedReadQuota1",
+			update:  updater(sequencingBasedReadQuota1),
+			wantErr: "cannot use sequencing-based replenishment",
+		},
+		{
+			desc:    "sequencingBasedReadQuota2",
+			update:  updater(sequencingBasedReadQuota2),
+			wantErr: "cannot use sequencing-based replenishment",
+		},
 	}
 
 	ctx := context.Background()
@@ -321,9 +397,9 @@ func TestQuotaStorage_UpdateConfigsErrors(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		if _, err := qs.UpdateConfigs(ctx, false /* reset */, test.update); err == nil {
+		if _, err := qs.UpdateConfigs(ctx, false /* reset */, test.update); !strings.Contains(err.Error(), test.wantErr) {
 			// Fatal because the config has been changed, which will break all following tests.
-			t.Fatalf("%v: UpdateConfigs() returned err = nil, want non-nil", test.desc)
+			t.Fatalf("%v: UpdateConfigs() returned err = %v, want substring %q", test.desc, err, test.wantErr)
 		}
 
 		stored, err := qs.Configs(ctx)

@@ -187,6 +187,9 @@ func validate(cfgs *storagepb.Configs) error {
 			if usersPattern.MatchString(cfg.Name) {
 				return errors.Errorf(errors.InvalidArgument, "user quotas cannot use sequencing-based replenishment (Configs[%v].ReplenishmentStrategy)", i)
 			}
+			if strings.HasSuffix(cfg.Name, "/read/config") {
+				return errors.Errorf(errors.InvalidArgument, "read quotas cannot use sequencing-based replenishment (Configs[%v].ReplenishmentStrategy)", i)
+			}
 		case *storagepb.Config_TimeBased:
 			if t := s.TimeBased.TokensToReplenish; t <= 0 {
 				return errors.Errorf(errors.InvalidArgument, "time based tokens must be > 0 (Configs[%v].TimeBased.TokensToReplenish = %v)", i, t)
