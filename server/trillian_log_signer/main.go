@@ -27,7 +27,6 @@ import (
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/log"
 	"github.com/google/trillian/monitoring/prometheus"
-	"github.com/google/trillian/quota"
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/storage/mysql"
 	"github.com/google/trillian/util"
@@ -57,8 +56,11 @@ var (
 	etcdServers              = flag.String("etcd_servers", "", "A comma-separated list of etcd servers")
 	etcdHTTPService          = flag.String("etcd_http_service", "trillian-logsigner-http", "Service name to announce our HTTP endpoint under")
 	lockDir                  = flag.String("lock_file_path", "/test/multimaster", "etcd lock file directory path")
-	quotaIncreaseFactor      = flag.Float64("quota_increase_factor", log.QuotaIncreaseFactor,
-		"Increase factor for tokens replenished by sequencing-based quotas (1 means a 1:1 relationship between sequenced leaves and replenished tokens).")
+
+	quotaSystem         = flag.String("quota_system", "mysql", "Quota system to use. One of: \"noop\", \"mysql\" or \"etcd\"")
+	quotaIncreaseFactor = flag.Float64("quota_increase_factor", log.QuotaIncreaseFactor,
+		"Increase factor for tokens replenished by sequencing-based quotas (1 means a 1:1 relationship between sequenced leaves and replenished tokens)."+
+			"Only effective for --quota_system=etcd.")
 
 	preElectionPause    = flag.Duration("pre_election_pause", 1*time.Second, "Maximum time to wait before starting elections")
 	masterCheckInterval = flag.Duration("master_check_interval", 5*time.Second, "Interval between checking mastership still held")
@@ -108,13 +110,22 @@ func main() {
 		glog.Exit("Either --force_master or --etcd_servers must be supplied")
 	}
 
+	qm, err := server.NewQuotaManager(&server.QuotaParams{
+		QuotaSystem: *quotaSystem,
+		DB:          db,
+		Client:      client,
+	})
+	if err != nil {
+		glog.Exitf("Error creating quota manager: %v", err)
+	}
+
 	mf := prometheus.MetricFactory{}
 
 	registry := extension.Registry{
 		AdminStorage:    mysql.NewAdminStorage(db),
 		LogStorage:      mysql.NewLogStorage(db, mf),
 		ElectionFactory: electionFactory,
-		QuotaManager:    quota.Noop(),
+		QuotaManager:    qm,
 		MetricFactory:   mf,
 	}
 
