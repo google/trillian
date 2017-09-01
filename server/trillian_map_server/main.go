@@ -49,7 +49,11 @@ import (
 )
 
 var (
-	mySQLURI           = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "Connection URI for MySQL database")
+	mySQLURI = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "Connection URI for MySQL database")
+	// MySQL supports 151 connections by default (https://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html#sysvar_max_connections).
+	// Default to a maximum of ~1/3 of this, because other Trillian binaries will also need to make connections.
+	mySQLMaxConns = flag.Int("mysql_max_conns", 50, "Maximum number of connections that may be made to the MySQL database")
+
 	rpcEndpoint        = flag.String("rpc_endpoint", "localhost:8090", "Endpoint for RPC requests (host:port)")
 	httpEndpoint       = flag.String("http_endpoint", "localhost:8091", "Endpoint for HTTP metrics and REST requests on (host:port, empty means disabled)")
 	maxUnsequencedRows = flag.Int("max_unsequenced_rows", mysqlq.DefaultMaxUnsequenced, "Max number of unsequenced rows before rate limiting kicks in")
@@ -72,6 +76,9 @@ func main() {
 		glog.Exitf("Failed to open database: %v", err)
 	}
 	// No defer: database ownership is delegated to server.Main
+
+	// Limit the number of connections to the MySQL database, to avoid a "too many connections" error under heavy load.
+	db.SetMaxOpenConns(*mySQLMaxConns)
 
 	registry := extension.Registry{
 		AdminStorage:  mysql.NewAdminStorage(db),
