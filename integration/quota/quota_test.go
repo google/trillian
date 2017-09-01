@@ -23,44 +23,118 @@ import (
 	"time"
 
 	"github.com/google/trillian"
-	"github.com/google/trillian/quota/mysql"
+	"github.com/google/trillian/extension"
+	"github.com/google/trillian/quota/etcd/etcdqm"
+	"github.com/google/trillian/quota/etcd/quotaapi"
+	"github.com/google/trillian/quota/etcd/quotapb"
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/server/admin"
 	"github.com/google/trillian/server/interceptor"
+	"github.com/google/trillian/storage/mysql"
 	"github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/testonly/integration"
+	"github.com/google/trillian/testonly/integration/etcd"
 	"github.com/google/trillian/trees"
 	"github.com/google/trillian/util"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	mysqlqm "github.com/google/trillian/quota/mysql"
 )
 
-func TestRateLimiting(t *testing.T) {
-	maxUnsequenced := 20
-
-	adminClient, logClient, closeFn, err := setupLogServer(maxUnsequenced)
+func TestEtcdRateLimiting(t *testing.T) {
+	registry, err := integration.NewRegistryForTests("EtcdRateLimitingTest")
 	if err != nil {
-		t.Fatalf("setupLogServer() returned err = %v", err)
+		t.Fatalf("NewRegistryForTests() returned err = %v", err)
 	}
-	defer closeFn()
+
+	_, etcdClient, cleanup, err := etcd.StartEtcd()
+	if err != nil {
+		t.Fatalf("StartEtcd() returned err = %v", err)
+	}
+	defer cleanup()
+
+	registry.QuotaManager = etcdqm.New(etcdClient)
+
+	s, err := newTestServer(registry)
+	if err != nil {
+		t.Fatalf("newTestServer() returned err = %v", err)
+	}
+	defer s.close()
+
+	quotapb.RegisterQuotaServer(s.server, quotaapi.NewServer(etcdClient))
+	quotaClient := quotapb.NewQuotaClient(s.conn)
+	go s.serve()
+
+	const maxTokens = 100
+	ctx := context.Background()
+	if _, err := quotaClient.CreateConfig(ctx, &quotapb.CreateConfigRequest{
+		Name: "quotas/global/write/config",
+		Config: &quotapb.Config{
+			State:     quotapb.Config_ENABLED,
+			MaxTokens: maxTokens,
+			ReplenishmentStrategy: &quotapb.Config_TimeBased{
+				TimeBased: &quotapb.TimeBasedStrategy{
+					TokensToReplenish:        maxTokens,
+					ReplenishIntervalSeconds: 1000,
+				},
+			},
+		},
+	}); err != nil {
+		t.Fatalf("CreateConfig() returned err = %v", err)
+	}
+
+	if err := runRateLimitingTest(ctx, s, maxTokens); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestMySQLRateLimiting(t *testing.T) {
+	db, err := integration.GetTestDB("MySQLRateLimitingTest")
+	if err != nil {
+		t.Fatalf("GetTestDB() returned err = %v", err)
+	}
+	defer db.Close()
+
+	const maxUnsequenced = 20
+	qm := &mysqlqm.QuotaManager{DB: db, MaxUnsequencedRows: maxUnsequenced}
+	registry := extension.Registry{
+		AdminStorage: mysql.NewAdminStorage(db),
+		LogStorage:   mysql.NewLogStorage(db, nil),
+		MapStorage:   mysql.NewMapStorage(db),
+		QuotaManager: qm,
+	}
+
+	s, err := newTestServer(registry)
+	if err != nil {
+		t.Fatalf("newTestServer() returned err = %v", err)
+	}
+	defer s.close()
+	go s.serve()
 
 	ctx := context.Background()
-	tree, err := adminClient.CreateTree(ctx, &trillian.CreateTreeRequest{Tree: testonly.LogTree})
+	if err := runRateLimitingTest(ctx, s, maxUnsequenced); err != nil {
+		t.Error(err)
+	}
+}
+
+func runRateLimitingTest(ctx context.Context, s *testServer, numTokens int) error {
+	tree, err := s.admin.CreateTree(ctx, &trillian.CreateTreeRequest{Tree: testonly.LogTree})
 	if err != nil {
-		t.Fatalf("CreateTree() returned err = %v", err)
+		return fmt.Errorf("CreateTree() returned err = %v", err)
 	}
 	hasherFn, err := trees.Hash(tree)
 	if err != nil {
-		t.Fatalf("Hash() returned err = %v", err)
+		return fmt.Errorf("Hash() returned err = %v", err)
 	}
 	hasher := hasherFn.New()
-	lw := &leafWriter{client: logClient, hash: hasher, treeID: tree.TreeId}
+	lw := &leafWriter{client: s.log, hash: hasher, treeID: tree.TreeId}
 
-	// Requests where leaves < maxUnsequenced should work
-	for i := 0; i < maxUnsequenced; i++ {
-		if err := lw.QueueLeaf(ctx); err != nil {
-			t.Errorf("QueueLeaf() returned err = %v", err)
+	// Requests where leaves < numTokens should work
+	for i := 0; i < numTokens; i++ {
+		if err := lw.queueLeaf(ctx); err != nil {
+			return fmt.Errorf("queueLeaf() returned err = %v", err)
 		}
 	}
 
@@ -70,70 +144,19 @@ func TestRateLimiting(t *testing.T) {
 	for !stop {
 		select {
 		case <-timeout:
-			t.Error("Timed out before rate limiting kicked in")
-			stop = true
+			return fmt.Errorf("Timed out before rate limiting kicked in")
 		default:
-			err := lw.QueueLeaf(ctx)
+			err := lw.queueLeaf(ctx)
 			if err == nil {
 				continue // Rate liming hasn't kicked in yet
 			}
 			if s, ok := status.FromError(err); !ok || s.Code() != codes.ResourceExhausted {
-				t.Fatalf("QueueLeaf() returned err = %v", err)
+				return fmt.Errorf("queueLeaf() returned err = %v", err)
 			}
 			stop = true
 		}
 	}
-}
-
-func setupLogServer(maxUnsequenced int) (trillian.TrillianAdminClient, trillian.TrillianLogClient, func(), error) {
-	var lis net.Listener
-	var s *grpc.Server
-	var conn *grpc.ClientConn
-	closeFn := func() {
-		if conn != nil {
-			conn.Close()
-		}
-		if s != nil {
-			s.GracefulStop()
-		}
-		if lis != nil {
-			lis.Close()
-		}
-	}
-
-	registry, err := integration.NewRegistryForTests("RateLimitingTest")
-	if err != nil {
-		closeFn()
-		return nil, nil, nil, err
-	}
-
-	qm, ok := registry.QuotaManager.(*mysql.QuotaManager)
-	if !ok {
-		closeFn()
-		return nil, nil, nil, fmt.Errorf("unexpected QuotaManager type: %T", registry.QuotaManager)
-	}
-	qm.MaxUnsequencedRows = maxUnsequenced
-
-	intercept := interceptor.New(
-		registry.AdminStorage, registry.QuotaManager, false /* quotaDryRun */, registry.MetricFactory)
-	netInterceptor := interceptor.Combine(interceptor.ErrorWrapper, intercept.UnaryInterceptor)
-	s = grpc.NewServer(grpc.UnaryInterceptor(netInterceptor))
-	trillian.RegisterTrillianAdminServer(s, admin.New(registry))
-	trillian.RegisterTrillianLogServer(s, server.NewTrillianLogRPCServer(registry, util.SystemTimeSource{}))
-
-	lis, err = net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		closeFn()
-		return nil, nil, nil, err
-	}
-	go s.Serve(lis)
-
-	conn, err = grpc.Dial(lis.Addr().String(), grpc.WithInsecure())
-	if err != nil {
-		closeFn()
-		return nil, nil, nil, err
-	}
-	return trillian.NewTrillianAdminClient(conn), trillian.NewTrillianLogClient(conn), closeFn, nil
+	return nil
 }
 
 type leafWriter struct {
@@ -143,7 +166,7 @@ type leafWriter struct {
 	leafID int
 }
 
-func (w *leafWriter) QueueLeaf(ctx context.Context) error {
+func (w *leafWriter) queueLeaf(ctx context.Context) error {
 	value := []byte(fmt.Sprintf("leaf-%v", w.leafID))
 	w.leafID++
 
@@ -161,4 +184,58 @@ func (w *leafWriter) QueueLeaf(ctx context.Context) error {
 			LeafIdentityHash: h,
 		}})
 	return err
+}
+
+type testServer struct {
+	lis    net.Listener
+	server *grpc.Server
+	conn   *grpc.ClientConn
+	admin  trillian.TrillianAdminClient
+	log    trillian.TrillianLogClient
+}
+
+func (s *testServer) close() {
+	if s.conn != nil {
+		s.conn.Close()
+	}
+	if s.server != nil {
+		s.server.GracefulStop()
+	}
+	if s.lis != nil {
+		s.lis.Close()
+	}
+}
+
+func (s *testServer) serve() {
+	s.server.Serve(s.lis)
+}
+
+// newTestServer returns a new testServer configured for integration tests.
+// Callers must defer-call s.close() to make sure resources aren't being leaked and must start the
+// server via s.serve().
+func newTestServer(registry extension.Registry) (*testServer, error) {
+	s := &testServer{}
+
+	intercept := interceptor.New(
+		registry.AdminStorage, registry.QuotaManager, false /* quotaDryRun */, registry.MetricFactory)
+	netInterceptor := interceptor.Combine(interceptor.ErrorWrapper, intercept.UnaryInterceptor)
+	s.server = grpc.NewServer(grpc.UnaryInterceptor(netInterceptor))
+	trillian.RegisterTrillianAdminServer(s.server, admin.New(registry))
+	trillian.RegisterTrillianLogServer(s.server, server.NewTrillianLogRPCServer(registry, util.SystemTimeSource{}))
+
+	var err error
+	s.lis, err = net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		s.close()
+		return nil, err
+	}
+
+	s.conn, err = grpc.Dial(s.lis.Addr().String(), grpc.WithInsecure())
+	if err != nil {
+		s.close()
+		return nil, err
+	}
+	s.admin = trillian.NewTrillianAdminClient(s.conn)
+	s.log = trillian.NewTrillianLogClient(s.conn)
+	return s, nil
 }

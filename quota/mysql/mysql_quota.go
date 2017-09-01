@@ -13,6 +13,7 @@
 // limitations under the License.
 
 // Package mysql defines a MySQL-based quota.Manager implementation.
+// TODO(codingllama): Rename to mysqlqm
 package mysql
 
 import (

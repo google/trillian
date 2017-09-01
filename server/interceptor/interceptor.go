@@ -23,6 +23,7 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/quota"
+	"github.com/google/trillian/quota/etcd/quotapb"
 	"github.com/google/trillian/server/errors"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/trees"
@@ -143,6 +144,10 @@ func (tp *trillianProcessor) Before(ctx context.Context, req interface{}) (conte
 	}
 	tp.info = info
 
+	if info.doNotIntercept {
+		return ctx, nil
+	}
+
 	if info.treeID != 0 {
 		tree, err := trees.GetTree(ctx, tp.parent.admin, info.treeID, info.opts)
 		if err != nil {
@@ -168,8 +173,11 @@ func (tp *trillianProcessor) Before(ctx context.Context, req interface{}) (conte
 }
 
 func (tp *trillianProcessor) After(ctx context.Context, resp interface{}, handlerErr error) {
-	if tp.info == nil {
+	switch {
+	case tp.info == nil:
 		glog.Warningf("After called with nil rpcInfo, resp = [%+v], handlerErr = [%v]", resp, handlerErr)
+		return
+	case tp.info.doNotIntercept:
 		return
 	}
 
@@ -217,6 +225,8 @@ func isLeafOK(leaf *trillian.QueuedLogLeaf) bool {
 
 // rpcInfo contains information about an RPC, as extracted from its request message.
 type rpcInfo struct {
+	doNotIntercept bool
+
 	// treeID is the tree ID tied to this RPC, if any (zero means no tree).
 	treeID int64
 
@@ -237,6 +247,15 @@ type rpcInfo struct {
 // logIDRequest, mapIDRequest, etc). Requests must implement to one of those.
 // TreeType and Readonly are determined based on the request type.
 func getRPCInfo(req interface{}, quotaUser string) (*rpcInfo, error) {
+	switch req.(type) {
+	case *quotapb.CreateConfigRequest,
+		*quotapb.DeleteConfigRequest,
+		*quotapb.GetConfigRequest,
+		*quotapb.ListConfigsRequest,
+		*quotapb.UpdateConfigRequest:
+		return &rpcInfo{doNotIntercept: true}, nil
+	}
+
 	var treeID int64
 	switch req := req.(type) {
 	case *trillian.CreateTreeRequest:
