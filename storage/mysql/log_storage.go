@@ -39,25 +39,13 @@ import (
 )
 
 const (
-	// If this statement ORDER BY clause is changed refer to the comment in removeSequencedLeaves
-	selectQueuedLeavesSQL = `SELECT LeafIdentityHash,MerkleLeafHash,QueueTimestampNanos
-			FROM Unsequenced
-			WHERE TreeID=?
-			AND Bucket=0
-			AND QueueTimestampNanos<=?
-			ORDER BY QueueTimestampNanos,LeafIdentityHash ASC LIMIT ?`
 	insertUnsequencedLeafSQL = `INSERT INTO LeafData(TreeId,LeafIdentityHash,LeafValue,ExtraData)
-			VALUES(?,?,?,?)`
-	insertUnsequencedEntrySQL = `INSERT INTO Unsequenced(TreeId,Bucket,LeafIdentityHash,MerkleLeafHash,QueueTimestampNanos)
-			VALUES(?,0,?,?,?)`
-	insertSequencedLeafSQL = `INSERT INTO SequencedLeafData(TreeId,LeafIdentityHash,MerkleLeafHash,SequenceNumber)
 			VALUES(?,?,?,?)`
 	selectSequencedLeafCountSQL   = "SELECT COUNT(*) FROM SequencedLeafData WHERE TreeId=?"
 	selectUnsequencedLeafCountSQL = "SELECT TreeId, COUNT(1) FROM Unsequenced GROUP BY TreeId"
 	selectLatestSignedLogRootSQL  = `SELECT TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature
 			FROM TreeHead WHERE TreeId=?
 			ORDER BY TreeHeadTimestamp DESC LIMIT 1`
-	deleteUnsequencedSQL = "DELETE FROM Unsequenced WHERE TreeId=? AND Bucket=0 AND QueueTimestampNanos=? AND LeafIdentityHash=?"
 
 	// These statements need to be expanded to provide the correct number of parameter placeholders.
 	selectLeavesByIndexSQL = `SELECT s.MerkleLeafHash,l.LeafIdentityHash,l.LeafValue,s.SequenceNumber,l.ExtraData
@@ -280,12 +268,6 @@ func (t *logTreeTX) WriteRevision() int64 {
 	return t.treeTX.writeRevision
 }
 
-// dequeuedLeaf is used internally and contains some data that is not part of the client API.
-type dequeuedLeaf struct {
-	queueTimestampNanos int64
-	leafIdentityHash    []byte
-}
-
 func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime time.Time) ([]*trillian.LogLeaf, error) {
 	start := time.Now()
 	stx, err := t.tx.PrepareContext(ctx, selectQueuedLeavesSQL)
@@ -296,7 +278,7 @@ func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime tim
 	}
 
 	leaves := make([]*trillian.LogLeaf, 0, limit)
-	dql := make([]*dequeuedLeaf, 0, limit)
+	dq := make([]interface{}, 0, limit)
 	rows, err := stx.QueryContext(ctx, t.treeID, cutoffTime.UnixNano(), limit)
 
 	if err != nil {
@@ -307,30 +289,17 @@ func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime tim
 	defer rows.Close()
 
 	for rows.Next() {
-		var leafIDHash []byte
-		var merkleHash []byte
-		var queueTimeNanos int64
-
-		err := rows.Scan(&leafIDHash, &merkleHash, &queueTimeNanos)
-
+		leaf, dqi, err := t.dequeueLeaf(rows)
 		if err != nil {
-			glog.Warningf("Error scanning work rows: %s", err)
 			return nil, err
 		}
 
-		if len(leafIDHash) != t.hashSizeBytes {
+		if len(leaf.LeafIdentityHash) != t.hashSizeBytes {
 			return nil, errors.New("Dequeued a leaf with incorrect hash size")
 		}
 
-		// Note: the LeafData and ExtraData being nil here is OK as this is only used by the
-		// sequencer. The sequencer only writes to the SequencedLeafData table and the client
-		// supplied data was already written to LeafData as part of queueing the leaf.
-		leaf := &trillian.LogLeaf{
-			LeafIdentityHash: leafIDHash,
-			MerkleLeafHash:   merkleHash,
-		}
 		leaves = append(leaves, leaf)
-		dql = append(dql, &dequeuedLeaf{queueTimestampNanos: queueTimeNanos, leafIdentityHash: leafIDHash})
+		dq = append(dq, dqi)
 	}
 
 	if rows.Err() != nil {
@@ -343,7 +312,7 @@ func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime tim
 	// The convention is that if leaf processing succeeds (by committing this tx)
 	// then the unsequenced entries for them are removed
 	if len(leaves) > 0 {
-		err = t.removeSequencedLeaves(ctx, dql)
+		err = t.removeSequencedLeaves(ctx, dq)
 	}
 
 	if err != nil {
@@ -399,13 +368,17 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 		}
 
 		// Create the work queue entry
-		_, err = t.tx.ExecContext(
-			ctx,
-			insertUnsequencedEntrySQL,
+		args := []interface{}{
 			t.treeID,
 			leaf.LeafIdentityHash,
 			leaf.MerkleLeafHash,
-			queueTimestamp.UnixNano())
+		}
+		args = append(args, queueArgs(t.treeID, leaf.LeafIdentityHash, queueTimestamp)...)
+		_, err = t.tx.ExecContext(
+			ctx,
+			insertUnsequencedEntrySQL,
+			args...,
+		)
 		if err != nil {
 			glog.Warningf("Error inserting into Unsequenced: %s", err)
 			return nil, fmt.Errorf("Unsequenced: %v", err)
@@ -589,53 +562,6 @@ func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, root trillian.Signed
 	}
 
 	return checkResultOkAndRowCountIs(res, err, 1)
-}
-
-func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf) error {
-	// TODO: In theory we can do this with CASE / WHEN in one SQL statement but it's more fiddly
-	// and can be implemented later if necessary
-	for _, leaf := range leaves {
-		// This should fail on insert but catch it early
-		if len(leaf.LeafIdentityHash) != t.hashSizeBytes {
-			return errors.New("Sequenced leaf has incorrect hash size")
-		}
-
-		_, err := t.tx.ExecContext(
-			ctx,
-			insertSequencedLeafSQL,
-			t.treeID,
-			leaf.LeafIdentityHash,
-			leaf.MerkleLeafHash,
-			leaf.LeafIndex)
-		if err != nil {
-			glog.Warningf("Failed to update sequenced leaves: %s", err)
-			return err
-		}
-	}
-
-	return nil
-}
-
-// removeSequencedLeaves removes the passed in leaves slice (which may be
-// modified as part of the operation).
-func (t *logTreeTX) removeSequencedLeaves(ctx context.Context, leaves []*dequeuedLeaf) error {
-	// Don't need to re-sort because the query ordered by leaf hash. If that changes because
-	// the query is expensive then the sort will need to be done here. See comment in
-	// QueueLeaves.
-	stx, err := t.tx.PrepareContext(ctx, deleteUnsequencedSQL)
-	if err != nil {
-		glog.Warningf("Failed to prep delete statement for sequenced work: %v", err)
-		return err
-	}
-	for _, dql := range leaves {
-		result, err := stx.ExecContext(ctx, t.treeID, dql.queueTimestampNanos, dql.leafIdentityHash)
-		err = checkResultOkAndRowCountIs(result, err, int64(1))
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 func (t *logTreeTX) getLeavesByHashInternal(ctx context.Context, leafHashes [][]byte, tmpl *sql.Stmt, desc string) ([]*trillian.LogLeaf, error) {
