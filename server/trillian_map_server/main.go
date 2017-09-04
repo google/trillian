@@ -29,6 +29,7 @@ import (
 	"github.com/google/trillian/monitoring/prometheus"
 	"github.com/google/trillian/quota/etcd/quotaapi"
 	"github.com/google/trillian/quota/etcd/quotapb"
+	"github.com/google/trillian/quota/mysqlqm"
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/server/interceptor"
 	"github.com/google/trillian/storage/mysql"
@@ -37,7 +38,6 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"google.golang.org/grpc"
 
-	mysqlq "github.com/google/trillian/quota/mysql"
 	netcontext "golang.org/x/net/context"
 
 	// Register pprof HTTP handlers
@@ -61,7 +61,7 @@ var (
 
 	quotaDryRun        = flag.Bool("quota_dry_run", false, "If true no requests are blocked due to lack of tokens")
 	quotaSystem        = flag.String("quota_system", "mysql", "Quota system to use. One of: \"noop\", \"mysql\" or \"etcd\"")
-	maxUnsequencedRows = flag.Int("max_unsequenced_rows", mysqlq.DefaultMaxUnsequenced, "Max number of unsequenced rows before rate limiting kicks in. "+
+	maxUnsequencedRows = flag.Int("max_unsequenced_rows", mysqlqm.DefaultMaxUnsequenced, "Max number of unsequenced rows before rate limiting kicks in. "+
 		"Only effective for quota_system=mysql.")
 
 	configFile = flag.String("config", "", "Config file containing flags, file contents can be overridden by command line flags")

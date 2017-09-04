@@ -21,8 +21,7 @@ import (
 	"github.com/coreos/etcd/clientv3"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/quota/etcd/etcdqm"
-
-	mysqlq "github.com/google/trillian/quota/mysql"
+	"github.com/google/trillian/quota/mysqlqm"
 )
 
 const (
@@ -67,7 +66,7 @@ func NewQuotaManager(params *QuotaParams) (quota.Manager, error) {
 	case QuotaNoop:
 		qm = quota.Noop()
 	case QuotaMySQL:
-		qm = &mysqlq.QuotaManager{DB: params.DB, MaxUnsequencedRows: params.MaxUnsequencedRows}
+		qm = &mysqlqm.QuotaManager{DB: params.DB, MaxUnsequencedRows: params.MaxUnsequencedRows}
 	case QuotaEtcd:
 		// Client is more likely to be nil than all other params, due to etcd being an optional
 		// dependency in some cases.

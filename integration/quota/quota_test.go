@@ -27,6 +27,7 @@ import (
 	"github.com/google/trillian/quota/etcd/etcdqm"
 	"github.com/google/trillian/quota/etcd/quotaapi"
 	"github.com/google/trillian/quota/etcd/quotapb"
+	"github.com/google/trillian/quota/mysqlqm"
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/server/admin"
 	"github.com/google/trillian/server/interceptor"
@@ -39,8 +40,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-
-	mysqlqm "github.com/google/trillian/quota/mysql"
 )
 
 func TestEtcdRateLimiting(t *testing.T) {
