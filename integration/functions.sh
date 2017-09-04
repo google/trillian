@@ -8,7 +8,7 @@ declare -a RPC_SERVER_PIDS
 declare -a LOG_SIGNER_PIDS
 declare -a TO_KILL
 declare -a TO_DELETE
-ADMIN_SERVER=''
+HTTP_SERVER_1=''
 RPC_SERVER_1=''
 RPC_SERVERS=''
 ETCD_OPTS=''
@@ -85,7 +85,7 @@ kill_pid() {
 #   - number of log servers to run
 #   - number of log signers to run
 # Populates:
-#  - ADMIN_SERVER    : address for an admin server
+#  - HTTP_SERVER_1   : first HTTP server
 #  - RPC_SERVER_1    : first RPC server
 #  - RPC_SERVERS     : RPC target, either comma-separated list of RPC addresses or etcd service
 #  - RPC_SERVER_PIDS : bash array of RPC server pids
@@ -108,8 +108,13 @@ log_prep_test() {
   # Wipe the test database
   yes | "${TRILLIAN_PATH}/scripts/resetdb.sh"
 
+  local logserver_opts=''
+  local logsigner_opts=''
+  local has_etcd=0
+
   # Start a local etcd instance (if configured).
   if [[ -x "${ETCD_DIR}/etcd" ]]; then
+    has_etcd=1
     local etcd_port=2379
     local etcd_server="localhost:${etcd_port}"
     echo "Starting local etcd server on ${etcd_server}"
@@ -118,14 +123,13 @@ log_prep_test() {
     ETCD_OPTS="--etcd_servers=${etcd_server}"
     ETCD_DB_DIR=default.etcd
     wait_for_server_startup ${etcd_port}
-    local logserver_opts="--etcd_http_service=trillian-logserver-http --etcd_service=trillian-logserver"
-    local logsigner_opts="--etcd_http_service=trillian-logsigner-http"
+    logserver_opts="${logserver_opts} --etcd_http_service=trillian-logserver-http --etcd_service=trillian-logserver --quota_system=etcd"
+    logsigner_opts="${logsigner_opts} --etcd_http_service=trillian-logsigner-http --quota_system=etcd"
   else
     if  [[ ${log_signer_count} > 1 ]]; then
       echo "*** Warning: running multiple signers with no etcd instance ***"
     fi
-    local logserver_opts=
-    local logsigner_opts="--force_master"
+    logsigner_opts="${logsigner_opts} --force_master"
   fi
 
   if [[ "${WITH_PKCS11}" == "true" ]]; then
@@ -147,10 +151,16 @@ log_prep_test() {
 
     # Use the first Log server as the Admin server (any would do)
     if [[ $i -eq 0 ]]; then
+      HTTP_SERVER_1="localhost:${http}"
       RPC_SERVER_1="localhost:${port}"
     fi
   done
   RPC_SERVERS="${RPC_SERVERS:1}"
+
+  # Setup etcd quotas, if applicable
+  if [[ ${has_etcd} -eq 1 ]]; then
+    setup_etcd_quotas "${HTTP_SERVER_1}"
+  fi
 
   # Start a set of signers.
   for ((i=0; i < log_signer_count; i++)); do
@@ -190,6 +200,47 @@ log_stop_test() {
     echo "Stopping local etcd server (pid ${ETCD_PID})"
     kill_pid ${ETCD_PID}
   fi
+}
+
+# setup_etcd_quotas creates the etcd quota configurations used by tests.
+#
+# Parameters:
+#   - server : HTTP endpoint for the quota API (eg, logserver http port)
+#
+# Outputs:
+#   DELETE and POST responses.
+#
+# Returns:
+#   0 if success, non-zero otherwise.
+setup_etcd_quotas() {
+  local server="$1"
+  local name='quotas/global/write/config'
+
+  # Remove the config before creating. It's OK if it doesn't exist.
+  local delete_output=$(curl -s -X DELETE "${server}/v1beta1/${name}")
+  printf 'DELETE %s: %s\n' "${name}" "${delete_output}"
+
+  local create_output=$(curl \
+      -d '@-' \
+      -s \
+      -H 'Content-Type: application/json' \
+      -X POST \
+      "${server}/v1beta1/${name}" <<EOF
+{
+  "name": "${name}",
+  "config": {
+    "state": "ENABLED",
+    "max_tokens": 1000,
+    "sequencing_based": {
+    }
+  }
+}
+EOF
+  )
+  printf 'POST %s: %s\n' "${name}" "${create_output}"
+
+  # Success responses have the config name in them
+  echo "${create_output}" | grep '"name":' > /dev/null
 }
 
 # on_exit will clean up anything in ${TO_KILL} and ${TO_DELETE}.

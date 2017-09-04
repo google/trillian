@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	"github.com/coreos/etcd/clientv3"
+	"github.com/golang/glog"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/quota/etcd/etcdqm"
 	"github.com/google/trillian/quota/mysqlqm"
@@ -79,5 +80,6 @@ func NewQuotaManager(params *QuotaParams) (quota.Manager, error) {
 		return nil, fmt.Errorf("unknown quota system: %v", params.QuotaSystem)
 	}
 
+	glog.Infof("Using QuotaManager %T", qm)
 	return qm, nil
 }
