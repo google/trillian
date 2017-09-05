@@ -1,7 +1,7 @@
 # Etcd quotas
 
 Package etcd (and its subpackages) contain an etcd-based
-[quota.Manager](https://github.com/google/trillian/blob/3cf59cdfd07fb6245d492efa6ce7c2f309a445ac/quota/quota.go#L101)
+[quota.Manager](https://github.com/google/trillian/blob/3cf59cdfd0/quota/quota.go#L101)
 implementation, with a corresponding REST-based configuration service.
 
 ## Usage
@@ -61,6 +61,100 @@ deleted through the REST API as well. See
 [quotapb.proto](https://github.com/google/trillian/blob/master/quota/etcd/quotapb/quotapb.proto)
 for an in-depth description of entities and available methods.
 
+### Maintenance and token exhaustion
+
+During regular system operation, no quota-related maintenance should be
+required, as the system should generate at least as many tokens as it spends.
+
+If a token outage happens there are a few built-in mechanisms that allow manual
+intervention. The question of whether intervention is needed, though, is an
+important one and should be answered before any attempts to bypass the system.
+For example:
+
+* Is logsigner working properly and able to keep with the current demand?
+* Is there a spike in requests that may justify the current token outage?
+
+In genuine outages, it may be beneficial to let the quota system deny requests
+until regular operation is resumed.
+
+That said, the sections below describe a few alternatives that may used to deal
+with token outages. All examples use **global/read** as the quota in question;
+substitute the name as appropriate.
+
+#### Resetting quotas
+
+Resetting a quota restores its current token count to the configured
+**max_tokens** value.
+
+```bash
+curl -X PATCH localhost:8091/v1beta1/quotas/global/read/config?reset_quota=true
+```
+
+#### Disabling quotas
+
+Disables a quota makes it inactive, effective immediately. Disabled quotas may
+be enabled again with a similar update (changing "DISABLED" to "ENABLED").
+
+```bash
+curl \
+  -d '@-' \
+  -s \
+  -H 'Content-Type: application/json' \
+  -X PATCH \
+  "localhost:8091/v1beta1/quotas/global/read/config" <<EOF
+{
+  "config": {
+    "state": "DISABLED"
+  },
+  "update_mask": ["state"]
+}
+EOF
+```
+
+#### Deleting quotas
+
+Permanently deletes a quota. Consider disabling for a temporary solution.
+
+```bash
+curl -X DELETE localhost:8091/v1beta1/quotas/global/read/config
+```
+
+### Flags
+
+The following flags apply to etcd quotas:
+
+* [--quota_dry_run](https://github.com/google/trillian/blob/3cf59cdfd0/server/trillian_log_server/main.go#L61)
+  (log and map servers)
+* [--quota_increase_factor](https://github.com/google/trillian/blob/3cf59cdfd0/server/trillian_log_signer/main.go#L60)
+  (logsigner)
+
+`--quota_dry_run`, when set to true, stops quota errors from blocking requests.
+This applies to all quotas, so it's only recommended in early evaluations of the
+quota system.
+
+`--quota_increase_factor` is related to token leakage protection. It applies
+only to sequencing-based quotas. If `--quota_increase_factor` is 1, each new
+leaf sequenced by logsigner restores exactly one token. If it's higher than 1,
+more tokens are restored per leaf batch. A value slightly higher than 1 (e.g.,
+1.1) is recommended, so there is some protection against token leakage without
+too much compromise of the quota system on exceptional situations.
+
+### Monitoring
+
+The following metrics are relevant when considering quota behavior:
+
+* [interceptor_request_count](https://github.com/google/trillian/blob/3cf59cdfd0/server/interceptor/interceptor.go#L91)
+* [interceptor_request_denied_count](https://github.com/google/trillian/blob/3cf59cdfd0/server/interceptor/interceptor.go#L95)
+* [quota_acquired_tokens](https://github.com/google/trillian/blob/3cf59cdfd0/quota/metrics.go#L70)
+* [quota_returned_tokens](https://github.com/google/trillian/blob/3cf59cdfd0/quota/metrics.go#L71)
+* [quota_replenished_tokens](https://github.com/google/trillian/blob/3cf59cdfd0/quota/metrics.go#L71)
+
+Requests denied due to token shortage are labeled on
+**interceptor_request_denied_count** as
+[insufficient_tokens](https://github.com/google/trillian/blob/3cf59cdfd0/server/interceptor/interceptor.go#L38).
+The ratio between **denied_with_insufficient_tokens** and
+**interceptor_request_count** is a strong indicator of token outages.
+
 ## General concepts
 
 Trillian quotas have a finite number of tokens that get consumed (subtracted) by
@@ -73,12 +167,12 @@ Quotas are designed so that a set of quotas, in different levels of granularity,
 apply to a single request.
 
 A quota
-[Spec](https://github.com/google/trillian/blob/3cf59cdfd07fb6245d492efa6ce7c2f309a445ac/quota/quota.go#L56)
+[Spec](https://github.com/google/trillian/blob/3cf59cdfd0/quota/quota.go#L56)
 identifies a particular quota and represents to which requests its token count
 applies to. Specs contain a
-[Group](https://github.com/google/trillian/blob/3cf59cdfd07fb6245d492efa6ce7c2f309a445ac/quota/quota.go#L27)
+[Group](https://github.com/google/trillian/blob/3cf59cdfd0/quota/quota.go#L27)
 (global, tree and user) and
-[Kind](https://github.com/google/trillian/blob/3cf59cdfd07fb6245d492efa6ce7c2f309a445ac/quota/quota.go#L44)
+[Kind](https://github.com/google/trillian/blob/3cf59cdfd0/quota/quota.go#L44)
 (read or write).
 
 A few Spec examples are:
