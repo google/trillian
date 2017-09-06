@@ -66,20 +66,21 @@ for an in-depth description of entities and available methods.
 During regular system operation, no quota-related maintenance should be
 required, as the system should generate at least as many tokens as it spends.
 
-If a token outage happens there are a few built-in mechanisms that allow for
-manual intervention. The question of whether intervention is needed, though, is
-an important one and should be answered before any attempts are made to bypass
-the system. For example:
+If a token exhaustion happens, there are a few built-in mechanisms that allow
+for manual intervention. The question of whether intervention is needed, though,
+is an important one and should be answered before any attempts are made to
+bypass the system. For example:
 
 * is the `logsigner` working properly and able to keep with the current demand?
-* is there a spike in requests that may justify the current token outage?
+* is there a spike in requests that may justify the current token exhaustion?
 
-In genuine outages, it may be beneficial to let the quota system deny requests
-until regular operation is resumed.
+For "genuine" token exhaustion (i.e. the system really is under a load it can't
+cope with), it may be beneficial to let the quota system deny requests until
+regular operation is resumed.
 
-That said, the sections below describes actions that may done to deal with token
-outages. All examples use `global/read` as the quota in question; substitute the
-name as appropriate.
+That said, the sections below describe actions that may done to deal with token
+exhaustion. All examples use `global/read` as the quota in question; substitute
+the name as appropriate.
 
 #### Resetting quotas
 
@@ -154,7 +155,7 @@ Requests denied due to token shortage are labeled on
 **interceptor_request_denied_count** as
 [insufficient_tokens](https://github.com/google/trillian/blob/3cf59cdfd0/server/interceptor/interceptor.go#L38).
 The ratio between **denied_with_insufficient_tokens** and
-**interceptor_request_count** is a strong indicator of token outages.
+**interceptor_request_count** is a strong indicator of token exhaustion.
 
 ## General concepts
 
