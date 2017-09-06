@@ -243,6 +243,53 @@ EOF
   echo "${create_output}" | grep '"name":' > /dev/null
 }
 
+# map_prep_test prepares a set of running processes for a Trillian map test.
+# Parameters:
+#   - number of map servers to run
+# Populates:
+#  - RPC_SERVER_1    : first RPC server
+#  - RPC_SERVERS     : RPC target, either comma-separated list of RPC addresses or etcd service
+#  - RPC_SERVER_PIDS : bash array of RPC server pids
+map_prep_test() {
+  # Default to one map server.
+  local rpc_server_count=${1:-1}
+
+  echo "Building Trillian map code"
+  go build ${GOFLAGS} github.com/google/trillian/server/trillian_map_server/
+
+  # Wipe the test database
+  yes | "${TRILLIAN_PATH}/scripts/resetdb.sh"
+
+  # Start a set of Map RPC servers.
+  for ((i=0; i < rpc_server_count; i++)); do
+    port=$(pick_unused_port)
+    RPC_SERVERS="${RPC_SERVERS},localhost:${port}"
+    http=$(pick_unused_port ${port})
+
+    echo "Starting Map RPC server on localhost:${port}, HTTP on localhost:${http}"
+    ./trillian_map_server --rpc_endpoint="localhost:${port}" --http_endpoint="localhost:${http}" &
+    pid=$!
+    RPC_SERVER_PIDS+=(${pid})
+    wait_for_server_startup ${port}
+
+    # Use the first Map server as the Admin server (any would do)
+    if [[ $i -eq 0 ]]; then
+      RPC_SERVER_1="localhost:${port}"
+    fi
+  done
+  RPC_SERVERS="${RPC_SERVERS:1}"
+}
+
+# map_stop_tests closes down a set of running processes for a log test.
+# Assumes the following variables are set:
+#  - RPC_SERVER_PIDS : bash array of RPC server pids
+map_stop_test() {
+  for pid in "${RPC_SERVER_PIDS[@]}"; do
+    echo "Stopping Log RPC server (pid ${pid})"
+    kill_pid ${pid}
+  done
+}
+
 # on_exit will clean up anything in ${TO_KILL} and ${TO_DELETE}.
 on_exit() {
   local pid=0
