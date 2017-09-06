@@ -1283,7 +1283,7 @@ func TestGetConsistencyProof(t *testing.T) {
 
 	// getConsistencyProofRequest7 - tests a normal request which should succeed
 	// getConsistencyProofRequest44 - tests an edge condition we used to reject but now support
-	// for compatibilty with the older C++ log servers.
+	// for compatibility with the older C++ log servers.
 	testCases := []trillian.GetConsistencyProofRequest{getConsistencyProofRequest7, getConsistencyProofRequest44}
 	nodeIDs := [][]storage.NodeID{nodeIdsConsistencySize4ToSize7, {}}
 	hashes := [][][]byte{{[]byte("nodehash")}, {}}
