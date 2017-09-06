@@ -27,6 +27,7 @@ import (
 
 	"github.com/coreos/etcd/clientv3"
 	"github.com/golang/protobuf/proto"
+	"github.com/google/trillian/quota"
 	"github.com/google/trillian/quota/etcd/quotapb"
 	"github.com/google/trillian/quota/etcd/storage"
 	"github.com/google/trillian/quota/etcd/storagepb"
@@ -41,17 +42,19 @@ import (
 
 var (
 	globalWrite = &quotapb.Config{
-		Name:      "quotas/global/write/config",
-		State:     quotapb.Config_ENABLED,
-		MaxTokens: 100,
+		Name:          "quotas/global/write/config",
+		State:         quotapb.Config_ENABLED,
+		MaxTokens:     100,
+		CurrentTokens: 100, // Assume quota is full
 		ReplenishmentStrategy: &quotapb.Config_SequencingBased{
 			SequencingBased: &quotapb.SequencingBasedStrategy{},
 		},
 	}
 	globalRead = &quotapb.Config{
-		Name:      "quotas/global/read/config",
-		State:     quotapb.Config_ENABLED,
-		MaxTokens: 100,
+		Name:          "quotas/global/read/config",
+		State:         quotapb.Config_ENABLED,
+		MaxTokens:     100,
+		CurrentTokens: 100, // Assume quota is full
 		ReplenishmentStrategy: &quotapb.Config_TimeBased{
 			TimeBased: &quotapb.TimeBasedStrategy{
 				TokensToReplenish:        10000,
@@ -101,6 +104,7 @@ func TestMain(m *testing.M) {
 func TestServer_CreateConfig(t *testing.T) {
 	globalWrite2 := *globalWrite
 	globalWrite2.MaxTokens += 10
+	globalWrite2.CurrentTokens = globalWrite2.MaxTokens
 
 	overrideName := *globalWrite
 	overrideName.Name = "ignored"
@@ -162,10 +166,13 @@ func TestServer_CreateConfig(t *testing.T) {
 
 func TestServer_UpdateConfig(t *testing.T) {
 	disabledGlobalWrite := *globalWrite
+	// Disabled quotas have "infinite" tokens
+	disabledGlobalWrite.CurrentTokens = int64(quota.MaxTokens)
 	disabledGlobalWrite.State = quotapb.Config_DISABLED
 
 	timeBasedGlobalWrite := *globalWrite
 	timeBasedGlobalWrite.MaxTokens += 100
+	timeBasedGlobalWrite.CurrentTokens = globalWrite.MaxTokens
 	timeBasedGlobalWrite.ReplenishmentStrategy = &quotapb.Config_TimeBased{
 		TimeBased: &quotapb.TimeBasedStrategy{
 			TokensToReplenish:        100,
@@ -174,6 +181,7 @@ func TestServer_UpdateConfig(t *testing.T) {
 	}
 
 	timeBasedGlobalWrite2 := timeBasedGlobalWrite
+	timeBasedGlobalWrite2.CurrentTokens = timeBasedGlobalWrite.MaxTokens
 	timeBasedGlobalWrite2.GetTimeBased().TokensToReplenish += 50
 	timeBasedGlobalWrite2.GetTimeBased().ReplenishIntervalSeconds -= 20
 
@@ -424,6 +432,7 @@ func TestServer_UpdateConfig_Race(t *testing.T) {
 						continue
 					}
 
+					want.CurrentTokens = got.CurrentTokens // Not important for this test
 					want.MaxTokens = tokens
 					if !proto.Equal(got, &want) {
 						diff := pretty.Compare(got, &want)

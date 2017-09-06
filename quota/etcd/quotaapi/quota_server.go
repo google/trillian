@@ -17,6 +17,7 @@ package quotaapi
 
 import (
 	"github.com/coreos/etcd/clientv3"
+	"github.com/golang/glog"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/trillian/quota/etcd/quotapb"
 	"github.com/google/trillian/quota/etcd/storage"
@@ -60,7 +61,7 @@ func (s *Server) CreateConfig(ctx context.Context, req *quotapb.CreateConfigRequ
 	case err != nil:
 		return nil, err
 	}
-	return getConfig(req.Name, updated, codes.Internal)
+	return s.getConfig(ctx, req.Name, updated, codes.Internal)
 }
 
 // DeleteConfig implements quotapb.QuotaServer.DeleteConfig.
@@ -95,17 +96,26 @@ func (s *Server) GetConfig(ctx context.Context, req *quotapb.GetConfigRequest) (
 	if err != nil {
 		return nil, err
 	}
-	return getConfig(req.Name, cfgs, codes.NotFound)
+	return s.getConfig(ctx, req.Name, cfgs, codes.NotFound)
 }
 
 // getConfig finds the Config named "name" on "cfgs", converts it to API and returns it.
 // If the config cannot be found an error with code "code" is returned.
-func getConfig(name string, cfgs *storagepb.Configs, code codes.Code) (*quotapb.Config, error) {
-	cfg, ok := findByName(name, cfgs)
+func (s *Server) getConfig(ctx context.Context, name string, cfgs *storagepb.Configs, code codes.Code) (*quotapb.Config, error) {
+	storedCfg, ok := findByName(name, cfgs)
 	if !ok {
 		return nil, status.Errorf(code, "%q not found", name)
 	}
-	return convertToAPI(cfg), nil
+	cfg := convertToAPI(storedCfg)
+
+	tokens, err := s.qs.Peek(ctx, []string{cfg.Name})
+	if err == nil {
+		cfg.CurrentTokens = tokens[cfg.Name]
+	} else {
+		glog.Infof("Error peeking token count for %q: %v", cfg.Name, err)
+	}
+
+	return cfg, nil
 }
 
 // ListConfigs implements quotapb.QuotaServer.ListConfigs.
@@ -127,6 +137,22 @@ func (s *Server) ListConfigs(ctx context.Context, req *quotapb.ListConfigsReques
 	for _, cfg := range cfgs.Configs {
 		if listMatches(nfs, cfg) {
 			resp.Configs = append(resp.Configs, listView(req.View, cfg))
+		}
+	}
+
+	// Peek token counts for FULL view
+	if req.View == quotapb.ListConfigsRequest_FULL {
+		names := make([]string, 0, len(resp.Configs))
+		for _, cfg := range resp.Configs {
+			names = append(names, cfg.Name)
+		}
+		tokens, err := s.qs.Peek(ctx, names)
+		if err == nil {
+			for _, cfg := range resp.Configs {
+				cfg.CurrentTokens = tokens[cfg.Name]
+			}
+		} else {
+			glog.Infof("Error peeking token counts for %v: %v", names, err)
 		}
 	}
 	return resp, nil
@@ -190,7 +216,7 @@ func (s *Server) UpdateConfig(ctx context.Context, req *quotapb.UpdateConfigRequ
 	case err != nil:
 		return nil, err
 	}
-	return getConfig(req.Name, updated, codes.Internal)
+	return s.getConfig(ctx, req.Name, updated, codes.Internal)
 }
 
 func findByName(name string, cfgs *storagepb.Configs) (*storagepb.Config, bool) {
