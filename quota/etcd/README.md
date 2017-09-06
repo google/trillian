@@ -129,6 +129,10 @@ The following flags apply to etcd quotas:
   (log and map servers)
 * [--quota_increase_factor](https://github.com/google/trillian/blob/3cf59cdfd0/server/trillian_log_signer/main.go#L60)
   (logsigner)
+* [quota_max_cache_entries](https://github.com/google/trillian/blob/c0a332878f/server/trillian_log_server/main.go#L71)
+  (log and map servers)
+* [quota_min_batch_size](https://github.com/google/trillian/blob/c0a332878f/server/trillian_log_server/main.go#L69)
+  (log and map servers)
 
 `--quota_dry_run`, when set to true, stops quota depletion from blocking
 requests. This applies to all quotas, so it's only recommended in early
@@ -140,6 +144,20 @@ leaf sequenced by `logsigner` restores exactly one token. If it's higher than 1,
 more tokens are restored per leaf batch. A value slightly higher than 1 (e.g.
 1.1) is recommended, so there is some protection against token leakage without
 too much compromise of the quota system in exceptional situations.
+
+`--quota_max_cache_entries` and `--quota_min_batch_size` are related to token
+caching. Some level of token caching (i.e., both flags having values > 0) is
+recommended to lessen the latency impact of rate limiting.
+
+`--quota_min_batch_size` is the least number of tokens acquired from etcd. If a
+particular request demands less tokens than the minimal batch size, the
+remaining tokens are kept in memory, saving new requests to etcd until those are
+insufficient.
+
+`--quota_max_cache_entries` relates to how many quota Specs are kept in the
+cache. Tokens are cached per Spec using a LRU replacement policy. In case of
+systems with a high number of trees or users, the least used ones are evicted
+from the cache (and their tokens returned).
 
 ### Monitoring
 
