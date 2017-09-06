@@ -1289,7 +1289,7 @@ func TestGetConsistencyProof(t *testing.T) {
 	hashes := [][][]byte{{[]byte("nodehash")}, {}}
 	nodes := [][]storage.Node{{{NodeID: stestonly.MustCreateNodeIDForTreeCoords(2, 1, 64), NodeRevision: 3, Hash: []byte("nodehash")}}, {}}
 
-	for i, _ := range testCases {
+	for i := range testCases {
 		mockStorage := storage.NewMockLogStorage(ctrl)
 		mockTx := storage.NewMockLogTreeTX(ctrl)
 		mockStorage.EXPECT().SnapshotForTree(gomock.Any(), testCases[i].LogId).Return(mockTx, nil)
