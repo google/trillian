@@ -51,7 +51,7 @@ func validateGetConsistencyProofRequest(req *trillian.GetConsistencyProofRequest
 	if req.SecondTreeSize <= 0 {
 		return status.Errorf(codes.InvalidArgument, "GetConsistencyProofRequest.SecondTreeSize: %v, want > 0", req.SecondTreeSize)
 	}
-	if req.SecondTreeSize <= req.FirstTreeSize {
+	if req.SecondTreeSize < req.FirstTreeSize {
 		return status.Errorf(codes.InvalidArgument, "GetConsistencyProofRequest.FirstTreeSize: %v < GetConsistencyProofRequest.SecondTreeSize: %v, want > ", req.FirstTreeSize, req.SecondTreeSize)
 	}
 	return nil
