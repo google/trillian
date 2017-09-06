@@ -27,6 +27,7 @@ import (
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/monitoring/prometheus"
+	"github.com/google/trillian/quota/cacheqm"
 	"github.com/google/trillian/quota/etcd/quotaapi"
 	"github.com/google/trillian/quota/etcd/quotapb"
 	"github.com/google/trillian/quota/mysqlqm"
@@ -59,9 +60,11 @@ var (
 	httpEndpoint = flag.String("http_endpoint", "localhost:8091", "Endpoint for HTTP metrics and REST requests on (host:port, empty means disabled)")
 	etcdServers  = flag.String("etcd_servers", "", "A comma-separated list of etcd servers; no etcd registration if empty")
 
-	quotaDryRun        = flag.Bool("quota_dry_run", false, "If true no requests are blocked due to lack of tokens")
-	quotaSystem        = flag.String("quota_system", "mysql", "Quota system to use. One of: \"noop\", \"mysql\" or \"etcd\"")
-	maxUnsequencedRows = flag.Int("max_unsequenced_rows", mysqlqm.DefaultMaxUnsequenced, "Max number of unsequenced rows before rate limiting kicks in. "+
+	quotaDryRun          = flag.Bool("quota_dry_run", false, "If true no requests are blocked due to lack of tokens")
+	quotaSystem          = flag.String("quota_system", "mysql", "Quota system to use. One of: \"noop\", \"mysql\" or \"etcd\"")
+	quotaMinBatchSize    = flag.Int("quota_min_batch_size", cacheqm.DefaultMinBatchSize, "Minimum number of tokens to request from the quota system. Applicable for etcd quotas.")
+	quotaMaxCacheEntries = flag.Int("quota_max_cache_entries", cacheqm.DefaultMaxCacheEntries, "Max number of quota specs in the quota cache. Applicable for etcd quotas.")
+	maxUnsequencedRows   = flag.Int("max_unsequenced_rows", mysqlqm.DefaultMaxUnsequenced, "Max number of unsequenced rows before rate limiting kicks in. "+
 		"Only effective for quota_system=mysql.")
 
 	configFile = flag.String("config", "", "Config file containing flags, file contents can be overridden by command line flags")
@@ -92,6 +95,8 @@ func main() {
 		DB:                 db,
 		MaxUnsequencedRows: *maxUnsequencedRows,
 		Client:             client,
+		MinBatchSize:       *quotaMinBatchSize,
+		MaxCacheEntries:    *quotaMaxCacheEntries,
 	})
 	if err != nil {
 		glog.Exitf("Error creating quota manager: %v", err)

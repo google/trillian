@@ -25,6 +25,14 @@ import (
 	"github.com/google/trillian/quota"
 )
 
+const (
+	// DefaultMinBatchSize is the suggested default for minBatchSize.
+	DefaultMinBatchSize = 100
+
+	// DefaultMaxCacheEntries is the suggested default for maxEntries.
+	DefaultMaxCacheEntries = 1000
+)
+
 // now is used in place of time.Now to allow tests to take control of time.
 var now = time.Now
 

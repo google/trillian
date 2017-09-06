@@ -21,6 +21,7 @@ import (
 	"github.com/coreos/etcd/clientv3"
 	"github.com/golang/glog"
 	"github.com/google/trillian/quota"
+	"github.com/google/trillian/quota/cacheqm"
 	"github.com/google/trillian/quota/etcd/etcdqm"
 	"github.com/google/trillian/quota/mysqlqm"
 )
@@ -57,6 +58,10 @@ type QuotaParams struct {
 
 	// Client is used by etcd quotas.
 	Client *clientv3.Client
+
+	// MinBatchSize and MaxCacheEntries are used for token caching.
+	// Applicable to etcd quotas.
+	MinBatchSize, MaxCacheEntries int
 }
 
 // NewQuotaManager returns a quota.Manager implementation according to params.
@@ -79,7 +84,13 @@ func NewQuotaManager(params *QuotaParams) (quota.Manager, error) {
 	default:
 		return nil, fmt.Errorf("unknown quota system: %v", params.QuotaSystem)
 	}
+	qmType := fmt.Sprintf("%T", qm)
 
-	glog.Infof("Using QuotaManager %T", qm)
+	if params.QuotaSystem == QuotaEtcd && params.MinBatchSize > 0 && params.MaxCacheEntries > 0 {
+		qm = cacheqm.NewCachedManager(qm, params.MinBatchSize, params.MaxCacheEntries)
+		qmType = fmt.Sprintf("%T/%v", qm, qmType)
+	}
+
+	glog.Infof("Using QuotaManager %v", qmType)
 	return qm, nil
 }
