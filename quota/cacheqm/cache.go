@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package cache contains a caching quota.Manager implementation.
-package cache
+// Package cacheqm contains a caching quota.Manager implementation.
+package cacheqm
 
 import (
 	"context"
