@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/coreos/etcd/clientv3"
 	"github.com/coreos/etcd/clientv3/concurrency"
@@ -73,34 +72,24 @@ func (eme *MasterElection) Close(ctx context.Context) error {
 
 // ElectionFactory creates etcd.MasterElection instances.
 type ElectionFactory struct {
+	client     *clientv3.Client
 	instanceID string
-	servers    []string
 	lockDir    string
 }
 
 // NewElectionFactory builds an election factory that uses the given parameters.
-// The servers parameter should be a comma-separated list of etcd server URIs.
-func NewElectionFactory(instanceID string, servers, lockDir string) *ElectionFactory {
+func NewElectionFactory(instanceID string, client *clientv3.Client, lockDir string) *ElectionFactory {
 	return &ElectionFactory{
+		client:     client,
 		instanceID: instanceID,
-		servers:    strings.Split(servers, ","),
 		lockDir:    lockDir,
 	}
 }
 
 // NewElection creates a specific etcd.MasterElection instance.
 func (ef ElectionFactory) NewElection(ctx context.Context, treeID int64) (util.MasterElection, error) {
-	cfg := clientv3.Config{
-		Endpoints:   ef.servers,
-		DialTimeout: 5 * time.Second,
-	}
-	client, err := clientv3.New(cfg)
+	session, err := concurrency.NewSession(ef.client)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create etcd client: %v", err)
-	}
-	session, err := concurrency.NewSession(client)
-	if err != nil {
-		client.Close()
 		return nil, fmt.Errorf("failed to create etcd session: %v", err)
 	}
 	lockFile := fmt.Sprintf("%s/%d", strings.TrimRight(ef.lockDir, "/"), treeID)
@@ -110,7 +99,7 @@ func (ef ElectionFactory) NewElection(ctx context.Context, treeID int64) (util.M
 		instanceID: ef.instanceID,
 		treeID:     treeID,
 		lockFile:   lockFile,
-		client:     client,
+		client:     ef.client,
 		session:    session,
 		election:   election,
 	}

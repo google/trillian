@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mysql_test
+package mysqlqm_test
 
 import (
 	"context"
@@ -23,7 +23,7 @@ import (
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/quota"
-	mysqlq "github.com/google/trillian/quota/mysql"
+	"github.com/google/trillian/quota/mysqlqm"
 	"github.com/google/trillian/storage/mysql"
 	"github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/testonly/integration"
@@ -42,7 +42,7 @@ func TestQuotaManager_GetTokens(t *testing.T) {
 	if err != nil {
 		t.Fatalf("createTree() returned err = %v", err)
 	}
-	user := (&mysqlq.QuotaManager{}).GetUser(ctx, nil /* req */)
+	user := (&mysqlqm.QuotaManager{}).GetUser(ctx, nil /* req */)
 
 	tests := []struct {
 		desc                                           string
@@ -102,9 +102,9 @@ func TestQuotaManager_GetTokens(t *testing.T) {
 		// Test general cases using select count(*) to avoid flakiness / allow for more
 		// precise assertions.
 		// See TestQuotaManager_GetTokens_InformationSchema for information schema tests.
-		qm := &mysqlq.QuotaManager{DB: db, MaxUnsequencedRows: test.maxUnsequencedRows, UseSelectCount: true}
+		qm := &mysqlqm.QuotaManager{DB: db, MaxUnsequencedRows: test.maxUnsequencedRows, UseSelectCount: true}
 		err := qm.GetTokens(ctx, test.numTokens, test.specs)
-		if hasErr := err == mysqlq.ErrTooManyUnsequencedRows; hasErr != test.wantErr {
+		if hasErr := err == mysqlqm.ErrTooManyUnsequencedRows; hasErr != test.wantErr {
 			t.Errorf("%v: GetTokens() returned err = %q, wantErr = %v", test.desc, err, test.wantErr)
 		}
 	}
@@ -138,7 +138,7 @@ func TestQuotaManager_GetTokens_InformationSchema(t *testing.T) {
 			continue
 		}
 
-		qm := &mysqlq.QuotaManager{DB: db, MaxUnsequencedRows: maxUnsequenced, UseSelectCount: test.useSelectCount}
+		qm := &mysqlqm.QuotaManager{DB: db, MaxUnsequencedRows: maxUnsequenced, UseSelectCount: test.useSelectCount}
 
 		// All GetTokens() calls where leaves < maxUnsequenced should succeed:
 		// information_schema may be outdated, but it should refer to a valid point in the
@@ -168,7 +168,7 @@ func TestQuotaManager_GetTokens_InformationSchema(t *testing.T) {
 				stop = true
 			default:
 				// An error means that GetTokens is working correctly
-				stop = qm.GetTokens(ctx, 1 /* numTokens */, globalWriteSpec) == mysqlq.ErrTooManyUnsequencedRows
+				stop = qm.GetTokens(ctx, 1 /* numTokens */, globalWriteSpec) == mysqlqm.ErrTooManyUnsequencedRows
 			}
 		}
 	}
@@ -194,7 +194,7 @@ func TestQuotaManager_PeekTokens(t *testing.T) {
 	}
 
 	// Test using select count(*) to allow for precise assertions without flakiness.
-	qm := &mysqlq.QuotaManager{DB: db, MaxUnsequencedRows: maxUnsequencedRows, UseSelectCount: true}
+	qm := &mysqlqm.QuotaManager{DB: db, MaxUnsequencedRows: maxUnsequencedRows, UseSelectCount: true}
 	specs := allSpecs(ctx, qm, tree.TreeId)
 	tokens, err := qm.PeekTokens(ctx, specs)
 	if err != nil {
@@ -220,7 +220,7 @@ func TestQuotaManager_Noops(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	qm := &mysqlq.QuotaManager{DB: db, MaxUnsequencedRows: 1000}
+	qm := &mysqlqm.QuotaManager{DB: db, MaxUnsequencedRows: 1000}
 	specs := allSpecs(ctx, qm, 10 /* treeID */)
 
 	tests := []struct {

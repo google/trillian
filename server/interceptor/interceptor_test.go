@@ -22,6 +22,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 	"github.com/google/trillian/quota"
+	"github.com/google/trillian/quota/etcd/quotapb"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/trees"
@@ -404,6 +405,30 @@ func TestTrillianInterceptor_QuotaInterception_ReturnsTokens(t *testing.T) {
 
 		if _, err := intercept.UnaryInterceptor(ctx, test.req, &grpc.UnaryServerInfo{}, handler.run); err != test.handlerErr {
 			t.Errorf("%v: UnaryInterceptor() returned err = [%v], want = [%v]", test.desc, err, test.handlerErr)
+		}
+	}
+}
+
+func TestTrillianInterceptor_DoNotIntercept(t *testing.T) {
+	tests := []struct {
+		req interface{}
+	}{
+		{req: &quotapb.CreateConfigRequest{}},
+		{req: &quotapb.DeleteConfigRequest{}},
+		{req: &quotapb.GetConfigRequest{}},
+		{req: &quotapb.ListConfigsRequest{}},
+		{req: &quotapb.UpdateConfigRequest{}},
+	}
+
+	ctx := context.Background()
+	for _, test := range tests {
+		handler := &fakeHandler{}
+		intercept := New(nil /* admin */, quota.Noop(), false /* quotaDryRun */, nil /* mf */)
+		if _, err := intercept.UnaryInterceptor(ctx, test.req, &grpc.UnaryServerInfo{}, handler.run); err != nil {
+			t.Errorf("UnaryInterceptor(%#v) returned err = %v", test.req, err)
+		}
+		if !handler.called {
+			t.Errorf("UnaryInterceptor(%#v): handler not called", test.req)
 		}
 	}
 }
