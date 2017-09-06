@@ -71,6 +71,12 @@ message Config {
     // Time-based replenishment settings.
     TimeBasedStrategy time_based = 5;
   }
+
+  // Current number of tokens available for the config.
+  // May be higher than max_tokens for DISABLED configs, which are considered to
+  // have "infinite" tokens.
+  // Readonly.
+  int64 current_tokens = 6;
 }
 
 // Sequencing-based replenishment strategy settings.
