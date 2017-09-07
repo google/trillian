@@ -290,6 +290,37 @@ map_stop_test() {
   done
 }
 
+# map_provision creates new Trillian maps
+# Parameters:
+#   - location of admin server instance
+#   - number of maps to provision (default: 1)
+# Populates:
+#  - MAP_IDS: comma-separated list of tree IDs for provisioned maps
+map_provision() {
+  local admin_server="$1"
+  local count=${2:-1}
+
+  echo 'Building createtree'
+  go build ${GOFLAGS} github.com/google/trillian/cmd/createtree/
+
+  for ((i=0; i < count; i++)); do
+    local map_id=$(./createtree \
+      --admin_server="${admin_server}" \
+      --tree_type=MAP \
+      --hash_strategy=TEST_MAP_HASHER \
+      --private_key_format=PrivateKey \
+      --pem_key_path=${GOPATH}/src/github.com/google/trillian/testdata/map-rpc-server.privkey.pem \
+      --pem_key_password=towel \
+      --signature_algorithm=ECDSA)
+    echo "Created map ${tree_id}"
+    if [[ $i -eq 0 ]]; then
+      MAP_IDS="${map_id}"
+    else
+      MAP_IDS="${MAP_IDS},${map_id}"
+    fi
+  done
+}
+
 # on_exit will clean up anything in ${TO_KILL} and ${TO_DELETE}.
 on_exit() {
   local pid=0

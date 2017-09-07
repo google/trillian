@@ -13,6 +13,7 @@
 /dump_tree
 /etcdiscover
 /loglb
+/maphammer
 /protoc
 /trillian_log_server
 /trillian_log_signer
