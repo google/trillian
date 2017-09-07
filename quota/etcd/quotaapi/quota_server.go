@@ -112,7 +112,7 @@ func (s *Server) getConfig(ctx context.Context, name string, cfgs *storagepb.Con
 	if err == nil {
 		cfg.CurrentTokens = tokens[cfg.Name]
 	} else {
-		glog.Infof("Error peeking token count for %q: %v", cfg.Name, err)
+		glog.Warningf("Unexpected error peeking token count for %q: %v", cfg.Name, err)
 	}
 
 	return cfg, nil
