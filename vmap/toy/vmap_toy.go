@@ -125,7 +125,7 @@ func main() {
 			MapRevision:    tx.WriteRevision(),
 			Signature:      &spb.DigitallySigned{},
 		}); err != nil {
-			glog.Exitf("Failed to store SMH: %v", err)
+			glog.Exitf("Failed to store SMR: %v", err)
 		}
 
 		if err := tx.Commit(); err != nil {

@@ -59,7 +59,7 @@ func isEmptyMap(ctx context.Context, env *integration.MapEnv, tree *trillian.Tre
 	}
 
 	if got, want := r.GetMapRoot().GetMapRevision(), int64(0); got != want {
-		return fmt.Errorf("got SMH with revision %d, want %d", got, want)
+		return fmt.Errorf("got SMR with revision %d, want %d", got, want)
 	}
 	return nil
 }
@@ -70,7 +70,7 @@ func verifyGetMapLeavesResponse(getResp *trillian.GetMapLeavesResponse, indexes 
 		return fmt.Errorf("got %d values, want %d", got, want)
 	}
 	if got, want := getResp.GetMapRoot().GetMapRevision(), wantRevision; got != want {
-		return fmt.Errorf("got SMH with revision %d, want %d", got, want)
+		return fmt.Errorf("got SMR with revision %d, want %d", got, want)
 	}
 
 	// SignedMapRoot contains its own signature. To verify, we need to create a local
@@ -375,7 +375,7 @@ func RunMapBatchTest(ctx context.Context, env *integration.MapEnv, tree *trillia
 	}
 
 	if got, want := r.MapRoot.MapRevision, int64(numBatches); got != want {
-		return fmt.Errorf("got SMH with revision %d, want %d", got, want)
+		return fmt.Errorf("got SMR with revision %d, want %d", got, want)
 	}
 
 	// Shuffle the indexes. Map access is randomized.
