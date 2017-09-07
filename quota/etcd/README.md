@@ -66,10 +66,10 @@ for an in-depth description of entities and available methods.
 During regular system operation, no quota-related maintenance should be
 required, as the system should generate at least as many tokens as it spends.
 
-If a token exhaustion happens, there are a few built-in mechanisms that allow
-for manual intervention. The question of whether intervention is needed, though,
-is an important one and should be answered before any attempts are made to
-bypass the system. For example:
+If token exhaustion occurs, there are a few built-in mechanisms that allow for
+manual intervention. The question of whether intervention is needed, though, is
+an important one and should be answered before any attempts are made to bypass
+the system. For example:
 
 * is the `logsigner` working properly and able to keep with the current demand?
 * is there a spike in requests that may justify the current token exhaustion?
@@ -78,7 +78,7 @@ For "genuine" token exhaustion (i.e. the system really is under a load it can't
 cope with), it may be beneficial to let the quota system deny requests until
 regular operation is resumed.
 
-That said, the sections below describe actions that may done to deal with token
+That said, the sections below describe actions that may taken to deal with token
 exhaustion. All examples use `global/read` as the quota in question; substitute
 the name as appropriate.
 
