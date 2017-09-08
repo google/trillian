@@ -227,9 +227,6 @@ func TestServer_GetTree(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	invalidTree := *testonly.LogTree
-	invalidTree.TreeState = trillian.TreeState_HARD_DELETED
-
 	tests := []struct {
 		desc              string
 		getErr, commitErr bool
@@ -329,7 +326,7 @@ func TestServer_CreateTree(t *testing.T) {
 	omittedKeys.PrivateKey = nil
 
 	invalidTree := validTree
-	invalidTree.TreeState = trillian.TreeState_HARD_DELETED
+	invalidTree.TreeState = trillian.TreeState_UNKNOWN_TREE_STATE
 
 	invalidHashAlgo := validTree
 	invalidHashAlgo.HashAlgorithm = sigpb.DigitallySigned_NONE

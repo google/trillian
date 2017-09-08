@@ -22,12 +22,13 @@ import (
 
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
-	tcrypto "github.com/google/trillian/crypto"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/errors"
 	"github.com/google/trillian/storage"
 	"golang.org/x/net/context"
+
+	tcrypto "github.com/google/trillian/crypto"
 )
 
 type treeKey struct{}
@@ -73,8 +74,8 @@ func GetTree(ctx context.Context, s storage.AdminStorage, treeID int64, opts Get
 		return nil, errors.Errorf(errors.InvalidArgument, "operation not allowed for %s-type trees (wanted %s-type)", tree.TreeType, opts.TreeType)
 	case tree.TreeState == trillian.TreeState_FROZEN && !opts.Readonly:
 		return nil, errors.Errorf(errors.FailedPrecondition, "operation not allowed on %s trees", tree.TreeState)
-	case tree.TreeState == trillian.TreeState_SOFT_DELETED || tree.TreeState == trillian.TreeState_HARD_DELETED:
-		return nil, errors.Errorf(errors.NotFound, "deleted tree: %v", tree.TreeId)
+	case tree.Deleted:
+		return nil, errors.Errorf(errors.NotFound, "tree %v not found", tree.TreeId)
 	}
 
 	return tree, nil

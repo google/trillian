@@ -883,14 +883,14 @@ func TestGetActiveLogIDs(t *testing.T) {
 	admin := NewAdminStorage(DB)
 
 	// Create a few test trees
-	log1 := *testonly.LogTree
-	log2 := *testonly.LogTree
-	frozenLog := *testonly.LogTree
-	softDeletedLog := *testonly.LogTree
-	hardDeletedLog := *testonly.LogTree
-	map1 := *testonly.MapTree
-	map2 := *testonly.MapTree
-	for _, tree := range []*trillian.Tree{&log1, &log2, &frozenLog, &softDeletedLog, &hardDeletedLog, &map1, &map2} {
+	log1 := proto.Clone(testonly.LogTree).(*trillian.Tree)
+	log2 := proto.Clone(testonly.LogTree).(*trillian.Tree)
+	frozenLog := proto.Clone(testonly.LogTree).(*trillian.Tree)
+	deletedLog := proto.Clone(testonly.LogTree).(*trillian.Tree)
+	map1 := proto.Clone(testonly.MapTree).(*trillian.Tree)
+	map2 := proto.Clone(testonly.MapTree).(*trillian.Tree)
+	deletedMap := proto.Clone(testonly.MapTree).(*trillian.Tree)
+	for _, tree := range []*trillian.Tree{log1, log2, frozenLog, deletedLog, map1, map2, deletedMap} {
 		newTree, err := createTreeInternal(ctx, admin, tree)
 		if err != nil {
 			t.Fatalf("createTreeInternal(%+v) returned err = %v", tree, err)
@@ -898,19 +898,25 @@ func TestGetActiveLogIDs(t *testing.T) {
 		*tree = *newTree
 	}
 
-	// FROZEN, SOFT_ and HARD_DELETED are not valid initial states, so we have to update to them
-	// separately.
-	frozenLog.TreeState = trillian.TreeState_FROZEN
-	softDeletedLog.TreeState = trillian.TreeState_SOFT_DELETED
-	hardDeletedLog.TreeState = trillian.TreeState_HARD_DELETED
-	for _, tree := range []*trillian.Tree{&frozenLog, &softDeletedLog, &hardDeletedLog} {
-		updatedTree, err := updateTreeInternal(ctx, admin, tree.TreeId, func(t *trillian.Tree) {
-			t.TreeState = tree.TreeState
-		})
-		if err != nil {
-			t.Fatalf("updateTreeInternal(%+v) returned err = %v", tree, err)
+	// FROZEN is not a valid initial state, so we have to update it separately.
+	var err error
+	frozenLog, err = updateTreeInternal(ctx, admin, frozenLog.TreeId, func(t *trillian.Tree) {
+		t.TreeState = trillian.TreeState_FROZEN
+	})
+	if err != nil {
+		t.Fatalf("updateTreeInternal() returned err = %v", err)
+	}
+
+	// Update deleted trees accordingly
+	updateDeletedStmt, err := DB.PrepareContext(ctx, "UPDATE Trees SET Deleted = ? WHERE TreeId = ?")
+	if err != nil {
+		t.Fatalf("PrepareContext() returned err = %v", err)
+	}
+	defer updateDeletedStmt.Close()
+	for _, treeID := range []int64{deletedLog.TreeId, deletedMap.TreeId} {
+		if _, err := updateDeletedStmt.ExecContext(ctx, true, treeID); err != nil {
+			t.Fatalf("ExecContext(%v) returned err = %v", treeID, err)
 		}
-		*tree = *updatedTree
 	}
 
 	s := NewLogStorage(DB, nil)

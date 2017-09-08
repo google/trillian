@@ -29,12 +29,13 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
-	tcrypto "github.com/google/trillian/crypto"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testonly"
 	"github.com/kylelemons/godebug/pretty"
+
+	tcrypto "github.com/google/trillian/crypto"
 )
 
 func TestFromContext(t *testing.T) {
@@ -72,12 +73,8 @@ func TestGetTree(t *testing.T) {
 	frozenTree.TreeState = trillian.TreeState_FROZEN
 
 	softDeletedTree := *testonly.LogTree
-	softDeletedTree.TreeId = 4
-	softDeletedTree.TreeState = trillian.TreeState_SOFT_DELETED
-
-	hardDeletedTree := *testonly.LogTree
-	hardDeletedTree.TreeId = 5
-	hardDeletedTree.TreeState = trillian.TreeState_HARD_DELETED
+	softDeletedTree.Deleted = true
+	softDeletedTree.DeleteTime = ptypes.TimestampNow()
 
 	tests := []struct {
 		desc                           string
@@ -134,14 +131,7 @@ func TestGetTree(t *testing.T) {
 			treeID:      softDeletedTree.TreeId,
 			opts:        GetOpts{TreeType: trillian.TreeType_LOG},
 			storageTree: &softDeletedTree,
-			wantErr:     true,
-		},
-		{
-			desc:        "hardDeleted",
-			treeID:      hardDeletedTree.TreeId,
-			opts:        GetOpts{TreeType: trillian.TreeType_LOG},
-			storageTree: &hardDeletedTree,
-			wantErr:     true,
+			wantErr:     true, // Deleted = true makes the tree "invisible" for most RPCs
 		},
 		{
 			desc:     "treeInCtx",

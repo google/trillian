@@ -200,7 +200,7 @@ func (t *readOnlyLogTX) Close() error {
 
 func (t *readOnlyLogTX) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
 	rows, err := t.tx.QueryContext(
-		ctx, selectTreeIDByTypeAndStateSQL, trillian.TreeType_LOG.String(), trillian.TreeState_ACTIVE.String())
+		ctx, selectNonDeletedTreeIDByTypeAndStateSQL, trillian.TreeType_LOG.String(), trillian.TreeState_ACTIVE.String())
 	if err != nil {
 		return nil, err
 	}
