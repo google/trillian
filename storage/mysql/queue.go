@@ -18,7 +18,6 @@ package mysql
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"time"
 
@@ -41,31 +40,15 @@ const (
 	deleteUnsequencedSQL = "DELETE FROM Unsequenced WHERE TreeId=? AND Bucket=0 AND QueueTimestampNanos=? AND LeafIdentityHash=?"
 )
 
-// dequeuedLeaf is used internally and contains some data that is not part of the client API.
+type dequeueMeta int64
+
 type dequeuedLeaf struct {
 	queueTimestampNanos int64
 	leafIdentityHash    []byte
 }
 
-func (t *logTreeTX) dequeueLeaf(rows *sql.Rows) (*trillian.LogLeaf, interface{}, error) {
-	var leafIDHash []byte
-	var merkleHash []byte
-	var queueTimeNanos int64
-
-	err := rows.Scan(&leafIDHash, &merkleHash, &queueTimeNanos)
-	if err != nil {
-		glog.Warningf("Error scanning work rows: %s", err)
-		return nil, nil, err
-	}
-
-	// Note: the LeafData and ExtraData being nil here is OK as this is only used by the
-	// sequencer. The sequencer only writes to the SequencedLeafData table and the client
-	// supplied data was already written to LeafData as part of queueing the leaf.
-	leaf := &trillian.LogLeaf{
-		LeafIdentityHash: leafIDHash,
-		MerkleLeafHash:   merkleHash,
-	}
-	return leaf, &dequeuedLeaf{queueTimestampNanos: queueTimeNanos, leafIdentityHash: leafIDHash}, nil
+func dequeueInfo(leafIDHash []byte, meta dequeueMeta) dequeuedLeaf {
+	return dequeuedLeaf{queueTimestampNanos: int64(meta), leafIdentityHash: leafIDHash}
 }
 
 func queueArgs(treeID int64, identityHash []byte, queueTimestamp time.Time) []interface{} {
@@ -73,8 +56,6 @@ func queueArgs(treeID int64, identityHash []byte, queueTimestamp time.Time) []in
 }
 
 func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf) error {
-	// TODO: In theory we can do this with CASE / WHEN in one SQL statement but it's more fiddly
-	// and can be implemented later if necessary
 	for _, leaf := range leaves {
 		// This should fail on insert but catch it early
 		if len(leaf.LeafIdentityHash) != t.hashSizeBytes {
@@ -99,7 +80,7 @@ func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillia
 
 // removeSequencedLeaves removes the passed in leaves slice (which may be
 // modified as part of the operation).
-func (t *logTreeTX) removeSequencedLeaves(ctx context.Context, leaves []interface{}) error {
+func (t *logTreeTX) removeSequencedLeaves(ctx context.Context, leaves []dequeuedLeaf) error {
 	// Don't need to re-sort because the query ordered by leaf hash. If that changes because
 	// the query is expensive then the sort will need to be done here. See comment in
 	// QueueLeaves.
@@ -108,11 +89,7 @@ func (t *logTreeTX) removeSequencedLeaves(ctx context.Context, leaves []interfac
 		glog.Warningf("Failed to prep delete statement for sequenced work: %v", err)
 		return err
 	}
-	for _, obj := range leaves {
-		dql, ok := obj.(*dequeuedLeaf)
-		if !ok {
-			return errors.New("non-dequeuedLeaf passed to removeSequencedLeaves")
-		}
+	for _, dql := range leaves {
 		result, err := stx.ExecContext(ctx, t.treeID, dql.queueTimestampNanos, dql.leafIdentityHash)
 		err = checkResultOkAndRowCountIs(result, err, int64(1))
 		if err != nil {

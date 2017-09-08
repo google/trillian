@@ -41,12 +41,20 @@ const (
 	deleteUnsequencedSQL      = "DELETE FROM Unsequenced WHERE QueueID IN (<placeholder>)"
 )
 
-func (t *logTreeTX) dequeueLeaf(rows *sql.Rows) (*trillian.LogLeaf, interface{}, error) {
+type dequeueMeta []byte
+
+type dequeuedLeaf []byte
+
+func dequeueInfo(_ []byte, meta dequeueMeta) dequeuedLeaf {
+	return dequeuedLeaf(meta)
+}
+
+func (t *logTreeTX) dequeueLeaf(rows *sql.Rows) (*trillian.LogLeaf, dequeuedLeaf, error) {
 	var leafIDHash []byte
 	var merkleHash []byte
-	var queueID []byte
+	var meta dequeueMeta
 
-	err := rows.Scan(&leafIDHash, &merkleHash, &queueID)
+	err := rows.Scan(&leafIDHash, &merkleHash, &meta)
 	if err != nil {
 		glog.Warningf("Error scanning work rows: %s", err)
 		return nil, nil, err
@@ -59,7 +67,7 @@ func (t *logTreeTX) dequeueLeaf(rows *sql.Rows) (*trillian.LogLeaf, interface{},
 		LeafIdentityHash: leafIDHash,
 		MerkleLeafHash:   merkleHash,
 	}
-	return leaf, queueID, nil
+	return leaf, dequeueInfo(leafIDHash, meta), nil
 }
 
 func generateQueueID(treeID int64, leafIdentityHash []byte, timestamp int64) []byte {
@@ -103,7 +111,7 @@ func (m *mySQLLogStorage) getDeleteUnsequencedStmt(ctx context.Context, num int)
 
 // removeSequencedLeaves removes the passed in leaves slice (which may be
 // modified as part of the operation).
-func (t *logTreeTX) removeSequencedLeaves(ctx context.Context, queueIDs []interface{}) error {
+func (t *logTreeTX) removeSequencedLeaves(ctx context.Context, queueIDs []dequeuedLeaf) error {
 	// Don't need to re-sort because the query ordered by leaf hash. If that changes because
 	// the query is expensive then the sort will need to be done here. See comment in
 	// QueueLeaves.
@@ -113,7 +121,11 @@ func (t *logTreeTX) removeSequencedLeaves(ctx context.Context, queueIDs []interf
 		return err
 	}
 	stx := t.tx.StmtContext(ctx, tmpl)
-	result, err := stx.ExecContext(ctx, queueIDs...)
+	args := make([]interface{}, len(queueIDs))
+	for i, q := range queueIDs {
+		args[i] = []byte(q)
+	}
+	result, err := stx.ExecContext(ctx, args...)
 	if err != nil {
 		// Error is handled by checkResultOkAndRowCountIs() below
 		glog.Warningf("Failed to delete sequenced work: %s", err)

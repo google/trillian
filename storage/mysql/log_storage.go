@@ -278,7 +278,7 @@ func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime tim
 	}
 
 	leaves := make([]*trillian.LogLeaf, 0, limit)
-	dq := make([]interface{}, 0, limit)
+	dq := make([]dequeuedLeaf, 0, limit)
 	rows, err := stx.QueryContext(ctx, t.treeID, cutoffTime.UnixNano(), limit)
 
 	if err != nil {
@@ -289,9 +289,22 @@ func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime tim
 	defer rows.Close()
 
 	for rows.Next() {
-		leaf, dqi, err := t.dequeueLeaf(rows)
+		var leafIDHash []byte
+		var merkleHash []byte
+		var meta dequeueMeta
+
+		err := rows.Scan(&leafIDHash, &merkleHash, &meta)
 		if err != nil {
+			glog.Warningf("Error scanning work rows: %s", err)
 			return nil, err
+		}
+
+		// Note: the LeafData and ExtraData being nil here is OK as this is only used by the
+		// sequencer. The sequencer only writes to the SequencedLeafData table and the client
+		// supplied data was already written to LeafData as part of queueing the leaf.
+		leaf := &trillian.LogLeaf{
+			LeafIdentityHash: leafIDHash,
+			MerkleLeafHash:   merkleHash,
 		}
 
 		if len(leaf.LeafIdentityHash) != t.hashSizeBytes {
@@ -299,7 +312,7 @@ func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime tim
 		}
 
 		leaves = append(leaves, leaf)
-		dq = append(dq, dqi)
+		dq = append(dq, dequeueInfo(leafIDHash, meta))
 	}
 
 	if rows.Err() != nil {
