@@ -86,6 +86,8 @@ script:
   - ./integration/integration_test.sh
   - cd $HOME/gopath/src/github.com/google/certificate-transparency-go
   - ./trillian/integration/integration_test.sh
+  - cd $HOME/gopath/src/github.com/google/trillian
+  - HAMMER_OPTS="--operations=50" ./integration/maphammer.sh 3
   - set +e
 
 services: mysql
