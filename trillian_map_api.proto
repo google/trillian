@@ -29,7 +29,8 @@ message MapLeaf {
   // index is the location of this leaf.
   // All indexes for a given Map must contain a constant number of bits.
   bytes index = 1;
-  // leaf_hash is the tree hash of leaf_value.
+  // leaf_hash is the tree hash of leaf_value.  This does not need to be set
+  // on SetMapLeavesRequest; the server will fill it in.
   bytes leaf_hash = 2;
   // leaf_value is the data the tree commits to.
   bytes leaf_value = 3;
@@ -45,6 +46,7 @@ message MapLeafInclusion {
 message GetMapLeavesRequest {
   int64 map_id = 1;
   repeated bytes index = 2;
+  // A negative revision indicates that the most recent published revision should be used.
   int64 revision = 3;
 }
 

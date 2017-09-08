@@ -23,7 +23,8 @@ type MapLeaf struct {
 	// index is the location of this leaf.
 	// All indexes for a given Map must contain a constant number of bits.
 	Index []byte `protobuf:"bytes,1,opt,name=index,proto3" json:"index,omitempty"`
-	// leaf_hash is the tree hash of leaf_value.
+	// leaf_hash is the tree hash of leaf_value.  This does not need to be set
+	// on SetMapLeavesRequest; the server will fill it in.
 	LeafHash []byte `protobuf:"bytes,2,opt,name=leaf_hash,json=leafHash,proto3" json:"leaf_hash,omitempty"`
 	// leaf_value is the data the tree commits to.
 	LeafValue []byte `protobuf:"bytes,3,opt,name=leaf_value,json=leafValue,proto3" json:"leaf_value,omitempty"`
@@ -91,6 +92,7 @@ func (m *MapLeafInclusion) GetInclusion() [][]byte {
 type GetMapLeavesRequest struct {
 	MapId    int64    `protobuf:"varint,1,opt,name=map_id,json=mapId" json:"map_id,omitempty"`
 	Index    [][]byte `protobuf:"bytes,2,rep,name=index,proto3" json:"index,omitempty"`
+	// A negative revision indicates that the most recent published revision should be used.
 	Revision int64    `protobuf:"varint,3,opt,name=revision" json:"revision,omitempty"`
 }
 
