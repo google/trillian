@@ -17,6 +17,7 @@ package cacheqm
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"sync"
 	"time"
@@ -61,13 +62,19 @@ type bucket struct {
 // maxEntries determines the maximum number of cache entries, apart from global quotas. The oldest
 // entries are evicted as necessary, their tokens replenished via PutTokens() to avoid excessive
 // leakage.
-func NewCachedManager(qm quota.Manager, minBatchSize, maxEntries int) quota.Manager {
+func NewCachedManager(qm quota.Manager, minBatchSize, maxEntries int) (quota.Manager, error) {
+	switch {
+	case minBatchSize <= 0:
+		return nil, fmt.Errorf("invalid minBatchSize: %v", minBatchSize)
+	case maxEntries <= 0:
+		return nil, fmt.Errorf("invalid maxEntries: %v", minBatchSize)
+	}
 	return &manager{
 		qm:           qm,
 		minBatchSize: minBatchSize,
 		maxEntries:   maxEntries,
 		cache:        make(map[quota.Spec]*bucket),
-	}
+	}, nil
 }
 
 func (m *manager) GetUser(ctx context.Context, req interface{}) string {

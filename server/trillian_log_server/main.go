@@ -64,11 +64,13 @@ var (
 	etcdService     = flag.String("etcd_service", "trillian-logserver", "Service name to announce ourselves under")
 	etcdHTTPService = flag.String("etcd_http_service", "trillian-logserver-http", "Service name to announce our HTTP endpoint under")
 
-	quotaDryRun          = flag.Bool("quota_dry_run", false, "If true no requests are blocked due to lack of tokens")
-	quotaSystem          = flag.String("quota_system", "mysql", "Quota system to use. One of: \"noop\", \"mysql\" or \"etcd\"")
-	quotaMinBatchSize    = flag.Int("quota_min_batch_size", cacheqm.DefaultMinBatchSize, "Minimum number of tokens to request from the quota system. Applicable for etcd quotas.")
-	quotaMaxCacheEntries = flag.Int("quota_max_cache_entries", cacheqm.DefaultMaxCacheEntries, "Max number of quota specs in the quota cache. Applicable for etcd quotas.")
-	maxUnsequencedRows   = flag.Int("max_unsequenced_rows", mysqlqm.DefaultMaxUnsequenced, "Max number of unsequenced rows before rate limiting kicks in. "+
+	quotaDryRun       = flag.Bool("quota_dry_run", false, "If true no requests are blocked due to lack of tokens")
+	quotaSystem       = flag.String("quota_system", "mysql", "Quota system to use. One of: \"noop\", \"mysql\" or \"etcd\"")
+	quotaMinBatchSize = flag.Int("quota_min_batch_size", cacheqm.DefaultMinBatchSize, "Minimum number of tokens to request from the quota system. "+
+		"Zero or lower means disabled. Applicable for etcd quotas.")
+	quotaMaxCacheEntries = flag.Int("quota_max_cache_entries", cacheqm.DefaultMaxCacheEntries, "Max number of quota specs in the quota cache. "+
+		"Zero or lower means disabled. Applicable for etcd quotas.")
+	maxUnsequencedRows = flag.Int("max_unsequenced_rows", mysqlqm.DefaultMaxUnsequenced, "Max number of unsequenced rows before rate limiting kicks in. "+
 		"Only effective for quota_system=mysql.")
 
 	configFile = flag.String("config", "", "Config file containing flags, file contents can be overridden by command line flags")

@@ -87,7 +87,11 @@ func NewQuotaManager(params *QuotaParams) (quota.Manager, error) {
 	qmType := fmt.Sprintf("%T", qm)
 
 	if params.QuotaSystem == QuotaEtcd && params.MinBatchSize > 0 && params.MaxCacheEntries > 0 {
-		qm = cacheqm.NewCachedManager(qm, params.MinBatchSize, params.MaxCacheEntries)
+		cachedQM, err := cacheqm.NewCachedManager(qm, params.MinBatchSize, params.MaxCacheEntries)
+		if err != nil {
+			return nil, err
+		}
+		qm = cachedQM
 		qmType = fmt.Sprintf("%T/%v", qm, qmType)
 	}
 
