@@ -89,10 +89,10 @@ func TestAdminServer_CreateTree(t *testing.T) {
 	generatedFieldsTree.TreeId = 10
 	generatedFieldsTree.CreateTime = ts
 	generatedFieldsTree.UpdateTime = ts
-	generatedFieldsTree.UpdateTime.Seconds += 1
+	generatedFieldsTree.UpdateTime.Seconds++
 	generatedFieldsTree.Deleted = true
 	generatedFieldsTree.DeleteTime = ts
-	generatedFieldsTree.DeleteTime.Seconds += 2
+	generatedFieldsTree.DeleteTime.Seconds++
 
 	tests := []struct {
 		desc     string
