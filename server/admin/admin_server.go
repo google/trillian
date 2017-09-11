@@ -151,6 +151,13 @@ func (s *Server) CreateTree(ctx context.Context, request *trillian.CreateTreeReq
 		tree.PublicKey = publicKey
 	}
 
+	// Clear generated fields, storage must set those
+	tree.TreeId = 0
+	tree.CreateTime = nil
+	tree.UpdateTime = nil
+	tree.Deleted = false
+	tree.DeleteTime = nil
+
 	tx, err := s.registry.AdminStorage.Begin(ctx)
 	if err != nil {
 		return nil, err

@@ -20,6 +20,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/quota/etcd/quotapb"
@@ -40,17 +41,22 @@ func TestTrillianInterceptor_TreeInterception(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	logTree := *testonly.LogTree
+	logTree := proto.Clone(testonly.LogTree).(*trillian.Tree)
 	logTree.TreeId = 10
-	mapTree := *testonly.MapTree
+	mapTree := proto.Clone(testonly.MapTree).(*trillian.Tree)
 	mapTree.TreeId = 11
+	deletedTree := proto.Clone(testonly.LogTree).(*trillian.Tree)
+	deletedTree.TreeId = 12
+	deletedTree.Deleted = true
+	deletedTree.DeleteTime = ptypes.TimestampNow()
 	unknownTreeID := int64(999)
 
 	admin := storage.NewMockAdminStorage(ctrl)
 	adminTX := storage.NewMockReadOnlyAdminTX(ctrl)
 	admin.EXPECT().Snapshot(gomock.Any()).AnyTimes().Return(adminTX, nil)
-	adminTX.EXPECT().GetTree(gomock.Any(), logTree.TreeId).AnyTimes().Return(&logTree, nil)
-	adminTX.EXPECT().GetTree(gomock.Any(), mapTree.TreeId).AnyTimes().Return(&mapTree, nil)
+	adminTX.EXPECT().GetTree(gomock.Any(), logTree.TreeId).AnyTimes().Return(logTree, nil)
+	adminTX.EXPECT().GetTree(gomock.Any(), mapTree.TreeId).AnyTimes().Return(mapTree, nil)
+	adminTX.EXPECT().GetTree(gomock.Any(), deletedTree.TreeId).AnyTimes().Return(deletedTree, nil)
 	adminTX.EXPECT().GetTree(gomock.Any(), unknownTreeID).AnyTimes().Return(nil, errors.New("not found"))
 	adminTX.EXPECT().Close().AnyTimes().Return(nil)
 	adminTX.EXPECT().Commit().AnyTimes().Return(nil)
@@ -68,18 +74,18 @@ func TestTrillianInterceptor_TreeInterception(t *testing.T) {
 		},
 		{
 			desc:     "adminRPC",
-			req:      &trillian.GetTreeRequest{TreeId: logTree.TreeId},
-			wantTree: &logTree,
+			req:      &trillian.DeleteTreeRequest{TreeId: logTree.TreeId},
+			wantTree: logTree,
 		},
 		{
 			desc:     "logRPC",
 			req:      &trillian.GetLatestSignedLogRootRequest{LogId: logTree.TreeId},
-			wantTree: &logTree,
+			wantTree: logTree,
 		},
 		{
 			desc:     "mapRPC",
 			req:      &trillian.GetSignedMapRootRequest{MapId: mapTree.TreeId},
-			wantTree: &mapTree,
+			wantTree: mapTree,
 		},
 		{
 			desc:    "unknownRequest",
@@ -88,8 +94,17 @@ func TestTrillianInterceptor_TreeInterception(t *testing.T) {
 		},
 		{
 			desc:    "unknownTree",
-			req:     &trillian.GetTreeRequest{TreeId: unknownTreeID},
+			req:     &trillian.DeleteTreeRequest{TreeId: unknownTreeID},
 			wantErr: true,
+		},
+		{
+			desc:    "deletedTree",
+			req:     &trillian.DeleteTreeRequest{TreeId: deletedTree.TreeId},
+			wantErr: true,
+		},
+		{
+			desc: "getDeletedTree", // OK, may read deleted trees
+			req:  &trillian.GetTreeRequest{TreeId: deletedTree.TreeId},
 		},
 	}
 
@@ -502,14 +517,13 @@ func TestGetRPCInfo(t *testing.T) {
 			req:  &trillian.CreateTreeRequest{},
 		},
 		{
-			desc:         "listTrees",
-			req:          &trillian.ListTreesRequest{},
+			desc:         "getTree",
+			req:          &trillian.GetTreeRequest{},
 			wantReadonly: true,
 		},
 		{
-			desc:         "getAdminRequest",
-			req:          &trillian.GetTreeRequest{TreeId: 10},
-			wantID:       10,
+			desc:         "listTrees",
+			req:          &trillian.ListTreesRequest{},
 			wantReadonly: true,
 		},
 		{

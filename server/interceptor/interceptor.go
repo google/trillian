@@ -260,6 +260,8 @@ func getRPCInfo(req interface{}, quotaUser string) (*rpcInfo, error) {
 	switch req := req.(type) {
 	case *trillian.CreateTreeRequest:
 		// OK, tree is being created
+	case *trillian.GetTreeRequest:
+		// OK, may read deleted trees
 	case *trillian.ListTreesRequest:
 		// OK, no single tree ID (potentially many trees)
 	case treeIDRequest:

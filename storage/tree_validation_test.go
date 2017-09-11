@@ -38,10 +38,6 @@ func TestValidateTreeForCreation(t *testing.T) {
 	invalidState1.TreeState = trillian.TreeState_UNKNOWN_TREE_STATE
 	invalidState2 := newTree()
 	invalidState2.TreeState = trillian.TreeState_FROZEN
-	invalidState3 := newTree()
-	invalidState3.TreeState = trillian.TreeState_SOFT_DELETED
-	invalidState4 := newTree()
-	invalidState4.TreeState = trillian.TreeState_HARD_DELETED
 
 	invalidType := newTree()
 	invalidType.TreeType = trillian.TreeType_UNKNOWN_TREE_TYPE
@@ -96,6 +92,12 @@ func TestValidateTreeForCreation(t *testing.T) {
 	invalidRootDuration := newTree()
 	invalidRootDuration.MaxRootDuration = ptypes.DurationProto(-1 * time.Second)
 
+	deletedTree := newTree()
+	deletedTree.Deleted = true
+
+	deleteTimeTree := newTree()
+	deleteTimeTree.DeleteTime = ptypes.TimestampNow()
+
 	tests := []struct {
 		desc    string
 		tree    *trillian.Tree
@@ -122,16 +124,6 @@ func TestValidateTreeForCreation(t *testing.T) {
 		{
 			desc:    "invalidState2",
 			tree:    invalidState2,
-			wantErr: true,
-		},
-		{
-			desc:    "invalidState3",
-			tree:    invalidState3,
-			wantErr: true,
-		},
-		{
-			desc:    "invalidState4",
-			tree:    invalidState4,
 			wantErr: true,
 		},
 		{
@@ -206,6 +198,16 @@ func TestValidateTreeForCreation(t *testing.T) {
 		{
 			desc:    "invalidRootDuration",
 			tree:    invalidRootDuration,
+			wantErr: true,
+		},
+		{
+			desc:    "deletedTree",
+			tree:    deletedTree,
+			wantErr: true,
+		},
+		{
+			desc:    "deleteTimeTree",
+			tree:    deleteTimeTree,
 			wantErr: true,
 		},
 	}
@@ -331,6 +333,16 @@ func TestValidateTreeForUpdate(t *testing.T) {
 				tree.PrivateKey = key
 			},
 			wantErr: true,
+		},
+		{
+			desc:     "Deleted",
+			updatefn: func(tree *trillian.Tree) { tree.Deleted = !tree.Deleted },
+			wantErr:  true,
+		},
+		{
+			desc:     "DeleteTime",
+			updatefn: func(tree *trillian.Tree) { tree.DeleteTime = ptypes.TimestampNow() },
+			wantErr:  true,
 		},
 	}
 	for _, test := range tests {

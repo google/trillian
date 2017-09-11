@@ -67,16 +67,11 @@ enum TreeState {
   // tree is forbidden.
   FROZEN = 2;
 
-  // Tree was been deleted, therefore is invisible and acts similarly to a
-  // non-existing tree for all requests.
-  // A soft deleted tree may be undeleted while the soft-deletion period has not
-  // passed.
-  SOFT_DELETED = 3;
+  // Deprecated in favor of Tree.deleted.
+  DEPRECATED_SOFT_DELETED = 3 [deprecated = true];
 
-  // A hard deleted tree was been definitely deleted and cannot be recovered.
-  // Acts an a non-existing tree for all read and write requests, but blocks the
-  // tree ID from ever being reused.
-  HARD_DELETED = 4;
+  // Deprecated in favor of Tree.deleted.
+  DEPRECATED_HARD_DELETED = 4 [deprecated = true];
 }
 
 // Type of the tree.
@@ -103,8 +98,6 @@ message Tree {
   // State of the tree.
   // Trees are active after creation. At any point the tree may transition
   // between ACTIVE and FROZEN.
-  // Deleted trees are set as SOFT_DELETED for a certain time period, after
-  // which they'll automatically transition to HARD_DELETED.
   TreeState tree_state = 2;
 
   // Type of the tree.
@@ -170,6 +163,16 @@ message Tree {
   // Time of last tree update.
   // Readonly (automatically assigned on updates).
   google.protobuf.Timestamp update_time = 17;
+
+  // If true, the tree has been deleted.
+  // Deleted trees may be undeleted during a certain time window, after which
+  // they're permanently deleted (and unrecoverable).
+  // Readonly.
+  bool deleted = 19;
+
+  // Time of tree deletion, if any.
+  // Readonly.
+  google.protobuf.Timestamp delete_time = 20;
 }
 
 message SignedEntryTimestamp {

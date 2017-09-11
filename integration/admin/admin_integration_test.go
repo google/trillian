@@ -19,11 +19,11 @@ import (
 	"net"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
-	sa "github.com/google/trillian/server/admin"
 	"github.com/google/trillian/server/interceptor"
 	"github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/testonly/integration"
@@ -32,6 +32,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	sa "github.com/google/trillian/server/admin"
 )
 
 func TestAdminServer_Unimplemented(t *testing.T) {
@@ -74,19 +76,37 @@ func TestAdminServer_CreateTree(t *testing.T) {
 	}
 	defer closeFn()
 
-	invalidTree := *testonly.LogTree
-	invalidTree.TreeState = trillian.TreeState_HARD_DELETED
+	invalidTree := proto.Clone(testonly.LogTree).(*trillian.Tree)
+	invalidTree.TreeState = trillian.TreeState_UNKNOWN_TREE_STATE
+
+	ts, err := ptypes.TimestampProto(time.Unix(1000, 0))
+	if err != nil {
+		t.Fatalf("TimestampProto() returned err = %v", err)
+	}
+
+	// All fields set below are ignored / overwritten by storage
+	generatedFieldsTree := proto.Clone(testonly.LogTree).(*trillian.Tree)
+	generatedFieldsTree.TreeId = 10
+	generatedFieldsTree.CreateTime = ts
+	generatedFieldsTree.UpdateTime = ts
+	generatedFieldsTree.UpdateTime.Seconds++
+	generatedFieldsTree.Deleted = true
+	generatedFieldsTree.DeleteTime = ts
+	generatedFieldsTree.DeleteTime.Seconds++
 
 	tests := []struct {
 		desc     string
 		req      *trillian.CreateTreeRequest
+		wantTree *trillian.Tree
 		wantCode codes.Code
 	}{
 		{
 			desc: "validTree",
-			req: &trillian.CreateTreeRequest{
-				Tree: testonly.LogTree,
-			},
+			req:  &trillian.CreateTreeRequest{Tree: testonly.LogTree},
+		},
+		{
+			desc: "generatedFieldsTree",
+			req:  &trillian.CreateTreeRequest{Tree: generatedFieldsTree},
 		},
 		{
 			desc:     "nilTree",
@@ -94,10 +114,8 @@ func TestAdminServer_CreateTree(t *testing.T) {
 			wantCode: codes.InvalidArgument,
 		},
 		{
-			desc: "invalidTree",
-			req: &trillian.CreateTreeRequest{
-				Tree: &invalidTree,
-			},
+			desc:     "invalidTree",
+			req:      &trillian.CreateTreeRequest{Tree: invalidTree},
 			wantCode: codes.InvalidArgument,
 		},
 	}
@@ -110,6 +128,23 @@ func TestAdminServer_CreateTree(t *testing.T) {
 			continue
 		} else if err != nil {
 			continue
+		}
+
+		// Sanity check a few generated fields
+		if createdTree.TreeId == 0 {
+			t.Errorf("%v: createdTree.TreeId = 0", test.desc)
+		}
+		if createdTree.CreateTime == nil {
+			t.Errorf("%v: createdTree.CreateTime = nil", test.desc)
+		}
+		if !proto.Equal(createdTree.CreateTime, createdTree.UpdateTime) {
+			t.Errorf("%v: createdTree.UpdateTime = %+v, want = %+v", test.desc, createdTree.UpdateTime, createdTree.CreateTime)
+		}
+		if createdTree.Deleted {
+			t.Errorf("%v: createdTree.Deleted = true", test.desc)
+		}
+		if createdTree.DeleteTime != nil {
+			t.Errorf("%v: createdTree.DeleteTime is non-nil", test.desc)
 		}
 
 		storedTree, err := client.GetTree(ctx, &trillian.GetTreeRequest{TreeId: createdTree.TreeId})

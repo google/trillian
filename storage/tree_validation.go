@@ -17,6 +17,7 @@ package storage
 import (
 	"crypto/x509"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/sigpb"
@@ -50,6 +51,10 @@ func ValidateTreeForCreation(tree *trillian.Tree) error {
 		return errors.New(errors.InvalidArgument, "a private_key is required")
 	case tree.PublicKey == nil:
 		return errors.New(errors.InvalidArgument, "a public_key is required")
+	case tree.Deleted:
+		return errors.Errorf(errors.InvalidArgument, "invalid deleted: %v", tree.Deleted)
+	case tree.DeleteTime != nil:
+		return errors.Errorf(errors.InvalidArgument, "invalid delete_time: %+v (must be nil)", tree.DeleteTime)
 	}
 
 	// Check that the private_key proto contains a valid serialized proto.
@@ -96,6 +101,10 @@ func ValidateTreeForUpdate(storedTree, newTree *trillian.Tree) error {
 		return errors.New(errors.InvalidArgument, "readonly field changed: private_key")
 	case storedTree.PublicKey != newTree.PublicKey:
 		return errors.New(errors.InvalidArgument, "readonly field changed: public_key")
+	case storedTree.Deleted != newTree.Deleted:
+		return errors.New(errors.InvalidArgument, "readonly field changed: deleted")
+	case !proto.Equal(storedTree.DeleteTime, newTree.DeleteTime):
+		return errors.New(errors.InvalidArgument, "readonly field changed: delete_time")
 	}
 	return validateMutableTreeFields(newTree)
 }
