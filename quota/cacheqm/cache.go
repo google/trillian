@@ -12,17 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package cache contains a caching quota.Manager implementation.
-package cache
+// Package cacheqm contains a caching quota.Manager implementation.
+package cacheqm
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"sync"
 	"time"
 
 	"github.com/golang/glog"
 	"github.com/google/trillian/quota"
+)
+
+const (
+	// DefaultMinBatchSize is the suggested default for minBatchSize.
+	DefaultMinBatchSize = 100
+
+	// DefaultMaxCacheEntries is the suggested default for maxEntries.
+	DefaultMaxCacheEntries = 1000
 )
 
 // now is used in place of time.Now to allow tests to take control of time.
@@ -53,13 +62,19 @@ type bucket struct {
 // maxEntries determines the maximum number of cache entries, apart from global quotas. The oldest
 // entries are evicted as necessary, their tokens replenished via PutTokens() to avoid excessive
 // leakage.
-func NewCachedManager(qm quota.Manager, minBatchSize, maxEntries int) quota.Manager {
+func NewCachedManager(qm quota.Manager, minBatchSize, maxEntries int) (quota.Manager, error) {
+	switch {
+	case minBatchSize <= 0:
+		return nil, fmt.Errorf("invalid minBatchSize: %v", minBatchSize)
+	case maxEntries <= 0:
+		return nil, fmt.Errorf("invalid maxEntries: %v", minBatchSize)
+	}
 	return &manager{
 		qm:           qm,
 		minBatchSize: minBatchSize,
 		maxEntries:   maxEntries,
 		cache:        make(map[quota.Spec]*bucket),
-	}
+	}, nil
 }
 
 func (m *manager) GetUser(ctx context.Context, req interface{}) string {

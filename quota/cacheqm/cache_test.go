@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cache
+package cacheqm
 
 import (
 	"context"
@@ -38,6 +38,23 @@ var (
 	}
 )
 
+func TestNewCachedManagerErrors(t *testing.T) {
+	tests := []struct {
+		minBatchSize, maxEntries int
+	}{
+		{minBatchSize: 0, maxEntries: 10},
+		{minBatchSize: -1, maxEntries: 10},
+		{minBatchSize: 10, maxEntries: 0},
+		{minBatchSize: 10, maxEntries: -1},
+	}
+	qm := quota.Noop()
+	for _, test := range tests {
+		if _, err := NewCachedManager(qm, test.minBatchSize, test.maxEntries); err == nil {
+			t.Errorf("NewCachedManager(_, %v, %v) returned err = nil, want non-nil", test.minBatchSize, test.maxEntries)
+		}
+	}
+}
+
 func TestCachedManager_GetUser(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -47,7 +64,11 @@ func TestCachedManager_GetUser(t *testing.T) {
 	mock := quota.NewMockManager(ctrl)
 	mock.EXPECT().GetUser(ctx, nil).Return(want)
 
-	qm := NewCachedManager(mock, minBatchSize, maxEntries)
+	qm, err := NewCachedManager(mock, minBatchSize, maxEntries)
+	if err != nil {
+		t.Fatalf("NewCachedManager() returned err = %v", err)
+	}
+
 	if got := qm.GetUser(ctx, nil /* req */); got != want {
 		t.Errorf("GetUser() = %v, want = %v", got, want)
 	}
@@ -80,7 +101,11 @@ func TestCachedManager_PeekTokens(t *testing.T) {
 		mock := quota.NewMockManager(ctrl)
 		mock.EXPECT().PeekTokens(ctx, specs).Return(test.wantTokens, test.wantErr)
 
-		qm := NewCachedManager(mock, minBatchSize, maxEntries)
+		qm, err := NewCachedManager(mock, minBatchSize, maxEntries)
+		if err != nil {
+			t.Fatalf("NewCachedManager() returned err = %v", err)
+		}
+
 		tokens, err := qm.PeekTokens(ctx, specs)
 		if diff := pretty.Compare(tokens, test.wantTokens); diff != "" {
 			t.Errorf("%v: post-PeekTokens() diff (-got +want):\n%v", test.desc, diff)
@@ -100,7 +125,10 @@ func TestCachedManager_DelegatedMethods(t *testing.T) {
 	tokens := 5
 	for _, want := range []error{nil, errors.New("llama ate all tokens")} {
 		mock := quota.NewMockManager(ctrl)
-		qm := NewCachedManager(mock, minBatchSize, maxEntries)
+		qm, err := NewCachedManager(mock, minBatchSize, maxEntries)
+		if err != nil {
+			t.Fatalf("NewCachedManager() returned err = %v", err)
+		}
 
 		mock.EXPECT().PutTokens(ctx, tokens, specs).Return(want)
 		if err := qm.PutTokens(ctx, tokens, specs); err != want {
@@ -123,7 +151,10 @@ func TestCachedManager_GetTokens_CachesTokens(t *testing.T) {
 	mock := quota.NewMockManager(ctrl)
 	mock.EXPECT().GetTokens(ctx, matchers.AtLeast(minBatchSize), specs).Times(2).Return(nil)
 
-	qm := NewCachedManager(mock, minBatchSize, maxEntries)
+	qm, err := NewCachedManager(mock, minBatchSize, maxEntries)
+	if err != nil {
+		t.Fatalf("NewCachedManager() returned err = %v", err)
+	}
 
 	// Quota requests happen in tokens+minBatchSize steps, so that minBatchSize tokens get cached
 	// after the the request is satisfied.
@@ -145,7 +176,10 @@ func TestCachedManager_GetTokens_EvictsCache(t *testing.T) {
 
 	ctx := context.Background()
 	maxEntries := 100
-	qm := NewCachedManager(mock, minBatchSize, maxEntries)
+	qm, err := NewCachedManager(mock, minBatchSize, maxEntries)
+	if err != nil {
+		t.Fatalf("NewCachedManager() returned err = %v", err)
+	}
 
 	originalNow := now
 	defer func() { now = originalNow }()
@@ -211,7 +245,11 @@ func TestManager_GetTokensErrors(t *testing.T) {
 	mock := quota.NewMockManager(ctrl)
 	mock.EXPECT().GetTokens(ctx, gomock.Any(), specs).Return(want)
 
-	qm := NewCachedManager(mock, minBatchSize, maxEntries)
+	qm, err := NewCachedManager(mock, minBatchSize, maxEntries)
+	if err != nil {
+		t.Fatalf("NewCachedManager() returned err = %v", err)
+	}
+
 	if err := qm.GetTokens(ctx, 5 /* numTokens */, specs); err != want {
 		t.Errorf("GetTokens() returned err = %#v, want = %#v", err, want)
 	}
