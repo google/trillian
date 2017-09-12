@@ -146,6 +146,18 @@ func (mr *MockAdminTXMockRecorder) GetTree(arg0, arg1 interface{}) *gomock.Call 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTree", reflect.TypeOf((*MockAdminTX)(nil).GetTree), arg0, arg1)
 }
 
+// HardDeleteTree mocks base method
+func (m *MockAdminTX) HardDeleteTree(arg0 context.Context, arg1 int64) error {
+	ret := m.ctrl.Call(m, "HardDeleteTree", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// HardDeleteTree indicates an expected call of HardDeleteTree
+func (mr *MockAdminTXMockRecorder) HardDeleteTree(arg0, arg1 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HardDeleteTree", reflect.TypeOf((*MockAdminTX)(nil).HardDeleteTree), arg0, arg1)
+}
+
 // IsClosed mocks base method
 func (m *MockAdminTX) IsClosed() bool {
 	ret := m.ctrl.Call(m, "IsClosed")
@@ -194,6 +206,32 @@ func (m *MockAdminTX) Rollback() error {
 // Rollback indicates an expected call of Rollback
 func (mr *MockAdminTXMockRecorder) Rollback() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Rollback", reflect.TypeOf((*MockAdminTX)(nil).Rollback))
+}
+
+// SoftDeleteTree mocks base method
+func (m *MockAdminTX) SoftDeleteTree(arg0 context.Context, arg1 int64) (*trillian.Tree, error) {
+	ret := m.ctrl.Call(m, "SoftDeleteTree", arg0, arg1)
+	ret0, _ := ret[0].(*trillian.Tree)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SoftDeleteTree indicates an expected call of SoftDeleteTree
+func (mr *MockAdminTXMockRecorder) SoftDeleteTree(arg0, arg1 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SoftDeleteTree", reflect.TypeOf((*MockAdminTX)(nil).SoftDeleteTree), arg0, arg1)
+}
+
+// UndeleteTree mocks base method
+func (m *MockAdminTX) UndeleteTree(arg0 context.Context, arg1 int64) (*trillian.Tree, error) {
+	ret := m.ctrl.Call(m, "UndeleteTree", arg0, arg1)
+	ret0, _ := ret[0].(*trillian.Tree)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UndeleteTree indicates an expected call of UndeleteTree
+func (mr *MockAdminTXMockRecorder) UndeleteTree(arg0, arg1 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UndeleteTree", reflect.TypeOf((*MockAdminTX)(nil).UndeleteTree), arg0, arg1)
 }
 
 // UpdateTree mocks base method

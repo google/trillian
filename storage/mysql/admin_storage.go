@@ -461,6 +461,18 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 	return tree, nil
 }
 
+func (t *adminTX) SoftDeleteTree(ctx context.Context, treeID int64) (*trillian.Tree, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (t *adminTX) HardDeleteTree(ctx context.Context, treeID int64) error {
+	return fmt.Errorf("not implemented")
+}
+
+func (t *adminTX) UndeleteTree(ctx context.Context, treeID int64) (*trillian.Tree, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
 func toMillisSinceEpoch(t time.Time) int64 {
 	return t.UnixNano() / 1000000
 }
