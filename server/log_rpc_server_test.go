@@ -1148,19 +1148,19 @@ func TestGetConsistencyProofBeginTXFails(t *testing.T) {
 
 type consistProofTest struct {
 	req         trillian.GetConsistencyProofRequest
-	nodeIDs     []storage.NodeID
-	hashes      [][]byte
-	nodes       []storage.Node
 	wantErr     bool
+	wantHashes  [][]byte
 	noSnap      bool
-	noRev       bool
-	noRoot      bool
-	noClose     bool
-	noCommit    bool
 	snapErr     error
+	noRoot      bool
 	rootErr     error
+	noRev       bool
+	nodeIDs     []storage.NodeID
+	nodes       []storage.Node
 	getNodesErr error
+	noCommit    bool
 	commitErr   error
+	noClose     bool
 }
 
 func TestGetConsistencyProof(t *testing.T) {
@@ -1169,96 +1169,93 @@ func TestGetConsistencyProof(t *testing.T) {
 			// Storage snapshot fails, should result in an error. Happens before we have a TX so
 			// no Close() etc.
 			req:      getConsistencyProofRequest7,
-			snapErr:  errors.New("SnapshotForTree() failed"),
 			wantErr:  true,
-			noRev:    true,
+			snapErr:  errors.New("SnapshotForTree() failed"),
 			noRoot:   true,
+			noRev:    true,
 			noCommit: true,
 			noClose:  true,
 		},
 		{
 			// Storage fails to read the log root, should result in an error.
 			req:      getConsistencyProofRequest7,
-			rootErr:  errors.New("LatestSignedLogRoot() failed"),
 			wantErr:  true,
+			rootErr:  errors.New("LatestSignedLogRoot() failed"),
 			noRev:    true,
 			noCommit: true,
 		},
 		{
 			// Storage fails to get nodes, should result in an error
 			req:         getConsistencyProofRequest7,
-			nodeIDs:     nodeIdsConsistencySize4ToSize7,
-			hashes:      [][]byte{[]byte("nodehash")},
-			nodes:       []storage.Node{{NodeID: stestonly.MustCreateNodeIDForTreeCoords(2, 1, 64), NodeRevision: 3, Hash: []byte("nodehash")}},
 			wantErr:     true,
+			nodeIDs:     nodeIdsConsistencySize4ToSize7,
+			wantHashes:  [][]byte{[]byte("nodehash")},
+			nodes:       []storage.Node{{NodeID: stestonly.MustCreateNodeIDForTreeCoords(2, 1, 64), NodeRevision: 3, Hash: []byte("nodehash")}},
 			getNodesErr: errors.New("getMerkleNodes() failed"),
 			noCommit:    true,
 		},
 		{
 			// Storage fails to commit, should result in an error.
-			req:       getConsistencyProofRequest7,
-			nodeIDs:   nodeIdsConsistencySize4ToSize7,
-			hashes:    [][]byte{[]byte("nodehash")},
-			nodes:     []storage.Node{{NodeID: stestonly.MustCreateNodeIDForTreeCoords(2, 1, 64), NodeRevision: 3, Hash: []byte("nodehash")}},
-			wantErr:   true,
-			commitErr: errors.New("Commit() failed"),
+			req:        getConsistencyProofRequest7,
+			wantErr:    true,
+			wantHashes: [][]byte{[]byte("nodehash")},
+			nodeIDs:    nodeIdsConsistencySize4ToSize7,
+			nodes:      []storage.Node{{NodeID: stestonly.MustCreateNodeIDForTreeCoords(2, 1, 64), NodeRevision: 3, Hash: []byte("nodehash")}},
+			commitErr:  errors.New("Commit() failed"),
 		},
 		{
 			// Storage doesn't return the requested node, should result in an error.
-			req:      getConsistencyProofRequest7,
-			nodeIDs:  nodeIdsConsistencySize4ToSize7,
-			hashes:   [][]byte{[]byte("nodehash")},
-			nodes:    []storage.Node{{NodeID: stestonly.MustCreateNodeIDForTreeCoords(3, 1, 64), NodeRevision: 3, Hash: []byte("nodehash")}},
-			wantErr:  true,
-			noCommit: true,
+			req:        getConsistencyProofRequest7,
+			wantErr:    true,
+			wantHashes: [][]byte{[]byte("nodehash")},
+			nodeIDs:    nodeIdsConsistencySize4ToSize7,
+			nodes:      []storage.Node{{NodeID: stestonly.MustCreateNodeIDForTreeCoords(3, 1, 64), NodeRevision: 3, Hash: []byte("nodehash")}},
+			noCommit:   true,
 		},
 		{
 			// Storage returns an unexpected extra node, should result in an error.
-			req:     getConsistencyProofRequest7,
-			nodeIDs: nodeIdsConsistencySize4ToSize7,
-			hashes:  [][]byte{[]byte("nodehash")},
-			nodes: []storage.Node{
-				{NodeID: stestonly.MustCreateNodeIDForTreeCoords(2, 1, 64), NodeRevision: 3, Hash: []byte("nodehash")},
-				{NodeID: stestonly.MustCreateNodeIDForTreeCoords(3, 10, 64), NodeRevision: 37, Hash: []byte("nodehash2")},
-			},
-			wantErr:  true,
-			noCommit: true,
+			req:        getConsistencyProofRequest7,
+			wantErr:    true,
+			wantHashes: [][]byte{[]byte("nodehash")},
+			nodeIDs:    nodeIdsConsistencySize4ToSize7,
+			nodes:      []storage.Node{{NodeID: stestonly.MustCreateNodeIDForTreeCoords(2, 1, 64), NodeRevision: 3, Hash: []byte("nodehash")}, {NodeID: stestonly.MustCreateNodeIDForTreeCoords(3, 10, 64), NodeRevision: 37, Hash: []byte("nodehash2")}},
+			noCommit:   true,
 		},
 		{
 			// Ask for a proof from size 4 to 8 but the tree is only size 7. This should fail.
-			req:      getConsistencyProofRequest48,
-			nodeIDs:  nil,
-			hashes:   [][]byte{},
-			wantErr:  true,
-			noRev:    true,
-			noCommit: true,
+			req:        getConsistencyProofRequest48,
+			wantErr:    true,
+			wantHashes: [][]byte{},
+			nodeIDs:    nil,
+			noRev:      true,
+			noCommit:   true,
 		},
 		{
 			// Ask for a proof from size 5 to 4, testing the boundary condition. This request should fail
 			// before making any storage requests.
-			req:      getConsistencyProofRequest54,
-			nodeIDs:  nil,
-			hashes:   [][]byte{},
-			wantErr:  true,
-			noSnap:   true,
-			noRoot:   true,
-			noRev:    true,
-			noCommit: true,
-			noClose:  true,
+			req:        getConsistencyProofRequest54,
+			wantErr:    true,
+			wantHashes: [][]byte{},
+			noSnap:     true,
+			noRoot:     true,
+			noRev:      true,
+			nodeIDs:    nil,
+			noCommit:   true,
+			noClose:    true,
 		},
 		{
 			// A normal request which should succeed.
-			req:     getConsistencyProofRequest7,
-			nodeIDs: nodeIdsConsistencySize4ToSize7,
-			hashes:  [][]byte{[]byte("nodehash")},
-			nodes:   []storage.Node{{NodeID: stestonly.MustCreateNodeIDForTreeCoords(2, 1, 64), NodeRevision: 3, Hash: []byte("nodehash")}},
+			req:        getConsistencyProofRequest7,
+			wantHashes: [][]byte{[]byte("nodehash")},
+			nodeIDs:    nodeIdsConsistencySize4ToSize7,
+			nodes:      []storage.Node{{NodeID: stestonly.MustCreateNodeIDForTreeCoords(2, 1, 64), NodeRevision: 3, Hash: []byte("nodehash")}},
 		},
 		{
 			// Tests first==second edge case, which should succeed but is an empty proof.
-			req:     getConsistencyProofRequest44,
-			nodeIDs: []storage.NodeID{},
-			hashes:  [][]byte{},
-			nodes:   []storage.Node{},
+			req:        getConsistencyProofRequest44,
+			wantHashes: [][]byte{},
+			nodeIDs:    []storage.NodeID{},
+			nodes:      []storage.Node{},
 		},
 	}
 
@@ -1296,16 +1293,19 @@ func TestGetConsistencyProof(t *testing.T) {
 
 		if test.wantErr {
 			if err == nil {
-				t.Errorf("TestGetConsistencyProof got err: %v, want: nil", err)
+				t.Errorf("TestGetConsistencyProof(%+v)=nil, want: err", test.req)
 			}
 		} else {
-			// Ensure we got the expected proof.
-			expectedProof := trillian.Proof{
-				LeafIndex: 0,
-				Hashes:    test.hashes,
+			if err != nil {
+				t.Errorf("TestGetConsistencyProof(%+v)=%v, want: nil", test.req, err)
 			}
-			if got, want := response.Proof, &expectedProof; !proto.Equal(got, want) {
-				t.Errorf("TestGetConsistencyProof got: %v, want:%v", got, want)
+			// Ensure we got the expected proof.
+			wantProof := trillian.Proof{
+				LeafIndex: 0,
+				Hashes:    test.wantHashes,
+			}
+			if got, want := response.Proof, &wantProof; !proto.Equal(got, want) {
+				t.Errorf("TestGetConsistencyProof got: %v, want: %v", got, want)
 			}
 		}
 	}
