@@ -1132,192 +1132,167 @@ func TestGetSequencedLeafCount(t *testing.T) {
 	}
 }
 
-func TestGetConsistencyProofBeginTXFails(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	test := newParameterizedTest(ctrl, "GetConsistencyProof", readOnly,
-		func(t *storage.MockLogTreeTX) {},
-		func(s *TrillianLogRPCServer) error {
-			_, err := s.GetConsistencyProof(context.Background(), &getConsistencyProofRequest25)
-			return err
-		})
-
-	test.executeBeginFailsTest(t, getConsistencyProofRequest25.LogId)
-}
-
-func TestGetConsistencyProofGetNodesFails(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	test := newParameterizedTest(ctrl, "GetConsistencyProof", readOnly,
-		func(t *storage.MockLogTreeTX) {
-			t.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(signedRoot1, nil)
-			t.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
-			t.EXPECT().GetMerkleNodes(gomock.Any(), revision1, nodeIdsConsistencySize4ToSize7).Return([]storage.Node{}, errors.New("STORAGE"))
-		},
-		func(s *TrillianLogRPCServer) error {
-			_, err := s.GetConsistencyProof(context.Background(), &getConsistencyProofRequest7)
-			return err
-		})
-
-	test.executeStorageFailureTest(t, getConsistencyProofRequest7.LogId)
-}
-
-func TestGetConsistencyProofGetNodesReturnsWrongCount(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockStorage := storage.NewMockLogStorage(ctrl)
-	mockTx := storage.NewMockLogTreeTX(ctrl)
-	mockStorage.EXPECT().SnapshotForTree(gomock.Any(), getConsistencyProofRequest7.LogId).Return(mockTx, nil)
-
-	mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(signedRoot1, nil)
-	mockTx.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
-	// The server expects one node from storage but we return two
-	mockTx.EXPECT().GetMerkleNodes(gomock.Any(), revision1, nodeIdsConsistencySize4ToSize7).Return([]storage.Node{{NodeRevision: 3}, {NodeRevision: 2}}, nil)
-	mockTx.EXPECT().Close().Return(nil)
-
-	registry := extension.Registry{
-		AdminStorage: mockAdminStorage(ctrl, getConsistencyProofRequest7.LogId),
-		LogStorage:   mockStorage,
-	}
-	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
-
-	_, err := server.GetConsistencyProof(context.Background(), &getConsistencyProofRequest7)
-	if err == nil || !strings.Contains(err.Error(), "expected 1 nodes") {
-		t.Fatalf("get consistency proof returned no or wrong error when get nodes returns wrong count: %v", err)
-	}
-}
-
-func TestGetConsistencyProofGetNodesReturnsWrongNode(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockStorage := storage.NewMockLogStorage(ctrl)
-	mockTx := storage.NewMockLogTreeTX(ctrl)
-	mockStorage.EXPECT().SnapshotForTree(gomock.Any(), getConsistencyProofRequest7.LogId).Return(mockTx, nil)
-
-	mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(signedRoot1, nil)
-	mockTx.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
-	// Return an unexpected node that wasn't requested
-	mockTx.EXPECT().GetMerkleNodes(gomock.Any(), revision1, nodeIdsConsistencySize4ToSize7).Return([]storage.Node{{NodeID: stestonly.MustCreateNodeIDForTreeCoords(1, 2, 64), NodeRevision: 3}}, nil)
-	mockTx.EXPECT().Close().Return(nil)
-
-	registry := extension.Registry{
-		AdminStorage: mockAdminStorage(ctrl, getConsistencyProofRequest7.LogId),
-		LogStorage:   mockStorage,
-	}
-	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
-
-	_, err := server.GetConsistencyProof(context.Background(), &getConsistencyProofRequest7)
-	if err == nil || !strings.Contains(err.Error(), "expected node ") {
-		t.Fatalf("get consistency proof returned no or wrong error when get nodes returns wrong node: %v", err)
-	}
-}
-
-func TestGetConsistencyProofCommitFails(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	test := newParameterizedTest(ctrl, "GetConsistencyProof", readOnly,
-		func(t *storage.MockLogTreeTX) {
-			t.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(signedRoot1, nil)
-			t.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
-			t.EXPECT().GetMerkleNodes(gomock.Any(), revision1, nodeIdsConsistencySize4ToSize7).Return([]storage.Node{{NodeID: stestonly.MustCreateNodeIDForTreeCoords(2, 1, 64), NodeRevision: 3}}, nil)
-		},
-		func(s *TrillianLogRPCServer) error {
-			_, err := s.GetConsistencyProof(context.Background(), &getConsistencyProofRequest7)
-			return err
-		})
-
-	test.executeCommitFailsTest(t, getConsistencyProofRequest7.LogId)
-}
-
-// Ask for a proof from size 4 to 8 but the tree is only size 7. This should fail.
-func TestGetConsistencyProofOutsideTree(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockStorage := storage.NewMockLogStorage(ctrl)
-	mockTx := storage.NewMockLogTreeTX(ctrl)
-	mockStorage.EXPECT().SnapshotForTree(gomock.Any(), getConsistencyProofRequest48.LogId).Return(mockTx, nil)
-
-	mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(signedRoot1, nil)
-	mockTx.EXPECT().Close().Return(nil)
-
-	registry := extension.Registry{
-		AdminStorage: mockAdminStorage(ctrl, getConsistencyProofRequest48.LogId),
-		LogStorage:   mockStorage,
-	}
-	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
-
-	_, err := server.GetConsistencyProof(context.Background(), &getConsistencyProofRequest48)
-	if err == nil {
-		t.Fatal("incorrectly returned a proof for out of range tree size")
-	}
-}
-
-// Ask for a proof from size 5 to 4, testing the boundary condition. This request should fail
-// before making any storage requests.
-func TestGetConsistencyProofRangeError(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockStorage := storage.NewMockLogStorage(ctrl)
-	registry := extension.Registry{
-		AdminStorage: mockAdminStorage(ctrl, getConsistencyProofRequest54.LogId),
-		LogStorage:   mockStorage,
-	}
-	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
-
-	_, err := server.GetConsistencyProof(context.Background(), &getConsistencyProofRequest54)
-	if err == nil {
-		t.Fatal("incorrectly returned a proof for out of range tree size")
-	}
+type consistProofTest struct {
+	req         trillian.GetConsistencyProofRequest
+	wantErr     bool
+	wantHashes  [][]byte
+	noSnap      bool
+	snapErr     error
+	noRoot      bool
+	rootErr     error
+	noRev       bool
+	nodeIDs     []storage.NodeID
+	nodes       []storage.Node
+	getNodesErr error
+	noCommit    bool
+	commitErr   error
+	noClose     bool
 }
 
 func TestGetConsistencyProof(t *testing.T) {
+	tests := []consistProofTest{
+		{
+			// Storage snapshot fails, should result in an error. Happens before we have a TX so
+			// no Close() etc.
+			req:      getConsistencyProofRequest7,
+			wantErr:  true,
+			snapErr:  errors.New("SnapshotForTree() failed"),
+			noRoot:   true,
+			noRev:    true,
+			noCommit: true,
+			noClose:  true,
+		},
+		{
+			// Storage fails to read the log root, should result in an error.
+			req:      getConsistencyProofRequest7,
+			wantErr:  true,
+			rootErr:  errors.New("LatestSignedLogRoot() failed"),
+			noRev:    true,
+			noCommit: true,
+		},
+		{
+			// Storage fails to get nodes, should result in an error
+			req:         getConsistencyProofRequest7,
+			wantErr:     true,
+			nodeIDs:     nodeIdsConsistencySize4ToSize7,
+			wantHashes:  [][]byte{[]byte("nodehash")},
+			nodes:       []storage.Node{{NodeID: stestonly.MustCreateNodeIDForTreeCoords(2, 1, 64), NodeRevision: 3, Hash: []byte("nodehash")}},
+			getNodesErr: errors.New("getMerkleNodes() failed"),
+			noCommit:    true,
+		},
+		{
+			// Storage fails to commit, should result in an error.
+			req:        getConsistencyProofRequest7,
+			wantErr:    true,
+			wantHashes: [][]byte{[]byte("nodehash")},
+			nodeIDs:    nodeIdsConsistencySize4ToSize7,
+			nodes:      []storage.Node{{NodeID: stestonly.MustCreateNodeIDForTreeCoords(2, 1, 64), NodeRevision: 3, Hash: []byte("nodehash")}},
+			commitErr:  errors.New("Commit() failed"),
+		},
+		{
+			// Storage doesn't return the requested node, should result in an error.
+			req:        getConsistencyProofRequest7,
+			wantErr:    true,
+			wantHashes: [][]byte{[]byte("nodehash")},
+			nodeIDs:    nodeIdsConsistencySize4ToSize7,
+			nodes:      []storage.Node{{NodeID: stestonly.MustCreateNodeIDForTreeCoords(3, 1, 64), NodeRevision: 3, Hash: []byte("nodehash")}},
+			noCommit:   true,
+		},
+		{
+			// Storage returns an unexpected extra node, should result in an error.
+			req:        getConsistencyProofRequest7,
+			wantErr:    true,
+			wantHashes: [][]byte{[]byte("nodehash")},
+			nodeIDs:    nodeIdsConsistencySize4ToSize7,
+			nodes:      []storage.Node{{NodeID: stestonly.MustCreateNodeIDForTreeCoords(2, 1, 64), NodeRevision: 3, Hash: []byte("nodehash")}, {NodeID: stestonly.MustCreateNodeIDForTreeCoords(3, 10, 64), NodeRevision: 37, Hash: []byte("nodehash2")}},
+			noCommit:   true,
+		},
+		{
+			// Ask for a proof from size 4 to 8 but the tree is only size 7. This should fail.
+			req:        getConsistencyProofRequest48,
+			wantErr:    true,
+			wantHashes: [][]byte{},
+			nodeIDs:    nil,
+			noRev:      true,
+			noCommit:   true,
+		},
+		{
+			// Ask for a proof from size 5 to 4, testing the boundary condition. This request should fail
+			// before making any storage requests.
+			req:        getConsistencyProofRequest54,
+			wantErr:    true,
+			wantHashes: [][]byte{},
+			noSnap:     true,
+			noRoot:     true,
+			noRev:      true,
+			nodeIDs:    nil,
+			noCommit:   true,
+			noClose:    true,
+		},
+		{
+			// A normal request which should succeed.
+			req:        getConsistencyProofRequest7,
+			wantHashes: [][]byte{[]byte("nodehash")},
+			nodeIDs:    nodeIdsConsistencySize4ToSize7,
+			nodes:      []storage.Node{{NodeID: stestonly.MustCreateNodeIDForTreeCoords(2, 1, 64), NodeRevision: 3, Hash: []byte("nodehash")}},
+		},
+		{
+			// Tests first==second edge case, which should succeed but is an empty proof.
+			req:        getConsistencyProofRequest44,
+			wantHashes: [][]byte{},
+			nodeIDs:    []storage.NodeID{},
+			nodes:      []storage.Node{},
+		},
+	}
+
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	// getConsistencyProofRequest7 - tests a normal request which should succeed
-	// getConsistencyProofRequest44 - tests an edge condition we used to reject but now support
-	// for compatibility with the older C++ log servers.
-	testCases := []trillian.GetConsistencyProofRequest{getConsistencyProofRequest7, getConsistencyProofRequest44}
-	nodeIDs := [][]storage.NodeID{nodeIdsConsistencySize4ToSize7, {}}
-	hashes := [][][]byte{{[]byte("nodehash")}, {}}
-	nodes := [][]storage.Node{{{NodeID: stestonly.MustCreateNodeIDForTreeCoords(2, 1, 64), NodeRevision: 3, Hash: []byte("nodehash")}}, {}}
-
-	for i := range testCases {
+	for _, test := range tests {
 		mockStorage := storage.NewMockLogStorage(ctrl)
 		mockTx := storage.NewMockLogTreeTX(ctrl)
-		mockStorage.EXPECT().SnapshotForTree(gomock.Any(), testCases[i].LogId).Return(mockTx, nil)
-
-		mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(signedRoot1, nil)
-		mockTx.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
-		mockTx.EXPECT().GetMerkleNodes(gomock.Any(), revision1, nodeIDs[i]).Return(nodes[i], nil)
-		mockTx.EXPECT().Commit().Return(nil)
-		mockTx.EXPECT().Close().Return(nil)
+		if !test.noSnap {
+			mockStorage.EXPECT().SnapshotForTree(gomock.Any(), test.req.LogId).Return(mockTx, test.snapErr)
+		}
+		if !test.noRoot {
+			mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(signedRoot1, test.rootErr)
+		}
+		if !test.noRev {
+			mockTx.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
+		}
+		if test.nodeIDs != nil {
+			mockTx.EXPECT().GetMerkleNodes(gomock.Any(), revision1, test.nodeIDs).Return(test.nodes, test.getNodesErr)
+		}
+		if !test.noCommit {
+			mockTx.EXPECT().Commit().Return(test.commitErr)
+		}
+		if !test.noClose {
+			mockTx.EXPECT().Close().Return(nil)
+		}
 
 		registry := extension.Registry{
-			AdminStorage: mockAdminStorage(ctrl, testCases[i].LogId),
+			AdminStorage: mockAdminStorage(ctrl, test.req.LogId),
 			LogStorage:   mockStorage,
 		}
 		server := NewTrillianLogRPCServer(registry, fakeTimeSource)
+		response, err := server.GetConsistencyProof(context.Background(), &test.req)
 
-		response, err := server.GetConsistencyProof(context.Background(), &testCases[i])
-		if err != nil {
-			t.Fatalf("failed to get consistency proof: %v", err)
-		}
-
-		// Ensure we got the expected proof
-		expectedProof := trillian.Proof{
-			LeafIndex: 0,
-			Hashes:    hashes[i],
-		}
-		if !proto.Equal(response.Proof, &expectedProof) {
-			t.Fatalf("expected proof: %v but got: %v", expectedProof, response.Proof)
+		if test.wantErr {
+			if err == nil {
+				t.Errorf("GetConsistencyProof(%+v)=nil, want: err", test.req)
+			}
+		} else {
+			if err != nil {
+				t.Errorf("GetConsistencyProof(%+v)=%v, want: nil", test.req, err)
+			}
+			// Ensure we got the expected proof.
+			wantProof := trillian.Proof{
+				LeafIndex: 0,
+				Hashes:    test.wantHashes,
+			}
+			if got, want := response.Proof, &wantProof; !proto.Equal(got, want) {
+				t.Errorf("GetConsistencyProof(%+v)=%v, want: %v", test.req, got, want)
+			}
 		}
 	}
 }
