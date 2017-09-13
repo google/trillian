@@ -3,7 +3,6 @@ language: go
 
 os:
   - linux
-  - osx
 
 git:
   depth: 10
@@ -22,14 +21,9 @@ matrix:
   fast_finish: true
   allow_failures:
     - os: osx
-  exclude:
-    # Don't run optional build tags / features on OSX
-    - os: osx
-      env: GOFLAGS='-race --tags batched_queue'
-    - os: osx
-      env: GOFLAGS='-race' WITH_ETCD=true
-    - os: osx
-      env: GOFLAGS='-race --tags pkcs11' WITH_PKCS11=true
+  include:
+    - os: osx  # Run only "vanilla" tests on osx
+      env:
 
 services: mysql
 
