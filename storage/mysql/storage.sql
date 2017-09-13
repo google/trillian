@@ -120,6 +120,10 @@ CREATE TABLE IF NOT EXISTS Unsequenced(
   -- CT this hash will include the leaf prefix byte as well as the leaf data.
   MerkleLeafHash       VARBINARY(255) NOT NULL,
   QueueTimestampNanos  BIGINT NOT NULL,
+  -- This is a SHA256 hash of the TreeID, LeafIdentityHash and QueueTimestampNanos. It is used
+  -- for batched deletes from the table when trillian_log_server and trillian_log_signer are
+  -- built with the batched_queue tag.
+  QueueID VARBINARY(32) DEFAULT NULL UNIQUE,
   PRIMARY KEY (TreeId, Bucket, QueueTimestampNanos, LeafIdentityHash)
 );
 
