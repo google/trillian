@@ -205,7 +205,7 @@ func (tester *AdminStorageTester) TestUpdateTree(t *testing.T) {
 	ctx := context.Background()
 	s := tester.NewAdminStorage()
 
-	unrelatedTree := makeTreeOrFail(ctx, t.Fatalf, s, spec{Tree: MapTree})
+	unrelatedTree := makeTreeOrFail(ctx, s, spec{Tree: MapTree}, t.Fatalf)
 
 	referenceLog := *LogTree
 	validLog := referenceLog
@@ -367,10 +367,10 @@ func (tester *AdminStorageTester) TestListTrees(t *testing.T) {
 	run("empty", nil /* wantTrees */)
 
 	// Add some trees and do another pass
-	activeLog := makeTreeOrFail(ctx, t.Fatalf, s, spec{Tree: LogTree})
-	frozenLog := makeTreeOrFail(ctx, t.Fatalf, s, spec{Tree: LogTree, Frozen: true})
-	deletedLog := makeTreeOrFail(ctx, t.Fatalf, s, spec{Tree: LogTree, Deleted: true})
-	activeMap := makeTreeOrFail(ctx, t.Fatalf, s, spec{Tree: MapTree})
+	activeLog := makeTreeOrFail(ctx, s, spec{Tree: LogTree}, t.Fatalf)
+	frozenLog := makeTreeOrFail(ctx, s, spec{Tree: LogTree, Frozen: true}, t.Fatalf)
+	deletedLog := makeTreeOrFail(ctx, s, spec{Tree: LogTree, Deleted: true}, t.Fatalf)
+	activeMap := makeTreeOrFail(ctx, s, spec{Tree: MapTree}, t.Fatalf)
 	run("multipleTrees", []*trillian.Tree{activeLog, frozenLog, deletedLog, activeMap})
 }
 
@@ -420,8 +420,8 @@ func (tester *AdminStorageTester) TestSoftDeleteTree(t *testing.T) {
 	ctx := context.Background()
 	s := tester.NewAdminStorage()
 
-	logTree := makeTreeOrFail(ctx, t.Fatalf, s, spec{Tree: LogTree})
-	mapTree := makeTreeOrFail(ctx, t.Fatalf, s, spec{Tree: MapTree})
+	logTree := makeTreeOrFail(ctx, s, spec{Tree: LogTree}, t.Fatalf)
+	mapTree := makeTreeOrFail(ctx, s, spec{Tree: MapTree}, t.Fatalf)
 
 	tests := []struct {
 		desc string
@@ -459,7 +459,7 @@ func (tester *AdminStorageTester) TestSoftDeleteTreeErrors(t *testing.T) {
 	ctx := context.Background()
 	s := tester.NewAdminStorage()
 
-	softDeleted := makeTreeOrFail(ctx, t.Fatalf, s, spec{Tree: LogTree, Deleted: true})
+	softDeleted := makeTreeOrFail(ctx, s, spec{Tree: LogTree, Deleted: true}, t.Fatalf)
 
 	tests := []struct {
 		desc     string
@@ -481,14 +481,16 @@ func (tester *AdminStorageTester) TestHardDeleteTree(t *testing.T) {
 	ctx := context.Background()
 	s := tester.NewAdminStorage()
 
-	logTree := makeTreeOrFail(ctx, t.Fatalf, s, spec{Tree: LogTree, Deleted: true})
-	mapTree := makeTreeOrFail(ctx, t.Fatalf, s, spec{Tree: MapTree, Deleted: true})
+	logTree := makeTreeOrFail(ctx, s, spec{Tree: LogTree, Deleted: true}, t.Fatalf)
+	frozenTree := makeTreeOrFail(ctx, s, spec{Tree: LogTree, Deleted: true, Frozen: true}, t.Fatalf)
+	mapTree := makeTreeOrFail(ctx, s, spec{Tree: MapTree, Deleted: true}, t.Fatalf)
 
 	tests := []struct {
 		desc   string
 		treeID int64
 	}{
 		{desc: "logTree", treeID: logTree.TreeId},
+		{desc: "frozenTree", treeID: frozenTree.TreeId},
 		{desc: "mapTree", treeID: mapTree.TreeId},
 	}
 	for _, test := range tests {
@@ -504,7 +506,7 @@ func (tester *AdminStorageTester) TestHardDeleteTreeErrors(t *testing.T) {
 	ctx := context.Background()
 	s := tester.NewAdminStorage()
 
-	activeTree := makeTreeOrFail(ctx, t.Fatalf, s, spec{Tree: LogTree})
+	activeTree := makeTreeOrFail(ctx, s, spec{Tree: LogTree}, t.Fatalf)
 
 	tests := []struct {
 		desc     string
@@ -538,8 +540,8 @@ func (tester *AdminStorageTester) TestUndeleteTree(t *testing.T) {
 	ctx := context.Background()
 	s := tester.NewAdminStorage()
 
-	activeDeleted := makeTreeOrFail(ctx, t.Fatalf, s, spec{Tree: LogTree, Deleted: true})
-	frozenDeleted := makeTreeOrFail(ctx, t.Fatalf, s, spec{Tree: LogTree, Frozen: true, Deleted: true})
+	activeDeleted := makeTreeOrFail(ctx, s, spec{Tree: LogTree, Deleted: true}, t.Fatalf)
+	frozenDeleted := makeTreeOrFail(ctx, s, spec{Tree: LogTree, Frozen: true, Deleted: true}, t.Fatalf)
 
 	tests := []struct {
 		desc string
@@ -573,7 +575,7 @@ func (tester *AdminStorageTester) TestUndeleteTreeErrors(t *testing.T) {
 	ctx := context.Background()
 	s := tester.NewAdminStorage()
 
-	activeTree := makeTreeOrFail(ctx, t.Fatalf, s, spec{Tree: LogTree})
+	activeTree := makeTreeOrFail(ctx, s, spec{Tree: LogTree}, t.Fatalf)
 
 	tests := []struct {
 		desc     string
@@ -686,7 +688,7 @@ type spec struct {
 }
 
 // makeTreeOrFail delegates to makeTree. If makeTree returns a non-nil error, failFn is called.
-func makeTreeOrFail(ctx context.Context, failFn func(string, ...interface{}), s storage.AdminStorage, spec spec) *trillian.Tree {
+func makeTreeOrFail(ctx context.Context, s storage.AdminStorage, spec spec, failFn func(string, ...interface{})) *trillian.Tree {
 	tree, err := makeTree(ctx, s, spec)
 	if err != nil {
 		failFn("makeTree() returned err = %v", err)

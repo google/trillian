@@ -246,7 +246,7 @@ func readTree(row row) (*trillian.Tree, error) {
 	tree.PublicKey = &keyspb.PublicKey{Der: publicKey}
 
 	tree.Deleted = deleted.Valid && deleted.Bool
-	if deleteMillis.Valid {
+	if tree.Deleted && deleteMillis.Valid {
 		tree.DeleteTime, err = ptypes.TimestampProto(fromMillisSinceEpoch(deleteMillis.Int64))
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse delete time: %v", err)
