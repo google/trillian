@@ -93,16 +93,27 @@ main() {
     go build ${goflags} ${go_dirs}
 
     echo 'running go test'
-    echo "" > coverage.txt
 
+    # Individual package profiles are written to "profile_$i.out" files under
+    # /tmp/trillian_profile.
+    # An aggregate profile is created at /tmp/coverage.txt.
+    mkdir -p /tmp/trillian_profile
+    rm -f /tmp/trillian_profile/*
+
+    i=0
     for d in ${go_dirs}; do
-      go test -timeout=5m -short -coverprofile=profile.out -covermode=atomic ${goflags} $d
-      if [ -f profile.out ]; then
-        cat profile.out >> coverage.txt
-        rm profile.out
-      fi
-    done
-    cp coverage.txt /tmp
+      # Do not run go test in the loop, instead echo it so we can use xargs to
+      # add some parallelism.
+      # Creating different -coverprofile files in a single xargs invocation is
+      # tricky, hence the loop is kept.
+      echo go test \
+        -covermode=atomic \
+        -coverprofile="/tmp/trillian_profile/profile_$((i++)).out" \
+        -short \
+        -timeout=5m \
+        ${goflags} "$d"
+    done | xargs -I '@' -P 10 bash -c '@'
+    cat /tmp/trillian_profile/profile_*.out > /tmp/coverage.txt
   fi
 
   if [[ "${run_linters}" -eq 1 ]]; then
