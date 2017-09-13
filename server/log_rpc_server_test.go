@@ -1132,20 +1132,6 @@ func TestGetSequencedLeafCount(t *testing.T) {
 	}
 }
 
-func TestGetConsistencyProofBeginTXFails(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	test := newParameterizedTest(ctrl, "GetConsistencyProof", readOnly,
-		func(t *storage.MockLogTreeTX) {},
-		func(s *TrillianLogRPCServer) error {
-			_, err := s.GetConsistencyProof(context.Background(), &getConsistencyProofRequest25)
-			return err
-		})
-
-	test.executeBeginFailsTest(t, getConsistencyProofRequest25.LogId)
-}
-
 type consistProofTest struct {
 	req         trillian.GetConsistencyProofRequest
 	wantErr     bool
