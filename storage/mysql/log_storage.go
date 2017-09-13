@@ -308,7 +308,7 @@ func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime tim
 		}
 
 		if len(leaf.LeafIdentityHash) != t.hashSizeBytes {
-			return nil, errors.New("Dequeued a leaf with incorrect hash size")
+			return nil, errors.New("dequeued a leaf with incorrect hash size")
 		}
 
 		leaves = append(leaves, leaf)
