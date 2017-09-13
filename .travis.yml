@@ -5,28 +5,33 @@ os:
   - linux
   - osx
 
+git:
+  depth: 10
+  submodules: false
+
 go:
   - 1.8
 
 env:
-  - GOFLAGS=''
   - GOFLAGS='-race'
-  - GOFLAGS='--tags batched_queue'
   - GOFLAGS='-race --tags batched_queue'
-  - GOFLAGS=''                           WITH_ETCD=true
-  - GOFLAGS='-race'                      WITH_ETCD=true
-  - GOFLAGS='--tags pkcs11'              WITH_PKCS11=true
-  - GOFLAGS='-race --tags pkcs11'        WITH_PKCS11=true
+  - GOFLAGS='-race' WITH_ETCD=true
+  - GOFLAGS='-race --tags pkcs11' WITH_PKCS11=true
 
 matrix:
   fast_finish: true
   allow_failures:
     - os: osx
   exclude:
+    # Don't run optional build tags / features on OSX
     - os: osx
-      env: GOFLAGS=      WITH_PKCS11=true
+      env: GOFLAGS='-race --tags batched_queue'
     - os: osx
-      env: GOFLAGS=-race WITH_PKCS11=true
+      env: GOFLAGS='-race' WITH_ETCD=true
+    - os: osx
+      env: GOFLAGS='-race --tags pkcs11' WITH_PKCS11=true
+
+services: mysql
 
 install:
   - if [[ "${WITH_PKCS11}" == "true" ]]; then sudo apt-get install softhsm ; fi
@@ -64,6 +69,10 @@ install:
   - go install ./vendor/github.com/coreos/etcd/cmd/etcd
   - go install ./vendor/github.com/coreos/etcd/cmd/etcdctl
 
+
+before_script:
+  - yes | ./scripts/resetdb.sh
+
 script:
   - set -e
   - cd $HOME/gopath/src/github.com/google/trillian
@@ -87,11 +96,6 @@ script:
   - cd $HOME/gopath/src/github.com/google/certificate-transparency-go
   - ./trillian/integration/integration_test.sh
   - set +e
-
-services: mysql
-
-before_script:
-  - yes | ./scripts/resetdb.sh
 
 after_success:
   - cp /tmp/coverage.txt .
