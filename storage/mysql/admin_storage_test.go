@@ -92,7 +92,7 @@ func TestAdminTX_TreeWithNulls(t *testing.T) {
 			// in case.
 			desc: "ListTreeIDs",
 			fn: func(ctx context.Context, tx storage.AdminTX, treeID int64) error {
-				ids, err := tx.ListTreeIDs(ctx)
+				ids, err := tx.ListTreeIDs(ctx, false /* includeDeleted */)
 				if err != nil {
 					return err
 				}
@@ -107,7 +107,7 @@ func TestAdminTX_TreeWithNulls(t *testing.T) {
 		{
 			desc: "ListTrees",
 			fn: func(ctx context.Context, tx storage.AdminTX, treeID int64) error {
-				trees, err := tx.ListTrees(ctx)
+				trees, err := tx.ListTrees(ctx, false /* includeDeleted */)
 				if err != nil {
 					return err
 				}
