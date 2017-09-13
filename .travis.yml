@@ -12,7 +12,7 @@ go:
   - 1.8
 
 env:
-  - GOFLAGS='-race'
+  - GOFLAGS='-race' WITH_COVERAGE=true
   - GOFLAGS='-race --tags batched_queue'
   - GOFLAGS='-race' WITH_ETCD=true
   - GOFLAGS='-race --tags pkcs11' WITH_PKCS11=true
@@ -69,7 +69,7 @@ before_script:
 script:
   - set -e
   - cd "$HOME/gopath/src/github.com/google/trillian"
-  - ./scripts/presubmit.sh
+  - ./scripts/presubmit.sh ${WITH_COVERAGE:+--coverage}
   - |
       # Check re-generation didn't change anything
       # Skip protoc-generated files (.pb.go) because protoc is not deterministic
@@ -91,5 +91,8 @@ script:
   - set +e
 
 after_success:
-  - cp /tmp/coverage.txt .
-  - bash <(curl -s https://codecov.io/bash)
+  - |
+      if [[ -f /tmp/coverage.txt ]]; then
+        cp /tmp/coverage.txt .
+        bash <(curl -s https://codecov.io/bash)
+      fi

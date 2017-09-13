@@ -1,6 +1,7 @@
 #!/bin/bash
 #
 # Presubmit checks for Trillian.
+#
 # Checks for lint errors, spelling, licensing, correct builds / tests and so on.
 # Flags may be specified to allow suppressing of checks or automatic fixes, try
 # `scripts/presubmit.sh --help` for details.
@@ -25,18 +26,22 @@ check_cmd() {
 }
 
 usage() {
-  echo "$0 [--fix] [--no-build] [--no-linters] [--no-generate]"
+  echo "$0 [--coverage] [--fix] [--no-build] [--no-linters] [--no-generate]"
 }
 
 main() {
   check_deps
 
+  local coverage=0
   local fix=0
   local run_build=1
   local run_linters=1
   local run_generate=1
   while [[ $# -gt 0 ]]; do
     case "$1" in
+      --coverage)
+        coverage=1
+        ;;
       --fix)
         fix=1
         ;;
@@ -100,20 +105,23 @@ main() {
     mkdir -p /tmp/trillian_profile
     rm -f /tmp/trillian_profile/*
 
-    i=0
+    local i=0
     for d in ${go_dirs}; do
+      # Create a different -coverprofile for each test (if enabled)
+      local coverflags=
+      if [[ ${coverage} -eq 1 ]]; then
+        coverflags="-covermode=atomic -coverprofile='/tmp/trillian_profile/profile_${i}.out'"
+      fi
+
       # Do not run go test in the loop, instead echo it so we can use xargs to
       # add some parallelism.
-      # Creating different -coverprofile files in a single xargs invocation is
-      # tricky, hence the loop is kept.
-      echo go test \
-        -covermode=atomic \
-        -coverprofile="/tmp/trillian_profile/profile_$((i++)).out" \
-        -short \
-        -timeout=5m \
-        ${goflags} "$d"
-    done | xargs -I '@' -P 10 bash -c '@'
-    cat /tmp/trillian_profile/profile_*.out > /tmp/coverage.txt
+      echo go test -short -timeout=5m ${coverflags} ${goflags} "$d"
+
+      i=$((i+1))
+    done | xargs -I '{}' -P 10 bash -c '{}'
+
+    [[ ${coverage} -eq 1 ]] && \
+      cat /tmp/trillian_profile/profile_*.out > /tmp/coverage.txt
   fi
 
   if [[ "${run_linters}" -eq 1 ]]; then
