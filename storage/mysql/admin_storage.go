@@ -263,7 +263,7 @@ func setNullStringIfValid(src sql.NullString, dest *string) {
 	}
 }
 
-func (t *adminTX) ListTreeIDs(ctx context.Context) ([]int64, error) {
+func (t *adminTX) ListTreeIDs(ctx context.Context, includeDeleted bool) ([]int64, error) {
 	stmt, err := t.tx.PrepareContext(ctx, "SELECT TreeId FROM Trees")
 	if err != nil {
 		return nil, err
@@ -287,7 +287,7 @@ func (t *adminTX) ListTreeIDs(ctx context.Context) ([]int64, error) {
 	return treeIDs, nil
 }
 
-func (t *adminTX) ListTrees(ctx context.Context) ([]*trillian.Tree, error) {
+func (t *adminTX) ListTrees(ctx context.Context, includeDeleted bool) ([]*trillian.Tree, error) {
 	stmt, err := t.tx.PrepareContext(ctx, selectTrees)
 	if err != nil {
 		return nil, err

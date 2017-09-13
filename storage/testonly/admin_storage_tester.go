@@ -375,7 +375,7 @@ func (tester *AdminStorageTester) TestListTrees(t *testing.T) {
 }
 
 func runListTreeIDsTest(ctx context.Context, tx storage.ReadOnlyAdminTX, wantTrees []*trillian.Tree) error {
-	got, err := tx.ListTreeIDs(ctx)
+	got, err := tx.ListTreeIDs(ctx, true /* includeDeleted */)
 	if err != nil {
 		return fmt.Errorf("ListTreeIDs() returned err = %v", err)
 	}
@@ -394,7 +394,7 @@ func runListTreeIDsTest(ctx context.Context, tx storage.ReadOnlyAdminTX, wantTre
 }
 
 func runListTreesTest(ctx context.Context, tx storage.ReadOnlyAdminTX, wantTrees []*trillian.Tree) error {
-	got, err := tx.ListTrees(ctx)
+	got, err := tx.ListTrees(ctx, true /* includeDeleted */)
 	if err != nil {
 		return fmt.Errorf("ListTrees() returned err = %v", err)
 	}
