@@ -1279,11 +1279,11 @@ func TestGetConsistencyProof(t *testing.T) {
 
 		if test.wantErr {
 			if err == nil {
-				t.Errorf("TestGetConsistencyProof(%+v)=nil, want: err", test.req)
+				t.Errorf("GetConsistencyProof(%+v)=nil, want: err", test.req)
 			}
 		} else {
 			if err != nil {
-				t.Errorf("TestGetConsistencyProof(%+v)=%v, want: nil", test.req, err)
+				t.Errorf("GetConsistencyProof(%+v)=%v, want: nil", test.req, err)
 			}
 			// Ensure we got the expected proof.
 			wantProof := trillian.Proof{
@@ -1291,7 +1291,7 @@ func TestGetConsistencyProof(t *testing.T) {
 				Hashes:    test.wantHashes,
 			}
 			if got, want := response.Proof, &wantProof; !proto.Equal(got, want) {
-				t.Errorf("TestGetConsistencyProof got: %v, want: %v", got, want)
+				t.Errorf("GetConsistencyProof(%+v)=%v, want: %v", test.req, got, want)
 			}
 		}
 	}
