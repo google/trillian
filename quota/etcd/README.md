@@ -146,18 +146,18 @@ more tokens are restored per leaf batch. A value slightly higher than 1 (e.g.
 too much compromise of the quota system in exceptional situations.
 
 `--quota_max_cache_entries` and `--quota_min_batch_size` are related to token
-caching. Some level of token caching (i.e., both flags having values > 0) is
+caching. Some level of token caching (i.e. both flags having values > 0) is
 recommended to lessen the latency impact of rate limiting.
 
-`--quota_min_batch_size` is the least number of tokens acquired from etcd. If a
-particular request demands less tokens than the minimal batch size, the
-remaining tokens are kept in memory, saving new requests to etcd until those are
-insufficient.
+`--quota_min_batch_size` is the minimum number of tokens acquired from etcd. If
+a particular request demands fewer tokens than the minimal batch size, the
+remaining tokens are kept in memory, potentially saving new requests to etcd
+until those are consumed.
 
-`--quota_max_cache_entries` relates to how many quota Specs are kept in the
-cache. Tokens are cached per Spec using a LRU replacement policy. In case of
-systems with a high number of trees or users, the least used ones are evicted
-from the cache (and their tokens returned).
+`--quota_max_cache_entries` determines how many quota Specs are cached. Tokens
+are cached per Spec using a LRU replacement policy. In case of systems with a
+high number of trees or users, the least used ones are evicted from the cache
+(and their tokens returned).
 
 ### Monitoring
 
