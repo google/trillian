@@ -351,7 +351,6 @@ func TestQueueLeavesBeginFailsCausesError(t *testing.T) {
 type latestRootTest struct {
 	req         trillian.GetLatestSignedLogRootRequest
 	wantRoot    trillian.GetLatestSignedLogRootResponse
-	wantErr     bool
 	errStr      string
 	noSnap      bool
 	snapErr     error
@@ -371,7 +370,6 @@ func TestGetLatestSignedLogRoot2(t *testing.T) {
 		{
 			// Test error case when failing to get a snapshot from storage.
 			req:      getLogRootRequest1,
-			wantErr:  true,
 			snapErr:  errors.New("SnapshotForTree() error"),
 			errStr:   "SnapshotFor",
 			noRoot:   true,
@@ -381,7 +379,6 @@ func TestGetLatestSignedLogRoot2(t *testing.T) {
 		{
 			// Test error case when storage fails to provide a root.
 			req:      getLogRootRequest1,
-			wantErr:  true,
 			errStr:   "LatestSigned",
 			rootErr:  errors.New("LatestSignedLogRoot() error"),
 			noCommit: true,
@@ -389,7 +386,6 @@ func TestGetLatestSignedLogRoot2(t *testing.T) {
 		{
 			// Test error case where storage fails to commit the tx.
 			req:       getLogRootRequest1,
-			wantErr:   true,
 			errStr:    "Commit",
 			commitErr: errors.New("Commit() error"),
 		},
@@ -423,7 +419,7 @@ func TestGetLatestSignedLogRoot2(t *testing.T) {
 		}
 		s := NewTrillianLogRPCServer(registry, fakeTimeSource)
 		got, err := s.GetLatestSignedLogRoot(context.Background(), &test.req)
-		if test.wantErr {
+		if len(test.errStr) > 0 {
 			if err == nil || !strings.Contains(err.Error(), test.errStr) {
 				t.Errorf("GetLatestSignedLogRoot(%+v)=_,nil, want: _,err contains: %s but got: %v", test.req, test.errStr, err)
 			}
@@ -1132,7 +1128,6 @@ func TestGetSequencedLeafCount(t *testing.T) {
 
 type consistProofTest struct {
 	req         trillian.GetConsistencyProofRequest
-	wantErr     bool
 	errStr      string
 	wantHashes  [][]byte
 	noSnap      bool
@@ -1154,7 +1149,6 @@ func TestGetConsistencyProof(t *testing.T) {
 			// Storage snapshot fails, should result in an error. Happens before we have a TX so
 			// no Close() etc.
 			req:      getConsistencyProofRequest7,
-			wantErr:  true,
 			errStr:   "SnapshotFor",
 			snapErr:  errors.New("SnapshotForTree() failed"),
 			noRoot:   true,
@@ -1165,7 +1159,6 @@ func TestGetConsistencyProof(t *testing.T) {
 		{
 			// Storage fails to read the log root, should result in an error.
 			req:      getConsistencyProofRequest7,
-			wantErr:  true,
 			errStr:   "LatestSigned",
 			rootErr:  errors.New("LatestSignedLogRoot() failed"),
 			noRev:    true,
@@ -1174,7 +1167,6 @@ func TestGetConsistencyProof(t *testing.T) {
 		{
 			// Storage fails to get nodes, should result in an error
 			req:         getConsistencyProofRequest7,
-			wantErr:     true,
 			errStr:      "getMerkle",
 			nodeIDs:     nodeIdsConsistencySize4ToSize7,
 			wantHashes:  [][]byte{[]byte("nodehash")},
@@ -1185,7 +1177,6 @@ func TestGetConsistencyProof(t *testing.T) {
 		{
 			// Storage fails to commit, should result in an error.
 			req:        getConsistencyProofRequest7,
-			wantErr:    true,
 			errStr:     "Commit",
 			wantHashes: [][]byte{[]byte("nodehash")},
 			nodeIDs:    nodeIdsConsistencySize4ToSize7,
@@ -1195,7 +1186,6 @@ func TestGetConsistencyProof(t *testing.T) {
 		{
 			// Storage doesn't return the requested node, should result in an error.
 			req:        getConsistencyProofRequest7,
-			wantErr:    true,
 			errStr:     "expected node {{[0 0 0 0 0 0 0 4] 62}",
 			wantHashes: [][]byte{[]byte("nodehash")},
 			nodeIDs:    nodeIdsConsistencySize4ToSize7,
@@ -1205,7 +1195,6 @@ func TestGetConsistencyProof(t *testing.T) {
 		{
 			// Storage returns an unexpected extra node, should result in an error.
 			req:        getConsistencyProofRequest7,
-			wantErr:    true,
 			errStr:     "expected 1 nodes",
 			wantHashes: [][]byte{[]byte("nodehash")},
 			nodeIDs:    nodeIdsConsistencySize4ToSize7,
@@ -1215,7 +1204,6 @@ func TestGetConsistencyProof(t *testing.T) {
 		{
 			// Ask for a proof from size 4 to 8 but the tree is only size 7. This should fail.
 			req:        getConsistencyProofRequest48,
-			wantErr:    true,
 			errStr:     "snapshot2 8 > treeSize 7",
 			wantHashes: [][]byte{},
 			nodeIDs:    nil,
@@ -1226,7 +1214,6 @@ func TestGetConsistencyProof(t *testing.T) {
 			// Ask for a proof from size 5 to 4, testing the boundary condition. This request should fail
 			// before making any storage requests.
 			req:        getConsistencyProofRequest54,
-			wantErr:    true,
 			errStr:     "FirstTreeSize: 5 < GetConsistencyProofRequest.SecondTreeSize: 4",
 			wantHashes: [][]byte{},
 			noSnap:     true,
@@ -1284,13 +1271,13 @@ func TestGetConsistencyProof(t *testing.T) {
 		server := NewTrillianLogRPCServer(registry, fakeTimeSource)
 		response, err := server.GetConsistencyProof(context.Background(), &test.req)
 
-		if test.wantErr {
+		if len(test.errStr) > 0 {
 			if err == nil || !strings.Contains(err.Error(), test.errStr) {
-				t.Errorf("GetConsistencyProof(%+v)=_,nil, want: _,err contains: %s but got: %v", test.req, test.errStr, err)
+				t.Errorf("GetConsistencyProof(%+v)=_, %v; want _, err containing %q", test.req, err, test.errStr)
 			}
 		} else {
 			if err != nil {
-				t.Errorf("GetConsistencyProof(%+v)=%v,err, want: _,nil", test.req, err)
+				t.Errorf("GetConsistencyProof(%+v)=_,%v; want: _,nil", test.req, err)
 				continue
 			}
 			// Ensure we got the expected proof.
