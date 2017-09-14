@@ -5,6 +5,9 @@
 # Checks for lint errors, spelling, licensing, correct builds / tests and so on.
 # Flags may be specified to allow suppressing of checks or automatic fixes, try
 # `scripts/presubmit.sh --help` for details.
+#
+# Globals:
+#   GO_TEST_PARALLELISM: max processes to use for Go tests. Optional.
 set -eu
 
 check_deps() {
@@ -99,29 +102,34 @@ main() {
 
     echo 'running go test'
 
-    # Individual package profiles are written to "profile_$i.out" files under
+    # Individual package profiles are written to "$profile.out" files under
     # /tmp/trillian_profile.
     # An aggregate profile is created at /tmp/coverage.txt.
     mkdir -p /tmp/trillian_profile
     rm -f /tmp/trillian_profile/*
 
-    local i=0
     for d in ${go_dirs}; do
       # Create a different -coverprofile for each test (if enabled)
       local coverflags=
       if [[ ${coverage} -eq 1 ]]; then
-        coverflags="-covermode=atomic -coverprofile='/tmp/trillian_profile/profile_${i}.out'"
+        # Transform $d to a smaller, valid file name.
+        # For example:
+        # * github.com/google/trillian becomes trillian.out
+        # * github.com/google/trillian/cmd/createtree/keys becomes
+        #   trillian-cmd-createtree-keys.out
+        local profile="${d}.out"
+        profile="${profile#github.com/*/}"
+        profile="${profile//\//-}"
+        coverflags="-covermode=atomic -coverprofile='/tmp/trillian_profile/${profile}'"
       fi
 
       # Do not run go test in the loop, instead echo it so we can use xargs to
       # add some parallelism.
       echo go test -short -timeout=5m ${coverflags} ${goflags} "$d"
-
-      i=$((i+1))
-    done | xargs -I '{}' -P 10 bash -c '{}'
+    done | xargs -I '{}' -P ${GO_TEST_PARALLELISM:=10} bash -c '{}'
 
     [[ ${coverage} -eq 1 ]] && \
-      cat /tmp/trillian_profile/profile_*.out > /tmp/coverage.txt
+      cat /tmp/trillian_profile/*.out > /tmp/coverage.txt
   fi
 
   if [[ "${run_linters}" -eq 1 ]]; then

@@ -4,15 +4,12 @@ language: go
 os:
   - linux
 
-git:
-  depth: 10
-  submodules: false
-
 go:
   - 1.8
 
 env:
-  - GOFLAGS='-race' WITH_COVERAGE=true
+  - WITH_COVERAGE=true
+  - GOFLAGS='-race'
   - GOFLAGS='-race --tags batched_queue'
   - GOFLAGS='-race' WITH_ETCD=true
   - GOFLAGS='-race --tags pkcs11' WITH_PKCS11=true
