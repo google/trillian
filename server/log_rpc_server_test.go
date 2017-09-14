@@ -421,15 +421,15 @@ func TestGetLatestSignedLogRoot2(t *testing.T) {
 		resp, err := s.GetLatestSignedLogRoot(context.Background(), &test.req)
 		if test.wantErr {
 			if err == nil {
-				t.Errorf("GetLatestSignedLogRoot(%+v)=nil, want: err", test.req)
+				t.Errorf("GetLatestSignedLogRoot(%+v)=_,nil, want: _,err", test.req)
 			}
 		} else {
 			if err != nil {
-				t.Errorf("GetLatestSignedLogRoot(%+v)=%v, want: nil", test.req, err)
+				t.Errorf("GetLatestSignedLogRoot(%+v)=_,%v, want: _,nil", test.req, err)
 			}
 			// Ensure we got the expected root back.
 			if got, want := resp, &test.wantRoot; !proto.Equal(got, want) {
-				t.Errorf("GetConsistencyProof(%+v)=%v, want: %v", test.req, got, want)
+				t.Errorf("GetConsistencyProof(%+v)=%v,nil, want: %v,nil", test.req, got, want)
 			}
 		}
 	}
@@ -1272,11 +1272,11 @@ func TestGetConsistencyProof(t *testing.T) {
 
 		if test.wantErr {
 			if err == nil {
-				t.Errorf("GetConsistencyProof(%+v)=nil, want: err", test.req)
+				t.Errorf("GetConsistencyProof(%+v)=_,nil, want: _,err", test.req)
 			}
 		} else {
 			if err != nil {
-				t.Errorf("GetConsistencyProof(%+v)=%v, want: nil", test.req, err)
+				t.Errorf("GetConsistencyProof(%+v)=%v,err, want: _,nil", test.req, err)
 			}
 			// Ensure we got the expected proof.
 			wantProof := trillian.Proof{
@@ -1284,7 +1284,7 @@ func TestGetConsistencyProof(t *testing.T) {
 				Hashes:    test.wantHashes,
 			}
 			if got, want := response.Proof, &wantProof; !proto.Equal(got, want) {
-				t.Errorf("GetConsistencyProof(%+v)=%v, want: %v", test.req, got, want)
+				t.Errorf("GetConsistencyProof(%+v)=%v,nil, want: %v,nil", test.req, got, want)
 			}
 		}
 	}
