@@ -418,7 +418,7 @@ func TestGetLatestSignedLogRoot2(t *testing.T) {
 			LogStorage:   mockStorage,
 		}
 		s := NewTrillianLogRPCServer(registry, fakeTimeSource)
-		resp, err := s.GetLatestSignedLogRoot(context.Background(), &test.req)
+		got, err := s.GetLatestSignedLogRoot(context.Background(), &test.req)
 		if test.wantErr {
 			if err == nil {
 				t.Errorf("GetLatestSignedLogRoot(%+v)=_,nil, want: _,err", test.req)
@@ -426,10 +426,11 @@ func TestGetLatestSignedLogRoot2(t *testing.T) {
 		} else {
 			if err != nil {
 				t.Errorf("GetLatestSignedLogRoot(%+v)=_,%v, want: _,nil", test.req, err)
+				continue
 			}
 			// Ensure we got the expected root back.
-			if got, want := resp, &test.wantRoot; !proto.Equal(got, want) {
-				t.Errorf("GetConsistencyProof(%+v)=%v,nil, want: %v,nil", test.req, got, want)
+			if !proto.Equal(got.SignedLogRoot, test.wantRoot.SignedLogRoot) {
+				t.Errorf("GetConsistencyProof(%+v)=%v,nil, want: %v,nil", test.req, got, test.wantRoot)
 			}
 		}
 	}
@@ -1277,6 +1278,7 @@ func TestGetConsistencyProof(t *testing.T) {
 		} else {
 			if err != nil {
 				t.Errorf("GetConsistencyProof(%+v)=%v,err, want: _,nil", test.req, err)
+				continue
 			}
 			// Ensure we got the expected proof.
 			wantProof := trillian.Proof{
