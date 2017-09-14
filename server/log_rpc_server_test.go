@@ -425,7 +425,7 @@ func TestGetLatestSignedLogRoot2(t *testing.T) {
 		got, err := s.GetLatestSignedLogRoot(context.Background(), &test.req)
 		if test.wantErr {
 			if err == nil || !strings.Contains(err.Error(), test.errStr) {
-				t.Errorf("GetLatestSignedLogRoot(%+v)=_,nil, want: _,err contains: %s", test.req, test.errStr)
+				t.Errorf("GetLatestSignedLogRoot(%+v)=_,nil, want: _,err contains: %s but got: %v", test.req, test.errStr, err)
 			}
 		} else {
 			if err != nil {
@@ -1133,6 +1133,7 @@ func TestGetSequencedLeafCount(t *testing.T) {
 type consistProofTest struct {
 	req         trillian.GetConsistencyProofRequest
 	wantErr     bool
+	errStr      string
 	wantHashes  [][]byte
 	noSnap      bool
 	snapErr     error
@@ -1154,6 +1155,7 @@ func TestGetConsistencyProof(t *testing.T) {
 			// no Close() etc.
 			req:      getConsistencyProofRequest7,
 			wantErr:  true,
+			errStr:   "SnapshotFor",
 			snapErr:  errors.New("SnapshotForTree() failed"),
 			noRoot:   true,
 			noRev:    true,
@@ -1164,6 +1166,7 @@ func TestGetConsistencyProof(t *testing.T) {
 			// Storage fails to read the log root, should result in an error.
 			req:      getConsistencyProofRequest7,
 			wantErr:  true,
+			errStr:   "LatestSigned",
 			rootErr:  errors.New("LatestSignedLogRoot() failed"),
 			noRev:    true,
 			noCommit: true,
@@ -1172,6 +1175,7 @@ func TestGetConsistencyProof(t *testing.T) {
 			// Storage fails to get nodes, should result in an error
 			req:         getConsistencyProofRequest7,
 			wantErr:     true,
+			errStr:      "getMerkle",
 			nodeIDs:     nodeIdsConsistencySize4ToSize7,
 			wantHashes:  [][]byte{[]byte("nodehash")},
 			nodes:       []storage.Node{{NodeID: stestonly.MustCreateNodeIDForTreeCoords(2, 1, 64), NodeRevision: 3, Hash: []byte("nodehash")}},
@@ -1182,6 +1186,7 @@ func TestGetConsistencyProof(t *testing.T) {
 			// Storage fails to commit, should result in an error.
 			req:        getConsistencyProofRequest7,
 			wantErr:    true,
+			errStr:     "Commit",
 			wantHashes: [][]byte{[]byte("nodehash")},
 			nodeIDs:    nodeIdsConsistencySize4ToSize7,
 			nodes:      []storage.Node{{NodeID: stestonly.MustCreateNodeIDForTreeCoords(2, 1, 64), NodeRevision: 3, Hash: []byte("nodehash")}},
@@ -1191,6 +1196,7 @@ func TestGetConsistencyProof(t *testing.T) {
 			// Storage doesn't return the requested node, should result in an error.
 			req:        getConsistencyProofRequest7,
 			wantErr:    true,
+			errStr:     "expected node {{[0 0 0 0 0 0 0 4] 62}",
 			wantHashes: [][]byte{[]byte("nodehash")},
 			nodeIDs:    nodeIdsConsistencySize4ToSize7,
 			nodes:      []storage.Node{{NodeID: stestonly.MustCreateNodeIDForTreeCoords(3, 1, 64), NodeRevision: 3, Hash: []byte("nodehash")}},
@@ -1200,6 +1206,7 @@ func TestGetConsistencyProof(t *testing.T) {
 			// Storage returns an unexpected extra node, should result in an error.
 			req:        getConsistencyProofRequest7,
 			wantErr:    true,
+			errStr:     "expected 1 nodes",
 			wantHashes: [][]byte{[]byte("nodehash")},
 			nodeIDs:    nodeIdsConsistencySize4ToSize7,
 			nodes:      []storage.Node{{NodeID: stestonly.MustCreateNodeIDForTreeCoords(2, 1, 64), NodeRevision: 3, Hash: []byte("nodehash")}, {NodeID: stestonly.MustCreateNodeIDForTreeCoords(3, 10, 64), NodeRevision: 37, Hash: []byte("nodehash2")}},
@@ -1209,6 +1216,7 @@ func TestGetConsistencyProof(t *testing.T) {
 			// Ask for a proof from size 4 to 8 but the tree is only size 7. This should fail.
 			req:        getConsistencyProofRequest48,
 			wantErr:    true,
+			errStr:     "snapshot2 8 > treeSize 7",
 			wantHashes: [][]byte{},
 			nodeIDs:    nil,
 			noRev:      true,
@@ -1219,6 +1227,7 @@ func TestGetConsistencyProof(t *testing.T) {
 			// before making any storage requests.
 			req:        getConsistencyProofRequest54,
 			wantErr:    true,
+			errStr:     "FirstTreeSize: 5 < GetConsistencyProofRequest.SecondTreeSize: 4",
 			wantHashes: [][]byte{},
 			noSnap:     true,
 			noRoot:     true,
@@ -1276,8 +1285,8 @@ func TestGetConsistencyProof(t *testing.T) {
 		response, err := server.GetConsistencyProof(context.Background(), &test.req)
 
 		if test.wantErr {
-			if err == nil {
-				t.Errorf("GetConsistencyProof(%+v)=_,nil, want: _,err", test.req)
+			if err == nil || !strings.Contains(err.Error(), test.errStr) {
+				t.Errorf("GetConsistencyProof(%+v)=_,nil, want: _,err contains: %s but got: %v", test.req, test.errStr, err)
 			}
 		} else {
 			if err != nil {
