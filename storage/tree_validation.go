@@ -93,13 +93,13 @@ func ValidateTreeForUpdate(storedTree, newTree *trillian.Tree) error {
 		return errors.New(errors.InvalidArgument, "readonly field changed: hash_algorithm")
 	case storedTree.SignatureAlgorithm != newTree.SignatureAlgorithm:
 		return errors.New(errors.InvalidArgument, "readonly field changed: signature_algorithm")
-	case storedTree.CreateTime != newTree.CreateTime:
+	case !proto.Equal(storedTree.CreateTime, newTree.CreateTime):
 		return errors.New(errors.InvalidArgument, "readonly field changed: create_time")
-	case storedTree.UpdateTime != newTree.UpdateTime:
+	case !proto.Equal(storedTree.UpdateTime, newTree.UpdateTime):
 		return errors.New(errors.InvalidArgument, "readonly field changed: update_time")
-	case storedTree.PrivateKey != newTree.PrivateKey:
+	case !proto.Equal(storedTree.PrivateKey, newTree.PrivateKey):
 		return errors.New(errors.InvalidArgument, "readonly field changed: private_key")
-	case storedTree.PublicKey != newTree.PublicKey:
+	case !proto.Equal(storedTree.PublicKey, newTree.PublicKey):
 		return errors.New(errors.InvalidArgument, "readonly field changed: public_key")
 	case storedTree.Deleted != newTree.Deleted:
 		return errors.New(errors.InvalidArgument, "readonly field changed: deleted")

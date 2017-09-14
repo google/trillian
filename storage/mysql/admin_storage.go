@@ -48,7 +48,9 @@ const (
 			UpdateTimeMillis,
 			PrivateKey,
 			PublicKey,
-			MaxRootDurationMillis
+			MaxRootDurationMillis,
+			Deleted,
+			DeleteTimeMillis
 		FROM Trees`
 	selectTreeByID = selectTrees + " WHERE TreeId = ?"
 )
@@ -161,6 +163,8 @@ func readTree(row row) (*trillian.Tree, error) {
 	var createMillis, updateMillis, maxRootDurationMillis int64
 	var displayName, description sql.NullString
 	var privateKey, publicKey []byte
+	var deleted sql.NullBool
+	var deleteMillis sql.NullInt64
 	err := row.Scan(
 		&tree.TreeId,
 		&treeState,
@@ -175,6 +179,8 @@ func readTree(row row) (*trillian.Tree, error) {
 		&privateKey,
 		&publicKey,
 		&maxRootDurationMillis,
+		&deleted,
+		&deleteMillis,
 	)
 	if err != nil {
 		return nil, err
@@ -238,6 +244,14 @@ func readTree(row row) (*trillian.Tree, error) {
 		return nil, fmt.Errorf("could not unmarshal PrivateKey: %v", err)
 	}
 	tree.PublicKey = &keyspb.PublicKey{Der: publicKey}
+
+	tree.Deleted = deleted.Valid && deleted.Bool
+	if tree.Deleted && deleteMillis.Valid {
+		tree.DeleteTime, err = ptypes.TimestampProto(fromMillisSinceEpoch(deleteMillis.Int64))
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse delete time: %v", err)
+		}
+	}
 
 	return tree, nil
 }
@@ -459,6 +473,60 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 	}
 
 	return tree, nil
+}
+
+func (t *adminTX) SoftDeleteTree(ctx context.Context, treeID int64) (*trillian.Tree, error) {
+	return t.updateDeleted(ctx, treeID, true /* deleted */, toMillisSinceEpoch(time.Now()) /* deleteTimeMillis */)
+}
+
+func (t *adminTX) UndeleteTree(ctx context.Context, treeID int64) (*trillian.Tree, error) {
+	return t.updateDeleted(ctx, treeID, false /* deleted */, nil /* deleteTimeMillis */)
+}
+
+// updateDeleted updates the Deleted and DeleteTimeMillis fields of the specified tree.
+// deleteTimeMillis must be either an int64 (in millis since epoch) or nil.
+func (t *adminTX) updateDeleted(ctx context.Context, treeID int64, deleted bool, deleteTimeMillis interface{}) (*trillian.Tree, error) {
+	if err := validateDeleted(ctx, t.tx, treeID, !deleted); err != nil {
+		return nil, err
+	}
+	if _, err := t.tx.ExecContext(
+		ctx,
+		"UPDATE Trees SET Deleted = ?, DeleteTimeMillis = ? WHERE TreeId = ?",
+		deleted, deleteTimeMillis, treeID); err != nil {
+		return nil, err
+	}
+	return t.GetTree(ctx, treeID)
+}
+
+func (t *adminTX) HardDeleteTree(ctx context.Context, treeID int64) error {
+	if err := validateDeleted(ctx, t.tx, treeID, true /* wantDeleted */); err != nil {
+		return err
+	}
+
+	// TreeControl didn't have "ON DELETE CASCADE" on previous versions, so let's hit it explicitly
+	if _, err := t.tx.ExecContext(ctx, "DELETE FROM TreeControl WHERE TreeId = ?", treeID); err != nil {
+		return err
+	}
+	_, err := t.tx.ExecContext(ctx, "DELETE FROM Trees WHERE TreeId = ?", treeID)
+	return err
+}
+
+func validateDeleted(ctx context.Context, tx *sql.Tx, treeID int64, wantDeleted bool) error {
+	var nullDeleted sql.NullBool
+	switch err := tx.QueryRowContext(ctx, "SELECT Deleted FROM Trees WHERE TreeId = ?", treeID).Scan(&nullDeleted); {
+	case err == sql.ErrNoRows:
+		return errors.Errorf(errors.NotFound, "tree %v not found", treeID)
+	case err != nil:
+		return err
+	}
+
+	switch deleted := nullDeleted.Valid && nullDeleted.Bool; {
+	case wantDeleted && !deleted:
+		return errors.Errorf(errors.FailedPrecondition, "tree %v is not soft deleted", treeID)
+	case !wantDeleted && deleted:
+		return errors.Errorf(errors.FailedPrecondition, "tree %v already soft deleted", treeID)
+	}
+	return nil
 }
 
 func toMillisSinceEpoch(t time.Time) int64 {

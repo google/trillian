@@ -189,6 +189,18 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 	return tree, nil
 }
 
+func (t *adminTX) SoftDeleteTree(ctx context.Context, treeID int64) (*trillian.Tree, error) {
+	return nil, fmt.Errorf("method not supported: SoftDeleteTree")
+}
+
+func (t *adminTX) HardDeleteTree(ctx context.Context, treeID int64) error {
+	return fmt.Errorf("method not supported: HardDeleteTree")
+}
+
+func (t *adminTX) UndeleteTree(ctx context.Context, treeID int64) (*trillian.Tree, error) {
+	return nil, fmt.Errorf("method not supported: UndeleteTree")
+}
+
 func validateStorageSettings(tree *trillian.Tree) error {
 	if tree.StorageSettings != nil {
 		return fmt.Errorf("storage_settings not supported, but got %v", tree.StorageSettings)

@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS TreeControl(
   SequencingEnabled       BOOLEAN NOT NULL,
   SequenceIntervalSeconds INTEGER NOT NULL,
   PRIMARY KEY(TreeId),
-  FOREIGN KEY(TreeId) REFERENCES Trees(TreeId)
+  FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS Subtree(

@@ -79,11 +79,13 @@ type AdminReader interface {
 	// ListTreeIDs returns the IDs of all trees in storage.
 	// Note that there's no authorization restriction on the IDs returned,
 	// so it should be used with caution in production code.
+	// TODO(codingllama): Allow filtering of soft deleted trees.
 	ListTreeIDs(ctx context.Context) ([]int64, error)
 
 	// ListTrees returns all trees in storage.
 	// Note that there's no authorization restriction on the trees returned,
 	// so it should be used with caution in production code.
+	// TODO(codingllama): Allow filtering of soft deleted trees.
 	ListTrees(ctx context.Context) ([]*trillian.Tree, error)
 }
 
@@ -105,4 +107,21 @@ type AdminWriter interface {
 	// Returns an error if the tree is invalid or the update cannot be
 	// performed.
 	UpdateTree(ctx context.Context, treeID int64, updateFunc func(*trillian.Tree)) (*trillian.Tree, error)
+
+	// SoftDeleteTree soft deletes the specified tree.
+	// The tree must exist and not be already soft deleted, otherwise an error is returned.
+	// Soft deletion may be undone via UndeleteTree.
+	SoftDeleteTree(ctx context.Context, treeID int64) (*trillian.Tree, error)
+
+	// HardDeleteTree hard deletes (i.e. completely removes from storage) the specified tree and all
+	// records related to it.
+	// The tree must exist and currently be soft deleted, as per SoftDeletedTree, otherwise an error
+	// is returned.
+	// Hard deleted trees cannot be recovered.
+	HardDeleteTree(ctx context.Context, treeID int64) error
+
+	// UndeleteTree undeletes a soft-deleted tree.
+	// The tree must exist and currently be soft deleted, as per SoftDeletedTree, otherwise an error
+	// is returned.
+	UndeleteTree(ctx context.Context, treeID int64) (*trillian.Tree, error)
 }
