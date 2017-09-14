@@ -352,6 +352,7 @@ type latestRootTest struct {
 	req         trillian.GetLatestSignedLogRootRequest
 	wantRoot    trillian.GetLatestSignedLogRootResponse
 	wantErr     bool
+	errStr      string
 	noSnap      bool
 	snapErr     error
 	noRoot      bool
@@ -372,6 +373,7 @@ func TestGetLatestSignedLogRoot2(t *testing.T) {
 			req:      getLogRootRequest1,
 			wantErr:  true,
 			snapErr:  errors.New("SnapshotForTree() error"),
+			errStr:   "SnapshotFor",
 			noRoot:   true,
 			noCommit: true,
 			noClose:  true,
@@ -380,6 +382,7 @@ func TestGetLatestSignedLogRoot2(t *testing.T) {
 			// Test error case when storage fails to provide a root.
 			req:      getLogRootRequest1,
 			wantErr:  true,
+			errStr:   "LatestSigned",
 			rootErr:  errors.New("LatestSignedLogRoot() error"),
 			noCommit: true,
 		},
@@ -387,6 +390,7 @@ func TestGetLatestSignedLogRoot2(t *testing.T) {
 			// Test error case where storage fails to commit the tx.
 			req:       getLogRootRequest1,
 			wantErr:   true,
+			errStr:    "Commit",
 			commitErr: errors.New("Commit() error"),
 		},
 		{
@@ -420,8 +424,8 @@ func TestGetLatestSignedLogRoot2(t *testing.T) {
 		s := NewTrillianLogRPCServer(registry, fakeTimeSource)
 		got, err := s.GetLatestSignedLogRoot(context.Background(), &test.req)
 		if test.wantErr {
-			if err == nil {
-				t.Errorf("GetLatestSignedLogRoot(%+v)=_,nil, want: _,err", test.req)
+			if err == nil || !strings.Contains(err.Error(), test.errStr) {
+				t.Errorf("GetLatestSignedLogRoot(%+v)=_,nil, want: _,err contains: %s", test.req, test.errStr)
 			}
 		} else {
 			if err != nil {
