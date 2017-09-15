@@ -23,12 +23,13 @@ import (
 	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/merkle/hashers"
-	_ "github.com/google/trillian/merkle/rfc6962" // Make hashers available
 	"github.com/google/trillian/trees"
 	"golang.org/x/net/context"
 	"google.golang.org/genproto/protobuf/field_mask"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	_ "github.com/google/trillian/merkle/rfc6962" // Make hashers available
 )
 
 var errNotImplemented = status.Errorf(codes.Unimplemented, "not implemented")
@@ -57,7 +58,7 @@ func (s *Server) ListTrees(ctx context.Context, req *trillian.ListTreesRequest) 
 	}
 	defer tx.Close()
 	// TODO(codingllama): This needs access control
-	resp, err := tx.ListTrees(ctx, true /* includeDeleted */)
+	resp, err := tx.ListTrees(ctx, req.GetShowDeleted())
 	if err != nil {
 		return nil, err
 	}
@@ -72,9 +73,9 @@ func (s *Server) ListTrees(ctx context.Context, req *trillian.ListTreesRequest) 
 }
 
 // GetTree implements trillian.TrillianAdminServer.GetTree.
-func (s *Server) GetTree(ctx context.Context, request *trillian.GetTreeRequest) (*trillian.Tree, error) {
+func (s *Server) GetTree(ctx context.Context, req *trillian.GetTreeRequest) (*trillian.Tree, error) {
 	// TODO(codingllama): This needs access control
-	tree, err := trees.GetTree(ctx, s.registry.AdminStorage, request.GetTreeId(), trees.GetOpts{Readonly: true})
+	tree, err := trees.GetTree(ctx, s.registry.AdminStorage, req.GetTreeId(), trees.GetOpts{Readonly: true})
 	if err != nil {
 		return nil, err
 	}
@@ -82,8 +83,8 @@ func (s *Server) GetTree(ctx context.Context, request *trillian.GetTreeRequest) 
 }
 
 // CreateTree implements trillian.TrillianAdminServer.CreateTree.
-func (s *Server) CreateTree(ctx context.Context, request *trillian.CreateTreeRequest) (*trillian.Tree, error) {
-	tree := request.GetTree()
+func (s *Server) CreateTree(ctx context.Context, req *trillian.CreateTreeRequest) (*trillian.Tree, error) {
+	tree := req.GetTree()
 	if tree == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "a tree is required")
 	}
@@ -101,7 +102,7 @@ func (s *Server) CreateTree(ctx context.Context, request *trillian.CreateTreeReq
 	}
 
 	// If a key specification was provided, generate a new key.
-	if request.KeySpec != nil {
+	if req.KeySpec != nil {
 		if tree.PrivateKey != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "the tree.private_key and key_spec fields are mutually exclusive")
 		}
@@ -112,7 +113,7 @@ func (s *Server) CreateTree(ctx context.Context, request *trillian.CreateTreeReq
 			return nil, status.Errorf(codes.FailedPrecondition, "key generation is not enabled")
 		}
 
-		keyProto, err := s.registry.NewKeyProto(ctx, request.KeySpec)
+		keyProto, err := s.registry.NewKeyProto(ctx, req.KeySpec)
 		if err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "failed to generate private key: %v", err.Error())
 		}
