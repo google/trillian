@@ -188,12 +188,12 @@ func TestServer_ListTrees(t *testing.T) {
 		s := setup.server
 
 		if test.listErr {
-			tx.EXPECT().ListTrees(ctx).Return(nil, errors.New("error listing trees"))
+			tx.EXPECT().ListTrees(ctx, true).Return(nil, errors.New("error listing trees"))
 		} else {
 			// Take a defensive copy, otherwise the server may end up changing our
 			// source-of-truth trees.
 			trees := copyAndUpdate(storedTrees, func(*trillian.Tree) {})
-			tx.EXPECT().ListTrees(ctx).Return(trees, nil)
+			tx.EXPECT().ListTrees(ctx, true).Return(trees, nil)
 		}
 
 		resp, err := s.ListTrees(ctx, &trillian.ListTreesRequest{})
