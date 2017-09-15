@@ -248,7 +248,18 @@ type rpcInfo struct {
 // TreeType and Readonly are determined based on the request type.
 func getRPCInfo(req interface{}, quotaUser string) (*rpcInfo, error) {
 	switch req.(type) {
-	case *quotapb.CreateConfigRequest,
+	case
+		// Do not intercept certain admin requests:
+		// * CreateTree creates new trees (no associated treeID)
+		// * Get, Delete and UndeleteTree may read with deleted trees
+		// * ListTrees returns 0 or more trees
+		*trillian.CreateTreeRequest,
+		*trillian.DeleteTreeRequest,
+		*trillian.GetTreeRequest,
+		*trillian.UndeleteTreeRequest,
+		*trillian.ListTreesRequest,
+		// Do not intercept any quota requests, common rules do not apply.
+		*quotapb.CreateConfigRequest,
 		*quotapb.DeleteConfigRequest,
 		*quotapb.GetConfigRequest,
 		*quotapb.ListConfigsRequest,
@@ -258,14 +269,6 @@ func getRPCInfo(req interface{}, quotaUser string) (*rpcInfo, error) {
 
 	var treeID int64
 	switch req := req.(type) {
-	case *trillian.CreateTreeRequest:
-		// OK, tree is being created
-	case *trillian.GetTreeRequest:
-		// OK, may read deleted trees
-	case *trillian.ListTreesRequest:
-		// OK, no single tree ID (potentially many trees)
-	case treeIDRequest:
-		treeID = req.GetTreeId()
 	case treeRequest:
 		treeID = req.GetTree().GetTreeId()
 	case logIDRequest:
@@ -335,19 +338,8 @@ func getRequestInfo(req interface{}) (trillian.TreeType, bool, error) {
 }
 
 func getAdminRequestInfo(req interface{}) (bool, bool) {
-	readonly := false
-	ok := true
-	switch req.(type) {
-	case *trillian.GetTreeRequest,
-		*trillian.ListTreesRequest:
-		readonly = true
-	case *trillian.CreateTreeRequest,
-		*trillian.DeleteTreeRequest,
-		*trillian.UpdateTreeRequest:
-	default:
-		ok = false
-	}
-	return readonly, ok
+	_, ok := req.(*trillian.UpdateTreeRequest)
+	return false /* readonly */, ok
 }
 
 func getLogRequestInfo(req interface{}) (bool, bool) {
@@ -384,10 +376,6 @@ func getMapRequestInfo(req interface{}) (bool, bool) {
 		ok = false
 	}
 	return readonly, ok
-}
-
-type treeIDRequest interface {
-	GetTreeId() int64
 }
 
 type treeRequest interface {

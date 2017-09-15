@@ -69,12 +69,8 @@ func TestTrillianInterceptor_TreeInterception(t *testing.T) {
 		wantTree   *trillian.Tree
 	}{
 		{
-			desc: "rpcWithoutTree",
-			req:  &trillian.CreateTreeRequest{},
-		},
-		{
 			desc:     "adminRPC",
-			req:      &trillian.DeleteTreeRequest{TreeId: logTree.TreeId},
+			req:      &trillian.UpdateTreeRequest{Tree: logTree},
 			wantTree: logTree,
 		},
 		{
@@ -94,17 +90,13 @@ func TestTrillianInterceptor_TreeInterception(t *testing.T) {
 		},
 		{
 			desc:    "unknownTree",
-			req:     &trillian.DeleteTreeRequest{TreeId: unknownTreeID},
+			req:     &trillian.GetLatestSignedLogRootRequest{LogId: unknownTreeID},
 			wantErr: true,
 		},
 		{
 			desc:    "deletedTree",
-			req:     &trillian.DeleteTreeRequest{TreeId: deletedTree.TreeId},
+			req:     &trillian.GetLatestSignedLogRootRequest{LogId: deletedTree.TreeId},
 			wantErr: true,
-		},
-		{
-			desc: "getDeletedTree", // OK, may read deleted trees
-			req:  &trillian.GetTreeRequest{TreeId: deletedTree.TreeId},
 		},
 	}
 
@@ -428,6 +420,13 @@ func TestTrillianInterceptor_DoNotIntercept(t *testing.T) {
 	tests := []struct {
 		req interface{}
 	}{
+		// Admin
+		{req: &trillian.CreateTreeRequest{}},
+		{req: &trillian.DeleteTreeRequest{}},
+		{req: &trillian.GetTreeRequest{}},
+		{req: &trillian.ListTreesRequest{}},
+		{req: &trillian.UndeleteTreeRequest{}},
+		// Quota
 		{req: &quotapb.CreateConfigRequest{}},
 		{req: &quotapb.DeleteConfigRequest{}},
 		{req: &quotapb.GetConfigRequest{}},
@@ -513,26 +512,7 @@ func TestGetRPCInfo(t *testing.T) {
 		wantReadonly, wantErr bool
 	}{
 		{
-			desc: "createTree",
-			req:  &trillian.CreateTreeRequest{},
-		},
-		{
-			desc:         "getTree",
-			req:          &trillian.GetTreeRequest{},
-			wantReadonly: true,
-		},
-		{
-			desc:         "listTrees",
-			req:          &trillian.ListTreesRequest{},
-			wantReadonly: true,
-		},
-		{
-			desc:   "rwTreeIDAdminRequest",
-			req:    &trillian.DeleteTreeRequest{TreeId: 10},
-			wantID: 10,
-		},
-		{
-			desc:   "rwTreeAdminRequest",
+			desc:   "rwAdminRequest",
 			req:    &trillian.UpdateTreeRequest{Tree: &trillian.Tree{TreeId: 10}},
 			wantID: 10,
 		},
