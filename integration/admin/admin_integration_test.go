@@ -36,39 +36,6 @@ import (
 	sa "github.com/google/trillian/server/admin"
 )
 
-func TestAdminServer_Unimplemented(t *testing.T) {
-	client, closeFn, err := setupAdminServer()
-	if err != nil {
-		t.Fatalf("setupAdminServer() failed: %v", err)
-	}
-	defer closeFn()
-
-	ctx := context.Background()
-	tree, err := client.CreateTree(ctx, &trillian.CreateTreeRequest{Tree: testonly.LogTree})
-	if err != nil {
-		t.Fatalf("CreateTree returned err = %v", err)
-	}
-
-	tests := []struct {
-		desc string
-		fn   func(context.Context, trillian.TrillianAdminClient) error
-	}{
-		{
-			desc: "DeleteTree",
-			fn: func(ctx context.Context, c trillian.TrillianAdminClient) error {
-				_, err := c.DeleteTree(ctx, &trillian.DeleteTreeRequest{TreeId: tree.TreeId})
-				return err
-			},
-		},
-	}
-	for _, test := range tests {
-		err := test.fn(ctx, client)
-		if s, ok := status.FromError(err); !ok || s.Code() != codes.Unimplemented {
-			t.Errorf("%v: got = %v, want = %s", test.desc, err, codes.Unimplemented)
-		}
-	}
-}
-
 func TestAdminServer_CreateTree(t *testing.T) {
 	client, closeFn, err := setupAdminServer()
 	if err != nil {
@@ -364,6 +331,98 @@ func sortByTreeID(s []*trillian.Tree) {
 		return s[i].TreeId < s[j].TreeId
 	}
 	sort.Slice(s, less)
+}
+
+func TestAdminServer_DeleteTree(t *testing.T) {
+	client, closeFn, err := setupAdminServer()
+	if err != nil {
+		t.Fatalf("setupAdminServer() failed: %v", err)
+	}
+	defer closeFn()
+
+	tests := []struct {
+		desc     string
+		baseTree *trillian.Tree
+	}{
+		{desc: "logTree", baseTree: testonly.LogTree},
+		{desc: "mapTree", baseTree: testonly.MapTree},
+	}
+
+	ctx := context.Background()
+	for _, test := range tests {
+		createdTree, err := client.CreateTree(ctx, &trillian.CreateTreeRequest{Tree: test.baseTree})
+		if err != nil {
+			t.Fatalf("%v: CreateTree() returned err = %v", test.desc, err)
+		}
+
+		deletedTree, err := client.DeleteTree(ctx, &trillian.DeleteTreeRequest{TreeId: createdTree.TreeId})
+		if err != nil {
+			t.Errorf("%v: DeleteTree() returned err = %v", test.desc, err)
+			continue
+		}
+		if deletedTree.DeleteTime == nil {
+			t.Errorf("%v: tree.DeleteTime = nil, want non-nil", test.desc)
+		}
+
+		want := proto.Clone(createdTree).(*trillian.Tree)
+		want.Deleted = true
+		want.DeleteTime = deletedTree.DeleteTime
+		if got := deletedTree; !proto.Equal(got, want) {
+			diff := pretty.Compare(got, want)
+			t.Errorf("%v: post-DeleteTree() diff (-got +want):\n%v", test.desc, diff)
+		}
+
+		storedTree, err := client.GetTree(ctx, &trillian.GetTreeRequest{TreeId: deletedTree.TreeId})
+		if err != nil {
+			t.Fatalf("%v: GetTree() returned err = %v", test.desc, err)
+		}
+		if got, want := storedTree, deletedTree; !proto.Equal(got, want) {
+			diff := pretty.Compare(got, want)
+			t.Errorf("%v: post-GetTree() diff (-got +want):\n%v", test.desc, diff)
+		}
+	}
+}
+
+func TestAdminServer_DeleteTreeErrors(t *testing.T) {
+	client, closeFn, err := setupAdminServer()
+	if err != nil {
+		t.Fatalf("setupAdminServer() failed: %v", err)
+	}
+	defer closeFn()
+
+	ctx := context.Background()
+	createdTree, err := client.CreateTree(ctx, &trillian.CreateTreeRequest{Tree: testonly.LogTree})
+	if err != nil {
+		t.Fatalf("CreateTree() returned err = %v", err)
+	}
+	deletedTree, err := client.DeleteTree(ctx, &trillian.DeleteTreeRequest{TreeId: createdTree.TreeId})
+	if err != nil {
+		t.Fatalf("DeleteTree() returned err = %v", err)
+	}
+
+	tests := []struct {
+		desc     string
+		req      *trillian.DeleteTreeRequest
+		wantCode codes.Code
+	}{
+		{
+			desc:     "unknownTree",
+			req:      &trillian.DeleteTreeRequest{TreeId: 12345},
+			wantCode: codes.NotFound,
+		},
+		{
+			desc:     "alreadyDeleted",
+			req:      &trillian.DeleteTreeRequest{TreeId: deletedTree.TreeId},
+			wantCode: codes.FailedPrecondition,
+		},
+	}
+
+	for _, test := range tests {
+		_, err := client.DeleteTree(ctx, test.req)
+		if s, ok := status.FromError(err); !ok || s.Code() != test.wantCode {
+			t.Errorf("%v: DeleteTree() returned err = %v, wantCode = %s", test.desc, err, test.wantCode)
+		}
+	}
 }
 
 // setupAdminServer prepares and starts an Admin Server, returning a client and
