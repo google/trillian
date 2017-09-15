@@ -425,6 +425,91 @@ func TestAdminServer_DeleteTreeErrors(t *testing.T) {
 	}
 }
 
+func TestAdminServer_UndeleteTree(t *testing.T) {
+	client, closeFn, err := setupAdminServer()
+	if err != nil {
+		t.Fatalf("setupAdminServer() failed: %v", err)
+	}
+	defer closeFn()
+
+	tests := []struct {
+		desc     string
+		baseTree *trillian.Tree
+	}{
+		{desc: "logTree", baseTree: testonly.LogTree},
+		{desc: "mapTree", baseTree: testonly.MapTree},
+	}
+
+	ctx := context.Background()
+	for _, test := range tests {
+		createdTree, err := client.CreateTree(ctx, &trillian.CreateTreeRequest{Tree: test.baseTree})
+		if err != nil {
+			t.Fatalf("%v: CreateTree() returned err = %v", test.desc, err)
+		}
+		deletedTree, err := client.DeleteTree(ctx, &trillian.DeleteTreeRequest{TreeId: createdTree.TreeId})
+		if err != nil {
+			t.Fatalf("%v: DeleteTree() returned err = %v", test.desc, err)
+		}
+
+		undeletedTree, err := client.UndeleteTree(ctx, &trillian.UndeleteTreeRequest{TreeId: deletedTree.TreeId})
+		if err != nil {
+			t.Errorf("%v: UndeleteTree() returned err = %v", test.desc, err)
+			continue
+		}
+		if got, want := undeletedTree, createdTree; !proto.Equal(got, want) {
+			diff := pretty.Compare(got, want)
+			t.Errorf("%v: post-UndeleteTree() diff (-got +want):\n%v", test.desc, diff)
+		}
+
+		storedTree, err := client.GetTree(ctx, &trillian.GetTreeRequest{TreeId: deletedTree.TreeId})
+		if err != nil {
+			t.Fatalf("%v: GetTree() returned err = %v", test.desc, err)
+		}
+		if got, want := storedTree, createdTree; !proto.Equal(got, want) {
+			diff := pretty.Compare(got, want)
+			t.Errorf("%v: post-GetTree() diff (-got +want):\n%v", test.desc, diff)
+		}
+	}
+}
+
+func TestAdminServer_UndeleteTreeErrors(t *testing.T) {
+	client, closeFn, err := setupAdminServer()
+	if err != nil {
+		t.Fatalf("setupAdminServer() failed: %v", err)
+	}
+	defer closeFn()
+
+	ctx := context.Background()
+	tree, err := client.CreateTree(ctx, &trillian.CreateTreeRequest{Tree: testonly.LogTree})
+	if err != nil {
+		t.Fatalf("CreateTree() returned err = %v", err)
+	}
+
+	tests := []struct {
+		desc     string
+		req      *trillian.UndeleteTreeRequest
+		wantCode codes.Code
+	}{
+		{
+			desc:     "unknownTree",
+			req:      &trillian.UndeleteTreeRequest{TreeId: 12345},
+			wantCode: codes.NotFound,
+		},
+		{
+			desc:     "notDeleted",
+			req:      &trillian.UndeleteTreeRequest{TreeId: tree.TreeId},
+			wantCode: codes.FailedPrecondition,
+		},
+	}
+
+	for _, test := range tests {
+		_, err := client.UndeleteTree(ctx, test.req)
+		if s, ok := status.FromError(err); !ok || s.Code() != test.wantCode {
+			t.Errorf("%v: UndeleteTree() returned err = %v, wantCode = %s", test.desc, err, test.wantCode)
+		}
+	}
+}
+
 // setupAdminServer prepares and starts an Admin Server, returning a client and
 // a close function if successful.
 // The close function should be defer-called if error is not nil to ensure a

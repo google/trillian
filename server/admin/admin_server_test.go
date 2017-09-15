@@ -748,6 +748,93 @@ func TestServer_DeleteTreeErrors(t *testing.T) {
 	}
 }
 
+func TestServer_UndeleteTree(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	activeLog := proto.Clone(testonly.LogTree).(*trillian.Tree)
+	frozenLog := proto.Clone(testonly.LogTree).(*trillian.Tree)
+	frozenLog.TreeState = trillian.TreeState_FROZEN
+	activeMap := proto.Clone(testonly.MapTree).(*trillian.Tree)
+	for i, tree := range []*trillian.Tree{activeLog, frozenLog, activeMap} {
+		tree.TreeId = int64(i) + 10
+		tree.CreateTime, _ = ptypes.TimestampProto(time.Unix(int64(i)*3600, 0))
+		tree.UpdateTime = tree.CreateTime
+		tree.Deleted = true
+		tree.DeleteTime, _ = ptypes.TimestampProto(time.Unix(int64(i)*3600+10, 0))
+	}
+
+	tests := []struct {
+		desc string
+		tree *trillian.Tree
+	}{
+		{desc: "activeLog", tree: activeLog},
+		{desc: "frozenLog", tree: frozenLog},
+		{desc: "activeMap", tree: activeMap},
+	}
+
+	ctx := context.Background()
+	for _, test := range tests {
+		setup := setupAdminServer(
+			ctrl,
+			nil,   /* keygen */
+			false, /* snapshot */
+			true,  /* shouldCommit */
+			false /* commitErr */)
+		req := &trillian.UndeleteTreeRequest{TreeId: test.tree.TreeId}
+
+		tx := setup.tx
+		tx.EXPECT().UndeleteTree(ctx, req.TreeId).Return(test.tree, nil)
+
+		s := setup.server
+		got, err := s.UndeleteTree(ctx, req)
+		if err != nil {
+			t.Errorf("%v: UndeleteTree() returned err = %v", test.desc, err)
+			continue
+		}
+
+		want := proto.Clone(test.tree).(*trillian.Tree)
+		want.PrivateKey = nil // redacted
+		if !proto.Equal(got, want) {
+			diff := pretty.Compare(got, want)
+			t.Errorf("%v: post-UneleteTree() diff (-got +want):\n%v", test.desc, diff)
+		}
+	}
+}
+
+func TestServer_UndeleteTreeErrors(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	tests := []struct {
+		desc        string
+		undeleteErr error
+		commitErr   bool
+	}{
+		{desc: "undeleteErr", undeleteErr: errors.New("unknown tree")},
+		{desc: "commitErr", commitErr: true},
+	}
+
+	ctx := context.Background()
+	for _, test := range tests {
+		setup := setupAdminServer(
+			ctrl,
+			nil,   /* keygen */
+			false, /* snapshot */
+			test.undeleteErr == nil, /* shouldCommit */
+			test.commitErr /* commitErr */)
+		req := &trillian.UndeleteTreeRequest{TreeId: 10}
+
+		tx := setup.tx
+		tx.EXPECT().UndeleteTree(ctx, req.TreeId).Return(&trillian.Tree{}, test.undeleteErr)
+
+		s := setup.server
+		if _, err := s.UndeleteTree(ctx, req); err == nil {
+			t.Errorf("%v: UndeleteTree() returned err = nil, want non-nil", test.desc)
+		}
+	}
+}
+
 // adminTestSetup contains an operational Server and required dependencies.
 // It's created via setupAdminServer.
 type adminTestSetup struct {

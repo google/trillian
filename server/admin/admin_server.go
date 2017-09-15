@@ -253,8 +253,20 @@ func (s *Server) DeleteTree(ctx context.Context, req *trillian.DeleteTreeRequest
 }
 
 // UndeleteTree implements trillian.TrillianAdminServer.UndeleteTree.
-func (s *Server) UndeleteTree(context.Context, *trillian.UndeleteTreeRequest) (*trillian.Tree, error) {
-	return nil, errNotImplemented
+func (s *Server) UndeleteTree(ctx context.Context, req *trillian.UndeleteTreeRequest) (*trillian.Tree, error) {
+	tx, err := s.registry.AdminStorage.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Close()
+	tree, err := tx.UndeleteTree(ctx, req.GetTreeId())
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return redact(tree), nil
 }
 
 // redact removes sensitive information from t. Returns t for convenience.
