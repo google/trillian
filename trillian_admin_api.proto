@@ -25,11 +25,13 @@ import "trillian.proto";
 import "crypto/keyspb/keyspb.proto";
 import "google/api/annotations.proto";
 import "google/protobuf/field_mask.proto";
-import "google/protobuf/empty.proto";
 
 // ListTrees request.
 // No filters or pagination options are provided.
-message ListTreesRequest {}
+message ListTreesRequest {
+  // If true, deleted trees are included in the response.
+  bool show_deleted = 1;
+}
 
 // ListTrees response.
 // No pagination is provided, all trees the requester has access to are
@@ -71,6 +73,12 @@ message DeleteTreeRequest {
   int64 tree_id = 1;
 }
 
+// UndeleteTree request.
+message UndeleteTreeRequest {
+  // ID of the tree to undelete.
+  int64 tree_id = 1;
+}
+
 // Trillian Administrative interface.
 // Allows creation and management of Trillian trees (both log and map trees).
 service TrillianAdmin {
@@ -107,10 +115,18 @@ service TrillianAdmin {
   // Soft-deletes a tree.
   // A soft-deleted tree may be undeleted for a certain period, after which
   // it'll be permanently deleted.
-  // TODO(codingllama): Provide an undelete RPC.
-  rpc DeleteTree(DeleteTreeRequest) returns(google.protobuf.Empty) {
+  rpc DeleteTree(DeleteTreeRequest) returns(Tree) {
     option (google.api.http) = {
       delete: "/v1beta1/trees/{tree_id=*}"
+    };
+  }
+
+  // Undeletes a soft-deleted a tree.
+  // A soft-deleted tree may be undeleted for a certain period, after which
+  // it'll be permanently deleted.
+  rpc UndeleteTree(UndeleteTreeRequest) returns(Tree) {
+    option (google.api.http) = {
+      delete: "/v1beta1/trees/{tree_id=*}:undelete"
     };
   }
 }
