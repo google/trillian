@@ -346,16 +346,16 @@ func (tester *AdminStorageTester) TestListTrees(t *testing.T) {
 	ctx := context.Background()
 	s := tester.NewAdminStorage()
 
-	run := func(desc string, wantTrees []*trillian.Tree) {
+	run := func(desc string, includeDeleted bool, wantTrees []*trillian.Tree) {
 		tx, err := s.Snapshot(ctx)
 		if err != nil {
 			t.Fatalf("%v: Snapshot() = %v, want = nil", desc, err)
 		}
 		defer tx.Close()
-		if err := runListTreeIDsTest(ctx, tx, wantTrees); err != nil {
+		if err := runListTreeIDsTest(ctx, tx, includeDeleted, wantTrees); err != nil {
 			t.Errorf("%v: %v", desc, err)
 		}
-		if err := runListTreesTest(ctx, tx, wantTrees); err != nil {
+		if err := runListTreesTest(ctx, tx, includeDeleted, wantTrees); err != nil {
 			t.Errorf("%v: %v", desc, err)
 		}
 		if err := tx.Commit(); err != nil {
@@ -364,18 +364,20 @@ func (tester *AdminStorageTester) TestListTrees(t *testing.T) {
 	}
 
 	// Do a first pass with an empty DB
-	run("empty", nil /* wantTrees */)
+	run("empty", false /* includeDeleted */, nil /* wantTrees */)
+	run("emptyDeleted", true /* includeDeleted */, nil /* wantTrees */)
 
 	// Add some trees and do another pass
 	activeLog := makeTreeOrFail(ctx, s, spec{Tree: LogTree}, t.Fatalf)
 	frozenLog := makeTreeOrFail(ctx, s, spec{Tree: LogTree, Frozen: true}, t.Fatalf)
 	deletedLog := makeTreeOrFail(ctx, s, spec{Tree: LogTree, Deleted: true}, t.Fatalf)
 	activeMap := makeTreeOrFail(ctx, s, spec{Tree: MapTree}, t.Fatalf)
-	run("multipleTrees", []*trillian.Tree{activeLog, frozenLog, deletedLog, activeMap})
+	run("multipleTrees", false /* includeDeleted */, []*trillian.Tree{activeLog, frozenLog, activeMap})
+	run("multipleTreesDeleted", true /* includeDeleted */, []*trillian.Tree{activeLog, frozenLog, deletedLog, activeMap})
 }
 
-func runListTreeIDsTest(ctx context.Context, tx storage.ReadOnlyAdminTX, wantTrees []*trillian.Tree) error {
-	got, err := tx.ListTreeIDs(ctx)
+func runListTreeIDsTest(ctx context.Context, tx storage.ReadOnlyAdminTX, includeDeleted bool, wantTrees []*trillian.Tree) error {
+	got, err := tx.ListTreeIDs(ctx, includeDeleted)
 	if err != nil {
 		return fmt.Errorf("ListTreeIDs() returned err = %v", err)
 	}
@@ -393,8 +395,8 @@ func runListTreeIDsTest(ctx context.Context, tx storage.ReadOnlyAdminTX, wantTre
 	return nil
 }
 
-func runListTreesTest(ctx context.Context, tx storage.ReadOnlyAdminTX, wantTrees []*trillian.Tree) error {
-	got, err := tx.ListTrees(ctx)
+func runListTreesTest(ctx context.Context, tx storage.ReadOnlyAdminTX, includeDeleted bool, wantTrees []*trillian.Tree) error {
+	got, err := tx.ListTrees(ctx, includeDeleted)
 	if err != nil {
 		return fmt.Errorf("ListTrees() returned err = %v", err)
 	}

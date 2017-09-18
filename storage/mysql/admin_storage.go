@@ -34,7 +34,13 @@ import (
 
 const (
 	defaultSequenceIntervalSeconds = 60
-	selectTrees                    = `
+
+	nonDeletedWhere = " WHERE (Deleted IS NULL OR Deleted = false)"
+
+	selectTreeIDs           = "SELECT TreeId FROM Trees"
+	selectNonDeletedTreeIDs = selectTreeIDs + nonDeletedWhere
+
+	selectTrees = `
 		SELECT
 			TreeId,
 			TreeState,
@@ -52,7 +58,8 @@ const (
 			Deleted,
 			DeleteTimeMillis
 		FROM Trees`
-	selectTreeByID = selectTrees + " WHERE TreeId = ?"
+	selectNonDeletedTrees = selectTrees + nonDeletedWhere
+	selectTreeByID        = selectTrees + " WHERE TreeId = ?"
 )
 
 // NewAdminStorage returns a MySQL storage.AdminStorage implementation backed by DB.
@@ -263,8 +270,15 @@ func setNullStringIfValid(src sql.NullString, dest *string) {
 	}
 }
 
-func (t *adminTX) ListTreeIDs(ctx context.Context) ([]int64, error) {
-	stmt, err := t.tx.PrepareContext(ctx, "SELECT TreeId FROM Trees")
+func (t *adminTX) ListTreeIDs(ctx context.Context, includeDeleted bool) ([]int64, error) {
+	var query string
+	if includeDeleted {
+		query = selectTreeIDs
+	} else {
+		query = selectNonDeletedTreeIDs
+	}
+
+	stmt, err := t.tx.PrepareContext(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -287,8 +301,15 @@ func (t *adminTX) ListTreeIDs(ctx context.Context) ([]int64, error) {
 	return treeIDs, nil
 }
 
-func (t *adminTX) ListTrees(ctx context.Context) ([]*trillian.Tree, error) {
-	stmt, err := t.tx.PrepareContext(ctx, selectTrees)
+func (t *adminTX) ListTrees(ctx context.Context, includeDeleted bool) ([]*trillian.Tree, error) {
+	var query string
+	if includeDeleted {
+		query = selectTrees
+	} else {
+		query = selectNonDeletedTrees
+	}
+
+	stmt, err := t.tx.PrepareContext(ctx, query)
 	if err != nil {
 		return nil, err
 	}

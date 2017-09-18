@@ -58,7 +58,7 @@ func (s *Server) ListTrees(ctx context.Context, req *trillian.ListTreesRequest) 
 	}
 	defer tx.Close()
 	// TODO(codingllama): This needs access control
-	resp, err := tx.ListTrees(ctx)
+	resp, err := tx.ListTrees(ctx, true /* includeDeleted */)
 	if err != nil {
 		return nil, err
 	}

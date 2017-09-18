@@ -171,29 +171,29 @@ func (mr *MockAdminTXMockRecorder) IsClosed() *gomock.Call {
 }
 
 // ListTreeIDs mocks base method
-func (m *MockAdminTX) ListTreeIDs(arg0 context.Context) ([]int64, error) {
-	ret := m.ctrl.Call(m, "ListTreeIDs", arg0)
+func (m *MockAdminTX) ListTreeIDs(arg0 context.Context, arg1 bool) ([]int64, error) {
+	ret := m.ctrl.Call(m, "ListTreeIDs", arg0, arg1)
 	ret0, _ := ret[0].([]int64)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // ListTreeIDs indicates an expected call of ListTreeIDs
-func (mr *MockAdminTXMockRecorder) ListTreeIDs(arg0 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListTreeIDs", reflect.TypeOf((*MockAdminTX)(nil).ListTreeIDs), arg0)
+func (mr *MockAdminTXMockRecorder) ListTreeIDs(arg0, arg1 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListTreeIDs", reflect.TypeOf((*MockAdminTX)(nil).ListTreeIDs), arg0, arg1)
 }
 
 // ListTrees mocks base method
-func (m *MockAdminTX) ListTrees(arg0 context.Context) ([]*trillian.Tree, error) {
-	ret := m.ctrl.Call(m, "ListTrees", arg0)
+func (m *MockAdminTX) ListTrees(arg0 context.Context, arg1 bool) ([]*trillian.Tree, error) {
+	ret := m.ctrl.Call(m, "ListTrees", arg0, arg1)
 	ret0, _ := ret[0].([]*trillian.Tree)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // ListTrees indicates an expected call of ListTrees
-func (mr *MockAdminTXMockRecorder) ListTrees(arg0 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListTrees", reflect.TypeOf((*MockAdminTX)(nil).ListTrees), arg0)
+func (mr *MockAdminTXMockRecorder) ListTrees(arg0, arg1 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListTrees", reflect.TypeOf((*MockAdminTX)(nil).ListTrees), arg0, arg1)
 }
 
 // Rollback mocks base method
@@ -873,29 +873,29 @@ func (mr *MockReadOnlyAdminTXMockRecorder) IsClosed() *gomock.Call {
 }
 
 // ListTreeIDs mocks base method
-func (m *MockReadOnlyAdminTX) ListTreeIDs(arg0 context.Context) ([]int64, error) {
-	ret := m.ctrl.Call(m, "ListTreeIDs", arg0)
+func (m *MockReadOnlyAdminTX) ListTreeIDs(arg0 context.Context, arg1 bool) ([]int64, error) {
+	ret := m.ctrl.Call(m, "ListTreeIDs", arg0, arg1)
 	ret0, _ := ret[0].([]int64)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // ListTreeIDs indicates an expected call of ListTreeIDs
-func (mr *MockReadOnlyAdminTXMockRecorder) ListTreeIDs(arg0 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListTreeIDs", reflect.TypeOf((*MockReadOnlyAdminTX)(nil).ListTreeIDs), arg0)
+func (mr *MockReadOnlyAdminTXMockRecorder) ListTreeIDs(arg0, arg1 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListTreeIDs", reflect.TypeOf((*MockReadOnlyAdminTX)(nil).ListTreeIDs), arg0, arg1)
 }
 
 // ListTrees mocks base method
-func (m *MockReadOnlyAdminTX) ListTrees(arg0 context.Context) ([]*trillian.Tree, error) {
-	ret := m.ctrl.Call(m, "ListTrees", arg0)
+func (m *MockReadOnlyAdminTX) ListTrees(arg0 context.Context, arg1 bool) ([]*trillian.Tree, error) {
+	ret := m.ctrl.Call(m, "ListTrees", arg0, arg1)
 	ret0, _ := ret[0].([]*trillian.Tree)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // ListTrees indicates an expected call of ListTrees
-func (mr *MockReadOnlyAdminTXMockRecorder) ListTrees(arg0 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListTrees", reflect.TypeOf((*MockReadOnlyAdminTX)(nil).ListTrees), arg0)
+func (mr *MockReadOnlyAdminTXMockRecorder) ListTrees(arg0, arg1 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListTrees", reflect.TypeOf((*MockReadOnlyAdminTX)(nil).ListTrees), arg0, arg1)
 }
 
 // Rollback mocks base method

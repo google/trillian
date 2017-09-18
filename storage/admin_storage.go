@@ -79,14 +79,12 @@ type AdminReader interface {
 	// ListTreeIDs returns the IDs of all trees in storage.
 	// Note that there's no authorization restriction on the IDs returned,
 	// so it should be used with caution in production code.
-	// TODO(codingllama): Allow filtering of soft deleted trees.
-	ListTreeIDs(ctx context.Context) ([]int64, error)
+	ListTreeIDs(ctx context.Context, includeDeleted bool) ([]int64, error)
 
 	// ListTrees returns all trees in storage.
 	// Note that there's no authorization restriction on the trees returned,
 	// so it should be used with caution in production code.
-	// TODO(codingllama): Allow filtering of soft deleted trees.
-	ListTrees(ctx context.Context) ([]*trillian.Tree, error)
+	ListTrees(ctx context.Context, includeDeleted bool) ([]*trillian.Tree, error)
 }
 
 // AdminWriter provides a write-only interface for tree data.
