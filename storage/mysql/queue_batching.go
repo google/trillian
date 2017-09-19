@@ -98,11 +98,7 @@ func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillia
 	if err != nil {
 		glog.Warningf("Failed to update sequenced leaves: %s", err)
 	}
-	if err := checkResultOkAndRowCountIs(result, err, int64(len(leaves))); err != nil {
-		return err
-	}
-
-	return nil
+	return checkResultOkAndRowCountIs(result, err, int64(len(leaves)))
 }
 
 func (m *mySQLLogStorage) getDeleteUnsequencedStmt(ctx context.Context, num int) (*sql.Stmt, error) {
@@ -130,8 +126,5 @@ func (t *logTreeTX) removeSequencedLeaves(ctx context.Context, queueIDs []dequeu
 		// Error is handled by checkResultOkAndRowCountIs() below
 		glog.Warningf("Failed to delete sequenced work: %s", err)
 	}
-	if err := checkResultOkAndRowCountIs(result, err, int64(len(queueIDs))); err != nil {
-		return err
-	}
-	return nil
+	return checkResultOkAndRowCountIs(result, err, int64(len(queueIDs)))
 }

@@ -470,12 +470,8 @@ func checkConsistencyProof(consistParams consistencyProofParams, treeID int64, t
 	verifier := merkle.NewLogVerifier(rfc6962.DefaultHasher)
 	root1 := tree.RootAtSnapshot(req.FirstTreeSize).Hash()
 	root2 := tree.RootAtSnapshot(req.SecondTreeSize).Hash()
-	if err := verifier.VerifyConsistencyProof(
-		req.FirstTreeSize, req.SecondTreeSize,
-		root1, root2, resp.Proof.Hashes); err != nil {
-		return err
-	}
-	return nil
+	return verifier.VerifyConsistencyProof(req.FirstTreeSize, req.SecondTreeSize,
+		root1, root2, resp.Proof.Hashes)
 }
 
 func makeGetLeavesByIndexRequest(logID int64, startLeaf, numLeaves int64) *trillian.GetLeavesByIndexRequest {

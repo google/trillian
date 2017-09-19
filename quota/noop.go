@@ -38,10 +38,7 @@ func (n noopManager) GetTokens(ctx context.Context, numTokens int, specs []Spec)
 	if err := validateNumTokens(numTokens); err != nil {
 		return err
 	}
-	if err := validateSpecs(specs); err != nil {
-		return err
-	}
-	return nil
+	return validateSpecs(specs)
 }
 
 func (n noopManager) PeekTokens(ctx context.Context, specs []Spec) (map[Spec]int, error) {
@@ -59,17 +56,11 @@ func (n noopManager) PutTokens(ctx context.Context, numTokens int, specs []Spec)
 	if err := validateNumTokens(numTokens); err != nil {
 		return err
 	}
-	if err := validateSpecs(specs); err != nil {
-		return err
-	}
-	return nil
+	return validateSpecs(specs)
 }
 
 func (n noopManager) ResetQuota(ctx context.Context, specs []Spec) error {
-	if err := validateSpecs(specs); err != nil {
-		return err
-	}
-	return nil
+	return validateSpecs(specs)
 }
 
 func (n noopManager) SetupInitialQuota(ctx context.Context, treeID int64) error {
