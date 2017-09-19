@@ -229,6 +229,13 @@ var consistencyTests = []consistencyProofTestData{
 	{3, 7, expectedConsistencyProofFromSize3To7},
 	{4, 7, expectedConsistencyProofFromSize4To7},
 	{2, 8, expectedConsistencyProofFromSize2To8},
+	{1, 1, []NodeFetch{}},
+	{2, 2, []NodeFetch{}},
+	{3, 3, []NodeFetch{}},
+	{4, 4, []NodeFetch{}},
+	{5, 5, []NodeFetch{}},
+	{7, 7, []NodeFetch{}},
+	{8, 8, []NodeFetch{}},
 }
 
 // These should all fail to provide proofs

@@ -105,6 +105,10 @@ func snapshotConsistency(snapshot1, snapshot2, treeSize int64, maxBitLen int) ([
 
 	glog.V(vLevel).Infof("snapshotConsistency: %d -> %d", snapshot1, snapshot2)
 
+	if snapshot1 == snapshot2 {
+		return proof, nil
+	}
+
 	level := 0
 	node := snapshot1 - 1
 
