@@ -34,7 +34,7 @@ collect_vars() {
   [[ ${VERBOSE} = 'true' ]] && echo "- Using MySQL Flags: ${FLAGS[@]}"
 
   # append password if supplied
-  [ -z ${DB_PASSWORD+x} ] || FLAGS+=("-p'${DB_PASSWORD}'")
+  [ -z ${DB_PASSWORD+x} ] || FLAGS+=("-p${DB_PASSWORD}")
 }
 
 main() {
