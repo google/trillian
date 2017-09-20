@@ -90,10 +90,10 @@ func (m *MapLeafInclusion) GetInclusion() [][]byte {
 }
 
 type GetMapLeavesRequest struct {
-	MapId    int64    `protobuf:"varint,1,opt,name=map_id,json=mapId" json:"map_id,omitempty"`
-	Index    [][]byte `protobuf:"bytes,2,rep,name=index,proto3" json:"index,omitempty"`
+	MapId int64    `protobuf:"varint,1,opt,name=map_id,json=mapId" json:"map_id,omitempty"`
+	Index [][]byte `protobuf:"bytes,2,rep,name=index,proto3" json:"index,omitempty"`
 	// A negative revision indicates that the most recent published revision should be used.
-	Revision int64    `protobuf:"varint,3,opt,name=revision" json:"revision,omitempty"`
+	Revision int64 `protobuf:"varint,3,opt,name=revision" json:"revision,omitempty"`
 }
 
 func (m *GetMapLeavesRequest) Reset()                    { *m = GetMapLeavesRequest{} }

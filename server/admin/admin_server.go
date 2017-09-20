@@ -19,7 +19,6 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/ptypes"
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/extension"
@@ -229,7 +228,12 @@ func applyUpdateMask(from, to *trillian.Tree, mask *field_mask.FieldMask) error 
 }
 
 // DeleteTree implements trillian.TrillianAdminServer.DeleteTree.
-func (s *Server) DeleteTree(context.Context, *trillian.DeleteTreeRequest) (*empty.Empty, error) {
+func (s *Server) DeleteTree(context.Context, *trillian.DeleteTreeRequest) (*trillian.Tree, error) {
+	return nil, errNotImplemented
+}
+
+// UndeleteTree implements trillian.TrillianAdminServer.UndeleteTree.
+func (s *Server) UndeleteTree(context.Context, *trillian.UndeleteTreeRequest) (*trillian.Tree, error) {
 	return nil, errNotImplemented
 }
 

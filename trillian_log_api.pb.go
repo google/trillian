@@ -49,6 +49,7 @@ It has these top-level messages:
 	CreateTreeRequest
 	UpdateTreeRequest
 	DeleteTreeRequest
+	UndeleteTreeRequest
 	Tree
 	SignedEntryTimestamp
 	SignedLogRoot
