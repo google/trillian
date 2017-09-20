@@ -3,59 +3,55 @@ language: go
 
 os:
   - linux
-  - osx
 
 go:
   - 1.8
 
 env:
-  - GOFLAGS=''
+  - WITH_COVERAGE=true
   - GOFLAGS='-race'
-  - GOFLAGS='--tags batched_queue'
   - GOFLAGS='-race --tags batched_queue'
-  - GOFLAGS=''                           WITH_ETCD=true
-  - GOFLAGS='-race'                      WITH_ETCD=true
-  - GOFLAGS='--tags pkcs11'              WITH_PKCS11=true
-  - GOFLAGS='-race --tags pkcs11'        WITH_PKCS11=true
+  - GOFLAGS='-race' WITH_ETCD=true
+  - GOFLAGS='-race --tags pkcs11' WITH_PKCS11=true
 
 matrix:
   fast_finish: true
   allow_failures:
     - os: osx
-  exclude:
-    - os: osx
-      env: GOFLAGS=      WITH_PKCS11=true
-    - os: osx
-      env: GOFLAGS=-race WITH_PKCS11=true
+  include:
+    - os: osx  # Run only "vanilla" tests on osx
+      env:
+
+services: mysql
 
 install:
-  - if [[ "${WITH_PKCS11}" == "true" ]]; then sudo apt-get install softhsm ; fi
+  - if [[ "${WITH_PKCS11}" == "true" ]]; then sudo apt-get install -y softhsm ; fi
   - |
-    if [ ! -d $HOME/gopath/src/github.com/google ]; then
-      mkdir -p $HOME/gopath/src/github.com/google
-      ln -s $TRAVIS_BUILD_DIR $HOME/gopath/src/github.com/google/trillian
+    if [ ! -d "$HOME/gopath/src/github.com/google" ]; then
+      mkdir -p "$HOME/gopath/src/github.com/google"
+      ln -s "$TRAVIS_BUILD_DIR" "$HOME/gopath/src/github.com/google/trillian"
     fi
   - mkdir ../protoc
   - |
     (
       cd ../protoc
-      wget https://github.com/google/protobuf/releases/download/v3.2.0/protoc-3.2.0-${TRAVIS_OS_NAME}-x86_64.zip
-      unzip protoc-3.2.0-${TRAVIS_OS_NAME}-x86_64.zip
+      wget "https://github.com/google/protobuf/releases/download/v3.2.0/protoc-3.2.0-${TRAVIS_OS_NAME}-x86_64.zip"
+      unzip "protoc-3.2.0-${TRAVIS_OS_NAME}-x86_64.zip"
     )
-  - export PATH=$(pwd)/../protoc/bin:$PATH
+  - export PATH="$(pwd)/../protoc/bin:$PATH"
   # googleapis is not Go code, but it's required for .pb.go regeneration because of API dependencies.
-  - git clone https://github.com/googleapis/googleapis.git $GOPATH/src/github.com/googleapis/googleapis
+  - git clone --depth=1 https://github.com/googleapis/googleapis.git "$GOPATH/src/github.com/googleapis/googleapis"
   - go get ${GOFLAGS} -d -t ./...
-  - if [[ $TRAVIS_OS_NAME == "osx" ]]; then brew update > /dev/null && brew install mariadb && mysql.server start; fi
-  - go get -u github.com/client9/misspell/cmd/misspell
-  - go get -u github.com/fzipp/gocyclo
-  - go get -u github.com/gordonklaus/ineffassign
-  - go get -u github.com/golang/lint/golint
-  - go get -u github.com/golang/protobuf/proto
-  - go get -u github.com/golang/protobuf/protoc-gen-go
-  - go get -u github.com/kisielk/errcheck
-  - go get -u golang.org/x/tools/cmd/stringer
-  - go get -u github.com/google/certificate-transparency-go
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update > /dev/null && brew install mariadb && mysql.server start; fi
+  - go get github.com/client9/misspell/cmd/misspell
+  - go get github.com/fzipp/gocyclo
+  - go get github.com/gordonklaus/ineffassign
+  - go get github.com/golang/lint/golint
+  - go get github.com/golang/protobuf/proto
+  - go get github.com/golang/protobuf/protoc-gen-go
+  - go get github.com/kisielk/errcheck
+  - go get golang.org/x/tools/cmd/stringer
+  - go get github.com/google/certificate-transparency-go
   - go get -d -t github.com/google/certificate-transparency-go/...
   - go install github.com/golang/{mock/mockgen,protobuf/protoc-gen-go}
   # install vendored protoc-gen-grpc-gateway binary
@@ -64,10 +60,13 @@ install:
   - go install ./vendor/github.com/coreos/etcd/cmd/etcd
   - go install ./vendor/github.com/coreos/etcd/cmd/etcdctl
 
+before_script:
+  - yes | ./scripts/resetdb.sh
+
 script:
   - set -e
-  - cd $HOME/gopath/src/github.com/google/trillian
-  - ./scripts/presubmit.sh
+  - cd "$HOME/gopath/src/github.com/google/trillian"
+  - ./scripts/presubmit.sh ${WITH_COVERAGE:+--coverage}
   - |
       # Check re-generation didn't change anything
       # Skip protoc-generated files (.pb.go) because protoc is not deterministic
@@ -84,17 +83,15 @@ script:
         export ETCD_DIR="${GOPATH}/bin"
       fi
   - ./integration/integration_test.sh
-  - cd $HOME/gopath/src/github.com/google/certificate-transparency-go
+  - cd "$HOME/gopath/src/github.com/google/certificate-transparency-go"
   - ./trillian/integration/integration_test.sh
   - cd $HOME/gopath/src/github.com/google/trillian
   - HAMMER_OPTS="--operations=50" ./integration/maphammer.sh 3
   - set +e
 
-services: mysql
-
-before_script:
-  - yes | ./scripts/resetdb.sh
-
 after_success:
-  - cp /tmp/coverage.txt .
-  - bash <(curl -s https://codecov.io/bash)
+  - |
+      if [[ -f /tmp/coverage.txt ]]; then
+        cp /tmp/coverage.txt .
+        bash <(curl -s https://codecov.io/bash)
+      fi
