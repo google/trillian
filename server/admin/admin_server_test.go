@@ -140,7 +140,7 @@ func TestServer_ListTrees(t *testing.T) {
 	}
 	for _, tree := range []*trillian.Tree{deletedLog, deletedMap} {
 		tree.Deleted = true
-		tree.UpdateTime = proto.Clone(nowPB).(*timestamp.Timestamp)
+		tree.DeleteTime = proto.Clone(nowPB).(*timestamp.Timestamp)
 		nowPB.Seconds++
 	}
 	nonDeletedTrees := []*trillian.Tree{activeLog, frozenLog, activeMap}

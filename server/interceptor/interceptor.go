@@ -231,7 +231,7 @@ type rpcInfo struct {
 	treeID int64
 
 	// opts is the trees.GetOpts appropriate to this RPC (TreeType, readonly vs readwrite, etc).
-	// opts is not set if doesNotHaveTree is true.
+	// opts is not set if doNotIntercept is true.
 	opts trees.GetOpts
 
 	// specs contains the quota specifications for this RPC.
