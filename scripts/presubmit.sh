@@ -7,7 +7,8 @@
 # `scripts/presubmit.sh --help` for details.
 #
 # Globals:
-#   GO_TEST_PARALLELISM: max processes to use for Go tests. Optional.
+#   GO_TEST_PARALLELISM: max processes to use for Go tests. Optional (defaults
+#       to 10).
 set -eu
 
 check_deps() {
