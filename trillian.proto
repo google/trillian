@@ -194,20 +194,17 @@ message SignedLogRoot {
   int64 tree_revision = 6;
 }
 
-message MapperMetadata {
-  bytes source_log_id = 1;
-  int64 highest_fully_completed_seq = 2;
-  int64 highest_partially_completed_seq = 3;
- }
-
 // SignedMapRoot represents a commitment by a Map to a particular tree.
 message SignedMapRoot {
   int64 timestamp_nanos = 1;
   bytes root_hash = 2;
-  MapperMetadata metadata = 3;
+  reserved 3;  // was MapperMetadata (removed, replaced by 'Any metadata').
 	// TODO(al): define serialized format for the signature scheme.
   sigpb.DigitallySigned signature = 4;
-
   int64 map_id = 5;
   int64 map_revision = 6;
+  // Metadata associated with the Map root.  This is set by the map personality
+  // layer in a SetLeaves map request.  It could be used to persist state
+  // needed to recreate the Map from an external data source.
+  google.protobuf.Any metadata = 7;
 }

@@ -24,6 +24,7 @@ import (
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys/der"
+	"github.com/google/trillian/examples/ct/ctmapper/ctmapperpb"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/testonly"
@@ -255,12 +256,13 @@ func TestInclusion(t *testing.T) {
 				continue
 			}
 
+
 			if _, err := env.MapClient.SetLeaves(ctx, &trillian.SetMapLeavesRequest{
 				MapId:  tree.TreeId,
 				Leaves: tc.leaves,
-				MapperData: &trillian.MapperMetadata{
+				Metadata: testonly.MustMarshalAny(t, &ctmapperpb.MapperMetadata{
 					HighestFullyCompletedSeq: 0xcafe,
-				},
+				}),
 			}); err != nil {
 				t.Errorf("%v: SetLeaves(): %v", tc.desc, err)
 				continue

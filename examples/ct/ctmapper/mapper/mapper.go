@@ -18,10 +18,13 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"time"
 
 	"github.com/golang/glog"
 	pb "github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes"
+	"github.com/golang/protobuf/ptypes/any"
 	ct "github.com/google/certificate-transparency-go"
 	"github.com/google/certificate-transparency-go/client"
 	"github.com/google/certificate-transparency-go/jsonclient"
@@ -77,14 +80,17 @@ func (m *CTMapper) oneMapperRun(ctx context.Context) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	meta := getRootResp.MapRoot.Metadata
 
-	startEntry := int64(0)
-
-	if meta == nil {
-		meta = &trillian.MapperMetadata{}
+	mapperMetadata := &ctmapperpb.MapperMetadata{}
+	if getRootResp.GetMapRoot().Metadata != nil {
+		var metadataProto ptypes.DynamicAny
+		if err := ptypes.UnmarshalAny(getRootResp.MapRoot.Metadata, &metadataProto); err != nil {
+			return false, fmt.Errorf("failed to unmarshal MapRoot.Metadata: %v", err)
+		}
+		mapperMetadata = metadataProto.Message.(*ctmapperpb.MapperMetadata)
 	}
-	startEntry = meta.HighestFullyCompletedSeq + 1
+
+	startEntry := mapperMetadata.HighestFullyCompletedSeq + 1
 	endEntry := startEntry + int64(*logBatchSize)
 
 	glog.Infof("Fetching entries [%d, %d] from log", startEntry, endEntry)
@@ -106,8 +112,8 @@ func (m *CTMapper) oneMapperRun(ctx context.Context) (bool, error) {
 			glog.Info("Skipping unknown entry type %v at %d", entry.Leaf.LeafType, entry.Index)
 			continue
 		}
-		if entry.Index > meta.HighestFullyCompletedSeq {
-			meta.HighestFullyCompletedSeq = entry.Index
+		if entry.Index > mapperMetadata.HighestFullyCompletedSeq {
+			mapperMetadata.HighestFullyCompletedSeq = entry.Index
 		}
 		switch entry.Leaf.TimestampedEntry.EntryType {
 		case ct.X509LogEntryType:
@@ -184,7 +190,12 @@ func (m *CTMapper) oneMapperRun(ctx context.Context) (bool, error) {
 		})
 	}
 
-	setReq.MapperData = meta
+	var metaAny *any.Any
+	if metaAny, err = ptypes.MarshalAny(mapperMetadata); err != nil {
+		return false, fmt.Errorf("failed to marshal mapper metadata as 'any': err %v", err)
+	}
+
+	setReq.Metadata = metaAny
 
 	setResp, err := m.vmap.SetLeaves(context.Background(), setReq)
 	if err != nil {

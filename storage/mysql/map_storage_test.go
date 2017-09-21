@@ -20,9 +20,12 @@ import (
 	"testing"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes/any"
 	"github.com/google/trillian"
 	spb "github.com/google/trillian/crypto/sigpb"
+	"github.com/google/trillian/examples/ct/ctmapper/ctmapperpb"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/testonly"
 	"github.com/kylelemons/godebug/pretty"
 )
 
@@ -167,28 +170,24 @@ func TestMapRootUpdate(t *testing.T) {
 				Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
 			}},
 		{
-			desc: "Root with default MapperMetadata",
+			desc: "Root with default (empty) MapperMetadata",
 			root: trillian.SignedMapRoot{
 				MapId:          mapID,
 				TimestampNanos: 98768,
 				MapRevision:    7,
 				RootHash:       []byte(dummyHash),
 				Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
-				Metadata: &trillian.MapperMetadata{
-					HighestFullyCompletedSeq: 0,
-				},
+				Metadata:       &any.Any{},
 			}},
 		{
-			desc: "Root with non-default MapperMetadata",
+			desc: "Root with non-default (populated) MapperMetadata",
 			root: trillian.SignedMapRoot{
 				MapId:          mapID,
 				TimestampNanos: 98769,
 				MapRevision:    8,
 				RootHash:       []byte(dummyHash),
 				Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
-				Metadata: &trillian.MapperMetadata{
-					HighestFullyCompletedSeq: 1,
-				},
+				Metadata: 		testonly.MustMarshalAny(t,&ctmapperpb.MapperMetadata{HighestFullyCompletedSeq: 1}),
 			}},
 	} {
 		{

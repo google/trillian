@@ -17,6 +17,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle/hashers"
@@ -26,6 +27,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes/any"
 
 	spb "github.com/google/trillian/crypto/sigpb"
 )
@@ -269,33 +271,32 @@ func (m *mapTreeTX) LatestSignedMapRoot(ctx context.Context) (trillian.SignedMap
 }
 
 func (m *mapTreeTX) signedMapRoot(timestamp, mapRevision int64, rootHash, rootSignatureBytes, mapperMetaBytes []byte) (trillian.SignedMapRoot, error) {
-	var rootSignature spb.DigitallySigned
-	var mapperMeta *trillian.MapperMetadata
+	rootSignature := &spb.DigitallySigned{}
 
-	err := proto.Unmarshal(rootSignatureBytes, &rootSignature)
+	err := proto.Unmarshal(rootSignatureBytes, rootSignature)
 	if err != nil {
-		glog.Warningf("Failed to unmarshal root signature: %v", err)
+		err = fmt.Errorf("signedMapRoot: failed to unmarshal root signature: %v", err)
 		return trillian.SignedMapRoot{}, err
 	}
 
-	if mapperMetaBytes != nil {
-		mapperMeta = &trillian.MapperMetadata{}
-		if err := proto.Unmarshal(mapperMetaBytes, mapperMeta); err != nil {
-			glog.Warningf("Failed to unmarshal Metadata; %v", err)
-			return trillian.SignedMapRoot{}, err
-		}
-	}
-
-	ret := trillian.SignedMapRoot{
+	smr := trillian.SignedMapRoot{
 		RootHash:       rootHash,
 		TimestampNanos: timestamp,
 		MapRevision:    mapRevision,
-		Signature:      &rootSignature,
+		Signature:      rootSignature,
 		MapId:          m.treeID,
-		Metadata:       mapperMeta,
 	}
 
-	return ret, nil
+	if mapperMetaBytes != nil {
+		mapperMeta := &any.Any{}
+		if err := proto.Unmarshal(mapperMetaBytes, mapperMeta); err != nil {
+			err = fmt.Errorf("signedMapRoot: failed to unmarshal metadata: %v", err)
+			return trillian.SignedMapRoot{}, err
+		}
+		smr.Metadata = mapperMeta
+	}
+
+	return smr, nil
 }
 
 func (m *mapTreeTX) StoreSignedMapRoot(ctx context.Context, root trillian.SignedMapRoot) error {

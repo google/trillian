@@ -20,6 +20,7 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/crypto/sigpb"
+	"github.com/google/trillian/examples/ct/ctmapper/ctmapperpb"
 	"github.com/google/trillian/testonly"
 )
 
@@ -94,30 +95,24 @@ func TestSignVerifyObject(t *testing.T) {
 		c int
 	}
 
+	meta := testonly.MustMarshalAny(t, &ctmapperpb.MapperMetadata{})
+	meta0 := testonly.MustMarshalAny(t, &ctmapperpb.MapperMetadata{HighestFullyCompletedSeq: 0})
+	meta1 := testonly.MustMarshalAny(t, &ctmapperpb.MapperMetadata{HighestFullyCompletedSeq: 1})
+
 	for _, tc := range []struct {
 		obj interface{}
 	}{
-		{&trillian.MapperMetadata{}},
-		{&trillian.MapperMetadata{HighestFullyCompletedSeq: 0}},
-		{&trillian.MapperMetadata{HighestFullyCompletedSeq: 1}},
+		{meta},
+		{meta0},
+		{meta1},
 
 		{&trillian.SignedMapRoot{}},
 		{&trillian.SignedMapRoot{
 			MapId: 0xcafe,
 		}},
-		{&trillian.SignedMapRoot{
-			Metadata: &trillian.MapperMetadata{},
-		}},
-		{&trillian.SignedMapRoot{
-			Metadata: &trillian.MapperMetadata{
-				HighestFullyCompletedSeq: 0,
-			},
-		}},
-		{&trillian.SignedMapRoot{
-			Metadata: &trillian.MapperMetadata{
-				HighestFullyCompletedSeq: 1,
-			},
-		}},
+		{&trillian.SignedMapRoot{Metadata: meta}},
+		{&trillian.SignedMapRoot{Metadata: meta0}},
+		{&trillian.SignedMapRoot{Metadata: meta1}},
 		{struct{ a string }{a: "foo"}},
 		{struct {
 			a int

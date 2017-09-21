@@ -53,7 +53,6 @@ It has these top-level messages:
 	Tree
 	SignedEntryTimestamp
 	SignedLogRoot
-	MapperMetadata
 	SignedMapRoot
 */
 package trillian
