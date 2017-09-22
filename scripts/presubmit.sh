@@ -129,10 +129,10 @@ main() {
       # add some parallelism.
       echo go test \
           -short \
-          -timeout=${GO_TEST_TIMEOUT:=5m} \
+          -timeout=${GO_TEST_TIMEOUT:-5m} \
           ${coverflags} \
           ${goflags} "$d"
-    done | xargs -I '{}' -P ${GO_TEST_PARALLELISM:=10} bash -c '{}'
+    done | xargs -I '{}' -P ${GO_TEST_PARALLELISM:-10} bash -c '{}'
 
     [[ ${coverage} -eq 1 ]] && \
       cat /tmp/trillian_profile/*.out > /tmp/coverage.txt
