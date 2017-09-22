@@ -9,6 +9,7 @@
 # Globals:
 #   GO_TEST_PARALLELISM: max processes to use for Go tests. Optional (defaults
 #       to 10).
+#   GO_TEST_TIMEOUT: timeout for 'go test'. Optional (defaults to 5m).
 set -eu
 
 check_deps() {
@@ -126,7 +127,11 @@ main() {
 
       # Do not run go test in the loop, instead echo it so we can use xargs to
       # add some parallelism.
-      echo go test -short -timeout=5m ${coverflags} ${goflags} "$d"
+      echo go test \
+          -short \
+          -timeout=${GO_TEST_TIMEOUT:=5m} \
+          ${coverflags} \
+          ${goflags} "$d"
     done | xargs -I '{}' -P ${GO_TEST_PARALLELISM:=10} bash -c '{}'
 
     [[ ${coverage} -eq 1 ]] && \

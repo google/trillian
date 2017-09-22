@@ -66,6 +66,7 @@ before_script:
 script:
   - set -e
   - cd "$HOME/gopath/src/github.com/google/trillian"
+  - export GO_TEST_TIMEOUT=20m
   - ./scripts/presubmit.sh ${WITH_COVERAGE:+--coverage}
   - |
       # Check re-generation didn't change anything
