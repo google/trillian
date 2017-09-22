@@ -1,4 +1,4 @@
-sudo: required # required to install softhsm for PKCS 11 tests
+sudo: false
 language: go
 
 os:
@@ -12,7 +12,6 @@ env:
   - GOFLAGS='-race'
   - GOFLAGS='-race --tags batched_queue'
   - GOFLAGS='-race' WITH_ETCD=true
-  - GOFLAGS='-race --tags pkcs11' WITH_PKCS11=true
 
 matrix:
   fast_finish: true
@@ -21,6 +20,9 @@ matrix:
   include:
     - os: osx  # Run only "vanilla" tests on osx
       env:
+    - os: linux
+      env: GOFLAGS='-race --tags pkcs11' WITH_PKCS11=true
+      sudo: required # required to install softhsm for PKCS#11 tests
 
 services: mysql
 
