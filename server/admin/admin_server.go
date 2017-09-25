@@ -23,12 +23,13 @@ import (
 	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/merkle/hashers"
-	_ "github.com/google/trillian/merkle/rfc6962" // Make hashers available
 	"github.com/google/trillian/trees"
 	"golang.org/x/net/context"
 	"google.golang.org/genproto/protobuf/field_mask"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	_ "github.com/google/trillian/merkle/rfc6962" // Make hashers available
 )
 
 var errNotImplemented = status.Errorf(codes.Unimplemented, "not implemented")
@@ -57,7 +58,7 @@ func (s *Server) ListTrees(ctx context.Context, req *trillian.ListTreesRequest) 
 	}
 	defer tx.Close()
 	// TODO(codingllama): This needs access control
-	resp, err := tx.ListTrees(ctx, true /* includeDeleted */)
+	resp, err := tx.ListTrees(ctx, req.GetShowDeleted())
 	if err != nil {
 		return nil, err
 	}
@@ -72,18 +73,25 @@ func (s *Server) ListTrees(ctx context.Context, req *trillian.ListTreesRequest) 
 }
 
 // GetTree implements trillian.TrillianAdminServer.GetTree.
-func (s *Server) GetTree(ctx context.Context, request *trillian.GetTreeRequest) (*trillian.Tree, error) {
-	// TODO(codingllama): This needs access control
-	tree, err := trees.GetTree(ctx, s.registry.AdminStorage, request.GetTreeId(), trees.GetOpts{Readonly: true})
+func (s *Server) GetTree(ctx context.Context, req *trillian.GetTreeRequest) (*trillian.Tree, error) {
+	tx, err := s.registry.AdminStorage.Snapshot(ctx)
 	if err != nil {
+		return nil, err
+	}
+	defer tx.Close()
+	tree, err := tx.GetTree(ctx, req.GetTreeId())
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
 	return redact(tree), nil
 }
 
 // CreateTree implements trillian.TrillianAdminServer.CreateTree.
-func (s *Server) CreateTree(ctx context.Context, request *trillian.CreateTreeRequest) (*trillian.Tree, error) {
-	tree := request.GetTree()
+func (s *Server) CreateTree(ctx context.Context, req *trillian.CreateTreeRequest) (*trillian.Tree, error) {
+	tree := req.GetTree()
 	if tree == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "a tree is required")
 	}
@@ -101,7 +109,7 @@ func (s *Server) CreateTree(ctx context.Context, request *trillian.CreateTreeReq
 	}
 
 	// If a key specification was provided, generate a new key.
-	if request.KeySpec != nil {
+	if req.KeySpec != nil {
 		if tree.PrivateKey != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "the tree.private_key and key_spec fields are mutually exclusive")
 		}
@@ -112,7 +120,7 @@ func (s *Server) CreateTree(ctx context.Context, request *trillian.CreateTreeReq
 			return nil, status.Errorf(codes.FailedPrecondition, "key generation is not enabled")
 		}
 
-		keyProto, err := s.registry.NewKeyProto(ctx, request.KeySpec)
+		keyProto, err := s.registry.NewKeyProto(ctx, req.KeySpec)
 		if err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "failed to generate private key: %v", err.Error())
 		}
@@ -228,13 +236,37 @@ func applyUpdateMask(from, to *trillian.Tree, mask *field_mask.FieldMask) error 
 }
 
 // DeleteTree implements trillian.TrillianAdminServer.DeleteTree.
-func (s *Server) DeleteTree(context.Context, *trillian.DeleteTreeRequest) (*trillian.Tree, error) {
-	return nil, errNotImplemented
+func (s *Server) DeleteTree(ctx context.Context, req *trillian.DeleteTreeRequest) (*trillian.Tree, error) {
+	tx, err := s.registry.AdminStorage.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Close()
+	tree, err := tx.SoftDeleteTree(ctx, req.GetTreeId())
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return redact(tree), nil
 }
 
 // UndeleteTree implements trillian.TrillianAdminServer.UndeleteTree.
-func (s *Server) UndeleteTree(context.Context, *trillian.UndeleteTreeRequest) (*trillian.Tree, error) {
-	return nil, errNotImplemented
+func (s *Server) UndeleteTree(ctx context.Context, req *trillian.UndeleteTreeRequest) (*trillian.Tree, error) {
+	tx, err := s.registry.AdminStorage.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Close()
+	tree, err := tx.UndeleteTree(ctx, req.GetTreeId())
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return redact(tree), nil
 }
 
 // redact removes sensitive information from t. Returns t for convenience.

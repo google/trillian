@@ -31,6 +31,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/keys/der"
@@ -41,32 +42,7 @@ import (
 	"github.com/google/trillian/storage/testonly"
 	"github.com/kylelemons/godebug/pretty"
 	"google.golang.org/genproto/protobuf/field_mask"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
-
-func TestServer_Unimplemented(t *testing.T) {
-	tests := []struct {
-		desc string
-		fn   func(context.Context, *Server) error
-	}{
-		{
-			desc: "DeleteTree",
-			fn: func(ctx context.Context, s *Server) error {
-				_, err := s.DeleteTree(ctx, &trillian.DeleteTreeRequest{})
-				return err
-			},
-		},
-	}
-	ctx := context.Background()
-	s := &Server{}
-	for _, test := range tests {
-		err := test.fn(ctx, s)
-		if s, ok := status.FromError(err); !ok || s.Code() != codes.Unimplemented {
-			t.Errorf("%v: got = %v, want = %s", test.desc, err, codes.Unimplemented)
-		}
-	}
-}
 
 func TestServer_BeginError(t *testing.T) {
 	ctrl := gomock.NewController(t)
@@ -146,81 +122,108 @@ func TestServer_ListTrees(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
+	activeLog := proto.Clone(testonly.LogTree).(*trillian.Tree)
+	frozenLog := proto.Clone(testonly.LogTree).(*trillian.Tree)
+	frozenLog.TreeState = trillian.TreeState_FROZEN
+	deletedLog := proto.Clone(testonly.LogTree).(*trillian.Tree)
+	activeMap := proto.Clone(testonly.MapTree).(*trillian.Tree)
+	deletedMap := proto.Clone(testonly.MapTree).(*trillian.Tree)
+
+	id := int64(17)
+	nowPB := ptypes.TimestampNow()
+	for _, tree := range []*trillian.Tree{activeLog, frozenLog, deletedLog, activeMap, deletedMap} {
+		tree.TreeId = id
+		tree.CreateTime = proto.Clone(nowPB).(*timestamp.Timestamp)
+		tree.UpdateTime = proto.Clone(nowPB).(*timestamp.Timestamp)
+		id++
+		nowPB.Seconds++
+	}
+	for _, tree := range []*trillian.Tree{deletedLog, deletedMap} {
+		tree.Deleted = true
+		tree.DeleteTime = proto.Clone(nowPB).(*timestamp.Timestamp)
+		nowPB.Seconds++
+	}
+	nonDeletedTrees := []*trillian.Tree{activeLog, frozenLog, activeMap}
+	allTrees := []*trillian.Tree{activeLog, frozenLog, deletedLog, activeMap, deletedMap}
+
 	tests := []struct {
-		desc string
-		// numTrees is the number of trees in storage. New trees are created as necessary
-		// and carried over to following tests.
-		numTrees           int
-		listErr, commitErr bool
+		desc  string
+		req   *trillian.ListTreesRequest
+		trees []*trillian.Tree
 	}{
-		{desc: "empty"},
-		{desc: "listErr", listErr: true},
-		{desc: "commitErr", commitErr: true},
-		{desc: "oneTree", numTrees: 1},
-		{desc: "threeTrees", numTrees: 3},
+		{desc: "emptyNonDeleted", req: &trillian.ListTreesRequest{}},
+		{desc: "empty", req: &trillian.ListTreesRequest{ShowDeleted: true}},
+		{desc: "nonDeleted", req: &trillian.ListTreesRequest{}, trees: nonDeletedTrees},
+		{
+			desc:  "allTreesDeleted",
+			req:   &trillian.ListTreesRequest{ShowDeleted: true},
+			trees: allTrees,
+		},
 	}
 
 	ctx := context.Background()
-	nextTreeID := int64(17)
-	storedTrees := []*trillian.Tree{}
-	nowPB, _ := ptypes.TimestampProto(time.Now())
 	for _, test := range tests {
-		if l := len(storedTrees); l > test.numTrees {
-			t.Fatalf("%v: numTrees = %v, but we already have %v stored trees", test.desc, test.numTrees, l)
-		} else {
-			for i := l; i < test.numTrees; i++ {
-				newTree := *testonly.LogTree
-				newTree.TreeId = nextTreeID
-				newTree.CreateTime = nowPB
-				newTree.UpdateTime = nowPB
-				nextTreeID++
-				storedTrees = append(storedTrees, &newTree)
-			}
-		}
-
 		setup := setupAdminServer(
 			ctrl,
-			nil,           // keygen
-			true,          // snapshot
-			!test.listErr, // shouldCommit
-			test.commitErr)
+			nil,  /* keygen */
+			true, /* snapshot */
+			true, /* shouldCommit */
+			false /* commitErr */)
+
 		tx := setup.snapshotTX
+		tx.EXPECT().ListTrees(ctx, test.req.ShowDeleted).Return(test.trees, nil)
+
 		s := setup.server
-
-		if test.listErr {
-			tx.EXPECT().ListTrees(ctx, true).Return(nil, errors.New("error listing trees"))
-		} else {
-			// Take a defensive copy, otherwise the server may end up changing our
-			// source-of-truth trees.
-			trees := copyAndUpdate(storedTrees, func(*trillian.Tree) {})
-			tx.EXPECT().ListTrees(ctx, true).Return(trees, nil)
-		}
-
-		resp, err := s.ListTrees(ctx, &trillian.ListTreesRequest{})
-		if hasErr, wantErr := err != nil, test.listErr || test.commitErr; hasErr != wantErr {
-			t.Errorf("%v: ListTrees() = (_, %q), wantErr = %v", test.desc, err, wantErr)
-			continue
-		} else if hasErr {
+		resp, err := s.ListTrees(ctx, test.req)
+		if err != nil {
+			t.Errorf("%v: ListTrees() returned err = %v", test.desc, err)
 			continue
 		}
-
-		want := copyAndUpdate(storedTrees, func(t *trillian.Tree) { t.PrivateKey = nil })
-		if diff := pretty.Compare(resp.Tree, want); diff != "" {
-			t.Errorf("%v: post-ListTrees diff (-got +want):\n%v", test.desc, diff)
+		want := []*trillian.Tree{}
+		for _, tree := range test.trees {
+			wantTree := proto.Clone(tree).(*trillian.Tree)
+			wantTree.PrivateKey = nil // redacted
+			want = append(want, wantTree)
+		}
+		for i, wantTree := range want {
+			if !proto.Equal(resp.Tree[i], wantTree) {
+				t.Errorf("%v: post-ListTrees() diff (-got +want):\n%v", test.desc, pretty.Compare(resp.Tree, want))
+				break
+			}
 		}
 	}
 }
 
-// copyAndUpdate makes a deep copy of a slice, allowing for an optional redact function to run on
-// every element.
-func copyAndUpdate(s []*trillian.Tree, f func(*trillian.Tree)) []*trillian.Tree {
-	otherS := make([]*trillian.Tree, 0, len(s))
-	for _, t := range s {
-		otherT := *t
-		f(&otherT)
-		otherS = append(otherS, &otherT)
+func TestServer_ListTreesErrors(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	tests := []struct {
+		desc      string
+		listErr   error
+		commitErr bool
+	}{
+		{desc: "listErr", listErr: errors.New("error listing trees")},
+		{desc: "commitErr", commitErr: true},
 	}
-	return otherS
+
+	ctx := context.Background()
+	for _, test := range tests {
+		setup := setupAdminServer(
+			ctrl,
+			nil,                 /* keygen */
+			true,                /* snapshot */
+			test.listErr == nil, /* shouldCommit */
+			test.commitErr /* commitErr */)
+
+		tx := setup.snapshotTX
+		tx.EXPECT().ListTrees(ctx, false).Return(nil, test.listErr)
+
+		s := setup.server
+		if _, err := s.ListTrees(ctx, &trillian.ListTreesRequest{}); err == nil {
+			t.Errorf("%v: ListTrees() returned err = nil, want non-nil", test.desc)
+		}
+	}
 }
 
 func TestServer_GetTree(t *testing.T) {
@@ -492,7 +495,7 @@ func TestServer_CreateTree(t *testing.T) {
 		setup := setupAdminServer(ctrl, keygen, false /* snapshot */, test.wantCommit, test.commitErr)
 		tx := setup.tx
 		s := setup.server
-		nowPB, _ := ptypes.TimestampProto(time.Now())
+		nowPB := ptypes.TimestampNow()
 
 		if test.req.Tree != nil {
 			var newTree trillian.Tree
@@ -538,7 +541,7 @@ func TestServer_UpdateTree(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	nowPB, _ := ptypes.TimestampProto(time.Now())
+	nowPB := ptypes.TimestampNow()
 	existingTree := *testonly.LogTree
 	existingTree.TreeId = 12345
 	existingTree.CreateTime = nowPB
@@ -659,6 +662,175 @@ func TestServer_UpdateTree(t *testing.T) {
 		if !proto.Equal(tree, test.wantTree) {
 			diff := pretty.Compare(tree, test.wantTree)
 			t.Errorf("%v: post-UpdateTree diff:\n%v", test.desc, diff)
+		}
+	}
+}
+
+func TestServer_DeleteTree(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	logTree := proto.Clone(testonly.LogTree).(*trillian.Tree)
+	mapTree := proto.Clone(testonly.MapTree).(*trillian.Tree)
+	for i, tree := range []*trillian.Tree{logTree, mapTree} {
+		tree.TreeId = int64(i) + 10
+		tree.CreateTime, _ = ptypes.TimestampProto(time.Unix(int64(i)*3600, 0))
+		tree.UpdateTime = tree.CreateTime
+	}
+
+	tests := []struct {
+		desc string
+		tree *trillian.Tree
+	}{
+		{desc: "logTree", tree: logTree},
+		{desc: "mapTree", tree: mapTree},
+	}
+
+	ctx := context.Background()
+	for _, test := range tests {
+		setup := setupAdminServer(
+			ctrl,
+			nil,   /* keygen */
+			false, /* snapshot */
+			true,  /* shouldCommit */
+			false /* commitErr */)
+		req := &trillian.DeleteTreeRequest{TreeId: test.tree.TreeId}
+
+		tx := setup.tx
+		tx.EXPECT().SoftDeleteTree(ctx, req.TreeId).Return(test.tree, nil)
+
+		s := setup.server
+		got, err := s.DeleteTree(ctx, req)
+		if err != nil {
+			t.Errorf("%v: DeleteTree() returned err = %v", test.desc, err)
+			continue
+		}
+
+		want := proto.Clone(test.tree).(*trillian.Tree)
+		want.PrivateKey = nil // redacted
+		if !proto.Equal(got, want) {
+			diff := pretty.Compare(got, want)
+			t.Errorf("%v: post-DeleteTree() diff (-got +want):\n%v", test.desc, diff)
+		}
+	}
+}
+
+func TestServer_DeleteTreeErrors(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	tests := []struct {
+		desc      string
+		deleteErr error
+		commitErr bool
+	}{
+		{desc: "deleteErr", deleteErr: errors.New("unknown tree")},
+		{desc: "commitErr", commitErr: true},
+	}
+
+	ctx := context.Background()
+	for _, test := range tests {
+		setup := setupAdminServer(
+			ctrl,
+			nil,   /* keygen */
+			false, /* snapshot */
+			test.deleteErr == nil, /* shouldCommit */
+			test.commitErr /* commitErr */)
+		req := &trillian.DeleteTreeRequest{TreeId: 10}
+
+		tx := setup.tx
+		tx.EXPECT().SoftDeleteTree(ctx, req.TreeId).Return(&trillian.Tree{}, test.deleteErr)
+
+		s := setup.server
+		if _, err := s.DeleteTree(ctx, req); err == nil {
+			t.Errorf("%v: DeleteTree() returned err = nil, want non-nil", test.desc)
+		}
+	}
+}
+
+func TestServer_UndeleteTree(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	activeLog := proto.Clone(testonly.LogTree).(*trillian.Tree)
+	frozenLog := proto.Clone(testonly.LogTree).(*trillian.Tree)
+	frozenLog.TreeState = trillian.TreeState_FROZEN
+	activeMap := proto.Clone(testonly.MapTree).(*trillian.Tree)
+	for i, tree := range []*trillian.Tree{activeLog, frozenLog, activeMap} {
+		tree.TreeId = int64(i) + 10
+		tree.CreateTime, _ = ptypes.TimestampProto(time.Unix(int64(i)*3600, 0))
+		tree.UpdateTime = tree.CreateTime
+		tree.Deleted = true
+		tree.DeleteTime, _ = ptypes.TimestampProto(time.Unix(int64(i)*3600+10, 0))
+	}
+
+	tests := []struct {
+		desc string
+		tree *trillian.Tree
+	}{
+		{desc: "activeLog", tree: activeLog},
+		{desc: "frozenLog", tree: frozenLog},
+		{desc: "activeMap", tree: activeMap},
+	}
+
+	ctx := context.Background()
+	for _, test := range tests {
+		setup := setupAdminServer(
+			ctrl,
+			nil,   /* keygen */
+			false, /* snapshot */
+			true,  /* shouldCommit */
+			false /* commitErr */)
+		req := &trillian.UndeleteTreeRequest{TreeId: test.tree.TreeId}
+
+		tx := setup.tx
+		tx.EXPECT().UndeleteTree(ctx, req.TreeId).Return(test.tree, nil)
+
+		s := setup.server
+		got, err := s.UndeleteTree(ctx, req)
+		if err != nil {
+			t.Errorf("%v: UndeleteTree() returned err = %v", test.desc, err)
+			continue
+		}
+
+		want := proto.Clone(test.tree).(*trillian.Tree)
+		want.PrivateKey = nil // redacted
+		if !proto.Equal(got, want) {
+			diff := pretty.Compare(got, want)
+			t.Errorf("%v: post-UneleteTree() diff (-got +want):\n%v", test.desc, diff)
+		}
+	}
+}
+
+func TestServer_UndeleteTreeErrors(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	tests := []struct {
+		desc        string
+		undeleteErr error
+		commitErr   bool
+	}{
+		{desc: "undeleteErr", undeleteErr: errors.New("unknown tree")},
+		{desc: "commitErr", commitErr: true},
+	}
+
+	ctx := context.Background()
+	for _, test := range tests {
+		setup := setupAdminServer(
+			ctrl,
+			nil,   /* keygen */
+			false, /* snapshot */
+			test.undeleteErr == nil, /* shouldCommit */
+			test.commitErr /* commitErr */)
+		req := &trillian.UndeleteTreeRequest{TreeId: 10}
+
+		tx := setup.tx
+		tx.EXPECT().UndeleteTree(ctx, req.TreeId).Return(&trillian.Tree{}, test.undeleteErr)
+
+		s := setup.server
+		if _, err := s.UndeleteTree(ctx, req); err == nil {
+			t.Errorf("%v: UndeleteTree() returned err = nil, want non-nil", test.desc)
 		}
 	}
 }
