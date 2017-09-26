@@ -228,6 +228,8 @@ func applyUpdateMask(from, to *trillian.Tree, mask *field_mask.FieldMask) error 
 			to.StorageSettings = from.StorageSettings
 		case "max_root_duration":
 			to.MaxRootDuration = from.MaxRootDuration
+		case "private_key":
+			to.PrivateKey = from.PrivateKey
 		default:
 			return status.Errorf(codes.InvalidArgument, "invalid update_mask path: %q", path)
 		}

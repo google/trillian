@@ -15,11 +15,14 @@
 package storage
 
 import (
-	"crypto/x509"
+	"bytes"
+	"context"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto/keys"
+	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/errors"
 )
@@ -33,7 +36,7 @@ const (
 // otherwise.
 // See the documentation on trillian.Tree for reference on which values are
 // valid.
-func ValidateTreeForCreation(tree *trillian.Tree) error {
+func ValidateTreeForCreation(ctx context.Context, tree *trillian.Tree) error {
 	switch {
 	case tree == nil:
 		return errors.New(errors.InvalidArgument, "a tree is required")
@@ -57,20 +60,7 @@ func ValidateTreeForCreation(tree *trillian.Tree) error {
 		return errors.Errorf(errors.InvalidArgument, "invalid delete_time: %+v (must be nil)", tree.DeleteTime)
 	}
 
-	// Check that the private_key proto contains a valid serialized proto.
-	// This is enough at this layer, as the CreateTree RPC checks whether actually creating the
-	// configured hashers / signers is possible given the current extension.Registry.
-	var privateKey ptypes.DynamicAny
-	if err := ptypes.UnmarshalAny(tree.PrivateKey, &privateKey); err != nil {
-		return errors.Errorf(errors.InvalidArgument, "invalid private_key: %v", err)
-	}
-
-	// Check that the public_key proto contains a valid DER-encoded public key.
-	if _, err := x509.ParsePKIXPublicKey(tree.PublicKey.GetDer()); err != nil {
-		return errors.Errorf(errors.InvalidArgument, "invalid public_key: %v", err)
-	}
-
-	return validateMutableTreeFields(tree)
+	return validateMutableTreeFields(ctx, tree)
 }
 
 // ValidateTreeForUpdate returns nil if newTree is valid for update, error
@@ -80,7 +70,7 @@ func ValidateTreeForCreation(tree *trillian.Tree) error {
 // update_time, have not yet changed when this method is called.
 // See the documentation on trillian.Tree for reference on which fields may be
 // changed and what is considered valid for each of them.
-func ValidateTreeForUpdate(storedTree, newTree *trillian.Tree) error {
+func ValidateTreeForUpdate(ctx context.Context, storedTree, newTree *trillian.Tree) error {
 	// Check that readonly fields didn't change
 	switch {
 	case storedTree.TreeId != newTree.TreeId:
@@ -97,8 +87,6 @@ func ValidateTreeForUpdate(storedTree, newTree *trillian.Tree) error {
 		return errors.New(errors.InvalidArgument, "readonly field changed: create_time")
 	case !proto.Equal(storedTree.UpdateTime, newTree.UpdateTime):
 		return errors.New(errors.InvalidArgument, "readonly field changed: update_time")
-	case !proto.Equal(storedTree.PrivateKey, newTree.PrivateKey):
-		return errors.New(errors.InvalidArgument, "readonly field changed: private_key")
 	case !proto.Equal(storedTree.PublicKey, newTree.PublicKey):
 		return errors.New(errors.InvalidArgument, "readonly field changed: public_key")
 	case storedTree.Deleted != newTree.Deleted:
@@ -106,10 +94,10 @@ func ValidateTreeForUpdate(storedTree, newTree *trillian.Tree) error {
 	case !proto.Equal(storedTree.DeleteTime, newTree.DeleteTime):
 		return errors.New(errors.InvalidArgument, "readonly field changed: delete_time")
 	}
-	return validateMutableTreeFields(newTree)
+	return validateMutableTreeFields(ctx, newTree)
 }
 
-func validateMutableTreeFields(tree *trillian.Tree) error {
+func validateMutableTreeFields(ctx context.Context, tree *trillian.Tree) error {
 	switch {
 	case tree.TreeState == trillian.TreeState_UNKNOWN_TREE_STATE:
 		return errors.Errorf(errors.InvalidArgument, "invalid tree_state: %v", tree.TreeState)
@@ -131,6 +119,24 @@ func validateMutableTreeFields(tree *trillian.Tree) error {
 		if err := ptypes.UnmarshalAny(tree.StorageSettings, &settings); err != nil {
 			return errors.Errorf(errors.InvalidArgument, "invalid storage_settings: %v", err)
 		}
+	}
+
+	var privateKeyProto ptypes.DynamicAny
+	if err := ptypes.UnmarshalAny(tree.PrivateKey, &privateKeyProto); err != nil {
+		return errors.Errorf(errors.InvalidArgument, "invalid private_key: %v", err)
+	}
+
+	// Check that the private key can be obtained and matches the public key.
+	privateKey, err := keys.NewSigner(ctx, privateKeyProto.Message)
+	if err != nil {
+		return errors.Errorf(errors.InvalidArgument, "invalid private_key: %v", err)
+	}
+	publicKeyDER, err := der.MarshalPublicKey(privateKey.Public())
+	if err != nil {
+		return errors.Errorf(errors.InvalidArgument, "invalid private_key: %v", err)
+	}
+	if !bytes.Equal(publicKeyDER, tree.PublicKey.GetDer()) {
+		return errors.Errorf(errors.InvalidArgument, "private_key and public_key are not a matching pair")
 	}
 
 	return nil

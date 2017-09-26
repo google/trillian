@@ -35,7 +35,9 @@ import (
 	spb "github.com/google/trillian/crypto/sigpb"
 	ttestonly "github.com/google/trillian/testonly"
 
-	_ "github.com/google/trillian/merkle/maphasher" // TEST_MAP_HASHER
+	_ "github.com/google/trillian/crypto/keys/der/proto" // PrivateKey proto handler
+	_ "github.com/google/trillian/crypto/keys/pem/proto" // PEMKeyFile proto handler
+	_ "github.com/google/trillian/merkle/maphasher"      // TEST_MAP_HASHER
 )
 
 // mustMarshalAny panics if ptypes.MarshalAny fails.
