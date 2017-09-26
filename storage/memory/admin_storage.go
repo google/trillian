@@ -132,7 +132,7 @@ func (t *adminTX) ListTrees(ctx context.Context, includeDeleted bool) ([]*trilli
 }
 
 func (t *adminTX) CreateTree(ctx context.Context, tr *trillian.Tree) (*trillian.Tree, error) {
-	if err := storage.ValidateTreeForCreation(tr); err != nil {
+	if err := storage.ValidateTreeForCreation(ctx, tr); err != nil {
 		return nil, err
 	}
 	if err := validateStorageSettings(tr); err != nil {
@@ -174,7 +174,7 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 	tree := mTree.meta
 	beforeUpdate := *tree
 	updateFunc(tree)
-	if err := storage.ValidateTreeForUpdate(&beforeUpdate, tree); err != nil {
+	if err := storage.ValidateTreeForUpdate(ctx, &beforeUpdate, tree); err != nil {
 		return nil, err
 	}
 	if err := validateStorageSettings(tree); err != nil {

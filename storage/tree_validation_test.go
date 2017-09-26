@@ -15,20 +15,47 @@
 package storage
 
 import (
-	"encoding/pem"
+	"context"
 	"testing"
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
+	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/errors"
 	"github.com/google/trillian/testonly"
+
+	ktestonly "github.com/google/trillian/crypto/keys/testonly"
+
+	_ "github.com/google/trillian/crypto/keys/der/proto"
+	_ "github.com/google/trillian/crypto/keys/pem/proto"
+)
+
+const (
+	privateKeyPath = "../testdata/log-rpc-server.privkey.pem"
+	privateKeyPass = "towel"
+	privateKeyPEM  = `
+-----BEGIN EC PRIVATE KEY-----
+Proc-Type: 4,ENCRYPTED
+DEK-Info: DES-CBC,D95ECC664FF4BDEC
+
+Xy3zzHFwlFwjE8L1NCngJAFbu3zFf4IbBOCsz6Fa790utVNdulZncNCl2FMK3U2T
+sdoiTW8ymO+qgwcNrqvPVmjFRBtkN0Pn5lgbWhN/aK3TlS9IYJ/EShbMUzjgVzie
+S9+/31whWcH/FLeLJx4cBzvhgCtfquwA+s5ojeLYYsk=
+-----END EC PRIVATE KEY-----`
+	publicKeyPEM = `
+-----BEGIN PUBLIC KEY-----
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEywnWicNEQ8bn3GXcGpA+tiU4VL70
+Ws9xezgQPrg96YGsFrF6KYG68iqyHDlQ+4FWuKfGKXHn3ooVtB/pfawb5Q==
+-----END PUBLIC KEY-----`
 )
 
 func TestValidateTreeForCreation(t *testing.T) {
+	ctx := context.Background()
+
 	valid1 := newTree()
 
 	valid2 := newTree()
@@ -212,7 +239,7 @@ func TestValidateTreeForCreation(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		err := ValidateTreeForCreation(test.tree)
+		err := ValidateTreeForCreation(ctx, test.tree)
 		switch hasErr := err != nil; {
 		case hasErr != test.wantErr:
 			t.Errorf("%v: ValidateTreeForCreation() = %v, wantErr = %v", test.desc, err, test.wantErr)
@@ -223,6 +250,8 @@ func TestValidateTreeForCreation(t *testing.T) {
 }
 
 func TestValidateTreeForUpdate(t *testing.T) {
+	ctx := context.Background()
+
 	tests := []struct {
 		desc     string
 		updatefn func(*trillian.Tree)
@@ -268,6 +297,49 @@ func TestValidateTreeForUpdate(t *testing.T) {
 			desc: "invalidRootDuration",
 			updatefn: func(tree *trillian.Tree) {
 				tree.MaxRootDuration = ptypes.DurationProto(-200 * time.Millisecond)
+			},
+			wantErr: true,
+		},
+		{
+			desc: "differentPrivateKeyProtoButSameKeyMaterial",
+			updatefn: func(tree *trillian.Tree) {
+				key, err := ptypes.MarshalAny(&keyspb.PrivateKey{
+					Der: ktestonly.MustMarshalPrivatePEMToDER(privateKeyPEM, privateKeyPass),
+				})
+				if err != nil {
+					panic(err)
+				}
+				tree.PrivateKey = key
+			},
+		},
+		{
+			desc: "differentPrivateKeyProtoAndDifferentKeyMaterial",
+			updatefn: func(tree *trillian.Tree) {
+				key, err := ptypes.MarshalAny(&keyspb.PrivateKey{
+					Der: ktestonly.MustMarshalPrivatePEMToDER(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass),
+				})
+				if err != nil {
+					panic(err)
+				}
+				tree.PrivateKey = key
+			},
+			wantErr: true,
+		},
+		{
+			desc: "unsupportedPrivateKeyProto",
+			updatefn: func(tree *trillian.Tree) {
+				key, err := ptypes.MarshalAny(&empty.Empty{})
+				if err != nil {
+					panic(err)
+				}
+				tree.PrivateKey = key
+			},
+			wantErr: true,
+		},
+		{
+			desc: "nilPrivateKeyProto",
+			updatefn: func(tree *trillian.Tree) {
+				tree.PrivateKey = nil
 			},
 			wantErr: true,
 		},
@@ -322,19 +394,6 @@ func TestValidateTreeForUpdate(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			desc: "PrivateKey",
-			updatefn: func(tree *trillian.Tree) {
-				key, err := ptypes.MarshalAny(&keyspb.PEMKeyFile{
-					Path: "different.pem",
-				})
-				if err != nil {
-					panic(err)
-				}
-				tree.PrivateKey = key
-			},
-			wantErr: true,
-		},
-		{
 			desc:     "Deleted",
 			updatefn: func(tree *trillian.Tree) { tree.Deleted = !tree.Deleted },
 			wantErr:  true,
@@ -350,7 +409,7 @@ func TestValidateTreeForUpdate(t *testing.T) {
 		baseTree := *tree
 		test.updatefn(tree)
 
-		err := ValidateTreeForUpdate(&baseTree, tree)
+		err := ValidateTreeForUpdate(ctx, &baseTree, tree)
 		switch hasErr := err != nil; {
 		case hasErr != test.wantErr:
 			t.Errorf("%v: ValidateTreeForUpdate() = %v, wantErr = %v", test.desc, err, test.wantErr)
@@ -363,16 +422,11 @@ func TestValidateTreeForUpdate(t *testing.T) {
 // newTree returns a valid tree for tests.
 func newTree() *trillian.Tree {
 	privateKey, err := ptypes.MarshalAny(&keyspb.PEMKeyFile{
-		Path:     "foo.pem",
-		Password: "password123",
+		Path:     privateKeyPath,
+		Password: privateKeyPass,
 	})
 	if err != nil {
 		panic(err)
-	}
-
-	publicKeyPEM, _ := pem.Decode([]byte(testonly.DemoPublicKey))
-	if publicKeyPEM == nil {
-		panic("could not decode public key PEM")
 	}
 
 	return &trillian.Tree{
@@ -384,7 +438,9 @@ func newTree() *trillian.Tree {
 		DisplayName:        "Llamas Log",
 		Description:        "Registry of publicly-owned llamas",
 		PrivateKey:         privateKey,
-		PublicKey:          &keyspb.PublicKey{Der: publicKeyPEM.Bytes},
-		MaxRootDuration:    ptypes.DurationProto(1000 * time.Millisecond),
+		PublicKey: &keyspb.PublicKey{
+			Der: ktestonly.MustMarshalPublicPEMToDER(publicKeyPEM),
+		},
+		MaxRootDuration: ptypes.DurationProto(1000 * time.Millisecond),
 	}
 }
