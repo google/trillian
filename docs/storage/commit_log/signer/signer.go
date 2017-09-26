@@ -108,9 +108,17 @@ func (s *Signer) Run() {
 		if nextSTH == nil {
 			break
 		}
-		if nextSTH.Offset != nextOffset {
+		if nextSTH.Offset < nextOffset {
+			// Found an entry in the STHs topic that didn't get stored at the offset its writer
+			// expected it to be stored at, probably due to another master signer nipping in an
+			// entry ahead of it (due to a bug in mastership election).
+			// Kafka adjudicates the clash: whichever entry got the correct offset wins.
 			glog.V(2).Infof("%s: ignoring inconsistent STH %s at offset %d", s.Name, nextSTH.String(), nextOffset)
 			continue
+		}
+		if nextSTH.Offset > nextOffset {
+			glog.Errorf("%s: STH %s is stored at offset %d, earlier than its writer expected!!", s.Name, nextSTH.String(), nextOffset)
+			return
 		}
 		if nextSTH.TimeStamp < dbSTHInfo.sth.TimeStamp || nextSTH.TreeSize < dbSTHInfo.sth.TreeSize {
 			glog.Errorf("%s: next STH %s has earlier timestamp than in local DB (%s)!!", s.Name, nextSTH.String(), dbSTHInfo.sth.String())
@@ -129,7 +137,7 @@ func (s *Signer) Run() {
 		// ... and we're the master. Move the STHs topic along to encompass any unincorporated leaves.
 		offset := dbSTHInfo.sth.TreeSize
 		batch := simkafka.ReadMultiple("Leaves/<treeID>", offset, *batchSize)
-		glog.V(2).Infof("%s: nothing at next offset %d and we are master, so read %d more leaves", s.Name, nextOffset, len(batch))
+		glog.V(2).Infof("%s: nothing at next offset %d and we are master, so have read %d more leaves", s.Name, nextOffset, len(batch))
 		if len(batch) == 0 {
 			glog.V(2).Infof("%s: nothing to do", s.Name)
 			return
@@ -139,14 +147,18 @@ func (s *Signer) Run() {
 			sth: STH{
 				TreeSize:  s.db.Size() + len(batch),
 				TimeStamp: timestamp,
-				Offset:    nextOffset, // The offset we expect this to end at
+				Offset:    nextOffset, // The offset we expect this STH to end up at in STH topic
 			},
 			treeRevision: dbSTHInfo.treeRevision + 1,
 		}
 		newSTHInfo.sthOffset = simkafka.Append("STHs/<treeID>", newSTHInfo.sth.String())
-		if newSTHInfo.sthOffset != nextOffset {
-			// The STH didn't get stored at the offset we expected, presumable because someone else got there first
+		if newSTHInfo.sthOffset > nextOffset {
+			// The STH didn't get stored at the offset we expected, presumably because someone else got there first
 			glog.Warningf("%s: stored new STH %s at offset %d, which is unexpected; give up", s.Name, newSTHInfo.sth.String(), newSTHInfo.sthOffset)
+			return
+		}
+		if newSTHInfo.sthOffset < nextOffset {
+			glog.Errorf("%s: stored new STH %s at offset %d, which is earlier than expected!!", s.Name, newSTHInfo.sth.String(), newSTHInfo.sthOffset)
 			return
 		}
 		glog.V(2).Infof("%s: stored new STH %s at expected offset, including %d new leaves", s.Name, newSTHInfo.sth.String(), len(batch))
