@@ -93,7 +93,7 @@ information.
 
 Log frontends may attempt to de-duplicate incoming leaves by consulting the
 local storage DB using the identity hash (and/or e.g. using a per-instance LRU
-cache, but this will always be a "best effort" affair, so the Trillian APIs
+cache), but this will always be a "best effort" affair, so the Trillian APIs
 must not assume that duplicates are impossible, even though in practice, when
 using other storage implementations, they may well be so currently.
 
