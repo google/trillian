@@ -17,6 +17,7 @@ package interceptor
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
@@ -396,15 +397,25 @@ func TestTrillianInterceptor_QuotaInterception_ReturnsTokens(t *testing.T) {
 		},
 	}
 
-	ctx := context.Background()
+	// Use a ctx with deadline so we can check whether PutTokens inherits it.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+
 	for _, test := range tests {
+		putTokensCh := make(chan bool, 1)
+
 		qm := quota.NewMockManager(ctrl)
 		qm.EXPECT().GetUser(gomock.Any(), test.req).MaxTimes(1).Return(user)
 		if test.wantGetTokens > 0 {
 			qm.EXPECT().GetTokens(gomock.Any(), test.wantGetTokens, test.specs).Return(nil)
 		}
 		if test.wantPutTokens > 0 {
-			qm.EXPECT().PutTokens(gomock.Any(), test.wantPutTokens, test.specs).Return(nil)
+			qm.EXPECT().PutTokens(gomock.Any(), test.wantPutTokens, test.specs).Do(func(ctx context.Context, numTokens int, specs []quota.Spec) {
+				if _, ok := ctx.Deadline(); ok {
+					t.Errorf("%v: PutTokens() context has a deadline: %v", test.desc, ctx)
+				}
+				putTokensCh <- true
+			}).Return(nil)
 		}
 
 		handler := &fakeHandler{resp: test.resp, err: test.handlerErr}
@@ -412,6 +423,14 @@ func TestTrillianInterceptor_QuotaInterception_ReturnsTokens(t *testing.T) {
 
 		if _, err := intercept.UnaryInterceptor(ctx, test.req, &grpc.UnaryServerInfo{}, handler.run); err != test.handlerErr {
 			t.Errorf("%v: UnaryInterceptor() returned err = [%v], want = [%v]", test.desc, err, test.handlerErr)
+		}
+
+		// PutTokens may be delegated to a separate goroutine. Give it some time to complete.
+		select {
+		case <-putTokensCh:
+			// OK
+		case <-time.After(1 * time.Second):
+			// No need to error here, gomock will fail if the call is missing.
 		}
 	}
 }
