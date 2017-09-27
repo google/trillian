@@ -16,11 +16,6 @@ env:
 
 matrix:
   fast_finish: true
-  allow_failures:
-    - os: osx
-  include:
-    - os: osx  # Run only "vanilla" tests on osx
-      env:
 
 services: mysql
 
