@@ -187,7 +187,7 @@ func TestMapRootUpdate(t *testing.T) {
 				MapRevision:    8,
 				RootHash:       []byte(dummyHash),
 				Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
-				Metadata: 		testonly.MustMarshalAny(t,&ctmapperpb.MapperMetadata{HighestFullyCompletedSeq: 1}),
+				Metadata:       testonly.MustMarshalAny(t, &ctmapperpb.MapperMetadata{HighestFullyCompletedSeq: 1}),
 			}},
 	} {
 		{

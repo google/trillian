@@ -256,7 +256,6 @@ func TestInclusion(t *testing.T) {
 				continue
 			}
 
-
 			if _, err := env.MapClient.SetLeaves(ctx, &trillian.SetMapLeavesRequest{
 				MapId:  tree.TreeId,
 				Leaves: tc.leaves,
