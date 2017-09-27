@@ -69,6 +69,10 @@ var (
 	maxUnsequencedRows = flag.Int("max_unsequenced_rows", mysqlqm.DefaultMaxUnsequenced, "Max number of unsequenced rows before rate limiting kicks in. "+
 		"Only effective for quota_system=mysql.")
 
+	treeGCEnabled            = flag.Bool("tree_gc", true, "If true, tree garbage collection (hard-deletion) is periodically performed")
+	treeDeleteThreshold      = flag.Duration("tree_delete_threshold", server.DefaultTreeDeleteThreshold, "Minimum period a tree has to remain deleted before being hard-deleted")
+	treeDeleteMinRunInterval = flag.Duration("tree_delete_min_run_interval", server.DefaultTreeDeleteMinInterval, "Minimum interval between tree garbage collection sweeps. Actual runs happen randomly between [minInterval,2*minInterval).")
+
 	configFile = flag.String("config", "", "Config file containing flags, file contents can be overridden by command line flags")
 )
 
@@ -148,6 +152,9 @@ func main() {
 			}
 			return nil
 		},
+		TreeGCEnabled:         *treeGCEnabled,
+		TreeDeleteThreshold:   *treeDeleteThreshold,
+		TreeDeleteMinInterval: *treeDeleteMinRunInterval,
 	}
 
 	ctx := context.Background()
