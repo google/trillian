@@ -40,6 +40,28 @@ import (
 	_ "github.com/google/trillian/merkle/maphasher"      // TEST_MAP_HASHER
 )
 
+const (
+	privateKeyPass = "towel"
+	privateKeyPEM  = `
+-----BEGIN EC PRIVATE KEY-----
+Proc-Type: 4,ENCRYPTED
+DEK-Info: DES-CBC,D95ECC664FF4BDEC
+
+Xy3zzHFwlFwjE8L1NCngJAFbu3zFf4IbBOCsz6Fa790utVNdulZncNCl2FMK3U2T
+sdoiTW8ymO+qgwcNrqvPVmjFRBtkN0Pn5lgbWhN/aK3TlS9IYJ/EShbMUzjgVzie
+S9+/31whWcH/FLeLJx4cBzvhgCtfquwA+s5ojeLYYsk=
+-----END EC PRIVATE KEY-----`
+	publicKeyPEM = `
+-----BEGIN PUBLIC KEY-----
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEywnWicNEQ8bn3GXcGpA+tiU4VL70
+Ws9xezgQPrg96YGsFrF6KYG68iqyHDlQ+4FWuKfGKXHn3ooVtB/pfawb5Q==
+-----END PUBLIC KEY-----`
+)
+
+var (
+	privateKeyPath = ttestonly.RelativeToPackage("../../testdata/log-rpc-server.privkey.pem")
+)
+
 // mustMarshalAny panics if ptypes.MarshalAny fails.
 func mustMarshalAny(pb proto.Message) *any.Any {
 	value, err := ptypes.MarshalAny(pb)
@@ -60,10 +82,10 @@ var (
 		DisplayName:        "Llamas Log",
 		Description:        "Registry of publicly-owned llamas",
 		PrivateKey: mustMarshalAny(&keyspb.PrivateKey{
-			Der: ktestonly.MustMarshalPrivatePEMToDER(ttestonly.DemoPrivateKey, ttestonly.DemoPrivateKeyPass),
+			Der: ktestonly.MustMarshalPrivatePEMToDER(privateKeyPEM, privateKeyPass),
 		}),
 		PublicKey: &keyspb.PublicKey{
-			Der: ktestonly.MustMarshalPublicPEMToDER(ttestonly.DemoPublicKey),
+			Der: ktestonly.MustMarshalPublicPEMToDER(publicKeyPEM),
 		},
 		MaxRootDuration: ptypes.DurationProto(0 * time.Millisecond),
 	}
@@ -242,6 +264,22 @@ func (tester *AdminStorageTester) TestUpdateTree(t *testing.T) {
 		t.DisplayName = validMap.DisplayName
 	}
 
+	privateKeyChangedButKeyMaterialSameTree := *LogTree
+	privateKeyChangedButKeyMaterialSameTree.PrivateKey = mustMarshalAny(&keyspb.PEMKeyFile{
+		Path:     privateKeyPath,
+		Password: privateKeyPass,
+	})
+
+	privateKeyChangedButKeyMaterialSameFunc := func(t *trillian.Tree) {
+		t.PrivateKey = privateKeyChangedButKeyMaterialSameTree.PrivateKey
+	}
+
+	privateKeyChangedAndKeyMaterialDifferentFunc := func(t *trillian.Tree) {
+		t.PrivateKey = mustMarshalAny(&keyspb.PrivateKey{
+			Der: ktestonly.MustMarshalPrivatePEMToDER(ttestonly.DemoPrivateKey, ttestonly.DemoPrivateKeyPass),
+		})
+	}
+
 	// Test for an unknown tree outside the loop: it makes the test logic simpler
 	if _, errOnUpdate, err := updateTree(ctx, s, -1, func(t *trillian.Tree) {}); err == nil || !errOnUpdate {
 		t.Errorf("updateTree(_, -1, _) = (_, %v, %v), want = (_, true, lookup error)", errOnUpdate, err)
@@ -282,6 +320,18 @@ func (tester *AdminStorageTester) TestUpdateTree(t *testing.T) {
 			create:     &referenceMap,
 			updateFunc: validMapFunc,
 			want:       &validMap,
+		},
+		{
+			desc:       "privateKeyChangedButKeyMaterialSame",
+			create:     &referenceLog,
+			updateFunc: privateKeyChangedButKeyMaterialSameFunc,
+			want:       &privateKeyChangedButKeyMaterialSameTree,
+		},
+		{
+			desc:       "privateKeyChangedAndKeyMaterialDifferent",
+			create:     &referenceLog,
+			updateFunc: privateKeyChangedAndKeyMaterialDifferentFunc,
+			wantErr:    true,
 		},
 	}
 	for _, test := range tests {
