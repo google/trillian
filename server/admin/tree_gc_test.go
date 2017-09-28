@@ -16,7 +16,6 @@ package admin
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -36,17 +35,10 @@ func TestDeletedTreeGC_Run(t *testing.T) {
 	// * 1st iteration: tree1 is listed and hard-deleted
 	// * Sleep
 	// * 2nd iteration: ListTrees returns an empty slice, nothing gets deleted
-	// * Sleep (panics)
+	// * Sleep (ctx cancelled)
 	//
-	// DeletedTreeGC.Run() runs forever. Since it sleeps between iterations, we
-	// make "timeSleep" panic the second time around; this aborts the loop and
-	// allows us to recover in the test.
-	stopErr := errors.New("stop run test")
-	defer func() {
-		if r := recover(); r != stopErr {
-			t.Fatal(r)
-		}
-	}()
+	// DeletedTreeGC.Run() until ctx in cancelled. Since it always sleeps between iterations, we
+	// make "timeSleep" cancel ctx the second time around to break the loop.
 
 	tree1 := proto.Clone(testonly.LogTree).(*trillian.Tree)
 	tree1.TreeId = 1
@@ -58,7 +50,7 @@ func TestDeletedTreeGC_Run(t *testing.T) {
 	deleteTX1 := storage.NewMockAdminTX(ctrl)
 	as := storage.NewMockAdminStorage(ctrl)
 
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
 
 	// Sequence Snapshot()/Begin() calls.
 	// * 1st loop: Snapshot()/ListTrees() followed by Begin()/HardDeleteTree()
@@ -100,7 +92,7 @@ func TestDeletedTreeGC_Run(t *testing.T) {
 			t.Errorf("Called time.Sleep(%v), want %v", d, runInterval)
 		}
 		if calls >= 2 {
-			panic(stopErr)
+			cancel()
 		}
 	}
 

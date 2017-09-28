@@ -43,7 +43,7 @@ type DeletedTreeGC struct {
 	Admin storage.AdminStorage
 
 	// DeleteThreshold defines the minimum time a tree has to remain in the soft-deleted state
-	// before its eligible for garbage collection.
+	// before it's eligible for garbage collection.
 	DeleteThreshold time.Duration
 
 	// MinRunInterval defines how frequently sweeps for deleted trees are performed.
@@ -51,9 +51,15 @@ type DeletedTreeGC struct {
 	MinRunInterval time.Duration
 }
 
-// Run starts the tree garbage collection process. It never returns.
+// Run starts the tree garbage collection process. It runs until ctx is cancelled.
 func (gc *DeletedTreeGC) Run(ctx context.Context) {
 	for true {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
 		gc.RunOnce(ctx)
 
 		d := gc.MinRunInterval + time.Duration(rand.Int63n(gc.MinRunInterval.Nanoseconds()))
