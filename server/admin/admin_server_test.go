@@ -30,6 +30,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
+	"github.com/golang/protobuf/ptypes/any"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/google/trillian"
@@ -561,8 +562,17 @@ func TestServer_UpdateTree(t *testing.T) {
 		Description:     "Brand New Tree Desc",
 		StorageSettings: settings,
 		MaxRootDuration: ptypes.DurationProto(2 * time.Nanosecond),
+		PrivateKey: func() *any.Any {
+			pb, err := ptypes.MarshalAny(&empty.Empty{})
+			if err != nil {
+				panic(err)
+			}
+			return pb
+		}(),
 	}
-	successMask := &field_mask.FieldMask{Paths: []string{"tree_state", "display_name", "description", "storage_settings", "max_root_duration"}}
+	successMask := &field_mask.FieldMask{
+		Paths: []string{"tree_state", "display_name", "description", "storage_settings", "max_root_duration", "private_key"},
+	}
 
 	successWant := existingTree
 	successWant.TreeState = successTree.TreeState
@@ -642,7 +652,10 @@ func TestServer_UpdateTree(t *testing.T) {
 		s := setup.server
 
 		if test.req.Tree != nil {
-			tx.EXPECT().UpdateTree(ctx, test.req.Tree.TreeId, gomock.Any()).MaxTimes(1).Return(test.currentTree, test.updateErr)
+			tx.EXPECT().UpdateTree(ctx, test.req.Tree.TreeId, gomock.Any()).MaxTimes(1).Do(func(ctx context.Context, treeID int64, updateFn func(*trillian.Tree)) {
+				// This step should be done by the storage layer, but since we're mocking it we have to trigger it ourselves.
+				updateFn(test.currentTree)
+			}).Return(test.currentTree, test.updateErr)
 		}
 
 		tree, err := s.UpdateTree(ctx, test.req)
@@ -653,12 +666,6 @@ func TestServer_UpdateTree(t *testing.T) {
 			continue
 		}
 
-		// This step should be done by the storage layer, but since we're mocking it we have
-		// to trigger it ourselves. Ideally the mock would do it on UpdateTree.
-		if err := applyUpdateMask(test.req.Tree, tree, test.req.UpdateMask); err != nil {
-			t.Errorf("%v: applyUpdateMask returned err = %v", test.desc, err)
-			continue
-		}
 		if !proto.Equal(tree, test.wantTree) {
 			diff := pretty.Compare(tree, test.wantTree)
 			t.Errorf("%v: post-UpdateTree diff:\n%v", test.desc, diff)
