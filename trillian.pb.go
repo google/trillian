@@ -164,9 +164,9 @@ type Tree struct {
 	// This can be any type of message to accommodate different key management
 	// systems, e.g. PEM files, HSMs, etc.
 	// Private keys are write-only: they're never returned by RPCs.
-	// TODO(RJPercival): Implement sufficient validation to allow this field to be
-	// mutable. It should be mutable in the sense that the key can be migrated to
-	// a different key management system, but the key itself should never change.
+	// The private_key message can be changed after a tree is created, but the
+	// underlying key must remain the same - this is to enable migrating a key
+	// from one provider to another.
 	PrivateKey *google_protobuf.Any `protobuf:"bytes,12,opt,name=private_key,json=privateKey" json:"private_key,omitempty"`
 	// Storage-specific settings.
 	// Varies according to the storage implementation backing Trillian.
