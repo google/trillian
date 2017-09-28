@@ -24,23 +24,24 @@ import (
 	"sync"
 	"time"
 
-	_ "github.com/go-sql-driver/mysql"                   // Load MySQL driver
-	_ "github.com/google/trillian/crypto/keys/der/proto" // Register PrivateKey ProtoHandler
-
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys/pem"
-	ktestonly "github.com/google/trillian/crypto/keys/testonly"
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/server/interceptor"
 	"github.com/google/trillian/storage/mysql"
-	stestonly "github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/util"
 	"google.golang.org/grpc"
+
+	ktestonly "github.com/google/trillian/crypto/keys/testonly"
+	stestonly "github.com/google/trillian/storage/testonly"
+
+	_ "github.com/go-sql-driver/mysql"                   // Load MySQL driver
+	_ "github.com/google/trillian/crypto/keys/der/proto" // Register PrivateKey ProtoHandler
 )
 
 var (
@@ -189,6 +190,9 @@ func (env *LogEnv) CreateLog() (int64, error) {
 	tree.PrivateKey, err = ptypes.MarshalAny(privateKeyInfo)
 	if err != nil {
 		return 0, err
+	}
+	tree.PublicKey = &keyspb.PublicKey{
+		Der: ktestonly.MustMarshalPublicPEMToDER(publicKey),
 	}
 
 	tree, err = tx.CreateTree(ctx, tree)
