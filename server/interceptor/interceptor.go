@@ -207,7 +207,7 @@ func (tp *trillianProcessor) After(ctx context.Context, resp interface{}, handle
 	}
 	if tokens > 0 && len(tp.info.specs) > 0 {
 		// Run PutTokens in a separate goroutine and with a separate context.
-		// It shouldn't block RPC completion, nor it should share the RPC's context deadline.
+		// It shouldn't block RPC completion, nor should it share the RPC's context deadline.
 		go func() {
 			ctx := context.Background()
 
