@@ -96,12 +96,7 @@ func TestDeletedTreeGC_Run(t *testing.T) {
 		}
 	}
 
-	gc := &DeletedTreeGC{
-		Admin:           as,
-		DeleteThreshold: deleteThreshold,
-		MinRunInterval:  runInterval,
-	}
-	gc.Run(ctx)
+	NewDeletedTreeGC(as, deleteThreshold, runInterval, nil /* mf */).Run(ctx)
 }
 
 func TestDeletedTreeGC_RunOnce(t *testing.T) {
@@ -178,11 +173,8 @@ func TestDeletedTreeGC_RunOnce(t *testing.T) {
 			deleteTX.EXPECT().Commit().Return(nil)
 		}
 
-		gc := &DeletedTreeGC{
-			Admin:           as,
-			DeleteThreshold: test.deleteThreshold,
-			MinRunInterval:  1 * time.Second, // Doesn't matter for this test
-		}
+		gc := NewDeletedTreeGC(
+			as, test.deleteThreshold, 1*time.Second /* minRunInterval */, nil /* mf */)
 		gc.RunOnce(ctx)
 	}
 }

@@ -527,11 +527,8 @@ func TestAdminServer_TreeGC(t *testing.T) {
 		t.Fatalf("DeleteTree() returned err = %v", err)
 	}
 
-	treeGC := &sa.DeletedTreeGC{
-		Admin:           ts.adminStorage,
-		DeleteThreshold: 1 * time.Second,
-		MinRunInterval:  1 * time.Second,
-	}
+	treeGC := sa.NewDeletedTreeGC(
+		ts.adminStorage, 1*time.Second /* threshold */, 1*time.Second /* minRunInterval */, nil /* mf */)
 	success := false
 	const attempts = 3
 	for i := 0; i < attempts; i++ {

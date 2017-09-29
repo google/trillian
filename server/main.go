@@ -110,12 +110,12 @@ func (m *Main) Run(ctx context.Context) error {
 
 	if m.TreeGCEnabled {
 		go func() {
-			gc := &admin.DeletedTreeGC{
-				Admin:           m.Registry.AdminStorage,
-				DeleteThreshold: m.TreeDeleteThreshold,
-				MinRunInterval:  m.TreeDeleteMinInterval,
-			}
 			glog.Info("Deleted tree GC started")
+			gc := admin.NewDeletedTreeGC(
+				m.Registry.AdminStorage,
+				m.TreeDeleteThreshold,
+				m.TreeDeleteMinInterval,
+				m.Registry.MetricFactory)
 			gc.Run(ctx)
 		}()
 	}

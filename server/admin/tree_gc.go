@@ -16,19 +16,34 @@ package admin
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
+	"sync"
 	"time"
 
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
+	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
+)
+
+const (
+	deleteErrReason        = "delete_error"
+	timestampParseErrReson = "timestamp_parse_error"
 )
 
 var (
 	timeNow   = time.Now
 	timeSleep = time.Sleep
+
+	hardDeleteCounter monitoring.Counter
+	metricsOnce       sync.Once
 )
+
+func incHardDeleteCounter(treeID int64, success bool, reason string) {
+	hardDeleteCounter.Inc(fmt.Sprint(treeID), fmt.Sprint(success), reason)
+}
 
 // DeletedTreeGC garbage collects deleted trees.
 //
@@ -39,16 +54,32 @@ var (
 // DeletedTreeGC performs the transition from soft to hard deletion. Trees that have been deleted
 // for at least DeletedThreshold are eligible for garbage collection.
 type DeletedTreeGC struct {
-	// Admin is the storage.AdminStorage interface.
-	Admin storage.AdminStorage
+	// admin is the storage.AdminStorage interface.
+	admin storage.AdminStorage
 
-	// DeleteThreshold defines the minimum time a tree has to remain in the soft-deleted state
+	// deleteThreshold defines the minimum time a tree has to remain in the soft-deleted state
 	// before it's eligible for garbage collection.
-	DeleteThreshold time.Duration
+	deleteThreshold time.Duration
 
-	// MinRunInterval defines how frequently sweeps for deleted trees are performed.
+	// minRunInterval defines how frequently sweeps for deleted trees are performed.
 	// Actual runs happen randomly between [minInterval,2*minInterval).
-	MinRunInterval time.Duration
+	minRunInterval time.Duration
+}
+
+// NewDeletedTreeGC returns a new DeletedTreeGC.
+func NewDeletedTreeGC(admin storage.AdminStorage, threshold, minRunInterval time.Duration, mf monitoring.MetricFactory) *DeletedTreeGC {
+	gc := &DeletedTreeGC{
+		admin:           admin,
+		deleteThreshold: threshold,
+		minRunInterval:  minRunInterval,
+	}
+	metricsOnce.Do(func() {
+		if mf == nil {
+			mf = monitoring.InertMetricFactory{}
+		}
+		hardDeleteCounter = mf.NewCounter("tree_hard_delete_counter", "Counter of hard-deleted trees", monitoring.TreeIDLabel, "success", "reason")
+	})
+	return gc
 }
 
 // Run starts the tree garbage collection process. It runs until ctx is cancelled.
@@ -62,7 +93,7 @@ func (gc *DeletedTreeGC) Run(ctx context.Context) {
 
 		gc.RunOnce(ctx)
 
-		d := gc.MinRunInterval + time.Duration(rand.Int63n(gc.MinRunInterval.Nanoseconds()))
+		d := gc.minRunInterval + time.Duration(rand.Int63n(gc.minRunInterval.Nanoseconds()))
 		timeSleep(d)
 	}
 }
@@ -77,7 +108,7 @@ func (gc *DeletedTreeGC) RunOnce(ctx context.Context) {
 	// each delete should be in its own transaction as well.
 	// It's OK to list and delete separately because HardDelete does its own state checking, plus
 	// deleted trees are unlikely to change, specially those deleted for a while.
-	tx, err := gc.Admin.Snapshot(ctx)
+	tx, err := gc.admin.Snapshot(ctx)
 	if err != nil {
 		glog.Errorf("DeletedTreeGC.RunOnce: error creating snapshot: %v", err)
 		return
@@ -100,22 +131,27 @@ func (gc *DeletedTreeGC) RunOnce(ctx context.Context) {
 		deleteTime, err := ptypes.Timestamp(tree.DeleteTime)
 		if err != nil {
 			glog.Errorf("DeletedTreeGC.RunOnce: error parsing delete_time of tree %v: %v", tree.TreeId, err)
+			incHardDeleteCounter(tree.TreeId, false, timestampParseErrReson)
 			continue
 		}
 		durationSinceDelete := now.Sub(deleteTime)
-		if durationSinceDelete <= gc.DeleteThreshold {
+		if durationSinceDelete <= gc.deleteThreshold {
 			continue
 		}
 
 		glog.Infof("DeletedTreeGC.RunOnce: Hard-deleting tree %v after %v", tree.TreeId, durationSinceDelete)
 		if err := gc.hardDeleteTree(ctx, tree); err != nil {
 			glog.Errorf("DeletedTreeGC.RunOnce: Error hard-deleting tree %v: %v", tree.TreeId, err)
+			incHardDeleteCounter(tree.TreeId, false, deleteErrReason)
+			continue
 		}
+
+		incHardDeleteCounter(tree.TreeId, true, "")
 	}
 }
 
 func (gc *DeletedTreeGC) hardDeleteTree(ctx context.Context, tree *trillian.Tree) error {
-	tx, err := gc.Admin.Begin(ctx)
+	tx, err := gc.admin.Begin(ctx)
 	if err != nil {
 		return err
 	}
