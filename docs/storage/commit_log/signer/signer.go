@@ -18,6 +18,7 @@ package signer
 import (
 	"flag"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/golang/glog"
@@ -30,6 +31,7 @@ var pessimizeInterval = flag.Duration("signer_pessimize", 10*time.Millisecond, "
 
 // Signer is a simulated signer instance.
 type Signer struct {
+	mu        sync.RWMutex
 	Name      string
 	election  *simelection.Election
 	epoch     int64
@@ -51,6 +53,8 @@ func New(name string, election *simelection.Election, epoch int64) *Signer {
 }
 
 func (s *Signer) String() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	prefix := "  "
 	if s.IsMaster() {
 		prefix = "**"
@@ -75,6 +79,8 @@ func (s *Signer) IsMaster() bool {
 
 // Run performs a single signing run.
 func (s *Signer) Run() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	// Read from local DB to see what STH we know about locally.
 	dbSTHInfo := s.LatestSTHInfo()
 	glog.V(2).Infof("%s: our DB has data upto STH at %d", s.Name, dbSTHInfo.sthOffset)
