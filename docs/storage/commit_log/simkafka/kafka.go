@@ -22,10 +22,19 @@ import (
 
 type commitLog []string
 
+const showCount = 10
+
 func (c commitLog) String() string {
 	result := ""
-	for i, entry := range c {
-		result += fmt.Sprintf("| %d:%s ", i, entry)
+	l := len(c)
+	start := l - showCount
+	if start < 0 {
+		start = 0
+	} else if start > 0 {
+		result += "... "
+	}
+	for i := start; i < l; i++ {
+		result += fmt.Sprintf("| %d:%s ", i, c[i])
 	}
 	result += "|"
 	return result
