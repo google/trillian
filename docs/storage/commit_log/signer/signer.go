@@ -74,6 +74,9 @@ func (s *Signer) StoreSTHInfo(info STHInfo) {
 
 // IsMaster indicates if this signer is master.
 func (s *Signer) IsMaster() bool {
+	if s.election == nil {
+		return true
+	}
 	return s.election.IsMaster(s.Name)
 }
 
