@@ -25,6 +25,7 @@ import (
 	"flag"
 	"fmt"
 	"math/rand"
+	"sync"
 	"time"
 
 	"github.com/golang/glog"
@@ -68,17 +69,33 @@ func increment(s string) string {
 	return string(append([]byte(increment(prefix)), 'A'))
 }
 
+type atomicBool struct {
+	mu  sync.RWMutex
+	val bool
+}
+
+func (ab *atomicBool) Get() bool {
+	ab.mu.RLock()
+	defer ab.mu.RUnlock()
+	return ab.val
+}
+func (ab *atomicBool) Set(v bool) {
+	ab.mu.Lock()
+	defer ab.mu.Unlock()
+	ab.val = v
+}
+
 func main() {
 	flag.Parse()
 	epochMillis := time.Now().UnixNano() / int64(time.Millisecond)
 
 	// Add leaves forever
-	generateLeaves := true
+	generateLeaves := atomicBool{val: true}
 	go func() {
 		nextLeaf := "A"
 		for {
 			time.Sleep(*leafInterval)
-			if generateLeaves {
+			if generateLeaves.Get() {
 				simkafka.Append("Leaves/<treeID>", nextLeaf)
 				nextLeaf = increment(nextLeaf)
 			}
@@ -121,8 +138,9 @@ func main() {
 			glog.V(1).Infof("EVENT: Make multiple mastership, from %v to %v", election.Masters(), masters)
 			election.SetMasters(masters)
 		case choice < (*masterChangePercent + *dualMasterPercent + *leafTogglePercent):
-			glog.V(1).Infof("EVENT: Toggle leaf generation from %v to %v", generateLeaves, !generateLeaves)
-			generateLeaves = !generateLeaves
+			val := generateLeaves.Get()
+			glog.V(1).Infof("EVENT: Toggle leaf generation from %v to %v", val, !val)
+			generateLeaves.Set(!val)
 		}
 
 		time.Sleep(*eventInterval)
