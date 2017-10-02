@@ -36,6 +36,18 @@ import (
 	etcdnaming "github.com/coreos/etcd/clientv3/naming"
 )
 
+const (
+	// DefaultTreeDeleteThreshold is the suggested threshold for tree deletion.
+	// It represents the minimum time a tree has to remain Deleted before being hard-deleted.
+	DefaultTreeDeleteThreshold = 7 * 24 * time.Hour
+
+	// DefaultTreeDeleteMinInterval is the suggested min interval between tree GC sweeps.
+	// A tree GC sweep consists of listing deleted trees older than the deletion threshold and
+	// hard-deleting them.
+	// Actual runs happen randomly between [minInterval,2*minInterval).
+	DefaultTreeDeleteMinInterval = 4 * time.Hour
+)
+
 // Main encapsulates the data and logic to start a Trillian server (Log or Map).
 type Main struct {
 	// Endpoints for RPC and HTTP/REST servers.
@@ -44,10 +56,15 @@ type Main struct {
 	DB                        *sql.DB
 	Registry                  extension.Registry
 	Server                    *grpc.Server
+
 	// RegisterHandlerFn is called to register REST-proxy handlers.
 	RegisterHandlerFn func(context.Context, *runtime.ServeMux, string, []grpc.DialOption) error
 	// RegisterServerFn is called to register RPC servers.
 	RegisterServerFn func(*grpc.Server, extension.Registry) error
+
+	TreeGCEnabled         bool
+	TreeDeleteThreshold   time.Duration
+	TreeDeleteMinInterval time.Duration
 }
 
 // Run starts the configured server. Blocks until the server exits.
@@ -90,6 +107,18 @@ func (m *Main) Run(ctx context.Context) error {
 		return err
 	}
 	go util.AwaitSignal(m.Server.Stop)
+
+	if m.TreeGCEnabled {
+		go func() {
+			gc := &admin.DeletedTreeGC{
+				Admin:           m.Registry.AdminStorage,
+				DeleteThreshold: m.TreeDeleteThreshold,
+				MinRunInterval:  m.TreeDeleteMinInterval,
+			}
+			glog.Info("Deleted tree GC started")
+			gc.Run(ctx)
+		}()
+	}
 
 	if err := m.Server.Serve(lis); err != nil {
 		glog.Errorf("RPC server terminated: %v", err)

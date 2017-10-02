@@ -14,7 +14,7 @@
 
 package testonly
 
-import(
+import (
 	"log"
 	"testing"
 
