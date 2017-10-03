@@ -397,12 +397,13 @@ func TestTrillianInterceptor_QuotaInterception_ReturnsTokens(t *testing.T) {
 		},
 	}
 
-	// Use a ctx with deadline so we can check whether PutTokens inherits it.
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	// Use a ctx with a timeout smaller than PutTokensTimeout
+	ctx, cancel := context.WithTimeout(context.Background(), PutTokensTimeout-3*time.Second)
 	defer cancel()
 
 	for _, test := range tests {
 		putTokensCh := make(chan bool, 1)
+		wantDeadline := time.Now().Add(PutTokensTimeout)
 
 		qm := quota.NewMockManager(ctrl)
 		qm.EXPECT().GetUser(gomock.Any(), test.req).MaxTimes(1).Return(user)
@@ -411,8 +412,11 @@ func TestTrillianInterceptor_QuotaInterception_ReturnsTokens(t *testing.T) {
 		}
 		if test.wantPutTokens > 0 {
 			qm.EXPECT().PutTokens(gomock.Any(), test.wantPutTokens, test.specs).Do(func(ctx context.Context, numTokens int, specs []quota.Spec) {
-				if _, ok := ctx.Deadline(); ok {
-					t.Errorf("%v: PutTokens() context has a deadline: %v", test.desc, ctx)
+				switch d, ok := ctx.Deadline(); {
+				case !ok:
+					t.Errorf("%v: PutTokens() ctx has no deadline: %v", test.desc, ctx)
+				case d.Before(wantDeadline):
+					t.Errorf("%v: PutTokens() ctx deadline too short, got %v, want >= %v", test.desc, d, wantDeadline)
 				}
 				putTokensCh <- true
 			}).Return(nil)
