@@ -206,15 +206,21 @@ func (tp *trillianProcessor) After(ctx context.Context, resp interface{}, handle
 		}
 	}
 	if tokens > 0 && len(tp.info.specs) > 0 {
-		// TODO(codingllama): If PutTokens turns out to be unreliable we can still leak tokens. In
-		// this case, we may want to keep tabs on how many tokens we failed to replenish and bundle
-		// them up in the next PutTokens call (possibly as a QuotaManager decorator, or internally
-		// in its impl).
-		err := tp.parent.qm.PutTokens(ctx, tokens, tp.info.specs)
-		if err != nil {
-			glog.Warningf("Failed to replenish %v tokens: %v", tokens, err)
-		}
-		quota.Metrics.IncReturned(tokens, tp.info.specs, err == nil)
+		// Run PutTokens in a separate goroutine and with a separate context.
+		// It shouldn't block RPC completion, nor should it share the RPC's context deadline.
+		go func() {
+			ctx := context.Background()
+
+			// TODO(codingllama): If PutTokens turns out to be unreliable we can still leak tokens. In
+			// this case, we may want to keep tabs on how many tokens we failed to replenish and bundle
+			// them up in the next PutTokens call (possibly as a QuotaManager decorator, or internally
+			// in its impl).
+			err := tp.parent.qm.PutTokens(ctx, tokens, tp.info.specs)
+			if err != nil {
+				glog.Warningf("Failed to replenish %v tokens: %v", tokens, err)
+			}
+			quota.Metrics.IncReturned(tokens, tp.info.specs, err == nil)
+		}()
 	}
 }
 
