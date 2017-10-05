@@ -40,12 +40,13 @@ import (
 )
 
 var (
-	mapIDsFlag      = flag.String("map_ids", "", "Comma-separated list of map IDs to test")
-	rpcServerFlag   = flag.String("rpc_server", "", "Server address:port")
+	mapIDs          = flag.String("map_ids", "", "Comma-separated list of map IDs to test")
+	rpcServer       = flag.String("rpc_server", "", "Server address:port")
 	metricsEndpoint = flag.String("metrics_endpoint", "", "Endpoint for serving metrics; if left empty, metrics will not be exposed")
 	seed            = flag.Int64("seed", -1, "Seed for random number generation")
-	operationsFlag  = flag.Uint64("operations", ^uint64(0), "Number of operations to perform")
-	checkSigsFlag   = flag.Bool("check_signatures", true, "If false SignedMapHead signatures will be ignored")
+	operations      = flag.Uint64("operations", ^uint64(0), "Number of operations to perform")
+	// TODO(phad): remove flag '--check_signatures' when downstream dependencies no longer require it.
+	checkSignatures = flag.Bool("check_signatures", true, "If false SignedMapHead signatures will be ignored")
 )
 var (
 	getLeavesBias = flag.Int("get_leaves", 20, "Bias for get-leaves operations")
@@ -57,7 +58,7 @@ var (
 
 func main() {
 	flag.Parse()
-	if *mapIDsFlag == "" {
+	if *mapIDs == "" {
 		glog.Exit("Test aborted as no map IDs provided (via --map_ids)")
 	}
 	if *seed == -1 {
@@ -109,20 +110,20 @@ func main() {
 	r.Close()
 	fmt.Print("\n\nLet me hammer him today?\n\n")
 
-	mapIDs := strings.Split(*mapIDsFlag, ",")
+	mIDs := strings.Split(*mapIDs, ",")
 	type result struct {
 		mapID int64
 		err   error
 	}
-	results := make(chan result, len(mapIDs))
+	results := make(chan result, len(mIDs))
 	var wg sync.WaitGroup
-	for _, m := range mapIDs {
+	for _, m := range mIDs {
 		mapid, err := strconv.ParseInt(m, 10, 64)
 		if err != nil || mapid <= 0 {
 			glog.Exitf("Invalid map ID %q", m)
 		}
 		wg.Add(1)
-		client, err := grpc.Dial(*rpcServerFlag, grpc.WithInsecure())
+		client, err := grpc.Dial(*rpcServer, grpc.WithInsecure())
 		if err != nil {
 			glog.Exitf("Failed to create client: %v", err)
 		}
@@ -131,8 +132,8 @@ func main() {
 			Client:        trillian.NewTrillianMapClient(client),
 			MetricFactory: mf,
 			EPBias:        bias,
-			Operations:    *operationsFlag,
-			CheckSignatures: *checkSigsFlag,
+			Operations:    *operations,
+			CheckSignatures: *checkSignatures,
 		}
 		fmt.Printf("%v\n\n", cfg)
 		go func(cfg hammer.MapConfig) {
@@ -143,7 +144,7 @@ func main() {
 	}
 	wg.Wait()
 
-	glog.Infof("completed tests on all %d maps:", len(mapIDs))
+	glog.Infof("completed tests on all %d maps:", len(mIDs))
 	close(results)
 	errCount := 0
 	for e := range results {

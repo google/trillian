@@ -127,12 +127,15 @@ type MapConfig struct {
 	EPBias        MapBias
 	Operations    uint64
 	EmitInterval  time.Duration
-	IgnoreErrors, CheckSignatures bool
+	IgnoreErrors  bool
+	// TODO(phad): remove CheckSignatures when downstream dependencies no longer need it,
+	// i.e. when all Map storage implementations support signature storage.
+	CheckSignatures bool
 }
 
 // String conforms with Stringer for MapConfig.
 func (c MapConfig) String() string {
-	return fmt.Sprintf("mapconfig:{mapID:%d biases:{%v} #operations:%d emit every:%v ignoreErrors? %t checkSignatures? %t",
+	return fmt.Sprintf("mapID:%d biases:{%v} #operations:%d emit every:%v ignoreErrors? %t checkSignatures? %t",
 		c.MapID, c.EPBias, c.Operations, c.EmitInterval, c.IgnoreErrors, c.CheckSignatures)
 }
 
@@ -272,8 +275,11 @@ func (s *hammerState) previousSMR(which int) *trillian.SignedMapRoot {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	r := s.smr[which]
-	if r != nil && !s.cfg.CheckSignatures {
-		r.Signature = nil
+	if s.cfg.CheckSignatures || r == nil {
+		return r
+	}
+	if r.Signature != nil {
+		panic(fmt.Sprintf("signature should have been cleared before storing SMR %v", r))
 	}
 	return r
 }
