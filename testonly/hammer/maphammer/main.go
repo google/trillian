@@ -45,6 +45,7 @@ var (
 	metricsEndpoint = flag.String("metrics_endpoint", "", "Endpoint for serving metrics; if left empty, metrics will not be exposed")
 	seed            = flag.Int64("seed", -1, "Seed for random number generation")
 	operationsFlag  = flag.Uint64("operations", ^uint64(0), "Number of operations to perform")
+	checkSigsFlag   = flag.Bool("check_signatures", true, "If false SignedMapHead signatures will be ignored")
 )
 var (
 	getLeavesBias = flag.Int("get_leaves", 20, "Bias for get-leaves operations")
@@ -131,7 +132,9 @@ func main() {
 			MetricFactory: mf,
 			EPBias:        bias,
 			Operations:    *operationsFlag,
+			CheckSignatures: *checkSigsFlag,
 		}
+		fmt.Printf("%v\n\n", cfg)
 		go func(cfg hammer.MapConfig) {
 			defer wg.Done()
 			err := hammer.HitMap(cfg)

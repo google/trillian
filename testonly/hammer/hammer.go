@@ -127,7 +127,13 @@ type MapConfig struct {
 	EPBias        MapBias
 	Operations    uint64
 	EmitInterval  time.Duration
-	IgnoreErrors  bool
+	IgnoreErrors, CheckSignatures bool
+}
+
+// String conforms with Stringer for MapConfig.
+func (c MapConfig) String() string {
+	return fmt.Sprintf("mapconfig:{mapID:%d biases:{%v} #operations:%d emit every:%v ignoreErrors? %t checkSignatures? %t",
+		c.MapID, c.EPBias, c.Operations, c.EmitInterval, c.IgnoreErrors, c.CheckSignatures)
 }
 
 // HitMap performs load/stress operations according to given config.
@@ -255,13 +261,21 @@ func (s *hammerState) pushSMR(smr *trillian.SignedMapRoot) {
 	for i := smrCount - 1; i > 0; i-- {
 		s.smr[i] = s.smr[i-1]
 	}
+
+	if !s.cfg.CheckSignatures {
+		smr.Signature = nil
+	}
 	s.smr[0] = smr
 }
 
 func (s *hammerState) previousSMR(which int) *trillian.SignedMapRoot {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.smr[which]
+	r := s.smr[which]
+	if r != nil && !s.cfg.CheckSignatures {
+		r.Signature = nil
+	}
+	return r
 }
 
 // pickKey randomly select a key that already exists in a particular
@@ -629,6 +643,10 @@ func (s *hammerState) getSMRRev(ctx context.Context) error {
 		return fmt.Errorf("failed to get-smr-rev(@%d): %v", req.Revision, err)
 	}
 	glog.V(2).Infof("%d: Got SMR(time=%q, rev=%d)", s.cfg.MapID, timeFromNanos(rsp.MapRoot.TimestampNanos), rsp.MapRoot.MapRevision)
+
+	if !s.cfg.CheckSignatures {
+		rsp.MapRoot.Signature = nil
+	}
 
 	if !proto.Equal(rsp.MapRoot, smr) {
 		return fmt.Errorf("get-smr-rev(@%d)=%+v, want %+v", req.Revision, rsp.MapRoot, smr)
