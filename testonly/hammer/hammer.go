@@ -275,10 +275,7 @@ func (s *hammerState) previousSMR(which int) *trillian.SignedMapRoot {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	r := s.smr[which]
-	if s.cfg.CheckSignatures || r == nil {
-		return r
-	}
-	if r.Signature != nil {
+	if !s.cfg.CheckSignatures && r != nil && r.Signature != nil {
 		panic(fmt.Sprintf("signature should have been cleared before storing SMR %v", r))
 	}
 	return r
