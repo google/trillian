@@ -33,6 +33,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"time"
 
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/ptypes"
@@ -42,10 +43,13 @@ import (
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/crypto/sigpb"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 var (
 	adminServerAddr = flag.String("admin_server", "", "Address of the gRPC Trillian Admin Server (host:port)")
+	rpcDeadline     = flag.Duration("rpc_deadline", time.Second*10, "Deadline for RPC requests")
 
 	treeState          = flag.String("tree_state", trillian.TreeState_ACTIVE.String(), "State of the new tree")
 	treeType           = flag.String("tree_type", trillian.TreeType_LOG.String(), "Type of the new tree")
@@ -72,15 +76,22 @@ func createTree(ctx context.Context) (*trillian.Tree, error) {
 
 	conn, err := grpc.Dial(*adminServerAddr, grpc.WithInsecure())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to dial %v: %v", *adminServerAddr, err)
 	}
 	defer conn.Close()
 
-	tree, err := trillian.NewTrillianAdminClient(conn).CreateTree(ctx, req)
-	if err != nil {
-		return nil, err
+	client := trillian.NewTrillianAdminClient(conn)
+	for {
+		tree, err := client.CreateTree(ctx, req)
+		if err == nil {
+			return tree, nil
+		}
+		if s, ok := status.FromError(err); ok && s.Code() == codes.Unavailable {
+			glog.Errorf("Admin server unavailable, trying again: %v", err)
+			continue
+		}
+		return nil, fmt.Errorf("failed to CreateTree(%+v): %T %v", req, err, err)
 	}
-	return tree, nil
 }
 
 func newRequest() (*trillian.CreateTreeRequest, error) {
@@ -155,7 +166,8 @@ func main() {
 		}
 	}
 
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), *rpcDeadline)
+	defer cancel()
 	tree, err := createTree(ctx)
 	if err != nil {
 		glog.Exitf("Failed to create tree: %v", err)
