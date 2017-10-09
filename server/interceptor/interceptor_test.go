@@ -69,6 +69,20 @@ func TestTrillianInterceptor_TreeInterception(t *testing.T) {
 		wantErr    bool
 		wantTree   *trillian.Tree
 	}{
+		// TODO(codingllama): Admin requests don't benefit from tree-reading logic, but we may read
+		// their tree IDs for auth purposes.
+		{
+			desc: "adminReadByID",
+			req:  &trillian.GetTreeRequest{TreeId: logTree.TreeId},
+		},
+		{
+			desc: "adminWriteByID",
+			req:  &trillian.DeleteTreeRequest{TreeId: logTree.TreeId},
+		},
+		{
+			desc: "adminWriteByTree",
+			req:  &trillian.UpdateTreeRequest{Tree: &trillian.Tree{TreeId: logTree.TreeId}},
+		},
 		{
 			desc:     "logRPC",
 			req:      &trillian.GetLatestSignedLogRootRequest{LogId: logTree.TreeId},
@@ -428,11 +442,7 @@ func TestTrillianInterceptor_NotIntercepted(t *testing.T) {
 	}{
 		// Admin
 		{req: &trillian.CreateTreeRequest{}},
-		{req: &trillian.DeleteTreeRequest{}},
-		{req: &trillian.GetTreeRequest{}},
 		{req: &trillian.ListTreesRequest{}},
-		{req: &trillian.UndeleteTreeRequest{}},
-		{req: &trillian.UpdateTreeRequest{}},
 		// Quota
 		{req: &quotapb.CreateConfigRequest{}},
 		{req: &quotapb.DeleteConfigRequest{}},

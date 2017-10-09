@@ -222,8 +222,8 @@ func isLeafOK(leaf *trillian.QueuedLogLeaf) bool {
 }
 
 type rpcInfo struct {
-	// getTree and quota enable their corresponding interceptor logic.
-	getTree, quota bool
+	// auth, getTree and quota enable their corresponding interceptor logic.
+	auth, getTree, quota bool
 
 	readonly bool
 	treeID   int64
@@ -235,7 +235,7 @@ type rpcInfo struct {
 
 func newRPCInfo(req interface{}, quotaUser string) (*rpcInfo, error) {
 	// Set "safe" defaults: enable all interception and assume requests are readonly.
-	info := &rpcInfo{getTree: true, quota: true, readonly: true}
+	info := &rpcInfo{auth: true, getTree: true, quota: true, readonly: true}
 	switch req.(type) {
 
 	// Not intercepted at all
@@ -246,19 +246,31 @@ func newRPCInfo(req interface{}, quotaUser string) (*rpcInfo, error) {
 		*quotapb.GetConfigRequest,
 		*quotapb.ListConfigsRequest,
 		*quotapb.UpdateConfigRequest:
+		info.auth = false
 		info.getTree = false
 		info.quota = false
 		info.readonly = false // Doesn't really matter as all interceptors are turned off
 
+	// Admin create
+	case *trillian.CreateTreeRequest:
+		info.auth = false    // Tree doesn't exist
+		info.getTree = false // Tree doesn't exist
+		info.quota = false   // No quota for admin
+		info.readonly = false
+
+	// Admin list
+	case *trillian.ListTreesRequest:
+		info.auth = false    // Auth done by RPC
+		info.getTree = false // Zero to many trees
+		info.quota = false   // No quota for admin
+
 	// Admin / readonly
-	case *trillian.GetTreeRequest,
-		*trillian.ListTreesRequest:
+	case *trillian.GetTreeRequest:
 		info.getTree = false // Read done by RPC
 		info.quota = false   // No quota for admin
 
 	// Admin / readwrite
-	case *trillian.CreateTreeRequest,
-		*trillian.DeleteTreeRequest,
+	case *trillian.DeleteTreeRequest,
 		*trillian.UndeleteTreeRequest,
 		*trillian.UpdateTreeRequest:
 		info.getTree = false // Read-modify-write done by RPC
@@ -297,12 +309,16 @@ func newRPCInfo(req interface{}, quotaUser string) (*rpcInfo, error) {
 		return nil, status.Errorf(codes.Internal, "unmapped request type: %T", req)
 	}
 
-	if info.getTree || info.quota {
+	if info.auth || info.getTree || info.quota {
 		switch req := req.(type) {
 		case logIDRequest:
 			info.treeID = req.GetLogId()
 		case mapIDRequest:
 			info.treeID = req.GetMapId()
+		case treeIDRequest:
+			info.treeID = req.GetTreeId()
+		case treeRequest:
+			info.treeID = req.GetTree().GetTreeId()
 		default:
 			return nil, status.Errorf(codes.Internal, "cannot retrieve treeID from request: %T", req)
 		}
@@ -339,6 +355,14 @@ type logIDRequest interface {
 
 type mapIDRequest interface {
 	GetMapId() int64
+}
+
+type treeIDRequest interface {
+	GetTreeId() int64
+}
+
+type treeRequest interface {
+	GetTree() *trillian.Tree
 }
 
 type logLeavesRequest interface {
