@@ -30,7 +30,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
-	"github.com/golang/protobuf/ptypes/any"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/google/trillian"
@@ -43,6 +42,8 @@ import (
 	"github.com/google/trillian/storage/testonly"
 	"github.com/kylelemons/godebug/pretty"
 	"google.golang.org/genproto/protobuf/field_mask"
+
+	ttestonly "github.com/google/trillian/testonly"
 )
 
 func TestServer_BeginError(t *testing.T) {
@@ -61,11 +62,7 @@ func TestServer_BeginError(t *testing.T) {
 	validTree.PublicKey = nil
 
 	keyProto := &empty.Empty{}
-	validTree.PrivateKey, err = ptypes.MarshalAny(keyProto)
-	if err != nil {
-		t.Fatalf("Error marshaling key proto as protobuf Any: %v", err)
-	}
-
+	validTree.PrivateKey = ttestonly.MustMarshalAny(t, keyProto)
 	keys.RegisterHandler(fakeKeyProtoHandler(keyProto, privateKey))
 	defer keys.UnregisterHandler(keyProto)
 
@@ -305,10 +302,7 @@ func TestServer_CreateTree(t *testing.T) {
 	// Except in key generation test cases, a keys.ProtoHandler will be registered that
 	// returns ecdsaPrivateKey when passed an empty proto.
 	wantKeyProto := &empty.Empty{}
-	validTree.PrivateKey, err = ptypes.MarshalAny(wantKeyProto)
-	if err != nil {
-		t.Fatalf("Error marshaling private key proto as protobuf Any: %v", err)
-	}
+	validTree.PrivateKey = ttestonly.MustMarshalAny(t, wantKeyProto)
 	validTree.PublicKey = func() *keyspb.PublicKey {
 		pb, err := der.ToPublicProto(ecdsaPrivateKey.Public())
 		if err != nil {
@@ -550,10 +544,7 @@ func TestServer_UpdateTree(t *testing.T) {
 	existingTree.MaxRootDuration = ptypes.DurationProto(1 * time.Nanosecond)
 
 	// Any valid proto works here, the type doesn't matter for this test.
-	settings, err := ptypes.MarshalAny(&keyspb.PEMKeyFile{})
-	if err != nil {
-		t.Fatalf("Error marshaling proto: %v", err)
-	}
+	settings := ttestonly.MustMarshalAny(t, &empty.Empty{})
 
 	// successTree specifies changes in all rw fields
 	successTree := &trillian.Tree{
@@ -562,13 +553,7 @@ func TestServer_UpdateTree(t *testing.T) {
 		Description:     "Brand New Tree Desc",
 		StorageSettings: settings,
 		MaxRootDuration: ptypes.DurationProto(2 * time.Nanosecond),
-		PrivateKey: func() *any.Any {
-			pb, err := ptypes.MarshalAny(&empty.Empty{})
-			if err != nil {
-				panic(err)
-			}
-			return pb
-		}(),
+		PrivateKey:      ttestonly.MustMarshalAny(t, &empty.Empty{}),
 	}
 	successMask := &field_mask.FieldMask{
 		Paths: []string{"tree_state", "display_name", "description", "storage_settings", "max_root_duration", "private_key"},
