@@ -70,11 +70,6 @@ func TestTrillianInterceptor_TreeInterception(t *testing.T) {
 		wantTree   *trillian.Tree
 	}{
 		{
-			desc:     "adminRPC",
-			req:      &trillian.UpdateTreeRequest{Tree: logTree},
-			wantTree: logTree,
-		},
-		{
 			desc:     "logRPC",
 			req:      &trillian.GetLatestSignedLogRootRequest{LogId: logTree.TreeId},
 			wantTree: logTree,
@@ -166,15 +161,7 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 		wantTokens   int
 	}{
 		{
-			desc: "adminWrite",
-			req:  &trillian.CreateTreeRequest{Tree: testonly.LogTree},
-		},
-		{
-			desc: "adminRead",
-			req:  &trillian.ListTreesRequest{},
-		},
-		{
-			desc: "logReadonly",
+			desc: "logRead",
 			req:  &trillian.GetLatestSignedLogRootRequest{LogId: logTree.TreeId},
 			specs: []quota.Spec{
 				{Group: quota.User, Kind: quota.Read, User: user},
@@ -184,7 +171,7 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 			wantTokens: 1,
 		},
 		{
-			desc: "logRW",
+			desc: "logWrite",
 			req:  &trillian.QueueLeafRequest{LogId: logTree.TreeId},
 			specs: []quota.Spec{
 				{Group: quota.User, Kind: quota.Write, User: user},
@@ -194,7 +181,7 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 			wantTokens: 1,
 		},
 		{
-			desc: "mapReadonly",
+			desc: "mapRead",
 			req:  &trillian.GetMapLeavesRequest{MapId: mapTree.TreeId},
 			specs: []quota.Spec{
 				{Group: quota.User, Kind: quota.Read, User: user},
@@ -202,6 +189,39 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 				{Group: quota.Global, Kind: quota.Read},
 			},
 			wantTokens: 1,
+		},
+		{
+			desc: "emptyBatchRequest",
+			req: &trillian.QueueLeavesRequest{
+				LogId:  logTree.TreeId,
+				Leaves: nil,
+			},
+		},
+		{
+			desc: "batchLogLeavesRequest",
+			req: &trillian.QueueLeavesRequest{
+				LogId:  logTree.TreeId,
+				Leaves: []*trillian.LogLeaf{{}, {}, {}},
+			},
+			specs: []quota.Spec{
+				{Group: quota.User, Kind: quota.Write, User: user},
+				{Group: quota.Tree, Kind: quota.Write, TreeID: logTree.TreeId},
+				{Group: quota.Global, Kind: quota.Write},
+			},
+			wantTokens: 3,
+		},
+		{
+			desc: "batchMapLeavesRequest",
+			req: &trillian.SetMapLeavesRequest{
+				MapId:  mapTree.TreeId,
+				Leaves: []*trillian.MapLeaf{{}, {}, {}, {}, {}},
+			},
+			specs: []quota.Spec{
+				{Group: quota.User, Kind: quota.Write, User: user},
+				{Group: quota.Tree, Kind: quota.Write, TreeID: mapTree.TreeId},
+				{Group: quota.Global, Kind: quota.Write},
+			},
+			wantTokens: 5,
 		},
 		{
 			desc: "quotaError",
@@ -216,7 +236,7 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 			wantTokens:   1,
 		},
 		{
-			desc:   "quotaError-dryRun",
+			desc:   "quotaDryRunError",
 			dryRun: true,
 			req:    &trillian.GetLatestSignedLogRootRequest{LogId: logTree.TreeId},
 			specs: []quota.Spec{
@@ -226,39 +246,6 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 			},
 			getTokensErr: errors.New("not enough tokens"),
 			wantTokens:   1,
-		},
-		{
-			desc: "multiTokens-logLeavesRequest",
-			req: &trillian.QueueLeavesRequest{
-				LogId:  logTree.TreeId,
-				Leaves: []*trillian.LogLeaf{{}, {}, {}},
-			},
-			specs: []quota.Spec{
-				{Group: quota.User, Kind: quota.Write, User: user},
-				{Group: quota.Tree, Kind: quota.Write, TreeID: logTree.TreeId},
-				{Group: quota.Global, Kind: quota.Write},
-			},
-			wantTokens: 3,
-		},
-		{
-			desc: "multiTokens-zeroTokens",
-			req: &trillian.QueueLeavesRequest{
-				LogId:  logTree.TreeId,
-				Leaves: nil,
-			},
-		},
-		{
-			desc: "multiTokens-mapLeavesRequest",
-			req: &trillian.SetMapLeavesRequest{
-				MapId:  mapTree.TreeId,
-				Leaves: []*trillian.MapLeaf{{}, {}, {}, {}, {}},
-			},
-			specs: []quota.Spec{
-				{Group: quota.User, Kind: quota.Write, User: user},
-				{Group: quota.Tree, Kind: quota.Write, TreeID: mapTree.TreeId},
-				{Group: quota.Global, Kind: quota.Write},
-			},
-			wantTokens: 5,
 		},
 	}
 
@@ -435,7 +422,7 @@ func TestTrillianInterceptor_QuotaInterception_ReturnsTokens(t *testing.T) {
 	}
 }
 
-func TestTrillianInterceptor_DoNotIntercept(t *testing.T) {
+func TestTrillianInterceptor_NotIntercepted(t *testing.T) {
 	tests := []struct {
 		req interface{}
 	}{
@@ -445,6 +432,7 @@ func TestTrillianInterceptor_DoNotIntercept(t *testing.T) {
 		{req: &trillian.GetTreeRequest{}},
 		{req: &trillian.ListTreesRequest{}},
 		{req: &trillian.UndeleteTreeRequest{}},
+		{req: &trillian.UpdateTreeRequest{}},
 		// Quota
 		{req: &quotapb.CreateConfigRequest{}},
 		{req: &quotapb.DeleteConfigRequest{}},
@@ -519,70 +507,6 @@ func TestTrillianInterceptor_BeforeAfter(t *testing.T) {
 		// Other TrillianInterceptor tests assert After side-effects more in-depth, silently
 		// returning is good enough here.
 		p.After(ctx, test.resp, test.handlerErr)
-	}
-}
-
-func TestGetRPCInfo(t *testing.T) {
-	tests := []struct {
-		desc                  string
-		req                   interface{}
-		wantID                int64
-		wantType              trillian.TreeType
-		wantReadonly, wantErr bool
-	}{
-		{
-			desc:   "rwAdminRequest",
-			req:    &trillian.UpdateTreeRequest{Tree: &trillian.Tree{TreeId: 10}},
-			wantID: 10,
-		},
-		{
-			desc:         "getLogRequest",
-			req:          &trillian.GetConsistencyProofRequest{LogId: 20},
-			wantID:       20,
-			wantType:     trillian.TreeType_LOG,
-			wantReadonly: true,
-		},
-		{
-			desc:     "rwLogRequest",
-			req:      &trillian.QueueLeafRequest{LogId: 20},
-			wantID:   20,
-			wantType: trillian.TreeType_LOG,
-		},
-		{
-			desc:         "getMapRequest",
-			req:          &trillian.GetMapLeavesRequest{MapId: 30},
-			wantID:       30,
-			wantType:     trillian.TreeType_MAP,
-			wantReadonly: true,
-		},
-		{
-			desc:     "rwMapRequest",
-			req:      &trillian.SetMapLeavesRequest{MapId: 30},
-			wantID:   30,
-			wantType: trillian.TreeType_MAP,
-		},
-		{
-			desc:    "unknownRequestType",
-			req:     "not-a-request",
-			wantErr: true,
-		},
-	}
-	for _, test := range tests {
-		// TODO(codingllama): Use correct quota user
-		info, err := getRPCInfo(test.req, "guest")
-		if hasErr := err != nil; hasErr != test.wantErr {
-			t.Errorf("%v: getRPCInfo(%T) returned err = %v, wantErr = %v", test.desc, test.req, err, test.wantErr)
-			continue
-		} else if hasErr {
-			continue
-		}
-		if got, want := info.treeID, test.wantID; got != want {
-			t.Errorf("%v: info.treeID = %v, want = %v", test.desc, got, want)
-		}
-		wantOpts := &trees.GetOpts{TreeType: test.wantType, Readonly: test.wantReadonly}
-		if diff := pretty.Compare(info.opts, wantOpts); diff != "" {
-			t.Errorf("%v: info.opts diff:\n%v", test.desc, diff)
-		}
 	}
 }
 
