@@ -236,54 +236,54 @@ func (tester *AdminStorageTester) TestUpdateTree(t *testing.T) {
 	validLog.TreeState = trillian.TreeState_FROZEN
 	validLog.DisplayName = "Frozen Tree"
 	validLog.Description = "A Frozen Tree"
-	validLogFunc := func(t *trillian.Tree) {
-		t.TreeState = validLog.TreeState
-		t.DisplayName = validLog.DisplayName
-		t.Description = validLog.Description
+	validLogFunc := func(tree *trillian.Tree) {
+		tree.TreeState = validLog.TreeState
+		tree.DisplayName = validLog.DisplayName
+		tree.Description = validLog.Description
 	}
 
-	validLogWithoutOptionalsFunc := func(t *trillian.Tree) {
-		t.DisplayName = ""
-		t.Description = ""
+	validLogWithoutOptionalsFunc := func(tree *trillian.Tree) {
+		tree.DisplayName = ""
+		tree.Description = ""
 	}
 	validLogWithoutOptionals := referenceLog
 	validLogWithoutOptionalsFunc(&validLogWithoutOptionals)
 
-	invalidLogFunc := func(t *trillian.Tree) {
-		t.TreeState = trillian.TreeState_UNKNOWN_TREE_STATE
+	invalidLogFunc := func(tree *trillian.Tree) {
+		tree.TreeState = trillian.TreeState_UNKNOWN_TREE_STATE
 	}
 
-	readonlyChangedFunc := func(t *trillian.Tree) {
-		t.TreeType = trillian.TreeType_MAP
+	readonlyChangedFunc := func(tree *trillian.Tree) {
+		tree.TreeType = trillian.TreeType_MAP
 	}
 
 	referenceMap := *MapTree
 	validMap := referenceMap
 	validMap.DisplayName = "Updated Map"
-	validMapFunc := func(t *trillian.Tree) {
-		t.DisplayName = validMap.DisplayName
+	validMapFunc := func(tree *trillian.Tree) {
+		tree.DisplayName = validMap.DisplayName
 	}
 
 	newPrivateKey := &empty.Empty{}
 	privateKeyChangedButKeyMaterialSameTree := *LogTree
-	privateKeyChangedButKeyMaterialSameTree.PrivateKey = mustMarshalAny(newPrivateKey)
+	privateKeyChangedButKeyMaterialSameTree.PrivateKey = testonly.MustMarshalAny(t, newPrivateKey)
 	keys.RegisterHandler(newPrivateKey, func(ctx context.Context, pb proto.Message) (crypto.Signer, error) {
 		return pem.UnmarshalPrivateKey(privateKeyPEM, privateKeyPass)
 	})
 	defer keys.UnregisterHandler(newPrivateKey)
 
-	privateKeyChangedButKeyMaterialSameFunc := func(t *trillian.Tree) {
-		t.PrivateKey = privateKeyChangedButKeyMaterialSameTree.PrivateKey
+	privateKeyChangedButKeyMaterialSameFunc := func(tree *trillian.Tree) {
+		tree.PrivateKey = privateKeyChangedButKeyMaterialSameTree.PrivateKey
 	}
 
-	privateKeyChangedAndKeyMaterialDifferentFunc := func(t *trillian.Tree) {
-		t.PrivateKey = mustMarshalAny(&keyspb.PrivateKey{
+	privateKeyChangedAndKeyMaterialDifferentFunc := func(tree *trillian.Tree) {
+		tree.PrivateKey = testonly.MustMarshalAny(t, &keyspb.PrivateKey{
 			Der: ktestonly.MustMarshalPrivatePEMToDER(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass),
 		})
 	}
 
 	// Test for an unknown tree outside the loop: it makes the test logic simpler
-	if _, errOnUpdate, err := updateTree(ctx, s, -1, func(t *trillian.Tree) {}); err == nil || !errOnUpdate {
+	if _, errOnUpdate, err := updateTree(ctx, s, -1, func(tree *trillian.Tree) {}); err == nil || !errOnUpdate {
 		t.Errorf("updateTree(_, -1, _) = (_, %v, %v), want = (_, true, lookup error)", errOnUpdate, err)
 	}
 
