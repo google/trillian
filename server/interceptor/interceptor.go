@@ -131,6 +131,7 @@ func (tp *trillianProcessor) Before(ctx context.Context, req interface{}) (conte
 	quotaUser := tp.parent.qm.GetUser(ctx, req)
 	info, err := newRPCInfo(req, quotaUser)
 	if err != nil {
+		glog.Warningf("Failed to read tree info: %v", err)
 		incRequestDeniedCounter(badInfoReason, 0, quotaUser)
 		return ctx, err
 	}
@@ -170,6 +171,7 @@ func (tp *trillianProcessor) After(ctx context.Context, resp interface{}, handle
 		glog.Warningf("After called with nil rpcInfo, resp = [%+v], handlerErr = [%v]", resp, handlerErr)
 		return
 	case !tp.info.quota:
+		// After() currently only does quota processing
 		return
 	}
 
@@ -235,12 +237,19 @@ type rpcInfo struct {
 
 func newRPCInfo(req interface{}, quotaUser string) (*rpcInfo, error) {
 	// Set "safe" defaults: enable all interception and assume requests are readonly.
-	info := &rpcInfo{auth: true, getTree: true, quota: true, readonly: true}
+	info := &rpcInfo{
+		auth:     true,
+		getTree:  true,
+		quota:    true,
+		readonly: true,
+		treeType: trillian.TreeType_UNKNOWN_TREE_TYPE,
+	}
+
 	switch req.(type) {
 
 	// Not intercepted at all
 	case
-		// Quota requests
+		// Quota configuration requests
 		*quotapb.CreateConfigRequest,
 		*quotapb.DeleteConfigRequest,
 		*quotapb.GetConfigRequest,
@@ -260,20 +269,20 @@ func newRPCInfo(req interface{}, quotaUser string) (*rpcInfo, error) {
 
 	// Admin list
 	case *trillian.ListTreesRequest:
-		info.auth = false    // Auth done by RPC
+		info.auth = false    // Auth done within RPC handler
 		info.getTree = false // Zero to many trees
 		info.quota = false   // No quota for admin
 
 	// Admin / readonly
 	case *trillian.GetTreeRequest:
-		info.getTree = false // Read done by RPC
+		info.getTree = false // Read done within RPC handler
 		info.quota = false   // No quota for admin
 
 	// Admin / readwrite
 	case *trillian.DeleteTreeRequest,
 		*trillian.UndeleteTreeRequest,
 		*trillian.UpdateTreeRequest:
-		info.getTree = false // Read-modify-write done by RPC
+		info.getTree = false // Read-modify-write done within RPC handler
 		info.quota = false   // No quota for admin
 		info.readonly = false
 
