@@ -33,11 +33,11 @@ import (
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/errors"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/testonly"
 	"github.com/kylelemons/godebug/pretty"
 
 	ktestonly "github.com/google/trillian/crypto/keys/testonly"
 	spb "github.com/google/trillian/crypto/sigpb"
-	ttestonly "github.com/google/trillian/testonly"
 
 	_ "github.com/google/trillian/crypto/keys/der/proto" // PrivateKey proto handler
 	_ "github.com/google/trillian/crypto/keys/pem/proto" // PEMKeyFile proto handler
@@ -100,10 +100,10 @@ var (
 		DisplayName:        "Llamas Map",
 		Description:        "Key Transparency map for all your digital llama needs.",
 		PrivateKey: mustMarshalAny(&keyspb.PrivateKey{
-			Der: ktestonly.MustMarshalPrivatePEMToDER(ttestonly.DemoPrivateKey, ttestonly.DemoPrivateKeyPass),
+			Der: ktestonly.MustMarshalPrivatePEMToDER(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass),
 		}),
 		PublicKey: &keyspb.PublicKey{
-			Der: ktestonly.MustMarshalPublicPEMToDER(ttestonly.DemoPublicKey),
+			Der: ktestonly.MustMarshalPublicPEMToDER(testonly.DemoPublicKey),
 		},
 		MaxRootDuration: ptypes.DurationProto(0 * time.Millisecond),
 	}
@@ -278,7 +278,7 @@ func (tester *AdminStorageTester) TestUpdateTree(t *testing.T) {
 
 	privateKeyChangedAndKeyMaterialDifferentFunc := func(t *trillian.Tree) {
 		t.PrivateKey = mustMarshalAny(&keyspb.PrivateKey{
-			Der: ktestonly.MustMarshalPrivatePEMToDER(ttestonly.DemoPrivateKey, ttestonly.DemoPrivateKeyPass),
+			Der: ktestonly.MustMarshalPrivatePEMToDER(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass),
 		})
 	}
 
