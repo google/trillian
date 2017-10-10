@@ -16,6 +16,7 @@ package testonly
 
 import (
 	"context"
+	"crypto"
 	"fmt"
 	"reflect"
 	"sort"
@@ -25,7 +26,10 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
+	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto/keys"
+	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/errors"
 	"github.com/google/trillian/storage"
@@ -56,10 +60,6 @@ S9+/31whWcH/FLeLJx4cBzvhgCtfquwA+s5ojeLYYsk=
 MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEywnWicNEQ8bn3GXcGpA+tiU4VL70
 Ws9xezgQPrg96YGsFrF6KYG68iqyHDlQ+4FWuKfGKXHn3ooVtB/pfawb5Q==
 -----END PUBLIC KEY-----`
-)
-
-var (
-	privateKeyPath = ttestonly.RelativeToPackage("../../testdata/log-rpc-server.privkey.pem")
 )
 
 // mustMarshalAny panics if ptypes.MarshalAny fails.
@@ -264,11 +264,13 @@ func (tester *AdminStorageTester) TestUpdateTree(t *testing.T) {
 		t.DisplayName = validMap.DisplayName
 	}
 
+	newPrivateKey := &empty.Empty{}
 	privateKeyChangedButKeyMaterialSameTree := *LogTree
-	privateKeyChangedButKeyMaterialSameTree.PrivateKey = mustMarshalAny(&keyspb.PEMKeyFile{
-		Path:     privateKeyPath,
-		Password: privateKeyPass,
+	privateKeyChangedButKeyMaterialSameTree.PrivateKey = mustMarshalAny(newPrivateKey)
+	keys.RegisterHandler(newPrivateKey, func(ctx context.Context, pb proto.Message) (crypto.Signer, error) {
+		return pem.UnmarshalPrivateKey(privateKeyPEM, privateKeyPass)
 	})
+	defer keys.UnregisterHandler(newPrivateKey)
 
 	privateKeyChangedButKeyMaterialSameFunc := func(t *trillian.Tree) {
 		t.PrivateKey = privateKeyChangedButKeyMaterialSameTree.PrivateKey
