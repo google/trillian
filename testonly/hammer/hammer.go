@@ -85,6 +85,34 @@ const (
 
 var mapEntrypoints = []MapEntrypointName{GetLeavesName, SetLeavesName, GetSMRName, GetSMRRevName}
 
+// Constants for both valid and invalid operation choices.
+type Choice string
+const (
+	ExistingKey    = Choice("ExistingKey")
+	NonexistentKey = Choice("NonexistentKey")
+	MalformedKey   = Choice("MalformedKey")
+	DuplicateKey   = Choice("DuplicateKey")
+	RevTooBig      = Choice("RevTooBig")
+	RevIsZero      = Choice("RevIsZero")
+	RevIsNegative  = Choice("RevIsNegative")
+	CreateLeaf     = Choice("CreateLeaf")
+	UpdateLeaf     = Choice("UpdateLeaf")
+	DeleteLeaf     = Choice("DeleteLeaf")
+)
+
+type choicesByEntrypoint map[MapEntrypointName][]Choice
+
+var validChoicesByEntrypoint = choicesByEntrypoint{
+	GetLeavesName: []Choice{ExistingKey, NonexistentKey},
+	SetLeavesName: []Choice{CreateLeaf, UpdateLeaf, DeleteLeaf},
+}
+
+var invalidChoicesByEntrypoint = choicesByEntrypoint{
+	GetLeavesName: []Choice{MalformedKey, RevTooBig, RevIsZero}, // TODO(phad): RevIsNegative ought to be invalid too but is accepted atm.
+	SetLeavesName: []Choice{MalformedKey, DuplicateKey},
+	GetSMRRevName: []Choice{RevTooBig, RevIsZero, RevIsNegative},
+}
+
 // MapBias indicates the bias for selecting different map operations.
 type MapBias struct {
 	Bias  map[MapEntrypointName]int
@@ -453,11 +481,6 @@ func (s *hammerState) performInvalidOp(ctx context.Context, ep MapEntrypointName
 }
 
 func (s *hammerState) getLeaves(ctx context.Context) error {
-	const (
-		existingKey = iota
-		nonexistentKey
-		numOptions
-	)
 	which, ok := s.pickCopy()
 	if !ok {
 		glog.V(3).Infof("%d: skipping get-leaves as no data yet", s.cfg.MapID)
@@ -478,13 +501,14 @@ func (s *hammerState) getLeaves(ctx context.Context) error {
 		Index:    make([][]byte, n),
 	}
 	for i := 0; i < n; i++ {
-		choice := rand.Intn(numOptions)
+		j := rand.Intn(len(validChoicesByEntrypoint[GetLeavesName]))
+		choice := validChoicesByEntrypoint[GetLeavesName][j]
 		switch choice {
-		case existingKey:
+		case ExistingKey:
 			// No duplicate removal, so we can end up asking for same key twice in the same request.
 			key := s.pickKey(which)
 			req.Index[i] = key
-		case nonexistentKey:
+		case NonexistentKey:
 			req.Index[i] = testonly.TransparentHash("non-existent-key")
 		}
 	}
@@ -502,54 +526,45 @@ func (s *hammerState) getLeaves(ctx context.Context) error {
 }
 
 func (s *hammerState) getLeavesInvalid(ctx context.Context) error {
-	const (
-		malformedKey = iota
-		revTooBig
-		revIsZero
-		numOptions
-	)
-
 	req := trillian.GetMapLeavesRequest{MapId: s.cfg.MapID}
-	choice := rand.Intn(numOptions)
+	j := rand.Intn(len(invalidChoicesByEntrypoint[GetLeavesName]))
+	choice := invalidChoicesByEntrypoint[GetLeavesName][j]
 	if s.empty(latestCopy) {
-		choice = malformedKey
+		choice = MalformedKey
 	}
+	req.Index = [][]byte{s.pickKey(latestCopy)}
 	switch choice {
-	case malformedKey:
+	case MalformedKey:
 		key := testonly.TransparentHash("..invalid-size")
 		req.Index = [][]byte{key[2:]}
 		req.Revision = s.rev(latestCopy)
-	case revTooBig:
-		req.Index = [][]byte{s.pickKey(latestCopy)}
+	case RevTooBig:
 		req.Revision = s.rev(latestCopy) + invalidStretch
-	case revIsZero:
-		req.Index = [][]byte{s.pickKey(latestCopy)}
+	case RevIsZero:
 		req.Revision = 0
+	case RevIsNegative:
+		req.Revision = -s.rev(latestCopy)
 	}
 	rsp, err := s.cfg.Client.GetLeaves(ctx, &req)
 	if err == nil {
 		return fmt.Errorf("unexpected success: get-leaves(%v: %+v): %+v", choice, req, rsp.MapRoot)
 	}
+	glog.V(2).Infof("%d: expected failure: get-leaves(%v: %+v): %+v", s.cfg.MapID, choice, req, rsp)
 	return nil
 }
 
 func (s *hammerState) setLeaves(ctx context.Context) error {
-	const (
-		createLeaf = iota
-		updateLeaf
-		deleteLeaf
-		numOptions
-	)
 	n := 1 + rand.Intn(10)
 	leaves := make([]*trillian.MapLeaf, 0, n)
 leafloop:
 	for i := 0; i < n; i++ {
-		choice := rand.Intn(numOptions)
+		j := rand.Intn(len(validChoicesByEntrypoint[SetLeavesName]))
+		choice := validChoicesByEntrypoint[SetLeavesName][j]
 		if s.empty(latestCopy) {
-			choice = createLeaf
+			choice = CreateLeaf
 		}
 		switch choice {
-		case createLeaf:
+		case CreateLeaf:
 			key := s.nextKey()
 			value := s.nextValue()
 			leaves = append(leaves, &trillian.MapLeaf{
@@ -557,8 +572,8 @@ leafloop:
 				LeafValue: value,
 				ExtraData: []byte("extra-" + string(value)),
 			})
-			glog.V(3).Infof("%d: data[%q]=%q", s.cfg.MapID, key, string(value))
-		case updateLeaf, deleteLeaf:
+			glog.V(3).Infof("%d: %v: data[%q]=%q", s.cfg.MapID, choice, key, string(value))
+		case UpdateLeaf, DeleteLeaf:
 			key := s.pickKey(latestCopy)
 			// Not allowed to have the same key more than once in the same request
 			for _, leaf := range leaves {
@@ -567,10 +582,10 @@ leafloop:
 				}
 			}
 			var value []byte
-			if choice == updateLeaf {
+			if choice == UpdateLeaf {
 				value = s.nextValue()
 			}
-			glog.V(3).Infof("%d: data[%q]=%q", s.cfg.MapID, dehash(key), string(value))
+			glog.V(3).Infof("%d: %v: data[%q]=%q", s.cfg.MapID, choice, dehash(key), string(value))
 			extra := []byte("extra-" + string(value))
 			leaves = append(leaves, &trillian.MapLeaf{Index: key, LeafValue: value, ExtraData: extra})
 		}
@@ -591,22 +606,20 @@ leafloop:
 }
 
 func (s *hammerState) setLeavesInvalid(ctx context.Context) error {
-	const (
-		malformedKey = iota
-		duplicateKey
-		numOptions
-	)
 	var leaves []*trillian.MapLeaf
 	value := []byte("value-for-invalid-req")
-	choice := rand.Intn(numOptions)
+
+	j := rand.Intn(len(invalidChoicesByEntrypoint[SetLeavesName]))
+	choice := invalidChoicesByEntrypoint[SetLeavesName][j]
+
 	if s.empty(latestCopy) {
-		choice = malformedKey
+		choice = MalformedKey
 	}
 	switch choice {
-	case malformedKey:
+	case MalformedKey:
 		key := testonly.TransparentHash("..invalid-size")
 		leaves = append(leaves, &trillian.MapLeaf{Index: key[2:], LeafValue: value})
-	case duplicateKey:
+	case DuplicateKey:
 		key := s.pickKey(latestCopy)
 		leaves = append(leaves, &trillian.MapLeaf{Index: key, LeafValue: value})
 		leaves = append(leaves, &trillian.MapLeaf{Index: key, LeafValue: value})
@@ -616,6 +629,7 @@ func (s *hammerState) setLeavesInvalid(ctx context.Context) error {
 	if err == nil {
 		return fmt.Errorf("unexpected success: set-leaves(%v: %+v): %+v", choice, req, rsp.MapRoot)
 	}
+	glog.V(2).Infof("%d: expected failure: set-leaves(%v: %+v): %+v", s.cfg.MapID, choice, req, rsp)
 	return nil
 }
 
@@ -658,21 +672,17 @@ func (s *hammerState) getSMRRev(ctx context.Context) error {
 }
 
 func (s *hammerState) getSMRRevInvalid(ctx context.Context) error {
-	const (
-		revTooBig = iota
-		revIsZero
-		revIsNegative
-		numOptions
-	)
 	var rev int64
-	choice := rand.Intn(numOptions)
+        j := rand.Intn(len(invalidChoicesByEntrypoint[GetSMRRevName]))
+        choice := invalidChoicesByEntrypoint[GetSMRRevName][j]
+
 	switch choice {
-	case revTooBig:
+	case RevTooBig:
 		rev = s.rev(latestCopy) + invalidStretch
-	case revIsZero:
+	case RevIsZero:
 		// TODO(drysdale): check if get-smr(@0) should work or not
 		rev = 0
-	case revIsNegative:
+	case RevIsNegative:
 		rev = -s.rev(latestCopy)
 	}
 	req := trillian.GetSignedMapRootByRevisionRequest{MapId: s.cfg.MapID, Revision: rev}
@@ -680,6 +690,7 @@ func (s *hammerState) getSMRRevInvalid(ctx context.Context) error {
 	if err == nil {
 		return fmt.Errorf("unexpected success: get-smr-rev(%v: @%d): %+v", choice, rev, rsp.MapRoot)
 	}
+	glog.V(2).Infof("%d: expected failure: get-smr-rev(%v: @%d): %+v", s.cfg.MapID, choice, rev, rsp)
 	return nil
 }
 
