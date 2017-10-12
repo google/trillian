@@ -85,7 +85,7 @@ const (
 
 var mapEntrypoints = []MapEntrypointName{GetLeavesName, SetLeavesName, GetSMRName, GetSMRRevName}
 
-// Choice is a readable represention a choice about how to perform a hammering operation.
+// Choice is a readable representation of a choice about how to perform a hammering operation.
 type Choice string
 
 // Constants for both valid and invalid operation choices.
