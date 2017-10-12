@@ -85,8 +85,10 @@ const (
 
 var mapEntrypoints = []MapEntrypointName{GetLeavesName, SetLeavesName, GetSMRName, GetSMRRevName}
 
-// Constants for both valid and invalid operation choices.
+// Choice is a readable represention a choice about how to perform a hammering operation.
 type Choice string
+
+// Constants for both valid and invalid operation choices.
 const (
 	ExistingKey    = Choice("ExistingKey")
 	NonexistentKey = Choice("NonexistentKey")
