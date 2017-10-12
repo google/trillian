@@ -524,17 +524,19 @@ func (s *hammerState) getLeavesInvalid(ctx context.Context) error {
 	if s.empty(latestCopy) {
 		choice = MalformedKey
 	}
-	req.Index = [][]byte{s.pickKey(latestCopy)}
 	switch choice {
 	case MalformedKey:
 		key := testonly.TransparentHash("..invalid-size")
 		req.Index = [][]byte{key[2:]}
 		req.Revision = s.rev(latestCopy)
 	case RevTooBig:
+		req.Index = [][]byte{s.pickKey(latestCopy)}
 		req.Revision = s.rev(latestCopy) + invalidStretch
 	case RevIsZero:
+		req.Index = [][]byte{s.pickKey(latestCopy)}
 		req.Revision = 0
 	case RevIsNegative:
+		req.Index = [][]byte{s.pickKey(latestCopy)}
 		req.Revision = -s.rev(latestCopy)
 	}
 	rsp, err := s.cfg.Client.GetLeaves(ctx, &req)
