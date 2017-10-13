@@ -41,6 +41,8 @@ const (
 	latestCopy = 0
 	// How far beyond current revision to request for invalid requests
 	invalidStretch = int64(10000)
+	// rev=-1 is used when requesting the latest revision
+	latestRevision = int64(-1)
 )
 
 var (
@@ -533,7 +535,7 @@ func (s *hammerState) getLeavesInvalid(ctx context.Context) error {
 	choices := []Choice{MalformedKey, RevTooBig, RevIsZero}
 
 	req := trillian.GetMapLeavesRequest{MapId: s.cfg.MapID}
-	rev := int64(-1)
+	rev := latestRevision
 	choice := choices[rand.Intn(len(choices))]
 	if s.empty(latestCopy) {
 		choice = MalformedKey
@@ -683,7 +685,7 @@ func (s *hammerState) getSMRRev(ctx context.Context) error {
 func (s *hammerState) getSMRRevInvalid(ctx context.Context) error {
 	choices := []Choice{RevTooBig, RevIsZero, RevIsNegative}
 
-	rev := int64(-1)
+	rev := latestRevision
 	if !s.empty(latestCopy) {
 		rev = s.rev(latestCopy)
 	}
