@@ -449,6 +449,10 @@ func (s *hammerState) retryOneOp(ctx context.Context) (err error) {
 		case errSkip:
 			err = nil
 			done = true
+		case errInvariant:
+			// Ensure invariant failures are not ignorable.  They indicate a design assumption
+			// being broken or incorrect, so must be seen.
+			done = true
 		default:
 			errs.Inc(s.label(), string(ep))
 			if s.cfg.IgnoreErrors {
@@ -622,7 +626,6 @@ leafloop:
 
 	s.pushSMR(rsp.MapRoot)
 	if err := s.updateContents(rsp.MapRoot.MapRevision, leaves); err != nil {
-		glog.Warningf("%d: setLeaves: updating hammerState contents error: %v", s.cfg.MapID, err)
 		return err
 	}
 	glog.V(2).Infof("%d: set %d leaves, new SMR(time=%q, rev=%d)", s.cfg.MapID, len(leaves), timeFromNanos(rsp.MapRoot.TimestampNanos), rsp.MapRoot.MapRevision)
