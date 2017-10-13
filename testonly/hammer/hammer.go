@@ -74,6 +74,16 @@ func (e errSkip) Error() string {
 	return "test operation skipped"
 }
 
+// errInvariant indicates that an invariant check failed, with details in msg.
+type errInvariant struct{
+	msg string
+}
+
+func (e errInvariant) Error() string {
+	return fmt.Sprintf("Invariant check failed: %v", e.msg)
+}
+
+
 // MapEntrypointName identifies a Map RPC entrypoint
 type MapEntrypointName string
 
@@ -338,13 +348,13 @@ func (s *hammerState) pickCopy() (int, bool) {
 	return rand.Intn(i), true
 }
 
-func (s *hammerState) updateContents(rev int64, leaves []*trillian.MapLeaf) {
+func (s *hammerState) updateContents(rev int64, leaves []*trillian.MapLeaf) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	// Sanity check on rev being +ve.
 	if rev < 1 {
-		panic(fmt.Sprintf("internal error: trying to update hammer state with contents for rev %d", rev))
+		return errInvariant{fmt.Sprintf("got rev %d, want >=1 when trying to update hammer state with contents", rev)}
 	}
 
 	// Shuffle earlier contents along.
@@ -370,8 +380,9 @@ func (s *hammerState) updateContents(rev int64, leaves []*trillian.MapLeaf) {
 
 	// Sanity check on latest rev being > prev rev.
 	if s.contents[0].rev <= s.contents[1].rev {
-		panic(fmt.Sprintf("internal error: when updating hammer state rev did not increase! new rev=%d, previous rev=%d", s.contents[0].rev, s.contents[1].rev))
+		return errInvariant{fmt.Sprintf("got rev %d, want >%d when trying to update hammer state with new contents", s.contents[0].rev, s.contents[1].rev)}
 	}
+	return nil
 }
 
 func (s *hammerState) checkContents(which int, leafInclusions []*trillian.MapLeafInclusion) error {
@@ -610,7 +621,10 @@ leafloop:
 	}
 
 	s.pushSMR(rsp.MapRoot)
-	s.updateContents(rsp.MapRoot.MapRevision, leaves)
+	if err := s.updateContents(rsp.MapRoot.MapRevision, leaves); err != nil {
+		glog.Warningf("%d: setLeaves: updating hammerState contents error: %v", s.cfg.MapID, err)
+		return err
+	}
 	glog.V(2).Infof("%d: set %d leaves, new SMR(time=%q, rev=%d)", s.cfg.MapID, len(leaves), timeFromNanos(rsp.MapRoot.TimestampNanos), rsp.MapRoot.MapRevision)
 	return nil
 }
