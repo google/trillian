@@ -41,6 +41,8 @@ const (
 	latestCopy = 0
 	// How far beyond current revision to request for invalid requests
 	invalidStretch = int64(10000)
+	// rev=-1 is used when requesting the latest revision
+	latestRevision = int64(-1)
 )
 
 var (
@@ -71,6 +73,16 @@ type errSkip struct{}
 func (e errSkip) Error() string {
 	return "test operation skipped"
 }
+
+// errInvariant indicates that an invariant check failed, with details in msg.
+type errInvariant struct{
+	msg string
+}
+
+func (e errInvariant) Error() string {
+	return fmt.Sprintf("Invariant check failed: %v", e.msg)
+}
+
 
 // MapEntrypointName identifies a Map RPC entrypoint
 type MapEntrypointName string
@@ -231,13 +243,13 @@ func (s *hammerState) nextValue() []byte {
 	return []byte(fmt.Sprintf("value-%09d", s.valueIdx))
 }
 
-// rev returns the revision of the specified copy of the contents, or -1 if that copy doesn't exist.
+// rev returns the revision of the specified copy of the contents, or panics if that copy doesn't exist.
 func (s *hammerState) rev(which int) int64 {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	if s.contents[which].data == nil {
-		return -1
+		panic(fmt.Sprintf("rev(): contents[%d] has no stored data", which))
 	}
 	return s.contents[which].rev
 }
@@ -305,6 +317,10 @@ func (s *hammerState) pickKey(which int) []byte {
 	defer s.mu.RUnlock()
 
 	l := len(s.contents[which].data)
+	if l == 0 {
+		panic(fmt.Sprintf("internal error: can't pick a key, map contents[%d] is empty!", which))
+	}
+
 	choice := rand.Intn(l)
 	for k := range s.contents[which].data {
 		if choice == 0 {
@@ -332,9 +348,14 @@ func (s *hammerState) pickCopy() (int, bool) {
 	return rand.Intn(i), true
 }
 
-func (s *hammerState) updateContents(rev int64, leaves []*trillian.MapLeaf) {
+func (s *hammerState) updateContents(rev int64, leaves []*trillian.MapLeaf) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	// Sanity check on rev being +ve.
+	if rev < 1 {
+		return errInvariant{fmt.Sprintf("got rev %d, want >=1 when trying to update hammer state with contents", rev)}
+	}
 
 	// Shuffle earlier contents along.
 	for i := copyCount - 1; i > 0; i-- {
@@ -356,6 +377,12 @@ func (s *hammerState) updateContents(rev int64, leaves []*trillian.MapLeaf) {
 			delete(s.contents[0].data, k)
 		}
 	}
+
+	// Sanity check on latest rev being > prev rev.
+	if s.contents[0].rev <= s.contents[1].rev {
+		return errInvariant{fmt.Sprintf("got rev %d, want >%d when trying to update hammer state with new contents", s.contents[0].rev, s.contents[1].rev)}
+	}
+	return nil
 }
 
 func (s *hammerState) checkContents(which int, leafInclusions []*trillian.MapLeafInclusion) error {
@@ -421,6 +448,10 @@ func (s *hammerState) retryOneOp(ctx context.Context) (err error) {
 			done = true
 		case errSkip:
 			err = nil
+			done = true
+		case errInvariant:
+			// Ensure invariant failures are not ignorable.  They indicate a design assumption
+			// being broken or incorrect, so must be seen.
 			done = true
 		default:
 			errs.Inc(s.label(), string(ep))
@@ -516,28 +547,27 @@ func (s *hammerState) getLeaves(ctx context.Context) error {
 }
 
 func (s *hammerState) getLeavesInvalid(ctx context.Context) error {
-	// TODO(phad): RevIsNegative ought to be invalid too but is accepted atm.
 	choices := []Choice{MalformedKey, RevTooBig, RevIsZero}
 
 	req := trillian.GetMapLeavesRequest{MapId: s.cfg.MapID}
+	rev := latestRevision
 	choice := choices[rand.Intn(len(choices))]
 	if s.empty(latestCopy) {
 		choice = MalformedKey
+	} else {
+		rev = s.rev(latestCopy)
 	}
 	switch choice {
 	case MalformedKey:
 		key := testonly.TransparentHash("..invalid-size")
 		req.Index = [][]byte{key[2:]}
-		req.Revision = s.rev(latestCopy)
+		req.Revision = rev
 	case RevTooBig:
 		req.Index = [][]byte{s.pickKey(latestCopy)}
-		req.Revision = s.rev(latestCopy) + invalidStretch
+		req.Revision = rev + invalidStretch
 	case RevIsZero:
 		req.Index = [][]byte{s.pickKey(latestCopy)}
 		req.Revision = 0
-	case RevIsNegative:
-		req.Index = [][]byte{s.pickKey(latestCopy)}
-		req.Revision = -s.rev(latestCopy)
 	}
 	rsp, err := s.cfg.Client.GetLeaves(ctx, &req)
 	if err == nil {
@@ -595,7 +625,9 @@ leafloop:
 	}
 
 	s.pushSMR(rsp.MapRoot)
-	s.updateContents(rsp.MapRoot.MapRevision, leaves)
+	if err := s.updateContents(rsp.MapRoot.MapRevision, leaves); err != nil {
+		return err
+	}
 	glog.V(2).Infof("%d: set %d leaves, new SMR(time=%q, rev=%d)", s.cfg.MapID, len(leaves), timeFromNanos(rsp.MapRoot.TimestampNanos), rsp.MapRoot.MapRevision)
 	return nil
 }
@@ -670,17 +702,21 @@ func (s *hammerState) getSMRRev(ctx context.Context) error {
 func (s *hammerState) getSMRRevInvalid(ctx context.Context) error {
 	choices := []Choice{RevTooBig, RevIsZero, RevIsNegative}
 
-	var rev int64
+	rev := latestRevision
+	if !s.empty(latestCopy) {
+		rev = s.rev(latestCopy)
+	}
+
 	choice := choices[rand.Intn(len(choices))]
 
 	switch choice {
 	case RevTooBig:
-		rev = s.rev(latestCopy) + invalidStretch
+		rev += invalidStretch
 	case RevIsZero:
 		// TODO(drysdale): check if get-smr(@0) should work or not
 		rev = 0
 	case RevIsNegative:
-		rev = -s.rev(latestCopy)
+		rev = -invalidStretch
 	}
 	req := trillian.GetSignedMapRootByRevisionRequest{MapId: s.cfg.MapID, Revision: rev}
 	rsp, err := s.cfg.Client.GetSignedMapRootByRevision(ctx, &req)
