@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2017 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -47,10 +47,10 @@ func TestIsHealthy(t *testing.T) {
 
 	for _, test := range tests {
 		mockStorage := storage.NewMockMapStorage(ctrl)
-	 	mockStorage.EXPECT().CheckDatabaseAccessible(gomock.Any()).Return(test.accessibleErr)
+		mockStorage.EXPECT().CheckDatabaseAccessible(gomock.Any()).Return(test.accessibleErr)
 
 		server := NewTrillianMapServer(extension.Registry{
-			AdminStorage: mockAdminStorageForMap(ctrl, 123),
+			AdminStorage: mockAdminStorageForMap(ctrl, mapID1),
 			MapStorage:   mockStorage,
 		})
 
