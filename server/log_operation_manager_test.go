@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
+	"github.com/google/trillian"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util"
@@ -123,6 +124,36 @@ func (l logOpInfoMatcher) String() string {
 	return fmt.Sprintf("has batchSize %d", l.BatchSize)
 }
 
+// Set up some log IDs in mock storage, together with some special values:
+//  logID==98: fail the GetTree() operation
+//  logID==99: return a tree with no DisplayName
+func setupLogIDs(ctrl *gomock.Controller, logNames map[int64]string) (*storage.MockLogStorage, *storage.MockAdminStorage) {
+	ids := make([]int64, 0, len(logNames))
+	for id := range logNames {
+		ids = append(ids, id)
+	}
+
+	mockStorage := storage.NewMockLogStorage(ctrl)
+	mockTx := storage.NewMockReadOnlyLogTX(ctrl)
+	mockTx.EXPECT().GetActiveLogIDs(gomock.Any()).AnyTimes().Return(ids, nil)
+	mockTx.EXPECT().Commit().AnyTimes().Return(nil)
+	mockTx.EXPECT().Close().AnyTimes().Return(nil)
+	mockStorage.EXPECT().Snapshot(gomock.Any()).AnyTimes().Return(mockTx, nil)
+
+	mockAdmin := storage.NewMockAdminStorage(ctrl)
+	mockAdminTx := storage.NewMockReadOnlyAdminTX(ctrl)
+	for id, name := range logNames {
+		mockAdminTx.EXPECT().GetTree(gomock.Any(), id).AnyTimes().Return(&trillian.Tree{TreeId: id, DisplayName: name}, nil)
+	}
+	mockAdminTx.EXPECT().GetTree(gomock.Any(), int64(98)).AnyTimes().Return(nil, errors.New("failedGetTree"))
+	mockAdminTx.EXPECT().GetTree(gomock.Any(), int64(99)).AnyTimes().Return(&trillian.Tree{TreeId: 99}, nil)
+	mockAdminTx.EXPECT().Commit().AnyTimes().Return(nil)
+	mockAdminTx.EXPECT().Close().AnyTimes().Return(nil)
+	mockAdmin.EXPECT().Snapshot(gomock.Any()).AnyTimes().Return(mockAdminTx, nil)
+
+	return mockStorage, mockAdmin
+}
+
 func TestLogOperationManagerPassesIDs(t *testing.T) {
 	ctx := context.Background()
 	logID1 := int64(451)
@@ -130,15 +161,10 @@ func TestLogOperationManagerPassesIDs(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockTx := storage.NewMockReadOnlyLogTX(ctrl)
-	mockTx.EXPECT().GetActiveLogIDs(gomock.Any()).Return([]int64{logID1, logID2}, nil)
-	mockTx.EXPECT().Commit().AnyTimes().Return(nil)
-	mockTx.EXPECT().Close().AnyTimes().Return(nil)
-	mockStorage := storage.NewMockLogStorage(ctrl)
-	mockStorage.EXPECT().Snapshot(gomock.Any()).Return(mockTx, nil)
-
+	mockStorage, mockAdmin := setupLogIDs(ctrl, map[int64]string{451: "LogID1", 145: "LogID2"})
 	registry := extension.Registry{
-		LogStorage: mockStorage,
+		LogStorage:   mockStorage,
+		AdminStorage: mockAdmin,
 	}
 
 	mockLogOp := NewMockLogOperation(ctrl)
@@ -150,6 +176,35 @@ func TestLogOperationManagerPassesIDs(t *testing.T) {
 	lom := NewLogOperationManager(info, mockLogOp)
 
 	lom.OperationSingle(ctx)
+}
+
+func TestHeldInfo(t *testing.T) {
+	ctx := context.Background()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockStorage, mockAdmin := setupLogIDs(ctrl, map[int64]string{1: "one", 2: "two"})
+	registry := extension.Registry{LogStorage: mockStorage, AdminStorage: mockAdmin}
+	mockLogOp := NewMockLogOperation(ctrl)
+	info := defaultLogOperationInfo(registry)
+	lom := NewLogOperationManager(info, mockLogOp)
+
+	var tests = []struct {
+		in   []int64
+		want string
+	}{
+		{in: []int64{}, want: "master for:"},
+		{in: []int64{1, 2}, want: "master for: one two"},
+		{in: []int64{2, 1}, want: "master for: one two"},
+		{in: []int64{2, 1, 2}, want: "master for: one two two"},
+		{in: []int64{2, 1, 99}, want: "master for: <log-99> one two"},
+		{in: []int64{2, 1, 98, 1}, want: "master for: <err> one one two"},
+	}
+	for _, test := range tests {
+		got := lom.heldInfo(ctx, test.in)
+		if got != test.want {
+			t.Errorf("lom.HeldInfo(%+v)=%q; want %q", test.in, got, test.want)
+		}
+	}
 }
 
 func TestShouldResign(t *testing.T) {

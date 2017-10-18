@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"math/rand"
 	"reflect"
+	"sort"
 	"strconv"
 	"sync"
 	"time"
@@ -197,6 +198,9 @@ type LogOperationManager struct {
 	tracker        *util.MasterTracker
 	heldMutex      sync.Mutex
 	lastHeld       []int64
+	// Cache of logID => name; assumed not to change during runtime
+	logNamesMutex sync.Mutex
+	logNames      map[int64]string
 }
 
 // fixupElectionInfo ensures operation parameters have required minimum values.
@@ -225,6 +229,7 @@ func NewLogOperationManager(info LogOperationInfo, logOperation LogOperation) *L
 		info:           fixupElectionInfo(info),
 		logOperation:   logOperation,
 		electionRunner: make(map[int64]*electionRunner),
+		logNames:       make(map[int64]string),
 	}
 }
 
@@ -245,6 +250,50 @@ func (l *LogOperationManager) getLogIDs(ctx context.Context) ([]int64, error) {
 		return nil, fmt.Errorf("failed to commit getting logs: %v", err)
 	}
 	return logIDs, nil
+}
+
+// logName maps a logID to a human-readable name, caching results along the way.
+// The human-readable name may non-unique so should only be used for diagnostics.
+func (l *LogOperationManager) logName(ctx context.Context, logID int64) string {
+	l.logNamesMutex.Lock()
+	defer l.logNamesMutex.Unlock()
+	if name, ok := l.logNames[logID]; ok {
+		return name
+	}
+	tx, err := l.info.Registry.AdminStorage.Snapshot(ctx)
+	if err != nil {
+		glog.Errorf("%v: failed to start transaction: %v", logID, err)
+		return "<err>"
+	}
+	defer tx.Close()
+	tree, err := tx.GetTree(ctx, logID)
+	if err != nil {
+		glog.Errorf("%v: failed to get log info: %v", logID, err)
+		return "<err>"
+	}
+	if err := tx.Commit(); err != nil {
+		return "<err>"
+	}
+	name := tree.DisplayName
+	if name == "" {
+		name = fmt.Sprintf("<log-%d>", logID)
+	}
+	l.logNames[logID] = name
+	return l.logNames[logID]
+}
+
+func (l *LogOperationManager) heldInfo(ctx context.Context, logIDs []int64) string {
+	names := make([]string, 0, len(logIDs))
+	for _, logID := range logIDs {
+		names = append(names, l.logName(ctx, logID))
+	}
+	sort.Strings(names)
+
+	result := "master for:"
+	for _, name := range names {
+		result += " " + name
+	}
+	return result
 }
 
 func (l *LogOperationManager) masterFor(ctx context.Context, allIDs []int64) ([]int64, error) {
@@ -286,13 +335,13 @@ func (l *LogOperationManager) masterFor(ctx context.Context, allIDs []int64) ([]
 	return held, nil
 }
 
-func (l *LogOperationManager) updateHeldIDs(logIDs, allIDs []int64) {
+func (l *LogOperationManager) updateHeldIDs(ctx context.Context, logIDs, allIDs []int64) {
 	l.heldMutex.Lock()
 	defer l.heldMutex.Unlock()
 	if !reflect.DeepEqual(logIDs, l.lastHeld) {
 		l.lastHeld = make([]int64, len(logIDs))
 		copy(l.lastHeld, logIDs)
-		glog.Infof("now acting as master for %d / %d: %s", len(logIDs), len(allIDs), util.HeldInfo(logIDs, allIDs))
+		glog.Infof("now acting as master for %d / %d, %s", len(logIDs), len(allIDs), l.heldInfo(ctx, logIDs))
 	}
 }
 
@@ -305,7 +354,7 @@ func (l *LogOperationManager) getLogsAndExecutePass(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to determine log IDs we're master for: %v", err)
 	}
-	l.updateHeldIDs(logIDs, allIDs)
+	l.updateHeldIDs(ctx, logIDs, allIDs)
 
 	numWorkers := l.info.NumWorkers
 	if numWorkers == 0 {
