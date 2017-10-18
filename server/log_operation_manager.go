@@ -341,7 +341,11 @@ func (l *LogOperationManager) updateHeldIDs(ctx context.Context, logIDs, allIDs 
 	if !reflect.DeepEqual(logIDs, l.lastHeld) {
 		l.lastHeld = make([]int64, len(logIDs))
 		copy(l.lastHeld, logIDs)
-		glog.Infof("now acting as master for %d / %d, %s", len(logIDs), len(allIDs), l.heldInfo(ctx, logIDs))
+		heldInfo := l.heldInfo(ctx, logIDs)
+		glog.Infof("now acting as master for %d / %d, %s", len(logIDs), len(allIDs), heldInfo)
+		if l.info.Registry.SetProcessStatus != nil {
+			l.info.Registry.SetProcessStatus(heldInfo)
+		}
 	}
 }
 

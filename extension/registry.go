@@ -43,4 +43,6 @@ type Registry struct {
 	// NewKeyProto creates a new private key based on a key specification.
 	// It returns a proto that can be passed to a keys.ProtoHandler to get a crypto.Signer.
 	NewKeyProto keys.ProtoGenerator
+	// SetProcessStatus sets the current process status for diagnostic purposes.
+	SetProcessStatus func(string)
 }
