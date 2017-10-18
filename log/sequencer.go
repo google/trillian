@@ -281,10 +281,10 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int, gu
 		interval := time.Duration(nowNanos - currentRoot.TimestampNanos)
 		if maxRootDurationInterval == 0 || interval < maxRootDurationInterval {
 			// We have nothing to integrate into the tree
-			glog.V(1).Infof("No leaves sequenced in this signing operation.")
+			glog.V(1).Infof("%v: No leaves sequenced in this signing operation", logID)
 			return 0, tx.Commit()
 		}
-		glog.Infof("Force new root generation as %v since last root", interval)
+		glog.Infof("%v: Force new root generation as %v since last root", logID, interval)
 	}
 
 	merkleTree, err := s.initMerkleTreeFromStorage(ctx, currentRoot, tx)
@@ -387,10 +387,10 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int, gu
 			{Group: quota.Global, Kind: quota.Read},
 			{Group: quota.Global, Kind: quota.Write},
 		}
-		glog.V(2).Infof("Replenishing %v tokens for tree %v (numLeaves = %v)", tokens, logID, numLeaves)
+		glog.V(2).Infof("%v: Replenishing %v tokens (numLeaves = %v)", logID, tokens, numLeaves)
 		err := s.qm.PutTokens(ctx, tokens, specs)
 		if err != nil {
-			glog.Warningf("Failed to replenish %v tokens for tree %v: %v", tokens, logID, err)
+			glog.Warningf("%v: Failed to replenish %v tokens for tree %v: %v", logID, tokens, err)
 		}
 		quota.Metrics.IncReplenished(tokens, specs, err == nil)
 	}
