@@ -397,6 +397,11 @@ func TestTrillianInterceptor_QuotaInterception_ReturnsTokens(t *testing.T) {
 		},
 	}
 
+	defer func(timeout time.Duration) {
+		PutTokensTimeout = timeout
+	}(PutTokensTimeout)
+	PutTokensTimeout = 5 * time.Second
+
 	// Use a ctx with a timeout smaller than PutTokensTimeout
 	ctx, cancel := context.WithTimeout(context.Background(), PutTokensTimeout-3*time.Second)
 	defer cancel()
