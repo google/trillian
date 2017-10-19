@@ -18,6 +18,7 @@ package interceptor
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
@@ -40,6 +41,11 @@ const (
 )
 
 var (
+	// PutTokensTimeout is the timeout used for PutTokens calls.
+	// PutTokens happens in a separate goroutine and with an independent context, therefore it has
+	// its own timeout, separate from the RPC that causes the calls.
+	PutTokensTimeout = 5 * time.Second
+
 	requestCounter       monitoring.Counter
 	requestDeniedCounter monitoring.Counter
 	metricsOnce          sync.Once
@@ -203,7 +209,8 @@ func (tp *trillianProcessor) After(ctx context.Context, resp interface{}, handle
 		// Run PutTokens in a separate goroutine and with a separate context.
 		// It shouldn't block RPC completion, nor should it share the RPC's context deadline.
 		go func() {
-			ctx := context.Background()
+			ctx, cancel := context.WithTimeout(context.Background(), PutTokensTimeout)
+			defer cancel()
 
 			// TODO(codingllama): If PutTokens turns out to be unreliable we can still leak tokens. In
 			// this case, we may want to keep tabs on how many tokens we failed to replenish and bundle
