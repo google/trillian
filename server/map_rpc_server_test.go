@@ -54,10 +54,9 @@ func TestIsHealthy(t *testing.T) {
 	tests := []struct {
 		desc string
 		accessibleErr error
-		wantErr bool
 	}{
-		{"healthy", nil, false},
-		{"unhealthy", errors.New("DB not happy"), true},
+		{"healthy", nil},
+		{"unhealthy", errors.New("DB not happy")},
 	}
 
 	for _, test := range tests {
@@ -69,9 +68,10 @@ func TestIsHealthy(t *testing.T) {
 			MapStorage:   mockStorage,
 		})
 
+		wantErr := test.accessibleErr != nil
 		err := server.IsHealthy()
-		if gotErr := err != nil; gotErr != test.wantErr {
-			t.Errorf("%s: IsHealthy() err? %t want? %t (err=%v)", test.desc, gotErr, test.wantErr, err)
+		if gotErr := err != nil; gotErr != wantErr {
+			t.Errorf("%s: IsHealthy() err? %t want? %t (err=%v)", test.desc, gotErr, wantErr, err)
 		}
 	}
 }
@@ -86,19 +86,16 @@ func TestGetSignedMapRoot(t *testing.T) {
 		req *trillian.GetSignedMapRootRequest
 		mapRoot trillian.SignedMapRoot
 		snapShErr, lsmrErr error
-		wantErr bool
 	}{
 		{
 			desc: "Unknown map",
 			req: &trillian.GetSignedMapRootRequest{},
 			snapShErr: errors.New("unknown map"),
-			wantErr: true,
 		},
 		{
 			desc: "Map is empty, head at revision 0",
 			req: &trillian.GetSignedMapRootRequest{MapId: mapID1},
 			lsmrErr: errors.New("sql: no rows in result set"),
-			wantErr: true,
 		},
 		{
 			desc: "Map has leaves, head > revision 0",
@@ -128,8 +125,9 @@ func TestGetSignedMapRoot(t *testing.T) {
 
 		smrResp, err := server.GetSignedMapRoot(ctx, test.req)
 
-		if gotErr := err != nil; gotErr != test.wantErr {
-			t.Errorf("%s: GetSignedMapRoot()=_, err? %t want? %t (err=%v)", test.desc, gotErr, test.wantErr, err)
+		wantErr := test.snapShErr != nil || test.lsmrErr != nil
+		if gotErr := err != nil; gotErr != wantErr {
+			t.Errorf("%s: GetSignedMapRoot()=_, err? %t want? %t (err=%v)", test.desc, gotErr, wantErr, err)
 		}
 		if err != nil {
 			continue
@@ -152,31 +150,26 @@ func TestGetSignedMapRootByRevision(t *testing.T) {
 		req *trillian.GetSignedMapRootByRevisionRequest
 		mapRoot trillian.SignedMapRoot
 		snapShErr, lsmrErr error
-		wantErr bool
 	}{
 		{
 			desc: "Unknown map",
 			req: &trillian.GetSignedMapRootByRevisionRequest{},
 			snapShErr: errors.New("unknown map"),
-			wantErr: true,
 		},
 		{
 			desc: "Request revision 0 for empty map",
 			req: &trillian.GetSignedMapRootByRevisionRequest{MapId: mapID1},
 			lsmrErr: errors.New("sql: no rows in result set"),
-			wantErr: true,
 		},
 		{
 			desc: "Request latest revision (-1) for empty map",
 			req: &trillian.GetSignedMapRootByRevisionRequest{MapId: mapID1, Revision: -1},
 			lsmrErr: errors.New("sql: no rows in result set"),
-			wantErr: true,
 		},
 		{
 			desc: "Request future revision (-1) for empty map",
 			req: &trillian.GetSignedMapRootByRevisionRequest{MapId: mapID1, Revision: 123},
 			lsmrErr: errors.New("sql: no rows in result set"),
-			wantErr: true,
 		},
 		{
 			desc: "Request revision >0 for non-empty map",
@@ -206,8 +199,9 @@ func TestGetSignedMapRootByRevision(t *testing.T) {
 
 		smrResp, err := server.GetSignedMapRootByRevision(ctx, test.req)
 
-		if gotErr := err != nil; gotErr != test.wantErr {
-			t.Errorf("%s: GetSignedMapRootByRevision()=_, err? %t want? %t (err=%v)", test.desc, gotErr, test.wantErr, err)
+		wantErr := test.snapShErr != nil || test.lsmrErr != nil
+		if gotErr := err != nil; gotErr != wantErr {
+			t.Errorf("%s: GetSignedMapRootByRevision()=_, err? %t want? %t (err=%v)", test.desc, gotErr, wantErr, err)
 		}
 		if err != nil {
 			continue
