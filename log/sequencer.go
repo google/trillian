@@ -390,7 +390,7 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int, gu
 		glog.V(2).Infof("%v: Replenishing %v tokens (numLeaves = %v)", logID, tokens, numLeaves)
 		err := s.qm.PutTokens(ctx, tokens, specs)
 		if err != nil {
-			glog.Warningf("%v: Failed to replenish %v tokens for tree %v: %v", logID, tokens, err)
+			glog.Warningf("%v: Failed to replenish %v tokens: %v", logID, tokens, err)
 		}
 		quota.Metrics.IncReplenished(tokens, specs, err == nil)
 	}
