@@ -280,12 +280,12 @@ map_prep_test() {
   RPC_SERVERS="${RPC_SERVERS:1}"
 }
 
-# map_stop_tests closes down a set of running processes for a log test.
+# map_stop_tests closes down a set of running processes for a map test.
 # Assumes the following variables are set:
 #  - RPC_SERVER_PIDS : bash array of RPC server pids
 map_stop_test() {
   for pid in "${RPC_SERVER_PIDS[@]}"; do
-    echo "Stopping Log RPC server (pid ${pid})"
+    echo "Stopping Map RPC server (pid ${pid})"
     kill_pid ${pid}
   done
 }
