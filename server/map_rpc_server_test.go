@@ -34,7 +34,7 @@ const (
 )
 
 var (
-	signedMapRootId1Rev1 = trillian.SignedMapRoot{
+	signedMapRootID1Rev1 = trillian.SignedMapRoot{
 		TimestampNanos: 1508235889834964600,
 		RootHash: []byte("\306h\237\020\201*\t\200\227m\2253\3308u(!f\025\225g\3545\025W\026\301A:\365=j"),
 		Signature: &sigpb.DigitallySigned{
@@ -100,7 +100,7 @@ func TestGetSignedMapRoot(t *testing.T) {
 		{
 			desc: "Map has leaves, head > revision 0",
 			req: &trillian.GetSignedMapRootRequest{MapId: mapID1},
-			mapRoot: signedMapRootId1Rev1,
+			mapRoot: signedMapRootID1Rev1,
 		},
 	}
 
@@ -174,7 +174,7 @@ func TestGetSignedMapRootByRevision(t *testing.T) {
 		{
 			desc: "Request revision >0 for non-empty map",
 			req: &trillian.GetSignedMapRootByRevisionRequest{MapId: mapID1, Revision: 1},
-			mapRoot: signedMapRootId1Rev1,
+			mapRoot: signedMapRootID1Rev1,
 		},
 	}
 
