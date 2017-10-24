@@ -21,6 +21,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
+	sigpb "github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/storage"
@@ -32,6 +33,20 @@ const (
 	mapID1 = int64(1)
 )
 
+var (
+	signedMapRootID1Rev1 = trillian.SignedMapRoot{
+		TimestampNanos: 1508235889834964600,
+		RootHash: []byte("\306h\237\020\201*\t\200\227m\2253\3308u(!f\025\225g\3545\025W\026\301A:\365=j"),
+		Signature: &sigpb.DigitallySigned{
+			HashAlgorithm: sigpb.DigitallySigned_SHA256,
+			SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
+			Signature: []byte("0F\002!\000\307b\255\223\353\23615&\022\263\323\341\342+\276\274$\rX?\366\014U\362\006\376\0269rcm\002!\000\241*\255\220\301\263D\033\275\374\340A\377\337\354\202\331%au\3179\000O\r9\237\302\021\r\363\263"),
+		},
+		MapId: mapID1,
+		MapRevision: 1,
+	}
+)
+
 func TestIsHealthy(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -39,10 +54,9 @@ func TestIsHealthy(t *testing.T) {
 	tests := []struct {
 		desc string
 		accessibleErr error
-		wantErr bool
 	}{
-		{"healthy", nil, false},
-		{"unhealthy", errors.New("DB not happy"), true},
+		{"healthy", nil},
+		{"unhealthy", errors.New("DB not happy")},
 	}
 
 	for _, test := range tests {
@@ -54,9 +68,10 @@ func TestIsHealthy(t *testing.T) {
 			MapStorage:   mockStorage,
 		})
 
+		wantErr := test.accessibleErr != nil
 		err := server.IsHealthy()
-		if gotErr := err != nil; gotErr != test.wantErr {
-			t.Errorf("%s: IsHealthy() err? %t want? %t (err=%v)", test.desc, gotErr, test.wantErr, err)
+		if gotErr := err != nil; gotErr != wantErr {
+			t.Errorf("%s: IsHealthy() err? %t want? %t (err=%v)", test.desc, gotErr, wantErr, err)
 		}
 	}
 }
@@ -71,25 +86,21 @@ func TestGetSignedMapRoot(t *testing.T) {
 		req *trillian.GetSignedMapRootRequest
 		mapRoot trillian.SignedMapRoot
 		snapShErr, lsmrErr error
-		wantErr bool
 	}{
 		{
 			desc: "Unknown map",
 			req: &trillian.GetSignedMapRootRequest{},
 			snapShErr: errors.New("unknown map"),
-			wantErr: true,
 		},
 		{
 			desc: "Map is empty, head at revision 0",
 			req: &trillian.GetSignedMapRootRequest{MapId: mapID1},
 			lsmrErr: errors.New("sql: no rows in result set"),
-			wantErr: true,
 		},
 		{
 			desc: "Map has leaves, head > revision 0",
 			req: &trillian.GetSignedMapRootRequest{MapId: mapID1},
-			mapRoot: trillian.SignedMapRoot{
-			},
+			mapRoot: signedMapRootID1Rev1,
 		},
 	}
 
@@ -114,8 +125,9 @@ func TestGetSignedMapRoot(t *testing.T) {
 
 		smrResp, err := server.GetSignedMapRoot(ctx, test.req)
 
-		if gotErr := err != nil; gotErr != test.wantErr {
-			t.Errorf("%s: GetSignedMapRoot()=_, err? %t want? %t (err=%v)", test.desc, gotErr, test.wantErr, err)
+		wantErr := test.snapShErr != nil || test.lsmrErr != nil
+		if gotErr := err != nil; gotErr != wantErr {
+			t.Errorf("%s: GetSignedMapRoot()=_, err? %t want? %t (err=%v)", test.desc, gotErr, wantErr, err)
 		}
 		if err != nil {
 			continue
@@ -124,6 +136,80 @@ func TestGetSignedMapRoot(t *testing.T) {
 		if got := smrResp; !proto.Equal(got, want) {
 			diff := pretty.Compare(got, want)
 			t.Errorf("%s: GetSignedMapRoot() got != want, diff:\n%v", test.desc, diff)
+		}
+	}
+}
+
+func TestGetSignedMapRootByRevision(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	ctx := context.Background()
+
+	tests := []struct {
+		desc string
+		req *trillian.GetSignedMapRootByRevisionRequest
+		mapRoot trillian.SignedMapRoot
+		snapShErr, lsmrErr error
+	}{
+		{
+			desc: "Unknown map",
+			req: &trillian.GetSignedMapRootByRevisionRequest{},
+			snapShErr: errors.New("unknown map"),
+		},
+		{
+			desc: "Request revision 0 for empty map",
+			req: &trillian.GetSignedMapRootByRevisionRequest{MapId: mapID1},
+			lsmrErr: errors.New("sql: no rows in result set"),
+		},
+		{
+			desc: "Request latest revision (-1) for empty map",
+			req: &trillian.GetSignedMapRootByRevisionRequest{MapId: mapID1, Revision: -1},
+			lsmrErr: errors.New("sql: no rows in result set"),
+		},
+		{
+			desc: "Request future revision (-1) for empty map",
+			req: &trillian.GetSignedMapRootByRevisionRequest{MapId: mapID1, Revision: 123},
+			lsmrErr: errors.New("sql: no rows in result set"),
+		},
+		{
+			desc: "Request revision >0 for non-empty map",
+			req: &trillian.GetSignedMapRootByRevisionRequest{MapId: mapID1, Revision: 1},
+			mapRoot: signedMapRootID1Rev1,
+		},
+	}
+
+	for _, test := range tests {
+		mockStorage := storage.NewMockMapStorage(ctrl)
+		mockTx := storage.NewMockMapTreeTX(ctrl)
+
+		mockStorage.EXPECT().SnapshotForTree(gomock.Any(), test.req.MapId).Return(mockTx, test.snapShErr)
+		if test.snapShErr == nil {
+			mockTx.EXPECT().GetSignedMapRoot(gomock.Any(), test.req.Revision).Return(test.mapRoot, test.lsmrErr)
+			if test.lsmrErr == nil {
+				mockTx.EXPECT().Commit().Return(nil)
+			}
+			mockTx.EXPECT().Close().Return(nil)
+			mockTx.EXPECT().IsOpen().AnyTimes().Return(false)
+		}
+
+		server := NewTrillianMapServer(extension.Registry{
+			AdminStorage: mockAdminStorageForMap(ctrl, mapID1),
+			MapStorage:   mockStorage,
+		})
+
+		smrResp, err := server.GetSignedMapRootByRevision(ctx, test.req)
+
+		wantErr := test.snapShErr != nil || test.lsmrErr != nil
+		if gotErr := err != nil; gotErr != wantErr {
+			t.Errorf("%s: GetSignedMapRootByRevision()=_, err? %t want? %t (err=%v)", test.desc, gotErr, wantErr, err)
+		}
+		if err != nil {
+			continue
+		}
+		want := &trillian.GetSignedMapRootResponse{MapRoot: &test.mapRoot}
+		if got := smrResp; !proto.Equal(got, want) {
+			diff := pretty.Compare(got, want)
+			t.Errorf("%s: GetSignedMapRootByRevision() got != want, diff:\n%v", test.desc, diff)
 		}
 	}
 }
