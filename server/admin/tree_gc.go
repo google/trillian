@@ -15,7 +15,9 @@
 package admin
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"sync"
@@ -91,17 +93,25 @@ func (gc *DeletedTreeGC) Run(ctx context.Context) {
 		default:
 		}
 
-		gc.RunOnce(ctx)
+		count, err := gc.RunOnce(ctx)
+		if err != nil {
+			glog.Errorf("DeletedTreeGC.Run: %v", err)
+		}
+		if count > 0 {
+			glog.Infof("DeletedTreeGC.Run: successfully deleted %v trees", count)
+		}
 
 		d := gc.minRunInterval + time.Duration(rand.Int63n(gc.minRunInterval.Nanoseconds()))
 		timeSleep(d)
 	}
 }
 
-// RunOnce performs a single tree garbage collection sweep.
-// RunOnce never errors, instead it attempts to delete as many eligible trees as possible. Failures
-// are simply logged.
-func (gc *DeletedTreeGC) RunOnce(ctx context.Context) {
+// RunOnce performs a single tree garbage collection sweep. Returns the number of successfully
+// deleted trees.
+//
+// It attempts to delete as many eligible trees as possible, regardless of failures. If it
+// encounters any failures while deleting the resulting error is non-nil.
+func (gc *DeletedTreeGC) RunOnce(ctx context.Context) (int, error) {
 	now := timeNow()
 
 	// List and delete trees in separate transactions. Hard-deletes may cascade to a lot of data, so
@@ -110,27 +120,26 @@ func (gc *DeletedTreeGC) RunOnce(ctx context.Context) {
 	// deleted trees are unlikely to change, specially those deleted for a while.
 	tx, err := gc.admin.Snapshot(ctx)
 	if err != nil {
-		glog.Errorf("DeletedTreeGC.RunOnce: error creating snapshot: %v", err)
-		return
+		return 0, fmt.Errorf("error creating snapshot: %v", err)
 	}
 	defer tx.Close()
 	trees, err := tx.ListTrees(ctx, true /* includeDeleted */)
 	if err != nil {
-		glog.Errorf("DeletedTreeGC.RunOnce: error listing trees: %v", err)
-		return
+		return 0, fmt.Errorf("error listing trees: %v", err)
 	}
 	if err := tx.Commit(); err != nil {
-		glog.Errorf("DeletedTreeGC.RunOnce: error committing snapshot: %v", err)
-		return
+		return 0, fmt.Errorf("error committing snapshot: %v", err)
 	}
 
+	count := 0
+	errs := []error{}
 	for _, tree := range trees {
 		if !tree.Deleted {
 			continue
 		}
 		deleteTime, err := ptypes.Timestamp(tree.DeleteTime)
 		if err != nil {
-			glog.Errorf("DeletedTreeGC.RunOnce: error parsing delete_time of tree %v: %v", tree.TreeId, err)
+			errs = append(errs, fmt.Errorf("error parsing delete_time of tree %v: %v", tree.TreeId, err))
 			incHardDeleteCounter(tree.TreeId, false, timestampParseErrReson)
 			continue
 		}
@@ -141,13 +150,26 @@ func (gc *DeletedTreeGC) RunOnce(ctx context.Context) {
 
 		glog.Infof("DeletedTreeGC.RunOnce: Hard-deleting tree %v after %v", tree.TreeId, durationSinceDelete)
 		if err := gc.hardDeleteTree(ctx, tree); err != nil {
-			glog.Errorf("DeletedTreeGC.RunOnce: Error hard-deleting tree %v: %v", tree.TreeId, err)
+			errs = append(errs, fmt.Errorf("error hard-deleting tree %v: %v", tree.TreeId, err))
 			incHardDeleteCounter(tree.TreeId, false, deleteErrReason)
 			continue
 		}
 
+		count++
 		incHardDeleteCounter(tree.TreeId, true, "")
 	}
+
+	if len(errs) == 0 {
+		return count, nil
+	}
+
+	buf := &bytes.Buffer{}
+	buf.WriteString("encountered errors hard-deleting trees:")
+	for _, err := range errs {
+		buf.WriteString("\n\t")
+		buf.WriteString(err.Error())
+	}
+	return count, errors.New(buf.String())
 }
 
 func (gc *DeletedTreeGC) hardDeleteTree(ctx context.Context, tree *trillian.Tree) error {
