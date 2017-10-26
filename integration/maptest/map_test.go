@@ -16,45 +16,9 @@ package maptest
 
 import (
 	"context"
-	"flag"
 	"fmt"
-	"log"
-	"os"
 	"testing"
-
-	"github.com/google/trillian/testonly/integration"
-
-	_ "github.com/google/trillian/merkle/coniks"
-	_ "github.com/google/trillian/merkle/maphasher"
 )
-
-var (
-	server = flag.String("map_rpc_server", "", "Server address:port")
-	env    *integration.MapEnv
-)
-
-func TestMain(m *testing.M) {
-	flag.Parse()
-
-	if *server == "" {
-		ctx := context.Background()
-		mapEnv, err := integration.NewMapEnv(ctx, "MapIntegrationTestMain")
-		if err != nil {
-			log.Fatalf("NewMapEnv(): %v", err)
-		}
-		env = mapEnv
-		defer env.Close()
-	} else {
-		mapEnv, err := integration.NewMapEnvFromConn(*server)
-		if err != nil {
-			log.Fatalf("failed to get map client: %v", err)
-		}
-		env = mapEnv
-		defer env.Close()
-	}
-
-	os.Exit(m.Run())
-}
 
 func TestMapIntegration(t *testing.T) {
 	ctx := context.Background()
