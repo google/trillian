@@ -22,6 +22,9 @@ import (
 	"testing"
 
 	"github.com/google/trillian/testonly/integration"
+
+	_ "github.com/google/trillian/merkle/coniks"
+	_ "github.com/google/trillian/merkle/maphasher"
 )
 
 var (
