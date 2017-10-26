@@ -16,7 +16,6 @@ package maptest
 
 import (
 	"context"
-	"fmt"
 	"testing"
 )
 
@@ -24,9 +23,7 @@ func TestMapIntegration(t *testing.T) {
 	ctx := context.Background()
 	for _, test := range AllTests {
 		t.Run(test.Name, func(t *testing.T) {
-			if err := test.Fn(ctx, env.AdminClient, env.MapClient); err != nil {
-				t.Errorf(fmt.Sprintf("%v", err))
-			}
+			test.Fn(ctx, t, env.AdminClient, env.MapClient)
 		})
 	}
 }

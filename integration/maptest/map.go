@@ -38,7 +38,7 @@ import (
 // that performs the test, given a Trillian Admin and Map client.
 type NamedTestFn struct {
         Name string
-        Fn func(context.Context, trillian.TrillianAdminClient, trillian.TrillianMapClient) error
+        Fn func(context.Context, *testing.T, trillian.TrillianAdminClient, trillian.TrillianMapClient)
 }
 
 // TestTable is a collection of NamedTestFns.
@@ -135,7 +135,7 @@ func newTreeWithHasher(ctx context.Context, tadmin trillian.TrillianAdminClient,
 }
 
 // RunLeafHistory performs checks on Trillian Map leaf updates under a variety of Hash Strategies.
-func RunLeafHistory(ctx context.Context, tadmin trillian.TrillianAdminClient, tmap trillian.TrillianMapClient) error {
+func RunLeafHistory(ctx context.Context, t *testing.T, tadmin trillian.TrillianAdminClient, tmap trillian.TrillianMapClient) {
 	for _, tc := range []struct {
 		desc         string
 		HashStrategy []trillian.HashStrategy
@@ -179,11 +179,11 @@ func RunLeafHistory(ctx context.Context, tadmin trillian.TrillianAdminClient, tm
 		for _, hashStrategy := range tc.HashStrategy {
 			tree, hasher, err := newTreeWithHasher(ctx, tadmin, hashStrategy)
 			if err != nil {
-				return fmt.Errorf("%v: newTreeWithHasher(%v): %v", tc.desc, hashStrategy, err)
+				t.Errorf("%v: newTreeWithHasher(%v): %v", tc.desc, hashStrategy, err)
 			}
 			pubKey, err := der.UnmarshalPublicKey(tree.GetPublicKey().GetDer())
 			if err != nil {
-				return fmt.Errorf("%v: UnmarshalPublicKey(%v): %v", tc.desc, hashStrategy, err)
+				t.Errorf("%v: UnmarshalPublicKey(%v): %v", tc.desc, hashStrategy, err)
 			}
 
 			for _, batch := range tc.set {
@@ -192,7 +192,7 @@ func RunLeafHistory(ctx context.Context, tadmin trillian.TrillianAdminClient, tm
 					Leaves: batch,
 				})
 				if err != nil {
-					return fmt.Errorf("%v: SetLeaves(): %v", tc.desc, err)
+					t.Errorf("%v: SetLeaves(): %v", tc.desc, err)
 				}
 				glog.Infof("Rev: %v Set(): %x", setResp.GetMapRoot().GetMapRevision(), setResp.GetMapRoot().GetRootHash())
 			}
@@ -205,27 +205,26 @@ func RunLeafHistory(ctx context.Context, tadmin trillian.TrillianAdminClient, tm
 					Revision: batch.revision,
 				})
 				if err != nil {
-					return fmt.Errorf("%v: GetLeaves(): %v", tc.desc, err)
+					t.Errorf("%v: GetLeaves(): %v", tc.desc, err)
 				}
 				glog.Infof("Rev: %v Get(): %x", getResp.GetMapRoot().GetMapRevision(), getResp.GetMapRoot().GetRootHash())
 
 				if got, want := getResp.MapLeafInclusion[0].GetLeaf().GetLeafValue(), batch.LeafValue; !bytes.Equal(got, want) {
-					return fmt.Errorf("GetLeaves(rev: %v).LeafValue: %s, want %s", batch.revision, got, want)
+					t.Errorf("GetLeaves(rev: %v).LeafValue: %s, want %s", batch.revision, got, want)
 				}
 
 				if err := verifyGetMapLeavesResponse(getResp, indexes, batch.revision,
 					pubKey, hasher, tree.TreeId); err != nil {
-					return fmt.Errorf("%v: verifyGetMapLeavesResponse(rev %v): %v", tc.desc, batch.revision, err)
+					t.Errorf("%v: verifyGetMapLeavesResponse(rev %v): %v", tc.desc, batch.revision, err)
 				}
 			}
 		}
 	}
-	return nil
 }
 
 // RunInclusion performs checks on Trillian Map inclusion proofs after setting and getting leafs,
 // for a variety of hash strategies.
-func RunInclusion(ctx context.Context, tadmin trillian.TrillianAdminClient, tmap trillian.TrillianMapClient) error {
+func RunInclusion(ctx context.Context, t *testing.T, tadmin trillian.TrillianAdminClient, tmap trillian.TrillianMapClient) {
 	for _, tc := range []struct {
 		desc         string
 		HashStrategy []trillian.HashStrategy
@@ -259,11 +258,11 @@ func RunInclusion(ctx context.Context, tadmin trillian.TrillianAdminClient, tmap
 		for _, hashStrategy := range tc.HashStrategy {
 			tree, hasher, err := newTreeWithHasher(ctx, tadmin, hashStrategy)
 			if err != nil {
-				return fmt.Errorf("%v: newTreeWithHasher(%v): %v", tc.desc, hashStrategy, err)
+				t.Errorf("%v: newTreeWithHasher(%v): %v", tc.desc, hashStrategy, err)
 			}
 			pubKey, err := der.UnmarshalPublicKey(tree.GetPublicKey().GetDer())
 			if err != nil {
-				return fmt.Errorf("%v: UnmarshalPublicKey(%v): %v", tc.desc, hashStrategy, err)
+				t.Errorf("%v: UnmarshalPublicKey(%v): %v", tc.desc, hashStrategy, err)
 			}
 
 			if _, err := tmap.SetLeaves(ctx, &trillian.SetMapLeavesRequest{
@@ -273,7 +272,7 @@ func RunInclusion(ctx context.Context, tadmin trillian.TrillianAdminClient, tmap
 					HighestFullyCompletedSeq: 0xcafe,
 				}),
 			}); err != nil {
-				return fmt.Errorf("%v: SetLeaves(): %v", tc.desc, err)
+				t.Errorf("%v: SetLeaves(): %v", tc.desc, err)
 			}
 
 			indexes := [][]byte{}
@@ -286,21 +285,20 @@ func RunInclusion(ctx context.Context, tadmin trillian.TrillianAdminClient, tmap
 				Revision: -1,
 			})
 			if err != nil {
-				return fmt.Errorf("%v: GetLeaves(): %v", tc.desc, err)
+				t.Errorf("%v: GetLeaves(): %v", tc.desc, err)
 			}
 
 			if err := verifyGetMapLeavesResponse(getResp, indexes, 1,
 				pubKey, hasher, tree.TreeId); err != nil {
-				return fmt.Errorf("%v: verifyGetMapLeavesResponse(): %v", tc.desc, err)
+				t.Errorf("%v: verifyGetMapLeavesResponse(): %v", tc.desc, err)
 			}
 		}
 	}
-	return nil
 }
 
 // RunInclusionBatch performs checks on Trillian Map inclusion proofs, after setting and getting leafs in
 // larger batches, checking also the SignedMapRoot revisions along the way, for a variety of hash strategies.
-func RunInclusionBatch(ctx context.Context, tadmin trillian.TrillianAdminClient, tmap trillian.TrillianMapClient) error {
+func RunInclusionBatch(ctx context.Context, t *testing.T, tadmin trillian.TrillianAdminClient, tmap trillian.TrillianMapClient) {
 	for _, tc := range []struct {
 		desc                  string
 		HashStrategy          trillian.HashStrategy
@@ -329,32 +327,32 @@ func RunInclusionBatch(ctx context.Context, tadmin trillian.TrillianAdminClient,
 		}
 		tree, _, err := newTreeWithHasher(ctx, tadmin, tc.HashStrategy)
 		if err != nil {
-			return fmt.Errorf("%v: newTreeWithHasher(%v): %v", tc.desc, tc.HashStrategy, err)
+			t.Errorf("%v: newTreeWithHasher(%v): %v", tc.desc, tc.HashStrategy, err)
 		}
 
-		if err := runMapBatchTest(ctx, tmap, tree, tc.batchSize, tc.numBatches); err != nil {
-			return fmt.Errorf("BatchSize: %v, Batches: %v: %v", tc.batchSize, tc.numBatches, err)
+		if err := runMapBatchTest(ctx, t, tc.desc, tmap, tree, tc.batchSize, tc.numBatches); err != nil {
+			t.Errorf("BatchSize: %v, Batches: %v: %v", tc.batchSize, tc.numBatches, err)
 		}
 	}
-	return nil
 }
 
 // runMapBatchTest is a helper for RunInclusionBatch.
-func runMapBatchTest(ctx context.Context, tmap trillian.TrillianMapClient, tree *trillian.Tree,
-	batchSize, numBatches int) error {
+func runMapBatchTest(ctx context.Context, t *testing.T, desc string, tmap trillian.TrillianMapClient, tree *trillian.Tree, batchSize, numBatches int) error {
+	t.Helper()
+
 	// Parse variables from tree
 	pubKey, err := der.UnmarshalPublicKey(tree.GetPublicKey().GetDer())
 	if err != nil {
-		return err
+		t.Fatalf("%s: UnmarshalPublicKey(%s)=_, err=%v want nil", desc, tree.GetPublicKey(), err)
 	}
 	hasher, err := hashers.NewMapHasher(tree.HashStrategy)
 	if err != nil {
-		return err
+		t.Fatalf("%s: NewMapHasher(%v)=_, err=%v want nil", desc, tree.HashStrategy, err)
 	}
 
 	// Ensure we're starting with an empty map
 	if err := isEmptyMap(ctx, tmap, tree); err != nil {
-		return err
+		t.Errorf("%s: isEmptyMap() err=%v want nil", desc, err)
 	}
 
 	// Generate leaves.
@@ -373,7 +371,7 @@ func runMapBatchTest(ctx context.Context, tmap trillian.TrillianMapClient, tree 
 			MapId:  tree.TreeId,
 			Leaves: b,
 		}); err != nil {
-			return fmt.Errorf("SetLeaves(): %v", err)
+			t.Errorf("%s: SetLeaves(): %v", desc, err)
 		}
 	}
 
@@ -382,11 +380,11 @@ func runMapBatchTest(ctx context.Context, tmap trillian.TrillianMapClient, tree 
 		MapId: tree.TreeId,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to get map head: %v", err)
+		t.Errorf("%s: failed to get map head: %v", desc, err)
 	}
 
 	if got, want := r.MapRoot.MapRevision, int64(numBatches); got != want {
-		return fmt.Errorf("got SMR with revision %d, want %d", got, want)
+		t.Errorf("%s: got SMR with revision %d, want %d", desc, got, want)
 	}
 
 	// Shuffle the indexes. Map access is randomized.
@@ -408,12 +406,12 @@ func runMapBatchTest(ctx context.Context, tmap trillian.TrillianMapClient, tree 
 			Revision: -1,
 		})
 		if err != nil {
-			return fmt.Errorf("GetLeaves(): %v", err)
+			t.Errorf("%s: GetLeaves(): %v", desc, err)
 		}
 
 		if err := verifyGetMapLeavesResponse(getResp, indexes, int64(numBatches),
 			pubKey, hasher, tree.TreeId); err != nil {
-			return fmt.Errorf("batch %v: verifyGetMapLeavesResponse(): %v", i, err)
+			t.Errorf("%s: batch %v: verifyGetMapLeavesResponse(): %v", desc, i, err)
 		}
 
 		// Verify leaf contents
@@ -422,10 +420,10 @@ func runMapBatchTest(ctx context.Context, tmap trillian.TrillianMapClient, tree 
 			leaf := incl.GetLeaf().GetLeafValue()
 			ev, ok := leafMap[hex.EncodeToString(index)]
 			if !ok {
-				return fmt.Errorf("unexpected key returned: %s", index)
+				t.Errorf("%s: unexpected key returned: %s", desc, index)
 			}
 			if got, want := leaf, ev.LeafValue; !bytes.Equal(got, want) {
-				return fmt.Errorf("got value %s, want %s", got, want)
+				t.Errorf("%s: got value %s, want %s", desc, got, want)
 			}
 		}
 	}
