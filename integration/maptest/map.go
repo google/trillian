@@ -11,7 +11,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package integration
+
+package maptest
 
 import (
 	"bytes"
@@ -31,10 +32,26 @@ import (
 
 	tcrypto "github.com/google/trillian/crypto"
 	stestonly "github.com/google/trillian/storage/testonly"
-
-	_ "github.com/google/trillian/merkle/coniks"
-	_ "github.com/google/trillian/merkle/maphasher"
 )
+
+// NamedTestFn is a binding between a readable test name (used for a Go subtest) and a function
+// that performs the test, given a Trillian Admin and Map client.
+type NamedTestFn struct {
+        Name string
+        Fn func(context.Context, trillian.TrillianAdminClient, trillian.TrillianMapClient) error
+}
+
+// TestTable is a collection of NamedTestFns.
+type TestTable []NamedTestFn
+
+// AllTests is the TestTable containing all the trillian Map integration tests.
+// Be sure to extend this when additional tests are added.
+// This is done so that tests can be run in different environments in a portable way.
+var AllTests = TestTable{
+        {"LeafHistory",    RunLeafHistory},
+        {"Inclusion",      RunInclusion},
+        {"InclusionBatch", RunInclusionBatch},
+}
 
 var h2b = testonly.MustHexDecode
 

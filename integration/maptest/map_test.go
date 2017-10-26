@@ -16,29 +16,53 @@ package maptest
 
 import (
 	"context"
+	"flag"
 	"fmt"
+	"log"
+	"os"
 	"testing"
 
-	"github.com/google/trillian/integration"
+	"github.com/google/trillian/testonly/integration"
+
+	_ "github.com/google/trillian/merkle/coniks"
+	_ "github.com/google/trillian/merkle/maphasher"
 )
 
-func TestLeafHistory(t *testing.T) {
+var (
+	server = flag.String("map_rpc_server", "", "Server address:port")
+	env    *integration.MapEnv
+)
+
+func TestMain(m *testing.M) {
+	flag.Parse()
+
+	if *server == "" {
+		ctx := context.Background()
+		mapEnv, err := integration.NewMapEnv(ctx, "MapIntegrationTestMain")
+		if err != nil {
+			log.Fatalf("NewMapEnv(): %v", err)
+		}
+		env = mapEnv
+		defer env.Close()
+	} else {
+		mapEnv, err := integration.NewMapEnvFromConn(*server)
+		if err != nil {
+			log.Fatalf("failed to get map client: %v", err)
+		}
+		env = mapEnv
+		defer env.Close()
+	}
+
+	os.Exit(m.Run())
+}
+
+func TestMapIntegration(t *testing.T) {
 	ctx := context.Background()
-        if err := integration.RunLeafHistory(ctx, env.AdminClient, env.MapClient); err != nil {
-                t.Errorf(fmt.Sprintf("%v", err))
-        }
-}
-
-func TestInclusion(t *testing.T) {
-        ctx := context.Background()
-        if err := integration.RunInclusion(ctx, env.AdminClient, env.MapClient); err != nil {
-                t.Errorf(fmt.Sprintf("%v", err))
-        }
-}
-
-func TestInclusionBatch(t *testing.T) {
-        ctx := context.Background()
-        if err := integration.RunInclusionBatch(ctx, env.AdminClient, env.MapClient); err != nil {
-                t.Errorf(fmt.Sprintf("%v", err))
-        }
+	for _, test := range AllTests {
+		t.Run(test.Name, func(t *testing.T) {
+			if err := test.Fn(ctx, env.AdminClient, env.MapClient); err != nil {
+				t.Errorf(fmt.Sprintf("%v", err))
+			}
+		})
+	}
 }
