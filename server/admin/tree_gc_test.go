@@ -175,8 +175,7 @@ func TestDeletedTreeGC_RunOnce(t *testing.T) {
 			deleteTX.EXPECT().Commit().Return(nil)
 		}
 
-		gc := NewDeletedTreeGC(
-			as, test.deleteThreshold, 1*time.Second /* minRunInterval */, nil /* mf */)
+		gc := NewDeletedTreeGC(as, test.deleteThreshold, 1*time.Second /* minRunInterval */, nil /* mf */)
 		switch count, err := gc.RunOnce(ctx); {
 		case err != nil:
 			t.Errorf("%v: RunOnce() returned err = %v", test.desc, err)
@@ -184,6 +183,18 @@ func TestDeletedTreeGC_RunOnce(t *testing.T) {
 			t.Errorf("%v: RunOnce() = %v, want = %v", test.desc, count, len(test.wantDeleted))
 		}
 	}
+}
+
+// listTreesSpec specifies all parameters required to mock a ListTrees TX call.
+type listTreesSpec struct {
+	snapshotErr, listErr, commitErr error
+	trees                           []*trillian.Tree
+}
+
+// hardDeleteTreeSpec specifies all parameters required to mock a HardDeleteTree TX call.
+type hardDeleteTreeSpec struct {
+	beginErr, deleteErr, commitErr error
+	treeID                         int64
 }
 
 func TestDeletedTreeGC_RunOnceErrors(t *testing.T) {
@@ -222,15 +233,8 @@ func TestDeletedTreeGC_RunOnceErrors(t *testing.T) {
 	tests := []struct {
 		desc string
 
-		// snapshotErr, listErr and snapshotCommitErr refer to the ListTrees() call.
-		snapshotErr, listErr, snapshotCommitErr error
-		// trees are the trees returned by ListTrees().
-		trees []*trillian.Tree
-
-		// beginErrs, deleteErrs, commitErrs and wantTreeIDs refer to the HardDeleteTree() calls
-		// that follow ListTrees(). They must have the same size.
-		beginErrs, deleteErrs, commitErrs []error
-		wantTreeIDs                       []int64
+		listTrees      listTreesSpec
+		hardDeleteTree []hardDeleteTreeSpec
 
 		// wantCount is the count of successfully deleted trees.
 		wantCount int
@@ -238,64 +242,79 @@ func TestDeletedTreeGC_RunOnceErrors(t *testing.T) {
 		wantErrs []string
 	}{
 		{
-			desc:        "snapshotErr",
-			snapshotErr: errors.New("snapshot err"),
-			wantErrs:    []string{"snapshot err"},
+			desc: "snapshotErr",
+			listTrees: listTreesSpec{
+				snapshotErr: errors.New("snapshot err"),
+			},
+			wantErrs: []string{"snapshot err"},
 		},
 		{
-			desc:     "listErr",
-			listErr:  errors.New("list err"),
+			desc: "listErr",
+			listTrees: listTreesSpec{
+				listErr: errors.New("list err"),
+			},
 			wantErrs: []string{"list err"},
 		},
 		{
-			desc:              "snapshotCommitErr",
-			trees:             []*trillian.Tree{logTree1, logTree2, mapTree},
-			snapshotCommitErr: errors.New("commit err"),
-			wantErrs:          []string{"commit err"},
+			desc: "snapshotCommitErr",
+			listTrees: listTreesSpec{
+				commitErr: errors.New("commit err"),
+				trees:     []*trillian.Tree{logTree1, logTree2, mapTree},
+			},
+			wantErrs: []string{"commit err"},
 		},
 		{
-			desc:        "beginErr",
-			trees:       []*trillian.Tree{logTree1, logTree2},
-			beginErrs:   []error{errors.New("begin err"), nil},
-			deleteErrs:  []error{nil, nil},
-			commitErrs:  []error{nil, nil},
-			wantTreeIDs: []int64{logTree1.TreeId, logTree2.TreeId},
-			wantCount:   1,
-			wantErrs:    []string{"begin err"},
+			desc: "beginErr",
+			listTrees: listTreesSpec{
+				trees: []*trillian.Tree{logTree1, logTree2},
+			},
+			hardDeleteTree: []hardDeleteTreeSpec{
+				{beginErr: errors.New("begin err")},
+				{treeID: logTree2.TreeId},
+			},
+			wantCount: 1,
+			wantErrs:  []string{"begin err"},
 		},
 		{
-			desc:        "deleteErr",
-			trees:       []*trillian.Tree{logTree1, logTree2},
-			beginErrs:   []error{nil, nil},
-			deleteErrs:  []error{errors.New("cannot delete logTree1"), nil},
-			commitErrs:  []error{nil, nil},
-			wantTreeIDs: []int64{logTree1.TreeId, logTree2.TreeId},
-			wantCount:   1,
-			wantErrs:    []string{"cannot delete logTree1"},
+			desc: "deleteErr",
+			listTrees: listTreesSpec{
+				trees: []*trillian.Tree{logTree1, logTree2},
+			},
+			hardDeleteTree: []hardDeleteTreeSpec{
+				{deleteErr: errors.New("cannot delete logTree1"), treeID: logTree1.TreeId},
+				{treeID: logTree2.TreeId},
+			},
+			wantCount: 1,
+			wantErrs:  []string{"cannot delete logTree1"},
 		},
 		{
-			desc:        "commitErr",
-			trees:       []*trillian.Tree{logTree1, logTree2},
-			beginErrs:   []error{nil, nil},
-			deleteErrs:  []error{nil, nil},
-			commitErrs:  []error{errors.New("commit err"), nil},
-			wantTreeIDs: []int64{logTree1.TreeId, logTree2.TreeId},
-			wantCount:   1,
-			wantErrs:    []string{"commit err"},
+			desc: "commitErr",
+			listTrees: listTreesSpec{
+				trees: []*trillian.Tree{logTree1, logTree2},
+			},
+			hardDeleteTree: []hardDeleteTreeSpec{
+				{commitErr: errors.New("commit err"), treeID: logTree1.TreeId},
+				{treeID: logTree2.TreeId},
+			},
+			wantCount: 1,
+			wantErrs:  []string{"commit err"},
 		},
 		{
 			// logTree1 = delete successful
 			// logTree2 = delete error
 			// mapTree  = commit error
 			// badTS    = timestamp parse error (no HardDeleteTree() call)
-			desc:        "multipleErrors",
-			trees:       []*trillian.Tree{logTree1, logTree2, mapTree, badTS},
-			beginErrs:   []error{nil, nil, nil},
-			deleteErrs:  []error{nil, errors.New("delete err"), nil},
-			commitErrs:  []error{nil, nil, errors.New("commit err")},
-			wantTreeIDs: []int64{logTree1.TreeId, logTree2.TreeId, mapTree.TreeId},
-			wantCount:   1,
-			wantErrs:    []string{"delete err", "commit err", "error parsing delete_time"},
+			desc: "multipleErrors",
+			listTrees: listTreesSpec{
+				trees: []*trillian.Tree{logTree1, logTree2, mapTree, badTS},
+			},
+			hardDeleteTree: []hardDeleteTreeSpec{
+				{treeID: logTree1.TreeId},
+				{deleteErr: errors.New("delete err"), treeID: logTree2.TreeId},
+				{commitErr: errors.New("commit err"), treeID: mapTree.TreeId},
+			},
+			wantCount: 1,
+			wantErrs:  []string{"delete err", "commit err", "error parsing delete_time"},
 		},
 	}
 
@@ -304,48 +323,33 @@ func TestDeletedTreeGC_RunOnceErrors(t *testing.T) {
 		as := storage.NewMockAdminStorage(ctrl)
 
 		listTX := storage.NewMockReadOnlyAdminTX(ctrl)
-		lastTXCall := as.EXPECT().Snapshot(gomock.Any()).Return(listTX, test.snapshotErr)
-		listTX.EXPECT().ListTrees(gomock.Any(), true /* includeDeleted */).AnyTimes().Return(test.trees, test.listErr)
+		lastTXCall := as.EXPECT().Snapshot(gomock.Any()).Return(listTX, test.listTrees.snapshotErr)
+		listTX.EXPECT().ListTrees(gomock.Any(), true /* includeDeleted */).AnyTimes().Return(test.listTrees.trees, test.listTrees.listErr)
 		listTX.EXPECT().Close().AnyTimes().Return(nil)
-		listTX.EXPECT().Commit().AnyTimes().Return(test.snapshotCommitErr)
+		listTX.EXPECT().Commit().AnyTimes().Return(test.listTrees.commitErr)
 
-		// Sanity check test setup
-		if l1, l2, l3, l4 := len(test.beginErrs), len(test.deleteErrs), len(test.commitErrs), len(test.wantTreeIDs); l1 != l2 || l1 != l3 || l1 != l4 {
-			t.Fatalf("%v: beginErrs, deleteErrs, commitErrs and wantTreeIDs have different lenghts: %v, %v, %v and %v", test.desc, l1, l2, l3, l4)
-		}
-
-		for i, beginErr := range test.beginErrs {
-			deleteErr := test.deleteErrs[i]
-			commitErr := test.commitErrs[i]
-			id := test.wantTreeIDs[i]
-
+		for _, hardDeleteTree := range test.hardDeleteTree {
 			deleteTX := storage.NewMockAdminTX(ctrl)
-			lastTXCall = as.EXPECT().Begin(gomock.Any()).Return(deleteTX, beginErr).After(lastTXCall)
-			deleteTX.EXPECT().HardDeleteTree(gomock.Any(), id).AnyTimes().Return(deleteErr)
+			lastTXCall = as.EXPECT().Begin(gomock.Any()).Return(deleteTX, hardDeleteTree.beginErr).After(lastTXCall)
+			if hardDeleteTree.treeID != 0 {
+				deleteTX.EXPECT().HardDeleteTree(gomock.Any(), hardDeleteTree.treeID).AnyTimes().Return(hardDeleteTree.deleteErr)
+			}
 			deleteTX.EXPECT().Close().AnyTimes().Return(nil)
-			deleteTX.EXPECT().Commit().AnyTimes().Return(commitErr)
+			deleteTX.EXPECT().Commit().AnyTimes().Return(hardDeleteTree.commitErr)
 		}
 
-		gc := NewDeletedTreeGC(
-			as, deleteThreshold, 1*time.Second /* minRunInterval */, nil /* mf */)
+		gc := NewDeletedTreeGC(as, deleteThreshold, 1*time.Second /* minRunInterval */, nil /* mf */)
 		count, err := gc.RunOnce(ctx)
 		if err == nil {
 			t.Errorf("%v: RunOnce() returned err = nil, want non-nil", test.desc)
 			continue
 		}
-
 		if count != test.wantCount {
 			t.Errorf("%v: RunOnce() = %v, want = %v", test.desc, count, test.wantCount)
 		}
-
-		failed := false
 		for _, want := range test.wantErrs {
 			if !strings.Contains(err.Error(), want) {
-				if !failed {
-					t.Errorf("%v: RunOnce() returned err = %v (see following errors)", test.desc, err)
-					failed = true
-				}
-				t.Errorf("%v: RunOnce(): err doesn't contain %q", test.desc, want)
+				t.Errorf("%v: RunOnce() returned err = %q, want substring %q", test.desc, err, want)
 			}
 		}
 	}
