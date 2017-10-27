@@ -43,17 +43,15 @@ install:
   - git clone --depth=1 https://github.com/googleapis/googleapis.git "$GOPATH/src/github.com/googleapis/googleapis"
   - go get ${GOFLAGS} -d -t ./...
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update > /dev/null && brew install mariadb && mysql.server start; fi
-  - go get github.com/client9/misspell/cmd/misspell
-  - go get github.com/fzipp/gocyclo
-  - go get github.com/gordonklaus/ineffassign
-  - go get github.com/golang/lint/golint
   - go get github.com/golang/protobuf/proto
   - go get github.com/golang/protobuf/protoc-gen-go
-  - go get github.com/kisielk/errcheck
   - go get golang.org/x/tools/cmd/stringer
   - go get github.com/google/certificate-transparency-go
   - go get -d -t github.com/google/certificate-transparency-go/...
   - go install github.com/golang/{mock/mockgen,protobuf/protoc-gen-go}
+  # gometalinter
+  - go get github.com/alecthomas/gometalinter
+  - gometalinter --install
   # install vendored protoc-gen-grpc-gateway binary
   - go install ./vendor/github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
   # install vendored etcd binary
