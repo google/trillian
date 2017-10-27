@@ -18,16 +18,19 @@ import (
 	"context"
 	"database/sql"
 
-	_ "github.com/google/trillian/crypto/keys/der/proto" // Register PrivateKey ProtoHandler
-
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto/keys/der"
+	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/server/admin"
 	"github.com/google/trillian/storage/mysql"
 
+	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc"
+
+	_ "github.com/google/trillian/crypto/keys/der/proto" // Register PrivateKey ProtoHandler
 )
 
 // MapEnv is a map server and connected client.
@@ -70,6 +73,9 @@ func NewMapEnv(ctx context.Context, testID string) (*MapEnv, error) {
 		AdminStorage: mysql.NewAdminStorage(db),
 		MapStorage:   mysql.NewMapStorage(db),
 		QuotaManager: quota.Noop(),
+		NewKeyProto: func(ctx context.Context, spec *keyspb.Specification) (proto.Message, error) {
+			return der.NewProtoFromSpec(spec)
+		},
 	}
 
 	ret, err := NewMapEnvWithRegistry(ctx, testID, registry)

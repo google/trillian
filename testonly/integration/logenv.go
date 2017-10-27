@@ -24,8 +24,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/extension"
@@ -35,6 +35,9 @@ import (
 	"github.com/google/trillian/storage/mysql"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/util"
+
+	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes"
 	"google.golang.org/grpc"
 
 	ktestonly "github.com/google/trillian/crypto/keys/testonly"
@@ -85,6 +88,9 @@ func NewLogEnv(ctx context.Context, numSequencers int, testID string) (*LogEnv, 
 		AdminStorage: mysql.NewAdminStorage(db),
 		LogStorage:   mysql.NewLogStorage(db, nil),
 		QuotaManager: quota.Noop(),
+		NewKeyProto: func(ctx context.Context, spec *keyspb.Specification) (proto.Message, error) {
+			return der.NewProtoFromSpec(spec)
+		},
 	}
 
 	ret, err := NewLogEnvWithRegistry(ctx, numSequencers, testID, registry)
