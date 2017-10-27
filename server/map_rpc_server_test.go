@@ -21,8 +21,8 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
-	sigpb "github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian"
+	sigpb "github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/storage"
 	stestonly "github.com/google/trillian/storage/testonly"
@@ -36,13 +36,13 @@ const (
 var (
 	signedMapRootID1Rev1 = trillian.SignedMapRoot{
 		TimestampNanos: 1508235889834964600,
-		RootHash: []byte("\306h\237\020\201*\t\200\227m\2253\3308u(!f\025\225g\3545\025W\026\301A:\365=j"),
+		RootHash:       []byte("\306h\237\020\201*\t\200\227m\2253\3308u(!f\025\225g\3545\025W\026\301A:\365=j"),
 		Signature: &sigpb.DigitallySigned{
-			HashAlgorithm: sigpb.DigitallySigned_SHA256,
+			HashAlgorithm:      sigpb.DigitallySigned_SHA256,
 			SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
-			Signature: []byte("0F\002!\000\307b\255\223\353\23615&\022\263\323\341\342+\276\274$\rX?\366\014U\362\006\376\0269rcm\002!\000\241*\255\220\301\263D\033\275\374\340A\377\337\354\202\331%au\3179\000O\r9\237\302\021\r\363\263"),
+			Signature:          []byte("0F\002!\000\307b\255\223\353\23615&\022\263\323\341\342+\276\274$\rX?\366\014U\362\006\376\0269rcm\002!\000\241*\255\220\301\263D\033\275\374\340A\377\337\354\202\331%au\3179\000O\r9\237\302\021\r\363\263"),
 		},
-		MapId: mapID1,
+		MapId:       mapID1,
 		MapRevision: 1,
 	}
 )
@@ -52,7 +52,7 @@ func TestIsHealthy(t *testing.T) {
 	defer ctrl.Finish()
 
 	tests := []struct {
-		desc string
+		desc          string
 		accessibleErr error
 	}{
 		{"healthy", nil},
@@ -82,24 +82,24 @@ func TestGetSignedMapRoot(t *testing.T) {
 	ctx := context.Background()
 
 	tests := []struct {
-		desc string
-		req *trillian.GetSignedMapRootRequest
-		mapRoot trillian.SignedMapRoot
+		desc               string
+		req                *trillian.GetSignedMapRootRequest
+		mapRoot            trillian.SignedMapRoot
 		snapShErr, lsmrErr error
 	}{
 		{
-			desc: "Unknown map",
-			req: &trillian.GetSignedMapRootRequest{},
+			desc:      "Unknown map",
+			req:       &trillian.GetSignedMapRootRequest{},
 			snapShErr: errors.New("unknown map"),
 		},
 		{
-			desc: "Map is empty, head at revision 0",
-			req: &trillian.GetSignedMapRootRequest{MapId: mapID1},
+			desc:    "Map is empty, head at revision 0",
+			req:     &trillian.GetSignedMapRootRequest{MapId: mapID1},
 			lsmrErr: errors.New("sql: no rows in result set"),
 		},
 		{
-			desc: "Map has leaves, head > revision 0",
-			req: &trillian.GetSignedMapRootRequest{MapId: mapID1},
+			desc:    "Map has leaves, head > revision 0",
+			req:     &trillian.GetSignedMapRootRequest{MapId: mapID1},
 			mapRoot: signedMapRootID1Rev1,
 		},
 	}
@@ -146,34 +146,34 @@ func TestGetSignedMapRootByRevision(t *testing.T) {
 	ctx := context.Background()
 
 	tests := []struct {
-		desc string
-		req *trillian.GetSignedMapRootByRevisionRequest
-		mapRoot trillian.SignedMapRoot
+		desc               string
+		req                *trillian.GetSignedMapRootByRevisionRequest
+		mapRoot            trillian.SignedMapRoot
 		snapShErr, lsmrErr error
 	}{
 		{
-			desc: "Unknown map",
-			req: &trillian.GetSignedMapRootByRevisionRequest{},
+			desc:      "Unknown map",
+			req:       &trillian.GetSignedMapRootByRevisionRequest{},
 			snapShErr: errors.New("unknown map"),
 		},
 		{
-			desc: "Request revision 0 for empty map",
-			req: &trillian.GetSignedMapRootByRevisionRequest{MapId: mapID1},
+			desc:    "Request revision 0 for empty map",
+			req:     &trillian.GetSignedMapRootByRevisionRequest{MapId: mapID1},
 			lsmrErr: errors.New("sql: no rows in result set"),
 		},
 		{
-			desc: "Request latest revision (-1) for empty map",
-			req: &trillian.GetSignedMapRootByRevisionRequest{MapId: mapID1, Revision: -1},
+			desc:    "Request latest revision (-1) for empty map",
+			req:     &trillian.GetSignedMapRootByRevisionRequest{MapId: mapID1, Revision: -1},
 			lsmrErr: errors.New("sql: no rows in result set"),
 		},
 		{
-			desc: "Request future revision (-1) for empty map",
-			req: &trillian.GetSignedMapRootByRevisionRequest{MapId: mapID1, Revision: 123},
+			desc:    "Request future revision (-1) for empty map",
+			req:     &trillian.GetSignedMapRootByRevisionRequest{MapId: mapID1, Revision: 123},
 			lsmrErr: errors.New("sql: no rows in result set"),
 		},
 		{
-			desc: "Request revision >0 for non-empty map",
-			req: &trillian.GetSignedMapRootByRevisionRequest{MapId: mapID1, Revision: 1},
+			desc:    "Request revision >0 for non-empty map",
+			req:     &trillian.GetSignedMapRootByRevisionRequest{MapId: mapID1, Revision: 1},
 			mapRoot: signedMapRootID1Rev1,
 		},
 	}

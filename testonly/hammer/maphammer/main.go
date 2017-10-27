@@ -128,11 +128,11 @@ func main() {
 			glog.Exitf("Failed to create client: %v", err)
 		}
 		cfg := hammer.MapConfig{
-			MapID:         mapid,
-			Client:        trillian.NewTrillianMapClient(client),
-			MetricFactory: mf,
-			EPBias:        bias,
-			Operations:    *operations,
+			MapID:           mapid,
+			Client:          trillian.NewTrillianMapClient(client),
+			MetricFactory:   mf,
+			EPBias:          bias,
+			Operations:      *operations,
 			CheckSignatures: *checkSignatures,
 		}
 		fmt.Printf("%v\n\n", cfg)
