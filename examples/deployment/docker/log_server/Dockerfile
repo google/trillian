@@ -1,4 +1,4 @@
-FROM golang:1.8
+FROM golang:1.9
 
 ENV DB_USER=test \
     DB_PASSWORD=zaphod \
@@ -20,7 +20,7 @@ ENTRYPOINT /go/bin/trillian_log_server \
 	--mysql_uri="${DB_USER}:${DB_PASSWORD}@tcp(${DB_HOST})/${DB_DATABASE}" \
 	--rpc_endpoint="$HOST:$RPC_PORT" \
 	--http_endpoint="$HOST:$HTTP_PORT" \
-	--alsologtostderr 
+	--alsologtostderr
 
 EXPOSE $RPC_PORT
 EXPOSE $HTTP_PORT
