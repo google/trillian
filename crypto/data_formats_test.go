@@ -22,9 +22,8 @@ import (
 )
 
 // It's important that signatures don't change.
-var expectedSigHex = "5e6baba8dc3465de9c01d669059dda590b7ce123d6ccd436bcd898f1c79ff6d9"
-
 func TestHashLogRootKnownValue(t *testing.T) {
+	expectedSigHex := "5e6baba8dc3465de9c01d669059dda590b7ce123d6ccd436bcd898f1c79ff6d9"
 	root := trillian.SignedLogRoot{
 		TimestampNanos: 226770903,
 		RootHash:       []byte("Some bytes that won't change"),
