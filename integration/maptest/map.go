@@ -23,12 +23,12 @@ import (
 	"testing"
 
 	"github.com/golang/glog"
+	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/examples/ct/ctmapper/ctmapperpb"
-	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/merkle"
+	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/testonly"
-	"github.com/google/trillian"
 
 	tcrypto "github.com/google/trillian/crypto"
 	stestonly "github.com/google/trillian/storage/testonly"
@@ -37,8 +37,8 @@ import (
 // NamedTestFn is a binding between a readable test name (used for a Go subtest) and a function
 // that performs the test, given a Trillian Admin and Map client.
 type NamedTestFn struct {
-        Name string
-        Fn func(context.Context, *testing.T, trillian.TrillianAdminClient, trillian.TrillianMapClient)
+	Name string
+	Fn   func(context.Context, *testing.T, trillian.TrillianAdminClient, trillian.TrillianMapClient)
 }
 
 // TestTable is a collection of NamedTestFns.
@@ -48,9 +48,9 @@ type TestTable []NamedTestFn
 // Be sure to extend this when additional tests are added.
 // This is done so that tests can be run in different environments in a portable way.
 var AllTests = TestTable{
-        {"LeafHistory",    RunLeafHistory},
-        {"Inclusion",      RunInclusion},
-        {"InclusionBatch", RunInclusionBatch},
+	{"LeafHistory", RunLeafHistory},
+	{"Inclusion", RunInclusion},
+	{"InclusionBatch", RunInclusionBatch},
 }
 
 var h2b = testonly.MustHexDecode
