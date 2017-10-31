@@ -15,10 +15,25 @@
 package crypto
 
 import (
+	"encoding/hex"
 	"testing"
 
 	"github.com/google/trillian"
 )
+
+// It's important that signatures don't change.
+var expectedSigHex = "5e6baba8dc3465de9c01d669059dda590b7ce123d6ccd436bcd898f1c79ff6d9"
+
+func TestHashLogRootKnownValue(t *testing.T) {
+	root := trillian.SignedLogRoot{
+		TimestampNanos: 226770903,
+		RootHash:       []byte("Some bytes that won't change"),
+		TreeSize:       167329345,
+	}
+	if got, want := hex.EncodeToString(HashLogRoot(root)), expectedSigHex; got != want {
+		t.Fatalf("TestHashLogRootKnownValue: got:%v, want:%v", got, want)
+	}
+}
 
 func TestHashLogRoot(t *testing.T) {
 	unique := make(map[[20]byte]bool)
