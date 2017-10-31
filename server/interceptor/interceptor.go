@@ -38,6 +38,9 @@ const (
 	badInfoReason            = "bad_info"
 	badTreeReason            = "bad_tree"
 	insufficientTokensReason = "insufficient_tokens"
+	getTreeInfoStage         = "get_tree_info"
+	getTreeStage             = "get_tree"
+	getTokensStage           = "get_tokens"
 )
 
 var (
@@ -48,6 +51,7 @@ var (
 
 	requestCounter       monitoring.Counter
 	requestDeniedCounter monitoring.Counter
+	contextErrCounter    monitoring.Counter
 	metricsOnce          sync.Once
 )
 
@@ -102,6 +106,10 @@ func initMetrics(mf monitoring.MetricFactory) {
 		"interceptor_request_denied_count",
 		"Number of requests by denied, labeled according to the reason for denial",
 		"reason", monitoring.TreeIDLabel, "quota_user")
+	contextErrCounter = mf.NewCounter(
+		"context_err_counter",
+		"Total number of times request context has been cancelled or deadline exceeded by stage",
+		"stage")
 }
 
 func incRequestDeniedCounter(reason string, treeID int64, quotaUser string) {
@@ -141,6 +149,10 @@ func (tp *trillianProcessor) Before(ctx context.Context, req interface{}) (conte
 		incRequestDeniedCounter(badInfoReason, 0, quotaUser)
 		return ctx, err
 	}
+	if err = ctx.Err(); err != nil {
+		contextErrCounter.Inc(getTreeInfoStage)
+		return ctx, err
+	}
 	tp.info = info
 	requestCounter.Inc(fmt.Sprint(info.treeID))
 
@@ -151,6 +163,10 @@ func (tp *trillianProcessor) Before(ctx context.Context, req interface{}) (conte
 			ctx, tp.parent.admin, info.treeID, trees.GetOpts{TreeType: info.treeType, Readonly: info.readonly})
 		if err != nil {
 			incRequestDeniedCounter(badTreeReason, info.treeID, quotaUser)
+			return ctx, err
+		}
+		if err = ctx.Err(); err != nil {
+			contextErrCounter.Inc(getTreeStage)
 			return ctx, err
 		}
 		ctx = trees.NewContext(ctx, tree)
@@ -166,6 +182,10 @@ func (tp *trillianProcessor) Before(ctx context.Context, req interface{}) (conte
 			glog.Warningf("(quotaDryRun) Request %+v not denied due to dry run mode: %v", req, err)
 		}
 		quota.Metrics.IncAcquired(info.tokens, info.specs, err == nil)
+		if err = ctx.Err(); err != nil {
+			contextErrCounter.Inc(getTokensStage)
+			return ctx, err
+		}
 	}
 
 	return ctx, nil
