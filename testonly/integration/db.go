@@ -17,58 +17,12 @@ package integration
 import (
 	"context"
 	"database/sql"
-	"fmt"
-	"io/ioutil"
-	"strings"
 
-	"github.com/google/trillian/testonly"
-)
-
-const (
-	// createSQLFile is a relative path from the current package.
-	createSQLFile = "../../storage/mysql/storage.sql"
-	mysqlRootURI  = "root@tcp(127.0.0.1:3306)/"
+	"github.com/google/trillian/storage/testdb"
 )
 
 // GetTestDB drops and recreates the test database.
 // Returns a database connection to the test database.
 func GetTestDB(testID string) (*sql.DB, error) {
-	dbName := fmt.Sprintf("test_%v", testID)
-	testDBURI := fmt.Sprintf("root@tcp(127.0.0.1:3306)/%v", dbName)
-
-	// Drop existing database.
-	dbRoot, err := sql.Open("mysql", mysqlRootURI)
-	if err != nil {
-		return nil, err
-	}
-	defer dbRoot.Close()
-	resetSQL := []string{
-		fmt.Sprintf("DROP DATABASE IF EXISTS %v;", dbName),
-		fmt.Sprintf("CREATE DATABASE %v;", dbName),
-	}
-	for _, sqlText := range resetSQL {
-		if _, err := dbRoot.ExecContext(context.TODO(), sqlText); err != nil {
-			return nil, err
-		}
-	}
-
-	// Create new database.
-	dbTest, err := sql.Open("mysql", testDBURI)
-	if err != nil {
-		return nil, err
-	}
-
-	createSQL, err := ioutil.ReadFile(testonly.RelativeToPackage(createSQLFile))
-	if err != nil {
-		return nil, err
-	}
-	sqlSlice := strings.Split(string(createSQL), ";\n")
-	// Omit the last element of the slice, since it will be "".
-	for _, sqlText := range sqlSlice[:len(sqlSlice)-1] {
-		if _, err := dbTest.ExecContext(context.TODO(), sqlText); err != nil {
-			return nil, err
-		}
-	}
-
-	return dbTest, nil
+	return testdb.NewTrillianDB(context.TODO())
 }

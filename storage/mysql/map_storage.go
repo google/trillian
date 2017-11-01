@@ -287,7 +287,7 @@ func (m *mapTreeTX) signedMapRoot(timestamp, mapRevision int64, rootHash, rootSi
 		MapId:          m.treeID,
 	}
 
-	if mapperMetaBytes != nil {
+	if len(mapperMetaBytes) > 0 {
 		mapperMeta := &any.Any{}
 		if err := proto.Unmarshal(mapperMetaBytes, mapperMeta); err != nil {
 			err = fmt.Errorf("signedMapRoot: failed to unmarshal metadata: %v", err)
