@@ -55,10 +55,11 @@ CREATE TABLE IF NOT EXISTS TreeHead(
   RootSignature        VARBINARY(1024) NOT NULL,
   TreeRevision         BIGINT,
   PRIMARY KEY(TreeId, TreeHeadTimestamp),
-  UNIQUE INDEX TreeRevisionIdx(TreeId, TreeRevision),
   FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE
 );
 
+CREATE UNIQUE INDEX TreeHeadRevisionIdx
+  ON TreeHead(TreeId, TreeRevision);
 
 -- ---------------------------------------------
 -- Log specific stuff here
@@ -152,6 +153,8 @@ CREATE TABLE IF NOT EXISTS MapHead(
   RootSignature        VARBINARY(1024) NOT NULL,
   MapperData           MEDIUMBLOB,
   PRIMARY KEY(TreeId, MapHeadTimestamp),
-  UNIQUE INDEX TreeRevisionIdx(TreeId, MapRevision),
   FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE
 );
+
+CREATE UNIQUE INDEX MapHeadRevisionIdx
+  ON MapHead(TreeId, MapRevision);
