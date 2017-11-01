@@ -75,14 +75,13 @@ func (e errSkip) Error() string {
 }
 
 // errInvariant indicates that an invariant check failed, with details in msg.
-type errInvariant struct{
+type errInvariant struct {
 	msg string
 }
 
 func (e errInvariant) Error() string {
 	return fmt.Sprintf("Invariant check failed: %v", e.msg)
 }
-
 
 // MapEntrypointName identifies a Map RPC entrypoint
 type MapEntrypointName string

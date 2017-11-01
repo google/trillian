@@ -60,7 +60,7 @@ notice &ndash; including APIs, database schemas, and code layout.
 
 To build and run the Trillian code you need:
 
- - Go 1.8 or later.
+ - Go 1.9 or later.
  - [MySQL](https://www.mysql.com/) or [MariaDB](https://mariadb.org/) to provide
    the data storage layer; see the [MySQL Setup](#mysql-setup) section.
 
@@ -75,7 +75,7 @@ go get -t -u -v ./...
 To build and run tests, use:
 
 ```bash
-./scripts/presubmit.sh --no-generate --no-linters
+go test ./...
 ```
 
 The repository also includes multi-process integration tests, described in the
@@ -201,13 +201,15 @@ The [`scripts/presubmit.sh`](scripts/presubmit.sh) script runs various tools
 and tests over the codebase.
 
 ```bash
-# Install various codebase checkers
-go get -u github.com/client9/misspell/cmd/misspell
-go get -u github.com/fzipp/gocyclo
-go get -u github.com/gordonklaus/ineffassign
-go get -u github.com/golang/lint/golint
-# Run checks, tests and code generation
+# Install gometalinter and all linters
+go get -u github.com/alecthomas/gometalinter
+gometalinter --install
+
+# Run code generation, build, test and linters
 ./scripts/presubmit.sh
+
+# Or just run the linters alone:
+gometalinter --config=gometalinter.json ./...
 ```
 
 Design
