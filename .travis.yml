@@ -49,7 +49,6 @@ install:
   - go get github.com/google/certificate-transparency-go
   - go get -d -t github.com/google/certificate-transparency-go/...
   - go install github.com/golang/{mock/mockgen,protobuf/protoc-gen-go}
-  # gometalinter
   - go get github.com/alecthomas/gometalinter
   - gometalinter --install
   # install vendored protoc-gen-grpc-gateway binary

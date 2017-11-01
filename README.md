@@ -205,11 +205,11 @@ and tests over the codebase.
 go get -u github.com/alecthomas/gometalinter
 gometalinter --install
 
-# Run linters
-gometalinter --config=gometalinter.json ./...
-
-# All-in-one package (code generation, build, test and lint)
+# Run code generation, build, test and linters
 ./scripts/presubmit.sh
+
+# Or just run the linters alone:
+gometalinter --config=gometalinter.json ./...
 ```
 
 Design

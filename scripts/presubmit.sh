@@ -29,7 +29,7 @@ check_cmd() {
 }
 
 usage() {
-  echo "$0 [--coverage] [--fix] [--no-build] [--no-lint] [--no-generate]"
+  echo "$0 [--coverage] [--fix] [--no-build] [--no-linters] [--no-generate]"
 }
 
 main() {
@@ -53,7 +53,7 @@ main() {
       --no-build)
         run_build=0
         ;;
-      --no-lint)
+      --no-linters)
         run_lint=0
         ;;
       --no-generate)
@@ -68,7 +68,7 @@ main() {
   done
 
   cd "$(dirname "$0")"  # at scripts/
-  cd ..  # at /
+  cd ..  # at top level
 
   if [[ "$fix" -eq 1 ]]; then
     check_pkg goimports golang.org/x/tools/cmd/goimports || exit 1
