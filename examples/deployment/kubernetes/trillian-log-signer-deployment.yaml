@@ -29,6 +29,7 @@ spec:
         - --force_master=true
         - --alsologtostderr
         image: us.gcr.io/kt-hackathon/log_signer:gbelvin
+        imagePullPolicy: Always
         livenessProbe:
           exec:
             command:

@@ -25,6 +25,7 @@ spec:
         - --http_endpoint=0.0.0.0:8091
         - --alsologtostderr
         image: us.gcr.io/kt-hackathon/log_server:gbelvin
+        imagePullPolicy: Always
         livenessProbe:
           exec:
             command:
