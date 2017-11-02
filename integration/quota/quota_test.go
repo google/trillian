@@ -32,6 +32,7 @@ import (
 	"github.com/google/trillian/server/admin"
 	"github.com/google/trillian/server/interceptor"
 	"github.com/google/trillian/storage/mysql"
+	"github.com/google/trillian/storage/testdb"
 	"github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/testonly/integration"
 	"github.com/google/trillian/testonly/integration/etcd"
@@ -90,7 +91,13 @@ func TestEtcdRateLimiting(t *testing.T) {
 }
 
 func TestMySQLRateLimiting(t *testing.T) {
-	db, err := integration.GetTestDB("MySQLRateLimitingTest")
+	provider := testdb.Default()
+	if !provider.IsMySQL() {
+		t.Skipf("Skipping MySQL rate limiting test, SQL driver is %q", provider.Driver)
+	}
+
+	ctx := context.Background()
+	db, err := provider.NewTrillianDB(ctx)
 	if err != nil {
 		t.Fatalf("GetTestDB() returned err = %v", err)
 	}
@@ -112,7 +119,6 @@ func TestMySQLRateLimiting(t *testing.T) {
 	defer s.close()
 	go s.serve()
 
-	ctx := context.Background()
 	if err := runRateLimitingTest(ctx, s, maxUnsequenced); err != nil {
 		t.Error(err)
 	}

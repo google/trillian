@@ -82,6 +82,7 @@ func SQLite() *Provider {
 	return &Provider{
 		Driver: sqliteDriver,
 		// TODO(codingllama): Move on to ":memory:" once we fix all the hangups
+		// TODO(codingllama): Clean temporary files.
 		DataSourceName:   fmt.Sprintf("file:%v/trl-%v", os.TempDir(), time.Now().UnixNano()),
 		CreateDataSource: false,
 	}

@@ -95,6 +95,7 @@ func NewLogEnv(ctx context.Context, numSequencers int, testID string) (*LogEnv, 
 
 	ret, err := NewLogEnvWithRegistry(ctx, numSequencers, testID, registry)
 	if err != nil {
+		db.Close()
 		return nil, err
 	}
 	ret.DB = db
