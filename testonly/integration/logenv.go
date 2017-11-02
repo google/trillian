@@ -24,6 +24,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/crypto/keys/pem"
@@ -33,11 +35,9 @@ import (
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/server/interceptor"
 	"github.com/google/trillian/storage/mysql"
+	"github.com/google/trillian/storage/testdb"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/util"
-
-	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/ptypes"
 	"google.golang.org/grpc"
 
 	ktestonly "github.com/google/trillian/crypto/keys/testonly"
@@ -77,9 +77,8 @@ type LogEnv struct {
 // NewLogEnv creates a fresh DB, log server, and client. The numSequencers parameter
 // indicates how many sequencers to run in parallel; if numSequencers is zero a
 // manually-controlled test sequencer is used.
-// testID should be unique to each unittest package so as to allow parallel tests.
-func NewLogEnv(ctx context.Context, numSequencers int, testID string) (*LogEnv, error) {
-	db, err := GetTestDB(testID)
+func NewLogEnv(ctx context.Context, numSequencers int) (*LogEnv, error) {
+	db, err := testdb.NewTrillianDB(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +92,7 @@ func NewLogEnv(ctx context.Context, numSequencers int, testID string) (*LogEnv, 
 		},
 	}
 
-	ret, err := NewLogEnvWithRegistry(ctx, numSequencers, testID, registry)
+	ret, err := NewLogEnvWithRegistry(ctx, numSequencers, registry)
 	if err != nil {
 		db.Close()
 		return nil, err
@@ -106,9 +105,7 @@ func NewLogEnv(ctx context.Context, numSequencers int, testID string) (*LogEnv, 
 // and client. The numSequencers parameter indicates how many sequencers to
 // run in parallel; if numSequencers is zero a manually-controlled test
 // sequencer is used.
-// testID should be unique to each unittest package so as to allow parallel
-// tests.
-func NewLogEnvWithRegistry(ctx context.Context, numSequencers int, testID string, registry extension.Registry) (*LogEnv, error) {
+func NewLogEnvWithRegistry(ctx context.Context, numSequencers int, registry extension.Registry) (*LogEnv, error) {
 	// Create Log Server.
 	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(interceptor.ErrorWrapper))
 	logServer := server.NewTrillianLogRPCServer(registry, timeSource)

@@ -44,7 +44,9 @@ import (
 )
 
 func TestEtcdRateLimiting(t *testing.T) {
-	registry, err := integration.NewRegistryForTests("EtcdRateLimitingTest")
+	ctx := context.Background()
+
+	registry, err := integration.NewRegistryForTests(ctx)
 	if err != nil {
 		t.Fatalf("NewRegistryForTests() returned err = %v", err)
 	}
@@ -68,7 +70,6 @@ func TestEtcdRateLimiting(t *testing.T) {
 	go s.serve()
 
 	const maxTokens = 100
-	ctx := context.Background()
 	if _, err := quotaClient.CreateConfig(ctx, &quotapb.CreateConfigRequest{
 		Name: "quotas/global/write/config",
 		Config: &quotapb.Config{
@@ -149,7 +150,7 @@ func runRateLimitingTest(ctx context.Context, s *testServer, numTokens int) erro
 	for !stop {
 		select {
 		case <-timeout:
-			return fmt.Errorf("Timed out before rate limiting kicked in")
+			return fmt.Errorf("timed out before rate limiting kicked in")
 		default:
 			err := lw.queueLeaf(ctx)
 			if err == nil {

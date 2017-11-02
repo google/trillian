@@ -70,8 +70,11 @@ func TestLiveLogIntegration(t *testing.T) {
 		t.Fatalf("Start leaf index must be >= 0 (%d) and number of leaves must be > 0 (%d)", params.startLeaf, params.leafCount)
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
 	// TODO: Other options apart from insecure connections
-	conn, err := grpc.Dial(*serverFlag, grpc.WithInsecure(), grpc.WithTimeout(time.Second*5))
+	conn, err := grpc.DialContext(ctx, *serverFlag, grpc.WithInsecure())
 	if err != nil {
 		t.Fatalf("Failed to connect to log server: %v", err)
 	}
@@ -86,7 +89,7 @@ func TestLiveLogIntegration(t *testing.T) {
 func TestInProcessLogIntegration(t *testing.T) {
 	ctx := context.Background()
 	const numSequencers = 2
-	env, err := integration.NewLogEnv(ctx, numSequencers, "TestInProcessLogIntegration")
+	env, err := integration.NewLogEnv(ctx, numSequencers)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,7 +118,7 @@ func TestInProcessLogIntegrationDuplicateLeaves(t *testing.T) {
 		QuotaManager: quota.Noop(),
 	}
 
-	env, err := integration.NewLogEnvWithRegistry(ctx, numSequencers, "TestInProcessLogIntegrationDuplicateLeaves", reggie)
+	env, err := integration.NewLogEnvWithRegistry(ctx, numSequencers, reggie)
 	if err != nil {
 		t.Fatal(err)
 	}

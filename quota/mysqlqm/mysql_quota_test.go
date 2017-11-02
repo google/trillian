@@ -27,19 +27,19 @@ import (
 	"github.com/google/trillian/storage/mysql"
 	"github.com/google/trillian/storage/testdb"
 	"github.com/google/trillian/storage/testonly"
-	"github.com/google/trillian/testonly/integration"
 	"github.com/google/trillian/trees"
 	"github.com/kylelemons/godebug/pretty"
 )
 
 func TestQuotaManager_GetTokens(t *testing.T) {
-	db, err := integration.GetTestDB("GetTokensTest")
+	ctx := context.Background()
+
+	db, err := testdb.NewTrillianDB(ctx)
 	if err != nil {
 		t.Fatalf("GetTestDB() returned err = %v", err)
 	}
 	defer db.Close()
 
-	ctx := context.Background()
 	tree, err := createTree(ctx, db)
 	if err != nil {
 		t.Fatalf("createTree() returned err = %v", err)
@@ -183,13 +183,14 @@ func TestQuotaManager_GetTokens_InformationSchema(t *testing.T) {
 }
 
 func TestQuotaManager_PeekTokens(t *testing.T) {
-	db, err := integration.GetTestDB("PeekTokensTest")
+	ctx := context.Background()
+
+	db, err := testdb.NewTrillianDB(ctx)
 	if err != nil {
 		t.Fatalf("GetTestDB() returned err = %v", err)
 	}
 	defer db.Close()
 
-	ctx := context.Background()
 	tree, err := createTree(ctx, db)
 	if err != nil {
 		t.Fatalf("createTree() returned err = %v", err)
@@ -223,13 +224,14 @@ func TestQuotaManager_PeekTokens(t *testing.T) {
 }
 
 func TestQuotaManager_Noops(t *testing.T) {
-	db, err := integration.GetTestDB("NoopsTest")
+	ctx := context.Background()
+
+	db, err := testdb.NewTrillianDB(ctx)
 	if err != nil {
 		t.Fatalf("GetTestDB() returned err = %v", err)
 	}
 	defer db.Close()
 
-	ctx := context.Background()
 	qm := &mysqlqm.QuotaManager{DB: db, MaxUnsequencedRows: 1000}
 	specs := allSpecs(ctx, qm, 10 /* treeID */)
 
