@@ -89,7 +89,7 @@ func TestLiveLogIntegration(t *testing.T) {
 func TestInProcessLogIntegration(t *testing.T) {
 	ctx := context.Background()
 	const numSequencers = 2
-	env, err := integration.NewLogEnv(ctx, numSequencers)
+	env, err := integration.NewLogEnv(ctx, numSequencers, "unused")
 	if err != nil {
 		t.Fatal(err)
 	}

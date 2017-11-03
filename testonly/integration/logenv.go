@@ -77,7 +77,9 @@ type LogEnv struct {
 // NewLogEnv creates a fresh DB, log server, and client. The numSequencers parameter
 // indicates how many sequencers to run in parallel; if numSequencers is zero a
 // manually-controlled test sequencer is used.
-func NewLogEnv(ctx context.Context, numSequencers int) (*LogEnv, error) {
+// TODO(codingllama): Remove 3rd parameter (need to coordinate with
+// github.com/google/certificate-transparency-go)
+func NewLogEnv(ctx context.Context, numSequencers int, _ string) (*LogEnv, error) {
 	db, err := testdb.NewTrillianDB(ctx)
 	if err != nil {
 		return nil, err
