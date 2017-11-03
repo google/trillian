@@ -1,7 +1,7 @@
 # Script assumptions:
 # - Go 1.9 is installed
 export PROJECT_NAME=TODO
-export TAG=TODO
+export TAG=latest
 export LOG_URL=TODO
 export MAP_URL=TODO
 

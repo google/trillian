@@ -24,7 +24,7 @@ spec:
         - --rpc_endpoint=0.0.0.0:8090
         - --http_endpoint=0.0.0.0:8091
         - --alsologtostderr
-        image: us.gcr.io/kt-hackathon/map_server:gbelvin
+        image: us.gcr.io/project-name/map_server:latest
         imagePullPolicy: Always
         livenessProbe:
           exec:
