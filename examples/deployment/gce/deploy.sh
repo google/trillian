@@ -15,11 +15,6 @@ docker build -f examples/deployment/docker/log_server/Dockerfile -t us.gcr.io/$P
 docker build -f examples/deployment/docker/log_signer/Dockerfile -t us.gcr.io/$PROJECT_NAME/log_signer:$TAG .
 docker build -f examples/deployment/docker/map_server/Dockerfile -t us.gcr.io/$PROJECT_NAME/map_server:$TAG .
 
-# Build CT front end
-go get github.com/google/certificate-transparency-go/...
-cd $GOPATH/src/github.com/google/certificate-transparency-go
-docker build -f trillian/examples/deployment/docker/ctfe/Dockerfile -t us.gcr.io/$PROJECT_NAME/ctfe:$TAG .
-
 # Connect to gcloud
 gcloud config set project $PROJECT_NAME
 gcloud config set compute/zone us-central1-b
@@ -31,9 +26,6 @@ gcloud docker -- push us.gcr.io/${PROJECT_NAME}/db:$TAG
 gcloud docker -- push us.gcr.io/${PROJECT_NAME}/log_server:$TAG
 gcloud docker -- push us.gcr.io/${PROJECT_NAME}/log_signer:$TAG
 gcloud docker -- push us.gcr.io/${PROJECT_NAME}/map_server:$TAG
-gcloud docker -- push us.gcr.io/${PROJECT_NAME}/ctfe:$TAG
-
-# Prepare secrets
 
 # Launch with kubernetes
 kubectl apply -f examples/deployment/kubernetes/.
