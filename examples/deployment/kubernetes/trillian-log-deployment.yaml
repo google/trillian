@@ -1,0 +1,46 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert
+    kompose.version: 1.3.0 (HEAD)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: trillian-log
+  name: trillian-log
+spec:
+  replicas: 1
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        io.kompose.service: trillian-log
+    spec:
+      containers:
+      - command:
+        - /go/bin/trillian_log_server
+        - --mysql_uri=test:zaphod@tcp(db:3306)/test
+        - --rpc_endpoint=0.0.0.0:8090
+        - --http_endpoint=0.0.0.0:8091
+        - --alsologtostderr
+        image: us.gcr.io/project-name/log_server:latest
+        imagePullPolicy: Always
+        livenessProbe:
+          exec:
+            command:
+            - curl
+            - -f
+            - http://localhost:8091/metrics
+          failureThreshold: 3
+          periodSeconds: 30
+          timeoutSeconds: 30
+        name: trillian-log
+        ports:
+        - containerPort: 8090
+          name: rpc
+        - containerPort: 8091
+          name: metrics
+        resources: {}
+      restartPolicy: Always
+status: {}

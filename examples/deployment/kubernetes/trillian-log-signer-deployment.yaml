@@ -1,0 +1,47 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert
+    kompose.version: 1.3.0 (HEAD)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: trillian-log-signer
+  name: trillian-log-signer
+spec:
+  replicas: 1
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        io.kompose.service: trillian-log-signer
+    spec:
+      containers:
+      - command:
+        - /go/bin/trillian_log_signer
+        - --mysql_uri=test:zaphod@tcp(db:3306)/test
+        - --http_endpoint=0.0.0.0:8091
+        - --sequencer_guard_window=0s
+        - --sequencer_interval=1s
+        - --num_sequencers=1
+        - --batch_size=50
+        - --force_master=true
+        - --alsologtostderr
+        image: us.gcr.io/project-name/log_signer:latest
+        imagePullPolicy: Always
+        livenessProbe:
+          exec:
+            command:
+            - curl
+            - -f
+            - http://localhost:8091/metrics
+          failureThreshold: 3
+          periodSeconds: 30
+          timeoutSeconds: 30
+        name: trillian-log-signer
+        ports:
+        - containerPort: 8091
+        resources: {}
+      restartPolicy: Always
+status: {}
