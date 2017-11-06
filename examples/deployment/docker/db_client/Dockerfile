@@ -1,4 +1,4 @@
-FROM golang:1.8
+FROM golang:1.9
 
 RUN apt-get update && \
     apt-get install -y mysql-client
