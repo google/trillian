@@ -100,8 +100,12 @@ func main() {
 		h := make([]merkle.HashKeyValue, batchSize)
 		for y := 0; y < batchSize; y++ {
 			index := testonly.HashKey(fmt.Sprintf("key-%d-%d", x, y))
+			leafHash, err := hasher.HashLeaf(mapID, index, []byte(fmt.Sprintf("value-%d-%d", x, y)))
+			if err != nil {
+				glog.Exitf("HashLeaf(): %v", err)
+			}
 			h[y].HashedKey = index
-			h[y].HashedValue = hasher.HashLeaf(mapID, index, []byte(fmt.Sprintf("value-%d-%d", x, y)))
+			h[y].HashedValue = leafHash
 		}
 		glog.Infof("Created %d k/v pairs...", len(h))
 

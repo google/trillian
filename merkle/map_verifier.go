@@ -44,7 +44,11 @@ func VerifyMapInclusionProof(treeID int64, index, leaf, expectedRoot []byte, pro
 
 	var runningHash []byte
 	if len(leaf) != 0 {
-		runningHash = h.HashLeaf(treeID, index, leaf)
+		leafHash, err := h.HashLeaf(treeID, index, leaf)
+		if err != nil {
+			return fmt.Errorf("HashLeaf(): %v", err)
+		}
+		runningHash = leafHash
 	}
 
 	nID := storage.NewNodeIDFromHash(index)

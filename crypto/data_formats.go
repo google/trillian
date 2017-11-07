@@ -16,6 +16,7 @@ package crypto
 
 import (
 	"encoding/base64"
+	"fmt"
 	"strconv"
 
 	"github.com/benlaurie/objecthash/go/objecthash"
@@ -46,6 +47,9 @@ func HashLogRoot(root trillian.SignedLogRoot) []byte {
 		mapKeyTimestampNanos: strconv.FormatInt(root.TimestampNanos, 10),
 		mapKeyTreeSize:       strconv.FormatInt(root.TreeSize, 10)}
 
-	hash := objecthash.ObjectHash(rootMap)
+	hash, err := objecthash.ObjectHash(rootMap)
+	if err != nil {
+		panic(fmt.Sprintf("ObjectHash(%#v): %v", rootMap, err))
+	}
 	return hash[:]
 }

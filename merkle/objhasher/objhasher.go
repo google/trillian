@@ -17,6 +17,7 @@ package objhasher
 
 import (
 	"crypto"
+	"fmt"
 
 	"github.com/benlaurie/objecthash/go/objecthash"
 	"github.com/google/trillian"
@@ -52,12 +53,20 @@ func NewLogHasher(baseHasher hashers.LogHasher) hashers.LogHasher {
 
 // HashLeaf returns the object hash of leaf, which must be a JSON object.
 func (o *objloghasher) HashLeaf(leaf []byte) []byte {
-	hash := objecthash.CommonJSONHash(string(leaf))
+	hash, _ := objecthash.CommonJSONHash(string(leaf))
+	/*
+		if err != nil {
+			return nil, fmt.Errorf("CommonJSONHash(%s): %v", leaf, err)
+		}
+	*/
 	return hash[:]
 }
 
 // HashLeaf returns the object hash of leaf, which must be a JSON object.
-func (o *objmaphasher) HashLeaf(treeID int64, index []byte, leaf []byte) []byte {
-	hash := objecthash.CommonJSONHash(string(leaf))
-	return hash[:]
+func (o *objmaphasher) HashLeaf(treeID int64, index []byte, leaf []byte) ([]byte, error) {
+	hash, err := objecthash.CommonJSONHash(string(leaf))
+	if err != nil {
+		return nil, fmt.Errorf("CommonJSONHash(%s): %v", leaf, err)
+	}
+	return hash[:], nil
 }
