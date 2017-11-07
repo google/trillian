@@ -495,7 +495,10 @@ func buildMemoryMerkleTree(leafMap map[int64]*trillian.LogLeaf, params TestParam
 		compactTree.AddLeaf(leafMap[l].LeafValue, func(int, int64, []byte) error {
 			return nil
 		})
-		merkleTree.AddLeaf(leafMap[l].LeafValue)
+		_, _, err := merkleTree.AddLeaf(leafMap[l].LeafValue)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// If the two reference results disagree there's no point in continuing the checks. This is a

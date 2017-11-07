@@ -304,7 +304,10 @@ func treeAtSize(n int) *merkle.InMemoryMerkleTree {
 	leaves := expandLeaves(0, n-1)
 	mt := merkle.NewInMemoryMerkleTree(rfc6962.DefaultHasher)
 	for _, leaf := range leaves {
-		mt.AddLeaf([]byte(leaf))
+		_, _, err := mt.AddLeaf([]byte(leaf))
+		if err != nil {
+			panic(err)
+		}
 	}
 	return mt
 }

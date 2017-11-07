@@ -225,7 +225,10 @@ func TestCompactVsFullTree(t *testing.T) {
 
 		newLeaf := []byte(fmt.Sprintf("Leaf %d", i))
 
-		iSeq, iHash := imt.AddLeaf(newLeaf)
+		iSeq, iHash, err := imt.AddLeaf(newLeaf)
+		if err != nil {
+			t.Errorf("AddLeaf(): %v", err)
+		}
 
 		cSeq, cHash, err := cmt.AddLeaf(newLeaf,
 			func(depth int, index int64, hash []byte) error {
