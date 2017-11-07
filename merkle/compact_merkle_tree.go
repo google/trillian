@@ -174,7 +174,10 @@ func (c *CompactMerkleTree) recalculateRoot(f setNodeFunc) error {
 // AddLeaf calculates the leafhash of |data| and appends it to the tree.
 // |f| is a callback which will be called multiple times with the full MerkleTree coordinates of nodes whose hash should be updated.
 func (c *CompactMerkleTree) AddLeaf(data []byte, f setNodeFunc) (int64, []byte, error) {
-	h := c.hasher.HashLeaf(data)
+	h, err := c.hasher.HashLeaf(data)
+	if err != nil {
+		return 0, nil, err
+	}
 	seq, err := c.AddLeafHash(h, f)
 	if err != nil {
 		return 0, nil, err

@@ -44,7 +44,10 @@ func TestLeafHash(t *testing.T) {
 			want: "ddd65f1f7568269a30df7cafc26044537dc2f02a1a0d830da61762fc3e687057",
 		},
 	} {
-		leaf := h.HashLeaf(tc.json)
+		leaf, err := h.HashLeaf(tc.json)
+		if err != nil {
+			t.Errorf("HashLeaf(%v): %v", tc.json, err)
+		}
 		if got := hex.EncodeToString(leaf); got != tc.want {
 			t.Errorf("HashLeaf(%v): \n%v, want \n%v", tc.json, got, tc.want)
 		}

@@ -25,7 +25,7 @@ type LogHasher interface {
 	// EmptyRoot supports returning a special case for the root of an empty tree.
 	EmptyRoot() []byte
 	// HashLeaf computes the hash of a leaf that exists.
-	HashLeaf(leaf []byte) []byte
+	HashLeaf(leaf []byte) ([]byte, error)
 	// HashChildren computes interior nodes.
 	HashChildren(l, r []byte) []byte
 	// Size is the number of bits in the underlying hash function.

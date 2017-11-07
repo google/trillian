@@ -333,10 +333,12 @@ func TestVerifyInclusionProof(t *testing.T) {
 		for j := int64(0); j < inclusionProofs[i].proofLength; j++ {
 			proof = append(proof, inclusionProofs[i].proof[j].h)
 		}
-		leafHash := rfc6962.DefaultHasher.HashLeaf(leaves[inclusionProofs[i].leaf-1].h)
-		err := verifierCheck(&v, inclusionProofs[i].leaf-1, inclusionProofs[i].snapshot, proof,
-			roots[inclusionProofs[i].snapshot-1].h, leafHash)
+		leafHash, err := rfc6962.DefaultHasher.HashLeaf(leaves[inclusionProofs[i].leaf-1].h)
 		if err != nil {
+			t.Fatalf("HashLeaf(): %v", err)
+		}
+		if err := verifierCheck(&v, inclusionProofs[i].leaf-1, inclusionProofs[i].snapshot, proof,
+			roots[inclusionProofs[i].snapshot-1].h, leafHash); err != nil {
 			t.Fatalf("i=%d: %s", i, err)
 		}
 	}

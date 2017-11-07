@@ -41,8 +41,10 @@ var (
 	leaf0Log2Request   = trillian.GetLeavesByIndexRequest{LogId: logID2, LeafIndex: []int64{0}}
 	leaf1Data          = []byte("value")
 	leaf3Data          = []byte("value3")
-	leaf1              = &trillian.LogLeaf{LeafIndex: 1, MerkleLeafHash: th.HashLeaf(leaf1Data), LeafValue: leaf1Data, ExtraData: []byte("extra")}
-	leaf3              = &trillian.LogLeaf{LeafIndex: 3, MerkleLeafHash: th.HashLeaf(leaf3Data), LeafValue: leaf3Data, ExtraData: []byte("extra3")}
+	leaf1Hash, _       = th.HashLeaf(leaf1Data)
+	leaf3Hash, _       = th.HashLeaf(leaf3Data)
+	leaf1              = &trillian.LogLeaf{LeafIndex: 1, MerkleLeafHash: leaf1Hash, LeafValue: leaf1Data, ExtraData: []byte("extra")}
+	leaf3              = &trillian.LogLeaf{LeafIndex: 3, MerkleLeafHash: leaf3Hash, LeafValue: leaf3Data, ExtraData: []byte("extra3")}
 
 	queueRequest0     = trillian.QueueLeavesRequest{LogId: logID1, Leaves: []*trillian.LogLeaf{leaf1}}
 	queueRequest0Log2 = trillian.QueueLeavesRequest{LogId: logID2, Leaves: []*trillian.LogLeaf{leaf1}}

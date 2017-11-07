@@ -42,11 +42,11 @@ type rehashTest struct {
 const testTreeRevision int64 = 3
 
 // Raw hashes for dummy storage nodes
-var h1 = th.HashLeaf([]byte("Hash 1"))
-var h2 = th.HashLeaf([]byte("Hash 2"))
-var h3 = th.HashLeaf([]byte("Hash 3"))
-var h4 = th.HashLeaf([]byte("Hash 4"))
-var h5 = th.HashLeaf([]byte("Hash 5"))
+var h1, _ = th.HashLeaf([]byte("Hash 1"))
+var h2, _ = th.HashLeaf([]byte("Hash 2"))
+var h3, _ = th.HashLeaf([]byte("Hash 3"))
+var h4, _ = th.HashLeaf([]byte("Hash 4"))
+var h5, _ = th.HashLeaf([]byte("Hash 5"))
 
 // And the dummy nodes themselves.
 var sn1 = storage.Node{NodeID: storage.NewNodeIDFromHash(h1), Hash: h1, NodeRevision: 11}

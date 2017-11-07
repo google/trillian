@@ -79,7 +79,10 @@ func (c *logVerifier) VerifyInclusionAtIndex(trusted *trillian.SignedLogRoot, da
 		return fmt.Errorf("VerifyInclusionAtIndex() error: trusted == nil")
 	}
 
-	leaf := c.buildLeaf(data)
+	leaf, err := c.buildLeaf(data)
+	if err != nil {
+		return err
+	}
 	return c.v.VerifyInclusionProof(leafIndex, trusted.TreeSize,
 		proof, trusted.RootHash, leaf.MerkleLeafHash)
 }
@@ -97,11 +100,16 @@ func (c *logVerifier) VerifyInclusionByHash(trusted *trillian.SignedLogRoot, lea
 		trusted.RootHash, leafHash)
 }
 
-func (c *logVerifier) buildLeaf(data []byte) *trillian.LogLeaf {
+func (c *logVerifier) buildLeaf(data []byte) (*trillian.LogLeaf, error) {
 	hash := sha256.Sum256(data)
+	leafHash, err := c.hasher.HashLeaf(data)
+	if err != nil {
+		return nil, err
+	}
+
 	return &trillian.LogLeaf{
 		LeafValue:        data,
-		MerkleLeafHash:   c.hasher.HashLeaf(data),
+		MerkleLeafHash:   leafHash,
 		LeafIdentityHash: hash[:],
-	}
+	}, nil
 }

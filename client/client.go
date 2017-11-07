@@ -193,7 +193,10 @@ func (c *LogClient) UpdateRoot(ctx context.Context) error {
 // This assumes that the data has already been submitted.
 // Best practice is to call this method with a context that will timeout.
 func (c *LogClient) WaitForInclusion(ctx context.Context, data []byte) error {
-	leaf := c.logVerifier.buildLeaf(data)
+	leaf, err := c.logVerifier.buildLeaf(data)
+	if err != nil {
+		return err
+	}
 
 	// Fetch the current Root to improve our chances at a valid inclusion proof.
 	if err := c.UpdateRoot(ctx); err != nil {
@@ -233,7 +236,10 @@ func (c *LogClient) WaitForInclusion(ctx context.Context, data []byte) error {
 
 // VerifyInclusion updates the log root and ensures that the given leaf data has been included in the log.
 func (c *LogClient) VerifyInclusion(ctx context.Context, data []byte) error {
-	leaf := c.logVerifier.buildLeaf(data)
+	leaf, err := c.logVerifier.buildLeaf(data)
+	if err != nil {
+		return err
+	}
 	if err := c.UpdateRoot(ctx); err != nil {
 		return fmt.Errorf("UpdateRoot(): %v", err)
 	}
@@ -281,7 +287,10 @@ func (c *LogClient) getInclusionProof(ctx context.Context, leafHash []byte, tree
 // QueueLeaf adds a leaf to a Trillian log without blocking.
 // AlreadyExists is considered a success case by this function.
 func (c *LogClient) QueueLeaf(ctx context.Context, data []byte) error {
-	leaf := c.logVerifier.buildLeaf(data)
+	leaf, err := c.logVerifier.buildLeaf(data)
+	if err != nil {
+		return err
+	}
 
 	if _, err := c.client.QueueLeaf(ctx, &trillian.QueueLeafRequest{
 		LogId: c.LogID,

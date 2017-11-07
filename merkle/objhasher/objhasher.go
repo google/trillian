@@ -52,14 +52,12 @@ func NewLogHasher(baseHasher hashers.LogHasher) hashers.LogHasher {
 }
 
 // HashLeaf returns the object hash of leaf, which must be a JSON object.
-func (o *objloghasher) HashLeaf(leaf []byte) []byte {
-	hash, _ := objecthash.CommonJSONHash(string(leaf))
-	/*
-		if err != nil {
-			return nil, fmt.Errorf("CommonJSONHash(%s): %v", leaf, err)
-		}
-	*/
-	return hash[:]
+func (o *objloghasher) HashLeaf(leaf []byte) ([]byte, error) {
+	hash, err := objecthash.CommonJSONHash(string(leaf))
+	if err != nil {
+		return nil, fmt.Errorf("CommonJSONHash(%s): %v", leaf, err)
+	}
+	return hash[:], err
 }
 
 // HashLeaf returns the object hash of leaf, which must be a JSON object.

@@ -229,7 +229,10 @@ func (mt *InMemoryMerkleTree) popBack(level int64) {
 // Returns the position of the leaf in the tree. Indexing starts at 1,
 // so position = number of leaves in the tree after this update.
 func (mt *InMemoryMerkleTree) AddLeaf(leafData []byte) (int64, TreeEntry, error) {
-	leafHash := mt.hasher.HashLeaf(leafData)
+	leafHash, err := mt.hasher.HashLeaf(leafData)
+	if err != nil {
+		return 0, TreeEntry{}, err
+	}
 	leafCount, treeEntry := mt.addLeafHash(leafHash)
 	return leafCount, treeEntry, nil
 }

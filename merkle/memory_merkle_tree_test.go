@@ -174,7 +174,8 @@ func referenceMerkleTreeHash(inputs [][]byte, treehasher hashers.LogHasher) []by
 	}
 
 	if len(inputs) == 1 {
-		return treehasher.HashLeaf(inputs[0])
+		leafHash, _ := treehasher.HashLeaf(inputs[0])
+		return leafHash
 	}
 
 	split := downToPowerOfTwo(int64(len(inputs)))

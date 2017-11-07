@@ -97,7 +97,11 @@ func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.Qu
 	ctx = trees.NewContext(ctx, tree)
 
 	for i := range req.Leaves {
-		req.Leaves[i].MerkleLeafHash = hasher.HashLeaf(req.Leaves[i].LeafValue)
+		leafHash, err := hasher.HashLeaf(req.Leaves[i].LeafValue)
+		if err != nil {
+			return nil, err
+		}
+		req.Leaves[i].MerkleLeafHash = leafHash
 	}
 
 	tx, err := t.prepareStorageTx(ctx, logID)
