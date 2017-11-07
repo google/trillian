@@ -113,18 +113,15 @@ const fakeTimeStr string = "2016-05-25T10:55:05Z"
 
 // testParameters bundles up values needed for setting mock expectations in tests
 type testParameters struct {
-	fakeTime time.Time
-
 	logID  int64
 	signer gocrypto.Signer
 
 	beginFails   bool
 	dequeueLimit int
 
-	shouldCommit   bool
-	commitFails    bool
-	commitError    error
-	shouldRollback bool
+	shouldCommit bool
+	commitFails  bool
+	commitError  error
 
 	skipDequeue    bool
 	dequeuedLeaves []*trillian.LogLeaf

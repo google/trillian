@@ -29,7 +29,6 @@ import (
 const treeID = int64(0)
 
 var (
-	h2b   = testonly.MustHexDecode
 	deB64 = testonly.MustDecodeBase64
 )
 

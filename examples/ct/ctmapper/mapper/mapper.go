@@ -22,10 +22,8 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	pb "github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
-	ct "github.com/google/certificate-transparency-go"
 	"github.com/google/certificate-transparency-go/client"
 	"github.com/google/certificate-transparency-go/jsonclient"
 	"github.com/google/certificate-transparency-go/x509"
@@ -33,6 +31,9 @@ import (
 	"github.com/google/trillian/examples/ct/ctmapper"
 	"github.com/google/trillian/examples/ct/ctmapper/ctmapperpb"
 	"google.golang.org/grpc"
+
+	pb "github.com/golang/protobuf/proto"
+	ct "github.com/google/certificate-transparency-go"
 )
 
 var sourceLog = flag.String("source", "https://ct.googleapis.com/submariner", "Source CT Log")
@@ -202,7 +203,7 @@ func (m *CTMapper) oneMapperRun(ctx context.Context) (bool, error) {
 		return false, err
 	}
 	glog.Infof("Set resp: %v", setResp)
-	d := time.Now().Sub(start)
+	d := time.Since(start)
 	glog.Infof("Map run complete, took %.1f secs to update %d values (%0.2f/s)", d.Seconds(), len(setReq.Leaves), float64(len(setReq.Leaves))/d.Seconds())
 	return true, nil
 }

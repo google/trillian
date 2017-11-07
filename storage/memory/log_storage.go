@@ -15,7 +15,6 @@
 package memory
 
 import (
-	"bytes"
 	"container/list"
 	"context"
 	"errors"
@@ -365,38 +364,4 @@ func (t *readOnlyLogTX) GetUnsequencedCounts(ctx context.Context) (storage.Count
 		ret[id] = int64(queue.Len())
 	}
 	return ret, nil
-}
-
-// byLeafIdentityHash allows sorting of leaves by their identity hash, so DB
-// operations always happen in a consistent order.
-type byLeafIdentityHash []*trillian.LogLeaf
-
-func (l byLeafIdentityHash) Len() int {
-	return len(l)
-}
-func (l byLeafIdentityHash) Swap(i, j int) {
-	l[i], l[j] = l[j], l[i]
-}
-func (l byLeafIdentityHash) Less(i, j int) bool {
-	return bytes.Compare(l[i].LeafIdentityHash, l[j].LeafIdentityHash) == -1
-}
-
-// leafAndPosition records original position before sort.
-type leafAndPosition struct {
-	leaf *trillian.LogLeaf
-	idx  int
-}
-
-// byLeafIdentityHashWithPosition allows sorting (as above), but where we need
-// to remember the original position
-type byLeafIdentityHashWithPosition []leafAndPosition
-
-func (l byLeafIdentityHashWithPosition) Len() int {
-	return len(l)
-}
-func (l byLeafIdentityHashWithPosition) Swap(i, j int) {
-	l[i], l[j] = l[j], l[i]
-}
-func (l byLeafIdentityHashWithPosition) Less(i, j int) bool {
-	return bytes.Compare(l[i].leaf.LeafIdentityHash, l[j].leaf.LeafIdentityHash) == -1
 }

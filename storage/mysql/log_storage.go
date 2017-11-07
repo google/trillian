@@ -319,7 +319,7 @@ func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime tim
 		return nil, rows.Err()
 	}
 	label := labelForTX(t)
-	selectDuration := time.Now().Sub(start)
+	selectDuration := time.Since(start)
 	observe(dequeueSelectLatency, selectDuration, label)
 
 	// The convention is that if leaf processing succeeds (by committing this tx)
@@ -332,7 +332,7 @@ func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime tim
 		return nil, err
 	}
 
-	totalDuration := time.Now().Sub(start)
+	totalDuration := time.Since(start)
 	removeDuration := totalDuration - selectDuration
 	observe(dequeueRemoveLatency, removeDuration, label)
 	observe(dequeueLatency, totalDuration, label)
@@ -366,7 +366,7 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 		leafStart := time.Now()
 		leaf := leafPos.leaf
 		_, err := t.tx.ExecContext(ctx, insertUnsequencedLeafSQL, t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData)
-		insertDuration := time.Now().Sub(leafStart)
+		insertDuration := time.Since(leafStart)
 		observe(queueInsertLeafLatency, insertDuration, label)
 		if isDuplicateErr(err) {
 			// Remember the duplicate leaf, using the requested leaf for now.
@@ -396,10 +396,10 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 			glog.Warningf("Error inserting into Unsequenced: %s", err)
 			return nil, fmt.Errorf("Unsequenced: %v", err)
 		}
-		leafDuration := time.Now().Sub(leafStart)
+		leafDuration := time.Since(leafStart)
 		observe(queueInsertEntryLatency, (leafDuration - insertDuration), label)
 	}
-	insertDuration := time.Now().Sub(start)
+	insertDuration := time.Since(start)
 	observe(queueInsertLatency, insertDuration, label)
 	queuedCounter.Add(float64(len(leaves)), label)
 
@@ -428,7 +428,7 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 		}
 		found := false
 		for _, result := range results {
-			if bytes.Compare(result.LeafIdentityHash, requested.LeafIdentityHash) == 0 {
+			if bytes.Equal(result.LeafIdentityHash, requested.LeafIdentityHash) {
 				existingLeaves[i] = result
 				found = true
 				break
@@ -438,7 +438,7 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 			return nil, fmt.Errorf("failed to find existing leaf for hash %x", requested.LeafIdentityHash)
 		}
 	}
-	totalDuration := time.Now().Sub(start)
+	totalDuration := time.Since(start)
 	readDuration := totalDuration - insertDuration
 	observe(queueReadLatency, readDuration, label)
 	observe(queueLatency, totalDuration, label)
@@ -631,20 +631,6 @@ func (t *readOnlyLogTX) GetUnsequencedCounts(ctx context.Context) (storage.Count
 		ret[logID] = count
 	}
 	return ret, nil
-}
-
-// byLeafIdentityHash allows sorting of leaves by their identity hash, so DB
-// operations always happen in a consistent order.
-type byLeafIdentityHash []*trillian.LogLeaf
-
-func (l byLeafIdentityHash) Len() int {
-	return len(l)
-}
-func (l byLeafIdentityHash) Swap(i, j int) {
-	l[i], l[j] = l[j], l[i]
-}
-func (l byLeafIdentityHash) Less(i, j int) bool {
-	return bytes.Compare(l[i].LeafIdentityHash, l[j].LeafIdentityHash) == -1
 }
 
 // leafAndPosition records original position before sort.

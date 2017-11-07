@@ -105,7 +105,7 @@ func (m *MapHasher) initNullHashes() {
 	// Leaves are stored at depth 0. Root is at Size()*8.
 	// There are Size()*8 edges, and Size()*8 + 1 nodes in the tree.
 	nodes := m.Size()*8 + 1
-	r := make([][]byte, nodes, nodes)
+	r := make([][]byte, nodes)
 	h, err := m.HashLeaf(0, nil, nil)
 	if err != nil {
 		// This panic should be impossible to trigger.

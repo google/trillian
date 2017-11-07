@@ -307,7 +307,7 @@ func TestInclusionProofGetsTooManyNodes(t *testing.T) {
 	const key = "SomeArbitraryKey"
 	keyHash := testonly.HashKey(key)
 	// going to return one too many nodes
-	nodes := make([]storage.Node, 257, 257)
+	nodes := make([]storage.Node, 257)
 	// First build a plausible looking set of proof nodes.
 	for i := 1; i < 256; i++ {
 		nodes[255-i].NodeID = storage.NewNodeIDFromHash(keyHash)

@@ -65,7 +65,6 @@ func TestAdminServer_CreateTree(t *testing.T) {
 	tests := []struct {
 		desc     string
 		req      *trillian.CreateTreeRequest
-		wantTree *trillian.Tree
 		wantCode codes.Code
 	}{
 		{

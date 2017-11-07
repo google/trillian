@@ -14,6 +14,6 @@
 
 package maptest
 
-// doNothing gives the go compiler something to do.
+// DoNothing gives the go compiler something to do.
 // Otherwise, this package returns "no buildable Go source files" during 'go build'
-func doNothing() {}
+func DoNothing() {}

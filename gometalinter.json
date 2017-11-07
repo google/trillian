@@ -9,7 +9,8 @@
     "golint",
     "license",
     "misspell",
-    "vet"
+    "vet",
+    "megacheck"
   ],
   "Exclude": [
     ".+\\.pb\\.go",

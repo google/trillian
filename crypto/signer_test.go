@@ -15,7 +15,6 @@
 package crypto
 
 import (
-	"crypto"
 	"errors"
 	"testing"
 
@@ -27,20 +26,6 @@ import (
 )
 
 const message string = "testing"
-
-type usesSHA256Hasher struct{}
-
-func (i usesSHA256Hasher) Matches(x interface{}) bool {
-	h, ok := x.(crypto.SignerOpts)
-	if !ok {
-		return false
-	}
-	return h.HashFunc() == crypto.SHA256
-}
-
-func (i usesSHA256Hasher) String() string {
-	return "uses SHA256 hasher"
-}
 
 func TestSigner(t *testing.T) {
 	key, err := pem.UnmarshalPrivateKey(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)

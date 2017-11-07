@@ -25,7 +25,6 @@ import (
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/storagepb"
-	"github.com/google/trillian/testonly"
 
 	"github.com/golang/mock/gomock"
 	"github.com/kylelemons/godebug/pretty"
@@ -36,7 +35,6 @@ import (
 var (
 	defaultLogStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8}
 	defaultMapStrata = []int{8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 176}
-	h2b              = testonly.MustHexDecode
 )
 
 const treeID = int64(0)
