@@ -15,22 +15,29 @@
 package crypto
 
 import (
-	"encoding/hex"
+	"bytes"
 	"testing"
 
 	"github.com/google/trillian"
+	"github.com/google/trillian/testonly"
 )
+
+var dh = testonly.MustHexDecode
 
 // It's important that signatures don't change.
 func TestHashLogRootKnownValue(t *testing.T) {
-	expectedSigHex := "5e6baba8dc3465de9c01d669059dda590b7ce123d6ccd436bcd898f1c79ff6d9"
+	expectedSig := dh("5e6baba8dc3465de9c01d669059dda590b7ce123d6ccd436bcd898f1c79ff6d9")
 	root := trillian.SignedLogRoot{
 		TimestampNanos: 226770903,
 		RootHash:       []byte("Some bytes that won't change"),
 		TreeSize:       167329345,
 	}
-	if got, want := hex.EncodeToString(HashLogRoot(root)), expectedSigHex; got != want {
-		t.Fatalf("TestHashLogRootKnownValue: got:%v, want:%v", got, want)
+	hash, err := HashLogRoot(root)
+	if err != nil {
+		t.Fatalf("HashLogRoot(): %v", err)
+	}
+	if got, want := hash, expectedSig; !bytes.Equal(got, want) {
+		t.Fatalf("TestHashLogRootKnownValue: got:%x, want:%x", got, want)
 	}
 }
 
@@ -68,7 +75,11 @@ func TestHashLogRoot(t *testing.T) {
 			},
 		},
 	} {
-		hash := HashLogRoot(test.root)
+		hash, err := HashLogRoot(test.root)
+		if err != nil {
+			t.Fatalf("HashLogRoot(): %v", err)
+		}
+
 		var h [20]byte
 		copy(h[:], hash)
 		if _, ok := unique[h]; ok {

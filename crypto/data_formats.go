@@ -37,7 +37,7 @@ const (
 // HashLogRoot hashes SignedLogRoot objects using ObjectHash with
 // "RootHash", "TimestampNanos", and "TreeSize", used as keys in
 // a map.
-func HashLogRoot(root trillian.SignedLogRoot) []byte {
+func HashLogRoot(root trillian.SignedLogRoot) ([]byte, error) {
 	// Pull out the fields we want to hash.
 	// Caution: use string format for int64 values as they can overflow when
 	// JSON encoded otherwise (it uses floats). We want to be sure that people
@@ -49,7 +49,7 @@ func HashLogRoot(root trillian.SignedLogRoot) []byte {
 
 	hash, err := objecthash.ObjectHash(rootMap)
 	if err != nil {
-		panic(fmt.Sprintf("ObjectHash(%#v): %v", rootMap, err))
+		return nil, fmt.Errorf("ObjectHash(%#v): %v", rootMap, err)
 	}
-	return hash[:]
+	return hash[:], nil
 }

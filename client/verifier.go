@@ -54,7 +54,10 @@ func (c *logVerifier) VerifyRoot(trusted, newRoot *trillian.SignedLogRoot,
 	}
 
 	// Verify SignedLogRoot signature.
-	hash := tcrypto.HashLogRoot(*newRoot)
+	hash, err := tcrypto.HashLogRoot(*newRoot)
+	if err != nil {
+		return err
+	}
 	if err := tcrypto.Verify(c.pubKey, hash, newRoot.Signature); err != nil {
 		return err
 	}

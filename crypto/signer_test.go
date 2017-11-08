@@ -102,7 +102,11 @@ func TestSignLogRootSignerFails(t *testing.T) {
 
 	s := testonly.NewSignerWithErr(key, errors.New("signfail"))
 	root := trillian.SignedLogRoot{TimestampNanos: 2267709, RootHash: []byte("Islington"), TreeSize: 2}
-	_, err = NewSHA256Signer(s).Sign(HashLogRoot(root))
+	hash, err := HashLogRoot(root)
+	if err != nil {
+		t.Fatalf("HashLogRoot(): %v", err)
+	}
+	_, err = NewSHA256Signer(s).Sign(hash)
 
 	testonly.EnsureErrorContains(t, err, "signfail")
 }

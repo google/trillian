@@ -37,7 +37,10 @@ func TestVerifyRootErrors(t *testing.T) {
 	}
 
 	signedRoot := trillian.SignedLogRoot{}
-	hash := tcrypto.HashLogRoot(signedRoot)
+	hash, err := tcrypto.HashLogRoot(signedRoot)
+	if err != nil {
+		t.Fatalf("HashLogRoot(): %v", err)
+	}
 	signature, err := signer.Sign(hash)
 	if err != nil {
 		t.Fatal("Failed to create test signature")

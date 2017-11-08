@@ -106,7 +106,11 @@ func (m *MapHasher) initNullHashes() {
 	// There are Size()*8 edges, and Size()*8 + 1 nodes in the tree.
 	nodes := m.Size()*8 + 1
 	r := make([][]byte, nodes, nodes)
-	r[0], _ = m.HashLeaf(0, nil, nil)
+	h, err := m.HashLeaf(0, nil, nil)
+	if err != nil {
+		panic(fmt.Sprintf("HashLeaf(): %v", err))
+	}
+	r[0] = h
 	for i := 1; i < nodes; i++ {
 		r[i] = m.HashChildren(r[i-1], r[i-1])
 	}
