@@ -299,7 +299,7 @@ When running in Log mode, Trillian provides a gRPC API whose operations are
 similar to those available for Certificate Transparency logs
 (cf. [RFC 6962](https://tools.ietf.org/html/6962)). These include:
 
- - `GetLastestSignedLogRoot` returns information about the current root of the
+ - `GetLatestSignedLogRoot` returns information about the current root of the
    Merkle tree for the log, including the tree size, hash value, timestamp and
    signature.
  - `GetLeavesByHash` and `GetLeavesByIndex` return leaf information for
