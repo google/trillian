@@ -8,9 +8,9 @@
     "goimports",
     "golint",
     "license",
+    "megacheck",
     "misspell",
-    "vet",
-    "megacheck"
+    "vet"
   ],
   "Exclude": [
     ".+\\.pb\\.go",

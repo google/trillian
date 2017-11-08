@@ -1163,12 +1163,8 @@ func leafInBatch(leaf *trillian.LogLeaf, batch []*trillian.LogLeaf) bool {
 // operations always happen in a consistent order.
 type byLeafIdentityHash []*trillian.LogLeaf
 
-func (l byLeafIdentityHash) Len() int {
-	return len(l)
-}
-func (l byLeafIdentityHash) Swap(i, j int) {
-	l[i], l[j] = l[j], l[i]
-}
+func (l byLeafIdentityHash) Len() int      { return len(l) }
+func (l byLeafIdentityHash) Swap(i, j int) { l[i], l[j] = l[j], l[i] }
 func (l byLeafIdentityHash) Less(i, j int) bool {
 	return bytes.Compare(l[i].LeafIdentityHash, l[j].LeafIdentityHash) == -1
 }
