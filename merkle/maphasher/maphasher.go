@@ -108,6 +108,8 @@ func (m *MapHasher) initNullHashes() {
 	r := make([][]byte, nodes, nodes)
 	h, err := m.HashLeaf(0, nil, nil)
 	if err != nil {
+		// This panic should be impossible to trigger.
+		// MapHasher.HashLeaf never returns an error.
 		panic(fmt.Sprintf("HashLeaf(): %v", err))
 	}
 	r[0] = h
