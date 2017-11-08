@@ -51,6 +51,9 @@ message LogLeaf {
     // dupes since the source log could contain them), the part of the
     // personality which fetches and submits the entries might set
     // leaf_identity_hash to H(seq||certdata).
+    //
+    // If leaf_identity_hash is empty, it's assumed to be the same as the
+    // merkle_leaf_hash.
     bytes leaf_identity_hash = 5;
 }
 
