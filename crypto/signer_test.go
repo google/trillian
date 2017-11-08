@@ -107,6 +107,5 @@ func TestSignLogRootSignerFails(t *testing.T) {
 		t.Fatalf("HashLogRoot(): %v", err)
 	}
 	_, err = NewSHA256Signer(s).Sign(hash)
-
 	testonly.EnsureErrorContains(t, err, "signfail")
 }

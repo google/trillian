@@ -274,8 +274,7 @@ func referenceSnapshotConsistency(inputs [][]byte, snapshot2 int64,
 	if snapshot1 <= split {
 		// Root of snapshot1 is in the left subtree of snapshot2.
 		// Prove that the left subtrees are consistent.
-		s, err := referenceSnapshotConsistency(inputs[:split], split, snapshot1,
-			treehasher, haveRoot1)
+		s, err := referenceSnapshotConsistency(inputs[:split], split, snapshot1, treehasher, haveRoot1)
 		if err != nil {
 			return nil, err
 		}
@@ -291,8 +290,7 @@ func referenceSnapshotConsistency(inputs [][]byte, snapshot2 int64,
 		// Snapshot1 root is at the same level as snapshot2 root.
 		// Prove that the right subtrees are consistent. The right subtree
 		// doesn't contain the root of snapshot1, so set haveRoot1 = false.
-		s, err := referenceSnapshotConsistency(inputs[split:], snapshot2-split,
-			snapshot1-split, treehasher, false)
+		s, err := referenceSnapshotConsistency(inputs[split:], snapshot2-split, snapshot1-split, treehasher, false)
 		if err != nil {
 			return nil, err
 		}
@@ -432,8 +430,7 @@ func TestReferenceMerklePathSanity(t *testing.T) {
 	}
 
 	for _, path := range testPaths {
-		referencePath, err := referenceMerklePath(data[:path.snapshot], path.leaf,
-			mt.hasher)
+		referencePath, err := referenceMerklePath(data[:path.snapshot], path.leaf, mt.hasher)
 		if err != nil {
 			t.Fatalf("referenceMerklePath(): %v", err)
 		}
@@ -552,8 +549,7 @@ func TestMerkleTreeConsistencyFuzz(t *testing.T) {
 			snapshot1 := rand.Int63n(snapshot2 + 1)
 
 			c1 := mt.SnapshotConsistency(snapshot1, snapshot2)
-			c2, err := referenceSnapshotConsistency(data[:snapshot2], snapshot2,
-				snapshot1, mt.hasher, true)
+			c2, err := referenceSnapshotConsistency(data[:snapshot2], snapshot2, snapshot1, mt.hasher, true)
 			if err != nil {
 				t.Fatalf("referenceSnapshotConsistency(): %v", err)
 			}
