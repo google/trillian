@@ -124,8 +124,8 @@ func TestTrillianInterceptor_TreeInterception(t *testing.T) {
 
 		if test.cancelled {
 			// Use a context that's already been cancelled
-			newCtx, cf := context.WithTimeout(ctx, time.Second)
-			cf()
+			newCtx, cancel := context.WithTimeout(ctx, time.Second)
+			cancel()
 			ctx = newCtx
 		}
 

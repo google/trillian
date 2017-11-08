@@ -38,7 +38,6 @@ const (
 	badInfoReason            = "bad_info"
 	badTreeReason            = "bad_tree"
 	insufficientTokensReason = "insufficient_tokens"
-	getTreeInfoStage         = "get_tree_info"
 	getTreeStage             = "get_tree"
 	getTokensStage           = "get_tokens"
 )
@@ -107,7 +106,7 @@ func initMetrics(mf monitoring.MetricFactory) {
 		"Number of requests by denied, labeled according to the reason for denial",
 		"reason", monitoring.TreeIDLabel, "quota_user")
 	contextErrCounter = mf.NewCounter(
-		"context_err_counter",
+		"interceptor_context_err_counter",
 		"Total number of times request context has been cancelled or deadline exceeded by stage",
 		"stage")
 }
@@ -147,10 +146,6 @@ func (tp *trillianProcessor) Before(ctx context.Context, req interface{}) (conte
 	if err != nil {
 		glog.Warningf("Failed to read tree info: %v", err)
 		incRequestDeniedCounter(badInfoReason, 0, quotaUser)
-		return ctx, err
-	}
-	if err = ctx.Err(); err != nil {
-		contextErrCounter.Inc(getTreeInfoStage)
 		return ctx, err
 	}
 	tp.info = info
