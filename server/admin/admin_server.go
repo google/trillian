@@ -32,8 +32,6 @@ import (
 	_ "github.com/google/trillian/merkle/rfc6962" // Make hashers available
 )
 
-var errNotImplemented = status.Errorf(codes.Unimplemented, "not implemented")
-
 // Server is an implementation of trillian.TrillianAdminServer.
 type Server struct {
 	registry extension.Registry

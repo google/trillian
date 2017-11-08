@@ -8,6 +8,7 @@
     "goimports",
     "golint",
     "license",
+    "megacheck",
     "misspell",
     "vet"
   ],

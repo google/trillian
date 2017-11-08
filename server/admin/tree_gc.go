@@ -86,7 +86,7 @@ func NewDeletedTreeGC(admin storage.AdminStorage, threshold, minRunInterval time
 
 // Run starts the tree garbage collection process. It runs until ctx is cancelled.
 func (gc *DeletedTreeGC) Run(ctx context.Context) {
-	for true {
+	for {
 		select {
 		case <-ctx.Done():
 			return

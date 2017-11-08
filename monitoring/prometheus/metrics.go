@@ -32,7 +32,7 @@ type MetricFactory struct {
 
 // NewCounter creates a new Counter object backed by Prometheus.
 func (pmf MetricFactory) NewCounter(name, help string, labelNames ...string) monitoring.Counter {
-	if labelNames == nil || len(labelNames) == 0 {
+	if len(labelNames) == 0 {
 		counter := prometheus.NewCounter(
 			prometheus.CounterOpts{
 				Name: pmf.Prefix + name,
@@ -54,7 +54,7 @@ func (pmf MetricFactory) NewCounter(name, help string, labelNames ...string) mon
 
 // NewGauge creates a new Gauge object backed by Prometheus.
 func (pmf MetricFactory) NewGauge(name, help string, labelNames ...string) monitoring.Gauge {
-	if labelNames == nil || len(labelNames) == 0 {
+	if len(labelNames) == 0 {
 		gauge := prometheus.NewGauge(
 			prometheus.GaugeOpts{
 				Name: pmf.Prefix + name,
@@ -75,7 +75,7 @@ func (pmf MetricFactory) NewGauge(name, help string, labelNames ...string) monit
 
 // NewHistogram creates a new Histogram object backed by Prometheus.
 func (pmf MetricFactory) NewHistogram(name, help string, labelNames ...string) monitoring.Histogram {
-	if labelNames == nil || len(labelNames) == 0 {
+	if len(labelNames) == 0 {
 		histogram := prometheus.NewHistogram(
 			prometheus.HistogramOpts{
 				Name: pmf.Prefix + name,

@@ -21,25 +21,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/google/trillian/storage"
-	"github.com/google/trillian/storage/storagepb"
 )
-
-type subtreeHasPrefix struct {
-	expectedID storage.NodeID
-}
-
-func (s subtreeHasPrefix) Matches(x interface{}) bool {
-	st, ok := x.(*storagepb.SubtreeProto)
-	if !ok {
-		return false
-	}
-	subID := storage.NewNodeIDFromHash(st.Prefix)
-	return subID.Equivalent(s.expectedID)
-}
-
-func (s subtreeHasPrefix) String() string {
-	return fmt.Sprintf("has prefix %v", s.expectedID)
-}
 
 type nodeIDEq struct {
 	expectedID storage.NodeID

@@ -306,7 +306,7 @@ func TestQueueDuplicateLeaf(t *testing.T) {
 				}
 				if got == nil {
 					t.Errorf("QueueLeaves()[%d]=nil; want non-nil", i)
-				} else if bytes.Compare(got.LeafIdentityHash, want.LeafIdentityHash) != 0 {
+				} else if !bytes.Equal(got.LeafIdentityHash, want.LeafIdentityHash) {
 					t.Errorf("QueueLeaves()[%d].LeafIdentityHash=%x; want %x", i, got.LeafIdentityHash, want.LeafIdentityHash)
 				}
 			}
@@ -900,7 +900,7 @@ func TestGetActiveLogIDs(t *testing.T) {
 
 	// FROZEN is not a valid initial state, so we have to update it separately.
 	var err error
-	frozenLog, err = updateTreeInternal(ctx, admin, frozenLog.TreeId, func(t *trillian.Tree) {
+	_, err = updateTreeInternal(ctx, admin, frozenLog.TreeId, func(t *trillian.Tree) {
 		t.TreeState = trillian.TreeState_FROZEN
 	})
 	if err != nil {
@@ -1157,4 +1157,14 @@ func leafInBatch(leaf *trillian.LogLeaf, batch []*trillian.LogLeaf) bool {
 	}
 
 	return false
+}
+
+// byLeafIdentityHash allows sorting of leaves by their identity hash, so DB
+// operations always happen in a consistent order.
+type byLeafIdentityHash []*trillian.LogLeaf
+
+func (l byLeafIdentityHash) Len() int      { return len(l) }
+func (l byLeafIdentityHash) Swap(i, j int) { l[i], l[j] = l[j], l[i] }
+func (l byLeafIdentityHash) Less(i, j int) bool {
+	return bytes.Compare(l[i].LeafIdentityHash, l[j].LeafIdentityHash) == -1
 }

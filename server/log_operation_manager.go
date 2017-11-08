@@ -399,7 +399,7 @@ func (l *LogOperationManager) getLogsAndExecutePass(ctx context.Context) error {
 				}
 
 				if count > 0 {
-					d := time.Now().Sub(start).Seconds()
+					d := time.Since(start).Seconds()
 					glog.Infof("%v: processed %d items in %.2f seconds (%.2f qps)", logID, count, d, float64(count)/d)
 				} else {
 					glog.V(1).Infof("%v: no items to process", logID)
@@ -414,7 +414,7 @@ func (l *LogOperationManager) getLogsAndExecutePass(ctx context.Context) error {
 
 	// Wait for the workers to consume all of the logIDs
 	wg.Wait()
-	d := time.Now().Sub(startBatch).Seconds()
+	d := time.Since(startBatch).Seconds()
 	glog.Infof("Group run completed in %.2f seconds: %v succeeded, %v failed, %v items processed", d, successCount, len(logIDs)-successCount, itemCount)
 
 	return nil
@@ -452,7 +452,7 @@ loop:
 		}
 
 		// Wait for the configured time before going for another pass
-		duration := time.Now().Sub(start)
+		duration := time.Since(start)
 		wait := l.info.RunInterval - duration
 		if wait > 0 {
 			glog.V(1).Infof("Processing started at %v for %v; wait %v before next run", start, duration, wait)

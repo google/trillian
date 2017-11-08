@@ -51,7 +51,7 @@ func init() {
 	if err != nil {
 		glog.Fatalf("bad global pattern: %v", err)
 	}
-	treesPattern, err = regexp.Compile("^quotas/trees/\\d+/(read|write)/config$")
+	treesPattern, err = regexp.Compile(`^quotas/trees/\d+/(read|write)/config$`)
 	if err != nil {
 		glog.Fatalf("bad trees pattern: %v", err)
 	}

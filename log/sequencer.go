@@ -159,7 +159,7 @@ func (s Sequencer) buildMerkleTreeFromStorageAtRoot(ctx context.Context, root tr
 }
 
 func (s Sequencer) buildNodesFromNodeMap(nodeMap map[string]storage.Node, newVersion int64) ([]storage.Node, error) {
-	targetNodes := make([]storage.Node, len(nodeMap), len(nodeMap))
+	targetNodes := make([]storage.Node, len(nodeMap))
 	i := 0
 	for _, node := range nodeMap {
 		node.NodeRevision = newVersion

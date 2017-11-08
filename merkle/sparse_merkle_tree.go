@@ -401,7 +401,7 @@ func (s SparseMerkleTreeReader) InclusionProof(ctx context.Context, rev int64, i
 
 	// We're building a full proof from a combination of whichever nodes we got
 	// back from the storage layer, and the set of "null" hashes.
-	r := make([][]byte, len(sibs), len(sibs))
+	r := make([][]byte, len(sibs))
 	// For each proof element:
 	for i := 0; i < len(r); i++ {
 		proofID := sibs[i]

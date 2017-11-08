@@ -21,9 +21,9 @@ import (
 )
 
 var (
-	intFlag      = flag.Int("int_flag", 123, "test integer flag")
-	strFlag      = flag.String("str_flag", "foo", "test string flag")
-	durationFlag = flag.Duration("duration_flag", 5*time.Second, "test duration flag")
+	_ = flag.Int("int_flag", 123, "test integer flag")
+	_ = flag.String("str_flag", "foo", "test string flag")
+	_ = flag.Duration("duration_flag", 5*time.Second, "test duration flag")
 )
 
 // TestRestore checks that flags are saved and restore correctly.

@@ -25,8 +25,7 @@ func TestFakeTimeSource(t *testing.T) {
 	fake := NewFakeTimeSource(date1)
 
 	// Check that a FakeTimeSource can be used as a TimeSource.
-	var ts TimeSource
-	ts = fake
+	var ts TimeSource = fake
 	if got, want := ts.Now(), date1; got != want {
 		t.Errorf("ts.Now=%v; want %v", got, want)
 	}
