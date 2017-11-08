@@ -103,8 +103,16 @@ func NewTrillianDB(ctx context.Context) (*sql.DB, error) {
 
 // Provider is an object capable of creating new test databases.
 type Provider struct {
-	Driver           string
-	DataSourceName   string
+	// Driver is the SQL driver name used for sql.Open (e.g.: "mysql" or "sqlite3").
+	Driver string
+
+	// DataSourceName is the data source name used for sql.Open (e.g., the database URL).
+	DataSourceName string
+
+	// CreateDataSource controls whether a new, random data source is created.
+	// If set the true, New() firstly connects to DataSourceName, creates a randomly-generated
+	// database (via "CREATE DATABASE") and then connects to the new database.
+	// Useful to create random databases via a "main" data source name.
 	CreateDataSource bool
 }
 
