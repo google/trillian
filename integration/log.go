@@ -17,7 +17,6 @@ package integration
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -202,16 +201,11 @@ func queueLeaves(client trillian.TrillianLogClient, params TestParameters) (map[
 	uniqueLeaves := make([]*trillian.LogLeaf, 0, params.uniqueLeaves)
 	for i := int64(0); i < params.uniqueLeaves; i++ {
 		leafNumber := params.startLeaf + i
-
 		data := []byte(fmt.Sprintf("%sLeaf %d", params.customLeafPrefix, leafNumber))
-		idHash := sha256.Sum256(data)
-
 		leaf := &trillian.LogLeaf{
-			LeafIdentityHash: idHash[:],
-			LeafValue:        data,
-			ExtraData:        []byte(fmt.Sprintf("%sExtra %d", params.customLeafPrefix, leafNumber)),
+			LeafValue: data,
+			ExtraData: []byte(fmt.Sprintf("%sExtra %d", params.customLeafPrefix, leafNumber)),
 		}
-
 		uniqueLeaves = append(uniqueLeaves, leaf)
 	}
 
@@ -461,7 +455,7 @@ func checkConsistencyProof(consistParams consistencyProofParams, treeID int64, t
 	req := &trillian.GetConsistencyProofRequest{
 		LogId:          treeID,
 		FirstTreeSize:  consistParams.size1 * int64(batchSize),
-		SecondTreeSize: (consistParams.size2 * int64(batchSize)),
+		SecondTreeSize: consistParams.size2 * int64(batchSize),
 	}
 	resp, err := client.GetConsistencyProof(ctx, req)
 	cancel()

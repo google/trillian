@@ -16,6 +16,7 @@ package quota
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"hash"
 	"net"
@@ -150,7 +151,7 @@ func runRateLimitingTest(ctx context.Context, s *testServer, numTokens int) erro
 	for !stop {
 		select {
 		case <-timeout:
-			return fmt.Errorf("timed out before rate limiting kicked in")
+			return errors.New("timed out before rate limiting kicked in")
 		default:
 			err := lw.queueLeaf(ctx)
 			if err == nil {
@@ -185,9 +186,8 @@ func (w *leafWriter) queueLeaf(ctx context.Context) error {
 	_, err := w.client.QueueLeaf(ctx, &trillian.QueueLeafRequest{
 		LogId: w.treeID,
 		Leaf: &trillian.LogLeaf{
-			MerkleLeafHash:   h,
-			LeafValue:        value,
-			LeafIdentityHash: h,
+			MerkleLeafHash: h,
+			LeafValue:      value,
 		}})
 	return err
 }

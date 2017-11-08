@@ -298,7 +298,7 @@ func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillia
 	for _, leaf := range leaves {
 		// This should fail on insert but catch it early
 		if len(leaf.LeafIdentityHash) != t.hashSizeBytes {
-			return errors.New("Sequenced leaf has incorrect hash size")
+			return errors.New("sequenced leaf has incorrect hash size")
 		}
 		mh := string(leaf.MerkleLeafHash)
 		countByMerkleHash[mh]++
