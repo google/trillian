@@ -376,8 +376,7 @@ func TestBuildTreeBuildAllAtOnce(t *testing.T) {
 	mt := makeEmptyTree()
 
 	for l := 0; l < 3; l++ {
-		_, _, err := mt.AddLeaf(decodeHexStringOrPanic(leafInputs[l]))
-		if err != nil {
+		if _, _, err := mt.AddLeaf(decodeHexStringOrPanic(leafInputs[l])); err != nil {
 			t.Fatalf("AddLeaf(%v): %v", leafInputs[l], err)
 		}
 	}
@@ -386,8 +385,7 @@ func TestBuildTreeBuildAllAtOnce(t *testing.T) {
 	validateTree(mt, 2, t)
 
 	for l := 3; l < 8; l++ {
-		_, _, err := mt.AddLeaf(decodeHexStringOrPanic(leafInputs[l]))
-		if err != nil {
+		if _, _, err := mt.AddLeaf(decodeHexStringOrPanic(leafInputs[l])); err != nil {
 			t.Fatalf("AddLeaf(%v): %v", leafInputs[l], err)
 		}
 	}
@@ -401,8 +399,7 @@ func TestBuildTreeBuildTwoChunks(t *testing.T) {
 
 	// Add to the tree, checking after each leaf
 	for l := 0; l < 8; l++ {
-		_, _, err := mt.AddLeaf(decodeHexStringOrPanic(leafInputs[l]))
-		if err != nil {
+		if _, _, err := mt.AddLeaf(decodeHexStringOrPanic(leafInputs[l])); err != nil {
 			t.Fatalf("AddLeaf(%v): %v", leafInputs[l], err)
 		}
 	}
@@ -462,8 +459,7 @@ func TestMerkleTreeRootFuzz(t *testing.T) {
 		mt := makeEmptyTree()
 
 		for l := int64(0); l < treeSize; l++ {
-			_, _, err := mt.AddLeaf(data[l])
-			if err != nil {
+			if _, _, err := mt.AddLeaf(data[l]); err != nil {
 				t.Fatalf("AddLeaf(%v): %v", data[l], err)
 			}
 		}
@@ -496,8 +492,7 @@ func TestMerkleTreePathFuzz(t *testing.T) {
 		mt := makeEmptyTree()
 
 		for l := int64(0); l < treeSize; l++ {
-			_, _, err := mt.AddLeaf(data[l])
-			if err != nil {
+			if _, _, err := mt.AddLeaf(data[l]); err != nil {
 				t.Fatalf("AddLeaf(%v): %v", data[l], err)
 			}
 		}
@@ -543,8 +538,7 @@ func TestMerkleTreeConsistencyFuzz(t *testing.T) {
 		mt := makeEmptyTree()
 
 		for l := int64(0); l < treeSize; l++ {
-			_, _, err := mt.AddLeaf(data[l])
-			if err != nil {
+			if _, _, err := mt.AddLeaf(data[l]); err != nil {
 				t.Fatalf("AddLeaf(%v): %v", data[l], err)
 			}
 		}
@@ -585,8 +579,7 @@ func TestMerkleTreePathBuildOnce(t *testing.T) {
 	mt := makeEmptyTree()
 
 	for i := 0; i < 8; i++ {
-		_, _, err := mt.AddLeaf(decodeHexStringOrPanic(leafInputs[i]))
-		if err != nil {
+		if _, _, err := mt.AddLeaf(decodeHexStringOrPanic(leafInputs[i])); err != nil {
 			t.Fatalf("AddLeaf(%v): %v", leafInputs[i], err)
 		}
 	}
@@ -632,8 +625,7 @@ func TestMerkleTreePathBuildIncrementally(t *testing.T) {
 	mt := makeEmptyTree()
 
 	for i := 0; i < 8; i++ {
-		_, _, err := mt.AddLeaf(decodeHexStringOrPanic(leafInputs[i]))
-		if err != nil {
+		if _, _, err := mt.AddLeaf(decodeHexStringOrPanic(leafInputs[i])); err != nil {
 			t.Fatalf("AddLeaf(%v): %v", leafInputs[i], err)
 		}
 	}
@@ -649,8 +641,7 @@ func TestMerkleTreePathBuildIncrementally(t *testing.T) {
 	}
 
 	for i := int64(0); i < 8; i++ {
-		_, _, err := mt2.AddLeaf(decodeHexStringOrPanic(leafInputs[i]))
-		if err != nil {
+		if _, _, err := mt2.AddLeaf(decodeHexStringOrPanic(leafInputs[i])); err != nil {
 			t.Fatalf("AddLeaf(%v): %v", leafInputs[i], err)
 		}
 
@@ -684,8 +675,7 @@ func TestProofConsistencyTestVectors(t *testing.T) {
 	mt := makeEmptyTree()
 
 	for i := 0; i < 8; i++ {
-		_, _, err := mt.AddLeaf(decodeHexStringOrPanic(leafInputs[i]))
-		if err != nil {
+		if _, _, err := mt.AddLeaf(decodeHexStringOrPanic(leafInputs[i])); err != nil {
 			t.Fatalf("AddLeaf(%v): %v", leafInputs[i], err)
 		}
 	}

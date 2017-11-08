@@ -498,8 +498,7 @@ func buildMemoryMerkleTree(leafMap map[int64]*trillian.LogLeaf, params TestParam
 		compactTree.AddLeaf(leafMap[l].LeafValue, func(int, int64, []byte) error {
 			return nil
 		})
-		_, _, err := merkleTree.AddLeaf(leafMap[l].LeafValue)
-		if err != nil {
+		if _, _, err := merkleTree.AddLeaf(leafMap[l].LeafValue); err != nil {
 			return nil, err
 		}
 	}
