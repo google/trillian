@@ -160,7 +160,7 @@ func (tp *trillianProcessor) Before(ctx context.Context, req interface{}) (conte
 			incRequestDeniedCounter(badTreeReason, info.treeID, quotaUser)
 			return ctx, err
 		}
-		if err = ctx.Err(); err != nil {
+		if err := ctx.Err(); err != nil {
 			contextErrCounter.Inc(getTreeStage)
 			return ctx, err
 		}

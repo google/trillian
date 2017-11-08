@@ -111,7 +111,7 @@ func TestTrillianInterceptor_TreeInterception(t *testing.T) {
 		},
 		{
 			desc:      "cancelled",
-			req:       &trillian.GetTreeRequest{TreeId: logTree.TreeId},
+			req:       &trillian.GetLatestSignedLogRootRequest{LogId: logTree.TreeId},
 			cancelled: true,
 			wantErr:   true,
 		},
@@ -131,7 +131,7 @@ func TestTrillianInterceptor_TreeInterception(t *testing.T) {
 
 		resp, err := intercept.UnaryInterceptor(ctx, test.req, &grpc.UnaryServerInfo{}, handler.run)
 		if hasErr := err != nil && err != test.handlerErr; hasErr != test.wantErr {
-			t.Errorf("%v: UnaryInterceptor() returned err = %q, wantErr = %v", test.desc, err, test.wantErr)
+			t.Errorf("%v: UnaryInterceptor() returned err = %v, wantErr = %v", test.desc, err, test.wantErr)
 			continue
 		} else if hasErr {
 			continue
