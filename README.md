@@ -278,7 +278,7 @@ following available operations:
    these will appear as the next revision of the Map.
 
 (Documentation may be out-of-date; please check the protocol buffer
-[message definitions](trillian_api.proto) for the definitive current API.)
+[message definitions](trillian_map_api.proto) for the definitive current map API.)
 
 Each `SetLeaves` request includes a batch of updates to the Map; once all of
 these updates have been applied, the Map has a new **revision**, with a new tree
