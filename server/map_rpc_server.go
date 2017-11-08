@@ -103,10 +103,14 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 			found++
 		} else {
 			// Empty leaf for proof of non-existence.
+			leafHash, err := hasher.HashLeaf(mapID, index, nil)
+			if err != nil {
+				return nil, fmt.Errorf("HashLeaf(nil): %v", err)
+			}
 			leaf = &trillian.MapLeaf{
 				Index:     index,
 				LeafValue: nil,
-				LeafHash:  hasher.HashLeaf(mapID, index, nil),
+				LeafHash:  leafHash,
 			}
 		}
 
@@ -173,7 +177,11 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 			continue
 		}
 		// TODO(gbelvin) use LeafHash rather than computing here. #423
-		l.LeafHash = hasher.HashLeaf(mapID, l.Index, l.LeafValue)
+		leafHash, err := hasher.HashLeaf(mapID, l.Index, l.LeafValue)
+		if err != nil {
+			return nil, fmt.Errorf("HashLeaf(): %v", err)
+		}
+		l.LeafHash = leafHash
 
 		if err = tx.Set(ctx, l.Index, *l); err != nil {
 			return nil, err

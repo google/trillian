@@ -44,9 +44,13 @@ func TestEmptyRoot(t *testing.T) {
 // Compares the old HStar2 empty branch algorithm to the new.
 func TestHStar2Equivalence(t *testing.T) {
 	m := New(crypto.SHA256)
+	leafHash, err := m.HashLeaf(treeID, nil, []byte(""))
+	if err != nil {
+		t.Fatalf("HashLeaf(): %v", err)
+	}
 	star := hstar{
 		hasher:          m,
-		hStarEmptyCache: [][]byte{m.HashLeaf(treeID, nil, []byte(""))},
+		hStarEmptyCache: [][]byte{leafHash},
 	}
 	fullDepth := m.Size() * 8
 	for i := 0; i < fullDepth; i++ {

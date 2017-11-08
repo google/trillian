@@ -265,8 +265,11 @@ func TestRepopulateLogSubtree(t *testing.T) {
 		s.InternalNodes = make(map[string][]byte)
 
 		leaf := []byte(fmt.Sprintf("this is leaf %d", numLeaves))
-		leafHash := rfc6962.DefaultHasher.HashLeaf(leaf)
-		_, err := cmt.AddLeafHash(leafHash, func(depth int, index int64, h []byte) error {
+		leafHash, err := rfc6962.DefaultHasher.HashLeaf(leaf)
+		if err != nil {
+			t.Fatalf("HashLeaf(%v): %v", leaf, err)
+		}
+		_, err = cmt.AddLeafHash(leafHash, func(depth int, index int64, h []byte) error {
 			n, err := storage.NewNodeIDForTreeCoords(int64(depth), index, 8)
 			if err != nil {
 				return fmt.Errorf("failed to create nodeID for cmt tree: %v", err)

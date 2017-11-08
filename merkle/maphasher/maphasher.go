@@ -71,13 +71,13 @@ func (m *MapHasher) HashEmpty(treeID int64, index []byte, height int) []byte {
 
 // HashLeaf returns the Merkle tree leaf hash of the data passed in through leaf.
 // The hashed structure is leafHashPrefix||leaf.
-func (m *MapHasher) HashLeaf(treeID int64, index []byte, leaf []byte) []byte {
+func (m *MapHasher) HashLeaf(treeID int64, index []byte, leaf []byte) ([]byte, error) {
 	h := m.New()
 	h.Write([]byte{leafHashPrefix})
 	h.Write(leaf)
 	r := h.Sum(nil)
 	glog.V(5).Infof("HashLeaf(%x): %x", index, r)
-	return r
+	return r, nil
 }
 
 // HashChildren returns the internal Merkle tree node hash of the the two child nodes l and r.
@@ -106,7 +106,13 @@ func (m *MapHasher) initNullHashes() {
 	// There are Size()*8 edges, and Size()*8 + 1 nodes in the tree.
 	nodes := m.Size()*8 + 1
 	r := make([][]byte, nodes, nodes)
-	r[0] = m.HashLeaf(0, nil, nil)
+	h, err := m.HashLeaf(0, nil, nil)
+	if err != nil {
+		// This panic should be impossible to trigger.
+		// MapHasher.HashLeaf never returns an error.
+		panic(fmt.Sprintf("HashLeaf(): %v", err))
+	}
+	r[0] = h
 	for i := 1; i < nodes; i++ {
 		r[i] = m.HashChildren(r[i-1], r[i-1])
 	}

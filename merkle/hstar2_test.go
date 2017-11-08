@@ -51,7 +51,7 @@ var simpleTestVector = []struct {
 
 // createHStar2Leaves returns a []HStar2LeafHash formed by the mapping of index, value ...
 // createHStar2Leaves panics if len(iv) is odd. Duplicate i/v pairs get over written.
-func createHStar2Leaves(treeID int64, hasher hashers.MapHasher, iv ...[]byte) []HStar2LeafHash {
+func createHStar2Leaves(treeID int64, hasher hashers.MapHasher, iv ...[]byte) ([]HStar2LeafHash, error) {
 	if len(iv)%2 != 0 {
 		panic(fmt.Sprintf("merkle: createHstar2Leaves got odd number of iv pairs: %v", len(iv)))
 	}
@@ -62,9 +62,13 @@ func createHStar2Leaves(treeID int64, hasher hashers.MapHasher, iv ...[]byte) []
 			index = b
 			continue
 		}
+		leafHash, err := hasher.HashLeaf(treeID, index, b)
+		if err != nil {
+			return nil, err
+		}
 		m[fmt.Sprintf("%x", index)] = HStar2LeafHash{
 			Index:    new(big.Int).SetBytes(index),
-			LeafHash: hasher.HashLeaf(treeID, index, b),
+			LeafHash: leafHash,
 		}
 	}
 
@@ -72,7 +76,7 @@ func createHStar2Leaves(treeID int64, hasher hashers.MapHasher, iv ...[]byte) []
 	for _, v := range m {
 		r = append(r, v)
 	}
-	return r
+	return r, nil
 }
 
 func TestHStar2SimpleDataSetKAT(t *testing.T) {
@@ -81,7 +85,10 @@ func TestHStar2SimpleDataSetKAT(t *testing.T) {
 	iv := [][]byte{}
 	for i, x := range simpleTestVector {
 		iv = append(iv, x.index, x.value)
-		values := createHStar2Leaves(treeID, maphasher.Default, iv...)
+		values, err := createHStar2Leaves(treeID, maphasher.Default, iv...)
+		if err != nil {
+			t.Fatalf("createHStar2Leaves(): %v", err)
+		}
 		root, err := s.HStar2Root(s.hasher.BitLen(), values)
 		if err != nil {
 			t.Errorf("Failed to calculate root at iteration %d: %v", i, err)
@@ -103,7 +110,10 @@ func TestHStar2GetSet(t *testing.T) {
 
 	for i, x := range simpleTestVector {
 		s := NewHStar2(treeID, hasher)
-		values := createHStar2Leaves(treeID, hasher, x.index, x.value)
+		values, err := createHStar2Leaves(treeID, hasher, x.index, x.value)
+		if err != nil {
+			t.Fatalf("createHStar2Leaves(): %v", err)
+		}
 		// ensure we're going incrementally, one leaf at a time.
 		if len(values) != 1 {
 			t.Fatalf("Should only have 1 leaf per run, got %d", len(values))
@@ -166,7 +176,10 @@ func TestHStar2OffsetRootKAT(t *testing.T) {
 		// TODO(al): improve rootsForTrimmedKeys to use a map and remove this
 		// requirement.
 		for size := 24; size < 256; size += 8 {
-			leaves := createHStar2Leaves(treeID, maphasher.Default, iv...)
+			leaves, err := createHStar2Leaves(treeID, maphasher.Default, iv...)
+			if err != nil {
+				t.Fatalf("createHStar2Leaves(): %v", err)
+			}
 			intermediates := rootsForTrimmedKeys(t, size, leaves)
 
 			root, err := s.HStar2Nodes(nil, size, intermediates, nil, nil)

@@ -338,7 +338,10 @@ func readbackLogEntries(logID int64, client trillian.TrillianLogClient, params T
 			}
 			leafMap[leaf.LeafIndex] = leaf
 
-			hash := rfc6962.DefaultHasher.HashLeaf(leaf.LeafValue)
+			hash, err := rfc6962.DefaultHasher.HashLeaf(leaf.LeafValue)
+			if err != nil {
+				return nil, fmt.Errorf("HashLeaf(%v): %v", leaf.LeafValue, err)
+			}
 
 			if got, want := hex.EncodeToString(hash), hex.EncodeToString(leaf.MerkleLeafHash); got != want {
 				return nil, fmt.Errorf("leaf %d hash mismatch expected got: %s want: %s", leaf.LeafIndex, got, want)
@@ -495,7 +498,9 @@ func buildMemoryMerkleTree(leafMap map[int64]*trillian.LogLeaf, params TestParam
 		compactTree.AddLeaf(leafMap[l].LeafValue, func(int, int64, []byte) error {
 			return nil
 		})
-		merkleTree.AddLeaf(leafMap[l].LeafValue)
+		if _, _, err := merkleTree.AddLeaf(leafMap[l].LeafValue); err != nil {
+			return nil, err
+		}
 	}
 
 	// If the two reference results disagree there's no point in continuing the checks. This is a

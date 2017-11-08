@@ -161,9 +161,8 @@ func createLogNodesForTreeAtSize(ts, rev int64) ([]storage.Node, error) {
 	nodeMap := make(map[string]storage.Node)
 	for l := 0; l < int(ts); l++ {
 		// We're only interested in the side effects of adding leaves - the node updates
-		_, _, err := tree.AddLeaf([]byte(fmt.Sprintf("Leaf %d", l)), func(depth int, index int64, hash []byte) error {
+		if _, _, err := tree.AddLeaf([]byte(fmt.Sprintf("Leaf %d", l)), func(depth int, index int64, hash []byte) error {
 			nID, err := storage.NewNodeIDForTreeCoords(int64(depth), index, 64)
-
 			if err != nil {
 				return fmt.Errorf("failed to create a nodeID for tree - should not happen d:%d i:%d",
 					depth, index)
@@ -171,8 +170,7 @@ func createLogNodesForTreeAtSize(ts, rev int64) ([]storage.Node, error) {
 
 			nodeMap[nID.String()] = storage.Node{NodeID: nID, NodeRevision: rev, Hash: hash}
 			return nil
-		})
-		if err != nil {
+		}); err != nil {
 			return nil, err
 		}
 	}

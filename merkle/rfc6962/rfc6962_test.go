@@ -22,17 +22,33 @@ import (
 func TestRfc6962Hasher(t *testing.T) {
 	hasher := DefaultHasher
 
+	leafHash, err := hasher.HashLeaf([]byte("L123456"))
+	if err != nil {
+		t.Fatalf("HashLeaf(): %v", err)
+	}
 	for _, tc := range []struct {
 		desc string
 		got  []byte
 		want string
 	}{
 		// echo -n | sha256sum
-		{desc: "RFC962 Empty", want: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", got: hasher.EmptyRoot()},
+		{
+			desc: "RFC962 Empty",
+			want: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+			got:  hasher.EmptyRoot(),
+		},
 		// echo -n 004C313233343536 | xxd -r -p | sha256sum
-		{desc: "RFC6962 Leaf", want: "395aa064aa4c29f7010acfe3f25db9485bbd4b91897b6ad7ad547639252b4d56", got: hasher.HashLeaf([]byte("L123456"))},
+		{
+			desc: "RFC6962 Leaf",
+			want: "395aa064aa4c29f7010acfe3f25db9485bbd4b91897b6ad7ad547639252b4d56",
+			got:  leafHash,
+		},
 		// echo -n 014E3132334E343536 | xxd -r -p | sha256sum
-		{desc: "RFC6962 Node", want: "aa217fe888e47007fa15edab33c2b492a722cb106c64667fc2b044444de66bbb", got: hasher.HashChildren([]byte("N123"), []byte("N456"))},
+		{
+			desc: "RFC6962 Node",
+			want: "aa217fe888e47007fa15edab33c2b492a722cb106c64667fc2b044444de66bbb",
+			got:  hasher.HashChildren([]byte("N123"), []byte("N456")),
+		},
 	} {
 		wantBytes, err := hex.DecodeString(tc.want)
 		if err != nil {

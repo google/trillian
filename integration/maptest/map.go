@@ -105,7 +105,11 @@ func verifyGetMapLeavesResponse(getResp *trillian.GetMapLeavesResponse, indexes 
 		leafHash := incl.GetLeaf().GetLeafHash()
 		proof := incl.GetInclusion()
 
-		if got, want := leafHash, hasher.HashLeaf(treeID, index, leaf); !bytes.Equal(got, want) {
+		wantLeafHash, err := hasher.HashLeaf(treeID, index, leaf)
+		if err != nil {
+			return err
+		}
+		if got, want := leafHash, wantLeafHash; !bytes.Equal(got, want) {
 			return fmt.Errorf("HashLeaf(%s): %x, want %x", leaf, got, want)
 		}
 		if err := merkle.VerifyMapInclusionProof(treeID, index,

@@ -16,6 +16,7 @@ package crypto
 
 import (
 	"encoding/base64"
+	"fmt"
 	"strconv"
 
 	"github.com/benlaurie/objecthash/go/objecthash"
@@ -36,7 +37,7 @@ const (
 // HashLogRoot hashes SignedLogRoot objects using ObjectHash with
 // "RootHash", "TimestampNanos", and "TreeSize", used as keys in
 // a map.
-func HashLogRoot(root trillian.SignedLogRoot) []byte {
+func HashLogRoot(root trillian.SignedLogRoot) ([]byte, error) {
 	// Pull out the fields we want to hash.
 	// Caution: use string format for int64 values as they can overflow when
 	// JSON encoded otherwise (it uses floats). We want to be sure that people
@@ -46,6 +47,9 @@ func HashLogRoot(root trillian.SignedLogRoot) []byte {
 		mapKeyTimestampNanos: strconv.FormatInt(root.TimestampNanos, 10),
 		mapKeyTreeSize:       strconv.FormatInt(root.TreeSize, 10)}
 
-	hash := objecthash.ObjectHash(rootMap)
-	return hash[:]
+	hash, err := objecthash.ObjectHash(rootMap)
+	if err != nil {
+		return nil, fmt.Errorf("ObjectHash(%#v): %v", rootMap, err)
+	}
+	return hash[:], nil
 }

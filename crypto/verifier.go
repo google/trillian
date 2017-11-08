@@ -42,8 +42,10 @@ func VerifyObject(pub crypto.PublicKey, obj interface{}, sig *sigpb.DigitallySig
 	if err != nil {
 		return err
 	}
-	hash := objecthash.CommonJSONHash(string(j))
-
+	hash, err := objecthash.CommonJSONHash(string(j))
+	if err != nil {
+		return fmt.Errorf("CommonJSONHash(%s): %v", j, err)
+	}
 	return Verify(pub, hash[:], sig)
 }
 

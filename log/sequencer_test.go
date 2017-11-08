@@ -38,9 +38,10 @@ import (
 
 var (
 	// These can be shared between tests as they're never modified
-	testLeaf16Data = []byte("testdataforleaf")
-	testLeaf16     = &trillian.LogLeaf{
-		MerkleLeafHash: rfc6962.DefaultHasher.HashLeaf(testLeaf16Data),
+	testLeaf16Data    = []byte("testdataforleaf")
+	testLeaf16Hash, _ = rfc6962.DefaultHasher.HashLeaf(testLeaf16Data)
+	testLeaf16        = &trillian.LogLeaf{
+		MerkleLeafHash: testLeaf16Hash,
 		LeafValue:      testLeaf16Data,
 		ExtraData:      nil,
 		LeafIndex:      16,
@@ -160,8 +161,9 @@ type testContext struct {
 
 // This gets modified so tests need their own copies
 func getLeaf42() *trillian.LogLeaf {
+	testLeaf16Hash, _ := rfc6962.DefaultHasher.HashLeaf(testLeaf16Data)
 	return &trillian.LogLeaf{
-		MerkleLeafHash: rfc6962.DefaultHasher.HashLeaf(testLeaf16Data),
+		MerkleLeafHash: testLeaf16Hash,
 		LeafValue:      testLeaf16Data,
 		ExtraData:      nil,
 		LeafIndex:      42,
