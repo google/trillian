@@ -82,7 +82,7 @@ script:
         export ETCD_DIR="${GOPATH}/bin"
       fi
   - |
-      if [[ -n "${TRILLIAN_SQL_DRIVER}" && "${TRILLIAN_SQL_DRIVER}" != sqlite3 ]]; then
+      if [[ "${TRILLIAN_SQL_DRIVER}" == 'mysql' ]]; then
         ./integration/integration_test.sh
         cd "$HOME/gopath/src/github.com/google/certificate-transparency-go"
         ./trillian/integration/integration_test.sh
