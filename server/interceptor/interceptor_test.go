@@ -68,6 +68,7 @@ func TestTrillianInterceptor_TreeInterception(t *testing.T) {
 		handlerErr error
 		wantErr    bool
 		wantTree   *trillian.Tree
+		cancelled  bool
 	}{
 		// TODO(codingllama): Admin requests don't benefit from tree-reading logic, but we may read
 		// their tree IDs for auth purposes.
@@ -108,6 +109,12 @@ func TestTrillianInterceptor_TreeInterception(t *testing.T) {
 			req:     &trillian.GetLatestSignedLogRootRequest{LogId: deletedTree.TreeId},
 			wantErr: true,
 		},
+		{
+			desc:      "cancelled",
+			req:       &trillian.GetLatestSignedLogRootRequest{LogId: logTree.TreeId},
+			cancelled: true,
+			wantErr:   true,
+		},
 	}
 
 	ctx := context.Background()
@@ -115,9 +122,16 @@ func TestTrillianInterceptor_TreeInterception(t *testing.T) {
 	for _, test := range tests {
 		handler := &fakeHandler{resp: "handler response", err: test.handlerErr}
 
+		if test.cancelled {
+			// Use a context that's already been cancelled
+			newCtx, cancel := context.WithCancel(ctx)
+			cancel()
+			ctx = newCtx
+		}
+
 		resp, err := intercept.UnaryInterceptor(ctx, test.req, &grpc.UnaryServerInfo{}, handler.run)
 		if hasErr := err != nil && err != test.handlerErr; hasErr != test.wantErr {
-			t.Errorf("%v: UnaryInterceptor() returned err = %q, wantErr = %v", test.desc, err, test.wantErr)
+			t.Errorf("%v: UnaryInterceptor() returned err = %v, wantErr = %v", test.desc, err, test.wantErr)
 			continue
 		} else if hasErr {
 			continue
@@ -403,8 +417,9 @@ func TestTrillianInterceptor_QuotaInterception_ReturnsTokens(t *testing.T) {
 	}(PutTokensTimeout)
 	PutTokensTimeout = 5 * time.Second
 
-	// Use a ctx with a timeout smaller than PutTokensTimeout
-	ctx, cancel := context.WithTimeout(context.Background(), PutTokensTimeout-3*time.Second)
+	// Use a ctx with a timeout smaller than PutTokensTimeout. Not too short or
+	// spurious failures will occur when the deadline expires.
+	ctx, cancel := context.WithTimeout(context.Background(), PutTokensTimeout-2*time.Second)
 	defer cancel()
 
 	for _, test := range tests {
