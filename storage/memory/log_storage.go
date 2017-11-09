@@ -17,7 +17,6 @@ package memory
 import (
 	"container/list"
 	"context"
-	"errors"
 	"fmt"
 	"math"
 	"strconv"
@@ -297,8 +296,8 @@ func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillia
 	countByMerkleHash := make(map[string]int)
 	for _, leaf := range leaves {
 		// This should fail on insert but catch it early
-		if len(leaf.LeafIdentityHash) != t.hashSizeBytes {
-			return errors.New("sequenced leaf has incorrect hash size")
+		if got, want := len(leaf.LeafIdentityHash), t.hashSizeBytes; got != want {
+			return fmt.Errorf("sequenced leaf has incorrect hash size: got %v, want %v", got, want)
 		}
 		mh := string(leaf.MerkleLeafHash)
 		countByMerkleHash[mh]++
