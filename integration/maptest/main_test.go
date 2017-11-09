@@ -37,7 +37,7 @@ func TestMain(m *testing.M) {
 
 	if *server == "" {
 		ctx := context.Background()
-		mapEnv, err := integration.NewMapEnv(ctx, "MapIntegrationTestMain")
+		mapEnv, err := integration.NewMapEnv(ctx)
 		if err != nil {
 			log.Fatalf("NewMapEnv(): %v", err)
 		}

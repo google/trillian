@@ -31,7 +31,10 @@ echo "Created tree ${TEST_TREE_ID}"
 echo "Running test"
 pushd "${INTEGRATION_DIR}"
 set +e
-go test ${GOFLAGS} -run ".*LiveLog.*" --timeout=${GO_TEST_TIMEOUT:-5m} ./ --treeid ${TEST_TREE_ID} --log_rpc_server="${RPC_SERVER_1}"
+TRILLIAN_SQL_DRIVER=mysql go test ${GOFLAGS} \
+  -run ".*LiveLog.*" \
+  -timeout=${GO_TEST_TIMEOUT:-5m} \
+  ./ --log_rpc_server="${RPC_SERVER_1}" --treeid ${TEST_TREE_ID}
 RESULT=$?
 set -e
 popd

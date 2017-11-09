@@ -18,6 +18,7 @@ import (
 	"context"
 	"database/sql"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/crypto/keyspb"
@@ -26,8 +27,7 @@ import (
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/server/admin"
 	"github.com/google/trillian/storage/mysql"
-
-	"github.com/golang/protobuf/proto"
+	"github.com/google/trillian/storage/testdb"
 	"google.golang.org/grpc"
 
 	_ "github.com/google/trillian/crypto/keys/der/proto" // Register PrivateKey ProtoHandler
@@ -63,8 +63,8 @@ func NewMapEnvFromConn(addr string) (*MapEnv, error) {
 }
 
 // NewMapEnv creates a fresh DB, map server, and client.
-func NewMapEnv(ctx context.Context, testID string) (*MapEnv, error) {
-	db, err := GetTestDB(testID)
+func NewMapEnv(ctx context.Context) (*MapEnv, error) {
+	db, err := testdb.NewTrillianDB(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +78,7 @@ func NewMapEnv(ctx context.Context, testID string) (*MapEnv, error) {
 		},
 	}
 
-	ret, err := NewMapEnvWithRegistry(ctx, testID, registry)
+	ret, err := NewMapEnvWithRegistry(registry)
 	if err != nil {
 		db.Close()
 		return nil, err
@@ -88,9 +88,8 @@ func NewMapEnv(ctx context.Context, testID string) (*MapEnv, error) {
 }
 
 // NewMapEnvWithRegistry uses the passed in Registry to create a map server and
-// client.  testID should be unique to each unittest package so as to allow
-// parallel tests.
-func NewMapEnvWithRegistry(ctx context.Context, testID string, registry extension.Registry) (*MapEnv, error) {
+// client.
+func NewMapEnvWithRegistry(registry extension.Registry) (*MapEnv, error) {
 	addr, lis, err := listen()
 	if err != nil {
 		return nil, err

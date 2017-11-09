@@ -15,15 +15,17 @@
 package integration
 
 import (
+	"context"
+
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/quota/mysqlqm"
 	"github.com/google/trillian/storage/mysql"
+	"github.com/google/trillian/storage/testdb"
 )
 
 // NewRegistryForTests returns an extension.Registry for integration tests.
-// A new database will be recreated, as per GetTestDB.
-func NewRegistryForTests(testID string) (extension.Registry, error) {
-	db, err := GetTestDB(testID)
+func NewRegistryForTests(ctx context.Context) (extension.Registry, error) {
+	db, err := testdb.NewTrillianDB(ctx)
 	if err != nil {
 		return extension.Registry{}, err
 	}

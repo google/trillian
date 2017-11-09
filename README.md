@@ -58,13 +58,16 @@ Using the Code
 suitable for production use.  Everything here is subject to change without
 notice &ndash; including APIs, database schemas, and code layout.
 
-To build and run the Trillian code you need:
+To build and test Trillian you need:
 
  - Go 1.9 or later.
+
+To run integration tests (and production deployment) you need:
+
  - [MySQL](https://www.mysql.com/) or [MariaDB](https://mariadb.org/) to provide
    the data storage layer; see the [MySQL Setup](#mysql-setup) section.
 
-Then use the standard Go tools to install other dependencies.
+Use the standard Go tools to install other dependencies.
 
 ```bash
 go get github.com/google/trillian
@@ -83,15 +86,15 @@ The repository also includes multi-process integration tests, described in the
 
 ### MySQL Setup
 
-To run Trillian, including for any of the tests, you need to have an instance
-of MySQL running and configured
+To run Trillian's integration tests you need to have an instance of MySQL
+running and configured to:
 
- - to listen on the standard MySQL port 3306 (so `mysql --host=127.0.0.1
+ - listen on the standard MySQL port 3306 (so `mysql --host=127.0.0.1
    --port=3306` connects OK)
- - not to require a password for the `root` user
+ - not require a password for the `root` user
 
-You can then set up the [expected tables](storage/mysql/storage.sql) in a
-`test` database like so:
+You can then set up the [expected tables](storage/mysql/storage.sql) in a `test`
+database like so:
 
 ```bash
 ./scripts/resetdb.sh
@@ -103,7 +106,7 @@ Are you sure? y
 
 ### Integration Tests
 
-Trillian also includes an integration test to confirm basic end-to-end
+Trillian includes an integration test suite to confirm basic end-to-end
 functionality, which can be run with:
 
 ```bash

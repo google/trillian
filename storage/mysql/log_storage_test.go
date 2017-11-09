@@ -288,7 +288,8 @@ func TestQueueDuplicateLeaf(t *testing.T) {
 			defer tx.Close()
 			existing, err := tx.QueueLeaves(ctx, test.leaves, fakeQueueTime)
 			if err != nil {
-				t.Fatalf("Failed to queue leaves: %v", err)
+				t.Errorf("Failed to queue leaves: %v", err)
+				return
 			}
 			commit(tx, t)
 
@@ -981,12 +982,15 @@ func TestGetUnsequencedCounts(t *testing.T) {
 		// Put some leaves in the queue of each of the logs
 		for j, logID := range logIDs {
 			tx := beginLogTx(s, logID, t)
-			defer tx.Close()
+			// tx explicitly closed in all branches
+
 			numToAdd := i + int64(j)
 			leaves := createTestLeaves(numToAdd, expectedCount[logID])
 			if _, err := tx.QueueLeaves(ctx, leaves, fakeDequeueCutoffTime); err != nil {
+				tx.Close()
 				t.Fatalf("Failed to queue leaves: %v", err)
 			}
+
 			commit(tx, t)
 			expectedCount[logID] += numToAdd
 		}
@@ -996,11 +1000,16 @@ func TestGetUnsequencedCounts(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Snapshot() = (_, %v), want no error", err)
 		}
-		defer tx.Close()
+		// tx explicitly closed in all branches
 
 		got, err := tx.GetUnsequencedCounts(ctx)
 		if err != nil {
+			tx.Close()
 			t.Errorf("GetUnsequencedCounts() = %v, want no error", err)
+		}
+		if err := tx.Commit(); err != nil {
+			t.Errorf("Commit() = %v, want no error", err)
+			return
 		}
 		if diff := pretty.Compare(expectedCount, got); diff != "" {
 			t.Errorf("GetUnsequencedCounts() = diff -want +got:\n%s", diff)

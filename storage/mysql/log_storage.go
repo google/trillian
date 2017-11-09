@@ -34,6 +34,7 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/trees"
+	"github.com/mattn/go-sqlite3"
 
 	spb "github.com/google/trillian/crypto/sigpb"
 )
@@ -579,6 +580,8 @@ func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, root trillian.Signed
 
 func (t *logTreeTX) getLeavesByHashInternal(ctx context.Context, leafHashes [][]byte, tmpl *sql.Stmt, desc string) ([]*trillian.LogLeaf, error) {
 	stx := t.tx.StmtContext(ctx, tmpl)
+	defer stx.Close()
+
 	var args []interface{}
 	for _, hash := range leafHashes {
 		args = append(args, interface{}([]byte(hash)))
@@ -589,11 +592,10 @@ func (t *logTreeTX) getLeavesByHashInternal(ctx context.Context, leafHashes [][]
 		glog.Warningf("Query() %s hash = %v", desc, err)
 		return nil, err
 	}
+	defer rows.Close()
 
 	// The tree could include duplicates so we don't know how many results will be returned
 	var ret []*trillian.LogLeaf
-
-	defer rows.Close()
 	for rows.Next() {
 		leaf := &trillian.LogLeaf{}
 
@@ -654,11 +656,12 @@ func (l byLeafIdentityHashWithPosition) Less(i, j int) bool {
 }
 
 func isDuplicateErr(err error) bool {
-	if err != nil {
-		if mysqlErr, ok := err.(*mysql.MySQLError); ok && mysqlErr.Number == errNumDuplicate {
-			return true
-		}
+	switch err := err.(type) {
+	case *mysql.MySQLError:
+		return err.Number == errNumDuplicate
+	case sqlite3.Error:
+		return err.Code == sqlite3.ErrConstraint && err.ExtendedCode == sqlite3.ErrConstraintPrimaryKey
+	default:
+		return false
 	}
-
-	return false
 }

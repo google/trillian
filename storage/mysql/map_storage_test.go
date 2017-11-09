@@ -22,11 +22,12 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/google/trillian"
-	spb "github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/examples/ct/ctmapper/ctmapperpb"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/testonly"
 	"github.com/kylelemons/godebug/pretty"
+
+	spb "github.com/google/trillian/crypto/sigpb"
 )
 
 func TestMySQLMapStorage_CheckDatabaseAccessible(t *testing.T) {
@@ -147,9 +148,12 @@ func TestMapRootUpdate(t *testing.T) {
 
 	ctx := context.Background()
 
+	populatedMetadata := testonly.MustMarshalAny(t, &ctmapperpb.MapperMetadata{HighestFullyCompletedSeq: 1})
+
 	for _, tc := range []struct {
-		desc string
-		root trillian.SignedMapRoot
+		desc         string
+		root         trillian.SignedMapRoot
+		wantMetadata *any.Any
 	}{
 		{
 			desc: "Initial root",
@@ -159,7 +163,8 @@ func TestMapRootUpdate(t *testing.T) {
 				MapRevision:    5,
 				RootHash:       []byte(dummyHash),
 				Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
-			}},
+			},
+		},
 		{
 			desc: "Root update",
 			root: trillian.SignedMapRoot{
@@ -168,7 +173,8 @@ func TestMapRootUpdate(t *testing.T) {
 				MapRevision:    6,
 				RootHash:       []byte(dummyHash),
 				Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
-			}},
+			},
+		},
 		{
 			desc: "Root with default (empty) MapperMetadata",
 			root: trillian.SignedMapRoot{
@@ -178,7 +184,8 @@ func TestMapRootUpdate(t *testing.T) {
 				RootHash:       []byte(dummyHash),
 				Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
 				Metadata:       &any.Any{},
-			}},
+			},
+		},
 		{
 			desc: "Root with non-default (populated) MapperMetadata",
 			root: trillian.SignedMapRoot{
@@ -187,10 +194,12 @@ func TestMapRootUpdate(t *testing.T) {
 				MapRevision:    8,
 				RootHash:       []byte(dummyHash),
 				Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
-				Metadata:       testonly.MustMarshalAny(t, &ctmapperpb.MapperMetadata{HighestFullyCompletedSeq: 1}),
-			}},
+				Metadata:       populatedMetadata,
+			},
+			wantMetadata: populatedMetadata,
+		},
 	} {
-		{
+		func() {
 			tx := beginMapTx(ctx, s, mapID, t)
 			defer tx.Close()
 			if err := tx.StoreSignedMapRoot(ctx, tc.root); err != nil {
@@ -199,20 +208,23 @@ func TestMapRootUpdate(t *testing.T) {
 			if err := tx.Commit(); err != nil {
 				t.Fatalf("%v: Failed to commit new map roots: %v", tc.desc, err)
 			}
-		}
-		{
+		}()
+
+		func() {
 			tx := beginMapTx(ctx, s, mapID, t)
 			defer tx.Close()
 			root, err := tx.LatestSignedMapRoot(ctx)
 			if err != nil {
 				t.Fatalf("%v: Failed to read back new map root: %v", tc.desc, err)
 			}
-			if got, want := &root, &tc.root; !proto.Equal(got, want) {
-				t.Fatalf("%v: LatestSignedMapRoot(): %v, diff(-got, +want) \n%v", tc.desc,
-					pretty.Sprint(got), pretty.Compare(got, want))
+
+			want := proto.Clone(&tc.root).(*trillian.SignedMapRoot)
+			want.Metadata = tc.wantMetadata
+			if got := &root; !proto.Equal(got, want) {
+				t.Errorf("%v: LatestSignedMapRoot() diff(-got, +want) \n%v", tc.desc, pretty.Compare(got, want))
 			}
 			commit(tx, t)
-		}
+		}()
 	}
 }
 

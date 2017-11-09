@@ -35,7 +35,7 @@ import (
 const (
 	defaultSequenceIntervalSeconds = 60
 
-	nonDeletedWhere = " WHERE (Deleted IS NULL OR Deleted = false)"
+	nonDeletedWhere = " WHERE (Deleted IS NULL OR Deleted = 'false')"
 
 	selectTreeIDs           = "SELECT TreeId FROM Trees"
 	selectNonDeletedTreeIDs = selectTreeIDs + nonDeletedWhere
@@ -152,7 +152,6 @@ func (t *adminTX) GetTree(ctx context.Context, treeID int64) (*trillian.Tree, er
 	case err != nil:
 		return nil, fmt.Errorf("error reading tree %v: %v", treeID, err)
 	}
-
 	return tree, nil
 }
 

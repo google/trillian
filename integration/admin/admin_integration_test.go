@@ -38,7 +38,9 @@ import (
 )
 
 func TestAdminServer_CreateTree(t *testing.T) {
-	ts, err := setupAdminServer()
+	ctx := context.Background()
+
+	ts, err := setupAdminServer(ctx)
 	if err != nil {
 		t.Fatalf("setupAdminServer() failed: %v", err)
 	}
@@ -87,7 +89,6 @@ func TestAdminServer_CreateTree(t *testing.T) {
 		},
 	}
 
-	ctx := context.Background()
 	for _, test := range tests {
 		createdTree, err := ts.adminClient.CreateTree(ctx, test.req)
 		if s, ok := status.FromError(err); !ok || s.Code() != test.wantCode {
@@ -126,7 +127,9 @@ func TestAdminServer_CreateTree(t *testing.T) {
 }
 
 func TestAdminServer_UpdateTree(t *testing.T) {
-	ts, err := setupAdminServer()
+	ctx := context.Background()
+
+	ts, err := setupAdminServer(ctx)
 	if err != nil {
 		t.Fatalf("setupAdminServer() failed: %v", err)
 	}
@@ -188,7 +191,6 @@ func TestAdminServer_UpdateTree(t *testing.T) {
 		},
 	}
 
-	ctx := context.Background()
 	for _, test := range tests {
 		if test.createTree != nil {
 			tree, err := ts.adminClient.CreateTree(ctx, &trillian.CreateTreeRequest{Tree: test.createTree})
@@ -232,7 +234,9 @@ func TestAdminServer_UpdateTree(t *testing.T) {
 }
 
 func TestAdminServer_GetTree(t *testing.T) {
-	ts, err := setupAdminServer()
+	ctx := context.Background()
+
+	ts, err := setupAdminServer(ctx)
 	if err != nil {
 		t.Fatalf("setupAdminServer() failed: %v", err)
 	}
@@ -255,7 +259,6 @@ func TestAdminServer_GetTree(t *testing.T) {
 		},
 	}
 
-	ctx := context.Background()
 	for _, test := range tests {
 		_, err := ts.adminClient.GetTree(ctx, &trillian.GetTreeRequest{TreeId: test.treeID})
 		if s, ok := status.FromError(err); !ok || s.Code() != test.wantCode {
@@ -266,7 +269,9 @@ func TestAdminServer_GetTree(t *testing.T) {
 }
 
 func TestAdminServer_ListTrees(t *testing.T) {
-	ts, err := setupAdminServer()
+	ctx := context.Background()
+
+	ts, err := setupAdminServer(ctx)
 	if err != nil {
 		t.Fatalf("setupAdminServer() failed: %v", err)
 	}
@@ -283,7 +288,6 @@ func TestAdminServer_ListTrees(t *testing.T) {
 		{desc: "threeTrees", numTrees: 3},
 	}
 
-	ctx := context.Background()
 	createdTrees := []*trillian.Tree{}
 	for _, test := range tests {
 		if l := len(createdTrees); l > test.numTrees {
@@ -334,7 +338,9 @@ func sortByTreeID(s []*trillian.Tree) {
 }
 
 func TestAdminServer_DeleteTree(t *testing.T) {
-	ts, err := setupAdminServer()
+	ctx := context.Background()
+
+	ts, err := setupAdminServer(ctx)
 	if err != nil {
 		t.Fatalf("setupAdminServer() failed: %v", err)
 	}
@@ -348,7 +354,6 @@ func TestAdminServer_DeleteTree(t *testing.T) {
 		{desc: "mapTree", baseTree: testonly.MapTree},
 	}
 
-	ctx := context.Background()
 	for _, test := range tests {
 		createdTree, err := ts.adminClient.CreateTree(ctx, &trillian.CreateTreeRequest{Tree: test.baseTree})
 		if err != nil {
@@ -384,13 +389,14 @@ func TestAdminServer_DeleteTree(t *testing.T) {
 }
 
 func TestAdminServer_DeleteTreeErrors(t *testing.T) {
-	ts, err := setupAdminServer()
+	ctx := context.Background()
+
+	ts, err := setupAdminServer(ctx)
 	if err != nil {
 		t.Fatalf("setupAdminServer() failed: %v", err)
 	}
 	defer ts.closeAll()
 
-	ctx := context.Background()
 	createdTree, err := ts.adminClient.CreateTree(ctx, &trillian.CreateTreeRequest{Tree: testonly.LogTree})
 	if err != nil {
 		t.Fatalf("CreateTree() returned err = %v", err)
@@ -426,7 +432,9 @@ func TestAdminServer_DeleteTreeErrors(t *testing.T) {
 }
 
 func TestAdminServer_UndeleteTree(t *testing.T) {
-	ts, err := setupAdminServer()
+	ctx := context.Background()
+
+	ts, err := setupAdminServer(ctx)
 	if err != nil {
 		t.Fatalf("setupAdminServer() failed: %v", err)
 	}
@@ -440,7 +448,6 @@ func TestAdminServer_UndeleteTree(t *testing.T) {
 		{desc: "mapTree", baseTree: testonly.MapTree},
 	}
 
-	ctx := context.Background()
 	for _, test := range tests {
 		createdTree, err := ts.adminClient.CreateTree(ctx, &trillian.CreateTreeRequest{Tree: test.baseTree})
 		if err != nil {
@@ -473,13 +480,14 @@ func TestAdminServer_UndeleteTree(t *testing.T) {
 }
 
 func TestAdminServer_UndeleteTreeErrors(t *testing.T) {
-	ts, err := setupAdminServer()
+	ctx := context.Background()
+
+	ts, err := setupAdminServer(ctx)
 	if err != nil {
 		t.Fatalf("setupAdminServer() failed: %v", err)
 	}
 	defer ts.closeAll()
 
-	ctx := context.Background()
 	tree, err := ts.adminClient.CreateTree(ctx, &trillian.CreateTreeRequest{Tree: testonly.LogTree})
 	if err != nil {
 		t.Fatalf("CreateTree() returned err = %v", err)
@@ -511,13 +519,14 @@ func TestAdminServer_UndeleteTreeErrors(t *testing.T) {
 }
 
 func TestAdminServer_TreeGC(t *testing.T) {
-	ts, err := setupAdminServer()
+	ctx := context.Background()
+
+	ts, err := setupAdminServer(ctx)
 	if err != nil {
 		t.Fatalf("setupAdminServer() failed: %v", err)
 	}
 	defer ts.closeAll()
 
-	ctx := context.Background()
 	tree, err := ts.adminClient.CreateTree(ctx, &trillian.CreateTreeRequest{Tree: testonly.LogTree})
 	if err != nil {
 		t.Fatalf("CreateTree() returned err = %v", err)
@@ -567,7 +576,7 @@ func (ts *testServer) closeAll() {
 
 // setupAdminServer prepares and starts an Admin Server, returning a testServer object.
 // If the returned error is nil, the callers must "defer ts.closeAll()" to avoid resource leakage.
-func setupAdminServer() (*testServer, error) {
+func setupAdminServer(ctx context.Context) (*testServer, error) {
 	ts := &testServer{}
 
 	var err error
@@ -576,7 +585,7 @@ func setupAdminServer() (*testServer, error) {
 		return nil, err
 	}
 
-	registry, err := integration.NewRegistryForTests("AdminIntegrationTest")
+	registry, err := integration.NewRegistryForTests(ctx)
 	if err != nil {
 		ts.closeAll()
 		return nil, err

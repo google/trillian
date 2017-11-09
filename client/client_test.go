@@ -46,7 +46,7 @@ func addSequencedLeaves(ctx context.Context, env *integration.LogEnv, client *Lo
 
 func TestGetByIndex(t *testing.T) {
 	ctx := context.Background()
-	env, err := integration.NewLogEnv(ctx, 1, "TestGetByIndex")
+	env, err := integration.NewLogEnv(ctx, 1, "unused")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,7 +83,7 @@ func TestGetByIndex(t *testing.T) {
 
 func TestListByIndex(t *testing.T) {
 	ctx := context.Background()
-	env, err := integration.NewLogEnv(ctx, 1, "TestGetByIndex")
+	env, err := integration.NewLogEnv(ctx, 1, "unused")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -120,7 +120,7 @@ func TestListByIndex(t *testing.T) {
 
 func TestVerifyInclusion(t *testing.T) {
 	ctx := context.Background()
-	env, err := integration.NewLogEnv(ctx, 1, "TestVerifyInclusion")
+	env, err := integration.NewLogEnv(ctx, 1, "unused")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -151,7 +151,7 @@ func TestVerifyInclusion(t *testing.T) {
 
 func TestVerifyInclusionAtIndex(t *testing.T) {
 	ctx := context.Background()
-	env, err := integration.NewLogEnv(ctx, 1, "TestVerifyInclusionAtIndex")
+	env, err := integration.NewLogEnv(ctx, 1, "unused")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -182,7 +182,7 @@ func TestVerifyInclusionAtIndex(t *testing.T) {
 
 func TestWaitForInclusion(t *testing.T) {
 	ctx := context.Background()
-	env, err := integration.NewLogEnv(ctx, 0, "TestWaitForInclusion")
+	env, err := integration.NewLogEnv(ctx, 0, "unused")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -217,7 +217,7 @@ func TestWaitForInclusion(t *testing.T) {
 
 func TestUpdateRoot(t *testing.T) {
 	ctx := context.Background()
-	env, err := integration.NewLogEnv(ctx, 1, "TestUpdateRoot")
+	env, err := integration.NewLogEnv(ctx, 1, "unused")
 	if err != nil {
 		t.Fatal(err)
 	}

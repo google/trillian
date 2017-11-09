@@ -17,9 +17,14 @@ package maptest
 import (
 	"context"
 	"testing"
+
+	"github.com/google/trillian/storage/testdb"
 )
 
 func TestMapIntegration(t *testing.T) {
+	if provider := testdb.Default(); !provider.IsMySQL() {
+		t.Skipf("Skipping map integration test, SQL driver is %q", provider.Driver)
+	}
 	ctx := context.Background()
 	for _, test := range AllTests {
 		t.Run(test.Name, func(t *testing.T) {

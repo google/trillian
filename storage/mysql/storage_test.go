@@ -30,6 +30,8 @@ import (
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/storage/testdb"
+
 	storageto "github.com/google/trillian/storage/testonly"
 )
 
@@ -221,7 +223,7 @@ func diffNodes(got, want []storage.Node) ([]storage.Node, []storage.Node) {
 }
 
 func openTestDBOrDie() *sql.DB {
-	db, err := OpenDB("test:zaphod@tcp(127.0.0.1:3306)/test")
+	db, err := testdb.NewTrillianDB(context.TODO())
 	if err != nil {
 		panic(err)
 	}
@@ -232,7 +234,7 @@ func openTestDBOrDie() *sql.DB {
 func cleanTestDB(db *sql.DB) {
 	for _, table := range allTables {
 		if _, err := db.ExecContext(context.TODO(), fmt.Sprintf("DELETE FROM %s", table)); err != nil {
-			panic(fmt.Errorf("Failed to delete rows in %s: %s", table, err))
+			panic(fmt.Sprintf("Failed to delete rows in %s: %s", table, err))
 		}
 	}
 }
