@@ -49,7 +49,7 @@ var (
 
 func init() {
 	var err error
-	enumRegex, err = regexp.Compile("ENUM\\(.+\\)")
+	enumRegex, err = regexp.Compile(`ENUM\(.+\)`)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to compile \"ENUM()\" regex: %v", err))
 	}
