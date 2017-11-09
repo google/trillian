@@ -26,29 +26,40 @@ import (
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/storage"
-	stestonly "github.com/google/trillian/storage/testonly"
 	"github.com/kylelemons/godebug/pretty"
 	"google.golang.org/genproto/googleapis/rpc/code"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
+	stestonly "github.com/google/trillian/storage/testonly"
 )
 
 var (
-	th                 = rfc6962.DefaultHasher
-	logID1             = int64(1)
-	logID2             = int64(2)
-	leaf0Request       = trillian.GetLeavesByIndexRequest{LogId: logID1, LeafIndex: []int64{0}}
-	leaf0Minus2Request = trillian.GetLeavesByIndexRequest{LogId: logID1, LeafIndex: []int64{0, -2}}
-	leaf03Request      = trillian.GetLeavesByIndexRequest{LogId: logID1, LeafIndex: []int64{0, 3}}
-	leaf0Log2Request   = trillian.GetLeavesByIndexRequest{LogId: logID2, LeafIndex: []int64{0}}
-	leaf1Data          = []byte("value")
-	leaf3Data          = []byte("value3")
-	leaf1Hash, _       = th.HashLeaf(leaf1Data)
-	leaf3Hash, _       = th.HashLeaf(leaf3Data)
-	leaf1              = &trillian.LogLeaf{LeafIndex: 1, MerkleLeafHash: leaf1Hash, LeafValue: leaf1Data, ExtraData: []byte("extra")}
-	leaf3              = &trillian.LogLeaf{LeafIndex: 3, MerkleLeafHash: leaf3Hash, LeafValue: leaf3Data, ExtraData: []byte("extra3")}
+	th               = rfc6962.DefaultHasher
+	logID1           = int64(1)
+	logID2           = int64(2)
+	leaf0Request     = trillian.GetLeavesByIndexRequest{LogId: logID1, LeafIndex: []int64{0}}
+	leaf03Request    = trillian.GetLeavesByIndexRequest{LogId: logID1, LeafIndex: []int64{0, 3}}
+	leaf0Log2Request = trillian.GetLeavesByIndexRequest{LogId: logID2, LeafIndex: []int64{0}}
+	leaf1Data        = []byte("value")
+	leaf3Data        = []byte("value3")
+	leaf1Hash, _     = th.HashLeaf(leaf1Data)
+	leaf3Hash, _     = th.HashLeaf(leaf3Data)
+	leaf1            = &trillian.LogLeaf{
+		MerkleLeafHash: leaf1Hash,
+		LeafValue:      leaf1Data,
+		ExtraData:      []byte("extra"),
+		LeafIndex:      1,
+	}
+	leaf3 = &trillian.LogLeaf{
+		MerkleLeafHash: leaf3Hash,
+		LeafValue:      leaf3Data,
+		ExtraData:      []byte("extra3"),
+		LeafIndex:      3,
+	}
 
 	queueRequest0     = trillian.QueueLeavesRequest{LogId: logID1, Leaves: []*trillian.LogLeaf{leaf1}}
 	queueRequest0Log2 = trillian.QueueLeavesRequest{LogId: logID2, Leaves: []*trillian.LogLeaf{leaf1}}
-	queueRequestEmpty = trillian.QueueLeavesRequest{LogId: logID1, Leaves: []*trillian.LogLeaf{}}
 
 	getLogRootRequest1 = trillian.GetLatestSignedLogRootRequest{LogId: logID1}
 	revision1          = int64(5)
@@ -69,7 +80,6 @@ var (
 	getConsistencyProofRequest7  = trillian.GetConsistencyProofRequest{LogId: logID1, FirstTreeSize: 4, SecondTreeSize: 7}
 	getConsistencyProofRequest44 = trillian.GetConsistencyProofRequest{LogId: logID1, FirstTreeSize: 4, SecondTreeSize: 4}
 	getConsistencyProofRequest48 = trillian.GetConsistencyProofRequest{LogId: logID1, FirstTreeSize: 4, SecondTreeSize: 8}
-	getConsistencyProofRequest54 = trillian.GetConsistencyProofRequest{LogId: logID1, FirstTreeSize: 5, SecondTreeSize: 4}
 
 	nodeIdsInclusionSize7Index2 = []storage.NodeID{
 		stestonly.MustCreateNodeIDForTreeCoords(0, 3, 64),
@@ -78,18 +88,6 @@ var (
 
 	nodeIdsConsistencySize4ToSize7 = []storage.NodeID{stestonly.MustCreateNodeIDForTreeCoords(2, 1, 64)}
 )
-
-func TestGetLeavesByIndexInvalidIndexRejected(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	registry := extension.Registry{}
-	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
-
-	if _, err := server.GetLeavesByIndex(context.Background(), &leaf0Minus2Request); err != nil {
-		t.Fatalf("Returned non app level error response for negative leaf index: %v", err)
-	}
-}
 
 func TestGetLeavesByIndexBeginFailsCausesError(t *testing.T) {
 	ctrl := gomock.NewController(t)
@@ -324,18 +322,6 @@ func TestQueueLeaves(t *testing.T) {
 	}
 }
 
-func TestQueueLeavesNoLeavesRejected(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	registry := extension.Registry{}
-	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
-
-	if _, err := server.QueueLeaves(context.Background(), &queueRequestEmpty); err == nil {
-		t.Fatal("Allowed zero leaves to be queued")
-	}
-}
-
 func TestQueueLeavesBeginFailsCausesError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -388,8 +374,8 @@ func TestGetLatestSignedLogRoot2(t *testing.T) {
 		{
 			// Test error case where storage fails to commit the tx.
 			req:       getLogRootRequest1,
-			errStr:    "Commit",
-			commitErr: errors.New("Commit() error"),
+			errStr:    "commit",
+			commitErr: errors.New("commit() error"),
 		},
 		{
 			// Test normal case where a root is returned correctly.
@@ -434,33 +420,6 @@ func TestGetLatestSignedLogRoot2(t *testing.T) {
 			if !proto.Equal(got.SignedLogRoot, test.wantRoot.SignedLogRoot) {
 				t.Errorf("GetConsistencyProof(%+v)=%v,nil, want: %v,nil", test.req, got, test.wantRoot)
 			}
-		}
-	}
-}
-
-func TestGetLeavesByHashInvalidHash(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	registry := extension.Registry{}
-	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
-
-	for _, test := range []struct {
-		req     *trillian.GetLeavesByHashRequest
-		wantErr bool
-	}{
-		{
-			// This request includes an empty hash, which isn't allowed
-			req: &trillian.GetLeavesByHashRequest{
-				LogId:    logID1,
-				LeafHash: [][]byte{[]byte(""), []byte("data")},
-			},
-			wantErr: true,
-		},
-	} {
-		_, err := server.GetLeavesByHash(context.Background(), test.req)
-		if got := err != nil; got != test.wantErr {
-			t.Errorf("GetLeavesByHash(%v): %v, wantErr: %v", test.req, err, test.wantErr)
 		}
 	}
 }
@@ -1179,11 +1138,11 @@ func TestGetConsistencyProof(t *testing.T) {
 		{
 			// Storage fails to commit, should result in an error.
 			req:        getConsistencyProofRequest7,
-			errStr:     "Commit",
+			errStr:     "commit",
 			wantHashes: [][]byte{[]byte("nodehash")},
 			nodeIDs:    nodeIdsConsistencySize4ToSize7,
 			nodes:      []storage.Node{{NodeID: stestonly.MustCreateNodeIDForTreeCoords(2, 1, 64), NodeRevision: 3, Hash: []byte("nodehash")}},
-			commitErr:  errors.New("Commit() failed"),
+			commitErr:  errors.New("commit() failed"),
 		},
 		{
 			// Storage doesn't return the requested node, should result in an error.
@@ -1211,19 +1170,6 @@ func TestGetConsistencyProof(t *testing.T) {
 			nodeIDs:    nil,
 			noRev:      true,
 			noCommit:   true,
-		},
-		{
-			// Ask for a proof from size 5 to 4, testing the boundary condition. This request should fail
-			// before making any storage requests.
-			req:        getConsistencyProofRequest54,
-			errStr:     "FirstTreeSize: 5 < GetConsistencyProofRequest.SecondTreeSize: 4",
-			wantHashes: [][]byte{},
-			noSnap:     true,
-			noRoot:     true,
-			noRev:      true,
-			nodeIDs:    nil,
-			noCommit:   true,
-			noClose:    true,
 		},
 		{
 			// A normal request which should succeed.
@@ -1290,6 +1236,325 @@ func TestGetConsistencyProof(t *testing.T) {
 			if got, want := response.Proof, &wantProof; !proto.Equal(got, want) {
 				t.Errorf("GetConsistencyProof(%+v)=%v,nil, want: %v,nil", test.req, got, want)
 			}
+		}
+	}
+}
+
+func TestTrillianLogRPCServer_GetConsistencyProofErrors(t *testing.T) {
+	tests := []struct {
+		desc string
+		req  *trillian.GetConsistencyProofRequest
+	}{
+		{
+			desc: "badFirstSize",
+			req: &trillian.GetConsistencyProofRequest{
+				LogId:          1,
+				FirstTreeSize:  -10,
+				SecondTreeSize: 20,
+			},
+		},
+		{
+			desc: "badSecondSize",
+			req: &trillian.GetConsistencyProofRequest{
+				LogId:          1,
+				FirstTreeSize:  10,
+				SecondTreeSize: -20,
+			},
+		},
+		{
+			desc: "firstGreaterThanSecond",
+			req: &trillian.GetConsistencyProofRequest{
+				LogId:          1,
+				FirstTreeSize:  10,
+				SecondTreeSize: 9,
+			},
+		},
+	}
+
+	logServer := NewTrillianLogRPCServer(extension.Registry{}, fakeTimeSource)
+	ctx := context.Background()
+	for _, test := range tests {
+		_, err := logServer.GetConsistencyProof(ctx, test.req)
+		if s, ok := status.FromError(err); !ok || s.Code() != codes.InvalidArgument {
+			t.Errorf("%v: GetConsistencyProof() returned err = %v, wantCode = %s", test.desc, err, codes.InvalidArgument)
+		}
+	}
+}
+
+func TestTrillianLogRPCServer_GetEntryAndProofErrors(t *testing.T) {
+	tests := []struct {
+		desc string
+		req  *trillian.GetEntryAndProofRequest
+	}{
+		{
+			desc: "badLeafIndex",
+			req: &trillian.GetEntryAndProofRequest{
+				LogId:     1,
+				LeafIndex: -10,
+				TreeSize:  20,
+			},
+		},
+		{
+			desc: "badTreeSize",
+			req: &trillian.GetEntryAndProofRequest{
+				LogId:     1,
+				LeafIndex: 10,
+				TreeSize:  -20,
+			},
+		},
+		{
+			desc: "indexGreaterThanSize",
+			req: &trillian.GetEntryAndProofRequest{
+				LogId:     1,
+				LeafIndex: 10,
+				TreeSize:  9,
+			},
+		},
+	}
+
+	logServer := NewTrillianLogRPCServer(extension.Registry{}, fakeTimeSource)
+	ctx := context.Background()
+	for _, test := range tests {
+		_, err := logServer.GetEntryAndProof(ctx, test.req)
+		if s, ok := status.FromError(err); !ok || s.Code() != codes.InvalidArgument {
+			t.Errorf("%v: GetEntryAndProof() returned err = %v, wantCode = %s", test.desc, err, codes.InvalidArgument)
+		}
+	}
+}
+
+func TestTrillianLogRPCServer_GetInclusionProofErrors(t *testing.T) {
+	tests := []struct {
+		desc string
+		req  *trillian.GetInclusionProofRequest
+	}{
+		{
+			desc: "badLeafIndex",
+			req: &trillian.GetInclusionProofRequest{
+				LogId:     1,
+				LeafIndex: -10,
+				TreeSize:  20,
+			},
+		},
+		{
+			desc: "badTreeSize",
+			req: &trillian.GetInclusionProofRequest{
+				LogId:     1,
+				LeafIndex: 10,
+				TreeSize:  -20,
+			},
+		},
+		{
+			desc: "indexGreaterThanSize",
+			req: &trillian.GetInclusionProofRequest{
+				LogId:     1,
+				LeafIndex: 10,
+				TreeSize:  9,
+			},
+		},
+	}
+
+	logServer := NewTrillianLogRPCServer(extension.Registry{}, fakeTimeSource)
+	ctx := context.Background()
+	for _, test := range tests {
+		_, err := logServer.GetInclusionProof(ctx, test.req)
+		if s, ok := status.FromError(err); !ok || s.Code() != codes.InvalidArgument {
+			t.Errorf("%v: GetInclusionProof() returned err = %v, wantCode = %s", test.desc, err, codes.InvalidArgument)
+		}
+	}
+}
+
+func TestTrillianLogRPCServer_GetInclusionProofByHashErrors(t *testing.T) {
+	tests := []struct {
+		desc string
+		req  *trillian.GetInclusionProofByHashRequest
+	}{
+		{
+			desc: "nilLeafHash",
+			req: &trillian.GetInclusionProofByHashRequest{
+				LogId:    1,
+				TreeSize: 20,
+			},
+		},
+		{
+			desc: "badTreeSize",
+			req: &trillian.GetInclusionProofByHashRequest{
+				LogId:    1,
+				LeafHash: []byte("32.bytes.hash..................."),
+				TreeSize: -20,
+			},
+		},
+	}
+
+	logServer := NewTrillianLogRPCServer(extension.Registry{}, fakeTimeSource)
+	ctx := context.Background()
+	for _, test := range tests {
+		_, err := logServer.GetInclusionProofByHash(ctx, test.req)
+		if s, ok := status.FromError(err); !ok || s.Code() != codes.InvalidArgument {
+			t.Errorf("%v: GetInclusionProofByHash() returned err = %v, wantCode = %s", test.desc, err, codes.InvalidArgument)
+		}
+	}
+}
+
+func TestTrillianLogRPCServer_GetLeavesByHashErrors(t *testing.T) {
+	tests := []struct {
+		desc string
+		req  *trillian.GetLeavesByHashRequest
+	}{
+		{
+			desc: "nilLeafHashes",
+			req: &trillian.GetLeavesByHashRequest{
+				LogId: 1,
+			},
+		},
+		{
+			desc: "nilLeafHash",
+			req: &trillian.GetLeavesByHashRequest{
+				LogId: 1,
+				LeafHash: [][]byte{
+					[]byte("32.bytes.hash.a................."),
+					nil,
+					[]byte("32.bytes.hash.b................."),
+				},
+			},
+		},
+	}
+
+	logServer := NewTrillianLogRPCServer(extension.Registry{}, fakeTimeSource)
+	ctx := context.Background()
+	for _, test := range tests {
+		_, err := logServer.GetLeavesByHash(ctx, test.req)
+		if s, ok := status.FromError(err); !ok || s.Code() != codes.InvalidArgument {
+			t.Errorf("%v: GetLeavesByHash() returned err = %v, wantCode = %s", test.desc, err, codes.InvalidArgument)
+		}
+	}
+}
+
+func TestTrillianLogRPCServer_GetLeavesByIndexErrors(t *testing.T) {
+	tests := []struct {
+		desc string
+		req  *trillian.GetLeavesByIndexRequest
+	}{
+		{
+			desc: "nilLeafIndex",
+			req: &trillian.GetLeavesByIndexRequest{
+				LogId: 1,
+			},
+		},
+		{
+			desc: "badLeadIndex",
+			req: &trillian.GetLeavesByIndexRequest{
+				LogId:     1,
+				LeafIndex: []int64{10, -11, 12},
+			},
+		},
+	}
+
+	logServer := NewTrillianLogRPCServer(extension.Registry{}, fakeTimeSource)
+	ctx := context.Background()
+	for _, test := range tests {
+		_, err := logServer.GetLeavesByIndex(ctx, test.req)
+		if s, ok := status.FromError(err); !ok || s.Code() != codes.InvalidArgument {
+			t.Errorf("%v: GetLeavesByIndex() returned err = %v, wantCode = %s", test.desc, err, codes.InvalidArgument)
+		}
+	}
+}
+
+func TestTrillianLogRPCServer_QueueLeafErrors(t *testing.T) {
+	leafValue := []byte("leaf value")
+
+	tests := []struct {
+		desc string
+		req  *trillian.QueueLeafRequest
+	}{
+		{
+			desc: "nilLeaf",
+			req: &trillian.QueueLeafRequest{
+				LogId: 1,
+			},
+		},
+		{
+			desc: "nilLeafValue",
+			req: &trillian.QueueLeafRequest{
+				LogId: 1,
+				Leaf:  &trillian.LogLeaf{},
+			},
+		},
+		{
+			desc: "badLeafIndex",
+			req: &trillian.QueueLeafRequest{
+				LogId: 1,
+				Leaf: &trillian.LogLeaf{
+					LeafValue: leafValue,
+					LeafIndex: -10,
+				},
+			},
+		},
+	}
+
+	logServer := NewTrillianLogRPCServer(extension.Registry{}, fakeTimeSource)
+	ctx := context.Background()
+	for _, test := range tests {
+		_, err := logServer.QueueLeaf(ctx, test.req)
+		if s, ok := status.FromError(err); !ok || s.Code() != codes.InvalidArgument {
+			t.Errorf("%v: QueueLeaf() returned err = %v, wantCode = %s", test.desc, err, codes.InvalidArgument)
+		}
+	}
+}
+
+func TestTrillianLogRPCServer_QueueLeavesErrors(t *testing.T) {
+	leafValue := []byte("leaf value")
+	goodLeaf := &trillian.LogLeaf{
+		LeafValue: leafValue,
+	}
+
+	tests := []struct {
+		desc string
+		req  *trillian.QueueLeavesRequest
+	}{
+		{
+			desc: "nilLeaves",
+			req: &trillian.QueueLeavesRequest{
+				LogId: 1,
+			},
+		},
+		{
+			desc: "nilLeaf",
+			req: &trillian.QueueLeavesRequest{
+				LogId:  1,
+				Leaves: []*trillian.LogLeaf{goodLeaf, nil},
+			},
+		},
+		{
+			desc: "nilLeafValue",
+			req: &trillian.QueueLeavesRequest{
+				LogId: 1,
+				Leaves: []*trillian.LogLeaf{
+					goodLeaf,
+					{},
+				},
+			},
+		},
+		{
+			desc: "badLeafIndex",
+			req: &trillian.QueueLeavesRequest{
+				LogId: 1,
+				Leaves: []*trillian.LogLeaf{
+					goodLeaf,
+					{
+						LeafValue: leafValue,
+						LeafIndex: -10,
+					},
+				},
+			},
+		},
+	}
+
+	logServer := NewTrillianLogRPCServer(extension.Registry{}, fakeTimeSource)
+	ctx := context.Background()
+	for _, test := range tests {
+		_, err := logServer.QueueLeaves(ctx, test.req)
+		if s, ok := status.FromError(err); !ok || s.Code() != codes.InvalidArgument {
+			t.Errorf("%v: QueueLeaves() returned err = %v, wantCode = %s", test.desc, err, codes.InvalidArgument)
 		}
 	}
 }

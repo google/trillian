@@ -16,7 +16,6 @@ package client
 
 import (
 	"crypto"
-	"crypto/sha256"
 	"fmt"
 
 	"github.com/google/trillian"
@@ -104,15 +103,12 @@ func (c *logVerifier) VerifyInclusionByHash(trusted *trillian.SignedLogRoot, lea
 }
 
 func (c *logVerifier) buildLeaf(data []byte) (*trillian.LogLeaf, error) {
-	hash := sha256.Sum256(data)
 	leafHash, err := c.hasher.HashLeaf(data)
 	if err != nil {
 		return nil, err
 	}
-
 	return &trillian.LogLeaf{
-		LeafValue:        data,
-		MerkleLeafHash:   leafHash,
-		LeafIdentityHash: hash[:],
+		LeafValue:      data,
+		MerkleLeafHash: leafHash,
 	}, nil
 }

@@ -105,6 +105,9 @@ type LogLeaf struct {
 	// dupes since the source log could contain them), the part of the
 	// personality which fetches and submits the entries might set
 	// leaf_identity_hash to H(seq||certdata).
+	//
+	// If leaf_identity_hash is empty, it's assumed to be the same as the
+	// merkle_leaf_hash.
 	LeafIdentityHash []byte `protobuf:"bytes,5,opt,name=leaf_identity_hash,json=leafIdentityHash,proto3" json:"leaf_identity_hash,omitempty"`
 }
 

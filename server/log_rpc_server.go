@@ -66,6 +66,10 @@ func (t *TrillianLogRPCServer) IsHealthy() error {
 
 // QueueLeaf submits one leaf to the queue.
 func (t *TrillianLogRPCServer) QueueLeaf(ctx context.Context, req *trillian.QueueLeafRequest) (*trillian.QueueLeafResponse, error) {
+	if err := validateQueueLeafRequest(req); err != nil {
+		return nil, err
+	}
+
 	queueReq := &trillian.QueueLeavesRequest{
 		LogId:  req.LogId,
 		Leaves: []*trillian.LogLeaf{req.Leaf},
@@ -96,12 +100,15 @@ func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.Qu
 	}
 	ctx = trees.NewContext(ctx, tree)
 
-	for i := range req.Leaves {
-		leafHash, err := hasher.HashLeaf(req.Leaves[i].LeafValue)
+	for _, leaf := range req.Leaves {
+		var err error
+		leaf.MerkleLeafHash, err = hasher.HashLeaf(leaf.LeafValue)
 		if err != nil {
 			return nil, err
 		}
-		req.Leaves[i].MerkleLeafHash = leafHash
+		if len(leaf.LeafIdentityHash) == 0 {
+			leaf.LeafIdentityHash = leaf.MerkleLeafHash
+		}
 	}
 
 	tx, err := t.prepareStorageTx(ctx, logID)
@@ -327,8 +334,8 @@ func (t *TrillianLogRPCServer) GetSequencedLeafCount(ctx context.Context, req *t
 // TODO: Validate indices against published tree size in case we implement write sharding that
 // can get ahead of this point. Not currently clear what component should own this state.
 func (t *TrillianLogRPCServer) GetLeavesByIndex(ctx context.Context, req *trillian.GetLeavesByIndexRequest) (*trillian.GetLeavesByIndexResponse, error) {
-	if !validateLeafIndices(req.LeafIndex) {
-		return &trillian.GetLeavesByIndexResponse{}, nil
+	if err := validateGetLeavesByIndexRequest(req); err != nil {
+		return nil, err
 	}
 
 	tx, err := t.prepareReadOnlyStorageTx(ctx, req.LogId)
@@ -355,9 +362,28 @@ func (t *TrillianLogRPCServer) GetLeavesByIndex(ctx context.Context, req *trilli
 // to fetch leaves that have been queued but not yet integrated. Logs may accept duplicate
 // entries so this may return more results than the number of hashes in the request.
 func (t *TrillianLogRPCServer) GetLeavesByHash(ctx context.Context, req *trillian.GetLeavesByHashRequest) (*trillian.GetLeavesByHashResponse, error) {
-	return t.getLeavesByHashInternal(ctx, "GetLeavesByHash", req, func(tx storage.ReadOnlyLogTreeTX, hashes [][]byte, sequenceOrder bool) ([]*trillian.LogLeaf, error) {
-		return tx.GetLeavesByHash(ctx, hashes, sequenceOrder)
-	})
+	if err := validateGetLeavesByHashRequest(req); err != nil {
+		return nil, err
+	}
+
+	tx, err := t.prepareReadOnlyStorageTx(ctx, req.LogId)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Close()
+
+	leaves, err := tx.GetLeavesByHash(ctx, req.LeafHash, req.OrderBySequence)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := t.commitAndLog(ctx, req.LogId, tx, "GetLeavesByHash"); err != nil {
+		return nil, err
+	}
+
+	return &trillian.GetLeavesByHashResponse{
+		Leaves: leaves,
+	}, nil
 }
 
 // GetEntryAndProof returns both a Merkle Leaf entry and an inclusion proof for a given index
@@ -437,27 +463,6 @@ func (t *TrillianLogRPCServer) commitAndLog(ctx context.Context, logID int64, tx
 	return err
 }
 
-func validateLeafIndices(leafIndices []int64) bool {
-	for _, index := range leafIndices {
-		if index < 0 {
-			return false
-		}
-	}
-
-	return true
-}
-
-// We only validate they're not empty at this point, we let the log do any further checks
-func validateLeafHashes(leafHashes [][]byte) bool {
-	for _, hash := range leafHashes {
-		if len(hash) == 0 {
-			return false
-		}
-	}
-
-	return true
-}
-
 // getInclusionProofForLeafIndex is used by multiple handlers. It does the storage fetching
 // and makes additional checks on the returned proof. Returns a Proof suitable for inclusion in
 // an RPC response
@@ -469,33 +474,6 @@ func getInclusionProofForLeafIndex(ctx context.Context, tx storage.ReadOnlyLogTr
 	}
 
 	return fetchNodesAndBuildProof(ctx, tx, hasher, tx.ReadRevision(), leafIndex, proofNodeIDs)
-}
-
-// getLeavesByHashInternal does the work of fetching leaves by either their raw data or merkle
-// tree hash depending on the supplied fetch function
-func (t *TrillianLogRPCServer) getLeavesByHashInternal(ctx context.Context, desc string, req *trillian.GetLeavesByHashRequest, fetchFunc func(storage.ReadOnlyLogTreeTX, [][]byte, bool) ([]*trillian.LogLeaf, error)) (*trillian.GetLeavesByHashResponse, error) {
-	if len(req.LeafHash) == 0 || !validateLeafHashes(req.LeafHash) {
-		return nil, status.Errorf(codes.FailedPrecondition, "Invalid leaf hash")
-	}
-
-	tx, err := t.prepareReadOnlyStorageTx(ctx, req.LogId)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Close()
-
-	leaves, err := fetchFunc(tx, req.LeafHash, req.OrderBySequence)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := t.commitAndLog(ctx, req.LogId, tx, desc); err != nil {
-		return nil, err
-	}
-
-	return &trillian.GetLeavesByHashResponse{
-		Leaves: leaves,
-	}, nil
 }
 
 func (t *TrillianLogRPCServer) getTreeAndHasher(ctx context.Context, treeID int64, readonly bool) (*trillian.Tree, hashers.LogHasher, error) {
