@@ -17,6 +17,7 @@ package integration
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
@@ -64,6 +65,10 @@ func NewMapEnvFromConn(addr string) (*MapEnv, error) {
 
 // NewMapEnv creates a fresh DB, map server, and client.
 func NewMapEnv(ctx context.Context) (*MapEnv, error) {
+	if provider := testdb.Default(); !provider.IsMySQL() {
+		return nil, fmt.Errorf("map integration test has concurrent writes and needs MySQL. SQL driver is %v", provider.Driver)
+	}
+
 	db, err := testdb.NewTrillianDB(ctx)
 	if err != nil {
 		return nil, err

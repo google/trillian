@@ -23,7 +23,7 @@ import (
 
 func TestMapIntegration(t *testing.T) {
 	if provider := testdb.Default(); !provider.IsMySQL() {
-		t.Skipf("Skipping map integration test, SQL driver is %q", provider.Driver)
+		t.Skipf("Skipping map integration test, SQL driver is %v", provider.Driver)
 	}
 	ctx := context.Background()
 	for _, test := range AllTests {
