@@ -16,16 +16,44 @@ package maptest
 
 import (
 	"context"
+	"flag"
+	"log"
 	"testing"
 
 	"github.com/google/trillian/storage/testdb"
+	"github.com/google/trillian/testonly/integration"
+
+	_ "github.com/google/trillian/merkle/coniks"
+	_ "github.com/google/trillian/merkle/maphasher"
 )
 
+var server = flag.String("map_rpc_server", "", "Server address:port")
+
 func TestMapIntegration(t *testing.T) {
-	if provider := testdb.Default(); !provider.IsMySQL() {
-		t.Skipf("Skipping map integration test, SQL driver is %v", provider.Driver)
-	}
+	flag.Parse()
+
 	ctx := context.Background()
+	var env *integration.MapEnv
+
+	if *server == "" {
+		if provider := testdb.Default(); !provider.IsMySQL() {
+			t.Skipf("Skipping map integration test, SQL driver is %v", provider.Driver)
+		}
+		mapEnv, err := integration.NewMapEnv(ctx)
+		if err != nil {
+			log.Fatalf("NewMapEnv(): %v", err)
+		}
+		env = mapEnv
+		defer env.Close()
+	} else {
+		mapEnv, err := integration.NewMapEnvFromConn(*server)
+		if err != nil {
+			log.Fatalf("failed to get map client: %v", err)
+		}
+		env = mapEnv
+		defer env.Close()
+	}
+
 	for _, test := range AllTests {
 		t.Run(test.Name, func(t *testing.T) {
 			test.Fn(ctx, t, env.AdminClient, env.MapClient)
