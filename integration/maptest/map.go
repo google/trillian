@@ -196,7 +196,7 @@ func RunLeafHistory(ctx context.Context, t *testing.T, tadmin trillian.TrillianA
 					Leaves: batch,
 				})
 				if err != nil {
-					t.Errorf("%v: SetLeaves(): %v", tc.desc, err)
+					t.Fatalf("%v: SetLeaves(): %v", tc.desc, err)
 				}
 				glog.Infof("Rev: %v Set(): %x", setResp.GetMapRoot().GetMapRevision(), setResp.GetMapRoot().GetRootHash())
 			}
@@ -210,10 +210,14 @@ func RunLeafHistory(ctx context.Context, t *testing.T, tadmin trillian.TrillianA
 				})
 				if err != nil {
 					t.Errorf("%v: GetLeaves(): %v", tc.desc, err)
+					continue
 				}
 				glog.Infof("Rev: %v Get(): %x", getResp.GetMapRoot().GetMapRevision(), getResp.GetMapRoot().GetRootHash())
 
-				if got, want := getResp.MapLeafInclusion[0].GetLeaf().GetLeafValue(), batch.LeafValue; !bytes.Equal(got, want) {
+				if got, want := len(getResp.GetMapLeafInclusion()), 1; got < want {
+					t.Errorf("GetLeaves(rev: %v).len: %v, want >= %v", batch.revision, got, want)
+				}
+				if got, want := getResp.GetMapLeafInclusion()[0].GetLeaf().GetLeafValue(), batch.LeafValue; !bytes.Equal(got, want) {
 					t.Errorf("GetLeaves(rev: %v).LeafValue: %s, want %s", batch.revision, got, want)
 				}
 
@@ -411,11 +415,13 @@ func runMapBatchTest(ctx context.Context, t *testing.T, desc string, tmap trilli
 		})
 		if err != nil {
 			t.Errorf("%s: GetLeaves(): %v", desc, err)
+			continue
 		}
 
 		if err := verifyGetMapLeavesResponse(getResp, indexes, int64(numBatches),
 			pubKey, hasher, tree.TreeId); err != nil {
 			t.Errorf("%s: batch %v: verifyGetMapLeavesResponse(): %v", desc, i, err)
+			continue
 		}
 
 		// Verify leaf contents
