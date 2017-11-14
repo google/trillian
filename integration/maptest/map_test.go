@@ -34,25 +34,19 @@ func TestMapIntegration(t *testing.T) {
 
 	ctx := context.Background()
 	var env *integration.MapEnv
-
+	var err error
 	if *server == "" {
 		if provider := testdb.Default(); !provider.IsMySQL() {
 			t.Skipf("Skipping map integration test, SQL driver is %v", provider.Driver)
 		}
-		mapEnv, err := integration.NewMapEnv(ctx)
-		if err != nil {
-			log.Fatalf("NewMapEnv(): %v", err)
-		}
-		env = mapEnv
-		defer env.Close()
+		env, err = integration.NewMapEnv(ctx)
 	} else {
-		mapEnv, err := integration.NewMapEnvFromConn(*server)
-		if err != nil {
-			log.Fatalf("failed to get map client: %v", err)
-		}
-		env = mapEnv
-		defer env.Close()
+		env, err = integration.NewMapEnvFromConn(*server)
 	}
+	if err != nil {
+		log.Fatalf("Could not create MapEnv: %v", err)
+	}
+	defer env.Close()
 
 	for _, test := range AllTests {
 		t.Run(test.Name, func(t *testing.T) {
