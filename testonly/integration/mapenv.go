@@ -23,9 +23,11 @@ import (
 	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/extension"
+	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/server"
 	"github.com/google/trillian/server/admin"
+	"github.com/google/trillian/server/interceptor"
 	"github.com/google/trillian/storage/mysql"
 	"github.com/google/trillian/storage/testdb"
 	"google.golang.org/grpc"
@@ -73,6 +75,7 @@ func NewMapEnv(ctx context.Context) (*MapEnv, error) {
 		AdminStorage: mysql.NewAdminStorage(db),
 		MapStorage:   mysql.NewMapStorage(db),
 		QuotaManager: quota.Noop(),
+		MetricFactory: monitoring.InertMetricFactory{},
 		NewKeyProto: func(ctx context.Context, spec *keyspb.Specification) (proto.Message, error) {
 			return der.NewProtoFromSpec(spec)
 		},
@@ -95,8 +98,12 @@ func NewMapEnvWithRegistry(registry extension.Registry) (*MapEnv, error) {
 		return nil, err
 	}
 
+	ti := interceptor.New(
+		registry.AdminStorage, registry.QuotaManager, false /* quotaDryRun */, registry.MetricFactory)
+	ci := interceptor.Combine(interceptor.ErrorWrapper, ti.UnaryInterceptor)
+
 	// Create Map Server.
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(ci))
 	mapServer := server.NewTrillianMapServer(registry)
 	trillian.RegisterTrillianMapServer(grpcServer, mapServer)
 	trillian.RegisterTrillianAdminServer(grpcServer, admin.New(registry))
