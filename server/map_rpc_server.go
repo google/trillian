@@ -58,7 +58,7 @@ func (t *TrillianMapServer) Init(ctx context.Context, mapID int64) error {
 	ctx = trees.NewContext(ctx, tree)
 
 	tx, err := t.registry.MapStorage.BeginForTree(ctx, mapID)
-	if err != nil && err != storage.ErrMapNeedsInit {
+	if err != storage.ErrMapNeedsInit && err != nil {
 			return err
 	}
 	defer tx.Close()
