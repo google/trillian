@@ -247,7 +247,10 @@ func (m *mapTreeTX) GetSignedMapRoot(ctx context.Context, revision int64) (trill
 	err = stmt.QueryRowContext(ctx, m.treeID, revision).Scan(
 		&timestamp, &rootHash, &mapRevision, &rootSignatureBytes, &mapperMetaBytes)
 	if err != nil {
-		return trillian.SignedMapRoot{}, storage.ErrMapNeedsInit
+		if revision == 0 {
+			return trillian.SignedMapRoot{}, storage.ErrMapNeedsInit
+		}
+		return trillian.SignedMapRoot{}, err
 	}
 	return m.signedMapRoot(timestamp, mapRevision, rootHash, rootSignatureBytes, mapperMetaBytes)
 }
@@ -269,6 +272,8 @@ func (m *mapTreeTX) LatestSignedMapRoot(ctx context.Context) (trillian.SignedMap
 	// It's possible there are no roots for this tree yet
 	if err == sql.ErrNoRows {
 		return trillian.SignedMapRoot{}, storage.ErrMapNeedsInit
+	} else if err != nil {
+		return trillian.SignedMapRoot{}, err
 	}
 	return m.signedMapRoot(timestamp, mapRevision, rootHash, rootSignatureBytes, mapperMetaBytes)
 }

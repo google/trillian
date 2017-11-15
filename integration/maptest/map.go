@@ -156,7 +156,7 @@ func RunMapRevisionZero(ctx context.Context, t *testing.T, tadmin trillian.Trill
 		wantRev      int64
 	}{
 		{
-			desc:         "empty map has signed map head at revision zero",
+			desc:         "empty map has SMR at rev 0 but not rev 1",
 			hashStrategy: []trillian.HashStrategy{trillian.HashStrategy_TEST_MAP_HASHER, trillian.HashStrategy_CONIKS_SHA512_256},
 			wantRev: 0,
 		},
@@ -198,6 +198,16 @@ func RunMapRevisionZero(ctx context.Context, t *testing.T, tadmin trillian.Trill
 			if diff := pretty.Compare(got, want); diff != "" {
 				t.Errorf("%v: GetSignedMapRootByRevision() != GetSignedMapRoot(); diff (-got +want):\n%v", tc.desc, diff)
 			}
+			//
+			getSmrByRevResp, err = tmap.GetSignedMapRootByRevision(ctx, &trillian.GetSignedMapRootByRevisionRequest{
+				MapId: tree.TreeId,
+				Revision: 1,
+			})
+			if err == nil {
+				t.Errorf("%v: GetSignedMapRootByRevision(rev: 1) err? false want? true", tc.desc)
+			}
+			// TODO(phad): ideally we'd inspect err's type and check it contains a NOT_FOUND Code (5), but I don't want
+			// a dependency on gRPC here.
 		}
 	}
 }
