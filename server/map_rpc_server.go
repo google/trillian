@@ -92,12 +92,12 @@ func (t *TrillianMapServer) Init(ctx context.Context, mapID int64) error {
 		return fmt.Errorf("CalculateRoot(): %v", err)
 	}
 
-	newRoot, err := t.makeSignedMapRoot(ctx, tree, time.Now(), rootHash, mapID, 0 /*revision*/, nil /* metadata */)
+	rev0Root, err := t.makeSignedMapRoot(ctx, tree, time.Now(), rootHash, mapID, 0 /*revision*/, nil /* metadata */)
 	if err != nil {
 		return fmt.Errorf("makeSignedMapRoot(): %v", err)
 	}
 
-	if err = tx.StoreSignedMapRoot(ctx, *newRoot); err != nil {
+	if err = tx.StoreSignedMapRoot(ctx, *rev0Root); err != nil {
 		return err
 	}
 
@@ -287,7 +287,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 
 func (t *TrillianMapServer) makeSignedMapRoot(ctx context.Context, tree *trillian.Tree, smrTs time.Time,
 		rootHash []byte, mapID, revision int64, meta *any.Any) (*trillian.SignedMapRoot, error) {
-	newRoot := &trillian.SignedMapRoot{
+	smr := &trillian.SignedMapRoot{
 		TimestampNanos: smrTs.UnixNano(),
 		RootHash:       rootHash,
 		MapId:          mapID,
@@ -298,12 +298,12 @@ func (t *TrillianMapServer) makeSignedMapRoot(ctx context.Context, tree *trillia
 	if err != nil {
 		return nil, fmt.Errorf("trees.Signer(): %v", err)
 	}
-	sig, err := signer.SignObject(newRoot)
+	sig, err := signer.SignObject(smr)
 	if err != nil {
 		return nil, fmt.Errorf("SignObject(): %v", err)
 	}
-	newRoot.Signature = sig
-	return newRoot, nil
+	smr.Signature = sig
+	return smr, nil
 }
 
 // GetSignedMapRoot implements the GetSignedMapRoot RPC method.
