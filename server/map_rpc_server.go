@@ -26,6 +26,7 @@ import (
 	"github.com/google/trillian/trees"
 
 	"github.com/golang/glog"
+	"github.com/golang/protobuf/ptypes/any"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -90,25 +91,13 @@ func (t *TrillianMapServer) Init(ctx context.Context, mapID int64) error {
 	if err != nil {
 		return fmt.Errorf("CalculateRoot(): %v", err)
 	}
-	newRoot := trillian.SignedMapRoot{
-		TimestampNanos: time.Now().UnixNano(),  // TODO(phad): should this be the tree create timestamp?
-		RootHash:       rootHash,
-		MapId:          mapID,
-		MapRevision:    0,
+
+	newRoot, err := t.makeSignedMapRoot(ctx, tree, time.Now(), rootHash, mapID, 0 /*revision*/, nil /* metadata */)
+	if err != nil {
+		return fmt.Errorf("makeSignedMapRoot(): %v", err)
 	}
 
-	// Sign the root.
-	signer, err := trees.Signer(ctx, tree)
-	if err != nil {
-		return fmt.Errorf("trees.Signer(): %v", err)
-	}
-	sig, err := signer.SignObject(newRoot)
-	if err != nil {
-		return fmt.Errorf("SignObject(): %v", err)
-	}
-	newRoot.Signature = sig
-
-	if err = tx.StoreSignedMapRoot(ctx, newRoot); err != nil {
+	if err = tx.StoreSignedMapRoot(ctx, *newRoot); err != nil {
 		return err
 	}
 
@@ -277,14 +266,34 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 	if err != nil {
 		return nil, fmt.Errorf("CalculateRoot(): %v", err)
 	}
-	newRoot := trillian.SignedMapRoot{
-		TimestampNanos: time.Now().UnixNano(),
-		RootHash:       rootHash,
-		MapId:          req.MapId,
-		MapRevision:    tx.WriteRevision(),
-		Metadata:       req.Metadata,
+
+	newRoot, err := t.makeSignedMapRoot(ctx, tree, time.Now(), rootHash,req.MapId, tx.WriteRevision(), req.Metadata)
+	if err != nil {
+		return nil, fmt.Errorf("makeSignedMapRoot(): %v", err)
 	}
-	// Sign the root.
+
+	// TODO(al): need an smtWriter.Rollback() or similar I think.
+	if err = tx.StoreSignedMapRoot(ctx, *newRoot); err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		glog.Warningf("%v: Commit failed for SetLeaves: %v", mapID, err)
+		return nil, err
+	}
+
+	return &trillian.SetMapLeavesResponse{MapRoot: newRoot}, nil
+}
+
+func (t *TrillianMapServer) makeSignedMapRoot(ctx context.Context, tree *trillian.Tree, smrTs time.Time,
+		rootHash []byte, mapID, revision int64, meta *any.Any) (*trillian.SignedMapRoot, error) {
+	newRoot := &trillian.SignedMapRoot{
+		TimestampNanos: smrTs.UnixNano(),
+		RootHash:       rootHash,
+		MapId:          mapID,
+		MapRevision:    revision,
+		Metadata:       meta,
+	}
 	signer, err := trees.Signer(ctx, tree)
 	if err != nil {
 		return nil, fmt.Errorf("trees.Signer(): %v", err)
@@ -294,20 +303,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		return nil, fmt.Errorf("SignObject(): %v", err)
 	}
 	newRoot.Signature = sig
-
-	// TODO(al): need an smtWriter.Rollback() or similar I think.
-	if err = tx.StoreSignedMapRoot(ctx, newRoot); err != nil {
-		return nil, err
-	}
-
-	if err := tx.Commit(); err != nil {
-		glog.Warningf("%v: Commit failed for SetLeaves: %v", mapID, err)
-		return nil, err
-	}
-
-	return &trillian.SetMapLeavesResponse{
-		MapRoot: &newRoot,
-	}, nil
+	return newRoot, nil
 }
 
 // GetSignedMapRoot implements the GetSignedMapRoot RPC method.
