@@ -42,6 +42,8 @@ import (
 	"github.com/google/trillian/storage/testonly"
 	"github.com/kylelemons/godebug/pretty"
 	"google.golang.org/genproto/protobuf/field_mask"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	ttestonly "github.com/google/trillian/testonly"
 )
@@ -532,6 +534,71 @@ func TestServer_CreateTree(t *testing.T) {
 	}
 }
 
+func TestServer_CreateTree_AllowedTreeTypes(t *testing.T) {
+	ctrl := gomock.NewController(t)
+
+	tests := []struct {
+		desc      string
+		treeTypes []trillian.TreeType
+		req       *trillian.CreateTreeRequest
+		wantCode  codes.Code
+		wantMsg   string
+	}{
+		{
+			desc:      "mapOnLogServer",
+			treeTypes: []trillian.TreeType{trillian.TreeType_LOG},
+			req:       &trillian.CreateTreeRequest{Tree: testonly.MapTree},
+			wantCode:  codes.InvalidArgument,
+			wantMsg:   "tree type MAP not allowed",
+		},
+		{
+			desc:      "logOnMapServer",
+			treeTypes: []trillian.TreeType{trillian.TreeType_MAP},
+			req:       &trillian.CreateTreeRequest{Tree: testonly.LogTree},
+			wantCode:  codes.InvalidArgument,
+			wantMsg:   "tree type LOG not allowed",
+		},
+		{
+			desc:      "logOnLogServer",
+			treeTypes: []trillian.TreeType{trillian.TreeType_LOG},
+			req:       &trillian.CreateTreeRequest{Tree: testonly.LogTree},
+			wantCode:  codes.OK,
+		},
+		{
+			desc:      "mapOnMapServer",
+			treeTypes: []trillian.TreeType{trillian.TreeType_MAP},
+			req:       &trillian.CreateTreeRequest{Tree: testonly.MapTree},
+			wantCode:  codes.OK,
+		},
+		// treeTypes = nil is exercised by all other tests.
+	}
+
+	ctx := context.Background()
+	for _, test := range tests {
+		setup := setupAdminServer(
+			ctrl,
+			nil,   /* keygen */
+			false, /* snapshot */
+			test.wantCode == codes.OK, /* shouldCommit */
+			false /* commitErr */)
+		s := setup.server
+		tx := setup.tx
+		s.allowedTreeTypes = test.treeTypes
+
+		// Storage interactions aren't the focus of this test, so mocks are configured in a rather
+		// permissive way.
+		tx.EXPECT().CreateTree(ctx, gomock.Any()).AnyTimes().Return(&trillian.Tree{}, nil)
+
+		_, err := s.CreateTree(ctx, test.req)
+		switch s, ok := status.FromError(err); {
+		case !ok || s.Code() != test.wantCode:
+			t.Errorf("%v: CreateTree() returned err = %v, wantCode = %s", test.desc, err, test.wantCode)
+		case err != nil && !strings.Contains(err.Error(), test.wantMsg):
+			t.Errorf("%v: CreateTree() returned err = %q, wantMsg = %q", test.desc, err, test.wantMsg)
+		}
+	}
+}
+
 func TestServer_UpdateTree(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -875,7 +942,7 @@ func setupAdminServer(ctrl *gomock.Controller, keygen keys.ProtoGenerator, snaps
 		NewKeyProto:  keygen,
 	}
 
-	s := &Server{registry}
+	s := &Server{registry: registry}
 
 	return adminTestSetup{registry, as, tx, snapshotTX, s}
 }

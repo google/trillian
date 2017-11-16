@@ -16,6 +16,7 @@ package admin
 
 import (
 	"bytes"
+	"fmt"
 
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/ptypes"
@@ -34,12 +35,19 @@ import (
 
 // Server is an implementation of trillian.TrillianAdminServer.
 type Server struct {
-	registry extension.Registry
+	registry         extension.Registry
+	allowedTreeTypes []trillian.TreeType
 }
 
 // New returns a trillian.TrillianAdminServer implementation.
-func New(registry extension.Registry) *Server {
-	return &Server{registry}
+// registry is the extension.Registry used by the Server.
+// allowedTreeTypes defines which tree types may be created through this server,
+// with nil meaning unrestricted.
+func New(registry extension.Registry, allowedTreeTypes []trillian.TreeType) *Server {
+	return &Server{
+		registry:         registry,
+		allowedTreeTypes: allowedTreeTypes,
+	}
 }
 
 // IsHealthy returns nil if the server is healthy, error otherwise.
@@ -92,6 +100,9 @@ func (s *Server) CreateTree(ctx context.Context, req *trillian.CreateTreeRequest
 	tree := req.GetTree()
 	if tree == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "a tree is required")
+	}
+	if err := s.validateAllowedTreeType(tree.TreeType); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	switch tree.TreeType {
 	case trillian.TreeType_LOG:
@@ -176,6 +187,18 @@ func (s *Server) CreateTree(ctx context.Context, req *trillian.CreateTreeRequest
 		return nil, err
 	}
 	return redact(newTree), nil
+}
+
+func (s *Server) validateAllowedTreeType(tt trillian.TreeType) error {
+	if s.allowedTreeTypes == nil {
+		return nil // All types OK
+	}
+	for _, allowedType := range s.allowedTreeTypes {
+		if tt == allowedType {
+			return nil
+		}
+	}
+	return fmt.Errorf("tree type %s not allowed by this server", tt)
 }
 
 // UpdateTree implements trillian.TrillianAdminServer.UpdateTree.

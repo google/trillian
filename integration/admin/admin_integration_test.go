@@ -596,7 +596,7 @@ func setupAdminServer(ctx context.Context) (*testServer, error) {
 		registry.AdminStorage, registry.QuotaManager, false /* quotaDryRun */, registry.MetricFactory)
 	netInterceptor := interceptor.Combine(interceptor.ErrorWrapper, ti.UnaryInterceptor)
 	ts.server = grpc.NewServer(grpc.UnaryInterceptor(netInterceptor))
-	trillian.RegisterTrillianAdminServer(ts.server, sa.New(registry))
+	trillian.RegisterTrillianAdminServer(ts.server, sa.New(registry, nil /* allowedTreeTypes */))
 	go ts.server.Serve(ts.lis)
 
 	ts.conn, err = grpc.Dial(ts.lis.Addr().String(), grpc.WithInsecure())

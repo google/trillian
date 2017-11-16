@@ -226,7 +226,7 @@ func newTestServer(registry extension.Registry) (*testServer, error) {
 		registry.AdminStorage, registry.QuotaManager, false /* quotaDryRun */, registry.MetricFactory)
 	netInterceptor := interceptor.Combine(interceptor.ErrorWrapper, intercept.UnaryInterceptor)
 	s.server = grpc.NewServer(grpc.UnaryInterceptor(netInterceptor))
-	trillian.RegisterTrillianAdminServer(s.server, admin.New(registry))
+	trillian.RegisterTrillianAdminServer(s.server, admin.New(registry, nil /* allowedTreeTypes */))
 	trillian.RegisterTrillianLogServer(s.server, server.NewTrillianLogRPCServer(registry, util.SystemTimeSource{}))
 
 	var err error
