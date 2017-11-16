@@ -547,16 +547,16 @@ func createInitializedMapForTests(t *testing.T, ctx context.Context, db *sql.DB)
 	mapID := createMapForTests(db)
 
 	s := NewMapStorage(db)
-	tx, err := s.BeginForTree(ctx, mapID)	
+	tx, err := s.BeginForTree(ctx, mapID)
 	defer tx.Close()
 
 	initialRoot := trillian.SignedMapRoot{
-		RootHash:       []byte("rootHash"),
-		Signature:      &sigpb.DigitallySigned{
-			Signature:  []byte("sig"),
+		RootHash: []byte("rootHash"),
+		Signature: &sigpb.DigitallySigned{
+			Signature: []byte("sig"),
 		},
-		MapId:          mapID,
-		MapRevision:    0,
+		MapId:       mapID,
+		MapRevision: 0,
 	}
 
 	if err = tx.StoreSignedMapRoot(ctx, initialRoot); err != nil {

@@ -123,7 +123,7 @@ func (m *mySQLMapStorage) begin(ctx context.Context, treeID int64, readonly bool
 	}
 
 	mtx.root, err = mtx.LatestSignedMapRoot(ctx)
-	if err != nil && err != storage.ErrMapNeedsInit{
+	if err != nil && err != storage.ErrMapNeedsInit {
 		return nil, err
 	}
 	if err == storage.ErrMapNeedsInit {

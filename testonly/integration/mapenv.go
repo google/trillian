@@ -72,9 +72,9 @@ func NewMapEnv(ctx context.Context) (*MapEnv, error) {
 	}
 
 	registry := extension.Registry{
-		AdminStorage: mysql.NewAdminStorage(db),
-		MapStorage:   mysql.NewMapStorage(db),
-		QuotaManager: quota.Noop(),
+		AdminStorage:  mysql.NewAdminStorage(db),
+		MapStorage:    mysql.NewMapStorage(db),
+		QuotaManager:  quota.Noop(),
 		MetricFactory: monitoring.InertMetricFactory{},
 		NewKeyProto: func(ctx context.Context, spec *keyspb.Specification) (proto.Message, error) {
 			return der.NewProtoFromSpec(spec)

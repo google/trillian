@@ -145,8 +145,8 @@ func TestGetSignedMapRoot(t *testing.T) {
 			lsmrErr: errors.New("sql: no rows in result set"),
 		},
 		{
-			desc:    "Snapshot returns Error",
-			req:     &trillian.GetSignedMapRootRequest{MapId: mapID1},
+			desc:      "Snapshot returns Error",
+			req:       &trillian.GetSignedMapRootRequest{MapId: mapID1},
 			snapShErr: errors.New("unknown map"),
 		},
 	}

@@ -60,7 +60,7 @@ func (t *TrillianMapServer) Init(ctx context.Context, mapID int64) error {
 
 	tx, err := t.registry.MapStorage.BeginForTree(ctx, mapID)
 	if err != storage.ErrMapNeedsInit && err != nil {
-			return err
+		return err
 	}
 	defer tx.Close()
 
@@ -75,7 +75,7 @@ func (t *TrillianMapServer) Init(ctx context.Context, mapID int64) error {
 	smtWriter, err := merkle.NewSparseMerkleTreeWriter(
 		ctx,
 		mapID,
-		0 /* write revision */,
+		0, /* write revision */
 		hasher, func() (storage.TreeTX, error) {
 			ttx, err := t.registry.MapStorage.BeginForTree(ctx, mapID)
 			if err == storage.ErrMapNeedsInit {
@@ -267,7 +267,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		return nil, fmt.Errorf("CalculateRoot(): %v", err)
 	}
 
-	newRoot, err := t.makeSignedMapRoot(ctx, tree, time.Now(), rootHash,req.MapId, tx.WriteRevision(), req.Metadata)
+	newRoot, err := t.makeSignedMapRoot(ctx, tree, time.Now(), rootHash, req.MapId, tx.WriteRevision(), req.Metadata)
 	if err != nil {
 		return nil, fmt.Errorf("makeSignedMapRoot(): %v", err)
 	}
@@ -286,7 +286,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 }
 
 func (t *TrillianMapServer) makeSignedMapRoot(ctx context.Context, tree *trillian.Tree, smrTs time.Time,
-		rootHash []byte, mapID, revision int64, meta *any.Any) (*trillian.SignedMapRoot, error) {
+	rootHash []byte, mapID, revision int64, meta *any.Any) (*trillian.SignedMapRoot, error) {
 	smr := &trillian.SignedMapRoot{
 		TimestampNanos: smrTs.UnixNano(),
 		RootHash:       rootHash,

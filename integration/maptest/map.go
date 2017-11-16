@@ -158,7 +158,7 @@ func RunMapRevisionZero(ctx context.Context, t *testing.T, tadmin trillian.Trill
 		{
 			desc:         "empty map has SMR at rev 0 but not rev 1",
 			hashStrategy: []trillian.HashStrategy{trillian.HashStrategy_TEST_MAP_HASHER, trillian.HashStrategy_CONIKS_SHA512_256},
-			wantRev: 0,
+			wantRev:      0,
 		},
 	} {
 		for _, hashStrategy := range tc.hashStrategy {
@@ -183,7 +183,7 @@ func RunMapRevisionZero(ctx context.Context, t *testing.T, tadmin trillian.Trill
 			}
 			//
 			getSmrByRevResp, err := tmap.GetSignedMapRootByRevision(ctx, &trillian.GetSignedMapRootByRevisionRequest{
-				MapId: tree.TreeId,
+				MapId:    tree.TreeId,
 				Revision: 0,
 			})
 			if err != nil {
@@ -200,7 +200,7 @@ func RunMapRevisionZero(ctx context.Context, t *testing.T, tadmin trillian.Trill
 			}
 			//
 			getSmrByRevResp, err = tmap.GetSignedMapRootByRevision(ctx, &trillian.GetSignedMapRootByRevisionRequest{
-				MapId: tree.TreeId,
+				MapId:    tree.TreeId,
 				Revision: 1,
 			})
 			if err == nil {
