@@ -43,12 +43,12 @@ func TestMapBeginSnapshot(t *testing.T) {
 	cleanTestDB(DB)
 	ctx := context.Background()
 
-	frozenMapID := createInitializedMapForTests(t, ctx, DB)
+	frozenMapID := createInitializedMapForTests(ctx, t, DB)
 	updateTree(DB, frozenMapID, func(tree *trillian.Tree) {
 		tree.TreeState = trillian.TreeState_FROZEN
 	})
 
-	activeMapID := createInitializedMapForTests(t, ctx, DB)
+	activeMapID := createInitializedMapForTests(ctx, t, DB)
 	logID := createLogForTests(DB)
 
 	tests := []struct {
@@ -145,7 +145,7 @@ type rootReaderMapTX interface {
 func TestMapRootUpdate(t *testing.T) {
 	cleanTestDB(DB)
 	ctx := context.Background()
-	mapID := createInitializedMapForTests(t, ctx, DB)
+	mapID := createInitializedMapForTests(ctx, t, DB)
 	s := NewMapStorage(DB)
 
 	populatedMetadata := testonly.MustMarshalAny(t, &ctmapperpb.MapperMetadata{HighestFullyCompletedSeq: 1})
@@ -239,7 +239,7 @@ var mapLeaf = trillian.MapLeaf{
 func TestMapSetGetRoundTrip(t *testing.T) {
 	cleanTestDB(DB)
 	ctx := context.Background()
-	mapID := createInitializedMapForTests(t, ctx, DB)
+	mapID := createInitializedMapForTests(ctx, t, DB)
 	s := NewMapStorage(DB)
 
 	readRev := int64(1)
@@ -274,7 +274,7 @@ func TestMapSetGetRoundTrip(t *testing.T) {
 func TestMapSetSameKeyInSameRevisionFails(t *testing.T) {
 	cleanTestDB(DB)
 	ctx := context.Background()
-	mapID := createInitializedMapForTests(t, ctx, DB)
+	mapID := createInitializedMapForTests(ctx, t, DB)
 	s := NewMapStorage(DB)
 
 	{
@@ -301,7 +301,7 @@ func TestMapSetSameKeyInSameRevisionFails(t *testing.T) {
 func TestMapGet0Results(t *testing.T) {
 	cleanTestDB(DB)
 	ctx := context.Background()
-	mapID := createInitializedMapForTests(t, ctx, DB)
+	mapID := createInitializedMapForTests(ctx, t, DB)
 	s := NewMapStorage(DB)
 
 	for _, tc := range []struct {
@@ -328,7 +328,7 @@ func TestMapSetGetMultipleRevisions(t *testing.T) {
 	// Write two roots for a map and make sure the one with the newest timestamp supersedes
 	cleanTestDB(DB)
 	ctx := context.Background()
-	mapID := createInitializedMapForTests(t, ctx, DB)
+	mapID := createInitializedMapForTests(ctx, t, DB)
 	s := NewMapStorage(DB)
 
 	tests := []struct {
@@ -397,14 +397,16 @@ func TestGetSignedMapRootNotExist(t *testing.T) {
 	}
 }
 
-// TODO(phad): I'm considering removing this test, because for an Map that has been
-// initialized there should always be the revision 0 SMR written to the DB, and
-// without initialization the error path is identical to that tested in the func
-// TestGetSignedMapRootNotExist above.
-func disabledTestLatestSignedMapRootNoneWritten(t *testing.T) {
+func TestLatestSignedMapRootNoneWritten(t *testing.T) {
+	// TODO(phad): I'm considering removing this test, because for an Map that has been
+	// initialized there should always be the revision 0 SMR written to the DB, and
+	// without initialization the error path is identical to that tested in the func
+	// TestGetSignedMapRootNotExist above.
+	t.Skip("TODO: remove this as it can no longer occur.")
+
 	cleanTestDB(DB)
 	ctx := context.Background()
-	mapID := createInitializedMapForTests(t, ctx, DB)
+	mapID := createInitializedMapForTests(ctx, t, DB)
 	s := NewMapStorage(DB)
 
 	tx := beginMapTx(ctx, s, mapID, t)
@@ -423,7 +425,7 @@ func disabledTestLatestSignedMapRootNoneWritten(t *testing.T) {
 func TestGetSignedMapRoot(t *testing.T) {
 	cleanTestDB(DB)
 	ctx := context.Background()
-	mapID := createInitializedMapForTests(t, ctx, DB)
+	mapID := createInitializedMapForTests(ctx, t, DB)
 	s := NewMapStorage(DB)
 
 	tx := beginMapTx(ctx, s, mapID, t)
@@ -461,7 +463,7 @@ func TestGetSignedMapRoot(t *testing.T) {
 func TestLatestSignedMapRoot(t *testing.T) {
 	cleanTestDB(DB)
 	ctx := context.Background()
-	mapID := createInitializedMapForTests(t, ctx, DB)
+	mapID := createInitializedMapForTests(ctx, t, DB)
 	s := NewMapStorage(DB)
 
 	tx := beginMapTx(ctx, s, mapID, t)
@@ -498,7 +500,7 @@ func TestLatestSignedMapRoot(t *testing.T) {
 func TestDuplicateSignedMapRoot(t *testing.T) {
 	cleanTestDB(DB)
 	ctx := context.Background()
-	mapID := createInitializedMapForTests(t, ctx, DB)
+	mapID := createInitializedMapForTests(ctx, t, DB)
 	s := NewMapStorage(DB)
 
 	tx := beginMapTx(ctx, s, mapID, t)
@@ -543,11 +545,15 @@ func beginMapTx(ctx context.Context, s storage.MapStorage, mapID int64, t *testi
 	return tx
 }
 
-func createInitializedMapForTests(t *testing.T, ctx context.Context, db *sql.DB) int64 {
+func createInitializedMapForTests(ctx context.Context, t *testing.T, db *sql.DB) int64 {
+	t.Helper()
 	mapID := createMapForTests(db)
 
 	s := NewMapStorage(db)
 	tx, err := s.BeginForTree(ctx, mapID)
+	if err != storage.ErrMapNeedsInit {
+		t.Fatalf("%v: Failed to BeginForTree: %v", mapID, err)
+	}
 	defer tx.Close()
 
 	initialRoot := trillian.SignedMapRoot{
