@@ -546,7 +546,7 @@ func (s *hammerState) getLeaves(ctx context.Context) error {
 }
 
 func (s *hammerState) getLeavesInvalid(ctx context.Context) error {
-	choices := []Choice{MalformedKey, RevTooBig, RevIsZero}
+	choices := []Choice{MalformedKey, RevTooBig}
 
 	req := trillian.GetMapLeavesRequest{MapId: s.cfg.MapID}
 	rev := latestRevision
@@ -564,9 +564,6 @@ func (s *hammerState) getLeavesInvalid(ctx context.Context) error {
 	case RevTooBig:
 		req.Index = [][]byte{s.pickKey(latestCopy)}
 		req.Revision = rev + invalidStretch
-	case RevIsZero:
-		req.Index = [][]byte{s.pickKey(latestCopy)}
-		req.Revision = 0
 	}
 	rsp, err := s.cfg.Client.GetLeaves(ctx, &req)
 	if err == nil {
@@ -676,7 +673,7 @@ func (s *hammerState) getSMR(ctx context.Context) error {
 func (s *hammerState) getSMRRev(ctx context.Context) error {
 	which := rand.Intn(smrCount)
 	smr := s.previousSMR(which)
-	if smr == nil || smr.MapRevision <= 0 {
+	if smr == nil || smr.MapRevision < 0 {
 		glog.V(3).Infof("%d: skipping get-smr-rev as no earlier SMR", s.cfg.MapID)
 		return errSkip{}
 	}
@@ -699,7 +696,7 @@ func (s *hammerState) getSMRRev(ctx context.Context) error {
 }
 
 func (s *hammerState) getSMRRevInvalid(ctx context.Context) error {
-	choices := []Choice{RevTooBig, RevIsZero, RevIsNegative}
+	choices := []Choice{RevTooBig, RevIsNegative}
 
 	rev := latestRevision
 	if !s.empty(latestCopy) {
@@ -711,9 +708,6 @@ func (s *hammerState) getSMRRevInvalid(ctx context.Context) error {
 	switch choice {
 	case RevTooBig:
 		rev += invalidStretch
-	case RevIsZero:
-		// TODO(drysdale): check if get-smr(@0) should work or not
-		rev = 0
 	case RevIsNegative:
 		rev = -invalidStretch
 	}

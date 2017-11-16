@@ -34,6 +34,18 @@ const (
 )
 
 var (
+	signedMapRootID1Rev0 = trillian.SignedMapRoot{
+		TimestampNanos: 1508235889834964600,
+		RootHash:       []byte("\306h\237\020\201*\t\200\227m\2253\3308u(!f\025\225g\3545\025W\026\301A:\365=j"),
+		Signature: &sigpb.DigitallySigned{
+			HashAlgorithm:      sigpb.DigitallySigned_SHA256,
+			SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
+			Signature:          []byte("0F\002!\000\307b\255\223\353\23615&\022\263\323\341\342+\276\274$\rX?\366\014U\362\006\376\0269rcm\002!\000\241*\255\220\301\263D\033\275\374\340A\377\337\354\202\331%au\3179\000O\r9\237\302\021\r\363\263"),
+		},
+		MapId:       mapID1,
+		MapRevision: 0,
+	}
+
 	signedMapRootID1Rev1 = trillian.SignedMapRoot{
 		TimestampNanos: 1508235889834964600,
 		RootHash:       []byte("\306h\237\020\201*\t\200\227m\2253\3308u(!f\025\225g\3545\025W\026\301A:\365=j"),
@@ -64,7 +76,7 @@ func TestIsHealthy(t *testing.T) {
 		mockStorage.EXPECT().CheckDatabaseAccessible(gomock.Any()).Return(test.accessibleErr)
 
 		server := NewTrillianMapServer(extension.Registry{
-			AdminStorage: mockAdminStorageForMap(ctrl, mapID1),
+			AdminStorage: mockAdminStorageForMap(ctrl, 1, mapID1),
 			MapStorage:   mockStorage,
 		})
 
@@ -74,6 +86,36 @@ func TestIsHealthy(t *testing.T) {
 			t.Errorf("%s: IsHealthy() err? %t want? %t (err=%v)", test.desc, gotErr, wantErr, err)
 		}
 	}
+}
+
+func TestGetSignedMapRoot_InitFailure(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	ctx := context.Background()
+
+	t.Run("Unknown map", func(t *testing.T) {
+		adminStorage := storage.NewMockAdminStorage(ctrl)
+		adminTX := storage.NewMockReadOnlyAdminTX(ctrl)
+
+		// Calls from Init()
+		adminStorage.EXPECT().Snapshot(gomock.Any()).MaxTimes(1).Return(adminTX, nil)
+		adminTX.EXPECT().GetTree(gomock.Any(), gomock.Any()).MaxTimes(1).Return(nil, errors.New("unknown tree"))
+		adminTX.EXPECT().Close().MaxTimes(1).Return(nil)
+
+		server := NewTrillianMapServer(extension.Registry{
+			AdminStorage: adminStorage,
+			MapStorage:   storage.NewMockMapStorage(ctrl),
+		})
+
+		smrResp, err := server.GetSignedMapRoot(ctx, &trillian.GetSignedMapRootRequest{})
+
+		if err == nil {
+			t.Errorf("GetSignedMapRoot()=_, nil want err? true")
+		}
+		if smrResp != nil {
+			t.Errorf("GetSignedMapRoot()=%v, _ want nil", smrResp)
+		}
+	})
 }
 
 func TestGetSignedMapRoot(t *testing.T) {
@@ -88,56 +130,101 @@ func TestGetSignedMapRoot(t *testing.T) {
 		snapShErr, lsmrErr error
 	}{
 		{
-			desc:      "Unknown map",
-			req:       &trillian.GetSignedMapRootRequest{},
-			snapShErr: errors.New("unknown map"),
-		},
-		{
 			desc:    "Map is empty, head at revision 0",
 			req:     &trillian.GetSignedMapRootRequest{MapId: mapID1},
-			lsmrErr: errors.New("sql: no rows in result set"),
+			mapRoot: signedMapRootID1Rev0,
 		},
 		{
 			desc:    "Map has leaves, head > revision 0",
 			req:     &trillian.GetSignedMapRootRequest{MapId: mapID1},
 			mapRoot: signedMapRootID1Rev1,
 		},
+		{
+			desc:    "LatestSignedMapRoot returns error",
+			req:     &trillian.GetSignedMapRootRequest{MapId: mapID1},
+			lsmrErr: errors.New("sql: no rows in result set"),
+		},
+		{
+			desc:      "Snapshot returns Error",
+			req:       &trillian.GetSignedMapRootRequest{MapId: mapID1},
+			snapShErr: errors.New("unknown map"),
+		},
 	}
 
 	for _, test := range tests {
-		mockStorage := storage.NewMockMapStorage(ctrl)
-		mockTx := storage.NewMockMapTreeTX(ctrl)
+		t.Run(test.desc, func(t *testing.T) {
+			adminStorage := mockAdminStorageForMap(ctrl, 2, mapID1)
+			mockStorage := storage.NewMockMapStorage(ctrl)
+			mockTx := storage.NewMockMapTreeTX(ctrl)
 
-		mockStorage.EXPECT().SnapshotForTree(gomock.Any(), test.req.MapId).Return(mockTx, test.snapShErr)
-		if test.snapShErr == nil {
-			mockTx.EXPECT().LatestSignedMapRoot(gomock.Any()).Return(test.mapRoot, test.lsmrErr)
-			if test.lsmrErr == nil {
-				mockTx.EXPECT().Commit().Return(nil)
-			}
+			// Calls from Init()
+			mockStorage.EXPECT().BeginForTree(gomock.Any(), test.req.MapId).Return(mockTx, nil)
 			mockTx.EXPECT().Close().Return(nil)
-			mockTx.EXPECT().IsOpen().AnyTimes().Return(false)
-		}
+
+			// Calls from GetSignedMapRoot()
+			mockStorage.EXPECT().SnapshotForTree(gomock.Any(), test.req.MapId).Return(mockTx, test.snapShErr)
+			if test.snapShErr == nil {
+				mockTx.EXPECT().LatestSignedMapRoot(gomock.Any()).Return(test.mapRoot, test.lsmrErr)
+				if test.lsmrErr == nil {
+					mockTx.EXPECT().Commit().Return(nil)
+				}
+				mockTx.EXPECT().Close().Return(nil)
+				mockTx.EXPECT().IsOpen().AnyTimes().Return(false)
+			}
+
+			server := NewTrillianMapServer(extension.Registry{
+				AdminStorage: adminStorage,
+				MapStorage:   mockStorage,
+			})
+
+			smrResp, err := server.GetSignedMapRoot(ctx, test.req)
+
+			wantErr := test.snapShErr != nil || test.lsmrErr != nil
+			if gotErr := err != nil; gotErr != wantErr {
+				t.Errorf("GetSignedMapRoot()=_, err? %t want? %t (err=%v)", gotErr, wantErr, err)
+			}
+			if err != nil {
+				return
+			}
+			want := &trillian.GetSignedMapRootResponse{MapRoot: &test.mapRoot}
+			if got := smrResp; !proto.Equal(got, want) {
+				diff := pretty.Compare(got, want)
+				t.Errorf("GetSignedMapRoot() got != want, diff:\n%v", diff)
+			}
+		})
+	}
+}
+
+func TestGetSignedMapRootByRevision_InitFailure(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	ctx := context.Background()
+
+	t.Run("Unknown map", func(t *testing.T) {
+		adminStorage := storage.NewMockAdminStorage(ctrl)
+		adminTX := storage.NewMockReadOnlyAdminTX(ctrl)
+
+		// Calls from Init()
+		adminStorage.EXPECT().Snapshot(gomock.Any()).MaxTimes(1).Return(adminTX, nil)
+		adminTX.EXPECT().GetTree(gomock.Any(), gomock.Any()).MaxTimes(1).Return(nil, errors.New("unknown tree"))
+		adminTX.EXPECT().Close().MaxTimes(1).Return(nil)
 
 		server := NewTrillianMapServer(extension.Registry{
-			AdminStorage: mockAdminStorageForMap(ctrl, mapID1),
-			MapStorage:   mockStorage,
+			AdminStorage: adminStorage,
+			MapStorage:   storage.NewMockMapStorage(ctrl),
 		})
 
-		smrResp, err := server.GetSignedMapRoot(ctx, test.req)
+		smrResp, err := server.GetSignedMapRootByRevision(ctx, &trillian.GetSignedMapRootByRevisionRequest{
+			Revision: 1,
+		})
 
-		wantErr := test.snapShErr != nil || test.lsmrErr != nil
-		if gotErr := err != nil; gotErr != wantErr {
-			t.Errorf("%s: GetSignedMapRoot()=_, err? %t want? %t (err=%v)", test.desc, gotErr, wantErr, err)
+		if err == nil {
+			t.Errorf("GetSignedMapRootByRevision()=_, nil want err? true")
 		}
-		if err != nil {
-			continue
+		if smrResp != nil {
+			t.Errorf("GetSignedMapRootByRevision()=%v, _ want nil", smrResp)
 		}
-		want := &trillian.GetSignedMapRootResponse{MapRoot: &test.mapRoot}
-		if got := smrResp; !proto.Equal(got, want) {
-			diff := pretty.Compare(got, want)
-			t.Errorf("%s: GetSignedMapRoot() got != want, diff:\n%v", test.desc, diff)
-		}
-	}
+	})
 }
 
 func TestGetSignedMapRootByRevision(t *testing.T) {
@@ -151,11 +238,6 @@ func TestGetSignedMapRootByRevision(t *testing.T) {
 		mapRoot            trillian.SignedMapRoot
 		snapShErr, lsmrErr error
 	}{
-		{
-			desc:      "Unknown map",
-			req:       &trillian.GetSignedMapRootByRevisionRequest{},
-			snapShErr: errors.New("unknown map"),
-		},
 		{
 			desc:    "Request revision 0 for empty map",
 			req:     &trillian.GetSignedMapRootByRevisionRequest{MapId: mapID1},
@@ -179,52 +261,58 @@ func TestGetSignedMapRootByRevision(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		mockStorage := storage.NewMockMapStorage(ctrl)
-		mockTx := storage.NewMockMapTreeTX(ctrl)
+		t.Run(test.desc, func(t *testing.T) {
+			adminStorage := mockAdminStorageForMap(ctrl, 2, mapID1)
+			mockStorage := storage.NewMockMapStorage(ctrl)
+			mockTx := storage.NewMockMapTreeTX(ctrl)
 
-		mockStorage.EXPECT().SnapshotForTree(gomock.Any(), test.req.MapId).Return(mockTx, test.snapShErr)
-		if test.snapShErr == nil {
-			mockTx.EXPECT().GetSignedMapRoot(gomock.Any(), test.req.Revision).Return(test.mapRoot, test.lsmrErr)
-			if test.lsmrErr == nil {
-				mockTx.EXPECT().Commit().Return(nil)
-			}
+			mockStorage.EXPECT().BeginForTree(gomock.Any(), test.req.MapId).Return(mockTx, nil)
 			mockTx.EXPECT().Close().Return(nil)
-			mockTx.EXPECT().IsOpen().AnyTimes().Return(false)
-		}
 
-		server := NewTrillianMapServer(extension.Registry{
-			AdminStorage: mockAdminStorageForMap(ctrl, mapID1),
-			MapStorage:   mockStorage,
+			mockStorage.EXPECT().SnapshotForTree(gomock.Any(), test.req.MapId).Return(mockTx, test.snapShErr)
+			if test.snapShErr == nil {
+				mockTx.EXPECT().GetSignedMapRoot(gomock.Any(), test.req.Revision).Return(test.mapRoot, test.lsmrErr)
+				if test.lsmrErr == nil {
+					mockTx.EXPECT().Commit().Return(nil)
+				}
+				mockTx.EXPECT().Close().Return(nil)
+				mockTx.EXPECT().IsOpen().AnyTimes().Return(false)
+			}
+
+			server := NewTrillianMapServer(extension.Registry{
+				AdminStorage: adminStorage,
+				MapStorage:   mockStorage,
+			})
+
+			smrResp, err := server.GetSignedMapRootByRevision(ctx, test.req)
+
+			wantErr := test.snapShErr != nil || test.lsmrErr != nil
+			if gotErr := err != nil; gotErr != wantErr {
+				t.Errorf("GetSignedMapRootByRevision()=_, err? %t want? %t (err=%v)", gotErr, wantErr, err)
+			}
+			if err != nil {
+				return
+			}
+			want := &trillian.GetSignedMapRootResponse{MapRoot: &test.mapRoot}
+			if got := smrResp; !proto.Equal(got, want) {
+				diff := pretty.Compare(got, want)
+				t.Errorf("GetSignedMapRootByRevision() got != want, diff:\n%v", diff)
+			}
 		})
-
-		smrResp, err := server.GetSignedMapRootByRevision(ctx, test.req)
-
-		wantErr := test.snapShErr != nil || test.lsmrErr != nil
-		if gotErr := err != nil; gotErr != wantErr {
-			t.Errorf("%s: GetSignedMapRootByRevision()=_, err? %t want? %t (err=%v)", test.desc, gotErr, wantErr, err)
-		}
-		if err != nil {
-			continue
-		}
-		want := &trillian.GetSignedMapRootResponse{MapRoot: &test.mapRoot}
-		if got := smrResp; !proto.Equal(got, want) {
-			diff := pretty.Compare(got, want)
-			t.Errorf("%s: GetSignedMapRootByRevision() got != want, diff:\n%v", test.desc, diff)
-		}
 	}
 }
 
-func mockAdminStorageForMap(ctrl *gomock.Controller, treeID int64) storage.AdminStorage {
+func mockAdminStorageForMap(ctrl *gomock.Controller, times int, treeID int64) storage.AdminStorage {
 	tree := *stestonly.MapTree
 	tree.TreeId = treeID
 
 	adminStorage := storage.NewMockAdminStorage(ctrl)
 	adminTX := storage.NewMockReadOnlyAdminTX(ctrl)
 
-	adminStorage.EXPECT().Snapshot(gomock.Any()).MaxTimes(1).Return(adminTX, nil)
-	adminTX.EXPECT().GetTree(gomock.Any(), treeID).MaxTimes(1).Return(&tree, nil)
-	adminTX.EXPECT().Close().MaxTimes(1).Return(nil)
-	adminTX.EXPECT().Commit().MaxTimes(1).Return(nil)
+	adminStorage.EXPECT().Snapshot(gomock.Any()).MaxTimes(times).Return(adminTX, nil)
+	adminTX.EXPECT().GetTree(gomock.Any(), treeID).MaxTimes(times).Return(&tree, nil)
+	adminTX.EXPECT().Close().MaxTimes(times).Return(nil)
+	adminTX.EXPECT().Commit().MaxTimes(times).Return(nil)
 
 	return adminStorage
 }

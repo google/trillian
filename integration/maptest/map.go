@@ -30,6 +30,8 @@ import (
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/testonly"
 
+	"github.com/kylelemons/godebug/pretty"
+
 	tcrypto "github.com/google/trillian/crypto"
 	stestonly "github.com/google/trillian/storage/testonly"
 )
@@ -48,6 +50,7 @@ type TestTable []NamedTestFn
 // Be sure to extend this when additional tests are added.
 // This is done so that tests can be run in different environments in a portable way.
 var AllTests = TestTable{
+	{"MapRevisionZero", RunMapRevisionZero},
 	{"LeafHistory", RunLeafHistory},
 	{"Inclusion", RunInclusion},
 	{"InclusionBatch", RunInclusionBatch},
@@ -81,22 +84,29 @@ func isEmptyMap(ctx context.Context, tmap trillian.TrillianMapClient, tree *tril
 	return nil
 }
 
+func verifyGetSignedMapRootResponse(mapRoot *trillian.SignedMapRoot,
+	wantRevision int64, pubKey crypto.PublicKey, hasher hashers.MapHasher, treeID int64) error {
+	if got, want := mapRoot.GetMapRevision(), wantRevision; got != want {
+		return fmt.Errorf("got SMR with revision %d, want %d", got, want)
+	}
+	// SignedMapRoot contains its own signature. To verify, we need to create a local
+	// copy of the object and return the object to the state it was in when signed
+	// by removing the signature from the object.
+	smr := *mapRoot
+	smr.Signature = nil // Remove the signature from the object to be verified.
+	if err := tcrypto.VerifyObject(pubKey, smr, mapRoot.GetSignature()); err != nil {
+		return fmt.Errorf("VerifyObject(SMR): %v", err)
+	}
+	return nil
+}
+
 func verifyGetMapLeavesResponse(getResp *trillian.GetMapLeavesResponse, indexes [][]byte,
 	wantRevision int64, pubKey crypto.PublicKey, hasher hashers.MapHasher, treeID int64) error {
 	if got, want := len(getResp.MapLeafInclusion), len(indexes); got != want {
 		return fmt.Errorf("got %d values, want %d", got, want)
 	}
-	if got, want := getResp.GetMapRoot().GetMapRevision(), wantRevision; got != want {
-		return fmt.Errorf("got SMR with revision %d, want %d", got, want)
-	}
-
-	// SignedMapRoot contains its own signature. To verify, we need to create a local
-	// copy of the object and return the object to the state it was in when signed
-	// by removing the signature from the object.
-	smr := *getResp.GetMapRoot()
-	smr.Signature = nil // Remove the signature from the object to be verified.
-	if err := tcrypto.VerifyObject(pubKey, smr, getResp.GetMapRoot().GetSignature()); err != nil {
-		return fmt.Errorf("VerifyObject(SMR): %v", err)
+	if err := verifyGetSignedMapRootResponse(getResp.GetMapRoot(), wantRevision, pubKey, hasher, treeID); err != nil {
+		return err
 	}
 	rootHash := getResp.GetMapRoot().GetRootHash()
 	for _, incl := range getResp.MapLeafInclusion {
@@ -136,6 +146,70 @@ func newTreeWithHasher(ctx context.Context, tadmin trillian.TrillianAdminClient,
 		return nil, nil, nil
 	}
 	return tree, hasher, nil
+}
+
+// RunMapRevisionZero performs checks on Trillian Map behavior for new, empty maps.
+func RunMapRevisionZero(ctx context.Context, t *testing.T, tadmin trillian.TrillianAdminClient, tmap trillian.TrillianMapClient) {
+	for _, tc := range []struct {
+		desc         string
+		hashStrategy []trillian.HashStrategy
+		wantRev      int64
+	}{
+		{
+			desc:         "empty map has SMR at rev 0 but not rev 1",
+			hashStrategy: []trillian.HashStrategy{trillian.HashStrategy_TEST_MAP_HASHER, trillian.HashStrategy_CONIKS_SHA512_256},
+			wantRev:      0,
+		},
+	} {
+		for _, hashStrategy := range tc.hashStrategy {
+			tree, hasher, err := newTreeWithHasher(ctx, tadmin, hashStrategy)
+			if err != nil {
+				t.Errorf("%v: newTreeWithHasher(%v): %v", tc.desc, hashStrategy, err)
+			}
+			pubKey, err := der.UnmarshalPublicKey(tree.GetPublicKey().GetDer())
+			if err != nil {
+				t.Errorf("%v: UnmarshalPublicKey(%v): %v", tc.desc, hashStrategy, err)
+			}
+			//
+			getSmrResp, err := tmap.GetSignedMapRoot(ctx, &trillian.GetSignedMapRootRequest{
+				MapId: tree.TreeId,
+			})
+			if err != nil {
+				t.Errorf("%v: GetSignedMapRoot(): %v", tc.desc, err)
+			}
+			if err := verifyGetSignedMapRootResponse(getSmrResp.GetMapRoot(), tc.wantRev,
+				pubKey, hasher, tree.TreeId); err != nil {
+				t.Errorf("%v: verifyGetSignedMapRootResponse(rev %v): %v", tc.desc, tc.wantRev, err)
+			}
+			//
+			getSmrByRevResp, err := tmap.GetSignedMapRootByRevision(ctx, &trillian.GetSignedMapRootByRevisionRequest{
+				MapId:    tree.TreeId,
+				Revision: 0,
+			})
+			if err != nil {
+				t.Errorf("%v: GetSignedMapRootByRevision(): %v", tc.desc, err)
+			}
+			if err := verifyGetSignedMapRootResponse(getSmrByRevResp.GetMapRoot(), tc.wantRev,
+				pubKey, hasher, tree.TreeId); err != nil {
+				t.Errorf("%v: verifyGetSignedMapRootResponse(rev %v): %v", tc.desc, tc.wantRev, err)
+			}
+			//
+			got, want := getSmrByRevResp.GetMapRoot(), getSmrResp.GetMapRoot()
+			if diff := pretty.Compare(got, want); diff != "" {
+				t.Errorf("%v: GetSignedMapRootByRevision() != GetSignedMapRoot(); diff (-got +want):\n%v", tc.desc, diff)
+			}
+			//
+			getSmrByRevResp, err = tmap.GetSignedMapRootByRevision(ctx, &trillian.GetSignedMapRootByRevisionRequest{
+				MapId:    tree.TreeId,
+				Revision: 1,
+			})
+			if err == nil {
+				t.Errorf("%v: GetSignedMapRootByRevision(rev: 1) err? false want? true", tc.desc)
+			}
+			// TODO(phad): ideally we'd inspect err's type and check it contains a NOT_FOUND Code (5), but I don't want
+			// a dependency on gRPC here.
+		}
+	}
 }
 
 // RunLeafHistory performs checks on Trillian Map leaf updates under a variety of Hash Strategies.
