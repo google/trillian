@@ -546,7 +546,7 @@ func (s *hammerState) getLeaves(ctx context.Context) error {
 }
 
 func (s *hammerState) getLeavesInvalid(ctx context.Context) error {
-	choices := []Choice{MalformedKey, RevTooBig, RevIsZero}
+	choices := []Choice{MalformedKey, RevTooBig}
 
 	req := trillian.GetMapLeavesRequest{MapId: s.cfg.MapID}
 	rev := latestRevision
@@ -564,9 +564,6 @@ func (s *hammerState) getLeavesInvalid(ctx context.Context) error {
 	case RevTooBig:
 		req.Index = [][]byte{s.pickKey(latestCopy)}
 		req.Revision = rev + invalidStretch
-	case RevIsZero:
-		req.Index = [][]byte{s.pickKey(latestCopy)}
-		req.Revision = 0
 	}
 	rsp, err := s.cfg.Client.GetLeaves(ctx, &req)
 	if err == nil {
