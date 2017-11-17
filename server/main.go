@@ -62,6 +62,10 @@ type Main struct {
 	// RegisterServerFn is called to register RPC servers.
 	RegisterServerFn func(*grpc.Server, extension.Registry) error
 
+	// AllowedTreeTypes determines which types of trees may be created through the Admin Server
+	// bound by Main. nil means unrestricted.
+	AllowedTreeTypes []trillian.TreeType
+
 	TreeGCEnabled         bool
 	TreeDeleteThreshold   time.Duration
 	TreeDeleteMinInterval time.Duration
@@ -77,7 +81,7 @@ func (m *Main) Run(ctx context.Context) error {
 	if err := m.RegisterServerFn(m.Server, m.Registry); err != nil {
 		return err
 	}
-	trillian.RegisterTrillianAdminServer(m.Server, admin.New(m.Registry))
+	trillian.RegisterTrillianAdminServer(m.Server, admin.New(m.Registry, m.AllowedTreeTypes))
 	reflection.Register(m.Server)
 
 	if endpoint := m.HTTPEndpoint; endpoint != "" {

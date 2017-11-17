@@ -111,7 +111,7 @@ func NewMapEnvWithRegistry(registry extension.Registry) (*MapEnv, error) {
 	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(ci))
 	mapServer := server.NewTrillianMapServer(registry)
 	trillian.RegisterTrillianMapServer(grpcServer, mapServer)
-	trillian.RegisterTrillianAdminServer(grpcServer, admin.New(registry))
+	trillian.RegisterTrillianAdminServer(grpcServer, admin.New(registry, nil /* allowedTreeTypes */))
 	go grpcServer.Serve(lis)
 
 	// Connect to the server.
