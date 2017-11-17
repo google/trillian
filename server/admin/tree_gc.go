@@ -25,7 +25,6 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/ptypes"
-	"github.com/google/trillian"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
 )
@@ -118,21 +117,13 @@ func (gc *DeletedTreeGC) RunOnce(ctx context.Context) (int, error) {
 	// each delete should be in its own transaction as well.
 	// It's OK to list and delete separately because HardDelete does its own state checking, plus
 	// deleted trees are unlikely to change, specially those deleted for a while.
-	tx, err := gc.admin.Snapshot(ctx)
-	if err != nil {
-		return 0, fmt.Errorf("error creating snapshot: %v", err)
-	}
-	defer tx.Close()
-	trees, err := tx.ListTrees(ctx, true /* includeDeleted */)
+	trees, err := storage.ListTrees(ctx, gc.admin, true /* includeDeleted */)
 	if err != nil {
 		return 0, fmt.Errorf("error listing trees: %v", err)
 	}
-	if err := tx.Commit(); err != nil {
-		return 0, fmt.Errorf("error committing snapshot: %v", err)
-	}
 
 	count := 0
-	errs := []error{}
+	var errs []error
 	for _, tree := range trees {
 		if !tree.Deleted {
 			continue
@@ -149,7 +140,7 @@ func (gc *DeletedTreeGC) RunOnce(ctx context.Context) (int, error) {
 		}
 
 		glog.Infof("DeletedTreeGC.RunOnce: Hard-deleting tree %v after %v", tree.TreeId, durationSinceDelete)
-		if err := gc.hardDeleteTree(ctx, tree); err != nil {
+		if err := storage.HardDeleteTree(ctx, gc.admin, tree.TreeId); err != nil {
 			errs = append(errs, fmt.Errorf("error hard-deleting tree %v: %v", tree.TreeId, err))
 			incHardDeleteCounter(tree.TreeId, false, deleteErrReason)
 			continue
@@ -170,16 +161,4 @@ func (gc *DeletedTreeGC) RunOnce(ctx context.Context) (int, error) {
 		buf.WriteString(err.Error())
 	}
 	return count, errors.New(buf.String())
-}
-
-func (gc *DeletedTreeGC) hardDeleteTree(ctx context.Context, tree *trillian.Tree) error {
-	tx, err := gc.admin.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer tx.Close()
-	if err := tx.HardDeleteTree(ctx, tree.TreeId); err != nil {
-		return err
-	}
-	return tx.Commit()
 }

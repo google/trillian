@@ -27,6 +27,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/monitoring"
+	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util"
 )
 
@@ -260,20 +261,13 @@ func (l *LogOperationManager) logName(ctx context.Context, logID int64) string {
 	if name, ok := l.logNames[logID]; ok {
 		return name
 	}
-	tx, err := l.info.Registry.AdminStorage.Snapshot(ctx)
-	if err != nil {
-		glog.Errorf("%v: failed to start transaction: %v", logID, err)
-		return "<err>"
-	}
-	defer tx.Close()
-	tree, err := tx.GetTree(ctx, logID)
+
+	tree, err := storage.GetTree(ctx, l.info.Registry.AdminStorage, logID)
 	if err != nil {
 		glog.Errorf("%v: failed to get log info: %v", logID, err)
 		return "<err>"
 	}
-	if err := tx.Commit(); err != nil {
-		return "<err>"
-	}
+
 	name := tree.DisplayName
 	if name == "" {
 		name = fmt.Sprintf("<log-%d>", logID)

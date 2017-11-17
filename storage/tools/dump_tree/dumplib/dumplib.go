@@ -174,15 +174,10 @@ func getPublicKey(keyPEM string) []byte {
 }
 
 func createTree(as storage.AdminStorage) (*trillian.Tree, crypto.Signer) {
-	atx, err := as.Begin(context.TODO())
-	if err != nil {
-		glog.Fatalf("Begin admin TX: %v", err)
-	}
-
+	ctx := context.TODO()
 	privKey, cSigner := getPrivateKey(logPrivKeyPEM, "towel")
 	pubKey := getPublicKey(logPubKeyPEM)
-
-	tree := trillian.Tree{
+	tree := &trillian.Tree{
 		TreeType:           trillian.TreeType_LOG,
 		TreeState:          trillian.TreeState_ACTIVE,
 		HashAlgorithm:      sigpb.DigitallySigned_SHA256,
@@ -192,15 +187,11 @@ func createTree(as storage.AdminStorage) (*trillian.Tree, crypto.Signer) {
 		PublicKey:          &keyspb.PublicKey{Der: pubKey},
 		MaxRootDuration:    ptypes.DurationProto(0 * time.Millisecond),
 	}
-	t, err := atx.CreateTree(context.TODO(), &tree)
+	createdTree, err := storage.CreateTree(ctx, as, tree)
 	if err != nil {
 		glog.Fatalf("Create tree: %v", err)
 	}
-	if err := atx.Commit(); err != nil {
-		glog.Fatalf("Commit admin TX: %v", err)
-	}
-
-	return t, cSigner
+	return createdTree, cSigner
 }
 
 // Options are the commandline arguments one can pass to Main

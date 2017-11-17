@@ -892,20 +892,19 @@ func TestGetActiveLogIDs(t *testing.T) {
 	map2 := proto.Clone(testonly.MapTree).(*trillian.Tree)
 	deletedMap := proto.Clone(testonly.MapTree).(*trillian.Tree)
 	for _, tree := range []*trillian.Tree{log1, log2, frozenLog, deletedLog, map1, map2, deletedMap} {
-		newTree, err := createTreeInternal(ctx, admin, tree)
+		newTree, err := storage.CreateTree(ctx, admin, tree)
 		if err != nil {
-			t.Fatalf("createTreeInternal(%+v) returned err = %v", tree, err)
+			t.Fatalf("CreateTree(%+v) returned err = %v", tree, err)
 		}
 		*tree = *newTree
 	}
 
 	// FROZEN is not a valid initial state, so we have to update it separately.
-	var err error
-	_, err = updateTreeInternal(ctx, admin, frozenLog.TreeId, func(t *trillian.Tree) {
+	_, err := storage.UpdateTree(ctx, admin, frozenLog.TreeId, func(t *trillian.Tree) {
 		t.TreeState = trillian.TreeState_FROZEN
 	})
 	if err != nil {
-		t.Fatalf("updateTreeInternal() returned err = %v", err)
+		t.Fatalf("UpdateTree() returned err = %v", err)
 	}
 
 	// Update deleted trees accordingly
