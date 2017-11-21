@@ -172,14 +172,8 @@ func (tester *AdminStorageTester) TestCreateTree(t *testing.T) {
 	s := tester.NewAdminStorage()
 	for _, test := range tests {
 		func() {
-			tx, err := s.Begin(ctx)
-			if err != nil {
-				t.Fatalf("%v: Begin() = %v, want = nil", test.desc, err)
-			}
-			defer tx.Close()
-
 			// Test CreateTree up to the tx commit
-			newTree, err := tx.CreateTree(ctx, test.tree)
+			newTree, err := storage.CreateTree(ctx, s, test.tree)
 			if hasErr := err != nil; hasErr != test.wantErr {
 				t.Errorf("%v: CreateTree() = (_, %v), wantErr = %v", test.desc, err, test.wantErr)
 				return
@@ -187,12 +181,14 @@ func (tester *AdminStorageTester) TestCreateTree(t *testing.T) {
 				// Tested above
 				return
 			}
+
 			createTime := newTree.CreateTime
 			updateTime := newTree.UpdateTime
 			if _, err := ptypes.Timestamp(createTime); err != nil {
 				t.Errorf("%v: CreateTime malformed after creation: %v", test.desc, newTree)
 				return
 			}
+
 			switch {
 			case newTree.TreeId == 0:
 				t.Errorf("%v: TreeID not returned from creation: %v", test.desc, newTree)
@@ -201,6 +197,7 @@ func (tester *AdminStorageTester) TestCreateTree(t *testing.T) {
 				t.Errorf("%v: CreateTime != UpdateTime: %v", test.desc, newTree)
 				return
 			}
+
 			wantTree := *test.tree
 			wantTree.TreeId = newTree.TreeId
 			wantTree.CreateTime = createTime
@@ -210,10 +207,6 @@ func (tester *AdminStorageTester) TestCreateTree(t *testing.T) {
 			if !proto.Equal(newTree, &wantTree) {
 				diff := pretty.Compare(newTree, &wantTree)
 				t.Errorf("%v: post-CreateTree diff:\n%v", test.desc, diff)
-				return
-			}
-			if err := tx.Commit(); err != nil {
-				t.Errorf("%v: Commit() = %v, want = nil", test.desc, err)
 				return
 			}
 
@@ -283,8 +276,8 @@ func (tester *AdminStorageTester) TestUpdateTree(t *testing.T) {
 	}
 
 	// Test for an unknown tree outside the loop: it makes the test logic simpler
-	if _, errOnUpdate, err := updateTree(ctx, s, -1, func(tree *trillian.Tree) {}); err == nil || !errOnUpdate {
-		t.Errorf("updateTree(_, -1, _) = (_, %v, %v), want = (_, true, lookup error)", errOnUpdate, err)
+	if _, err := storage.UpdateTree(ctx, s, -1, func(tree *trillian.Tree) {}); err == nil {
+		t.Error("UpdateTree() for treeID -1 returned nil err")
 	}
 
 	tests := []struct {
@@ -337,20 +330,15 @@ func (tester *AdminStorageTester) TestUpdateTree(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		createdTree, err := createTree(ctx, s, test.create)
+		createdTree, err := storage.CreateTree(ctx, s, test.create)
 		if err != nil {
-			t.Errorf("createTree() = (_, %v), want = (_, nil)", err)
+			t.Errorf("CreateTree() = (_, %v), want = (_, nil)", err)
 			continue
 		}
 
-		updatedTree, errOnUpdate, err := updateTree(ctx, s, createdTree.TreeId, test.updateFunc)
-		if err != nil && !errOnUpdate {
-			t.Errorf("%v: updateTree() failed with non-Update error: %v", test.desc, err)
-			continue
-		}
-
+		updatedTree, err := storage.UpdateTree(ctx, s, createdTree.TreeId, test.updateFunc)
 		if hasErr := err != nil; hasErr != test.wantErr {
-			t.Errorf("%v: updateTree() = (_, %v), wantErr = %v", test.desc, err, test.wantErr)
+			t.Errorf("%v: UpdateTree() = (_, %v), wantErr = %v", test.desc, err, test.wantErr)
 			continue
 		} else if hasErr {
 			continue
@@ -401,19 +389,18 @@ func (tester *AdminStorageTester) TestListTrees(t *testing.T) {
 	s := tester.NewAdminStorage()
 
 	run := func(desc string, includeDeleted bool, wantTrees []*trillian.Tree) {
-		tx, err := s.Snapshot(ctx)
-		if err != nil {
-			t.Fatalf("%v: Snapshot() = %v, want = nil", desc, err)
-		}
-		defer tx.Close()
-		if err := runListTreeIDsTest(ctx, tx, includeDeleted, wantTrees); err != nil {
-			t.Errorf("%v: %v", desc, err)
-		}
-		if err := runListTreesTest(ctx, tx, includeDeleted, wantTrees); err != nil {
-			t.Errorf("%v: %v", desc, err)
-		}
-		if err := tx.Commit(); err != nil {
-			t.Errorf("%v: Commit() returned err = %v", desc, err)
+		if err := storage.RunInAdminSnapshot(ctx, s, func(tx storage.ReadOnlyAdminTX) error {
+			if err := runListTreeIDsTest(ctx, tx, includeDeleted, wantTrees); err != nil {
+				t.Errorf("%v: %v", desc, err)
+			}
+			if err := runListTreesTest(ctx, tx, includeDeleted, wantTrees); err != nil {
+				t.Errorf("%v: %v", desc, err)
+			}
+			// Always return nil, as we're reporting errors independently above.
+			return nil
+		}); err != nil {
+			// Capture Begin() / Commit() errors
+			t.Errorf("%v: RunInAdminSnapshot() returned err = %v", desc, err)
 		}
 	}
 
@@ -487,9 +474,9 @@ func (tester *AdminStorageTester) TestSoftDeleteTree(t *testing.T) {
 		{desc: "mapTree", tree: mapTree},
 	}
 	for _, test := range tests {
-		deletedTree, err := softDeleteTree(ctx, s, test.tree.TreeId)
+		deletedTree, err := storage.SoftDeleteTree(ctx, s, test.tree.TreeId)
 		if err != nil {
-			t.Errorf("%v: softDeleteTree() returned err = %v", test.desc, err)
+			t.Errorf("%v: SoftDeleteTree() returned err = %v", test.desc, err)
 			continue
 		}
 
@@ -501,7 +488,7 @@ func (tester *AdminStorageTester) TestSoftDeleteTree(t *testing.T) {
 		wantTree.Deleted = true
 		wantTree.DeleteTime = deletedTree.DeleteTime
 		if got, want := deletedTree, wantTree; !proto.Equal(got, want) {
-			t.Errorf("%v: post-softDeleteTree diff (-got +want):\n%v", test.desc, pretty.Compare(got, want))
+			t.Errorf("%v: post-SoftDeleteTree diff (-got +want):\n%v", test.desc, pretty.Compare(got, want))
 		}
 
 		if err := assertStoredTree(ctx, s, deletedTree); err != nil {
@@ -526,8 +513,8 @@ func (tester *AdminStorageTester) TestSoftDeleteTreeErrors(t *testing.T) {
 		{desc: "alreadyDeleted", treeID: softDeleted.TreeId, wantCode: errors.FailedPrecondition},
 	}
 	for _, test := range tests {
-		if _, err := softDeleteTree(ctx, s, test.treeID); errors.ErrorCode(err) != test.wantCode {
-			t.Errorf("%v: softDeleteTree() returned err = %v, wantCode = %s", test.desc, err, test.wantCode)
+		if _, err := storage.SoftDeleteTree(ctx, s, test.treeID); errors.ErrorCode(err) != test.wantCode {
+			t.Errorf("%v: SoftDeleteTree() returned err = %v, wantCode = %s", test.desc, err, test.wantCode)
 		}
 	}
 }
@@ -550,8 +537,8 @@ func (tester *AdminStorageTester) TestHardDeleteTree(t *testing.T) {
 		{desc: "mapTree", treeID: mapTree.TreeId},
 	}
 	for _, test := range tests {
-		if err := hardDeleteTree(ctx, s, test.treeID); err != nil {
-			t.Errorf("%v: hardDeleteTree() returned err = %v", test.desc, err)
+		if err := storage.HardDeleteTree(ctx, s, test.treeID); err != nil {
+			t.Errorf("%v: HardDeleteTree() returned err = %v", test.desc, err)
 			continue
 		}
 	}
@@ -573,22 +560,10 @@ func (tester *AdminStorageTester) TestHardDeleteTreeErrors(t *testing.T) {
 		{desc: "activeTree", treeID: activeTree.TreeId, wantCode: errors.FailedPrecondition},
 	}
 	for _, test := range tests {
-		if err := hardDeleteTree(ctx, s, test.treeID); errors.ErrorCode(err) != test.wantCode {
-			t.Errorf("%v: hardDeleteTree() returned err = %v, wantCode = %s", test.desc, err, test.wantCode)
+		if err := storage.HardDeleteTree(ctx, s, test.treeID); errors.ErrorCode(err) != test.wantCode {
+			t.Errorf("%v: HardDeleteTree() returned err = %v, wantCode = %s", test.desc, err, test.wantCode)
 		}
 	}
-}
-
-func hardDeleteTree(ctx context.Context, s storage.AdminStorage, treeID int64) error {
-	tx, err := s.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer tx.Close()
-	if err := tx.HardDeleteTree(ctx, treeID); err != nil {
-		return err
-	}
-	return tx.Commit()
 }
 
 // TestUndeleteTree tests success scenarios of UndeleteTree.
@@ -607,9 +582,9 @@ func (tester *AdminStorageTester) TestUndeleteTree(t *testing.T) {
 		{desc: "frozenTree", tree: frozenDeleted},
 	}
 	for _, test := range tests {
-		tree, err := undeleteTree(ctx, s, test.tree.TreeId)
+		tree, err := storage.UndeleteTree(ctx, s, test.tree.TreeId)
 		if err != nil {
-			t.Errorf("%v: undeleteTree() returned err = %v", test.desc, err)
+			t.Errorf("%v: UndeleteTree() returned err = %v", test.desc, err)
 			continue
 		}
 
@@ -617,7 +592,7 @@ func (tester *AdminStorageTester) TestUndeleteTree(t *testing.T) {
 		want.Deleted = false
 		want.DeleteTime = nil
 		if got := tree; !proto.Equal(got, want) {
-			t.Errorf("%v: post-undeleteTree diff (-got +want):\n%v", test.desc, pretty.Compare(got, want))
+			t.Errorf("%v: post-UndeleteTree diff (-got +want):\n%v", test.desc, pretty.Compare(got, want))
 		}
 
 		if err := assertStoredTree(ctx, s, tree); err != nil {
@@ -642,23 +617,10 @@ func (tester *AdminStorageTester) TestUndeleteTreeErrors(t *testing.T) {
 		{desc: "activeTree", treeID: activeTree.TreeId, wantCode: errors.FailedPrecondition},
 	}
 	for _, test := range tests {
-		if _, err := undeleteTree(ctx, s, test.treeID); errors.ErrorCode(err) != test.wantCode {
-			t.Errorf("%v: undeleteTree() returned err = %v, wantCode = %s", test.desc, err, test.wantCode)
+		if _, err := storage.UndeleteTree(ctx, s, test.treeID); errors.ErrorCode(err) != test.wantCode {
+			t.Errorf("%v: UndeleteTree() returned err = %v, wantCode = %s", test.desc, err, test.wantCode)
 		}
 	}
-}
-
-func undeleteTree(ctx context.Context, s storage.AdminStorage, treeID int64) (*trillian.Tree, error) {
-	tx, err := s.Begin(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Close()
-	tree, err := tx.UndeleteTree(ctx, treeID)
-	if err != nil {
-		return nil, err
-	}
-	return tree, tx.Commit()
 }
 
 // TestAdminTXClose verifies the behavior of Close() with and without explicit Commit() / Rollback() calls.
@@ -728,12 +690,12 @@ func (tester *AdminStorageTester) TestAdminTXClose(t *testing.T) {
 
 // assertStoredTree verifies that "want" is equal to the tree stored under its ID.
 func assertStoredTree(ctx context.Context, s storage.AdminStorage, want *trillian.Tree) error {
-	got, err := getTree(ctx, s, want.TreeId)
+	got, err := storage.GetTree(ctx, s, want.TreeId)
 	if err != nil {
-		return fmt.Errorf("getTree() returned err = %v", err)
+		return fmt.Errorf("GetTree() returned err = %v", err)
 	}
 	if !proto.Equal(got, want) {
-		return fmt.Errorf("post-getTree() diff (-got +want):\n%v", pretty.Compare(got, want))
+		return fmt.Errorf("post-GetTree() diff (-got +want):\n%v", pretty.Compare(got, want))
 	}
 	return nil
 }
@@ -758,13 +720,13 @@ func makeTree(ctx context.Context, s storage.AdminStorage, spec spec) (*trillian
 	tree := proto.Clone(spec.Tree).(*trillian.Tree)
 
 	var err error
-	tree, err = createTree(ctx, s, tree)
+	tree, err = storage.CreateTree(ctx, s, tree)
 	if err != nil {
 		return nil, err
 	}
 
 	if spec.Frozen {
-		tree, _, err = updateTree(ctx, s, tree.TreeId, func(t *trillian.Tree) {
+		tree, err = storage.UpdateTree(ctx, s, tree.TreeId, func(t *trillian.Tree) {
 			t.TreeState = trillian.TreeState_FROZEN
 		})
 		if err != nil {
@@ -773,7 +735,7 @@ func makeTree(ctx context.Context, s storage.AdminStorage, spec spec) (*trillian
 	}
 
 	if spec.Deleted {
-		tree, err = softDeleteTree(ctx, s, tree.TreeId)
+		tree, err = storage.SoftDeleteTree(ctx, s, tree.TreeId)
 		if err != nil {
 			return nil, err
 		}
@@ -788,67 +750,4 @@ func makeTree(ctx context.Context, s storage.AdminStorage, spec spec) (*trillian
 	}
 
 	return tree, nil
-}
-
-func createTree(ctx context.Context, s storage.AdminStorage, tree *trillian.Tree) (*trillian.Tree, error) {
-	tx, err := s.Begin(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Close()
-	newTree, err := tx.CreateTree(ctx, tree)
-	if err != nil {
-		return nil, err
-	}
-	if err := tx.Commit(); err != nil {
-		return nil, err
-	}
-	return newTree, nil
-}
-
-// updateTree updates the specified tree.
-// The bool return signifies whether the error was returned by the UpdateTree() call.
-func updateTree(ctx context.Context, s storage.AdminStorage, treeID int64, updateFunc func(*trillian.Tree)) (*trillian.Tree, bool, error) {
-	tx, err := s.Begin(ctx)
-	if err != nil {
-		return nil, false, err
-	}
-	defer tx.Close()
-	newTree, err := tx.UpdateTree(ctx, treeID, updateFunc)
-	if err != nil {
-		return nil, true, err
-	}
-	if err := tx.Commit(); err != nil {
-		return nil, false, err
-	}
-	return newTree, false, nil
-}
-
-func getTree(ctx context.Context, s storage.AdminStorage, treeID int64) (*trillian.Tree, error) {
-	tx, err := s.Snapshot(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Close()
-	tree, err := tx.GetTree(ctx, treeID)
-	if err != nil {
-		return nil, err
-	}
-	if err := tx.Commit(); err != nil {
-		return nil, err
-	}
-	return tree, nil
-}
-
-func softDeleteTree(ctx context.Context, s storage.AdminStorage, treeID int64) (*trillian.Tree, error) {
-	tx, err := s.Begin(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Close()
-	tree, err := tx.SoftDeleteTree(ctx, treeID)
-	if err != nil {
-		return nil, err
-	}
-	return tree, tx.Commit()
 }

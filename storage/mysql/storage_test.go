@@ -202,7 +202,7 @@ func nodesAreEqual(lhs []storage.Node, rhs []storage.Node) error {
 }
 
 func diffNodes(got, want []storage.Node) ([]storage.Node, []storage.Node) {
-	missing := []storage.Node{}
+	var missing []storage.Node
 	gotMap := make(map[string]storage.Node)
 	for _, n := range got {
 		gotMap[n.NodeID.String()] = n
@@ -259,40 +259,16 @@ func createLogForTests(db *sql.DB) int64 {
 
 // createTree creates the specified tree using AdminStorage.
 func createTree(db *sql.DB, tree *trillian.Tree) (*trillian.Tree, error) {
-	s := NewAdminStorage(db)
 	ctx := context.Background()
-	tx, err := s.Begin(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Close()
-	newTree, err := tx.CreateTree(ctx, tree)
-	if err != nil {
-		return nil, err
-	}
-	if err := tx.Commit(); err != nil {
-		return nil, err
-	}
-	return newTree, nil
+	s := NewAdminStorage(db)
+	return storage.CreateTree(ctx, s, tree)
 }
 
 // updateTree updates the specified tree using AdminStorage.
 func updateTree(db *sql.DB, treeID int64, updateFn func(*trillian.Tree)) (*trillian.Tree, error) {
-	s := NewAdminStorage(db)
 	ctx := context.Background()
-	tx, err := s.Begin(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Close()
-	tree, err := tx.UpdateTree(ctx, treeID, updateFn)
-	if err != nil {
-		return nil, err
-	}
-	if err := tx.Commit(); err != nil {
-		return nil, err
-	}
-	return tree, nil
+	s := NewAdminStorage(db)
+	return storage.UpdateTree(ctx, s, treeID, updateFn)
 }
 
 // DB is the database used for tests. It's initialized and closed by TestMain().

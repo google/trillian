@@ -63,7 +63,7 @@ func GetTree(ctx context.Context, s storage.AdminStorage, treeID int64, opts Get
 	tree, ok := FromContext(ctx)
 	if !ok || tree.TreeId != treeID {
 		var err error
-		tree, err = getTreeFromStorage(ctx, s, treeID)
+		tree, err = storage.GetTree(ctx, s, treeID)
 		if err != nil {
 			return nil, err
 		}
@@ -78,22 +78,6 @@ func GetTree(ctx context.Context, s storage.AdminStorage, treeID int64, opts Get
 		return nil, errors.Errorf(errors.NotFound, "tree %v not found", tree.TreeId)
 	}
 
-	return tree, nil
-}
-
-func getTreeFromStorage(ctx context.Context, s storage.AdminStorage, treeID int64) (*trillian.Tree, error) {
-	tx, err := s.Snapshot(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Close()
-	tree, err := tx.GetTree(ctx, treeID)
-	if err != nil {
-		return nil, err
-	}
-	if err := tx.Commit(); err != nil {
-		return nil, err
-	}
 	return tree, nil
 }
 
