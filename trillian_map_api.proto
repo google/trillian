@@ -48,7 +48,18 @@ message GetMapLeavesRequest {
   int64 map_id = 1;
   repeated bytes index = 2;
   // A negative revision indicates that the most recent published revision should be used.
+  // TODO(phad): 'revision' is deprecated; use GetMapLeavesByRevision instead.
+  // When 'revision' is removed GetMapLeaves will only return the most recently
+  // published revision.
   int64 revision = 3;
+}
+
+// This message replaces the current implementation of GetMapLeavesRequest
+// with the difference that revision must be >=0.
+message GetMapLeavesByRevisionRequest {
+  int64 map_id = 1;
+  repeated bytes index = 2;
+  uint64 revision = 3;
 }
 
 message GetMapLeavesResponse {
@@ -91,6 +102,7 @@ service TrillianMap {
   // GetLeaves returns an inclusion proof for each index requested.
   // For indexes that do not exist, the inclusion proof will use nil for the empty leaf value.
   rpc GetLeaves(GetMapLeavesRequest) returns(GetMapLeavesResponse) {}
+  rpc GetLeavesByRevision(GetMapLeavesByRevisionRequest) returns(GetMapLeavesResponse) {}
   rpc SetLeaves(SetMapLeavesRequest) returns(SetMapLeavesResponse) {}
   rpc GetSignedMapRoot(GetSignedMapRootRequest) returns(GetSignedMapRootResponse) {
       option (google.api.http) = {
