@@ -219,7 +219,7 @@ func RunLeafHistory(ctx context.Context, t *testing.T, tadmin trillian.TrillianA
 		HashStrategy []trillian.HashStrategy
 		set          [][]*trillian.MapLeaf
 		get          []struct {
-			revision  int64
+			revision  uint64
 			Index     []byte
 			LeafValue []byte
 		}
@@ -241,7 +241,7 @@ func RunLeafHistory(ctx context.Context, t *testing.T, tadmin trillian.TrillianA
 				},
 			},
 			get: []struct {
-				revision  int64
+				revision  uint64
 				Index     []byte
 				LeafValue []byte
 			}{
@@ -277,25 +277,25 @@ func RunLeafHistory(ctx context.Context, t *testing.T, tadmin trillian.TrillianA
 
 			for _, batch := range tc.get {
 				indexes := [][]byte{batch.Index}
-				getResp, err := tmap.GetLeaves(ctx, &trillian.GetMapLeavesRequest{
+				getResp, err := tmap.GetLeavesByRevision(ctx, &trillian.GetMapLeavesByRevisionRequest{
 					MapId:    tree.TreeId,
 					Index:    indexes,
 					Revision: batch.revision,
 				})
 				if err != nil {
-					t.Errorf("%v: GetLeaves(): %v", tc.desc, err)
+					t.Errorf("%v: GetLeavesByRevision(): %v", tc.desc, err)
 					continue
 				}
 				glog.Infof("Rev: %v Get(): %x", getResp.GetMapRoot().GetMapRevision(), getResp.GetMapRoot().GetRootHash())
 
 				if got, want := len(getResp.GetMapLeafInclusion()), 1; got < want {
-					t.Errorf("GetLeaves(rev: %v).len: %v, want >= %v", batch.revision, got, want)
+					t.Errorf("GetLeavesByRevision(rev: %v).len: %v, want >= %v", batch.revision, got, want)
 				}
 				if got, want := getResp.GetMapLeafInclusion()[0].GetLeaf().GetLeafValue(), batch.LeafValue; !bytes.Equal(got, want) {
-					t.Errorf("GetLeaves(rev: %v).LeafValue: %s, want %s", batch.revision, got, want)
+					t.Errorf("GetLeavesByRevision(rev: %v).LeafValue: %s, want %s", batch.revision, got, want)
 				}
 
-				if err := verifyGetMapLeavesResponse(getResp, indexes, batch.revision,
+				if err := verifyGetMapLeavesResponse(getResp, indexes, int64(batch.revision),
 					pubKey, hasher, tree.TreeId); err != nil {
 					t.Errorf("%v: verifyGetMapLeavesResponse(rev %v): %v", tc.desc, batch.revision, err)
 				}
