@@ -434,25 +434,29 @@ loop:
 		if err := l.getLogsAndExecutePass(ctx); err != nil {
 			glog.Errorf("failed to execute operation on logs: %v", err)
 		}
-
 		glog.V(1).Infof("Log operation manager pass complete")
-
-		// See if it's time to quit
-		select {
-		case <-ctx.Done():
-			glog.Infof("Log operation manager shutting down")
-			break loop
-		default:
-		}
 
 		// Wait for the configured time before going for another pass
 		duration := time.Since(start)
 		wait := l.info.RunInterval - duration
-		if wait > 0 {
-			glog.V(1).Infof("Processing started at %v for %v; wait %v before next run", start, duration, wait)
-			time.Sleep(wait)
-		} else {
-			glog.V(1).Infof("Processing started at %v for %v; start next run immediately", start, duration)
+		timeout := make(chan bool, 1)
+		go func() {
+			if wait > 0 {
+				glog.V(1).Infof("Processing started at %v for %v; wait %v before next run", start, duration, wait)
+				time.Sleep(wait)
+			} else {
+				glog.V(1).Infof("Processing started at %v for %v; start next run immediately", start, duration)
+			}
+			timeout <- true
+		}()
+
+		select {
+		case <-ctx.Done():
+			glog.Infof("Log operation manager shutting down")
+			break loop
+		case <-timeout:
+			// time for another pass
+		default:
 		}
 	}
 
