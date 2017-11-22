@@ -617,10 +617,25 @@ func dumpRespKeyVals(incls []*trillian.MapLeafInclusion) {
 }
 
 func (s *hammerState) getLeavesInvalid(ctx context.Context) error {
+	key := testonly.TransparentHash("..invalid-size")
+	req := trillian.GetMapLeavesRequest{
+		MapId: s.cfg.MapID,
+		Index: [][]byte{key[2:]},
+		Revision: -1,
+	}
+	rsp, err := s.cfg.Client.GetLeaves(ctx, &req)
+	if err == nil {
+		return fmt.Errorf("unexpected success: get-leaves(MalformedKey: %+v): %+v", req, rsp.MapRoot)
+	}
+	glog.V(2).Infof("%d: expected failure: get-leaves(MalformedKey: %+v): %+v", s.cfg.MapID, req, rsp)
+	return nil
+}
+
+func (s *hammerState) getLeavesRevInvalid(ctx context.Context) error {
 	choices := []Choice{MalformedKey, RevTooBig}
 
-	req := trillian.GetMapLeavesRequest{MapId: s.cfg.MapID}
-	rev := latestRevision
+	req := trillian.GetMapLeavesByRevisionRequest{MapId: s.cfg.MapID}
+	rev := int64(0)
 	choice := choices[rand.Intn(len(choices))]
 	if s.empty(latestCopy) {
 		choice = MalformedKey
@@ -631,21 +646,16 @@ func (s *hammerState) getLeavesInvalid(ctx context.Context) error {
 	case MalformedKey:
 		key := testonly.TransparentHash("..invalid-size")
 		req.Index = [][]byte{key[2:]}
-		req.Revision = rev
+		req.Revision = uint64(rev)
 	case RevTooBig:
 		req.Index = [][]byte{s.pickKey(latestCopy)}
-		req.Revision = rev + invalidStretch
+		req.Revision = uint64(rev + invalidStretch)
 	}
-	rsp, err := s.cfg.Client.GetLeaves(ctx, &req)
+	rsp, err := s.cfg.Client.GetLeavesByRevision(ctx, &req)
 	if err == nil {
-		return fmt.Errorf("unexpected success: get-leaves(%v: %+v): %+v", choice, req, rsp.MapRoot)
+		return fmt.Errorf("unexpected success: get-leaves-rev(%v: %+v): %+v", choice, req, rsp.MapRoot)
 	}
-	glog.V(2).Infof("%d: expected failure: get-leaves(%v: %+v): %+v", s.cfg.MapID, choice, req, rsp)
-	return nil
-}
-
-func (s *hammerState) getLeavesRevInvalid(ctx context.Context) error {
-	// TODO(phad): do this / refactor the above
+	glog.V(2).Infof("%d: expected failure: get-leaves-rev(%v: %+v): %+v", s.cfg.MapID, choice, req, rsp)
 	return nil
 }
 
