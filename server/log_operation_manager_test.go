@@ -435,11 +435,16 @@ func TestElectionRunnerRun(t *testing.T) {
 		startTime := time.Now()
 		fakeTimeSource.Set(startTime)
 		wg.Add(1)
-		go er.Run(ctx)
+		resignations := make(chan resignation, 100)
+		go er.Run(ctx, resignations)
 		time.Sleep(minMasterCheckInterval)
 		// Advance fake time so that shouldResign() triggers too.
 		fakeTimeSource.Set(startTime.Add(24 * 60 * time.Hour))
 		time.Sleep(minMasterCheckInterval)
+		for len(resignations) > 0 {
+			r := <-resignations
+			r.done <- true
+		}
 		cancel()
 		wg.Wait()
 		held := tracker.Held()

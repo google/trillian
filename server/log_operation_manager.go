@@ -107,7 +107,20 @@ type electionRunner struct {
 	election util.MasterElection
 }
 
-func (er *electionRunner) Run(ctx context.Context) {
+type resignation struct {
+	er   *electionRunner
+	done chan<- bool
+}
+
+func (r *resignation) execute(ctx context.Context) {
+	glog.Infof("%d: deliberately resigning mastership", r.er.logID)
+	if err := r.er.election.ResignAndRestart(ctx); err != nil {
+		glog.Errorf("%d: failed to resign mastership: %v", r.er.logID, err)
+	}
+	r.done <- true
+}
+
+func (er *electionRunner) Run(ctx context.Context, pending chan<- resignation) {
 	defer er.wg.Done()
 	label := strconv.FormatInt(er.logID, 10)
 
@@ -158,14 +171,16 @@ func (er *electionRunner) Run(ctx context.Context) {
 				break
 			}
 			if er.shouldResign(masterSince) {
-				glog.Infof("%d: deliberately resigning mastership", er.logID)
+				glog.Infof("%d: queue up resignation of mastership", er.logID)
 				resignations.Inc(label)
-				if err := er.election.ResignAndRestart(ctx); err == nil {
-					er.tracker.Set(er.logID, false)
-					isMaster.Set(0.0, label)
-					break
-				}
-				glog.Errorf("%d: failed to resign mastership", er.logID)
+				er.tracker.Set(er.logID, false)
+				isMaster.Set(0.0, label)
+
+				done := make(chan bool)
+				r := resignation{er: er, done: done}
+				pending <- r
+				<-done // block until acted on
+				break  // no longer master
 			}
 		}
 	}
@@ -194,11 +209,12 @@ type LogOperationManager struct {
 	logOperation LogOperation
 
 	// electionRunner tracks the goroutines that run per-log mastership elections
-	electionRunner map[int64]*electionRunner
-	runnerWG       sync.WaitGroup
-	tracker        *util.MasterTracker
-	heldMutex      sync.Mutex
-	lastHeld       []int64
+	electionRunner      map[int64]*electionRunner
+	pendingResignations chan resignation
+	runnerWG            sync.WaitGroup
+	tracker             *util.MasterTracker
+	heldMutex           sync.Mutex
+	lastHeld            []int64
 	// Cache of logID => name; assumed not to change during runtime
 	logNamesMutex sync.Mutex
 	logNames      map[int64]string
@@ -227,10 +243,11 @@ func NewLogOperationManager(info LogOperationInfo, logOperation LogOperation) *L
 		createMetrics(info.Registry.MetricFactory)
 	})
 	return &LogOperationManager{
-		info:           fixupElectionInfo(info),
-		logOperation:   logOperation,
-		electionRunner: make(map[int64]*electionRunner),
-		logNames:       make(map[int64]string),
+		info:                fixupElectionInfo(info),
+		logOperation:        logOperation,
+		electionRunner:      make(map[int64]*electionRunner),
+		pendingResignations: make(chan resignation, 100),
+		logNames:            make(map[int64]string),
 	}
 }
 
@@ -321,7 +338,7 @@ func (l *LogOperationManager) masterFor(ctx context.Context, allIDs []int64) ([]
 			election: election,
 		}
 		l.runnerWG.Add(1)
-		go l.electionRunner[logID].Run(innerCtx)
+		go l.electionRunner[logID].Run(innerCtx, l.pendingResignations)
 	}
 
 	held := l.tracker.Held()
@@ -450,13 +467,19 @@ loop:
 			timeout <- true
 		}()
 
-		select {
-		case <-ctx.Done():
-			glog.Infof("Log operation manager shutting down")
-			break loop
-		case <-timeout:
-			// time for another pass
-		default:
+		waiting := true
+		for waiting {
+			select {
+			case <-ctx.Done():
+				glog.Infof("Log operation manager shutting down")
+				break loop
+			case r := <-l.pendingResignations:
+				r.execute(ctx)
+			case <-timeout:
+				// time for another pass
+				waiting = false
+			default:
+			}
 		}
 	}
 
