@@ -50,6 +50,7 @@ var (
 )
 var (
 	getLeavesBias = flag.Int("get_leaves", 20, "Bias for get-leaves operations")
+	getLeavesRevBias = flag.Int("get_leaves_rev", 2, "Bias for get-leaves-revision operations")
 	setLeavesBias = flag.Int("set_leaves", 20, "Bias for set-leaves operations")
 	getSMRBias    = flag.Int("get_smr", 10, "Bias for get-smr operations")
 	getSMRRevBias = flag.Int("get_smr_rev", 2, "Bias for get-smr-revision operations")
@@ -70,12 +71,14 @@ func main() {
 	bias := hammer.MapBias{
 		Bias: map[hammer.MapEntrypointName]int{
 			hammer.GetLeavesName: *getLeavesBias,
+			hammer.GetLeavesRevName: *getLeavesRevBias,
 			hammer.SetLeavesName: *setLeavesBias,
 			hammer.GetSMRName:    *getSMRBias,
 			hammer.GetSMRRevName: *getSMRRevBias,
 		},
 		InvalidChance: map[hammer.MapEntrypointName]int{
 			hammer.GetLeavesName: *invalidChance,
+			hammer.GetLeavesRevName: *invalidChance,
 			hammer.SetLeavesName: *invalidChance,
 			hammer.GetSMRName:    0,
 			hammer.GetSMRRevName: *getSMRRevBias,

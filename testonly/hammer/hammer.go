@@ -89,12 +89,13 @@ type MapEntrypointName string
 // Constants for entrypoint names, as exposed in statistics/logging.
 const (
 	GetLeavesName = MapEntrypointName("GetLeaves")
+	GetLeavesRevName = MapEntrypointName("GetLeavesRev")
 	SetLeavesName = MapEntrypointName("SetLeaves")
 	GetSMRName    = MapEntrypointName("GetSMR")
 	GetSMRRevName = MapEntrypointName("GetSMRRev")
 )
 
-var mapEntrypoints = []MapEntrypointName{GetLeavesName, SetLeavesName, GetSMRName, GetSMRRevName}
+var mapEntrypoints = []MapEntrypointName{GetLeavesName, GetLeavesRevName, SetLeavesName, GetSMRName, GetSMRRevName}
 
 // Choice is a readable representation of a choice about how to perform a hammering operation.
 type Choice string
@@ -381,7 +382,28 @@ func (s *hammerState) updateContents(rev int64, leaves []*trillian.MapLeaf) erro
 	if s.contents[0].rev <= s.contents[1].rev {
 		return errInvariant{fmt.Sprintf("got rev %d, want >%d when trying to update hammer state with new contents", s.contents[0].rev, s.contents[1].rev)}
 	}
+
+	if glog.V(3) {
+		s.dumpContents()
+	}
 	return nil
+}
+
+func (s *hammerState) dumpContents() {
+	fmt.Println("Contents\n~~~~~~~~")
+	i := 0
+	for ; i < copyCount; i++ {
+		if len(s.contents[i].data) == 0 {
+			break
+		}
+		fmt.Printf(" slot #%d\n", i)
+		fmt.Printf("  revision: %d\n", s.contents[i].rev)
+		fmt.Println("  data:")
+		for k, v := range s.contents[i].data {
+			fmt.Printf("   k: %s v: %v\n", string(k[:]), v)
+		}
+	}
+	fmt.Println("~~~~~~~~")
 }
 
 func (s *hammerState) checkContents(which int, leafInclusions []*trillian.MapLeafInclusion) error {
@@ -473,6 +495,8 @@ func (s *hammerState) performOp(ctx context.Context, ep MapEntrypointName) error
 	switch ep {
 	case GetLeavesName:
 		return s.getLeaves(ctx)
+	case GetLeavesRevName:
+		return s.getLeavesRev(ctx)
 	case SetLeavesName:
 		return s.setLeaves(ctx)
 	case GetSMRName:
@@ -488,6 +512,8 @@ func (s *hammerState) performInvalidOp(ctx context.Context, ep MapEntrypointName
 	switch ep {
 	case GetLeavesName:
 		return s.getLeavesInvalid(ctx)
+	case GetLeavesRevName:
+		return s.getLeavesRevInvalid(ctx)
 	case SetLeavesName:
 		return s.setLeavesInvalid(ctx)
 	case GetSMRRevName:
@@ -500,6 +526,14 @@ func (s *hammerState) performInvalidOp(ctx context.Context, ep MapEntrypointName
 }
 
 func (s *hammerState) getLeaves(ctx context.Context) error {
+	return s.doGetLeaves(ctx, true /*latest*/)
+}
+
+func (s *hammerState) getLeavesRev(ctx context.Context) error {
+	return s.doGetLeaves(ctx, false /*latest*/)
+}
+
+func (s *hammerState) doGetLeaves(ctx context.Context, latest bool) error {
 	choices := []Choice{ExistingKey, NonexistentKey}
 
 	which, ok := s.pickCopy()
@@ -507,42 +541,79 @@ func (s *hammerState) getLeaves(ctx context.Context) error {
 		glog.V(3).Infof("%d: skipping get-leaves as no data yet", s.cfg.MapID)
 		return errSkip{}
 	}
+	// Note, even if 'latest'==false this selects the latest rev when 'which'==0.
+	// This it intended since a client may know the latest revision and specify it in
+	// GetLeavesByRevision.
 	rev := s.rev(which)
-	if which == 0 {
-		// We're asking for the latest revision; this can also be requested
-		// by using a negative revision. So do that sometimes.
-		if rand.Intn(2) == 0 {
-			rev = -1
-		}
+	if latest {
+		which = 0
+		rev = s.rev(0)
 	}
+
 	n := rand.Intn(10) // can be zero
-	req := trillian.GetMapLeavesRequest{
-		MapId:    s.cfg.MapID,
-		Revision: rev,
-		Index:    make([][]byte, n),
-	}
+	indices := make([][]byte, n)
 	for i := 0; i < n; i++ {
 		choice := choices[rand.Intn(len(choices))]
 		switch choice {
 		case ExistingKey:
 			// No duplicate removal, so we can end up asking for same key twice in the same request.
 			key := s.pickKey(which)
-			req.Index[i] = key
+			indices[i] = key
 		case NonexistentKey:
-			req.Index[i] = testonly.TransparentHash("non-existent-key")
+			indices[i] = testonly.TransparentHash("non-existent-key")
 		}
 	}
-	rsp, err := s.cfg.Client.GetLeaves(ctx, &req)
-	if err != nil {
-		return fmt.Errorf("failed to get-leaves(%+v): %v", req, err)
+
+	var rsp *trillian.GetMapLeavesResponse
+	var rqMsg proto.Message
+	label := "get-leaves"
+	var err error
+	if latest {
+		req := &trillian.GetMapLeavesRequest{
+			MapId:    s.cfg.MapID,
+			Revision: -1,  // TODO(phad): this will be removed later
+			Index:    indices,
+		}
+		rsp, err = s.cfg.Client.GetLeaves(ctx, req)
+		if err != nil {
+			return fmt.Errorf("failed to %s(%+v): %v", label, req, err)
+		}
+		rqMsg = req
+	} else {
+		label += "-rev"
+		req := &trillian.GetMapLeavesByRevisionRequest{
+			MapId:    s.cfg.MapID,
+			Revision: uint64(rev),
+			Index:    indices,
+		}
+		rsp, err = s.cfg.Client.GetLeavesByRevision(ctx, req)
+		if err != nil {
+			return fmt.Errorf("failed to %s(%+v): %v", label, req, err)
+		}
+		rqMsg = req
+	}
+
+	if glog.V(3) {
+		dumpRespKeyVals(rsp.MapLeafInclusion)
 	}
 
 	// TODO(drysdale): verify inclusion
 	if err := s.checkContents(which, rsp.MapLeafInclusion); err != nil {
-		return fmt.Errorf("incorrect contents of get-leaves(%+v): %v", req, err)
+		return fmt.Errorf("incorrect contents of %s(%+v): %v", label, rqMsg, err)
 	}
 	glog.V(2).Infof("%d: got %d leaves, with SMR(time=%q, rev=%d)", s.cfg.MapID, len(rsp.MapLeafInclusion), timeFromNanos(rsp.MapRoot.TimestampNanos), rsp.MapRoot.MapRevision)
 	return nil
+}
+
+func dumpRespKeyVals(incls []*trillian.MapLeafInclusion) {
+	fmt.Println("Rsp key-vals:")
+	for _, inc := range incls {
+		var key mapKey
+		copy(key[:], inc.Leaf.Index)
+		leafVal := inc.Leaf.LeafValue
+		fmt.Printf("k: %v -> v: %v\n", string(key[:]), string(leafVal))
+	}
+	fmt.Println("~~~~~~~~~~~~~")
 }
 
 func (s *hammerState) getLeavesInvalid(ctx context.Context) error {
@@ -570,6 +641,11 @@ func (s *hammerState) getLeavesInvalid(ctx context.Context) error {
 		return fmt.Errorf("unexpected success: get-leaves(%v: %+v): %+v", choice, req, rsp.MapRoot)
 	}
 	glog.V(2).Infof("%d: expected failure: get-leaves(%v: %+v): %+v", s.cfg.MapID, choice, req, rsp)
+	return nil
+}
+
+func (s *hammerState) getLeavesRevInvalid(ctx context.Context) error {
+	// TODO(phad): do this / refactor the above
 	return nil
 }
 
@@ -602,13 +678,13 @@ leafloop:
 					break leafloop
 				}
 			}
-			var value []byte
+			var value, extra []byte
 			if choice == UpdateLeaf {
 				value = s.nextValue()
+				extra = []byte("extra-" + string(value))
 			}
-			glog.V(3).Infof("%d: %v: data[%q]=%q", s.cfg.MapID, choice, dehash(key), string(value))
-			extra := []byte("extra-" + string(value))
 			leaves = append(leaves, &trillian.MapLeaf{Index: key, LeafValue: value, ExtraData: extra})
+			glog.V(3).Infof("%d: %v: data[%q]=%q (extra=%q)", s.cfg.MapID, choice, dehash(key), string(value), string(extra))
 		}
 	}
 	req := trillian.SetMapLeavesRequest{
@@ -666,7 +742,7 @@ func (s *hammerState) getSMR(ctx context.Context) error {
 
 	// TODO(drysdale): check signature
 	s.pushSMR(rsp.MapRoot)
-	glog.V(2).Infof("%d: Got SMR(time=%q, rev=%d)", s.cfg.MapID, timeFromNanos(rsp.MapRoot.TimestampNanos), rsp.MapRoot.MapRevision)
+	glog.V(2).Infof("%d: got SMR(time=%q, rev=%d)", s.cfg.MapID, timeFromNanos(rsp.MapRoot.TimestampNanos), rsp.MapRoot.MapRevision)
 	return nil
 }
 
@@ -683,7 +759,7 @@ func (s *hammerState) getSMRRev(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to get-smr-rev(@%d): %v", req.Revision, err)
 	}
-	glog.V(2).Infof("%d: Got SMR(time=%q, rev=%d)", s.cfg.MapID, timeFromNanos(rsp.MapRoot.TimestampNanos), rsp.MapRoot.MapRevision)
+	glog.V(2).Infof("%d: got SMR(time=%q, rev=%d)", s.cfg.MapID, timeFromNanos(rsp.MapRoot.TimestampNanos), rsp.MapRoot.MapRevision)
 
 	if !s.cfg.CheckSignatures {
 		rsp.MapRoot.Signature = nil
