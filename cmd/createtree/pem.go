@@ -60,10 +60,10 @@ func privateKeyProtoFromFlags() (proto.Message, error) {
 		return nil, fmt.Errorf("error reading reading private key file: %v", err)
 	}
 
-	der, err := der.MarshalPrivateKey(key)
+	keyDER, err := der.MarshalPrivateKey(key)
 	if err != nil {
 		return nil, fmt.Errorf("error marshaling private key as DER: %v", err)
 	}
 
-	return &keyspb.PrivateKey{Der: der}, nil
+	return &keyspb.PrivateKey{Der: keyDER}, nil
 }
