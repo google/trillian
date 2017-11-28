@@ -17,6 +17,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"testing"
 
 	"github.com/golang/protobuf/proto"
@@ -335,17 +336,18 @@ func TestMapGet0Results(t *testing.T) {
 		{index: nil}, //empty list.
 		{index: [][]byte{[]byte("This doesn't exist.")}},
 	} {
-		tx := beginMapTx(ctx, s, mapID, t)
-		defer tx.Close()
-		defer commit(tx, t)
-		readValues, err := tx.Get(ctx, 1, tc.index)
-		if err != nil {
-			t.Errorf("tx.Get(%s): %v", tc.index, err)
-			continue
-		}
-		if got, want := len(readValues), 0; got != want {
-			t.Errorf("len(tx.Get(%s)): %d, want %d", tc.index, got, want)
-		}
+		t.Run(fmt.Sprintf("tx.Get(%s)", tc.index), func(t *testing.T) {
+			tx := beginMapTx(ctx, s, mapID, t)
+			defer tx.Close()
+			defer commit(tx, t)
+			readValues, err := tx.Get(ctx, 1, tc.index)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got, want := len(readValues), 0; got != want {
+				t.Fatalf("len = %d, want %d", got, want)
+			}
+		})
 	}
 }
 

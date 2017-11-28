@@ -132,53 +132,51 @@ func TestQuotaManager_GetTokens_InformationSchema(t *testing.T) {
 	}
 	for _, test := range tests {
 		desc := fmt.Sprintf("useSelectCount = %v", test.useSelectCount)
-
-		db, err := provider.NewTrillianDB(ctx)
-		if err != nil {
-			t.Errorf("%v: GetTestDB() returned err = %v", desc, err)
-			continue
-		}
-		defer db.Close()
-
-		tree, err := createTree(ctx, db)
-		if err != nil {
-			t.Errorf("%v: createTree() returned err = %v", desc, err)
-			continue
-		}
-
-		qm := &mysqlqm.QuotaManager{DB: db, MaxUnsequencedRows: maxUnsequenced, UseSelectCount: test.useSelectCount}
-
-		// All GetTokens() calls where leaves < maxUnsequenced should succeed:
-		// information_schema may be outdated, but it should refer to a valid point in the
-		// past.
-		for i := 0; i < maxUnsequenced-1; i++ {
-			if err := queueLeaves(ctx, db, tree, i /* firstID */, 1 /* num */); err != nil {
-				t.Fatalf("%v: queueLeaves() returned err = %v", desc, err)
+		t.Run(desc, func(t *testing.T) {
+			db, err := provider.NewTrillianDB(ctx)
+			if err != nil {
+				t.Fatalf("NewTrillianDB() returned err = %v", err)
 			}
-			if err := qm.GetTokens(ctx, 1 /* numTokens */, globalWriteSpec); err != nil {
-				t.Errorf("%v: GetTokens() returned err = %v (%v leaves)", desc, err, i+1)
-			}
-		}
+			defer db.Close()
 
-		// Make leaves = maxUnsequenced
-		if err := queueLeaves(ctx, db, tree, maxUnsequenced-1 /* firstID */, 1 /* num */); err != nil {
-			t.Errorf("%v: queueLeaves() returned err = %v", desc, err)
-			continue
-		}
-
-		// Allow some time for information_schema to "catch up".
-		stop := false
-		timeout := time.After(1 * time.Second)
-		for !stop {
-			select {
-			case <-timeout:
-				t.Errorf("%v: Timed out", desc)
-				stop = true
-			default:
-				// An error means that GetTokens is working correctly
-				stop = qm.GetTokens(ctx, 1 /* numTokens */, globalWriteSpec) == mysqlqm.ErrTooManyUnsequencedRows
+			tree, err := createTree(ctx, db)
+			if err != nil {
+				t.Fatalf("createTree() returned err = %v", err)
 			}
-		}
+
+			qm := &mysqlqm.QuotaManager{DB: db, MaxUnsequencedRows: maxUnsequenced, UseSelectCount: test.useSelectCount}
+
+			// All GetTokens() calls where leaves < maxUnsequenced should succeed:
+			// information_schema may be outdated, but it should refer to a valid point in the
+			// past.
+			for i := 0; i < maxUnsequenced-1; i++ {
+				if err := queueLeaves(ctx, db, tree, i /* firstID */, 1 /* num */); err != nil {
+					t.Fatalf("queueLeaves() returned err = %v", err)
+				}
+				if err := qm.GetTokens(ctx, 1 /* numTokens */, globalWriteSpec); err != nil {
+					t.Errorf("GetTokens() returned err = %v (%v leaves)", err, i+1)
+				}
+			}
+
+			// Make leaves = maxUnsequenced
+			if err := queueLeaves(ctx, db, tree, maxUnsequenced-1 /* firstID */, 1 /* num */); err != nil {
+				t.Fatalf("queueLeaves() returned err = %v", err)
+			}
+
+			// Allow some time for information_schema to "catch up".
+			stop := false
+			timeout := time.After(1 * time.Second)
+			for !stop {
+				select {
+				case <-timeout:
+					t.Errorf("timed out")
+					stop = true
+				default:
+					// An error means that GetTokens is working correctly
+					stop = qm.GetTokens(ctx, 1 /* numTokens */, globalWriteSpec) == mysqlqm.ErrTooManyUnsequencedRows
+				}
+			}
+		})
 	}
 }
 
