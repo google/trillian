@@ -51,9 +51,13 @@ func buildGetLeavesByIndexRequest(logID int64, startLeaf, numLeaves int64) *tril
 func main() {
 	flag.Parse()
 
+	ctx := context.Background()
+
 	// TODO: Other options apart from insecure connections
 	port := *serverPortFlag
-	conn, err := grpc.Dial(fmt.Sprintf("localhost:%d", port), grpc.WithInsecure(), grpc.WithTimeout(time.Second*5))
+	dialCtx, cancel := context.WithTimeout(ctx, time.Second*5)
+	defer cancel()
+	conn, err := grpc.DialContext(dialCtx, fmt.Sprintf("localhost:%d", port), grpc.WithInsecure())
 
 	if err != nil {
 		panic(err)
@@ -64,7 +68,7 @@ func main() {
 	client := trillian.NewTrillianLogClient(conn)
 
 	req := buildGetLeavesByIndexRequest(*treeIDFlag, *startLeafFlag, *numLeavesFlag)
-	getLeafByIndexResponse, err := client.GetLeavesByIndex(context.Background(), req)
+	getLeafByIndexResponse, err := client.GetLeavesByIndex(ctx, req)
 
 	if err != nil {
 		fmt.Printf("Got error in call: %v", err)
