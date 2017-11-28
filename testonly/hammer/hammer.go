@@ -106,7 +106,6 @@ const (
 	MalformedKey   = Choice("MalformedKey")
 	DuplicateKey   = Choice("DuplicateKey")
 	RevTooBig      = Choice("RevTooBig")
-	RevIsZero      = Choice("RevIsZero")
 	RevIsNegative  = Choice("RevIsNegative")
 	CreateLeaf     = Choice("CreateLeaf")
 	UpdateLeaf     = Choice("UpdateLeaf")
