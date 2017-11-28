@@ -465,72 +465,70 @@ func TestServer_CreateTree(t *testing.T) {
 
 	ctx := context.Background()
 	for _, test := range tests {
-		var privateKey crypto.Signer = ecdsaPrivateKey
-		var keygen keys.ProtoGenerator
-		// If KeySpec is set, select the correct type of key to "generate".
-		if test.req.GetKeySpec() != nil {
-			switch keySpec := test.req.GetKeySpec().GetParams().(type) {
-			case *keyspb.Specification_EcdsaParams:
-				privateKey = ecdsaPrivateKey
-			case *keyspb.Specification_RsaParams:
-				privateKey = rsaPrivateKey
-			default:
-				t.Errorf("%v: unexpected KeySpec.Params type: %T", test.desc, keySpec)
-				continue
+		t.Run(test.desc, func(t *testing.T) {
+			var privateKey crypto.Signer = ecdsaPrivateKey
+			var keygen keys.ProtoGenerator
+			// If KeySpec is set, select the correct type of key to "generate".
+			if test.req.GetKeySpec() != nil {
+				switch keySpec := test.req.GetKeySpec().GetParams().(type) {
+				case *keyspb.Specification_EcdsaParams:
+					privateKey = ecdsaPrivateKey
+				case *keyspb.Specification_RsaParams:
+					privateKey = rsaPrivateKey
+				default:
+					t.Fatalf("unexpected KeySpec.Params type: %T", keySpec)
+				}
+
+				if test.wantKeyGenerator {
+					// Setup a fake key generator. If it receives the expected KeySpec, it returns wantKeyProto,
+					// which a keys.ProtoHandler will expect to receive later on.
+					keygen = fakeKeyProtoGenerator(test.req.GetKeySpec(), wantKeyProto)
+				}
 			}
 
-			if test.wantKeyGenerator {
-				// Setup a fake key generator. If it receives the expected KeySpec, it returns wantKeyProto,
-				// which a keys.ProtoHandler will expect to receive later on.
-				keygen = fakeKeyProtoGenerator(test.req.GetKeySpec(), wantKeyProto)
+			keys.RegisterHandler(fakeKeyProtoHandler(wantKeyProto, privateKey))
+			defer keys.UnregisterHandler(wantKeyProto)
+
+			setup := setupAdminServer(ctrl, keygen, false /* snapshot */, test.wantCommit, test.commitErr)
+			tx := setup.tx
+			s := setup.server
+			nowPB := ptypes.TimestampNow()
+
+			if test.req.Tree != nil {
+				var newTree trillian.Tree
+				tx.EXPECT().CreateTree(ctx, gomock.Any()).MaxTimes(1).Do(func(ctx context.Context, tree *trillian.Tree) {
+					newTree = *tree
+					newTree.TreeId = 12345
+					newTree.CreateTime = nowPB
+					newTree.UpdateTime = nowPB
+				}).Return(&newTree, test.createErr)
 			}
-		}
 
-		keys.RegisterHandler(fakeKeyProtoHandler(wantKeyProto, privateKey))
-		defer keys.UnregisterHandler(wantKeyProto)
+			// Copy test.req so that any changes CreateTree makes don't affect the original, which may be shared between tests.
+			reqCopy := proto.Clone(test.req).(*trillian.CreateTreeRequest)
+			tree, err := s.CreateTree(ctx, reqCopy)
+			switch gotErr := err != nil; {
+			case gotErr && !strings.Contains(err.Error(), test.wantErr):
+				t.Fatalf("CreateTree() = (_, %q), want (_, %q)", err, test.wantErr)
+			case gotErr:
+				return
+			case test.wantErr != "":
+				t.Fatalf("CreateTree() = (_, nil), want (_, %q)", test.wantErr)
+			}
 
-		setup := setupAdminServer(ctrl, keygen, false /* snapshot */, test.wantCommit, test.commitErr)
-		tx := setup.tx
-		s := setup.server
-		nowPB := ptypes.TimestampNow()
-
-		if test.req.Tree != nil {
-			var newTree trillian.Tree
-			tx.EXPECT().CreateTree(ctx, gomock.Any()).MaxTimes(1).Do(func(ctx context.Context, tree *trillian.Tree) {
-				newTree = *tree
-				newTree.TreeId = 12345
-				newTree.CreateTime = nowPB
-				newTree.UpdateTime = nowPB
-			}).Return(&newTree, test.createErr)
-		}
-
-		// Copy test.req so that any changes CreateTree makes don't affect the original, which may be shared between tests.
-		reqCopy := proto.Clone(test.req).(*trillian.CreateTreeRequest)
-		tree, err := s.CreateTree(ctx, reqCopy)
-		switch gotErr := err != nil; {
-		case gotErr && !strings.Contains(err.Error(), test.wantErr):
-			t.Errorf("%v: CreateTree() = (_, %q), want (_, %q)", test.desc, err, test.wantErr)
-			continue
-		case gotErr:
-			continue
-		case test.wantErr != "":
-			t.Errorf("%v: CreateTree() = (_, nil), want (_, %q)", test.desc, test.wantErr)
-			continue
-		}
-
-		wantTree := *test.req.Tree
-		wantTree.TreeId = 12345
-		wantTree.CreateTime = nowPB
-		wantTree.UpdateTime = nowPB
-		wantTree.PrivateKey = nil // redacted
-		wantTree.PublicKey, err = der.ToPublicProto(privateKey.Public())
-		if err != nil {
-			t.Errorf("%v: failed to marshal test public key as protobuf: %v", test.desc, err)
-			continue
-		}
-		if diff := pretty.Compare(tree, &wantTree); diff != "" {
-			t.Errorf("%v: post-CreateTree diff (-got +want):\n%v", test.desc, diff)
-		}
+			wantTree := *test.req.Tree
+			wantTree.TreeId = 12345
+			wantTree.CreateTime = nowPB
+			wantTree.UpdateTime = nowPB
+			wantTree.PrivateKey = nil // redacted
+			wantTree.PublicKey, err = der.ToPublicProto(privateKey.Public())
+			if err != nil {
+				t.Fatalf("failed to marshal test public key as protobuf: %v", err)
+			}
+			if diff := pretty.Compare(tree, &wantTree); diff != "" {
+				t.Fatalf("post-CreateTree diff (-got +want):\n%v", diff)
+			}
+		})
 	}
 }
 

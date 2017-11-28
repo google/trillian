@@ -285,35 +285,36 @@ func TestSigner(t *testing.T) {
 
 	ctx := context.Background()
 	for _, test := range tests {
-		tree := *testonly.LogTree
-		tree.HashAlgorithm = sigpb.DigitallySigned_SHA256
-		tree.HashStrategy = trillian.HashStrategy_RFC6962_SHA256
-		tree.SignatureAlgorithm = test.sigAlgo
+		t.Run(test.desc, func(t *testing.T) {
+			tree := *testonly.LogTree
+			tree.HashAlgorithm = sigpb.DigitallySigned_SHA256
+			tree.HashStrategy = trillian.HashStrategy_RFC6962_SHA256
+			tree.SignatureAlgorithm = test.sigAlgo
 
-		var wantKeyProto ptypes.DynamicAny
-		if err := ptypes.UnmarshalAny(tree.PrivateKey, &wantKeyProto); err != nil {
-			t.Errorf("%v: failed to unmarshal tree.PrivateKey: %v", test.desc, err)
-		}
-
-		keys.RegisterHandler(wantKeyProto.Message, func(ctx context.Context, gotKeyProto proto.Message) (crypto.Signer, error) {
-			if !proto.Equal(gotKeyProto, wantKeyProto.Message) {
-				return nil, fmt.Errorf("NewSigner(_, %#v) called, want NewSigner(_, %#v)", gotKeyProto, wantKeyProto.Message)
+			var wantKeyProto ptypes.DynamicAny
+			if err := ptypes.UnmarshalAny(tree.PrivateKey, &wantKeyProto); err != nil {
+				t.Fatalf("failed to unmarshal tree.PrivateKey: %v", err)
 			}
-			return test.signer, test.newSignerErr
+
+			keys.RegisterHandler(wantKeyProto.Message, func(ctx context.Context, gotKeyProto proto.Message) (crypto.Signer, error) {
+				if !proto.Equal(gotKeyProto, wantKeyProto.Message) {
+					return nil, fmt.Errorf("NewSigner(_, %#v) called, want NewSigner(_, %#v)", gotKeyProto, wantKeyProto.Message)
+				}
+				return test.signer, test.newSignerErr
+			})
+			defer keys.UnregisterHandler(wantKeyProto.Message)
+
+			signer, err := Signer(ctx, &tree)
+			if hasErr := err != nil; hasErr != test.wantErr {
+				t.Fatalf("Signer(_, %s) = (_, %q), wantErr = %v", test.sigAlgo, err, test.wantErr)
+			} else if hasErr {
+				return
+			}
+
+			want := &tcrypto.Signer{Hash: crypto.SHA256, Signer: test.signer}
+			if diff := pretty.Compare(signer, want); diff != "" {
+				t.Fatalf("post-Signer(_, %s) diff:\n%v", test.sigAlgo, diff)
+			}
 		})
-		defer keys.UnregisterHandler(wantKeyProto.Message)
-
-		signer, err := Signer(ctx, &tree)
-		if hasErr := err != nil; hasErr != test.wantErr {
-			t.Errorf("%v: Signer(_, %s) = (_, %q), wantErr = %v", test.desc, test.sigAlgo, err, test.wantErr)
-			continue
-		} else if hasErr {
-			continue
-		}
-
-		want := &tcrypto.Signer{Hash: crypto.SHA256, Signer: test.signer}
-		if diff := pretty.Compare(signer, want); diff != "" {
-			t.Errorf("%v: post-Signer(_, %s) diff:\n%v", test.desc, test.sigAlgo, diff)
-		}
 	}
 }
