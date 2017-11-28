@@ -95,7 +95,7 @@ func newTreeStorage(db *sql.DB) *mySQLTreeStorage {
 // placeholder slots. At most one placeholder will be expanded.
 func expandPlaceholderSQL(sql string, num int, first, rest string) string {
 	if num <= 0 {
-		panic(fmt.Errorf("Trying to expand SQL placeholder with <= 0 parameters: %s", sql))
+		panic(fmt.Errorf("trying to expand SQL placeholder with <= 0 parameters: %s", sql))
 	}
 
 	parameters := first + strings.Repeat(","+rest, num-1)

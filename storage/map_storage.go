@@ -59,7 +59,7 @@ type MapTreeTX interface {
 // ErrMapNeedsInit is an error returned from SnapshotForTree / BeginForTree when used
 // on a uninitialized map storage - i.e. a new, empty map in which the Revision 0 SMH
 // hasn't yet been created.
-var ErrMapNeedsInit = errors.New("Uninitialized map")
+var ErrMapNeedsInit = errors.New("uninitialized map")
 
 // ReadOnlyMapStorage provides a narrow read-only view into a MapStorage.
 type ReadOnlyMapStorage interface {

@@ -114,7 +114,7 @@ var testProofs = []proofTestVector{
 func decodeHexStringOrPanic(hs string) []byte {
 	data, err := hex.DecodeString(hs)
 	if err != nil {
-		panic(fmt.Errorf("Failed to decode test data: %s", hs))
+		panic(fmt.Errorf("failed to decode test data: %s", hs))
 	}
 
 	return data
