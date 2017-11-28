@@ -34,9 +34,9 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/trees"
-	"github.com/mattn/go-sqlite3"
 
 	spb "github.com/google/trillian/crypto/sigpb"
+	sqlite3 "github.com/mattn/go-sqlite3"
 )
 
 const (
