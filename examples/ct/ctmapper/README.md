@@ -25,20 +25,24 @@ go build ./examples/ct/ctmapper/lookup
 go build ./cmd/createtree/
 tree_id=$(./createtree \
     --admin_server=localhost:8090 \
-    --signature_algorithm=ECDSA)
+    --hash_strategy=TEST_MAP_HASHER \
+    --tree_type=MAP)
+echo "Created map with ID ${tree_id}"
+
 ./mapper \
-    -source http://ct.googleapis.com/pilot \
-    -map_id=${tree_id} \
-    -map_server=localhost:8091 \
-    --logtostderr
+    --logtostderr \
+    --log_batch_size=10 \
+    --map_id=${tree_id} \
+    --map_server=localhost:8090 \
+    --source=http://ct.googleapis.com/pilot
 ```
 
 You should then be able to look up domains in the map like so:
 
 ```bash
 ./lookup \
-    -map_id=1 \
-    -map_server=localhost:8091 \
     --logtostderr \
+    --map_id=${tree_id} \
+    --map_server=localhost:8090 \
     mail.google.com www.langeoog.de  # etc. etc.
 ```
