@@ -83,6 +83,8 @@ CREATE TABLE IF NOT EXISTS LeafData(
   -- This is extra data that the application can associate with the leaf should it wish to.
   -- This data is not included in signing and hashing.
   ExtraData            LONGBLOB,
+  -- The timestamp from when this leaf data was first queued for inclusion.
+  QueueTimestampNanos  BIGINT NOT NULL,
   PRIMARY KEY(TreeId, LeafIdentityHash),
   FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE
 );
@@ -103,6 +105,7 @@ CREATE TABLE IF NOT EXISTS SequencedLeafData(
   -- This is a MerkleLeafHash as defined by the treehasher that the log uses. For example for
   -- CT this hash will include the leaf prefix byte as well as the leaf data.
   MerkleLeafHash       VARBINARY(255) NOT NULL,
+  IntegrateTimestampNanos BIGINT NOT NULL,
   PRIMARY KEY(TreeId, SequenceNumber),
   FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE,
   FOREIGN KEY(TreeId, LeafIdentityHash) REFERENCES LeafData(TreeId, LeafIdentityHash) ON DELETE CASCADE

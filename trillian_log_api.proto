@@ -55,6 +55,12 @@ message LogLeaf {
     // If leaf_identity_hash is empty, it's assumed to be the same as the
     // merkle_leaf_hash.
     bytes leaf_identity_hash = 5;
+    // queue_timestamp_nanos records the time at which this leaf was first passed to QueueLeaves.
+    // This value will be determined and set by the LogServer.
+    int64 queue_timestamp_nanos = 6;
+    // integrate_timestamp_nanos records the time at which this leaf was integrated into the tree.
+    // This value will be determined and set by the LogSigner.
+    int64 integrate_timestamp_nanos = 7;
 }
 
 message Proof {

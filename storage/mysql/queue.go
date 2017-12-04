@@ -35,20 +35,18 @@ const (
 			ORDER BY QueueTimestampNanos,LeafIdentityHash ASC LIMIT ?`
 	insertUnsequencedEntrySQL = `INSERT INTO Unsequenced(TreeId,Bucket,LeafIdentityHash,MerkleLeafHash,QueueTimestampNanos)
 			VALUES(?,0,?,?,?)`
-	insertSequencedLeafSQL = `INSERT INTO SequencedLeafData(TreeId,LeafIdentityHash,MerkleLeafHash,SequenceNumber)
-			VALUES(?,?,?,?)`
+	insertSequencedLeafSQL = `INSERT INTO SequencedLeafData(TreeId,LeafIdentityHash,MerkleLeafHash,SequenceNumber,IntegrateTimestampNanos)
+			VALUES(?,?,?,?,?)`
 	deleteUnsequencedSQL = "DELETE FROM Unsequenced WHERE TreeId=? AND Bucket=0 AND QueueTimestampNanos=? AND LeafIdentityHash=?"
 )
-
-type dequeueMeta int64
 
 type dequeuedLeaf struct {
 	queueTimestampNanos int64
 	leafIdentityHash    []byte
 }
 
-func dequeueInfo(leafIDHash []byte, meta dequeueMeta) dequeuedLeaf {
-	return dequeuedLeaf{queueTimestampNanos: int64(meta), leafIdentityHash: leafIDHash}
+func dequeueInfo(leafIDHash []byte, queueTimestamp int64) dequeuedLeaf {
+	return dequeuedLeaf{queueTimestampNanos: queueTimestamp, leafIdentityHash: leafIDHash}
 }
 
 func queueArgs(treeID int64, identityHash []byte, queueTimestamp time.Time) []interface{} {
@@ -68,7 +66,8 @@ func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillia
 			t.treeID,
 			leaf.LeafIdentityHash,
 			leaf.MerkleLeafHash,
-			leaf.LeafIndex)
+			leaf.LeafIndex,
+			leaf.IntegrateTimestampNanos)
 		if err != nil {
 			glog.Warningf("Failed to update sequenced leaves: %s", err)
 			return err

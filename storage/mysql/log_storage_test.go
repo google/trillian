@@ -60,18 +60,20 @@ const sequenceNumber int64 = 237
 // no locks afterwards.
 
 func createFakeLeaf(ctx context.Context, db *sql.DB, logID int64, rawHash, hash, data, extraData []byte, seq int64, t *testing.T) *trillian.LogLeaf {
-	_, err := db.ExecContext(ctx, "INSERT INTO LeafData(TreeId, LeafIdentityHash, LeafValue, ExtraData) VALUES(?,?,?,?)", logID, rawHash, data, extraData)
-	_, err2 := db.ExecContext(ctx, "INSERT INTO SequencedLeafData(TreeId, SequenceNumber, LeafIdentityHash, MerkleLeafHash) VALUES(?,?,?,?)", logID, seq, rawHash, hash)
+	ts := fakeQueueTime.UnixNano()
+	_, err := db.ExecContext(ctx, "INSERT INTO LeafData(TreeId, LeafIdentityHash, LeafValue, ExtraData, QueueTimestampNanos) VALUES(?,?,?,?,?)", logID, rawHash, data, extraData, ts)
+	_, err2 := db.ExecContext(ctx, "INSERT INTO SequencedLeafData(TreeId, SequenceNumber, LeafIdentityHash, MerkleLeafHash, IntegrateTimestampNanos) VALUES(?,?,?,?,?)", logID, seq, rawHash, hash, ts)
 
 	if err != nil || err2 != nil {
 		t.Fatalf("Failed to create test leaves: %v %v", err, err2)
 	}
 	return &trillian.LogLeaf{
-		MerkleLeafHash:   hash,
-		LeafValue:        data,
-		ExtraData:        extraData,
-		LeafIndex:        seq,
-		LeafIdentityHash: rawHash,
+		MerkleLeafHash:      hash,
+		LeafValue:           data,
+		ExtraData:           extraData,
+		LeafIndex:           seq,
+		LeafIdentityHash:    rawHash,
+		QueueTimestampNanos: ts,
 	}
 }
 
@@ -399,6 +401,7 @@ func TestDequeueLeaves(t *testing.T) {
 			t.Fatalf("Dequeued %d leaves but expected to get %d", len(leaves2), leavesToInsert)
 		}
 		ensureAllLeavesDistinct(leaves2, t)
+		ensureLeavesHaveQueueTimestamp(t, leaves2, fakeDequeueCutoffTime)
 		commit(tx2, t)
 	}
 
@@ -449,6 +452,7 @@ func TestDequeueLeavesTwoBatches(t *testing.T) {
 			t.Fatalf("Dequeued %d leaves but expected to get %d", len(leaves2), leavesToInsert)
 		}
 		ensureAllLeavesDistinct(leaves2, t)
+		ensureLeavesHaveQueueTimestamp(t, leaves2, fakeDequeueCutoffTime)
 		commit(tx2, t)
 
 		// Now try to dequeue the rest of them
@@ -462,6 +466,7 @@ func TestDequeueLeavesTwoBatches(t *testing.T) {
 			t.Fatalf("Dequeued %d leaves but expected to get %d", len(leaves3), leavesToDequeue2)
 		}
 		ensureAllLeavesDistinct(leaves3, t)
+		ensureLeavesHaveQueueTimestamp(t, leaves3, fakeDequeueCutoffTime)
 
 		// Plus the union of the leaf batches should all have distinct hashes
 		leaves4 := append(leaves2, leaves3...)
@@ -525,6 +530,7 @@ func TestDequeueLeavesGuardInterval(t *testing.T) {
 			t.Fatalf("Dequeued %d leaves but expected to get %d", len(leaves2), leavesToInsert)
 		}
 		ensureAllLeavesDistinct(leaves2, t)
+		ensureLeavesHaveQueueTimestamp(t, leaves2, fakeQueueTime)
 		commit(tx2, t)
 	}
 }
@@ -568,6 +574,7 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 			t.Fatalf("Dequeue count mismatch (1st) got: %d, want: %d", got, want)
 		}
 		ensureAllLeavesDistinct(dequeue1, t)
+		ensureLeavesHaveQueueTimestamp(t, dequeue1, fakeQueueTime.Add(-time.Second))
 
 		// Ensure this is the second batch queued by comparing leaf hashes (must be distinct as
 		// the leaf data was).
@@ -587,6 +594,7 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 			t.Fatalf("Dequeue count mismatch (2nd) got: %d, want: %d", got, want)
 		}
 		ensureAllLeavesDistinct(dequeue2, t)
+		ensureLeavesHaveQueueTimestamp(t, dequeue2, fakeQueueTime)
 
 		// Ensure this is the first batch by comparing leaf hashes.
 		if !leafInBatch(dequeue2[0], leaves) || !leafInBatch(dequeue2[1], leaves) {
@@ -1113,6 +1121,15 @@ func ensureAllLeavesDistinct(leaves []*trillian.LogLeaf, t *testing.T) {
 				t.Fatalf("Unexpectedly got a duplicate leaf hash: %v %v",
 					leaves[i].LeafIdentityHash, leaves[j].LeafIdentityHash)
 			}
+		}
+	}
+}
+
+func ensureLeavesHaveQueueTimestamp(t *testing.T, leaves []*trillian.LogLeaf, want time.Time) {
+	t.Helper()
+	for _, leaf := range leaves {
+		if got, want := leaf.QueueTimestampNanos, want.UnixNano(); got != want {
+			t.Errorf("Got leaf with QueueTimestampNanos = %v, want %v: %v", got, want, leaf)
 		}
 	}
 }
