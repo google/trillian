@@ -22,9 +22,9 @@ import (
 	"github.com/google/trillian/crypto/sigpb"
 )
 
-// CreateAndSignLogRoot creates a to-be-SignedLogRoot proto given the func arguments,
+// NewSignedLogRoot makes a to-be-SignedLogRoot proto given the func arguments,
 // signs and returns it.
-func CreateAndSignLogRoot(signer *crypto.Signer, rootHash []byte, tsNanos, treeSize, logID, revision int64) (*trillian.SignedLogRoot, error) {
+func NewSignedLogRoot(signer *crypto.Signer, rootHash []byte, tsNanos, treeSize, logID, revision int64) (*trillian.SignedLogRoot, error) {
 	logRoot := &trillian.SignedLogRoot{
 		RootHash:       rootHash,
 		TimestampNanos: tsNanos,
@@ -34,7 +34,7 @@ func CreateAndSignLogRoot(signer *crypto.Signer, rootHash []byte, tsNanos, treeS
 	}
 
 	// Hash and sign the root.
-	signature, err := CreateLogRootSignature(signer, logRoot)
+	signature, err := SignLogRoot(signer, logRoot)
 	if err != nil {
 		return nil, err
 	}
@@ -42,8 +42,9 @@ func CreateAndSignLogRoot(signer *crypto.Signer, rootHash []byte, tsNanos, treeS
 	return logRoot, nil
 }
 
-// CreateLogRootSignature hashes and signs the supplied (to-be) SignedLogRoot and returns the signature.
-func CreateLogRootSignature(signer *crypto.Signer, root *trillian.SignedLogRoot) (*sigpb.DigitallySigned, error) {
+// SignLogRoot hashes and signs the supplied (to-be) SignedLogRoot and returns a
+// signature.  Hashing is performed by github.com/benlaurie/objecthash.
+func SignLogRoot(signer *crypto.Signer, root *trillian.SignedLogRoot) (*sigpb.DigitallySigned, error) {
 	hash, err := crypto.HashLogRoot(*root)
 	if err != nil {
 		return nil, err

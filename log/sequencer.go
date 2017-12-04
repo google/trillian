@@ -332,7 +332,7 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int, gu
 
 	// Create the log root ready for signing
 	seqTreeSize.Set(float64(merkleTree.Size()), label)
-	newLogRoot, err := CreateAndSignLogRoot(s.signer, merkleTree.CurrentRoot(), s.timeSource.Now().UnixNano(),
+	newLogRoot, err := NewSignedLogRoot(s.signer, merkleTree.CurrentRoot(), s.timeSource.Now().UnixNano(),
 		merkleTree.Size(), currentRoot.LogId, newVersion)
 	if err != nil {
 		glog.Warningf("%v: signer failed to sign root: %v", logID, err)
@@ -402,7 +402,7 @@ func (s Sequencer) SignRoot(ctx context.Context, logID int64) error {
 		return err
 	}
 
-	newLogRoot, err := CreateAndSignLogRoot(s.signer, merkleTree.CurrentRoot(), s.timeSource.Now().UnixNano(),
+	newLogRoot, err := NewSignedLogRoot(s.signer, merkleTree.CurrentRoot(), s.timeSource.Now().UnixNano(),
 		merkleTree.Size(), currentRoot.LogId, currentRoot.TreeRevision+1)
 	if err != nil {
 		glog.Warningf("%v: signer failed to sign root: %v", logID, err)
