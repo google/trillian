@@ -453,34 +453,35 @@ loop:
 		}
 		glog.V(1).Infof("Log operation manager pass complete")
 
+		// See if it's time to quit
+		select {
+		case <-ctx.Done():
+			glog.Infof("Log operation manager shutting down")
+			break loop
+		default:
+		}
+
+		// Process any pending resignations while there's no activity.
+		doneResigning := false
+		for !doneResigning {
+			select {
+			case r := <-l.pendingResignations:
+				r.execute(ctx)
+			default:
+				doneResigning = true
+			}
+		}
+
 		// Wait for the configured time before going for another pass
 		duration := time.Since(start)
 		wait := l.info.RunInterval - duration
-		timeout := make(chan bool, 1)
-		go func() {
-			if wait > 0 {
-				glog.V(1).Infof("Processing started at %v for %v; wait %v before next run", start, duration, wait)
-				time.Sleep(wait)
-			} else {
-				glog.V(1).Infof("Processing started at %v for %v; start next run immediately", start, duration)
-			}
-			timeout <- true
-		}()
-
-		waiting := true
-		for waiting {
-			select {
-			case <-ctx.Done():
-				glog.Infof("Log operation manager shutting down")
-				break loop
-			case r := <-l.pendingResignations:
-				r.execute(ctx)
-			case <-timeout:
-				// time for another pass
-				waiting = false
-			default:
-			}
+		if wait > 0 {
+			glog.V(1).Infof("Processing started at %v for %v; wait %v before next run", start, duration, wait)
+			time.Sleep(wait)
+		} else {
+			glog.V(1).Infof("Processing started at %v for %v; start next run immediately", start, duration)
 		}
+
 	}
 
 	// Terminate all the election runners
