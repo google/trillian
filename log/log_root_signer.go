@@ -17,9 +17,9 @@ package log
 import (
 	"github.com/golang/glog"
 
+	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/crypto/sigpb"
-	"github.com/google/trillian"
 )
 
 // CreateAndSignLogRoot creates a to-be-SignedLogRoot proto given the func arguments,
