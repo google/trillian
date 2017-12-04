@@ -26,7 +26,6 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
-	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/monitoring"
@@ -212,20 +211,6 @@ func (s Sequencer) initMerkleTreeFromStorage(ctx context.Context, currentRoot tr
 	return s.buildMerkleTreeFromStorageAtRoot(ctx, currentRoot, tx)
 }
 
-func (s Sequencer) createRootSignature(ctx context.Context, root trillian.SignedLogRoot) (*sigpb.DigitallySigned, error) {
-	hash, err := crypto.HashLogRoot(root)
-	if err != nil {
-		return nil, err
-	}
-	signature, err := s.signer.Sign(hash)
-	if err != nil {
-		glog.Warningf("%v: signer failed to sign root: %v", root.LogId, err)
-		return nil, err
-	}
-
-	return signature, nil
-}
-
 // SequenceBatch wraps up all the operations needed to take a batch of queued leaves
 // and integrate them into the tree.
 // TODO(Martin2112): Can possibly improve by deferring a function that attempts to rollback,
@@ -346,25 +331,15 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int, gu
 	stageStart = s.timeSource.Now()
 
 	// Create the log root ready for signing
-	newLogRoot := trillian.SignedLogRoot{
-		RootHash:       merkleTree.CurrentRoot(),
-		TimestampNanos: s.timeSource.Now().UnixNano(),
-		TreeSize:       merkleTree.Size(),
-		LogId:          currentRoot.LogId,
-		TreeRevision:   newVersion,
-	}
 	seqTreeSize.Set(float64(merkleTree.Size()), label)
-
-	// Hash and sign the root, update it with the signature
-	signature, err := s.createRootSignature(ctx, newLogRoot)
+	newLogRoot, err := CreateAndSignLogRoot(s.signer, merkleTree.CurrentRoot(), s.timeSource.Now().UnixNano(),
+		merkleTree.Size(), currentRoot.LogId, newVersion)
 	if err != nil {
 		glog.Warningf("%v: signer failed to sign root: %v", logID, err)
 		return 0, err
 	}
 
-	newLogRoot.Signature = signature
-
-	if err := tx.StoreSignedLogRoot(ctx, newLogRoot); err != nil {
+	if err := tx.StoreSignedLogRoot(ctx, *newLogRoot); err != nil {
 		glog.Warningf("%v: failed to write updated tree root: %v", logID, err)
 		return 0, err
 	}
@@ -427,25 +402,15 @@ func (s Sequencer) SignRoot(ctx context.Context, logID int64) error {
 		return err
 	}
 
-	// Build the updated root, ready for signing
-	newLogRoot := trillian.SignedLogRoot{
-		RootHash:       merkleTree.CurrentRoot(),
-		TimestampNanos: s.timeSource.Now().UnixNano(),
-		TreeSize:       merkleTree.Size(),
-		LogId:          currentRoot.LogId,
-		TreeRevision:   currentRoot.TreeRevision + 1,
-	}
-
-	// Hash and sign the root
-	signature, err := s.createRootSignature(ctx, newLogRoot)
+	newLogRoot, err := CreateAndSignLogRoot(s.signer, merkleTree.CurrentRoot(), s.timeSource.Now().UnixNano(),
+		merkleTree.Size(), currentRoot.LogId, currentRoot.TreeRevision+1)
 	if err != nil {
 		glog.Warningf("%v: signer failed to sign root: %v", logID, err)
 		return err
 	}
-	newLogRoot.Signature = signature
 
 	// Store the new root and we're done
-	if err := tx.StoreSignedLogRoot(ctx, newLogRoot); err != nil {
+	if err := tx.StoreSignedLogRoot(ctx, *newLogRoot); err != nil {
 		glog.Warningf("%v: signer failed to write updated root: %v", logID, err)
 		return err
 	}
