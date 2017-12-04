@@ -1,5 +1,9 @@
-sudo: required # required to install softhsm for PKCS 11 tests
 language: go
+
+addons:
+  apt:
+    packages:
+      - softhsm
 
 os:
   - linux
@@ -26,7 +30,6 @@ matrix:
 services: mysql
 
 install:
-  - if [[ "${WITH_PKCS11}" == "true" ]]; then sudo apt-get install -y softhsm ; fi
   - |
     if [ ! -d "$HOME/gopath/src/github.com/google" ]; then
       mkdir -p "$HOME/gopath/src/github.com/google"
