@@ -22,6 +22,8 @@ import (
 	"fmt"
 
 	"github.com/benlaurie/objecthash/go/objecthash"
+	"github.com/golang/glog"
+	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/sigpb"
 )
 
@@ -79,4 +81,32 @@ func (s *Signer) SignObject(obj interface{}) (*sigpb.DigitallySigned, error) {
 		return nil, fmt.Errorf("CommonJSONHash(%s): %v", j, err)
 	}
 	return s.Sign(hash[:])
+}
+
+// SignLogRoot hashes and signs the supplied (to-be) SignedLogRoot and returns a
+// signature.  Hashing is performed by github.com/benlaurie/objecthash.
+func (s *Signer) SignLogRoot(root *trillian.SignedLogRoot) (*sigpb.DigitallySigned, error) {
+	hash, err := HashLogRoot(*root)
+	if err != nil {
+		return nil, err
+	}
+	signature, err := s.Sign(hash)
+	if err != nil {
+		glog.Warningf("%v: signer failed to sign log root: %v", root.LogId, err)
+		return nil, err
+	}
+
+	return signature, nil
+}
+
+// SignMapRoot hashes and signs the supplied (to-be) SignedMapRoot and returns a
+// signature.  Hashing is performed by github.com/benlaurie/objecthash.
+func (s *Signer) SignMapRoot(root *trillian.SignedMapRoot) (*sigpb.DigitallySigned, error) {
+	signature, err := s.SignObject(root)
+	if err != nil {
+		glog.Warningf("%v: signer failed to sign map root: %v", root.MapId, err)
+		return nil, err
+	}
+
+	return signature, nil
 }
