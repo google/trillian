@@ -98,48 +98,44 @@ main() {
 
     echo 'running go test'
     # Install test deps so that individual test runs below can reuse them.
-    echo 'getting test deps'
-    go get -t
-    echo 'installed test deps'
+    echo 'installing test deps'
     go test -i ./...
 
     if [[ ${coverage} -eq 1 ]]; then
-    # Individual package profiles are written to "$profile.out" files under
-    # /tmp/trillian_profile.
-    # An aggregate profile is created at /tmp/coverage.txt.
-    mkdir -p /tmp/trillian_profile
-    rm -f /tmp/trillian_profile/*
+      # Individual package profiles are written to "$profile.out" files under
+      # /tmp/trillian_profile.
+      # An aggregate profile is created at /tmp/coverage.txt.
+      mkdir -p /tmp/trillian_profile
+      rm -f /tmp/trillian_profile/*
 
-    for d in $(go list ./...); do
-      # Create a different -coverprofile for each test
-      local coverflags=
-      # Transform $d to a smaller, valid file name.
-      # For example:
-      # * github.com/google/trillian becomes trillian.out
-      # * github.com/google/trillian/cmd/createtree/keys becomes
-      #   trillian-cmd-createtree-keys.out
-      local profile="${d}.out"
-      profile="${profile#github.com/*/}"
-      profile="${profile//\//-}"
-      coverflags="-covermode=atomic -coverprofile='/tmp/trillian_profile/${profile}'"
+      for d in $(go list ./...); do
+        # Create a different -coverprofile for each test
+        # Transform $d to a smaller, valid file name.
+        # For example:
+        # * github.com/google/trillian becomes trillian.out
+        # * github.com/google/trillian/cmd/createtree/keys becomes
+        #   trillian-cmd-createtree-keys.out
+        local profile="${d}.out"
+        profile="${profile#github.com/*/}"
+        profile="${profile//\//-}"
+        local coverflags="-covermode=atomic -coverprofile='/tmp/trillian_profile/${profile}'"
 
-      # Do not run go test in the loop, instead echo it so we can use xargs to
-      # add some parallelism.
-      echo go test \
-          -short \
-          -timeout=${GO_TEST_TIMEOUT:-5m} \
-          ${coverflags} \
-          ${goflags} "$d"
-    done | xargs -I '{}' -P ${GO_TEST_PARALLELISM:-10} bash -c '{}'
+        # Do not run go test in the loop, instead echo it so we can use xargs to
+        # add some parallelism.
+        echo go test \
+            -short \
+            -timeout=${GO_TEST_TIMEOUT:-5m} \
+            ${coverflags} \
+            ${goflags} "$d"
+      done | xargs -I '{}' -P ${GO_TEST_PARALLELISM:-10} bash -c '{}'
 
-    cat /tmp/trillian_profile/*.out > /tmp/coverage.txt
-  fi
-  else
+      cat /tmp/trillian_profile/*.out > /tmp/coverage.txt
+    else
       go test \
         -short \
         -timeout=${GO_TEST_TIMEOUT:-5m} \
-        ${coverflags} \
         ${goflags} ./...
+    fi
   fi
 
   if [[ "${run_lint}" -eq 1 ]]; then
