@@ -79,6 +79,18 @@ func (s *simplePrinter) Watch(resp v3.WatchResponse) {
 	}
 }
 
+func (s *simplePrinter) Grant(resp v3.LeaseGrantResponse) {
+	fmt.Printf("lease %016x granted with TTL(%ds)\n", resp.ID, resp.TTL)
+}
+
+func (p *simplePrinter) Revoke(id v3.LeaseID, r v3.LeaseRevokeResponse) {
+	fmt.Printf("lease %016x revoked\n", id)
+}
+
+func (p *simplePrinter) KeepAlive(resp v3.LeaseKeepAliveResponse) {
+	fmt.Printf("lease %016x keepalived with TTL(%d)\n", resp.ID, resp.TTL)
+}
+
 func (s *simplePrinter) TimeToLive(resp v3.LeaseTimeToLiveResponse, keys bool) {
 	txt := fmt.Sprintf("lease %016x granted with TTL(%ds), remaining(%ds)", resp.ID, resp.GrantedTTL, resp.TTL)
 	if keys {
@@ -141,7 +153,11 @@ func (s *simplePrinter) RoleGet(role string, r v3.AuthRoleGetResponse) {
 	printRange := func(perm *v3.Permission) {
 		sKey := string(perm.Key)
 		sRangeEnd := string(perm.RangeEnd)
-		fmt.Printf("\t[%s, %s)", sKey, sRangeEnd)
+		if strings.Compare(sRangeEnd, "\x00") != 0 {
+			fmt.Printf("\t[%s, %s)", sKey, sRangeEnd)
+		} else {
+			fmt.Printf("\t[%s, <open ended>", sKey)
+		}
 		if strings.Compare(v3.GetPrefixRangeEnd(sKey), sRangeEnd) == 0 {
 			fmt.Printf(" (prefix %s)", sKey)
 		}
@@ -188,7 +204,11 @@ func (s *simplePrinter) RoleRevokePermission(role string, key string, end string
 		fmt.Printf("Permission of key %s is revoked from role %s\n", key, role)
 		return
 	}
-	fmt.Printf("Permission of range [%s, %s) is revoked from role %s\n", key, end, role)
+	if strings.Compare(end, "\x00") != 0 {
+		fmt.Printf("Permission of range [%s, %s) is revoked from role %s\n", key, end, role)
+	} else {
+		fmt.Printf("Permission of range [%s, <open ended> is revoked from role %s\n", key, role)
+	}
 }
 
 func (s *simplePrinter) UserAdd(name string, r v3.AuthUserAddResponse) {

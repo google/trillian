@@ -18,10 +18,10 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/coreos/etcd/clientv3"
 	"github.com/coreos/etcd/integration"
 	"github.com/coreos/etcd/pkg/testutil"
 	"github.com/coreos/etcd/pkg/types"
+
 	"golang.org/x/net/context"
 )
 
@@ -31,7 +31,7 @@ func TestMemberList(t *testing.T) {
 	clus := integration.NewClusterV3(t, &integration.ClusterConfig{Size: 3})
 	defer clus.Terminate(t)
 
-	capi := clientv3.NewCluster(clus.RandClient())
+	capi := clus.RandClient()
 
 	resp, err := capi.MemberList(context.Background())
 	if err != nil {
@@ -49,7 +49,7 @@ func TestMemberAdd(t *testing.T) {
 	clus := integration.NewClusterV3(t, &integration.ClusterConfig{Size: 3})
 	defer clus.Terminate(t)
 
-	capi := clientv3.NewCluster(clus.RandClient())
+	capi := clus.RandClient()
 
 	urls := []string{"http://127.0.0.1:1234"}
 	resp, err := capi.MemberAdd(context.Background(), urls)
@@ -68,7 +68,7 @@ func TestMemberRemove(t *testing.T) {
 	clus := integration.NewClusterV3(t, &integration.ClusterConfig{Size: 3})
 	defer clus.Terminate(t)
 
-	capi := clientv3.NewCluster(clus.Client(1))
+	capi := clus.Client(1)
 	resp, err := capi.MemberList(context.Background())
 	if err != nil {
 		t.Fatalf("failed to list member %v", err)
@@ -106,7 +106,7 @@ func TestMemberUpdate(t *testing.T) {
 	clus := integration.NewClusterV3(t, &integration.ClusterConfig{Size: 3})
 	defer clus.Terminate(t)
 
-	capi := clientv3.NewCluster(clus.RandClient())
+	capi := clus.RandClient()
 	resp, err := capi.MemberList(context.Background())
 	if err != nil {
 		t.Fatalf("failed to list member %v", err)
