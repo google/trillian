@@ -19,8 +19,10 @@ import (
 	"context"
 	"crypto"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
@@ -458,15 +460,27 @@ func runMapBatchTest(ctx context.Context, t *testing.T, desc string, tmap trilli
 	}
 
 	// Check your head
-	r, err := tmap.GetSignedMapRoot(ctx, &trillian.GetSignedMapRootRequest{
-		MapId: tree.TreeId,
-	})
-	if err != nil {
-		t.Errorf("%s: failed to get map head: %v", desc, err)
-	}
+	var r *trillian.GetSignedMapRootResponse
+	ticker := time.Tick(50 * time.Millisecond)
+	for r == nil {
+		select {
+		case <-ctx.Done():
+			return errors.New("context done")
+		case <-ticker:
+		}
 
-	if got, want := r.MapRoot.MapRevision, int64(numBatches); got != want {
-		t.Errorf("%s: got SMR with revision %d, want %d", desc, got, want)
+		r, err = tmap.GetSignedMapRoot(ctx, &trillian.GetSignedMapRootRequest{
+			MapId: tree.TreeId,
+		})
+		if err != nil {
+			t.Errorf("%s: failed to get map head: %v", desc, err)
+			continue
+		}
+
+		if got, want := r.MapRoot.MapRevision, int64(numBatches); got != want {
+			t.Errorf("%s: got SMR with revision %d, want %d", desc, got, want)
+			continue
+		}
 	}
 
 	// Shuffle the indexes. Map access is randomized.
