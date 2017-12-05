@@ -333,11 +333,11 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int, gu
 	// Create the log root ready for signing
 	seqTreeSize.Set(float64(merkleTree.Size()), label)
 	newLogRoot := &trillian.SignedLogRoot{
-		RootHash: merkleTree.CurrentRoot(),
+		RootHash:       merkleTree.CurrentRoot(),
 		TimestampNanos: s.timeSource.Now().UnixNano(),
-		TreeSize: merkleTree.Size(),
-		LogId: currentRoot.LogId,
-		TreeRevision: newVersion,
+		TreeSize:       merkleTree.Size(),
+		LogId:          currentRoot.LogId,
+		TreeRevision:   newVersion,
 	}
 	sig, err := s.signer.SignLogRoot(newLogRoot)
 	if err != nil {
@@ -409,11 +409,11 @@ func (s Sequencer) SignRoot(ctx context.Context, logID int64) error {
 		return err
 	}
 	newLogRoot := &trillian.SignedLogRoot{
-		RootHash: merkleTree.CurrentRoot(),
+		RootHash:       merkleTree.CurrentRoot(),
 		TimestampNanos: s.timeSource.Now().UnixNano(),
-		TreeSize: merkleTree.Size(),
-		LogId: currentRoot.LogId,
-		TreeRevision: currentRoot.TreeRevision+1,
+		TreeSize:       merkleTree.Size(),
+		LogId:          currentRoot.LogId,
+		TreeRevision:   currentRoot.TreeRevision + 1,
 	}
 	sig, err := s.signer.SignLogRoot(newLogRoot)
 	if err != nil {
