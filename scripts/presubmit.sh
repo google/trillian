@@ -103,6 +103,7 @@ main() {
     echo 'installed test deps'
     go test -i ./...
 
+    if [[ ${coverage} -eq 1 ]]; then
     # Individual package profiles are written to "$profile.out" files under
     # /tmp/trillian_profile.
     # An aggregate profile is created at /tmp/coverage.txt.
@@ -110,19 +111,17 @@ main() {
     rm -f /tmp/trillian_profile/*
 
     for d in $(go list ./...); do
-      # Create a different -coverprofile for each test (if enabled)
+      # Create a different -coverprofile for each test
       local coverflags=
-      if [[ ${coverage} -eq 1 ]]; then
-        # Transform $d to a smaller, valid file name.
-        # For example:
-        # * github.com/google/trillian becomes trillian.out
-        # * github.com/google/trillian/cmd/createtree/keys becomes
-        #   trillian-cmd-createtree-keys.out
-        local profile="${d}.out"
-        profile="${profile#github.com/*/}"
-        profile="${profile//\//-}"
-        coverflags="-covermode=atomic -coverprofile='/tmp/trillian_profile/${profile}'"
-      fi
+      # Transform $d to a smaller, valid file name.
+      # For example:
+      # * github.com/google/trillian becomes trillian.out
+      # * github.com/google/trillian/cmd/createtree/keys becomes
+      #   trillian-cmd-createtree-keys.out
+      local profile="${d}.out"
+      profile="${profile#github.com/*/}"
+      profile="${profile//\//-}"
+      coverflags="-covermode=atomic -coverprofile='/tmp/trillian_profile/${profile}'"
 
       # Do not run go test in the loop, instead echo it so we can use xargs to
       # add some parallelism.
@@ -133,8 +132,14 @@ main() {
           ${goflags} "$d"
     done | xargs -I '{}' -P ${GO_TEST_PARALLELISM:-10} bash -c '{}'
 
-    [[ ${coverage} -eq 1 ]] && \
-      cat /tmp/trillian_profile/*.out > /tmp/coverage.txt
+    cat /tmp/trillian_profile/*.out > /tmp/coverage.txt
+  fi
+  else
+      go test \
+        -short \
+        -timeout=${GO_TEST_TIMEOUT:-5m} \
+        ${coverflags} \
+        ${goflags} ./...
   fi
 
   if [[ "${run_lint}" -eq 1 ]]; then
