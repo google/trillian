@@ -757,13 +757,25 @@ func TestGetLeafDataByIdentityHash(t *testing.T) {
 				t.Errorf("getLeavesByIdentityHash(_) = (|%d|,nil); want (|%d|,nil)", len(leaves), len(test.want))
 				return
 			}
-			for i, want := range test.want {
-				if !proto.Equal(leaves[i], want) {
-					diff := pretty.Compare(leaves[i], want)
-					t.Errorf("getLeavesByIdentityHash(_)[%d] diff:\n%v", i, diff)
-				}
-			}
+			leavesEquivalent(t, leaves, test.want)
 		}()
+	}
+}
+
+func leavesEquivalent(t *testing.T, gotLeaves, wantLeaves []*trillian.LogLeaf) {
+	t.Helper()
+	want := make(map[string]*trillian.LogLeaf)
+	for _, w := range wantLeaves {
+		k := sha256.Sum256([]byte(w.String()))
+		want[string(k[:])] = w
+	}
+	got := make(map[string]*trillian.LogLeaf)
+	for _, g := range gotLeaves {
+		k := sha256.Sum256([]byte(g.String()))
+		got[string(k[:])] = g
+	}
+	if diff := pretty.Compare(want, got); diff != "" {
+		t.Errorf("leaves not equivalent: diff -want,+got:\n%v", diff)
 	}
 }
 
