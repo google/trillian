@@ -58,13 +58,12 @@ const (
 			WHERE l.LeafIdentityHash = s.LeafIdentityHash
 			AND s.MerkleLeafHash IN (` + placeholderSQL + `) AND l.TreeId = ? AND s.TreeId = l.TreeId`
 	// TODO(drysdale): rework the code so the dummy hash isn't needed (e.g. this assumes hash size is 32)
-	dummyMerkleLeafHash     = "00000000000000000000000000000000"
-	dummyIntegrateTimestamp = "0"
+	dummyMerkleLeafHash = "00000000000000000000000000000000"
 	// This statement returns a dummy Merkle leaf hash value (which must be
 	// of the right size) so that its signature matches that of the other
 	// leaf-selection statements.
-	selectLeavesByLeafIdentityHashSQL = `SELECT '` + dummyMerkleLeafHash + `',l.LeafIdentityHash,l.LeafValue,-1,l.ExtraData, l.QueueTimestampNanos, ` + dummyIntegrateTimestamp + `
-			FROM LeafData l
+	selectLeavesByLeafIdentityHashSQL = `SELECT '` + dummyMerkleLeafHash + `',l.LeafIdentityHash,l.LeafValue,-1,l.ExtraData,l.QueueTimestampNanos,s.IntegrateTimestampNanos
+			FROM LeafData l LEFT JOIN SequencedLeafData s ON (l.LeafIdentityHash = s.LeafIdentityHash AND l.TreeID = s.TreeID)
 			WHERE l.LeafIdentityHash IN (` + placeholderSQL + `) AND l.TreeId = ?`
 
 	// Same as above except with leaves ordered by sequence so we only incur this cost when necessary
@@ -603,10 +602,19 @@ func (t *logTreeTX) getLeavesByHashInternal(ctx context.Context, leafHashes [][]
 	var ret []*trillian.LogLeaf
 	for rows.Next() {
 		leaf := &trillian.LogLeaf{}
+		// We might be using a LEFT JOIN in our statement, so leaves which are
+		// queued but not yet integrated will have a NULL IntegrateTimestampNanos
+		// when there's no corresponding entry in SequencedLeafData, even though
+		// the table definition forbids that, so we use a nullable type here and
+		// check its validity below.
+		var integrateTS sql.NullInt64
 
-		if err := rows.Scan(&leaf.MerkleLeafHash, &leaf.LeafIdentityHash, &leaf.LeafValue, &leaf.LeafIndex, &leaf.ExtraData, &leaf.QueueTimestampNanos, &leaf.IntegrateTimestampNanos); err != nil {
+		if err := rows.Scan(&leaf.MerkleLeafHash, &leaf.LeafIdentityHash, &leaf.LeafValue, &leaf.LeafIndex, &leaf.ExtraData, &leaf.QueueTimestampNanos, &integrateTS); err != nil {
 			glog.Warningf("LogID: %d Scan() %s = %s", t.treeID, desc, err)
 			return nil, err
+		}
+		if integrateTS.Valid {
+			leaf.IntegrateTimestampNanos = integrateTS.Int64
 		}
 
 		if got, want := len(leaf.MerkleLeafHash), t.hashSizeBytes; got != want {
