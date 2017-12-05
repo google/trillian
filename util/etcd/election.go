@@ -53,7 +53,7 @@ func (eme *MasterElection) IsMaster(ctx context.Context) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return leader == eme.instanceID, nil
+	return string(leader.Kvs[0].Value) == eme.instanceID, nil
 }
 
 // ResignAndRestart releases mastership, and re-joins the election.
