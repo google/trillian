@@ -97,6 +97,11 @@ main() {
     go build ${goflags} ./...
 
     echo 'running go test'
+    # Install test deps so that individual test runs below can reuse them.
+    echo 'getting test deps'
+    go get -t
+    echo 'installed test deps'
+    go test -i ./...
 
     # Individual package profiles are written to "$profile.out" files under
     # /tmp/trillian_profile.
