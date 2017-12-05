@@ -44,15 +44,16 @@ func TestSign(t *testing.T) {
 		sig, err := signer.Sign(test.message)
 		if err != nil {
 			t.Errorf("Failed to sign message: %v", err)
+			continue
 		}
 		if got := len(sig.Signature); got == 0 {
 			t.Errorf("len(sig): %v, want > 0", got)
 		}
 		if got, want := sig.HashAlgorithm, sigpb.DigitallySigned_SHA256; got != want {
-			t.Errorf("Hash alg incorrect, got %v expected %d", got, want)
+			t.Errorf("Hash alg incorrect, got %s expected %s", got, want)
 		}
 		if got, want := sig.SignatureAlgorithm, sigpb.DigitallySigned_ECDSA; got != want {
-			t.Errorf("Sig alg incorrect, got %v expected %v", got, want)
+			t.Errorf("Sig alg incorrect, got %s expected %s", got, want)
 		}
 		// Check that the signature is correct
 		if err := Verify(key.Public(), test.message, sig); err != nil {
@@ -112,41 +113,28 @@ func TestSignLogRoot(t *testing.T) {
 		sig, err := signer.SignLogRoot(&test.root)
 		if err != nil {
 			t.Errorf("Failed to sign log root: %v", err)
+			continue
 		}
 		if got := len(sig.Signature); got == 0 {
 			t.Errorf("len(sig): %v, want > 0", got)
 		}
 		if got, want := sig.HashAlgorithm, sigpb.DigitallySigned_SHA256; got != want {
-			t.Errorf("Hash alg incorrect, got %v expected %d", got, want)
+			t.Errorf("Hash alg incorrect, got %s expected %s", got, want)
 		}
 		if got, want := sig.SignatureAlgorithm, sigpb.DigitallySigned_ECDSA; got != want {
-			t.Errorf("Sig alg incorrect, got %v expected %v", got, want)
+			t.Errorf("Sig alg incorrect, got %s expected %s", got, want)
 		}
 		// Check that the signature is correct
 		obj, err := HashLogRoot(test.root)
 		if err != nil {
 			t.Errorf("HashLogRoot err: got %v want nil", err)
+			continue
 		}
 
 		if err := Verify(key.Public(), obj, sig); err != nil {
 			t.Errorf("Verify(%v) failed: %v", test.root, err)
 		}
 	}
-}
-
-func TestSignLogRoot_SignerFails(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	key, err := pem.UnmarshalPrivateKey(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
-	if err != nil {
-		t.Fatalf("Failed to load public key: %v", err)
-	}
-
-	s := testonly.NewSignerWithErr(key, errors.New("signfail"))
-	root := trillian.SignedLogRoot{TimestampNanos: 2267709, RootHash: []byte("Islington"), TreeSize: 2}
-	_, err = NewSHA256Signer(s).SignLogRoot(&root)
-	testonly.EnsureErrorContains(t, err, "signfail")
 }
 
 func TestSignMapRoot(t *testing.T) {
@@ -164,42 +152,30 @@ func TestSignMapRoot(t *testing.T) {
 		sig, err := signer.SignMapRoot(&test.root)
 		if err != nil {
 			t.Errorf("Failed to sign map root: %v", err)
+			continue
 		}
 		if got := len(sig.Signature); got == 0 {
 			t.Errorf("len(sig): %v, want > 0", got)
 		}
 		if got, want := sig.HashAlgorithm, sigpb.DigitallySigned_SHA256; got != want {
-			t.Errorf("Hash alg incorrect, got %v expected %d", got, want)
+			t.Errorf("Hash alg incorrect, got %s expected %s", got, want)
 		}
 		if got, want := sig.SignatureAlgorithm, sigpb.DigitallySigned_ECDSA; got != want {
-			t.Errorf("Sig alg incorrect, got %v expected %v", got, want)
+			t.Errorf("Sig alg incorrect, got %s expected %s", got, want)
 		}
 		// Check that the signature is correct
 		j, err := json.Marshal(test.root)
 		if err != nil {
 			t.Errorf("json.Marshal err: %v want nil", err)
+			continue
 		}
 		hash, err := objecthash.CommonJSONHash(string(j))
 		if err != nil {
 			t.Errorf("objecthash.CommonJSONHash err: %v want nil", err)
+			continue
 		}
 		if err := Verify(key.Public(), hash[:], sig); err != nil {
 			t.Errorf("Verify(%v) failed: %v", test.root, err)
 		}
 	}
-}
-
-func TestSignMapRoot_SignerFails(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	key, err := pem.UnmarshalPrivateKey(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
-	if err != nil {
-		t.Fatalf("Failed to load public key: %v", err)
-	}
-
-	s := testonly.NewSignerWithErr(key, errors.New("signfail"))
-	root := trillian.SignedMapRoot{TimestampNanos: 2267709, RootHash: []byte("Islington"), MapRevision: 3}
-	_, err = NewSHA256Signer(s).SignMapRoot(&root)
-	testonly.EnsureErrorContains(t, err, "signfail")
 }
