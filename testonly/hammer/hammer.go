@@ -583,7 +583,7 @@ func (s *hammerState) doGetLeaves(ctx context.Context, latest bool) error {
 		label += "-rev"
 		req := &trillian.GetMapLeavesByRevisionRequest{
 			MapId:    s.cfg.MapID,
-			Revision: uint64(rev),
+			Revision: rev,
 			Index:    indices,
 		}
 		rsp, err = s.cfg.Client.GetLeavesByRevision(ctx, req)
@@ -646,10 +646,10 @@ func (s *hammerState) getLeavesRevInvalid(ctx context.Context) error {
 	case MalformedKey:
 		key := testonly.TransparentHash("..invalid-size")
 		req.Index = [][]byte{key[2:]}
-		req.Revision = uint64(rev)
+		req.Revision = rev
 	case RevTooBig:
 		req.Index = [][]byte{s.pickKey(latestCopy)}
-		req.Revision = uint64(rev + invalidStretch)
+		req.Revision = rev + invalidStretch
 	}
 	rsp, err := s.cfg.Client.GetLeavesByRevision(ctx, &req)
 	if err == nil {
