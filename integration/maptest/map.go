@@ -219,7 +219,7 @@ func RunLeafHistory(ctx context.Context, t *testing.T, tadmin trillian.TrillianA
 		HashStrategy []trillian.HashStrategy
 		set          [][]*trillian.MapLeaf
 		get          []struct {
-			revision  uint64
+			revision  int64
 			Index     []byte
 			LeafValue []byte
 		}
@@ -241,7 +241,7 @@ func RunLeafHistory(ctx context.Context, t *testing.T, tadmin trillian.TrillianA
 				},
 			},
 			get: []struct {
-				revision  uint64
+				revision  int64
 				Index     []byte
 				LeafValue []byte
 			}{
