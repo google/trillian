@@ -37,6 +37,7 @@ It has these top-level messages:
 	MapLeaf
 	MapLeafInclusion
 	GetMapLeavesRequest
+	GetMapLeavesByRevisionRequest
 	GetMapLeavesResponse
 	SetMapLeavesRequest
 	SetMapLeavesResponse

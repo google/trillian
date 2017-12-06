@@ -112,8 +112,21 @@ func (t *TrillianMapServer) Init(ctx context.Context, mapID int64) error {
 // GetLeaves implements the GetLeaves RPC method.  Each requested index will
 // return an inclusion proof to either the leaf, or nil if the leaf does not
 // exist.
+// TODO(phad): this will soon change to only request the most recent version
+// of the specified leaf indices.
 func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapLeavesRequest) (*trillian.GetMapLeavesResponse, error) {
-	mapID := req.MapId
+	return t.getLeavesByRevision(ctx, req.MapId, req.Index, req.Revision)
+}
+
+// GetLeavesByRevision implements the GetLeavesByRevision RPC method.
+func (t *TrillianMapServer) GetLeavesByRevision(ctx context.Context, req *trillian.GetMapLeavesByRevisionRequest) (*trillian.GetMapLeavesResponse, error) {
+	if req.Revision < 0 {
+		return nil, fmt.Errorf("map revision %d must be >= 0", req.Revision)
+	}
+	return t.getLeavesByRevision(ctx, req.MapId, req.Index, req.Revision)
+}
+
+func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64, indices [][]byte, revision int64) (*trillian.GetMapLeavesResponse, error) {
 	if err := t.Init(ctx, mapID); err != nil {
 		return nil, err
 	}
@@ -131,7 +144,7 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 	defer tx.Close()
 
 	var root *trillian.SignedMapRoot
-	if req.Revision < 0 {
+	if revision < 0 {
 		// need to know the newest published revision
 		r, err := tx.LatestSignedMapRoot(ctx)
 		if err != nil {
@@ -139,18 +152,18 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 		}
 		root = &r
 	} else {
-		r, err := tx.GetSignedMapRoot(ctx, req.Revision)
+		r, err := tx.GetSignedMapRoot(ctx, revision)
 		if err != nil {
-			return nil, fmt.Errorf("could not fetch SignedMapRoot %v: %v", req.Revision, err)
+			return nil, fmt.Errorf("could not fetch SignedMapRoot %v: %v", revision, err)
 		}
 		root = &r
 	}
 
 	smtReader := merkle.NewSparseMerkleTreeReader(root.MapRevision, hasher, tx)
 
-	inclusions := make([]*trillian.MapLeafInclusion, 0, len(req.Index))
+	inclusions := make([]*trillian.MapLeafInclusion, 0, len(indices))
 	found := 0
-	for _, index := range req.Index {
+	for _, index := range indices {
 		if got, want := len(index), hasher.Size(); got != want {
 			return nil, status.Errorf(codes.InvalidArgument,
 				"index len(%x): %v, want %v", index, got, want)
@@ -188,7 +201,7 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 			Inclusion: proof,
 		})
 	}
-	glog.Infof("%v: wanted %v leaves, found %v", mapID, len(req.Index), found)
+	glog.Infof("%v: wanted %v leaves, found %v", mapID, len(indices), found)
 
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("could not commit db transaction: %v", err)
@@ -335,6 +348,9 @@ func (t *TrillianMapServer) GetSignedMapRoot(ctx context.Context, req *trillian.
 // GetSignedMapRootByRevision implements the GetSignedMapRootByRevision RPC
 // method.
 func (t *TrillianMapServer) GetSignedMapRootByRevision(ctx context.Context, req *trillian.GetSignedMapRootByRevisionRequest) (*trillian.GetSignedMapRootResponse, error) {
+	if req.Revision < 0 {
+		return nil, fmt.Errorf("map revision %d must be >= 0", req.Revision)
+	}
 	if err := t.Init(ctx, req.MapId); err != nil {
 		return nil, err
 	}

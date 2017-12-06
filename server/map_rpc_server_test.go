@@ -237,21 +237,24 @@ func TestGetSignedMapRootByRevision(t *testing.T) {
 		req                *trillian.GetSignedMapRootByRevisionRequest
 		mapRoot            trillian.SignedMapRoot
 		snapShErr, lsmrErr error
+		wantErr            bool
 	}{
 		{
 			desc:    "Request revision 0 for empty map",
 			req:     &trillian.GetSignedMapRootByRevisionRequest{MapId: mapID1},
 			lsmrErr: errors.New("sql: no rows in result set"),
+			wantErr: true,
 		},
 		{
-			desc:    "Request latest revision (-1) for empty map",
+			desc:    "Request invalid -ve revision",
 			req:     &trillian.GetSignedMapRootByRevisionRequest{MapId: mapID1, Revision: -1},
-			lsmrErr: errors.New("sql: no rows in result set"),
+			wantErr: true,
 		},
 		{
-			desc:    "Request future revision (-1) for empty map",
+			desc:    "Request future revision (123) for empty map",
 			req:     &trillian.GetSignedMapRootByRevisionRequest{MapId: mapID1, Revision: 123},
 			lsmrErr: errors.New("sql: no rows in result set"),
+			wantErr: true,
 		},
 		{
 			desc:    "Request revision >0 for non-empty map",
@@ -266,17 +269,19 @@ func TestGetSignedMapRootByRevision(t *testing.T) {
 			mockStorage := storage.NewMockMapStorage(ctrl)
 			mockTx := storage.NewMockMapTreeTX(ctrl)
 
-			mockStorage.EXPECT().BeginForTree(gomock.Any(), test.req.MapId).Return(mockTx, nil)
-			mockTx.EXPECT().Close().Return(nil)
-
-			mockStorage.EXPECT().SnapshotForTree(gomock.Any(), test.req.MapId).Return(mockTx, test.snapShErr)
-			if test.snapShErr == nil {
-				mockTx.EXPECT().GetSignedMapRoot(gomock.Any(), test.req.Revision).Return(test.mapRoot, test.lsmrErr)
-				if test.lsmrErr == nil {
-					mockTx.EXPECT().Commit().Return(nil)
-				}
+			if !test.wantErr || !(test.lsmrErr == nil && test.snapShErr == nil) {
+				mockStorage.EXPECT().BeginForTree(gomock.Any(), test.req.MapId).Return(mockTx, nil)
 				mockTx.EXPECT().Close().Return(nil)
-				mockTx.EXPECT().IsOpen().AnyTimes().Return(false)
+
+				mockStorage.EXPECT().SnapshotForTree(gomock.Any(), test.req.MapId).Return(mockTx, test.snapShErr)
+				if test.snapShErr == nil {
+					mockTx.EXPECT().GetSignedMapRoot(gomock.Any(), test.req.Revision).Return(test.mapRoot, test.lsmrErr)
+					if test.lsmrErr == nil {
+						mockTx.EXPECT().Commit().Return(nil)
+					}
+					mockTx.EXPECT().Close().Return(nil)
+					mockTx.EXPECT().IsOpen().AnyTimes().Return(false)
+				}
 			}
 
 			server := NewTrillianMapServer(extension.Registry{
@@ -286,9 +291,8 @@ func TestGetSignedMapRootByRevision(t *testing.T) {
 
 			smrResp, err := server.GetSignedMapRootByRevision(ctx, test.req)
 
-			wantErr := test.snapShErr != nil || test.lsmrErr != nil
-			if gotErr := err != nil; gotErr != wantErr {
-				t.Errorf("GetSignedMapRootByRevision()=_, err? %t want? %t (err=%v)", gotErr, wantErr, err)
+			if gotErr := err != nil; gotErr != test.wantErr {
+				t.Errorf("GetSignedMapRootByRevision()=_, err? %t want? %t (err=%v)", gotErr, test.wantErr, err)
 			}
 			if err != nil {
 				return

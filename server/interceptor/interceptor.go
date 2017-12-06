@@ -326,7 +326,8 @@ func newRPCInfo(req interface{}, quotaUser string) (*rpcInfo, error) {
 		info.treeType = trillian.TreeType_LOG
 
 	// Map / readonly
-	case *trillian.GetMapLeavesRequest,
+	case *trillian.GetMapLeavesByRevisionRequest,
+		*trillian.GetMapLeavesRequest,
 		*trillian.GetSignedMapRootByRevisionRequest,
 		*trillian.GetSignedMapRootRequest:
 		info.treeType = trillian.TreeType_MAP

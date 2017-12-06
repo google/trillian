@@ -51,6 +51,7 @@ type TestTable []NamedTestFn
 // This is done so that tests can be run in different environments in a portable way.
 var AllTests = TestTable{
 	{"MapRevisionZero", RunMapRevisionZero},
+	{"MapRevisionInvalid", RunMapRevisionInvalid},
 	{"LeafHistory", RunLeafHistory},
 	{"Inclusion", RunInclusion},
 	{"InclusionBatch", RunInclusionBatch},
@@ -102,14 +103,14 @@ func verifyGetSignedMapRootResponse(mapRoot *trillian.SignedMapRoot,
 
 func verifyGetMapLeavesResponse(getResp *trillian.GetMapLeavesResponse, indexes [][]byte,
 	wantRevision int64, pubKey crypto.PublicKey, hasher hashers.MapHasher, treeID int64) error {
-	if got, want := len(getResp.MapLeafInclusion), len(indexes); got != want {
+	if got, want := len(getResp.GetMapLeafInclusion()), len(indexes); got != want {
 		return fmt.Errorf("got %d values, want %d", got, want)
 	}
 	if err := verifyGetSignedMapRootResponse(getResp.GetMapRoot(), wantRevision, pubKey, hasher, treeID); err != nil {
 		return err
 	}
 	rootHash := getResp.GetMapRoot().GetRootHash()
-	for _, incl := range getResp.MapLeafInclusion {
+	for _, incl := range getResp.GetMapLeafInclusion() {
 		leaf := incl.GetLeaf().GetLeafValue()
 		index := incl.GetLeaf().GetIndex()
 		leafHash := incl.GetLeaf().GetLeafHash()
@@ -212,6 +213,64 @@ func RunMapRevisionZero(ctx context.Context, t *testing.T, tadmin trillian.Trill
 	}
 }
 
+// RunMapRevisionInvalid performs checks on Map APIs where revision takes illegal values.
+func RunMapRevisionInvalid(ctx context.Context, t *testing.T, tadmin trillian.TrillianAdminClient, tmap trillian.TrillianMapClient) {
+	const indexHex = "0000000000000000000000000000000000000000000000000000000000000001"
+	for _, tc := range []struct {
+		desc         string
+		HashStrategy []trillian.HashStrategy
+		set          [][]*trillian.MapLeaf
+		get          []struct {
+			index    []byte
+			revision int64
+			wantErr  bool
+		}
+	}{
+		{
+			desc:         "single leaf update",
+			HashStrategy: []trillian.HashStrategy{trillian.HashStrategy_TEST_MAP_HASHER, trillian.HashStrategy_CONIKS_SHA512_256},
+			set: [][]*trillian.MapLeaf{
+				{}, // Advance revision without changing anything.
+				{{Index: h2b(indexHex), LeafValue: []byte("A")}},
+			},
+			get: []struct {
+				index    []byte
+				revision int64
+				wantErr  bool
+			}{
+				{index: h2b(indexHex), revision: -1, wantErr: true},
+				{index: h2b(indexHex), revision: 0, wantErr: false},
+			},
+		},
+	} {
+		for _, hashStrategy := range tc.HashStrategy {
+			tree, _, err := newTreeWithHasher(ctx, tadmin, hashStrategy)
+			if err != nil {
+				t.Errorf("%v: newTreeWithHasher(%v): %v", tc.desc, hashStrategy, err)
+			}
+			for _, batch := range tc.set {
+				if _, err := tmap.SetLeaves(ctx, &trillian.SetMapLeavesRequest{
+					MapId:  tree.TreeId,
+					Leaves: batch,
+				}); err != nil {
+					t.Fatalf("%v: SetLeaves(): %v", tc.desc, err)
+				}
+			}
+
+			for _, batch := range tc.get {
+				_, err := tmap.GetLeavesByRevision(ctx, &trillian.GetMapLeavesByRevisionRequest{
+					MapId:    tree.TreeId,
+					Index:    [][]byte{batch.index},
+					Revision: batch.revision,
+				})
+				if gotErr := err != nil; gotErr != batch.wantErr {
+					t.Errorf("%v: GetLeavesByRevision(rev: %d)=_, err? %t want? %t (err=%v)", tc.desc, batch.revision, gotErr, batch.wantErr, err)
+				}
+			}
+		}
+	}
+}
+
 // RunLeafHistory performs checks on Trillian Map leaf updates under a variety of Hash Strategies.
 func RunLeafHistory(ctx context.Context, t *testing.T, tadmin trillian.TrillianAdminClient, tmap trillian.TrillianMapClient) {
 	for _, tc := range []struct {
@@ -277,25 +336,25 @@ func RunLeafHistory(ctx context.Context, t *testing.T, tadmin trillian.TrillianA
 
 			for _, batch := range tc.get {
 				indexes := [][]byte{batch.Index}
-				getResp, err := tmap.GetLeaves(ctx, &trillian.GetMapLeavesRequest{
+				getResp, err := tmap.GetLeavesByRevision(ctx, &trillian.GetMapLeavesByRevisionRequest{
 					MapId:    tree.TreeId,
 					Index:    indexes,
 					Revision: batch.revision,
 				})
 				if err != nil {
-					t.Errorf("%v: GetLeaves(): %v", tc.desc, err)
+					t.Errorf("%v: GetLeavesByRevision(rev: %d)=_, err %v want nil", tc.desc, batch.revision, err)
 					continue
 				}
 				glog.Infof("Rev: %v Get(): %x", getResp.GetMapRoot().GetMapRevision(), getResp.GetMapRoot().GetRootHash())
 
 				if got, want := len(getResp.GetMapLeafInclusion()), 1; got < want {
-					t.Errorf("GetLeaves(rev: %v).len: %v, want >= %v", batch.revision, got, want)
+					t.Errorf("GetLeavesByRevision(rev: %v).len: %v, want >= %v", batch.revision, got, want)
 				}
 				if got, want := getResp.GetMapLeafInclusion()[0].GetLeaf().GetLeafValue(), batch.LeafValue; !bytes.Equal(got, want) {
-					t.Errorf("GetLeaves(rev: %v).LeafValue: %s, want %s", batch.revision, got, want)
+					t.Errorf("GetLeavesByRevision(rev: %v).LeafValue: %s, want %s", batch.revision, got, want)
 				}
 
-				if err := verifyGetMapLeavesResponse(getResp, indexes, batch.revision,
+				if err := verifyGetMapLeavesResponse(getResp, indexes, int64(batch.revision),
 					pubKey, hasher, tree.TreeId); err != nil {
 					t.Errorf("%v: verifyGetMapLeavesResponse(rev %v): %v", tc.desc, batch.revision, err)
 				}
