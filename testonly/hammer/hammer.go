@@ -88,11 +88,11 @@ type MapEntrypointName string
 
 // Constants for entrypoint names, as exposed in statistics/logging.
 const (
-	GetLeavesName = MapEntrypointName("GetLeaves")
+	GetLeavesName    = MapEntrypointName("GetLeaves")
 	GetLeavesRevName = MapEntrypointName("GetLeavesRev")
-	SetLeavesName = MapEntrypointName("SetLeaves")
-	GetSMRName    = MapEntrypointName("GetSMR")
-	GetSMRRevName = MapEntrypointName("GetSMRRev")
+	SetLeavesName    = MapEntrypointName("SetLeaves")
+	GetSMRName       = MapEntrypointName("GetSMR")
+	GetSMRRevName    = MapEntrypointName("GetSMRRev")
 )
 
 var mapEntrypoints = []MapEntrypointName{GetLeavesName, GetLeavesRevName, SetLeavesName, GetSMRName, GetSMRRevName}
@@ -571,7 +571,7 @@ func (s *hammerState) doGetLeaves(ctx context.Context, latest bool) error {
 	if latest {
 		req := &trillian.GetMapLeavesRequest{
 			MapId:    s.cfg.MapID,
-			Revision: -1,  // TODO(phad): this will be removed later
+			Revision: -1, // TODO(phad): this will be removed later
 			Index:    indices,
 		}
 		rsp, err = s.cfg.Client.GetLeaves(ctx, req)
@@ -619,8 +619,8 @@ func dumpRespKeyVals(incls []*trillian.MapLeafInclusion) {
 func (s *hammerState) getLeavesInvalid(ctx context.Context) error {
 	key := testonly.TransparentHash("..invalid-size")
 	req := trillian.GetMapLeavesRequest{
-		MapId: s.cfg.MapID,
-		Index: [][]byte{key[2:]},
+		MapId:    s.cfg.MapID,
+		Index:    [][]byte{key[2:]},
 		Revision: -1,
 	}
 	rsp, err := s.cfg.Client.GetLeaves(ctx, &req)

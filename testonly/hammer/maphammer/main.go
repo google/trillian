@@ -49,12 +49,12 @@ var (
 	checkSignatures = flag.Bool("check_signatures", true, "If false SignedMapHead signatures will be ignored")
 )
 var (
-	getLeavesBias = flag.Int("get_leaves", 20, "Bias for get-leaves operations")
+	getLeavesBias    = flag.Int("get_leaves", 20, "Bias for get-leaves operations")
 	getLeavesRevBias = flag.Int("get_leaves_rev", 2, "Bias for get-leaves-revision operations")
-	setLeavesBias = flag.Int("set_leaves", 20, "Bias for set-leaves operations")
-	getSMRBias    = flag.Int("get_smr", 10, "Bias for get-smr operations")
-	getSMRRevBias = flag.Int("get_smr_rev", 2, "Bias for get-smr-revision operations")
-	invalidChance = flag.Int("invalid_chance", 10, "Chance of generating an invalid operation, as the N in 1-in-N (0 for never)")
+	setLeavesBias    = flag.Int("set_leaves", 20, "Bias for set-leaves operations")
+	getSMRBias       = flag.Int("get_smr", 10, "Bias for get-smr operations")
+	getSMRRevBias    = flag.Int("get_smr_rev", 2, "Bias for get-smr-revision operations")
+	invalidChance    = flag.Int("invalid_chance", 10, "Chance of generating an invalid operation, as the N in 1-in-N (0 for never)")
 )
 
 func main() {
@@ -70,18 +70,18 @@ func main() {
 
 	bias := hammer.MapBias{
 		Bias: map[hammer.MapEntrypointName]int{
-			hammer.GetLeavesName: *getLeavesBias,
+			hammer.GetLeavesName:    *getLeavesBias,
 			hammer.GetLeavesRevName: *getLeavesRevBias,
-			hammer.SetLeavesName: *setLeavesBias,
-			hammer.GetSMRName:    *getSMRBias,
-			hammer.GetSMRRevName: *getSMRRevBias,
+			hammer.SetLeavesName:    *setLeavesBias,
+			hammer.GetSMRName:       *getSMRBias,
+			hammer.GetSMRRevName:    *getSMRRevBias,
 		},
 		InvalidChance: map[hammer.MapEntrypointName]int{
-			hammer.GetLeavesName: *invalidChance,
+			hammer.GetLeavesName:    *invalidChance,
 			hammer.GetLeavesRevName: *invalidChance,
-			hammer.SetLeavesName: *invalidChance,
-			hammer.GetSMRName:    0,
-			hammer.GetSMRRevName: *getSMRRevBias,
+			hammer.SetLeavesName:    *invalidChance,
+			hammer.GetSMRName:       0,
+			hammer.GetSMRRevName:    *getSMRRevBias,
 		},
 	}
 

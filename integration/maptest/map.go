@@ -216,56 +216,56 @@ func RunMapRevisionZero(ctx context.Context, t *testing.T, tadmin trillian.Trill
 // RunMapRevisionInvalid performs checks on Map APIs where revision takes illegal values.
 func RunMapRevisionInvalid(ctx context.Context, t *testing.T, tadmin trillian.TrillianAdminClient, tmap trillian.TrillianMapClient) {
 	const indexHex = "0000000000000000000000000000000000000000000000000000000000000001"
-        for _, tc := range []struct {
-                desc         string
-                HashStrategy []trillian.HashStrategy
-                set          [][]*trillian.MapLeaf
-                get          []struct {
-   			index    []byte
-                        revision int64
-                        wantErr  bool
-                }
-        }{
-                {
-                        desc:         "single leaf update",
-                        HashStrategy: []trillian.HashStrategy{trillian.HashStrategy_TEST_MAP_HASHER, trillian.HashStrategy_CONIKS_SHA512_256},
-                        set: [][]*trillian.MapLeaf{
+	for _, tc := range []struct {
+		desc         string
+		HashStrategy []trillian.HashStrategy
+		set          [][]*trillian.MapLeaf
+		get          []struct {
+			index    []byte
+			revision int64
+			wantErr  bool
+		}
+	}{
+		{
+			desc:         "single leaf update",
+			HashStrategy: []trillian.HashStrategy{trillian.HashStrategy_TEST_MAP_HASHER, trillian.HashStrategy_CONIKS_SHA512_256},
+			set: [][]*trillian.MapLeaf{
 				{}, // Advance revision without changing anything.
-                                { { Index: h2b(indexHex), LeafValue: []byte("A") } },
-                        },
-                        get: []struct {
+				{{Index: h2b(indexHex), LeafValue: []byte("A")}},
+			},
+			get: []struct {
 				index    []byte
-                                revision int64
-                                wantErr  bool
-                        }{
+				revision int64
+				wantErr  bool
+			}{
 				{index: h2b(indexHex), revision: -1, wantErr: true},
 				{index: h2b(indexHex), revision: 0, wantErr: false},
 			},
 		},
 	} {
-                for _, hashStrategy := range tc.HashStrategy {
-                        tree, _, err := newTreeWithHasher(ctx, tadmin, hashStrategy)
-                        if err != nil {
-                                t.Errorf("%v: newTreeWithHasher(%v): %v", tc.desc, hashStrategy, err)
-                        }
-                        for _, batch := range tc.set {
-                                if _, err := tmap.SetLeaves(ctx, &trillian.SetMapLeavesRequest{
-                                        MapId:  tree.TreeId,
-                                        Leaves: batch,
-                                }); err != nil {
-                                        t.Fatalf("%v: SetLeaves(): %v", tc.desc, err)
-                                }
-                        }
+		for _, hashStrategy := range tc.HashStrategy {
+			tree, _, err := newTreeWithHasher(ctx, tadmin, hashStrategy)
+			if err != nil {
+				t.Errorf("%v: newTreeWithHasher(%v): %v", tc.desc, hashStrategy, err)
+			}
+			for _, batch := range tc.set {
+				if _, err := tmap.SetLeaves(ctx, &trillian.SetMapLeavesRequest{
+					MapId:  tree.TreeId,
+					Leaves: batch,
+				}); err != nil {
+					t.Fatalf("%v: SetLeaves(): %v", tc.desc, err)
+				}
+			}
 
-                        for _, batch := range tc.get {
-                                _, err := tmap.GetLeavesByRevision(ctx, &trillian.GetMapLeavesByRevisionRequest{
-                                        MapId:    tree.TreeId,
-                                        Index:    [][]byte{batch.index},
-                                        Revision: batch.revision,
-                                })
+			for _, batch := range tc.get {
+				_, err := tmap.GetLeavesByRevision(ctx, &trillian.GetMapLeavesByRevisionRequest{
+					MapId:    tree.TreeId,
+					Index:    [][]byte{batch.index},
+					Revision: batch.revision,
+				})
 				if gotErr := err != nil; gotErr != batch.wantErr {
-                                       t.Errorf("%v: GetLeavesByRevision(rev: %d)=_, err? %t want? %t (err=%v)", tc.desc, batch.revision, gotErr, batch.wantErr, err)
-                                }
+					t.Errorf("%v: GetLeavesByRevision(rev: %d)=_, err? %t want? %t (err=%v)", tc.desc, batch.revision, gotErr, batch.wantErr, err)
+				}
 			}
 		}
 	}
