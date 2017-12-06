@@ -51,6 +51,7 @@ type TestTable []NamedTestFn
 // This is done so that tests can be run in different environments in a portable way.
 var AllTests = TestTable{
 	{"MapRevisionZero", RunMapRevisionZero},
+	{"MapRevisionInvalid", RunMapRevisionInvalid},
 	{"LeafHistory", RunLeafHistory},
 	{"Inclusion", RunInclusion},
 	{"InclusionBatch", RunInclusionBatch},
@@ -212,6 +213,64 @@ func RunMapRevisionZero(ctx context.Context, t *testing.T, tadmin trillian.Trill
 	}
 }
 
+// RunMapRevisionInvalid performs checks on Map APIs where revision takes illegal values.
+func RunMapRevisionInvalid(ctx context.Context, t *testing.T, tadmin trillian.TrillianAdminClient, tmap trillian.TrillianMapClient) {
+	const indexHex = "0000000000000000000000000000000000000000000000000000000000000001"
+        for _, tc := range []struct {
+                desc         string
+                HashStrategy []trillian.HashStrategy
+                set          [][]*trillian.MapLeaf
+                get          []struct {
+   			index    []byte
+                        revision int64
+                        wantErr  bool
+                }
+        }{
+                {
+                        desc:         "single leaf update",
+                        HashStrategy: []trillian.HashStrategy{trillian.HashStrategy_TEST_MAP_HASHER, trillian.HashStrategy_CONIKS_SHA512_256},
+                        set: [][]*trillian.MapLeaf{
+				{}, // Advance revision without changing anything.
+                                { { Index: h2b(indexHex), LeafValue: []byte("A") } },
+                        },
+                        get: []struct {
+				index    []byte
+                                revision int64
+                                wantErr  bool
+                        }{
+				{index: h2b(indexHex), revision: -1, wantErr: true},
+				{index: h2b(indexHex), revision: 0, wantErr: false},
+			},
+		},
+	} {
+                for _, hashStrategy := range tc.HashStrategy {
+                        tree, _, err := newTreeWithHasher(ctx, tadmin, hashStrategy)
+                        if err != nil {
+                                t.Errorf("%v: newTreeWithHasher(%v): %v", tc.desc, hashStrategy, err)
+                        }
+                        for _, batch := range tc.set {
+                                if _, err := tmap.SetLeaves(ctx, &trillian.SetMapLeavesRequest{
+                                        MapId:  tree.TreeId,
+                                        Leaves: batch,
+                                }); err != nil {
+                                        t.Fatalf("%v: SetLeaves(): %v", tc.desc, err)
+                                }
+                        }
+
+                        for _, batch := range tc.get {
+                                _, err := tmap.GetLeavesByRevision(ctx, &trillian.GetMapLeavesByRevisionRequest{
+                                        MapId:    tree.TreeId,
+                                        Index:    [][]byte{batch.index},
+                                        Revision: batch.revision,
+                                })
+				if gotErr := err != nil; gotErr != batch.wantErr {
+                                       t.Errorf("%v: GetLeavesByRevision(rev: %d)=_, err? %t want? %t (err=%v)", tc.desc, batch.revision, gotErr, batch.wantErr, err)
+                                }
+			}
+		}
+	}
+}
+
 // RunLeafHistory performs checks on Trillian Map leaf updates under a variety of Hash Strategies.
 func RunLeafHistory(ctx context.Context, t *testing.T, tadmin trillian.TrillianAdminClient, tmap trillian.TrillianMapClient) {
 	for _, tc := range []struct {
@@ -245,8 +304,6 @@ func RunLeafHistory(ctx context.Context, t *testing.T, tadmin trillian.TrillianA
 				Index     []byte
 				LeafValue []byte
 			}{
-				{revision: -1},
-				{revision: 0},
 				{revision: 1, Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: nil},         // Empty to empty root.
 				{revision: 2, Index: []byte("doesnotexist...................."), LeafValue: nil},                                      // Empty to first root, through empty branch.
 				{revision: 2, Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("A")}, // Value to first root.
@@ -284,18 +341,6 @@ func RunLeafHistory(ctx context.Context, t *testing.T, tadmin trillian.TrillianA
 					Index:    indexes,
 					Revision: batch.revision,
 				})
-				switch batch.revision {
-				case -1:
-					if err == nil {
-						t.Errorf("%v: GetLeavesByRevision(rev: -1)=_, err nil want err", tc.desc)
-					}
-					continue
-				case 0:
-					if got, want := len(getResp.GetMapLeafInclusion()), 0; got != want {
-						t.Errorf("GetLeavesByRevision(rev: 0).len: %d, want == 0", got)
-					}
-					continue
-				}
 				if err != nil {
 					t.Errorf("%v: GetLeavesByRevision(rev: %d)=_, err %v want nil", tc.desc, batch.revision, err)
 					continue
