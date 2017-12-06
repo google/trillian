@@ -102,14 +102,14 @@ func verifyGetSignedMapRootResponse(mapRoot *trillian.SignedMapRoot,
 
 func verifyGetMapLeavesResponse(getResp *trillian.GetMapLeavesResponse, indexes [][]byte,
 	wantRevision int64, pubKey crypto.PublicKey, hasher hashers.MapHasher, treeID int64) error {
-	if got, want := len(getResp.MapLeafInclusion), len(indexes); got != want {
+	if got, want := len(getResp.GetMapLeafInclusion()), len(indexes); got != want {
 		return fmt.Errorf("got %d values, want %d", got, want)
 	}
 	if err := verifyGetSignedMapRootResponse(getResp.GetMapRoot(), wantRevision, pubKey, hasher, treeID); err != nil {
 		return err
 	}
 	rootHash := getResp.GetMapRoot().GetRootHash()
-	for _, incl := range getResp.MapLeafInclusion {
+	for _, incl := range getResp.GetMapLeafInclusion() {
 		leaf := incl.GetLeaf().GetLeafValue()
 		index := incl.GetLeaf().GetIndex()
 		leafHash := incl.GetLeaf().GetLeafHash()
@@ -245,6 +245,8 @@ func RunLeafHistory(ctx context.Context, t *testing.T, tadmin trillian.TrillianA
 				Index     []byte
 				LeafValue []byte
 			}{
+				{revision: -1},
+				{revision: 0},
 				{revision: 1, Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: nil},         // Empty to empty root.
 				{revision: 2, Index: []byte("doesnotexist...................."), LeafValue: nil},                                      // Empty to first root, through empty branch.
 				{revision: 2, Index: h2b("0000000000000000000000000000000000000000000000000000000000000000"), LeafValue: []byte("A")}, // Value to first root.
@@ -282,8 +284,20 @@ func RunLeafHistory(ctx context.Context, t *testing.T, tadmin trillian.TrillianA
 					Index:    indexes,
 					Revision: batch.revision,
 				})
+				switch batch.revision {
+				case -1:
+					if err == nil {
+						t.Errorf("%v: GetLeavesByRevision(rev: -1)=_, err nil want err", tc.desc)
+					}
+					continue
+				case 0:
+					if got, want := len(getResp.GetMapLeafInclusion()), 0; got != want {
+						t.Errorf("GetLeavesByRevision(rev: 0).len: %d, want == 0", got)
+					}
+					continue
+				}
 				if err != nil {
-					t.Errorf("%v: GetLeavesByRevision(): %v", tc.desc, err)
+					t.Errorf("%v: GetLeavesByRevision(rev: %d)=_, err %v want nil", tc.desc, batch.revision, err)
 					continue
 				}
 				glog.Infof("Rev: %v Get(): %x", getResp.GetMapRoot().GetMapRevision(), getResp.GetMapRoot().GetRootHash())

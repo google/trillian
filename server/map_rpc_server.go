@@ -120,13 +120,13 @@ func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapL
 
 // GetLeavesByRevision implements the GetLeavesByRevision RPC method.
 func (t *TrillianMapServer) GetLeavesByRevision(ctx context.Context, req *trillian.GetMapLeavesByRevisionRequest) (*trillian.GetMapLeavesResponse, error) {
+        if req.Revision < 0 {
+                return nil, fmt.Errorf("map revision %d must be >= 0", req.Revision)
+        }
         return t.getLeavesByRevision(ctx, req.MapId, req.Index, req.Revision)
 }
 
 func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64, indices [][]byte, revision int64) (*trillian.GetMapLeavesResponse, error) {
-	if revision < 0 {
-		return nil, fmt.Errorf("map revision %d must be >= 0", revision)
-	}
 	if err := t.Init(ctx, mapID); err != nil {
 		return nil, err
 	}
