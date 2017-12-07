@@ -423,7 +423,6 @@ func RunInclusion(ctx context.Context, t *testing.T, tadmin trillian.TrillianAdm
 			getResp, err := tmap.GetLeaves(ctx, &trillian.GetMapLeavesRequest{
 				MapId:    tree.TreeId,
 				Index:    indexes,
-				Revision: -1,
 			})
 			if err != nil {
 				t.Errorf("%v: GetLeaves(): %v", tc.desc, err)
@@ -544,7 +543,6 @@ func runMapBatchTest(ctx context.Context, t *testing.T, desc string, tmap trilli
 		getResp, err := tmap.GetLeaves(ctx, &trillian.GetMapLeavesRequest{
 			MapId:    tree.TreeId,
 			Index:    indexes,
-			Revision: -1,
 		})
 		if err != nil {
 			t.Errorf("%s: GetLeaves(): %v", desc, err)

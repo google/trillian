@@ -52,7 +52,6 @@ func main() {
 		req := &trillian.GetMapLeavesRequest{
 			MapId:    mapID,
 			Index:    [][]byte{ctmapper.HashDomain(domain)},
-			Revision: -1,
 		}
 		resp, err := vmap.GetLeaves(context.Background(), req)
 		if err != nil {

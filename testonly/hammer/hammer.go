@@ -570,7 +570,6 @@ func (s *hammerState) doGetLeaves(ctx context.Context, latest bool) error {
 	if latest {
 		req := &trillian.GetMapLeavesRequest{
 			MapId:    s.cfg.MapID,
-			Revision: -1, // TODO(phad): this will be removed later
 			Index:    indices,
 		}
 		rsp, err = s.cfg.Client.GetLeaves(ctx, req)
@@ -620,7 +619,6 @@ func (s *hammerState) getLeavesInvalid(ctx context.Context) error {
 	req := trillian.GetMapLeavesRequest{
 		MapId:    s.cfg.MapID,
 		Index:    [][]byte{key[2:]},
-		Revision: -1,
 	}
 	rsp, err := s.cfg.Client.GetLeaves(ctx, &req)
 	if err == nil {

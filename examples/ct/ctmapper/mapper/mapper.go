@@ -144,7 +144,6 @@ func (m *CTMapper) oneMapperRun(ctx context.Context) (bool, error) {
 	getReq := &trillian.GetMapLeavesRequest{
 		MapId:    m.mapID,
 		Index:    make([][]byte, 0, len(domains)),
-		Revision: -1,
 	}
 	for d := range domains {
 		getReq.Index = append(getReq.Index, ctmapper.HashDomain(d))
