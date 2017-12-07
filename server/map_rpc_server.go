@@ -32,6 +32,11 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+const (
+	// Used internally by GetLeaves.
+	mostRecentRevision = -1
+)
+
 // TODO(codingllama): There is no access control in the server yet and clients could easily modify
 // any tree.
 
@@ -112,10 +117,8 @@ func (t *TrillianMapServer) Init(ctx context.Context, mapID int64) error {
 // GetLeaves implements the GetLeaves RPC method.  Each requested index will
 // return an inclusion proof to either the leaf, or nil if the leaf does not
 // exist.
-// TODO(phad): this will soon change to only request the most recent version
-// of the specified leaf indices.
 func (t *TrillianMapServer) GetLeaves(ctx context.Context, req *trillian.GetMapLeavesRequest) (*trillian.GetMapLeavesResponse, error) {
-	return t.getLeavesByRevision(ctx, req.MapId, req.Index, req.Revision)
+	return t.getLeavesByRevision(ctx, req.MapId, req.Index, mostRecentRevision)
 }
 
 // GetLeavesByRevision implements the GetLeavesByRevision RPC method.

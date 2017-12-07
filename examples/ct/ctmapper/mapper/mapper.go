@@ -142,9 +142,8 @@ func (m *CTMapper) oneMapperRun(ctx context.Context) (bool, error) {
 
 	// Fetch the current map values for those domains:
 	getReq := &trillian.GetMapLeavesRequest{
-		MapId:    m.mapID,
-		Index:    make([][]byte, 0, len(domains)),
-		Revision: -1,
+		MapId: m.mapID,
+		Index: make([][]byte, 0, len(domains)),
 	}
 	for d := range domains {
 		getReq.Index = append(getReq.Index, ctmapper.HashDomain(d))
