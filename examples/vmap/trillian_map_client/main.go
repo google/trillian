@@ -63,7 +63,7 @@ func main() {
 
 	{
 		req := &trillian.GetMapLeavesRequest{
-			MapId:    1,
+			MapId: 1,
 			Index: [][]byte{
 				index,
 			},

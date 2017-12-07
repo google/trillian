@@ -569,8 +569,8 @@ func (s *hammerState) doGetLeaves(ctx context.Context, latest bool) error {
 	var err error
 	if latest {
 		req := &trillian.GetMapLeavesRequest{
-			MapId:    s.cfg.MapID,
-			Index:    indices,
+			MapId: s.cfg.MapID,
+			Index: indices,
 		}
 		rsp, err = s.cfg.Client.GetLeaves(ctx, req)
 		if err != nil {
@@ -617,8 +617,8 @@ func dumpRespKeyVals(incls []*trillian.MapLeafInclusion) {
 func (s *hammerState) getLeavesInvalid(ctx context.Context) error {
 	key := testonly.TransparentHash("..invalid-size")
 	req := trillian.GetMapLeavesRequest{
-		MapId:    s.cfg.MapID,
-		Index:    [][]byte{key[2:]},
+		MapId: s.cfg.MapID,
+		Index: [][]byte{key[2:]},
 	}
 	rsp, err := s.cfg.Client.GetLeaves(ctx, &req)
 	if err == nil {

@@ -50,8 +50,8 @@ func main() {
 	for i := 0; i < flag.NArg(); i++ {
 		domain := flag.Arg(i)
 		req := &trillian.GetMapLeavesRequest{
-			MapId:    mapID,
-			Index:    [][]byte{ctmapper.HashDomain(domain)},
+			MapId: mapID,
+			Index: [][]byte{ctmapper.HashDomain(domain)},
 		}
 		resp, err := vmap.GetLeaves(context.Background(), req)
 		if err != nil {
