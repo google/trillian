@@ -99,7 +99,7 @@ main() {
     echo 'running go test'
     # Install test deps so that individual test runs below can reuse them.
     echo 'installing test deps'
-    go test -i ./...
+    go test ${goflags} -i ./...
 
     if [[ ${coverage} -eq 1 ]]; then
       # Individual package profiles are written to "$profile.out" files under
