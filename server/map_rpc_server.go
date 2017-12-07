@@ -36,6 +36,7 @@ const (
 	// Used internally by GetLeaves.
 	mostRecentRevision = -1
 )
+
 // TODO(codingllama): There is no access control in the server yet and clients could easily modify
 // any tree.
 
