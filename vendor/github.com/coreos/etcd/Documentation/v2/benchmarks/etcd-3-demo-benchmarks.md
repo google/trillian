@@ -1,3 +1,8 @@
+**This is the documentation for etcd2 releases. Read [etcd3 doc][v3-docs] for etcd3 releases.**
+
+[v3-docs]: ../../docs.md#documentation
+
+
 ## Physical machines
 
 GCE n1-highcpu-2 machine type
@@ -39,4 +44,4 @@ The performance is nearly the same as the one with empty server handler.
 The performance with empty server handler is not affected by one put. So the
 performance downgrade should be caused by storage package.
 
-[etcd-v3-benchmark]: /tools/benchmark/
+[etcd-v3-benchmark]: ../../../tools/benchmark/

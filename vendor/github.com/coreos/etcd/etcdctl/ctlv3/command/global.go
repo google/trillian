@@ -19,6 +19,7 @@ import (
 	"errors"
 	"io"
 	"io/ioutil"
+	"os"
 	"strings"
 	"time"
 
@@ -27,6 +28,7 @@ import (
 	"github.com/coreos/etcd/pkg/flags"
 	"github.com/coreos/etcd/pkg/transport"
 	"github.com/spf13/cobra"
+	"google.golang.org/grpc/grpclog"
 )
 
 // GlobalFlags are flags that defined globally
@@ -44,6 +46,8 @@ type GlobalFlags struct {
 	IsHex        bool
 
 	User string
+
+	Debug bool
 }
 
 type secureCfg struct {
@@ -78,6 +82,16 @@ func initDisplayFromCmd(cmd *cobra.Command) {
 
 func mustClientFromCmd(cmd *cobra.Command) *clientv3.Client {
 	flags.SetPflagsFromEnv("ETCDCTL", cmd.InheritedFlags())
+
+	debug, derr := cmd.Flags().GetBool("debug")
+	if derr != nil {
+		ExitWithError(ExitError, derr)
+	}
+	if debug {
+		clientv3.SetLogger(grpclog.NewLoggerV2WithVerbosity(os.Stderr, os.Stderr, os.Stderr, 4))
+	} else {
+		clientv3.SetLogger(grpclog.NewLoggerV2(ioutil.Discard, ioutil.Discard, ioutil.Discard))
+	}
 
 	endpoints, err := cmd.Flags().GetStringSlice("endpoints")
 	if err != nil {
