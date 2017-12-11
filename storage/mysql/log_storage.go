@@ -28,6 +28,7 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/monitoring"
@@ -303,10 +304,14 @@ func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime tim
 		// Note: the LeafData and ExtraData being nil here is OK as this is only used by the
 		// sequencer. The sequencer only writes to the SequencedLeafData table and the client
 		// supplied data was already written to LeafData as part of queueing the leaf.
+		queueTimestampProto, err := ptypes.TimestampProto(time.Unix(0, queueTimestamp))
+		if err != nil {
+			return nil, fmt.Errorf("got invalid queue timestamp: %v", err)
+		}
 		leaf := &trillian.LogLeaf{
-			LeafIdentityHash:    leafIDHash,
-			MerkleLeafHash:      merkleHash,
-			QueueTimestampNanos: queueTimestamp,
+			LeafIdentityHash: leafIDHash,
+			MerkleLeafHash:   merkleHash,
+			QueueTimestamp:   queueTimestampProto,
 		}
 
 		if len(leaf.LeafIdentityHash) != t.hashSizeBytes {
@@ -349,7 +354,11 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 		if len(leaf.LeafIdentityHash) != t.hashSizeBytes {
 			return nil, fmt.Errorf("queued leaf must have a leaf ID hash of length %d", t.hashSizeBytes)
 		}
-		leaf.QueueTimestampNanos = queueTimestamp.UnixNano()
+		var err error
+		leaf.QueueTimestamp, err = ptypes.TimestampProto(queueTimestamp)
+		if err != nil {
+			return nil, fmt.Errorf("got invalid queue timestamp: %v", err)
+		}
 	}
 	start := time.Now()
 	label := labelForTX(t)
@@ -368,7 +377,11 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 	for i, leafPos := range orderedLeaves {
 		leafStart := time.Now()
 		leaf := leafPos.leaf
-		_, err := t.tx.ExecContext(ctx, insertUnsequencedLeafSQL, t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData, leaf.QueueTimestampNanos)
+		qTimestamp, err := ptypes.Timestamp(leaf.QueueTimestamp)
+		if err != nil {
+			return nil, fmt.Errorf("got invalid queue timestamp: %v", err)
+		}
+		_, err = t.tx.ExecContext(ctx, insertUnsequencedLeafSQL, t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData, qTimestamp.UnixNano())
 		insertDuration := time.Since(leafStart)
 		observe(queueInsertLeafLatency, insertDuration, label)
 		if isDuplicateErr(err) {
@@ -389,7 +402,11 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 			leaf.LeafIdentityHash,
 			leaf.MerkleLeafHash,
 		}
-		args = append(args, queueArgs(t.treeID, leaf.LeafIdentityHash, time.Unix(0, leaf.QueueTimestampNanos))...)
+		queueTimestamp, err := ptypes.Timestamp(leaf.QueueTimestamp)
+		if err != nil {
+			return nil, fmt.Errorf("got invalid queue timestamp: %v", err)
+		}
+		args = append(args, queueArgs(t.treeID, leaf.LeafIdentityHash, queueTimestamp)...)
 		_, err = t.tx.ExecContext(
 			ctx,
 			insertUnsequencedEntrySQL,
@@ -482,16 +499,26 @@ func (t *logTreeTX) GetLeavesByIndex(ctx context.Context, leaves []int64) ([]*tr
 	defer rows.Close()
 	for rows.Next() {
 		leaf := &trillian.LogLeaf{}
+		var qTimestamp, iTimestamp int64
 		if err := rows.Scan(
 			&leaf.MerkleLeafHash,
 			&leaf.LeafIdentityHash,
 			&leaf.LeafValue,
 			&leaf.LeafIndex,
 			&leaf.ExtraData,
-			&leaf.QueueTimestampNanos,
-			&leaf.IntegrateTimestampNanos); err != nil {
+			&qTimestamp,
+			&iTimestamp); err != nil {
 			glog.Warningf("Failed to scan merkle leaves: %s", err)
 			return nil, err
+		}
+		var err error
+		leaf.QueueTimestamp, err = ptypes.TimestampProto(time.Unix(0, qTimestamp))
+		if err != nil {
+			return nil, fmt.Errorf("got invalid queue timestamp: %v", err)
+		}
+		leaf.IntegrateTimestamp, err = ptypes.TimestampProto(time.Unix(0, iTimestamp))
+		if err != nil {
+			return nil, fmt.Errorf("got invalid integrate timestamp: %v", err)
 		}
 		ret = append(ret, leaf)
 	}
@@ -513,7 +540,7 @@ func (t *logTreeTX) GetLeavesByHash(ctx context.Context, leafHashes [][]byte, or
 
 // getLeafDataByIdentityHash retrieves leaf data by LeafIdentityHash, returned
 // as a slice of LogLeaf objects for convenience.  However, note that the
-// returned LogLeaf objects will not have a valid MerkleLeafHash, LeafIndex, or IntegrateTimestampNanos.
+// returned LogLeaf objects will not have a valid MerkleLeafHash, LeafIndex, or IntegrateTimestamp.
 func (t *logTreeTX) getLeafDataByIdentityHash(ctx context.Context, leafHashes [][]byte) ([]*trillian.LogLeaf, error) {
 	tmpl, err := t.ls.getLeavesByLeafIdentityHashStmt(ctx, len(leafHashes))
 	if err != nil {
@@ -603,18 +630,27 @@ func (t *logTreeTX) getLeavesByHashInternal(ctx context.Context, leafHashes [][]
 	for rows.Next() {
 		leaf := &trillian.LogLeaf{}
 		// We might be using a LEFT JOIN in our statement, so leaves which are
-		// queued but not yet integrated will have a NULL IntegrateTimestampNanos
+		// queued but not yet integrated will have a NULL IntegrateTimestamp
 		// when there's no corresponding entry in SequencedLeafData, even though
 		// the table definition forbids that, so we use a nullable type here and
 		// check its validity below.
 		var integrateTS sql.NullInt64
+		var queueTS int64
 
-		if err := rows.Scan(&leaf.MerkleLeafHash, &leaf.LeafIdentityHash, &leaf.LeafValue, &leaf.LeafIndex, &leaf.ExtraData, &leaf.QueueTimestampNanos, &integrateTS); err != nil {
+		if err := rows.Scan(&leaf.MerkleLeafHash, &leaf.LeafIdentityHash, &leaf.LeafValue, &leaf.LeafIndex, &leaf.ExtraData, &queueTS, &integrateTS); err != nil {
 			glog.Warningf("LogID: %d Scan() %s = %s", t.treeID, desc, err)
 			return nil, err
 		}
+		var err error
+		leaf.QueueTimestamp, err = ptypes.TimestampProto(time.Unix(0, queueTS))
+		if err != nil {
+			return nil, fmt.Errorf("got invalid queue timestamp: %v", err)
+		}
 		if integrateTS.Valid {
-			leaf.IntegrateTimestampNanos = integrateTS.Int64
+			leaf.IntegrateTimestamp, err = ptypes.TimestampProto(time.Unix(0, integrateTS.Int64))
+			if err != nil {
+				return nil, fmt.Errorf("got invalid integrate timestamp: %v", err)
+			}
 		}
 
 		if got, want := len(leaf.MerkleLeafHash), t.hashSizeBytes; got != want {

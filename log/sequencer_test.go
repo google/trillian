@@ -41,10 +41,11 @@ var (
 	testLeaf16Data    = []byte("testdataforleaf")
 	testLeaf16Hash, _ = rfc6962.DefaultHasher.HashLeaf(testLeaf16Data)
 	testLeaf16        = &trillian.LogLeaf{
-		MerkleLeafHash: testLeaf16Hash,
-		LeafValue:      testLeaf16Data,
-		ExtraData:      nil,
-		LeafIndex:      16,
+		MerkleLeafHash:     testLeaf16Hash,
+		LeafValue:          testLeaf16Data,
+		ExtraData:          nil,
+		LeafIndex:          16,
+		IntegrateTimestamp: testonly.MustToTimestampProto(fakeTime()),
 	}
 )
 

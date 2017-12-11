@@ -19,9 +19,11 @@ package mysql
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/golang/glog"
+	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 )
 
@@ -60,14 +62,18 @@ func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillia
 			return errors.New("sequenced leaf has incorrect hash size")
 		}
 
-		_, err := t.tx.ExecContext(
+		iTimestamp, err := ptypes.Timestamp(leaf.IntegrateTimestamp)
+		if err != nil {
+			return fmt.Errorf("got invalid integrate timestamp: %v", err)
+		}
+		_, err = t.tx.ExecContext(
 			ctx,
 			insertSequencedLeafSQL,
 			t.treeID,
 			leaf.LeafIdentityHash,
 			leaf.MerkleLeafHash,
 			leaf.LeafIndex,
-			leaf.IntegrateTimestampNanos)
+			iTimestamp.UnixNano())
 		if err != nil {
 			glog.Warningf("Failed to update sequenced leaves: %s", err)
 			return err
