@@ -291,27 +291,10 @@ func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime tim
 	defer rows.Close()
 
 	for rows.Next() {
-		var leafIDHash []byte
-		var merkleHash []byte
-		var queueTimestamp int64
-
-		err := rows.Scan(&leafIDHash, &merkleHash, &queueTimestamp)
+		leaf, dqInfo, err := t.dequeueLeaf(rows)
 		if err != nil {
-			glog.Warningf("Error scanning work rows: %s", err)
+			glog.Warningf("Error dequeuing leaf: %v", err)
 			return nil, err
-		}
-
-		// Note: the LeafData and ExtraData being nil here is OK as this is only used by the
-		// sequencer. The sequencer only writes to the SequencedLeafData table and the client
-		// supplied data was already written to LeafData as part of queueing the leaf.
-		queueTimestampProto, err := ptypes.TimestampProto(time.Unix(0, queueTimestamp))
-		if err != nil {
-			return nil, fmt.Errorf("got invalid queue timestamp: %v", err)
-		}
-		leaf := &trillian.LogLeaf{
-			LeafIdentityHash: leafIDHash,
-			MerkleLeafHash:   merkleHash,
-			QueueTimestamp:   queueTimestampProto,
 		}
 
 		if len(leaf.LeafIdentityHash) != t.hashSizeBytes {
@@ -319,7 +302,7 @@ func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime tim
 		}
 
 		leaves = append(leaves, leaf)
-		dq = append(dq, dequeueInfo(leafIDHash, queueTimestamp))
+		dq = append(dq, dqInfo)
 	}
 
 	if rows.Err() != nil {

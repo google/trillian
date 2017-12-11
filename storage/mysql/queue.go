@@ -18,6 +18,7 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"time"
@@ -49,6 +50,32 @@ type dequeuedLeaf struct {
 
 func dequeueInfo(leafIDHash []byte, queueTimestamp int64) dequeuedLeaf {
 	return dequeuedLeaf{queueTimestampNanos: queueTimestamp, leafIdentityHash: leafIDHash}
+}
+
+func (t *logTreeTX) dequeueLeaf(rows *sql.Rows) (*trillian.LogLeaf, dequeuedLeaf, error) {
+	var leafIDHash []byte
+	var merkleHash []byte
+	var queueTimestamp int64
+
+	err := rows.Scan(&leafIDHash, &merkleHash, &queueTimestamp)
+	if err != nil {
+		glog.Warningf("Error scanning work rows: %s", err)
+		return nil, dequeuedLeaf{}, err
+	}
+
+	// Note: the LeafData and ExtraData being nil here is OK as this is only used by the
+	// sequencer. The sequencer only writes to the SequencedLeafData table and the client
+	// supplied data was already written to LeafData as part of queueing the leaf.
+	queueTimestampProto, err := ptypes.TimestampProto(time.Unix(0, queueTimestamp))
+	if err != nil {
+		return nil, dequeuedLeaf{}, fmt.Errorf("got invalid queue timestamp: %v", err)
+	}
+	leaf := &trillian.LogLeaf{
+		LeafIdentityHash: leafIDHash,
+		MerkleLeafHash:   merkleHash,
+		QueueTimestamp:   queueTimestampProto,
+	}
+	return leaf, dequeueInfo(leafIDHash, queueTimestamp), nil
 }
 
 func queueArgs(treeID int64, identityHash []byte, queueTimestamp time.Time) []interface{} {
