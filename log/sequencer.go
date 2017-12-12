@@ -174,7 +174,7 @@ func (s Sequencer) buildNodesFromNodeMap(nodeMap map[string]storage.Node, newVer
 func (s Sequencer) sequenceLeaves(mt *merkle.CompactMerkleTree, leaves []*trillian.LogLeaf, label string) (map[string]storage.Node, []*trillian.LogLeaf, error) {
 	nodeMap := make(map[string]storage.Node)
 	// Update the tree state and sequence the leaves and assign sequence numbers to the new leaves
-	for i, leaf := range leaves {
+	for _, leaf := range leaves {
 		seq, err := mt.AddLeafHash(leaf.MerkleLeafHash, func(depth int, index int64, hash []byte) error {
 			nodeID, err := storage.NewNodeIDForTreeCoords(int64(depth), index, maxTreeDepth)
 			if err != nil {
@@ -190,23 +190,23 @@ func (s Sequencer) sequenceLeaves(mt *merkle.CompactMerkleTree, leaves []*trilli
 			return nil, nil, err
 		}
 		// The leaf has now been sequenced.
-		leaves[i].LeafIndex = seq
+		leaf.LeafIndex = seq
 		integrateTS := s.timeSource.Now()
-		leaves[i].IntegrateTimestamp, err = ptypes.TimestampProto(integrateTS)
+		leaf.IntegrateTimestamp, err = ptypes.TimestampProto(integrateTS)
 		if err != nil {
 			return nil, nil, fmt.Errorf("got invalid integrate timestamp: %v", err)
 		}
 
 		// Old leaves might not have a QueueTimestamp, only calculate the merge delay if this one does.
-		if leaves[i].QueueTimestamp != nil && leaves[i].QueueTimestamp.Seconds != 0 {
-			queueTS, err := ptypes.Timestamp(leaves[i].QueueTimestamp)
+		if leaf.QueueTimestamp != nil && leaf.QueueTimestamp.Seconds != 0 {
+			queueTS, err := ptypes.Timestamp(leaf.QueueTimestamp)
 			if err != nil {
 				return nil, nil, fmt.Errorf("got invalid queue timestamp: %v", queueTS)
 			}
 			mergeDelay := integrateTS.Sub(queueTS)
 			seqMergeDelay.Observe(mergeDelay.Seconds(), label)
-
 		}
+
 		// Store leaf hash in the Merkle tree too:
 		leafNodeID, err := storage.NewNodeIDForTreeCoords(0, seq, maxTreeDepth)
 		if err != nil {
