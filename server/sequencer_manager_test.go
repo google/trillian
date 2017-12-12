@@ -25,7 +25,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
-	tspb "github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/google/trillian"
 	tcrypto "github.com/google/trillian/crypto"
 	"github.com/google/trillian/crypto/keys"
@@ -88,14 +87,6 @@ var updatedRoot = trillian.SignedLogRoot{
 var zeroDuration = 0 * time.Second
 
 const writeRev = int64(24)
-
-func mustToTimestampProto(t time.Time) *tspb.Timestamp {
-	ret, err := ptypes.TimestampProto(t)
-	if err != nil {
-		panic(err)
-	}
-	return ret
-}
 
 // newSignerWithFixedSig returns a fake signer that always returns the specified signature.
 func newSignerWithFixedSig(sig *sigpb.DigitallySigned) (crypto.Signer, error) {
