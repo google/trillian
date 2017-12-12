@@ -51,6 +51,7 @@ var (
 	seqStoreRootLatency    monitoring.Histogram
 	seqCommitLatency       monitoring.Histogram
 	seqCounter             monitoring.Counter
+	seqMergeDelay          monitoring.Histogram
 
 	// QuotaIncreaseFactor is the multiplier used for the number of tokens added back to
 	// sequencing-based quotas. The resulting PutTokens call is equivalent to
@@ -88,6 +89,7 @@ func createMetrics(mf monitoring.MetricFactory) {
 	seqStoreRootLatency = mf.NewHistogram("sequencer_latency_store_root", "Latency of store-root part of sequencer batch operation in seconds", logIDLabel)
 	seqCommitLatency = mf.NewHistogram("sequencer_latency_commit", "Latency of commit part of sequencer batch operation in seconds", logIDLabel)
 	seqCounter = mf.NewCounter("sequencer_sequenced", "Number of leaves sequenced", logIDLabel)
+	seqMergeDelay = mf.NewHistogram("sequencer_merge_delay", "Delay between queuing and integration of leaves", logIDLabel)
 }
 
 // TODO(Martin2112): Add admin support for safely changing params like guard window during operation
@@ -169,7 +171,7 @@ func (s Sequencer) buildNodesFromNodeMap(nodeMap map[string]storage.Node, newVer
 	return targetNodes, nil
 }
 
-func (s Sequencer) sequenceLeaves(mt *merkle.CompactMerkleTree, leaves []*trillian.LogLeaf) (map[string]storage.Node, []*trillian.LogLeaf, error) {
+func (s Sequencer) sequenceLeaves(mt *merkle.CompactMerkleTree, leaves []*trillian.LogLeaf, label string) (map[string]storage.Node, []*trillian.LogLeaf, error) {
 	nodeMap := make(map[string]storage.Node)
 	// Update the tree state and sequence the leaves and assign sequence numbers to the new leaves
 	for i, leaf := range leaves {
@@ -189,9 +191,21 @@ func (s Sequencer) sequenceLeaves(mt *merkle.CompactMerkleTree, leaves []*trilli
 		}
 		// The leaf has now been sequenced.
 		leaves[i].LeafIndex = seq
-		leaves[i].IntegrateTimestamp, err = ptypes.TimestampProto(s.timeSource.Now())
+		integrateTS := s.timeSource.Now()
+		leaves[i].IntegrateTimestamp, err = ptypes.TimestampProto(integrateTS)
 		if err != nil {
 			return nil, nil, fmt.Errorf("got invalid integrate timestamp: %v", err)
+		}
+
+		// Old leaves might not have a QueueTimestamp, only calculate the merge delay if this one does.
+		if leaves[i].QueueTimestamp != nil && leaves[i].QueueTimestamp.Seconds != 0 {
+			queueTS, err := ptypes.Timestamp(leaves[i].QueueTimestamp)
+			if err != nil {
+				return nil, nil, fmt.Errorf("got invalid queue timestamp: %v", queueTS)
+			}
+			mergeDelay := integrateTS.Sub(queueTS)
+			seqMergeDelay.Observe(mergeDelay.Seconds(), label)
+
 		}
 		// Store leaf hash in the Merkle tree too:
 		leafNodeID, err := storage.NewNodeIDForTreeCoords(0, seq, maxTreeDepth)
@@ -297,7 +311,7 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int, gu
 	}
 
 	// Assign leaf sequence numbers and collate node updates
-	nodeMap, sequencedLeaves, err := s.sequenceLeaves(merkleTree, leaves)
+	nodeMap, sequencedLeaves, err := s.sequenceLeaves(merkleTree, leaves, label)
 	if err != nil {
 		return 0, err
 	}
