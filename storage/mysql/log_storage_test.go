@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testonly"
@@ -46,6 +47,9 @@ var dummyHash3 = []byte("hashxxxxhashxxxxhashxxxxHASHxxxx")
 // Time we will queue all leaves at
 var fakeQueueTime = time.Date(2016, 11, 10, 15, 16, 27, 0, time.UTC)
 
+// Time we will integrate all leaves at
+var fakeIntegrateTime = time.Date(2016, 11, 10, 15, 16, 30, 0, time.UTC)
+
 // Time we'll request for guard cutoff in tests that don't test this (should include all above)
 var fakeDequeueCutoffTime = time.Date(2016, 11, 10, 15, 16, 30, 0, time.UTC)
 
@@ -60,18 +64,30 @@ const sequenceNumber int64 = 237
 // no locks afterwards.
 
 func createFakeLeaf(ctx context.Context, db *sql.DB, logID int64, rawHash, hash, data, extraData []byte, seq int64, t *testing.T) *trillian.LogLeaf {
-	_, err := db.ExecContext(ctx, "INSERT INTO LeafData(TreeId, LeafIdentityHash, LeafValue, ExtraData) VALUES(?,?,?,?)", logID, rawHash, data, extraData)
-	_, err2 := db.ExecContext(ctx, "INSERT INTO SequencedLeafData(TreeId, SequenceNumber, LeafIdentityHash, MerkleLeafHash) VALUES(?,?,?,?)", logID, seq, rawHash, hash)
+	queuedAtNanos := fakeQueueTime.UnixNano()
+	integratedAtNanos := fakeIntegrateTime.UnixNano()
+	_, err := db.ExecContext(ctx, "INSERT INTO LeafData(TreeId, LeafIdentityHash, LeafValue, ExtraData, QueueTimestampNanos) VALUES(?,?,?,?,?)", logID, rawHash, data, extraData, queuedAtNanos)
+	_, err2 := db.ExecContext(ctx, "INSERT INTO SequencedLeafData(TreeId, SequenceNumber, LeafIdentityHash, MerkleLeafHash, IntegrateTimestampNanos) VALUES(?,?,?,?,?)", logID, seq, rawHash, hash, integratedAtNanos)
 
 	if err != nil || err2 != nil {
 		t.Fatalf("Failed to create test leaves: %v %v", err, err2)
 	}
+	queueTimestamp, err := ptypes.TimestampProto(fakeQueueTime)
+	if err != nil {
+		panic(err)
+	}
+	integrateTimestamp, err := ptypes.TimestampProto(fakeIntegrateTime)
+	if err != nil {
+		panic(err)
+	}
 	return &trillian.LogLeaf{
-		MerkleLeafHash:   hash,
-		LeafValue:        data,
-		ExtraData:        extraData,
-		LeafIndex:        seq,
-		LeafIdentityHash: rawHash,
+		MerkleLeafHash:     hash,
+		LeafValue:          data,
+		ExtraData:          extraData,
+		LeafIndex:          seq,
+		LeafIdentityHash:   rawHash,
+		QueueTimestamp:     queueTimestamp,
+		IntegrateTimestamp: integrateTimestamp,
 	}
 }
 
@@ -94,6 +110,14 @@ func checkLeafContents(leaf *trillian.LogLeaf, seq int64, rawHash, hash, data, e
 
 	if got, want := leaf.ExtraData, extraData; !bytes.Equal(got, want) {
 		t.Fatalf("Unxpected data in returned leaf. got:\n%v\nwant:\n%v", got, want)
+	}
+
+	iTime, err := ptypes.Timestamp(leaf.IntegrateTimestamp)
+	if err != nil {
+		t.Fatalf("Got invalid integrate timestamp: %v", err)
+	}
+	if got, want := iTime.UnixNano(), fakeIntegrateTime.UnixNano(); got != want {
+		t.Errorf("Wrong IntegrateTimestamp: got %v, want %v", got, want)
 	}
 }
 
@@ -417,6 +441,39 @@ func TestDequeueLeaves(t *testing.T) {
 	}
 }
 
+func TestDequeueLeavesHaveQueueTimestamp(t *testing.T) {
+	ctx := context.Background()
+
+	cleanTestDB(DB)
+	logID := createLogForTests(DB)
+	s := NewLogStorage(DB, nil)
+
+	{
+		tx := beginLogTx(s, logID, t)
+		defer tx.Close()
+		leaves := createTestLeaves(leavesToInsert, 20)
+		if _, err := tx.QueueLeaves(ctx, leaves, fakeDequeueCutoffTime); err != nil {
+			t.Fatalf("Failed to queue leaves: %v", err)
+		}
+		commit(tx, t)
+	}
+
+	{
+		// Now try to dequeue them
+		tx2 := beginLogTx(s, logID, t)
+		defer tx2.Close()
+		leaves2, err := tx2.DequeueLeaves(ctx, 99, fakeDequeueCutoffTime)
+		if err != nil {
+			t.Fatalf("Failed to dequeue leaves: %v", err)
+		}
+		if len(leaves2) != leavesToInsert {
+			t.Fatalf("Dequeued %d leaves but expected to get %d", len(leaves2), leavesToInsert)
+		}
+		ensureLeavesHaveQueueTimestamp(t, leaves2, fakeDequeueCutoffTime)
+		commit(tx2, t)
+	}
+}
+
 func TestDequeueLeavesTwoBatches(t *testing.T) {
 	ctx := context.Background()
 
@@ -449,6 +506,7 @@ func TestDequeueLeavesTwoBatches(t *testing.T) {
 			t.Fatalf("Dequeued %d leaves but expected to get %d", len(leaves2), leavesToInsert)
 		}
 		ensureAllLeavesDistinct(leaves2, t)
+		ensureLeavesHaveQueueTimestamp(t, leaves2, fakeDequeueCutoffTime)
 		commit(tx2, t)
 
 		// Now try to dequeue the rest of them
@@ -462,6 +520,7 @@ func TestDequeueLeavesTwoBatches(t *testing.T) {
 			t.Fatalf("Dequeued %d leaves but expected to get %d", len(leaves3), leavesToDequeue2)
 		}
 		ensureAllLeavesDistinct(leaves3, t)
+		ensureLeavesHaveQueueTimestamp(t, leaves3, fakeDequeueCutoffTime)
 
 		// Plus the union of the leaf batches should all have distinct hashes
 		leaves4 := append(leaves2, leaves3...)
@@ -711,13 +770,25 @@ func TestGetLeafDataByIdentityHash(t *testing.T) {
 				t.Errorf("getLeavesByIdentityHash(_) = (|%d|,nil); want (|%d|,nil)", len(leaves), len(test.want))
 				return
 			}
-			for i, want := range test.want {
-				if !proto.Equal(leaves[i], want) {
-					diff := pretty.Compare(leaves[i], want)
-					t.Errorf("getLeavesByIdentityHash(_)[%d] diff:\n%v", i, diff)
-				}
-			}
+			leavesEquivalent(t, leaves, test.want)
 		}()
+	}
+}
+
+func leavesEquivalent(t *testing.T, gotLeaves, wantLeaves []*trillian.LogLeaf) {
+	t.Helper()
+	want := make(map[string]*trillian.LogLeaf)
+	for _, w := range wantLeaves {
+		k := sha256.Sum256([]byte(w.String()))
+		want[string(k[:])] = w
+	}
+	got := make(map[string]*trillian.LogLeaf)
+	for _, g := range gotLeaves {
+		k := sha256.Sum256([]byte(g.String()))
+		got[string(k[:])] = g
+	}
+	if diff := pretty.Compare(want, got); diff != "" {
+		t.Errorf("leaves not equivalent: diff -want,+got:\n%v", diff)
 	}
 }
 
@@ -1113,6 +1184,19 @@ func ensureAllLeavesDistinct(leaves []*trillian.LogLeaf, t *testing.T) {
 				t.Fatalf("Unexpectedly got a duplicate leaf hash: %v %v",
 					leaves[i].LeafIdentityHash, leaves[j].LeafIdentityHash)
 			}
+		}
+	}
+}
+
+func ensureLeavesHaveQueueTimestamp(t *testing.T, leaves []*trillian.LogLeaf, want time.Time) {
+	t.Helper()
+	for _, leaf := range leaves {
+		gotQTimestamp, err := ptypes.Timestamp(leaf.QueueTimestamp)
+		if err != nil {
+			t.Fatalf("Got invalid queue timestamp: %v", err)
+		}
+		if got, want := gotQTimestamp.UnixNano(), want.UnixNano(); got != want {
+			t.Errorf("Got leaf with QueueTimestampNanos = %v, want %v: %v", got, want, leaf)
 		}
 	}
 }

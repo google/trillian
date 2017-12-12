@@ -52,11 +52,13 @@ var testLeaf0 = &trillian.LogLeaf{
 	ExtraData:      nil,
 	LeafIndex:      0,
 }
+
 var testLeaf0Updated = &trillian.LogLeaf{
-	MerkleLeafHash: testonly.MustDecodeBase64("bjQLnP+zepicpUTmu3gKLHiQHT+zNzh2hRGjBhevoB0="),
-	LeafValue:      nil,
-	ExtraData:      nil,
-	LeafIndex:      0,
+	MerkleLeafHash:     testonly.MustDecodeBase64("bjQLnP+zepicpUTmu3gKLHiQHT+zNzh2hRGjBhevoB0="),
+	LeafValue:          nil,
+	ExtraData:          nil,
+	LeafIndex:          0,
+	IntegrateTimestamp: testonly.MustToTimestampProto(fakeTime),
 }
 var testRoot0 = trillian.SignedLogRoot{
 	TreeSize:     0,

@@ -17,6 +17,10 @@ package testonly
 import (
 	"encoding/base64"
 	"encoding/hex"
+	"time"
+
+	"github.com/golang/protobuf/ptypes"
+	tspb "github.com/golang/protobuf/ptypes/timestamp"
 )
 
 // MustDecodeBase64 expects a base 64 encoded string input and panics if it cannot be decoded
@@ -35,4 +39,13 @@ func MustHexDecode(b string) []byte {
 		panic(err)
 	}
 	return r
+}
+
+// MustToTimestampProto converts t to a Timestamp protobuf, or panics if this fails.
+func MustToTimestampProto(t time.Time) *tspb.Timestamp {
+	ret, err := ptypes.TimestampProto(t)
+	if err != nil {
+		panic(err)
+	}
+	return ret
 }

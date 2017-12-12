@@ -88,6 +88,7 @@ func createTree(ctx context.Context) (*trillian.Tree, error) {
 		}
 		if s, ok := status.FromError(err); ok && s.Code() == codes.Unavailable {
 			glog.Errorf("Admin server unavailable, trying again: %v", err)
+			time.Sleep(100 * time.Millisecond)
 			continue
 		}
 		return nil, fmt.Errorf("failed to CreateTree(%+v): %T %v", req, err, err)

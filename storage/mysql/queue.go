@@ -18,10 +18,13 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/golang/glog"
+	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 )
 
@@ -35,20 +38,44 @@ const (
 			ORDER BY QueueTimestampNanos,LeafIdentityHash ASC LIMIT ?`
 	insertUnsequencedEntrySQL = `INSERT INTO Unsequenced(TreeId,Bucket,LeafIdentityHash,MerkleLeafHash,QueueTimestampNanos)
 			VALUES(?,0,?,?,?)`
-	insertSequencedLeafSQL = `INSERT INTO SequencedLeafData(TreeId,LeafIdentityHash,MerkleLeafHash,SequenceNumber)
-			VALUES(?,?,?,?)`
+	insertSequencedLeafSQL = `INSERT INTO SequencedLeafData(TreeId,LeafIdentityHash,MerkleLeafHash,SequenceNumber,IntegrateTimestampNanos)
+			VALUES(?,?,?,?,?)`
 	deleteUnsequencedSQL = "DELETE FROM Unsequenced WHERE TreeId=? AND Bucket=0 AND QueueTimestampNanos=? AND LeafIdentityHash=?"
 )
-
-type dequeueMeta int64
 
 type dequeuedLeaf struct {
 	queueTimestampNanos int64
 	leafIdentityHash    []byte
 }
 
-func dequeueInfo(leafIDHash []byte, meta dequeueMeta) dequeuedLeaf {
-	return dequeuedLeaf{queueTimestampNanos: int64(meta), leafIdentityHash: leafIDHash}
+func dequeueInfo(leafIDHash []byte, queueTimestamp int64) dequeuedLeaf {
+	return dequeuedLeaf{queueTimestampNanos: queueTimestamp, leafIdentityHash: leafIDHash}
+}
+
+func (t *logTreeTX) dequeueLeaf(rows *sql.Rows) (*trillian.LogLeaf, dequeuedLeaf, error) {
+	var leafIDHash []byte
+	var merkleHash []byte
+	var queueTimestamp int64
+
+	err := rows.Scan(&leafIDHash, &merkleHash, &queueTimestamp)
+	if err != nil {
+		glog.Warningf("Error scanning work rows: %s", err)
+		return nil, dequeuedLeaf{}, err
+	}
+
+	// Note: the LeafData and ExtraData being nil here is OK as this is only used by the
+	// sequencer. The sequencer only writes to the SequencedLeafData table and the client
+	// supplied data was already written to LeafData as part of queueing the leaf.
+	queueTimestampProto, err := ptypes.TimestampProto(time.Unix(0, queueTimestamp))
+	if err != nil {
+		return nil, dequeuedLeaf{}, fmt.Errorf("got invalid queue timestamp: %v", err)
+	}
+	leaf := &trillian.LogLeaf{
+		LeafIdentityHash: leafIDHash,
+		MerkleLeafHash:   merkleHash,
+		QueueTimestamp:   queueTimestampProto,
+	}
+	return leaf, dequeueInfo(leafIDHash, queueTimestamp), nil
 }
 
 func queueArgs(treeID int64, identityHash []byte, queueTimestamp time.Time) []interface{} {
@@ -62,13 +89,18 @@ func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillia
 			return errors.New("sequenced leaf has incorrect hash size")
 		}
 
-		_, err := t.tx.ExecContext(
+		iTimestamp, err := ptypes.Timestamp(leaf.IntegrateTimestamp)
+		if err != nil {
+			return fmt.Errorf("got invalid integrate timestamp: %v", err)
+		}
+		_, err = t.tx.ExecContext(
 			ctx,
 			insertSequencedLeafSQL,
 			t.treeID,
 			leaf.LeafIdentityHash,
 			leaf.MerkleLeafHash,
-			leaf.LeafIndex)
+			leaf.LeafIndex,
+			iTimestamp.UnixNano())
 		if err != nil {
 			glog.Warningf("Failed to update sequenced leaves: %s", err)
 			return err

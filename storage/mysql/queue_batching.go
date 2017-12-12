@@ -21,53 +21,59 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/binary"
+	"fmt"
 	"strings"
 	"time"
 
 	"github.com/golang/glog"
+	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 )
 
 const (
 	// If this statement ORDER BY clause is changed refer to the comment in removeSequencedLeaves
-	selectQueuedLeavesSQL = `SELECT LeafIdentityHash,MerkleLeafHash,QueueID
+	selectQueuedLeavesSQL = `SELECT LeafIdentityHash,MerkleLeafHash,QueueTimestampNanos,QueueID
 			FROM Unsequenced
 			WHERE TreeID=?
 			AND Bucket=0
 			AND QueueTimestampNanos<=?
 			ORDER BY QueueTimestampNanos,LeafIdentityHash ASC LIMIT ?`
 	insertUnsequencedEntrySQL = `INSERT INTO Unsequenced(TreeId,Bucket,LeafIdentityHash,MerkleLeafHash,QueueTimestampNanos,QueueID) VALUES(?,0,?,?,?,?)`
-	insertSequencedLeafSQL    = `INSERT INTO SequencedLeafData(TreeId,LeafIdentityHash,MerkleLeafHash,SequenceNumber) VALUES`
+	insertSequencedLeafSQL    = `INSERT INTO SequencedLeafData(TreeId,LeafIdentityHash,MerkleLeafHash,SequenceNumber,IntegrateTimestampNanos) VALUES`
 	deleteUnsequencedSQL      = "DELETE FROM Unsequenced WHERE QueueID IN (<placeholder>)"
 )
 
-type dequeueMeta []byte
-
 type dequeuedLeaf []byte
 
-func dequeueInfo(_ []byte, meta dequeueMeta) dequeuedLeaf {
-	return dequeuedLeaf(meta)
+func dequeueInfo(_ []byte, queueID []byte) dequeuedLeaf {
+	return dequeuedLeaf(queueID)
 }
 
 func (t *logTreeTX) dequeueLeaf(rows *sql.Rows) (*trillian.LogLeaf, dequeuedLeaf, error) {
 	var leafIDHash []byte
 	var merkleHash []byte
-	var meta dequeueMeta
+	var queueTimestamp int64
+	var queueID []byte
 
-	err := rows.Scan(&leafIDHash, &merkleHash, &meta)
+	err := rows.Scan(&leafIDHash, &merkleHash, &queueTimestamp, &queueID)
 	if err != nil {
 		glog.Warningf("Error scanning work rows: %s", err)
 		return nil, nil, err
 	}
 
+	queueTimestampProto, err := ptypes.TimestampProto(time.Unix(0, queueTimestamp))
+	if err != nil {
+		return nil, dequeuedLeaf{}, fmt.Errorf("got invalid queue timestamp: %v", err)
+	}
 	// Note: the LeafData and ExtraData being nil here is OK as this is only used by the
 	// sequencer. The sequencer only writes to the SequencedLeafData table and the client
 	// supplied data was already written to LeafData as part of queueing the leaf.
 	leaf := &trillian.LogLeaf{
 		LeafIdentityHash: leafIDHash,
 		MerkleLeafHash:   merkleHash,
+		QueueTimestamp:   queueTimestampProto,
 	}
-	return leaf, dequeueInfo(leafIDHash, meta), nil
+	return leaf, dequeueInfo(leafIDHash, queueID), nil
 }
 
 func generateQueueID(treeID int64, leafIdentityHash []byte, timestamp int64) []byte {
@@ -91,8 +97,12 @@ func (t *logTreeTX) UpdateSequencedLeaves(ctx context.Context, leaves []*trillia
 	querySuffix := []string{}
 	args := []interface{}{}
 	for _, leaf := range leaves {
-		querySuffix = append(querySuffix, "(?,?,?,?)")
-		args = append(args, t.treeID, leaf.LeafIdentityHash, leaf.MerkleLeafHash, leaf.LeafIndex)
+		iTimestamp, err := ptypes.Timestamp(leaf.IntegrateTimestamp)
+		if err != nil {
+			return fmt.Errorf("got invalid integrate timestamp: %v", err)
+		}
+		querySuffix = append(querySuffix, "(?,?,?,?,?)")
+		args = append(args, t.treeID, leaf.LeafIdentityHash, leaf.MerkleLeafHash, leaf.LeafIndex, iTimestamp.UnixNano())
 	}
 	result, err := t.tx.ExecContext(ctx, insertSequencedLeafSQL+strings.Join(querySuffix, ","), args...)
 	if err != nil {

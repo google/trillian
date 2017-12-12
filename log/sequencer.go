@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/golang/glog"
+	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/merkle"
@@ -188,6 +189,10 @@ func (s Sequencer) sequenceLeaves(mt *merkle.CompactMerkleTree, leaves []*trilli
 		}
 		// The leaf has now been sequenced.
 		leaves[i].LeafIndex = seq
+		leaves[i].IntegrateTimestamp, err = ptypes.TimestampProto(s.timeSource.Now())
+		if err != nil {
+			return nil, nil, fmt.Errorf("got invalid integrate timestamp: %v", err)
+		}
 		// Store leaf hash in the Merkle tree too:
 		leafNodeID, err := storage.NewNodeIDForTreeCoords(0, seq, maxTreeDepth)
 		if err != nil {

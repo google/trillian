@@ -24,6 +24,7 @@ package trillian;
 import "trillian.proto";
 import "google/rpc/status.proto";
 import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
 
 message LogLeaf {
     // merkle_leaf_hash is over leaf data and optional extra_data.
@@ -55,6 +56,12 @@ message LogLeaf {
     // If leaf_identity_hash is empty, it's assumed to be the same as the
     // merkle_leaf_hash.
     bytes leaf_identity_hash = 5;
+    // queue_timestamp records the time at which this leaf was first passed to QueueLeaves.
+    // This value will be determined and set by the LogServer.
+    google.protobuf.Timestamp queue_timestamp = 6;
+    // integrate_timestamp records the time at which this leaf was integrated into the tree.
+    // This value will be determined and set by the LogSigner.
+    google.protobuf.Timestamp integrate_timestamp = 7;
 }
 
 message Proof {
