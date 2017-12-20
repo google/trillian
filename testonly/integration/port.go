@@ -27,7 +27,7 @@ func listen() (string, net.Listener, error) {
 	}
 	_, port, err := net.SplitHostPort(lis.Addr().String())
 	if err != nil {
-		return "", nil, fmt.Errorf("uncrgonized format for listen address %v: %v", lis.Addr().String(), err)
+		return "", nil, fmt.Errorf("unrecognized format for listen address %v: %v", lis.Addr().String(), err)
 	}
 	addr := "localhost:" + port
 	return addr, lis, nil
