@@ -68,6 +68,7 @@ type LogEnv struct {
 	LogOperation    server.LogOperation
 	Sequencer       *server.LogOperationManager
 	sequencerCancel context.CancelFunc
+	Address         string
 	ClientConn      *grpc.ClientConn
 	DB              *sql.DB
 	// PublicKey is the public key that verifies responses from this server.
@@ -163,6 +164,7 @@ func NewLogEnvWithRegistry(ctx context.Context, numSequencers int, registry exte
 		pendingTasks:    &wg,
 		grpcServer:      grpcServer,
 		logServer:       logServer,
+		Address:         addr,
 		ClientConn:      cc,
 		PublicKey:       publicKey,
 		LogOperation:    sequencerManager,
