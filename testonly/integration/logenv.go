@@ -33,6 +33,7 @@ import (
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/server"
+	"github.com/google/trillian/server/admin"
 	"github.com/google/trillian/server/interceptor"
 	"github.com/google/trillian/storage/mysql"
 	"github.com/google/trillian/storage/testdb"
@@ -64,6 +65,7 @@ type LogEnv struct {
 	registry        extension.Registry
 	pendingTasks    *sync.WaitGroup
 	grpcServer      *grpc.Server
+	adminServer     *admin.Server
 	logServer       *server.TrillianLogRPCServer
 	LogOperation    server.LogOperation
 	Sequencer       *server.LogOperationManager
@@ -109,8 +111,14 @@ func NewLogEnv(ctx context.Context, numSequencers int, _ string) (*LogEnv, error
 // run in parallel; if numSequencers is zero a manually-controlled test
 // sequencer is used.
 func NewLogEnvWithRegistry(ctx context.Context, numSequencers int, registry extension.Registry) (*LogEnv, error) {
-	// Create Log Server.
+	// Create the GRPC Server.
 	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(interceptor.ErrorWrapper))
+
+	// Setup the Admin Server.
+	adminServer := admin.New(registry, nil)
+	trillian.RegisterTrillianAdminServer(grpcServer, adminServer)
+
+	// Setup the Log Server.
 	logServer := server.NewTrillianLogRPCServer(registry, timeSource)
 	trillian.RegisterTrillianLogServer(grpcServer, logServer)
 
@@ -163,6 +171,7 @@ func NewLogEnvWithRegistry(ctx context.Context, numSequencers int, registry exte
 		registry:        registry,
 		pendingTasks:    &wg,
 		grpcServer:      grpcServer,
+		adminServer:     adminServer,
 		logServer:       logServer,
 		Address:         addr,
 		ClientConn:      cc,
