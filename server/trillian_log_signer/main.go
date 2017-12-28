@@ -48,6 +48,8 @@ import (
 var (
 	mySQLURI                 = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "Connection URI for MySQL database")
 	httpEndpoint             = flag.String("http_endpoint", "localhost:8091", "Endpoint for HTTP (host:port, empty means disabled)")
+	tlsCertFile              = flag.String("tls_cert_file", "", "Path to the TLS server certificate.")
+	tlsKeyFile               = flag.String("tls_key_file", "", "Path to the TLS server key.")
 	sequencerIntervalFlag    = flag.Duration("sequencer_interval", time.Second*10, "Time between each sequencing pass through all logs")
 	batchSizeFlag            = flag.Int("batch_size", 50, "Max number of leaves to process per batch")
 	numSeqFlag               = flag.Int("num_sequencers", 10, "Number of sequencer workers to run in parallel")
@@ -137,7 +139,7 @@ func main() {
 
 		glog.Infof("Creating HTTP server starting on %v", *httpEndpoint)
 		http.Handle("/metrics", promhttp.Handler())
-		if err := util.StartHTTPServer(*httpEndpoint); err != nil {
+		if err := util.StartHTTPServer(*httpEndpoint, *tlsCertFile, *tlsKeyFile); err != nil {
 			glog.Exitf("Failed to start HTTP server on %v: %v", *httpEndpoint, err)
 		}
 	}
