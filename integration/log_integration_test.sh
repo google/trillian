@@ -34,7 +34,7 @@ set +e
 TRILLIAN_SQL_DRIVER=mysql go test ${GOFLAGS} \
   -run ".*LiveLog.*" \
   -timeout=${GO_TEST_TIMEOUT:-5m} \
-  ./ --log_rpc_server="${RPC_SERVER_1}" --treeid ${TEST_TREE_ID}
+  ./ --log_rpc_server="${RPC_SERVER_1}" --treeid ${TEST_TREE_ID} --alsologtostderr
 RESULT=$?
 set -e
 popd

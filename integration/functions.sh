@@ -144,7 +144,11 @@ log_prep_test() {
     http=$(pick_unused_port ${port})
 
     echo "Starting Log RPC server on localhost:${port}, HTTP on localhost:${http}"
-    ./trillian_log_server ${ETCD_OPTS} ${pkcs11_opts} ${logserver_opts} --rpc_endpoint="localhost:${port}" --http_endpoint="localhost:${http}" &
+    ./trillian_log_server ${ETCD_OPTS} ${pkcs11_opts} ${logserver_opts} \
+      --rpc_endpoint="localhost:${port}" \
+      --http_endpoint="localhost:${http}" \
+      --alsologtostderr \
+      &
     pid=$!
     RPC_SERVER_PIDS+=(${pid})
     wait_for_server_startup ${port}
@@ -166,7 +170,13 @@ log_prep_test() {
   for ((i=0; i < log_signer_count; i++)); do
     http=$(pick_unused_port)
     echo "Starting Log signer, HTTP on localhost:${http}"
-    ./trillian_log_signer ${ETCD_OPTS} ${pkcs11_opts} ${logsigner_opts} --sequencer_interval="1s" --batch_size=500 --http_endpoint="localhost:${http}" --num_sequencers 2 &
+    ./trillian_log_signer ${ETCD_OPTS} ${pkcs11_opts} ${logsigner_opts} \
+      --sequencer_interval="1s" \
+      --batch_size=500 \
+      --http_endpoint="localhost:${http}" \
+      --num_sequencers 2 \
+      --alsologtostderr \
+      &
     pid=$!
     LOG_SIGNER_PIDS+=(${pid})
     wait_for_server_startup ${http}
@@ -267,7 +277,11 @@ map_prep_test() {
     http=$(pick_unused_port ${port})
 
     echo "Starting Map RPC server on localhost:${port}, HTTP on localhost:${http}"
-    ./trillian_map_server --rpc_endpoint="localhost:${port}" --http_endpoint="localhost:${http}" &
+    ./trillian_map_server \
+      --rpc_endpoint="localhost:${port}" \
+      --http_endpoint="localhost:${http}" \
+      --alsologtostderr \
+      &
     pid=$!
     RPC_SERVER_PIDS+=(${pid})
     wait_for_server_startup ${port}
