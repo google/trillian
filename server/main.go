@@ -24,12 +24,15 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/extension"
+	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/server/admin"
+	"github.com/google/trillian/server/interceptor"
 	"github.com/google/trillian/util"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/naming"
 	"google.golang.org/grpc/reflection"
 
@@ -53,9 +56,15 @@ type Main struct {
 	// Endpoints for RPC and HTTP/REST servers.
 	// HTTP/REST is optional, if empty it'll not be bound.
 	RPCEndpoint, HTTPEndpoint string
-	DB                        *sql.DB
-	Registry                  extension.Registry
-	Server                    *grpc.Server
+
+	// TLS Certificate and Key files for the server.
+	TlsCertFile, TlsKeyFile string
+
+	DB       *sql.DB
+	Registry extension.Registry
+
+	StatsPrefix string
+	QuotaDryRun bool
 
 	// RegisterHandlerFn is called to register REST-proxy handlers.
 	RegisterHandlerFn func(context.Context, *runtime.ServeMux, string, []grpc.DialOption) error
@@ -75,14 +84,19 @@ type Main struct {
 func (m *Main) Run(ctx context.Context) error {
 	glog.CopyStandardLogTo("WARNING")
 
-	defer m.Server.GracefulStop()
+	srv, err := m.newGrpcServer()
+	if err != nil {
+		glog.Exitf("Error creating gRPC server: %v", err)
+	}
+	defer srv.GracefulStop()
+
 	defer m.DB.Close()
 
-	if err := m.RegisterServerFn(m.Server, m.Registry); err != nil {
+	if err := m.RegisterServerFn(srv, m.Registry); err != nil {
 		return err
 	}
-	trillian.RegisterTrillianAdminServer(m.Server, admin.New(m.Registry, m.AllowedTreeTypes))
-	reflection.Register(m.Server)
+	trillian.RegisterTrillianAdminServer(srv, admin.New(m.Registry, m.AllowedTreeTypes))
+	reflection.Register(srv)
 
 	if endpoint := m.HTTPEndpoint; endpoint != "" {
 		mux := runtime.NewServeMux()
@@ -93,16 +107,30 @@ func (m *Main) Run(ctx context.Context) error {
 		if err := trillian.RegisterTrillianAdminHandlerFromEndpoint(ctx, mux, m.RPCEndpoint, opts); err != nil {
 			return err
 		}
-		glog.Infof("HTTP server starting on %v", endpoint)
 
-		go http.ListenAndServe(endpoint, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		handler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			switch {
 			case req.RequestURI == "/metrics":
 				promhttp.Handler().ServeHTTP(w, req)
 			default:
 				mux.ServeHTTP(w, req)
 			}
-		}))
+		})
+
+		go func() {
+			glog.Infof("HTTP server starting on %v", endpoint)
+
+			var err error
+			if m.TlsCertFile != "" || m.TlsKeyFile != "" {
+				err = http.ListenAndServeTLS(endpoint, m.TlsCertFile, m.TlsKeyFile, handler)
+			} else {
+				err = http.ListenAndServe(endpoint, handler)
+			}
+
+			if err != nil {
+				glog.Errorf("HTTP server stopped: %v", err)
+			}
+		}()
 	}
 
 	glog.Infof("RPC server starting on %v", m.RPCEndpoint)
@@ -110,7 +138,7 @@ func (m *Main) Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	go util.AwaitSignal(m.Server.Stop)
+	go util.AwaitSignal(srv.Stop)
 
 	if m.TreeGCEnabled {
 		go func() {
@@ -124,7 +152,7 @@ func (m *Main) Run(ctx context.Context) error {
 		}()
 	}
 
-	if err := m.Server.Serve(lis); err != nil {
+	if err := srv.Serve(lis); err != nil {
 		glog.Errorf("RPC server terminated: %v", err)
 	}
 
@@ -135,6 +163,31 @@ func (m *Main) Run(ctx context.Context) error {
 	time.Sleep(time.Second * 5)
 
 	return nil
+}
+
+// newGrpcServer starts a new Trillian gRPC server.
+func (m *Main) newGrpcServer() (*grpc.Server, error) {
+	ts := util.SystemTimeSource{}
+	stats := monitoring.NewRPCStatsInterceptor(ts, m.StatsPrefix, m.Registry.MetricFactory)
+	ti := interceptor.New(
+		m.Registry.AdminStorage, m.Registry.QuotaManager, m.QuotaDryRun, m.Registry.MetricFactory)
+	netInterceptor := interceptor.Combine(stats.Interceptor(), interceptor.ErrorWrapper, ti.UnaryInterceptor)
+
+	serverOpts := []grpc.ServerOption{
+		grpc.UnaryInterceptor(netInterceptor),
+	}
+
+	if m.TlsCertFile != "" || m.TlsKeyFile != "" {
+		serverCreds, err := credentials.NewServerTLSFromFile(m.TlsCertFile, m.TlsKeyFile)
+		if err != nil {
+			return nil, err
+		}
+		serverOpts = append(serverOpts, grpc.Creds(serverCreds))
+	}
+
+	s := grpc.NewServer(serverOpts...)
+
+	return s, nil
 }
 
 // AnnounceSelf announces this binary's presence to etcd.  Returns a function that
