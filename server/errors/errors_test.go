@@ -19,6 +19,7 @@ import (
 	"errors"
 	"testing"
 
+	_ "github.com/golang/glog"
 	te "github.com/google/trillian/errors"
 	"github.com/kylelemons/godebug/pretty"
 	"google.golang.org/grpc/codes"

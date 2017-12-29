@@ -126,7 +126,8 @@ main() {
             -short \
             -timeout=${GO_TEST_TIMEOUT:-5m} \
             ${coverflags} \
-            ${goflags} "$d"
+            ${goflags} \
+            "$d" -alsologtostderr
       done | xargs -I '{}' -P ${GO_TEST_PARALLELISM:-10} bash -c '{}'
 
       cat /tmp/trillian_profile/*.out > /tmp/coverage.txt
@@ -134,7 +135,8 @@ main() {
       go test \
         -short \
         -timeout=${GO_TEST_TIMEOUT:-5m} \
-        ${goflags} ./...
+        ${goflags} \
+        ./... -alsologtostderr
     fi
   fi
 

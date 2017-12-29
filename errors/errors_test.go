@@ -18,6 +18,7 @@ import (
 	"errors"
 	"testing"
 
+	_ "github.com/golang/glog"
 	"google.golang.org/grpc/codes"
 )
 

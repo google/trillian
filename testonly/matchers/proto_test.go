@@ -17,6 +17,7 @@ package matchers
 import (
 	"testing"
 
+	_ "github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 )

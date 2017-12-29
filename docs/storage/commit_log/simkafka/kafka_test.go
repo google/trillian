@@ -17,6 +17,8 @@ package simkafka
 import (
 	"reflect"
 	"testing"
+
+	_ "github.com/golang/glog"
 )
 
 func TestReadEmpty(t *testing.T) {
