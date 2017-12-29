@@ -14,7 +14,11 @@
 
 package matchers
 
-import "testing"
+import (
+	"testing"
+
+	_ "github.com/golang/glog"
+)
 
 func TestAtLeast(t *testing.T) {
 	tests := []struct {

@@ -18,6 +18,8 @@ import (
 	"flag"
 	"os"
 	"testing"
+
+	_ "github.com/golang/glog"
 )
 
 func TestParseFlags(t *testing.T) {

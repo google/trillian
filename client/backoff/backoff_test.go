@@ -19,6 +19,8 @@ import (
 	"errors"
 	"testing"
 	"time"
+
+	_ "github.com/golang/glog"
 )
 
 func TestBackoff(t *testing.T) {
