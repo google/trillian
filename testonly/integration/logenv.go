@@ -84,11 +84,11 @@ type LogEnv struct {
 // TODO(codingllama): Remove 3rd parameter (need to coordinate with
 // github.com/google/certificate-transparency-go)
 func NewLogEnv(ctx context.Context, numSequencers int, _ string) (*LogEnv, error) {
-	return NewLogEnvWithGrpcOptions(ctx, numSequencers, nil, nil)
+	return NewLogEnvWithGRPCOptions(ctx, numSequencers, nil, nil)
 }
 
-// NewLogEnvWithGrpcOptions works the same way as NewLogEnv, but allows callers to also set additional grpc.ServerOption and grpc.DialOption values.
-func NewLogEnvWithGrpcOptions(ctx context.Context, numSequencers int, serverOpts []grpc.ServerOption, clientOpts []grpc.DialOption) (*LogEnv, error) {
+// NewLogEnvWithGRPCOptions works the same way as NewLogEnv, but allows callers to also set additional grpc.ServerOption and grpc.DialOption values.
+func NewLogEnvWithGRPCOptions(ctx context.Context, numSequencers int, serverOpts []grpc.ServerOption, clientOpts []grpc.DialOption) (*LogEnv, error) {
 	db, err := testdb.NewTrillianDB(ctx)
 	if err != nil {
 		return nil, err
@@ -103,7 +103,7 @@ func NewLogEnvWithGrpcOptions(ctx context.Context, numSequencers int, serverOpts
 		},
 	}
 
-	ret, err := NewLogEnvWithRegistryAndGrpcOptions(ctx, numSequencers, registry, serverOpts, clientOpts)
+	ret, err := NewLogEnvWithRegistryAndGRPCOptions(ctx, numSequencers, registry, serverOpts, clientOpts)
 	if err != nil {
 		db.Close()
 		return nil, err
@@ -117,11 +117,11 @@ func NewLogEnvWithGrpcOptions(ctx context.Context, numSequencers int, serverOpts
 // run in parallel; if numSequencers is zero a manually-controlled test
 // sequencer is used.
 func NewLogEnvWithRegistry(ctx context.Context, numSequencers int, registry extension.Registry) (*LogEnv, error) {
-	return NewLogEnvWithRegistryAndGrpcOptions(ctx, numSequencers, registry, nil, nil)
+	return NewLogEnvWithRegistryAndGRPCOptions(ctx, numSequencers, registry, nil, nil)
 }
 
-// NewLogEnvWithRegistryAndGrpcOptions works the same way as NewLogEnv, but allows callers to also set additional grpc.ServerOption and grpc.DialOption values.
-func NewLogEnvWithRegistryAndGrpcOptions(ctx context.Context, numSequencers int, registry extension.Registry, serverOpts []grpc.ServerOption, clientOpts []grpc.DialOption) (*LogEnv, error) {
+// NewLogEnvWithRegistryAndGRPCOptions works the same way as NewLogEnv, but allows callers to also set additional grpc.ServerOption and grpc.DialOption values.
+func NewLogEnvWithRegistryAndGRPCOptions(ctx context.Context, numSequencers int, registry extension.Registry, serverOpts []grpc.ServerOption, clientOpts []grpc.DialOption) (*LogEnv, error) {
 	// Create the GRPC Server.
 	serverOpts = append(serverOpts, grpc.UnaryInterceptor(interceptor.ErrorWrapper))
 	grpcServer := grpc.NewServer(serverOpts...)
