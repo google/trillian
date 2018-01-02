@@ -58,7 +58,7 @@ type Main struct {
 	RPCEndpoint, HTTPEndpoint string
 
 	// TLS Certificate and Key files for the server.
-	TlsCertFile, TlsKeyFile string
+	TLSCertFile, TLSKeyFile string
 
 	DB       *sql.DB
 	Registry extension.Registry
@@ -84,7 +84,7 @@ type Main struct {
 func (m *Main) Run(ctx context.Context) error {
 	glog.CopyStandardLogTo("WARNING")
 
-	srv, err := m.newGrpcServer()
+	srv, err := m.newGRPCServer()
 	if err != nil {
 		glog.Exitf("Error creating gRPC server: %v", err)
 	}
@@ -121,8 +121,9 @@ func (m *Main) Run(ctx context.Context) error {
 			glog.Infof("HTTP server starting on %v", endpoint)
 
 			var err error
-			if m.TlsCertFile != "" || m.TlsKeyFile != "" {
-				err = http.ListenAndServeTLS(endpoint, m.TlsCertFile, m.TlsKeyFile, handler)
+			// Let http.ListenAndServeTLS handle the error case when only one of the flags is set.
+			if m.TLSCertFile != "" || m.TLSKeyFile != "" {
+				err = http.ListenAndServeTLS(endpoint, m.TLSCertFile, m.TLSKeyFile, handler)
 			} else {
 				err = http.ListenAndServe(endpoint, handler)
 			}
@@ -165,8 +166,8 @@ func (m *Main) Run(ctx context.Context) error {
 	return nil
 }
 
-// newGrpcServer starts a new Trillian gRPC server.
-func (m *Main) newGrpcServer() (*grpc.Server, error) {
+// newGRPCServer starts a new Trillian gRPC server.
+func (m *Main) newGRPCServer() (*grpc.Server, error) {
 	ts := util.SystemTimeSource{}
 	stats := monitoring.NewRPCStatsInterceptor(ts, m.StatsPrefix, m.Registry.MetricFactory)
 	ti := interceptor.New(
@@ -177,8 +178,9 @@ func (m *Main) newGrpcServer() (*grpc.Server, error) {
 		grpc.UnaryInterceptor(netInterceptor),
 	}
 
-	if m.TlsCertFile != "" || m.TlsKeyFile != "" {
-		serverCreds, err := credentials.NewServerTLSFromFile(m.TlsCertFile, m.TlsKeyFile)
+	// Let credentials.NewServerTLSFromFile handle the error case when only one of the flags is set.
+	if m.TLSCertFile != "" || m.TLSKeyFile != "" {
+		serverCreds, err := credentials.NewServerTLSFromFile(m.TLSCertFile, m.TLSKeyFile)
 		if err != nil {
 			return nil, err
 		}
