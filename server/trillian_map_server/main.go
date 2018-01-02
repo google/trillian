@@ -55,8 +55,8 @@ var (
 	mySQLURI     = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "Connection URI for MySQL database")
 	rpcEndpoint  = flag.String("rpc_endpoint", "localhost:8090", "Endpoint for RPC requests (host:port)")
 	httpEndpoint = flag.String("http_endpoint", "localhost:8091", "Endpoint for HTTP metrics and REST requests on (host:port, empty means disabled)")
-	tlsCertFile  = flag.String("tls_cert_file", "", "Path to the TLS server certificate. If not set, the server will use unsecured connections.")
-	tlsKeyFile   = flag.String("tls_key_file", "", "Path to the TLS server key. If not set, the server will use unsecured connections.")
+	tlsCertFile  = flag.String("tls_cert_file", "", "Path to the TLS server certificate. If unset, the server will use unsecured connections.")
+	tlsKeyFile   = flag.String("tls_key_file", "", "Path to the TLS server key. If unset, the server will use unsecured connections.")
 	etcdServers  = flag.String("etcd_servers", "", "A comma-separated list of etcd servers; no etcd registration if empty")
 
 	quotaDryRun       = flag.Bool("quota_dry_run", false, "If true no requests are blocked due to lack of tokens")
