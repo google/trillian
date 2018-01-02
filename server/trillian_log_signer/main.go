@@ -48,8 +48,8 @@ import (
 var (
 	mySQLURI                 = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "Connection URI for MySQL database")
 	httpEndpoint             = flag.String("http_endpoint", "localhost:8091", "Endpoint for HTTP (host:port, empty means disabled)")
-	tlsCertFile              = flag.String("tls_cert_file", "", "Path to the TLS server certificate.")
-	tlsKeyFile               = flag.String("tls_key_file", "", "Path to the TLS server key.")
+	tlsCertFile              = flag.String("tls_cert_file", "", "Path to the TLS server certificate. If not set, the server will use unsecured connections.")
+	tlsKeyFile               = flag.String("tls_key_file", "", "Path to the TLS server key. If not set, the server will use unsecured connections.")
 	sequencerIntervalFlag    = flag.Duration("sequencer_interval", time.Second*10, "Time between each sequencing pass through all logs")
 	batchSizeFlag            = flag.Int("batch_size", 50, "Max number of leaves to process per batch")
 	numSeqFlag               = flag.Int("num_sequencers", 10, "Number of sequencer workers to run in parallel")

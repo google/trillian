@@ -32,6 +32,7 @@ func StartHTTPServer(addr, certFile, keyFile string) error {
 	}
 	go func() {
 		glog.Info("HTTP server starting")
+		// Let http.ServeTLS handle the error case when only one of the flags is set.
 		if certFile != "" || keyFile != "" {
 			err = http.ServeTLS(sock, nil, certFile, keyFile)
 		} else {
