@@ -21,6 +21,7 @@ Trillian: General Transparency
  - [Use Cases](#use-cases)
      - [Certificate Transparency Log](#certificate-transparency-log)
      - [Verifiable Log-Derived Map](#verifiable-log-derived-map)
+ - [Support](#support)
 
 
 Overview
@@ -380,3 +381,10 @@ client.
 | Enable detection of split-view           |  Yes, efficiently      |  Yes, efficiently      |  Yes, efficiently           |
 
 - [1] -- although full audit is required to verify complete correct operation
+
+Support
+-------
+
+- Mailing list: https://groups.google.com/forum/#!forum/trillian-transparency
+- Slack: https://gtrillian.slack.com/
+
