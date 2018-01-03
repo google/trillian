@@ -27,14 +27,12 @@ import (
 	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/extension"
-	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/monitoring/prometheus"
 	"github.com/google/trillian/quota/cacheqm"
 	"github.com/google/trillian/quota/etcd/quotaapi"
 	"github.com/google/trillian/quota/etcd/quotapb"
 	"github.com/google/trillian/quota/mysqlqm"
 	"github.com/google/trillian/server"
-	"github.com/google/trillian/server/interceptor"
 	"github.com/google/trillian/storage/mysql"
 	"github.com/google/trillian/util"
 	"github.com/google/trillian/util/etcd"
@@ -60,6 +58,8 @@ var (
 	mySQLURI        = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "Connection URI for MySQL database")
 	rpcEndpoint     = flag.String("rpc_endpoint", "localhost:8090", "Endpoint for RPC requests (host:port)")
 	httpEndpoint    = flag.String("http_endpoint", "localhost:8091", "Endpoint for HTTP metrics and REST requests on (host:port, empty means disabled)")
+	tlsCertFile     = flag.String("tls_cert_file", "", "Path to the TLS server certificate. If unset, the server will use unsecured connections.")
+	tlsKeyFile      = flag.String("tls_key_file", "", "Path to the TLS server key. If unset, the server will use unsecured connections.")
 	etcdServers     = flag.String("etcd_servers", "", "A comma-separated list of etcd servers; no etcd registration if empty")
 	etcdService     = flag.String("etcd_service", "trillian-logserver", "Service name to announce ourselves under")
 	etcdHTTPService = flag.String("etcd_http_service", "trillian-logserver-http", "Service name to announce our HTTP endpoint under")
@@ -135,20 +135,15 @@ func main() {
 		},
 	}
 
-	ts := util.SystemTimeSource{}
-	stats := monitoring.NewRPCStatsInterceptor(ts, "log", registry.MetricFactory)
-	ti := interceptor.New(
-		registry.AdminStorage, registry.QuotaManager, *quotaDryRun, registry.MetricFactory)
-	netInterceptor := interceptor.Combine(stats.Interceptor(), interceptor.ErrorWrapper, ti.UnaryInterceptor)
-	s := grpc.NewServer(grpc.UnaryInterceptor(netInterceptor))
-	// No defer: server ownership is delegated to server.Main
-
 	m := server.Main{
 		RPCEndpoint:  *rpcEndpoint,
 		HTTPEndpoint: *httpEndpoint,
+		TLSCertFile:  *tlsCertFile,
+		TLSKeyFile:   *tlsKeyFile,
+		StatsPrefix:  "log",
+		QuotaDryRun:  *quotaDryRun,
 		DB:           db,
 		Registry:     registry,
-		Server:       s,
 		RegisterHandlerFn: func(ctx netcontext.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) error {
 			if err := trillian.RegisterTrillianLogHandlerFromEndpoint(ctx, mux, endpoint, opts); err != nil {
 				return err
@@ -159,6 +154,7 @@ func main() {
 			return nil
 		},
 		RegisterServerFn: func(s *grpc.Server, registry extension.Registry) error {
+			ts := util.SystemTimeSource{}
 			logServer := server.NewTrillianLogRPCServer(registry, ts)
 			if err := logServer.IsHealthy(); err != nil {
 				return err
