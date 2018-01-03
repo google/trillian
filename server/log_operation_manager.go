@@ -449,7 +449,10 @@ loop:
 		// TODO(alcutter): want a child context with deadline here?
 		start := time.Now()
 		if err := l.getLogsAndExecutePass(ctx); err != nil {
-			glog.Errorf("failed to execute operation on logs: %v", err)
+			// Suppress the error if ctx is done (ok==false) as we're exiting.
+			if _, ok := <-ctx.Done(); ok {
+				glog.Errorf("failed to execute operation on logs: %v", err)
+			}
 		}
 		glog.V(1).Infof("Log operation manager pass complete")
 
