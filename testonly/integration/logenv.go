@@ -24,6 +24,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
@@ -83,6 +84,11 @@ type LogEnv struct {
 // TODO(codingllama): Remove 3rd parameter (need to coordinate with
 // github.com/google/certificate-transparency-go)
 func NewLogEnv(ctx context.Context, numSequencers int, _ string) (*LogEnv, error) {
+	return NewLogEnvWithGRPCOptions(ctx, numSequencers, nil, nil)
+}
+
+// NewLogEnvWithGRPCOptions works the same way as NewLogEnv, but allows callers to also set additional grpc.ServerOption and grpc.DialOption values.
+func NewLogEnvWithGRPCOptions(ctx context.Context, numSequencers int, serverOpts []grpc.ServerOption, clientOpts []grpc.DialOption) (*LogEnv, error) {
 	db, err := testdb.NewTrillianDB(ctx)
 	if err != nil {
 		return nil, err
@@ -97,7 +103,7 @@ func NewLogEnv(ctx context.Context, numSequencers int, _ string) (*LogEnv, error
 		},
 	}
 
-	ret, err := NewLogEnvWithRegistry(ctx, numSequencers, registry)
+	ret, err := NewLogEnvWithRegistryAndGRPCOptions(ctx, numSequencers, registry, serverOpts, clientOpts)
 	if err != nil {
 		db.Close()
 		return nil, err
@@ -111,8 +117,14 @@ func NewLogEnv(ctx context.Context, numSequencers int, _ string) (*LogEnv, error
 // run in parallel; if numSequencers is zero a manually-controlled test
 // sequencer is used.
 func NewLogEnvWithRegistry(ctx context.Context, numSequencers int, registry extension.Registry) (*LogEnv, error) {
+	return NewLogEnvWithRegistryAndGRPCOptions(ctx, numSequencers, registry, nil, nil)
+}
+
+// NewLogEnvWithRegistryAndGRPCOptions works the same way as NewLogEnv, but allows callers to also set additional grpc.ServerOption and grpc.DialOption values.
+func NewLogEnvWithRegistryAndGRPCOptions(ctx context.Context, numSequencers int, registry extension.Registry, serverOpts []grpc.ServerOption, clientOpts []grpc.DialOption) (*LogEnv, error) {
 	// Create the GRPC Server.
-	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(interceptor.ErrorWrapper))
+	serverOpts = append(serverOpts, grpc.UnaryInterceptor(interceptor.ErrorWrapper))
+	grpcServer := grpc.NewServer(serverOpts...)
 
 	// Setup the Admin Server.
 	adminServer := admin.New(registry, nil)
@@ -151,11 +163,18 @@ func NewLogEnvWithRegistry(ctx context.Context, numSequencers int, registry exte
 	wg.Add(1)
 	go func(wg *sync.WaitGroup, grpcServer *grpc.Server, lis net.Listener) {
 		defer wg.Done()
-		grpcServer.Serve(lis)
+		if err := grpcServer.Serve(lis); err != nil {
+			glog.Errorf("gRPC server stopped: %v", err)
+			glog.Flush()
+		}
 	}(&wg, grpcServer, lis)
 
 	// Connect to the server.
-	cc, err := grpc.Dial(addr, grpc.WithInsecure())
+	if clientOpts == nil {
+		clientOpts = []grpc.DialOption{grpc.WithInsecure()}
+	}
+
+	cc, err := grpc.Dial(addr, clientOpts...)
 	if err != nil {
 		cancel()
 		return nil, err
