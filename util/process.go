@@ -25,14 +25,22 @@ import (
 )
 
 // StartHTTPServer starts an HTTP server on the given address.
-func StartHTTPServer(addr string) error {
+func StartHTTPServer(addr, certFile, keyFile string) error {
 	sock, err := net.Listen("tcp", addr)
 	if err != nil {
 		return err
 	}
 	go func() {
 		glog.Info("HTTP server starting")
-		http.Serve(sock, nil)
+		// Let http.ServeTLS handle the error case when only one of the flags is set.
+		if certFile != "" || keyFile != "" {
+			err = http.ServeTLS(sock, nil, certFile, keyFile)
+		} else {
+			err = http.Serve(sock, nil)
+		}
+		if err != nil {
+			glog.Errorf("HTTP server stopped: %v", err)
+		}
 	}()
 
 	return nil
