@@ -53,7 +53,7 @@ var (
 	sequencerWindow = time.Duration(0)
 	batchSize       = 50
 	// SequencerInterval is the time between runs of the sequencer.
-	SequencerInterval = 100 * time.Millisecond
+	SequencerInterval = 500 * time.Millisecond
 	timeSource        = util.SystemTimeSource{}
 	publicKey         = testonly.DemoPublicKey
 	privateKeyInfo    = &keyspb.PrivateKey{
