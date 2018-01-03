@@ -205,6 +205,7 @@ func (m *mapTreeTX) Get(ctx context.Context, revision int64, indexes [][]byte) (
 	} else if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	ret := make([]trillian.MapLeaf, 0, len(indexes))
 	nr := 0
