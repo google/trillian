@@ -190,6 +190,7 @@ log_prep_test() {
 log_stop_test() {
   for pid in "${LOG_SIGNER_PIDS[@]}"; do
     echo "Stopping Log signer (pid ${pid})"
+    echo "This error is fine: log_operation_manager.go:xxx] failed to execute operation on logs: failed to retrieve full list of log IDs: failed to get tx for retrieving logIDs: context canceled"
     kill_pid ${pid}
   done
   for pid in "${RPC_SERVER_PIDS[@]}"; do
