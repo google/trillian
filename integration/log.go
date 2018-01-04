@@ -418,7 +418,10 @@ func checkInclusionProofTreeSizeOutOfRange(logID int64, client trillian.Trillian
 // proofs returned should match ones computed by the alternate Merkle Tree implementation, which differs
 // from what the log uses.
 func checkInclusionProofsAtIndex(index int64, logID int64, tree *merkle.InMemoryMerkleTree, client trillian.TrillianLogClient, params TestParameters) error {
+	glog.Infof("checking Inclusion Proofs at index %d for log %d", index, logID)
+
 	for treeSize := int64(0); treeSize < min(params.leafCount, int64(2*params.sequencerBatchSize)); treeSize++ {
+		glog.V(1).Infof("checking Inclusion Proofs at index %d to treeSize %d for log %d", index, treeSize, logID)
 		ctx, cancel := getRPCDeadlineContext(params)
 		resp, err := client.GetInclusionProof(ctx, &trillian.GetInclusionProofRequest{
 			LogId:     logID,
