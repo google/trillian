@@ -18,6 +18,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
@@ -31,6 +32,7 @@ import (
 	"github.com/google/trillian/server/interceptor"
 	"github.com/google/trillian/storage/mysql"
 	"github.com/google/trillian/storage/testdb"
+	"github.com/google/trillian/util"
 	"google.golang.org/grpc"
 
 	_ "github.com/google/trillian/crypto/keys/der/proto" // Register PrivateKey ProtoHandler
@@ -105,7 +107,7 @@ func NewMapEnvWithRegistry(registry extension.Registry) (*MapEnv, error) {
 
 	ti := interceptor.New(
 		registry.AdminStorage, registry.QuotaManager, false /* quotaDryRun */, registry.MetricFactory)
-	ci := interceptor.Combine(interceptor.ErrorWrapper, ti.UnaryInterceptor)
+	ci := interceptor.Combine(interceptor.ErrorWrapper, interceptor.SlowRPC(2*time.Second, func() { util.LogStackTraces("SlowRPC") }), ti.UnaryInterceptor)
 
 	// Create Map Server.
 	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(ci))

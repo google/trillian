@@ -123,7 +123,8 @@ func NewLogEnvWithRegistry(ctx context.Context, numSequencers int, registry exte
 // NewLogEnvWithRegistryAndGRPCOptions works the same way as NewLogEnv, but allows callers to also set additional grpc.ServerOption and grpc.DialOption values.
 func NewLogEnvWithRegistryAndGRPCOptions(ctx context.Context, numSequencers int, registry extension.Registry, serverOpts []grpc.ServerOption, clientOpts []grpc.DialOption) (*LogEnv, error) {
 	// Create the GRPC Server.
-	serverOpts = append(serverOpts, grpc.UnaryInterceptor(interceptor.ErrorWrapper))
+	ci := interceptor.Combine(interceptor.SlowRPC(2*time.Second, func() { util.LogStackTraces("SlowRPC") }), interceptor.ErrorWrapper)
+	serverOpts = append(serverOpts, grpc.UnaryInterceptor(ci))
 	grpcServer := grpc.NewServer(serverOpts...)
 
 	// Setup the Admin Server.

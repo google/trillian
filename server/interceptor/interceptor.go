@@ -413,6 +413,28 @@ type logLeavesResponse interface {
 	GetQueuedLeaves() []*trillian.QueuedLogLeaf
 }
 
+// SlowRPC returns an interceptor which will call f if an RPC takes longer than deadline to complete.
+func SlowRPC(deadline time.Duration, f func()) grpc.UnaryServerInterceptor {
+	s := slowRPC{
+		f:        f,
+		deadline: deadline,
+	}
+	return s.UnaryServerInterceptor
+}
+
+type slowRPC struct {
+	f        func()
+	deadline time.Duration
+}
+
+// UnaryServerInterceptor executes the SlowRPC logic for unary RPCs.
+func (s *slowRPC) UnaryServerInterceptor(ctx context.Context, req interface{}, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	t := time.AfterFunc(s.deadline, s.f)
+	resp, err := handler(ctx, req)
+	t.Stop()
+	return resp, err
+}
+
 // Combine combines unary interceptors.
 // They are nested in order, so interceptor[0] calls on to (and sees the result of) interceptor[1], etc.
 func Combine(interceptors ...grpc.UnaryServerInterceptor) grpc.UnaryServerInterceptor {
