@@ -18,6 +18,8 @@ import (
 	"flag"
 	"testing"
 	"time"
+
+	_ "github.com/golang/glog"
 )
 
 var (

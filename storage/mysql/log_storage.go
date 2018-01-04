@@ -273,21 +273,19 @@ func (t *logTreeTX) WriteRevision() int64 {
 func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime time.Time) ([]*trillian.LogLeaf, error) {
 	start := time.Now()
 	stx, err := t.tx.PrepareContext(ctx, selectQueuedLeavesSQL)
-
 	if err != nil {
 		glog.Warningf("Failed to prepare dequeue select: %s", err)
 		return nil, err
 	}
+	defer stx.Close()
 
 	leaves := make([]*trillian.LogLeaf, 0, limit)
 	dq := make([]dequeuedLeaf, 0, limit)
 	rows, err := stx.QueryContext(ctx, t.treeID, cutoffTime.UnixNano(), limit)
-
 	if err != nil {
 		glog.Warningf("Failed to select rows for work: %s", err)
 		return nil, err
 	}
-
 	defer rows.Close()
 
 	for rows.Next() {
@@ -453,7 +451,6 @@ func (t *logTreeTX) GetSequencedLeafCount(ctx context.Context) (int64, error) {
 	var sequencedLeafCount int64
 
 	err := t.tx.QueryRowContext(ctx, selectSequencedLeafCountSQL, t.treeID).Scan(&sequencedLeafCount)
-
 	if err != nil {
 		glog.Warningf("Error getting sequenced leaf count: %s", err)
 	}
@@ -467,6 +464,8 @@ func (t *logTreeTX) GetLeavesByIndex(ctx context.Context, leaves []int64) ([]*tr
 		return nil, err
 	}
 	stx := t.tx.StmtContext(ctx, tmpl)
+	defer stx.Close()
+
 	var args []interface{}
 	for _, nodeID := range leaves {
 		args = append(args, interface{}(int64(nodeID)))
@@ -477,9 +476,9 @@ func (t *logTreeTX) GetLeavesByIndex(ctx context.Context, leaves []int64) ([]*tr
 		glog.Warningf("Failed to get leaves by idx: %s", err)
 		return nil, err
 	}
+	defer rows.Close()
 
 	ret := make([]*trillian.LogLeaf, 0, len(leaves))
-	defer rows.Close()
 	for rows.Next() {
 		leaf := &trillian.LogLeaf{}
 		var qTimestamp, iTimestamp int64
@@ -652,10 +651,14 @@ func (t *readOnlyLogTX) GetUnsequencedCounts(ctx context.Context) (storage.Count
 		glog.Warningf("Failed to prep unsequenced leaf count statement: %v", err)
 		return nil, err
 	}
+	defer stx.Close()
+
 	rows, err := stx.QueryContext(ctx)
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
+
 	ret := make(map[int64]int64)
 	for rows.Next() {
 		var logID, count int64
