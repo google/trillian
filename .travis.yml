@@ -1,3 +1,5 @@
+sudo: true  # Only to move mysql onto ramdisk.
+
 language: go
 
 addons:
@@ -56,6 +58,18 @@ install:
   - go install ./vendor/github.com/coreos/etcd/cmd/etcdctl
 
 before_script:
+  - |
+    if [[ "$TRAVIS_SUDO" == "true" ]]; then
+      echo "Moving MySQL data to ramdisk..."
+      sudo mkdir /mnt/ramdisk
+      sudo mount -t tmpfs -o size=1024m tmpfs /mnt/ramdisk
+      sudo stop mysql
+      sudo mv /var/lib/mysql /mnt/ramdisk
+      sudo ln -s /mnt/ramdisk/mysql /var/lib/mysql
+      sudo start mysql
+    else
+     echo "MySQL data staying on disk because sudo unavailable."
+    fi
   - yes | ./scripts/resetdb.sh
 
 script:
