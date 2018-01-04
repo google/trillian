@@ -20,6 +20,7 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"fmt"
+	"runtime/debug"
 	"strings"
 	"sync"
 
@@ -392,7 +393,7 @@ func (t *treeTX) Commit() error {
 	}
 	t.closed = true
 	if err := t.tx.Commit(); err != nil {
-		glog.Warningf("TX commit error: %s", err)
+		glog.Warningf("TX commit error: %s, stack:\n%s", err, string(debug.Stack()))
 		return err
 	}
 	return nil
@@ -401,7 +402,7 @@ func (t *treeTX) Commit() error {
 func (t *treeTX) Rollback() error {
 	t.closed = true
 	if err := t.tx.Rollback(); err != nil {
-		glog.Warningf("TX rollback error: %s", err)
+		glog.Warningf("TX rollback error: %s, stack:\n%s", err, string(debug.Stack()))
 		return err
 	}
 	return nil
