@@ -73,6 +73,8 @@ var (
 	treeDeleteMinRunInterval = flag.Duration("tree_delete_min_run_interval", server.DefaultTreeDeleteMinInterval, "Minimum interval between tree garbage collection sweeps. Actual runs happen randomly between [minInterval,2*minInterval).")
 
 	configFile = flag.String("config", "", "Config file containing flags, file contents can be overridden by command line flags")
+
+	traceSlowRPCs = flag.Duration("trace_slow_rpcs", 0, "Threshold over which we'll log stack traces for slow running RPCs, 0 disables.")
 )
 
 func main() {
@@ -150,6 +152,7 @@ func main() {
 		TreeGCEnabled:         *treeGCEnabled,
 		TreeDeleteThreshold:   *treeDeleteThreshold,
 		TreeDeleteMinInterval: *treeDeleteMinRunInterval,
+		TraceSlowRPCs:         *traceSlowRPCs,
 	}
 
 	ctx := context.Background()

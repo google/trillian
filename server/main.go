@@ -78,6 +78,8 @@ type Main struct {
 	TreeGCEnabled         bool
 	TreeDeleteThreshold   time.Duration
 	TreeDeleteMinInterval time.Duration
+
+	TraceSlowRPCs time.Duration
 }
 
 // Run starts the configured server. Blocks until the server exits.
@@ -172,7 +174,12 @@ func (m *Main) newGRPCServer() (*grpc.Server, error) {
 	stats := monitoring.NewRPCStatsInterceptor(ts, m.StatsPrefix, m.Registry.MetricFactory)
 	ti := interceptor.New(
 		m.Registry.AdminStorage, m.Registry.QuotaManager, m.QuotaDryRun, m.Registry.MetricFactory)
-	netInterceptor := interceptor.Combine(stats.Interceptor(), interceptor.ErrorWrapper, ti.UnaryInterceptor)
+	interceptors := []grpc.UnaryServerInterceptor{stats.Interceptor(), interceptor.ErrorWrapper}
+	if m.TraceSlowRPCs > 0 {
+		interceptors = append(interceptors, interceptor.SlowRPC(m.TraceSlowRPCs, func() { util.LogStackTraces("SlowRPC") }))
+	}
+	interceptors = append(interceptors, ti.UnaryInterceptor)
+	netInterceptor := interceptor.Combine(interceptors...)
 
 	serverOpts := []grpc.ServerOption{
 		grpc.UnaryInterceptor(netInterceptor),

@@ -137,6 +137,8 @@ log_prep_test() {
     local pkcs11_opts="--pkcs11_module_path ${PKCS11_MODULE:-/usr/lib/softhsm/libsofthsm.so}"
   fi
 
+  logserver_opts="${logserver_opts} --trace_slow_rpcs=2s"
+
   # Start a set of Log RPC servers.
   for ((i=0; i < rpc_server_count; i++)); do
     port=$(pick_unused_port)
@@ -267,7 +269,10 @@ map_prep_test() {
     http=$(pick_unused_port ${port})
 
     echo "Starting Map RPC server on localhost:${port}, HTTP on localhost:${http}"
-    ./trillian_map_server --rpc_endpoint="localhost:${port}" --http_endpoint="localhost:${http}" &
+    ./trillian_map_server \
+      --rpc_endpoint="localhost:${port}" \
+      --http_endpoint="localhost:${http}" \
+      --trace_slow_rpcs=2s &
     pid=$!
     RPC_SERVER_PIDS+=(${pid})
     wait_for_server_startup ${port}
