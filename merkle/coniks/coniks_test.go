@@ -24,7 +24,53 @@ import (
 
 var h2b = testonly.MustHexDecode
 
-func TestVectors(t *testing.T) {
+// Test vectors in this file were computed by first running the tests, then
+// saving the outputs.  This is the reference implementation. Implementations
+// in other languages use these test vectors to ensure interoperability.
+// Any changes to these vectors should be carefully coordinated across all
+// known verifiers including:
+// - github.com/google/end-to-end/src/javascript/crypto/e2e/transparency
+
+func TestBitLen(t *testing.T) {
+	if got, want := Default.BitLen(), 256; got != want {
+		t.Errorf("BitLen(): %v, want %v", got, want)
+	}
+}
+
+func TestHashChildren(t *testing.T) {
+	for _, tc := range []struct {
+		l, r []byte
+		want []byte
+	}{
+		{nil, nil, h2b("c672b8d1ef56ed28ab87c3622c5114069bdd3ad7b8f9737498d0c01ecef0967a")},
+		{h2b("00"), h2b("11"), h2b("248423e26b964db547e51deaffefc7e07bea495283dba563d74d69bf06b87497")},
+		{h2b("11"), h2b("00"), h2b("b5fbd3a07d7d309062044c5f92bc32bb860900f6e2a0e63b034846e267cb25bb")},
+	} {
+		if got, want := Default.HashChildren(tc.l, tc.r), tc.want; !bytes.Equal(got, want) {
+			t.Errorf("HashChildren(%v, %x): %x, want %x", tc.l, tc.r, got, want)
+		}
+	}
+}
+
+func TestHashEmpty(t *testing.T) {
+	for _, tc := range []struct {
+		treeID int64
+		index  []byte
+		height int
+		want   []byte
+	}{
+		{0, h2b("0000000000000000000000000000000000000000000000000000000000000000"), 256, h2b("2b71932d625e7b83ce864f8092ae4eb470670ccff37eaac83f21679bb3b24bbb")},
+		{1, h2b("0000000000000000000000000000000000000000000000000000000000000000"), 256, h2b("9a908ed88f429272254a97c6a55f781e15b0cff753fb90ce7591988b398378ea")},
+		{0, h2b("1111111111111111111111111111111111111111111111111111111111111111"), 255, h2b("a9804d4c78c33a72903a5dc71a900a00e55136a425b6e4365c2d90f8303eb233")},
+		{0, h2b("0000000000000000000000000000000000000000000000000000000000000000"), 0, h2b("af8545ff33b365f2a45971abc45167634c17bfc883ff0280f56e542663b02417")},
+	} {
+		if got, want := Default.HashEmpty(tc.treeID, tc.index, tc.height), tc.want; !bytes.Equal(got, want) {
+			t.Errorf("HashEmpty(%v, %x, %v): %x, want %x", tc.treeID, tc.index, tc.height, got, want)
+		}
+	}
+}
+
+func TestHashLeaf(t *testing.T) {
 	for _, tc := range []struct {
 		treeID int64
 		index  []byte
