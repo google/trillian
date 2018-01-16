@@ -407,6 +407,19 @@ func (mr *MockLogTreeTXMockRecorder) GetLeavesByIndex(arg0, arg1 interface{}) *g
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLeavesByIndex", reflect.TypeOf((*MockLogTreeTX)(nil).GetLeavesByIndex), arg0, arg1)
 }
 
+// GetLeavesByRange mocks base method
+func (m *MockLogTreeTX) GetLeavesByRange(arg0 context.Context, arg1, arg2 int64) ([]*trillian.LogLeaf, error) {
+	ret := m.ctrl.Call(m, "GetLeavesByRange", arg0, arg1, arg2)
+	ret0, _ := ret[0].([]*trillian.LogLeaf)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetLeavesByRange indicates an expected call of GetLeavesByRange
+func (mr *MockLogTreeTXMockRecorder) GetLeavesByRange(arg0, arg1, arg2 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLeavesByRange", reflect.TypeOf((*MockLogTreeTX)(nil).GetLeavesByRange), arg0, arg1, arg2)
+}
+
 // GetMerkleNodes mocks base method
 func (m *MockLogTreeTX) GetMerkleNodes(arg0 context.Context, arg1 int64, arg2 []NodeID) ([]Node, error) {
 	ret := m.ctrl.Call(m, "GetMerkleNodes", arg0, arg1, arg2)
@@ -1066,6 +1079,19 @@ func (m *MockReadOnlyLogTreeTX) GetLeavesByIndex(arg0 context.Context, arg1 []in
 // GetLeavesByIndex indicates an expected call of GetLeavesByIndex
 func (mr *MockReadOnlyLogTreeTXMockRecorder) GetLeavesByIndex(arg0, arg1 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLeavesByIndex", reflect.TypeOf((*MockReadOnlyLogTreeTX)(nil).GetLeavesByIndex), arg0, arg1)
+}
+
+// GetLeavesByRange mocks base method
+func (m *MockReadOnlyLogTreeTX) GetLeavesByRange(arg0 context.Context, arg1, arg2 int64) ([]*trillian.LogLeaf, error) {
+	ret := m.ctrl.Call(m, "GetLeavesByRange", arg0, arg1, arg2)
+	ret0, _ := ret[0].([]*trillian.LogLeaf)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetLeavesByRange indicates an expected call of GetLeavesByRange
+func (mr *MockReadOnlyLogTreeTXMockRecorder) GetLeavesByRange(arg0, arg1, arg2 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLeavesByRange", reflect.TypeOf((*MockReadOnlyLogTreeTX)(nil).GetLeavesByRange), arg0, arg1, arg2)
 }
 
 // GetMerkleNodes mocks base method
