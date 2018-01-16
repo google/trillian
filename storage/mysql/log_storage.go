@@ -37,6 +37,7 @@ import (
 	"github.com/google/trillian/trees"
 
 	spb "github.com/google/trillian/crypto/sigpb"
+	terrors "github.com/google/trillian/errors"
 	sqlite3 "github.com/mattn/go-sqlite3"
 )
 
@@ -48,6 +49,11 @@ const (
 	selectLatestSignedLogRootSQL  = `SELECT TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature
 			FROM TreeHead WHERE TreeId=?
 			ORDER BY TreeHeadTimestamp DESC LIMIT 1`
+
+	selectLeavesByRangeSQL = `SELECT s.MerkleLeafHash,l.LeafIdentityHash,l.LeafValue,s.SequenceNumber,l.ExtraData,l.QueueTimestampNanos,s.IntegrateTimestampNanos
+			FROM LeafData l,SequencedLeafData s
+			WHERE l.LeafIdentityHash = s.LeafIdentityHash
+			AND s.SequenceNumber >= ? AND s.SequenceNumber < ? AND l.TreeId = ? AND s.TreeId = l.TreeId` + orderBySequenceNumberSQL
 
 	// These statements need to be expanded to provide the correct number of parameter placeholders.
 	selectLeavesByIndexSQL = `SELECT s.MerkleLeafHash,l.LeafIdentityHash,l.LeafValue,s.SequenceNumber,l.ExtraData,l.QueueTimestampNanos,s.IntegrateTimestampNanos
@@ -507,6 +513,59 @@ func (t *logTreeTX) GetLeavesByIndex(ctx context.Context, leaves []int64) ([]*tr
 
 	if got, want := len(ret), len(leaves); got != want {
 		return nil, fmt.Errorf("len(ret): %d, want %d", got, want)
+	}
+	return ret, nil
+}
+
+func (t *logTreeTX) GetLeavesByRange(ctx context.Context, start, count int64) ([]*trillian.LogLeaf, error) {
+	if count <= 0 {
+		return nil, fmt.Errorf("invalid count %d", count)
+	}
+	if start < 0 {
+		return nil, fmt.Errorf("invalid start %d", start)
+	}
+	args := []interface{}{start, start + count, t.treeID}
+	rows, err := t.tx.QueryContext(ctx, selectLeavesByRangeSQL, args...)
+	if err != nil {
+		glog.Warningf("Failed to get leaves by range: %s", err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	ret := make([]*trillian.LogLeaf, 0, count)
+	wantIndex := start
+	for rows.Next() {
+		leaf := &trillian.LogLeaf{}
+		var qTimestamp, iTimestamp int64
+		if err := rows.Scan(
+			&leaf.MerkleLeafHash,
+			&leaf.LeafIdentityHash,
+			&leaf.LeafValue,
+			&leaf.LeafIndex,
+			&leaf.ExtraData,
+			&qTimestamp,
+			&iTimestamp); err != nil {
+			glog.Warningf("Failed to scan merkle leaves: %s", err)
+			return nil, err
+		}
+		if leaf.LeafIndex != wantIndex {
+			return nil, fmt.Errorf("got unexpected index %d, want %d", leaf.LeafIndex, wantIndex)
+		}
+		var err error
+		leaf.QueueTimestamp, err = ptypes.TimestampProto(time.Unix(0, qTimestamp))
+		if err != nil {
+			return nil, fmt.Errorf("got invalid queue timestamp: %v", err)
+		}
+		leaf.IntegrateTimestamp, err = ptypes.TimestampProto(time.Unix(0, iTimestamp))
+		if err != nil {
+			return nil, fmt.Errorf("got invalid integrate timestamp: %v", err)
+		}
+		ret = append(ret, leaf)
+		wantIndex++
+	}
+
+	if len(ret) == 0 {
+		return nil, terrors.Errorf(terrors.InvalidArgument, "no leaves found in range [%d, %d+%d)", start, start, count)
 	}
 	return ret, nil
 }

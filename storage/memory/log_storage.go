@@ -247,6 +247,17 @@ func (t *logTreeTX) GetLeavesByIndex(ctx context.Context, leaves []int64) ([]*tr
 	return ret, nil
 }
 
+func (t *logTreeTX) GetLeavesByRange(ctx context.Context, start, count int64) ([]*trillian.LogLeaf, error) {
+	ret := make([]*trillian.LogLeaf, 0, count)
+	for i := int64(0); i < count; i++ {
+		leaf := t.tx.Get(seqLeafKey(t.treeID, start+i))
+		if leaf != nil {
+			ret = append(ret, leaf.(*kv).v.(*trillian.LogLeaf))
+		}
+	}
+	return ret, nil
+}
+
 func (t *logTreeTX) GetLeavesByHash(ctx context.Context, leafHashes [][]byte, orderBySequence bool) ([]*trillian.LogLeaf, error) {
 	m := t.tx.Get(hashToSeqKey(t.treeID)).(*kv).v.(map[string][]int64)
 

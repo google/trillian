@@ -113,6 +113,10 @@ type LeafReader interface {
 	GetSequencedLeafCount(ctx context.Context) (int64, error)
 	// GetLeavesByIndex returns leaf metadata and data for a set of specified sequenced leaf indexes.
 	GetLeavesByIndex(ctx context.Context, leaves []int64) ([]*trillian.LogLeaf, error)
+	// GetLeavesByRange returns leaf data for a range of indexes.  Leaves are returned ordered by
+	// their leaf index, and the returned slice may be smaller than count if the requested range
+	// extends beyond the current size of the log.
+	GetLeavesByRange(ctx context.Context, start, count int64) ([]*trillian.LogLeaf, error)
 	// GetLeavesByHash looks up sequenced leaf metadata and data by their Merkle leaf hash. If the
 	// tree permits duplicate leaves callers must be prepared to handle multiple results with the
 	// same hash but different sequence numbers. If orderBySequence is true then the returned data

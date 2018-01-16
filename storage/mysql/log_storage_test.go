@@ -20,6 +20,7 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"fmt"
+	"reflect"
 	"sort"
 	"testing"
 	"time"
@@ -817,6 +818,60 @@ func TestGetLeavesByIndex(t *testing.T) {
 	}
 	checkLeafContents(leaves[0], sequenceNumber, dummyRawHash, dummyHash, data, someExtraData, t)
 	commit(tx, t)
+}
+
+func TestGetLeavesByRange(t *testing.T) {
+	var tests = []struct {
+		start, count int64
+		want         []int64
+		wantErr      bool
+	}{
+		{start: 0, count: 1, want: []int64{0}},
+		{start: 0, count: 2, want: []int64{0, 1}},
+		{start: 1, count: 3, want: []int64{1, 2, 3}},
+		{start: 10, count: 7, want: []int64{10, 11, 12, 13}},
+		{start: 3, count: 5, wantErr: true}, // hits non-contiguous leaves
+		{start: 1, count: 0, wantErr: true},
+		{start: -1, count: 1, wantErr: true},
+		{start: 1, count: -1, wantErr: true},
+		{start: 14, count: 1, wantErr: true},
+	}
+	ctx := context.Background()
+	cleanTestDB(DB)
+	logID := createLogForTests(DB)
+	s := NewLogStorage(DB, nil)
+
+	// Create leaves [0]..[13] but drop leaf [5]
+	for i := int64(0); i < 14; i++ {
+		if i == 5 {
+			continue
+		}
+		data := []byte{byte(i)}
+		identityHash := sha256.Sum256(data)
+		createFakeLeaf(ctx, DB, logID, identityHash[:], identityHash[:], data, someExtraData, i, t)
+	}
+
+	for _, test := range tests {
+		tx := beginLogTx(s, logID, t)
+		leaves, err := tx.GetLeavesByRange(ctx, test.start, test.count)
+		tx.Close()
+		if err != nil {
+			if !test.wantErr {
+				t.Errorf("GetLeavesByRange(%d, +%d)=_,%v; want _,nil", test.start, test.count, err)
+			}
+			continue
+		}
+		if test.wantErr {
+			t.Errorf("GetLeavesByRange(%d, +%d)=_,nil; want _,non-nil", test.start, test.count)
+		}
+		got := make([]int64, len(leaves))
+		for i, leaf := range leaves {
+			got[i] = leaf.LeafIndex
+		}
+		if !reflect.DeepEqual(got, test.want) {
+			t.Errorf("GetLeavesByRange(%d, +%d)=%+v; want %+v", test.start, test.count, got, test.want)
+		}
+	}
 }
 
 func TestLatestSignedRootNoneWritten(t *testing.T) {
