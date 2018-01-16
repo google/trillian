@@ -69,6 +69,16 @@ func validateGetLeavesByIndexRequest(req *trillian.GetLeavesByIndexRequest) erro
 	return nil
 }
 
+func validateGetLeavesByRangeRequest(req *trillian.GetLeavesByRangeRequest) error {
+	if req.StartIndex < 0 {
+		return status.Errorf(codes.InvalidArgument, "GetLeavesByRangeRequest.StartIndex: %v, want >= 0", req.StartIndex)
+	}
+	if req.Count <= 0 {
+		return status.Errorf(codes.InvalidArgument, "GetLeavesByRangeRequest.Count: %v, want > 0", req.Count)
+	}
+	return nil
+}
+
 func validateGetConsistencyProofRequest(req *trillian.GetConsistencyProofRequest) error {
 	if req.FirstTreeSize <= 0 {
 		return status.Errorf(codes.InvalidArgument, "GetConsistencyProofRequest.FirstTreeSize: %v, want > 0", req.FirstTreeSize)

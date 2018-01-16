@@ -73,6 +73,11 @@ func (p *Log) GetLeavesByIndex(ctx context.Context, in *trillian.GetLeavesByInde
 	return p.c.GetLeavesByIndex(ctx, in)
 }
 
+// GetLeavesByRange forwards the RPC.
+func (p *Log) GetLeavesByRange(ctx context.Context, in *trillian.GetLeavesByRangeRequest) (*trillian.GetLeavesByRangeResponse, error) {
+	return p.c.GetLeavesByRange(ctx, in)
+}
+
 // GetLeavesByHash forwards the RPC.
 func (p *Log) GetLeavesByHash(ctx context.Context, in *trillian.GetLeavesByHashRequest) (*trillian.GetLeavesByHashResponse, error) {
 	return p.c.GetLeavesByHash(ctx, in)

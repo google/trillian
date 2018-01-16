@@ -17,6 +17,7 @@ package server
 import (
 	"context"
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -42,14 +43,22 @@ var (
 	leaf03Request    = trillian.GetLeavesByIndexRequest{LogId: logID1, LeafIndex: []int64{0, 3}}
 	leaf0Log2Request = trillian.GetLeavesByIndexRequest{LogId: logID2, LeafIndex: []int64{0}}
 	leaf1Data        = []byte("value")
+	leaf2Data        = []byte("value2")
 	leaf3Data        = []byte("value3")
 	leaf1Hash, _     = th.HashLeaf(leaf1Data)
+	leaf2Hash, _     = th.HashLeaf(leaf2Data)
 	leaf3Hash, _     = th.HashLeaf(leaf3Data)
 	leaf1            = &trillian.LogLeaf{
 		MerkleLeafHash: leaf1Hash,
 		LeafValue:      leaf1Data,
 		ExtraData:      []byte("extra"),
 		LeafIndex:      1,
+	}
+	leaf2 = &trillian.LogLeaf{
+		MerkleLeafHash: leaf2Hash,
+		LeafValue:      leaf2Data,
+		ExtraData:      []byte("extra"),
+		LeafIndex:      2,
 	}
 	leaf3 = &trillian.LogLeaf{
 		MerkleLeafHash: leaf3Hash,
@@ -214,6 +223,110 @@ func TestGetLeavesByIndexMultiple(t *testing.T) {
 
 	if !proto.Equal(resp.Leaves[1], leaf3) {
 		t.Fatalf("Expected leaf3: %v but got: %v", leaf3, resp.Leaves[0])
+	}
+}
+
+func TestGetLeavesByRange(t *testing.T) {
+	ctx := context.Background()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockStorage := storage.NewMockLogStorage(ctrl)
+	logID := int64(6962)
+
+	var tests = []struct {
+		start, count int64
+		skipTX       bool
+		txErr        error
+		getErr       error
+		want         []*trillian.LogLeaf
+		wantErr      string
+	}{
+		{
+			start: 1,
+			count: 1,
+			want:  []*trillian.LogLeaf{leaf1},
+		},
+		{
+			start:   1,
+			count:   1,
+			txErr:   errors.New("test error xyzzy"),
+			wantErr: "test error xyzzy",
+		},
+		{
+			start:   1,
+			count:   1,
+			getErr:  errors.New("test error plugh"),
+			wantErr: "test error plugh",
+		},
+		{
+			start: 1,
+			count: 3,
+			want:  []*trillian.LogLeaf{leaf1, leaf2, leaf3},
+		},
+		{
+			start: 1,
+			count: 30,
+			want:  []*trillian.LogLeaf{leaf1, leaf2, leaf3},
+		},
+		{
+			start:   -1,
+			count:   1,
+			skipTX:  true,
+			wantErr: "want >= 0",
+		},
+		{
+			start:   1,
+			count:   0,
+			skipTX:  true,
+			wantErr: "want > 0",
+		},
+		{
+			start:   1,
+			count:   -1,
+			skipTX:  true,
+			wantErr: "want > 0",
+		},
+	}
+
+	for _, test := range tests {
+		if !test.skipTX {
+			mockTx := storage.NewMockLogTreeTX(ctrl)
+			if test.txErr != nil {
+				mockStorage.EXPECT().SnapshotForTree(gomock.Any(), logID).Return(nil, test.txErr)
+			} else {
+				mockStorage.EXPECT().SnapshotForTree(gomock.Any(), logID).Return(mockTx, nil)
+				if test.getErr != nil {
+					mockTx.EXPECT().GetLeavesByRange(gomock.Any(), test.start, test.count).Return(nil, test.getErr)
+				} else {
+					mockTx.EXPECT().GetLeavesByRange(gomock.Any(), test.start, test.count).Return(test.want, nil)
+					mockTx.EXPECT().Commit().Return(nil)
+				}
+				mockTx.EXPECT().Close().Return(nil)
+			}
+		}
+		registry := extension.Registry{LogStorage: mockStorage}
+		server := NewTrillianLogRPCServer(registry, fakeTimeSource)
+
+		req := trillian.GetLeavesByRangeRequest{
+			LogId:      logID,
+			StartIndex: test.start,
+			Count:      test.count,
+		}
+		rsp, err := server.GetLeavesByRange(ctx, &req)
+		if err != nil {
+			if test.wantErr == "" {
+				t.Errorf("GetLeavesByRange(%d, %+d)=nil,%v; want _,nil", req.StartIndex, req.Count, err)
+			} else if !strings.Contains(err.Error(), test.wantErr) {
+				t.Errorf("GetLeavesByRange(%d, %+d)=nil,%v; want _, err containing %q", req.StartIndex, req.Count, err, test.wantErr)
+			}
+			continue
+		}
+		if test.wantErr != "" {
+			t.Errorf("GetLeavesByRange(%d, %+d)=_,nil; want nil, err containing %q", req.StartIndex, req.Count, test.wantErr)
+		}
+		if got := rsp.Leaves; !reflect.DeepEqual(got, test.want) {
+			t.Errorf("GetLeavesByRange(%d, %+d)=%+v; want %+v", req.StartIndex, req.Count, got, test.want)
+		}
 	}
 }
 

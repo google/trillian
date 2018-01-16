@@ -21,7 +21,6 @@ import (
 	"crypto"
 	"errors"
 	"fmt"
-	"sort"
 	"time"
 
 	"github.com/google/trillian"
@@ -88,39 +87,27 @@ func (c *LogClient) GetByIndex(ctx context.Context, index int64) (*trillian.LogL
 
 // ListByIndex returns the requested leaves by index.
 func (c *LogClient) ListByIndex(ctx context.Context, start, count int64) ([]*trillian.LogLeaf, error) {
-	indexes := make([]int64, count)
-	for i := range indexes {
-		indexes[i] = start + int64(i)
-	}
-
-	resp, err := c.client.GetLeavesByIndex(ctx,
-		&trillian.GetLeavesByIndexRequest{
-			LogId:     c.LogID,
-			LeafIndex: indexes,
+	resp, err := c.client.GetLeavesByRange(ctx,
+		&trillian.GetLeavesByRangeRequest{
+			LogId:      c.LogID,
+			StartIndex: start,
+			Count:      count,
 		})
 	if err != nil {
 		return nil, err
 	}
-	// Responses are not required to be in-order.
-	sort.Sort(byLeafIndex(resp.Leaves))
 	// Verify that we got back the requested leaves.
-	if got, want := len(resp.Leaves), len(indexes); got != want {
-		return nil, fmt.Errorf("len(Leaves): %v, want %v", got, want)
+	if len(resp.Leaves) < int(count) {
+		return nil, fmt.Errorf("len(Leaves)=%d, want %d", len(resp.Leaves), count)
 	}
 	for i, l := range resp.Leaves {
-		if got, want := l.LeafIndex, indexes[i]; got != want {
-			return nil, fmt.Errorf("Leaves[%v].Index: %v, want %v", i, got, want)
+		if want := start + int64(i); l.LeafIndex != want {
+			return nil, fmt.Errorf("Leaves[%d].LeafIndex=%d, want %d", i, l.LeafIndex, want)
 		}
 	}
 
 	return resp.Leaves, nil
 }
-
-type byLeafIndex []*trillian.LogLeaf
-
-func (ll byLeafIndex) Len() int           { return len(ll) }
-func (ll byLeafIndex) Swap(i, j int)      { ll[i], ll[j] = ll[j], ll[i] }
-func (ll byLeafIndex) Less(i, j int) bool { return ll[i].LeafIndex < ll[j].LeafIndex }
 
 // waitForRootUpdate repeatedly fetches the Root until the TreeSize changes
 // or until ctx times out.

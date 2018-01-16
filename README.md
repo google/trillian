@@ -310,8 +310,9 @@ similar to those available for Certificate Transparency logs
  - `GetLatestSignedLogRoot` returns information about the current root of the
    Merkle tree for the log, including the tree size, hash value, timestamp and
    signature.
- - `GetLeavesByHash` and `GetLeavesByIndex` return leaf information for
-   particular leaves, specified either by their hash value or index in the log.
+ - `GetLeavesByHash`, `GetLeavesByIndex` and `GetLeavesByRange` return leaf
+   information for particular leaves, specified either by their hash value or
+   index in the log.
  - `QueueLeaves` requests inclusion of specified items into the log.
  - `GetInclusionProof`, `GetInclusionProofByHash` and `GetConsistencyProof`
     return inclusion and consistency proof data.
@@ -391,4 +392,3 @@ Support
 
 - Mailing list: https://groups.google.com/forum/#!forum/trillian-transparency
 - Slack: https://gtrillian.slack.com/
-

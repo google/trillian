@@ -316,6 +316,7 @@ func newRPCInfo(req interface{}, quotaUser string) (*rpcInfo, error) {
 		*trillian.GetLatestSignedLogRootRequest,
 		*trillian.GetLeavesByHashRequest,
 		*trillian.GetLeavesByIndexRequest,
+		*trillian.GetLeavesByRangeRequest,
 		*trillian.GetSequencedLeafCountRequest:
 		info.treeType = trillian.TreeType_LOG
 

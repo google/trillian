@@ -353,9 +353,33 @@ func (t *TrillianLogRPCServer) GetLeavesByIndex(ctx context.Context, req *trilli
 		return nil, err
 	}
 
-	return &trillian.GetLeavesByIndexResponse{
-		Leaves: leaves,
-	}, nil
+	return &trillian.GetLeavesByIndexResponse{Leaves: leaves}, nil
+}
+
+// GetLeavesByRange obtains leaves based on a range of sequence numbers within the tree.
+// This only fetches sequenced leaves; leaves that have been queued but not yet integrated
+// are not visible.
+func (t *TrillianLogRPCServer) GetLeavesByRange(ctx context.Context, req *trillian.GetLeavesByRangeRequest) (*trillian.GetLeavesByRangeResponse, error) {
+	if err := validateGetLeavesByRangeRequest(req); err != nil {
+		return nil, err
+	}
+
+	tx, err := t.prepareReadOnlyStorageTx(ctx, req.LogId)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Close()
+
+	leaves, err := tx.GetLeavesByRange(ctx, req.StartIndex, req.Count)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := t.commitAndLog(ctx, req.LogId, tx, "GetLeavesByRange"); err != nil {
+		return nil, err
+	}
+
+	return &trillian.GetLeavesByRangeResponse{Leaves: leaves}, nil
 }
 
 // GetLeavesByHash obtains one or more leaves based on their tree hash. It is not possible

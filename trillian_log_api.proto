@@ -154,6 +154,20 @@ message GetLeavesByIndexResponse {
     repeated LogLeaf leaves = 2;
 }
 
+message GetLeavesByRangeRequest {
+  int64 log_id = 1;
+  int64 start_index = 2;
+  int64 count = 3;
+}
+
+message GetLeavesByRangeResponse {
+  // Returned log leaves starting from the start_index of the request, in order.
+  // There may be fewer than request.count leaves returned, if the requested
+  // range extended beyond the size of the tree or if the server opted to return
+  // fewer leaves than requested.
+  repeated LogLeaf leaves = 1;
+}
+
 message GetSequencedLeafCountRequest {
     int64 log_id = 1;
 }
@@ -238,6 +252,8 @@ service TrillianLog {
     rpc QueueLeaves (QueueLeavesRequest) returns (QueueLeavesResponse) {
     }
     rpc GetLeavesByIndex (GetLeavesByIndexRequest) returns (GetLeavesByIndexResponse) {
+    }
+    rpc GetLeavesByRange (GetLeavesByRangeRequest) returns (GetLeavesByRangeResponse) {
     }
     rpc GetLeavesByHash (GetLeavesByHashRequest) returns (GetLeavesByHashResponse) {
     }
