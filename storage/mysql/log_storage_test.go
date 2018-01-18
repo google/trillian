@@ -64,6 +64,7 @@ const sequenceNumber int64 = 237
 // no locks afterwards.
 
 func createFakeLeaf(ctx context.Context, db *sql.DB, logID int64, rawHash, hash, data, extraData []byte, seq int64, t *testing.T) *trillian.LogLeaf {
+	t.Helper()
 	queuedAtNanos := fakeQueueTime.UnixNano()
 	integratedAtNanos := fakeIntegrateTime.UnixNano()
 	_, err := db.ExecContext(ctx, "INSERT INTO LeafData(TreeId, LeafIdentityHash, LeafValue, ExtraData, QueueTimestampNanos) VALUES(?,?,?,?,?)", logID, rawHash, data, extraData, queuedAtNanos)
@@ -92,6 +93,7 @@ func createFakeLeaf(ctx context.Context, db *sql.DB, logID int64, rawHash, hash,
 }
 
 func checkLeafContents(leaf *trillian.LogLeaf, seq int64, rawHash, hash, data, extraData []byte, t *testing.T) {
+	t.Helper()
 	if got, want := leaf.MerkleLeafHash, hash; !bytes.Equal(got, want) {
 		t.Fatalf("Wrong leaf hash in returned leaf got\n%v\nwant:\n%v", got, want)
 	}
@@ -1175,6 +1177,7 @@ func TestSortByLeafIdentityHash(t *testing.T) {
 }
 
 func ensureAllLeavesDistinct(leaves []*trillian.LogLeaf, t *testing.T) {
+	t.Helper()
 	// All the leaf value hashes should be distinct because the leaves were created with distinct
 	// leaf data. If only we had maps with slices as keys or sets or pretty much any kind of usable
 	// data structures we could do this properly.
@@ -1224,6 +1227,7 @@ func createTestLeaves(n, startSeq int64) []*trillian.LogLeaf {
 
 // Convenience methods to avoid copying out "if err != nil { blah }" all over the place
 func beginLogTx(s storage.LogStorage, logID int64, t *testing.T) storage.LogTreeTX {
+	t.Helper()
 	tx, err := s.BeginForTree(context.Background(), logID)
 	if err != nil {
 		t.Fatalf("Failed to begin log tx: %v", err)
@@ -1236,6 +1240,7 @@ type committableTX interface {
 }
 
 func commit(tx committableTX, t *testing.T) {
+	t.Helper()
 	if err := tx.Commit(); err != nil {
 		t.Errorf("Failed to commit tx: %v", err)
 	}
