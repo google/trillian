@@ -51,13 +51,17 @@ Note that Trillian requires particular applications to provide their own
 functionality; example code for a certificate transparency log and for a
 [log-derived map](#verifiable-log-derived-map) are included to help with this.
 
+The code for the CT personality has now been moved to a separate repository and
+can be obtained from
+[certificate-transparency-go](https://github.com/google/certificate-transparency-go).
 
 Using the Code
 --------------
 
-**WARNING**: The Trillian codebase is still under development, and is not yet
-suitable for production use.  Everything here is subject to change without
-notice &ndash; including APIs, database schemas, and code layout.
+**WARNING**: The Trillian codebase is still under development but is now being
+used in production by several organizations. We will try to avoid any
+further incompatible code and schema changes but cannot guarantee that they
+will never be necessary.
 
 To build and test Trillian you need:
 
