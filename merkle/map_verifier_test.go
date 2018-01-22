@@ -22,6 +22,8 @@ import (
 	"github.com/google/trillian/testonly"
 )
 
+var h2b = testonly.MustHexDecode
+
 func TestConiksHasherTestVectors(t *testing.T) {
 	// Test vectors were obtained by copying values from
 	// github.com/google/keytransparency/core/client/kt/verify_test.go
@@ -43,13 +45,21 @@ func TestConiksHasherTestVectors(t *testing.T) {
 			treeID: 9175411803742040796,
 		},
 		{
-			desc:  "One item",
+			desc:  "One item, empty proof",
 			index: []byte{0xb7, 0x57, 0x2d, 0xf6, 0xe1, 0x9, 0x1f, 0xc0, 0x6, 0x9e, 0x4, 0xbf, 0x80, 0x98, 0x75, 0x25, 0xe7, 0x7a, 0xc9, 0xa6, 0xc2, 0x94, 0xd2, 0x8d, 0xb7, 0xf4, 0xe3, 0x60, 0x25, 0x1d, 0x83, 0xbf},
 			proof: append(make([][]byte, 255), []byte{
 				92, 215, 13, 113, 97, 138, 214, 158, 13, 29, 227, 67, 236, 34, 215, 4, 76, 188, 79, 247, 149, 223, 227, 147, 86, 214, 90, 126, 192, 212, 113, 64,
 			}),
 			root:   []byte{0x2c, 0x27, 0x03, 0xe0, 0x34, 0xf4, 0x00, 0x2f, 0x94, 0x1d, 0xfc, 0xea, 0x7a, 0x4e, 0x16, 0x03, 0xee, 0x8b, 0x4e, 0xe3, 0x75, 0xbd, 0xf8, 0x72, 0x5e, 0xb8, 0xaf, 0x04, 0xbf, 0xa3, 0xd1, 0x56},
 			treeID: 2595744899657020594,
+		},
+		{
+			desc:   "One item, exists proof",
+			index:  h2b("6e39bd1b2aec80f29204d63b9aff74b17cc0255b8e9d6a8fc4c069cfefc01ce9"),
+			proof:  make([][]byte, 256),
+			leaf:   h2b("1290010a4030393264343162666564666665666639376261313963653430356165633433383631333766373435376439303234633537663361333439366630303938366538124c080410031a463044022064cf8e276381a5fc993e471e29463dbebf99b7e361a389024a92c3cb0fa1571402200bb9af4bd2e61fa5e2ea46cd1e653ee0f264703293d4ddd6bc88fc2cde5049181a206e39bd1b2aec80f29204d63b9aff74b17cc0255b8e9d6a8fc4c069cfefc01ce932200f30aff51b696d25d423f0d0fa208efe6038d83133cdc58b8d68f9d30e029efc3a5d0a5b3059301306072a8648ce3d020106082a8648ce3d03010703420004fb154e7698647e912d97b385f280b2bd6c37d5d57886719b5c33db74594bd6799aca19eac847d1757365a414f653d857712c6588a235ac7ac02450f1de772db442201b16b1df538ba12dc3f97edbb85caa7050d46c148134290feba80f8236c83db9"),
+			root:   h2b("9986cc7a6ede7443a877cb8b971bb4cf8628ba30f41a002f6eb231fd093bb49f"),
+			treeID: 6099875953263526152,
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
