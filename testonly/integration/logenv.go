@@ -71,7 +71,7 @@ type LogEnv struct {
 	LogOperation    server.LogOperation
 	Sequencer       *server.LogOperationManager
 	sequencerCancel context.CancelFunc
-	clientConn      *grpc.ClientConn
+	ClientConn      *grpc.ClientConn // TODO(gbelvin): Deprecate.
 
 	Address string
 	Log     trillian.TrillianLogClient
@@ -196,7 +196,7 @@ func NewLogEnvWithRegistryAndGRPCOptions(ctx context.Context, numSequencers int,
 		adminServer:     adminServer,
 		logServer:       logServer,
 		Address:         addr,
-		clientConn:      cc,
+		ClientConn:      cc,
 		Log:             trillian.NewTrillianLogClient(cc),
 		Admin:           trillian.NewTrillianAdminClient(cc),
 		PublicKey:       publicKey,
@@ -211,7 +211,7 @@ func (env *LogEnv) Close() {
 	if env.sequencerCancel != nil {
 		env.sequencerCancel()
 	}
-	env.clientConn.Close()
+	env.ClientConn.Close()
 	env.grpcServer.GracefulStop()
 	env.pendingTasks.Wait()
 	if env.DB != nil {
