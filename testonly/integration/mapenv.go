@@ -47,8 +47,8 @@ type MapEnv struct {
 	clientConn *grpc.ClientConn
 
 	// Public fields
-	MapClient   trillian.TrillianMapClient
-	AdminClient trillian.TrillianAdminClient
+	Map   trillian.TrillianMapClient
+	Admin trillian.TrillianAdminClient
 }
 
 // NewMapEnvFromConn connects to a map server.
@@ -59,9 +59,9 @@ func NewMapEnvFromConn(addr string) (*MapEnv, error) {
 	}
 
 	return &MapEnv{
-		clientConn:  cc,
-		MapClient:   trillian.NewTrillianMapClient(cc),
-		AdminClient: trillian.NewTrillianAdminClient(cc),
+		clientConn: cc,
+		Map:        trillian.NewTrillianMapClient(cc),
+		Admin:      trillian.NewTrillianAdminClient(cc),
 	}, nil
 }
 
@@ -122,12 +122,12 @@ func NewMapEnvWithRegistry(registry extension.Registry) (*MapEnv, error) {
 	}
 
 	return &MapEnv{
-		registry:    registry,
-		mapServer:   mapServer,
-		grpcServer:  grpcServer,
-		clientConn:  cc,
-		MapClient:   trillian.NewTrillianMapClient(cc),
-		AdminClient: trillian.NewTrillianAdminClient(cc),
+		registry:   registry,
+		mapServer:  mapServer,
+		grpcServer: grpcServer,
+		clientConn: cc,
+		Map:        trillian.NewTrillianMapClient(cc),
+		Admin:      trillian.NewTrillianAdminClient(cc),
 	}, nil
 }
 
