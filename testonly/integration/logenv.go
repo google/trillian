@@ -71,9 +71,12 @@ type LogEnv struct {
 	LogOperation    server.LogOperation
 	Sequencer       *server.LogOperationManager
 	sequencerCancel context.CancelFunc
-	Address         string
-	ClientConn      *grpc.ClientConn
-	DB              *sql.DB
+	clientConn      *grpc.ClientConn
+
+	Address string
+	Log     trillian.TrillianLogClient
+	Admin   trillian.TrillianAdminClient
+	DB      *sql.DB
 	// PublicKey is the public key that verifies responses from this server.
 	PublicKey crypto.PublicKey
 }
@@ -193,7 +196,9 @@ func NewLogEnvWithRegistryAndGRPCOptions(ctx context.Context, numSequencers int,
 		adminServer:     adminServer,
 		logServer:       logServer,
 		Address:         addr,
-		ClientConn:      cc,
+		clientConn:      cc,
+		Log:             trillian.NewTrillianLogClient(cc),
+		Admin:           trillian.NewTrillianAdminClient(cc),
 		PublicKey:       publicKey,
 		LogOperation:    sequencerManager,
 		Sequencer:       sequencerTask,
@@ -206,7 +211,7 @@ func (env *LogEnv) Close() {
 	if env.sequencerCancel != nil {
 		env.sequencerCancel()
 	}
-	env.ClientConn.Close()
+	env.clientConn.Close()
 	env.grpcServer.GracefulStop()
 	env.pendingTasks.Wait()
 	if env.DB != nil {

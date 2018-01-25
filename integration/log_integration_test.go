@@ -100,9 +100,8 @@ func TestInProcessLogIntegration(t *testing.T) {
 		t.Fatalf("Failed to create log: %v", err)
 	}
 
-	client := trillian.NewTrillianLogClient(env.ClientConn)
 	params := DefaultTestParameters(logID)
-	if err := RunLogIntegration(client, params); err != nil {
+	if err := RunLogIntegration(env.Log, params); err != nil {
 		t.Fatalf("Test failed: %v", err)
 	}
 }
@@ -129,10 +128,9 @@ func TestInProcessLogIntegrationDuplicateLeaves(t *testing.T) {
 		t.Fatalf("Failed to create log: %v", err)
 	}
 
-	client := trillian.NewTrillianLogClient(env.ClientConn)
 	params := DefaultTestParameters(logID)
 	params.uniqueLeaves = 10
-	if err := RunLogIntegration(client, params); err != nil {
+	if err := RunLogIntegration(env.Log, params); err != nil {
 		t.Fatalf("Test failed: %v", err)
 	}
 }

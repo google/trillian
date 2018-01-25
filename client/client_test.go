@@ -56,8 +56,7 @@ func TestGetByIndex(t *testing.T) {
 		t.Fatalf("Failed to create log: %v", err)
 	}
 
-	cli := trillian.NewTrillianLogClient(env.ClientConn)
-	client := New(logID, cli, rfc6962.DefaultHasher, env.PublicKey)
+	client := New(logID, env.Log, rfc6962.DefaultHasher, env.PublicKey)
 	// Add a few test leaves.
 	leafData := [][]byte{
 		[]byte("A"),
@@ -93,8 +92,7 @@ func TestListByIndex(t *testing.T) {
 		t.Fatalf("Failed to create log: %v", err)
 	}
 
-	cli := trillian.NewTrillianLogClient(env.ClientConn)
-	client := New(logID, cli, rfc6962.DefaultHasher, env.PublicKey)
+	client := New(logID, env.Log, rfc6962.DefaultHasher, env.PublicKey)
 	// Add a few test leaves.
 	leafData := [][]byte{
 		[]byte("A"),
@@ -130,8 +128,7 @@ func TestVerifyInclusion(t *testing.T) {
 		t.Fatalf("Failed to create log: %v", err)
 	}
 
-	cli := trillian.NewTrillianLogClient(env.ClientConn)
-	client := New(logID, cli, rfc6962.DefaultHasher, env.PublicKey)
+	client := New(logID, env.Log, rfc6962.DefaultHasher, env.PublicKey)
 	// Add a few test leaves.
 	leafData := [][]byte{
 		[]byte("A"),
@@ -161,8 +158,7 @@ func TestVerifyInclusionAtIndex(t *testing.T) {
 		t.Fatalf("Failed to create log: %v", err)
 	}
 
-	cli := trillian.NewTrillianLogClient(env.ClientConn)
-	client := New(logID, cli, rfc6962.DefaultHasher, env.PublicKey)
+	client := New(logID, env.Log, rfc6962.DefaultHasher, env.PublicKey)
 	// Add a few test leaves.
 	leafData := [][]byte{
 		[]byte("A"),
@@ -192,16 +188,15 @@ func TestWaitForInclusion(t *testing.T) {
 		t.Fatalf("Failed to create log: %v", err)
 	}
 
-	cli := trillian.NewTrillianLogClient(env.ClientConn)
 	for _, test := range []struct {
 		desc    string
 		leaf    []byte
 		client  trillian.TrillianLogClient
 		wantErr bool
 	}{
-		{desc: "First leaf", leaf: []byte("A"), client: cli},
-		{desc: "Make TreeSize > 1", leaf: []byte("B"), client: cli},
-		{desc: "invalid inclusion proof", leaf: []byte("A"), client: &MockLogClient{c: cli, mGetInclusionProof: true}, wantErr: true},
+		{desc: "First leaf", leaf: []byte("A"), client: env.Log},
+		{desc: "Make TreeSize > 1", leaf: []byte("B"), client: env.Log},
+		{desc: "invalid inclusion proof", leaf: []byte("A"), client: &MockLogClient{c: env.Log, mGetInclusionProof: true}, wantErr: true},
 	} {
 		client := New(logID, test.client, rfc6962.DefaultHasher, env.PublicKey)
 		if err := client.QueueLeaf(ctx, test.leaf); err != nil {
@@ -226,8 +221,7 @@ func TestUpdateRoot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create log: %v", err)
 	}
-	cli := trillian.NewTrillianLogClient(env.ClientConn)
-	client := New(logID, cli, rfc6962.DefaultHasher, env.PublicKey)
+	client := New(logID, env.Log, rfc6962.DefaultHasher, env.PublicKey)
 
 	before := client.Root().TreeSize
 

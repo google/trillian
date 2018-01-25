@@ -50,7 +50,7 @@ func TestMapIntegration(t *testing.T) {
 
 	for _, test := range AllTests {
 		t.Run(test.Name, func(t *testing.T) {
-			test.Fn(ctx, t, env.AdminClient, env.MapClient)
+			test.Fn(ctx, t, env.Admin, env.Map)
 		})
 	}
 }
