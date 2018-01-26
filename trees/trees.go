@@ -73,7 +73,7 @@ func GetTree(ctx context.Context, s storage.AdminStorage, treeID int64, opts Get
 	case opts.TreeType != trillian.TreeType_UNKNOWN_TREE_TYPE && tree.TreeType != opts.TreeType:
 		return nil, errors.Errorf(errors.InvalidArgument, "operation not allowed for %s-type trees (wanted %s-type)", tree.TreeType, opts.TreeType)
 	case tree.TreeState == trillian.TreeState_FROZEN && !opts.Readonly:
-		return nil, errors.Errorf(errors.FailedPrecondition, "operation not allowed on %s trees", tree.TreeState)
+		return nil, errors.Errorf(errors.PermissionDenied, "operation not allowed on %s trees", tree.TreeState)
 	case tree.Deleted:
 		return nil, errors.Errorf(errors.NotFound, "tree %v not found", tree.TreeId)
 	}
