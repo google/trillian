@@ -36,6 +36,7 @@ import (
 	"github.com/kylelemons/godebug/pretty"
 
 	tcrypto "github.com/google/trillian/crypto"
+	terrors "github.com/google/trillian/errors"
 )
 
 func TestFromContext(t *testing.T) {
@@ -83,6 +84,7 @@ func TestGetTree(t *testing.T) {
 		ctxTree, storageTree, wantTree *trillian.Tree
 		beginErr, getErr, commitErr    error
 		wantErr                        bool
+		code                           terrors.Code
 	}{
 		{
 			desc:        "logTree",
@@ -104,6 +106,7 @@ func TestGetTree(t *testing.T) {
 			opts:        GetOpts{TreeType: trillian.TreeType_MAP},
 			storageTree: &logTree,
 			wantErr:     true,
+			code:        terrors.InvalidArgument,
 		},
 		{
 			desc:        "wrongType2",
@@ -111,6 +114,7 @@ func TestGetTree(t *testing.T) {
 			opts:        GetOpts{TreeType: trillian.TreeType_LOG},
 			storageTree: &mapTree,
 			wantErr:     true,
+			code:        terrors.InvalidArgument,
 		},
 		{
 			desc:        "frozenTree",
@@ -125,6 +129,7 @@ func TestGetTree(t *testing.T) {
 			opts:        GetOpts{TreeType: trillian.TreeType_LOG},
 			storageTree: &frozenTree,
 			wantErr:     true,
+			code:        terrors.PermissionDenied,
 		},
 		{
 			desc:        "softDeleted",
@@ -132,6 +137,7 @@ func TestGetTree(t *testing.T) {
 			opts:        GetOpts{TreeType: trillian.TreeType_LOG},
 			storageTree: &softDeletedTree,
 			wantErr:     true, // Deleted = true makes the tree "invisible" for most RPCs
+			code:        terrors.NotFound,
 		},
 		{
 			desc:     "treeInCtx",
@@ -154,6 +160,7 @@ func TestGetTree(t *testing.T) {
 			opts:     GetOpts{TreeType: trillian.TreeType_LOG},
 			beginErr: errors.New("begin err"),
 			wantErr:  true,
+			code:     terrors.Unknown,
 		},
 		{
 			desc:    "getErr",
@@ -161,6 +168,7 @@ func TestGetTree(t *testing.T) {
 			opts:    GetOpts{TreeType: trillian.TreeType_LOG},
 			getErr:  errors.New("get err"),
 			wantErr: true,
+			code:    terrors.Unknown,
 		},
 		{
 			desc:      "commitErr",
@@ -168,6 +176,7 @@ func TestGetTree(t *testing.T) {
 			opts:      GetOpts{TreeType: trillian.TreeType_LOG},
 			commitErr: errors.New("commit err"),
 			wantErr:   true,
+			code:      terrors.Unknown,
 		},
 	}
 
@@ -189,6 +198,9 @@ func TestGetTree(t *testing.T) {
 			t.Errorf("%v: GetTree() = (_, %q), wantErr = %v", test.desc, err, test.wantErr)
 			continue
 		} else if hasErr {
+			if terrors.ErrorCode(err) != test.code {
+				t.Errorf("%v: GetTree() = (_, %q), got ErrorCode: %v, want: %v", test.desc, err, terrors.ErrorCode(err), test.code)
+			}
 			continue
 		}
 
