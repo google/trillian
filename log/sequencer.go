@@ -288,130 +288,162 @@ func (s logSequencingTask) update(ctx context.Context, leaves []*trillian.LogLea
 // leaves and integrate them into the tree.
 func (s Sequencer) IntegrateBatch(ctx context.Context, logID int64, limit int, guardWindow, maxRootDurationInterval time.Duration) (int, error) {
 	start := s.timeSource.Now()
-	stageStart := start
 	label := strconv.FormatInt(logID, 10)
-	tx, err := s.logStorage.BeginForTree(ctx, logID)
-	if err != nil {
-		glog.Warningf("%v: Sequencer failed to start tx: %v", logID, err)
-		return 0, err
-	}
-	defer tx.Close()
-	defer seqBatches.Inc(label)
-	defer func() { seqLatency.Observe(util.SecondsSince(s.timeSource, start), label) }()
 
-	// Get the latest known root from storage.
-	currentRoot, err := tx.LatestSignedLogRoot(ctx)
-	if err != nil {
-		glog.Warningf("%v: Sequencer failed to get latest root: %v", logID, err)
-		return 0, err
-	}
-	seqGetRootLatency.Observe(util.SecondsSince(s.timeSource, stageStart), label)
+	numLeaves := 0
+	var newLogRoot *trillian.SignedLogRoot
+	err := s.logStorage.ReadWriteTransaction(ctx, logID, func(ctx context.Context, tx storage.LogTreeTX) error {
+		defer seqBatches.Inc(label)
+		defer func() { seqLatency.Observe(util.SecondsSince(s.timeSource, start), label) }()
 
-	if currentRoot.RootHash == nil {
-		glog.Warningf("%v: Fresh log - no previous TreeHeads exist.", logID)
-		return 0, storage.ErrTreeNeedsInit
-	}
-
-	var st sequencingTask = logSequencingTask{
-		label:      label,
-		treeSize:   currentRoot.TreeSize,
-		timeSource: s.timeSource,
-		dequeuer:   tx,
-	}
-	sequencedLeaves, err := st.fetch(ctx, limit, start.Add(-guardWindow))
-	if err != nil {
-		glog.Warningf("%v: Sequencer failed to load sequenced batch: %v", logID, err)
-		return 0, err
-	}
-	numLeaves := len(sequencedLeaves)
-
-	// We need to create a signed root if entries were added or the latest root
-	// is too old.
-	if numLeaves == 0 {
-		nowNanos := s.timeSource.Now().UnixNano()
-		interval := time.Duration(nowNanos - currentRoot.TimestampNanos)
-		if maxRootDurationInterval == 0 || interval < maxRootDurationInterval {
-			// We have nothing to integrate into the tree.
-			glog.V(1).Infof("%v: No leaves sequenced in this signing operation", logID)
-			return 0, tx.Commit()
+		// Very recent leaves inside the guard window will not be available for sequencing
+		guardCutoffTime := s.timeSource.Now().Add(-guardWindow)
+		leaves, err := tx.DequeueLeaves(ctx, limit, guardCutoffTime)
+		if err != nil {
+			glog.Warningf("%v: Sequencer failed to dequeue leaves: %v", logID, err)
+			return err
 		}
-		glog.Infof("%v: Force new root generation as %v since last root", logID, interval)
-	}
+		seqDequeueLatency.Observe(util.SecondsSince(s.timeSource, stageStart), label)
+		stageStart = s.timeSource.Now()
 
-	stageStart = s.timeSource.Now()
-	merkleTree, err := s.initMerkleTreeFromStorage(ctx, currentRoot, tx)
+		// Get the latest known root from storage
+		currentRoot, err := tx.LatestSignedLogRoot(ctx)
+		if err != nil {
+			glog.Warningf("%v: Sequencer failed to get latest root: %v", logID, err)
+			return err
+		}
+		if currentRoot.RootHash == nil {
+			glog.Warningf("%v: Fresh log - no previous TreeHeads exist.", logID)
+			return storage.ErrTreeNeedsInit
+		}
+		seqGetRootLatency.Observe(util.SecondsSince(s.timeSource, stageStart), label)
+		stageStart = s.timeSource.Now()
+
+		var st sequencingTask = logSequencingTask{
+			label:      label,
+			treeSize:   currentRoot.TreeSize,
+			timeSource: s.timeSource,
+			dequeuer:   tx,
+		}
+		sequencedLeaves, err := st.fetch(ctx, limit, start.Add(-guardWindow))
+		if err != nil {
+			glog.Warningf("%v: Sequencer failed to load sequenced batch: %v", logID, err)
+			return 0, err
+		}
+		numLeaves := len(sequencedLeaves)
+
+		// We need to create a signed root if entries were added or the latest root
+		// is too old.
+		if numLeaves == 0 {
+			nowNanos := s.timeSource.Now().UnixNano()
+			interval := time.Duration(nowNanos - currentRoot.TimestampNanos)
+			if maxRootDurationInterval == 0 || interval < maxRootDurationInterval {
+				// We have nothing to integrate into the tree.
+				glog.V(1).Infof("%v: No leaves sequenced in this signing operation", logID)
+				return 0, tx.Commit()
+			}
+		}
+
+		stageStart = s.timeSource.Now()
+		merkleTree, err := s.initMerkleTreeFromStorage(ctx, currentRoot, tx)
+		if err != nil {
+			return 0, err
+		}
+		seqInitTreeLatency.Observe(util.SecondsSince(s.timeSource, stageStart), label)
+		stageStart = s.timeSource.Now()
+
+		// We've done all the reads, can now do the updates in the same transaction.
+		// The schema should prevent multiple STHs being inserted with the same
+		// revision number so it should not be possible for colliding updates to
+		// commit.
+		newVersion := tx.WriteRevision()
+		if got, want := newVersion, currentRoot.TreeRevision+int64(1); got != want {
+			return 0, fmt.Errorf("%v: got writeRevision of %v, but expected %v", logID, got, want)
+		}
+
+		// Collate node updates.
+		nodeMap, err := s.updateCompactTree(merkleTree, sequencedLeaves, label)
+		if err != nil {
+			return 0, err
+		}
+		seqWriteTreeLatency.Observe(util.SecondsSince(s.timeSource, stageStart), label)
+
+		// Store the sequenced batch.
+		if err := st.update(ctx, sequencedLeaves); err != nil {
+			return 0, err
+		}
+		stageStart = s.timeSource.Now()
+
+		// Build objects for the nodes to be updated. Because we deduped via the map
+		// each node can only be created / updated once in each tree revision and
+		// they cannot conflict when we do the storage update.
+		targetNodes, err := s.buildNodesFromNodeMap(nodeMap, newVersion)
+		if err != nil {
+			// Probably an internal error with map building, unexpected.
+			glog.Warningf("%v: Failed to build target nodes in sequencer: %v", logID, err)
+			return 0, err
+		}
+
+		// Now insert or update the nodes affected by the above, at the new tree
+		// version.
+		if err := tx.SetMerkleNodes(ctx, targetNodes); err != nil {
+			glog.Warningf("%v: Sequencer failed to set Merkle nodes: %v", logID, err)
+			return 0, err
+		}
+		seqSetNodesLatency.Observe(util.SecondsSince(s.timeSource, stageStart), label)
+		stageStart = s.timeSource.Now()
+
+		// Create the log root ready for signing
+		seqTreeSize.Set(float64(merkleTree.Size()), label)
+		newLogRoot := &trillian.SignedLogRoot{
+			RootHash:       merkleTree.CurrentRoot(),
+			TimestampNanos: s.timeSource.Now().UnixNano(),
+			TreeSize:       merkleTree.Size(),
+			LogId:          currentRoot.LogId,
+			TreeRevision:   newVersion,
+		}
+		sig, err := s.signer.SignLogRoot(newLogRoot)
+		if err != nil {
+			glog.Warningf("%v: signer failed to sign root: %v", logID, err)
+			return 0, err
+		}
+		newLogRoot.Signature = sig
+
+		// Now insert or update the nodes affected by the above, at the new tree version
+		if err := tx.SetMerkleNodes(ctx, targetNodes); err != nil {
+			glog.Warningf("%v: Sequencer failed to set Merkle nodes: %v", logID, err)
+			return err
+		}
+		seqSetNodesLatency.Observe(util.SecondsSince(s.timeSource, stageStart), label)
+		stageStart = s.timeSource.Now()
+
+		// Create the log root ready for signing
+		seqTreeSize.Set(float64(merkleTree.Size()), label)
+		newLogRoot = &trillian.SignedLogRoot{
+			RootHash:       merkleTree.CurrentRoot(),
+			TimestampNanos: s.timeSource.Now().UnixNano(),
+			TreeSize:       merkleTree.Size(),
+			LogId:          currentRoot.LogId,
+			TreeRevision:   newVersion,
+		}
+		sig, err := s.signer.SignLogRoot(newLogRoot)
+		if err != nil {
+			glog.Warningf("%v: signer failed to sign root: %v", logID, err)
+			return err
+		}
+		newLogRoot.Signature = sig
+
+		if err := tx.StoreSignedLogRoot(ctx, *newLogRoot); err != nil {
+			glog.Warningf("%v: failed to write updated tree root: %v", logID, err)
+			return err
+		}
+		seqStoreRootLatency.Observe(util.SecondsSince(s.timeSource, stageStart), label)
+		stageStart = s.timeSource.Now()
+
+		// The batch is now fully sequenced and we're done
+		return tx.Commit()
+	})
 	if err != nil {
-		return 0, err
-	}
-	seqInitTreeLatency.Observe(util.SecondsSince(s.timeSource, stageStart), label)
-	stageStart = s.timeSource.Now()
-
-	// We've done all the reads, can now do the updates in the same transaction.
-	// The schema should prevent multiple STHs being inserted with the same
-	// revision number so it should not be possible for colliding updates to
-	// commit.
-	newVersion := tx.WriteRevision()
-	if got, want := newVersion, currentRoot.TreeRevision+int64(1); got != want {
-		return 0, fmt.Errorf("%v: got writeRevision of %v, but expected %v", logID, got, want)
-	}
-
-	// Collate node updates.
-	nodeMap, err := s.updateCompactTree(merkleTree, sequencedLeaves, label)
-	if err != nil {
-		return 0, err
-	}
-	seqWriteTreeLatency.Observe(util.SecondsSince(s.timeSource, stageStart), label)
-
-	// Store the sequenced batch.
-	if err := st.update(ctx, sequencedLeaves); err != nil {
-		return 0, err
-	}
-	stageStart = s.timeSource.Now()
-
-	// Build objects for the nodes to be updated. Because we deduped via the map
-	// each node can only be created / updated once in each tree revision and
-	// they cannot conflict when we do the storage update.
-	targetNodes, err := s.buildNodesFromNodeMap(nodeMap, newVersion)
-	if err != nil {
-		// Probably an internal error with map building, unexpected.
-		glog.Warningf("%v: Failed to build target nodes in sequencer: %v", logID, err)
-		return 0, err
-	}
-
-	// Now insert or update the nodes affected by the above, at the new tree
-	// version.
-	if err := tx.SetMerkleNodes(ctx, targetNodes); err != nil {
-		glog.Warningf("%v: Sequencer failed to set Merkle nodes: %v", logID, err)
-		return 0, err
-	}
-	seqSetNodesLatency.Observe(util.SecondsSince(s.timeSource, stageStart), label)
-	stageStart = s.timeSource.Now()
-
-	// Create the log root ready for signing
-	seqTreeSize.Set(float64(merkleTree.Size()), label)
-	newLogRoot := &trillian.SignedLogRoot{
-		RootHash:       merkleTree.CurrentRoot(),
-		TimestampNanos: s.timeSource.Now().UnixNano(),
-		TreeSize:       merkleTree.Size(),
-		LogId:          currentRoot.LogId,
-		TreeRevision:   newVersion,
-	}
-	sig, err := s.signer.SignLogRoot(newLogRoot)
-	if err != nil {
-		glog.Warningf("%v: signer failed to sign root: %v", logID, err)
-		return 0, err
-	}
-	newLogRoot.Signature = sig
-
-	if err := tx.StoreSignedLogRoot(ctx, *newLogRoot); err != nil {
-		glog.Warningf("%v: failed to write updated tree root: %v", logID, err)
-		return 0, err
-	}
-	seqStoreRootLatency.Observe(util.SecondsSince(s.timeSource, stageStart), label)
-	stageStart = s.timeSource.Now()
-
-	// The batch is now fully sequenced and we're done
-	if err := tx.Commit(); err != nil {
 		return 0, err
 	}
 	seqCommitLatency.Observe(util.SecondsSince(s.timeSource, stageStart), label)
@@ -439,52 +471,51 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, logID int64, limit int, g
 	}
 
 	seqCounter.Add(float64(numLeaves), label)
-	glog.Infof("%v: sequenced %v leaves, size %v, tree-revision %v", logID, numLeaves, newLogRoot.TreeSize, newLogRoot.TreeRevision)
+	if newLogRoot != nil {
+		glog.Infof("%v: sequenced %v leaves, size %v, tree-revision %v", logID, numLeaves, newLogRoot.TreeSize, newLogRoot.TreeRevision)
+	} else {
+		glog.Info("newLogRoot = nil")
+	}
 	return numLeaves, nil
 }
 
 // SignRoot wraps up all the operations for creating a new log signed root.
 func (s Sequencer) SignRoot(ctx context.Context, logID int64) error {
-	tx, err := s.logStorage.BeginForTree(ctx, logID)
-	if err != nil {
-		glog.Warningf("%v: signer failed to start tx: %v", logID, err)
-		return err
-	}
-	defer tx.Close()
+	return s.logStorage.ReadWriteTransaction(ctx, logID, func(ctx context.Context, tx storage.LogTreeTX) error {
+		// Get the latest known root from storage
+		currentRoot, err := tx.LatestSignedLogRoot(ctx)
+		if err != nil {
+			glog.Warningf("%v: signer failed to get latest root: %v", logID, err)
+			return err
+		}
 
-	// Get the latest known root from storage
-	currentRoot, err := tx.LatestSignedLogRoot(ctx)
-	if err != nil {
-		glog.Warningf("%v: signer failed to get latest root: %v", logID, err)
-		return err
-	}
+		// Initialize a Merkle Tree from the state in storage. This should fail if the tree is
+		// in a corrupt state.
+		merkleTree, err := s.initMerkleTreeFromStorage(ctx, currentRoot, tx)
+		if err != nil {
+			return err
+		}
+		newLogRoot := &trillian.SignedLogRoot{
+			RootHash:       merkleTree.CurrentRoot(),
+			TimestampNanos: s.timeSource.Now().UnixNano(),
+			TreeSize:       merkleTree.Size(),
+			LogId:          currentRoot.LogId,
+			TreeRevision:   currentRoot.TreeRevision + 1,
+		}
+		sig, err := s.signer.SignLogRoot(newLogRoot)
+		if err != nil {
+			glog.Warningf("%v: signer failed to sign root: %v", logID, err)
+			return err
+		}
+		newLogRoot.Signature = sig
 
-	// Initialize a Merkle Tree from the state in storage. This should fail if the tree is
-	// in a corrupt state.
-	merkleTree, err := s.initMerkleTreeFromStorage(ctx, currentRoot, tx)
-	if err != nil {
-		return err
-	}
-	newLogRoot := &trillian.SignedLogRoot{
-		RootHash:       merkleTree.CurrentRoot(),
-		TimestampNanos: s.timeSource.Now().UnixNano(),
-		TreeSize:       merkleTree.Size(),
-		LogId:          currentRoot.LogId,
-		TreeRevision:   currentRoot.TreeRevision + 1,
-	}
-	sig, err := s.signer.SignLogRoot(newLogRoot)
-	if err != nil {
-		glog.Warningf("%v: signer failed to sign root: %v", logID, err)
-		return err
-	}
-	newLogRoot.Signature = sig
+		// Store the new root and we're done
+		if err := tx.StoreSignedLogRoot(ctx, *newLogRoot); err != nil {
+			glog.Warningf("%v: signer failed to write updated root: %v", logID, err)
+			return err
+		}
+		glog.V(2).Infof("%v: new signed root, size %v, tree-revision %v", logID, newLogRoot.TreeSize, newLogRoot.TreeRevision)
 
-	// Store the new root and we're done
-	if err := tx.StoreSignedLogRoot(ctx, *newLogRoot); err != nil {
-		glog.Warningf("%v: signer failed to write updated root: %v", logID, err)
-		return err
-	}
-	glog.V(2).Infof("%v: new signed root, size %v, tree-revision %v", logID, newLogRoot.TreeSize, newLogRoot.TreeRevision)
-
-	return tx.Commit()
+		return tx.Commit()
+	})
 }
