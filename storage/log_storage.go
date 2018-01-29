@@ -112,6 +112,12 @@ type LogStorage interface {
 	// the returned object, and values read through it should only be propagated
 	// if Commit returns without error.
 	BeginForTree(ctx context.Context, treeID int64) (LogTreeTX, error)
+
+	// ReadWriteTransaction starts a RW transaction on the underlying storage, and
+	// calls f with it.
+	// If f fails and returns an error, the storage implementation may optionally
+	// retry with a new transaction, and f MUST NOT keep state across calls.
+	ReadWriteTransaction(ctx context.Context, treeID int64, f func(ctx context.Context, tx LogTreeTX) error) error
 }
 
 // CountByLogID is a map of total number of items keyed by log ID.
