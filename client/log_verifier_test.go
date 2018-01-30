@@ -36,12 +36,12 @@ func TestVerifyRootErrors(t *testing.T) {
 		t.Fatalf("Failed to load public key, err=%v", err)
 	}
 
-	signedRoot := trillian.SignedLogRoot{}
-	hash, err := tcrypto.HashLogRoot(signedRoot)
+	signedRoot := &trillian.SignedLogRoot{}
+	canonical, err := tcrypto.CanonicalLogRoot(signedRoot, tcrypto.LogRootV0)
 	if err != nil {
-		t.Fatalf("HashLogRoot(): %v", err)
+		t.Fatalf("CanonicalLogRoot(): %v", err)
 	}
-	signature, err := signer.Sign(hash)
+	signature, err := signer.Sign(canonical)
 	if err != nil {
 		t.Fatal("Failed to create test signature")
 	}
@@ -52,8 +52,8 @@ func TestVerifyRootErrors(t *testing.T) {
 		desc             string
 		trusted, newRoot *trillian.SignedLogRoot
 	}{
-		{desc: "newRootNil", trusted: &signedRoot, newRoot: nil},
-		{desc: "trustedNil", trusted: nil, newRoot: &signedRoot},
+		{desc: "newRootNil", trusted: signedRoot, newRoot: nil},
+		{desc: "trustedNil", trusted: nil, newRoot: signedRoot},
 	}
 	for _, test := range tests {
 		logVerifier := NewLogVerifier(rfc6962.DefaultHasher, pk)

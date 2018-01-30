@@ -15,11 +15,9 @@
 package crypto
 
 import (
-	"encoding/json"
 	"errors"
 	"testing"
 
-	"github.com/benlaurie/objecthash/go/objecthash"
 	"github.com/golang/mock/gomock"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys/pem"
@@ -27,7 +25,9 @@ import (
 	"github.com/google/trillian/testonly"
 )
 
-const message string = "testing"
+const message = "testing"
+
+var rootHash = []byte("abcdefghijklmnopqurstuvwxyz012345") // 32 byte value
 
 func TestSign(t *testing.T) {
 	key, err := pem.UnmarshalPrivateKey(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
@@ -89,10 +89,14 @@ func TestSignWithSignedLogRoot_SignerFails(t *testing.T) {
 	}
 
 	s := testonly.NewSignerWithErr(key, errors.New("signfail"))
-	root := trillian.SignedLogRoot{TimestampNanos: 2267709, RootHash: []byte("Islington"), TreeSize: 2}
-	hash, err := HashLogRoot(root)
+	root := &trillian.SignedLogRoot{
+		TimestampNanos: 2267709,
+		RootHash:       rootHash,
+		TreeSize:       2,
+	}
+	hash, err := CanonicalLogRoot(root, LogRootV0)
 	if err != nil {
-		t.Fatalf("HashLogRoot(): %v", err)
+		t.Fatalf("CanonicalLogRoot(): %v", err)
 	}
 	_, err = NewSHA256Signer(s).Sign(hash)
 	testonly.EnsureErrorContains(t, err, "signfail")
@@ -106,11 +110,15 @@ func TestSignLogRoot(t *testing.T) {
 	signer := NewSHA256Signer(key)
 
 	for _, test := range []struct {
-		root trillian.SignedLogRoot
+		root *trillian.SignedLogRoot
 	}{
-		{root: trillian.SignedLogRoot{TimestampNanos: 2267709, RootHash: []byte("Islington"), TreeSize: 2}},
+		{root: &trillian.SignedLogRoot{
+			TimestampNanos: 2267709,
+			RootHash:       rootHash,
+			TreeSize:       2,
+		}},
 	} {
-		sig, err := signer.SignLogRoot(&test.root)
+		sig, err := signer.SignLogRoot(test.root)
 		if err != nil {
 			t.Errorf("Failed to sign log root: %v", err)
 			continue
@@ -125,9 +133,9 @@ func TestSignLogRoot(t *testing.T) {
 			t.Errorf("Sig alg incorrect, got %s expected %s", got, want)
 		}
 		// Check that the signature is correct
-		obj, err := HashLogRoot(test.root)
+		obj, err := CanonicalLogRoot(test.root, LogRootV0)
 		if err != nil {
-			t.Errorf("HashLogRoot err: got %v want nil", err)
+			t.Errorf("CanonicalLogRoot err: got %v want nil", err)
 			continue
 		}
 
@@ -145,11 +153,15 @@ func TestSignMapRoot(t *testing.T) {
 	signer := NewSHA256Signer(key)
 
 	for _, test := range []struct {
-		root trillian.SignedMapRoot
+		root *trillian.SignedMapRoot
 	}{
-		{root: trillian.SignedMapRoot{TimestampNanos: 2267709, RootHash: []byte("Islington"), MapRevision: 3}},
+		{root: &trillian.SignedMapRoot{
+			TimestampNanos: 2267709,
+			RootHash:       rootHash,
+			MapRevision:    3,
+		}},
 	} {
-		sig, err := signer.SignMapRoot(&test.root)
+		sig, err := signer.SignMapRoot(test.root)
 		if err != nil {
 			t.Errorf("Failed to sign map root: %v", err)
 			continue
@@ -164,17 +176,11 @@ func TestSignMapRoot(t *testing.T) {
 			t.Errorf("Sig alg incorrect, got %s expected %s", got, want)
 		}
 		// Check that the signature is correct
-		j, err := json.Marshal(test.root)
+		canonical, err := CanonicalMapRoot(test.root, MapRootV0)
 		if err != nil {
-			t.Errorf("json.Marshal err: %v want nil", err)
-			continue
+			t.Errorf("CanonicalMapRoot(): %v", err)
 		}
-		hash, err := objecthash.CommonJSONHash(string(j))
-		if err != nil {
-			t.Errorf("objecthash.CommonJSONHash err: %v want nil", err)
-			continue
-		}
-		if err := Verify(key.Public(), hash[:], sig); err != nil {
+		if err := Verify(key.Public(), canonical, sig); err != nil {
 			t.Errorf("Verify(%v) failed: %v", test.root, err)
 		}
 	}

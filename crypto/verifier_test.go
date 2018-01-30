@@ -17,11 +17,12 @@ package crypto
 import (
 	"testing"
 
-	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/examples/ct/ctmapper/ctmapperpb"
 	"github.com/google/trillian/testonly"
+
+	pb "github.com/google/trillian"
 )
 
 const (
@@ -84,52 +85,40 @@ func TestSignVerify(t *testing.T) {
 	}
 }
 
-func TestSignVerifyObject(t *testing.T) {
+func TestSignVerifyMapRoot(t *testing.T) {
 	key, err := pem.UnmarshalPrivateKey(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
 	if err != nil {
 		t.Fatalf("Failed to open test key, err=%v", err)
 	}
 	signer := NewSHA256Signer(key)
 
-	type subfield struct {
-		c int
-	}
-
 	meta := testonly.MustMarshalAny(t, &ctmapperpb.MapperMetadata{})
 	meta0 := testonly.MustMarshalAny(t, &ctmapperpb.MapperMetadata{HighestFullyCompletedSeq: 0})
 	meta1 := testonly.MustMarshalAny(t, &ctmapperpb.MapperMetadata{HighestFullyCompletedSeq: 1})
 
 	for _, tc := range []struct {
-		obj interface{}
+		obj *pb.SignedMapRoot
 	}{
-		{meta},
-		{meta0},
-		{meta1},
 
-		{&trillian.SignedMapRoot{}},
-		{&trillian.SignedMapRoot{
-			MapId: 0xcafe,
-		}},
-		{&trillian.SignedMapRoot{Metadata: meta}},
-		{&trillian.SignedMapRoot{Metadata: meta0}},
-		{&trillian.SignedMapRoot{Metadata: meta1}},
-		{struct{ a string }{a: "foo"}},
-		{struct {
-			a int
-			b *subfield
-		}{a: 1, b: &subfield{c: 0}}},
-		{struct {
-			a int
-			b *subfield
-		}{a: 1, b: nil}},
+		{obj: &pb.SignedMapRoot{}},
+		{obj: &pb.SignedMapRoot{MapId: 0xcafe}},
+		{obj: &pb.SignedMapRoot{Metadata: meta}},
+		{obj: &pb.SignedMapRoot{Metadata: meta0}},
+		{obj: &pb.SignedMapRoot{Metadata: meta1}},
 	} {
-		sig, err := signer.SignObject(tc.obj)
+		canonical, err := CanonicalMapRoot(tc.obj, MapRootV0)
+		if err != nil {
+			t.Errorf("CanonicalMapRoot(%#v): %v", tc.obj, err)
+			continue
+		}
+
+		sig, err := signer.Sign(canonical)
 		if err != nil {
 			t.Errorf("SignObject(%#v): %v", tc.obj, err)
 			continue
 		}
-		if err := VerifyObject(key.Public(), tc.obj, sig); err != nil {
-			t.Errorf("SignObject(%#v): %v", tc.obj, err)
+		if err := Verify(key.Public(), canonical, sig); err != nil {
+			t.Errorf("Verify(%#v): %v", tc.obj, err)
 		}
 	}
 }
