@@ -30,7 +30,6 @@ import (
 var server = flag.String("map_rpc_server", "", "Server address:port")
 
 func TestMapIntegration(t *testing.T) {
-	flag.Parse()
 
 	ctx := context.Background()
 	var env *integration.MapEnv
