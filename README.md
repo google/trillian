@@ -166,7 +166,12 @@ the original files; if you do, you'll need to install the prerequisites:
 
     ```bash
     git clone https://github.com/googleapis/googleapis.git $GOPATH/src/github.com/googleapis/googleapis
+    git clone https://github.com/google/protobuf.git ${GOPATH}/src/github.com/google/protobuf
     ```
+
+ ```bash
+ ```
+
 
 and run the following:
 
