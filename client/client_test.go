@@ -223,13 +223,14 @@ func TestUpdateRoot(t *testing.T) {
 	}
 	client := New(logID, env.Log, rfc6962.DefaultHasher, env.PublicKey)
 
-	before := client.Root().TreeSize
+	before := client.root.TreeSize
 
 	// UpdateRoot should succeed with no change.
-	if err := client.UpdateRoot(ctx); err != nil {
-		t.Error(err)
+	root, err := client.UpdateRoot(ctx)
+	if err != nil {
+		t.Fatalf("UpdateRoot(): %v", err)
 	}
-	if got, want := client.Root().TreeSize, before; got != want {
+	if got, want := root.TreeSize, before; got != want {
 		t.Errorf("Tree size changed unexpectedly: %v, want %v", got, want)
 	}
 
@@ -241,10 +242,11 @@ func TestUpdateRoot(t *testing.T) {
 	env.Sequencer.OperationSingle(ctx)
 
 	// UpdateRoot should see a change.
-	if err := client.UpdateRoot(ctx); err != nil {
-		t.Errorf("UpdateRoot(): %v", err)
+	root, err = client.UpdateRoot(ctx)
+	if err != nil {
+		t.Fatalf("UpdateRoot(): %v", err)
 	}
-	if got, want := client.Root().TreeSize, before; got <= want {
+	if got, want := root.TreeSize, before; got <= want {
 		t.Errorf("Tree size after add Leaf: %v, want > %v", got, want)
 	}
 }
