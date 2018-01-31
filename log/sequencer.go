@@ -253,7 +253,7 @@ type logSequencingTask struct {
 	label      string
 	treeSize   int64
 	timeSource util.TimeSource
-	dequeuer   storage.LeafDequeuer
+	tx         storage.LogTreeTX
 }
 
 func (s logSequencingTask) fetch(ctx context.Context, limit int, cutoff time.Time) ([]*trillian.LogLeaf, error) {
@@ -276,7 +276,7 @@ func (s logSequencingTask) fetch(ctx context.Context, limit int, cutoff time.Tim
 func (s logSequencingTask) update(ctx context.Context, leaves []*trillian.LogLeaf) error {
 	start := s.timeSource.Now()
 	// Write the new sequence numbers to the leaves in the DB.
-	if err := s.dequeuer.UpdateSequencedLeaves(ctx, leaves); err != nil {
+	if err := s.tx.UpdateSequencedLeaves(ctx, leaves); err != nil {
 		glog.Warningf("%v: Sequencer failed to update sequenced leaves: %v", s.label, err)
 		return err
 	}
@@ -316,7 +316,7 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, logID int64, limit int, g
 		label:      label,
 		treeSize:   currentRoot.TreeSize,
 		timeSource: s.timeSource,
-		dequeuer:   tx,
+		tx:         tx,
 	}
 	sequencedLeaves, err := st.fetch(ctx, limit, start.Add(-guardWindow))
 	if err != nil {
