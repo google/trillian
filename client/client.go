@@ -109,9 +109,9 @@ func (c *LogClient) ListByIndex(ctx context.Context, start, count int64) ([]*tri
 	return resp.Leaves, nil
 }
 
-// waitForRootUpdate repeatedly fetches the Root until the TreeSize changes
+// WaitForRootUpdate repeatedly fetches the Root until the TreeSize changes
 // or until ctx times out.
-func (c *LogClient) waitForRootUpdate(ctx context.Context) error {
+func (c *LogClient) WaitForRootUpdate(ctx context.Context) error {
 	b := &backoff.Backoff{
 		Min:    100 * time.Millisecond,
 		Max:    10 * time.Second,
@@ -120,18 +120,24 @@ func (c *LogClient) waitForRootUpdate(ctx context.Context) error {
 	}
 	startTreeSize := c.root.TreeSize
 	for i := 0; ; i++ {
-		if err := c.UpdateRoot(ctx); err != nil {
+		err := c.UpdateRoot(ctx)
+		switch x := status.Code(err); x {
+		case codes.OK:
+			if c.root.TreeSize > startTreeSize {
+				return nil
+			}
+		case codes.Unavailable: // Retry.
+		default:
 			return err
 		}
-		if c.root.TreeSize > startTreeSize {
-			return nil
-		}
-		if err := ctx.Err(); err != nil {
+
+		select {
+		case <-ctx.Done():
 			return status.Errorf(codes.DeadlineExceeded,
-				"%v. TreeSize: %v, want > %v. Tried %v times.",
-				err, c.root.TreeSize, startTreeSize, i+1)
+				"%v. TreeSize: %v, want > %v. Tried %v times: %v",
+				err, c.root.TreeSize, startTreeSize, i+1, ctx.Err())
+		case <-time.After(b.Duration()):
 		}
-		time.Sleep(b.Duration())
 	}
 }
 
@@ -192,7 +198,7 @@ func (c *LogClient) WaitForInclusion(ctx context.Context, data []byte) error {
 	if c.root.TreeSize == 0 {
 		// If the TreeSize is 0, wait for something to be in the log.
 		// It is illegal to ask for an inclusion proof with TreeSize = 0.
-		if err := c.waitForRootUpdate(ctx); err != nil {
+		if err := c.WaitForRootUpdate(ctx); err != nil {
 			return err
 		}
 	}
@@ -212,7 +218,7 @@ func (c *LogClient) WaitForInclusion(ctx context.Context, data []byte) error {
 			return nil
 		case codes.NotFound:
 			// Wait for TreeSize to update.
-			if err := c.waitForRootUpdate(ctx); err != nil {
+			if err := c.WaitForRootUpdate(ctx); err != nil {
 				return err
 			}
 		default:
