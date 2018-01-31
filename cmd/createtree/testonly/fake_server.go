@@ -92,3 +92,12 @@ func (s *FakeAdminServer) CreateTree(ctx context.Context, req *trillian.CreateTr
 	}
 	return &resp, nil
 }
+
+// InitMap returns an error if s.InitErr is set, and an empty InitMapResponse
+// struct otherwise.
+func (s *FakeAdminMapServer) InitMap(ctx context.Context, req *trillian.InitMapRequest) (*trillian.InitMapResponse, error) {
+	if s.InitErr != nil {
+		return nil, s.InitErr
+	}
+	return &trillian.InitMapResponse{}, nil
+}

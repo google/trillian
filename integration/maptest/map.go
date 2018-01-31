@@ -132,14 +132,19 @@ func verifyGetMapLeavesResponse(getResp *trillian.GetMapLeavesResponse, indexes 
 }
 
 // newTreeWithHasher is a test setup helper for creating new trees with a given hasher.
-func newTreeWithHasher(ctx context.Context, tadmin trillian.TrillianAdminClient, hashStrategy trillian.HashStrategy) (*trillian.Tree, hashers.MapHasher, error) {
+func newTreeWithHasher(ctx context.Context, tadmin trillian.TrillianAdminClient, tmap trillian.TrillianMapClient, hashStrategy trillian.HashStrategy) (*trillian.Tree, hashers.MapHasher, error) {
 	treeParams := stestonly.MapTree
 	treeParams.HashStrategy = hashStrategy
 	tree, err := tadmin.CreateTree(ctx, &trillian.CreateTreeRequest{
 		Tree: treeParams,
 	})
 	if err != nil {
-		return nil, nil, nil
+		return nil, nil, err
+	}
+
+	initReq := &trillian.InitMapRequest{MapId: tree.TreeId}
+	if _, err := tmap.InitMap(ctx, initReq); err != nil {
+		return nil, nil, err
 	}
 
 	hasher, err := hashers.NewMapHasher(tree.HashStrategy)
@@ -163,7 +168,7 @@ func RunMapRevisionZero(ctx context.Context, t *testing.T, tadmin trillian.Trill
 		},
 	} {
 		for _, hashStrategy := range tc.hashStrategy {
-			tree, hasher, err := newTreeWithHasher(ctx, tadmin, hashStrategy)
+			tree, hasher, err := newTreeWithHasher(ctx, tadmin, tmap, hashStrategy)
 			if err != nil {
 				t.Errorf("%v: newTreeWithHasher(%v): %v", tc.desc, hashStrategy, err)
 			}
@@ -244,7 +249,7 @@ func RunMapRevisionInvalid(ctx context.Context, t *testing.T, tadmin trillian.Tr
 		},
 	} {
 		for _, hashStrategy := range tc.HashStrategy {
-			tree, _, err := newTreeWithHasher(ctx, tadmin, hashStrategy)
+			tree, _, err := newTreeWithHasher(ctx, tadmin, tmap, hashStrategy)
 			if err != nil {
 				t.Errorf("%v: newTreeWithHasher(%v): %v", tc.desc, hashStrategy, err)
 			}
@@ -314,7 +319,7 @@ func RunLeafHistory(ctx context.Context, t *testing.T, tadmin trillian.TrillianA
 		},
 	} {
 		for _, hashStrategy := range tc.HashStrategy {
-			tree, hasher, err := newTreeWithHasher(ctx, tadmin, hashStrategy)
+			tree, hasher, err := newTreeWithHasher(ctx, tadmin, tmap, hashStrategy)
 			if err != nil {
 				t.Errorf("%v: newTreeWithHasher(%v): %v", tc.desc, hashStrategy, err)
 			}
@@ -397,7 +402,7 @@ func RunInclusion(ctx context.Context, t *testing.T, tadmin trillian.TrillianAdm
 		},
 	} {
 		for _, hashStrategy := range tc.HashStrategy {
-			tree, hasher, err := newTreeWithHasher(ctx, tadmin, hashStrategy)
+			tree, hasher, err := newTreeWithHasher(ctx, tadmin, tmap, hashStrategy)
 			if err != nil {
 				t.Errorf("%v: newTreeWithHasher(%v): %v", tc.desc, hashStrategy, err)
 			}
@@ -465,7 +470,7 @@ func RunInclusionBatch(ctx context.Context, t *testing.T, tadmin trillian.Trilli
 			glog.Infof("testing.Short() is true. Skipping %v", tc.desc)
 			continue
 		}
-		tree, _, err := newTreeWithHasher(ctx, tadmin, tc.HashStrategy)
+		tree, _, err := newTreeWithHasher(ctx, tadmin, tmap, tc.HashStrategy)
 		if err != nil {
 			t.Errorf("%v: newTreeWithHasher(%v): %v", tc.desc, tc.HashStrategy, err)
 		}
