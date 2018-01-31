@@ -39,12 +39,13 @@ const (
 )
 
 var (
-	once         sync.Once
-	knownLogs    monitoring.Gauge
-	resignations monitoring.Counter
-	isMaster     monitoring.Gauge
-	signingRuns  monitoring.Counter
-	entriesAdded monitoring.Counter
+	once              sync.Once
+	knownLogs         monitoring.Gauge
+	resignations      monitoring.Counter
+	isMaster          monitoring.Gauge
+	signingRuns       monitoring.Counter
+	failedSigningRuns monitoring.Counter
+	entriesAdded      monitoring.Counter
 )
 
 func createMetrics(mf monitoring.MetricFactory) {
@@ -55,6 +56,7 @@ func createMetrics(mf monitoring.MetricFactory) {
 	resignations = mf.NewCounter("master_resignations", "Number of mastership resignations", logIDLabel)
 	isMaster = mf.NewGauge("is_master", "Whether this instance is master (0/1)", logIDLabel)
 	signingRuns = mf.NewCounter("signing_runs", "Number of times a signing run has succeeded", logIDLabel)
+	failedSigningRuns = mf.NewCounter("signing_runs", "Number of times a signing run has failed", logIDLabel)
 	entriesAdded = mf.NewCounter("entries_added", "Number of entries added to the log", logIDLabel)
 }
 
@@ -406,15 +408,16 @@ func (l *LogOperationManager) getLogsAndExecutePass(ctx context.Context) error {
 					return
 				}
 
+				label := strconv.FormatInt(logID, 10)
 				start := time.Now()
 				count, err := l.logOperation.ExecutePass(ctx, logID, &l.info)
 				if err != nil {
 					glog.Errorf("ExecutePass(%v) failed: %v", logID, err)
+					failedSigningRuns.Inc(label)
 					continue
 				}
 
 				// This indicates signing activity is proceeding on the logID.
-				label := strconv.FormatInt(logID, 10)
 				signingRuns.Inc(label)
 				if count > 0 {
 					d := time.Since(start).Seconds()
