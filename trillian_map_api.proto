@@ -118,5 +118,9 @@ service TrillianMap {
         get: "/v1beta1/maps/{map_id}/roots/{revision}"
       };
   }
-  rpc InitMap(InitMapRequest) returns(InitMapResponse) {}
+  rpc InitMap(InitMapRequest) returns(InitMapResponse) {
+      option (google.api.http) = {
+        post: "/v1beta1/maps/{map_id}:init"
+    };
+  }
 }
