@@ -56,7 +56,7 @@ func createMetrics(mf monitoring.MetricFactory) {
 	resignations = mf.NewCounter("master_resignations", "Number of mastership resignations", logIDLabel)
 	isMaster = mf.NewGauge("is_master", "Whether this instance is master (0/1)", logIDLabel)
 	signingRuns = mf.NewCounter("signing_runs", "Number of times a signing run has succeeded", logIDLabel)
-	failedSigningRuns = mf.NewCounter("signing_runs", "Number of times a signing run has failed", logIDLabel)
+	failedSigningRuns = mf.NewCounter("failed_signing_runs", "Number of times a signing run has failed", logIDLabel)
 	entriesAdded = mf.NewCounter("entries_added", "Number of entries added to the log", logIDLabel)
 }
 
