@@ -93,6 +93,13 @@ message GetSignedMapRootResponse {
   SignedMapRoot map_root = 2;
 }
 
+message InitMapRequest {
+  int64 map_id = 1;
+}
+
+message InitMapResponse {
+}
+
 // TrillianMap defines a service which provides access to a Verifiable Map as
 // defined in the Verifiable Data Structures paper.
 service TrillianMap {
@@ -111,4 +118,5 @@ service TrillianMap {
         get: "/v1beta1/maps/{map_id}/roots/{revision}"
       };
   }
+  rpc InitMap(InitMapRequest) returns(InitMapResponse) {}
 }

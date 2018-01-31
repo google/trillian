@@ -393,3 +393,8 @@ func (t *TrillianMapServer) getTreeAndHasher(ctx context.Context, treeID int64, 
 	}
 	return tree, th, nil
 }
+
+// InitMap implements the RPC Method of the same name.
+func (t *TrillianMapServer) InitMap(ctx context.Context, req *trillian.InitMapRequest) (*trillian.InitMapResponse, error) {
+	return &trillian.InitMapResponse{}, t.Init(ctx, req.MapId)
+}
