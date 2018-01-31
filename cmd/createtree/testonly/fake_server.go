@@ -26,25 +26,30 @@ import (
 	"google.golang.org/grpc"
 )
 
-// FakeAdminServer implements the TrillianAdminServer CreateTree RPC.
+// FakeAdminMapServer implements the TrillianAdminServer CreateTree, and
+// the TrillianMapServer InitMap RPCs.
 // The remaining RPCs are not implemented.
-type FakeAdminServer struct {
+type FakeAdminMapServer struct {
 	trillian.TrillianAdminServer
+	trillian.TrillianMapServer
 
-	// Err will be returned by CreateTree if not nil.
-	Err error
+	// CreateErr will be returned by CreateTree if not nil.
+	CreateErr error
+	// InitRErr will be returned by InitMap if not nil.
+	InitErr error
 	// GeneratedKey will be used to set a tree's PrivateKey if a CreateTree request has a KeySpec.
 	// This is for simulating key generation.
 	GeneratedKey *any.Any
 }
 
-// StartFakeAdminServer starts a FakeAdminServer on a random port.
+// StartFakeAdminMapServer starts a server on a random port.
 // Returns the started server, the listener it's using for connection and a
 // close function that must be defer-called on the scope the server is meant to
 // stop.
-func StartFakeAdminServer(server *FakeAdminServer) (net.Listener, func(), error) {
+func StartFakeAdminMapServer(server *FakeAdminMapServer) (net.Listener, func(), error) {
 	grpcServer := grpc.NewServer()
 	trillian.RegisterTrillianAdminServer(grpcServer, server)
+	trillian.RegisterTrillianMapServer(grpcServer, server)
 
 	lis, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -60,14 +65,14 @@ func StartFakeAdminServer(server *FakeAdminServer) (net.Listener, func(), error)
 	return lis, stopFn, nil
 }
 
-// CreateTree returns req.Tree, unless s.Err is not nil, in which case it
-// returns s.Err. This allows tests to examine the requested tree and check
+// CreateTree returns req.Tree, unless s.CreateErr is not nil, in which case it
+// returns s.CreateErr. This allows tests to examine the requested tree and check
 // behavior under error conditions.
 // If s.GeneratedKey and req.KeySpec are not nil, the returned tree will have
 // its PrivateKey field set to s.GeneratedKey.
-func (s *FakeAdminServer) CreateTree(ctx context.Context, req *trillian.CreateTreeRequest) (*trillian.Tree, error) {
-	if s.Err != nil {
-		return nil, s.Err
+func (s *FakeAdminMapServer) CreateTree(ctx context.Context, req *trillian.CreateTreeRequest) (*trillian.Tree, error) {
+	if s.CreateErr != nil {
+		return nil, s.CreateErr
 	}
 	resp := *req.Tree
 	if req.KeySpec != nil {

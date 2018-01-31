@@ -81,18 +81,41 @@ func createTree(ctx context.Context) (*trillian.Tree, error) {
 	defer conn.Close()
 
 	client := trillian.NewTrillianAdminClient(conn)
+	var tree *trillian.Tree
 	for {
-		tree, err := client.CreateTree(ctx, req)
-		if err == nil {
-			return tree, nil
+		glog.Info("CreateTree...")
+		tree, err = client.CreateTree(ctx, req)
+		if err != nil {
+			if s, ok := status.FromError(err); ok && s.Code() == codes.Unavailable {
+				glog.Errorf("Admin server unavailable, trying again: %v", err)
+				time.Sleep(100 * time.Millisecond)
+				continue
+			}
+			return nil, fmt.Errorf("failed to CreateTree(%+v): %T %v", req, err, err)
 		}
-		if s, ok := status.FromError(err); ok && s.Code() == codes.Unavailable {
-			glog.Errorf("Admin server unavailable, trying again: %v", err)
-			time.Sleep(100 * time.Millisecond)
-			continue
-		}
-		return nil, fmt.Errorf("failed to CreateTree(%+v): %T %v", req, err, err)
+		break
 	}
+
+	if tree.TreeType == trillian.TreeType_MAP {
+		for {
+			glog.Infof("Initialising Map %x...", tree.TreeId)
+			// Now, if it's a Map, initialise it.
+			mc := trillian.NewTrillianMapClient(conn)
+			req := &trillian.InitMapRequest{MapId: tree.TreeId}
+			_, err := mc.InitMap(ctx, req)
+			if err != nil {
+				if s, ok := status.FromError(err); ok && s.Code() == codes.Unavailable {
+					glog.Errorf("Map server unavailable, trying again: %v", err)
+					time.Sleep(100 * time.Millisecond)
+					continue
+				}
+				return nil, fmt.Errorf("failed to InitMap(%+v): %T %v", req, err, err)
+			}
+			break
+		}
+	}
+
+	return tree, nil
 }
 
 func newRequest() (*trillian.CreateTreeRequest, error) {
