@@ -102,8 +102,7 @@ func createTree(ctx context.Context) (*trillian.Tree, error) {
 			// Now, if it's a Map, initialise it.
 			mc := trillian.NewTrillianMapClient(conn)
 			req := &trillian.InitMapRequest{MapId: tree.TreeId}
-			_, err := mc.InitMap(ctx, req)
-			if err != nil {
+			if _, err := mc.InitMap(ctx, req); err != nil {
 				if s, ok := status.FromError(err); ok && s.Code() == codes.Unavailable {
 					glog.Errorf("Map server unavailable, trying again: %v", err)
 					time.Sleep(100 * time.Millisecond)
