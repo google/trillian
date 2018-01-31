@@ -39,10 +39,13 @@ const (
 )
 
 var (
-	once         sync.Once
-	knownLogs    monitoring.Gauge
-	resignations monitoring.Counter
-	isMaster     monitoring.Gauge
+	once              sync.Once
+	knownLogs         monitoring.Gauge
+	resignations      monitoring.Counter
+	isMaster          monitoring.Gauge
+	signingRuns       monitoring.Counter
+	failedSigningRuns monitoring.Counter
+	entriesAdded      monitoring.Counter
 )
 
 func createMetrics(mf monitoring.MetricFactory) {
@@ -52,6 +55,9 @@ func createMetrics(mf monitoring.MetricFactory) {
 	knownLogs = mf.NewGauge("known_logs", "Set to 1 for known logs (whether this instance is master or not)", logIDLabel)
 	resignations = mf.NewCounter("master_resignations", "Number of mastership resignations", logIDLabel)
 	isMaster = mf.NewGauge("is_master", "Whether this instance is master (0/1)", logIDLabel)
+	signingRuns = mf.NewCounter("signing_runs", "Number of times a signing run has succeeded", logIDLabel)
+	failedSigningRuns = mf.NewCounter("failed_signing_runs", "Number of times a signing run has failed", logIDLabel)
+	entriesAdded = mf.NewCounter("entries_added", "Number of entries added to the log", logIDLabel)
 }
 
 // LogOperation defines a task that operates on a log. Examples are scheduling, signing,
@@ -402,16 +408,24 @@ func (l *LogOperationManager) getLogsAndExecutePass(ctx context.Context) error {
 					return
 				}
 
+				label := strconv.FormatInt(logID, 10)
 				start := time.Now()
 				count, err := l.logOperation.ExecutePass(ctx, logID, &l.info)
 				if err != nil {
 					glog.Errorf("ExecutePass(%v) failed: %v", logID, err)
+					failedSigningRuns.Inc(label)
 					continue
 				}
 
+				// This indicates signing activity is proceeding on the logID.
+				signingRuns.Inc(label)
 				if count > 0 {
 					d := time.Since(start).Seconds()
 					glog.Infof("%v: processed %d items in %.2f seconds (%.2f qps)", logID, count, d, float64(count)/d)
+					// This allows an operator to determine that the queue is empty
+					// for a particular log if signing runs are succeeding but nothing
+					// is being processed then this counter will stop increasing.
+					entriesAdded.Add(float64(count), label)
 				} else {
 					glog.V(1).Infof("%v: no items to process", logID)
 				}
