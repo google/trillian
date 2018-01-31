@@ -98,6 +98,7 @@ message InitMapRequest {
 }
 
 message InitMapResponse {
+  SignedMapRoot created = 1;
 }
 
 // TrillianMap defines a service which provides access to a Verifiable Map as

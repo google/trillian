@@ -56,62 +56,42 @@ func (t *TrillianMapServer) IsHealthy() error {
 }
 
 // Init creates the initial revision 0 SignedMapHead, if one doesn't already exist.
-func (t *TrillianMapServer) Init(ctx context.Context, mapID int64) error {
+func (t *TrillianMapServer) Init(ctx context.Context, mapID int64) (*trillian.SignedMapRoot, error) {
 	tree, hasher, err := t.getTreeAndHasher(ctx, mapID, false /* readonly */)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	ctx = trees.NewContext(ctx, tree)
 
 	tx, err := t.registry.MapStorage.BeginForTree(ctx, mapID)
 	if err != storage.ErrMapNeedsInit && err != nil {
-		return err
+		return nil, err
 	}
 	defer tx.Close()
 
 	if err == nil {
 		// Init() not needed.
-		return nil
+		return nil, nil
 	}
 
 	glog.V(2).Infof("%v: Need to init map root revision 0", mapID)
 
-	// TODO(phad): Refactor the SetLeaves func to avoid the duplication that follows.
-	smtWriter, err := merkle.NewSparseMerkleTreeWriter(
-		ctx,
-		mapID,
-		0, /* write revision */
-		hasher, func() (storage.TreeTX, error) {
-			ttx, err := t.registry.MapStorage.BeginForTree(ctx, mapID)
-			if err == storage.ErrMapNeedsInit {
-				err = nil // Init() is ongoing, so ignore this.
-			}
-			return ttx, err
-		})
-	if err != nil {
-		return err
-	}
-
-	rootHash, err := smtWriter.CalculateRoot()
-	if err != nil {
-		return fmt.Errorf("CalculateRoot(): %v", err)
-	}
-
+	rootHash := hasher.HashEmpty(mapID, make([]byte, hasher.Size()), hasher.BitLen())
 	rev0Root, err := t.makeSignedMapRoot(ctx, tree, time.Now(), rootHash, mapID, 0 /*revision*/, nil /* metadata */)
 	if err != nil {
-		return fmt.Errorf("makeSignedMapRoot(): %v", err)
+		return nil, fmt.Errorf("makeSignedMapRoot(): %v", err)
 	}
 
 	if err = tx.StoreSignedMapRoot(ctx, *rev0Root); err != nil {
-		return err
+		return nil, err
 	}
 
 	if err := tx.Commit(); err != nil {
 		glog.Warningf("%v: Commit failed for SetLeaves: %v", mapID, err)
-		return err
+		return nil, err
 	}
 
-	return nil
+	return rev0Root, nil
 }
 
 // GetLeaves implements the GetLeaves RPC method.  Each requested index will
@@ -382,5 +362,11 @@ func (t *TrillianMapServer) getTreeAndHasher(ctx context.Context, treeID int64, 
 
 // InitMap implements the RPC Method of the same name.
 func (t *TrillianMapServer) InitMap(ctx context.Context, req *trillian.InitMapRequest) (*trillian.InitMapResponse, error) {
-	return &trillian.InitMapResponse{}, t.Init(ctx, req.MapId)
+	smr, err := t.Init(ctx, req.MapId)
+	if err != nil {
+		return nil, err
+	}
+	return &trillian.InitMapResponse{
+		Created: smr,
+	}, nil
 }

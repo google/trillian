@@ -132,51 +132,63 @@ func verifyGetMapLeavesResponse(getResp *trillian.GetMapLeavesResponse, indexes 
 }
 
 // newTreeWithHasher is a test setup helper for creating new trees with a given hasher.
-func newTreeWithHasher(ctx context.Context, tadmin trillian.TrillianAdminClient, tmap trillian.TrillianMapClient, hashStrategy trillian.HashStrategy) (*trillian.Tree, hashers.MapHasher, error) {
+func newTreeWithHasher(ctx context.Context, tadmin trillian.TrillianAdminClient, tmap trillian.TrillianMapClient, hashStrategy trillian.HashStrategy) (*trillian.Tree, hashers.MapHasher, *trillian.SignedMapRoot, error) {
 	treeParams := stestonly.MapTree
 	treeParams.HashStrategy = hashStrategy
 	tree, err := tadmin.CreateTree(ctx, &trillian.CreateTreeRequest{
 		Tree: treeParams,
 	})
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	initReq := &trillian.InitMapRequest{MapId: tree.TreeId}
-	if _, err := tmap.InitMap(ctx, initReq); err != nil {
-		return nil, nil, err
+	initResp, err := tmap.InitMap(ctx, initReq)
+	if err != nil {
+		return nil, nil, nil, err
 	}
 
 	hasher, err := hashers.NewMapHasher(tree.HashStrategy)
 	if err != nil {
-		return nil, nil, nil
+		return nil, nil, nil, nil
 	}
-	return tree, hasher, nil
+	return tree, hasher, initResp.Created, nil
+}
+
+type hashStrategyAndRoot struct {
+	hashStrategy trillian.HashStrategy
+	wantRoot     []byte
 }
 
 // RunMapRevisionZero performs checks on Trillian Map behavior for new, empty maps.
 func RunMapRevisionZero(ctx context.Context, t *testing.T, tadmin trillian.TrillianAdminClient, tmap trillian.TrillianMapClient) {
 	for _, tc := range []struct {
 		desc         string
-		hashStrategy []trillian.HashStrategy
+		hashStrategy []hashStrategyAndRoot
 		wantRev      int64
 	}{
 		{
-			desc:         "empty map has SMR at rev 0 but not rev 1",
-			hashStrategy: []trillian.HashStrategy{trillian.HashStrategy_TEST_MAP_HASHER, trillian.HashStrategy_CONIKS_SHA512_256},
-			wantRev:      0,
+			desc: "empty map has SMR at rev 0 but not rev 1",
+			hashStrategy: []hashStrategyAndRoot{
+				{trillian.HashStrategy_TEST_MAP_HASHER, testonly.MustDecodeBase64("xmifEIEqCYCXbZUz2Dh1KCFmFZVn7DUVVxbBQTr1PWo=")},
+				{trillian.HashStrategy_CONIKS_SHA512_256, nil /* TODO: need to fix the treeID to have a known answer */},
+			},
+			wantRev: 0,
 		},
 	} {
-		for _, hashStrategy := range tc.hashStrategy {
-			tree, hasher, err := newTreeWithHasher(ctx, tadmin, tmap, hashStrategy)
+		for _, hsr := range tc.hashStrategy {
+			tree, hasher, smr, err := newTreeWithHasher(ctx, tadmin, tmap, hsr.hashStrategy)
 			if err != nil {
-				t.Errorf("%v: newTreeWithHasher(%v): %v", tc.desc, hashStrategy, err)
+				t.Errorf("%v: newTreeWithHasher(%v): %v", tc.desc, hsr.hashStrategy, err)
+			}
+			if got, want := smr.RootHash, hsr.wantRoot; want != nil && !bytes.Equal(got, want) {
+				t.Errorf("%v: newTreeWithHasher() returned unexpected root hash %x, want %x", tc.desc, got, want)
 			}
 			pubKey, err := der.UnmarshalPublicKey(tree.GetPublicKey().GetDer())
 			if err != nil {
-				t.Errorf("%v: UnmarshalPublicKey(%v): %v", tc.desc, hashStrategy, err)
+				t.Errorf("%v: UnmarshalPublicKey(%v): %v", tc.desc, hsr.hashStrategy, err)
 			}
-			//
+
 			getSmrResp, err := tmap.GetSignedMapRoot(ctx, &trillian.GetSignedMapRootRequest{
 				MapId: tree.TreeId,
 			})
@@ -249,7 +261,7 @@ func RunMapRevisionInvalid(ctx context.Context, t *testing.T, tadmin trillian.Tr
 		},
 	} {
 		for _, hashStrategy := range tc.HashStrategy {
-			tree, _, err := newTreeWithHasher(ctx, tadmin, tmap, hashStrategy)
+			tree, _, _, err := newTreeWithHasher(ctx, tadmin, tmap, hashStrategy)
 			if err != nil {
 				t.Errorf("%v: newTreeWithHasher(%v): %v", tc.desc, hashStrategy, err)
 			}
@@ -319,7 +331,7 @@ func RunLeafHistory(ctx context.Context, t *testing.T, tadmin trillian.TrillianA
 		},
 	} {
 		for _, hashStrategy := range tc.HashStrategy {
-			tree, hasher, err := newTreeWithHasher(ctx, tadmin, tmap, hashStrategy)
+			tree, hasher, _, err := newTreeWithHasher(ctx, tadmin, tmap, hashStrategy)
 			if err != nil {
 				t.Errorf("%v: newTreeWithHasher(%v): %v", tc.desc, hashStrategy, err)
 			}
@@ -402,7 +414,7 @@ func RunInclusion(ctx context.Context, t *testing.T, tadmin trillian.TrillianAdm
 		},
 	} {
 		for _, hashStrategy := range tc.HashStrategy {
-			tree, hasher, err := newTreeWithHasher(ctx, tadmin, tmap, hashStrategy)
+			tree, hasher, _, err := newTreeWithHasher(ctx, tadmin, tmap, hashStrategy)
 			if err != nil {
 				t.Errorf("%v: newTreeWithHasher(%v): %v", tc.desc, hashStrategy, err)
 			}
@@ -470,7 +482,7 @@ func RunInclusionBatch(ctx context.Context, t *testing.T, tadmin trillian.Trilli
 			glog.Infof("testing.Short() is true. Skipping %v", tc.desc)
 			continue
 		}
-		tree, _, err := newTreeWithHasher(ctx, tadmin, tmap, tc.HashStrategy)
+		tree, _, _, err := newTreeWithHasher(ctx, tadmin, tmap, tc.HashStrategy)
 		if err != nil {
 			t.Errorf("%v: newTreeWithHasher(%v): %v", tc.desc, tc.HashStrategy, err)
 		}
