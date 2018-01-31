@@ -113,6 +113,24 @@ var (
 		return hasher.New().Sum(nil)
 	}()
 
+	// PreorderedLogTree is a valid, PREORDERED_LOG-type trillian.Tree for tests.
+	PreorderedLogTree = &trillian.Tree{
+		TreeState:          trillian.TreeState_ACTIVE,
+		TreeType:           trillian.TreeType_PREORDERED_LOG,
+		HashStrategy:       trillian.HashStrategy_RFC6962_SHA256,
+		HashAlgorithm:      spb.DigitallySigned_SHA256,
+		SignatureAlgorithm: spb.DigitallySigned_ECDSA,
+		DisplayName:        "Llamas Preordered Log",
+		Description:        "Mirror registry of publicly-owned llamas",
+		PrivateKey: mustMarshalAny(&keyspb.PrivateKey{
+			Der: ktestonly.MustMarshalPrivatePEMToDER(privateKeyPEM, privateKeyPass),
+		}),
+		PublicKey: &keyspb.PublicKey{
+			Der: ktestonly.MustMarshalPublicPEMToDER(publicKeyPEM),
+		},
+		MaxRootDuration: ptypes.DurationProto(0 * time.Millisecond),
+	}
+
 	// MapTree is a valid, MAP-type trillian.Tree for tests.
 	MapTree = &trillian.Tree{
 		TreeState:          trillian.TreeState_ACTIVE,
