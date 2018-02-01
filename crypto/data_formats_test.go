@@ -27,7 +27,7 @@ var dh = testonly.MustHexDecode
 
 // It's important that signatures don't change.
 func TestHashLogRootKnownValue(t *testing.T) {
-	expectedSig := dh("23536f6d65206279746573207468617420776f6e2774206368616e67652e2e2e2e2e2e2e000000000d843fd70000000009f93e410000000000000000")
+	expectedSig := dh("0000000123536f6d65206279746573207468617420776f6e2774206368616e67652e2e2e2e2e2e2e000000000d843fd70000000009f93e410000000000000000")
 	root := &trillian.SignedLogRoot{
 		TimestampNanos: 226770903,
 		RootHash:       []byte("Some bytes that won't change......."),

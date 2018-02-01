@@ -24,7 +24,7 @@ import (
 
 // This file contains struct specific mappings and data structures.
 
-type logVersion int
+type logVersion int32
 
 const (
 	// LogRootV0 indicates version 0 for the canonical representation of the SignedLogRoot.
@@ -36,15 +36,17 @@ func CanonicalLogRoot(r *trillian.SignedLogRoot, version logVersion) ([]byte, er
 	switch version {
 	case LogRootV0:
 		root := struct {
-			RootHash       []byte `tls:"minlen:0,maxlen:128"`
-			TimestampNanos uint64
-			TreeSize       uint64
-			LogID          uint64
+			DataFormatVersion uint32
+			RootHash          []byte `tls:"minlen:0,maxlen:128"`
+			TimestampNanos    uint64
+			TreeSize          uint64
+			LogID             uint64
 		}{
-			RootHash:       r.RootHash,
-			TimestampNanos: uint64(r.TimestampNanos),
-			TreeSize:       uint64(r.TreeSize),
-			LogID:          uint64(r.LogId),
+			DataFormatVersion: uint32(LogRootV0),
+			RootHash:          r.RootHash,
+			TimestampNanos:    uint64(r.TimestampNanos),
+			TreeSize:          uint64(r.TreeSize),
+			LogID:             uint64(r.LogId),
 		}
 		return tls.Marshal(root)
 	default:
@@ -52,7 +54,7 @@ func CanonicalLogRoot(r *trillian.SignedLogRoot, version logVersion) ([]byte, er
 	}
 }
 
-type mapVersion int
+type mapVersion int32
 
 const (
 	// MapRootV0 indicates version 0 for the canonical representation of the SignedMapRoot.
@@ -64,19 +66,21 @@ func CanonicalMapRoot(r *trillian.SignedMapRoot, version mapVersion) ([]byte, er
 	switch version {
 	case MapRootV0:
 		root := struct {
-			RootHash       []byte `tls:"minlen:0,maxlen:128"`
-			TimestampNanos uint64
-			MapID          uint64
-			MapRevision    uint64
-			MetadataType   []byte `tls:"minlen:0,maxlen:65535"`
-			MetadataValue  []byte `tls:"minlen:0,maxlen:65535"`
+			DataFormatVersion uint32
+			RootHash          []byte `tls:"minlen:0,maxlen:128"`
+			TimestampNanos    uint64
+			MapID             uint64
+			MapRevision       uint64
+			MetadataType      []byte `tls:"minlen:0,maxlen:65535"`
+			MetadataValue     []byte `tls:"minlen:0,maxlen:65535"`
 		}{
-			RootHash:       r.RootHash,
-			TimestampNanos: uint64(r.TimestampNanos),
-			MapID:          uint64(r.MapId),
-			MapRevision:    uint64(r.MapRevision),
-			MetadataType:   []byte(r.Metadata.GetTypeUrl()),
-			MetadataValue:  r.Metadata.GetValue(),
+			DataFormatVersion: uint32(MapRootV0),
+			RootHash:          r.RootHash,
+			TimestampNanos:    uint64(r.TimestampNanos),
+			MapID:             uint64(r.MapId),
+			MapRevision:       uint64(r.MapRevision),
+			MetadataType:      []byte(r.Metadata.GetTypeUrl()),
+			MetadataValue:     r.Metadata.GetValue(),
 		}
 		return tls.Marshal(root)
 
