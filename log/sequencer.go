@@ -474,7 +474,7 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, logID int64, limit int, g
 	if newLogRoot != nil {
 		glog.Infof("%v: sequenced %v leaves, size %v, tree-revision %v", logID, numLeaves, newLogRoot.TreeSize, newLogRoot.TreeRevision)
 	} else {
-		glog.Info("newLogRoot = nil")
+		glog.Error("newLogRoot = nil")
 	}
 	return numLeaves, nil
 }
