@@ -76,15 +76,20 @@ enum TreeState {
 
 // Type of the tree.
 enum TreeType {
-  // Tree type cannot be determined. Included to enable detection of
-  // mismatched proto versions being used. Represents an invalid value.
+  // Tree type cannot be determined. Included to enable detection of mismatched
+  // proto versions being used. Represents an invalid value.
   UNKNOWN_TREE_TYPE = 0;
 
   // Tree represents a verifiable log.
   LOG = 1;
 
   // Tree represents a verifiable map.
-  MAP  =2;
+  MAP = 2;
+
+  // Tree represents a verifiable pre-ordered log, i.e., a log whose entries are
+  // placed according to sequence numbers assigned outside of Trillian.
+  // TODO(pavelkalinnikov): Support this type.
+  PREORDERED_LOG = 3;
 }
 
 // Represents a tree, which may be either a verifiable log or map.
