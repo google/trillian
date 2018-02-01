@@ -134,9 +134,9 @@ func (c *LogClient) WaitForRootUpdate(ctx context.Context, waitForTreeSize int64
 	}
 }
 
-// GetLatestRoot fetches and verifies the latest root against a trusted root, seen in the past.
+// getLatestRoot fetches and verifies the latest root against a trusted root, seen in the past.
 // Pass nil for trusted if this is the first time querying this log.
-func (c *LogClient) GetLatestRoot(ctx context.Context, trusted *trillian.SignedLogRoot) (*trillian.SignedLogRoot, error) {
+func (c *LogClient) getLatestRoot(ctx context.Context, trusted *trillian.SignedLogRoot) (*trillian.SignedLogRoot, error) {
 	resp, err := c.client.GetLatestSignedLogRoot(ctx,
 		&trillian.GetLatestSignedLogRootRequest{
 			LogId: c.LogID,
@@ -178,7 +178,7 @@ func (c *LogClient) GetLatestRoot(ctx context.Context, trusted *trillian.SignedL
 // seen in the past, and updating the currently trusted root if the new root verifies.
 func (c *LogClient) UpdateRoot(ctx context.Context) (*trillian.SignedLogRoot, error) {
 	currentlyTrusted := &c.root
-	newTrusted, err := c.GetLatestRoot(ctx, currentlyTrusted)
+	newTrusted, err := c.getLatestRoot(ctx, currentlyTrusted)
 	if err != nil {
 		return nil, err
 	}
@@ -186,7 +186,8 @@ func (c *LogClient) UpdateRoot(ctx context.Context) (*trillian.SignedLogRoot, er
 		newTrusted.TreeSize >= currentlyTrusted.TreeSize {
 		c.root = *newTrusted
 	}
-	ret := c.root // copy the internal trusted root in order to not leak it.
+	// Copy the internal trusted root in order to prevent clients from modifying it.
+	ret := c.root
 	return &ret, nil
 }
 
