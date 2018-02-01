@@ -119,6 +119,14 @@ func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.Qu
 	if err != nil {
 		return nil, err
 	}
+
+	// If we're draining the queue reject attempts to add new leaves. This is
+	// not the ideal place to enforce this restriction but it's currently
+	// the only really practical one.
+	if tree.TreeState == trillian.TreeState_DRAINING {
+		return nil, status.Errorf(codes.PermissionDenied, "log is draining queue - new leaves may not be added")
+	}
+
 	ctx = trees.NewContext(ctx, tree)
 
 	if err := hashLeaves(req.Leaves, hasher); err != nil {

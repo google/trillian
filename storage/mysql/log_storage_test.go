@@ -980,7 +980,7 @@ func TestGetActiveLogIDs(t *testing.T) {
 	map1 := proto.Clone(testonly.MapTree).(*trillian.Tree)
 	map2 := proto.Clone(testonly.MapTree).(*trillian.Tree)
 	deletedMap := proto.Clone(testonly.MapTree).(*trillian.Tree)
-	for _, tree := range []*trillian.Tree{log1, log2, frozenLog, deletedLog, map1, map2, deletedMap} {
+	for _, tree := range []*trillian.Tree{log1, log2, drainingLog, frozenLog, deletedLog, map1, map2, deletedMap} {
 		newTree, err := storage.CreateTree(ctx, admin, tree)
 		if err != nil {
 			t.Fatalf("CreateTree(%+v) returned err = %v", tree, err)
