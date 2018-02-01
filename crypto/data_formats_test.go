@@ -33,7 +33,7 @@ func TestHashLogRootKnownValue(t *testing.T) {
 		RootHash:       []byte("Some bytes that won't change......."),
 		TreeSize:       167329345,
 	}
-	hash, err := CanonicalLogRoot(root, trillian.LogSignatureFormat_LOG_SIG_FORMAT_V1)
+	hash, err := SerializeLogRoot(root, trillian.LogSignatureFormat_LOG_SIG_FORMAT_V1)
 	if err != nil {
 		t.Fatalf("CanonicalLogRoot(): %v", err)
 	}
@@ -85,7 +85,7 @@ func TestHashLogRoot(t *testing.T) {
 			},
 		},
 	} {
-		canonical, err := CanonicalLogRoot(test.root, trillian.LogSignatureFormat_LOG_SIG_FORMAT_V1)
+		canonical, err := SerializeLogRoot(test.root, trillian.LogSignatureFormat_LOG_SIG_FORMAT_V1)
 		if err != nil {
 			t.Fatalf("CanonicalLogRoot(): %v", err)
 		}

@@ -77,7 +77,7 @@ func (c *logVerifier) VerifyRoot(trusted, newRoot *trillian.SignedLogRoot,
 	}
 
 	// Verify SignedLogRoot signature.
-	canonical, err := tcrypto.CanonicalLogRoot(newRoot, trillian.LogSignatureFormat_LOG_SIG_FORMAT_V1)
+	canonical, err := tcrypto.SerializeLogRoot(newRoot, trillian.LogSignatureFormat_LOG_SIG_FORMAT_V1)
 	if err != nil {
 		return err
 	}

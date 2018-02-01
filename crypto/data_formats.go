@@ -44,8 +44,8 @@ type SignedMapRootV1 struct {
 	MetadataValue     []byte `tls:"minlen:0,maxlen:65535"`
 }
 
-// CanonicalLogRoot returns a canonical TLS serialization of the log root.
-func CanonicalLogRoot(r *trillian.SignedLogRoot, version trillian.LogSignatureFormat) ([]byte, error) {
+// SerializeLogRoot returns a canonical TLS serialization of the log root.
+func SerializeLogRoot(r *trillian.SignedLogRoot, version trillian.LogSignatureFormat) ([]byte, error) {
 	switch version {
 	case trillian.LogSignatureFormat_LOG_SIG_FORMAT_V1:
 		root := SignedLogRootV1{
@@ -61,8 +61,8 @@ func CanonicalLogRoot(r *trillian.SignedLogRoot, version trillian.LogSignatureFo
 	}
 }
 
-// CanonicalMapRoot returns a canonical TLS serialization of the map root.
-func CanonicalMapRoot(r *trillian.SignedMapRoot, version trillian.MapSignatureFormat) ([]byte, error) {
+// SerializeMapRoot returns a canonical TLS serialization of the map root.
+func SerializeMapRoot(r *trillian.SignedMapRoot, version trillian.MapSignatureFormat) ([]byte, error) {
 	switch version {
 	case trillian.MapSignatureFormat_MAP_SIG_FORMAT_V1:
 		root := SignedMapRootV1{

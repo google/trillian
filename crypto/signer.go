@@ -69,7 +69,7 @@ func (s *Signer) Sign(data []byte) (*sigpb.DigitallySigned, error) {
 // SignLogRoot hashes and signs the supplied (to-be) SignedLogRoot and returns a
 // signature.  Hashing is performed by github.com/benlaurie/objecthash.
 func (s *Signer) SignLogRoot(root *trillian.SignedLogRoot) (*sigpb.DigitallySigned, error) {
-	canonical, err := CanonicalLogRoot(root, trillian.LogSignatureFormat_LOG_SIG_FORMAT_V1)
+	canonical, err := SerializeLogRoot(root, trillian.LogSignatureFormat_LOG_SIG_FORMAT_V1)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +85,7 @@ func (s *Signer) SignLogRoot(root *trillian.SignedLogRoot) (*sigpb.DigitallySign
 // SignMapRoot hashes and signs the supplied (to-be) SignedMapRoot and returns a
 // signature.  Hashing is performed by github.com/benlaurie/objecthash.
 func (s *Signer) SignMapRoot(root *trillian.SignedMapRoot) (*sigpb.DigitallySigned, error) {
-	canonical, err := CanonicalMapRoot(root, trillian.MapSignatureFormat_MAP_SIG_FORMAT_V1)
+	canonical, err := SerializeMapRoot(root, trillian.MapSignatureFormat_MAP_SIG_FORMAT_V1)
 	if err != nil {
 		return nil, err
 	}

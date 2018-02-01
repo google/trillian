@@ -37,7 +37,7 @@ func TestVerifyRootErrors(t *testing.T) {
 	}
 
 	signedRoot := &trillian.SignedLogRoot{}
-	canonical, err := tcrypto.CanonicalLogRoot(signedRoot, trillian.LogSignatureFormat_LOG_SIG_FORMAT_V1)
+	canonical, err := tcrypto.SerializeLogRoot(signedRoot, trillian.LogSignatureFormat_LOG_SIG_FORMAT_V1)
 	if err != nil {
 		t.Fatalf("CanonicalLogRoot(): %v", err)
 	}
