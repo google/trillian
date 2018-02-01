@@ -64,7 +64,8 @@ enum TreeState {
   ACTIVE = 1;
 
   // Frozen trees are only able to respond to read requests, writing to a frozen
-  // tree is forbidden.
+  // tree is forbidden. Trees should not be frozen when there are entries
+  // in the queue that have not yet been integrated.
   FROZEN = 2;
 
   // Deprecated in favor of Tree.deleted.
@@ -72,6 +73,10 @@ enum TreeState {
 
   // Deprecated in favor of Tree.deleted.
   DEPRECATED_HARD_DELETED = 4 [deprecated = true];
+
+  // A tree that is draining will continue to integrate queued entries.
+  // No new entries should be accepted.
+  DRAINING = 5;
 }
 
 // Type of the tree.
