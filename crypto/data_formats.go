@@ -50,7 +50,7 @@ func CanonicalLogRoot(r *trillian.SignedLogRoot, version logVersion) ([]byte, er
 		}
 		return tls.Marshal(root)
 	default:
-		return nil, fmt.Errorf("CanonicalLogRoot(): Unknown version: %v", version)
+		return nil, fmt.Errorf("crypto: CanonicalLogRoot(): unknown version: %v", version)
 	}
 }
 
@@ -85,6 +85,6 @@ func CanonicalMapRoot(r *trillian.SignedMapRoot, version mapVersion) ([]byte, er
 		return tls.Marshal(root)
 
 	default:
-		return nil, fmt.Errorf("CanonicalLogRoot(): Unknown version: %v", version)
+		return nil, fmt.Errorf("crypto: CanonicalLogRoot(): unknown version: %v", version)
 	}
 }

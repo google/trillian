@@ -27,7 +27,7 @@ import (
 
 const message = "testing"
 
-var rootHash = []byte("abcdefghijklmnopqurstuvwxyz012345") // 32 byte value
+var rootHash = make([]byte, 32)
 
 func TestSign(t *testing.T) {
 	key, err := pem.UnmarshalPrivateKey(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
