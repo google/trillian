@@ -117,3 +117,7 @@ func (c *MockLogClient) GetLeavesByHash(ctx context.Context, in *trillian.GetLea
 func (c *MockLogClient) GetEntryAndProof(ctx context.Context, in *trillian.GetEntryAndProofRequest, opts ...grpc.CallOption) (*trillian.GetEntryAndProofResponse, error) {
 	return c.c.GetEntryAndProof(ctx, in)
 }
+
+func (c *MockLogClient) InitLog(ctx context.Context, in *trillian.InitLogRequest, opts ...grpc.CallOption) (*trillian.InitLogResponse, error) {
+	return c.c.InitLog(ctx, in)
+}
