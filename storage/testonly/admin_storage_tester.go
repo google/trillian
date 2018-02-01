@@ -120,7 +120,7 @@ var (
 		HashStrategy:       trillian.HashStrategy_RFC6962_SHA256,
 		HashAlgorithm:      spb.DigitallySigned_SHA256,
 		SignatureAlgorithm: spb.DigitallySigned_ECDSA,
-		DisplayName:        "Llamas Preordered Log",
+		DisplayName:        "Pavel's Pre-ordered Log",
 		Description:        "Mirror registry of publicly-owned llamas",
 		PrivateKey: mustMarshalAny(&keyspb.PrivateKey{
 			Der: ktestonly.MustMarshalPrivatePEMToDER(privateKeyPEM, privateKeyPass),
