@@ -36,7 +36,7 @@ import (
 	ct "github.com/google/certificate-transparency-go"
 )
 
-var sourceLog = flag.String("source", "https://ct.googleapis.com/submariner", "Source CT Log")
+var sourceLog = flag.String("source", "https://ct.googleapis.com/submariner", "URL of the CT Log")
 var mapServer = flag.String("map_server", "", "host:port for the map server")
 var mapID = flag.Int("map_id", -1, "Map ID to write to")
 var logBatchSize = flag.Int("log_batch_size", 256, "Max number of entries to process at a time from the CT Log")
