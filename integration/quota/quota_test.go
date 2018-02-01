@@ -131,6 +131,12 @@ func runRateLimitingTest(ctx context.Context, s *testServer, numTokens int) erro
 	if err != nil {
 		return fmt.Errorf("CreateTree() returned err = %v", err)
 	}
+	// InitLog costs 1 token
+	numTokens--
+	_, err = s.log.InitLog(ctx, &trillian.InitLogRequest{LogId: tree.TreeId})
+	if err != nil {
+		return fmt.Errorf("InitLog() returned err = %v", err)
+	}
 	hasherFn, err := trees.Hash(tree)
 	if err != nil {
 		return fmt.Errorf("Hash() returned err = %v", err)
@@ -141,7 +147,7 @@ func runRateLimitingTest(ctx context.Context, s *testServer, numTokens int) erro
 	// Requests where leaves < numTokens should work
 	for i := 0; i < numTokens; i++ {
 		if err := lw.queueLeaf(ctx); err != nil {
-			return fmt.Errorf("queueLeaf() returned err = %v", err)
+			return fmt.Errorf("queueLeaf(@%d) returned err = %v", i, err)
 		}
 	}
 

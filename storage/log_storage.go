@@ -16,10 +16,13 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/google/trillian"
 )
+
+var ErrLogNeedsInit = errors.New("log needs initialising")
 
 // ReadOnlyLogTX provides a read-only view into log data.
 // A ReadOnlyLogTX, unlike ReadOnlyLogTreeTX, is not tied to a particular tree.

@@ -22,8 +22,10 @@ import (
 	"time"
 
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/quota/mysqlqm"
+	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/mysql"
 	"github.com/google/trillian/storage/testdb"
 	"github.com/google/trillian/storage/testonly"
@@ -285,19 +287,40 @@ func countUnsequenced(ctx context.Context, db *sql.DB) (int, error) {
 }
 
 func createTree(ctx context.Context, db *sql.DB) (*trillian.Tree, error) {
-	as := mysql.NewAdminStorage(db)
-	tx, err := as.Begin(ctx)
-	if err != nil {
-		return nil, err
+	var tree *trillian.Tree
+
+	{
+		as := mysql.NewAdminStorage(db)
+		tx, err := as.Begin(ctx)
+		if err != nil {
+			return nil, err
+		}
+		defer tx.Close()
+		tree, err = tx.CreateTree(ctx, testonly.LogTree)
+		if err != nil {
+			return nil, err
+		}
+		if err := tx.Commit(); err != nil {
+			return nil, err
+		}
 	}
-	defer tx.Close()
-	tree, err := tx.CreateTree(ctx, testonly.LogTree)
-	if err != nil {
-		return nil, err
+
+	{
+		ls := mysql.NewLogStorage(db, nil)
+		tx, err := ls.BeginForTree(ctx, tree.TreeId)
+		if err != nil && err != storage.ErrLogNeedsInit {
+			return nil, err
+		}
+		defer tx.Close()
+
+		if err := tx.StoreSignedLogRoot(ctx, trillian.SignedLogRoot{LogId: tree.TreeId, RootHash: []byte{0}, Signature: &sigpb.DigitallySigned{}}); err != nil {
+			return nil, err
+		}
+		if err := tx.Commit(); err != nil {
+			return nil, err
+		}
 	}
-	if err := tx.Commit(); err != nil {
-		return nil, err
-	}
+
 	return tree, nil
 }
 

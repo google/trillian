@@ -524,7 +524,7 @@ func (t *TrillianLogRPCServer) InitLog(ctx context.Context, req *trillian.InitLo
 	}
 
 	tx, err := t.registry.LogStorage.BeginForTree(ctx, logID)
-	if err != nil {
+	if err != nil && err != storage.ErrLogNeedsInit {
 		return nil, err
 	}
 
