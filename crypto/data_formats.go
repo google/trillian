@@ -19,7 +19,7 @@ import (
 
 	"github.com/google/certificate-transparency-go/tls"
 
-	pb "github.com/google/trillian"
+	"github.com/google/trillian"
 )
 
 // This file contains struct specific mappings and data structures.
@@ -32,7 +32,7 @@ const (
 )
 
 // CanonicalLogRoot returns a canonical TLS serialization of the log root.
-func CanonicalLogRoot(r *pb.SignedLogRoot, version logVersion) ([]byte, error) {
+func CanonicalLogRoot(r *trillian.SignedLogRoot, version logVersion) ([]byte, error) {
 	switch version {
 	case LogRootV0:
 		root := struct {
@@ -60,7 +60,7 @@ const (
 )
 
 // CanonicalMapRoot returns a canonical TLS serialization of the map root.
-func CanonicalMapRoot(r *pb.SignedMapRoot, version mapVersion) ([]byte, error) {
+func CanonicalMapRoot(r *trillian.SignedMapRoot, version mapVersion) ([]byte, error) {
 	switch version {
 	case MapRootV0:
 		root := struct {

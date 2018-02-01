@@ -17,12 +17,11 @@ package crypto
 import (
 	"testing"
 
+	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/examples/ct/ctmapper/ctmapperpb"
 	"github.com/google/trillian/testonly"
-
-	pb "github.com/google/trillian"
 )
 
 const (
@@ -97,14 +96,14 @@ func TestSignVerifyMapRoot(t *testing.T) {
 	meta1 := testonly.MustMarshalAny(t, &ctmapperpb.MapperMetadata{HighestFullyCompletedSeq: 1})
 
 	for _, tc := range []struct {
-		obj *pb.SignedMapRoot
+		obj *trillian.SignedMapRoot
 	}{
 
-		{obj: &pb.SignedMapRoot{}},
-		{obj: &pb.SignedMapRoot{MapId: 0xcafe}},
-		{obj: &pb.SignedMapRoot{Metadata: meta}},
-		{obj: &pb.SignedMapRoot{Metadata: meta0}},
-		{obj: &pb.SignedMapRoot{Metadata: meta1}},
+		{obj: &trillian.SignedMapRoot{}},
+		{obj: &trillian.SignedMapRoot{MapId: 0xcafe}},
+		{obj: &trillian.SignedMapRoot{Metadata: meta}},
+		{obj: &trillian.SignedMapRoot{Metadata: meta0}},
+		{obj: &trillian.SignedMapRoot{Metadata: meta1}},
 	} {
 		canonical, err := CanonicalMapRoot(tc.obj, MapRootV0)
 		if err != nil {
