@@ -142,7 +142,7 @@ func (m *mySQLMapStorage) SnapshotForTree(ctx context.Context, treeID int64) (st
 	return m.begin(ctx, treeID, true /* readonly */)
 }
 
-func (m *mySQLMapStorage) ReadWriteTransaction(ctx context.Context, treeID int64, f func(ctx context.Context, tx storage.MapTreeTX) error) error {
+func (m *mySQLMapStorage) ReadWriteTransaction(ctx context.Context, treeID int64, f storage.MapTXFunc) error {
 	tx, err := m.BeginForTree(ctx, treeID)
 	if tx != nil {
 		defer tx.Close()

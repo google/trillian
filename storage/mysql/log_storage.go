@@ -258,7 +258,7 @@ func (m *mySQLLogStorage) BeginForTree(ctx context.Context, treeID int64) (stora
 	return m.beginInternal(ctx, treeID, false /* readonly */)
 }
 
-func (m *mySQLLogStorage) ReadWriteTransaction(ctx context.Context, treeID int64, f func(ctx context.Context, tx storage.LogTreeTX) error) error {
+func (m *mySQLLogStorage) ReadWriteTransaction(ctx context.Context, treeID int64, f storage.LogTXFunc) error {
 	tx, err := m.BeginForTree(ctx, treeID)
 	if err != nil {
 		return err

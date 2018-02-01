@@ -617,7 +617,7 @@ func (mr *MockMapStorageMockRecorder) CheckDatabaseAccessible(arg0 interface{}) 
 }
 
 // ReadWriteTransaction mocks base method
-func (m *MockMapStorage) ReadWriteTransaction(arg0 context.Context, arg1 int64, arg2 func(context.Context, MapTreeTX) error) error {
+func (m *MockMapStorage) ReadWriteTransaction(arg0 context.Context, arg1 int64, arg2 MapTXFunc) error {
 	ret := m.ctrl.Call(m, "ReadWriteTransaction", arg0, arg1, arg2)
 	ret0, _ := ret[0].(error)
 	return ret0

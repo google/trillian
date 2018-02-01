@@ -103,6 +103,9 @@ type ReadOnlyLogStorage interface {
 	SnapshotForTree(ctx context.Context, treeID int64) (ReadOnlyLogTreeTX, error)
 }
 
+// LogTXFunc is the func signature for passing into ReadWriteTransaction.
+type LogTXFunc func(context.Context, LogTreeTX) error
+
 // LogStorage should be implemented by concrete storage mechanisms which want to support Logs.
 type LogStorage interface {
 	ReadOnlyLogStorage
@@ -117,7 +120,7 @@ type LogStorage interface {
 	// calls f with it.
 	// If f fails and returns an error, the storage implementation may optionally
 	// retry with a new transaction, and f MUST NOT keep state across calls.
-	ReadWriteTransaction(ctx context.Context, treeID int64, f func(ctx context.Context, tx LogTreeTX) error) error
+	ReadWriteTransaction(ctx context.Context, treeID int64, f LogTXFunc) error
 }
 
 // CountByLogID is a map of total number of items keyed by log ID.
