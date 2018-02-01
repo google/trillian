@@ -177,12 +177,17 @@ func (c *LogClient) GetLatestRoot(ctx context.Context, trusted *trillian.SignedL
 // UpdateRoot retrieves the current SignedLogRoot, verifying it against roots this client has
 // seen in the past, and updating the currently trusted root if the new root verifies.
 func (c *LogClient) UpdateRoot(ctx context.Context) (*trillian.SignedLogRoot, error) {
-	newTrusted, err := c.GetLatestRoot(ctx, &c.root)
+	currentlyTrusted := &c.root
+	newTrusted, err := c.GetLatestRoot(ctx, currentlyTrusted)
 	if err != nil {
 		return nil, err
 	}
-	c.root = *newTrusted
-	return newTrusted, nil
+	if newTrusted.TimestampNanos > currentlyTrusted.TimestampNanos &&
+		newTrusted.TreeSize >= currentlyTrusted.TreeSize {
+		c.root = *newTrusted
+	}
+	ret := c.root // copy the internal trusted root in order to not leak it.
+	return &ret, nil
 }
 
 // WaitForInclusion blocks until the requested data has been verified with an inclusion proof.
