@@ -138,8 +138,9 @@ func runTest(t *testing.T, tests []*testCase) {
 	}
 	defer stopFakeServer()
 
-	ctx := context.Background()
 	for _, test := range tests {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
 		t.Run(test.desc, func(t *testing.T) {
 			defer flagsaver.Save().Restore()
 			*adminServerAddr = lis.Addr().String()
