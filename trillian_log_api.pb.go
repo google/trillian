@@ -46,6 +46,8 @@ It has these top-level messages:
 	GetSignedMapRootRequest
 	GetSignedMapRootByRevisionRequest
 	GetSignedMapRootResponse
+	InitMapRequest
+	InitMapResponse
 	ListTreesRequest
 	ListTreesResponse
 	GetTreeRequest

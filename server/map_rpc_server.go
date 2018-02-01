@@ -55,65 +55,6 @@ func (t *TrillianMapServer) IsHealthy() error {
 	return t.registry.MapStorage.CheckDatabaseAccessible(context.Background())
 }
 
-// Init creates the initial revision 0 SignedMapHead, if one doesn't already exist.
-func (t *TrillianMapServer) Init(ctx context.Context, mapID int64) error {
-	tree, hasher, err := t.getTreeAndHasher(ctx, mapID, false /* readonly */)
-	if err != nil {
-		return err
-	}
-	ctx = trees.NewContext(ctx, tree)
-
-	tx, err := t.registry.MapStorage.BeginForTree(ctx, mapID)
-	if err != storage.ErrMapNeedsInit && err != nil {
-		return err
-	}
-	defer tx.Close()
-
-	if err == nil {
-		// Init() not needed.
-		return nil
-	}
-
-	glog.V(2).Infof("%v: Need to init map root revision 0", mapID)
-
-	// TODO(phad): Refactor the SetLeaves func to avoid the duplication that follows.
-	smtWriter, err := merkle.NewSparseMerkleTreeWriter(
-		ctx,
-		mapID,
-		0, /* write revision */
-		hasher, func() (storage.TreeTX, error) {
-			ttx, err := t.registry.MapStorage.BeginForTree(ctx, mapID)
-			if err == storage.ErrMapNeedsInit {
-				err = nil // Init() is ongoing, so ignore this.
-			}
-			return ttx, err
-		})
-	if err != nil {
-		return err
-	}
-
-	rootHash, err := smtWriter.CalculateRoot()
-	if err != nil {
-		return fmt.Errorf("CalculateRoot(): %v", err)
-	}
-
-	rev0Root, err := t.makeSignedMapRoot(ctx, tree, time.Now(), rootHash, mapID, 0 /*revision*/, nil /* metadata */)
-	if err != nil {
-		return fmt.Errorf("makeSignedMapRoot(): %v", err)
-	}
-
-	if err = tx.StoreSignedMapRoot(ctx, *rev0Root); err != nil {
-		return err
-	}
-
-	if err := tx.Commit(); err != nil {
-		glog.Warningf("%v: Commit failed for SetLeaves: %v", mapID, err)
-		return err
-	}
-
-	return nil
-}
-
 // GetLeaves implements the GetLeaves RPC method.  Each requested index will
 // return an inclusion proof to either the leaf, or nil if the leaf does not
 // exist.
@@ -130,10 +71,6 @@ func (t *TrillianMapServer) GetLeavesByRevision(ctx context.Context, req *trilli
 }
 
 func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64, indices [][]byte, revision int64) (*trillian.GetMapLeavesResponse, error) {
-	if err := t.Init(ctx, mapID); err != nil {
-		return nil, err
-	}
-
 	tree, hasher, err := t.getTreeAndHasher(ctx, mapID, true /* readonly */)
 	if err != nil {
 		return nil, fmt.Errorf("could not get map %v: %v", mapID, err)
@@ -219,10 +156,6 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 // SetLeaves implements the SetLeaves RPC method.
 func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapLeavesRequest) (*trillian.SetMapLeavesResponse, error) {
 	mapID := req.MapId
-	if err := t.Init(ctx, mapID); err != nil {
-		return nil, err
-	}
-
 	tree, hasher, err := t.getTreeAndHasher(ctx, mapID, false /* readonly */)
 	if err != nil {
 		return nil, err
@@ -324,9 +257,6 @@ func (t *TrillianMapServer) makeSignedMapRoot(ctx context.Context, tree *trillia
 
 // GetSignedMapRoot implements the GetSignedMapRoot RPC method.
 func (t *TrillianMapServer) GetSignedMapRoot(ctx context.Context, req *trillian.GetSignedMapRootRequest) (*trillian.GetSignedMapRootResponse, error) {
-	if err := t.Init(ctx, req.MapId); err != nil {
-		return nil, err
-	}
 	tx, err := t.registry.MapStorage.SnapshotForTree(ctx, req.MapId)
 	if err != nil {
 		return nil, err
@@ -353,9 +283,6 @@ func (t *TrillianMapServer) GetSignedMapRoot(ctx context.Context, req *trillian.
 func (t *TrillianMapServer) GetSignedMapRootByRevision(ctx context.Context, req *trillian.GetSignedMapRootByRevisionRequest) (*trillian.GetSignedMapRootResponse, error) {
 	if req.Revision < 0 {
 		return nil, fmt.Errorf("map revision %d must be >= 0", req.Revision)
-	}
-	if err := t.Init(ctx, req.MapId); err != nil {
-		return nil, err
 	}
 	tx, err := t.registry.MapStorage.SnapshotForTree(ctx, req.MapId)
 	if err != nil {
@@ -392,4 +319,46 @@ func (t *TrillianMapServer) getTreeAndHasher(ctx context.Context, treeID int64, 
 		return nil, nil, err
 	}
 	return tree, th, nil
+}
+
+// InitMap implements the RPC Method of the same name.
+func (t *TrillianMapServer) InitMap(ctx context.Context, req *trillian.InitMapRequest) (*trillian.InitMapResponse, error) {
+	mapID := req.MapId
+	tree, hasher, err := t.getTreeAndHasher(ctx, mapID, false /* readonly */)
+	if err != nil {
+		return nil, err
+	}
+	ctx = trees.NewContext(ctx, tree)
+
+	tx, err := t.registry.MapStorage.BeginForTree(ctx, mapID)
+	if err != storage.ErrMapNeedsInit && err != nil {
+		return nil, err
+	}
+	defer tx.Close()
+
+	if err == nil {
+		// Init() not needed.
+		return nil, status.New(codes.AlreadyExists, "map already intialised.").Err()
+	}
+
+	glog.V(2).Infof("%v: Need to init map root revision 0", mapID)
+
+	rootHash := hasher.HashEmpty(mapID, make([]byte, hasher.Size()), hasher.BitLen())
+	rev0Root, err := t.makeSignedMapRoot(ctx, tree, time.Now(), rootHash, mapID, 0 /*revision*/, nil /* metadata */)
+	if err != nil {
+		return nil, fmt.Errorf("makeSignedMapRoot(): %v", err)
+	}
+
+	if err = tx.StoreSignedMapRoot(ctx, *rev0Root); err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		glog.Warningf("%v: Commit failed for SetLeaves: %v", mapID, err)
+		return nil, err
+	}
+
+	return &trillian.InitMapResponse{
+		Created: rev0Root,
+	}, nil
 }

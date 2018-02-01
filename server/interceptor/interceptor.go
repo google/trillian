@@ -334,12 +334,13 @@ func newRPCInfo(req interface{}, quotaUser string) (*rpcInfo, error) {
 		info.treeType = trillian.TreeType_MAP
 
 	// Map / readwrite
-	case *trillian.SetMapLeavesRequest:
+	case *trillian.SetMapLeavesRequest,
+		*trillian.InitMapRequest:
 		info.readonly = false
 		info.treeType = trillian.TreeType_MAP
 
 	default:
-		return nil, status.Errorf(codes.Internal, "unmapped request type: %T", req)
+		return nil, status.Errorf(codes.Internal, "newRPCInfo: unmapped request type: %T", req)
 	}
 
 	if info.auth || info.getTree || info.quota {
