@@ -110,6 +110,7 @@ const (
 	TreeType_MAP TreeType = 2
 	// Tree represents a verifiable pre-ordered log, i.e., a log whose entries are
 	// placed according to sequence numbers assigned outside of Trillian.
+	// TODO(pavelkalinnikov): Support this type.
 	TreeType_PREORDERED_LOG TreeType = 3
 )
 

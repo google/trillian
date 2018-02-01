@@ -195,6 +195,14 @@ message GetEntryAndProofResponse {
     LogLeaf leaf = 3;
 }
 
+message InitLogRequest {
+    int64 log_id = 1;
+}
+
+message InitLogResponse {
+    SignedLogRoot created = 1;
+}
+
 // TrillianLog defines a service that can provide access to a Verifiable Log as defined in the
 // Verifiable Data Structures paper. It provides direct access to a subset of storage APIs
 // (for handling reads) and provides Log level ones such as being able to obtain proofs.
@@ -241,6 +249,16 @@ service TrillianLog {
     rpc GetEntryAndProof (GetEntryAndProofRequest) returns (GetEntryAndProofResponse) {
       option (google.api.http) = {
         get: "/v1beta1/logs/{log_id}/leaves/{leaf_index}"
+      };
+    }
+
+    //
+    // Initialisation APIs
+    //
+
+    rpc InitLog (InitLogRequest) returns (InitLogResponse) {
+      option (google.api.http) = {
+        post: "/v1/beta1/logs/{log_id}:init"
       };
     }
 
