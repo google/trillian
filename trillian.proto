@@ -27,6 +27,22 @@ import "google/protobuf/any.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 
+
+// LogSignatureFormat specifies the fields that are covered by the
+// SignedLogRoot signature, as well as their ordering and formats. 
+enum LogSignatureFormat {
+   LOG_SIG_FORMAT_UNKNOWN = 0;
+   LOG_SIG_FORMAT_V1 = 1;
+}
+
+// MapSignatureFormat specifies the fields that are covered by the
+// SignedMapRoot signature, as well as their ordering and formats. 
+enum MapSignatureFormat {
+   MAP_SIG_FORMAT_UNKNOWN = 0;
+   MAP_SIG_FORMAT_V1 = 1;
+}
+
+
 // What goes in here?
 // Things which are exposed through the public trillian APIs.
 
