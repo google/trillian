@@ -27,6 +27,8 @@ import (
 	"github.com/google/trillian/storage"
 	stestonly "github.com/google/trillian/storage/testonly"
 	"github.com/kylelemons/godebug/pretty"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -85,6 +87,33 @@ func TestIsHealthy(t *testing.T) {
 		if gotErr := err != nil; gotErr != wantErr {
 			t.Errorf("%s: IsHealthy() err? %t want? %t (err=%v)", test.desc, gotErr, wantErr, err)
 		}
+	}
+}
+
+func TestInitMapAlreadyInitialised(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	ctx := context.Background()
+
+	adminStorage := mockAdminStorageForMap(ctrl, 2, mapID1)
+	mockStorage := storage.NewMockMapStorage(ctrl)
+	mockTX := storage.NewMockMapTreeTX(ctrl)
+	server := NewTrillianMapServer(extension.Registry{
+		AdminStorage: adminStorage,
+		MapStorage:   mockStorage,
+	})
+	mockStorage.EXPECT().BeginForTree(gomock.Any(), gomock.Any()).Return(mockTX, nil)
+	mockTX.EXPECT().Close()
+
+	initResp, err := server.InitMap(ctx, &trillian.InitMapRequest{MapId: mapID1})
+	if err == nil {
+		t.Fatalf("InitMap() on initialised map = no error, want error")
+	}
+	if got, want := status.Code(err), codes.AlreadyExists; got != want {
+		t.Errorf("InitMap() = %v, want %v", got, want)
+	}
+	if initResp != nil {
+		t.Errorf("InitMap() returned non-nil response %v with error, want nil response", initResp)
 	}
 }
 
