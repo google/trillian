@@ -492,7 +492,7 @@ func runMapBatchTest(ctx context.Context, t *testing.T, desc string, tmap trilli
 
 	// Ensure we're starting with an empty map
 	if err := isEmptyMap(ctx, tmap, tree); err != nil {
-		t.Errorf("%s: isEmptyMap() err=%v want nil", desc, err)
+		t.Fatalf("%s: isEmptyMap() err=%v want nil", desc, err)
 	}
 
 	// Generate leaves.
@@ -511,7 +511,7 @@ func runMapBatchTest(ctx context.Context, t *testing.T, desc string, tmap trilli
 			MapId:  tree.TreeId,
 			Leaves: b,
 		}); err != nil {
-			t.Errorf("%s: SetLeaves(): %v", desc, err)
+			t.Fatalf("%s: SetLeaves(): %v", desc, err)
 		}
 	}
 
@@ -520,11 +520,11 @@ func runMapBatchTest(ctx context.Context, t *testing.T, desc string, tmap trilli
 		MapId: tree.TreeId,
 	})
 	if err != nil {
-		t.Errorf("%s: failed to get map head: %v", desc, err)
+		t.Fatalf("%s: failed to get map head: %v", desc, err)
 	}
 
-	if got, want := r.MapRoot.MapRevision, int64(numBatches); got != want {
-		t.Errorf("%s: got SMR with revision %d, want %d", desc, got, want)
+	if got, want := r.GetMapRoot().GetMapRevision(), int64(numBatches); got != want {
+		t.Fatalf("%s: got SMR with revision %d, want %d", desc, got, want)
 	}
 
 	// Shuffle the indexes. Map access is randomized.
