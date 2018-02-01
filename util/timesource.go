@@ -24,6 +24,9 @@ import (
 type TimeSource interface {
 	// Now returns the current time in real implementations or a suitable value in others
 	Now() time.Time
+
+	// Since returns the time elapsed since t.
+	Since(t time.Time) time.Duration
 }
 
 // SystemTimeSource provides the current system local time
@@ -32,6 +35,10 @@ type SystemTimeSource struct{}
 // Now returns the true current local time.
 func (s SystemTimeSource) Now() time.Time {
 	return time.Now()
+}
+
+func (s SystemTimeSource) Since(t time.Time) time.Duration {
+	return s.Now().Sub(t)
 }
 
 // FakeTimeSource provides a time that can be any arbitrarily set value for use in tests.
@@ -52,6 +59,10 @@ func (f *FakeTimeSource) Now() time.Time {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.fakeTime
+}
+
+func (f *FakeTimeSource) Since(t time.Time) time.Duration {
+	return f.Now().Sub(t)
 }
 
 // Set gives the time that this instance will report
@@ -78,4 +89,8 @@ func (a *IncrementingFakeTimeSource) Now() time.Time {
 	a.NextIncrement++
 
 	return adjustedTime
+}
+
+func (a *IncrementingFakeTimeSource) Since(t time.Time) time.Duration {
+	return a.Now().Sub(t)
 }
