@@ -195,8 +195,12 @@ func (t *readOnlyLogTX) Close() error {
 }
 
 func (t *readOnlyLogTX) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
+	// Include logs that are DRAINING in the active list as we're still
+	// integrating leaves into them.
 	rows, err := t.tx.QueryContext(
-		ctx, selectNonDeletedTreeIDByTypeAndStateSQL, trillian.TreeType_LOG.String(), trillian.TreeState_ACTIVE.String())
+		ctx, selectNonDeletedTreeIDByTypeAndStateSQL, trillian.TreeType_LOG.String(),
+		trillian.TreeState_ACTIVE.String(),
+		trillian.TreeState_DRAINING.String())
 	if err != nil {
 		return nil, err
 	}
