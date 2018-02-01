@@ -126,7 +126,7 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 	keys.RegisterHandler(fakeKeyProtoHandler(keyProto.Message, signer, nil))
 	defer keys.UnregisterHandler(keyProto.Message)
 
-	mockStorage.EXPECT().BeginForTree(gomock.Any(), logID).Return(mockTx, nil)
+	mockStorage.EXPECT().ReadWriteTransaction(gomock.Any(), logID, gomock.Any()).DoAndReturn(stestonly.RunOnLogTX(mockTx))
 	mockTx.EXPECT().Commit().Return(nil)
 	mockTx.EXPECT().Close().Return(nil)
 	mockTx.EXPECT().WriteRevision().AnyTimes().Return(writeRev)
@@ -188,7 +188,8 @@ func TestSequencerManagerCachesSigners(t *testing.T) {
 		)
 
 		gomock.InOrder(
-			mockStorage.EXPECT().BeginForTree(gomock.Any(), logID).Return(mockTx, nil),
+			mockStorage.EXPECT().ReadWriteTransaction(gomock.Any(), logID, gomock.Any()).DoAndReturn(stestonly.RunOnLogTX(mockTx)),
+			mockTx.EXPECT().DequeueLeaves(gomock.Any(), 50, fakeTime).Return([]*trillian.LogLeaf{}, nil),
 			mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(testRoot0, nil),
 			mockTx.EXPECT().DequeueLeaves(gomock.Any(), 50, fakeTime).Return([]*trillian.LogLeaf{}, nil),
 			mockTx.EXPECT().WriteRevision().AnyTimes().Return(writeRev),
@@ -280,7 +281,7 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 	mockTx.EXPECT().UpdateSequencedLeaves(gomock.Any(), []*trillian.LogLeaf{testLeaf0Updated}).Return(nil)
 	mockTx.EXPECT().SetMerkleNodes(gomock.Any(), updatedNodes0).Return(nil)
 	mockTx.EXPECT().StoreSignedLogRoot(gomock.Any(), updatedRoot).Return(nil)
-	mockStorage.EXPECT().BeginForTree(gomock.Any(), logID).Return(mockTx, nil)
+	mockStorage.EXPECT().ReadWriteTransaction(gomock.Any(), logID, gomock.Any()).DoAndReturn(stestonly.RunOnLogTX(mockTx))
 
 	mockAdmin.EXPECT().Snapshot(gomock.Any()).Return(mockAdminTx, nil)
 	mockAdminTx.EXPECT().GetTree(gomock.Any(), logID).Return(stestonly.LogTree, nil)
@@ -321,7 +322,7 @@ func TestSequencerManagerGuardWindow(t *testing.T) {
 	keys.RegisterHandler(fakeKeyProtoHandler(keyProto.Message, signer, nil))
 	defer keys.UnregisterHandler(keyProto.Message)
 
-	mockStorage.EXPECT().BeginForTree(gomock.Any(), logID).Return(mockTx, nil)
+	mockStorage.EXPECT().ReadWriteTransaction(gomock.Any(), logID, gomock.Any()).DoAndReturn(stestonly.RunOnLogTX(mockTx))
 	mockTx.EXPECT().Commit().Return(nil)
 	mockTx.EXPECT().Close().Return(nil)
 	mockTx.EXPECT().WriteRevision().AnyTimes().Return(writeRev)

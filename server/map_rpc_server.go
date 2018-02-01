@@ -169,10 +169,8 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 			ctx,
 			req.MapId,
 			tx.WriteRevision(),
-			hasher, func(f func(storage.MapTreeTX) error) error {
-				return t.registry.MapStorage.ReadWriteTransaction(ctx, req.MapId, func(ctx context.Context, tx storage.MapTreeTX) error {
-					return f(tx)
-				})
+			hasher, func(ctx context.Context, f func(context.Context, storage.MapTreeTX) error) error {
+				return t.registry.MapStorage.ReadWriteTransaction(ctx, req.MapId, f)
 			})
 		if err != nil {
 			return err
@@ -329,6 +327,11 @@ func (t *TrillianMapServer) InitMap(ctx context.Context, req *trillian.InitMapRe
 
 	var rev0Root *trillian.SignedMapRoot
 	err = t.registry.MapStorage.ReadWriteTransaction(ctx, mapID, func(ctx context.Context, tx storage.MapTreeTX) error {
+		if smr, err := tx.LatestSignedMapRoot(ctx); err == nil && smr.TimestampNanos != 0 {
+			// No need to init - we already have a SignedMapRoot.
+			return status.New(codes.AlreadyExists, "map already intialised.").Err()
+		}
+
 		rev0Root = nil
 		defer tx.Close()
 

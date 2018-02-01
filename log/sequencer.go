@@ -330,7 +330,7 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, logID int64, limit int, g
 			glog.Warningf("%v: Sequencer failed to load sequenced batch: %v", logID, err)
 			return 0, err
 		}
-		numLeaves := len(sequencedLeaves)
+		numLeaves = len(leaves)
 
 		// We need to create a signed root if entries were added or the latest root
 		// is too old.

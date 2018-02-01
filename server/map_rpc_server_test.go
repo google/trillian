@@ -110,7 +110,7 @@ func TestInitMap(t *testing.T) {
 
 			mockStorage := storage.NewMockMapStorage(ctrl)
 			mockTx := storage.NewMockMapTreeTX(ctrl)
-			mockStorage.EXPECT().BeginForTree(gomock.Any(), gomock.Any()).Return(mockTx, nil)
+			mockStorage.EXPECT().ReadWriteTransaction(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(stestonly.RunOnMapTX(mockTX))
 
 			mockTx.EXPECT().IsOpen().AnyTimes().Return(false)
 			mockTx.EXPECT().Close().Return(nil)

@@ -39,7 +39,9 @@ type SparseMerkleTreeReader struct {
 	treeRevision int64
 }
 
-type runTXFunc func(func(storage.MapTreeTX) error) error
+// runTXFunc is the interface for a function which produces something which can
+// be passed as the last argument to MapStorage.ReadWriteTransaction.
+type runTXFunc func(context.Context, func(context.Context, storage.MapTreeTX) error) error
 
 // SparseMerkleTreeWriter knows how to store/update a stored sparse Merkle tree
 // via a TreeStorage transaction.
@@ -201,7 +203,7 @@ func (s *subtreeWriter) RootHash() ([]byte, error) {
 func (s *subtreeWriter) buildSubtree(ctx context.Context) {
 	defer close(s.root)
 	var root []byte
-	err := s.runTX(func(tx storage.MapTreeTX) error {
+	err := s.runTX(ctx, func(ctx context.Context, tx storage.MapTreeTX) error {
 		root = []byte{}
 		leaves := make([]HStar2LeafHash, 0, len(s.leafQueue))
 		nodesToStore := make([]storage.Node, 0, len(s.leafQueue)*2)

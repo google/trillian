@@ -89,8 +89,8 @@ func main() {
 			mapID,
 			tx.WriteRevision(),
 			hasher,
-			func() (storage.TreeTX, error) {
-				return ms.BeginForTree(ctx, mapID)
+			func(ctx context.Context, f func(context.Context, storage.MapTreeTX) error) error {
+				return ms.ReadWriteTransaction(ctx, mapID, f)
 			})
 		if err != nil {
 			glog.Exitf("Failed to create new SMTWriter: %v", err)

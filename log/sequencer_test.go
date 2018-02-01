@@ -206,9 +206,10 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) (testCont
 
 	mockTx.EXPECT().WriteRevision().AnyTimes().Return(params.writeRevision)
 	if params.beginFails {
-		mockStorage.EXPECT().BeginForTree(gomock.Any(), params.logID).Return(mockTx, errors.New("TX"))
+		mockStorage.EXPECT().ReadWriteTransaction(gomock.Any(), params.logID, gomock.Any()).Return(errors.New("TX"))
 	} else {
-		mockStorage.EXPECT().BeginForTree(gomock.Any(), params.logID).Return(mockTx, nil)
+		mockTx.EXPECT().Close()
+		mockStorage.EXPECT().ReadWriteTransaction(gomock.Any(), params.logID, gomock.Any()).DoAndReturn(stestonly.RunOnLogTX(mockTx))
 	}
 
 	if params.shouldCommit {
@@ -630,7 +631,7 @@ func TestIntegrateBatch_PutTokens(t *testing.T) {
 			logTX.EXPECT().Commit().Return(nil)
 			logTX.EXPECT().Close().Return(nil)
 			logStorage := storage.NewMockLogStorage(ctrl)
-			logStorage.EXPECT().BeginForTree(any, any).Return(logTX, nil)
+			logStorage.EXPECT().ReadWriteTransaction(any, any, any).DoAndReturn(stestonly.RunOnLogTX(logTX))
 
 			qm := quota.NewMockManager(ctrl)
 			if test.wantTokens > 0 {
