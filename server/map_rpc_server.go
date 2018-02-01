@@ -55,45 +55,6 @@ func (t *TrillianMapServer) IsHealthy() error {
 	return t.registry.MapStorage.CheckDatabaseAccessible(context.Background())
 }
 
-// Init creates the initial revision 0 SignedMapHead, if one doesn't already exist.
-func (t *TrillianMapServer) Init(ctx context.Context, mapID int64) (*trillian.SignedMapRoot, error) {
-	tree, hasher, err := t.getTreeAndHasher(ctx, mapID, false /* readonly */)
-	if err != nil {
-		return nil, err
-	}
-	ctx = trees.NewContext(ctx, tree)
-
-	tx, err := t.registry.MapStorage.BeginForTree(ctx, mapID)
-	if err != storage.ErrMapNeedsInit && err != nil {
-		return nil, err
-	}
-	defer tx.Close()
-
-	if err == nil {
-		// Init() not needed.
-		return nil, nil
-	}
-
-	glog.V(2).Infof("%v: Need to init map root revision 0", mapID)
-
-	rootHash := hasher.HashEmpty(mapID, make([]byte, hasher.Size()), hasher.BitLen())
-	rev0Root, err := t.makeSignedMapRoot(ctx, tree, time.Now(), rootHash, mapID, 0 /*revision*/, nil /* metadata */)
-	if err != nil {
-		return nil, fmt.Errorf("makeSignedMapRoot(): %v", err)
-	}
-
-	if err = tx.StoreSignedMapRoot(ctx, *rev0Root); err != nil {
-		return nil, err
-	}
-
-	if err := tx.Commit(); err != nil {
-		glog.Warningf("%v: Commit failed for SetLeaves: %v", mapID, err)
-		return nil, err
-	}
-
-	return rev0Root, nil
-}
-
 // GetLeaves implements the GetLeaves RPC method.  Each requested index will
 // return an inclusion proof to either the leaf, or nil if the leaf does not
 // exist.
