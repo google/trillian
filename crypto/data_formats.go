@@ -24,17 +24,10 @@ import (
 
 // This file contains struct specific mappings and data structures.
 
-type logVersion int32
-
-const (
-	// LogRootV0 indicates version 0 for the canonical representation of the SignedLogRoot.
-	LogRootV0 logVersion = iota
-)
-
 // CanonicalLogRoot returns a canonical TLS serialization of the log root.
-func CanonicalLogRoot(r *trillian.SignedLogRoot, version logVersion) ([]byte, error) {
+func CanonicalLogRoot(r *trillian.SignedLogRoot, version trillian.LogSignatureFormat) ([]byte, error) {
 	switch version {
-	case LogRootV0:
+	case trillian.LogSignatureFormat_LOG_SIG_FORMAT_V1:
 		root := struct {
 			DataFormatVersion uint32
 			RootHash          []byte `tls:"minlen:0,maxlen:128"`
@@ -42,7 +35,7 @@ func CanonicalLogRoot(r *trillian.SignedLogRoot, version logVersion) ([]byte, er
 			TreeSize          uint64
 			LogID             uint64
 		}{
-			DataFormatVersion: uint32(LogRootV0),
+			DataFormatVersion: uint32(version),
 			RootHash:          r.RootHash,
 			TimestampNanos:    uint64(r.TimestampNanos),
 			TreeSize:          uint64(r.TreeSize),
@@ -54,17 +47,10 @@ func CanonicalLogRoot(r *trillian.SignedLogRoot, version logVersion) ([]byte, er
 	}
 }
 
-type mapVersion int32
-
-const (
-	// MapRootV0 indicates version 0 for the canonical representation of the SignedMapRoot.
-	MapRootV0 mapVersion = iota
-)
-
 // CanonicalMapRoot returns a canonical TLS serialization of the map root.
-func CanonicalMapRoot(r *trillian.SignedMapRoot, version mapVersion) ([]byte, error) {
+func CanonicalMapRoot(r *trillian.SignedMapRoot, version trillian.MapSignatureFormat) ([]byte, error) {
 	switch version {
-	case MapRootV0:
+	case trillian.MapSignatureFormat_MAP_SIG_FORMAT_V1:
 		root := struct {
 			DataFormatVersion uint32
 			RootHash          []byte `tls:"minlen:0,maxlen:128"`
@@ -74,7 +60,7 @@ func CanonicalMapRoot(r *trillian.SignedMapRoot, version mapVersion) ([]byte, er
 			MetadataType      []byte `tls:"minlen:0,maxlen:65535"`
 			MetadataValue     []byte `tls:"minlen:0,maxlen:65535"`
 		}{
-			DataFormatVersion: uint32(MapRootV0),
+			DataFormatVersion: uint32(version),
 			RootHash:          r.RootHash,
 			TimestampNanos:    uint64(r.TimestampNanos),
 			MapID:             uint64(r.MapId),

@@ -105,7 +105,7 @@ func TestSignVerifyMapRoot(t *testing.T) {
 		{obj: &trillian.SignedMapRoot{Metadata: meta0}},
 		{obj: &trillian.SignedMapRoot{Metadata: meta1}},
 	} {
-		canonical, err := CanonicalMapRoot(tc.obj, MapRootV0)
+		canonical, err := CanonicalMapRoot(tc.obj, trillian.MapSignatureFormat_MAP_SIG_FORMAT_V1)
 		if err != nil {
 			t.Errorf("CanonicalMapRoot(%#v): %v", tc.obj, err)
 			continue

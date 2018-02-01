@@ -94,7 +94,7 @@ func TestSignWithSignedLogRoot_SignerFails(t *testing.T) {
 		RootHash:       rootHash,
 		TreeSize:       2,
 	}
-	hash, err := CanonicalLogRoot(root, LogRootV0)
+	hash, err := CanonicalLogRoot(root, trillian.LogSignatureFormat_LOG_SIG_FORMAT_V1)
 	if err != nil {
 		t.Fatalf("CanonicalLogRoot(): %v", err)
 	}
@@ -133,7 +133,7 @@ func TestSignLogRoot(t *testing.T) {
 			t.Errorf("Sig alg incorrect, got %s expected %s", got, want)
 		}
 		// Check that the signature is correct
-		obj, err := CanonicalLogRoot(test.root, LogRootV0)
+		obj, err := CanonicalLogRoot(test.root, trillian.LogSignatureFormat_LOG_SIG_FORMAT_V1)
 		if err != nil {
 			t.Errorf("CanonicalLogRoot err: got %v want nil", err)
 			continue
@@ -176,7 +176,7 @@ func TestSignMapRoot(t *testing.T) {
 			t.Errorf("Sig alg incorrect, got %s expected %s", got, want)
 		}
 		// Check that the signature is correct
-		canonical, err := CanonicalMapRoot(test.root, MapRootV0)
+		canonical, err := CanonicalMapRoot(test.root, trillian.MapSignatureFormat_MAP_SIG_FORMAT_V1)
 		if err != nil {
 			t.Errorf("CanonicalMapRoot(): %v", err)
 		}
