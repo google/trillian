@@ -24,17 +24,31 @@ import (
 
 // This file contains struct specific mappings and data structures.
 
+// SignedLogRootV1 contains the fields verified by SignedLogRootV1
+type SignedLogRootV1 struct {
+	DataFormatVersion uint32
+	RootHash          []byte `tls:"minlen:0,maxlen:128"`
+	TimestampNanos    uint64
+	TreeSize          uint64
+	LogID             uint64
+}
+
+// SignedMapRootV1 contains the fields verified by SignedMapRootV1
+type SignedMapRootV1 struct {
+	DataFormatVersion uint32
+	RootHash          []byte `tls:"minlen:0,maxlen:128"`
+	TimestampNanos    uint64
+	MapID             uint64
+	MapRevision       uint64
+	MetadataType      []byte `tls:"minlen:0,maxlen:65535"`
+	MetadataValue     []byte `tls:"minlen:0,maxlen:65535"`
+}
+
 // CanonicalLogRoot returns a canonical TLS serialization of the log root.
 func CanonicalLogRoot(r *trillian.SignedLogRoot, version trillian.LogSignatureFormat) ([]byte, error) {
 	switch version {
 	case trillian.LogSignatureFormat_LOG_SIG_FORMAT_V1:
-		root := struct {
-			DataFormatVersion uint32
-			RootHash          []byte `tls:"minlen:0,maxlen:128"`
-			TimestampNanos    uint64
-			TreeSize          uint64
-			LogID             uint64
-		}{
+		root := SignedLogRootV1{
 			DataFormatVersion: uint32(version),
 			RootHash:          r.RootHash,
 			TimestampNanos:    uint64(r.TimestampNanos),
@@ -51,15 +65,7 @@ func CanonicalLogRoot(r *trillian.SignedLogRoot, version trillian.LogSignatureFo
 func CanonicalMapRoot(r *trillian.SignedMapRoot, version trillian.MapSignatureFormat) ([]byte, error) {
 	switch version {
 	case trillian.MapSignatureFormat_MAP_SIG_FORMAT_V1:
-		root := struct {
-			DataFormatVersion uint32
-			RootHash          []byte `tls:"minlen:0,maxlen:128"`
-			TimestampNanos    uint64
-			MapID             uint64
-			MapRevision       uint64
-			MetadataType      []byte `tls:"minlen:0,maxlen:65535"`
-			MetadataValue     []byte `tls:"minlen:0,maxlen:65535"`
-		}{
+		root := SignedMapRootV1{
 			DataFormatVersion: uint32(version),
 			RootHash:          r.RootHash,
 			TimestampNanos:    uint64(r.TimestampNanos),
