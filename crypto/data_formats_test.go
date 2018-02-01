@@ -93,7 +93,7 @@ func TestHashLogRoot(t *testing.T) {
 
 		h := sha256.Sum256(canonical)
 		if _, ok := unique[h]; ok {
-			t.Errorf("Found duplicate canonical form for input %v", test.root)
+			t.Errorf("Found duplicate canonical form for input %+v", test.root)
 		}
 		unique[h] = true
 	}
