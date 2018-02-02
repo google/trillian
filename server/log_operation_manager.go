@@ -154,7 +154,7 @@ func (er *electionRunner) Run(ctx context.Context, pending chan<- resignation) {
 		glog.V(1).Infof("%d: Now, I am the master", er.logID)
 		er.tracker.Set(er.logID, true)
 		isMaster.Set(1.0, label)
-		masterSince := time.Now()
+		masterSince := er.info.TimeSource.Now()
 
 		// While-master loop
 		for {
@@ -396,7 +396,7 @@ func (l *LogOperationManager) getLogsAndExecutePass(ctx context.Context) error {
 	close(toProcess)
 
 	// Set off a collection of transient worker goroutines to process the pending logIDs.
-	startBatch := time.Now()
+	startBatch := l.info.TimeSource.Now()
 	var wg sync.WaitGroup
 	for i := 0; i < numWorkers; i++ {
 		wg.Add(1)
@@ -409,7 +409,7 @@ func (l *LogOperationManager) getLogsAndExecutePass(ctx context.Context) error {
 				}
 
 				label := strconv.FormatInt(logID, 10)
-				start := time.Now()
+				start := l.info.TimeSource.Now()
 				count, err := l.logOperation.ExecutePass(ctx, logID, &l.info)
 				if err != nil {
 					glog.Errorf("ExecutePass(%v) failed: %v", logID, err)
@@ -420,7 +420,7 @@ func (l *LogOperationManager) getLogsAndExecutePass(ctx context.Context) error {
 				// This indicates signing activity is proceeding on the logID.
 				signingRuns.Inc(label)
 				if count > 0 {
-					d := time.Since(start).Seconds()
+					d := util.SecondsSince(l.info.TimeSource, start)
 					glog.Infof("%v: processed %d items in %.2f seconds (%.2f qps)", logID, count, d, float64(count)/d)
 					// This allows an operator to determine that the queue is empty
 					// for a particular log if signing runs are succeeding but nothing
@@ -439,7 +439,7 @@ func (l *LogOperationManager) getLogsAndExecutePass(ctx context.Context) error {
 
 	// Wait for the workers to consume all of the logIDs
 	wg.Wait()
-	d := time.Since(startBatch).Seconds()
+	d := util.SecondsSince(l.info.TimeSource, startBatch)
 	glog.Infof("Group run completed in %.2f seconds: %v succeeded, %v failed, %v items processed", d, successCount, len(logIDs)-successCount, itemCount)
 
 	return nil
@@ -461,7 +461,7 @@ func (l *LogOperationManager) OperationLoop(ctx context.Context) {
 loop:
 	for {
 		// TODO(alcutter): want a child context with deadline here?
-		start := time.Now()
+		start := l.info.TimeSource.Now()
 		if err := l.getLogsAndExecutePass(ctx); err != nil {
 			// Suppress the error if ctx is done (ok==false) as we're exiting.
 			if _, ok := <-ctx.Done(); ok {
@@ -490,7 +490,7 @@ loop:
 		}
 
 		// Wait for the configured time before going for another pass
-		duration := time.Since(start)
+		duration := l.info.TimeSource.Now().Sub(start)
 		wait := l.info.RunInterval - duration
 		if wait > 0 {
 			glog.V(1).Infof("Processing started at %v for %v; wait %v before next run", start, duration, wait)
