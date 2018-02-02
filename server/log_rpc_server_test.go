@@ -1792,8 +1792,6 @@ func (p *parameterizedTest) executeInvalidLogIDTest(t *testing.T, snapshot bool)
 	mockStorage := storage.NewMockLogStorage(p.ctrl)
 	if ctx, logID := gomock.Any(), int64(2); snapshot {
 		mockStorage.EXPECT().SnapshotForTree(ctx, logID).MaxTimes(1).Return(nil, badLogErr)
-	} else {
-		// ReadWriteTransaction will never be called
 	}
 
 	registry := extension.Registry{
