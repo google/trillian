@@ -223,30 +223,28 @@ func (env *LogEnv) Close() {
 func (env *LogEnv) CreateLog() (int64, error) {
 	ctx := context.Background()
 	tree := stestonly.LogTree
-	{
-		tx, err := env.registry.AdminStorage.Begin(ctx)
-		if err != nil {
-			return 0, err
-		}
-
-		tree.PrivateKey, err = ptypes.MarshalAny(privateKeyInfo)
-		if err != nil {
-			return 0, err
-		}
-		tree.PublicKey = &keyspb.PublicKey{
-			Der: ktestonly.MustMarshalPublicPEMToDER(publicKey),
-		}
-
-		tree, err = tx.CreateTree(ctx, tree)
-		if err != nil {
-			return 0, err
-		}
-		if err := tx.Commit(); err != nil {
-			return 0, err
-		}
+	tx, err := env.registry.AdminStorage.Begin(ctx)
+	if err != nil {
+		return 0, err
 	}
 
-	_, err := env.logServer.InitLog(ctx, &trillian.InitLogRequest{LogId: tree.TreeId})
+	tree.PrivateKey, err = ptypes.MarshalAny(privateKeyInfo)
+	if err != nil {
+		return 0, err
+	}
+	tree.PublicKey = &keyspb.PublicKey{
+		Der: ktestonly.MustMarshalPublicPEMToDER(publicKey),
+	}
+
+	tree, err = tx.CreateTree(ctx, tree)
+	if err != nil {
+		return 0, err
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+
+	_, err = env.logServer.InitLog(ctx, &trillian.InitLogRequest{LogId: tree.TreeId})
 	if err != nil {
 		return 0, err
 	}
