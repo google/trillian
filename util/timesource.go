@@ -25,7 +25,7 @@ type TimeSource interface {
 	// Now returns the current time in real implementations or a suitable value in others
 	Now() time.Time
 
-	// Since returns the time elapsed since t.
+	// Since returns the time elapsed since t until Now().
 	Since(t time.Time) time.Duration
 }
 
@@ -37,8 +37,9 @@ func (s SystemTimeSource) Now() time.Time {
 	return time.Now()
 }
 
+// Since returns the time elapsed since t until Now().
 func (s SystemTimeSource) Since(t time.Time) time.Duration {
-	return s.Now().Sub(t)
+	return time.Since(t)
 }
 
 // FakeTimeSource provides a time that can be any arbitrarily set value for use in tests.
@@ -61,6 +62,7 @@ func (f *FakeTimeSource) Now() time.Time {
 	return f.fakeTime
 }
 
+// Since returns the time elapsed since t until Now().
 func (f *FakeTimeSource) Since(t time.Time) time.Duration {
 	return f.Now().Sub(t)
 }
@@ -91,6 +93,7 @@ func (a *IncrementingFakeTimeSource) Now() time.Time {
 	return adjustedTime
 }
 
+// Since returns the time elapsed since t until Now().
 func (a *IncrementingFakeTimeSource) Since(t time.Time) time.Duration {
 	return a.Now().Sub(t)
 }
