@@ -222,12 +222,12 @@ func (env *LogEnv) Close() {
 // CreateLog creates a log and signs the first empty tree head.
 func (env *LogEnv) CreateLog() (int64, error) {
 	ctx := context.Background()
+	tree := stestonly.LogTree
 	tx, err := env.registry.AdminStorage.Begin(ctx)
 	if err != nil {
 		return 0, err
 	}
 
-	tree := stestonly.LogTree
 	tree.PrivateKey, err = ptypes.MarshalAny(privateKeyInfo)
 	if err != nil {
 		return 0, err
@@ -243,7 +243,10 @@ func (env *LogEnv) CreateLog() (int64, error) {
 	if err := tx.Commit(); err != nil {
 		return 0, err
 	}
-	// Sign the first empty tree head.
-	env.Sequencer.OperationSingle(ctx)
+
+	_, err = env.logServer.InitLog(ctx, &trillian.InitLogRequest{LogId: tree.TreeId})
+	if err != nil {
+		return 0, err
+	}
 	return tree.TreeId, nil
 }

@@ -515,3 +515,66 @@ func (t *TrillianLogRPCServer) getTreeAndHasher(ctx context.Context, treeID int6
 	}
 	return tree, hasher, nil
 }
+
+// InitLog initialises a freshly created Log by creating the first STH with size 0.
+func (t *TrillianLogRPCServer) InitLog(ctx context.Context, req *trillian.InitLogRequest) (*trillian.InitLogResponse, error) {
+	logID := req.LogId
+	tree, hasher, err := t.getTreeAndHasher(ctx, logID, false /* readonly */)
+	if err != nil {
+		return nil, err
+	}
+
+	tx, err := t.registry.LogStorage.BeginForTree(ctx, logID)
+	if err != nil && err != storage.ErrLogNeedsInit {
+		return nil, err
+	}
+	defer tx.Close()
+	if err == nil {
+		// all good, no need to init.
+		return nil, status.New(codes.AlreadyExists, "log already initialised.").Err()
+	}
+
+	{
+		latestRoot, err := tx.LatestSignedLogRoot(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		// Belt and braces check.
+		if latestRoot.RootHash != nil {
+			return nil, status.New(codes.AlreadyExists, "log already initialised.").Err()
+		}
+	}
+
+	newRoot := trillian.SignedLogRoot{
+		RootHash:       hasher.EmptyRoot(),
+		TimestampNanos: t.timeSource.Now().UnixNano(),
+		TreeSize:       0,
+		LogId:          logID,
+		TreeRevision:   0,
+	}
+
+	signer, err := trees.Signer(ctx, tree)
+	if err != nil {
+		return nil, err
+	}
+
+	sig, err := signer.SignLogRoot(&newRoot)
+	if err != nil {
+		return nil, err
+	}
+	newRoot.Signature = sig
+
+	if err := tx.StoreSignedLogRoot(ctx, newRoot); err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	return &trillian.InitLogResponse{
+		Created: &newRoot,
+	}, nil
+
+}

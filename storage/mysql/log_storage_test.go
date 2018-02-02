@@ -878,18 +878,16 @@ func TestLatestSignedRootNoneWritten(t *testing.T) {
 	ctx := context.Background()
 
 	cleanTestDB(DB)
-	logID := createLogForTests(DB)
+	tree, err := createTree(DB, testonly.LogTree)
+	if err != nil {
+		t.Fatalf("createTree: %v", err)
+	}
+	logID := tree.TreeId
 	s := NewLogStorage(DB, nil)
 
-	tx := beginLogTx(s, logID, t)
-	defer tx.Close()
-
-	root, err := tx.LatestSignedLogRoot(ctx)
-	if err != nil {
-		t.Fatalf("Failed to read an empty log root: %v", err)
-	}
-	if root.LogId != 0 || len(root.RootHash) != 0 || root.Signature != nil {
-		t.Fatalf("Read a root with contents when it should be empty: %v", root)
+	tx, err := s.BeginForTree(ctx, logID)
+	if err != storage.ErrLogNeedsInit {
+		t.Errorf("BeginForTree gave %v, want %v", err, storage.ErrLogNeedsInit)
 	}
 	commit(tx, t)
 }

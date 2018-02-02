@@ -110,8 +110,18 @@ func TestCreateTree(t *testing.T) {
 			wantErr:   true,
 		},
 		{
+			desc: "logInitErr",
+			setFlags: func() {
+				nonDefaultTree.TreeType = trillian.TreeType_LOG
+				*treeType = nonDefaultTree.TreeType.String()
+			},
+			initErr: errors.New("log init failed"),
+			wantErr: true,
+		},
+		{
 			desc: "mapInitErr",
 			setFlags: func() {
+				nonDefaultTree.TreeType = trillian.TreeType_MAP
 				*treeType = nonDefaultTree.TreeType.String()
 			},
 			initErr: errors.New("map init failed"),
@@ -128,11 +138,11 @@ func TestCreateTree(t *testing.T) {
 // 2. Sets the adminServerAddr flag to point to the fake server.
 // 3. Calls the test's setFlags func (if provided) to allow it to change flags specific to the test.
 func runTest(t *testing.T, tests []*testCase) {
-	server := &testonly.FakeAdminMapServer{
+	server := &testonly.FakeServer{
 		GeneratedKey: defaultTree.PrivateKey,
 	}
 
-	lis, stopFakeServer, err := testonly.StartFakeAdminMapServer(server)
+	lis, stopFakeServer, err := testonly.StartFakeServer(server)
 	if err != nil {
 		t.Fatalf("Error starting fake server: %v", err)
 	}

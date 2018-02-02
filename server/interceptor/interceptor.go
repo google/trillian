@@ -322,7 +322,8 @@ func newRPCInfo(req interface{}, quotaUser string) (*rpcInfo, error) {
 
 	// Log / readwrite
 	case *trillian.QueueLeafRequest,
-		*trillian.QueueLeavesRequest:
+		*trillian.QueueLeavesRequest,
+		*trillian.InitLogRequest:
 		info.readonly = false
 		info.treeType = trillian.TreeType_LOG
 

@@ -26,11 +26,12 @@ import (
 	"google.golang.org/grpc"
 )
 
-// FakeAdminMapServer implements the TrillianAdminServer CreateTree, and
+// FakeServer implements the TrillianAdminServer CreateTree, and
 // the TrillianMapServer InitMap RPCs.
 // The remaining RPCs are not implemented.
-type FakeAdminMapServer struct {
+type FakeServer struct {
 	trillian.TrillianAdminServer
+	trillian.TrillianLogServer
 	trillian.TrillianMapServer
 
 	// CreateErr will be returned by CreateTree if not nil.
@@ -42,13 +43,14 @@ type FakeAdminMapServer struct {
 	GeneratedKey *any.Any
 }
 
-// StartFakeAdminMapServer starts a server on a random port.
+// StartFakeServer starts a server on a random port.
 // Returns the started server, the listener it's using for connection and a
 // close function that must be defer-called on the scope the server is meant to
 // stop.
-func StartFakeAdminMapServer(server *FakeAdminMapServer) (net.Listener, func(), error) {
+func StartFakeServer(server *FakeServer) (net.Listener, func(), error) {
 	grpcServer := grpc.NewServer()
 	trillian.RegisterTrillianAdminServer(grpcServer, server)
+	trillian.RegisterTrillianLogServer(grpcServer, server)
 	trillian.RegisterTrillianMapServer(grpcServer, server)
 
 	lis, err := net.Listen("tcp", "127.0.0.1:0")
@@ -70,7 +72,7 @@ func StartFakeAdminMapServer(server *FakeAdminMapServer) (net.Listener, func(), 
 // behavior under error conditions.
 // If s.GeneratedKey and req.KeySpec are not nil, the returned tree will have
 // its PrivateKey field set to s.GeneratedKey.
-func (s *FakeAdminMapServer) CreateTree(ctx context.Context, req *trillian.CreateTreeRequest) (*trillian.Tree, error) {
+func (s *FakeServer) CreateTree(ctx context.Context, req *trillian.CreateTreeRequest) (*trillian.Tree, error) {
 	if s.CreateErr != nil {
 		return nil, s.CreateErr
 	}
@@ -100,9 +102,18 @@ func (s *FakeAdminMapServer) CreateTree(ctx context.Context, req *trillian.Creat
 
 // InitMap returns an error if s.InitErr is set, and an empty InitMapResponse
 // struct otherwise.
-func (s *FakeAdminMapServer) InitMap(ctx context.Context, req *trillian.InitMapRequest) (*trillian.InitMapResponse, error) {
+func (s *FakeServer) InitMap(ctx context.Context, req *trillian.InitMapRequest) (*trillian.InitMapResponse, error) {
 	if s.InitErr != nil {
 		return nil, s.InitErr
 	}
 	return &trillian.InitMapResponse{}, nil
+}
+
+// InitLog returns an error if s.InitErr is set, and an empty InitLogResponse
+// struct otherwise.
+func (s *FakeServer) InitLog(ctx context.Context, req *trillian.InitLogRequest) (*trillian.InitLogResponse, error) {
+	if s.InitErr != nil {
+		return nil, s.InitErr
+	}
+	return &trillian.InitLogResponse{}, nil
 }

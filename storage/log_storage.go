@@ -19,7 +19,11 @@ import (
 	"time"
 
 	"github.com/google/trillian"
+	"github.com/google/trillian/errors"
 )
+
+// ErrLogNeedsInit is returned when calling methods on an uninitialised Log.
+var ErrLogNeedsInit = errors.New(errors.FailedPrecondition, "log needs initialising")
 
 // ReadOnlyLogTX provides a read-only view into log data.
 // A ReadOnlyLogTX, unlike ReadOnlyLogTreeTX, is not tied to a particular tree.

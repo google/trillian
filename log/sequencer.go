@@ -267,18 +267,9 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int, gu
 	seqGetRootLatency.Observe(s.since(stageStart), label)
 	stageStart = s.timeSource.Now()
 
-	// TODO(al): Have a better detection mechanism for there being no stored root.
-	// TODO(mhs): Might be better to create empty root in provisioning API when it exists
 	if currentRoot.RootHash == nil {
 		glog.Warningf("%v: Fresh log - no previous TreeHeads exist.", logID)
-		// SignRoot starts a new transaction, and we've got one open here until
-		// this function returns.
-		// This explicit Close() is a work-around for the in-memory storage which
-		// locks the tree for each TX.
-		// TODO(al): Producing the first signed root for a new tree should be
-		// handled by the provisioning, move it there.
-		tx.Close()
-		return 0, s.SignRoot(ctx, logID)
+		return 0, storage.ErrLogNeedsInit
 	}
 
 	// There might be no work to be done. But we possibly still need to create an signed root if the

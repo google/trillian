@@ -27,6 +27,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/storage"
@@ -254,6 +255,20 @@ func createLogForTests(db *sql.DB) int64 {
 	if err != nil {
 		panic(fmt.Sprintf("Error creating log: %v", err))
 	}
+
+	ctx := context.Background()
+	l := NewLogStorage(db, nil)
+	tx, err := l.BeginForTree(ctx, tree.TreeId)
+	if err != nil && err != storage.ErrLogNeedsInit {
+		panic(fmt.Sprintf("Error creating tree TX: %v", err))
+	}
+
+	if err := tx.StoreSignedLogRoot(ctx, trillian.SignedLogRoot{LogId: tree.TreeId, RootHash: []byte{0}, Signature: &sigpb.DigitallySigned{}}); err != nil {
+		panic(fmt.Sprintf("Error storing new SignedLogRoot: %v", err))
+	}
+	if err := tx.Commit(); err != nil {
+		panic(fmt.Sprintf("Error committing TX: %v", err))
+	}
 	return tree.TreeId
 }
 
@@ -261,7 +276,11 @@ func createLogForTests(db *sql.DB) int64 {
 func createTree(db *sql.DB, tree *trillian.Tree) (*trillian.Tree, error) {
 	ctx := context.Background()
 	s := NewAdminStorage(db)
-	return storage.CreateTree(ctx, s, tree)
+	tree, err := storage.CreateTree(ctx, s, tree)
+	if err != nil {
+		return nil, err
+	}
+	return tree, nil
 }
 
 // updateTree updates the specified tree using AdminStorage.

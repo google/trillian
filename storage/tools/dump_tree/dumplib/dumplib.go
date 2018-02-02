@@ -48,6 +48,7 @@ import (
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/storage/memory"
 	"github.com/google/trillian/storage/storagepb"
+	"github.com/google/trillian/trees"
 	"github.com/google/trillian/util"
 )
 
@@ -173,7 +174,7 @@ func getPublicKey(keyPEM string) []byte {
 	return keyDER
 }
 
-func createTree(as storage.AdminStorage) (*trillian.Tree, crypto.Signer) {
+func createTree(as storage.AdminStorage, ls storage.LogStorage) (*trillian.Tree, crypto.Signer) {
 	ctx := context.TODO()
 	privKey, cSigner := getPrivateKey(logPrivKeyPEM, "towel")
 	pubKey := getPublicKey(logPubKeyPEM)
@@ -191,6 +192,36 @@ func createTree(as storage.AdminStorage) (*trillian.Tree, crypto.Signer) {
 	if err != nil {
 		glog.Fatalf("Create tree: %v", err)
 	}
+
+	hasher, err := hashers.NewLogHasher(tree.HashStrategy)
+	if err != nil {
+		glog.Fatalf("NewLogHasher: %v", err)
+	}
+	tSigner, err := trees.Signer(ctx, createdTree)
+	if err != nil {
+		glog.Fatalf("Creating signer: %v", err)
+	}
+
+	sthZero := trillian.SignedLogRoot{
+		LogId:    createdTree.TreeId,
+		RootHash: hasher.EmptyRoot(),
+	}
+	sthZero.Signature, err = tSigner.SignLogRoot(&sthZero)
+	if err != nil {
+		glog.Fatalf("SignLogRoot: %v", err)
+	}
+
+	tx, err := ls.BeginForTree(ctx, createdTree.TreeId)
+	if err != nil && err != storage.ErrLogNeedsInit {
+		glog.Fatalf("BeginForTree: %v", err)
+	}
+	if err := tx.StoreSignedLogRoot(ctx, sthZero); err != nil {
+		glog.Fatalf("StoreSignedLogRoot: %v", err)
+	}
+	if err := tx.Commit(); err != nil {
+		glog.Fatalf("Commit(): %v", err)
+	}
+
 	return createdTree, cSigner
 }
 
@@ -211,7 +242,7 @@ func Main(args Options) string {
 	glog.Info("Initializing memory log storage")
 	ls := memory.NewLogStorage(monitoring.InertMetricFactory{})
 	as := memory.NewAdminStorage(ls)
-	tree, cSigner := createTree(as)
+	tree, cSigner := createTree(as, ls)
 
 	seq := log.NewSequencer(rfc6962.DefaultHasher,
 		util.SystemTimeSource{},

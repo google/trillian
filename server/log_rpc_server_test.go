@@ -1672,6 +1672,55 @@ func TestTrillianLogRPCServer_QueueLeavesErrors(t *testing.T) {
 	}
 }
 
+func TestInitLog(t *testing.T) {
+	ctx := context.Background()
+
+	for _, tc := range []struct {
+		desc     string
+		txErr    error
+		wantInit bool
+	}{
+		{"init new log", storage.ErrLogNeedsInit, true},
+		{"init already initialised log", nil, false},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			mockStorage := storage.NewMockLogStorage(ctrl)
+			mockTx := storage.NewMockLogTreeTX(ctrl)
+			mockStorage.EXPECT().BeginForTree(gomock.Any(), logID1).Return(mockTx, tc.txErr)
+			mockTx.EXPECT().IsOpen().AnyTimes().Return(false)
+			mockTx.EXPECT().Close().Return(nil)
+			if tc.wantInit {
+				mockTx.EXPECT().Commit().Return(nil)
+				mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(trillian.SignedLogRoot{}, nil)
+				mockTx.EXPECT().StoreSignedLogRoot(gomock.Any(), gomock.Any())
+			}
+
+			registry := extension.Registry{
+				AdminStorage: mockAdminStorage(ctrl, logID1),
+				LogStorage:   mockStorage,
+			}
+			logServer := NewTrillianLogRPCServer(registry, fakeTimeSource)
+
+			c, err := logServer.InitLog(ctx, &trillian.InitLogRequest{LogId: logID1})
+			if tc.wantInit {
+				if err != nil {
+					t.Fatalf("InitLog returned %v, want no error", err)
+				}
+				if c.Created == nil {
+					t.Error("InitLog first attempt didn't return the created STH.")
+				}
+			} else {
+				if err == nil {
+					t.Errorf("InitLog returned nil, want error")
+				}
+			}
+		})
+	}
+}
+
 type prepareMockTXFunc func(*storage.MockLogTreeTX)
 type makeRPCFunc func(*TrillianLogRPCServer) error
 

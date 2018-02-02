@@ -33,7 +33,13 @@ import (
 // Internally, the function will continue to retry failed requests until either
 // the tree is created (and if necessary, initialised) successfully, or ctx is
 // cancelled.
-func CreateAndInitTree(ctx context.Context, req *trillian.CreateTreeRequest, adminClient trillian.TrillianAdminClient, mapClient trillian.TrillianMapClient) (*trillian.Tree, error) {
+func CreateAndInitTree(
+	ctx context.Context,
+	req *trillian.CreateTreeRequest,
+	adminClient trillian.TrillianAdminClient,
+	mapClient trillian.TrillianMapClient,
+	logClient trillian.TrillianLogClient) (*trillian.Tree, error) {
+
 	b := &backoff.Backoff{
 		Min:    100 * time.Millisecond,
 		Max:    10 * time.Second,
@@ -59,31 +65,90 @@ func CreateAndInitTree(ctx context.Context, req *trillian.CreateTreeRequest, adm
 		return nil, err
 	}
 
-	if tree.TreeType == trillian.TreeType_MAP {
-		b.Reset()
-		err := b.Retry(ctx, func() error {
-			glog.Infof("Initialising Map %x...", tree.TreeId)
-			// Now, if it's a Map, initialise it.
-			req := &trillian.InitMapRequest{MapId: tree.TreeId}
-			resp, err := mapClient.InitMap(ctx, req)
-			if err != nil {
-				switch s, ok := status.FromError(err); {
-				case ok && s.Code() == codes.Unavailable:
-					glog.Errorf("Map server unavailable: %v", err)
-					return err
-				case ok && s.Code() == codes.AlreadyExists:
-					glog.Warningf("Bizarrely, the just-created Map (%x) is already initialised!: %v", tree.TreeId, err)
-					return err
-				}
-				return fmt.Errorf("failed to InitMap(%+v): %T %v", req, err, err)
-			}
-			glog.Infof("Initialised Map (%x) with new SignedMapRoot:\n%+v", tree.TreeId, resp.Created)
-
-			return nil
-		})
-		if err != nil {
+	switch tree.TreeType {
+	case trillian.TreeType_MAP:
+		if err := InitMap(ctx, tree, mapClient); err != nil {
 			return nil, err
 		}
+	case trillian.TreeType_LOG:
+		if err := InitLog(ctx, tree, logClient); err != nil {
+			return nil, err
+		}
+	case trillian.TreeType_PREORDERED_LOG:
+		// nothing to do
+	default:
+		return nil, fmt.Errorf("Don't know how or whether to initialise tree type %v", tree.TreeType)
 	}
+
 	return tree, nil
+}
+
+// InitMap initialises a freshly created Map tree.
+func InitMap(ctx context.Context, tree *trillian.Tree, mapClient trillian.TrillianMapClient) error {
+	if tree.TreeType != trillian.TreeType_MAP {
+		return fmt.Errorf("InitMap called with tree of type %v", tree.TreeType)
+	}
+
+	b := &backoff.Backoff{
+		Min:    100 * time.Millisecond,
+		Max:    10 * time.Second,
+		Factor: 2,
+		Jitter: true,
+	}
+
+	err := b.Retry(ctx, func() error {
+		glog.Infof("Initialising Map %x...", tree.TreeId)
+		req := &trillian.InitMapRequest{MapId: tree.TreeId}
+		resp, err := mapClient.InitMap(ctx, req)
+		if err != nil {
+			switch s, ok := status.FromError(err); {
+			case ok && s.Code() == codes.Unavailable:
+				glog.Errorf("Map server unavailable: %v", err)
+				return err
+			case ok && s.Code() == codes.AlreadyExists:
+				glog.Warningf("Bizarrely, the just-created Map (%x) is already initialised!: %v", tree.TreeId, err)
+				return err
+			}
+			return fmt.Errorf("failed to InitMap(%+v): %T %v", req, err, err)
+		}
+		glog.Infof("Initialised Map (%x) with new SignedMapRoot:\n%+v", tree.TreeId, resp.Created)
+
+		return nil
+	})
+	return err
+}
+
+// InitLog initialises a freshly created Log tree.
+func InitLog(ctx context.Context, tree *trillian.Tree, logClient trillian.TrillianLogClient) error {
+	if tree.TreeType != trillian.TreeType_LOG {
+		return fmt.Errorf("InitLog called with tree of type %v", tree.TreeType)
+	}
+
+	b := &backoff.Backoff{
+		Min:    100 * time.Millisecond,
+		Max:    10 * time.Second,
+		Factor: 2,
+		Jitter: true,
+	}
+
+	err := b.Retry(ctx, func() error {
+		glog.Infof("Initialising Map %x...", tree.TreeId)
+		req := &trillian.InitLogRequest{LogId: tree.TreeId}
+		resp, err := logClient.InitLog(ctx, req)
+		if err != nil {
+			switch s, ok := status.FromError(err); {
+			case ok && s.Code() == codes.Unavailable:
+				glog.Errorf("Log server unavailable: %v", err)
+				return err
+			case ok && s.Code() == codes.AlreadyExists:
+				glog.Warningf("Bizarrely, the just-created Log (%x) is already initialised!: %v", tree.TreeId, err)
+				return err
+			}
+			return fmt.Errorf("failed to InitLog(%+v): %T %v", req, err, err)
+		}
+		glog.Infof("Initialised Log (%x) with new SignedTreeHead:\n%+v", tree.TreeId, resp.Created)
+
+		return nil
+	})
+	return err
 }
