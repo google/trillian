@@ -38,13 +38,12 @@ import (
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
+	"github.com/google/trillian/client"
 	"github.com/google/trillian/cmd"
 	"github.com/google/trillian/cmd/createtree/keys"
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/crypto/sigpb"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 var (
@@ -80,47 +79,10 @@ func createTree(ctx context.Context) (*trillian.Tree, error) {
 	}
 	defer conn.Close()
 
-	client := trillian.NewTrillianAdminClient(conn)
-	var tree *trillian.Tree
-	for {
-		glog.Info("CreateTree...")
-		tree, err = client.CreateTree(ctx, req)
-		if err != nil {
-			if s, ok := status.FromError(err); ok && s.Code() == codes.Unavailable {
-				glog.Errorf("Admin server unavailable, trying again: %v", err)
-				time.Sleep(100 * time.Millisecond)
-				continue
-			}
-			return nil, fmt.Errorf("failed to CreateTree(%+v): %T %v", req, err, err)
-		}
-		break
-	}
+	adminClient := trillian.NewTrillianAdminClient(conn)
+	mapClient := trillian.NewTrillianMapClient(conn)
 
-	if tree.TreeType == trillian.TreeType_MAP {
-		for {
-			glog.Infof("Initialising Map %x...", tree.TreeId)
-			// Now, if it's a Map, initialise it.
-			mc := trillian.NewTrillianMapClient(conn)
-			req := &trillian.InitMapRequest{MapId: tree.TreeId}
-			resp, err := mc.InitMap(ctx, req)
-			if err != nil {
-				if s, ok := status.FromError(err); ok && s.Code() == codes.Unavailable {
-					glog.Errorf("Map server unavailable, trying again: %v", err)
-					time.Sleep(100 * time.Millisecond)
-					continue
-				}
-				return nil, fmt.Errorf("failed to InitMap(%+v): %T %v", req, err, err)
-			}
-			if resp.Created != nil {
-				glog.Infof("Initialised Map %x with new SignedMapRoot:\n%+v", tree.TreeId, resp.Created)
-			} else {
-				glog.Infof("Map %x was already intialised.")
-			}
-			break
-		}
-	}
-
-	return tree, nil
+	return client.CreateAndInitTree(ctx, req, adminClient, mapClient)
 }
 
 func newRequest() (*trillian.CreateTreeRequest, error) {
