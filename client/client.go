@@ -25,6 +25,7 @@ import (
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/client/backoff"
+	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/hashers"
 	"google.golang.org/grpc/codes"
@@ -50,6 +51,28 @@ func New(logID int64, client trillian.TrillianLogClient, hasher hashers.LogHashe
 			v:      merkle.NewLogVerifier(hasher),
 		},
 	}
+}
+
+// NewFromTree creates a new LogClient given a tree config.
+func NewFromTree(client trillian.TrillianLogClient, config *trillian.Tree) (*LogClient, error) {
+	if got, want := config.TreeType, trillian.TreeType_LOG; got != want {
+		return nil, fmt.Errorf("client: NewFromTree(): TreeType: %v, want %v", got, want)
+	}
+	// Log Hasher.
+	logHasher, err := hashers.NewLogHasher(config.GetHashStrategy())
+	if err != nil {
+		return nil, fmt.Errorf("client: NewFromTree(): NewLogHasher(): %v", err)
+	}
+
+	// Log Key
+	logPubKey, err := der.UnmarshalPublicKey(config.GetPublicKey().GetDer())
+	if err != nil {
+		return nil, fmt.Errorf("client: NewFromTree(): Failed parsing Log public key: %v", err)
+	}
+
+	logID := config.GetTreeId()
+
+	return New(logID, client, logHasher, logPubKey), nil
 }
 
 // AddLeaf adds leaf to the append only log.
