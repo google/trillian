@@ -263,29 +263,31 @@ func RunMapRevisionInvalid(ctx context.Context, t *testing.T, tadmin trillian.Tr
 		},
 	} {
 		for _, hashStrategy := range tc.HashStrategy {
-			tree, _, _, err := newTreeWithHasher(ctx, tadmin, tmap, hashStrategy)
-			if err != nil {
-				t.Errorf("%v: newTreeWithHasher(%v): %v", tc.desc, hashStrategy, err)
-			}
-			for _, batch := range tc.set {
-				if _, err := tmap.SetLeaves(ctx, &trillian.SetMapLeavesRequest{
-					MapId:  tree.TreeId,
-					Leaves: batch,
-				}); err != nil {
-					t.Fatalf("%v: SetLeaves(): %v", tc.desc, err)
+			t.Run(fmt.Sprintf("%v/%v", tc.desc, hashStrategy), func(t *testing.T) {
+				tree, _, _, err := newTreeWithHasher(ctx, tadmin, tmap, hashStrategy)
+				if err != nil {
+					t.Fatalf("newTreeWithHasher(%v): %v", hashStrategy, err)
 				}
-			}
+				for _, batch := range tc.set {
+					if _, err := tmap.SetLeaves(ctx, &trillian.SetMapLeavesRequest{
+						MapId:  tree.TreeId,
+						Leaves: batch,
+					}); err != nil {
+						t.Fatalf("SetLeaves(): %v", err)
+					}
+				}
 
-			for _, batch := range tc.get {
-				_, err := tmap.GetLeavesByRevision(ctx, &trillian.GetMapLeavesByRevisionRequest{
-					MapId:    tree.TreeId,
-					Index:    [][]byte{batch.index},
-					Revision: batch.revision,
-				})
-				if gotErr := err != nil; gotErr != batch.wantErr {
-					t.Errorf("%v: GetLeavesByRevision(rev: %d)=_, err? %t want? %t (err=%v)", tc.desc, batch.revision, gotErr, batch.wantErr, err)
+				for _, batch := range tc.get {
+					_, err := tmap.GetLeavesByRevision(ctx, &trillian.GetMapLeavesByRevisionRequest{
+						MapId:    tree.TreeId,
+						Index:    [][]byte{batch.index},
+						Revision: batch.revision,
+					})
+					if gotErr := err != nil; gotErr != batch.wantErr {
+						t.Errorf("GetLeavesByRevision(rev: %d)=_, err? %t want? %t (err=%v)", batch.revision, gotErr, batch.wantErr, err)
+					}
 				}
-			}
+			})
 		}
 	}
 }
@@ -333,51 +335,53 @@ func RunLeafHistory(ctx context.Context, t *testing.T, tadmin trillian.TrillianA
 		},
 	} {
 		for _, hashStrategy := range tc.HashStrategy {
-			tree, hasher, _, err := newTreeWithHasher(ctx, tadmin, tmap, hashStrategy)
-			if err != nil {
-				t.Errorf("%v: newTreeWithHasher(%v): %v", tc.desc, hashStrategy, err)
-			}
-			pubKey, err := der.UnmarshalPublicKey(tree.GetPublicKey().GetDer())
-			if err != nil {
-				t.Errorf("%v: UnmarshalPublicKey(%v): %v", tc.desc, hashStrategy, err)
-			}
-
-			for _, batch := range tc.set {
-				setResp, err := tmap.SetLeaves(ctx, &trillian.SetMapLeavesRequest{
-					MapId:  tree.TreeId,
-					Leaves: batch,
-				})
+			t.Run(fmt.Sprintf("%v/%v", tc.desc, hashStrategy), func(t *testing.T) {
+				tree, hasher, _, err := newTreeWithHasher(ctx, tadmin, tmap, hashStrategy)
 				if err != nil {
-					t.Fatalf("%v: SetLeaves(): %v", tc.desc, err)
+					t.Fatalf("newTreeWithHasher(%v): %v", hashStrategy, err)
 				}
-				glog.Infof("Rev: %v Set(): %x", setResp.GetMapRoot().GetMapRevision(), setResp.GetMapRoot().GetRootHash())
-			}
-
-			for _, batch := range tc.get {
-				indexes := [][]byte{batch.Index}
-				getResp, err := tmap.GetLeavesByRevision(ctx, &trillian.GetMapLeavesByRevisionRequest{
-					MapId:    tree.TreeId,
-					Index:    indexes,
-					Revision: batch.revision,
-				})
+				pubKey, err := der.UnmarshalPublicKey(tree.GetPublicKey().GetDer())
 				if err != nil {
-					t.Errorf("%v: GetLeavesByRevision(rev: %d)=_, err %v want nil", tc.desc, batch.revision, err)
-					continue
-				}
-				glog.Infof("Rev: %v Get(): %x", getResp.GetMapRoot().GetMapRevision(), getResp.GetMapRoot().GetRootHash())
-
-				if got, want := len(getResp.GetMapLeafInclusion()), 1; got < want {
-					t.Errorf("GetLeavesByRevision(rev: %v).len: %v, want >= %v", batch.revision, got, want)
-				}
-				if got, want := getResp.GetMapLeafInclusion()[0].GetLeaf().GetLeafValue(), batch.LeafValue; !bytes.Equal(got, want) {
-					t.Errorf("GetLeavesByRevision(rev: %v).LeafValue: %s, want %s", batch.revision, got, want)
+					t.Fatalf("UnmarshalPublicKey(%v): %v", hashStrategy, err)
 				}
 
-				if err := verifyGetMapLeavesResponse(getResp, indexes, int64(batch.revision),
-					pubKey, hasher, tree.TreeId); err != nil {
-					t.Errorf("%v: verifyGetMapLeavesResponse(rev %v): %v", tc.desc, batch.revision, err)
+				for _, batch := range tc.set {
+					setResp, err := tmap.SetLeaves(ctx, &trillian.SetMapLeavesRequest{
+						MapId:  tree.TreeId,
+						Leaves: batch,
+					})
+					if err != nil {
+						t.Fatalf("SetLeaves(): %v", err)
+					}
+					glog.Infof("Rev: %v Set(): %x", setResp.GetMapRoot().GetMapRevision(), setResp.GetMapRoot().GetRootHash())
 				}
-			}
+
+				for _, batch := range tc.get {
+					indexes := [][]byte{batch.Index}
+					getResp, err := tmap.GetLeavesByRevision(ctx, &trillian.GetMapLeavesByRevisionRequest{
+						MapId:    tree.TreeId,
+						Index:    indexes,
+						Revision: batch.revision,
+					})
+					if err != nil {
+						t.Errorf("GetLeavesByRevision(rev: %d)=_, err %v want nil", batch.revision, err)
+						continue
+					}
+					glog.Infof("Rev: %v Get(): %x", getResp.GetMapRoot().GetMapRevision(), getResp.GetMapRoot().GetRootHash())
+
+					if got, want := len(getResp.GetMapLeafInclusion()), 1; got < want {
+						t.Errorf("GetLeavesByRevision(rev: %v).len: %v, want >= %v", batch.revision, got, want)
+					}
+					if got, want := getResp.GetMapLeafInclusion()[0].GetLeaf().GetLeafValue(), batch.LeafValue; !bytes.Equal(got, want) {
+						t.Errorf("GetLeavesByRevision(rev: %v).LeafValue: %s, want %s", batch.revision, got, want)
+					}
+
+					if err := verifyGetMapLeavesResponse(getResp, indexes, int64(batch.revision),
+						pubKey, hasher, tree.TreeId); err != nil {
+						t.Errorf("verifyGetMapLeavesResponse(rev %v): %v", batch.revision, err)
+					}
+				}
+			})
 		}
 	}
 }
@@ -416,41 +420,43 @@ func RunInclusion(ctx context.Context, t *testing.T, tadmin trillian.TrillianAdm
 		},
 	} {
 		for _, hashStrategy := range tc.HashStrategy {
-			tree, hasher, _, err := newTreeWithHasher(ctx, tadmin, tmap, hashStrategy)
-			if err != nil {
-				t.Errorf("%v: newTreeWithHasher(%v): %v", tc.desc, hashStrategy, err)
-			}
-			pubKey, err := der.UnmarshalPublicKey(tree.GetPublicKey().GetDer())
-			if err != nil {
-				t.Errorf("%v: UnmarshalPublicKey(%v): %v", tc.desc, hashStrategy, err)
-			}
+			t.Run(fmt.Sprintf("%v/%v", tc.desc, hashStrategy), func(t *testing.T) {
+				tree, hasher, _, err := newTreeWithHasher(ctx, tadmin, tmap, hashStrategy)
+				if err != nil {
+					t.Fatalf("newTreeWithHasher(%v): %v", hashStrategy, err)
+				}
+				pubKey, err := der.UnmarshalPublicKey(tree.GetPublicKey().GetDer())
+				if err != nil {
+					t.Fatalf("UnmarshalPublicKey(%v): %v", hashStrategy, err)
+				}
 
-			if _, err := tmap.SetLeaves(ctx, &trillian.SetMapLeavesRequest{
-				MapId:  tree.TreeId,
-				Leaves: tc.leaves,
-				Metadata: testonly.MustMarshalAnyNoT(&ctmapperpb.MapperMetadata{
-					HighestFullyCompletedSeq: 0xcafe,
-				}),
-			}); err != nil {
-				t.Errorf("%v: SetLeaves(): %v", tc.desc, err)
-			}
+				if _, err := tmap.SetLeaves(ctx, &trillian.SetMapLeavesRequest{
+					MapId:  tree.TreeId,
+					Leaves: tc.leaves,
+					Metadata: testonly.MustMarshalAnyNoT(&ctmapperpb.MapperMetadata{
+						HighestFullyCompletedSeq: 0xcafe,
+					}),
+				}); err != nil {
+					t.Fatalf("SetLeaves(): %v", err)
+				}
 
-			indexes := [][]byte{}
-			for _, l := range tc.leaves {
-				indexes = append(indexes, l.Index)
-			}
-			getResp, err := tmap.GetLeaves(ctx, &trillian.GetMapLeavesRequest{
-				MapId: tree.TreeId,
-				Index: indexes,
+				indexes := [][]byte{}
+				for _, l := range tc.leaves {
+					indexes = append(indexes, l.Index)
+				}
+				getResp, err := tmap.GetLeaves(ctx, &trillian.GetMapLeavesRequest{
+					MapId: tree.TreeId,
+					Index: indexes,
+				})
+				if err != nil {
+					t.Fatalf("GetLeaves(): %v", err)
+				}
+
+				if err := verifyGetMapLeavesResponse(getResp, indexes, 1,
+					pubKey, hasher, tree.TreeId); err != nil {
+					t.Errorf("verifyGetMapLeavesResponse(): %v", err)
+				}
 			})
-			if err != nil {
-				t.Errorf("%v: GetLeaves(): %v", tc.desc, err)
-			}
-
-			if err := verifyGetMapLeavesResponse(getResp, indexes, 1,
-				pubKey, hasher, tree.TreeId); err != nil {
-				t.Errorf("%v: verifyGetMapLeavesResponse(): %v", tc.desc, err)
-			}
 		}
 	}
 }
@@ -486,7 +492,7 @@ func RunInclusionBatch(ctx context.Context, t *testing.T, tadmin trillian.Trilli
 		}
 		tree, _, _, err := newTreeWithHasher(ctx, tadmin, tmap, tc.HashStrategy)
 		if err != nil {
-			t.Errorf("%v: newTreeWithHasher(%v): %v", tc.desc, tc.HashStrategy, err)
+			t.Fatalf("%v: newTreeWithHasher(%v): %v", tc.desc, tc.HashStrategy, err)
 		}
 
 		if err := runMapBatchTest(ctx, t, tc.desc, tmap, tree, tc.batchSize, tc.numBatches); err != nil {
@@ -511,7 +517,7 @@ func runMapBatchTest(ctx context.Context, t *testing.T, desc string, tmap trilli
 
 	// Ensure we're starting with an empty map
 	if err := isEmptyMap(ctx, tmap, tree); err != nil {
-		t.Errorf("%s: isEmptyMap() err=%v want nil", desc, err)
+		t.Fatalf("%s: isEmptyMap() err=%v want nil", desc, err)
 	}
 
 	// Generate leaves.
@@ -530,7 +536,7 @@ func runMapBatchTest(ctx context.Context, t *testing.T, desc string, tmap trilli
 			MapId:  tree.TreeId,
 			Leaves: b,
 		}); err != nil {
-			t.Errorf("%s: SetLeaves(): %v", desc, err)
+			t.Fatalf("%s: SetLeaves(): %v", desc, err)
 		}
 	}
 
@@ -539,11 +545,11 @@ func runMapBatchTest(ctx context.Context, t *testing.T, desc string, tmap trilli
 		MapId: tree.TreeId,
 	})
 	if err != nil {
-		t.Errorf("%s: failed to get map head: %v", desc, err)
+		t.Fatalf("%s: failed to get map head: %v", desc, err)
 	}
 
 	if got, want := r.MapRoot.MapRevision, int64(numBatches); got != want {
-		t.Errorf("%s: got SMR with revision %d, want %d", desc, got, want)
+		t.Fatalf("%s: got SMR with revision %d, want %d", desc, got, want)
 	}
 
 	// Shuffle the indexes. Map access is randomized.
