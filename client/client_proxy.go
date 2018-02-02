@@ -118,6 +118,7 @@ func (c *MockLogClient) GetEntryAndProof(ctx context.Context, in *trillian.GetEn
 	return c.c.GetEntryAndProof(ctx, in)
 }
 
+// InitLog forwards requests.
 func (c *MockLogClient) InitLog(ctx context.Context, in *trillian.InitLogRequest, opts ...grpc.CallOption) (*trillian.InitLogResponse, error) {
 	return c.c.InitLog(ctx, in)
 }
