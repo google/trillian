@@ -531,7 +531,7 @@ func (t *TrillianLogRPCServer) InitLog(ctx context.Context, req *trillian.InitLo
 	defer tx.Close()
 	if err == nil {
 		// all good, no need to init.
-		return nil, status.New(codes.AlreadyExists, "log already intialised.").Err()
+		return nil, status.New(codes.AlreadyExists, "log already initialised.").Err()
 	}
 
 	{
@@ -542,7 +542,7 @@ func (t *TrillianLogRPCServer) InitLog(ctx context.Context, req *trillian.InitLo
 
 		// Belt and braces check.
 		if latestRoot.RootHash != nil {
-			return nil, status.New(codes.AlreadyExists, "log already intialised.").Err()
+			return nil, status.New(codes.AlreadyExists, "log already initialised.").Err()
 		}
 	}
 

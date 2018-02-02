@@ -67,12 +67,17 @@ func CreateAndInitTree(
 
 	switch tree.TreeType {
 	case trillian.TreeType_MAP:
-		err = InitMap(ctx, tree, mapClient)
+		if err := InitMap(ctx, tree, mapClient); err != nil {
+			return nil, err
+		}
 	case trillian.TreeType_LOG:
-		err = InitLog(ctx, tree, logClient)
-	}
-	if err != nil {
-		return nil, err
+		if err := InitLog(ctx, tree, logClient); err != nil {
+			return nil, err
+		}
+	case trillian.TreeType_PREORDERED_LOG:
+		// nothing to do
+	default:
+		return nil, fmt.Errorf("Don't know how or whether to initialise tree type %v", tree.TreeType)
 	}
 
 	return tree, nil
@@ -110,10 +115,7 @@ func InitMap(ctx context.Context, tree *trillian.Tree, mapClient trillian.Trilli
 
 		return nil
 	})
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 // InitLog initialises a freshly created Log tree.
@@ -148,8 +150,5 @@ func InitLog(ctx context.Context, tree *trillian.Tree, logClient trillian.Trilli
 
 		return nil
 	})
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
