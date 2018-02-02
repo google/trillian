@@ -19,9 +19,12 @@ import (
 	"time"
 )
 
+var (
+	date1 = time.Date(1970, 9, 19, 12, 00, 00, 00, time.UTC)
+	date2 = time.Date(2007, 7, 7, 11, 35, 00, 00, time.UTC)
+)
+
 func TestFakeTimeSource(t *testing.T) {
-	date1 := time.Date(1970, 9, 19, 12, 00, 00, 00, time.UTC)
-	date2 := time.Date(2007, 7, 7, 11, 35, 00, 00, time.UTC)
 	fake := NewFakeTimeSource(date1)
 
 	// Check that a FakeTimeSource can be used as a TimeSource.
@@ -33,5 +36,15 @@ func TestFakeTimeSource(t *testing.T) {
 	fake.Set(date2)
 	if got, want := ts.Now(), date2; got != want {
 		t.Errorf("ts.Now=%v; want %v", got, want)
+	}
+}
+
+func TestSecondsSince(t *testing.T) {
+	delta := 8 * time.Second
+	date3 := date2.Add(delta)
+
+	var ts TimeSource = NewFakeTimeSource(date3)
+	if got, want := SecondsSince(ts, date2), delta.Seconds(); got != want {
+		t.Errorf("SecondsSince=%v; want %v", got, want)
 	}
 }

@@ -55,7 +55,7 @@ func prefixedName(prefix, name string) string {
 }
 
 func (r *RPCStatsInterceptor) recordFailureLatency(labels []string, startTime time.Time) {
-	latency := r.timeSource.Now().Sub(startTime).Seconds()
+	latency := util.SecondsSince(r.timeSource, startTime)
 	r.ReqErrorCount.Inc(labels...)
 	r.ReqErrorLatency.Observe(latency, labels...)
 }
@@ -85,7 +85,7 @@ func (r *RPCStatsInterceptor) Interceptor() grpc.UnaryServerInterceptor {
 		if err != nil {
 			r.recordFailureLatency(labels, startTime)
 		} else {
-			latency := r.timeSource.Now().Sub(startTime).Seconds()
+			latency := util.SecondsSince(r.timeSource, startTime)
 			r.ReqSuccessCount.Inc(labels...)
 			r.ReqSuccessLatency.Observe(latency, labels...)
 		}

@@ -26,6 +26,12 @@ type TimeSource interface {
 	Now() time.Time
 }
 
+// SecondsSince returns the time in seconds elapsed since t until now, as
+// measured by the TimeSource.
+func SecondsSince(ts TimeSource, t time.Time) float64 {
+	return ts.Now().Sub(t).Seconds()
+}
+
 // SystemTimeSource provides the current system local time
 type SystemTimeSource struct{}
 

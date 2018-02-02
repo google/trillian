@@ -246,7 +246,7 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int, gu
 	}
 	defer tx.Close()
 	defer seqBatches.Inc(label)
-	defer func() { seqLatency.Observe(s.since(start), label) }()
+	defer func() { seqLatency.Observe(util.SecondsSince(s.timeSource, start), label) }()
 
 	// Very recent leaves inside the guard window will not be available for sequencing
 	guardCutoffTime := s.timeSource.Now().Add(-guardWindow)
@@ -255,7 +255,7 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int, gu
 		glog.Warningf("%v: Sequencer failed to dequeue leaves: %v", logID, err)
 		return 0, err
 	}
-	seqDequeueLatency.Observe(s.since(stageStart), label)
+	seqDequeueLatency.Observe(util.SecondsSince(s.timeSource, stageStart), label)
 	stageStart = s.timeSource.Now()
 
 	// Get the latest known root from storage
@@ -264,7 +264,7 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int, gu
 		glog.Warningf("%v: Sequencer failed to get latest root: %v", logID, err)
 		return 0, err
 	}
-	seqGetRootLatency.Observe(s.since(stageStart), label)
+	seqGetRootLatency.Observe(util.SecondsSince(s.timeSource, stageStart), label)
 	stageStart = s.timeSource.Now()
 
 	if currentRoot.RootHash == nil {
@@ -290,7 +290,7 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int, gu
 	if err != nil {
 		return 0, err
 	}
-	seqInitTreeLatency.Observe(s.since(stageStart), label)
+	seqInitTreeLatency.Observe(util.SecondsSince(s.timeSource, stageStart), label)
 	stageStart = s.timeSource.Now()
 
 	// We've done all the reads, can now do the updates in the same transaction.
@@ -306,7 +306,7 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int, gu
 	if err != nil {
 		return 0, err
 	}
-	seqWriteTreeLatency.Observe(s.since(stageStart), label)
+	seqWriteTreeLatency.Observe(util.SecondsSince(s.timeSource, stageStart), label)
 	stageStart = s.timeSource.Now()
 
 	// We should still have the same number of leaves
@@ -319,7 +319,7 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int, gu
 		glog.Warningf("%v: Sequencer failed to update sequenced leaves: %v", logID, err)
 		return 0, err
 	}
-	seqUpdateLeavesLatency.Observe(s.since(stageStart), label)
+	seqUpdateLeavesLatency.Observe(util.SecondsSince(s.timeSource, stageStart), label)
 	stageStart = s.timeSource.Now()
 
 	// Build objects for the nodes to be updated. Because we deduped via the map each
@@ -337,7 +337,7 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int, gu
 		glog.Warningf("%v: Sequencer failed to set Merkle nodes: %v", logID, err)
 		return 0, err
 	}
-	seqSetNodesLatency.Observe(s.since(stageStart), label)
+	seqSetNodesLatency.Observe(util.SecondsSince(s.timeSource, stageStart), label)
 	stageStart = s.timeSource.Now()
 
 	// Create the log root ready for signing
@@ -360,14 +360,14 @@ func (s Sequencer) SequenceBatch(ctx context.Context, logID int64, limit int, gu
 		glog.Warningf("%v: failed to write updated tree root: %v", logID, err)
 		return 0, err
 	}
-	seqStoreRootLatency.Observe(s.since(stageStart), label)
+	seqStoreRootLatency.Observe(util.SecondsSince(s.timeSource, stageStart), label)
 	stageStart = s.timeSource.Now()
 
 	// The batch is now fully sequenced and we're done
 	if err := tx.Commit(); err != nil {
 		return 0, err
 	}
-	seqCommitLatency.Observe(s.since(stageStart), label)
+	seqCommitLatency.Observe(util.SecondsSince(s.timeSource, stageStart), label)
 
 	// Let quota.Manager know about newly-sequenced entries.
 	// All possibly influenced quotas are replenished: {Tree/Global, Read/Write}.
@@ -440,10 +440,4 @@ func (s Sequencer) SignRoot(ctx context.Context, logID int64) error {
 	glog.V(2).Infof("%v: new signed root, size %v, tree-revision %v", logID, newLogRoot.TreeSize, newLogRoot.TreeRevision)
 
 	return tx.Commit()
-}
-
-// since() returns the time in seconds since a particular time, according to
-// the TimeSource used by this sequencer.
-func (s *Sequencer) since(start time.Time) float64 {
-	return s.timeSource.Now().Sub(start).Seconds()
 }
