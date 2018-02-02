@@ -262,7 +262,7 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) (testCont
 // Tests for sequencer. Currently relies on having a database set up. This might change in future
 // as it would be better if it was not tied to a specific storage mechanism.
 
-func TestSequenceBatch(t *testing.T) {
+func TestIntegrateBatch(t *testing.T) {
 	signer1, err := newSignerWithFixedSig(expectedSignedRoot.Signature)
 	if err != nil {
 		t.Fatalf("Failed to create test signer (%v)", err)
@@ -391,6 +391,7 @@ func TestSequenceBatch(t *testing.T) {
 			params: testParameters{
 				logID:               154035,
 				dequeueLimit:        1,
+				latestSignedRoot:    &testRoot16,
 				dequeuedError:       errors.New("dequeue"),
 				skipStoreSignedRoot: true,
 			},
@@ -401,9 +402,9 @@ func TestSequenceBatch(t *testing.T) {
 			params: testParameters{
 				logID:                 154035,
 				dequeueLimit:          1,
-				dequeuedLeaves:        []*trillian.LogLeaf{getLeaf42()},
 				latestSignedRoot:      &testRoot16,
 				latestSignedRootError: errors.New("root"),
+				skipDequeue:           true,
 				skipStoreSignedRoot:   true,
 			},
 			errStr: "root",
@@ -519,23 +520,23 @@ func TestSequenceBatch(t *testing.T) {
 			}
 			c, ctx := createTestContext(ctrl, test.params)
 
-			got, err := c.sequencer.SequenceBatch(ctx, test.params.logID, 1, test.guardWindow, test.maxRootDuration)
+			got, err := c.sequencer.IntegrateBatch(ctx, test.params.logID, 1, test.guardWindow, test.maxRootDuration)
 			if err != nil {
 				if test.errStr == "" {
-					t.Errorf("SequenceBatch(%+v)=%v,%v; want _,nil", test.params, got, err)
+					t.Errorf("IntegrateBatch(%+v)=%v,%v; want _,nil", test.params, got, err)
 				} else if !strings.Contains(err.Error(), test.errStr) || got != 0 {
-					t.Errorf("SequenceBatch(%+v)=%v,%v; want 0, error with %q", test.params, got, err, test.errStr)
+					t.Errorf("IntegrateBatch(%+v)=%v,%v; want 0, error with %q", test.params, got, err, test.errStr)
 				}
 				return
 			}
 			if got != test.wantCount {
-				t.Errorf("SequenceBatch(%+v)=%v,nil; want %v,nil", test.params, got, test.wantCount)
+				t.Errorf("IntegrateBatch(%+v)=%v,nil; want %v,nil", test.params, got, test.wantCount)
 			}
 		}()
 	}
 }
 
-func TestSequenceBatch_PutTokens(t *testing.T) {
+func TestIntegrateBatch_PutTokens(t *testing.T) {
 	cryptoSigner, err := newSignerWithFixedSig(expectedSignedRoot.Signature)
 	if err != nil {
 		t.Fatalf("Failed to create test signer (%v)", err)
@@ -549,7 +550,7 @@ func TestSequenceBatch_PutTokens(t *testing.T) {
 	ts := util.NewFakeTimeSource(fakeTimeForTest)
 	signer := crypto.NewSHA256Signer(cryptoSigner)
 
-	// Needed for SequenceBatch calls
+	// Needed for IntegrateBatch calls
 	const treeID int64 = 1234
 	const limit = 1000
 	const guardWindow = 10 * time.Second
@@ -637,13 +638,13 @@ func TestSequenceBatch_PutTokens(t *testing.T) {
 			}
 
 			sequencer := NewSequencer(hasher, ts, logStorage, signer, nil /* mf */, qm)
-			leaves, err := sequencer.SequenceBatch(ctx, treeID, limit, guardWindow, maxRootDuration)
+			leaves, err := sequencer.IntegrateBatch(ctx, treeID, limit, guardWindow, maxRootDuration)
 			if err != nil {
-				t.Errorf("%v: SequenceBatch() returned err = %v", test.desc, err)
+				t.Errorf("%v: IntegrateBatch() returned err = %v", test.desc, err)
 				return
 			}
 			if leaves != test.wantLeaves {
-				t.Errorf("%v: SequenceBatch() returned %v leaves, want = %v", test.desc, leaves, test.wantLeaves)
+				t.Errorf("%v: IntegrateBatch() returned %v leaves, want = %v", test.desc, leaves, test.wantLeaves)
 			}
 		}()
 	}

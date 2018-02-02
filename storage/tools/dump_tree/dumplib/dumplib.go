@@ -133,14 +133,14 @@ Ws9xezgQPrg96YGsFrF6KYG68iqyHDlQ+4FWuKfGKXHn3ooVtB/pfawb5Q==
 
 func sequence(treeID int64, seq *log.Sequencer, count, batchSize int) {
 	glog.Infof("Sequencing batch of size %d", count)
-	sequenced, err := seq.SequenceBatch(context.TODO(), treeID, batchSize, 0, 24*time.Hour)
+	sequenced, err := seq.IntegrateBatch(context.TODO(), treeID, batchSize, 0, 24*time.Hour)
 
 	if err != nil {
-		glog.Fatalf("SequenceBatch got: %v, want: no err", err)
+		glog.Fatalf("IntegrateBatch got: %v, want: no err", err)
 	}
 
 	if got, want := sequenced, count; got != want {
-		glog.Fatalf("SequenceBatch got: %d sequenced, want: %d", got, want)
+		glog.Fatalf("IntegrateBatch got: %d sequenced, want: %d", got, want)
 	}
 }
 

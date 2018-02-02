@@ -189,8 +189,8 @@ func TestSequencerManagerCachesSigners(t *testing.T) {
 
 		gomock.InOrder(
 			mockStorage.EXPECT().BeginForTree(gomock.Any(), logID).Return(mockTx, nil),
-			mockTx.EXPECT().DequeueLeaves(gomock.Any(), 50, fakeTime).Return([]*trillian.LogLeaf{}, nil),
 			mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(testRoot0, nil),
+			mockTx.EXPECT().DequeueLeaves(gomock.Any(), 50, fakeTime).Return([]*trillian.LogLeaf{}, nil),
 			mockTx.EXPECT().WriteRevision().AnyTimes().Return(writeRev),
 			mockTx.EXPECT().Commit().Return(nil),
 			mockTx.EXPECT().Close().Return(nil),
