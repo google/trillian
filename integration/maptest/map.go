@@ -150,7 +150,7 @@ func newTreeWithHasher(ctx context.Context, tadmin trillian.TrillianAdminClient,
 
 	hasher, err := hashers.NewMapHasher(tree.HashStrategy)
 	if err != nil {
-		return nil, nil, nil, nil
+		return nil, nil, nil, err
 	}
 	return tree, hasher, initResp.Created, nil
 }
@@ -177,55 +177,57 @@ func RunMapRevisionZero(ctx context.Context, t *testing.T, tadmin trillian.Trill
 		},
 	} {
 		for _, hsr := range tc.hashStrategy {
-			tree, hasher, smr, err := newTreeWithHasher(ctx, tadmin, tmap, hsr.hashStrategy)
-			if err != nil {
-				t.Errorf("%v: newTreeWithHasher(%v): %v", tc.desc, hsr.hashStrategy, err)
-			}
-			if got, want := smr.RootHash, hsr.wantRoot; want != nil && !bytes.Equal(got, want) {
-				t.Errorf("%v: newTreeWithHasher() returned unexpected root hash %x, want %x", tc.desc, got, want)
-			}
-			pubKey, err := der.UnmarshalPublicKey(tree.GetPublicKey().GetDer())
-			if err != nil {
-				t.Errorf("%v: UnmarshalPublicKey(%v): %v", tc.desc, hsr.hashStrategy, err)
-			}
+			t.Run(fmt.Sprintf("%v/%v", tc.desc, hsr.hashStrategy), func(t *testing.T) {
+				tree, hasher, smr, err := newTreeWithHasher(ctx, tadmin, tmap, hsr.hashStrategy)
+				if err != nil {
+					t.Fatalf("newTreeWithHasher(%v): %v", hsr.hashStrategy, err)
+				}
+				if got, want := smr.GetRootHash(), hsr.wantRoot; want != nil && !bytes.Equal(got, want) {
+					t.Fatalf("newTreeWithHasher() returned unexpected root hash %x, want %x", got, want)
+				}
+				pubKey, err := der.UnmarshalPublicKey(tree.GetPublicKey().GetDer())
+				if err != nil {
+					t.Fatalf("UnmarshalPublicKey(%v): %v", hsr.hashStrategy, err)
+				}
 
-			getSmrResp, err := tmap.GetSignedMapRoot(ctx, &trillian.GetSignedMapRootRequest{
-				MapId: tree.TreeId,
+				getSmrResp, err := tmap.GetSignedMapRoot(ctx, &trillian.GetSignedMapRootRequest{
+					MapId: tree.TreeId,
+				})
+				if err != nil {
+					t.Fatalf("GetSignedMapRoot(): %v", err)
+				}
+				if err := verifyGetSignedMapRootResponse(getSmrResp.GetMapRoot(), tc.wantRev,
+					pubKey, hasher, tree.TreeId); err != nil {
+					t.Errorf("verifyGetSignedMapRootResponse(rev %v): %v", tc.wantRev, err)
+				}
+
+				getSmrByRevResp, err := tmap.GetSignedMapRootByRevision(ctx, &trillian.GetSignedMapRootByRevisionRequest{
+					MapId:    tree.TreeId,
+					Revision: 0,
+				})
+				if err != nil {
+					t.Errorf("GetSignedMapRootByRevision(): %v", err)
+				}
+				if err := verifyGetSignedMapRootResponse(getSmrByRevResp.GetMapRoot(), tc.wantRev,
+					pubKey, hasher, tree.TreeId); err != nil {
+					t.Errorf("verifyGetSignedMapRootResponse(rev %v): %v", tc.wantRev, err)
+				}
+
+				got, want := getSmrByRevResp.GetMapRoot(), getSmrResp.GetMapRoot()
+				if diff := pretty.Compare(got, want); diff != "" {
+					t.Errorf("GetSignedMapRootByRevision() != GetSignedMapRoot(); diff (-got +want):\n%v", diff)
+				}
+
+				if _, err = tmap.GetSignedMapRootByRevision(ctx, &trillian.GetSignedMapRootByRevisionRequest{
+					MapId:    tree.TreeId,
+					Revision: 1,
+				}); err == nil {
+					t.Errorf("GetSignedMapRootByRevision(rev: 1) err? false want? true")
+				}
+				// TODO(phad): ideally we'd inspect err's type and check it contains a NOT_FOUND Code (5), but I don't want
+				// a dependency on gRPC here.
+
 			})
-			if err != nil {
-				t.Errorf("%v: GetSignedMapRoot(): %v", tc.desc, err)
-			}
-			if err := verifyGetSignedMapRootResponse(getSmrResp.GetMapRoot(), tc.wantRev,
-				pubKey, hasher, tree.TreeId); err != nil {
-				t.Errorf("%v: verifyGetSignedMapRootResponse(rev %v): %v", tc.desc, tc.wantRev, err)
-			}
-			//
-			getSmrByRevResp, err := tmap.GetSignedMapRootByRevision(ctx, &trillian.GetSignedMapRootByRevisionRequest{
-				MapId:    tree.TreeId,
-				Revision: 0,
-			})
-			if err != nil {
-				t.Errorf("%v: GetSignedMapRootByRevision(): %v", tc.desc, err)
-			}
-			if err := verifyGetSignedMapRootResponse(getSmrByRevResp.GetMapRoot(), tc.wantRev,
-				pubKey, hasher, tree.TreeId); err != nil {
-				t.Errorf("%v: verifyGetSignedMapRootResponse(rev %v): %v", tc.desc, tc.wantRev, err)
-			}
-			//
-			got, want := getSmrByRevResp.GetMapRoot(), getSmrResp.GetMapRoot()
-			if diff := pretty.Compare(got, want); diff != "" {
-				t.Errorf("%v: GetSignedMapRootByRevision() != GetSignedMapRoot(); diff (-got +want):\n%v", tc.desc, diff)
-			}
-			//
-			getSmrByRevResp, err = tmap.GetSignedMapRootByRevision(ctx, &trillian.GetSignedMapRootByRevisionRequest{
-				MapId:    tree.TreeId,
-				Revision: 1,
-			})
-			if err == nil {
-				t.Errorf("%v: GetSignedMapRootByRevision(rev: 1) err? false want? true", tc.desc)
-			}
-			// TODO(phad): ideally we'd inspect err's type and check it contains a NOT_FOUND Code (5), but I don't want
-			// a dependency on gRPC here.
 		}
 	}
 }
