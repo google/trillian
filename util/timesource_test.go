@@ -43,8 +43,7 @@ func TestSecondsSince(t *testing.T) {
 	delta := 8 * time.Second
 	date3 := date2.Add(delta)
 
-	fake := NewFakeTimeSource(date3)
-	var ts TimeSource = fake
+	var ts TimeSource = NewFakeTimeSource(date3)
 	if got, want := SecondsSince(ts, date2), delta.Seconds(); got != want {
 		t.Errorf("SecondsSince=%v; want %v", got, want)
 	}
