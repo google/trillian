@@ -81,8 +81,9 @@ func createTree(ctx context.Context) (*trillian.Tree, error) {
 
 	adminClient := trillian.NewTrillianAdminClient(conn)
 	mapClient := trillian.NewTrillianMapClient(conn)
+	logClient := trillian.NewTrillianLogClient(conn)
 
-	return client.CreateAndInitTree(ctx, req, adminClient, mapClient)
+	return client.CreateAndInitTree(ctx, req, adminClient, mapClient, logClient)
 }
 
 func newRequest() (*trillian.CreateTreeRequest, error) {

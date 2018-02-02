@@ -1691,12 +1691,11 @@ func TestInitLog(t *testing.T) {
 			mockTx := storage.NewMockLogTreeTX(ctrl)
 			mockStorage.EXPECT().BeginForTree(gomock.Any(), logID1).Return(mockTx, tc.txErr)
 			mockTx.EXPECT().IsOpen().AnyTimes().Return(false)
+			mockTx.EXPECT().Close().Return(nil)
 			if tc.wantInit {
 				mockTx.EXPECT().Commit().Return(nil)
 				mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(trillian.SignedLogRoot{}, nil)
 				mockTx.EXPECT().StoreSignedLogRoot(gomock.Any(), gomock.Any())
-			} else {
-				mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(signedRoot1, nil)
 			}
 
 			registry := extension.Registry{

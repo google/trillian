@@ -516,6 +516,7 @@ func (t *TrillianLogRPCServer) getTreeAndHasher(ctx context.Context, treeID int6
 	return tree, hasher, nil
 }
 
+// InitLog initialises a freshly created Log by creating the first STH with size 0.
 func (t *TrillianLogRPCServer) InitLog(ctx context.Context, req *trillian.InitLogRequest) (*trillian.InitLogResponse, error) {
 	logID := req.LogId
 	tree, hasher, err := t.getTreeAndHasher(ctx, logID, false /* readonly */)
@@ -527,6 +528,11 @@ func (t *TrillianLogRPCServer) InitLog(ctx context.Context, req *trillian.InitLo
 	if err != nil && err != storage.ErrLogNeedsInit {
 		return nil, err
 	}
+	defer tx.Close()
+	if err == nil {
+		// all good, no need to init.
+		return nil, status.New(codes.AlreadyExists, "log already intialised.").Err()
+	}
 
 	{
 		latestRoot, err := tx.LatestSignedLogRoot(ctx)
@@ -534,6 +540,7 @@ func (t *TrillianLogRPCServer) InitLog(ctx context.Context, req *trillian.InitLo
 			return nil, err
 		}
 
+		// Belt and braces check.
 		if latestRoot.RootHash != nil {
 			return nil, status.New(codes.AlreadyExists, "log already intialised.").Err()
 		}
