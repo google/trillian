@@ -78,9 +78,9 @@ func TestFreezeTree(t *testing.T) {
 // 2. Sets the adminServerAddr flag to point to the fake server.
 // 3. Calls the test's setFlags func (if provided) to allow it to change flags specific to the test.
 func runTest(t *testing.T, tests []*testCase) {
-	server := &testonly.FakeAdminServer{TreeID: 12345}
+	server := &testonly.FakeAdminMapServer{TreeID: 12345}
 
-	lis, stopFakeServer, err := testonly.StartFakeAdminServer(server)
+	lis, stopFakeServer, err := testonly.StartFakeAdminMapServer(server)
 	if err != nil {
 		t.Fatalf("Error starting fake server: %v", err)
 	}
@@ -97,7 +97,7 @@ func runTest(t *testing.T, tests []*testCase) {
 
 			server.Err = test.updateErr
 
-			tree, err := freezeTree(ctx)
+			tree, err := updateTree(ctx)
 			switch hasErr := err != nil; {
 			case hasErr != test.wantErr:
 				t.Errorf("updateTree() returned err = '%v', wantErr = %v", err, test.wantErr)

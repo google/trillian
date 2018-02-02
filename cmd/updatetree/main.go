@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package main contains the implementation and entry point for the freezetree
+// Package main contains the implementation and entry point for the updatetree
 // command.
 //
 // Example usage:
-// $ ./freezetree --admin_server=host:port --tree_id=123456789
+// $ ./updatetree --admin_server=host:port --tree_id=123456789 --tree_state=FROZEN
 //
 // The output is minimal to allow for easy usage in automated scripts.
 package main
@@ -28,6 +28,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gogo/protobuf/proto"
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"google.golang.org/genproto/protobuf/field_mask"
@@ -39,10 +40,11 @@ import (
 var (
 	adminServerAddr = flag.String("admin_server", "", "Address of the gRPC Trillian Admin Server (host:port)")
 	rpcDeadline     = flag.Duration("rpc_deadline", time.Second*10, "Deadline for RPC requests")
-	treeID          = flag.Int64("tree_id", 0, "The ID of the tree to be set to a frozen state")
+	treeID          = flag.Int64("tree_id", 0, "The ID of the tree to be set updated")
+	treeState       = flag.String("tree_state", "", "If set the tree state will be updated")
 )
 
-func freezeTree(ctx context.Context) (*trillian.Tree, error) {
+func updateTree(ctx context.Context) (*trillian.Tree, error) {
 	if *adminServerAddr == "" {
 		return nil, errors.New("empty --admin_server, please provide the Admin server host:port")
 	}
@@ -53,10 +55,15 @@ func freezeTree(ctx context.Context) (*trillian.Tree, error) {
 		Paths: []string{"tree_state"},
 	}
 
+	newState, ok := proto.EnumValueMap("trillian.TreeState")[*treeState]
+	if !ok {
+		return nil, fmt.Errorf("invalid tree state: %v", *treeState)
+	}
+
 	req := &trillian.UpdateTreeRequest{
 		Tree: &trillian.Tree{
 			TreeId:    *treeID,
-			TreeState: trillian.TreeState_FROZEN,
+			TreeState: trillian.TreeState(newState),
 		},
 		UpdateMask: treeStateMask,
 	}
@@ -87,9 +94,9 @@ func main() {
 
 	ctx, cancel := context.WithTimeout(context.Background(), *rpcDeadline)
 	defer cancel()
-	tree, err := freezeTree(ctx)
+	tree, err := updateTree(ctx)
 	if err != nil {
-		glog.Exitf("Failed to freeze tree: %v", err)
+		glog.Exitf("Failed to update tree: %v", err)
 	}
 
 	// DO NOT change the output format, scripts are meant to depend on it.
