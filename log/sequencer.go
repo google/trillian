@@ -259,7 +259,7 @@ type logSequencingTask struct {
 func (s logSequencingTask) fetch(ctx context.Context, limit int, cutoff time.Time) ([]*trillian.LogLeaf, error) {
 	start := s.timeSource.Now()
 	// Recent leaves inside the guard window will not be available for sequencing.
-	leaves, err := s.dequeuer.DequeueLeaves(ctx, limit, cutoff)
+	leaves, err := s.tx.DequeueLeaves(ctx, limit, cutoff)
 	if err != nil {
 		glog.Warningf("%v: Sequencer failed to dequeue leaves: %v", s.label, err)
 		return nil, err
