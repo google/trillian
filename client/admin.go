@@ -115,7 +115,20 @@ func InitMap(ctx context.Context, tree *trillian.Tree, mapClient trillian.Trilli
 
 		return nil
 	})
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Wait for map root to become available.
+	return b.Retry(ctx, func() error {
+		glog.Infof("Waiting for Map root")
+		_, err := mapClient.GetSignedMapRootByRevision(ctx,
+			&trillian.GetSignedMapRootByRevisionRequest{
+				MapId:    tree.TreeId,
+				Revision: 0,
+			})
+		return err
+	})
 }
 
 // InitLog initialises a freshly created Log tree.
