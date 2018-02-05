@@ -1679,9 +1679,12 @@ func TestInitLog(t *testing.T) {
 		desc     string
 		txErr    error
 		wantInit bool
+		root     []byte
+		wantCode codes.Code
 	}{
-		{"init new log", storage.ErrLogNeedsInit, true},
-		{"init already initialised log", nil, false},
+		{desc: "init new log", txErr: storage.ErrLogNeedsInit, wantInit: true, root: nil, wantCode: codes.OK},
+		{desc: "init new log, no err", txErr: nil, wantInit: true, root: nil, wantCode: codes.OK},
+		{desc: "init already initialised log", txErr: nil, wantInit: false, root: []byte{}, wantCode: codes.AlreadyExists},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
@@ -1692,9 +1695,11 @@ func TestInitLog(t *testing.T) {
 			mockStorage.EXPECT().BeginForTree(gomock.Any(), logID1).Return(mockTx, tc.txErr)
 			mockTx.EXPECT().IsOpen().AnyTimes().Return(false)
 			mockTx.EXPECT().Close().Return(nil)
+			mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(trillian.SignedLogRoot{
+				RootHash: tc.root,
+			}, nil)
 			if tc.wantInit {
 				mockTx.EXPECT().Commit().Return(nil)
-				mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(trillian.SignedLogRoot{}, nil)
 				mockTx.EXPECT().StoreSignedLogRoot(gomock.Any(), gomock.Any())
 			}
 
@@ -1705,6 +1710,9 @@ func TestInitLog(t *testing.T) {
 			logServer := NewTrillianLogRPCServer(registry, fakeTimeSource)
 
 			c, err := logServer.InitLog(ctx, &trillian.InitLogRequest{LogId: logID1})
+			if got, want := status.Code(err), tc.wantCode; got != want {
+				t.Errorf("InitLog returned %v, want %v", got, want)
+			}
 			if tc.wantInit {
 				if err != nil {
 					t.Fatalf("InitLog returned %v, want no error", err)

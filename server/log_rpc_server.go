@@ -521,29 +521,23 @@ func (t *TrillianLogRPCServer) InitLog(ctx context.Context, req *trillian.InitLo
 	logID := req.LogId
 	tree, hasher, err := t.getTreeAndHasher(ctx, logID, false /* readonly */)
 	if err != nil {
-		return nil, err
+		return nil, status.Errorf(codes.FailedPrecondition, "getTreeAndHasher(): %v", err)
 	}
 
 	tx, err := t.registry.LogStorage.BeginForTree(ctx, logID)
 	if err != nil && err != storage.ErrLogNeedsInit {
-		return nil, err
+		return nil, status.Errorf(codes.FailedPrecondition, "BeginForTree(): %v", err)
 	}
 	defer tx.Close()
-	if err == nil {
-		// all good, no need to init.
-		return nil, status.New(codes.AlreadyExists, "log already initialised.").Err()
+
+	latestRoot, err := tx.LatestSignedLogRoot(ctx)
+	if err != nil && err != storage.ErrLogNeedsInit {
+		return nil, status.Errorf(codes.FailedPrecondition, "LatestSignedLogRoot(): %v", err)
 	}
 
-	{
-		latestRoot, err := tx.LatestSignedLogRoot(ctx)
-		if err != nil {
-			return nil, err
-		}
-
-		// Belt and braces check.
-		if latestRoot.RootHash != nil {
-			return nil, status.New(codes.AlreadyExists, "log already initialised.").Err()
-		}
+	// Belt and braces check.
+	if latestRoot.GetRootHash() != nil {
+		return nil, status.Errorf(codes.AlreadyExists, "log is already initialised")
 	}
 
 	newRoot := trillian.SignedLogRoot{
@@ -556,7 +550,7 @@ func (t *TrillianLogRPCServer) InitLog(ctx context.Context, req *trillian.InitLo
 
 	signer, err := trees.Signer(ctx, tree)
 	if err != nil {
-		return nil, err
+		return nil, status.Errorf(codes.FailedPrecondition, "Signer() :%v", err)
 	}
 
 	sig, err := signer.SignLogRoot(&newRoot)
@@ -566,11 +560,11 @@ func (t *TrillianLogRPCServer) InitLog(ctx context.Context, req *trillian.InitLo
 	newRoot.Signature = sig
 
 	if err := tx.StoreSignedLogRoot(ctx, newRoot); err != nil {
-		return nil, err
+		return nil, status.Errorf(codes.FailedPrecondition, "StoreSignedLogRoot(): %v", err)
 	}
 
 	if err := tx.Commit(); err != nil {
-		return nil, err
+		return nil, status.Errorf(codes.FailedPrecondition, "Commit(): %v", err)
 	}
 
 	return &trillian.InitLogResponse{
