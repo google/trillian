@@ -50,7 +50,13 @@ type ReadOnlyTreeTX interface {
 // A TreeTX can only modify the tree specified in its creation.
 type TreeTX interface {
 	ReadOnlyTreeTX
-	NodeWriter
+	TreeWriter
+}
+
+// TreeWriter represents additional transaction methods that modify the tree.
+type TreeWriter interface {
+	// SetMerkleNodes stores the provided nodes, at the transaction's writeRevision.
+	SetMerkleNodes(ctx context.Context, nodes []Node) error
 
 	// WriteRevision returns the tree revision that any writes through this TreeTX will be stored at.
 	WriteRevision() int64
@@ -62,14 +68,9 @@ type DatabaseChecker interface {
 	CheckDatabaseAccessible(context.Context) error
 }
 
-// NodeReader provides a read-only interface into the stored tree nodes.
+// NodeReader provides read-only access to the stored tree nodes, as an interface to allow easier
+// testing of node manipulation.
 type NodeReader interface {
 	// GetMerkleNodes looks up the set of nodes identified by ids, at treeRevision, and returns them.
 	GetMerkleNodes(ctx context.Context, treeRevision int64, ids []NodeID) ([]Node, error)
-}
-
-// NodeWriter provides a write interface into the stored tree nodes.
-type NodeWriter interface {
-	// SetMerkleNodes stores the provided nodes, at the transaction's writeRevision.
-	SetMerkleNodes(ctx context.Context, nodes []Node) error
 }

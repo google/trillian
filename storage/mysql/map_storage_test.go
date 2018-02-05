@@ -113,7 +113,7 @@ func TestMapBeginSnapshot(t *testing.T) {
 	s := NewMapStorage(DB)
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			var tx rootReaderMapTX
+			var tx storage.ReadOnlyMapTreeTX
 			var err error
 			if test.snapshot {
 				tx, err = s.SnapshotForTree(ctx, test.mapID)
@@ -145,11 +145,6 @@ func TestMapBeginSnapshot(t *testing.T) {
 			}
 		})
 	}
-}
-
-type rootReaderMapTX interface {
-	storage.ReadOnlyTreeTX
-	storage.MapRootReader
 }
 
 func TestMapRootUpdate(t *testing.T) {

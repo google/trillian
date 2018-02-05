@@ -253,7 +253,7 @@ type logSequencingTask struct {
 	label      string
 	treeSize   int64
 	timeSource util.TimeSource
-	dequeuer   storage.LeafDequeuer
+	dequeuer   storage.LogTreeTX
 }
 
 func (s logSequencingTask) fetch(ctx context.Context, limit int, cutoff time.Time) ([]*trillian.LogLeaf, error) {

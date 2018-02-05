@@ -45,8 +45,23 @@ type ReadOnlyLogTX interface {
 // A ReadOnlyLogTreeTX can only read from the tree specified in its creation.
 type ReadOnlyLogTreeTX interface {
 	ReadOnlyTreeTX
-	LeafReader
-	LogRootReader
+
+	// GetSequencedLeafCount returns the total number of leaves that have been integrated into the
+	// tree via sequencing.
+	GetSequencedLeafCount(ctx context.Context) (int64, error)
+	// GetLeavesByIndex returns leaf metadata and data for a set of specified sequenced leaf indexes.
+	GetLeavesByIndex(ctx context.Context, leaves []int64) ([]*trillian.LogLeaf, error)
+	// GetLeavesByRange returns leaf data for a range of indexes.  Leaves are returned ordered by
+	// their leaf index, and the returned slice may be smaller than count if the requested range
+	// extends beyond the current size of the log.
+	GetLeavesByRange(ctx context.Context, start, count int64) ([]*trillian.LogLeaf, error)
+	// GetLeavesByHash looks up sequenced leaf metadata and data by their Merkle leaf hash. If the
+	// tree permits duplicate leaves callers must be prepared to handle multiple results with the
+	// same hash but different sequence numbers. If orderBySequence is true then the returned data
+	// will be in ascending sequence number order.
+	GetLeavesByHash(ctx context.Context, leafHashes [][]byte, orderBySequence bool) ([]*trillian.LogLeaf, error)
+	// LatestSignedLogRoot returns the most recent SignedLogRoot, if any.
+	LatestSignedLogRoot(ctx context.Context) (trillian.SignedLogRoot, error)
 }
 
 // LogTreeTX is the transactional interface for reading/updating a Log.
@@ -55,12 +70,25 @@ type ReadOnlyLogTreeTX interface {
 // released any resources owned by the LogTX.
 // A LogTreeTX can only modify the tree specified in its creation.
 type LogTreeTX interface {
-	TreeTX
-	LogRootReader
-	LogRootWriter
-	LeafReader
-	LeafQueuer
-	LeafDequeuer
+	ReadOnlyLogTreeTX
+	TreeWriter
+
+	// StoreSignedLogRoot stores a freshly created SignedLogRoot.
+	StoreSignedLogRoot(ctx context.Context, root trillian.SignedLogRoot) error
+	// QueueLeaves enqueues leaves for later integration into the tree.
+	// If error is nil, the returned slice of leaves will be the same size as the
+	// input, and each entry will hold:
+	//  - the existing leaf entry if a duplicate has been submitted
+	//  - nil otherwise.
+	// Duplicates are only reported if the underlying tree does not permit duplicates, and are
+	// considered duplicate if their leaf.LeafIdentityHash matches.
+	QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.LogLeaf, error)
+	// DequeueLeaves will return between [0, limit] leaves from the queue.
+	// Leaves which have been dequeued within a Rolled-back Tx will become available for dequeing again.
+	// Leaves queued more recently than the cutoff time will not be returned. This allows for
+	// guard intervals to be configured.
+	DequeueLeaves(ctx context.Context, limit int, cutoffTime time.Time) ([]*trillian.LogLeaf, error)
+	UpdateSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf) error
 }
 
 // ReadOnlyLogStorage represents a narrowed read-only view into a LogStorage.
@@ -86,58 +114,6 @@ type LogStorage interface {
 	// the returned object, and values read through it should only be propagated
 	// if Commit returns without error.
 	BeginForTree(ctx context.Context, treeID int64) (LogTreeTX, error)
-}
-
-// LeafQueuer provides a write-only interface for the queueing (but not necessarily integration) of leaves.
-type LeafQueuer interface {
-	// QueueLeaves enqueues leaves for later integration into the tree.
-	// If error is nil, the returned slice of leaves will be the same size as the
-	// input, and each entry will hold:
-	//  - the existing leaf entry if a duplicate has been submitted
-	//  - nil otherwise.
-	// Duplicates are only reported if the underlying tree does not permit duplicates, and are
-	// considered duplicate if their leaf.LeafIdentityHash matches.
-	QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.LogLeaf, error)
-}
-
-// LeafDequeuer provides an interface for reading previously queued leaves for integration into the tree.
-type LeafDequeuer interface {
-	// DequeueLeaves will return between [0, limit] leaves from the queue.
-	// Leaves which have been dequeued within a Rolled-back Tx will become available for dequeing again.
-	// Leaves queued more recently than the cutoff time will not be returned. This allows for
-	// guard intervals to be configured.
-	DequeueLeaves(ctx context.Context, limit int, cutoffTime time.Time) ([]*trillian.LogLeaf, error)
-	UpdateSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf) error
-}
-
-// LeafReader provides a read only interface to stored tree leaves
-type LeafReader interface {
-	// GetSequencedLeafCount returns the total number of leaves that have been integrated into the
-	// tree via sequencing.
-	GetSequencedLeafCount(ctx context.Context) (int64, error)
-	// GetLeavesByIndex returns leaf metadata and data for a set of specified sequenced leaf indexes.
-	GetLeavesByIndex(ctx context.Context, leaves []int64) ([]*trillian.LogLeaf, error)
-	// GetLeavesByRange returns leaf data for a range of indexes.  Leaves are returned ordered by
-	// their leaf index, and the returned slice may be smaller than count if the requested range
-	// extends beyond the current size of the log.
-	GetLeavesByRange(ctx context.Context, start, count int64) ([]*trillian.LogLeaf, error)
-	// GetLeavesByHash looks up sequenced leaf metadata and data by their Merkle leaf hash. If the
-	// tree permits duplicate leaves callers must be prepared to handle multiple results with the
-	// same hash but different sequence numbers. If orderBySequence is true then the returned data
-	// will be in ascending sequence number order.
-	GetLeavesByHash(ctx context.Context, leafHashes [][]byte, orderBySequence bool) ([]*trillian.LogLeaf, error)
-}
-
-// LogRootReader provides an interface for reading SignedLogRoots.
-type LogRootReader interface {
-	// LatestSignedLogRoot returns the most recent SignedLogRoot, if any.
-	LatestSignedLogRoot(ctx context.Context) (trillian.SignedLogRoot, error)
-}
-
-// LogRootWriter provides an interface for storing new SignedLogRoots.
-type LogRootWriter interface {
-	// StoreSignedLogRoot stores a freshly created SignedLogRoot.
-	StoreSignedLogRoot(ctx context.Context, root trillian.SignedLogRoot) error
 }
 
 // CountByLogID is a map of total number of items keyed by log ID.
