@@ -61,6 +61,7 @@ type LogTreeTX interface {
 	LeafReader
 	LeafQueuer
 	LeafDequeuer
+	LeafSequencer
 }
 
 // ReadOnlyLogStorage represents a narrowed read-only view into a LogStorage.
@@ -107,6 +108,17 @@ type LeafDequeuer interface {
 	// Leaves queued more recently than the cutoff time will not be returned. This allows for
 	// guard intervals to be configured.
 	DequeueLeaves(ctx context.Context, limit int, cutoffTime time.Time) ([]*trillian.LogLeaf, error)
+}
+
+// LeafSequencer provides an interface for associating leaves with their
+// positions in the log (sequence numbers).
+//
+// TODO(pavelkalinnikov): Adjust this interface for Pre-ordered Log as well.
+// Unlike normal Log, this one needs to persist the leaves in the first place,
+// in addition to the sequencing information.
+type LeafSequencer interface {
+	// UpdateSequencedLeaves associates the leaves with the sequence numbers
+	// assigned to them.
 	UpdateSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf) error
 }
 
