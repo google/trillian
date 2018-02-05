@@ -88,6 +88,8 @@ type LogTreeTX interface {
 	// Leaves queued more recently than the cutoff time will not be returned. This allows for
 	// guard intervals to be configured.
 	DequeueLeaves(ctx context.Context, limit int, cutoffTime time.Time) ([]*trillian.LogLeaf, error)
+	// UpdateSequencedLeaves associates the leaves with the sequence numbers
+	// assigned to them.
 	UpdateSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf) error
 }
 
