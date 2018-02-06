@@ -146,6 +146,17 @@ func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.Qu
 	return &trillian.QueueLeavesResponse{QueuedLeaves: queuedLeaves}, nil
 }
 
+// AddSequencedLeaf submits one sequenced leaf to the storage.
+func (t *TrillianLogRPCServer) AddSequencedLeaf(ctx context.Context, req *trillian.AddSequencedLeafRequest) (*trillian.AddSequencedLeafResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "AddSequencedLeaf is not implemented")
+}
+
+// AddSequencedLeaves submits a batch of sequenced leaves to a pre-ordered log
+// for later integration into its underlying tree.
+func (t *TrillianLogRPCServer) AddSequencedLeaves(ctx context.Context, req *trillian.AddSequencedLeavesRequest) (*trillian.AddSequencedLeavesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "AddSequencedLeaves is not implemented")
+}
+
 // GetInclusionProof obtains the proof of inclusion in the tree for a leaf that has been sequenced.
 // Similar to the get proof by hash handler but one less step as we don't need to look up the index
 func (t *TrillianLogRPCServer) GetInclusionProof(ctx context.Context, req *trillian.GetInclusionProofRequest) (*trillian.GetInclusionProofResponse, error) {

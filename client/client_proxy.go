@@ -40,6 +40,16 @@ func (c *MockLogClient) QueueLeaves(ctx context.Context, in *trillian.QueueLeave
 	return c.c.QueueLeaves(ctx, in)
 }
 
+// AddSequencedLeaf forwards requests.
+func (c *MockLogClient) AddSequencedLeaf(ctx context.Context, in *trillian.AddSequencedLeafRequest, opts ...grpc.CallOption) (*trillian.AddSequencedLeafResponse, error) {
+	return c.c.AddSequencedLeaf(ctx, in)
+}
+
+// AddSequencedLeaves forwards requests.
+func (c *MockLogClient) AddSequencedLeaves(ctx context.Context, in *trillian.AddSequencedLeavesRequest, opts ...grpc.CallOption) (*trillian.AddSequencedLeavesResponse, error) {
+	return c.c.AddSequencedLeaves(ctx, in)
+}
+
 // GetInclusionProof forwards requests and optionally corrupts the response.
 func (c *MockLogClient) GetInclusionProof(ctx context.Context, in *trillian.GetInclusionProofRequest, opts ...grpc.CallOption) (*trillian.GetInclusionProofResponse, error) {
 	resp, err := c.c.GetInclusionProof(ctx, in)

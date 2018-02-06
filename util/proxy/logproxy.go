@@ -43,6 +43,16 @@ func (p *Log) QueueLeaves(ctx context.Context, in *trillian.QueueLeavesRequest) 
 	return p.c.QueueLeaves(ctx, in)
 }
 
+// AddSequencedLeaf forwards the RPC.
+func (p *Log) AddSequencedLeaf(ctx context.Context, in *trillian.AddSequencedLeafRequest) (*trillian.AddSequencedLeafResponse, error) {
+	return p.c.AddSequencedLeaf(ctx, in)
+}
+
+// AddSequencedLeaves forwards the RPC.
+func (p *Log) AddSequencedLeaves(ctx context.Context, in *trillian.AddSequencedLeavesRequest) (*trillian.AddSequencedLeavesResponse, error) {
+	return p.c.AddSequencedLeaves(ctx, in)
+}
+
 // GetInclusionProof forwards the RPC.
 func (p *Log) GetInclusionProof(ctx context.Context, in *trillian.GetInclusionProofRequest) (*trillian.GetInclusionProofResponse, error) {
 	return p.c.GetInclusionProof(ctx, in)
