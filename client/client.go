@@ -142,7 +142,7 @@ func (c *LogClient) WaitForRootUpdate(ctx context.Context, waitForTreeSize int64
 			if root.TreeSize >= waitForTreeSize {
 				return root, nil
 			}
-		case codes.Unavailable, codes.NotFound: // Retry.
+		case codes.Unavailable, codes.NotFound, codes.FailedPrecondition: // Retry.
 		default:
 			return nil, err
 		}
