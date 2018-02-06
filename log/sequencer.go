@@ -409,12 +409,13 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, logID int64, limit int, g
 		stageStart = s.timeSource.Now()
 
 		// The batch is now fully sequenced and we're done
-		return tx.Commit()
+		err = tx.Commit()
+		seqCommitLatency.Observe(util.SecondsSince(s.timeSource, start), label)
+		return err
 	})
 	if err != nil {
 		return 0, err
 	}
-	seqCommitLatency.Observe(util.SecondsSince(s.timeSource, start), label)
 
 	// Let quota.Manager know about newly-sequenced entries.
 	// All possibly influenced quotas are replenished: {Tree/Global, Read/Write}.
