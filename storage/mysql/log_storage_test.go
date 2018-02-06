@@ -198,7 +198,7 @@ func TestBeginSnapshot(t *testing.T) {
 	s := NewLogStorage(DB, nil)
 	for _, test := range tests {
 		func() {
-			var tx rootReaderLogTX
+			var tx storage.ReadOnlyLogTreeTX
 			var err error
 			if test.snapshot {
 				tx, err = s.SnapshotForTree(ctx, test.logID)
@@ -230,11 +230,6 @@ func TestBeginSnapshot(t *testing.T) {
 			}
 		}()
 	}
-}
-
-type rootReaderLogTX interface {
-	storage.ReadOnlyTreeTX
-	storage.LogRootReader
 }
 
 func TestIsOpenCommitRollbackClosed(t *testing.T) {
