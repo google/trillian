@@ -36,8 +36,6 @@ type FakeServer struct {
 
 	// CreateErr will be returned by CreateTree if not nil.
 	CreateErr error
-	// InitRErr will be returned by InitMap if not nil.
-	InitErr error
 	// GeneratedKey will be used to set a tree's PrivateKey if a CreateTree request has a KeySpec.
 	// This is for simulating key generation.
 	GeneratedKey *any.Any
@@ -98,22 +96,4 @@ func (s *FakeServer) CreateTree(ctx context.Context, req *trillian.CreateTreeReq
 		resp.PrivateKey = s.GeneratedKey
 	}
 	return &resp, nil
-}
-
-// InitMap returns an error if s.InitErr is set, and an empty InitMapResponse
-// struct otherwise.
-func (s *FakeServer) InitMap(ctx context.Context, req *trillian.InitMapRequest) (*trillian.InitMapResponse, error) {
-	if s.InitErr != nil {
-		return nil, s.InitErr
-	}
-	return &trillian.InitMapResponse{}, nil
-}
-
-// InitLog returns an error if s.InitErr is set, and an empty InitLogResponse
-// struct otherwise.
-func (s *FakeServer) InitLog(ctx context.Context, req *trillian.InitLogRequest) (*trillian.InitLogResponse, error) {
-	if s.InitErr != nil {
-		return nil, s.InitErr
-	}
-	return &trillian.InitLogResponse{}, nil
 }

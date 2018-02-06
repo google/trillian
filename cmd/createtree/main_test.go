@@ -138,8 +138,12 @@ func TestCreateTree(t *testing.T) {
 // 2. Sets the adminServerAddr flag to point to the fake server.
 // 3. Calls the test's setFlags func (if provided) to allow it to change flags specific to the test.
 func runTest(t *testing.T, tests []*testCase) {
+	mapServer := testonly.NewTrillianMapServer()
+	logServer := testonly.NewTrillianLogServer()
 	server := &testonly.FakeServer{
-		GeneratedKey: defaultTree.PrivateKey,
+		GeneratedKey:      defaultTree.PrivateKey,
+		TrillianMapServer: mapServer,
+		TrillianLogServer: logServer,
 	}
 
 	lis, stopFakeServer, err := testonly.StartFakeServer(server)
@@ -159,7 +163,8 @@ func runTest(t *testing.T, tests []*testCase) {
 			}
 
 			server.CreateErr = test.createErr
-			server.InitErr = test.initErr
+			mapServer.InitErr = test.initErr
+			logServer.InitErr = test.initErr
 
 			tree, err := createTree(ctx)
 			switch hasErr := err != nil; {
