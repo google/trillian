@@ -33,8 +33,8 @@ message LogLeaf {
     bytes leaf_value = 2;
     // extra_data is optional metadata. e.g. a timestamp.
     bytes extra_data = 3;
-    // leaf_index is optional. Trillian will assign the next available index when unset.
-    // TODO: remove this into separate AddSequencedLeaves API.
+    // leaf_index is required in PREORDERED_LOG mode, whereas in LOG mode
+    // Trillian will assign the next available index.
     int64 leaf_index = 4;
     // leaf_identity_hash is a hash over the identity of this leaf.
     // It's intended to provide a mechanism for the personality to provide a
@@ -97,6 +97,25 @@ message QueueLeafResponse {
 message QueueLeavesResponse {
     // Same number and order as in the corresponding request.
     repeated QueuedLogLeaf queued_leaves = 2;
+}
+
+message AddSequencedLeafRequest {
+    int64 log_id = 1;
+    LogLeaf leaf = 2;
+}
+
+message AddSequencedLeafResponse {
+    google.rpc.Status status = 2;
+}
+
+message AddSequencedLeavesRequest {
+    int64 log_id = 1;
+    repeated LogLeaf leaves = 2;
+}
+
+message AddSequencedLeavesResponse {
+    // Same number and order as in the corresponding request.
+    repeated google.rpc.Status status = 2;
 }
 
 message GetInclusionProofRequest {
@@ -216,6 +235,15 @@ service TrillianLog {
       };
     }
 
+    // AddSequencedLeaf adds a single leaf with assigned sequence number to the
+    // tree's storage, to be integrated later to the tree.
+    rpc AddSequencedLeaf (AddSequencedLeafRequest) returns (AddSequencedLeafResponse) {
+      option (google.api.http) = {
+        post: "/v1beta1/logs/{log_id}/leaves:sequenced"
+        body: "*"
+      };
+    }
+
     // No direct equivalent at the storage level
     rpc GetInclusionProof (GetInclusionProofRequest) returns (GetInclusionProofResponse) {
       option (google.api.http) = {
@@ -266,8 +294,11 @@ service TrillianLog {
     // Batch APIS
     //
 
-    // Corresponds to the LeafQueuer API
+    // Corresponds to the QueueLeaves storage interface.
     rpc QueueLeaves (QueueLeavesRequest) returns (QueueLeavesResponse) {
+    }
+    // Corresponds to AddSequencedLeaves storage interface.
+    rpc AddSequencedLeaves (AddSequencedLeavesRequest) returns (AddSequencedLeavesResponse) {
     }
     rpc GetLeavesByIndex (GetLeavesByIndexRequest) returns (GetLeavesByIndexResponse) {
     }
