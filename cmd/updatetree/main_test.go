@@ -48,9 +48,20 @@ func TestFreezeTree(t *testing.T) {
 			wantErr:  true,
 		},
 		{
-			desc:      "validUpdate",
-			setFlags:  func() { *treeID = 12345 },
+			desc: "validUpdateFrozen",
+			setFlags: func() {
+				*treeID = 12345
+				*treeState = "FROZEN"
+			},
 			wantState: trillian.TreeState_FROZEN,
+		},
+		{
+			desc: "updateInvalidState",
+			setFlags: func() {
+				*treeID = 12345
+				*treeState = "ITSCOLDOUTSIDE"
+			},
+			wantErr: true,
 		},
 		{
 			desc:     "unknownTree",

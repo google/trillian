@@ -49,15 +49,19 @@ func updateTree(ctx context.Context) (*trillian.Tree, error) {
 		return nil, errors.New("empty --admin_server, please provide the Admin server host:port")
 	}
 
+	m := proto.EnumValueMap("trillian.TreeState")
+	if m == nil {
+		return nil, fmt.Errorf("can't find enum value map for states")
+	}
+	newState, ok := m[*treeState]
+	if !ok {
+		return nil, fmt.Errorf("invalid tree state: %v", *treeState)
+	}
+
 	// We only want to update the state of the tree, which means we need a field
 	// mask on the request.
 	treeStateMask := &field_mask.FieldMask{
 		Paths: []string{"tree_state"},
-	}
-
-	newState, ok := proto.EnumValueMap("trillian.TreeState")[*treeState]
-	if !ok {
-		return nil, fmt.Errorf("invalid tree state: %v", *treeState)
 	}
 
 	req := &trillian.UpdateTreeRequest{
