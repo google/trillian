@@ -91,7 +91,7 @@ func TestFreezeTree(t *testing.T) {
 func runTest(t *testing.T, tests []*testCase) {
 	server := &testonly.FakeAdminMapServer{TreeID: 12345}
 
-	lis, stopFakeServer, err := testonly.StartFakeAdminMapServer(server)
+	lis, stopFakeServer, err := testonly.StartFakeServer(server)
 	if err != nil {
 		t.Fatalf("Error starting fake server: %v", err)
 	}
