@@ -14,19 +14,15 @@ Commit [b20b3109af7b68227c83c5d930271eaa4f0be771](https://api.github.com/repos/g
 
 ## v1.0.5 - TLS, Merge Delay Metrics, Easier Admin Tests
 
-Published 2018-02-05 15:54:26 +0000 UTC
+Published 2018-02-07 09:41:08 +0000 UTC
 
-The API protos have been rebuilt with GRPC 1.3.
+The API protos have been rebuilt with gRPC 1.3.
 
-Timestamps have been added to the log leafs in the MySQL database. Before upgrading to this version you **must** make the following schema changes:
+Timestamps have been added to the log leaves in the MySQL database. Before upgrading to this version you **must** make the following schema changes:
 
-Add the following column to the `LeafData` table. If you have existing data in the queue you might have to remove the NOT NULL clause:
+* Add the following column to the `LeafData` table. If you have existing data in the queue you might have to remove the NOT NULL clause: `QueueTimestampNanos  BIGINT NOT NULL`
 
-`QueueTimestampNanos  BIGINT NOT NULL`
-
-Add the following column to the `SequencedLeafData` table:
-
-`IntegrateTimestampNanos BIGINT NOT NULL`
+* Add the following column to the `SequencedLeafData` table: `IntegrateTimestampNanos BIGINT NOT NULL`
 
 The above timestamps are used to export metrics via monitoring that give the merge delay for each tree that is in use. This is a good metric to use for alerting on.
 
@@ -43,7 +39,7 @@ Published 2018-02-05 15:42:25 +0000 UTC
 
 An issue has been fixed where the master for a log could resign from the election while it was in the process of integrating a batch of leaves. We do not believe this could cause any issues with data integrity because of the versioned tree storage.
 
-This release includes a large number of vendor commits merged to catch up with etcd and GRPC v1.3.
+This release includes a large number of vendor commits merged to catch up with etcd 3.2.10 and gRPC v1.3.
 
 
 Commit [1713865ecca0dc8f7b4a8ed830a48ae250fd943b](https://api.github.com/repos/google/trillian/commits/1713865ecca0dc8f7b4a8ed830a48ae250fd943b) Download [zip](https://api.github.com/repos/google/trillian/zipball/v1.0.4)
@@ -79,7 +75,7 @@ Go 1.9 is required.
 
 It is now possible to update private keys via the admin API and this was added to the available field masks. The key storage format has not changed so we believe this change is transparent.
 
-Deleted trees are now garbage collected after an interval. This hard deletes them and they cannot be recovered. Be aware of this before upgrading if you have any that in a soft deleted state.
+Deleted trees are now garbage collected after an interval. This hard deletes them and they cannot be recovered. Be aware of this before upgrading if you have any that are in a soft deleted state.
 
 The Admin RPC API has been extended to allow trees to be undeleted - up to the point where they are  hard deleted as set out above.
 
