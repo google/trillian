@@ -309,7 +309,7 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, logID int64, limit int, g
 
 	if currentRoot.RootHash == nil {
 		glog.Warningf("%v: Fresh log - no previous TreeHeads exist.", logID)
-		return 0, storage.ErrLogNeedsInit
+		return 0, storage.ErrTreeNeedsInit
 	}
 
 	var st sequencingTask = logSequencingTask{

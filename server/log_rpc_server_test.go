@@ -1682,7 +1682,7 @@ func TestInitLog(t *testing.T) {
 		root     []byte
 		wantCode codes.Code
 	}{
-		{desc: "init new log", txErr: storage.ErrLogNeedsInit, wantInit: true, root: nil, wantCode: codes.OK},
+		{desc: "init new log", txErr: storage.ErrTreeNeedsInit, wantInit: true, root: nil, wantCode: codes.OK},
 		{desc: "init new log, no err", txErr: nil, wantInit: true, root: nil, wantCode: codes.OK},
 		{desc: "init already initialised log", txErr: nil, wantInit: false, root: []byte{}, wantCode: codes.AlreadyExists},
 	} {
