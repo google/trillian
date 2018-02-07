@@ -198,15 +198,23 @@ func TestWaitForInclusion(t *testing.T) {
 		{desc: "Make TreeSize > 1", leaf: []byte("B"), client: env.Log},
 		{desc: "invalid inclusion proof", leaf: []byte("A"), client: &MockLogClient{c: env.Log, mGetInclusionProof: true}, wantErr: true},
 	} {
-		client := New(logID, test.client, rfc6962.DefaultHasher, env.PublicKey)
-		if err := client.QueueLeaf(ctx, test.leaf); err != nil {
-			t.Fatalf("QueueLeaf(%v): %v", test.desc, err)
-		}
-		env.Sequencer.OperationSingle(ctx)
-		err := client.WaitForInclusion(ctx, test.leaf)
-		if got := err != nil; got != test.wantErr {
-			t.Errorf("WaitForInclusion(%v): %v, want error: %v", test.desc, err, test.wantErr)
-		}
+		t.Run(test.desc, func(t *testing.T) {
+			client := New(logID, test.client, rfc6962.DefaultHasher, env.PublicKey)
+			if err := client.QueueLeaf(ctx, test.leaf); err != nil {
+				t.Fatalf("QueueLeaf(): %v", err)
+			}
+			err := client.WaitForInclusion(ctx, test.leaf)
+			if got := err != nil; got != test.wantErr {
+				t.Errorf("WaitForInclusion(): %v, want error: %v", err, test.wantErr)
+			}
+
+			env.Sequencer.OperationSingle(ctx)
+
+			err = client.WaitForInclusion(ctx, test.leaf)
+			if got := err != nil; got != test.wantErr {
+				t.Errorf("WaitForInclusion(): %v, want error: %v", err, test.wantErr)
+			}
+		})
 	}
 }
 
