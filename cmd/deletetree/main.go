@@ -17,7 +17,6 @@
 //
 // Example usage:
 // $ ./deletetree --admin_server=host:port --log_id=logid
-
 package main
 
 import (
@@ -31,7 +30,7 @@ import (
 
 var (
 	adminServerAddr = flag.String("admin_server", "", "Address of the gRPC Trillian Admin Server (host:port)")
-	logId           = flag.Int64("log_id", 0, "Trillian LogID to delete")
+	logID           = flag.Int64("log_id", 0, "Trillian LogID to delete")
 )
 
 func main() {
@@ -44,7 +43,7 @@ func main() {
 	defer conn.Close()
 
 	a := trillian.NewTrillianAdminClient(conn)
-	_, err = a.DeleteTree(context.Background(), &trillian.DeleteTreeRequest{TreeId: *logId})
+	_, err = a.DeleteTree(context.Background(), &trillian.DeleteTreeRequest{TreeId: *logID})
 	if err != nil {
 		glog.Exitf("delete failed: %v", err)
 	}
