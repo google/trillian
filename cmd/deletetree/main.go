@@ -1,13 +1,4 @@
-package main // Copyright 2018 Google Inc. All Rights Reserved.
-import (
-	"context"
-	"flag"
-
-	"github.com/golang/glog"
-	"github.com/google/trillian"
-	"google.golang.org/grpc"
-)
-
+// Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,6 +17,17 @@ import (
 //
 // Example usage:
 // $ ./deletetree --admin_server=host:port --log_id=logid
+
+package main
+
+import (
+	"context"
+	"flag"
+
+	"github.com/golang/glog"
+	"github.com/google/trillian"
+	"google.golang.org/grpc"
+)
 
 var (
 	adminServerAddr = flag.String("admin_server", "", "Address of the gRPC Trillian Admin Server (host:port)")
