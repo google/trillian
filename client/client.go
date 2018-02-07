@@ -230,17 +230,8 @@ func (c *LogClient) WaitForInclusion(ctx context.Context, data []byte) error {
 		return err
 	}
 	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-		err := c.getInclusionProof(ctx, leaf.MerkleLeafHash, root)
-		s, ok := status.FromError(err)
-		if !ok {
-			return err
-		}
-		switch s.Code() {
+		err = c.getAndVerifyInclusionProof(ctx, leaf.MerkleLeafHash, root)
+		switch status.Code(err) {
 		case codes.OK:
 			return nil
 		case codes.NotFound:
@@ -248,6 +239,7 @@ func (c *LogClient) WaitForInclusion(ctx context.Context, data []byte) error {
 			if root, err = c.WaitForRootUpdate(ctx, root.TreeSize+1); err != nil {
 				return err
 			}
+			// Retry
 		default:
 			return err
 		}
@@ -264,7 +256,7 @@ func (c *LogClient) VerifyInclusion(ctx context.Context, data []byte) error {
 	if err != nil {
 		return fmt.Errorf("UpdateRoot(): %v", err)
 	}
-	return c.getInclusionProof(ctx, leaf.MerkleLeafHash, root)
+	return c.getAndVerifyInclusionProof(ctx, leaf.MerkleLeafHash, root)
 }
 
 // VerifyInclusionAtIndex updates the log root and ensures that the given leaf data has been included in the log at a particular index.
@@ -285,7 +277,7 @@ func (c *LogClient) VerifyInclusionAtIndex(ctx context.Context, data []byte, ind
 	return c.logVerifier.VerifyInclusionAtIndex(root, data, index, resp.Proof.Hashes)
 }
 
-func (c *LogClient) getInclusionProof(ctx context.Context, leafHash []byte, sth *trillian.SignedLogRoot) error {
+func (c *LogClient) getAndVerifyInclusionProof(ctx context.Context, leafHash []byte, sth *trillian.SignedLogRoot) error {
 	resp, err := c.client.GetInclusionProofByHash(ctx,
 		&trillian.GetInclusionProofByHashRequest{
 			LogId:    c.LogID,

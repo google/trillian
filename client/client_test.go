@@ -18,10 +18,13 @@ import (
 	"bytes"
 	"context"
 	"testing"
+	"time"
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/testonly/integration"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func TestAddGetLeaf(t *testing.T) {
@@ -189,27 +192,32 @@ func TestWaitForInclusion(t *testing.T) {
 	}
 
 	for _, test := range []struct {
-		desc    string
-		leaf    []byte
-		client  trillian.TrillianLogClient
-		wantErr bool
+		desc         string
+		leaf         []byte
+		client       trillian.TrillianLogClient
+		skipPreCheck bool
+		wantErr      bool
 	}{
 		{desc: "First leaf", leaf: []byte("A"), client: env.Log},
 		{desc: "Make TreeSize > 1", leaf: []byte("B"), client: env.Log},
-		{desc: "invalid inclusion proof", leaf: []byte("A"), client: &MockLogClient{c: env.Log, mGetInclusionProof: true}, wantErr: true},
+		{desc: "invalid inclusion proof", leaf: []byte("A"), skipPreCheck: true,
+			client: &MockLogClient{c: env.Log, mGetInclusionProof: true}, wantErr: true},
 	} {
 		t.Run(test.desc, func(t *testing.T) {
 			client := New(logID, test.client, rfc6962.DefaultHasher, env.PublicKey)
+
+			if !test.skipPreCheck {
+				cctx, cancel := context.WithTimeout(ctx, 50*time.Millisecond)
+				if err := client.WaitForInclusion(cctx, test.leaf); status.Code(err) != codes.DeadlineExceeded {
+					t.Errorf("WaitForInclusion before sequencing: %v, want: not-nil", err)
+				}
+				cancel()
+			}
+
 			if err := client.QueueLeaf(ctx, test.leaf); err != nil {
 				t.Fatalf("QueueLeaf(): %v", err)
 			}
-			err := client.WaitForInclusion(ctx, test.leaf)
-			if got := err != nil; got != test.wantErr {
-				t.Errorf("WaitForInclusion(): %v, want error: %v", err, test.wantErr)
-			}
-
 			env.Sequencer.OperationSingle(ctx)
-
 			err = client.WaitForInclusion(ctx, test.leaf)
 			if got := err != nil; got != test.wantErr {
 				t.Errorf("WaitForInclusion(): %v, want error: %v", err, test.wantErr)
