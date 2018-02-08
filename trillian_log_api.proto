@@ -100,6 +100,139 @@ service TrillianLog {
     }
 }
 
+message QueueLeafRequest {
+    int64 log_id = 1;
+    LogLeaf leaf = 2;
+}
+
+message QueueLeafResponse {
+    QueuedLogLeaf queued_leaf = 2;
+}
+
+message GetInclusionProofRequest {
+    int64 log_id = 1;
+    int64 leaf_index = 2;
+    int64 tree_size = 3;
+}
+
+message GetInclusionProofResponse {
+    Proof proof = 2;
+}
+
+message GetInclusionProofByHashRequest {
+    int64 log_id = 1;
+    bytes leaf_hash = 2;
+    int64 tree_size = 3;
+    bool order_by_sequence = 4;
+}
+
+message GetInclusionProofByHashResponse {
+    // Logs can potentially contain leaves with duplicate hashes so it's possible
+    // for this to return multiple proofs.
+    // TODO(gbelvin) only return one proof.
+    repeated Proof proof = 2;
+}
+
+message GetConsistencyProofRequest {
+    int64 log_id = 1;
+    int64 first_tree_size = 2;
+    int64 second_tree_size = 3;
+}
+
+message GetConsistencyProofResponse {
+    Proof proof = 2;
+}
+
+message GetLatestSignedLogRootRequest {
+    int64 log_id = 1;
+}
+
+message GetLatestSignedLogRootResponse {
+    SignedLogRoot signed_log_root = 2;
+}
+
+message GetSequencedLeafCountRequest {
+    int64 log_id = 1;
+}
+
+message GetSequencedLeafCountResponse {
+    int64 leaf_count = 2;
+}
+
+message GetEntryAndProofRequest {
+    int64 log_id = 1;
+    int64 leaf_index = 2;
+    int64 tree_size = 3;
+}
+
+message GetEntryAndProofResponse {
+    Proof proof = 2;
+    LogLeaf leaf = 3;
+}
+
+message InitLogRequest {
+    int64 log_id = 1;
+}
+
+message InitLogResponse {
+    SignedLogRoot created = 1;
+}
+
+message QueueLeavesRequest {
+    int64 log_id = 1;
+    repeated LogLeaf leaves = 2;
+}
+
+message QueueLeavesResponse {
+    // Same number and order as in the corresponding request.
+    repeated QueuedLogLeaf queued_leaves = 2;
+}
+
+message GetLeavesByIndexRequest {
+    int64 log_id = 1;
+    repeated int64 leaf_index = 2;
+}
+
+message GetLeavesByIndexResponse {
+    // TODO(gbelvin) reply with error codes.
+    repeated LogLeaf leaves = 2;
+}
+
+message GetLeavesByRangeRequest {
+  int64 log_id = 1;
+  int64 start_index = 2;
+  int64 count = 3;
+}
+
+message GetLeavesByRangeResponse {
+  // Returned log leaves starting from the start_index of the request, in order.
+  // There may be fewer than request.count leaves returned, if the requested
+  // range extended beyond the size of the tree or if the server opted to return
+  // fewer leaves than requested.
+  repeated LogLeaf leaves = 1;
+}
+
+message GetLeavesByHashRequest {
+    int64 log_id = 1;
+    repeated bytes leaf_hash = 2;
+    bool order_by_sequence = 3;
+}
+
+message GetLeavesByHashResponse {
+    // TODO(gbelvin) reply with error codes.
+    repeated LogLeaf leaves = 2;
+}
+
+// QueuedLogLeaf represents a log leaf that has been queued for inclusion; it may
+// be pending or already exist in the log (if the log does not allow duplicates).
+message QueuedLogLeaf {
+    // The leaf is present if status.code is:
+    //  - google.rpc.OK : the leaf is the same as in the QueueLea{f,ves}Request
+    //  - google.rpc.ALREADY_EXISTS : the leaf is the one already present in the log.
+    LogLeaf leaf = 1;
+    google.rpc.Status status = 2;
+}
+
 message LogLeaf {
     // merkle_leaf_hash is over leaf data and optional extra_data.
     bytes merkle_leaf_hash = 1;
@@ -142,137 +275,4 @@ message Proof {
     int64 leaf_index = 1;
     reserved 2; // This field contained internal node details that are no longer provided to clients.
     repeated bytes hashes = 3;
-}
-
-// QueuedLogLeaf represents a log leaf that has been queued for inclusion; it may
-// be pending or already exist in the log (if the log does not allow duplicates).
-message QueuedLogLeaf {
-    // The leaf is present if status.code is:
-    //  - google.rpc.OK : the leaf is the same as in the QueueLea{f,ves}Request
-    //  - google.rpc.ALREADY_EXISTS : the leaf is the one already present in the log.
-    LogLeaf leaf = 1;
-    google.rpc.Status status = 2;
-}
-
-message QueueLeavesRequest {
-    int64 log_id = 1;
-    repeated LogLeaf leaves = 2;
-}
-
-message QueueLeafRequest {
-    int64 log_id = 1;
-    LogLeaf leaf = 2;
-}
-
-message QueueLeafResponse {
-    QueuedLogLeaf queued_leaf = 2;
-}
-
-message QueueLeavesResponse {
-    // Same number and order as in the corresponding request.
-    repeated QueuedLogLeaf queued_leaves = 2;
-}
-
-message GetInclusionProofRequest {
-    int64 log_id = 1;
-    int64 leaf_index = 2;
-    int64 tree_size = 3;
-}
-
-message GetInclusionProofResponse {
-    Proof proof = 2;
-}
-
-message GetInclusionProofByHashRequest {
-    int64 log_id = 1;
-    bytes leaf_hash = 2;
-    int64 tree_size = 3;
-    bool order_by_sequence = 4;
-}
-
-message GetInclusionProofByHashResponse {
-    // Logs can potentially contain leaves with duplicate hashes so it's possible
-    // for this to return multiple proofs.
-    // TODO(gbelvin) only return one proof.
-    repeated Proof proof = 2;
-}
-
-message GetConsistencyProofRequest {
-    int64 log_id = 1;
-    int64 first_tree_size = 2;
-    int64 second_tree_size = 3;
-}
-
-message GetConsistencyProofResponse {
-    Proof proof = 2;
-}
-
-message GetLeavesByHashRequest {
-    int64 log_id = 1;
-    repeated bytes leaf_hash = 2;
-    bool order_by_sequence = 3;
-}
-
-message GetLeavesByHashResponse {
-    // TODO(gbelvin) reply with error codes.
-    repeated LogLeaf leaves = 2;
-}
-
-message GetLeavesByIndexRequest {
-    int64 log_id = 1;
-    repeated int64 leaf_index = 2;
-}
-
-message GetLeavesByIndexResponse {
-    // TODO(gbelvin) reply with error codes.
-    repeated LogLeaf leaves = 2;
-}
-
-message GetLeavesByRangeRequest {
-  int64 log_id = 1;
-  int64 start_index = 2;
-  int64 count = 3;
-}
-
-message GetLeavesByRangeResponse {
-  // Returned log leaves starting from the start_index of the request, in order.
-  // There may be fewer than request.count leaves returned, if the requested
-  // range extended beyond the size of the tree or if the server opted to return
-  // fewer leaves than requested.
-  repeated LogLeaf leaves = 1;
-}
-
-message GetSequencedLeafCountRequest {
-    int64 log_id = 1;
-}
-
-message GetSequencedLeafCountResponse {
-    int64 leaf_count = 2;
-}
-
-message GetLatestSignedLogRootRequest {
-    int64 log_id = 1;
-}
-
-message GetLatestSignedLogRootResponse {
-    SignedLogRoot signed_log_root = 2;
-}
-
-message GetEntryAndProofRequest {
-    int64 log_id = 1;
-    int64 leaf_index = 2;
-    int64 tree_size = 3;
-}
-
-message GetEntryAndProofResponse {
-    Proof proof = 2;
-    LogLeaf leaf = 3;
-}
-
-message InitLogRequest {
-    int64 log_id = 1;
-}
-
-message InitLogResponse {
-    SignedLogRoot created = 1;
 }
