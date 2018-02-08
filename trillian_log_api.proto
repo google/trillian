@@ -101,21 +101,23 @@ message QueueLeavesResponse {
 
 message AddSequencedLeafRequest {
     int64 log_id = 1;
-    LogLeaf leaf = 2;
+    int64 leaf_index = 2;
+    LogLeaf leaf = 3;
 }
 
 message AddSequencedLeafResponse {
-    google.rpc.Status status = 2;
+    QueuedLogLeaf sequenced_leaf = 3;
 }
 
 message AddSequencedLeavesRequest {
     int64 log_id = 1;
-    repeated LogLeaf leaves = 2;
+    int64 start_leaf_index = 2;
+    repeated LogLeaf leaves = 3;
 }
 
 message AddSequencedLeavesResponse {
     // Same number and order as in the corresponding request.
-    repeated google.rpc.Status status = 2;
+    repeated QueuedLogLeaf sequenced_leaves = 3;
 }
 
 message GetInclusionProofRequest {
@@ -239,7 +241,7 @@ service TrillianLog {
     // tree's storage, to be integrated later to the tree.
     rpc AddSequencedLeaf (AddSequencedLeafRequest) returns (AddSequencedLeafResponse) {
       option (google.api.http) = {
-        post: "/v1beta1/logs/{log_id}/leaves:sequenced"
+        post: "/v1beta1/logs/{log_id}/leaves/{leaf_index}"
         body: "*"
       };
     }
