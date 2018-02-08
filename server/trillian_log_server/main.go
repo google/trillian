@@ -20,6 +20,7 @@ import (
 	"context"
 	"flag"
 
+	"cloud.google.com/go/spanner"
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
@@ -31,6 +32,7 @@ import (
 	"github.com/google/trillian/quota/etcd/quotaapi"
 	"github.com/google/trillian/quota/etcd/quotapb"
 	"github.com/google/trillian/server"
+	"github.com/google/trillian/storage/cloudspanner"
 	"github.com/google/trillian/util"
 	"github.com/google/trillian/util/etcd"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"

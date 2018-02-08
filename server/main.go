@@ -23,7 +23,6 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/extension"
-	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/server/admin"
 	"github.com/google/trillian/server/interceptor"
 	"github.com/google/trillian/util"
@@ -59,7 +58,8 @@ type Main struct {
 	// TLS Certificate and Key files for the server.
 	TLSCertFile, TLSKeyFile string
 
-	DBClose  func() error
+	DBClose func() error
+
 	Registry extension.Registry
 
 	StatsPrefix string
