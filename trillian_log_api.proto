@@ -26,6 +26,80 @@ import "google/protobuf/timestamp.proto";
 import "google/rpc/status.proto";
 import "trillian.proto";
 
+// TrillianLog defines a service that can provide access to a Verifiable Log as defined in the
+// Verifiable Data Structures paper. It provides direct access to a subset of storage APIs
+// (for handling reads) and provides Log level ones such as being able to obtain proofs.
+// Clients cannot directly modify the log data via this API.
+service TrillianLog {
+    // QueueLeaf adds a single leaf to the queue.
+    rpc QueueLeaf (QueueLeafRequest) returns (QueueLeafResponse) {
+      option (google.api.http) = {
+        post: "/v1beta1/logs/{log_id}/leaves"
+        body: "*"
+      };
+    }
+
+    // No direct equivalent at the storage level
+    rpc GetInclusionProof (GetInclusionProofRequest) returns (GetInclusionProofResponse) {
+      option (google.api.http) = {
+        get: "/v1beta1/logs/{log_id}/leaves/{leaf_index}:inclusion_proof"
+      };
+    }
+    rpc GetInclusionProofByHash (GetInclusionProofByHashRequest) returns (GetInclusionProofByHashResponse) {
+       option (google.api.http) = {
+        get: "/v1beta1/logs/{log_id}/leaves:inclusion_by_hash"
+       };
+    }
+    rpc GetConsistencyProof (GetConsistencyProofRequest) returns (GetConsistencyProofResponse) {
+      option (google.api.http) = {
+        get: "/v1beta1/logs/{log_id}:consistency_proof"
+      };
+    }
+
+    // Corresponds to the LogRootReader API
+    rpc GetLatestSignedLogRoot (GetLatestSignedLogRootRequest) returns (GetLatestSignedLogRootResponse) {
+      option (google.api.http) = {
+        get: "/v1beta1/logs/{log_id}/roots:latest"
+      };
+    }
+
+    // Corresponds to the LeafReader API
+    rpc GetSequencedLeafCount (GetSequencedLeafCountRequest) returns (GetSequencedLeafCountResponse) {
+      option (google.api.http) = {
+        get: "/v1beta1/logs/{log_id}/leaves:sequenced_count"
+      };
+    }
+    rpc GetEntryAndProof (GetEntryAndProofRequest) returns (GetEntryAndProofResponse) {
+      option (google.api.http) = {
+        get: "/v1beta1/logs/{log_id}/leaves/{leaf_index}"
+      };
+    }
+
+    //
+    // Initialisation APIs
+    //
+
+    rpc InitLog (InitLogRequest) returns (InitLogResponse) {
+      option (google.api.http) = {
+        post: "/v1/beta1/logs/{log_id}:init"
+      };
+    }
+
+    //
+    // Batch APIS
+    //
+
+    // Corresponds to the LeafQueuer API
+    rpc QueueLeaves (QueueLeavesRequest) returns (QueueLeavesResponse) {
+    }
+    rpc GetLeavesByIndex (GetLeavesByIndexRequest) returns (GetLeavesByIndexResponse) {
+    }
+    rpc GetLeavesByRange (GetLeavesByRangeRequest) returns (GetLeavesByRangeResponse) {
+    }
+    rpc GetLeavesByHash (GetLeavesByHashRequest) returns (GetLeavesByHashResponse) {
+    }
+}
+
 message LogLeaf {
     // merkle_leaf_hash is over leaf data and optional extra_data.
     bytes merkle_leaf_hash = 1;
@@ -201,78 +275,4 @@ message InitLogRequest {
 
 message InitLogResponse {
     SignedLogRoot created = 1;
-}
-
-// TrillianLog defines a service that can provide access to a Verifiable Log as defined in the
-// Verifiable Data Structures paper. It provides direct access to a subset of storage APIs
-// (for handling reads) and provides Log level ones such as being able to obtain proofs.
-// Clients cannot directly modify the log data via this API.
-service TrillianLog {
-    // QueueLeaf adds a single leaf to the queue.
-    rpc QueueLeaf (QueueLeafRequest) returns (QueueLeafResponse) {
-      option (google.api.http) = {
-        post: "/v1beta1/logs/{log_id}/leaves"
-        body: "*"
-      };
-    }
-
-    // No direct equivalent at the storage level
-    rpc GetInclusionProof (GetInclusionProofRequest) returns (GetInclusionProofResponse) {
-      option (google.api.http) = {
-        get: "/v1beta1/logs/{log_id}/leaves/{leaf_index}:inclusion_proof"
-      };
-    }
-    rpc GetInclusionProofByHash (GetInclusionProofByHashRequest) returns (GetInclusionProofByHashResponse) {
-       option (google.api.http) = {
-        get: "/v1beta1/logs/{log_id}/leaves:inclusion_by_hash"
-       };
-    }
-    rpc GetConsistencyProof (GetConsistencyProofRequest) returns (GetConsistencyProofResponse) {
-      option (google.api.http) = {
-        get: "/v1beta1/logs/{log_id}:consistency_proof"
-      };
-    }
-
-    // Corresponds to the LogRootReader API
-    rpc GetLatestSignedLogRoot (GetLatestSignedLogRootRequest) returns (GetLatestSignedLogRootResponse) {
-      option (google.api.http) = {
-        get: "/v1beta1/logs/{log_id}/roots:latest"
-      };
-    }
-
-    // Corresponds to the LeafReader API
-    rpc GetSequencedLeafCount (GetSequencedLeafCountRequest) returns (GetSequencedLeafCountResponse) {
-      option (google.api.http) = {
-        get: "/v1beta1/logs/{log_id}/leaves:sequenced_count"
-      };
-    }
-    rpc GetEntryAndProof (GetEntryAndProofRequest) returns (GetEntryAndProofResponse) {
-      option (google.api.http) = {
-        get: "/v1beta1/logs/{log_id}/leaves/{leaf_index}"
-      };
-    }
-
-    //
-    // Initialisation APIs
-    //
-
-    rpc InitLog (InitLogRequest) returns (InitLogResponse) {
-      option (google.api.http) = {
-        post: "/v1/beta1/logs/{log_id}:init"
-      };
-    }
-
-    //
-    // Batch APIS
-    //
-
-    // Corresponds to the LeafQueuer API
-    rpc QueueLeaves (QueueLeavesRequest) returns (QueueLeavesResponse) {
-    }
-    rpc GetLeavesByIndex (GetLeavesByIndexRequest) returns (GetLeavesByIndexResponse) {
-    }
-    rpc GetLeavesByRange (GetLeavesByRangeRequest) returns (GetLeavesByRangeResponse) {
-    }
-    rpc GetLeavesByHash (GetLeavesByHashRequest) returns (GetLeavesByHashResponse) {
-    }
 }
