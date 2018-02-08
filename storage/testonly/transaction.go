@@ -20,7 +20,7 @@ import (
 	"github.com/google/trillian/storage"
 )
 
-// RunOnLogTX is a helper for mocking out the LogStorage.ReadWriteTransaction method..
+// RunOnLogTX is a helper for mocking out the LogStorage.ReadWriteTransaction method.
 func RunOnLogTX(tx storage.LogTreeTX) func(ctx context.Context, treeID int64, f storage.LogTXFunc) error {
 	return func(ctx context.Context, _ int64, f storage.LogTXFunc) error {
 		defer tx.Close()
@@ -28,10 +28,21 @@ func RunOnLogTX(tx storage.LogTreeTX) func(ctx context.Context, treeID int64, f 
 	}
 }
 
-// RunOnMapTX is a helper for mocking out the MapStorage.ReadWriteTransaction method..
+// RunOnMapTX is a helper for mocking out the MapStorage.ReadWriteTransaction method.
 func RunOnMapTX(tx storage.MapTreeTX) func(ctx context.Context, treeID int64, f storage.MapTXFunc) error {
 	return func(ctx context.Context, _ int64, f storage.MapTXFunc) error {
 		defer tx.Close()
 		return f(ctx, tx)
+	}
+}
+
+// RunOnAdminTX is a helper for mocking out the AdminStorage.ReadWriteTransaction method.
+func RunOnAdminTX(tx storage.AdminTX) func(ctx context.Context, f storage.AdminTXFunc) error {
+	return func(ctx context.Context, f storage.AdminTXFunc) error {
+		defer tx.Close()
+		if err := f(ctx, tx); err != nil {
+			return err
+		}
+		return tx.Commit()
 	}
 }

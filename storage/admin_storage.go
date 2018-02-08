@@ -54,6 +54,9 @@ type AdminTX interface {
 	AdminWriter
 }
 
+// AdminTXFunc is the signature for functions passed to ReadWriteTransaction.
+type AdminTXFunc func(context.Context, AdminTX) error
+
 // AdminStorage represents the persistent storage of tree data.
 type AdminStorage interface {
 	// Snapshot starts a read-only transaction.
@@ -65,6 +68,11 @@ type AdminStorage interface {
 	// A transaction must be explicitly committed before the data read by it
 	// is considered consistent.
 	Begin(ctx context.Context) (AdminTX, error)
+
+	// ReadWriteTransaction creates a transaction, and runs f with it.
+	// Some storage implementations may retry aborted transactions, so
+	// f MUST be idempotent.
+	ReadWriteTransaction(ctx context.Context, f AdminTXFunc) error
 
 	// CheckDatabaseAccessible checks whether we are able to connect to / open the
 	// underlying storage.
@@ -127,19 +135,6 @@ type AdminWriter interface {
 // RunInAdminSnapshot runs fn against a ReadOnlyAdminTX and commits if no error is returned.
 func RunInAdminSnapshot(ctx context.Context, admin AdminStorage, fn func(tx ReadOnlyAdminTX) error) error {
 	tx, err := admin.Snapshot(ctx)
-	if err != nil {
-		return err
-	}
-	defer tx.Close()
-	if err := fn(tx); err != nil {
-		return err
-	}
-	return tx.Commit()
-}
-
-// RunInAdminTX runs fn against an AdminTX and commits if no error is returned.
-func RunInAdminTX(ctx context.Context, admin AdminStorage, fn func(tx AdminTX) error) error {
-	tx, err := admin.Begin(ctx)
 	if err != nil {
 		return err
 	}
