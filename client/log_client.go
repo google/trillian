@@ -30,18 +30,18 @@ import (
 
 // LogClient represents a client for a given Trillian log instance.
 type LogClient struct {
+	LogVerifier
 	LogID  int64
 	client trillian.TrillianLogClient
-	LogVerifier
-	root trillian.SignedLogRoot
+	root   trillian.SignedLogRoot
 }
 
 // New returns a new LogClient.
 func New(logID int64, client trillian.TrillianLogClient, verifier LogVerifier) *LogClient {
 	return &LogClient{
+		LogVerifier: verifier,
 		LogID:       logID,
 		client:      client,
-		LogVerifier: verifier,
 	}
 }
 

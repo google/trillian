@@ -56,9 +56,9 @@ func TestGetByIndex(t *testing.T) {
 	}
 	defer env.Close()
 
-	tree, err := CreateAndInitTree(ctx, &trillian.CreateTreeRequest{
-		Tree: stestonly.LogTree,
-	}, env.Admin, nil, env.Log)
+	tree, err := CreateAndInitTree(ctx,
+		&trillian.CreateTreeRequest{Tree: stestonly.LogTree},
+		env.Admin, nil, env.Log)
 	if err != nil {
 		t.Fatalf("Failed to create log: %v", err)
 	}
@@ -97,9 +97,9 @@ func TestListByIndex(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer env.Close()
-	tree, err := CreateAndInitTree(ctx, &trillian.CreateTreeRequest{
-		Tree: stestonly.LogTree,
-	}, env.Admin, nil, env.Log)
+	tree, err := CreateAndInitTree(ctx,
+		&trillian.CreateTreeRequest{Tree: stestonly.LogTree},
+		env.Admin, nil, env.Log)
 	if err != nil {
 		t.Fatalf("Failed to create log: %v", err)
 	}
@@ -138,9 +138,9 @@ func TestVerifyInclusion(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer env.Close()
-	tree, err := CreateAndInitTree(ctx, &trillian.CreateTreeRequest{
-		Tree: stestonly.LogTree,
-	}, env.Admin, nil, env.Log)
+	tree, err := CreateAndInitTree(ctx,
+		&trillian.CreateTreeRequest{Tree: stestonly.LogTree},
+		env.Admin, nil, env.Log)
 	if err != nil {
 		t.Fatalf("Failed to create log: %v", err)
 	}
@@ -173,9 +173,9 @@ func TestVerifyInclusionAtIndex(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer env.Close()
-	tree, err := CreateAndInitTree(ctx, &trillian.CreateTreeRequest{
-		Tree: stestonly.LogTree,
-	}, env.Admin, nil, env.Log)
+	tree, err := CreateAndInitTree(ctx,
+		&trillian.CreateTreeRequest{Tree: stestonly.LogTree},
+		env.Admin, nil, env.Log)
 	if err != nil {
 		t.Fatalf("Failed to create log: %v", err)
 	}
@@ -208,9 +208,9 @@ func TestWaitForInclusion(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer env.Close()
-	tree, err := CreateAndInitTree(ctx, &trillian.CreateTreeRequest{
-		Tree: stestonly.LogTree,
-	}, env.Admin, nil, env.Log)
+	tree, err := CreateAndInitTree(ctx,
+		&trillian.CreateTreeRequest{Tree: stestonly.LogTree},
+		env.Admin, nil, env.Log)
 	if err != nil {
 		t.Fatalf("Failed to create log: %v", err)
 	}
@@ -260,9 +260,9 @@ func TestUpdateRoot(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer env.Close()
-	tree, err := CreateAndInitTree(ctx, &trillian.CreateTreeRequest{
-		Tree: stestonly.LogTree,
-	}, env.Admin, nil, env.Log)
+	tree, err := CreateAndInitTree(ctx,
+		&trillian.CreateTreeRequest{Tree: stestonly.LogTree},
+		env.Admin, nil, env.Log)
 	if err != nil {
 		t.Fatalf("Failed to create log: %v", err)
 	}

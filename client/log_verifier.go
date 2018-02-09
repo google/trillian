@@ -19,10 +19,11 @@ import (
 	"fmt"
 
 	"github.com/google/trillian"
-	tcrypto "github.com/google/trillian/crypto"
 	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/hashers"
+
+	tcrypto "github.com/google/trillian/crypto"
 )
 
 // logVerifier contains state needed to verify output from Trillian Logs.
@@ -41,22 +42,23 @@ func NewLogVerifier(hasher hashers.LogHasher, pubKey crypto.PublicKey) LogVerifi
 	}
 }
 
-// NewLogVerifierFromTree creates a new LogVerifier
+// NewLogVerifierFromTree creates a new LogVerifier using the algorithms
+// specified by *trillian.Tree.
 func NewLogVerifierFromTree(config *trillian.Tree) (LogVerifier, error) {
 	if got, want := config.TreeType, trillian.TreeType_LOG; got != want {
-		return nil, fmt.Errorf("client: NewFromTree(): TreeType: %v, want %v", got, want)
+		return nil, fmt.Errorf("client: NewLogVerifierFromTree(): TreeType: %v, want %v", got, want)
 	}
 
 	// Log Hasher.
 	logHasher, err := hashers.NewLogHasher(config.GetHashStrategy())
 	if err != nil {
-		return nil, fmt.Errorf("client: NewFromTree(): NewLogHasher(): %v", err)
+		return nil, fmt.Errorf("client: NewLogVerifierFromTree(): NewLogHasher(): %v", err)
 	}
 
 	// Log Key
 	logPubKey, err := der.UnmarshalPublicKey(config.GetPublicKey().GetDer())
 	if err != nil {
-		return nil, fmt.Errorf("client: NewFromTree(): Failed parsing Log public key: %v", err)
+		return nil, fmt.Errorf("client: NewLogVerifierFromTree(): Failed parsing Log public key: %v", err)
 	}
 
 	return NewLogVerifier(logHasher, logPubKey), nil
