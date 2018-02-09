@@ -167,7 +167,7 @@ func (c *LogClient) getLatestRoot(ctx context.Context, trusted *trillian.SignedL
 	}
 	// Verify root update if the tree / the latest signed log root isn't empty.
 	if resp.GetSignedLogRoot().GetTreeSize() > 0 {
-		if err := c.LogVerifier.VerifyRoot(trusted, resp.GetSignedLogRoot(),
+		if err := c.VerifyRoot(trusted, resp.GetSignedLogRoot(),
 			consistency.GetProof().GetHashes()); err != nil {
 			return nil, err
 		}

@@ -37,12 +37,10 @@ import (
 	"github.com/google/trillian/server/interceptor"
 	"github.com/google/trillian/storage/mysql"
 	"github.com/google/trillian/storage/testdb"
-	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/util"
 
 	_ "github.com/go-sql-driver/mysql"                   // Load MySQL driver
 	_ "github.com/google/trillian/crypto/keys/der/proto" // Register PrivateKey ProtoHandler
-	ktestonly "github.com/google/trillian/crypto/keys/testonly"
 )
 
 var (
