@@ -1676,15 +1676,15 @@ func TestInitLog(t *testing.T) {
 	ctx := context.Background()
 
 	for _, tc := range []struct {
-		desc     string
-		txErr    error
-		wantInit bool
-		root     []byte
-		wantCode codes.Code
+		desc       string
+		getRootErr error
+		wantInit   bool
+		root       []byte
+		wantCode   codes.Code
 	}{
-		{desc: "init new log", txErr: storage.ErrTreeNeedsInit, wantInit: true, root: nil, wantCode: codes.OK},
-		{desc: "init new log, no err", txErr: nil, wantInit: true, root: nil, wantCode: codes.OK},
-		{desc: "init already initialised log", txErr: nil, wantInit: false, root: []byte{}, wantCode: codes.AlreadyExists},
+		{desc: "init new log", getRootErr: storage.ErrTreeNeedsInit, wantInit: true, root: nil, wantCode: codes.OK},
+		{desc: "init new log, no err", getRootErr: nil, wantInit: true, root: nil, wantCode: codes.OK},
+		{desc: "init already initialised log", getRootErr: nil, wantInit: false, root: []byte{}, wantCode: codes.AlreadyExists},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
@@ -1692,12 +1692,16 @@ func TestInitLog(t *testing.T) {
 
 			mockStorage := storage.NewMockLogStorage(ctrl)
 			mockTx := storage.NewMockLogTreeTX(ctrl)
-			mockStorage.EXPECT().BeginForTree(gomock.Any(), logID1).Return(mockTx, tc.txErr)
+			mockStorage.EXPECT().ReadWriteTransaction(gomock.Any(), logID1, gomock.Any()).DoAndReturn(stestonly.RunOnLogTX(mockTx))
+			if tc.getRootErr != nil {
+				mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(trillian.SignedLogRoot{}, tc.getRootErr)
+			} else {
+				mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(trillian.SignedLogRoot{
+					RootHash: tc.root,
+				}, nil)
+			}
 			mockTx.EXPECT().IsOpen().AnyTimes().Return(false)
 			mockTx.EXPECT().Close().Return(nil)
-			mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(trillian.SignedLogRoot{
-				RootHash: tc.root,
-			}, nil)
 			if tc.wantInit {
 				mockTx.EXPECT().Commit().Return(nil)
 				mockTx.EXPECT().StoreSignedLogRoot(gomock.Any(), gomock.Any())
@@ -1711,7 +1715,7 @@ func TestInitLog(t *testing.T) {
 
 			c, err := logServer.InitLog(ctx, &trillian.InitLogRequest{LogId: logID1})
 			if got, want := status.Code(err), tc.wantCode; got != want {
-				t.Errorf("InitLog returned %v, want %v", got, want)
+				t.Errorf("InitLog returned %v (%v), want %v", got, err, want)
 			}
 			if tc.wantInit {
 				if err != nil {

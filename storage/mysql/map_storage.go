@@ -147,7 +147,7 @@ func (m *mySQLMapStorage) ReadWriteTransaction(ctx context.Context, treeID int64
 	if tx != nil {
 		defer tx.Close()
 	}
-	if err != nil && err != storage.ErrMapNeedsInit {
+	if err != nil && err != storage.ErrTreeNeedsInit {
 		return err
 	}
 	return f(ctx, tx)

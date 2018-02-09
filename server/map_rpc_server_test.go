@@ -94,15 +94,15 @@ func TestInitMap(t *testing.T) {
 	ctx := context.Background()
 
 	for _, tc := range []struct {
-		desc     string
-		txErr    error
-		wantInit bool
-		root     []byte
-		wantCode codes.Code
+		desc       string
+		getRootErr error
+		wantInit   bool
+		root       []byte
+		wantCode   codes.Code
 	}{
-		{desc: "init new log", txErr: storage.ErrTreeNeedsInit, wantInit: true, root: nil, wantCode: codes.OK},
-		{desc: "init new log, no err", txErr: nil, wantInit: true, root: nil, wantCode: codes.OK},
-		{desc: "init already initialised log", txErr: nil, wantInit: false, root: []byte{}, wantCode: codes.AlreadyExists},
+		{desc: "init new map", getRootErr: storage.ErrTreeNeedsInit, wantInit: true, root: nil, wantCode: codes.OK},
+		{desc: "init new map, no err", getRootErr: nil, wantInit: true, root: nil, wantCode: codes.OK},
+		{desc: "init already initialised map", getRootErr: nil, wantInit: false, root: []byte{}, wantCode: codes.AlreadyExists},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
@@ -110,12 +110,16 @@ func TestInitMap(t *testing.T) {
 
 			mockStorage := storage.NewMockMapStorage(ctrl)
 			mockTx := storage.NewMockMapTreeTX(ctrl)
-			mockStorage.EXPECT().ReadWriteTransaction(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(stestonly.RunOnMapTX(mockTX))
+			mockStorage.EXPECT().ReadWriteTransaction(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(stestonly.RunOnMapTX(mockTx))
+			if tc.getRootErr != nil {
+				mockTx.EXPECT().LatestSignedMapRoot(gomock.Any()).Return(trillian.SignedMapRoot{}, tc.getRootErr)
+			} else {
+				mockTx.EXPECT().LatestSignedMapRoot(gomock.Any()).Return(
+					trillian.SignedMapRoot{RootHash: tc.root}, nil)
+			}
 
 			mockTx.EXPECT().IsOpen().AnyTimes().Return(false)
 			mockTx.EXPECT().Close().Return(nil)
-			mockTx.EXPECT().LatestSignedMapRoot(gomock.Any()).Return(
-				trillian.SignedMapRoot{RootHash: tc.root}, nil)
 			if tc.wantInit {
 				mockTx.EXPECT().Commit().Return(nil)
 				mockTx.EXPECT().StoreSignedMapRoot(gomock.Any(), gomock.Any())

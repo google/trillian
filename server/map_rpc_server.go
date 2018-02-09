@@ -327,27 +327,20 @@ func (t *TrillianMapServer) InitMap(ctx context.Context, req *trillian.InitMapRe
 
 	var rev0Root *trillian.SignedMapRoot
 	err = t.registry.MapStorage.ReadWriteTransaction(ctx, mapID, func(ctx context.Context, tx storage.MapTreeTX) error {
-		if smr, err := tx.LatestSignedMapRoot(ctx); err == nil && smr.TimestampNanos != 0 {
-			// No need to init - we already have a SignedMapRoot.
-			return status.New(codes.AlreadyExists, "map already intialised.").Err()
-		}
-
-		rev0Root = nil
-		defer tx.Close()
-
 		// Check that the map actually needs initialising
 		latestRoot, err := tx.LatestSignedMapRoot(ctx)
 		if err != nil && err != storage.ErrTreeNeedsInit {
-			return nil, status.Errorf(codes.FailedPrecondition, "LatestSignedMapRoot(): %v", err)
+			return status.Errorf(codes.FailedPrecondition, "LatestSignedMapRoot(): %v", err)
 		}
 		// Belt and braces check.
 		if latestRoot.GetRootHash() != nil {
-			return nil, status.Errorf(codes.AlreadyExists, "map is already initialised")
+			return status.Errorf(codes.AlreadyExists, "map is already initialised")
 		}
+
+		rev0Root = nil
 
 		glog.V(2).Infof("%v: Need to init map root revision 0", mapID)
 		rootHash := hasher.HashEmpty(mapID, make([]byte, hasher.Size()), hasher.BitLen())
-		var err error
 		rev0Root, err = t.makeSignedMapRoot(ctx, tree, time.Now(), rootHash, mapID, 0 /*revision*/, nil /* metadata */)
 		if err != nil {
 			return fmt.Errorf("makeSignedMapRoot(): %v", err)

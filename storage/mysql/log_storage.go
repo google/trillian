@@ -260,7 +260,7 @@ func (m *mySQLLogStorage) BeginForTree(ctx context.Context, treeID int64) (stora
 
 func (m *mySQLLogStorage) ReadWriteTransaction(ctx context.Context, treeID int64, f storage.LogTXFunc) error {
 	tx, err := m.BeginForTree(ctx, treeID)
-	if err != nil {
+	if err != nil && err != storage.ErrTreeNeedsInit {
 		return err
 	}
 	defer tx.Close()
