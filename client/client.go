@@ -149,9 +149,7 @@ func (c *LogClient) WaitForRootUpdate(ctx context.Context, waitForTreeSize int64
 
 		select {
 		case <-ctx.Done():
-			return nil, status.Errorf(codes.DeadlineExceeded,
-				"%v. TreeSize: %v, want >= %v. Tried %v times: %v",
-				err, root.TreeSize, waitForTreeSize, i+1, ctx.Err())
+			return nil, status.Errorf(codes.DeadlineExceeded, "%v", ctx.Err())
 		case <-time.After(b.Duration()):
 		}
 	}
