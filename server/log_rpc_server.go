@@ -525,13 +525,13 @@ func (t *TrillianLogRPCServer) InitLog(ctx context.Context, req *trillian.InitLo
 	}
 
 	tx, err := t.registry.LogStorage.BeginForTree(ctx, logID)
-	if err != nil && err != storage.ErrLogNeedsInit {
+	if err != nil && err != storage.ErrTreeNeedsInit {
 		return nil, status.Errorf(codes.FailedPrecondition, "BeginForTree(): %v", err)
 	}
 	defer tx.Close()
 
 	latestRoot, err := tx.LatestSignedLogRoot(ctx)
-	if err != nil && err != storage.ErrLogNeedsInit {
+	if err != nil && err != storage.ErrTreeNeedsInit {
 		return nil, status.Errorf(codes.FailedPrecondition, "LatestSignedLogRoot(): %v", err)
 	}
 

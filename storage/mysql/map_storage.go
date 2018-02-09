@@ -123,10 +123,10 @@ func (m *mySQLMapStorage) begin(ctx context.Context, treeID int64, readonly bool
 	}
 
 	mtx.root, err = mtx.LatestSignedMapRoot(ctx)
-	if err != nil && err != storage.ErrMapNeedsInit {
+	if err != nil && err != storage.ErrTreeNeedsInit {
 		return nil, err
 	}
-	if err == storage.ErrMapNeedsInit {
+	if err == storage.ErrTreeNeedsInit {
 		return mtx, err
 	}
 
@@ -249,7 +249,7 @@ func (m *mapTreeTX) GetSignedMapRoot(ctx context.Context, revision int64) (trill
 		&timestamp, &rootHash, &mapRevision, &rootSignatureBytes, &mapperMetaBytes)
 	if err != nil {
 		if revision == 0 {
-			return trillian.SignedMapRoot{}, storage.ErrMapNeedsInit
+			return trillian.SignedMapRoot{}, storage.ErrTreeNeedsInit
 		}
 		return trillian.SignedMapRoot{}, err
 	}
@@ -272,7 +272,7 @@ func (m *mapTreeTX) LatestSignedMapRoot(ctx context.Context) (trillian.SignedMap
 
 	// It's possible there are no roots for this tree yet
 	if err == sql.ErrNoRows {
-		return trillian.SignedMapRoot{}, storage.ErrMapNeedsInit
+		return trillian.SignedMapRoot{}, storage.ErrTreeNeedsInit
 	} else if err != nil {
 		return trillian.SignedMapRoot{}, err
 	}

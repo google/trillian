@@ -90,30 +90,61 @@ func TestIsHealthy(t *testing.T) {
 	}
 }
 
-func TestInitMapAlreadyInitialised(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+func TestInitMap(t *testing.T) {
 	ctx := context.Background()
 
-	adminStorage := mockAdminStorageForMap(ctrl, 2, mapID1)
-	mockStorage := storage.NewMockMapStorage(ctrl)
-	mockTX := storage.NewMockMapTreeTX(ctrl)
-	server := NewTrillianMapServer(extension.Registry{
-		AdminStorage: adminStorage,
-		MapStorage:   mockStorage,
-	})
-	mockStorage.EXPECT().BeginForTree(gomock.Any(), gomock.Any()).Return(mockTX, nil)
-	mockTX.EXPECT().Close()
+	for _, tc := range []struct {
+		desc     string
+		txErr    error
+		wantInit bool
+		root     []byte
+		wantCode codes.Code
+	}{
+		{desc: "init new log", txErr: storage.ErrTreeNeedsInit, wantInit: true, root: nil, wantCode: codes.OK},
+		{desc: "init new log, no err", txErr: nil, wantInit: true, root: nil, wantCode: codes.OK},
+		{desc: "init already initialised log", txErr: nil, wantInit: false, root: []byte{}, wantCode: codes.AlreadyExists},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
 
-	initResp, err := server.InitMap(ctx, &trillian.InitMapRequest{MapId: mapID1})
-	if err == nil {
-		t.Fatalf("InitMap() on initialised map = no error, want error")
-	}
-	if got, want := status.Code(err), codes.AlreadyExists; got != want {
-		t.Errorf("InitMap() = %v, want %v", got, want)
-	}
-	if initResp != nil {
-		t.Errorf("InitMap() returned non-nil response %v with error, want nil response", initResp)
+			mockStorage := storage.NewMockMapStorage(ctrl)
+			mockTx := storage.NewMockMapTreeTX(ctrl)
+			mockStorage.EXPECT().BeginForTree(gomock.Any(), gomock.Any()).Return(mockTx, nil)
+
+			mockTx.EXPECT().IsOpen().AnyTimes().Return(false)
+			mockTx.EXPECT().Close().Return(nil)
+			mockTx.EXPECT().LatestSignedMapRoot(gomock.Any()).Return(
+				trillian.SignedMapRoot{RootHash: tc.root}, nil)
+			if tc.wantInit {
+				mockTx.EXPECT().Commit().Return(nil)
+				mockTx.EXPECT().StoreSignedMapRoot(gomock.Any(), gomock.Any())
+			}
+
+			server := NewTrillianMapServer(extension.Registry{
+				AdminStorage: mockAdminStorageForMap(ctrl, 2, mapID1),
+				MapStorage:   mockStorage,
+			})
+
+			c, err := server.InitMap(ctx, &trillian.InitMapRequest{
+				MapId: mapID1,
+			})
+			if got, want := status.Code(err), tc.wantCode; got != want {
+				t.Errorf("InitMap returned %v, want %v", got, want)
+			}
+			if tc.wantInit {
+				if err != nil {
+					t.Fatalf("InitLog returned %v, want no error", err)
+				}
+				if c.Created == nil {
+					t.Error("InitLog first attempt didn't return the created STH.")
+				}
+			} else {
+				if err == nil {
+					t.Errorf("InitLog returned nil, want error")
+				}
+			}
+		})
 	}
 }
 
@@ -128,7 +159,7 @@ func TestGetSignedMapRoot_NotInitialised(t *testing.T) {
 		MapStorage: mockStorage,
 	})
 	mockStorage.EXPECT().SnapshotForTree(gomock.Any(), gomock.Any()).Return(mockTX, nil)
-	mockTX.EXPECT().LatestSignedMapRoot(gomock.Any()).Return(trillian.SignedMapRoot{}, storage.ErrMapNeedsInit)
+	mockTX.EXPECT().LatestSignedMapRoot(gomock.Any()).Return(trillian.SignedMapRoot{}, storage.ErrTreeNeedsInit)
 	mockTX.EXPECT().Close()
 
 	smrResp, err := server.GetSignedMapRoot(ctx, &trillian.GetSignedMapRootRequest{})
@@ -225,7 +256,7 @@ func TestGetSignedMapRootByRevision_NotInitialised(t *testing.T) {
 		MapStorage: mockStorage,
 	})
 	mockStorage.EXPECT().SnapshotForTree(gomock.Any(), gomock.Any()).Return(mockTX, nil)
-	mockTX.EXPECT().GetSignedMapRoot(gomock.Any(), gomock.Any()).Return(trillian.SignedMapRoot{}, storage.ErrMapNeedsInit)
+	mockTX.EXPECT().GetSignedMapRoot(gomock.Any(), gomock.Any()).Return(trillian.SignedMapRoot{}, storage.ErrTreeNeedsInit)
 	mockTX.EXPECT().Close()
 
 	smrResp, err := server.GetSignedMapRootByRevision(ctx, &trillian.GetSignedMapRootByRevisionRequest{

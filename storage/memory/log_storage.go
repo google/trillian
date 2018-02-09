@@ -159,11 +159,11 @@ func (m *memoryLogStorage) beginInternal(ctx context.Context, treeID int64, read
 	}
 
 	ltx.root, err = ltx.fetchLatestRoot(ctx)
-	if err != nil && err != storage.ErrLogNeedsInit {
+	if err != nil && err != storage.ErrTreeNeedsInit {
 		ttx.Rollback()
 		return nil, err
 	}
-	if err == storage.ErrLogNeedsInit {
+	if err == storage.ErrTreeNeedsInit {
 		return ltx, err
 	}
 
@@ -290,7 +290,7 @@ func (t *logTreeTX) LatestSignedLogRoot(ctx context.Context) (trillian.SignedLog
 func (t *logTreeTX) fetchLatestRoot(ctx context.Context) (trillian.SignedLogRoot, error) {
 	r := t.tx.Get(sthKey(t.treeID, t.tree.currentSTH))
 	if r == nil {
-		return trillian.SignedLogRoot{}, storage.ErrLogNeedsInit
+		return trillian.SignedLogRoot{}, storage.ErrTreeNeedsInit
 	}
 	return r.(*kv).v.(trillian.SignedLogRoot), nil
 }

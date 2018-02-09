@@ -231,7 +231,7 @@ func (m *mySQLLogStorage) beginInternal(ctx context.Context, treeID int64, reado
 
 	stCache := cache.NewLogSubtreeCache(defaultLogStrata, hasher)
 	ttx, err := m.beginTreeTx(ctx, treeID, hasher.Size(), stCache)
-	if err != nil && err != storage.ErrLogNeedsInit {
+	if err != nil && err != storage.ErrTreeNeedsInit {
 		return nil, err
 	}
 
@@ -241,11 +241,11 @@ func (m *mySQLLogStorage) beginInternal(ctx context.Context, treeID int64, reado
 	}
 
 	ltx.root, err = ltx.fetchLatestRoot(ctx)
-	if err != nil && err != storage.ErrLogNeedsInit {
+	if err != nil && err != storage.ErrTreeNeedsInit {
 		ttx.Rollback()
 		return nil, err
 	}
-	if err == storage.ErrLogNeedsInit {
+	if err == storage.ErrTreeNeedsInit {
 		return ltx, err
 	}
 
@@ -610,7 +610,7 @@ func (t *logTreeTX) fetchLatestRoot(ctx context.Context) (trillian.SignedLogRoot
 
 	// It's possible there are no roots for this tree yet
 	if err == sql.ErrNoRows {
-		return trillian.SignedLogRoot{}, storage.ErrLogNeedsInit
+		return trillian.SignedLogRoot{}, storage.ErrTreeNeedsInit
 	}
 
 	err = proto.Unmarshal(rootSignatureBytes, &rootSignature)

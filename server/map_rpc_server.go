@@ -326,19 +326,23 @@ func (t *TrillianMapServer) InitMap(ctx context.Context, req *trillian.InitMapRe
 	mapID := req.MapId
 	tree, hasher, err := t.getTreeAndHasher(ctx, mapID, false /* readonly */)
 	if err != nil {
-		return nil, err
+		return nil, status.Errorf(codes.FailedPrecondition, "getTreeAndHasher(): %v", err)
 	}
 	ctx = trees.NewContext(ctx, tree)
 
 	tx, err := t.registry.MapStorage.BeginForTree(ctx, mapID)
-	if err != storage.ErrMapNeedsInit && err != nil {
-		return nil, err
+	if err != storage.ErrTreeNeedsInit && err != nil {
+		return nil, status.Errorf(codes.FailedPrecondition, "BeginForTree(): %v", err)
 	}
 	defer tx.Close()
 
-	if err == nil {
-		// Init() not needed.
-		return nil, status.New(codes.AlreadyExists, "map already intialised.").Err()
+	latestRoot, err := tx.LatestSignedMapRoot(ctx)
+	if err != nil && err != storage.ErrTreeNeedsInit {
+		return nil, status.Errorf(codes.FailedPrecondition, "LatestSignedMapRoot(): %v", err)
+	}
+	// Belt and braces check.
+	if latestRoot.GetRootHash() != nil {
+		return nil, status.Errorf(codes.AlreadyExists, "map is already initialised")
 	}
 
 	glog.V(2).Infof("%v: Need to init map root revision 0", mapID)
