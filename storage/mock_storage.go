@@ -281,6 +281,19 @@ func (mr *MockLogStorageMockRecorder) CheckDatabaseAccessible(arg0 interface{}) 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckDatabaseAccessible", reflect.TypeOf((*MockLogStorage)(nil).CheckDatabaseAccessible), arg0)
 }
 
+// QueueLeaves mocks base method
+func (m *MockLogStorage) QueueLeaves(arg0 context.Context, arg1 int64, arg2 []*trillian.LogLeaf, arg3 time.Time) ([]*trillian.LogLeaf, error) {
+	ret := m.ctrl.Call(m, "QueueLeaves", arg0, arg1, arg2, arg3)
+	ret0, _ := ret[0].([]*trillian.LogLeaf)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// QueueLeaves indicates an expected call of QueueLeaves
+func (mr *MockLogStorageMockRecorder) QueueLeaves(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueueLeaves", reflect.TypeOf((*MockLogStorage)(nil).QueueLeaves), arg0, arg1, arg2, arg3)
+}
+
 // ReadWriteTransaction mocks base method
 func (m *MockLogStorage) ReadWriteTransaction(arg0 context.Context, arg1 int64, arg2 LogTXFunc) error {
 	ret := m.ctrl.Call(m, "ReadWriteTransaction", arg0, arg1, arg2)
