@@ -192,6 +192,22 @@ func (m *memoryLogStorage) SnapshotForTree(ctx context.Context, treeID int64) (s
 	return tx.(storage.ReadOnlyLogTreeTX), err
 }
 
+func (m *memoryLogStorage) QueueLeaves(ctx context.Context, treeID int64, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.LogLeaf, error) {
+	tx, err := m.beginInternal(ctx, treeID, false /* readonly */)
+	if err != nil {
+		return nil, err
+	}
+	ret, err := tx.QueueLeaves(ctx, leaves, queueTimestamp)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return ret, nil
+}
+
 type logTreeTX struct {
 	treeTX
 	ls   *memoryLogStorage
