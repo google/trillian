@@ -18,7 +18,6 @@ package integration
 
 import (
 	"context"
-	"crypto"
 	"database/sql"
 	"net"
 	"sync"
@@ -26,10 +25,10 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/ptypes"
+	"google.golang.org/grpc"
+
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys/der"
-	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/quota"
@@ -40,13 +39,10 @@ import (
 	"github.com/google/trillian/storage/testdb"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/util"
-	"google.golang.org/grpc"
-
-	ktestonly "github.com/google/trillian/crypto/keys/testonly"
-	stestonly "github.com/google/trillian/storage/testonly"
 
 	_ "github.com/go-sql-driver/mysql"                   // Load MySQL driver
 	_ "github.com/google/trillian/crypto/keys/der/proto" // Register PrivateKey ProtoHandler
+	ktestonly "github.com/google/trillian/crypto/keys/testonly"
 )
 
 var (
@@ -55,10 +51,6 @@ var (
 	// SequencerInterval is the time between runs of the sequencer.
 	SequencerInterval = 500 * time.Millisecond
 	timeSource        = util.SystemTimeSource{}
-	publicKey         = testonly.DemoPublicKey
-	privateKeyInfo    = &keyspb.PrivateKey{
-		Der: ktestonly.MustMarshalPrivatePEMToDER(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass),
-	}
 )
 
 // LogEnv is a test environment that contains both a log server and a connection to it.
@@ -77,8 +69,6 @@ type LogEnv struct {
 	Log     trillian.TrillianLogClient
 	Admin   trillian.TrillianAdminClient
 	DB      *sql.DB
-	// PublicKey is the public key that verifies responses from this server.
-	PublicKey crypto.PublicKey
 }
 
 // NewLogEnv creates a fresh DB, log server, and client. The numSequencers parameter
@@ -183,12 +173,6 @@ func NewLogEnvWithRegistryAndGRPCOptions(ctx context.Context, numSequencers int,
 		return nil, err
 	}
 
-	publicKey, err := pem.UnmarshalPublicKey(publicKey)
-	if err != nil {
-		cancel()
-		return nil, err
-	}
-
 	return &LogEnv{
 		registry:        registry,
 		pendingTasks:    &wg,
@@ -199,7 +183,6 @@ func NewLogEnvWithRegistryAndGRPCOptions(ctx context.Context, numSequencers int,
 		ClientConn:      cc,
 		Log:             trillian.NewTrillianLogClient(cc),
 		Admin:           trillian.NewTrillianAdminClient(cc),
-		PublicKey:       publicKey,
 		LogOperation:    sequencerManager,
 		Sequencer:       sequencerTask,
 		sequencerCancel: cancel,
@@ -217,36 +200,4 @@ func (env *LogEnv) Close() {
 	if env.DB != nil {
 		env.DB.Close()
 	}
-}
-
-// CreateLog creates a log and signs the first empty tree head.
-func (env *LogEnv) CreateLog() (int64, error) {
-	ctx := context.Background()
-	tree := stestonly.LogTree
-	tx, err := env.registry.AdminStorage.Begin(ctx)
-	if err != nil {
-		return 0, err
-	}
-
-	tree.PrivateKey, err = ptypes.MarshalAny(privateKeyInfo)
-	if err != nil {
-		return 0, err
-	}
-	tree.PublicKey = &keyspb.PublicKey{
-		Der: ktestonly.MustMarshalPublicPEMToDER(publicKey),
-	}
-
-	tree, err = tx.CreateTree(ctx, tree)
-	if err != nil {
-		return 0, err
-	}
-	if err := tx.Commit(); err != nil {
-		return 0, err
-	}
-
-	_, err = env.logServer.InitLog(ctx, &trillian.InitLogRequest{LogId: tree.TreeId})
-	if err != nil {
-		return 0, err
-	}
-	return tree.TreeId, nil
 }
