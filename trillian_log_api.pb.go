@@ -601,7 +601,7 @@ func (m *GetLeavesByHashRequest) GetOrderBySequence() bool {
 }
 
 type GetLeavesByHashResponse struct {
-	// TODO(gbelvin) reply with error codes. Reuse QueueLogLeaf?
+	// TODO(gbelvin) reply with error codes. Reuse QueuedLogLeaf?
 	Leaves []*LogLeaf `protobuf:"bytes,2,rep,name=leaves" json:"leaves,omitempty"`
 }
 
@@ -668,8 +668,7 @@ type LogLeaf struct {
 	ExtraData []byte `protobuf:"bytes,3,opt,name=extra_data,json=extraData,proto3" json:"extra_data,omitempty"`
 	// Output only. The index of the leaf in the Merkle tree, i.e., the position
 	// of the corresponding entry in the log. This value will be set by the
-	// LogSigner, but can also be predefined by the personality when the tree is
-	// in the `PREORDERED_LOG` mode.
+	// LogSigner in a way depending on the log type (normal or pre-ordered).
 	LeafIndex int64 `protobuf:"varint,4,opt,name=leaf_index,json=leafIndex" json:"leaf_index,omitempty"`
 	// The hash over the identity of this leaf. If empty, assumed to be the same
 	// as `merkle_leaf_hash`. It is a mechanism for the personality to provide a

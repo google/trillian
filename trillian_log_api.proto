@@ -235,7 +235,7 @@ message GetLeavesByHashRequest {
 }
 
 message GetLeavesByHashResponse {
-    // TODO(gbelvin) reply with error codes. Reuse QueueLogLeaf?
+    // TODO(gbelvin) reply with error codes. Reuse QueuedLogLeaf?
     repeated LogLeaf leaves = 2;
 }
 
@@ -274,8 +274,7 @@ message LogLeaf {
 
     // Output only. The index of the leaf in the Merkle tree, i.e., the position
     // of the corresponding entry in the log. This value will be set by the
-    // LogSigner, but can also be predefined by the personality when the tree is
-    // in the `PREORDERED_LOG` mode.
+    // LogSigner in a way depending on the log type (normal or pre-ordered).
     int64 leaf_index = 4;
 
     // The hash over the identity of this leaf. If empty, assumed to be the same
