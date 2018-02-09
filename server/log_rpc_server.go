@@ -516,51 +516,54 @@ func (t *TrillianLogRPCServer) InitLog(ctx context.Context, req *trillian.InitLo
 		return nil, status.Errorf(codes.FailedPrecondition, "getTreeAndHasher(): %v", err)
 	}
 
-	tx, err := t.registry.LogStorage.BeginForTree(ctx, logID)
-	if err != nil && err != storage.ErrTreeNeedsInit {
-		return nil, status.Errorf(codes.FailedPrecondition, "BeginForTree(): %v", err)
-	}
-	defer tx.Close()
+	var newRoot *trillian.SignedLogRoot
+	err = t.registry.LogStorage.ReadWriteTransaction(ctx, logID, func(ctx context.Context, tx storage.LogTreeTX) error {
+		newRoot = nil
 
-	latestRoot, err := tx.LatestSignedLogRoot(ctx)
-	if err != nil && err != storage.ErrTreeNeedsInit {
-		return nil, status.Errorf(codes.FailedPrecondition, "LatestSignedLogRoot(): %v", err)
-	}
+		latestRoot, err := tx.LatestSignedLogRoot(ctx)
+		if err != nil && err != storage.ErrTreeNeedsInit {
+			return status.Errorf(codes.FailedPrecondition, "LatestSignedLogRoot(): %v", err)
+		}
 
-	// Belt and braces check.
-	if latestRoot.GetRootHash() != nil {
-		return nil, status.Errorf(codes.AlreadyExists, "log is already initialised")
-	}
+		// Belt and braces check.
+		if latestRoot.GetRootHash() != nil {
+			return status.Errorf(codes.AlreadyExists, "log is already initialised")
+		}
 
-	newRoot := trillian.SignedLogRoot{
-		RootHash:       hasher.EmptyRoot(),
-		TimestampNanos: t.timeSource.Now().UnixNano(),
-		TreeSize:       0,
-		LogId:          logID,
-		TreeRevision:   0,
-	}
+		newRoot = &trillian.SignedLogRoot{
+			RootHash:       hasher.EmptyRoot(),
+			TimestampNanos: t.timeSource.Now().UnixNano(),
+			TreeSize:       0,
+			LogId:          logID,
+			TreeRevision:   0,
+		}
 
-	signer, err := trees.Signer(ctx, tree)
-	if err != nil {
-		return nil, status.Errorf(codes.FailedPrecondition, "Signer() :%v", err)
-	}
+		signer, err := trees.Signer(ctx, tree)
+		if err != nil {
+			return status.Errorf(codes.FailedPrecondition, "Signer() :%v", err)
+		}
 
-	sig, err := signer.SignLogRoot(&newRoot)
+		sig, err := signer.SignLogRoot(newRoot)
+		if err != nil {
+			return err
+		}
+		newRoot.Signature = sig
+
+		if err := tx.StoreSignedLogRoot(ctx, *newRoot); err != nil {
+			return status.Errorf(codes.FailedPrecondition, "StoreSignedLogRoot(): %v", err)
+		}
+
+		if err := tx.Commit(); err != nil {
+			return status.Errorf(codes.FailedPrecondition, "Commit(): %v", err)
+		}
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
-	newRoot.Signature = sig
-
-	if err := tx.StoreSignedLogRoot(ctx, newRoot); err != nil {
-		return nil, status.Errorf(codes.FailedPrecondition, "StoreSignedLogRoot(): %v", err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return nil, status.Errorf(codes.FailedPrecondition, "Commit(): %v", err)
-	}
 
 	return &trillian.InitLogResponse{
-		Created: &newRoot,
+		Created: newRoot,
 	}, nil
 
 }
