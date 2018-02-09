@@ -21,10 +21,11 @@ import (
 	"time"
 
 	"github.com/google/trillian"
-	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/testonly/integration"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	stestonly "github.com/google/trillian/storage/testonly"
 )
 
 func TestAddGetLeaf(t *testing.T) {
@@ -54,12 +55,18 @@ func TestGetByIndex(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer env.Close()
-	logID, err := env.CreateLog()
+
+	tree, err := CreateAndInitTree(ctx, &trillian.CreateTreeRequest{
+		Tree: stestonly.LogTree,
+	}, env.Admin, nil, env.Log)
 	if err != nil {
 		t.Fatalf("Failed to create log: %v", err)
 	}
 
-	client := New(logID, env.Log, rfc6962.DefaultHasher, env.PublicKey)
+	client, err := NewFromTree(env.Log, tree)
+	if err != nil {
+		t.Fatalf("NewFromTree(): %v", err)
+	}
 	// Add a few test leaves.
 	leafData := [][]byte{
 		[]byte("A"),
@@ -90,12 +97,17 @@ func TestListByIndex(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer env.Close()
-	logID, err := env.CreateLog()
+	tree, err := CreateAndInitTree(ctx, &trillian.CreateTreeRequest{
+		Tree: stestonly.LogTree,
+	}, env.Admin, nil, env.Log)
 	if err != nil {
 		t.Fatalf("Failed to create log: %v", err)
 	}
 
-	client := New(logID, env.Log, rfc6962.DefaultHasher, env.PublicKey)
+	client, err := NewFromTree(env.Log, tree)
+	if err != nil {
+		t.Fatalf("NewFromTree(): %v", err)
+	}
 	// Add a few test leaves.
 	leafData := [][]byte{
 		[]byte("A"),
@@ -126,12 +138,17 @@ func TestVerifyInclusion(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer env.Close()
-	logID, err := env.CreateLog()
+	tree, err := CreateAndInitTree(ctx, &trillian.CreateTreeRequest{
+		Tree: stestonly.LogTree,
+	}, env.Admin, nil, env.Log)
 	if err != nil {
 		t.Fatalf("Failed to create log: %v", err)
 	}
 
-	client := New(logID, env.Log, rfc6962.DefaultHasher, env.PublicKey)
+	client, err := NewFromTree(env.Log, tree)
+	if err != nil {
+		t.Fatalf("NewFromTree(): %v", err)
+	}
 	// Add a few test leaves.
 	leafData := [][]byte{
 		[]byte("A"),
@@ -156,12 +173,17 @@ func TestVerifyInclusionAtIndex(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer env.Close()
-	logID, err := env.CreateLog()
+	tree, err := CreateAndInitTree(ctx, &trillian.CreateTreeRequest{
+		Tree: stestonly.LogTree,
+	}, env.Admin, nil, env.Log)
 	if err != nil {
 		t.Fatalf("Failed to create log: %v", err)
 	}
 
-	client := New(logID, env.Log, rfc6962.DefaultHasher, env.PublicKey)
+	client, err := NewFromTree(env.Log, tree)
+	if err != nil {
+		t.Fatalf("NewFromTree(): %v", err)
+	}
 	// Add a few test leaves.
 	leafData := [][]byte{
 		[]byte("A"),
@@ -173,7 +195,7 @@ func TestVerifyInclusionAtIndex(t *testing.T) {
 	}
 
 	for i, l := range leafData {
-		if err := client.VerifyInclusionAtIndex(ctx, l, int64(i)); err != nil {
+		if err := client.GetAndVerifyInclusionAtIndex(ctx, l, int64(i)); err != nil {
 			t.Errorf("VerifyInclusion(%s) = %v, want nil", l, err)
 		}
 	}
@@ -186,7 +208,9 @@ func TestWaitForInclusion(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer env.Close()
-	logID, err := env.CreateLog()
+	tree, err := CreateAndInitTree(ctx, &trillian.CreateTreeRequest{
+		Tree: stestonly.LogTree,
+	}, env.Admin, nil, env.Log)
 	if err != nil {
 		t.Fatalf("Failed to create log: %v", err)
 	}
@@ -204,7 +228,10 @@ func TestWaitForInclusion(t *testing.T) {
 			client: &MockLogClient{c: env.Log, mGetInclusionProof: true}, wantErr: true},
 	} {
 		t.Run(test.desc, func(t *testing.T) {
-			client := New(logID, test.client, rfc6962.DefaultHasher, env.PublicKey)
+			client, err := NewFromTree(test.client, tree)
+			if err != nil {
+				t.Fatalf("NewFromTree(): %v", err)
+			}
 
 			if !test.skipPreCheck {
 				cctx, cancel := context.WithTimeout(ctx, 50*time.Millisecond)
@@ -233,11 +260,17 @@ func TestUpdateRoot(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer env.Close()
-	logID, err := env.CreateLog()
+	tree, err := CreateAndInitTree(ctx, &trillian.CreateTreeRequest{
+		Tree: stestonly.LogTree,
+	}, env.Admin, nil, env.Log)
 	if err != nil {
 		t.Fatalf("Failed to create log: %v", err)
 	}
-	client := New(logID, env.Log, rfc6962.DefaultHasher, env.PublicKey)
+
+	client, err := NewFromTree(env.Log, tree)
+	if err != nil {
+		t.Fatalf("NewFromTree(): %v", err)
+	}
 
 	before := client.root.TreeSize
 

@@ -20,6 +20,7 @@ import (
 
 	"github.com/google/trillian"
 	tcrypto "github.com/google/trillian/crypto"
+	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/hashers"
 )
@@ -38,6 +39,27 @@ func NewLogVerifier(hasher hashers.LogHasher, pubKey crypto.PublicKey) LogVerifi
 		pubKey: pubKey,
 		v:      merkle.NewLogVerifier(hasher),
 	}
+}
+
+// NewLogVerifierFromTree creates a new LogVerifier
+func NewLogVerifierFromTree(config *trillian.Tree) (LogVerifier, error) {
+	if got, want := config.TreeType, trillian.TreeType_LOG; got != want {
+		return nil, fmt.Errorf("client: NewFromTree(): TreeType: %v, want %v", got, want)
+	}
+
+	// Log Hasher.
+	logHasher, err := hashers.NewLogHasher(config.GetHashStrategy())
+	if err != nil {
+		return nil, fmt.Errorf("client: NewFromTree(): NewLogHasher(): %v", err)
+	}
+
+	// Log Key
+	logPubKey, err := der.UnmarshalPublicKey(config.GetPublicKey().GetDer())
+	if err != nil {
+		return nil, fmt.Errorf("client: NewFromTree(): Failed parsing Log public key: %v", err)
+	}
+
+	return NewLogVerifier(logHasher, logPubKey), nil
 }
 
 // VerifyRoot verifies that newRoot is a valid append-only operation from trusted.
@@ -81,7 +103,7 @@ func (c *logVerifier) VerifyInclusionAtIndex(trusted *trillian.SignedLogRoot, da
 		return fmt.Errorf("VerifyInclusionAtIndex() error: trusted == nil")
 	}
 
-	leaf, err := c.buildLeaf(data)
+	leaf, err := c.BuildLeaf(data)
 	if err != nil {
 		return err
 	}
@@ -102,7 +124,8 @@ func (c *logVerifier) VerifyInclusionByHash(trusted *trillian.SignedLogRoot, lea
 		trusted.RootHash, leafHash)
 }
 
-func (c *logVerifier) buildLeaf(data []byte) (*trillian.LogLeaf, error) {
+// BuildLeaf runs the leaf hasher over data and builds a leaf.
+func (c *logVerifier) BuildLeaf(data []byte) (*trillian.LogLeaf, error) {
 	leafHash, err := c.hasher.HashLeaf(data)
 	if err != nil {
 		return nil, err
