@@ -503,16 +503,10 @@ func getInclusionProofForLeafIndex(ctx context.Context, tx storage.ReadOnlyLogTr
 	return fetchNodesAndBuildProof(ctx, tx, hasher, tx.ReadRevision(), leafIndex, proofNodeIDs)
 }
 
-func getterFor(s storage.AdminStorage) trees.TreeGetter {
-	return func(ctx context.Context, treeID int64) (*trillian.Tree, error) {
-		return storage.GetTree(ctx, s, treeID)
-	}
-}
-
 func (t *TrillianLogRPCServer) getTreeAndHasher(ctx context.Context, treeID int64, readonly bool) (*trillian.Tree, hashers.LogHasher, error) {
 	tree, err := trees.GetTree(
 		ctx,
-		getterFor(t.registry.AdminStorage),
+		storage.GetterFor(t.registry.AdminStorage),
 		treeID,
 		trees.GetOpts{TreeType: trillian.TreeType_LOG, Readonly: readonly})
 	if err != nil {

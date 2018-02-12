@@ -27,6 +27,7 @@ import (
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/log"
 	"github.com/google/trillian/merkle/hashers"
+	"github.com/google/trillian/storage"
 	"github.com/google/trillian/trees"
 )
 
@@ -61,7 +62,7 @@ func (s *SequencerManager) ExecutePass(ctx context.Context, logID int64, info *L
 	// sequencing related write - when this exists.
 	tree, err := trees.GetTree(
 		ctx,
-		getterFor(s.registry.AdminStorage),
+		storage.GetterFor(s.registry.AdminStorage),
 		logID,
 		trees.GetOpts{TreeType: trillian.TreeType_LOG})
 	if err != nil {

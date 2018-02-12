@@ -202,7 +202,7 @@ func TestBeginSnapshot(t *testing.T) {
 			var tx storage.ReadOnlyLogTreeTX
 			var err error
 			if test.snapshot {
-				tx, err = s.SnapshotForTree(ctx, test.logID, trees.GetOpts{TreeType:trillian.TreeType_LOG})
+				tx, err = s.SnapshotForTree(ctx, test.logID, trees.GetOpts{TreeType:trillian.TreeType_LOG, Readonly:true})
 			} else {
 				tx, err = s.BeginForTree(ctx, test.logID, trees.GetOpts{TreeType:trillian.TreeType_LOG})
 			}

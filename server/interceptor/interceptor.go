@@ -155,7 +155,7 @@ func (tp *trillianProcessor) Before(ctx context.Context, req interface{}) (conte
 
 	if info.getTree {
 		tree, err := trees.GetTree(
-			ctx, getterFor(tp.parent.admin), info.treeID, trees.GetOpts{TreeType: info.treeType, Readonly: info.readonly})
+			ctx, storage.GetterFor(tp.parent.admin), info.treeID, trees.GetOpts{TreeType: info.treeType, Readonly: info.readonly})
 		if err != nil {
 			incRequestDeniedCounter(badTreeReason, info.treeID, quotaUser)
 			return ctx, err
@@ -184,12 +184,6 @@ func (tp *trillianProcessor) Before(ctx context.Context, req interface{}) (conte
 	}
 
 	return ctx, nil
-}
-
-func getterFor(s storage.AdminStorage) trees.TreeGetter {
-	return func(ctx context.Context, treeID int64) (*trillian.Tree, error) {
-		return storage.GetTree(ctx, s, treeID)
-	}
 }
 
 func (tp *trillianProcessor) After(ctx context.Context, resp interface{}, handlerErr error) {

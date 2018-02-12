@@ -308,7 +308,7 @@ func (t *TrillianMapServer) GetSignedMapRootByRevision(ctx context.Context, req 
 func (t *TrillianMapServer) getTreeAndHasher(ctx context.Context, treeID int64, readonly bool) (*trillian.Tree, hashers.MapHasher, error) {
 	tree, err := trees.GetTree(
 		ctx,
-		getterFor(t.registry.AdminStorage),
+		storage.GetterFor(t.registry.AdminStorage),
 		treeID,
 		trees.GetOpts{TreeType: trillian.TreeType_MAP, Readonly: readonly})
 	if err != nil {

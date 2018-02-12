@@ -63,6 +63,10 @@ var (
 	// configuration should be changed instead.
 	// A factor <1 WILL lead to token shortages, therefore it'll be normalized to 1.
 	QuotaIncreaseFactor = 1.1
+
+	// TODO(Martin2112): Update to add options for sequencing / signing when they exist
+	sequencerOpts = trees.GetOpts{TreeType:trillian.TreeType_LOG}
+	signerOpts = trees.GetOpts{TreeType:trillian.TreeType_LOG}
 )
 
 func quotaIncreaseFactor() float64 {
@@ -291,8 +295,7 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, logID int64, limit int, g
 	start := s.timeSource.Now()
 	stageStart := start
 	label := strconv.FormatInt(logID, 10)
-	// TODO(Martin2112): Update to add options for sequencing when they exist
-	tx, err := s.logStorage.BeginForTree(ctx, logID, trees.GetOpts{TreeType:trillian.TreeType_LOG})
+	tx, err := s.logStorage.BeginForTree(ctx, logID, sequencerOpts)
 	if err != nil {
 		glog.Warningf("%v: Sequencer failed to start tx: %v", logID, err)
 		return 0, err
@@ -447,8 +450,7 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, logID int64, limit int, g
 
 // SignRoot wraps up all the operations for creating a new log signed root.
 func (s Sequencer) SignRoot(ctx context.Context, logID int64) error {
-	// TODO(Martin2112): Update to add options for signing if necessary
-	tx, err := s.logStorage.BeginForTree(ctx, logID, trees.GetOpts{TreeType:trillian.TreeType_LOG})
+	tx, err := s.logStorage.BeginForTree(ctx, logID, signerOpts)
 	if err != nil {
 		glog.Warningf("%v: signer failed to start tx: %v", logID, err)
 		return err

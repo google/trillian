@@ -193,7 +193,7 @@ func TestGetTree(t *testing.T) {
 		tx.EXPECT().Close().MaxTimes(1).Return(nil)
 		tx.EXPECT().Commit().MaxTimes(1).Return(test.commitErr)
 
-		tree, err := GetTree(ctx, getterFor(admin), test.treeID, test.opts)
+		tree, err := GetTree(ctx, storage.GetterFor(admin), test.treeID, test.opts)
 		if hasErr := err != nil; hasErr != test.wantErr {
 			t.Errorf("%v: GetTree() = (_, %q), wantErr = %v", test.desc, err, test.wantErr)
 			continue
@@ -208,12 +208,6 @@ func TestGetTree(t *testing.T) {
 			diff := pretty.Compare(tree, test.wantTree)
 			t.Errorf("%v: post-GetTree diff:\n%v", test.desc, diff)
 		}
-	}
-}
-
-func getterFor(s storage.AdminStorage) TreeGetter {
-	return func(ctx context.Context, treeID int64) (*trillian.Tree, error) {
-		return storage.GetTree(ctx, s, treeID)
 	}
 }
 

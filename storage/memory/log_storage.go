@@ -131,12 +131,6 @@ func (t *readOnlyLogTX) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
 	return ret, nil
 }
 
-func getterFor(s storage.AdminStorage) trees.TreeGetter {
-	return func(ctx context.Context, treeID int64) (*trillian.Tree, error) {
-		return storage.GetTree(ctx, s, treeID)
-	}
-}
-
 func (m *memoryLogStorage) beginInternal(ctx context.Context, treeID int64, opts trees.GetOpts) (storage.LogTreeTX, error) {
 	once.Do(func() {
 		createMetrics(m.metricFactory)
@@ -144,7 +138,7 @@ func (m *memoryLogStorage) beginInternal(ctx context.Context, treeID int64, opts
 	if opts.TreeType != trillian.TreeType_LOG {
 		return nil, fmt.Errorf("beginInternal tree id %d, got: %v, want TreeType_LOG,", treeID, opts.TreeType)
 	}
-	tree, err := trees.GetTree(ctx, getterFor(m.admin), treeID, opts)
+	tree, err := trees.GetTree(ctx, storage.GetterFor(m.admin), treeID, opts)
 	if err != nil {
 		return nil, err
 	}
