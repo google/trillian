@@ -49,10 +49,7 @@ func NewMapVerifierFromTree(config *trillian.Tree) (*MapVerifier, error) {
 		return nil, fmt.Errorf("Failed parsing Map public key: %v", err)
 	}
 
-	return &MapVerifier{
-		Hasher: mapHasher,
-		PubKey: mapPubKey,
-	}, nil
+	return &MapVerifier{Hasher: mapHasher, PubKey: mapPubKey}, nil
 }
 
 // VerifyMapLeafInclusion verifies a MapLeafInclusion response.
