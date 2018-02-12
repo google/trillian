@@ -34,6 +34,7 @@ import (
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
+
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -44,6 +45,7 @@ import (
 const (
 	insertUnsequencedLeafSQL = `INSERT INTO LeafData(TreeId,LeafIdentityHash,LeafValue,ExtraData,QueueTimestampNanos)
 			VALUES(?,?,?,?,?)`
+
 	selectSequencedLeafCountSQL   = "SELECT COUNT(*) FROM SequencedLeafData WHERE TreeId=?"
 	selectUnsequencedLeafCountSQL = "SELECT TreeId, COUNT(1) FROM Unsequenced GROUP BY TreeId"
 	selectLatestSignedLogRootSQL  = `SELECT TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature
@@ -212,7 +214,7 @@ func (t *readOnlyLogTX) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
 	return ids, rows.Err()
 }
 
-func (m *mySQLLogStorage) beginInternal(ctx context.Context, tree *trillian.Tree) (storage.LogTreeTX, error) {
+func (m *mySQLLogStorage) beginInternal(ctx context.Context, tree *trillian.Tree) (*logTreeTX, error) {
 	once.Do(func() {
 		createMetrics(m.metricFactory)
 	})
@@ -259,7 +261,58 @@ func (m *mySQLLogStorage) ReadWriteTransaction(ctx context.Context, tree *trilli
 }
 
 func (m *mySQLLogStorage) AddSequencedLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf) ([]*trillian.QueuedLogLeaf, error) {
-	return nil, status.Errorf(codes.Unimplemented, "AddSequencedLeaves is not implemented")
+	tx, err := m.beginInternal(ctx, tree)
+	if err != nil {
+		return nil, err
+	}
+
+	ok := status.New(codes.OK, "OK").Proto()
+	hconf := status.New(codes.FailedPrecondition, "conflicting leaf_identity_hash").Proto()
+	iconf := status.New(codes.FailedPrecondition, "conflicting leaf_index").Proto()
+
+	res := make([]*trillian.QueuedLogLeaf, len(leaves))
+
+	// Note: Leaves are sorted by LeafIndex, so no reordering is necessary.
+	for i, leaf := range leaves {
+		// This should fail on insert, but catch it early.
+		if got, want := len(leaf.LeafIdentityHash), tx.hashSizeBytes; got != want {
+			return nil, status.Errorf(codes.FailedPrecondition, "leaves[%d] has incorrect hash size %d, want %d", i, got, want)
+		}
+
+		res[i] = &trillian.QueuedLogLeaf{Status: ok}
+
+		// TODO(pavelkalinnikov): Measure latencies.
+		_, err := tx.tx.ExecContext(ctx, insertUnsequencedLeafSQL,
+			tx.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData, 0)
+
+		if isDuplicateErr(err) {
+			res[i].Status = hconf
+		} else if err != nil {
+			glog.Warningf("Error inserting leaves[%d] into LeafData: %s", i, err)
+			return nil, err
+		}
+
+		// Note: If the identity hash collides, we still store the indexed entry.
+		// This, however, will result in wrong responses for GetEntry* queries.
+		// TODO(pavelkalinnikov): Store LeafData for each duplicate, not just one.
+
+		_, err = tx.tx.ExecContext(ctx, insertSequencedLeafSQL,
+			tx.treeID, leaf.LeafIdentityHash, leaf.MerkleLeafHash, leaf.LeafIndex, 0)
+		if isDuplicateErr(err) {
+			res[i].Status = iconf
+		} else if err != nil {
+			glog.Warningf("Error inserting leaves[%d] into SequencedLeafData: %s", i, err)
+			return nil, err
+		}
+
+		// TODO(pavelkalinnikov): Load LeafData for conflicting entries.
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	return res, nil
 }
 
 func (m *mySQLLogStorage) SnapshotForTree(ctx context.Context, tree *trillian.Tree) (storage.ReadOnlyLogTreeTX, error) {
@@ -267,7 +320,7 @@ func (m *mySQLLogStorage) SnapshotForTree(ctx context.Context, tree *trillian.Tr
 	if err != nil && err != storage.ErrTreeNeedsInit {
 		return nil, err
 	}
-	return tx.(storage.ReadOnlyLogTreeTX), err
+	return tx, err
 }
 
 func (m *mySQLLogStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
