@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/google/trillian"
+	"github.com/google/trillian/trees"
 )
 
 // ReadOnlyLogTX provides a read-only view into log data.
@@ -100,7 +101,7 @@ type ReadOnlyLogStorage interface {
 	// Commit must be called when the caller is finished with the returned object,
 	// and values read through it should only be propagated if Commit returns
 	// without error.
-	SnapshotForTree(ctx context.Context, treeID int64) (ReadOnlyLogTreeTX, error)
+	SnapshotForTree(ctx context.Context, treeID int64, opts trees.GetOpts) (ReadOnlyLogTreeTX, error)
 }
 
 // LogStorage should be implemented by concrete storage mechanisms which want to support Logs.
@@ -111,7 +112,7 @@ type LogStorage interface {
 	// Either Commit or Rollback must be called when the caller is finished with
 	// the returned object, and values read through it should only be propagated
 	// if Commit returns without error.
-	BeginForTree(ctx context.Context, treeID int64) (LogTreeTX, error)
+	BeginForTree(ctx context.Context, treeID int64, opts trees.GetOpts) (LogTreeTX, error)
 }
 
 // CountByLogID is a map of total number of items keyed by log ID.

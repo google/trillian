@@ -17,6 +17,7 @@ package memory
 import (
 	"container/list"
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"strconv"
@@ -130,15 +131,20 @@ func (t *readOnlyLogTX) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
 	return ret, nil
 }
 
-func (m *memoryLogStorage) beginInternal(ctx context.Context, treeID int64, readonly bool) (storage.LogTreeTX, error) {
+func getterFor(s storage.AdminStorage) trees.TreeGetter {
+	return func(ctx context.Context, treeID int64) (*trillian.Tree, error) {
+		return storage.GetTree(ctx, s, treeID)
+	}
+}
+
+func (m *memoryLogStorage) beginInternal(ctx context.Context, treeID int64, opts trees.GetOpts) (storage.LogTreeTX, error) {
 	once.Do(func() {
 		createMetrics(m.metricFactory)
 	})
-	tree, err := trees.GetTree(
-		ctx,
-		m.admin,
-		treeID,
-		trees.GetOpts{TreeType: trillian.TreeType_LOG, Readonly: readonly})
+	if opts.TreeType != trillian.TreeType_LOG {
+		return nil, fmt.Errorf("beginInternal tree id %d, got: %v, want TreeType_LOG,", treeID, opts.TreeType)
+	}
+	tree, err := trees.GetTree(ctx, getterFor(m.admin), treeID, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -148,7 +154,7 @@ func (m *memoryLogStorage) beginInternal(ctx context.Context, treeID int64, read
 	}
 
 	stCache := cache.NewLogSubtreeCache(defaultLogStrata, hasher)
-	ttx, err := m.memoryTreeStorage.beginTreeTX(ctx, readonly, treeID, hasher.Size(), stCache)
+	ttx, err := m.memoryTreeStorage.beginTreeTX(ctx, opts, treeID, hasher.Size(), stCache)
 	if err != nil {
 		return nil, err
 	}
@@ -172,12 +178,15 @@ func (m *memoryLogStorage) beginInternal(ctx context.Context, treeID int64, read
 	return ltx, nil
 }
 
-func (m *memoryLogStorage) BeginForTree(ctx context.Context, treeID int64) (storage.LogTreeTX, error) {
-	return m.beginInternal(ctx, treeID, false /* readonly */)
+func (m *memoryLogStorage) BeginForTree(ctx context.Context, treeID int64, opts trees.GetOpts) (storage.LogTreeTX, error) {
+	return m.beginInternal(ctx, treeID, opts)
 }
 
-func (m *memoryLogStorage) SnapshotForTree(ctx context.Context, treeID int64) (storage.ReadOnlyLogTreeTX, error) {
-	tx, err := m.beginInternal(ctx, treeID, true /* readonly */)
+func (m *memoryLogStorage) SnapshotForTree(ctx context.Context, treeID int64, opts trees.GetOpts) (storage.ReadOnlyLogTreeTX, error) {
+	if !opts.Readonly {
+		return nil, errors.New("memory SnapshotForTree(): got: readonly false, want true")
+	}
+	tx, err := m.beginInternal(ctx, treeID, opts)
 	if err != nil {
 		return nil, err
 	}

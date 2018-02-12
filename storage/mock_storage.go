@@ -8,6 +8,7 @@ import (
 	context "context"
 	gomock "github.com/golang/mock/gomock"
 	trillian "github.com/google/trillian"
+	trees "github.com/google/trillian/trees"
 	reflect "reflect"
 	time "time"
 )
@@ -271,16 +272,16 @@ func (m *MockLogStorage) EXPECT() *MockLogStorageMockRecorder {
 }
 
 // BeginForTree mocks base method
-func (m *MockLogStorage) BeginForTree(arg0 context.Context, arg1 int64) (LogTreeTX, error) {
-	ret := m.ctrl.Call(m, "BeginForTree", arg0, arg1)
+func (m *MockLogStorage) BeginForTree(arg0 context.Context, arg1 int64, arg2 trees.GetOpts) (LogTreeTX, error) {
+	ret := m.ctrl.Call(m, "BeginForTree", arg0, arg1, arg2)
 	ret0, _ := ret[0].(LogTreeTX)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // BeginForTree indicates an expected call of BeginForTree
-func (mr *MockLogStorageMockRecorder) BeginForTree(arg0, arg1 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BeginForTree", reflect.TypeOf((*MockLogStorage)(nil).BeginForTree), arg0, arg1)
+func (mr *MockLogStorageMockRecorder) BeginForTree(arg0, arg1, arg2 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BeginForTree", reflect.TypeOf((*MockLogStorage)(nil).BeginForTree), arg0, arg1, arg2)
 }
 
 // CheckDatabaseAccessible mocks base method
@@ -309,16 +310,16 @@ func (mr *MockLogStorageMockRecorder) Snapshot(arg0 interface{}) *gomock.Call {
 }
 
 // SnapshotForTree mocks base method
-func (m *MockLogStorage) SnapshotForTree(arg0 context.Context, arg1 int64) (ReadOnlyLogTreeTX, error) {
-	ret := m.ctrl.Call(m, "SnapshotForTree", arg0, arg1)
+func (m *MockLogStorage) SnapshotForTree(arg0 context.Context, arg1 int64, arg2 trees.GetOpts) (ReadOnlyLogTreeTX, error) {
+	ret := m.ctrl.Call(m, "SnapshotForTree", arg0, arg1, arg2)
 	ret0, _ := ret[0].(ReadOnlyLogTreeTX)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // SnapshotForTree indicates an expected call of SnapshotForTree
-func (mr *MockLogStorageMockRecorder) SnapshotForTree(arg0, arg1 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SnapshotForTree", reflect.TypeOf((*MockLogStorage)(nil).SnapshotForTree), arg0, arg1)
+func (mr *MockLogStorageMockRecorder) SnapshotForTree(arg0, arg1, arg2 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SnapshotForTree", reflect.TypeOf((*MockLogStorage)(nil).SnapshotForTree), arg0, arg1, arg2)
 }
 
 // MockLogTreeTX is a mock of LogTreeTX interface

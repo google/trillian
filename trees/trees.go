@@ -25,13 +25,16 @@ import (
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/errors"
-	"github.com/google/trillian/storage"
 	"golang.org/x/net/context"
 
 	tcrypto "github.com/google/trillian/crypto"
 )
 
 type treeKey struct{}
+
+// TreeGetter functions can obtain trees from a cache or storage mechanism.
+// They must use the supplied context for any related requests.
+type TreeGetter func(context.Context, int64) (*trillian.Tree, error)
 
 // NewContext returns a ctx with the given tree.
 func NewContext(ctx context.Context, tree *trillian.Tree) context.Context {
@@ -57,13 +60,13 @@ type GetOpts struct {
 // GetTree returns the specified tree, either from the ctx (if present) or read from storage.
 // The tree will be validated according to GetOpts before returned. Tree state is also considered
 // (for example, deleted tree will return NotFound errors).
-func GetTree(ctx context.Context, s storage.AdminStorage, treeID int64, opts GetOpts) (*trillian.Tree, error) {
+func GetTree(ctx context.Context, t TreeGetter, treeID int64, opts GetOpts) (*trillian.Tree, error) {
 	// TODO(codingllama): Record stats of ctx hits/misses, so we can assess whether RPCs work
 	// as intended.
 	tree, ok := FromContext(ctx)
 	if !ok || tree.TreeId != treeID {
 		var err error
-		tree, err = storage.GetTree(ctx, s, treeID)
+		tree, err = t(ctx, treeID)
 		if err != nil {
 			return nil, err
 		}

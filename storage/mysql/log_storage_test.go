@@ -30,6 +30,7 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testonly"
+	"github.com/google/trillian/trees"
 	"github.com/kylelemons/godebug/pretty"
 
 	spb "github.com/google/trillian/crypto/sigpb"
@@ -201,9 +202,9 @@ func TestBeginSnapshot(t *testing.T) {
 			var tx storage.ReadOnlyLogTreeTX
 			var err error
 			if test.snapshot {
-				tx, err = s.SnapshotForTree(ctx, test.logID)
+				tx, err = s.SnapshotForTree(ctx, test.logID, trees.GetOpts{TreeType:trillian.TreeType_LOG})
 			} else {
-				tx, err = s.BeginForTree(ctx, test.logID)
+				tx, err = s.BeginForTree(ctx, test.logID, trees.GetOpts{TreeType:trillian.TreeType_LOG})
 			}
 
 			if hasErr := err != nil; hasErr != test.wantErr {
@@ -880,7 +881,7 @@ func TestLatestSignedRootNoneWritten(t *testing.T) {
 	logID := tree.TreeId
 	s := NewLogStorage(DB, nil)
 
-	tx, err := s.BeginForTree(ctx, logID)
+	tx, err := s.BeginForTree(ctx, logID, trees.GetOpts{TreeType:trillian.TreeType_LOG})
 	if err != storage.ErrTreeNeedsInit {
 		t.Errorf("BeginForTree gave %v, want %v", err, storage.ErrTreeNeedsInit)
 	}
@@ -1276,7 +1277,7 @@ func createTestLeaves(n, startSeq int64) []*trillian.LogLeaf {
 // Convenience methods to avoid copying out "if err != nil { blah }" all over the place
 func beginLogTx(s storage.LogStorage, logID int64, t *testing.T) storage.LogTreeTX {
 	t.Helper()
-	tx, err := s.BeginForTree(context.Background(), logID)
+	tx, err := s.BeginForTree(context.Background(), logID, trees.GetOpts{TreeType:trillian.TreeType_LOG})
 	if err != nil {
 		t.Fatalf("Failed to begin log tx: %v", err)
 	}

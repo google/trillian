@@ -100,7 +100,7 @@ func (t *readOnlyMapTX) Close() error {
 func (m *mySQLMapStorage) begin(ctx context.Context, treeID int64, readonly bool) (storage.MapTreeTX, error) {
 	tree, err := trees.GetTree(
 		ctx,
-		m.admin,
+		getterFor(m.admin),
 		treeID,
 		trees.GetOpts{TreeType: trillian.TreeType_MAP, Readonly: readonly})
 	if err != nil {

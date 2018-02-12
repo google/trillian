@@ -27,6 +27,7 @@ import (
 	log "github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage/mysql"
+	"github.com/google/trillian/trees"
 )
 
 var (
@@ -63,7 +64,7 @@ func main() {
 
 	storage := mysql.NewLogStorage(db, nil)
 	ctx := context.Background()
-	tx, err := storage.BeginForTree(ctx, *treeIDFlag)
+	tx, err := storage.BeginForTree(ctx, *treeIDFlag, trees.GetOpts{TreeType:trillian.TreeType_LOG})
 	if err != nil {
 		panic(err)
 	}

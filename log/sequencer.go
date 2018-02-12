@@ -32,6 +32,7 @@ import (
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/trees"
 	"github.com/google/trillian/util"
 )
 
@@ -290,7 +291,8 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, logID int64, limit int, g
 	start := s.timeSource.Now()
 	stageStart := start
 	label := strconv.FormatInt(logID, 10)
-	tx, err := s.logStorage.BeginForTree(ctx, logID)
+	// TODO(Martin2112): Update to add options for sequencing when they exist
+	tx, err := s.logStorage.BeginForTree(ctx, logID, trees.GetOpts{TreeType:trillian.TreeType_LOG})
 	if err != nil {
 		glog.Warningf("%v: Sequencer failed to start tx: %v", logID, err)
 		return 0, err
@@ -445,7 +447,8 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, logID int64, limit int, g
 
 // SignRoot wraps up all the operations for creating a new log signed root.
 func (s Sequencer) SignRoot(ctx context.Context, logID int64) error {
-	tx, err := s.logStorage.BeginForTree(ctx, logID)
+	// TODO(Martin2112): Update to add options for signing if necessary
+	tx, err := s.logStorage.BeginForTree(ctx, logID, trees.GetOpts{TreeType:trillian.TreeType_LOG})
 	if err != nil {
 		glog.Warningf("%v: signer failed to start tx: %v", logID, err)
 		return err

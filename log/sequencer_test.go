@@ -33,6 +33,7 @@ import (
 	"github.com/google/trillian/storage"
 	stestonly "github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/testonly"
+	"github.com/google/trillian/trees"
 	"github.com/google/trillian/util"
 )
 
@@ -203,12 +204,13 @@ func newSignerWithErr(signErr error) (gocrypto.Signer, error) {
 func createTestContext(ctrl *gomock.Controller, params testParameters) (testContext, context.Context) {
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTreeTX(ctrl)
+	opts := trees.GetOpts{TreeType:trillian.TreeType_LOG}
 
 	mockTx.EXPECT().WriteRevision().AnyTimes().Return(params.writeRevision)
 	if params.beginFails {
-		mockStorage.EXPECT().BeginForTree(gomock.Any(), params.logID).Return(mockTx, errors.New("TX"))
+		mockStorage.EXPECT().BeginForTree(gomock.Any(), params.logID, opts).Return(mockTx, errors.New("TX"))
 	} else {
-		mockStorage.EXPECT().BeginForTree(gomock.Any(), params.logID).Return(mockTx, nil)
+		mockStorage.EXPECT().BeginForTree(gomock.Any(), params.logID, opts).Return(mockTx, nil)
 	}
 
 	if params.shouldCommit {
@@ -630,7 +632,7 @@ func TestIntegrateBatch_PutTokens(t *testing.T) {
 			logTX.EXPECT().Commit().Return(nil)
 			logTX.EXPECT().Close().Return(nil)
 			logStorage := storage.NewMockLogStorage(ctrl)
-			logStorage.EXPECT().BeginForTree(any, any).Return(logTX, nil)
+			logStorage.EXPECT().BeginForTree(any, any, any).Return(logTX, nil)
 
 			qm := quota.NewMockManager(ctrl)
 			if test.wantTokens > 0 {
