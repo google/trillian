@@ -27,6 +27,7 @@ import (
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/log"
 	"github.com/google/trillian/merkle/hashers"
+	"github.com/google/trillian/storage"
 	"github.com/google/trillian/trees"
 )
 
@@ -57,10 +58,11 @@ func (s *SequencerManager) Name() string {
 func (s *SequencerManager) ExecutePass(ctx context.Context, logID int64, info *LogOperationInfo) (int, error) {
 	// TODO(Martin2112): Honor the sequencing enabled in log parameters, needs an API change
 	// so deferring it
-
+	// TODO(Martin2112): Should pass an option to indicate this is a
+	// sequencing related write - when this exists.
 	tree, err := trees.GetTree(
 		ctx,
-		s.registry.AdminStorage,
+		storage.GetterFor(s.registry.AdminStorage),
 		logID,
 		trees.GetOpts{TreeType: trillian.TreeType_LOG})
 	if err != nil {

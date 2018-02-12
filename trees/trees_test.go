@@ -24,19 +24,60 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
+	"github.com/golang/protobuf/ptypes/any"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys"
+	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/crypto/sigpb"
-	"github.com/google/trillian/storage"
-	"github.com/google/trillian/storage/testonly"
 	"github.com/kylelemons/godebug/pretty"
 
 	tcrypto "github.com/google/trillian/crypto"
 	terrors "github.com/google/trillian/errors"
+)
+
+var (
+	// LogTree is a valid, LOG-type trillian.Tree for tests. Does not
+	// contain keys or other things not needed for tree testing.
+	LogTree = &trillian.Tree{
+		TreeState:          trillian.TreeState_ACTIVE,
+		TreeType:           trillian.TreeType_LOG,
+		HashStrategy:       trillian.HashStrategy_RFC6962_SHA256,
+		DisplayName:        "Llamas Log",
+		Description:        "Registry of publicly-owned llamas",
+		HashAlgorithm:      sigpb.DigitallySigned_SHA256,
+		SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
+		PrivateKey: mustMarshalAny(&keyspb.PrivateKey{
+			Der: []byte("dummy_key"),
+		}),
+		PublicKey: &keyspb.PublicKey{
+			Der: []byte("dummy_key"),
+		},
+		MaxRootDuration: ptypes.DurationProto(0 * time.Millisecond),
+	}
+
+	// MapTree is a valid, MAP-type trillian.Tree for tests. Does not
+	// contain keys or other things not needed for tree testing.
+	MapTree = &trillian.Tree{
+		TreeState:          trillian.TreeState_ACTIVE,
+		TreeType:           trillian.TreeType_MAP,
+		HashStrategy:       trillian.HashStrategy_TEST_MAP_HASHER,
+		DisplayName:        "Llamas Map",
+		Description:        "Key Transparency map for all your digital llama needs.",
+		HashAlgorithm:      sigpb.DigitallySigned_SHA256,
+		SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
+		PrivateKey: mustMarshalAny(&keyspb.PrivateKey{
+			Der: []byte("dummy_key"),
+		}),
+		PublicKey: &keyspb.PublicKey{
+			Der: []byte("dummy_key"),
+		},
+		MaxRootDuration: ptypes.DurationProto(0 * time.Millisecond),
+	}
 )
 
 func TestFromContext(t *testing.T) {
@@ -45,7 +86,7 @@ func TestFromContext(t *testing.T) {
 		tree *trillian.Tree
 	}{
 		{desc: "noTree"},
-		{desc: "hasTree", tree: testonly.LogTree},
+		{desc: "hasTree", tree: LogTree},
 	}
 	for _, test := range tests {
 		ctx := NewContext(context.Background(), test.tree)
@@ -63,17 +104,17 @@ func TestFromContext(t *testing.T) {
 }
 
 func TestGetTree(t *testing.T) {
-	logTree := *testonly.LogTree
+	logTree := *LogTree
 	logTree.TreeId = 1
 
-	mapTree := *testonly.MapTree
+	mapTree := *MapTree
 	mapTree.TreeId = 2
 
-	frozenTree := *testonly.LogTree
+	frozenTree := *LogTree
 	frozenTree.TreeId = 3
 	frozenTree.TreeState = trillian.TreeState_FROZEN
 
-	softDeletedTree := *testonly.LogTree
+	softDeletedTree := *LogTree
 	softDeletedTree.Deleted = true
 	softDeletedTree.DeleteTime = ptypes.TimestampNow()
 
@@ -82,7 +123,7 @@ func TestGetTree(t *testing.T) {
 		treeID                         int64
 		opts                           GetOpts
 		ctxTree, storageTree, wantTree *trillian.Tree
-		beginErr, getErr, commitErr    error
+		getErr                         error
 		wantErr                        bool
 		code                           terrors.Code
 	}{
@@ -155,14 +196,6 @@ func TestGetTree(t *testing.T) {
 			wantTree:    &logTree,
 		},
 		{
-			desc:     "beginErr",
-			treeID:   logTree.TreeId,
-			opts:     GetOpts{TreeType: trillian.TreeType_LOG},
-			beginErr: errors.New("begin err"),
-			wantErr:  true,
-			code:     terrors.Unknown,
-		},
-		{
 			desc:    "getErr",
 			treeID:  logTree.TreeId,
 			opts:    GetOpts{TreeType: trillian.TreeType_LOG},
@@ -170,30 +203,15 @@ func TestGetTree(t *testing.T) {
 			wantErr: true,
 			code:    terrors.Unknown,
 		},
-		{
-			desc:      "commitErr",
-			treeID:    logTree.TreeId,
-			opts:      GetOpts{TreeType: trillian.TreeType_LOG},
-			commitErr: errors.New("commit err"),
-			wantErr:   true,
-			code:      terrors.Unknown,
-		},
 	}
-
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	for _, test := range tests {
 		ctx := NewContext(context.Background(), test.ctxTree)
 
-		admin := storage.NewMockAdminStorage(ctrl)
-		tx := storage.NewMockReadOnlyAdminTX(ctrl)
-		admin.EXPECT().Snapshot(ctx).MaxTimes(1).Return(tx, test.beginErr)
-		tx.EXPECT().GetTree(ctx, test.treeID).MaxTimes(1).Return(test.storageTree, test.getErr)
-		tx.EXPECT().Close().MaxTimes(1).Return(nil)
-		tx.EXPECT().Commit().MaxTimes(1).Return(test.commitErr)
-
-		tree, err := GetTree(ctx, admin, test.treeID, test.opts)
+		getFunc := func(ctx context.Context, treeID int64) (*trillian.Tree, error) {
+			return test.storageTree, test.getErr
+		}
+		tree, err := GetTree(ctx, getFunc, test.treeID, test.opts)
 		if hasErr := err != nil; hasErr != test.wantErr {
 			t.Errorf("%v: GetTree() = (_, %q), wantErr = %v", test.desc, err, test.wantErr)
 			continue
@@ -222,7 +240,7 @@ func TestHash(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		tree := *testonly.LogTree
+		tree := *LogTree
 		tree.HashAlgorithm = test.hashAlgo
 
 		hash, err := Hash(&tree)
@@ -298,7 +316,7 @@ func TestSigner(t *testing.T) {
 	ctx := context.Background()
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			tree := *testonly.LogTree
+			tree := *LogTree
 			tree.HashAlgorithm = sigpb.DigitallySigned_SHA256
 			tree.HashStrategy = trillian.HashStrategy_RFC6962_SHA256
 			tree.SignatureAlgorithm = test.sigAlgo
@@ -329,4 +347,12 @@ func TestSigner(t *testing.T) {
 			}
 		})
 	}
+}
+
+func mustMarshalAny(pb proto.Message) *any.Any {
+	value, err := ptypes.MarshalAny(pb)
+	if err != nil {
+		panic(err)
+	}
+	return value
 }

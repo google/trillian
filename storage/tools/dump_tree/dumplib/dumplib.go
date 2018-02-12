@@ -59,6 +59,8 @@ var (
 // A 32 bit magic number that is written at the start of record io files to identify the format.
 const recordIOMagic int32 = 0x3ed7230a
 
+var getOpts = trees.GetOpts{TreeType: trillian.TreeType_LOG, Readonly: true}
+
 type treeAndRev struct {
 	fullKey  string
 	subtree  *storagepb.SubtreeProto
@@ -211,7 +213,7 @@ func createTree(as storage.AdminStorage, ls storage.LogStorage) (*trillian.Tree,
 		glog.Fatalf("SignLogRoot: %v", err)
 	}
 
-	tx, err := ls.BeginForTree(ctx, createdTree.TreeId)
+	tx, err := ls.BeginForTree(ctx, createdTree.TreeId, getOpts)
 	if err != nil && err != storage.ErrTreeNeedsInit {
 		glog.Fatalf("BeginForTree: %v", err)
 	}
@@ -256,7 +258,7 @@ func Main(args Options) string {
 	sequenceLeaves(ls, seq, tree.TreeId, args.TreeSize, args.BatchSize, args.LeafFormat)
 
 	// Read the latest STH back
-	tx, err := ls.BeginForTree(context.TODO(), tree.TreeId)
+	tx, err := ls.BeginForTree(context.TODO(), tree.TreeId, getOpts)
 	if err != nil {
 		glog.Fatalf("BeginForTree got: %v, want: no err", err)
 	}
@@ -384,7 +386,7 @@ func sequenceLeaves(ls storage.LogStorage, seq *log.Sequencer, treeID int64, tre
 		glog.V(1).Infof("Queuing leaf %d", l)
 
 		leafData := []byte(fmt.Sprintf(leafDataFormat, l))
-		tx, err := ls.BeginForTree(context.TODO(), treeID)
+		tx, err := ls.BeginForTree(context.TODO(), treeID, getOpts)
 		if err != nil {
 			glog.Fatalf("BeginForTree got: %v, want: no err", err)
 		}
@@ -420,7 +422,7 @@ func traverseTreeStorage(ls storage.LogStorage, treeID int64, ts int, rev int64)
 	out := new(bytes.Buffer)
 	nodesAtLevel := int64(ts)
 
-	tx, err := ls.SnapshotForTree(context.TODO(), treeID)
+	tx, err := ls.SnapshotForTree(context.TODO(), treeID, getOpts)
 	if err != nil {
 		glog.Fatalf("SnapshotForTree: %v", err)
 	}
@@ -476,7 +478,7 @@ func traverseTreeStorage(ls storage.LogStorage, treeID int64, ts int, rev int64)
 
 func dumpLeaves(ls storage.LogStorage, treeID int64, ts int) string {
 	out := new(bytes.Buffer)
-	tx, err := ls.SnapshotForTree(context.TODO(), treeID)
+	tx, err := ls.SnapshotForTree(context.TODO(), treeID, getOpts)
 	if err != nil {
 		glog.Fatalf("SnapshotForTree: %v", err)
 	}

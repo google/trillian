@@ -36,6 +36,7 @@ import (
 	"github.com/google/trillian/storage"
 	stestonly "github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/testonly"
+	"github.com/google/trillian/trees"
 	"github.com/google/trillian/util"
 )
 
@@ -86,6 +87,8 @@ var updatedRoot = trillian.SignedLogRoot{
 
 var zeroDuration = 0 * time.Second
 
+var seqOptsTest = trees.GetOpts{TreeType: trillian.TreeType_LOG}
+
 const writeRev = int64(24)
 
 // newSignerWithFixedSig returns a fake signer that always returns the specified signature.
@@ -126,7 +129,7 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 	keys.RegisterHandler(fakeKeyProtoHandler(keyProto.Message, signer, nil))
 	defer keys.UnregisterHandler(keyProto.Message)
 
-	mockStorage.EXPECT().BeginForTree(gomock.Any(), logID).Return(mockTx, nil)
+	mockStorage.EXPECT().BeginForTree(gomock.Any(), logID, seqOptsTest).Return(mockTx, nil)
 	mockTx.EXPECT().Commit().Return(nil)
 	mockTx.EXPECT().Close().Return(nil)
 	mockTx.EXPECT().WriteRevision().AnyTimes().Return(writeRev)
@@ -188,7 +191,7 @@ func TestSequencerManagerCachesSigners(t *testing.T) {
 		)
 
 		gomock.InOrder(
-			mockStorage.EXPECT().BeginForTree(gomock.Any(), logID).Return(mockTx, nil),
+			mockStorage.EXPECT().BeginForTree(gomock.Any(), logID, seqOptsTest).Return(mockTx, nil),
 			mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(testRoot0, nil),
 			mockTx.EXPECT().DequeueLeaves(gomock.Any(), 50, fakeTime).Return([]*trillian.LogLeaf{}, nil),
 			mockTx.EXPECT().WriteRevision().AnyTimes().Return(writeRev),
@@ -280,7 +283,7 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 	mockTx.EXPECT().UpdateSequencedLeaves(gomock.Any(), []*trillian.LogLeaf{testLeaf0Updated}).Return(nil)
 	mockTx.EXPECT().SetMerkleNodes(gomock.Any(), updatedNodes0).Return(nil)
 	mockTx.EXPECT().StoreSignedLogRoot(gomock.Any(), updatedRoot).Return(nil)
-	mockStorage.EXPECT().BeginForTree(gomock.Any(), logID).Return(mockTx, nil)
+	mockStorage.EXPECT().BeginForTree(gomock.Any(), logID, seqOptsTest).Return(mockTx, nil)
 
 	mockAdmin.EXPECT().Snapshot(gomock.Any()).Return(mockAdminTx, nil)
 	mockAdminTx.EXPECT().GetTree(gomock.Any(), logID).Return(stestonly.LogTree, nil)
@@ -321,7 +324,7 @@ func TestSequencerManagerGuardWindow(t *testing.T) {
 	keys.RegisterHandler(fakeKeyProtoHandler(keyProto.Message, signer, nil))
 	defer keys.UnregisterHandler(keyProto.Message)
 
-	mockStorage.EXPECT().BeginForTree(gomock.Any(), logID).Return(mockTx, nil)
+	mockStorage.EXPECT().BeginForTree(gomock.Any(), logID, seqOptsTest).Return(mockTx, nil)
 	mockTx.EXPECT().Commit().Return(nil)
 	mockTx.EXPECT().Close().Return(nil)
 	mockTx.EXPECT().WriteRevision().AnyTimes().Return(writeRev)

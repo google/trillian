@@ -18,6 +18,7 @@ import (
 	"context"
 
 	"github.com/google/trillian"
+	"github.com/google/trillian/trees"
 )
 
 // GetTree reads a tree from storage using a snapshot transaction.
@@ -30,6 +31,14 @@ func GetTree(ctx context.Context, admin AdminStorage, treeID int64) (*trillian.T
 		return
 	})
 	return tree, err
+}
+
+// GetterFor returns a function that can be passed to trees.GetTree() using
+// a specified AdminStorage as backing storage.
+func GetterFor(admin AdminStorage) trees.TreeGetter {
+	return func(ctx context.Context, treeID int64) (*trillian.Tree, error) {
+		return GetTree(ctx, admin, treeID)
+	}
 }
 
 // ListTrees reads trees from storage using a snapshot transaction.

@@ -42,6 +42,9 @@ type TrillianLogRPCServer struct {
 	leafCounter monitoring.Counter
 }
 
+var getOptsWrite = trees.GetOpts{TreeType: trillian.TreeType_LOG}
+var getOptsRead = trees.GetOpts{TreeType: trillian.TreeType_LOG, Readonly: true}
+
 // NewTrillianLogRPCServer creates a new RPC server backed by a LogStorageProvider.
 func NewTrillianLogRPCServer(registry extension.Registry, timeSource util.TimeSource) *TrillianLogRPCServer {
 	mf := registry.MetricFactory
@@ -111,7 +114,7 @@ func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.Qu
 		}
 	}
 
-	tx, err := t.prepareStorageTx(ctx, logID)
+	tx, err := t.prepareStorageTx(ctx, logID, getOptsWrite)
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +165,7 @@ func (t *TrillianLogRPCServer) GetInclusionProof(ctx context.Context, req *trill
 
 	// Next we need to make sure the requested tree size corresponds to an STH, so that we
 	// have a usable tree revision
-	tx, err := t.prepareReadOnlyStorageTx(ctx, req.LogId)
+	tx, err := t.prepareReadOnlyStorageTx(ctx, req.LogId, getOptsRead)
 	if err != nil {
 		return nil, err
 	}
@@ -201,7 +204,7 @@ func (t *TrillianLogRPCServer) GetInclusionProofByHash(ctx context.Context, req 
 
 	// Next we need to make sure the requested tree size corresponds to an STH, so that we
 	// have a usable tree revision
-	tx, err := t.prepareReadOnlyStorageTx(ctx, req.LogId)
+	tx, err := t.prepareReadOnlyStorageTx(ctx, req.LogId, getOptsRead)
 	if err != nil {
 		return nil, err
 	}
@@ -256,7 +259,7 @@ func (t *TrillianLogRPCServer) GetConsistencyProof(ctx context.Context, req *tri
 	}
 	ctx = trees.NewContext(ctx, tree)
 
-	tx, err := t.prepareReadOnlyStorageTx(ctx, logID)
+	tx, err := t.prepareReadOnlyStorageTx(ctx, logID, getOptsRead)
 	if err != nil {
 		return nil, err
 	}
@@ -290,7 +293,7 @@ func (t *TrillianLogRPCServer) GetConsistencyProof(ctx context.Context, req *tri
 // GetLatestSignedLogRoot obtains the latest published tree root for the Merkle Tree that
 // underlies the log.
 func (t *TrillianLogRPCServer) GetLatestSignedLogRoot(ctx context.Context, req *trillian.GetLatestSignedLogRootRequest) (*trillian.GetLatestSignedLogRootResponse, error) {
-	tx, err := t.prepareReadOnlyStorageTx(ctx, req.LogId)
+	tx, err := t.prepareReadOnlyStorageTx(ctx, req.LogId, getOptsRead)
 	if err != nil {
 		return nil, err
 	}
@@ -311,7 +314,7 @@ func (t *TrillianLogRPCServer) GetLatestSignedLogRoot(ctx context.Context, req *
 // GetSequencedLeafCount returns the number of leaves that have been integrated into the Merkle
 // Tree. This can be zero for a log containing no entries.
 func (t *TrillianLogRPCServer) GetSequencedLeafCount(ctx context.Context, req *trillian.GetSequencedLeafCountRequest) (*trillian.GetSequencedLeafCountResponse, error) {
-	tx, err := t.prepareReadOnlyStorageTx(ctx, req.LogId)
+	tx, err := t.prepareReadOnlyStorageTx(ctx, req.LogId, getOptsRead)
 	if err != nil {
 		return nil, err
 	}
@@ -338,7 +341,7 @@ func (t *TrillianLogRPCServer) GetLeavesByIndex(ctx context.Context, req *trilli
 		return nil, err
 	}
 
-	tx, err := t.prepareReadOnlyStorageTx(ctx, req.LogId)
+	tx, err := t.prepareReadOnlyStorageTx(ctx, req.LogId, getOptsRead)
 	if err != nil {
 		return nil, err
 	}
@@ -364,7 +367,7 @@ func (t *TrillianLogRPCServer) GetLeavesByRange(ctx context.Context, req *trilli
 		return nil, err
 	}
 
-	tx, err := t.prepareReadOnlyStorageTx(ctx, req.LogId)
+	tx, err := t.prepareReadOnlyStorageTx(ctx, req.LogId, getOptsRead)
 	if err != nil {
 		return nil, err
 	}
@@ -390,7 +393,7 @@ func (t *TrillianLogRPCServer) GetLeavesByHash(ctx context.Context, req *trillia
 		return nil, err
 	}
 
-	tx, err := t.prepareReadOnlyStorageTx(ctx, req.LogId)
+	tx, err := t.prepareReadOnlyStorageTx(ctx, req.LogId, getOptsRead)
 	if err != nil {
 		return nil, err
 	}
@@ -426,7 +429,7 @@ func (t *TrillianLogRPCServer) GetEntryAndProof(ctx context.Context, req *trilli
 
 	// Next we need to make sure the requested tree size corresponds to an STH, so that we
 	// have a usable tree revision
-	tx, err := t.prepareReadOnlyStorageTx(ctx, req.LogId)
+	tx, err := t.prepareReadOnlyStorageTx(ctx, req.LogId, getOptsRead)
 	if err != nil {
 		return nil, err
 	}
@@ -463,16 +466,16 @@ func (t *TrillianLogRPCServer) GetEntryAndProof(ctx context.Context, req *trilli
 	}, nil
 }
 
-func (t *TrillianLogRPCServer) prepareStorageTx(ctx context.Context, treeID int64) (storage.LogTreeTX, error) {
-	tx, err := t.registry.LogStorage.BeginForTree(ctx, treeID)
+func (t *TrillianLogRPCServer) prepareStorageTx(ctx context.Context, treeID int64, opts trees.GetOpts) (storage.LogTreeTX, error) {
+	tx, err := t.registry.LogStorage.BeginForTree(ctx, treeID, opts)
 	if err != nil {
 		return nil, err
 	}
 	return tx, err
 }
 
-func (t *TrillianLogRPCServer) prepareReadOnlyStorageTx(ctx context.Context, treeID int64) (storage.ReadOnlyLogTreeTX, error) {
-	tx, err := t.registry.LogStorage.SnapshotForTree(ctx, treeID)
+func (t *TrillianLogRPCServer) prepareReadOnlyStorageTx(ctx context.Context, treeID int64, opts trees.GetOpts) (storage.ReadOnlyLogTreeTX, error) {
+	tx, err := t.registry.LogStorage.SnapshotForTree(ctx, treeID, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -503,7 +506,7 @@ func getInclusionProofForLeafIndex(ctx context.Context, tx storage.ReadOnlyLogTr
 func (t *TrillianLogRPCServer) getTreeAndHasher(ctx context.Context, treeID int64, readonly bool) (*trillian.Tree, hashers.LogHasher, error) {
 	tree, err := trees.GetTree(
 		ctx,
-		t.registry.AdminStorage,
+		storage.GetterFor(t.registry.AdminStorage),
 		treeID,
 		trees.GetOpts{TreeType: trillian.TreeType_LOG, Readonly: readonly})
 	if err != nil {
@@ -524,7 +527,7 @@ func (t *TrillianLogRPCServer) InitLog(ctx context.Context, req *trillian.InitLo
 		return nil, status.Errorf(codes.FailedPrecondition, "getTreeAndHasher(): %v", err)
 	}
 
-	tx, err := t.registry.LogStorage.BeginForTree(ctx, logID)
+	tx, err := t.registry.LogStorage.BeginForTree(ctx, logID, trees.GetOpts{TreeType: trillian.TreeType_LOG, Readonly: false})
 	if err != nil && err != storage.ErrTreeNeedsInit {
 		return nil, status.Errorf(codes.FailedPrecondition, "BeginForTree(): %v", err)
 	}
@@ -570,5 +573,4 @@ func (t *TrillianLogRPCServer) InitLog(ctx context.Context, req *trillian.InitLo
 	return &trillian.InitLogResponse{
 		Created: &newRoot,
 	}, nil
-
 }

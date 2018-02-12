@@ -212,15 +212,14 @@ func (t *readOnlyLogTX) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
 	return ids, rows.Err()
 }
 
-func (m *mySQLLogStorage) beginInternal(ctx context.Context, treeID int64, readonly bool) (storage.LogTreeTX, error) {
+func (m *mySQLLogStorage) beginInternal(ctx context.Context, treeID int64, opts trees.GetOpts) (storage.LogTreeTX, error) {
 	once.Do(func() {
 		createMetrics(m.metricFactory)
 	})
-	tree, err := trees.GetTree(
-		ctx,
-		m.admin,
-		treeID,
-		trees.GetOpts{TreeType: trillian.TreeType_LOG, Readonly: readonly})
+	if opts.TreeType != trillian.TreeType_LOG {
+		return nil, fmt.Errorf("beginInternal tree id %d, got: %v, want TreeType_LOG,", treeID, opts.TreeType)
+	}
+	tree, err := trees.GetTree(ctx, storage.GetterFor(m.admin), treeID, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -254,12 +253,15 @@ func (m *mySQLLogStorage) beginInternal(ctx context.Context, treeID int64, reado
 	return ltx, nil
 }
 
-func (m *mySQLLogStorage) BeginForTree(ctx context.Context, treeID int64) (storage.LogTreeTX, error) {
-	return m.beginInternal(ctx, treeID, false /* readonly */)
+func (m *mySQLLogStorage) BeginForTree(ctx context.Context, treeID int64, opts trees.GetOpts) (storage.LogTreeTX, error) {
+	return m.beginInternal(ctx, treeID, opts)
 }
 
-func (m *mySQLLogStorage) SnapshotForTree(ctx context.Context, treeID int64) (storage.ReadOnlyLogTreeTX, error) {
-	tx, err := m.beginInternal(ctx, treeID, true /* readonly */)
+func (m *mySQLLogStorage) SnapshotForTree(ctx context.Context, treeID int64, opts trees.GetOpts) (storage.ReadOnlyLogTreeTX, error) {
+	if !opts.Readonly {
+		return nil, errors.New("mysql SnapshotForTree(): got: readonly false, want: true")
+	}
+	tx, err := m.beginInternal(ctx, treeID, opts)
 	if err != nil {
 		return nil, err
 	}
