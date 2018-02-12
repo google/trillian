@@ -267,6 +267,10 @@ func (m *mySQLLogStorage) ReadWriteTransaction(ctx context.Context, treeID int64
 	return tx.Commit()
 }
 
+func (m *mySQLLogStorage) AddSequencedLeaves(ctx context.Context, treeID int64, leaves []*trillian.LogLeaf) ([]*trillian.QueuedLogLeaf, error) {
+	return nil, status.Errorf(codes.Unimplemented, "AddSequencedLeaves is not implemented")
+}
+
 func (m *mySQLLogStorage) SnapshotForTree(ctx context.Context, treeID int64) (storage.ReadOnlyLogTreeTX, error) {
 	tx, err := m.beginInternal(ctx, treeID, true /* readonly */)
 	if err != nil && err != storage.ErrTreeNeedsInit {

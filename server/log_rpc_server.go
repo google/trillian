@@ -87,6 +87,20 @@ func (t *TrillianLogRPCServer) QueueLeaf(ctx context.Context, req *trillian.Queu
 	return &trillian.QueueLeafResponse{QueuedLeaf: queueRsp.QueuedLeaves[0]}, nil
 }
 
+func hashLeaves(leaves []*trillian.LogLeaf, hasher hashers.LogHasher) error {
+	for _, leaf := range leaves {
+		var err error
+		leaf.MerkleLeafHash, err = hasher.HashLeaf(leaf.LeafValue)
+		if err != nil {
+			return err
+		}
+		if len(leaf.LeafIdentityHash) == 0 {
+			leaf.LeafIdentityHash = leaf.MerkleLeafHash
+		}
+	}
+	return nil
+}
+
 // QueueLeaves submits a batch of leaves to the log for later integration into the underlying tree.
 func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.QueueLeavesRequest) (*trillian.QueueLeavesResponse, error) {
 	if err := validateQueueLeavesRequest(req); err != nil {
@@ -100,15 +114,8 @@ func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.Qu
 	}
 	ctx = trees.NewContext(ctx, tree)
 
-	for _, leaf := range req.Leaves {
-		var err error
-		leaf.MerkleLeafHash, err = hasher.HashLeaf(leaf.LeafValue)
-		if err != nil {
-			return nil, err
-		}
-		if len(leaf.LeafIdentityHash) == 0 {
-			leaf.LeafIdentityHash = leaf.MerkleLeafHash
-		}
+	if err := hashLeaves(req.Leaves, hasher); err != nil {
+		return nil, err
 	}
 
 	ret, err := t.registry.LogStorage.QueueLeaves(ctx, logID, req.Leaves, t.timeSource.Now())
@@ -130,13 +137,56 @@ func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.Qu
 
 // AddSequencedLeaf submits one sequenced leaf to the storage.
 func (t *TrillianLogRPCServer) AddSequencedLeaf(ctx context.Context, req *trillian.AddSequencedLeafRequest) (*trillian.AddSequencedLeafResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "AddSequencedLeaf is not implemented")
+	if err := validateAddSequencedLeafRequest(req); err != nil {
+		return nil, err
+	}
+
+	batchReq := &trillian.AddSequencedLeavesRequest{
+		LogId:  req.LogId,
+		Leaves: []*trillian.LogLeaf{req.Leaf},
+	}
+	rsp, err := t.AddSequencedLeaves(ctx, batchReq)
+	if err != nil {
+		return nil, err
+	}
+	if rsp == nil {
+		return nil, status.Errorf(codes.Internal, "missing response")
+	}
+	if ln := len(rsp.Results); ln != 1 {
+		return nil, status.Errorf(codes.Internal, "unexpected count of sequenced leaves %d", ln)
+	}
+	return &trillian.AddSequencedLeafResponse{Result: rsp.Results[0]}, nil
 }
 
 // AddSequencedLeaves submits a batch of sequenced leaves to a pre-ordered log
 // for later integration into its underlying tree.
 func (t *TrillianLogRPCServer) AddSequencedLeaves(ctx context.Context, req *trillian.AddSequencedLeavesRequest) (*trillian.AddSequencedLeavesResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "AddSequencedLeaves is not implemented")
+	if err := validateAddSequencedLeavesRequest(req); err != nil {
+		return nil, err
+	}
+
+	tree, hasher, err := t.getTreeAndHasher(ctx, req.LogId, false /* readonly */)
+	if err != nil {
+		return nil, err
+	}
+	if want := trillian.TreeType_PREORDERED_LOG; tree.TreeType != want {
+		return nil, status.Errorf(codes.FailedPrecondition, "adding sequenced leaves available only for %v trees", want)
+	}
+
+	if err := hashLeaves(req.Leaves, hasher); err != nil {
+		return nil, err
+	}
+
+	ctx = trees.NewContext(ctx, tree)
+	leaves, err := t.registry.LogStorage.AddSequencedLeaves(ctx, tree.TreeId, req.Leaves)
+	if err != nil {
+		return nil, err
+	}
+	if got, want := len(leaves), len(req.Leaves); got != want {
+		return nil, status.Errorf(codes.Internal, "AddSequencedLeaves returned %v codes, want: %d", got, want)
+	}
+
+	return &trillian.AddSequencedLeavesResponse{Results: leaves}, nil
 }
 
 // GetInclusionProof obtains the proof of inclusion in the tree for a leaf that has been sequenced.

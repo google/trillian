@@ -84,6 +84,7 @@ type LogTreeTX interface {
 	// Leaves queued more recently than the cutoff time will not be returned. This allows for
 	// guard intervals to be configured.
 	DequeueLeaves(ctx context.Context, limit int, cutoffTime time.Time) ([]*trillian.LogLeaf, error)
+
 	// UpdateSequencedLeaves associates the leaves with the sequence numbers
 	// assigned to them.
 	UpdateSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf) error
@@ -124,6 +125,30 @@ type LogStorage interface {
 	// Duplicates are only reported if the underlying tree does not permit duplicates, and are
 	// considered duplicate if their leaf.LeafIdentityHash matches.
 	QueueLeaves(ctx context.Context, treeID int64, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.QueuedLogLeaf, error)
+
+	// AddSequencedLeaves stores the `leaves` and associates them with the log
+	// positions according to their `LeafIndex` field. The indices must be unique
+	// and sorted in ascending order.
+	//
+	// If error is nil, the returned slice is the same size as the input, entries
+	// correspond to the `leaves` in the same order. Each entry describes the
+	// result of adding the corresponding leaf.
+	//
+	// Possible `QueuedLogLeaf.status` values with their semantics:
+	//  - OK: The leaf has been successfully stored.
+	//  - AlreadyExists: The storage has another leaf with the same `LeafIndex`.
+	//    That leaf is returned in `QueuedLogLeaf.leaf`.
+	//  - FailedPrecondition: There is another leaf with the same `LeafIndex`,
+	//    but a different value. That leaf is returned in `QueuedLogLeaf.leaf`.
+	//  - OutOfRange: The leaf can not be stored at the specified `LeafIndex`.
+	//    For example, the storage might not support non-sequential writes.
+	//  - Internal, etc: A storage-specific error.
+	//
+	// TODO(pavelkalinnikov): Make returning the resulting/conflicting leaves
+	// optional. Channel these options to the top-level Log API.
+	// TODO(pavelkalinnikov): Not checking values of the occupied indices might
+	// be a good optimization. Could also be optional.
+	AddSequencedLeaves(ctx context.Context, treeID int64, leaves []*trillian.LogLeaf) ([]*trillian.QueuedLogLeaf, error)
 }
 
 // CountByLogID is a map of total number of items keyed by log ID.

@@ -34,8 +34,7 @@ func TestAddGetLeaf(t *testing.T) {
 
 // addSequencedLeaves is a temporary stand-in function for tests until the real API gets built.
 func addSequencedLeaves(ctx context.Context, env *integration.LogEnv, client *LogClient, leaves [][]byte) error {
-	// TODO(gdbelvin): Replace with batch API.
-	// TODO(gdbelvin): Replace with AddSequencedLeaves API.
+	// TODO(pavelkalinnikov): Replace with AddSequencedLeaves batch API.
 	for _, l := range leaves {
 		if err := client.QueueLeaf(ctx, l); err != nil {
 			return err

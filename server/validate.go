@@ -106,28 +106,33 @@ func validateGetEntryAndProofRequest(req *trillian.GetEntryAndProofRequest) erro
 }
 
 func validateQueueLeafRequest(req *trillian.QueueLeafRequest) error {
-	if req.Leaf == nil {
-		return status.Error(codes.InvalidArgument, "QueueLeafRequest.Leaf empty")
-	}
 	if err := validateLogLeaf(req.Leaf); err != nil {
-		// validateLogLeaf errors are meant to chain nicely with "Leaf."
-		return status.Errorf(codes.InvalidArgument, "QueueLeafRequest.Leaf.%v", err)
+		// validateLogLeaf errors chain nicely with "Leaf".
+		return status.Errorf(codes.InvalidArgument, "QueueLeafRequest.Leaf%v", err)
+	}
+	return nil
+}
+
+func validateAddSequencedLeafRequest(req *trillian.AddSequencedLeafRequest) error {
+	if err := validateLogLeaf(req.Leaf); err != nil {
+		// validateLogLeaf errors chain nicely with "Leaf".
+		return status.Errorf(codes.InvalidArgument, "AddSequencedLeafRequest.Leaf%v", err)
 	}
 	return nil
 }
 
 func validateQueueLeavesRequest(req *trillian.QueueLeavesRequest) error {
-	if len(req.Leaves) == 0 {
-		return status.Error(codes.InvalidArgument, "QueueLeavesRequest.Leaves empty")
+	if err := validateLogLeaves(req.Leaves); err != nil {
+		// validateLogLeaves errors chain nicely with "QueueLeavesRequest.".
+		return status.Errorf(codes.InvalidArgument, "QueueLeavesRequest.", err)
 	}
-	for i, leaf := range req.Leaves {
-		if leaf == nil {
-			return status.Errorf(codes.InvalidArgument, "QueueLeavesRequest.Leaves[%v] empty", i)
-		}
-		if err := validateLogLeaf(leaf); err != nil {
-			// validateLogLeaf errors are meant to chain nicely with "Leaves."
-			return status.Errorf(codes.InvalidArgument, "QueueLeavesRequest.Leaves[%v].%v", i, err)
-		}
+	return nil
+}
+
+func validateAddSequencedLeavesRequest(req *trillian.AddSequencedLeavesRequest) error {
+	if err := validateLogLeaves(req.Leaves); err != nil {
+		// validateLogLeaves errors chain nicely with "AddSequencedLeavesRequest.".
+		return status.Errorf(codes.InvalidArgument, "AddSequencedLeavesRequest.", err)
 	}
 	return nil
 }
@@ -139,14 +144,31 @@ func validateLeafHash(hash []byte) error {
 	return nil
 }
 
-// validateLogLeaf validates a leaf and returns an error in the format "$Field: $message", so it
-// chains nicely with a path-like string to the leaf field (e.g.: "req.Leaf.%v").
+func validateLogLeaves(leaves []*trillian.LogLeaf) error {
+	if len(leaves) == 0 {
+		return status.Error(codes.InvalidArgument, "Leaves empty")
+	}
+	for i, leaf := range leaves {
+		if err := validateLogLeaf(leaf); err != nil {
+			// validateLogLeaf errors are meant to chain nicely with "Leaves".
+			return status.Errorf(codes.InvalidArgument, "Leaves[%v]%v", i, err)
+		}
+	}
+	return nil
+}
+
+// validateLogLeaf validates a leaf and returns an error in the format
+// ".$Field: $message" or " $message", so it chains nicely with a path-like
+// string to the leaf field (e.g.: "req.Leaf%v").
 func validateLogLeaf(leaf *trillian.LogLeaf) error {
+	if leaf == nil {
+		return status.Errorf(codes.InvalidArgument, " empty")
+	}
 	switch {
 	case len(leaf.LeafValue) == 0:
-		return status.Error(codes.InvalidArgument, "LeafValue: empty")
+		return status.Error(codes.InvalidArgument, ".LeafValue: empty")
 	case leaf.LeafIndex < 0:
-		return status.Errorf(codes.InvalidArgument, "LeafIndex: %v, want >= 0", leaf.LeafIndex)
+		return status.Errorf(codes.InvalidArgument, ".LeafIndex: %v, want >= 0", leaf.LeafIndex)
 	}
 	return nil
 }
