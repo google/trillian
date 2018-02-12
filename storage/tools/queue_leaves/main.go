@@ -64,7 +64,7 @@ func main() {
 
 	storage := mysql.NewLogStorage(db, nil)
 	ctx := context.Background()
-	tx, err := storage.BeginForTree(ctx, *treeIDFlag, trees.GetOpts{TreeType:trillian.TreeType_LOG})
+	tx, err := storage.BeginForTree(ctx, *treeIDFlag, trees.GetOpts{TreeType: trillian.TreeType_LOG})
 	if err != nil {
 		panic(err)
 	}

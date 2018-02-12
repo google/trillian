@@ -59,7 +59,7 @@ var (
 // A 32 bit magic number that is written at the start of record io files to identify the format.
 const recordIOMagic int32 = 0x3ed7230a
 
-var getOpts = trees.GetOpts{TreeType:trillian.TreeType_LOG, Readonly:true}
+var getOpts = trees.GetOpts{TreeType: trillian.TreeType_LOG, Readonly: true}
 
 type treeAndRev struct {
 	fullKey  string

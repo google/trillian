@@ -259,7 +259,7 @@ func createLogForTests(db *sql.DB) int64 {
 
 	ctx := context.Background()
 	l := NewLogStorage(db, nil)
-	tx, err := l.BeginForTree(ctx, tree.TreeId, trees.GetOpts{TreeType:trillian.TreeType_LOG})
+	tx, err := l.BeginForTree(ctx, tree.TreeId, trees.GetOpts{TreeType: trillian.TreeType_LOG})
 	if err != nil && err != storage.ErrTreeNeedsInit {
 		panic(fmt.Sprintf("Error creating tree TX: %v", err))
 	}

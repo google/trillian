@@ -65,8 +65,8 @@ var (
 	QuotaIncreaseFactor = 1.1
 
 	// TODO(Martin2112): Update to add options for sequencing / signing when they exist
-	sequencerOpts = trees.GetOpts{TreeType:trillian.TreeType_LOG}
-	signerOpts = trees.GetOpts{TreeType:trillian.TreeType_LOG}
+	sequencerOpts = trees.GetOpts{TreeType: trillian.TreeType_LOG}
+	signerOpts    = trees.GetOpts{TreeType: trillian.TreeType_LOG}
 )
 
 func quotaIncreaseFactor() float64 {

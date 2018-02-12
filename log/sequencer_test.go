@@ -204,7 +204,7 @@ func newSignerWithErr(signErr error) (gocrypto.Signer, error) {
 func createTestContext(ctrl *gomock.Controller, params testParameters) (testContext, context.Context) {
 	mockStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTreeTX(ctrl)
-	opts := trees.GetOpts{TreeType:trillian.TreeType_LOG}
+	opts := trees.GetOpts{TreeType: trillian.TreeType_LOG}
 
 	mockTx.EXPECT().WriteRevision().AnyTimes().Return(params.writeRevision)
 	if params.beginFails {

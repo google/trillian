@@ -21,7 +21,6 @@ import (
 	"github.com/google/trillian/trees"
 )
 
-
 // GetTree reads a tree from storage using a snapshot transaction.
 // It's a convenience wrapper around RunInAdminSnapshot and AdminReader's GetTree.
 // See RunInAdminSnapshot if you need to perform more than one action per transaction.

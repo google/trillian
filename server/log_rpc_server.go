@@ -42,8 +42,8 @@ type TrillianLogRPCServer struct {
 	leafCounter monitoring.Counter
 }
 
-var getOptsWrite = trees.GetOpts{TreeType:trillian.TreeType_LOG}
-var getOptsRead = trees.GetOpts{TreeType:trillian.TreeType_LOG, Readonly:true}
+var getOptsWrite = trees.GetOpts{TreeType: trillian.TreeType_LOG}
+var getOptsRead = trees.GetOpts{TreeType: trillian.TreeType_LOG, Readonly: true}
 
 // NewTrillianLogRPCServer creates a new RPC server backed by a LogStorageProvider.
 func NewTrillianLogRPCServer(registry extension.Registry, timeSource util.TimeSource) *TrillianLogRPCServer {
@@ -527,7 +527,7 @@ func (t *TrillianLogRPCServer) InitLog(ctx context.Context, req *trillian.InitLo
 		return nil, status.Errorf(codes.FailedPrecondition, "getTreeAndHasher(): %v", err)
 	}
 
-	tx, err := t.registry.LogStorage.BeginForTree(ctx, logID, trees.GetOpts{TreeType:trillian.TreeType_LOG, Readonly:false})
+	tx, err := t.registry.LogStorage.BeginForTree(ctx, logID, trees.GetOpts{TreeType: trillian.TreeType_LOG, Readonly: false})
 	if err != nil && err != storage.ErrTreeNeedsInit {
 		return nil, status.Errorf(codes.FailedPrecondition, "BeginForTree(): %v", err)
 	}
@@ -573,8 +573,4 @@ func (t *TrillianLogRPCServer) InitLog(ctx context.Context, req *trillian.InitLo
 	return &trillian.InitLogResponse{
 		Created: &newRoot,
 	}, nil
-}
-
-func logOpts() trees.GetOpts {
-	return trees.GetOpts{TreeType:trillian.TreeType_LOG}
 }
