@@ -31,7 +31,6 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/sigpb"
-	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testonly"
 	"github.com/kylelemons/godebug/pretty"
 
@@ -186,14 +185,10 @@ func TestGetTree(t *testing.T) {
 	for _, test := range tests {
 		ctx := NewContext(context.Background(), test.ctxTree)
 
-		admin := storage.NewMockAdminStorage(ctrl)
-		tx := storage.NewMockReadOnlyAdminTX(ctrl)
-		admin.EXPECT().Snapshot(ctx).MaxTimes(1).Return(tx, test.beginErr)
-		tx.EXPECT().GetTree(ctx, test.treeID).MaxTimes(1).Return(test.storageTree, test.getErr)
-		tx.EXPECT().Close().MaxTimes(1).Return(nil)
-		tx.EXPECT().Commit().MaxTimes(1).Return(test.commitErr)
-
-		tree, err := GetTree(ctx, storage.GetterFor(admin), test.treeID, test.opts)
+		getFunc := func(ctx context.Context, treeID int64) (*trillian.Tree, error) {
+			return test.storageTree, test.getErr
+		}
+		tree, err := GetTree(ctx, getFunc, test.treeID, test.opts)
 		if hasErr := err != nil; hasErr != test.wantErr {
 			t.Errorf("%v: GetTree() = (_, %q), wantErr = %v", test.desc, err, test.wantErr)
 			continue
