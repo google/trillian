@@ -447,16 +447,26 @@ func (t *TrillianLogRPCServer) GetLeavesByRange(ctx context.Context, req *trilli
 	}
 	defer tx.Close()
 
-	leaves, err := tx.GetLeavesByRange(ctx, req.StartIndex, req.Count)
+	slr, err := tx.LatestSignedLogRoot(ctx)
 	if err != nil {
 		return nil, err
+	}
+
+	r := &trillian.GetLeavesByRangeResponse{SignedLogRoot: &slr}
+
+	if req.StartIndex < slr.TreeSize {
+		leaves, err := tx.GetLeavesByRange(ctx, req.StartIndex, req.Count)
+		if err != nil {
+			return nil, err
+		}
+		r.Leaves = leaves
 	}
 
 	if err := t.commitAndLog(ctx, req.LogId, tx, "GetLeavesByRange"); err != nil {
 		return nil, err
 	}
 
-	return &trillian.GetLeavesByRangeResponse{Leaves: leaves}, nil
+	return r, nil
 }
 
 // GetLeavesByHash obtains one or more leaves based on their tree hash. It is not possible
