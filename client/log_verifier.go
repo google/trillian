@@ -133,7 +133,8 @@ func (c *logVerifier) BuildLeaf(data []byte) (*trillian.LogLeaf, error) {
 		return nil, err
 	}
 	return &trillian.LogLeaf{
-		LeafValue:      data,
-		MerkleLeafHash: leafHash,
+		LeafValue:        data,
+		MerkleLeafHash:   leafHash,
+		LeafIdentityHash: leafHash,
 	}, nil
 }
