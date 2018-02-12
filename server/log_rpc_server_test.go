@@ -99,8 +99,8 @@ var (
 	nodeIdsConsistencySize4ToSize7 = []storage.NodeID{stestonly.MustCreateNodeIDForTreeCoords(2, 1, 64)}
 
 	// Don't reuse the same options variables from the code being tested or it would always pass
-	getOptsRTest = trees.GetOpts{TreeType:trillian.TreeType_LOG, Readonly: true}
-	getOptsWTest = trees.GetOpts{TreeType:trillian.TreeType_LOG}
+	getOptsRTest = trees.GetOpts{TreeType: trillian.TreeType_LOG, Readonly: true}
+	getOptsWTest = trees.GetOpts{TreeType: trillian.TreeType_LOG}
 )
 
 func TestGetLeavesByIndexBeginFailsCausesError(t *testing.T) {
@@ -418,7 +418,7 @@ func TestQueueLeaves(t *testing.T) {
 
 	// Repeating the operation gives ALREADY_EXISTS.
 	server.registry.AdminStorage = mockAdminStorage(ctrl, queueRequest0.LogId)
-	mockStorage.EXPECT().BeginForTree(gomock.Any(), queueRequest0.LogId, getOptsRTest).Return(mockTx, nil)
+	mockStorage.EXPECT().BeginForTree(gomock.Any(), queueRequest0.LogId, getOptsWTest).Return(mockTx, nil)
 	mockTx.EXPECT().QueueLeaves(gomock.Any(), []*trillian.LogLeaf{leaf1}, fakeTime).Return([]*trillian.LogLeaf{leaf1}, nil)
 	mockTx.EXPECT().Commit().Return(nil)
 	mockTx.EXPECT().Close().Return(nil)
