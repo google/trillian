@@ -60,6 +60,18 @@ func (mr *MockAdminStorageMockRecorder) CheckDatabaseAccessible(arg0 interface{}
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckDatabaseAccessible", reflect.TypeOf((*MockAdminStorage)(nil).CheckDatabaseAccessible), arg0)
 }
 
+// ReadWriteTransaction mocks base method
+func (m *MockAdminStorage) ReadWriteTransaction(arg0 context.Context, arg1 AdminTXFunc) error {
+	ret := m.ctrl.Call(m, "ReadWriteTransaction", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// ReadWriteTransaction indicates an expected call of ReadWriteTransaction
+func (mr *MockAdminStorageMockRecorder) ReadWriteTransaction(arg0, arg1 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadWriteTransaction", reflect.TypeOf((*MockAdminStorage)(nil).ReadWriteTransaction), arg0, arg1)
+}
+
 // Snapshot mocks base method
 func (m *MockAdminStorage) Snapshot(arg0 context.Context) (ReadOnlyAdminTX, error) {
 	ret := m.ctrl.Call(m, "Snapshot", arg0)
@@ -293,6 +305,18 @@ func (m *MockLogStorage) CheckDatabaseAccessible(arg0 context.Context) error {
 // CheckDatabaseAccessible indicates an expected call of CheckDatabaseAccessible
 func (mr *MockLogStorageMockRecorder) CheckDatabaseAccessible(arg0 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckDatabaseAccessible", reflect.TypeOf((*MockLogStorage)(nil).CheckDatabaseAccessible), arg0)
+}
+
+// ReadWriteTransaction mocks base method
+func (m *MockLogStorage) ReadWriteTransaction(arg0 context.Context, arg1 int64, arg2 LogTXFunc) error {
+	ret := m.ctrl.Call(m, "ReadWriteTransaction", arg0, arg1, arg2)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// ReadWriteTransaction indicates an expected call of ReadWriteTransaction
+func (mr *MockLogStorageMockRecorder) ReadWriteTransaction(arg0, arg1, arg2 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadWriteTransaction", reflect.TypeOf((*MockLogStorage)(nil).ReadWriteTransaction), arg0, arg1, arg2)
 }
 
 // Snapshot mocks base method
@@ -602,6 +626,18 @@ func (m *MockMapStorage) CheckDatabaseAccessible(arg0 context.Context) error {
 // CheckDatabaseAccessible indicates an expected call of CheckDatabaseAccessible
 func (mr *MockMapStorageMockRecorder) CheckDatabaseAccessible(arg0 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckDatabaseAccessible", reflect.TypeOf((*MockMapStorage)(nil).CheckDatabaseAccessible), arg0)
+}
+
+// ReadWriteTransaction mocks base method
+func (m *MockMapStorage) ReadWriteTransaction(arg0 context.Context, arg1 int64, arg2 MapTXFunc) error {
+	ret := m.ctrl.Call(m, "ReadWriteTransaction", arg0, arg1, arg2)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// ReadWriteTransaction indicates an expected call of ReadWriteTransaction
+func (mr *MockMapStorageMockRecorder) ReadWriteTransaction(arg0, arg1, arg2 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadWriteTransaction", reflect.TypeOf((*MockMapStorage)(nil).ReadWriteTransaction), arg0, arg1, arg2)
 }
 
 // Snapshot mocks base method

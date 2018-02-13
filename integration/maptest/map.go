@@ -199,7 +199,6 @@ func RunMapRevisionZero(ctx context.Context, t *testing.T, tadmin trillian.Trill
 				}
 				// TODO(phad): ideally we'd inspect err's type and check it contains a NOT_FOUND Code (5), but I don't want
 				// a dependency on gRPC here.
-
 			})
 		}
 	}
@@ -510,7 +509,7 @@ func runMapBatchTest(ctx context.Context, t *testing.T, desc string, tmap trilli
 	r, err := tmap.GetSignedMapRoot(ctx, &trillian.GetSignedMapRootRequest{
 		MapId: tree.TreeId,
 	})
-	if err != nil {
+	if err != nil || r.MapRoot == nil {
 		t.Fatalf("%s: failed to get map head: %v", desc, err)
 	}
 

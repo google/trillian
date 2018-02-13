@@ -104,7 +104,7 @@ func TestServer_BeginError(t *testing.T) {
 		if test.snapshot {
 			as.EXPECT().Snapshot(ctx).Return(nil, errors.New("snapshot error"))
 		} else {
-			as.EXPECT().Begin(ctx).Return(nil, errors.New("begin error"))
+			as.EXPECT().ReadWriteTransaction(gomock.Any(), gomock.Any()).Return(errors.New("begin error"))
 		}
 
 		registry := extension.Registry{
@@ -938,7 +938,7 @@ func setupAdminServer(ctrl *gomock.Controller, keygen keys.ProtoGenerator, snaps
 		}
 	} else {
 		tx = storage.NewMockAdminTX(ctrl)
-		as.EXPECT().Begin(gomock.Any()).MaxTimes(1).Return(tx, nil)
+		as.EXPECT().ReadWriteTransaction(gomock.Any(), gomock.Any()).MaxTimes(1).DoAndReturn(testonly.RunOnAdminTX(tx))
 		tx.EXPECT().Close().MaxTimes(1).Return(nil)
 		if shouldCommit {
 			if commitErr {

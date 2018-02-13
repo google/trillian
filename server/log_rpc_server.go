@@ -110,38 +110,38 @@ func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.Qu
 			leaf.LeafIdentityHash = leaf.MerkleLeafHash
 		}
 	}
-
-	tx, err := t.prepareStorageTx(ctx, logID)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Close()
-
-	existingLeaves, err := tx.QueueLeaves(ctx, req.Leaves, t.timeSource.Now())
-	if err != nil {
-		return nil, err
-	}
-
-	if err := t.commitAndLog(ctx, logID, tx, "QueueLeaves"); err != nil {
-		return nil, err
-	}
-
 	var queuedLeaves []*trillian.QueuedLogLeaf
-	for i, existingLeaf := range existingLeaves {
-		if existingLeaf != nil {
-			// Append the existing leaf to the response.
-			queuedLeaf := trillian.QueuedLogLeaf{
-				Leaf:   existingLeaf,
-				Status: status.Newf(codes.AlreadyExists, "Leaf already exists: %v", existingLeaf.LeafIdentityHash).Proto(),
-			}
-			queuedLeaves = append(queuedLeaves, &queuedLeaf)
-			t.leafCounter.Inc("existing")
-		} else {
-			// Return the leaf from the request if it is new.
-			queuedLeaf := trillian.QueuedLogLeaf{Leaf: req.Leaves[i]}
-			queuedLeaves = append(queuedLeaves, &queuedLeaf)
-			t.leafCounter.Inc("new")
+	err = t.registry.LogStorage.ReadWriteTransaction(ctx, logID, func(ctx context.Context, tx storage.LogTreeTX) error {
+		queuedLeaves = make([]*trillian.QueuedLogLeaf, 0, len(req.Leaves))
+		existingLeaves, err := tx.QueueLeaves(ctx, req.Leaves, t.timeSource.Now())
+		if err != nil {
+			return err
 		}
+
+		if err := t.commitAndLog(ctx, logID, tx, "QueueLeaves"); err != nil {
+			return err
+		}
+
+		for i, existingLeaf := range existingLeaves {
+			if existingLeaf != nil {
+				// Append the existing leaf to the response.
+				queuedLeaf := trillian.QueuedLogLeaf{
+					Leaf:   existingLeaf,
+					Status: status.Newf(codes.AlreadyExists, "Leaf already exists: %v", existingLeaf.LeafIdentityHash).Proto(),
+				}
+				queuedLeaves = append(queuedLeaves, &queuedLeaf)
+				t.leafCounter.Inc("existing")
+			} else {
+				// Return the leaf from the request if it is new.
+				queuedLeaf := trillian.QueuedLogLeaf{Leaf: req.Leaves[i]}
+				queuedLeaves = append(queuedLeaves, &queuedLeaf)
+				t.leafCounter.Inc("new")
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 	return &trillian.QueueLeavesResponse{QueuedLeaves: queuedLeaves}, nil
 }
@@ -463,14 +463,6 @@ func (t *TrillianLogRPCServer) GetEntryAndProof(ctx context.Context, req *trilli
 	}, nil
 }
 
-func (t *TrillianLogRPCServer) prepareStorageTx(ctx context.Context, treeID int64) (storage.LogTreeTX, error) {
-	tx, err := t.registry.LogStorage.BeginForTree(ctx, treeID)
-	if err != nil {
-		return nil, err
-	}
-	return tx, err
-}
-
 func (t *TrillianLogRPCServer) prepareReadOnlyStorageTx(ctx context.Context, treeID int64) (storage.ReadOnlyLogTreeTX, error) {
 	tx, err := t.registry.LogStorage.SnapshotForTree(ctx, treeID)
 	if err != nil {
@@ -524,51 +516,54 @@ func (t *TrillianLogRPCServer) InitLog(ctx context.Context, req *trillian.InitLo
 		return nil, status.Errorf(codes.FailedPrecondition, "getTreeAndHasher(): %v", err)
 	}
 
-	tx, err := t.registry.LogStorage.BeginForTree(ctx, logID)
+	var newRoot *trillian.SignedLogRoot
+	err = t.registry.LogStorage.ReadWriteTransaction(ctx, logID, func(ctx context.Context, tx storage.LogTreeTX) error {
+		newRoot = nil
+
+		latestRoot, err := tx.LatestSignedLogRoot(ctx)
+		if err != nil && err != storage.ErrTreeNeedsInit {
+			return status.Errorf(codes.FailedPrecondition, "LatestSignedLogRoot(): %v", err)
+		}
+
+		// Belt and braces check.
+		if latestRoot.GetRootHash() != nil {
+			return status.Errorf(codes.AlreadyExists, "log is already initialised")
+		}
+
+		newRoot = &trillian.SignedLogRoot{
+			RootHash:       hasher.EmptyRoot(),
+			TimestampNanos: t.timeSource.Now().UnixNano(),
+			TreeSize:       0,
+			LogId:          logID,
+			TreeRevision:   0,
+		}
+
+		signer, err := trees.Signer(ctx, tree)
+		if err != nil {
+			return status.Errorf(codes.FailedPrecondition, "Signer() :%v", err)
+		}
+
+		sig, err := signer.SignLogRoot(newRoot)
+		if err != nil {
+			return err
+		}
+		newRoot.Signature = sig
+
+		if err := tx.StoreSignedLogRoot(ctx, *newRoot); err != nil {
+			return status.Errorf(codes.FailedPrecondition, "StoreSignedLogRoot(): %v", err)
+		}
+
+		if err := tx.Commit(); err != nil {
+			return status.Errorf(codes.FailedPrecondition, "Commit(): %v", err)
+		}
+		return nil
+	})
 	if err != nil && err != storage.ErrTreeNeedsInit {
-		return nil, status.Errorf(codes.FailedPrecondition, "BeginForTree(): %v", err)
-	}
-	defer tx.Close()
-
-	latestRoot, err := tx.LatestSignedLogRoot(ctx)
-	if err != nil && err != storage.ErrTreeNeedsInit {
-		return nil, status.Errorf(codes.FailedPrecondition, "LatestSignedLogRoot(): %v", err)
-	}
-
-	// Belt and braces check.
-	if latestRoot.GetRootHash() != nil {
-		return nil, status.Errorf(codes.AlreadyExists, "log is already initialised")
-	}
-
-	newRoot := trillian.SignedLogRoot{
-		RootHash:       hasher.EmptyRoot(),
-		TimestampNanos: t.timeSource.Now().UnixNano(),
-		TreeSize:       0,
-		LogId:          logID,
-		TreeRevision:   0,
-	}
-
-	signer, err := trees.Signer(ctx, tree)
-	if err != nil {
-		return nil, status.Errorf(codes.FailedPrecondition, "Signer() :%v", err)
-	}
-
-	sig, err := signer.SignLogRoot(&newRoot)
-	if err != nil {
 		return nil, err
-	}
-	newRoot.Signature = sig
-
-	if err := tx.StoreSignedLogRoot(ctx, newRoot); err != nil {
-		return nil, status.Errorf(codes.FailedPrecondition, "StoreSignedLogRoot(): %v", err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return nil, status.Errorf(codes.FailedPrecondition, "Commit(): %v", err)
 	}
 
 	return &trillian.InitLogResponse{
-		Created: &newRoot,
+		Created: newRoot,
 	}, nil
 
 }

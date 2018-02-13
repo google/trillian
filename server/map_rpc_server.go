@@ -162,75 +162,70 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 	}
 	ctx = trees.NewContext(ctx, tree)
 
-	tx, err := t.registry.MapStorage.BeginForTree(ctx, req.MapId)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Close()
-
-	glog.V(2).Infof("%v: Writing at revision %v", mapID, tx.WriteRevision())
-	smtWriter, err := merkle.NewSparseMerkleTreeWriter(
-		ctx,
-		req.MapId,
-		tx.WriteRevision(),
-		hasher, func() (storage.TreeTX, error) {
-			return t.registry.MapStorage.BeginForTree(ctx, req.MapId)
-		})
-	if err != nil {
-		return nil, err
-	}
-
-	for _, l := range req.Leaves {
-		if got, want := len(l.Index), hasher.Size(); got != want {
-			return nil, status.Errorf(codes.InvalidArgument,
-				"len(%x): %v, want %v", l.Index, got, want)
-		}
-		if l.LeafValue == nil {
-			// Leaves are empty by default. Do not allow clients to store
-			// empty leaf values as this messes up the calculation of empty
-			// branches.
-			continue
-		}
-		// TODO(gbelvin) use LeafHash rather than computing here. #423
-		leafHash, err := hasher.HashLeaf(mapID, l.Index, l.LeafValue)
+	var newRoot *trillian.SignedMapRoot
+	err = t.registry.MapStorage.ReadWriteTransaction(ctx, req.MapId, func(ctx context.Context, tx storage.MapTreeTX) error {
+		glog.V(2).Infof("%v: Writing at revision %v", mapID, tx.WriteRevision())
+		smtWriter, err := merkle.NewSparseMerkleTreeWriter(
+			ctx,
+			req.MapId,
+			tx.WriteRevision(),
+			hasher, func(ctx context.Context, f func(context.Context, storage.MapTreeTX) error) error {
+				return t.registry.MapStorage.ReadWriteTransaction(ctx, req.MapId, f)
+			})
 		if err != nil {
-			return nil, fmt.Errorf("HashLeaf(): %v", err)
+			return err
 		}
-		l.LeafHash = leafHash
 
-		if err = tx.Set(ctx, l.Index, *l); err != nil {
-			return nil, err
-		}
-		if err = smtWriter.SetLeaves(ctx, []merkle.HashKeyValue{
-			{
-				HashedKey:   l.Index,
-				HashedValue: l.LeafHash,
-			},
-		}); err != nil {
-			return nil, err
-		}
-	}
+		for _, l := range req.Leaves {
+			if got, want := len(l.Index), hasher.Size(); got != want {
+				return status.Errorf(codes.InvalidArgument,
+					"len(%x): %v, want %v", l.Index, got, want)
+			}
+			if l.LeafValue == nil {
+				// Leaves are empty by default. Do not allow clients to store
+				// empty leaf values as this messes up the calculation of empty
+				// branches.
+				continue
+			}
+			// TODO(gbelvin) use LeafHash rather than computing here. #423
+			leafHash, err := hasher.HashLeaf(mapID, l.Index, l.LeafValue)
+			if err != nil {
+				return fmt.Errorf("HashLeaf(): %v", err)
+			}
+			l.LeafHash = leafHash
 
-	rootHash, err := smtWriter.CalculateRoot()
+			if err = tx.Set(ctx, l.Index, *l); err != nil {
+				return err
+			}
+			if err = smtWriter.SetLeaves(ctx, []merkle.HashKeyValue{
+				{
+					HashedKey:   l.Index,
+					HashedValue: l.LeafHash,
+				},
+			}); err != nil {
+				return err
+			}
+		}
+
+		rootHash, err := smtWriter.CalculateRoot()
+		if err != nil {
+			return fmt.Errorf("CalculateRoot(): %v", err)
+		}
+
+		newRoot, err = t.makeSignedMapRoot(ctx, tree, time.Now(), rootHash, req.MapId, tx.WriteRevision(), req.Metadata)
+		if err != nil {
+			return fmt.Errorf("makeSignedMapRoot(): %v", err)
+		}
+
+		// TODO(al): need an smtWriter.Rollback() or similar I think.
+		if err = tx.StoreSignedMapRoot(ctx, *newRoot); err != nil {
+			return err
+		}
+		return tx.Commit()
+	})
 	if err != nil {
-		return nil, fmt.Errorf("CalculateRoot(): %v", err)
-	}
-
-	newRoot, err := t.makeSignedMapRoot(ctx, tree, time.Now(), rootHash, req.MapId, tx.WriteRevision(), req.Metadata)
-	if err != nil {
-		return nil, fmt.Errorf("makeSignedMapRoot(): %v", err)
-	}
-
-	// TODO(al): need an smtWriter.Rollback() or similar I think.
-	if err = tx.StoreSignedMapRoot(ctx, *newRoot); err != nil {
 		return nil, err
 	}
-
-	if err := tx.Commit(); err != nil {
-		glog.Warningf("%v: Commit failed for SetLeaves: %v", mapID, err)
-		return nil, err
-	}
-
 	return &trillian.SetMapLeavesResponse{MapRoot: newRoot}, nil
 }
 
@@ -330,35 +325,38 @@ func (t *TrillianMapServer) InitMap(ctx context.Context, req *trillian.InitMapRe
 	}
 	ctx = trees.NewContext(ctx, tree)
 
-	tx, err := t.registry.MapStorage.BeginForTree(ctx, mapID)
-	if err != storage.ErrTreeNeedsInit && err != nil {
-		return nil, status.Errorf(codes.FailedPrecondition, "BeginForTree(): %v", err)
-	}
-	defer tx.Close()
+	var rev0Root *trillian.SignedMapRoot
+	err = t.registry.MapStorage.ReadWriteTransaction(ctx, mapID, func(ctx context.Context, tx storage.MapTreeTX) error {
+		// Check that the map actually needs initialising
+		latestRoot, err := tx.LatestSignedMapRoot(ctx)
+		if err != nil && err != storage.ErrTreeNeedsInit {
+			return status.Errorf(codes.FailedPrecondition, "LatestSignedMapRoot(): %v", err)
+		}
+		// Belt and braces check.
+		if latestRoot.GetRootHash() != nil {
+			return status.Errorf(codes.AlreadyExists, "map is already initialised")
+		}
 
-	latestRoot, err := tx.LatestSignedMapRoot(ctx)
-	if err != nil && err != storage.ErrTreeNeedsInit {
-		return nil, status.Errorf(codes.FailedPrecondition, "LatestSignedMapRoot(): %v", err)
-	}
-	// Belt and braces check.
-	if latestRoot.GetRootHash() != nil {
-		return nil, status.Errorf(codes.AlreadyExists, "map is already initialised")
-	}
+		rev0Root = nil
 
-	glog.V(2).Infof("%v: Need to init map root revision 0", mapID)
+		glog.V(2).Infof("%v: Need to init map root revision 0", mapID)
+		rootHash := hasher.HashEmpty(mapID, make([]byte, hasher.Size()), hasher.BitLen())
+		rev0Root, err = t.makeSignedMapRoot(ctx, tree, time.Now(), rootHash, mapID, 0 /*revision*/, nil /* metadata */)
+		if err != nil {
+			return fmt.Errorf("makeSignedMapRoot(): %v", err)
+		}
 
-	rootHash := hasher.HashEmpty(mapID, make([]byte, hasher.Size()), hasher.BitLen())
-	rev0Root, err := t.makeSignedMapRoot(ctx, tree, time.Now(), rootHash, mapID, 0 /*revision*/, nil /* metadata */)
+		if err = tx.StoreSignedMapRoot(ctx, *rev0Root); err != nil {
+			return err
+		}
+
+		if err := tx.Commit(); err != nil {
+			glog.Warningf("%v: Commit failed for SetLeaves: %v", mapID, err)
+			return err
+		}
+		return nil
+	})
 	if err != nil {
-		return nil, fmt.Errorf("makeSignedMapRoot(): %v", err)
-	}
-
-	if err = tx.StoreSignedMapRoot(ctx, *rev0Root); err != nil {
-		return nil, err
-	}
-
-	if err := tx.Commit(); err != nil {
-		glog.Warningf("%v: Commit failed for SetLeaves: %v", mapID, err)
 		return nil, err
 	}
 

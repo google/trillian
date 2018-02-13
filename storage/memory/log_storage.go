@@ -176,6 +176,15 @@ func (m *memoryLogStorage) BeginForTree(ctx context.Context, treeID int64) (stor
 	return m.beginInternal(ctx, treeID, false /* readonly */)
 }
 
+func (m *memoryLogStorage) ReadWriteTransaction(ctx context.Context, treeID int64, f storage.LogTXFunc) error {
+	tx, err := m.BeginForTree(ctx, treeID)
+	if err != nil && err != storage.ErrTreeNeedsInit {
+		return err
+	}
+	defer tx.Close()
+	return f(ctx, tx)
+}
+
 func (m *memoryLogStorage) SnapshotForTree(ctx context.Context, treeID int64) (storage.ReadOnlyLogTreeTX, error) {
 	tx, err := m.beginInternal(ctx, treeID, true /* readonly */)
 	if err != nil {

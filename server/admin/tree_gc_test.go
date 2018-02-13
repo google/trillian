@@ -54,11 +54,11 @@ func TestDeletedTreeGC_Run(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	// Sequence Snapshot()/Begin() calls.
-	// * 1st loop: Snapshot()/ListTrees() followed by Begin()/HardDeleteTree()
+	// Sequence Snapshot()/ReadWriteTransaction() calls.
+	// * 1st loop: Snapshot()/ListTrees() followed by ReadWriteTransaction()/HardDeleteTree()
 	// * 2nd loop: Snapshot()/ListTrees() only.
 	lastTXCall := as.EXPECT().Snapshot(ctx).Return(listTX1, nil)
-	lastTXCall = as.EXPECT().Begin(ctx).Return(deleteTX1, nil).After(lastTXCall)
+	lastTXCall = as.EXPECT().ReadWriteTransaction(gomock.Any(), gomock.Any()).After(lastTXCall).DoAndReturn(testonly.RunOnAdminTX(deleteTX1))
 	as.EXPECT().Snapshot(ctx).Return(listTX2, nil).After(lastTXCall)
 
 	// 1st loop
@@ -169,7 +169,7 @@ func TestDeletedTreeGC_RunOnce(t *testing.T) {
 
 		for _, id := range test.wantDeleted {
 			deleteTX := storage.NewMockAdminTX(ctrl)
-			lastTXCall = as.EXPECT().Begin(ctx).After(lastTXCall).Return(deleteTX, nil)
+			as.EXPECT().ReadWriteTransaction(gomock.Any(), gomock.Any()).After(lastTXCall).DoAndReturn(testonly.RunOnAdminTX(deleteTX))
 			deleteTX.EXPECT().HardDeleteTree(ctx, id).Return(nil)
 			deleteTX.EXPECT().Close().Return(nil)
 			deleteTX.EXPECT().Commit().Return(nil)
@@ -330,7 +330,12 @@ func TestDeletedTreeGC_RunOnceErrors(t *testing.T) {
 
 		for _, hardDeleteTree := range test.hardDeleteTree {
 			deleteTX := storage.NewMockAdminTX(ctrl)
-			lastTXCall = as.EXPECT().Begin(gomock.Any()).Return(deleteTX, hardDeleteTree.beginErr).After(lastTXCall)
+			if hardDeleteTree.beginErr != nil {
+				lastTXCall = as.EXPECT().ReadWriteTransaction(gomock.Any(), gomock.Any()).After(lastTXCall).Return(hardDeleteTree.beginErr)
+			} else {
+				lastTXCall = as.EXPECT().ReadWriteTransaction(gomock.Any(), gomock.Any()).After(lastTXCall).DoAndReturn(testonly.RunOnAdminTX(deleteTX))
+			}
+
 			if hardDeleteTree.treeID != 0 {
 				deleteTX.EXPECT().HardDeleteTree(gomock.Any(), hardDeleteTree.treeID).AnyTimes().Return(hardDeleteTree.deleteErr)
 			}
