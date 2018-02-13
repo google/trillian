@@ -26,11 +26,12 @@ import "google/protobuf/timestamp.proto";
 import "google/rpc/status.proto";
 import "trillian.proto";
 
-// Provides access to a Verifiable Log as defined in the [Verifiable Data
-// Structures](docs/VerifiableDataStructures.pdf) paper. Provides direct access
-// to a subset of storage APIs (for handling reads) and provides Log level ones
-// such as obtaining proofs. Clients cannot directly modify the log data via
-// this API.
+// Provides access to a Verifiable Log data structure as defined in the
+// [Verifiable Data Structures](docs/VerifiableDataStructures.pdf) paper.
+//
+// The API supports adding new entries to be integrated into the log's tree. It
+// does not provide arbitrary tree modifications. Additionally, it has read
+// operations such as obtaining tree leaves, inclusion/consistency proofs etc.
 service TrillianLog {
     // Adds a single leaf to the queue.
     rpc QueueLeaf (QueueLeafRequest) returns (QueueLeafResponse) {
