@@ -11,33 +11,33 @@ It is generated from these files:
 	trillian.proto
 
 It has these top-level messages:
-	LogLeaf
-	Proof
-	QueuedLogLeaf
-	QueueLeavesRequest
 	QueueLeafRequest
 	QueueLeafResponse
-	QueueLeavesResponse
 	GetInclusionProofRequest
 	GetInclusionProofResponse
 	GetInclusionProofByHashRequest
 	GetInclusionProofByHashResponse
 	GetConsistencyProofRequest
 	GetConsistencyProofResponse
-	GetLeavesByHashRequest
-	GetLeavesByHashResponse
-	GetLeavesByIndexRequest
-	GetLeavesByIndexResponse
-	GetLeavesByRangeRequest
-	GetLeavesByRangeResponse
-	GetSequencedLeafCountRequest
-	GetSequencedLeafCountResponse
 	GetLatestSignedLogRootRequest
 	GetLatestSignedLogRootResponse
+	GetSequencedLeafCountRequest
+	GetSequencedLeafCountResponse
 	GetEntryAndProofRequest
 	GetEntryAndProofResponse
 	InitLogRequest
 	InitLogResponse
+	QueueLeavesRequest
+	QueueLeavesResponse
+	GetLeavesByIndexRequest
+	GetLeavesByIndexResponse
+	GetLeavesByRangeRequest
+	GetLeavesByRangeResponse
+	GetLeavesByHashRequest
+	GetLeavesByHashResponse
+	QueuedLogLeaf
+	LogLeaf
+	Proof
 	MapLeaf
 	MapLeafInclusion
 	GetMapLeavesRequest
@@ -67,9 +67,9 @@ package trillian
 import proto "github.com/golang/protobuf/proto"
 import fmt "fmt"
 import math "math"
-import google_rpc "google.golang.org/genproto/googleapis/rpc/status"
 import _ "google.golang.org/genproto/googleapis/api/annotations"
-import google_protobuf2 "github.com/golang/protobuf/ptypes/timestamp"
+import google_protobuf1 "github.com/golang/protobuf/ptypes/timestamp"
+import google_rpc "google.golang.org/genproto/googleapis/rpc/status"
 
 import (
 	context "golang.org/x/net/context"
@@ -87,175 +87,6 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
-type LogLeaf struct {
-	// merkle_leaf_hash is over leaf data and optional extra_data.
-	MerkleLeafHash []byte `protobuf:"bytes,1,opt,name=merkle_leaf_hash,json=merkleLeafHash,proto3" json:"merkle_leaf_hash,omitempty"`
-	// leaf_value contains arbitrary data.
-	LeafValue []byte `protobuf:"bytes,2,opt,name=leaf_value,json=leafValue,proto3" json:"leaf_value,omitempty"`
-	// extra_data is optional metadata. e.g. a timestamp.
-	ExtraData []byte `protobuf:"bytes,3,opt,name=extra_data,json=extraData,proto3" json:"extra_data,omitempty"`
-	// leaf_index is optional. Trillian will assign the next available index when unset.
-	// TODO: remove this into separate AddSequencedLeaves API.
-	LeafIndex int64 `protobuf:"varint,4,opt,name=leaf_index,json=leafIndex" json:"leaf_index,omitempty"`
-	// leaf_identity_hash is a hash over the identity of this leaf.
-	// It's intended to provide a mechanism for the personality to provide a
-	// hint to Trillian that two leaves should be considered "duplicates" even
-	// though their leaf_values differ.
-	//
-	// E.g. in a CT personality multiple add-chain calls for an identical
-	// certificate would produce differing leaf_data bytes (due to the presence
-	// of SCT elements), with just this information Trillian would be unable to
-	// determine that, within the context of the personality, these entries are
-	// dupes, so the CT personality sets leaf_identity_hash to H(cert),
-	// which allows Trillian to detect the duplicates.
-	//
-	// Continuing the CT example, for a CT mirror personality (which must allow
-	// dupes since the source log could contain them), the part of the
-	// personality which fetches and submits the entries might set
-	// leaf_identity_hash to H(seq||certdata).
-	//
-	// If leaf_identity_hash is empty, it's assumed to be the same as the
-	// merkle_leaf_hash.
-	LeafIdentityHash []byte `protobuf:"bytes,5,opt,name=leaf_identity_hash,json=leafIdentityHash,proto3" json:"leaf_identity_hash,omitempty"`
-	// queue_timestamp records the time at which this leaf was first passed to QueueLeaves.
-	// This value will be determined and set by the LogServer.
-	QueueTimestamp *google_protobuf2.Timestamp `protobuf:"bytes,6,opt,name=queue_timestamp,json=queueTimestamp" json:"queue_timestamp,omitempty"`
-	// integrate_timestamp records the time at which this leaf was integrated into the tree.
-	// This value will be determined and set by the LogSigner.
-	IntegrateTimestamp *google_protobuf2.Timestamp `protobuf:"bytes,7,opt,name=integrate_timestamp,json=integrateTimestamp" json:"integrate_timestamp,omitempty"`
-}
-
-func (m *LogLeaf) Reset()                    { *m = LogLeaf{} }
-func (m *LogLeaf) String() string            { return proto.CompactTextString(m) }
-func (*LogLeaf) ProtoMessage()               {}
-func (*LogLeaf) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{0} }
-
-func (m *LogLeaf) GetMerkleLeafHash() []byte {
-	if m != nil {
-		return m.MerkleLeafHash
-	}
-	return nil
-}
-
-func (m *LogLeaf) GetLeafValue() []byte {
-	if m != nil {
-		return m.LeafValue
-	}
-	return nil
-}
-
-func (m *LogLeaf) GetExtraData() []byte {
-	if m != nil {
-		return m.ExtraData
-	}
-	return nil
-}
-
-func (m *LogLeaf) GetLeafIndex() int64 {
-	if m != nil {
-		return m.LeafIndex
-	}
-	return 0
-}
-
-func (m *LogLeaf) GetLeafIdentityHash() []byte {
-	if m != nil {
-		return m.LeafIdentityHash
-	}
-	return nil
-}
-
-func (m *LogLeaf) GetQueueTimestamp() *google_protobuf2.Timestamp {
-	if m != nil {
-		return m.QueueTimestamp
-	}
-	return nil
-}
-
-func (m *LogLeaf) GetIntegrateTimestamp() *google_protobuf2.Timestamp {
-	if m != nil {
-		return m.IntegrateTimestamp
-	}
-	return nil
-}
-
-type Proof struct {
-	LeafIndex int64    `protobuf:"varint,1,opt,name=leaf_index,json=leafIndex" json:"leaf_index,omitempty"`
-	Hashes    [][]byte `protobuf:"bytes,3,rep,name=hashes,proto3" json:"hashes,omitempty"`
-}
-
-func (m *Proof) Reset()                    { *m = Proof{} }
-func (m *Proof) String() string            { return proto.CompactTextString(m) }
-func (*Proof) ProtoMessage()               {}
-func (*Proof) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{1} }
-
-func (m *Proof) GetLeafIndex() int64 {
-	if m != nil {
-		return m.LeafIndex
-	}
-	return 0
-}
-
-func (m *Proof) GetHashes() [][]byte {
-	if m != nil {
-		return m.Hashes
-	}
-	return nil
-}
-
-// QueuedLogLeaf represents a log leaf that has been queued for inclusion; it may
-// be pending or already exist in the log (if the log does not allow duplicates).
-type QueuedLogLeaf struct {
-	// The leaf is present if status.code is:
-	//  - google.rpc.OK : the leaf is the same as in the QueueLea{f,ves}Request
-	//  - google.rpc.ALREADY_EXISTS : the leaf is the one already present in the log.
-	Leaf   *LogLeaf           `protobuf:"bytes,1,opt,name=leaf" json:"leaf,omitempty"`
-	Status *google_rpc.Status `protobuf:"bytes,2,opt,name=status" json:"status,omitempty"`
-}
-
-func (m *QueuedLogLeaf) Reset()                    { *m = QueuedLogLeaf{} }
-func (m *QueuedLogLeaf) String() string            { return proto.CompactTextString(m) }
-func (*QueuedLogLeaf) ProtoMessage()               {}
-func (*QueuedLogLeaf) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{2} }
-
-func (m *QueuedLogLeaf) GetLeaf() *LogLeaf {
-	if m != nil {
-		return m.Leaf
-	}
-	return nil
-}
-
-func (m *QueuedLogLeaf) GetStatus() *google_rpc.Status {
-	if m != nil {
-		return m.Status
-	}
-	return nil
-}
-
-type QueueLeavesRequest struct {
-	LogId  int64      `protobuf:"varint,1,opt,name=log_id,json=logId" json:"log_id,omitempty"`
-	Leaves []*LogLeaf `protobuf:"bytes,2,rep,name=leaves" json:"leaves,omitempty"`
-}
-
-func (m *QueueLeavesRequest) Reset()                    { *m = QueueLeavesRequest{} }
-func (m *QueueLeavesRequest) String() string            { return proto.CompactTextString(m) }
-func (*QueueLeavesRequest) ProtoMessage()               {}
-func (*QueueLeavesRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{3} }
-
-func (m *QueueLeavesRequest) GetLogId() int64 {
-	if m != nil {
-		return m.LogId
-	}
-	return 0
-}
-
-func (m *QueueLeavesRequest) GetLeaves() []*LogLeaf {
-	if m != nil {
-		return m.Leaves
-	}
-	return nil
-}
-
 type QueueLeafRequest struct {
 	LogId int64    `protobuf:"varint,1,opt,name=log_id,json=logId" json:"log_id,omitempty"`
 	Leaf  *LogLeaf `protobuf:"bytes,2,opt,name=leaf" json:"leaf,omitempty"`
@@ -264,7 +95,7 @@ type QueueLeafRequest struct {
 func (m *QueueLeafRequest) Reset()                    { *m = QueueLeafRequest{} }
 func (m *QueueLeafRequest) String() string            { return proto.CompactTextString(m) }
 func (*QueueLeafRequest) ProtoMessage()               {}
-func (*QueueLeafRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{4} }
+func (*QueueLeafRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{0} }
 
 func (m *QueueLeafRequest) GetLogId() int64 {
 	if m != nil {
@@ -287,28 +118,11 @@ type QueueLeafResponse struct {
 func (m *QueueLeafResponse) Reset()                    { *m = QueueLeafResponse{} }
 func (m *QueueLeafResponse) String() string            { return proto.CompactTextString(m) }
 func (*QueueLeafResponse) ProtoMessage()               {}
-func (*QueueLeafResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{5} }
+func (*QueueLeafResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{1} }
 
 func (m *QueueLeafResponse) GetQueuedLeaf() *QueuedLogLeaf {
 	if m != nil {
 		return m.QueuedLeaf
-	}
-	return nil
-}
-
-type QueueLeavesResponse struct {
-	// Same number and order as in the corresponding request.
-	QueuedLeaves []*QueuedLogLeaf `protobuf:"bytes,2,rep,name=queued_leaves,json=queuedLeaves" json:"queued_leaves,omitempty"`
-}
-
-func (m *QueueLeavesResponse) Reset()                    { *m = QueueLeavesResponse{} }
-func (m *QueueLeavesResponse) String() string            { return proto.CompactTextString(m) }
-func (*QueueLeavesResponse) ProtoMessage()               {}
-func (*QueueLeavesResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{6} }
-
-func (m *QueueLeavesResponse) GetQueuedLeaves() []*QueuedLogLeaf {
-	if m != nil {
-		return m.QueuedLeaves
 	}
 	return nil
 }
@@ -322,7 +136,7 @@ type GetInclusionProofRequest struct {
 func (m *GetInclusionProofRequest) Reset()                    { *m = GetInclusionProofRequest{} }
 func (m *GetInclusionProofRequest) String() string            { return proto.CompactTextString(m) }
 func (*GetInclusionProofRequest) ProtoMessage()               {}
-func (*GetInclusionProofRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{7} }
+func (*GetInclusionProofRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{2} }
 
 func (m *GetInclusionProofRequest) GetLogId() int64 {
 	if m != nil {
@@ -352,7 +166,7 @@ type GetInclusionProofResponse struct {
 func (m *GetInclusionProofResponse) Reset()                    { *m = GetInclusionProofResponse{} }
 func (m *GetInclusionProofResponse) String() string            { return proto.CompactTextString(m) }
 func (*GetInclusionProofResponse) ProtoMessage()               {}
-func (*GetInclusionProofResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{8} }
+func (*GetInclusionProofResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{3} }
 
 func (m *GetInclusionProofResponse) GetProof() *Proof {
 	if m != nil {
@@ -371,7 +185,7 @@ type GetInclusionProofByHashRequest struct {
 func (m *GetInclusionProofByHashRequest) Reset()                    { *m = GetInclusionProofByHashRequest{} }
 func (m *GetInclusionProofByHashRequest) String() string            { return proto.CompactTextString(m) }
 func (*GetInclusionProofByHashRequest) ProtoMessage()               {}
-func (*GetInclusionProofByHashRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{9} }
+func (*GetInclusionProofByHashRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{4} }
 
 func (m *GetInclusionProofByHashRequest) GetLogId() int64 {
 	if m != nil {
@@ -408,12 +222,10 @@ type GetInclusionProofByHashResponse struct {
 	Proof []*Proof `protobuf:"bytes,2,rep,name=proof" json:"proof,omitempty"`
 }
 
-func (m *GetInclusionProofByHashResponse) Reset()         { *m = GetInclusionProofByHashResponse{} }
-func (m *GetInclusionProofByHashResponse) String() string { return proto.CompactTextString(m) }
-func (*GetInclusionProofByHashResponse) ProtoMessage()    {}
-func (*GetInclusionProofByHashResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor0, []int{10}
-}
+func (m *GetInclusionProofByHashResponse) Reset()                    { *m = GetInclusionProofByHashResponse{} }
+func (m *GetInclusionProofByHashResponse) String() string            { return proto.CompactTextString(m) }
+func (*GetInclusionProofByHashResponse) ProtoMessage()               {}
+func (*GetInclusionProofByHashResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{5} }
 
 func (m *GetInclusionProofByHashResponse) GetProof() []*Proof {
 	if m != nil {
@@ -431,7 +243,7 @@ type GetConsistencyProofRequest struct {
 func (m *GetConsistencyProofRequest) Reset()                    { *m = GetConsistencyProofRequest{} }
 func (m *GetConsistencyProofRequest) String() string            { return proto.CompactTextString(m) }
 func (*GetConsistencyProofRequest) ProtoMessage()               {}
-func (*GetConsistencyProofRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{11} }
+func (*GetConsistencyProofRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{6} }
 
 func (m *GetConsistencyProofRequest) GetLogId() int64 {
 	if m != nil {
@@ -461,187 +273,13 @@ type GetConsistencyProofResponse struct {
 func (m *GetConsistencyProofResponse) Reset()                    { *m = GetConsistencyProofResponse{} }
 func (m *GetConsistencyProofResponse) String() string            { return proto.CompactTextString(m) }
 func (*GetConsistencyProofResponse) ProtoMessage()               {}
-func (*GetConsistencyProofResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{12} }
+func (*GetConsistencyProofResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{7} }
 
 func (m *GetConsistencyProofResponse) GetProof() *Proof {
 	if m != nil {
 		return m.Proof
 	}
 	return nil
-}
-
-type GetLeavesByHashRequest struct {
-	LogId           int64    `protobuf:"varint,1,opt,name=log_id,json=logId" json:"log_id,omitempty"`
-	LeafHash        [][]byte `protobuf:"bytes,2,rep,name=leaf_hash,json=leafHash,proto3" json:"leaf_hash,omitempty"`
-	OrderBySequence bool     `protobuf:"varint,3,opt,name=order_by_sequence,json=orderBySequence" json:"order_by_sequence,omitempty"`
-}
-
-func (m *GetLeavesByHashRequest) Reset()                    { *m = GetLeavesByHashRequest{} }
-func (m *GetLeavesByHashRequest) String() string            { return proto.CompactTextString(m) }
-func (*GetLeavesByHashRequest) ProtoMessage()               {}
-func (*GetLeavesByHashRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{13} }
-
-func (m *GetLeavesByHashRequest) GetLogId() int64 {
-	if m != nil {
-		return m.LogId
-	}
-	return 0
-}
-
-func (m *GetLeavesByHashRequest) GetLeafHash() [][]byte {
-	if m != nil {
-		return m.LeafHash
-	}
-	return nil
-}
-
-func (m *GetLeavesByHashRequest) GetOrderBySequence() bool {
-	if m != nil {
-		return m.OrderBySequence
-	}
-	return false
-}
-
-type GetLeavesByHashResponse struct {
-	// TODO(gbelvin) reply with error codes.
-	Leaves []*LogLeaf `protobuf:"bytes,2,rep,name=leaves" json:"leaves,omitempty"`
-}
-
-func (m *GetLeavesByHashResponse) Reset()                    { *m = GetLeavesByHashResponse{} }
-func (m *GetLeavesByHashResponse) String() string            { return proto.CompactTextString(m) }
-func (*GetLeavesByHashResponse) ProtoMessage()               {}
-func (*GetLeavesByHashResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{14} }
-
-func (m *GetLeavesByHashResponse) GetLeaves() []*LogLeaf {
-	if m != nil {
-		return m.Leaves
-	}
-	return nil
-}
-
-type GetLeavesByIndexRequest struct {
-	LogId     int64   `protobuf:"varint,1,opt,name=log_id,json=logId" json:"log_id,omitempty"`
-	LeafIndex []int64 `protobuf:"varint,2,rep,packed,name=leaf_index,json=leafIndex" json:"leaf_index,omitempty"`
-}
-
-func (m *GetLeavesByIndexRequest) Reset()                    { *m = GetLeavesByIndexRequest{} }
-func (m *GetLeavesByIndexRequest) String() string            { return proto.CompactTextString(m) }
-func (*GetLeavesByIndexRequest) ProtoMessage()               {}
-func (*GetLeavesByIndexRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{15} }
-
-func (m *GetLeavesByIndexRequest) GetLogId() int64 {
-	if m != nil {
-		return m.LogId
-	}
-	return 0
-}
-
-func (m *GetLeavesByIndexRequest) GetLeafIndex() []int64 {
-	if m != nil {
-		return m.LeafIndex
-	}
-	return nil
-}
-
-type GetLeavesByIndexResponse struct {
-	// TODO(gbelvin) reply with error codes.
-	Leaves []*LogLeaf `protobuf:"bytes,2,rep,name=leaves" json:"leaves,omitempty"`
-}
-
-func (m *GetLeavesByIndexResponse) Reset()                    { *m = GetLeavesByIndexResponse{} }
-func (m *GetLeavesByIndexResponse) String() string            { return proto.CompactTextString(m) }
-func (*GetLeavesByIndexResponse) ProtoMessage()               {}
-func (*GetLeavesByIndexResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{16} }
-
-func (m *GetLeavesByIndexResponse) GetLeaves() []*LogLeaf {
-	if m != nil {
-		return m.Leaves
-	}
-	return nil
-}
-
-type GetLeavesByRangeRequest struct {
-	LogId      int64 `protobuf:"varint,1,opt,name=log_id,json=logId" json:"log_id,omitempty"`
-	StartIndex int64 `protobuf:"varint,2,opt,name=start_index,json=startIndex" json:"start_index,omitempty"`
-	Count      int64 `protobuf:"varint,3,opt,name=count" json:"count,omitempty"`
-}
-
-func (m *GetLeavesByRangeRequest) Reset()                    { *m = GetLeavesByRangeRequest{} }
-func (m *GetLeavesByRangeRequest) String() string            { return proto.CompactTextString(m) }
-func (*GetLeavesByRangeRequest) ProtoMessage()               {}
-func (*GetLeavesByRangeRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{17} }
-
-func (m *GetLeavesByRangeRequest) GetLogId() int64 {
-	if m != nil {
-		return m.LogId
-	}
-	return 0
-}
-
-func (m *GetLeavesByRangeRequest) GetStartIndex() int64 {
-	if m != nil {
-		return m.StartIndex
-	}
-	return 0
-}
-
-func (m *GetLeavesByRangeRequest) GetCount() int64 {
-	if m != nil {
-		return m.Count
-	}
-	return 0
-}
-
-type GetLeavesByRangeResponse struct {
-	// Returned log leaves starting from the start_index of the request, in order.
-	// There may be fewer than request.count leaves returned, if the requested
-	// range extended beyond the size of the tree or if the server opted to return
-	// fewer leaves than requested.
-	Leaves []*LogLeaf `protobuf:"bytes,1,rep,name=leaves" json:"leaves,omitempty"`
-}
-
-func (m *GetLeavesByRangeResponse) Reset()                    { *m = GetLeavesByRangeResponse{} }
-func (m *GetLeavesByRangeResponse) String() string            { return proto.CompactTextString(m) }
-func (*GetLeavesByRangeResponse) ProtoMessage()               {}
-func (*GetLeavesByRangeResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{18} }
-
-func (m *GetLeavesByRangeResponse) GetLeaves() []*LogLeaf {
-	if m != nil {
-		return m.Leaves
-	}
-	return nil
-}
-
-type GetSequencedLeafCountRequest struct {
-	LogId int64 `protobuf:"varint,1,opt,name=log_id,json=logId" json:"log_id,omitempty"`
-}
-
-func (m *GetSequencedLeafCountRequest) Reset()                    { *m = GetSequencedLeafCountRequest{} }
-func (m *GetSequencedLeafCountRequest) String() string            { return proto.CompactTextString(m) }
-func (*GetSequencedLeafCountRequest) ProtoMessage()               {}
-func (*GetSequencedLeafCountRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{19} }
-
-func (m *GetSequencedLeafCountRequest) GetLogId() int64 {
-	if m != nil {
-		return m.LogId
-	}
-	return 0
-}
-
-type GetSequencedLeafCountResponse struct {
-	LeafCount int64 `protobuf:"varint,2,opt,name=leaf_count,json=leafCount" json:"leaf_count,omitempty"`
-}
-
-func (m *GetSequencedLeafCountResponse) Reset()                    { *m = GetSequencedLeafCountResponse{} }
-func (m *GetSequencedLeafCountResponse) String() string            { return proto.CompactTextString(m) }
-func (*GetSequencedLeafCountResponse) ProtoMessage()               {}
-func (*GetSequencedLeafCountResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{20} }
-
-func (m *GetSequencedLeafCountResponse) GetLeafCount() int64 {
-	if m != nil {
-		return m.LeafCount
-	}
-	return 0
 }
 
 type GetLatestSignedLogRootRequest struct {
@@ -651,7 +289,7 @@ type GetLatestSignedLogRootRequest struct {
 func (m *GetLatestSignedLogRootRequest) Reset()                    { *m = GetLatestSignedLogRootRequest{} }
 func (m *GetLatestSignedLogRootRequest) String() string            { return proto.CompactTextString(m) }
 func (*GetLatestSignedLogRootRequest) ProtoMessage()               {}
-func (*GetLatestSignedLogRootRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{21} }
+func (*GetLatestSignedLogRootRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{8} }
 
 func (m *GetLatestSignedLogRootRequest) GetLogId() int64 {
 	if m != nil {
@@ -667,13 +305,45 @@ type GetLatestSignedLogRootResponse struct {
 func (m *GetLatestSignedLogRootResponse) Reset()                    { *m = GetLatestSignedLogRootResponse{} }
 func (m *GetLatestSignedLogRootResponse) String() string            { return proto.CompactTextString(m) }
 func (*GetLatestSignedLogRootResponse) ProtoMessage()               {}
-func (*GetLatestSignedLogRootResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{22} }
+func (*GetLatestSignedLogRootResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{9} }
 
 func (m *GetLatestSignedLogRootResponse) GetSignedLogRoot() *SignedLogRoot {
 	if m != nil {
 		return m.SignedLogRoot
 	}
 	return nil
+}
+
+type GetSequencedLeafCountRequest struct {
+	LogId int64 `protobuf:"varint,1,opt,name=log_id,json=logId" json:"log_id,omitempty"`
+}
+
+func (m *GetSequencedLeafCountRequest) Reset()                    { *m = GetSequencedLeafCountRequest{} }
+func (m *GetSequencedLeafCountRequest) String() string            { return proto.CompactTextString(m) }
+func (*GetSequencedLeafCountRequest) ProtoMessage()               {}
+func (*GetSequencedLeafCountRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{10} }
+
+func (m *GetSequencedLeafCountRequest) GetLogId() int64 {
+	if m != nil {
+		return m.LogId
+	}
+	return 0
+}
+
+type GetSequencedLeafCountResponse struct {
+	LeafCount int64 `protobuf:"varint,2,opt,name=leaf_count,json=leafCount" json:"leaf_count,omitempty"`
+}
+
+func (m *GetSequencedLeafCountResponse) Reset()                    { *m = GetSequencedLeafCountResponse{} }
+func (m *GetSequencedLeafCountResponse) String() string            { return proto.CompactTextString(m) }
+func (*GetSequencedLeafCountResponse) ProtoMessage()               {}
+func (*GetSequencedLeafCountResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{11} }
+
+func (m *GetSequencedLeafCountResponse) GetLeafCount() int64 {
+	if m != nil {
+		return m.LeafCount
+	}
+	return 0
 }
 
 type GetEntryAndProofRequest struct {
@@ -685,7 +355,7 @@ type GetEntryAndProofRequest struct {
 func (m *GetEntryAndProofRequest) Reset()                    { *m = GetEntryAndProofRequest{} }
 func (m *GetEntryAndProofRequest) String() string            { return proto.CompactTextString(m) }
 func (*GetEntryAndProofRequest) ProtoMessage()               {}
-func (*GetEntryAndProofRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{23} }
+func (*GetEntryAndProofRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{12} }
 
 func (m *GetEntryAndProofRequest) GetLogId() int64 {
 	if m != nil {
@@ -716,7 +386,7 @@ type GetEntryAndProofResponse struct {
 func (m *GetEntryAndProofResponse) Reset()                    { *m = GetEntryAndProofResponse{} }
 func (m *GetEntryAndProofResponse) String() string            { return proto.CompactTextString(m) }
 func (*GetEntryAndProofResponse) ProtoMessage()               {}
-func (*GetEntryAndProofResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{24} }
+func (*GetEntryAndProofResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{13} }
 
 func (m *GetEntryAndProofResponse) GetProof() *Proof {
 	if m != nil {
@@ -739,7 +409,7 @@ type InitLogRequest struct {
 func (m *InitLogRequest) Reset()                    { *m = InitLogRequest{} }
 func (m *InitLogRequest) String() string            { return proto.CompactTextString(m) }
 func (*InitLogRequest) ProtoMessage()               {}
-func (*InitLogRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{25} }
+func (*InitLogRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{14} }
 
 func (m *InitLogRequest) GetLogId() int64 {
 	if m != nil {
@@ -755,7 +425,7 @@ type InitLogResponse struct {
 func (m *InitLogResponse) Reset()                    { *m = InitLogResponse{} }
 func (m *InitLogResponse) String() string            { return proto.CompactTextString(m) }
 func (*InitLogResponse) ProtoMessage()               {}
-func (*InitLogResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{26} }
+func (*InitLogResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{15} }
 
 func (m *InitLogResponse) GetCreated() *SignedLogRoot {
 	if m != nil {
@@ -764,34 +434,379 @@ func (m *InitLogResponse) GetCreated() *SignedLogRoot {
 	return nil
 }
 
+type QueueLeavesRequest struct {
+	LogId  int64      `protobuf:"varint,1,opt,name=log_id,json=logId" json:"log_id,omitempty"`
+	Leaves []*LogLeaf `protobuf:"bytes,2,rep,name=leaves" json:"leaves,omitempty"`
+}
+
+func (m *QueueLeavesRequest) Reset()                    { *m = QueueLeavesRequest{} }
+func (m *QueueLeavesRequest) String() string            { return proto.CompactTextString(m) }
+func (*QueueLeavesRequest) ProtoMessage()               {}
+func (*QueueLeavesRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{16} }
+
+func (m *QueueLeavesRequest) GetLogId() int64 {
+	if m != nil {
+		return m.LogId
+	}
+	return 0
+}
+
+func (m *QueueLeavesRequest) GetLeaves() []*LogLeaf {
+	if m != nil {
+		return m.Leaves
+	}
+	return nil
+}
+
+type QueueLeavesResponse struct {
+	// Same number and order as in the corresponding request.
+	QueuedLeaves []*QueuedLogLeaf `protobuf:"bytes,2,rep,name=queued_leaves,json=queuedLeaves" json:"queued_leaves,omitempty"`
+}
+
+func (m *QueueLeavesResponse) Reset()                    { *m = QueueLeavesResponse{} }
+func (m *QueueLeavesResponse) String() string            { return proto.CompactTextString(m) }
+func (*QueueLeavesResponse) ProtoMessage()               {}
+func (*QueueLeavesResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{17} }
+
+func (m *QueueLeavesResponse) GetQueuedLeaves() []*QueuedLogLeaf {
+	if m != nil {
+		return m.QueuedLeaves
+	}
+	return nil
+}
+
+type GetLeavesByIndexRequest struct {
+	LogId     int64   `protobuf:"varint,1,opt,name=log_id,json=logId" json:"log_id,omitempty"`
+	LeafIndex []int64 `protobuf:"varint,2,rep,packed,name=leaf_index,json=leafIndex" json:"leaf_index,omitempty"`
+}
+
+func (m *GetLeavesByIndexRequest) Reset()                    { *m = GetLeavesByIndexRequest{} }
+func (m *GetLeavesByIndexRequest) String() string            { return proto.CompactTextString(m) }
+func (*GetLeavesByIndexRequest) ProtoMessage()               {}
+func (*GetLeavesByIndexRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{18} }
+
+func (m *GetLeavesByIndexRequest) GetLogId() int64 {
+	if m != nil {
+		return m.LogId
+	}
+	return 0
+}
+
+func (m *GetLeavesByIndexRequest) GetLeafIndex() []int64 {
+	if m != nil {
+		return m.LeafIndex
+	}
+	return nil
+}
+
+type GetLeavesByIndexResponse struct {
+	// TODO(gbelvin) reply with error codes. Reuse QueuedLogLeaf?
+	Leaves []*LogLeaf `protobuf:"bytes,2,rep,name=leaves" json:"leaves,omitempty"`
+}
+
+func (m *GetLeavesByIndexResponse) Reset()                    { *m = GetLeavesByIndexResponse{} }
+func (m *GetLeavesByIndexResponse) String() string            { return proto.CompactTextString(m) }
+func (*GetLeavesByIndexResponse) ProtoMessage()               {}
+func (*GetLeavesByIndexResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{19} }
+
+func (m *GetLeavesByIndexResponse) GetLeaves() []*LogLeaf {
+	if m != nil {
+		return m.Leaves
+	}
+	return nil
+}
+
+type GetLeavesByRangeRequest struct {
+	LogId      int64 `protobuf:"varint,1,opt,name=log_id,json=logId" json:"log_id,omitempty"`
+	StartIndex int64 `protobuf:"varint,2,opt,name=start_index,json=startIndex" json:"start_index,omitempty"`
+	Count      int64 `protobuf:"varint,3,opt,name=count" json:"count,omitempty"`
+}
+
+func (m *GetLeavesByRangeRequest) Reset()                    { *m = GetLeavesByRangeRequest{} }
+func (m *GetLeavesByRangeRequest) String() string            { return proto.CompactTextString(m) }
+func (*GetLeavesByRangeRequest) ProtoMessage()               {}
+func (*GetLeavesByRangeRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{20} }
+
+func (m *GetLeavesByRangeRequest) GetLogId() int64 {
+	if m != nil {
+		return m.LogId
+	}
+	return 0
+}
+
+func (m *GetLeavesByRangeRequest) GetStartIndex() int64 {
+	if m != nil {
+		return m.StartIndex
+	}
+	return 0
+}
+
+func (m *GetLeavesByRangeRequest) GetCount() int64 {
+	if m != nil {
+		return m.Count
+	}
+	return 0
+}
+
+type GetLeavesByRangeResponse struct {
+	// Returned log leaves starting from the `start_index` of the request, in
+	// order. There may be fewer than `request.count` leaves returned, if the
+	// requested range extended beyond the size of the tree or if the server opted
+	// to return fewer leaves than requested.
+	Leaves []*LogLeaf `protobuf:"bytes,1,rep,name=leaves" json:"leaves,omitempty"`
+}
+
+func (m *GetLeavesByRangeResponse) Reset()                    { *m = GetLeavesByRangeResponse{} }
+func (m *GetLeavesByRangeResponse) String() string            { return proto.CompactTextString(m) }
+func (*GetLeavesByRangeResponse) ProtoMessage()               {}
+func (*GetLeavesByRangeResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{21} }
+
+func (m *GetLeavesByRangeResponse) GetLeaves() []*LogLeaf {
+	if m != nil {
+		return m.Leaves
+	}
+	return nil
+}
+
+type GetLeavesByHashRequest struct {
+	LogId           int64    `protobuf:"varint,1,opt,name=log_id,json=logId" json:"log_id,omitempty"`
+	LeafHash        [][]byte `protobuf:"bytes,2,rep,name=leaf_hash,json=leafHash,proto3" json:"leaf_hash,omitempty"`
+	OrderBySequence bool     `protobuf:"varint,3,opt,name=order_by_sequence,json=orderBySequence" json:"order_by_sequence,omitempty"`
+}
+
+func (m *GetLeavesByHashRequest) Reset()                    { *m = GetLeavesByHashRequest{} }
+func (m *GetLeavesByHashRequest) String() string            { return proto.CompactTextString(m) }
+func (*GetLeavesByHashRequest) ProtoMessage()               {}
+func (*GetLeavesByHashRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{22} }
+
+func (m *GetLeavesByHashRequest) GetLogId() int64 {
+	if m != nil {
+		return m.LogId
+	}
+	return 0
+}
+
+func (m *GetLeavesByHashRequest) GetLeafHash() [][]byte {
+	if m != nil {
+		return m.LeafHash
+	}
+	return nil
+}
+
+func (m *GetLeavesByHashRequest) GetOrderBySequence() bool {
+	if m != nil {
+		return m.OrderBySequence
+	}
+	return false
+}
+
+type GetLeavesByHashResponse struct {
+	// TODO(gbelvin) reply with error codes. Reuse QueuedLogLeaf?
+	Leaves []*LogLeaf `protobuf:"bytes,2,rep,name=leaves" json:"leaves,omitempty"`
+}
+
+func (m *GetLeavesByHashResponse) Reset()                    { *m = GetLeavesByHashResponse{} }
+func (m *GetLeavesByHashResponse) String() string            { return proto.CompactTextString(m) }
+func (*GetLeavesByHashResponse) ProtoMessage()               {}
+func (*GetLeavesByHashResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{23} }
+
+func (m *GetLeavesByHashResponse) GetLeaves() []*LogLeaf {
+	if m != nil {
+		return m.Leaves
+	}
+	return nil
+}
+
+// A result of submitting an entry to the log. Output only.
+//
+// TODO(pavelkalinnikov): Consider renaming it to AddLogLeafResult or the like.
+// It can be reused by AddSequencedLeaves API.
+type QueuedLogLeaf struct {
+	// The leaf as it was stored by Trillian. Empty unless `status.code` is:
+	//  - `google.rpc.OK`: the `leaf` data is the same as in the request.
+	//  - `google.rpc.ALREADY_EXISTS` or 'google.rpc.FAILED_PRECONDITION`: the
+	//    `leaf` is the conflicting one already in the log.
+	Leaf *LogLeaf `protobuf:"bytes,1,opt,name=leaf" json:"leaf,omitempty"`
+	// The status of adding the leaf.
+	//  - `google.rpc.OK`: successfully added.
+	//  - `google.rpc.ALREADY_EXISTS`: the leaf is a duplicate of an already
+	//    existing one. Either `leaf_identity_hash` is the same in the `LOG`
+	//    mode, or `leaf_index` in the `PREORDERED_LOG`.
+	//  - `google.rpc.FAILED_PRECONDITION`: A conflicting entry is already
+	//    present in the log, e.g., same `leaf_index` but different `leaf_data`.
+	Status *google_rpc.Status `protobuf:"bytes,2,opt,name=status" json:"status,omitempty"`
+}
+
+func (m *QueuedLogLeaf) Reset()                    { *m = QueuedLogLeaf{} }
+func (m *QueuedLogLeaf) String() string            { return proto.CompactTextString(m) }
+func (*QueuedLogLeaf) ProtoMessage()               {}
+func (*QueuedLogLeaf) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{24} }
+
+func (m *QueuedLogLeaf) GetLeaf() *LogLeaf {
+	if m != nil {
+		return m.Leaf
+	}
+	return nil
+}
+
+func (m *QueuedLogLeaf) GetStatus() *google_rpc.Status {
+	if m != nil {
+		return m.Status
+	}
+	return nil
+}
+
+// A leaf of the log's Merkle tree, corresponds to a single log entry. Each leaf
+// has a unique `leaf_index` in the scope of this tree.
+type LogLeaf struct {
+	// Output only. The hash over `leaf_data`.
+	MerkleLeafHash []byte `protobuf:"bytes,1,opt,name=merkle_leaf_hash,json=merkleLeafHash,proto3" json:"merkle_leaf_hash,omitempty"`
+	// Required. The arbitrary data associated with this log entry. Validity of
+	// this field is governed by the call site (personality).
+	LeafValue []byte `protobuf:"bytes,2,opt,name=leaf_value,json=leafValue,proto3" json:"leaf_value,omitempty"`
+	// The arbitrary metadata, e.g., a timestamp.
+	ExtraData []byte `protobuf:"bytes,3,opt,name=extra_data,json=extraData,proto3" json:"extra_data,omitempty"`
+	// Output only. The index of the leaf in the Merkle tree, i.e., the position
+	// of the corresponding entry in the log. This value will be set by the
+	// LogSigner in a way depending on the log type (normal or pre-ordered).
+	LeafIndex int64 `protobuf:"varint,4,opt,name=leaf_index,json=leafIndex" json:"leaf_index,omitempty"`
+	// The hash over the identity of this leaf. If empty, assumed to be the same
+	// as `merkle_leaf_hash`. It is a mechanism for the personality to provide a
+	// hint to Trillian that two leaves should be considered "duplicates" even
+	// though their `leaf_value`s differ.
+	//
+	// E.g., in a CT personality multiple `add-chain` calls for an identical
+	// certificate would produce differing `leaf_data` bytes (due to the
+	// presence of SCT elements), with just this information Trillian would be
+	// unable to determine that. Within the context of the CT personality, these
+	// entries are dupes, so it sets `leaf_identity_hash` to `H(cert)`, which
+	// allows Trillian to detect the duplicates.
+	//
+	// Continuing the CT example, for a CT mirror personality (which must allow
+	// dupes since the source log could contain them), the part of the
+	// personality which fetches and submits the entries might set
+	// `leaf_identity_hash` to `H(leaf_index||cert)`.
+	// TODO(pavelkalinnikov): Consider instead using `H(cert)` and allowing
+	// identity hash dupes in `PREORDERED_LOG` mode, for it can later be
+	// upgraded to `LOG` which will need to correctly detect duplicates with
+	// older entries when new ones get queued.
+	LeafIdentityHash []byte `protobuf:"bytes,5,opt,name=leaf_identity_hash,json=leafIdentityHash,proto3" json:"leaf_identity_hash,omitempty"`
+	// Output only. The time at which this leaf was passed to `QueueLeaves`.
+	// This value will be determined and set by the LogServer. Equals zero if
+	// the entry was submitted without queuing.
+	QueueTimestamp *google_protobuf1.Timestamp `protobuf:"bytes,6,opt,name=queue_timestamp,json=queueTimestamp" json:"queue_timestamp,omitempty"`
+	// Output only. The time at which this leaf was integrated into the tree.
+	// This value will be determined and set by the LogSigner.
+	IntegrateTimestamp *google_protobuf1.Timestamp `protobuf:"bytes,7,opt,name=integrate_timestamp,json=integrateTimestamp" json:"integrate_timestamp,omitempty"`
+}
+
+func (m *LogLeaf) Reset()                    { *m = LogLeaf{} }
+func (m *LogLeaf) String() string            { return proto.CompactTextString(m) }
+func (*LogLeaf) ProtoMessage()               {}
+func (*LogLeaf) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{25} }
+
+func (m *LogLeaf) GetMerkleLeafHash() []byte {
+	if m != nil {
+		return m.MerkleLeafHash
+	}
+	return nil
+}
+
+func (m *LogLeaf) GetLeafValue() []byte {
+	if m != nil {
+		return m.LeafValue
+	}
+	return nil
+}
+
+func (m *LogLeaf) GetExtraData() []byte {
+	if m != nil {
+		return m.ExtraData
+	}
+	return nil
+}
+
+func (m *LogLeaf) GetLeafIndex() int64 {
+	if m != nil {
+		return m.LeafIndex
+	}
+	return 0
+}
+
+func (m *LogLeaf) GetLeafIdentityHash() []byte {
+	if m != nil {
+		return m.LeafIdentityHash
+	}
+	return nil
+}
+
+func (m *LogLeaf) GetQueueTimestamp() *google_protobuf1.Timestamp {
+	if m != nil {
+		return m.QueueTimestamp
+	}
+	return nil
+}
+
+func (m *LogLeaf) GetIntegrateTimestamp() *google_protobuf1.Timestamp {
+	if m != nil {
+		return m.IntegrateTimestamp
+	}
+	return nil
+}
+
+// A consistency or inclusion proof for a Merkle tree. Output only.
+type Proof struct {
+	LeafIndex int64    `protobuf:"varint,1,opt,name=leaf_index,json=leafIndex" json:"leaf_index,omitempty"`
+	Hashes    [][]byte `protobuf:"bytes,3,rep,name=hashes,proto3" json:"hashes,omitempty"`
+}
+
+func (m *Proof) Reset()                    { *m = Proof{} }
+func (m *Proof) String() string            { return proto.CompactTextString(m) }
+func (*Proof) ProtoMessage()               {}
+func (*Proof) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{26} }
+
+func (m *Proof) GetLeafIndex() int64 {
+	if m != nil {
+		return m.LeafIndex
+	}
+	return 0
+}
+
+func (m *Proof) GetHashes() [][]byte {
+	if m != nil {
+		return m.Hashes
+	}
+	return nil
+}
+
 func init() {
-	proto.RegisterType((*LogLeaf)(nil), "trillian.LogLeaf")
-	proto.RegisterType((*Proof)(nil), "trillian.Proof")
-	proto.RegisterType((*QueuedLogLeaf)(nil), "trillian.QueuedLogLeaf")
-	proto.RegisterType((*QueueLeavesRequest)(nil), "trillian.QueueLeavesRequest")
 	proto.RegisterType((*QueueLeafRequest)(nil), "trillian.QueueLeafRequest")
 	proto.RegisterType((*QueueLeafResponse)(nil), "trillian.QueueLeafResponse")
-	proto.RegisterType((*QueueLeavesResponse)(nil), "trillian.QueueLeavesResponse")
 	proto.RegisterType((*GetInclusionProofRequest)(nil), "trillian.GetInclusionProofRequest")
 	proto.RegisterType((*GetInclusionProofResponse)(nil), "trillian.GetInclusionProofResponse")
 	proto.RegisterType((*GetInclusionProofByHashRequest)(nil), "trillian.GetInclusionProofByHashRequest")
 	proto.RegisterType((*GetInclusionProofByHashResponse)(nil), "trillian.GetInclusionProofByHashResponse")
 	proto.RegisterType((*GetConsistencyProofRequest)(nil), "trillian.GetConsistencyProofRequest")
 	proto.RegisterType((*GetConsistencyProofResponse)(nil), "trillian.GetConsistencyProofResponse")
-	proto.RegisterType((*GetLeavesByHashRequest)(nil), "trillian.GetLeavesByHashRequest")
-	proto.RegisterType((*GetLeavesByHashResponse)(nil), "trillian.GetLeavesByHashResponse")
-	proto.RegisterType((*GetLeavesByIndexRequest)(nil), "trillian.GetLeavesByIndexRequest")
-	proto.RegisterType((*GetLeavesByIndexResponse)(nil), "trillian.GetLeavesByIndexResponse")
-	proto.RegisterType((*GetLeavesByRangeRequest)(nil), "trillian.GetLeavesByRangeRequest")
-	proto.RegisterType((*GetLeavesByRangeResponse)(nil), "trillian.GetLeavesByRangeResponse")
-	proto.RegisterType((*GetSequencedLeafCountRequest)(nil), "trillian.GetSequencedLeafCountRequest")
-	proto.RegisterType((*GetSequencedLeafCountResponse)(nil), "trillian.GetSequencedLeafCountResponse")
 	proto.RegisterType((*GetLatestSignedLogRootRequest)(nil), "trillian.GetLatestSignedLogRootRequest")
 	proto.RegisterType((*GetLatestSignedLogRootResponse)(nil), "trillian.GetLatestSignedLogRootResponse")
+	proto.RegisterType((*GetSequencedLeafCountRequest)(nil), "trillian.GetSequencedLeafCountRequest")
+	proto.RegisterType((*GetSequencedLeafCountResponse)(nil), "trillian.GetSequencedLeafCountResponse")
 	proto.RegisterType((*GetEntryAndProofRequest)(nil), "trillian.GetEntryAndProofRequest")
 	proto.RegisterType((*GetEntryAndProofResponse)(nil), "trillian.GetEntryAndProofResponse")
 	proto.RegisterType((*InitLogRequest)(nil), "trillian.InitLogRequest")
 	proto.RegisterType((*InitLogResponse)(nil), "trillian.InitLogResponse")
+	proto.RegisterType((*QueueLeavesRequest)(nil), "trillian.QueueLeavesRequest")
+	proto.RegisterType((*QueueLeavesResponse)(nil), "trillian.QueueLeavesResponse")
+	proto.RegisterType((*GetLeavesByIndexRequest)(nil), "trillian.GetLeavesByIndexRequest")
+	proto.RegisterType((*GetLeavesByIndexResponse)(nil), "trillian.GetLeavesByIndexResponse")
+	proto.RegisterType((*GetLeavesByRangeRequest)(nil), "trillian.GetLeavesByRangeRequest")
+	proto.RegisterType((*GetLeavesByRangeResponse)(nil), "trillian.GetLeavesByRangeResponse")
+	proto.RegisterType((*GetLeavesByHashRequest)(nil), "trillian.GetLeavesByHashRequest")
+	proto.RegisterType((*GetLeavesByHashResponse)(nil), "trillian.GetLeavesByHashResponse")
+	proto.RegisterType((*QueuedLogLeaf)(nil), "trillian.QueuedLogLeaf")
+	proto.RegisterType((*LogLeaf)(nil), "trillian.LogLeaf")
+	proto.RegisterType((*Proof)(nil), "trillian.Proof")
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -805,22 +820,33 @@ const _ = grpc.SupportPackageIsVersion4
 // Client API for TrillianLog service
 
 type TrillianLogClient interface {
-	// QueueLeaf adds a single leaf to the queue.
+	// Adds a single leaf to the queue.
 	QueueLeaf(ctx context.Context, in *QueueLeafRequest, opts ...grpc.CallOption) (*QueueLeafResponse, error)
-	// No direct equivalent at the storage level
+	// Returns inclusion proof for a leaf with a given index in a given tree.
 	GetInclusionProof(ctx context.Context, in *GetInclusionProofRequest, opts ...grpc.CallOption) (*GetInclusionProofResponse, error)
+	// Returns inclusion proof for a leaf with a given identity hash in a given
+	// tree.
 	GetInclusionProofByHash(ctx context.Context, in *GetInclusionProofByHashRequest, opts ...grpc.CallOption) (*GetInclusionProofByHashResponse, error)
+	// Returns consistency proof between two versions of a given tree.
 	GetConsistencyProof(ctx context.Context, in *GetConsistencyProofRequest, opts ...grpc.CallOption) (*GetConsistencyProofResponse, error)
-	// Corresponds to the LogRootReader API
+	// Returns the latest signed log root for a given tree. Corresponds to the
+	// ReadOnlyLogTreeTX.LatestSignedLogRoot storage interface.
 	GetLatestSignedLogRoot(ctx context.Context, in *GetLatestSignedLogRootRequest, opts ...grpc.CallOption) (*GetLatestSignedLogRootResponse, error)
-	// Corresponds to the LeafReader API
+	// Returns the total number of leaves that have been integrated into the
+	// given tree. Corresponds to the ReadOnlyLogTreeTX.GetSequencedLeafCount
+	// storage interface.
 	GetSequencedLeafCount(ctx context.Context, in *GetSequencedLeafCountRequest, opts ...grpc.CallOption) (*GetSequencedLeafCountResponse, error)
+	// Returns log entry and the corresponding inclusion proof for a given leaf
+	// index in a given tree.
 	GetEntryAndProof(ctx context.Context, in *GetEntryAndProofRequest, opts ...grpc.CallOption) (*GetEntryAndProofResponse, error)
 	InitLog(ctx context.Context, in *InitLogRequest, opts ...grpc.CallOption) (*InitLogResponse, error)
-	// Corresponds to the LeafQueuer API
+	// Adds a batch of leaves to the queue.
 	QueueLeaves(ctx context.Context, in *QueueLeavesRequest, opts ...grpc.CallOption) (*QueueLeavesResponse, error)
+	// Returns a batch of leaves located in the provided positions.
 	GetLeavesByIndex(ctx context.Context, in *GetLeavesByIndexRequest, opts ...grpc.CallOption) (*GetLeavesByIndexResponse, error)
+	// Returns a batch of leaves in a sequential range.
 	GetLeavesByRange(ctx context.Context, in *GetLeavesByRangeRequest, opts ...grpc.CallOption) (*GetLeavesByRangeResponse, error)
+	// Returns a batch of leaves by their `merkle_leaf_hash` values.
 	GetLeavesByHash(ctx context.Context, in *GetLeavesByHashRequest, opts ...grpc.CallOption) (*GetLeavesByHashResponse, error)
 }
 
@@ -943,22 +969,33 @@ func (c *trillianLogClient) GetLeavesByHash(ctx context.Context, in *GetLeavesBy
 // Server API for TrillianLog service
 
 type TrillianLogServer interface {
-	// QueueLeaf adds a single leaf to the queue.
+	// Adds a single leaf to the queue.
 	QueueLeaf(context.Context, *QueueLeafRequest) (*QueueLeafResponse, error)
-	// No direct equivalent at the storage level
+	// Returns inclusion proof for a leaf with a given index in a given tree.
 	GetInclusionProof(context.Context, *GetInclusionProofRequest) (*GetInclusionProofResponse, error)
+	// Returns inclusion proof for a leaf with a given identity hash in a given
+	// tree.
 	GetInclusionProofByHash(context.Context, *GetInclusionProofByHashRequest) (*GetInclusionProofByHashResponse, error)
+	// Returns consistency proof between two versions of a given tree.
 	GetConsistencyProof(context.Context, *GetConsistencyProofRequest) (*GetConsistencyProofResponse, error)
-	// Corresponds to the LogRootReader API
+	// Returns the latest signed log root for a given tree. Corresponds to the
+	// ReadOnlyLogTreeTX.LatestSignedLogRoot storage interface.
 	GetLatestSignedLogRoot(context.Context, *GetLatestSignedLogRootRequest) (*GetLatestSignedLogRootResponse, error)
-	// Corresponds to the LeafReader API
+	// Returns the total number of leaves that have been integrated into the
+	// given tree. Corresponds to the ReadOnlyLogTreeTX.GetSequencedLeafCount
+	// storage interface.
 	GetSequencedLeafCount(context.Context, *GetSequencedLeafCountRequest) (*GetSequencedLeafCountResponse, error)
+	// Returns log entry and the corresponding inclusion proof for a given leaf
+	// index in a given tree.
 	GetEntryAndProof(context.Context, *GetEntryAndProofRequest) (*GetEntryAndProofResponse, error)
 	InitLog(context.Context, *InitLogRequest) (*InitLogResponse, error)
-	// Corresponds to the LeafQueuer API
+	// Adds a batch of leaves to the queue.
 	QueueLeaves(context.Context, *QueueLeavesRequest) (*QueueLeavesResponse, error)
+	// Returns a batch of leaves located in the provided positions.
 	GetLeavesByIndex(context.Context, *GetLeavesByIndexRequest) (*GetLeavesByIndexResponse, error)
+	// Returns a batch of leaves in a sequential range.
 	GetLeavesByRange(context.Context, *GetLeavesByRangeRequest) (*GetLeavesByRangeResponse, error)
+	// Returns a batch of leaves by their `merkle_leaf_hash` values.
 	GetLeavesByHash(context.Context, *GetLeavesByHashRequest) (*GetLeavesByHashResponse, error)
 }
 
@@ -1242,88 +1279,88 @@ var _TrillianLog_serviceDesc = grpc.ServiceDesc{
 func init() { proto.RegisterFile("trillian_log_api.proto", fileDescriptor0) }
 
 var fileDescriptor0 = []byte{
-	// 1314 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xb4, 0x58, 0xdf, 0x6f, 0xdb, 0xd4,
-	0x17, 0x9f, 0xe3, 0xf5, 0xd7, 0xc9, 0xda, 0xb4, 0xb7, 0xdf, 0x6d, 0x99, 0xbb, 0x7e, 0x97, 0x79,
-	0x74, 0xcb, 0xca, 0x88, 0x69, 0xd1, 0x00, 0x55, 0x13, 0x68, 0x59, 0xa7, 0xae, 0x10, 0xa0, 0xa4,
-	0xd3, 0x84, 0xe0, 0xc1, 0xba, 0xb1, 0x6f, 0x5c, 0x0b, 0xc7, 0x37, 0xb3, 0x6f, 0xa6, 0x75, 0xd3,
-	0x5e, 0x90, 0x78, 0xe4, 0x09, 0x1e, 0x78, 0x41, 0xf0, 0xc6, 0xbf, 0x83, 0xc4, 0xbf, 0xc0, 0xbf,
-	0xc0, 0x3b, 0xf2, 0xbd, 0xd7, 0x71, 0xec, 0xd8, 0x4e, 0x8b, 0xc4, 0x5b, 0x7d, 0x7e, 0x7e, 0xce,
-	0x3d, 0xe7, 0x7e, 0xce, 0x6d, 0xe0, 0x0a, 0x0b, 0x5c, 0xcf, 0x73, 0xb1, 0x6f, 0x7a, 0xd4, 0x31,
-	0xf1, 0xd0, 0x6d, 0x0d, 0x03, 0xca, 0x28, 0x5a, 0x8c, 0xe5, 0xda, 0x4a, 0xfc, 0x97, 0xd0, 0x68,
-	0x57, 0x1d, 0x4a, 0x1d, 0x8f, 0x18, 0xc1, 0xd0, 0x32, 0x42, 0x86, 0xd9, 0x28, 0x94, 0x8a, 0xeb,
-	0x52, 0x81, 0x87, 0xae, 0x81, 0x7d, 0x9f, 0x32, 0xcc, 0x5c, 0xea, 0xc7, 0xda, 0x1b, 0x52, 0xcb,
-	0xbf, 0x7a, 0xa3, 0xbe, 0xc1, 0xdc, 0x01, 0x09, 0x19, 0x1e, 0x0c, 0x85, 0x81, 0xfe, 0x47, 0x05,
-	0x16, 0x3a, 0xd4, 0xe9, 0x10, 0xdc, 0x47, 0x4d, 0x58, 0x1d, 0x90, 0xe0, 0x5b, 0x8f, 0x98, 0x1e,
-	0xc1, 0x7d, 0xf3, 0x04, 0x87, 0x27, 0x75, 0xa5, 0xa1, 0x34, 0x2f, 0x75, 0x57, 0x84, 0x3c, 0xb2,
-	0x7a, 0x82, 0xc3, 0x13, 0xb4, 0x09, 0xc0, 0x4d, 0x5e, 0x60, 0x6f, 0x44, 0xea, 0x15, 0x6e, 0xb3,
-	0x14, 0x49, 0x9e, 0x45, 0x82, 0x48, 0x4d, 0x5e, 0xb2, 0x00, 0x9b, 0x36, 0x66, 0xb8, 0xae, 0x0a,
-	0x35, 0x97, 0xec, 0x63, 0x86, 0xc7, 0xde, 0xae, 0x6f, 0x93, 0x97, 0xf5, 0x8b, 0x0d, 0xa5, 0xa9,
-	0x0a, 0xef, 0xc3, 0x48, 0x80, 0xee, 0x01, 0x12, 0x6a, 0x9b, 0xf8, 0xcc, 0x65, 0xa7, 0x02, 0xc8,
-	0x1c, 0x8f, 0xb2, 0xca, 0xcd, 0xa4, 0x82, 0x43, 0x79, 0x04, 0xb5, 0xe7, 0x23, 0x32, 0x22, 0xe6,
-	0xb8, 0xb2, 0xfa, 0x7c, 0x43, 0x69, 0x56, 0x77, 0xb5, 0x96, 0xa8, 0xbd, 0x15, 0xd7, 0xde, 0x7a,
-	0x1a, 0x5b, 0x74, 0x57, 0xb8, 0xcb, 0xf8, 0x1b, 0x7d, 0x0a, 0xeb, 0xae, 0xcf, 0x88, 0x13, 0x60,
-	0x36, 0x19, 0x68, 0x61, 0x66, 0x20, 0x34, 0x76, 0x1b, 0xcb, 0xf4, 0x7d, 0x98, 0x3b, 0x0a, 0x28,
-	0xed, 0x67, 0xea, 0x54, 0xb2, 0x75, 0x5e, 0x81, 0xf9, 0xa8, 0x32, 0x12, 0xd6, 0xd5, 0x86, 0xda,
-	0xbc, 0xd4, 0x95, 0x5f, 0x9f, 0x5c, 0x5c, 0xac, 0xac, 0xaa, 0x7a, 0x0f, 0x96, 0xbf, 0x8c, 0x40,
-	0xda, 0x71, 0x77, 0xb6, 0xe0, 0x62, 0xe4, 0xcb, 0xe3, 0x54, 0x77, 0xd7, 0x5a, 0xe3, 0x01, 0x91,
-	0x06, 0x5d, 0xae, 0x46, 0xdb, 0x30, 0x2f, 0xe6, 0x83, 0xb7, 0xa5, 0xba, 0x8b, 0x62, 0xf4, 0xc1,
-	0xd0, 0x6a, 0x1d, 0x73, 0x4d, 0x57, 0x5a, 0xe8, 0xcf, 0x00, 0xf1, 0x1c, 0x1d, 0x82, 0x5f, 0x90,
-	0xb0, 0x4b, 0x9e, 0x8f, 0x48, 0xc8, 0xd0, 0x65, 0x98, 0x8f, 0xa6, 0xd2, 0xb5, 0x25, 0xe4, 0x39,
-	0x8f, 0x3a, 0x87, 0x36, 0xba, 0x0b, 0xf3, 0x1e, 0xb7, 0xab, 0x57, 0x1a, 0x6a, 0x3e, 0x02, 0x69,
-	0xa0, 0x1f, 0xc1, 0x6a, 0x1c, 0xb7, 0x3f, 0x23, 0x6a, 0x5c, 0x55, 0xa5, 0xb4, 0x2a, 0xfd, 0x33,
-	0x58, 0x9b, 0x88, 0x18, 0x0e, 0xa9, 0x1f, 0x12, 0xf4, 0x21, 0x54, 0x79, 0x1f, 0x6d, 0x73, 0x22,
-	0xc4, 0xd5, 0x24, 0x44, 0xea, 0xfc, 0xba, 0x20, 0x6c, 0xa3, 0xbf, 0xf5, 0x63, 0x58, 0x4f, 0x15,
-	0x2e, 0x03, 0x3e, 0x80, 0xe5, 0x24, 0x60, 0x52, 0x69, 0x61, 0xc8, 0x4b, 0xe3, 0x90, 0x51, 0xd5,
-	0x03, 0xa8, 0x1f, 0x10, 0x76, 0xe8, 0x5b, 0xde, 0x28, 0x74, 0xa9, 0xcf, 0x67, 0x60, 0x46, 0xf5,
-	0xe9, 0x09, 0xa9, 0x64, 0x27, 0x64, 0x03, 0x96, 0x58, 0x40, 0x88, 0x19, 0xba, 0xaf, 0x08, 0xbf,
-	0x46, 0x6a, 0x77, 0x31, 0x12, 0x1c, 0xbb, 0xaf, 0x88, 0xde, 0x86, 0x6b, 0x39, 0xe9, 0x64, 0x25,
-	0x5b, 0x30, 0x37, 0x8c, 0x04, 0xf2, 0x50, 0x6a, 0x49, 0x05, 0xc2, 0x4e, 0x68, 0xf5, 0x5f, 0x14,
-	0xf8, 0xff, 0x54, 0x90, 0x36, 0xbf, 0x58, 0x33, 0x90, 0x6f, 0xc0, 0x52, 0x42, 0x12, 0x82, 0x00,
-	0x16, 0xbd, 0x98, 0x1e, 0xca, 0x70, 0xa3, 0x6d, 0x58, 0xa3, 0x81, 0x4d, 0x02, 0xb3, 0x77, 0x6a,
-	0x86, 0x51, 0x12, 0xdf, 0x22, 0x9c, 0x04, 0x16, 0xbb, 0x35, 0xae, 0x68, 0x9f, 0x1e, 0x4b, 0xb1,
-	0xfe, 0x04, 0x6e, 0x14, 0xc2, 0x9b, 0xae, 0x54, 0x2d, 0xa9, 0xf4, 0x7b, 0x05, 0xb4, 0x03, 0xc2,
-	0x1e, 0x51, 0x3f, 0x74, 0x43, 0x46, 0x7c, 0xeb, 0xf4, 0x2c, 0xfd, 0xb9, 0x0d, 0xb5, 0xbe, 0x1b,
-	0x84, 0xcc, 0x4c, 0xca, 0x11, 0x4d, 0x5a, 0xe6, 0xe2, 0xa7, 0x71, 0x4d, 0x4d, 0x58, 0x0d, 0x89,
-	0x45, 0x7d, 0xdb, 0xcc, 0xd6, 0xbd, 0x22, 0xe4, 0xb1, 0xa5, 0xbe, 0x0f, 0x1b, 0xb9, 0x30, 0xce,
-	0xd7, 0xb7, 0x97, 0x70, 0xe5, 0x80, 0x30, 0x31, 0x77, 0xff, 0xa6, 0x5d, 0x6a, 0xaa, 0x5d, 0xb9,
-	0x1d, 0x51, 0xf3, 0x3b, 0xb2, 0x0f, 0x57, 0xa7, 0x32, 0x4b, 0xec, 0xe7, 0x20, 0x88, 0x2f, 0x52,
-	0x51, 0xf8, 0xb0, 0x9f, 0xf3, 0xa6, 0xa8, 0xa9, 0x9b, 0xa2, 0x3f, 0xe6, 0x77, 0x2f, 0x13, 0xf0,
-	0xfc, 0xb8, 0x9c, 0x14, 0xae, 0x2e, 0xf6, 0x1d, 0x32, 0x03, 0xd7, 0x0d, 0xa8, 0x86, 0x0c, 0x07,
-	0x2c, 0x75, 0x85, 0x81, 0x8b, 0xc4, 0x1d, 0xfe, 0x1f, 0xcc, 0x59, 0x74, 0xe4, 0x33, 0x39, 0x0f,
-	0xe2, 0x23, 0x83, 0x57, 0x26, 0x9a, 0xc2, 0xab, 0xcc, 0xc2, 0x7b, 0x1f, 0xae, 0x1f, 0x10, 0x16,
-	0x37, 0x87, 0x73, 0xdb, 0xa3, 0x28, 0x7e, 0x39, 0x68, 0xfd, 0x23, 0xd8, 0x2c, 0x70, 0x93, 0x10,
-	0xe2, 0xd3, 0x16, 0xc8, 0x27, 0x78, 0x89, 0x9b, 0xe9, 0xef, 0x73, 0xff, 0x0e, 0x66, 0x24, 0x64,
-	0xc7, 0xae, 0xe3, 0x73, 0x46, 0xec, 0x52, 0x3a, 0x2b, 0x2f, 0xe6, 0x6c, 0x93, 0xeb, 0x27, 0x13,
-	0x7f, 0x0c, 0xb5, 0x90, 0x2b, 0xf8, 0xc3, 0x28, 0xa0, 0x94, 0x4d, 0xd3, 0x7a, 0xda, 0x73, 0x39,
-	0x9c, 0xfc, 0xd4, 0x3d, 0xde, 0xc1, 0xc7, 0x3e, 0x0b, 0x4e, 0x1f, 0xfa, 0xf6, 0x7f, 0xcd, 0xc1,
-	0x27, 0xbc, 0x8d, 0x99, 0x6c, 0xe7, 0xba, 0xca, 0xe3, 0x05, 0xa8, 0x96, 0x2f, 0xc0, 0x3b, 0xb0,
-	0x72, 0xe8, 0xbb, 0x2c, 0x2a, 0xb3, 0xfc, 0x8c, 0xf7, 0xa1, 0x36, 0x36, 0x94, 0x48, 0x76, 0x60,
-	0xc1, 0x0a, 0x08, 0x66, 0xc4, 0x96, 0x8f, 0x87, 0xc2, 0xc3, 0x8c, 0xed, 0x76, 0xff, 0xae, 0x42,
-	0xf5, 0xa9, 0xb4, 0xe9, 0x50, 0x07, 0xf9, 0xb0, 0x34, 0xde, 0xbf, 0x48, 0xcb, 0xec, 0xc3, 0x89,
-	0x35, 0xaf, 0x6d, 0xe4, 0xea, 0x04, 0x10, 0xbd, 0xf9, 0xdd, 0x9f, 0x7f, 0xfd, 0x58, 0xd1, 0xf5,
-	0x4d, 0xe3, 0xc5, 0x4e, 0x8f, 0x30, 0xbc, 0x63, 0x78, 0xd4, 0x09, 0x8d, 0xd7, 0xa2, 0x8e, 0x37,
-	0x86, 0x98, 0xea, 0x3d, 0x65, 0x1b, 0xfd, 0xa6, 0xc0, 0xda, 0x14, 0xf3, 0x23, 0x3d, 0x09, 0x5e,
-	0xb4, 0x69, 0xb5, 0x5b, 0xa5, 0x36, 0x12, 0x48, 0x9b, 0x03, 0x79, 0x80, 0xf6, 0x4a, 0x81, 0x18,
-	0xaf, 0x93, 0xc1, 0x78, 0xb3, 0xe7, 0xc6, 0xa1, 0x4c, 0xd1, 0xb8, 0xdf, 0x15, 0x3e, 0x6a, 0x79,
-	0xcb, 0x09, 0x35, 0x4b, 0x40, 0xa4, 0xf8, 0x5a, 0xbb, 0x7b, 0x06, 0x4b, 0x09, 0xfa, 0x03, 0x0e,
-	0x7a, 0x07, 0x19, 0xe5, 0xa7, 0x97, 0xe0, 0xec, 0x89, 0xa7, 0x33, 0xfa, 0x49, 0x81, 0xf5, 0x9c,
-	0xa5, 0x83, 0xde, 0x4a, 0xe5, 0x2e, 0x58, 0x8d, 0xda, 0xd6, 0x0c, 0x2b, 0x89, 0xee, 0x5d, 0x8e,
-	0x6e, 0x1b, 0x35, 0xf3, 0xd1, 0xed, 0x59, 0x89, 0xa3, 0x3c, 0xc0, 0x9f, 0x15, 0xb1, 0xc5, 0xa6,
-	0xe9, 0x00, 0xdd, 0x49, 0xe5, 0x2c, 0x26, 0x1a, 0xad, 0x39, 0xdb, 0x50, 0xe2, 0x7b, 0x9b, 0xe3,
-	0xdb, 0x42, 0xb7, 0x0a, 0x4e, 0x2f, 0xe2, 0x9a, 0x70, 0xcf, 0xe3, 0x11, 0xd0, 0xaf, 0x0a, 0x5c,
-	0xce, 0x65, 0x48, 0x74, 0x3b, 0x95, 0xb0, 0x90, 0x79, 0xb5, 0x3b, 0x33, 0xed, 0x24, 0xae, 0xfb,
-	0x1c, 0x97, 0x81, 0xde, 0x29, 0xef, 0x6a, 0xbc, 0x97, 0x6d, 0xc1, 0xc9, 0xe8, 0x07, 0x05, 0x56,
-	0xb3, 0xd4, 0x83, 0x6e, 0xa6, 0x92, 0xe6, 0x91, 0xa0, 0xa6, 0x97, 0x99, 0x48, 0x48, 0xbb, 0x1c,
-	0xd2, 0x3d, 0xb4, 0x7d, 0xf6, 0xdb, 0x81, 0x2c, 0x58, 0x90, 0xb4, 0x83, 0xea, 0x49, 0x8a, 0x34,
-	0x65, 0x69, 0xd7, 0x72, 0x34, 0x32, 0xe7, 0x2d, 0x9e, 0x73, 0x53, 0xdf, 0x28, 0x18, 0x1f, 0xd7,
-	0x77, 0x19, 0xea, 0x40, 0x75, 0xe2, 0xd9, 0x8e, 0xae, 0x4f, 0x73, 0x4d, 0xf2, 0x6f, 0x8c, 0xb6,
-	0x59, 0xa0, 0x95, 0x09, 0x2f, 0xa0, 0x6f, 0xf8, 0x09, 0xa6, 0xde, 0x0c, 0x99, 0x13, 0xcc, 0x7b,
-	0xa0, 0x64, 0x4e, 0x30, 0xf7, 0xc9, 0x31, 0x15, 0x9c, 0x2f, 0xf8, 0x82, 0xe0, 0x93, 0xaf, 0x8c,
-	0x82, 0xe0, 0xa9, 0xf7, 0x81, 0x7e, 0x01, 0x7d, 0x05, 0xb5, 0xcc, 0x23, 0x0c, 0x35, 0x72, 0x1d,
-	0x27, 0x99, 0xe6, 0x66, 0x89, 0x45, 0x1c, 0xb9, 0xfd, 0x39, 0x5c, 0xb3, 0xe8, 0x20, 0xfe, 0x97,
-	0x31, 0xfd, 0x1b, 0x44, 0x7b, 0x7d, 0x62, 0x23, 0x3c, 0x1c, 0xba, 0x47, 0x91, 0xf0, 0x48, 0xf9,
-	0x5a, 0x73, 0x5c, 0x76, 0x32, 0xea, 0xb5, 0x2c, 0x3a, 0x30, 0xe4, 0xcf, 0x0d, 0xb1, 0x63, 0x6f,
-	0x9e, 0x7b, 0xbe, 0xf7, 0x4f, 0x00, 0x00, 0x00, 0xff, 0xff, 0xa3, 0x43, 0x2d, 0x86, 0xf1, 0x10,
-	0x00, 0x00,
+	// 1313 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xb4, 0x58, 0x5f, 0x6f, 0xdb, 0x54,
+	0x14, 0x9f, 0x9b, 0xfe, 0x3d, 0x5d, 0x9b, 0xf6, 0x96, 0x6d, 0x99, 0xbb, 0xb2, 0xce, 0xa3, 0x5b,
+	0x56, 0x46, 0x4c, 0x87, 0x06, 0xa8, 0x9a, 0x40, 0xcb, 0x3a, 0x75, 0x85, 0x00, 0x25, 0x9d, 0x26,
+	0x04, 0x0f, 0xd6, 0x8d, 0x73, 0xeb, 0x5a, 0x38, 0xbe, 0x99, 0x7d, 0x33, 0x2d, 0x9b, 0xf6, 0x82,
+	0xc4, 0x23, 0x4f, 0xf0, 0xc0, 0x0b, 0x82, 0x37, 0xbe, 0x0e, 0x12, 0x5f, 0x81, 0xaf, 0xc0, 0x3b,
+	0xf2, 0xb9, 0xd7, 0x71, 0xec, 0x38, 0x4e, 0xf3, 0xc0, 0x5b, 0xee, 0xb9, 0xe7, 0x9e, 0xf3, 0x3b,
+	0x7f, 0xfd, 0x53, 0xe0, 0xb2, 0x08, 0x5c, 0xcf, 0x73, 0xa9, 0x6f, 0x79, 0xdc, 0xb1, 0x68, 0xd7,
+	0xad, 0x75, 0x03, 0x2e, 0x38, 0x59, 0x8c, 0xe5, 0xfa, 0x35, 0x87, 0x73, 0xc7, 0x63, 0x26, 0xed,
+	0xba, 0x26, 0xf5, 0x7d, 0x2e, 0xa8, 0x70, 0xb9, 0x1f, 0x4a, 0x3d, 0xfd, 0xba, 0xba, 0xc5, 0x53,
+	0xab, 0x77, 0x6a, 0x0a, 0xb7, 0xc3, 0x42, 0x41, 0x3b, 0x5d, 0xa5, 0x70, 0x45, 0x29, 0x04, 0x5d,
+	0xdb, 0x0c, 0x05, 0x15, 0xbd, 0xf8, 0xe5, 0x6a, 0xec, 0x41, 0x9e, 0x8d, 0x63, 0x58, 0xfb, 0xba,
+	0xc7, 0x7a, 0xac, 0xc1, 0xe8, 0x69, 0x93, 0x3d, 0xef, 0xb1, 0x50, 0x90, 0x4b, 0x30, 0x1f, 0xc1,
+	0x72, 0xdb, 0x15, 0x6d, 0x5b, 0xab, 0x96, 0x9a, 0x73, 0x1e, 0x77, 0x8e, 0xda, 0x64, 0x07, 0x66,
+	0x3d, 0x46, 0x4f, 0x2b, 0x33, 0xdb, 0x5a, 0x75, 0xf9, 0xde, 0x7a, 0x6d, 0x60, 0xa9, 0xc1, 0x1d,
+	0x7c, 0x8e, 0xd7, 0xc6, 0x17, 0xb0, 0x3e, 0x64, 0x31, 0xec, 0x72, 0x3f, 0x64, 0xe4, 0x63, 0x58,
+	0x7e, 0x1e, 0x09, 0xdb, 0xd6, 0x90, 0x89, 0x2b, 0x89, 0x09, 0x7c, 0xd1, 0x8e, 0x0d, 0x81, 0xd4,
+	0x8d, 0x7e, 0x1b, 0x1d, 0xa8, 0x1c, 0x32, 0x71, 0xe4, 0xdb, 0x5e, 0x2f, 0x74, 0xb9, 0x7f, 0x1c,
+	0x70, 0x3e, 0x09, 0xe8, 0x16, 0x40, 0xe4, 0xc5, 0x72, 0xfd, 0x36, 0x7b, 0x89, 0xbe, 0x4a, 0xcd,
+	0xa5, 0x48, 0x72, 0x14, 0x09, 0xc8, 0x26, 0x2c, 0x89, 0x80, 0x31, 0x2b, 0x74, 0x5f, 0xb1, 0x4a,
+	0x09, 0x6f, 0x17, 0x23, 0xc1, 0x89, 0xfb, 0x8a, 0x19, 0x75, 0xb8, 0x9a, 0xe3, 0x4e, 0x45, 0xb1,
+	0x03, 0x73, 0xdd, 0x48, 0xa0, 0xf0, 0x97, 0x13, 0xfc, 0x52, 0x4f, 0xde, 0x1a, 0xbf, 0x69, 0xf0,
+	0xf6, 0x88, 0x91, 0x7a, 0xff, 0x09, 0x0d, 0xcf, 0x26, 0x20, 0xdf, 0x04, 0xc4, 0x69, 0x9d, 0xd1,
+	0xf0, 0x0c, 0x9d, 0x5c, 0x6c, 0x2e, 0x46, 0x82, 0xe8, 0x69, 0x21, 0x6e, 0xb2, 0x0b, 0xeb, 0x3c,
+	0x68, 0xb3, 0xc0, 0x6a, 0xf5, 0xad, 0x30, 0x72, 0xe2, 0xdb, 0xac, 0x32, 0xbb, 0xad, 0x55, 0x17,
+	0x9b, 0x65, 0xbc, 0xa8, 0xf7, 0x4f, 0x94, 0xd8, 0x78, 0x02, 0xd7, 0xc7, 0xc2, 0x1b, 0x8d, 0xb4,
+	0x54, 0x10, 0xe9, 0x8f, 0x1a, 0xe8, 0x87, 0x4c, 0x3c, 0xe2, 0x7e, 0xe8, 0x86, 0x82, 0xf9, 0x76,
+	0xff, 0x3c, 0xf5, 0xb9, 0x05, 0xe5, 0x53, 0x37, 0x08, 0x85, 0x95, 0x84, 0x23, 0x8b, 0xb4, 0x82,
+	0xe2, 0xa7, 0x71, 0x4c, 0x55, 0x58, 0x0b, 0x99, 0xcd, 0xfd, 0xb6, 0x95, 0x8d, 0x7b, 0x55, 0xca,
+	0x63, 0x4d, 0xe3, 0x00, 0x36, 0x73, 0x61, 0x4c, 0x57, 0xb7, 0x0f, 0x61, 0xeb, 0x90, 0x89, 0x06,
+	0x15, 0x2c, 0x14, 0x27, 0xae, 0xe3, 0x63, 0x43, 0x36, 0x39, 0x17, 0xc5, 0xf1, 0x18, 0x14, 0xcb,
+	0x9d, 0xfb, 0x4e, 0x01, 0xf8, 0x14, 0xca, 0x21, 0x5e, 0xe0, 0xbc, 0x07, 0x9c, 0x8b, 0xd1, 0x11,
+	0x48, 0xbf, 0x5c, 0x09, 0x87, 0x8f, 0xc6, 0x7d, 0xb8, 0x76, 0xc8, 0x44, 0x5c, 0x41, 0x9c, 0x8c,
+	0x47, 0xbc, 0xe7, 0x4f, 0x42, 0xf6, 0x09, 0x46, 0x94, 0xf7, 0x4c, 0x01, 0x8b, 0x47, 0xc5, 0x8e,
+	0xa4, 0xc3, 0xa3, 0x82, 0x6a, 0x86, 0x07, 0x57, 0x0e, 0x99, 0x78, 0xec, 0x8b, 0xa0, 0xff, 0xd0,
+	0x6f, 0xff, 0xdf, 0xb3, 0x77, 0x86, 0xa3, 0x9e, 0xf1, 0x36, 0x55, 0x09, 0x07, 0x3b, 0xaa, 0x54,
+	0xbc, 0xa3, 0x6e, 0xc3, 0xea, 0x91, 0xef, 0x8a, 0x28, 0xbb, 0xc5, 0x09, 0x3c, 0x80, 0xf2, 0x40,
+	0x51, 0x21, 0xd9, 0x83, 0x05, 0x3b, 0x60, 0x54, 0x30, 0xa9, 0x5a, 0x50, 0xc3, 0x58, 0xcf, 0x78,
+	0x06, 0x24, 0x5e, 0x89, 0x2f, 0x58, 0x38, 0x21, 0x83, 0x77, 0x60, 0xde, 0x43, 0x3d, 0x35, 0x7b,
+	0x39, 0x41, 0x28, 0x05, 0xe3, 0x04, 0x36, 0x52, 0x76, 0x15, 0xc2, 0x07, 0xb0, 0x92, 0x2c, 0xdb,
+	0xc4, 0xd0, 0xd8, 0x75, 0x7b, 0x71, 0xb0, 0x6e, 0x23, 0xa3, 0x5f, 0x61, 0xcd, 0xe5, 0xa1, 0xde,
+	0xc7, 0xb2, 0x4d, 0x59, 0xf3, 0x52, 0xaa, 0xe6, 0xc6, 0x63, 0x2c, 0x6b, 0xc6, 0xa0, 0x82, 0x3a,
+	0x45, 0xb0, 0x4e, 0x0a, 0x57, 0x93, 0xfa, 0x0e, 0x9b, 0x80, 0xeb, 0x3a, 0x2c, 0x87, 0x82, 0x06,
+	0x22, 0xd5, 0x8c, 0x80, 0x22, 0xd9, 0x8d, 0x6f, 0xc1, 0x9c, 0x6c, 0x7c, 0xd9, 0x89, 0xf2, 0x90,
+	0xc1, 0xab, 0x1c, 0x8d, 0xe0, 0xd5, 0x26, 0xe1, 0x7d, 0x09, 0x97, 0x87, 0xcc, 0x4c, 0xbf, 0xfc,
+	0x4b, 0xa9, 0xe5, 0x9f, 0xbb, 0xdf, 0x4b, 0xf9, 0xfb, 0xfd, 0x20, 0x95, 0xa9, 0xd4, 0x5e, 0x9f,
+	0x22, 0xdf, 0x2d, 0x58, 0x49, 0xb5, 0xc9, 0x60, 0xb6, 0xb4, 0xc2, 0xd9, 0x22, 0xbb, 0x30, 0x2f,
+	0x19, 0x87, 0x1a, 0x55, 0x52, 0x93, 0x5c, 0xa4, 0x16, 0x74, 0xed, 0xda, 0x09, 0xde, 0x34, 0x95,
+	0x86, 0xf1, 0xd7, 0x0c, 0x2c, 0xc4, 0xe6, 0xab, 0xb0, 0xd6, 0x61, 0xc1, 0xf7, 0x1e, 0xb3, 0x92,
+	0x2c, 0x68, 0xf8, 0x09, 0x5c, 0x95, 0xf2, 0x46, 0x9c, 0x8b, 0xb8, 0xdf, 0x5e, 0x50, 0xaf, 0xc7,
+	0xd4, 0x67, 0x12, 0x53, 0xf7, 0x2c, 0x12, 0x44, 0xd7, 0xec, 0xa5, 0x08, 0xa8, 0xd5, 0xa6, 0x82,
+	0x62, 0x8e, 0x2e, 0x36, 0x97, 0x50, 0x72, 0x40, 0x05, 0xcd, 0x74, 0xeb, 0x6c, 0x76, 0x43, 0xdd,
+	0x05, 0x22, 0xaf, 0xdb, 0xcc, 0x17, 0xae, 0xe8, 0x4b, 0x20, 0x73, 0x68, 0x65, 0x0d, 0xd5, 0xd4,
+	0x05, 0x42, 0x79, 0x04, 0x65, 0x1c, 0x1e, 0x6b, 0x40, 0xc0, 0x2a, 0xf3, 0x18, 0xb5, 0x1e, 0x47,
+	0x1d, 0x53, 0xb4, 0xda, 0xd3, 0x58, 0xa3, 0xb9, 0x8a, 0x4f, 0x06, 0x67, 0xf2, 0x39, 0x6c, 0xb8,
+	0xbe, 0x60, 0x4e, 0x40, 0xc5, 0xb0, 0xa1, 0x85, 0x89, 0x86, 0xc8, 0xe0, 0xd9, 0x40, 0x66, 0x1c,
+	0xc0, 0x1c, 0x6e, 0xc4, 0x4c, 0x9c, 0x5a, 0x36, 0xce, 0xcb, 0x30, 0x1f, 0x45, 0xc6, 0xc2, 0x4a,
+	0x09, 0x5b, 0x4d, 0x9d, 0x3e, 0x9b, 0x5d, 0x9c, 0x59, 0x2b, 0xdd, 0xfb, 0x77, 0x19, 0x96, 0x9f,
+	0xaa, 0xfa, 0x36, 0xb8, 0x43, 0x7c, 0x58, 0x1a, 0x90, 0x3a, 0xa2, 0x67, 0x16, 0xc9, 0x10, 0x77,
+	0xd4, 0x37, 0x73, 0xef, 0x64, 0xf7, 0x19, 0xd5, 0x1f, 0xfe, 0xfe, 0xe7, 0xe7, 0x19, 0xc3, 0xd8,
+	0x32, 0x5f, 0xec, 0xb5, 0x98, 0xa0, 0x7b, 0xa6, 0xc7, 0x9d, 0xd0, 0x7c, 0x2d, 0xa7, 0xe1, 0x8d,
+	0x29, 0x3b, 0x6f, 0x5f, 0xdb, 0x25, 0x7f, 0x68, 0xb0, 0x3e, 0xc2, 0x51, 0x88, 0x91, 0x18, 0x1f,
+	0xc7, 0x09, 0xf5, 0x9b, 0x85, 0x3a, 0x0a, 0x48, 0x1d, 0x81, 0x3c, 0x20, 0xfb, 0x85, 0x40, 0xcc,
+	0xd7, 0x49, 0x02, 0xdf, 0xec, 0xbb, 0xb1, 0x29, 0x4b, 0x7e, 0x6a, 0xfe, 0xd4, 0x70, 0xcc, 0xf2,
+	0x68, 0x14, 0xa9, 0x16, 0x80, 0x48, 0xed, 0x02, 0xfd, 0xce, 0x39, 0x34, 0x15, 0xe8, 0x8f, 0x10,
+	0xf4, 0x1e, 0x31, 0x8b, 0xb3, 0x97, 0xe0, 0x6c, 0xc9, 0xe6, 0x25, 0xbf, 0x68, 0xb0, 0x91, 0x43,
+	0x8f, 0xc8, 0x3b, 0x29, 0xdf, 0x63, 0x48, 0x9c, 0xbe, 0x33, 0x41, 0x4b, 0xa1, 0x7b, 0x1f, 0xd1,
+	0xed, 0x92, 0x6a, 0x3e, 0xba, 0x7d, 0x3b, 0x79, 0xa8, 0x12, 0xf8, 0xab, 0x26, 0x37, 0xe4, 0x28,
+	0x6f, 0x22, 0xb7, 0x53, 0x3e, 0xc7, 0x33, 0x32, 0xbd, 0x3a, 0x59, 0x51, 0xe1, 0x7b, 0x17, 0xf1,
+	0xed, 0x90, 0x9b, 0x63, 0xb2, 0x17, 0x91, 0xb2, 0x70, 0xdf, 0x43, 0x0b, 0xe4, 0x77, 0x0d, 0x2e,
+	0xe5, 0x12, 0x27, 0x72, 0x2b, 0xe5, 0x70, 0x2c, 0x21, 0xd3, 0x6f, 0x4f, 0xd4, 0x53, 0xb8, 0xee,
+	0x23, 0x2e, 0x93, 0xbc, 0x57, 0x5c, 0xd5, 0x78, 0xe7, 0xb7, 0x25, 0x55, 0x23, 0x3f, 0x69, 0xb0,
+	0x96, 0x25, 0x4b, 0xe4, 0x46, 0xca, 0x69, 0x1e, 0x6d, 0xd3, 0x8d, 0x22, 0x15, 0x05, 0xe9, 0x1e,
+	0x42, 0xba, 0x4b, 0x76, 0xcf, 0x3f, 0x1d, 0xc4, 0x86, 0x05, 0x45, 0x94, 0x48, 0x25, 0x71, 0x91,
+	0x26, 0x59, 0xfa, 0xd5, 0x9c, 0x1b, 0xe5, 0xf3, 0x26, 0xfa, 0xdc, 0x32, 0x36, 0xc7, 0xb4, 0x8f,
+	0xeb, 0xbb, 0x82, 0x34, 0x60, 0x79, 0x88, 0xef, 0x90, 0x6b, 0xa3, 0xbb, 0x26, 0xa1, 0x57, 0xfa,
+	0xd6, 0x98, 0x5b, 0xe5, 0xf0, 0x02, 0xf9, 0x0e, 0x33, 0x98, 0xe2, 0x25, 0x99, 0x0c, 0xe6, 0x91,
+	0xa0, 0x4c, 0x06, 0x73, 0x69, 0xcd, 0x88, 0x71, 0x24, 0x11, 0x63, 0x8c, 0x0f, 0x33, 0x99, 0x31,
+	0xc6, 0x53, 0x1c, 0xc4, 0xb8, 0x40, 0xbe, 0x81, 0x72, 0xe6, 0x03, 0x4f, 0xb6, 0x73, 0x1f, 0x0e,
+	0x6f, 0x9a, 0x1b, 0x05, 0x1a, 0xb1, 0xe5, 0xfa, 0x97, 0x70, 0xd5, 0xe6, 0x9d, 0xf8, 0x93, 0x93,
+	0xfe, 0xaf, 0xa0, 0xbe, 0x31, 0xf4, 0x45, 0x78, 0xd8, 0x75, 0x8f, 0x23, 0xe1, 0xb1, 0xf6, 0xad,
+	0xee, 0xb8, 0xe2, 0xac, 0xd7, 0xaa, 0xd9, 0xbc, 0x63, 0xaa, 0xbf, 0x1d, 0xe2, 0x87, 0xad, 0x79,
+	0x7c, 0xf9, 0xc1, 0x7f, 0x01, 0x00, 0x00, 0xff, 0xff, 0x4e, 0xbe, 0x4c, 0xde, 0xf1, 0x10, 0x00,
+	0x00,
 }

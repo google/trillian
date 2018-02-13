@@ -7,7 +7,7 @@ import proto "github.com/golang/protobuf/proto"
 import fmt "fmt"
 import math "math"
 import _ "google.golang.org/genproto/googleapis/api/annotations"
-import google_protobuf "github.com/golang/protobuf/ptypes/any"
+import google_protobuf2 "github.com/golang/protobuf/ptypes/any"
 
 import (
 	context "golang.org/x/net/context"
@@ -181,7 +181,7 @@ type SetMapLeavesRequest struct {
 	// Map Root returned in the map's SetLeaves response.
 	// Map personalities should use metadata to persist any state needed later
 	// to continue mapping from an external data source.
-	Metadata *google_protobuf.Any `protobuf:"bytes,4,opt,name=metadata" json:"metadata,omitempty"`
+	Metadata *google_protobuf2.Any `protobuf:"bytes,4,opt,name=metadata" json:"metadata,omitempty"`
 }
 
 func (m *SetMapLeavesRequest) Reset()                    { *m = SetMapLeavesRequest{} }
@@ -203,7 +203,7 @@ func (m *SetMapLeavesRequest) GetLeaves() []*MapLeaf {
 	return nil
 }
 
-func (m *SetMapLeavesRequest) GetMetadata() *google_protobuf.Any {
+func (m *SetMapLeavesRequest) GetMetadata() *google_protobuf2.Any {
 	if m != nil {
 		return m.Metadata
 	}
