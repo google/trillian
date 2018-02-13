@@ -235,10 +235,15 @@ func TestGetLeavesByRange(t *testing.T) {
 
 	var tests = []struct {
 		start, count int64
+		zeroOk       bool
+		sth          trillian.SignedLogRoot
+		sthErr       error
 		skipTX       bool
+		skipGet      bool
 		txErr        error
 		getErr       error
 		want         []*trillian.LogLeaf
+		wantTS       int64
 		wantErr      string
 	}{
 		{
@@ -259,9 +264,52 @@ func TestGetLeavesByRange(t *testing.T) {
 			wantErr: "test error plugh",
 		},
 		{
+			start:   1,
+			count:   1,
+			zeroOk:  true,
+			sthErr:  errors.New("test error wibble"),
+			wantErr: "test error wibble",
+		},
+		{
 			start: 1,
 			count: 3,
 			want:  []*trillian.LogLeaf{leaf1, leaf2, leaf3},
+		},
+		{
+			// This is ok and results in a partial range being returned
+			start:  1,
+			count:  3,
+			zeroOk: true,
+			sth:    trillian.SignedLogRoot{TreeSize: 3},
+			want:   []*trillian.LogLeaf{leaf1, leaf2},
+		},
+		{
+			// Edge condition on tree size - OK as start 2 == highest index 2.
+			start:  2,
+			count:  3,
+			zeroOk: true,
+			sth:    trillian.SignedLogRoot{TreeSize: 3},
+			want:   []*trillian.LogLeaf{leaf3},
+		},
+		{
+			// Edge condition on tree size - no results as start 3 > highest index 2.
+			start:   3,
+			count:   3,
+			zeroOk:  true,
+			skipGet: true,
+			sth:     trillian.SignedLogRoot{TreeSize: 3},
+			want:    []*trillian.LogLeaf{},
+			wantTS:  3,
+		},
+		{
+			// Way outside tree size - no results
+			start:   300,
+			count:   3,
+			zeroOk:  true,
+			skipGet: true,
+			sth:     trillian.SignedLogRoot{TreeSize: 50},
+			want:    []*trillian.LogLeaf{},
+			wantTS:  50,
 		},
 		{
 			start: 1,
@@ -295,11 +343,18 @@ func TestGetLeavesByRange(t *testing.T) {
 				mockStorage.EXPECT().SnapshotForTree(gomock.Any(), logID).Return(nil, test.txErr)
 			} else {
 				mockStorage.EXPECT().SnapshotForTree(gomock.Any(), logID).Return(mockTx, nil)
-				if test.getErr != nil {
-					mockTx.EXPECT().GetLeavesByRange(gomock.Any(), test.start, test.count).Return(nil, test.getErr)
-				} else {
-					mockTx.EXPECT().GetLeavesByRange(gomock.Any(), test.start, test.count).Return(test.want, nil)
-					mockTx.EXPECT().Commit().Return(nil)
+				if test.zeroOk {
+					mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(test.sth, test.sthErr)
+				}
+				if test.sthErr == nil {
+					if !test.skipGet {
+						if test.getErr != nil {
+							mockTx.EXPECT().GetLeavesByRange(gomock.Any(), test.start, test.count).Return(nil, test.getErr)
+						} else {
+							mockTx.EXPECT().GetLeavesByRange(gomock.Any(), test.start, test.count).Return(test.want, nil)
+							mockTx.EXPECT().Commit().Return(nil)
+						}
+					}
 				}
 				mockTx.EXPECT().Close().Return(nil)
 			}
@@ -308,9 +363,10 @@ func TestGetLeavesByRange(t *testing.T) {
 		server := NewTrillianLogRPCServer(registry, fakeTimeSource)
 
 		req := trillian.GetLeavesByRangeRequest{
-			LogId:      logID,
-			StartIndex: test.start,
-			Count:      test.count,
+			LogId:        logID,
+			StartIndex:   test.start,
+			Count:        test.count,
+			ZeroLeavesOk: test.zeroOk,
 		}
 		rsp, err := server.GetLeavesByRange(ctx, &req)
 		if err != nil {
@@ -326,6 +382,9 @@ func TestGetLeavesByRange(t *testing.T) {
 		}
 		if got := rsp.Leaves; !reflect.DeepEqual(got, test.want) {
 			t.Errorf("GetLeavesByRange(%d, %+d)=%+v; want %+v", req.StartIndex, req.Count, got, test.want)
+		}
+		if got, want := rsp.TreeSize, test.wantTS; got != want {
+			t.Errorf("GetLeavesByRange(%d, %+d) Got TreeSize=%+v; want: %+v", req.StartIndex, req.Count, got, want)
 		}
 	}
 }

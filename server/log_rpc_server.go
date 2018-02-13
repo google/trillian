@@ -370,6 +370,17 @@ func (t *TrillianLogRPCServer) GetLeavesByRange(ctx context.Context, req *trilli
 	}
 	defer tx.Close()
 
+	if req.ZeroLeavesOk {
+		sth, err := tx.LatestSignedLogRoot(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if req.StartIndex >= sth.TreeSize {
+			// We can't serve any leaves from this range as it starts outside our tree.
+			return &trillian.GetLeavesByRangeResponse{Leaves: []*trillian.LogLeaf{}, TreeSize: sth.TreeSize}, nil
+		}
+	}
+
 	leaves, err := tx.GetLeavesByRange(ctx, req.StartIndex, req.Count)
 	if err != nil {
 		return nil, err

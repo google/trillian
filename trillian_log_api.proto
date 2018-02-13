@@ -158,6 +158,10 @@ message GetLeavesByRangeRequest {
   int64 log_id = 1;
   int64 start_index = 2;
   int64 count = 3;
+  // If this option is set and the range begins beyond the range the server
+  // has available then instead of an error the server will return zero
+  // leaves and its current tree size.
+  bool zero_leaves_ok = 4;
 }
 
 message GetLeavesByRangeResponse {
@@ -166,6 +170,7 @@ message GetLeavesByRangeResponse {
   // range extended beyond the size of the tree or if the server opted to return
   // fewer leaves than requested.
   repeated LogLeaf leaves = 1;
+  int64 tree_size = 2;
 }
 
 message GetSequencedLeafCountRequest {
