@@ -663,7 +663,7 @@ var (
 
 	pattern_TrillianLog_GetEntryAndProof_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"v1beta1", "logs", "log_id", "leaves", "leaf_index"}, ""))
 
-	pattern_TrillianLog_InitLog_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"v1", "beta1", "logs", "log_id"}, "init"))
+	pattern_TrillianLog_InitLog_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2}, []string{"v1beta1", "logs", "log_id"}, "init"))
 )
 
 var (

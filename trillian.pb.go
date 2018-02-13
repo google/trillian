@@ -8,9 +8,9 @@ import fmt "fmt"
 import math "math"
 import keyspb "github.com/google/trillian/crypto/keyspb"
 import sigpb "github.com/google/trillian/crypto/sigpb"
-import google_protobuf "github.com/golang/protobuf/ptypes/any"
-import google_protobuf1 "github.com/golang/protobuf/ptypes/duration"
-import google_protobuf2 "github.com/golang/protobuf/ptypes/timestamp"
+import google_protobuf2 "github.com/golang/protobuf/ptypes/any"
+import google_protobuf3 "github.com/golang/protobuf/ptypes/duration"
+import google_protobuf1 "github.com/golang/protobuf/ptypes/timestamp"
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -173,22 +173,22 @@ type Tree struct {
 	// The private_key message can be changed after a tree is created, but the
 	// underlying key must remain the same - this is to enable migrating a key
 	// from one provider to another.
-	PrivateKey *google_protobuf.Any `protobuf:"bytes,12,opt,name=private_key,json=privateKey" json:"private_key,omitempty"`
+	PrivateKey *google_protobuf2.Any `protobuf:"bytes,12,opt,name=private_key,json=privateKey" json:"private_key,omitempty"`
 	// Storage-specific settings.
 	// Varies according to the storage implementation backing Trillian.
-	StorageSettings *google_protobuf.Any `protobuf:"bytes,13,opt,name=storage_settings,json=storageSettings" json:"storage_settings,omitempty"`
+	StorageSettings *google_protobuf2.Any `protobuf:"bytes,13,opt,name=storage_settings,json=storageSettings" json:"storage_settings,omitempty"`
 	// The public key used for verifying tree heads and entry timestamps.
 	// Readonly.
 	PublicKey *keyspb.PublicKey `protobuf:"bytes,14,opt,name=public_key,json=publicKey" json:"public_key,omitempty"`
 	// Interval after which a new signed root is produced even if there have been
 	// no submission.  If zero, this behavior is disabled.
-	MaxRootDuration *google_protobuf1.Duration `protobuf:"bytes,15,opt,name=max_root_duration,json=maxRootDuration" json:"max_root_duration,omitempty"`
+	MaxRootDuration *google_protobuf3.Duration `protobuf:"bytes,15,opt,name=max_root_duration,json=maxRootDuration" json:"max_root_duration,omitempty"`
 	// Time of tree creation.
 	// Readonly.
-	CreateTime *google_protobuf2.Timestamp `protobuf:"bytes,16,opt,name=create_time,json=createTime" json:"create_time,omitempty"`
+	CreateTime *google_protobuf1.Timestamp `protobuf:"bytes,16,opt,name=create_time,json=createTime" json:"create_time,omitempty"`
 	// Time of last tree update.
 	// Readonly (automatically assigned on updates).
-	UpdateTime *google_protobuf2.Timestamp `protobuf:"bytes,17,opt,name=update_time,json=updateTime" json:"update_time,omitempty"`
+	UpdateTime *google_protobuf1.Timestamp `protobuf:"bytes,17,opt,name=update_time,json=updateTime" json:"update_time,omitempty"`
 	// If true, the tree has been deleted.
 	// Deleted trees may be undeleted during a certain time window, after which
 	// they're permanently deleted (and unrecoverable).
@@ -196,7 +196,7 @@ type Tree struct {
 	Deleted bool `protobuf:"varint,19,opt,name=deleted" json:"deleted,omitempty"`
 	// Time of tree deletion, if any.
 	// Readonly.
-	DeleteTime *google_protobuf2.Timestamp `protobuf:"bytes,20,opt,name=delete_time,json=deleteTime" json:"delete_time,omitempty"`
+	DeleteTime *google_protobuf1.Timestamp `protobuf:"bytes,20,opt,name=delete_time,json=deleteTime" json:"delete_time,omitempty"`
 }
 
 func (m *Tree) Reset()                    { *m = Tree{} }
@@ -267,14 +267,14 @@ func (m *Tree) GetDescription() string {
 	return ""
 }
 
-func (m *Tree) GetPrivateKey() *google_protobuf.Any {
+func (m *Tree) GetPrivateKey() *google_protobuf2.Any {
 	if m != nil {
 		return m.PrivateKey
 	}
 	return nil
 }
 
-func (m *Tree) GetStorageSettings() *google_protobuf.Any {
+func (m *Tree) GetStorageSettings() *google_protobuf2.Any {
 	if m != nil {
 		return m.StorageSettings
 	}
@@ -288,21 +288,21 @@ func (m *Tree) GetPublicKey() *keyspb.PublicKey {
 	return nil
 }
 
-func (m *Tree) GetMaxRootDuration() *google_protobuf1.Duration {
+func (m *Tree) GetMaxRootDuration() *google_protobuf3.Duration {
 	if m != nil {
 		return m.MaxRootDuration
 	}
 	return nil
 }
 
-func (m *Tree) GetCreateTime() *google_protobuf2.Timestamp {
+func (m *Tree) GetCreateTime() *google_protobuf1.Timestamp {
 	if m != nil {
 		return m.CreateTime
 	}
 	return nil
 }
 
-func (m *Tree) GetUpdateTime() *google_protobuf2.Timestamp {
+func (m *Tree) GetUpdateTime() *google_protobuf1.Timestamp {
 	if m != nil {
 		return m.UpdateTime
 	}
@@ -316,7 +316,7 @@ func (m *Tree) GetDeleted() bool {
 	return false
 }
 
-func (m *Tree) GetDeleteTime() *google_protobuf2.Timestamp {
+func (m *Tree) GetDeleteTime() *google_protobuf1.Timestamp {
 	if m != nil {
 		return m.DeleteTime
 	}
@@ -425,7 +425,7 @@ type SignedMapRoot struct {
 	// Metadata associated with the Map root.  This is set by the map personality
 	// layer in a SetLeaves map request.  It could be used to persist state
 	// needed to recreate the Map from an external data source.
-	Metadata *google_protobuf.Any `protobuf:"bytes,7,opt,name=metadata" json:"metadata,omitempty"`
+	Metadata *google_protobuf2.Any `protobuf:"bytes,7,opt,name=metadata" json:"metadata,omitempty"`
 }
 
 func (m *SignedMapRoot) Reset()                    { *m = SignedMapRoot{} }
@@ -468,7 +468,7 @@ func (m *SignedMapRoot) GetMapRevision() int64 {
 	return 0
 }
 
-func (m *SignedMapRoot) GetMetadata() *google_protobuf.Any {
+func (m *SignedMapRoot) GetMetadata() *google_protobuf2.Any {
 	if m != nil {
 		return m.Metadata
 	}

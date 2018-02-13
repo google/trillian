@@ -212,7 +212,7 @@ func createTree(as storage.AdminStorage, ls storage.LogStorage) (*trillian.Tree,
 	}
 
 	tx, err := ls.BeginForTree(ctx, createdTree.TreeId)
-	if err != nil && err != storage.ErrLogNeedsInit {
+	if err != nil && err != storage.ErrTreeNeedsInit {
 		glog.Fatalf("BeginForTree: %v", err)
 	}
 	if err := tx.StoreSignedLogRoot(ctx, sthZero); err != nil {

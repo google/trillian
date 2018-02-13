@@ -18,61 +18,41 @@ package client
 import (
 	"bytes"
 	"context"
-	"crypto"
 	"errors"
 	"fmt"
 	"time"
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/client/backoff"
-	"github.com/google/trillian/crypto/keys/der"
-	"github.com/google/trillian/merkle"
-	"github.com/google/trillian/merkle/hashers"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 // LogClient represents a client for a given Trillian log instance.
 type LogClient struct {
+	LogVerifier
 	LogID  int64
 	client trillian.TrillianLogClient
-	*logVerifier
-	root trillian.SignedLogRoot
+	root   trillian.SignedLogRoot
 }
 
 // New returns a new LogClient.
-func New(logID int64, client trillian.TrillianLogClient, hasher hashers.LogHasher, pubKey crypto.PublicKey) *LogClient {
+func New(logID int64, client trillian.TrillianLogClient, verifier LogVerifier) *LogClient {
 	return &LogClient{
-		LogID:  logID,
-		client: client,
-		logVerifier: &logVerifier{
-			hasher: hasher,
-			pubKey: pubKey,
-			v:      merkle.NewLogVerifier(hasher),
-		},
+		LogVerifier: verifier,
+		LogID:       logID,
+		client:      client,
 	}
 }
 
 // NewFromTree creates a new LogClient given a tree config.
 func NewFromTree(client trillian.TrillianLogClient, config *trillian.Tree) (*LogClient, error) {
-	if got, want := config.TreeType, trillian.TreeType_LOG; got != want {
-		return nil, fmt.Errorf("client: NewFromTree(): TreeType: %v, want %v", got, want)
-	}
-	// Log Hasher.
-	logHasher, err := hashers.NewLogHasher(config.GetHashStrategy())
+	verifier, err := NewLogVerifierFromTree(config)
 	if err != nil {
-		return nil, fmt.Errorf("client: NewFromTree(): NewLogHasher(): %v", err)
+		return nil, err
 	}
 
-	// Log Key
-	logPubKey, err := der.UnmarshalPublicKey(config.GetPublicKey().GetDer())
-	if err != nil {
-		return nil, fmt.Errorf("client: NewFromTree(): Failed parsing Log public key: %v", err)
-	}
-
-	logID := config.GetTreeId()
-
-	return New(logID, client, logHasher, logPubKey), nil
+	return New(config.GetTreeId(), client, verifier), nil
 }
 
 // AddLeaf adds leaf to the append only log.
@@ -149,9 +129,7 @@ func (c *LogClient) WaitForRootUpdate(ctx context.Context, waitForTreeSize int64
 
 		select {
 		case <-ctx.Done():
-			return nil, status.Errorf(codes.DeadlineExceeded,
-				"%v. TreeSize: %v, want >= %v. Tried %v times: %v",
-				err, c.root.TreeSize, waitForTreeSize, i+1, ctx.Err())
+			return nil, status.Errorf(codes.DeadlineExceeded, "%v", ctx.Err())
 		case <-time.After(b.Duration()):
 		}
 	}
@@ -189,7 +167,7 @@ func (c *LogClient) getLatestRoot(ctx context.Context, trusted *trillian.SignedL
 	}
 	// Verify root update if the tree / the latest signed log root isn't empty.
 	if resp.GetSignedLogRoot().GetTreeSize() > 0 {
-		if err := c.logVerifier.VerifyRoot(trusted, resp.GetSignedLogRoot(),
+		if err := c.VerifyRoot(trusted, resp.GetSignedLogRoot(),
 			consistency.GetProof().GetHashes()); err != nil {
 			return nil, err
 		}
@@ -218,42 +196,28 @@ func (c *LogClient) UpdateRoot(ctx context.Context) (*trillian.SignedLogRoot, er
 // This assumes that the data has already been submitted.
 // Best practice is to call this method with a context that will timeout.
 func (c *LogClient) WaitForInclusion(ctx context.Context, data []byte) error {
-	leaf, err := c.logVerifier.buildLeaf(data)
+	leaf, err := c.BuildLeaf(data)
 	if err != nil {
 		return err
 	}
 
 	// Fetch the current Root to improve our chances at a valid inclusion proof.
-	root, err := c.UpdateRoot(ctx)
+	// It is illegal to ask for an inclusion proof with TreeSize = 0.
+	root, err := c.WaitForRootUpdate(ctx, 1)
 	if err != nil {
 		return err
 	}
-	if root.TreeSize == 0 {
-		// If the TreeSize is 0, wait for something to be in the log.
-		// It is illegal to ask for an inclusion proof with TreeSize = 0.
-		if _, err := c.WaitForRootUpdate(ctx, 1); err != nil {
-			return err
-		}
-	}
 	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-		err := c.getInclusionProof(ctx, leaf.MerkleLeafHash, root.TreeSize)
-		s, ok := status.FromError(err)
-		if !ok {
-			return err
-		}
-		switch s.Code() {
+		err = c.getAndVerifyInclusionProof(ctx, leaf.MerkleLeafHash, root)
+		switch status.Code(err) {
 		case codes.OK:
 			return nil
 		case codes.NotFound:
 			// Wait for TreeSize to update.
-			if _, err := c.WaitForRootUpdate(ctx, c.root.TreeSize+1); err != nil {
+			if root, err = c.WaitForRootUpdate(ctx, root.TreeSize+1); err != nil {
 				return err
 			}
+			// Retry
 		default:
 			return err
 		}
@@ -262,7 +226,7 @@ func (c *LogClient) WaitForInclusion(ctx context.Context, data []byte) error {
 
 // VerifyInclusion updates the log root and ensures that the given leaf data has been included in the log.
 func (c *LogClient) VerifyInclusion(ctx context.Context, data []byte) error {
-	leaf, err := c.logVerifier.buildLeaf(data)
+	leaf, err := c.BuildLeaf(data)
 	if err != nil {
 		return err
 	}
@@ -270,11 +234,11 @@ func (c *LogClient) VerifyInclusion(ctx context.Context, data []byte) error {
 	if err != nil {
 		return fmt.Errorf("UpdateRoot(): %v", err)
 	}
-	return c.getInclusionProof(ctx, leaf.MerkleLeafHash, root.TreeSize)
+	return c.getAndVerifyInclusionProof(ctx, leaf.MerkleLeafHash, root)
 }
 
-// VerifyInclusionAtIndex updates the log root and ensures that the given leaf data has been included in the log at a particular index.
-func (c *LogClient) VerifyInclusionAtIndex(ctx context.Context, data []byte, index int64) error {
+// GetAndVerifyInclusionAtIndex updates the log root and ensures that the given leaf data has been included in the log at a particular index.
+func (c *LogClient) GetAndVerifyInclusionAtIndex(ctx context.Context, data []byte, index int64) error {
 	root, err := c.UpdateRoot(ctx)
 	if err != nil {
 		return fmt.Errorf("UpdateRoot(): %v", err)
@@ -288,15 +252,15 @@ func (c *LogClient) VerifyInclusionAtIndex(ctx context.Context, data []byte, ind
 	if err != nil {
 		return err
 	}
-	return c.logVerifier.VerifyInclusionAtIndex(root, data, index, resp.Proof.Hashes)
+	return c.VerifyInclusionAtIndex(root, data, index, resp.Proof.Hashes)
 }
 
-func (c *LogClient) getInclusionProof(ctx context.Context, leafHash []byte, treeSize int64) error {
+func (c *LogClient) getAndVerifyInclusionProof(ctx context.Context, leafHash []byte, sth *trillian.SignedLogRoot) error {
 	resp, err := c.client.GetInclusionProofByHash(ctx,
 		&trillian.GetInclusionProofByHashRequest{
 			LogId:    c.LogID,
 			LeafHash: leafHash,
-			TreeSize: treeSize,
+			TreeSize: sth.TreeSize,
 		})
 	if err != nil {
 		return err
@@ -305,8 +269,8 @@ func (c *LogClient) getInclusionProof(ctx context.Context, leafHash []byte, tree
 		return errors.New("no inclusion proof supplied")
 	}
 	for _, proof := range resp.Proof {
-		if err := c.logVerifier.VerifyInclusionByHash(&c.root, leafHash, proof); err != nil {
-			return err
+		if err := c.VerifyInclusionByHash(sth, leafHash, proof); err != nil {
+			return fmt.Errorf("VerifyInclusionByHash(): %v", err)
 		}
 	}
 	return nil
@@ -315,7 +279,7 @@ func (c *LogClient) getInclusionProof(ctx context.Context, leafHash []byte, tree
 // QueueLeaf adds a leaf to a Trillian log without blocking.
 // AlreadyExists is considered a success case by this function.
 func (c *LogClient) QueueLeaf(ctx context.Context, data []byte) error {
-	leaf, err := c.logVerifier.buildLeaf(data)
+	leaf, err := c.BuildLeaf(data)
 	if err != nil {
 		return err
 	}

@@ -19,11 +19,7 @@ import (
 	"time"
 
 	"github.com/google/trillian"
-	"github.com/google/trillian/errors"
 )
-
-// ErrLogNeedsInit is returned when calling methods on an uninitialised Log.
-var ErrLogNeedsInit = errors.New(errors.FailedPrecondition, "log needs initialising")
 
 // ReadOnlyLogTX provides a read-only view into log data.
 // A ReadOnlyLogTX, unlike ReadOnlyLogTreeTX, is not tied to a particular tree.
@@ -107,6 +103,9 @@ type ReadOnlyLogStorage interface {
 	SnapshotForTree(ctx context.Context, treeID int64) (ReadOnlyLogTreeTX, error)
 }
 
+// LogTXFunc is the func signature for passing into ReadWriteTransaction.
+type LogTXFunc func(context.Context, LogTreeTX) error
+
 // LogStorage should be implemented by concrete storage mechanisms which want to support Logs.
 type LogStorage interface {
 	ReadOnlyLogStorage
@@ -116,6 +115,12 @@ type LogStorage interface {
 	// the returned object, and values read through it should only be propagated
 	// if Commit returns without error.
 	BeginForTree(ctx context.Context, treeID int64) (LogTreeTX, error)
+
+	// ReadWriteTransaction starts a RW transaction on the underlying storage, and
+	// calls f with it.
+	// If f fails and returns an error, the storage implementation may optionally
+	// retry with a new transaction, and f MUST NOT keep state across calls.
+	ReadWriteTransaction(ctx context.Context, treeID int64, f LogTXFunc) error
 }
 
 // CountByLogID is a map of total number of items keyed by log ID.

@@ -16,7 +16,6 @@ package storage
 
 import (
 	"context"
-	"errors"
 
 	"github.com/google/trillian"
 )
@@ -70,11 +69,6 @@ type MapTreeTX interface {
 	Set(ctx context.Context, keyHash []byte, value trillian.MapLeaf) error
 }
 
-// ErrMapNeedsInit is an error returned from SnapshotForTree / BeginForTree when used
-// on a uninitialized map storage - i.e. a new, empty map in which the Revision 0 SMH
-// hasn't yet been created.
-var ErrMapNeedsInit = errors.New("uninitialized map")
-
 // ReadOnlyMapStorage provides a narrow read-only view into a MapStorage.
 type ReadOnlyMapStorage interface {
 	DatabaseChecker
@@ -89,6 +83,9 @@ type ReadOnlyMapStorage interface {
 	SnapshotForTree(ctx context.Context, treeID int64) (ReadOnlyMapTreeTX, error)
 }
 
+// MapTXFunc is the func signature for passing into ReadWriteTransaction.
+type MapTXFunc func(context.Context, MapTreeTX) error
+
 // MapStorage should be implemented by concrete storage mechanisms which want to support Maps
 type MapStorage interface {
 	ReadOnlyMapStorage
@@ -98,4 +95,10 @@ type MapStorage interface {
 	// the returned object, and values read through it should only be propagated
 	// if Commit returns without error.
 	BeginForTree(ctx context.Context, treeID int64) (MapTreeTX, error)
+
+	// ReadWriteTransaction starts a RW transaction on the underlying storage, and
+	// calls f with it.
+	// If f fails and returns an error, the storage implementation may optionally
+	// retry with a new transaction, and f MUST NOT keep state across calls.
+	ReadWriteTransaction(ctx context.Context, treeID int64, f MapTXFunc) error
 }

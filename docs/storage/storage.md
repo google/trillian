@@ -1,6 +1,5 @@
 # Storage Design Notes
-## Status: (Very very)^N Draft
-### Author: Martin Smith
+## Author: Martin Smith
 
 ## Tree Node Storage
 
