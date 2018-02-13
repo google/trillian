@@ -159,10 +159,6 @@ func TestMapReadWriteTransaction(t *testing.T) {
 				if err != nil {
 					t.Errorf("%v: LatestSignedMapRoot() returned err = %v", test.desc, err)
 				}
-				if err := tx.Commit(); err != nil {
-					t.Errorf("%v: Commit() returned err = %v", test.desc, err)
-				}
-
 				if got, want := tx.WriteRevision(), root.MapRevision+1; got != want {
 					t.Errorf("%v: WriteRevision() = %v, want = %v", test.desc, got, want)
 				}
