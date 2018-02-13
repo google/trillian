@@ -85,17 +85,6 @@ func request_TrillianLog_AddSequencedLeaf_0(ctx context.Context, marshaler runti
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "log_id", err)
 	}
 
-	val, ok = pathParams["leaf_index"]
-	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "leaf_index")
-	}
-
-	protoReq.LeafIndex, err = runtime.Int64(val)
-
-	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "leaf_index", err)
-	}
-
 	msg, err := client.AddSequencedLeaf(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
 
@@ -649,7 +638,7 @@ func RegisterTrillianLogHandlerClient(ctx context.Context, mux *runtime.ServeMux
 var (
 	pattern_TrillianLog_QueueLeaf_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3}, []string{"v1beta1", "logs", "log_id", "leaves"}, ""))
 
-	pattern_TrillianLog_AddSequencedLeaf_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"v1beta1", "logs", "log_id", "leaves", "leaf_index"}, ""))
+	pattern_TrillianLog_AddSequencedLeaf_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3}, []string{"v1beta1", "logs", "log_id", "leaves"}, "sequenced"))
 
 	pattern_TrillianLog_GetInclusionProof_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"v1beta1", "logs", "log_id", "leaves", "leaf_index"}, "inclusion_proof"))
 

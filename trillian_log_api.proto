@@ -41,11 +41,10 @@ service TrillianLog {
       };
     }
 
-    // Adds a single leaf with assigned sequence number to the tree's storage,
-    // to be integrated later to the tree.
+    // Adds a single leaf with an assigned sequence number.
     rpc AddSequencedLeaf (AddSequencedLeafRequest) returns (AddSequencedLeafResponse) {
       option (google.api.http) = {
-        post: "/v1beta1/logs/{log_id}/leaves/{leaf_index}"
+        post: "/v1beta1/logs/{log_id}/leaves:sequenced"
         body: "*"
       };
     }
@@ -140,12 +139,11 @@ message QueueLeafResponse {
 
 message AddSequencedLeafRequest {
     int64 log_id = 1;
-    int64 leaf_index = 2;
-    LogLeaf leaf = 3;
+    LogLeaf leaf = 2;
 }
 
 message AddSequencedLeafResponse {
-    QueuedLogLeaf sequenced_leaf = 3;
+    QueuedLogLeaf result = 2;
 }
 
 message GetInclusionProofRequest {
@@ -229,13 +227,12 @@ message QueueLeavesResponse {
 
 message AddSequencedLeavesRequest {
     int64 log_id = 1;
-    int64 start_leaf_index = 2;
-    repeated LogLeaf leaves = 3;
+    repeated LogLeaf leaves = 2;
 }
 
 message AddSequencedLeavesResponse {
     // Same number and order as in the corresponding request.
-    repeated QueuedLogLeaf sequenced_leaves = 3;
+    repeated QueuedLogLeaf results = 2;
 }
 
 message GetLeavesByIndexRequest {
@@ -274,9 +271,7 @@ message GetLeavesByHashResponse {
 }
 
 // A result of submitting an entry to the log. Output only.
-//
 // TODO(pavelkalinnikov): Consider renaming it to AddLogLeafResult or the like.
-// It can be reused by AddSequencedLeaves API.
 message QueuedLogLeaf {
     // The leaf as it was stored by Trillian. Empty unless `status.code` is:
     //  - `google.rpc.OK`: the `leaf` data is the same as in the request.
@@ -306,9 +301,10 @@ message LogLeaf {
     // The arbitrary metadata, e.g., a timestamp.
     bytes extra_data = 3;
 
-    // Output only. The index of the leaf in the Merkle tree, i.e., the position
-    // of the corresponding entry in the log. This value will be set by the
-    // LogSigner in a way depending on the log type (normal or pre-ordered).
+    // Output only in `LOG` mode. Required in `PREORDERED_LOG` mode.
+    // The index of the leaf in the Merkle tree, i.e., the position of the
+    // corresponding entry in the log. For normal logs this value will be
+    // assigned by the LogSigner.
     int64 leaf_index = 4;
 
     // The hash over the identity of this leaf. If empty, assumed to be the same
