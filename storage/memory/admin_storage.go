@@ -52,7 +52,7 @@ func (s *memoryAdminStorage) ReadWriteTransaction(ctx context.Context, f storage
 	}
 	defer tx.Close()
 	if err := f(ctx, tx); err != nil {
-		tx.Close()
+		return err
 	}
 	return tx.Commit()
 }

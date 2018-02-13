@@ -264,7 +264,10 @@ func (m *mySQLLogStorage) ReadWriteTransaction(ctx context.Context, treeID int64
 		return err
 	}
 	defer tx.Close()
-	return f(ctx, tx)
+	if err := f(ctx, tx); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (m *mySQLLogStorage) SnapshotForTree(ctx context.Context, treeID int64) (storage.ReadOnlyLogTreeTX, error) {

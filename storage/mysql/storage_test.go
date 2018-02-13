@@ -258,16 +258,14 @@ func createLogForTests(db *sql.DB) int64 {
 
 	ctx := context.Background()
 	l := NewLogStorage(db, nil)
-	tx, err := l.BeginForTree(ctx, tree.TreeId)
-	if err != nil && err != storage.ErrTreeNeedsInit {
-		panic(fmt.Sprintf("Error creating tree TX: %v", err))
-	}
-
-	if err := tx.StoreSignedLogRoot(ctx, trillian.SignedLogRoot{LogId: tree.TreeId, RootHash: []byte{0}, Signature: &sigpb.DigitallySigned{}}); err != nil {
-		panic(fmt.Sprintf("Error storing new SignedLogRoot: %v", err))
-	}
-	if err := tx.Commit(); err != nil {
-		panic(fmt.Sprintf("Error committing TX: %v", err))
+	err = l.ReadWriteTransaction(ctx, tree.TreeId, func(ctx context.Context, tx storage.LogTreeTX) error {
+		if err := tx.StoreSignedLogRoot(ctx, trillian.SignedLogRoot{LogId: tree.TreeId, RootHash: []byte{0}, Signature: &sigpb.DigitallySigned{}}); err != nil {
+			panic(fmt.Sprintf("Error storing new SignedLogRoot: %v", err))
+		}
+		return nil
+	})
+	if err != nil {
+		panic(fmt.Sprintf("ReadWriteTransaction() = %v", err))
 	}
 	return tree.TreeId
 }

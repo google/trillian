@@ -118,10 +118,6 @@ func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.Qu
 			return err
 		}
 
-		if err := t.commitAndLog(ctx, logID, tx, "QueueLeaves"); err != nil {
-			return err
-		}
-
 		for i, existingLeaf := range existingLeaves {
 			if existingLeaf != nil {
 				// Append the existing leaf to the response.
@@ -553,9 +549,6 @@ func (t *TrillianLogRPCServer) InitLog(ctx context.Context, req *trillian.InitLo
 			return status.Errorf(codes.FailedPrecondition, "StoreSignedLogRoot(): %v", err)
 		}
 
-		if err := tx.Commit(); err != nil {
-			return status.Errorf(codes.FailedPrecondition, "Commit(): %v", err)
-		}
 		return nil
 	})
 	if err != nil && err != storage.ErrTreeNeedsInit {
