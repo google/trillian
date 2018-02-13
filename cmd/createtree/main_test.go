@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
@@ -29,7 +30,6 @@ import (
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/testonly/fake"
 	"github.com/google/trillian/util/flagsaver"
-	"github.com/kylelemons/godebug/pretty"
 )
 
 // defaultTree reflects all flag defaults with the addition of a valid private key.
@@ -44,12 +44,15 @@ var defaultTree = &trillian.Tree{
 }
 
 type testCase struct {
-	desc      string
-	setFlags  func()
-	createErr error
-	initErr   error
-	wantErr   bool
-	wantTree  *trillian.Tree
+	desc          string
+	setFlags      func()
+	expectCreate  int
+	createErr     error
+	expectInit    int
+	initErr       error
+	expectGetRoot int
+	wantErr       bool
+	wantTree      *trillian.Tree
 }
 
 func mustMarshalAny(p proto.Message) *any.Any {
@@ -71,7 +74,10 @@ func TestCreateTree(t *testing.T) {
 		{
 			desc: "validOpts",
 			// runTest sets mandatory options, so no need to provide a setFlags func.
-			wantTree: defaultTree,
+			expectCreate:  1,
+			expectInit:    1,
+			expectGetRoot: 1,
+			wantTree:      defaultTree,
 		},
 		{
 			desc: "nonDefaultOpts",
@@ -81,7 +87,10 @@ func TestCreateTree(t *testing.T) {
 				*displayName = nonDefaultTree.DisplayName
 				*description = nonDefaultTree.Description
 			},
-			wantTree: &nonDefaultTree,
+			expectCreate:  1,
+			expectInit:    1,
+			expectGetRoot: 1,
+			wantTree:      &nonDefaultTree,
 		},
 		{
 			desc: "mandatoryOptsNotSet",
@@ -105,9 +114,10 @@ func TestCreateTree(t *testing.T) {
 			wantErr:  true,
 		},
 		{
-			desc:      "createErr",
-			createErr: errors.New("create tree failed"),
-			wantErr:   true,
+			desc:         "createErr",
+			expectCreate: 4,
+			createErr:    errors.New("create tree failed"),
+			wantErr:      true,
 		},
 		{
 			desc: "logInitErr",
@@ -115,8 +125,11 @@ func TestCreateTree(t *testing.T) {
 				nonDefaultTree.TreeType = trillian.TreeType_LOG
 				*treeType = nonDefaultTree.TreeType.String()
 			},
-			initErr: errors.New("log init failed"),
-			wantErr: true,
+			wantTree:     defaultTree,
+			expectCreate: 1,
+			expectInit:   4,
+			initErr:      errors.New("log init failed"),
+			wantErr:      true,
 		},
 		{
 			desc: "mapInitErr",
@@ -124,8 +137,11 @@ func TestCreateTree(t *testing.T) {
 				nonDefaultTree.TreeType = trillian.TreeType_MAP
 				*treeType = nonDefaultTree.TreeType.String()
 			},
-			initErr: errors.New("map init failed"),
-			wantErr: true,
+			wantTree:     &nonDefaultTree,
+			expectCreate: 1,
+			expectInit:   4,
+			initErr:      errors.New("map init failed"),
+			wantErr:      true,
 		},
 	})
 }
@@ -138,45 +154,42 @@ func TestCreateTree(t *testing.T) {
 // 2. Sets the adminServerAddr flag to point to the fake server.
 // 3. Calls the test's setFlags func (if provided) to allow it to change flags specific to the test.
 func runTest(t *testing.T, tests []*testCase) {
-	mapServer := fake.NewTrillianMapServer()
-	logServer := fake.NewTrillianLogServer()
-	server := &fake.Server{
-		GeneratedKey:      defaultTree.PrivateKey,
-		TrillianMapServer: mapServer,
-		TrillianLogServer: logServer,
-	}
-
-	lis, stopFakeServer, err := fake.StartServer(server)
-	if err != nil {
-		t.Fatalf("Error starting fake server: %v", err)
-	}
-	defer stopFakeServer()
-
 	for _, test := range tests {
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
 		t.Run(test.desc, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			server := &fake.Server{
+				MockTrillianMapServer:   trillian.NewMockTrillianMapServer(ctrl),
+				MockTrillianLogServer:   trillian.NewMockTrillianLogServer(ctrl),
+				MockTrillianAdminServer: trillian.NewMockTrillianAdminServer(ctrl),
+			}
+
+			lis, stopFakeServer, err := fake.StartServer(server)
+			if err != nil {
+				t.Fatalf("Error starting fake server: %v", err)
+			}
+			defer stopFakeServer()
 			defer flagsaver.Save().Restore()
 			*adminServerAddr = lis.Addr().String()
 			if test.setFlags != nil {
 				test.setFlags()
 			}
 
-			server.CreateErr = test.createErr
-			mapServer.InitErr = test.initErr
-			logServer.InitErr = test.initErr
-
-			tree, err := createTree(ctx)
-			switch hasErr := err != nil; {
-			case hasErr != test.wantErr:
-				t.Errorf("createTree() returned err = '%v', wantErr = %v", err, test.wantErr)
-				return
-			case hasErr:
-				return
+			server.MockTrillianAdminServer.EXPECT().CreateTree(gomock.Any(), gomock.Any()).Return(test.wantTree, test.createErr).MinTimes(test.expectCreate)
+			switch *treeType {
+			case "LOG":
+				server.MockTrillianLogServer.EXPECT().InitLog(gomock.Any(), gomock.Any()).Return(&trillian.InitLogResponse{}, test.initErr).MinTimes(test.expectInit)
+				server.MockTrillianLogServer.EXPECT().GetLatestSignedLogRoot(gomock.Any(), gomock.Any()).Return(&trillian.GetLatestSignedLogRootResponse{}, nil).MinTimes(test.expectGetRoot)
+			case "MAP":
+				server.MockTrillianMapServer.EXPECT().InitMap(gomock.Any(), gomock.Any()).Return(&trillian.InitMapResponse{}, test.initErr).MinTimes(test.expectInit)
+				server.MockTrillianMapServer.EXPECT().GetSignedMapRootByRevision(gomock.Any(), gomock.Any()).Return(&trillian.GetSignedMapRootResponse{}, nil).MinTimes(test.expectGetRoot)
 			}
 
-			if !proto.Equal(tree, test.wantTree) {
-				t.Errorf("post-createTree diff -got +want:\n%v", pretty.Compare(tree, test.wantTree))
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			_, err = createTree(ctx)
+			if hasErr := err != nil; hasErr != test.wantErr {
+				t.Errorf("createTree() '%v', wantErr = %v", err, test.wantErr)
 			}
 		})
 	}

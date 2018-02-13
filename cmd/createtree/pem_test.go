@@ -57,7 +57,10 @@ func TestWithPEMKeyFile(t *testing.T) {
 				*pemKeyPath = pemPath
 				*pemKeyPass = pemPassword
 			},
-			wantTree: &wantTree,
+			wantTree:      &wantTree,
+			expectCreate:  1,
+			expectInit:    1,
+			expectGetRoot: 1,
 		},
 	})
 }
@@ -106,7 +109,10 @@ func TestWithPrivateKey(t *testing.T) {
 				*pemKeyPath = pemPath
 				*pemKeyPass = pemPassword
 			},
-			wantTree: &wantTree,
+			wantTree:      &wantTree,
+			expectCreate:  1,
+			expectInit:    1,
+			expectGetRoot: 1,
 		},
 	})
 }

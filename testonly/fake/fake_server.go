@@ -15,14 +15,9 @@
 package fake
 
 import (
-	"fmt"
 	"net"
 
-	"github.com/golang/protobuf/ptypes/any"
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto/keyspb"
-	"github.com/google/trillian/crypto/sigpb"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
 
@@ -30,15 +25,9 @@ import (
 // the TrillianMapServer InitMap RPCs.
 // The remaining RPCs are not implemented.
 type Server struct {
-	trillian.TrillianAdminServer
-	trillian.TrillianLogServer
-	trillian.TrillianMapServer
-
-	// CreateErr will be returned by CreateTree if not nil.
-	CreateErr error
-	// GeneratedKey will be used to set a tree's PrivateKey if a CreateTree request has a KeySpec.
-	// This is for simulating key generation.
-	GeneratedKey *any.Any
+	*trillian.MockTrillianAdminServer
+	*trillian.MockTrillianLogServer
+	*trillian.MockTrillianMapServer
 }
 
 // StartServer starts a server on a random port.
@@ -63,37 +52,4 @@ func StartServer(server *Server) (net.Listener, func(), error) {
 	}
 
 	return lis, stopFn, nil
-}
-
-// CreateTree returns req.Tree, unless s.CreateErr is not nil, in which case it
-// returns s.CreateErr. This allows tests to examine the requested tree and check
-// behavior under error conditions.
-// If s.GeneratedKey and req.KeySpec are not nil, the returned tree will have
-// its PrivateKey field set to s.GeneratedKey.
-func (s *Server) CreateTree(ctx context.Context, req *trillian.CreateTreeRequest) (*trillian.Tree, error) {
-	if s.CreateErr != nil {
-		return nil, s.CreateErr
-	}
-	resp := *req.Tree
-	if req.KeySpec != nil {
-		if s.GeneratedKey == nil {
-			panic("fakeAdminServer.GeneratedKey == nil but CreateTreeRequest requests generated key")
-		}
-
-		var keySigAlgo sigpb.DigitallySigned_SignatureAlgorithm
-		switch req.KeySpec.Params.(type) {
-		case *keyspb.Specification_EcdsaParams:
-			keySigAlgo = sigpb.DigitallySigned_ECDSA
-		case *keyspb.Specification_RsaParams:
-			keySigAlgo = sigpb.DigitallySigned_RSA
-		default:
-			return nil, fmt.Errorf("got unsupported type of key_spec.params: %T", req.KeySpec.Params)
-		}
-		if treeSigAlgo := req.Tree.GetSignatureAlgorithm(); treeSigAlgo != keySigAlgo {
-			return nil, fmt.Errorf("got tree.SignatureAlgorithm = %v but key_spec.Params of type %T", treeSigAlgo, req.KeySpec.Params)
-		}
-
-		resp.PrivateKey = s.GeneratedKey
-	}
-	return &resp, nil
 }
