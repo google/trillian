@@ -22,13 +22,12 @@ import (
 	"testing"
 
 	"github.com/golang/glog"
+	"github.com/kylelemons/godebug/pretty"
+
 	"github.com/google/trillian"
 	"github.com/google/trillian/client"
-	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/examples/ct/ctmapper/ctmapperpb"
 	"github.com/google/trillian/testonly"
-
-	"github.com/kylelemons/godebug/pretty"
 
 	stestonly "github.com/google/trillian/storage/testonly"
 )
