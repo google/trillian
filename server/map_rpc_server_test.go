@@ -108,9 +108,8 @@ func TestInitMap(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			mockStorage := storage.NewMockMapStorage(ctrl)
 			mockTx := storage.NewMockMapTreeTX(ctrl)
-			mockStorage.EXPECT().ReadWriteTransaction(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(stestonly.RunOnMapTX(mockTx))
+			mockStorage := &stestonly.FakeMapStorage{TX: mockTx}
 			if tc.getRootErr != nil {
 				mockTx.EXPECT().LatestSignedMapRoot(gomock.Any()).Return(trillian.SignedMapRoot{}, tc.getRootErr)
 			} else {
@@ -355,10 +354,11 @@ func mockAdminStorageForMap(ctrl *gomock.Controller, times int, treeID int64) st
 	tree := *stestonly.MapTree
 	tree.TreeId = treeID
 
-	adminStorage := storage.NewMockAdminStorage(ctrl)
 	adminTX := storage.NewMockReadOnlyAdminTX(ctrl)
+	adminStorage := &stestonly.FakeAdminStorage{
+		ReadOnlyTX: []storage.ReadOnlyAdminTX{adminTX},
+	}
 
-	adminStorage.EXPECT().Snapshot(gomock.Any()).MaxTimes(times).Return(adminTX, nil)
 	adminTX.EXPECT().GetTree(gomock.Any(), treeID).MaxTimes(times).Return(&tree, nil)
 	adminTX.EXPECT().Close().MaxTimes(times).Return(nil)
 	adminTX.EXPECT().Commit().MaxTimes(times).Return(nil)

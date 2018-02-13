@@ -910,7 +910,7 @@ func TestServer_UndeleteTreeErrors(t *testing.T) {
 // It's created via setupAdminServer.
 type adminTestSetup struct {
 	registry   extension.Registry
-	as         *storage.MockAdminStorage
+	as         storage.AdminStorage
 	tx         *storage.MockAdminTX
 	snapshotTX *storage.MockReadOnlyAdminTX
 	server     *Server
@@ -921,14 +921,14 @@ type adminTestSetup struct {
 // Whether the snapshot/TX is expected to be committed (and if it should error doing so) is
 // controlled via shouldCommit and commitErr parameters.
 func setupAdminServer(ctrl *gomock.Controller, keygen keys.ProtoGenerator, snapshot, shouldCommit, commitErr bool) adminTestSetup {
-	as := storage.NewMockAdminStorage(ctrl)
+	as := &testonly.FakeAdminStorage{}
 
 	var snapshotTX *storage.MockReadOnlyAdminTX
 	var tx *storage.MockAdminTX
 	if snapshot {
 		snapshotTX = storage.NewMockReadOnlyAdminTX(ctrl)
-		as.EXPECT().Snapshot(gomock.Any()).MaxTimes(1).Return(snapshotTX, nil)
 		snapshotTX.EXPECT().Close().MaxTimes(1).Return(nil)
+		as.ReadOnlyTX = append(as.ReadOnlyTX, snapshotTX)
 		if shouldCommit {
 			if commitErr {
 				snapshotTX.EXPECT().Commit().Return(errors.New("commit error"))
@@ -938,8 +938,8 @@ func setupAdminServer(ctrl *gomock.Controller, keygen keys.ProtoGenerator, snaps
 		}
 	} else {
 		tx = storage.NewMockAdminTX(ctrl)
-		as.EXPECT().ReadWriteTransaction(gomock.Any(), gomock.Any()).MaxTimes(1).DoAndReturn(testonly.RunOnAdminTX(tx))
 		tx.EXPECT().Close().MaxTimes(1).Return(nil)
+		as.TX = append(as.TX, tx)
 		if shouldCommit {
 			if commitErr {
 				tx.EXPECT().Commit().Return(errors.New("commit error"))

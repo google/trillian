@@ -50,16 +50,16 @@ func TestDeletedTreeGC_Run(t *testing.T) {
 	listTX1 := storage.NewMockReadOnlyAdminTX(ctrl)
 	listTX2 := storage.NewMockReadOnlyAdminTX(ctrl)
 	deleteTX1 := storage.NewMockAdminTX(ctrl)
-	as := storage.NewMockAdminStorage(ctrl)
+	as := &testonly.FakeAdminStorage{
+		TX:         []storage.AdminTX{deleteTX1},
+		ReadOnlyTX: []storage.ReadOnlyAdminTX{listTX1, listTX2},
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// Sequence Snapshot()/ReadWriteTransaction() calls.
 	// * 1st loop: Snapshot()/ListTrees() followed by ReadWriteTransaction()/HardDeleteTree()
 	// * 2nd loop: Snapshot()/ListTrees() only.
-	lastTXCall := as.EXPECT().Snapshot(ctx).Return(listTX1, nil)
-	lastTXCall = as.EXPECT().ReadWriteTransaction(gomock.Any(), gomock.Any()).After(lastTXCall).DoAndReturn(testonly.RunOnAdminTX(deleteTX1))
-	as.EXPECT().Snapshot(ctx).Return(listTX2, nil).After(lastTXCall)
 
 	// 1st loop
 	listTX1.EXPECT().ListTrees(ctx, true /* includeDeleted */).Return([]*trillian.Tree{tree1}, nil)
@@ -159,20 +159,19 @@ func TestDeletedTreeGC_RunOnce(t *testing.T) {
 	for _, test := range tests {
 		timeNow = func() time.Time { return test.now }
 
-		as := storage.NewMockAdminStorage(ctrl)
 		listTX := storage.NewMockReadOnlyAdminTX(ctrl)
+		as := &testonly.FakeAdminStorage{ReadOnlyTX: []storage.ReadOnlyAdminTX{listTX}}
 
-		lastTXCall := as.EXPECT().Snapshot(ctx).Return(listTX, nil)
 		listTX.EXPECT().ListTrees(ctx, true /* includeDeleted */).Return(allTrees, nil)
 		listTX.EXPECT().Close().Return(nil)
 		listTX.EXPECT().Commit().Return(nil)
 
 		for _, id := range test.wantDeleted {
 			deleteTX := storage.NewMockAdminTX(ctrl)
-			as.EXPECT().ReadWriteTransaction(gomock.Any(), gomock.Any()).After(lastTXCall).DoAndReturn(testonly.RunOnAdminTX(deleteTX))
 			deleteTX.EXPECT().HardDeleteTree(ctx, id).Return(nil)
 			deleteTX.EXPECT().Close().Return(nil)
 			deleteTX.EXPECT().Commit().Return(nil)
+			as.TX = append(as.TX, deleteTX)
 		}
 
 		gc := NewDeletedTreeGC(as, test.deleteThreshold, 1*time.Second /* minRunInterval */, nil /* mf */)
@@ -320,42 +319,48 @@ func TestDeletedTreeGC_RunOnceErrors(t *testing.T) {
 
 	ctx := context.Background()
 	for _, test := range tests {
-		as := storage.NewMockAdminStorage(ctrl)
+		t.Run(test.desc, func(t *testing.T) {
+			listTX := storage.NewMockReadOnlyAdminTX(ctrl)
+			listTX.EXPECT().ListTrees(gomock.Any(), true /* includeDeleted */).AnyTimes().Return(test.listTrees.trees, test.listTrees.listErr)
+			listTX.EXPECT().Close().AnyTimes().Return(nil)
+			listTX.EXPECT().Commit().AnyTimes().Return(test.listTrees.commitErr)
 
-		listTX := storage.NewMockReadOnlyAdminTX(ctrl)
-		lastTXCall := as.EXPECT().Snapshot(gomock.Any()).Return(listTX, test.listTrees.snapshotErr)
-		listTX.EXPECT().ListTrees(gomock.Any(), true /* includeDeleted */).AnyTimes().Return(test.listTrees.trees, test.listTrees.listErr)
-		listTX.EXPECT().Close().AnyTimes().Return(nil)
-		listTX.EXPECT().Commit().AnyTimes().Return(test.listTrees.commitErr)
-
-		for _, hardDeleteTree := range test.hardDeleteTree {
-			deleteTX := storage.NewMockAdminTX(ctrl)
-			if hardDeleteTree.beginErr != nil {
-				lastTXCall = as.EXPECT().ReadWriteTransaction(gomock.Any(), gomock.Any()).After(lastTXCall).Return(hardDeleteTree.beginErr)
-			} else {
-				lastTXCall = as.EXPECT().ReadWriteTransaction(gomock.Any(), gomock.Any()).After(lastTXCall).DoAndReturn(testonly.RunOnAdminTX(deleteTX))
+			as := &testonly.FakeAdminStorage{
+				ReadOnlyTX: []storage.ReadOnlyAdminTX{listTX},
+			}
+			if test.listTrees.snapshotErr != nil {
+				as.SnapshotErr = append(as.SnapshotErr, test.listTrees.snapshotErr)
 			}
 
-			if hardDeleteTree.treeID != 0 {
-				deleteTX.EXPECT().HardDeleteTree(gomock.Any(), hardDeleteTree.treeID).AnyTimes().Return(hardDeleteTree.deleteErr)
-			}
-			deleteTX.EXPECT().Close().AnyTimes().Return(nil)
-			deleteTX.EXPECT().Commit().AnyTimes().Return(hardDeleteTree.commitErr)
-		}
+			for _, hardDeleteTree := range test.hardDeleteTree {
+				deleteTX := storage.NewMockAdminTX(ctrl)
 
-		gc := NewDeletedTreeGC(as, deleteThreshold, 1*time.Second /* minRunInterval */, nil /* mf */)
-		count, err := gc.RunOnce(ctx)
-		if err == nil {
-			t.Errorf("%v: RunOnce() returned err = nil, want non-nil", test.desc)
-			continue
-		}
-		if count != test.wantCount {
-			t.Errorf("%v: RunOnce() = %v, want = %v", test.desc, count, test.wantCount)
-		}
-		for _, want := range test.wantErrs {
-			if !strings.Contains(err.Error(), want) {
-				t.Errorf("%v: RunOnce() returned err = %q, want substring %q", test.desc, err, want)
+				if hardDeleteTree.beginErr != nil {
+					as.TXErr = append(as.TXErr, hardDeleteTree.beginErr)
+				} else {
+					as.TX = append(as.TX, deleteTX)
+				}
+
+				if hardDeleteTree.treeID != 0 {
+					deleteTX.EXPECT().HardDeleteTree(gomock.Any(), hardDeleteTree.treeID).AnyTimes().Return(hardDeleteTree.deleteErr)
+				}
+				deleteTX.EXPECT().Close().AnyTimes().Return(nil)
+				deleteTX.EXPECT().Commit().AnyTimes().Return(hardDeleteTree.commitErr)
 			}
-		}
+
+			gc := NewDeletedTreeGC(as, deleteThreshold, 1*time.Second /* minRunInterval */, nil /* mf */)
+			count, err := gc.RunOnce(ctx)
+			if err == nil {
+				t.Fatalf("%v: RunOnce() returned err = nil, want non-nil", test.desc)
+			}
+			if count != test.wantCount {
+				t.Errorf("%v: RunOnce() = %v, want = %v", test.desc, count, test.wantCount)
+			}
+			for _, want := range test.wantErrs {
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("%v: RunOnce() returned err = %q, want substring %q", test.desc, err, want)
+				}
+			}
+		})
 	}
 }
