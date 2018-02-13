@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package testonly
+package fake
 
 import (
 	"fmt"
@@ -26,10 +26,10 @@ import (
 	"google.golang.org/grpc"
 )
 
-// FakeServer implements the TrillianAdminServer CreateTree, and
+// Server implements the TrillianAdminServer CreateTree, and
 // the TrillianMapServer InitMap RPCs.
 // The remaining RPCs are not implemented.
-type FakeServer struct {
+type Server struct {
 	trillian.TrillianAdminServer
 	trillian.TrillianLogServer
 	trillian.TrillianMapServer
@@ -41,11 +41,11 @@ type FakeServer struct {
 	GeneratedKey *any.Any
 }
 
-// StartFakeServer starts a server on a random port.
+// StartServer starts a server on a random port.
 // Returns the started server, the listener it's using for connection and a
 // close function that must be defer-called on the scope the server is meant to
 // stop.
-func StartFakeServer(server *FakeServer) (net.Listener, func(), error) {
+func StartServer(server *Server) (net.Listener, func(), error) {
 	grpcServer := grpc.NewServer()
 	trillian.RegisterTrillianAdminServer(grpcServer, server)
 	trillian.RegisterTrillianLogServer(grpcServer, server)
@@ -70,7 +70,7 @@ func StartFakeServer(server *FakeServer) (net.Listener, func(), error) {
 // behavior under error conditions.
 // If s.GeneratedKey and req.KeySpec are not nil, the returned tree will have
 // its PrivateKey field set to s.GeneratedKey.
-func (s *FakeServer) CreateTree(ctx context.Context, req *trillian.CreateTreeRequest) (*trillian.Tree, error) {
+func (s *Server) CreateTree(ctx context.Context, req *trillian.CreateTreeRequest) (*trillian.Tree, error) {
 	if s.CreateErr != nil {
 		return nil, s.CreateErr
 	}

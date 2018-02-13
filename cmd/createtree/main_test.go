@@ -26,8 +26,8 @@ import (
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/trillian"
-	"github.com/google/trillian/cmd/createtree/testonly"
 	"github.com/google/trillian/crypto/sigpb"
+	"github.com/google/trillian/testonly/fake"
 	"github.com/google/trillian/util/flagsaver"
 	"github.com/kylelemons/godebug/pretty"
 )
@@ -138,15 +138,15 @@ func TestCreateTree(t *testing.T) {
 // 2. Sets the adminServerAddr flag to point to the fake server.
 // 3. Calls the test's setFlags func (if provided) to allow it to change flags specific to the test.
 func runTest(t *testing.T, tests []*testCase) {
-	mapServer := testonly.NewTrillianMapServer()
-	logServer := testonly.NewTrillianLogServer()
-	server := &testonly.FakeServer{
+	mapServer := fake.NewTrillianMapServer()
+	logServer := fake.NewTrillianLogServer()
+	server := &fake.Server{
 		GeneratedKey:      defaultTree.PrivateKey,
 		TrillianMapServer: mapServer,
 		TrillianLogServer: logServer,
 	}
 
-	lis, stopFakeServer, err := testonly.StartFakeServer(server)
+	lis, stopFakeServer, err := fake.StartServer(server)
 	if err != nil {
 		t.Fatalf("Error starting fake server: %v", err)
 	}
