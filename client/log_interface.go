@@ -56,4 +56,6 @@ type LogVerifier interface {
 	VerifyInclusionAtIndex(trusted *trillian.SignedLogRoot, data []byte, leafIndex int64, proof [][]byte) error
 	// VerifyInclusionByHash verifies the inclusion proof for data
 	VerifyInclusionByHash(trusted *trillian.SignedLogRoot, leafHash []byte, proof *trillian.Proof) error
+	// BuildLeaf runs the leaf hasher over data and builds a leaf.
+	BuildLeaf(data []byte) (*trillian.LogLeaf, error)
 }

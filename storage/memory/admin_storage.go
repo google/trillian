@@ -45,6 +45,18 @@ func (s *memoryAdminStorage) Begin(ctx context.Context) (storage.AdminTX, error)
 	return &adminTX{ms: s.ms}, nil
 }
 
+func (s *memoryAdminStorage) ReadWriteTransaction(ctx context.Context, f storage.AdminTXFunc) error {
+	tx, err := s.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Close()
+	if err := f(ctx, tx); err != nil {
+		tx.Close()
+	}
+	return tx.Commit()
+}
+
 func (s *memoryAdminStorage) CheckDatabaseAccessible(ctx context.Context) error {
 	return nil
 }

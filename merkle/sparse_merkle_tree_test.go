@@ -28,7 +28,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/golang/glog"
 	"github.com/golang/mock/gomock"
 	"github.com/google/trillian/merkle/maphasher"
 	"github.com/google/trillian/storage"
@@ -73,22 +72,24 @@ func maybeProfileMemory(t *testing.T) {
 	}
 }
 
-func newTX(tx storage.MapTreeTX) func() (storage.TreeTX, error) {
-	return func() (storage.TreeTX, error) {
-		glog.Infof("new tx")
-		return tx, nil
-	}
-}
-
 func getSparseMerkleTreeReaderWithMockTX(ctrl *gomock.Controller, rev int64) (*SparseMerkleTreeReader, *storage.MockMapTreeTX) {
 	tx := storage.NewMockMapTreeTX(ctrl)
 	return NewSparseMerkleTreeReader(rev, maphasher.Default, tx), tx
 }
 
+func runOnProducer(tx storage.MapTreeTX) func(context.Context, func(context.Context, storage.MapTreeTX) error) error {
+	defer tx.Close()
+
+	return func(ctx context.Context, f func(context.Context, storage.MapTreeTX) error) error {
+		return f(ctx, tx)
+	}
+}
+
 func getSparseMerkleTreeWriterWithMockTX(ctx context.Context, ctrl *gomock.Controller, treeID, rev int64) (*SparseMerkleTreeWriter, *storage.MockMapTreeTX) {
 	tx := storage.NewMockMapTreeTX(ctrl)
 	tx.EXPECT().WriteRevision().AnyTimes().Return(rev)
-	tree, err := NewSparseMerkleTreeWriter(ctx, treeID, rev, maphasher.Default, newTX(tx))
+	tx.EXPECT().Close().MinTimes(1)
+	tree, err := NewSparseMerkleTreeWriter(ctx, treeID, rev, maphasher.Default, runOnProducer(tx))
 	if err != nil {
 		panic(err)
 	}

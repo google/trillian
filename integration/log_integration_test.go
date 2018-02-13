@@ -20,13 +20,17 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/grpc"
+
 	"github.com/google/trillian"
-	_ "github.com/google/trillian/crypto/keys/der/proto" // Register PrivateKey ProtoHandler
+	"github.com/google/trillian/client"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/storage/memory"
 	"github.com/google/trillian/testonly/integration"
-	"google.golang.org/grpc"
+
+	_ "github.com/google/trillian/crypto/keys/der/proto" // Register PrivateKey ProtoHandler
+	stestonly "github.com/google/trillian/storage/testonly"
 )
 
 var treeIDFlag = flag.Int64("treeid", -1, "The tree id to use")
@@ -95,12 +99,14 @@ func TestInProcessLogIntegration(t *testing.T) {
 	}
 	defer env.Close()
 
-	logID, err := env.CreateLog()
+	tree, err := client.CreateAndInitTree(ctx, &trillian.CreateTreeRequest{
+		Tree: stestonly.LogTree,
+	}, env.Admin, nil, env.Log)
 	if err != nil {
 		t.Fatalf("Failed to create log: %v", err)
 	}
 
-	params := DefaultTestParameters(logID)
+	params := DefaultTestParameters(tree.TreeId)
 	if err := RunLogIntegration(env.Log, params); err != nil {
 		t.Fatalf("Test failed: %v", err)
 	}
@@ -123,12 +129,14 @@ func TestInProcessLogIntegrationDuplicateLeaves(t *testing.T) {
 	}
 	defer env.Close()
 
-	logID, err := env.CreateLog()
+	tree, err := client.CreateAndInitTree(ctx, &trillian.CreateTreeRequest{
+		Tree: stestonly.LogTree,
+	}, env.Admin, nil, env.Log)
 	if err != nil {
 		t.Fatalf("Failed to create log: %v", err)
 	}
 
-	params := DefaultTestParameters(logID)
+	params := DefaultTestParameters(tree.TreeId)
 	params.uniqueLeaves = 10
 	if err := RunLogIntegration(env.Log, params); err != nil {
 		t.Fatalf("Test failed: %v", err)

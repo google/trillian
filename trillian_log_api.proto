@@ -95,7 +95,7 @@ service TrillianLog {
 
     rpc InitLog (InitLogRequest) returns (InitLogResponse) {
       option (google.api.http) = {
-        post: "/v1/beta1/logs/{log_id}:init"
+        post: "/v1beta1/logs/{log_id}:init"
       };
     }
 

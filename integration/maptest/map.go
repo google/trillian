@@ -17,22 +17,18 @@ package maptest
 import (
 	"bytes"
 	"context"
-	"crypto"
 	"encoding/hex"
 	"fmt"
 	"testing"
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto/keys/der"
+	"github.com/google/trillian/client"
 	"github.com/google/trillian/examples/ct/ctmapper/ctmapperpb"
-	"github.com/google/trillian/merkle"
-	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/testonly"
 
 	"github.com/kylelemons/godebug/pretty"
 
-	tcrypto "github.com/google/trillian/crypto"
 	stestonly "github.com/google/trillian/storage/testonly"
 )
 
@@ -85,74 +81,58 @@ func isEmptyMap(ctx context.Context, tmap trillian.TrillianMapClient, tree *tril
 	return nil
 }
 
-func verifyGetSignedMapRootResponse(mapRoot *trillian.SignedMapRoot,
-	wantRevision int64, pubKey crypto.PublicKey, hasher hashers.MapHasher, treeID int64) error {
+func verifyGetSignedMapRootResponse(mapVerifier *client.MapVerifier, mapRoot *trillian.SignedMapRoot,
+	wantRevision int64, wantTreeID int64) error {
 	if got, want := mapRoot.GetMapRevision(), wantRevision; got != want {
 		return fmt.Errorf("got SMR with revision %d, want %d", got, want)
 	}
-	// SignedMapRoot contains its own signature. To verify, we need to create a local
-	// copy of the object and return the object to the state it was in when signed
-	// by removing the signature from the object.
-	smr := *mapRoot
-	smr.Signature = nil // Remove the signature from the object to be verified.
-	if err := tcrypto.VerifyObject(pubKey, smr, mapRoot.GetSignature()); err != nil {
-		return fmt.Errorf("VerifyObject(SMR): %v", err)
+	if got, want := mapRoot.GetMapId(), wantTreeID; got != want {
+		return fmt.Errorf("got TreeID %d, want %d", got, want)
 	}
-	return nil
+	return mapVerifier.VerifySignedMapRoot(mapRoot)
 }
 
-func verifyGetMapLeavesResponse(getResp *trillian.GetMapLeavesResponse, indexes [][]byte,
-	wantRevision int64, pubKey crypto.PublicKey, hasher hashers.MapHasher, treeID int64) error {
+func verifyGetMapLeavesResponse(mapVerifier *client.MapVerifier, getResp *trillian.GetMapLeavesResponse, indexes [][]byte,
+	wantRevision int64, wantTreeID int64) error {
 	if got, want := len(getResp.GetMapLeafInclusion()), len(indexes); got != want {
 		return fmt.Errorf("got %d values, want %d", got, want)
 	}
-	if err := verifyGetSignedMapRootResponse(getResp.GetMapRoot(), wantRevision, pubKey, hasher, treeID); err != nil {
+	if err := verifyGetSignedMapRootResponse(mapVerifier, getResp.GetMapRoot(), wantRevision, wantTreeID); err != nil {
 		return err
 	}
-	rootHash := getResp.GetMapRoot().GetRootHash()
 	for _, incl := range getResp.GetMapLeafInclusion() {
 		leaf := incl.GetLeaf().GetLeafValue()
 		index := incl.GetLeaf().GetIndex()
 		leafHash := incl.GetLeaf().GetLeafHash()
-		proof := incl.GetInclusion()
 
-		wantLeafHash, err := hasher.HashLeaf(treeID, index, leaf)
+		wantLeafHash, err := mapVerifier.Hasher.HashLeaf(wantTreeID, index, leaf)
 		if err != nil {
 			return err
 		}
 		if got, want := leafHash, wantLeafHash; !bytes.Equal(got, want) {
 			return fmt.Errorf("HashLeaf(%s): %x, want %x", leaf, got, want)
 		}
-		if err := merkle.VerifyMapInclusionProof(treeID, index,
-			leaf, rootHash, proof, hasher); err != nil {
-			return fmt.Errorf("VerifyMapInclusionProof(%x): %v", index, err)
+		if err := mapVerifier.VerifyMapLeafInclusion(getResp.GetMapRoot(), incl); err != nil {
+			return fmt.Errorf("VerifyMapLeafInclusion(%x): %v", index, err)
 		}
 	}
 	return nil
 }
 
 // newTreeWithHasher is a test setup helper for creating new trees with a given hasher.
-func newTreeWithHasher(ctx context.Context, tadmin trillian.TrillianAdminClient, tmap trillian.TrillianMapClient, hashStrategy trillian.HashStrategy) (*trillian.Tree, hashers.MapHasher, *trillian.SignedMapRoot, error) {
+func newTreeWithHasher(ctx context.Context, tadmin trillian.TrillianAdminClient, tmap trillian.TrillianMapClient, hashStrategy trillian.HashStrategy) (*trillian.Tree, error) {
 	treeParams := stestonly.MapTree
 	treeParams.HashStrategy = hashStrategy
-	tree, err := tadmin.CreateTree(ctx, &trillian.CreateTreeRequest{
-		Tree: treeParams,
-	})
+	tree, err := tadmin.CreateTree(ctx, &trillian.CreateTreeRequest{Tree: treeParams})
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
 
-	initReq := &trillian.InitMapRequest{MapId: tree.TreeId}
-	initResp, err := tmap.InitMap(ctx, initReq)
-	if err != nil {
-		return nil, nil, nil, err
+	if _, err := tmap.InitMap(ctx, &trillian.InitMapRequest{MapId: tree.TreeId}); err != nil {
+		return nil, err
 	}
 
-	hasher, err := hashers.NewMapHasher(tree.HashStrategy)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	return tree, hasher, initResp.Created, nil
+	return tree, nil
 }
 
 type hashStrategyAndRoot struct {
@@ -178,26 +158,20 @@ func RunMapRevisionZero(ctx context.Context, t *testing.T, tadmin trillian.Trill
 	} {
 		for _, hsr := range tc.hashStrategy {
 			t.Run(fmt.Sprintf("%v/%v", tc.desc, hsr.hashStrategy), func(t *testing.T) {
-				tree, hasher, smr, err := newTreeWithHasher(ctx, tadmin, tmap, hsr.hashStrategy)
+				tree, err := newTreeWithHasher(ctx, tadmin, tmap, hsr.hashStrategy)
 				if err != nil {
 					t.Fatalf("newTreeWithHasher(%v): %v", hsr.hashStrategy, err)
 				}
-				if got, want := smr.GetRootHash(), hsr.wantRoot; want != nil && !bytes.Equal(got, want) {
-					t.Fatalf("newTreeWithHasher() returned unexpected root hash %x, want %x", got, want)
-				}
-				pubKey, err := der.UnmarshalPublicKey(tree.GetPublicKey().GetDer())
+				mapVerifier, err := client.NewMapVerifierFromTree(tree)
 				if err != nil {
-					t.Fatalf("UnmarshalPublicKey(%v): %v", hsr.hashStrategy, err)
+					t.Fatalf("NewMapVerifierFromTree(): %v", err)
 				}
 
-				getSmrResp, err := tmap.GetSignedMapRoot(ctx, &trillian.GetSignedMapRootRequest{
-					MapId: tree.TreeId,
-				})
+				getSmrResp, err := tmap.GetSignedMapRoot(ctx, &trillian.GetSignedMapRootRequest{MapId: tree.TreeId})
 				if err != nil {
 					t.Fatalf("GetSignedMapRoot(): %v", err)
 				}
-				if err := verifyGetSignedMapRootResponse(getSmrResp.GetMapRoot(), tc.wantRev,
-					pubKey, hasher, tree.TreeId); err != nil {
+				if err := verifyGetSignedMapRootResponse(mapVerifier, getSmrResp.GetMapRoot(), tc.wantRev, tree.TreeId); err != nil {
 					t.Errorf("verifyGetSignedMapRootResponse(rev %v): %v", tc.wantRev, err)
 				}
 
@@ -208,8 +182,7 @@ func RunMapRevisionZero(ctx context.Context, t *testing.T, tadmin trillian.Trill
 				if err != nil {
 					t.Errorf("GetSignedMapRootByRevision(): %v", err)
 				}
-				if err := verifyGetSignedMapRootResponse(getSmrByRevResp.GetMapRoot(), tc.wantRev,
-					pubKey, hasher, tree.TreeId); err != nil {
+				if err := verifyGetSignedMapRootResponse(mapVerifier, getSmrByRevResp.GetMapRoot(), tc.wantRev, tree.TreeId); err != nil {
 					t.Errorf("verifyGetSignedMapRootResponse(rev %v): %v", tc.wantRev, err)
 				}
 
@@ -226,7 +199,6 @@ func RunMapRevisionZero(ctx context.Context, t *testing.T, tadmin trillian.Trill
 				}
 				// TODO(phad): ideally we'd inspect err's type and check it contains a NOT_FOUND Code (5), but I don't want
 				// a dependency on gRPC here.
-
 			})
 		}
 	}
@@ -264,7 +236,7 @@ func RunMapRevisionInvalid(ctx context.Context, t *testing.T, tadmin trillian.Tr
 	} {
 		for _, hashStrategy := range tc.HashStrategy {
 			t.Run(fmt.Sprintf("%v/%v", tc.desc, hashStrategy), func(t *testing.T) {
-				tree, _, _, err := newTreeWithHasher(ctx, tadmin, tmap, hashStrategy)
+				tree, err := newTreeWithHasher(ctx, tadmin, tmap, hashStrategy)
 				if err != nil {
 					t.Fatalf("newTreeWithHasher(%v): %v", hashStrategy, err)
 				}
@@ -336,13 +308,13 @@ func RunLeafHistory(ctx context.Context, t *testing.T, tadmin trillian.TrillianA
 	} {
 		for _, hashStrategy := range tc.HashStrategy {
 			t.Run(fmt.Sprintf("%v/%v", tc.desc, hashStrategy), func(t *testing.T) {
-				tree, hasher, _, err := newTreeWithHasher(ctx, tadmin, tmap, hashStrategy)
+				tree, err := newTreeWithHasher(ctx, tadmin, tmap, hashStrategy)
 				if err != nil {
 					t.Fatalf("newTreeWithHasher(%v): %v", hashStrategy, err)
 				}
-				pubKey, err := der.UnmarshalPublicKey(tree.GetPublicKey().GetDer())
+				mapVerifier, err := client.NewMapVerifierFromTree(tree)
 				if err != nil {
-					t.Fatalf("UnmarshalPublicKey(%v): %v", hashStrategy, err)
+					t.Fatalf("NewMapVerifierFromTree(): %v", err)
 				}
 
 				for _, batch := range tc.set {
@@ -376,8 +348,7 @@ func RunLeafHistory(ctx context.Context, t *testing.T, tadmin trillian.TrillianA
 						t.Errorf("GetLeavesByRevision(rev: %v).LeafValue: %s, want %s", batch.revision, got, want)
 					}
 
-					if err := verifyGetMapLeavesResponse(getResp, indexes, int64(batch.revision),
-						pubKey, hasher, tree.TreeId); err != nil {
+					if err := verifyGetMapLeavesResponse(mapVerifier, getResp, indexes, int64(batch.revision), tree.TreeId); err != nil {
 						t.Errorf("verifyGetMapLeavesResponse(rev %v): %v", batch.revision, err)
 					}
 				}
@@ -421,13 +392,13 @@ func RunInclusion(ctx context.Context, t *testing.T, tadmin trillian.TrillianAdm
 	} {
 		for _, hashStrategy := range tc.HashStrategy {
 			t.Run(fmt.Sprintf("%v/%v", tc.desc, hashStrategy), func(t *testing.T) {
-				tree, hasher, _, err := newTreeWithHasher(ctx, tadmin, tmap, hashStrategy)
+				tree, err := newTreeWithHasher(ctx, tadmin, tmap, hashStrategy)
 				if err != nil {
 					t.Fatalf("newTreeWithHasher(%v): %v", hashStrategy, err)
 				}
-				pubKey, err := der.UnmarshalPublicKey(tree.GetPublicKey().GetDer())
+				mapVerifier, err := client.NewMapVerifierFromTree(tree)
 				if err != nil {
-					t.Fatalf("UnmarshalPublicKey(%v): %v", hashStrategy, err)
+					t.Fatalf("NewMapVerifierFromTree(): %v", err)
 				}
 
 				if _, err := tmap.SetLeaves(ctx, &trillian.SetMapLeavesRequest{
@@ -452,8 +423,7 @@ func RunInclusion(ctx context.Context, t *testing.T, tadmin trillian.TrillianAdm
 					t.Fatalf("GetLeaves(): %v", err)
 				}
 
-				if err := verifyGetMapLeavesResponse(getResp, indexes, 1,
-					pubKey, hasher, tree.TreeId); err != nil {
+				if err := verifyGetMapLeavesResponse(mapVerifier, getResp, indexes, 1, tree.TreeId); err != nil {
 					t.Errorf("verifyGetMapLeavesResponse(): %v", err)
 				}
 			})
@@ -490,7 +460,7 @@ func RunInclusionBatch(ctx context.Context, t *testing.T, tadmin trillian.Trilli
 			glog.Infof("testing.Short() is true. Skipping %v", tc.desc)
 			continue
 		}
-		tree, _, _, err := newTreeWithHasher(ctx, tadmin, tmap, tc.HashStrategy)
+		tree, err := newTreeWithHasher(ctx, tadmin, tmap, tc.HashStrategy)
 		if err != nil {
 			t.Fatalf("%v: newTreeWithHasher(%v): %v", tc.desc, tc.HashStrategy, err)
 		}
@@ -505,14 +475,9 @@ func RunInclusionBatch(ctx context.Context, t *testing.T, tadmin trillian.Trilli
 func runMapBatchTest(ctx context.Context, t *testing.T, desc string, tmap trillian.TrillianMapClient, tree *trillian.Tree, batchSize, numBatches int) error {
 	t.Helper()
 
-	// Parse variables from tree
-	pubKey, err := der.UnmarshalPublicKey(tree.GetPublicKey().GetDer())
+	mapVerifier, err := client.NewMapVerifierFromTree(tree)
 	if err != nil {
-		t.Fatalf("%s: UnmarshalPublicKey(%s)=_, err=%v want nil", desc, tree.GetPublicKey(), err)
-	}
-	hasher, err := hashers.NewMapHasher(tree.HashStrategy)
-	if err != nil {
-		t.Fatalf("%s: NewMapHasher(%v)=_, err=%v want nil", desc, tree.HashStrategy, err)
+		t.Fatalf("NewMapVerifierFromTree(): %v", err)
 	}
 
 	// Ensure we're starting with an empty map
@@ -544,7 +509,7 @@ func runMapBatchTest(ctx context.Context, t *testing.T, desc string, tmap trilli
 	r, err := tmap.GetSignedMapRoot(ctx, &trillian.GetSignedMapRootRequest{
 		MapId: tree.TreeId,
 	})
-	if err != nil {
+	if err != nil || r.MapRoot == nil {
 		t.Fatalf("%s: failed to get map head: %v", desc, err)
 	}
 
@@ -574,8 +539,7 @@ func runMapBatchTest(ctx context.Context, t *testing.T, desc string, tmap trilli
 			continue
 		}
 
-		if err := verifyGetMapLeavesResponse(getResp, indexes, int64(numBatches),
-			pubKey, hasher, tree.TreeId); err != nil {
+		if err := verifyGetMapLeavesResponse(mapVerifier, getResp, indexes, int64(numBatches), tree.TreeId); err != nil {
 			t.Errorf("%s: batch %v: verifyGetMapLeavesResponse(): %v", desc, i, err)
 			continue
 		}

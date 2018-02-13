@@ -422,7 +422,7 @@ func TestGetSignedMapRootNotExist(t *testing.T) {
 
 	ctx := context.Background()
 	_, err := s.BeginForTree(ctx, mapID)
-	if got, want := err, storage.ErrMapNeedsInit; got != want {
+	if got, want := err, storage.ErrTreeNeedsInit; got != want {
 		t.Fatalf("GetSignedMapRoot: %v, want %v", got, want)
 	}
 }
@@ -597,7 +597,7 @@ func createInitializedMapForTests(ctx context.Context, t *testing.T, db *sql.DB)
 
 	s := NewMapStorage(db)
 	tx, err := s.BeginForTree(ctx, mapID)
-	if err != storage.ErrMapNeedsInit {
+	if err != storage.ErrTreeNeedsInit {
 		t.Fatalf("%v: Failed to BeginForTree: %v", mapID, err)
 	}
 	defer tx.Close()

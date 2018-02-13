@@ -308,7 +308,7 @@ func createTree(ctx context.Context, db *sql.DB) (*trillian.Tree, error) {
 	{
 		ls := mysql.NewLogStorage(db, nil)
 		tx, err := ls.BeginForTree(ctx, tree.TreeId)
-		if err != nil && err != storage.ErrLogNeedsInit {
+		if err != nil && err != storage.ErrTreeNeedsInit {
 			return nil, err
 		}
 		defer tx.Close()

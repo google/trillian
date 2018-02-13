@@ -80,11 +80,11 @@ func TestAdminTX_TreeWithNulls(t *testing.T) {
 
 	tests := []struct {
 		desc string
-		fn   func(storage.AdminTX) error
+		fn   storage.AdminTXFunc
 	}{
 		{
 			desc: "GetTree",
-			fn: func(tx storage.AdminTX) error {
+			fn: func(ctx context.Context, tx storage.AdminTX) error {
 				_, err := tx.GetTree(ctx, treeID)
 				return err
 			},
@@ -93,7 +93,7 @@ func TestAdminTX_TreeWithNulls(t *testing.T) {
 			// ListTreeIDs *shouldn't* care about other columns, but let's test it just
 			// in case.
 			desc: "ListTreeIDs",
-			fn: func(tx storage.AdminTX) error {
+			fn: func(ctx context.Context, tx storage.AdminTX) error {
 				ids, err := tx.ListTreeIDs(ctx, false /* includeDeleted */)
 				if err != nil {
 					return err
@@ -108,7 +108,7 @@ func TestAdminTX_TreeWithNulls(t *testing.T) {
 		},
 		{
 			desc: "ListTrees",
-			fn: func(tx storage.AdminTX) error {
+			fn: func(ctx context.Context, tx storage.AdminTX) error {
 				trees, err := tx.ListTrees(ctx, false /* includeDeleted */)
 				if err != nil {
 					return err
@@ -123,7 +123,7 @@ func TestAdminTX_TreeWithNulls(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		if err := storage.RunInAdminTX(ctx, s, test.fn); err != nil {
+		if err := s.ReadWriteTransaction(ctx, test.fn); err != nil {
 			t.Errorf("%v: err = %v, want = nil", test.desc, err)
 		}
 	}
@@ -183,13 +183,13 @@ func TestAdminTX_HardDeleteTree(t *testing.T) {
 		t.Fatalf("CreateTree() returned err = %v", err)
 	}
 
-	if err := storage.RunInAdminTX(ctx, s, func(tx storage.AdminTX) error {
+	if err := s.ReadWriteTransaction(ctx, func(ctx context.Context, tx storage.AdminTX) error {
 		if _, err := tx.SoftDeleteTree(ctx, tree.TreeId); err != nil {
 			return err
 		}
 		return tx.HardDeleteTree(ctx, tree.TreeId)
 	}); err != nil {
-		t.Fatalf("RunInAdminTX() returned err = %v", err)
+		t.Fatalf("ReadWriteTransaction() returned err = %v", err)
 	}
 
 	// Unlike the HardDelete tests on AdminStorageTester, here we have the chance to poke inside the

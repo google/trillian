@@ -881,8 +881,8 @@ func TestLatestSignedRootNoneWritten(t *testing.T) {
 	s := NewLogStorage(DB, nil)
 
 	tx, err := s.BeginForTree(ctx, logID)
-	if err != storage.ErrLogNeedsInit {
-		t.Errorf("BeginForTree gave %v, want %v", err, storage.ErrLogNeedsInit)
+	if err != storage.ErrTreeNeedsInit {
+		t.Errorf("BeginForTree gave %v, want %v", err, storage.ErrTreeNeedsInit)
 	}
 	commit(tx, t)
 }

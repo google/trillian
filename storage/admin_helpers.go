@@ -45,11 +45,11 @@ func ListTrees(ctx context.Context, admin AdminStorage, includeDeleted bool) ([]
 }
 
 // CreateTree creates a tree in storage.
-// It's a convenience wrapper around RunInAdminTX and AdminWriter's CreateTree.
-// See RunInAdminTX if you need to perform more than one action per transaction.
+// It's a convenience wrapper around ReadWriteTransaction and AdminWriter's CreateTree.
+// See ReadWriteTransaction if you need to perform more than one action per transaction.
 func CreateTree(ctx context.Context, admin AdminStorage, tree *trillian.Tree) (*trillian.Tree, error) {
 	var createdTree *trillian.Tree
-	err := RunInAdminTX(ctx, admin, func(tx AdminTX) (err error) {
+	err := admin.ReadWriteTransaction(ctx, func(ctx context.Context, tx AdminTX) (err error) {
 		createdTree, err = tx.CreateTree(ctx, tree)
 		return
 	})
@@ -57,11 +57,11 @@ func CreateTree(ctx context.Context, admin AdminStorage, tree *trillian.Tree) (*
 }
 
 // UpdateTree updates a tree in storage.
-// It's a convenience wrapper around RunInAdminTX and AdminWriter's UpdateTree.
-// See RunInAdminTX if you need to perform more than one action per transaction.
+// It's a convenience wrapper around ReadWriteTransaction and AdminWriter's UpdateTree.
+// See ReadWriteTransaction if you need to perform more than one action per transaction.
 func UpdateTree(ctx context.Context, admin AdminStorage, treeID int64, fn func(*trillian.Tree)) (*trillian.Tree, error) {
 	var updatedTree *trillian.Tree
-	err := RunInAdminTX(ctx, admin, func(tx AdminTX) (err error) {
+	err := admin.ReadWriteTransaction(ctx, func(ctx context.Context, tx AdminTX) (err error) {
 		updatedTree, err = tx.UpdateTree(ctx, treeID, fn)
 		return
 	})
@@ -69,11 +69,11 @@ func UpdateTree(ctx context.Context, admin AdminStorage, treeID int64, fn func(*
 }
 
 // SoftDeleteTree soft-deletes a tree in storage.
-// It's a convenience wrapper around RunInAdminTX and AdminWriter's SoftDeleteTree.
-// See RunInAdminTX if you need to perform more than one action per transaction.
+// It's a convenience wrapper around ReadWriteTransaction and AdminWriter's SoftDeleteTree.
+// See ReadWriteTransaction if you need to perform more than one action per transaction.
 func SoftDeleteTree(ctx context.Context, admin AdminStorage, treeID int64) (*trillian.Tree, error) {
 	var tree *trillian.Tree
-	err := RunInAdminTX(ctx, admin, func(tx AdminTX) (err error) {
+	err := admin.ReadWriteTransaction(ctx, func(ctx context.Context, tx AdminTX) (err error) {
 		tree, err = tx.SoftDeleteTree(ctx, treeID)
 		return
 	})
@@ -81,20 +81,20 @@ func SoftDeleteTree(ctx context.Context, admin AdminStorage, treeID int64) (*tri
 }
 
 // HardDeleteTree hard-deletes a tree from storage.
-// It's a convenience wrapper around RunInAdminTX and AdminWriter's HardDeleteTree.
-// See RunInAdminTX if you need to perform more than one action per transaction.
+// It's a convenience wrapper around ReadWriteTransaction and AdminWriter's HardDeleteTree.
+// See ReadWriteTransaction if you need to perform more than one action per transaction.
 func HardDeleteTree(ctx context.Context, admin AdminStorage, treeID int64) error {
-	return RunInAdminTX(ctx, admin, func(tx AdminTX) error {
+	return admin.ReadWriteTransaction(ctx, func(ctx context.Context, tx AdminTX) error {
 		return tx.HardDeleteTree(ctx, treeID)
 	})
 }
 
 // UndeleteTree undeletes a tree in storage.
-// It's a convenience wrapper around RunInAdminTX and AdminWriter's UndeleteTree.
-// See RunInAdminTX if you need to perform more than one action per transaction.
+// It's a convenience wrapper around ReadWriteTransaction and AdminWriter's UndeleteTree.
+// See ReadWriteTransaction if you need to perform more than one action per transaction.
 func UndeleteTree(ctx context.Context, admin AdminStorage, treeID int64) (*trillian.Tree, error) {
 	var tree *trillian.Tree
-	err := RunInAdminTX(ctx, admin, func(tx AdminTX) (err error) {
+	err := admin.ReadWriteTransaction(ctx, func(ctx context.Context, tx AdminTX) (err error) {
 		tree, err = tx.UndeleteTree(ctx, treeID)
 		return
 	})
