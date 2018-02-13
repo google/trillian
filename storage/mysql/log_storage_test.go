@@ -132,7 +132,7 @@ func TestMySQLLogStorage_CheckDatabaseAccessible(t *testing.T) {
 	}
 }
 
-func TestBeginSnapshot(t *testing.T) {
+func TestSnapshot(t *testing.T) {
 	cleanTestDB(DB)
 
 	frozenLogID := createLogForTests(DB)
@@ -146,10 +146,71 @@ func TestBeginSnapshot(t *testing.T) {
 	mapID := createMapForTests(DB)
 
 	tests := []struct {
-		desc  string
-		logID int64
-		// snapshot defines whether BeginForTree or SnapshotForTree is used for the test.
-		snapshot, wantErr bool
+		desc    string
+		logID   int64
+		wantErr bool
+	}{
+		{
+			desc:    "unknownSnapshot",
+			logID:   -1,
+			wantErr: true,
+		},
+		{
+			desc:  "activeLogSnapshot",
+			logID: activeLogID,
+		},
+		{
+			desc:  "frozenSnapshot",
+			logID: frozenLogID,
+		},
+		{
+			desc:    "mapSnapshot",
+			logID:   mapID,
+			wantErr: true,
+		},
+	}
+
+	ctx := context.Background()
+	s := NewLogStorage(DB, nil)
+	for _, test := range tests {
+		t.Run(test.desc, func(t *testing.T) {
+			tx, err := s.SnapshotForTree(ctx, test.logID)
+
+			if hasErr := err != nil; hasErr != test.wantErr {
+				t.Fatalf("err = %q, wantErr = %v", err, test.wantErr)
+			} else if hasErr {
+				return
+			}
+			defer tx.Close()
+
+			_, err = tx.LatestSignedLogRoot(ctx)
+			if err != nil {
+				t.Errorf("LatestSignedLogRoot() returned err = %v", err)
+			}
+			if err := tx.Commit(); err != nil {
+				t.Errorf("Commit() returned err = %v", err)
+			}
+		})
+	}
+}
+
+func TestReadWriteTransaction(t *testing.T) {
+	cleanTestDB(DB)
+
+	frozenLogID := createLogForTests(DB)
+	if _, err := updateTree(DB, frozenLogID, func(tree *trillian.Tree) {
+		tree.TreeState = trillian.TreeState_FROZEN
+	}); err != nil {
+		t.Fatalf("Error updating frozen tree: %v", err)
+	}
+
+	activeLogID := createLogForTests(DB)
+	mapID := createMapForTests(DB)
+
+	tests := []struct {
+		desc    string
+		logID   int64
+		wantErr bool
 	}{
 		{
 			desc:    "unknownBegin",
@@ -157,19 +218,8 @@ func TestBeginSnapshot(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			desc:     "unknownSnapshot",
-			logID:    -1,
-			snapshot: true,
-			wantErr:  true,
-		},
-		{
 			desc:  "activeLogBegin",
 			logID: activeLogID,
-		},
-		{
-			desc:     "activeLogSnapshot",
-			logID:    activeLogID,
-			snapshot: true,
 		},
 		{
 			desc:    "frozenBegin",
@@ -177,58 +227,32 @@ func TestBeginSnapshot(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			desc:     "frozenSnapshot",
-			logID:    frozenLogID,
-			snapshot: true,
-		},
-		{
 			desc:    "mapBegin",
 			logID:   mapID,
 			wantErr: true,
-		},
-		{
-			desc:     "mapSnapshot",
-			logID:    mapID,
-			snapshot: true,
-			wantErr:  true,
 		},
 	}
 
 	ctx := context.Background()
 	s := NewLogStorage(DB, nil)
 	for _, test := range tests {
-		func() {
-			var tx storage.ReadOnlyLogTreeTX
-			var err error
-			if test.snapshot {
-				tx, err = s.SnapshotForTree(ctx, test.logID)
-			} else {
-				tx, err = s.BeginForTree(ctx, test.logID)
-			}
-
-			if hasErr := err != nil; hasErr != test.wantErr {
-				t.Errorf("%v: err = %q, wantErr = %v", test.desc, err, test.wantErr)
-				return
-			} else if hasErr {
-				return
-			}
-			defer tx.Close()
-
-			root, err := tx.LatestSignedLogRoot(ctx)
-			if err != nil {
-				t.Errorf("%v: LatestSignedLogRoot() returned err = %v", test.desc, err)
-			}
-			if err := tx.Commit(); err != nil {
-				t.Errorf("%v: Commit() returned err = %v", test.desc, err)
-			}
-
-			if !test.snapshot {
-				tx := tx.(storage.TreeTX)
+		t.Run(test.desc, func(t *testing.T) {
+			err := s.ReadWriteTransaction(ctx, test.logID, func(ctx context.Context, tx storage.LogTreeTX) error {
+				root, err := tx.LatestSignedLogRoot(ctx)
+				if err != nil {
+					t.Errorf("%v: LatestSignedLogRoot() returned err = %v", test.desc, err)
+				}
 				if got, want := tx.WriteRevision(), root.TreeRevision+1; got != want {
 					t.Errorf("%v: WriteRevision() = %v, want = %v", test.desc, got, want)
 				}
+				return nil
+			})
+			if hasErr := err != nil; hasErr != test.wantErr {
+				t.Fatalf("%v: err = %q, wantErr = %v", test.desc, err, test.wantErr)
+			} else if hasErr {
+				return
 			}
-		}()
+		})
 	}
 }
 

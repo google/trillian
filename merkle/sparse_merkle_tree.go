@@ -275,7 +275,7 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context) {
 		if err := tx.SetMerkleNodes(ctx, nodesToStore); err != nil {
 			return err
 		}
-		return tx.Commit()
+		return nil
 	})
 	if err != nil {
 		s.root <- rootHashOrError{nil, err}

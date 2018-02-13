@@ -291,32 +291,28 @@ func createTree(ctx context.Context, db *sql.DB) (*trillian.Tree, error) {
 
 	{
 		as := mysql.NewAdminStorage(db)
-		tx, err := as.Begin(ctx)
+		err := as.ReadWriteTransaction(ctx, func(ctx context.Context, tx storage.AdminTX) error {
+			var err error
+			tree, err = tx.CreateTree(ctx, testonly.LogTree)
+			if err != nil {
+				return err
+			}
+			return nil
+		})
 		if err != nil {
-			return nil, err
-		}
-		defer tx.Close()
-		tree, err = tx.CreateTree(ctx, testonly.LogTree)
-		if err != nil {
-			return nil, err
-		}
-		if err := tx.Commit(); err != nil {
 			return nil, err
 		}
 	}
 
 	{
 		ls := mysql.NewLogStorage(db, nil)
-		tx, err := ls.BeginForTree(ctx, tree.TreeId)
-		if err != nil && err != storage.ErrTreeNeedsInit {
-			return nil, err
-		}
-		defer tx.Close()
-
-		if err := tx.StoreSignedLogRoot(ctx, trillian.SignedLogRoot{LogId: tree.TreeId, RootHash: []byte{0}, Signature: &sigpb.DigitallySigned{}}); err != nil {
-			return nil, err
-		}
-		if err := tx.Commit(); err != nil {
+		err := ls.ReadWriteTransaction(ctx, tree.TreeId, func(ctx context.Context, tx storage.LogTreeTX) error {
+			if err := tx.StoreSignedLogRoot(ctx, trillian.SignedLogRoot{LogId: tree.TreeId, RootHash: []byte{0}, Signature: &sigpb.DigitallySigned{}}); err != nil {
+				return err
+			}
+			return nil
+		})
+		if err != nil {
 			return nil, err
 		}
 	}
@@ -348,15 +344,12 @@ func queueLeaves(ctx context.Context, db *sql.DB, tree *trillian.Tree, firstID, 
 	}
 
 	ls := mysql.NewLogStorage(db, nil)
-	tx, err := ls.BeginForTree(ctx, tree.TreeId)
-	if err != nil {
-		return err
-	}
-	defer tx.Close()
-	if _, err := tx.QueueLeaves(ctx, leaves, time.Now()); err != nil {
-		return err
-	}
-	return tx.Commit()
+	return ls.ReadWriteTransaction(ctx, tree.TreeId, func(ctx context.Context, tx storage.LogTreeTX) error {
+		if _, err := tx.QueueLeaves(ctx, leaves, time.Now()); err != nil {
+			return err
+		}
+		return nil
+	})
 }
 
 func setUnsequencedRows(ctx context.Context, db *sql.DB, tree *trillian.Tree, wantRows int) error {

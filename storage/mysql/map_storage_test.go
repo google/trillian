@@ -45,7 +45,7 @@ func TestMySQLMapStorage_CheckDatabaseAccessible(t *testing.T) {
 	}
 }
 
-func TestMapBeginSnapshot(t *testing.T) {
+func TestMapSnapshot(t *testing.T) {
 	if provider := testdb.Default(); !provider.IsMySQL() {
 		t.Skipf("Inhibited due to known issue (#896) on SQL driver: %q", provider.Driver)
 	}
@@ -62,10 +62,73 @@ func TestMapBeginSnapshot(t *testing.T) {
 	logID := createLogForTests(DB)
 
 	tests := []struct {
-		desc  string
-		mapID int64
-		// snapshot defines whether BeginForTree or SnapshotForTree is used for the test.
-		snapshot, wantErr bool
+		desc    string
+		mapID   int64
+		wantErr bool
+	}{
+		{
+			desc:    "unknownSnapshot",
+			mapID:   -1,
+			wantErr: true,
+		},
+		{
+			desc:  "activeMapSnapshot",
+			mapID: activeMapID,
+		},
+		{
+			desc:  "frozenSnapshot",
+			mapID: frozenMapID,
+		},
+		{
+			desc:    "logSnapshot",
+			mapID:   logID,
+			wantErr: true,
+		},
+	}
+
+	s := NewMapStorage(DB)
+	for _, test := range tests {
+		t.Run(test.desc, func(t *testing.T) {
+			tx, err := s.SnapshotForTree(ctx, test.mapID)
+
+			if hasErr := err != nil; hasErr != test.wantErr {
+				t.Fatalf("%v: err = %q, wantErr = %v", test.desc, err, test.wantErr)
+			} else if hasErr {
+				return
+			}
+			defer tx.Close()
+
+			_, err = tx.LatestSignedMapRoot(ctx)
+			if err != nil {
+				t.Errorf("%v: LatestSignedMapRoot() returned err = %v", test.desc, err)
+			}
+			if err := tx.Commit(); err != nil {
+				t.Errorf("%v: Commit() returned err = %v", test.desc, err)
+			}
+		})
+	}
+}
+
+func TestMapReadWriteTransaction(t *testing.T) {
+	if provider := testdb.Default(); !provider.IsMySQL() {
+		t.Skipf("Inhibited due to known issue (#896) on SQL driver: %q", provider.Driver)
+	}
+
+	cleanTestDB(DB)
+	ctx := context.Background()
+
+	frozenMapID := createInitializedMapForTests(ctx, t, DB)
+	updateTree(DB, frozenMapID, func(tree *trillian.Tree) {
+		tree.TreeState = trillian.TreeState_FROZEN
+	})
+
+	activeMapID := createInitializedMapForTests(ctx, t, DB)
+	logID := createLogForTests(DB)
+
+	tests := []struct {
+		desc    string
+		mapID   int64
+		wantErr bool
 	}{
 		{
 			desc:    "unknownBegin",
@@ -73,19 +136,8 @@ func TestMapBeginSnapshot(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			desc:     "unknownSnapshot",
-			mapID:    -1,
-			snapshot: true,
-			wantErr:  true,
-		},
-		{
 			desc:  "activeMapBegin",
 			mapID: activeMapID,
-		},
-		{
-			desc:     "activeMapSnapshot",
-			mapID:    activeMapID,
-			snapshot: true,
 		},
 		{
 			desc:    "frozenBegin",
@@ -93,55 +145,33 @@ func TestMapBeginSnapshot(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			desc:     "frozenSnapshot",
-			mapID:    frozenMapID,
-			snapshot: true,
-		},
-		{
 			desc:    "logBegin",
 			mapID:   logID,
 			wantErr: true,
-		},
-		{
-			desc:     "logSnapshot",
-			mapID:    logID,
-			snapshot: true,
-			wantErr:  true,
 		},
 	}
 
 	s := NewMapStorage(DB)
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			var tx storage.ReadOnlyMapTreeTX
-			var err error
-			if test.snapshot {
-				tx, err = s.SnapshotForTree(ctx, test.mapID)
-			} else {
-				tx, err = s.BeginForTree(ctx, test.mapID)
-			}
+			err := s.ReadWriteTransaction(ctx, test.mapID, func(ctx context.Context, tx storage.MapTreeTX) error {
+				root, err := tx.LatestSignedMapRoot(ctx)
+				if err != nil {
+					t.Errorf("%v: LatestSignedMapRoot() returned err = %v", test.desc, err)
+				}
+				if err := tx.Commit(); err != nil {
+					t.Errorf("%v: Commit() returned err = %v", test.desc, err)
+				}
 
-			if hasErr := err != nil; hasErr != test.wantErr {
-				t.Errorf("%v: err = %q, wantErr = %v", test.desc, err, test.wantErr)
-				return
-			} else if hasErr {
-				return
-			}
-			defer tx.Close()
-
-			root, err := tx.LatestSignedMapRoot(ctx)
-			if err != nil {
-				t.Errorf("%v: LatestSignedMapRoot() returned err = %v", test.desc, err)
-			}
-			if err := tx.Commit(); err != nil {
-				t.Errorf("%v: Commit() returned err = %v", test.desc, err)
-			}
-
-			if !test.snapshot {
-				tx := tx.(storage.TreeTX)
 				if got, want := tx.WriteRevision(), root.MapRevision+1; got != want {
 					t.Errorf("%v: WriteRevision() = %v, want = %v", test.desc, got, want)
 				}
+				return nil
+			})
+			if hasErr := err != nil; hasErr != test.wantErr {
+				t.Fatalf("%v: err = %q, wantErr = %v", test.desc, err, test.wantErr)
+			} else if hasErr {
+				return
 			}
 		})
 	}
@@ -596,27 +626,23 @@ func createInitializedMapForTests(ctx context.Context, t *testing.T, db *sql.DB)
 	mapID := createMapForTests(db)
 
 	s := NewMapStorage(db)
-	tx, err := s.BeginForTree(ctx, mapID)
-	if err != storage.ErrTreeNeedsInit {
-		t.Fatalf("%v: Failed to BeginForTree: %v", mapID, err)
-	}
-	defer tx.Close()
+	err := s.ReadWriteTransaction(ctx, mapID, func(ctx context.Context, tx storage.MapTreeTX) error {
+		initialRoot := trillian.SignedMapRoot{
+			RootHash: []byte("rootHash"),
+			Signature: &sigpb.DigitallySigned{
+				Signature: []byte("sig"),
+			},
+			MapId:       mapID,
+			MapRevision: 0,
+		}
 
-	initialRoot := trillian.SignedMapRoot{
-		RootHash: []byte("rootHash"),
-		Signature: &sigpb.DigitallySigned{
-			Signature: []byte("sig"),
-		},
-		MapId:       mapID,
-		MapRevision: 0,
-	}
-
-	if err = tx.StoreSignedMapRoot(ctx, initialRoot); err != nil {
-		t.Fatalf("%v: Failed to StoreSignedMapRoot: %v", mapID, err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		t.Fatalf("%v: Commit failed for map: %v", mapID, err)
+		if err := tx.StoreSignedMapRoot(ctx, initialRoot); err != nil {
+			t.Fatalf("%v: Failed to StoreSignedMapRoot: %v", mapID, err)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("ReadWriteTransaction() = %v", err)
 	}
 
 	return mapID

@@ -285,9 +285,6 @@ func TestServer_GetTree(t *testing.T) {
 }
 
 func TestServer_CreateTree(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
 	// PEM on the testonly trees is ECDSA, so let's use an ECDSA key for tests.
 	ecdsaPrivateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
@@ -466,6 +463,9 @@ func TestServer_CreateTree(t *testing.T) {
 	ctx := context.Background()
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
 			var privateKey crypto.Signer = ecdsaPrivateKey
 			var keygen keys.ProtoGenerator
 			// If KeySpec is set, select the correct type of key to "generate".
@@ -534,6 +534,7 @@ func TestServer_CreateTree(t *testing.T) {
 
 func TestServer_CreateTree_AllowedTreeTypes(t *testing.T) {
 	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
 	tests := []struct {
 		desc      string

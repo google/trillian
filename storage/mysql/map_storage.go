@@ -150,7 +150,10 @@ func (m *mySQLMapStorage) ReadWriteTransaction(ctx context.Context, treeID int64
 	if err != nil && err != storage.ErrTreeNeedsInit {
 		return err
 	}
-	return f(ctx, tx)
+	if err := f(ctx, tx); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 type mapTreeTX struct {
