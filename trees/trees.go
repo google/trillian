@@ -47,28 +47,26 @@ func FromContext(ctx context.Context) (*trillian.Tree, bool) {
 
 // GetOpts contains validation options for GetTree.
 type GetOpts struct {
-	// TreeTypes lists allowed types of the tree. If empty, any type is allowed.
-	TreeTypes []trillian.TreeType
+	// TreeTypes is a set of allowed tree types. If empty, any type is allowed.
+	TreeTypes map[trillian.TreeType]bool
 
 	// Readonly is whether the tree will be used for read-only purposes.
 	Readonly bool
 }
 
+// NewGetOpts creates GetOps that allows the listed set of tree types, and
+// optionally forces the tree to be readonly.
 func NewGetOpts(readonly bool, types ...trillian.TreeType) GetOpts {
-	return GetOpts{TreeTypes: types, Readonly: readonly}
+	m := make(map[trillian.TreeType]bool)
+	for _, t := range types {
+		m[t] = true
+	}
+	return GetOpts{TreeTypes: m, Readonly: readonly}
 }
 
 func (o GetOpts) validate(tree *trillian.Tree) error {
-	typeFound := false
-	for _, t := range o.TreeTypes {
-		if t == tree.TreeType {
-			typeFound = true
-			break
-		}
-	}
-
 	switch {
-	case len(o.TreeTypes) > 0 && !typeFound:
+	case len(o.TreeTypes) > 0 && !o.TreeTypes[tree.TreeType]:
 		return errors.Errorf(errors.InvalidArgument, "operation not allowed for %s-type trees (wanted one of %v)", tree.TreeType, o.TreeTypes)
 	case tree.TreeState == trillian.TreeState_FROZEN && !o.Readonly:
 		return errors.Errorf(errors.PermissionDenied, "operation not allowed on %s trees", tree.TreeState)

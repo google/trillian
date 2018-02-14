@@ -309,7 +309,7 @@ func newRPCInfo(req interface{}, quotaUser string) (*rpcInfo, error) {
 		info.readonly = false
 
 	// Log / readonly
-	// Pre-orderd Log / readonly
+	// Pre-ordered Log / readonly
 	case *trillian.GetConsistencyProofRequest,
 		*trillian.GetEntryAndProofRequest,
 		*trillian.GetInclusionProofByHashRequest,
