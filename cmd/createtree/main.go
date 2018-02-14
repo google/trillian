@@ -61,11 +61,13 @@ var (
 	privateKeyFormat   = flag.String("private_key_format", "", "Type of protobuf message to send the key as (PrivateKey, PEMKeyFile, or PKCS11ConfigFile). If empty, a key will be generated for you by Trillian.")
 
 	configFile = flag.String("config", "", "Config file containing flags, file contents can be overridden by command line flags")
+
+	errAdminAddrNotSet = errors.New("empty --admin_server, please provide the Admin server host:port")
 )
 
 func createTree(ctx context.Context) (*trillian.Tree, error) {
 	if *adminServerAddr == "" {
-		return nil, errors.New("empty --admin_server, please provide the Admin server host:port")
+		return nil, errAdminAddrNotSet
 	}
 
 	req, err := newRequest()

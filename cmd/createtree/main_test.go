@@ -21,15 +21,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/trillian"
-	"github.com/google/trillian/cmd/createtree/testonly"
 	"github.com/google/trillian/crypto/sigpb"
+	"github.com/google/trillian/testonly/fake"
 	"github.com/google/trillian/util/flagsaver"
-	"github.com/kylelemons/godebug/pretty"
 )
 
 // defaultTree reflects all flag defaults with the addition of a valid private key.
@@ -44,12 +44,13 @@ var defaultTree = &trillian.Tree{
 }
 
 type testCase struct {
-	desc      string
-	setFlags  func()
-	createErr error
-	initErr   error
-	wantErr   bool
-	wantTree  *trillian.Tree
+	desc        string
+	setFlags    func()
+	validateErr error
+	createErr   error
+	initErr     error
+	wantErr     bool
+	wantTree    *trillian.Tree
 }
 
 func mustMarshalAny(p proto.Message) *any.Any {
@@ -86,23 +87,27 @@ func TestCreateTree(t *testing.T) {
 		{
 			desc: "mandatoryOptsNotSet",
 			// Undo the flags set by runTest, so that mandatory options are no longer set.
-			setFlags: resetFlags,
-			wantErr:  true,
+			setFlags:    resetFlags,
+			validateErr: errAdminAddrNotSet,
+			wantErr:     true,
 		},
 		{
-			desc:     "emptyAddr",
-			setFlags: func() { *adminServerAddr = "" },
-			wantErr:  true,
+			desc:        "emptyAddr",
+			setFlags:    func() { *adminServerAddr = "" },
+			validateErr: errAdminAddrNotSet,
+			wantErr:     true,
 		},
 		{
-			desc:     "invalidEnumOpts",
-			setFlags: func() { *treeType = "LLAMA!" },
-			wantErr:  true,
+			desc:        "invalidEnumOpts",
+			setFlags:    func() { *treeType = "LLAMA!" },
+			validateErr: errors.New("unknown TreeType"),
+			wantErr:     true,
 		},
 		{
-			desc:     "invalidKeyTypeOpts",
-			setFlags: func() { *privateKeyFormat = "LLAMA!!" },
-			wantErr:  true,
+			desc:        "invalidKeyTypeOpts",
+			setFlags:    func() { *privateKeyFormat = "LLAMA!!" },
+			validateErr: errors.New("key protobuf must be one of"),
+			wantErr:     true,
 		},
 		{
 			desc:      "createErr",
@@ -115,8 +120,9 @@ func TestCreateTree(t *testing.T) {
 				nonDefaultTree.TreeType = trillian.TreeType_LOG
 				*treeType = nonDefaultTree.TreeType.String()
 			},
-			initErr: errors.New("log init failed"),
-			wantErr: true,
+			wantTree: defaultTree,
+			initErr:  errors.New("log init failed"),
+			wantErr:  true,
 		},
 		{
 			desc: "mapInitErr",
@@ -124,8 +130,9 @@ func TestCreateTree(t *testing.T) {
 				nonDefaultTree.TreeType = trillian.TreeType_MAP
 				*treeType = nonDefaultTree.TreeType.String()
 			},
-			initErr: errors.New("map init failed"),
-			wantErr: true,
+			wantTree: &nonDefaultTree,
+			initErr:  errors.New("map init failed"),
+			wantErr:  true,
 		},
 	})
 }
@@ -138,43 +145,69 @@ func TestCreateTree(t *testing.T) {
 // 2. Sets the adminServerAddr flag to point to the fake server.
 // 3. Calls the test's setFlags func (if provided) to allow it to change flags specific to the test.
 func runTest(t *testing.T, tests []*testCase) {
-	server := &testonly.FakeServer{
-		GeneratedKey: defaultTree.PrivateKey,
-	}
+	for _, tc := range tests {
+		t.Run(tc.desc, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			s := &fake.Server{
+				MockTrillianMapServer:   trillian.NewMockTrillianMapServer(ctrl),
+				MockTrillianLogServer:   trillian.NewMockTrillianLogServer(ctrl),
+				MockTrillianAdminServer: trillian.NewMockTrillianAdminServer(ctrl),
+			}
 
-	lis, stopFakeServer, err := testonly.StartFakeServer(server)
-	if err != nil {
-		t.Fatalf("Error starting fake server: %v", err)
-	}
-	defer stopFakeServer()
-
-	for _, test := range tests {
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
-		t.Run(test.desc, func(t *testing.T) {
+			lis, stopFakeServer, err := fake.StartServer(s)
+			if err != nil {
+				t.Fatalf("Error starting fake server: %v", err)
+			}
+			defer stopFakeServer()
 			defer flagsaver.Save().Restore()
 			*adminServerAddr = lis.Addr().String()
-			if test.setFlags != nil {
-				test.setFlags()
+			if tc.setFlags != nil {
+				tc.setFlags()
 			}
 
-			server.CreateErr = test.createErr
-			server.InitErr = test.initErr
-
-			tree, err := createTree(ctx)
-			switch hasErr := err != nil; {
-			case hasErr != test.wantErr:
-				t.Errorf("createTree() returned err = '%v', wantErr = %v", err, test.wantErr)
-				return
-			case hasErr:
-				return
+			call := s.MockTrillianAdminServer.EXPECT().CreateTree(gomock.Any(), gomock.Any()).Return(tc.wantTree, tc.createErr)
+			expectCalls(call, tc.createErr, tc.validateErr)
+			switch *treeType {
+			case "LOG":
+				call := s.MockTrillianLogServer.EXPECT().InitLog(gomock.Any(), gomock.Any()).Return(&trillian.InitLogResponse{}, tc.initErr)
+				expectCalls(call, tc.initErr, tc.validateErr, tc.createErr)
+				call = s.MockTrillianLogServer.EXPECT().GetLatestSignedLogRoot(gomock.Any(), gomock.Any()).Return(&trillian.GetLatestSignedLogRootResponse{}, nil)
+				expectCalls(call, nil, tc.validateErr, tc.createErr, tc.initErr)
+			case "MAP":
+				call := s.MockTrillianMapServer.EXPECT().InitMap(gomock.Any(), gomock.Any()).Return(&trillian.InitMapResponse{}, tc.initErr)
+				expectCalls(call, tc.initErr, tc.validateErr, tc.createErr)
+				call = s.MockTrillianMapServer.EXPECT().GetSignedMapRootByRevision(gomock.Any(), gomock.Any()).Return(&trillian.GetSignedMapRootResponse{}, nil)
+				expectCalls(call, nil, tc.validateErr, tc.createErr, tc.initErr)
 			}
 
-			if !proto.Equal(tree, test.wantTree) {
-				t.Errorf("post-createTree diff -got +want:\n%v", pretty.Compare(tree, test.wantTree))
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			_, err = createTree(ctx)
+			if hasErr := err != nil; hasErr != tc.wantErr {
+				t.Errorf("createTree() '%v', wantErr = %v", err, tc.wantErr)
 			}
 		})
 	}
+}
+
+// expectCalls returns the minimum number of times a function is expected to be called
+// given the return error for the function (err), and all previous errors in the function's
+// code path.
+func expectCalls(call *gomock.Call, err error, prevErr ...error) *gomock.Call {
+	// If a function prior to this function errored,
+	// we do not expect this function to be called.
+	for _, e := range prevErr {
+		if e != nil {
+			return call.Times(0)
+		}
+	}
+	// If this function errors, it will be retried multiple times.
+	if err != nil {
+		return call.MinTimes(2)
+	}
+	// If this function succeeds it should only be called once.
+	return call.Times(1)
 }
 
 // resetFlags sets all flags to their default values.
