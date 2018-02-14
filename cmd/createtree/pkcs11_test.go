@@ -17,6 +17,7 @@
 package main
 
 import (
+	"errors"
 	"os"
 	"testing"
 
@@ -59,7 +60,8 @@ xToc6NWBri0N3VVsswIDAQAB
 				*privateKeyFormat = "PKCS11ConfigFile"
 				*pkcs11ConfigPath = ""
 			},
-			wantErr: true,
+			validateErr: errors.New("empty pkcs path"),
+			wantErr:     true,
 		},
 	})
 }
