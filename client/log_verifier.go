@@ -29,18 +29,30 @@ import (
 
 // logVerifier contains state needed to verify output from Trillian Logs.
 type logVerifier struct {
-	hasher hashers.LogHasher
-	pubKey crypto.PublicKey
-	v      merkle.LogVerifier
+	hasher           hashers.LogHasher
+	pubKey           crypto.PublicKey
+	v                merkle.LogVerifier
+	LeafIdentityAlgo LeafIdentity
 }
 
 // NewLogVerifier returns an object that can verify output from Trillian Logs.
 func NewLogVerifier(hasher hashers.LogHasher, pubKey crypto.PublicKey) LogVerifier {
 	return &logVerifier{
-		hasher: hasher,
-		pubKey: pubKey,
-		v:      merkle.NewLogVerifier(hasher),
+		hasher:           hasher,
+		pubKey:           pubKey,
+		v:                merkle.NewLogVerifier(hasher),
+		LeafIdentityAlgo: Sha256,
 	}
+}
+
+// LeafIdentity computes the identity value for a leaf.
+type LeafIdentity func(leaf []byte) ([]byte, error)
+
+// Sha256 computes the sha256 of the input.
+func Sha256(data []byte) ([]byte, error) {
+	h := sha256.New()
+	h.Write(data)
+	return h.Sum(nil), nil
 }
 
 // NewLogVerifierFromTree creates a new LogVerifier using the algorithms
@@ -133,11 +145,13 @@ func (c *logVerifier) BuildLeaf(data []byte) (*trillian.LogLeaf, error) {
 	if err != nil {
 		return nil, err
 	}
-	h := sha256.New()
-	h.Write(data)
+	leafIdentity, err := c.LeafIdentityAlgo(data)
+	if err != nil {
+		return nil, err
+	}
 	return &trillian.LogLeaf{
 		LeafValue:        data,
 		MerkleLeafHash:   leafHash,
-		LeafIdentityHash: h.Sum(nil),
+		LeafIdentityHash: leafIdentity,
 	}, nil
 }
