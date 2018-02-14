@@ -38,18 +38,11 @@ type memoryAdminStorage struct {
 }
 
 func (s *memoryAdminStorage) Snapshot(ctx context.Context) (storage.ReadOnlyAdminTX, error) {
-	return s.Begin(ctx)
-}
-
-func (s *memoryAdminStorage) Begin(ctx context.Context) (storage.AdminTX, error) {
 	return &adminTX{ms: s.ms}, nil
 }
 
 func (s *memoryAdminStorage) ReadWriteTransaction(ctx context.Context, f storage.AdminTXFunc) error {
-	tx, err := s.Begin(ctx)
-	if err != nil {
-		return err
-	}
+	tx := &adminTX{ms: s.ms}
 	defer tx.Close()
 	if err := f(ctx, tx); err != nil {
 		return err

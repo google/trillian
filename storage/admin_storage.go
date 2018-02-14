@@ -64,11 +64,6 @@ type AdminStorage interface {
 	// is considered consistent.
 	Snapshot(ctx context.Context) (ReadOnlyAdminTX, error)
 
-	// Begin starts a read/write transaction.
-	// A transaction must be explicitly committed before the data read by it
-	// is considered consistent.
-	Begin(ctx context.Context) (AdminTX, error)
-
 	// ReadWriteTransaction creates a transaction, and runs f with it.
 	// Some storage implementations may retry aborted transactions, so
 	// f MUST be idempotent.

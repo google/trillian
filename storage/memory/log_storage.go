@@ -172,12 +172,8 @@ func (m *memoryLogStorage) beginInternal(ctx context.Context, treeID int64, read
 	return ltx, nil
 }
 
-func (m *memoryLogStorage) BeginForTree(ctx context.Context, treeID int64) (storage.LogTreeTX, error) {
-	return m.beginInternal(ctx, treeID, false /* readonly */)
-}
-
 func (m *memoryLogStorage) ReadWriteTransaction(ctx context.Context, treeID int64, f storage.LogTXFunc) error {
-	tx, err := m.BeginForTree(ctx, treeID)
+	tx, err := m.beginInternal(ctx, treeID, false /* readonly */)
 	if err != nil && err != storage.ErrTreeNeedsInit {
 		return err
 	}

@@ -35,19 +35,6 @@ func (m *MockAdminStorage) EXPECT() *MockAdminStorageMockRecorder {
 	return m.recorder
 }
 
-// Begin mocks base method
-func (m *MockAdminStorage) Begin(arg0 context.Context) (AdminTX, error) {
-	ret := m.ctrl.Call(m, "Begin", arg0)
-	ret0, _ := ret[0].(AdminTX)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Begin indicates an expected call of Begin
-func (mr *MockAdminStorageMockRecorder) Begin(arg0 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Begin", reflect.TypeOf((*MockAdminStorage)(nil).Begin), arg0)
-}
-
 // CheckDatabaseAccessible mocks base method
 func (m *MockAdminStorage) CheckDatabaseAccessible(arg0 context.Context) error {
 	ret := m.ctrl.Call(m, "CheckDatabaseAccessible", arg0)
@@ -280,19 +267,6 @@ func NewMockLogStorage(ctrl *gomock.Controller) *MockLogStorage {
 // EXPECT returns an object that allows the caller to indicate expected use
 func (m *MockLogStorage) EXPECT() *MockLogStorageMockRecorder {
 	return m.recorder
-}
-
-// BeginForTree mocks base method
-func (m *MockLogStorage) BeginForTree(arg0 context.Context, arg1 int64) (LogTreeTX, error) {
-	ret := m.ctrl.Call(m, "BeginForTree", arg0, arg1)
-	ret0, _ := ret[0].(LogTreeTX)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// BeginForTree indicates an expected call of BeginForTree
-func (mr *MockLogStorageMockRecorder) BeginForTree(arg0, arg1 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BeginForTree", reflect.TypeOf((*MockLogStorage)(nil).BeginForTree), arg0, arg1)
 }
 
 // CheckDatabaseAccessible mocks base method
@@ -601,19 +575,6 @@ func NewMockMapStorage(ctrl *gomock.Controller) *MockMapStorage {
 // EXPECT returns an object that allows the caller to indicate expected use
 func (m *MockMapStorage) EXPECT() *MockMapStorageMockRecorder {
 	return m.recorder
-}
-
-// BeginForTree mocks base method
-func (m *MockMapStorage) BeginForTree(arg0 context.Context, arg1 int64) (MapTreeTX, error) {
-	ret := m.ctrl.Call(m, "BeginForTree", arg0, arg1)
-	ret0, _ := ret[0].(MapTreeTX)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// BeginForTree indicates an expected call of BeginForTree
-func (mr *MockMapStorageMockRecorder) BeginForTree(arg0, arg1 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BeginForTree", reflect.TypeOf((*MockMapStorage)(nil).BeginForTree), arg0, arg1)
 }
 
 // CheckDatabaseAccessible mocks base method

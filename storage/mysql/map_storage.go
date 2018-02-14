@@ -134,16 +134,12 @@ func (m *mySQLMapStorage) begin(ctx context.Context, treeID int64, readonly bool
 	return mtx, nil
 }
 
-func (m *mySQLMapStorage) BeginForTree(ctx context.Context, treeID int64) (storage.MapTreeTX, error) {
-	return m.begin(ctx, treeID, false /* readonly */)
-}
-
 func (m *mySQLMapStorage) SnapshotForTree(ctx context.Context, treeID int64) (storage.ReadOnlyMapTreeTX, error) {
 	return m.begin(ctx, treeID, true /* readonly */)
 }
 
 func (m *mySQLMapStorage) ReadWriteTransaction(ctx context.Context, treeID int64, f storage.MapTXFunc) error {
-	tx, err := m.BeginForTree(ctx, treeID)
+	tx, err := m.begin(ctx, treeID, false /* readonly */)
 	if tx != nil {
 		defer tx.Close()
 	}

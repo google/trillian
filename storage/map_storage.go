@@ -90,12 +90,6 @@ type MapTXFunc func(context.Context, MapTreeTX) error
 type MapStorage interface {
 	ReadOnlyMapStorage
 
-	// BeginForTree starts a new Map transaction.
-	// Either Commit or Rollback must be called when the caller is finished with
-	// the returned object, and values read through it should only be propagated
-	// if Commit returns without error.
-	BeginForTree(ctx context.Context, treeID int64) (MapTreeTX, error)
-
 	// ReadWriteTransaction starts a RW transaction on the underlying storage, and
 	// calls f with it.
 	// If f fails and returns an error, the storage implementation may optionally
