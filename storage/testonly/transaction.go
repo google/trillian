@@ -91,11 +91,11 @@ func (f *FakeLogStorage) ReadWriteTransaction(ctx context.Context, id int64, fn 
 }
 
 // QueueLeaves implements LogStorage.QueueLeaves.
-func (f *FakeLogStorage) QueueLeaves(ctx context.Context, logID int64, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.LogLeaf, error) {
+func (f *FakeLogStorage) QueueLeaves(ctx context.Context, logID int64, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
 	if f.QueueLeavesErr != nil {
 		return nil, f.QueueLeavesErr
 	}
-	return make([]*trillian.LogLeaf, len(leaves)), nil
+	return make([]*trillian.QueuedLogLeaf, len(leaves)), nil
 }
 
 // CheckDatabaseAccessible implements LogStorage.CheckDatabaseAccessible

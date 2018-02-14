@@ -282,9 +282,9 @@ func (mr *MockLogStorageMockRecorder) CheckDatabaseAccessible(arg0 interface{}) 
 }
 
 // QueueLeaves mocks base method
-func (m *MockLogStorage) QueueLeaves(arg0 context.Context, arg1 int64, arg2 []*trillian.LogLeaf, arg3 time.Time) ([]*trillian.LogLeaf, error) {
+func (m *MockLogStorage) QueueLeaves(arg0 context.Context, arg1 int64, arg2 []*trillian.LogLeaf, arg3 time.Time) ([]*trillian.QueuedLogLeaf, error) {
 	ret := m.ctrl.Call(m, "QueueLeaves", arg0, arg1, arg2, arg3)
-	ret0, _ := ret[0].([]*trillian.LogLeaf)
+	ret0, _ := ret[0].([]*trillian.QueuedLogLeaf)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

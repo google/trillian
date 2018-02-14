@@ -111,29 +111,22 @@ func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.Qu
 		}
 	}
 
-	existingLeaves, err := t.registry.LogStorage.QueueLeaves(ctx, logID, req.Leaves, t.timeSource.Now())
+	ret, err := t.registry.LogStorage.QueueLeaves(ctx, logID, req.Leaves, t.timeSource.Now())
 	if err != nil {
 		return nil, err
 	}
 
-	queuedLeaves := make([]*trillian.QueuedLogLeaf, 0, len(req.Leaves))
-	for i, existingLeaf := range existingLeaves {
+	for i, existingLeaf := range ret {
 		if existingLeaf != nil {
-			// Append the existing leaf to the response.
-			queuedLeaf := trillian.QueuedLogLeaf{
-				Leaf:   existingLeaf,
-				Status: status.Newf(codes.AlreadyExists, "Leaf already exists: %v", existingLeaf.LeafIdentityHash).Proto(),
-			}
-			queuedLeaves = append(queuedLeaves, &queuedLeaf)
+			// There was a pre-existing leaf.
 			t.leafCounter.Inc("existing")
 		} else {
 			// Return the leaf from the request if it is new.
-			queuedLeaf := trillian.QueuedLogLeaf{Leaf: req.Leaves[i]}
-			queuedLeaves = append(queuedLeaves, &queuedLeaf)
+			ret[i] = &trillian.QueuedLogLeaf{Leaf: req.Leaves[i]}
 			t.leafCounter.Inc("new")
 		}
 	}
-	return &trillian.QueueLeavesResponse{QueuedLeaves: queuedLeaves}, nil
+	return &trillian.QueueLeavesResponse{QueuedLeaves: ret}, nil
 }
 
 // AddSequencedLeaf submits one sequenced leaf to the storage.

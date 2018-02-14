@@ -35,6 +35,8 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/trees"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	spb "github.com/google/trillian/crypto/sigpb"
 	terrors "github.com/google/trillian/errors"
@@ -274,18 +276,30 @@ func (m *mySQLLogStorage) SnapshotForTree(ctx context.Context, treeID int64) (st
 	return tx.(storage.ReadOnlyLogTreeTX), err
 }
 
-func (m *mySQLLogStorage) QueueLeaves(ctx context.Context, treeID int64, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.LogLeaf, error) {
+func (m *mySQLLogStorage) QueueLeaves(ctx context.Context, treeID int64, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
 	tx, err := m.beginInternal(ctx, treeID, false /* readonly */)
 	if err != nil {
 		return nil, err
 	}
-	ret, err := tx.QueueLeaves(ctx, leaves, queueTimestamp)
+	existing, err := tx.QueueLeaves(ctx, leaves, queueTimestamp)
 	if err != nil {
 		return nil, err
 	}
 
 	if err := tx.Commit(); err != nil {
 		return nil, err
+	}
+
+	ret := make([]*trillian.QueuedLogLeaf, len(leaves))
+	for i, e := range existing {
+		if e != nil {
+			ret[i] = &trillian.QueuedLogLeaf{
+				Leaf:   e,
+				Status: status.Newf(codes.AlreadyExists, "leaf already exists: %v", e.LeafIdentityHash).Proto(),
+			}
+			continue
+		}
+		ret[i] = &trillian.QueuedLogLeaf{Leaf: leaves[i]}
 	}
 	return ret, nil
 }
