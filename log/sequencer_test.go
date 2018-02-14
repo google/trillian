@@ -206,7 +206,7 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) (testCont
 
 	mockTx.EXPECT().WriteRevision().AnyTimes().Return(params.writeRevision)
 	if params.beginFails {
-		fakeStorage.Err = errors.New("TX")
+		fakeStorage.TXErr = errors.New("TX")
 	} else {
 		mockTx.EXPECT().Close()
 		fakeStorage.TX = mockTx
