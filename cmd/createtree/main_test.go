@@ -100,7 +100,7 @@ func TestCreateTree(t *testing.T) {
 		{
 			desc:        "invalidEnumOpts",
 			setFlags:    func() { *treeType = "LLAMA!" },
-			validateErr: errors.New("unkown TreeType"),
+			validateErr: errors.New("unknown TreeType"),
 			wantErr:     true,
 		},
 		{
