@@ -493,7 +493,7 @@ func (t *TrillianLogRPCServer) getTreeAndHasher(ctx context.Context, treeID int6
 		ctx,
 		t.registry.AdminStorage,
 		treeID,
-		trees.GetOpts{TreeType: trillian.TreeType_LOG, Readonly: readonly})
+		trees.NewGetOpts(readonly, trillian.TreeType_LOG))
 	if err != nil {
 		return nil, nil, err
 	}

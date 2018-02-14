@@ -102,7 +102,7 @@ func (m *mySQLMapStorage) begin(ctx context.Context, treeID int64, readonly bool
 		ctx,
 		m.admin,
 		treeID,
-		trees.GetOpts{TreeType: trillian.TreeType_MAP, Readonly: readonly})
+		trees.NewGetOpts(readonly, trillian.TreeType_MAP))
 	if err != nil {
 		return nil, err
 	}

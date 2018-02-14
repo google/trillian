@@ -306,7 +306,7 @@ func (t *TrillianMapServer) getTreeAndHasher(ctx context.Context, treeID int64, 
 		ctx,
 		t.registry.AdminStorage,
 		treeID,
-		trees.GetOpts{TreeType: trillian.TreeType_MAP, Readonly: readonly})
+		trees.NewGetOpts(readonly, trillian.TreeType_MAP))
 	if err != nil {
 		return nil, nil, err
 	}

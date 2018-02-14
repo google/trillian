@@ -62,7 +62,7 @@ func (s *SequencerManager) ExecutePass(ctx context.Context, logID int64, info *L
 		ctx,
 		s.registry.AdminStorage,
 		logID,
-		trees.GetOpts{TreeType: trillian.TreeType_LOG})
+		trees.NewGetOpts(false /* readonly */, trillian.TreeType_LOG))
 	if err != nil {
 		return 0, fmt.Errorf("error retrieving log %v: %v", logID, err)
 	}
