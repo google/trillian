@@ -16,6 +16,7 @@ package client
 
 import (
 	"crypto"
+	"crypto/sha256"
 	"fmt"
 
 	"github.com/google/trillian"
@@ -132,9 +133,11 @@ func (c *logVerifier) BuildLeaf(data []byte) (*trillian.LogLeaf, error) {
 	if err != nil {
 		return nil, err
 	}
+	h := sha256.New()
+	h.Write(data)
 	return &trillian.LogLeaf{
 		LeafValue:        data,
 		MerkleLeafHash:   leafHash,
-		LeafIdentityHash: leafHash,
+		LeafIdentityHash: h.Sum(nil),
 	}, nil
 }
