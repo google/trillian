@@ -166,19 +166,19 @@ func runTest(t *testing.T, tests []*testCase) {
 				tc.setFlags()
 			}
 
-			s.MockTrillianAdminServer.EXPECT().CreateTree(gomock.Any(), gomock.Any()).Return(tc.wantTree, tc.createErr).
-				MinTimes(expectCalls(tc.createErr, tc.validateErr))
+			call := s.MockTrillianAdminServer.EXPECT().CreateTree(gomock.Any(), gomock.Any()).Return(tc.wantTree, tc.createErr)
+			expectCalls(call, tc.createErr, tc.validateErr)
 			switch *treeType {
 			case "LOG":
-				s.MockTrillianLogServer.EXPECT().InitLog(gomock.Any(), gomock.Any()).Return(&trillian.InitLogResponse{}, tc.initErr).
-					MinTimes(expectCalls(tc.initErr, tc.validateErr, tc.createErr))
-				s.MockTrillianLogServer.EXPECT().GetLatestSignedLogRoot(gomock.Any(), gomock.Any()).Return(&trillian.GetLatestSignedLogRootResponse{}, nil).
-					MinTimes(expectCalls(nil, tc.validateErr, tc.createErr, tc.initErr))
+				call := s.MockTrillianLogServer.EXPECT().InitLog(gomock.Any(), gomock.Any()).Return(&trillian.InitLogResponse{}, tc.initErr)
+				expectCalls(call, tc.initErr, tc.validateErr, tc.createErr)
+				call = s.MockTrillianLogServer.EXPECT().GetLatestSignedLogRoot(gomock.Any(), gomock.Any()).Return(&trillian.GetLatestSignedLogRootResponse{}, nil)
+				expectCalls(call, nil, tc.validateErr, tc.createErr, tc.initErr)
 			case "MAP":
-				s.MockTrillianMapServer.EXPECT().InitMap(gomock.Any(), gomock.Any()).Return(&trillian.InitMapResponse{}, tc.initErr).
-					MinTimes(expectCalls(tc.initErr, tc.validateErr, tc.createErr))
-				s.MockTrillianMapServer.EXPECT().GetSignedMapRootByRevision(gomock.Any(), gomock.Any()).Return(&trillian.GetSignedMapRootResponse{}, nil).
-					MinTimes(expectCalls(nil, tc.validateErr, tc.createErr, tc.initErr))
+				call := s.MockTrillianMapServer.EXPECT().InitMap(gomock.Any(), gomock.Any()).Return(&trillian.InitMapResponse{}, tc.initErr)
+				expectCalls(call, tc.initErr, tc.validateErr, tc.createErr)
+				call = s.MockTrillianMapServer.EXPECT().GetSignedMapRootByRevision(gomock.Any(), gomock.Any()).Return(&trillian.GetSignedMapRootResponse{}, nil)
+				expectCalls(call, nil, tc.validateErr, tc.createErr, tc.initErr)
 			}
 
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -194,20 +194,20 @@ func runTest(t *testing.T, tests []*testCase) {
 // expectCalls returns the minimum number of times a function is expected to be called
 // given the return error for the function (err), and all previous errors in the function's
 // code path.
-func expectCalls(err error, prevErr ...error) int {
+func expectCalls(call *gomock.Call, err error, prevErr ...error) *gomock.Call {
 	// If a function prior to this function errored,
 	// we do not expect this function to be called.
 	for _, e := range prevErr {
 		if e != nil {
-			return 0
+			return call.Times(0)
 		}
 	}
 	// If this function errors, it will be retried multiple times.
 	if err != nil {
-		return 3
+		return call.MinTimes(2)
 	}
 	// If this function succeeds it should only be called once.
-	return 1
+	return call.Times(1)
 }
 
 // resetFlags sets all flags to their default values.
