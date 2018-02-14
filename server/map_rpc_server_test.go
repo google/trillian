@@ -74,12 +74,12 @@ func TestIsHealthy(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		mockStorage := storage.NewMockMapStorage(ctrl)
-		mockStorage.EXPECT().CheckDatabaseAccessible(gomock.Any()).Return(test.accessibleErr)
+		fakeStorage := storage.NewMockMapStorage(ctrl)
+		fakeStorage.EXPECT().CheckDatabaseAccessible(gomock.Any()).Return(test.accessibleErr)
 
 		server := NewTrillianMapServer(extension.Registry{
-			AdminStorage: mockAdminStorageForMap(ctrl, 1, mapID1),
-			MapStorage:   mockStorage,
+			AdminStorage: fakeAdminStorageForMap(ctrl, 1, mapID1),
+			MapStorage:   fakeStorage,
 		})
 
 		wantErr := test.accessibleErr != nil
@@ -108,9 +108,8 @@ func TestInitMap(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			mockStorage := storage.NewMockMapStorage(ctrl)
 			mockTx := storage.NewMockMapTreeTX(ctrl)
-			mockStorage.EXPECT().ReadWriteTransaction(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(stestonly.RunOnMapTX(mockTx))
+			fakeStorage := &stestonly.FakeMapStorage{TX: mockTx}
 			if tc.getRootErr != nil {
 				mockTx.EXPECT().LatestSignedMapRoot(gomock.Any()).Return(trillian.SignedMapRoot{}, tc.getRootErr)
 			} else {
@@ -126,8 +125,8 @@ func TestInitMap(t *testing.T) {
 			}
 
 			server := NewTrillianMapServer(extension.Registry{
-				AdminStorage: mockAdminStorageForMap(ctrl, 2, mapID1),
-				MapStorage:   mockStorage,
+				AdminStorage: fakeAdminStorageForMap(ctrl, 2, mapID1),
+				MapStorage:   fakeStorage,
 			})
 
 			c, err := server.InitMap(ctx, &trillian.InitMapRequest{
@@ -157,12 +156,12 @@ func TestGetSignedMapRoot_NotInitialised(t *testing.T) {
 	defer ctrl.Finish()
 	ctx := context.Background()
 
-	mockStorage := storage.NewMockMapStorage(ctrl)
+	fakeStorage := storage.NewMockMapStorage(ctrl)
 	mockTX := storage.NewMockMapTreeTX(ctrl)
 	server := NewTrillianMapServer(extension.Registry{
-		MapStorage: mockStorage,
+		MapStorage: fakeStorage,
 	})
-	mockStorage.EXPECT().SnapshotForTree(gomock.Any(), gomock.Any()).Return(mockTX, nil)
+	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), gomock.Any()).Return(mockTX, nil)
 	mockTX.EXPECT().LatestSignedMapRoot(gomock.Any()).Return(trillian.SignedMapRoot{}, storage.ErrTreeNeedsInit)
 	mockTX.EXPECT().Close()
 
@@ -211,12 +210,12 @@ func TestGetSignedMapRoot(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			adminStorage := mockAdminStorageForMap(ctrl, 2, mapID1)
-			mockStorage := storage.NewMockMapStorage(ctrl)
+			adminStorage := fakeAdminStorageForMap(ctrl, 2, mapID1)
+			fakeStorage := storage.NewMockMapStorage(ctrl)
 			mockTx := storage.NewMockMapTreeTX(ctrl)
 
 			// Calls from GetSignedMapRoot()
-			mockStorage.EXPECT().SnapshotForTree(gomock.Any(), test.req.MapId).Return(mockTx, test.snapShErr)
+			fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), test.req.MapId).Return(mockTx, test.snapShErr)
 			if test.snapShErr == nil {
 				mockTx.EXPECT().LatestSignedMapRoot(gomock.Any()).Return(test.mapRoot, test.lsmrErr)
 				if test.lsmrErr == nil {
@@ -228,7 +227,7 @@ func TestGetSignedMapRoot(t *testing.T) {
 
 			server := NewTrillianMapServer(extension.Registry{
 				AdminStorage: adminStorage,
-				MapStorage:   mockStorage,
+				MapStorage:   fakeStorage,
 			})
 
 			smrResp, err := server.GetSignedMapRoot(ctx, test.req)
@@ -254,12 +253,12 @@ func TestGetSignedMapRootByRevision_NotInitialised(t *testing.T) {
 	defer ctrl.Finish()
 	ctx := context.Background()
 
-	mockStorage := storage.NewMockMapStorage(ctrl)
+	fakeStorage := storage.NewMockMapStorage(ctrl)
 	mockTX := storage.NewMockMapTreeTX(ctrl)
 	server := NewTrillianMapServer(extension.Registry{
-		MapStorage: mockStorage,
+		MapStorage: fakeStorage,
 	})
-	mockStorage.EXPECT().SnapshotForTree(gomock.Any(), gomock.Any()).Return(mockTX, nil)
+	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), gomock.Any()).Return(mockTX, nil)
 	mockTX.EXPECT().GetSignedMapRoot(gomock.Any(), gomock.Any()).Return(trillian.SignedMapRoot{}, storage.ErrTreeNeedsInit)
 	mockTX.EXPECT().Close()
 
@@ -313,12 +312,12 @@ func TestGetSignedMapRootByRevision(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			adminStorage := mockAdminStorageForMap(ctrl, 2, mapID1)
-			mockStorage := storage.NewMockMapStorage(ctrl)
+			adminStorage := fakeAdminStorageForMap(ctrl, 2, mapID1)
+			fakeStorage := storage.NewMockMapStorage(ctrl)
 			mockTx := storage.NewMockMapTreeTX(ctrl)
 
 			if !test.wantErr || !(test.lsmrErr == nil && test.snapShErr == nil) {
-				mockStorage.EXPECT().SnapshotForTree(gomock.Any(), test.req.MapId).Return(mockTx, test.snapShErr)
+				fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), test.req.MapId).Return(mockTx, test.snapShErr)
 				if test.snapShErr == nil {
 					mockTx.EXPECT().GetSignedMapRoot(gomock.Any(), test.req.Revision).Return(test.mapRoot, test.lsmrErr)
 					if test.lsmrErr == nil {
@@ -331,7 +330,7 @@ func TestGetSignedMapRootByRevision(t *testing.T) {
 
 			server := NewTrillianMapServer(extension.Registry{
 				AdminStorage: adminStorage,
-				MapStorage:   mockStorage,
+				MapStorage:   fakeStorage,
 			})
 
 			smrResp, err := server.GetSignedMapRootByRevision(ctx, test.req)
@@ -351,14 +350,15 @@ func TestGetSignedMapRootByRevision(t *testing.T) {
 	}
 }
 
-func mockAdminStorageForMap(ctrl *gomock.Controller, times int, treeID int64) storage.AdminStorage {
+func fakeAdminStorageForMap(ctrl *gomock.Controller, times int, treeID int64) storage.AdminStorage {
 	tree := *stestonly.MapTree
 	tree.TreeId = treeID
 
-	adminStorage := storage.NewMockAdminStorage(ctrl)
 	adminTX := storage.NewMockReadOnlyAdminTX(ctrl)
+	adminStorage := &stestonly.FakeAdminStorage{
+		ReadOnlyTX: []storage.ReadOnlyAdminTX{adminTX},
+	}
 
-	adminStorage.EXPECT().Snapshot(gomock.Any()).MaxTimes(times).Return(adminTX, nil)
 	adminTX.EXPECT().GetTree(gomock.Any(), treeID).MaxTimes(times).Return(&tree, nil)
 	adminTX.EXPECT().Close().MaxTimes(times).Return(nil)
 	adminTX.EXPECT().Commit().MaxTimes(times).Return(nil)

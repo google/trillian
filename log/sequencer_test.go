@@ -152,7 +152,7 @@ type testParameters struct {
 // Tests get their own mock context so they can be run in parallel safely
 type testContext struct {
 	mockTx      *storage.MockLogTreeTX
-	mockStorage *storage.MockLogStorage
+	fakeStorage storage.LogStorage
 	signer      *crypto.Signer
 	sequencer   *Sequencer
 }
@@ -201,15 +201,15 @@ func newSignerWithErr(signErr error) (gocrypto.Signer, error) {
 }
 
 func createTestContext(ctrl *gomock.Controller, params testParameters) (testContext, context.Context) {
-	mockStorage := storage.NewMockLogStorage(ctrl)
+	fakeStorage := &stestonly.FakeLogStorage{}
 	mockTx := storage.NewMockLogTreeTX(ctrl)
 
 	mockTx.EXPECT().WriteRevision().AnyTimes().Return(params.writeRevision)
 	if params.beginFails {
-		mockStorage.EXPECT().ReadWriteTransaction(gomock.Any(), params.logID, gomock.Any()).Return(errors.New("TX"))
+		fakeStorage.Err = errors.New("TX")
 	} else {
 		mockTx.EXPECT().Close()
-		mockStorage.EXPECT().ReadWriteTransaction(gomock.Any(), params.logID, gomock.Any()).DoAndReturn(stestonly.RunOnLogTX(mockTx))
+		fakeStorage.TX = mockTx
 	}
 
 	if params.shouldCommit {
@@ -256,8 +256,8 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) (testCont
 	if qm == nil {
 		qm = quota.Noop()
 	}
-	sequencer := NewSequencer(rfc6962.DefaultHasher, util.NewFakeTimeSource(fakeTimeForTest), mockStorage, signer, nil, qm)
-	return testContext{mockTx: mockTx, mockStorage: mockStorage, signer: signer, sequencer: sequencer}, context.Background()
+	sequencer := NewSequencer(rfc6962.DefaultHasher, util.NewFakeTimeSource(fakeTimeForTest), fakeStorage, signer, nil, qm)
+	return testContext{mockTx: mockTx, fakeStorage: fakeStorage, signer: signer, sequencer: sequencer}, context.Background()
 }
 
 // Tests for sequencer. Currently relies on having a database set up. This might change in future
@@ -510,7 +510,7 @@ func TestIntegrateBatch(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		func() {
+		t.Run(test.desc, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
@@ -533,7 +533,7 @@ func TestIntegrateBatch(t *testing.T) {
 			if got != test.wantCount {
 				t.Errorf("IntegrateBatch(%+v)=%v,nil; want %v,nil", test.params, got, test.wantCount)
 			}
-		}()
+		})
 	}
 }
 
@@ -630,8 +630,7 @@ func TestIntegrateBatch_PutTokens(t *testing.T) {
 			logTX.EXPECT().StoreSignedLogRoot(any, any).AnyTimes().Return(nil)
 			logTX.EXPECT().Commit().Return(nil)
 			logTX.EXPECT().Close().Return(nil)
-			logStorage := storage.NewMockLogStorage(ctrl)
-			logStorage.EXPECT().ReadWriteTransaction(any, any, any).DoAndReturn(stestonly.RunOnLogTX(logTX))
+			logStorage := &stestonly.FakeLogStorage{TX: logTX}
 
 			qm := quota.NewMockManager(ctrl)
 			if test.wantTokens > 0 {
