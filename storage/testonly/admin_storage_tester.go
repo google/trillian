@@ -674,6 +674,7 @@ func (tester *AdminStorageTester) TestUndeleteTreeErrors(t *testing.T) {
 	}
 }
 
+// TestAdminTXReadWriteTransaction tests the ReadWriteTransaction method on AdminStorage.
 func (tester *AdminStorageTester) TestAdminTXReadWriteTransaction(t *testing.T) {
 	tests := []struct {
 		wantCommit bool
