@@ -145,42 +145,47 @@ func TestCreateTree(t *testing.T) {
 // 2. Sets the adminServerAddr flag to point to the fake server.
 // 3. Calls the test's setFlags func (if provided) to allow it to change flags specific to the test.
 func runTest(t *testing.T, tests []*testCase) {
-	for _, test := range tests {
-		t.Run(test.desc, func(t *testing.T) {
+	for _, tc := range tests {
+		t.Run(tc.desc, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
-			server := &fake.Server{
+			s := &fake.Server{
 				MockTrillianMapServer:   trillian.NewMockTrillianMapServer(ctrl),
 				MockTrillianLogServer:   trillian.NewMockTrillianLogServer(ctrl),
 				MockTrillianAdminServer: trillian.NewMockTrillianAdminServer(ctrl),
 			}
 
-			lis, stopFakeServer, err := fake.StartServer(server)
+			lis, stopFakeServer, err := fake.StartServer(s)
 			if err != nil {
 				t.Fatalf("Error starting fake server: %v", err)
 			}
 			defer stopFakeServer()
 			defer flagsaver.Save().Restore()
 			*adminServerAddr = lis.Addr().String()
-			if test.setFlags != nil {
-				test.setFlags()
+			if tc.setFlags != nil {
+				tc.setFlags()
 			}
 
-			server.MockTrillianAdminServer.EXPECT().CreateTree(gomock.Any(), gomock.Any()).Return(test.wantTree, test.createErr).MinTimes(expectCalls(test.createErr, test.validateErr))
+			s.MockTrillianAdminServer.EXPECT().CreateTree(gomock.Any(), gomock.Any()).Return(tc.wantTree, tc.createErr).
+				MinTimes(expectCalls(tc.createErr, tc.validateErr))
 			switch *treeType {
 			case "LOG":
-				server.MockTrillianLogServer.EXPECT().InitLog(gomock.Any(), gomock.Any()).Return(&trillian.InitLogResponse{}, test.initErr).MinTimes(expectCalls(test.initErr, test.validateErr, test.createErr))
-				server.MockTrillianLogServer.EXPECT().GetLatestSignedLogRoot(gomock.Any(), gomock.Any()).Return(&trillian.GetLatestSignedLogRootResponse{}, nil).MinTimes(expectCalls(nil, test.validateErr, test.createErr, test.initErr))
+				s.MockTrillianLogServer.EXPECT().InitLog(gomock.Any(), gomock.Any()).Return(&trillian.InitLogResponse{}, tc.initErr).
+					MinTimes(expectCalls(tc.initErr, tc.validateErr, tc.createErr))
+				s.MockTrillianLogServer.EXPECT().GetLatestSignedLogRoot(gomock.Any(), gomock.Any()).Return(&trillian.GetLatestSignedLogRootResponse{}, nil).
+					MinTimes(expectCalls(nil, tc.validateErr, tc.createErr, tc.initErr))
 			case "MAP":
-				server.MockTrillianMapServer.EXPECT().InitMap(gomock.Any(), gomock.Any()).Return(&trillian.InitMapResponse{}, test.initErr).MinTimes(expectCalls(test.initErr, test.validateErr, test.createErr))
-				server.MockTrillianMapServer.EXPECT().GetSignedMapRootByRevision(gomock.Any(), gomock.Any()).Return(&trillian.GetSignedMapRootResponse{}, nil).MinTimes(expectCalls(nil, test.validateErr, test.createErr, test.initErr))
+				s.MockTrillianMapServer.EXPECT().InitMap(gomock.Any(), gomock.Any()).Return(&trillian.InitMapResponse{}, tc.initErr).
+					MinTimes(expectCalls(tc.initErr, tc.validateErr, tc.createErr))
+				s.MockTrillianMapServer.EXPECT().GetSignedMapRootByRevision(gomock.Any(), gomock.Any()).Return(&trillian.GetSignedMapRootResponse{}, nil).
+					MinTimes(expectCalls(nil, tc.validateErr, tc.createErr, tc.initErr))
 			}
 
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 			defer cancel()
 			_, err = createTree(ctx)
-			if hasErr := err != nil; hasErr != test.wantErr {
-				t.Errorf("createTree() '%v', wantErr = %v", err, test.wantErr)
+			if hasErr := err != nil; hasErr != tc.wantErr {
+				t.Errorf("createTree() '%v', wantErr = %v", err, tc.wantErr)
 			}
 		})
 	}
