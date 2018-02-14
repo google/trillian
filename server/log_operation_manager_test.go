@@ -45,11 +45,11 @@ func TestLogOperationManagerSnapshotFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockStorage := storage.NewMockLogStorage(ctrl)
-	mockStorage.EXPECT().Snapshot(gomock.Any()).Return(nil, errors.New("TX"))
+	fakeStorage := storage.NewMockLogStorage(ctrl)
+	fakeStorage.EXPECT().Snapshot(gomock.Any()).Return(nil, errors.New("TX"))
 
 	registry := extension.Registry{
-		LogStorage: mockStorage,
+		LogStorage: fakeStorage,
 	}
 
 	mockLogOp := NewMockLogOperation(ctrl)
@@ -68,11 +68,11 @@ func TestLogOperationManagerGetLogsFails(t *testing.T) {
 	mockTx := storage.NewMockReadOnlyLogTX(ctrl)
 	mockTx.EXPECT().GetActiveLogIDs(gomock.Any()).Return(nil, errors.New("getactivelogs"))
 	mockTx.EXPECT().Close().Return(nil)
-	mockStorage := storage.NewMockLogStorage(ctrl)
-	mockStorage.EXPECT().Snapshot(gomock.Any()).Return(mockTx, nil)
+	fakeStorage := storage.NewMockLogStorage(ctrl)
+	fakeStorage.EXPECT().Snapshot(gomock.Any()).Return(mockTx, nil)
 
 	registry := extension.Registry{
-		LogStorage: mockStorage,
+		LogStorage: fakeStorage,
 	}
 
 	mockLogOp := NewMockLogOperation(ctrl)
@@ -92,11 +92,11 @@ func TestLogOperationManagerCommitFails(t *testing.T) {
 	mockTx.EXPECT().GetActiveLogIDs(gomock.Any()).Return([]int64{}, nil)
 	mockTx.EXPECT().Commit().Return(errors.New("commit"))
 	mockTx.EXPECT().Close().Return(nil)
-	mockStorage := storage.NewMockLogStorage(ctrl)
-	mockStorage.EXPECT().Snapshot(gomock.Any()).Return(mockTx, nil)
+	fakeStorage := storage.NewMockLogStorage(ctrl)
+	fakeStorage.EXPECT().Snapshot(gomock.Any()).Return(mockTx, nil)
 
 	registry := extension.Registry{
-		LogStorage: mockStorage,
+		LogStorage: fakeStorage,
 	}
 
 	mockLogOp := NewMockLogOperation(ctrl)
@@ -133,12 +133,12 @@ func setupLogIDs(ctrl *gomock.Controller, logNames map[int64]string) (*storage.M
 		ids = append(ids, id)
 	}
 
-	mockStorage := storage.NewMockLogStorage(ctrl)
+	fakeStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockReadOnlyLogTX(ctrl)
 	mockTx.EXPECT().GetActiveLogIDs(gomock.Any()).AnyTimes().Return(ids, nil)
 	mockTx.EXPECT().Commit().AnyTimes().Return(nil)
 	mockTx.EXPECT().Close().AnyTimes().Return(nil)
-	mockStorage.EXPECT().Snapshot(gomock.Any()).AnyTimes().Return(mockTx, nil)
+	fakeStorage.EXPECT().Snapshot(gomock.Any()).AnyTimes().Return(mockTx, nil)
 
 	mockAdmin := storage.NewMockAdminStorage(ctrl)
 	mockAdminTx := storage.NewMockReadOnlyAdminTX(ctrl)
@@ -151,7 +151,7 @@ func setupLogIDs(ctrl *gomock.Controller, logNames map[int64]string) (*storage.M
 	mockAdminTx.EXPECT().Close().AnyTimes().Return(nil)
 	mockAdmin.EXPECT().Snapshot(gomock.Any()).AnyTimes().Return(mockAdminTx, nil)
 
-	return mockStorage, mockAdmin
+	return fakeStorage, mockAdmin
 }
 
 func TestLogOperationManagerPassesIDs(t *testing.T) {
@@ -161,9 +161,9 @@ func TestLogOperationManagerPassesIDs(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockStorage, mockAdmin := setupLogIDs(ctrl, map[int64]string{451: "LogID1", 145: "LogID2"})
+	fakeStorage, mockAdmin := setupLogIDs(ctrl, map[int64]string{451: "LogID1", 145: "LogID2"})
 	registry := extension.Registry{
-		LogStorage:   mockStorage,
+		LogStorage:   fakeStorage,
 		AdminStorage: mockAdmin,
 	}
 
@@ -182,8 +182,8 @@ func TestHeldInfo(t *testing.T) {
 	ctx := context.Background()
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	mockStorage, mockAdmin := setupLogIDs(ctrl, map[int64]string{1: "one", 2: "two"})
-	registry := extension.Registry{LogStorage: mockStorage, AdminStorage: mockAdmin}
+	fakeStorage, mockAdmin := setupLogIDs(ctrl, map[int64]string{1: "one", 2: "two"})
+	registry := extension.Registry{LogStorage: fakeStorage, AdminStorage: mockAdmin}
 	mockLogOp := NewMockLogOperation(ctrl)
 	info := defaultLogOperationInfo(registry)
 	lom := NewLogOperationManager(info, mockLogOp)

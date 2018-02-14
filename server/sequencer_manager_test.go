@@ -111,7 +111,7 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 	mockAdminTx := storage.NewMockReadOnlyAdminTX(mockCtrl)
 	mockAdmin := &stestonly.FakeAdminStorage{ReadOnlyTX: []storage.ReadOnlyAdminTX{mockAdminTx}}
 	mockTx := storage.NewMockLogTreeTX(mockCtrl)
-	mockStorage := &stestonly.FakeLogStorage{TX: mockTx}
+	fakeStorage := &stestonly.FakeLogStorage{TX: mockTx}
 
 	var keyProto ptypes.DynamicAny
 	if err := ptypes.UnmarshalAny(stestonly.LogTree.PrivateKey, &keyProto); err != nil {
@@ -138,7 +138,7 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 
 	registry := extension.Registry{
 		AdminStorage: mockAdmin,
-		LogStorage:   mockStorage,
+		LogStorage:   fakeStorage,
 		QuotaManager: quota.Noop(),
 	}
 
@@ -155,7 +155,7 @@ func TestSequencerManagerCachesSigners(t *testing.T) {
 	mockAdminTx := storage.NewMockReadOnlyAdminTX(mockCtrl)
 	mockAdmin := &stestonly.FakeAdminStorage{}
 	mockTx := storage.NewMockLogTreeTX(mockCtrl)
-	mockStorage := &stestonly.FakeLogStorage{}
+	fakeStorage := &stestonly.FakeLogStorage{}
 
 	var keyProto ptypes.DynamicAny
 	if err := ptypes.UnmarshalAny(stestonly.LogTree.PrivateKey, &keyProto); err != nil {
@@ -171,7 +171,7 @@ func TestSequencerManagerCachesSigners(t *testing.T) {
 
 	registry := extension.Registry{
 		AdminStorage: mockAdmin,
-		LogStorage:   mockStorage,
+		LogStorage:   fakeStorage,
 		QuotaManager: quota.Noop(),
 	}
 	sm := NewSequencerManager(registry, zeroDuration)
@@ -185,7 +185,7 @@ func TestSequencerManagerCachesSigners(t *testing.T) {
 			mockAdminTx.EXPECT().Close().Return(nil),
 		)
 
-		mockStorage.TX = mockTx
+		fakeStorage.TX = mockTx
 		gomock.InOrder(
 			mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(testRoot0, nil),
 			mockTx.EXPECT().DequeueLeaves(gomock.Any(), 50, fakeTime).Return([]*trillian.LogLeaf{}, nil),
@@ -215,7 +215,7 @@ func TestSequencerManagerSingleLogNoSigner(t *testing.T) {
 	logID := stestonly.LogTree.GetTreeId()
 	mockAdminTx := storage.NewMockReadOnlyAdminTX(mockCtrl)
 	mockAdmin := &stestonly.FakeAdminStorage{ReadOnlyTX: []storage.ReadOnlyAdminTX{mockAdminTx}}
-	mockStorage := &stestonly.FakeLogStorage{}
+	fakeStorage := &stestonly.FakeLogStorage{}
 
 	var keyProto ptypes.DynamicAny
 	if err := ptypes.UnmarshalAny(stestonly.LogTree.PrivateKey, &keyProto); err != nil {
@@ -233,7 +233,7 @@ func TestSequencerManagerSingleLogNoSigner(t *testing.T) {
 
 	registry := extension.Registry{
 		AdminStorage: mockAdmin,
-		LogStorage:   mockStorage,
+		LogStorage:   fakeStorage,
 		QuotaManager: quota.Noop(),
 	}
 
@@ -252,7 +252,7 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 	mockAdminTx := storage.NewMockReadOnlyAdminTX(mockCtrl)
 	mockAdmin := &stestonly.FakeAdminStorage{ReadOnlyTX: []storage.ReadOnlyAdminTX{mockAdminTx}}
 	mockTx := storage.NewMockLogTreeTX(mockCtrl)
-	mockStorage := &stestonly.FakeLogStorage{TX: mockTx}
+	fakeStorage := &stestonly.FakeLogStorage{TX: mockTx}
 
 	var keyProto ptypes.DynamicAny
 	if err := ptypes.UnmarshalAny(stestonly.LogTree.PrivateKey, &keyProto); err != nil {
@@ -284,7 +284,7 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 
 	registry := extension.Registry{
 		AdminStorage: mockAdmin,
-		LogStorage:   mockStorage,
+		LogStorage:   fakeStorage,
 		QuotaManager: quota.Noop(),
 	}
 
@@ -301,7 +301,7 @@ func TestSequencerManagerGuardWindow(t *testing.T) {
 	mockAdminTx := storage.NewMockReadOnlyAdminTX(mockCtrl)
 	mockAdmin := &stestonly.FakeAdminStorage{ReadOnlyTX: []storage.ReadOnlyAdminTX{mockAdminTx}}
 	mockTx := storage.NewMockLogTreeTX(mockCtrl)
-	mockStorage := &stestonly.FakeLogStorage{TX: mockTx}
+	fakeStorage := &stestonly.FakeLogStorage{TX: mockTx}
 
 	var keyProto ptypes.DynamicAny
 	if err := ptypes.UnmarshalAny(stestonly.LogTree.PrivateKey, &keyProto); err != nil {
@@ -329,7 +329,7 @@ func TestSequencerManagerGuardWindow(t *testing.T) {
 
 	registry := extension.Registry{
 		AdminStorage: mockAdmin,
-		LogStorage:   mockStorage,
+		LogStorage:   fakeStorage,
 		QuotaManager: quota.Noop(),
 	}
 
