@@ -15,6 +15,7 @@
 package main
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/google/trillian/crypto/keys/der"
@@ -39,7 +40,8 @@ func TestWithPEMKeyFile(t *testing.T) {
 				*pemKeyPath = ""
 				*pemKeyPass = pemPassword
 			},
-			wantErr: true,
+			validateErr: errors.New("empty pem_key_path"),
+			wantErr:     true,
 		},
 		{
 			desc: "empty pemKeyPass",
@@ -48,7 +50,8 @@ func TestWithPEMKeyFile(t *testing.T) {
 				*pemKeyPath = pemPath
 				*pemKeyPass = ""
 			},
-			wantErr: true,
+			validateErr: errors.New("pemfile: empty password for file"),
+			wantErr:     true,
 		},
 		{
 			desc: "valid pemKeyPath and pemKeyPass",
@@ -57,10 +60,7 @@ func TestWithPEMKeyFile(t *testing.T) {
 				*pemKeyPath = pemPath
 				*pemKeyPass = pemPassword
 			},
-			wantTree:      &wantTree,
-			expectCreate:  1,
-			expectInit:    1,
-			expectGetRoot: 1,
+			wantTree: &wantTree,
 		},
 	})
 }
@@ -91,7 +91,8 @@ func TestWithPrivateKey(t *testing.T) {
 				*pemKeyPath = ""
 				*pemKeyPass = pemPassword
 			},
-			wantErr: true,
+			validateErr: errors.New("empty pem_key_path"),
+			wantErr:     true,
 		},
 		{
 			desc: "empty pemKeyPass",
@@ -100,7 +101,8 @@ func TestWithPrivateKey(t *testing.T) {
 				*pemKeyPath = pemPath
 				*pemKeyPass = ""
 			},
-			wantErr: true,
+			validateErr: errors.New("pemfile: empty password for file"),
+			wantErr:     true,
 		},
 		{
 			desc: "valid pemKeyPath and pemKeyPass",
@@ -109,10 +111,7 @@ func TestWithPrivateKey(t *testing.T) {
 				*pemKeyPath = pemPath
 				*pemKeyPass = pemPassword
 			},
-			wantTree:      &wantTree,
-			expectCreate:  1,
-			expectInit:    1,
-			expectGetRoot: 1,
+			wantTree: &wantTree,
 		},
 	})
 }
