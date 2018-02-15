@@ -36,7 +36,7 @@ import (
 	storageto "github.com/google/trillian/storage/testonly"
 )
 
-var adminOpts = storage.NewGetOpts(storage.Admin, false, trillian.TreeType_LOG)
+var adminOpts = storage.NewGetOpts(storage.Admin, false, trillian.TreeType_LOG, trillian.TreeType_MAP)
 
 func TestNodeRoundTrip(t *testing.T) {
 	cleanTestDB(DB)

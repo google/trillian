@@ -25,17 +25,23 @@ import (
 	"github.com/google/trillian/storage/storagepb"
 )
 
-// Accessor indicates how a tree is to be used and participates in permissions
-// based decisions.
+// AccessType indicates how a tree is to be used and participates in permissions
+// decisions.
 type AccessType int
 
 const (
-	Unknown  AccessType = iota
-	Admin               // General purpose administration
-	Query               // Generic read access to serve query
-	Queue               // Log specific - adding entries to the queue
-	Sequence            // Log specific - integrating entries into the tree
-	Update              // Map specific - set / update leaves
+	// Unknown is an access type that will always get rejected
+	Unknown AccessType = iota
+	// Admin access is for general administration purposes
+	Admin
+	// Query implies access to serve query, typically readonly
+	Query
+	// Queue is log specific - adding entries to the queue
+	Queue
+	// Sequence is log specific - integrating entries into the tree
+	Sequence
+	// Update is map specific - set / update leaves
+	Update
 )
 
 // GetOpts contains validation options for GetTree.
