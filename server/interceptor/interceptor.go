@@ -257,7 +257,7 @@ type rpcInfo struct {
 	tokens int
 }
 
-func newRPCInfo(req interface{}, quotaUser string) (*rpcInfo, error) {
+func newRPCInfoForRequestType(req interface{}) (*rpcInfo, error) {
 	// Set "safe" defaults: enable all interception and assume requests are readonly.
 	info := &rpcInfo{
 		auth:      true,
@@ -354,6 +354,15 @@ func newRPCInfo(req interface{}, quotaUser string) (*rpcInfo, error) {
 
 	default:
 		return nil, status.Errorf(codes.Internal, "newRPCInfo: unmapped request type: %T", req)
+	}
+
+	return info, nil
+}
+
+func newRPCInfo(req interface{}, quotaUser string) (*rpcInfo, error) {
+	info, err := newRPCInfoForRequestType(req)
+	if err != nil {
+		return nil, err
 	}
 
 	if info.auth || info.getTree || info.quota {
