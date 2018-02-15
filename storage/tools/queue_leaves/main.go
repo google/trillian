@@ -28,7 +28,6 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/mysql"
-	"github.com/google/trillian/trees"
 )
 
 var (
@@ -38,7 +37,7 @@ var (
 	startInsertFromFlag = flag.Int("start_from", 0, "The sequence number of the first inserted item")
 	queueBatchSizeFlag  = flag.Int("queue_batch_size", 50, "Queue leaves batch size")
 
-	qOpts = trees.NewGetOpts(storage.Queue, false, trillian.TreeType_LOG)
+	qOpts = storage.NewGetOpts(storage.Queue, false, trillian.TreeType_LOG)
 )
 
 func validateFlagsOrDie() {

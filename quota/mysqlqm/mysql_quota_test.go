@@ -33,7 +33,7 @@ import (
 	"github.com/kylelemons/godebug/pretty"
 )
 
-var adminOpts = trees.NewGetOpts(storage.Admin, false)
+var adminOpts = storage.NewGetOpts(storage.Admin, false)
 
 func TestQuotaManager_GetTokens(t *testing.T) {
 	ctx := context.Background()

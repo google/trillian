@@ -48,6 +48,16 @@ type GetOpts struct {
 	Accessor AccessType
 }
 
+// NewGetOpts creates GetOps that allows the listed set of tree types, and
+// optionally forces the tree to be readonly.
+func NewGetOpts(accessor AccessType, readonly bool, types ...trillian.TreeType) GetOpts {
+	m := make(map[trillian.TreeType]bool)
+	for _, t := range types {
+		m[t] = true
+	}
+	return GetOpts{Accessor: accessor, TreeTypes: m, Readonly: readonly}
+}
+
 // Error is a typed error that the storage layer can return to give callers information
 // about the error to decide how to handle it.
 type Error struct {

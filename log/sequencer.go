@@ -32,7 +32,6 @@ import (
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/storage"
-	"github.com/google/trillian/trees"
 	"github.com/google/trillian/util"
 )
 
@@ -63,7 +62,7 @@ var (
 	// A factor <1 WILL lead to token shortages, therefore it'll be normalized to 1.
 	QuotaIncreaseFactor = 1.1
 
-	seqOpts = trees.NewGetOpts(storage.Sequence, false, trillian.TreeType_LOG)
+	seqOpts = storage.NewGetOpts(storage.Sequence, false, trillian.TreeType_LOG)
 )
 
 func quotaIncreaseFactor() float64 {

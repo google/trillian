@@ -27,7 +27,6 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
-	"github.com/google/trillian/trees"
 )
 
 const (
@@ -42,8 +41,8 @@ var (
 	hardDeleteCounter monitoring.Counter
 	metricsOnce       sync.Once
 
-	optsRead  = trees.NewGetOpts(storage.Admin, true)
-	optsWrite = trees.NewGetOpts(storage.Admin, false)
+	optsRead  = storage.NewGetOpts(storage.Admin, true)
+	optsWrite = storage.NewGetOpts(storage.Admin, false)
 )
 
 func incHardDeleteCounter(treeID int64, success bool, reason string) {

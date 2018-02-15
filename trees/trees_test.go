@@ -78,14 +78,14 @@ func TestGetTree(t *testing.T) {
 	softDeletedTree.Deleted = true
 	softDeletedTree.DeleteTime = ptypes.TimestampNow()
 
-	typeOpts := func(types ...trillian.TreeType) GetOpts {
-		return NewGetOpts(false /* readonly */, types...)
+	typeOpts := func(types ...trillian.TreeType) storage.GetOpts {
+		return storage.NewGetOpts(storage.Admin, false /* readonly */, types...)
 	}
 
 	tests := []struct {
 		desc                           string
 		treeID                         int64
-		opts                           GetOpts
+		opts                           storage.GetOpts
 		ctxTree, storageTree, wantTree *trillian.Tree
 		beginErr, getErr, commitErr    error
 		wantErr                        bool
@@ -153,7 +153,7 @@ func TestGetTree(t *testing.T) {
 		{
 			desc:        "frozenTree",
 			treeID:      frozenTree.TreeId,
-			opts:        NewGetOpts(true /* readonly */, trillian.TreeType_LOG),
+			opts:        storage.NewGetOpts(storage.Queue, true /* readonly */, trillian.TreeType_LOG),
 			storageTree: &frozenTree,
 			wantTree:    &frozenTree,
 		},
@@ -222,7 +222,7 @@ func TestGetTree(t *testing.T) {
 
 		admin := storage.NewMockAdminStorage(ctrl)
 		tx := storage.NewMockReadOnlyAdminTX(ctrl)
-		admin.EXPECT().Snapshot(ctx).MaxTimes(1).Return(tx, test.beginErr)
+		admin.EXPECT().Snapshot(ctx, gomock.Any()).MaxTimes(1).Return(tx, test.beginErr)
 		tx.EXPECT().GetTree(ctx, test.treeID).MaxTimes(1).Return(test.storageTree, test.getErr)
 		tx.EXPECT().Close().MaxTimes(1).Return(nil)
 		tx.EXPECT().Commit().MaxTimes(1).Return(test.commitErr)

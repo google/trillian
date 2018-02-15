@@ -32,12 +32,11 @@ import (
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testdb"
-	"github.com/google/trillian/trees"
 
 	storageto "github.com/google/trillian/storage/testonly"
 )
 
-var adminOpts = trees.NewGetOpts(storage.Admin, false, trillian.TreeType_LOG)
+var adminOpts = storage.NewGetOpts(storage.Admin, false, trillian.TreeType_LOG)
 
 func TestNodeRoundTrip(t *testing.T) {
 	cleanTestDB(DB)

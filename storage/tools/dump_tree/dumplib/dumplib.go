@@ -54,7 +54,7 @@ import (
 
 var (
 	leafHashesFlag bool
-	dumpOpts       = trees.NewGetOpts(storage.Admin, false, trillian.TreeType_LOG)
+	dumpOpts       = storage.NewGetOpts(storage.Admin, false, trillian.TreeType_LOG)
 )
 
 // A 32 bit magic number that is written at the start of record io files to identify the format.

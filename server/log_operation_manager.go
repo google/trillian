@@ -29,7 +29,6 @@ import (
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
-	"github.com/google/trillian/trees"
 	"github.com/google/trillian/util"
 )
 
@@ -49,7 +48,7 @@ var (
 	failedSigningRuns monitoring.Counter
 	entriesAdded      monitoring.Counter
 
-	optsSeq = trees.NewGetOpts(storage.Sequence, false, trillian.TreeType_LOG)
+	optsSeq = storage.NewGetOpts(storage.Sequence, false, trillian.TreeType_LOG)
 )
 
 func createMetrics(mf monitoring.MetricFactory) {

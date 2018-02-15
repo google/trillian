@@ -35,7 +35,6 @@ import (
 	"github.com/google/trillian/merkle/maphasher"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/testonly"
-	"github.com/google/trillian/trees"
 	"github.com/kylelemons/godebug/pretty"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -161,7 +160,7 @@ var (
 		return mh.HashEmpty(0 /*treeID - unused*/, nil /*index - unused*/, mh.BitLen())
 	}()
 
-	adminOpts = trees.NewGetOpts(storage.Admin, false, trillian.TreeType_LOG)
+	adminOpts = storage.NewGetOpts(storage.Admin, false, trillian.TreeType_LOG)
 )
 
 // AdminStorageTester runs a suite of tests against AdminStorage implementations.

@@ -155,7 +155,7 @@ func (tp *trillianProcessor) Before(ctx context.Context, req interface{}) (conte
 
 	if info.getTree {
 		tree, err := trees.GetTree(
-			ctx, tp.parent.admin, info.treeID, trees.NewGetOpts(storage.Admin, info.readonly, info.treeTypes...))
+			ctx, tp.parent.admin, info.treeID, storage.NewGetOpts(storage.Admin, info.readonly, info.treeTypes...))
 		if err != nil {
 			incRequestDeniedCounter(badTreeReason, info.treeID, quotaUser)
 			return ctx, err

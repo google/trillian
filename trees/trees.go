@@ -46,16 +46,6 @@ func FromContext(ctx context.Context) (*trillian.Tree, bool) {
 	return tree, ok && tree != nil
 }
 
-// NewGetOpts creates GetOps that allows the listed set of tree types, and
-// optionally forces the tree to be readonly.
-func NewGetOpts(accessor storage.AccessType, readonly bool, types ...trillian.TreeType) storage.GetOpts {
-	m := make(map[trillian.TreeType]bool)
-	for _, t := range types {
-		m[t] = true
-	}
-	return storage.GetOpts{Accessor: accessor, TreeTypes: m, Readonly: readonly}
-}
-
 func validate(o storage.GetOpts, tree *trillian.Tree) error {
 	// TODO(Martin2112): Enforce access type here - must be valid for tree
 	// state and not set to Unknown.

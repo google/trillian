@@ -30,13 +30,12 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/mysql"
 	"github.com/google/trillian/testonly"
-	"github.com/google/trillian/trees"
 
 	_ "github.com/go-sql-driver/mysql"
 )
 
 var mySQLURIFlag = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "")
-var mapWriteOpts = trees.NewGetOpts(storage.Update, false, trillian.TreeType_MAP)
+var mapWriteOpts = storage.NewGetOpts(storage.Update, false, trillian.TreeType_MAP)
 
 func main() {
 	flag.Parse()

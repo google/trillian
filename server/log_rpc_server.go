@@ -36,10 +36,10 @@ import (
 const proofMaxBitLen = 64
 
 var (
-	optsLogRead            = trees.NewGetOpts(storage.Query, true, trillian.TreeType_LOG)
-	optsLogWrite           = trees.NewGetOpts(storage.Queue, false, trillian.TreeType_LOG)
-	optsPreorderedLogWrite = trees.NewGetOpts(storage.Queue, false, trillian.TreeType_PREORDERED_LOG)
-	optsAdmin              = trees.NewGetOpts(storage.Admin, false, trillian.TreeType_LOG)
+	optsLogRead            = storage.NewGetOpts(storage.Query, true, trillian.TreeType_LOG)
+	optsLogWrite           = storage.NewGetOpts(storage.Queue, false, trillian.TreeType_LOG)
+	optsPreorderedLogWrite = storage.NewGetOpts(storage.Queue, false, trillian.TreeType_PREORDERED_LOG)
+	optsAdmin              = storage.NewGetOpts(storage.Admin, false, trillian.TreeType_LOG)
 )
 
 // TrillianLogRPCServer implements the RPC API defined in the proto

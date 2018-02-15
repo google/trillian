@@ -30,7 +30,6 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testonly"
-	"github.com/google/trillian/trees"
 	"github.com/kylelemons/godebug/pretty"
 
 	spb "github.com/google/trillian/crypto/sigpb"
@@ -61,8 +60,8 @@ var someExtraData = []byte("Some extra data")
 const leavesToInsert = 5
 const sequenceNumber int64 = 237
 
-var optsRead = trees.NewGetOpts(storage.Query, true, trillian.TreeType_LOG)
-var optsWrite = trees.NewGetOpts(storage.Queue, false, trillian.TreeType_LOG)
+var optsRead = storage.NewGetOpts(storage.Query, true, trillian.TreeType_LOG)
+var optsWrite = storage.NewGetOpts(storage.Queue, false, trillian.TreeType_LOG)
 
 // Tests that access the db should each use a distinct log ID to prevent lock contention when
 // run in parallel or race conditions / unexpected interactions. Tests that pass should hold

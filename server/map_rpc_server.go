@@ -37,9 +37,9 @@ const (
 	mostRecentRevision = -1
 )
 
-var optsMapRead = trees.NewGetOpts(storage.Query, true, trillian.TreeType_MAP)
-var optsMapWrite = trees.NewGetOpts(storage.Update, false, trillian.TreeType_MAP)
-var optsMapAdmin = trees.NewGetOpts(storage.Admin, false, trillian.TreeType_MAP)
+var optsMapRead = storage.NewGetOpts(storage.Query, true, trillian.TreeType_MAP)
+var optsMapWrite = storage.NewGetOpts(storage.Update, false, trillian.TreeType_MAP)
+var optsMapAdmin = storage.NewGetOpts(storage.Admin, false, trillian.TreeType_MAP)
 
 // TODO(codingllama): There is no access control in the server yet and clients could easily modify
 // any tree.

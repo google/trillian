@@ -39,7 +39,7 @@ type SequencerManager struct {
 	signersMutex sync.Mutex
 }
 
-var seqOpts = trees.NewGetOpts(storage.Sequence, false, trillian.TreeType_LOG)
+var seqOpts = storage.NewGetOpts(storage.Sequence, false, trillian.TreeType_LOG)
 
 // NewSequencerManager creates a new SequencerManager instance based on the provided KeyManager instance
 // and guard window.

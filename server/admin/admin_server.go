@@ -58,7 +58,7 @@ func (s *Server) IsHealthy() error {
 }
 
 func (s *Server) opts(readonly bool) storage.GetOpts {
-	return trees.NewGetOpts(storage.Admin, readonly, s.allowedTreeTypes...)
+	return storage.NewGetOpts(storage.Admin, readonly, s.allowedTreeTypes...)
 }
 
 // ListTrees implements trillian.TrillianAdminServer.ListTrees.
