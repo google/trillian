@@ -25,9 +25,9 @@ import (
 // the TrillianMapServer InitMap RPCs.
 // The remaining RPCs are not implemented.
 type Server struct {
-	*trillian.MockTrillianAdminServer
-	*trillian.MockTrillianLogServer
-	*trillian.MockTrillianMapServer
+	*MockTrillianAdminServer
+	*MockTrillianLogServer
+	*MockTrillianMapServer
 }
 
 // StartServer starts a server on a random port.

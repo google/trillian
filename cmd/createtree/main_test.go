@@ -28,7 +28,7 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/sigpb"
-	"github.com/google/trillian/testonly/fake"
+	"github.com/google/trillian/testonly/tmock"
 	"github.com/google/trillian/util/flagsaver"
 )
 
@@ -149,13 +149,13 @@ func runTest(t *testing.T, tests []*testCase) {
 		t.Run(tc.desc, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
-			s := &fake.Server{
-				MockTrillianMapServer:   trillian.NewMockTrillianMapServer(ctrl),
-				MockTrillianLogServer:   trillian.NewMockTrillianLogServer(ctrl),
-				MockTrillianAdminServer: trillian.NewMockTrillianAdminServer(ctrl),
+			s := &tmock.Server{
+				MockTrillianMapServer:   tmock.NewMockTrillianMapServer(ctrl),
+				MockTrillianLogServer:   tmock.NewMockTrillianLogServer(ctrl),
+				MockTrillianAdminServer: tmock.NewMockTrillianAdminServer(ctrl),
 			}
 
-			lis, stopFakeServer, err := fake.StartServer(s)
+			lis, stopFakeServer, err := tmock.StartServer(s)
 			if err != nil {
 				t.Fatalf("Error starting fake server: %v", err)
 			}
