@@ -42,6 +42,7 @@ service TrillianLog {
     }
 
     // Adds a single leaf with an assigned sequence number.
+    // Warning: This RPC is under development, don't use it.
     rpc AddSequencedLeaf (AddSequencedLeafRequest) returns (AddSequencedLeafResponse) {
       option (google.api.http) = {
         post: "/v1beta1/logs/{log_id}/leaves:sequenced"
@@ -115,8 +116,10 @@ service TrillianLog {
     rpc QueueLeaves (QueueLeavesRequest) returns (QueueLeavesResponse) {
     }
     // Adds a batch of leaves with assigned sequence numbers to the tree.
+    // Warning: This RPC is under development, don't use it.
     rpc AddSequencedLeaves (AddSequencedLeavesRequest) returns (AddSequencedLeavesResponse) {
     }
+
     // Returns a batch of leaves located in the provided positions.
     rpc GetLeavesByIndex (GetLeavesByIndexRequest) returns (GetLeavesByIndexResponse) {
     }
