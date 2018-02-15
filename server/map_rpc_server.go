@@ -221,7 +221,8 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		if err = tx.StoreSignedMapRoot(ctx, *newRoot); err != nil {
 			return err
 		}
-		return tx.Commit()
+
+		return nil
 	})
 	if err != nil {
 		return nil, err
@@ -305,7 +306,7 @@ func (t *TrillianMapServer) getTreeAndHasher(ctx context.Context, treeID int64, 
 		ctx,
 		t.registry.AdminStorage,
 		treeID,
-		trees.GetOpts{TreeType: trillian.TreeType_MAP, Readonly: readonly})
+		trees.NewGetOpts(readonly, trillian.TreeType_MAP))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -350,10 +351,6 @@ func (t *TrillianMapServer) InitMap(ctx context.Context, req *trillian.InitMapRe
 			return err
 		}
 
-		if err := tx.Commit(); err != nil {
-			glog.Warningf("%v: Commit failed for SetLeaves: %v", mapID, err)
-			return err
-		}
 		return nil
 	})
 	if err != nil {

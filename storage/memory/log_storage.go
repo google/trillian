@@ -138,7 +138,7 @@ func (m *memoryLogStorage) beginInternal(ctx context.Context, treeID int64, read
 		ctx,
 		m.admin,
 		treeID,
-		trees.GetOpts{TreeType: trillian.TreeType_LOG, Readonly: readonly})
+		trees.NewGetOpts(readonly, trillian.TreeType_LOG))
 	if err != nil {
 		return nil, err
 	}
@@ -172,17 +172,16 @@ func (m *memoryLogStorage) beginInternal(ctx context.Context, treeID int64, read
 	return ltx, nil
 }
 
-func (m *memoryLogStorage) BeginForTree(ctx context.Context, treeID int64) (storage.LogTreeTX, error) {
-	return m.beginInternal(ctx, treeID, false /* readonly */)
-}
-
 func (m *memoryLogStorage) ReadWriteTransaction(ctx context.Context, treeID int64, f storage.LogTXFunc) error {
-	tx, err := m.BeginForTree(ctx, treeID)
+	tx, err := m.beginInternal(ctx, treeID, false /* readonly */)
 	if err != nil && err != storage.ErrTreeNeedsInit {
 		return err
 	}
 	defer tx.Close()
-	return f(ctx, tx)
+	if err := f(ctx, tx); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (m *memoryLogStorage) SnapshotForTree(ctx context.Context, treeID int64) (storage.ReadOnlyLogTreeTX, error) {

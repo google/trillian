@@ -49,7 +49,6 @@ var (
 	seqUpdateLeavesLatency monitoring.Histogram
 	seqSetNodesLatency     monitoring.Histogram
 	seqStoreRootLatency    monitoring.Histogram
-	seqCommitLatency       monitoring.Histogram
 	seqCounter             monitoring.Counter
 	seqMergeDelay          monitoring.Histogram
 
@@ -87,7 +86,6 @@ func createMetrics(mf monitoring.MetricFactory) {
 	seqUpdateLeavesLatency = mf.NewHistogram("sequencer_latency_update_leaves", "Latency of update-leaves part of sequencer batch operation in seconds", logIDLabel)
 	seqSetNodesLatency = mf.NewHistogram("sequencer_latency_set_nodes", "Latency of set-nodes part of sequencer batch operation in seconds", logIDLabel)
 	seqStoreRootLatency = mf.NewHistogram("sequencer_latency_store_root", "Latency of store-root part of sequencer batch operation in seconds", logIDLabel)
-	seqCommitLatency = mf.NewHistogram("sequencer_latency_commit", "Latency of commit part of sequencer batch operation in seconds", logIDLabel)
 	seqCounter = mf.NewCounter("sequencer_sequenced", "Number of leaves sequenced", logIDLabel)
 	seqMergeDelay = mf.NewHistogram("sequencer_merge_delay", "Delay between queuing and integration of leaves", logIDLabel)
 }
@@ -331,7 +329,7 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, logID int64, limit int, g
 			if maxRootDurationInterval == 0 || interval < maxRootDurationInterval {
 				// We have nothing to integrate into the tree.
 				glog.V(1).Infof("%v: No leaves sequenced in this signing operation", logID)
-				return tx.Commit()
+				return nil
 			}
 			glog.Infof("%v: Force new root generation as %v since last root", logID, interval)
 		}
@@ -408,10 +406,7 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, logID int64, limit int, g
 		seqStoreRootLatency.Observe(util.SecondsSince(s.timeSource, stageStart), label)
 		stageStart = s.timeSource.Now()
 
-		// The batch is now fully sequenced and we're done
-		err = tx.Commit()
-		seqCommitLatency.Observe(util.SecondsSince(s.timeSource, start), label)
-		return err
+		return nil
 	})
 	if err != nil {
 		return 0, err
@@ -485,6 +480,6 @@ func (s Sequencer) SignRoot(ctx context.Context, logID int64) error {
 		}
 		glog.V(2).Infof("%v: new signed root, size %v, tree-revision %v", logID, newLogRoot.TreeSize, newLogRoot.TreeRevision)
 
-		return tx.Commit()
+		return nil
 	})
 }

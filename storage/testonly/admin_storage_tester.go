@@ -178,7 +178,7 @@ func (tester *AdminStorageTester) RunAllTests(t *testing.T) {
 	t.Run("TestHardDeleteTreeErrors", tester.TestHardDeleteTreeErrors)
 	t.Run("TestUndeleteTree", tester.TestUndeleteTree)
 	t.Run("TestUndeleteTreeErrors", tester.TestUndeleteTreeErrors)
-	t.Run("TestAdminTXClose", tester.TestAdminTXClose)
+	t.Run("TestAdminTXReadWriteTransaction", tester.TestAdminTXReadWriteTransaction)
 }
 
 // TestCreateTree tests AdminStorage Tree creation.
@@ -674,50 +674,36 @@ func (tester *AdminStorageTester) TestUndeleteTreeErrors(t *testing.T) {
 	}
 }
 
-// TestAdminTXClose verifies the behavior of Close() with and without explicit Commit() / Rollback() calls.
-func (tester *AdminStorageTester) TestAdminTXClose(t *testing.T) {
+// TestAdminTXReadWriteTransaction tests the ReadWriteTransaction method on AdminStorage.
+func (tester *AdminStorageTester) TestAdminTXReadWriteTransaction(t *testing.T) {
 	tests := []struct {
-		commit       bool
-		rollback     bool
-		wantRollback bool
+		wantCommit bool
 	}{
-		{commit: true, wantRollback: false},
-		{rollback: true, wantRollback: true},
-		{wantRollback: true}, // Close() before Commit() or Rollback() will cause a rollback
+		{wantCommit: true},
+		{wantCommit: false},
 	}
 
 	ctx := context.Background()
 	s := tester.NewAdminStorage()
 
+	var tree *trillian.Tree
+
 	for i, test := range tests {
-		func() {
-			tx, err := s.Begin(ctx)
-			if err != nil {
-				t.Fatalf("%v: Begin() = (_, %v), want = (_, nil)", i, err)
-			}
-			defer tx.Close()
-
-			tree, err := tx.CreateTree(ctx, LogTree)
-			if err != nil {
-				t.Fatalf("%v: CreateTree() = (_, %v), want = (_, nil)", i, err)
-			}
-
-			if test.commit {
-				if err := tx.Commit(); err != nil {
-					t.Errorf("%v: Commit() = %v, want = nil", i, err)
-					return
+		t.Run(fmt.Sprintf("%+v", test), func(t *testing.T) {
+			err := s.ReadWriteTransaction(ctx, func(ctx context.Context, tx storage.AdminTX) error {
+				var err error
+				tree, err = tx.CreateTree(ctx, LogTree)
+				if err != nil {
+					t.Fatalf("%v: CreateTree() = (_, %v), want = (_, nil)", i, err)
 				}
-			}
-			if test.rollback {
-				if err := tx.Rollback(); err != nil {
-					t.Errorf("%v: Rollback() = %v, want = nil", i, err)
-					return
+				if !test.wantCommit {
+					return fmt.Errorf("No commit %d", i)
 				}
-			}
-
-			if err := tx.Close(); err != nil {
-				t.Errorf("%v: Close() = %v, want = nil", i, err)
-				return
+				return nil
+			})
+			if (err != nil && test.wantCommit) ||
+				(err == nil && !test.wantCommit) {
+				t.Fatalf("%v: ReadWriteTransaction() = (_, %v), want = (_, nil)", i, err)
 			}
 
 			tx2, err := s.Snapshot(ctx)
@@ -726,16 +712,16 @@ func (tester *AdminStorageTester) TestAdminTXClose(t *testing.T) {
 			}
 			defer tx2.Close()
 			_, err = tx2.GetTree(ctx, tree.TreeId)
-			if hasErr := err != nil; test.wantRollback != hasErr {
-				t.Errorf("%v: GetTree() = (_, %v), but wantRollback = %v", i, err, test.wantRollback)
+			if hasErr := err != nil; !test.wantCommit != hasErr {
+				t.Errorf("%v: GetTree() = (_, %v), but wantCommit = %v", i, err, test.wantCommit)
 			}
 
 			// Multiple Close() calls are fine too
-			if err := tx.Close(); err != nil {
+			if err := tx2.Close(); err != nil {
 				t.Errorf("%v: Close() = %v, want = nil", i, err)
 				return
 			}
-		}()
+		})
 	}
 }
 

@@ -108,10 +108,10 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	logID := stestonly.LogTree.GetTreeId()
-	mockAdmin := storage.NewMockAdminStorage(mockCtrl)
 	mockAdminTx := storage.NewMockReadOnlyAdminTX(mockCtrl)
-	mockStorage := storage.NewMockLogStorage(mockCtrl)
+	mockAdmin := &stestonly.FakeAdminStorage{ReadOnlyTX: []storage.ReadOnlyAdminTX{mockAdminTx}}
 	mockTx := storage.NewMockLogTreeTX(mockCtrl)
+	fakeStorage := &stestonly.FakeLogStorage{TX: mockTx}
 
 	var keyProto ptypes.DynamicAny
 	if err := ptypes.UnmarshalAny(stestonly.LogTree.PrivateKey, &keyProto); err != nil {
@@ -126,21 +126,19 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 	keys.RegisterHandler(fakeKeyProtoHandler(keyProto.Message, signer, nil))
 	defer keys.UnregisterHandler(keyProto.Message)
 
-	mockStorage.EXPECT().ReadWriteTransaction(gomock.Any(), logID, gomock.Any()).DoAndReturn(stestonly.RunOnLogTX(mockTx))
 	mockTx.EXPECT().Commit().Return(nil)
 	mockTx.EXPECT().Close().Return(nil)
 	mockTx.EXPECT().WriteRevision().AnyTimes().Return(writeRev)
 	mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(testRoot0, nil)
 	mockTx.EXPECT().DequeueLeaves(gomock.Any(), 50, fakeTime).Return([]*trillian.LogLeaf{}, nil)
 
-	mockAdmin.EXPECT().Snapshot(gomock.Any()).Return(mockAdminTx, nil)
 	mockAdminTx.EXPECT().GetTree(gomock.Any(), logID).Return(stestonly.LogTree, nil)
 	mockAdminTx.EXPECT().Commit().Return(nil)
 	mockAdminTx.EXPECT().Close().Return(nil)
 
 	registry := extension.Registry{
 		AdminStorage: mockAdmin,
-		LogStorage:   mockStorage,
+		LogStorage:   fakeStorage,
 		QuotaManager: quota.Noop(),
 	}
 
@@ -154,10 +152,10 @@ func TestSequencerManagerCachesSigners(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	logID := stestonly.LogTree.GetTreeId()
-	mockAdmin := storage.NewMockAdminStorage(mockCtrl)
 	mockAdminTx := storage.NewMockReadOnlyAdminTX(mockCtrl)
-	mockStorage := storage.NewMockLogStorage(mockCtrl)
+	mockAdmin := &stestonly.FakeAdminStorage{}
 	mockTx := storage.NewMockLogTreeTX(mockCtrl)
+	fakeStorage := &stestonly.FakeLogStorage{}
 
 	var keyProto ptypes.DynamicAny
 	if err := ptypes.UnmarshalAny(stestonly.LogTree.PrivateKey, &keyProto); err != nil {
@@ -173,22 +171,22 @@ func TestSequencerManagerCachesSigners(t *testing.T) {
 
 	registry := extension.Registry{
 		AdminStorage: mockAdmin,
-		LogStorage:   mockStorage,
+		LogStorage:   fakeStorage,
 		QuotaManager: quota.Noop(),
 	}
 	sm := NewSequencerManager(registry, zeroDuration)
 
 	// Expect two sequencing passes.
 	for i := 0; i < 2; i++ {
+		mockAdmin.ReadOnlyTX = []storage.ReadOnlyAdminTX{mockAdminTx}
 		gomock.InOrder(
-			mockAdmin.EXPECT().Snapshot(gomock.Any()).Return(mockAdminTx, nil),
 			mockAdminTx.EXPECT().GetTree(gomock.Any(), logID).Return(stestonly.LogTree, nil),
 			mockAdminTx.EXPECT().Commit().Return(nil),
 			mockAdminTx.EXPECT().Close().Return(nil),
 		)
 
+		fakeStorage.TX = mockTx
 		gomock.InOrder(
-			mockStorage.EXPECT().ReadWriteTransaction(gomock.Any(), logID, gomock.Any()).DoAndReturn(stestonly.RunOnLogTX(mockTx)),
 			mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(testRoot0, nil),
 			mockTx.EXPECT().DequeueLeaves(gomock.Any(), 50, fakeTime).Return([]*trillian.LogLeaf{}, nil),
 			mockTx.EXPECT().WriteRevision().AnyTimes().Return(writeRev),
@@ -215,9 +213,9 @@ func TestSequencerManagerSingleLogNoSigner(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	logID := stestonly.LogTree.GetTreeId()
-	mockAdmin := storage.NewMockAdminStorage(mockCtrl)
 	mockAdminTx := storage.NewMockReadOnlyAdminTX(mockCtrl)
-	mockStorage := storage.NewMockLogStorage(mockCtrl)
+	mockAdmin := &stestonly.FakeAdminStorage{ReadOnlyTX: []storage.ReadOnlyAdminTX{mockAdminTx}}
+	fakeStorage := &stestonly.FakeLogStorage{}
 
 	var keyProto ptypes.DynamicAny
 	if err := ptypes.UnmarshalAny(stestonly.LogTree.PrivateKey, &keyProto); err != nil {
@@ -228,7 +226,6 @@ func TestSequencerManagerSingleLogNoSigner(t *testing.T) {
 	defer keys.UnregisterHandler(keyProto.Message)
 
 	gomock.InOrder(
-		mockAdmin.EXPECT().Snapshot(gomock.Any()).Return(mockAdminTx, nil),
 		mockAdminTx.EXPECT().GetTree(gomock.Any(), logID).Return(stestonly.LogTree, nil),
 		mockAdminTx.EXPECT().Commit().Return(nil),
 		mockAdminTx.EXPECT().Close().Return(nil),
@@ -236,7 +233,7 @@ func TestSequencerManagerSingleLogNoSigner(t *testing.T) {
 
 	registry := extension.Registry{
 		AdminStorage: mockAdmin,
-		LogStorage:   mockStorage,
+		LogStorage:   fakeStorage,
 		QuotaManager: quota.Noop(),
 	}
 
@@ -252,10 +249,10 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	logID := stestonly.LogTree.GetTreeId()
-	mockAdmin := storage.NewMockAdminStorage(mockCtrl)
 	mockAdminTx := storage.NewMockReadOnlyAdminTX(mockCtrl)
-	mockStorage := storage.NewMockLogStorage(mockCtrl)
+	mockAdmin := &stestonly.FakeAdminStorage{ReadOnlyTX: []storage.ReadOnlyAdminTX{mockAdminTx}}
 	mockTx := storage.NewMockLogTreeTX(mockCtrl)
+	fakeStorage := &stestonly.FakeLogStorage{TX: mockTx}
 
 	var keyProto ptypes.DynamicAny
 	if err := ptypes.UnmarshalAny(stestonly.LogTree.PrivateKey, &keyProto); err != nil {
@@ -280,16 +277,14 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 	mockTx.EXPECT().UpdateSequencedLeaves(gomock.Any(), []*trillian.LogLeaf{testLeaf0Updated}).Return(nil)
 	mockTx.EXPECT().SetMerkleNodes(gomock.Any(), updatedNodes0).Return(nil)
 	mockTx.EXPECT().StoreSignedLogRoot(gomock.Any(), updatedRoot).Return(nil)
-	mockStorage.EXPECT().ReadWriteTransaction(gomock.Any(), logID, gomock.Any()).DoAndReturn(stestonly.RunOnLogTX(mockTx))
 
-	mockAdmin.EXPECT().Snapshot(gomock.Any()).Return(mockAdminTx, nil)
 	mockAdminTx.EXPECT().GetTree(gomock.Any(), logID).Return(stestonly.LogTree, nil)
 	mockAdminTx.EXPECT().Commit().Return(nil)
 	mockAdminTx.EXPECT().Close().Return(nil)
 
 	registry := extension.Registry{
 		AdminStorage: mockAdmin,
-		LogStorage:   mockStorage,
+		LogStorage:   fakeStorage,
 		QuotaManager: quota.Noop(),
 	}
 
@@ -303,10 +298,10 @@ func TestSequencerManagerGuardWindow(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	logID := stestonly.LogTree.GetTreeId()
-	mockAdmin := storage.NewMockAdminStorage(mockCtrl)
 	mockAdminTx := storage.NewMockReadOnlyAdminTX(mockCtrl)
-	mockStorage := storage.NewMockLogStorage(mockCtrl)
+	mockAdmin := &stestonly.FakeAdminStorage{ReadOnlyTX: []storage.ReadOnlyAdminTX{mockAdminTx}}
 	mockTx := storage.NewMockLogTreeTX(mockCtrl)
+	fakeStorage := &stestonly.FakeLogStorage{TX: mockTx}
 
 	var keyProto ptypes.DynamicAny
 	if err := ptypes.UnmarshalAny(stestonly.LogTree.PrivateKey, &keyProto); err != nil {
@@ -321,7 +316,6 @@ func TestSequencerManagerGuardWindow(t *testing.T) {
 	keys.RegisterHandler(fakeKeyProtoHandler(keyProto.Message, signer, nil))
 	defer keys.UnregisterHandler(keyProto.Message)
 
-	mockStorage.EXPECT().ReadWriteTransaction(gomock.Any(), logID, gomock.Any()).DoAndReturn(stestonly.RunOnLogTX(mockTx))
 	mockTx.EXPECT().Commit().Return(nil)
 	mockTx.EXPECT().Close().Return(nil)
 	mockTx.EXPECT().WriteRevision().AnyTimes().Return(writeRev)
@@ -329,14 +323,13 @@ func TestSequencerManagerGuardWindow(t *testing.T) {
 	// Expect a 5 second guard window to be passed from manager -> sequencer -> storage
 	mockTx.EXPECT().DequeueLeaves(gomock.Any(), 50, fakeTime.Add(-time.Second*5)).Return([]*trillian.LogLeaf{}, nil)
 
-	mockAdmin.EXPECT().Snapshot(gomock.Any()).Return(mockAdminTx, nil)
 	mockAdminTx.EXPECT().GetTree(gomock.Any(), logID).Return(stestonly.LogTree, nil)
 	mockAdminTx.EXPECT().Commit().Return(nil)
 	mockAdminTx.EXPECT().Close().Return(nil)
 
 	registry := extension.Registry{
 		AdminStorage: mockAdmin,
-		LogStorage:   mockStorage,
+		LogStorage:   fakeStorage,
 		QuotaManager: quota.Noop(),
 	}
 

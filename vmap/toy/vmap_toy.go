@@ -79,61 +79,61 @@ func main() {
 
 	var root []byte
 	for x := 0; x < numBatches; x++ {
-		tx, err := ms.BeginForTree(ctx, mapID)
-		if err != nil {
-			glog.Exitf("Failed to Begin() a new tx: %v", err)
-		}
-		defer tx.Close()
-		w, err := merkle.NewSparseMerkleTreeWriter(
-			ctx,
-			mapID,
-			tx.WriteRevision(),
-			hasher,
-			func(ctx context.Context, f func(context.Context, storage.MapTreeTX) error) error {
-				return ms.ReadWriteTransaction(ctx, mapID, f)
-			})
-		if err != nil {
-			glog.Exitf("Failed to create new SMTWriter: %v", err)
-		}
-
-		glog.Infof("Starting batch %d...", x)
-		h := make([]merkle.HashKeyValue, batchSize)
-		for y := 0; y < batchSize; y++ {
-			index := testonly.HashKey(fmt.Sprintf("key-%d-%d", x, y))
-			leafHash, err := hasher.HashLeaf(mapID, index, []byte(fmt.Sprintf("value-%d-%d", x, y)))
+		err := ms.ReadWriteTransaction(ctx, mapID, func(ctx context.Context, tx storage.MapTreeTX) error {
 			if err != nil {
-				glog.Exitf("HashLeaf(): %v", err)
+				glog.Exitf("Failed to Begin() a new tx: %v", err)
 			}
-			h[y].HashedKey = index
-			h[y].HashedValue = leafHash
-		}
-		glog.Infof("Created %d k/v pairs...", len(h))
+			w, err := merkle.NewSparseMerkleTreeWriter(
+				ctx,
+				mapID,
+				tx.WriteRevision(),
+				hasher,
+				func(ctx context.Context, f func(context.Context, storage.MapTreeTX) error) error {
+					return ms.ReadWriteTransaction(ctx, mapID, f)
+				})
+			if err != nil {
+				glog.Exitf("Failed to create new SMTWriter: %v", err)
+			}
 
-		glog.Info("SetLeaves...")
-		if err := w.SetLeaves(ctx, h); err != nil {
-			glog.Exitf("Failed to batch %d: %v", x, err)
-		}
-		glog.Info("SetLeaves done.")
+			glog.Infof("Starting batch %d...", x)
+			h := make([]merkle.HashKeyValue, batchSize)
+			for y := 0; y < batchSize; y++ {
+				index := testonly.HashKey(fmt.Sprintf("key-%d-%d", x, y))
+				leafHash, err := hasher.HashLeaf(mapID, index, []byte(fmt.Sprintf("value-%d-%d", x, y)))
+				if err != nil {
+					glog.Exitf("HashLeaf(): %v", err)
+				}
+				h[y].HashedKey = index
+				h[y].HashedValue = leafHash
+			}
+			glog.Infof("Created %d k/v pairs...", len(h))
 
-		glog.Info("CalculateRoot...")
-		root, err = w.CalculateRoot()
+			glog.Info("SetLeaves...")
+			if err := w.SetLeaves(ctx, h); err != nil {
+				glog.Exitf("Failed to batch %d: %v", x, err)
+			}
+			glog.Info("SetLeaves done.")
+
+			glog.Info("CalculateRoot...")
+			root, err = w.CalculateRoot()
+			if err != nil {
+				glog.Exitf("Failed to calculate root hash: %v", err)
+			}
+			glog.Infof("CalculateRoot (%d), root: %s", x, base64.StdEncoding.EncodeToString(root))
+
+			if err := tx.StoreSignedMapRoot(ctx, trillian.SignedMapRoot{
+				TimestampNanos: time.Now().UnixNano(),
+				RootHash:       root,
+				MapId:          mapID,
+				MapRevision:    tx.WriteRevision(),
+				Signature:      &spb.DigitallySigned{},
+			}); err != nil {
+				glog.Exitf("Failed to store SMR: %v", err)
+			}
+			return nil
+		})
 		if err != nil {
-			glog.Exitf("Failed to calculate root hash: %v", err)
-		}
-		glog.Infof("CalculateRoot (%d), root: %s", x, base64.StdEncoding.EncodeToString(root))
-
-		if err := tx.StoreSignedMapRoot(ctx, trillian.SignedMapRoot{
-			TimestampNanos: time.Now().UnixNano(),
-			RootHash:       root,
-			MapId:          mapID,
-			MapRevision:    tx.WriteRevision(),
-			Signature:      &spb.DigitallySigned{},
-		}); err != nil {
-			glog.Exitf("Failed to store SMR: %v", err)
-		}
-
-		if err := tx.Commit(); err != nil {
-			glog.Exitf("Failed to Commit() tx: %v", err)
+			glog.Exitf("ReadWriteTransaction() = %v", err)
 		}
 	}
 

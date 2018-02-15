@@ -115,7 +115,19 @@ func InitMap(ctx context.Context, tree *trillian.Tree, mapClient trillian.Trilli
 
 		return nil
 	})
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Wait for map root to become available.
+	return b.Retry(ctx, func() error {
+		_, err := mapClient.GetSignedMapRootByRevision(ctx,
+			&trillian.GetSignedMapRootByRevisionRequest{
+				MapId:    tree.TreeId,
+				Revision: 0,
+			})
+		return err
+	})
 }
 
 // InitLog initialises a freshly created Log tree.
@@ -132,7 +144,7 @@ func InitLog(ctx context.Context, tree *trillian.Tree, logClient trillian.Trilli
 	}
 
 	err := b.Retry(ctx, func() error {
-		glog.Infof("Initialising Map %x...", tree.TreeId)
+		glog.Infof("Initialising Log %x...", tree.TreeId)
 		req := &trillian.InitLogRequest{LogId: tree.TreeId}
 		resp, err := logClient.InitLog(ctx, req)
 		if err != nil {
@@ -150,5 +162,14 @@ func InitLog(ctx context.Context, tree *trillian.Tree, logClient trillian.Trilli
 
 		return nil
 	})
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Wait for log root to become available.
+	return b.Retry(ctx, func() error {
+		_, err := logClient.GetLatestSignedLogRoot(ctx,
+			&trillian.GetLatestSignedLogRootRequest{LogId: tree.TreeId})
+		return err
+	})
 }

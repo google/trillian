@@ -37,8 +37,6 @@ import (
 )
 
 func TestNodeRoundTrip(t *testing.T) {
-	ctx := context.Background()
-
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
 	s := NewLogStorage(DB, nil)
@@ -51,42 +49,37 @@ func TestNodeRoundTrip(t *testing.T) {
 	}
 
 	{
-		tx := beginLogTx(s, logID, t)
-		defer tx.Close()
-		forceWriteRevision(writeRevision, tx)
+		runLogTX(s, logID, t, func(ctx context.Context, tx storage.LogTreeTX) error {
+			forceWriteRevision(writeRevision, tx)
 
-		// Need to read nodes before attempting to write
-		if _, err := tx.GetMerkleNodes(ctx, 99, nodeIDsToRead); err != nil {
-			t.Fatalf("Failed to read nodes: %s", err)
-		}
-		if err := tx.SetMerkleNodes(ctx, nodesToStore); err != nil {
-			t.Fatalf("Failed to store nodes: %s", err)
-		}
-		if err := tx.Commit(); err != nil {
-			t.Fatalf("Failed to commit nodes: %s", err)
-		}
+			// Need to read nodes before attempting to write
+			if _, err := tx.GetMerkleNodes(ctx, 99, nodeIDsToRead); err != nil {
+				t.Fatalf("Failed to read nodes: %s", err)
+			}
+			if err := tx.SetMerkleNodes(ctx, nodesToStore); err != nil {
+				t.Fatalf("Failed to store nodes: %s", err)
+			}
+			return nil
+		})
 	}
 
 	{
-		tx := beginLogTx(s, logID, t)
-		defer tx.Close()
-
-		readNodes, err := tx.GetMerkleNodes(ctx, 100, nodeIDsToRead)
-		if err != nil {
-			t.Fatalf("Failed to retrieve nodes: %s", err)
-		}
-		if err := nodesAreEqual(readNodes, nodesToStore); err != nil {
-			t.Fatalf("Read back different nodes from the ones stored: %s", err)
-		}
-		commit(tx, t)
+		runLogTX(s, logID, t, func(ctx context.Context, tx storage.LogTreeTX) error {
+			readNodes, err := tx.GetMerkleNodes(ctx, 100, nodeIDsToRead)
+			if err != nil {
+				t.Fatalf("Failed to retrieve nodes: %s", err)
+			}
+			if err := nodesAreEqual(readNodes, nodesToStore); err != nil {
+				t.Fatalf("Read back different nodes from the ones stored: %s", err)
+			}
+			return nil
+		})
 	}
 }
 
 // This test ensures that node writes cross subtree boundaries so this edge case in the subtree
 // cache gets exercised. Any tree size > 256 will do this.
 func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
-	ctx := context.Background()
-
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
 	s := NewLogStorage(DB, nil)
@@ -102,41 +95,38 @@ func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 	}
 
 	{
-		tx := beginLogTx(s, logID, t)
-		defer tx.Close()
-		forceWriteRevision(writeRevision, tx)
+		runLogTX(s, logID, t, func(ctx context.Context, tx storage.LogTreeTX) error {
+			forceWriteRevision(writeRevision, tx)
 
-		// Need to read nodes before attempting to write
-		if _, err := tx.GetMerkleNodes(ctx, writeRevision-1, nodeIDsToRead); err != nil {
-			t.Fatalf("Failed to read nodes: %s", err)
-		}
-		if err := tx.SetMerkleNodes(ctx, nodesToStore); err != nil {
-			t.Fatalf("Failed to store nodes: %s", err)
-		}
-		if err := tx.Commit(); err != nil {
-			t.Fatalf("Failed to commit nodes: %s", err)
-		}
+			// Need to read nodes before attempting to write
+			if _, err := tx.GetMerkleNodes(ctx, writeRevision-1, nodeIDsToRead); err != nil {
+				t.Fatalf("Failed to read nodes: %s", err)
+			}
+			if err := tx.SetMerkleNodes(ctx, nodesToStore); err != nil {
+				t.Fatalf("Failed to store nodes: %s", err)
+			}
+			return nil
+		})
 	}
 
 	{
-		tx := beginLogTx(s, logID, t)
-		defer tx.Close()
-
-		readNodes, err := tx.GetMerkleNodes(ctx, 100, nodeIDsToRead)
-		if err != nil {
-			t.Fatalf("Failed to retrieve nodes: %s", err)
-		}
-		if err := nodesAreEqual(readNodes, nodesToStore); err != nil {
-			missing, extra := diffNodes(readNodes, nodesToStore)
-			for _, n := range missing {
-				t.Errorf("Missing: %s %s", n.NodeID.String(), n.NodeID.CoordString())
+		runLogTX(s, logID, t, func(ctx context.Context, tx storage.LogTreeTX) error {
+			readNodes, err := tx.GetMerkleNodes(ctx, 100, nodeIDsToRead)
+			if err != nil {
+				t.Fatalf("Failed to retrieve nodes: %s", err)
 			}
-			for _, n := range extra {
-				t.Errorf("Extra  : %s %s", n.NodeID.String(), n.NodeID.CoordString())
+			if err := nodesAreEqual(readNodes, nodesToStore); err != nil {
+				missing, extra := diffNodes(readNodes, nodesToStore)
+				for _, n := range missing {
+					t.Errorf("Missing: %s %s", n.NodeID.String(), n.NodeID.CoordString())
+				}
+				for _, n := range extra {
+					t.Errorf("Extra  : %s %s", n.NodeID.String(), n.NodeID.CoordString())
+				}
+				t.Fatalf("Read back different nodes from the ones stored: %s", err)
 			}
-			t.Fatalf("Read back different nodes from the ones stored: %s", err)
-		}
-		commit(tx, t)
+			return nil
+		})
 	}
 }
 
@@ -258,16 +248,14 @@ func createLogForTests(db *sql.DB) int64 {
 
 	ctx := context.Background()
 	l := NewLogStorage(db, nil)
-	tx, err := l.BeginForTree(ctx, tree.TreeId)
-	if err != nil && err != storage.ErrTreeNeedsInit {
-		panic(fmt.Sprintf("Error creating tree TX: %v", err))
-	}
-
-	if err := tx.StoreSignedLogRoot(ctx, trillian.SignedLogRoot{LogId: tree.TreeId, RootHash: []byte{0}, Signature: &sigpb.DigitallySigned{}}); err != nil {
-		panic(fmt.Sprintf("Error storing new SignedLogRoot: %v", err))
-	}
-	if err := tx.Commit(); err != nil {
-		panic(fmt.Sprintf("Error committing TX: %v", err))
+	err = l.ReadWriteTransaction(ctx, tree.TreeId, func(ctx context.Context, tx storage.LogTreeTX) error {
+		if err := tx.StoreSignedLogRoot(ctx, trillian.SignedLogRoot{LogId: tree.TreeId, RootHash: []byte{0}, Signature: &sigpb.DigitallySigned{}}); err != nil {
+			panic(fmt.Sprintf("Error storing new SignedLogRoot: %v", err))
+		}
+		return nil
+	})
+	if err != nil {
+		panic(fmt.Sprintf("ReadWriteTransaction() = %v", err))
 	}
 	return tree.TreeId
 }

@@ -22,12 +22,12 @@ import (
 	"testing"
 
 	"github.com/golang/glog"
+	"github.com/kylelemons/godebug/pretty"
+
 	"github.com/google/trillian"
 	"github.com/google/trillian/client"
 	"github.com/google/trillian/examples/ct/ctmapper/ctmapperpb"
 	"github.com/google/trillian/testonly"
-
-	"github.com/kylelemons/godebug/pretty"
 
 	stestonly "github.com/google/trillian/storage/testonly"
 )
@@ -128,7 +128,7 @@ func newTreeWithHasher(ctx context.Context, tadmin trillian.TrillianAdminClient,
 		return nil, err
 	}
 
-	if _, err := tmap.InitMap(ctx, &trillian.InitMapRequest{MapId: tree.TreeId}); err != nil {
+	if err := client.InitMap(ctx, tree, tmap); err != nil {
 		return nil, err
 	}
 

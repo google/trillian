@@ -26,6 +26,7 @@ import (
 
 	log "github.com/golang/glog"
 	"github.com/google/trillian"
+	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/mysql"
 )
 
@@ -61,48 +62,45 @@ func main() {
 	}
 	defer db.Close()
 
-	storage := mysql.NewLogStorage(db, nil)
+	ls := mysql.NewLogStorage(db, nil)
 	ctx := context.Background()
-	tx, err := storage.BeginForTree(ctx, *treeIDFlag)
-	if err != nil {
-		panic(err)
-	}
+	err = ls.ReadWriteTransaction(ctx, *treeIDFlag, func(ctx context.Context, tx storage.LogTreeTX) error {
+		leaves := []*trillian.LogLeaf{}
+		for l := 0; l < *numInsertionsFlag; l++ {
+			// Leaf data based in the sequence number so we can check the hashes
+			leafNumber := *startInsertFromFlag + l
 
-	leaves := []*trillian.LogLeaf{}
-	for l := 0; l < *numInsertionsFlag; l++ {
-		// Leaf data based in the sequence number so we can check the hashes
-		leafNumber := *startInsertFromFlag + l
+			data := []byte(fmt.Sprintf("Leaf %d", leafNumber))
+			hash := sha256.Sum256(data)
 
-		data := []byte(fmt.Sprintf("Leaf %d", leafNumber))
-		hash := sha256.Sum256(data)
+			log.Infof("Preparing leaf %d\n", leafNumber)
 
-		log.Infof("Preparing leaf %d\n", leafNumber)
+			leaf := &trillian.LogLeaf{
+				MerkleLeafHash: []byte(hash[:]),
+				LeafValue:      data,
+				ExtraData:      nil,
+				LeafIndex:      0}
+			leaves = append(leaves, leaf)
 
-		leaf := &trillian.LogLeaf{
-			MerkleLeafHash: []byte(hash[:]),
-			LeafValue:      data,
-			ExtraData:      nil,
-			LeafIndex:      0}
-		leaves = append(leaves, leaf)
+			if len(leaves) >= *queueBatchSizeFlag {
+				_, err := tx.QueueLeaves(ctx, leaves, time.Now())
+				leaves = leaves[:0] // starting new batch
 
-		if len(leaves) >= *queueBatchSizeFlag {
-			_, err := tx.QueueLeaves(ctx, leaves, time.Now())
-			leaves = leaves[:0] // starting new batch
-
-			if err != nil {
-				panic(err)
+				if err != nil {
+					return err
+				}
 			}
 		}
-	}
 
-	// There might be some leaves left over that didn't get queued yet
-	if len(leaves) > 0 {
-		if _, err := tx.QueueLeaves(ctx, leaves, time.Now()); err != nil {
-			panic(err)
+		// There might be some leaves left over that didn't get queued yet
+		if len(leaves) > 0 {
+			if _, err := tx.QueueLeaves(ctx, leaves, time.Now()); err != nil {
+				return err
+			}
 		}
-	}
-
-	if err := tx.Commit(); err != nil {
+		return nil
+	})
+	if err != nil {
 		panic(err)
 	}
 }
