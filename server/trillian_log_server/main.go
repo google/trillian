@@ -165,7 +165,7 @@ func main() {
 			}
 			return nil
 		},
-		AllowedTreeTypes:      []trillian.TreeType{trillian.TreeType_LOG},
+		AllowedTreeTypes:      []trillian.TreeType{trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG},
 		TreeGCEnabled:         *treeGCEnabled,
 		TreeDeleteThreshold:   *treeDeleteThreshold,
 		TreeDeleteMinInterval: *treeDeleteMinRunInterval,

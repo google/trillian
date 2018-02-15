@@ -578,6 +578,12 @@ func TestServer_CreateTree_AllowedTreeTypes(t *testing.T) {
 			wantCode:  codes.OK,
 		},
 		{
+			desc:      "preorderedLogAllowed",
+			treeTypes: []trillian.TreeType{trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG},
+			req:       &trillian.CreateTreeRequest{Tree: testonly.PreorderedLogTree},
+			wantCode:  codes.OK,
+		},
+		{
 			desc:      "mapOnMapServer",
 			treeTypes: []trillian.TreeType{trillian.TreeType_MAP},
 			req:       &trillian.CreateTreeRequest{Tree: testonly.MapTree},
