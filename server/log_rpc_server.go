@@ -121,8 +121,7 @@ func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.Qu
 			// There was a pre-existing leaf.
 			t.leafCounter.Inc("existing")
 		} else {
-			// Return the leaf from the request if it is new.
-			ret[i] = &trillian.QueuedLogLeaf{Leaf: req.Leaves[i]}
+			ret[i] = &trillian.QueuedLogLeaf{Leaf: req.Leaves[i], Status: status.Convert(nil).Proto()}
 			t.leafCounter.Inc("new")
 		}
 	}

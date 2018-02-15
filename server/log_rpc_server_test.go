@@ -384,7 +384,7 @@ func TestQueueLeaves(t *testing.T) {
 		t.Errorf("QueueLeaves() returns %d leaves; want 1", len(rsp.QueuedLeaves))
 	}
 	queuedLeaf := rsp.QueuedLeaves[0]
-	if queuedLeaf.Status != nil && queuedLeaf.Status.Code != int32(code.Code_OK) {
+	if queuedLeaf.Status.Code != int32(code.Code_OK) {
 		t.Errorf("QueueLeaves().Status=%d,nil; want %d,nil", queuedLeaf.Status.Code, code.Code_OK)
 	}
 	if !proto.Equal(queueRequest0.Leaves[0], queuedLeaf.Leaf) {
