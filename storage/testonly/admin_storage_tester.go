@@ -120,7 +120,7 @@ var (
 		HashStrategy:       trillian.HashStrategy_RFC6962_SHA256,
 		HashAlgorithm:      spb.DigitallySigned_SHA256,
 		SignatureAlgorithm: spb.DigitallySigned_ECDSA,
-		DisplayName:        "Pavel's Pre-ordered Log",
+		DisplayName:        "Pre-ordered Log",
 		Description:        "Mirror registry of publicly-owned llamas",
 		PrivateKey: mustMarshalAny(&keyspb.PrivateKey{
 			Der: ktestonly.MustMarshalPrivatePEMToDER(privateKeyPEM, privateKeyPass),
@@ -190,6 +190,7 @@ func (tester *AdminStorageTester) TestCreateTree(t *testing.T) {
 
 	validTree1 := *LogTree
 	validTree2 := *MapTree
+	validTree3 := *PreorderedLogTree
 
 	validTreeWithoutOptionals := *LogTree
 	validTreeWithoutOptionals.DisplayName = ""
@@ -212,6 +213,10 @@ func (tester *AdminStorageTester) TestCreateTree(t *testing.T) {
 		{
 			desc: "validTree2",
 			tree: &validTree2,
+		},
+		{
+			desc: "validTree3",
+			tree: &validTree3,
 		},
 		{
 			desc: "validTreeWithoutOptionals",

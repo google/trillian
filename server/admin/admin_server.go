@@ -89,7 +89,7 @@ func (s *Server) CreateTree(ctx context.Context, req *trillian.CreateTreeRequest
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	switch tree.TreeType {
-	case trillian.TreeType_LOG:
+	case trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG:
 		if _, err := hashers.NewLogHasher(tree.HashStrategy); err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "failed to create hasher for tree: %v", err.Error())
 		}
