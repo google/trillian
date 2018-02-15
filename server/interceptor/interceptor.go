@@ -327,7 +327,11 @@ func newRPCInfo(req interface{}, quotaUser string) (*rpcInfo, error) {
 		info.readonly = false
 		info.treeTypes = []trillian.TreeType{trillian.TreeType_LOG}
 
-	// TODO(pavelkalinnikov): Pre-ordered Log's AddSequencedLeaves.
+	// Pre-ordered Log / readwrite
+	case *trillian.AddSequencedLeafRequest,
+		*trillian.AddSequencedLeavesRequest:
+		info.readonly = false
+		info.treeTypes = []trillian.TreeType{trillian.TreeType_PREORDERED_LOG}
 
 	// Log / readwrite
 	// Pre-ordered Log / readwrite
