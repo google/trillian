@@ -911,6 +911,7 @@ type TrillianLogClient interface {
 	// Adds a single leaf to the queue.
 	QueueLeaf(ctx context.Context, in *QueueLeafRequest, opts ...grpc.CallOption) (*QueueLeafResponse, error)
 	// Adds a single leaf with an assigned sequence number.
+	// Warning: This RPC is under development, don't use it.
 	AddSequencedLeaf(ctx context.Context, in *AddSequencedLeafRequest, opts ...grpc.CallOption) (*AddSequencedLeafResponse, error)
 	// Returns inclusion proof for a leaf with a given index in a given tree.
 	GetInclusionProof(ctx context.Context, in *GetInclusionProofRequest, opts ...grpc.CallOption) (*GetInclusionProofResponse, error)
@@ -933,6 +934,7 @@ type TrillianLogClient interface {
 	// Adds a batch of leaves to the queue.
 	QueueLeaves(ctx context.Context, in *QueueLeavesRequest, opts ...grpc.CallOption) (*QueueLeavesResponse, error)
 	// Adds a batch of leaves with assigned sequence numbers to the tree.
+	// Warning: This RPC is under development, don't use it.
 	AddSequencedLeaves(ctx context.Context, in *AddSequencedLeavesRequest, opts ...grpc.CallOption) (*AddSequencedLeavesResponse, error)
 	// Returns a batch of leaves located in the provided positions.
 	GetLeavesByIndex(ctx context.Context, in *GetLeavesByIndexRequest, opts ...grpc.CallOption) (*GetLeavesByIndexResponse, error)
@@ -1082,6 +1084,7 @@ type TrillianLogServer interface {
 	// Adds a single leaf to the queue.
 	QueueLeaf(context.Context, *QueueLeafRequest) (*QueueLeafResponse, error)
 	// Adds a single leaf with an assigned sequence number.
+	// Warning: This RPC is under development, don't use it.
 	AddSequencedLeaf(context.Context, *AddSequencedLeafRequest) (*AddSequencedLeafResponse, error)
 	// Returns inclusion proof for a leaf with a given index in a given tree.
 	GetInclusionProof(context.Context, *GetInclusionProofRequest) (*GetInclusionProofResponse, error)
@@ -1104,6 +1107,7 @@ type TrillianLogServer interface {
 	// Adds a batch of leaves to the queue.
 	QueueLeaves(context.Context, *QueueLeavesRequest) (*QueueLeavesResponse, error)
 	// Adds a batch of leaves with assigned sequence numbers to the tree.
+	// Warning: This RPC is under development, don't use it.
 	AddSequencedLeaves(context.Context, *AddSequencedLeavesRequest) (*AddSequencedLeavesResponse, error)
 	// Returns a batch of leaves located in the provided positions.
 	GetLeavesByIndex(context.Context, *GetLeavesByIndexRequest) (*GetLeavesByIndexResponse, error)
