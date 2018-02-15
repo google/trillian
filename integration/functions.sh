@@ -147,7 +147,7 @@ log_prep_test() {
     ./trillian_log_server ${ETCD_OPTS} ${pkcs11_opts} ${logserver_opts} \
       --rpc_endpoint="localhost:${port}" \
       --http_endpoint="localhost:${http}" \
-      --alsologtostderr \
+      ${LOGGING_OPTS} \
       &
     pid=$!
     RPC_SERVER_PIDS+=(${pid})
@@ -175,7 +175,7 @@ log_prep_test() {
       --batch_size=500 \
       --http_endpoint="localhost:${http}" \
       --num_sequencers 2 \
-      --alsologtostderr \
+      ${LOGGING_OPTS} \
       &
     pid=$!
     LOG_SIGNER_PIDS+=(${pid})
