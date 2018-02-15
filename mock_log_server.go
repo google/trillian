@@ -33,6 +33,32 @@ func (m *MockTrillianLogServer) EXPECT() *MockTrillianLogServerMockRecorder {
 	return m.recorder
 }
 
+// AddSequencedLeaf mocks base method
+func (m *MockTrillianLogServer) AddSequencedLeaf(arg0 context.Context, arg1 *AddSequencedLeafRequest) (*AddSequencedLeafResponse, error) {
+	ret := m.ctrl.Call(m, "AddSequencedLeaf", arg0, arg1)
+	ret0, _ := ret[0].(*AddSequencedLeafResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AddSequencedLeaf indicates an expected call of AddSequencedLeaf
+func (mr *MockTrillianLogServerMockRecorder) AddSequencedLeaf(arg0, arg1 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddSequencedLeaf", reflect.TypeOf((*MockTrillianLogServer)(nil).AddSequencedLeaf), arg0, arg1)
+}
+
+// AddSequencedLeaves mocks base method
+func (m *MockTrillianLogServer) AddSequencedLeaves(arg0 context.Context, arg1 *AddSequencedLeavesRequest) (*AddSequencedLeavesResponse, error) {
+	ret := m.ctrl.Call(m, "AddSequencedLeaves", arg0, arg1)
+	ret0, _ := ret[0].(*AddSequencedLeavesResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AddSequencedLeaves indicates an expected call of AddSequencedLeaves
+func (mr *MockTrillianLogServerMockRecorder) AddSequencedLeaves(arg0, arg1 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddSequencedLeaves", reflect.TypeOf((*MockTrillianLogServer)(nil).AddSequencedLeaves), arg0, arg1)
+}
+
 // GetConsistencyProof mocks base method
 func (m *MockTrillianLogServer) GetConsistencyProof(arg0 context.Context, arg1 *GetConsistencyProofRequest) (*GetConsistencyProofResponse, error) {
 	ret := m.ctrl.Call(m, "GetConsistencyProof", arg0, arg1)
