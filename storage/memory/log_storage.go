@@ -138,7 +138,7 @@ func (m *memoryLogStorage) beginInternal(ctx context.Context, treeID int64, read
 		ctx,
 		m.admin,
 		treeID,
-		trees.GetOpts{TreeType: trillian.TreeType_LOG, Readonly: readonly})
+		trees.NewGetOpts(readonly, trillian.TreeType_LOG))
 	if err != nil {
 		return nil, err
 	}

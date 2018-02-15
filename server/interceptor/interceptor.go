@@ -155,7 +155,7 @@ func (tp *trillianProcessor) Before(ctx context.Context, req interface{}) (conte
 
 	if info.getTree {
 		tree, err := trees.GetTree(
-			ctx, tp.parent.admin, info.treeID, trees.GetOpts{TreeType: info.treeType, Readonly: info.readonly})
+			ctx, tp.parent.admin, info.treeID, trees.NewGetOpts(info.readonly, info.treeTypes...))
 		if err != nil {
 			incRequestDeniedCounter(badTreeReason, info.treeID, quotaUser)
 			return ctx, err
@@ -249,9 +249,9 @@ type rpcInfo struct {
 	// auth, getTree and quota enable their corresponding interceptor logic.
 	auth, getTree, quota bool
 
-	readonly bool
-	treeID   int64
-	treeType trillian.TreeType
+	readonly  bool
+	treeID    int64
+	treeTypes []trillian.TreeType
 
 	specs  []quota.Spec
 	tokens int
@@ -260,11 +260,11 @@ type rpcInfo struct {
 func newRPCInfo(req interface{}, quotaUser string) (*rpcInfo, error) {
 	// Set "safe" defaults: enable all interception and assume requests are readonly.
 	info := &rpcInfo{
-		auth:     true,
-		getTree:  true,
-		quota:    true,
-		readonly: true,
-		treeType: trillian.TreeType_UNKNOWN_TREE_TYPE,
+		auth:      true,
+		getTree:   true,
+		quota:     true,
+		readonly:  true,
+		treeTypes: nil,
 	}
 
 	switch req.(type) {
@@ -309,6 +309,7 @@ func newRPCInfo(req interface{}, quotaUser string) (*rpcInfo, error) {
 		info.readonly = false
 
 	// Log / readonly
+	// Pre-ordered Log / readonly
 	case *trillian.GetConsistencyProofRequest,
 		*trillian.GetEntryAndProofRequest,
 		*trillian.GetInclusionProofByHashRequest,
@@ -318,27 +319,34 @@ func newRPCInfo(req interface{}, quotaUser string) (*rpcInfo, error) {
 		*trillian.GetLeavesByIndexRequest,
 		*trillian.GetLeavesByRangeRequest,
 		*trillian.GetSequencedLeafCountRequest:
-		info.treeType = trillian.TreeType_LOG
+		info.treeTypes = []trillian.TreeType{trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG}
 
 	// Log / readwrite
 	case *trillian.QueueLeafRequest,
-		*trillian.QueueLeavesRequest,
-		*trillian.InitLogRequest:
+		*trillian.QueueLeavesRequest:
 		info.readonly = false
-		info.treeType = trillian.TreeType_LOG
+		info.treeTypes = []trillian.TreeType{trillian.TreeType_LOG}
+
+	// TODO(pavelkalinnikov): Pre-ordered Log's AddSequencedLeaves.
+
+	// Log / readwrite
+	// Pre-ordered Log / readwrite
+	case *trillian.InitLogRequest:
+		info.readonly = false
+		info.treeTypes = []trillian.TreeType{trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG}
 
 	// Map / readonly
 	case *trillian.GetMapLeavesByRevisionRequest,
 		*trillian.GetMapLeavesRequest,
 		*trillian.GetSignedMapRootByRevisionRequest,
 		*trillian.GetSignedMapRootRequest:
-		info.treeType = trillian.TreeType_MAP
+		info.treeTypes = []trillian.TreeType{trillian.TreeType_MAP}
 
 	// Map / readwrite
 	case *trillian.SetMapLeavesRequest,
 		*trillian.InitMapRequest:
 		info.readonly = false
-		info.treeType = trillian.TreeType_MAP
+		info.treeTypes = []trillian.TreeType{trillian.TreeType_MAP}
 
 	default:
 		return nil, status.Errorf(codes.Internal, "newRPCInfo: unmapped request type: %T", req)

@@ -47,11 +47,32 @@ func FromContext(ctx context.Context) (*trillian.Tree, bool) {
 
 // GetOpts contains validation options for GetTree.
 type GetOpts struct {
-	// TreeType is the expected type of the tree. Use trillian.TreeType_UNKNOWN_TREE_TYPE to
-	// allow any type.
-	TreeType trillian.TreeType
+	// TreeTypes is a set of allowed tree types. If empty, any type is allowed.
+	TreeTypes map[trillian.TreeType]bool
+
 	// Readonly is whether the tree will be used for read-only purposes.
 	Readonly bool
+}
+
+// NewGetOpts creates GetOps that allows the listed set of tree types, and
+// optionally forces the tree to be readonly.
+func NewGetOpts(readonly bool, types ...trillian.TreeType) GetOpts {
+	m := make(map[trillian.TreeType]bool)
+	for _, t := range types {
+		m[t] = true
+	}
+	return GetOpts{TreeTypes: m, Readonly: readonly}
+}
+
+func (o GetOpts) validate(tree *trillian.Tree) error {
+	switch {
+	case len(o.TreeTypes) > 0 && !o.TreeTypes[tree.TreeType]:
+		return errors.Errorf(errors.InvalidArgument, "operation not allowed for %s-type trees (wanted one of %v)", tree.TreeType, o.TreeTypes)
+	case tree.TreeState == trillian.TreeState_FROZEN && !o.Readonly:
+		return errors.Errorf(errors.PermissionDenied, "operation not allowed on %s trees", tree.TreeState)
+	}
+
+	return nil
 }
 
 // GetTree returns the specified tree, either from the ctx (if present) or read from storage.
@@ -69,12 +90,10 @@ func GetTree(ctx context.Context, s storage.AdminStorage, treeID int64, opts Get
 		}
 	}
 
-	switch {
-	case opts.TreeType != trillian.TreeType_UNKNOWN_TREE_TYPE && tree.TreeType != opts.TreeType:
-		return nil, errors.Errorf(errors.InvalidArgument, "operation not allowed for %s-type trees (wanted %s-type)", tree.TreeType, opts.TreeType)
-	case tree.TreeState == trillian.TreeState_FROZEN && !opts.Readonly:
-		return nil, errors.Errorf(errors.PermissionDenied, "operation not allowed on %s trees", tree.TreeState)
-	case tree.Deleted:
+	if err := opts.validate(tree); err != nil {
+		return nil, err
+	}
+	if tree.Deleted {
 		return nil, errors.Errorf(errors.NotFound, "tree %v not found", tree.TreeId)
 	}
 

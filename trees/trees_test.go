@@ -77,6 +77,10 @@ func TestGetTree(t *testing.T) {
 	softDeletedTree.Deleted = true
 	softDeletedTree.DeleteTime = ptypes.TimestampNow()
 
+	typeOpts := func(types ...trillian.TreeType) GetOpts {
+		return NewGetOpts(false /* readonly */, types...)
+	}
+
 	tests := []struct {
 		desc                           string
 		treeID                         int64
@@ -87,23 +91,44 @@ func TestGetTree(t *testing.T) {
 		code                           terrors.Code
 	}{
 		{
+			desc:        "anyTree",
+			treeID:      logTree.TreeId,
+			opts:        typeOpts(),
+			storageTree: &logTree,
+			wantTree:    &logTree,
+		},
+		{
 			desc:        "logTree",
 			treeID:      logTree.TreeId,
-			opts:        GetOpts{TreeType: trillian.TreeType_LOG},
+			opts:        typeOpts(trillian.TreeType_LOG),
 			storageTree: &logTree,
 			wantTree:    &logTree,
 		},
 		{
 			desc:        "mapTree",
 			treeID:      mapTree.TreeId,
-			opts:        GetOpts{TreeType: trillian.TreeType_MAP},
+			opts:        typeOpts(trillian.TreeType_MAP),
+			storageTree: &mapTree,
+			wantTree:    &mapTree,
+		},
+		{
+			desc:        "logTreeButMaybeMap",
+			treeID:      logTree.TreeId,
+			opts:        typeOpts(trillian.TreeType_LOG, trillian.TreeType_MAP),
+			storageTree: &logTree,
+			wantTree:    &logTree,
+		},
+		{
+			desc:        "mapTreeButMaybeLog",
+			treeID:      mapTree.TreeId,
+			opts:        typeOpts(trillian.TreeType_LOG, trillian.TreeType_MAP),
 			storageTree: &mapTree,
 			wantTree:    &mapTree,
 		},
 		{
 			desc:        "wrongType1",
 			treeID:      logTree.TreeId,
-			opts:        GetOpts{TreeType: trillian.TreeType_MAP},
+			opts:        typeOpts(trillian.TreeType_MAP),
 			storageTree: &logTree,
 			wantErr:     true,
 			code:        terrors.InvalidArgument,
@@ -111,7 +136,15 @@ func TestGetTree(t *testing.T) {
 		{
 			desc:        "wrongType2",
 			treeID:      mapTree.TreeId,
-			opts:        GetOpts{TreeType: trillian.TreeType_LOG},
+			opts:        typeOpts(trillian.TreeType_LOG),
+			storageTree: &mapTree,
+			wantErr:     true,
+			code:        terrors.InvalidArgument,
+		},
+		{
+			desc:        "wrongType3",
+			treeID:      mapTree.TreeId,
+			opts:        typeOpts(trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG),
 			storageTree: &mapTree,
 			wantErr:     true,
 			code:        terrors.InvalidArgument,
@@ -119,14 +152,14 @@ func TestGetTree(t *testing.T) {
 		{
 			desc:        "frozenTree",
 			treeID:      frozenTree.TreeId,
-			opts:        GetOpts{TreeType: trillian.TreeType_LOG, Readonly: true},
+			opts:        NewGetOpts(true /* readonly */, trillian.TreeType_LOG),
 			storageTree: &frozenTree,
 			wantTree:    &frozenTree,
 		},
 		{
 			desc:        "frozenTreeNotReadonly",
 			treeID:      frozenTree.TreeId,
-			opts:        GetOpts{TreeType: trillian.TreeType_LOG},
+			opts:        typeOpts(trillian.TreeType_LOG),
 			storageTree: &frozenTree,
 			wantErr:     true,
 			code:        terrors.PermissionDenied,
@@ -134,7 +167,7 @@ func TestGetTree(t *testing.T) {
 		{
 			desc:        "softDeleted",
 			treeID:      softDeletedTree.TreeId,
-			opts:        GetOpts{TreeType: trillian.TreeType_LOG},
+			opts:        typeOpts(trillian.TreeType_LOG),
 			storageTree: &softDeletedTree,
 			wantErr:     true, // Deleted = true makes the tree "invisible" for most RPCs
 			code:        terrors.NotFound,
@@ -142,14 +175,14 @@ func TestGetTree(t *testing.T) {
 		{
 			desc:     "treeInCtx",
 			treeID:   logTree.TreeId,
-			opts:     GetOpts{TreeType: trillian.TreeType_LOG},
+			opts:     typeOpts(trillian.TreeType_LOG),
 			ctxTree:  &logTree,
 			wantTree: &logTree,
 		},
 		{
 			desc:        "wrongTreeInCtx",
 			treeID:      logTree.TreeId,
-			opts:        GetOpts{TreeType: trillian.TreeType_LOG},
+			opts:        typeOpts(trillian.TreeType_LOG),
 			ctxTree:     &mapTree,
 			storageTree: &logTree,
 			wantTree:    &logTree,
@@ -157,7 +190,7 @@ func TestGetTree(t *testing.T) {
 		{
 			desc:     "beginErr",
 			treeID:   logTree.TreeId,
-			opts:     GetOpts{TreeType: trillian.TreeType_LOG},
+			opts:     typeOpts(trillian.TreeType_LOG),
 			beginErr: errors.New("begin err"),
 			wantErr:  true,
 			code:     terrors.Unknown,
@@ -165,7 +198,7 @@ func TestGetTree(t *testing.T) {
 		{
 			desc:    "getErr",
 			treeID:  logTree.TreeId,
-			opts:    GetOpts{TreeType: trillian.TreeType_LOG},
+			opts:    typeOpts(trillian.TreeType_LOG),
 			getErr:  errors.New("get err"),
 			wantErr: true,
 			code:    terrors.Unknown,
@@ -173,7 +206,7 @@ func TestGetTree(t *testing.T) {
 		{
 			desc:      "commitErr",
 			treeID:    logTree.TreeId,
-			opts:      GetOpts{TreeType: trillian.TreeType_LOG},
+			opts:      typeOpts(trillian.TreeType_LOG),
 			commitErr: errors.New("commit err"),
 			wantErr:   true,
 			code:      terrors.Unknown,
