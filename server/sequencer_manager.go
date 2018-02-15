@@ -27,6 +27,7 @@ import (
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/log"
 	"github.com/google/trillian/merkle/hashers"
+	"github.com/google/trillian/storage"
 	"github.com/google/trillian/trees"
 )
 
@@ -37,6 +38,8 @@ type SequencerManager struct {
 	signers      map[int64]*crypto.Signer
 	signersMutex sync.Mutex
 }
+
+var seqOpts = trees.NewGetOpts(storage.Sequence, false, trillian.TreeType_LOG)
 
 // NewSequencerManager creates a new SequencerManager instance based on the provided KeyManager instance
 // and guard window.
@@ -58,11 +61,7 @@ func (s *SequencerManager) ExecutePass(ctx context.Context, logID int64, info *L
 	// TODO(Martin2112): Honor the sequencing enabled in log parameters, needs an API change
 	// so deferring it
 
-	tree, err := trees.GetTree(
-		ctx,
-		s.registry.AdminStorage,
-		logID,
-		trees.NewGetOpts(false /* readonly */, trillian.TreeType_LOG))
+	tree, err := trees.GetTree(ctx, s.registry.AdminStorage, logID, seqOpts)
 	if err != nil {
 		return 0, fmt.Errorf("error retrieving log %v: %v", logID, err)
 	}

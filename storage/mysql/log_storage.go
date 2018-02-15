@@ -213,15 +213,11 @@ func (t *readOnlyLogTX) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
 	return ids, rows.Err()
 }
 
-func (m *mySQLLogStorage) beginInternal(ctx context.Context, treeID int64, readonly bool) (storage.LogTreeTX, error) {
+func (m *mySQLLogStorage) beginInternal(ctx context.Context, treeID int64, opts storage.GetOpts) (storage.LogTreeTX, error) {
 	once.Do(func() {
 		createMetrics(m.metricFactory)
 	})
-	tree, err := trees.GetTree(
-		ctx,
-		m.admin,
-		treeID,
-		trees.NewGetOpts(readonly, trillian.TreeType_LOG))
+	tree, err := trees.GetTree(ctx, m.admin, treeID, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -255,8 +251,8 @@ func (m *mySQLLogStorage) beginInternal(ctx context.Context, treeID int64, reado
 	return ltx, nil
 }
 
-func (m *mySQLLogStorage) ReadWriteTransaction(ctx context.Context, treeID int64, f storage.LogTXFunc) error {
-	tx, err := m.beginInternal(ctx, treeID, false /* readonly */)
+func (m *mySQLLogStorage) ReadWriteTransaction(ctx context.Context, treeID int64, f storage.LogTXFunc, opts storage.GetOpts) error {
+	tx, err := m.beginInternal(ctx, treeID, opts)
 	if err != nil && err != storage.ErrTreeNeedsInit {
 		return err
 	}
@@ -271,16 +267,16 @@ func (m *mySQLLogStorage) AddSequencedLeaves(ctx context.Context, treeID int64, 
 	return nil, status.Errorf(codes.Unimplemented, "AddSequencedLeaves is not implemented")
 }
 
-func (m *mySQLLogStorage) SnapshotForTree(ctx context.Context, treeID int64) (storage.ReadOnlyLogTreeTX, error) {
-	tx, err := m.beginInternal(ctx, treeID, true /* readonly */)
+func (m *mySQLLogStorage) SnapshotForTree(ctx context.Context, treeID int64, opts storage.GetOpts) (storage.ReadOnlyLogTreeTX, error) {
+	tx, err := m.beginInternal(ctx, treeID, opts)
 	if err != nil && err != storage.ErrTreeNeedsInit {
 		return nil, err
 	}
 	return tx.(storage.ReadOnlyLogTreeTX), err
 }
 
-func (m *mySQLLogStorage) QueueLeaves(ctx context.Context, treeID int64, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
-	tx, err := m.beginInternal(ctx, treeID, false /* readonly */)
+func (m *mySQLLogStorage) QueueLeaves(ctx context.Context, treeID int64, leaves []*trillian.LogLeaf, queueTimestamp time.Time, opts storage.GetOpts) ([]*trillian.QueuedLogLeaf, error) {
+	tx, err := m.beginInternal(ctx, treeID, opts)
 	if err != nil {
 		return nil, err
 	}

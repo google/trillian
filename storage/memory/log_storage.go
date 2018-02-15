@@ -132,15 +132,11 @@ func (t *readOnlyLogTX) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
 	return ret, nil
 }
 
-func (m *memoryLogStorage) beginInternal(ctx context.Context, treeID int64, readonly bool) (storage.LogTreeTX, error) {
+func (m *memoryLogStorage) beginInternal(ctx context.Context, treeID int64, opts storage.GetOpts) (storage.LogTreeTX, error) {
 	once.Do(func() {
 		createMetrics(m.metricFactory)
 	})
-	tree, err := trees.GetTree(
-		ctx,
-		m.admin,
-		treeID,
-		trees.NewGetOpts(readonly, trillian.TreeType_LOG))
+	tree, err := trees.GetTree(ctx, m.admin, treeID, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -150,7 +146,7 @@ func (m *memoryLogStorage) beginInternal(ctx context.Context, treeID int64, read
 	}
 
 	stCache := cache.NewLogSubtreeCache(defaultLogStrata, hasher)
-	ttx, err := m.memoryTreeStorage.beginTreeTX(ctx, readonly, treeID, hasher.Size(), stCache)
+	ttx, err := m.memoryTreeStorage.beginTreeTX(ctx, opts, treeID, hasher.Size(), stCache)
 	if err != nil {
 		return nil, err
 	}
@@ -174,8 +170,8 @@ func (m *memoryLogStorage) beginInternal(ctx context.Context, treeID int64, read
 	return ltx, nil
 }
 
-func (m *memoryLogStorage) ReadWriteTransaction(ctx context.Context, treeID int64, f storage.LogTXFunc) error {
-	tx, err := m.beginInternal(ctx, treeID, false /* readonly */)
+func (m *memoryLogStorage) ReadWriteTransaction(ctx context.Context, treeID int64, f storage.LogTXFunc, opts storage.GetOpts) error {
+	tx, err := m.beginInternal(ctx, treeID, opts)
 	if err != nil && err != storage.ErrTreeNeedsInit {
 		return err
 	}

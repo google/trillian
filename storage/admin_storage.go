@@ -62,12 +62,12 @@ type AdminStorage interface {
 	// Snapshot starts a read-only transaction.
 	// A transaction must be explicitly committed before the data read by it
 	// is considered consistent.
-	Snapshot(ctx context.Context) (ReadOnlyAdminTX, error)
+	Snapshot(ctx context.Context, opts GetOpts) (ReadOnlyAdminTX, error)
 
 	// ReadWriteTransaction creates a transaction, and runs f with it.
 	// Some storage implementations may retry aborted transactions, so
 	// f MUST be idempotent.
-	ReadWriteTransaction(ctx context.Context, f AdminTXFunc) error
+	ReadWriteTransaction(ctx context.Context, f AdminTXFunc, opts GetOpts) error
 
 	// CheckDatabaseAccessible checks whether we are able to connect to / open the
 	// underlying storage.
@@ -128,8 +128,8 @@ type AdminWriter interface {
 }
 
 // RunInAdminSnapshot runs fn against a ReadOnlyAdminTX and commits if no error is returned.
-func RunInAdminSnapshot(ctx context.Context, admin AdminStorage, fn func(tx ReadOnlyAdminTX) error) error {
-	tx, err := admin.Snapshot(ctx)
+func RunInAdminSnapshot(ctx context.Context, admin AdminStorage, fn func(tx ReadOnlyAdminTX) error, opts GetOpts) error {
+	tx, err := admin.Snapshot(ctx, opts)
 	if err != nil {
 		return err
 	}

@@ -23,80 +23,80 @@ import (
 // GetTree reads a tree from storage using a snapshot transaction.
 // It's a convenience wrapper around RunInAdminSnapshot and AdminReader's GetTree.
 // See RunInAdminSnapshot if you need to perform more than one action per transaction.
-func GetTree(ctx context.Context, admin AdminStorage, treeID int64) (*trillian.Tree, error) {
+func GetTree(ctx context.Context, admin AdminStorage, treeID int64, opts GetOpts) (*trillian.Tree, error) {
 	var tree *trillian.Tree
 	err := RunInAdminSnapshot(ctx, admin, func(tx ReadOnlyAdminTX) (err error) {
 		tree, err = tx.GetTree(ctx, treeID)
 		return
-	})
+	}, opts)
 	return tree, err
 }
 
 // ListTrees reads trees from storage using a snapshot transaction.
 // It's a convenience wrapper around RunInAdminSnapshot and AdminReader's ListTrees.
 // See RunInAdminSnapshot if you need to perform more than one action per transaction.
-func ListTrees(ctx context.Context, admin AdminStorage, includeDeleted bool) ([]*trillian.Tree, error) {
+func ListTrees(ctx context.Context, admin AdminStorage, includeDeleted bool, opts GetOpts) ([]*trillian.Tree, error) {
 	var resp []*trillian.Tree
 	err := RunInAdminSnapshot(ctx, admin, func(tx ReadOnlyAdminTX) (err error) {
 		resp, err = tx.ListTrees(ctx, includeDeleted)
 		return
-	})
+	}, opts)
 	return resp, err
 }
 
 // CreateTree creates a tree in storage.
 // It's a convenience wrapper around ReadWriteTransaction and AdminWriter's CreateTree.
 // See ReadWriteTransaction if you need to perform more than one action per transaction.
-func CreateTree(ctx context.Context, admin AdminStorage, tree *trillian.Tree) (*trillian.Tree, error) {
+func CreateTree(ctx context.Context, admin AdminStorage, tree *trillian.Tree, opts GetOpts) (*trillian.Tree, error) {
 	var createdTree *trillian.Tree
 	err := admin.ReadWriteTransaction(ctx, func(ctx context.Context, tx AdminTX) (err error) {
 		createdTree, err = tx.CreateTree(ctx, tree)
 		return
-	})
+	}, opts)
 	return createdTree, err
 }
 
 // UpdateTree updates a tree in storage.
 // It's a convenience wrapper around ReadWriteTransaction and AdminWriter's UpdateTree.
 // See ReadWriteTransaction if you need to perform more than one action per transaction.
-func UpdateTree(ctx context.Context, admin AdminStorage, treeID int64, fn func(*trillian.Tree)) (*trillian.Tree, error) {
+func UpdateTree(ctx context.Context, admin AdminStorage, treeID int64, fn func(*trillian.Tree), opts GetOpts) (*trillian.Tree, error) {
 	var updatedTree *trillian.Tree
 	err := admin.ReadWriteTransaction(ctx, func(ctx context.Context, tx AdminTX) (err error) {
 		updatedTree, err = tx.UpdateTree(ctx, treeID, fn)
 		return
-	})
+	}, opts)
 	return updatedTree, err
 }
 
 // SoftDeleteTree soft-deletes a tree in storage.
 // It's a convenience wrapper around ReadWriteTransaction and AdminWriter's SoftDeleteTree.
 // See ReadWriteTransaction if you need to perform more than one action per transaction.
-func SoftDeleteTree(ctx context.Context, admin AdminStorage, treeID int64) (*trillian.Tree, error) {
+func SoftDeleteTree(ctx context.Context, admin AdminStorage, treeID int64, opts GetOpts) (*trillian.Tree, error) {
 	var tree *trillian.Tree
 	err := admin.ReadWriteTransaction(ctx, func(ctx context.Context, tx AdminTX) (err error) {
 		tree, err = tx.SoftDeleteTree(ctx, treeID)
 		return
-	})
+	}, opts)
 	return tree, err
 }
 
 // HardDeleteTree hard-deletes a tree from storage.
 // It's a convenience wrapper around ReadWriteTransaction and AdminWriter's HardDeleteTree.
 // See ReadWriteTransaction if you need to perform more than one action per transaction.
-func HardDeleteTree(ctx context.Context, admin AdminStorage, treeID int64) error {
+func HardDeleteTree(ctx context.Context, admin AdminStorage, treeID int64, opts GetOpts) error {
 	return admin.ReadWriteTransaction(ctx, func(ctx context.Context, tx AdminTX) error {
 		return tx.HardDeleteTree(ctx, treeID)
-	})
+	}, opts)
 }
 
 // UndeleteTree undeletes a tree in storage.
 // It's a convenience wrapper around ReadWriteTransaction and AdminWriter's UndeleteTree.
 // See ReadWriteTransaction if you need to perform more than one action per transaction.
-func UndeleteTree(ctx context.Context, admin AdminStorage, treeID int64) (*trillian.Tree, error) {
+func UndeleteTree(ctx context.Context, admin AdminStorage, treeID int64, opts GetOpts) (*trillian.Tree, error) {
 	var tree *trillian.Tree
 	err := admin.ReadWriteTransaction(ctx, func(ctx context.Context, tx AdminTX) (err error) {
 		tree, err = tx.UndeleteTree(ctx, treeID)
 		return
-	})
+	}, opts)
 	return tree, err
 }

@@ -37,12 +37,12 @@ type memoryAdminStorage struct {
 	ms *memoryTreeStorage
 }
 
-func (s *memoryAdminStorage) Snapshot(ctx context.Context) (storage.ReadOnlyAdminTX, error) {
-	return &adminTX{ms: s.ms}, nil
+func (s *memoryAdminStorage) Snapshot(ctx context.Context, opts storage.GetOpts) (storage.ReadOnlyAdminTX, error) {
+	return &adminTX{ms: s.ms, opts: opts}, nil
 }
 
-func (s *memoryAdminStorage) ReadWriteTransaction(ctx context.Context, f storage.AdminTXFunc) error {
-	tx := &adminTX{ms: s.ms}
+func (s *memoryAdminStorage) ReadWriteTransaction(ctx context.Context, f storage.AdminTXFunc, opts storage.GetOpts) error {
+	tx := &adminTX{ms: s.ms, opts: opts}
 	defer tx.Close()
 	if err := f(ctx, tx); err != nil {
 		return err
@@ -62,6 +62,7 @@ type adminTX struct {
 	// as we trust tx to keep tabs on its state (and consequently fail to do
 	// queries after closed).
 	mu     sync.RWMutex
+	opts   storage.GetOpts
 	closed bool
 }
 

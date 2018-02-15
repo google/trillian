@@ -61,6 +61,8 @@ var (
 	// configuration should be changed instead.
 	// A factor <1 WILL lead to token shortages, therefore it'll be normalized to 1.
 	QuotaIncreaseFactor = 1.1
+
+	seqOpts = storage.GetOpts{TreeType: trillian.TreeType_LOG, Accessor: storage.Sequence}
 )
 
 func quotaIncreaseFactor() float64 {
@@ -407,7 +409,7 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, logID int64, limit int, g
 		stageStart = s.timeSource.Now()
 
 		return nil
-	})
+	}, seqOpts)
 	if err != nil {
 		return 0, err
 	}
@@ -479,5 +481,5 @@ func (s Sequencer) SignRoot(ctx context.Context, logID int64) error {
 		glog.V(2).Infof("%v: new signed root, size %v, tree-revision %v", logID, newLogRoot.TreeSize, newLogRoot.TreeRevision)
 
 		return nil
-	})
+	}, seqOpts)
 }

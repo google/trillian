@@ -101,7 +101,7 @@ type ReadOnlyLogStorage interface {
 	// Commit must be called when the caller is finished with the returned object,
 	// and values read through it should only be propagated if Commit returns
 	// without error.
-	SnapshotForTree(ctx context.Context, treeID int64) (ReadOnlyLogTreeTX, error)
+	SnapshotForTree(ctx context.Context, treeID int64, opts GetOpts) (ReadOnlyLogTreeTX, error)
 }
 
 // LogTXFunc is the func signature for passing into ReadWriteTransaction.
@@ -115,7 +115,7 @@ type LogStorage interface {
 	// calls f with it.
 	// If f fails and returns an error, the storage implementation may optionally
 	// retry with a new transaction, and f MUST NOT keep state across calls.
-	ReadWriteTransaction(ctx context.Context, treeID int64, f LogTXFunc) error
+	ReadWriteTransaction(ctx context.Context, treeID int64, f LogTXFunc, opts GetOpts) error
 
 	// QueueLeaves enqueues leaves for later integration into the tree.
 	// If error is nil, the returned slice of leaves will be the same size as the

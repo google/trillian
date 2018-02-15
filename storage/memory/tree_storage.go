@@ -126,12 +126,12 @@ func newTree(t trillian.Tree) *tree {
 	return ret
 }
 
-func (m *memoryTreeStorage) beginTreeTX(ctx context.Context, readonly bool, treeID int64, hashSizeBytes int, cache cache.SubtreeCache) (treeTX, error) {
+func (m *memoryTreeStorage) beginTreeTX(ctx context.Context, opts storage.GetOpts, treeID int64, hashSizeBytes int, cache cache.SubtreeCache) (treeTX, error) {
 	tree := m.getTree(treeID)
 	// Lock the tree for the duration of the TX.
 	// It will be unlocked by a call to Commit or Rollback.
 	var unlock func()
-	if readonly {
+	if opts.Readonly {
 		tree.RLock()
 		unlock = tree.RUnlock
 	} else {

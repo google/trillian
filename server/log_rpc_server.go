@@ -36,9 +36,10 @@ import (
 const proofMaxBitLen = 64
 
 var (
-	optsLogRead            = trees.NewGetOpts(true, trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG)
-	optsLogWrite           = trees.NewGetOpts(false, trillian.TreeType_LOG)
-	optsPreorderedLogWrite = trees.NewGetOpts(false, trillian.TreeType_PREORDERED_LOG)
+	optsLogRead            = trees.NewGetOpts(storage.Query, true, trillian.TreeType_LOG)
+	optsLogWrite           = trees.NewGetOpts(storage.Queue, false, trillian.TreeType_LOG)
+	optsPreorderedLogWrite = trees.NewGetOpts(storage.Queue, false, trillian.TreeType_PREORDERED_LOG)
+	optsAdmin              = trees.NewGetOpts(storage.Admin, false, trillian.TreeType_LOG)
 )
 
 // TrillianLogRPCServer implements the RPC API defined in the proto
@@ -510,7 +511,7 @@ func (t *TrillianLogRPCServer) GetEntryAndProof(ctx context.Context, req *trilli
 }
 
 func (t *TrillianLogRPCServer) prepareReadOnlyStorageTx(ctx context.Context, treeID int64) (storage.ReadOnlyLogTreeTX, error) {
-	tx, err := t.registry.LogStorage.SnapshotForTree(ctx, treeID)
+	tx, err := t.registry.LogStorage.SnapshotForTree(ctx, treeID, optsLogRead)
 	if err != nil {
 		return nil, err
 	}
@@ -541,7 +542,7 @@ func getInclusionProofForLeafIndex(ctx context.Context, tx storage.ReadOnlyLogTr
 func (t *TrillianLogRPCServer) getTreeAndHasher(
 	ctx context.Context,
 	treeID int64,
-	opts trees.GetOpts,
+	opts storage.GetOpts,
 ) (*trillian.Tree, hashers.LogHasher, error) {
 	tree, err := trees.GetTree(ctx, t.registry.AdminStorage, treeID, opts)
 	if err != nil {
@@ -604,7 +605,7 @@ func (t *TrillianLogRPCServer) InitLog(ctx context.Context, req *trillian.InitLo
 		}
 
 		return nil
-	})
+	}, optsAdmin)
 	if err != nil && err != storage.ErrTreeNeedsInit {
 		return nil, err
 	}

@@ -36,6 +36,8 @@ import (
 	storageto "github.com/google/trillian/storage/testonly"
 )
 
+var adminOpts = storage.GetOpts{TreeType: trillian.TreeType_LOG, Accessor: storage.Admin}
+
 func TestNodeRoundTrip(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
@@ -253,7 +255,7 @@ func createLogForTests(db *sql.DB) int64 {
 			panic(fmt.Sprintf("Error storing new SignedLogRoot: %v", err))
 		}
 		return nil
-	})
+	}, adminOpts)
 	if err != nil {
 		panic(fmt.Sprintf("ReadWriteTransaction() = %v", err))
 	}
@@ -264,7 +266,7 @@ func createLogForTests(db *sql.DB) int64 {
 func createTree(db *sql.DB, tree *trillian.Tree) (*trillian.Tree, error) {
 	ctx := context.Background()
 	s := NewAdminStorage(db)
-	tree, err := storage.CreateTree(ctx, s, tree)
+	tree, err := storage.CreateTree(ctx, s, tree, adminOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -275,7 +277,7 @@ func createTree(db *sql.DB, tree *trillian.Tree) (*trillian.Tree, error) {
 func updateTree(db *sql.DB, treeID int64, updateFn func(*trillian.Tree)) (*trillian.Tree, error) {
 	ctx := context.Background()
 	s := NewAdminStorage(db)
-	return storage.UpdateTree(ctx, s, treeID, updateFn)
+	return storage.UpdateTree(ctx, s, treeID, updateFn, adminOpts)
 }
 
 // DB is the database used for tests. It's initialized and closed by TestMain().

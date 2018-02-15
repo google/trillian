@@ -82,12 +82,12 @@ func (f *FakeLogStorage) BeginForTree(ctx context.Context, id int64) (storage.Lo
 }
 
 // SnapshotForTree implements LogStorage.SnapshotForTree
-func (f *FakeLogStorage) SnapshotForTree(ctx context.Context, id int64) (storage.ReadOnlyLogTreeTX, error) {
+func (f *FakeLogStorage) SnapshotForTree(ctx context.Context, id int64, _ storage.GetOpts) (storage.ReadOnlyLogTreeTX, error) {
 	return f.ReadOnlyTX, f.TXErr
 }
 
 // ReadWriteTransaction implements LogStorage.ReadWriteTransaction
-func (f *FakeLogStorage) ReadWriteTransaction(ctx context.Context, id int64, fn storage.LogTXFunc) error {
+func (f *FakeLogStorage) ReadWriteTransaction(ctx context.Context, id int64, fn storage.LogTXFunc, _ storage.GetOpts) error {
 	if f.TXErr != nil {
 		return f.TXErr
 	}
