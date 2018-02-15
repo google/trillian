@@ -54,6 +54,7 @@ import (
 
 var (
 	leafHashesFlag bool
+	dumpOpts       = trees.NewGetOpts(storage.Admin, false, trillian.TreeType_LOG)
 )
 
 // A 32 bit magic number that is written at the start of record io files to identify the format.
@@ -188,7 +189,7 @@ func createTree(as storage.AdminStorage, ls storage.LogStorage) (*trillian.Tree,
 		PublicKey:          &keyspb.PublicKey{Der: pubKey},
 		MaxRootDuration:    ptypes.DurationProto(0 * time.Millisecond),
 	}
-	createdTree, err := storage.CreateTree(ctx, as, tree)
+	createdTree, err := storage.CreateTree(ctx, as, tree, dumpOpts)
 	if err != nil {
 		glog.Fatalf("Create tree: %v", err)
 	}
@@ -216,7 +217,7 @@ func createTree(as storage.AdminStorage, ls storage.LogStorage) (*trillian.Tree,
 			glog.Fatalf("StoreSignedLogRoot: %v", err)
 		}
 		return nil
-	})
+	}, dumpOpts)
 	if err != nil {
 		glog.Fatalf("ReadWriteTransaction: %v", err)
 	}
@@ -268,7 +269,7 @@ func Main(args Options) string {
 			hex.EncodeToString(sth.RootHash),
 			sth.TreeRevision)
 		return nil
-	})
+	}, dumpOpts)
 	if err != nil {
 		glog.Fatalf("ReadWriteTransaction: %v", err)
 	}
@@ -392,7 +393,7 @@ func sequenceLeaves(ls storage.LogStorage, seq *log.Sequencer, treeID int64, tre
 				glog.Fatalf("QueueLeaves got: %v, want: no err", err)
 			}
 			return nil
-		})
+		}, dumpOpts)
 		if err != nil {
 			glog.Fatalf("ReadWriteTransaction: %v", err)
 		}
@@ -415,7 +416,7 @@ func traverseTreeStorage(ls storage.LogStorage, treeID int64, ts int, rev int64)
 	out := new(bytes.Buffer)
 	nodesAtLevel := int64(ts)
 
-	tx, err := ls.SnapshotForTree(context.TODO(), treeID)
+	tx, err := ls.SnapshotForTree(context.TODO(), treeID, dumpOpts)
 	if err != nil {
 		glog.Fatalf("SnapshotForTree: %v", err)
 	}
@@ -471,7 +472,7 @@ func traverseTreeStorage(ls storage.LogStorage, treeID int64, ts int, rev int64)
 
 func dumpLeaves(ls storage.LogStorage, treeID int64, ts int) string {
 	out := new(bytes.Buffer)
-	tx, err := ls.SnapshotForTree(context.TODO(), treeID)
+	tx, err := ls.SnapshotForTree(context.TODO(), treeID, dumpOpts)
 	if err != nil {
 		glog.Fatalf("SnapshotForTree: %v", err)
 	}

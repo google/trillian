@@ -30,11 +30,13 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/mysql"
 	"github.com/google/trillian/testonly"
+	"github.com/google/trillian/trees"
 
 	_ "github.com/go-sql-driver/mysql"
 )
 
 var mySQLURIFlag = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "")
+var mapWriteOpts = trees.NewGetOpts(storage.Update, false, trillian.TreeType_MAP)
 
 func main() {
 	flag.Parse()
@@ -89,7 +91,7 @@ func main() {
 				tx.WriteRevision(),
 				hasher,
 				func(ctx context.Context, f func(context.Context, storage.MapTreeTX) error) error {
-					return ms.ReadWriteTransaction(ctx, mapID, f)
+					return ms.ReadWriteTransaction(ctx, mapID, f, mapWriteOpts)
 				})
 			if err != nil {
 				glog.Exitf("Failed to create new SMTWriter: %v", err)
@@ -131,7 +133,7 @@ func main() {
 				glog.Exitf("Failed to store SMR: %v", err)
 			}
 			return nil
-		})
+		}, mapWriteOpts)
 		if err != nil {
 			glog.Exitf("ReadWriteTransaction() = %v", err)
 		}

@@ -33,6 +33,8 @@ import (
 	"github.com/kylelemons/godebug/pretty"
 )
 
+var adminOpts = trees.NewGetOpts(storage.Admin, false)
+
 func TestQuotaManager_GetTokens(t *testing.T) {
 	ctx := context.Background()
 
@@ -295,7 +297,7 @@ func createTree(ctx context.Context, db *sql.DB) (*trillian.Tree, error) {
 			var err error
 			tree, err = tx.CreateTree(ctx, testonly.LogTree)
 			return err
-		})
+		}, adminOpts)
 		if err != nil {
 			return nil, err
 		}
@@ -305,7 +307,7 @@ func createTree(ctx context.Context, db *sql.DB) (*trillian.Tree, error) {
 		ls := mysql.NewLogStorage(db, nil)
 		err := ls.ReadWriteTransaction(ctx, tree.TreeId, func(ctx context.Context, tx storage.LogTreeTX) error {
 			return tx.StoreSignedLogRoot(ctx, trillian.SignedLogRoot{LogId: tree.TreeId, RootHash: []byte{0}, Signature: &sigpb.DigitallySigned{}})
-		})
+		}, adminOpts)
 		if err != nil {
 			return nil, err
 		}
@@ -341,7 +343,7 @@ func queueLeaves(ctx context.Context, db *sql.DB, tree *trillian.Tree, firstID, 
 	return ls.ReadWriteTransaction(ctx, tree.TreeId, func(ctx context.Context, tx storage.LogTreeTX) error {
 		_, err := tx.QueueLeaves(ctx, leaves, time.Now())
 		return err
-	})
+	}, adminOpts)
 }
 
 func setUnsequencedRows(ctx context.Context, db *sql.DB, tree *trillian.Tree, wantRows int) error {

@@ -42,7 +42,7 @@ func TestAdminTX_CreateTree_InitializesStorageStructures(t *testing.T) {
 	s := NewAdminStorage(DB)
 	ctx := context.Background()
 
-	tree, err := storage.CreateTree(ctx, s, testonly.LogTree)
+	tree, err := storage.CreateTree(ctx, s, testonly.LogTree, adminOpts)
 	if err != nil {
 		t.Fatalf("CreateTree() failed: %v", err)
 	}
@@ -68,7 +68,7 @@ func TestAdminTX_TreeWithNulls(t *testing.T) {
 	// Setup: create a tree and set all nullable columns to null.
 	// Some columns have to be manually updated, as it's not possible to set
 	// some proto fields to nil.
-	tree, err := storage.CreateTree(ctx, s, testonly.LogTree)
+	tree, err := storage.CreateTree(ctx, s, testonly.LogTree, adminOpts)
 	if err != nil {
 		t.Fatalf("CreateTree() failed: %v", err)
 	}
@@ -123,7 +123,7 @@ func TestAdminTX_TreeWithNulls(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		if err := s.ReadWriteTransaction(ctx, test.fn); err != nil {
+		if err := s.ReadWriteTransaction(ctx, test.fn, adminOpts); err != nil {
 			t.Errorf("%v: err = %v, want = nil", test.desc, err)
 		}
 	}
@@ -150,18 +150,18 @@ func TestAdminTX_StorageSettingsNotSupported(t *testing.T) {
 			fn: func(s storage.AdminStorage) error {
 				tree := *testonly.LogTree
 				tree.StorageSettings = settings
-				_, err := storage.CreateTree(ctx, s, &tree)
+				_, err := storage.CreateTree(ctx, s, &tree, adminOpts)
 				return err
 			},
 		},
 		{
 			desc: "UpdateTree",
 			fn: func(s storage.AdminStorage) error {
-				tree, err := storage.CreateTree(ctx, s, testonly.LogTree)
+				tree, err := storage.CreateTree(ctx, s, testonly.LogTree, adminOpts)
 				if err != nil {
 					t.Fatalf("CreateTree() failed with err = %v", err)
 				}
-				_, err = storage.UpdateTree(ctx, s, tree.TreeId, func(tree *trillian.Tree) { tree.StorageSettings = settings })
+				_, err = storage.UpdateTree(ctx, s, tree.TreeId, func(tree *trillian.Tree) { tree.StorageSettings = settings }, adminOpts)
 				return err
 			},
 		},
@@ -178,7 +178,7 @@ func TestAdminTX_HardDeleteTree(t *testing.T) {
 	s := NewAdminStorage(DB)
 	ctx := context.Background()
 
-	tree, err := storage.CreateTree(ctx, s, testonly.LogTree)
+	tree, err := storage.CreateTree(ctx, s, testonly.LogTree, adminOpts)
 	if err != nil {
 		t.Fatalf("CreateTree() returned err = %v", err)
 	}
@@ -188,7 +188,7 @@ func TestAdminTX_HardDeleteTree(t *testing.T) {
 			return err
 		}
 		return tx.HardDeleteTree(ctx, tree.TreeId)
-	}); err != nil {
+	}, adminOpts); err != nil {
 		t.Fatalf("ReadWriteTransaction() returned err = %v", err)
 	}
 

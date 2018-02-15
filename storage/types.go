@@ -35,6 +35,7 @@ const (
 	Query               // Generic read access to serve query
 	Queue               // Log specific - adding entries to the queue
 	Sequence            // Log specific - integrating entries into the tree
+	Update              // Map specific - set / update leaves
 )
 
 // GetOpts contains validation options for GetTree.

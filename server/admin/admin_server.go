@@ -57,10 +57,14 @@ func (s *Server) IsHealthy() error {
 	return s.registry.AdminStorage.CheckDatabaseAccessible(context.Background())
 }
 
+func (s *Server) opts(readonly bool) storage.GetOpts {
+	return trees.NewGetOpts(storage.Admin, readonly, s.allowedTreeTypes...)
+}
+
 // ListTrees implements trillian.TrillianAdminServer.ListTrees.
 func (s *Server) ListTrees(ctx context.Context, req *trillian.ListTreesRequest) (*trillian.ListTreesResponse, error) {
 	// TODO(codingllama): This needs access control
-	resp, err := storage.ListTrees(ctx, s.registry.AdminStorage, req.GetShowDeleted())
+	resp, err := storage.ListTrees(ctx, s.registry.AdminStorage, req.GetShowDeleted(), s.opts(true))
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +76,7 @@ func (s *Server) ListTrees(ctx context.Context, req *trillian.ListTreesRequest) 
 
 // GetTree implements trillian.TrillianAdminServer.GetTree.
 func (s *Server) GetTree(ctx context.Context, req *trillian.GetTreeRequest) (*trillian.Tree, error) {
-	tree, err := storage.GetTree(ctx, s.registry.AdminStorage, req.GetTreeId())
+	tree, err := storage.GetTree(ctx, s.registry.AdminStorage, req.GetTreeId(), s.opts(true))
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +162,7 @@ func (s *Server) CreateTree(ctx context.Context, req *trillian.CreateTreeRequest
 	tree.Deleted = false
 	tree.DeleteTime = nil
 
-	createdTree, err := storage.CreateTree(ctx, s.registry.AdminStorage, tree)
+	createdTree, err := storage.CreateTree(ctx, s.registry.AdminStorage, tree, s.opts(false))
 	if err != nil {
 		return nil, err
 	}
@@ -194,7 +198,7 @@ func (s *Server) UpdateTree(ctx context.Context, req *trillian.UpdateTreeRequest
 			// Should never happen (famous last words).
 			glog.Errorf("Error applying mask on tree update: %v", err)
 		}
-	})
+	}, s.opts(false))
 	if err != nil {
 		return nil, err
 	}
@@ -228,7 +232,7 @@ func applyUpdateMask(from, to *trillian.Tree, mask *field_mask.FieldMask) error 
 
 // DeleteTree implements trillian.TrillianAdminServer.DeleteTree.
 func (s *Server) DeleteTree(ctx context.Context, req *trillian.DeleteTreeRequest) (*trillian.Tree, error) {
-	tree, err := storage.SoftDeleteTree(ctx, s.registry.AdminStorage, req.GetTreeId())
+	tree, err := storage.SoftDeleteTree(ctx, s.registry.AdminStorage, req.GetTreeId(), s.opts(false))
 	if err != nil {
 		return nil, err
 	}
@@ -237,7 +241,7 @@ func (s *Server) DeleteTree(ctx context.Context, req *trillian.DeleteTreeRequest
 
 // UndeleteTree implements trillian.TrillianAdminServer.UndeleteTree.
 func (s *Server) UndeleteTree(ctx context.Context, req *trillian.UndeleteTreeRequest) (*trillian.Tree, error) {
-	tree, err := storage.UndeleteTree(ctx, s.registry.AdminStorage, req.GetTreeId())
+	tree, err := storage.UndeleteTree(ctx, s.registry.AdminStorage, req.GetTreeId(), s.opts(false))
 	if err != nil {
 		return nil, err
 	}

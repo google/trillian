@@ -89,7 +89,7 @@ func TestMapSnapshot(t *testing.T) {
 	s := NewMapStorage(DB)
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			tx, err := s.SnapshotForTree(ctx, test.mapID)
+			tx, err := s.SnapshotForTree(ctx, test.mapID, adminOpts)
 
 			if hasErr := err != nil; hasErr != test.wantErr {
 				t.Fatalf("%v: err = %q, wantErr = %v", test.desc, err, test.wantErr)
@@ -163,7 +163,7 @@ func TestMapReadWriteTransaction(t *testing.T) {
 					t.Errorf("%v: WriteRevision() = %v, want = %v", test.desc, got, want)
 				}
 				return nil
-			})
+			}, adminOpts)
 			if hasErr := err != nil; hasErr != test.wantErr {
 				t.Fatalf("%v: err = %q, wantErr = %v", test.desc, err, test.wantErr)
 			} else if hasErr {
@@ -443,7 +443,7 @@ func TestGetSignedMapRootNotExist(t *testing.T) {
 			t.Fatalf("GetSignedMapRoot: %v, want %v", got, want)
 		}
 		return nil
-	})
+	}, adminOpts)
 	if err != nil {
 		t.Fatalf("ReadWriteTransaction: %v", err)
 	}
@@ -598,7 +598,7 @@ func TestReadOnlyMapTX_Rollback(t *testing.T) {
 }
 
 func runMapTX(ctx context.Context, s storage.MapStorage, mapID int64, t *testing.T, f storage.MapTXFunc) {
-	if err := s.ReadWriteTransaction(ctx, mapID, f); err != nil {
+	if err := s.ReadWriteTransaction(ctx, mapID, f, adminOpts); err != nil {
 		t.Fatalf("Failed to begin map tx: %v", err)
 	}
 }
@@ -622,7 +622,7 @@ func createInitializedMapForTests(ctx context.Context, t *testing.T, db *sql.DB)
 			t.Fatalf("%v: Failed to StoreSignedMapRoot: %v", mapID, err)
 		}
 		return nil
-	})
+	}, adminOpts)
 	if err != nil {
 		t.Fatalf("ReadWriteTransaction() = %v", err)
 	}

@@ -27,6 +27,7 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/trees"
 )
 
 const (
@@ -40,6 +41,9 @@ var (
 
 	hardDeleteCounter monitoring.Counter
 	metricsOnce       sync.Once
+
+	optsRead  = trees.NewGetOpts(storage.Admin, true)
+	optsWrite = trees.NewGetOpts(storage.Admin, false)
 )
 
 func incHardDeleteCounter(treeID int64, success bool, reason string) {
@@ -117,7 +121,7 @@ func (gc *DeletedTreeGC) RunOnce(ctx context.Context) (int, error) {
 	// each delete should be in its own transaction as well.
 	// It's OK to list and delete separately because HardDelete does its own state checking, plus
 	// deleted trees are unlikely to change, specially those deleted for a while.
-	trees, err := storage.ListTrees(ctx, gc.admin, true /* includeDeleted */)
+	trees, err := storage.ListTrees(ctx, gc.admin, true /* includeDeleted */, optsRead)
 	if err != nil {
 		return 0, fmt.Errorf("error listing trees: %v", err)
 	}
@@ -140,7 +144,7 @@ func (gc *DeletedTreeGC) RunOnce(ctx context.Context) (int, error) {
 		}
 
 		glog.Infof("DeletedTreeGC.RunOnce: Hard-deleting tree %v after %v", tree.TreeId, durationSinceDelete)
-		if err := storage.HardDeleteTree(ctx, gc.admin, tree.TreeId); err != nil {
+		if err := storage.HardDeleteTree(ctx, gc.admin, tree.TreeId, optsWrite); err != nil {
 			errs = append(errs, fmt.Errorf("error hard-deleting tree %v: %v", tree.TreeId, err))
 			incHardDeleteCounter(tree.TreeId, false, deleteErrReason)
 			continue

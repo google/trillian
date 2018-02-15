@@ -30,6 +30,7 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testonly"
+	"github.com/google/trillian/trees"
 	"github.com/kylelemons/godebug/pretty"
 
 	spb "github.com/google/trillian/crypto/sigpb"
@@ -59,6 +60,9 @@ var someExtraData = []byte("Some extra data")
 
 const leavesToInsert = 5
 const sequenceNumber int64 = 237
+
+var optsRead = trees.NewGetOpts(storage.Query, true, trillian.TreeType_LOG)
+var optsWrite = trees.NewGetOpts(storage.Queue, false, trillian.TreeType_LOG)
 
 // Tests that access the db should each use a distinct log ID to prevent lock contention when
 // run in parallel or race conditions / unexpected interactions. Tests that pass should hold
@@ -174,7 +178,7 @@ func TestSnapshot(t *testing.T) {
 	s := NewLogStorage(DB, nil)
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			tx, err := s.SnapshotForTree(ctx, test.logID)
+			tx, err := s.SnapshotForTree(ctx, test.logID, optsRead)
 
 			if hasErr := err != nil; hasErr != test.wantErr {
 				t.Fatalf("err = %q, wantErr = %v", err, test.wantErr)
@@ -246,7 +250,7 @@ func TestReadWriteTransaction(t *testing.T) {
 					t.Errorf("%v: WriteRevision() = %v, want = %v", test.desc, got, want)
 				}
 				return nil
-			})
+			}, optsWrite)
 			if hasErr := err != nil; hasErr != test.wantErr {
 				t.Fatalf("%v: err = %q, wantErr = %v", test.desc, err, test.wantErr)
 			} else if hasErr {
@@ -842,7 +846,7 @@ func TestLatestSignedRootNoneWritten(t *testing.T) {
 	logID := tree.TreeId
 	s := NewLogStorage(DB, nil)
 
-	tx, err := s.SnapshotForTree(ctx, logID)
+	tx, err := s.SnapshotForTree(ctx, logID, optsRead)
 	if err != storage.ErrTreeNeedsInit {
 		t.Fatalf("SnapshotForTree gave %v, want %v", err, storage.ErrTreeNeedsInit)
 	}
@@ -968,7 +972,7 @@ func TestGetActiveLogIDs(t *testing.T) {
 	map2 := proto.Clone(testonly.MapTree).(*trillian.Tree)
 	deletedMap := proto.Clone(testonly.MapTree).(*trillian.Tree)
 	for _, tree := range []*trillian.Tree{log1, log2, frozenLog, deletedLog, map1, map2, deletedMap} {
-		newTree, err := storage.CreateTree(ctx, admin, tree)
+		newTree, err := storage.CreateTree(ctx, admin, tree, optsWrite)
 		if err != nil {
 			t.Fatalf("CreateTree(%+v) returned err = %v", tree, err)
 		}
@@ -978,7 +982,7 @@ func TestGetActiveLogIDs(t *testing.T) {
 	// FROZEN is not a valid initial state, so we have to update it separately.
 	_, err := storage.UpdateTree(ctx, admin, frozenLog.TreeId, func(t *trillian.Tree) {
 		t.TreeState = trillian.TreeState_FROZEN
-	})
+	}, optsWrite)
 	if err != nil {
 		t.Fatalf("UpdateTree() returned err = %v", err)
 	}
@@ -1229,7 +1233,7 @@ func createTestLeaves(n, startSeq int64) []*trillian.LogLeaf {
 // Convenience methods to avoid copying out "if err != nil { blah }" all over the place
 func runLogTX(s storage.LogStorage, logID int64, t *testing.T, f storage.LogTXFunc) {
 	t.Helper()
-	if err := s.ReadWriteTransaction(context.Background(), logID, f); err != nil {
+	if err := s.ReadWriteTransaction(context.Background(), logID, f, optsWrite); err != nil {
 		t.Fatalf("Failed to run log tx: %v", err)
 	}
 }

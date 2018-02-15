@@ -605,7 +605,7 @@ func (t *TrillianLogRPCServer) InitLog(ctx context.Context, req *trillian.InitLo
 		}
 
 		return nil
-	}, optsAdmin)
+	}, optsLogWrite)
 	if err != nil && err != storage.ErrTreeNeedsInit {
 		return nil, err
 	}

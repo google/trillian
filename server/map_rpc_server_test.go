@@ -161,7 +161,7 @@ func TestGetSignedMapRoot_NotInitialised(t *testing.T) {
 	server := NewTrillianMapServer(extension.Registry{
 		MapStorage: fakeStorage,
 	})
-	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), gomock.Any()).Return(mockTX, nil)
+	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), gomock.Any(), gomock.Any()).Return(mockTX, nil)
 	mockTX.EXPECT().LatestSignedMapRoot(gomock.Any()).Return(trillian.SignedMapRoot{}, storage.ErrTreeNeedsInit)
 	mockTX.EXPECT().Close()
 
@@ -215,7 +215,7 @@ func TestGetSignedMapRoot(t *testing.T) {
 			mockTx := storage.NewMockMapTreeTX(ctrl)
 
 			// Calls from GetSignedMapRoot()
-			fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), test.req.MapId).Return(mockTx, test.snapShErr)
+			fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), test.req.MapId, gomock.Any()).Return(mockTx, test.snapShErr)
 			if test.snapShErr == nil {
 				mockTx.EXPECT().LatestSignedMapRoot(gomock.Any()).Return(test.mapRoot, test.lsmrErr)
 				if test.lsmrErr == nil {
@@ -258,7 +258,7 @@ func TestGetSignedMapRootByRevision_NotInitialised(t *testing.T) {
 	server := NewTrillianMapServer(extension.Registry{
 		MapStorage: fakeStorage,
 	})
-	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), gomock.Any()).Return(mockTX, nil)
+	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), gomock.Any(), gomock.Any()).Return(mockTX, nil)
 	mockTX.EXPECT().GetSignedMapRoot(gomock.Any(), gomock.Any()).Return(trillian.SignedMapRoot{}, storage.ErrTreeNeedsInit)
 	mockTX.EXPECT().Close()
 
@@ -317,7 +317,7 @@ func TestGetSignedMapRootByRevision(t *testing.T) {
 			mockTx := storage.NewMockMapTreeTX(ctrl)
 
 			if !test.wantErr || !(test.lsmrErr == nil && test.snapShErr == nil) {
-				fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), test.req.MapId).Return(mockTx, test.snapShErr)
+				fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), test.req.MapId, gomock.Any()).Return(mockTx, test.snapShErr)
 				if test.snapShErr == nil {
 					mockTx.EXPECT().GetSignedMapRoot(gomock.Any(), test.req.Revision).Return(test.mapRoot, test.lsmrErr)
 					if test.lsmrErr == nil {

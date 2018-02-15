@@ -53,7 +53,7 @@ func TestTrillianInterceptor_TreeInterception(t *testing.T) {
 
 	admin := storage.NewMockAdminStorage(ctrl)
 	adminTX := storage.NewMockReadOnlyAdminTX(ctrl)
-	admin.EXPECT().Snapshot(gomock.Any()).AnyTimes().Return(adminTX, nil)
+	admin.EXPECT().Snapshot(gomock.Any(), gomock.Any()).AnyTimes().Return(adminTX, nil)
 	adminTX.EXPECT().GetTree(gomock.Any(), logTree.TreeId).AnyTimes().Return(logTree, nil)
 	adminTX.EXPECT().GetTree(gomock.Any(), mapTree.TreeId).AnyTimes().Return(mapTree, nil)
 	adminTX.EXPECT().GetTree(gomock.Any(), deletedTree.TreeId).AnyTimes().Return(deletedTree, nil)
@@ -171,7 +171,7 @@ func TestTrillianInterceptor_QuotaInterception(t *testing.T) {
 
 	admin := storage.NewMockAdminStorage(ctrl)
 	adminTX := storage.NewMockReadOnlyAdminTX(ctrl)
-	admin.EXPECT().Snapshot(gomock.Any()).AnyTimes().Return(adminTX, nil)
+	admin.EXPECT().Snapshot(gomock.Any(), gomock.Any()).AnyTimes().Return(adminTX, nil)
 	adminTX.EXPECT().GetTree(gomock.Any(), logTree.TreeId).AnyTimes().Return(&logTree, nil)
 	adminTX.EXPECT().GetTree(gomock.Any(), mapTree.TreeId).AnyTimes().Return(&mapTree, nil)
 	adminTX.EXPECT().Close().AnyTimes().Return(nil)
@@ -305,7 +305,7 @@ func TestTrillianInterceptor_QuotaInterception_ReturnsTokens(t *testing.T) {
 
 	admin := storage.NewMockAdminStorage(ctrl)
 	adminTX := storage.NewMockReadOnlyAdminTX(ctrl)
-	admin.EXPECT().Snapshot(gomock.Any()).AnyTimes().Return(adminTX, nil)
+	admin.EXPECT().Snapshot(gomock.Any(), gomock.Any()).AnyTimes().Return(adminTX, nil)
 	adminTX.EXPECT().GetTree(gomock.Any(), logTree.TreeId).AnyTimes().Return(&logTree, nil)
 	adminTX.EXPECT().Close().AnyTimes().Return(nil)
 	adminTX.EXPECT().Commit().AnyTimes().Return(nil)
@@ -499,7 +499,7 @@ func TestTrillianInterceptor_BeforeAfter(t *testing.T) {
 
 	admin := storage.NewMockAdminStorage(ctrl)
 	adminTX := storage.NewMockReadOnlyAdminTX(ctrl)
-	admin.EXPECT().Snapshot(gomock.Any()).AnyTimes().Return(adminTX, nil)
+	admin.EXPECT().Snapshot(gomock.Any(), gomock.Any()).AnyTimes().Return(adminTX, nil)
 	adminTX.EXPECT().GetTree(gomock.Any(), logTree.TreeId).AnyTimes().Return(&logTree, nil)
 	adminTX.EXPECT().Close().AnyTimes().Return(nil)
 	adminTX.EXPECT().Commit().AnyTimes().Return(nil)
