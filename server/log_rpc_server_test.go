@@ -362,8 +362,8 @@ func TestQueueLeaves(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockStorage := storage.NewMockLogStorage(ctrl)
-	c1 := mockStorage.EXPECT().QueueLeaves(gomock.Any(), queueRequest0.LogId, []*trillian.LogLeaf{leaf1}, fakeTime).Return([]*trillian.QueuedLogLeaf{nil}, nil)
-	mockStorage.EXPECT().QueueLeaves(gomock.Any(), queueRequest0.LogId, []*trillian.LogLeaf{leaf1}, fakeTime).After(c1).Return([]*trillian.QueuedLogLeaf{{Leaf: leaf1, Status: status.Newf(codes.AlreadyExists, "already exists").Proto()}}, nil)
+	c1 := mockStorage.EXPECT().QueueLeaves(gomock.Any(), queueRequest0.LogId, []*trillian.LogLeaf{leaf1}, fakeTime, gomock.Any()).Return([]*trillian.QueuedLogLeaf{nil}, nil)
+	mockStorage.EXPECT().QueueLeaves(gomock.Any(), queueRequest0.LogId, []*trillian.LogLeaf{leaf1}, fakeTime, gomock.Any()).After(c1).Return([]*trillian.QueuedLogLeaf{{Leaf: leaf1, Status: status.Newf(codes.AlreadyExists, "already exists").Proto()}}, nil)
 
 	registry := extension.Registry{
 		AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: queueRequest0.LogId, numSnapshots: 2}),
