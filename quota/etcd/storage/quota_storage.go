@@ -27,10 +27,11 @@ import (
 	"github.com/coreos/etcd/clientv3/concurrency"
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
-	"github.com/google/trillian/errors"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/quota/etcd/storagepb"
 	"github.com/google/trillian/util"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -93,7 +94,7 @@ type QuotaStorage struct {
 // Newly created quotas are always set to max tokens, regardless of the reset parameter.
 func (qs *QuotaStorage) UpdateConfigs(ctx context.Context, reset bool, update func(*storagepb.Configs)) (*storagepb.Configs, error) {
 	if update == nil {
-		return nil, errors.New(errors.Internal, "update function required")
+		return nil, status.Error(codes.Internal, "update function required")
 	}
 
 	var updated *storagepb.Configs
@@ -112,7 +113,7 @@ func (qs *QuotaStorage) UpdateConfigs(ctx context.Context, reset bool, update fu
 
 		// ... but let's sanity check that the configs match, just in case.
 		if !proto.Equal(previous, updated) {
-			return errors.New(errors.Internal, "verification failed: previous quota config != updated")
+			return status.Error(codes.Internal, "verification failed: previous quota config != updated")
 		}
 
 		update(updated)
@@ -172,36 +173,36 @@ func validate(cfgs *storagepb.Configs) error {
 	for i, cfg := range cfgs.Configs {
 		switch n := cfg.Name; {
 		case n == "":
-			return errors.Errorf(errors.InvalidArgument, "config name is required (Configs[%v].Name is empty)", i)
+			return status.Errorf(codes.InvalidArgument, "config name is required (Configs[%v].Name is empty)", i)
 		case !IsNameValid(cfg.Name):
-			return errors.Errorf(errors.InvalidArgument, "config name malformed (Configs[%v].Name = %q)", i, n)
+			return status.Errorf(codes.InvalidArgument, "config name malformed (Configs[%v].Name = %q)", i, n)
 		}
 		if s := cfg.State; s == storagepb.Config_UNKNOWN_CONFIG_STATE {
-			return errors.Errorf(errors.InvalidArgument, "config state invalid (Configs[%v].State = %s)", i, s)
+			return status.Errorf(codes.InvalidArgument, "config state invalid (Configs[%v].State = %s)", i, s)
 		}
 		if t := cfg.MaxTokens; t <= 0 {
-			return errors.Errorf(errors.InvalidArgument, "config max tokens must be > 0 (Configs[%v].MaxTokens = %v)", i, t)
+			return status.Errorf(codes.InvalidArgument, "config max tokens must be > 0 (Configs[%v].MaxTokens = %v)", i, t)
 		}
 		switch s := cfg.ReplenishmentStrategy.(type) {
 		case *storagepb.Config_SequencingBased:
 			if usersPattern.MatchString(cfg.Name) {
-				return errors.Errorf(errors.InvalidArgument, "user quotas cannot use sequencing-based replenishment (Configs[%v].ReplenishmentStrategy)", i)
+				return status.Errorf(codes.InvalidArgument, "user quotas cannot use sequencing-based replenishment (Configs[%v].ReplenishmentStrategy)", i)
 			}
 			if strings.HasSuffix(cfg.Name, "/read/config") {
-				return errors.Errorf(errors.InvalidArgument, "read quotas cannot use sequencing-based replenishment (Configs[%v].ReplenishmentStrategy)", i)
+				return status.Errorf(codes.InvalidArgument, "read quotas cannot use sequencing-based replenishment (Configs[%v].ReplenishmentStrategy)", i)
 			}
 		case *storagepb.Config_TimeBased:
 			if t := s.TimeBased.TokensToReplenish; t <= 0 {
-				return errors.Errorf(errors.InvalidArgument, "time based tokens must be > 0 (Configs[%v].TimeBased.TokensToReplenish = %v)", i, t)
+				return status.Errorf(codes.InvalidArgument, "time based tokens must be > 0 (Configs[%v].TimeBased.TokensToReplenish = %v)", i, t)
 			}
 			if r := s.TimeBased.ReplenishIntervalSeconds; r <= 0 {
-				return errors.Errorf(errors.InvalidArgument, "time based replenish interval must be > 0 (Configs[%v].TimeBased.ReplenishIntervalSeconds = %v)", i, r)
+				return status.Errorf(codes.InvalidArgument, "time based replenish interval must be > 0 (Configs[%v].TimeBased.ReplenishIntervalSeconds = %v)", i, r)
 			}
 		default:
-			return errors.Errorf(errors.InvalidArgument, "unsupported replenishment strategy (Configs[%v].ReplenishmentStrategy = %T)", i, s)
+			return status.Errorf(codes.InvalidArgument, "unsupported replenishment strategy (Configs[%v].ReplenishmentStrategy = %T)", i, s)
 		}
 		if names[cfg.Name] {
-			return errors.Errorf(errors.InvalidArgument, "duplicate config name found at Configs[%v].Name", i)
+			return status.Errorf(codes.InvalidArgument, "duplicate config name found at Configs[%v].Name", i)
 		}
 		names[cfg.Name] = true
 	}

@@ -35,9 +35,10 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/trees"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	spb "github.com/google/trillian/crypto/sigpb"
-	terrors "github.com/google/trillian/errors"
 	sqlite3 "github.com/mattn/go-sqlite3"
 )
 
@@ -577,7 +578,7 @@ func (t *logTreeTX) GetLeavesByRange(ctx context.Context, start, count int64) ([
 	}
 
 	if len(ret) == 0 {
-		return nil, terrors.Errorf(terrors.InvalidArgument, "no leaves found in range [%d, %d+%d)", start, start, count)
+		return nil, status.Errorf(codes.InvalidArgument, "no leaves found in range [%d, %d+%d)", start, start, count)
 	}
 	return ret, nil
 }
