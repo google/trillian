@@ -124,7 +124,7 @@ type LogStorage interface {
 	//  - nil otherwise.
 	// Duplicates are only reported if the underlying tree does not permit duplicates, and are
 	// considered duplicate if their leaf.LeafIdentityHash matches.
-	QueueLeaves(ctx context.Context, treeID int64, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.QueuedLogLeaf, error)
+	QueueLeaves(ctx context.Context, treeID int64, leaves []*trillian.LogLeaf, queueTimestamp time.Time, opts GetOpts) ([]*trillian.QueuedLogLeaf, error)
 
 	// AddSequencedLeaves stores the `leaves` and associates them with the log
 	// positions according to their `LeafIndex` field. The indices must be

@@ -194,8 +194,8 @@ func (m *memoryLogStorage) SnapshotForTree(ctx context.Context, treeID int64) (s
 	return tx.(storage.ReadOnlyLogTreeTX), err
 }
 
-func (m *memoryLogStorage) QueueLeaves(ctx context.Context, treeID int64, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
-	tx, err := m.beginInternal(ctx, treeID, false /* readonly */)
+func (m *memoryLogStorage) QueueLeaves(ctx context.Context, treeID int64, leaves []*trillian.LogLeaf, queueTimestamp time.Time, opts storage.GetOpts) ([]*trillian.QueuedLogLeaf, error) {
+	tx, err := m.beginInternal(ctx, treeID, opts)
 	if err != nil {
 		return nil, err
 	}

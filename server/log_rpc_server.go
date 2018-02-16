@@ -125,7 +125,7 @@ func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.Qu
 		return nil, err
 	}
 
-	ret, err := t.registry.LogStorage.QueueLeaves(ctx, logID, req.Leaves, t.timeSource.Now())
+	ret, err := t.registry.LogStorage.QueueLeaves(ctx, logID, req.Leaves, t.timeSource.Now(), optsLogWrite)
 	if err != nil {
 		return nil, err
 	}
