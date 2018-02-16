@@ -17,7 +17,9 @@ package testonly
 import (
 	"context"
 	"errors"
+	"time"
 
+	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
 )
 
@@ -59,9 +61,10 @@ var ErrNotImplemented = errors.New("not implemented")
 
 // FakeLogStorage is a LogStorage implementation which is used for testing.
 type FakeLogStorage struct {
-	TX         storage.LogTreeTX
-	ReadOnlyTX storage.ReadOnlyLogTreeTX
-	Err        error
+	TX             storage.LogTreeTX
+	ReadOnlyTX     storage.ReadOnlyLogTreeTX
+	TXErr          error
+	QueueLeavesErr error
 }
 
 // Snapshot implements LogStorage.Snapshot
@@ -76,15 +79,23 @@ func (f *FakeLogStorage) BeginForTree(ctx context.Context, id int64) (storage.Lo
 
 // SnapshotForTree implements LogStorage.SnapshotForTree
 func (f *FakeLogStorage) SnapshotForTree(ctx context.Context, id int64) (storage.ReadOnlyLogTreeTX, error) {
-	return f.ReadOnlyTX, f.Err
+	return f.ReadOnlyTX, f.TXErr
 }
 
 // ReadWriteTransaction implements LogStorage.ReadWriteTransaction
 func (f *FakeLogStorage) ReadWriteTransaction(ctx context.Context, id int64, fn storage.LogTXFunc) error {
-	if f.Err != nil {
-		return f.Err
+	if f.TXErr != nil {
+		return f.TXErr
 	}
 	return RunOnLogTX(f.TX)(ctx, id, fn)
+}
+
+// QueueLeaves implements LogStorage.QueueLeaves.
+func (f *FakeLogStorage) QueueLeaves(ctx context.Context, logID int64, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
+	if f.QueueLeavesErr != nil {
+		return nil, f.QueueLeavesErr
+	}
+	return make([]*trillian.QueuedLogLeaf, len(leaves)), nil
 }
 
 // CheckDatabaseAccessible implements LogStorage.CheckDatabaseAccessible

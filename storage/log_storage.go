@@ -115,6 +115,15 @@ type LogStorage interface {
 	// If f fails and returns an error, the storage implementation may optionally
 	// retry with a new transaction, and f MUST NOT keep state across calls.
 	ReadWriteTransaction(ctx context.Context, treeID int64, f LogTXFunc) error
+
+	// QueueLeaves enqueues leaves for later integration into the tree.
+	// If error is nil, the returned slice of leaves will be the same size as the
+	// input, and each entry will hold:
+	//  - the existing leaf entry if a duplicate has been submitted
+	//  - nil otherwise.
+	// Duplicates are only reported if the underlying tree does not permit duplicates, and are
+	// considered duplicate if their leaf.LeafIdentityHash matches.
+	QueueLeaves(ctx context.Context, treeID int64, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.QueuedLogLeaf, error)
 }
 
 // CountByLogID is a map of total number of items keyed by log ID.
