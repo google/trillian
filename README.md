@@ -56,6 +56,12 @@ The code for the CT personality has now been moved to a separate repository and
 can be obtained from
 [certificate-transparency-go](https://github.com/google/certificate-transparency-go).
 
+Support
+-------
+
+- Mailing list: https://groups.google.com/forum/#!forum/trillian-transparency
+- Slack: https://gtrillian.slack.com/ ([invitation](https://join.slack.com/t/gtrillian/shared_invite/enQtMzE2MTkxMTQ5ODQxLTY0YTQwMjlmZDNjNWViMTAzZjJjYmVmNDk4ZjQzMDNhMjIxMzMyZTcxOWMwYTRmOGJiOTljMWMzY2EzMTljYmY) - ask on the mailing list if expired)
+
 Using the Code
 --------------
 
@@ -387,9 +393,3 @@ client.
 | Enable detection of split-view           |  Yes, efficiently      |  Yes, efficiently      |  Yes, efficiently           |
 
 - [1] -- although full audit is required to verify complete correct operation
-
-Support
--------
-
-- Mailing list: https://groups.google.com/forum/#!forum/trillian-transparency
-- Slack: https://gtrillian.slack.com/
