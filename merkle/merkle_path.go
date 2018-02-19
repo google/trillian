@@ -19,8 +19,9 @@ import (
 	"fmt"
 
 	"github.com/golang/glog"
-	terr "github.com/google/trillian/errors"
 	"github.com/google/trillian/storage"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // Verbosity levels for logging of debug related items
@@ -58,16 +59,16 @@ func checkSnapshot(ssDesc string, ss, treeSize int64) error {
 // is copied into all the returned nodeIDs.
 func CalcInclusionProofNodeAddresses(snapshot, index, treeSize int64, maxBitLen int) ([]NodeFetch, error) {
 	if err := checkSnapshot("snapshot", snapshot, treeSize); err != nil {
-		return nil, terr.Errorf(terr.InvalidArgument, "invalid parameter for inclusion proof: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for inclusion proof: %v", err)
 	}
 	if index >= snapshot {
-		return nil, terr.Errorf(terr.InvalidArgument, "invalid parameter for inclusion proof: index %d is >= snapshot %d", index, snapshot)
+		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for inclusion proof: index %d is >= snapshot %d", index, snapshot)
 	}
 	if index < 0 {
-		return nil, terr.Errorf(terr.InvalidArgument, "invalid parameter for inclusion proof: index %d is < 0", index)
+		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for inclusion proof: index %d is < 0", index)
 	}
 	if maxBitLen <= 0 {
-		return nil, terr.Errorf(terr.InvalidArgument, "invalid parameter for inclusion proof: maxBitLen %d <= 0", maxBitLen)
+		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for inclusion proof: maxBitLen %d <= 0", maxBitLen)
 	}
 
 	return pathFromNodeToRootAtSnapshot(index, 0, snapshot, treeSize, maxBitLen)
@@ -83,16 +84,16 @@ func CalcInclusionProofNodeAddresses(snapshot, index, treeSize int64, maxBitLen 
 // at a revision corresponding to the STH associated with the treeSize parameter.
 func CalcConsistencyProofNodeAddresses(snapshot1, snapshot2, treeSize int64, maxBitLen int) ([]NodeFetch, error) {
 	if err := checkSnapshot("snapshot1", snapshot1, treeSize); err != nil {
-		return nil, terr.Errorf(terr.InvalidArgument, "invalid parameter for consistency proof: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for consistency proof: %v", err)
 	}
 	if err := checkSnapshot("snapshot2", snapshot2, treeSize); err != nil {
-		return nil, terr.Errorf(terr.InvalidArgument, "invalid parameter for consistency proof: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for consistency proof: %v", err)
 	}
 	if snapshot1 > snapshot2 {
-		return nil, terr.Errorf(terr.InvalidArgument, "invalid parameter for consistency proof: snapshot1 %d > snapshot2 %d", snapshot1, snapshot2)
+		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for consistency proof: snapshot1 %d > snapshot2 %d", snapshot1, snapshot2)
 	}
 	if maxBitLen <= 0 {
-		return nil, terr.Errorf(terr.InvalidArgument, "invalid parameter for consistency proof: maxBitLen %d <= 0", maxBitLen)
+		return nil, status.Errorf(codes.InvalidArgument, "invalid parameter for consistency proof: maxBitLen %d <= 0", maxBitLen)
 	}
 
 	return snapshotConsistency(snapshot1, snapshot2, treeSize, maxBitLen)

@@ -17,11 +17,12 @@ package storage
 import (
 	"context"
 
-	"github.com/google/trillian/errors"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // ErrTreeNeedsInit is returned when calling methods on an uninitialised tree.
-var ErrTreeNeedsInit = errors.New(errors.FailedPrecondition, "tree needs initialising")
+var ErrTreeNeedsInit = status.Error(codes.FailedPrecondition, "tree needs initialising")
 
 // ReadOnlyTreeTX represents a read-only transaction on a TreeStorage.
 // A ReadOnlyTreeTX can only modify the tree specified in its creation.

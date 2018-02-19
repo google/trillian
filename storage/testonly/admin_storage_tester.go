@@ -32,11 +32,12 @@ import (
 	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/crypto/sigpb"
-	"github.com/google/trillian/errors"
 	"github.com/google/trillian/merkle/maphasher"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/testonly"
 	"github.com/kylelemons/godebug/pretty"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	ktestonly "github.com/google/trillian/crypto/keys/testonly"
 	spb "github.com/google/trillian/crypto/sigpb"
@@ -563,13 +564,13 @@ func (tester *AdminStorageTester) TestSoftDeleteTreeErrors(t *testing.T) {
 	tests := []struct {
 		desc     string
 		treeID   int64
-		wantCode errors.Code
+		wantCode codes.Code
 	}{
-		{desc: "unknownTree", treeID: 12345, wantCode: errors.NotFound},
-		{desc: "alreadyDeleted", treeID: softDeleted.TreeId, wantCode: errors.FailedPrecondition},
+		{desc: "unknownTree", treeID: 12345, wantCode: codes.NotFound},
+		{desc: "alreadyDeleted", treeID: softDeleted.TreeId, wantCode: codes.FailedPrecondition},
 	}
 	for _, test := range tests {
-		if _, err := storage.SoftDeleteTree(ctx, s, test.treeID); errors.ErrorCode(err) != test.wantCode {
+		if _, err := storage.SoftDeleteTree(ctx, s, test.treeID); status.Code(err) != test.wantCode {
 			t.Errorf("%v: SoftDeleteTree() returned err = %v, wantCode = %s", test.desc, err, test.wantCode)
 		}
 	}
@@ -610,13 +611,13 @@ func (tester *AdminStorageTester) TestHardDeleteTreeErrors(t *testing.T) {
 	tests := []struct {
 		desc     string
 		treeID   int64
-		wantCode errors.Code
+		wantCode codes.Code
 	}{
-		{desc: "unknownTree", treeID: 12345, wantCode: errors.NotFound},
-		{desc: "activeTree", treeID: activeTree.TreeId, wantCode: errors.FailedPrecondition},
+		{desc: "unknownTree", treeID: 12345, wantCode: codes.NotFound},
+		{desc: "activeTree", treeID: activeTree.TreeId, wantCode: codes.FailedPrecondition},
 	}
 	for _, test := range tests {
-		if err := storage.HardDeleteTree(ctx, s, test.treeID); errors.ErrorCode(err) != test.wantCode {
+		if err := storage.HardDeleteTree(ctx, s, test.treeID); status.Code(err) != test.wantCode {
 			t.Errorf("%v: HardDeleteTree() returned err = %v, wantCode = %s", test.desc, err, test.wantCode)
 		}
 	}
@@ -667,13 +668,13 @@ func (tester *AdminStorageTester) TestUndeleteTreeErrors(t *testing.T) {
 	tests := []struct {
 		desc     string
 		treeID   int64
-		wantCode errors.Code
+		wantCode codes.Code
 	}{
-		{desc: "unknownTree", treeID: 12345, wantCode: errors.NotFound},
-		{desc: "activeTree", treeID: activeTree.TreeId, wantCode: errors.FailedPrecondition},
+		{desc: "unknownTree", treeID: 12345, wantCode: codes.NotFound},
+		{desc: "activeTree", treeID: activeTree.TreeId, wantCode: codes.FailedPrecondition},
 	}
 	for _, test := range tests {
-		if _, err := storage.UndeleteTree(ctx, s, test.treeID); errors.ErrorCode(err) != test.wantCode {
+		if _, err := storage.UndeleteTree(ctx, s, test.treeID); status.Code(err) != test.wantCode {
 			t.Errorf("%v: UndeleteTree() returned err = %v, wantCode = %s", test.desc, err, test.wantCode)
 		}
 	}

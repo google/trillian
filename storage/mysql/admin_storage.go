@@ -28,8 +28,9 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keyspb"
 	spb "github.com/google/trillian/crypto/sigpb"
-	"github.com/google/trillian/errors"
 	"github.com/google/trillian/storage"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -160,7 +161,7 @@ func (t *adminTX) GetTree(ctx context.Context, treeID int64) (*trillian.Tree, er
 	switch {
 	case err == sql.ErrNoRows:
 		// ErrNoRows doesn't provide useful information, so we don't forward it.
-		return nil, errors.Errorf(errors.NotFound, "tree %v not found", treeID)
+		return nil, status.Errorf(codes.NotFound, "tree %v not found", treeID)
 	case err != nil:
 		return nil, fmt.Errorf("error reading tree %v: %v", treeID, err)
 	}
@@ -553,16 +554,16 @@ func validateDeleted(ctx context.Context, tx *sql.Tx, treeID int64, wantDeleted 
 	var nullDeleted sql.NullBool
 	switch err := tx.QueryRowContext(ctx, "SELECT Deleted FROM Trees WHERE TreeId = ?", treeID).Scan(&nullDeleted); {
 	case err == sql.ErrNoRows:
-		return errors.Errorf(errors.NotFound, "tree %v not found", treeID)
+		return status.Errorf(codes.NotFound, "tree %v not found", treeID)
 	case err != nil:
 		return err
 	}
 
 	switch deleted := nullDeleted.Valid && nullDeleted.Bool; {
 	case wantDeleted && !deleted:
-		return errors.Errorf(errors.FailedPrecondition, "tree %v is not soft deleted", treeID)
+		return status.Errorf(codes.FailedPrecondition, "tree %v is not soft deleted", treeID)
 	case !wantDeleted && deleted:
-		return errors.Errorf(errors.FailedPrecondition, "tree %v already soft deleted", treeID)
+		return status.Errorf(codes.FailedPrecondition, "tree %v already soft deleted", treeID)
 	}
 	return nil
 }

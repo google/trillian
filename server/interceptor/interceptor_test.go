@@ -34,7 +34,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	terrors "github.com/google/trillian/errors"
 	serrors "github.com/google/trillian/server/errors"
 )
 
@@ -662,7 +661,7 @@ func TestCombine(t *testing.T) {
 }
 
 func TestErrorWrapper(t *testing.T) {
-	badLlamaErr := terrors.Errorf(terrors.InvalidArgument, "Bad Llama")
+	badLlamaErr := status.Errorf(codes.InvalidArgument, "Bad Llama")
 	tests := []struct {
 		desc         string
 		resp         interface{}

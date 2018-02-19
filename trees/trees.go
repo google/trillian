@@ -24,9 +24,10 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/sigpb"
-	"github.com/google/trillian/errors"
 	"github.com/google/trillian/storage"
 	"golang.org/x/net/context"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	tcrypto "github.com/google/trillian/crypto"
 )
@@ -67,9 +68,9 @@ func NewGetOpts(readonly bool, types ...trillian.TreeType) GetOpts {
 func (o GetOpts) validate(tree *trillian.Tree) error {
 	switch {
 	case len(o.TreeTypes) > 0 && !o.TreeTypes[tree.TreeType]:
-		return errors.Errorf(errors.InvalidArgument, "operation not allowed for %s-type trees (wanted one of %v)", tree.TreeType, o.TreeTypes)
+		return status.Errorf(codes.InvalidArgument, "operation not allowed for %s-type trees (wanted one of %v)", tree.TreeType, o.TreeTypes)
 	case tree.TreeState == trillian.TreeState_FROZEN && !o.Readonly:
-		return errors.Errorf(errors.PermissionDenied, "operation not allowed on %s trees", tree.TreeState)
+		return status.Errorf(codes.PermissionDenied, "operation not allowed on %s trees", tree.TreeState)
 	}
 
 	return nil
@@ -94,7 +95,7 @@ func GetTree(ctx context.Context, s storage.AdminStorage, treeID int64, opts Get
 		return nil, err
 	}
 	if tree.Deleted {
-		return nil, errors.Errorf(errors.NotFound, "tree %v not found", tree.TreeId)
+		return nil, status.Errorf(codes.NotFound, "tree %v not found", tree.TreeId)
 	}
 
 	return tree, nil

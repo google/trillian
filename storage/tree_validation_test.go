@@ -25,8 +25,9 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/crypto/sigpb"
-	"github.com/google/trillian/errors"
 	"github.com/google/trillian/testonly"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	ktestonly "github.com/google/trillian/crypto/keys/testonly"
 
@@ -243,8 +244,8 @@ func TestValidateTreeForCreation(t *testing.T) {
 		switch hasErr := err != nil; {
 		case hasErr != test.wantErr:
 			t.Errorf("%v: ValidateTreeForCreation() = %v, wantErr = %v", test.desc, err, test.wantErr)
-		case hasErr && errors.ErrorCode(err) != errors.InvalidArgument:
-			t.Errorf("%v: ValidateTreeForCreation() = %v, wantCode = %v", test.desc, err, errors.InvalidArgument)
+		case hasErr && status.Code(err) != codes.InvalidArgument:
+			t.Errorf("%v: ValidateTreeForCreation() = %v, wantCode = %v", test.desc, err, codes.InvalidArgument)
 		}
 	}
 }
@@ -413,8 +414,8 @@ func TestValidateTreeForUpdate(t *testing.T) {
 		switch hasErr := err != nil; {
 		case hasErr != test.wantErr:
 			t.Errorf("%v: ValidateTreeForUpdate() = %v, wantErr = %v", test.desc, err, test.wantErr)
-		case hasErr && errors.ErrorCode(err) != errors.InvalidArgument:
-			t.Errorf("%v: ValidateTreeForUpdate() = %v, wantCode = %d", test.desc, err, errors.InvalidArgument)
+		case hasErr && status.Code(err) != codes.InvalidArgument:
+			t.Errorf("%v: ValidateTreeForUpdate() = %v, wantCode = %d", test.desc, err, codes.InvalidArgument)
 		}
 	}
 }
