@@ -28,7 +28,7 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/sigpb"
-	"github.com/google/trillian/testonly/fake"
+	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/util/flagsaver"
 )
 
@@ -149,35 +149,30 @@ func runTest(t *testing.T, tests []*testCase) {
 		t.Run(tc.desc, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
-			s := &fake.Server{
-				MockTrillianMapServer:   trillian.NewMockTrillianMapServer(ctrl),
-				MockTrillianLogServer:   trillian.NewMockTrillianLogServer(ctrl),
-				MockTrillianAdminServer: trillian.NewMockTrillianAdminServer(ctrl),
-			}
 
-			lis, stopFakeServer, err := fake.StartServer(s)
+			s, stopFakeServer, err := testonly.NewMockServer(ctrl)
 			if err != nil {
 				t.Fatalf("Error starting fake server: %v", err)
 			}
 			defer stopFakeServer()
 			defer flagsaver.Save().Restore()
-			*adminServerAddr = lis.Addr().String()
+			*adminServerAddr = s.Addr
 			if tc.setFlags != nil {
 				tc.setFlags()
 			}
 
-			call := s.MockTrillianAdminServer.EXPECT().CreateTree(gomock.Any(), gomock.Any()).Return(tc.wantTree, tc.createErr)
+			call := s.Admin.EXPECT().CreateTree(gomock.Any(), gomock.Any()).Return(tc.wantTree, tc.createErr)
 			expectCalls(call, tc.createErr, tc.validateErr)
 			switch *treeType {
 			case "LOG":
-				call := s.MockTrillianLogServer.EXPECT().InitLog(gomock.Any(), gomock.Any()).Return(&trillian.InitLogResponse{}, tc.initErr)
+				call := s.Log.EXPECT().InitLog(gomock.Any(), gomock.Any()).Return(&trillian.InitLogResponse{}, tc.initErr)
 				expectCalls(call, tc.initErr, tc.validateErr, tc.createErr)
-				call = s.MockTrillianLogServer.EXPECT().GetLatestSignedLogRoot(gomock.Any(), gomock.Any()).Return(&trillian.GetLatestSignedLogRootResponse{}, nil)
+				call = s.Log.EXPECT().GetLatestSignedLogRoot(gomock.Any(), gomock.Any()).Return(&trillian.GetLatestSignedLogRootResponse{}, nil)
 				expectCalls(call, nil, tc.validateErr, tc.createErr, tc.initErr)
 			case "MAP":
-				call := s.MockTrillianMapServer.EXPECT().InitMap(gomock.Any(), gomock.Any()).Return(&trillian.InitMapResponse{}, tc.initErr)
+				call := s.Map.EXPECT().InitMap(gomock.Any(), gomock.Any()).Return(&trillian.InitMapResponse{}, tc.initErr)
 				expectCalls(call, tc.initErr, tc.validateErr, tc.createErr)
-				call = s.MockTrillianMapServer.EXPECT().GetSignedMapRootByRevision(gomock.Any(), gomock.Any()).Return(&trillian.GetSignedMapRootResponse{}, nil)
+				call = s.Map.EXPECT().GetSignedMapRootByRevision(gomock.Any(), gomock.Any()).Return(&trillian.GetSignedMapRootResponse{}, nil)
 				expectCalls(call, nil, tc.validateErr, tc.createErr, tc.initErr)
 			}
 
