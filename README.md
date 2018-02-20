@@ -7,6 +7,7 @@ Trillian: General Transparency
 [![Slack Status](https://img.shields.io/badge/Slack-Chat-blue.svg)](https://gtrillian.slack.com/)
 
  - [Overview](#overview)
+ - [Support](#support)
  - [Using the Code](#using-the-code)
      - [MySQL Setup](#mysql-setup)
      - [Integration Tests](#integration-tests)
@@ -22,7 +23,6 @@ Trillian: General Transparency
  - [Use Cases](#use-cases)
      - [Certificate Transparency Log](#certificate-transparency-log)
      - [Verifiable Log-Derived Map](#verifiable-log-derived-map)
- - [Support](#support)
 
 
 Overview
