@@ -106,40 +106,54 @@ func validateGetEntryAndProofRequest(req *trillian.GetEntryAndProofRequest) erro
 }
 
 func validateQueueLeafRequest(req *trillian.QueueLeafRequest) error {
-	if err := validateLogLeaf(req.Leaf); err != nil {
-		// validateLogLeaf errors chain nicely with "Leaf".
-		return status.Errorf(codes.InvalidArgument, "QueueLeafRequest.Leaf%v", err)
-	}
-	return nil
+	return validateLogLeaf(req.Leaf, "QueueLeafRequest.Leaf")
 }
 
 func validateAddSequencedLeafRequest(req *trillian.AddSequencedLeafRequest) error {
-	if err := validateLogLeaf(req.Leaf); err != nil {
-		// validateLogLeaf errors chain nicely with "Leaf".
-		return status.Errorf(codes.InvalidArgument, "AddSequencedLeafRequest.Leaf%v", err)
-	}
-	return nil
+	return validateLogLeaf(req.Leaf, "AddSequencedLeafRequest.Leaf")
 }
 
 func validateQueueLeavesRequest(req *trillian.QueueLeavesRequest) error {
-	if err := validateLogLeaves(req.Leaves); err != nil {
-		// validateLogLeaves errors chain nicely with "QueueLeavesRequest.".
-		return status.Errorf(codes.InvalidArgument, "QueueLeavesRequest.%v", err)
+	return validateLogLeaves(req.Leaves, "QueueLeavesRequest")
+}
+
+func validateAddSequencedLeavesRequest(req *trillian.AddSequencedLeavesRequest) error {
+	prefix := "AddSequencedLeavesRequest"
+	if err := validateLogLeaves(req.Leaves, prefix); err != nil {
+		return err
+	}
+
+	lastIndex := int64(-1)
+	for i, leaf := range req.Leaves {
+		if leaf.LeafIndex <= lastIndex {
+			return status.Errorf(codes.OutOfRange, "%v.Leaves[%v..%v].LeafIndex not sorted", prefix, i-1, i)
+		}
+		lastIndex = leaf.LeafIndex
 	}
 	return nil
 }
 
-func validateAddSequencedLeavesRequest(req *trillian.AddSequencedLeavesRequest) error {
-	if err := validateLogLeaves(req.Leaves); err != nil {
-		// validateLogLeaves errors chain nicely with "AddSequencedLeavesRequest.".
-		return status.Errorf(codes.InvalidArgument, "AddSequencedLeavesRequest.%v", err)
+func validateLogLeaves(leaves []*trillian.LogLeaf, errPrefix string) error {
+	if len(leaves) == 0 {
+		return status.Errorf(codes.InvalidArgument, "%v.Leaves empty", errPrefix)
 	}
-	lastIndex := int64(-1)
-	for i, leaf := range req.Leaves {
-		if leaf.LeafIndex <= lastIndex {
-			return status.Errorf(codes.OutOfRange, "AddSequencedLeavesRequest.Leaves[%v..%v].LeafIndex not sorted", i-1, i)
+	for i, leaf := range leaves {
+		if err := validateLogLeaf(leaf, ""); err != nil {
+			return status.Errorf(codes.InvalidArgument, "%v.Leaves[%v]%v", errPrefix, i, err)
 		}
-		lastIndex = leaf.LeafIndex
+	}
+	return nil
+}
+
+func validateLogLeaf(leaf *trillian.LogLeaf, errPrefix string) error {
+	if leaf == nil {
+		return status.Errorf(codes.InvalidArgument, "%v empty", errPrefix)
+	}
+	switch {
+	case len(leaf.LeafValue) == 0:
+		return status.Errorf(codes.InvalidArgument, "%v.LeafValue: empty", errPrefix)
+	case leaf.LeafIndex < 0:
+		return status.Errorf(codes.InvalidArgument, "%v.LeafIndex: %v, want >= 0", errPrefix, leaf.LeafIndex)
 	}
 	return nil
 }
@@ -147,35 +161,6 @@ func validateAddSequencedLeavesRequest(req *trillian.AddSequencedLeavesRequest) 
 func validateLeafHash(hash []byte) error {
 	if len(hash) == 0 {
 		return fmt.Errorf("leaf hash empty")
-	}
-	return nil
-}
-
-func validateLogLeaves(leaves []*trillian.LogLeaf) error {
-	if len(leaves) == 0 {
-		return status.Error(codes.InvalidArgument, "Leaves empty")
-	}
-	for i, leaf := range leaves {
-		if err := validateLogLeaf(leaf); err != nil {
-			// validateLogLeaf errors are meant to chain nicely with "Leaves".
-			return status.Errorf(codes.InvalidArgument, "Leaves[%v]%v", i, err)
-		}
-	}
-	return nil
-}
-
-// validateLogLeaf validates a leaf and returns an error in the format
-// ".$Field: $message" or " $message", so it chains nicely with a path-like
-// string to the leaf field (e.g.: "req.Leaf%v").
-func validateLogLeaf(leaf *trillian.LogLeaf) error {
-	if leaf == nil {
-		return status.Errorf(codes.InvalidArgument, " empty")
-	}
-	switch {
-	case len(leaf.LeafValue) == 0:
-		return status.Error(codes.InvalidArgument, ".LeafValue: empty")
-	case leaf.LeafIndex < 0:
-		return status.Errorf(codes.InvalidArgument, ".LeafIndex: %v, want >= 0", leaf.LeafIndex)
 	}
 	return nil
 }
