@@ -142,7 +142,7 @@ func main() {
 		TLSKeyFile:   *tlsKeyFile,
 		StatsPrefix:  "log",
 		QuotaDryRun:  *quotaDryRun,
-		DB:           db,
+		DBClose:      db.Close,
 		Registry:     registry,
 		RegisterHandlerFn: func(ctx netcontext.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) error {
 			if err := trillian.RegisterTrillianLogHandlerFromEndpoint(ctx, mux, endpoint, opts); err != nil {

@@ -124,7 +124,7 @@ func main() {
 		TLSKeyFile:   *tlsKeyFile,
 		StatsPrefix:  "map",
 		QuotaDryRun:  *quotaDryRun,
-		DB:           db,
+		DBClose:      db.Close,
 		Registry:     registry,
 		RegisterHandlerFn: func(ctx netcontext.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) error {
 			if err := trillian.RegisterTrillianMapHandlerFromEndpoint(ctx, mux, endpoint, opts); err != nil {
