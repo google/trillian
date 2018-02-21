@@ -36,40 +36,35 @@ import (
 	stestonly "github.com/google/trillian/storage/testonly"
 )
 
+func newTestLeaf(data []byte, extra []byte, index int64) *trillian.LogLeaf {
+	hash, _ := th.HashLeaf(data)
+	return &trillian.LogLeaf{
+		MerkleLeafHash: hash,
+		LeafValue:      data,
+		ExtraData:      extra,
+		LeafIndex:      index,
+	}
+}
+
 var (
-	th               = rfc6962.DefaultHasher
-	logID1           = int64(1)
-	logID2           = int64(2)
+	th = rfc6962.DefaultHasher
+
+	logID1 = int64(1)
+	logID2 = int64(2)
+	logID3 = int64(3)
+
+	leaf1 = newTestLeaf([]byte("value"), []byte("extra"), 1)
+	leaf2 = newTestLeaf([]byte("value2"), []byte("extra"), 2)
+	leaf3 = newTestLeaf([]byte("value3"), []byte("extra3"), 3)
+
 	leaf0Request     = trillian.GetLeavesByIndexRequest{LogId: logID1, LeafIndex: []int64{0}}
 	leaf03Request    = trillian.GetLeavesByIndexRequest{LogId: logID1, LeafIndex: []int64{0, 3}}
 	leaf0Log2Request = trillian.GetLeavesByIndexRequest{LogId: logID2, LeafIndex: []int64{0}}
-	leaf1Data        = []byte("value")
-	leaf2Data        = []byte("value2")
-	leaf3Data        = []byte("value3")
-	leaf1Hash, _     = th.HashLeaf(leaf1Data)
-	leaf2Hash, _     = th.HashLeaf(leaf2Data)
-	leaf3Hash, _     = th.HashLeaf(leaf3Data)
-	leaf1            = &trillian.LogLeaf{
-		MerkleLeafHash: leaf1Hash,
-		LeafValue:      leaf1Data,
-		ExtraData:      []byte("extra"),
-		LeafIndex:      1,
-	}
-	leaf2 = &trillian.LogLeaf{
-		MerkleLeafHash: leaf2Hash,
-		LeafValue:      leaf2Data,
-		ExtraData:      []byte("extra"),
-		LeafIndex:      2,
-	}
-	leaf3 = &trillian.LogLeaf{
-		MerkleLeafHash: leaf3Hash,
-		LeafValue:      leaf3Data,
-		ExtraData:      []byte("extra3"),
-		LeafIndex:      3,
-	}
 
 	queueRequest0     = trillian.QueueLeavesRequest{LogId: logID1, Leaves: []*trillian.LogLeaf{leaf1}}
 	queueRequest0Log2 = trillian.QueueLeavesRequest{LogId: logID2, Leaves: []*trillian.LogLeaf{leaf1}}
+
+	addSeqRequest0 = trillian.AddSequencedLeavesRequest{LogId: logID3, Leaves: []*trillian.LogLeaf{leaf1}}
 
 	getLogRootRequest1 = trillian.GetLatestSignedLogRootRequest{LogId: logID1}
 	revision1          = int64(5)
@@ -106,7 +101,7 @@ func TestGetLeavesByIndexBeginFailsCausesError(t *testing.T) {
 	fakeStorage := storage.NewMockLogStorage(ctrl)
 	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), leaf0Request.LogId).Return(nil, errors.New("TX"))
 	registry := extension.Registry{
-		AdminStorage: fakeAdminStorage(ctrl, leaf0Request.LogId, 1),
+		AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: leaf0Request.LogId, numSnapshots: 1}),
 		LogStorage:   fakeStorage,
 	}
 	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
@@ -176,7 +171,7 @@ func TestGetLeavesByIndex(t *testing.T) {
 	mockTx.EXPECT().IsOpen().AnyTimes().Return(false)
 
 	registry := extension.Registry{
-		AdminStorage: fakeAdminStorage(ctrl, leaf0Request.LogId, 1),
+		AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: leaf0Request.LogId, numSnapshots: 1}),
 		LogStorage:   fakeStorage,
 	}
 	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
@@ -204,7 +199,7 @@ func TestGetLeavesByIndexMultiple(t *testing.T) {
 	mockTx.EXPECT().IsOpen().AnyTimes().Return(false)
 
 	registry := extension.Registry{
-		AdminStorage: fakeAdminStorage(ctrl, leaf03Request.LogId, 1),
+		AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: leaf03Request.LogId, numSnapshots: 1}),
 		LogStorage:   fakeStorage,
 	}
 	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
@@ -371,7 +366,7 @@ func TestQueueLeaves(t *testing.T) {
 	mockStorage.EXPECT().QueueLeaves(gomock.Any(), queueRequest0.LogId, []*trillian.LogLeaf{leaf1}, fakeTime).After(c1).Return([]*trillian.QueuedLogLeaf{{Leaf: leaf1, Status: status.Newf(codes.AlreadyExists, "already exists").Proto()}}, nil)
 
 	registry := extension.Registry{
-		AdminStorage: fakeAdminStorage(ctrl, queueRequest0.LogId, 2),
+		AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: queueRequest0.LogId, numSnapshots: 2}),
 		LogStorage:   mockStorage,
 	}
 	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
@@ -411,6 +406,68 @@ func TestQueueLeaves(t *testing.T) {
 	if !proto.Equal(queueRequest0.Leaves[0], queuedLeaf.Leaf) {
 		diff := pretty.Compare(queueRequest0.Leaves[0], queuedLeaf.Leaf)
 		t.Errorf("post-QueueLeaves() diff:\n%v", diff)
+	}
+}
+
+func TestAddSequencedLeavesStorageError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	test := newParameterizedTest(ctrl, "AddSequencedLeaves", noTX,
+		func(s *stestonly.FakeLogStorage) {
+			s.AddSequencedLeavesErr = errors.New("STORAGE")
+		},
+		nopTX,
+		func(s *TrillianLogRPCServer) error {
+			_, err := s.AddSequencedLeaves(context.Background(), &addSeqRequest0)
+			return err
+		})
+	test.preordered = true
+
+	test.executeStorageFailureTest(t, addSeqRequest0.LogId)
+}
+
+func TestAddSequencedLeavesInvalidLogId(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	test := newParameterizedTest(ctrl, "AddSequencedLeaves", noTX, nopStorage, nopTX,
+		func(s *TrillianLogRPCServer) error {
+			_, err := s.AddSequencedLeaves(context.Background(), &addSeqRequest0)
+			return err
+		})
+
+	test.executeInvalidLogIDTest(t, false /* snapshot */)
+}
+
+func TestAddSequencedLeaves(t *testing.T) {
+	ctx := context.Background()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockStorage := storage.NewMockLogStorage(ctrl)
+	mockStorage.EXPECT().AddSequencedLeaves(gomock.Any(), addSeqRequest0.LogId, []*trillian.LogLeaf{leaf1}).
+		Return([]*trillian.QueuedLogLeaf{{Status: status.New(codes.OK, "OK").Proto()}}, nil)
+
+	registry := extension.Registry{
+		AdminStorage: fakeAdminStorage(ctrl, storageParams{addSeqRequest0.LogId, true, 1}),
+		LogStorage:   mockStorage,
+	}
+	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
+
+	rsp, err := server.AddSequencedLeaves(ctx, &addSeqRequest0)
+	if err != nil {
+		t.Fatalf("Failed to add leaf: %v", err)
+	}
+	if len(rsp.Results) != 1 {
+		t.Errorf("AddSequencedLeaves() returns %d leaves; want 1", len(rsp.Results))
+	}
+	result := rsp.Results[0]
+	if got, want := result.Status.Code, int32(code.Code_OK); got != want {
+		t.Errorf("AddSequencedLeaves().Status.Code=%d; want %d", got, want)
+	}
+	if result.Leaf != nil {
+		t.Errorf("AddSequencedLeaves().Leaf=%d; want nil", result.Leaf)
 	}
 }
 
@@ -480,7 +537,7 @@ func TestGetLatestSignedLogRoot2(t *testing.T) {
 		}
 
 		registry := extension.Registry{
-			AdminStorage: fakeAdminStorage(ctrl, test.req.LogId, 1),
+			AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: test.req.LogId, numSnapshots: 1}),
 			LogStorage:   fakeStorage,
 		}
 		s := NewTrillianLogRPCServer(registry, fakeTimeSource)
@@ -509,7 +566,7 @@ func TestGetLeavesByHashBeginFails(t *testing.T) {
 	fakeStorage := storage.NewMockLogStorage(ctrl)
 	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), getByHashRequest1.LogId).Return(nil, errors.New("TX"))
 	registry := extension.Registry{
-		AdminStorage: fakeAdminStorage(ctrl, getByHashRequest1.LogId, 1),
+		AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: getByHashRequest1.LogId, numSnapshots: 1}),
 		LogStorage:   fakeStorage,
 	}
 	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
@@ -578,7 +635,7 @@ func TestGetLeavesByHash(t *testing.T) {
 	mockTx.EXPECT().Close().Return(nil)
 
 	registry := extension.Registry{
-		AdminStorage: fakeAdminStorage(ctrl, getByHashRequest1.LogId, 1),
+		AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: getByHashRequest1.LogId, numSnapshots: 1}),
 		LogStorage:   fakeStorage,
 	}
 	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
@@ -658,7 +715,7 @@ func TestGetProofByHashWrongNodeCountFetched(t *testing.T) {
 	mockTx.EXPECT().Close().Return(nil)
 
 	registry := extension.Registry{
-		AdminStorage: fakeAdminStorage(ctrl, getInclusionProofByHashRequest7.LogId, 1),
+		AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: getEntryAndProofRequest7.LogId, numSnapshots: 1}),
 		LogStorage:   fakeStorage,
 	}
 	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
@@ -685,7 +742,7 @@ func TestGetProofByHashWrongNodeReturned(t *testing.T) {
 	mockTx.EXPECT().Close().Return(nil)
 
 	registry := extension.Registry{
-		AdminStorage: fakeAdminStorage(ctrl, getInclusionProofByHashRequest7.LogId, 1),
+		AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: getEntryAndProofRequest7.LogId, numSnapshots: 1}),
 		LogStorage:   fakeStorage,
 	}
 	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
@@ -734,7 +791,7 @@ func TestGetProofByHash(t *testing.T) {
 	mockTx.EXPECT().Close().Return(nil)
 
 	registry := extension.Registry{
-		AdminStorage: fakeAdminStorage(ctrl, getInclusionProofByHashRequest7.LogId, 1),
+		AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: getEntryAndProofRequest7.LogId, numSnapshots: 1}),
 		LogStorage:   fakeStorage,
 	}
 	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
@@ -809,7 +866,7 @@ func TestGetProofByIndexWrongNodeCountFetched(t *testing.T) {
 	mockTx.EXPECT().Close().Return(nil)
 
 	registry := extension.Registry{
-		AdminStorage: fakeAdminStorage(ctrl, getInclusionProofByHashRequest7.LogId, 1),
+		AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: getEntryAndProofRequest7.LogId, numSnapshots: 1}),
 		LogStorage:   fakeStorage,
 	}
 	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
@@ -835,7 +892,7 @@ func TestGetProofByIndexWrongNodeReturned(t *testing.T) {
 	mockTx.EXPECT().Close().Return(nil)
 
 	registry := extension.Registry{
-		AdminStorage: fakeAdminStorage(ctrl, getInclusionProofByIndexRequest7.LogId, 1),
+		AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: getEntryAndProofRequest7.LogId, numSnapshots: 1}),
 		LogStorage:   fakeStorage,
 	}
 	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
@@ -882,7 +939,7 @@ func TestGetProofByIndex(t *testing.T) {
 	mockTx.EXPECT().Close().Return(nil)
 
 	registry := extension.Registry{
-		AdminStorage: fakeAdminStorage(ctrl, getInclusionProofByIndexRequest7.LogId, 1),
+		AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: getEntryAndProofRequest17.LogId, numSnapshots: 1}),
 		LogStorage:   fakeStorage,
 	}
 	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
@@ -917,7 +974,7 @@ func TestGetEntryAndProofBeginTXFails(t *testing.T) {
 	fakeStorage := storage.NewMockLogStorage(ctrl)
 	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), getEntryAndProofRequest17.LogId).Return(nil, errors.New("BeginTX"))
 	registry := extension.Registry{
-		AdminStorage: fakeAdminStorage(ctrl, getEntryAndProofRequest17.LogId, 1),
+		AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: getEntryAndProofRequest17.LogId, numSnapshots: 1}),
 		LogStorage:   fakeStorage,
 	}
 	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
@@ -942,7 +999,7 @@ func TestGetEntryAndProofGetMerkleNodesFails(t *testing.T) {
 	mockTx.EXPECT().Close().Return(nil)
 
 	registry := extension.Registry{
-		AdminStorage: fakeAdminStorage(ctrl, getEntryAndProofRequest7.LogId, 1),
+		AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: getEntryAndProofRequest7.LogId, numSnapshots: 1}),
 		LogStorage:   fakeStorage,
 	}
 	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
@@ -971,7 +1028,7 @@ func TestGetEntryAndProofGetLeavesFails(t *testing.T) {
 	mockTx.EXPECT().Close().Return(nil)
 
 	registry := extension.Registry{
-		AdminStorage: fakeAdminStorage(ctrl, getEntryAndProofRequest7.LogId, 1),
+		AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: getEntryAndProofRequest7.LogId, numSnapshots: 1}),
 		LogStorage:   fakeStorage,
 	}
 	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
@@ -1001,7 +1058,7 @@ func TestGetEntryAndProofGetLeavesReturnsMultiple(t *testing.T) {
 	mockTx.EXPECT().Close().Return(nil)
 
 	registry := extension.Registry{
-		AdminStorage: fakeAdminStorage(ctrl, getEntryAndProofRequest7.LogId, 1),
+		AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: getEntryAndProofRequest7.LogId, numSnapshots: 1}),
 		LogStorage:   fakeStorage,
 	}
 	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
@@ -1031,7 +1088,7 @@ func TestGetEntryAndProofCommitFails(t *testing.T) {
 	mockTx.EXPECT().Close().Return(nil)
 
 	registry := extension.Registry{
-		AdminStorage: fakeAdminStorage(ctrl, getEntryAndProofRequest7.LogId, 1),
+		AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: getEntryAndProofRequest7.LogId, numSnapshots: 1}),
 		LogStorage:   fakeStorage,
 	}
 	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
@@ -1061,7 +1118,7 @@ func TestGetEntryAndProof(t *testing.T) {
 	mockTx.EXPECT().Close().Return(nil)
 
 	registry := extension.Registry{
-		AdminStorage: fakeAdminStorage(ctrl, getEntryAndProofRequest7.LogId, 1),
+		AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: getEntryAndProofRequest7.LogId, numSnapshots: 1}),
 		LogStorage:   fakeStorage,
 	}
 	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
@@ -1150,7 +1207,7 @@ func TestGetSequencedLeafCount(t *testing.T) {
 	mockTx.EXPECT().Close().Return(nil)
 
 	registry := extension.Registry{
-		AdminStorage: fakeAdminStorage(ctrl, logID1, 1),
+		AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: logID1, numSnapshots: 1}),
 		LogStorage:   fakeStorage,
 	}
 	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
@@ -1291,7 +1348,7 @@ func TestGetConsistencyProof(t *testing.T) {
 		}
 
 		registry := extension.Registry{
-			AdminStorage: fakeAdminStorage(ctrl, test.req.LogId, 1),
+			AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: test.req.LogId, numSnapshots: 1}),
 			LogStorage:   fakeStorage,
 		}
 		server := NewTrillianLogRPCServer(registry, fakeTimeSource)
@@ -1672,7 +1729,7 @@ func TestInitLog(t *testing.T) {
 			}
 
 			registry := extension.Registry{
-				AdminStorage: fakeAdminStorage(ctrl, logID1, 1),
+				AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: logID1, numSnapshots: 1}),
 				LogStorage:   fakeStorage,
 			}
 			logServer := NewTrillianLogRPCServer(registry, fakeTimeSource)
@@ -1713,16 +1770,18 @@ const (
 )
 
 type parameterizedTest struct {
-	ctrl           *gomock.Controller
-	operation      string
-	mode           txMode
+	ctrl       *gomock.Controller
+	operation  string
+	mode       txMode
+	preordered bool
+
 	prepareStorage prepareFakeStorageFunc
 	prepareTx      prepareMockTXFunc
 	makeRPC        makeRPCFunc
 }
 
 func newParameterizedTest(ctrl *gomock.Controller, operation string, m txMode, prepareStorage prepareFakeStorageFunc, prepareTx prepareMockTXFunc, makeRPC makeRPCFunc) *parameterizedTest {
-	return &parameterizedTest{ctrl, operation, m, prepareStorage, prepareTx, makeRPC}
+	return &parameterizedTest{ctrl, operation, m, false /* preordered */, prepareStorage, prepareTx, makeRPC}
 }
 
 func (p *parameterizedTest) executeCommitFailsTest(t *testing.T, logID int64) {
@@ -1745,7 +1804,7 @@ func (p *parameterizedTest) executeCommitFailsTest(t *testing.T, logID int64) {
 	}
 
 	registry := extension.Registry{
-		AdminStorage: fakeAdminStorage(p.ctrl, logID, 1),
+		AdminStorage: fakeAdminStorage(p.ctrl, storageParams{logID, p.preordered, 1}),
 		LogStorage:   fakeStorage,
 	}
 	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
@@ -1799,7 +1858,7 @@ func (p *parameterizedTest) executeStorageFailureTest(t *testing.T, logID int64)
 	}
 
 	registry := extension.Registry{
-		AdminStorage: fakeAdminStorage(p.ctrl, logID, 1),
+		AdminStorage: fakeAdminStorage(p.ctrl, storageParams{logID, p.preordered, 1}),
 		LogStorage:   fakeStorage,
 	}
 	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
@@ -1821,7 +1880,7 @@ func (p *parameterizedTest) executeBeginFailsTest(t *testing.T, logID int64) {
 	}
 
 	registry := extension.Registry{
-		AdminStorage: fakeAdminStorage(p.ctrl, logID, 1),
+		AdminStorage: fakeAdminStorage(p.ctrl, storageParams{logID, p.preordered, 1}),
 		LogStorage:   logStorage,
 	}
 	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
@@ -1831,17 +1890,26 @@ func (p *parameterizedTest) executeBeginFailsTest(t *testing.T, logID int64) {
 	}
 }
 
-func fakeAdminStorage(ctrl *gomock.Controller, treeID int64, numSnapshots int) storage.AdminStorage {
+type storageParams struct {
+	treeID       int64
+	preordered   bool
+	numSnapshots int
+}
+
+func fakeAdminStorage(ctrl *gomock.Controller, params storageParams) storage.AdminStorage {
 	tree := *stestonly.LogTree
-	tree.TreeId = treeID
+	if params.preordered {
+		tree = *stestonly.PreorderedLogTree
+	}
+	tree.TreeId = params.treeID
 
 	adminStorage := storage.NewMockAdminStorage(ctrl)
 	adminTX := storage.NewMockReadOnlyAdminTX(ctrl)
 
-	adminStorage.EXPECT().Snapshot(gomock.Any()).MaxTimes(numSnapshots).Return(adminTX, nil)
-	adminTX.EXPECT().GetTree(gomock.Any(), treeID).MaxTimes(numSnapshots).Return(&tree, nil)
-	adminTX.EXPECT().Close().MaxTimes(numSnapshots).Return(nil)
-	adminTX.EXPECT().Commit().MaxTimes(numSnapshots).Return(nil)
+	adminStorage.EXPECT().Snapshot(gomock.Any()).MaxTimes(params.numSnapshots).Return(adminTX, nil)
+	adminTX.EXPECT().GetTree(gomock.Any(), params.treeID).MaxTimes(params.numSnapshots).Return(&tree, nil)
+	adminTX.EXPECT().Close().MaxTimes(params.numSnapshots).Return(nil)
+	adminTX.EXPECT().Commit().MaxTimes(params.numSnapshots).Return(nil)
 
 	return adminStorage
 }
