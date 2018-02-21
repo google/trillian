@@ -15,86 +15,73 @@
 package server
 
 import (
-	"database/sql"
 	"fmt"
+	"sync"
 
-	"github.com/coreos/etcd/clientv3"
-	"github.com/golang/glog"
 	"github.com/google/trillian/quota"
-	"github.com/google/trillian/quota/cacheqm"
-	"github.com/google/trillian/quota/etcd/etcdqm"
-	"github.com/google/trillian/quota/mysqlqm"
 )
 
 const (
 	// QuotaNoop represents the noop quota implementation.
 	QuotaNoop = "noop"
-
-	// QuotaMySQL represents the MySQL quota implementation.
-	QuotaMySQL = "mysql"
-
-	// QuotaEtcd represents the etcd quota implementation.
-	QuotaEtcd = "etcd"
 )
 
-// QuotaParams represents all parameters required to initialize a quota.Manager.
-//
-// Depending on the supplied QuotaSystem, the actual quota.Manager implementation, as returned by
-// NewQuotaManager, may differ.
-//
-// See fields for details.
-type QuotaParams struct {
-	// QuotaSystem represents the underlying quota implementation used.
-	// Valid values are "noop", "mysql" and "etcd".
-	QuotaSystem string
+// NewQuotaManagerFunc is the signature of a function which can be registered
+// to provide instances of a quota manager.
+type NewQuotaManagerFunc func() (quota.Manager, error)
 
-	// DB is the database used by MySQL quotas.
-	DB *sql.DB
+var (
+	qpMu     sync.RWMutex
+	qpOnce   sync.Once
+	qpByName map[string]NewQuotaManagerFunc
+)
 
-	// MaxUnsequencedRows is the max number of rows that may be in Unsequenced before new write
-	// requests are blocked.
-	// Used by MySQL quotas.
-	MaxUnsequencedRows int
-
-	// Client is used by etcd quotas.
-	Client *clientv3.Client
-
-	// MinBatchSize and MaxCacheEntries are used for token caching.
-	// Applicable to etcd quotas.
-	MinBatchSize, MaxCacheEntries int
+func init() {
+	if err := RegisterQuotaManager(QuotaNoop, func() (quota.Manager, error) {
+		return quota.Noop(), nil
+	}); err != nil {
+		panic(err)
+	}
 }
 
-// NewQuotaManager returns a quota.Manager implementation according to params.
-// See QuotaParams for details.
-func NewQuotaManager(params *QuotaParams) (quota.Manager, error) {
-	var qm quota.Manager
-	switch params.QuotaSystem {
-	case QuotaNoop:
-		qm = quota.Noop()
-	case QuotaMySQL:
-		qm = &mysqlqm.QuotaManager{DB: params.DB, MaxUnsequencedRows: params.MaxUnsequencedRows}
-	case QuotaEtcd:
-		// Client is more likely to be nil than all other params, due to etcd being an optional
-		// dependency in some cases.
-		// As such, let's fail fast here if that's the case.
-		if params.Client == nil {
-			return nil, fmt.Errorf("etcd servers required for %v quota", params.QuotaSystem)
-		}
-		qm = etcdqm.New(params.Client)
-	default:
-		return nil, fmt.Errorf("unknown quota system: %v", params.QuotaSystem)
-	}
-	qmType := fmt.Sprintf("%T", qm)
+// RegisterQuotaManager registers the provided QuotaManager.
+func RegisterQuotaManager(name string, qp NewQuotaManagerFunc) error {
+	qpMu.Lock()
+	defer qpMu.Unlock()
 
-	if params.QuotaSystem == QuotaEtcd && params.MinBatchSize > 0 && params.MaxCacheEntries > 0 {
-		cachedQM, err := cacheqm.NewCachedManager(qm, params.MinBatchSize, params.MaxCacheEntries)
-		if err != nil {
-			return nil, err
-		}
-		qm = cachedQM
-		qmType = fmt.Sprintf("%T/%v", qm, qmType)
+	qpOnce.Do(func() {
+		qpByName = make(map[string]NewQuotaManagerFunc)
+	})
+
+	_, exists := qpByName[name]
+	if exists {
+		return fmt.Errorf("quota provider %v already registered", name)
+	}
+	qpByName[name] = qp
+	return nil
+}
+
+// QuotaSystems returns a slice of registered quota system names.
+func QuotaSystems() []string {
+	qpMu.RLock()
+	defer qpMu.RUnlock()
+
+	r := []string{}
+	for k := range qpByName {
+		r = append(r, k)
 	}
 
-	glog.Infof("Using QuotaManager %v", qmType)
-	return qm, nil
+	return r
+}
+
+// NewQuotaManager returns a quota.Manager implementation.
+func NewQuotaManager(name string) (quota.Manager, error) {
+	qpMu.RLock()
+	defer qpMu.RUnlock()
+
+	f, exists := qpByName[name]
+	if !exists {
+		return nil, fmt.Errorf("unknown quota system: %v", name)
+	}
+	return f()
 }

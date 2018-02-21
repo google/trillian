@@ -28,14 +28,11 @@ import (
 	"github.com/google/trillian/log"
 	"github.com/google/trillian/monitoring/prometheus"
 	"github.com/google/trillian/server"
-	"github.com/google/trillian/storage/mysql"
 	"github.com/google/trillian/util"
 	"github.com/google/trillian/util/etcd"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"golang.org/x/net/context"
 
-	// Load MySQL driver
-	_ "github.com/go-sql-driver/mysql"
 	// Register key ProtoHandlers
 	_ "github.com/google/trillian/crypto/keys/der/proto"
 	_ "github.com/google/trillian/crypto/keys/pem/proto"
@@ -46,7 +43,6 @@ import (
 )
 
 var (
-	mySQLURI                 = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "Connection URI for MySQL database")
 	httpEndpoint             = flag.String("http_endpoint", "localhost:8091", "Endpoint for HTTP (host:port, empty means disabled)")
 	tlsCertFile              = flag.String("tls_cert_file", "", "Path to the TLS server certificate. If unset, the server will use unsecured connections.")
 	tlsKeyFile               = flag.String("tls_key_file", "", "Path to the TLS server key. If unset, the server will use unsecured connections.")
@@ -55,7 +51,6 @@ var (
 	numSeqFlag               = flag.Int("num_sequencers", 10, "Number of sequencer workers to run in parallel")
 	sequencerGuardWindowFlag = flag.Duration("sequencer_guard_window", 0, "If set, the time elapsed before submitted leaves are eligible for sequencing")
 	forceMaster              = flag.Bool("force_master", false, "If true, assume master for all logs")
-	etcdServers              = flag.String("etcd_servers", "", "A comma-separated list of etcd servers")
 	etcdHTTPService          = flag.String("etcd_http_service", "trillian-logsigner-http", "Service name to announce our HTTP endpoint under")
 	lockDir                  = flag.String("lock_file_path", "/test/multimaster", "etcd lock file directory path")
 
@@ -63,6 +58,7 @@ var (
 	quotaIncreaseFactor = flag.Float64("quota_increase_factor", log.QuotaIncreaseFactor,
 		"Increase factor for tokens replenished by sequencing-based quotas (1 means a 1:1 relationship between sequenced leaves and replenished tokens)."+
 			"Only effective for --quota_system=etcd.")
+	storageSystem = flag.String("storage_system", "mysql", "Storage system to use. Once of 'mysql', 'memory'")
 
 	preElectionPause    = flag.Duration("pre_election_pause", 1*time.Second, "Maximum time to wait before starting elections")
 	masterCheckInterval = flag.Duration("master_check_interval", 5*time.Second, "Interval between checking mastership still held")
@@ -84,16 +80,17 @@ func main() {
 	glog.CopyStandardLogTo("WARNING")
 	glog.Info("**** Log Signer Starting ****")
 
-	// First make sure we can access the database, quit if not
-	db, err := mysql.OpenDB(*mySQLURI)
-	if err != nil {
-		glog.Exitf("Failed to open MySQL database: %v", err)
-	}
-	defer db.Close()
+	mf := prometheus.MetricFactory{}
 
-	client, err := etcd.NewClient(*etcdServers)
+	sp, err := server.NewStorageProvider(*storageSystem, mf)
 	if err != nil {
-		glog.Exitf("Failed to connect to etcd at %v: %v", etcdServers, err)
+		glog.Exitf("Failed to get storage provider: %v", err)
+	}
+	defer sp.Close()
+
+	client, err := etcd.NewClient(*server.EtcdServers)
+	if err != nil {
+		glog.Exitf("Failed to connect to etcd at %v: %v", server.EtcdServers, err)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -112,20 +109,14 @@ func main() {
 		glog.Exit("Either --force_master or --etcd_servers must be supplied")
 	}
 
-	qm, err := server.NewQuotaManager(&server.QuotaParams{
-		QuotaSystem: *quotaSystem,
-		DB:          db,
-		Client:      client,
-	})
+	qm, err := server.NewQuotaManager(*quotaSystem)
 	if err != nil {
 		glog.Exitf("Error creating quota manager: %v", err)
 	}
 
-	mf := prometheus.MetricFactory{}
-
 	registry := extension.Registry{
-		AdminStorage:    mysql.NewAdminStorage(db),
-		LogStorage:      mysql.NewLogStorage(db, mf),
+		AdminStorage:    sp.AdminStorage(),
+		LogStorage:      sp.LogStorage(),
 		ElectionFactory: electionFactory,
 		QuotaManager:    qm,
 		MetricFactory:   mf,
