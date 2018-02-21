@@ -115,7 +115,11 @@ service TrillianLog {
     // Adds a batch of leaves to the queue.
     rpc QueueLeaves (QueueLeavesRequest) returns (QueueLeavesResponse) {
     }
-    // Adds a batch of leaves with assigned sequence numbers to the tree.
+
+    // Stores leaves from the provided batch and associates them with the log
+    // positions according to the `LeafIndex` field. The indices must be unique
+    // and sorted in ascending order.
+    //
     // Warning: This RPC is under development, don't use it.
     rpc AddSequencedLeaves (AddSequencedLeavesRequest) returns (AddSequencedLeavesResponse) {
     }

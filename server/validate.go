@@ -124,7 +124,7 @@ func validateAddSequencedLeafRequest(req *trillian.AddSequencedLeafRequest) erro
 func validateQueueLeavesRequest(req *trillian.QueueLeavesRequest) error {
 	if err := validateLogLeaves(req.Leaves); err != nil {
 		// validateLogLeaves errors chain nicely with "QueueLeavesRequest.".
-		return status.Errorf(codes.InvalidArgument, "QueueLeavesRequest.", err)
+		return status.Errorf(codes.InvalidArgument, "QueueLeavesRequest.%v", err)
 	}
 	return nil
 }
@@ -132,7 +132,14 @@ func validateQueueLeavesRequest(req *trillian.QueueLeavesRequest) error {
 func validateAddSequencedLeavesRequest(req *trillian.AddSequencedLeavesRequest) error {
 	if err := validateLogLeaves(req.Leaves); err != nil {
 		// validateLogLeaves errors chain nicely with "AddSequencedLeavesRequest.".
-		return status.Errorf(codes.InvalidArgument, "AddSequencedLeavesRequest.", err)
+		return status.Errorf(codes.InvalidArgument, "AddSequencedLeavesRequest.%v", err)
+	}
+	lastIndex := int64(-1)
+	for i, leaf := range req.Leaves {
+		if leaf.LeafIndex <= lastIndex {
+			return status.Errorf(codes.OutOfRange, "AddSequencedLeavesRequest.Leaves[%v..%v].LeafIndex not sorted", i-1, i)
+		}
+		lastIndex = leaf.LeafIndex
 	}
 	return nil
 }
