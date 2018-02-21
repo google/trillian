@@ -127,8 +127,8 @@ type LogStorage interface {
 	QueueLeaves(ctx context.Context, treeID int64, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.QueuedLogLeaf, error)
 
 	// AddSequencedLeaves stores the `leaves` and associates them with the log
-	// positions according to their `LeafIndex` field. The indices must be unique
-	// and sorted in ascending order.
+	// positions according to their `LeafIndex` field. The indices must be
+	// contiguous.
 	//
 	// If error is nil, the returned slice is the same size as the input, entries
 	// correspond to the `leaves` in the same order. Each entry describes the
@@ -136,8 +136,8 @@ type LogStorage interface {
 	//
 	// Possible `QueuedLogLeaf.status` values with their semantics:
 	//  - OK: The leaf has been successfully stored.
-	//  - AlreadyExists: The storage has another leaf with the same `LeafIndex`.
-	//    That leaf is returned in `QueuedLogLeaf.leaf`.
+	//  - AlreadyExists: The storage already contains an identical leaf at the
+	//    specified `LeafIndex`. That leaf is returned in `QueuedLogLeaf.leaf`.
 	//  - FailedPrecondition: There is another leaf with the same `LeafIndex`,
 	//    but a different value. That leaf is returned in `QueuedLogLeaf.leaf`.
 	//  - OutOfRange: The leaf can not be stored at the specified `LeafIndex`.

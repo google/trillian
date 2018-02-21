@@ -123,12 +123,13 @@ func validateAddSequencedLeavesRequest(req *trillian.AddSequencedLeavesRequest) 
 		return err
 	}
 
-	lastIndex := int64(-1)
+	// Note: Not empty, as verified by validateLogLeaves.
+	nextIndex := req.Leaves[0].LeafIndex
 	for i, leaf := range req.Leaves {
-		if leaf.LeafIndex <= lastIndex {
-			return status.Errorf(codes.OutOfRange, "%v.Leaves[%v..%v].LeafIndex not sorted", prefix, i-1, i)
+		if leaf.LeafIndex != nextIndex {
+			return status.Errorf(codes.OutOfRange, "%v.Leaves[%v].LeafIndex=%v, want %v", prefix, i, leaf.LeafIndex, nextIndex)
 		}
-		lastIndex = leaf.LeafIndex
+		nextIndex++
 	}
 	return nil
 }

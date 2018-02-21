@@ -117,8 +117,8 @@ service TrillianLog {
     }
 
     // Stores leaves from the provided batch and associates them with the log
-    // positions according to the `LeafIndex` field. The indices must be unique
-    // and sorted in ascending order.
+    // positions according to the `LeafIndex` field. The indices must be
+    // contiguous.
     //
     // Warning: This RPC is under development, don't use it.
     rpc AddSequencedLeaves (AddSequencedLeavesRequest) returns (AddSequencedLeavesResponse) {
