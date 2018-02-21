@@ -422,13 +422,3 @@ func (t *treeTX) Close() error {
 func (t *treeTX) IsOpen() bool {
 	return !t.closed
 }
-
-func checkDatabaseAccessible(ctx context.Context, db *sql.DB) error {
-	stmt, err := db.PrepareContext(ctx, "SELECT TreeId FROM Trees LIMIT 1")
-	if err != nil {
-		return err
-	}
-	defer stmt.Close()
-	_, err = stmt.ExecContext(ctx)
-	return err
-}
