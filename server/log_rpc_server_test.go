@@ -66,7 +66,7 @@ var (
 
 	addSeqRequest0 = trillian.AddSequencedLeavesRequest{LogId: logID3, Leaves: []*trillian.LogLeaf{leaf1}}
 
-	tree1              = &trillian.Tree{TreeId: logID1, TreeType: trillian.TreeType_LOG}
+	tree1              = addTreeID(stestonly.LogTree, logID1)
 	getLogRootRequest1 = trillian.GetLatestSignedLogRootRequest{LogId: logID1}
 	revision1          = int64(5)
 	signedRoot1        = trillian.SignedLogRoot{TimestampNanos: 987654321, RootHash: []byte("A NICE HASH"), TreeSize: 7, TreeRevision: revision1}
@@ -228,16 +228,24 @@ func TestGetLeavesByRange(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	fakeStorage := storage.NewMockLogStorage(ctrl)
+	fakeAdmin := storage.NewMockAdminStorage(ctrl)
 	tree := &trillian.Tree{TreeId: 6962, TreeType: trillian.TreeType_LOG}
 
 	var tests = []struct {
 		start, count int64
 		skipTX       bool
+		adminErr     error
 		txErr        error
 		getErr       error
 		want         []*trillian.LogLeaf
 		wantErr      string
 	}{
+		{
+			start:    1,
+			count:    1,
+			adminErr: errors.New("admin!"),
+			wantErr:  "admin!",
+		},
 		{
 			start: 1,
 			count: 1,
@@ -288,20 +296,31 @@ func TestGetLeavesByRange(t *testing.T) {
 	for _, test := range tests {
 		if !test.skipTX {
 			mockTx := storage.NewMockLogTreeTX(ctrl)
-			if test.txErr != nil {
-				fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree).Return(nil, test.txErr)
-			} else {
-				fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree).Return(mockTx, nil)
-				if test.getErr != nil {
-					mockTx.EXPECT().GetLeavesByRange(gomock.Any(), test.start, test.count).Return(nil, test.getErr)
+			mockAdminTx := storage.NewMockAdminTX(ctrl)
+			mockAdminTx.EXPECT().GetTree(gomock.Any(), tree.TreeId).Return(tree, test.adminErr)
+			mockAdminTx.EXPECT().Close().Return(nil)
+			fakeAdmin.EXPECT().Snapshot(gomock.Any()).Return(mockAdminTx, nil)
+			if test.adminErr == nil {
+				mockAdminTx.EXPECT().Commit().Return(nil)
+				if test.txErr != nil {
+					fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree).Return(nil, test.txErr)
 				} else {
-					mockTx.EXPECT().GetLeavesByRange(gomock.Any(), test.start, test.count).Return(test.want, nil)
+					fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree).Return(mockTx, nil)
+					if test.getErr != nil {
+						mockTx.EXPECT().GetLeavesByRange(gomock.Any(), test.start, test.count).Return(nil, test.getErr)
+					} else {
+						mockTx.EXPECT().GetLeavesByRange(gomock.Any(), test.start, test.count).Return(test.want, nil)
+						mockTx.EXPECT().Commit().Return(nil)
+					}
+					mockTx.EXPECT().Close().Return(nil)
+				}
+			} else {
+				if test.txErr != nil {
 					mockTx.EXPECT().Commit().Return(nil)
 				}
-				mockTx.EXPECT().Close().Return(nil)
 			}
 		}
-		registry := extension.Registry{LogStorage: fakeStorage}
+		registry := extension.Registry{LogStorage: fakeStorage, AdminStorage: fakeAdmin}
 		server := NewTrillianLogRPCServer(registry, fakeTimeSource)
 
 		req := trillian.GetLeavesByRangeRequest{
@@ -1913,4 +1932,10 @@ func fakeAdminStorage(ctrl *gomock.Controller, params storageParams) storage.Adm
 	adminTX.EXPECT().Commit().MaxTimes(params.numSnapshots).Return(nil)
 
 	return adminStorage
+}
+
+func addTreeID(tree *trillian.Tree, treeID int64) *trillian.Tree {
+	newTree := proto.Clone(tree).(*trillian.Tree)
+	newTree.TreeId = treeID
+	return newTree
 }
