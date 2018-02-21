@@ -101,7 +101,7 @@ type ReadOnlyLogStorage interface {
 	// Commit must be called when the caller is finished with the returned object,
 	// and values read through it should only be propagated if Commit returns
 	// without error.
-	SnapshotForTree(ctx context.Context, treeID int64, opts GetOpts) (ReadOnlyLogTreeTX, error)
+	SnapshotForTree(ctx context.Context, tree *trillian.Tree) (ReadOnlyLogTreeTX, error)
 }
 
 // LogTXFunc is the func signature for passing into ReadWriteTransaction.
@@ -115,7 +115,7 @@ type LogStorage interface {
 	// calls f with it.
 	// If f fails and returns an error, the storage implementation may optionally
 	// retry with a new transaction, and f MUST NOT keep state across calls.
-	ReadWriteTransaction(ctx context.Context, treeID int64, f LogTXFunc, opts GetOpts) error
+	ReadWriteTransaction(ctx context.Context, tree *trillian.Tree, f LogTXFunc) error
 
 	// QueueLeaves enqueues leaves for later integration into the tree.
 	// If error is nil, the returned slice of leaves will be the same size as the
@@ -124,6 +124,7 @@ type LogStorage interface {
 	//  - nil otherwise.
 	// Duplicates are only reported if the underlying tree does not permit duplicates, and are
 	// considered duplicate if their leaf.LeafIdentityHash matches.
+<<<<<<< HEAD
 	QueueLeaves(ctx context.Context, treeID int64, leaves []*trillian.LogLeaf, queueTimestamp time.Time, opts GetOpts) ([]*trillian.QueuedLogLeaf, error)
 
 	// AddSequencedLeaves stores the `leaves` and associates them with the log
@@ -149,6 +150,9 @@ type LogStorage interface {
 	// TODO(pavelkalinnikov): Not checking values of the occupied indices might
 	// be a good optimization. Could also be optional.
 	AddSequencedLeaves(ctx context.Context, treeID int64, leaves []*trillian.LogLeaf) ([]*trillian.QueuedLogLeaf, error)
+=======
+	QueueLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.QueuedLogLeaf, error)
+>>>>>>> 32baa9db... Lots of moving stuff around again
 }
 
 // CountByLogID is a map of total number of items keyed by log ID.

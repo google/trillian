@@ -23,7 +23,6 @@ import (
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
-	"github.com/google/trillian/trees"
 
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
@@ -97,18 +96,14 @@ func (t *readOnlyMapTX) Close() error {
 	return nil
 }
 
-func (m *mySQLMapStorage) begin(ctx context.Context, treeID int64, opts storage.GetOpts) (storage.MapTreeTX, error) {
-	tree, err := trees.GetTree(ctx, m.admin, treeID, opts)
-	if err != nil {
-		return nil, err
-	}
+func (m *mySQLMapStorage) begin(ctx context.Context, tree trillian.Tree) (storage.MapTreeTX, error) {
 	hasher, err := hashers.NewMapHasher(tree.HashStrategy)
 	if err != nil {
 		return nil, err
 	}
 
-	stCache := cache.NewMapSubtreeCache(defaultMapStrata, treeID, hasher)
-	ttx, err := m.beginTreeTx(ctx, treeID, hasher.Size(), stCache)
+	stCache := cache.NewMapSubtreeCache(defaultMapStrata, tree.TreeId, hasher)
+	ttx, err := m.beginTreeTx(ctx, tree.TreeId, hasher.Size(), stCache)
 	if err != nil {
 		return nil, err
 	}
@@ -130,12 +125,12 @@ func (m *mySQLMapStorage) begin(ctx context.Context, treeID int64, opts storage.
 	return mtx, nil
 }
 
-func (m *mySQLMapStorage) SnapshotForTree(ctx context.Context, treeID int64, opts storage.GetOpts) (storage.ReadOnlyMapTreeTX, error) {
-	return m.begin(ctx, treeID, opts)
+func (m *mySQLMapStorage) SnapshotForTree(ctx context.Context, tree trillian.Tree) (storage.ReadOnlyMapTreeTX, error) {
+	return m.begin(ctx, tree)
 }
 
-func (m *mySQLMapStorage) ReadWriteTransaction(ctx context.Context, treeID int64, f storage.MapTXFunc, opts storage.GetOpts) error {
-	tx, err := m.begin(ctx, treeID, opts)
+func (m *mySQLMapStorage) ReadWriteTransaction(ctx context.Context, tree trillian.Tree, f storage.MapTXFunc) error {
+	tx, err := m.begin(ctx, tree)
 	if tx != nil {
 		defer tx.Close()
 	}

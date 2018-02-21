@@ -80,7 +80,7 @@ type ReadOnlyMapStorage interface {
 	// Commit must be called when the caller is finished with the returned object,
 	// and values read through it should only be propagated if Commit returns
 	// without error.
-	SnapshotForTree(ctx context.Context, treeID int64, opts GetOpts) (ReadOnlyMapTreeTX, error)
+	SnapshotForTree(ctx context.Context, tree *trillian.Tree) (ReadOnlyMapTreeTX, error)
 }
 
 // MapTXFunc is the func signature for passing into ReadWriteTransaction.
@@ -94,5 +94,5 @@ type MapStorage interface {
 	// calls f with it.
 	// If f fails and returns an error, the storage implementation may optionally
 	// retry with a new transaction, and f MUST NOT keep state across calls.
-	ReadWriteTransaction(ctx context.Context, treeID int64, f MapTXFunc, opts GetOpts) error
+	ReadWriteTransaction(ctx context.Context, tree *trillian.Tree, f MapTXFunc) error
 }

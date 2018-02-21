@@ -32,6 +32,7 @@ import (
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/trees"
 	"github.com/google/trillian/util"
 )
 
@@ -100,11 +101,12 @@ func createMetrics(mf monitoring.MetricFactory) {
 // There is no strong ordering guarantee but in general entries will be processed
 // in order of submission to the log.
 type Sequencer struct {
-	hasher     hashers.LogHasher
-	timeSource util.TimeSource
-	logStorage storage.LogStorage
-	signer     *crypto.Signer
-	qm         quota.Manager
+	hasher       hashers.LogHasher
+	timeSource   util.TimeSource
+	logStorage   storage.LogStorage
+	adminStorage storage.AdminStorage
+	signer       *crypto.Signer
+	qm           quota.Manager
 }
 
 // maxTreeDepth sets an upper limit on the size of Log trees.
@@ -118,6 +120,7 @@ func NewSequencer(
 	hasher hashers.LogHasher,
 	timeSource util.TimeSource,
 	logStorage storage.LogStorage,
+	adminStorage storage.AdminStorage,
 	signer *crypto.Signer,
 	mf monitoring.MetricFactory,
 	qm quota.Manager) *Sequencer {
@@ -290,9 +293,14 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, logID int64, limit int, g
 	start := s.timeSource.Now()
 	label := strconv.FormatInt(logID, 10)
 
+	tree, err := trees.GetTree(ctx, s.adminStorage, logID, seqOpts)
+	if err != nil {
+		return 0, err
+	}
+
 	numLeaves := 0
 	var newLogRoot *trillian.SignedLogRoot
-	err := s.logStorage.ReadWriteTransaction(ctx, logID, func(ctx context.Context, tx storage.LogTreeTX) error {
+	err = s.logStorage.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
 		stageStart := s.timeSource.Now()
 		defer seqBatches.Inc(label)
 		defer func() { seqLatency.Observe(util.SecondsSince(s.timeSource, start), label) }()
@@ -409,7 +417,7 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, logID int64, limit int, g
 		stageStart = s.timeSource.Now()
 
 		return nil
-	}, seqOpts)
+	})
 	if err != nil {
 		return 0, err
 	}
@@ -445,7 +453,11 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, logID int64, limit int, g
 
 // SignRoot wraps up all the operations for creating a new log signed root.
 func (s Sequencer) SignRoot(ctx context.Context, logID int64) error {
-	return s.logStorage.ReadWriteTransaction(ctx, logID, func(ctx context.Context, tx storage.LogTreeTX) error {
+	tree, err := trees.GetTree(ctx, s.adminStorage, logID, seqOpts)
+	if err != nil {
+		return err
+	}
+	return s.logStorage.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
 		// Get the latest known root from storage
 		currentRoot, err := tx.LatestSignedLogRoot(ctx)
 		if err != nil {
@@ -481,5 +493,5 @@ func (s Sequencer) SignRoot(ctx context.Context, logID int64) error {
 		glog.V(2).Infof("%v: new signed root, size %v, tree-revision %v", logID, newLogRoot.TreeSize, newLogRoot.TreeRevision)
 
 		return nil
-	}, seqOpts)
+	})
 }

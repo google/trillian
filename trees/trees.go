@@ -68,7 +68,7 @@ func GetTree(ctx context.Context, s storage.AdminStorage, treeID int64, opts sto
 	tree, ok := FromContext(ctx)
 	if !ok || tree.TreeId != treeID {
 		var err error
-		tree, err = storage.GetTree(ctx, s, treeID, opts)
+		tree, err = storage.GetTree(ctx, s, treeID)
 		if err != nil {
 			return nil, err
 		}

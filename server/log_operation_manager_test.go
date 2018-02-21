@@ -149,7 +149,7 @@ func setupLogIDs(ctrl *gomock.Controller, logNames map[int64]string) (*storage.M
 	mockAdminTx.EXPECT().GetTree(gomock.Any(), int64(99)).AnyTimes().Return(&trillian.Tree{TreeId: 99}, nil)
 	mockAdminTx.EXPECT().Commit().AnyTimes().Return(nil)
 	mockAdminTx.EXPECT().Close().AnyTimes().Return(nil)
-	mockAdmin.EXPECT().Snapshot(gomock.Any(), gomock.Any()).AnyTimes().Return(mockAdminTx, nil)
+	mockAdmin.EXPECT().Snapshot(gomock.Any()).AnyTimes().Return(mockAdminTx, nil)
 
 	return fakeStorage, mockAdmin
 }

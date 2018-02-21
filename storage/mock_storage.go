@@ -48,28 +48,28 @@ func (mr *MockAdminStorageMockRecorder) CheckDatabaseAccessible(arg0 interface{}
 }
 
 // ReadWriteTransaction mocks base method
-func (m *MockAdminStorage) ReadWriteTransaction(arg0 context.Context, arg1 AdminTXFunc, arg2 GetOpts) error {
-	ret := m.ctrl.Call(m, "ReadWriteTransaction", arg0, arg1, arg2)
+func (m *MockAdminStorage) ReadWriteTransaction(arg0 context.Context, arg1 AdminTXFunc) error {
+	ret := m.ctrl.Call(m, "ReadWriteTransaction", arg0, arg1)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // ReadWriteTransaction indicates an expected call of ReadWriteTransaction
-func (mr *MockAdminStorageMockRecorder) ReadWriteTransaction(arg0, arg1, arg2 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadWriteTransaction", reflect.TypeOf((*MockAdminStorage)(nil).ReadWriteTransaction), arg0, arg1, arg2)
+func (mr *MockAdminStorageMockRecorder) ReadWriteTransaction(arg0, arg1 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadWriteTransaction", reflect.TypeOf((*MockAdminStorage)(nil).ReadWriteTransaction), arg0, arg1)
 }
 
 // Snapshot mocks base method
-func (m *MockAdminStorage) Snapshot(arg0 context.Context, arg1 GetOpts) (ReadOnlyAdminTX, error) {
-	ret := m.ctrl.Call(m, "Snapshot", arg0, arg1)
+func (m *MockAdminStorage) Snapshot(arg0 context.Context) (ReadOnlyAdminTX, error) {
+	ret := m.ctrl.Call(m, "Snapshot", arg0)
 	ret0, _ := ret[0].(ReadOnlyAdminTX)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Snapshot indicates an expected call of Snapshot
-func (mr *MockAdminStorageMockRecorder) Snapshot(arg0, arg1 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Snapshot", reflect.TypeOf((*MockAdminStorage)(nil).Snapshot), arg0, arg1)
+func (mr *MockAdminStorageMockRecorder) Snapshot(arg0 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Snapshot", reflect.TypeOf((*MockAdminStorage)(nil).Snapshot), arg0)
 }
 
 // MockAdminTX is a mock of AdminTX interface
@@ -120,7 +120,7 @@ func (mr *MockAdminTXMockRecorder) Commit() *gomock.Call {
 }
 
 // CreateTree mocks base method
-func (m *MockAdminTX) CreateTree(arg0 context.Context, arg1 *trillian.Tree) (*trillian.Tree, error) {
+func (m *MockAdminTX) CreateTree(arg0 context.Context, arg1 int64) (*trillian.Tree, error) {
 	ret := m.ctrl.Call(m, "CreateTree", arg0, arg1)
 	ret0, _ := ret[0].(*trillian.Tree)
 	ret1, _ := ret[1].(error)
@@ -295,28 +295,28 @@ func (mr *MockLogStorageMockRecorder) CheckDatabaseAccessible(arg0 interface{}) 
 }
 
 // QueueLeaves mocks base method
-func (m *MockLogStorage) QueueLeaves(arg0 context.Context, arg1 int64, arg2 []*trillian.LogLeaf, arg3 time.Time, arg4 GetOpts) ([]*trillian.QueuedLogLeaf, error) {
-	ret := m.ctrl.Call(m, "QueueLeaves", arg0, arg1, arg2, arg3, arg4)
+func (m *MockLogStorage) QueueLeaves(arg0 context.Context, arg1 *trillian.Tree, arg2 []*trillian.LogLeaf, arg3 time.Time) ([]*trillian.QueuedLogLeaf, error) {
+	ret := m.ctrl.Call(m, "QueueLeaves", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].([]*trillian.QueuedLogLeaf)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // QueueLeaves indicates an expected call of QueueLeaves
-func (mr *MockLogStorageMockRecorder) QueueLeaves(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueueLeaves", reflect.TypeOf((*MockLogStorage)(nil).QueueLeaves), arg0, arg1, arg2, arg3, arg4)
+func (mr *MockLogStorageMockRecorder) QueueLeaves(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueueLeaves", reflect.TypeOf((*MockLogStorage)(nil).QueueLeaves), arg0, arg1, arg2, arg3)
 }
 
 // ReadWriteTransaction mocks base method
-func (m *MockLogStorage) ReadWriteTransaction(arg0 context.Context, arg1 int64, arg2 LogTXFunc, arg3 GetOpts) error {
-	ret := m.ctrl.Call(m, "ReadWriteTransaction", arg0, arg1, arg2, arg3)
+func (m *MockLogStorage) ReadWriteTransaction(arg0 context.Context, arg1 *trillian.Tree, arg2 LogTXFunc) error {
+	ret := m.ctrl.Call(m, "ReadWriteTransaction", arg0, arg1, arg2)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // ReadWriteTransaction indicates an expected call of ReadWriteTransaction
-func (mr *MockLogStorageMockRecorder) ReadWriteTransaction(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadWriteTransaction", reflect.TypeOf((*MockLogStorage)(nil).ReadWriteTransaction), arg0, arg1, arg2, arg3)
+func (mr *MockLogStorageMockRecorder) ReadWriteTransaction(arg0, arg1, arg2 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadWriteTransaction", reflect.TypeOf((*MockLogStorage)(nil).ReadWriteTransaction), arg0, arg1, arg2)
 }
 
 // Snapshot mocks base method
@@ -333,16 +333,16 @@ func (mr *MockLogStorageMockRecorder) Snapshot(arg0 interface{}) *gomock.Call {
 }
 
 // SnapshotForTree mocks base method
-func (m *MockLogStorage) SnapshotForTree(arg0 context.Context, arg1 int64, arg2 GetOpts) (ReadOnlyLogTreeTX, error) {
-	ret := m.ctrl.Call(m, "SnapshotForTree", arg0, arg1, arg2)
+func (m *MockLogStorage) SnapshotForTree(arg0 context.Context, arg1 *trillian.Tree) (ReadOnlyLogTreeTX, error) {
+	ret := m.ctrl.Call(m, "SnapshotForTree", arg0, arg1)
 	ret0, _ := ret[0].(ReadOnlyLogTreeTX)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // SnapshotForTree indicates an expected call of SnapshotForTree
-func (mr *MockLogStorageMockRecorder) SnapshotForTree(arg0, arg1, arg2 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SnapshotForTree", reflect.TypeOf((*MockLogStorage)(nil).SnapshotForTree), arg0, arg1, arg2)
+func (mr *MockLogStorageMockRecorder) SnapshotForTree(arg0, arg1 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SnapshotForTree", reflect.TypeOf((*MockLogStorage)(nil).SnapshotForTree), arg0, arg1)
 }
 
 // MockLogTreeTX is a mock of LogTreeTX interface
@@ -616,15 +616,15 @@ func (mr *MockMapStorageMockRecorder) CheckDatabaseAccessible(arg0 interface{}) 
 }
 
 // ReadWriteTransaction mocks base method
-func (m *MockMapStorage) ReadWriteTransaction(arg0 context.Context, arg1 int64, arg2 MapTXFunc, arg3 GetOpts) error {
-	ret := m.ctrl.Call(m, "ReadWriteTransaction", arg0, arg1, arg2, arg3)
+func (m *MockMapStorage) ReadWriteTransaction(arg0 context.Context, arg1 *trillian.Tree, arg2 MapTXFunc) error {
+	ret := m.ctrl.Call(m, "ReadWriteTransaction", arg0, arg1, arg2)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // ReadWriteTransaction indicates an expected call of ReadWriteTransaction
-func (mr *MockMapStorageMockRecorder) ReadWriteTransaction(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadWriteTransaction", reflect.TypeOf((*MockMapStorage)(nil).ReadWriteTransaction), arg0, arg1, arg2, arg3)
+func (mr *MockMapStorageMockRecorder) ReadWriteTransaction(arg0, arg1, arg2 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadWriteTransaction", reflect.TypeOf((*MockMapStorage)(nil).ReadWriteTransaction), arg0, arg1, arg2)
 }
 
 // Snapshot mocks base method
@@ -641,16 +641,16 @@ func (mr *MockMapStorageMockRecorder) Snapshot(arg0 interface{}) *gomock.Call {
 }
 
 // SnapshotForTree mocks base method
-func (m *MockMapStorage) SnapshotForTree(arg0 context.Context, arg1 int64, arg2 GetOpts) (ReadOnlyMapTreeTX, error) {
-	ret := m.ctrl.Call(m, "SnapshotForTree", arg0, arg1, arg2)
+func (m *MockMapStorage) SnapshotForTree(arg0 context.Context, arg1 *trillian.Tree) (ReadOnlyMapTreeTX, error) {
+	ret := m.ctrl.Call(m, "SnapshotForTree", arg0, arg1)
 	ret0, _ := ret[0].(ReadOnlyMapTreeTX)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // SnapshotForTree indicates an expected call of SnapshotForTree
-func (mr *MockMapStorageMockRecorder) SnapshotForTree(arg0, arg1, arg2 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SnapshotForTree", reflect.TypeOf((*MockMapStorage)(nil).SnapshotForTree), arg0, arg1, arg2)
+func (mr *MockMapStorageMockRecorder) SnapshotForTree(arg0, arg1 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SnapshotForTree", reflect.TypeOf((*MockMapStorage)(nil).SnapshotForTree), arg0, arg1)
 }
 
 // MockMapTreeTX is a mock of MapTreeTX interface

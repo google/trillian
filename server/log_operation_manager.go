@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/google/trillian"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
@@ -47,8 +46,6 @@ var (
 	signingRuns       monitoring.Counter
 	failedSigningRuns monitoring.Counter
 	entriesAdded      monitoring.Counter
-
-	optsSeq = storage.NewGetOpts(storage.Sequence, false, trillian.TreeType_LOG)
 )
 
 func createMetrics(mf monitoring.MetricFactory) {
@@ -288,7 +285,7 @@ func (l *LogOperationManager) logName(ctx context.Context, logID int64) string {
 		return name
 	}
 
-	tree, err := storage.GetTree(ctx, l.info.Registry.AdminStorage, logID, optsSeq)
+	tree, err := storage.GetTree(ctx, l.info.Registry.AdminStorage, logID)
 	if err != nil {
 		glog.Errorf("%v: failed to get log info: %v", logID, err)
 		return "<err>"

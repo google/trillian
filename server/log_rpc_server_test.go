@@ -66,6 +66,7 @@ var (
 
 	addSeqRequest0 = trillian.AddSequencedLeavesRequest{LogId: logID3, Leaves: []*trillian.LogLeaf{leaf1}}
 
+	tree1              = &trillian.Tree{TreeId: logID1, TreeType: trillian.TreeType_LOG}
 	getLogRootRequest1 = trillian.GetLatestSignedLogRootRequest{LogId: logID1}
 	revision1          = int64(5)
 	signedRoot1        = trillian.SignedLogRoot{TimestampNanos: 987654321, RootHash: []byte("A NICE HASH"), TreeSize: 7, TreeRevision: revision1}
@@ -99,7 +100,7 @@ func TestGetLeavesByIndexBeginFailsCausesError(t *testing.T) {
 	defer ctrl.Finish()
 
 	fakeStorage := storage.NewMockLogStorage(ctrl)
-	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), leaf0Request.LogId, optsLogRead).Return(nil, errors.New("TX"))
+	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(nil, errors.New("TX"))
 	registry := extension.Registry{
 		AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: leaf0Request.LogId, numSnapshots: 1}),
 		LogStorage:   fakeStorage,
@@ -164,7 +165,7 @@ func TestGetLeavesByIndex(t *testing.T) {
 
 	fakeStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTreeTX(ctrl)
-	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), leaf0Request.LogId, optsLogRead).Return(mockTx, nil)
+	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(mockTx, nil)
 	mockTx.EXPECT().GetLeavesByIndex(gomock.Any(), []int64{0}).Return([]*trillian.LogLeaf{leaf1}, nil)
 	mockTx.EXPECT().Commit().Return(nil)
 	mockTx.EXPECT().Close().Return(nil)
@@ -192,7 +193,7 @@ func TestGetLeavesByIndexMultiple(t *testing.T) {
 
 	fakeStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTreeTX(ctrl)
-	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), leaf03Request.LogId, optsLogRead).Return(mockTx, nil)
+	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(mockTx, nil)
 	mockTx.EXPECT().GetLeavesByIndex(gomock.Any(), []int64{0, 3}).Return([]*trillian.LogLeaf{leaf1, leaf3}, nil)
 	mockTx.EXPECT().Commit().Return(nil)
 	mockTx.EXPECT().Close().Return(nil)
@@ -227,7 +228,7 @@ func TestGetLeavesByRange(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	fakeStorage := storage.NewMockLogStorage(ctrl)
-	logID := int64(6962)
+	tree := &trillian.Tree{TreeId: 6962, TreeType: trillian.TreeType_LOG}
 
 	var tests = []struct {
 		start, count int64
@@ -288,9 +289,9 @@ func TestGetLeavesByRange(t *testing.T) {
 		if !test.skipTX {
 			mockTx := storage.NewMockLogTreeTX(ctrl)
 			if test.txErr != nil {
-				fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), logID, optsLogRead).Return(nil, test.txErr)
+				fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree).Return(nil, test.txErr)
 			} else {
-				fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), logID, optsLogRead).Return(mockTx, nil)
+				fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree).Return(mockTx, nil)
 				if test.getErr != nil {
 					mockTx.EXPECT().GetLeavesByRange(gomock.Any(), test.start, test.count).Return(nil, test.getErr)
 				} else {
@@ -304,7 +305,7 @@ func TestGetLeavesByRange(t *testing.T) {
 		server := NewTrillianLogRPCServer(registry, fakeTimeSource)
 
 		req := trillian.GetLeavesByRangeRequest{
-			LogId:      logID,
+			LogId:      tree.TreeId,
 			StartIndex: test.start,
 			Count:      test.count,
 		}
@@ -362,8 +363,8 @@ func TestQueueLeaves(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockStorage := storage.NewMockLogStorage(ctrl)
-	c1 := mockStorage.EXPECT().QueueLeaves(gomock.Any(), queueRequest0.LogId, []*trillian.LogLeaf{leaf1}, fakeTime, gomock.Any()).Return([]*trillian.QueuedLogLeaf{nil}, nil)
-	mockStorage.EXPECT().QueueLeaves(gomock.Any(), queueRequest0.LogId, []*trillian.LogLeaf{leaf1}, fakeTime, gomock.Any()).After(c1).Return([]*trillian.QueuedLogLeaf{{Leaf: leaf1, Status: status.Newf(codes.AlreadyExists, "already exists").Proto()}}, nil)
+	c1 := mockStorage.EXPECT().QueueLeaves(gomock.Any(), tree1, []*trillian.LogLeaf{leaf1}, fakeTime).Return([]*trillian.QueuedLogLeaf{nil}, nil)
+	mockStorage.EXPECT().QueueLeaves(gomock.Any(), tree1, []*trillian.LogLeaf{leaf1}, fakeTime).After(c1).Return([]*trillian.QueuedLogLeaf{{Leaf: leaf1, Status: status.Newf(codes.AlreadyExists, "already exists").Proto()}}, nil)
 
 	registry := extension.Registry{
 		AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: queueRequest0.LogId, numSnapshots: 2}),
@@ -524,7 +525,7 @@ func TestGetLatestSignedLogRoot2(t *testing.T) {
 		fakeStorage := storage.NewMockLogStorage(ctrl)
 		mockTx := storage.NewMockLogTreeTX(ctrl)
 		if !test.noSnap {
-			fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), test.req.LogId, optsLogRead).Return(mockTx, test.snapErr)
+			fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(mockTx, test.snapErr)
 		}
 		if !test.noRoot {
 			mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(test.storageRoot, test.rootErr)
@@ -564,7 +565,7 @@ func TestGetLeavesByHashBeginFails(t *testing.T) {
 	defer ctrl.Finish()
 
 	fakeStorage := storage.NewMockLogStorage(ctrl)
-	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), getByHashRequest1.LogId, optsLogRead).Return(nil, errors.New("TX"))
+	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(nil, errors.New("TX"))
 	registry := extension.Registry{
 		AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: getByHashRequest1.LogId, numSnapshots: 1}),
 		LogStorage:   fakeStorage,
@@ -629,7 +630,7 @@ func TestGetLeavesByHash(t *testing.T) {
 
 	fakeStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTreeTX(ctrl)
-	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), getByHashRequest1.LogId, optsLogRead).Return(mockTx, nil)
+	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(mockTx, nil)
 	mockTx.EXPECT().GetLeavesByHash(gomock.Any(), [][]byte{[]byte("test"), []byte("data")}, false).Return([]*trillian.LogLeaf{leaf1, leaf3}, nil)
 	mockTx.EXPECT().Commit().Return(nil)
 	mockTx.EXPECT().Close().Return(nil)
@@ -705,7 +706,7 @@ func TestGetProofByHashWrongNodeCountFetched(t *testing.T) {
 
 	fakeStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTreeTX(ctrl)
-	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), getInclusionProofByHashRequest7.LogId, optsLogRead).Return(mockTx, nil)
+	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(mockTx, nil)
 
 	mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(signedRoot1, nil)
 	mockTx.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
@@ -732,7 +733,7 @@ func TestGetProofByHashWrongNodeReturned(t *testing.T) {
 
 	fakeStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTreeTX(ctrl)
-	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), getInclusionProofByHashRequest7.LogId, optsLogRead).Return(mockTx, nil)
+	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(mockTx, nil)
 
 	mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(signedRoot1, nil)
 	mockTx.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
@@ -778,7 +779,7 @@ func TestGetProofByHash(t *testing.T) {
 
 	fakeStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTreeTX(ctrl)
-	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), getInclusionProofByHashRequest7.LogId, optsLogRead).Return(mockTx, nil)
+	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(mockTx, nil)
 
 	mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(signedRoot1, nil)
 	mockTx.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
@@ -857,7 +858,7 @@ func TestGetProofByIndexWrongNodeCountFetched(t *testing.T) {
 
 	fakeStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTreeTX(ctrl)
-	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), getInclusionProofByHashRequest7.LogId, optsLogRead).Return(mockTx, nil)
+	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(mockTx, nil)
 
 	// The server expects three nodes from storage but we return only two
 	mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(signedRoot1, nil)
@@ -883,7 +884,7 @@ func TestGetProofByIndexWrongNodeReturned(t *testing.T) {
 
 	fakeStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTreeTX(ctrl)
-	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), getInclusionProofByIndexRequest7.LogId, optsLogRead).Return(mockTx, nil)
+	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(mockTx, nil)
 
 	// We set this up so one of the returned nodes has the wrong ID
 	mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(signedRoot1, nil)
@@ -927,7 +928,7 @@ func TestGetProofByIndex(t *testing.T) {
 
 	fakeStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTreeTX(ctrl)
-	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), getInclusionProofByIndexRequest7.LogId, optsLogRead).Return(mockTx, nil)
+	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(mockTx, nil)
 
 	mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(signedRoot1, nil)
 	mockTx.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
@@ -972,7 +973,7 @@ func TestGetEntryAndProofBeginTXFails(t *testing.T) {
 	defer ctrl.Finish()
 
 	fakeStorage := storage.NewMockLogStorage(ctrl)
-	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), getEntryAndProofRequest17.LogId, optsLogRead).Return(nil, errors.New("BeginTX"))
+	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(nil, errors.New("BeginTX"))
 	registry := extension.Registry{
 		AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: getEntryAndProofRequest17.LogId, numSnapshots: 1}),
 		LogStorage:   fakeStorage,
@@ -991,7 +992,7 @@ func TestGetEntryAndProofGetMerkleNodesFails(t *testing.T) {
 
 	fakeStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTreeTX(ctrl)
-	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), getEntryAndProofRequest7.LogId, optsLogRead).Return(mockTx, nil)
+	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(mockTx, nil)
 
 	mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(signedRoot1, nil)
 	mockTx.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
@@ -1016,7 +1017,7 @@ func TestGetEntryAndProofGetLeavesFails(t *testing.T) {
 
 	fakeStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTreeTX(ctrl)
-	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), getEntryAndProofRequest7.LogId, optsLogRead).Return(mockTx, nil)
+	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(mockTx, nil)
 
 	mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(signedRoot1, nil)
 	mockTx.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
@@ -1045,7 +1046,7 @@ func TestGetEntryAndProofGetLeavesReturnsMultiple(t *testing.T) {
 
 	fakeStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTreeTX(ctrl)
-	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), getEntryAndProofRequest7.LogId, optsLogRead).Return(mockTx, nil)
+	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(mockTx, nil)
 
 	mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(signedRoot1, nil)
 	mockTx.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
@@ -1075,7 +1076,7 @@ func TestGetEntryAndProofCommitFails(t *testing.T) {
 
 	fakeStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTreeTX(ctrl)
-	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), getEntryAndProofRequest7.LogId, optsLogRead).Return(mockTx, nil)
+	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(mockTx, nil)
 
 	mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(signedRoot1, nil)
 	mockTx.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
@@ -1105,7 +1106,7 @@ func TestGetEntryAndProof(t *testing.T) {
 
 	fakeStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTreeTX(ctrl)
-	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), getEntryAndProofRequest7.LogId, optsLogRead).Return(mockTx, nil)
+	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(mockTx, nil)
 
 	mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(signedRoot1, nil)
 	mockTx.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
@@ -1200,7 +1201,7 @@ func TestGetSequencedLeafCount(t *testing.T) {
 
 	fakeStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTreeTX(ctrl)
-	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), logID1, optsLogRead).Return(mockTx, nil)
+	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(mockTx, nil)
 
 	mockTx.EXPECT().GetSequencedLeafCount(gomock.Any()).Return(int64(268), nil)
 	mockTx.EXPECT().Commit().Return(nil)
@@ -1329,7 +1330,7 @@ func TestGetConsistencyProof(t *testing.T) {
 		fakeStorage := storage.NewMockLogStorage(ctrl)
 		mockTx := storage.NewMockLogTreeTX(ctrl)
 		if !test.noSnap {
-			fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), test.req.LogId, optsLogRead).Return(mockTx, test.snapErr)
+			fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(mockTx, test.snapErr)
 		}
 		if !test.noRoot {
 			mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(signedRoot1, test.rootErr)
@@ -1820,13 +1821,13 @@ func (p *parameterizedTest) executeInvalidLogIDTest(t *testing.T, snapshot bool)
 
 	adminStorage := storage.NewMockAdminStorage(p.ctrl)
 	adminTX := storage.NewMockReadOnlyAdminTX(p.ctrl)
-	adminStorage.EXPECT().Snapshot(gomock.Any(), gomock.Any()).MaxTimes(1).Return(adminTX, nil)
+	adminStorage.EXPECT().Snapshot(gomock.Any()).MaxTimes(1).Return(adminTX, nil)
 	adminTX.EXPECT().GetTree(gomock.Any(), gomock.Any()).MaxTimes(1).Return(nil, badLogErr)
 	adminTX.EXPECT().Close().MaxTimes(1).Return(nil)
 
 	fakeStorage := storage.NewMockLogStorage(p.ctrl)
-	if ctx, logID := gomock.Any(), int64(2); snapshot {
-		fakeStorage.EXPECT().SnapshotForTree(ctx, logID, optsLogRead).MaxTimes(1).Return(nil, badLogErr)
+	if ctx := gomock.Any(); snapshot {
+		fakeStorage.EXPECT().SnapshotForTree(ctx, tree1).MaxTimes(1).Return(nil, badLogErr)
 	}
 
 	registry := extension.Registry{
@@ -1874,9 +1875,9 @@ func (p *parameterizedTest) executeBeginFailsTest(t *testing.T, logID int64) {
 
 	switch p.mode {
 	case readOnly:
-		logStorage.EXPECT().SnapshotForTree(gomock.Any(), logID, optsLogRead).Return(logTX, errors.New("TX"))
+		logStorage.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(logTX, errors.New("TX"))
 	case readWrite:
-		logStorage.EXPECT().ReadWriteTransaction(gomock.Any(), logID, gomock.Any(), optsLogWrite).Return(errors.New("TX"))
+		logStorage.EXPECT().ReadWriteTransaction(gomock.Any(), logID, gomock.Any()).Return(errors.New("TX"))
 	}
 
 	registry := extension.Registry{
@@ -1906,7 +1907,7 @@ func fakeAdminStorage(ctrl *gomock.Controller, params storageParams) storage.Adm
 	adminStorage := storage.NewMockAdminStorage(ctrl)
 	adminTX := storage.NewMockReadOnlyAdminTX(ctrl)
 
-	adminStorage.EXPECT().Snapshot(gomock.Any(), gomock.Any()).MaxTimes(params.numSnapshots).Return(adminTX, nil)
+	adminStorage.EXPECT().Snapshot(gomock.Any()).MaxTimes(params.numSnapshots).Return(adminTX, nil)
 	adminTX.EXPECT().GetTree(gomock.Any(), params.treeID).MaxTimes(params.numSnapshots).Return(&tree, nil)
 	adminTX.EXPECT().Close().MaxTimes(params.numSnapshots).Return(nil)
 	adminTX.EXPECT().Commit().MaxTimes(params.numSnapshots).Return(nil)

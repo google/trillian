@@ -62,12 +62,12 @@ type AdminStorage interface {
 	// Snapshot starts a read-only transaction.
 	// A transaction must be explicitly committed before the data read by it
 	// is considered consistent.
-	Snapshot(ctx context.Context, opts GetOpts) (ReadOnlyAdminTX, error)
+	Snapshot(ctx context.Context) (ReadOnlyAdminTX, error)
 
 	// ReadWriteTransaction creates a transaction, and runs f with it.
 	// Some storage implementations may retry aborted transactions, so
 	// f MUST be idempotent.
-	ReadWriteTransaction(ctx context.Context, f AdminTXFunc, opts GetOpts) error
+	ReadWriteTransaction(ctx context.Context, f AdminTXFunc) error
 
 	// CheckDatabaseAccessible checks whether we are able to connect to / open the
 	// underlying storage.
@@ -98,7 +98,7 @@ type AdminWriter interface {
 	// the storage layer, thus may be ignored by the implementation.
 	// Remaining fields must be set to valid values.
 	// Returns an error if the tree is invalid or creation fails.
-	CreateTree(ctx context.Context, tree *trillian.Tree) (*trillian.Tree, error)
+	CreateTree(ctx context.Context, treeID int64) (*trillian.Tree, error)
 
 	// UpdateTree updates the specified tree in storage, returning a tree
 	// with all storage-generated fields set.
@@ -128,8 +128,8 @@ type AdminWriter interface {
 }
 
 // RunInAdminSnapshot runs fn against a ReadOnlyAdminTX and commits if no error is returned.
-func RunInAdminSnapshot(ctx context.Context, admin AdminStorage, fn func(tx ReadOnlyAdminTX) error, opts GetOpts) error {
-	tx, err := admin.Snapshot(ctx, opts)
+func RunInAdminSnapshot(ctx context.Context, admin AdminStorage, fn func(tx ReadOnlyAdminTX) error) error {
+	tx, err := admin.Snapshot(ctx)
 	if err != nil {
 		return err
 	}
