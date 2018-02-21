@@ -15,7 +15,6 @@
 package server
 
 import (
-	"database/sql"
 	"net"
 	"net/http"
 	"time"
@@ -60,7 +59,7 @@ type Main struct {
 	// TLS Certificate and Key files for the server.
 	TLSCertFile, TLSKeyFile string
 
-	DB       *sql.DB
+	DBClose  func() error
 	Registry extension.Registry
 
 	StatsPrefix string
@@ -90,7 +89,7 @@ func (m *Main) Run(ctx context.Context) error {
 	}
 	defer srv.GracefulStop()
 
-	defer m.DB.Close()
+	defer m.DBClose()
 
 	if err := m.RegisterServerFn(srv, m.Registry); err != nil {
 		return err
