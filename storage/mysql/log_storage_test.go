@@ -60,9 +60,6 @@ var someExtraData = []byte("Some extra data")
 const leavesToInsert = 5
 const sequenceNumber int64 = 237
 
-var optsRead = storage.NewGetOpts(storage.Query, true, trillian.TreeType_LOG)
-var optsWrite = storage.NewGetOpts(storage.Queue, false, trillian.TreeType_LOG)
-
 // Tests that access the db should each use a distinct log ID to prevent lock contention when
 // run in parallel or race conditions / unexpected interactions. Tests that pass should hold
 // no locks afterwards.
@@ -177,7 +174,7 @@ func TestSnapshot(t *testing.T) {
 	s := NewLogStorage(DB, nil)
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			tree := &trillian.Tree{TreeId: test.logID, TreeType: trillian.TreeType_LOG}
+			tree := logTree(test.logID)
 			tx, err := s.SnapshotForTree(ctx, tree)
 
 			if hasErr := err != nil; hasErr != test.wantErr {
@@ -241,7 +238,7 @@ func TestReadWriteTransaction(t *testing.T) {
 	s := NewLogStorage(DB, nil)
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			tree := &trillian.Tree{TreeId: test.logID, TreeType: trillian.TreeType_LOG}
+			tree := logTree(test.logID)
 			err := s.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
 				root, err := tx.LatestSignedLogRoot(ctx)
 				if err != nil {
@@ -264,7 +261,7 @@ func TestReadWriteTransaction(t *testing.T) {
 func TestQueueDuplicateLeaf(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
-	tree := &trillian.Tree{TreeId: logID, TreeType: trillian.TreeType_LOG}
+	tree := logTree(logID)
 	s := NewLogStorage(DB, nil)
 	count := 15
 	leaves := createTestLeaves(int64(count), 10)
@@ -333,7 +330,7 @@ func TestQueueLeaves(t *testing.T) {
 	logID := createLogForTests(DB)
 	s := NewLogStorage(DB, nil)
 
-	tree := &trillian.Tree{TreeId: logID, TreeType: trillian.TreeType_LOG}
+	tree := logTree(logID)
 	runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
 		leaves := createTestLeaves(leavesToInsert, 20)
 		if _, err := tx.QueueLeaves(ctx, leaves, fakeQueueTime); err != nil {
@@ -365,7 +362,7 @@ func TestDequeueLeavesNoneQueued(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
 	s := NewLogStorage(DB, nil)
-	tree := &trillian.Tree{TreeId: logID, TreeType: trillian.TreeType_LOG}
+	tree := logTree(logID)
 
 	runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
 		leaves, err := tx.DequeueLeaves(ctx, 999, fakeDequeueCutoffTime)
@@ -383,7 +380,7 @@ func TestDequeueLeaves(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
 	s := NewLogStorage(DB, nil)
-	tree := &trillian.Tree{TreeId: logID, TreeType: trillian.TreeType_LOG}
+	tree := logTree(logID)
 
 	{
 		runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
@@ -429,7 +426,7 @@ func TestDequeueLeavesHaveQueueTimestamp(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
 	s := NewLogStorage(DB, nil)
-	tree := &trillian.Tree{TreeId: logID, TreeType: trillian.TreeType_LOG}
+	tree := logTree(logID)
 
 	{
 		runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
@@ -461,7 +458,7 @@ func TestDequeueLeavesTwoBatches(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
 	s := NewLogStorage(DB, nil)
-	tree := &trillian.Tree{TreeId: logID, TreeType: trillian.TreeType_LOG}
+	tree := logTree(logID)
 
 	leavesToDequeue1 := 3
 	leavesToDequeue2 := 2
@@ -534,7 +531,7 @@ func TestDequeueLeavesGuardInterval(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
 	s := NewLogStorage(DB, nil)
-	tree := &trillian.Tree{TreeId: logID, TreeType: trillian.TreeType_LOG}
+	tree := logTree(logID)
 
 	{
 		runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
@@ -578,7 +575,7 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
 	s := NewLogStorage(DB, nil)
-	tree := &trillian.Tree{TreeId: logID, TreeType: trillian.TreeType_LOG}
+	tree := logTree(logID)
 
 	batchSize := 2
 	leaves := createTestLeaves(int64(batchSize), 0)
@@ -641,7 +638,7 @@ func TestGetLeavesByHashNotPresent(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
 	s := NewLogStorage(DB, nil)
-	tree := &trillian.Tree{TreeId: logID, TreeType: trillian.TreeType_LOG}
+	tree := logTree(logID)
 
 	runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
 		hashes := [][]byte{[]byte("thisdoesn'texist")}
@@ -660,7 +657,7 @@ func TestGetLeavesByIndexNotPresent(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
 	s := NewLogStorage(DB, nil)
-	tree := &trillian.Tree{TreeId: logID, TreeType: trillian.TreeType_LOG}
+	tree := logTree(logID)
 
 	runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
 		if _, err := tx.GetLeavesByIndex(ctx, []int64{99999}); err == nil {
@@ -677,7 +674,7 @@ func TestGetLeavesByHash(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
 	s := NewLogStorage(DB, nil)
-	tree := &trillian.Tree{TreeId: logID, TreeType: trillian.TreeType_LOG}
+	tree := logTree(logID)
 
 	data := []byte("some data")
 	createFakeLeaf(ctx, DB, logID, dummyRawHash, dummyHash, data, someExtraData, sequenceNumber, t)
@@ -703,7 +700,7 @@ func TestGetLeafDataByIdentityHash(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
 	s := NewLogStorage(DB, nil)
-	tree := &trillian.Tree{TreeId: logID, TreeType: trillian.TreeType_LOG}
+	tree := logTree(logID)
 	data := []byte("some data")
 	leaf := createFakeLeaf(ctx, DB, logID, dummyRawHash, dummyHash, data, someExtraData, sequenceNumber, t)
 	leaf.LeafIndex = -1
@@ -776,7 +773,7 @@ func TestGetLeavesByIndex(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
 	s := NewLogStorage(DB, nil)
-	tree := &trillian.Tree{TreeId: logID, TreeType: trillian.TreeType_LOG}
+	tree := logTree(logID)
 
 	data := []byte("some data")
 	createFakeLeaf(ctx, DB, logID, dummyRawHash, dummyHash, data, someExtraData, sequenceNumber, t)
@@ -814,7 +811,7 @@ func TestGetLeavesByRange(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
 	s := NewLogStorage(DB, nil)
-	tree := &trillian.Tree{TreeId: logID, TreeType: trillian.TreeType_LOG}
+	tree := logTree(logID)
 
 	// Create leaves [0]..[13] but drop leaf [5]
 	for i := int64(0); i < 14; i++ {
@@ -871,7 +868,7 @@ func TestLatestSignedLogRoot(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
 	s := NewLogStorage(DB, nil)
-	tree := &trillian.Tree{TreeId: logID, TreeType: trillian.TreeType_LOG}
+	tree := logTree(logID)
 
 	root := trillian.SignedLogRoot{
 		LogId:          logID,
@@ -907,7 +904,7 @@ func TestDuplicateSignedLogRoot(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
 	s := NewLogStorage(DB, nil)
-	tree := &trillian.Tree{TreeId: logID, TreeType: trillian.TreeType_LOG}
+	tree := logTree(logID)
 
 	runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
 		root := trillian.SignedLogRoot{
@@ -934,7 +931,7 @@ func TestLogRootUpdate(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
 	s := NewLogStorage(DB, nil)
-	tree := &trillian.Tree{TreeId: logID, TreeType: trillian.TreeType_LOG}
+	tree := logTree(logID)
 
 	root := trillian.SignedLogRoot{
 		LogId:          logID,
@@ -1077,7 +1074,7 @@ func TestGetUnsequencedCounts(t *testing.T) {
 	for i := int64(1); i < 10; i++ {
 		// Put some leaves in the queue of each of the logs
 		for j, logID := range logIDs {
-			tree := &trillian.Tree{TreeId: logID, TreeType: trillian.TreeType_LOG}
+			tree := logTree(logID)
 			numToAdd := i + int64(j)
 			runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
 				leaves := createTestLeaves(numToAdd, expectedCount[logID])
@@ -1152,7 +1149,7 @@ func TestGetSequencedLeafCount(t *testing.T) {
 	}
 
 	// Read back the leaf counts from both trees
-	tree1 := &trillian.Tree{TreeId: logID1, TreeType: trillian.TreeType_LOG}
+	tree1 := logTree(logID1)
 	runLogTX(s, tree1, t, func(ctx context.Context, tx storage.LogTreeTX) error {
 		count1, err := tx.GetSequencedLeafCount(ctx)
 		if err != nil {
@@ -1164,7 +1161,7 @@ func TestGetSequencedLeafCount(t *testing.T) {
 		return nil
 	})
 
-	tree2 := &trillian.Tree{TreeId: logID2, TreeType: trillian.TreeType_LOG}
+	tree2 := logTree(logID2)
 	runLogTX(s, tree2, t, func(ctx context.Context, tx storage.LogTreeTX) error {
 		count2, err := tx.GetSequencedLeafCount(ctx)
 		if err != nil {
@@ -1287,4 +1284,12 @@ func (l byLeafIdentityHash) Len() int      { return len(l) }
 func (l byLeafIdentityHash) Swap(i, j int) { l[i], l[j] = l[j], l[i] }
 func (l byLeafIdentityHash) Less(i, j int) bool {
 	return bytes.Compare(l[i].LeafIdentityHash, l[j].LeafIdentityHash) == -1
+}
+
+func logTree(logID int64) *trillian.Tree {
+	return &trillian.Tree{
+		TreeId:       logID,
+		TreeType:     trillian.TreeType_LOG,
+		HashStrategy: trillian.HashStrategy_RFC6962_SHA256,
+	}
 }

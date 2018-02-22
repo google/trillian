@@ -40,7 +40,11 @@ func TestNodeRoundTrip(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
 	s := NewLogStorage(DB, nil)
-	tree := &trillian.Tree{TreeId: logID, TreeType: trillian.TreeType_LOG}
+	tree := &trillian.Tree{
+		TreeId:       logID,
+		TreeType:     trillian.TreeType_LOG,
+		HashStrategy: trillian.HashStrategy_RFC6962_SHA256,
+	}
 
 	const writeRevision = int64(100)
 	nodesToStore := createSomeNodes()
@@ -84,7 +88,11 @@ func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
 	s := NewLogStorage(DB, nil)
-	tree := &trillian.Tree{TreeId: logID, TreeType: trillian.TreeType_MAP}
+	tree := &trillian.Tree{
+		TreeId:       logID,
+		TreeType:     trillian.TreeType_LOG,
+		HashStrategy: trillian.HashStrategy_RFC6962_SHA256,
+	}
 
 	const writeRevision = int64(100)
 	nodesToStore, err := createLogNodesForTreeAtSize(871, writeRevision)
