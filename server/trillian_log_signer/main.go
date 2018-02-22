@@ -22,7 +22,6 @@ import (
 	"os"
 	"time"
 
-	"cloud.google.com/go/spanner"
 	"github.com/golang/glog"
 	"github.com/google/trillian/cmd"
 	"github.com/google/trillian/extension"
@@ -113,7 +112,6 @@ func main() {
 		glog.Exitf("Error creating quota manager: %v", err)
 	}
 
-	mf := prometheus.MetricFactory{}
 	registry := extension.Registry{
 		AdminStorage:    sp.AdminStorage(),
 		LogStorage:      sp.LogStorage(),
