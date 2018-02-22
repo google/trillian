@@ -30,7 +30,8 @@ const QuotaEtcd = "etcd"
 
 var (
 	// EtcdServers is a flag containing the address(es) of etcd servers
-	EtcdServers       = flag.String("etcd_servers", "", "A comma-separated list of etcd servers; no etcd registration if empty")
+	EtcdServers = flag.String("etcd_servers", "", "A comma-separated list of etcd servers; no etcd registration if empty")
+	// TODO(Martin2112): suggested renaming these to etc_... to avoid clashes, but will it break existing deploys?
 	quotaMinBatchSize = flag.Int("quota_min_batch_size", cacheqm.DefaultMinBatchSize, "Minimum number of tokens to request from the quota system. "+
 		"Zero or lower means batching is disabled. Applicable for etcd quotas.")
 	quotaMaxCacheEntries = flag.Int("quota_max_cache_entries", cacheqm.DefaultMaxCacheEntries, "Max number of quota specs in the quota cache. "+
