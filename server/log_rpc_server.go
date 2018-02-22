@@ -72,7 +72,7 @@ func (t *TrillianLogRPCServer) IsHealthy() error {
 
 // QueueLeaf submits one leaf to the queue.
 func (t *TrillianLogRPCServer) QueueLeaf(ctx context.Context, req *trillian.QueueLeafRequest) (*trillian.QueueLeafResponse, error) {
-	if err := validateQueueLeafRequest(req); err != nil {
+	if err := validateLogLeaf(req.Leaf, "QueueLeafRequest.Leaf"); err != nil {
 		return nil, err
 	}
 
@@ -109,7 +109,7 @@ func hashLeaves(leaves []*trillian.LogLeaf, hasher hashers.LogHasher) error {
 
 // QueueLeaves submits a batch of leaves to the log for later integration into the underlying tree.
 func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.QueueLeavesRequest) (*trillian.QueueLeavesResponse, error) {
-	if err := validateQueueLeavesRequest(req); err != nil {
+	if err := validateLogLeaves(req.Leaves, "QueueLeavesRequest"); err != nil {
 		return nil, err
 	}
 	logID := req.LogId
@@ -143,7 +143,7 @@ func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.Qu
 
 // AddSequencedLeaf submits one sequenced leaf to the storage.
 func (t *TrillianLogRPCServer) AddSequencedLeaf(ctx context.Context, req *trillian.AddSequencedLeafRequest) (*trillian.AddSequencedLeafResponse, error) {
-	if err := validateAddSequencedLeafRequest(req); err != nil {
+	if err := validateLogLeaf(req.Leaf, "AddSequencedLeafRequest.Leaf"); err != nil {
 		return nil, err
 	}
 
@@ -554,10 +554,14 @@ func (t *TrillianLogRPCServer) getTreeAndHasher(
 	return tree, hasher, nil
 }
 
-// InitLog initialises a freshly created Log by creating the first STH with size 0.
+// InitLog initialises a freshly created Log by creating the first STH with
+// size 0.
+//
+// TODO(pavelkalinnikov): Make this work for PREORDERED_LOG as well, after
+// ReadWriteTransaction accepts GetOpts.
 func (t *TrillianLogRPCServer) InitLog(ctx context.Context, req *trillian.InitLogRequest) (*trillian.InitLogResponse, error) {
 	logID := req.LogId
-	tree, hasher, err := t.getTreeAndHasher(ctx, logID, optsLogRead)
+	tree, hasher, err := t.getTreeAndHasher(ctx, logID, optsLogWrite)
 	if err != nil {
 		return nil, status.Errorf(codes.FailedPrecondition, "getTreeAndHasher(): %v", err)
 	}

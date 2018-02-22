@@ -105,18 +105,6 @@ func validateGetEntryAndProofRequest(req *trillian.GetEntryAndProofRequest) erro
 	return nil
 }
 
-func validateQueueLeafRequest(req *trillian.QueueLeafRequest) error {
-	return validateLogLeaf(req.Leaf, "QueueLeafRequest.Leaf")
-}
-
-func validateAddSequencedLeafRequest(req *trillian.AddSequencedLeafRequest) error {
-	return validateLogLeaf(req.Leaf, "AddSequencedLeafRequest.Leaf")
-}
-
-func validateQueueLeavesRequest(req *trillian.QueueLeavesRequest) error {
-	return validateLogLeaves(req.Leaves, "QueueLeavesRequest")
-}
-
 func validateAddSequencedLeavesRequest(req *trillian.AddSequencedLeavesRequest) error {
 	prefix := "AddSequencedLeavesRequest"
 	if err := validateLogLeaves(req.Leaves, prefix); err != nil {
@@ -127,7 +115,7 @@ func validateAddSequencedLeavesRequest(req *trillian.AddSequencedLeavesRequest) 
 	nextIndex := req.Leaves[0].LeafIndex
 	for i, leaf := range req.Leaves {
 		if leaf.LeafIndex != nextIndex {
-			return status.Errorf(codes.OutOfRange, "%v.Leaves[%v].LeafIndex=%v, want %v", prefix, i, leaf.LeafIndex, nextIndex)
+			return status.Errorf(codes.FailedPrecondition, "%v.Leaves[%v].LeafIndex=%v, want %v", prefix, i, leaf.LeafIndex, nextIndex)
 		}
 		nextIndex++
 	}
