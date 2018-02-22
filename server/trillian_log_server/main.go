@@ -28,12 +28,9 @@ import (
 	"github.com/google/trillian/crypto/keyspb"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/monitoring/prometheus"
-	"github.com/google/trillian/quota/cacheqm"
 	"github.com/google/trillian/quota/etcd/quotaapi"
 	"github.com/google/trillian/quota/etcd/quotapb"
-	"github.com/google/trillian/quota/mysqlqm"
 	"github.com/google/trillian/server"
-	"github.com/google/trillian/storage/mysql"
 	"github.com/google/trillian/util"
 	"github.com/google/trillian/util/etcd"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
@@ -43,8 +40,6 @@ import (
 
 	// Register pprof HTTP handlers
 	_ "net/http/pprof"
-	// Load MySQL driver
-	_ "github.com/go-sql-driver/mysql"
 	// Register key ProtoHandlers
 	_ "github.com/google/trillian/crypto/keys/der/proto"
 	_ "github.com/google/trillian/crypto/keys/pem/proto"
@@ -55,23 +50,14 @@ import (
 )
 
 var (
-	mySQLURI        = flag.String("mysql_uri", "test:zaphod@tcp(127.0.0.1:3306)/test", "Connection URI for MySQL database")
 	rpcEndpoint     = flag.String("rpc_endpoint", "localhost:8090", "Endpoint for RPC requests (host:port)")
 	httpEndpoint    = flag.String("http_endpoint", "localhost:8091", "Endpoint for HTTP metrics and REST requests on (host:port, empty means disabled)")
 	tlsCertFile     = flag.String("tls_cert_file", "", "Path to the TLS server certificate. If unset, the server will use unsecured connections.")
 	tlsKeyFile      = flag.String("tls_key_file", "", "Path to the TLS server key. If unset, the server will use unsecured connections.")
-	etcdServers     = flag.String("etcd_servers", "", "A comma-separated list of etcd servers; no etcd registration if empty")
 	etcdService     = flag.String("etcd_service", "trillian-logserver", "Service name to announce ourselves under")
 	etcdHTTPService = flag.String("etcd_http_service", "trillian-logserver-http", "Service name to announce our HTTP endpoint under")
 
-	quotaDryRun       = flag.Bool("quota_dry_run", false, "If true no requests are blocked due to lack of tokens")
-	quotaSystem       = flag.String("quota_system", "mysql", "Quota system to use. One of: \"noop\", \"mysql\" or \"etcd\"")
-	quotaMinBatchSize = flag.Int("quota_min_batch_size", cacheqm.DefaultMinBatchSize, "Minimum number of tokens to request from the quota system. "+
-		"Zero or lower means disabled. Applicable for etcd quotas.")
-	quotaMaxCacheEntries = flag.Int("quota_max_cache_entries", cacheqm.DefaultMaxCacheEntries, "Max number of quota specs in the quota cache. "+
-		"Zero or lower means disabled. Applicable for etcd quotas.")
-	maxUnsequencedRows = flag.Int("max_unsequenced_rows", mysqlqm.DefaultMaxUnsequenced, "Max number of unsequenced rows before rate limiting kicks in. "+
-		"Only effective for quota_system=mysql.")
+	quotaDryRun = flag.Bool("quota_dry_run", false, "If true no requests are blocked due to lack of tokens")
 
 	treeGCEnabled            = flag.Bool("tree_gc", true, "If true, tree garbage collection (hard-deletion) is periodically performed")
 	treeDeleteThreshold      = flag.Duration("tree_delete_threshold", server.DefaultTreeDeleteThreshold, "Minimum period a tree has to remain deleted before being hard-deleted")
@@ -91,16 +77,16 @@ func main() {
 
 	ctx := context.Background()
 
-	// First make sure we can access the database, quit if not
-	db, err := mysql.OpenDB(*mySQLURI)
-	if err != nil {
-		glog.Exitf("Failed to open database: %v", err)
-	}
-	// No defer: database ownership is delegated to server.Main
+	mf := prometheus.MetricFactory{}
 
-	client, err := etcd.NewClient(*etcdServers)
+	sp, err := server.NewStorageProviderFromFlags(mf)
 	if err != nil {
-		glog.Exitf("Failed to connect to etcd at %v: %v", etcdServers, err)
+		glog.Exitf("Failed to get storage provider: %v", err)
+	}
+
+	client, err := etcd.NewClient(*server.EtcdServers)
+	if err != nil {
+		glog.Exitf("Failed to connect to etcd at %v: %v", server.EtcdServers, err)
 	}
 
 	// Announce our endpoints to etcd if so configured.
@@ -111,23 +97,14 @@ func main() {
 		defer unannounceHTTP()
 	}
 
-	qm, err := server.NewQuotaManager(&server.QuotaParams{
-		QuotaSystem:        *quotaSystem,
-		DB:                 db,
-		MaxUnsequencedRows: *maxUnsequencedRows,
-		Client:             client,
-		MinBatchSize:       *quotaMinBatchSize,
-		MaxCacheEntries:    *quotaMaxCacheEntries,
-	})
+	qm, err := server.NewQuotaManagerFromFlags()
 	if err != nil {
 		glog.Exitf("Error creating quota manager: %v", err)
 	}
 
-	mf := prometheus.MetricFactory{}
-
 	registry := extension.Registry{
-		AdminStorage:  mysql.NewAdminStorage(db),
-		LogStorage:    mysql.NewLogStorage(db, mf),
+		AdminStorage:  sp.AdminStorage(),
+		LogStorage:    sp.LogStorage(),
 		QuotaManager:  qm,
 		MetricFactory: mf,
 		NewKeyProto: func(ctx context.Context, spec *keyspb.Specification) (proto.Message, error) {
@@ -142,13 +119,13 @@ func main() {
 		TLSKeyFile:   *tlsKeyFile,
 		StatsPrefix:  "log",
 		QuotaDryRun:  *quotaDryRun,
-		DBClose:      db.Close,
+		DBClose:      sp.Close,
 		Registry:     registry,
 		RegisterHandlerFn: func(ctx netcontext.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) error {
 			if err := trillian.RegisterTrillianLogHandlerFromEndpoint(ctx, mux, endpoint, opts); err != nil {
 				return err
 			}
-			if *quotaSystem == server.QuotaEtcd {
+			if *server.QuotaSystem == server.QuotaEtcd {
 				return quotapb.RegisterQuotaHandlerFromEndpoint(ctx, mux, endpoint, opts)
 			}
 			return nil
@@ -160,7 +137,7 @@ func main() {
 				return err
 			}
 			trillian.RegisterTrillianLogServer(s, logServer)
-			if *quotaSystem == server.QuotaEtcd {
+			if *server.QuotaSystem == server.QuotaEtcd {
 				quotapb.RegisterQuotaServer(s, quotaapi.NewServer(client))
 			}
 			return nil
