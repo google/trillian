@@ -98,7 +98,7 @@ func (s *mysqlAdminStorage) ReadWriteTransaction(ctx context.Context, f storage.
 }
 
 func (s *mysqlAdminStorage) CheckDatabaseAccessible(ctx context.Context) error {
-	return s.db.Ping()
+	return s.db.PingContext(ctx)
 }
 
 type adminTX struct {

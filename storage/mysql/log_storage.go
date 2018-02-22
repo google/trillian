@@ -146,7 +146,7 @@ func NewLogStorage(db *sql.DB, mf monitoring.MetricFactory) storage.LogStorage {
 }
 
 func (m *mySQLLogStorage) CheckDatabaseAccessible(ctx context.Context) error {
-	return m.db.Ping()
+	return m.db.PingContext(ctx)
 }
 
 func (m *mySQLLogStorage) getLeavesByIndexStmt(ctx context.Context, num int) (*sql.Stmt, error) {

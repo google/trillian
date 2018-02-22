@@ -74,7 +74,7 @@ func NewMapStorage(db *sql.DB) storage.MapStorage {
 }
 
 func (m *mySQLMapStorage) CheckDatabaseAccessible(ctx context.Context) error {
-	return m.db.Ping()
+	return m.db.PingContext(ctx)
 }
 
 type readOnlyMapTX struct {
