@@ -131,7 +131,7 @@ func (t *readOnlyLogTX) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
 	return ret, nil
 }
 
-func (m *memoryLogStorage) beginInternal(ctx context.Context, tree trillian.Tree, readonly bool) (storage.LogTreeTX, error) {
+func (m *memoryLogStorage) beginInternal(ctx context.Context, tree *trillian.Tree, readonly bool) (storage.LogTreeTX, error) {
 	once.Do(func() {
 		createMetrics(m.metricFactory)
 	})
@@ -165,7 +165,7 @@ func (m *memoryLogStorage) beginInternal(ctx context.Context, tree trillian.Tree
 	return ltx, nil
 }
 
-func (m *memoryLogStorage) ReadWriteTransaction(ctx context.Context, tree trillian.Tree, f storage.LogTXFunc) error {
+func (m *memoryLogStorage) ReadWriteTransaction(ctx context.Context, tree *trillian.Tree, f storage.LogTXFunc) error {
 	tx, err := m.beginInternal(ctx, tree, false /* readonly */)
 	if err != nil && err != storage.ErrTreeNeedsInit {
 		return err
@@ -189,7 +189,7 @@ func (m *memoryLogStorage) SnapshotForTree(ctx context.Context, tree trillian.Tr
 	return tx.(storage.ReadOnlyLogTreeTX), err
 }
 
-func (m *memoryLogStorage) QueueLeaves(ctx context.Context, tree trillian.Tree, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
+func (m *memoryLogStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
 	tx, err := m.beginInternal(ctx, tree, false /* readonly */)
 	if err != nil {
 		return nil, err

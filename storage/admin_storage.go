@@ -98,7 +98,7 @@ type AdminWriter interface {
 	// the storage layer, thus may be ignored by the implementation.
 	// Remaining fields must be set to valid values.
 	// Returns an error if the tree is invalid or creation fails.
-	CreateTree(ctx context.Context, treeID int64) (*trillian.Tree, error)
+	CreateTree(ctx context.Context, tree *trillian.Tree) (*trillian.Tree, error)
 
 	// UpdateTree updates the specified tree in storage, returning a tree
 	// with all storage-generated fields set.

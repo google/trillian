@@ -47,10 +47,10 @@ func ListTrees(ctx context.Context, admin AdminStorage, includeDeleted bool) ([]
 // CreateTree creates a tree in storage.
 // It's a convenience wrapper around ReadWriteTransaction and AdminWriter's CreateTree.
 // See ReadWriteTransaction if you need to perform more than one action per transaction.
-func CreateTree(ctx context.Context, admin AdminStorage, treeID int64) (*trillian.Tree, error) {
+func CreateTree(ctx context.Context, admin AdminStorage, tree *trillian.Tree) (*trillian.Tree, error) {
 	var createdTree *trillian.Tree
 	err := admin.ReadWriteTransaction(ctx, func(ctx context.Context, tx AdminTX) (err error) {
-		createdTree, err = tx.CreateTree(ctx, treeID)
+		createdTree, err = tx.CreateTree(ctx, tree)
 		return
 	})
 	return createdTree, err
