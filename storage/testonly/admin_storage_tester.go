@@ -232,7 +232,7 @@ func (tester *AdminStorageTester) TestCreateTree(t *testing.T) {
 	for _, test := range tests {
 		func() {
 			// Test CreateTree up to the tx commit
-			newTree, err := storage.CreateTree(ctx, s, test.tree.TreeId)
+			newTree, err := storage.CreateTree(ctx, s, test.tree)
 			if hasErr := err != nil; hasErr != test.wantErr {
 				t.Errorf("%v: CreateTree() = (_, %v), wantErr = %v", test.desc, err, test.wantErr)
 				return
@@ -389,7 +389,7 @@ func (tester *AdminStorageTester) TestUpdateTree(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		createdTree, err := storage.CreateTree(ctx, s, test.create.TreeId)
+		createdTree, err := storage.CreateTree(ctx, s, test.create)
 		if err != nil {
 			t.Errorf("CreateTree() = (_, %v), want = (_, nil)", err)
 			continue
@@ -700,7 +700,7 @@ func (tester *AdminStorageTester) TestAdminTXReadWriteTransaction(t *testing.T) 
 		t.Run(fmt.Sprintf("%+v", test), func(t *testing.T) {
 			err := s.ReadWriteTransaction(ctx, func(ctx context.Context, tx storage.AdminTX) error {
 				var err error
-				tree, err = tx.CreateTree(ctx, LogTree.TreeId)
+				tree, err = tx.CreateTree(ctx, LogTree)
 				if err != nil {
 					t.Fatalf("%v: CreateTree() = (_, %v), want = (_, nil)", i, err)
 				}
@@ -765,7 +765,7 @@ func makeTree(ctx context.Context, s storage.AdminStorage, spec spec) (*trillian
 	tree := proto.Clone(spec.Tree).(*trillian.Tree)
 
 	var err error
-	tree, err = storage.CreateTree(ctx, s, tree.TreeId)
+	tree, err = storage.CreateTree(ctx, s, tree)
 	if err != nil {
 		return nil, err
 	}

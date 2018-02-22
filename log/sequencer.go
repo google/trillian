@@ -120,7 +120,6 @@ func NewSequencer(
 	hasher hashers.LogHasher,
 	timeSource util.TimeSource,
 	logStorage storage.LogStorage,
-	adminStorage storage.AdminStorage,
 	signer *crypto.Signer,
 	mf monitoring.MetricFactory,
 	qm quota.Manager) *Sequencer {
@@ -289,18 +288,13 @@ func (s logSequencingTask) update(ctx context.Context, leaves []*trillian.LogLea
 
 // IntegrateBatch wraps up all the operations needed to take a batch of queued
 // leaves and integrate them into the tree.
-func (s Sequencer) IntegrateBatch(ctx context.Context, logID int64, limit int, guardWindow, maxRootDurationInterval time.Duration) (int, error) {
+func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limit int, guardWindow, maxRootDurationInterval time.Duration) (int, error) {
 	start := s.timeSource.Now()
-	label := strconv.FormatInt(logID, 10)
-
-	tree, err := trees.GetTree(ctx, s.adminStorage, logID, seqOpts)
-	if err != nil {
-		return 0, err
-	}
+	label := strconv.FormatInt(tree.TreeId, 10)
 
 	numLeaves := 0
 	var newLogRoot *trillian.SignedLogRoot
-	err = s.logStorage.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
+	err := s.logStorage.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
 		stageStart := s.timeSource.Now()
 		defer seqBatches.Inc(label)
 		defer func() { seqLatency.Observe(util.SecondsSince(s.timeSource, start), label) }()
@@ -308,13 +302,13 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, logID int64, limit int, g
 		// Get the latest known root from storage
 		currentRoot, err := tx.LatestSignedLogRoot(ctx)
 		if err != nil {
-			glog.Warningf("%v: Sequencer failed to get latest root: %v", logID, err)
+			glog.Warningf("%v: Sequencer failed to get latest root: %v", tree.TreeId, err)
 			return err
 		}
 		seqGetRootLatency.Observe(util.SecondsSince(s.timeSource, stageStart), label)
 
 		if currentRoot.RootHash == nil {
-			glog.Warningf("%v: Fresh log - no previous TreeHeads exist.", logID)
+			glog.Warningf("%v: Fresh log - no previous TreeHeads exist.", tree.TreeId)
 			return storage.ErrTreeNeedsInit
 		}
 
@@ -326,7 +320,7 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, logID int64, limit int, g
 		}
 		sequencedLeaves, err := st.fetch(ctx, limit, start.Add(-guardWindow))
 		if err != nil {
-			glog.Warningf("%v: Sequencer failed to load sequenced batch: %v", logID, err)
+			glog.Warningf("%v: Sequencer failed to load sequenced batch: %v", tree.TreeId, err)
 			return err
 		}
 		numLeaves = len(sequencedLeaves)
@@ -338,10 +332,10 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, logID int64, limit int, g
 			interval := time.Duration(nowNanos - currentRoot.TimestampNanos)
 			if maxRootDurationInterval == 0 || interval < maxRootDurationInterval {
 				// We have nothing to integrate into the tree.
-				glog.V(1).Infof("%v: No leaves sequenced in this signing operation", logID)
+				glog.V(1).Infof("%v: No leaves sequenced in this signing operation", tree.TreeId)
 				return nil
 			}
-			glog.Infof("%v: Force new root generation as %v since last root", logID, interval)
+			glog.Infof("%v: Force new root generation as %v since last root", tree.TreeId, interval)
 		}
 
 		stageStart = s.timeSource.Now()
@@ -358,7 +352,7 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, logID int64, limit int, g
 		// commit.
 		newVersion := tx.WriteRevision()
 		if got, want := newVersion, currentRoot.TreeRevision+int64(1); got != want {
-			return fmt.Errorf("%v: got writeRevision of %v, but expected %v", logID, got, want)
+			return fmt.Errorf("%v: got writeRevision of %v, but expected %v", tree.TreeId, got, want)
 		}
 
 		// Collate node updates.
@@ -380,14 +374,14 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, logID int64, limit int, g
 		targetNodes, err := s.buildNodesFromNodeMap(nodeMap, newVersion)
 		if err != nil {
 			// Probably an internal error with map building, unexpected.
-			glog.Warningf("%v: Failed to build target nodes in sequencer: %v", logID, err)
+			glog.Warningf("%v: Failed to build target nodes in sequencer: %v", tree.TreeId, err)
 			return err
 		}
 
 		// Now insert or update the nodes affected by the above, at the new tree
 		// version.
 		if err := tx.SetMerkleNodes(ctx, targetNodes); err != nil {
-			glog.Warningf("%v: Sequencer failed to set Merkle nodes: %v", logID, err)
+			glog.Warningf("%v: Sequencer failed to set Merkle nodes: %v", tree.TreeId, err)
 			return err
 		}
 		seqSetNodesLatency.Observe(util.SecondsSince(s.timeSource, stageStart), label)
@@ -404,13 +398,13 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, logID int64, limit int, g
 		}
 		sig, err := s.signer.SignLogRoot(newLogRoot)
 		if err != nil {
-			glog.Warningf("%v: signer failed to sign root: %v", logID, err)
+			glog.Warningf("%v: signer failed to sign root: %v", tree.TreeId, err)
 			return err
 		}
 		newLogRoot.Signature = sig
 
 		if err := tx.StoreSignedLogRoot(ctx, *newLogRoot); err != nil {
-			glog.Warningf("%v: failed to write updated tree root: %v", logID, err)
+			glog.Warningf("%v: failed to write updated tree root: %v", tree.TreeId, err)
 			return err
 		}
 		seqStoreRootLatency.Observe(util.SecondsSince(s.timeSource, stageStart), label)
@@ -431,22 +425,24 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, logID int64, limit int, g
 	if numLeaves > 0 {
 		tokens := int(float64(numLeaves) * quotaIncreaseFactor())
 		specs := []quota.Spec{
-			{Group: quota.Tree, Kind: quota.Read, TreeID: logID},
-			{Group: quota.Tree, Kind: quota.Write, TreeID: logID},
+			{Group: quota.Tree, Kind: quota.Read, TreeID: tree.TreeId},
+			{Group: quota.Tree, Kind: quota.Write, TreeID: tree.TreeId},
 			{Group: quota.Global, Kind: quota.Read},
 			{Group: quota.Global, Kind: quota.Write},
 		}
-		glog.V(2).Infof("%v: Replenishing %v tokens (numLeaves = %v)", logID, tokens, numLeaves)
+		glog.V(2).Infof("%v: Replenishing %v tokens (numLeaves = %v)", tree.TreeId, tokens, numLeaves)
 		err := s.qm.PutTokens(ctx, tokens, specs)
 		if err != nil {
-			glog.Warningf("%v: Failed to replenish %v tokens: %v", logID, tokens, err)
+			glog.Warningf("%v: Failed to replenish %v tokens: %v", tree.TreeId, tokens, err)
 		}
 		quota.Metrics.IncReplenished(tokens, specs, err == nil)
 	}
 
 	seqCounter.Add(float64(numLeaves), label)
 	if newLogRoot != nil {
-		glog.Infof("%v: sequenced %v leaves, size %v, tree-revision %v", logID, numLeaves, newLogRoot.TreeSize, newLogRoot.TreeRevision)
+		glog.Infof("%v: sequenced %v leaves, size %v, tree-revision %v", tree.TreeId, numLeaves, newLogRoot.TreeSize, newLogRoot.TreeRevision)
+	} else {
+		glog.Errorf("newLogRoot = nil")
 	}
 	return numLeaves, nil
 }

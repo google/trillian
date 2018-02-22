@@ -77,14 +77,14 @@ func (s *SequencerManager) ExecutePass(ctx context.Context, logID int64, info *L
 		return 0, fmt.Errorf("error getting signer for log %v: %v", logID, err)
 	}
 
-	sequencer := log.NewSequencer(hasher, info.TimeSource, s.registry.LogStorage, s.registry.AdminStorage, signer, s.registry.MetricFactory, s.registry.QuotaManager)
+	sequencer := log.NewSequencer(hasher, info.TimeSource, s.registry.LogStorage, signer, s.registry.MetricFactory, s.registry.QuotaManager)
 
 	maxRootDuration, err := ptypes.Duration(tree.MaxRootDuration)
 	if err != nil {
 		glog.Warning("failed to parse tree.MaxRootDuration, using zero")
 		maxRootDuration = 0
 	}
-	leaves, err := sequencer.IntegrateBatch(ctx, logID, info.BatchSize, s.guardWindow, maxRootDuration)
+	leaves, err := sequencer.IntegrateBatch(ctx, tree, info.BatchSize, s.guardWindow, maxRootDuration)
 	if err != nil {
 		return 0, fmt.Errorf("failed to integrate batch for %v: %v", logID, err)
 	}

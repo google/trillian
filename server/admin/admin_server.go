@@ -162,7 +162,7 @@ func (s *Server) CreateTree(ctx context.Context, req *trillian.CreateTreeRequest
 	tree.Deleted = false
 	tree.DeleteTime = nil
 
-	createdTree, err := storage.CreateTree(ctx, s.registry.AdminStorage, tree.TreeId)
+	createdTree, err := storage.CreateTree(ctx, s.registry.AdminStorage, tree)
 	if err != nil {
 		return nil, err
 	}
