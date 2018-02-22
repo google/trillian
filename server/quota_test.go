@@ -67,7 +67,7 @@ func TestQuotaProviderRegistration(t *testing.T) {
 func TestQuotaSystems(t *testing.T) {
 	RegisterQuotaManager("a", func() (quota.Manager, error) { return nil, nil })
 	RegisterQuotaManager("b", func() (quota.Manager, error) { return nil, nil })
-	qs := QuotaSystems()
+	qs := quotaSystems()
 
 	if got, want := len(qs), 2; got < want {
 		t.Fatalf("Got %d names, want at least %d", got, want)

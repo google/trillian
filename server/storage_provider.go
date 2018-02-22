@@ -15,6 +15,7 @@
 package server
 
 import (
+	"flag"
 	"fmt"
 	"sync"
 
@@ -27,6 +28,8 @@ import (
 type NewStorageProviderFunc func(monitoring.MetricFactory) (StorageProvider, error)
 
 var (
+	storageSystem = flag.String("storage_system", "mysql", fmt.Sprintf("Storage system to use. One of: %v", storageProviders()))
+
 	spMu     sync.RWMutex
 	spOnce   sync.Once
 	spByName map[string]NewStorageProviderFunc
@@ -49,6 +52,12 @@ func RegisterStorageProvider(name string, sp NewStorageProviderFunc) error {
 	return nil
 }
 
+// NewStorageProviderFromFlags returns a new StorageProvider instance of the type
+// specified by flag.
+func NewStorageProviderFromFlags(mf monitoring.MetricFactory) (StorageProvider, error) {
+	return NewStorageProvider(*storageSystem, mf)
+}
+
 // NewStorageProvider returns a new StorageProvider instance of the type
 // specified by name.
 func NewStorageProvider(name string, mf monitoring.MetricFactory) (StorageProvider, error) {
@@ -63,8 +72,8 @@ func NewStorageProvider(name string, mf monitoring.MetricFactory) (StorageProvid
 	return sp(mf)
 }
 
-// StorageProviders returns a slice of all registered storage provider names.
-func StorageProviders() []string {
+// storageProviders returns a slice of all registered storage provider names.
+func storageProviders() []string {
 	spMu.RLock()
 	defer spMu.RUnlock()
 

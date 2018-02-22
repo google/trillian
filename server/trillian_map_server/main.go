@@ -52,9 +52,7 @@ var (
 	tlsCertFile  = flag.String("tls_cert_file", "", "Path to the TLS server certificate. If unset, the server will use unsecured connections.")
 	tlsKeyFile   = flag.String("tls_key_file", "", "Path to the TLS server key. If unset, the server will use unsecured connections.")
 
-	quotaDryRun   = flag.Bool("quota_dry_run", false, "If true no requests are blocked due to lack of tokens")
-	quotaSystem   = flag.String("quota_system", "mysql", "Quota system to use. One of: \"noop\", \"mysql\" or \"etcd\"")
-	storageSystem = flag.String("storage_system", "mysql", "Storage system to use. Once of 'mysql', 'memory'")
+	quotaDryRun = flag.Bool("quota_dry_run", false, "If true no requests are blocked due to lack of tokens")
 
 	treeGCEnabled            = flag.Bool("tree_gc", true, "If true, tree garbage collection (hard-deletion) is periodically performed")
 	treeDeleteThreshold      = flag.Duration("tree_delete_threshold", server.DefaultTreeDeleteThreshold, "Minimum period a tree has to remain deleted before being hard-deleted")
@@ -74,7 +72,7 @@ func main() {
 
 	mf := prometheus.MetricFactory{}
 
-	sp, err := server.NewStorageProvider(*storageSystem, mf)
+	sp, err := server.NewStorageProviderFromFlags(mf)
 	if err != nil {
 		glog.Exitf("Failed to get storage provider: %v", err)
 	}
@@ -84,7 +82,7 @@ func main() {
 		glog.Exitf("Failed to connect to etcd at %v: %v", server.EtcdServers, err)
 	}
 
-	qm, err := server.NewQuotaManager(*quotaSystem)
+	qm, err := server.NewQuotaManagerFromFlags()
 	if err != nil {
 		glog.Exitf("Error creating quota manager: %v", err)
 	}
@@ -112,7 +110,7 @@ func main() {
 			if err := trillian.RegisterTrillianMapHandlerFromEndpoint(ctx, mux, endpoint, opts); err != nil {
 				return err
 			}
-			if *quotaSystem == server.QuotaEtcd {
+			if *server.QuotaSystem == server.QuotaEtcd {
 				return quotapb.RegisterQuotaHandlerFromEndpoint(ctx, mux, endpoint, opts)
 			}
 			return nil
@@ -123,7 +121,7 @@ func main() {
 				return err
 			}
 			trillian.RegisterTrillianMapServer(s, mapServer)
-			if *quotaSystem == server.QuotaEtcd {
+			if *server.QuotaSystem == server.QuotaEtcd {
 				quotapb.RegisterQuotaServer(s, quotaapi.NewServer(client))
 			}
 			return nil

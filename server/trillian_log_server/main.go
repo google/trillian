@@ -19,7 +19,6 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
@@ -58,9 +57,7 @@ var (
 	etcdService     = flag.String("etcd_service", "trillian-logserver", "Service name to announce ourselves under")
 	etcdHTTPService = flag.String("etcd_http_service", "trillian-logserver-http", "Service name to announce our HTTP endpoint under")
 
-	quotaDryRun   = flag.Bool("quota_dry_run", false, "If true no requests are blocked due to lack of tokens")
-	quotaSystem   = flag.String("quota_system", "mysql", fmt.Sprintf("Quota system to use. One of: %v", server.QuotaSystems()))
-	storageSystem = flag.String("storage_system", "mysql", fmt.Sprintf("Storage system to use. One of: %v", server.StorageProviders()))
+	quotaDryRun = flag.Bool("quota_dry_run", false, "If true no requests are blocked due to lack of tokens")
 
 	treeGCEnabled            = flag.Bool("tree_gc", true, "If true, tree garbage collection (hard-deletion) is periodically performed")
 	treeDeleteThreshold      = flag.Duration("tree_delete_threshold", server.DefaultTreeDeleteThreshold, "Minimum period a tree has to remain deleted before being hard-deleted")
@@ -82,7 +79,7 @@ func main() {
 
 	mf := prometheus.MetricFactory{}
 
-	sp, err := server.NewStorageProvider(*storageSystem, mf)
+	sp, err := server.NewStorageProviderFromFlags(mf)
 	if err != nil {
 		glog.Exitf("Failed to get storage provider: %v", err)
 	}
@@ -100,7 +97,7 @@ func main() {
 		defer unannounceHTTP()
 	}
 
-	qm, err := server.NewQuotaManager(*quotaSystem)
+	qm, err := server.NewQuotaManagerFromFlags()
 	if err != nil {
 		glog.Exitf("Error creating quota manager: %v", err)
 	}
@@ -128,7 +125,7 @@ func main() {
 			if err := trillian.RegisterTrillianLogHandlerFromEndpoint(ctx, mux, endpoint, opts); err != nil {
 				return err
 			}
-			if *quotaSystem == server.QuotaEtcd {
+			if *server.QuotaSystem == server.QuotaEtcd {
 				return quotapb.RegisterQuotaHandlerFromEndpoint(ctx, mux, endpoint, opts)
 			}
 			return nil
@@ -140,7 +137,7 @@ func main() {
 				return err
 			}
 			trillian.RegisterTrillianLogServer(s, logServer)
-			if *quotaSystem == server.QuotaEtcd {
+			if *server.QuotaSystem == server.QuotaEtcd {
 				quotapb.RegisterQuotaServer(s, quotaapi.NewServer(client))
 			}
 			return nil

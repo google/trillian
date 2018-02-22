@@ -15,6 +15,7 @@
 package server
 
 import (
+	"flag"
 	"fmt"
 	"sync"
 
@@ -31,6 +32,9 @@ const (
 type NewQuotaManagerFunc func() (quota.Manager, error)
 
 var (
+	// QuotaSystem is a flag specifying which quota system is in use.
+	QuotaSystem = flag.String("quota_system", "mysql", fmt.Sprintf("Quota system to use. One of: %v", quotaSystems()))
+
 	qpMu     sync.RWMutex
 	qpOnce   sync.Once
 	qpByName map[string]NewQuotaManagerFunc
@@ -61,8 +65,8 @@ func RegisterQuotaManager(name string, qp NewQuotaManagerFunc) error {
 	return nil
 }
 
-// QuotaSystems returns a slice of registered quota system names.
-func QuotaSystems() []string {
+// quotaSystems returns a slice of registered quota system names.
+func quotaSystems() []string {
 	qpMu.RLock()
 	defer qpMu.RUnlock()
 
@@ -72,6 +76,11 @@ func QuotaSystems() []string {
 	}
 
 	return r
+}
+
+// NewQuotaManagerFromFlags returns a quota.Manager implementation as speficied by flag.
+func NewQuotaManagerFromFlags() (quota.Manager, error) {
+	return NewQuotaManager(*QuotaSystem)
 }
 
 // NewQuotaManager returns a quota.Manager implementation.

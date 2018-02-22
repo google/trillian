@@ -78,7 +78,7 @@ func TestStorageProviders(t *testing.T) {
 	RegisterStorageProvider("b", func(_ monitoring.MetricFactory) (StorageProvider, error) {
 		return &provider{}, nil
 	})
-	sp := StorageProviders()
+	sp := storageProviders()
 
 	if got, want := len(sp), 2; got < want {
 		t.Fatalf("Got %d names, want at least %d", got, want)
