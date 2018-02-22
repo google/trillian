@@ -22,7 +22,6 @@ import (
 
 	_ "github.com/go-sql-driver/mysql" // Load MySQL driver
 	"github.com/google/trillian"
-	"github.com/google/trillian/storage"
 
 	log "github.com/golang/glog"
 	"github.com/google/trillian/storage/mysql"
@@ -34,8 +33,6 @@ var (
 	fetchLeavesFlag    = flag.Int("fetch_leaves", 1, "Number of entries to fetch")
 	startFetchFromFlag = flag.Int("start_fetch_at", 0, "The sequence number of the first leaf to fetch")
 	leafHashHex        = flag.String("leaf_hash", "", "The hash of a leaf to fetch")
-
-	fetchOpts = storage.NewGetOpts(storage.Query, true, trillian.TreeType_LOG)
 )
 
 func validateFetchFlagsOrDie() {
@@ -60,8 +57,9 @@ func main() {
 	defer db.Close()
 
 	storage := mysql.NewLogStorage(db, nil)
+	tree := &trillian.Tree{TreeId: *treeIDFlag, TreeType: trillian.TreeType_LOG}
 	ctx := context.Background()
-	tx, err := storage.SnapshotForTree(ctx, *treeIDFlag, fetchOpts)
+	tx, err := storage.SnapshotForTree(ctx, tree)
 	if err != nil {
 		panic(err)
 	}
