@@ -259,7 +259,7 @@ func (t *TrillianMapServer) makeSignedMapRoot(ctx context.Context, tree *trillia
 
 // GetSignedMapRoot implements the GetSignedMapRoot RPC method.
 func (t *TrillianMapServer) GetSignedMapRoot(ctx context.Context, req *trillian.GetSignedMapRootRequest) (*trillian.GetSignedMapRootResponse, error) {
-	tree, ctx, err := t.getTreeAndContext(ctx, req.MapId, optsMapWrite)
+	tree, ctx, err := t.getTreeAndContext(ctx, req.MapId, optsMapRead)
 	if err != nil {
 		return nil, err
 	}
