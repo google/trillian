@@ -102,9 +102,9 @@ func TestServer_BeginError(t *testing.T) {
 	for _, test := range tests {
 		as := storage.NewMockAdminStorage(ctrl)
 		if test.snapshot {
-			as.EXPECT().Snapshot(ctx, gomock.Any()).Return(nil, errors.New("snapshot error"))
+			as.EXPECT().Snapshot(ctx).Return(nil, errors.New("snapshot error"))
 		} else {
-			as.EXPECT().ReadWriteTransaction(gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("begin error"))
+			as.EXPECT().ReadWriteTransaction(gomock.Any(), gomock.Any()).Return(errors.New("begin error"))
 		}
 
 		registry := extension.Registry{

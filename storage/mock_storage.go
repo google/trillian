@@ -120,7 +120,7 @@ func (mr *MockAdminTXMockRecorder) Commit() *gomock.Call {
 }
 
 // CreateTree mocks base method
-func (m *MockAdminTX) CreateTree(arg0 context.Context, arg1 int64) (*trillian.Tree, error) {
+func (m *MockAdminTX) CreateTree(arg0 context.Context, arg1 *trillian.Tree) (*trillian.Tree, error) {
 	ret := m.ctrl.Call(m, "CreateTree", arg0, arg1)
 	ret0, _ := ret[0].(*trillian.Tree)
 	ret1, _ := ret[1].(error)

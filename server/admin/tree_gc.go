@@ -40,9 +40,6 @@ var (
 
 	hardDeleteCounter monitoring.Counter
 	metricsOnce       sync.Once
-
-	optsRead  = storage.NewGetOpts(storage.Admin, true)
-	optsWrite = storage.NewGetOpts(storage.Admin, false)
 )
 
 func incHardDeleteCounter(treeID int64, success bool, reason string) {
