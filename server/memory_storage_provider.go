@@ -15,6 +15,7 @@
 package server
 
 import (
+	"github.com/golang/glog"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/memory"
@@ -22,7 +23,7 @@ import (
 
 func init() {
 	if err := RegisterStorageProvider("memory", newMemoryStorageProvider); err != nil {
-		panic(err)
+		glog.Fatalf("Failed to register storage provider memory: %v", err)
 	}
 }
 

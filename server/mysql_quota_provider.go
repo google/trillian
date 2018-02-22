@@ -32,7 +32,7 @@ var (
 
 func init() {
 	if err := RegisterQuotaManager(QuotaMySQL, newMySQLQuotaManager); err != nil {
-		panic(err)
+		glog.Fatalf("Failed to register quota manager %v: %v", QuotaMySQL, err)
 	}
 }
 

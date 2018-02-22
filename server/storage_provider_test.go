@@ -84,20 +84,20 @@ func TestStorageProviders(t *testing.T) {
 		t.Fatalf("Got %d names, want at least %d", got, want)
 	}
 
-	a := false
-	b := false
+	a := 0
+	b := 0
 	for _, n := range sp {
 		if n == "a" {
-			a = true
+			a++
 		}
 		if n == "b" {
-			b = true
+			b++
 		}
 	}
-	if !a {
-		t.Error("StorageProviders() didn't include 'a'")
+	if a != 1 {
+		t.Errorf("StorageProviders() gave %d 'a', want 1", a)
 	}
-	if !b {
-		t.Error("StorageProviders() didn't include 'b'")
+	if b != 1 {
+		t.Errorf("StorageProviders() gave %d 'b', want 1", b)
 	}
 }

@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/golang/glog"
 	"github.com/google/trillian/quota"
 )
 
@@ -36,7 +37,6 @@ var (
 	QuotaSystem = flag.String("quota_system", "mysql", fmt.Sprintf("Quota system to use. One of: %v", quotaSystems()))
 
 	qpMu     sync.RWMutex
-	qpOnce   sync.Once
 	qpByName map[string]NewQuotaManagerFunc
 )
 
@@ -44,7 +44,7 @@ func init() {
 	if err := RegisterQuotaManager(QuotaNoop, func() (quota.Manager, error) {
 		return quota.Noop(), nil
 	}); err != nil {
-		panic(err)
+		glog.Fatalf("Failed to register %v: %v", QuotaNoop, err)
 	}
 }
 
@@ -53,9 +53,9 @@ func RegisterQuotaManager(name string, qp NewQuotaManagerFunc) error {
 	qpMu.Lock()
 	defer qpMu.Unlock()
 
-	qpOnce.Do(func() {
+	if qpByName == nil {
 		qpByName = make(map[string]NewQuotaManagerFunc)
-	})
+	}
 
 	_, exists := qpByName[name]
 	if exists {

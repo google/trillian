@@ -19,6 +19,7 @@ import (
 	"flag"
 	"sync"
 
+	"github.com/golang/glog"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/mysql"
@@ -36,7 +37,7 @@ var (
 
 func init() {
 	if err := RegisterStorageProvider("mysql", newMySQLStorageProvider); err != nil {
-		panic(err)
+		glog.Fatalf("Failed to register storage provider mysql: %v", err)
 	}
 }
 
