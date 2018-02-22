@@ -36,12 +36,11 @@ import (
 	storageto "github.com/google/trillian/storage/testonly"
 )
 
-var adminOpts = storage.NewGetOpts(storage.Admin, false, trillian.TreeType_LOG, trillian.TreeType_MAP)
-
 func TestNodeRoundTrip(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
 	s := NewLogStorage(DB, nil)
+	tree := &trillian.Tree{TreeId: logID, TreeType: trillian.TreeType_LOG}
 
 	const writeRevision = int64(100)
 	nodesToStore := createSomeNodes()
@@ -51,7 +50,7 @@ func TestNodeRoundTrip(t *testing.T) {
 	}
 
 	{
-		runLogTX(s, logID, t, func(ctx context.Context, tx storage.LogTreeTX) error {
+		runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
 			forceWriteRevision(writeRevision, tx)
 
 			// Need to read nodes before attempting to write
@@ -66,7 +65,7 @@ func TestNodeRoundTrip(t *testing.T) {
 	}
 
 	{
-		runLogTX(s, logID, t, func(ctx context.Context, tx storage.LogTreeTX) error {
+		runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
 			readNodes, err := tx.GetMerkleNodes(ctx, 100, nodeIDsToRead)
 			if err != nil {
 				t.Fatalf("Failed to retrieve nodes: %s", err)
@@ -85,6 +84,7 @@ func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
 	s := NewLogStorage(DB, nil)
+	tree := &trillian.Tree{TreeId: logID, TreeType: trillian.TreeType_MAP}
 
 	const writeRevision = int64(100)
 	nodesToStore, err := createLogNodesForTreeAtSize(871, writeRevision)
@@ -97,7 +97,7 @@ func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 	}
 
 	{
-		runLogTX(s, logID, t, func(ctx context.Context, tx storage.LogTreeTX) error {
+		runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
 			forceWriteRevision(writeRevision, tx)
 
 			// Need to read nodes before attempting to write
@@ -112,7 +112,7 @@ func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 	}
 
 	{
-		runLogTX(s, logID, t, func(ctx context.Context, tx storage.LogTreeTX) error {
+		runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
 			readNodes, err := tx.GetMerkleNodes(ctx, 100, nodeIDsToRead)
 			if err != nil {
 				t.Fatalf("Failed to retrieve nodes: %s", err)
@@ -250,12 +250,12 @@ func createLogForTests(db *sql.DB) int64 {
 
 	ctx := context.Background()
 	l := NewLogStorage(db, nil)
-	err = l.ReadWriteTransaction(ctx, tree.TreeId, func(ctx context.Context, tx storage.LogTreeTX) error {
+	err = l.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
 		if err := tx.StoreSignedLogRoot(ctx, trillian.SignedLogRoot{LogId: tree.TreeId, RootHash: []byte{0}, Signature: &sigpb.DigitallySigned{}}); err != nil {
 			panic(fmt.Sprintf("Error storing new SignedLogRoot: %v", err))
 		}
 		return nil
-	}, adminOpts)
+	})
 	if err != nil {
 		panic(fmt.Sprintf("ReadWriteTransaction() = %v", err))
 	}
@@ -266,7 +266,7 @@ func createLogForTests(db *sql.DB) int64 {
 func createTree(db *sql.DB, tree *trillian.Tree) (*trillian.Tree, error) {
 	ctx := context.Background()
 	s := NewAdminStorage(db)
-	tree, err := storage.CreateTree(ctx, s, tree, adminOpts)
+	tree, err := storage.CreateTree(ctx, s, tree)
 	if err != nil {
 		return nil, err
 	}
@@ -277,7 +277,7 @@ func createTree(db *sql.DB, tree *trillian.Tree) (*trillian.Tree, error) {
 func updateTree(db *sql.DB, treeID int64, updateFn func(*trillian.Tree)) (*trillian.Tree, error) {
 	ctx := context.Background()
 	s := NewAdminStorage(db)
-	return storage.UpdateTree(ctx, s, treeID, updateFn, adminOpts)
+	return storage.UpdateTree(ctx, s, treeID, updateFn)
 }
 
 // DB is the database used for tests. It's initialized and closed by TestMain().

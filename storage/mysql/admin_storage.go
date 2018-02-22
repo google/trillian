@@ -73,20 +73,20 @@ type mysqlAdminStorage struct {
 	db *sql.DB
 }
 
-func (s *mysqlAdminStorage) Snapshot(ctx context.Context, opts storage.GetOpts) (storage.ReadOnlyAdminTX, error) {
-	return s.beginInternal(ctx, opts)
+func (s *mysqlAdminStorage) Snapshot(ctx context.Context) (storage.ReadOnlyAdminTX, error) {
+	return s.beginInternal(ctx)
 }
 
-func (s *mysqlAdminStorage) beginInternal(ctx context.Context, opts storage.GetOpts) (storage.AdminTX, error) {
+func (s *mysqlAdminStorage) beginInternal(ctx context.Context) (storage.AdminTX, error) {
 	tx, err := s.db.BeginTx(ctx, nil /* opts */)
 	if err != nil {
 		return nil, err
 	}
-	return &adminTX{tx: tx, opts: opts}, nil
+	return &adminTX{tx: tx}, nil
 }
 
-func (s *mysqlAdminStorage) ReadWriteTransaction(ctx context.Context, f storage.AdminTXFunc, opts storage.GetOpts) error {
-	tx, err := s.beginInternal(ctx, opts)
+func (s *mysqlAdminStorage) ReadWriteTransaction(ctx context.Context, f storage.AdminTXFunc) error {
+	tx, err := s.beginInternal(ctx)
 	if err != nil {
 		return err
 	}
@@ -111,7 +111,6 @@ type adminTX struct {
 	// queries after closed).
 	mu     sync.RWMutex
 	closed bool
-	opts   storage.GetOpts
 }
 
 func (t *adminTX) Commit() error {

@@ -92,7 +92,8 @@ func TestMapSnapshot(t *testing.T) {
 	s := NewMapStorage(DB)
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			tx, err := s.SnapshotForTree(ctx, test.mapID, readMapOpts)
+			tree := &trillian.Tree{TreeId: test.mapID, TreeType: trillian.TreeType_MAP}
+			tx, err := s.SnapshotForTree(ctx, tree)
 
 			if hasErr := err != nil; hasErr != test.wantErr {
 				t.Fatalf("%v: err = %q, wantErr = %v", test.desc, err, test.wantErr)
@@ -157,7 +158,8 @@ func TestMapReadWriteTransaction(t *testing.T) {
 	s := NewMapStorage(DB)
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			err := s.ReadWriteTransaction(ctx, test.mapID, func(ctx context.Context, tx storage.MapTreeTX) error {
+			tree := &trillian.Tree{TreeId: test.mapID, TreeType: trillian.TreeType_MAP}
+			err := s.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.MapTreeTX) error {
 				root, err := tx.LatestSignedMapRoot(ctx)
 				if err != nil {
 					t.Errorf("%v: LatestSignedMapRoot() returned err = %v", test.desc, err)
@@ -166,7 +168,7 @@ func TestMapReadWriteTransaction(t *testing.T) {
 					t.Errorf("%v: WriteRevision() = %v, want = %v", test.desc, got, want)
 				}
 				return nil
-			}, writeMapOpts)
+			})
 			if hasErr := err != nil; hasErr != test.wantErr {
 				t.Fatalf("%v: err = %q, wantErr = %v", test.desc, err, test.wantErr)
 			} else if hasErr {
@@ -185,6 +187,7 @@ func TestMapRootUpdate(t *testing.T) {
 	ctx := context.Background()
 	mapID := createInitializedMapForTests(ctx, t, DB)
 	s := NewMapStorage(DB)
+	tree := &trillian.Tree{TreeId: mapID, TreeType: trillian.TreeType_MAP}
 
 	populatedMetadata := testonly.MustMarshalAny(t, &ctmapperpb.MapperMetadata{HighestFullyCompletedSeq: 1})
 
@@ -238,7 +241,7 @@ func TestMapRootUpdate(t *testing.T) {
 		},
 	} {
 		func() {
-			runMapTX(ctx, s, mapID, t, func(ctx context.Context, tx storage.MapTreeTX) error {
+			runMapTX(ctx, s, tree, t, func(ctx context.Context, tx storage.MapTreeTX) error {
 				if err := tx.StoreSignedMapRoot(ctx, tc.root); err != nil {
 					t.Fatalf("%v: Failed to store signed map root: %v", tc.desc, err)
 				}
@@ -247,7 +250,7 @@ func TestMapRootUpdate(t *testing.T) {
 		}()
 
 		func() {
-			runMapTX(ctx, s, mapID, t, func(ctx context.Context, tx storage.MapTreeTX) error {
+			runMapTX(ctx, s, tree, t, func(ctx context.Context, tx storage.MapTreeTX) error {
 				root, err := tx.LatestSignedMapRoot(ctx)
 				if err != nil {
 					t.Fatalf("%v: Failed to read back new map root: %v", tc.desc, err)
@@ -281,10 +284,11 @@ func TestMapSetGetRoundTrip(t *testing.T) {
 	ctx := context.Background()
 	mapID := createInitializedMapForTests(ctx, t, DB)
 	s := NewMapStorage(DB)
+	tree := &trillian.Tree{TreeId: mapID, TreeType: trillian.TreeType_MAP}
 
 	readRev := int64(1)
 	{
-		runMapTX(ctx, s, mapID, t, func(ctx context.Context, tx storage.MapTreeTX) error {
+		runMapTX(ctx, s, tree, t, func(ctx context.Context, tx storage.MapTreeTX) error {
 			if err := tx.Set(ctx, keyHash, mapLeaf); err != nil {
 				t.Fatalf("Failed to set %v to %v: %v", keyHash, mapLeaf, err)
 			}
@@ -293,7 +297,7 @@ func TestMapSetGetRoundTrip(t *testing.T) {
 	}
 
 	{
-		runMapTX(ctx, s, mapID, t, func(ctx context.Context, tx storage.MapTreeTX) error {
+		runMapTX(ctx, s, tree, t, func(ctx context.Context, tx storage.MapTreeTX) error {
 			readValues, err := tx.Get(ctx, readRev, [][]byte{keyHash})
 			if err != nil {
 				t.Fatalf("Failed to get %v:  %v", keyHash, err)
@@ -318,9 +322,10 @@ func TestMapSetSameKeyInSameRevisionFails(t *testing.T) {
 	ctx := context.Background()
 	mapID := createInitializedMapForTests(ctx, t, DB)
 	s := NewMapStorage(DB)
+	tree := &trillian.Tree{TreeId: mapID, TreeType: trillian.TreeType_MAP}
 
 	{
-		runMapTX(ctx, s, mapID, t, func(ctx context.Context, tx storage.MapTreeTX) error {
+		runMapTX(ctx, s, tree, t, func(ctx context.Context, tx storage.MapTreeTX) error {
 			if err := tx.Set(ctx, keyHash, mapLeaf); err != nil {
 				t.Fatalf("Failed to set %v to %v: %v", keyHash, mapLeaf, err)
 			}
@@ -329,7 +334,7 @@ func TestMapSetSameKeyInSameRevisionFails(t *testing.T) {
 	}
 
 	{
-		runMapTX(ctx, s, mapID, t, func(ctx context.Context, tx storage.MapTreeTX) error {
+		runMapTX(ctx, s, tree, t, func(ctx context.Context, tx storage.MapTreeTX) error {
 			if err := tx.Set(ctx, keyHash, mapLeaf); err == nil {
 				t.Fatalf("Unexpectedly succeeded in setting %v to %v", keyHash, mapLeaf)
 			}
@@ -347,6 +352,7 @@ func TestMapGet0Results(t *testing.T) {
 	ctx := context.Background()
 	mapID := createInitializedMapForTests(ctx, t, DB)
 	s := NewMapStorage(DB)
+	tree := &trillian.Tree{TreeId: mapID, TreeType: trillian.TreeType_MAP}
 
 	for _, tc := range []struct {
 		index [][]byte
@@ -355,7 +361,7 @@ func TestMapGet0Results(t *testing.T) {
 		{index: [][]byte{[]byte("This doesn't exist.")}},
 	} {
 		t.Run(fmt.Sprintf("tx.Get(%s)", tc.index), func(t *testing.T) {
-			runMapTX(ctx, s, mapID, t, func(ctx context.Context, tx storage.MapTreeTX) error {
+			runMapTX(ctx, s, tree, t, func(ctx context.Context, tx storage.MapTreeTX) error {
 				readValues, err := tx.Get(ctx, 1, tc.index)
 				if err != nil {
 					t.Fatal(err)
@@ -379,6 +385,7 @@ func TestMapSetGetMultipleRevisions(t *testing.T) {
 	ctx := context.Background()
 	mapID := createInitializedMapForTests(ctx, t, DB)
 	s := NewMapStorage(DB)
+	tree := &trillian.Tree{TreeId: mapID, TreeType: trillian.TreeType_MAP}
 
 	tests := []struct {
 		rev  int64
@@ -393,7 +400,7 @@ func TestMapSetGetMultipleRevisions(t *testing.T) {
 	for _, tc := range tests {
 		func() {
 			// Write the current test case.
-			runMapTX(ctx, s, mapID, t, func(ctx context.Context, tx storage.MapTreeTX) error {
+			runMapTX(ctx, s, tree, t, func(ctx context.Context, tx storage.MapTreeTX) error {
 				mapTX := tx.(*mapTreeTX)
 				mapTX.treeTX.writeRevision = tc.rev
 				if err := tx.Set(ctx, keyHash, tc.leaf); err != nil {
@@ -411,7 +418,7 @@ func TestMapSetGetMultipleRevisions(t *testing.T) {
 						expectRev = tc.rev // For future revisions, expect the current value.
 					}
 
-					runMapTX(ctx, s, mapID, t, func(ctx context.Context, tx2 storage.MapTreeTX) error {
+					runMapTX(ctx, s, tree, t, func(ctx context.Context, tx2 storage.MapTreeTX) error {
 						readValues, err := tx2.Get(ctx, i, [][]byte{keyHash})
 						if err != nil {
 							t.Fatalf("At i %d failed to get %v:  %v", i, keyHash, err)
@@ -440,13 +447,14 @@ func TestGetSignedMapRootNotExist(t *testing.T) {
 	s := NewMapStorage(DB)
 
 	ctx := context.Background()
-	err := s.ReadWriteTransaction(ctx, mapID, func(ctx context.Context, tx storage.MapTreeTX) error {
+	tree := &trillian.Tree{TreeId: mapID, TreeType: trillian.TreeType_MAP}
+	err := s.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.MapTreeTX) error {
 		_, err := tx.GetSignedMapRoot(ctx, 0)
 		if got, want := err, storage.ErrTreeNeedsInit; got != want {
 			t.Fatalf("GetSignedMapRoot: %v, want %v", got, want)
 		}
 		return nil
-	}, readMapOpts)
+	})
 	if err != nil {
 		t.Fatalf("ReadWriteTransaction: %v", err)
 	}
@@ -463,8 +471,9 @@ func TestLatestSignedMapRootNoneWritten(t *testing.T) {
 	ctx := context.Background()
 	mapID := createInitializedMapForTests(ctx, t, DB)
 	s := NewMapStorage(DB)
+	tree := &trillian.Tree{TreeId: mapID, TreeType: trillian.TreeType_MAP}
 
-	runMapTX(ctx, s, mapID, t, func(ctx context.Context, tx storage.MapTreeTX) error {
+	runMapTX(ctx, s, tree, t, func(ctx context.Context, tx storage.MapTreeTX) error {
 		root, err := tx.LatestSignedMapRoot(ctx)
 		if err != nil {
 			t.Fatalf("Failed to read an empty map root: %v", err)
@@ -485,6 +494,7 @@ func TestGetSignedMapRoot(t *testing.T) {
 	ctx := context.Background()
 	mapID := createInitializedMapForTests(ctx, t, DB)
 	s := NewMapStorage(DB)
+	tree := &trillian.Tree{TreeId: mapID, TreeType: trillian.TreeType_MAP}
 
 	revision := int64(5)
 	root := trillian.SignedMapRoot{
@@ -494,7 +504,7 @@ func TestGetSignedMapRoot(t *testing.T) {
 		RootHash:       []byte(dummyHash),
 		Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
 	}
-	runMapTX(ctx, s, mapID, t, func(ctx context.Context, tx storage.MapTreeTX) error {
+	runMapTX(ctx, s, tree, t, func(ctx context.Context, tx storage.MapTreeTX) error {
 		if err := tx.StoreSignedMapRoot(ctx, root); err != nil {
 			t.Fatalf("Failed to store signed root: %v", err)
 		}
@@ -502,7 +512,7 @@ func TestGetSignedMapRoot(t *testing.T) {
 	})
 
 	{
-		runMapTX(ctx, s, mapID, t, func(ctx context.Context, tx2 storage.MapTreeTX) error {
+		runMapTX(ctx, s, tree, t, func(ctx context.Context, tx2 storage.MapTreeTX) error {
 			root2, err := tx2.GetSignedMapRoot(ctx, revision)
 			if err != nil {
 				t.Fatalf("Failed to get back new map root: %v", err)
@@ -524,6 +534,7 @@ func TestLatestSignedMapRoot(t *testing.T) {
 	ctx := context.Background()
 	mapID := createInitializedMapForTests(ctx, t, DB)
 	s := NewMapStorage(DB)
+	tree := &trillian.Tree{TreeId: mapID, TreeType: trillian.TreeType_MAP}
 
 	root := trillian.SignedMapRoot{
 		MapId:          mapID,
@@ -532,7 +543,7 @@ func TestLatestSignedMapRoot(t *testing.T) {
 		RootHash:       []byte(dummyHash),
 		Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
 	}
-	runMapTX(ctx, s, mapID, t, func(ctx context.Context, tx storage.MapTreeTX) error {
+	runMapTX(ctx, s, tree, t, func(ctx context.Context, tx storage.MapTreeTX) error {
 		if err := tx.StoreSignedMapRoot(ctx, root); err != nil {
 			t.Fatalf("Failed to store signed root: %v", err)
 		}
@@ -540,7 +551,7 @@ func TestLatestSignedMapRoot(t *testing.T) {
 	})
 
 	{
-		runMapTX(ctx, s, mapID, t, func(ctx context.Context, tx2 storage.MapTreeTX) error {
+		runMapTX(ctx, s, tree, t, func(ctx context.Context, tx2 storage.MapTreeTX) error {
 			root2, err := tx2.LatestSignedMapRoot(ctx)
 			if err != nil {
 				t.Fatalf("Failed to read back new map root: %v", err)
@@ -562,8 +573,9 @@ func TestDuplicateSignedMapRoot(t *testing.T) {
 	ctx := context.Background()
 	mapID := createInitializedMapForTests(ctx, t, DB)
 	s := NewMapStorage(DB)
+	tree := &trillian.Tree{TreeId: mapID, TreeType: trillian.TreeType_MAP}
 
-	runMapTX(ctx, s, mapID, t, func(ctx context.Context, tx storage.MapTreeTX) error {
+	runMapTX(ctx, s, tree, t, func(ctx context.Context, tx storage.MapTreeTX) error {
 		root := trillian.SignedMapRoot{
 			MapId:          mapID,
 			TimestampNanos: 98765,
@@ -600,8 +612,8 @@ func TestReadOnlyMapTX_Rollback(t *testing.T) {
 	}
 }
 
-func runMapTX(ctx context.Context, s storage.MapStorage, mapID int64, t *testing.T, f storage.MapTXFunc) {
-	if err := s.ReadWriteTransaction(ctx, mapID, f, writeMapOpts); err != nil {
+func runMapTX(ctx context.Context, s storage.MapStorage, tree *trillian.Tree, t *testing.T, f storage.MapTXFunc) {
+	if err := s.ReadWriteTransaction(ctx, tree, f); err != nil {
 		t.Fatalf("Failed to begin map tx: %v", err)
 	}
 }
@@ -611,7 +623,8 @@ func createInitializedMapForTests(ctx context.Context, t *testing.T, db *sql.DB)
 	mapID := createMapForTests(db)
 
 	s := NewMapStorage(db)
-	err := s.ReadWriteTransaction(ctx, mapID, func(ctx context.Context, tx storage.MapTreeTX) error {
+	tree := &trillian.Tree{TreeId: mapID, TreeType: trillian.TreeType_MAP}
+	err := s.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.MapTreeTX) error {
 		initialRoot := trillian.SignedMapRoot{
 			RootHash: []byte("rootHash"),
 			Signature: &sigpb.DigitallySigned{
@@ -625,7 +638,7 @@ func createInitializedMapForTests(ctx context.Context, t *testing.T, db *sql.DB)
 			t.Fatalf("%v: Failed to StoreSignedMapRoot: %v", mapID, err)
 		}
 		return nil
-	}, adminOpts)
+	})
 	if err != nil {
 		t.Fatalf("ReadWriteTransaction() = %v", err)
 	}

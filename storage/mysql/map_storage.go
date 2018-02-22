@@ -96,7 +96,7 @@ func (t *readOnlyMapTX) Close() error {
 	return nil
 }
 
-func (m *mySQLMapStorage) begin(ctx context.Context, tree trillian.Tree) (storage.MapTreeTX, error) {
+func (m *mySQLMapStorage) begin(ctx context.Context, tree *trillian.Tree) (storage.MapTreeTX, error) {
 	hasher, err := hashers.NewMapHasher(tree.HashStrategy)
 	if err != nil {
 		return nil, err
@@ -125,11 +125,11 @@ func (m *mySQLMapStorage) begin(ctx context.Context, tree trillian.Tree) (storag
 	return mtx, nil
 }
 
-func (m *mySQLMapStorage) SnapshotForTree(ctx context.Context, tree trillian.Tree) (storage.ReadOnlyMapTreeTX, error) {
+func (m *mySQLMapStorage) SnapshotForTree(ctx context.Context, tree *trillian.Tree) (storage.ReadOnlyMapTreeTX, error) {
 	return m.begin(ctx, tree)
 }
 
-func (m *mySQLMapStorage) ReadWriteTransaction(ctx context.Context, tree trillian.Tree, f storage.MapTXFunc) error {
+func (m *mySQLMapStorage) ReadWriteTransaction(ctx context.Context, tree *trillian.Tree, f storage.MapTXFunc) error {
 	tx, err := m.begin(ctx, tree)
 	if tx != nil {
 		defer tx.Close()
