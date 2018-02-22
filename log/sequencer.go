@@ -32,7 +32,6 @@ import (
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/storage"
-	"github.com/google/trillian/trees"
 	"github.com/google/trillian/util"
 )
 
@@ -62,8 +61,6 @@ var (
 	// configuration should be changed instead.
 	// A factor <1 WILL lead to token shortages, therefore it'll be normalized to 1.
 	QuotaIncreaseFactor = 1.1
-
-	seqOpts = storage.NewGetOpts(storage.Sequence, false, trillian.TreeType_LOG)
 )
 
 func quotaIncreaseFactor() float64 {
@@ -101,12 +98,11 @@ func createMetrics(mf monitoring.MetricFactory) {
 // There is no strong ordering guarantee but in general entries will be processed
 // in order of submission to the log.
 type Sequencer struct {
-	hasher       hashers.LogHasher
-	timeSource   util.TimeSource
-	logStorage   storage.LogStorage
-	adminStorage storage.AdminStorage
-	signer       *crypto.Signer
-	qm           quota.Manager
+	hasher     hashers.LogHasher
+	timeSource util.TimeSource
+	logStorage storage.LogStorage
+	signer     *crypto.Signer
+	qm         quota.Manager
 }
 
 // maxTreeDepth sets an upper limit on the size of Log trees.
@@ -448,16 +444,12 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 }
 
 // SignRoot wraps up all the operations for creating a new log signed root.
-func (s Sequencer) SignRoot(ctx context.Context, logID int64) error {
-	tree, err := trees.GetTree(ctx, s.adminStorage, logID, seqOpts)
-	if err != nil {
-		return err
-	}
+func (s Sequencer) SignRoot(ctx context.Context, tree *trillian.Tree) error {
 	return s.logStorage.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
 		// Get the latest known root from storage
 		currentRoot, err := tx.LatestSignedLogRoot(ctx)
 		if err != nil {
-			glog.Warningf("%v: signer failed to get latest root: %v", logID, err)
+			glog.Warningf("%v: signer failed to get latest root: %v", tree.TreeId, err)
 			return err
 		}
 
@@ -476,17 +468,17 @@ func (s Sequencer) SignRoot(ctx context.Context, logID int64) error {
 		}
 		sig, err := s.signer.SignLogRoot(newLogRoot)
 		if err != nil {
-			glog.Warningf("%v: signer failed to sign root: %v", logID, err)
+			glog.Warningf("%v: signer failed to sign root: %v", tree.TreeId, err)
 			return err
 		}
 		newLogRoot.Signature = sig
 
 		// Store the new root and we're done
 		if err := tx.StoreSignedLogRoot(ctx, *newLogRoot); err != nil {
-			glog.Warningf("%v: signer failed to write updated root: %v", logID, err)
+			glog.Warningf("%v: signer failed to write updated root: %v", tree.TreeId, err)
 			return err
 		}
-		glog.V(2).Infof("%v: new signed root, size %v, tree-revision %v", logID, newLogRoot.TreeSize, newLogRoot.TreeRevision)
+		glog.V(2).Infof("%v: new signed root, size %v, tree-revision %v", tree.TreeId, newLogRoot.TreeSize, newLogRoot.TreeRevision)
 
 		return nil
 	})

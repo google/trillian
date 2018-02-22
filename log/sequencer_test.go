@@ -520,8 +520,9 @@ func TestIntegrateBatch(t *testing.T) {
 				qm.EXPECT().PutTokens(gomock.Any(), test.wantCount, specs).Return(nil)
 			}
 			c, ctx := createTestContext(ctrl, test.params)
+			tree := &trillian.Tree{TreeId: test.params.logID, TreeType: trillian.TreeType_LOG}
 
-			got, err := c.sequencer.IntegrateBatch(ctx, test.params.logID, 1, test.guardWindow, test.maxRootDuration)
+			got, err := c.sequencer.IntegrateBatch(ctx, tree, 1, test.guardWindow, test.maxRootDuration)
 			if err != nil {
 				if test.errStr == "" {
 					t.Errorf("IntegrateBatch(%+v)=%v,%v; want _,nil", test.params, got, err)
@@ -638,7 +639,8 @@ func TestIntegrateBatch_PutTokens(t *testing.T) {
 			}
 
 			sequencer := NewSequencer(hasher, ts, logStorage, signer, nil /* mf */, qm)
-			leaves, err := sequencer.IntegrateBatch(ctx, treeID, limit, guardWindow, maxRootDuration)
+			tree := &trillian.Tree{TreeId: treeID, TreeType: trillian.TreeType_LOG}
+			leaves, err := sequencer.IntegrateBatch(ctx, tree, limit, guardWindow, maxRootDuration)
 			if err != nil {
 				t.Errorf("%v: IntegrateBatch() returned err = %v", test.desc, err)
 				return
@@ -764,7 +766,8 @@ func TestSignRoot(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			c, ctx := createTestContext(ctrl, test.params)
-			err := c.sequencer.SignRoot(ctx, test.params.logID)
+			tree := &trillian.Tree{TreeId: test.params.logID, TreeType: trillian.TreeType_LOG}
+			err := c.sequencer.SignRoot(ctx, tree)
 			if test.errStr != "" {
 				if err == nil {
 					t.Errorf("SignRoot(%+v)=nil; want error with %q", test.params, test.errStr)
