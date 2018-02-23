@@ -159,8 +159,6 @@ var (
 		mh := maphasher.New(hasher)
 		return mh.HashEmpty(0 /*treeID - unused*/, nil /*index - unused*/, mh.BitLen())
 	}()
-
-	adminOpts = storage.NewGetOpts(storage.Admin, false, trillian.TreeType_LOG)
 )
 
 // AdminStorageTester runs a suite of tests against AdminStorage implementations.

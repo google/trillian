@@ -243,8 +243,8 @@ func TestGetLeavesByRange(t *testing.T) {
 		{
 			start:    1,
 			count:    1,
-			adminErr: errors.New("admin!"),
-			wantErr:  "admin!",
+			adminErr: errors.New("admin_err"),
+			wantErr:  "admin_err",
 		},
 		{
 			start: 1,

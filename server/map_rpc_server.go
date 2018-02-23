@@ -291,6 +291,9 @@ func (t *TrillianMapServer) GetSignedMapRootByRevision(ctx context.Context, req 
 		return nil, fmt.Errorf("map revision %d must be >= 0", req.Revision)
 	}
 	tree, ctx, err := t.getTreeAndContext(ctx, req.MapId, optsMapRead)
+	if err != nil {
+		return nil, err
+	}
 	tx, err := t.registry.MapStorage.SnapshotForTree(ctx, tree)
 	if err != nil {
 		return nil, err

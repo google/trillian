@@ -57,10 +57,6 @@ func (s *Server) IsHealthy() error {
 	return s.registry.AdminStorage.CheckDatabaseAccessible(context.Background())
 }
 
-func (s *Server) opts(readonly bool) storage.GetOpts {
-	return storage.NewGetOpts(storage.Admin, readonly, s.allowedTreeTypes...)
-}
-
 // ListTrees implements trillian.TrillianAdminServer.ListTrees.
 func (s *Server) ListTrees(ctx context.Context, req *trillian.ListTreesRequest) (*trillian.ListTreesResponse, error) {
 	// TODO(codingllama): This needs access control
