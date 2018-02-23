@@ -186,7 +186,7 @@ func (t *TrillianLogRPCServer) AddSequencedLeaves(ctx context.Context, req *tril
 		return nil, err
 	}
 	if got, want := len(leaves), len(req.Leaves); got != want {
-		return nil, status.Errorf(codes.Internal, "AddSequencedLeaves returned %d codes, want: %d", got, want)
+		return nil, status.Errorf(codes.Internal, "AddSequencedLeaves returned %d leaves, want: %d", got, want)
 	}
 
 	return &trillian.AddSequencedLeavesResponse{Results: leaves}, nil
