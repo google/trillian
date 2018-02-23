@@ -269,6 +269,19 @@ func (m *MockLogStorage) EXPECT() *MockLogStorageMockRecorder {
 	return m.recorder
 }
 
+// AddSequencedLeaves mocks base method
+func (m *MockLogStorage) AddSequencedLeaves(arg0 context.Context, arg1 int64, arg2 []*trillian.LogLeaf) ([]*trillian.QueuedLogLeaf, error) {
+	ret := m.ctrl.Call(m, "AddSequencedLeaves", arg0, arg1, arg2)
+	ret0, _ := ret[0].([]*trillian.QueuedLogLeaf)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AddSequencedLeaves indicates an expected call of AddSequencedLeaves
+func (mr *MockLogStorageMockRecorder) AddSequencedLeaves(arg0, arg1, arg2 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddSequencedLeaves", reflect.TypeOf((*MockLogStorage)(nil).AddSequencedLeaves), arg0, arg1, arg2)
+}
+
 // CheckDatabaseAccessible mocks base method
 func (m *MockLogStorage) CheckDatabaseAccessible(arg0 context.Context) error {
 	ret := m.ctrl.Call(m, "CheckDatabaseAccessible", arg0)

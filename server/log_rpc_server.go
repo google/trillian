@@ -35,6 +35,12 @@ import (
 // Pass this as a fixed value to proof calculations. It's used as the max depth of the tree
 const proofMaxBitLen = 64
 
+var (
+	optsLogRead            = trees.NewGetOpts(true, trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG)
+	optsLogWrite           = trees.NewGetOpts(false, trillian.TreeType_LOG)
+	optsPreorderedLogWrite = trees.NewGetOpts(false, trillian.TreeType_PREORDERED_LOG)
+)
+
 // TrillianLogRPCServer implements the RPC API defined in the proto
 type TrillianLogRPCServer struct {
 	registry    extension.Registry
@@ -66,7 +72,7 @@ func (t *TrillianLogRPCServer) IsHealthy() error {
 
 // QueueLeaf submits one leaf to the queue.
 func (t *TrillianLogRPCServer) QueueLeaf(ctx context.Context, req *trillian.QueueLeafRequest) (*trillian.QueueLeafResponse, error) {
-	if err := validateQueueLeafRequest(req); err != nil {
+	if err := validateLogLeaf(req.Leaf, "QueueLeafRequest.Leaf"); err != nil {
 		return nil, err
 	}
 
@@ -87,28 +93,35 @@ func (t *TrillianLogRPCServer) QueueLeaf(ctx context.Context, req *trillian.Queu
 	return &trillian.QueueLeafResponse{QueuedLeaf: queueRsp.QueuedLeaves[0]}, nil
 }
 
+func hashLeaves(leaves []*trillian.LogLeaf, hasher hashers.LogHasher) error {
+	for _, leaf := range leaves {
+		var err error
+		leaf.MerkleLeafHash, err = hasher.HashLeaf(leaf.LeafValue)
+		if err != nil {
+			return err
+		}
+		if len(leaf.LeafIdentityHash) == 0 {
+			leaf.LeafIdentityHash = leaf.MerkleLeafHash
+		}
+	}
+	return nil
+}
+
 // QueueLeaves submits a batch of leaves to the log for later integration into the underlying tree.
 func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.QueueLeavesRequest) (*trillian.QueueLeavesResponse, error) {
-	if err := validateQueueLeavesRequest(req); err != nil {
+	if err := validateLogLeaves(req.Leaves, "QueueLeavesRequest"); err != nil {
 		return nil, err
 	}
 	logID := req.LogId
 
-	tree, hasher, err := t.getTreeAndHasher(ctx, logID, false /* readonly */)
+	tree, hasher, err := t.getTreeAndHasher(ctx, logID, optsLogWrite)
 	if err != nil {
 		return nil, err
 	}
 	ctx = trees.NewContext(ctx, tree)
 
-	for _, leaf := range req.Leaves {
-		var err error
-		leaf.MerkleLeafHash, err = hasher.HashLeaf(leaf.LeafValue)
-		if err != nil {
-			return nil, err
-		}
-		if len(leaf.LeafIdentityHash) == 0 {
-			leaf.LeafIdentityHash = leaf.MerkleLeafHash
-		}
+	if err := hashLeaves(req.Leaves, hasher); err != nil {
+		return nil, err
 	}
 
 	ret, err := t.registry.LogStorage.QueueLeaves(ctx, logID, req.Leaves, t.timeSource.Now())
@@ -130,13 +143,53 @@ func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.Qu
 
 // AddSequencedLeaf submits one sequenced leaf to the storage.
 func (t *TrillianLogRPCServer) AddSequencedLeaf(ctx context.Context, req *trillian.AddSequencedLeafRequest) (*trillian.AddSequencedLeafResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "AddSequencedLeaf is not implemented")
+	if err := validateLogLeaf(req.Leaf, "AddSequencedLeafRequest.Leaf"); err != nil {
+		return nil, err
+	}
+
+	batchReq := &trillian.AddSequencedLeavesRequest{
+		LogId:  req.LogId,
+		Leaves: []*trillian.LogLeaf{req.Leaf},
+	}
+	rsp, err := t.AddSequencedLeaves(ctx, batchReq)
+	if err != nil {
+		return nil, err
+	}
+	if rsp == nil {
+		return nil, status.Errorf(codes.Internal, "missing response")
+	}
+	if got, want := len(rsp.Results), 1; got != want {
+		return nil, status.Errorf(codes.Internal, "expected 1 leaf, got %d", got)
+	}
+	return &trillian.AddSequencedLeafResponse{Result: rsp.Results[0]}, nil
 }
 
 // AddSequencedLeaves submits a batch of sequenced leaves to a pre-ordered log
 // for later integration into its underlying tree.
 func (t *TrillianLogRPCServer) AddSequencedLeaves(ctx context.Context, req *trillian.AddSequencedLeavesRequest) (*trillian.AddSequencedLeavesResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "AddSequencedLeaves is not implemented")
+	if err := validateAddSequencedLeavesRequest(req); err != nil {
+		return nil, err
+	}
+
+	tree, hasher, err := t.getTreeAndHasher(ctx, req.LogId, optsPreorderedLogWrite)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := hashLeaves(req.Leaves, hasher); err != nil {
+		return nil, err
+	}
+
+	ctx = trees.NewContext(ctx, tree)
+	leaves, err := t.registry.LogStorage.AddSequencedLeaves(ctx, tree.TreeId, req.Leaves)
+	if err != nil {
+		return nil, err
+	}
+	if got, want := len(leaves), len(req.Leaves); got != want {
+		return nil, status.Errorf(codes.Internal, "AddSequencedLeaves returned %d leaves, want: %d", got, want)
+	}
+
+	return &trillian.AddSequencedLeavesResponse{Results: leaves}, nil
 }
 
 // GetInclusionProof obtains the proof of inclusion in the tree for a leaf that has been sequenced.
@@ -147,7 +200,7 @@ func (t *TrillianLogRPCServer) GetInclusionProof(ctx context.Context, req *trill
 	}
 	logID := req.LogId
 
-	tree, hasher, err := t.getTreeAndHasher(ctx, logID, true /* readonly */)
+	tree, hasher, err := t.getTreeAndHasher(ctx, logID, optsLogRead)
 	if err != nil {
 		return nil, err
 	}
@@ -186,7 +239,7 @@ func (t *TrillianLogRPCServer) GetInclusionProofByHash(ctx context.Context, req 
 	}
 	logID := req.LogId
 
-	tree, hasher, err := t.getTreeAndHasher(ctx, logID, true /* readonly */)
+	tree, hasher, err := t.getTreeAndHasher(ctx, logID, optsLogRead)
 	if err != nil {
 		return nil, err
 	}
@@ -243,7 +296,7 @@ func (t *TrillianLogRPCServer) GetConsistencyProof(ctx context.Context, req *tri
 	}
 	logID := req.LogId
 
-	tree, hasher, err := t.getTreeAndHasher(ctx, logID, true /* readonly */)
+	tree, hasher, err := t.getTreeAndHasher(ctx, logID, optsLogRead)
 	if err != nil {
 		return nil, err
 	}
@@ -411,7 +464,7 @@ func (t *TrillianLogRPCServer) GetEntryAndProof(ctx context.Context, req *trilli
 	}
 	logID := req.LogId
 
-	tree, hasher, err := t.getTreeAndHasher(ctx, logID, true /* readonly */)
+	tree, hasher, err := t.getTreeAndHasher(ctx, logID, optsLogRead)
 	if err != nil {
 		return nil, err
 	}
@@ -485,12 +538,12 @@ func getInclusionProofForLeafIndex(ctx context.Context, tx storage.ReadOnlyLogTr
 	return fetchNodesAndBuildProof(ctx, tx, hasher, tx.ReadRevision(), leafIndex, proofNodeIDs)
 }
 
-func (t *TrillianLogRPCServer) getTreeAndHasher(ctx context.Context, treeID int64, readonly bool) (*trillian.Tree, hashers.LogHasher, error) {
-	tree, err := trees.GetTree(
-		ctx,
-		t.registry.AdminStorage,
-		treeID,
-		trees.NewGetOpts(readonly, trillian.TreeType_LOG))
+func (t *TrillianLogRPCServer) getTreeAndHasher(
+	ctx context.Context,
+	treeID int64,
+	opts trees.GetOpts,
+) (*trillian.Tree, hashers.LogHasher, error) {
+	tree, err := trees.GetTree(ctx, t.registry.AdminStorage, treeID, opts)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -501,10 +554,14 @@ func (t *TrillianLogRPCServer) getTreeAndHasher(ctx context.Context, treeID int6
 	return tree, hasher, nil
 }
 
-// InitLog initialises a freshly created Log by creating the first STH with size 0.
+// InitLog initialises a freshly created Log by creating the first STH with
+// size 0.
+//
+// TODO(pavelkalinnikov): Make this work for PREORDERED_LOG as well, after
+// ReadWriteTransaction accepts GetOpts.
 func (t *TrillianLogRPCServer) InitLog(ctx context.Context, req *trillian.InitLogRequest) (*trillian.InitLogResponse, error) {
 	logID := req.LogId
-	tree, hasher, err := t.getTreeAndHasher(ctx, logID, false /* readonly */)
+	tree, hasher, err := t.getTreeAndHasher(ctx, logID, optsLogWrite)
 	if err != nil {
 		return nil, status.Errorf(codes.FailedPrecondition, "getTreeAndHasher(): %v", err)
 	}

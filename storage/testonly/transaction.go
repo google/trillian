@@ -21,6 +21,8 @@ import (
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // RunOnLogTX is a helper for mocking out the LogStorage.ReadWriteTransaction method.
@@ -61,10 +63,12 @@ var ErrNotImplemented = errors.New("not implemented")
 
 // FakeLogStorage is a LogStorage implementation which is used for testing.
 type FakeLogStorage struct {
-	TX             storage.LogTreeTX
-	ReadOnlyTX     storage.ReadOnlyLogTreeTX
-	TXErr          error
-	QueueLeavesErr error
+	TX         storage.LogTreeTX
+	ReadOnlyTX storage.ReadOnlyLogTreeTX
+
+	TXErr                 error
+	QueueLeavesErr        error
+	AddSequencedLeavesErr error
 }
 
 // Snapshot implements LogStorage.Snapshot
@@ -96,6 +100,18 @@ func (f *FakeLogStorage) QueueLeaves(ctx context.Context, logID int64, leaves []
 		return nil, f.QueueLeavesErr
 	}
 	return make([]*trillian.QueuedLogLeaf, len(leaves)), nil
+}
+
+// AddSequencedLeaves implements LogStorage.AddSequencedLeaves.
+func (f *FakeLogStorage) AddSequencedLeaves(ctx context.Context, logID int64, leaves []*trillian.LogLeaf) ([]*trillian.QueuedLogLeaf, error) {
+	if f.AddSequencedLeavesErr != nil {
+		return nil, f.AddSequencedLeavesErr
+	}
+	res := make([]*trillian.QueuedLogLeaf, len(leaves))
+	for i := range res {
+		res[i] = &trillian.QueuedLogLeaf{Status: status.New(codes.OK, "OK").Proto()}
+	}
+	return res, nil
 }
 
 // CheckDatabaseAccessible implements LogStorage.CheckDatabaseAccessible
