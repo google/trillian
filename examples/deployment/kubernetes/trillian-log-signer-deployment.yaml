@@ -22,19 +22,40 @@ spec:
         secret:
           secretName: spanner-key
       containers:
-      - command:
-        - /go/bin/trillian_log_signer
-        - --cloudspanner_uri=projects/trillian-opensource-ci/instances/trillian-opensource-ci/databases/trillian-opensource-ci-db
-        - --storage_system=cloud_spanner
-        - --quota_system=noop
-        - --http_endpoint=0.0.0.0:8091
-        - --sequencer_guard_window=0s
-        - --sequencer_interval=500ms
-        - --num_sequencers=1
-        - --batch_size=2000
-        - --force_master=true
-        - --alsologtostderr
-        image: gcr.io/trillian-opensource-ci/log_signer:latest
+      - command: ["/go/bin/trillian_log_signer",
+        "$(STORAGE_FLAG)",
+        "--storage_system=$(STORAGE_SYSTEM)",
+        "--quota_system=noop",
+        "--http_endpoint=0.0.0.0:8091",
+        "--sequencer_guard_window=0s",
+        "--sequencer_interval=500ms",
+        "--num_sequencers=1",
+        "--batch_size=2000",
+        "--force_master=true",
+        "--alsologtostderr"
+        ]
+        env:
+          - name: CLOUD_PROJECT
+            valueFrom:
+              configMapKeyRef:
+                name: deploy-config
+                key:  cloud-project
+          - name: STORAGE_SYSTEM
+            valueFrom:
+              configMapKeyRef:
+                name: deploy-config
+                key:  storage-system
+          - name: STORAGE_FLAG
+            valueFrom:
+              configMapKeyRef:
+                name: deploy-config
+                key:  storage-flag
+          - name: GOOGLE_APPLICATION_CREDENTIALS
+            valueFrom:
+              configMapKeyRef:
+                name: deploy-config
+                key:  google-application-credentials
+        image: gcr.io/$(CLOUD_PROJECT)/log_signer:latest
         imagePullPolicy: Always
         livenessProbe:
           exec:
@@ -52,8 +73,5 @@ spec:
         volumeMounts:
         - name: google-cloud-key
           mountPath: /var/secrets/google
-        env:
-        - name: GOOGLE_APPLICATION_CREDENTIALS
-          value: /var/secrets/google/key.json
       restartPolicy: Always
 status: {}

@@ -7,6 +7,10 @@ addons:
     packages:
       - softhsm
 
+cache:
+  directories:
+    - "$HOME/google-cloud-sdk/"
+
 os:
   - linux
 
@@ -60,26 +64,6 @@ install:
   - go install ./vendor/github.com/coreos/etcd/cmd/etcd
   - go install ./vendor/github.com/coreos/etcd/cmd/etcdctl
 
-before_deploy:
-  # If the SDK is not already cached, download it and unpack it
-  - if [ ! -d ${HOME}/google-cloud-sdk/bin ]; then
-     rm -fr ${HOME}/google-cloud-sdk
-     curl https://sdk.cloud.google.com | bash;
-    fi
-  - source /home/travis/google-cloud-sdk/path.bash.inc
-  - gcloud --quiet version
-  - gcloud --quiet components update
-  - gcloud --quiet components update kubectl
-  - curl https://raw.githubusercontent.com/kubernetes/helm/8478fb4fc723885b155c924d1c8c410b7a9444e6/scripts/get | bash
-
-deploy:
-  skip_cleanup: true
-  provider: script
-  script: scripts/deploy_gce_ci.sh
-  on:
-    #repo: google/trillian
-    #branch: master
-    condition: $GCE_CI = true
 
 before_script:
   - |
@@ -100,7 +84,7 @@ script:
   - set -e
   - cd "$HOME/gopath/src/github.com/google/trillian"
   - export GO_TEST_TIMEOUT=20m
-  - ./scripts/presubmit.sh ${WITH_COVERAGE:+--coverage}
+  - # ./scripts/presubmit.sh ${WITH_COVERAGE:+--coverage}
   - |
       # Check re-generation didn't change anything
       # Skip protoc-generated files (.pb.go) because protoc is not deterministic
@@ -111,11 +95,6 @@ script:
         git status
         git diff
         exit 1
-      fi
-  - |
-      if [[ "${GCE_CI}" == "true" ]]; then
-        echo "Deploying to GCE continuous integration."
-        gcloud set project 'trillian-opensource-ci'
       fi
   - |
       if [[ "${WITH_ETCD}" == "true" ]]; then
@@ -129,7 +108,22 @@ script:
         cd $HOME/gopath/src/github.com/google/trillian
         HAMMER_OPTS="--operations=50" ./integration/maphammer.sh 3
       fi
+  - gcloud version || true
+  - if [ ! -d "$HOME/google-cloud-sdk/bin" ]; then rm -rf $HOME/google-cloud-sdk; export CLOUDSDK_CORE_DISABLE_PROMPTS=1; curl https://sdk.cloud.google.com | bash; fi
+  # Add gcloud to $PATH
+  - source /home/travis/google-cloud-sdk/path.bash.inc
+  - gcloud version
+  - curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+  - chmod +x ./kubectl
+  - sudo mv ./kubectl /usr/local/bin/kubectl
+  - echo ${GCLOUD_SERVICE_KEY_CI} | wc -c
+  - echo ${GCLOUD_SERVICE_KEY_CI} | base64 --decode -i > ${HOME}/gcloud-service-key.json
+  - ls -l ${HOME}/gc*
+  - gcloud auth activate-service-account --key-file ${HOME}/gcloud-service-key.json
+  - rm ${HOME}/gcloud-service-key.json
+  - . scripts/deploy_gce_ci.sh
   - set +e
+
 
 after_success:
   - |
@@ -137,3 +131,4 @@ after_success:
         cp /tmp/coverage.txt .
         bash <(curl -s https://codecov.io/bash)
       fi
+
