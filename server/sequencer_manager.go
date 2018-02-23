@@ -27,7 +27,6 @@ import (
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/log"
 	"github.com/google/trillian/merkle/hashers"
-	"github.com/google/trillian/storage"
 	"github.com/google/trillian/trees"
 )
 
@@ -39,7 +38,7 @@ type SequencerManager struct {
 	signersMutex sync.Mutex
 }
 
-var seqOpts = storage.NewGetOpts(storage.Sequence, false, trillian.TreeType_LOG)
+var seqOpts = trees.NewGetOpts(trees.Sequence, false, trillian.TreeType_LOG)
 
 // NewSequencerManager creates a new SequencerManager instance based on the provided KeyManager instance
 // and guard window.
