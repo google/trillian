@@ -181,7 +181,7 @@ func (m *memoryLogStorage) AddSequencedLeaves(ctx context.Context, treeID int64,
 	return nil, status.Errorf(codes.Unimplemented, "AddSequencedLeaves is not implemented")
 }
 
-func (m *memoryLogStorage) SnapshotForTree(ctx context.Context, tree trillian.Tree) (storage.ReadOnlyLogTreeTX, error) {
+func (m *memoryLogStorage) SnapshotForTree(ctx context.Context, tree *trillian.Tree) (storage.ReadOnlyLogTreeTX, error) {
 	tx, err := m.beginInternal(ctx, tree, true /* readonly */)
 	if err != nil {
 		return nil, err
