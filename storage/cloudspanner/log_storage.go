@@ -628,30 +628,6 @@ func (tx *logTX) GetSequencedLeafCount(ctx context.Context) (int64, error) {
 // itself directly from Spanner Rows.
 type leafmap map[int64]*trillian.LogLeaf
 
-// addRow inserts the data held in Row into the map.
-func (l leafmap) addRow(r *spanner.Row) error {
-	var s int64
-	var lh []byte
-	var mh []byte
-	var iTimestamp int64
-	if err := r.Columns(&s, &lh, &mh, &iTimestamp); err != nil {
-		return err
-	}
-	leaf := &trillian.LogLeaf{
-		MerkleLeafHash:   mh,
-		LeafIdentityHash: lh,
-		LeafIndex:        s,
-	}
-	var err error
-	leaf.IntegrateTimestamp, err = ptypes.TimestampProto(time.Unix(0, iTimestamp))
-	if err != nil {
-		return fmt.Errorf("got invalid integrate timestamp: %v", err)
-	}
-	l[s] = leaf
-
-	return nil
-}
-
 // addFullRow appends the leaf data in row to the array
 func (l leafmap) addFullRow(r *spanner.Row) error {
 	var (
@@ -726,12 +702,12 @@ func (b leavesByHash) addRow(r *spanner.Row) error {
 // The value of byHash is an []LogLeaf because the underlying leaf data could
 // be sequenced into multiple tree leaves if the log allows duplication.
 func (tx *logTX) populateLeafData(ctx context.Context, byHash leavesByHash) error {
-	kSet := make([]spanner.KeySet, 0, len(byHash))
+	keySet := make([]spanner.KeySet, 0, len(byHash))
 	for k := range byHash {
-		kSet = append(kSet, spanner.Key{tx.treeID, []byte(k)})
+		keySet = append(keySet, spanner.Key{tx.treeID, []byte(k)})
 	}
 	cols := []string{colLeafIdentityHash, colLeafValue, colExtraData, colQueueTimestampNanos}
-	rows := tx.stx.Read(ctx, leafDataTbl, spanner.KeySets(kSet...), cols)
+	rows := tx.stx.Read(ctx, leafDataTbl, spanner.KeySets(keySet...), cols)
 	return rows.Do(byHash.addRow)
 }
 
@@ -886,14 +862,14 @@ func (l *leafSlice) addRow(r *spanner.Row) error {
 // for the specified Spanner index.
 // If bySeq is true, the returned slice will be order by LogLeaf.LeafIndex.
 func (tx *logTX) getUsingIndex(ctx context.Context, idx string, keys [][]byte, bySeq bool) ([]*trillian.LogLeaf, error) {
-	kSet := make([]spanner.KeySet, 0, len(keys))
+	keySet := make([]spanner.KeySet, 0, len(keys))
 	for _, k := range keys {
-		kSet = append(kSet, spanner.Key{tx.treeID, k})
+		keySet = append(keySet, spanner.Key{tx.treeID, k})
 	}
 
 	leaves := make(leafSlice, 0, len(keys))
 	cols := []string{colSequenceNumber, colMerkleLeafHash, colLeafIdentityHash}
-	rows := tx.stx.ReadUsingIndex(ctx, seqDataTbl, idx, spanner.KeySets(kSet...), cols)
+	rows := tx.stx.ReadUsingIndex(ctx, seqDataTbl, idx, spanner.KeySets(keySet...), cols)
 	if err := rows.Do(leaves.addRow); err != nil {
 		return nil, err
 	}
@@ -926,6 +902,9 @@ func (tx *logTX) GetLeavesByHash(ctx context.Context, hashes [][]byte, bySeq boo
 	return tx.getUsingIndex(ctx, seqDataByMerkleHashIdx, hashes, bySeq)
 }
 
+// QueuedEntry represents a leaf which was dequeued.
+// It's used to store some extra info which is necessary for rebuilding the
+// leaf's primary key when it's passed back in to UpdateSequencedLeaves.
 type QueuedEntry struct {
 	// leaf is partially populated with the Merkle and LeafValue hashes only.
 	leaf      *trillian.LogLeaf

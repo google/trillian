@@ -933,7 +933,10 @@ type TrillianLogClient interface {
 	InitLog(ctx context.Context, in *InitLogRequest, opts ...grpc.CallOption) (*InitLogResponse, error)
 	// Adds a batch of leaves to the queue.
 	QueueLeaves(ctx context.Context, in *QueueLeavesRequest, opts ...grpc.CallOption) (*QueueLeavesResponse, error)
-	// Adds a batch of leaves with assigned sequence numbers to the tree.
+	// Stores leaves from the provided batch and associates them with the log
+	// positions according to the `LeafIndex` field. The indices must be
+	// contiguous.
+	//
 	// Warning: This RPC is under development, don't use it.
 	AddSequencedLeaves(ctx context.Context, in *AddSequencedLeavesRequest, opts ...grpc.CallOption) (*AddSequencedLeavesResponse, error)
 	// Returns a batch of leaves located in the provided positions.
@@ -1106,7 +1109,10 @@ type TrillianLogServer interface {
 	InitLog(context.Context, *InitLogRequest) (*InitLogResponse, error)
 	// Adds a batch of leaves to the queue.
 	QueueLeaves(context.Context, *QueueLeavesRequest) (*QueueLeavesResponse, error)
-	// Adds a batch of leaves with assigned sequence numbers to the tree.
+	// Stores leaves from the provided batch and associates them with the log
+	// positions according to the `LeafIndex` field. The indices must be
+	// contiguous.
+	//
 	// Warning: This RPC is under development, don't use it.
 	AddSequencedLeaves(context.Context, *AddSequencedLeavesRequest) (*AddSequencedLeavesResponse, error)
 	// Returns a batch of leaves located in the provided positions.
