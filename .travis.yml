@@ -7,6 +7,10 @@ addons:
     packages:
       - softhsm
 
+cache:
+  directories:
+    - "$HOME/google-cloud-sdk/"
+
 os:
   - linux
 
@@ -14,7 +18,7 @@ go:
   - 1.9.x
 
 env:
-  -
+  - GCE_CI=true
   - TRILLIAN_SQL_DRIVER=mysql WITH_COVERAGE=true
   - GOFLAGS='-race' TRILLIAN_SQL_DRIVER=mysql
   - GOFLAGS='-race --tags batched_queue' TRILLIAN_SQL_DRIVER=mysql
@@ -24,7 +28,9 @@ env:
 matrix:
   fast_finish: true
 
-services: mysql
+services:
+  - mysql
+  - docker
 
 install:
   - |
@@ -56,6 +62,7 @@ install:
   # install vendored etcd binary
   - go install ./vendor/github.com/coreos/etcd/cmd/etcd
   - go install ./vendor/github.com/coreos/etcd/cmd/etcdctl
+
 
 before_script:
   - |
@@ -108,3 +115,15 @@ after_success:
         cp /tmp/coverage.txt .
         bash <(curl -s https://codecov.io/bash)
       fi
+  - |
+      # Push up to GCE CI instance if we're running after a merge to master
+      if [[ $TRAVIS_PULL_REQUEST == “false” ]] && [[ $TRAVIS_BRANCH == “master” ]]; then
+        . scripts/install_cloud.sh
+
+        echo ${GCLOUD_SERVICE_KEY_CI} | base64 --decode -i > ${HOME}/gcloud-service-key.json
+        gcloud auth activate-service-account --key-file ${HOME}/gcloud-service-key.json
+        rm ${HOME}/gcloud-service-key.json
+
+        . scripts/deploy_gce_ci.sh
+      fi
+

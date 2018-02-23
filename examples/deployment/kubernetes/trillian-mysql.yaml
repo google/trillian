@@ -1,0 +1,16 @@
+# This configmap is for running Trillian with a MySQL database on Kubernetes.
+# You'll want to update the storage-flag below with the correct configuration
+# info for the database.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: deploy-config
+  namespace: default
+data:
+  # Update this with the name of your project:
+  CLOUD_PROJECT: trillian-opensource-ci
+  # Update this with your DB connection string:
+  STORAGE_FLAG: --mysql_uri=test:zaphod@tcp(db:3306)/test
+  STORAGE_SYSTEM: mysql
+  GOOGLE_APPLICATION_CREDENTIALS: /var/secrets/google/key.json
+
