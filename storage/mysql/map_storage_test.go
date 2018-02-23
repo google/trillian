@@ -18,6 +18,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/golang/protobuf/proto"
@@ -117,38 +118,28 @@ func TestMapReadWriteTransaction(t *testing.T) {
 
 	cleanTestDB(DB)
 	ctx := context.Background()
-
-	frozenMapID := createInitializedMapForTests(ctx, t, DB)
-	updateTree(DB, frozenMapID, func(tree *trillian.Tree) {
-		tree.TreeState = trillian.TreeState_FROZEN
-	})
-
 	activeMapID := createInitializedMapForTests(ctx, t, DB)
-	logID := createLogForTests(DB)
 
 	tests := []struct {
-		desc    string
-		mapID   int64
-		wantErr bool
+		desc        string
+		mapID       int64
+		wantRev     int64
+		wantTXRev   int64
+		wantErr     bool
+		wantRootErr string
 	}{
 		{
-			desc:    "unknownBegin",
-			mapID:   -1,
-			wantErr: true,
+			desc:        "unknownBegin",
+			mapID:       -1,
+			wantRev:     0,
+			wantTXRev:   -1,
+			wantRootErr: "needs initialising",
 		},
 		{
-			desc:  "activeMapBegin",
-			mapID: activeMapID,
-		},
-		{
-			desc:    "frozenBegin",
-			mapID:   frozenMapID,
-			wantErr: true,
-		},
-		{
-			desc:    "logBegin",
-			mapID:   logID,
-			wantErr: true,
+			desc:      "activeMapBegin",
+			mapID:     activeMapID,
+			wantRev:   0,
+			wantTXRev: 1,
 		},
 	}
 
@@ -158,11 +149,19 @@ func TestMapReadWriteTransaction(t *testing.T) {
 			tree := mapTree(test.mapID)
 			err := s.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.MapTreeTX) error {
 				root, err := tx.LatestSignedMapRoot(ctx)
-				if err != nil {
+				if err != nil && !strings.Contains(err.Error(), test.wantRootErr) {
 					t.Errorf("%v: LatestSignedMapRoot() returned err = %v", test.desc, err)
 				}
-				if got, want := tx.WriteRevision(), root.MapRevision+1; got != want {
-					t.Errorf("%v: WriteRevision() = %v, want = %v", test.desc, got, want)
+				if err == nil && len(test.wantRootErr) != 0 {
+					t.Errorf("%v: LatestSignedMapRoot() returned err = %v, want: nil", test.desc, err)
+				}
+				if err == nil {
+					if got, want := tx.WriteRevision(), test.wantTXRev; got != want {
+						t.Errorf("%v: WriteRevision() = %v, want = %v", test.desc, got, want)
+					}
+					if got, want := root.MapRevision, test.wantRev; got != want {
+						t.Errorf("%v: TreeRevision() = %v, want = %v", test.desc, got, want)
+					}
 				}
 				return nil
 			})
