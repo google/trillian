@@ -15,6 +15,7 @@ go:
 
 env:
   -
+  - GCE_CI=true
   - TRILLIAN_SQL_DRIVER=mysql WITH_COVERAGE=true
   - GOFLAGS='-race' TRILLIAN_SQL_DRIVER=mysql
   - GOFLAGS='-race --tags batched_queue' TRILLIAN_SQL_DRIVER=mysql
@@ -24,7 +25,9 @@ env:
 matrix:
   fast_finish: true
 
-services: mysql
+services:
+  - mysql
+  - docker
 
 install:
   - |
@@ -57,6 +60,27 @@ install:
   - go install ./vendor/github.com/coreos/etcd/cmd/etcd
   - go install ./vendor/github.com/coreos/etcd/cmd/etcdctl
 
+before_deploy:
+  # If the SDK is not already cached, download it and unpack it
+  - if [ ! -d ${HOME}/google-cloud-sdk/bin ]; then
+     rm -fr ${HOME}/google-cloud-sdk
+     curl https://sdk.cloud.google.com | bash;
+    fi
+  - source /home/travis/google-cloud-sdk/path.bash.inc
+  - gcloud --quiet version
+  - gcloud --quiet components update
+  - gcloud --quiet components update kubectl
+  - curl https://raw.githubusercontent.com/kubernetes/helm/8478fb4fc723885b155c924d1c8c410b7a9444e6/scripts/get | bash
+
+deploy:
+  skip_cleanup: true
+  provider: script
+  script: scripts/deploy_gce_ci.sh
+  on:
+    #repo: google/trillian
+    #branch: master
+    condition: $GCE_CI = true
+
 before_script:
   - |
     if [[ "$TRAVIS_SUDO" == "true" ]]; then
@@ -87,6 +111,11 @@ script:
         git status
         git diff
         exit 1
+      fi
+  - |
+      if [[ "${GCE_CI}" == "true" ]]; then
+        echo "Deploying to GCE continuous integration."
+        gcloud set project 'trillian-opensource-ci'
       fi
   - |
       if [[ "${WITH_ETCD}" == "true" ]]; then

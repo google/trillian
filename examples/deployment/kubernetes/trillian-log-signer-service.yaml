@@ -6,14 +6,14 @@ metadata:
     kompose.version: 1.3.0 (HEAD)
   creationTimestamp: null
   labels:
-    io.kompose.service: trillian-log-signer
-  name: trillian-log-signer
+    io.kompose.service: trillian-logsigner
+  name: trillian-logsigner
 spec:
   ports:
   - name: "8092"
     port: 8092
     targetPort: 8091
   selector:
-    io.kompose.service: trillian-log-signer
+    io.kompose.service: trillian-logsigner
 status:
   loadBalancer: {}
