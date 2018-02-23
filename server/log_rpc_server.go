@@ -36,7 +36,7 @@ import (
 const proofMaxBitLen = 64
 
 var (
-	optsLogRead            = trees.NewGetOpts(trees.Query, true, trillian.TreeType_LOG)
+	optsLogRead            = trees.NewGetOpts(trees.Query, true, trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG)
 	optsLogWrite           = trees.NewGetOpts(trees.Queue, false, trillian.TreeType_LOG)
 	optsPreorderedLogWrite = trees.NewGetOpts(trees.Queue, false, trillian.TreeType_PREORDERED_LOG)
 )
