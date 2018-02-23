@@ -1,3 +1,17 @@
+// Copyright 2018 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package cloudspanner
 
 import (
@@ -187,7 +201,7 @@ func (t *adminTX) Close() error {
 	if t.tx == nil {
 		return nil
 	}
-	// tx will be commited by ReadWriteTransaction(), so only close readonly tx here
+	// tx will be committed by ReadWriteTransaction(), so only close readonly tx here
 	if stx, ok := t.tx.(*spanner.ReadOnlyTransaction); ok {
 		glog.V(1).Infof("Closed admin %p", stx)
 		stx.Close()
@@ -420,14 +434,14 @@ func newTreeInfo(tree *trillian.Tree, treeID int64, now time.Time) (*spannerpb.T
 		if err := validateLogStorageConfig(config); err != nil {
 			return nil, err
 		}
-		info.StorageConfig = &spannerpb.TreeInfo_LogStorageConfig{config}
+		info.StorageConfig = &spannerpb.TreeInfo_LogStorageConfig{LogStorageConfig: config}
 	case trillian.TreeType_MAP:
 		config, err := mapConfigOrDefault(tree)
 		if err != nil {
 			return nil, err
 		}
 		// Nothing to validate on MapStorageConfig.
-		info.StorageConfig = &spannerpb.TreeInfo_MapStorageConfig{config}
+		info.StorageConfig = &spannerpb.TreeInfo_MapStorageConfig{MapStorageConfig: config}
 	}
 
 	return info, nil

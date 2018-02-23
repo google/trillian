@@ -48,7 +48,6 @@ func init() {
 
 type cloudSpannerProvider struct {
 	client *spanner.Client
-	mf     monitoring.MetricFactory
 }
 
 func configFromFlags() spanner.ClientConfig {
