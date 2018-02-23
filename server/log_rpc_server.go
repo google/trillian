@@ -39,7 +39,6 @@ var (
 	optsLogRead            = storage.NewGetOpts(storage.Query, true, trillian.TreeType_LOG)
 	optsLogWrite           = storage.NewGetOpts(storage.Queue, false, trillian.TreeType_LOG)
 	optsPreorderedLogWrite = storage.NewGetOpts(storage.Queue, false, trillian.TreeType_PREORDERED_LOG)
-	optsAdmin              = storage.NewGetOpts(storage.Admin, false, trillian.TreeType_LOG)
 )
 
 // TrillianLogRPCServer implements the RPC API defined in the proto
@@ -641,5 +640,4 @@ func (t *TrillianLogRPCServer) InitLog(ctx context.Context, req *trillian.InitLo
 	return &trillian.InitLogResponse{
 		Created: newRoot,
 	}, nil
-
 }
