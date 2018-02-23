@@ -59,7 +59,8 @@ type Main struct {
 	// TLS Certificate and Key files for the server.
 	TLSCertFile, TLSKeyFile string
 
-	DBClose  func() error
+	DBClose func() error
+
 	Registry extension.Registry
 
 	StatsPrefix string
