@@ -234,6 +234,10 @@ func (ls *logStorage) QueueLeaves(ctx context.Context, logID int64, leaves []*tr
 	return results, nil
 }
 
+func (ls *logStorage) AddSequencedLeaves(ctx context.Context, treeID int64, leaves []*trillian.LogLeaf) ([]*trillian.QueuedLogLeaf, error) {
+	return nil, ErrNotImplemented
+}
+
 // readDupeLeaves reads the leaves whose ids are passed as keys in the dupes map,
 // and stores them in results.
 func (ls *logStorage) readDupeLeaves(ctx context.Context, logID int64, dupes map[string][]indexMerkleHash, results []*trillian.QueuedLogLeaf) error {
