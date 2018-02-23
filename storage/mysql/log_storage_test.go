@@ -201,40 +201,27 @@ func TestSnapshot(t *testing.T) {
 
 func TestReadWriteTransaction(t *testing.T) {
 	cleanTestDB(DB)
-
-	frozenLogID := createLogForTests(DB)
-	if _, err := updateTree(DB, frozenLogID, func(tree *trillian.Tree) {
-		tree.TreeState = trillian.TreeState_FROZEN
-	}); err != nil {
-		t.Fatalf("Error updating frozen tree: %v", err)
-	}
-
 	activeLogID := createLogForTests(DB)
-	mapID := createMapForTests(DB)
 
 	tests := []struct {
-		desc    string
-		logID   int64
-		wantErr bool
+		desc      string
+		logID     int64
+		wantErr   bool
+		wantRev   int64
+		wantTXRev int64
 	}{
 		{
-			desc:    "unknownBegin",
-			logID:   -1,
-			wantErr: true,
+			// Unknown logs IDs are now handled outside storage.
+			desc:      "unknownBegin",
+			logID:     -1,
+			wantRev:   0,
+			wantTXRev: -1,
 		},
 		{
-			desc:  "activeLogBegin",
-			logID: activeLogID,
-		},
-		{
-			desc:    "frozenBegin",
-			logID:   frozenLogID,
-			wantErr: true,
-		},
-		{
-			desc:    "mapBegin",
-			logID:   mapID,
-			wantErr: true,
+			desc:      "activeLogBegin",
+			logID:     activeLogID,
+			wantRev:   0,
+			wantTXRev: 1,
 		},
 	}
 
@@ -248,8 +235,11 @@ func TestReadWriteTransaction(t *testing.T) {
 				if err != nil {
 					t.Errorf("%v: LatestSignedLogRoot() returned err = %v", test.desc, err)
 				}
-				if got, want := tx.WriteRevision(), root.TreeRevision+1; got != want {
+				if got, want := tx.WriteRevision(), test.wantTXRev; got != want {
 					t.Errorf("%v: WriteRevision() = %v, want = %v", test.desc, got, want)
+				}
+				if got, want := root.TreeRevision, test.wantRev; got != want {
+					t.Errorf("%v: TreeRevision() = %v, want = %v", test.desc, got, want)
 				}
 				return nil
 			})
