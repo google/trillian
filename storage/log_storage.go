@@ -124,8 +124,7 @@ type LogStorage interface {
 	//  - nil otherwise.
 	// Duplicates are only reported if the underlying tree does not permit duplicates, and are
 	// considered duplicate if their leaf.LeafIdentityHash matches.
-<<<<<<< HEAD
-	QueueLeaves(ctx context.Context, treeID int64, leaves []*trillian.LogLeaf, queueTimestamp time.Time, opts GetOpts) ([]*trillian.QueuedLogLeaf, error)
+	QueueLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.QueuedLogLeaf, error)
 
 	// AddSequencedLeaves stores the `leaves` and associates them with the log
 	// positions according to their `LeafIndex` field. The indices must be
@@ -150,9 +149,6 @@ type LogStorage interface {
 	// TODO(pavelkalinnikov): Not checking values of the occupied indices might
 	// be a good optimization. Could also be optional.
 	AddSequencedLeaves(ctx context.Context, treeID int64, leaves []*trillian.LogLeaf) ([]*trillian.QueuedLogLeaf, error)
-=======
-	QueueLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.QueuedLogLeaf, error)
->>>>>>> 32baa9db... Lots of moving stuff around again
 }
 
 // CountByLogID is a map of total number of items keyed by log ID.
