@@ -235,7 +235,7 @@ func openTestDBOrDie() *sql.DB {
 func cleanTestDB(db *sql.DB) {
 	for _, table := range allTables {
 		if _, err := db.ExecContext(context.TODO(), fmt.Sprintf("DELETE FROM %s", table)); err != nil {
-			panic(fmt.Sprintf("Failed to delete rows in %s: %s", table, err))
+			panic(fmt.Sprintf("Failed to delete rows in %s: %v", table, err))
 		}
 	}
 }
@@ -259,8 +259,11 @@ func createLogForTests(db *sql.DB) int64 {
 	ctx := context.Background()
 	l := NewLogStorage(db, nil)
 	err = l.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
-		if err := tx.StoreSignedLogRoot(ctx, trillian.SignedLogRoot{LogId: tree.TreeId, RootHash: []byte{0}, Signature: &sigpb.DigitallySigned{}}); err != nil {
-			panic(fmt.Sprintf("Error storing new SignedLogRoot: %v", err))
+		if err := tx.StoreSignedLogRoot(ctx, trillian.SignedLogRoot{
+			LogId:     tree.TreeId,
+			RootHash:  []byte{0},
+			Signature: &sigpb.DigitallySigned{Signature: []byte("asignature")}}); err != nil {
+			return fmt.Errorf("Error storing new SignedLogRoot: %v", err)
 		}
 		return nil
 	})

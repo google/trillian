@@ -177,6 +177,10 @@ func TestSnapshot(t *testing.T) {
 			tree := logTree(test.logID)
 			tx, err := s.SnapshotForTree(ctx, tree)
 
+			if err == storage.ErrTreeNeedsInit {
+				defer tx.Close()
+			}
+
 			if hasErr := err != nil; hasErr != test.wantErr {
 				t.Fatalf("err = %q, wantErr = %v", err, test.wantErr)
 			} else if hasErr {
