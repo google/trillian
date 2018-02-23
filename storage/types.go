@@ -21,48 +21,8 @@ import (
 	"math/big"
 
 	"github.com/golang/glog"
-	"github.com/google/trillian"
 	"github.com/google/trillian/storage/storagepb"
 )
-
-// AccessType indicates how a tree is to be used and participates in permissions
-// decisions.
-type AccessType int
-
-const (
-	// Unknown is an access type that will always get rejected
-	Unknown AccessType = iota
-	// Admin access is for general administration purposes
-	Admin
-	// Query implies access to serve query, typically readonly
-	Query
-	// Queue is log specific - adding entries to the queue
-	Queue
-	// Sequence is log specific - integrating entries into the tree
-	Sequence
-	// Update is map specific - set / update leaves
-	Update
-)
-
-// GetOpts contains validation options for GetTree.
-type GetOpts struct {
-	// TreeTypes is a set of allowed tree types. If empty, any type is allowed.
-	TreeTypes map[trillian.TreeType]bool
-	// Readonly is whether the tree will be used for read-only purposes.
-	Readonly bool
-	// Accessor indicates what operation is being performed
-	Accessor AccessType
-}
-
-// NewGetOpts creates GetOps that allows the listed set of tree types, and
-// optionally forces the tree to be readonly.
-func NewGetOpts(accessor AccessType, readonly bool, types ...trillian.TreeType) GetOpts {
-	m := make(map[trillian.TreeType]bool)
-	for _, t := range types {
-		m[t] = true
-	}
-	return GetOpts{Accessor: accessor, TreeTypes: m, Readonly: readonly}
-}
 
 // Error is a typed error that the storage layer can return to give callers information
 // about the error to decide how to handle it.

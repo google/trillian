@@ -38,9 +38,9 @@ const (
 )
 
 var (
-	optsMapRead  = storage.NewGetOpts(storage.Query, true, trillian.TreeType_MAP)
-	optsMapWrite = storage.NewGetOpts(storage.Update, false, trillian.TreeType_MAP)
-	optsMapAdmin = storage.NewGetOpts(storage.Admin, false, trillian.TreeType_MAP)
+	optsMapRead  = trees.NewGetOpts(trees.Query, true, trillian.TreeType_MAP)
+	optsMapWrite = trees.NewGetOpts(trees.Update, false, trillian.TreeType_MAP)
+	optsMapAdmin = trees.NewGetOpts(trees.Admin, false, trillian.TreeType_MAP)
 )
 
 // TODO(codingllama): There is no access control in the server yet and clients could easily modify
@@ -315,7 +315,7 @@ func (t *TrillianMapServer) GetSignedMapRootByRevision(ctx context.Context, req 
 	}, nil
 }
 
-func (t *TrillianMapServer) getTreeAndHasher(ctx context.Context, treeID int64, opts storage.GetOpts) (*trillian.Tree, hashers.MapHasher, error) {
+func (t *TrillianMapServer) getTreeAndHasher(ctx context.Context, treeID int64, opts trees.GetOpts) (*trillian.Tree, hashers.MapHasher, error) {
 	tree, err := trees.GetTree(ctx, t.registry.AdminStorage, treeID, opts)
 	if err != nil {
 		return nil, nil, err
@@ -327,7 +327,7 @@ func (t *TrillianMapServer) getTreeAndHasher(ctx context.Context, treeID int64, 
 	return tree, th, nil
 }
 
-func (t *TrillianMapServer) getTreeAndContext(ctx context.Context, treeID int64, opts storage.GetOpts) (*trillian.Tree, context.Context, error) {
+func (t *TrillianMapServer) getTreeAndContext(ctx context.Context, treeID int64, opts trees.GetOpts) (*trillian.Tree, context.Context, error) {
 	tree, err := trees.GetTree(ctx, t.registry.AdminStorage, treeID, opts)
 	if err != nil || tree == nil {
 		return nil, nil, err

@@ -46,7 +46,7 @@ func FromContext(ctx context.Context) (*trillian.Tree, bool) {
 	return tree, ok && tree != nil
 }
 
-func validate(o storage.GetOpts, tree *trillian.Tree) error {
+func validate(o GetOpts, tree *trillian.Tree) error {
 	// TODO(Martin2112): Enforce access type here - must be valid for tree
 	// state and not set to Unknown.
 	switch {
@@ -60,9 +60,9 @@ func validate(o storage.GetOpts, tree *trillian.Tree) error {
 }
 
 // GetTree returns the specified tree, either from the ctx (if present) or read from storage.
-// The tree will be validated according to storage.GetOpts before returned. Tree state is also considered
+// The tree will be validated according to GetOpts before returned. Tree state is also considered
 // (for example, deleted tree will return NotFound errors).
-func GetTree(ctx context.Context, s storage.AdminStorage, treeID int64, opts storage.GetOpts) (*trillian.Tree, error) {
+func GetTree(ctx context.Context, s storage.AdminStorage, treeID int64, opts GetOpts) (*trillian.Tree, error) {
 	// TODO(codingllama): Record stats of ctx hits/misses, so we can assess whether RPCs work
 	// as intended.
 	tree, ok := FromContext(ctx)
