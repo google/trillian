@@ -47,10 +47,10 @@ type GetOpts struct {
 
 // NewGetOpts creates GetOps that allows the listed set of tree types, and
 // optionally forces the tree to be readonly.
-func NewGetOpts(accessor OpType, readonly bool, types ...trillian.TreeType) GetOpts {
+func NewGetOpts(op OpType, readonly bool, types ...trillian.TreeType) GetOpts {
 	m := make(map[trillian.TreeType]bool)
 	for _, t := range types {
 		m[t] = true
 	}
-	return GetOpts{Operation: accessor, TreeTypes: m, Readonly: readonly}
+	return GetOpts{Operation: op, TreeTypes: m, Readonly: readonly}
 }
