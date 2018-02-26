@@ -83,6 +83,7 @@ type TreeStorageOptions struct {
 	// transaction will read.
 	// This is intended to allow Spanner to use local replicas for read requests
 	// to help with performance.
+	// See https://cloud.google.com/spanner/docs/timestamp-bounds for more details.
 	ReadOnlyStaleness time.Duration
 }
 
