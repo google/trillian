@@ -38,7 +38,7 @@ CREATE TABLE SubtreeData(
   TreeID      INT64 NOT NULL,
   SubtreeID   BYTES(256) NOT NULL,
   Revision    INT64 NOT NULL,
-  Subtree     BYTES(2097152) NOT NULL
+  Subtree     BYTES(MAX) NOT NULL
 ) PRIMARY KEY(TreeID, SubtreeID, Revision DESC);
 
 CREATE TABLE LeafData(

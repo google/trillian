@@ -54,8 +54,8 @@ var (
 	// with a read-only transaction.  This should not even be possible.
 	ErrWrongTXType = errors.New("mutating method called on read-only transaction")
 
-	// errFinished is only used to terminate spanner reads early, once all
-	// required data has been read. It should never be returned to a caller.
+	// errFinished is only used to terminate reads early, once all required data
+	// has been read. It should never be returned to a caller.
 	errFinished = errors.New("read complete")
 )
 
@@ -68,7 +68,7 @@ const (
 	colRevision  = "Revision"
 )
 
-// treeStorage provides a shared base for the concrete Spanner-backed
+// treeStorage provides a shared base for the concrete CloudSpanner-backed
 // implementation of the Trillian storage.LogStorage and storage.MapStorage
 // interfaces.
 type treeStorage struct {
@@ -175,8 +175,8 @@ func (t *treeStorage) begin(ctx context.Context, treeID int64, opts trees.GetOpt
 	return treeTX, nil
 }
 
-// getLatestRoot populates this TX with the newest tree root visible by this
-// transaction.
+// getLatestRoot populates this TX with the newest tree root visible (when
+// taking read-staleness into account) by this transaction.
 func (t *treeTX) getLatestRoot(ctx context.Context) error {
 	t.getLatestRootOnce.Do(func() {
 		t._currentSTH, t._currentSTHErr = t.ts.latestSTH(ctx, t.stx, t.treeID)
@@ -324,7 +324,8 @@ func (t *treeTX) IsOpen() bool {
 	return t.stx != nil
 }
 
-// ReadRevision returns the tree revision at which the current STH was stored.
+// ReadRevision returns the tree revision at which the currently visible (taking
+// into acount read-staleness) STH was stored.
 func (t *treeTX) ReadRevision() int64 {
 	sth, err := t.currentSTH(context.TODO())
 	if err != nil {
@@ -354,7 +355,8 @@ func subtreeKey(id storage.NodeID) ([]byte, error) {
 	return id.Path[:id.PrefixLenBits/8], nil
 }
 
-// getSubtree retrieves the subtree specified by id at (or below) the requested revision.
+// getSubtree retrieves the most recent subtree specified by id at (or below)
+// the requested revision.
 // If no such subtree exists it returns nil.
 func (t *treeTX) getSubtree(ctx context.Context, rev int64, id storage.NodeID) (p *storagepb.SubtreeProto, e error) {
 	stID, err := subtreeKey(id)
