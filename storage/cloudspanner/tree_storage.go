@@ -326,7 +326,7 @@ func (t *treeTX) IsOpen() bool {
 }
 
 // ReadRevision returns the tree revision at which the currently visible (taking
-// into acount read-staleness) STH was stored.
+// into account read-staleness) STH was stored.
 func (t *treeTX) ReadRevision() int64 {
 	sth, err := t.currentSTH(context.TODO())
 	if err != nil {
