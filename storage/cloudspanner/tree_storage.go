@@ -31,7 +31,6 @@ import (
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/storage/cloudspanner/spannerpb"
 	"github.com/google/trillian/storage/storagepb"
-	"github.com/google/trillian/trees"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -143,11 +142,7 @@ func (t *treeStorage) latestSTH(ctx context.Context, stx spanRead, treeID int64)
 
 type newCacheFn func(*trillian.Tree) (cache.SubtreeCache, error)
 
-func (t *treeStorage) getTreeAndConfig(ctx context.Context, treeID int64, opts trees.GetOpts) (*trillian.Tree, proto.Message, error) {
-	tree, err := trees.GetTree(ctx, t.admin, treeID, opts)
-	if err != nil {
-		return nil, nil, err
-	}
+func (t *treeStorage) getTreeAndConfig(ctx context.Context, tree *trillian.Tree) (*trillian.Tree, proto.Message, error) {
 	config, err := unmarshalSettings(tree)
 	if err != nil {
 		return nil, nil, err
@@ -156,8 +151,8 @@ func (t *treeStorage) getTreeAndConfig(ctx context.Context, treeID int64, opts t
 }
 
 // begin returns a newly started tree transaction for the specified tree.
-func (t *treeStorage) begin(ctx context.Context, treeID int64, opts trees.GetOpts, newCache newCacheFn, stx spanRead) (*treeTX, error) {
-	tree, config, err := t.getTreeAndConfig(ctx, treeID, opts)
+func (t *treeStorage) begin(ctx context.Context, tree *trillian.Tree, newCache newCacheFn, stx spanRead) (*treeTX, error) {
+	tree, config, err := t.getTreeAndConfig(ctx, tree)
 	if err != nil {
 		return nil, err
 	}
@@ -166,7 +161,7 @@ func (t *treeStorage) begin(ctx context.Context, treeID int64, opts trees.GetOpt
 		return nil, err
 	}
 	treeTX := &treeTX{
-		treeID: treeID,
+		treeID: tree.TreeId,
 		ts:     t,
 		stx:    stx,
 		cache:  cache,
