@@ -529,6 +529,7 @@ func (t *TrillianLogRPCServer) GetEntryAndProof(ctx context.Context, req *trilli
 	}, nil
 }
 
+// TODO(Martin2112): Clean this up.
 func (t *TrillianLogRPCServer) prepareReadOnlyStorageTx(ctx context.Context, tree *trillian.Tree) (storage.ReadOnlyLogTreeTX, error) {
 	tx, err := t.registry.LogStorage.SnapshotForTree(ctx, tree)
 	if err != nil {
@@ -576,7 +577,7 @@ func (t *TrillianLogRPCServer) getTreeAndHasher(
 
 func (t *TrillianLogRPCServer) getTreeAndContext(ctx context.Context, treeID int64, opts trees.GetOpts) (*trillian.Tree, context.Context, error) {
 	tree, err := trees.GetTree(ctx, t.registry.AdminStorage, treeID, opts)
-	if err != nil || tree == nil {
+	if err != nil {
 		return nil, nil, err
 	}
 	return tree, trees.NewContext(ctx, tree), nil

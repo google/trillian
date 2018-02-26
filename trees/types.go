@@ -29,10 +29,10 @@ const (
 	Query
 	// Queue is log specific - adding entries to the queue
 	Queue
-	// Sequence is log specific - integrating entries into the tree
-	Sequence
-	// Update is map specific - set / update leaves
-	Update
+	// SequenceLog is log specific - integrating entries into the tree
+	SequenceLog
+	// UpdateMap is map specific - set / update leaves
+	UpdateMap
 )
 
 // GetOpts contains validation options for GetTree.

@@ -39,8 +39,7 @@ const (
 
 var (
 	optsMapRead  = trees.NewGetOpts(trees.Query, true, trillian.TreeType_MAP)
-	optsMapWrite = trees.NewGetOpts(trees.Update, false, trillian.TreeType_MAP)
-	optsMapAdmin = trees.NewGetOpts(trees.Admin, false, trillian.TreeType_MAP)
+	optsMapWrite = trees.NewGetOpts(trees.UpdateMap, false, trillian.TreeType_MAP)
 )
 
 // TODO(codingllama): There is no access control in the server yet and clients could easily modify
@@ -329,7 +328,7 @@ func (t *TrillianMapServer) getTreeAndHasher(ctx context.Context, treeID int64, 
 
 func (t *TrillianMapServer) getTreeAndContext(ctx context.Context, treeID int64, opts trees.GetOpts) (*trillian.Tree, context.Context, error) {
 	tree, err := trees.GetTree(ctx, t.registry.AdminStorage, treeID, opts)
-	if err != nil || tree == nil {
+	if err != nil {
 		return nil, nil, err
 	}
 	return tree, trees.NewContext(ctx, tree), nil
@@ -338,7 +337,7 @@ func (t *TrillianMapServer) getTreeAndContext(ctx context.Context, treeID int64,
 // InitMap implements the RPC Method of the same name.
 func (t *TrillianMapServer) InitMap(ctx context.Context, req *trillian.InitMapRequest) (*trillian.InitMapResponse, error) {
 	mapID := req.MapId
-	tree, hasher, err := t.getTreeAndHasher(ctx, mapID, optsMapAdmin)
+	tree, hasher, err := t.getTreeAndHasher(ctx, mapID, optsMapWrite)
 	if err != nil {
 		return nil, status.Errorf(codes.FailedPrecondition, "getTreeAndHasher(): %v", err)
 	}
