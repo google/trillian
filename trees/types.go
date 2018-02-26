@@ -16,13 +16,13 @@ package trees
 
 import "github.com/google/trillian"
 
-// AccessType indicates how a tree is to be used and participates in permissions
+// OpType indicates how a tree is to be used and participates in permissions
 // decisions.
-type AccessType int
+type OpType int
 
 const (
 	// Unknown is an access type that will always get rejected
-	Unknown AccessType = iota
+	Unknown OpType = iota
 	// Admin access is for general administration purposes
 	Admin
 	// Query implies access to serve query, typically readonly
@@ -41,16 +41,16 @@ type GetOpts struct {
 	TreeTypes map[trillian.TreeType]bool
 	// Readonly is whether the tree will be used for read-only purposes.
 	Readonly bool
-	// Accessor indicates what operation is being performed
-	Accessor AccessType
+	// Operation indicates what operation is being performed
+	Operation OpType
 }
 
 // NewGetOpts creates GetOps that allows the listed set of tree types, and
 // optionally forces the tree to be readonly.
-func NewGetOpts(accessor AccessType, readonly bool, types ...trillian.TreeType) GetOpts {
+func NewGetOpts(accessor OpType, readonly bool, types ...trillian.TreeType) GetOpts {
 	m := make(map[trillian.TreeType]bool)
 	for _, t := range types {
 		m[t] = true
 	}
-	return GetOpts{Accessor: accessor, TreeTypes: m, Readonly: readonly}
+	return GetOpts{Operation: accessor, TreeTypes: m, Readonly: readonly}
 }
