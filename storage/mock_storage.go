@@ -270,7 +270,7 @@ func (m *MockLogStorage) EXPECT() *MockLogStorageMockRecorder {
 }
 
 // AddSequencedLeaves mocks base method
-func (m *MockLogStorage) AddSequencedLeaves(arg0 context.Context, arg1 int64, arg2 []*trillian.LogLeaf) ([]*trillian.QueuedLogLeaf, error) {
+func (m *MockLogStorage) AddSequencedLeaves(arg0 context.Context, arg1 *trillian.Tree, arg2 []*trillian.LogLeaf) ([]*trillian.QueuedLogLeaf, error) {
 	ret := m.ctrl.Call(m, "AddSequencedLeaves", arg0, arg1, arg2)
 	ret0, _ := ret[0].([]*trillian.QueuedLogLeaf)
 	ret1, _ := ret[1].(error)

@@ -233,7 +233,7 @@ func (ls *logStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree, leav
 	return results, nil
 }
 
-func (ls *logStorage) AddSequencedLeaves(ctx context.Context, treeID int64, leaves []*trillian.LogLeaf) ([]*trillian.QueuedLogLeaf, error) {
+func (ls *logStorage) AddSequencedLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf) ([]*trillian.QueuedLogLeaf, error) {
 	return nil, ErrNotImplemented
 }
 

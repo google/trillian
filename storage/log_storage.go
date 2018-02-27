@@ -148,7 +148,7 @@ type LogStorage interface {
 	// optional. Channel these options to the top-level Log API.
 	// TODO(pavelkalinnikov): Not checking values of the occupied indices might
 	// be a good optimization. Could also be optional.
-	AddSequencedLeaves(ctx context.Context, treeID int64, leaves []*trillian.LogLeaf) ([]*trillian.QueuedLogLeaf, error)
+	AddSequencedLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf) ([]*trillian.QueuedLogLeaf, error)
 }
 
 // CountByLogID is a map of total number of items keyed by log ID.

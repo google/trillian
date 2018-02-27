@@ -181,7 +181,7 @@ func (t *TrillianLogRPCServer) AddSequencedLeaves(ctx context.Context, req *tril
 	}
 
 	ctx = trees.NewContext(ctx, tree)
-	leaves, err := t.registry.LogStorage.AddSequencedLeaves(ctx, tree.TreeId, req.Leaves)
+	leaves, err := t.registry.LogStorage.AddSequencedLeaves(ctx, tree, req.Leaves)
 	if err != nil {
 		return nil, err
 	}
