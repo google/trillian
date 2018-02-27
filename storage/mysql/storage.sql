@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS TreeControl(
 CREATE TABLE IF NOT EXISTS Subtree(
   TreeId               BIGINT NOT NULL,
   SubtreeId            VARBINARY(255) NOT NULL,
-  Nodes                VARBINARY(32768) NOT NULL,
+  Nodes                MEDIUMBLOB NOT NULL,
   SubtreeRevision      INTEGER NOT NULL,  -- negated because DESC indexes aren't supported :/
   PRIMARY KEY(TreeId, SubtreeId, SubtreeRevision),
   FOREIGN KEY(TreeId) REFERENCES Trees(TreeId) ON DELETE CASCADE
