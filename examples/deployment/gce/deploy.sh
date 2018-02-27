@@ -27,6 +27,10 @@ gcloud docker -- push us.gcr.io/${PROJECT_NAME}/log_server:$TAG
 gcloud docker -- push us.gcr.io/${PROJECT_NAME}/log_signer:$TAG
 gcloud docker -- push us.gcr.io/${PROJECT_NAME}/map_server:$TAG
 
+# Prepare configmap:
+kubectl delete configmap deploy-config
+kubectl create -f examples/deployment/kubernetes/trillian-mysql.yaml
+
 # Launch with kubernetes
 kubectl apply -f examples/deployment/kubernetes/.
 kubectl get all

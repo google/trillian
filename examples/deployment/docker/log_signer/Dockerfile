@@ -1,18 +1,16 @@
 FROM golang:1.9
 
-ENV DB_USER=test \
-    DB_PASSWORD=zaphod \
-    DB_DATABASE=test \
-    DB_HOST=127.0.0.0:3306
+ENV DB_FLAG="--mysql_url=test:zaphod@tcp(127.0.0.1:3306)/test" \
+    DB_PROVIDER="mysql"
 
 ENV HOST=0.0.0.0 \
     HTTP_PORT=8091
 
 ENV SEQUENCER_GUARD_WINDOW=0s \
     FORCE_MASTER=true \
-    SEQUENCER_INTERVAL=10s \
+    SEQUENCER_INTERVAL=300ms \
     NUM_SEQ_FLAG=10 \
-    BATCH_SIZE=50
+    BATCH_SIZE=2000
 
 
 ADD . /go/src/github.com/google/trillian
@@ -22,14 +20,15 @@ RUN go get ./server/trillian_log_signer
 
 # Run the outyet command by default when the container starts.
 ENTRYPOINT /go/bin/trillian_log_signer \
-	--mysql_uri="${DB_USER}:${DB_PASSWORD}@tcp(${DB_HOST})/${DB_DATABASE}" \
-	--http_endpoint="$HOST:$HTTP_PORT" \
-	--sequencer_guard_window="$SEQUENCER_GUARD_WINDOW" \
-	--sequencer_interval="$SEQUENCER_INTERVAL" \
-	--num_sequencers="$NUM_SEQ_FLAG" \
-	--batch_size="$BATCH_SIZE" \
-	--force_master="$FORCE_MASTER" \
-	--alsologtostderr
+  ${DB_FLAG} \
+  --storage_system=${DB_PROVIDER} \
+  --http_endpoint="$HOST:$HTTP_PORT" \
+  --sequencer_guard_window="$SEQUENCER_GUARD_WINDOW" \
+  --sequencer_interval="$SEQUENCER_INTERVAL" \
+  --num_sequencers="$NUM_SEQ_FLAG" \
+  --batch_size="$BATCH_SIZE" \
+  --force_master="$FORCE_MASTER" \
+  --alsologtostderr
 
 EXPOSE $HTTP_PORT
 

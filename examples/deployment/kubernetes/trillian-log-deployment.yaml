@@ -6,8 +6,8 @@ metadata:
     kompose.version: 1.3.0 (HEAD)
   creationTimestamp: null
   labels:
-    io.kompose.service: trillian-log
-  name: trillian-log
+    io.kompose.service: trillian-logserver
+  name: trillian-logserver-deployment
 spec:
   replicas: 1
   strategy: {}
@@ -17,14 +17,23 @@ spec:
       labels:
         io.kompose.service: trillian-log
     spec:
+      volumes:
+      - name: google-cloud-key
+        secret:
+          secretName: spanner-key
       containers:
-      - command:
-        - /go/bin/trillian_log_server
-        - --mysql_uri=test:zaphod@tcp(db:3306)/test
-        - --rpc_endpoint=0.0.0.0:8090
-        - --http_endpoint=0.0.0.0:8091
-        - --alsologtostderr
-        image: us.gcr.io/project-name/log_server:latest
+      - command: ["/go/bin/trillian_log_server",
+        "$(STORAGE_FLAG)",
+        "--storage_system=$(STORAGE_SYSTEM)",
+        "--quota_system=noop",
+        "--rpc_endpoint=0.0.0.0:8090",
+        "--http_endpoint=0.0.0.0:8091",
+        "--alsologtostderr"
+        ]
+        envFrom:
+          - configMapRef:
+              name: deploy-config
+        image: gcr.io/$(CLOUD_PROJECT)/log_server:latest
         imagePullPolicy: Always
         livenessProbe:
           exec:
@@ -35,12 +44,15 @@ spec:
           failureThreshold: 3
           periodSeconds: 30
           timeoutSeconds: 30
-        name: trillian-log
+        name: trillian-logserver
         ports:
         - containerPort: 8090
           name: rpc
         - containerPort: 8091
           name: metrics
         resources: {}
+        volumeMounts:
+        - name: google-cloud-key
+          mountPath: /var/secrets/google
       restartPolicy: Always
 status: {}

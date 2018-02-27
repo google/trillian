@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: deploy-config
+  namespace: default
+data:
+  # Update this with the name of your project:
+  CLOUD_PROJECT: trillian-opensource-ci
+  STORAGE_SYSTEM: cloud_spanner
+  STORAGE_FLAG: --cloudspanner_uri=projects/trillian-opensource-ci/instances/trillian-opensource-ci/databases/trillian-opensource-ci-db
+  GOOGLE_APPLICATION_CREDENTIALS: /var/secrets/google/key.json
+
