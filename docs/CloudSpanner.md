@@ -4,7 +4,7 @@ Trillian on Cloud Kubernetes with Cloud Spanner
 This document outlines the steps necessary to get an instance of Trillian up
 and running on Google Cloud.
 
- 1. Create a Google Cloud project (e.g. trillian-opensource-ci)
+ 1. Create a Google Cloud project (we'll call it's project ID `${PROJECT_ID}` below)
  2. Enable APIs
     1. Kubernetes
     2. Cloud Spanner
@@ -21,12 +21,11 @@ and running on Google Cloud.
 
  4. Create Spanner instance & database
    1. Click on menu > Cloud Spanner
-   2. Click on "Create Instance"
-   3. Use instance id "trillian-opensource-ci"
-   4. Choose region (e.g. us-central1)
+   2. Click on "Create Instance" (we'll call its instance ID `${SPANNER_INSTANCE}`)
+   4. Choose region (we'll call that ${REGION})
    5. Choose number of nodes
    6. Click create Database
-     1. Use DB name "trillian-opensource-ci-db"
+     1. Fill in a name (we'll call the DB instance `${DATABASE_INSTANCE}`)
      2. Click continue
      4. In `Define your database schema`, click the `Edit as text` slider
      3. paste contents of [spanner.sd](storage/cloudspanner/spanner.sdl) into the text box (you may need to remove the SQL comments prefixed with `--` at the top)
@@ -36,7 +35,7 @@ and running on Google Cloud.
    1. menu > Kubernetes
    2. click on Create Cluster
    3. Set cluster name to something (we'll call this `${CLUSTER_NAME}`)
-   4. Set zone to us-central1-a
+   4. Set zone to something inside ${REGION}
    5. Click create
 
  6. Start initial jobs
