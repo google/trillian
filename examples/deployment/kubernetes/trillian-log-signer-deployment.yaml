@@ -56,5 +56,7 @@ spec:
         volumeMounts:
         - name: google-cloud-key
           mountPath: /var/secrets/google
+      nodeSelector:
+        cloud.google.com/gke-nodepool: signer-pool
       restartPolicy: Always
 status: {}
