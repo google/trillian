@@ -22,7 +22,8 @@ spec:
         secret:
           secretName: spanner-key
       containers:
-      - command: ["/go/bin/trillian_log_server",
+      - name: trillian-logserver
+        command: ["/go/bin/trillian_log_server",
         "$(STORAGE_FLAG)",
         "--storage_system=$(STORAGE_SYSTEM)",
         "--quota_system=noop",
@@ -45,7 +46,6 @@ spec:
           failureThreshold: 3
           periodSeconds: 30
           timeoutSeconds: 30
-        name: trillian-logserver
         ports:
         - containerPort: 8090
           name: rpc
@@ -55,5 +55,7 @@ spec:
         volumeMounts:
         - name: google-cloud-key
           mountPath: /var/secrets/google
+      nodeSelector:
+        cloud.google.com/gke-nodepool: logserver-pool
       restartPolicy: Always
 status: {}
