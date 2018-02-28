@@ -302,6 +302,7 @@ func TestGetLeavesByRange(t *testing.T) {
 
 	for _, test := range tests {
 		if !test.skipTX {
+			//<<<<<<< HEAD
 			mockTX := storage.NewMockLogTreeTX(ctrl)
 			mockAdminTX := storage.NewMockAdminTX(ctrl)
 			mockAdminTX.EXPECT().GetTree(gomock.Any(), tree.TreeId).Return(tree, test.adminErr)
@@ -311,8 +312,19 @@ func TestGetLeavesByRange(t *testing.T) {
 				mockAdminTX.EXPECT().Commit().Return(nil)
 				if test.txErr != nil {
 					fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree).Return(nil, test.txErr)
+					/*=======
+								mockTx := storage.NewMockLogTreeTX(ctrl)
+								if test.txErr != nil {
+									fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), logID).Return(nil, test.txErr)
+								} else {
+									fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), logID).Return(mockTx, nil)
+									mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(signedRoot1, nil)
+									if test.getErr != nil {
+										mockTx.EXPECT().GetLeavesByRange(gomock.Any(), test.start, test.count).Return(nil, test.getErr)
+					>>>>>>> Add test.*/
 				} else {
 					fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree).Return(mockTX, nil)
+					mockTX.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(signedRoot1, nil)
 					if test.getErr != nil {
 						mockTX.EXPECT().GetLeavesByRange(gomock.Any(), test.start, test.count).Return(nil, test.getErr)
 					} else {
@@ -992,6 +1004,37 @@ func TestGetProofByIndex(t *testing.T) {
 
 	if !proto.Equal(proofResponse.Proof, &expectedProof) {
 		t.Fatalf("expected proof: %v but got: %v", expectedProof, proofResponse.Proof)
+	}
+}
+
+func TestGetProofByIndexBeyondSTH(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	fakeStorage := storage.NewMockLogStorage(ctrl)
+	mockTx := storage.NewMockLogTreeTX(ctrl)
+	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(mockTx, nil)
+
+	mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(signedRoot1, nil)
+	mockTx.EXPECT().Close().Return(nil)
+
+	registry := extension.Registry{
+		AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: getEntryAndProofRequest17.LogId, numSnapshots: 1}),
+		LogStorage:   fakeStorage,
+	}
+	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
+
+	proofResponse, err := server.GetInclusionProof(context.Background(), &getInclusionProofByIndexRequest25)
+	if err != nil {
+		t.Fatalf("get inclusion proof by index should have succeeded but we got: %v", err)
+	}
+
+	if proofResponse == nil {
+		t.Fatalf("server response was not successful: %v", proofResponse)
+	}
+
+	if proofResponse.Proof != nil {
+		t.Fatalf("expected nil proof but got: %v", proofResponse.Proof)
 	}
 }
 
