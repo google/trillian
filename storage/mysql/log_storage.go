@@ -588,7 +588,6 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 func (t *logTreeTX) GetSequencedLeafCount(ctx context.Context) (int64, error) {
 	var sequencedLeafCount int64
 
-	// FIXME: why does this not return the root tree size?
 	err := t.tx.QueryRowContext(ctx, selectSequencedLeafCountSQL, t.treeID).Scan(&sequencedLeafCount)
 	if err != nil {
 		glog.Warningf("Error getting sequenced leaf count: %s", err)
