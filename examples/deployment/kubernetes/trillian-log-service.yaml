@@ -4,6 +4,8 @@ metadata:
   labels:
     io.kompose.service: trillian-logserver
   name: trillian-logserver
+  annotations:
+      cloud.google.com/load-balancer-type: "Internal"
 spec:
   type: LoadBalancer
   ports:
