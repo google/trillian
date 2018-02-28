@@ -17,16 +17,16 @@ gcloud --quiet container clusters get-credentials ${CLUSTER_NAME_CI}
 
 echo "Building docker images..."
 cd $GOPATH/src/github.com/google/trillian
-#docker build --quiet -f examples/deployment/docker/log_server/Dockerfile -t gcr.io/${PROJECT_NAME_CI}/log_server:${TRAVIS_COMMIT} .
-#docker build --quiet -f examples/deployment/docker/log_signer/Dockerfile -t gcr.io/${PROJECT_NAME_CI}/log_signer:${TRAVIS_COMMIT} .
+docker build --quiet -f examples/deployment/docker/log_server/Dockerfile -t gcr.io/${PROJECT_NAME_CI}/log_server:${TRAVIS_COMMIT} .
+docker build --quiet -f examples/deployment/docker/log_signer/Dockerfile -t gcr.io/${PROJECT_NAME_CI}/log_signer:${TRAVIS_COMMIT} .
 
 echo "Pushing docker images..."
-#gcloud docker -- push gcr.io/${PROJECT_NAME_CI}/log_server:${TRAVIS_COMMIT}
-#gcloud docker -- push gcr.io/${PROJECT_NAME_CI}/log_signer:${TRAVIS_COMMIT}
+gcloud docker -- push gcr.io/${PROJECT_NAME_CI}/log_server:${TRAVIS_COMMIT}
+gcloud docker -- push gcr.io/${PROJECT_NAME_CI}/log_signer:${TRAVIS_COMMIT}
 
 echo "Tagging docker images..."
-#gcloud --quiet container images add-tag gcr.io/${PROJECT_NAME_CI}/log_server:${TRAVIS_COMMIT} gcr.io/${PROJECT_NAME_CI}/log_server:latest
-#gcloud --quiet container images add-tag gcr.io/${PROJECT_NAME_CI}/log_signer:${TRAVIS_COMMIT} gcr.io/${PROJECT_NAME_CI}/log_signer:latest
+gcloud --quiet container images add-tag gcr.io/${PROJECT_NAME_CI}/log_server:${TRAVIS_COMMIT} gcr.io/${PROJECT_NAME_CI}/log_server:latest
+gcloud --quiet container images add-tag gcr.io/${PROJECT_NAME_CI}/log_signer:${TRAVIS_COMMIT} gcr.io/${PROJECT_NAME_CI}/log_signer:latest
 
 echo "Updating jobs..."
 kubectl delete configmap deploy-config
