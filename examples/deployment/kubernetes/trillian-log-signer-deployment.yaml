@@ -37,7 +37,8 @@ spec:
         envFrom:
           - configMapRef:
               name: deploy-config
-        image: gcr.io/$(CLOUD_PROJECT)/log_signer:latest
+        # Update this with the name of your project:
+        image: gcr.io/trillian-opensource-ci/log_signer:latest
         imagePullPolicy: Always
         livenessProbe:
           exec:
