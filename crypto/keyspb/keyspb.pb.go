@@ -76,7 +76,9 @@ func (m *Specification) String() string            { return proto.CompactTextStr
 func (*Specification) ProtoMessage()               {}
 func (*Specification) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{0} }
 
-type isSpecification_Params interface{ isSpecification_Params() }
+type isSpecification_Params interface {
+	isSpecification_Params()
+}
 
 type Specification_EcdsaParams struct {
 	EcdsaParams *Specification_ECDSA `protobuf:"bytes,1,opt,name=ecdsa_params,json=ecdsaParams,oneof"`
