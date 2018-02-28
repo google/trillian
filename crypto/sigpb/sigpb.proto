@@ -46,24 +46,10 @@ message DigitallySigned {
     ECDSA = 3;
   }
 
-  // SignatureCipherSuite defines the set of algorithms used for signing.
-  enum SignatureCipherSuite {
-    // Signature and hash algorithm are unknown / not set. 
-    UNKNOWN_CIPHER_SUITE = 0;
-    // RSA with SHA256.
-    RSA_SHA256 = 1;
-    // ECDSA with SHA256.
-    ECDSA_SHA256 = 2;
-  }
-
   // hash_algorithm contains the hash algorithm used.
-  // TODO(gdbelvin): deprecate in favor of cipher_suite.
   HashAlgorithm hash_algorithm = 1;
   // sig_algorithm contains the signing algorithm used.
-  // TODO(gdbelvin): deprecate in favor of cipher_suite.
   SignatureAlgorithm signature_algorithm = 2;
-  // cipher_suite contains the combination of ciphers used for this signature.
-  SignatureCipherSuite signature_cipher_suite = 4;
   // signature contains the object signature.
   bytes signature = 3;
 }
