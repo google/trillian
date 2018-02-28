@@ -6,7 +6,7 @@ metadata:
     kompose.version: 1.3.0 (HEAD)
   creationTimestamp: null
   labels:
-    io.kompose.service: trillian-logserver
+    io.kompose.service: trillian-log
   name: trillian-logserver-deployment
 spec:
   replicas: 3
