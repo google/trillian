@@ -1,10 +1,6 @@
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  annotations:
-    kompose.cmd: kompose convert
-    kompose.version: 1.3.0 (HEAD)
-  creationTimestamp: null
   labels:
     io.kompose.service: trillian-log
   name: trillian-logserver-deployment
@@ -13,7 +9,6 @@ spec:
   strategy: {}
   template:
     metadata:
-      creationTimestamp: null
       labels:
         io.kompose.service: trillian-log
     spec:
@@ -37,6 +32,11 @@ spec:
         # Update this with the name of your project:
         image: gcr.io/trillian-opensource-ci/log_server:latest
         imagePullPolicy: Always
+        resources:
+          limits:
+            cpu: "1.5"
+          requests:
+            cpu: "1"
         livenessProbe:
           exec:
             command:
@@ -51,7 +51,6 @@ spec:
           name: rpc
         - containerPort: 8091
           name: metrics
-        resources: {}
         volumeMounts:
         - name: google-cloud-key
           mountPath: /var/secrets/google
