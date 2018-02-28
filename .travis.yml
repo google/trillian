@@ -117,7 +117,7 @@ after_success:
       fi
   - |
       # Push up to GCE CI instance if we're running after a merge to master
-      if [[ $TRAVIS_PULL_REQUEST == “false” ]] && [[ $TRAVIS_BRANCH == “master” ]]; then
+      if [[ $TRAVIS_PULL_REQUEST == "false" ]] && [[ $TRAVIS_BRANCH == "master" ]]; then
         . scripts/install_cloud.sh
 
         echo ${GCLOUD_SERVICE_KEY_CI} | base64 --decode -i > ${HOME}/gcloud-service-key.json
