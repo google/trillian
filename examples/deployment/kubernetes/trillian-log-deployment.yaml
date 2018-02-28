@@ -9,7 +9,7 @@ metadata:
     io.kompose.service: trillian-logserver
   name: trillian-logserver-deployment
 spec:
-  replicas: 1
+  replicas: 3
   strategy: {}
   template:
     metadata:
