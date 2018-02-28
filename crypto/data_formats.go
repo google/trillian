@@ -15,41 +15,68 @@
 package crypto
 
 import (
-	"encoding/base64"
 	"fmt"
-	"strconv"
 
-	"github.com/benlaurie/objecthash/go/objecthash"
+	"github.com/google/certificate-transparency-go/tls"
+
 	"github.com/google/trillian"
 )
 
 // This file contains struct specific mappings and data structures.
-// TODO(gdbelvin): remove data-structure specific operations.
 
-// Constants used as map keys when building input for ObjectHash. They must not be changed
-// as this will change the output of hashRoot()
-const (
-	mapKeyRootHash       string = "RootHash"
-	mapKeyTimestampNanos string = "TimestampNanos"
-	mapKeyTreeSize       string = "TreeSize"
-)
+// SignedLogRootV1 contains the fields verified by SignedLogRootV1
+type SignedLogRootV1 struct {
+	DataFormatVersion uint32
+	RootHash          []byte `tls:"minlen:0,maxlen:128"`
+	TimestampNanos    uint64
+	TreeSize          uint64
+	LogID             uint64
+}
 
-// HashLogRoot hashes SignedLogRoot objects using ObjectHash with
-// "RootHash", "TimestampNanos", and "TreeSize", used as keys in
-// a map.
-func HashLogRoot(root trillian.SignedLogRoot) ([]byte, error) {
-	// Pull out the fields we want to hash.
-	// Caution: use string format for int64 values as they can overflow when
-	// JSON encoded otherwise (it uses floats). We want to be sure that people
-	// using JSON to verify hashes can build the exact same input to ObjectHash.
-	rootMap := map[string]interface{}{
-		mapKeyRootHash:       base64.StdEncoding.EncodeToString(root.RootHash),
-		mapKeyTimestampNanos: strconv.FormatInt(root.TimestampNanos, 10),
-		mapKeyTreeSize:       strconv.FormatInt(root.TreeSize, 10)}
+// SignedMapRootV1 contains the fields verified by SignedMapRootV1
+type SignedMapRootV1 struct {
+	DataFormatVersion uint32
+	RootHash          []byte `tls:"minlen:0,maxlen:128"`
+	TimestampNanos    uint64
+	MapID             uint64
+	MapRevision       uint64
+	MetadataType      []byte `tls:"minlen:0,maxlen:65535"`
+	MetadataValue     []byte `tls:"minlen:0,maxlen:65535"`
+}
 
-	hash, err := objecthash.ObjectHash(rootMap)
-	if err != nil {
-		return nil, fmt.Errorf("ObjectHash(%#v): %v", rootMap, err)
+// SerializeLogRoot returns a canonical TLS serialization of the log root.
+func SerializeLogRoot(r *trillian.SignedLogRoot, version trillian.LogSignatureFormat) ([]byte, error) {
+	switch version {
+	case trillian.LogSignatureFormat_LOG_SIG_FORMAT_V1:
+		root := SignedLogRootV1{
+			DataFormatVersion: uint32(version),
+			RootHash:          r.RootHash,
+			TimestampNanos:    uint64(r.TimestampNanos),
+			TreeSize:          uint64(r.TreeSize),
+			LogID:             uint64(r.LogId),
+		}
+		return tls.Marshal(root)
+	default:
+		return nil, fmt.Errorf("crypto: CanonicalLogRoot(): unknown version: %v", version)
 	}
-	return hash[:], nil
+}
+
+// SerializeMapRoot returns a canonical TLS serialization of the map root.
+func SerializeMapRoot(r *trillian.SignedMapRoot, version trillian.MapSignatureFormat) ([]byte, error) {
+	switch version {
+	case trillian.MapSignatureFormat_MAP_SIG_FORMAT_V1:
+		root := SignedMapRootV1{
+			DataFormatVersion: uint32(version),
+			RootHash:          r.RootHash,
+			TimestampNanos:    uint64(r.TimestampNanos),
+			MapID:             uint64(r.MapId),
+			MapRevision:       uint64(r.MapRevision),
+			MetadataType:      []byte(r.Metadata.GetTypeUrl()),
+			MetadataValue:     r.Metadata.GetValue(),
+		}
+		return tls.Marshal(root)
+
+	default:
+		return nil, fmt.Errorf("crypto: CanonicalLogRoot(): unknown version: %v", version)
+	}
 }

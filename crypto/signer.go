@@ -18,10 +18,7 @@ package crypto
 import (
 	"crypto"
 	"crypto/rand"
-	"encoding/json"
-	"fmt"
 
-	"github.com/benlaurie/objecthash/go/objecthash"
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/sigpb"
@@ -69,28 +66,14 @@ func (s *Signer) Sign(data []byte) (*sigpb.DigitallySigned, error) {
 	}, nil
 }
 
-// SignObject signs the requested object using ObjectHash.
-func (s *Signer) SignObject(obj interface{}) (*sigpb.DigitallySigned, error) {
-	// TODO(gbelvin): use objecthash.CommonJSONify
-	j, err := json.Marshal(obj)
-	if err != nil {
-		return nil, err
-	}
-	hash, err := objecthash.CommonJSONHash(string(j))
-	if err != nil {
-		return nil, fmt.Errorf("CommonJSONHash(%s): %v", j, err)
-	}
-	return s.Sign(hash[:])
-}
-
 // SignLogRoot hashes and signs the supplied (to-be) SignedLogRoot and returns a
 // signature.  Hashing is performed by github.com/benlaurie/objecthash.
 func (s *Signer) SignLogRoot(root *trillian.SignedLogRoot) (*sigpb.DigitallySigned, error) {
-	hash, err := HashLogRoot(*root)
+	canonical, err := SerializeLogRoot(root, trillian.LogSignatureFormat_LOG_SIG_FORMAT_V1)
 	if err != nil {
 		return nil, err
 	}
-	signature, err := s.Sign(hash)
+	signature, err := s.Sign(canonical)
 	if err != nil {
 		glog.Warningf("%v: signer failed to sign log root: %v", root.LogId, err)
 		return nil, err
@@ -102,7 +85,11 @@ func (s *Signer) SignLogRoot(root *trillian.SignedLogRoot) (*sigpb.DigitallySign
 // SignMapRoot hashes and signs the supplied (to-be) SignedMapRoot and returns a
 // signature.  Hashing is performed by github.com/benlaurie/objecthash.
 func (s *Signer) SignMapRoot(root *trillian.SignedMapRoot) (*sigpb.DigitallySigned, error) {
-	signature, err := s.SignObject(root)
+	canonical, err := SerializeMapRoot(root, trillian.MapSignatureFormat_MAP_SIG_FORMAT_V1)
+	if err != nil {
+		return nil, err
+	}
+	signature, err := s.Sign(canonical)
 	if err != nil {
 		glog.Warningf("%v: signer failed to sign map root: %v", root.MapId, err)
 		return nil, err

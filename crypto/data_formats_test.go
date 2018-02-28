@@ -16,6 +16,7 @@ package crypto
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"testing"
 
 	"github.com/google/trillian"
@@ -26,15 +27,15 @@ var dh = testonly.MustHexDecode
 
 // It's important that signatures don't change.
 func TestHashLogRootKnownValue(t *testing.T) {
-	expectedSig := dh("5e6baba8dc3465de9c01d669059dda590b7ce123d6ccd436bcd898f1c79ff6d9")
-	root := trillian.SignedLogRoot{
+	expectedSig := dh("0000000123536f6d65206279746573207468617420776f6e2774206368616e67652e2e2e2e2e2e2e000000000d843fd70000000009f93e410000000000000000")
+	root := &trillian.SignedLogRoot{
 		TimestampNanos: 226770903,
-		RootHash:       []byte("Some bytes that won't change"),
+		RootHash:       []byte("Some bytes that won't change......."),
 		TreeSize:       167329345,
 	}
-	hash, err := HashLogRoot(root)
+	hash, err := SerializeLogRoot(root, trillian.LogSignatureFormat_LOG_SIG_FORMAT_V1)
 	if err != nil {
-		t.Fatalf("HashLogRoot(): %v", err)
+		t.Fatalf("CanonicalLogRoot(): %v", err)
 	}
 	if got, want := hash, expectedSig; !bytes.Equal(got, want) {
 		t.Fatalf("TestHashLogRootKnownValue: got:%x, want:%x", got, want)
@@ -42,48 +43,57 @@ func TestHashLogRootKnownValue(t *testing.T) {
 }
 
 func TestHashLogRoot(t *testing.T) {
-	unique := make(map[[20]byte]bool)
+	unique := make(map[[32]byte]bool)
+	fakeRootHash := []byte("Islington is a great place to live")
 	for _, test := range []struct {
-		root trillian.SignedLogRoot
+		root *trillian.SignedLogRoot
 	}{
 		{
-			root: trillian.SignedLogRoot{
+			root: &trillian.SignedLogRoot{
 				TimestampNanos: 2267709,
-				RootHash:       []byte("Islington"),
+				RootHash:       fakeRootHash,
 				TreeSize:       2,
 			},
 		},
 		{
-			root: trillian.SignedLogRoot{
+			root: &trillian.SignedLogRoot{
+				TimestampNanos: 2267709,
+				RootHash:       fakeRootHash,
+				TreeSize:       2,
+				LogId:          4,
+			},
+		},
+		{
+			root: &trillian.SignedLogRoot{
 				TimestampNanos: 2267708,
-				RootHash:       []byte("Islington"),
+				RootHash:       fakeRootHash,
+				TreeSize:       3,
+			},
+		},
+		{
+			root: &trillian.SignedLogRoot{
+				TimestampNanos: 2267709,
+				RootHash:       []byte("Oslington is a great place to live"),
 				TreeSize:       2,
 			},
 		},
 		{
-			root: trillian.SignedLogRoot{
+			root: &trillian.SignedLogRoot{
 				TimestampNanos: 2267709,
-				RootHash:       []byte("Oslington"),
-				TreeSize:       2,
-			},
-		},
-		{
-			root: trillian.SignedLogRoot{
-				TimestampNanos: 2267709,
-				RootHash:       []byte("Islington"),
+				RootHash:       fakeRootHash,
 				TreeSize:       3,
 			},
 		},
 	} {
-		hash, err := HashLogRoot(test.root)
+		canonical, err := SerializeLogRoot(test.root, trillian.LogSignatureFormat_LOG_SIG_FORMAT_V1)
 		if err != nil {
-			t.Fatalf("HashLogRoot(): %v", err)
+			t.Fatalf("CanonicalLogRoot(): %v", err)
 		}
+		t.Logf("CanonicalRoot: %x", canonical)
 
-		var h [20]byte
-		copy(h[:], hash)
+		h := sha256.Sum256(canonical)
 		if _, ok := unique[h]; ok {
-			t.Errorf("Found duplicate hash from input %v", test.root)
+			t.Errorf("Found duplicate canonical form for input %+v", test.root)
 		}
 		unique[h] = true
 	}

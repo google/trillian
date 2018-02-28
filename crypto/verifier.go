@@ -19,12 +19,10 @@ import (
 	"crypto/ecdsa"
 	"crypto/rsa"
 	"encoding/asn1"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
 
-	"github.com/benlaurie/objecthash/go/objecthash"
 	"github.com/google/trillian/crypto/sigpb"
 )
 
@@ -35,19 +33,6 @@ var (
 		sigpb.DigitallySigned_SHA256: crypto.SHA256,
 	}
 )
-
-// VerifyObject verifies the output of Signer.SignObject.
-func VerifyObject(pub crypto.PublicKey, obj interface{}, sig *sigpb.DigitallySigned) error {
-	j, err := json.Marshal(obj)
-	if err != nil {
-		return err
-	}
-	hash, err := objecthash.CommonJSONHash(string(j))
-	if err != nil {
-		return fmt.Errorf("CommonJSONHash(%s): %v", j, err)
-	}
-	return Verify(pub, hash[:], sig)
-}
 
 // Verify cryptographically verifies the output of Signer.
 func Verify(pub crypto.PublicKey, data []byte, sig *sigpb.DigitallySigned) error {
