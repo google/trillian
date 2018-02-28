@@ -4,16 +4,17 @@ metadata:
   annotations:
     kompose.cmd: kompose convert
     kompose.version: 1.3.0 (HEAD)
+    cloud.google.com/load-balancer-type: "Internal"
   creationTimestamp: null
   labels:
-    io.kompose.service: trillian-logsigner
-  name: trillian-logsigner
+    io.kompose.service: trillian-log-signer
+  name: trillian-log-signer
 spec:
   ports:
   - name: "8092"
     port: 8092
     targetPort: 8091
   selector:
-    io.kompose.service: trillian-logsigner
+    io.kompose.service: trillian-log-signer
 status:
   loadBalancer: {}
