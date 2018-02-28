@@ -42,7 +42,7 @@ var (
 	csSessionHCWorkers                   = flag.Int("cloudspanner_num_healthcheckers", 0, "Number of health check workers for Spanner session pool.")
 	csSessionHCInterval                  = flag.Duration("cloudspanner_healthcheck_interval", 0, "Interval betweek pinging sessions.")
 	csDequeueAcrossMerkleBucketsFraction = flag.Float64("cloudspanner_dequeue_bucket_fraction", 0.75, "Fraction of merkle keyspace to dequeue from, set to zero to disable.")
-	csReadOnlyStaleness                  = flag.Duration("cloudspanner_readonly_staleness", time.Minute, "How far in the past to perform readonly operations. Within limits, raising this will help to increase performance.")
+	csReadOnlyStaleness                  = flag.Duration("cloudspanner_readonly_staleness", time.Minute, "How far in the past to perform readonly operations. Within limits, raising this should help to increase performance/reduce latency.")
 
 	csMu              sync.RWMutex
 	csStorageInstance *cloudSpannerProvider
