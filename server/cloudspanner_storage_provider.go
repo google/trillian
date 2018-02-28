@@ -22,6 +22,7 @@ import (
 	"flag"
 	"io/ioutil"
 	"sync"
+	"time"
 
 	"cloud.google.com/go/spanner"
 	"github.com/golang/glog"
@@ -31,15 +32,17 @@ import (
 )
 
 var (
-	csURI                  = flag.String("cloudspanner_uri", "", "Connection URI for CloudSpanner database")
-	csNumChannels          = flag.Int("cloudspanner_num_channels", 0, "Number of gRPC channels to use to talk to CloudSpanner.")
-	csSessionMaxOpened     = flag.Uint64("cloudspanner_max_open_sessions", 0, "Max open sessions.")
-	csSessionMinOpened     = flag.Uint64("cloudspanner_min_open_sessions", 0, "Min open sessions.")
-	csSessionMaxIdle       = flag.Uint64("cloudspanner_max_idle_sessions", 0, "Max idle sessions.")
-	csSessionMaxBurst      = flag.Uint64("cloudspanner_max_burst_sessions", 0, "Max concurrent create session requests.")
-	csSessionWriteSessions = flag.Float64("cloudspanner_write_sessions", 0, "Fraction of write capable sessions to maintain.")
-	csSessionHCWorkers     = flag.Int("cloudspanner_num_healthcheckers", 0, "Number of health check workers for Spanner session pool.")
-	csSessionHCInterval    = flag.Duration("cloudspanner_healthcheck_interval", 0, "Interval betweek pinging sessions.")
+	csURI                                = flag.String("cloudspanner_uri", "", "Connection URI for CloudSpanner database")
+	csNumChannels                        = flag.Int("cloudspanner_num_channels", 0, "Number of gRPC channels to use to talk to CloudSpanner.")
+	csSessionMaxOpened                   = flag.Uint64("cloudspanner_max_open_sessions", 0, "Max open sessions.")
+	csSessionMinOpened                   = flag.Uint64("cloudspanner_min_open_sessions", 0, "Min open sessions.")
+	csSessionMaxIdle                     = flag.Uint64("cloudspanner_max_idle_sessions", 0, "Max idle sessions.")
+	csSessionMaxBurst                    = flag.Uint64("cloudspanner_max_burst_sessions", 0, "Max concurrent create session requests.")
+	csSessionWriteSessions               = flag.Float64("cloudspanner_write_sessions", 0, "Fraction of write capable sessions to maintain.")
+	csSessionHCWorkers                   = flag.Int("cloudspanner_num_healthcheckers", 0, "Number of health check workers for Spanner session pool.")
+	csSessionHCInterval                  = flag.Duration("cloudspanner_healthcheck_interval", 0, "Interval betweek pinging sessions.")
+	csDequeueAcrossMerkleBucketsFraction = flag.Float64("cloudspanner_dequeue_bucket_fraction", 0.75, "Fraction of merkle keyspace to dequeue from, set to zero to disable.")
+	csReadOnlyStaleness                  = flag.Duration("cloudspanner_readonly_staleness", time.Minute, "How far in the past to perform readonly operations. Within limits, raising this should help to increase performance/reduce latency.")
 
 	csMu              sync.RWMutex
 	csStorageInstance *cloudSpannerProvider
@@ -99,7 +102,19 @@ func newCloudSpannerStorageProvider(mf monitoring.MetricFactory) (StorageProvide
 
 func (s *cloudSpannerProvider) LogStorage() storage.LogStorage {
 	warn()
-	return cloudspanner.NewLogStorage(s.client)
+	opts := cloudspanner.LogStorageOptions{}
+	frac := *csDequeueAcrossMerkleBucketsFraction
+	if frac > 1.0 {
+		frac = 1.0
+	}
+	if frac > 0 {
+		opts.DequeueAcrossMerkleBuckets = true
+		opts.DequeueAcrossMerkleBucketsRangeFraction = frac
+	}
+	if *csReadOnlyStaleness > 0 {
+		opts.ReadOnlyStaleness = *csReadOnlyStaleness
+	}
+	return cloudspanner.NewLogStorageWithOpts(s.client, opts)
 }
 
 func (s *cloudSpannerProvider) MapStorage() storage.MapStorage {
