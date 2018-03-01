@@ -116,9 +116,16 @@ func (ls *logStorage) CheckDatabaseAccessible(ctx context.Context) error {
 }
 
 func (ls *logStorage) Snapshot(ctx context.Context) (storage.ReadOnlyLogTX, error) {
+	var staleness spanner.TimestampBound
+	if ls.opts.ReadOnlyStaleness > 0 {
+		staleness = spanner.ExactStaleness(ls.opts.ReadOnlyStaleness)
+	} else {
+		staleness = spanner.StrongRead()
+	}
+
 	snapshotTX := &snapshotTX{
 		client: ls.ts.client,
-		stx:    ls.ts.client.ReadOnlyTransaction(),
+		stx:    ls.ts.client.ReadOnlyTransaction().WithTimestampBound(staleness),
 		ls:     ls,
 	}
 	return &readOnlyLogTX{snapshotTX}, nil
