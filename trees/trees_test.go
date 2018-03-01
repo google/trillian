@@ -74,13 +74,13 @@ func TestGetTree(t *testing.T) {
 	frozenTree.TreeId = 3
 	frozenTree.TreeState = trillian.TreeState_FROZEN
 
+	drainingTree := *testonly.LogTree
+	drainingTree.TreeId = 3
+	drainingTree.TreeState = trillian.TreeState_DRAINING
+
 	softDeletedTree := *testonly.LogTree
 	softDeletedTree.Deleted = true
 	softDeletedTree.DeleteTime = ptypes.TimestampNow()
-
-	typeOpts := func(types ...trillian.TreeType) GetOpts {
-		return NewGetOpts(Admin, false /* readonly */, types...)
-	}
 
 	tests := []struct {
 		desc                           string
@@ -94,42 +94,42 @@ func TestGetTree(t *testing.T) {
 		{
 			desc:        "anyTree",
 			treeID:      logTree.TreeId,
-			opts:        typeOpts(),
+			opts:        NewGetOpts(Query, true),
 			storageTree: &logTree,
 			wantTree:    &logTree,
 		},
 		{
 			desc:        "logTree",
 			treeID:      logTree.TreeId,
-			opts:        typeOpts(trillian.TreeType_LOG),
+			opts:        NewGetOpts(Query, true, trillian.TreeType_LOG),
 			storageTree: &logTree,
 			wantTree:    &logTree,
 		},
 		{
 			desc:        "mapTree",
 			treeID:      mapTree.TreeId,
-			opts:        typeOpts(trillian.TreeType_MAP),
+			opts:        NewGetOpts(Query, true, trillian.TreeType_MAP),
 			storageTree: &mapTree,
 			wantTree:    &mapTree,
 		},
 		{
 			desc:        "logTreeButMaybeMap",
 			treeID:      logTree.TreeId,
-			opts:        typeOpts(trillian.TreeType_LOG, trillian.TreeType_MAP),
+			opts:        NewGetOpts(Query, true, trillian.TreeType_LOG, trillian.TreeType_MAP),
 			storageTree: &logTree,
 			wantTree:    &logTree,
 		},
 		{
 			desc:        "mapTreeButMaybeLog",
 			treeID:      mapTree.TreeId,
-			opts:        typeOpts(trillian.TreeType_LOG, trillian.TreeType_MAP),
+			opts:        NewGetOpts(Query, true, trillian.TreeType_LOG, trillian.TreeType_MAP),
 			storageTree: &mapTree,
 			wantTree:    &mapTree,
 		},
 		{
 			desc:        "wrongType1",
 			treeID:      logTree.TreeId,
-			opts:        typeOpts(trillian.TreeType_MAP),
+			opts:        NewGetOpts(Query, true, trillian.TreeType_MAP),
 			storageTree: &logTree,
 			wantErr:     true,
 			code:        codes.InvalidArgument,
@@ -137,7 +137,7 @@ func TestGetTree(t *testing.T) {
 		{
 			desc:        "wrongType2",
 			treeID:      mapTree.TreeId,
-			opts:        typeOpts(trillian.TreeType_LOG),
+			opts:        NewGetOpts(Query, true, trillian.TreeType_LOG),
 			storageTree: &mapTree,
 			wantErr:     true,
 			code:        codes.InvalidArgument,
@@ -145,30 +145,63 @@ func TestGetTree(t *testing.T) {
 		{
 			desc:        "wrongType3",
 			treeID:      mapTree.TreeId,
-			opts:        typeOpts(trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG),
+			opts:        NewGetOpts(Query, true, trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG),
 			storageTree: &mapTree,
 			wantErr:     true,
 			code:        codes.InvalidArgument,
 		},
 		{
-			desc:        "frozenTree",
+			desc:        "frozenTreeQuery",
 			treeID:      frozenTree.TreeId,
-			opts:        NewGetOpts(Queue, true /* readonly */, trillian.TreeType_LOG),
+			opts:        NewGetOpts(Query, true /* readonly */, trillian.TreeType_LOG),
 			storageTree: &frozenTree,
 			wantTree:    &frozenTree,
 		},
 		{
-			desc:        "frozenTreeNotReadonly",
+			desc:        "frozenTreeSequence",
 			treeID:      frozenTree.TreeId,
-			opts:        typeOpts(trillian.TreeType_LOG),
+			opts:        NewGetOpts(SequenceLog, false /* readonly */, trillian.TreeType_LOG),
 			storageTree: &frozenTree,
+			wantTree:    &frozenTree,
+			wantErr:     true,
+			code:        codes.PermissionDenied,
+		},
+		{
+			desc:        "frozenTreeQueue",
+			treeID:      frozenTree.TreeId,
+			opts:        NewGetOpts(QueueLog, false /* readonly */, trillian.TreeType_LOG),
+			storageTree: &frozenTree,
+			wantTree:    &frozenTree,
+			wantErr:     true,
+			code:        codes.PermissionDenied,
+		},
+		{
+			desc:        "drainingTreeQuery",
+			treeID:      drainingTree.TreeId,
+			opts:        NewGetOpts(Query, true /* readonly */, trillian.TreeType_LOG),
+			storageTree: &drainingTree,
+			wantTree:    &drainingTree,
+		},
+		{
+			desc:        "drainingTreeSequence",
+			treeID:      drainingTree.TreeId,
+			opts:        NewGetOpts(SequenceLog, false /* readonly */, trillian.TreeType_LOG),
+			storageTree: &drainingTree,
+			wantTree:    &drainingTree,
+		},
+		{
+			desc:        "drainingTreeQueue",
+			treeID:      drainingTree.TreeId,
+			opts:        NewGetOpts(QueueLog, false /* readonly */, trillian.TreeType_LOG),
+			storageTree: &drainingTree,
+			wantTree:    &drainingTree,
 			wantErr:     true,
 			code:        codes.PermissionDenied,
 		},
 		{
 			desc:        "softDeleted",
 			treeID:      softDeletedTree.TreeId,
-			opts:        typeOpts(trillian.TreeType_LOG),
+			opts:        NewGetOpts(Query, true, trillian.TreeType_LOG),
 			storageTree: &softDeletedTree,
 			wantErr:     true, // Deleted = true makes the tree "invisible" for most RPCs
 			code:        codes.NotFound,
@@ -176,14 +209,14 @@ func TestGetTree(t *testing.T) {
 		{
 			desc:     "treeInCtx",
 			treeID:   logTree.TreeId,
-			opts:     typeOpts(trillian.TreeType_LOG),
+			opts:     NewGetOpts(Query, true, trillian.TreeType_LOG),
 			ctxTree:  &logTree,
 			wantTree: &logTree,
 		},
 		{
 			desc:        "wrongTreeInCtx",
 			treeID:      logTree.TreeId,
-			opts:        typeOpts(trillian.TreeType_LOG),
+			opts:        NewGetOpts(Query, true, trillian.TreeType_LOG),
 			ctxTree:     &mapTree,
 			storageTree: &logTree,
 			wantTree:    &logTree,
@@ -191,7 +224,7 @@ func TestGetTree(t *testing.T) {
 		{
 			desc:     "beginErr",
 			treeID:   logTree.TreeId,
-			opts:     typeOpts(trillian.TreeType_LOG),
+			opts:     NewGetOpts(Query, true, trillian.TreeType_LOG),
 			beginErr: errors.New("begin err"),
 			wantErr:  true,
 			code:     codes.Unknown,
@@ -199,7 +232,7 @@ func TestGetTree(t *testing.T) {
 		{
 			desc:    "getErr",
 			treeID:  logTree.TreeId,
-			opts:    typeOpts(trillian.TreeType_LOG),
+			opts:    NewGetOpts(Query, true, trillian.TreeType_LOG),
 			getErr:  errors.New("get err"),
 			wantErr: true,
 			code:    codes.Unknown,
@@ -207,7 +240,7 @@ func TestGetTree(t *testing.T) {
 		{
 			desc:      "commitErr",
 			treeID:    logTree.TreeId,
-			opts:      typeOpts(trillian.TreeType_LOG),
+			opts:      NewGetOpts(Query, true, trillian.TreeType_LOG),
 			commitErr: errors.New("commit err"),
 			wantErr:   true,
 			code:      codes.Unknown,
