@@ -10,6 +10,10 @@ A new tree type `ORDERED_LOG` has been added for upcoming mirror support. This r
 
 Some storage interfaces were removed in #977 as they only had one implementation. We think this won't cause any impact on third parties and are willing to reconsider this change if it does.
 
+The gRPC Log and Map server APIs have new methods `InitLog` and `InitMap` which prepare newly created trees for use. Attempting to use trees that have not been initialized will return the `FAILED_PRECONDITION` error `storage.ErrTreeNeedsInit`.
+
+The gRPC Log server API has new methods `AddSequencedLeaf` and `AddSequencedLeaves`. These are intended to support mirroring applications and are not yet implemented.
+
 Storage APIs have been added such as `ReadWriteTransaction` which allows the underlying storage to manage the transaction and optionally retry until success or timeout. This is a more natural fit for some types of storage API such as [CloudSpanner](https://cloud.google.com/spanner/docs/transactions) and possibly other environments with managed transactions. 
 
 The older `BeginXXX` methods were removed from the APIs. It should be fairly easy to convert a custom storage implementation to the new API format as can be seen from the changes made to the MySQL storage.
