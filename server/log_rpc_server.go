@@ -38,7 +38,7 @@ const proofMaxBitLen = 64
 var (
 	optsLogInit            = trees.NewGetOpts(trees.Admin, false, trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG)
 	optsLogRead            = trees.NewGetOpts(trees.Query, true, trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG)
-	optsLogWrite           = trees.NewGetOpts(trees.Queue, false, trillian.TreeType_LOG)
+	optsLogWrite           = trees.NewGetOpts(trees.QueueLog, false, trillian.TreeType_LOG)
 	optsPreorderedLogWrite = trees.NewGetOpts(trees.SequenceLog, false, trillian.TreeType_PREORDERED_LOG)
 )
 
@@ -118,13 +118,6 @@ func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.Qu
 	tree, hasher, err := t.getTreeAndHasher(ctx, logID, optsLogWrite)
 	if err != nil {
 		return nil, err
-	}
-
-	// If we're draining the queue reject attempts to add new leaves. This is
-	// not the ideal place to enforce this restriction but it's currently
-	// the only really practical one.
-	if tree.TreeState == trillian.TreeState_DRAINING {
-		return nil, status.Errorf(codes.PermissionDenied, "log is draining queue - new leaves may not be added")
 	}
 
 	ctx = trees.NewContext(ctx, tree)

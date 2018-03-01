@@ -28,7 +28,7 @@ const (
 	// Query implies access to serve query, typically readonly
 	Query
 	// Queue is log specific - adding entries to the queue
-	Queue
+	QueueLog
 	// SequenceLog is log specific - integrating entries into the tree
 	SequenceLog
 	// UpdateMap is map specific - set / update leaves
