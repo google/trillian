@@ -287,6 +287,12 @@ func (t *TrillianLogRPCServer) GetInclusionProofByHash(ctx context.Context, req 
 		return nil, status.Errorf(codes.Internal, "Could not read current log root: %v", err)
 	}
 
+	r := &trillian.GetInclusionProofByHashResponse{SignedLogRoot: &slr}
+
+	if len(leaves) < 1 {
+		return r, nil
+	}
+
 	// TODO(Martin2112): Need to define a limit on number of results or some form of paging etc.
 	proofs := make([]*trillian.Proof, 0, len(leaves))
 	for _, leaf := range leaves {
@@ -301,9 +307,8 @@ func (t *TrillianLogRPCServer) GetInclusionProofByHash(ctx context.Context, req 
 		return nil, err
 	}
 
-	return &trillian.GetInclusionProofByHashResponse{
-		Proof: proofs,
-	}, nil
+	r.Proof = proofs
+	return r, nil
 }
 
 // GetConsistencyProof obtains a proof that two versions of the tree are consistent with each
