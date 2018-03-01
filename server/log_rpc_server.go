@@ -36,9 +36,10 @@ import (
 const proofMaxBitLen = 64
 
 var (
+	optsLogInit            = trees.NewGetOpts(trees.Admin, false, trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG)
 	optsLogRead            = trees.NewGetOpts(trees.Query, true, trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG)
 	optsLogWrite           = trees.NewGetOpts(trees.Queue, false, trillian.TreeType_LOG)
-	optsPreorderedLogWrite = trees.NewGetOpts(trees.Queue, false, trillian.TreeType_PREORDERED_LOG)
+	optsPreorderedLogWrite = trees.NewGetOpts(trees.SequenceLog, false, trillian.TreeType_PREORDERED_LOG)
 )
 
 // TrillianLogRPCServer implements the RPC API defined in the proto
@@ -585,12 +586,9 @@ func (t *TrillianLogRPCServer) getTreeAndContext(ctx context.Context, treeID int
 
 // InitLog initialises a freshly created Log by creating the first STH with
 // size 0.
-//
-// TODO(pavelkalinnikov): Make this work for PREORDERED_LOG as well, after
-// ReadWriteTransaction accepts GetOpts.
 func (t *TrillianLogRPCServer) InitLog(ctx context.Context, req *trillian.InitLogRequest) (*trillian.InitLogResponse, error) {
 	logID := req.LogId
-	tree, hasher, err := t.getTreeAndHasher(ctx, logID, optsLogWrite)
+	tree, hasher, err := t.getTreeAndHasher(ctx, logID, optsLogInit)
 	if err != nil {
 		return nil, status.Errorf(codes.FailedPrecondition, "getTreeAndHasher(): %v", err)
 	}

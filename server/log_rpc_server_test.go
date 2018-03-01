@@ -1720,12 +1720,14 @@ func TestInitLog(t *testing.T) {
 
 	for _, tc := range []struct {
 		desc       string
+		preordered bool
 		getRootErr error
 		wantInit   bool
 		root       []byte
 		wantCode   codes.Code
 	}{
 		{desc: "init new log", getRootErr: storage.ErrTreeNeedsInit, wantInit: true, root: nil, wantCode: codes.OK},
+		{desc: "init new preordered log", preordered: true, getRootErr: storage.ErrTreeNeedsInit, wantInit: true, root: nil, wantCode: codes.OK},
 		{desc: "init new log, no err", getRootErr: nil, wantInit: true, root: nil, wantCode: codes.OK},
 		{desc: "init already initialised log", getRootErr: nil, wantInit: false, root: []byte{}, wantCode: codes.AlreadyExists},
 	} {
@@ -1750,7 +1752,7 @@ func TestInitLog(t *testing.T) {
 			}
 
 			registry := extension.Registry{
-				AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: logID1, numSnapshots: 1}),
+				AdminStorage: fakeAdminStorage(ctrl, storageParams{logID1, tc.preordered, 1}),
 				LogStorage:   fakeStorage,
 			}
 			logServer := NewTrillianLogRPCServer(registry, fakeTimeSource)

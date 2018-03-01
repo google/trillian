@@ -38,6 +38,7 @@ const (
 )
 
 var (
+	optsMapInit  = trees.NewGetOpts(trees.Admin, false, trillian.TreeType_MAP)
 	optsMapRead  = trees.NewGetOpts(trees.Query, true, trillian.TreeType_MAP)
 	optsMapWrite = trees.NewGetOpts(trees.UpdateMap, false, trillian.TreeType_MAP)
 )
@@ -337,7 +338,7 @@ func (t *TrillianMapServer) getTreeAndContext(ctx context.Context, treeID int64,
 // InitMap implements the RPC Method of the same name.
 func (t *TrillianMapServer) InitMap(ctx context.Context, req *trillian.InitMapRequest) (*trillian.InitMapResponse, error) {
 	mapID := req.MapId
-	tree, hasher, err := t.getTreeAndHasher(ctx, mapID, optsMapWrite)
+	tree, hasher, err := t.getTreeAndHasher(ctx, mapID, optsMapInit)
 	if err != nil {
 		return nil, status.Errorf(codes.FailedPrecondition, "getTreeAndHasher(): %v", err)
 	}
