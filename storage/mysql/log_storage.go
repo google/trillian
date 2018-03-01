@@ -34,7 +34,6 @@ import (
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
-	"github.com/google/trillian/trees"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -213,25 +212,17 @@ func (t *readOnlyLogTX) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
 	return ids, rows.Err()
 }
 
-func (m *mySQLLogStorage) beginInternal(ctx context.Context, treeID int64, readonly bool) (storage.LogTreeTX, error) {
+func (m *mySQLLogStorage) beginInternal(ctx context.Context, tree *trillian.Tree) (storage.LogTreeTX, error) {
 	once.Do(func() {
 		createMetrics(m.metricFactory)
 	})
-	tree, err := trees.GetTree(
-		ctx,
-		m.admin,
-		treeID,
-		trees.NewGetOpts(readonly, trillian.TreeType_LOG))
-	if err != nil {
-		return nil, err
-	}
 	hasher, err := hashers.NewLogHasher(tree.HashStrategy)
 	if err != nil {
 		return nil, err
 	}
 
 	stCache := cache.NewLogSubtreeCache(defaultLogStrata, hasher)
-	ttx, err := m.beginTreeTx(ctx, treeID, hasher.Size(), stCache)
+	ttx, err := m.beginTreeTx(ctx, tree.TreeId, hasher.Size(), stCache)
 	if err != nil && err != storage.ErrTreeNeedsInit {
 		return nil, err
 	}
@@ -255,8 +246,8 @@ func (m *mySQLLogStorage) beginInternal(ctx context.Context, treeID int64, reado
 	return ltx, nil
 }
 
-func (m *mySQLLogStorage) ReadWriteTransaction(ctx context.Context, treeID int64, f storage.LogTXFunc) error {
-	tx, err := m.beginInternal(ctx, treeID, false /* readonly */)
+func (m *mySQLLogStorage) ReadWriteTransaction(ctx context.Context, tree *trillian.Tree, f storage.LogTXFunc) error {
+	tx, err := m.beginInternal(ctx, tree)
 	if err != nil && err != storage.ErrTreeNeedsInit {
 		return err
 	}
@@ -267,20 +258,20 @@ func (m *mySQLLogStorage) ReadWriteTransaction(ctx context.Context, treeID int64
 	return tx.Commit()
 }
 
-func (m *mySQLLogStorage) AddSequencedLeaves(ctx context.Context, treeID int64, leaves []*trillian.LogLeaf) ([]*trillian.QueuedLogLeaf, error) {
+func (m *mySQLLogStorage) AddSequencedLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf) ([]*trillian.QueuedLogLeaf, error) {
 	return nil, status.Errorf(codes.Unimplemented, "AddSequencedLeaves is not implemented")
 }
 
-func (m *mySQLLogStorage) SnapshotForTree(ctx context.Context, treeID int64) (storage.ReadOnlyLogTreeTX, error) {
-	tx, err := m.beginInternal(ctx, treeID, true /* readonly */)
+func (m *mySQLLogStorage) SnapshotForTree(ctx context.Context, tree *trillian.Tree) (storage.ReadOnlyLogTreeTX, error) {
+	tx, err := m.beginInternal(ctx, tree)
 	if err != nil && err != storage.ErrTreeNeedsInit {
 		return nil, err
 	}
 	return tx.(storage.ReadOnlyLogTreeTX), err
 }
 
-func (m *mySQLLogStorage) QueueLeaves(ctx context.Context, treeID int64, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
-	tx, err := m.beginInternal(ctx, treeID, false /* readonly */)
+func (m *mySQLLogStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
+	tx, err := m.beginInternal(ctx, tree)
 	if err != nil {
 		return nil, err
 	}

@@ -79,7 +79,7 @@ func TestGetTree(t *testing.T) {
 	softDeletedTree.DeleteTime = ptypes.TimestampNow()
 
 	typeOpts := func(types ...trillian.TreeType) GetOpts {
-		return NewGetOpts(false /* readonly */, types...)
+		return NewGetOpts(Admin, false /* readonly */, types...)
 	}
 
 	tests := []struct {
@@ -153,7 +153,7 @@ func TestGetTree(t *testing.T) {
 		{
 			desc:        "frozenTree",
 			treeID:      frozenTree.TreeId,
-			opts:        NewGetOpts(true /* readonly */, trillian.TreeType_LOG),
+			opts:        NewGetOpts(Queue, true /* readonly */, trillian.TreeType_LOG),
 			storageTree: &frozenTree,
 			wantTree:    &frozenTree,
 		},

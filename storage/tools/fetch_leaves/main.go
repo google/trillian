@@ -21,6 +21,7 @@ import (
 	"flag"
 
 	_ "github.com/go-sql-driver/mysql" // Load MySQL driver
+	"github.com/google/trillian"
 
 	log "github.com/golang/glog"
 	"github.com/google/trillian/storage/mysql"
@@ -56,8 +57,9 @@ func main() {
 	defer db.Close()
 
 	storage := mysql.NewLogStorage(db, nil)
+	tree := &trillian.Tree{TreeId: *treeIDFlag, TreeType: trillian.TreeType_LOG}
 	ctx := context.Background()
-	tx, err := storage.SnapshotForTree(ctx, *treeIDFlag)
+	tx, err := storage.SnapshotForTree(ctx, tree)
 	if err != nil {
 		panic(err)
 	}

@@ -33,7 +33,6 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/storage/cloudspanner/spannerpb"
-	"github.com/google/trillian/trees"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -133,8 +132,8 @@ func newLogCache(tree *trillian.Tree) (cache.SubtreeCache, error) {
 	return cache.NewLogSubtreeCache(defLogStrata, hasher), nil
 }
 
-func (ls *logStorage) begin(ctx context.Context, treeID int64, readonly bool, stx spanRead) (*logTX, error) {
-	tx, err := ls.ts.begin(ctx, treeID, trees.NewGetOpts(readonly, trillian.TreeType_LOG), newLogCache, stx)
+func (ls *logStorage) begin(ctx context.Context, tree *trillian.Tree, readonly bool, stx spanRead) (*logTX, error) {
+	tx, err := ls.ts.begin(ctx, tree, newLogCache, stx)
 	if err != nil {
 		return nil, err
 	}
@@ -155,9 +154,9 @@ func (ls *logStorage) BeginForTree(ctx context.Context, treeID int64) (storage.L
 	return nil, ErrNotImplemented
 }
 
-func (ls *logStorage) ReadWriteTransaction(ctx context.Context, treeID int64, f storage.LogTXFunc) error {
+func (ls *logStorage) ReadWriteTransaction(ctx context.Context, tree *trillian.Tree, f storage.LogTXFunc) error {
 	_, err := ls.ts.client.ReadWriteTransaction(ctx, func(ctx context.Context, stx *spanner.ReadWriteTransaction) error {
-		tx, err := ls.begin(ctx, treeID, false /* readonly */, stx)
+		tx, err := ls.begin(ctx, tree, false /* readonly */, stx)
 		if err != nil {
 			return err
 		}
@@ -169,12 +168,12 @@ func (ls *logStorage) ReadWriteTransaction(ctx context.Context, treeID int64, f 
 	return err
 }
 
-func (ls *logStorage) SnapshotForTree(ctx context.Context, treeID int64) (storage.ReadOnlyLogTreeTX, error) {
-	return ls.begin(ctx, treeID, true /* readonly */, ls.ts.client.ReadOnlyTransaction())
+func (ls *logStorage) SnapshotForTree(ctx context.Context, tree *trillian.Tree) (storage.ReadOnlyLogTreeTX, error) {
+	return ls.begin(ctx, tree, true /* readonly */, ls.ts.client.ReadOnlyTransaction())
 }
 
-func (ls *logStorage) QueueLeaves(ctx context.Context, logID int64, leaves []*trillian.LogLeaf, qTimestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
-	_, treeConfig, err := ls.ts.getTreeAndConfig(ctx, logID, trees.NewGetOpts(false /*readonly*/, trillian.TreeType_LOG))
+func (ls *logStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, qTimestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
+	_, treeConfig, err := ls.ts.getTreeAndConfig(ctx, tree)
 	if err != nil {
 		return nil, err
 	}
@@ -204,12 +203,12 @@ func (ls *logStorage) QueueLeaves(ctx context.Context, logID int64, leaves []*tr
 			m1 := spanner.Insert(
 				leafDataTbl,
 				[]string{colTreeID, colLeafIdentityHash, colLeafValue, colExtraData, colQueueTimestampNanos},
-				[]interface{}{logID, l.LeafIdentityHash, l.LeafValue, l.ExtraData, qTS})
+				[]interface{}{tree.TreeId, l.LeafIdentityHash, l.LeafValue, l.ExtraData, qTS})
 			b := bucketPrefix | int64(l.MerkleLeafHash[0])
 			m2 := spanner.Insert(
 				unseqTable,
 				[]string{colTreeID, colBucket, colQueueTimestampNanos, colMerkleLeafHash, colLeafIdentityHash},
-				[]interface{}{logID, b, qTS, l.MerkleLeafHash, l.LeafIdentityHash})
+				[]interface{}{tree.TreeId, b, qTS, l.MerkleLeafHash, l.LeafIdentityHash})
 
 			_, err = ls.ts.client.Apply(ctx, []*spanner.Mutation{m1, m2})
 			if spanner.ErrCode(err) == codes.AlreadyExists {
@@ -227,14 +226,14 @@ func (ls *logStorage) QueueLeaves(ctx context.Context, logID int64, leaves []*tr
 
 	// Finally, read back any leaves which failed with an already exists error
 	// when we tried to insert them:
-	err = ls.readDupeLeaves(ctx, logID, writeDupes, results)
+	err = ls.readDupeLeaves(ctx, tree.TreeId, writeDupes, results)
 	if err != nil {
 		return nil, err
 	}
 	return results, nil
 }
 
-func (ls *logStorage) AddSequencedLeaves(ctx context.Context, treeID int64, leaves []*trillian.LogLeaf) ([]*trillian.QueuedLogLeaf, error) {
+func (ls *logStorage) AddSequencedLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf) ([]*trillian.QueuedLogLeaf, error) {
 	return nil, ErrNotImplemented
 }
 

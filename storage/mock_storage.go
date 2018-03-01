@@ -270,7 +270,7 @@ func (m *MockLogStorage) EXPECT() *MockLogStorageMockRecorder {
 }
 
 // AddSequencedLeaves mocks base method
-func (m *MockLogStorage) AddSequencedLeaves(arg0 context.Context, arg1 int64, arg2 []*trillian.LogLeaf) ([]*trillian.QueuedLogLeaf, error) {
+func (m *MockLogStorage) AddSequencedLeaves(arg0 context.Context, arg1 *trillian.Tree, arg2 []*trillian.LogLeaf) ([]*trillian.QueuedLogLeaf, error) {
 	ret := m.ctrl.Call(m, "AddSequencedLeaves", arg0, arg1, arg2)
 	ret0, _ := ret[0].([]*trillian.QueuedLogLeaf)
 	ret1, _ := ret[1].(error)
@@ -295,7 +295,7 @@ func (mr *MockLogStorageMockRecorder) CheckDatabaseAccessible(arg0 interface{}) 
 }
 
 // QueueLeaves mocks base method
-func (m *MockLogStorage) QueueLeaves(arg0 context.Context, arg1 int64, arg2 []*trillian.LogLeaf, arg3 time.Time) ([]*trillian.QueuedLogLeaf, error) {
+func (m *MockLogStorage) QueueLeaves(arg0 context.Context, arg1 *trillian.Tree, arg2 []*trillian.LogLeaf, arg3 time.Time) ([]*trillian.QueuedLogLeaf, error) {
 	ret := m.ctrl.Call(m, "QueueLeaves", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].([]*trillian.QueuedLogLeaf)
 	ret1, _ := ret[1].(error)
@@ -308,7 +308,7 @@ func (mr *MockLogStorageMockRecorder) QueueLeaves(arg0, arg1, arg2, arg3 interfa
 }
 
 // ReadWriteTransaction mocks base method
-func (m *MockLogStorage) ReadWriteTransaction(arg0 context.Context, arg1 int64, arg2 LogTXFunc) error {
+func (m *MockLogStorage) ReadWriteTransaction(arg0 context.Context, arg1 *trillian.Tree, arg2 LogTXFunc) error {
 	ret := m.ctrl.Call(m, "ReadWriteTransaction", arg0, arg1, arg2)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -333,7 +333,7 @@ func (mr *MockLogStorageMockRecorder) Snapshot(arg0 interface{}) *gomock.Call {
 }
 
 // SnapshotForTree mocks base method
-func (m *MockLogStorage) SnapshotForTree(arg0 context.Context, arg1 int64) (ReadOnlyLogTreeTX, error) {
+func (m *MockLogStorage) SnapshotForTree(arg0 context.Context, arg1 *trillian.Tree) (ReadOnlyLogTreeTX, error) {
 	ret := m.ctrl.Call(m, "SnapshotForTree", arg0, arg1)
 	ret0, _ := ret[0].(ReadOnlyLogTreeTX)
 	ret1, _ := ret[1].(error)
@@ -616,7 +616,7 @@ func (mr *MockMapStorageMockRecorder) CheckDatabaseAccessible(arg0 interface{}) 
 }
 
 // ReadWriteTransaction mocks base method
-func (m *MockMapStorage) ReadWriteTransaction(arg0 context.Context, arg1 int64, arg2 MapTXFunc) error {
+func (m *MockMapStorage) ReadWriteTransaction(arg0 context.Context, arg1 *trillian.Tree, arg2 MapTXFunc) error {
 	ret := m.ctrl.Call(m, "ReadWriteTransaction", arg0, arg1, arg2)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -641,7 +641,7 @@ func (mr *MockMapStorageMockRecorder) Snapshot(arg0 interface{}) *gomock.Call {
 }
 
 // SnapshotForTree mocks base method
-func (m *MockMapStorage) SnapshotForTree(arg0 context.Context, arg1 int64) (ReadOnlyMapTreeTX, error) {
+func (m *MockMapStorage) SnapshotForTree(arg0 context.Context, arg1 *trillian.Tree) (ReadOnlyMapTreeTX, error) {
 	ret := m.ctrl.Call(m, "SnapshotForTree", arg0, arg1)
 	ret0, _ := ret[0].(ReadOnlyMapTreeTX)
 	ret1, _ := ret[1].(error)

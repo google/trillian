@@ -135,6 +135,10 @@ func (TreeType) EnumDescriptor() ([]byte, []int) { return fileDescriptor3, []int
 // Represents a tree, which may be either a verifiable log or map.
 // Readonly attributes are assigned at tree creation, after which they may not
 // be modified.
+//
+// Note: Many APIs within the rest of the code require these objects to
+// be provided. For safety they should be obtained via Admin API calls and
+// not created dynamically.
 type Tree struct {
 	// ID of the tree.
 	// Readonly.

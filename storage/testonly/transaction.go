@@ -82,20 +82,20 @@ func (f *FakeLogStorage) BeginForTree(ctx context.Context, id int64) (storage.Lo
 }
 
 // SnapshotForTree implements LogStorage.SnapshotForTree
-func (f *FakeLogStorage) SnapshotForTree(ctx context.Context, id int64) (storage.ReadOnlyLogTreeTX, error) {
+func (f *FakeLogStorage) SnapshotForTree(ctx context.Context, _ *trillian.Tree) (storage.ReadOnlyLogTreeTX, error) {
 	return f.ReadOnlyTX, f.TXErr
 }
 
 // ReadWriteTransaction implements LogStorage.ReadWriteTransaction
-func (f *FakeLogStorage) ReadWriteTransaction(ctx context.Context, id int64, fn storage.LogTXFunc) error {
+func (f *FakeLogStorage) ReadWriteTransaction(ctx context.Context, tree *trillian.Tree, fn storage.LogTXFunc) error {
 	if f.TXErr != nil {
 		return f.TXErr
 	}
-	return RunOnLogTX(f.TX)(ctx, id, fn)
+	return RunOnLogTX(f.TX)(ctx, tree.TreeId, fn)
 }
 
 // QueueLeaves implements LogStorage.QueueLeaves.
-func (f *FakeLogStorage) QueueLeaves(ctx context.Context, logID int64, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
+func (f *FakeLogStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
 	if f.QueueLeavesErr != nil {
 		return nil, f.QueueLeavesErr
 	}
@@ -103,7 +103,7 @@ func (f *FakeLogStorage) QueueLeaves(ctx context.Context, logID int64, leaves []
 }
 
 // AddSequencedLeaves implements LogStorage.AddSequencedLeaves.
-func (f *FakeLogStorage) AddSequencedLeaves(ctx context.Context, logID int64, leaves []*trillian.LogLeaf) ([]*trillian.QueuedLogLeaf, error) {
+func (f *FakeLogStorage) AddSequencedLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf) ([]*trillian.QueuedLogLeaf, error) {
 	if f.AddSequencedLeavesErr != nil {
 		return nil, f.AddSequencedLeavesErr
 	}
@@ -137,13 +137,13 @@ func (f *FakeMapStorage) BeginForTree(ctx context.Context, id int64) (storage.Ma
 }
 
 // SnapshotForTree implements MapStorage.SnapshotForTree
-func (f *FakeMapStorage) SnapshotForTree(ctx context.Context, id int64) (storage.ReadOnlyMapTreeTX, error) {
+func (f *FakeMapStorage) SnapshotForTree(ctx context.Context, _ *trillian.Tree) (storage.ReadOnlyMapTreeTX, error) {
 	return f.ReadOnlyTX, f.SnapshotErr
 }
 
 // ReadWriteTransaction implements MapStorage.ReadWriteTransaction
-func (f *FakeMapStorage) ReadWriteTransaction(ctx context.Context, id int64, fn storage.MapTXFunc) error {
-	return RunOnMapTX(f.TX)(ctx, id, fn)
+func (f *FakeMapStorage) ReadWriteTransaction(ctx context.Context, tree *trillian.Tree, fn storage.MapTXFunc) error {
+	return RunOnMapTX(f.TX)(ctx, tree.TreeId, fn)
 }
 
 // CheckDatabaseAccessible implements MapStorage.CheckDatabaseAccessible

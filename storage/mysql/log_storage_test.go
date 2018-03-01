@@ -174,7 +174,12 @@ func TestSnapshot(t *testing.T) {
 	s := NewLogStorage(DB, nil)
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			tx, err := s.SnapshotForTree(ctx, test.logID)
+			tree := logTree(test.logID)
+			tx, err := s.SnapshotForTree(ctx, tree)
+
+			if err == storage.ErrTreeNeedsInit {
+				defer tx.Close()
+			}
 
 			if hasErr := err != nil; hasErr != test.wantErr {
 				t.Fatalf("err = %q, wantErr = %v", err, test.wantErr)
@@ -196,40 +201,27 @@ func TestSnapshot(t *testing.T) {
 
 func TestReadWriteTransaction(t *testing.T) {
 	cleanTestDB(DB)
-
-	frozenLogID := createLogForTests(DB)
-	if _, err := updateTree(DB, frozenLogID, func(tree *trillian.Tree) {
-		tree.TreeState = trillian.TreeState_FROZEN
-	}); err != nil {
-		t.Fatalf("Error updating frozen tree: %v", err)
-	}
-
 	activeLogID := createLogForTests(DB)
-	mapID := createMapForTests(DB)
 
 	tests := []struct {
-		desc    string
-		logID   int64
-		wantErr bool
+		desc      string
+		logID     int64
+		wantErr   bool
+		wantRev   int64
+		wantTXRev int64
 	}{
 		{
-			desc:    "unknownBegin",
-			logID:   -1,
-			wantErr: true,
+			// Unknown logs IDs are now handled outside storage.
+			desc:      "unknownBegin",
+			logID:     -1,
+			wantRev:   0,
+			wantTXRev: -1,
 		},
 		{
-			desc:  "activeLogBegin",
-			logID: activeLogID,
-		},
-		{
-			desc:    "frozenBegin",
-			logID:   frozenLogID,
-			wantErr: true,
-		},
-		{
-			desc:    "mapBegin",
-			logID:   mapID,
-			wantErr: true,
+			desc:      "activeLogBegin",
+			logID:     activeLogID,
+			wantRev:   0,
+			wantTXRev: 1,
 		},
 	}
 
@@ -237,13 +229,17 @@ func TestReadWriteTransaction(t *testing.T) {
 	s := NewLogStorage(DB, nil)
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			err := s.ReadWriteTransaction(ctx, test.logID, func(ctx context.Context, tx storage.LogTreeTX) error {
+			tree := logTree(test.logID)
+			err := s.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
 				root, err := tx.LatestSignedLogRoot(ctx)
 				if err != nil {
 					t.Errorf("%v: LatestSignedLogRoot() returned err = %v", test.desc, err)
 				}
-				if got, want := tx.WriteRevision(), root.TreeRevision+1; got != want {
+				if got, want := tx.WriteRevision(), test.wantTXRev; got != want {
 					t.Errorf("%v: WriteRevision() = %v, want = %v", test.desc, got, want)
+				}
+				if got, want := root.TreeRevision, test.wantRev; got != want {
+					t.Errorf("%v: TreeRevision() = %v, want = %v", test.desc, got, want)
 				}
 				return nil
 			})
@@ -259,6 +255,7 @@ func TestReadWriteTransaction(t *testing.T) {
 func TestQueueDuplicateLeaf(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
+	tree := logTree(logID)
 	s := NewLogStorage(DB, nil)
 	count := 15
 	leaves := createTestLeaves(int64(count), 10)
@@ -290,7 +287,7 @@ func TestQueueDuplicateLeaf(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			runLogTX(s, logID, t, func(ctx context.Context, tx storage.LogTreeTX) error {
+			runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
 				existing, err := tx.QueueLeaves(ctx, test.leaves, fakeQueueTime)
 				if err != nil {
 					t.Errorf("Failed to queue leaves: %v", err)
@@ -327,7 +324,8 @@ func TestQueueLeaves(t *testing.T) {
 	logID := createLogForTests(DB)
 	s := NewLogStorage(DB, nil)
 
-	runLogTX(s, logID, t, func(ctx context.Context, tx storage.LogTreeTX) error {
+	tree := logTree(logID)
+	runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
 		leaves := createTestLeaves(leavesToInsert, 20)
 		if _, err := tx.QueueLeaves(ctx, leaves, fakeQueueTime); err != nil {
 			t.Fatalf("Failed to queue leaves: %v", err)
@@ -358,8 +356,9 @@ func TestDequeueLeavesNoneQueued(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
 	s := NewLogStorage(DB, nil)
+	tree := logTree(logID)
 
-	runLogTX(s, logID, t, func(ctx context.Context, tx storage.LogTreeTX) error {
+	runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
 		leaves, err := tx.DequeueLeaves(ctx, 999, fakeDequeueCutoffTime)
 		if err != nil {
 			t.Fatalf("Didn't expect an error on dequeue with no work to be done: %v", err)
@@ -375,9 +374,10 @@ func TestDequeueLeaves(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
 	s := NewLogStorage(DB, nil)
+	tree := logTree(logID)
 
 	{
-		runLogTX(s, logID, t, func(ctx context.Context, tx storage.LogTreeTX) error {
+		runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
 			leaves := createTestLeaves(leavesToInsert, 20)
 			if _, err := tx.QueueLeaves(ctx, leaves, fakeDequeueCutoffTime); err != nil {
 				t.Fatalf("Failed to queue leaves: %v", err)
@@ -388,7 +388,7 @@ func TestDequeueLeaves(t *testing.T) {
 
 	{
 		// Now try to dequeue them
-		runLogTX(s, logID, t, func(ctx context.Context, tx2 storage.LogTreeTX) error {
+		runLogTX(s, tree, t, func(ctx context.Context, tx2 storage.LogTreeTX) error {
 			leaves2, err := tx2.DequeueLeaves(ctx, 99, fakeDequeueCutoffTime)
 			if err != nil {
 				t.Fatalf("Failed to dequeue leaves: %v", err)
@@ -403,7 +403,7 @@ func TestDequeueLeaves(t *testing.T) {
 
 	{
 		// If we dequeue again then we should now get nothing
-		runLogTX(s, logID, t, func(ctx context.Context, tx3 storage.LogTreeTX) error {
+		runLogTX(s, tree, t, func(ctx context.Context, tx3 storage.LogTreeTX) error {
 			leaves3, err := tx3.DequeueLeaves(ctx, 99, fakeDequeueCutoffTime)
 			if err != nil {
 				t.Fatalf("Failed to dequeue leaves (second time): %v", err)
@@ -420,9 +420,10 @@ func TestDequeueLeavesHaveQueueTimestamp(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
 	s := NewLogStorage(DB, nil)
+	tree := logTree(logID)
 
 	{
-		runLogTX(s, logID, t, func(ctx context.Context, tx storage.LogTreeTX) error {
+		runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
 			leaves := createTestLeaves(leavesToInsert, 20)
 			if _, err := tx.QueueLeaves(ctx, leaves, fakeDequeueCutoffTime); err != nil {
 				t.Fatalf("Failed to queue leaves: %v", err)
@@ -433,7 +434,7 @@ func TestDequeueLeavesHaveQueueTimestamp(t *testing.T) {
 
 	{
 		// Now try to dequeue them
-		runLogTX(s, logID, t, func(ctx context.Context, tx2 storage.LogTreeTX) error {
+		runLogTX(s, tree, t, func(ctx context.Context, tx2 storage.LogTreeTX) error {
 			leaves2, err := tx2.DequeueLeaves(ctx, 99, fakeDequeueCutoffTime)
 			if err != nil {
 				t.Fatalf("Failed to dequeue leaves: %v", err)
@@ -451,12 +452,13 @@ func TestDequeueLeavesTwoBatches(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
 	s := NewLogStorage(DB, nil)
+	tree := logTree(logID)
 
 	leavesToDequeue1 := 3
 	leavesToDequeue2 := 2
 
 	{
-		runLogTX(s, logID, t, func(ctx context.Context, tx storage.LogTreeTX) error {
+		runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
 			leaves := createTestLeaves(leavesToInsert, 20)
 			if _, err := tx.QueueLeaves(ctx, leaves, fakeDequeueCutoffTime); err != nil {
 				t.Fatalf("Failed to queue leaves: %v", err)
@@ -469,7 +471,7 @@ func TestDequeueLeavesTwoBatches(t *testing.T) {
 	var leaves2, leaves3, leaves4 []*trillian.LogLeaf
 	{
 		// Now try to dequeue some of them
-		runLogTX(s, logID, t, func(ctx context.Context, tx2 storage.LogTreeTX) error {
+		runLogTX(s, tree, t, func(ctx context.Context, tx2 storage.LogTreeTX) error {
 			leaves2, err = tx2.DequeueLeaves(ctx, leavesToDequeue1, fakeDequeueCutoffTime)
 			if err != nil {
 				t.Fatalf("Failed to dequeue leaves: %v", err)
@@ -483,7 +485,7 @@ func TestDequeueLeavesTwoBatches(t *testing.T) {
 		})
 
 		// Now try to dequeue the rest of them
-		runLogTX(s, logID, t, func(ctx context.Context, tx3 storage.LogTreeTX) error {
+		runLogTX(s, tree, t, func(ctx context.Context, tx3 storage.LogTreeTX) error {
 			leaves3, err = tx3.DequeueLeaves(ctx, leavesToDequeue2, fakeDequeueCutoffTime)
 			if err != nil {
 				t.Fatalf("Failed to dequeue leaves: %v", err)
@@ -503,7 +505,7 @@ func TestDequeueLeavesTwoBatches(t *testing.T) {
 
 	{
 		// If we dequeue again then we should now get nothing
-		runLogTX(s, logID, t, func(ctx context.Context, tx4 storage.LogTreeTX) error {
+		runLogTX(s, tree, t, func(ctx context.Context, tx4 storage.LogTreeTX) error {
 			leaves5, err := tx4.DequeueLeaves(ctx, 99, fakeDequeueCutoffTime)
 			if err != nil {
 				t.Fatalf("Failed to dequeue leaves (second time): %v", err)
@@ -523,9 +525,10 @@ func TestDequeueLeavesGuardInterval(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
 	s := NewLogStorage(DB, nil)
+	tree := logTree(logID)
 
 	{
-		runLogTX(s, logID, t, func(ctx context.Context, tx storage.LogTreeTX) error {
+		runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
 			leaves := createTestLeaves(leavesToInsert, 20)
 			if _, err := tx.QueueLeaves(ctx, leaves, fakeQueueTime); err != nil {
 				t.Fatalf("Failed to queue leaves: %v", err)
@@ -536,7 +539,7 @@ func TestDequeueLeavesGuardInterval(t *testing.T) {
 
 	{
 		// Now try to dequeue them using a cutoff that means we should get none
-		runLogTX(s, logID, t, func(ctx context.Context, tx2 storage.LogTreeTX) error {
+		runLogTX(s, tree, t, func(ctx context.Context, tx2 storage.LogTreeTX) error {
 			leaves2, err := tx2.DequeueLeaves(ctx, 99, fakeQueueTime.Add(-time.Second))
 			if err != nil {
 				t.Fatalf("Failed to dequeue leaves: %v", err)
@@ -566,13 +569,14 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
 	s := NewLogStorage(DB, nil)
+	tree := logTree(logID)
 
 	batchSize := 2
 	leaves := createTestLeaves(int64(batchSize), 0)
 	leaves2 := createTestLeaves(int64(batchSize), int64(batchSize))
 
 	{
-		runLogTX(s, logID, t, func(ctx context.Context, tx storage.LogTreeTX) error {
+		runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
 			if _, err := tx.QueueLeaves(ctx, leaves, fakeQueueTime); err != nil {
 				t.Fatalf("QueueLeaves(1st batch) = %v", err)
 			}
@@ -586,7 +590,7 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 
 	{
 		// Now try to dequeue two leaves and we should get the second batch
-		runLogTX(s, logID, t, func(ctx context.Context, tx2 storage.LogTreeTX) error {
+		runLogTX(s, tree, t, func(ctx context.Context, tx2 storage.LogTreeTX) error {
 			dequeue1, err := tx2.DequeueLeaves(ctx, batchSize, fakeQueueTime)
 			if err != nil {
 				t.Fatalf("DequeueLeaves(1st) = %v", err)
@@ -605,7 +609,7 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 		})
 
 		// Try to dequeue again and we should get the batch that was queued first, though at a later time
-		runLogTX(s, logID, t, func(ctx context.Context, tx3 storage.LogTreeTX) error {
+		runLogTX(s, tree, t, func(ctx context.Context, tx3 storage.LogTreeTX) error {
 			dequeue2, err := tx3.DequeueLeaves(ctx, batchSize, fakeQueueTime)
 			if err != nil {
 				t.Fatalf("DequeueLeaves(2nd) = %v", err)
@@ -628,8 +632,9 @@ func TestGetLeavesByHashNotPresent(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
 	s := NewLogStorage(DB, nil)
+	tree := logTree(logID)
 
-	runLogTX(s, logID, t, func(ctx context.Context, tx storage.LogTreeTX) error {
+	runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
 		hashes := [][]byte{[]byte("thisdoesn'texist")}
 		leaves, err := tx.GetLeavesByHash(ctx, hashes, false)
 		if err != nil {
@@ -646,8 +651,9 @@ func TestGetLeavesByIndexNotPresent(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
 	s := NewLogStorage(DB, nil)
+	tree := logTree(logID)
 
-	runLogTX(s, logID, t, func(ctx context.Context, tx storage.LogTreeTX) error {
+	runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
 		if _, err := tx.GetLeavesByIndex(ctx, []int64{99999}); err == nil {
 			t.Fatalf("Returned ok for leaf index when nothing inserted: %v", err)
 		}
@@ -662,11 +668,12 @@ func TestGetLeavesByHash(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
 	s := NewLogStorage(DB, nil)
+	tree := logTree(logID)
 
 	data := []byte("some data")
 	createFakeLeaf(ctx, DB, logID, dummyRawHash, dummyHash, data, someExtraData, sequenceNumber, t)
 
-	runLogTX(s, logID, t, func(ctx context.Context, tx storage.LogTreeTX) error {
+	runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
 		hashes := [][]byte{dummyHash}
 		leaves, err := tx.GetLeavesByHash(ctx, hashes, false)
 		if err != nil {
@@ -687,6 +694,7 @@ func TestGetLeafDataByIdentityHash(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
 	s := NewLogStorage(DB, nil)
+	tree := logTree(logID)
 	data := []byte("some data")
 	leaf := createFakeLeaf(ctx, DB, logID, dummyRawHash, dummyHash, data, someExtraData, sequenceNumber, t)
 	leaf.LeafIndex = -1
@@ -719,7 +727,7 @@ func TestGetLeafDataByIdentityHash(t *testing.T) {
 	}
 	for i, test := range tests {
 		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
-			runLogTX(s, logID, t, func(ctx context.Context, tx storage.LogTreeTX) error {
+			runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
 				leaves, err := tx.(*logTreeTX).getLeafDataByIdentityHash(ctx, test.hashes)
 				if err != nil {
 					t.Fatalf("getLeavesByIdentityHash(_) = (_,%v); want (_,nil)", err)
@@ -759,11 +767,12 @@ func TestGetLeavesByIndex(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
 	s := NewLogStorage(DB, nil)
+	tree := logTree(logID)
 
 	data := []byte("some data")
 	createFakeLeaf(ctx, DB, logID, dummyRawHash, dummyHash, data, someExtraData, sequenceNumber, t)
 
-	runLogTX(s, logID, t, func(ctx context.Context, tx storage.LogTreeTX) error {
+	runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
 		leaves, err := tx.GetLeavesByIndex(ctx, []int64{sequenceNumber})
 		if err != nil {
 			t.Fatalf("Unexpected error getting leaf by index: %v", err)
@@ -796,6 +805,7 @@ func TestGetLeavesByRange(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
 	s := NewLogStorage(DB, nil)
+	tree := logTree(logID)
 
 	// Create leaves [0]..[13] but drop leaf [5]
 	for i := int64(0); i < 14; i++ {
@@ -808,7 +818,7 @@ func TestGetLeavesByRange(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		runLogTX(s, logID, t, func(ctx context.Context, tx storage.LogTreeTX) error {
+		runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
 			leaves, err := tx.GetLeavesByRange(ctx, test.start, test.count)
 			if err != nil {
 				if !test.wantErr {
@@ -839,10 +849,9 @@ func TestLatestSignedRootNoneWritten(t *testing.T) {
 	if err != nil {
 		t.Fatalf("createTree: %v", err)
 	}
-	logID := tree.TreeId
 	s := NewLogStorage(DB, nil)
 
-	tx, err := s.SnapshotForTree(ctx, logID)
+	tx, err := s.SnapshotForTree(ctx, tree)
 	if err != storage.ErrTreeNeedsInit {
 		t.Fatalf("SnapshotForTree gave %v, want %v", err, storage.ErrTreeNeedsInit)
 	}
@@ -853,6 +862,7 @@ func TestLatestSignedLogRoot(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
 	s := NewLogStorage(DB, nil)
+	tree := logTree(logID)
 
 	root := trillian.SignedLogRoot{
 		LogId:          logID,
@@ -863,7 +873,7 @@ func TestLatestSignedLogRoot(t *testing.T) {
 		Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
 	}
 
-	runLogTX(s, logID, t, func(ctx context.Context, tx storage.LogTreeTX) error {
+	runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
 		if err := tx.StoreSignedLogRoot(ctx, root); err != nil {
 			t.Fatalf("Failed to store signed root: %v", err)
 		}
@@ -871,7 +881,7 @@ func TestLatestSignedLogRoot(t *testing.T) {
 	})
 
 	{
-		runLogTX(s, logID, t, func(ctx context.Context, tx2 storage.LogTreeTX) error {
+		runLogTX(s, tree, t, func(ctx context.Context, tx2 storage.LogTreeTX) error {
 			root2, err := tx2.LatestSignedLogRoot(ctx)
 			if err != nil {
 				t.Fatalf("Failed to read back new log root: %v", err)
@@ -888,8 +898,9 @@ func TestDuplicateSignedLogRoot(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
 	s := NewLogStorage(DB, nil)
+	tree := logTree(logID)
 
-	runLogTX(s, logID, t, func(ctx context.Context, tx storage.LogTreeTX) error {
+	runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
 		root := trillian.SignedLogRoot{
 			LogId:          logID,
 			TimestampNanos: 98765,
@@ -914,6 +925,7 @@ func TestLogRootUpdate(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)
 	s := NewLogStorage(DB, nil)
+	tree := logTree(logID)
 
 	root := trillian.SignedLogRoot{
 		LogId:          logID,
@@ -931,7 +943,7 @@ func TestLogRootUpdate(t *testing.T) {
 		RootHash:       []byte(dummyHash),
 		Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
 	}
-	runLogTX(s, logID, t, func(ctx context.Context, tx storage.LogTreeTX) error {
+	runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
 		if err := tx.StoreSignedLogRoot(ctx, root); err != nil {
 			t.Fatalf("Failed to store signed root: %v", err)
 		}
@@ -941,7 +953,7 @@ func TestLogRootUpdate(t *testing.T) {
 		return nil
 	})
 
-	runLogTX(s, logID, t, func(ctx context.Context, tx2 storage.LogTreeTX) error {
+	runLogTX(s, tree, t, func(ctx context.Context, tx2 storage.LogTreeTX) error {
 		root3, err := tx2.LatestSignedLogRoot(ctx)
 		if err != nil {
 			t.Fatalf("Failed to read back new log root: %v", err)
@@ -1056,8 +1068,9 @@ func TestGetUnsequencedCounts(t *testing.T) {
 	for i := int64(1); i < 10; i++ {
 		// Put some leaves in the queue of each of the logs
 		for j, logID := range logIDs {
+			tree := logTree(logID)
 			numToAdd := i + int64(j)
-			runLogTX(s, logID, t, func(ctx context.Context, tx storage.LogTreeTX) error {
+			runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
 				leaves := createTestLeaves(numToAdd, expectedCount[logID])
 				if _, err := tx.QueueLeaves(ctx, leaves, fakeDequeueCutoffTime); err != nil {
 					t.Fatalf("Failed to queue leaves: %v", err)
@@ -1130,7 +1143,8 @@ func TestGetSequencedLeafCount(t *testing.T) {
 	}
 
 	// Read back the leaf counts from both trees
-	runLogTX(s, logID1, t, func(ctx context.Context, tx storage.LogTreeTX) error {
+	tree1 := logTree(logID1)
+	runLogTX(s, tree1, t, func(ctx context.Context, tx storage.LogTreeTX) error {
 		count1, err := tx.GetSequencedLeafCount(ctx)
 		if err != nil {
 			t.Fatalf("unexpected error getting leaf count: %v", err)
@@ -1141,7 +1155,8 @@ func TestGetSequencedLeafCount(t *testing.T) {
 		return nil
 	})
 
-	runLogTX(s, logID2, t, func(ctx context.Context, tx storage.LogTreeTX) error {
+	tree2 := logTree(logID2)
+	runLogTX(s, tree2, t, func(ctx context.Context, tx storage.LogTreeTX) error {
 		count2, err := tx.GetSequencedLeafCount(ctx)
 		if err != nil {
 			t.Fatalf("unexpected error getting leaf count2: %v", err)
@@ -1227,9 +1242,9 @@ func createTestLeaves(n, startSeq int64) []*trillian.LogLeaf {
 }
 
 // Convenience methods to avoid copying out "if err != nil { blah }" all over the place
-func runLogTX(s storage.LogStorage, logID int64, t *testing.T, f storage.LogTXFunc) {
+func runLogTX(s storage.LogStorage, tree *trillian.Tree, t *testing.T, f storage.LogTXFunc) {
 	t.Helper()
-	if err := s.ReadWriteTransaction(context.Background(), logID, f); err != nil {
+	if err := s.ReadWriteTransaction(context.Background(), tree, f); err != nil {
 		t.Fatalf("Failed to run log tx: %v", err)
 	}
 }
@@ -1263,4 +1278,12 @@ func (l byLeafIdentityHash) Len() int      { return len(l) }
 func (l byLeafIdentityHash) Swap(i, j int) { l[i], l[j] = l[j], l[i] }
 func (l byLeafIdentityHash) Less(i, j int) bool {
 	return bytes.Compare(l[i].LeafIdentityHash, l[j].LeafIdentityHash) == -1
+}
+
+func logTree(logID int64) *trillian.Tree {
+	return &trillian.Tree{
+		TreeId:       logID,
+		TreeType:     trillian.TreeType_LOG,
+		HashStrategy: trillian.HashStrategy_RFC6962_SHA256,
+	}
 }

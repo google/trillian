@@ -74,12 +74,13 @@ func main() {
 	batchSize := testVecs[testIndex].batchSize
 	numBatches := testVecs[testIndex].numBatches
 	expectedRootB64 := testVecs[testIndex].expectedRootB64
+	tree := &trillian.Tree{TreeId: mapID, TreeType: trillian.TreeType_MAP}
 
 	ctx := context.Background()
 
 	var root []byte
 	for x := 0; x < numBatches; x++ {
-		err := ms.ReadWriteTransaction(ctx, mapID, func(ctx context.Context, tx storage.MapTreeTX) error {
+		err := ms.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.MapTreeTX) error {
 			if err != nil {
 				glog.Exitf("Failed to Begin() a new tx: %v", err)
 			}
@@ -89,7 +90,7 @@ func main() {
 				tx.WriteRevision(),
 				hasher,
 				func(ctx context.Context, f func(context.Context, storage.MapTreeTX) error) error {
-					return ms.ReadWriteTransaction(ctx, mapID, f)
+					return ms.ReadWriteTransaction(ctx, tree, f)
 				})
 			if err != nil {
 				glog.Exitf("Failed to create new SMTWriter: %v", err)
@@ -141,5 +142,4 @@ func main() {
 		glog.Exitf("Expected root %s, got root: %s", base64.StdEncoding.EncodeToString(expected), base64.StdEncoding.EncodeToString(got))
 	}
 	glog.Infof("Finished, root: %s", base64.StdEncoding.EncodeToString(root))
-
 }

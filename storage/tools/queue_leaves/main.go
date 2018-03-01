@@ -64,7 +64,8 @@ func main() {
 
 	ls := mysql.NewLogStorage(db, nil)
 	ctx := context.Background()
-	err = ls.ReadWriteTransaction(ctx, *treeIDFlag, func(ctx context.Context, tx storage.LogTreeTX) error {
+	tree := &trillian.Tree{TreeId: *treeIDFlag, TreeType: trillian.TreeType_LOG}
+	err = ls.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
 		leaves := []*trillian.LogLeaf{}
 		for l := 0; l < *numInsertionsFlag; l++ {
 			// Leaf data based in the sequence number so we can check the hashes
