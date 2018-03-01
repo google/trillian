@@ -404,20 +404,29 @@ func checkInclusionProofLeafOutOfRange(logID int64, client trillian.TrillianLogC
 }
 
 // checkInclusionProofTreeSizeOutOfRange requests an inclusion proof for a leaf within the tree size at
-// a tree size larger than the current tree size. This should fail.
+// a tree size larger than the current tree size. This should succeed but with an STH for the current
+// tree and an empty proof, because it is a result of skew.
 func checkInclusionProofTreeSizeOutOfRange(logID int64, client trillian.TrillianLogClient, params TestParameters) error {
 	// Test is an in range leaf index for a tree size that doesn't exist
 	ctx, cancel := getRPCDeadlineContext(params)
-	proof, err := client.GetInclusionProof(ctx, &trillian.GetInclusionProofRequest{
+	req := &trillian.GetInclusionProofRequest{
 		LogId:     logID,
 		LeafIndex: int64(params.sequencerBatchSize),
 		TreeSize:  params.leafCount + int64(params.sequencerBatchSize),
-	})
+	}
+	proof, err := client.GetInclusionProof(ctx, req)
 	cancel()
 
-	if err == nil {
-		return fmt.Errorf("log returned proof for tree size outside tree: %d v %d: %v", params.sequencerBatchSize, params.leafCount+int64(params.sequencerBatchSize), proof)
+	if err != nil {
+		return fmt.Errorf("log returned error for tree size outside tree: %d v %d: %v", params.leafCount, req.TreeSize, err)
 	}
+	if proof.Proof != nil {
+		return fmt.Errorf("log returned proof for tree size outside tree: %d v %d: %v", params.leafCount, req.TreeSize, proof)
+	}
+	if proof.SignedLogRoot == nil || proof.SignedLogRoot.TreeSize >= req.TreeSize {
+		return fmt.Errorf("log returned bad root for tree size outside tree: %d v %d: %v", params.leafCount, req.TreeSize, proof)
+	}
+
 	return nil
 }
 

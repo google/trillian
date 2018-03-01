@@ -226,6 +226,12 @@ func (t *TrillianLogRPCServer) GetInclusionProof(ctx context.Context, req *trill
 		return nil, status.Errorf(codes.Internal, "Could not read current log root: %v", err)
 	}
 
+	r := &trillian.GetInclusionProofResponse{SignedLogRoot: &slr}
+
+	if uint64(req.TreeSize) > root.TreeSize {
+		return r, nil
+	}
+
 	proof, err := getInclusionProofForLeafIndex(ctx, tx, hasher, req.TreeSize, req.LeafIndex, int64(root.TreeSize))
 	if err != nil {
 		return nil, err
@@ -235,7 +241,9 @@ func (t *TrillianLogRPCServer) GetInclusionProof(ctx context.Context, req *trill
 		return nil, err
 	}
 
-	return &trillian.GetInclusionProofResponse{Proof: &proof}, nil
+	r.Proof = &proof
+
+	return r, nil
 }
 
 // GetInclusionProofByHash obtains proofs of inclusion by leaf hash. Because some logs can
