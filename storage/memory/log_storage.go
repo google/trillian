@@ -263,6 +263,10 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 	return []*trillian.LogLeaf{}, nil
 }
 
+func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf) ([]*trillian.QueuedLogLeaf, error) {
+	return nil, status.Errorf(codes.Unimplemented, "AddSequencedLeaves is not implemented")
+}
+
 func (t *logTreeTX) GetSequencedLeafCount(ctx context.Context) (int64, error) {
 	var sequencedLeafCount int64
 

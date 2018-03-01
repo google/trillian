@@ -85,6 +85,9 @@ type LogTreeTX interface {
 	// guard intervals to be configured.
 	DequeueLeaves(ctx context.Context, limit int, cutoffTime time.Time) ([]*trillian.LogLeaf, error)
 
+	// TODO(pavelkalinnikov): Comment properly.
+	AddSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf) ([]*trillian.QueuedLogLeaf, error)
+
 	// UpdateSequencedLeaves associates the leaves with the sequence numbers
 	// assigned to them.
 	UpdateSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf) error

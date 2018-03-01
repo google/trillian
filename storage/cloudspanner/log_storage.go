@@ -446,6 +446,10 @@ func (tx *logTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf, ts
 	return nil, ErrNotImplemented
 }
 
+func (tx *logTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf) ([]*trillian.QueuedLogLeaf, error) {
+	return nil, ErrNotImplemented
+}
+
 // genDequeueBucketsSingleSplit returns a number of bucket IDs suitable for using in
 // DequeueLeaves to determine the list of bucket IDs to sequence from.
 //
