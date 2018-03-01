@@ -209,7 +209,7 @@ func (t *TrillianLogRPCServer) GetInclusionProof(ctx context.Context, req *trill
 
 	// Next we need to make sure the requested tree size corresponds to an STH, so that we
 	// have a usable tree revision
-	tx, err := t.prepareReadOnlyStorageTx(ctx, tree)
+	tx, err := t.registry.LogStorage.SnapshotForTree(ctx, tree)
 	if err != nil {
 		return nil, err
 	}
@@ -248,7 +248,7 @@ func (t *TrillianLogRPCServer) GetInclusionProofByHash(ctx context.Context, req 
 
 	// Next we need to make sure the requested tree size corresponds to an STH, so that we
 	// have a usable tree revision
-	tx, err := t.prepareReadOnlyStorageTx(ctx, tree)
+	tx, err := t.registry.LogStorage.SnapshotForTree(ctx, tree)
 	if err != nil {
 		return nil, err
 	}
@@ -303,7 +303,7 @@ func (t *TrillianLogRPCServer) GetConsistencyProof(ctx context.Context, req *tri
 	}
 	ctx = trees.NewContext(ctx, tree)
 
-	tx, err := t.prepareReadOnlyStorageTx(ctx, tree)
+	tx, err := t.registry.LogStorage.SnapshotForTree(ctx, tree)
 	if err != nil {
 		return nil, err
 	}
@@ -341,7 +341,7 @@ func (t *TrillianLogRPCServer) GetLatestSignedLogRoot(ctx context.Context, req *
 	if err != nil {
 		return nil, err
 	}
-	tx, err := t.prepareReadOnlyStorageTx(ctx, tree)
+	tx, err := t.registry.LogStorage.SnapshotForTree(ctx, tree)
 	if err != nil {
 		return nil, err
 	}
@@ -366,7 +366,7 @@ func (t *TrillianLogRPCServer) GetSequencedLeafCount(ctx context.Context, req *t
 	if err != nil {
 		return nil, err
 	}
-	tx, err := t.prepareReadOnlyStorageTx(ctx, tree)
+	tx, err := t.registry.LogStorage.SnapshotForTree(ctx, tree)
 	if err != nil {
 		return nil, err
 	}
@@ -397,7 +397,7 @@ func (t *TrillianLogRPCServer) GetLeavesByIndex(ctx context.Context, req *trilli
 	if err != nil {
 		return nil, err
 	}
-	tx, err := t.prepareReadOnlyStorageTx(ctx, tree)
+	tx, err := t.registry.LogStorage.SnapshotForTree(ctx, tree)
 	if err != nil {
 		return nil, err
 	}
@@ -427,7 +427,7 @@ func (t *TrillianLogRPCServer) GetLeavesByRange(ctx context.Context, req *trilli
 	if err != nil {
 		return nil, err
 	}
-	tx, err := t.prepareReadOnlyStorageTx(ctx, tree)
+	tx, err := t.registry.LogStorage.SnapshotForTree(ctx, tree)
 	if err != nil {
 		return nil, err
 	}
@@ -457,7 +457,7 @@ func (t *TrillianLogRPCServer) GetLeavesByHash(ctx context.Context, req *trillia
 	if err != nil {
 		return nil, err
 	}
-	tx, err := t.prepareReadOnlyStorageTx(ctx, tree)
+	tx, err := t.registry.LogStorage.SnapshotForTree(ctx, tree)
 	if err != nil {
 		return nil, err
 	}
@@ -493,7 +493,7 @@ func (t *TrillianLogRPCServer) GetEntryAndProof(ctx context.Context, req *trilli
 
 	// Next we need to make sure the requested tree size corresponds to an STH, so that we
 	// have a usable tree revision
-	tx, err := t.prepareReadOnlyStorageTx(ctx, tree)
+	tx, err := t.registry.LogStorage.SnapshotForTree(ctx, tree)
 	if err != nil {
 		return nil, err
 	}
@@ -528,15 +528,6 @@ func (t *TrillianLogRPCServer) GetEntryAndProof(ctx context.Context, req *trilli
 		Proof: &proof,
 		Leaf:  leaves[0],
 	}, nil
-}
-
-// TODO(Martin2112): Clean this up.
-func (t *TrillianLogRPCServer) prepareReadOnlyStorageTx(ctx context.Context, tree *trillian.Tree) (storage.ReadOnlyLogTreeTX, error) {
-	tx, err := t.registry.LogStorage.SnapshotForTree(ctx, tree)
-	if err != nil {
-		return nil, err
-	}
-	return tx, err
 }
 
 func (t *TrillianLogRPCServer) commitAndLog(ctx context.Context, logID int64, tx storage.ReadOnlyLogTreeTX, op string) error {
