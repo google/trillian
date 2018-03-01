@@ -1,6 +1,6 @@
 FROM golang:1.9
 
-ENV DB_FLAG="--mysql_uri=test:zaphod@tcp(127.0.0.1:3306)/test" \
+ENV DB_FLAG="--mysql_uri=test:zaphod@tcp(mysql:3306)/test" \
     DB_PROVIDER="mysql"
 
 ENV HOST=0.0.0.0 \
