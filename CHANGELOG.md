@@ -1,5 +1,29 @@
 # TRILLIAN Changelog
 
+## v1.0.7 - Storage API Changes, Schema Tweaks
+
+Published 2018-03-01 11:16:32 +0000 UTC
+
+Note: A large number of storage related API changes have been made in this release. These will probably only affect developers writing their own storage implementations.
+
+A new tree type `ORDERED_LOG` has been added for upcoming mirror support. This requires a schema change before it can be used. This change can be made when convenient and can be deferred until the functionality is available and needed. The definition of the `TreeType` column enum should be changed to `ENUM('LOG', 'MAP', 'PREORDERED_LOG') NOT NULL`
+
+Some storage interfaces were removed in #977 as they only had one implementation. We think this won't cause any impact on third parties and are willing to reconsider this change if it does.
+
+Storage APIs have been added such as `ReadWriteTransaction` which allows the underlying storage to manage the transaction and optionally retry until success or timeout. This is a more natural fit for some types of storage API such as [CloudSpanner](https://cloud.google.com/spanner/docs/transactions) and possibly other environments with managed transactions. 
+
+The older `BeginXXX` methods were removed from the APIs. It should be fairly easy to convert a custom storage implementation to the new API format as can be seen from the changes made to the MySQL storage.
+
+The `GetOpts` options are no longer used by storage. This fixed the strange situation of storage code having to pass manufactured dummy instances to `GetTree`, which was being called in all the layers involved in request processing. Various internal APIs were modified to take a `*trillian.Tree` instead of an `int64`.
+
+A new storage implementation has been added for CloudSpanner. This is currently experimental and does not yet support Map trees. We have also added Docker examples for running Trillian in Google Cloud with CloudSpanner.
+
+The maximum size of a `VARBINARY` column in MySQL is too small to properly support Map storage. The type has been changed in the schema to `MEDIUMBLOB`. This can be done in place with an `ALTER TABLE` command but this could very be slow for large databases as it is a change to the physical row layout. Note: There is no need to make this change to the database if you are only using it for Log storage e.g. for Certificate Transparency servers.
+
+The obsolete programs `queue_leaves` and `fetch_leaves` have been deleted.
+
+Commit [7d73671537ca2a4745dc94da3dc93d32d7ce91f1](https://api.github.com/repos/google/trillian/commits/7d73671537ca2a4745dc94da3dc93d32d7ce91f1) Download [zip](https://api.github.com/repos/google/trillian/zipball/v1.0.7)
+
 ## v1.0.6 - GetLeavesByRange. 403 Permission Errors. Signer Metrics.
 
 Published 2018-02-05 16:00:26 +0000 UTC
