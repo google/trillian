@@ -36,7 +36,7 @@ const (
 	insertSubtreeMultiSQL = `INSERT INTO Subtree(TreeId, SubtreeId, Nodes, SubtreeRevision) ` + placeholderSQL
 	insertTreeHeadSQL     = `INSERT INTO TreeHead(TreeId,TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature)
 		 VALUES(?,?,?,?,?,?)`
-	selectNonDeletedTreeIDByTypeAndStateSQL = "SELECT TreeId FROM Trees WHERE TreeType = ? AND TreeState = ? AND (Deleted IS NULL OR Deleted = 'false')"
+	selectNonDeletedTreeIDByTypeAndStateSQL = "SELECT TreeId FROM Trees WHERE TreeType IN (" + placeholderSQL + ") AND TreeState = ? AND (Deleted IS NULL OR Deleted = 'false')"
 	selectTreeRevisionAtSizeOrLargerSQL     = "SELECT TreeRevision,TreeSize FROM TreeHead WHERE TreeId=? AND TreeSize>=? ORDER BY TreeRevision LIMIT 1"
 
 	selectSubtreeSQL = `

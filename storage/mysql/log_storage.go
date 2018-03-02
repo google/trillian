@@ -166,6 +166,7 @@ func (m *mySQLLogStorage) getLeavesByLeafIdentityHashStmt(ctx context.Context, n
 
 // readOnlyLogTX implements storage.ReadOnlyLogTX
 type readOnlyLogTX struct {
+	ls *mySQLLogStorage
 	tx *sql.Tx
 }
 
@@ -175,7 +176,7 @@ func (m *mySQLLogStorage) Snapshot(ctx context.Context) (storage.ReadOnlyLogTX, 
 		glog.Warningf("Could not start ReadOnlyLogTX: %s", err)
 		return nil, err
 	}
-	return &readOnlyLogTX{tx}, nil
+	return &readOnlyLogTX{m, tx}, nil
 }
 
 func (t *readOnlyLogTX) Commit() error {
@@ -195,8 +196,18 @@ func (t *readOnlyLogTX) Close() error {
 }
 
 func (t *readOnlyLogTX) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
-	rows, err := t.tx.QueryContext(
-		ctx, selectNonDeletedTreeIDByTypeAndStateSQL, trillian.TreeType_LOG.String(), trillian.TreeState_ACTIVE.String())
+	tmpl, err := t.ls.getStmt(ctx, selectNonDeletedTreeIDByTypeAndStateSQL, 2, "?", "?")
+	if err != nil {
+		return nil, err
+	}
+	stx := t.tx.StmtContext(ctx, tmpl)
+	defer stx.Close()
+
+	rows, err := stx.QueryContext(ctx,
+		trillian.TreeType_LOG.String(),
+		trillian.TreeType_PREORDERED_LOG.String(),
+		trillian.TreeState_ACTIVE.String(),
+	)
 	if err != nil {
 		return nil, err
 	}
