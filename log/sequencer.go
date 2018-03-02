@@ -245,8 +245,6 @@ type sequencingTask interface {
 // logSequencingTask is a sequencingTask implementation for "normal" Log mode,
 // which assigns consecutive sequence numbers to leaves as they are read from
 // the pending unsequenced entries.
-//
-// TODO(pavelkalinnikov): Implement it for Pre-ordered Log mode similarly.
 type logSequencingTask struct {
 	label      string
 	treeSize   int64
@@ -254,7 +252,7 @@ type logSequencingTask struct {
 	tx         storage.LogTreeTX
 }
 
-func (s logSequencingTask) fetch(ctx context.Context, limit int, cutoff time.Time) ([]*trillian.LogLeaf, error) {
+func (s *logSequencingTask) fetch(ctx context.Context, limit int, cutoff time.Time) ([]*trillian.LogLeaf, error) {
 	start := s.timeSource.Now()
 	// Recent leaves inside the guard window will not be available for sequencing.
 	leaves, err := s.tx.DequeueLeaves(ctx, limit, cutoff)
@@ -271,7 +269,7 @@ func (s logSequencingTask) fetch(ctx context.Context, limit int, cutoff time.Tim
 	return leaves, nil
 }
 
-func (s logSequencingTask) update(ctx context.Context, leaves []*trillian.LogLeaf) error {
+func (s *logSequencingTask) update(ctx context.Context, leaves []*trillian.LogLeaf) error {
 	start := s.timeSource.Now()
 	// Write the new sequence numbers to the leaves in the DB.
 	if err := s.tx.UpdateSequencedLeaves(ctx, leaves); err != nil {
@@ -282,8 +280,25 @@ func (s logSequencingTask) update(ctx context.Context, leaves []*trillian.LogLea
 	return nil
 }
 
+type preorderedLogSequencingTask logSequencingTask
+
+func (s *preorderedLogSequencingTask) fetch(ctx context.Context, limit int, cutoff time.Time) ([]*trillian.LogLeaf, error) {
+	// TODO(pavelkalinnikov): Measure latency.
+	leaves, err := s.tx.GetLeavesByRange(ctx, s.treeSize, int64(limit))
+	if err != nil {
+		glog.Warningf("%v: Sequencer failed to load sequenced leaves: %v", s.label, err)
+		return nil, err
+	}
+	return leaves, nil
+}
+
+func (s *preorderedLogSequencingTask) update(ctx context.Context, leaves []*trillian.LogLeaf) error {
+	// TODO(pavelkalinnikov): Update integration timestamps.
+	return nil
+}
+
 // IntegrateBatch wraps up all the operations needed to take a batch of queued
-// leaves and integrate them into the tree.
+// or sequenced leaves and integrate them into the tree.
 func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limit int, guardWindow, maxRootDurationInterval time.Duration) (int, error) {
 	start := s.timeSource.Now()
 	label := strconv.FormatInt(tree.TreeId, 10)
@@ -308,12 +323,19 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 			return storage.ErrTreeNeedsInit
 		}
 
-		var st sequencingTask = logSequencingTask{
+		taskData := &logSequencingTask{
 			label:      label,
 			treeSize:   currentRoot.TreeSize,
 			timeSource: s.timeSource,
 			tx:         tx,
 		}
+		var st sequencingTask = taskData
+		if tree.TreeType == trillian.TreeType_PREORDERED_LOG {
+			st = (*preorderedLogSequencingTask)(taskData)
+		} else if tree.TreeType != trillian.TreeType_LOG {
+			return fmt.Errorf("IntegrateBatch not supported for TreeType %v", tree.TreeType)
+		}
+
 		sequencedLeaves, err := st.fetch(ctx, limit, start.Add(-guardWindow))
 		if err != nil {
 			glog.Warningf("%v: Sequencer failed to load sequenced batch: %v", tree.TreeId, err)
