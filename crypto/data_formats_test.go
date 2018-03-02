@@ -16,13 +16,92 @@ package crypto
 
 import (
 	"bytes"
+	"reflect"
 	"testing"
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/testonly"
+	"github.com/kr/pretty"
 )
 
 var dh = testonly.MustHexDecode
+
+func TestLogRoot(t *testing.T) {
+	for _, logRoot := range []*LogRootV1{
+		{
+			Version:  1,
+			RootHash: []byte("foo"),
+			Metadata: []byte{},
+		},
+	} {
+		b, err := SerializeLogRoot(logRoot)
+		if err != nil {
+			t.Errorf("SerializeLogRoot(%v): %v", logRoot, err)
+		}
+		r2, err := ParseLogRoot(b)
+		if err != nil {
+			t.Errorf("ParseLogRoot(): %v", err)
+		}
+		if got, want := r2, logRoot; !reflect.DeepEqual(got, want) {
+			t.Errorf("serialize/parse round trip failed. got %#v, want %#v", pretty.Formatter(got), pretty.Formatter(want))
+		}
+	}
+}
+
+func TestParseLogRoot(t *testing.T) {
+	for _, tc := range []struct {
+		logRoot []byte
+		wantErr bool
+	}{
+		{
+			logRoot: func() []byte {
+				b, _ := SerializeLogRoot(&LogRootV1{})
+				return b
+			}(),
+		},
+		{
+			logRoot: func() []byte {
+				b, _ := SerializeLogRoot(&LogRootV1{})
+				b[0] = 1
+				return b
+			}(),
+			wantErr: true,
+		},
+		{
+			logRoot: []byte("foo"),
+			wantErr: true,
+		},
+	} {
+		_, err := ParseLogRoot(tc.logRoot)
+		if got, want := err != nil, tc.wantErr; got != want {
+			t.Errorf("ParseLogRoot(): %v, wantErr: %v", err, want)
+		}
+	}
+}
+
+func TestMapRoot(t *testing.T) {
+	for _, tc := range []struct {
+		logRoot *MapRootV1
+	}{
+		{logRoot: &MapRootV1{
+			Version:  1,
+			RootHash: []byte("foo"),
+			Metadata: []byte{},
+		}},
+	} {
+		b, err := SerializeMapRoot(tc.logRoot)
+		if err != nil {
+			t.Errorf("SerializeMapRoot(%v): %v", tc.logRoot, err)
+		}
+		r2, err := ParseMapRoot(b)
+		if err != nil {
+			t.Errorf("ParseMapRoot(): %v", err)
+		}
+		if got, want := r2, tc.logRoot; !reflect.DeepEqual(got, want) {
+			t.Errorf("serialize/parse round trip failed. got %#v, want %#v", pretty.Formatter(got), pretty.Formatter(want))
+		}
+	}
+}
 
 // It's important that signatures don't change.
 func TestHashLogRootKnownValue(t *testing.T) {
