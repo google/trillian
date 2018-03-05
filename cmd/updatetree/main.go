@@ -28,8 +28,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gogo/protobuf/proto"
 	"github.com/golang/glog"
+	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
 	"google.golang.org/genproto/protobuf/field_mask"
 	"google.golang.org/grpc"
