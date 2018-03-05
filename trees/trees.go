@@ -51,9 +51,10 @@ var rules = map[OpType]accessRule{
 	Unknown: {},
 	Admin: {
 		okStates: map[trillian.TreeState]bool{
-			trillian.TreeState_ACTIVE:   true,
-			trillian.TreeState_DRAINING: true,
-			trillian.TreeState_FROZEN:   true,
+			trillian.TreeState_UNKNOWN_TREE_STATE: true,
+			trillian.TreeState_ACTIVE:             true,
+			trillian.TreeState_DRAINING:           true,
+			trillian.TreeState_FROZEN:             true,
 		},
 		okTypes: map[trillian.TreeType]bool{
 			trillian.TreeType_LOG:            true,
@@ -64,9 +65,12 @@ var rules = map[OpType]accessRule{
 	},
 	Query: {
 		okStates: map[trillian.TreeState]bool{
-			trillian.TreeState_ACTIVE:   true,
-			trillian.TreeState_DRAINING: true,
-			trillian.TreeState_FROZEN:   true,
+			// Have to allow queries on unknown state so storage can get a chance
+			// to return ErrTreeNeedsInit.
+			trillian.TreeState_UNKNOWN_TREE_STATE: true,
+			trillian.TreeState_ACTIVE:             true,
+			trillian.TreeState_DRAINING:           true,
+			trillian.TreeState_FROZEN:             true,
 		},
 		okTypes: map[trillian.TreeType]bool{
 			trillian.TreeType_LOG:            true,
