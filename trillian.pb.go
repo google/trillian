@@ -70,7 +70,8 @@ const (
 	TreeState_ACTIVE TreeState = 1
 	// Frozen trees are only able to respond to read requests, writing to a frozen
 	// tree is forbidden. Trees should not be frozen when there are entries
-	// in the queue that have not yet been integrated.
+	// in the queue that have not yet been integrated. See the DRAINING
+	// state for this case.
 	TreeState_FROZEN TreeState = 2
 	// Deprecated in favor of Tree.deleted.
 	TreeState_DEPRECATED_SOFT_DELETED TreeState = 3
