@@ -85,7 +85,7 @@ func (s *Signer) SignObject(obj interface{}) (*sigpb.DigitallySigned, error) {
 
 // SignLogRoot hashes and signs the supplied (to-be) SignedLogRoot and returns a SignedLogRoot
 func (s *Signer) SignLogRoot(root *trillian.SignedLogRoot) (*trillian.SignedLogRoot, error) {
-	hash, err := HashLogRoot(*root)
+	hash, err := hashLogRoot(*root)
 	if err != nil {
 		return nil, err
 	}

@@ -32,7 +32,7 @@ func TestHashLogRootKnownValue(t *testing.T) {
 		RootHash:       []byte("Some bytes that won't change"),
 		TreeSize:       167329345,
 	}
-	hash, err := HashLogRoot(root)
+	hash, err := hashLogRoot(root)
 	if err != nil {
 		t.Fatalf("HashLogRoot(): %v", err)
 	}
@@ -75,7 +75,7 @@ func TestHashLogRoot(t *testing.T) {
 			},
 		},
 	} {
-		hash, err := HashLogRoot(test.root)
+		hash, err := hashLogRoot(test.root)
 		if err != nil {
 			t.Fatalf("HashLogRoot(): %v", err)
 		}
