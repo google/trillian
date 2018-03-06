@@ -19,22 +19,26 @@ import (
 	"errors"
 	"flag"
 	"testing"
+	"time"
 
+	"github.com/golang/mock/gomock"
 	"github.com/google/trillian"
-	"github.com/google/trillian/cmd/testonly"
+	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/util/flagsaver"
 )
 
 type testCase struct {
-	desc      string
-	setFlags  func()
-	updateErr error
-	wantErr   bool
-	wantState trillian.TreeState
+	desc       string
+	setFlags   func()
+	updateErr  error
+	wantRPC    bool
+	wantTree   *trillian.Tree
+	updateTree *trillian.Tree
+	wantErr    bool
+	wantState  trillian.TreeState
 }
 
 func TestFreezeTree(t *testing.T) {
-
 	runTest(t, []*testCase{
 		{
 			// We don't set the treeID in runTest so this should fail.
@@ -53,6 +57,11 @@ func TestFreezeTree(t *testing.T) {
 				*treeID = 12345
 				*treeState = "FROZEN"
 			},
+			wantRPC: true,
+			updateTree: &trillian.Tree{
+				TreeId:    12345,
+				TreeState: trillian.TreeState_FROZEN,
+			},
 			wantState: trillian.TreeState_FROZEN,
 		},
 		{
@@ -64,17 +73,31 @@ func TestFreezeTree(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			desc:     "unknownTree",
-			setFlags: func() { *treeID = 123456 },
-			wantErr:  true,
+			desc: "unknownTree",
+			setFlags: func() {
+				*treeID = 123456
+				*treeState = "FROZEN"
+			},
+			wantErr:   true,
+			wantRPC:   true,
+			updateErr: errors.New("unknown tree id"),
 		},
 		{
-			desc:     "emptyAddr",
-			setFlags: func() { *adminServerAddr = "" },
-			wantErr:  true,
+			desc: "emptyAddr",
+			setFlags: func() {
+				*adminServerAddr = ""
+				*treeID = 12345
+				*treeState = "FROZEN"
+			},
+			wantErr: true,
 		},
 		{
-			desc:      "updateErr",
+			desc: "updateErr",
+			setFlags: func() {
+				*treeID = 12345
+				*treeState = "FROZEN"
+			},
+			wantRPC:   true,
 			updateErr: errors.New("update tree failed"),
 			wantErr:   true,
 		},
@@ -89,39 +112,63 @@ func TestFreezeTree(t *testing.T) {
 // 2. Sets the adminServerAddr flag to point to the fake server.
 // 3. Calls the test's setFlags func (if provided) to allow it to change flags specific to the test.
 func runTest(t *testing.T, tests []*testCase) {
-	server := &testonly.FakeAdminMapServer{TreeID: 12345}
+	for _, tc := range tests {
+		t.Run(tc.desc, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
 
-	lis, stopFakeServer, err := testonly.StartFakeServer(server)
-	if err != nil {
-		t.Fatalf("Error starting fake server: %v", err)
-	}
-	defer stopFakeServer()
-
-	ctx := context.Background()
-	for _, test := range tests {
-		t.Run(test.desc, func(t *testing.T) {
+			s, stopFakeServer, err := testonly.NewMockServer(ctrl)
+			if err != nil {
+				t.Fatalf("Error starting fake server: %v", err)
+			}
+			defer stopFakeServer()
 			defer flagsaver.Save().Restore()
-			*adminServerAddr = lis.Addr().String()
-			if test.setFlags != nil {
-				test.setFlags()
+			*adminServerAddr = s.Addr
+			if tc.setFlags != nil {
+				tc.setFlags()
 			}
 
-			server.Err = test.updateErr
+			// We might not get as far as updating the tree on the admin server.
+			if tc.wantRPC {
+				call := s.Admin.EXPECT().UpdateTree(gomock.Any(), gomock.Any()).Return(tc.updateTree, tc.updateErr)
+				expectCalls(call, tc.updateErr)
+			}
 
+			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+			defer cancel()
 			tree, err := updateTree(ctx)
 			switch hasErr := err != nil; {
-			case hasErr != test.wantErr:
-				t.Errorf("updateTree() returned err = '%v', wantErr = %v", err, test.wantErr)
-				return
-			case hasErr:
+			case hasErr != tc.wantErr:
+				t.Errorf("updateTree() returned err = '%v', wantErr = %v", err, tc.wantErr)
 				return
 			}
 
-			if got, want := tree.TreeState.String(), test.wantState.String(); got != want {
-				t.Errorf("updated state incorrect got:%v want:%v", got, want)
+			if err == nil {
+				if got, want := tree.TreeState.String(), tc.wantState.String(); got != want {
+					t.Errorf("updated state incorrect got: %v want: %v", got, want)
+				}
 			}
 		})
 	}
+}
+
+// expectCalls returns the minimum number of times a function is expected to be called
+// given the return error for the function (err), and all previous errors in the function's
+// code path.
+func expectCalls(call *gomock.Call, err error, prevErr ...error) *gomock.Call {
+	// If a function prior to this function errored,
+	// we do not expect this function to be called.
+	for _, e := range prevErr {
+		if e != nil {
+			return call.Times(0)
+		}
+	}
+	// If this function errors, it might be retried multiple times.
+	if err != nil {
+		return call.MinTimes(1)
+	}
+	// If this function succeeds it should only be called once.
+	return call.Times(1)
 }
 
 // resetFlags sets all flags to their default values.
