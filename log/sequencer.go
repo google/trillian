@@ -385,19 +385,17 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 
 		// Create the log root ready for signing
 		seqTreeSize.Set(float64(merkleTree.Size()), label)
-		newLogRoot = &trillian.SignedLogRoot{
+		newLogRoot, err := s.signer.SignLogRoot(&trillian.SignedLogRoot{
 			RootHash:       merkleTree.CurrentRoot(),
 			TimestampNanos: s.timeSource.Now().UnixNano(),
 			TreeSize:       merkleTree.Size(),
 			LogId:          currentRoot.LogId,
 			TreeRevision:   newVersion,
-		}
-		sig, err := s.signer.SignLogRoot(newLogRoot)
+		})
 		if err != nil {
 			glog.Warningf("%v: signer failed to sign root: %v", tree.TreeId, err)
 			return err
 		}
-		newLogRoot.Signature = sig
 
 		if err := tx.StoreSignedLogRoot(ctx, *newLogRoot); err != nil {
 			glog.Warningf("%v: failed to write updated tree root: %v", tree.TreeId, err)
@@ -457,19 +455,17 @@ func (s Sequencer) SignRoot(ctx context.Context, tree *trillian.Tree) error {
 		if err != nil {
 			return err
 		}
-		newLogRoot := &trillian.SignedLogRoot{
+		newLogRoot, err := s.signer.SignLogRoot(&trillian.SignedLogRoot{
 			RootHash:       merkleTree.CurrentRoot(),
 			TimestampNanos: s.timeSource.Now().UnixNano(),
 			TreeSize:       merkleTree.Size(),
 			LogId:          currentRoot.LogId,
 			TreeRevision:   currentRoot.TreeRevision + 1,
-		}
-		sig, err := s.signer.SignLogRoot(newLogRoot)
+		})
 		if err != nil {
 			glog.Warningf("%v: signer failed to sign root: %v", tree.TreeId, err)
 			return err
 		}
-		newLogRoot.Signature = sig
 
 		// Store the new root and we're done
 		if err := tx.StoreSignedLogRoot(ctx, *newLogRoot); err != nil {
