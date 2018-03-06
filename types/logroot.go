@@ -35,10 +35,10 @@ import (
 //   opaque metadata<0..65535>;
 // } LogRootV1;
 type LogRootV1 struct {
-	TreeSize       int64
+	TreeSize       uint64
 	RootHash       []byte `tls:"minlen:0,maxlen:128"`
-	TimestampNanos int64
-	Revision       int64
+	TimestampNanos uint64
+	Revision       uint64
 	Metadata       []byte `tls:"minlen:0,maxlen:65535"`
 }
 

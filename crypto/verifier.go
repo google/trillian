@@ -27,6 +27,7 @@ import (
 	"github.com/benlaurie/objecthash/go/objecthash"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/sigpb"
+	"github.com/google/trillian/types"
 )
 
 var (
@@ -38,7 +39,7 @@ var (
 )
 
 // VerifySignedLogRoot verifies the SignedLogRoot and returns its contents.
-func VerifySignedLogRoot(pub crypto.PublicKey, r *trillian.SignedLogRoot) (*trillian.SignedLogRoot, error) {
+func VerifySignedLogRoot(pub crypto.PublicKey, r *trillian.SignedLogRoot) (*types.LogRootV1, error) {
 	// Verify SignedLogRoot signature.
 	hash, err := hashLogRoot(*r)
 	if err != nil {
@@ -47,7 +48,12 @@ func VerifySignedLogRoot(pub crypto.PublicKey, r *trillian.SignedLogRoot) (*tril
 	if err := Verify(pub, hash, r.Signature); err != nil {
 		return nil, err
 	}
-	return r, nil
+	return &types.LogRootV1{
+		TreeSize:       uint64(r.TreeSize),
+		RootHash:       r.RootHash,
+		TimestampNanos: uint64(r.TimestampNanos),
+		Revision:       uint64(r.TreeRevision),
+	}, nil
 
 }
 

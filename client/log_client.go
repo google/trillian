@@ -24,6 +24,7 @@ import (
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/client/backoff"
+	"github.com/google/trillian/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -33,7 +34,7 @@ type LogClient struct {
 	*LogVerifier
 	LogID  int64
 	client trillian.TrillianLogClient
-	root   trillian.SignedLogRoot
+	root   types.LogRootV1
 }
 
 // New returns a new LogClient.
@@ -108,7 +109,7 @@ func (c *LogClient) ListByIndex(ctx context.Context, start, count int64) ([]*tri
 
 // WaitForRootUpdate repeatedly fetches the Root until the fetched tree size >=
 // waitForTreeSize or until ctx times out.
-func (c *LogClient) WaitForRootUpdate(ctx context.Context, waitForTreeSize int64) (*trillian.SignedLogRoot, error) {
+func (c *LogClient) WaitForRootUpdate(ctx context.Context, waitForTreeSize uint64) (*types.LogRootV1, error) {
 	b := &backoff.Backoff{
 		Min:    100 * time.Millisecond,
 		Max:    10 * time.Second,
@@ -137,19 +138,22 @@ func (c *LogClient) WaitForRootUpdate(ctx context.Context, waitForTreeSize int64
 
 // getLatestRoot fetches and verifies the latest root against a trusted root, seen in the past.
 // Pass nil for trusted if this is the first time querying this log.
-func (c *LogClient) getLatestRoot(ctx context.Context, trusted *trillian.SignedLogRoot) (*trillian.SignedLogRoot, error) {
+func (c *LogClient) getLatestRoot(ctx context.Context, trusted *types.LogRootV1) (*types.LogRootV1, error) {
 	resp, err := c.client.GetLatestSignedLogRoot(ctx,
-		&trillian.GetLatestSignedLogRootRequest{
-			LogId: c.LogID,
-		})
+		&trillian.GetLatestSignedLogRootRequest{LogId: c.LogID})
 	if err != nil {
 		return nil, err
 	}
+	slr, err := c.VerifyRoot(&types.LogRootV1{}, resp.GetSignedLogRoot(), nil)
+	if err != nil {
+		return nil, err
+	}
+
 	if trusted.TreeSize > 0 &&
-		resp.SignedLogRoot.TreeSize == trusted.TreeSize &&
-		bytes.Equal(resp.SignedLogRoot.RootHash, trusted.RootHash) {
+		slr.TreeSize == trusted.TreeSize &&
+		bytes.Equal(slr.RootHash, trusted.RootHash) {
 		// Tree has not been updated.
-		return resp.SignedLogRoot, nil
+		return slr, nil
 	}
 	// Fetch a consistency proof if this isn't the first root we've seen.
 	var consistency *trillian.GetConsistencyProofResponse
@@ -158,26 +162,27 @@ func (c *LogClient) getLatestRoot(ctx context.Context, trusted *trillian.SignedL
 		consistency, err = c.client.GetConsistencyProof(ctx,
 			&trillian.GetConsistencyProofRequest{
 				LogId:          c.LogID,
-				FirstTreeSize:  trusted.TreeSize,
-				SecondTreeSize: resp.SignedLogRoot.TreeSize,
+				FirstTreeSize:  int64(trusted.TreeSize),
+				SecondTreeSize: int64(slr.TreeSize),
 			})
 		if err != nil {
 			return nil, err
 		}
 	}
+
 	// Verify root update if the tree / the latest signed log root isn't empty.
-	if resp.GetSignedLogRoot().GetTreeSize() > 0 {
-		if err := c.VerifyRoot(trusted, resp.GetSignedLogRoot(),
+	if slr.TreeSize > 0 {
+		if _, err := c.VerifyRoot(trusted, resp.GetSignedLogRoot(),
 			consistency.GetProof().GetHashes()); err != nil {
 			return nil, err
 		}
 	}
-	return resp.SignedLogRoot, nil
+	return slr, nil
 }
 
 // UpdateRoot retrieves the current SignedLogRoot, verifying it against roots this client has
 // seen in the past, and updating the currently trusted root if the new root verifies.
-func (c *LogClient) UpdateRoot(ctx context.Context) (*trillian.SignedLogRoot, error) {
+func (c *LogClient) UpdateRoot(ctx context.Context) (*types.LogRootV1, error) {
 	currentlyTrusted := &c.root
 	newTrusted, err := c.getLatestRoot(ctx, currentlyTrusted)
 	if err != nil {
@@ -247,7 +252,7 @@ func (c *LogClient) GetAndVerifyInclusionAtIndex(ctx context.Context, data []byt
 		&trillian.GetInclusionProofRequest{
 			LogId:     c.LogID,
 			LeafIndex: index,
-			TreeSize:  root.TreeSize,
+			TreeSize:  int64(root.TreeSize),
 		})
 	if err != nil {
 		return err
@@ -255,12 +260,12 @@ func (c *LogClient) GetAndVerifyInclusionAtIndex(ctx context.Context, data []byt
 	return c.VerifyInclusionAtIndex(root, data, index, resp.Proof.Hashes)
 }
 
-func (c *LogClient) getAndVerifyInclusionProof(ctx context.Context, leafHash []byte, sth *trillian.SignedLogRoot) error {
+func (c *LogClient) getAndVerifyInclusionProof(ctx context.Context, leafHash []byte, sth *types.LogRootV1) error {
 	resp, err := c.client.GetInclusionProofByHash(ctx,
 		&trillian.GetInclusionProofByHashRequest{
 			LogId:    c.LogID,
 			LeafHash: leafHash,
-			TreeSize: sth.TreeSize,
+			TreeSize: int64(sth.TreeSize),
 		})
 	if err != nil {
 		return err

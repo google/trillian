@@ -607,9 +607,7 @@ func (t *TrillianLogRPCServer) InitLog(ctx context.Context, req *trillian.InitLo
 
 		root, err := signer.SignLogRoot(&types.LogRootV1{
 			RootHash:       hasher.EmptyRoot(),
-			TimestampNanos: t.timeSource.Now().UnixNano(),
-			TreeSize:       0,
-			Revision:       0,
+			TimestampNanos: uint64(t.timeSource.Now().UnixNano()),
 		})
 		if err != nil {
 			return err

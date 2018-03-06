@@ -18,11 +18,12 @@ import (
 	"testing"
 
 	"github.com/google/trillian"
-	tcrypto "github.com/google/trillian/crypto"
 	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/types"
+
+	tcrypto "github.com/google/trillian/crypto"
 )
 
 func TestVerifyRootErrors(t *testing.T) {
@@ -44,17 +45,18 @@ func TestVerifyRootErrors(t *testing.T) {
 
 	// Test execution
 	tests := []struct {
-		desc             string
-		trusted, newRoot *trillian.SignedLogRoot
+		desc    string
+		trusted *types.LogRootV1
+		newRoot *trillian.SignedLogRoot
 	}{
-		{desc: "newRootNil", trusted: signedRoot, newRoot: nil},
+		{desc: "newRootNil", trusted: &types.LogRootV1{}, newRoot: nil},
 		{desc: "trustedNil", trusted: nil, newRoot: signedRoot},
 	}
 	for _, test := range tests {
 		logVerifier := NewLogVerifier(rfc6962.DefaultHasher, pk)
 
 		// This also makes sure that no nil pointer dereference errors occur (as this would cause a panic).
-		if err := logVerifier.VerifyRoot(test.trusted, test.newRoot, nil); err == nil {
+		if _, err := logVerifier.VerifyRoot(test.trusted, test.newRoot, nil); err == nil {
 			t.Errorf("%v: VerifyRoot() error expected, but got nil", test.desc)
 		}
 	}
@@ -72,11 +74,11 @@ func TestVerifyInclusionAtIndexErrors(t *testing.T) {
 func TestVerifyInclusionByHashErrors(t *testing.T) {
 	tests := []struct {
 		desc    string
-		trusted *trillian.SignedLogRoot
+		trusted *types.LogRootV1
 		proof   *trillian.Proof
 	}{
 		{desc: "trustedNil", trusted: nil, proof: &trillian.Proof{}},
-		{desc: "proofNil", trusted: &trillian.SignedLogRoot{}, proof: nil},
+		{desc: "proofNil", trusted: &types.LogRootV1{}, proof: nil},
 	}
 	for _, test := range tests {
 

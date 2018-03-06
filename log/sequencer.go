@@ -388,9 +388,9 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 		seqTreeSize.Set(float64(merkleTree.Size()), label)
 		newLogRoot, err := s.signer.SignLogRoot(&types.LogRootV1{
 			RootHash:       merkleTree.CurrentRoot(),
-			TimestampNanos: s.timeSource.Now().UnixNano(),
-			TreeSize:       merkleTree.Size(),
-			Revision:       newVersion,
+			TimestampNanos: uint64(s.timeSource.Now().UnixNano()),
+			TreeSize:       uint64(merkleTree.Size()),
+			Revision:       uint64(newVersion),
 		})
 		if err != nil {
 			glog.Warningf("%v: signer failed to sign root: %v", tree.TreeId, err)
@@ -457,9 +457,9 @@ func (s Sequencer) SignRoot(ctx context.Context, tree *trillian.Tree) error {
 		}
 		newLogRoot, err := s.signer.SignLogRoot(&types.LogRootV1{
 			RootHash:       merkleTree.CurrentRoot(),
-			TimestampNanos: s.timeSource.Now().UnixNano(),
-			TreeSize:       merkleTree.Size(),
-			Revision:       currentRoot.TreeRevision + 1,
+			TimestampNanos: uint64(s.timeSource.Now().UnixNano()),
+			TreeSize:       uint64(merkleTree.Size()),
+			Revision:       uint64(currentRoot.TreeRevision + 1),
 		})
 		if err != nil {
 			glog.Warningf("%v: signer failed to sign root: %v", tree.TreeId, err)
