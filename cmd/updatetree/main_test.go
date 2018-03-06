@@ -32,7 +32,6 @@ type testCase struct {
 	setFlags   func()
 	updateErr  error
 	wantRPC    bool
-	wantTree   *trillian.Tree
 	updateTree *trillian.Tree
 	wantErr    bool
 	wantState  trillian.TreeState
