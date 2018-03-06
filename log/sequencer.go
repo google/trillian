@@ -32,6 +32,7 @@ import (
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/types"
 	"github.com/google/trillian/util"
 )
 
@@ -385,12 +386,11 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 
 		// Create the log root ready for signing
 		seqTreeSize.Set(float64(merkleTree.Size()), label)
-		newLogRoot, err := s.signer.SignLogRoot(&trillian.SignedLogRoot{
+		newLogRoot, err := s.signer.SignLogRoot(&types.LogRootV1{
 			RootHash:       merkleTree.CurrentRoot(),
 			TimestampNanos: s.timeSource.Now().UnixNano(),
 			TreeSize:       merkleTree.Size(),
-			LogId:          currentRoot.LogId,
-			TreeRevision:   newVersion,
+			Revision:       newVersion,
 		})
 		if err != nil {
 			glog.Warningf("%v: signer failed to sign root: %v", tree.TreeId, err)
@@ -455,12 +455,11 @@ func (s Sequencer) SignRoot(ctx context.Context, tree *trillian.Tree) error {
 		if err != nil {
 			return err
 		}
-		newLogRoot, err := s.signer.SignLogRoot(&trillian.SignedLogRoot{
+		newLogRoot, err := s.signer.SignLogRoot(&types.LogRootV1{
 			RootHash:       merkleTree.CurrentRoot(),
 			TimestampNanos: s.timeSource.Now().UnixNano(),
 			TreeSize:       merkleTree.Size(),
-			LogId:          currentRoot.LogId,
-			TreeRevision:   currentRoot.TreeRevision + 1,
+			Revision:       currentRoot.TreeRevision + 1,
 		})
 		if err != nil {
 			glog.Warningf("%v: signer failed to sign root: %v", tree.TreeId, err)

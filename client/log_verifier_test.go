@@ -22,6 +22,7 @@ import (
 	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/testonly"
+	"github.com/google/trillian/types"
 )
 
 func TestVerifyRootErrors(t *testing.T) {
@@ -36,7 +37,7 @@ func TestVerifyRootErrors(t *testing.T) {
 		t.Fatalf("Failed to load public key, err=%v", err)
 	}
 
-	signedRoot, err := signer.SignLogRoot(&trillian.SignedLogRoot{})
+	signedRoot, err := signer.SignLogRoot(&types.LogRootV1{})
 	if err != nil {
 		t.Fatal("Failed to create test signature")
 	}

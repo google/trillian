@@ -72,7 +72,6 @@ var testRoot0 = trillian.SignedLogRoot{
 }
 var updatedNodes0 = []storage.Node{{NodeID: storage.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, PrefixLenBits: 64}, Hash: testonly.MustDecodeBase64("bjQLnP+zepicpUTmu3gKLHiQHT+zNzh2hRGjBhevoB0="), NodeRevision: 1}}
 var updatedRoot = trillian.SignedLogRoot{
-	LogId:          testLogID1,
 	TimestampNanos: fakeTime.UnixNano(),
 	RootHash:       []byte{110, 52, 11, 156, 255, 179, 122, 152, 156, 165, 68, 230, 187, 120, 10, 44, 120, 144, 29, 63, 179, 55, 56, 118, 133, 17, 163, 6, 23, 175, 160, 29},
 	TreeSize:       1,

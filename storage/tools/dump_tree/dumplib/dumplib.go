@@ -49,6 +49,7 @@ import (
 	"github.com/google/trillian/storage/memory"
 	"github.com/google/trillian/storage/storagepb"
 	"github.com/google/trillian/trees"
+	"github.com/google/trillian/types"
 	"github.com/google/trillian/util"
 )
 
@@ -202,8 +203,7 @@ func createTree(as storage.AdminStorage, ls storage.LogStorage) (*trillian.Tree,
 		glog.Fatalf("Creating signer: %v", err)
 	}
 
-	sthZero, err := tSigner.SignLogRoot(&trillian.SignedLogRoot{
-		LogId:    createdTree.TreeId,
+	sthZero, err := tSigner.SignLogRoot(&types.LogRootV1{
 		RootHash: hasher.EmptyRoot(),
 	})
 	if err != nil {
