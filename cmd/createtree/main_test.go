@@ -27,8 +27,8 @@ import (
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/trillian"
-	"github.com/google/trillian/cmd/testonly"
 	"github.com/google/trillian/crypto/sigpb"
+	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/util/flagsaver"
 )
 
