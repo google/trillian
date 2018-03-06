@@ -17,11 +17,7 @@ package types
 import (
 	"reflect"
 	"testing"
-
-	"github.com/google/trillian/testonly"
 )
-
-var dh = testonly.MustHexDecode
 
 func TestLogRoot(t *testing.T) {
 	for _, logRoot := range []*LogRootV1{
