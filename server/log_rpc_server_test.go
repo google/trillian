@@ -1219,6 +1219,38 @@ func TestGetEntryAndProof(t *testing.T) {
 	}
 }
 
+func TestGetEntryAndProofSkew(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	fakeStorage := storage.NewMockLogStorage(ctrl)
+	mockTx := storage.NewMockLogTreeTX(ctrl)
+	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), getEntryAndProofRequest17.LogId).Return(mockTx, nil)
+
+	mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(signedRoot1, nil)
+	mockTx.EXPECT().Commit().Return(nil)
+	mockTx.EXPECT().Close().Return(nil)
+
+	registry := extension.Registry{
+		AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: getEntryAndProofRequest7.LogId, numSnapshots: 1}),
+		LogStorage:   fakeStorage,
+	}
+	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
+
+	response, err := server.GetEntryAndProof(context.Background(), &getEntryAndProofRequest17)
+	if err != nil {
+		t.Fatalf("get entry and proof should have succeeded but we got: %v", err)
+	}
+
+	if response.Proof != nil {
+		t.Fatalf("expected nil proof but got: %v", response.Proof)
+	}
+
+	if response.Leaf != nil {
+		t.Fatalf("Expected nil leaf but got: %v", response.Leaf)
+	}
+}
+
 func TestGetSequencedLeafCountBeginTXFails(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()

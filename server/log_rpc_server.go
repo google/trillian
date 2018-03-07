@@ -342,7 +342,7 @@ func (t *TrillianLogRPCServer) GetConsistencyProof(ctx context.Context, req *tri
 	}
 	r := &trillian.GetConsistencyProofResponse{SignedLogRoot: &slr}
 
-	if req.SecondTreeSize > root.TreeSize {
+	if uint64(req.SecondTreeSize) > root.TreeSize {
 		return r, nil
 	}
 
@@ -551,30 +551,35 @@ func (t *TrillianLogRPCServer) GetEntryAndProof(ctx context.Context, req *trilli
 		return nil, status.Errorf(codes.Internal, "Could not read current log root: %v", err)
 	}
 
-	proof, err := getInclusionProofForLeafIndex(ctx, tx, hasher, req.TreeSize, req.LeafIndex, int64(root.TreeSize))
-	if err != nil {
-		return nil, err
-	}
+	r := &trillian.GetEntryAndProofResponse{SignedLogRoot: &slr}
 
-	// We also need the leaf entry
-	leaves, err := tx.GetLeavesByIndex(ctx, []int64{req.LeafIndex})
-	if err != nil {
-		return nil, err
-	}
+	// FIXME: should we return a proof to the available tree size if req.LeafIndex < root.TreeSize?
+	if req.TreeSize <= int64(root.TreeSize) {
+		proof, err := getInclusionProofForLeafIndex(ctx, tx, hasher, req.TreeSize, req.LeafIndex, int64(root.TreeSize))
+		if err != nil {
+			return nil, err
+		}
 
-	if len(leaves) != 1 {
-		return nil, status.Errorf(codes.Internal, "expected one leaf from storage but got: %d", len(leaves))
+		// We also need the leaf entry
+		leaves, err := tx.GetLeavesByIndex(ctx, []int64{req.LeafIndex})
+		if err != nil {
+			return nil, err
+		}
+
+		if len(leaves) != 1 {
+			return nil, status.Errorf(codes.Internal, "expected one leaf from storage but got: %d", len(leaves))
+		}
+
+		// Work is complete, we have everything we need for the response
+		r.Proof = &proof
+		r.Leaf = leaves[0]
 	}
 
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
 
-	// Work is complete, we have everything we need for the response
-	return &trillian.GetEntryAndProofResponse{
-		Proof: &proof,
-		Leaf:  leaves[0],
-	}, nil
+	return r, nil
 }
 
 func (t *TrillianLogRPCServer) commitAndLog(ctx context.Context, logID int64, tx storage.ReadOnlyLogTreeTX, op string) error {
