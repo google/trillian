@@ -40,21 +40,14 @@ var (
 
 // VerifySignedLogRoot verifies the SignedLogRoot and returns its contents.
 func VerifySignedLogRoot(pub crypto.PublicKey, hash crypto.Hash, r *trillian.SignedLogRoot) (*types.LogRootV1, error) {
-	// Verify SignedLogRoot signature.
-	digest, err := hashLogRoot(*r)
-	if err != nil {
+	if err := Verify(pub, hash, r.LogRoot, r.Signature); err != nil {
 		return nil, err
 	}
-	if err := Verify(pub, hash, digest, r.Signature); err != nil {
+	var root types.LogRootV1
+	if err := root.UnmarshalBinary(r.LogRoot); err != nil {
 		return nil, err
 	}
-	return &types.LogRootV1{
-		TreeSize:       uint64(r.TreeSize),
-		RootHash:       r.RootHash,
-		TimestampNanos: uint64(r.TimestampNanos),
-		Revision:       uint64(r.TreeRevision),
-	}, nil
-
+	return &root, nil
 }
 
 // VerifyObject verifies the output of Signer.SignObject.

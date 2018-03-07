@@ -97,24 +97,21 @@ func (s *Signer) SignObject(obj interface{}) (*sigpb.DigitallySigned, error) {
 
 // SignLogRoot returns a complete SignedLogRoot (including signature).
 func (s *Signer) SignLogRoot(r *types.LogRootV1) (*trillian.SignedLogRoot, error) {
-	root := &trillian.SignedLogRoot{
-		TreeSize:       int64(r.TreeSize),
-		RootHash:       r.RootHash,
-		TimestampNanos: int64(r.TimestampNanos),
-		TreeRevision:   int64(r.Revision),
-	}
-	hash, err := hashLogRoot(*root)
+	logRoot, err := r.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
-	signature, err := s.Sign(hash)
+	signature, err := s.Sign(logRoot)
 	if err != nil {
 		glog.Warningf("%v: signer failed to sign log root: %v", s.KeyHint, err)
 		return nil, err
 	}
 
-	root.Signature = signature
-	return root, nil
+	return &trillian.SignedLogRoot{
+		KeyHint:   s.KeyHint,
+		LogRoot:   logRoot,
+		Signature: signature,
+	}, nil
 }
 
 // SignMapRoot hashes and signs the supplied (to-be) SignedMapRoot and returns a
