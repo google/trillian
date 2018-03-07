@@ -217,7 +217,7 @@ message SignedLogRoot {
   int64 tree_size = 3;
   sigpb.DigitallySigned signature = 4;
 
-  int64 log_id = 5;
+  reserved 5; // (moved to key_hint)
   int64 tree_revision = 6;
   bytes key_hint = 7;
 }
