@@ -516,12 +516,18 @@ func (t *TrillianLogRPCServer) GetLeavesByHash(ctx context.Context, req *trillia
 		return nil, err
 	}
 
+	root, err := tx.LatestSignedLogRoot(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	if err := t.commitAndLog(ctx, req.LogId, tx, "GetLeavesByHash"); err != nil {
 		return nil, err
 	}
 
 	return &trillian.GetLeavesByHashResponse{
-		Leaves: leaves,
+		Leaves:        leaves,
+		SignedLogRoot: &root,
 	}, nil
 }
 

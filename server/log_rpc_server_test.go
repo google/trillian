@@ -633,6 +633,7 @@ func TestLeavesByHashCommitFails(t *testing.T) {
 	test := newParameterizedTest(ctrl, "GetLeavesByHash", readOnly, nopStorage,
 		func(t *storage.MockLogTreeTX) {
 			t.EXPECT().GetLeavesByHash(gomock.Any(), [][]byte{[]byte("test"), []byte("data")}, false).Return(nil, nil)
+			t.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(signedRoot1, nil)
 		},
 		func(s *TrillianLogRPCServer) error {
 			_, err := s.GetLeavesByHash(context.Background(), &getByHashRequest1)
@@ -664,6 +665,7 @@ func TestGetLeavesByHash(t *testing.T) {
 	mockTX := storage.NewMockLogTreeTX(ctrl)
 	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(mockTX, nil)
 	mockTX.EXPECT().GetLeavesByHash(gomock.Any(), [][]byte{[]byte("test"), []byte("data")}, false).Return([]*trillian.LogLeaf{leaf1, leaf3}, nil)
+	mockTX.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(signedRoot1, nil)
 	mockTX.EXPECT().Commit().Return(nil)
 	mockTX.EXPECT().Close().Return(nil)
 
@@ -1946,6 +1948,7 @@ func newParameterizedTest(ctrl *gomock.Controller, operation string, m txMode, p
 }
 
 func (p *parameterizedTest) executeCommitFailsTest(t *testing.T, logID int64) {
+	withRoot := false
 	t.Helper()
 
 	mockTX := storage.NewMockLogTreeTX(p.ctrl)
@@ -1959,6 +1962,9 @@ func (p *parameterizedTest) executeCommitFailsTest(t *testing.T, logID int64) {
 	}
 	if p.mode != noTX {
 		p.prepareTX(mockTX)
+		if withRoot {
+			mockTX.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(signedRoot1, nil)
+		}
 		mockTX.EXPECT().Commit().Return(errors.New("bang"))
 		mockTX.EXPECT().Close().Return(errors.New("bang"))
 		mockTX.EXPECT().IsOpen().AnyTimes().Return(false)
