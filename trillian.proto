@@ -219,6 +219,7 @@ message SignedLogRoot {
 
   int64 log_id = 5;
   int64 tree_revision = 6;
+  bytes key_hint = 7;
 }
 
 // SignedMapRoot represents a commitment by a Map to a particular tree.
