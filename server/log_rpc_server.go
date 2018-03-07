@@ -445,7 +445,12 @@ func (t *TrillianLogRPCServer) GetLeavesByIndex(ctx context.Context, req *trilli
 		return nil, err
 	}
 
-	return &trillian.GetLeavesByIndexResponse{Leaves: leaves}, nil
+	root, err := tx.LatestSignedLogRoot(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return &trillian.GetLeavesByIndexResponse{Leaves: leaves, SignedLogRoot: &root}, nil
 }
 
 // GetLeavesByRange obtains leaves based on a range of sequence numbers within the tree.

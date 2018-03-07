@@ -176,6 +176,7 @@ func TestGetLeavesByIndex(t *testing.T) {
 	mockTX := storage.NewMockLogTreeTX(ctrl)
 	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(mockTX, nil)
 	mockTX.EXPECT().GetLeavesByIndex(gomock.Any(), []int64{0}).Return([]*trillian.LogLeaf{leaf1}, nil)
+	mockTX.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(signedRoot1, nil)
 	mockTX.EXPECT().Commit().Return(nil)
 	mockTX.EXPECT().Close().Return(nil)
 	mockTX.EXPECT().IsOpen().AnyTimes().Return(false)
@@ -204,6 +205,7 @@ func TestGetLeavesByIndexMultiple(t *testing.T) {
 	mockTX := storage.NewMockLogTreeTX(ctrl)
 	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(mockTX, nil)
 	mockTX.EXPECT().GetLeavesByIndex(gomock.Any(), []int64{0, 3}).Return([]*trillian.LogLeaf{leaf1, leaf3}, nil)
+	mockTX.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(signedRoot1, nil)
 	mockTX.EXPECT().Commit().Return(nil)
 	mockTX.EXPECT().Close().Return(nil)
 	mockTX.EXPECT().IsOpen().AnyTimes().Return(false)
@@ -304,7 +306,6 @@ func TestGetLeavesByRange(t *testing.T) {
 
 	for _, test := range tests {
 		if !test.skipTX {
-			//<<<<<<< HEAD
 			mockTX := storage.NewMockLogTreeTX(ctrl)
 			mockAdminTX := storage.NewMockAdminTX(ctrl)
 			mockAdminTX.EXPECT().GetTree(gomock.Any(), tree.TreeId).Return(tree, test.adminErr)
@@ -314,16 +315,6 @@ func TestGetLeavesByRange(t *testing.T) {
 				mockAdminTX.EXPECT().Commit().Return(nil)
 				if test.txErr != nil {
 					fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree).Return(nil, test.txErr)
-					/*=======
-								mockTx := storage.NewMockLogTreeTX(ctrl)
-								if test.txErr != nil {
-									fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), logID).Return(nil, test.txErr)
-								} else {
-									fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), logID).Return(mockTx, nil)
-									mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(signedRoot1, nil)
-									if test.getErr != nil {
-										mockTx.EXPECT().GetLeavesByRange(gomock.Any(), test.start, test.count).Return(nil, test.getErr)
-					>>>>>>> Add test.*/
 				} else {
 					fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree).Return(mockTX, nil)
 					mockTX.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(signedRoot1, nil)
@@ -1227,7 +1218,7 @@ func TestGetEntryAndProofSkewNoProof(t *testing.T) {
 
 	fakeStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTreeTX(ctrl)
-	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), getEntryAndProofRequest17_11.LogId).Return(mockTx, nil)
+	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(mockTx, nil)
 
 	mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(signedRoot1, nil)
 	mockTx.EXPECT().Commit().Return(nil)
@@ -1259,7 +1250,7 @@ func TestGetEntryAndProofSkewSmallerTree(t *testing.T) {
 
 	fakeStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTreeTX(ctrl)
-	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), getEntryAndProofRequest17_2.LogId).Return(mockTx, nil)
+	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), tree1).Return(mockTx, nil)
 
 	mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(signedRoot1, nil)
 	mockTx.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
