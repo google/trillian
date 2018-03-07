@@ -304,7 +304,9 @@ func createTree(ctx context.Context, db *sql.DB) (*trillian.Tree, error) {
 	{
 		ls := mysql.NewLogStorage(db, nil)
 		err := ls.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
-			return tx.StoreSignedLogRoot(ctx, trillian.SignedLogRoot{LogId: tree.TreeId, RootHash: []byte{0}, Signature: &sigpb.DigitallySigned{}})
+			return tx.StoreSignedLogRoot(ctx, trillian.SignedLogRoot{
+				RootHash:  []byte{0},
+				Signature: &sigpb.DigitallySigned{}})
 		})
 		if err != nil {
 			return nil, err

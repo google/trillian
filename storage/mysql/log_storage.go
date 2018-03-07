@@ -34,6 +34,7 @@ import (
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
+	"github.com/google/trillian/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -668,8 +669,8 @@ func (t *logTreeTX) fetchLatestRoot(ctx context.Context) (trillian.SignedLogRoot
 		TimestampNanos: timestamp,
 		TreeRevision:   treeRevision,
 		Signature:      &rootSignature,
-		LogId:          t.treeID,
 		TreeSize:       treeSize,
+		KeyHint:        types.SerializeKeyHint(t.treeID),
 	}, nil
 }
 

@@ -35,17 +35,17 @@ var sigpbHashLookup = map[crypto.Hash]sigpb.DigitallySigned_HashAlgorithm{
 // Signer is responsible for signing log-related data and producing the appropriate
 // application specific signature objects.
 type Signer struct {
-	KeyHint int64
-	Hash    crypto.Hash
-	Signer  crypto.Signer
+	KeyID  int64
+	Hash   crypto.Hash
+	Signer crypto.Signer
 }
 
 // NewSigner returns a new annotated signer.
 func NewSigner(LogID int64, signer crypto.Signer, hash crypto.Hash) *Signer {
 	return &Signer{
-		KeyHint: LogID,
-		Hash:    hash,
-		Signer:  signer,
+		KeyID:  LogID,
+		Hash:   hash,
+		Signer: signer,
 	}
 }
 
@@ -108,7 +108,7 @@ func (s *Signer) SignLogRoot(r *types.LogRootV1) (*trillian.SignedLogRoot, error
 	}
 	signature, err := s.Sign(hash)
 	if err != nil {
-		glog.Warningf("%v: signer failed to sign log root: %v", root.LogId, err)
+		glog.Warningf("%v: signer failed to sign log root: %v", s.KeyID, err)
 		return nil, err
 	}
 
@@ -121,7 +121,7 @@ func (s *Signer) SignLogRoot(r *types.LogRootV1) (*trillian.SignedLogRoot, error
 func (s *Signer) SignMapRoot(root *trillian.SignedMapRoot) (*sigpb.DigitallySigned, error) {
 	signature, err := s.SignObject(root)
 	if err != nil {
-		glog.Warningf("%v: signer failed to sign map root: %v", root.MapId, err)
+		glog.Warningf("%v: signer failed to sign map root: %v", s.KeyID, err)
 		return nil, err
 	}
 

@@ -74,7 +74,6 @@ var expectedSignedRoot = trillian.SignedLogRoot{
 	TimestampNanos: fakeTimeForTest.UnixNano(),
 	TreeRevision:   6,
 	TreeSize:       17,
-	LogId:          0,
 	Signature: &sigpb.DigitallySigned{
 		SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
 		HashAlgorithm:      sigpb.DigitallySigned_SHA256,
@@ -88,7 +87,6 @@ var expectedSignedRoot16 = trillian.SignedLogRoot{
 	TreeRevision:   6,
 	TreeSize:       16,
 	RootHash:       testRoot16.RootHash,
-	LogId:          0,
 	Signature: &sigpb.DigitallySigned{
 		SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
 		HashAlgorithm:      sigpb.DigitallySigned_SHA256,
@@ -102,7 +100,6 @@ var expectedSignedRoot0 = trillian.SignedLogRoot{
 	TimestampNanos: fakeTimeForTest.UnixNano(),
 	TreeRevision:   1,
 	TreeSize:       0,
-	LogId:          0,
 	Signature: &sigpb.DigitallySigned{
 		SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
 		HashAlgorithm:      sigpb.DigitallySigned_SHA256,

@@ -30,6 +30,7 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testonly"
+	"github.com/google/trillian/types"
 	"github.com/kylelemons/godebug/pretty"
 
 	spb "github.com/google/trillian/crypto/sigpb"
@@ -865,7 +866,7 @@ func TestLatestSignedLogRoot(t *testing.T) {
 	tree := logTree(logID)
 
 	root := trillian.SignedLogRoot{
-		LogId:          logID,
+		KeyHint:        types.SerializeKeyHint(logID),
 		TimestampNanos: 98765,
 		TreeSize:       16,
 		TreeRevision:   5,
@@ -902,7 +903,7 @@ func TestDuplicateSignedLogRoot(t *testing.T) {
 
 	runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
 		root := trillian.SignedLogRoot{
-			LogId:          logID,
+			KeyHint:        types.SerializeKeyHint(logID),
 			TimestampNanos: 98765,
 			TreeSize:       16,
 			TreeRevision:   5,
@@ -928,7 +929,7 @@ func TestLogRootUpdate(t *testing.T) {
 	tree := logTree(logID)
 
 	root := trillian.SignedLogRoot{
-		LogId:          logID,
+		KeyHint:        types.SerializeKeyHint(logID),
 		TimestampNanos: 98765,
 		TreeSize:       16,
 		TreeRevision:   5,
@@ -936,7 +937,7 @@ func TestLogRootUpdate(t *testing.T) {
 		Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
 	}
 	root2 := trillian.SignedLogRoot{
-		LogId:          logID,
+		KeyHint:        types.SerializeKeyHint(logID),
 		TimestampNanos: 98766,
 		TreeSize:       16,
 		TreeRevision:   6,

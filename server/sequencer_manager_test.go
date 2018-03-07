@@ -36,6 +36,7 @@ import (
 	"github.com/google/trillian/storage"
 	stestonly "github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/testonly"
+	"github.com/google/trillian/types"
 	"github.com/google/trillian/util"
 )
 
@@ -63,7 +64,7 @@ var testLeaf0Updated = &trillian.LogLeaf{
 var testRoot0 = trillian.SignedLogRoot{
 	TreeSize:     0,
 	TreeRevision: 0,
-	LogId:        testLogID1,
+	KeyHint:      types.SerializeKeyHint(testLogID1),
 	RootHash:     []byte{},
 	Signature: &sigpb.DigitallySigned{
 		HashAlgorithm:      sigpb.DigitallySigned_SHA256,

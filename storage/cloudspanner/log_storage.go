@@ -340,7 +340,6 @@ func (tx *logTX) LatestSignedLogRoot(ctx context.Context) (trillian.SignedLogRoo
 		TimestampNanos: currentSTH.TsNanos,
 		RootHash:       currentSTH.RootHash,
 		TreeSize:       currentSTH.TreeSize,
-		LogId:          currentSTH.TreeId,
 		TreeRevision:   currentSTH.TreeRevision,
 		Signature:      apiSig,
 	}, nil

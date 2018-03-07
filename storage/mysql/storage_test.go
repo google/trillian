@@ -260,7 +260,6 @@ func createLogForTests(db *sql.DB) int64 {
 	l := NewLogStorage(db, nil)
 	err = l.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
 		if err := tx.StoreSignedLogRoot(ctx, trillian.SignedLogRoot{
-			LogId:     tree.TreeId,
 			RootHash:  []byte{0},
 			Signature: &sigpb.DigitallySigned{Signature: []byte("asignature")}}); err != nil {
 			return fmt.Errorf("Error storing new SignedLogRoot: %v", err)
