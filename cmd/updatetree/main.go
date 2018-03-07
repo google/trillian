@@ -44,6 +44,7 @@ var (
 	treeState       = flag.String("tree_state", "", "If set the tree state will be updated")
 )
 
+// TODO(Martin2112): Pass everything needed into this and don't refer to flags.
 func updateTree(ctx context.Context) (*trillian.Tree, error) {
 	if *adminServerAddr == "" {
 		return nil, errors.New("empty --admin_server, please provide the Admin server host:port")

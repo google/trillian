@@ -136,8 +136,7 @@ func runTest(t *testing.T, tests []*testCase) {
 			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 			defer cancel()
 			tree, err := updateTree(ctx)
-			switch hasErr := err != nil; {
-			case hasErr != tc.wantErr:
+			if hasErr := err != nil; hasErr != tc.wantErr {
 				t.Errorf("updateTree() returned err = '%v', wantErr = %v", err, tc.wantErr)
 				return
 			}
