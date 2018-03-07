@@ -42,6 +42,12 @@ import (
 )
 
 const (
+	selectNonDeletedTreeIDByTypeAndStateSQL = `
+		SELECT TreeId FROM Trees
+		  WHERE TreeType = ?
+		  AND TreeState IN(?,?)
+		  AND (Deleted IS NULL OR Deleted = 'false')`
+
 	insertUnsequencedLeafSQL = `INSERT INTO LeafData(TreeId,LeafIdentityHash,LeafValue,ExtraData,QueueTimestampNanos)
 			VALUES(?,?,?,?,?)`
 	selectSequencedLeafCountSQL   = "SELECT COUNT(*) FROM SequencedLeafData WHERE TreeId=?"

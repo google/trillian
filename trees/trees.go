@@ -41,7 +41,7 @@ type accessRule struct {
 	rejectCodes map[trillian.TreeState]codes.Code
 	// Tree types are accepted if there is a 'true' value for them in this map.
 	okTypes map[trillian.TreeType]bool
-	//okWrite is true if write access should be allowed.
+	// okWrite is true if write access should be allowed.
 	okWrite bool
 }
 
