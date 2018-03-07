@@ -49,8 +49,7 @@ type ReadOnlyLogTreeTX interface {
 	GetLeavesByIndex(ctx context.Context, leaves []int64) ([]*trillian.LogLeaf, error)
 	// GetLeavesByRange returns leaf data for a range of indexes. Leaves are
 	// returned ordered by their LeafIndex, and the returned slice may be smaller
-	// than count if the requested range extends beyond the current size of the
-	// log.
+	// than count if the requested range extends beyond the current log size.
 	// For PREORDERED_LOG trees, it returns leaves beyond the tree size if they
 	// are stored, in order to allow integrating them into the tree.
 	GetLeavesByRange(ctx context.Context, start, count int64) ([]*trillian.LogLeaf, error)
