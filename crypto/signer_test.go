@@ -15,6 +15,7 @@
 package crypto
 
 import (
+	"crypto"
 	"encoding/json"
 	"errors"
 	"testing"
@@ -35,7 +36,7 @@ func TestSign(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to open test key, err=%v", err)
 	}
-	signer := NewSHA256Signer(key)
+	signer := NewSigner(0, key, crypto.SHA256)
 
 	for _, test := range []struct {
 		message []byte
@@ -72,7 +73,7 @@ func TestSign_SignerFails(t *testing.T) {
 		t.Fatalf("Failed to load private key: %v", err)
 	}
 
-	_, err = NewSHA256Signer(testonly.NewSignerWithErr(key, errors.New("sign"))).Sign([]byte(message))
+	_, err = NewSigner(0, testonly.NewSignerWithErr(key, errors.New("sign")), crypto.SHA256).Sign([]byte(message))
 	if err == nil {
 		t.Fatalf("Ignored a signing error: %v", err)
 	}
@@ -95,7 +96,7 @@ func TestSignWithSignedLogRoot_SignerFails(t *testing.T) {
 	if err != nil {
 		t.Fatalf("HashLogRoot(): %v", err)
 	}
-	_, err = NewSHA256Signer(s).Sign(hash)
+	_, err = NewSigner(0, s, crypto.SHA256).Sign(hash)
 	testonly.EnsureErrorContains(t, err, "signfail")
 }
 
@@ -104,7 +105,7 @@ func TestSignLogRoot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to open test key, err=%v", err)
 	}
-	signer := NewSHA256Signer(key)
+	signer := NewSigner(0, key, crypto.SHA256)
 
 	for _, test := range []struct {
 		root *types.LogRootV1
@@ -137,7 +138,7 @@ func TestSignMapRoot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to open test key, err=%v", err)
 	}
-	signer := NewSHA256Signer(key)
+	signer := NewSigner(0, key, crypto.SHA256)
 
 	for _, test := range []struct {
 		root trillian.SignedMapRoot

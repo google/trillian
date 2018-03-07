@@ -15,6 +15,7 @@
 package client
 
 import (
+	"crypto"
 	"testing"
 
 	"github.com/google/trillian"
@@ -32,7 +33,7 @@ func TestVerifyRootErrors(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to open test key, err=%v", err)
 	}
-	signer := tcrypto.NewSHA256Signer(key)
+	signer := tcrypto.NewSigner(0, key, crypto.SHA256)
 	pk, err := pem.UnmarshalPublicKey(testonly.DemoPublicKey)
 	if err != nil {
 		t.Fatalf("Failed to load public key, err=%v", err)

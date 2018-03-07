@@ -35,8 +35,18 @@ var sigpbHashLookup = map[crypto.Hash]sigpb.DigitallySigned_HashAlgorithm{
 // Signer is responsible for signing log-related data and producing the appropriate
 // application specific signature objects.
 type Signer struct {
-	Hash   crypto.Hash
-	Signer crypto.Signer
+	KeyHint int64
+	Hash    crypto.Hash
+	Signer  crypto.Signer
+}
+
+// NewSigner returns a new annotated signer.
+func NewSigner(LogID int64, signer crypto.Signer, hash crypto.Hash) *Signer {
+	return &Signer{
+		KeyHint: LogID,
+		Hash:    hash,
+		Signer:  signer,
+	}
 }
 
 // NewSHA256Signer creates a new SHA256 based Signer.

@@ -31,9 +31,10 @@ import (
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/storage"
-	stestonly "github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/util"
+
+	stestonly "github.com/google/trillian/storage/testonly"
 )
 
 var (
@@ -251,7 +252,7 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) (testCont
 		}
 	}
 
-	signer := crypto.NewSHA256Signer(params.signer)
+	signer := crypto.NewSigner(0, params.signer, gocrypto.SHA256)
 	qm := params.qm
 	if qm == nil {
 		qm = quota.Noop()
@@ -550,7 +551,7 @@ func TestIntegrateBatch_PutTokens(t *testing.T) {
 	// Needed to create a signer
 	hasher := rfc6962.DefaultHasher
 	ts := util.NewFakeTimeSource(fakeTimeForTest)
-	signer := crypto.NewSHA256Signer(cryptoSigner)
+	signer := crypto.NewSigner(0, cryptoSigner, gocrypto.SHA256)
 
 	// Needed for IntegrateBatch calls
 	const treeID int64 = 1234
