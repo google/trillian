@@ -482,9 +482,14 @@ func checkConsistencyProof(consistParams consistencyProofParams, treeID int64, t
 		return fmt.Errorf("GetConsistencyProof(%v) = %v %v", consistParams, err, resp)
 	}
 
+	if req.SecondTreeSize > resp.SignedLogRoot.TreeSize {
+		return fmt.Errorf("Requested tree size %d > available tree size %d", req.SecondTreeSize, resp.SignedLogRoot.TreeSize)
+	}
+
 	verifier := merkle.NewLogVerifier(rfc6962.DefaultHasher)
 	root1 := tree.RootAtSnapshot(req.FirstTreeSize).Hash()
 	root2 := tree.RootAtSnapshot(req.SecondTreeSize).Hash()
+	fmt.Printf("req: %v\nresp: %v\n", req, resp)
 	return verifier.VerifyConsistencyProof(req.FirstTreeSize, req.SecondTreeSize,
 		root1, root2, resp.Proof.Hashes)
 }

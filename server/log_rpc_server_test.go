@@ -1369,10 +1369,9 @@ func TestGetConsistencyProof(t *testing.T) {
 			noCommit:   true,
 		},
 		{
-			// Ask for a proof from size 4 to 8 but the tree is only size 7. This should fail.
+			// Ask for a proof from size 4 to 8 but the tree is only size 7. This should succeed but with no proof.
 			req:        getConsistencyProofRequest48,
-			errStr:     "snapshot2 8 > treeSize 7",
-			wantHashes: [][]byte{},
+			wantHashes: nil,
 			nodeIDs:    nil,
 			noRev:      true,
 			noCommit:   true,
@@ -1432,6 +1431,12 @@ func TestGetConsistencyProof(t *testing.T) {
 		} else {
 			if err != nil {
 				t.Errorf("GetConsistencyProof(%+v)=_,%v; want: _,nil", test.req, err)
+				continue
+			}
+			if test.wantHashes == nil {
+				if response.Proof != nil {
+					t.Errorf("GetConsistencyProof(%+v) want nil proof, got %v", test.req, response.Proof)
+				}
 				continue
 			}
 			// Ensure we got the expected proof.

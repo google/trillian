@@ -340,6 +340,11 @@ func (t *TrillianLogRPCServer) GetConsistencyProof(ctx context.Context, req *tri
 	if err := root.UnmarshalBinary(slr.LogRoot); err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not read current log root: %v", err)
 	}
+	r := &trillian.GetConsistencyProofResponse{SignedLogRoot: &slr}
+
+	if req.SecondTreeSize > root.TreeSize {
+		return r, nil
+	}
 
 	nodeFetches, err := merkle.CalcConsistencyProofNodeAddresses(req.FirstTreeSize, req.SecondTreeSize, int64(root.TreeSize), proofMaxBitLen)
 	if err != nil {
@@ -358,7 +363,8 @@ func (t *TrillianLogRPCServer) GetConsistencyProof(ctx context.Context, req *tri
 	}
 
 	// We have everything we need. Return the proof
-	return &trillian.GetConsistencyProofResponse{Proof: &proof}, nil
+	r.Proof = &proof
+	return r, nil
 }
 
 // GetLatestSignedLogRoot obtains the latest published tree root for the Merkle Tree that
