@@ -38,6 +38,9 @@ type MapRoot struct {
 
 // ParseMapRoot verifies that b has the MAP_ROOT_FORMAT_V1 tag and returns a *MapRootV1
 func ParseMapRoot(b []byte) (*MapRootV1, error) {
+	if b == nil {
+		return nil, fmt.Errorf("nil map root")
+	}
 	// Verify version
 	version := binary.BigEndian.Uint16(b)
 	if version != uint16(trillian.MapRootFormat_MAP_ROOT_FORMAT_V1) {

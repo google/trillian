@@ -43,3 +43,40 @@ func TestMapRoot(t *testing.T) {
 		}
 	}
 }
+
+func MustSerializeMapRoot(root *MapRootV1) []byte {
+	b, err := SerializeMapRoot(root)
+	if err != nil {
+		panic(err)
+	}
+	return b
+}
+
+func TestParseMapRoot(t *testing.T) {
+	for _, tc := range []struct {
+		mapRoot []byte
+		want    *MapRootV1
+		wantErr bool
+	}{
+		{
+			want: &MapRootV1{
+				RootHash: []byte("foo"),
+				Metadata: []byte{},
+			},
+			mapRoot: MustSerializeMapRoot(&MapRootV1{
+				RootHash: []byte("foo"),
+				Metadata: []byte{},
+			}),
+		},
+		{mapRoot: []byte("foo"), wantErr: true},
+		{mapRoot: nil, wantErr: true},
+	} {
+		r, err := ParseMapRoot(tc.mapRoot)
+		if got, want := err != nil, tc.wantErr; got != want {
+			t.Errorf("ParseMapRoot(): %v, wantErr: %v", err, want)
+		}
+		if got, want := r, tc.want; !reflect.DeepEqual(got, want) {
+			t.Errorf("ParseMapRoot(): %v, want: %v", got, want)
+		}
+	}
+}

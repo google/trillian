@@ -40,6 +40,9 @@ type LogRoot struct {
 
 // ParseLogRoot verifies that b has the LOG_ROOT_FORMAT_V1 tag and returns a *LogRootV1
 func ParseLogRoot(b []byte) (*LogRootV1, error) {
+	if b == nil {
+		return nil, fmt.Errorf("nil log root")
+	}
 	// Verify version
 	version := binary.BigEndian.Uint16(b)
 	if version != uint16(trillian.LogRootFormat_LOG_ROOT_FORMAT_V1) {

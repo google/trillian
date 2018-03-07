@@ -63,6 +63,10 @@ func TestParseLogRoot(t *testing.T) {
 			logRoot: []byte("foo"),
 			wantErr: true,
 		},
+		{
+			logRoot: nil,
+			wantErr: true,
+		},
 	} {
 		_, err := ParseLogRoot(tc.logRoot)
 		if got, want := err != nil, tc.wantErr; got != want {
