@@ -87,8 +87,10 @@ var (
 	getInclusionProofByIndexRequest7  = trillian.GetInclusionProofRequest{LogId: logID1, TreeSize: 7, LeafIndex: 2}
 	getInclusionProofByIndexRequest25 = trillian.GetInclusionProofRequest{LogId: logID1, TreeSize: 50, LeafIndex: 25}
 
-	getEntryAndProofRequest17 = trillian.GetEntryAndProofRequest{LogId: logID1, TreeSize: 17, LeafIndex: 3}
-	getEntryAndProofRequest7  = trillian.GetEntryAndProofRequest{LogId: logID1, TreeSize: 7, LeafIndex: 2}
+	getEntryAndProofRequest17    = trillian.GetEntryAndProofRequest{LogId: logID1, TreeSize: 17, LeafIndex: 3}
+	getEntryAndProofRequest17_2  = trillian.GetEntryAndProofRequest{LogId: logID1, TreeSize: 17, LeafIndex: 2}
+	getEntryAndProofRequest17_11 = trillian.GetEntryAndProofRequest{LogId: logID1, TreeSize: 17, LeafIndex: 11}
+	getEntryAndProofRequest7     = trillian.GetEntryAndProofRequest{LogId: logID1, TreeSize: 7, LeafIndex: 2}
 
 	getConsistencyProofRequest7  = trillian.GetConsistencyProofRequest{LogId: logID1, FirstTreeSize: 4, SecondTreeSize: 7}
 	getConsistencyProofRequest44 = trillian.GetConsistencyProofRequest{LogId: logID1, FirstTreeSize: 4, SecondTreeSize: 4}
@@ -1219,25 +1221,25 @@ func TestGetEntryAndProof(t *testing.T) {
 	}
 }
 
-func TestGetEntryAndProofSkew(t *testing.T) {
+func TestGetEntryAndProofSkewNoProof(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	fakeStorage := storage.NewMockLogStorage(ctrl)
 	mockTx := storage.NewMockLogTreeTX(ctrl)
-	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), getEntryAndProofRequest17.LogId).Return(mockTx, nil)
+	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), getEntryAndProofRequest17_11.LogId).Return(mockTx, nil)
 
 	mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(signedRoot1, nil)
 	mockTx.EXPECT().Commit().Return(nil)
 	mockTx.EXPECT().Close().Return(nil)
 
 	registry := extension.Registry{
-		AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: getEntryAndProofRequest7.LogId, numSnapshots: 1}),
+		AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: getEntryAndProofRequest17_11.LogId, numSnapshots: 1}),
 		LogStorage:   fakeStorage,
 	}
 	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
 
-	response, err := server.GetEntryAndProof(context.Background(), &getEntryAndProofRequest17)
+	response, err := server.GetEntryAndProof(context.Background(), &getEntryAndProofRequest17_11)
 	if err != nil {
 		t.Fatalf("get entry and proof should have succeeded but we got: %v", err)
 	}
@@ -1248,6 +1250,60 @@ func TestGetEntryAndProofSkew(t *testing.T) {
 
 	if response.Leaf != nil {
 		t.Fatalf("Expected nil leaf but got: %v", response.Leaf)
+	}
+}
+
+func TestGetEntryAndProofSkewSmallerTree(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	fakeStorage := storage.NewMockLogStorage(ctrl)
+	mockTx := storage.NewMockLogTreeTX(ctrl)
+	fakeStorage.EXPECT().SnapshotForTree(gomock.Any(), getEntryAndProofRequest17_2.LogId).Return(mockTx, nil)
+
+	mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(signedRoot1, nil)
+	mockTx.EXPECT().ReadRevision().Return(signedRoot1.TreeRevision)
+	mockTx.EXPECT().GetMerkleNodes(gomock.Any(), revision1, nodeIdsInclusionSize7Index2).Return([]storage.Node{
+		{NodeID: nodeIdsInclusionSize7Index2[0], NodeRevision: 3, Hash: []byte("nodehash0")},
+		{NodeID: nodeIdsInclusionSize7Index2[1], NodeRevision: 2, Hash: []byte("nodehash1")},
+		{NodeID: nodeIdsInclusionSize7Index2[2], NodeRevision: 3, Hash: []byte("nodehash2")}}, nil)
+	mockTx.EXPECT().GetLeavesByIndex(gomock.Any(), []int64{2}).Return([]*trillian.LogLeaf{leaf1}, nil)
+	mockTx.EXPECT().Commit().Return(nil)
+	mockTx.EXPECT().Close().Return(nil)
+
+	registry := extension.Registry{
+		AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: getEntryAndProofRequest17_2.LogId, numSnapshots: 1}),
+		LogStorage:   fakeStorage,
+	}
+	server := NewTrillianLogRPCServer(registry, fakeTimeSource)
+
+	response, err := server.GetEntryAndProof(context.Background(), &getEntryAndProofRequest17_2)
+	if err != nil {
+		t.Fatalf("get entry and proof should have succeeded but we got: %v", err)
+	}
+
+	// Check the proof is the one we expected
+	expectedProof := trillian.Proof{
+		LeafIndex: 2,
+		Hashes: [][]byte{
+			[]byte("nodehash0"),
+			[]byte("nodehash1"),
+			[]byte("nodehash2"),
+		},
+	}
+
+	if !proto.Equal(response.Proof, &expectedProof) {
+		t.Fatalf("expected proof: %v but got: %v", expectedProof, response.Proof)
+	}
+
+	// Check we got the correct leaf data
+	if !proto.Equal(response.Leaf, leaf1) {
+		t.Fatalf("Expected leaf %v but got: %v", leaf1, response.Leaf)
+	}
+
+	// Check we got the right signed log root
+	if !proto.Equal(response.SignedLogRoot, &signedRoot1) {
+		t.Fatalf("expected root: %v got: %v", signedRoot1, response.SignedLogRoot)
 	}
 }
 

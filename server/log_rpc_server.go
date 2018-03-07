@@ -553,7 +553,11 @@ func (t *TrillianLogRPCServer) GetEntryAndProof(ctx context.Context, req *trilli
 
 	r := &trillian.GetEntryAndProofResponse{SignedLogRoot: &slr}
 
-	// FIXME: should we return a proof to the available tree size if req.LeafIndex < root.TreeSize?
+	if req.TreeSize > int64(root.TreeSize) && req.LeafIndex < int64(root.TreeSize) {
+		// return latest proof we can manage
+		req.TreeSize = int64(root.TreeSize)
+	}
+
 	if req.TreeSize <= int64(root.TreeSize) {
 		proof, err := getInclusionProofForLeafIndex(ctx, tx, hasher, req.TreeSize, req.LeafIndex, int64(root.TreeSize))
 		if err != nil {
