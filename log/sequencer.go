@@ -245,12 +245,14 @@ type sequencingTask interface {
 // logSequencingTask is a sequencingTask implementation for "normal" Log mode,
 // which assigns consecutive sequence numbers to leaves as they are read from
 // the pending unsequenced entries.
-type logSequencingTask struct {
+type sequencingTaskData struct {
 	label      string
 	treeSize   int64
 	timeSource util.TimeSource
 	tx         storage.LogTreeTX
 }
+
+type logSequencingTask sequencingTaskData
 
 func (s *logSequencingTask) fetch(ctx context.Context, limit int, cutoff time.Time) ([]*trillian.LogLeaf, error) {
 	start := s.timeSource.Now()
@@ -280,7 +282,7 @@ func (s *logSequencingTask) update(ctx context.Context, leaves []*trillian.LogLe
 	return nil
 }
 
-type preorderedLogSequencingTask logSequencingTask
+type preorderedLogSequencingTask sequencingTaskData
 
 func (s *preorderedLogSequencingTask) fetch(ctx context.Context, limit int, cutoff time.Time) ([]*trillian.LogLeaf, error) {
 	// TODO(pavelkalinnikov): Measure latency.
@@ -323,16 +325,19 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 			return storage.ErrTreeNeedsInit
 		}
 
-		taskData := &logSequencingTask{
+		taskData := &sequencingTaskData{
 			label:      label,
 			treeSize:   currentRoot.TreeSize,
 			timeSource: s.timeSource,
 			tx:         tx,
 		}
-		var st sequencingTask = taskData
-		if tree.TreeType == trillian.TreeType_PREORDERED_LOG {
+		var st sequencingTask
+		switch tree.TreeType {
+		case trillian.TreeType_LOG:
+			st = (*logSequencingTask)(taskData)
+		case trillian.TreeType_PREORDERED_LOG:
 			st = (*preorderedLogSequencingTask)(taskData)
-		} else if tree.TreeType != trillian.TreeType_LOG {
+		default:
 			return fmt.Errorf("IntegrateBatch not supported for TreeType %v", tree.TreeType)
 		}
 
