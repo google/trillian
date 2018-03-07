@@ -18,7 +18,7 @@ go:
   - 1.9.x
 
 env:
-  - GCE_CI=true
+  - GCE_CI=${ENABLE_GCE_CI}
   - TRILLIAN_SQL_DRIVER=mysql WITH_COVERAGE=true
   - GOFLAGS='-race' TRILLIAN_SQL_DRIVER=mysql
   - GOFLAGS='-race --tags batched_queue' TRILLIAN_SQL_DRIVER=mysql
