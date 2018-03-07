@@ -6,11 +6,17 @@ Some of the tools and metrics that will be used were only added recently.
 Before starting ensure that your server is upgraded to a release built
 after *fill this in when we know*.
 
+The `log_signer` process(es) must be exporting metrics. Check that their
+`--http_endpoint` flag is set to an appropriate value. If it's empty then
+update the configuration and restart them before proceeding.
+
 ## Preparation
+
+### Find the Log ID
 
 Obtain the ID of the tree that is backing the log that is to be frozen. This
 can be found in the CTFE config file. Locate the section of the config
-file that matches the one to be frozen and pull out the value of `log_id`.
+file that matches the log to be frozen and pull out the value of `log_id`.
 For example with the following config the `log_id` to use would be `987654321`.
 
 ```
@@ -29,6 +35,8 @@ config {
 }
 ```
 
+### Setup Environment
+
 Build the `updatetree` command if this hasn't already been done and ensure
 that it is on your `PATH`.
 
@@ -37,40 +45,89 @@ go install github.com/google/trillian/cmd/updatetree
 export PATH=${GOPATH}/bin:$PATH
 ```
 
+Set environment variables to the correct log_id and metrics HTTP endpoint.
+For example:
+
+```
+LOG_ID=987654321
+METRICS_URI=http://signer-1:8091/metrics
+```
+
 ## Set Log Tree To Draining State
 
 Use `updatetree` to set the log tree to a `DRAINING` state.
 
-`updatetree --tree_id=987654321 --tree-state=DRAINING`
+`updatetree --tree_id=${LOG_ID} --tree-state=DRAINING`
 
 Make sure the above command succeeds. At this point the log will not
 accept new entries but there may be some that have already been
 submitted but not yet integrated.
 
-## Monitor Queue / Sequencing
-
-Locate the `log_signer` that is currently responsible for signing the tree
-that was just modified. Note that it is possible for this to change
-during the following process so if you are using metrics directly
-from servers be aware that this could happen.
+## Monitor Queue / Integration
 
 If you have monitoring dashboards showing signer mastership e.g. in
-Prometheus then this information might be easily available.
+Prometheus then this information might be easily available and you
+may already have a global view of the state of all the Trillian
+servers in the etcd cluster. For the rest of the document we will assume
+that this is not the case.
 
-If not it can be obtained from the metrics that the server exports.
+The necessary information can be obtained from the raw metrics
+that the server exports. Note that it is possible for elections /
+resignations or cluster operations to change the signer responsible for a
+tree during the following process. So if you are using metrics directly
+from servers be aware that this could happen while you're watching the queue.
 
-Next wait until you're sure that the log has finished integrating the
+Wait until you're sure that the log has finished integrating the
 queued leaves. This will be indicated by an incrementing count of
 signer runs for the tree, no increase in errors for the tree and zero
-leaves being processed for the tree by the signer.
+leaves being processed for the tree by the signer. The following example
+should make this clear.
 
+### Find The Signer
 
+Monitor the statistics available on ${METRICS_URI}. For example:
 
+`curl ${METRICS_URI} | grep ${LOG_ID} | grep -v delay | grep -v latency | grep -v quota`
+
+This might produce output similar to this:
+
+```
+entries_added{logid="987654321"} 54
+is_master{logid="987654321"} 1
+known_logs{logid="987654321"} 1
+master_resignations{logid="987654321"} 7
+sequencer_batches{logid="987654321"} 54
+sequencer_sequenced{logid="987654321"} 54
+sequencer_tree_size{logid="987654321"} 7.095373e+07
+signing_runs{logid="987654321"} 54
+```
+
+First check that `is_master` is not zero. If it is then one of the other
+signers is currently handling the tree. Try the command on `signer-2`
+or whatever the next cluster member is called until you find the right one.
+
+### Wait For The Queue To Drain
+
+Next check that there is no entry present for `failed_signing_runs` for
+the tree. If there is do not proceed until you understand the cause and
+confirm that it has been fixed. If signing is failing and this number is
+incrementing then the other metrics will not be reliable.
+
+Then check that `signing_runs` is incrementing for the log along with
+`sequencer_batches` and then that `entries_added` and `sequencer_sequenced`
+remain static. These are counting the number of leaves integrated into
+the log by each signing run. While these values are increasing the queue
+is being drained.
+
+Continue to monitor the output from accessing `${METRICS_URI}` until you
+are sure that the queue has been drained for the log. Remember to ensure
+that `is_master` remains non zero during this time. If not you may have
+to go back and find the currently active signer.
 
 ## Set Log Tree To Frozen State
 
 Use `updatetree` to set the log tree to a `FROZEN` state.
 
-`updatetree --tree_id=987654321 --tree-state=FROZEN`
+`updatetree --tree_id=${LOG_ID} --tree-state=FROZEN`
 
 Make sure the above command succeeds. The log is now frozen.
