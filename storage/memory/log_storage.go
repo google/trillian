@@ -29,6 +29,7 @@ import (
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
+	"github.com/google/trillian/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -73,7 +74,7 @@ func hashToSeqKey(treeID int64) btree.Item {
 
 // sthKey formats a key for use in a tree's BTree store.
 // The associated Item value will be the STH with the given timestamp.
-func sthKey(treeID, timestamp int64) btree.Item {
+func sthKey(treeID int64, timestamp uint64) btree.Item {
 	return &kv{k: fmt.Sprintf("/%d/sth/%020d", treeID, timestamp)}
 }
 
@@ -151,16 +152,20 @@ func (m *memoryLogStorage) beginInternal(ctx context.Context, tree *trillian.Tre
 		ls:     m,
 	}
 
-	ltx.root, err = ltx.fetchLatestRoot(ctx)
-	if err != nil && err != storage.ErrTreeNeedsInit {
+	ltx.slr, err = ltx.fetchLatestRoot(ctx)
+	if err == storage.ErrTreeNeedsInit {
+		return ltx, err
+	} else if err != nil {
 		ttx.Rollback()
 		return nil, err
 	}
-	if err == storage.ErrTreeNeedsInit {
-		return ltx, err
+
+	if err := ltx.root.UnmarshalBinary(ltx.slr.LogRoot); err != nil {
+		ttx.Rollback()
+		return nil, err
 	}
 
-	ltx.treeTX.writeRevision = ltx.root.TreeRevision + 1
+	ltx.treeTX.writeRevision = int64(ltx.root.Revision) + 1
 
 	return ltx, nil
 }
@@ -220,11 +225,12 @@ func (m *memoryLogStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree,
 type logTreeTX struct {
 	treeTX
 	ls   *memoryLogStorage
-	root trillian.SignedLogRoot
+	root types.LogRootV1
+	slr  trillian.SignedLogRoot
 }
 
 func (t *logTreeTX) ReadRevision() int64 {
-	return t.root.TreeRevision
+	return int64(t.root.Revision)
 }
 
 func (t *logTreeTX) WriteRevision() int64 {
@@ -316,7 +322,7 @@ func (t *logTreeTX) GetLeavesByHash(ctx context.Context, leafHashes [][]byte, or
 }
 
 func (t *logTreeTX) LatestSignedLogRoot(ctx context.Context) (trillian.SignedLogRoot, error) {
-	return t.root, nil
+	return t.slr, nil
 }
 
 // fetchLatestRoot reads the latest SignedLogRoot from the DB and returns it.
@@ -328,7 +334,11 @@ func (t *logTreeTX) fetchLatestRoot(ctx context.Context) (trillian.SignedLogRoot
 	return r.(*kv).v.(trillian.SignedLogRoot), nil
 }
 
-func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, root trillian.SignedLogRoot) error {
+func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, slr trillian.SignedLogRoot) error {
+	var root types.LogRootV1
+	if err := root.UnmarshalBinary(slr.LogRoot); err != nil {
+		return err
+	}
 	k := sthKey(t.treeID, root.TimestampNanos)
 	k.(*kv).v = root
 	t.tx.ReplaceOrInsert(k)

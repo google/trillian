@@ -43,11 +43,12 @@ func VerifySignedLogRoot(pub crypto.PublicKey, hash crypto.Hash, r *trillian.Sig
 	if err := Verify(pub, hash, r.LogRoot, r.Signature); err != nil {
 		return nil, err
 	}
-	var root types.LogRootV1
-	if err := root.UnmarshalBinary(r.LogRoot); err != nil {
+
+	var logRoot types.LogRootV1
+	if err := logRoot.UnmarshalBinary(r.LogRoot); err != nil {
 		return nil, err
 	}
-	return &root, nil
+	return &logRoot, nil
 }
 
 // VerifyObject verifies the output of Signer.SignObject.

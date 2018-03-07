@@ -57,7 +57,7 @@ type tree struct {
 	// (such as sequenced leaves), while still accessing by key.
 	store *btree.BTree
 	// currentSTH is the timestamp of the current STH.
-	currentSTH int64
+	currentSTH uint64
 	meta       *trillian.Tree
 }
 

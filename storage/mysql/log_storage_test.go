@@ -226,7 +226,10 @@ func TestReadWriteTransaction(t *testing.T) {
 			desc: "activeLogBegin",
 			tree: activeLog,
 			wantLogRoot: func() []byte {
-				b, _ := types.SerializeLogRoot(&types.LogRootV1{RootHash: []byte{0}})
+				b, err := (&types.LogRootV1{RootHash: []byte{0}}).MarshalBinary()
+				if err != nil {
+					panic(err)
+				}
 				return b
 			}(),
 			wantTXRev: 1,

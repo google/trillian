@@ -251,8 +251,7 @@ func (m *mySQLLogStorage) beginInternal(ctx context.Context, tree *trillian.Tree
 		return nil, err
 	}
 
-	ltx.root, err = types.ParseLogRoot(ltx.slr.LogRoot)
-	if err != nil {
+	if err := ltx.root.UnmarshalBinary(ltx.slr.LogRoot); err != nil {
 		ttx.Rollback()
 		return nil, err
 	}
@@ -316,7 +315,7 @@ func (m *mySQLLogStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree, 
 type logTreeTX struct {
 	treeTX
 	ls   *mySQLLogStorage
-	root *types.LogRootV1
+	root types.LogRootV1
 	slr  trillian.SignedLogRoot
 }
 
@@ -678,12 +677,12 @@ func (t *logTreeTX) fetchLatestRoot(ctx context.Context) (trillian.SignedLogRoot
 	}
 
 	// Put logRoot back together. Forunately LogRoot has a determinstic serialization.
-	logRoot, err := types.SerializeLogRoot(&types.LogRootV1{
+	logRoot, err := (&types.LogRootV1{
 		RootHash:       rootHash,
 		TimestampNanos: uint64(timestamp),
 		Revision:       uint64(treeRevision),
 		TreeSize:       uint64(treeSize),
-	})
+	}).MarshalBinary()
 	if err != nil {
 		return trillian.SignedLogRoot{}, err
 	}
@@ -702,8 +701,8 @@ func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, root trillian.Signed
 		return err
 	}
 
-	logRoot, err := types.ParseLogRoot(root.LogRoot)
-	if err != nil {
+	var logRoot types.LogRootV1
+	if err := logRoot.UnmarshalBinary(root.LogRoot); err != nil {
 		glog.Warningf("Failed to parse log root: %x %v", root.LogRoot, err)
 		return err
 	}
