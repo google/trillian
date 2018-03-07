@@ -243,18 +243,21 @@ func (m *mySQLLogStorage) beginInternal(ctx context.Context, tree *trillian.Tree
 		treeTX: ttx,
 		ls:     m,
 	}
-
-	ltx.root, err = ltx.fetchLatestRoot(ctx)
-	if err != nil && err != storage.ErrTreeNeedsInit {
+	ltx.slr, err = ltx.fetchLatestRoot(ctx)
+	if err == storage.ErrTreeNeedsInit {
+		return ltx, err
+	} else if err != nil {
 		ttx.Rollback()
 		return nil, err
 	}
-	if err == storage.ErrTreeNeedsInit {
-		return ltx, err
+
+	ltx.root, err = types.ParseLogRoot(ltx.slr.LogRoot)
+	if err != nil {
+		ttx.Rollback()
+		return nil, err
 	}
 
-	ltx.treeTX.writeRevision = ltx.root.TreeRevision + 1
-
+	ltx.treeTX.writeRevision = int64(ltx.root.Revision) + 1
 	return ltx, nil
 }
 
@@ -313,11 +316,12 @@ func (m *mySQLLogStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree, 
 type logTreeTX struct {
 	treeTX
 	ls   *mySQLLogStorage
-	root trillian.SignedLogRoot
+	root *types.LogRootV1
+	slr  trillian.SignedLogRoot
 }
 
 func (t *logTreeTX) ReadRevision() int64 {
-	return t.root.TreeRevision
+	return int64(t.root.Revision)
 }
 
 func (t *logTreeTX) WriteRevision() int64 {
@@ -574,7 +578,7 @@ func (t *logTreeTX) GetLeavesByRange(ctx context.Context, start, count int64) ([
 	}
 
 	if t.treeType == trillian.TreeType_LOG {
-		treeSize := t.root.TreeSize
+		treeSize := int64(t.root.TreeSize)
 		if treeSize <= 0 {
 			return nil, fmt.Errorf("empty tree")
 		} else if start >= treeSize {
@@ -611,7 +615,7 @@ func (t *logTreeTX) GetLeavesByRange(ctx context.Context, start, count int64) ([
 			return nil, err
 		}
 		if leaf.LeafIndex != wantIndex {
-			if wantIndex < t.root.TreeSize {
+			if wantIndex < int64(t.root.TreeSize) {
 				return nil, fmt.Errorf("got unexpected index %d, want %d", leaf.LeafIndex, wantIndex)
 			}
 			break
@@ -652,57 +656,70 @@ func (t *logTreeTX) getLeafDataByIdentityHash(ctx context.Context, leafHashes []
 }
 
 func (t *logTreeTX) LatestSignedLogRoot(ctx context.Context) (trillian.SignedLogRoot, error) {
-	return t.root, nil
+	return t.slr, nil
 }
 
 // fetchLatestRoot reads the latest SignedLogRoot from the DB and returns it.
 func (t *logTreeTX) fetchLatestRoot(ctx context.Context) (trillian.SignedLogRoot, error) {
 	var timestamp, treeSize, treeRevision int64
 	var rootHash, rootSignatureBytes []byte
-	var rootSignature spb.DigitallySigned
-
-	err := t.tx.QueryRowContext(
+	if err := t.tx.QueryRowContext(
 		ctx, selectLatestSignedLogRootSQL, t.treeID).Scan(
-		&timestamp, &treeSize, &rootHash, &treeRevision, &rootSignatureBytes)
-
-	// It's possible there are no roots for this tree yet
-	if err == sql.ErrNoRows {
+		&timestamp, &treeSize, &rootHash, &treeRevision, &rootSignatureBytes,
+	); err == sql.ErrNoRows {
+		// It's possible there are no roots for this tree yet
 		return trillian.SignedLogRoot{}, storage.ErrTreeNeedsInit
 	}
 
-	err = proto.Unmarshal(rootSignatureBytes, &rootSignature)
-
-	if err != nil {
+	var rootSignature spb.DigitallySigned
+	if err := proto.Unmarshal(rootSignatureBytes, &rootSignature); err != nil {
 		glog.Warningf("Failed to unmarshall root signature: %v", err)
 		return trillian.SignedLogRoot{}, err
 	}
 
-	return trillian.SignedLogRoot{
+	// Put logRoot back together. Forunately LogRoot has a determinstic serialization.
+	logRoot, err := types.SerializeLogRoot(&types.LogRootV1{
 		RootHash:       rootHash,
-		TimestampNanos: timestamp,
-		TreeRevision:   treeRevision,
-		Signature:      &rootSignature,
-		TreeSize:       treeSize,
-		KeyHint:        types.SerializeKeyHint(t.treeID),
+		TimestampNanos: uint64(timestamp),
+		Revision:       uint64(treeRevision),
+		TreeSize:       uint64(treeSize),
+	})
+	if err != nil {
+		return trillian.SignedLogRoot{}, err
+	}
+
+	return trillian.SignedLogRoot{
+		KeyHint:   types.SerializeKeyHint(t.treeID),
+		LogRoot:   logRoot,
+		Signature: &rootSignature,
 	}, nil
 }
 
 func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, root trillian.SignedLogRoot) error {
 	signatureBytes, err := proto.Marshal(root.Signature)
-
 	if err != nil {
 		glog.Warningf("Failed to marshal root signature: %v %v", root.Signature, err)
 		return err
+	}
+
+	logRoot, err := types.ParseLogRoot(root.LogRoot)
+	if err != nil {
+		glog.Warningf("Failed to parse log root: %x %v", root.LogRoot, err)
+		return err
+	}
+	if len(logRoot.Metadata) != 0 {
+		return fmt.Errorf("unimplemented: mysql storage does not support log root metadata")
+
 	}
 
 	res, err := t.tx.ExecContext(
 		ctx,
 		insertTreeHeadSQL,
 		t.treeID,
-		root.TimestampNanos,
-		root.TreeSize,
-		root.RootHash,
-		root.TreeRevision,
+		logRoot.TimestampNanos,
+		logRoot.TreeSize,
+		logRoot.RootHash,
+		logRoot.Revision,
 		signatureBytes)
 	if err != nil {
 		glog.Warningf("Failed to store signed root: %s", err)
