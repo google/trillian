@@ -84,3 +84,25 @@ func MustMarshalLogRoot(root *LogRootV1) []byte {
 	}
 	return b
 }
+
+func TestKeyHint(t *testing.T) {
+	for _, tc := range []struct {
+		hint    []byte
+		want    int64
+		wantErr bool
+	}{
+		{hint: SerializeKeyHint(4), want: 4},
+		{hint: SerializeKeyHint(3561657513447883733), want: 3561657513447883733},
+		{hint: []byte{0, 0, 0, 0, 0, 0, 0, 4}, want: 4},
+		{hint: []byte{0xff, 0, 0, 0, 0, 0, 4}, want: 0, wantErr: true},    // Integer overflow
+		{hint: []byte{0, 0, 0, 0, 0, 0, 0, 4, 0}, want: 0, wantErr: true}, // Wrong byte len
+	} {
+		logID, err := ParseKeyHint(tc.hint)
+		if got, want := err != nil, tc.wantErr; got != want {
+			t.Errorf("ParseKeyHint(%v): %v, wantErr: %v", tc.hint, err, want)
+		}
+		if got, want := logID, tc.want; got != want {
+			t.Errorf("ParseKeyHint(%v): %v, want: %v", tc.hint, got, want)
+		}
+	}
+}
