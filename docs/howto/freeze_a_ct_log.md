@@ -4,7 +4,7 @@
 
 Some of the tools and metrics that will be used were only added recently.
 Before starting ensure that your server is upgraded to a release built
-after *fill this in when we know*.
+from code corresponding to at least the commit tagged `v1.0.8`.
 
 The `log_signer` process(es) must be exporting metrics. Check that their
 `--http_endpoint` flag is set to an appropriate value. If it's empty then
