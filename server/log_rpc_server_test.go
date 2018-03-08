@@ -1242,7 +1242,7 @@ func TestGetEntryAndProofSkewNoProof(t *testing.T) {
 	}
 
 	if response.Leaf != nil {
-		t.Errorf("Expected nil leaf but got: %v", response.Leaf)
+		t.Fatalf("Expected nil leaf but got: %v", response.Leaf)
 	}
 }
 
