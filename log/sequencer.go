@@ -437,8 +437,6 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 	seqCounter.Add(float64(numLeaves), label)
 	if newLogRoot != nil {
 		glog.Infof("%v: sequenced %v leaves, size %v, tree-revision %v", tree.TreeId, numLeaves, newLogRoot.TreeSize, newLogRoot.TreeRevision)
-	} else {
-		glog.Errorf("newLogRoot = nil")
 	}
 	return numLeaves, nil
 }

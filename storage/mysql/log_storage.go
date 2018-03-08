@@ -42,6 +42,12 @@ import (
 )
 
 const (
+	selectNonDeletedTreeIDByTypeAndStateSQL = `
+		SELECT TreeId FROM Trees
+		  WHERE TreeType IN(?,?)
+		  AND TreeState IN(?,?)
+		  AND (Deleted IS NULL OR Deleted = 'false')`
+
 	insertUnsequencedLeafSQL = `INSERT INTO LeafData(TreeId,LeafIdentityHash,LeafValue,ExtraData,QueueTimestampNanos)
 			VALUES(?,?,?,?,?)`
 	selectSequencedLeafCountSQL   = "SELECT COUNT(*) FROM SequencedLeafData WHERE TreeId=?"
@@ -196,18 +202,12 @@ func (t *readOnlyLogTX) Close() error {
 }
 
 func (t *readOnlyLogTX) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
-	tmpl, err := t.ls.getStmt(ctx, selectNonDeletedTreeIDByTypeAndStateSQL, 2, "?", "?")
-	if err != nil {
-		return nil, err
-	}
-	stx := t.tx.StmtContext(ctx, tmpl)
-	defer stx.Close()
-
-	rows, err := stx.QueryContext(ctx,
-		trillian.TreeType_LOG.String(),
-		trillian.TreeType_PREORDERED_LOG.String(),
-		trillian.TreeState_ACTIVE.String(),
-	)
+	// Include logs that are DRAINING in the active list as we're still
+	// integrating leaves into them.
+	rows, err := t.tx.QueryContext(
+		ctx, selectNonDeletedTreeIDByTypeAndStateSQL,
+		trillian.TreeType_LOG.String(), trillian.TreeType_PREORDERED_LOG.String(),
+		trillian.TreeState_ACTIVE.String(), trillian.TreeState_DRAINING.String())
 	if err != nil {
 		return nil, err
 	}

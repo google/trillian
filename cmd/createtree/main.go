@@ -65,6 +65,7 @@ var (
 	errAdminAddrNotSet = errors.New("empty --admin_server, please provide the Admin server host:port")
 )
 
+// TODO(Martin2112): Pass everything needed into this and don't refer to flags.
 func createTree(ctx context.Context) (*trillian.Tree, error) {
 	if *adminServerAddr == "" {
 		return nil, errAdminAddrNotSet

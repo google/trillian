@@ -38,7 +38,7 @@ const proofMaxBitLen = 64
 var (
 	optsLogInit            = trees.NewGetOpts(trees.Admin, false, trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG)
 	optsLogRead            = trees.NewGetOpts(trees.Query, true, trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG)
-	optsLogWrite           = trees.NewGetOpts(trees.Queue, false, trillian.TreeType_LOG)
+	optsLogWrite           = trees.NewGetOpts(trees.QueueLog, false, trillian.TreeType_LOG)
 	optsPreorderedLogWrite = trees.NewGetOpts(trees.SequenceLog, false, trillian.TreeType_PREORDERED_LOG)
 )
 
@@ -119,6 +119,7 @@ func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.Qu
 	if err != nil {
 		return nil, err
 	}
+
 	ctx = trees.NewContext(ctx, tree)
 
 	if err := hashLeaves(req.Leaves, hasher); err != nil {
