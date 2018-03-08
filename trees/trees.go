@@ -34,6 +34,86 @@ import (
 
 type treeKey struct{}
 
+type accessRule struct {
+	// Tree states are accepted if there is a 'true' value for them in this map.
+	okStates map[trillian.TreeState]bool
+	// Allows the error code to be specified for specific rejected states.
+	rejectCodes map[trillian.TreeState]codes.Code
+	// Tree types are accepted if there is a 'true' value for them in this map.
+	okTypes map[trillian.TreeType]bool
+	// okWrite is true if write access should be allowed.
+	okWrite bool
+}
+
+// These rules define the permissible combinations of tree state and type
+// for each operation type.
+var rules = map[OpType]accessRule{
+	Unknown: {},
+	Admin: {
+		okStates: map[trillian.TreeState]bool{
+			trillian.TreeState_UNKNOWN_TREE_STATE: true,
+			trillian.TreeState_ACTIVE:             true,
+			trillian.TreeState_DRAINING:           true,
+			trillian.TreeState_FROZEN:             true,
+		},
+		okTypes: map[trillian.TreeType]bool{
+			trillian.TreeType_LOG:            true,
+			trillian.TreeType_MAP:            true,
+			trillian.TreeType_PREORDERED_LOG: true,
+		},
+		okWrite: true,
+	},
+	Query: {
+		okStates: map[trillian.TreeState]bool{
+			// Have to allow queries on unknown state so storage can get a chance
+			// to return ErrTreeNeedsInit.
+			trillian.TreeState_UNKNOWN_TREE_STATE: true,
+			trillian.TreeState_ACTIVE:             true,
+			trillian.TreeState_DRAINING:           true,
+			trillian.TreeState_FROZEN:             true,
+		},
+		okTypes: map[trillian.TreeType]bool{
+			trillian.TreeType_LOG:            true,
+			trillian.TreeType_MAP:            true,
+			trillian.TreeType_PREORDERED_LOG: true,
+		},
+		okWrite: false,
+	},
+	QueueLog: {
+		okStates: map[trillian.TreeState]bool{
+			trillian.TreeState_ACTIVE: true,
+		},
+		rejectCodes: map[trillian.TreeState]codes.Code{
+			trillian.TreeState_DRAINING: codes.PermissionDenied,
+		},
+		okTypes: map[trillian.TreeType]bool{
+			trillian.TreeType_LOG:            true,
+			trillian.TreeType_PREORDERED_LOG: true,
+		},
+		okWrite: true,
+	},
+	SequenceLog: {
+		okStates: map[trillian.TreeState]bool{
+			trillian.TreeState_ACTIVE:   true,
+			trillian.TreeState_DRAINING: true,
+		},
+		okTypes: map[trillian.TreeType]bool{
+			trillian.TreeType_LOG:            true,
+			trillian.TreeType_PREORDERED_LOG: true,
+		},
+		okWrite: true,
+	},
+	UpdateMap: {
+		okStates: map[trillian.TreeState]bool{
+			trillian.TreeState_ACTIVE: true,
+		},
+		okTypes: map[trillian.TreeType]bool{
+			trillian.TreeType_MAP: true,
+		},
+		okWrite: true,
+	},
+}
+
 // NewContext returns a ctx with the given tree.
 func NewContext(ctx context.Context, tree *trillian.Tree) context.Context {
 	return context.WithValue(ctx, treeKey{}, tree)
@@ -47,13 +127,36 @@ func FromContext(ctx context.Context) (*trillian.Tree, bool) {
 }
 
 func validate(o GetOpts, tree *trillian.Tree) error {
-	// TODO(Martin2112): Enforce access type here - must be valid for tree
-	// state and not set to Unknown.
+	// Do the special case checks first
+	// TODO(Martin2112): If we get rid of the readonly flag then we can fold
+	// at least one of these into the rules.
 	switch {
 	case len(o.TreeTypes) > 0 && !o.TreeTypes[tree.TreeType]:
 		return status.Errorf(codes.InvalidArgument, "operation not allowed for %s-type trees (wanted one of %v)", tree.TreeType, o.TreeTypes)
 	case tree.TreeState == trillian.TreeState_FROZEN && !o.Readonly:
 		return status.Errorf(codes.PermissionDenied, "operation not allowed on %s trees", tree.TreeState)
+	}
+
+	// Reject any operation types we don't know about.
+	rule, ok := rules[o.Operation]
+	if !ok {
+		return status.Errorf(codes.Internal, "invalid operation type in GetOpts: %v", o)
+	}
+
+	// Apply the rule, ensure it allows the tree type and state that we have.
+	if !rule.okTypes[tree.TreeType] || !rule.okStates[tree.TreeState] {
+		// If we have a status code to use it takes precedence, otherwise it's
+		// a generic InvalidArgument code.
+		code, ok := rule.rejectCodes[tree.TreeState]
+		if !ok {
+			code = codes.InvalidArgument
+		}
+		return status.Errorf(code, "operation: %v not allowed for tree type: %v state: %v", o.Operation, tree.TreeType, tree.TreeState)
+	}
+
+	// Then check if write access was requested but should not be allowed.
+	if !o.Readonly && !rule.okWrite {
+		return status.Errorf(codes.PermissionDenied, "writes not allowed for operation: %v", o)
 	}
 
 	return nil

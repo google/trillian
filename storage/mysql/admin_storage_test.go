@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keyspb"
@@ -57,6 +58,22 @@ func TestAdminTX_CreateTree_InitializesStorageStructures(t *testing.T) {
 	// that important numbers are not zeroed.
 	if sequenceIntervalSeconds <= 0 {
 		t.Errorf("sequenceIntervalSeconds = %v, want > 0", sequenceIntervalSeconds)
+	}
+}
+
+func TestCreateTreeInvalidStates(t *testing.T) {
+	cleanTestDB(DB)
+	s := NewAdminStorage(DB)
+	ctx := context.Background()
+
+	states := []trillian.TreeState{trillian.TreeState_DRAINING, trillian.TreeState_FROZEN}
+
+	for _, state := range states {
+		inTree := proto.Clone(testonly.LogTree).(*trillian.Tree)
+		inTree.TreeState = state
+		if _, err := storage.CreateTree(ctx, s, inTree); err == nil {
+			t.Errorf("CreateTree() state: %v got: nil want: err", state)
+		}
 	}
 }
 
