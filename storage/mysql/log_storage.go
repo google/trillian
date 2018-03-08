@@ -44,7 +44,7 @@ import (
 const (
 	selectNonDeletedTreeIDByTypeAndStateSQL = `
 		SELECT TreeId FROM Trees
-		  WHERE TreeType = ?
+		  WHERE TreeType IN(?,?)
 		  AND TreeState IN(?,?)
 		  AND (Deleted IS NULL OR Deleted = 'false')`
 
@@ -172,6 +172,7 @@ func (m *mySQLLogStorage) getLeavesByLeafIdentityHashStmt(ctx context.Context, n
 
 // readOnlyLogTX implements storage.ReadOnlyLogTX
 type readOnlyLogTX struct {
+	ls *mySQLLogStorage
 	tx *sql.Tx
 }
 
@@ -181,7 +182,7 @@ func (m *mySQLLogStorage) Snapshot(ctx context.Context) (storage.ReadOnlyLogTX, 
 		glog.Warningf("Could not start ReadOnlyLogTX: %s", err)
 		return nil, err
 	}
-	return &readOnlyLogTX{tx}, nil
+	return &readOnlyLogTX{m, tx}, nil
 }
 
 func (t *readOnlyLogTX) Commit() error {
@@ -204,9 +205,9 @@ func (t *readOnlyLogTX) GetActiveLogIDs(ctx context.Context) ([]int64, error) {
 	// Include logs that are DRAINING in the active list as we're still
 	// integrating leaves into them.
 	rows, err := t.tx.QueryContext(
-		ctx, selectNonDeletedTreeIDByTypeAndStateSQL, trillian.TreeType_LOG.String(),
-		trillian.TreeState_ACTIVE.String(),
-		trillian.TreeState_DRAINING.String())
+		ctx, selectNonDeletedTreeIDByTypeAndStateSQL,
+		trillian.TreeType_LOG.String(), trillian.TreeType_PREORDERED_LOG.String(),
+		trillian.TreeState_ACTIVE.String(), trillian.TreeState_DRAINING.String())
 	if err != nil {
 		return nil, err
 	}

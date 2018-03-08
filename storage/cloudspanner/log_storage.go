@@ -46,9 +46,11 @@ const (
 	numByteValues = 256
 
 	unsequencedCountSQL = "SELECT Unsequenced.TreeID, COUNT(1) FROM Unsequenced GROUP BY TreeID"
-	// t.TreeState 1 == Active, State 5 = Draining
+
+	// t.TreeType: 1 = Log, 3 = PreorderedLog.
+	// t.TreeState: 1 = Active, 5 = Draining.
 	getActiveLogIDsSQL = `SELECT t.TreeID FROM TreeRoots t
-													WHERE t.TreeType = 1
+													WHERE (t.TreeType = 1 OR t.TreeType = 3)
 													AND (t.TreeState = 1 OR t.TreeState = 5)
 													AND t.Deleted=false`
 )
