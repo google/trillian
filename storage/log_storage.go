@@ -157,7 +157,7 @@ type CountByLogID map[int64]int64
 // LogMetadata provides access to information about the logs in storage
 type LogMetadata interface {
 	// GetActiveLogIDs returns a list of the IDs of all the logs that are
-	// configured in storage and are in the ACTIVE state.
+	// configured in storage and are in the ACTIVE or DRAINING state.
 	GetActiveLogIDs(ctx context.Context) ([]int64, error)
 
 	// GetUnsequencedCounts returns a map of the number of unsequenced entries
