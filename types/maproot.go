@@ -22,7 +22,14 @@ import (
 	"github.com/google/trillian"
 )
 
-// MapRootV1 contains the fields verified by SignedMapRoot
+// MapRootV1 holds the TLS-deserializtion of the following structure
+// (described in RFC5246 section 4 notation):
+// struct {
+//   opaque root_hash<0..128>;
+//   uint64 timestamp_nanos;
+//   uint64 revision;
+//   opaque metadata<0..65535>;
+// } MapRootV1;
 type MapRootV1 struct {
 	RootHash       []byte `tls:"minlen:0,maxlen:128"`
 	TimestampNanos uint64
@@ -30,29 +37,37 @@ type MapRootV1 struct {
 	Metadata       []byte `tls:"minlen:0,maxlen:65535"`
 }
 
-// MapRoot contains the fields serialized into SignedMapRoot.MapRoot
+// MapRoot holds the TLS-deserializtion of the following structure
+// (described in RFC5246 section 4 notation):
+// enum { v1(1), (65535)} Version;
+// struct {
+//   Version version;
+//   select(version) {
+//     case v1: MapRootV1;
+//   }
+// } MapRoot;
 type MapRoot struct {
 	Version tls.Enum   `tls:"size:2"`
 	V1      *MapRootV1 `tls:"selector:Version,val:1"`
 }
 
-// ParseMapRoot verifies that b has the MAP_ROOT_FORMAT_V1 tag and returns a *MapRootV1
-func ParseMapRoot(b []byte) (*MapRootV1, error) {
-	if b == nil {
+// ParseMapRoot verifies that mapRootBytes is a TLS serialized MapRoot,
+// has the MAP_ROOT_FORMAT_V1 tag, and returns the deserialized *MapRootV1.
+func ParseMapRoot(mapRootBytes []byte) (*MapRootV1, error) {
+	if mapRootBytes == nil {
 		return nil, fmt.Errorf("nil map root")
 	}
-	// Verify version
-	version := binary.BigEndian.Uint16(b)
+	version := binary.BigEndian.Uint16(mapRootBytes)
 	if version != uint16(trillian.MapRootFormat_MAP_ROOT_FORMAT_V1) {
 		return nil, fmt.Errorf("invalid MapRoot.Version: %v, want %v",
 			version, trillian.MapRootFormat_MAP_ROOT_FORMAT_V1)
 	}
 
-	var logRoot MapRoot
-	if _, err := tls.Unmarshal(b, &logRoot); err != nil {
+	var mapRoot MapRoot
+	if _, err := tls.Unmarshal(mapRootBytes, &mapRoot); err != nil {
 		return nil, err
 	}
-	return logRoot.V1, nil
+	return mapRoot.V1, nil
 }
 
 // SerializeMapRoot returns a canonical TLS serialization of the map root.

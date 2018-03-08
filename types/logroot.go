@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package types defines serialization and parsing functions for SignedLogRoot
+// and SignedMapRoot fields.
 package types
 
 import (
@@ -23,7 +25,15 @@ import (
 	"github.com/google/trillian"
 )
 
-// LogRootV1 contains the fields used by clients to verify Trillian Log behavior.
+// LogRootV1 holds the TLS-deserializtion of the following structure
+// (described in RFC5246 section 4 notation):
+// struct {
+//   uint64 tree_size;
+//   opaque root_hash<0..128>;
+//   uint64 timestamp_nanos;
+//   uint64 revision;
+//   opaque metadata<0..65535>;
+// } LogRootV1;
 type LogRootV1 struct {
 	TreeSize       uint64
 	RootHash       []byte `tls:"minlen:0,maxlen:128"`
@@ -32,26 +42,34 @@ type LogRootV1 struct {
 	Metadata       []byte `tls:"minlen:0,maxlen:65535"`
 }
 
-// LogRoot contains the fields serialized into SignedLogRoot.LogRoot
+// LogRoot holds the TLS-deserializtion of the following structure
+// (described in RFC5246 section 4 notation):
+// enum { v1(1), (65535)} Version;
+// struct {
+//   Version version;
+//   select(version) {
+//     case v1: LogRootV1;
+//   }
+// } LogRoot;
 type LogRoot struct {
 	Version tls.Enum   `tls:"size:2"`
 	V1      *LogRootV1 `tls:"selector:Version,val:1"`
 }
 
-// ParseLogRoot verifies that b has the LOG_ROOT_FORMAT_V1 tag and returns a *LogRootV1
-func ParseLogRoot(b []byte) (*LogRootV1, error) {
-	if b == nil {
+// ParseLogRoot verifies that logRootBytes is a TLS serialized LogRoot,
+// has the LOG_ROOT_FORMAT_V1 tag, and returns the deserialized *LogRootV1.
+func ParseLogRoot(logRootBytes []byte) (*LogRootV1, error) {
+	if logRootBytes == nil {
 		return nil, fmt.Errorf("nil log root")
 	}
-	// Verify version
-	version := binary.BigEndian.Uint16(b)
+	version := binary.BigEndian.Uint16(logRootBytes)
 	if version != uint16(trillian.LogRootFormat_LOG_ROOT_FORMAT_V1) {
 		return nil, fmt.Errorf("invalid LogRoot.Version: %v, want %v",
 			version, trillian.LogRootFormat_LOG_ROOT_FORMAT_V1)
 	}
 
 	var logRoot LogRoot
-	if _, err := tls.Unmarshal(b, &logRoot); err != nil {
+	if _, err := tls.Unmarshal(logRootBytes, &logRoot); err != nil {
 		return nil, err
 	}
 	return logRoot.V1, nil

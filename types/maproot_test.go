@@ -68,6 +68,11 @@ func TestParseMapRoot(t *testing.T) {
 				Metadata: []byte{},
 			}),
 		},
+		{
+			// Correct type, but junk afterwards.
+			mapRoot: []byte{0, 1, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5},
+			wantErr: true,
+		},
 		{mapRoot: []byte("foo"), wantErr: true},
 		{mapRoot: nil, wantErr: true},
 	} {
