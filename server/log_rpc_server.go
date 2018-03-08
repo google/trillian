@@ -599,24 +599,22 @@ func (t *TrillianLogRPCServer) InitLog(ctx context.Context, req *trillian.InitLo
 			return status.Errorf(codes.AlreadyExists, "log is already initialised")
 		}
 
-		newRoot = &trillian.SignedLogRoot{
-			RootHash:       hasher.EmptyRoot(),
-			TimestampNanos: t.timeSource.Now().UnixNano(),
-			TreeSize:       0,
-			LogId:          logID,
-			TreeRevision:   0,
-		}
-
 		signer, err := trees.Signer(ctx, tree)
 		if err != nil {
 			return status.Errorf(codes.FailedPrecondition, "Signer() :%v", err)
 		}
 
-		sig, err := signer.SignLogRoot(newRoot)
+		root, err := signer.SignLogRoot(&trillian.SignedLogRoot{
+			RootHash:       hasher.EmptyRoot(),
+			TimestampNanos: t.timeSource.Now().UnixNano(),
+			TreeSize:       0,
+			LogId:          logID,
+			TreeRevision:   0,
+		})
 		if err != nil {
 			return err
 		}
-		newRoot.Signature = sig
+		newRoot = root
 
 		if err := tx.StoreSignedLogRoot(ctx, *newRoot); err != nil {
 			return status.Errorf(codes.FailedPrecondition, "StoreSignedLogRoot(): %v", err)

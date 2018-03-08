@@ -83,10 +83,9 @@ func (s *Signer) SignObject(obj interface{}) (*sigpb.DigitallySigned, error) {
 	return s.Sign(hash[:])
 }
 
-// SignLogRoot hashes and signs the supplied (to-be) SignedLogRoot and returns a
-// signature.  Hashing is performed by github.com/benlaurie/objecthash.
-func (s *Signer) SignLogRoot(root *trillian.SignedLogRoot) (*sigpb.DigitallySigned, error) {
-	hash, err := HashLogRoot(*root)
+// SignLogRoot returns a complete SignedLogRoot (including signature).
+func (s *Signer) SignLogRoot(root *trillian.SignedLogRoot) (*trillian.SignedLogRoot, error) {
+	hash, err := hashLogRoot(*root)
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +95,10 @@ func (s *Signer) SignLogRoot(root *trillian.SignedLogRoot) (*sigpb.DigitallySign
 		return nil, err
 	}
 
-	return signature, nil
+	ret := *root // Don't modify the input variable.
+	ret.Signature = signature
+
+	return &ret, nil
 }
 
 // SignMapRoot hashes and signs the supplied (to-be) SignedMapRoot and returns a
