@@ -1,4 +1,4 @@
-# How To Freeze a CT Log
+# How To Freeze a Log (CT Example)
 
 ## Prerequisites
 
@@ -12,6 +12,10 @@ and sequencing can be monitored to [check](#monitor-queue--integration)
 that all pending entries have been integrated. Check that their
 `--http_endpoint` flag is set to an appropriate value. If it's empty then
 update the configuration appropriately and restart them before proceeding.
+
+We will assume that the log tree to be frozen is one that's being used
+by Trillian CTFE to serve a Certificate Transparency log. If this is
+not the case then consult the documentation for the appropriate application.
 
 ## Preparation
 
