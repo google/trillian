@@ -233,18 +233,15 @@ func (s Sequencer) initMerkleTreeFromStorage(ctx context.Context, currentRoot tr
 // sequencingTask provides sequenced LogLeaf entries, and updates storage
 // according to their ordering if needed.
 type sequencingTask interface {
-	// fetch returns a batch of sequenced entries obtained from storage. The
-	// returned leaves have consecutive LeafIndex values starting from the
-	// current tree size.
+	// fetch returns a batch of sequenced entries obtained from storage, sized up
+	// to the specified limit. The returned leaves have consecutive LeafIndex
+	// values starting from the current tree size.
 	fetch(ctx context.Context, limit int, cutoff time.Time) ([]*trillian.LogLeaf, error)
 
 	// update makes sequencing persisted in storage, if not yet.
 	update(ctx context.Context, leaves []*trillian.LogLeaf) error
 }
 
-// logSequencingTask is a sequencingTask implementation for "normal" Log mode,
-// which assigns consecutive sequence numbers to leaves as they are read from
-// the pending unsequenced entries.
 type sequencingTaskData struct {
 	label      string
 	treeSize   int64
@@ -252,6 +249,9 @@ type sequencingTaskData struct {
 	tx         storage.LogTreeTX
 }
 
+// logSequencingTask is a sequencingTask implementation for "normal" Log mode,
+// which assigns consecutive sequence numbers to leaves as they are read from
+// the pending unsequenced entries.
 type logSequencingTask sequencingTaskData
 
 func (s *logSequencingTask) fetch(ctx context.Context, limit int, cutoff time.Time) ([]*trillian.LogLeaf, error) {
@@ -282,6 +282,9 @@ func (s *logSequencingTask) update(ctx context.Context, leaves []*trillian.LogLe
 	return nil
 }
 
+// preorderedLogSequencingTask is a sequencingTask implementation for
+// Pre-ordered Log mode. It reads sequenced entries past the tree size which
+// are already in the storage.
 type preorderedLogSequencingTask sequencingTaskData
 
 func (s *preorderedLogSequencingTask) fetch(ctx context.Context, limit int, cutoff time.Time) ([]*trillian.LogLeaf, error) {
