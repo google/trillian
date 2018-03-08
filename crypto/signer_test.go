@@ -110,22 +110,22 @@ func TestSignLogRoot(t *testing.T) {
 	}{
 		{root: trillian.SignedLogRoot{TimestampNanos: 2267709, RootHash: []byte("Islington"), TreeSize: 2}},
 	} {
-		sig, err := signer.SignLogRoot(&test.root)
+		slr, err := signer.SignLogRoot(&test.root)
 		if err != nil {
 			t.Errorf("Failed to sign log root: %v", err)
 			continue
 		}
-		if got := len(sig.Signature.Signature); got == 0 {
+		if got := len(slr.Signature.Signature); got == 0 {
 			t.Errorf("len(sig): %v, want > 0", got)
 		}
-		if got, want := sig.Signature.HashAlgorithm, sigpb.DigitallySigned_SHA256; got != want {
+		if got, want := slr.Signature.HashAlgorithm, sigpb.DigitallySigned_SHA256; got != want {
 			t.Errorf("Hash alg incorrect, got %s expected %s", got, want)
 		}
-		if got, want := sig.Signature.SignatureAlgorithm, sigpb.DigitallySigned_ECDSA; got != want {
+		if got, want := slr.Signature.SignatureAlgorithm, sigpb.DigitallySigned_ECDSA; got != want {
 			t.Errorf("Sig alg incorrect, got %s expected %s", got, want)
 		}
 		// Check that the signature is correct
-		if _, err := VerifySignedLogRoot(key.Public(), sig); err != nil {
+		if _, err := VerifySignedLogRoot(key.Public(), slr); err != nil {
 			t.Errorf("Verify(%v) failed: %v", test.root, err)
 		}
 	}
