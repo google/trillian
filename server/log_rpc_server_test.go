@@ -1234,15 +1234,15 @@ func TestGetEntryAndProofSkewNoProof(t *testing.T) {
 
 	response, err := server.GetEntryAndProof(context.Background(), &getEntryAndProofRequest17_11)
 	if err != nil {
-		t.Fatalf("get entry and proof should have succeeded but we got: %v", err)
+		t.Errorf("get entry and proof should have succeeded but we got: %v", err)
 	}
 
 	if response.Proof != nil {
-		t.Fatalf("expected nil proof but got: %v", response.Proof)
+		t.Errorf("expected nil proof but got: %v", response.Proof)
 	}
 
 	if response.Leaf != nil {
-		t.Fatalf("Expected nil leaf but got: %v", response.Leaf)
+		t.Errorf("Expected nil leaf but got: %v", response.Leaf)
 	}
 }
 

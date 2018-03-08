@@ -251,7 +251,7 @@ func (c *LogClient) VerifyInclusion(ctx context.Context, data []byte) error {
 		return err
 	}
 	if !ok {
-		return fmt.Errorf("No proof")
+		return fmt.Errorf("no proof")
 	}
 	return nil
 }
