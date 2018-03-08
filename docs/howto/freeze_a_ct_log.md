@@ -2,13 +2,16 @@
 
 ## Prerequisites
 
-Some of the tools and metrics that will be used were only added recently.
-Before starting ensure that your server is upgraded to a release built
-from code corresponding to at least the commit tagged `v1.0.8`.
+Some of the tools and metrics that will be used were added in the `v1.0.8`
+release. Ensure that your have upgraded to this release or later. If
+using MySQL storage ensure that the database schema is updated to at least
+that of `v1.0.8`.
 
-The `log_signer` process(es) must be exporting metrics. Check that their
+The `log_signer` process(es) must be exporting metrics so the queue state
+and sequencing can be monitored to [check](#monitor-queue--integration)
+that all pending entries have been integrated. Check that their
 `--http_endpoint` flag is set to an appropriate value. If it's empty then
-update the configuration and restart them before proceeding.
+update the configuration appropriately and restart them before proceeding.
 
 ## Preparation
 
@@ -124,7 +127,18 @@ are sure that the queue has been drained for the log. Remember to ensure
 that `is_master` remains non zero during this time. If not you may have
 to go back and find the currently active signer.
 
+For additional safety keep watching the metrics for a further number of 
+signer runs until you are are that there is no further sequencing activity 
+for the log. Because some of the available storage options use queue
+sharding (e.g. CloudSpanner) it is not sufficient to rely on no activity
+in a single signer run.
+
 ## Set Log Tree To Frozen State
+
+**Warning**: Be sure to have completed the queue monitoring process set out
+in the previous section. If there are still queued leaves that have not been
+integrated then setting the tree to frozen will put the log on a path to 
+exceeding its MMD.
 
 Use `updatetree` to set the log tree to a `FROZEN` state.
 
