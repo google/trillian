@@ -125,8 +125,6 @@ func FromContext(ctx context.Context) (*trillian.Tree, bool) {
 
 func validate(o GetOpts, tree *trillian.Tree) error {
 	// Do the special case checks first
-	// TODO(Martin2112): If we get rid of the readonly flag then we can fold
-	// at least one of these into the rules.
 	if len(o.TreeTypes) > 0 && !o.TreeTypes[tree.TreeType] {
 		return status.Errorf(codes.InvalidArgument, "operation not allowed for %s-type trees (wanted one of %v)", tree.TreeType, o.TreeTypes)
 	}
