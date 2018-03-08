@@ -41,8 +41,6 @@ type accessRule struct {
 	rejectCodes map[trillian.TreeState]codes.Code
 	// Tree types are accepted if there is a 'true' value for them in this map.
 	okTypes map[trillian.TreeType]bool
-	// okWrite is true if write access should be allowed.
-	okWrite bool
 }
 
 // These rules define the permissible combinations of tree state and type
@@ -61,7 +59,6 @@ var rules = map[OpType]accessRule{
 			trillian.TreeType_MAP:            true,
 			trillian.TreeType_PREORDERED_LOG: true,
 		},
-		okWrite: true,
 	},
 	Query: {
 		okStates: map[trillian.TreeState]bool{
@@ -77,7 +74,6 @@ var rules = map[OpType]accessRule{
 			trillian.TreeType_MAP:            true,
 			trillian.TreeType_PREORDERED_LOG: true,
 		},
-		okWrite: false,
 	},
 	QueueLog: {
 		okStates: map[trillian.TreeState]bool{
@@ -85,12 +81,12 @@ var rules = map[OpType]accessRule{
 		},
 		rejectCodes: map[trillian.TreeState]codes.Code{
 			trillian.TreeState_DRAINING: codes.PermissionDenied,
+			trillian.TreeState_FROZEN:   codes.PermissionDenied,
 		},
 		okTypes: map[trillian.TreeType]bool{
 			trillian.TreeType_LOG:            true,
 			trillian.TreeType_PREORDERED_LOG: true,
 		},
-		okWrite: true,
 	},
 	SequenceLog: {
 		okStates: map[trillian.TreeState]bool{
@@ -101,7 +97,9 @@ var rules = map[OpType]accessRule{
 			trillian.TreeType_LOG:            true,
 			trillian.TreeType_PREORDERED_LOG: true,
 		},
-		okWrite: true,
+		rejectCodes: map[trillian.TreeState]codes.Code{
+			trillian.TreeState_FROZEN: codes.PermissionDenied,
+		},
 	},
 	UpdateMap: {
 		okStates: map[trillian.TreeState]bool{
@@ -110,7 +108,6 @@ var rules = map[OpType]accessRule{
 		okTypes: map[trillian.TreeType]bool{
 			trillian.TreeType_MAP: true,
 		},
-		okWrite: true,
 	},
 }
 
@@ -128,13 +125,8 @@ func FromContext(ctx context.Context) (*trillian.Tree, bool) {
 
 func validate(o GetOpts, tree *trillian.Tree) error {
 	// Do the special case checks first
-	// TODO(Martin2112): If we get rid of the readonly flag then we can fold
-	// at least one of these into the rules.
-	switch {
-	case len(o.TreeTypes) > 0 && !o.TreeTypes[tree.TreeType]:
+	if len(o.TreeTypes) > 0 && !o.TreeTypes[tree.TreeType] {
 		return status.Errorf(codes.InvalidArgument, "operation not allowed for %s-type trees (wanted one of %v)", tree.TreeType, o.TreeTypes)
-	case tree.TreeState == trillian.TreeState_FROZEN && !o.Readonly:
-		return status.Errorf(codes.PermissionDenied, "operation not allowed on %s trees", tree.TreeState)
 	}
 
 	// Reject any operation types we don't know about.
@@ -152,11 +144,6 @@ func validate(o GetOpts, tree *trillian.Tree) error {
 			code = codes.InvalidArgument
 		}
 		return status.Errorf(code, "operation: %v not allowed for tree type: %v state: %v", o.Operation, tree.TreeType, tree.TreeState)
-	}
-
-	// Then check if write access was requested but should not be allowed.
-	if !o.Readonly && !rule.okWrite {
-		return status.Errorf(codes.PermissionDenied, "writes not allowed for operation: %v", o)
 	}
 
 	return nil
