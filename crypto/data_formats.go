@@ -24,7 +24,6 @@ import (
 )
 
 // This file contains struct specific mappings and data structures.
-// TODO(gdbelvin): remove data-structure specific operations.
 
 // Constants used as map keys when building input for ObjectHash. They must not be changed
 // as this will change the output of hashRoot()
