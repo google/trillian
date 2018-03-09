@@ -25,7 +25,7 @@ import (
 	"github.com/google/trillian"
 )
 
-// LogRootV1 holds the TLS-deserializtion of the following structure
+// LogRootV1 holds the TLS-deserialization of the following structure
 // (described in RFC5246 section 4 notation):
 // struct {
 //   uint64 tree_size;
@@ -42,7 +42,7 @@ type LogRootV1 struct {
 	Metadata       []byte `tls:"minlen:0,maxlen:65535"`
 }
 
-// LogRoot holds the TLS-deserializtion of the following structure
+// LogRoot holds the TLS-deserialization of the following structure
 // (described in RFC5246 section 4 notation):
 // enum { v1(1), (65535)} Version;
 // struct {

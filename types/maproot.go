@@ -22,7 +22,7 @@ import (
 	"github.com/google/trillian"
 )
 
-// MapRootV1 holds the TLS-deserializtion of the following structure
+// MapRootV1 holds the TLS-deserialization of the following structure
 // (described in RFC5246 section 4 notation):
 // struct {
 //   opaque root_hash<0..128>;
@@ -37,7 +37,7 @@ type MapRootV1 struct {
 	Metadata       []byte `tls:"minlen:0,maxlen:65535"`
 }
 
-// MapRoot holds the TLS-deserializtion of the following structure
+// MapRoot holds the TLS-deserialization of the following structure
 // (described in RFC5246 section 4 notation):
 // enum { v1(1), (65535)} Version;
 // struct {

@@ -15,6 +15,7 @@
 package types
 
 import (
+	"encoding"
 	"reflect"
 	"testing"
 
@@ -22,24 +23,25 @@ import (
 )
 
 func TestMapRoot(t *testing.T) {
-	for _, tc := range []struct {
-		mapRoot *MapRootV1
+	for _, mapRoot := range []interface {
+		encoding.BinaryMarshaler
+		encoding.BinaryUnmarshaler
 	}{
-		{mapRoot: &MapRootV1{
+		&MapRootV1{
 			RootHash: []byte("foo"),
 			Metadata: []byte{},
-		}},
+		},
 	} {
-		b, err := tc.mapRoot.MarshalBinary()
+		b, err := mapRoot.MarshalBinary()
 		if err != nil {
-			t.Errorf("%v MarshalBinary(): %v", tc.mapRoot, err)
+			t.Errorf("%v MarshalBinary(): %v", mapRoot, err)
 		}
 		var got MapRootV1
 		if err := got.UnmarshalBinary(b); err != nil {
 			t.Errorf("UnmarshalBinary(): %v", err)
 		}
-		if !reflect.DeepEqual(&got, tc.mapRoot) {
-			t.Errorf("serialize/parse round trip failed. got %#v, want %#v", got, tc.mapRoot)
+		if !reflect.DeepEqual(&got, mapRoot) {
+			t.Errorf("serialize/parse round trip failed. got %#v, want %#v", got, mapRoot)
 		}
 	}
 }

@@ -15,13 +15,17 @@
 package types
 
 import (
+	"encoding"
 	"reflect"
 	"testing"
 )
 
 func TestLogRoot(t *testing.T) {
-	for _, logRoot := range []*LogRootV1{
-		{
+	for _, logRoot := range []interface {
+		encoding.BinaryMarshaler
+		encoding.BinaryUnmarshaler
+	}{
+		&LogRootV1{
 			RootHash: []byte("foo"),
 			Metadata: []byte{},
 		},
