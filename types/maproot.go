@@ -54,7 +54,10 @@ type MapRoot struct {
 // UnmarshalBinary verifies that mapRootBytes is a TLS serialized MapRoot,
 // has the MAP_ROOT_FORMAT_V1 tag, and returns the deserialized *MapRootV1.
 func (m *MapRootV1) UnmarshalBinary(mapRootBytes []byte) error {
-	if mapRootBytes == nil {
+	if len(mapRootBytes) < 3 {
+		return fmt.Errorf("mapRootBytes too short")
+	}
+	if m == nil {
 		return fmt.Errorf("nil map root")
 	}
 	version := binary.BigEndian.Uint16(mapRootBytes)

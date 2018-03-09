@@ -65,6 +65,11 @@ func TestUnmarshalLogRoot(t *testing.T) {
 			logRoot: []byte{0, 1, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5},
 			wantErr: true,
 		},
+		{
+			// Incorrect type.
+			logRoot: []byte{0},
+			wantErr: true,
+		},
 		{logRoot: []byte("foo"), wantErr: true},
 		{logRoot: nil, wantErr: true},
 	} {
@@ -74,6 +79,12 @@ func TestUnmarshalLogRoot(t *testing.T) {
 		if got, want := err != nil, tc.wantErr; got != want {
 			t.Errorf("UnmarshalBinary(): %v, wantErr %v", err, want)
 		}
+	}
+
+	// Unmarshaling to a nil should throw an error.
+	var got *LogRootV1
+	if err := got.UnmarshalBinary(MustMarshalLogRoot(&LogRootV1{})); err == nil {
+		t.Errorf("nil.UnmarshalBinary(): %v, want err", err)
 	}
 }
 
