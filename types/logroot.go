@@ -56,29 +56,32 @@ type LogRoot struct {
 	V1      *LogRootV1 `tls:"selector:Version,val:1"`
 }
 
-// ParseLogRoot verifies that logRootBytes is a TLS serialized LogRoot,
-// has the LOG_ROOT_FORMAT_V1 tag, and returns the deserialized *LogRootV1.
-func ParseLogRoot(logRootBytes []byte) (*LogRootV1, error) {
+// UnmarshalBinary verifies that logRootBytes is a TLS serialized LogRoot, has
+// the LOG_ROOT_FORMAT_V1 tag, and populates the caller with the deserialized
+// *LogRootV1.
+func (l *LogRootV1) UnmarshalBinary(logRootBytes []byte) error {
 	if logRootBytes == nil {
-		return nil, fmt.Errorf("nil log root")
+		return fmt.Errorf("nil log root")
 	}
 	version := binary.BigEndian.Uint16(logRootBytes)
 	if version != uint16(trillian.LogRootFormat_LOG_ROOT_FORMAT_V1) {
-		return nil, fmt.Errorf("invalid LogRoot.Version: %v, want %v",
+		return fmt.Errorf("invalid LogRoot.Version: %v, want %v",
 			version, trillian.LogRootFormat_LOG_ROOT_FORMAT_V1)
 	}
 
 	var logRoot LogRoot
 	if _, err := tls.Unmarshal(logRootBytes, &logRoot); err != nil {
-		return nil, err
+		return err
 	}
-	return logRoot.V1, nil
+
+	*l = *logRoot.V1
+	return nil
 }
 
-// SerializeLogRoot returns a canonical TLS serialization of the log root.
-func SerializeLogRoot(r *LogRootV1) ([]byte, error) {
+// MarshalBinary returns a canonical TLS serialization of LogRoot.
+func (l *LogRootV1) MarshalBinary() ([]byte, error) {
 	return tls.Marshal(LogRoot{
 		Version: tls.Enum(trillian.LogRootFormat_LOG_ROOT_FORMAT_V1),
-		V1:      r,
+		V1:      l,
 	})
 }

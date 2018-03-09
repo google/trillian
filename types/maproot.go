@@ -51,29 +51,30 @@ type MapRoot struct {
 	V1      *MapRootV1 `tls:"selector:Version,val:1"`
 }
 
-// ParseMapRoot verifies that mapRootBytes is a TLS serialized MapRoot,
+// UnmarshalBinary verifies that mapRootBytes is a TLS serialized MapRoot,
 // has the MAP_ROOT_FORMAT_V1 tag, and returns the deserialized *MapRootV1.
-func ParseMapRoot(mapRootBytes []byte) (*MapRootV1, error) {
+func (m *MapRootV1) UnmarshalBinary(mapRootBytes []byte) error {
 	if mapRootBytes == nil {
-		return nil, fmt.Errorf("nil map root")
+		return fmt.Errorf("nil map root")
 	}
 	version := binary.BigEndian.Uint16(mapRootBytes)
 	if version != uint16(trillian.MapRootFormat_MAP_ROOT_FORMAT_V1) {
-		return nil, fmt.Errorf("invalid MapRoot.Version: %v, want %v",
+		return fmt.Errorf("invalid MapRoot.Version: %v, want %v",
 			version, trillian.MapRootFormat_MAP_ROOT_FORMAT_V1)
 	}
 
 	var mapRoot MapRoot
 	if _, err := tls.Unmarshal(mapRootBytes, &mapRoot); err != nil {
-		return nil, err
+		return err
 	}
-	return mapRoot.V1, nil
+	*m = *mapRoot.V1
+	return nil
 }
 
-// SerializeMapRoot returns a canonical TLS serialization of the map root.
-func SerializeMapRoot(r *MapRootV1) ([]byte, error) {
+// MarshalBinary returns a canonical TLS serialization of the map root.
+func (m *MapRootV1) MarshalBinary() ([]byte, error) {
 	return tls.Marshal(MapRoot{
 		Version: tls.Enum(trillian.MapRootFormat_MAP_ROOT_FORMAT_V1),
-		V1:      r,
+		V1:      m,
 	})
 }

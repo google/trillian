@@ -26,34 +26,31 @@ func TestLogRoot(t *testing.T) {
 			Metadata: []byte{},
 		},
 	} {
-		b, err := SerializeLogRoot(logRoot)
+		b, err := logRoot.MarshalBinary()
 		if err != nil {
-			t.Errorf("SerializeLogRoot(%v): %v", logRoot, err)
+			t.Errorf("%v MarshalBinary(): %v", logRoot, err)
+			continue
 		}
-		got, err := ParseLogRoot(b)
-		if err != nil {
-			t.Errorf("ParseLogRoot(): %v", err)
+		var got LogRootV1
+		if err := got.UnmarshalBinary(b); err != nil {
+			t.Errorf("UnmarshalBinary(): %v", err)
+			continue
 		}
-		if !reflect.DeepEqual(got, logRoot) {
+		if !reflect.DeepEqual(&got, logRoot) {
 			t.Errorf("serialize/parse round trip failed. got %#v, want %#v", got, logRoot)
 		}
 	}
 }
 
-func TestParseLogRoot(t *testing.T) {
+func TestUnmarshalLogRoot(t *testing.T) {
 	for _, tc := range []struct {
 		logRoot []byte
 		wantErr bool
 	}{
+		{logRoot: MustMarshalLogRoot(&LogRootV1{})},
 		{
 			logRoot: func() []byte {
-				b, _ := SerializeLogRoot(&LogRootV1{})
-				return b
-			}(),
-		},
-		{
-			logRoot: func() []byte {
-				b, _ := SerializeLogRoot(&LogRootV1{})
+				b := MustMarshalLogRoot(&LogRootV1{})
 				b[0] = 1 // Corrupt the version tag.
 				return b
 			}(),
@@ -67,9 +64,19 @@ func TestParseLogRoot(t *testing.T) {
 		{logRoot: []byte("foo"), wantErr: true},
 		{logRoot: nil, wantErr: true},
 	} {
-		_, err := ParseLogRoot(tc.logRoot)
+
+		var got LogRootV1
+		err := got.UnmarshalBinary(tc.logRoot)
 		if got, want := err != nil, tc.wantErr; got != want {
-			t.Errorf("ParseLogRoot(): %v, wantErr: %v", err, want)
+			t.Errorf("UnmarshalBinary(): %v, wantErr %v", err, want)
 		}
 	}
+}
+
+func MustMarshalLogRoot(root *LogRootV1) []byte {
+	b, err := root.MarshalBinary()
+	if err != nil {
+		panic(err)
+	}
+	return b
 }

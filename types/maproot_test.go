@@ -30,43 +30,42 @@ func TestMapRoot(t *testing.T) {
 			Metadata: []byte{},
 		}},
 	} {
-		b, err := SerializeMapRoot(tc.mapRoot)
+		b, err := tc.mapRoot.MarshalBinary()
 		if err != nil {
-			t.Errorf("SerializeMapRoot(%v): %v", tc.mapRoot, err)
+			t.Errorf("%v MarshalBinary(): %v", tc.mapRoot, err)
 		}
-		got, err := ParseMapRoot(b)
-		if err != nil {
-			t.Errorf("ParseMapRoot(): %v", err)
+		var got MapRootV1
+		if err := got.UnmarshalBinary(b); err != nil {
+			t.Errorf("UnmarshalBinary(): %v", err)
 		}
-		if !reflect.DeepEqual(got, tc.mapRoot) {
+		if !reflect.DeepEqual(&got, tc.mapRoot) {
 			t.Errorf("serialize/parse round trip failed. got %#v, want %#v", got, tc.mapRoot)
 		}
 	}
 }
 
-func MustSerializeMapRoot(root *MapRootV1) []byte {
-	b, err := SerializeMapRoot(root)
+func MustMarshalMapRoot(root *MapRootV1) []byte {
+	b, err := root.MarshalBinary()
 	if err != nil {
 		panic(err)
 	}
 	return b
 }
 
-func TestParseMapRoot(t *testing.T) {
+func TestUnmarshalMapRoot(t *testing.T) {
 	for _, tc := range []struct {
 		mapRoot []byte
-		want    *MapRootV1
+		want    MapRootV1
 		wantErr bool
 	}{
 		{
-			want: &MapRootV1{
-				RootHash: []byte("foo"),
+			mapRoot: MustMarshalMapRoot(&MapRootV1{
+				RootHash: []byte("aaa"),
+			}),
+			want: MapRootV1{
+				RootHash: []byte("aaa"),
 				Metadata: []byte{},
 			},
-			mapRoot: MustSerializeMapRoot(&MapRootV1{
-				RootHash: []byte("foo"),
-				Metadata: []byte{},
-			}),
 		},
 		{
 			// Correct type, but junk afterwards.
@@ -76,12 +75,13 @@ func TestParseMapRoot(t *testing.T) {
 		{mapRoot: []byte("foo"), wantErr: true},
 		{mapRoot: nil, wantErr: true},
 	} {
-		r, err := ParseMapRoot(tc.mapRoot)
+		var r MapRootV1
+		err := r.UnmarshalBinary(tc.mapRoot)
 		if got, want := err != nil, tc.wantErr; got != want {
-			t.Errorf("ParseMapRoot(): %v, wantErr: %v", err, want)
+			t.Errorf("UnmarshalBinary(): %v, wantErr: %v", err, want)
 		}
 		if got, want := r, tc.want; !reflect.DeepEqual(got, want) {
-			t.Errorf("ParseMapRoot(): %v, want: %v", got, want)
+			t.Errorf("UnmarshalBinary(): \n%#v, want: \n%#v", got, want)
 		}
 	}
 }
