@@ -195,5 +195,6 @@ message TreeHead {
   // metadata is a blob of opaque data specific to the personality layer that an
   // application associates with each TreeHead, and which must be covered by the
   // tree head signature.  Only used for Maps at present.
-  google.protobuf.Any metadata = 7;
+  reserved 7;
+  bytes metadata = 9;
 }
