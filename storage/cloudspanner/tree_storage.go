@@ -361,9 +361,26 @@ func (t *treeTX) getSubtree(ctx context.Context, rev int64, id storage.NodeID) (
 	}
 
 	var ret *storagepb.SubtreeProto
-	prefix := spanner.Key{t.treeID, stID}.AsPrefix()
-	rows := t.stx.Read(ctx, subtreeTbl, prefix, []string{colRevision, colSubtree})
+	stmt := spanner.NewStatement(
+		"SELECT Revision, Subtree FROM SubtreeData d" +
+			"  WHERE d.TreeID = @tree_id" +
+			"  AND   d.SubtreeID = @subtree_id" +
+			"  AND   d.Revision <= @revision" +
+			"  ORDER BY d.Revision DESC" +
+			"  LIMIT 1")
+	stmt.Params["tree_id"] = t.treeID
+	stmt.Params["subtree_id"] = stID
+	stmt.Params["revision"] = rev
+
+	drain := 0
+
+	rows := t.stx.Query(ctx, stmt)
 	err = rows.Do(func(r *spanner.Row) error {
+		if ret != nil {
+			drain++
+			return nil
+		}
+
 		var rRev int64
 		var st storagepb.SubtreeProto
 		stBytes := make([]byte, 1<<20)
@@ -375,8 +392,7 @@ func (t *treeTX) getSubtree(ctx context.Context, rev int64, id storage.NodeID) (
 		}
 
 		if rRev > rev {
-			// Too new, skip this row and wait for the next.
-			return nil
+			return fmt.Errorf("got subtree with too new a revision %d, want %d", rRev, rev)
 		}
 		if got, want := stID, st.Prefix; !bytes.Equal(got, want) {
 			return fmt.Errorf("got subtree with prefix %v, wanted %v", got, want)
@@ -391,12 +407,10 @@ func (t *treeTX) getSubtree(ctx context.Context, rev int64, id storage.NodeID) (
 		if st.Prefix == nil && len(stID) == 0 {
 			st.Prefix = []byte{}
 		}
-		// We've got what we want, tell spanner to stop reading by returning
-		// not-really-an-error:
-		return errFinished
+		return nil
 	})
-	if err == errFinished {
-		err = nil
+	if drain > 0 {
+		glog.Warningf("getSubtree drained %d", drain)
 	}
 	return ret, err
 }
