@@ -22,7 +22,6 @@ import (
 	"testing"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/ptypes/any"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/examples/ct/ctmapper/ctmapperpb"
@@ -185,12 +184,12 @@ func TestMapRootUpdate(t *testing.T) {
 	s := NewMapStorage(DB)
 	tree := mapTree(mapID)
 
-	populatedMetadata := testonly.MustMarshalAny(t, &ctmapperpb.MapperMetadata{HighestFullyCompletedSeq: 1})
+	populatedMetadata := testonly.MustMarshalAnyNoT(&ctmapperpb.MapperMetadata{HighestFullyCompletedSeq: 1})
 
 	for _, tc := range []struct {
 		desc         string
 		root         trillian.SignedMapRoot
-		wantMetadata *any.Any
+		wantMetadata []byte
 	}{
 		{
 			desc: "Initial root",
@@ -220,7 +219,6 @@ func TestMapRootUpdate(t *testing.T) {
 				MapRevision:    7,
 				RootHash:       []byte(dummyHash),
 				Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
-				Metadata:       &any.Any{},
 			},
 		},
 		{

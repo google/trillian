@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/golang/glog"
+	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/google/certificate-transparency-go/client"
@@ -84,11 +85,15 @@ func (m *CTMapper) oneMapperRun(ctx context.Context) (bool, error) {
 
 	mapperMetadata := &ctmapperpb.MapperMetadata{}
 	if getRootResp.GetMapRoot().Metadata != nil {
-		var metadataProto ptypes.DynamicAny
-		if err := ptypes.UnmarshalAny(getRootResp.MapRoot.Metadata, &metadataProto); err != nil {
+		var metadataProto any.Any
+		if err := proto.Unmarshal(getRootResp.MapRoot.Metadata, &metadataProto); err != nil {
 			return false, fmt.Errorf("failed to unmarshal MapRoot.Metadata: %v", err)
 		}
-		mapperMetadata = metadataProto.Message.(*ctmapperpb.MapperMetadata)
+		var metadataAny ptypes.DynamicAny
+		if err := ptypes.UnmarshalAny(&metadataProto, &metadataAny); err != nil {
+			return false, fmt.Errorf("failed to unmarshal any MapRoot.Metadata: %v", err)
+		}
+		mapperMetadata = metadataAny.Message.(*ctmapperpb.MapperMetadata)
 	}
 
 	startEntry := mapperMetadata.HighestFullyCompletedSeq + 1
@@ -194,8 +199,12 @@ func (m *CTMapper) oneMapperRun(ctx context.Context) (bool, error) {
 	if metaAny, err = ptypes.MarshalAny(mapperMetadata); err != nil {
 		return false, fmt.Errorf("failed to marshal mapper metadata as 'any': err %v", err)
 	}
+	metaBytes, err := proto.Marshal(metaAny)
+	if err != nil {
+		return false, fmt.Errorf("failed to marshal mapper metadata as 'bytes': err %v", err)
+	}
 
-	setReq.Metadata = metaAny
+	setReq.Metadata = metaBytes
 
 	setResp, err := m.vmap.SetLeaves(context.Background(), setReq)
 	if err != nil {

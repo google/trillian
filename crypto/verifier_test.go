@@ -96,9 +96,9 @@ func TestSignVerifyObject(t *testing.T) {
 		c int
 	}
 
-	meta := testonly.MustMarshalAny(t, &ctmapperpb.MapperMetadata{})
-	meta0 := testonly.MustMarshalAny(t, &ctmapperpb.MapperMetadata{HighestFullyCompletedSeq: 0})
-	meta1 := testonly.MustMarshalAny(t, &ctmapperpb.MapperMetadata{HighestFullyCompletedSeq: 1})
+	meta := testonly.MustMarshalAnyNoT(&ctmapperpb.MapperMetadata{})
+	meta0 := testonly.MustMarshalAnyNoT(&ctmapperpb.MapperMetadata{HighestFullyCompletedSeq: 0})
+	meta1 := testonly.MustMarshalAnyNoT(&ctmapperpb.MapperMetadata{HighestFullyCompletedSeq: 1})
 
 	for _, tc := range []struct {
 		obj interface{}

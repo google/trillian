@@ -27,12 +27,16 @@ import (
 // protobuf.ptypes.any.Any used throughout the Trillian API and in
 // storage.  Use if testing.T not available. Failure to marshal will
 // fail the test suite.
-func MustMarshalAnyNoT(in proto.Message) *any.Any {
+func MustMarshalAnyNoT(in proto.Message) []byte {
 	anything, err := ptypes.MarshalAny(in)
 	if err != nil {
 		log.Fatalf("failed to marshal %v as 'any': err %v", in, err)
 	}
-	return anything
+	metaBytes, err := proto.Marshal(anything)
+	if err != nil {
+		log.Fatalf("failed to marshal %v as 'bytes': err %v", in, err)
+	}
+	return metaBytes
 }
 
 // MustMarshalAny is used in tests to Marshal proto messages into the

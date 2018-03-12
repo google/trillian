@@ -360,6 +360,9 @@ func (tx *logTX) StoreSignedLogRoot(ctx context.Context, root trillian.SignedLog
 	if err != nil {
 		return err
 	}
+	if storageSig == nil {
+		return errors.New("sth signature is nil")
+	}
 	sth := spannerpb.TreeHead{
 		TsNanos:      root.TimestampNanos,
 		RootHash:     root.RootHash,
@@ -367,20 +370,12 @@ func (tx *logTX) StoreSignedLogRoot(ctx context.Context, root trillian.SignedLog
 		TreeId:       tx.treeID,
 		TreeRevision: writeRev,
 		Signature:    storageSig,
+		// Metadata is currently unused by log roots.
 	}
-	var sigBytes, metaBytes []byte
-	if sth.Signature == nil {
-		return errors.New("sth signature is nil")
-	}
+	var sigBytes []byte
 	sigBytes, err = proto.Marshal(sth.Signature)
 	if err != nil {
 		return err
-	}
-	if sth.Metadata != nil {
-		metaBytes, err = proto.Marshal(sth.Metadata)
-		if err != nil {
-			return err
-		}
 	}
 
 	m := spanner.Insert(
@@ -401,7 +396,7 @@ func (tx *logTX) StoreSignedLogRoot(ctx context.Context, root trillian.SignedLog
 			sth.RootHash,
 			sigBytes,
 			sth.TreeRevision,
-			metaBytes,
+			sth.Metadata,
 		})
 
 	stx, ok := tx.stx.(*spanner.ReadWriteTransaction)

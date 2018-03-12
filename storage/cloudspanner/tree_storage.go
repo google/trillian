@@ -25,7 +25,6 @@ import (
 	"cloud.google.com/go/spanner"
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/ptypes/any"
 	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
@@ -108,8 +107,8 @@ func (t *treeStorage) latestSTH(ctx context.Context, stx spanRead, treeID int64)
 	defer rows.Stop()
 	err := rows.Do(func(r *spanner.Row) error {
 		tth := &spannerpb.TreeHead{}
-		var sig, meta []byte
-		if err := r.Columns(&tth.TreeId, &tth.TsNanos, &tth.TreeSize, &tth.RootHash, &sig, &tth.TreeRevision, &meta); err != nil {
+		var sig []byte
+		if err := r.Columns(&tth.TreeId, &tth.TsNanos, &tth.TreeSize, &tth.RootHash, &sig, &tth.TreeRevision, &tth.Metadata); err != nil {
 			return err
 		}
 		sigPB := &spannerpb.DigitallySigned{}
@@ -117,12 +116,6 @@ func (t *treeStorage) latestSTH(ctx context.Context, stx spanRead, treeID int64)
 			return err
 		}
 		tth.Signature = sigPB
-
-		metaPB := &any.Any{}
-		if err := proto.Unmarshal(meta, metaPB); err != nil {
-			return err
-		}
-		tth.Metadata = metaPB
 
 		th = tth
 		return nil
