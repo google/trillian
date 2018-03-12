@@ -29,10 +29,7 @@ CREATE TABLE TreeHeads(
   RootSignature           BYTES(1024) NOT NULL,
   TreeRevision            INT64 NOT NULL,
   TreeMetadata            BYTES(2097152),
-) PRIMARY KEY(TreeID, TimestampNanos DESC);
-
-CREATE UNIQUE INDEX TreeRevisionIndex
-  ON TreeHeads(TreeID, TreeRevision DESC);
+) PRIMARY KEY(TreeID, TreeRevision DESC);
 
 CREATE TABLE SubtreeData(
   TreeID      INT64 NOT NULL,
