@@ -53,7 +53,7 @@ var (
 	testRoot16 = &types.LogRootV1{
 		TreeSize: 16,
 		Revision: 5,
-		// RootHash can't be len 0 because that's how the sequencer currently
+		// RootHash can't be nil because that's how the sequencer currently
 		// detects that there was no stored tree head.
 		RootHash:       []byte{},
 		TimestampNanos: uint64(fakeTimeForTest.Add(-10 * time.Millisecond).UnixNano()),
