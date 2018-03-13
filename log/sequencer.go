@@ -26,7 +26,6 @@ import (
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/monitoring"
@@ -34,6 +33,8 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/types"
 	"github.com/google/trillian/util"
+
+	tcrypto "github.com/google/trillian/crypto"
 )
 
 const logIDLabel = "logid"
@@ -102,7 +103,7 @@ type Sequencer struct {
 	hasher     hashers.LogHasher
 	timeSource util.TimeSource
 	logStorage storage.LogStorage
-	signer     *crypto.Signer
+	signer     *tcrypto.Signer
 	qm         quota.Manager
 }
 
@@ -117,7 +118,7 @@ func NewSequencer(
 	hasher hashers.LogHasher,
 	timeSource util.TimeSource,
 	logStorage storage.LogStorage,
-	signer *crypto.Signer,
+	signer *tcrypto.Signer,
 	mf monitoring.MetricFactory,
 	qm quota.Manager) *Sequencer {
 	once.Do(func() {

@@ -217,12 +217,16 @@ func (t *TrillianLogRPCServer) GetInclusionProof(ctx context.Context, req *trill
 	}
 	defer tx.Close()
 
-	root, err := tx.LatestSignedLogRoot(ctx)
+	slr, err := tx.LatestSignedLogRoot(ctx)
 	if err != nil {
 		return nil, err
 	}
+	var root types.LogRootV1
+	if err := root.UnmarshalBinary(slr.LogRoot); err != nil {
+		return nil, status.Errorf(codes.Internal, "Could not read current log root: %v", err)
+	}
 
-	proof, err := getInclusionProofForLeafIndex(ctx, tx, hasher, req.TreeSize, req.LeafIndex, root.TreeSize)
+	proof, err := getInclusionProofForLeafIndex(ctx, tx, hasher, req.TreeSize, req.LeafIndex, int64(root.TreeSize))
 	if err != nil {
 		return nil, err
 	}
@@ -266,15 +270,19 @@ func (t *TrillianLogRPCServer) GetInclusionProofByHash(ctx context.Context, req 
 		return nil, status.Errorf(codes.NotFound, "No leaves for hash: %x", req.LeafHash)
 	}
 
-	root, err := tx.LatestSignedLogRoot(ctx)
+	slr, err := tx.LatestSignedLogRoot(ctx)
 	if err != nil {
 		return nil, err
+	}
+	var root types.LogRootV1
+	if err := root.UnmarshalBinary(slr.LogRoot); err != nil {
+		return nil, status.Errorf(codes.Internal, "Could not read current log root: %v", err)
 	}
 
 	// TODO(Martin2112): Need to define a limit on number of results or some form of paging etc.
 	proofs := make([]*trillian.Proof, 0, len(leaves))
 	for _, leaf := range leaves {
-		proof, err := getInclusionProofForLeafIndex(ctx, tx, hasher, req.TreeSize, leaf.LeafIndex, root.TreeSize)
+		proof, err := getInclusionProofForLeafIndex(ctx, tx, hasher, req.TreeSize, leaf.LeafIndex, int64(root.TreeSize))
 		if err != nil {
 			return nil, err
 		}
@@ -311,12 +319,16 @@ func (t *TrillianLogRPCServer) GetConsistencyProof(ctx context.Context, req *tri
 	}
 	defer tx.Close()
 
-	root, err := tx.LatestSignedLogRoot(ctx)
+	slr, err := tx.LatestSignedLogRoot(ctx)
 	if err != nil {
 		return nil, err
 	}
+	var root types.LogRootV1
+	if err := root.UnmarshalBinary(slr.LogRoot); err != nil {
+		return nil, status.Errorf(codes.Internal, "Could not read current log root: %v", err)
+	}
 
-	nodeFetches, err := merkle.CalcConsistencyProofNodeAddresses(req.FirstTreeSize, req.SecondTreeSize, root.TreeSize, proofMaxBitLen)
+	nodeFetches, err := merkle.CalcConsistencyProofNodeAddresses(req.FirstTreeSize, req.SecondTreeSize, int64(root.TreeSize), proofMaxBitLen)
 	if err != nil {
 		return nil, err
 	}
@@ -501,12 +513,16 @@ func (t *TrillianLogRPCServer) GetEntryAndProof(ctx context.Context, req *trilli
 	}
 	defer tx.Close()
 
-	root, err := tx.LatestSignedLogRoot(ctx)
+	slr, err := tx.LatestSignedLogRoot(ctx)
 	if err != nil {
 		return nil, err
 	}
+	var root types.LogRootV1
+	if err := root.UnmarshalBinary(slr.LogRoot); err != nil {
+		return nil, status.Errorf(codes.Internal, "Could not read current log root: %v", err)
+	}
 
-	proof, err := getInclusionProofForLeafIndex(ctx, tx, hasher, req.TreeSize, req.LeafIndex, root.TreeSize)
+	proof, err := getInclusionProofForLeafIndex(ctx, tx, hasher, req.TreeSize, req.LeafIndex, int64(root.TreeSize))
 	if err != nil {
 		return nil, err
 	}
@@ -596,7 +612,7 @@ func (t *TrillianLogRPCServer) InitLog(ctx context.Context, req *trillian.InitLo
 		}
 
 		// Belt and braces check.
-		if latestRoot.GetRootHash() != nil {
+		if latestRoot.GetLogRoot() != nil {
 			return status.Errorf(codes.AlreadyExists, "log is already initialised")
 		}
 
