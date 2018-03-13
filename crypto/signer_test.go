@@ -25,6 +25,7 @@ import (
 	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/testonly"
+	"github.com/google/trillian/types"
 )
 
 const message string = "testing"
@@ -106,11 +107,11 @@ func TestSignLogRoot(t *testing.T) {
 	signer := NewSHA256Signer(key)
 
 	for _, test := range []struct {
-		root trillian.SignedLogRoot
+		root *types.LogRootV1
 	}{
-		{root: trillian.SignedLogRoot{TimestampNanos: 2267709, RootHash: []byte("Islington"), TreeSize: 2}},
+		{root: &types.LogRootV1{TimestampNanos: 2267709, RootHash: []byte("Islington"), TreeSize: 2}},
 	} {
-		slr, err := signer.SignLogRoot(&test.root)
+		slr, err := signer.SignLogRoot(test.root)
 		if err != nil {
 			t.Errorf("Failed to sign log root: %v", err)
 			continue

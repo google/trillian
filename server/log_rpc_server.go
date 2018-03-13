@@ -23,6 +23,7 @@ import (
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/trees"
+	"github.com/google/trillian/types"
 	"github.com/google/trillian/util"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
@@ -604,12 +605,9 @@ func (t *TrillianLogRPCServer) InitLog(ctx context.Context, req *trillian.InitLo
 			return status.Errorf(codes.FailedPrecondition, "Signer() :%v", err)
 		}
 
-		root, err := signer.SignLogRoot(&trillian.SignedLogRoot{
+		root, err := signer.SignLogRoot(&types.LogRootV1{
 			RootHash:       hasher.EmptyRoot(),
-			TimestampNanos: t.timeSource.Now().UnixNano(),
-			TreeSize:       0,
-			LogId:          logID,
-			TreeRevision:   0,
+			TimestampNanos: uint64(t.timeSource.Now().UnixNano()),
 		})
 		if err != nil {
 			return err
