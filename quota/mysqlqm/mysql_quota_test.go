@@ -314,7 +314,6 @@ func createTree(ctx context.Context, db *sql.DB) (*trillian.Tree, error) {
 				return err
 			}
 			return tx.StoreSignedLogRoot(ctx, *slr)
-
 		})
 		if err != nil {
 			return nil, err
