@@ -340,7 +340,7 @@ func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, slr trillian.SignedL
 		return err
 	}
 	k := sthKey(t.treeID, root.TimestampNanos)
-	k.(*kv).v = root
+	k.(*kv).v = slr
 	t.tx.ReplaceOrInsert(k)
 
 	// TODO(alcutter): this breaks the transactional model

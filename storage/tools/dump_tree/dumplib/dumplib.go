@@ -34,7 +34,6 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/google/trillian"
-	tc "github.com/google/trillian/crypto"
 	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/crypto/keyspb"
@@ -51,6 +50,8 @@ import (
 	"github.com/google/trillian/trees"
 	"github.com/google/trillian/types"
 	"github.com/google/trillian/util"
+
+	tc "github.com/google/trillian/crypto"
 )
 
 var (
@@ -254,18 +255,21 @@ func Main(args Options) string {
 	sequenceLeaves(ls, seq, tree, args.TreeSize, args.BatchSize, args.LeafFormat)
 
 	// Read the latest STH back
-	var sth trillian.SignedLogRoot
+	var root types.LogRootV1
 	err := ls.ReadWriteTransaction(context.TODO(), tree, func(ctx context.Context, tx storage.LogTreeTX) error {
 		var err error
-		sth, err = tx.LatestSignedLogRoot(context.TODO())
+		sth, err := tx.LatestSignedLogRoot(context.TODO())
 		if err != nil {
 			glog.Fatalf("LatestSignedLogRoot: %v", err)
 		}
+		if err := root.UnmarshalBinary(sth.LogRoot); err != nil {
+			return fmt.Errorf("Could not parse current log root: %v", err)
+		}
 
 		glog.Infof("STH at size %d has hash %s@%d",
-			sth.TreeSize,
-			hex.EncodeToString(sth.RootHash),
-			sth.TreeRevision)
+			root.TreeSize,
+			hex.EncodeToString(root.RootHash),
+			root.Revision)
 		return nil
 	})
 	if err != nil {
@@ -276,7 +280,7 @@ func Main(args Options) string {
 	glog.Info("Producing output")
 
 	if args.Traverse {
-		return traverseTreeStorage(ls, tree, args.TreeSize, sth.TreeRevision)
+		return traverseTreeStorage(ls, tree, args.TreeSize, int64(root.Revision))
 	}
 
 	if args.DumpLeaves {
