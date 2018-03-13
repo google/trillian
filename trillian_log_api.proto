@@ -85,13 +85,16 @@ service TrillianLog {
     // Returns the total number of leaves that have been integrated into the
     // given tree. Corresponds to the ReadOnlyLogTreeTX.GetSequencedLeafCount
     // storage interface.
+    // DO NOT USE - FOR DEBUGGING/TEST ONLY (FIXME: remove or move to a debugging interface)
     rpc GetSequencedLeafCount (GetSequencedLeafCountRequest) returns (GetSequencedLeafCountResponse) {
       option (google.api.http) = {
         get: "/v1beta1/logs/{log_id}/leaves:sequenced_count"
       };
     }
+
     // Returns log entry and the corresponding inclusion proof for a given leaf
-    // index in a given tree.
+    // index in a given tree. If the requested tree is unavailable but the leaf is in scope
+    // for the current tree, return a proof in that tree instead.
     rpc GetEntryAndProof (GetEntryAndProofRequest) returns (GetEntryAndProofResponse) {
       option (google.api.http) = {
         get: "/v1beta1/logs/{log_id}/leaves/{leaf_index}"
@@ -161,6 +164,7 @@ message GetInclusionProofRequest {
 
 message GetInclusionProofResponse {
     Proof proof = 2;
+    SignedLogRoot signed_log_root = 3;
 }
 
 message GetInclusionProofByHashRequest {
@@ -175,6 +179,7 @@ message GetInclusionProofByHashResponse {
     // for this to return multiple proofs.
     // TODO(gbelvin) only return one proof.
     repeated Proof proof = 2;
+    SignedLogRoot signed_log_root = 3;
 }
 
 message GetConsistencyProofRequest {
@@ -185,6 +190,7 @@ message GetConsistencyProofRequest {
 
 message GetConsistencyProofResponse {
     Proof proof = 2;
+    SignedLogRoot signed_log_root = 3;
 }
 
 message GetLatestSignedLogRootRequest {
@@ -212,6 +218,7 @@ message GetEntryAndProofRequest {
 message GetEntryAndProofResponse {
     Proof proof = 2;
     LogLeaf leaf = 3;
+    SignedLogRoot signed_log_root = 4;
 }
 
 message InitLogRequest {
@@ -250,20 +257,22 @@ message GetLeavesByIndexRequest {
 message GetLeavesByIndexResponse {
     // TODO(gbelvin) reply with error codes. Reuse QueuedLogLeaf?
     repeated LogLeaf leaves = 2;
+    SignedLogRoot signed_log_root = 3;
 }
 
 message GetLeavesByRangeRequest {
-  int64 log_id = 1;
-  int64 start_index = 2;
-  int64 count = 3;
+    int64 log_id = 1;
+    int64 start_index = 2;
+    int64 count = 3;
 }
 
 message GetLeavesByRangeResponse {
-  // Returned log leaves starting from the `start_index` of the request, in
-  // order. There may be fewer than `request.count` leaves returned, if the
-  // requested range extended beyond the size of the tree or if the server opted
-  // to return fewer leaves than requested.
-  repeated LogLeaf leaves = 1;
+    // Returned log leaves starting from the `start_index` of the request, in
+    // order. There may be fewer than `request.count` leaves returned, if the
+    // requested range extended beyond the size of the tree or if the server opted
+    // to return fewer leaves than requested.
+    repeated LogLeaf leaves = 1;
+    SignedLogRoot signed_log_root = 2;
 }
 
 message GetLeavesByHashRequest {
@@ -275,6 +284,7 @@ message GetLeavesByHashRequest {
 message GetLeavesByHashResponse {
     // TODO(gbelvin) reply with error codes. Reuse QueuedLogLeaf?
     repeated LogLeaf leaves = 2;
+    SignedLogRoot signed_log_root = 3;
 }
 
 // A result of submitting an entry to the log. Output only.
@@ -317,7 +327,7 @@ message LogLeaf {
     // The hash over the identity of this leaf. If empty, assumed to be the same
     // as `merkle_leaf_hash`. It is a mechanism for the personality to provide a
     // hint to Trillian that two leaves should be considered "duplicates" even
-    // though their `leaf_value`s differ. 
+    // though their `leaf_value`s differ.
     //
     // E.g., in a CT personality multiple `add-chain` calls for an identical
     // certificate would produce differing `leaf_data` bytes (due to the
