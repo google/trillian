@@ -259,9 +259,11 @@ func createLogForTests(db *sql.DB) int64 {
 	ctx := context.Background()
 	l := NewLogStorage(db, nil)
 	err = l.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
-		if err := tx.StoreSignedLogRoot(ctx, trillian.SignedLogRoot{
-			RootHash:  []byte{0},
-			Signature: &sigpb.DigitallySigned{Signature: []byte("asignature")}}); err != nil {
+		root, err := signer.SignLogRoot(&types.LogRootV1{RootHash: []byte{0}})
+		if err != nil {
+			return fmt.Errorf("Error creating new SignedLogRoot: %v", err)
+		}
+		if err := tx.StoreSignedLogRoot(ctx, *root); err != nil {
 			return fmt.Errorf("Error storing new SignedLogRoot: %v", err)
 		}
 		return nil

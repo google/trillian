@@ -22,15 +22,21 @@ import (
 	"time"
 
 	"github.com/google/trillian"
+	"github.com/google/trillian/crypto"
+	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/quota/mysqlqm"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/mysql"
 	"github.com/google/trillian/storage/testdb"
-	"github.com/google/trillian/storage/testonly"
+	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/trees"
+	"github.com/google/trillian/types"
 	"github.com/kylelemons/godebug/pretty"
+
+	gocrypto "crypto"
+	stestonly "github.com/google/trillian/storage/testonly"
 )
 
 func TestQuotaManager_GetTokens(t *testing.T) {
@@ -293,7 +299,7 @@ func createTree(ctx context.Context, db *sql.DB) (*trillian.Tree, error) {
 		as := mysql.NewAdminStorage(db)
 		err := as.ReadWriteTransaction(ctx, func(ctx context.Context, tx storage.AdminTX) error {
 			var err error
-			tree, err = tx.CreateTree(ctx, testonly.LogTree)
+			tree, err = tx.CreateTree(ctx, stestonly.LogTree)
 			return err
 		})
 		if err != nil {
@@ -304,9 +310,19 @@ func createTree(ctx context.Context, db *sql.DB) (*trillian.Tree, error) {
 	{
 		ls := mysql.NewLogStorage(db, nil)
 		err := ls.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
-			return tx.StoreSignedLogRoot(ctx, trillian.SignedLogRoot{
-				RootHash:  []byte{0},
-				Signature: &sigpb.DigitallySigned{}})
+			fixedSigner, err := newSignerWithFixedSig(&sigpb.DigitallySigned{
+				SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
+				HashAlgorithm:      sigpb.DigitallySigned_SHA256,
+			})
+			if err != nil {
+				return err
+			}
+			slr, err := crypto.NewSigner(0, fixedSigner, gocrypto.SHA256).SignLogRoot(&types.LogRootV1{RootHash: []byte{0}})
+			if err != nil {
+				return err
+			}
+			return tx.StoreSignedLogRoot(ctx, *slr)
+
 		})
 		if err != nil {
 			return nil, err
@@ -377,4 +393,17 @@ func setUnsequencedRows(ctx context.Context, db *sql.DB, tree *trillian.Tree, wa
 	}
 
 	return nil
+}
+
+func newSignerWithFixedSig(sig *sigpb.DigitallySigned) (gocrypto.Signer, error) {
+	key, err := pem.UnmarshalPublicKey(testonly.DemoPublicKey)
+	if err != nil {
+		return nil, err
+	}
+
+	if got, want := sig.GetSignatureAlgorithm(), crypto.SignatureAlgorithm(key); got != want {
+		return nil, fmt.Errorf("signature algorithm (%v) does not match key (%v)", got, want)
+	}
+
+	return testonly.NewSignerWithFixedSig(key, sig.Signature), nil
 }

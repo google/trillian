@@ -410,7 +410,11 @@ type SignedLogRoot struct {
 	TreeSize     int64                  `protobuf:"varint,3,opt,name=tree_size,json=treeSize" json:"tree_size,omitempty"`
 	Signature    *sigpb.DigitallySigned `protobuf:"bytes,4,opt,name=signature" json:"signature,omitempty"`
 	TreeRevision int64                  `protobuf:"varint,6,opt,name=tree_revision,json=treeRevision" json:"tree_revision,omitempty"`
-	KeyHint      []byte                 `protobuf:"bytes,7,opt,name=key_hint,json=keyHint,proto3" json:"key_hint,omitempty"`
+	// key_hint is a hint to identify the public key for signature verification.
+	// key_hint is not authenticated and may be incorrect or missing, in which
+	// case all known public keys may be used to verify the signature.
+	// key_hint MAY contain the LogID encoded as a big endian 64 bit integer.
+	KeyHint []byte `protobuf:"bytes,7,opt,name=key_hint,json=keyHint,proto3" json:"key_hint,omitempty"`
 }
 
 func (m *SignedLogRoot) Reset()                    { *m = SignedLogRoot{} }

@@ -217,8 +217,12 @@ message SignedLogRoot {
   int64 tree_size = 3;
   sigpb.DigitallySigned signature = 4;
 
-  reserved 5; // (moved to key_hint)
+  reserved 5; // log_id is associated with the public key that validates signature.
   int64 tree_revision = 6;
+  // key_hint is a hint to identify the public key for signature verification.
+  // key_hint is not authenticated and may be incorrect or missing, in which
+  // case all known public keys may be used to verify the signature.
+  // key_hint MAY contain the LogID encoded as a big endian 64 bit integer.
   bytes key_hint = 7;
 }
 
