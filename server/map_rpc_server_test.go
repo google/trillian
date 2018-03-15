@@ -174,8 +174,8 @@ func TestGetSignedMapRoot_NotInitialised(t *testing.T) {
 
 	smrResp, err := server.GetSignedMapRoot(ctx, &trillian.GetSignedMapRootRequest{MapId: 12345})
 
-	if err == nil {
-		t.Errorf("GetSignedMapRoot()=_, nil want err")
+	if err != storage.ErrTreeNeedsInit {
+		t.Errorf("GetSignedMapRoot()=%v, nil want ErrTreeNeedsInit", err)
 	}
 	if smrResp != nil {
 		t.Errorf("GetSignedMapRoot()=%v, _ want nil", smrResp)
@@ -276,8 +276,8 @@ func TestGetSignedMapRootByRevision_NotInitialised(t *testing.T) {
 		Revision: 1,
 	})
 
-	if err == nil {
-		t.Errorf("GetSignedMapRootByRevision()=_, nil want err? true")
+	if err != storage.ErrTreeNeedsInit {
+		t.Errorf("GetSignedMapRootByRevision()=%v, nil want ErrTreeNeedsInit", err)
 	}
 	if smrResp != nil {
 		t.Errorf("GetSignedMapRootByRevision()=%v, _ want nil", smrResp)

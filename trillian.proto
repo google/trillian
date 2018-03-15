@@ -27,6 +27,22 @@ import "google/protobuf/any.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 
+
+// LogRootFormat specifies the fields that are covered by the
+// SignedLogRoot signature, as well as their ordering and formats. 
+enum LogRootFormat {
+   LOG_ROOT_FORMAT_UNKNOWN = 0;
+   LOG_ROOT_FORMAT_V1 = 1;
+}
+
+// MapRootFormat specifies the fields that are covered by the
+// SignedMapRoot signature, as well as their ordering and formats. 
+enum MapRootFormat {
+   MAP_ROOT_FORMAT_UNKNOWN = 0;
+   MAP_ROOT_FORMAT_V1 = 1;
+}
+
+
 // What goes in here?
 // Things which are exposed through the public trillian APIs.
 
@@ -64,7 +80,9 @@ enum TreeState {
   ACTIVE = 1;
 
   // Frozen trees are only able to respond to read requests, writing to a frozen
-  // tree is forbidden.
+  // tree is forbidden. Trees should not be frozen when there are entries
+  // in the queue that have not yet been integrated. See the DRAINING
+  // state for this case.
   FROZEN = 2;
 
   // Deprecated in favor of Tree.deleted.
@@ -72,6 +90,10 @@ enum TreeState {
 
   // Deprecated in favor of Tree.deleted.
   DEPRECATED_HARD_DELETED = 4 [deprecated = true];
+
+  // A tree that is draining will continue to integrate queued entries.
+  // No new entries should be accepted.
+  DRAINING = 5;
 }
 
 // Type of the tree.

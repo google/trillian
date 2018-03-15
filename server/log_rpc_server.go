@@ -23,6 +23,7 @@ import (
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/trees"
+	"github.com/google/trillian/types"
 	"github.com/google/trillian/util"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
@@ -36,10 +37,10 @@ import (
 const proofMaxBitLen = 64
 
 var (
-	optsLogInit            = trees.NewGetOpts(trees.Admin, false, trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG)
-	optsLogRead            = trees.NewGetOpts(trees.Query, true, trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG)
-	optsLogWrite           = trees.NewGetOpts(trees.Queue, false, trillian.TreeType_LOG)
-	optsPreorderedLogWrite = trees.NewGetOpts(trees.SequenceLog, false, trillian.TreeType_PREORDERED_LOG)
+	optsLogInit            = trees.NewGetOpts(trees.Admin, trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG)
+	optsLogRead            = trees.NewGetOpts(trees.Query, trillian.TreeType_LOG, trillian.TreeType_PREORDERED_LOG)
+	optsLogWrite           = trees.NewGetOpts(trees.QueueLog, trillian.TreeType_LOG)
+	optsPreorderedLogWrite = trees.NewGetOpts(trees.SequenceLog, trillian.TreeType_PREORDERED_LOG)
 )
 
 // TrillianLogRPCServer implements the RPC API defined in the proto
@@ -119,6 +120,7 @@ func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.Qu
 	if err != nil {
 		return nil, err
 	}
+
 	ctx = trees.NewContext(ctx, tree)
 
 	if err := hashLeaves(req.Leaves, hasher); err != nil {
@@ -598,24 +600,19 @@ func (t *TrillianLogRPCServer) InitLog(ctx context.Context, req *trillian.InitLo
 			return status.Errorf(codes.AlreadyExists, "log is already initialised")
 		}
 
-		newRoot = &trillian.SignedLogRoot{
-			RootHash:       hasher.EmptyRoot(),
-			TimestampNanos: t.timeSource.Now().UnixNano(),
-			TreeSize:       0,
-			LogId:          logID,
-			TreeRevision:   0,
-		}
-
 		signer, err := trees.Signer(ctx, tree)
 		if err != nil {
 			return status.Errorf(codes.FailedPrecondition, "Signer() :%v", err)
 		}
 
-		sig, err := signer.SignLogRoot(newRoot)
+		root, err := signer.SignLogRoot(&types.LogRootV1{
+			RootHash:       hasher.EmptyRoot(),
+			TimestampNanos: uint64(t.timeSource.Now().UnixNano()),
+		})
 		if err != nil {
 			return err
 		}
-		newRoot.Signature = sig
+		newRoot = root
 
 		if err := tx.StoreSignedLogRoot(ctx, *newRoot); err != nil {
 			return status.Errorf(codes.FailedPrecondition, "StoreSignedLogRoot(): %v", err)

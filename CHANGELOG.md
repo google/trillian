@@ -1,5 +1,23 @@
 # TRILLIAN Changelog
 
+## v1.0.8 - Docker Updates / Freezing Logs  / CloudSpanner Options
+
+Published 2018-03-08 13:42:11 +0000 UTC
+
+The Docker image files have been updated and the database has been changed to `MariaDB 10.1`.
+
+A `ReadOnlyStaleness` option has been added to the experimental CloudSpanner storage. This allows for tuning that might increase performance in some scenarios by issuing read transactions with the `exact_staleness` option set rather than `strong_read`. For more details see the [CloudSpanner TransactionOptions](https://cloud.google.com/spanner/docs/reference/rest/v1/TransactionOptions) documentation.
+
+The `LogVerifier` interface has been removed from the log client, though the functionality is still available. It is unlikely that there were implementations by third-parties.
+
+A new `TreeState DRAINING` has been added for trees with `TreeType LOG`. This is to support logs being cleanly frozen. A log tree in this state will not accept new entries via `QueueLeaves` but will continue to integrate any that were previously queued. When the queue of pending entries has been emptied the tree can be set to the `FROZEN` state safely. For MySQL storage this requires a schema update to add `'DRAINING'` to the enum of valid states.
+
+A command line utility `updatetree` has been added to allow tree states to be changed. This is also to support cleanly freezing logs.
+
+A 'howto' document has been added that explains how to freeze a log tree using the features added in this release.
+
+Commit [0e6d950b872d19e42320f4714820f0fe793b9913](https://api.github.com/repos/google/trillian/commits/0e6d950b872d19e42320f4714820f0fe793b9913) Download [zip](https://api.github.com/repos/google/trillian/zipball/v1.0.8)
+
 ## v1.0.7 - Storage API Changes, Schema Tweaks
 
 Published 2018-03-01 11:16:32 +0000 UTC

@@ -229,7 +229,7 @@ func TestGetLeavesByRange(t *testing.T) {
 	defer ctrl.Finish()
 	fakeStorage := storage.NewMockLogStorage(ctrl)
 	fakeAdmin := storage.NewMockAdminStorage(ctrl)
-	tree := &trillian.Tree{TreeId: 6962, TreeType: trillian.TreeType_LOG}
+	tree := &trillian.Tree{TreeId: 6962, TreeType: trillian.TreeType_LOG, TreeState: trillian.TreeState_ACTIVE}
 
 	var tests = []struct {
 		start, count int64

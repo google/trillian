@@ -25,6 +25,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/sigpb"
+	"github.com/google/trillian/types"
 )
 
 var sigpbHashLookup = map[crypto.Hash]sigpb.DigitallySigned_HashAlgorithm{
@@ -83,10 +84,15 @@ func (s *Signer) SignObject(obj interface{}) (*sigpb.DigitallySigned, error) {
 	return s.Sign(hash[:])
 }
 
-// SignLogRoot hashes and signs the supplied (to-be) SignedLogRoot and returns a
-// signature.  Hashing is performed by github.com/benlaurie/objecthash.
-func (s *Signer) SignLogRoot(root *trillian.SignedLogRoot) (*sigpb.DigitallySigned, error) {
-	hash, err := HashLogRoot(*root)
+// SignLogRoot returns a complete SignedLogRoot (including signature).
+func (s *Signer) SignLogRoot(r *types.LogRootV1) (*trillian.SignedLogRoot, error) {
+	root := &trillian.SignedLogRoot{
+		TreeSize:       int64(r.TreeSize),
+		RootHash:       r.RootHash,
+		TimestampNanos: int64(r.TimestampNanos),
+		TreeRevision:   int64(r.Revision),
+	}
+	hash, err := hashLogRoot(*root)
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +102,8 @@ func (s *Signer) SignLogRoot(root *trillian.SignedLogRoot) (*sigpb.DigitallySign
 		return nil, err
 	}
 
-	return signature, nil
+	root.Signature = signature
+	return root, nil
 }
 
 // SignMapRoot hashes and signs the supplied (to-be) SignedMapRoot and returns a
