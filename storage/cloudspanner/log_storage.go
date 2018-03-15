@@ -578,7 +578,7 @@ func (tx *logTX) DequeueLeaves(ctx context.Context, limit int, cutoff time.Time)
 			break
 		}
 	}
-	if drained > 0 {
+	if drain > 0 {
 		glog.Warningf("Drained %d", drain)
 	}
 	return ret, nil
