@@ -29,16 +29,16 @@ import (
 
 // LogVerifier contains state needed to verify output from Trillian Logs.
 type LogVerifier struct {
-	hasher hashers.LogHasher
-	pubKey crypto.PublicKey
+	Hasher hashers.LogHasher
+	PubKey crypto.PublicKey
 	v      merkle.LogVerifier
 }
 
 // NewLogVerifier returns an object that can verify output from Trillian Logs.
 func NewLogVerifier(hasher hashers.LogHasher, pubKey crypto.PublicKey) *LogVerifier {
 	return &LogVerifier{
-		hasher: hasher,
-		pubKey: pubKey,
+		Hasher: hasher,
+		PubKey: pubKey,
 		v:      merkle.NewLogVerifier(hasher),
 	}
 }
@@ -78,7 +78,7 @@ func (c *LogVerifier) VerifyRoot(trusted *types.LogRootV1, newRoot *trillian.Sig
 	}
 
 	// Verify SignedLogRoot signature.
-	r, err := tcrypto.VerifySignedLogRoot(c.pubKey, newRoot)
+	r, err := tcrypto.VerifySignedLogRoot(c.PubKey, newRoot)
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +126,7 @@ func (c *LogVerifier) VerifyInclusionByHash(trusted *types.LogRootV1, leafHash [
 
 // BuildLeaf runs the leaf hasher over data and builds a leaf.
 func (c *LogVerifier) BuildLeaf(data []byte) (*trillian.LogLeaf, error) {
-	leafHash, err := c.hasher.HashLeaf(data)
+	leafHash, err := c.Hasher.HashLeaf(data)
 	if err != nil {
 		return nil, err
 	}
