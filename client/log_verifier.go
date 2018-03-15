@@ -30,7 +30,7 @@ import (
 // LogVerifier contains state needed to verify output from Trillian Logs.
 type LogVerifier struct {
 	Hasher hashers.LogHasher
-	Pubkey crypto.PublicKey
+	PubKey crypto.PublicKey
 	v      merkle.LogVerifier
 }
 
@@ -38,7 +38,7 @@ type LogVerifier struct {
 func NewLogVerifier(hasher hashers.LogHasher, pubKey crypto.PublicKey) *LogVerifier {
 	return &LogVerifier{
 		Hasher: hasher,
-		Pubkey: pubKey,
+		PubKey: pubKey,
 		v:      merkle.NewLogVerifier(hasher),
 	}
 }
@@ -78,7 +78,7 @@ func (c *LogVerifier) VerifyRoot(trusted *types.LogRootV1, newRoot *trillian.Sig
 	}
 
 	// Verify SignedLogRoot signature.
-	r, err := tcrypto.VerifySignedLogRoot(c.Pubkey, newRoot)
+	r, err := tcrypto.VerifySignedLogRoot(c.PubKey, newRoot)
 	if err != nil {
 		return nil, err
 	}
