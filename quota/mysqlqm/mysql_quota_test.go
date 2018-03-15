@@ -16,15 +16,13 @@ package mysqlqm_test
 
 import (
 	"context"
+	"crypto"
 	"database/sql"
 	"fmt"
 	"testing"
 	"time"
 
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto"
-	"github.com/google/trillian/crypto/keys/pem"
-	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/quota/mysqlqm"
 	"github.com/google/trillian/storage"
@@ -35,7 +33,7 @@ import (
 	"github.com/google/trillian/types"
 	"github.com/kylelemons/godebug/pretty"
 
-	gocrypto "crypto"
+	tcrypto "github.com/google/trillian/crypto"
 	stestonly "github.com/google/trillian/storage/testonly"
 )
 
@@ -310,14 +308,8 @@ func createTree(ctx context.Context, db *sql.DB) (*trillian.Tree, error) {
 	{
 		ls := mysql.NewLogStorage(db, nil)
 		err := ls.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
-			fixedSigner, err := newSignerWithFixedSig(&sigpb.DigitallySigned{
-				SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
-				HashAlgorithm:      sigpb.DigitallySigned_SHA256,
-			})
-			if err != nil {
-				return err
-			}
-			slr, err := crypto.NewSigner(0, fixedSigner, gocrypto.SHA256).SignLogRoot(&types.LogRootV1{RootHash: []byte{0}})
+			signer := tcrypto.NewSigner(0, testonly.NewSignerWithFixedSig(nil, nil), crypto.SHA256)
+			slr, err := signer.SignLogRoot(&types.LogRootV1{RootHash: []byte{0}})
 			if err != nil {
 				return err
 			}
@@ -393,17 +385,4 @@ func setUnsequencedRows(ctx context.Context, db *sql.DB, tree *trillian.Tree, wa
 	}
 
 	return nil
-}
-
-func newSignerWithFixedSig(sig *sigpb.DigitallySigned) (gocrypto.Signer, error) {
-	key, err := pem.UnmarshalPublicKey(testonly.DemoPublicKey)
-	if err != nil {
-		return nil, err
-	}
-
-	if got, want := sig.GetSignatureAlgorithm(), crypto.SignatureAlgorithm(key); got != want {
-		return nil, fmt.Errorf("signature algorithm (%v) does not match key (%v)", got, want)
-	}
-
-	return testonly.NewSignerWithFixedSig(key, sig.Signature), nil
 }

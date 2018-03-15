@@ -27,12 +27,14 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testdb"
+	"github.com/google/trillian/testonly"
+	"github.com/google/trillian/types"
 
+	tcrypto "github.com/google/trillian/crypto"
 	storageto "github.com/google/trillian/storage/testonly"
 )
 
@@ -255,6 +257,8 @@ func createLogForTests(db *sql.DB) int64 {
 	if err != nil {
 		panic(fmt.Sprintf("Error creating log: %v", err))
 	}
+
+	signer := tcrypto.NewSigner(0, testonly.NewSignerWithFixedSig(nil, nil), crypto.SHA256)
 
 	ctx := context.Background()
 	l := NewLogStorage(db, nil)

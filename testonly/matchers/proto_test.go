@@ -28,8 +28,8 @@ func TestProtoEquals(t *testing.T) {
 		equal bool
 	}{
 		{a: &trillian.SignedLogRoot{}, b: &trillian.SignedLogRoot{}, equal: true},
-		{a: &trillian.SignedLogRoot{}, b: &trillian.SignedLogRoot{LogRoot: []byte{}}, equal: true},
-		{a: &trillian.SignedLogRoot{}, b: &trillian.SignedLogRoot{LogRoot: []byte{0x01}}, equal: false},
+		{a: &trillian.SignedLogRoot{}, b: &trillian.SignedLogRoot{RootHash: []byte{}}, equal: true},
+		{a: &trillian.SignedLogRoot{}, b: &trillian.SignedLogRoot{RootHash: []byte{0x01}}, equal: false},
 	} {
 		if got, want := ProtoEqual(tc.a).Matches(tc.b), tc.equal; got != want {
 			t.Errorf("ProtoEqual(%s).Matches(%s) = %v, want %v", tc.a, tc.b, got, want)
