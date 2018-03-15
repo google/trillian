@@ -52,10 +52,6 @@ var (
 	// ErrWrongTXType is returned when, somehow, a write operation is attempted
 	// with a read-only transaction.  This should not even be possible.
 	ErrWrongTXType = errors.New("mutating method called on read-only transaction")
-
-	// errFinished is only used to terminate reads early, once all required data
-	// has been read. It should never be returned to a caller.
-	errFinished = errors.New("read complete")
 )
 
 const (
@@ -95,6 +91,7 @@ type spanRead interface {
 	Read(ctx context.Context, table string, keys spanner.KeySet, columns []string) *spanner.RowIterator
 	ReadUsingIndex(ctx context.Context, table, index string, keys spanner.KeySet, columns []string) *spanner.RowIterator
 	ReadRow(ctx context.Context, table string, key spanner.Key, columns []string) (*spanner.Row, error)
+	ReadWithOptions(ctx context.Context, table string, keys spanner.KeySet, columns []string, opts *spanner.ReadOptions) (ri *spanner.RowIterator)
 }
 
 // latestSTH reads and returns the newest STH.
@@ -102,7 +99,7 @@ func (t *treeStorage) latestSTH(ctx context.Context, stx spanRead, treeID int64)
 	query := spanner.NewStatement(
 		"SELECT t.TreeID, t.TimestampNanos, t.TreeSize, t.RootHash, t.RootSignature, t.TreeRevision, t.TreeMetadata FROM TreeHeads t" +
 			"   WHERE t.TreeID = @tree_id" +
-			"   ORDER BY t.TimestampNanos DESC " +
+			"   ORDER BY t.TreeRevision DESC " +
 			"   LIMIT 1")
 	query.Params["tree_id"] = treeID
 
@@ -361,9 +358,23 @@ func (t *treeTX) getSubtree(ctx context.Context, rev int64, id storage.NodeID) (
 	}
 
 	var ret *storagepb.SubtreeProto
-	prefix := spanner.Key{t.treeID, stID}.AsPrefix()
-	rows := t.stx.Read(ctx, subtreeTbl, prefix, []string{colRevision, colSubtree})
+	stmt := spanner.NewStatement(
+		"SELECT Revision, Subtree FROM SubtreeData d" +
+			"  WHERE d.TreeID = @tree_id" +
+			"  AND   d.SubtreeID = @subtree_id" +
+			"  AND   d.Revision <= @revision" +
+			"  ORDER BY d.Revision DESC" +
+			"  LIMIT 1")
+	stmt.Params["tree_id"] = t.treeID
+	stmt.Params["subtree_id"] = stID
+	stmt.Params["revision"] = rev
+
+	rows := t.stx.Query(ctx, stmt)
 	err = rows.Do(func(r *spanner.Row) error {
+		if ret != nil {
+			return nil
+		}
+
 		var rRev int64
 		var st storagepb.SubtreeProto
 		stBytes := make([]byte, 1<<20)
@@ -375,8 +386,7 @@ func (t *treeTX) getSubtree(ctx context.Context, rev int64, id storage.NodeID) (
 		}
 
 		if rRev > rev {
-			// Too new, skip this row and wait for the next.
-			return nil
+			return fmt.Errorf("got subtree with too new a revision %d, want %d", rRev, rev)
 		}
 		if got, want := stID, st.Prefix; !bytes.Equal(got, want) {
 			return fmt.Errorf("got subtree with prefix %v, wanted %v", got, want)
@@ -391,13 +401,8 @@ func (t *treeTX) getSubtree(ctx context.Context, rev int64, id storage.NodeID) (
 		if st.Prefix == nil && len(stID) == 0 {
 			st.Prefix = []byte{}
 		}
-		// We've got what we want, tell spanner to stop reading by returning
-		// not-really-an-error:
-		return errFinished
+		return nil
 	})
-	if err == errFinished {
-		err = nil
-	}
 	return ret, err
 }
 
