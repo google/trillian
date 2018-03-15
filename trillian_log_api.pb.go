@@ -982,7 +982,7 @@ type TrillianLogClient interface {
 	// Returns the total number of leaves that have been integrated into the
 	// given tree. Corresponds to the ReadOnlyLogTreeTX.GetSequencedLeafCount
 	// storage interface.
-	// DO NOT USE - FOR DEBUGGING/TEST ONLY (FIXME: remove or move to a debugging interface)
+	// DO NOT USE - FOR DEBUGGING/TEST ONLY
 	GetSequencedLeafCount(ctx context.Context, in *GetSequencedLeafCountRequest, opts ...grpc.CallOption) (*GetSequencedLeafCountResponse, error)
 	// Returns log entry and the corresponding inclusion proof for a given leaf
 	// index in a given tree. If the requested tree is unavailable but the leaf is in scope
@@ -1160,7 +1160,7 @@ type TrillianLogServer interface {
 	// Returns the total number of leaves that have been integrated into the
 	// given tree. Corresponds to the ReadOnlyLogTreeTX.GetSequencedLeafCount
 	// storage interface.
-	// DO NOT USE - FOR DEBUGGING/TEST ONLY (FIXME: remove or move to a debugging interface)
+	// DO NOT USE - FOR DEBUGGING/TEST ONLY
 	GetSequencedLeafCount(context.Context, *GetSequencedLeafCountRequest) (*GetSequencedLeafCountResponse, error)
 	// Returns log entry and the corresponding inclusion proof for a given leaf
 	// index in a given tree. If the requested tree is unavailable but the leaf is in scope

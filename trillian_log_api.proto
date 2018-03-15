@@ -85,7 +85,7 @@ service TrillianLog {
     // Returns the total number of leaves that have been integrated into the
     // given tree. Corresponds to the ReadOnlyLogTreeTX.GetSequencedLeafCount
     // storage interface.
-    // DO NOT USE - FOR DEBUGGING/TEST ONLY (FIXME: remove or move to a debugging interface)
+    // DO NOT USE - FOR DEBUGGING/TEST ONLY
     rpc GetSequencedLeafCount (GetSequencedLeafCountRequest) returns (GetSequencedLeafCountResponse) {
       option (google.api.http) = {
         get: "/v1beta1/logs/{log_id}/leaves:sequenced_count"
