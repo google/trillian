@@ -52,10 +52,6 @@ var (
 	// ErrWrongTXType is returned when, somehow, a write operation is attempted
 	// with a read-only transaction.  This should not even be possible.
 	ErrWrongTXType = errors.New("mutating method called on read-only transaction")
-
-	// errFinished is only used to terminate reads early, once all required data
-	// has been read. It should never be returned to a caller.
-	errFinished = errors.New("read complete")
 )
 
 const (
@@ -373,12 +369,9 @@ func (t *treeTX) getSubtree(ctx context.Context, rev int64, id storage.NodeID) (
 	stmt.Params["subtree_id"] = stID
 	stmt.Params["revision"] = rev
 
-	drain := 0
-
 	rows := t.stx.Query(ctx, stmt)
 	err = rows.Do(func(r *spanner.Row) error {
 		if ret != nil {
-			drain++
 			return nil
 		}
 
@@ -410,9 +403,6 @@ func (t *treeTX) getSubtree(ctx context.Context, rev int64, id storage.NodeID) (
 		}
 		return nil
 	})
-	if drain > 0 {
-		glog.Warningf("getSubtree drained %d", drain)
-	}
 	return ret, err
 }
 

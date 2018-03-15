@@ -537,12 +537,10 @@ func (tx *logTX) DequeueLeaves(ctx context.Context, limit int, cutoff time.Time)
 	}
 	ret := make([]*trillian.LogLeaf, 0, limit)
 	readOpts := &spanner.ReadOptions{Limit: limit}
-	drain := 0
 	for _, rs := range rows {
 		rows := tx.stx.ReadWithOptions(ctx, unseqTable, rs, []string{colBucket, colQueueTimestampNanos, colMerkleLeafHash, colLeafIdentityHash}, readOpts)
 		if err := rows.Do(func(r *spanner.Row) error {
 			if len(ret) >= limit {
-				drain++
 				return nil
 			}
 			var l trillian.LogLeaf
@@ -577,9 +575,6 @@ func (tx *logTX) DequeueLeaves(ctx context.Context, limit int, cutoff time.Time)
 		if len(ret) >= limit {
 			break
 		}
-	}
-	if drain > 0 {
-		glog.Warningf("Drained %d", drain)
 	}
 	return ret, nil
 }
