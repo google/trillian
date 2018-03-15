@@ -357,9 +357,6 @@ func (tx *logTX) StoreSignedLogRoot(ctx context.Context, root trillian.SignedLog
 		return err
 	}
 
-	if got, want := root.LogId, tx.treeID; got != want {
-		return fmt.Errorf("provided root is for LogID (%d) != transaction's treeID (%d)", got, want)
-	}
 	storageSig, err := apiToStorageSig(root.Signature)
 	if err != nil {
 		return err
