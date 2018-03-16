@@ -61,6 +61,10 @@ const (
 		FROM Trees`
 	selectNonDeletedTrees = selectTrees + nonDeletedWhere
 	selectTreeByID        = selectTrees + " WHERE TreeId = ?"
+
+	updateTreeSQL = `UPDATE Trees
+		SET TreeState = ?, TreeType = ?, DisplayName = ?, Description = ?, UpdateTimeMillis = ?, MaxRootDurationMillis = ?, PrivateKey = ?
+		WHERE TreeId = ?`
 )
 
 // NewAdminStorage returns a MySQL storage.AdminStorage implementation backed by DB.
@@ -472,6 +476,10 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 		return nil, err
 	}
 
+	// TODO(pavelkalinnikov): When switching TreeState to FROZEN for a
+	// PREORDERED_LOG, ensure there are no gaps in SequencedLeafData, in order to
+	// allow smoothly changing TreeType to LOG.
+
 	// Use the time truncated-to-millis throughout, as that's what's stored.
 	nowMillis := toMillisSinceEpoch(time.Now())
 	now := fromMillisSinceEpoch(nowMillis)
@@ -489,11 +497,7 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 		return nil, fmt.Errorf("could not marshal PrivateKey: %v", err)
 	}
 
-	stmt, err := t.tx.PrepareContext(
-		ctx,
-		`UPDATE Trees
-		SET TreeState = ?, DisplayName = ?, Description = ?, UpdateTimeMillis = ?, MaxRootDurationMillis = ?, PrivateKey = ?
-		WHERE TreeId = ?`)
+	stmt, err := t.tx.PrepareContext(ctx, updateTreeSQL)
 	if err != nil {
 		return nil, err
 	}
@@ -502,6 +506,7 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 	if _, err = stmt.ExecContext(
 		ctx,
 		tree.TreeState.String(),
+		tree.TreeType.String(),
 		tree.DisplayName,
 		tree.Description,
 		nowMillis,

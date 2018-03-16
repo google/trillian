@@ -77,7 +77,13 @@ func ValidateTreeForUpdate(ctx context.Context, storedTree, newTree *trillian.Tr
 	case storedTree.TreeId != newTree.TreeId:
 		return status.Error(codes.InvalidArgument, "readonly field changed: tree_id")
 	case storedTree.TreeType != newTree.TreeType:
-		return status.Error(codes.InvalidArgument, "readonly field changed: tree_type")
+		if got, want := storedTree.TreeType, trillian.TreeType_PREORDERED_LOG; got != want {
+			return status.Errorf(codes.InvalidArgument, "can't change tree_type from %v, only %v", got, want)
+		} else if got, want := newTree.TreeType, trillian.TreeType_LOG; got != want {
+			return status.Errorf(codes.InvalidArgument, "can't change tree_type to %v, only %v", got, want)
+		} else if got, want := storedTree.TreeState, trillian.TreeState_FROZEN; got != want {
+			return status.Errorf(codes.InvalidArgument, "can't change tree_type: tree_state=%v, want %v", got, want)
+		}
 	case storedTree.HashStrategy != newTree.HashStrategy:
 		return status.Error(codes.InvalidArgument, "readonly field changed: hash_strategy")
 	case storedTree.HashAlgorithm != newTree.HashAlgorithm:
