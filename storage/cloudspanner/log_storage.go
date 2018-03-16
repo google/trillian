@@ -46,9 +46,12 @@ const (
 	numByteValues = 256
 
 	unsequencedCountSQL = "SELECT Unsequenced.TreeID, COUNT(1) FROM Unsequenced GROUP BY TreeID"
-	getActiveLogIDsSQL  = `SELECT t.TreeID FROM TreeRoots t
-													WHERE t.TreeType = 1
-													AND t.TreeState = 1
+
+	// t.TreeType: 1 = Log, 3 = PreorderedLog.
+	// t.TreeState: 1 = Active, 5 = Draining.
+	getActiveLogIDsSQL = `SELECT t.TreeID FROM TreeRoots t
+													WHERE (t.TreeType = 1 OR t.TreeType = 3)
+													AND (t.TreeState = 1 OR t.TreeState = 5)
 													AND t.Deleted=false`
 )
 
@@ -354,9 +357,6 @@ func (tx *logTX) StoreSignedLogRoot(ctx context.Context, root trillian.SignedLog
 		return err
 	}
 
-	if got, want := root.LogId, tx.treeID; got != want {
-		return fmt.Errorf("provided root is for LogID (%d) != transaction's treeID (%d)", got, want)
-	}
 	storageSig, err := apiToStorageSig(root.Signature)
 	if err != nil {
 		return err
@@ -540,11 +540,12 @@ func (tx *logTX) DequeueLeaves(ctx context.Context, limit int, cutoff time.Time)
 		rows = genDequeueRowsOld(tx.getLogStorageConfig(), tx.treeID, now.Unix(), rand.Int31n(numByteValues))
 	}
 	ret := make([]*trillian.LogLeaf, 0, limit)
+	readOpts := &spanner.ReadOptions{Limit: limit}
 	for _, rs := range rows {
-		rows := tx.stx.Read(ctx, unseqTable, rs, []string{colBucket, colQueueTimestampNanos, colMerkleLeafHash, colLeafIdentityHash})
+		rows := tx.stx.ReadWithOptions(ctx, unseqTable, rs, []string{colBucket, colQueueTimestampNanos, colMerkleLeafHash, colLeafIdentityHash}, readOpts)
 		if err := rows.Do(func(r *spanner.Row) error {
 			if len(ret) >= limit {
-				return errFinished
+				return nil
 			}
 			var l trillian.LogLeaf
 			var qe QueuedEntry
@@ -566,8 +567,11 @@ func (tx *logTX) DequeueLeaves(ctx context.Context, limit int, cutoff time.Time)
 			ret = append(ret, &l)
 			qe.leaf = &l
 			tx.dequeued[k] = &qe
+			if readOpts.Limit > 0 {
+				readOpts.Limit--
+			}
 			return nil
-		}); err != nil && err != errFinished {
+		}); err != nil {
 			return nil, err
 		}
 

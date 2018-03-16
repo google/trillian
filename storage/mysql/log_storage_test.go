@@ -974,12 +974,14 @@ func TestGetActiveLogIDs(t *testing.T) {
 	// Create a few test trees
 	log1 := proto.Clone(testonly.LogTree).(*trillian.Tree)
 	log2 := proto.Clone(testonly.LogTree).(*trillian.Tree)
+	log3 := proto.Clone(testonly.PreorderedLogTree).(*trillian.Tree)
+	drainingLog := proto.Clone(testonly.LogTree).(*trillian.Tree)
 	frozenLog := proto.Clone(testonly.LogTree).(*trillian.Tree)
 	deletedLog := proto.Clone(testonly.LogTree).(*trillian.Tree)
 	map1 := proto.Clone(testonly.MapTree).(*trillian.Tree)
 	map2 := proto.Clone(testonly.MapTree).(*trillian.Tree)
 	deletedMap := proto.Clone(testonly.MapTree).(*trillian.Tree)
-	for _, tree := range []*trillian.Tree{log1, log2, frozenLog, deletedLog, map1, map2, deletedMap} {
+	for _, tree := range []*trillian.Tree{log1, log2, log3, drainingLog, frozenLog, deletedLog, map1, map2, deletedMap} {
 		newTree, err := storage.CreateTree(ctx, admin, tree)
 		if err != nil {
 			t.Fatalf("CreateTree(%+v) returned err = %v", tree, err)
@@ -988,10 +990,15 @@ func TestGetActiveLogIDs(t *testing.T) {
 	}
 
 	// FROZEN is not a valid initial state, so we have to update it separately.
-	_, err := storage.UpdateTree(ctx, admin, frozenLog.TreeId, func(t *trillian.Tree) {
+	if _, err := storage.UpdateTree(ctx, admin, frozenLog.TreeId, func(t *trillian.Tree) {
 		t.TreeState = trillian.TreeState_FROZEN
-	})
-	if err != nil {
+	}); err != nil {
+		t.Fatalf("UpdateTree() returned err = %v", err)
+	}
+	// DRAINING is not a valid initial state, so we have to update it separately.
+	if _, err := storage.UpdateTree(ctx, admin, drainingLog.TreeId, func(t *trillian.Tree) {
+		t.TreeState = trillian.TreeState_DRAINING
+	}); err != nil {
 		t.Fatalf("UpdateTree() returned err = %v", err)
 	}
 
@@ -1021,7 +1028,7 @@ func TestGetActiveLogIDs(t *testing.T) {
 		t.Errorf("Commit() returned err = %v", err)
 	}
 
-	want := []int64{log1.TreeId, log2.TreeId}
+	want := []int64{log1.TreeId, log2.TreeId, log3.TreeId, drainingLog.TreeId}
 	sort.Slice(got, func(i, j int) bool { return got[i] < got[j] })
 	sort.Slice(want, func(i, j int) bool { return want[i] < want[j] })
 	if diff := pretty.Compare(got, want); diff != "" {

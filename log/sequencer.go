@@ -32,6 +32,7 @@ import (
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/types"
 	"github.com/google/trillian/util"
 )
 
@@ -233,31 +234,31 @@ func (s Sequencer) initMerkleTreeFromStorage(ctx context.Context, currentRoot tr
 // sequencingTask provides sequenced LogLeaf entries, and updates storage
 // according to their ordering if needed.
 type sequencingTask interface {
-	// fetch returns a batch of sequenced entries obtained from storage. The
-	// returned leaves have consecutive LeafIndex values starting from the
-	// current tree size.
+	// fetch returns a batch of sequenced entries obtained from storage, sized up
+	// to the specified limit. The returned leaves have consecutive LeafIndex
+	// values starting from the current tree size.
 	fetch(ctx context.Context, limit int, cutoff time.Time) ([]*trillian.LogLeaf, error)
 
 	// update makes sequencing persisted in storage, if not yet.
 	update(ctx context.Context, leaves []*trillian.LogLeaf) error
 }
 
-// logSequencingTask is a sequencingTask implementation for "normal" Log mode,
-// which assigns consecutive sequence numbers to leaves as they are read from
-// the pending unsequenced entries.
-//
-// TODO(pavelkalinnikov): Implement it for Pre-ordered Log mode similarly.
-type logSequencingTask struct {
+type sequencingTaskData struct {
 	label      string
 	treeSize   int64
 	timeSource util.TimeSource
-	dequeuer   storage.LogTreeTX
+	tx         storage.LogTreeTX
 }
 
-func (s logSequencingTask) fetch(ctx context.Context, limit int, cutoff time.Time) ([]*trillian.LogLeaf, error) {
+// logSequencingTask is a sequencingTask implementation for "normal" Log mode,
+// which assigns consecutive sequence numbers to leaves as they are read from
+// the pending unsequenced entries.
+type logSequencingTask sequencingTaskData
+
+func (s *logSequencingTask) fetch(ctx context.Context, limit int, cutoff time.Time) ([]*trillian.LogLeaf, error) {
 	start := s.timeSource.Now()
 	// Recent leaves inside the guard window will not be available for sequencing.
-	leaves, err := s.dequeuer.DequeueLeaves(ctx, limit, cutoff)
+	leaves, err := s.tx.DequeueLeaves(ctx, limit, cutoff)
 	if err != nil {
 		glog.Warningf("%v: Sequencer failed to dequeue leaves: %v", s.label, err)
 		return nil, err
@@ -271,10 +272,10 @@ func (s logSequencingTask) fetch(ctx context.Context, limit int, cutoff time.Tim
 	return leaves, nil
 }
 
-func (s logSequencingTask) update(ctx context.Context, leaves []*trillian.LogLeaf) error {
+func (s *logSequencingTask) update(ctx context.Context, leaves []*trillian.LogLeaf) error {
 	start := s.timeSource.Now()
 	// Write the new sequence numbers to the leaves in the DB.
-	if err := s.dequeuer.UpdateSequencedLeaves(ctx, leaves); err != nil {
+	if err := s.tx.UpdateSequencedLeaves(ctx, leaves); err != nil {
 		glog.Warningf("%v: Sequencer failed to update sequenced leaves: %v", s.label, err)
 		return err
 	}
@@ -282,8 +283,28 @@ func (s logSequencingTask) update(ctx context.Context, leaves []*trillian.LogLea
 	return nil
 }
 
+// preorderedLogSequencingTask is a sequencingTask implementation for
+// Pre-ordered Log mode. It reads sequenced entries past the tree size which
+// are already in the storage.
+type preorderedLogSequencingTask sequencingTaskData
+
+func (s *preorderedLogSequencingTask) fetch(ctx context.Context, limit int, cutoff time.Time) ([]*trillian.LogLeaf, error) {
+	// TODO(pavelkalinnikov): Measure latency.
+	leaves, err := s.tx.GetLeavesByRange(ctx, s.treeSize, int64(limit))
+	if err != nil {
+		glog.Warningf("%v: Sequencer failed to load sequenced leaves: %v", s.label, err)
+		return nil, err
+	}
+	return leaves, nil
+}
+
+func (s *preorderedLogSequencingTask) update(ctx context.Context, leaves []*trillian.LogLeaf) error {
+	// TODO(pavelkalinnikov): Update integration timestamps.
+	return nil
+}
+
 // IntegrateBatch wraps up all the operations needed to take a batch of queued
-// leaves and integrate them into the tree.
+// or sequenced leaves and integrate them into the tree.
 func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limit int, guardWindow, maxRootDurationInterval time.Duration) (int, error) {
 	start := s.timeSource.Now()
 	label := strconv.FormatInt(tree.TreeId, 10)
@@ -308,12 +329,22 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 			return storage.ErrTreeNeedsInit
 		}
 
-		var st sequencingTask = logSequencingTask{
+		taskData := &sequencingTaskData{
 			label:      label,
 			treeSize:   currentRoot.TreeSize,
 			timeSource: s.timeSource,
-			dequeuer:   tx,
+			tx:         tx,
 		}
+		var st sequencingTask
+		switch tree.TreeType {
+		case trillian.TreeType_LOG:
+			st = (*logSequencingTask)(taskData)
+		case trillian.TreeType_PREORDERED_LOG:
+			st = (*preorderedLogSequencingTask)(taskData)
+		default:
+			return fmt.Errorf("IntegrateBatch not supported for TreeType %v", tree.TreeType)
+		}
+
 		sequencedLeaves, err := st.fetch(ctx, limit, start.Add(-guardWindow))
 		if err != nil {
 			glog.Warningf("%v: Sequencer failed to load sequenced batch: %v", tree.TreeId, err)
@@ -385,19 +416,16 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 
 		// Create the log root ready for signing
 		seqTreeSize.Set(float64(merkleTree.Size()), label)
-		newLogRoot = &trillian.SignedLogRoot{
+		newLogRoot, err := s.signer.SignLogRoot(&types.LogRootV1{
 			RootHash:       merkleTree.CurrentRoot(),
-			TimestampNanos: s.timeSource.Now().UnixNano(),
-			TreeSize:       merkleTree.Size(),
-			LogId:          currentRoot.LogId,
-			TreeRevision:   newVersion,
-		}
-		sig, err := s.signer.SignLogRoot(newLogRoot)
+			TimestampNanos: uint64(s.timeSource.Now().UnixNano()),
+			TreeSize:       uint64(merkleTree.Size()),
+			Revision:       uint64(newVersion),
+		})
 		if err != nil {
 			glog.Warningf("%v: signer failed to sign root: %v", tree.TreeId, err)
 			return err
 		}
-		newLogRoot.Signature = sig
 
 		if err := tx.StoreSignedLogRoot(ctx, *newLogRoot); err != nil {
 			glog.Warningf("%v: failed to write updated tree root: %v", tree.TreeId, err)
@@ -437,8 +465,6 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 	seqCounter.Add(float64(numLeaves), label)
 	if newLogRoot != nil {
 		glog.Infof("%v: sequenced %v leaves, size %v, tree-revision %v", tree.TreeId, numLeaves, newLogRoot.TreeSize, newLogRoot.TreeRevision)
-	} else {
-		glog.Errorf("newLogRoot = nil")
 	}
 	return numLeaves, nil
 }
@@ -459,19 +485,16 @@ func (s Sequencer) SignRoot(ctx context.Context, tree *trillian.Tree) error {
 		if err != nil {
 			return err
 		}
-		newLogRoot := &trillian.SignedLogRoot{
+		newLogRoot, err := s.signer.SignLogRoot(&types.LogRootV1{
 			RootHash:       merkleTree.CurrentRoot(),
-			TimestampNanos: s.timeSource.Now().UnixNano(),
-			TreeSize:       merkleTree.Size(),
-			LogId:          currentRoot.LogId,
-			TreeRevision:   currentRoot.TreeRevision + 1,
-		}
-		sig, err := s.signer.SignLogRoot(newLogRoot)
+			TimestampNanos: uint64(s.timeSource.Now().UnixNano()),
+			TreeSize:       uint64(merkleTree.Size()),
+			Revision:       uint64(currentRoot.TreeRevision + 1),
+		})
 		if err != nil {
 			glog.Warningf("%v: signer failed to sign root: %v", tree.TreeId, err)
 			return err
 		}
-		newLogRoot.Signature = sig
 
 		// Store the new root and we're done
 		if err := tx.StoreSignedLogRoot(ctx, *newLogRoot); err != nil {

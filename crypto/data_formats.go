@@ -24,7 +24,6 @@ import (
 )
 
 // This file contains struct specific mappings and data structures.
-// TODO(gdbelvin): remove data-structure specific operations.
 
 // Constants used as map keys when building input for ObjectHash. They must not be changed
 // as this will change the output of hashRoot()
@@ -34,10 +33,10 @@ const (
 	mapKeyTreeSize       string = "TreeSize"
 )
 
-// HashLogRoot hashes SignedLogRoot objects using ObjectHash with
+// hashLogRoot hashes SignedLogRoot objects using ObjectHash with
 // "RootHash", "TimestampNanos", and "TreeSize", used as keys in
 // a map.
-func HashLogRoot(root trillian.SignedLogRoot) ([]byte, error) {
+func hashLogRoot(root trillian.SignedLogRoot) ([]byte, error) {
 	// Pull out the fields we want to hash.
 	// Caution: use string format for int64 values as they can overflow when
 	// JSON encoded otherwise (it uses floats). We want to be sure that people

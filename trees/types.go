@@ -21,17 +21,17 @@ import "github.com/google/trillian"
 type OpType int
 
 const (
-	// Unknown is an access type that will always get rejected
+	// Unknown is an access type that will always get rejected.
 	Unknown OpType = iota
-	// Admin access is for general administration purposes
+	// Admin access is for general administration purposes.
 	Admin
-	// Query implies access to serve query, typically readonly
+	// Query implies access to serve query, typically readonly.
 	Query
-	// Queue is log specific - adding entries to the queue
-	Queue
-	// SequenceLog is log specific - integrating entries into the tree
+	// QueueLog is log specific - adding entries to the queue.
+	QueueLog
+	// SequenceLog is log specific - integrating entries into the tree.
 	SequenceLog
-	// UpdateMap is map specific - set / update leaves
+	// UpdateMap is map specific - set / update leaves.
 	UpdateMap
 )
 
@@ -39,18 +39,16 @@ const (
 type GetOpts struct {
 	// TreeTypes is a set of allowed tree types. If empty, any type is allowed.
 	TreeTypes map[trillian.TreeType]bool
-	// Readonly is whether the tree will be used for read-only purposes.
-	Readonly bool
-	// Operation indicates what operation is being performed
+	// Operation indicates what operation is being performed.
 	Operation OpType
 }
 
 // NewGetOpts creates GetOps that allows the listed set of tree types, and
 // optionally forces the tree to be readonly.
-func NewGetOpts(op OpType, readonly bool, types ...trillian.TreeType) GetOpts {
+func NewGetOpts(op OpType, types ...trillian.TreeType) GetOpts {
 	m := make(map[trillian.TreeType]bool)
 	for _, t := range types {
 		m[t] = true
 	}
-	return GetOpts{Operation: op, TreeTypes: m, Readonly: readonly}
+	return GetOpts{Operation: op, TreeTypes: m}
 }

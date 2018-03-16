@@ -38,9 +38,9 @@ const (
 )
 
 var (
-	optsMapInit  = trees.NewGetOpts(trees.Admin, false, trillian.TreeType_MAP)
-	optsMapRead  = trees.NewGetOpts(trees.Query, true, trillian.TreeType_MAP)
-	optsMapWrite = trees.NewGetOpts(trees.UpdateMap, false, trillian.TreeType_MAP)
+	optsMapInit  = trees.NewGetOpts(trees.Admin, trillian.TreeType_MAP)
+	optsMapRead  = trees.NewGetOpts(trees.Query, trillian.TreeType_MAP)
+	optsMapWrite = trees.NewGetOpts(trees.UpdateMap, trillian.TreeType_MAP)
 )
 
 // TODO(codingllama): There is no access control in the server yet and clients could easily modify

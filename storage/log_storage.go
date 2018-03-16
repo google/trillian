@@ -47,9 +47,11 @@ type ReadOnlyLogTreeTX interface {
 	GetSequencedLeafCount(ctx context.Context) (int64, error)
 	// GetLeavesByIndex returns leaf metadata and data for a set of specified sequenced leaf indexes.
 	GetLeavesByIndex(ctx context.Context, leaves []int64) ([]*trillian.LogLeaf, error)
-	// GetLeavesByRange returns leaf data for a range of indexes.  Leaves are returned ordered by
-	// their leaf index, and the returned slice may be smaller than count if the requested range
-	// extends beyond the current size of the log.
+	// GetLeavesByRange returns leaf data for a range of indexes. Leaves are
+	// returned ordered by their LeafIndex, and the returned slice may be smaller
+	// than count if the requested range extends beyond the current log size.
+	// For PREORDERED_LOG trees, it returns leaves beyond the tree size if they
+	// are stored, in order to allow integrating them into the tree.
 	GetLeavesByRange(ctx context.Context, start, count int64) ([]*trillian.LogLeaf, error)
 	// GetLeavesByHash looks up sequenced leaf metadata and data by their Merkle leaf hash. If the
 	// tree permits duplicate leaves callers must be prepared to handle multiple results with the
@@ -159,7 +161,8 @@ type CountByLogID map[int64]int64
 
 // LogMetadata provides access to information about the logs in storage
 type LogMetadata interface {
-	// GetActiveLogs returns a list of the IDs of all the logs that are configured in storage
+	// GetActiveLogIDs returns a list of the IDs of all the logs that are
+	// configured in storage and are eligible to have entries sequenced.
 	GetActiveLogIDs(ctx context.Context) ([]int64, error)
 
 	// GetUnsequencedCounts returns a map of the number of unsequenced entries
