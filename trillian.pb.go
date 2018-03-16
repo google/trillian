@@ -413,7 +413,11 @@ type SignedLogRoot struct {
 	// key_hint is a hint to identify the public key for signature verification.
 	// key_hint is not authenticated and may be incorrect or missing, in which
 	// case all known public keys may be used to verify the signature.
-	// key_hint MAY contain the LogID encoded as a big endian 64 bit integer.
+	// When directly communicating with a Trillian gRPC server, the key_hint will
+	// typically contain the LogID encoded as a big-endian 64-bit integer;
+	// however, in other contexts the key_hint is likely to have different
+	// contents (e.g. it could be a GUID, a URL + TreeID, or it could be
+	// derived from the public key itself).
 	KeyHint []byte `protobuf:"bytes,7,opt,name=key_hint,json=keyHint,proto3" json:"key_hint,omitempty"`
 }
 
