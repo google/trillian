@@ -15,6 +15,7 @@
 package client
 
 import (
+	"crypto"
 	"testing"
 
 	"github.com/google/trillian"
@@ -53,7 +54,7 @@ func TestVerifyRootErrors(t *testing.T) {
 		{desc: "trustedNil", trusted: nil, newRoot: signedRoot},
 	}
 	for _, test := range tests {
-		logVerifier := NewLogVerifier(rfc6962.DefaultHasher, pk)
+		logVerifier := NewLogVerifier(rfc6962.DefaultHasher, pk, crypto.SHA256)
 
 		// This also makes sure that no nil pointer dereference errors occur (as this would cause a panic).
 		if _, err := logVerifier.VerifyRoot(test.trusted, test.newRoot, nil); err == nil {
@@ -63,7 +64,7 @@ func TestVerifyRootErrors(t *testing.T) {
 }
 
 func TestVerifyInclusionAtIndexErrors(t *testing.T) {
-	logVerifier := NewLogVerifier(nil, nil)
+	logVerifier := NewLogVerifier(nil, nil, crypto.SHA256)
 	// An error is expected because the first parameter (trusted) is nil
 	err := logVerifier.VerifyInclusionAtIndex(nil, []byte{0, 0, 0}, 1, [][]byte{{0, 0}})
 	if err == nil {
@@ -82,7 +83,7 @@ func TestVerifyInclusionByHashErrors(t *testing.T) {
 	}
 	for _, test := range tests {
 
-		logVerifier := NewLogVerifier(nil, nil)
+		logVerifier := NewLogVerifier(nil, nil, crypto.SHA256)
 		err := logVerifier.VerifyInclusionByHash(test.trusted, nil, test.proof)
 		if err == nil {
 			t.Errorf("%v: VerifyInclusionByHash() error expected, but got nil", test.desc)

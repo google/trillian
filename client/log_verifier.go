@@ -22,6 +22,7 @@ import (
 	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/hashers"
+	"github.com/google/trillian/trees"
 	"github.com/google/trillian/types"
 
 	tcrypto "github.com/google/trillian/crypto"
@@ -29,17 +30,19 @@ import (
 
 // LogVerifier contains state needed to verify output from Trillian Logs.
 type LogVerifier struct {
-	Hasher hashers.LogHasher
-	PubKey crypto.PublicKey
-	v      merkle.LogVerifier
+	Hasher  hashers.LogHasher
+	PubKey  crypto.PublicKey
+	SigHash crypto.Hash
+	v       merkle.LogVerifier
 }
 
 // NewLogVerifier returns an object that can verify output from Trillian Logs.
-func NewLogVerifier(hasher hashers.LogHasher, pubKey crypto.PublicKey) *LogVerifier {
+func NewLogVerifier(hasher hashers.LogHasher, pubKey crypto.PublicKey, sigHash crypto.Hash) *LogVerifier {
 	return &LogVerifier{
-		Hasher: hasher,
-		PubKey: pubKey,
-		v:      merkle.NewLogVerifier(hasher),
+		Hasher:  hasher,
+		PubKey:  pubKey,
+		SigHash: sigHash,
+		v:       merkle.NewLogVerifier(hasher),
 	}
 }
 
@@ -56,13 +59,19 @@ func NewLogVerifierFromTree(config *trillian.Tree) (*LogVerifier, error) {
 		return nil, fmt.Errorf("client: NewLogVerifierFromTree(): NewLogHasher(): %v", err)
 	}
 
-	// Log Key
+	// Log Pub Key
 	logPubKey, err := der.UnmarshalPublicKey(config.GetPublicKey().GetDer())
 	if err != nil {
 		return nil, fmt.Errorf("client: NewLogVerifierFromTree(): Failed parsing Log public key: %v", err)
 	}
 
-	return NewLogVerifier(logHasher, logPubKey), nil
+	// Log Sig Hash
+	sigHash, err := trees.Hash(config)
+	if err != nil {
+		return nil, fmt.Errorf("client: NewLogVerifierFromTree(): Failed parsing Log signature hash: %v", err)
+	}
+
+	return NewLogVerifier(logHasher, logPubKey, sigHash), nil
 }
 
 // VerifyRoot verifies that newRoot is a valid append-only operation from trusted.
@@ -78,7 +87,7 @@ func (c *LogVerifier) VerifyRoot(trusted *types.LogRootV1, newRoot *trillian.Sig
 	}
 
 	// Verify SignedLogRoot signature.
-	r, err := tcrypto.VerifySignedLogRoot(c.PubKey, newRoot)
+	r, err := tcrypto.VerifySignedLogRoot(c.PubKey, c.SigHash, newRoot)
 	if err != nil {
 		return nil, err
 	}

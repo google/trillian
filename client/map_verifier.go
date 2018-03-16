@@ -22,14 +22,16 @@ import (
 	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/hashers"
+	"github.com/google/trillian/trees"
 
 	tcrypto "github.com/google/trillian/crypto"
 )
 
 // MapVerifier verifies protos produced by the Trillian Map.
 type MapVerifier struct {
-	Hasher hashers.MapHasher
-	PubKey crypto.PublicKey
+	Hasher  hashers.MapHasher
+	PubKey  crypto.PublicKey
+	SigHash crypto.Hash
 }
 
 // NewMapVerifierFromTree creates a new MapVerifier.
@@ -49,7 +51,17 @@ func NewMapVerifierFromTree(config *trillian.Tree) (*MapVerifier, error) {
 		return nil, fmt.Errorf("Failed parsing Map public key: %v", err)
 	}
 
-	return &MapVerifier{Hasher: mapHasher, PubKey: mapPubKey}, nil
+	// Map Sig Hash
+	sigHash, err := trees.Hash(config)
+	if err != nil {
+		return nil, fmt.Errorf("client: NewLogVerifierFromTree(): Failed parsing Log signature hash: %v", err)
+	}
+
+	return &MapVerifier{
+		Hasher:  mapHasher,
+		PubKey:  mapPubKey,
+		SigHash: sigHash,
+	}, nil
 }
 
 // VerifyMapLeafInclusion verifies a MapLeafInclusion response.
@@ -69,5 +81,5 @@ func (m *MapVerifier) VerifySignedMapRoot(smr *trillian.SignedMapRoot) error {
 	// by removing the signature from the object.
 	orig := *smr
 	orig.Signature = nil // Remove the signature from the object to be verified.
-	return tcrypto.VerifyObject(m.PubKey, orig, smr.GetSignature())
+	return tcrypto.VerifyObject(m.PubKey, m.SigHash, orig, smr.GetSignature())
 }
