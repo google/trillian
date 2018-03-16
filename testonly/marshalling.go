@@ -28,15 +28,11 @@ import (
 // storage.  Use if testing.T not available. Failure to marshal will
 // fail the test suite.
 func MustMarshalAnyNoT(in proto.Message) []byte {
-	anything, err := ptypes.MarshalAny(in)
-	if err != nil {
-		log.Fatalf("failed to marshal %v as 'any': err %v", in, err)
-	}
-	metaBytes, err := proto.Marshal(anything)
+	protoBytes, err := proto.Marshal(in)
 	if err != nil {
 		log.Fatalf("failed to marshal %v as 'bytes': err %v", in, err)
 	}
-	return metaBytes
+	return protoBytes
 }
 
 // MustMarshalAny is used in tests to Marshal proto messages into the
