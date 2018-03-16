@@ -39,13 +39,13 @@ var (
 )
 
 // VerifySignedLogRoot verifies the SignedLogRoot and returns its contents.
-func VerifySignedLogRoot(pub crypto.PublicKey, r *trillian.SignedLogRoot) (*types.LogRootV1, error) {
+func VerifySignedLogRoot(pub crypto.PublicKey, hash crypto.Hash, r *trillian.SignedLogRoot) (*types.LogRootV1, error) {
 	// Verify SignedLogRoot signature.
-	hash, err := hashLogRoot(*r)
+	digest, err := hashLogRoot(*r)
 	if err != nil {
 		return nil, err
 	}
-	if err := Verify(pub, hash, r.Signature); err != nil {
+	if err := Verify(pub, hash, digest, r.Signature); err != nil {
 		return nil, err
 	}
 	return &types.LogRootV1{
@@ -58,20 +58,20 @@ func VerifySignedLogRoot(pub crypto.PublicKey, r *trillian.SignedLogRoot) (*type
 }
 
 // VerifyObject verifies the output of Signer.SignObject.
-func VerifyObject(pub crypto.PublicKey, obj interface{}, sig *sigpb.DigitallySigned) error {
+func VerifyObject(pub crypto.PublicKey, hash crypto.Hash, obj interface{}, sig *sigpb.DigitallySigned) error {
 	j, err := json.Marshal(obj)
 	if err != nil {
 		return err
 	}
-	hash, err := objecthash.CommonJSONHash(string(j))
+	digest, err := objecthash.CommonJSONHash(string(j))
 	if err != nil {
 		return fmt.Errorf("CommonJSONHash(%s): %v", j, err)
 	}
-	return Verify(pub, hash[:], sig)
+	return Verify(pub, hash, digest[:], sig)
 }
 
 // Verify cryptographically verifies the output of Signer.
-func Verify(pub crypto.PublicKey, data []byte, sig *sigpb.DigitallySigned) error {
+func Verify(pub crypto.PublicKey, hash crypto.Hash, data []byte, sig *sigpb.DigitallySigned) error {
 	if sig == nil {
 		return errors.New("signature is nil")
 	}
@@ -85,6 +85,11 @@ func Verify(pub crypto.PublicKey, data []byte, sig *sigpb.DigitallySigned) error
 	if !ok {
 		return fmt.Errorf("unsupported hash algorithm %v", hasher)
 	}
+
+	if hasher != hash {
+		return fmt.Errorf("hash algorithm in sig %v, want %v", hasher, hash)
+	}
+
 	h := hasher.New()
 	h.Write(data)
 	digest := h.Sum(nil)
