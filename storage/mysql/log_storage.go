@@ -517,7 +517,8 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 	res := make([]*trillian.QueuedLogLeaf, len(leaves))
 	ok := status.New(codes.OK, "OK").Proto()
 
-	// Note: Leaves are sorted by LeafIndex, so no reordering is necessary.
+	// Note: Leaves are sorted by LeafIndex, so no deterministic reordering is
+	// necessary to avoid deadlocks.
 	for i, leaf := range leaves {
 		// This should fail on insert, but catch it early.
 		if got, want := len(leaf.LeafIdentityHash), t.hashSizeBytes; got != want {
@@ -530,17 +531,16 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 		_, err := t.tx.ExecContext(ctx, insertLeafDataSQL,
 			t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData, 0)
 		// Note: QueueTimestamp == 0 because the entry bypasses the queue.
+		// TODO(pavelkalinnikov): Fix integration latency metrics.
 
+		// TODO(pavelkalinnikov): Support opting out from duplicates detection.
 		if isDuplicateErr(err) {
 			res[i].Status = status.New(codes.FailedPrecondition, "conflicting LeafIdentityHash").Proto()
+			continue
 		} else if err != nil {
 			glog.Warningf("Error inserting leaves[%d] into LeafData: %s", i, err)
 			return nil, err
 		}
-
-		// Note: If LeafIdentityHash collides, we still store the indexed entry.
-		// This, however, may result in wrong responses to GetEntry* queries.
-		// TODO(pavelkalinnikov): Store LeafData for each duplicate, not just one.
 
 		_, err = t.tx.ExecContext(ctx, insertSequencedLeafSQL,
 			t.treeID, leaf.LeafIdentityHash, leaf.MerkleLeafHash, leaf.LeafIndex, 0)
