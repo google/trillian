@@ -45,7 +45,7 @@ type ReadOnlyMapTreeTX interface {
 	// LatestSignedMapRoot returns the most recently created SignedMapRoot.
 	LatestSignedMapRoot(ctx context.Context) (trillian.SignedMapRoot, error)
 
-	// Get retrieves the values associates with the keyHashes, if any, at the
+	// Get retrieves the values associated with the keyHashes, if any, at the
 	// specified revision.
 	// Setting revision to -1 will fetch the latest revision.
 	// The returned array of MapLeaves will only contain entries for which values
