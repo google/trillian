@@ -120,20 +120,23 @@ func (s *Signer) SignLogRoot(r *types.LogRootV1) (*trillian.SignedLogRoot, error
 // SignMapRoot hashes and signs the supplied (to-be) SignedMapRoot and returns a
 // signature.  Hashing is performed by github.com/benlaurie/objecthash.
 func (s *Signer) SignMapRoot(r *types.MapRootV1) (*trillian.SignedMapRoot, error) {
-	root := trillian.SignedMapRoot{
-		TimestampNanos: int64(r.TimestampNanos),
-		RootHash:       r.RootHash,
-		// MapID not set
-		MapRevision: int64(r.Revision),
-		Metadata:    r.Metadata,
+	rootBytes, err := r.MarshalBinary()
+	if err != nil {
+		return nil, err
 	}
 
-	signature, err := s.SignObject(&root)
+	signature, err := s.Sign(rootBytes)
 	if err != nil {
 		glog.Warningf("%v: signer failed to sign map root: %v", s.KeyHint, err)
 		return nil, err
 	}
 
-	root.Signature = signature
-	return &root, nil
+	return &trillian.SignedMapRoot{
+		TimestampNanos: int64(r.TimestampNanos),
+		RootHash:       r.RootHash,
+		MapRevision:    int64(r.Revision),
+		Metadata:       r.Metadata,
+		MapRoot:        rootBytes,
+		Signature:      signature,
+	}, nil
 }

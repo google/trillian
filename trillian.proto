@@ -244,4 +244,21 @@ message SignedMapRoot {
   // needed to recreate the Map from an external data source.
   reserved 7;
   bytes metadata = 8;
+
+  // map_root holds the TLS-serialization of the following
+  // structure (described in RFC5246 notation):
+  // enum { v1(1), (65535)} Version;
+  // struct {
+  //   opaque root_hash<0..128>;
+  //   uint64 timestamp_nanos;
+  //   uint64 revision;
+  //   opaque metadata<0..65535>;
+  // } MapRootV1;
+  // struct {
+  //   Version version;
+  //   select(version) {
+  //     case v1: MapRootV1;
+  //   }
+  // } MapRoot;
+  bytes map_root = 9;
 }

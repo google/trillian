@@ -59,12 +59,7 @@ func VerifySignedLogRoot(pub crypto.PublicKey, hash crypto.Hash, r *trillian.Sig
 
 // VerifySignedMapRoot verifies the signature on the SignedMapRoot.
 func VerifySignedMapRoot(pub crypto.PublicKey, smr *trillian.SignedMapRoot) error {
-	// SignedMapRoot contains its own signature. To verify, we need to create a local
-	// copy of the object and return the object to the state it was in when signed
-	// by removing the signature from the object.
-	orig := *smr
-	orig.Signature = nil // Remove the signature from the object to be verified.
-	return VerifyObject(pub, orig, smr.GetSignature())
+	return Verify(pub, smr.MapRoot, smr.Signature)
 }
 
 // VerifyObject verifies the output of Signer.SignObject.
