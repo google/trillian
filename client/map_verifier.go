@@ -23,6 +23,7 @@ import (
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/trees"
+	"github.com/google/trillian/types"
 
 	tcrypto "github.com/google/trillian/crypto"
 )
@@ -77,6 +78,6 @@ func (m *MapVerifier) VerifyMapLeafInclusion(smr *trillian.SignedMapRoot, leafPr
 }
 
 // VerifySignedMapRoot verifies the signature on the SignedMapRoot.
-func (m *MapVerifier) VerifySignedMapRoot(smr *trillian.SignedMapRoot) error {
+func (m *MapVerifier) VerifySignedMapRoot(smr *trillian.SignedMapRoot) (*types.MapRootV1, error) {
 	return tcrypto.VerifySignedMapRoot(m.PubKey, smr)
 }

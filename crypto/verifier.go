@@ -56,8 +56,15 @@ func VerifySignedLogRoot(pub crypto.PublicKey, hash crypto.Hash, r *trillian.Sig
 }
 
 // VerifySignedMapRoot verifies the signature on the SignedMapRoot.
-func VerifySignedMapRoot(pub crypto.PublicKey, hash crypto.Hash, smr *trillian.SignedMapRoot) error {
-	return Verify(pub, hash, smr.MapRoot, smr.Signature)
+func VerifySignedMapRoot(pub crypto.PublicKey, hash crypto.Hash, smr *trillian.SignedMapRoot) (*types.MapRootV1, error) {
+	if err := Verify(pub, hash, smr.MapRoot, smr.Signature); err != nil {
+		return nil, err
+	}
+	var root types.MapRootV1
+	if err := root.UnmarshalBinary(smr.MapRoot); err != nil {
+		return nil, err
+	}
+	return &root, nil
 }
 
 // Verify cryptographically verifies the output of Signer.

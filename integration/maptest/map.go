@@ -82,19 +82,23 @@ func isEmptyMap(ctx context.Context, tmap trillian.TrillianMapClient, tree *tril
 }
 
 func verifyGetSignedMapRootResponse(mapVerifier *client.MapVerifier, mapRoot *trillian.SignedMapRoot,
-	wantRevision int64, wantTreeID int64) error {
-	if got, want := mapRoot.GetMapRevision(), wantRevision; got != want {
+	wantRevision int64) error {
+	root, err := mapVerifier.VerifySignedMapRoot(mapRoot)
+	if err != nil {
+		return err
+	}
+	if got, want := int64(root.Revision), wantRevision; got != want {
 		return fmt.Errorf("got SMR with revision %d, want %d", got, want)
 	}
-	return mapVerifier.VerifySignedMapRoot(mapRoot)
+	return nil
 }
 
 func verifyGetMapLeavesResponse(mapVerifier *client.MapVerifier, getResp *trillian.GetMapLeavesResponse, indexes [][]byte,
-	wantRevision int64, wantTreeID int64) error {
+	wantRevision int64) error {
 	if got, want := len(getResp.GetMapLeafInclusion()), len(indexes); got != want {
 		return fmt.Errorf("got %d values, want %d", got, want)
 	}
-	if err := verifyGetSignedMapRootResponse(mapVerifier, getResp.GetMapRoot(), wantRevision, wantTreeID); err != nil {
+	if err := verifyGetSignedMapRootResponse(mapVerifier, getResp.GetMapRoot(), wantRevision); err != nil {
 		return err
 	}
 	for _, incl := range getResp.GetMapLeafInclusion() {
@@ -102,7 +106,7 @@ func verifyGetMapLeavesResponse(mapVerifier *client.MapVerifier, getResp *trilli
 		index := incl.GetLeaf().GetIndex()
 		leafHash := incl.GetLeaf().GetLeafHash()
 
-		wantLeafHash, err := mapVerifier.Hasher.HashLeaf(wantTreeID, index, leaf)
+		wantLeafHash, err := mapVerifier.Hasher.HashLeaf(mapVerifier.MapID, index, leaf)
 		if err != nil {
 			return err
 		}
@@ -168,7 +172,7 @@ func RunMapRevisionZero(ctx context.Context, t *testing.T, tadmin trillian.Trill
 				if err != nil {
 					t.Fatalf("GetSignedMapRoot(): %v", err)
 				}
-				if err := verifyGetSignedMapRootResponse(mapVerifier, getSmrResp.GetMapRoot(), tc.wantRev, tree.TreeId); err != nil {
+				if err := verifyGetSignedMapRootResponse(mapVerifier, getSmrResp.GetMapRoot(), tc.wantRev); err != nil {
 					t.Errorf("verifyGetSignedMapRootResponse(rev %v): %v", tc.wantRev, err)
 				}
 
@@ -179,7 +183,7 @@ func RunMapRevisionZero(ctx context.Context, t *testing.T, tadmin trillian.Trill
 				if err != nil {
 					t.Errorf("GetSignedMapRootByRevision(): %v", err)
 				}
-				if err := verifyGetSignedMapRootResponse(mapVerifier, getSmrByRevResp.GetMapRoot(), tc.wantRev, tree.TreeId); err != nil {
+				if err := verifyGetSignedMapRootResponse(mapVerifier, getSmrByRevResp.GetMapRoot(), tc.wantRev); err != nil {
 					t.Errorf("verifyGetSignedMapRootResponse(rev %v): %v", tc.wantRev, err)
 				}
 
@@ -345,7 +349,7 @@ func RunLeafHistory(ctx context.Context, t *testing.T, tadmin trillian.TrillianA
 						t.Errorf("GetLeavesByRevision(rev: %v).LeafValue: %s, want %s", batch.revision, got, want)
 					}
 
-					if err := verifyGetMapLeavesResponse(mapVerifier, getResp, indexes, int64(batch.revision), tree.TreeId); err != nil {
+					if err := verifyGetMapLeavesResponse(mapVerifier, getResp, indexes, int64(batch.revision)); err != nil {
 						t.Errorf("verifyGetMapLeavesResponse(rev %v): %v", batch.revision, err)
 					}
 				}
@@ -420,7 +424,7 @@ func RunInclusion(ctx context.Context, t *testing.T, tadmin trillian.TrillianAdm
 					t.Fatalf("GetLeaves(): %v", err)
 				}
 
-				if err := verifyGetMapLeavesResponse(mapVerifier, getResp, indexes, 1, tree.TreeId); err != nil {
+				if err := verifyGetMapLeavesResponse(mapVerifier, getResp, indexes, 1); err != nil {
 					t.Errorf("verifyGetMapLeavesResponse(): %v", err)
 				}
 			})
@@ -536,7 +540,7 @@ func runMapBatchTest(ctx context.Context, t *testing.T, desc string, tmap trilli
 			continue
 		}
 
-		if err := verifyGetMapLeavesResponse(mapVerifier, getResp, indexes, int64(numBatches), tree.TreeId); err != nil {
+		if err := verifyGetMapLeavesResponse(mapVerifier, getResp, indexes, int64(numBatches)); err != nil {
 			t.Errorf("%s: batch %v: verifyGetMapLeavesResponse(): %v", desc, i, err)
 			continue
 		}
