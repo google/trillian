@@ -108,9 +108,7 @@ func TestSignVerifyObject(t *testing.T) {
 		{meta1},
 
 		{&trillian.SignedMapRoot{}},
-		{&trillian.SignedMapRoot{
-			MapId: 0xcafe,
-		}},
+		{&trillian.SignedMapRoot{TimestampNanos: 0xcafe}},
 		{&trillian.SignedMapRoot{Metadata: meta}},
 		{&trillian.SignedMapRoot{Metadata: meta0}},
 		{&trillian.SignedMapRoot{Metadata: meta1}},

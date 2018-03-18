@@ -293,7 +293,6 @@ func (m *mapTreeTX) signedMapRoot(timestamp, mapRevision int64, rootHash, rootSi
 		TimestampNanos: timestamp,
 		MapRevision:    mapRevision,
 		Signature:      rootSignature,
-		MapId:          m.treeID,
 		Metadata:       mapperMetaBytes,
 	}
 

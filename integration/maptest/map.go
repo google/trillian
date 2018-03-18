@@ -86,9 +86,6 @@ func verifyGetSignedMapRootResponse(mapVerifier *client.MapVerifier, mapRoot *tr
 	if got, want := mapRoot.GetMapRevision(), wantRevision; got != want {
 		return fmt.Errorf("got SMR with revision %d, want %d", got, want)
 	}
-	if got, want := mapRoot.GetMapId(), wantTreeID; got != want {
-		return fmt.Errorf("got TreeID %d, want %d", got, want)
-	}
 	return mapVerifier.VerifySignedMapRoot(mapRoot)
 }
 

@@ -29,6 +29,7 @@ import (
 
 // MapVerifier verifies protos produced by the Trillian Map.
 type MapVerifier struct {
+	MapID int64
 	// Hasher is the hash strategy used to compute nodes in the Merkle tree.
 	Hasher hashers.MapHasher
 	// PubKey verifies the signature on the digest of MapRoot.
@@ -59,6 +60,7 @@ func NewMapVerifierFromTree(config *trillian.Tree) (*MapVerifier, error) {
 	}
 
 	return &MapVerifier{
+		MapID:   config.GetTreeId(),
 		Hasher:  mapHasher,
 		PubKey:  mapPubKey,
 		SigHash: sigHash,
@@ -71,8 +73,7 @@ func (m *MapVerifier) VerifyMapLeafInclusion(smr *trillian.SignedMapRoot, leafPr
 	leaf := leafProof.GetLeaf().GetLeafValue()
 	proof := leafProof.GetInclusion()
 	expectedRoot := smr.GetRootHash()
-	mapID := smr.GetMapId()
-	return merkle.VerifyMapInclusionProof(mapID, index, leaf, expectedRoot, proof, m.Hasher)
+	return merkle.VerifyMapInclusionProof(m.MapID, index, leaf, expectedRoot, proof, m.Hasher)
 }
 
 // VerifySignedMapRoot verifies the signature on the SignedMapRoot.

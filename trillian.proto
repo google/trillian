@@ -237,7 +237,7 @@ message SignedMapRoot {
   reserved 3;  // was MapperMetadata (removed, replaced by 'Any metadata').
 	// TODO(al): define serialized format for the signature scheme.
   sigpb.DigitallySigned signature = 4;
-  int64 map_id = 5;
+  reserved 5; // map_id is associated with the public key that validates signatures.
   int64 map_revision = 6;
   // Metadata associated with the Map root.  This is set by the map personality
   // layer in a SetLeaves map request.  It could be used to persist state

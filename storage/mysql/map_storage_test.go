@@ -464,7 +464,7 @@ func TestLatestSignedMapRootNoneWritten(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to read an empty map root: %v", err)
 		}
-		if root.MapId != 0 || len(root.RootHash) != 0 || root.Signature != nil {
+		if len(root.RootHash) != 0 || root.Signature != nil {
 			t.Fatalf("Read a root with contents when it should be empty: %v", root)
 		}
 		return nil
