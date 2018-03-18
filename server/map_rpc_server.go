@@ -248,12 +248,11 @@ func (t *TrillianMapServer) makeSignedMapRoot(ctx context.Context, tree *trillia
 	if err != nil {
 		return nil, fmt.Errorf("trees.Signer(): %v", err)
 	}
-	sig, err := signer.SignMapRoot(smr)
+	root, err := signer.SignMapRoot(smr)
 	if err != nil {
 		return nil, fmt.Errorf("SignMapRoot(): %v", err)
 	}
-	smr.Signature = sig
-	return smr, nil
+	return root, nil
 }
 
 // GetSignedMapRoot implements the GetSignedMapRoot RPC method.

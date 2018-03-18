@@ -145,18 +145,18 @@ func TestSignMapRoot(t *testing.T) {
 	}{
 		{root: trillian.SignedMapRoot{TimestampNanos: 2267709, RootHash: []byte("Islington"), MapRevision: 3}},
 	} {
-		sig, err := signer.SignMapRoot(&test.root)
+		smr, err := signer.SignMapRoot(&test.root)
 		if err != nil {
 			t.Errorf("Failed to sign map root: %v", err)
 			continue
 		}
-		if got := len(sig.Signature); got == 0 {
+		if got := len(smr.Signature.Signature); got == 0 {
 			t.Errorf("len(sig): %v, want > 0", got)
 		}
-		if got, want := sig.HashAlgorithm, sigpb.DigitallySigned_SHA256; got != want {
+		if got, want := smr.Signature.HashAlgorithm, sigpb.DigitallySigned_SHA256; got != want {
 			t.Errorf("Hash alg incorrect, got %s expected %s", got, want)
 		}
-		if got, want := sig.SignatureAlgorithm, sigpb.DigitallySigned_ECDSA; got != want {
+		if got, want := smr.Signature.SignatureAlgorithm, sigpb.DigitallySigned_ECDSA; got != want {
 			t.Errorf("Sig alg incorrect, got %s expected %s", got, want)
 		}
 		// Check that the signature is correct
@@ -170,7 +170,7 @@ func TestSignMapRoot(t *testing.T) {
 			t.Errorf("objecthash.CommonJSONHash err: %v want nil", err)
 			continue
 		}
-		if err := Verify(key.Public(), crypto.SHA256, hash[:], sig); err != nil {
+		if err := Verify(key.Public(), crypto.SHA256, hash[:], smr.Signature); err != nil {
 			t.Errorf("Verify(%v) failed: %v", test.root, err)
 		}
 	}
