@@ -19,12 +19,10 @@ import (
 	"crypto/ecdsa"
 	"crypto/rsa"
 	"encoding/asn1"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
 
-	"github.com/benlaurie/objecthash/go/objecthash"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/types"
@@ -58,21 +56,8 @@ func VerifySignedLogRoot(pub crypto.PublicKey, hash crypto.Hash, r *trillian.Sig
 }
 
 // VerifySignedMapRoot verifies the signature on the SignedMapRoot.
-func VerifySignedMapRoot(pub crypto.PublicKey, smr *trillian.SignedMapRoot) error {
-	return Verify(pub, smr.MapRoot, smr.Signature)
-}
-
-// VerifyObject verifies the output of Signer.SignObject.
-func VerifyObject(pub crypto.PublicKey, hash crypto.Hash, obj interface{}, sig *sigpb.DigitallySigned) error {
-	j, err := json.Marshal(obj)
-	if err != nil {
-		return err
-	}
-	digest, err := objecthash.CommonJSONHash(string(j))
-	if err != nil {
-		return fmt.Errorf("CommonJSONHash(%s): %v", j, err)
-	}
-	return Verify(pub, hash, digest[:], sig)
+func VerifySignedMapRoot(pub crypto.PublicKey, hash crypto.Hash, smr *trillian.SignedMapRoot) error {
+	return Verify(pub, hash, smr.MapRoot, smr.Signature)
 }
 
 // Verify cryptographically verifies the output of Signer.

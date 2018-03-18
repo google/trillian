@@ -156,7 +156,7 @@ func TestSignMapRoot(t *testing.T) {
 			t.Errorf("Sig alg incorrect, got %s expected %s", got, want)
 		}
 
-		if err := VerifySignedMapRoot(key.Public(), smr); err != nil {
+		if err := VerifySignedMapRoot(key.Public(), crypto.SHA256, smr); err != nil {
 			t.Errorf("Verify(%v) failed: %v", root, err)
 		}
 	}

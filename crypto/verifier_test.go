@@ -18,10 +18,8 @@ import (
 	"crypto"
 	"testing"
 
-	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/crypto/sigpb"
-	"github.com/google/trillian/examples/ct/ctmapper/ctmapperpb"
 	"github.com/google/trillian/testonly"
 )
 
@@ -81,54 +79,6 @@ func TestSignVerify(t *testing.T) {
 		err = Verify(key.Public(), crypto.SHA256, msg, signature)
 		if gotErr := err != nil; gotErr != test.wantVerifyErr {
 			t.Errorf("%s: Verify(,,)=%v, want err? %t", test.name, err, test.wantVerifyErr)
-		}
-	}
-}
-
-func TestSignVerifyObject(t *testing.T) {
-	key, err := pem.UnmarshalPrivateKey(testonly.DemoPrivateKey, testonly.DemoPrivateKeyPass)
-	if err != nil {
-		t.Fatalf("Failed to open test key, err=%v", err)
-	}
-	signer := NewSigner(0, key, crypto.SHA256)
-
-	type subfield struct {
-		c int
-	}
-
-	meta := testonly.MustMarshalAnyNoT(&ctmapperpb.MapperMetadata{})
-	meta0 := testonly.MustMarshalAnyNoT(&ctmapperpb.MapperMetadata{HighestFullyCompletedSeq: 0})
-	meta1 := testonly.MustMarshalAnyNoT(&ctmapperpb.MapperMetadata{HighestFullyCompletedSeq: 1})
-
-	for _, tc := range []struct {
-		obj interface{}
-	}{
-		{meta},
-		{meta0},
-		{meta1},
-
-		{&trillian.SignedMapRoot{}},
-		{&trillian.SignedMapRoot{TimestampNanos: 0xcafe}},
-		{&trillian.SignedMapRoot{Metadata: meta}},
-		{&trillian.SignedMapRoot{Metadata: meta0}},
-		{&trillian.SignedMapRoot{Metadata: meta1}},
-		{struct{ a string }{a: "foo"}},
-		{struct {
-			a int
-			b *subfield
-		}{a: 1, b: &subfield{c: 0}}},
-		{struct {
-			a int
-			b *subfield
-		}{a: 1, b: nil}},
-	} {
-		sig, err := signer.SignObject(tc.obj)
-		if err != nil {
-			t.Errorf("SignObject(%#v): %v", tc.obj, err)
-			continue
-		}
-		if err := VerifyObject(key.Public(), crypto.SHA256, tc.obj, sig); err != nil {
-			t.Errorf("SignObject(%#v): %v", tc.obj, err)
 		}
 	}
 }

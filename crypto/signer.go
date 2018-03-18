@@ -18,10 +18,7 @@ package crypto
 import (
 	"crypto"
 	"crypto/rand"
-	"encoding/json"
-	"fmt"
 
-	"github.com/benlaurie/objecthash/go/objecthash"
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/sigpb"
@@ -79,20 +76,6 @@ func (s *Signer) Sign(data []byte) (*sigpb.DigitallySigned, error) {
 		HashAlgorithm:      sigpbHashLookup[s.Hash],
 		Signature:          sig,
 	}, nil
-}
-
-// SignObject signs the requested object using ObjectHash.
-func (s *Signer) SignObject(obj interface{}) (*sigpb.DigitallySigned, error) {
-	// TODO(gbelvin): use objecthash.CommonJSONify
-	j, err := json.Marshal(obj)
-	if err != nil {
-		return nil, err
-	}
-	hash, err := objecthash.CommonJSONHash(string(j))
-	if err != nil {
-		return nil, fmt.Errorf("CommonJSONHash(%s): %v", j, err)
-	}
-	return s.Sign(hash[:])
 }
 
 // SignLogRoot returns a complete SignedLogRoot (including signature).
