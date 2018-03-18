@@ -15,7 +15,9 @@
 package mysql
 
 import (
+	"bytes"
 	"context"
+	"crypto"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -28,11 +30,23 @@ import (
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testdb"
 	"github.com/google/trillian/testonly"
+	"github.com/google/trillian/types"
 	"github.com/kylelemons/godebug/pretty"
 
+	tcrypto "github.com/google/trillian/crypto"
 	spb "github.com/google/trillian/crypto/sigpb"
 	storageto "github.com/google/trillian/storage/testonly"
 )
+
+var fixedSigner = tcrypto.NewSigner(0, testonly.NewSignerWithFixedSig(nil, []byte("notempty")), crypto.SHA256)
+
+func MustSignMapRoot(root *types.MapRootV1) *trillian.SignedMapRoot {
+	r, err := fixedSigner.SignMapRoot(root)
+	if err != nil {
+		panic(fmt.Sprintf("SignMapRoot(): %v", err))
+	}
+	return r
+}
 
 func TestMySQLMapStorage_CheckDatabaseAccessible(t *testing.T) {
 	if provider := testdb.Default(); !provider.IsMySQL() {
@@ -148,23 +162,27 @@ func TestMapReadWriteTransaction(t *testing.T) {
 			err := s.ReadWriteTransaction(ctx, test.tree, func(ctx context.Context, tx storage.MapTreeTX) error {
 				root, err := tx.LatestSignedMapRoot(ctx)
 				if err != nil && !strings.Contains(err.Error(), test.wantRootErr) {
-					t.Errorf("%v: LatestSignedMapRoot() returned err = %v", test.desc, err)
+					t.Errorf("LatestSignedMapRoot() returned err = %v", err)
 				}
 				if err == nil && len(test.wantRootErr) != 0 {
-					t.Errorf("%v: LatestSignedMapRoot() returned err = %v, want: nil", test.desc, err)
+					t.Errorf("LatestSignedMapRoot() returned err = %v, want: nil", err)
 				}
 				if err == nil {
-					if got, want := tx.WriteRevision(), test.wantTXRev; got != want {
-						t.Errorf("%v: WriteRevision() = %v, want = %v", test.desc, got, want)
+					var mapRoot types.MapRootV1
+					if err := mapRoot.UnmarshalBinary(root.MapRoot); err != nil {
+						t.Errorf("UmarshalBinary(): %v", err)
 					}
-					if got, want := root.MapRevision, test.wantRev; got != want {
-						t.Errorf("%v: TreeRevision() = %v, want = %v", test.desc, got, want)
+					if got, want := tx.WriteRevision(), test.wantTXRev; got != want {
+						t.Errorf("WriteRevision() = %v, want = %v", got, want)
+					}
+					if got, want := int64(mapRoot.Revision), test.wantRev; got != want {
+						t.Errorf("TreeRevision() = %v, want = %v", got, want)
 					}
 				}
 				return nil
 			})
 			if hasErr := err != nil; hasErr != test.wantErr {
-				t.Fatalf("%v: err = %q, wantErr = %v", test.desc, err, test.wantErr)
+				t.Fatalf("err = %q, wantErr = %v", err, test.wantErr)
 			} else if hasErr {
 				return
 			}
@@ -186,55 +204,47 @@ func TestMapRootUpdate(t *testing.T) {
 
 	for _, tc := range []struct {
 		desc         string
-		root         trillian.SignedMapRoot
+		root         *trillian.SignedMapRoot
 		wantMetadata []byte
 	}{
 		{
 			desc: "Initial root",
-			root: trillian.SignedMapRoot{
-				MapId:          tree.TreeId,
+			root: MustSignMapRoot(&types.MapRootV1{
 				TimestampNanos: 98765,
-				MapRevision:    5,
+				Revision:       5,
 				RootHash:       []byte(dummyHash),
-				Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
-			},
+			}),
 		},
 		{
 			desc: "Root update",
-			root: trillian.SignedMapRoot{
-				MapId:          tree.TreeId,
+			root: MustSignMapRoot(&types.MapRootV1{
 				TimestampNanos: 98766,
-				MapRevision:    6,
+				Revision:       6,
 				RootHash:       []byte(dummyHash),
-				Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
-			},
+			}),
 		},
 		{
 			desc: "Root with default (empty) MapperMetadata",
-			root: trillian.SignedMapRoot{
-				MapId:          tree.TreeId,
+			root: MustSignMapRoot(&types.MapRootV1{
 				TimestampNanos: 98768,
-				MapRevision:    7,
+				Revision:       7,
 				RootHash:       []byte(dummyHash),
-				Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
-			},
+			}),
 		},
 		{
 			desc: "Root with non-default (populated) MapperMetadata",
-			root: trillian.SignedMapRoot{
-				MapId:          tree.TreeId,
+			root: MustSignMapRoot(&types.MapRootV1{
 				TimestampNanos: 98769,
-				MapRevision:    8,
+				Revision:       8,
 				RootHash:       []byte(dummyHash),
-				Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
 				Metadata:       populatedMetadata,
-			},
+			}),
 			wantMetadata: populatedMetadata,
 		},
 	} {
 		func() {
 			runMapTX(ctx, s, tree, t, func(ctx context.Context, tx storage.MapTreeTX) error {
-				if err := tx.StoreSignedMapRoot(ctx, tc.root); err != nil {
+				if err := tx.StoreSignedMapRoot(ctx, *tc.root); err != nil {
 					t.Fatalf("%v: Failed to store signed map root: %v", tc.desc, err)
 				}
 				return nil
@@ -243,14 +253,17 @@ func TestMapRootUpdate(t *testing.T) {
 
 		func() {
 			runMapTX(ctx, s, tree, t, func(ctx context.Context, tx storage.MapTreeTX) error {
-				root, err := tx.LatestSignedMapRoot(ctx)
+				smr, err := tx.LatestSignedMapRoot(ctx)
 				if err != nil {
 					t.Fatalf("%v: Failed to read back new map root: %v", tc.desc, err)
 				}
 
-				want := proto.Clone(&tc.root).(*trillian.SignedMapRoot)
-				want.Metadata = tc.wantMetadata
-				if got := &root; !proto.Equal(got, want) {
+				var root types.MapRootV1
+				if err := root.UnmarshalBinary(smr.MapRoot); err != nil {
+					t.Fatalf("%v: UnmarshalBinary(): %v", tc.desc, err)
+				}
+
+				if got, want := root.Metadata, tc.wantMetadata; !bytes.Equal(got, want) {
 					t.Errorf("%v: LatestSignedMapRoot() diff(-got, +want) \n%v", tc.desc, pretty.Compare(got, want))
 				}
 				return nil
@@ -464,7 +477,7 @@ func TestLatestSignedMapRootNoneWritten(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to read an empty map root: %v", err)
 		}
-		if len(root.RootHash) != 0 || root.Signature != nil {
+		if len(root.MapRoot) != 0 || root.Signature != nil {
 			t.Fatalf("Read a root with contents when it should be empty: %v", root)
 		}
 		return nil

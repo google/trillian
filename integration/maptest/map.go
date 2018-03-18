@@ -81,8 +81,7 @@ func isEmptyMap(ctx context.Context, tmap trillian.TrillianMapClient, tree *tril
 	return nil
 }
 
-func verifyGetSignedMapRootResponse(mapVerifier *client.MapVerifier, mapRoot *trillian.SignedMapRoot,
-	wantRevision int64) error {
+func verifyGetSignedMapRootResponse(mapVerifier *client.MapVerifier, mapRoot *trillian.SignedMapRoot, wantRevision int64) error {
 	root, err := mapVerifier.VerifySignedMapRoot(mapRoot)
 	if err != nil {
 		return err
@@ -507,15 +506,13 @@ func runMapBatchTest(ctx context.Context, t *testing.T, desc string, tmap trilli
 	}
 
 	// Check your head
-	r, err := tmap.GetSignedMapRoot(ctx, &trillian.GetSignedMapRootRequest{
-		MapId: tree.TreeId,
-	})
+	r, err := tmap.GetSignedMapRoot(ctx, &trillian.GetSignedMapRootRequest{MapId: tree.TreeId})
 	if err != nil || r.MapRoot == nil {
 		t.Fatalf("%s: failed to get map head: %v", desc, err)
 	}
 
-	if got, want := r.MapRoot.MapRevision, int64(numBatches); got != want {
-		t.Fatalf("%s: got SMR with revision %d, want %d", desc, got, want)
+	if err := verifyGetSignedMapRootResponse(mapVerifier, r.GetMapRoot(), int64(numBatches)); err != nil {
+		t.Fatalf("%s: %v", desc, err)
 	}
 
 	// Shuffle the indexes. Map access is randomized.

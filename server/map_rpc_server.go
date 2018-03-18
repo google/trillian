@@ -105,7 +105,12 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 		root = &r
 	}
 
-	smtReader := merkle.NewSparseMerkleTreeReader(root.MapRevision, hasher, tx)
+	var mapRoot types.MapRootV1
+	if err := mapRoot.UnmarshalBinary(root.MapRoot); err != nil {
+		return nil, err
+	}
+
+	smtReader := merkle.NewSparseMerkleTreeReader(int64(mapRoot.Revision), hasher, tx)
 
 	inclusions := make([]*trillian.MapLeafInclusion, 0, len(indices))
 	found := 0
@@ -115,7 +120,7 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 				"index len(%x): %v, want %v", index, got, want)
 		}
 		// Fetch the leaf if it exists.
-		leaves, err := tx.Get(ctx, root.MapRevision, [][]byte{index})
+		leaves, err := tx.Get(ctx, int64(mapRoot.Revision), [][]byte{index})
 		if err != nil {
 			return nil, fmt.Errorf("could not fetch leaf %x: %v", index, err)
 		}
@@ -137,7 +142,7 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 		}
 
 		// Fetch the proof regardless of whether the leaf exists.
-		proof, err := smtReader.InclusionProof(ctx, root.MapRevision, index)
+		proof, err := smtReader.InclusionProof(ctx, int64(mapRoot.Revision), index)
 		if err != nil {
 			return nil, fmt.Errorf("could not get inclusion proof for leaf %x: %v", index, err)
 		}

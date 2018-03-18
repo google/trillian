@@ -30,6 +30,7 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/testonly"
+	"github.com/google/trillian/types"
 )
 
 const (
@@ -165,6 +166,16 @@ type MapConfig struct {
 func (c MapConfig) String() string {
 	return fmt.Sprintf("mapID:%d biases:{%v} #operations:%d emit every:%v ignoreErrors? %t checkSignatures? %t",
 		c.MapID, c.EPBias, c.Operations, c.EmitInterval, c.IgnoreErrors, c.CheckSignatures)
+}
+
+// CheckSignature verifies the signature and returns the map root contents.
+func CheckSignature(ctf *MapConfig, r *trillian.SignedMapRoot) (*types.MapRootV1, error) {
+	// TODO(gbelvin): verify signatures
+	var root types.MapRootV1
+	if err := root.UnmarshalBinary(r.GetMapRoot()); err != nil {
+		return nil, err
+	}
+	return &root, nil
 }
 
 // HitMap performs load/stress operations according to given config.
@@ -595,11 +606,16 @@ func (s *hammerState) doGetLeaves(ctx context.Context, latest bool) error {
 		dumpRespKeyVals(rsp.MapLeafInclusion)
 	}
 
+	root, err := CheckSignature(s.cfg, rsp.MapRoot)
+	if err != nil {
+		return err
+	}
+
 	// TODO(drysdale): verify inclusion
 	if err := s.checkContents(which, rsp.MapLeafInclusion); err != nil {
 		return fmt.Errorf("incorrect contents of %s(%+v): %v", label, rqMsg, err)
 	}
-	glog.V(2).Infof("%d: got %d leaves, with SMR(time=%q, rev=%d)", s.cfg.MapID, len(rsp.MapLeafInclusion), timeFromNanos(rsp.MapRoot.TimestampNanos), rsp.MapRoot.MapRevision)
+	glog.V(2).Infof("%d: got %d leaves, with SMR(time=%q, rev=%d)", s.cfg.MapID, len(rsp.MapLeafInclusion), timeFromNanos(root.TimestampNanos), root.Revision)
 	return nil
 }
 
@@ -705,12 +721,16 @@ leafloop:
 	if err != nil {
 		return fmt.Errorf("failed to set-leaves(%+v): %v", req, err)
 	}
-
-	s.pushSMR(rsp.MapRoot)
-	if err := s.updateContents(rsp.MapRoot.MapRevision, leaves); err != nil {
+	root, err := CheckSignature(s.cfg, rsp.MapRoot)
+	if err != nil {
 		return err
 	}
-	glog.V(2).Infof("%d: set %d leaves, new SMR(time=%q, rev=%d)", s.cfg.MapID, len(leaves), timeFromNanos(rsp.MapRoot.TimestampNanos), rsp.MapRoot.MapRevision)
+
+	s.pushSMR(rsp.MapRoot)
+	if err := s.updateContents(int64(root.Revision), leaves); err != nil {
+		return err
+	}
+	glog.V(2).Infof("%d: set %d leaves, new SMR(time=%q, rev=%d)", s.cfg.MapID, len(leaves), timeFromNanos(root.TimestampNanos), root.Revision)
 	return nil
 }
 
@@ -749,34 +769,46 @@ func (s *hammerState) getSMR(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to get-smr: %v", err)
 	}
+	root, err := CheckSignature(s.cfg, rsp.MapRoot)
+	if err != nil {
+		return err
+	}
 
-	// TODO(drysdale): check signature
 	s.pushSMR(rsp.MapRoot)
-	glog.V(2).Infof("%d: got SMR(time=%q, rev=%d)", s.cfg.MapID, timeFromNanos(rsp.MapRoot.TimestampNanos), rsp.MapRoot.MapRevision)
+	glog.V(2).Infof("%d: got SMR(time=%q, rev=%d)", s.cfg.MapID, timeFromNanos(root.TimestampNanos), root.Revision)
 	return nil
 }
 
 func (s *hammerState) getSMRRev(ctx context.Context) error {
 	which := rand.Intn(smrCount)
 	smr := s.previousSMR(which)
-	if smr == nil || smr.MapRevision < 0 {
+	if smr == nil || len(smr.MapRoot) == 0 {
 		glog.V(3).Infof("%d: skipping get-smr-rev as no earlier SMR", s.cfg.MapID)
 		return errSkip{}
 	}
-
-	req := trillian.GetSignedMapRootByRevisionRequest{MapId: s.cfg.MapID, Revision: smr.MapRevision}
-	rsp, err := s.cfg.Client.GetSignedMapRootByRevision(ctx, &req)
+	smrRoot, err := CheckSignature(s.cfg, smr)
 	if err != nil {
-		return fmt.Errorf("failed to get-smr-rev(@%d): %v", req.Revision, err)
+		return err
 	}
-	glog.V(2).Infof("%d: got SMR(time=%q, rev=%d)", s.cfg.MapID, timeFromNanos(rsp.MapRoot.TimestampNanos), rsp.MapRoot.MapRevision)
+	rev := int64(smrRoot.Revision)
+
+	rsp, err := s.cfg.Client.GetSignedMapRootByRevision(ctx,
+		&trillian.GetSignedMapRootByRevisionRequest{MapId: s.cfg.MapID, Revision: rev})
+	if err != nil {
+		return fmt.Errorf("failed to get-smr-rev(@%d): %v", rev, err)
+	}
+	root, err := CheckSignature(s.cfg, rsp.MapRoot)
+	if err != nil {
+		return err
+	}
+	glog.V(2).Infof("%d: got SMR(time=%q, rev=%d)", s.cfg.MapID, timeFromNanos(root.TimestampNanos), root.Revision)
 
 	if !s.cfg.CheckSignatures {
 		rsp.MapRoot.Signature = nil
 	}
 
 	if !proto.Equal(rsp.MapRoot, smr) {
-		return fmt.Errorf("get-smr-rev(@%d)=%+v, want %+v", req.Revision, rsp.MapRoot, smr)
+		return fmt.Errorf("get-smr-rev(@%d)=%+v, want %+v", rev, rsp.MapRoot, smr)
 	}
 	return nil
 }
@@ -806,15 +838,20 @@ func (s *hammerState) getSMRRevInvalid(ctx context.Context) error {
 	return nil
 }
 
-func timeFromNanos(nanos int64) time.Time {
-	return time.Unix(nanos/1e9, nanos%1e9)
+func timeFromNanos(nanos uint64) time.Time {
+	n := int64(nanos)
+	return time.Unix(n/1e9, n%1e9)
 }
 
 func smrRev(smr *trillian.SignedMapRoot) string {
 	if smr == nil {
 		return "n/a"
 	}
-	return fmt.Sprintf("%d", smr.MapRevision)
+	var root types.MapRootV1
+	if err := root.UnmarshalBinary(smr.MapRoot); err != nil {
+		return "unknown"
+	}
+	return fmt.Sprintf("%d", root.Revision)
 }
 
 func dehash(index []byte) string {
