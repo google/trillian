@@ -77,10 +77,5 @@ func (m *MapVerifier) VerifyMapLeafInclusion(smr *trillian.SignedMapRoot, leafPr
 
 // VerifySignedMapRoot verifies the signature on the SignedMapRoot.
 func (m *MapVerifier) VerifySignedMapRoot(smr *trillian.SignedMapRoot) error {
-	// SignedMapRoot contains its own signature. To verify, we need to create a local
-	// copy of the object and return the object to the state it was in when signed
-	// by removing the signature from the object.
-	orig := *smr
-	orig.Signature = nil // Remove the signature from the object to be verified.
-	return tcrypto.VerifyObject(m.PubKey, m.SigHash, orig, smr.GetSignature())
+	return tcrypto.VerifySignedMapRoot(m.PubKey, smr)
 }

@@ -16,11 +16,9 @@ package crypto
 
 import (
 	"crypto"
-	"encoding/json"
 	"errors"
 	"testing"
 
-	"github.com/benlaurie/objecthash/go/objecthash"
 	"github.com/golang/mock/gomock"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys/pem"
@@ -140,12 +138,10 @@ func TestSignMapRoot(t *testing.T) {
 	}
 	signer := NewSigner(0, key, crypto.SHA256)
 
-	for _, test := range []struct {
-		root trillian.SignedMapRoot
-	}{
-		{root: trillian.SignedMapRoot{TimestampNanos: 2267709, RootHash: []byte("Islington"), MapRevision: 3}},
+	for _, root := range []types.MapRootV1{
+		{TimestampNanos: 2267709, RootHash: []byte("Islington"), Revision: 3},
 	} {
-		smr, err := signer.SignMapRoot(&test.root)
+		smr, err := signer.SignMapRoot(&root)
 		if err != nil {
 			t.Errorf("Failed to sign map root: %v", err)
 			continue
@@ -159,19 +155,9 @@ func TestSignMapRoot(t *testing.T) {
 		if got, want := smr.Signature.SignatureAlgorithm, sigpb.DigitallySigned_ECDSA; got != want {
 			t.Errorf("Sig alg incorrect, got %s expected %s", got, want)
 		}
-		// Check that the signature is correct
-		j, err := json.Marshal(test.root)
-		if err != nil {
-			t.Errorf("json.Marshal err: %v want nil", err)
-			continue
-		}
-		hash, err := objecthash.CommonJSONHash(string(j))
-		if err != nil {
-			t.Errorf("objecthash.CommonJSONHash err: %v want nil", err)
-			continue
-		}
-		if err := Verify(key.Public(), crypto.SHA256, hash[:], smr.Signature); err != nil {
-			t.Errorf("Verify(%v) failed: %v", test.root, err)
+
+		if err := VerifySignedMapRoot(key.Public(), smr); err != nil {
+			t.Errorf("Verify(%v) failed: %v", root, err)
 		}
 	}
 }
