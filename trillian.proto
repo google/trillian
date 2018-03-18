@@ -232,17 +232,21 @@ message SignedLogRoot {
 
 // SignedMapRoot represents a commitment by a Map to a particular tree.
 message SignedMapRoot {
+  // Deprecated: Use map_root.
   int64 timestamp_nanos = 1;
+  // Deprecated: Use map_root.
   bytes root_hash = 2;
   reserved 3;  // was MapperMetadata (removed, replaced by 'Any metadata').
 	// TODO(al): define serialized format for the signature scheme.
   sigpb.DigitallySigned signature = 4;
   reserved 5; // map_id is associated with the public key that validates signatures.
+  // Deprecated: Use map_root.
   int64 map_revision = 6;
   // Metadata associated with the Map root.  This is set by the map personality
   // layer in a SetLeaves map request.  It could be used to persist state
   // needed to recreate the Map from an external data source.
   reserved 7;
+  // Deprecated: Use map_root.
   bytes metadata = 8;
 
   // map_root holds the TLS-serialization of the following

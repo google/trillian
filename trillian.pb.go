@@ -470,12 +470,16 @@ func (m *SignedLogRoot) GetKeyHint() []byte {
 
 // SignedMapRoot represents a commitment by a Map to a particular tree.
 type SignedMapRoot struct {
-	TimestampNanos int64  `protobuf:"varint,1,opt,name=timestamp_nanos,json=timestampNanos" json:"timestamp_nanos,omitempty"`
-	RootHash       []byte `protobuf:"bytes,2,opt,name=root_hash,json=rootHash,proto3" json:"root_hash,omitempty"`
+	// Deprecated: Use map_root.
+	TimestampNanos int64 `protobuf:"varint,1,opt,name=timestamp_nanos,json=timestampNanos" json:"timestamp_nanos,omitempty"`
+	// Deprecated: Use map_root.
+	RootHash []byte `protobuf:"bytes,2,opt,name=root_hash,json=rootHash,proto3" json:"root_hash,omitempty"`
 	// TODO(al): define serialized format for the signature scheme.
-	Signature   *sigpb.DigitallySigned `protobuf:"bytes,4,opt,name=signature" json:"signature,omitempty"`
-	MapRevision int64                  `protobuf:"varint,6,opt,name=map_revision,json=mapRevision" json:"map_revision,omitempty"`
-	Metadata    []byte                 `protobuf:"bytes,8,opt,name=metadata,proto3" json:"metadata,omitempty"`
+	Signature *sigpb.DigitallySigned `protobuf:"bytes,4,opt,name=signature" json:"signature,omitempty"`
+	// Deprecated: Use map_root.
+	MapRevision int64 `protobuf:"varint,6,opt,name=map_revision,json=mapRevision" json:"map_revision,omitempty"`
+	// Deprecated: Use map_root.
+	Metadata []byte `protobuf:"bytes,8,opt,name=metadata,proto3" json:"metadata,omitempty"`
 	// map_root holds the TLS-serialization of the following
 	// structure (described in RFC5246 notation):
 	// enum { v1(1), (65535)} Version;
