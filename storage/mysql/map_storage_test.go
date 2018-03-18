@@ -25,7 +25,6 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/examples/ct/ctmapper/ctmapperpb"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testdb"
@@ -34,7 +33,6 @@ import (
 	"github.com/kylelemons/godebug/pretty"
 
 	tcrypto "github.com/google/trillian/crypto"
-	spb "github.com/google/trillian/crypto/sigpb"
 	storageto "github.com/google/trillian/storage/testonly"
 )
 
@@ -495,15 +493,13 @@ func TestGetSignedMapRoot(t *testing.T) {
 	s := NewMapStorage(DB)
 
 	revision := int64(5)
-	root := trillian.SignedMapRoot{
-		MapId:          tree.TreeId,
+	root := MustSignMapRoot(&types.MapRootV1{
 		TimestampNanos: 98765,
-		MapRevision:    revision,
+		Revision:       uint64(revision),
 		RootHash:       []byte(dummyHash),
-		Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
-	}
+	})
 	runMapTX(ctx, s, tree, t, func(ctx context.Context, tx storage.MapTreeTX) error {
-		if err := tx.StoreSignedMapRoot(ctx, root); err != nil {
+		if err := tx.StoreSignedMapRoot(ctx, *root); err != nil {
 			t.Fatalf("Failed to store signed root: %v", err)
 		}
 		return nil
@@ -515,7 +511,7 @@ func TestGetSignedMapRoot(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to get back new map root: %v", err)
 			}
-			if !proto.Equal(&root, &root2) {
+			if !proto.Equal(root, &root2) {
 				t.Fatalf("Getting root round trip failed: <%#v> and: <%#v>", root, root2)
 			}
 			return nil
@@ -533,15 +529,13 @@ func TestLatestSignedMapRoot(t *testing.T) {
 	tree := createInitializedMapForTests(ctx, t, DB)
 	s := NewMapStorage(DB)
 
-	root := trillian.SignedMapRoot{
-		MapId:          tree.TreeId,
+	root := MustSignMapRoot(&types.MapRootV1{
 		TimestampNanos: 98765,
-		MapRevision:    5,
+		Revision:       5,
 		RootHash:       []byte(dummyHash),
-		Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
-	}
+	})
 	runMapTX(ctx, s, tree, t, func(ctx context.Context, tx storage.MapTreeTX) error {
-		if err := tx.StoreSignedMapRoot(ctx, root); err != nil {
+		if err := tx.StoreSignedMapRoot(ctx, *root); err != nil {
 			t.Fatalf("Failed to store signed root: %v", err)
 		}
 		return nil
@@ -553,7 +547,7 @@ func TestLatestSignedMapRoot(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to read back new map root: %v", err)
 			}
-			if !proto.Equal(&root, &root2) {
+			if !proto.Equal(root, &root2) {
 				t.Fatalf("Root round trip failed: <%#v> and: <%#v>", root, root2)
 			}
 			return nil
@@ -572,18 +566,16 @@ func TestDuplicateSignedMapRoot(t *testing.T) {
 	s := NewMapStorage(DB)
 
 	runMapTX(ctx, s, tree, t, func(ctx context.Context, tx storage.MapTreeTX) error {
-		root := trillian.SignedMapRoot{
-			MapId:          tree.TreeId,
+		root := MustSignMapRoot(&types.MapRootV1{
 			TimestampNanos: 98765,
-			MapRevision:    5,
+			Revision:       5,
 			RootHash:       []byte(dummyHash),
-			Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
-		}
-		if err := tx.StoreSignedMapRoot(ctx, root); err != nil {
+		})
+		if err := tx.StoreSignedMapRoot(ctx, *root); err != nil {
 			t.Fatalf("Failed to store signed map root: %v", err)
 		}
 		// Shouldn't be able to do it again
-		if err := tx.StoreSignedMapRoot(ctx, root); err == nil {
+		if err := tx.StoreSignedMapRoot(ctx, *root); err == nil {
 			t.Fatal("Allowed duplicate signed map root")
 		}
 		return nil
@@ -620,17 +612,13 @@ func createInitializedMapForTests(ctx context.Context, t *testing.T, db *sql.DB)
 
 	s := NewMapStorage(db)
 	err := s.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.MapTreeTX) error {
-		initialRoot := trillian.SignedMapRoot{
+		initialRoot := MustSignMapRoot(&types.MapRootV1{
 			RootHash: []byte("rootHash"),
-			Signature: &sigpb.DigitallySigned{
-				Signature: []byte("sig"),
-			},
-			MapId:       tree.TreeId,
-			MapRevision: 0,
-		}
+			Revision: 0,
+		})
 
-		if err := tx.StoreSignedMapRoot(ctx, initialRoot); err != nil {
-			t.Fatalf("%v: Failed to StoreSignedMapRoot: %v", tree.TreeId, err)
+		if err := tx.StoreSignedMapRoot(ctx, *initialRoot); err != nil {
+			t.Fatalf("Failed to StoreSignedMapRoot: %v", err)
 		}
 		return nil
 	})

@@ -305,12 +305,8 @@ func (m *mapTreeTX) signedMapRoot(timestamp, mapRevision int64, rootHash, rootSi
 	}
 
 	return trillian.SignedMapRoot{
-		MapRoot:        mapRoot,
-		RootHash:       rootHash,
-		TimestampNanos: timestamp,
-		MapRevision:    mapRevision,
-		Signature:      rootSignature,
-		Metadata:       mapperMetaBytes,
+		MapRoot:   mapRoot,
+		Signature: rootSignature,
 	}, nil
 }
 

@@ -232,22 +232,13 @@ message SignedLogRoot {
 
 // SignedMapRoot represents a commitment by a Map to a particular tree.
 message SignedMapRoot {
-  // Deprecated: Use map_root.
-  int64 timestamp_nanos = 1;
-  // Deprecated: Use map_root.
-  bytes root_hash = 2;
-  reserved 3;  // was MapperMetadata (removed, replaced by 'Any metadata').
-	// TODO(al): define serialized format for the signature scheme.
-  sigpb.DigitallySigned signature = 4;
-  reserved 5; // map_id is associated with the public key that validates signatures.
-  // Deprecated: Use map_root.
-  int64 map_revision = 6;
-  // Metadata associated with the Map root.  This is set by the map personality
-  // layer in a SetLeaves map request.  It could be used to persist state
-  // needed to recreate the Map from an external data source.
-  reserved 7;
-  // Deprecated: Use map_root.
-  bytes metadata = 8;
+  reserved 1; // Deprecated: Was timestamp_nanos. Use map_root.
+  reserved 2; // Deprecated: Was root_hash. Use map_root.
+  reserved 3; // Deprecated: Was MapperMetadata. Use map_root.
+  reserved 5; // Deprecated: Was map_id. Use signature.
+  reserved 6; // Deprecated: Was map_revision. Use map_root.
+  reserved 7; // Deprecated: Was metadata Any. Use map_root.
+  reserved 8; // Deprecated: Was metadata bytes. Use map_root.
 
   // map_root holds the TLS-serialization of the following
   // structure (described in RFC5246 notation):
@@ -265,4 +256,6 @@ message SignedMapRoot {
   //   }
   // } MapRoot;
   bytes map_root = 9;
+  // TODO(al): define serialized format for the signature scheme.
+  sigpb.DigitallySigned signature = 4;
 }

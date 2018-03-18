@@ -115,11 +115,7 @@ func (s *Signer) SignMapRoot(r *types.MapRootV1) (*trillian.SignedMapRoot, error
 	}
 
 	return &trillian.SignedMapRoot{
-		TimestampNanos: int64(r.TimestampNanos),
-		RootHash:       r.RootHash,
-		MapRevision:    int64(r.Revision),
-		Metadata:       r.Metadata,
-		MapRoot:        rootBytes,
-		Signature:      signature,
+		MapRoot:   rootBytes,
+		Signature: signature,
 	}, nil
 }
