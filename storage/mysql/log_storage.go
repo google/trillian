@@ -566,6 +566,7 @@ func (t *logTreeTX) GetLeavesByIndex(ctx context.Context, leaves []int64) ([]*tr
 }
 
 func (t *logTreeTX) GetLeavesByRange(ctx context.Context, start, count int64) ([]*trillian.LogLeaf, error) {
+	// TODO(pavelkalinnikov): Clip `count`, for example to max(count, 64k).
 	if count <= 0 {
 		return nil, fmt.Errorf("invalid count %d", count)
 	}
@@ -581,8 +582,7 @@ func (t *logTreeTX) GetLeavesByRange(ctx context.Context, start, count int64) ([
 	defer rows.Close()
 
 	ret := make([]*trillian.LogLeaf, 0, count)
-	wantIndex := start
-	for rows.Next() {
+	for wantIndex := start; rows.Next(); wantIndex++ {
 		leaf := &trillian.LogLeaf{}
 		var qTimestamp, iTimestamp int64
 		if err := rows.Scan(
@@ -597,7 +597,7 @@ func (t *logTreeTX) GetLeavesByRange(ctx context.Context, start, count int64) ([
 			return nil, err
 		}
 		if leaf.LeafIndex != wantIndex {
-			return nil, fmt.Errorf("got unexpected index %d, want %d", leaf.LeafIndex, wantIndex)
+			break
 		}
 		var err error
 		leaf.QueueTimestamp, err = ptypes.TimestampProto(time.Unix(0, qTimestamp))
@@ -609,11 +609,10 @@ func (t *logTreeTX) GetLeavesByRange(ctx context.Context, start, count int64) ([
 			return nil, fmt.Errorf("got invalid integrate timestamp: %v", err)
 		}
 		ret = append(ret, leaf)
-		wantIndex++
 	}
 
 	if len(ret) == 0 {
-		return nil, status.Errorf(codes.InvalidArgument, "no leaves found in range [%d, %d+%d)", start, start, count)
+		return nil, status.Errorf(codes.InvalidArgument, "no contiguous prefix of leaves found in [%d, %d+%d)", start, start, count)
 	}
 	return ret, nil
 }

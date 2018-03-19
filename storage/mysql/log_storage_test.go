@@ -796,7 +796,8 @@ func TestGetLeavesByRange(t *testing.T) {
 		{start: 0, count: 2, want: []int64{0, 1}},
 		{start: 1, count: 3, want: []int64{1, 2, 3}},
 		{start: 10, count: 7, want: []int64{10, 11, 12, 13}},
-		{start: 3, count: 5, wantErr: true}, // hits non-contiguous leaves
+		{start: 3, count: 5, want: []int64{3, 4}}, // Hits non-contiguous leaves.
+		{start: 5, count: 5, wantErr: true},       // Starts from a missing leaf.
 		{start: 1, count: 0, wantErr: true},
 		{start: -1, count: 1, wantErr: true},
 		{start: 1, count: -1, wantErr: true},
