@@ -138,19 +138,19 @@ func (s Sequencer) buildMerkleTreeFromStorageAtRoot(ctx context.Context, root tr
 	mt, err := merkle.NewCompactMerkleTreeWithState(s.hasher, root.TreeSize, func(depth int, index int64) ([]byte, error) {
 		nodeID, err := storage.NewNodeIDForTreeCoords(int64(depth), index, maxTreeDepth)
 		if err != nil {
-			glog.Warningf("%v: Failed to create nodeID: %v", s.signer.KeyID, err)
+			glog.Warningf("%x: Failed to create nodeID: %v", s.signer.KeyHint, err)
 			return nil, err
 		}
 		nodes, err := tx.GetMerkleNodes(ctx, root.TreeRevision, []storage.NodeID{nodeID})
 
 		if err != nil {
-			glog.Warningf("%v: Failed to get Merkle nodes: %v", s.signer.KeyID, err)
+			glog.Warningf("%x: Failed to get Merkle nodes: %v", s.signer.KeyHint, err)
 			return nil, err
 		}
 
 		// We expect to get exactly one node here
 		if nodes == nil || len(nodes) != 1 {
-			return nil, fmt.Errorf("%v: Did not retrieve one node while loading CompactMerkleTree, got %#v for ID %v@%v", s.signer.KeyID, nodes, nodeID.String(), root.TreeRevision)
+			return nil, fmt.Errorf("%x: Did not retrieve one node while loading CompactMerkleTree, got %#v for ID %v@%v", s.signer.KeyHint, nodes, nodeID.String(), root.TreeRevision)
 		}
 
 		return nodes[0].Hash, nil

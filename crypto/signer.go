@@ -35,21 +35,22 @@ var sigpbHashLookup = map[crypto.Hash]sigpb.DigitallySigned_HashAlgorithm{
 // Signer is responsible for signing log-related data and producing the appropriate
 // application specific signature objects.
 type Signer struct {
-	KeyID  int64
-	Hash   crypto.Hash
-	Signer crypto.Signer
+	KeyHint []byte
+	Hash    crypto.Hash
+	Signer  crypto.Signer
 }
 
-// NewSigner returns a new annotated signer.
-func NewSigner(LogID int64, signer crypto.Signer, hash crypto.Hash) *Signer {
+// NewSigner returns a new signer. The signer will set the KeyHint field, when available, with KeyID.
+func NewSigner(keyID int64, signer crypto.Signer, hash crypto.Hash) *Signer {
 	return &Signer{
-		KeyID:  LogID,
-		Hash:   hash,
-		Signer: signer,
+		KeyHint: types.SerializeKeyHint(keyID),
+		Hash:    hash,
+		Signer:  signer,
 	}
 }
 
-// NewSHA256Signer creates a new SHA256 based Signer.
+// NewSHA256Signer creates a new SHA256 based Signer and a KeyID of 0.
+// TODO(gbelvin): remove
 func NewSHA256Signer(signer crypto.Signer) *Signer {
 	return &Signer{
 		Hash:   crypto.SHA256,
@@ -108,7 +109,7 @@ func (s *Signer) SignLogRoot(r *types.LogRootV1) (*trillian.SignedLogRoot, error
 	}
 	signature, err := s.Sign(hash)
 	if err != nil {
-		glog.Warningf("%v: signer failed to sign log root: %v", s.KeyID, err)
+		glog.Warningf("%v: signer failed to sign log root: %v", s.KeyHint, err)
 		return nil, err
 	}
 
@@ -121,7 +122,7 @@ func (s *Signer) SignLogRoot(r *types.LogRootV1) (*trillian.SignedLogRoot, error
 func (s *Signer) SignMapRoot(root *trillian.SignedMapRoot) (*sigpb.DigitallySigned, error) {
 	signature, err := s.SignObject(root)
 	if err != nil {
-		glog.Warningf("%v: signer failed to sign map root: %v", s.KeyID, err)
+		glog.Warningf("%v: signer failed to sign map root: %v", s.KeyHint, err)
 		return nil, err
 	}
 
