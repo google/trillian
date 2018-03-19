@@ -147,25 +147,22 @@ func (c *LogClient) getLatestRoot(ctx context.Context, trusted *types.LogRootV1)
 
 	// TODO(gbelvin): Turn on root verification.
 	// Temporary hack while some implementations don't store digital signatures.
-	r := resp.GetSignedLogRoot()
-	slr := &types.LogRootV1{
-		TreeSize:       uint64(r.TreeSize),
-		RootHash:       r.RootHash,
-		TimestampNanos: uint64(r.TimestampNanos),
-		Revision:       uint64(r.TreeRevision),
+	var logRoot types.LogRootV1
+	if err := logRoot.UnmarshalBinary(resp.GetSignedLogRoot().LogRoot); err != nil {
+		return nil, err
 	}
 	/*
-		slr, err := c.VerifyRoot(&types.LogRootV1{}, resp.GetSignedLogRoot(), nil)
+		logRoot, err := c.VerifyRoot(&types.LogRootV1{}, resp.GetSignedLogRoot(), nil)
 		if err != nil {
 			return nil, err
 		}
 	*/
 
 	if trusted.TreeSize > 0 &&
-		slr.TreeSize == trusted.TreeSize &&
-		bytes.Equal(slr.RootHash, trusted.RootHash) {
+		logRoot.TreeSize == trusted.TreeSize &&
+		bytes.Equal(logRoot.RootHash, trusted.RootHash) {
 		// Tree has not been updated.
-		return slr, nil
+		return &logRoot, nil
 	}
 	// Fetch a consistency proof if this isn't the first root we've seen.
 	var consistency *trillian.GetConsistencyProofResponse
@@ -175,7 +172,7 @@ func (c *LogClient) getLatestRoot(ctx context.Context, trusted *types.LogRootV1)
 			&trillian.GetConsistencyProofRequest{
 				LogId:          c.LogID,
 				FirstTreeSize:  int64(trusted.TreeSize),
-				SecondTreeSize: int64(slr.TreeSize),
+				SecondTreeSize: int64(logRoot.TreeSize),
 			})
 		if err != nil {
 			return nil, err
@@ -183,13 +180,13 @@ func (c *LogClient) getLatestRoot(ctx context.Context, trusted *types.LogRootV1)
 	}
 
 	// Verify root update if the tree / the latest signed log root isn't empty.
-	if slr.TreeSize > 0 {
+	if logRoot.TreeSize > 0 {
 		if _, err := c.VerifyRoot(trusted, resp.GetSignedLogRoot(),
 			consistency.GetProof().GetHashes()); err != nil {
 			return nil, err
 		}
 	}
-	return slr, nil
+	return &logRoot, nil
 }
 
 // UpdateRoot retrieves the current SignedLogRoot, verifying it against roots this client has
