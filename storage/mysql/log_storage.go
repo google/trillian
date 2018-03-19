@@ -611,9 +611,7 @@ func (t *logTreeTX) GetLeavesByRange(ctx context.Context, start, count int64) ([
 		ret = append(ret, leaf)
 	}
 
-	if len(ret) == 0 {
-		return nil, status.Errorf(codes.InvalidArgument, "no contiguous prefix of leaves found in [%d, %d+%d)", start, start, count)
-	}
+	// Note: Empty ret is not an error.
 	return ret, nil
 }
 
