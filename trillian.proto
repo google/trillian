@@ -242,5 +242,6 @@ message SignedMapRoot {
   // Metadata associated with the Map root.  This is set by the map personality
   // layer in a SetLeaves map request.  It could be used to persist state
   // needed to recreate the Map from an external data source.
-  google.protobuf.Any metadata = 7;
+  reserved 7;
+  bytes metadata = 8;
 }
