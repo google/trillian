@@ -73,8 +73,11 @@ func (m *MapVerifier) VerifyMapLeafInclusion(smr *trillian.SignedMapRoot, leafPr
 	index := leafProof.GetLeaf().GetIndex()
 	leaf := leafProof.GetLeaf().GetLeafValue()
 	proof := leafProof.GetInclusion()
-	expectedRoot := smr.GetRootHash()
-	return merkle.VerifyMapInclusionProof(m.MapID, index, leaf, expectedRoot, proof, m.Hasher)
+	root, err := m.VerifySignedMapRoot(smr)
+	if err != nil {
+		return err
+	}
+	return merkle.VerifyMapInclusionProof(m.MapID, index, leaf, root.RootHash, proof, m.Hasher)
 }
 
 // VerifySignedMapRoot verifies the signature on the SignedMapRoot.

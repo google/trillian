@@ -28,6 +28,7 @@ import (
 	"github.com/google/trillian/client"
 	"github.com/google/trillian/examples/ct/ctmapper/ctmapperpb"
 	"github.com/google/trillian/testonly"
+	"github.com/google/trillian/types"
 
 	stestonly "github.com/google/trillian/storage/testonly"
 )
@@ -68,14 +69,17 @@ func createBatchLeaves(batch, n int) []*trillian.MapLeaf {
 }
 
 func isEmptyMap(ctx context.Context, tmap trillian.TrillianMapClient, tree *trillian.Tree) error {
-	r, err := tmap.GetSignedMapRoot(ctx, &trillian.GetSignedMapRootRequest{
-		MapId: tree.TreeId,
-	})
+	r, err := tmap.GetSignedMapRoot(ctx, &trillian.GetSignedMapRootRequest{MapId: tree.TreeId})
 	if err != nil {
 		return fmt.Errorf("failed to get empty map head: %v", err)
 	}
 
-	if got, want := r.GetMapRoot().GetMapRevision(), int64(0); got != want {
+	var mapRoot types.MapRootV1
+	if err := mapRoot.UnmarshalBinary(r.GetMapRoot().GetMapRoot()); err != nil {
+		return err
+	}
+
+	if got, want := mapRoot.Revision, uint64(0); got != want {
 		return fmt.Errorf("got SMR with revision %d, want %d", got, want)
 	}
 	return nil
@@ -318,14 +322,13 @@ func RunLeafHistory(ctx context.Context, t *testing.T, tadmin trillian.TrillianA
 				}
 
 				for _, batch := range tc.set {
-					setResp, err := tmap.SetLeaves(ctx, &trillian.SetMapLeavesRequest{
+					_, err := tmap.SetLeaves(ctx, &trillian.SetMapLeavesRequest{
 						MapId:  tree.TreeId,
 						Leaves: batch,
 					})
 					if err != nil {
 						t.Fatalf("SetLeaves(): %v", err)
 					}
-					glog.Infof("Rev: %v Set(): %x", setResp.GetMapRoot().GetMapRevision(), setResp.GetMapRoot().GetRootHash())
 				}
 
 				for _, batch := range tc.get {
@@ -339,7 +342,6 @@ func RunLeafHistory(ctx context.Context, t *testing.T, tadmin trillian.TrillianA
 						t.Errorf("GetLeavesByRevision(rev: %d)=_, err %v want nil", batch.revision, err)
 						continue
 					}
-					glog.Infof("Rev: %v Get(): %x", getResp.GetMapRoot().GetMapRevision(), getResp.GetMapRoot().GetRootHash())
 
 					if got, want := len(getResp.GetMapLeafInclusion()), 1; got < want {
 						t.Errorf("GetLeavesByRevision(rev: %v).len: %v, want >= %v", batch.revision, got, want)

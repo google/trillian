@@ -31,33 +31,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-const (
-	mapID1 = int64(1)
-)
-
-var (
-	signedMapRootID1Rev0 = trillian.SignedMapRoot{
-		TimestampNanos: 1508235889834964600,
-		RootHash:       []byte("\306h\237\020\201*\t\200\227m\2253\3308u(!f\025\225g\3545\025W\026\301A:\365=j"),
-		Signature: &sigpb.DigitallySigned{
-			HashAlgorithm:      sigpb.DigitallySigned_SHA256,
-			SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
-			Signature:          []byte("0F\002!\000\307b\255\223\353\23615&\022\263\323\341\342+\276\274$\rX?\366\014U\362\006\376\0269rcm\002!\000\241*\255\220\301\263D\033\275\374\340A\377\337\354\202\331%au\3179\000O\r9\237\302\021\r\363\263"),
-		},
-		MapRevision: 0,
-	}
-
-	signedMapRootID1Rev1 = trillian.SignedMapRoot{
-		TimestampNanos: 1508235889834964600,
-		RootHash:       []byte("\306h\237\020\201*\t\200\227m\2253\3308u(!f\025\225g\3545\025W\026\301A:\365=j"),
-		Signature: &sigpb.DigitallySigned{
-			HashAlgorithm:      sigpb.DigitallySigned_SHA256,
-			SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
-			Signature:          []byte("0F\002!\000\307b\255\223\353\23615&\022\263\323\341\342+\276\274$\rX?\366\014U\362\006\376\0269rcm\002!\000\241*\255\220\301\263D\033\275\374\340A\377\337\354\202\331%au\3179\000O\r9\237\302\021\r\363\263"),
-		},
-		MapRevision: 1,
-	}
-)
+const mapID1 = int64(1)
 
 func TestIsHealthy(t *testing.T) {
 	ctrl := gomock.NewController(t)
@@ -112,7 +86,7 @@ func TestInitMap(t *testing.T) {
 				mockTX.EXPECT().LatestSignedMapRoot(gomock.Any()).Return(trillian.SignedMapRoot{}, tc.getRootErr)
 			} else {
 				mockTX.EXPECT().LatestSignedMapRoot(gomock.Any()).Return(
-					trillian.SignedMapRoot{RootHash: tc.root}, nil)
+					trillian.SignedMapRoot{MapRoot: tc.root}, nil)
 			}
 
 			mockTX.EXPECT().IsOpen().AnyTimes().Return(false)
@@ -192,14 +166,26 @@ func TestGetSignedMapRoot(t *testing.T) {
 		snapShErr, lsmrErr error
 	}{
 		{
-			desc:    "Map is empty, head at revision 0",
-			req:     &trillian.GetSignedMapRootRequest{MapId: mapID1},
-			mapRoot: signedMapRootID1Rev0,
+			desc: "Map is empty, head at revision 0",
+			req:  &trillian.GetSignedMapRootRequest{MapId: mapID1},
+			mapRoot: trillian.SignedMapRoot{
+				Signature: &sigpb.DigitallySigned{
+					HashAlgorithm:      sigpb.DigitallySigned_SHA256,
+					SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
+					Signature:          []byte("notempty"),
+				},
+			},
 		},
 		{
-			desc:    "Map has leaves, head > revision 0",
-			req:     &trillian.GetSignedMapRootRequest{MapId: mapID1},
-			mapRoot: signedMapRootID1Rev1,
+			desc: "Map has leaves, head > revision 0",
+			req:  &trillian.GetSignedMapRootRequest{MapId: mapID1},
+			mapRoot: trillian.SignedMapRoot{
+				Signature: &sigpb.DigitallySigned{
+					HashAlgorithm:      sigpb.DigitallySigned_SHA256,
+					SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
+					Signature:          []byte("notempty2"),
+				},
+			},
 		},
 		{
 			desc:    "LatestSignedMapRoot returns error",
@@ -310,9 +296,15 @@ func TestGetSignedMapRootByRevision(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			desc:    "Request revision >0 for non-empty map",
-			req:     &trillian.GetSignedMapRootByRevisionRequest{MapId: mapID1, Revision: 1},
-			mapRoot: signedMapRootID1Rev1,
+			desc: "Request revision >0 for non-empty map",
+			req:  &trillian.GetSignedMapRootByRevisionRequest{MapId: mapID1, Revision: 1},
+			mapRoot: trillian.SignedMapRoot{
+				Signature: &sigpb.DigitallySigned{
+					HashAlgorithm:      sigpb.DigitallySigned_SHA256,
+					SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
+					Signature:          []byte("0F\002!\000\307b\255\223\353\23615&\022\263\323\341\342+\276\274$\rX?\366\014U\362\006\376\0269rcm\002!\000\241*\255\220\301\263D\033\275\374\340A\377\337\354\202\331%au\3179\000O\r9\237\302\021\r\363\263"),
+				},
+			},
 		},
 	}
 

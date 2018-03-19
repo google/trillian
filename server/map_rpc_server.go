@@ -355,7 +355,7 @@ func (t *TrillianMapServer) InitMap(ctx context.Context, req *trillian.InitMapRe
 			return status.Errorf(codes.FailedPrecondition, "LatestSignedMapRoot(): %v", err)
 		}
 		// Belt and braces check.
-		if latestRoot.GetRootHash() != nil {
+		if latestRoot.GetMapRoot() != nil {
 			return status.Errorf(codes.AlreadyExists, "map is already initialised")
 		}
 
