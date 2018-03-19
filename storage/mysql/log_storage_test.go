@@ -352,6 +352,99 @@ func TestQueueLeaves(t *testing.T) {
 	}
 }
 
+// AddSequencedLeaves tests. ---------------------------------------------------
+
+type addSequencedLeavesTest struct {
+	t     *testing.T
+	logID int64
+	s     storage.LogStorage
+	tree  *trillian.Tree
+}
+
+func initAddSequencedLeavesTest(t *testing.T) addSequencedLeavesTest {
+	cleanTestDB(DB)
+	logID := createPreorderedLogForTests(DB)
+	s := NewLogStorage(DB, nil)
+	tree := logTree(logID)
+	tree.TreeType = trillian.TreeType_PREORDERED_LOG
+	return addSequencedLeavesTest{t, logID, s, tree}
+}
+
+func (t *addSequencedLeavesTest) addSequencedLeaves(leaves []*trillian.LogLeaf) {
+	runLogTX(t.s, t.tree, t.t, func(ctx context.Context, tx storage.LogTreeTX) error {
+		if _, err := tx.AddSequencedLeaves(ctx, leaves); err != nil {
+			t.t.Fatalf("Failed to add sequenced leaves: %v", err)
+		}
+		// TODO(pavelkalinnikov): Verify returned status for each leaf.
+		return nil
+	})
+}
+
+func (t *addSequencedLeavesTest) verifySequencedLeaves(start, count int64, exp []*trillian.LogLeaf) {
+	var stored []*trillian.LogLeaf
+	runLogTX(t.s, t.tree, t.t, func(ctx context.Context, tx storage.LogTreeTX) error {
+		var err error
+		stored, err = tx.GetLeavesByRange(ctx, start, count)
+		if err != nil {
+			t.t.Fatalf("Failed to read sequenced leaves: %v", err)
+		}
+		return nil
+	})
+	if got, want := len(stored), len(exp); got != want {
+		t.t.Fatalf("Unexpected number of leaves: got %d, want %d", got, want)
+	}
+
+	for i, leaf := range stored {
+		if got, want := leaf.LeafIndex, exp[i].LeafIndex; got != want {
+			t.t.Fatalf("Leaf #%d: LeafIndex=%v, want %v", i, got, want)
+		}
+		if got, want := leaf.LeafIdentityHash, exp[i].LeafIdentityHash; !bytes.Equal(got, want) {
+			t.t.Fatalf("Leaf #%d: LeafIdentityHash=%v, want %v", i, got, want)
+		}
+	}
+}
+
+func TestAddSequencedLeavesUnordered(t *testing.T) {
+	const chunk = leavesToInsert
+	const count = chunk * 5
+	const extraCount = 16
+	leaves := createTestLeaves(count, 0)
+
+	aslt := initAddSequencedLeavesTest(t)
+	for _, idx := range []int{1, 0, 4, 2} {
+		aslt.addSequencedLeaves(leaves[chunk*idx : chunk*(idx+1)])
+	}
+	aslt.verifySequencedLeaves(0, count+extraCount, leaves[:chunk*3])
+	aslt.verifySequencedLeaves(chunk*4, chunk+extraCount, leaves[chunk*4:count])
+	aslt.addSequencedLeaves(leaves[chunk*3 : chunk*4])
+	aslt.verifySequencedLeaves(0, count+extraCount, leaves)
+}
+
+func TestAddSequencedLeavesWithDuplicates(t *testing.T) {
+	leaves := createTestLeaves(6, 0)
+
+	aslt := initAddSequencedLeavesTest(t)
+	aslt.addSequencedLeaves(leaves[:3])
+	aslt.verifySequencedLeaves(0, 3, leaves[:3])
+	aslt.addSequencedLeaves(leaves[2:]) // Full dup.
+	aslt.verifySequencedLeaves(0, 6, leaves)
+
+	dupLeaves := createTestLeaves(4, 6)
+	dupLeaves[0].LeafIdentityHash = leaves[0].LeafIdentityHash // Hash dup.
+	dupLeaves[2].LeafIndex = 2                                 // Index dup.
+	aslt.addSequencedLeaves(dupLeaves)
+	aslt.verifySequencedLeaves(6, 4, nil)
+	aslt.verifySequencedLeaves(7, 4, dupLeaves[1:2])
+	aslt.verifySequencedLeaves(8, 4, nil)
+	aslt.verifySequencedLeaves(9, 4, dupLeaves[3:4])
+
+	dupLeaves = createTestLeaves(4, 6)
+	aslt.addSequencedLeaves(dupLeaves)
+	aslt.verifySequencedLeaves(6, 4, dupLeaves)
+}
+
+// -----------------------------------------------------------------------------
+
 func TestDequeueLeavesNoneQueued(t *testing.T) {
 	cleanTestDB(DB)
 	logID := createLogForTests(DB)

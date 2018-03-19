@@ -249,9 +249,12 @@ func createMapForTests(db *sql.DB) int64 {
 	return tree.TreeId
 }
 
-// createLogForTests creates a log-type tree for tests. Returns the treeID of the new tree.
-func createLogForTests(db *sql.DB) int64 {
-	tree, err := createTree(db, storageto.LogTree)
+func createLogForTestsImpl(db *sql.DB, preordered bool) int64 {
+	tree := storageto.LogTree
+	if preordered {
+		tree = storageto.PreorderedLogTree
+	}
+	tree, err := createTree(db, tree)
 	if err != nil {
 		panic(fmt.Sprintf("Error creating log: %v", err))
 	}
@@ -271,6 +274,15 @@ func createLogForTests(db *sql.DB) int64 {
 		panic(fmt.Sprintf("ReadWriteTransaction() = %v", err))
 	}
 	return tree.TreeId
+}
+
+// createLogForTests creates a log-type tree for tests. Returns the treeID of the new tree.
+func createLogForTests(db *sql.DB) int64 {
+	return createLogForTestsImpl(db, false)
+}
+
+func createPreorderedLogForTests(db *sql.DB) int64 {
+	return createLogForTestsImpl(db, true)
 }
 
 // createTree creates the specified tree using AdminStorage.
