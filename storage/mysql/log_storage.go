@@ -517,6 +517,17 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 	res := make([]*trillian.QueuedLogLeaf, len(leaves))
 	ok := status.New(codes.OK, "OK").Proto()
 
+	// Leaves in this transaction are inserted in two tables. For each leaf, if
+	// one of the two inserts fails, we remove the side effect by rolling back to
+	// a savepoint installed before the first insert.
+	const savepoint = "SAVEPOINT AddSequencedLeaves"
+	if _, err := t.tx.ExecContext(ctx, savepoint); err != nil {
+		glog.Errorf("Error adding savepoint: %s", err)
+		return nil, err
+	}
+	// TODO(pavelkalinnikov): Consider performance implication of executing this
+	// extra SAVEPOINT, especially for 1-entry batches. Optimize if necessary.
+
 	// Note: Leaves are sorted by LeafIndex, so no deterministic reordering is
 	// necessary to avoid deadlocks.
 	for i, leaf := range leaves {
@@ -525,20 +536,26 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 			return nil, status.Errorf(codes.FailedPrecondition, "leaves[%d] has incorrect hash size %d, want %d", i, got, want)
 		}
 
+		if _, err := t.tx.ExecContext(ctx, savepoint); err != nil {
+			glog.Errorf("Error updating savepoint: %s", err)
+			return nil, err
+		}
+
 		res[i] = &trillian.QueuedLogLeaf{Status: ok}
 
 		// TODO(pavelkalinnikov): Measure latencies.
 		_, err := t.tx.ExecContext(ctx, insertLeafDataSQL,
 			t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData, 0)
-		// Note: QueueTimestamp == 0 because the entry bypasses the queue.
-		// TODO(pavelkalinnikov): Fix integration latency metrics.
+		// TODO(pavelkalinnikov): QueueTimestamp == 0 because the entry bypasses
+		// the queue. Fix integration latency metrics.
 
 		// TODO(pavelkalinnikov): Support opting out from duplicates detection.
 		if isDuplicateErr(err) {
 			res[i].Status = status.New(codes.FailedPrecondition, "conflicting LeafIdentityHash").Proto()
+			// Note: No rolling back to savepoint because there is no side effect.
 			continue
 		} else if err != nil {
-			glog.Warningf("Error inserting leaves[%d] into LeafData: %s", i, err)
+			glog.Errorf("Error inserting leaves[%d] into LeafData: %s", i, err)
 			return nil, err
 		}
 
@@ -548,12 +565,21 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 
 		if isDuplicateErr(err) {
 			res[i].Status = status.New(codes.FailedPrecondition, "conflicting LeafIndex").Proto()
+			if _, err := t.tx.ExecContext(ctx, "ROLLBACK TO "+savepoint); err != nil {
+				glog.Errorf("Error rolling back to savepoint: %s", err)
+				return nil, err
+			}
 		} else if err != nil {
-			glog.Warningf("Error inserting leaves[%d] into SequencedLeafData: %s", i, err)
+			glog.Errorf("Error inserting leaves[%d] into SequencedLeafData: %s", i, err)
 			return nil, err
 		}
 
 		// TODO(pavelkalinnikov): Load LeafData for conflicting entries.
+	}
+
+	if _, err := t.tx.ExecContext(ctx, "RELEASE "+savepoint); err != nil {
+		glog.Errorf("Error releasing savepoint: %s", err)
+		return nil, err
 	}
 
 	return res, nil
