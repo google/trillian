@@ -29,8 +29,11 @@ import (
 
 // MapVerifier verifies protos produced by the Trillian Map.
 type MapVerifier struct {
-	Hasher  hashers.MapHasher
-	PubKey  crypto.PublicKey
+	// Hasher is the hash strategy used to compute nodes in the merkle tree.
+	Hasher hashers.MapHasher
+	// PubKey verifies the signature on the digest of MapRoot.
+	PubKey crypto.PublicKey
+	// SigHash computes the digest of MapRoot for signing.
 	SigHash crypto.Hash
 }
 
@@ -39,19 +42,17 @@ func NewMapVerifierFromTree(config *trillian.Tree) (*MapVerifier, error) {
 	if got, want := config.TreeType, trillian.TreeType_MAP; got != want {
 		return nil, fmt.Errorf("client: NewFromTree(): TreeType: %v, want %v", got, want)
 	}
-	// Map Hasher
+
 	mapHasher, err := hashers.NewMapHasher(config.GetHashStrategy())
 	if err != nil {
 		return nil, fmt.Errorf("Failed creating MapHasher: %v", err)
 	}
 
-	// Map Key
 	mapPubKey, err := der.UnmarshalPublicKey(config.GetPublicKey().GetDer())
 	if err != nil {
 		return nil, fmt.Errorf("Failed parsing Map public key: %v", err)
 	}
 
-	// Map Sig Hash
 	sigHash, err := trees.Hash(config)
 	if err != nil {
 		return nil, fmt.Errorf("client: NewLogVerifierFromTree(): Failed parsing Log signature hash: %v", err)

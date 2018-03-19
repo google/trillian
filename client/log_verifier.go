@@ -30,8 +30,11 @@ import (
 
 // LogVerifier contains state needed to verify output from Trillian Logs.
 type LogVerifier struct {
-	Hasher  hashers.LogHasher
-	PubKey  crypto.PublicKey
+	// Hasher is the hash strategy used to compute nodes in the merkle tree.
+	Hasher hashers.LogHasher
+	// PubKey verifies the signature on the digest of LogRoot.
+	PubKey crypto.PublicKey
+	// SigHash computes the digest of LogRoot for signing.
 	SigHash crypto.Hash
 	v       merkle.LogVerifier
 }
@@ -53,19 +56,16 @@ func NewLogVerifierFromTree(config *trillian.Tree) (*LogVerifier, error) {
 		return nil, fmt.Errorf("client: NewLogVerifierFromTree(): TreeType: %v, want %v", got, want)
 	}
 
-	// Log Hasher.
 	logHasher, err := hashers.NewLogHasher(config.GetHashStrategy())
 	if err != nil {
 		return nil, fmt.Errorf("client: NewLogVerifierFromTree(): NewLogHasher(): %v", err)
 	}
 
-	// Log Pub Key
 	logPubKey, err := der.UnmarshalPublicKey(config.GetPublicKey().GetDer())
 	if err != nil {
 		return nil, fmt.Errorf("client: NewLogVerifierFromTree(): Failed parsing Log public key: %v", err)
 	}
 
-	// Log Sig Hash
 	sigHash, err := trees.Hash(config)
 	if err != nil {
 		return nil, fmt.Errorf("client: NewLogVerifierFromTree(): Failed parsing Log signature hash: %v", err)
