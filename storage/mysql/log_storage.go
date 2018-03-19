@@ -566,7 +566,7 @@ func (t *logTreeTX) GetLeavesByIndex(ctx context.Context, leaves []int64) ([]*tr
 }
 
 func (t *logTreeTX) GetLeavesByRange(ctx context.Context, start, count int64) ([]*trillian.LogLeaf, error) {
-	// TODO(pavelkalinnikov): Clip `count`, for example to max(count, 64k).
+	// TODO(pavelkalinnikov): Clip `count`, for example to min(count, 64k).
 	if count <= 0 {
 		return nil, fmt.Errorf("invalid count %d", count)
 	}
