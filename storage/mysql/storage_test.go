@@ -27,12 +27,14 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testdb"
+	"github.com/google/trillian/testonly"
+	"github.com/google/trillian/types"
 
+	tcrypto "github.com/google/trillian/crypto"
 	storageto "github.com/google/trillian/storage/testonly"
 )
 
@@ -256,13 +258,16 @@ func createLogForTests(db *sql.DB) int64 {
 		panic(fmt.Sprintf("Error creating log: %v", err))
 	}
 
+	signer := tcrypto.NewSigner(0, testonly.NewSignerWithFixedSig(nil, nil), crypto.SHA256)
+
 	ctx := context.Background()
 	l := NewLogStorage(db, nil)
 	err = l.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
-		if err := tx.StoreSignedLogRoot(ctx, trillian.SignedLogRoot{
-			LogId:     tree.TreeId,
-			RootHash:  []byte{0},
-			Signature: &sigpb.DigitallySigned{Signature: []byte("asignature")}}); err != nil {
+		root, err := signer.SignLogRoot(&types.LogRootV1{RootHash: []byte{0}})
+		if err != nil {
+			return fmt.Errorf("Error creating new SignedLogRoot: %v", err)
+		}
+		if err := tx.StoreSignedLogRoot(ctx, *root); err != nil {
 			return fmt.Errorf("Error storing new SignedLogRoot: %v", err)
 		}
 		return nil

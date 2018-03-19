@@ -71,7 +71,7 @@ func TestSignVerify(t *testing.T) {
 		msg := []byte("foo")
 		var signature *sigpb.DigitallySigned
 		if !test.skipSigning {
-			signature, err = NewSHA256Signer(key).Sign(msg)
+			signature, err = NewSigner(0, key, crypto.SHA256).Sign(msg)
 			if err != nil {
 				t.Errorf("%s: Sign()=(_,%v), want (_,nil)", test.name, err)
 				continue
@@ -90,7 +90,7 @@ func TestSignVerifyObject(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to open test key, err=%v", err)
 	}
-	signer := NewSHA256Signer(key)
+	signer := NewSigner(0, key, crypto.SHA256)
 
 	type subfield struct {
 		c int
