@@ -82,5 +82,5 @@ func (m *MapVerifier) VerifyMapLeafInclusion(smr *trillian.SignedMapRoot, leafPr
 
 // VerifySignedMapRoot verifies the signature on the SignedMapRoot.
 func (m *MapVerifier) VerifySignedMapRoot(smr *trillian.SignedMapRoot) (*types.MapRootV1, error) {
-	return tcrypto.VerifySignedMapRoot(m.PubKey, smr)
+	return tcrypto.VerifySignedMapRoot(m.PubKey, m.SigHash, smr)
 }
