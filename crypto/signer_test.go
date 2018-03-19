@@ -15,6 +15,7 @@
 package crypto
 
 import (
+	"crypto"
 	"encoding/json"
 	"errors"
 	"testing"
@@ -57,7 +58,7 @@ func TestSign(t *testing.T) {
 			t.Errorf("Sig alg incorrect, got %s expected %s", got, want)
 		}
 		// Check that the signature is correct
-		if err := Verify(key.Public(), test.message, sig); err != nil {
+		if err := Verify(key.Public(), crypto.SHA256, test.message, sig); err != nil {
 			t.Errorf("Verify(%v) failed: %v", test.message, err)
 		}
 	}
@@ -126,7 +127,7 @@ func TestSignLogRoot(t *testing.T) {
 			t.Errorf("Sig alg incorrect, got %s expected %s", got, want)
 		}
 		// Check that the signature is correct
-		if _, err := VerifySignedLogRoot(key.Public(), slr); err != nil {
+		if _, err := VerifySignedLogRoot(key.Public(), crypto.SHA256, slr); err != nil {
 			t.Errorf("Verify(%v) failed: %v", test.root, err)
 		}
 	}
@@ -169,7 +170,7 @@ func TestSignMapRoot(t *testing.T) {
 			t.Errorf("objecthash.CommonJSONHash err: %v want nil", err)
 			continue
 		}
-		if err := Verify(key.Public(), hash[:], sig); err != nil {
+		if err := Verify(key.Public(), crypto.SHA256, hash[:], sig); err != nil {
 			t.Errorf("Verify(%v) failed: %v", test.root, err)
 		}
 	}

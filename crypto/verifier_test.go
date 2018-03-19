@@ -15,6 +15,7 @@
 package crypto
 
 import (
+	"crypto"
 	"testing"
 
 	"github.com/google/trillian"
@@ -77,7 +78,7 @@ func TestSignVerify(t *testing.T) {
 			}
 		}
 
-		err = Verify(key.Public(), msg, signature)
+		err = Verify(key.Public(), crypto.SHA256, msg, signature)
 		if gotErr := err != nil; gotErr != test.wantVerifyErr {
 			t.Errorf("%s: Verify(,,)=%v, want err? %t", test.name, err, test.wantVerifyErr)
 		}
@@ -128,7 +129,7 @@ func TestSignVerifyObject(t *testing.T) {
 			t.Errorf("SignObject(%#v): %v", tc.obj, err)
 			continue
 		}
-		if err := VerifyObject(key.Public(), tc.obj, sig); err != nil {
+		if err := VerifyObject(key.Public(), crypto.SHA256, tc.obj, sig); err != nil {
 			t.Errorf("SignObject(%#v): %v", tc.obj, err)
 		}
 	}
