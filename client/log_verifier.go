@@ -30,7 +30,7 @@ import (
 
 // LogVerifier contains state needed to verify output from Trillian Logs.
 type LogVerifier struct {
-	// Hasher is the hash strategy used to compute nodes in the merkle tree.
+	// Hasher is the hash strategy used to compute nodes in the Merkle tree.
 	Hasher hashers.LogHasher
 	// PubKey verifies the signature on the digest of LogRoot.
 	PubKey crypto.PublicKey

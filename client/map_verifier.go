@@ -29,7 +29,7 @@ import (
 
 // MapVerifier verifies protos produced by the Trillian Map.
 type MapVerifier struct {
-	// Hasher is the hash strategy used to compute nodes in the merkle tree.
+	// Hasher is the hash strategy used to compute nodes in the Merkle tree.
 	Hasher hashers.MapHasher
 	// PubKey verifies the signature on the digest of MapRoot.
 	PubKey crypto.PublicKey
