@@ -210,14 +210,19 @@ message SignedEntryTimestamp {
 
 // SignedLogRoot represents a commitment by a Log to a particular tree.
 message SignedLogRoot {
-  reserved 1; // TimestampNanos (Moved to log_root).
-  reserved 2; // RootHash (Moved to log_root).
-  reserved 3; // TreeSize (Moved to log_root).
+  // Deprecated: TimestampNanos moved to LogRoot.
+  int64 timestamp_nanos = 1;
+  // Deprecated: RootHash moved to LogRoot.
+  bytes root_hash = 2;
+  // Deprecated: TreeSize moved to LogRoot.
+  int64 tree_size = 3;
+  // Deprecated TreeRevision moved to LogRoot.
+  int64 tree_revision = 6;
 
   sigpb.DigitallySigned signature = 4;
 
-  reserved 5; // LogID is associated with the public key that validates signature.
-  reserved 6; // TreeRevision (moved to log_root).
+  // LogID is associated with the public key that validates signature.
+  reserved 5;
 
   // key_hint is a hint to identify the public key for signature verification.
   // key_hint is not authenticated and may be incorrect or missing, in which

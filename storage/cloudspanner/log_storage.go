@@ -354,6 +354,11 @@ func (tx *logTX) LatestSignedLogRoot(ctx context.Context) (trillian.SignedLogRoo
 		KeyHint:   types.SerializeKeyHint(tx.treeID),
 		LogRoot:   logRoot,
 		Signature: apiSig,
+		// TODO(gbelvin): Remove deprecated fields
+		TimestampNanos: currentSTH.TsNanos,
+		RootHash:       currentSTH.RootHash,
+		TreeSize:       currentSTH.TreeSize,
+		TreeRevision:   currentSTH.TreeRevision,
 	}, nil
 }
 

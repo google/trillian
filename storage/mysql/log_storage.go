@@ -691,6 +691,11 @@ func (t *logTreeTX) fetchLatestRoot(ctx context.Context) (trillian.SignedLogRoot
 		KeyHint:   types.SerializeKeyHint(t.treeID),
 		LogRoot:   logRoot,
 		Signature: &rootSignature,
+		// TODO(gbelvin): Remove deprecated fields
+		TimestampNanos: timestamp,
+		RootHash:       rootHash,
+		TreeSize:       treeSize,
+		TreeRevision:   treeRevision,
 	}, nil
 }
 
