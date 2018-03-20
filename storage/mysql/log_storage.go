@@ -234,7 +234,7 @@ func (m *mySQLLogStorage) beginInternal(ctx context.Context, tree *trillian.Tree
 	}
 
 	stCache := cache.NewLogSubtreeCache(defaultLogStrata, hasher)
-	ttx, err := m.beginTreeTx(ctx, tree.TreeId, hasher.Size(), stCache)
+	ttx, err := m.beginTreeTx(ctx, tree, hasher.Size(), stCache)
 	if err != nil && err != storage.ErrTreeNeedsInit {
 		return nil, err
 	}
@@ -566,13 +566,27 @@ func (t *logTreeTX) GetLeavesByIndex(ctx context.Context, leaves []int64) ([]*tr
 }
 
 func (t *logTreeTX) GetLeavesByRange(ctx context.Context, start, count int64) ([]*trillian.LogLeaf, error) {
-	// TODO(pavelkalinnikov): Clip `count`, for example to min(count, 64k).
 	if count <= 0 {
-		return nil, fmt.Errorf("invalid count %d", count)
+		return nil, fmt.Errorf("count=%d,want>0", count)
 	}
 	if start < 0 {
-		return nil, fmt.Errorf("invalid start %d", start)
+		return nil, fmt.Errorf("start=%d,want>=0", start)
 	}
+
+	if t.treeType == trillian.TreeType_LOG {
+		treeSize := t.root.TreeSize
+		if treeSize <= 0 {
+			return nil, fmt.Errorf("empty tree")
+		} else if start >= treeSize {
+			return nil, fmt.Errorf("start=%d,want<%d", start, treeSize)
+		}
+		// Ensure no entries queried/returned beyond the tree.
+		if maxCount := treeSize - start; count > maxCount {
+			count = maxCount
+		}
+	}
+	// TODO(pavelkalinnikov): Further clip `count` to a safe upper bound like 64k.
+
 	args := []interface{}{start, start + count, t.treeID}
 	rows, err := t.tx.QueryContext(ctx, selectLeavesByRangeSQL, args...)
 	if err != nil {
@@ -597,6 +611,9 @@ func (t *logTreeTX) GetLeavesByRange(ctx context.Context, start, count int64) ([
 			return nil, err
 		}
 		if leaf.LeafIndex != wantIndex {
+			if wantIndex < t.root.TreeSize {
+				return nil, fmt.Errorf("got unexpected index %d, want %d", leaf.LeafIndex, wantIndex)
+			}
 			break
 		}
 		var err error
@@ -611,7 +628,6 @@ func (t *logTreeTX) GetLeavesByRange(ctx context.Context, start, count int64) ([
 		ret = append(ret, leaf)
 	}
 
-	// Note: Empty ret is not an error.
 	return ret, nil
 }
 
