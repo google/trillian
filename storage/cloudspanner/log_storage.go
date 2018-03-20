@@ -17,7 +17,6 @@ package cloudspanner
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"math/rand"
 	"sort"
@@ -26,7 +25,6 @@ import (
 
 	"cloud.google.com/go/spanner"
 	"github.com/golang/glog"
-	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle/hashers"
@@ -331,11 +329,6 @@ func (tx *logTX) LatestSignedLogRoot(ctx context.Context) (trillian.SignedLogRoo
 		return trillian.SignedLogRoot{}, fmt.Errorf("inconsistency: currentSTH.TreeRevision+1 (%d) != writeRev (%d)", got, want)
 	}
 
-	apiSig, err := storageToAPISig(currentSTH.Signature)
-	if err != nil {
-		return trillian.SignedLogRoot{}, err
-	}
-
 	// Put logRoot back together. Forunately LogRoot has a determinstic serialization.
 	logRoot, err := (&types.LogRootV1{
 		TimestampNanos: uint64(currentSTH.TsNanos),
@@ -353,7 +346,7 @@ func (tx *logTX) LatestSignedLogRoot(ctx context.Context) (trillian.SignedLogRoo
 	return trillian.SignedLogRoot{
 		KeyHint:   types.SerializeKeyHint(tx.treeID),
 		LogRoot:   logRoot,
-		Signature: apiSig,
+		Signature: currentSTH.Signature,
 		// TODO(gbelvin): Remove deprecated fields
 		TimestampNanos: currentSTH.TsNanos,
 		RootHash:       currentSTH.RootHash,
@@ -373,29 +366,10 @@ func (tx *logTX) StoreSignedLogRoot(ctx context.Context, root trillian.SignedLog
 		return err
 	}
 
-	storageSig, err := apiToStorageSig(root.Signature)
-	if err != nil {
-		return err
-	}
-	if storageSig == nil {
-		return errors.New("sth signature is nil")
-	}
-	sigBytes, err := proto.Marshal(storageSig)
-	if err != nil {
-		return err
-	}
-
 	var logRoot types.LogRootV1
 	if err := logRoot.UnmarshalBinary(root.LogRoot); err != nil {
 		glog.Warningf("Failed to parse log root: %x %v", root.LogRoot, err)
 		return err
-	}
-	sth := types.LogRootV1{
-		TimestampNanos: logRoot.TimestampNanos,
-		RootHash:       logRoot.RootHash,
-		TreeSize:       logRoot.TreeSize,
-		Revision:       uint64(writeRev),
-		Metadata:       logRoot.Metadata,
 	}
 
 	m := spanner.Insert(
@@ -411,12 +385,12 @@ func (tx *logTX) StoreSignedLogRoot(ctx context.Context, root trillian.SignedLog
 		},
 		[]interface{}{
 			tx.treeID,
-			sth.TimestampNanos,
-			sth.TreeSize,
-			sth.RootHash,
-			sigBytes,
-			sth.Revision,
-			sth.Metadata,
+			logRoot.TimestampNanos,
+			logRoot.TreeSize,
+			logRoot.RootHash,
+			root.Signature,
+			writeRev,
+			logRoot.Metadata,
 		})
 
 	stx, ok := tx.stx.(*spanner.ReadWriteTransaction)

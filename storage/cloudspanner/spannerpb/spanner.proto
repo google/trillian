@@ -57,28 +57,6 @@ enum SignatureAlgorithm {
   ECDSA = 3;
 }
 
-// SignatureCipherSuite defines the set of algorithms used for signing.
-enum SignatureCipherSuite {
-  // Signature and hash algorithm are unknown / not set.
-  UNKNOWN_CIPHER_SUITE = 0;
-  // RSA with SHA256.
-  RSA_SHA256 = 1;
-  // ECDSA with SHA256.
-  ECDSA_SHA256 = 2;
-}
-
-// Protocol buffer encoding of the TLS DigitallySigned type, from RFC 5246 §4.7.
-message DigitallySigned {
-  // hash_algorithm contains the hash algorithm used.
-  HashAlgorithm hash_algorithm = 1;
-  // signature_algorithm contains the signing algorithm used.
-  SignatureAlgorithm signature_algorithm = 2;
-  // cipher_suite contains the combination of ciphers used for this signature.
-  SignatureCipherSuite signature_cipher_suite = 4;
-  // signature contains the object signature.
-  bytes signature = 3;
-}
-
 // LogStorageConfig holds settings which tune the storage implementation for
 // a given log tree.
 message LogStorageConfig {
@@ -187,7 +165,7 @@ message TreeHead {
   reserved 5;
 
   // signature holds a digital signature across the data in this TreeHead.
-  DigitallySigned signature = 8;
+  bytes signature = 8;
 
   // tree_revision identifies the revision at which the TreeHead was created.
   int64 tree_revision = 6;

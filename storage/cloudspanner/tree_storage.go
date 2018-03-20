@@ -107,15 +107,9 @@ func (t *treeStorage) latestSTH(ctx context.Context, stx spanRead, treeID int64)
 	defer rows.Stop()
 	err := rows.Do(func(r *spanner.Row) error {
 		tth := &spannerpb.TreeHead{}
-		var sig []byte
-		if err := r.Columns(&tth.TreeId, &tth.TsNanos, &tth.TreeSize, &tth.RootHash, &sig, &tth.TreeRevision, &tth.Metadata); err != nil {
+		if err := r.Columns(&tth.TreeId, &tth.TsNanos, &tth.TreeSize, &tth.RootHash, &tth.Signature, &tth.TreeRevision, &tth.Metadata); err != nil {
 			return err
 		}
-		sigPB := &spannerpb.DigitallySigned{}
-		if err := proto.Unmarshal(sig, sigPB); err != nil {
-			return err
-		}
-		tth.Signature = sigPB
 
 		th = tth
 		return nil
