@@ -567,10 +567,10 @@ func (t *logTreeTX) GetLeavesByIndex(ctx context.Context, leaves []int64) ([]*tr
 
 func (t *logTreeTX) GetLeavesByRange(ctx context.Context, start, count int64) ([]*trillian.LogLeaf, error) {
 	if count <= 0 {
-		return nil, fmt.Errorf("count=%d,want>0", count)
+		return nil, fmt.Errorf("invalid count %d, want > 0", count)
 	}
 	if start < 0 {
-		return nil, fmt.Errorf("start=%d,want>=0", start)
+		return nil, fmt.Errorf("invalid start %d, want >= 0", start)
 	}
 
 	if t.treeType == trillian.TreeType_LOG {
@@ -578,7 +578,7 @@ func (t *logTreeTX) GetLeavesByRange(ctx context.Context, start, count int64) ([
 		if treeSize <= 0 {
 			return nil, fmt.Errorf("empty tree")
 		} else if start >= treeSize {
-			return nil, fmt.Errorf("start=%d,want<%d", start, treeSize)
+			return nil, fmt.Errorf("invalid start %d, want < TreeSize(%d)", start, treeSize)
 		}
 		// Ensure no entries queried/returned beyond the tree.
 		if maxCount := treeSize - start; count > maxCount {
