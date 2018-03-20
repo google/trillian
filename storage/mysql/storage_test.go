@@ -40,13 +40,8 @@ import (
 
 func TestNodeRoundTrip(t *testing.T) {
 	cleanTestDB(DB)
-	logID := createLogForTests(DB)
+	tree := createLogForTests(DB, storageto.LogTree)
 	s := NewLogStorage(DB, nil)
-	tree := &trillian.Tree{
-		TreeId:       logID,
-		TreeType:     trillian.TreeType_LOG,
-		HashStrategy: trillian.HashStrategy_RFC6962_SHA256,
-	}
 
 	const writeRevision = int64(100)
 	nodesToStore := createSomeNodes()
@@ -88,13 +83,8 @@ func TestNodeRoundTrip(t *testing.T) {
 // cache gets exercised. Any tree size > 256 will do this.
 func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 	cleanTestDB(DB)
-	logID := createLogForTests(DB)
+	tree := createLogForTests(DB, storageto.LogTree)
 	s := NewLogStorage(DB, nil)
-	tree := &trillian.Tree{
-		TreeId:       logID,
-		TreeType:     trillian.TreeType_LOG,
-		HashStrategy: trillian.HashStrategy_RFC6962_SHA256,
-	}
 
 	const writeRevision = int64(100)
 	nodesToStore, err := createLogNodesForTreeAtSize(871, writeRevision)
@@ -242,13 +232,14 @@ func cleanTestDB(db *sql.DB) {
 	}
 }
 
-// createMapForTests creates a map-type tree for tests. Returns the treeID of the new tree.
-func createMapForTests(db *sql.DB) int64 {
+// createMapForTests creates a storage-backed MAP tree for tests. Returns the
+// created Tree.
+func createMapForTests(db *sql.DB) *trillian.Tree {
 	tree, err := createTree(db, storageto.MapTree)
 	if err != nil {
 		panic(fmt.Sprintf("Error creating map: %v", err))
 	}
-	return tree.TreeId
+	return tree
 }
 
 func createFakeSignedLogRoot(db *sql.DB, tree *trillian.Tree, treeSize uint64) {
@@ -271,14 +262,15 @@ func createFakeSignedLogRoot(db *sql.DB, tree *trillian.Tree, treeSize uint64) {
 	}
 }
 
-// createLogForTests creates a log-type tree for tests. Returns the treeID of the new tree.
-func createLogForTests(db *sql.DB) int64 {
-	tree, err := createTree(db, storageto.LogTree)
+// createLogForTests creates a storage-backed tree for tests. Returns the
+// created Tree.
+func createLogForTests(db *sql.DB, create *trillian.Tree) *trillian.Tree {
+	tree, err := createTree(db, create)
 	if err != nil {
 		panic(fmt.Sprintf("Error creating log: %v", err))
 	}
 	createFakeSignedLogRoot(db, tree, 0)
-	return tree.TreeId
+	return tree
 }
 
 // createTree creates the specified tree using AdminStorage.
