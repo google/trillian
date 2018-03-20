@@ -102,7 +102,7 @@ func (m *mySQLMapStorage) begin(ctx context.Context, tree *trillian.Tree) (stora
 	}
 
 	stCache := cache.NewMapSubtreeCache(defaultMapStrata, tree.TreeId, hasher)
-	ttx, err := m.beginTreeTx(ctx, tree.TreeId, hasher.Size(), stCache)
+	ttx, err := m.beginTreeTx(ctx, tree, hasher.Size(), stCache)
 	if err != nil {
 		return nil, err
 	}

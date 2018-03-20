@@ -251,19 +251,13 @@ func createMapForTests(db *sql.DB) int64 {
 	return tree.TreeId
 }
 
-// createLogForTests creates a log-type tree for tests. Returns the treeID of the new tree.
-func createLogForTests(db *sql.DB) int64 {
-	tree, err := createTree(db, storageto.LogTree)
-	if err != nil {
-		panic(fmt.Sprintf("Error creating log: %v", err))
-	}
-
+func createFakeSignedLogRoot(db *sql.DB, tree *trillian.Tree, treeSize uint64) {
 	signer := tcrypto.NewSigner(0, testonly.NewSignerWithFixedSig(nil, nil), crypto.SHA256)
 
 	ctx := context.Background()
 	l := NewLogStorage(db, nil)
-	err = l.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
-		root, err := signer.SignLogRoot(&types.LogRootV1{RootHash: []byte{0}})
+	err := l.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
+		root, err := signer.SignLogRoot(&types.LogRootV1{TreeSize: treeSize, RootHash: []byte{0}})
 		if err != nil {
 			return fmt.Errorf("Error creating new SignedLogRoot: %v", err)
 		}
@@ -275,6 +269,15 @@ func createLogForTests(db *sql.DB) int64 {
 	if err != nil {
 		panic(fmt.Sprintf("ReadWriteTransaction() = %v", err))
 	}
+}
+
+// createLogForTests creates a log-type tree for tests. Returns the treeID of the new tree.
+func createLogForTests(db *sql.DB) int64 {
+	tree, err := createTree(db, storageto.LogTree)
+	if err != nil {
+		panic(fmt.Sprintf("Error creating log: %v", err))
+	}
+	createFakeSignedLogRoot(db, tree, 0)
 	return tree.TreeId
 }
 

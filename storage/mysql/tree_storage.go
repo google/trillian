@@ -26,6 +26,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
+	"github.com/google/trillian"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/storage/storagepb"
@@ -141,7 +142,7 @@ func (m *mySQLTreeStorage) setSubtreeStmt(ctx context.Context, num int) (*sql.St
 	return m.getStmt(ctx, insertSubtreeMultiSQL, num, "VALUES(?, ?, ?, ?)", "(?, ?, ?, ?)")
 }
 
-func (m *mySQLTreeStorage) beginTreeTx(ctx context.Context, treeID int64, hashSizeBytes int, subtreeCache cache.SubtreeCache) (treeTX, error) {
+func (m *mySQLTreeStorage) beginTreeTx(ctx context.Context, tree *trillian.Tree, hashSizeBytes int, subtreeCache cache.SubtreeCache) (treeTX, error) {
 	t, err := m.db.BeginTx(ctx, nil /* opts */)
 	if err != nil {
 		glog.Warningf("Could not start tree TX: %s", err)
@@ -150,7 +151,8 @@ func (m *mySQLTreeStorage) beginTreeTx(ctx context.Context, treeID int64, hashSi
 	return treeTX{
 		tx:            t,
 		ts:            m,
-		treeID:        treeID,
+		treeID:        tree.TreeId,
+		treeType:      tree.TreeType,
 		hashSizeBytes: hashSizeBytes,
 		subtreeCache:  subtreeCache,
 		writeRevision: -1,
@@ -162,6 +164,7 @@ type treeTX struct {
 	tx            *sql.Tx
 	ts            *mySQLTreeStorage
 	treeID        int64
+	treeType      trillian.TreeType
 	hashSizeBytes int
 	subtreeCache  cache.SubtreeCache
 	writeRevision int64

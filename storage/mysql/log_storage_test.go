@@ -786,36 +786,34 @@ func TestGetLeavesByIndex(t *testing.T) {
 	})
 }
 
-func TestGetLeavesByRange(t *testing.T) {
-	var tests = []struct {
-		start, count int64
-		want         []int64
-		wantErr      bool
-	}{
-		{start: 0, count: 1, want: []int64{0}},
-		{start: 0, count: 2, want: []int64{0, 1}},
-		{start: 1, count: 3, want: []int64{1, 2, 3}},
-		{start: 10, count: 7, want: []int64{10, 11, 12, 13}},
-		{start: 3, count: 5, wantErr: true}, // hits non-contiguous leaves
-		{start: 1, count: 0, wantErr: true},
-		{start: -1, count: 1, wantErr: true},
-		{start: 1, count: -1, wantErr: true},
-		{start: 14, count: 1, wantErr: true},
-	}
-	ctx := context.Background()
-	cleanTestDB(DB)
-	logID := createLogForTests(DB)
-	s := NewLogStorage(DB, nil)
-	tree := logTree(logID)
+// GetLeavesByRange tests. -----------------------------------------------------
 
-	// Create leaves [0]..[13] but drop leaf [5]
-	for i := int64(0); i < 14; i++ {
+type getLeavesByRangeTest struct {
+	start, count int64
+	want         []int64
+	wantErr      bool
+}
+
+func testGetLeavesByRangeImpl(t *testing.T, create *trillian.Tree, tests []getLeavesByRangeTest) {
+	cleanTestDB(DB)
+
+	ctx := context.Background()
+	tree, err := createTree(DB, create)
+	if err != nil {
+		t.Fatalf("Error creating log: %v", err)
+	}
+	// Note: GetLeavesByRange loads the root internally to get the tree size.
+	createFakeSignedLogRoot(DB, tree, 14)
+	s := NewLogStorage(DB, nil)
+
+	// Create leaves [0]..[19] but drop leaf [5] and set the tree size to 14.
+	for i := int64(0); i < 20; i++ {
 		if i == 5 {
 			continue
 		}
 		data := []byte{byte(i)}
 		identityHash := sha256.Sum256(data)
-		createFakeLeaf(ctx, DB, logID, identityHash[:], identityHash[:], data, someExtraData, i, t)
+		createFakeLeaf(ctx, DB, tree.TreeId, identityHash[:], identityHash[:], data, someExtraData, i, t)
 	}
 
 	for _, test := range tests {
@@ -841,6 +839,47 @@ func TestGetLeavesByRange(t *testing.T) {
 		})
 	}
 }
+
+func TestGetLeavesByRangeFromLog(t *testing.T) {
+	var tests = []getLeavesByRangeTest{
+		{start: 0, count: 1, want: []int64{0}},
+		{start: 0, count: 2, want: []int64{0, 1}},
+		{start: 1, count: 3, want: []int64{1, 2, 3}},
+		{start: 10, count: 7, want: []int64{10, 11, 12, 13}},
+		{start: 13, count: 1, want: []int64{13}},
+		{start: 14, count: 4, wantErr: true},   // Starts right after tree size.
+		{start: 19, count: 2, wantErr: true},   // Starts further away.
+		{start: 3, count: 5, wantErr: true},    // Hits non-contiguous leaves.
+		{start: 5, count: 5, wantErr: true},    // Starts from a missing leaf.
+		{start: 1, count: 0, wantErr: true},    // Empty range.
+		{start: -1, count: 1, wantErr: true},   // Negative start.
+		{start: 1, count: -1, wantErr: true},   // Negative count.
+		{start: 100, count: 30, wantErr: true}, // Starts after all stored leaves.
+	}
+	testGetLeavesByRangeImpl(t, testonly.LogTree, tests)
+}
+
+func TestGetLeavesByRangeFromPreorderedLog(t *testing.T) {
+	var tests = []getLeavesByRangeTest{
+		{start: 0, count: 1, want: []int64{0}},
+		{start: 0, count: 2, want: []int64{0, 1}},
+		{start: 1, count: 3, want: []int64{1, 2, 3}},
+		{start: 10, count: 7, want: []int64{10, 11, 12, 13, 14, 15, 16}},
+		{start: 13, count: 1, want: []int64{13}},
+		// Starts right after tree size.
+		{start: 14, count: 4, want: []int64{14, 15, 16, 17}},
+		{start: 19, count: 2, want: []int64{19}}, // Starts further away.
+		{start: 3, count: 5, wantErr: true},      // Hits non-contiguous leaves.
+		{start: 5, count: 5, wantErr: true},      // Starts from a missing leaf.
+		{start: 1, count: 0, wantErr: true},      // Empty range.
+		{start: -1, count: 1, wantErr: true},     // Negative start.
+		{start: 1, count: -1, wantErr: true},     // Negative count.
+		{start: 100, count: 30, want: []int64{}}, // Starts after all stored leaves.
+	}
+	testGetLeavesByRangeImpl(t, testonly.PreorderedLogTree, tests)
+}
+
+// -----------------------------------------------------------------------------
 
 func TestLatestSignedRootNoneWritten(t *testing.T) {
 	ctx := context.Background()
