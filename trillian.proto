@@ -219,7 +219,7 @@ message SignedLogRoot {
   // Deprecated TreeRevision moved to LogRoot.
   int64 tree_revision = 6;
 
-  sigpb.DigitallySigned signature = 4;
+  reserved 4; // Deprecated: Signature replaced by LogRootSignature.
 
   // LogID is associated with the public key that validates signature.
   reserved 5;
@@ -251,6 +251,9 @@ message SignedLogRoot {
   //   }
   // } LogRoot;
   bytes log_root = 8;
+
+  // LogRootSignature is the signature over LogRoot.
+  bytes log_root_signature = 9;
 }
 
 // SignedMapRoot represents a commitment by a Map to a particular tree.
