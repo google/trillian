@@ -136,15 +136,17 @@ func TestMySQLLogStorage_CheckDatabaseAccessible(t *testing.T) {
 func TestSnapshot(t *testing.T) {
 	cleanTestDB(DB)
 
-	frozenLog := createLogForTests(DB, testonly.LogTree)
+	frozenLog := createTreeOrPanic(DB, testonly.LogTree)
+	createFakeSignedLogRoot(DB, frozenLog, 0)
 	if _, err := updateTree(DB, frozenLog.TreeId, func(tree *trillian.Tree) {
 		tree.TreeState = trillian.TreeState_FROZEN
 	}); err != nil {
 		t.Fatalf("Error updating frozen tree: %v", err)
 	}
 
-	activeLog := createLogForTests(DB, testonly.LogTree)
-	mapTreeID := createMapForTests(DB).TreeId
+	activeLog := createTreeOrPanic(DB, testonly.LogTree)
+	createFakeSignedLogRoot(DB, activeLog, 0)
+	mapTreeID := createTreeOrPanic(DB, testonly.MapTree).TreeId
 
 	tests := []struct {
 		desc    string
@@ -201,7 +203,8 @@ func TestSnapshot(t *testing.T) {
 
 func TestReadWriteTransaction(t *testing.T) {
 	cleanTestDB(DB)
-	activeLog := createLogForTests(DB, testonly.LogTree)
+	activeLog := createTreeOrPanic(DB, testonly.LogTree)
+	createFakeSignedLogRoot(DB, activeLog, 0)
 
 	tests := []struct {
 		desc      string
@@ -253,7 +256,7 @@ func TestReadWriteTransaction(t *testing.T) {
 
 func TestQueueDuplicateLeaf(t *testing.T) {
 	cleanTestDB(DB)
-	tree := createLogForTests(DB, testonly.LogTree)
+	tree := createTreeOrPanic(DB, testonly.LogTree)
 	s := NewLogStorage(DB, nil)
 	count := 15
 	leaves := createTestLeaves(int64(count), 10)
@@ -319,7 +322,7 @@ func TestQueueLeaves(t *testing.T) {
 	ctx := context.Background()
 
 	cleanTestDB(DB)
-	tree := createLogForTests(DB, testonly.LogTree)
+	tree := createTreeOrPanic(DB, testonly.LogTree)
 	s := NewLogStorage(DB, nil)
 
 	runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
@@ -351,7 +354,7 @@ func TestQueueLeaves(t *testing.T) {
 
 func TestDequeueLeavesNoneQueued(t *testing.T) {
 	cleanTestDB(DB)
-	tree := createLogForTests(DB, testonly.LogTree)
+	tree := createTreeOrPanic(DB, testonly.LogTree)
 	s := NewLogStorage(DB, nil)
 
 	runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
@@ -368,7 +371,7 @@ func TestDequeueLeavesNoneQueued(t *testing.T) {
 
 func TestDequeueLeaves(t *testing.T) {
 	cleanTestDB(DB)
-	tree := createLogForTests(DB, testonly.LogTree)
+	tree := createTreeOrPanic(DB, testonly.LogTree)
 	s := NewLogStorage(DB, nil)
 
 	{
@@ -413,7 +416,7 @@ func TestDequeueLeaves(t *testing.T) {
 
 func TestDequeueLeavesHaveQueueTimestamp(t *testing.T) {
 	cleanTestDB(DB)
-	tree := createLogForTests(DB, testonly.LogTree)
+	tree := createTreeOrPanic(DB, testonly.LogTree)
 	s := NewLogStorage(DB, nil)
 
 	{
@@ -444,7 +447,7 @@ func TestDequeueLeavesHaveQueueTimestamp(t *testing.T) {
 
 func TestDequeueLeavesTwoBatches(t *testing.T) {
 	cleanTestDB(DB)
-	tree := createLogForTests(DB, testonly.LogTree)
+	tree := createTreeOrPanic(DB, testonly.LogTree)
 	s := NewLogStorage(DB, nil)
 
 	leavesToDequeue1 := 3
@@ -516,7 +519,7 @@ func TestDequeueLeavesTwoBatches(t *testing.T) {
 // are returned.
 func TestDequeueLeavesGuardInterval(t *testing.T) {
 	cleanTestDB(DB)
-	tree := createLogForTests(DB, testonly.LogTree)
+	tree := createTreeOrPanic(DB, testonly.LogTree)
 	s := NewLogStorage(DB, nil)
 
 	{
@@ -559,7 +562,7 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 	// transactions and make sure the returned leaves are respecting the time ordering of the
 	// queue.
 	cleanTestDB(DB)
-	tree := createLogForTests(DB, testonly.LogTree)
+	tree := createTreeOrPanic(DB, testonly.LogTree)
 	s := NewLogStorage(DB, nil)
 
 	batchSize := 2
@@ -621,7 +624,7 @@ func TestDequeueLeavesTimeOrdering(t *testing.T) {
 
 func TestGetLeavesByHashNotPresent(t *testing.T) {
 	cleanTestDB(DB)
-	tree := createLogForTests(DB, testonly.LogTree)
+	tree := createTreeOrPanic(DB, testonly.LogTree)
 	s := NewLogStorage(DB, nil)
 
 	runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
@@ -639,7 +642,7 @@ func TestGetLeavesByHashNotPresent(t *testing.T) {
 
 func TestGetLeavesByIndexNotPresent(t *testing.T) {
 	cleanTestDB(DB)
-	tree := createLogForTests(DB, testonly.LogTree)
+	tree := createTreeOrPanic(DB, testonly.LogTree)
 	s := NewLogStorage(DB, nil)
 
 	runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
@@ -655,7 +658,7 @@ func TestGetLeavesByHash(t *testing.T) {
 
 	// Create fake leaf as if it had been sequenced
 	cleanTestDB(DB)
-	tree := createLogForTests(DB, testonly.LogTree)
+	tree := createTreeOrPanic(DB, testonly.LogTree)
 	s := NewLogStorage(DB, nil)
 
 	data := []byte("some data")
@@ -680,7 +683,7 @@ func TestGetLeafDataByIdentityHash(t *testing.T) {
 
 	// Create fake leaf as if it had been sequenced
 	cleanTestDB(DB)
-	tree := createLogForTests(DB, testonly.LogTree)
+	tree := createTreeOrPanic(DB, testonly.LogTree)
 	s := NewLogStorage(DB, nil)
 	data := []byte("some data")
 	leaf := createFakeLeaf(ctx, DB, tree.TreeId, dummyRawHash, dummyHash, data, someExtraData, sequenceNumber, t)
@@ -752,7 +755,7 @@ func TestGetLeavesByIndex(t *testing.T) {
 
 	// Create fake leaf as if it had been sequenced, read it back and check contents
 	cleanTestDB(DB)
-	tree := createLogForTests(DB, testonly.LogTree)
+	tree := createTreeOrPanic(DB, testonly.LogTree)
 	s := NewLogStorage(DB, nil)
 
 	data := []byte("some data")
@@ -885,7 +888,7 @@ func TestLatestSignedRootNoneWritten(t *testing.T) {
 
 func TestLatestSignedLogRoot(t *testing.T) {
 	cleanTestDB(DB)
-	tree := createLogForTests(DB, testonly.LogTree)
+	tree := createTreeOrPanic(DB, testonly.LogTree)
 	s := NewLogStorage(DB, nil)
 
 	root := trillian.SignedLogRoot{
@@ -920,7 +923,7 @@ func TestLatestSignedLogRoot(t *testing.T) {
 
 func TestDuplicateSignedLogRoot(t *testing.T) {
 	cleanTestDB(DB)
-	tree := createLogForTests(DB, testonly.LogTree)
+	tree := createTreeOrPanic(DB, testonly.LogTree)
 	s := NewLogStorage(DB, nil)
 
 	runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
@@ -946,7 +949,7 @@ func TestDuplicateSignedLogRoot(t *testing.T) {
 func TestLogRootUpdate(t *testing.T) {
 	// Write two roots for a log and make sure the one with the newest timestamp supersedes
 	cleanTestDB(DB)
-	tree := createLogForTests(DB, testonly.LogTree)
+	tree := createTreeOrPanic(DB, testonly.LogTree)
 	s := NewLogStorage(DB, nil)
 
 	root := trillian.SignedLogRoot{
@@ -1087,7 +1090,7 @@ func TestGetUnsequencedCounts(t *testing.T) {
 	cleanTestDB(DB)
 	trees := make([]*trillian.Tree, 0, numLogs)
 	for i := 0; i < numLogs; i++ {
-		trees = append(trees, createLogForTests(DB, testonly.LogTree))
+		trees = append(trees, createTreeOrPanic(DB, testonly.LogTree))
 	}
 	s := NewLogStorage(DB, nil)
 
@@ -1154,8 +1157,8 @@ func TestGetSequencedLeafCount(t *testing.T) {
 
 	// We'll create leaves for two different trees
 	cleanTestDB(DB)
-	log1 := createLogForTests(DB, testonly.LogTree)
-	log2 := createLogForTests(DB, testonly.LogTree)
+	log1 := createTreeOrPanic(DB, testonly.LogTree)
+	log2 := createTreeOrPanic(DB, testonly.LogTree)
 	s := NewLogStorage(DB, nil)
 
 	{

@@ -60,7 +60,7 @@ func TestMapSnapshot(t *testing.T) {
 	})
 
 	activeMap := createInitializedMapForTests(ctx, t, DB)
-	logID := createLogForTests(DB, storageto.LogTree).TreeId
+	logID := createTreeOrPanic(DB, storageto.LogTree).TreeId
 
 	tests := []struct {
 		desc    string
@@ -431,7 +431,7 @@ func TestGetSignedMapRootNotExist(t *testing.T) {
 	}
 
 	cleanTestDB(DB)
-	tree := createMapForTests(DB) // Uninitialized: no revision 0 MapRoot exists.
+	tree := createTreeOrPanic(DB, storageto.MapTree) // Uninitialized: no revision 0 MapRoot exists.
 	s := NewMapStorage(DB)
 
 	ctx := context.Background()
@@ -603,7 +603,7 @@ func runMapTX(ctx context.Context, s storage.MapStorage, tree *trillian.Tree, t 
 
 func createInitializedMapForTests(ctx context.Context, t *testing.T, db *sql.DB) *trillian.Tree {
 	t.Helper()
-	tree := createMapForTests(db)
+	tree := createTreeOrPanic(db, storageto.MapTree)
 
 	s := NewMapStorage(db)
 	err := s.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.MapTreeTX) error {

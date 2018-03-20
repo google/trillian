@@ -40,7 +40,7 @@ import (
 
 func TestNodeRoundTrip(t *testing.T) {
 	cleanTestDB(DB)
-	tree := createLogForTests(DB, storageto.LogTree)
+	tree := createTreeOrPanic(DB, storageto.LogTree)
 	s := NewLogStorage(DB, nil)
 
 	const writeRevision = int64(100)
@@ -83,7 +83,7 @@ func TestNodeRoundTrip(t *testing.T) {
 // cache gets exercised. Any tree size > 256 will do this.
 func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 	cleanTestDB(DB)
-	tree := createLogForTests(DB, storageto.LogTree)
+	tree := createTreeOrPanic(DB, storageto.LogTree)
 	s := NewLogStorage(DB, nil)
 
 	const writeRevision = int64(100)
@@ -232,16 +232,6 @@ func cleanTestDB(db *sql.DB) {
 	}
 }
 
-// createMapForTests creates a storage-backed MAP tree for tests. Returns the
-// created Tree.
-func createMapForTests(db *sql.DB) *trillian.Tree {
-	tree, err := createTree(db, storageto.MapTree)
-	if err != nil {
-		panic(fmt.Sprintf("Error creating map: %v", err))
-	}
-	return tree
-}
-
 func createFakeSignedLogRoot(db *sql.DB, tree *trillian.Tree, treeSize uint64) {
 	signer := tcrypto.NewSigner(0, testonly.NewSignerWithFixedSig(nil, nil), crypto.SHA256)
 
@@ -262,17 +252,6 @@ func createFakeSignedLogRoot(db *sql.DB, tree *trillian.Tree, treeSize uint64) {
 	}
 }
 
-// createLogForTests creates a storage-backed tree for tests. Returns the
-// created Tree.
-func createLogForTests(db *sql.DB, create *trillian.Tree) *trillian.Tree {
-	tree, err := createTree(db, create)
-	if err != nil {
-		panic(fmt.Sprintf("Error creating log: %v", err))
-	}
-	createFakeSignedLogRoot(db, tree, 0)
-	return tree
-}
-
 // createTree creates the specified tree using AdminStorage.
 func createTree(db *sql.DB, tree *trillian.Tree) (*trillian.Tree, error) {
 	ctx := context.Background()
@@ -282,6 +261,14 @@ func createTree(db *sql.DB, tree *trillian.Tree) (*trillian.Tree, error) {
 		return nil, err
 	}
 	return tree, nil
+}
+
+func createTreeOrPanic(db *sql.DB, create *trillian.Tree) *trillian.Tree {
+	tree, err := createTree(db, create)
+	if err != nil {
+		panic(fmt.Sprintf("Error creating tree: %v", err))
+	}
+	return tree
 }
 
 // updateTree updates the specified tree using AdminStorage.
