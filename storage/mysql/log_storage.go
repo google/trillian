@@ -680,9 +680,9 @@ func (t *logTreeTX) fetchLatestRoot(ctx context.Context) (trillian.SignedLogRoot
 	}
 
 	return trillian.SignedLogRoot{
-		KeyHint:   types.SerializeKeyHint(t.treeID),
-		LogRoot:   logRoot,
-		Signature: rootSignatureBytes,
+		KeyHint:          types.SerializeKeyHint(t.treeID),
+		LogRoot:          logRoot,
+		LogRootSignature: rootSignatureBytes,
 		// TODO(gbelvin): Remove deprecated fields
 		TimestampNanos: timestamp,
 		RootHash:       rootHash,
@@ -710,7 +710,7 @@ func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, root trillian.Signed
 		logRoot.TreeSize,
 		logRoot.RootHash,
 		logRoot.Revision,
-		root.Signature)
+		root.LogRootSignature)
 	if err != nil {
 		glog.Warningf("Failed to store signed root: %s", err)
 	}

@@ -40,7 +40,7 @@ var (
 
 // VerifySignedLogRoot verifies the SignedLogRoot and returns its contents.
 func VerifySignedLogRoot(pub crypto.PublicKey, hash crypto.Hash, r *trillian.SignedLogRoot) (*types.LogRootV1, error) {
-	if err := Verify(pub, hash, r.LogRoot, r.Signature); err != nil {
+	if err := Verify(pub, hash, r.LogRoot, r.LogRootSignature); err != nil {
 		return nil, err
 	}
 

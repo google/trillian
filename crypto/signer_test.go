@@ -106,7 +106,7 @@ func TestSignLogRoot(t *testing.T) {
 			t.Errorf("Failed to sign log root: %v", err)
 			continue
 		}
-		if got := len(slr.Signature); got == 0 {
+		if got := len(slr.LogRootSignature); got == 0 {
 			t.Errorf("len(sig): %v, want > 0", got)
 		}
 		// Check that the signature is correct

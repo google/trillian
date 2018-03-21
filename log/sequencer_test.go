@@ -499,7 +499,7 @@ func TestIntegrateBatch(t *testing.T) {
 }
 
 func TestIntegrateBatch_PutTokens(t *testing.T) {
-	cryptoSigner := newSignerWithFixedSig(testSignedRoot.Signature)
+	cryptoSigner := newSignerWithFixedSig(testSignedRoot.LogRootSignature)
 
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()

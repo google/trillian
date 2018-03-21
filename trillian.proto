@@ -220,7 +220,7 @@ message SignedLogRoot {
   int64 tree_revision = 6;
 
   // Deprecated: Signature replaced by LogRootSignature.
-  bytes signature = 4;
+  reserved 4;
 
   // LogID is associated with the public key that validates signature.
   reserved 5;
@@ -263,13 +263,12 @@ message SignedMapRoot {
   bytes root_hash = 2;
   reserved 3;  // was MapperMetadata (removed, replaced by 'Any metadata').
 
-  // Deprecated: Signature replaced by LogRootSignature.
   bytes signature = 4;
   int64 map_id = 5;
   int64 map_revision = 6;
+  reserved 7;
   // Metadata associated with the Map root.  This is set by the map personality
   // layer in a SetLeaves map request.  It could be used to persist state
   // needed to recreate the Map from an external data source.
-  reserved 7;
   bytes metadata = 8;
 }

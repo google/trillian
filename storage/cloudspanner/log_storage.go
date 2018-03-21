@@ -344,9 +344,9 @@ func (tx *logTX) LatestSignedLogRoot(ctx context.Context) (trillian.SignedLogRoo
 	// We already read the latest root as part of starting the transaction (in
 	// order to calculate the writeRevision), so we just return that data here:
 	return trillian.SignedLogRoot{
-		KeyHint:   types.SerializeKeyHint(tx.treeID),
-		LogRoot:   logRoot,
-		Signature: currentSTH.Signature,
+		KeyHint:          types.SerializeKeyHint(tx.treeID),
+		LogRoot:          logRoot,
+		LogRootSignature: currentSTH.Signature,
 		// TODO(gbelvin): Remove deprecated fields
 		TimestampNanos: currentSTH.TsNanos,
 		RootHash:       currentSTH.RootHash,
@@ -388,7 +388,7 @@ func (tx *logTX) StoreSignedLogRoot(ctx context.Context, root trillian.SignedLog
 			logRoot.TimestampNanos,
 			logRoot.TreeSize,
 			logRoot.RootHash,
-			root.Signature,
+			root.LogRootSignature,
 			writeRev,
 			logRoot.Metadata,
 		})
