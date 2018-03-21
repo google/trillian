@@ -177,7 +177,7 @@ func (m *memoryLogStorage) ReadWriteTransaction(ctx context.Context, tree *trill
 	return tx.Commit()
 }
 
-func (m *memoryLogStorage) AddSequencedLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf) ([]*trillian.QueuedLogLeaf, error) {
+func (m *memoryLogStorage) AddSequencedLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, timestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
 	return nil, status.Errorf(codes.Unimplemented, "AddSequencedLeaves is not implemented")
 }
 
@@ -263,7 +263,7 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 	return []*trillian.LogLeaf{}, nil
 }
 
-func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf) ([]*trillian.QueuedLogLeaf, error) {
+func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf, timestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
 	return nil, status.Errorf(codes.Unimplemented, "AddSequencedLeaves is not implemented")
 }
 

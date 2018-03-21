@@ -38,8 +38,6 @@ const (
 			ORDER BY QueueTimestampNanos,LeafIdentityHash ASC LIMIT ?`
 	insertUnsequencedEntrySQL = `INSERT INTO Unsequenced(TreeId,Bucket,LeafIdentityHash,MerkleLeafHash,QueueTimestampNanos)
 			VALUES(?,0,?,?,?)`
-	insertSequencedLeafSQL = `INSERT INTO SequencedLeafData(TreeId,LeafIdentityHash,MerkleLeafHash,SequenceNumber,IntegrateTimestampNanos)
-			VALUES(?,?,?,?,?)`
 	deleteUnsequencedSQL = "DELETE FROM Unsequenced WHERE TreeId=? AND Bucket=0 AND QueueTimestampNanos=? AND LeafIdentityHash=?"
 )
 

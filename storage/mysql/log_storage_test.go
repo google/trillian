@@ -369,7 +369,7 @@ func initAddSequencedLeavesTest(t *testing.T) addSequencedLeavesTest {
 
 func (t *addSequencedLeavesTest) addSequencedLeaves(leaves []*trillian.LogLeaf) {
 	runLogTX(t.s, t.tree, t.t, func(ctx context.Context, tx storage.LogTreeTX) error {
-		if _, err := tx.AddSequencedLeaves(ctx, leaves); err != nil {
+		if _, err := tx.AddSequencedLeaves(ctx, leaves, fakeQueueTime); err != nil {
 			t.t.Fatalf("Failed to add sequenced leaves: %v", err)
 		}
 		// TODO(pavelkalinnikov): Verify returned status for each leaf.

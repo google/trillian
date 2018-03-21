@@ -270,16 +270,16 @@ func (m *MockLogStorage) EXPECT() *MockLogStorageMockRecorder {
 }
 
 // AddSequencedLeaves mocks base method
-func (m *MockLogStorage) AddSequencedLeaves(arg0 context.Context, arg1 *trillian.Tree, arg2 []*trillian.LogLeaf) ([]*trillian.QueuedLogLeaf, error) {
-	ret := m.ctrl.Call(m, "AddSequencedLeaves", arg0, arg1, arg2)
+func (m *MockLogStorage) AddSequencedLeaves(arg0 context.Context, arg1 *trillian.Tree, arg2 []*trillian.LogLeaf, arg3 time.Time) ([]*trillian.QueuedLogLeaf, error) {
+	ret := m.ctrl.Call(m, "AddSequencedLeaves", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].([]*trillian.QueuedLogLeaf)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // AddSequencedLeaves indicates an expected call of AddSequencedLeaves
-func (mr *MockLogStorageMockRecorder) AddSequencedLeaves(arg0, arg1, arg2 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddSequencedLeaves", reflect.TypeOf((*MockLogStorage)(nil).AddSequencedLeaves), arg0, arg1, arg2)
+func (mr *MockLogStorageMockRecorder) AddSequencedLeaves(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddSequencedLeaves", reflect.TypeOf((*MockLogStorage)(nil).AddSequencedLeaves), arg0, arg1, arg2, arg3)
 }
 
 // CheckDatabaseAccessible mocks base method
@@ -369,16 +369,16 @@ func (m *MockLogTreeTX) EXPECT() *MockLogTreeTXMockRecorder {
 }
 
 // AddSequencedLeaves mocks base method
-func (m *MockLogTreeTX) AddSequencedLeaves(arg0 context.Context, arg1 []*trillian.LogLeaf) ([]*trillian.QueuedLogLeaf, error) {
-	ret := m.ctrl.Call(m, "AddSequencedLeaves", arg0, arg1)
+func (m *MockLogTreeTX) AddSequencedLeaves(arg0 context.Context, arg1 []*trillian.LogLeaf, arg2 time.Time) ([]*trillian.QueuedLogLeaf, error) {
+	ret := m.ctrl.Call(m, "AddSequencedLeaves", arg0, arg1, arg2)
 	ret0, _ := ret[0].([]*trillian.QueuedLogLeaf)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // AddSequencedLeaves indicates an expected call of AddSequencedLeaves
-func (mr *MockLogTreeTXMockRecorder) AddSequencedLeaves(arg0, arg1 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddSequencedLeaves", reflect.TypeOf((*MockLogTreeTX)(nil).AddSequencedLeaves), arg0, arg1)
+func (mr *MockLogTreeTXMockRecorder) AddSequencedLeaves(arg0, arg1, arg2 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddSequencedLeaves", reflect.TypeOf((*MockLogTreeTX)(nil).AddSequencedLeaves), arg0, arg1, arg2)
 }
 
 // Close mocks base method

@@ -467,7 +467,7 @@ func TestAddSequencedLeaves(t *testing.T) {
 
 	tree := addTreeID(stestonly.PreorderedLogTree, addSeqRequest0.LogId)
 	mockStorage := storage.NewMockLogStorage(ctrl)
-	mockStorage.EXPECT().AddSequencedLeaves(gomock.Any(), tree, []*trillian.LogLeaf{leaf1}).
+	mockStorage.EXPECT().AddSequencedLeaves(gomock.Any(), tree, []*trillian.LogLeaf{leaf1}, gomock.Any()).
 		Return([]*trillian.QueuedLogLeaf{{Status: status.New(codes.OK, "OK").Proto()}}, nil)
 
 	registry := extension.Registry{

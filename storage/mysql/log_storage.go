@@ -43,8 +43,10 @@ import (
 )
 
 const (
-	insertLeafDataSQL = `INSERT INTO LeafData(TreeId,LeafIdentityHash,LeafValue,ExtraData,QueueTimestampNanos)
-			VALUES(?,?,?,?,?)`
+	valuesPlaceholder5 = "(?,?,?,?,?)"
+
+	insertLeafDataSQL      = "INSERT INTO LeafData(TreeId,LeafIdentityHash,LeafValue,ExtraData,QueueTimestampNanos) VALUES" + valuesPlaceholder5
+	insertSequencedLeafSQL = "INSERT INTO SequencedLeafData(TreeId,LeafIdentityHash,MerkleLeafHash,SequenceNumber,IntegrateTimestampNanos) VALUES"
 
 	selectNonDeletedTreeIDByTypeAndStateSQL = `
 		SELECT TreeId FROM Trees
@@ -271,12 +273,12 @@ func (m *mySQLLogStorage) ReadWriteTransaction(ctx context.Context, tree *trilli
 	return tx.Commit()
 }
 
-func (m *mySQLLogStorage) AddSequencedLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf) ([]*trillian.QueuedLogLeaf, error) {
+func (m *mySQLLogStorage) AddSequencedLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, timestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
 	tx, err := m.beginInternal(ctx, tree)
 	if err != nil {
 		return nil, err
 	}
-	res, err := tx.AddSequencedLeaves(ctx, leaves)
+	res, err := tx.AddSequencedLeaves(ctx, leaves, timestamp)
 	if err != nil {
 		return nil, err
 	}
@@ -513,13 +515,13 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 	return existingLeaves, nil
 }
 
-func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf) ([]*trillian.QueuedLogLeaf, error) {
+func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf, timestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
 	res := make([]*trillian.QueuedLogLeaf, len(leaves))
 	ok := status.New(codes.OK, "OK").Proto()
 
 	// Leaves in this transaction are inserted in two tables. For each leaf, if
 	// one of the two inserts fails, we remove the side effect by rolling back to
-	// a savepoint installed before the first insert.
+	// a savepoint installed before the first insert of the two.
 	const savepoint = "SAVEPOINT AddSequencedLeaves"
 	if _, err := t.tx.ExecContext(ctx, savepoint); err != nil {
 		glog.Errorf("Error adding savepoint: %s", err)
@@ -545,9 +547,8 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 
 		// TODO(pavelkalinnikov): Measure latencies.
 		_, err := t.tx.ExecContext(ctx, insertLeafDataSQL,
-			t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData, 0)
-		// TODO(pavelkalinnikov): QueueTimestamp == 0 because the entry bypasses
-		// the queue. Fix integration latency metrics.
+			t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData, timestamp.UnixNano())
+		// TODO(pavelkalinnikov): Detach PREORDERED_LOG integration latency metric.
 
 		// TODO(pavelkalinnikov): Support opting out from duplicates detection.
 		if isDuplicateErr(err) {
@@ -559,7 +560,7 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 			return nil, err
 		}
 
-		_, err = t.tx.ExecContext(ctx, insertSequencedLeafSQL,
+		_, err = t.tx.ExecContext(ctx, insertSequencedLeafSQL+valuesPlaceholder5,
 			t.treeID, leaf.LeafIdentityHash, leaf.MerkleLeafHash, leaf.LeafIndex, 0)
 		// TODO(pavelkalinnikov): Update IntegrateTimestamp on integrating the leaf.
 
