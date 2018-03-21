@@ -20,12 +20,11 @@ go:
 go_import_path: github.com/google/trillian
 
 env:
-  - GCE_CI=${ENABLE_GCE_CI}
-  - TRILLIAN_SQL_DRIVER=mysql WITH_COVERAGE=true
-  - GOFLAGS='-race' TRILLIAN_SQL_DRIVER=mysql
-  - GOFLAGS='-race --tags batched_queue' TRILLIAN_SQL_DRIVER=mysql
-  - GOFLAGS='-race' TRILLIAN_SQL_DRIVER=mysql WITH_ETCD=true
-  - GOFLAGS='-race --tags pkcs11' TRILLIAN_SQL_DRIVER=mysql WITH_PKCS11=true
+  - GCE_CI=${ENABLE_GCE_CI} WITH_COVERAGE=true
+  - GOFLAGS='-race'
+  - GOFLAGS='-race --tags batched_queue'
+  - GOFLAGS='-race' WITH_ETCD=true
+  - GOFLAGS='-race --tags pkcs11' WITH_PKCS11=true
 
 matrix:
   fast_finish: true
@@ -97,13 +96,11 @@ script:
         export ETCD_DIR="${GOPATH}/bin"
       fi
   - |
-      if [[ "${TRILLIAN_SQL_DRIVER}" == 'mysql' ]]; then
-        ./integration/integration_test.sh
-        cd "$HOME/gopath/src/github.com/google/certificate-transparency-go"
-        ./trillian/integration/integration_test.sh
-        cd $HOME/gopath/src/github.com/google/trillian
-        HAMMER_OPTS="--operations=50" ./integration/maphammer.sh 3
-      fi
+      ./integration/integration_test.sh
+      cd "$HOME/gopath/src/github.com/google/certificate-transparency-go"
+      ./trillian/integration/integration_test.sh
+      cd $HOME/gopath/src/github.com/google/trillian
+      HAMMER_OPTS="--operations=50" ./integration/maphammer.sh 3
   - set +e
 
 after_success:
@@ -123,4 +120,3 @@ after_success:
 
         . scripts/deploy_gce_ci.sh
       fi
-

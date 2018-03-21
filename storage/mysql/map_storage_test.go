@@ -35,9 +35,7 @@ import (
 )
 
 func TestMySQLMapStorage_CheckDatabaseAccessible(t *testing.T) {
-	if provider := testdb.Default(); !provider.IsMySQL() {
-		t.Skipf("Inhibited due to known issue (#896) on SQL driver: %q", provider.Driver)
-	}
+	testdb.SkipIfNoMySQL(t)
 
 	cleanTestDB(DB)
 	s := NewMapStorage(DB)
@@ -47,9 +45,7 @@ func TestMySQLMapStorage_CheckDatabaseAccessible(t *testing.T) {
 }
 
 func TestMapSnapshot(t *testing.T) {
-	if provider := testdb.Default(); !provider.IsMySQL() {
-		t.Skipf("Inhibited due to known issue (#896) on SQL driver: %q", provider.Driver)
-	}
+	testdb.SkipIfNoMySQL(t)
 
 	cleanTestDB(DB)
 	ctx := context.Background()
@@ -111,9 +107,7 @@ func TestMapSnapshot(t *testing.T) {
 }
 
 func TestMapReadWriteTransaction(t *testing.T) {
-	if provider := testdb.Default(); !provider.IsMySQL() {
-		t.Skipf("Inhibited due to known issue (#896) on SQL driver: %q", provider.Driver)
-	}
+	testdb.SkipIfNoMySQL(t)
 
 	cleanTestDB(DB)
 	ctx := context.Background()
@@ -173,9 +167,7 @@ func TestMapReadWriteTransaction(t *testing.T) {
 }
 
 func TestMapRootUpdate(t *testing.T) {
-	if provider := testdb.Default(); !provider.IsMySQL() {
-		t.Skipf("Inhibited due to known issue (#896) on SQL driver: %q", provider.Driver)
-	}
+	testdb.SkipIfNoMySQL(t)
 
 	cleanTestDB(DB)
 	ctx := context.Background()
@@ -268,9 +260,7 @@ var mapLeaf = trillian.MapLeaf{
 }
 
 func TestMapSetGetRoundTrip(t *testing.T) {
-	if provider := testdb.Default(); !provider.IsMySQL() {
-		t.Skipf("Inhibited due to known issue (#896) on SQL driver: %q", provider.Driver)
-	}
+	testdb.SkipIfNoMySQL(t)
 
 	cleanTestDB(DB)
 	ctx := context.Background()
@@ -305,9 +295,7 @@ func TestMapSetGetRoundTrip(t *testing.T) {
 }
 
 func TestMapSetSameKeyInSameRevisionFails(t *testing.T) {
-	if provider := testdb.Default(); !provider.IsMySQL() {
-		t.Skipf("Inhibited due to known issue (#896) on SQL driver: %q", provider.Driver)
-	}
+	testdb.SkipIfNoMySQL(t)
 
 	cleanTestDB(DB)
 	ctx := context.Background()
@@ -334,9 +322,7 @@ func TestMapSetSameKeyInSameRevisionFails(t *testing.T) {
 }
 
 func TestMapGet0Results(t *testing.T) {
-	if provider := testdb.Default(); !provider.IsMySQL() {
-		t.Skipf("Inhibited due to known issue (#896) on SQL driver: %q", provider.Driver)
-	}
+	testdb.SkipIfNoMySQL(t)
 
 	cleanTestDB(DB)
 	ctx := context.Background()
@@ -365,9 +351,7 @@ func TestMapGet0Results(t *testing.T) {
 }
 
 func TestMapSetGetMultipleRevisions(t *testing.T) {
-	if provider := testdb.Default(); !provider.IsMySQL() {
-		t.Skipf("Inhibited due to known issue (#896) on SQL driver: %q", provider.Driver)
-	}
+	testdb.SkipIfNoMySQL(t)
 
 	// Write two roots for a map and make sure the one with the newest timestamp supersedes
 	cleanTestDB(DB)
@@ -426,9 +410,7 @@ func TestMapSetGetMultipleRevisions(t *testing.T) {
 }
 
 func TestGetSignedMapRootNotExist(t *testing.T) {
-	if provider := testdb.Default(); !provider.IsMySQL() {
-		t.Skipf("Inhibited due to known issue (#896) on SQL driver: %q", provider.Driver)
-	}
+	testdb.SkipIfNoMySQL(t)
 
 	cleanTestDB(DB)
 	tree := createTreeOrPanic(DB, storageto.MapTree) // Uninitialized: no revision 0 MapRoot exists.
@@ -472,9 +454,7 @@ func TestLatestSignedMapRootNoneWritten(t *testing.T) {
 }
 
 func TestGetSignedMapRoot(t *testing.T) {
-	if provider := testdb.Default(); !provider.IsMySQL() {
-		t.Skipf("Inhibited due to known issue (#896) on SQL driver: %q", provider.Driver)
-	}
+	testdb.SkipIfNoMySQL(t)
 
 	cleanTestDB(DB)
 	ctx := context.Background()
@@ -511,9 +491,7 @@ func TestGetSignedMapRoot(t *testing.T) {
 }
 
 func TestLatestSignedMapRoot(t *testing.T) {
-	if provider := testdb.Default(); !provider.IsMySQL() {
-		t.Skipf("Inhibited due to known issue (#896) on SQL driver: %q", provider.Driver)
-	}
+	testdb.SkipIfNoMySQL(t)
 
 	cleanTestDB(DB)
 	ctx := context.Background()
@@ -549,9 +527,7 @@ func TestLatestSignedMapRoot(t *testing.T) {
 }
 
 func TestDuplicateSignedMapRoot(t *testing.T) {
-	if provider := testdb.Default(); !provider.IsMySQL() {
-		t.Skipf("Inhibited due to known issue (#896) on SQL driver: %q", provider.Driver)
-	}
+	testdb.SkipIfNoMySQL(t)
 
 	cleanTestDB(DB)
 	ctx := context.Background()
@@ -578,9 +554,7 @@ func TestDuplicateSignedMapRoot(t *testing.T) {
 }
 
 func TestReadOnlyMapTX_Rollback(t *testing.T) {
-	if provider := testdb.Default(); !provider.IsMySQL() {
-		t.Skipf("Inhibited due to known issue (#896) on SQL driver: %q", provider.Driver)
-	}
+	testdb.SkipIfNoMySQL(t)
 
 	cleanTestDB(DB)
 	s := NewMapStorage(DB)

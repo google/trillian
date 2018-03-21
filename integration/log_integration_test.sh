@@ -31,7 +31,7 @@ echo "Created tree ${TEST_TREE_ID}"
 echo "Running test"
 pushd "${INTEGRATION_DIR}"
 set +e
-TRILLIAN_SQL_DRIVER=mysql go test ${GOFLAGS} \
+go test ${GOFLAGS} \
   -run ".*LiveLog.*" \
   -timeout=${GO_TEST_TIMEOUT:-5m} \
   ./ \

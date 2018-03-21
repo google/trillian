@@ -26,6 +26,7 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/server/interceptor"
 	"github.com/google/trillian/storage"
+	"github.com/google/trillian/storage/testdb"
 	"github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/testonly/integration"
 	"github.com/kylelemons/godebug/pretty"
@@ -40,7 +41,7 @@ import (
 func TestAdminServer_CreateTree(t *testing.T) {
 	ctx := context.Background()
 
-	ts, err := setupAdminServer(ctx)
+	ts, err := setupAdminServer(ctx, t)
 	if err != nil {
 		t.Fatalf("setupAdminServer() failed: %v", err)
 	}
@@ -129,7 +130,7 @@ func TestAdminServer_CreateTree(t *testing.T) {
 func TestAdminServer_UpdateTree(t *testing.T) {
 	ctx := context.Background()
 
-	ts, err := setupAdminServer(ctx)
+	ts, err := setupAdminServer(ctx, t)
 	if err != nil {
 		t.Fatalf("setupAdminServer() failed: %v", err)
 	}
@@ -236,7 +237,7 @@ func TestAdminServer_UpdateTree(t *testing.T) {
 func TestAdminServer_GetTree(t *testing.T) {
 	ctx := context.Background()
 
-	ts, err := setupAdminServer(ctx)
+	ts, err := setupAdminServer(ctx, t)
 	if err != nil {
 		t.Fatalf("setupAdminServer() failed: %v", err)
 	}
@@ -271,7 +272,7 @@ func TestAdminServer_GetTree(t *testing.T) {
 func TestAdminServer_ListTrees(t *testing.T) {
 	ctx := context.Background()
 
-	ts, err := setupAdminServer(ctx)
+	ts, err := setupAdminServer(ctx, t)
 	if err != nil {
 		t.Fatalf("setupAdminServer() failed: %v", err)
 	}
@@ -340,7 +341,7 @@ func sortByTreeID(s []*trillian.Tree) {
 func TestAdminServer_DeleteTree(t *testing.T) {
 	ctx := context.Background()
 
-	ts, err := setupAdminServer(ctx)
+	ts, err := setupAdminServer(ctx, t)
 	if err != nil {
 		t.Fatalf("setupAdminServer() failed: %v", err)
 	}
@@ -391,7 +392,7 @@ func TestAdminServer_DeleteTree(t *testing.T) {
 func TestAdminServer_DeleteTreeErrors(t *testing.T) {
 	ctx := context.Background()
 
-	ts, err := setupAdminServer(ctx)
+	ts, err := setupAdminServer(ctx, t)
 	if err != nil {
 		t.Fatalf("setupAdminServer() failed: %v", err)
 	}
@@ -434,7 +435,7 @@ func TestAdminServer_DeleteTreeErrors(t *testing.T) {
 func TestAdminServer_UndeleteTree(t *testing.T) {
 	ctx := context.Background()
 
-	ts, err := setupAdminServer(ctx)
+	ts, err := setupAdminServer(ctx, t)
 	if err != nil {
 		t.Fatalf("setupAdminServer() failed: %v", err)
 	}
@@ -482,7 +483,7 @@ func TestAdminServer_UndeleteTree(t *testing.T) {
 func TestAdminServer_UndeleteTreeErrors(t *testing.T) {
 	ctx := context.Background()
 
-	ts, err := setupAdminServer(ctx)
+	ts, err := setupAdminServer(ctx, t)
 	if err != nil {
 		t.Fatalf("setupAdminServer() failed: %v", err)
 	}
@@ -521,7 +522,7 @@ func TestAdminServer_UndeleteTreeErrors(t *testing.T) {
 func TestAdminServer_TreeGC(t *testing.T) {
 	ctx := context.Background()
 
-	ts, err := setupAdminServer(ctx)
+	ts, err := setupAdminServer(ctx, t)
 	if err != nil {
 		t.Fatalf("setupAdminServer() failed: %v", err)
 	}
@@ -576,7 +577,9 @@ func (ts *testServer) closeAll() {
 
 // setupAdminServer prepares and starts an Admin Server, returning a testServer object.
 // If the returned error is nil, the callers must "defer ts.closeAll()" to avoid resource leakage.
-func setupAdminServer(ctx context.Context) (*testServer, error) {
+func setupAdminServer(ctx context.Context, t *testing.T) (*testServer, error) {
+	t.Helper()
+	testdb.SkipIfNoMySQL(t)
 	ts := &testServer{}
 
 	var err error

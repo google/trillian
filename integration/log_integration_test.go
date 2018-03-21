@@ -27,6 +27,7 @@ import (
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/storage/memory"
+	"github.com/google/trillian/storage/testdb"
 	"github.com/google/trillian/testonly/integration"
 
 	_ "github.com/google/trillian/crypto/keys/der/proto" // Register PrivateKey ProtoHandler
@@ -91,6 +92,7 @@ func TestLiveLogIntegration(t *testing.T) {
 }
 
 func TestInProcessLogIntegration(t *testing.T) {
+	testdb.SkipIfNoMySQL(t)
 	ctx := context.Background()
 	const numSequencers = 2
 	env, err := integration.NewLogEnv(ctx, numSequencers, "unused")
