@@ -26,17 +26,10 @@ import (
 
 	"github.com/benlaurie/objecthash/go/objecthash"
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/types"
 )
 
-var (
-	errVerify = errors.New("signature verification failed")
-
-	cryptoHashLookup = map[sigpb.DigitallySigned_HashAlgorithm]crypto.Hash{
-		sigpb.DigitallySigned_SHA256: crypto.SHA256,
-	}
-)
+var errVerify = errors.New("signature verification failed")
 
 // VerifySignedLogRoot verifies the SignedLogRoot and returns its contents.
 func VerifySignedLogRoot(pub crypto.PublicKey, hash crypto.Hash, r *trillian.SignedLogRoot) (*types.LogRootV1, error) {

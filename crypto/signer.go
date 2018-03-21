@@ -24,13 +24,8 @@ import (
 	"github.com/benlaurie/objecthash/go/objecthash"
 	"github.com/golang/glog"
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/types"
 )
-
-var sigpbHashLookup = map[crypto.Hash]sigpb.DigitallySigned_HashAlgorithm{
-	crypto.SHA256: sigpb.DigitallySigned_SHA256,
-}
 
 // Signer is responsible for signing log-related data and producing the appropriate
 // application specific signature objects.
