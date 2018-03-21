@@ -24,6 +24,7 @@ import (
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/trees"
+	"github.com/google/trillian/types"
 
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
@@ -104,7 +105,12 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 		root = &r
 	}
 
-	smtReader := merkle.NewSparseMerkleTreeReader(root.MapRevision, hasher, tx)
+	var mapRoot types.MapRootV1
+	if err := mapRoot.UnmarshalBinary(root.MapRoot); err != nil {
+		return nil, err
+	}
+
+	smtReader := merkle.NewSparseMerkleTreeReader(int64(mapRoot.Revision), hasher, tx)
 
 	inclusions := make([]*trillian.MapLeafInclusion, 0, len(indices))
 	found := 0
@@ -114,7 +120,7 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 				"index len(%x): %v, want %v", index, got, want)
 		}
 		// Fetch the leaf if it exists.
-		leaves, err := tx.Get(ctx, root.MapRevision, [][]byte{index})
+		leaves, err := tx.Get(ctx, int64(mapRoot.Revision), [][]byte{index})
 		if err != nil {
 			return nil, fmt.Errorf("could not fetch leaf %x: %v", index, err)
 		}
@@ -136,7 +142,7 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 		}
 
 		// Fetch the proof regardless of whether the leaf exists.
-		proof, err := smtReader.InclusionProof(ctx, root.MapRevision, index)
+		proof, err := smtReader.InclusionProof(ctx, int64(mapRoot.Revision), index)
 		if err != nil {
 			return nil, fmt.Errorf("could not get inclusion proof for leaf %x: %v", index, err)
 		}
@@ -237,23 +243,21 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 
 func (t *TrillianMapServer) makeSignedMapRoot(ctx context.Context, tree *trillian.Tree, smrTs time.Time,
 	rootHash []byte, mapID, revision int64, meta []byte) (*trillian.SignedMapRoot, error) {
-	smr := &trillian.SignedMapRoot{
-		TimestampNanos: smrTs.UnixNano(),
+	smr := &types.MapRootV1{
 		RootHash:       rootHash,
-		MapId:          mapID,
-		MapRevision:    revision,
+		TimestampNanos: uint64(smrTs.UnixNano()),
+		Revision:       uint64(revision),
 		Metadata:       meta,
 	}
 	signer, err := trees.Signer(ctx, tree)
 	if err != nil {
 		return nil, fmt.Errorf("trees.Signer(): %v", err)
 	}
-	sig, err := signer.SignMapRoot(smr)
+	root, err := signer.SignMapRoot(smr)
 	if err != nil {
 		return nil, fmt.Errorf("SignMapRoot(): %v", err)
 	}
-	smr.Signature = sig
-	return smr, nil
+	return root, nil
 }
 
 // GetSignedMapRoot implements the GetSignedMapRoot RPC method.
@@ -351,7 +355,7 @@ func (t *TrillianMapServer) InitMap(ctx context.Context, req *trillian.InitMapRe
 			return status.Errorf(codes.FailedPrecondition, "LatestSignedMapRoot(): %v", err)
 		}
 		// Belt and braces check.
-		if latestRoot.GetRootHash() != nil {
+		if latestRoot.GetMapRoot() != nil {
 			return status.Errorf(codes.AlreadyExists, "map is already initialised")
 		}
 

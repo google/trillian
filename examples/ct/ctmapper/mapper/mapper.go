@@ -29,6 +29,7 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/examples/ct/ctmapper"
 	"github.com/google/trillian/examples/ct/ctmapper/ctmapperpb"
+	"github.com/google/trillian/types"
 	"google.golang.org/grpc"
 
 	pb "github.com/golang/protobuf/proto"
@@ -81,11 +82,14 @@ func (m *CTMapper) oneMapperRun(ctx context.Context) (bool, error) {
 		return false, err
 	}
 
+	var mapRoot types.MapRootV1
+	if err := mapRoot.UnmarshalBinary(getRootResp.GetMapRoot().GetMapRoot()); err != nil {
+		return false, err
+	}
+
 	mapperMetadata := &ctmapperpb.MapperMetadata{}
-	if getRootResp.GetMapRoot().Metadata != nil {
-		if err := proto.Unmarshal(getRootResp.MapRoot.Metadata, mapperMetadata); err != nil {
-			return false, fmt.Errorf("failed to unmarshal MapRoot.Metadata: %v", err)
-		}
+	if err := proto.Unmarshal(mapRoot.Metadata, mapperMetadata); err != nil {
+		return false, fmt.Errorf("failed to unmarshal MapRoot.Metadata: %v", err)
 	}
 
 	startEntry := mapperMetadata.HighestFullyCompletedSeq + 1

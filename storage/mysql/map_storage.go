@@ -22,6 +22,7 @@ import (
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
+	"github.com/google/trillian/types"
 
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
@@ -117,7 +118,11 @@ func (m *mySQLMapStorage) begin(ctx context.Context, tree *trillian.Tree) (stora
 		return mtx, err
 	}
 
-	mtx.treeTX.writeRevision = mtx.root.MapRevision + 1
+	if err := mtx.smr.UnmarshalBinary(mtx.root.MapRoot); err != nil {
+		return nil, err
+	}
+
+	mtx.treeTX.writeRevision = int64(mtx.smr.Revision) + 1
 	return mtx, nil
 }
 
@@ -143,10 +148,11 @@ type mapTreeTX struct {
 	treeTX
 	ms   *mySQLMapStorage
 	root trillian.SignedMapRoot
+	smr  types.MapRootV1
 }
 
 func (m *mapTreeTX) ReadRevision() int64 {
-	return m.root.MapRevision
+	return int64(m.smr.Revision)
 }
 
 func (m *mapTreeTX) WriteRevision() int64 {
@@ -276,18 +282,29 @@ func (m *mapTreeTX) LatestSignedMapRoot(ctx context.Context) (trillian.SignedMap
 	return m.signedMapRoot(timestamp, mapRevision, rootHash, rootSignatureBytes, mapperMetaBytes)
 }
 
-func (m *mapTreeTX) signedMapRoot(timestamp, mapRevision int64, rootHash, rootSignatureBytes, mapperMetaBytes []byte) (trillian.SignedMapRoot, error) {
-	return trillian.SignedMapRoot{
+func (m *mapTreeTX) signedMapRoot(timestamp, mapRevision int64, rootHash, rootSignature, mapperMeta []byte) (trillian.SignedMapRoot, error) {
+	mapRoot, err := (&types.MapRootV1{
 		RootHash:       rootHash,
-		TimestampNanos: timestamp,
-		MapRevision:    mapRevision,
-		Signature:      rootSignatureBytes,
-		MapId:          m.treeID,
-		Metadata:       mapperMetaBytes,
+		TimestampNanos: uint64(timestamp),
+		Revision:       uint64(mapRevision),
+		Metadata:       mapperMeta,
+	}).MarshalBinary()
+	if err != nil {
+		return trillian.SignedMapRoot{}, err
+	}
+
+	return trillian.SignedMapRoot{
+		MapRoot:   mapRoot,
+		Signature: rootSignature,
 	}, nil
 }
 
 func (m *mapTreeTX) StoreSignedMapRoot(ctx context.Context, root trillian.SignedMapRoot) error {
+	var r types.MapRootV1
+	if err := r.UnmarshalBinary(root.MapRoot); err != nil {
+		return err
+	}
+
 	stmt, err := m.tx.PrepareContext(ctx, insertMapHeadSQL)
 	if err != nil {
 		return err
@@ -295,7 +312,7 @@ func (m *mapTreeTX) StoreSignedMapRoot(ctx context.Context, root trillian.Signed
 	defer stmt.Close()
 
 	// TODO(al): store transactionLogHead too
-	res, err := stmt.ExecContext(ctx, m.treeID, root.TimestampNanos, root.RootHash, root.MapRevision, root.Signature, root.Metadata)
+	res, err := stmt.ExecContext(ctx, m.treeID, r.TimestampNanos, r.RootHash, r.Revision, root.Signature, r.Metadata)
 
 	if err != nil {
 		glog.Warningf("Failed to store signed map root: %s", err)
