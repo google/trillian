@@ -169,7 +169,7 @@ func (c MapConfig) String() string {
 }
 
 // CheckSignature verifies the signature and returns the map root contents.
-func CheckSignature(ctf *MapConfig, r *trillian.SignedMapRoot) (*types.MapRootV1, error) {
+func CheckSignature(_ *MapConfig, r *trillian.SignedMapRoot) (*types.MapRootV1, error) {
 	// TODO(gbelvin): verify signatures
 	var root types.MapRootV1
 	if err := root.UnmarshalBinary(r.GetMapRoot()); err != nil {
@@ -358,7 +358,7 @@ func (s *hammerState) pickCopy() (int, bool) {
 	return rand.Intn(i), true
 }
 
-func (s *hammerState) updateContents(rev int64, leaves []*trillian.MapLeaf) error {
+func (s *hammerState) updateContents(rev uint64, leaves []*trillian.MapLeaf) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -372,7 +372,7 @@ func (s *hammerState) updateContents(rev int64, leaves []*trillian.MapLeaf) erro
 		s.contents[i] = s.contents[i-1]
 	}
 	// Start from previous map contents
-	s.contents[0].rev = rev
+	s.contents[0].rev = int64(rev)
 	s.contents[0].data = make(map[mapKey]string)
 	for k, v := range s.contents[1].data {
 		s.contents[0].data[k] = v
@@ -592,7 +592,7 @@ func (s *hammerState) doGetLeaves(ctx context.Context, latest bool) error {
 		label += "-rev"
 		req := &trillian.GetMapLeavesByRevisionRequest{
 			MapId:    s.cfg.MapID,
-			Revision: rev,
+			Revision: int64(rev),
 			Index:    indices,
 		}
 		rsp, err = s.cfg.Client.GetLeavesByRevision(ctx, req)
@@ -615,7 +615,7 @@ func (s *hammerState) doGetLeaves(ctx context.Context, latest bool) error {
 	if err := s.checkContents(which, rsp.MapLeafInclusion); err != nil {
 		return fmt.Errorf("incorrect contents of %s(%+v): %v", label, rqMsg, err)
 	}
-	glog.V(2).Infof("%d: got %d leaves, with SMR(time=%q, rev=%d)", s.cfg.MapID, len(rsp.MapLeafInclusion), timeFromNanos(root.TimestampNanos), root.Revision)
+	glog.V(2).Infof("%d: got %d leaves, with SMR(time=%q, rev=%d)", s.cfg.MapID, len(rsp.MapLeafInclusion), time.Unix(0, int64(root.TimestampNanos)), root.Revision)
 	return nil
 }
 
@@ -727,10 +727,10 @@ leafloop:
 	}
 
 	s.pushSMR(rsp.MapRoot)
-	if err := s.updateContents(int64(root.Revision), leaves); err != nil {
+	if err := s.updateContents(root.Revision, leaves); err != nil {
 		return err
 	}
-	glog.V(2).Infof("%d: set %d leaves, new SMR(time=%q, rev=%d)", s.cfg.MapID, len(leaves), timeFromNanos(root.TimestampNanos), root.Revision)
+	glog.V(2).Infof("%d: set %d leaves, new SMR(time=%q, rev=%d)", s.cfg.MapID, len(leaves), time.Unix(0, int64(root.TimestampNanos)), root.Revision)
 	return nil
 }
 
@@ -775,7 +775,7 @@ func (s *hammerState) getSMR(ctx context.Context) error {
 	}
 
 	s.pushSMR(rsp.MapRoot)
-	glog.V(2).Infof("%d: got SMR(time=%q, rev=%d)", s.cfg.MapID, timeFromNanos(root.TimestampNanos), root.Revision)
+	glog.V(2).Infof("%d: got SMR(time=%q, rev=%d)", s.cfg.MapID, time.Unix(0, int64(root.TimestampNanos)), root.Revision)
 	return nil
 }
 
@@ -801,7 +801,7 @@ func (s *hammerState) getSMRRev(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	glog.V(2).Infof("%d: got SMR(time=%q, rev=%d)", s.cfg.MapID, timeFromNanos(root.TimestampNanos), root.Revision)
+	glog.V(2).Infof("%d: got SMR(time=%q, rev=%d)", s.cfg.MapID, time.Unix(0, int64(root.TimestampNanos)), root.Revision)
 
 	if !s.cfg.CheckSignatures {
 		rsp.MapRoot.Signature = nil
@@ -836,11 +836,6 @@ func (s *hammerState) getSMRRevInvalid(ctx context.Context) error {
 	}
 	glog.V(2).Infof("%d: expected failure: get-smr-rev(%v: @%d): %+v", s.cfg.MapID, choice, rev, rsp)
 	return nil
-}
-
-func timeFromNanos(nanos uint64) time.Time {
-	n := int64(nanos)
-	return time.Unix(n/1e9, n%1e9)
 }
 
 func smrRev(smr *trillian.SignedMapRoot) string {

@@ -159,23 +159,24 @@ func TestMapReadWriteTransaction(t *testing.T) {
 		t.Run(test.desc, func(t *testing.T) {
 			err := s.ReadWriteTransaction(ctx, test.tree, func(ctx context.Context, tx storage.MapTreeTX) error {
 				root, err := tx.LatestSignedMapRoot(ctx)
-				if err != nil && !strings.Contains(err.Error(), test.wantRootErr) {
-					t.Errorf("LatestSignedMapRoot() returned err = %v", err)
+				if err != nil {
+					if !strings.Contains(err.Error(), test.wantRootErr) {
+						t.Errorf("LatestSignedMapRoot() returned err = %v", err)
+					}
+					return nil
 				}
-				if err == nil && len(test.wantRootErr) != 0 {
-					t.Errorf("LatestSignedMapRoot() returned err = %v, want: nil", err)
+				if len(test.wantRootErr) != 0 {
+					t.Fatalf("LatestSignedMapRoot() returned err = %v, want: nil", err)
 				}
-				if err == nil {
-					var mapRoot types.MapRootV1
-					if err := mapRoot.UnmarshalBinary(root.MapRoot); err != nil {
-						t.Errorf("UmarshalBinary(): %v", err)
-					}
-					if got, want := tx.WriteRevision(), test.wantTXRev; got != want {
-						t.Errorf("WriteRevision() = %v, want = %v", got, want)
-					}
-					if got, want := int64(mapRoot.Revision), test.wantRev; got != want {
-						t.Errorf("TreeRevision() = %v, want = %v", got, want)
-					}
+				var mapRoot types.MapRootV1
+				if err := mapRoot.UnmarshalBinary(root.MapRoot); err != nil {
+					t.Fatalf("UmarshalBinary(): %v", err)
+				}
+				if got, want := tx.WriteRevision(), test.wantTXRev; got != want {
+					t.Errorf("WriteRevision() = %v, want = %v", got, want)
+				}
+				if got, want := int64(mapRoot.Revision), test.wantRev; got != want {
+					t.Errorf("TreeRevision() = %v, want = %v", got, want)
 				}
 				return nil
 			})
