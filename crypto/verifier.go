@@ -19,12 +19,10 @@ import (
 	"crypto/ecdsa"
 	"crypto/rsa"
 	"encoding/asn1"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
 
-	"github.com/benlaurie/objecthash/go/objecthash"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/types"
@@ -57,17 +55,18 @@ func VerifySignedLogRoot(pub crypto.PublicKey, hash crypto.Hash, r *trillian.Sig
 
 }
 
-// VerifyObject verifies the output of Signer.SignObject.
-func VerifyObject(pub crypto.PublicKey, hash crypto.Hash, obj interface{}, sig *sigpb.DigitallySigned) error {
-	j, err := json.Marshal(obj)
-	if err != nil {
-		return err
+// VerifySignedMapRoot verifies the signature on the SignedMapRoot.
+// VerifySignedMapRoot returns MapRootV1 to encourage safe API use.
+// It should be the only function available to clients that returns MapRootV1.
+func VerifySignedMapRoot(pub crypto.PublicKey, hash crypto.Hash, smr *trillian.SignedMapRoot) (*types.MapRootV1, error) {
+	if err := Verify(pub, hash, smr.MapRoot, smr.Signature); err != nil {
+		return nil, err
 	}
-	digest, err := objecthash.CommonJSONHash(string(j))
-	if err != nil {
-		return fmt.Errorf("CommonJSONHash(%s): %v", j, err)
+	var root types.MapRootV1
+	if err := root.UnmarshalBinary(smr.MapRoot); err != nil {
+		return nil, err
 	}
-	return Verify(pub, hash, digest[:], sig)
+	return &root, nil
 }
 
 // Verify cryptographically verifies the output of Signer.

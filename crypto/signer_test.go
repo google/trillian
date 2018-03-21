@@ -16,11 +16,9 @@ package crypto
 
 import (
 	"crypto"
-	"encoding/json"
 	"errors"
 	"testing"
 
-	"github.com/benlaurie/objecthash/go/objecthash"
 	"github.com/golang/mock/gomock"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys/pem"
@@ -140,38 +138,26 @@ func TestSignMapRoot(t *testing.T) {
 	}
 	signer := NewSigner(0, key, crypto.SHA256)
 
-	for _, test := range []struct {
-		root trillian.SignedMapRoot
-	}{
-		{root: trillian.SignedMapRoot{TimestampNanos: 2267709, RootHash: []byte("Islington"), MapRevision: 3}},
+	for _, root := range []types.MapRootV1{
+		{TimestampNanos: 2267709, RootHash: []byte("Islington"), Revision: 3},
 	} {
-		sig, err := signer.SignMapRoot(&test.root)
+		smr, err := signer.SignMapRoot(&root)
 		if err != nil {
 			t.Errorf("Failed to sign map root: %v", err)
 			continue
 		}
-		if got := len(sig.Signature); got == 0 {
+		if got := len(smr.Signature.Signature); got == 0 {
 			t.Errorf("len(sig): %v, want > 0", got)
 		}
-		if got, want := sig.HashAlgorithm, sigpb.DigitallySigned_SHA256; got != want {
+		if got, want := smr.Signature.HashAlgorithm, sigpb.DigitallySigned_SHA256; got != want {
 			t.Errorf("Hash alg incorrect, got %s expected %s", got, want)
 		}
-		if got, want := sig.SignatureAlgorithm, sigpb.DigitallySigned_ECDSA; got != want {
+		if got, want := smr.Signature.SignatureAlgorithm, sigpb.DigitallySigned_ECDSA; got != want {
 			t.Errorf("Sig alg incorrect, got %s expected %s", got, want)
 		}
-		// Check that the signature is correct
-		j, err := json.Marshal(test.root)
-		if err != nil {
-			t.Errorf("json.Marshal err: %v want nil", err)
-			continue
-		}
-		hash, err := objecthash.CommonJSONHash(string(j))
-		if err != nil {
-			t.Errorf("objecthash.CommonJSONHash err: %v want nil", err)
-			continue
-		}
-		if err := Verify(key.Public(), crypto.SHA256, hash[:], sig); err != nil {
-			t.Errorf("Verify(%v) failed: %v", test.root, err)
+
+		if _, err := VerifySignedMapRoot(key.Public(), crypto.SHA256, smr); err != nil {
+			t.Errorf("Verify(%v) failed: %v", root, err)
 		}
 	}
 }

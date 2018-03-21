@@ -23,12 +23,14 @@ import (
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/trees"
+	"github.com/google/trillian/types"
 
 	tcrypto "github.com/google/trillian/crypto"
 )
 
 // MapVerifier verifies protos produced by the Trillian Map.
 type MapVerifier struct {
+	MapID int64
 	// Hasher is the hash strategy used to compute nodes in the Merkle tree.
 	Hasher hashers.MapHasher
 	// PubKey verifies the signature on the digest of MapRoot.
@@ -59,6 +61,7 @@ func NewMapVerifierFromTree(config *trillian.Tree) (*MapVerifier, error) {
 	}
 
 	return &MapVerifier{
+		MapID:   config.GetTreeId(),
 		Hasher:  mapHasher,
 		PubKey:  mapPubKey,
 		SigHash: sigHash,
@@ -70,17 +73,14 @@ func (m *MapVerifier) VerifyMapLeafInclusion(smr *trillian.SignedMapRoot, leafPr
 	index := leafProof.GetLeaf().GetIndex()
 	leaf := leafProof.GetLeaf().GetLeafValue()
 	proof := leafProof.GetInclusion()
-	expectedRoot := smr.GetRootHash()
-	mapID := smr.GetMapId()
-	return merkle.VerifyMapInclusionProof(mapID, index, leaf, expectedRoot, proof, m.Hasher)
+	root, err := m.VerifySignedMapRoot(smr)
+	if err != nil {
+		return err
+	}
+	return merkle.VerifyMapInclusionProof(m.MapID, index, leaf, root.RootHash, proof, m.Hasher)
 }
 
 // VerifySignedMapRoot verifies the signature on the SignedMapRoot.
-func (m *MapVerifier) VerifySignedMapRoot(smr *trillian.SignedMapRoot) error {
-	// SignedMapRoot contains its own signature. To verify, we need to create a local
-	// copy of the object and return the object to the state it was in when signed
-	// by removing the signature from the object.
-	orig := *smr
-	orig.Signature = nil // Remove the signature from the object to be verified.
-	return tcrypto.VerifyObject(m.PubKey, m.SigHash, orig, smr.GetSignature())
+func (m *MapVerifier) VerifySignedMapRoot(smr *trillian.SignedMapRoot) (*types.MapRootV1, error) {
+	return tcrypto.VerifySignedMapRoot(m.PubKey, m.SigHash, smr)
 }

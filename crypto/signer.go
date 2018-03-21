@@ -18,10 +18,7 @@ package crypto
 import (
 	"crypto"
 	"crypto/rand"
-	"encoding/json"
-	"fmt"
 
-	"github.com/benlaurie/objecthash/go/objecthash"
 	"github.com/golang/glog"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/sigpb"
@@ -81,20 +78,6 @@ func (s *Signer) Sign(data []byte) (*sigpb.DigitallySigned, error) {
 	}, nil
 }
 
-// SignObject signs the requested object using ObjectHash.
-func (s *Signer) SignObject(obj interface{}) (*sigpb.DigitallySigned, error) {
-	// TODO(gbelvin): use objecthash.CommonJSONify
-	j, err := json.Marshal(obj)
-	if err != nil {
-		return nil, err
-	}
-	hash, err := objecthash.CommonJSONHash(string(j))
-	if err != nil {
-		return nil, fmt.Errorf("CommonJSONHash(%s): %v", j, err)
-	}
-	return s.Sign(hash[:])
-}
-
 // SignLogRoot returns a complete SignedLogRoot (including signature).
 func (s *Signer) SignLogRoot(r *types.LogRootV1) (*trillian.SignedLogRoot, error) {
 	root := &trillian.SignedLogRoot{
@@ -119,12 +102,20 @@ func (s *Signer) SignLogRoot(r *types.LogRootV1) (*trillian.SignedLogRoot, error
 
 // SignMapRoot hashes and signs the supplied (to-be) SignedMapRoot and returns a
 // signature.  Hashing is performed by github.com/benlaurie/objecthash.
-func (s *Signer) SignMapRoot(root *trillian.SignedMapRoot) (*sigpb.DigitallySigned, error) {
-	signature, err := s.SignObject(root)
+func (s *Signer) SignMapRoot(r *types.MapRootV1) (*trillian.SignedMapRoot, error) {
+	rootBytes, err := r.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+
+	signature, err := s.Sign(rootBytes)
 	if err != nil {
 		glog.Warningf("%v: signer failed to sign map root: %v", s.KeyHint, err)
 		return nil, err
 	}
 
-	return signature, nil
+	return &trillian.SignedMapRoot{
+		MapRoot:   rootBytes,
+		Signature: signature,
+	}, nil
 }
