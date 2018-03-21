@@ -27,7 +27,6 @@ import (
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/golang/glog"
-	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle/hashers"
@@ -38,7 +37,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	spb "github.com/google/trillian/crypto/sigpb"
 	sqlite3 "github.com/mattn/go-sqlite3"
 )
 
@@ -670,12 +668,6 @@ func (t *logTreeTX) fetchLatestRoot(ctx context.Context) (trillian.SignedLogRoot
 		return trillian.SignedLogRoot{}, storage.ErrTreeNeedsInit
 	}
 
-	var rootSignature spb.DigitallySigned
-	if err := proto.Unmarshal(rootSignatureBytes, &rootSignature); err != nil {
-		glog.Warningf("Failed to unmarshall root signature: %v", err)
-		return trillian.SignedLogRoot{}, err
-	}
-
 	// Put logRoot back together. Forunately LogRoot has a determinstic serialization.
 	logRoot, err := (&types.LogRootV1{
 		RootHash:       rootHash,
@@ -690,7 +682,7 @@ func (t *logTreeTX) fetchLatestRoot(ctx context.Context) (trillian.SignedLogRoot
 	return trillian.SignedLogRoot{
 		KeyHint:   types.SerializeKeyHint(t.treeID),
 		LogRoot:   logRoot,
-		Signature: &rootSignature,
+		Signature: rootSignatureBytes,
 		// TODO(gbelvin): Remove deprecated fields
 		TimestampNanos: timestamp,
 		RootHash:       rootHash,
@@ -700,12 +692,6 @@ func (t *logTreeTX) fetchLatestRoot(ctx context.Context) (trillian.SignedLogRoot
 }
 
 func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, root trillian.SignedLogRoot) error {
-	signatureBytes, err := proto.Marshal(root.Signature)
-	if err != nil {
-		glog.Warningf("Failed to marshal root signature: %v %v", root.Signature, err)
-		return err
-	}
-
 	var logRoot types.LogRootV1
 	if err := logRoot.UnmarshalBinary(root.LogRoot); err != nil {
 		glog.Warningf("Failed to parse log root: %x %v", root.LogRoot, err)
@@ -724,7 +710,7 @@ func (t *logTreeTX) StoreSignedLogRoot(ctx context.Context, root trillian.Signed
 		logRoot.TreeSize,
 		logRoot.RootHash,
 		logRoot.Revision,
-		signatureBytes)
+		root.Signature)
 	if err != nil {
 		glog.Warningf("Failed to store signed root: %s", err)
 	}

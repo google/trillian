@@ -24,7 +24,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys/pem"
-	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/types"
 )
@@ -48,14 +47,8 @@ func TestSign(t *testing.T) {
 			t.Errorf("Failed to sign message: %v", err)
 			continue
 		}
-		if got := len(sig.Signature); got == 0 {
+		if got := len(sig); got == 0 {
 			t.Errorf("len(sig): %v, want > 0", got)
-		}
-		if got, want := sig.HashAlgorithm, sigpb.DigitallySigned_SHA256; got != want {
-			t.Errorf("Hash alg incorrect, got %s expected %s", got, want)
-		}
-		if got, want := sig.SignatureAlgorithm, sigpb.DigitallySigned_ECDSA; got != want {
-			t.Errorf("Sig alg incorrect, got %s expected %s", got, want)
 		}
 		// Check that the signature is correct
 		if err := Verify(key.Public(), crypto.SHA256, test.message, sig); err != nil {
@@ -113,14 +106,8 @@ func TestSignLogRoot(t *testing.T) {
 			t.Errorf("Failed to sign log root: %v", err)
 			continue
 		}
-		if got := len(slr.Signature.Signature); got == 0 {
+		if got := len(slr.Signature); got == 0 {
 			t.Errorf("len(sig): %v, want > 0", got)
-		}
-		if got, want := slr.Signature.HashAlgorithm, sigpb.DigitallySigned_SHA256; got != want {
-			t.Errorf("Hash alg incorrect, got %s expected %s", got, want)
-		}
-		if got, want := slr.Signature.SignatureAlgorithm, sigpb.DigitallySigned_ECDSA; got != want {
-			t.Errorf("Sig alg incorrect, got %s expected %s", got, want)
 		}
 		// Check that the signature is correct
 		if _, err := VerifySignedLogRoot(key.Public(), crypto.SHA256, slr); err != nil {
@@ -146,14 +133,8 @@ func TestSignMapRoot(t *testing.T) {
 			t.Errorf("Failed to sign map root: %v", err)
 			continue
 		}
-		if got := len(sig.Signature); got == 0 {
+		if got := len(sig); got == 0 {
 			t.Errorf("len(sig): %v, want > 0", got)
-		}
-		if got, want := sig.HashAlgorithm, sigpb.DigitallySigned_SHA256; got != want {
-			t.Errorf("Hash alg incorrect, got %s expected %s", got, want)
-		}
-		if got, want := sig.SignatureAlgorithm, sigpb.DigitallySigned_ECDSA; got != want {
-			t.Errorf("Sig alg incorrect, got %s expected %s", got, want)
 		}
 		// Check that the signature is correct
 		j, err := json.Marshal(test.root)

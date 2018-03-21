@@ -23,14 +23,12 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/examples/ct/ctmapper/ctmapperpb"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testdb"
 	"github.com/google/trillian/testonly"
 	"github.com/kylelemons/godebug/pretty"
 
-	spb "github.com/google/trillian/crypto/sigpb"
 	storageto "github.com/google/trillian/storage/testonly"
 )
 
@@ -196,7 +194,7 @@ func TestMapRootUpdate(t *testing.T) {
 				TimestampNanos: 98765,
 				MapRevision:    5,
 				RootHash:       []byte(dummyHash),
-				Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
+				Signature:      []byte("notempty"),
 			},
 		},
 		{
@@ -206,7 +204,7 @@ func TestMapRootUpdate(t *testing.T) {
 				TimestampNanos: 98766,
 				MapRevision:    6,
 				RootHash:       []byte(dummyHash),
-				Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
+				Signature:      []byte("notempty"),
 			},
 		},
 		{
@@ -216,7 +214,7 @@ func TestMapRootUpdate(t *testing.T) {
 				TimestampNanos: 98768,
 				MapRevision:    7,
 				RootHash:       []byte(dummyHash),
-				Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
+				Signature:      []byte("notempty"),
 			},
 		},
 		{
@@ -226,7 +224,7 @@ func TestMapRootUpdate(t *testing.T) {
 				TimestampNanos: 98769,
 				MapRevision:    8,
 				RootHash:       []byte(dummyHash),
-				Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
+				Signature:      []byte("notempty"),
 				Metadata:       populatedMetadata,
 			},
 			wantMetadata: populatedMetadata,
@@ -487,7 +485,7 @@ func TestGetSignedMapRoot(t *testing.T) {
 		TimestampNanos: 98765,
 		MapRevision:    revision,
 		RootHash:       []byte(dummyHash),
-		Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
+		Signature:      []byte("notempty"),
 	}
 	runMapTX(ctx, s, tree, t, func(ctx context.Context, tx storage.MapTreeTX) error {
 		if err := tx.StoreSignedMapRoot(ctx, root); err != nil {
@@ -525,7 +523,7 @@ func TestLatestSignedMapRoot(t *testing.T) {
 		TimestampNanos: 98765,
 		MapRevision:    5,
 		RootHash:       []byte(dummyHash),
-		Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
+		Signature:      []byte("notempty"),
 	}
 	runMapTX(ctx, s, tree, t, func(ctx context.Context, tx storage.MapTreeTX) error {
 		if err := tx.StoreSignedMapRoot(ctx, root); err != nil {
@@ -564,7 +562,7 @@ func TestDuplicateSignedMapRoot(t *testing.T) {
 			TimestampNanos: 98765,
 			MapRevision:    5,
 			RootHash:       []byte(dummyHash),
-			Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
+			Signature:      []byte("notempty"),
 		}
 		if err := tx.StoreSignedMapRoot(ctx, root); err != nil {
 			t.Fatalf("Failed to store signed map root: %v", err)
@@ -608,10 +606,8 @@ func createInitializedMapForTests(ctx context.Context, t *testing.T, db *sql.DB)
 	s := NewMapStorage(db)
 	err := s.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.MapTreeTX) error {
 		initialRoot := trillian.SignedMapRoot{
-			RootHash: []byte("rootHash"),
-			Signature: &sigpb.DigitallySigned{
-				Signature: []byte("sig"),
-			},
+			RootHash:    []byte("rootHash"),
+			Signature:   []byte("sig"),
 			MapId:       tree.TreeId,
 			MapRevision: 0,
 		}

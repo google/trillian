@@ -22,7 +22,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/storage"
 	stestonly "github.com/google/trillian/storage/testonly"
@@ -39,25 +38,17 @@ var (
 	signedMapRootID1Rev0 = trillian.SignedMapRoot{
 		TimestampNanos: 1508235889834964600,
 		RootHash:       []byte("\306h\237\020\201*\t\200\227m\2253\3308u(!f\025\225g\3545\025W\026\301A:\365=j"),
-		Signature: &sigpb.DigitallySigned{
-			HashAlgorithm:      sigpb.DigitallySigned_SHA256,
-			SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
-			Signature:          []byte("0F\002!\000\307b\255\223\353\23615&\022\263\323\341\342+\276\274$\rX?\366\014U\362\006\376\0269rcm\002!\000\241*\255\220\301\263D\033\275\374\340A\377\337\354\202\331%au\3179\000O\r9\237\302\021\r\363\263"),
-		},
-		MapId:       mapID1,
-		MapRevision: 0,
+		Signature:      []byte("0F\002!\000\307b\255\223\353\23615&\022\263\323\341\342+\276\274$\rX?\366\014U\362\006\376\0269rcm\002!\000\241*\255\220\301\263D\033\275\374\340A\377\337\354\202\331%au\3179\000O\r9\237\302\021\r\363\263"),
+		MapId:          mapID1,
+		MapRevision:    0,
 	}
 
 	signedMapRootID1Rev1 = trillian.SignedMapRoot{
 		TimestampNanos: 1508235889834964600,
 		RootHash:       []byte("\306h\237\020\201*\t\200\227m\2253\3308u(!f\025\225g\3545\025W\026\301A:\365=j"),
-		Signature: &sigpb.DigitallySigned{
-			HashAlgorithm:      sigpb.DigitallySigned_SHA256,
-			SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
-			Signature:          []byte("0F\002!\000\307b\255\223\353\23615&\022\263\323\341\342+\276\274$\rX?\366\014U\362\006\376\0269rcm\002!\000\241*\255\220\301\263D\033\275\374\340A\377\337\354\202\331%au\3179\000O\r9\237\302\021\r\363\263"),
-		},
-		MapId:       mapID1,
-		MapRevision: 1,
+		Signature:      []byte("0F\002!\000\307b\255\223\353\23615&\022\263\323\341\342+\276\274$\rX?\366\014U\362\006\376\0269rcm\002!\000\241*\255\220\301\263D\033\275\374\340A\377\337\354\202\331%au\3179\000O\r9\237\302\021\r\363\263"),
+		MapId:          mapID1,
+		MapRevision:    1,
 	}
 )
 

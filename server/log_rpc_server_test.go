@@ -26,7 +26,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/storage"
@@ -70,12 +69,8 @@ var (
 
 	addSeqRequest0 = trillian.AddSequencedLeavesRequest{LogId: logID3, Leaves: []*trillian.LogLeaf{leaf1}}
 
-	fixedGoSigner, _ = newSignerWithFixedSig(&sigpb.DigitallySigned{
-		SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
-		HashAlgorithm:      sigpb.DigitallySigned_SHA256,
-		Signature:          []byte("signed"),
-	})
-	fixedSigner = tcrypto.NewSigner(0, fixedGoSigner, crypto.SHA256)
+	fixedGoSigner = newSignerWithFixedSig([]byte("signed"))
+	fixedSigner   = tcrypto.NewSigner(0, fixedGoSigner, crypto.SHA256)
 
 	tree1              = addTreeID(stestonly.LogTree, logID1)
 	getLogRootRequest1 = trillian.GetLatestSignedLogRootRequest{LogId: logID1}

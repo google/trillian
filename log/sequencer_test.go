@@ -27,7 +27,6 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/crypto/keys/pem"
-	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/storage"
@@ -59,11 +58,7 @@ var (
 		TimestampNanos: uint64(fakeTimeForTest.Add(-10 * time.Millisecond).UnixNano()),
 	}
 
-	fixedSigner, _ = newSignerWithFixedSig(&sigpb.DigitallySigned{
-		SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
-		HashAlgorithm:      sigpb.DigitallySigned_SHA256,
-		Signature:          []byte("signed"),
-	})
+	fixedSigner         = newSignerWithFixedSig([]byte("signed"))
 	testSignedRoot16, _ = crypto.NewSigner(0, fixedSigner, gocrypto.SHA256).SignLogRoot(testRoot16)
 	newSignedRoot16, _  = crypto.NewSigner(0, fixedSigner, gocrypto.SHA256).
 				SignLogRoot(&types.LogRootV1{
@@ -166,17 +161,13 @@ func fakeTime() time.Time {
 	return fakeTimeForTest
 }
 
-func newSignerWithFixedSig(sig *sigpb.DigitallySigned) (gocrypto.Signer, error) {
+func newSignerWithFixedSig(sig []byte) gocrypto.Signer {
 	key, err := pem.UnmarshalPublicKey(testonly.DemoPublicKey)
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
 
-	if got, want := sig.GetSignatureAlgorithm(), crypto.SignatureAlgorithm(key); got != want {
-		return nil, fmt.Errorf("signature algorithm (%v) does not match key (%v)", got, want)
-	}
-
-	return testonly.NewSignerWithFixedSig(key, sig.Signature), nil
+	return testonly.NewSignerWithFixedSig(key, sig)
 }
 
 func newSignerWithErr(signErr error) (gocrypto.Signer, error) {
@@ -508,10 +499,7 @@ func TestIntegrateBatch(t *testing.T) {
 }
 
 func TestIntegrateBatch_PutTokens(t *testing.T) {
-	cryptoSigner, err := newSignerWithFixedSig(testSignedRoot.Signature)
-	if err != nil {
-		t.Fatalf("Failed to create test signer (%v)", err)
-	}
+	cryptoSigner := newSignerWithFixedSig(testSignedRoot.Signature)
 
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()

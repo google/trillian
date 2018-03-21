@@ -52,7 +52,7 @@ func VerifySignedLogRoot(pub crypto.PublicKey, hash crypto.Hash, r *trillian.Sig
 }
 
 // VerifyObject verifies the output of Signer.SignObject.
-func VerifyObject(pub crypto.PublicKey, hash crypto.Hash, obj interface{}, sig *sigpb.DigitallySigned) error {
+func VerifyObject(pub crypto.PublicKey, hash crypto.Hash, obj interface{}, sig []byte) error {
 	j, err := json.Marshal(obj)
 	if err != nil {
 		return err
@@ -65,23 +65,9 @@ func VerifyObject(pub crypto.PublicKey, hash crypto.Hash, obj interface{}, sig *
 }
 
 // Verify cryptographically verifies the output of Signer.
-func Verify(pub crypto.PublicKey, hash crypto.Hash, data []byte, sig *sigpb.DigitallySigned) error {
+func Verify(pub crypto.PublicKey, hasher crypto.Hash, data, sig []byte) error {
 	if sig == nil {
 		return errors.New("signature is nil")
-	}
-
-	if got, want := sig.SignatureAlgorithm, SignatureAlgorithm(pub); got != want {
-		return fmt.Errorf("signature algorithm does not match public key, got:%v, want:%v", got, want)
-	}
-
-	// Recompute digest
-	hasher, ok := cryptoHashLookup[sig.HashAlgorithm]
-	if !ok {
-		return fmt.Errorf("unsupported hash algorithm %v", hasher)
-	}
-
-	if hasher != hash {
-		return fmt.Errorf("hash algorithm in sig %v, want %v", hasher, hash)
 	}
 
 	h := hasher.New()
@@ -90,9 +76,9 @@ func Verify(pub crypto.PublicKey, hash crypto.Hash, data []byte, sig *sigpb.Digi
 
 	switch pub := pub.(type) {
 	case *ecdsa.PublicKey:
-		return verifyECDSA(pub, digest, sig.Signature)
+		return verifyECDSA(pub, digest, sig)
 	case *rsa.PublicKey:
-		return verifyRSA(pub, digest, sig.Signature, hasher, hasher)
+		return verifyRSA(pub, digest, sig, hasher, hasher)
 	default:
 		return fmt.Errorf("unknown private key type: %T", pub)
 	}

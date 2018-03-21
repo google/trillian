@@ -20,7 +20,6 @@ import (
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/crypto/keys/pem"
-	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/examples/ct/ctmapper/ctmapperpb"
 	"github.com/google/trillian/testonly"
 )
@@ -69,7 +68,7 @@ func TestSignVerify(t *testing.T) {
 
 		// Sign and Verify.
 		msg := []byte("foo")
-		var signature *sigpb.DigitallySigned
+		var signature []byte
 		if !test.skipSigning {
 			signature, err = NewSigner(0, key, crypto.SHA256).Sign(msg)
 			if err != nil {

@@ -29,7 +29,6 @@ import (
 	tcrypto "github.com/google/trillian/crypto"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/keys/pem"
-	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/quota"
@@ -85,17 +84,13 @@ var zeroDuration = 0 * time.Second
 const writeRev = int64(24)
 
 // newSignerWithFixedSig returns a fake signer that always returns the specified signature.
-func newSignerWithFixedSig(sig *sigpb.DigitallySigned) (crypto.Signer, error) {
+func newSignerWithFixedSig(sig []byte) crypto.Signer {
 	key, err := pem.UnmarshalPublicKey(testonly.DemoPublicKey)
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
 
-	if tcrypto.SignatureAlgorithm(key) != sig.GetSignatureAlgorithm() {
-		return nil, errors.New("signature algorithm does not match demo public key")
-	}
-
-	return testonly.NewSignerWithFixedSig(key, sig.Signature), nil
+	return testonly.NewSignerWithFixedSig(key, sig)
 }
 
 func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
@@ -114,11 +109,7 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 		t.Fatalf("Failed to unmarshal stestonly.LogTree.PrivateKey: %v", err)
 	}
 
-	signer, err := newSignerWithFixedSig(updatedSignedRoot.Signature)
-	if err != nil {
-		t.Fatalf("Failed to create fake signer: %v", err)
-	}
-
+	signer := newSignerWithFixedSig(updatedSignedRoot.Signature)
 	keys.RegisterHandler(fakeKeyProtoHandler(keyProto.Message, signer, nil))
 	defer keys.UnregisterHandler(keyProto.Message)
 
@@ -158,11 +149,7 @@ func TestSequencerManagerCachesSigners(t *testing.T) {
 		t.Fatalf("Failed to unmarshal stestonly.LogTree.PrivateKey: %v", err)
 	}
 
-	signer, err := newSignerWithFixedSig(updatedSignedRoot.Signature)
-	if err != nil {
-		t.Fatalf("Failed to create fake signer: %v", err)
-	}
-
+	signer := newSignerWithFixedSig(updatedSignedRoot.Signature)
 	keys.RegisterHandler(fakeKeyProtoHandler(keyProto.Message, signer, nil))
 
 	registry := extension.Registry{
@@ -255,11 +242,7 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 		t.Fatalf("Failed to unmarshal stestonly.LogTree.PrivateKey: %v", err)
 	}
 
-	signer, err := newSignerWithFixedSig(updatedSignedRoot.Signature)
-	if err != nil {
-		t.Fatalf("Failed to create fake signer: %v", err)
-	}
-
+	signer := newSignerWithFixedSig(updatedSignedRoot.Signature)
 	keys.RegisterHandler(fakeKeyProtoHandler(keyProto.Message, signer, nil))
 	defer keys.UnregisterHandler(keyProto.Message)
 
@@ -304,11 +287,7 @@ func TestSequencerManagerGuardWindow(t *testing.T) {
 		t.Fatalf("Failed to unmarshal stestonly.LogTree.PrivateKey: %v", err)
 	}
 
-	signer, err := newSignerWithFixedSig(updatedSignedRoot.Signature)
-	if err != nil {
-		t.Fatalf("Failed to create fake signer: %v", err)
-	}
-
+	signer := newSignerWithFixedSig(updatedSignedRoot.Signature)
 	keys.RegisterHandler(fakeKeyProtoHandler(keyProto.Message, signer, nil))
 	defer keys.UnregisterHandler(keyProto.Message)
 

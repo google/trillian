@@ -219,7 +219,8 @@ message SignedLogRoot {
   // Deprecated TreeRevision moved to LogRoot.
   int64 tree_revision = 6;
 
-  reserved 4; // Deprecated: Signature replaced by LogRootSignature.
+  // Deprecated: Signature replaced by LogRootSignature.
+  bytes signature = 4;
 
   // LogID is associated with the public key that validates signature.
   reserved 5;
@@ -261,8 +262,9 @@ message SignedMapRoot {
   int64 timestamp_nanos = 1;
   bytes root_hash = 2;
   reserved 3;  // was MapperMetadata (removed, replaced by 'Any metadata').
-	// TODO(al): define serialized format for the signature scheme.
-  sigpb.DigitallySigned signature = 4;
+
+  // Deprecated: Signature replaced by LogRootSignature.
+  bytes signature = 4;
   int64 map_id = 5;
   int64 map_revision = 6;
   // Metadata associated with the Map root.  This is set by the map personality

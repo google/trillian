@@ -64,25 +64,16 @@ func (s *Signer) Public() crypto.PublicKey {
 }
 
 // Sign obtains a signature after first hashing the input data.
-func (s *Signer) Sign(data []byte) (*sigpb.DigitallySigned, error) {
+func (s *Signer) Sign(data []byte) ([]byte, error) {
 	h := s.Hash.New()
 	h.Write(data)
 	digest := h.Sum(nil)
 
-	sig, err := s.Signer.Sign(rand.Reader, digest, s.Hash)
-	if err != nil {
-		return nil, err
-	}
-
-	return &sigpb.DigitallySigned{
-		SignatureAlgorithm: SignatureAlgorithm(s.Public()),
-		HashAlgorithm:      sigpbHashLookup[s.Hash],
-		Signature:          sig,
-	}, nil
+	return s.Signer.Sign(rand.Reader, digest, s.Hash)
 }
 
 // SignObject signs the requested object using ObjectHash.
-func (s *Signer) SignObject(obj interface{}) (*sigpb.DigitallySigned, error) {
+func (s *Signer) SignObject(obj interface{}) ([]byte, error) {
 	// TODO(gbelvin): use objecthash.CommonJSONify
 	j, err := json.Marshal(obj)
 	if err != nil {
@@ -121,12 +112,6 @@ func (s *Signer) SignLogRoot(r *types.LogRootV1) (*trillian.SignedLogRoot, error
 
 // SignMapRoot hashes and signs the supplied (to-be) SignedMapRoot and returns a
 // signature.  Hashing is performed by github.com/benlaurie/objecthash.
-func (s *Signer) SignMapRoot(root *trillian.SignedMapRoot) (*sigpb.DigitallySigned, error) {
-	signature, err := s.SignObject(root)
-	if err != nil {
-		glog.Warningf("%v: signer failed to sign map root: %v", s.KeyHint, err)
-		return nil, err
-	}
-
-	return signature, nil
+func (s *Signer) SignMapRoot(root *trillian.SignedMapRoot) ([]byte, error) {
+	return s.SignObject(root)
 }
