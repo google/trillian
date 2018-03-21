@@ -23,7 +23,6 @@ package trillian;
 
 import "trillian.proto";
 import "google/api/annotations.proto";
-import "google/protobuf/any.proto";
 
 // MapLeaf represents the data behind Map leaves.
 message MapLeaf {
@@ -73,7 +72,8 @@ message SetMapLeavesRequest {
   // Map Root returned in the map's SetLeaves response.
   // Map personalities should use metadata to persist any state needed later
   // to continue mapping from an external data source.
-  google.protobuf.Any metadata = 4;
+  reserved 4;
+  bytes metadata = 5;
 }
 
 message SetMapLeavesResponse {

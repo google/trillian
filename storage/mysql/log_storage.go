@@ -34,7 +34,7 @@ import (
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
-
+	"github.com/google/trillian/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -235,7 +235,7 @@ func (m *mySQLLogStorage) beginInternal(ctx context.Context, tree *trillian.Tree
 	}
 
 	stCache := cache.NewLogSubtreeCache(defaultLogStrata, hasher)
-	ttx, err := m.beginTreeTx(ctx, tree.TreeId, hasher.Size(), stCache)
+	ttx, err := m.beginTreeTx(ctx, tree, hasher.Size(), stCache)
 	if err != nil && err != storage.ErrTreeNeedsInit {
 		return nil, err
 	}
@@ -651,11 +651,26 @@ func (t *logTreeTX) GetLeavesByIndex(ctx context.Context, leaves []int64) ([]*tr
 
 func (t *logTreeTX) GetLeavesByRange(ctx context.Context, start, count int64) ([]*trillian.LogLeaf, error) {
 	if count <= 0 {
-		return nil, fmt.Errorf("invalid count %d", count)
+		return nil, fmt.Errorf("invalid count %d, want > 0", count)
 	}
 	if start < 0 {
-		return nil, fmt.Errorf("invalid start %d", start)
+		return nil, fmt.Errorf("invalid start %d, want >= 0", start)
 	}
+
+	if t.treeType == trillian.TreeType_LOG {
+		treeSize := t.root.TreeSize
+		if treeSize <= 0 {
+			return nil, fmt.Errorf("empty tree")
+		} else if start >= treeSize {
+			return nil, fmt.Errorf("invalid start %d, want < TreeSize(%d)", start, treeSize)
+		}
+		// Ensure no entries queried/returned beyond the tree.
+		if maxCount := treeSize - start; count > maxCount {
+			count = maxCount
+		}
+	}
+	// TODO(pavelkalinnikov): Further clip `count` to a safe upper bound like 64k.
+
 	args := []interface{}{start, start + count, t.treeID}
 	rows, err := t.tx.QueryContext(ctx, selectLeavesByRangeSQL, args...)
 	if err != nil {
@@ -665,8 +680,7 @@ func (t *logTreeTX) GetLeavesByRange(ctx context.Context, start, count int64) ([
 	defer rows.Close()
 
 	ret := make([]*trillian.LogLeaf, 0, count)
-	wantIndex := start
-	for rows.Next() {
+	for wantIndex := start; rows.Next(); wantIndex++ {
 		leaf := &trillian.LogLeaf{}
 		var qTimestamp, iTimestamp int64
 		if err := rows.Scan(
@@ -681,7 +695,10 @@ func (t *logTreeTX) GetLeavesByRange(ctx context.Context, start, count int64) ([
 			return nil, err
 		}
 		if leaf.LeafIndex != wantIndex {
-			return nil, fmt.Errorf("got unexpected index %d, want %d", leaf.LeafIndex, wantIndex)
+			if wantIndex < t.root.TreeSize {
+				return nil, fmt.Errorf("got unexpected index %d, want %d", leaf.LeafIndex, wantIndex)
+			}
+			break
 		}
 		var err error
 		leaf.QueueTimestamp, err = ptypes.TimestampProto(time.Unix(0, qTimestamp))
@@ -693,12 +710,8 @@ func (t *logTreeTX) GetLeavesByRange(ctx context.Context, start, count int64) ([
 			return nil, fmt.Errorf("got invalid integrate timestamp: %v", err)
 		}
 		ret = append(ret, leaf)
-		wantIndex++
 	}
 
-	if len(ret) == 0 {
-		return nil, status.Errorf(codes.InvalidArgument, "no leaves found in range [%d, %d+%d)", start, start, count)
-	}
 	return ret, nil
 }
 
@@ -753,8 +766,8 @@ func (t *logTreeTX) fetchLatestRoot(ctx context.Context) (trillian.SignedLogRoot
 		TimestampNanos: timestamp,
 		TreeRevision:   treeRevision,
 		Signature:      &rootSignature,
-		LogId:          t.treeID,
 		TreeSize:       treeSize,
+		KeyHint:        types.SerializeKeyHint(t.treeID),
 	}, nil
 }
 

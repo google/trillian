@@ -27,24 +27,21 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/testdb"
+	"github.com/google/trillian/testonly"
+	"github.com/google/trillian/types"
 
+	tcrypto "github.com/google/trillian/crypto"
 	storageto "github.com/google/trillian/storage/testonly"
 )
 
 func TestNodeRoundTrip(t *testing.T) {
 	cleanTestDB(DB)
-	logID := createLogForTests(DB)
+	tree := createTreeOrPanic(DB, storageto.LogTree)
 	s := NewLogStorage(DB, nil)
-	tree := &trillian.Tree{
-		TreeId:       logID,
-		TreeType:     trillian.TreeType_LOG,
-		HashStrategy: trillian.HashStrategy_RFC6962_SHA256,
-	}
 
 	const writeRevision = int64(100)
 	nodesToStore := createSomeNodes()
@@ -86,13 +83,8 @@ func TestNodeRoundTrip(t *testing.T) {
 // cache gets exercised. Any tree size > 256 will do this.
 func TestLogNodeRoundTripMultiSubtree(t *testing.T) {
 	cleanTestDB(DB)
-	logID := createLogForTests(DB)
+	tree := createTreeOrPanic(DB, storageto.LogTree)
 	s := NewLogStorage(DB, nil)
-	tree := &trillian.Tree{
-		TreeId:       logID,
-		TreeType:     trillian.TreeType_LOG,
-		HashStrategy: trillian.HashStrategy_RFC6962_SHA256,
-	}
 
 	const writeRevision = int64(100)
 	nodesToStore, err := createLogNodesForTreeAtSize(871, writeRevision)
@@ -240,32 +232,17 @@ func cleanTestDB(db *sql.DB) {
 	}
 }
 
-// createMapForTests creates a map-type tree for tests. Returns the treeID of the new tree.
-func createMapForTests(db *sql.DB) int64 {
-	tree, err := createTree(db, storageto.MapTree)
-	if err != nil {
-		panic(fmt.Sprintf("Error creating map: %v", err))
-	}
-	return tree.TreeId
-}
-
-func createLogForTestsImpl(db *sql.DB, preordered bool) int64 {
-	tree := storageto.LogTree
-	if preordered {
-		tree = storageto.PreorderedLogTree
-	}
-	tree, err := createTree(db, tree)
-	if err != nil {
-		panic(fmt.Sprintf("Error creating log: %v", err))
-	}
+func createFakeSignedLogRoot(db *sql.DB, tree *trillian.Tree, treeSize uint64) {
+	signer := tcrypto.NewSigner(0, testonly.NewSignerWithFixedSig(nil, nil), crypto.SHA256)
 
 	ctx := context.Background()
 	l := NewLogStorage(db, nil)
-	err = l.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
-		if err := tx.StoreSignedLogRoot(ctx, trillian.SignedLogRoot{
-			LogId:     tree.TreeId,
-			RootHash:  []byte{0},
-			Signature: &sigpb.DigitallySigned{Signature: []byte("asignature")}}); err != nil {
+	err := l.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
+		root, err := signer.SignLogRoot(&types.LogRootV1{TreeSize: treeSize, RootHash: []byte{0}})
+		if err != nil {
+			return fmt.Errorf("Error creating new SignedLogRoot: %v", err)
+		}
+		if err := tx.StoreSignedLogRoot(ctx, *root); err != nil {
 			return fmt.Errorf("Error storing new SignedLogRoot: %v", err)
 		}
 		return nil
@@ -273,16 +250,6 @@ func createLogForTestsImpl(db *sql.DB, preordered bool) int64 {
 	if err != nil {
 		panic(fmt.Sprintf("ReadWriteTransaction() = %v", err))
 	}
-	return tree.TreeId
-}
-
-// createLogForTests creates a log-type tree for tests. Returns the treeID of the new tree.
-func createLogForTests(db *sql.DB) int64 {
-	return createLogForTestsImpl(db, false)
-}
-
-func createPreorderedLogForTests(db *sql.DB) int64 {
-	return createLogForTestsImpl(db, true)
 }
 
 // createTree creates the specified tree using AdminStorage.
@@ -294,6 +261,14 @@ func createTree(db *sql.DB, tree *trillian.Tree) (*trillian.Tree, error) {
 		return nil, err
 	}
 	return tree, nil
+}
+
+func createTreeOrPanic(db *sql.DB, create *trillian.Tree) *trillian.Tree {
+	tree, err := createTree(db, create)
+	if err != nil {
+		panic(fmt.Sprintf("Error creating tree: %v", err))
+	}
+	return tree
 }
 
 // updateTree updates the specified tree using AdminStorage.

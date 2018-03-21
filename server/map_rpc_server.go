@@ -26,7 +26,6 @@ import (
 	"github.com/google/trillian/trees"
 
 	"github.com/golang/glog"
-	"github.com/golang/protobuf/ptypes/any"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -237,7 +236,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 }
 
 func (t *TrillianMapServer) makeSignedMapRoot(ctx context.Context, tree *trillian.Tree, smrTs time.Time,
-	rootHash []byte, mapID, revision int64, meta *any.Any) (*trillian.SignedMapRoot, error) {
+	rootHash []byte, mapID, revision int64, meta []byte) (*trillian.SignedMapRoot, error) {
 	smr := &trillian.SignedMapRoot{
 		TimestampNanos: smrTs.UnixNano(),
 		RootHash:       rootHash,

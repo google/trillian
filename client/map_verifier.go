@@ -22,14 +22,19 @@ import (
 	"github.com/google/trillian/crypto/keys/der"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/hashers"
+	"github.com/google/trillian/trees"
 
 	tcrypto "github.com/google/trillian/crypto"
 )
 
 // MapVerifier verifies protos produced by the Trillian Map.
 type MapVerifier struct {
+	// Hasher is the hash strategy used to compute nodes in the Merkle tree.
 	Hasher hashers.MapHasher
+	// PubKey verifies the signature on the digest of MapRoot.
 	PubKey crypto.PublicKey
+	// SigHash computes the digest of MapRoot for signing.
+	SigHash crypto.Hash
 }
 
 // NewMapVerifierFromTree creates a new MapVerifier.
@@ -37,19 +42,27 @@ func NewMapVerifierFromTree(config *trillian.Tree) (*MapVerifier, error) {
 	if got, want := config.TreeType, trillian.TreeType_MAP; got != want {
 		return nil, fmt.Errorf("client: NewFromTree(): TreeType: %v, want %v", got, want)
 	}
-	// Map Hasher
+
 	mapHasher, err := hashers.NewMapHasher(config.GetHashStrategy())
 	if err != nil {
 		return nil, fmt.Errorf("Failed creating MapHasher: %v", err)
 	}
 
-	// Map Key
 	mapPubKey, err := der.UnmarshalPublicKey(config.GetPublicKey().GetDer())
 	if err != nil {
 		return nil, fmt.Errorf("Failed parsing Map public key: %v", err)
 	}
 
-	return &MapVerifier{Hasher: mapHasher, PubKey: mapPubKey}, nil
+	sigHash, err := trees.Hash(config)
+	if err != nil {
+		return nil, fmt.Errorf("client: NewLogVerifierFromTree(): Failed parsing Log signature hash: %v", err)
+	}
+
+	return &MapVerifier{
+		Hasher:  mapHasher,
+		PubKey:  mapPubKey,
+		SigHash: sigHash,
+	}, nil
 }
 
 // VerifyMapLeafInclusion verifies a MapLeafInclusion response.
@@ -69,5 +82,5 @@ func (m *MapVerifier) VerifySignedMapRoot(smr *trillian.SignedMapRoot) error {
 	// by removing the signature from the object.
 	orig := *smr
 	orig.Signature = nil // Remove the signature from the object to be verified.
-	return tcrypto.VerifyObject(m.PubKey, orig, smr.GetSignature())
+	return tcrypto.VerifyObject(m.PubKey, m.SigHash, orig, smr.GetSignature())
 }

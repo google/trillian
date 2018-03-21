@@ -217,8 +217,17 @@ message SignedLogRoot {
   int64 tree_size = 3;
   sigpb.DigitallySigned signature = 4;
 
-  int64 log_id = 5;
+  reserved 5; // log_id is associated with the public key that validates signature.
   int64 tree_revision = 6;
+  // key_hint is a hint to identify the public key for signature verification.
+  // key_hint is not authenticated and may be incorrect or missing, in which
+  // case all known public keys may be used to verify the signature.
+  // When directly communicating with a Trillian gRPC server, the key_hint will
+  // typically contain the LogID encoded as a big-endian 64-bit integer;
+  // however, in other contexts the key_hint is likely to have different
+  // contents (e.g. it could be a GUID, a URL + TreeID, or it could be
+  // derived from the public key itself).
+  bytes key_hint = 7;
 }
 
 // SignedMapRoot represents a commitment by a Map to a particular tree.
@@ -233,5 +242,6 @@ message SignedMapRoot {
   // Metadata associated with the Map root.  This is set by the map personality
   // layer in a SetLeaves map request.  It could be used to persist state
   // needed to recreate the Map from an external data source.
-  google.protobuf.Any metadata = 7;
+  reserved 7;
+  bytes metadata = 8;
 }

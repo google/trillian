@@ -15,6 +15,7 @@
 package crypto
 
 import (
+	"crypto"
 	"testing"
 
 	"github.com/google/trillian"
@@ -70,14 +71,14 @@ func TestSignVerify(t *testing.T) {
 		msg := []byte("foo")
 		var signature *sigpb.DigitallySigned
 		if !test.skipSigning {
-			signature, err = NewSHA256Signer(key).Sign(msg)
+			signature, err = NewSigner(0, key, crypto.SHA256).Sign(msg)
 			if err != nil {
 				t.Errorf("%s: Sign()=(_,%v), want (_,nil)", test.name, err)
 				continue
 			}
 		}
 
-		err = Verify(key.Public(), msg, signature)
+		err = Verify(key.Public(), crypto.SHA256, msg, signature)
 		if gotErr := err != nil; gotErr != test.wantVerifyErr {
 			t.Errorf("%s: Verify(,,)=%v, want err? %t", test.name, err, test.wantVerifyErr)
 		}
@@ -89,15 +90,15 @@ func TestSignVerifyObject(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to open test key, err=%v", err)
 	}
-	signer := NewSHA256Signer(key)
+	signer := NewSigner(0, key, crypto.SHA256)
 
 	type subfield struct {
 		c int
 	}
 
-	meta := testonly.MustMarshalAny(t, &ctmapperpb.MapperMetadata{})
-	meta0 := testonly.MustMarshalAny(t, &ctmapperpb.MapperMetadata{HighestFullyCompletedSeq: 0})
-	meta1 := testonly.MustMarshalAny(t, &ctmapperpb.MapperMetadata{HighestFullyCompletedSeq: 1})
+	meta := testonly.MustMarshalAnyNoT(&ctmapperpb.MapperMetadata{})
+	meta0 := testonly.MustMarshalAnyNoT(&ctmapperpb.MapperMetadata{HighestFullyCompletedSeq: 0})
+	meta1 := testonly.MustMarshalAnyNoT(&ctmapperpb.MapperMetadata{HighestFullyCompletedSeq: 1})
 
 	for _, tc := range []struct {
 		obj interface{}
@@ -128,7 +129,7 @@ func TestSignVerifyObject(t *testing.T) {
 			t.Errorf("SignObject(%#v): %v", tc.obj, err)
 			continue
 		}
-		if err := VerifyObject(key.Public(), tc.obj, sig); err != nil {
+		if err := VerifyObject(key.Public(), crypto.SHA256, tc.obj, sig); err != nil {
 			t.Errorf("SignObject(%#v): %v", tc.obj, err)
 		}
 	}

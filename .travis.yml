@@ -17,6 +17,8 @@ os:
 go:
   - 1.9.x
 
+go_import_path: github.com/google/trillian
+
 env:
   - GCE_CI=${ENABLE_GCE_CI}
   - TRILLIAN_SQL_DRIVER=mysql WITH_COVERAGE=true
@@ -33,11 +35,6 @@ services:
   - docker
 
 install:
-  - |
-    if [ ! -d "$HOME/gopath/src/github.com/google" ]; then
-      mkdir -p "$HOME/gopath/src/github.com/google"
-      ln -s "$TRAVIS_BUILD_DIR" "$HOME/gopath/src/github.com/google/trillian"
-    fi
   - mkdir ../protoc
   - |
     (

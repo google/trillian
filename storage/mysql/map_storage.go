@@ -26,7 +26,6 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/ptypes/any"
 
 	spb "github.com/google/trillian/crypto/sigpb"
 )
@@ -103,7 +102,7 @@ func (m *mySQLMapStorage) begin(ctx context.Context, tree *trillian.Tree) (stora
 	}
 
 	stCache := cache.NewMapSubtreeCache(defaultMapStrata, tree.TreeId, hasher)
-	ttx, err := m.beginTreeTx(ctx, tree.TreeId, hasher.Size(), stCache)
+	ttx, err := m.beginTreeTx(ctx, tree, hasher.Size(), stCache)
 	if err != nil {
 		return nil, err
 	}
@@ -295,15 +294,7 @@ func (m *mapTreeTX) signedMapRoot(timestamp, mapRevision int64, rootHash, rootSi
 		MapRevision:    mapRevision,
 		Signature:      rootSignature,
 		MapId:          m.treeID,
-	}
-
-	if len(mapperMetaBytes) > 0 {
-		mapperMeta := &any.Any{}
-		if err := proto.Unmarshal(mapperMetaBytes, mapperMeta); err != nil {
-			err = fmt.Errorf("signedMapRoot: failed to unmarshal metadata: %v", err)
-			return trillian.SignedMapRoot{}, err
-		}
-		smr.Metadata = mapperMeta
+		Metadata:       mapperMetaBytes,
 	}
 
 	return smr, nil
@@ -316,16 +307,6 @@ func (m *mapTreeTX) StoreSignedMapRoot(ctx context.Context, root trillian.Signed
 		return err
 	}
 
-	var mapperMetaBytes []byte
-
-	if root.Metadata != nil {
-		mapperMetaBytes, err = proto.Marshal(root.Metadata)
-		if err != nil {
-			glog.Warning("Failed to marshal MetaData: %v %v", root.Metadata, err)
-			return err
-		}
-	}
-
 	stmt, err := m.tx.PrepareContext(ctx, insertMapHeadSQL)
 	if err != nil {
 		return err
@@ -333,7 +314,7 @@ func (m *mapTreeTX) StoreSignedMapRoot(ctx context.Context, root trillian.Signed
 	defer stmt.Close()
 
 	// TODO(al): store transactionLogHead too
-	res, err := stmt.ExecContext(ctx, m.treeID, root.TimestampNanos, root.RootHash, root.MapRevision, signatureBytes, mapperMetaBytes)
+	res, err := stmt.ExecContext(ctx, m.treeID, root.TimestampNanos, root.RootHash, root.MapRevision, signatureBytes, root.Metadata)
 
 	if err != nil {
 		glog.Warningf("Failed to store signed map root: %s", err)

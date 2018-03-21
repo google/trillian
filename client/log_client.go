@@ -144,10 +144,22 @@ func (c *LogClient) getLatestRoot(ctx context.Context, trusted *types.LogRootV1)
 	if err != nil {
 		return nil, err
 	}
-	slr, err := c.VerifyRoot(&types.LogRootV1{}, resp.GetSignedLogRoot(), nil)
-	if err != nil {
-		return nil, err
+
+	// TODO(gbelvin): Turn on root verification.
+	// Temporary hack while some implementations don't store digital signatures.
+	r := resp.GetSignedLogRoot()
+	slr := &types.LogRootV1{
+		TreeSize:       uint64(r.TreeSize),
+		RootHash:       r.RootHash,
+		TimestampNanos: uint64(r.TimestampNanos),
+		Revision:       uint64(r.TreeRevision),
 	}
+	/*
+		slr, err := c.VerifyRoot(&types.LogRootV1{}, resp.GetSignedLogRoot(), nil)
+		if err != nil {
+			return nil, err
+		}
+	*/
 
 	if trusted.TreeSize > 0 &&
 		slr.TreeSize == trusted.TreeSize &&
