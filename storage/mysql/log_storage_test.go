@@ -441,6 +441,35 @@ func TestAddSequencedLeavesWithDuplicates(t *testing.T) {
 	aslt.verifySequencedLeaves(6, 4, dupLeaves)
 }
 
+func BenchmarkAddSequencedLeaf(b *testing.B) {
+	leaves := createTestLeaves(int64(b.N), 0)
+	aslt := initAddSequencedLeavesTest(b)
+
+	b.ResetTimer()
+	for i := range leaves {
+		aslt.addSequencedLeaves(leaves[i : i+1])
+	}
+	b.StopTimer()
+	aslt.verifySequencedLeaves(0, int64(len(leaves)), leaves)
+}
+
+func BenchmarkAddSequencedLeaves(b *testing.B) {
+	const chunk = 1000
+	leaves := createTestLeaves(int64(b.N), 0)
+	aslt := initAddSequencedLeavesTest(b)
+
+	b.ResetTimer()
+	for begin, end := 0, 0; begin < len(leaves); begin = end {
+		end += chunk
+		if end > len(leaves) {
+			end = len(leaves)
+		}
+		aslt.addSequencedLeaves(leaves[begin:end])
+	}
+	b.StopTimer()
+	aslt.verifySequencedLeaves(0, int64(len(leaves)), leaves)
+}
+
 // -----------------------------------------------------------------------------
 
 func TestDequeueLeavesNoneQueued(t *testing.T) {
