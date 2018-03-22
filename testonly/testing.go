@@ -14,7 +14,7 @@
 
 package testonly
 
-// This interface is an intersection of testing.T and testing.B methods.
+// TestOrBench is an intersection of testing.T and testing.B methods.
 type TestOrBench interface {
 	Error(args ...interface{})
 	Errorf(format string, args ...interface{})
