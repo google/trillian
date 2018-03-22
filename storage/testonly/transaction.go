@@ -103,7 +103,7 @@ func (f *FakeLogStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree, l
 }
 
 // AddSequencedLeaves implements LogStorage.AddSequencedLeaves.
-func (f *FakeLogStorage) AddSequencedLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf) ([]*trillian.QueuedLogLeaf, error) {
+func (f *FakeLogStorage) AddSequencedLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, timestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
 	if f.AddSequencedLeavesErr != nil {
 		return nil, f.AddSequencedLeavesErr
 	}
