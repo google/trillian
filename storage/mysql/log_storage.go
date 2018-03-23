@@ -39,7 +39,6 @@ import (
 	"google.golang.org/grpc/status"
 
 	spb "github.com/google/trillian/crypto/sigpb"
-	sqlite3 "github.com/mattn/go-sqlite3"
 )
 
 const (
@@ -899,8 +898,6 @@ func isDuplicateErr(err error) bool {
 	switch err := err.(type) {
 	case *mysql.MySQLError:
 		return err.Number == errNumDuplicate
-	case sqlite3.Error:
-		return err.Code == sqlite3.ErrConstraint && err.ExtendedCode == sqlite3.ErrConstraintPrimaryKey
 	default:
 		return false
 	}

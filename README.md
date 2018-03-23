@@ -74,7 +74,7 @@ To build and test Trillian you need:
 
  - Go 1.9 or later.
 
-To run integration tests (and production deployment) you need:
+To run many of the tests (and production deployment) you need:
 
  - [MySQL](https://www.mysql.com/) or [MariaDB](https://mariadb.org/) to provide
    the data storage layer; see the [MySQL Setup](#mysql-setup) section.

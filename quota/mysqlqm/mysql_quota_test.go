@@ -38,6 +38,7 @@ import (
 )
 
 func TestQuotaManager_GetTokens(t *testing.T) {
+	testdb.SkipIfNoMySQL(t)
 	ctx := context.Background()
 
 	db, err := testdb.NewTrillianDB(ctx)
@@ -119,11 +120,7 @@ func TestQuotaManager_GetTokens(t *testing.T) {
 }
 
 func TestQuotaManager_GetTokens_InformationSchema(t *testing.T) {
-	provider := testdb.Default()
-	if !provider.IsMySQL() {
-		t.Skipf("Skipping information_schema test, SQL driver is %q", provider.Driver)
-	}
-
+	testdb.SkipIfNoMySQL(t)
 	ctx := context.Background()
 
 	maxUnsequenced := 20
@@ -139,7 +136,7 @@ func TestQuotaManager_GetTokens_InformationSchema(t *testing.T) {
 	for _, test := range tests {
 		desc := fmt.Sprintf("useSelectCount = %v", test.useSelectCount)
 		t.Run(desc, func(t *testing.T) {
-			db, err := provider.NewTrillianDB(ctx)
+			db, err := testdb.NewTrillianDB(ctx)
 			if err != nil {
 				t.Fatalf("NewTrillianDB() returned err = %v", err)
 			}
@@ -187,6 +184,7 @@ func TestQuotaManager_GetTokens_InformationSchema(t *testing.T) {
 }
 
 func TestQuotaManager_PeekTokens(t *testing.T) {
+	testdb.SkipIfNoMySQL(t)
 	ctx := context.Background()
 
 	db, err := testdb.NewTrillianDB(ctx)
@@ -228,6 +226,7 @@ func TestQuotaManager_PeekTokens(t *testing.T) {
 }
 
 func TestQuotaManager_Noops(t *testing.T) {
+	testdb.SkipIfNoMySQL(t)
 	ctx := context.Background()
 
 	db, err := testdb.NewTrillianDB(ctx)

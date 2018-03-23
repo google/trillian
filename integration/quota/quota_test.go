@@ -45,6 +45,7 @@ import (
 )
 
 func TestEtcdRateLimiting(t *testing.T) {
+	testdb.SkipIfNoMySQL(t)
 	ctx := context.Background()
 
 	registry, err := integration.NewRegistryForTests(ctx)
@@ -93,13 +94,9 @@ func TestEtcdRateLimiting(t *testing.T) {
 }
 
 func TestMySQLRateLimiting(t *testing.T) {
-	provider := testdb.Default()
-	if !provider.IsMySQL() {
-		t.Skipf("Skipping MySQL rate limiting test, SQL driver is %q", provider.Driver)
-	}
-
+	testdb.SkipIfNoMySQL(t)
 	ctx := context.Background()
-	db, err := provider.NewTrillianDB(ctx)
+	db, err := testdb.NewTrillianDB(ctx)
 	if err != nil {
 		t.Fatalf("GetTestDB() returned err = %v", err)
 	}

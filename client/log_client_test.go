@@ -25,6 +25,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/google/trillian/storage/testdb"
 	stestonly "github.com/google/trillian/storage/testonly"
 )
 
@@ -48,6 +49,7 @@ func addSequencedLeaves(ctx context.Context, env *integration.LogEnv, client *Lo
 }
 
 func TestGetByIndex(t *testing.T) {
+	testdb.SkipIfNoMySQL(t)
 	ctx := context.Background()
 	env, err := integration.NewLogEnv(ctx, 1, "unused")
 	if err != nil {
@@ -90,6 +92,7 @@ func TestGetByIndex(t *testing.T) {
 }
 
 func TestListByIndex(t *testing.T) {
+	testdb.SkipIfNoMySQL(t)
 	ctx := context.Background()
 	env, err := integration.NewLogEnv(ctx, 1, "unused")
 	if err != nil {
@@ -131,6 +134,7 @@ func TestListByIndex(t *testing.T) {
 }
 
 func TestVerifyInclusion(t *testing.T) {
+	testdb.SkipIfNoMySQL(t)
 	ctx := context.Background()
 	env, err := integration.NewLogEnv(ctx, 1, "unused")
 	if err != nil {
@@ -166,6 +170,7 @@ func TestVerifyInclusion(t *testing.T) {
 }
 
 func TestVerifyInclusionAtIndex(t *testing.T) {
+	testdb.SkipIfNoMySQL(t)
 	ctx := context.Background()
 	env, err := integration.NewLogEnv(ctx, 1, "unused")
 	if err != nil {
@@ -201,6 +206,7 @@ func TestVerifyInclusionAtIndex(t *testing.T) {
 }
 
 func TestWaitForInclusion(t *testing.T) {
+	testdb.SkipIfNoMySQL(t)
 	ctx := context.Background()
 	env, err := integration.NewLogEnv(ctx, 0, "unused")
 	if err != nil {
@@ -253,6 +259,7 @@ func TestWaitForInclusion(t *testing.T) {
 }
 
 func TestUpdateRoot(t *testing.T) {
+	testdb.SkipIfNoMySQL(t)
 	ctx := context.Background()
 	env, err := integration.NewLogEnv(ctx, 1, "unused")
 	if err != nil {
