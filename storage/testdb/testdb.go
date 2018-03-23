@@ -118,20 +118,3 @@ func SkipIfNoMySQL(t *testing.T) {
 		t.Skip("Skipping test as MySQL not available")
 	}
 }
-
-// TODO(drysdale): delete code beyond here once c-t-go repo has been updated.
-
-// Provider is pending deletion
-type Provider struct {
-	Driver string
-}
-
-// Default is pending deletion
-func Default() *Provider {
-	return &Provider{Driver: "mysql"}
-}
-
-// IsMySQL is pending deletion
-func (p *Provider) IsMySQL() bool {
-	return MySQLAvailable()
-}
