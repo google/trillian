@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package types defines serialization and parsing functions for SignedLogRoot
-// and SignedMapRoot fields.
+// Package types defines serialization and parsing functions for signed
+// data structures that are exposed on the Trillian RPC API.
 package types
 
 import (

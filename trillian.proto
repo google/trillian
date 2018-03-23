@@ -42,6 +42,13 @@ enum MapRootFormat {
    MAP_ROOT_FORMAT_V1 = 1;
 }
 
+// EntryTimestampFormat specifies the fields that are covered by the
+// SignedEntryTimestamp signature, as well as their ordering and formats.
+enum EntryTimestampFormat {
+   ENTRY_TIMESTAMP_FORMAT_UNKNOWN = 0;
+   ENTRY_TIMESTAMP_FORMAT_V1 = 1;
+}
+
 
 // What goes in here?
 // Things which are exposed through the public trillian APIs.
@@ -202,10 +209,38 @@ message Tree {
   google.protobuf.Timestamp delete_time = 20;
 }
 
+// SignedEntryTimestamp represents a commitment by a Log that an entry will
+// be integrated.
 message SignedEntryTimestamp {
-  int64 timestamp_nanos = 1;
-  int64 log_id = 2;
-  sigpb.DigitallySigned signature = 3;
+  // key_hint is a hint to identify the public key for signature verification.
+  // key_hint is not authenticated and may be incorrect or missing, in which
+  // case all known public keys may be used to verify the signature.
+  // When directly communicating with a Trillian gRPC server, the key_hint will
+  // typically contain the LogID encoded as a big-endian 64-bit integer;
+  // however, in other contexts the key_hint is likely to have different
+  // contents (e.g. it could be a GUID, a URL + TreeID, or it could be
+  // derived from the public key itself).
+  bytes key_hint = 1;
+
+  // entry_data holds the TLS-serialization of the following
+  // structure (described in RFC5246 notation).  Clients should verify
+  // the signature before TLS-decoding this data.
+  // enum { v1(1), (65535)} Version;
+  // struct {
+  //   uint64 timestamp_nanos;
+  //   opaque leaf_identity_hash<0..65535>;
+  //   opaque merkle_leaf_hash<0..65535>;
+  // } EntryTimestampV1;
+  // struct {
+  //   Version version;
+  //   select(version) {
+  //     case v1: EntryTimestampV1;
+  //   }
+  // } EntryTimestamp;
+  bytes entry_data = 2;
+  // signature holds the raw signature bytes of a signature over entry_data,
+  // produced with the tree's defined signature and hash algorithm.
+  bytes signature = 3;
 }
 
 // SignedLogRoot represents a commitment by a Log to a particular tree.
