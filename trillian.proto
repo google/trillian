@@ -127,13 +127,12 @@ message Tree {
 
   // State of the tree.
   // Trees are ACTIVE after creation. At any point the tree may transition
-  // between ACTIVE, DRAINING and (conditionally) FROZEN state. Switching to
-  // FROZEN requires no entries pending integration.
+  // between ACTIVE, DRAINING and FROZEN states.
   TreeState tree_state = 2;
 
   // Type of the tree.
   // Readonly after Tree creation. Exception: Can be switched from
-  // PREORDERED_LOG to LOG if the Tree is in the FROZEN state.
+  // PREORDERED_LOG to LOG if the Tree is and remains in the FROZEN state.
   TreeType tree_type = 3;
 
   // Hash strategy to be used by the tree.

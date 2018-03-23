@@ -476,9 +476,8 @@ func (t *adminTX) UpdateTree(ctx context.Context, treeID int64, updateFunc func(
 		return nil, err
 	}
 
-	// TODO(pavelkalinnikov): When switching TreeState to FROZEN for a
-	// PREORDERED_LOG, ensure there are no gaps in SequencedLeafData, in order to
-	// allow smoothly changing TreeType to LOG.
+	// TODO(pavelkalinnikov): When switching TreeType from PREORDERED_LOG to LOG,
+	// ensure all entries in SequencedLeafData are integrated.
 
 	// Use the time truncated-to-millis throughout, as that's what's stored.
 	nowMillis := toMillisSinceEpoch(time.Now())

@@ -255,8 +255,8 @@ func TestValidateTreeForUpdate(t *testing.T) {
 
 	tests := []struct {
 		desc      string
-		treeType  trillian.TreeType
 		treeState trillian.TreeState
+		treeType  trillian.TreeType
 		updatefn  func(*trillian.Tree)
 		wantErr   bool
 	}{
@@ -362,7 +362,7 @@ func TestValidateTreeForUpdate(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			desc:     "TreeTypeFromPreorderedLog",
+			desc:     "TreeTypeFromPreorderedLogToLog",
 			treeType: trillian.TreeType_PREORDERED_LOG,
 			updatefn: func(tree *trillian.Tree) {
 				tree.TreeType = trillian.TreeType_LOG
@@ -370,13 +370,22 @@ func TestValidateTreeForUpdate(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			desc:      "TreeTypeFromFrozenPreorderedLog",
-			treeType:  trillian.TreeType_PREORDERED_LOG,
+			desc:      "TreeTypeFromFrozenPreorderedLogToLog",
 			treeState: trillian.TreeState_FROZEN,
+			treeType:  trillian.TreeType_PREORDERED_LOG,
+			updatefn: func(tree *trillian.Tree) {
+				tree.TreeType = trillian.TreeType_LOG
+			},
+		},
+		{
+			desc:      "TreeTypeFromFrozenPreorderedLogToActiveLog",
+			treeState: trillian.TreeState_FROZEN,
+			treeType:  trillian.TreeType_PREORDERED_LOG,
 			updatefn: func(tree *trillian.Tree) {
 				tree.TreeState = trillian.TreeState_ACTIVE
 				tree.TreeType = trillian.TreeType_LOG
 			},
+			wantErr: true,
 		},
 		{
 			desc: "HashStrategy",

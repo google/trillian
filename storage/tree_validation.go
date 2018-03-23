@@ -64,6 +64,21 @@ func ValidateTreeForCreation(ctx context.Context, tree *trillian.Tree) error {
 	return validateMutableTreeFields(ctx, tree)
 }
 
+func validateTreeTypeUpdate(oldTree, newTree *trillian.Tree) error {
+	const prefix = "changing tree_type"
+	const wantState = trillian.TreeState_FROZEN
+	if oldState := oldTree.TreeState; oldState != wantState {
+		return status.Errorf(codes.InvalidArgument, "%s: tree_state=%v, want %v", prefix, oldState, wantState)
+	}
+	if newTree.TreeState != wantState {
+		return status.Errorf(codes.InvalidArgument, "%s: tree_state should stay %v", prefix, wantState)
+	}
+	if oldTree.TreeType != trillian.TreeType_PREORDERED_LOG || newTree.TreeType != trillian.TreeType_LOG {
+		return status.Errorf(codes.InvalidArgument, "%s not allowed: %v->%v", prefix, oldTree.TreeType, newTree.TreeType)
+	}
+	return nil
+}
+
 // ValidateTreeForUpdate returns nil if newTree is valid for update, error
 // otherwise.
 // The newTree is compared to the storedTree to determine if readonly fields
@@ -77,12 +92,8 @@ func ValidateTreeForUpdate(ctx context.Context, storedTree, newTree *trillian.Tr
 	case storedTree.TreeId != newTree.TreeId:
 		return status.Error(codes.InvalidArgument, "readonly field changed: tree_id")
 	case storedTree.TreeType != newTree.TreeType:
-		if got, want := storedTree.TreeType, trillian.TreeType_PREORDERED_LOG; got != want {
-			return status.Errorf(codes.InvalidArgument, "can't change tree_type from %v, only %v", got, want)
-		} else if got, want := newTree.TreeType, trillian.TreeType_LOG; got != want {
-			return status.Errorf(codes.InvalidArgument, "can't change tree_type to %v, only %v", got, want)
-		} else if got, want := storedTree.TreeState, trillian.TreeState_FROZEN; got != want {
-			return status.Errorf(codes.InvalidArgument, "can't change tree_type: tree_state=%v, want %v", got, want)
+		if err := validateTreeTypeUpdate(storedTree, newTree); err != nil {
+			return err
 		}
 	case storedTree.HashStrategy != newTree.HashStrategy:
 		return status.Error(codes.InvalidArgument, "readonly field changed: hash_strategy")

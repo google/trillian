@@ -196,13 +196,12 @@ type Tree struct {
 	// Readonly.
 	TreeId int64 `protobuf:"varint,1,opt,name=tree_id,json=treeId" json:"tree_id,omitempty"`
 	// State of the tree.
-	// Trees are ACTIVE after creation. At any point hhe tree may transition
-	// between ACTIVE, DRAINING and (conditionally) FROZEN state. The FROZEN state
-	// requires no entries pending to be integrated.
+	// Trees are ACTIVE after creation. At any point the tree may transition
+	// between ACTIVE, DRAINING and FROZEN states.
 	TreeState TreeState `protobuf:"varint,2,opt,name=tree_state,json=treeState,enum=trillian.TreeState" json:"tree_state,omitempty"`
 	// Type of the tree.
 	// Readonly after Tree creation. Exception: Can be switched from
-	// PREORDERED_LOG to LOG if the Tree is in the FROZEN state.
+	// PREORDERED_LOG to LOG if the Tree is and remains in the FROZEN state.
 	TreeType TreeType `protobuf:"varint,3,opt,name=tree_type,json=treeType,enum=trillian.TreeType" json:"tree_type,omitempty"`
 	// Hash strategy to be used by the tree.
 	// Readonly.
