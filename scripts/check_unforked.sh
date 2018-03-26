@@ -14,6 +14,16 @@ check_import() {
   fi
 }
 
+check_blacklist() {
+  local path="$1"
+
+  local result=$(grep -Hne '\("github.com/google/certificate-transparency-go/trillian/ctfe.*"\)' "$path")
+  if [[ ! -z "${result}" ]]; then
+    echo "$result - importing CTFE into generic code is not allowed"
+    return 1
+  fi
+}
+
 main() {
   if [[ $# -lt 1 ]]; then
     echo "Usage: $0 <path>"
@@ -29,9 +39,11 @@ main() {
           continue  # Empty glob
         fi
         check_import "$f" || code=1
+        check_blacklist "$f" || code=1
       done
     else
       check_import "$path" || code=1
+      check_blacklist "$path" || code=1
     fi
     shift
   done
