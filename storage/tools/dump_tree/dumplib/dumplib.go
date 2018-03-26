@@ -51,7 +51,7 @@ import (
 	"github.com/google/trillian/types"
 	"github.com/google/trillian/util"
 
-	tc "github.com/google/trillian/crypto"
+	tcrypto "github.com/google/trillian/crypto"
 )
 
 var (
@@ -176,9 +176,9 @@ func getPublicKey(keyPEM string) []byte {
 	return keyDER
 }
 
-func createTree(as storage.AdminStorage, ls storage.LogStorage) (*trillian.Tree, crypto.Signer) {
+func createTree(as storage.AdminStorage, ls storage.LogStorage) (*trillian.Tree, *tcrypto.Signer) {
 	ctx := context.TODO()
-	privKey, cSigner := getPrivateKey(logPrivKeyPEM, "towel")
+	privKey, _ := getPrivateKey(logPrivKeyPEM, "towel")
 	pubKey := getPublicKey(logPubKeyPEM)
 	tree := &trillian.Tree{
 		TreeType:           trillian.TreeType_LOG,
@@ -221,7 +221,7 @@ func createTree(as storage.AdminStorage, ls storage.LogStorage) (*trillian.Tree,
 		glog.Fatalf("ReadWriteTransaction: %v", err)
 	}
 
-	return createdTree, cSigner
+	return createdTree, tSigner
 }
 
 // Options are the commandline arguments one can pass to Main
@@ -241,12 +241,12 @@ func Main(args Options) string {
 	glog.Info("Initializing memory log storage")
 	ls := memory.NewLogStorage(monitoring.InertMetricFactory{})
 	as := memory.NewAdminStorage(ls)
-	tree, cSigner := createTree(as, ls)
+	tree, tSigner := createTree(as, ls)
 
 	seq := log.NewSequencer(rfc6962.DefaultHasher,
 		util.SystemTimeSource{},
 		ls,
-		&tc.Signer{Signer: cSigner, Hash: crypto.SHA256},
+		tSigner,
 		nil,
 		quota.Noop())
 

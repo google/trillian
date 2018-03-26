@@ -324,6 +324,8 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 			glog.Warningf("%v: Sequencer failed to get latest root: %v", tree.TreeId, err)
 			return err
 		}
+		// There is no trust boundary between the signer and the
+		// database, so we skip signature verification.
 		var currentRoot types.LogRootV1
 		if err := currentRoot.UnmarshalBinary(sth.LogRoot); err != nil {
 			glog.Warningf("%v: Sequencer failed to unmarshal latest root: %v", tree.TreeId, err)

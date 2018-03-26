@@ -35,7 +35,7 @@ import (
 	"github.com/kylelemons/godebug/pretty"
 
 	tcrypto "github.com/google/trillian/crypto"
-	testutil "github.com/google/trillian/testonly"
+	ttestonly "github.com/google/trillian/testonly"
 
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -989,7 +989,7 @@ func TestLatestSignedLogRoot(t *testing.T) {
 	tree := createTreeOrPanic(DB, testonly.LogTree)
 	s := NewLogStorage(DB, nil)
 
-	signer := tcrypto.NewSigner(tree.TreeId, testutil.NewSignerWithFixedSig(nil, []byte("notempty")), crypto.SHA256)
+	signer := tcrypto.NewSigner(tree.TreeId, ttestonly.NewSignerWithFixedSig(nil, []byte("notempty")), crypto.SHA256)
 	root, err := signer.SignLogRoot(&types.LogRootV1{
 		TimestampNanos: 98765,
 		TreeSize:       16,
@@ -1026,7 +1026,7 @@ func TestDuplicateSignedLogRoot(t *testing.T) {
 	tree := createTreeOrPanic(DB, testonly.LogTree)
 	s := NewLogStorage(DB, nil)
 
-	signer := tcrypto.NewSigner(tree.TreeId, testutil.NewSignerWithFixedSig(nil, []byte("notempty")), crypto.SHA256)
+	signer := tcrypto.NewSigner(tree.TreeId, ttestonly.NewSignerWithFixedSig(nil, []byte("notempty")), crypto.SHA256)
 	root, err := signer.SignLogRoot(&types.LogRootV1{
 		TimestampNanos: 98765,
 		TreeSize:       16,
@@ -1055,7 +1055,7 @@ func TestLogRootUpdate(t *testing.T) {
 	tree := createTreeOrPanic(DB, testonly.LogTree)
 	s := NewLogStorage(DB, nil)
 
-	signer := tcrypto.NewSigner(tree.TreeId, testutil.NewSignerWithFixedSig(nil, []byte("notempty")), crypto.SHA256)
+	signer := tcrypto.NewSigner(tree.TreeId, ttestonly.NewSignerWithFixedSig(nil, []byte("notempty")), crypto.SHA256)
 	root, err := signer.SignLogRoot(&types.LogRootV1{
 		TimestampNanos: 98765,
 		TreeSize:       16,

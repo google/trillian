@@ -16,7 +16,7 @@ package log
 
 import (
 	"context"
-	gocrypto "crypto"
+	"crypto"
 	"errors"
 	"fmt"
 	"strings"
@@ -25,7 +25,6 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/quota"
@@ -34,6 +33,7 @@ import (
 	"github.com/google/trillian/types"
 	"github.com/google/trillian/util"
 
+	tcrypto "github.com/google/trillian/crypto"
 	stestonly "github.com/google/trillian/storage/testonly"
 )
 
@@ -59,8 +59,8 @@ var (
 	}
 
 	fixedSigner         = newSignerWithFixedSig([]byte("signed"))
-	testSignedRoot16, _ = crypto.NewSigner(0, fixedSigner, gocrypto.SHA256).SignLogRoot(testRoot16)
-	newSignedRoot16, _  = crypto.NewSigner(0, fixedSigner, gocrypto.SHA256).
+	testSignedRoot16, _ = tcrypto.NewSigner(0, fixedSigner, crypto.SHA256).SignLogRoot(testRoot16)
+	newSignedRoot16, _  = tcrypto.NewSigner(0, fixedSigner, crypto.SHA256).
 				SignLogRoot(&types.LogRootV1{
 			TimestampNanos: uint64(fakeTimeForTest.UnixNano()),
 			TreeSize:       testRoot16.TreeSize,
@@ -88,7 +88,7 @@ var (
 		Revision:       6,
 		TreeSize:       17,
 	}
-	testSignedRoot, _ = crypto.NewSigner(0, fixedSigner, gocrypto.SHA256).SignLogRoot(testRoot)
+	testSignedRoot, _ = tcrypto.NewSigner(0, fixedSigner, crypto.SHA256).SignLogRoot(testRoot)
 )
 
 var fakeTimeForTest = fakeTime()
@@ -99,7 +99,7 @@ const fakeTimeStr string = "2016-05-25T10:55:05Z"
 // testParameters bundles up values needed for setting mock expectations in tests
 type testParameters struct {
 	logID  int64
-	signer gocrypto.Signer
+	signer crypto.Signer
 
 	beginFails   bool
 	dequeueLimit int
@@ -137,7 +137,7 @@ type testParameters struct {
 type testContext struct {
 	mockTx      *storage.MockLogTreeTX
 	fakeStorage storage.LogStorage
-	signer      *crypto.Signer
+	signer      *tcrypto.Signer
 	sequencer   *Sequencer
 }
 
@@ -161,7 +161,7 @@ func fakeTime() time.Time {
 	return fakeTimeForTest
 }
 
-func newSignerWithFixedSig(sig []byte) gocrypto.Signer {
+func newSignerWithFixedSig(sig []byte) crypto.Signer {
 	key, err := pem.UnmarshalPublicKey(testonly.DemoPublicKey)
 	if err != nil {
 		panic(err)
@@ -170,7 +170,7 @@ func newSignerWithFixedSig(sig []byte) gocrypto.Signer {
 	return testonly.NewSignerWithFixedSig(key, sig)
 }
 
-func newSignerWithErr(signErr error) (gocrypto.Signer, error) {
+func newSignerWithErr(signErr error) (crypto.Signer, error) {
 	key, err := pem.UnmarshalPublicKey(testonly.DemoPublicKey)
 	if err != nil {
 		return nil, err
@@ -230,7 +230,7 @@ func createTestContext(ctrl *gomock.Controller, params testParameters) (testCont
 		}
 	}
 
-	signer := crypto.NewSigner(0, params.signer, gocrypto.SHA256)
+	signer := tcrypto.NewSigner(0, params.signer, crypto.SHA256)
 	qm := params.qm
 	if qm == nil {
 		qm = quota.Noop()
@@ -507,7 +507,7 @@ func TestIntegrateBatch_PutTokens(t *testing.T) {
 	// Needed to create a signer
 	hasher := rfc6962.DefaultHasher
 	ts := util.NewFakeTimeSource(fakeTimeForTest)
-	signer := crypto.NewSigner(0, cryptoSigner, gocrypto.SHA256)
+	signer := tcrypto.NewSigner(0, cryptoSigner, crypto.SHA256)
 
 	// Needed for IntegrateBatch calls
 	const treeID int64 = 1234

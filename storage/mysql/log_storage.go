@@ -751,7 +751,7 @@ func (t *logTreeTX) fetchLatestRoot(ctx context.Context) (trillian.SignedLogRoot
 		return trillian.SignedLogRoot{}, storage.ErrTreeNeedsInit
 	}
 
-	// Put logRoot back together. Forunately LogRoot has a determinstic serialization.
+	// Put logRoot back together. Fortunately LogRoot has a deterministic serialization.
 	logRoot, err := (&types.LogRootV1{
 		RootHash:       rootHash,
 		TimestampNanos: uint64(timestamp),

@@ -146,17 +146,17 @@ func (c *LogClient) getLatestRoot(ctx context.Context, trusted *types.LogRootV1)
 	}
 
 	// TODO(gbelvin): Turn on root verification.
-	// Temporary hack while some implementations don't store digital signatures.
-	var logRoot types.LogRootV1
-	if err := logRoot.UnmarshalBinary(resp.GetSignedLogRoot().LogRoot); err != nil {
-		return nil, err
-	}
 	/*
 		logRoot, err := c.VerifyRoot(&types.LogRootV1{}, resp.GetSignedLogRoot(), nil)
 		if err != nil {
 			return nil, err
 		}
 	*/
+	// TODO(gbelvin): Remove this hack when all implementations store digital signatures.
+	var logRoot types.LogRootV1
+	if err := logRoot.UnmarshalBinary(resp.GetSignedLogRoot().LogRoot); err != nil {
+		return nil, err
+	}
 
 	if trusted.TreeSize > 0 &&
 		logRoot.TreeSize == trusted.TreeSize &&

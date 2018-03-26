@@ -329,7 +329,7 @@ func (tx *logTX) LatestSignedLogRoot(ctx context.Context) (trillian.SignedLogRoo
 		return trillian.SignedLogRoot{}, fmt.Errorf("inconsistency: currentSTH.TreeRevision+1 (%d) != writeRev (%d)", got, want)
 	}
 
-	// Put logRoot back together. Forunately LogRoot has a determinstic serialization.
+	// Put logRoot back together. Fortunately LogRoot has a deterministic serialization.
 	logRoot, err := (&types.LogRootV1{
 		TimestampNanos: uint64(currentSTH.TsNanos),
 		RootHash:       currentSTH.RootHash,
