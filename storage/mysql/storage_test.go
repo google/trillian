@@ -283,6 +283,10 @@ var DB *sql.DB
 
 func TestMain(m *testing.M) {
 	flag.Parse()
+	if !testdb.MySQLAvailable() {
+		glog.Errorf("MySQL not available, skipping all MySQL storage tests")
+		return
+	}
 	DB = openTestDBOrDie()
 	defer DB.Close()
 	cleanTestDB(DB)

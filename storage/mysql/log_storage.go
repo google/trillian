@@ -36,19 +36,20 @@ import (
 	"github.com/google/trillian/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-
-	sqlite3 "github.com/mattn/go-sqlite3"
 )
 
 const (
+	valuesPlaceholder5 = "(?,?,?,?,?)"
+
+	insertLeafDataSQL      = "INSERT INTO LeafData(TreeId,LeafIdentityHash,LeafValue,ExtraData,QueueTimestampNanos) VALUES" + valuesPlaceholder5
+	insertSequencedLeafSQL = "INSERT INTO SequencedLeafData(TreeId,LeafIdentityHash,MerkleLeafHash,SequenceNumber,IntegrateTimestampNanos) VALUES"
+
 	selectNonDeletedTreeIDByTypeAndStateSQL = `
 		SELECT TreeId FROM Trees
 		  WHERE TreeType IN(?,?)
 		  AND TreeState IN(?,?)
 		  AND (Deleted IS NULL OR Deleted = 'false')`
 
-	insertUnsequencedLeafSQL = `INSERT INTO LeafData(TreeId,LeafIdentityHash,LeafValue,ExtraData,QueueTimestampNanos)
-			VALUES(?,?,?,?,?)`
 	selectSequencedLeafCountSQL   = "SELECT COUNT(*) FROM SequencedLeafData WHERE TreeId=?"
 	selectUnsequencedLeafCountSQL = "SELECT TreeId, COUNT(1) FROM Unsequenced GROUP BY TreeId"
 	selectLatestSignedLogRootSQL  = `SELECT TreeHeadTimestamp,TreeSize,RootHash,TreeRevision,RootSignature
@@ -270,8 +271,19 @@ func (m *mySQLLogStorage) ReadWriteTransaction(ctx context.Context, tree *trilli
 	return tx.Commit()
 }
 
-func (m *mySQLLogStorage) AddSequencedLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf) ([]*trillian.QueuedLogLeaf, error) {
-	return nil, status.Errorf(codes.Unimplemented, "AddSequencedLeaves is not implemented")
+func (m *mySQLLogStorage) AddSequencedLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, timestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
+	tx, err := m.beginInternal(ctx, tree)
+	if err != nil {
+		return nil, err
+	}
+	res, err := tx.AddSequencedLeaves(ctx, leaves, timestamp)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return res, nil
 }
 
 func (m *mySQLLogStorage) SnapshotForTree(ctx context.Context, tree *trillian.Tree) (storage.ReadOnlyLogTreeTX, error) {
@@ -279,7 +291,7 @@ func (m *mySQLLogStorage) SnapshotForTree(ctx context.Context, tree *trillian.Tr
 	if err != nil && err != storage.ErrTreeNeedsInit {
 		return nil, err
 	}
-	return tx.(storage.ReadOnlyLogTreeTX), err
+	return tx, err
 }
 
 func (m *mySQLLogStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
@@ -417,7 +429,7 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 		if err != nil {
 			return nil, fmt.Errorf("got invalid queue timestamp: %v", err)
 		}
-		_, err = t.tx.ExecContext(ctx, insertUnsequencedLeafSQL, t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData, qTimestamp.UnixNano())
+		_, err = t.tx.ExecContext(ctx, insertLeafDataSQL, t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData, qTimestamp.UnixNano())
 		insertDuration := time.Since(leafStart)
 		observe(queueInsertLeafLatency, insertDuration, label)
 		if isDuplicateErr(err) {
@@ -500,6 +512,77 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 	observe(queueLatency, totalDuration, label)
 
 	return existingLeaves, nil
+}
+
+func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf, timestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
+	res := make([]*trillian.QueuedLogLeaf, len(leaves))
+	ok := status.New(codes.OK, "OK").Proto()
+
+	// Leaves in this transaction are inserted in two tables. For each leaf, if
+	// one of the two inserts fails, we remove the side effect by rolling back to
+	// a savepoint installed before the first insert of the two.
+	const savepoint = "SAVEPOINT AddSequencedLeaves"
+	if _, err := t.tx.ExecContext(ctx, savepoint); err != nil {
+		glog.Errorf("Error adding savepoint: %s", err)
+		return nil, err
+	}
+	// TODO(pavelkalinnikov): Consider performance implication of executing this
+	// extra SAVEPOINT, especially for 1-entry batches. Optimize if necessary.
+
+	// Note: Leaves are sorted by LeafIndex, so no deterministic reordering is
+	// necessary to avoid deadlocks.
+	for i, leaf := range leaves {
+		// This should fail on insert, but catch it early.
+		if got, want := len(leaf.LeafIdentityHash), t.hashSizeBytes; got != want {
+			return nil, status.Errorf(codes.FailedPrecondition, "leaves[%d] has incorrect hash size %d, want %d", i, got, want)
+		}
+
+		if _, err := t.tx.ExecContext(ctx, savepoint); err != nil {
+			glog.Errorf("Error updating savepoint: %s", err)
+			return nil, err
+		}
+
+		res[i] = &trillian.QueuedLogLeaf{Status: ok}
+
+		// TODO(pavelkalinnikov): Measure latencies.
+		_, err := t.tx.ExecContext(ctx, insertLeafDataSQL,
+			t.treeID, leaf.LeafIdentityHash, leaf.LeafValue, leaf.ExtraData, timestamp.UnixNano())
+		// TODO(pavelkalinnikov): Detach PREORDERED_LOG integration latency metric.
+
+		// TODO(pavelkalinnikov): Support opting out from duplicates detection.
+		if isDuplicateErr(err) {
+			res[i].Status = status.New(codes.FailedPrecondition, "conflicting LeafIdentityHash").Proto()
+			// Note: No rolling back to savepoint because there is no side effect.
+			continue
+		} else if err != nil {
+			glog.Errorf("Error inserting leaves[%d] into LeafData: %s", i, err)
+			return nil, err
+		}
+
+		_, err = t.tx.ExecContext(ctx, insertSequencedLeafSQL+valuesPlaceholder5,
+			t.treeID, leaf.LeafIdentityHash, leaf.MerkleLeafHash, leaf.LeafIndex, 0)
+		// TODO(pavelkalinnikov): Update IntegrateTimestamp on integrating the leaf.
+
+		if isDuplicateErr(err) {
+			res[i].Status = status.New(codes.FailedPrecondition, "conflicting LeafIndex").Proto()
+			if _, err := t.tx.ExecContext(ctx, "ROLLBACK TO "+savepoint); err != nil {
+				glog.Errorf("Error rolling back to savepoint: %s", err)
+				return nil, err
+			}
+		} else if err != nil {
+			glog.Errorf("Error inserting leaves[%d] into SequencedLeafData: %s", i, err)
+			return nil, err
+		}
+
+		// TODO(pavelkalinnikov): Load LeafData for conflicting entries.
+	}
+
+	if _, err := t.tx.ExecContext(ctx, "RELEASE "+savepoint); err != nil {
+		glog.Errorf("Error releasing savepoint: %s", err)
+		return nil, err
+	}
+
+	return res, nil
 }
 
 func (t *logTreeTX) GetSequencedLeafCount(ctx context.Context) (int64, error) {
@@ -821,8 +904,6 @@ func isDuplicateErr(err error) bool {
 	switch err := err.(type) {
 	case *mysql.MySQLError:
 		return err.Number == errNumDuplicate
-	case sqlite3.Error:
-		return err.Code == sqlite3.ErrConstraint && err.ExtendedCode == sqlite3.ErrConstraintPrimaryKey
 	default:
 		return false
 	}

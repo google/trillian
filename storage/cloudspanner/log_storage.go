@@ -242,7 +242,7 @@ func (ls *logStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree, leav
 	return results, nil
 }
 
-func (ls *logStorage) AddSequencedLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf) ([]*trillian.QueuedLogLeaf, error) {
+func (ls *logStorage) AddSequencedLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, timestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
 	return nil, ErrNotImplemented
 }
 
@@ -431,6 +431,10 @@ type indexMerkleHash struct {
 }
 
 func (tx *logTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf, ts time.Time) ([]*trillian.LogLeaf, error) {
+	return nil, ErrNotImplemented
+}
+
+func (tx *logTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf, timestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
 	return nil, ErrNotImplemented
 }
 

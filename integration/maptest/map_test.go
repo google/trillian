@@ -35,8 +35,8 @@ func TestMapIntegration(t *testing.T) {
 	var env *integration.MapEnv
 	var err error
 	if *server == "" {
-		if provider := testdb.Default(); !provider.IsMySQL() {
-			t.Skipf("Skipping map integration test, SQL driver is %v", provider.Driver)
+		if !testdb.MySQLAvailable() {
+			t.Skip("Skipping map integration test, MySQL not available")
 		}
 		env, err = integration.NewMapEnv(ctx)
 	} else {
