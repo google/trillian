@@ -229,11 +229,7 @@ func (t *TrillianMapServer) SetLeaves(ctx context.Context, req *trillian.SetMapL
 		}
 
 		// TODO(al): need an smtWriter.Rollback() or similar I think.
-		if err = tx.StoreSignedMapRoot(ctx, *newRoot); err != nil {
-			return err
-		}
-
-		return nil
+		return tx.StoreSignedMapRoot(ctx, *newRoot)
 	})
 	if err != nil {
 		return nil, err
@@ -368,11 +364,7 @@ func (t *TrillianMapServer) InitMap(ctx context.Context, req *trillian.InitMapRe
 			return fmt.Errorf("makeSignedMapRoot(): %v", err)
 		}
 
-		if err = tx.StoreSignedMapRoot(ctx, *rev0Root); err != nil {
-			return err
-		}
-
-		return nil
+		return tx.StoreSignedMapRoot(ctx, *rev0Root)
 	})
 	if err != nil {
 		return nil, err
