@@ -17,9 +17,9 @@ check_import() {
 check_blacklist() {
   local path="$1"
 
-  local result=$(grep -Hne '\("github.com/google/certificate-transparency-go/trillian/ctfe.*"\)' "$path")
+  local result=$(grep -Hne '\("github.com/google/certificate-transparency-go/trillian.*"\)' "$path")
   if [[ ! -z "${result}" ]]; then
-    echo "$result - importing CTFE into generic code is not allowed"
+    echo "$result - importing CT specific code into generic repo is not allowed"
     return 1
   fi
 }
