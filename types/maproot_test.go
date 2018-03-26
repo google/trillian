@@ -92,8 +92,8 @@ func TestUnmarshalMapRoot(t *testing.T) {
 		}
 	}
 	// Unmarshaling to a nil should throw an error.
-	var got *MapRootV1
-	if err := got.UnmarshalBinary(MustMarshalMapRoot(&MapRootV1{})); err == nil {
+	var nilPtr *MapRootV1
+	if err := nilPtr.UnmarshalBinary(MustMarshalMapRoot(&MapRootV1{})); err == nil {
 		t.Errorf("nil.UnmarshalBinary(): %v, want err", err)
 	}
 }
