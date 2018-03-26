@@ -82,8 +82,8 @@ func TestUnmarshalLogRoot(t *testing.T) {
 	}
 
 	// Unmarshaling to a nil should throw an error.
-	var got *LogRootV1
-	if err := got.UnmarshalBinary(MustMarshalLogRoot(&LogRootV1{})); err == nil {
+	var nilPtr *LogRootV1
+	if err := nilPtr.UnmarshalBinary(MustMarshalLogRoot(&LogRootV1{})); err == nil {
 		t.Errorf("nil.UnmarshalBinary(): %v, want err", err)
 	}
 }
