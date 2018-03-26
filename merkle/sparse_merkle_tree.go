@@ -272,10 +272,7 @@ func (s *subtreeWriter) buildSubtree(ctx context.Context) {
 		}
 
 		// write nodes back to storage
-		if err := tx.SetMerkleNodes(ctx, nodesToStore); err != nil {
-			return err
-		}
-		return nil
+		return tx.SetMerkleNodes(ctx, nodesToStore)
 	})
 	if err != nil {
 		s.root <- rootHashOrError{nil, err}
