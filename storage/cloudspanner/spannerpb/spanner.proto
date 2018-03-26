@@ -164,8 +164,11 @@ message TreeHead {
 
   reserved 5;
 
-  // signature holds a digital signature across the data in this TreeHead.
-  bytes signature = 8;
+  // Deleted: old spannerpb.DigitallySigned
+  reserved 8; 
+  // signature holds the raw digital signature across the serialized log_root
+  // (not present) represented by the data in this TreeHead.
+  bytes signature = 10;
 
   // tree_revision identifies the revision at which the TreeHead was created.
   int64 tree_revision = 6;
