@@ -74,6 +74,11 @@ func TestUnmarshalMapRoot(t *testing.T) {
 			mapRoot: []byte{0, 1, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5},
 			wantErr: true,
 		},
+		{
+			// Incorrect type
+			mapRoot: []byte{0},
+			wantErr: true,
+		},
 		{mapRoot: []byte("foo"), wantErr: true},
 		{mapRoot: nil, wantErr: true},
 	} {
@@ -85,5 +90,10 @@ func TestUnmarshalMapRoot(t *testing.T) {
 		if got, want := r, tc.want; !reflect.DeepEqual(got, want) {
 			t.Errorf("UnmarshalBinary(): \n%#v, want: \n%#v", got, want)
 		}
+	}
+	// Unmarshaling to a nil should throw an error.
+	var nilPtr *MapRootV1
+	if err := nilPtr.UnmarshalBinary(MustMarshalMapRoot(&MapRootV1{})); err == nil {
+		t.Errorf("nil.UnmarshalBinary(): %v, want err", err)
 	}
 }

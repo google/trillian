@@ -60,7 +60,10 @@ type LogRoot struct {
 // the LOG_ROOT_FORMAT_V1 tag, and populates the caller with the deserialized
 // *LogRootV1.
 func (l *LogRootV1) UnmarshalBinary(logRootBytes []byte) error {
-	if logRootBytes == nil {
+	if len(logRootBytes) < 3 {
+		return fmt.Errorf("logRootBytes too short")
+	}
+	if l == nil {
 		return fmt.Errorf("nil log root")
 	}
 	version := binary.BigEndian.Uint16(logRootBytes)
