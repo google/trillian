@@ -326,6 +326,7 @@ func (s Sequencer) IntegrateBatch(ctx context.Context, tree *trillian.Tree, limi
 		}
 		// There is no trust boundary between the signer and the
 		// database, so we skip signature verification.
+		// TODO(gbelvin): Add signature checking as a santity check.
 		var currentRoot types.LogRootV1
 		if err := currentRoot.UnmarshalBinary(sth.LogRoot); err != nil {
 			glog.Warningf("%v: Sequencer failed to unmarshal latest root: %v", tree.TreeId, err)
