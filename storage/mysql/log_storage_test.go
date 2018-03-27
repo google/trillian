@@ -17,6 +17,7 @@ package mysql
 import (
 	"bytes"
 	"context"
+	"crypto"
 	"crypto/sha256"
 	"database/sql"
 	"fmt"
@@ -33,7 +34,8 @@ import (
 	"github.com/google/trillian/types"
 	"github.com/kylelemons/godebug/pretty"
 
-	spb "github.com/google/trillian/crypto/sigpb"
+	tcrypto "github.com/google/trillian/crypto"
+	ttestonly "github.com/google/trillian/testonly"
 
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -207,23 +209,29 @@ func TestReadWriteTransaction(t *testing.T) {
 	createFakeSignedLogRoot(DB, activeLog, 0)
 
 	tests := []struct {
-		desc      string
-		tree      *trillian.Tree
-		wantErr   bool
-		wantRev   int64
-		wantTXRev int64
+		desc        string
+		tree        *trillian.Tree
+		wantErr     bool
+		wantLogRoot []byte
+		wantTXRev   int64
 	}{
 		{
 			// Unknown logs IDs are now handled outside storage.
-			desc:      "unknownBegin",
-			tree:      logTree(-1),
-			wantRev:   0,
-			wantTXRev: -1,
+			desc:        "unknownBegin",
+			tree:        logTree(-1),
+			wantLogRoot: nil,
+			wantTXRev:   -1,
 		},
 		{
-			desc:      "activeLogBegin",
-			tree:      activeLog,
-			wantRev:   0,
+			desc: "activeLogBegin",
+			tree: activeLog,
+			wantLogRoot: func() []byte {
+				b, err := (&types.LogRootV1{RootHash: []byte{0}}).MarshalBinary()
+				if err != nil {
+					panic(err)
+				}
+				return b
+			}(),
 			wantTXRev: 1,
 		},
 	}
@@ -235,13 +243,13 @@ func TestReadWriteTransaction(t *testing.T) {
 			err := s.ReadWriteTransaction(ctx, test.tree, func(ctx context.Context, tx storage.LogTreeTX) error {
 				root, err := tx.LatestSignedLogRoot(ctx)
 				if err != nil {
-					t.Errorf("%v: LatestSignedLogRoot() returned err = %v", test.desc, err)
+					t.Fatalf("%v: LatestSignedLogRoot() returned err = %v", test.desc, err)
 				}
 				if got, want := tx.WriteRevision(), test.wantTXRev; got != want {
 					t.Errorf("%v: WriteRevision() = %v, want = %v", test.desc, got, want)
 				}
-				if got, want := root.TreeRevision, test.wantRev; got != want {
-					t.Errorf("%v: TreeRevision() = %v, want = %v", test.desc, got, want)
+				if got, want := root.LogRoot, test.wantLogRoot; !bytes.Equal(got, want) {
+					t.Errorf("%v: LogRoot: \n%x, want \n%x", test.desc, got, want)
 				}
 				return nil
 			})
@@ -981,17 +989,19 @@ func TestLatestSignedLogRoot(t *testing.T) {
 	tree := createTreeOrPanic(DB, testonly.LogTree)
 	s := NewLogStorage(DB, nil)
 
-	root := trillian.SignedLogRoot{
-		KeyHint:        types.SerializeKeyHint(tree.TreeId),
+	signer := tcrypto.NewSigner(tree.TreeId, ttestonly.NewSignerWithFixedSig(nil, []byte("notempty")), crypto.SHA256)
+	root, err := signer.SignLogRoot(&types.LogRootV1{
 		TimestampNanos: 98765,
 		TreeSize:       16,
-		TreeRevision:   5,
+		Revision:       5,
 		RootHash:       []byte(dummyHash),
-		Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
+	})
+	if err != nil {
+		t.Fatalf("SignLogRoot(): %v", err)
 	}
 
 	runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
-		if err := tx.StoreSignedLogRoot(ctx, root); err != nil {
+		if err := tx.StoreSignedLogRoot(ctx, *root); err != nil {
 			t.Fatalf("Failed to store signed root: %v", err)
 		}
 		return nil
@@ -1003,7 +1013,7 @@ func TestLatestSignedLogRoot(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to read back new log root: %v", err)
 			}
-			if !proto.Equal(&root, &root2) {
+			if !proto.Equal(root, &root2) {
 				t.Fatalf("Root round trip failed: <%v> and: <%v>", root, root2)
 			}
 			return nil
@@ -1016,20 +1026,23 @@ func TestDuplicateSignedLogRoot(t *testing.T) {
 	tree := createTreeOrPanic(DB, testonly.LogTree)
 	s := NewLogStorage(DB, nil)
 
+	signer := tcrypto.NewSigner(tree.TreeId, ttestonly.NewSignerWithFixedSig(nil, []byte("notempty")), crypto.SHA256)
+	root, err := signer.SignLogRoot(&types.LogRootV1{
+		TimestampNanos: 98765,
+		TreeSize:       16,
+		Revision:       5,
+		RootHash:       []byte(dummyHash),
+	})
+	if err != nil {
+		t.Fatalf("SignLogRoot(): %v", err)
+	}
+
 	runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
-		root := trillian.SignedLogRoot{
-			KeyHint:        types.SerializeKeyHint(tree.TreeId),
-			TimestampNanos: 98765,
-			TreeSize:       16,
-			TreeRevision:   5,
-			RootHash:       []byte(dummyHash),
-			Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
-		}
-		if err := tx.StoreSignedLogRoot(ctx, root); err != nil {
+		if err := tx.StoreSignedLogRoot(ctx, *root); err != nil {
 			t.Fatalf("Failed to store signed root: %v", err)
 		}
 		// Shouldn't be able to do it again
-		if err := tx.StoreSignedLogRoot(ctx, root); err == nil {
+		if err := tx.StoreSignedLogRoot(ctx, *root); err == nil {
 			t.Fatal("Allowed duplicate signed root")
 		}
 		return nil
@@ -1042,27 +1055,31 @@ func TestLogRootUpdate(t *testing.T) {
 	tree := createTreeOrPanic(DB, testonly.LogTree)
 	s := NewLogStorage(DB, nil)
 
-	root := trillian.SignedLogRoot{
-		KeyHint:        types.SerializeKeyHint(tree.TreeId),
+	signer := tcrypto.NewSigner(tree.TreeId, ttestonly.NewSignerWithFixedSig(nil, []byte("notempty")), crypto.SHA256)
+	root, err := signer.SignLogRoot(&types.LogRootV1{
 		TimestampNanos: 98765,
 		TreeSize:       16,
-		TreeRevision:   5,
+		Revision:       5,
 		RootHash:       []byte(dummyHash),
-		Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
+	})
+	if err != nil {
+		t.Fatalf("SignLogRoot(): %v", err)
 	}
-	root2 := trillian.SignedLogRoot{
-		KeyHint:        types.SerializeKeyHint(tree.TreeId),
+	root2, err := signer.SignLogRoot(&types.LogRootV1{
 		TimestampNanos: 98766,
 		TreeSize:       16,
-		TreeRevision:   6,
+		Revision:       6,
 		RootHash:       []byte(dummyHash),
-		Signature:      &spb.DigitallySigned{Signature: []byte("notempty")},
+	})
+	if err != nil {
+		t.Fatalf("SignLogRoot(): %v", err)
 	}
+
 	runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
-		if err := tx.StoreSignedLogRoot(ctx, root); err != nil {
+		if err := tx.StoreSignedLogRoot(ctx, *root); err != nil {
 			t.Fatalf("Failed to store signed root: %v", err)
 		}
-		if err := tx.StoreSignedLogRoot(ctx, root2); err != nil {
+		if err := tx.StoreSignedLogRoot(ctx, *root2); err != nil {
 			t.Fatalf("Failed to store signed root: %v", err)
 		}
 		return nil
@@ -1073,7 +1090,7 @@ func TestLogRootUpdate(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to read back new log root: %v", err)
 		}
-		if !proto.Equal(&root2, &root3) {
+		if !proto.Equal(root2, &root3) {
 			t.Fatalf("Root round trip failed: <%v> and: <%v>", root, root2)
 		}
 		return nil

@@ -17,7 +17,6 @@ package cloudspanner
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"math/rand"
 	"sort"
@@ -26,13 +25,13 @@ import (
 
 	"cloud.google.com/go/spanner"
 	"github.com/golang/glog"
-	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/storage/cache"
 	"github.com/google/trillian/storage/cloudspanner/spannerpb"
+	"github.com/google/trillian/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -330,18 +329,29 @@ func (tx *logTX) LatestSignedLogRoot(ctx context.Context) (trillian.SignedLogRoo
 		return trillian.SignedLogRoot{}, fmt.Errorf("inconsistency: currentSTH.TreeRevision+1 (%d) != writeRev (%d)", got, want)
 	}
 
-	apiSig, err := storageToAPISig(currentSTH.Signature)
+	// Put logRoot back together. Fortunately LogRoot has a deterministic serialization.
+	logRoot, err := (&types.LogRootV1{
+		TimestampNanos: uint64(currentSTH.TsNanos),
+		RootHash:       currentSTH.RootHash,
+		TreeSize:       uint64(currentSTH.TreeSize),
+		Revision:       uint64(currentSTH.TreeRevision),
+		Metadata:       currentSTH.Metadata,
+	}).MarshalBinary()
 	if err != nil {
 		return trillian.SignedLogRoot{}, err
 	}
+
 	// We already read the latest root as part of starting the transaction (in
 	// order to calculate the writeRevision), so we just return that data here:
 	return trillian.SignedLogRoot{
+		KeyHint:          types.SerializeKeyHint(tx.treeID),
+		LogRoot:          logRoot,
+		LogRootSignature: currentSTH.Signature,
+		// TODO(gbelvin): Remove deprecated fields
 		TimestampNanos: currentSTH.TsNanos,
 		RootHash:       currentSTH.RootHash,
 		TreeSize:       currentSTH.TreeSize,
 		TreeRevision:   currentSTH.TreeRevision,
-		Signature:      apiSig,
 	}, nil
 }
 
@@ -356,25 +366,9 @@ func (tx *logTX) StoreSignedLogRoot(ctx context.Context, root trillian.SignedLog
 		return err
 	}
 
-	storageSig, err := apiToStorageSig(root.Signature)
-	if err != nil {
-		return err
-	}
-	if storageSig == nil {
-		return errors.New("sth signature is nil")
-	}
-	sth := spannerpb.TreeHead{
-		TsNanos:      root.TimestampNanos,
-		RootHash:     root.RootHash,
-		TreeSize:     root.TreeSize,
-		TreeId:       tx.treeID,
-		TreeRevision: writeRev,
-		Signature:    storageSig,
-		// Metadata is currently unused by log roots.
-	}
-	var sigBytes []byte
-	sigBytes, err = proto.Marshal(sth.Signature)
-	if err != nil {
+	var logRoot types.LogRootV1
+	if err := logRoot.UnmarshalBinary(root.LogRoot); err != nil {
+		glog.Warningf("Failed to parse log root: %x %v", root.LogRoot, err)
 		return err
 	}
 
@@ -390,13 +384,13 @@ func (tx *logTX) StoreSignedLogRoot(ctx context.Context, root trillian.SignedLog
 			"TreeMetadata",
 		},
 		[]interface{}{
-			sth.TreeId,
-			sth.TsNanos,
-			sth.TreeSize,
-			sth.RootHash,
-			sigBytes,
-			sth.TreeRevision,
-			sth.Metadata,
+			tx.treeID,
+			logRoot.TimestampNanos,
+			logRoot.TreeSize,
+			logRoot.RootHash,
+			root.LogRootSignature,
+			writeRev,
+			logRoot.Metadata,
 		})
 
 	stx, ok := tx.stx.(*spanner.ReadWriteTransaction)

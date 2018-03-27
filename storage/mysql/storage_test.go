@@ -233,7 +233,7 @@ func cleanTestDB(db *sql.DB) {
 }
 
 func createFakeSignedLogRoot(db *sql.DB, tree *trillian.Tree, treeSize uint64) {
-	signer := tcrypto.NewSigner(0, testonly.NewSignerWithFixedSig(nil, nil), crypto.SHA256)
+	signer := tcrypto.NewSigner(0, testonly.NewSignerWithFixedSig(nil, []byte("notnil")), crypto.SHA256)
 
 	ctx := context.Background()
 	l := NewLogStorage(db, nil)

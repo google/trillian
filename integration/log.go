@@ -29,6 +29,7 @@ import (
 	"github.com/google/trillian/client/backoff"
 	"github.com/google/trillian/merkle"
 	"github.com/google/trillian/merkle/rfc6962"
+	"github.com/google/trillian/types"
 )
 
 // TestParameters bundles up all the settings for a test run
@@ -94,12 +95,17 @@ func RunLogIntegration(client trillian.TrillianLogClient, params TestParameters)
 	if params.checkLogEmpty {
 		glog.Infof("Checking log is empty before starting test")
 		resp, err := getLatestSignedLogRoot(client, params)
-
 		if err != nil {
 			return fmt.Errorf("failed to get latest log root: %v %v", resp, err)
 		}
 
-		if resp.SignedLogRoot.TreeSize > 0 {
+		// TODO(gbelvin): Replace with VerifySignedLogRoot
+		var root types.LogRootV1
+		if err := root.UnmarshalBinary(resp.SignedLogRoot.GetLogRoot()); err != nil {
+			return fmt.Errorf("could not read current log root: %v", err)
+		}
+
+		if root.TreeSize > 0 {
 			return fmt.Errorf("expected an empty log but got tree head response: %v", resp)
 		}
 	}
@@ -362,14 +368,17 @@ func readbackLogEntries(logID int64, client trillian.TrillianLogClient, params T
 func checkLogRootHashMatches(tree *merkle.InMemoryMerkleTree, client trillian.TrillianLogClient, params TestParameters) error {
 	// Check the STH against the hash we got from our tree
 	resp, err := getLatestSignedLogRoot(client, params)
-
 	if err != nil {
+		return err
+	}
+	var root types.LogRootV1
+	if err := root.UnmarshalBinary(resp.SignedLogRoot.GetLogRoot()); err != nil {
 		return err
 	}
 
 	// Hash must not be empty and must match the one we built ourselves
-	if got, want := hex.EncodeToString(resp.SignedLogRoot.RootHash), hex.EncodeToString(tree.CurrentRoot().Hash()); got != want {
-		return fmt.Errorf("root hash mismatch expected got: %s want: %s", got, want)
+	if got, want := root.RootHash, tree.CurrentRoot().Hash(); !bytes.Equal(got, want) {
+		return fmt.Errorf("root hash mismatch expected got: %x want: %x", got, want)
 	}
 
 	return nil

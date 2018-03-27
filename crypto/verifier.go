@@ -24,35 +24,22 @@ import (
 	"math/big"
 
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/types"
 )
 
-var (
-	errVerify = errors.New("signature verification failed")
-
-	cryptoHashLookup = map[sigpb.DigitallySigned_HashAlgorithm]crypto.Hash{
-		sigpb.DigitallySigned_SHA256: crypto.SHA256,
-	}
-)
+var errVerify = errors.New("signature verification failed")
 
 // VerifySignedLogRoot verifies the SignedLogRoot and returns its contents.
 func VerifySignedLogRoot(pub crypto.PublicKey, hash crypto.Hash, r *trillian.SignedLogRoot) (*types.LogRootV1, error) {
-	// Verify SignedLogRoot signature.
-	digest, err := hashLogRoot(*r)
-	if err != nil {
+	if err := Verify(pub, hash, r.LogRoot, r.LogRootSignature); err != nil {
 		return nil, err
 	}
-	if err := Verify(pub, hash, digest, r.Signature); err != nil {
-		return nil, err
-	}
-	return &types.LogRootV1{
-		TreeSize:       uint64(r.TreeSize),
-		RootHash:       r.RootHash,
-		TimestampNanos: uint64(r.TimestampNanos),
-		Revision:       uint64(r.TreeRevision),
-	}, nil
 
+	var logRoot types.LogRootV1
+	if err := logRoot.UnmarshalBinary(r.LogRoot); err != nil {
+		return nil, err
+	}
+	return &logRoot, nil
 }
 
 // VerifySignedMapRoot verifies the signature on the SignedMapRoot.
@@ -70,23 +57,9 @@ func VerifySignedMapRoot(pub crypto.PublicKey, hash crypto.Hash, smr *trillian.S
 }
 
 // Verify cryptographically verifies the output of Signer.
-func Verify(pub crypto.PublicKey, hash crypto.Hash, data []byte, sig *sigpb.DigitallySigned) error {
+func Verify(pub crypto.PublicKey, hasher crypto.Hash, data, sig []byte) error {
 	if sig == nil {
 		return errors.New("signature is nil")
-	}
-
-	if got, want := sig.SignatureAlgorithm, SignatureAlgorithm(pub); got != want {
-		return fmt.Errorf("signature algorithm does not match public key, got:%v, want:%v", got, want)
-	}
-
-	// Recompute digest
-	hasher, ok := cryptoHashLookup[sig.HashAlgorithm]
-	if !ok {
-		return fmt.Errorf("unsupported hash algorithm %v", hasher)
-	}
-
-	if hasher != hash {
-		return fmt.Errorf("hash algorithm in sig %v, want %v", hasher, hash)
 	}
 
 	h := hasher.New()
@@ -95,9 +68,9 @@ func Verify(pub crypto.PublicKey, hash crypto.Hash, data []byte, sig *sigpb.Digi
 
 	switch pub := pub.(type) {
 	case *ecdsa.PublicKey:
-		return verifyECDSA(pub, digest, sig.Signature)
+		return verifyECDSA(pub, digest, sig)
 	case *rsa.PublicKey:
-		return verifyRSA(pub, digest, sig.Signature, hasher, hasher)
+		return verifyRSA(pub, digest, sig, hasher, hasher)
 	default:
 		return fmt.Errorf("unknown private key type: %T", pub)
 	}

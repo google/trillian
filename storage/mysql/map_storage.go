@@ -17,7 +17,6 @@ package mysql
 import (
 	"context"
 	"database/sql"
-	"fmt"
 
 	"github.com/google/trillian"
 	"github.com/google/trillian/merkle/hashers"
@@ -27,8 +26,6 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
-
-	spb "github.com/google/trillian/crypto/sigpb"
 )
 
 const (
@@ -285,20 +282,12 @@ func (m *mapTreeTX) LatestSignedMapRoot(ctx context.Context) (trillian.SignedMap
 	return m.signedMapRoot(timestamp, mapRevision, rootHash, rootSignatureBytes, mapperMetaBytes)
 }
 
-func (m *mapTreeTX) signedMapRoot(timestamp, mapRevision int64, rootHash, rootSignatureBytes, mapperMetaBytes []byte) (trillian.SignedMapRoot, error) {
-	rootSignature := &spb.DigitallySigned{}
-
-	err := proto.Unmarshal(rootSignatureBytes, rootSignature)
-	if err != nil {
-		err = fmt.Errorf("signedMapRoot: failed to unmarshal root signature: %v", err)
-		return trillian.SignedMapRoot{}, err
-	}
-
+func (m *mapTreeTX) signedMapRoot(timestamp, mapRevision int64, rootHash, rootSignature, mapperMeta []byte) (trillian.SignedMapRoot, error) {
 	mapRoot, err := (&types.MapRootV1{
 		RootHash:       rootHash,
 		TimestampNanos: uint64(timestamp),
 		Revision:       uint64(mapRevision),
-		Metadata:       mapperMetaBytes,
+		Metadata:       mapperMeta,
 	}).MarshalBinary()
 	if err != nil {
 		return trillian.SignedMapRoot{}, err
@@ -311,12 +300,6 @@ func (m *mapTreeTX) signedMapRoot(timestamp, mapRevision int64, rootHash, rootSi
 }
 
 func (m *mapTreeTX) StoreSignedMapRoot(ctx context.Context, root trillian.SignedMapRoot) error {
-	signatureBytes, err := proto.Marshal(root.Signature)
-	if err != nil {
-		glog.Warningf("Failed to marshal root signature: %v %v", root.Signature, err)
-		return err
-	}
-
 	var r types.MapRootV1
 	if err := r.UnmarshalBinary(root.MapRoot); err != nil {
 		return err
@@ -329,7 +312,7 @@ func (m *mapTreeTX) StoreSignedMapRoot(ctx context.Context, root trillian.Signed
 	defer stmt.Close()
 
 	// TODO(al): store transactionLogHead too
-	res, err := stmt.ExecContext(ctx, m.treeID, r.TimestampNanos, r.RootHash, r.Revision, signatureBytes, r.Metadata)
+	res, err := stmt.ExecContext(ctx, m.treeID, r.TimestampNanos, r.RootHash, r.Revision, root.Signature, r.Metadata)
 
 	if err != nil {
 		glog.Warningf("Failed to store signed map root: %s", err)

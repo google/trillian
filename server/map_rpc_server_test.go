@@ -22,7 +22,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/storage"
 	stestonly "github.com/google/trillian/storage/testonly"
@@ -166,26 +165,14 @@ func TestGetSignedMapRoot(t *testing.T) {
 		snapShErr, lsmrErr error
 	}{
 		{
-			desc: "Map is empty, head at revision 0",
-			req:  &trillian.GetSignedMapRootRequest{MapId: mapID1},
-			mapRoot: trillian.SignedMapRoot{
-				Signature: &sigpb.DigitallySigned{
-					HashAlgorithm:      sigpb.DigitallySigned_SHA256,
-					SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
-					Signature:          []byte("notempty"),
-				},
-			},
+			desc:    "Map is empty, head at revision 0",
+			req:     &trillian.GetSignedMapRootRequest{MapId: mapID1},
+			mapRoot: trillian.SignedMapRoot{Signature: []byte("notempty")},
 		},
 		{
-			desc: "Map has leaves, head > revision 0",
-			req:  &trillian.GetSignedMapRootRequest{MapId: mapID1},
-			mapRoot: trillian.SignedMapRoot{
-				Signature: &sigpb.DigitallySigned{
-					HashAlgorithm:      sigpb.DigitallySigned_SHA256,
-					SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
-					Signature:          []byte("notempty2"),
-				},
-			},
+			desc:    "Map has leaves, head > revision 0",
+			req:     &trillian.GetSignedMapRootRequest{MapId: mapID1},
+			mapRoot: trillian.SignedMapRoot{Signature: []byte("notempty2")},
 		},
 		{
 			desc:    "LatestSignedMapRoot returns error",
@@ -299,11 +286,7 @@ func TestGetSignedMapRootByRevision(t *testing.T) {
 			desc: "Request revision >0 for non-empty map",
 			req:  &trillian.GetSignedMapRootByRevisionRequest{MapId: mapID1, Revision: 1},
 			mapRoot: trillian.SignedMapRoot{
-				Signature: &sigpb.DigitallySigned{
-					HashAlgorithm:      sigpb.DigitallySigned_SHA256,
-					SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
-					Signature:          []byte("0F\002!\000\307b\255\223\353\23615&\022\263\323\341\342+\276\274$\rX?\366\014U\362\006\376\0269rcm\002!\000\241*\255\220\301\263D\033\275\374\340A\377\337\354\202\331%au\3179\000O\r9\237\302\021\r\363\263"),
-				},
+				Signature: []byte("0F\002!\000\307b\255\223\353\23615&\022\263\323\341\342+\276\274$\rX?\366\014U\362\006\376\0269rcm\002!\000\241*\255\220\301\263D\033\275\374\340A\377\337\354\202\331%au\3179\000O\r9\237\302\021\r\363\263"),
 			},
 		},
 	}

@@ -439,7 +439,7 @@ func TestSigner(t *testing.T) {
 				return
 			}
 
-			want := &tcrypto.Signer{Hash: crypto.SHA256, Signer: test.signer}
+			want := tcrypto.NewSigner(0, test.signer, crypto.SHA256)
 			if diff := pretty.Compare(signer, want); diff != "" {
 				t.Fatalf("post-Signer(_, %s) diff:\n%v", test.sigAlgo, diff)
 			}

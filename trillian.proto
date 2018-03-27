@@ -29,14 +29,14 @@ import "google/protobuf/timestamp.proto";
 
 
 // LogRootFormat specifies the fields that are covered by the
-// SignedLogRoot signature, as well as their ordering and formats. 
+// SignedLogRoot signature, as well as their ordering and formats.
 enum LogRootFormat {
    LOG_ROOT_FORMAT_UNKNOWN = 0;
    LOG_ROOT_FORMAT_V1 = 1;
 }
 
 // MapRootFormat specifies the fields that are covered by the
-// SignedMapRoot signature, as well as their ordering and formats. 
+// SignedMapRoot signature, as well as their ordering and formats.
 enum MapRootFormat {
    MAP_ROOT_FORMAT_UNKNOWN = 0;
    MAP_ROOT_FORMAT_V1 = 1;
@@ -58,7 +58,7 @@ enum HashStrategy {
   RFC6962_SHA256 = 1;
 
   // Sparse Merkle Tree strategy:  leaf hash prefix = 0x00, node prefix = 0x01,
-  // empty branch is recursively computed from empty leaf nodes. 
+  // empty branch is recursively computed from empty leaf nodes.
   // NOT secure in a multi tree environment. For testing only.
   TEST_MAP_HASHER = 2;
 
@@ -66,7 +66,7 @@ enum HashStrategy {
   // All other properties are equal to RFC6962_SHA256.
   OBJECT_RFC6962_SHA256 = 3;
 
-  // The CONIKS sparse tree hasher with SHA512_256 as the hash algorithm. 
+  // The CONIKS sparse tree hasher with SHA512_256 as the hash algorithm.
   CONIKS_SHA512_256 = 4;
 }
 
@@ -210,15 +210,21 @@ message SignedEntryTimestamp {
 
 // SignedLogRoot represents a commitment by a Log to a particular tree.
 message SignedLogRoot {
-  // epoch nanoseconds, good until 2500ish
+  // Deprecated: TimestampNanos moved to LogRoot.
   int64 timestamp_nanos = 1;
+  // Deprecated: RootHash moved to LogRoot.
   bytes root_hash = 2;
-  // TreeSize is the number of entries in the tree.
+  // Deprecated: TreeSize moved to LogRoot.
   int64 tree_size = 3;
-  sigpb.DigitallySigned signature = 4;
-
-  reserved 5; // log_id is associated with the public key that validates signature.
+  // Deprecated: TreeRevision moved to LogRoot.
   int64 tree_revision = 6;
+
+  // Deleted: Signature replaced by LogRootSignature.
+  reserved 4;
+
+  // Deleted: LogID is associated with the public key that validates signature.
+  reserved 5;
+
   // key_hint is a hint to identify the public key for signature verification.
   // key_hint is not authenticated and may be incorrect or missing, in which
   // case all known public keys may be used to verify the signature.
@@ -228,6 +234,28 @@ message SignedLogRoot {
   // contents (e.g. it could be a GUID, a URL + TreeID, or it could be
   // derived from the public key itself).
   bytes key_hint = 7;
+
+  // log_root holds the TLS-serialization of the following structure (described
+  // in RFC5246 notation): Clients should validate log_root_signature with
+  // VerifySignedLogRoot before deserializing log_root.
+  // enum { v1(1), (65535)} Version;
+  // struct {
+  //   uint64 tree_size;
+  //   opaque root_hash<0..128>;
+  //   uint64 timestamp_nanos;
+  //   uint64 revision;
+  //   opaque metadata<0..65535>;
+  // } LogRootV1;
+  // struct {
+  //   Version version;
+  //   select(version) {
+  //     case v1: LogRootV1;
+  //   }
+  // } LogRoot;
+  bytes log_root = 8;
+
+  // log_root_signature is the raw signature over log_root.
+  bytes log_root_signature = 9;
 }
 
 // SignedMapRoot represents a commitment by a Map to a particular tree.
@@ -240,8 +268,9 @@ message SignedMapRoot {
   reserved 7; // Deprecated: Was metadata Any. Use map_root.
   reserved 8; // Deprecated: Was metadata bytes. Use map_root.
 
-  // map_root holds the TLS-serialization of the following
-  // structure (described in RFC5246 notation):
+  // map_root holds the TLS-serialization of the following structure (described
+  // in RFC5246 notation): Clients should validate signature with
+  // VerifySignedMapRoot before deserializing map_root.
   // enum { v1(1), (65535)} Version;
   // struct {
   //   opaque root_hash<0..128>;
@@ -256,6 +285,6 @@ message SignedMapRoot {
   //   }
   // } MapRoot;
   bytes map_root = 9;
-  // TODO(al): define serialized format for the signature scheme.
-  sigpb.DigitallySigned signature = 4;
+  // Signature is the raw signature over MapRoot.
+  bytes signature = 4;
 }

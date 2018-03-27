@@ -23,18 +23,19 @@ import (
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/log"
 	"github.com/google/trillian/merkle/hashers"
 	"github.com/google/trillian/trees"
+
+	tcrypto "github.com/google/trillian/crypto"
 )
 
 // SequencerManager provides sequencing operations for a collection of Logs.
 type SequencerManager struct {
 	guardWindow  time.Duration
 	registry     extension.Registry
-	signers      map[int64]*crypto.Signer
+	signers      map[int64]*tcrypto.Signer
 	signersMutex sync.Mutex
 }
 
@@ -46,7 +47,7 @@ func NewSequencerManager(registry extension.Registry, gw time.Duration) *Sequenc
 	return &SequencerManager{
 		guardWindow: gw,
 		registry:    registry,
-		signers:     make(map[int64]*crypto.Signer),
+		signers:     make(map[int64]*tcrypto.Signer),
 	}
 }
 
@@ -92,7 +93,7 @@ func (s *SequencerManager) ExecutePass(ctx context.Context, logID int64, info *L
 
 // getSigner returns a signer for the given tree.
 // Signers are cached, so only one will be created per tree.
-func (s *SequencerManager) getSigner(ctx context.Context, tree *trillian.Tree) (*crypto.Signer, error) {
+func (s *SequencerManager) getSigner(ctx context.Context, tree *trillian.Tree) (*tcrypto.Signer, error) {
 	s.signersMutex.Lock()
 	defer s.signersMutex.Unlock()
 

@@ -586,8 +586,9 @@ func createInitializedMapForTests(ctx context.Context, t *testing.T, db *sql.DB)
 	tree := createTreeOrPanic(db, storageto.MapTree)
 
 	s := NewMapStorage(db)
+	signer := tcrypto.NewSigner(tree.TreeId, testonly.NewSignerWithFixedSig(nil, []byte("sig")), crypto.SHA256)
 	err := s.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.MapTreeTX) error {
-		initialRoot := MustSignMapRoot(&types.MapRootV1{
+		initialRoot, _ := signer.SignMapRoot(&types.MapRootV1{
 			RootHash: []byte("rootHash"),
 			Revision: 0,
 		})

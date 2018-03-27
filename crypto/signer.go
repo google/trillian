@@ -21,13 +21,8 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/trillian"
-	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/types"
 )
-
-var sigpbHashLookup = map[crypto.Hash]sigpb.DigitallySigned_HashAlgorithm{
-	crypto.SHA256: sigpb.DigitallySigned_SHA256,
-}
 
 // Signer is responsible for signing log-related data and producing the appropriate
 // application specific signature objects.
@@ -61,47 +56,39 @@ func (s *Signer) Public() crypto.PublicKey {
 }
 
 // Sign obtains a signature after first hashing the input data.
-func (s *Signer) Sign(data []byte) (*sigpb.DigitallySigned, error) {
+func (s *Signer) Sign(data []byte) ([]byte, error) {
 	h := s.Hash.New()
 	h.Write(data)
 	digest := h.Sum(nil)
 
-	sig, err := s.Signer.Sign(rand.Reader, digest, s.Hash)
-	if err != nil {
-		return nil, err
-	}
-
-	return &sigpb.DigitallySigned{
-		SignatureAlgorithm: SignatureAlgorithm(s.Public()),
-		HashAlgorithm:      sigpbHashLookup[s.Hash],
-		Signature:          sig,
-	}, nil
+	return s.Signer.Sign(rand.Reader, digest, s.Hash)
 }
 
 // SignLogRoot returns a complete SignedLogRoot (including signature).
 func (s *Signer) SignLogRoot(r *types.LogRootV1) (*trillian.SignedLogRoot, error) {
-	root := &trillian.SignedLogRoot{
-		TreeSize:       int64(r.TreeSize),
-		RootHash:       r.RootHash,
-		TimestampNanos: int64(r.TimestampNanos),
-		TreeRevision:   int64(r.Revision),
-	}
-	hash, err := hashLogRoot(*root)
+	logRoot, err := r.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
-	signature, err := s.Sign(hash)
+	signature, err := s.Sign(logRoot)
 	if err != nil {
 		glog.Warningf("%v: signer failed to sign log root: %v", s.KeyHint, err)
 		return nil, err
 	}
 
-	root.Signature = signature
-	return root, nil
+	return &trillian.SignedLogRoot{
+		KeyHint:          s.KeyHint,
+		LogRoot:          logRoot,
+		LogRootSignature: signature,
+		// TODO(gbelvin): Remove deprecated fields
+		TimestampNanos: int64(r.TimestampNanos),
+		RootHash:       r.RootHash,
+		TreeSize:       int64(r.TreeSize),
+		TreeRevision:   int64(r.Revision),
+	}, nil
 }
 
-// SignMapRoot hashes and signs the supplied (to-be) SignedMapRoot and returns a
-// signature.  Hashing is performed by github.com/benlaurie/objecthash.
+// SignMapRoot hashes and signs the supplied (to-be) SignedMapRoot and returns a signature.
 func (s *Signer) SignMapRoot(r *types.MapRootV1) (*trillian.SignedMapRoot, error) {
 	rootBytes, err := r.MarshalBinary()
 	if err != nil {

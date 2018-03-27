@@ -26,18 +26,18 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
-	tcrypto "github.com/google/trillian/crypto"
 	"github.com/google/trillian/crypto/keys"
 	"github.com/google/trillian/crypto/keys/pem"
-	"github.com/google/trillian/crypto/sigpb"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/google/trillian/quota"
 	"github.com/google/trillian/storage"
-	stestonly "github.com/google/trillian/storage/testonly"
 	"github.com/google/trillian/testonly"
 	"github.com/google/trillian/types"
 	"github.com/google/trillian/util"
+
+	tcrypto "github.com/google/trillian/crypto"
+	stestonly "github.com/google/trillian/storage/testonly"
 )
 
 // Arbitrary time for use in tests
@@ -61,45 +61,37 @@ var testLeaf0Updated = &trillian.LogLeaf{
 	LeafIndex:          0,
 	IntegrateTimestamp: testonly.MustToTimestampProto(fakeTime),
 }
-var testRoot0 = trillian.SignedLogRoot{
-	TreeSize:     0,
-	TreeRevision: 0,
-	KeyHint:      types.SerializeKeyHint(testLogID1),
-	RootHash:     []byte{},
-	Signature: &sigpb.DigitallySigned{
-		HashAlgorithm:      sigpb.DigitallySigned_SHA256,
-		SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
-	},
-}
-var updatedNodes0 = []storage.Node{{NodeID: storage.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, PrefixLenBits: 64}, Hash: testonly.MustDecodeBase64("bjQLnP+zepicpUTmu3gKLHiQHT+zNzh2hRGjBhevoB0="), NodeRevision: 1}}
-var updatedRoot = trillian.SignedLogRoot{
-	TimestampNanos: fakeTime.UnixNano(),
-	RootHash:       []byte{110, 52, 11, 156, 255, 179, 122, 152, 156, 165, 68, 230, 187, 120, 10, 44, 120, 144, 29, 63, 179, 55, 56, 118, 133, 17, 163, 6, 23, 175, 160, 29},
-	TreeSize:       1,
-	Signature: &sigpb.DigitallySigned{
-		HashAlgorithm:      sigpb.DigitallySigned_SHA256,
-		SignatureAlgorithm: sigpb.DigitallySigned_ECDSA,
-		Signature:          []byte("signed"),
-	},
-	TreeRevision: 1,
-}
+var (
+	fixedLog1Signer = tcrypto.NewSigner(testLogID1, fixedGoSigner, crypto.SHA256)
+	testRoot0       = &types.LogRootV1{
+		TreeSize: 0,
+		Revision: 0,
+		RootHash: []byte{},
+	}
+	testSignedRoot0, _ = fixedLog1Signer.SignLogRoot(testRoot0)
+
+	updatedNodes0 = []storage.Node{{NodeID: storage.NodeID{Path: []uint8{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, PrefixLenBits: 64}, Hash: testonly.MustDecodeBase64("bjQLnP+zepicpUTmu3gKLHiQHT+zNzh2hRGjBhevoB0="), NodeRevision: 1}}
+	updatedRoot   = &types.LogRootV1{
+		TimestampNanos: uint64(fakeTime.UnixNano()),
+		RootHash:       []byte{110, 52, 11, 156, 255, 179, 122, 152, 156, 165, 68, 230, 187, 120, 10, 44, 120, 144, 29, 63, 179, 55, 56, 118, 133, 17, 163, 6, 23, 175, 160, 29},
+		TreeSize:       1,
+		Revision:       1,
+	}
+	updatedSignedRoot, _ = fixedSigner.SignLogRoot(updatedRoot)
+)
 
 var zeroDuration = 0 * time.Second
 
 const writeRev = int64(24)
 
 // newSignerWithFixedSig returns a fake signer that always returns the specified signature.
-func newSignerWithFixedSig(sig *sigpb.DigitallySigned) (crypto.Signer, error) {
+func newSignerWithFixedSig(sig []byte) crypto.Signer {
 	key, err := pem.UnmarshalPublicKey(testonly.DemoPublicKey)
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
 
-	if tcrypto.SignatureAlgorithm(key) != sig.GetSignatureAlgorithm() {
-		return nil, errors.New("signature algorithm does not match demo public key")
-	}
-
-	return testonly.NewSignerWithFixedSig(key, sig.Signature), nil
+	return testonly.NewSignerWithFixedSig(key, sig)
 }
 
 func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
@@ -118,18 +110,13 @@ func TestSequencerManagerSingleLogNoLeaves(t *testing.T) {
 		t.Fatalf("Failed to unmarshal stestonly.LogTree.PrivateKey: %v", err)
 	}
 
-	signer, err := newSignerWithFixedSig(updatedRoot.Signature)
-	if err != nil {
-		t.Fatalf("Failed to create fake signer: %v", err)
-	}
-
-	keys.RegisterHandler(fakeKeyProtoHandler(keyProto.Message, signer, nil))
+	keys.RegisterHandler(fakeKeyProtoHandler(keyProto.Message, fixedGoSigner, nil))
 	defer keys.UnregisterHandler(keyProto.Message)
 
 	mockTx.EXPECT().Commit().Return(nil)
 	mockTx.EXPECT().Close().Return(nil)
 	mockTx.EXPECT().WriteRevision().AnyTimes().Return(writeRev)
-	mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(testRoot0, nil)
+	mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(*testSignedRoot0, nil)
 	mockTx.EXPECT().DequeueLeaves(gomock.Any(), 50, fakeTime).Return([]*trillian.LogLeaf{}, nil)
 
 	mockAdminTx.EXPECT().GetTree(gomock.Any(), logID).Return(stestonly.LogTree, nil)
@@ -162,12 +149,7 @@ func TestSequencerManagerCachesSigners(t *testing.T) {
 		t.Fatalf("Failed to unmarshal stestonly.LogTree.PrivateKey: %v", err)
 	}
 
-	signer, err := newSignerWithFixedSig(updatedRoot.Signature)
-	if err != nil {
-		t.Fatalf("Failed to create fake signer: %v", err)
-	}
-
-	keys.RegisterHandler(fakeKeyProtoHandler(keyProto.Message, signer, nil))
+	keys.RegisterHandler(fakeKeyProtoHandler(keyProto.Message, fixedGoSigner, nil))
 
 	registry := extension.Registry{
 		AdminStorage: mockAdmin,
@@ -187,7 +169,7 @@ func TestSequencerManagerCachesSigners(t *testing.T) {
 
 		fakeStorage.TX = mockTx
 		gomock.InOrder(
-			mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(testRoot0, nil),
+			mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(*testSignedRoot0, nil),
 			mockTx.EXPECT().DequeueLeaves(gomock.Any(), 50, fakeTime).Return([]*trillian.LogLeaf{}, nil),
 			mockTx.EXPECT().WriteRevision().AnyTimes().Return(writeRev),
 			mockTx.EXPECT().Commit().Return(nil),
@@ -259,24 +241,19 @@ func TestSequencerManagerSingleLogOneLeaf(t *testing.T) {
 		t.Fatalf("Failed to unmarshal stestonly.LogTree.PrivateKey: %v", err)
 	}
 
-	signer, err := newSignerWithFixedSig(updatedRoot.Signature)
-	if err != nil {
-		t.Fatalf("Failed to create fake signer: %v", err)
-	}
-
-	keys.RegisterHandler(fakeKeyProtoHandler(keyProto.Message, signer, nil))
+	keys.RegisterHandler(fakeKeyProtoHandler(keyProto.Message, fixedGoSigner, nil))
 	defer keys.UnregisterHandler(keyProto.Message)
 
 	// Set up enough mockery to be able to sequence. We don't test all the error paths
 	// through sequencer as other tests cover this
 	mockTx.EXPECT().Commit().Return(nil)
 	mockTx.EXPECT().Close().Return(nil)
-	mockTx.EXPECT().WriteRevision().AnyTimes().Return(testRoot0.TreeRevision + 1)
+	mockTx.EXPECT().WriteRevision().AnyTimes().Return(int64(testRoot0.Revision + 1))
 	mockTx.EXPECT().DequeueLeaves(gomock.Any(), 50, fakeTime).Return([]*trillian.LogLeaf{testLeaf0}, nil)
-	mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(testRoot0, nil)
+	mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(*testSignedRoot0, nil)
 	mockTx.EXPECT().UpdateSequencedLeaves(gomock.Any(), []*trillian.LogLeaf{testLeaf0Updated}).Return(nil)
 	mockTx.EXPECT().SetMerkleNodes(gomock.Any(), updatedNodes0).Return(nil)
-	mockTx.EXPECT().StoreSignedLogRoot(gomock.Any(), updatedRoot).Return(nil)
+	mockTx.EXPECT().StoreSignedLogRoot(gomock.Any(), *updatedSignedRoot).Return(nil)
 
 	mockAdminTx.EXPECT().GetTree(gomock.Any(), logID).Return(stestonly.LogTree, nil)
 	mockAdminTx.EXPECT().Commit().Return(nil)
@@ -308,18 +285,13 @@ func TestSequencerManagerGuardWindow(t *testing.T) {
 		t.Fatalf("Failed to unmarshal stestonly.LogTree.PrivateKey: %v", err)
 	}
 
-	signer, err := newSignerWithFixedSig(updatedRoot.Signature)
-	if err != nil {
-		t.Fatalf("Failed to create fake signer: %v", err)
-	}
-
-	keys.RegisterHandler(fakeKeyProtoHandler(keyProto.Message, signer, nil))
+	keys.RegisterHandler(fakeKeyProtoHandler(keyProto.Message, fixedGoSigner, nil))
 	defer keys.UnregisterHandler(keyProto.Message)
 
 	mockTx.EXPECT().Commit().Return(nil)
 	mockTx.EXPECT().Close().Return(nil)
 	mockTx.EXPECT().WriteRevision().AnyTimes().Return(writeRev)
-	mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(testRoot0, nil)
+	mockTx.EXPECT().LatestSignedLogRoot(gomock.Any()).Return(*testSignedRoot0, nil)
 	// Expect a 5 second guard window to be passed from manager -> sequencer -> storage
 	mockTx.EXPECT().DequeueLeaves(gomock.Any(), 50, fakeTime.Add(-time.Second*5)).Return([]*trillian.LogLeaf{}, nil)
 

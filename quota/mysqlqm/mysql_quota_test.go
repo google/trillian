@@ -307,13 +307,12 @@ func createTree(ctx context.Context, db *sql.DB) (*trillian.Tree, error) {
 	{
 		ls := mysql.NewLogStorage(db, nil)
 		err := ls.ReadWriteTransaction(ctx, tree, func(ctx context.Context, tx storage.LogTreeTX) error {
-			signer := tcrypto.NewSigner(0, testonly.NewSignerWithFixedSig(nil, nil), crypto.SHA256)
+			signer := tcrypto.NewSigner(0, testonly.NewSignerWithFixedSig(nil, []byte("notempty")), crypto.SHA256)
 			slr, err := signer.SignLogRoot(&types.LogRootV1{RootHash: []byte{0}})
 			if err != nil {
 				return err
 			}
 			return tx.StoreSignedLogRoot(ctx, *slr)
-
 		})
 		if err != nil {
 			return nil, err
