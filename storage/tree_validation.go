@@ -64,17 +64,22 @@ func ValidateTreeForCreation(ctx context.Context, tree *trillian.Tree) error {
 	return validateMutableTreeFields(ctx, tree)
 }
 
+// validateTreeTypeUpdate returns nil iff oldTree.TreeType can be updated to
+// newTree.TreeType. The tree type is changeable only if the Tree is and
+// remains in the FROZEN state.
+// At the moment only PREORDERED_LOG->LOG type transition is permitted.
 func validateTreeTypeUpdate(oldTree, newTree *trillian.Tree) error {
-	const prefix = "changing tree_type"
+	const prefix = "can't change tree_type"
+
 	const wantState = trillian.TreeState_FROZEN
 	if oldState := oldTree.TreeState; oldState != wantState {
 		return status.Errorf(codes.InvalidArgument, "%s: tree_state=%v, want %v", prefix, oldState, wantState)
-	}
-	if newTree.TreeState != wantState {
+	} else if newTree.TreeState != wantState {
 		return status.Errorf(codes.InvalidArgument, "%s: tree_state should stay %v", prefix, wantState)
 	}
+
 	if oldTree.TreeType != trillian.TreeType_PREORDERED_LOG || newTree.TreeType != trillian.TreeType_LOG {
-		return status.Errorf(codes.InvalidArgument, "%s not allowed: %v->%v", prefix, oldTree.TreeType, newTree.TreeType)
+		return status.Errorf(codes.InvalidArgument, "%s: %v->%v", prefix, oldTree.TreeType, newTree.TreeType)
 	}
 	return nil
 }
