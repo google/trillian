@@ -110,7 +110,6 @@ enum TreeType {
 
   // Tree represents a verifiable pre-ordered log, i.e., a log whose entries are
   // placed according to sequence numbers assigned outside of Trillian.
-  // TODO(pavelkalinnikov): Support this type.
   PREORDERED_LOG = 3;
 }
 
@@ -127,12 +126,13 @@ message Tree {
   int64 tree_id = 1;
 
   // State of the tree.
-  // Trees are active after creation. At any point the tree may transition
-  // between ACTIVE and FROZEN.
+  // Trees are ACTIVE after creation. At any point the tree may transition
+  // between ACTIVE, DRAINING and FROZEN states.
   TreeState tree_state = 2;
 
   // Type of the tree.
-  // Readonly.
+  // Readonly after Tree creation. Exception: Can be switched from
+  // PREORDERED_LOG to LOG if the Tree is and remains in the FROZEN state.
   TreeType tree_type = 3;
 
   // Hash strategy to be used by the tree.

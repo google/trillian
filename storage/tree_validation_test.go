@@ -254,9 +254,11 @@ func TestValidateTreeForUpdate(t *testing.T) {
 	ctx := context.Background()
 
 	tests := []struct {
-		desc     string
-		updatefn func(*trillian.Tree)
-		wantErr  bool
+		desc      string
+		treeState trillian.TreeState
+		treeType  trillian.TreeType
+		updatefn  func(*trillian.Tree)
+		wantErr   bool
 	}{
 		{
 			desc: "valid",
@@ -360,6 +362,32 @@ func TestValidateTreeForUpdate(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			desc:     "TreeTypeFromPreorderedLogToLog",
+			treeType: trillian.TreeType_PREORDERED_LOG,
+			updatefn: func(tree *trillian.Tree) {
+				tree.TreeType = trillian.TreeType_LOG
+			},
+			wantErr: true,
+		},
+		{
+			desc:      "TreeTypeFromFrozenPreorderedLogToLog",
+			treeState: trillian.TreeState_FROZEN,
+			treeType:  trillian.TreeType_PREORDERED_LOG,
+			updatefn: func(tree *trillian.Tree) {
+				tree.TreeType = trillian.TreeType_LOG
+			},
+		},
+		{
+			desc:      "TreeTypeFromFrozenPreorderedLogToActiveLog",
+			treeState: trillian.TreeState_FROZEN,
+			treeType:  trillian.TreeType_PREORDERED_LOG,
+			updatefn: func(tree *trillian.Tree) {
+				tree.TreeState = trillian.TreeState_ACTIVE
+				tree.TreeType = trillian.TreeType_LOG
+			},
+			wantErr: true,
+		},
+		{
 			desc: "HashStrategy",
 			updatefn: func(tree *trillian.Tree) {
 				tree.HashStrategy = trillian.HashStrategy_UNKNOWN_HASH_STRATEGY
@@ -407,6 +435,13 @@ func TestValidateTreeForUpdate(t *testing.T) {
 	}
 	for _, test := range tests {
 		tree := newTree()
+		if test.treeType != trillian.TreeType_UNKNOWN_TREE_TYPE {
+			tree.TreeType = test.treeType
+		}
+		if test.treeState != trillian.TreeState_UNKNOWN_TREE_STATE {
+			tree.TreeState = test.treeState
+		}
+
 		baseTree := *tree
 		test.updatefn(tree)
 
@@ -420,7 +455,7 @@ func TestValidateTreeForUpdate(t *testing.T) {
 	}
 }
 
-// newTree returns a valid tree for tests.
+// newTree returns a valid log tree for tests.
 func newTree() *trillian.Tree {
 	privateKey, err := ptypes.MarshalAny(&keyspb.PEMKeyFile{
 		Path:     privateKeyPath,

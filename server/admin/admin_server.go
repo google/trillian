@@ -209,6 +209,8 @@ func applyUpdateMask(from, to *trillian.Tree, mask *field_mask.FieldMask) error 
 		switch path {
 		case "tree_state":
 			to.TreeState = from.TreeState
+		case "tree_type":
+			to.TreeType = from.TreeType
 		case "display_name":
 			to.DisplayName = from.DisplayName
 		case "description":
