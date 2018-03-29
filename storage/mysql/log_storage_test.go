@@ -847,22 +847,22 @@ func TestGetLeafDataByIdentityHash(t *testing.T) {
 	for i, test := range tests {
 		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
 			runLogTX(s, tree, t, func(ctx context.Context, tx storage.LogTreeTX) error {
-				leaves, err := tx.(*logTreeTX).getLeafDataByIdentityHash(ctx, test.hashes)
+				qLeaves, err := tx.(*logTreeTX).getLeafDataByIdentityHash(ctx, test.hashes)
 				if err != nil {
 					t.Fatalf("getLeavesByIdentityHash(_) = (_,%v); want (_,nil)", err)
 				}
 
-				if len(leaves) != len(test.want) {
-					t.Fatalf("getLeavesByIdentityHash(_) = (|%d|,nil); want (|%d|,nil)", len(leaves), len(test.want))
+				if len(qLeaves) != len(test.want) {
+					t.Fatalf("getLeavesByIdentityHash(_) = (|%d|,nil); want (|%d|,nil)", len(qLeaves), len(test.want))
 				}
-				leavesEquivalent(t, leaves, test.want)
+				leavesEquivalent(t, qLeaves, test.want)
 				return nil
 			})
 		})
 	}
 }
 
-func leavesEquivalent(t *testing.T, gotLeaves, wantLeaves []*trillian.LogLeaf) {
+func leavesEquivalent(t *testing.T, gotLeaves []*trillian.QueuedLogLeaf, wantLeaves []*trillian.LogLeaf) {
 	t.Helper()
 	want := make(map[string]*trillian.LogLeaf)
 	for _, w := range wantLeaves {
@@ -871,8 +871,8 @@ func leavesEquivalent(t *testing.T, gotLeaves, wantLeaves []*trillian.LogLeaf) {
 	}
 	got := make(map[string]*trillian.LogLeaf)
 	for _, g := range gotLeaves {
-		k := sha256.Sum256([]byte(g.String()))
-		got[string(k[:])] = g
+		k := sha256.Sum256([]byte(g.Leaf.String()))
+		got[string(k[:])] = g.Leaf
 	}
 	if diff := pretty.Compare(want, got); diff != "" {
 		t.Errorf("leaves not equivalent: diff -want,+got:\n%v", diff)
