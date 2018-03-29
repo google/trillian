@@ -79,6 +79,7 @@ var (
 	colSequenceNumber          = "SequenceNumber"
 	colQueueTimestampNanos     = "QueueTimestampNanos"
 	colIntegrateTimestampNanos = "IntegrateTimestampNanos"
+	colSignature               = "Signature"
 )
 
 // NewLogStorage initialises and returns a new LogStorage.
@@ -213,10 +214,14 @@ func (ls *logStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree, qLea
 				return
 			}
 			tsNanos := ts.UnixNano()
+			var sig []byte
+			if ql.SignedEntryTimestamp != nil {
+				sig = ql.SignedEntryTimestamp.Signature
+			}
 			m1 := spanner.Insert(
 				leafDataTbl,
-				[]string{colTreeID, colLeafIdentityHash, colLeafValue, colExtraData, colQueueTimestampNanos},
-				[]interface{}{tree.TreeId, ql.Leaf.LeafIdentityHash, ql.Leaf.LeafValue, ql.Leaf.ExtraData, tsNanos})
+				[]string{colTreeID, colLeafIdentityHash, colLeafValue, colExtraData, colQueueTimestampNanos, colSignature},
+				[]interface{}{tree.TreeId, ql.Leaf.LeafIdentityHash, ql.Leaf.LeafValue, ql.Leaf.ExtraData, tsNanos, sig})
 			b := bucketPrefix | int64(ql.Leaf.MerkleLeafHash[0])
 			m2 := spanner.Insert(
 				unseqTable,
@@ -272,7 +277,7 @@ func (ls *logStorage) readDupeLeaves(ctx context.Context, logID int64, dupes map
 	}
 	dupesRead := 0
 	tx := ls.ts.client.Single()
-	err := readLeaves(ctx, tx, logID, ids, func(l *trillian.LogLeaf) {
+	err := readLeaves(ctx, tx, logID, ids, func(l *trillian.LogLeaf, sig []byte) {
 		glog.V(2).Infof("Found already exists dupe: %v", l)
 		dupesRead++
 
@@ -296,7 +301,7 @@ func (ls *logStorage) readDupeLeaves(ctx context.Context, logID int64, dupes map
 			set := trillian.SignedEntryTimestamp{
 				KeyHint:   types.SerializeKeyHint(logID),
 				EntryData: etData,
-				// TODO(drysdale): store signature and fill in here
+				Signature: sig,
 			}
 			retQLeaves[i.index] = &trillian.QueuedLogLeaf{
 				Leaf:                 leaf,
@@ -425,9 +430,9 @@ func (tx *logTX) StoreSignedLogRoot(ctx context.Context, root trillian.SignedLog
 	return stx.BufferWrite([]*spanner.Mutation{m})
 }
 
-func readLeaves(ctx context.Context, stx *spanner.ReadOnlyTransaction, logID int64, ids [][]byte, f func(*trillian.LogLeaf)) error {
+func readLeaves(ctx context.Context, stx *spanner.ReadOnlyTransaction, logID int64, ids [][]byte, f func(*trillian.LogLeaf, []byte)) error {
 	leafTable := leafDataTbl
-	cols := []string{colLeafIdentityHash, colLeafValue, colExtraData, colQueueTimestampNanos}
+	cols := []string{colLeafIdentityHash, colLeafValue, colExtraData, colQueueTimestampNanos, colSignature}
 	keys := make([]spanner.KeySet, 0)
 	for _, l := range ids {
 		keys = append(keys, spanner.Key{logID, l})
@@ -437,7 +442,8 @@ func readLeaves(ctx context.Context, stx *spanner.ReadOnlyTransaction, logID int
 	return rows.Do(func(r *spanner.Row) error {
 		var l trillian.LogLeaf
 		var qTimestamp int64
-		if err := r.Columns(&l.LeafIdentityHash, &l.LeafValue, &l.ExtraData, &qTimestamp); err != nil {
+		var sig []byte
+		if err := r.Columns(&l.LeafIdentityHash, &l.LeafValue, &l.ExtraData, &qTimestamp, &sig); err != nil {
 			return err
 		}
 		var err error
@@ -445,7 +451,7 @@ func readLeaves(ctx context.Context, stx *spanner.ReadOnlyTransaction, logID int
 		if err != nil {
 			return fmt.Errorf("got invalid queue timestamp: %v", err)
 		}
-		f(&l)
+		f(&l, sig)
 		return nil
 	})
 }
