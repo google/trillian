@@ -194,12 +194,12 @@ func (m *memoryLogStorage) SnapshotForTree(ctx context.Context, tree *trillian.T
 	return tx.(storage.ReadOnlyLogTreeTX), err
 }
 
-func (m *memoryLogStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
+func (m *memoryLogStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree, qLeaves []*trillian.QueuedLogLeaf) ([]*trillian.QueuedLogLeaf, error) {
 	tx, err := m.beginInternal(ctx, tree, false /* readonly */)
 	if err != nil {
 		return nil, err
 	}
-	existing, err := tx.QueueLeaves(ctx, leaves, queueTimestamp)
+	retQLeaves, err := tx.QueueLeaves(ctx, qLeaves)
 	if err != nil {
 		return nil, err
 	}
@@ -208,18 +208,7 @@ func (m *memoryLogStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree,
 		return nil, err
 	}
 
-	ret := make([]*trillian.QueuedLogLeaf, len(leaves))
-	for i, e := range existing {
-		if e != nil {
-			ret[i] = &trillian.QueuedLogLeaf{
-				Leaf:   e,
-				Status: status.Newf(codes.AlreadyExists, "leaf already exists: %v", e.LeafIdentityHash).Proto(),
-			}
-			continue
-		}
-		ret[i] = &trillian.QueuedLogLeaf{Leaf: leaves[i]}
-	}
-	return ret, nil
+	return retQLeaves, nil
 }
 
 type logTreeTX struct {
@@ -252,21 +241,27 @@ func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime tim
 	return leaves, nil
 }
 
-func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.LogLeaf, error) {
+func (t *logTreeTX) QueueLeaves(ctx context.Context, qLeaves []*trillian.QueuedLogLeaf) ([]*trillian.QueuedLogLeaf, error) {
 	// Don't accept batches if any of the leaves are invalid.
-	for _, leaf := range leaves {
-		if len(leaf.LeafIdentityHash) != t.hashSizeBytes {
+	for _, qLeaf := range qLeaves {
+		if len(qLeaf.Leaf.LeafIdentityHash) != t.hashSizeBytes {
 			return nil, fmt.Errorf("queued leaf must have a leaf ID hash of length %d", t.hashSizeBytes)
 		}
 	}
-	queuedCounter.Add(float64(len(leaves)), labelForTX(t))
+	queuedCounter.Add(float64(len(qLeaves)), labelForTX(t))
 	// No deduping in this storage!
 	k := unseqKey(t.treeID)
 	q := t.tx.Get(k).(*kv).v.(*list.List)
-	for _, l := range leaves {
-		q.PushBack(l)
+	for _, ql := range qLeaves {
+		q.PushBack(ql.Leaf)
 	}
-	return make([]*trillian.LogLeaf, len(leaves)), nil
+	ok := status.New(codes.OK, "OK").Proto()
+	retQLeaves := make([]*trillian.QueuedLogLeaf, len(qLeaves))
+	for i, qLeaf := range qLeaves {
+		// No signatures in this storage implementation!
+		retQLeaves[i] = &trillian.QueuedLogLeaf{Leaf: qLeaf.Leaf, Status: ok}
+	}
+	return retQLeaves, nil
 }
 
 func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf, timestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
