@@ -179,7 +179,7 @@ func (ls *logStorage) SnapshotForTree(ctx context.Context, tree *trillian.Tree) 
 	return ls.begin(ctx, tree, true /* readonly */, ls.ts.client.ReadOnlyTransaction())
 }
 
-func (ls *logStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, qTimestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
+func (ls *logStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree, qLeaves []*trillian.QueuedLogLeaf) ([]*trillian.QueuedLogLeaf, error) {
 	_, treeConfig, err := ls.ts.getTreeAndConfig(ctx, tree)
 	if err != nil {
 		return nil, err
@@ -192,42 +192,53 @@ func (ls *logStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree, leav
 	now := time.Now().UTC().Unix()
 	bucketPrefix := (now % config.NumUnseqBuckets) << 8
 
-	results := make([]*trillian.QueuedLogLeaf, len(leaves))
+	retQLeaves := make([]*trillian.QueuedLogLeaf, len(qLeaves))
 	writeDupes := make(map[string][]indexMerkleHash)
 
-	qTS := qTimestamp.UnixNano()
+	okStatus := status.New(codes.OK, "OK").Proto()
 	var wg sync.WaitGroup
-	for i, l := range leaves {
+	for i, ql := range qLeaves {
 		wg.Add(1)
-		// Capture values of i and l for later reference in the MutationResultFunc below.
-		i := i
-		l := l
-		go func() {
+		go func(i int, ql *trillian.QueuedLogLeaf) {
 			defer wg.Done()
 
 			// The insert of the leafdata and the unsequenced work item must happen
 			// atomically.
+			ts, err := ptypes.Timestamp(ql.Leaf.QueueTimestamp)
+			if err != nil {
+				retQLeaves[i] = &trillian.QueuedLogLeaf{
+					Leaf:   ql.Leaf,
+					Status: status.Newf(codes.Internal, "failed to parse timestamp: %v", err).Proto(),
+				}
+				return
+			}
+			tsNanos := ts.UnixNano()
 			m1 := spanner.Insert(
 				leafDataTbl,
 				[]string{colTreeID, colLeafIdentityHash, colLeafValue, colExtraData, colQueueTimestampNanos},
-				[]interface{}{tree.TreeId, l.LeafIdentityHash, l.LeafValue, l.ExtraData, qTS})
-			b := bucketPrefix | int64(l.MerkleLeafHash[0])
+				[]interface{}{tree.TreeId, ql.Leaf.LeafIdentityHash, ql.Leaf.LeafValue, ql.Leaf.ExtraData, tsNanos})
+			b := bucketPrefix | int64(ql.Leaf.MerkleLeafHash[0])
 			m2 := spanner.Insert(
 				unseqTable,
 				[]string{colTreeID, colBucket, colQueueTimestampNanos, colMerkleLeafHash, colLeafIdentityHash},
-				[]interface{}{tree.TreeId, b, qTS, l.MerkleLeafHash, l.LeafIdentityHash})
+				[]interface{}{tree.TreeId, b, tsNanos, ql.Leaf.MerkleLeafHash, ql.Leaf.LeafIdentityHash})
 
 			_, err = ls.ts.client.Apply(ctx, []*spanner.Mutation{m1, m2})
 			if spanner.ErrCode(err) == codes.AlreadyExists {
-				k := string(l.LeafIdentityHash)
-				writeDupes[k] = append(writeDupes[k], indexMerkleHash{i, l.MerkleLeafHash})
+				k := string(ql.Leaf.LeafIdentityHash)
+				writeDupes[k] = append(writeDupes[k], indexMerkleHash{i, ql.Leaf.MerkleLeafHash})
+				// retQLeaves[i] will be filled in from the existing data below.
 			} else if err != nil {
 				s, _ := status.FromError(err)
-				results[i] = &trillian.QueuedLogLeaf{Status: s.Proto()}
+				retQLeaves[i] = &trillian.QueuedLogLeaf{
+					Leaf:   ql.Leaf,
+					Status: s.Proto(),
+				}
 			} else {
-				results[i] = &trillian.QueuedLogLeaf{Leaf: l} // implicit OK status
+				ql.Status = okStatus
+				retQLeaves[i] = ql
 			}
-		}()
+		}(i, ql)
 	}
 
 	// Wait for all of our mutations to apply (or fail):
@@ -235,11 +246,11 @@ func (ls *logStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree, leav
 
 	// Finally, read back any leaves which failed with an already exists error
 	// when we tried to insert them:
-	err = ls.readDupeLeaves(ctx, tree.TreeId, writeDupes, results)
+	err = ls.readDupeLeaves(ctx, tree.TreeId, writeDupes, retQLeaves)
 	if err != nil {
 		return nil, err
 	}
-	return results, nil
+	return retQLeaves, nil
 }
 
 func (ls *logStorage) AddSequencedLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, timestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
@@ -247,8 +258,8 @@ func (ls *logStorage) AddSequencedLeaves(ctx context.Context, tree *trillian.Tre
 }
 
 // readDupeLeaves reads the leaves whose ids are passed as keys in the dupes map,
-// and stores them in results.
-func (ls *logStorage) readDupeLeaves(ctx context.Context, logID int64, dupes map[string][]indexMerkleHash, results []*trillian.QueuedLogLeaf) error {
+// and fills in the relevant entries in retQLeaves.
+func (ls *logStorage) readDupeLeaves(ctx context.Context, logID int64, dupes map[string][]indexMerkleHash, retQLeaves []*trillian.QueuedLogLeaf) error {
 	numDupes := len(dupes)
 	if numDupes == 0 {
 		return nil
@@ -274,9 +285,23 @@ func (ls *logStorage) readDupeLeaves(ctx context.Context, logID int64, dupes map
 		for _, i := range indices {
 			leaf := l
 			leaf.MerkleLeafHash = i.merkleHash
-			results[i.index] = &trillian.QueuedLogLeaf{
-				Leaf:   leaf,
-				Status: status.Newf(codes.AlreadyExists, "leaf already exists: %v", l.LeafIdentityHash).Proto(),
+			etData, err := types.EntryDataForLeaf(leaf)
+			if err != nil {
+				retQLeaves[i.index] = &trillian.QueuedLogLeaf{
+					Leaf:   leaf,
+					Status: status.Newf(codes.Internal, "failed to build entry data: %v", err).Proto(),
+				}
+				continue
+			}
+			set := trillian.SignedEntryTimestamp{
+				KeyHint:   types.SerializeKeyHint(logID),
+				EntryData: etData,
+				// TODO(drysdale): store signature and fill in here
+			}
+			retQLeaves[i.index] = &trillian.QueuedLogLeaf{
+				Leaf:                 leaf,
+				Status:               status.Newf(codes.AlreadyExists, "leaf already exists: %v", l.LeafIdentityHash).Proto(),
+				SignedEntryTimestamp: &set,
 			}
 		}
 	})
@@ -430,7 +455,7 @@ type indexMerkleHash struct {
 	merkleHash []byte
 }
 
-func (tx *logTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf, ts time.Time) ([]*trillian.LogLeaf, error) {
+func (tx *logTX) QueueLeaves(ctx context.Context, leaves []*trillian.QueuedLogLeaf) ([]*trillian.QueuedLogLeaf, error) {
 	return nil, ErrNotImplemented
 }
 
