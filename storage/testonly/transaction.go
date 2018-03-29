@@ -90,11 +90,11 @@ func (f *FakeLogStorage) ReadWriteTransaction(ctx context.Context, tree *trillia
 }
 
 // QueueLeaves implements LogStorage.QueueLeaves.
-func (f *FakeLogStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
+func (f *FakeLogStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree, qLeaves []*trillian.QueuedLogLeaf) ([]*trillian.QueuedLogLeaf, error) {
 	if f.QueueLeavesErr != nil {
 		return nil, f.QueueLeavesErr
 	}
-	return make([]*trillian.QueuedLogLeaf, len(leaves)), nil
+	return make([]*trillian.QueuedLogLeaf, len(qLeaves)), nil
 }
 
 // AddSequencedLeaves implements LogStorage.AddSequencedLeaves.
