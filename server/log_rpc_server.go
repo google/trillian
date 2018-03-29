@@ -17,8 +17,10 @@ package server
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/golang/glog"
+	"github.com/golang/protobuf/ptypes"
 	"github.com/google/trillian"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/merkle"
@@ -31,6 +33,8 @@ import (
 	"go.opencensus.io/trace"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	tcrypto "github.com/google/trillian/crypto"
 )
 
 // TODO: There is no access control in the server yet and clients could easily modify
@@ -119,6 +123,54 @@ func hashLeaves(leaves []*trillian.LogLeaf, hasher hashers.LogHasher) error {
 	return nil
 }
 
+// setForLeaf creates a SignedEntryTimestamp for the given leaf (which should have
+// its QueueTimestamp already set).
+func setForLeaf(leaf *trillian.LogLeaf, signer *tcrypto.Signer) (*trillian.SignedEntryTimestamp, error) {
+	etData, err := types.EntryDataForLeaf(leaf)
+	if err != nil {
+		return nil, err
+	}
+	sig, err := signer.Sign(etData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to sign EntryTimestamp: %v", err)
+	}
+
+	return &trillian.SignedEntryTimestamp{
+		KeyHint:   signer.KeyHint,
+		EntryData: etData,
+		Signature: sig,
+	}, nil
+}
+
+// prepLeaves converts a submitted slice of LogLeaf objects to an equivalent slice
+// of QueuedLogLeaf objects, with hashes, timestamps, and SET filled in.
+func prepLeaves(leaves []*trillian.LogLeaf, hasher hashers.LogHasher, signer *tcrypto.Signer, queueTimestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {
+	qTSPB, err := ptypes.TimestampProto(queueTimestamp)
+	if err != nil {
+		return nil, fmt.Errorf("got invalid queue timestamp: %v", err)
+	}
+	qLeaves := make([]*trillian.QueuedLogLeaf, len(leaves))
+	for i, leaf := range leaves {
+		// Fill out the leaf contents: hashes and timestamp.
+		var err error
+		leaf.MerkleLeafHash, err = hasher.HashLeaf(leaf.LeafValue)
+		if err != nil {
+			return nil, fmt.Errorf("failed to hash leaf: %v", err)
+		}
+		if len(leaf.LeafIdentityHash) == 0 {
+			leaf.LeafIdentityHash = leaf.MerkleLeafHash
+		}
+		leaf.QueueTimestamp = qTSPB
+
+		set, err := setForLeaf(leaf, signer)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build SignedEntryTimestamp: %v", err)
+		}
+		qLeaves[i] = &trillian.QueuedLogLeaf{Leaf: leaf, SignedEntryTimestamp: set}
+	}
+	return qLeaves, nil
+}
+
 // QueueLeaves submits a batch of leaves to the log for later integration into the underlying tree.
 func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.QueueLeavesRequest) (*trillian.QueueLeavesResponse, error) {
 	ctx, span := spanFor(ctx, "QueueLeaves")
@@ -132,14 +184,20 @@ func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.Qu
 	if err != nil {
 		return nil, err
 	}
-
 	ctx = trees.NewContext(ctx, tree)
 
-	if err := hashLeaves(req.Leaves, hasher); err != nil {
+	// TODO(drysdale): cache signers
+	signer, err := trees.Signer(ctx, tree)
+	if err != nil {
 		return nil, err
 	}
 
-	ret, err := t.registry.LogStorage.QueueLeaves(ctx, tree, req.Leaves, t.timeSource.Now())
+	qLeaves, err := prepLeaves(req.Leaves, hasher, signer, t.timeSource.Now())
+	if err != nil {
+		return nil, err
+	}
+
+	ret, err := t.registry.LogStorage.QueueLeaves(ctx, tree, qLeaves)
 	if err != nil {
 		return nil, err
 	}

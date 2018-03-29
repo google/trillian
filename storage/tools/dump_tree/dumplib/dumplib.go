@@ -381,6 +381,11 @@ func validateFlagsOrDie(summary, recordIO bool) {
 
 func sequenceLeaves(ls storage.LogStorage, seq *log.Sequencer, tree *trillian.Tree, treeSize, batchSize int, leafDataFormat string) {
 	glog.Info("Queuing work")
+
+	tspb, err := ptypes.TimestampProto(time.Now())
+	if err != nil {
+		glog.Fatalf("failed to get timestamp proto for now: %v", err)
+	}
 	for l := 0; l < treeSize; l++ {
 		glog.V(1).Infof("Queuing leaf %d", l)
 
@@ -388,10 +393,15 @@ func sequenceLeaves(ls storage.LogStorage, seq *log.Sequencer, tree *trillian.Tr
 		err := ls.ReadWriteTransaction(context.TODO(), tree, func(ctx context.Context, tx storage.LogTreeTX) error {
 			hash := sha256.Sum256(leafData)
 			lh := []byte(hash[:])
-			leaf := trillian.LogLeaf{LeafValue: leafData, LeafIdentityHash: lh, MerkleLeafHash: lh}
-			leaves := []*trillian.LogLeaf{&leaf}
+			leaf := trillian.LogLeaf{
+				LeafValue:        leafData,
+				LeafIdentityHash: lh,
+				MerkleLeafHash:   lh,
+				QueueTimestamp:   tspb,
+			}
+			qLeaves := []*trillian.QueuedLogLeaf{{Leaf: &leaf}}
 
-			if _, err := tx.QueueLeaves(context.TODO(), leaves, time.Now()); err != nil {
+			if _, err := tx.QueueLeaves(context.TODO(), qLeaves); err != nil {
 				glog.Fatalf("QueueLeaves got: %v, want: no err", err)
 			}
 			return nil
