@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"math/rand"
 	"sort"
 	"sync"
 	"time"
@@ -438,67 +437,6 @@ func (tx *logTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.LogL
 	return nil, ErrNotImplemented
 }
 
-// genDequeueBucketsSingleSplit returns a number of bucket IDs suitable for using in
-// DequeueLeaves to determine the list of bucket IDs to sequence from.
-//
-// The IDs are 16-bits long, the high byte is an offset into the time ring and will
-// be on the opposite side of the ring to where the value in now would normally
-// lie, and the low byte is a merkle hash prefix.
-func genDequeueBucketsSingleSplit(config *spannerpb.LogStorageConfig, now int64, merkleBucket int32) []int32 {
-	n := int32(numByteValues / config.NumMerkleBuckets)
-	ret := make([]int32, 0, n)
-	bucketHigh := int32((((now + config.NumUnseqBuckets/2) % config.NumUnseqBuckets) << 8))
-	for i := merkleBucket; i < merkleBucket+n; i++ {
-		ret = append(ret, bucketHigh|(i%numByteValues))
-	}
-	return ret
-}
-
-// genDequeueRowsOld returns a slice containing a single RowSet of bucket prefixes to dequeue from.
-func genDequeueRowsOld(config *spannerpb.LogStorageConfig, treeID int64, now int64, merkleBucket int32) []spanner.KeySet {
-	rows := make([]spanner.KeySet, 0)
-	for _, b := range genDequeueBucketsSingleSplit(config, now, merkleBucket) {
-		rows = append(rows, spanner.Key{treeID, int64(b)}.AsPrefix())
-	}
-	return []spanner.KeySet{spanner.KeySets(rows...)}
-}
-
-// genDequeueAcrossBuckets returns a slice containing two KeySets to dequeue from.
-//
-// This function returns a pair of KeySets which cover the entirety of the time bucket
-// implied by now.  The first of these is from [time,merkleBucket] to the end of the
-// time bucket range, and the second from the beginning of the time bucket to [time, merkleBucket).
-//
-// In general, trying to sequence many leaves across all of these Merkle buckets would
-// be a bad idea, because the Merkle buckets are across several splits in the DB, however,
-// where there are few unsequenced leaves it may be beneficial to take the hit on the
-// coordinated commit since it should be faster than having the sequencer iterate many
-// times, doing very little work each time, to pick out all the individual entries.
-//
-// The returned KeySets should be read *in order* only, and the read call should be
-// bailed out once a sufficient number of leaves have been read.  This should mean that
-// when there are many leaves in the queue, the behaviour tends back towards the original
-// behaviour of picking leaves from a very small number of Merkle buckets.
-func genDequeueRowsAcrossBuckets(config *spannerpb.LogStorageConfig, treeID int64, now int64, merkleBucket int32, bucketFraction float64) []spanner.KeySet {
-	merkleBucket = merkleBucket % numByteValues
-	merkleBucketLimit := merkleBucket + int32(numByteValues*bucketFraction)
-
-	bucketHigh := int32((((now + config.NumUnseqBuckets/2) % config.NumUnseqBuckets) << 8))
-
-	if merkleBucketLimit <= 0xff {
-		return []spanner.KeySet{spanner.KeyRange{Kind: spanner.ClosedClosed, Start: spanner.Key{treeID, int64(bucketHigh | merkleBucket)}, End: spanner.Key{treeID, int64(bucketHigh | merkleBucketLimit)}}}
-	}
-
-	// The range is too big and wraps around, overflowing a byte value, so we'll
-	// start the second range at 0x00 and end at the upper limit modulo 256:
-	merkleBucketLimit %= 0x100
-	return []spanner.KeySet{
-		spanner.KeyRange{Kind: spanner.ClosedClosed, Start: spanner.Key{treeID, bucketHigh | merkleBucket}, End: spanner.Key{treeID, bucketHigh | 0xff}},
-		spanner.KeyRange{Kind: spanner.ClosedClosed, Start: spanner.Key{treeID, bucketHigh | 0x00}, End: spanner.Key{treeID, bucketHigh | merkleBucketLimit}},
-	}
-
-}
-
 // DequeueLeaves removes [0, limit) leaves from the to-be-sequenced queue.
 // The leaves returned are not guaranteed to be in any particular order.
 // The caller should assign sequence numbers and pass the updated leaves as
@@ -519,55 +457,51 @@ func (tx *logTX) DequeueLeaves(ctx context.Context, limit int, cutoff time.Time)
 	// moment, FEs queueing entries will be adding them to different buckets
 	// than we're dequeuing from here.
 	now := time.Now().UTC()
-	var rows []spanner.KeySet
+	cfg := tx.getLogStorageConfig()
+	startBucket := int64((now.Unix()+cfg.NumUnseqBuckets/2)%cfg.NumUnseqBuckets) << 8
+	limitBucket := startBucket | 0xff
 
-	if tx.ls.opts.DequeueAcrossMerkleBuckets {
-		glog.V(1).Info("Using multi-bucket dequeue")
-		rows = genDequeueRowsAcrossBuckets(tx.getLogStorageConfig(), tx.treeID, now.Unix(), rand.Int31n(numByteValues), tx.ls.opts.DequeueAcrossMerkleBucketsRangeFraction)
-	} else {
-		rows = genDequeueRowsOld(tx.getLogStorageConfig(), tx.treeID, now.Unix(), rand.Int31n(numByteValues))
-	}
+	stmt := spanner.NewStatement(`
+			SELECT Bucket, QueueTimestampNanos, MerkleLeafHash, LeafIdentityHash
+			FROM Unsequenced u
+			WHERE u.TreeID = @tree_id
+			AND u.Bucket >= @start_bucket
+			AND u.Bucket <= @limit_bucket
+			LIMIT @max_num
+			`)
+	stmt.Params["tree_id"] = tx.treeID
+	stmt.Params["start_bucket"] = startBucket
+	stmt.Params["limit_bucket"] = limitBucket
+	stmt.Params["max_num"] = limit
+
 	ret := make([]*trillian.LogLeaf, 0, limit)
-	readOpts := &spanner.ReadOptions{Limit: limit}
-	for _, rs := range rows {
-		rows := tx.stx.ReadWithOptions(ctx, unseqTable, rs, []string{colBucket, colQueueTimestampNanos, colMerkleLeafHash, colLeafIdentityHash}, readOpts)
-		if err := rows.Do(func(r *spanner.Row) error {
-			if len(ret) >= limit {
-				return nil
-			}
-			var l trillian.LogLeaf
-			var qe QueuedEntry
-			if err := r.Columns(&qe.bucket, &qe.timestamp, &l.MerkleLeafHash, &l.LeafIdentityHash); err != nil {
-				return err
-			}
+	rows := tx.stx.Query(ctx, stmt)
+	if err := rows.Do(func(r *spanner.Row) error {
+		var l trillian.LogLeaf
+		var qe QueuedEntry
+		if err := r.Columns(&qe.bucket, &qe.timestamp, &l.MerkleLeafHash, &l.LeafIdentityHash); err != nil {
+			return err
+		}
 
-			var err error
-			l.QueueTimestamp, err = ptypes.TimestampProto(time.Unix(0, qe.timestamp))
-			if err != nil {
-				return fmt.Errorf("got invalid queue timestamp: %v", err)
-			}
-			k := string(l.LeafIdentityHash)
-			if tx.dequeued[k] != nil {
-				// dupe, user probably called DequeueLeaves more than once.
-				return nil
-			}
-
-			ret = append(ret, &l)
-			qe.leaf = &l
-			tx.dequeued[k] = &qe
-			if readOpts.Limit > 0 {
-				readOpts.Limit--
-			}
+		var err error
+		l.QueueTimestamp, err = ptypes.TimestampProto(time.Unix(0, qe.timestamp))
+		if err != nil {
+			return fmt.Errorf("got invalid queue timestamp: %v", err)
+		}
+		k := string(l.LeafIdentityHash)
+		if tx.dequeued[k] != nil {
+			// dupe, user probably called DequeueLeaves more than once.
 			return nil
-		}); err != nil {
-			return nil, err
 		}
 
-		// If we've already got enough leaves, don't wrap around for any further reads.
-		if len(ret) >= limit {
-			break
-		}
+		ret = append(ret, &l)
+		qe.leaf = &l
+		tx.dequeued[k] = &qe
+		return nil
+	}); err != nil {
+		return nil, err
 	}
+
 	return ret, nil
 }
 
