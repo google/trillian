@@ -41,8 +41,6 @@ const (
 	seqDataTbl             = "SequencedLeafData"
 	unseqTable             = "Unsequenced"
 
-	numByteValues = 256
-
 	unsequencedCountSQL = "SELECT Unsequenced.TreeID, COUNT(1) FROM Unsequenced GROUP BY TreeID"
 
 	// t.TreeType: 1 = Log, 3 = PreorderedLog.
@@ -453,9 +451,10 @@ func (tx *logTX) DequeueLeaves(ctx context.Context, limit int, cutoff time.Time)
 	}
 
 	// Decide which bucket(s) to dequeue from.
-	// The first part of the bucket key is a time based ring - at any given
+	// The high 8 bits of the bucket key is a time based ring - at any given
 	// moment, FEs queueing entries will be adding them to different buckets
-	// than we're dequeuing from here.
+	// than we're dequeuing from here - the low 8 bits are the first byte of the
+	// merkle hash of the entry.
 	now := time.Now().UTC()
 	cfg := tx.getLogStorageConfig()
 	startBucket := int64((now.Unix()+cfg.NumUnseqBuckets/2)%cfg.NumUnseqBuckets) << 8
