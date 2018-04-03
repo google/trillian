@@ -18,6 +18,7 @@ package prometheus
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/golang/glog"
 	"github.com/google/trillian/monitoring"
@@ -73,21 +74,38 @@ func (pmf MetricFactory) NewGauge(name, help string, labelNames ...string) monit
 	return &Gauge{labelNames: labelNames, vec: vec}
 }
 
+// buckets returns a reasonable range of histogram upper limits for most
+// latency-in-seconds usecases.
+func buckets() []float64 {
+	// These parameters give an exponential range from 0.04 seconds to ~1 day.
+	num := 300
+	b := 1.05
+	scale := 0.04
+
+	r := make([]float64, 0, num)
+	for i := range r {
+		r = append(r, math.Pow(b, float64(i))*scale)
+	}
+	return r
+}
+
 // NewHistogram creates a new Histogram object backed by Prometheus.
 func (pmf MetricFactory) NewHistogram(name, help string, labelNames ...string) monitoring.Histogram {
 	if len(labelNames) == 0 {
 		histogram := prometheus.NewHistogram(
 			prometheus.HistogramOpts{
-				Name: pmf.Prefix + name,
-				Help: help,
+				Name:    pmf.Prefix + name,
+				Help:    help,
+				Buckets: buckets(),
 			})
 		prometheus.MustRegister(histogram)
 		return &Histogram{single: histogram}
 	}
 	vec := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name: pmf.Prefix + name,
-			Help: help,
+			Name:    pmf.Prefix + name,
+			Help:    help,
+			Buckets: buckets(),
 		},
 		labelNames)
 	prometheus.MustRegister(vec)
