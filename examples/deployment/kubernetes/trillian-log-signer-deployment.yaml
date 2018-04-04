@@ -67,7 +67,7 @@ spec:
         command:
           - /monitor
           - --stackdriver-prefix=custom.googleapis.com
-          - --source=logsigner-metrics:http://localhost:8091/metrics
+          - --source=logsigner:http://localhost:8091/metrics
           - --pod-id=$(POD_NAME)
           - --namespace-id=$(POD_NAMESPACE)
           - --metrics-resolution=5s
