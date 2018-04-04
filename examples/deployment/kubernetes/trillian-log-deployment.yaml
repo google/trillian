@@ -65,7 +65,7 @@ spec:
         command:
           - /monitor
           - --stackdriver-prefix=custom.googleapis.com
-          - --source=logserver-metrics:http://localhost:8091/metrics
+          - --source=logserver:http://localhost:8091/metrics
           - --pod-id=$(POD_NAME)
           - --namespace-id=$(POD_NAMESPACE)
           - --metrics-resolution=5s
