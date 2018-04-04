@@ -57,7 +57,8 @@ func CreateAndInitTree(
 				glog.Errorf("Admin server unavailable: %v", err)
 				return err
 			}
-			return fmt.Errorf("failed to CreateTree(%+v): %T %v", req, err, err)
+			glog.Errorf("failed to CreateTree(%+v): %T %v", req, err, err)
+			return err
 		}
 		return nil
 	})
@@ -109,7 +110,8 @@ func InitMap(ctx context.Context, tree *trillian.Tree, mapClient trillian.Trilli
 				glog.Warningf("Bizarrely, the just-created Map (%x) is already initialised!: %v", tree.TreeId, err)
 				return err
 			}
-			return fmt.Errorf("failed to InitMap(%+v): %T %v", req, err, err)
+			glog.Errorf("failed to InitMap(%+v): %T %v", req, err, err)
+			return err
 		}
 		glog.Infof("Initialised Map (%x) with new SignedMapRoot:\n%+v", tree.TreeId, resp.Created)
 
@@ -156,7 +158,8 @@ func InitLog(ctx context.Context, tree *trillian.Tree, logClient trillian.Trilli
 				glog.Warningf("Bizarrely, the just-created Log (%x) is already initialised!: %v", tree.TreeId, err)
 				return err
 			}
-			return fmt.Errorf("failed to InitLog(%+v): %T %v", req, err, err)
+			glog.Errorf("failed to InitLog(%+v): %T %v", req, err, err)
+			return err
 		}
 		glog.Infof("Initialised Log (%x) with new SignedTreeHead:\n%+v", tree.TreeId, resp.Created)
 
