@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"math/rand"
 	"sort"
 	"sync"
 	"time"
@@ -457,8 +458,21 @@ func (tx *logTX) DequeueLeaves(ctx context.Context, limit int, cutoff time.Time)
 	// merkle hash of the entry.
 	now := time.Now().UTC()
 	cfg := tx.getLogStorageConfig()
-	startBucket := int64((now.Unix()+cfg.NumUnseqBuckets/2)%cfg.NumUnseqBuckets) << 8
-	limitBucket := startBucket | 0xff
+	timeBucket := int64(((now.Unix() + cfg.NumUnseqBuckets/2) % cfg.NumUnseqBuckets) << 8)
+
+	// Choose a starting point in the merkle prefix range, and calculate the
+	// start/limit of the merkle range we'll dequeue from.
+	// It seems to be much better to tune for keeping this range small, and allow
+	// the signer to run multiple times per second than try to dequeue a large batch
+	// which spans a large number of merkle prefixes.
+	merklePrefix := rand.Int63n(256)
+	startBucket := timeBucket | merklePrefix
+	numMerkleBuckets := int64(256 * tx.ls.opts.DequeueAcrossMerkleBucketsRangeFraction)
+	merkleLimit := merklePrefix + numMerkleBuckets
+	if merkleLimit > 0xff {
+		merkleLimit = 0xff
+	}
+	limitBucket := timeBucket | merkleLimit
 
 	stmt := spanner.NewStatement(`
 			SELECT Bucket, QueueTimestampNanos, MerkleLeafHash, LeafIdentityHash
