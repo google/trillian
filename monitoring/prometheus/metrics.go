@@ -83,7 +83,7 @@ func buckets() []float64 {
 	scale := 0.04
 
 	r := make([]float64, 0, num)
-	for i := range r {
+	for i := 0; i < num; i++ {
 		r = append(r, math.Pow(b, float64(i))*scale)
 	}
 	return r
