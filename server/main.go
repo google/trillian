@@ -209,11 +209,11 @@ func AnnounceSelf(ctx context.Context, client *clientv3.Client, etcdService, end
 	}
 	client.KeepAlive(ctx, leaseRsp.ID)
 
-	update := naming.Update{Op: naming.Add, Addr: endpoint}
+	update := naming.Update{Op: naming.Add, Addr: endpoint} // nolint: megacheck
 	res.Update(ctx, etcdService, update, clientv3.WithLease(leaseRsp.ID))
 	glog.Infof("Announcing our presence in %v with %+v", etcdService, update)
 
-	bye := naming.Update{Op: naming.Delete, Addr: endpoint}
+	bye := naming.Update{Op: naming.Delete, Addr: endpoint} // nolint: megacheck
 	return func() {
 		// Use a background context because the original context may have been cancelled.
 		glog.Infof("Removing our presence in %v with %+v", etcdService, bye)

@@ -48,7 +48,7 @@ type serviceInstanceInfo struct {
 	target   string
 
 	mu        sync.RWMutex
-	watcher   map[string]naming.Watcher
+	watcher   map[string]naming.Watcher // nolint: megacheck
 	instances map[string]map[string]bool
 }
 
@@ -56,7 +56,7 @@ func newServiceInstanceInfo(etcdServers, etcdServices, target string) *serviceIn
 	s := serviceInstanceInfo{
 		servers:   strings.Split(etcdServers, ","),
 		services:  strings.Split(etcdServices, ","),
-		watcher:   make(map[string]naming.Watcher),
+		watcher:   make(map[string]naming.Watcher), // nolint: megacheck
 		target:    target,
 		instances: make(map[string]map[string]bool),
 	}
