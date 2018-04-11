@@ -5,7 +5,7 @@ metadata:
     io.kompose.service: trillian-log
   name: trillian-logserver-deployment
 spec:
-  replicas: 3
+  replicas: 2
   strategy: {}
   template:
     metadata:
@@ -24,7 +24,9 @@ spec:
         command: ["/go/bin/trillian_log_server",
         "$(STORAGE_FLAG)",
         "--storage_system=$(STORAGE_SYSTEM)",
-        "--quota_system=noop",
+        "--quota_system=etcd",
+        "--etcd_servers=trillian-etcd-cluster-client:2379",
+        "--etcd_http_service=trillian-logserver-http",
         "--rpc_endpoint=0.0.0.0:8090",
         "--http_endpoint=0.0.0.0:8091",
         "--alsologtostderr"
@@ -37,9 +39,9 @@ spec:
         imagePullPolicy: Always
         resources:
           limits:
-            cpu: "1.5"
+            cpu: "1.0"
           requests:
-            cpu: "1"
+            cpu: "0.4"
         livenessProbe:
           exec:
             command:
@@ -69,6 +71,11 @@ spec:
           - --pod-id=$(POD_NAME)
           - --namespace-id=$(POD_NAMESPACE)
           - --metrics-resolution=5s
+        resources:
+          limits:
+            cpu: 20m
+          requests:
+            cpu: 20m
         env:
           - name: POD_NAME
             valueFrom:
