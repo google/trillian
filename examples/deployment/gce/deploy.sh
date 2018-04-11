@@ -25,7 +25,6 @@ gcloud container node-pools create "signer-pool" --machine-type "n1-standard-1" 
 gcloud container node-pools create "ctfe-pool" --machine-type "n1-standard-1" --image-type "COS" --num-nodes "2" --enable-autorepair --enable-autoupgrade
 gcloud container clusters get-credentials cluster-1
 
-
 # Push docker images
 gcloud docker -- push us.gcr.io/${PROJECT_NAME}/db:$TAG
 gcloud docker -- push us.gcr.io/${PROJECT_NAME}/log_server:$TAG
