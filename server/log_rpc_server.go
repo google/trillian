@@ -475,10 +475,14 @@ func (t *TrillianLogRPCServer) GetLeavesByRange(ctx context.Context, req *trilli
 	if err != nil {
 		return nil, err
 	}
+	var root types.LogRootV1
+	if err := root.UnmarshalBinary(slr.LogRoot); err != nil {
+		return nil, status.Errorf(codes.Internal, "Could not read current log root: %v", err)
+	}
 
 	r := &trillian.GetLeavesByRangeResponse{SignedLogRoot: &slr}
 
-	if req.StartIndex < slr.TreeSize {
+	if req.StartIndex < int64(root.TreeSize) {
 		leaves, err := tx.GetLeavesByRange(ctx, req.StartIndex, req.Count)
 		if err != nil {
 			return nil, err
