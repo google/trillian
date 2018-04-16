@@ -222,7 +222,7 @@ func (c *LogClient) WaitForInclusion(ctx context.Context, data []byte) error {
 	}
 	for {
 		ok, err := c.getAndVerifyInclusionProof(ctx, leaf.MerkleLeafHash, root)
-		if err != nil {
+		if err != nil && status.Code(err) != codes.NotFound {
 			return err
 		}
 		if ok {
