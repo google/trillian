@@ -115,6 +115,7 @@ func (t *TrillianMapServer) getLeavesByRevision(ctx context.Context, mapID int64
 	inclusions := make([]*trillian.MapLeafInclusion, 0, len(indices))
 	found := 0
 	for _, index := range indices {
+		// FIXME: why is the leaf index constrained to the tree's hash size? They don't have to be the same size.
 		if got, want := len(index), hasher.Size(); got != want {
 			return nil, status.Errorf(codes.InvalidArgument,
 				"index len(%x): %v, want %v", index, got, want)
