@@ -388,14 +388,27 @@ func TestQueueLeavesInvalidLogId(t *testing.T) {
 	test.executeInvalidLogIDTest(t, false /* snapshot */)
 }
 
+func okQueuedLeaf(l *trillian.LogLeaf) *trillian.QueuedLogLeaf {
+	return &trillian.QueuedLogLeaf{
+		Leaf:   l,
+		Status: status.New(codes.OK, "OK").Proto(),
+	}
+}
+func dupeQueuedLeaf(l *trillian.LogLeaf) *trillian.QueuedLogLeaf {
+	return &trillian.QueuedLogLeaf{
+		Leaf:   l,
+		Status: status.New(codes.AlreadyExists, "Seen this before, mate").Proto(),
+	}
+}
+
 func TestQueueLeaves(t *testing.T) {
 	ctx := context.Background()
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	mockStorage := storage.NewMockLogStorage(ctrl)
-	c1 := mockStorage.EXPECT().QueueLeaves(gomock.Any(), tree1, []*trillian.LogLeaf{leaf1}, fakeTime).Return([]*trillian.QueuedLogLeaf{nil}, nil)
-	mockStorage.EXPECT().QueueLeaves(gomock.Any(), tree1, []*trillian.LogLeaf{leaf1}, fakeTime).After(c1).Return([]*trillian.QueuedLogLeaf{{Leaf: leaf1, Status: status.Newf(codes.AlreadyExists, "already exists").Proto()}}, nil)
+	c1 := mockStorage.EXPECT().QueueLeaves(gomock.Any(), tree1, []*trillian.LogLeaf{leaf1}, fakeTime).Return([]*trillian.QueuedLogLeaf{okQueuedLeaf(leaf1)}, nil)
+	mockStorage.EXPECT().QueueLeaves(gomock.Any(), tree1, []*trillian.LogLeaf{leaf1}, fakeTime).After(c1).Return([]*trillian.QueuedLogLeaf{dupeQueuedLeaf(leaf1)}, nil)
 
 	registry := extension.Registry{
 		AdminStorage: fakeAdminStorage(ctrl, storageParams{treeID: queueRequest0.LogId, numSnapshots: 2}),

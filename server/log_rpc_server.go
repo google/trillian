@@ -132,13 +132,11 @@ func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.Qu
 		return nil, err
 	}
 
-	for i, existingLeaf := range ret {
-		if existingLeaf != nil {
-			// There was a pre-existing leaf.
-			t.leafCounter.Inc("existing")
-		} else {
-			ret[i] = &trillian.QueuedLogLeaf{Leaf: req.Leaves[i], Status: status.Convert(nil).Proto()}
+	for _, l := range ret {
+		if l.Status == nil || l.Status.Code == int32(codes.OK) {
 			t.leafCounter.Inc("new")
+		} else if l.Status.Code == int32(codes.AlreadyExists) {
+			t.leafCounter.Inc("existing")
 		}
 	}
 	return &trillian.QueueLeavesResponse{QueuedLeaves: ret}, nil
