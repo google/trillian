@@ -38,9 +38,16 @@ wait_for_server_startup() {
   local port=$1
   set +e
   wget -q --spider --retry-connrefused --waitretry=1 -t 10 localhost:${port}
-  set -e
   # Wait a bit more to give it a chance to become actually available e.g. if Travis is slow
   sleep 2
+  wget -q --spider -t 1 localhost:${port}
+  local rc=$?
+  set -e
+  # wget emits rc=8 for server issuing an error response (e.g. 404)
+  if [ ${rc} != 0 -a ${rc} != 8 ]; then
+    echo "Failed to get response on localhost:${port}"
+    exit 1
+  fi
 }
 
 # pick_unused_port selects an apparently unused port.

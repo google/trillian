@@ -35,6 +35,9 @@ gcloud docker -- push us.gcr.io/${PROJECT_NAME}/map_server:$TAG
 kubectl delete configmap deploy-config
 kubectl create -f examples/deployment/kubernetes/trillian-mysql.yaml
 
+# Work-around for etcd-operator role on GKE:
+kubectl create clusterrolebinding myname-cluster-admin-binding --clusterrole=cluster-admin
+
 # Launch with kubernetes
 kubectl apply -f examples/deployment/kubernetes/.
 kubectl get all

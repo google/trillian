@@ -7,12 +7,12 @@ metadata:
   annotations:
       cloud.google.com/load-balancer-type: "Internal"
 spec:
-  type: LoadBalancer
+  clusterIP: None
   ports:
-  - name: "8090"
+  - name: grpclb
     port: 8090
     targetPort: 8090
-  - name: "8091"
+  - name: metrics
     port: 8091
     targetPort: 8091
   selector:

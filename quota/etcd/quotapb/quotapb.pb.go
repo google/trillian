@@ -142,7 +142,9 @@ func (m *Config) String() string            { return proto.CompactTextString(m) 
 func (*Config) ProtoMessage()               {}
 func (*Config) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{0} }
 
-type isConfig_ReplenishmentStrategy interface{ isConfig_ReplenishmentStrategy() }
+type isConfig_ReplenishmentStrategy interface {
+	isConfig_ReplenishmentStrategy()
+}
 
 type Config_SequencingBased struct {
 	SequencingBased *SequencingBasedStrategy `protobuf:"bytes,4,opt,name=sequencing_based,json=sequencingBased,oneof"`
