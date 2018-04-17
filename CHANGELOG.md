@@ -4,13 +4,13 @@
 
 Published 2018-04-17 08:02:50 +0000 UTC
 
-Changes are in progress (e.g. see PR #1037) to rework the internal signed root format used by the log RPC server to be more useful / interoperable. Currently they are mostly internal API changes to the log and map servers.
+Changes are in progress (e.g. see #1037) to rework the internal signed root format used by the log RPC server to be more useful / interoperable. Currently they are mostly internal API changes to the log and map servers. However, the `signature` and `log_id` fields in SignedLogRoot have been deleted and users must unpack the serialized structure to access these now. This change is not backwards compatible.
 
 Changes have been made to log server APIs and CT frontends for when a request hits a server that has an earlier version of the tree than is needed to satisfy the request. In these cases the log server used to return an error but now returns an empty proof along with the current STH it has available. This allows clients to detect these cases and handle them appropriately.
 
 The CloudSpanner schema has changed. If you have a database instance you'll need to recreate it with the new schema. Performance has been noticeably improved since the previous release and we have tested it to approx one billion log entries. Note: This code is still being developed and further changes are possible.
 
-Support for `sqlite` has been removed because of ongoing issues with flaky tests. These were caused by concurrent accesses to the same database, which it doesn't support.
+Support for `sqlite` in unit tests has been removed because of ongoing issues with flaky tests. These were caused by concurrent accesses to the same database, which it doesn't support. The use of `sqlite` in production has never been supported and it should not be used for this.
 
 Commit [9a5dc6223bab0e1061b66b49757c2418c47b9f29](https://api.github.com/repos/google/trillian/commits/9a5dc6223bab0e1061b66b49757c2418c47b9f29) Download [zip](https://api.github.com/repos/google/trillian/zipball/v1.1.0)
 
