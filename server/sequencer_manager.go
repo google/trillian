@@ -63,7 +63,7 @@ func (s *SequencerManager) ExecutePass(ctx context.Context, logID int64, info *L
 
 	tree, err := trees.GetTree(ctx, s.registry.AdminStorage, logID, seqOpts)
 	if err != nil {
-		return 0, fmt.Errorf("error retrieving log %v: %v", logID, err)
+		return 0, err
 	}
 	ctx = trees.NewContext(ctx, tree)
 
