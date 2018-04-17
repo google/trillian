@@ -85,10 +85,10 @@ enum TreeState {
   // state for this case.
   FROZEN = 2;
 
-  // Deprecated in favor of Tree.deleted.
+  // Deprecated: now tracked in Tree.deleted.
   DEPRECATED_SOFT_DELETED = 3 [deprecated = true];
 
-  // Deprecated in favor of Tree.deleted.
+  // Deprecated: now tracked in Tree.deleted.
   DEPRECATED_HARD_DELETED = 4 [deprecated = true];
 
   // A tree that is draining will continue to integrate queued entries.

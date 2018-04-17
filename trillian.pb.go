@@ -120,9 +120,9 @@ const (
 	// in the queue that have not yet been integrated. See the DRAINING
 	// state for this case.
 	TreeState_FROZEN TreeState = 2
-	// Deprecated in favor of Tree.deleted.
+	// Deprecated: now tracked in Tree.deleted.
 	TreeState_DEPRECATED_SOFT_DELETED TreeState = 3
-	// Deprecated in favor of Tree.deleted.
+	// Deprecated: now tracked in Tree.deleted.
 	TreeState_DEPRECATED_HARD_DELETED TreeState = 4
 	// A tree that is draining will continue to integrate queued entries.
 	// No new entries should be accepted.
