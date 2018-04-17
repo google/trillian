@@ -29,6 +29,8 @@ import (
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -45,6 +47,7 @@ var (
 	isMaster          monitoring.Gauge
 	signingRuns       monitoring.Counter
 	failedSigningRuns monitoring.Counter
+	frozenSigningRuns monitoring.Counter
 	entriesAdded      monitoring.Counter
 )
 
@@ -57,6 +60,7 @@ func createMetrics(mf monitoring.MetricFactory) {
 	isMaster = mf.NewGauge("is_master", "Whether this instance is master (0/1)", logIDLabel)
 	signingRuns = mf.NewCounter("signing_runs", "Number of times a signing run has succeeded", logIDLabel)
 	failedSigningRuns = mf.NewCounter("failed_signing_runs", "Number of times a signing run has failed", logIDLabel)
+	frozenSigningRuns = mf.NewCounter("frozen_signing_runs", "Number of failures to sign a log that's been frozen", logIDLabel)
 	entriesAdded = mf.NewCounter("entries_added", "Number of entries added to the log", logIDLabel)
 }
 
@@ -412,6 +416,14 @@ func (l *LogOperationManager) getLogsAndExecutePass(ctx context.Context) error {
 				start := l.info.TimeSource.Now()
 				count, err := l.logOperation.ExecutePass(ctx, logID, &l.info)
 				if err != nil {
+					// The tree can be frozen underneath the signer goroutine. Don't
+					// flood the log if it is as it's not really an error.
+					if status.Code(err) == codes.PermissionDenied {
+						glog.V(1).Infof("ExecutePass(%v) frozen tree: %v", logID, err)
+						frozenSigningRuns.Inc(label)
+						continue
+					}
+
 					glog.Errorf("ExecutePass(%v) failed: %v", logID, err)
 					failedSigningRuns.Inc(label)
 					continue
