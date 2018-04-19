@@ -18,7 +18,6 @@ package client
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -222,19 +221,18 @@ func (c *LogClient) WaitForInclusion(ctx context.Context, data []byte) error {
 		return err
 	}
 	for {
-		err = c.getAndVerifyInclusionProof(ctx, leaf.MerkleLeafHash, root)
-		switch status.Code(err) {
-		case codes.OK:
-			return nil
-		case codes.NotFound:
-			// Wait for TreeSize to update.
-			if root, err = c.WaitForRootUpdate(ctx, root.TreeSize+1); err != nil {
-				return err
-			}
-			// Retry
-		default:
+		ok, err := c.getAndVerifyInclusionProof(ctx, leaf.MerkleLeafHash, root)
+		if err != nil && status.Code(err) != codes.NotFound {
 			return err
 		}
+		if ok {
+			return nil
+		}
+		// Wait for TreeSize to update.
+		if root, err = c.WaitForRootUpdate(ctx, root.TreeSize+1); err != nil {
+			return err
+		}
+		// Retry
 	}
 }
 
@@ -248,7 +246,14 @@ func (c *LogClient) VerifyInclusion(ctx context.Context, data []byte) error {
 	if err != nil {
 		return fmt.Errorf("UpdateRoot(): %v", err)
 	}
-	return c.getAndVerifyInclusionProof(ctx, leaf.MerkleLeafHash, root)
+	ok, err := c.getAndVerifyInclusionProof(ctx, leaf.MerkleLeafHash, root)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return fmt.Errorf("no proof")
+	}
+	return nil
 }
 
 // GetAndVerifyInclusionAtIndex updates the log root and ensures that the given leaf data has been included in the log at a particular index.
@@ -269,7 +274,7 @@ func (c *LogClient) GetAndVerifyInclusionAtIndex(ctx context.Context, data []byt
 	return c.VerifyInclusionAtIndex(root, data, index, resp.Proof.Hashes)
 }
 
-func (c *LogClient) getAndVerifyInclusionProof(ctx context.Context, leafHash []byte, sth *types.LogRootV1) error {
+func (c *LogClient) getAndVerifyInclusionProof(ctx context.Context, leafHash []byte, sth *types.LogRootV1) (bool, error) {
 	resp, err := c.client.GetInclusionProofByHash(ctx,
 		&trillian.GetInclusionProofByHashRequest{
 			LogId:    c.LogID,
@@ -277,17 +282,17 @@ func (c *LogClient) getAndVerifyInclusionProof(ctx context.Context, leafHash []b
 			TreeSize: int64(sth.TreeSize),
 		})
 	if err != nil {
-		return err
+		return false, err
 	}
 	if len(resp.Proof) < 1 {
-		return errors.New("no inclusion proof supplied")
+		return false, nil
 	}
 	for _, proof := range resp.Proof {
 		if err := c.VerifyInclusionByHash(sth, leafHash, proof); err != nil {
-			return fmt.Errorf("VerifyInclusionByHash(): %v", err)
+			return false, fmt.Errorf("VerifyInclusionByHash(): %v", err)
 		}
 	}
-	return nil
+	return true, nil
 }
 
 // QueueLeaf adds a leaf to a Trillian log without blocking.

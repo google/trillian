@@ -32,8 +32,10 @@ func request_Quota_CreateConfig_0(ctx context.Context, marshaler runtime.Marshal
 	var protoReq CreateConfigRequest
 	var metadata runtime.ServerMetadata
 
-	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	if req.ContentLength > 0 {
+		if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil {
+			return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+		}
 	}
 
 	var (
@@ -134,8 +136,10 @@ func request_Quota_UpdateConfig_0(ctx context.Context, marshaler runtime.Marshal
 	var protoReq UpdateConfigRequest
 	var metadata runtime.ServerMetadata
 
-	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	if req.ContentLength > 0 {
+		if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil {
+			return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+		}
 	}
 
 	var (
@@ -200,7 +204,7 @@ func RegisterQuotaHandler(ctx context.Context, mux *runtime.ServeMux, conn *grpc
 func RegisterQuotaHandlerClient(ctx context.Context, mux *runtime.ServeMux, client QuotaClient) error {
 
 	mux.Handle("POST", pattern_Quota_CreateConfig_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		ctx, cancel := context.WithCancel(ctx)
+		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		if cn, ok := w.(http.CloseNotifier); ok {
 			go func(done <-chan struct{}, closed <-chan bool) {
@@ -229,7 +233,7 @@ func RegisterQuotaHandlerClient(ctx context.Context, mux *runtime.ServeMux, clie
 	})
 
 	mux.Handle("DELETE", pattern_Quota_DeleteConfig_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		ctx, cancel := context.WithCancel(ctx)
+		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		if cn, ok := w.(http.CloseNotifier); ok {
 			go func(done <-chan struct{}, closed <-chan bool) {
@@ -258,7 +262,7 @@ func RegisterQuotaHandlerClient(ctx context.Context, mux *runtime.ServeMux, clie
 	})
 
 	mux.Handle("GET", pattern_Quota_GetConfig_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		ctx, cancel := context.WithCancel(ctx)
+		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		if cn, ok := w.(http.CloseNotifier); ok {
 			go func(done <-chan struct{}, closed <-chan bool) {
@@ -287,7 +291,7 @@ func RegisterQuotaHandlerClient(ctx context.Context, mux *runtime.ServeMux, clie
 	})
 
 	mux.Handle("GET", pattern_Quota_ListConfigs_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		ctx, cancel := context.WithCancel(ctx)
+		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		if cn, ok := w.(http.CloseNotifier); ok {
 			go func(done <-chan struct{}, closed <-chan bool) {
@@ -316,7 +320,7 @@ func RegisterQuotaHandlerClient(ctx context.Context, mux *runtime.ServeMux, clie
 	})
 
 	mux.Handle("PATCH", pattern_Quota_UpdateConfig_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		ctx, cancel := context.WithCancel(ctx)
+		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		if cn, ok := w.(http.CloseNotifier); ok {
 			go func(done <-chan struct{}, closed <-chan bool) {

@@ -266,7 +266,7 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 	for _, l := range leaves {
 		q.PushBack(l)
 	}
-	return []*trillian.LogLeaf{}, nil
+	return make([]*trillian.LogLeaf, len(leaves)), nil
 }
 
 func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.LogLeaf, timestamp time.Time) ([]*trillian.QueuedLogLeaf, error) {

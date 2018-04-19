@@ -76,11 +76,6 @@ func (f *FakeLogStorage) Snapshot(ctx context.Context) (storage.ReadOnlyLogTX, e
 	return nil, ErrNotImplemented
 }
 
-// BeginForTree implements LogStorage.BeginForTree
-func (f *FakeLogStorage) BeginForTree(ctx context.Context, id int64) (storage.LogTreeTX, error) {
-	return nil, ErrNotImplemented
-}
-
 // SnapshotForTree implements LogStorage.SnapshotForTree
 func (f *FakeLogStorage) SnapshotForTree(ctx context.Context, _ *trillian.Tree) (storage.ReadOnlyLogTreeTX, error) {
 	return f.ReadOnlyTX, f.TXErr
@@ -128,11 +123,6 @@ type FakeMapStorage struct {
 
 // Snapshot implements MapStorage.Snapshot
 func (f *FakeMapStorage) Snapshot(ctx context.Context) (storage.ReadOnlyMapTX, error) {
-	return nil, ErrNotImplemented
-}
-
-// BeginForTree implements MapStorage.BeginForTree
-func (f *FakeMapStorage) BeginForTree(ctx context.Context, id int64) (storage.MapTreeTX, error) {
 	return nil, ErrNotImplemented
 }
 

@@ -404,20 +404,34 @@ func checkInclusionProofLeafOutOfRange(logID int64, client trillian.TrillianLogC
 }
 
 // checkInclusionProofTreeSizeOutOfRange requests an inclusion proof for a leaf within the tree size at
-// a tree size larger than the current tree size. This should fail.
+// a tree size larger than the current tree size. This should succeed but with an STH for the current
+// tree and an empty proof, because it is a result of skew.
 func checkInclusionProofTreeSizeOutOfRange(logID int64, client trillian.TrillianLogClient, params TestParameters) error {
 	// Test is an in range leaf index for a tree size that doesn't exist
 	ctx, cancel := getRPCDeadlineContext(params)
-	proof, err := client.GetInclusionProof(ctx, &trillian.GetInclusionProofRequest{
+	req := &trillian.GetInclusionProofRequest{
 		LogId:     logID,
 		LeafIndex: int64(params.sequencerBatchSize),
 		TreeSize:  params.leafCount + int64(params.sequencerBatchSize),
-	})
-	cancel()
-
-	if err == nil {
-		return fmt.Errorf("log returned proof for tree size outside tree: %d v %d: %v", params.sequencerBatchSize, params.leafCount+int64(params.sequencerBatchSize), proof)
 	}
+	proof, err := client.GetInclusionProof(ctx, req)
+	cancel()
+	if err != nil {
+		return fmt.Errorf("log returned error for tree size outside tree: %d v %d: %v", params.leafCount, req.TreeSize, err)
+	}
+
+	var root types.LogRootV1
+	if err := root.UnmarshalBinary(proof.SignedLogRoot.LogRoot); err != nil {
+		return fmt.Errorf("could not read current log root: %v", err)
+	}
+
+	if proof.Proof != nil {
+		return fmt.Errorf("log returned proof for tree size outside tree: %d v %d: %v", params.leafCount, req.TreeSize, proof)
+	}
+	if int64(root.TreeSize) >= req.TreeSize {
+		return fmt.Errorf("log returned bad root for tree size outside tree: %d v %d: %v", params.leafCount, req.TreeSize, proof)
+	}
+
 	return nil
 }
 
@@ -468,9 +482,20 @@ func checkConsistencyProof(consistParams consistencyProofParams, treeID int64, t
 	}
 	resp, err := client.GetConsistencyProof(ctx, req)
 	cancel()
-
 	if err != nil {
 		return fmt.Errorf("GetConsistencyProof(%v) = %v %v", consistParams, err, resp)
+	}
+
+	if resp.SignedLogRoot == nil || resp.SignedLogRoot.LogRoot == nil {
+		return fmt.Errorf("received invalid response: %v", resp)
+	}
+	var root types.LogRootV1
+	if err := root.UnmarshalBinary(resp.SignedLogRoot.LogRoot); err != nil {
+		return fmt.Errorf("could not read current log root: %v", err)
+	}
+
+	if req.SecondTreeSize > int64(root.TreeSize) {
+		return fmt.Errorf("requested tree size %d > available tree size %d", req.SecondTreeSize, root.TreeSize)
 	}
 
 	verifier := merkle.NewLogVerifier(rfc6962.DefaultHasher)

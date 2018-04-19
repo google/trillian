@@ -132,13 +132,11 @@ func (t *TrillianLogRPCServer) QueueLeaves(ctx context.Context, req *trillian.Qu
 		return nil, err
 	}
 
-	for i, existingLeaf := range ret {
-		if existingLeaf != nil {
-			// There was a pre-existing leaf.
-			t.leafCounter.Inc("existing")
-		} else {
-			ret[i] = &trillian.QueuedLogLeaf{Leaf: req.Leaves[i], Status: status.Convert(nil).Proto()}
+	for _, l := range ret {
+		if l.Status == nil || l.Status.Code == int32(codes.OK) {
 			t.leafCounter.Inc("new")
+		} else if l.Status.Code == int32(codes.AlreadyExists) {
+			t.leafCounter.Inc("existing")
 		}
 	}
 	return &trillian.QueueLeavesResponse{QueuedLeaves: ret}, nil
@@ -226,6 +224,12 @@ func (t *TrillianLogRPCServer) GetInclusionProof(ctx context.Context, req *trill
 		return nil, status.Errorf(codes.Internal, "Could not read current log root: %v", err)
 	}
 
+	r := &trillian.GetInclusionProofResponse{SignedLogRoot: &slr}
+
+	if uint64(req.TreeSize) > root.TreeSize {
+		return r, nil
+	}
+
 	proof, err := getInclusionProofForLeafIndex(ctx, tx, hasher, req.TreeSize, req.LeafIndex, int64(root.TreeSize))
 	if err != nil {
 		return nil, err
@@ -235,7 +239,9 @@ func (t *TrillianLogRPCServer) GetInclusionProof(ctx context.Context, req *trill
 		return nil, err
 	}
 
-	return &trillian.GetInclusionProofResponse{Proof: &proof}, nil
+	r.Proof = &proof
+
+	return r, nil
 }
 
 // GetInclusionProofByHash obtains proofs of inclusion by leaf hash. Because some logs can
@@ -279,6 +285,12 @@ func (t *TrillianLogRPCServer) GetInclusionProofByHash(ctx context.Context, req 
 		return nil, status.Errorf(codes.Internal, "Could not read current log root: %v", err)
 	}
 
+	r := &trillian.GetInclusionProofByHashResponse{SignedLogRoot: &slr}
+
+	if len(leaves) < 1 {
+		return r, nil
+	}
+
 	// TODO(Martin2112): Need to define a limit on number of results or some form of paging etc.
 	proofs := make([]*trillian.Proof, 0, len(leaves))
 	for _, leaf := range leaves {
@@ -293,9 +305,8 @@ func (t *TrillianLogRPCServer) GetInclusionProofByHash(ctx context.Context, req 
 		return nil, err
 	}
 
-	return &trillian.GetInclusionProofByHashResponse{
-		Proof: proofs,
-	}, nil
+	r.Proof = proofs
+	return r, nil
 }
 
 // GetConsistencyProof obtains a proof that two versions of the tree are consistent with each
@@ -327,6 +338,11 @@ func (t *TrillianLogRPCServer) GetConsistencyProof(ctx context.Context, req *tri
 	if err := root.UnmarshalBinary(slr.LogRoot); err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not read current log root: %v", err)
 	}
+	r := &trillian.GetConsistencyProofResponse{SignedLogRoot: &slr}
+
+	if uint64(req.SecondTreeSize) > root.TreeSize {
+		return r, nil
+	}
 
 	nodeFetches, err := merkle.CalcConsistencyProofNodeAddresses(req.FirstTreeSize, req.SecondTreeSize, int64(root.TreeSize), proofMaxBitLen)
 	if err != nil {
@@ -345,7 +361,8 @@ func (t *TrillianLogRPCServer) GetConsistencyProof(ctx context.Context, req *tri
 	}
 
 	// We have everything we need. Return the proof
-	return &trillian.GetConsistencyProofResponse{Proof: &proof}, nil
+	r.Proof = &proof
+	return r, nil
 }
 
 // GetLatestSignedLogRoot obtains the latest published tree root for the Merkle Tree that
@@ -426,7 +443,12 @@ func (t *TrillianLogRPCServer) GetLeavesByIndex(ctx context.Context, req *trilli
 		return nil, err
 	}
 
-	return &trillian.GetLeavesByIndexResponse{Leaves: leaves}, nil
+	root, err := tx.LatestSignedLogRoot(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return &trillian.GetLeavesByIndexResponse{Leaves: leaves, SignedLogRoot: &root}, nil
 }
 
 // GetLeavesByRange obtains leaves based on a range of sequence numbers within the tree.
@@ -447,16 +469,30 @@ func (t *TrillianLogRPCServer) GetLeavesByRange(ctx context.Context, req *trilli
 	}
 	defer tx.Close()
 
-	leaves, err := tx.GetLeavesByRange(ctx, req.StartIndex, req.Count)
+	slr, err := tx.LatestSignedLogRoot(ctx)
 	if err != nil {
 		return nil, err
+	}
+	var root types.LogRootV1
+	if err := root.UnmarshalBinary(slr.LogRoot); err != nil {
+		return nil, status.Errorf(codes.Internal, "Could not read current log root: %v", err)
+	}
+
+	r := &trillian.GetLeavesByRangeResponse{SignedLogRoot: &slr}
+
+	if req.StartIndex < int64(root.TreeSize) {
+		leaves, err := tx.GetLeavesByRange(ctx, req.StartIndex, req.Count)
+		if err != nil {
+			return nil, err
+		}
+		r.Leaves = leaves
 	}
 
 	if err := t.commitAndLog(ctx, req.LogId, tx, "GetLeavesByRange"); err != nil {
 		return nil, err
 	}
 
-	return &trillian.GetLeavesByRangeResponse{Leaves: leaves}, nil
+	return r, nil
 }
 
 // GetLeavesByHash obtains one or more leaves based on their tree hash. It is not possible
@@ -482,12 +518,18 @@ func (t *TrillianLogRPCServer) GetLeavesByHash(ctx context.Context, req *trillia
 		return nil, err
 	}
 
+	root, err := tx.LatestSignedLogRoot(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	if err := t.commitAndLog(ctx, req.LogId, tx, "GetLeavesByHash"); err != nil {
 		return nil, err
 	}
 
 	return &trillian.GetLeavesByHashResponse{
-		Leaves: leaves,
+		Leaves:        leaves,
+		SignedLogRoot: &root,
 	}, nil
 }
 
@@ -522,30 +564,39 @@ func (t *TrillianLogRPCServer) GetEntryAndProof(ctx context.Context, req *trilli
 		return nil, status.Errorf(codes.Internal, "Could not read current log root: %v", err)
 	}
 
-	proof, err := getInclusionProofForLeafIndex(ctx, tx, hasher, req.TreeSize, req.LeafIndex, int64(root.TreeSize))
-	if err != nil {
-		return nil, err
+	r := &trillian.GetEntryAndProofResponse{SignedLogRoot: &slr}
+
+	if req.TreeSize > int64(root.TreeSize) && req.LeafIndex < int64(root.TreeSize) {
+		// return latest proof we can manage
+		req.TreeSize = int64(root.TreeSize)
 	}
 
-	// We also need the leaf entry
-	leaves, err := tx.GetLeavesByIndex(ctx, []int64{req.LeafIndex})
-	if err != nil {
-		return nil, err
-	}
+	if req.TreeSize <= int64(root.TreeSize) {
+		proof, err := getInclusionProofForLeafIndex(ctx, tx, hasher, req.TreeSize, req.LeafIndex, int64(root.TreeSize))
+		if err != nil {
+			return nil, err
+		}
 
-	if len(leaves) != 1 {
-		return nil, status.Errorf(codes.Internal, "expected one leaf from storage but got: %d", len(leaves))
+		// We also need the leaf entry
+		leaves, err := tx.GetLeavesByIndex(ctx, []int64{req.LeafIndex})
+		if err != nil {
+			return nil, err
+		}
+
+		if len(leaves) != 1 {
+			return nil, status.Errorf(codes.Internal, "expected one leaf from storage but got: %d", len(leaves))
+		}
+
+		// Work is complete, we have everything we need for the response
+		r.Proof = &proof
+		r.Leaf = leaves[0]
 	}
 
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
 
-	// Work is complete, we have everything we need for the response
-	return &trillian.GetEntryAndProofResponse{
-		Proof: &proof,
-		Leaf:  leaves[0],
-	}, nil
+	return r, nil
 }
 
 func (t *TrillianLogRPCServer) commitAndLog(ctx context.Context, logID int64, tx storage.ReadOnlyLogTreeTX, op string) error {
