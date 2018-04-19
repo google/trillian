@@ -396,6 +396,19 @@ func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime tim
 	return leaves, nil
 }
 
+// reorderLeavesForInsert returns a slice containing the passed in leaves
+// sorted by LeafIdentityHash, and paired with their original positions.
+// QueueLeaves and AddSequencedLeaves use this to make the order that LeafData
+// row locks are acquired deterministic and reduce the chance of deadlocks.
+func reorderLeavesForInsert(leaves []*trillian.LogLeaf) []leafAndPosition {
+	ordLeaves := make([]leafAndPosition, len(leaves))
+	for i, leaf := range leaves {
+		ordLeaves[i] = leafAndPosition{leaf: leaf, idx: i}
+	}
+	sort.Sort(byLeafIdentityHashWithPosition(ordLeaves))
+	return ordLeaves
+}
+
 func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf, queueTimestamp time.Time) ([]*trillian.LogLeaf, error) {
 	// Don't accept batches if any of the leaves are invalid.
 	for _, leaf := range leaves {
@@ -411,20 +424,14 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 	start := time.Now()
 	label := labelForTX(t)
 
-	// Insert in order of the hash values in the leaves, but track original position for return value.
-	// This is to make the order that row locks are acquired deterministic and helps to reduce
-	// the chance of deadlocks.
-	orderedLeaves := make([]leafAndPosition, len(leaves))
-	for i, leaf := range leaves {
-		orderedLeaves[i] = leafAndPosition{leaf: leaf, idx: i}
-	}
-	sort.Sort(byLeafIdentityHashWithPosition(orderedLeaves))
+	ordLeaves := reorderLeavesForInsert(leaves)
 	existingCount := 0
 	existingLeaves := make([]*trillian.LogLeaf, len(leaves))
 
-	for i, leafPos := range orderedLeaves {
+	for _, ol := range ordLeaves {
+		i, leaf := ol.idx, ol.leaf
+
 		leafStart := time.Now()
-		leaf := leafPos.leaf
 		qTimestamp, err := ptypes.Timestamp(leaf.QueueTimestamp)
 		if err != nil {
 			return nil, fmt.Errorf("got invalid queue timestamp: %v", err)
@@ -434,7 +441,7 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 		observe(queueInsertLeafLatency, insertDuration, label)
 		if isDuplicateErr(err) {
 			// Remember the duplicate leaf, using the requested leaf for now.
-			existingLeaves[leafPos.idx] = leaf
+			existingLeaves[i] = leaf
 			existingCount++
 			queuedDupCounter.Inc(label)
 			continue
@@ -529,9 +536,15 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 	// TODO(pavelkalinnikov): Consider performance implication of executing this
 	// extra SAVEPOINT, especially for 1-entry batches. Optimize if necessary.
 
-	// Note: Leaves are sorted by LeafIndex, so no deterministic reordering is
-	// necessary to avoid deadlocks.
-	for i, leaf := range leaves {
+	// Note: LeafData inserts are presumably protected from deadlocks due to
+	// sorting, but the order of the corresponding SequencedLeafData inserts
+	// becomes indeterministic. However, in a typical case when leaves are
+	// supplied in contiguous non-intersecting batches, the chance of having
+	// circular dependencies between transactions is significantly lower.
+	ordLeaves := reorderLeavesForInsert(leaves)
+	for _, ol := range ordLeaves {
+		i, leaf := ol.idx, ol.leaf
+
 		// This should fail on insert, but catch it early.
 		if got, want := len(leaf.LeafIdentityHash), t.hashSizeBytes; got != want {
 			return nil, status.Errorf(codes.FailedPrecondition, "leaves[%d] has incorrect hash size %d, want %d", i, got, want)
