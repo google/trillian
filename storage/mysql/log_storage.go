@@ -396,11 +396,11 @@ func (t *logTreeTX) DequeueLeaves(ctx context.Context, limit int, cutoffTime tim
 	return leaves, nil
 }
 
-// reorderLeavesForInsert returns a slice containing the passed in leaves
-// sorted by LeafIdentityHash, and paired with their original positions.
+// sortLeavesForInsert returns a slice containing the passed in leaves sorted
+// by LeafIdentityHash, and paired with their original positions.
 // QueueLeaves and AddSequencedLeaves use this to make the order that LeafData
 // row locks are acquired deterministic and reduce the chance of deadlocks.
-func reorderLeavesForInsert(leaves []*trillian.LogLeaf) []leafAndPosition {
+func sortLeavesForInsert(leaves []*trillian.LogLeaf) []leafAndPosition {
 	ordLeaves := make([]leafAndPosition, len(leaves))
 	for i, leaf := range leaves {
 		ordLeaves[i] = leafAndPosition{leaf: leaf, idx: i}
@@ -424,7 +424,7 @@ func (t *logTreeTX) QueueLeaves(ctx context.Context, leaves []*trillian.LogLeaf,
 	start := time.Now()
 	label := labelForTX(t)
 
-	ordLeaves := reorderLeavesForInsert(leaves)
+	ordLeaves := sortLeavesForInsert(leaves)
 	existingCount := 0
 	existingLeaves := make([]*trillian.LogLeaf, len(leaves))
 
@@ -541,7 +541,7 @@ func (t *logTreeTX) AddSequencedLeaves(ctx context.Context, leaves []*trillian.L
 	// becomes indeterministic. However, in a typical case when leaves are
 	// supplied in contiguous non-intersecting batches, the chance of having
 	// circular dependencies between transactions is significantly lower.
-	ordLeaves := reorderLeavesForInsert(leaves)
+	ordLeaves := sortLeavesForInsert(leaves)
 	for _, ol := range ordLeaves {
 		i, leaf := ol.idx, ol.leaf
 
