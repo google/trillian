@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"math/bits"
 
 	"github.com/google/trillian/merkle/hashers"
 )
@@ -211,4 +212,35 @@ func (v LogVerifier) VerifyConsistencyProof(snapshot1, snapshot2 int64, root1, r
 	}
 
 	return nil // Proof OK.
+}
+
+// PrefixHashFromInclusionProof calculates a root hash over leaves [0..index),
+// based on the inclusion |proof| and |leafHash| for a leaf at the specified
+// |index| in a tree of the specified |size| with the passed in |root| hash.
+// Accepts 0 <= index < size.
+// Returns an error if the proof verification fails.
+func (v LogVerifier) PrefixHashFromInclusionProof(
+	index, size int64,
+	proof [][]byte, root []byte, leafHash []byte,
+) ([]byte, error) {
+	if err := v.VerifyInclusionProof(index, size, proof, root, leafHash); err != nil {
+		return nil, err
+	}
+	if index == 0 {
+		return v.hasher.EmptyRoot(), nil
+	}
+
+	var res []byte
+	tail := bits.Len64(uint64(index ^ (size - 1)))
+	for i, h := range proof {
+		if i < tail && (index>>uint(i))&1 == 0 {
+			continue
+		}
+		if res == nil {
+			res = h
+		} else {
+			res = v.hasher.HashChildren(h, res)
+		}
+	}
+	return res, nil
 }
