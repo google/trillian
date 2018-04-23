@@ -19,6 +19,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math/big"
+	"math/bits"
 
 	"github.com/golang/glog"
 	"github.com/google/trillian/storage/storagepb"
@@ -178,15 +179,6 @@ func NewNodeIDWithPrefix(prefix uint64, prefixLenBits, nodeIDLenBits, maxLenBits
 	return p
 }
 
-func bitLen(x int64) int {
-	r := 0
-	for x > 0 {
-		r++
-		x >>= 1
-	}
-	return r
-}
-
 // NewNodeIDForTreeCoords creates a new NodeID for a Tree node with a specified depth and
 // index.
 // This method is used exclusively by the Log, and, since the Log model grows upwards from the
@@ -197,7 +189,7 @@ func bitLen(x int64) int {
 // index is the horizontal index into the tree at level depth, so the returned
 // NodeID will be zero padded on the right by depth places.
 func NewNodeIDForTreeCoords(depth int64, index int64, maxPathBits int) (NodeID, error) {
-	bl := bitLen(index)
+	bl := bits.Len64(uint64(index))
 	if index < 0 || depth < 0 ||
 		bl > int(maxPathBits-int(depth)) ||
 		maxPathBits%8 != 0 {

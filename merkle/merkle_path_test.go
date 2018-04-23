@@ -21,11 +21,6 @@ import (
 	"github.com/google/trillian/storage"
 )
 
-type bitLenTestData struct {
-	input    int64
-	expected int
-}
-
 type auditPathTestData struct {
 	treeSize     int64
 	leafIndex    int64
@@ -200,8 +195,6 @@ var expectedConsistencyProofFromSize2To8 = []NodeFetch{
 	MustCreateNodeFetchForTreeCoords(2, 1, 64, false), // l
 }
 
-var bitLenTests = []bitLenTestData{{0, 0}, {1, 1}, {2, 2}, {3, 2}, {12, 4}}
-
 // These should all successfully compute the expected path
 var pathTests = []auditPathTestData{
 	{1, 0, []NodeFetch{}},
@@ -245,14 +238,6 @@ var consistencyTestsBad = []consistencyProofTestData{
 	{-1, -1, []NodeFetch{}},
 	{0, 0, []NodeFetch{}},
 	{9, 8, []NodeFetch{}},
-}
-
-func TestBitLen(t *testing.T) {
-	for _, testCase := range bitLenTests {
-		if got, expected := bitLen(testCase.input), testCase.expected; expected != got {
-			t.Fatalf("expected %d for input %d but got %d", testCase.expected, testCase.input, got)
-		}
-	}
 }
 
 func TestCalcInclusionProofNodeAddresses(t *testing.T) {

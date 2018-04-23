@@ -17,6 +17,7 @@ package merkle
 import (
 	"errors"
 	"fmt"
+	"math/bits"
 
 	"github.com/golang/glog"
 	"github.com/google/trillian/storage"
@@ -102,7 +103,7 @@ func CalcConsistencyProofNodeAddresses(snapshot1, snapshot2, treeSize int64, max
 // snapshotConsistency does the calculation of consistency proof node addresses between
 // two snapshots. Based on the C++ code used by CT but adjusted to fit our situation.
 func snapshotConsistency(snapshot1, snapshot2, treeSize int64, maxBitLen int) ([]NodeFetch, error) {
-	proof := make([]NodeFetch, 0, bitLen(snapshot2)+1)
+	proof := make([]NodeFetch, 0, bits.Len64(uint64(snapshot2))+1)
 
 	glog.V(vLevel).Infof("snapshotConsistency: %d -> %d", snapshot1, snapshot2)
 
@@ -141,7 +142,7 @@ func snapshotConsistency(snapshot1, snapshot2, treeSize int64, maxBitLen int) ([
 
 func pathFromNodeToRootAtSnapshot(node int64, level int, snapshot, treeSize int64, maxBitLen int) ([]NodeFetch, error) {
 	glog.V(vLevel).Infof("pathFromNodeToRootAtSnapshot(%d, %d, %d, %d, %d)", node, level, snapshot, treeSize, maxBitLen)
-	proof := make([]NodeFetch, 0, bitLen(snapshot)+1)
+	proof := make([]NodeFetch, 0, bits.Len64(uint64(snapshot))+1)
 
 	if snapshot == 0 {
 		return proof, nil
