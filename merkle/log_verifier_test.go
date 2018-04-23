@@ -345,6 +345,28 @@ func TestVerifyInclusionProof(t *testing.T) {
 
 }
 
+func TestVerifyInclusionProofGenerated(t *testing.T) {
+	var sizes []int64
+	for s := 1; s <= 70; s++ {
+		sizes = append(sizes, int64(s))
+	}
+	sizes = append(sizes, []int64{1024, 5050}...)
+
+	tree, v := createTree(0)
+	for _, size := range sizes {
+		growTree(tree, size)
+		root := tree.CurrentRoot().Hash()
+		for i := int64(0); i < size; i++ {
+			t.Run(fmt.Sprintf("size:%d:index:%d", size, i), func(t *testing.T) {
+				leaf, proof := getLeafAndProof(tree, i)
+				if err := verifierCheck(&v, i, size, proof, root, leaf); err != nil {
+					t.Errorf("verifierCheck(): %v", err)
+				}
+			})
+		}
+	}
+}
+
 func TestVerifyConsistencyProof(t *testing.T) {
 	v := NewLogVerifier(rfc6962.DefaultHasher)
 
