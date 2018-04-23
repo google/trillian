@@ -19,6 +19,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"math/bits"
 
 	log "github.com/golang/glog"
 	"github.com/google/trillian/merkle/hashers"
@@ -48,15 +49,6 @@ func isPerfectTree(x int64) bool {
 	return x != 0 && (x&(x-1) == 0)
 }
 
-func bitLen(x int64) int {
-	r := 0
-	for x > 0 {
-		r++
-		x >>= 1
-	}
-	return r
-}
-
 // GetNodeFunc is a function prototype which can look up particular nodes within a non-compact Merkle tree.
 // Used by the CompactMerkleTree to populate itself with correct state when starting up with a non-empty tree.
 type GetNodeFunc func(depth int, index int64) ([]byte, error)
@@ -68,7 +60,7 @@ type GetNodeFunc func(depth int, index int64) ([]byte, error)
 // required to initialize the internal state of the CompactMerkleTree.  |expectedRoot| is the known-good tree root
 // of the tree at |size|, and is used to verify the correct initial state of the CompactMerkleTree after initialisation.
 func NewCompactMerkleTreeWithState(hasher hashers.LogHasher, size int64, f GetNodeFunc, expectedRoot []byte) (*CompactMerkleTree, error) {
-	sizeBits := bitLen(size)
+	sizeBits := bits.Len64(uint64(size))
 
 	r := CompactMerkleTree{
 		hasher: hasher,
@@ -128,7 +120,7 @@ func (c CompactMerkleTree) CurrentRoot() []byte {
 func (c CompactMerkleTree) DumpNodes() {
 	log.Infof("Tree Nodes @ %d", c.size)
 	mask := int64(1)
-	numBits := bitLen(c.size)
+	numBits := bits.Len64(uint64(c.size))
 	for bit := 0; bit < numBits; bit++ {
 		if c.size&mask != 0 {
 			log.Infof("%d:  %s", bit, base64.StdEncoding.EncodeToString(c.nodes[bit][:]))
@@ -151,7 +143,7 @@ func (c *CompactMerkleTree) recalculateRoot(f setNodeFunc) error {
 	var newRoot []byte
 	first := true
 	mask := int64(1)
-	numBits := bitLen(c.size)
+	numBits := bits.Len64(uint64(c.size))
 	for bit := 0; bit < numBits; bit++ {
 		index >>= 1
 		if c.size&mask != 0 {
@@ -273,5 +265,5 @@ func (c CompactMerkleTree) Depth() int {
 	if c.size == 0 {
 		return 0
 	}
-	return bitLen(c.size - 1)
+	return bits.Len64(uint64(c.size - 1))
 }
