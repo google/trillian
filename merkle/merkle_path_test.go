@@ -21,11 +21,6 @@ import (
 	"github.com/google/trillian/storage"
 )
 
-type bitLenTestData struct {
-	input    int64
-	expected int
-}
-
 type auditPathTestData struct {
 	treeSize     int64
 	leafIndex    int64
