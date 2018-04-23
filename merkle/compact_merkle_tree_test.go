@@ -19,6 +19,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"math/bits"
 	"strings"
 	"testing"
 
@@ -34,7 +35,7 @@ func checkUnusedNodesInvariant(c *CompactMerkleTree) error {
 	// should be present for a tree of given size are fetched from the
 	// backing store via GetNodeFunc.
 	size := c.size
-	sizeBits := bitLen(size)
+	sizeBits := bits.Len64(uint64(size))
 	if isPerfectTree(size) {
 		for i, n := range c.nodes {
 			expectNil := i != sizeBits-1
