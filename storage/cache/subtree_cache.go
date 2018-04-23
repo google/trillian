@@ -147,9 +147,9 @@ func (s *SubtreeCache) preload(ids []storage.NodeID, getSubtrees GetSubtreesFunc
 		id := id
 		px, _ := s.splitNodeID(id)
 		pxKey := string(px)
-		_, ok := s.subtrees[pxKey]
 		// TODO(al): fix for non-uniform strata
 		id.PrefixLenBits = len(px) * depthQuantum
+		_, ok := s.subtrees[pxKey]
 		if !ok {
 			want[pxKey] = &id
 		}
@@ -326,15 +326,23 @@ func (s *SubtreeCache) SetNodeHash(id storage.NodeID, h []byte, getSubtree GetSu
 	if c.Prefix == nil {
 		return fmt.Errorf("nil prefix for %v (key %v)", id.String(), prefixKey)
 	}
-	s.dirtyPrefixes[prefixKey] = true
 	// Determine whether we're being asked to store a leaf node, or an internal
 	// node, and store it accordingly.
 	sfxKey := sx.String()
 	if int32(sx.Bits) == c.Depth {
+		// Short-circuit write if we're simply overwriting an identical value.
+		if bytes.Equal(c.Leaves[sfxKey], h) {
+			return nil
+		}
 		c.Leaves[sfxKey] = h
 	} else {
+		// Short-circuit write if we're simply overwriting an identical value.
+		if bytes.Equal(c.InternalNodes[sfxKey], h) {
+			return nil
+		}
 		c.InternalNodes[sfxKey] = h
 	}
+	s.dirtyPrefixes[prefixKey] = true
 	if glog.V(4) {
 		b, err := base64.StdEncoding.DecodeString(sfxKey)
 		if err != nil {
