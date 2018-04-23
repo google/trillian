@@ -224,6 +224,8 @@ func (ls *logStorage) QueueLeaves(ctx context.Context, tree *trillian.Tree, leav
 			} else if err != nil {
 				s, _ := status.FromError(err)
 				results[i] = &trillian.QueuedLogLeaf{Status: s.Proto()}
+			} else {
+				results[i] = &trillian.QueuedLogLeaf{Leaf: l} // implicit OK status
 			}
 		}()
 	}
