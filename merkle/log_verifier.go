@@ -214,12 +214,13 @@ func (v LogVerifier) VerifyConsistencyProof(snapshot1, snapshot2 int64, root1, r
 	return nil // Proof OK.
 }
 
-// PrefixHashFromInclusionProof calculates a root hash over leaves [0..index),
-// based on the inclusion |proof| and |leafHash| for a leaf at the specified
-// |index| in a tree of the specified |size| with the passed in |root| hash.
-// Accepts 0 <= index < size.
-// Returns an error if the proof verification fails.
-func (v LogVerifier) PrefixHashFromInclusionProof(
+// VerifiedPrefixHashFromInclusionProof calculates a root hash over leaves
+// [0..index), based on the inclusion |proof| and |leafHash| for a leaf at the
+// specified |index| in a tree of the specified |size| with the passed in
+// |root| hash.
+// Returns an error if the |proof| verification fails. The resulting smaller
+// tree's root hash is trusted iff the bigger tree's |root| hash is trusted.
+func (v LogVerifier) VerifiedPrefixHashFromInclusionProof(
 	index, size int64,
 	proof [][]byte, root []byte, leafHash []byte,
 ) ([]byte, error) {
