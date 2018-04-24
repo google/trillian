@@ -40,9 +40,7 @@ type LogVerifier struct {
 
 // NewLogVerifier returns a new LogVerifier for a tree.
 func NewLogVerifier(hasher hashers.LogHasher) LogVerifier {
-	return LogVerifier{
-		hasher: hasher,
-	}
+	return LogVerifier{hasher}
 }
 
 // VerifyInclusionProof verifies the correctness of the proof given the passed
@@ -61,49 +59,37 @@ func (v LogVerifier) VerifyInclusionProof(leafIndex, treeSize int64, proof [][]b
 	return nil
 }
 
-func validateLeafIndex(leafIndex, treeSize int64) error {
-	switch {
-	case leafIndex < 0:
-		return fmt.Errorf("leafIndex %d < 0", leafIndex)
-	case treeSize < 0:
-		return fmt.Errorf("treeSize %d < 0", treeSize)
-	case leafIndex >= treeSize:
-		return fmt.Errorf("leafIndex is beyond treeSize: %d >= %d", leafIndex, treeSize)
-	}
-	return nil
-}
-
 // RootFromInclusionProof calculates the expected tree root given the proof and leaf.
 // leafIndex starts at 0.  treeSize is the number of nodes in the tree.
 // proof is an array of neighbor nodes from the bottom to the root.
 func (v LogVerifier) RootFromInclusionProof(leafIndex, treeSize int64, proof [][]byte, leafHash []byte) ([]byte, error) {
-	if err := validateLeafIndex(leafIndex, treeSize); err != nil {
-		return nil, err
+	switch {
+	case leafIndex < 0:
+		return nil, fmt.Errorf("leafIndex %d < 0", leafIndex)
+	case treeSize < 0:
+		return nil, fmt.Errorf("treeSize %d < 0", treeSize)
+	case leafIndex >= treeSize:
+		return nil, fmt.Errorf("leafIndex is beyond treeSize: %d >= %d", leafIndex, treeSize)
 	}
 
 	inner, border := decompInclProof(leafIndex, treeSize)
 	if got, want := len(proof), inner+border; got != want {
-		return nil, fmt.Errorf("invalid proof: want %d components, got %d", want, got)
+		return nil, fmt.Errorf("wrong proof size %d, want %d", got, want)
 	}
 
-	res := leafHash
-	for i, h := range proof {
-		if i < inner && (leafIndex>>uint(i))&1 == 0 {
-			res = v.hasher.HashChildren(res, h)
-		} else {
-			res = v.hasher.HashChildren(h, res)
-		}
-	}
+	ch := hashChainer{v.hasher}
+	res := ch.chainInner(leafHash, proof[:inner], leafIndex)
+	res = ch.chainBorderRight(res, proof[inner:])
 	return res, nil
 }
 
-// VerifyConsistencyProof checks that the passed in consistency proof is valid between the passed in tree snapshots.
-// Snapshots are the respective treeSizes. shapshot2 >= snapshot1 >= 0.
+// VerifyConsistencyProof checks that the passed in consistency proof is valid
+// between the passed in tree snapshots. Snapshots are the respective tree
+// sizes. Accepts shapshot2 >= snapshot1 >= 0.
 func (v LogVerifier) VerifyConsistencyProof(snapshot1, snapshot2 int64, root1, root2 []byte, proof [][]byte) error {
 	if snapshot1 < 0 {
 		return fmt.Errorf("snapshot1 (%d) < 0 ", snapshot1)
-	}
-	if snapshot2 < snapshot1 {
+	} else if snapshot2 < snapshot1 {
 		return fmt.Errorf("snapshot2 (%d) < snapshot1 (%d)", snapshot1, snapshot2)
 	}
 	if snapshot1 == snapshot2 {
@@ -112,94 +98,58 @@ func (v LogVerifier) VerifyConsistencyProof(snapshot1, snapshot2 int64, root1, r
 				CalculatedRoot: root1,
 				ExpectedRoot:   root2,
 			}
-		}
-		if len(proof) > 0 {
+		} else if len(proof) > 0 {
 			return errors.New("root1 and root2 match, but proof is non-empty")
 		}
-		// proof ok.
-		return nil
+		return nil // Proof OK.
 	}
 	if snapshot1 == 0 {
 		// Any snapshot greater than 0 is consistent with snapshot 0.
 		if len(proof) > 0 {
-			return fmt.Errorf("expected empty proof, but provided proof has %d components", len(proof))
+			return fmt.Errorf("expected empty proof, but got %d components", len(proof))
 		}
-		return nil
+		return nil // Proof OK.
 	}
 	if len(proof) == 0 {
 		return errors.New("empty proof")
 	}
 
-	node := snapshot1 - 1
-	lastNode := snapshot2 - 1
-	proofIndex := 0
+	inner, border := decompInclProof(snapshot1-1, snapshot2)
+	shift := bits.TrailingZeros64(uint64(snapshot1))
+	inner -= shift // Note: shift < inner if snapshot1 < snapshot2.
 
-	for isRightChild(node) {
-		node = parent(node)
-		lastNode = parent(lastNode)
+	// The proof includes the root hash for the sub-tree of size 2^shift.
+	seed, start := proof[0], 1
+	if snapshot1 == 1<<uint(shift) { // Unless snapshot1 is that very 2^shift.
+		seed, start = root1, 0
 	}
-
-	var node1Hash []byte
-	var node2Hash []byte
-
-	if node > 0 {
-		node1Hash = proof[proofIndex]
-		node2Hash = proof[proofIndex]
-		proofIndex++
-	} else {
-		// The tree at snapshot1 was balanced, nothing to verify for root1.
-		node1Hash = root1
-		node2Hash = root1
+	if got, want := len(proof), start+inner+border; got != want {
+		return fmt.Errorf("wrong proof size %d, want %d", got, want)
 	}
-
-	// Use the highest order 1 bit in the rightmost node of snapshot1 as the stopping condition.
-	for node > 0 {
-		if proofIndex >= len(proof) {
-			return errors.New("insufficient number of proof components")
-		}
-
-		if isRightChild(node) {
-			node1Hash = v.hasher.HashChildren(proof[proofIndex], node1Hash)
-			node2Hash = v.hasher.HashChildren(proof[proofIndex], node2Hash)
-			proofIndex++
-		} else if node < lastNode {
-			// Test whether a sibling node to the right exists at this level.
-			node2Hash = v.hasher.HashChildren(node2Hash, proof[proofIndex])
-			proofIndex++
-		} // else the sibling does not exist.
-
-		node = parent(node)
-		lastNode = parent(lastNode)
-	}
+	proof = proof[start:]
+	// Now len(proof) == inner+border, and proof is effectively a suffix of
+	// inclusion proof for entry |snapshot1-1| in a tree of size |snapshot2|.
 
 	// Verify the first root.
-	if !bytes.Equal(node1Hash, root1) {
+	ch := hashChainer{v.hasher}
+	mask := (snapshot1 - 1) >> uint(shift) // Start chaining from level |shift|.
+	hash1 := ch.chainInnerRight(seed, proof[:inner], mask)
+	hash1 = ch.chainBorderRight(hash1, proof[inner:])
+	if !bytes.Equal(hash1, root1) {
 		return RootMismatchError{
-			CalculatedRoot: node1Hash,
+			CalculatedRoot: hash1,
 			ExpectedRoot:   root1,
 		}
 	}
 
-	// Use the highest order 1 bit in the rightmost node of snapshot2 as the stopping condition.
-	for lastNode > 0 {
-		if proofIndex >= len(proof) {
-			return errors.New("can't verify newer root; insufficient number of proof components")
-		}
-
-		node2Hash = v.hasher.HashChildren(node2Hash, proof[proofIndex])
-		proofIndex++
-		lastNode = parent(lastNode)
-	}
-
 	// Verify the second root.
-	if !bytes.Equal(node2Hash, root2) {
+	hash2 := ch.chainInner(seed, proof[:inner], mask)
+	hash2 = ch.chainBorderRight(hash2, proof[inner:])
+	if !bytes.Equal(hash2, root2) {
 		return RootMismatchError{
-			CalculatedRoot: node2Hash,
+			CalculatedRoot: hash2,
 			ExpectedRoot:   root2,
 		}
-	}
-	if proofIndex != len(proof) {
-		return errors.New("proof has too many components")
 	}
 
 	return nil // Proof OK.
@@ -222,18 +172,10 @@ func (v LogVerifier) VerifiedPrefixHashFromInclusionProof(
 		return v.hasher.EmptyRoot(), nil
 	}
 
-	var res []byte
 	inner := innerProofSize(subSize, size)
-	for i, h := range proof {
-		if i < inner && (subSize>>uint(i))&1 == 0 {
-			continue
-		}
-		if res == nil {
-			res = h
-		} else {
-			res = v.hasher.HashChildren(h, res)
-		}
-	}
+	ch := hashChainer{v.hasher}
+	res := ch.chainInnerRightOpen(proof[:inner], subSize)
+	res = ch.chainBorderRightOpen(res, proof[inner:])
 	return res, nil
 }
 

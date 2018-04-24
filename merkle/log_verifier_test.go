@@ -433,7 +433,31 @@ func TestVerifyConsistencyProof(t *testing.T) {
 			roots[snapshot1-1].h,
 			roots[snapshot2-1].h, proof)
 		if err != nil {
-			t.Fatalf("Failed to verify known good proof for i=%d: %s", i, err)
+			t.Errorf("Failed to verify known good proof for i=%d: %s", i, err)
+		}
+	}
+}
+
+func TestVerifyConsistencyProofGenerated(t *testing.T) {
+	sizes := make([]int64, 0, 18)
+	for s := 1; s < cap(sizes); s++ {
+		sizes = append(sizes, int64(s))
+	}
+	sizes = append(sizes, 74)
+
+	for _, size := range sizes {
+		tree, v := createTree(size)
+		for i := int64(0); i <= size; i++ {
+			for j := i; j <= size; j++ {
+				t.Run(fmt.Sprintf("size:%d:consistency:%d-%d", size, i, j), func(t *testing.T) {
+					proof := rawProof(tree.SnapshotConsistency(i, j))
+					root1 := tree.RootAtSnapshot(i).Hash()
+					root2 := tree.RootAtSnapshot(j).Hash()
+					if err := verifierConsistencyCheck(&v, i, j, root1, root2, proof); err != nil {
+						t.Fatalf("verifierConsistencyCheck(): %v", err)
+					}
+				})
+			}
 		}
 	}
 }
@@ -445,7 +469,7 @@ func TestPrefixHashFromInclusionProofGenerated(t *testing.T) {
 	}
 	sizes = append(sizes, []int64{1024, 5050, 10000}...)
 
-	tree, verif := createTree(0)
+	tree, v := createTree(0)
 	for _, size := range sizes {
 		growTree(tree, size)
 		root := tree.CurrentRoot().Hash()
@@ -453,7 +477,7 @@ func TestPrefixHashFromInclusionProofGenerated(t *testing.T) {
 		for i := int64(0); i < size; i++ {
 			t.Run(fmt.Sprintf("size:%d:prefix:%d", size, i), func(t *testing.T) {
 				leaf, proof := getLeafAndProof(tree, i)
-				pRoot, err := verif.VerifiedPrefixHashFromInclusionProof(i, size, proof, root, leaf)
+				pRoot, err := v.VerifiedPrefixHashFromInclusionProof(i, size, proof, root, leaf)
 				if err != nil {
 					t.Fatalf("VerifiedPrefixHashFromInclusionProof(): %v", err)
 				}
@@ -468,7 +492,7 @@ func TestPrefixHashFromInclusionProofGenerated(t *testing.T) {
 
 func TestPrefixHashFromInclusionProofErrors(t *testing.T) {
 	size := int64(307)
-	tree, verif := createTree(size)
+	tree, v := createTree(size)
 	root := tree.CurrentRoot().Hash()
 
 	// Proofs for #2 and #3 are same length, unlike #306. We will use that below.
@@ -486,19 +510,19 @@ func TestPrefixHashFromInclusionProofErrors(t *testing.T) {
 		{-1, size}, {size, size}, {size + 1, size}, {size + 100, size},
 	}
 	for _, it := range idxTests {
-		if _, err := verif.VerifiedPrefixHashFromInclusionProof(it.index, it.size, proof2, root, leaf2); err == nil {
+		if _, err := v.VerifiedPrefixHashFromInclusionProof(it.index, it.size, proof2, root, leaf2); err == nil {
 			t.Errorf("VerifiedPrefixHashFromInclusionProof(%d,%d): expected error", it.index, it.size)
 		}
 	}
 
-	if _, err := verif.VerifiedPrefixHashFromInclusionProof(2, size, proof2, root, leaf2); err != nil {
+	if _, err := v.VerifiedPrefixHashFromInclusionProof(2, size, proof2, root, leaf2); err != nil {
 		t.Errorf("VerifiedPrefixHashFromInclusionProof(): %v, expected no error", err)
 	}
 	// Note: Proofs #2 and #3 are same lengths, plus the procedure of computing
 	// [0..2) root hash for both of them would return the same correct result.
 	// However, the proof #3 can't be verified against index #2, hence the error.
 	for _, proof := range [][][]byte{proof3, proof306} {
-		if _, err := verif.VerifiedPrefixHashFromInclusionProof(2, size, proof, root, leaf2); err == nil {
+		if _, err := v.VerifiedPrefixHashFromInclusionProof(2, size, proof, root, leaf2); err == nil {
 			t.Error("VerifiedPrefixHashFromInclusionProof(): expected error")
 		}
 	}
@@ -534,11 +558,15 @@ func growTree(tree *InMemoryMerkleTree, upTo int64) {
 
 func getLeafAndProof(tree *InMemoryMerkleTree, index int64) ([]byte, [][]byte) {
 	// Note: InMemoryMerkleTree counts leaves from 1.
-	desc := tree.PathToCurrentRoot(index + 1)
+	proof := rawProof(tree.PathToCurrentRoot(index + 1))
+	leafHash := tree.LeafHash(index + 1)
+	return leafHash, proof
+}
+
+func rawProof(desc []TreeEntryDescriptor) [][]byte {
 	proof := make([][]byte, len(desc))
 	for i, d := range desc {
 		proof[i] = d.Value.Hash()
 	}
-	leafHash := tree.LeafHash(index + 1)
-	return leafHash, proof
+	return proof
 }
