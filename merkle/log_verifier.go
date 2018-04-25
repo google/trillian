@@ -248,3 +248,101 @@ func (v LogVerifier) VerifiedPrefixHashFromInclusionProof(
 	}
 	return res, nil
 }
+
+// VerifyRangeInclusion verifies that [begin, end) range, consisting of the
+// |leaves| with the specified hashes, is included into the tree with the
+// specified |size| and |root| hash, based on inclusion proofs for entries
+// number |begin| and |end-1| respectively.
+//
+// TODO(pavelkalinnikov): Current implementation has some level of redundancy,
+// as the combination of 2 inclusion proofs is a superset of the minimal range
+// inclusion proof. Consider adding proper range inclusion proof notion to
+// Trillian's API.
+func (v LogVerifier) VerifyRangeInclusion(
+	begin, end, size int64,
+	proof1, proof2 [][]byte,
+	root []byte, leaves [][]byte,
+) error {
+	if end <= begin {
+		return fmt.Errorf("empty range [%d,%d)", begin, end)
+	} else if got, want := int64(len(leaves)), end-begin; got != want {
+		return fmt.Errorf("wrong number of leaves %d, want %d", got, want)
+	}
+	if err := v.VerifyInclusionProof(begin, size, proof1, root, leaves[0]); err != nil {
+		return err
+	} else if err := v.VerifyInclusionProof(end-1, size, proof2, root, leaves[len(leaves)-1]); err != nil {
+		return err
+	}
+	if end-begin <= int64(2) {
+		return nil // Inclusion proofs verification above is sufficient.
+	}
+
+	inner1, border1 := decompInclProof(begin, size)
+	inner2, border2 := decompInclProof(end-1, size)
+	if inner2 >= inner1 { // Either inner2 == inner1 and border2 == border2 ...
+		inner1 = innerProofSize(begin, end)
+		inner2, border2 = inner1, 0
+	} else { // ... or inner2 < inner1 and border2 > border1.
+		border2 -= border1
+	}
+	inner1--
+	if border2 == 0 {
+		inner2--
+	} else {
+		border2--
+	}
+
+	stack := newHashStack(v.hasher, begin+1)
+	for i, ie := 1, len(leaves)-1; i < ie; i++ {
+		stack.pushAndChain(leaves[i])
+	}
+
+	left := bits.OnesCount64(uint64(^begin & (1<<uint(inner1) - 1)))
+	right := bits.OnesCount64(uint64((end - 1) & (1<<uint(inner2) - 1)))
+	if got, want := len(stack.hashes), left+right+border2; got != want {
+		return fmt.Errorf("wrong hash stack size %d, want %d", got, want)
+	}
+
+	for i, idx := 0, 0; i < inner1; i++ {
+		if (begin>>uint(i))&1 == 1 {
+			continue
+		}
+		if !bytes.Equal(proof1[i], stack.hashes[idx]) {
+			return errors.New("hash stack left branch mismatch")
+		}
+		idx++
+	}
+
+	idx := len(stack.hashes) - 1
+	for i := 0; i < inner2; i++ {
+		if ((end-1)>>uint(i))&1 == 0 {
+			continue
+		}
+		if !bytes.Equal(proof2[i], stack.hashes[idx]) {
+			return errors.New("hash stack right inner branch mismatch")
+		}
+		idx--
+	}
+	for i := inner2; i < inner2+border2; i++ {
+		if !bytes.Equal(proof2[i], stack.hashes[idx]) {
+			return errors.New("hash stack right border branch mismatch")
+		}
+		idx--
+	}
+
+	return nil
+}
+
+// decompInclProof breaks down inclusion proof for a leaf at the specified
+// |index| in a tree of the specified |size| into 2 components. The splitting
+// point between them is where paths to leaves |index| and |size-1| diverge.
+// Returns lengths of the bottom and upper proof parts correspondingly. The sum
+// of the two determines the correct length of the inclusion proof.
+func decompInclProof(index, size int64) (int, int) {
+	inner := innerProofSize(index, size)
+	border := bits.OnesCount64(uint64(index) >> uint(inner))
+	return inner, border
+}
+func innerProofSize(index, size int64) int {
+	return bits.Len64(uint64(index ^ (size - 1)))
+}

@@ -482,6 +482,76 @@ func TestPrefixHashFromInclusionProofErrors(t *testing.T) {
 	}
 }
 
+func TestVerifyRangeInclusionGenerated(t *testing.T) {
+	sizes := make([]int64, 0, 18)
+	for s := 1; s < cap(sizes); s++ {
+		sizes = append(sizes, int64(s))
+	}
+	sizes = append(sizes, 74)
+
+	tree, v := createTree(0)
+	leaves := make([][]byte, 0)
+	for _, size := range sizes {
+		growTree(tree, size)
+		for i := int64(len(leaves)); i < size; i++ {
+			leaves = append(leaves, tree.LeafHash(i+1))
+		}
+		root := tree.CurrentRoot().Hash()
+
+		for i := int64(0); i < size; i++ {
+			for j := i + 1; j <= size; j++ {
+				t.Run(fmt.Sprintf("size:%d:range:%d-%d", size, i, j), func(t *testing.T) {
+					leaves := leaves[i:j]
+					_, proof1 := getLeafAndProof(tree, i)
+					_, proof2 := getLeafAndProof(tree, j-1)
+					if err := v.VerifyRangeInclusion(i, j, size, proof1, proof2, root, leaves); err != nil {
+						t.Errorf("VerifyRangeInclusion(): %v", err)
+					}
+				})
+			}
+		}
+	}
+}
+
+func TestVerifyRangeInclusionErrors(t *testing.T) {
+	begin, end, size := int64(10), int64(20), int64(74)
+	tree, v := createTree(size)
+	root := tree.CurrentRoot().Hash()
+	leaves := make([][]byte, end-begin)
+	for i := begin; i < end; i++ {
+		leaves[i-begin] = tree.LeafHash(i + 1)
+	}
+	_, proof1 := getLeafAndProof(tree, begin)
+	_, proof2 := getLeafAndProof(tree, end-1)
+
+	if err := v.VerifyRangeInclusion(begin, end, size, proof1, proof2, root, leaves); err != nil {
+		t.Fatalf("VerifyRangeInclusion(): %v", err)
+	}
+
+	if err := v.VerifyRangeInclusion(begin+1, end, size, proof1, proof2, root, leaves); err == nil {
+		t.Errorf("VerifyRangeInclusion(begin+1): expected err")
+	}
+	if err := v.VerifyRangeInclusion(begin-1, end, size, proof1, proof2, root, leaves); err == nil {
+		t.Errorf("VerifyRangeInclusion(begin-1): expected err")
+	}
+	if err := v.VerifyRangeInclusion(begin, end+1, size, proof1, proof2, root, leaves); err == nil {
+		t.Errorf("VerifyRangeInclusion(end+1): expected err")
+	}
+	if err := v.VerifyRangeInclusion(begin, end-1, size, proof1, proof2, root, leaves); err == nil {
+		t.Errorf("VerifyRangeInclusion(end-1): expected err")
+	}
+	if err := v.VerifyRangeInclusion(begin, end, size, proof2, proof1, root, leaves); err == nil {
+		t.Errorf("VerifyRangeInclusion(proof2, proof1): expected err")
+	}
+
+	leaves[5][3] ^= 8 // Flip one bit in the middle of the range, why not?
+	// But now the range verification fails.
+	if err := v.VerifyRangeInclusion(begin, end, size, proof1, proof2, root, leaves); err == nil {
+		t.Errorf("VerifyRangeInclusion(corrupted leaves): expected err")
+	}
+	// TODO(pavelkalinnikov): Do more rigorous corruption.
+}
+
 func dh(h string) []byte {
 	r, err := hex.DecodeString(h)
 	if err != nil {
