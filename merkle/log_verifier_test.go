@@ -118,8 +118,8 @@ var (
 	}
 )
 
-// inclVerifProbe is a parameter set for inclusion proof verification.
-type inclVerifProbe struct {
+// inclusionProbe is a parameter set for inclusion proof verification.
+type inclusionProbe struct {
 	leafIndex int64
 	treeSize  int64
 	root      []byte
@@ -129,8 +129,8 @@ type inclVerifProbe struct {
 	desc string
 }
 
-// consVerifProbe is a parameter set for consistency proof verification.
-type consVerifProbe struct {
+// consistencyProbe is a parameter set for consistency proof verification.
+type consistencyProbe struct {
 	snapshot1 int64
 	snapshot2 int64
 	root1     []byte
@@ -140,8 +140,8 @@ type consVerifProbe struct {
 	desc string
 }
 
-func corruptInclVerification(leafIndex, treeSize int64, proof [][]byte, root, leafHash []byte) []inclVerifProbe {
-	ret := []inclVerifProbe{
+func corruptInclVerification(leafIndex, treeSize int64, proof [][]byte, root, leafHash []byte) []inclusionProbe {
+	ret := []inclusionProbe{
 		// Wrong leaf index.
 		{leafIndex - 1, treeSize, root, leafHash, proof, "leafIndex - 1"},
 		{leafIndex + 1, treeSize, root, leafHash, proof, "leafIndex + 1"},
@@ -167,23 +167,23 @@ func corruptInclVerification(leafIndex, treeSize int64, proof [][]byte, root, le
 		wrongProof := append([][]byte(nil), proof...)
 		wrongProof[i][0] ^= 8
 		desc := fmt.Sprintf("modified proof[%d] bit 3", i)
-		ret = append(ret, inclVerifProbe{leafIndex, treeSize, root, leafHash, wrongProof, desc})
+		ret = append(ret, inclusionProbe{leafIndex, treeSize, root, leafHash, wrongProof, desc})
 	}
 
 	if ln > 0 {
-		ret = append(ret, inclVerifProbe{leafIndex, treeSize, root, leafHash, proof[:ln-1], "removed component"})
+		ret = append(ret, inclusionProbe{leafIndex, treeSize, root, leafHash, proof[:ln-1], "removed component"})
 	}
 	if ln > 1 {
 		wrongProof := append([][]byte{proof[0], sha256SomeHash}, proof[1:]...)
-		ret = append(ret, inclVerifProbe{leafIndex, treeSize, root, leafHash, wrongProof, "inserted component"})
+		ret = append(ret, inclusionProbe{leafIndex, treeSize, root, leafHash, wrongProof, "inserted component"})
 	}
 
 	return ret
 }
 
-func corruptConsVerification(snapshot1, snapshot2 int64, root1, root2 []byte, proof [][]byte) []consVerifProbe {
+func corruptConsVerification(snapshot1, snapshot2 int64, root1, root2 []byte, proof [][]byte) []consistencyProbe {
 	ln := len(proof)
-	ret := []consVerifProbe{
+	ret := []consistencyProbe{
 		// Wrong snapshot index.
 		{snapshot1 - 1, snapshot2, root1, root2, proof, "snapshot1 - 1"},
 		{snapshot1 + 1, snapshot2, root1, root2, proof, "snapshot1 + 1"},
@@ -210,7 +210,7 @@ func corruptConsVerification(snapshot1, snapshot2 int64, root1, root2 []byte, pr
 
 	// Remove a node from the end.
 	if ln > 0 {
-		ret = append(ret, consVerifProbe{snapshot1, snapshot2, root1, root2, proof[:ln-1], "truncated proof"})
+		ret = append(ret, consistencyProbe{snapshot1, snapshot2, root1, root2, proof[:ln-1], "truncated proof"})
 	}
 
 	// Modify single bit in an element of the proof.
@@ -218,7 +218,7 @@ func corruptConsVerification(snapshot1, snapshot2 int64, root1, root2 []byte, pr
 		wrongProof := append([][]byte(nil), proof...)
 		wrongProof[i][0] ^= 16
 		desc := fmt.Sprintf("modified proof[%d] bit 4", i)
-		ret = append(ret, consVerifProbe{snapshot1, snapshot2, root1, root2, wrongProof, desc})
+		ret = append(ret, consistencyProbe{snapshot1, snapshot2, root1, root2, wrongProof, desc})
 	}
 
 	return ret
