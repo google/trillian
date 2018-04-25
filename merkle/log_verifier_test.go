@@ -354,6 +354,72 @@ func TestVerifyConsistencyProof(t *testing.T) {
 	}
 }
 
+func TestPrefixHashFromInclusionProofGenerated(t *testing.T) {
+	var sizes []int64
+	for s := 1; s <= 258; s++ {
+		sizes = append(sizes, int64(s))
+	}
+	sizes = append(sizes, []int64{1024, 5050, 10000}...)
+
+	tree, verif := createTree(0)
+	for _, size := range sizes {
+		growTree(tree, size)
+		root := tree.CurrentRoot().Hash()
+
+		for i := int64(0); i < size; i++ {
+			t.Run(fmt.Sprintf("size:%d:prefix:%d", size, i), func(t *testing.T) {
+				leaf, proof := getLeafAndProof(tree, i)
+				pRoot, err := verif.VerifiedPrefixHashFromInclusionProof(i, size, proof, root, leaf)
+				if err != nil {
+					t.Fatalf("VerifiedPrefixHashFromInclusionProof(): %v", err)
+				}
+				exp := tree.RootAtSnapshot(i).Hash()
+				if !bytes.Equal(pRoot, exp) {
+					t.Fatalf("wrong prefix hash: %s, want %s", shortHash(pRoot), shortHash(exp))
+				}
+			})
+		}
+	}
+}
+
+func TestPrefixHashFromInclusionProofErrors(t *testing.T) {
+	size := int64(307)
+	tree, verif := createTree(size)
+	root := tree.CurrentRoot().Hash()
+
+	// Proofs for #2 and #3 are same length, unlike #306. We will use that below.
+	leaf2, proof2 := getLeafAndProof(tree, 2)
+	_, proof3 := getLeafAndProof(tree, 3)
+	_, proof306 := getLeafAndProof(tree, 306)
+
+	idxTests := []struct {
+		index int64
+		size  int64
+	}{
+		{-1, -1}, {-10, -1}, {-1, -10},
+		{10, -1}, {10, 0}, {10, 9},
+		{0, -1}, {0, 0}, {-1, 0},
+		{-1, size}, {size, size}, {size + 1, size}, {size + 100, size},
+	}
+	for _, it := range idxTests {
+		if _, err := verif.VerifiedPrefixHashFromInclusionProof(it.index, it.size, proof2, root, leaf2); err == nil {
+			t.Errorf("VerifiedPrefixHashFromInclusionProof(%d,%d): expected error", it.index, it.size)
+		}
+	}
+
+	if _, err := verif.VerifiedPrefixHashFromInclusionProof(2, size, proof2, root, leaf2); err != nil {
+		t.Errorf("VerifiedPrefixHashFromInclusionProof(): %v, expected no error", err)
+	}
+	// Note: Proofs #2 and #3 are same lengths, plus the procedure of computing
+	// [0..2) root hash for both of them would return the same correct result.
+	// However, the proof #3 can't be verified against index #2, hence the error.
+	for _, proof := range [][][]byte{proof3, proof306} {
+		if _, err := verif.VerifiedPrefixHashFromInclusionProof(2, size, proof, root, leaf2); err == nil {
+			t.Error("VerifiedPrefixHashFromInclusionProof(): expected error")
+		}
+	}
+}
+
 func dh(h string, expLen int) []byte {
 	r, err := hex.DecodeString(h)
 	if err != nil {
@@ -363,4 +429,35 @@ func dh(h string, expLen int) []byte {
 		panic(fmt.Sprintf("decode %q: len=%d, want %d", h, got, expLen))
 	}
 	return r
+}
+
+func shortHash(hash []byte) string {
+	if len(hash) == 0 {
+		return "<empty>"
+	}
+	return fmt.Sprintf("%x...", hash[:4])
+}
+
+func createTree(size int64) (*InMemoryMerkleTree, LogVerifier) {
+	tree := NewInMemoryMerkleTree(rfc6962.DefaultHasher)
+	growTree(tree, size)
+	return tree, NewLogVerifier(rfc6962.DefaultHasher)
+}
+
+func growTree(tree *InMemoryMerkleTree, upTo int64) {
+	for i := tree.LeafCount(); i < upTo; i++ {
+		data := []byte(fmt.Sprintf("data:%d", i))
+		tree.AddLeaf(data)
+	}
+}
+
+func getLeafAndProof(tree *InMemoryMerkleTree, index int64) ([]byte, [][]byte) {
+	// Note: InMemoryMerkleTree counts leaves from 1.
+	desc := tree.PathToCurrentRoot(index + 1)
+	proof := make([][]byte, len(desc))
+	for i, d := range desc {
+		proof[i] = d.Value.Hash()
+	}
+	leafHash := tree.LeafHash(index + 1)
+	return leafHash, proof
 }
