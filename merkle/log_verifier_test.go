@@ -133,18 +133,19 @@ func corruptInclVerification(leafIndex, treeSize int64, proof [][]byte, root, le
 		{leafIndex, treeSize, sha256EmptyTreeHash, leafHash, proof, "empty root"},
 		{leafIndex, treeSize, sha256SomeHash, leafHash, proof, "random root"},
 		// Add garbage at the end.
-		{leafIndex, treeSize, root, leafHash, append(proof, []byte{}), "trailing garbage"},
-		{leafIndex, treeSize, root, leafHash, append(proof, root), "trailing root"},
+		{leafIndex, treeSize, root, leafHash, extend(proof, []byte{}), "trailing garbage"},
+		{leafIndex, treeSize, root, leafHash, extend(proof, root), "trailing root"},
 		// Add garbage at the front.
-		{leafIndex, treeSize, root, leafHash, append([][]byte{{}}, proof...), "preceding garbage"},
-		{leafIndex, treeSize, root, leafHash, append([][]byte{root}, proof...), "preceding root"},
+		{leafIndex, treeSize, root, leafHash, prepend(proof, []byte{}), "preceding garbage"},
+		{leafIndex, treeSize, root, leafHash, prepend(proof, root), "preceding root"},
 	}
 	ln := len(proof)
 
 	// Modify single bit in an element of the proof.
 	for i := 0; i < ln; i++ {
-		wrongProof := append([][]byte(nil), proof...)
-		wrongProof[i][0] ^= 8
+		wrongProof := prepend(proof)                          // Copy the proof slice.
+		wrongProof[i] = append([]byte(nil), wrongProof[i]...) // But also the modified data.
+		wrongProof[i][0] ^= 8                                 // Flip the bit.
 		desc := fmt.Sprintf("modified proof[%d] bit 3", i)
 		ret = append(ret, inclusionProbe{leafIndex, treeSize, root, leafHash, wrongProof, desc})
 	}
@@ -153,7 +154,7 @@ func corruptInclVerification(leafIndex, treeSize int64, proof [][]byte, root, le
 		ret = append(ret, inclusionProbe{leafIndex, treeSize, root, leafHash, proof[:ln-1], "removed component"})
 	}
 	if ln > 1 {
-		wrongProof := append([][]byte{proof[0], sha256SomeHash}, proof[1:]...)
+		wrongProof := prepend(proof[1:], proof[0], sha256SomeHash)
 		ret = append(ret, inclusionProbe{leafIndex, treeSize, root, leafHash, wrongProof, "inserted component"})
 	}
 
@@ -177,14 +178,14 @@ func corruptConsVerification(snapshot1, snapshot2 int64, root1, root2 []byte, pr
 		// Empty proof.
 		{snapshot1, snapshot2, root1, root2, [][]byte{}, "empty proof"},
 		// Add garbage at the end.
-		{snapshot1, snapshot2, root1, root2, append(proof, []byte{}), "trailing garbage"},
-		{snapshot1, snapshot2, root1, root2, append(proof, root1), "trailing root1"},
-		{snapshot1, snapshot2, root1, root2, append(proof, root2), "trailing root2"},
+		{snapshot1, snapshot2, root1, root2, extend(proof, []byte{}), "trailing garbage"},
+		{snapshot1, snapshot2, root1, root2, extend(proof, root1), "trailing root1"},
+		{snapshot1, snapshot2, root1, root2, extend(proof, root2), "trailing root2"},
 		// Add garbage at the front.
-		{snapshot1, snapshot2, root1, root2, append([][]byte{{}}, proof...), "preceding garbage"},
-		{snapshot1, snapshot2, root1, root2, append([][]byte{root1}, proof...), "preceding root1"},
-		{snapshot1, snapshot2, root1, root2, append([][]byte{root2}, proof...), "preceding root2"},
-		{snapshot1, snapshot2, root1, root2, append([][]byte{proof[0]}, proof...), "preceding proof[0]"},
+		{snapshot1, snapshot2, root1, root2, prepend(proof, []byte{}), "preceding garbage"},
+		{snapshot1, snapshot2, root1, root2, prepend(proof, root1), "preceding root1"},
+		{snapshot1, snapshot2, root1, root2, prepend(proof, root2), "preceding root2"},
+		{snapshot1, snapshot2, root1, root2, prepend(proof, proof[0]), "preceding proof[0]"},
 	}
 
 	// Remove a node from the end.
@@ -194,8 +195,9 @@ func corruptConsVerification(snapshot1, snapshot2 int64, root1, root2 []byte, pr
 
 	// Modify single bit in an element of the proof.
 	for i := 0; i < ln; i++ {
-		wrongProof := append([][]byte(nil), proof...)
-		wrongProof[i][0] ^= 16
+		wrongProof := prepend(proof)                          // Copy the proof slice.
+		wrongProof[i] = append([]byte(nil), wrongProof[i]...) // But also the modified data.
+		wrongProof[i][0] ^= 16                                // Flip the bit.
 		desc := fmt.Sprintf("modified proof[%d] bit 4", i)
 		ret = append(ret, consistencyProbe{snapshot1, snapshot2, root1, root2, wrongProof, desc})
 	}
@@ -275,12 +277,11 @@ func TestVerifyInclusionProof(t *testing.T) {
 	for i := 1; i < 6; i++ {
 		p := inclusionProofs[i]
 		t.Run(fmt.Sprintf("proof:%d", i), func(t *testing.T) {
-			proof := p.proof
 			leafHash, err := rfc6962.DefaultHasher.HashLeaf(leaves[p.leaf-1])
 			if err != nil {
 				t.Fatalf("HashLeaf(): %v", err)
 			}
-			if err := verifierCheck(&v, p.leaf-1, p.snapshot, proof, roots[p.snapshot-1], leafHash); err != nil {
+			if err := verifierCheck(&v, p.leaf-1, p.snapshot, p.proof, roots[p.snapshot-1], leafHash); err != nil {
 				t.Errorf("verifierCheck(): %s", err)
 			}
 		})
@@ -418,6 +419,18 @@ func TestPrefixHashFromInclusionProofErrors(t *testing.T) {
 			t.Error("VerifiedPrefixHashFromInclusionProof(): expected error")
 		}
 	}
+}
+
+// extend explicitly copies |proof| slice and appends |hashes| to it.
+func extend(proof [][]byte, hashes ...[]byte) [][]byte {
+	res := make([][]byte, len(proof), len(proof)+len(hashes))
+	copy(res, proof)
+	return append(res, hashes...)
+}
+
+// prepend adds |proof| to the tail of |hashes|.
+func prepend(proof [][]byte, hashes ...[]byte) [][]byte {
+	return append(hashes, proof...)
 }
 
 func dh(h string, expLen int) []byte {
